@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}รายงานการเงิน{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">รายงานการเงิน <span class="muted" style="font-size:16px;">ปีงบ {{ fiscal_year }}</span></h1>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <form method="get" action="/finance/report">
+        <select name="year" onchange="this.form.submit()">
+          {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
+        </select>
+      </form>
+      <a class="btn sm green" href="/finance/report.xlsx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลด Excel</a>
+    </div>
+  </div>
+  <div class="stat" style="margin-top:10px;">
+    <div class="box"><div><div class="lab">รวมรับ</div><div class="num">{{ "{:,.2f}".format(total_in) }}</div></div>
+      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-download"/></svg></span></div>
+    <div class="box"><div><div class="lab">รวมจ่าย</div><div class="num">{{ "{:,.2f}".format(total_out) }}</div></div>
+      <span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-upload"/></svg></span></div>
+    <div class="box"><div><div class="lab">คงเหลือรวม</div><div class="num">{{ "{:,.2f}".format(total_bal) }}</div></div>
+      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>สรุปแยกบัญชี</h2>
+  {% if summary %}
+  <table>
+    <thead><tr><th>บัญชี/ประเภทเงิน</th><th class="right">ยอดยกมา</th><th class="right">รวมรับ</th><th class="right">รวมจ่าย</th><th class="right">คงเหลือ</th></tr></thead>
+    <tbody>
+      {% for s in summary %}
+      <tr>
+        <td>{{ s.name }}</td>
+        <td class="right">{{ "{:,.2f}".format(s.opening) }}</td>
+        <td class="right" style="color:#16a34a;">{{ "{:,.2f}".format(s.tin) }}</td>
+        <td class="right" style="color:#dc2626;">{{ "{:,.2f}".format(s.tout) }}</td>
+        <td class="right"><b>{{ "{:,.2f}".format(s.bal) }}</b></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr style="background:#f1f5f9; font-weight:700;">
+        <td>รวมทั้งสิ้น</td><td></td>
+        <td class="right">{{ "{:,.2f}".format(total_in) }}</td>
+        <td class="right">{{ "{:,.2f}".format(total_out) }}</td>
+        <td class="right">{{ "{:,.2f}".format(total_bal) }}</td>
+      </tr>
+    </tfoot>
+  </table>
+  {% else %}<p class="muted">ยังไม่มีบัญชี/รายการในปีงบนี้ — <a href="/finance/accounts">เพิ่มบัญชี</a></p>{% endif %}
+</div>
+{% endblock %}

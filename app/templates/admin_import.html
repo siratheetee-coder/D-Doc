@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}นำเข้าทะเบียนหนังสือ{% endblock %}
+{% block content %}
+<div class="card" style="border:1px solid #ddd6fe; background:#faf8ff;">
+  <h1><svg class="icon"><use href="#ic-download"/></svg> นำเข้าทะเบียนหนังสือจาก Excel</h1>
+
+  {% if import_err %}
+  <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> นำเข้าไม่สำเร็จ: {{ import_err }}</div>
+  {% endif %}
+  {% if import_lines %}
+  <div class="alert"><svg class="icon"><use href="#ic-check"/></svg>
+    <div style="flex:1;"><b>นำเข้าเรียบร้อย</b>
+      <ul style="margin:6px 0 0; padding-left:20px;">{% for ln in import_lines %}<li>{{ ln }}</li>{% endfor %}</ul>
+    </div>
+  </div>
+  {% endif %}
+
+  <ol class="muted" style="margin:6px 0 14px; padding-left:22px; line-height:1.9;">
+    <li>กด <b>ดาวน์โหลดเทมเพลต</b> จะได้ไฟล์ Excel 2 ชีต: หนังสือรับ / หนังสือส่ง</li>
+    <li>กรอกข้อมูลตั้งแต่ <b>แถวที่ 3</b> (แถวที่ 2 คือหัวตาราง) — วันที่เป็น พ.ศ. เช่น 09/06/2569</li>
+    <li>กลับมา <b>เลือกไฟล์</b> แล้วกด <b>อัปโหลด</b></li>
+  </ol>
+
+  <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+    <a class="btn green sm" href="/admin/template.xlsx"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเทมเพลต</a>
+    <form method="post" action="/admin/import" enctype="multipart/form-data"
+          style="display:flex; gap:8px; align-items:center; margin:0; flex-wrap:wrap;">
+      <input type="file" name="file" accept=".xlsx" required
+             style="padding:6px; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
+      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลด</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

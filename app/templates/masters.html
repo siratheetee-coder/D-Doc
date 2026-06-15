@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}บุคลากร/ฝ่าย/โครงการ{% endblock %}
+{% block content %}
+<datalist id="positions">{% for ps in positions %}<option value="{{ ps }}">{% endfor %}</datalist>
+
+<div class="card">
+  <h1>ข้อมูลตั้งต้น (เลือกใช้ซ้ำได้)</h1>
+  <p class="muted">เพิ่มรายชื่อแค่ครั้งเดียว แล้วเลือกใช้ตอนสร้างเรื่อง พอเลือกชื่อคน ระบบจะเติมตำแหน่งให้อัตโนมัติ — แก้ไขได้โดยพิมพ์ทับแล้วกดบันทึก</p>
+  {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกเรียบร้อย</div>{% endif %}
+</div>
+
+<!-- นำเข้าจาก Excel ทีละมาก ๆ -->
+<div class="card" style="border:1px solid #c7d7fb; background:#f5f9ff;">
+  <h2><svg class="icon"><use href="#ic-download"/></svg> นำเข้าจาก Excel (กรอกทีเดียวหลายร้อยรายการ)</h2>
+
+  {% if import_err %}
+  <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> นำเข้าไม่สำเร็จ: {{ import_err }}</div>
+  {% endif %}
+  {% if import_lines %}
+  <div class="alert"><svg class="icon"><use href="#ic-check"/></svg>
+    <div style="flex:1;"><b>นำเข้าเรียบร้อย</b>
+      <ul style="margin:6px 0 0; padding-left:20px;">
+        {% for ln in import_lines %}<li>{{ ln }}</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  <ol class="muted" style="margin:6px 0 14px; padding-left:22px; line-height:1.9;">
+    <li>กด <b>ดาวน์โหลดเทมเพลต</b> จะได้ไฟล์ Excel ที่มีชีต: โรงเรียน / บุคลากร / ฝ่าย-งาน / โครงการ / ผู้ขาย</li>
+    <li>เปิดใน Excel กรอกข้อมูลตั้งแต่ <b>แถวที่ 3</b> ลงไป (แถวที่ 2 คือหัวตาราง ห้ามลบ)</li>
+    <li>กลับมา <b>เลือกไฟล์</b> แล้วกด <b>อัปโหลด</b> — ระบบเพิ่มให้อัตโนมัติ (ชื่อที่มีอยู่แล้วจะข้ามให้ ไม่ซ้ำ)</li>
+  </ol>
+
+  <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+    <a class="btn green sm" href="/masters/template.xlsx"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเทมเพลต</a>
+    <form method="post" action="/masters/import" enctype="multipart/form-data"
+          style="display:flex; gap:8px; align-items:center; margin:0; flex-wrap:wrap;">
+      <input type="file" name="file" accept=".xlsx" required
+             style="padding:6px; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
+      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลด</button>
+    </form>
+  </div>
+</div>
+
+<!-- บุคลากร: การ์ดเต็มความกว้าง เพื่อให้ชื่อ/ตำแหน่งแสดงเต็ม -->
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-users"/></svg> บุคลากร (ครู/กรรมการ/ผู้ลงนาม)</h2>
+  <form method="post" action="/masters/person">
+    <div class="row">
+      <div><label>ชื่อ-นามสกุล</label><input name="name" required placeholder="เช่น นายสมชาย ใจดี"></div>
+      <div><label>ตำแหน่ง</label><input name="position" list="positions" value="ครู" placeholder="เลือกหรือพิมพ์"></div>
+    </div>
+    <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มบุคลากร</button>
+  </form>
+  <table>
+    <thead><tr><th style="width:50%;">ชื่อ-นามสกุล</th><th style="width:32%;">ตำแหน่ง</th><th></th></tr></thead>
+    <tbody>
+      {% for p in persons %}
+      <tr>
+        <td><form id="pf{{ p.id }}" method="post" action="/masters/person/{{ p.id }}/update"><input name="name" value="{{ p.name }}" required></form></td>
+        <td><input name="position" value="{{ p.position }}" list="positions" form="pf{{ p.id }}"></td>
+        <td class="right" style="white-space:nowrap;">
+          <button class="btn sm" type="submit" form="pf{{ p.id }}"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
+          <form method="post" action="/masters/person/{{ p.id }}/delete" style="display:inline"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
+        </td>
+      </tr>
+      {% else %}<tr><td colspan="3" class="muted">ยังไม่มี</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-building"/></svg> ฝ่าย/งาน</h2>
+  <form method="post" action="/masters/department">
+    <label>ชื่อฝ่าย/งาน</label>
+    <input name="name" required placeholder="เช่น ฝ่ายบริหารงานวิชาการ">
+    <br><br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button>
+  </form>
+  <table>
+    <thead><tr><th style="width:85%;">ชื่อ</th><th></th></tr></thead>
+    <tbody>
+      {% for d in departments %}
+      <tr>
+        <td><form id="df{{ d.id }}" method="post" action="/masters/department/{{ d.id }}/update"><input name="name" value="{{ d.name }}" required></form></td>
+        <td class="right" style="white-space:nowrap;">
+          <button class="btn sm" type="submit" form="df{{ d.id }}"><svg class="icon"><use href="#ic-save"/></svg></button>
+          <form method="post" action="/masters/department/{{ d.id }}/delete" style="display:inline"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
+        </td>
+      </tr>
+      {% else %}<tr><td colspan="2" class="muted">ยังไม่มี</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-folder"/></svg> โครงการ</h2>
+  <form method="post" action="/masters/project">
+    <div class="row">
+      <div style="flex:3;"><label>ชื่อโครงการ</label><input name="name" required placeholder="เช่น โครงการวันสำคัญทางวิชาการ"></div>
+      <div style="flex:1;"><label>งบประมาณ (บาท)</label><input name="budget" type="number" step="0.01" min="0" value="0"></div>
+      <div style="flex:2;"><label>รายละเอียด/แหล่งงบ</label><input name="budget_note" placeholder="เช่น เงินอุดหนุนรายหัว"></div>
+    </div>
+    <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button>
+  </form>
+  <table>
+    <thead><tr><th>ชื่อโครงการ</th><th style="width:200px;">รายละเอียด/แหล่งงบ</th><th style="width:150px;">งบ (บาท)</th><th style="width:90px;"></th></tr></thead>
+    <tbody>
+      {% for pj in projects %}
+      <tr>
+        <td><form id="jf{{ pj.id }}" method="post" action="/masters/project/{{ pj.id }}/update"><input name="name" value="{{ pj.name }}" required></form></td>
+        <td><input name="budget_note" value="{{ pj.budget_note or '' }}" placeholder="รายละเอียด/แหล่งงบ" form="jf{{ pj.id }}"></td>
+        <td><input name="budget" type="number" step="0.01" min="0" value="{{ pj.budget or 0 }}" form="jf{{ pj.id }}"></td>
+        <td class="right" style="white-space:nowrap;">
+          <button class="btn sm" type="submit" form="jf{{ pj.id }}"><svg class="icon"><use href="#ic-save"/></svg></button>
+          <form method="post" action="/masters/project/{{ pj.id }}/delete" style="display:inline"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
+        </td>
+      </tr>
+      {% else %}<tr><td colspan="4" class="muted">ยังไม่มี</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

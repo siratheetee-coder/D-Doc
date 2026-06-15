@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}ทะเบียนครุภัณฑ์{% endblock %}
+{% block content %}
+<datalist id="cats">{% for c in categories %}<option value="{{ c }}">{% endfor %}</datalist>
+
+<div class="hero">
+  <div>
+    <div class="hero-sub">ทะเบียนคุมทรัพย์สิน + ค่าเสื่อมราคา (เส้นตรง)</div>
+    <span class="hero-title">ครุภัณฑ์</span>
+    <div class="hero-meta">ราคาทุนรวม {{ "{:,.2f}".format(total_cost) }} บาท · มูลค่าสุทธิปัจจุบัน {{ "{:,.2f}".format(total_nbv) }} บาท</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มครุภัณฑ์</h2>
+  {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกเรียบร้อย</div>{% endif %}
+  <form method="post" action="/assets">
+    <div class="row">
+      <div style="flex:2;"><label>ชื่อครุภัณฑ์ *</label><input name="name" required placeholder="เช่น เครื่องคอมพิวเตอร์ตั้งโต๊ะ"></div>
+      <div><label>เลขครุภัณฑ์</label><input name="asset_code" placeholder="7440-001-0001/2569"></div>
+    </div>
+    <div class="row">
+      <div><label>ประเภท</label><input name="category" list="cats" value="ครุภัณฑ์สำนักงาน" oninput="syncLife(this)"></div>
+      <div><label>วันที่ได้มา</label><input name="acquired_date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>ราคาทุน (บาท)</label><input name="cost" type="number" step="0.01" min="0" value="0"></div>
+    </div>
+    <div class="row">
+      <div><label>อายุการใช้งาน (ปี)</label><input name="useful_life" id="life_new" type="number" min="1" value="12"></div>
+      <div><label>มูลค่าซาก (บาท)</label><input name="salvage_value" type="number" step="0.01" min="0" value="1"></div>
+      <div><label>แหล่งเงิน</label><input name="funding_source" placeholder="เช่น เงินอุดหนุน"></div>
+    </div>
+    <div class="row">
+      <div style="flex:2;"><label>สถานที่ตั้ง/ผู้รับผิดชอบ</label><input name="location" placeholder="เช่น ห้องธุรการ"></div>
+      <div style="flex:2;"><label>ผู้ขาย</label><input name="vendor_name"></div>
+    </div>
+    <br><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มครุภัณฑ์</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>รายการครุภัณฑ์ ({{ assets|length }})</h2>
+  {% if assets %}
+  <div style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr><th>เลขครุภัณฑ์</th><th>ชื่อ/ประเภท</th><th>ได้มา</th>
+          <th class="right">ราคาทุน</th><th class="right">ค่าเสื่อม/ปี</th>
+          <th class="right">ค่าเสื่อมสะสม</th><th class="right">มูลค่าสุทธิ</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for a in assets %}
+      <tr>
+        <td>{{ a.asset_code or "-" }}</td>
+        <td><b>{{ a.name }}</b><br><span class="muted" style="font-size:13px;">{{ a.category }}{% if a.location %} · {{ a.location }}{% endif %}</span></td>
+        <td>{{ thai_date(a.acquired_date) if a.acquired_date else "-" }}</td>
+        <td class="right">{{ "{:,.2f}".format(a.cost or 0) }}</td>
+        <td class="right">{{ "{:,.2f}".format(annual_dep(a.cost, a.salvage_value, a.useful_life)) }}</td>
+        <td class="right">{{ "{:,.2f}".format(accum_dep(a.cost, a.salvage_value, a.useful_life, a.acquired_date)) }}</td>
+        <td class="right"><b>{{ "{:,.2f}".format(nbv(a.cost, a.salvage_value, a.useful_life, a.acquired_date)) }}</b></td>
+        <td class="right" style="white-space:nowrap;">
+          <a class="btn sm gray" href="/assets/{{ a.id }}/schedule"><svg class="icon"><use href="#ic-clipboard"/></svg> ตารางค่าเสื่อม</a>
+          <button class="btn sm" type="button" onclick="document.getElementById('edit{{ a.id }}').style.display='block'"><svg class="icon"><use href="#ic-edit"/></svg></button>
+        </td>
+      </tr>
+      <tr id="edit{{ a.id }}" style="display:none;">
+        <td colspan="8" style="background:#f8fafc;">
+          <form method="post" action="/assets/{{ a.id }}/update">
+            <div class="row">
+              <div style="flex:2;"><label>ชื่อ</label><input name="name" value="{{ a.name }}" required></div>
+              <div><label>เลขครุภัณฑ์</label><input name="asset_code" value="{{ a.asset_code }}"></div>
+              <div><label>ประเภท</label><input name="category" list="cats" value="{{ a.category }}"></div>
+            </div>
+            <div class="row">
+              <div><label>วันที่ได้มา</label><input name="acquired_date" value="{{ be_date(a.acquired_date) }}" data-date="1"></div>
+              <div><label>ราคาทุน</label><input name="cost" type="number" step="0.01" value="{{ a.cost or 0 }}"></div>
+              <div><label>อายุ (ปี)</label><input name="useful_life" type="number" min="1" value="{{ a.useful_life }}"></div>
+              <div><label>มูลค่าซาก</label><input name="salvage_value" type="number" step="0.01" value="{{ a.salvage_value }}"></div>
+            </div>
+            <div class="row">
+              <div style="flex:2;"><label>สถานที่/ผู้รับผิดชอบ</label><input name="location" value="{{ a.location }}"></div>
+              <div><label>แหล่งเงิน</label><input name="funding_source" value="{{ a.funding_source }}"></div>
+              <div><label>สถานะ</label>
+                <select name="status"><option {{ "selected" if a.status=="ใช้งาน" }}>ใช้งาน</option><option {{ "selected" if a.status=="จำหน่ายแล้ว" }}>จำหน่ายแล้ว</option></select>
+              </div>
+            </div>
+            <input type="hidden" name="vendor_name" value="{{ a.vendor_name }}">
+            <br>
+            <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
+            <button class="btn sm red" type="button" onclick="if(confirm('ลบครุภัณฑ์นี้?')){this.nextElementSibling.submit()}"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button>
+            <form method="post" action="/assets/{{ a.id }}/delete" style="display:none;"></form>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">ยังไม่มีครุภัณฑ์ โปรดเพิ่มครุภัณฑ์ด้านบน หรือนำเข้าจากเรื่องจัดซื้อ (ปุ่ม "นำเข้าทะเบียน" ในหน้ารายละเอียดเรื่อง)</p>
+  {% endif %}
+</div>
+
+<script>
+  var CAT_LIFE = {{ category_life | tojson }};
+  function syncLife(el) {
+    var life = CAT_LIFE[el.value];
+    if (life) document.getElementById('life_new').value = life;
+  }
+  // date mask
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

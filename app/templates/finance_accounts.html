@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}ทะเบียนคุมเงิน{% endblock %}
+{% block content %}
+<div class="hero" style="background:linear-gradient(120deg,#15803d,#16a34a 55%,#4ade80); box-shadow:0 10px 26px rgba(22,163,74,.28);">
+  <div>
+    <div class="hero-sub">บัญชี/ประเภทเงิน (รับ-จ่าย-คงเหลือ) · ปีงบ {{ fiscal_year }}</div>
+    <span class="hero-title">ทะเบียนคุมเงิน</span>
+    <div class="hero-meta">{{ accounts|length }} บัญชี</div>
+  </div>
+  <form method="get" action="/finance/accounts">
+    <select name="year" onchange="this.form.submit()" style="color:var(--text);">
+      {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มบัญชี/ประเภทเงิน</h2>
+  <form method="post" action="/finance/accounts">
+    <div class="row">
+      <div style="flex:2;"><label>ชื่อบัญชี *</label><input name="name" required placeholder="เช่น เงินอุดหนุน, รายได้สถานศึกษา, อาหารกลางวัน"></div>
+      <div><label>ยอดยกมา (บาท)</label><input name="opening_balance" type="number" step="0.01" value="0"></div>
+      <div><label>เก็บเงินไว้ที่</label>
+        <select name="deposit_type">
+          <option value="bank">เงินฝากธนาคาร</option>
+          <option value="cash">เงินสด</option>
+          <option value="agency">เงินฝากส่วนราชการผู้เบิก</option>
+        </select>
+      </div>
+      <div style="flex:2;"><label>หมายเหตุ</label><input name="note"></div>
+    </div>
+    <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>บัญชีทั้งหมด</h2>
+  {% if accounts %}
+  <table>
+    <thead><tr><th>บัญชี/ประเภทเงิน</th><th>เก็บเงินไว้ที่</th><th class="right">ยอดยกมา (ปีงบ {{ fiscal_year }})</th><th class="right">คงเหลือ (ปีงบ {{ fiscal_year }})</th><th></th></tr></thead>
+    <tbody>
+      {% for a in accounts %}
+      <tr>
+        <td><a href="/finance/accounts/{{ a.id }}?year={{ fiscal_year }}"><b>{{ a.name }}</b></a>{% if a.note %} <span class="muted">· {{ a.note }}</span>{% endif %}</td>
+        <td>
+          <form method="post" action="/finance/accounts/{{ a.id }}/deposit-type" style="margin:0;">
+            <input type="hidden" name="year" value="{{ fiscal_year }}">
+            <select name="deposit_type" onchange="this.form.submit()" style="padding:5px 8px; font-size:14px;">
+              <option value="bank" {{ 'selected' if a.deposit_type=='bank' }}>เงินฝากธนาคาร</option>
+              <option value="cash" {{ 'selected' if a.deposit_type=='cash' }}>เงินสด</option>
+              <option value="agency" {{ 'selected' if a.deposit_type=='agency' }}>เงินฝากส่วนราชการผู้เบิก</option>
+            </select>
+          </form>
+        </td>
+        <td class="right">{{ "{:,.2f}".format(acct_opening(a, fiscal_year)) }}</td>
+        <td class="right"><b>{{ "{:,.2f}".format(acct_balance_year(a, fiscal_year)) }}</b></td>
+        <td class="right" style="white-space:nowrap;">
+          <a class="btn sm" href="/finance/accounts/{{ a.id }}?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-clipboard"/></svg> รับ-จ่าย</a>
+          <form method="post" action="/finance/accounts/{{ a.id }}/delete" style="display:inline" onsubmit="return confirm('ลบบัญชีนี้และรายการทั้งหมด?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">ยังไม่มีบัญชี กรุณาเพิ่มด้านที่บน หรือนำเข้าจาก Excel</p>
+  {% endif %}
+</div>
+{% endblock %}

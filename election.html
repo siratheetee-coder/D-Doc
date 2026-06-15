@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ผลการเลือกตั้งประธานนักเรียน</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "Tahoma", sans-serif;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #6dd5ed 100%);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+    user-select: none;
+    padding: 20px 0 40px;
+  }
+
+  h1 {
+    font-size: clamp(26px, 5vw, 50px);
+    text-align: center;
+    margin: 10px 20px;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    letter-spacing: 1px;
+  }
+  .subtitle {
+    font-size: clamp(14px, 2vw, 20px);
+    opacity: 0.85;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+
+  /* การ์ดผู้สมัคร */
+  .cards {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 0 20px;
+    max-width: 1150px;
+    align-items: flex-start;
+  }
+  .card {
+    background: rgba(255,255,255,0.12);
+    border: 4px solid rgba(255,255,255,0.25);
+    border-radius: 20px;
+    width: 300px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform .4s ease, box-shadow .4s ease, border-color .4s ease, opacity .6s ease;
+    position: relative;
+  }
+  .card img {
+    width: 100%;
+    display: block;
+  }
+  .card .label {
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    background: rgba(0,0,0,0.25);
+  }
+  .card .badge {
+    position: absolute;
+    top: 10px; left: 10px;
+    background: #ffd700;
+    color: #1e3c72;
+    font-size: 22px;
+    font-weight: 800;
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+    z-index: 2;
+  }
+
+  /* ลอยเบาๆ ตอนรอลุ้น (ก่อนกด) */
+  @keyframes floaty {
+    0%   { transform: translateY(0)    rotate(0deg); }
+    25%  { transform: translateY(-12px) rotate(-1.2deg); }
+    50%  { transform: translateY(0)    rotate(0deg); }
+    75%  { transform: translateY(-7px)  rotate(1.2deg); }
+    100% { transform: translateY(0)    rotate(0deg); }
+  }
+  .cards .card:not(.spinning):not(.winner):not(.loser) {
+    animation-name: floaty;
+    animation-duration: 3.4s;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+  }
+  .card.c1 { animation-delay: 0s; }
+  .card.c2 { animation-delay: -1.1s; }
+  .card.c3 { animation-delay: -2.2s; }
+
+  /* แสงเรืองรอบการ์ดตอนรอ ให้ดูน่าลุ้น */
+  @keyframes idleGlow {
+    0%,100% { box-shadow: 0 0 18px rgba(255,255,255,0.15); }
+    50%     { box-shadow: 0 0 38px rgba(255,255,255,0.45); }
+  }
+  .cards .card:not(.spinning):not(.winner):not(.loser) {
+    animation-name: floaty, idleGlow;
+    animation-duration: 3.4s, 2.6s;
+    animation-timing-function: ease-in-out, ease-in-out;
+    animation-iteration-count: infinite, infinite;
+  }
+
+  /* สถานะลุ้น */
+  .card.spinning {
+    animation: shake .25s infinite;
+    border-color: #ffd700;
+    box-shadow: 0 0 35px rgba(255,215,0,0.7);
+  }
+  @keyframes shake {
+    0%,100% { transform: translateY(0) rotate(0); }
+    25% { transform: translateY(-7px) rotate(-1deg); }
+    75% { transform: translateY(7px) rotate(1deg); }
+  }
+
+  /* ผู้ชนะ */
+  .card.winner {
+    transform: scale(1.12);
+    border-color: #ffd700;
+    box-shadow: 0 0 70px rgba(255,215,0,0.95);
+    z-index: 5;
+  }
+  .card.loser {
+    opacity: 0.3;
+    transform: scale(0.88);
+    filter: grayscale(70%);
+  }
+  .crown {
+    position: absolute;
+    top: -40px; left: 50%;
+    transform: translateX(-50%) scale(0);
+    font-size: 54px;
+    transition: transform .5s cubic-bezier(.2,1.6,.4,1);
+    z-index: 6;
+  }
+  .card.winner .crown { transform: translateX(-50%) scale(1); }
+
+  /* ข้อความสถานะ */
+  .status {
+    margin-top: 28px;
+    font-size: clamp(20px, 3vw, 34px);
+    font-weight: 700;
+    min-height: 50px;
+    text-align: center;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    padding: 0 16px;
+  }
+  .winner-banner {
+    color: #ffd700;
+    font-size: clamp(24px, 4vw, 44px);
+    animation: pop .5s ease;
+  }
+  @keyframes pop {
+    0% { transform: scale(0); }
+    70% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+  }
+
+  .hint {
+    margin-top: 22px;
+    font-size: 16px;
+    opacity: 0.75;
+    text-align: center;
+  }
+  .hint kbd {
+    background: rgba(255,255,255,0.25);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-weight: 700;
+    margin: 0 2px;
+  }
+  .reset-btn {
+    margin-top: 16px;
+    background: rgba(255,255,255,0.2);
+    border: 2px solid rgba(255,255,255,0.4);
+    color: #fff;
+    font-size: 16px;
+    padding: 10px 26px;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: background .2s;
+  }
+  .reset-btn:hover { background: rgba(255,255,255,0.35); }
+
+  /* confetti */
+  .confetti {
+    position: fixed;
+    top: -10px;
+    width: 10px; height: 18px;
+    opacity: 0.9;
+    z-index: 100;
+    animation: fall linear forwards;
+  }
+  @keyframes fall {
+    to { transform: translateY(105vh) rotate(720deg); opacity: 1; }
+  }
+</style>
+</head>
+<body>
+  <h1>🗳️ ผลการเลือกตั้งประธานนักเรียน</h1>
+  <div class="subtitle">โรงเรียนบ้านหินลาด • กดปุ่มหมายเลข เพื่อประกาศผู้ชนะ</div>
+
+  <div class="cards">
+    <div class="card c1" id="card-1">
+      <div class="crown">👑</div>
+      <div class="badge">1</div>
+      <img src="images/candidate1.png" alt="เบอร์ 1 พรรคทันโลก">
+      <div class="label">เบอร์ 1 • พรรคทันโลก</div>
+    </div>
+    <div class="card c2" id="card-2">
+      <div class="crown">👑</div>
+      <div class="badge">2</div>
+      <img src="images/candidate2.png" alt="เบอร์ 2 พรรคพลังใจ">
+      <div class="label">เบอร์ 2 • พรรคพลังใจ</div>
+    </div>
+    <div class="card c3" id="card-3">
+      <div class="crown">👑</div>
+      <div class="badge">3</div>
+      <img src="images/candidate3.png" alt="เบอร์ 3 พรรคคนรุ่นใหม่ หัวใจหินลาด">
+      <div class="label">เบอร์ 3 • พรรคคนรุ่นใหม่</div>
+    </div>
+  </div>
+
+  <audio id="idleMusic" src="images/Kahoot_ Soundtrack 10 sec Extended.mp3" preload="auto" loop></audio>
+  <audio id="cheerSound" src="images/cheering.mp3" preload="auto"></audio>
+
+  <div class="status" id="status">รอประกาศผล...</div>
+
+  <button class="reset-btn" id="resetBtn" style="display:none">🔄 เริ่มใหม่</button>
+
+  <div class="hint">
+    กด <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> เพื่อเลือกเบอร์ที่ชนะ &nbsp;(หรือคลิกที่การ์ดก็ได้)
+  </div>
+
+<script>
+  const cards = [null,
+    document.getElementById('card-1'),
+    document.getElementById('card-2'),
+    document.getElementById('card-3')
+  ];
+  const status = document.getElementById('status');
+  const resetBtn = document.getElementById('resetBtn');
+  const cheerSound = document.getElementById('cheerSound');
+  const idleMusic = document.getElementById('idleMusic');
+  idleMusic.volume = 0.6;
+  let busy = false;
+
+  // เริ่มเพลงลุ้น (วนลูป) ถ้ายังไม่อยู่ในรอบเฉลย
+  function startIdleMusic() {
+    if (busy) return;
+    idleMusic.play().catch(() => {});
+  }
+  function stopIdleMusic() {
+    idleMusic.pause();
+  }
+
+  function playCheerFile() {
+    try {
+      cheerSound.currentTime = 0;
+      cheerSound.volume = 1.0;
+      cheerSound.play();
+    } catch (e) {}
+  }
+
+  /* ===================== ระบบเสียง (Web Audio API) ===================== */
+  let audioCtx = null;
+  let drumNodes = null;
+
+  function getCtx() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  // สร้าง buffer สัญญาณรบกวน (white noise) ไว้ใช้ทำเสียงกลอง/ปรบมือ
+  function makeNoiseBuffer(ctx, seconds) {
+    const buf = ctx.createBuffer(1, ctx.sampleRate * seconds, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    return buf;
+  }
+
+  // เสียงกลองรัว — ดังขึ้นเรื่อยๆ ตามเวลาลุ้น
+  function startDrumRoll(durationMs) {
+    const ctx = getCtx();
+    const now = ctx.currentTime;
+    const dur = durationMs / 1000;
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = makeNoiseBuffer(ctx, dur + 0.5);
+    noise.loop = true;
+
+    // กรองให้เป็นย่านเสียงกลองสแนร์
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = 1800;
+    band.Q.value = 0.7;
+
+    // LFO ทำให้เกิดจังหวะ "รัว" สั่นถี่ๆ
+    const tremGain = ctx.createGain();
+    const lfo = ctx.createOscillator();
+    lfo.type = 'square';
+    lfo.frequency.setValueAtTime(18, now);
+    lfo.frequency.linearRampToValueAtTime(40, now + dur); // รัวถี่ขึ้นเมื่อใกล้จบ
+    const lfoDepth = ctx.createGain();
+    lfoDepth.gain.value = 0.5;
+    lfo.connect(lfoDepth);
+    lfoDepth.connect(tremGain.gain);
+
+    // ระดับเสียงรวม — ค่อยๆ ดังขึ้น
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.05, now);
+    master.gain.linearRampToValueAtTime(0.35, now + dur);
+    tremGain.gain.value = 0.5;
+
+    noise.connect(band);
+    band.connect(tremGain);
+    tremGain.connect(master);
+    master.connect(ctx.destination);
+
+    noise.start(now);
+    lfo.start(now);
+
+    drumNodes = { noise, lfo, master, ctx };
+  }
+
+  function stopDrumRoll() {
+    if (!drumNodes) return;
+    const { noise, lfo, master, ctx } = drumNodes;
+    const now = ctx.currentTime;
+    master.gain.cancelScheduledValues(now);
+    master.gain.setValueAtTime(master.gain.value, now);
+    master.gain.linearRampToValueAtTime(0.0001, now + 0.08);
+    try { noise.stop(now + 0.1); } catch (e) {}
+    try { lfo.stop(now + 0.1); } catch (e) {}
+    drumNodes = null;
+  }
+
+  // เสียงฉาบ/ปัง ตอนเฉลย
+  function playCymbal() {
+    const ctx = getCtx();
+    const now = ctx.currentTime;
+    const noise = ctx.createBufferSource();
+    noise.buffer = makeNoiseBuffer(ctx, 1.2);
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 5000;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.5, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
+    noise.connect(hp); hp.connect(g); g.connect(ctx.destination);
+    noise.start(now);
+    noise.stop(now + 1.2);
+  }
+
+  // เสียงเชียร์ + ปรบมือ ตอนได้ผู้ชนะ
+  function playCheer() {
+    const ctx = getCtx();
+    const now = ctx.currentTime;
+
+    // ฐานเสียงฝูงชน (noise กรองย่านกลาง สวิงขึ้นลง)
+    const crowd = ctx.createBufferSource();
+    crowd.buffer = makeNoiseBuffer(ctx, 3.2);
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 1200;
+    bp.Q.value = 0.6;
+    const cg = ctx.createGain();
+    cg.gain.setValueAtTime(0.001, now);
+    cg.gain.linearRampToValueAtTime(0.3, now + 0.3);
+    cg.gain.setValueAtTime(0.3, now + 2.2);
+    cg.gain.linearRampToValueAtTime(0.001, now + 3.0);
+    crowd.connect(bp); bp.connect(cg); cg.connect(ctx.destination);
+    crowd.start(now); crowd.stop(now + 3.1);
+
+    // เสียงปรบมือ — ยิงเป็นจังหวะสุ่มถี่ๆ
+    let t = now + 0.05;
+    while (t < now + 2.8) {
+      const clap = ctx.createBufferSource();
+      clap.buffer = makeNoiseBuffer(ctx, 0.05);
+      const cf = ctx.createBiquadFilter();
+      cf.type = 'bandpass';
+      cf.frequency.value = 1500 + Math.random() * 1500;
+      const g = ctx.createGain();
+      const vol = 0.12 + Math.random() * 0.12;
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+      clap.connect(cf); cf.connect(g); g.connect(ctx.destination);
+      clap.start(t); clap.stop(t + 0.07);
+      t += 0.015 + Math.random() * 0.045;
+    }
+
+    // เสียงนกหวีดเชียร์ 2-3 ครั้ง
+    for (let k = 0; k < 3; k++) {
+      const osc = ctx.createOscillator();
+      const og = ctx.createGain();
+      osc.type = 'sine';
+      const st = now + 0.3 + k * 0.5;
+      osc.frequency.setValueAtTime(1800, st);
+      osc.frequency.linearRampToValueAtTime(2600, st + 0.15);
+      og.gain.setValueAtTime(0.0001, st);
+      og.gain.linearRampToValueAtTime(0.08, st + 0.05);
+      og.gain.exponentialRampToValueAtTime(0.0001, st + 0.3);
+      osc.connect(og); og.connect(ctx.destination);
+      osc.start(st); osc.stop(st + 0.35);
+    }
+  }
+  /* =================================================================== */
+
+  function reset() {
+    stopDrumRoll();
+    try { cheerSound.pause(); cheerSound.currentTime = 0; } catch (e) {}
+    busy = false;
+    status.textContent = 'รอประกาศผล...';
+    status.className = 'status';
+    resetBtn.style.display = 'none';
+    for (let i = 1; i <= 3; i++) {
+      cards[i].className = 'card c' + i;
+    }
+    startIdleMusic();       // กลับมาเล่นเพลงลุ้นอีกครั้ง
+  }
+
+  function announce(winner) {
+    if (busy) return;
+    busy = true;
+    stopIdleMusic();        // หยุดเพลงลุ้น เปลี่ยนเป็นเสียงกลอง
+    resetBtn.style.display = 'none';
+
+    status.className = 'status';
+    status.textContent = '🥁 กำลังนับคะแนน...';
+
+    const spinDuration = 2600;
+    startDrumRoll(spinDuration);   // เริ่มเสียงกลองรัว
+
+    const order = [1, 2, 3];
+    let current = 0;
+    const start = Date.now();
+
+    function spin() {
+      for (let i = 1; i <= 3; i++) cards[i].classList.remove('spinning');
+      const idx = order[current % 3];
+      cards[idx].classList.add('spinning');
+      current++;
+
+      const elapsed = Date.now() - start;
+      let delay = 120 + (elapsed / spinDuration) * 320;  // ยิ่งใกล้จบยิ่งช้า
+
+      if (elapsed < spinDuration) {
+        setTimeout(spin, delay);
+      } else {
+        finish(winner);
+      }
+    }
+    spin();
+  }
+
+  function finish(winner) {
+    for (let i = 1; i <= 3; i++) cards[i].classList.remove('spinning');
+    stopDrumRoll();          // หยุดเสียงกลอง
+    playCymbal();            // ตูม!
+    status.textContent = '🥁🥁🥁 และผู้ชนะคือ...';
+
+    setTimeout(() => {
+      for (let i = 1; i <= 3; i++) {
+        if (i === winner) cards[i].classList.add('winner');
+        else cards[i].classList.add('loser');
+      }
+      status.className = 'status winner-banner';
+      status.textContent = '🎉 เบอร์ ' + winner + ' ชนะการเลือกตั้ง! 🎉';
+      playCheerFile();       // เสียงเชียร์จากไฟล์ cheering.mp3
+      launchConfetti();
+      resetBtn.style.display = 'inline-block';
+      busy = false;
+    }, 900);
+  }
+
+  function launchConfetti() {
+    const colors = ['#ffd700','#ff6a6a','#43cea2','#6dd5ed','#f6c453','#ffffff'];
+    for (let i = 0; i < 120; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = Math.random() * 100 + 'vw';
+      c.style.background = colors[Math.floor(Math.random()*colors.length)];
+      c.style.animationDuration = (2 + Math.random()*2) + 's';
+      c.style.animationDelay = (Math.random()*0.5) + 's';
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 4500);
+    }
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === '1' || e.key === '2' || e.key === '3') {
+      if (!busy) announce(parseInt(e.key));
+    }
+  });
+
+  resetBtn.addEventListener('click', reset);
+
+  for (let i = 1; i <= 3; i++) {
+    cards[i].addEventListener('click', () => { if (!busy) announce(i); });
+  }
+
+  // เริ่มเพลงลุ้นทันทีที่ผู้ใช้แตะหน้าจอ/กดปุ่มครั้งแรก (ข้อจำกัด autoplay ของเบราว์เซอร์)
+  function firstGesture() {
+    startIdleMusic();
+    window.removeEventListener('pointerdown', firstGesture);
+    window.removeEventListener('keydown', firstGesture);
+  }
+  window.addEventListener('pointerdown', firstGesture);
+  window.addEventListener('keydown', firstGesture);
+
+  // ลองเล่นทันทีตอนเปิดหน้า (บางเบราว์เซอร์อาจบล็อกไว้จนกว่าจะแตะหน้าจอ)
+  window.addEventListener('load', () => { idleMusic.play().catch(() => {}); });
+</script>
+</body>
+</html>

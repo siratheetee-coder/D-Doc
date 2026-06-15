@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>D-Doc | {% block title %}ระบบจัดการเอกสารและพัสดุ{% endblock %}</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <style>
+    /* ===== ฟอนต์ Prompt (ฝังในโปรเจกต์ ใช้ offline เหมือนกันทุกเครื่อง) ===== */
+    @font-face { font-family: "Prompt"; font-weight: 400; font-display: swap;
+                 src: url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+    @font-face { font-family: "Prompt"; font-weight: 500; font-display: swap;
+                 src: url("/static/fonts/Prompt-Medium.ttf") format("truetype"); }
+    @font-face { font-family: "Prompt"; font-weight: 600; font-display: swap;
+                 src: url("/static/fonts/Prompt-SemiBold.ttf") format("truetype"); }
+    @font-face { font-family: "Prompt"; font-weight: 700; font-display: swap;
+                 src: url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+    @font-face { font-family: "Prompt"; font-weight: 800; font-display: swap;
+                 src: url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+
+    /* ===== โทน DashStack (offline, ฝังในตัว) ===== */
+    :root {
+      --brand: #4880FF;           /* primary */
+      --brand-dark: #3568e0;
+      --brand-soft: #e8f0ff;
+      --bg: #F5F6FA;              /* พื้นหลัง */
+      --surface: #ffffff;
+      --border: #eceef3;
+      --text: #202224;
+      --muted: #7b8190;
+      --sidebar-ink: #5a6a85;     /* เมนูที่ไม่ active */
+      --success: #16b364;
+      --success-dark: #0e9152;
+      --danger: #ef4444;
+      --danger-dark: #dc2626;
+      --radius: 14px;
+      --shadow: 0 2px 8px rgba(16,24,40,.05), 0 1px 2px rgba(16,24,40,.04);
+    }
+    /* ===== ธีมสีต่อกลุ่มงาน (override เฉพาะสีแบรนด์ คงสีพื้น/เลย์เอาต์ -> รักษากฎ 60/30/10) ===== */
+    .layout[data-module="admin"]   { --brand:#7c3aed; --brand-dark:#6d28d9; --brand-soft:#ede9fe; }
+    .layout[data-module="finance"] { --brand:#16a34a; --brand-dark:#15803d; --brand-soft:#dcfce7; }
+    /* พัสดุ + hub ใช้สีน้ำเงินเริ่มต้นจาก :root */
+    * { box-sizing: border-box; }
+    body {
+      /* ฟอนต์ UI ทันสมัย (ใช้ฟอนต์ที่มีในเครื่อง Windows อยู่แล้ว ไม่ต้องต่อเน็ต):
+         Sarabun (โมเดิร์น) -> Leelawadee UI (Thai UI ของ Windows) -> Segoe UI */
+      font-family: "Prompt", "Sarabun", "Leelawadee UI", "Segoe UI", system-ui,
+                   -apple-system, "Noto Sans Thai", sans-serif;
+      margin: 0; background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--brand-dark); }
+    .icon { width: 20px; height: 20px; stroke: currentColor; fill: none;
+            stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+    /* ===== Layout: sidebar + content ===== */
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 256px; background: var(--surface); border-right: 1px solid var(--border);
+      position: sticky; top: 0; height: 100vh; padding: 18px 14px; flex: none;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .sidebar .brand {
+      display: flex; align-items: center; gap: 11px; padding: 4px 6px 18px;
+    }
+    .sidebar .brand .logo { width: 44px; height: 44px; flex: none; }
+    .sidebar .brand .logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .sidebar .brand .name { font-size: 21px; font-weight: 800; color: var(--text); line-height: 1.05; letter-spacing: .3px; }
+    .sidebar .brand .sub { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+    .sidebar nav {
+      display: flex; flex-direction: column; gap: 4px;
+      flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 12px;
+    }
+    /* แถบเลื่อน sidebar แบบบาง ไม่เกะกะ */
+    .sidebar nav::-webkit-scrollbar { width: 7px; }
+    .sidebar nav::-webkit-scrollbar-thumb { background: #d7dce6; border-radius: 8px; }
+    .sidebar nav::-webkit-scrollbar-thumb:hover { background: #c2c9d6; }
+    .sidebar nav a {
+      display: flex; align-items: center; gap: 13px; padding: 11px 14px; border-radius: 11px;
+      color: var(--sidebar-ink); text-decoration: none; font-size: 16.5px; font-weight: 600;
+      transition: background .14s, color .14s;
+    }
+    .sidebar nav a:hover { background: var(--brand-soft); color: var(--brand-dark); }
+    .sidebar nav a.active { background: var(--brand); color: #fff; box-shadow: 0 6px 16px rgba(72,128,255,.35); }
+
+    .content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .topbar {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 14px 26px; position: sticky; top: 0; z-index: 30;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .topbar .ttl { font-size: 18px; font-weight: 700; color: var(--text); }
+    .topbar .who { color: var(--muted); font-size: 15px; }
+    main { padding: 24px 30px; max-width: 1480px; width: 100%; margin: 0 auto; animation: pageIn .30s ease both; }
+    /* ===== แอนิเมชันเปลี่ยนหน้า: เฟด + เลื่อนขึ้นเล็กน้อย ===== */
+    @keyframes pageIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    @keyframes dropIn { from { opacity: 0; transform: translateY(-8px) scale(.98); } to { opacity: 1; transform: none; } }
+    /* การ์ดทยอยปรากฏ (ไล่ลำดับเล็กน้อย) */
+    main > .card, main > .hero { animation: pageIn .34s ease both; }
+    main > .card:nth-child(2) { animation-delay: .04s; }
+    main > .card:nth-child(3) { animation-delay: .08s; }
+    main > .card:nth-child(4) { animation-delay: .12s; }
+    /* การเปลี่ยนสี/พื้นหลังของลิงก์เมนู ปุ่ม อินพุต ให้ลื่น (ไม่ใช้ transform กันสั่นตอนเลื่อน) */
+    .sidebar nav a { transition: background .18s ease, color .18s ease; }
+    .btn { transition: background .16s ease, box-shadow .16s ease, transform .1s ease, opacity .16s ease; }
+    .btn:active { transform: translateY(1px) scale(.99); }
+    input, select, textarea { transition: border-color .15s ease, box-shadow .15s ease; }
+    table tbody tr { transition: background .14s ease; }
+    /* ปิดแอนิเมชันให้ผู้ที่ตั้งค่าลดการเคลื่อนไหว (accessibility) */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+    /* ===== ปฏิทินลอย (วันหยุด/นักขัตฤกษ์) ===== */
+    .fab-cal { position: fixed; right: 22px; bottom: 22px; width: 54px; height: 54px; border-radius: 50%;
+      background: var(--brand); color: #fff; border: none; cursor: pointer; z-index: 70;
+      box-shadow: 0 8px 22px rgba(72,128,255,.45); display: flex; align-items: center; justify-content: center;
+      transition: transform .15s ease, box-shadow .15s ease; }
+    .fab-cal:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(72,128,255,.55); }
+    .fab-cal .icon { width: 24px; height: 24px; }
+    .cal-panel { position: fixed; right: 22px; bottom: 86px; width: 326px; max-width: 90vw; background: #fff;
+      border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 16px 40px rgba(16,24,40,.20);
+      z-index: 70; padding: 14px 16px; opacity: 0; visibility: hidden; transform: translateY(12px) scale(.98);
+      transition: opacity .18s ease, transform .18s ease, visibility .18s ease; }
+    .cal-panel.open { opacity: 1; visibility: visible; transform: none; }
+    .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .cal-head b { font-size: 16px; color: var(--text); }
+    .cal-nav { background: #f1f4f9; border: none; width: 32px; height: 32px; border-radius: 9px;
+      cursor: pointer; font-size: 18px; color: var(--text); transition: background .14s; }
+    .cal-nav:hover { background: var(--brand-soft); }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .cal-grid .dow { text-align: center; font-size: 12px; color: var(--muted); padding: 4px 0; font-weight: 600; }
+    .cal-cell { text-align: center; padding: 7px 0; border-radius: 9px; font-size: 14px; }
+    .cal-cell.wk { color: #dc2626; }
+    .cal-cell.hl { background: #fde8e8; color: #b91c1c; font-weight: 700; cursor: default; }
+    .cal-cell.today { outline: 2px solid var(--brand); outline-offset: -2px; font-weight: 700; }
+    .cal-holidays { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px;
+      font-size: 13px; max-height: 124px; overflow-y: auto; }
+    .cal-holidays .h { display: flex; gap: 8px; padding: 3px 0; }
+    .cal-holidays .h b { color: #b91c1c; white-space: nowrap; }
+
+    /* ===== Cards ===== */
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 22px 24px; box-shadow: var(--shadow); margin-bottom: 22px;
+    }
+    /* หัวข้อหน้า + หัว section: แถบสีเทา + แถบ accent น้ำเงินด้านซ้าย + ตัวหนาเข้ม
+       ตั้งใจให้คนละโทนกับ "ปุ่ม" (ปุ่มเป็นน้ำเงินเข้ม/ฟ้าอ่อน) จะได้แยกออกชัด */
+    h1, h2 {
+      display: flex; align-items: center; gap: 11px; line-height: 1.3;
+      font-weight: 800; color: #1b2433;
+      background: #eef1f6; border-left: 5px solid var(--brand); border-radius: 10px;
+    }
+    h1 { font-size: 22px; padding: 13px 18px; margin: 0 0 18px; }
+    h2 { font-size: 17px; padding: 10px 16px; margin: 0 0 16px; }
+    h1 .icon, h2 .icon { color: var(--brand); flex: none; }
+    h1 .muted, h2 .muted { font-weight: 600; }
+
+    /* ===== Forms ===== */
+    label { display: block; margin: 12px 0 5px; font-weight: 600; font-size: 16px; }
+    input, select, textarea {
+      width: 100%; padding: 9px 12px; border: 1px solid #dfe3ea; border-radius: 10px;
+      font-size: 16.5px; font-family: inherit; background: #fff; color: var(--text);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(72,128,255,.18);
+    }
+    textarea { min-height: 72px; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .row > div { flex: 1; min-width: 180px; }
+
+    /* ===== Buttons ===== */
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px; background: var(--brand); color: #fff;
+      border: none; padding: 10px 18px; border-radius: 11px; font-size: 16.5px; font-weight: 600;
+      cursor: pointer; text-decoration: none; font-family: inherit;
+      transition: background .15s, transform .06s, box-shadow .15s; box-shadow: 0 1px 2px rgba(16,24,40,.1);
+    }
+    .btn:hover { background: var(--brand-dark); box-shadow: 0 5px 14px rgba(72,128,255,.32); }
+    .btn:active { transform: translateY(1px); }
+    .btn .icon { width: 18px; height: 18px; }
+    .btn.green { background: var(--success); }
+    .btn.green:hover { background: var(--success-dark); box-shadow: 0 5px 14px rgba(22,179,100,.3); }
+    .btn.gray { background: #fff; color: var(--sidebar-ink); border: 1px solid #dfe3ea; box-shadow: none; }
+    .btn.gray:hover { background: #f3f5f9; color: var(--text); }
+    .btn.soft { background: var(--brand-soft); color: var(--brand-dark); box-shadow: none; }
+    .btn.soft:hover { background: #d8e6ff; color: var(--brand-dark); box-shadow: none; }
+    .btn.red { background: var(--danger); }
+    .btn.red:hover { background: var(--danger-dark); box-shadow: 0 5px 14px rgba(239,68,68,.28); }
+    .btn.sm { padding: 6px 13px; font-size: 14.5px; border-radius: 9px; }
+    .btn.sm .icon { width: 16px; height: 16px; }
+
+    /* ===== Tables ===== */
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 16px; }
+    th, td { border-bottom: 1px solid var(--border); padding: 11px 12px; text-align: left; }
+    thead th { background: #fafbfd; color: var(--muted); font-weight: 700; font-size: 14.5px;
+               text-transform: none; border-bottom: 1px solid var(--border); }
+    tbody tr { transition: background .12s; }
+    tbody tr:hover td { background: #f7f9fe; }
+    .right { text-align: right; }
+    .center { text-align: center; }
+
+    /* ===== Pills / Badges ===== */
+    .pill {
+      display: inline-block; padding: 4px 13px; border-radius: 999px; font-size: 14px;
+      font-weight: 700; background: #eef0f4; color: #5a6a85;
+    }
+    .pill.approve { background: #e3f9ee; color: #0e9152; }
+    .pill.done { background: var(--brand-soft); color: var(--brand-dark); }
+
+    /* ===== Alert / Muted ===== */
+    .alert {
+      background: #e9f7ef; color: #0e7a44; border: 1px solid #b7ebcd;
+      padding: 11px 15px; border-radius: 10px; margin-bottom: 14px; font-weight: 600;
+    }
+    .alert.warn {
+      background: #fff8ec; color: #92610a; border: 1px solid #ffe2ad;
+      display: flex; align-items: flex-start; gap: 12px;
+    }
+    .alert.warn > .icon { width: 22px; height: 22px; color: #f0a020; flex: none; margin-top: 1px; stroke-width: 2; }
+    .alert.warn b { color: #7a4f06; }
+    .muted { color: var(--muted); font-size: 15.5px; }
+
+    /* ===== Dashboard stat cards (DashStack style) ===== */
+    .stat { display: flex; gap: 20px; flex-wrap: wrap; }
+    .stat .box {
+      flex: 1; min-width: 190px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow);
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    }
+    .stat .box .lab { color: var(--muted); font-size: 15px; font-weight: 600; }
+    .stat .box .num { font-size: 28px; font-weight: 800; color: var(--text); line-height: 1.15; margin-top: 4px; }
+    .stat .box .ic-wrap {
+      width: 52px; height: 52px; border-radius: 14px; flex: none;
+      display: flex; align-items: center; justify-content: center; color: #fff;
+    }
+    .stat .box .ic-wrap .icon { width: 26px; height: 26px; stroke-width: 2; }
+    .ic-blue { background: linear-gradient(135deg, #4880FF, #6f9bff); }
+    .ic-green { background: linear-gradient(135deg, #16b364, #34d27f); }
+    .ic-amber { background: linear-gradient(135deg, #f6a609, #fbbf24); }
+
+    /* ===== Sidebar section labels (จัดกลุ่มเมนู) ===== */
+    .sidebar nav .nav-sec {
+      font-size: 11.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+      color: #aab2c0; padding: 14px 14px 5px; user-select: none;
+    }
+    .sidebar nav .nav-sec:first-child { padding-top: 4px; }
+    .sidebar nav a.navback { color: var(--muted); font-size: 13.5px; margin-bottom: 4px; }
+    .sidebar nav a.navback:hover { color: var(--brand-dark); }
+    .sidebar nav .navdim {
+      display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-radius: 10px;
+      color: #b9c0cc; font-size: 14px; cursor: default; user-select: none;
+    }
+    .sidebar nav .navdim .icon { opacity: .6; }
+
+    /* ===== Topbar: ปุ่มเมนู + ค้นหา + แบรนด์ชิป ===== */
+    .topbar .hamb {
+      display: none; background: none; border: none; padding: 6px; border-radius: 9px;
+      color: var(--sidebar-ink); cursor: pointer; box-shadow: none;
+    }
+    .topbar .hamb:hover { background: var(--brand-soft); color: var(--brand-dark); }
+    .topbar .hamb .icon { width: 24px; height: 24px; }
+    .topbar .grow { flex: 1; min-width: 0; }
+    .topsearch {
+      display: flex; align-items: center; gap: 8px; background: #f3f5f9; border: 1px solid var(--border);
+      border-radius: 999px; padding: 7px 15px; max-width: 360px; width: 100%;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .topsearch:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(72,128,255,.15); background:#fff; }
+    .topsearch .icon { width: 18px; height: 18px; color: var(--muted); }
+    .topsearch input {
+      border: none; background: none; padding: 0; font-size: 15px; box-shadow: none !important;
+    }
+    .topsearch input:focus { outline: none; }
+    .brandchip { display: flex; align-items: center; gap: 10px; flex: none; }
+    .brandchip .avatar {
+      width: 38px; height: 38px; border-radius: 50%; flex: none; display: flex;
+      align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 16px;
+      background: linear-gradient(135deg, #4880FF, #6f9bff);
+    }
+    .brandchip .who { color: var(--text); font-size: 15px; font-weight: 600; }
+
+    /* ===== Hero banner (แดชบอร์ด) ===== */
+    .hero {
+      background: linear-gradient(120deg, #3568e0, #4880FF 55%, #6f9bff);
+      color: #fff; border-radius: var(--radius); padding: 26px 28px; margin-bottom: 22px;
+      box-shadow: 0 10px 26px rgba(72,128,255,.28);
+      display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap;
+    }
+    .hero .hero-sub { font-size: 14px; font-weight: 600; opacity: .9; }
+    .hero .hero-title {
+      all: unset; display: block; font-size: 26px; font-weight: 800; line-height: 1.2; margin: 4px 0 6px;
+    }
+    .hero .hero-meta { font-size: 14.5px; opacity: .92; }
+    .hero .btn { background: rgba(255,255,255,.16); box-shadow: none; backdrop-filter: blur(2px); }
+    .hero .btn:hover { background: rgba(255,255,255,.28); box-shadow: none; }
+
+    /* ===== Charts (วาดด้วย SVG ฝั่งเซิร์ฟเวอร์ ไม่ใช้ไลบรารีภายนอก) ===== */
+    .charts { display: grid; grid-template-columns: 1.7fr 1fr; gap: 22px; margin-bottom: 22px; }
+    .chart-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 20px 22px; box-shadow: var(--shadow); min-width: 0;
+    }
+    .chart-card .chart-title { font-size: 16px; font-weight: 700; color: #1b2433; margin-bottom: 4px; }
+    .chart-card .chart-note { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+    .chart-card svg { width: 100%; height: auto; display: block; }
+    .donut-wrap { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .donut-wrap .donut { width: 150px; flex: none; }
+    .legend { display: flex; flex-direction: column; gap: 9px; font-size: 14.5px; color: var(--text); }
+    .legend .lg { display: flex; align-items: center; gap: 9px; }
+    .legend .dot { width: 13px; height: 13px; border-radius: 4px; flex: none; }
+    .legend .lg b { font-weight: 700; }
+    .legend .lg .pc { color: var(--muted); font-size: 13px; }
+    @media (max-width: 880px) { .charts { grid-template-columns: 1fr; } }
+
+    /* ===== กระดิ่งแจ้งเตือน ===== */
+    .bell-wrap { position: relative; flex: none; }
+    .bell {
+      position: relative; background: none; border: none; padding: 8px; border-radius: 10px;
+      color: var(--sidebar-ink); cursor: pointer; box-shadow: none; display: inline-flex;
+    }
+    .bell:hover { background: var(--brand-soft); color: var(--brand-dark); }
+    .bell .icon { width: 22px; height: 22px; }
+    .bell-badge {
+      position: absolute; top: 2px; right: 2px; min-width: 17px; height: 17px; padding: 0 4px;
+      background: var(--danger); color: #fff; font-size: 11px; font-weight: 700; border-radius: 999px;
+      display: flex; align-items: center; justify-content: center; line-height: 1;
+    }
+    .bell-panel {
+      position: absolute; right: 0; top: 46px; width: 330px; max-width: 84vw;
+      background: #fff; border: 1px solid var(--border); border-radius: 14px;
+      box-shadow: 0 12px 34px rgba(16,24,40,.16); z-index: 50; overflow: hidden;
+      opacity: 0; visibility: hidden; transform: translateY(-8px) scale(.98);
+      transition: opacity .16s ease, transform .16s ease, visibility .16s ease;
+    }
+    .bell-panel.open { opacity: 1; visibility: visible; transform: none; }
+    .bell-head { padding: 13px 16px; font-weight: 700; color: var(--text); border-bottom: 1px solid var(--border); }
+    .bell-list { max-height: 360px; overflow-y: auto; }
+    .bell-item {
+      display: flex; gap: 11px; align-items: flex-start; padding: 12px 16px; text-decoration: none;
+      color: var(--text); border-bottom: 1px solid #f1f3f8;
+    }
+    .bell-item:hover { background: #f7f9fe; }
+    .bell-item .bell-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 7px; flex: none; background: #9aa6b8; }
+    .bell-item.lv-urgent .bell-dot { background: var(--danger); }
+    .bell-item.lv-warn .bell-dot { background: #f0a020; }
+    .bell-item.lv-info .bell-dot { background: var(--brand); }
+    .bell-item .bell-title { display: block; font-weight: 600; font-size: 15px; line-height: 1.35; }
+    .bell-item .bell-reason { display: block; font-size: 13px; color: var(--muted); margin-top: 1px; }
+    .bell-item.lv-urgent .bell-reason { color: var(--danger-dark); font-weight: 600; }
+    .bell-empty { padding: 24px 16px; text-align: center; color: var(--muted); font-size: 14.5px; }
+
+    /* ===== ปุ่มปิด sidebar (มือถือ) + overlay ===== */
+    .sb-overlay { display: none; position: fixed; inset: 0; background: rgba(16,24,40,.45); z-index: 38; }
+
+    @media (max-width: 880px) {
+      .topbar .hamb { display: inline-flex; }
+      .topsearch { max-width: none; }
+      .brandchip .who { display: none; }
+      .sidebar {
+        position: fixed; top: 0; left: 0; height: 100vh; z-index: 40;
+        transform: translateX(-100%); transition: transform .22s ease; box-shadow: 0 0 40px rgba(0,0,0,.18);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .sb-overlay.show { display: block; }
+      main { padding: 18px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- ชุดไอคอน SVG (เส้น สไตล์ DashStack) -->
+  <svg width="0" height="0" style="position:absolute">
+    <symbol id="ic-home" viewBox="0 0 24 24"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="ic-file-plus" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M12 12v6M9 15h6"/></symbol>
+    <symbol id="ic-store" viewBox="0 0 24 24"><path d="M3 9 4.5 4h15L21 9"/><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></symbol>
+    <symbol id="ic-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3 3 0 0 1 0 5.6"/><path d="M17.5 14.3A5.5 5.5 0 0 1 21 20"/></symbol>
+    <symbol id="ic-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13c.04-.33.1-.66.1-1s-.06-.67-.1-1l2-1.5-2-3.4-2.3 1a7.7 7.7 0 0 0-1.7-1L14 2h-4l-.5 2.6a7.7 7.7 0 0 0-1.7 1l-2.3-1-2 3.4L5.6 11c-.04.33-.1.66-.1 1s.06.67.1 1l-2 1.5 2 3.4 2.3-1a7.7 7.7 0 0 0 1.7 1L10 22h4l.5-2.6a7.7 7.7 0 0 0 1.7-1l2.3 1 2-3.4z"/></symbol>
+    <symbol id="ic-file" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h8M8 9h2"/></symbol>
+    <symbol id="ic-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></symbol>
+    <symbol id="ic-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="ic-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+    <symbol id="ic-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></symbol>
+    <symbol id="ic-package" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/></symbol>
+    <symbol id="ic-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="ic-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></symbol>
+    <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="ic-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="ic-clipboard" viewBox="0 0 24 24"><path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1z"/><path d="M8 6H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2"/><path d="M8 12h8M8 16h6"/></symbol>
+    <symbol id="ic-coins" viewBox="0 0 24 24"><ellipse cx="9" cy="6" rx="6" ry="3"/><path d="M3 6v6c0 1.7 2.7 3 6 3s6-1.3 6-3V6"/><path d="M3 12v6c0 1.7 2.7 3 6 3 1.3 0 2.5-.2 3.5-.6"/><circle cx="17" cy="15" r="4"/></symbol>
+    <symbol id="ic-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+    <symbol id="ic-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h3.5l2 2.5H19a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="ic-building" viewBox="0 0 24 24"><path d="M5 21V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v17"/><path d="M15 9h3a1 1 0 0 1 1 1v11"/><path d="M2 21h20"/><path d="M8 7h2M8 11h2M8 15h2"/></symbol>
+    <symbol id="ic-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5M11 18l-6-6 6-6"/></symbol>
+    <symbol id="ic-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11.5v4.5M12 7.6v.4"/></symbol>
+    <symbol id="ic-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+    <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
+    <symbol id="ic-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
+    <symbol id="ic-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+  </svg>
+
+  {% set path = request.url.path %}
+  {% set module = 'admin' if path.startswith('/admin')
+        else 'finance' if path.startswith('/finance')
+        else 'procurement' if (path.startswith('/procurement') or path.startswith('/assets')
+             or path.startswith('/materials') or path.startswith('/requisitions')
+             or path.startswith('/vendors') or path.startswith('/masters') or path.startswith('/register'))
+        else 'hub' %}
+  {% set mod_label = {'admin':'งานธุรการ','procurement':'งานพัสดุ','finance':'งานการเงิน','hub':'เลือกงาน'}[module] %}
+  <div class="layout" data-module="{{ module }}">
+    <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="/static/logo.png" alt="D-Doc"></span>
+        <span style="display:flex; flex-direction:column;">
+          <span class="name">D-Doc</span>
+          <span class="sub">{{ mod_label }}</span>
+        </span>
+      </div>
+      <nav>
+        {% if module != 'hub' %}
+        <a href="/" class="navback"><svg class="icon"><use href="#ic-arrow-left"/></svg> เลือกงาน</a>
+        {% endif %}
+
+        {% if module == 'procurement' %}
+        <div class="nav-sec">งานพัสดุ</div>
+        <a href="/procurement" class="{{ 'active' if path == '/procurement' }}"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลักพัสดุ</a>
+        <a href="/procurement/new" class="{{ 'active' if path.startswith('/procurement/new') }}"><svg class="icon"><use href="#ic-file-plus"/></svg> สร้างเรื่องใหม่</a>
+        <a href="/procurement/from-file" class="{{ 'active' if path.startswith('/procurement/from-file') }}"><svg class="icon"><use href="#ic-download"/></svg> อัพโหลดเรื่องซื้อ/จ้าง</a>
+        <div class="nav-sec">พัสดุ/ทรัพย์สิน</div>
+        <a href="/assets" class="{{ 'active' if path.startswith('/assets') }}"><svg class="icon"><use href="#ic-package"/></svg> ทะเบียนครุภัณฑ์</a>
+        <a href="/materials" class="{{ 'active' if path.startswith('/materials') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> บัญชีวัสดุ</a>
+        <a href="/requisitions" class="{{ 'active' if path.startswith('/requisitions') }}"><svg class="icon"><use href="#ic-file"/></svg> ใบเบิกวัสดุ</a>
+        <div class="nav-sec">ข้อมูลหลัก</div>
+        <a href="/vendors" class="{{ 'active' if path.startswith('/vendors') }}"><svg class="icon"><use href="#ic-store"/></svg> ผู้ขาย/ผู้รับจ้าง</a>
+        <a href="/masters" class="{{ 'active' if path.startswith('/masters') }}"><svg class="icon"><use href="#ic-users"/></svg> บุคลากร/ฝ่าย/โครงการ</a>
+
+        {% elif module == 'admin' %}
+        <div class="nav-sec">งานธุรการ</div>
+        <a href="/admin" class="{{ 'active' if path == '/admin' }}"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลักธุรการ</a>
+        <a href="/admin/incoming" class="{{ 'active' if path.startswith('/admin/incoming') }}"><svg class="icon"><use href="#ic-download"/></svg> ทะเบียนหนังสือรับ</a>
+        <a href="/admin/outgoing" class="{{ 'active' if path.startswith('/admin/outgoing') }}"><svg class="icon"><use href="#ic-upload"/></svg> ทะเบียนหนังสือส่ง</a>
+        <a href="/admin/memos" class="{{ 'active' if path.startswith('/admin/memos') }}"><svg class="icon"><use href="#ic-file"/></svg> บันทึกข้อความ</a>
+        <a href="/admin/orders" class="{{ 'active' if path.startswith('/admin/orders') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> คำสั่งโรงเรียน</a>
+        <div class="nav-sec">ข้อมูล</div>
+        <a href="/admin/import" class="{{ 'active' if path.startswith('/admin/import') }}"><svg class="icon"><use href="#ic-download"/></svg> นำเข้าข้อมูลจาก Excel</a>
+
+        {% elif module == 'finance' %}
+        <div class="nav-sec">งานการเงิน</div>
+        <a href="/finance" class="{{ 'active' if path == '/finance' }}"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลักการเงิน</a>
+        <a href="/finance/accounts" class="{{ 'active' if path.startswith('/finance/accounts') }}"><svg class="icon"><use href="#ic-coins"/></svg> ทะเบียนคุมเงิน</a>
+        <a href="/finance/disburse" class="{{ 'active' if path.startswith('/finance/disburse') }}"><svg class="icon"><use href="#ic-file"/></svg> บันทึกขอเบิกจ่าย</a>
+        <a href="/finance/receipts" class="{{ 'active' if path.startswith('/finance/receipts') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ทะเบียนใบเสร็จ/ใบสำคัญ</a>
+        <a href="/finance/cash-report" class="{{ 'active' if path.startswith('/finance/cash-report') }}"><svg class="icon"><use href="#ic-file"/></svg> เงินคงเหลือประจำวัน</a>
+        <a href="/finance/report" class="{{ 'active' if path.startswith('/finance/report') }}"><svg class="icon"><use href="#ic-coins"/></svg> รายงานการเงิน</a>
+        <div class="nav-sec">ข้อมูล</div>
+        <a href="/finance/import" class="{{ 'active' if path.startswith('/finance/import') }}"><svg class="icon"><use href="#ic-download"/></svg> นำเข้าข้อมูล</a>
+
+        {% else %}{# hub #}
+        <div class="nav-sec">เลือกงาน</div>
+        {% if modules_live.admin %}<a href="/admin"><svg class="icon"><use href="#ic-file"/></svg> งานธุรการ</a>
+        {% else %}<span class="navdim"><svg class="icon"><use href="#ic-file"/></svg> งานธุรการ (เร็วๆ นี้)</span>{% endif %}
+        <a href="/procurement"><svg class="icon"><use href="#ic-package"/></svg> งานพัสดุ</a>
+        {% if modules_live.finance %}<a href="/finance"><svg class="icon"><use href="#ic-coins"/></svg> งานการเงิน</a>
+        {% else %}<span class="navdim"><svg class="icon"><use href="#ic-coins"/></svg> งานการเงิน (เร็วๆ นี้)</span>{% endif %}
+        {% endif %}
+
+        <div class="nav-sec">ระบบ</div>
+        <a href="/docnos" class="{{ 'active' if path.startswith('/docnos') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ทะเบียนเลขหนังสือ</a>
+        <a href="/settings" class="{{ 'active' if path.startswith('/settings') }}"><svg class="icon"><use href="#ic-settings"/></svg> ตั้งค่าโรงเรียน</a>
+      </nav>
+    </aside>
+
+    <div class="content">
+      <div class="topbar">
+        <button class="hamb" onclick="openSidebar()" aria-label="เปิดเมนู"><svg class="icon"><use href="#ic-menu"/></svg></button>
+        <span class="ttl">{{ self.title() }}</span>
+        <form class="topsearch" method="get" action="/search" role="search">
+          <svg class="icon"><use href="#ic-search"/></svg>
+          <input type="search" name="q" placeholder="ค้นหาทุกงาน: เรื่อง / เลขที่ / ผู้ขาย / วัสดุ" value="{{ request.query_params.get('q','') }}">
+        </form>
+        <span class="grow"></span>
+        {% set alerts = nav_alerts() %}
+        <div class="bell-wrap">
+          <button class="bell" onclick="toggleBell(event)" aria-label="การแจ้งเตือน">
+            <svg class="icon"><use href="#ic-bell"/></svg>
+            {% if alerts %}<span class="bell-badge">{{ alerts|length }}</span>{% endif %}
+          </button>
+          <div class="bell-panel" id="bellPanel">
+            <div class="bell-head">การแจ้งเตือน ({{ alerts|length }})</div>
+            {% if alerts %}
+            <div class="bell-list">
+              {% for a in alerts %}
+              <a class="bell-item lv-{{ a.level }}" href="/procurement/{{ a.id }}">
+                <span class="bell-dot"></span>
+                <span><span class="bell-title">{{ a.title }}</span><span class="bell-reason">{{ a.reason }}</span></span>
+              </a>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="bell-empty">ไม่มีรายการที่ต้องดำเนินการ</div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="brandchip">
+          <span class="avatar">D</span>
+          <span class="who">{{ request.session.get('name') or 'D-Doc' }}</span>
+          <a href="/logout" class="bell" title="ออกจากระบบ" style="margin-left:2px;">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+          </a>
+        </div>
+      </div>
+      <main>
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <!-- ปฏิทินลอย: เปิดดูวันหยุด/นักขัตฤกษ์ได้ทุกหน้า -->
+  <button class="fab-cal" onclick="toggleCal(event)" aria-label="ปฏิทินวันหยุด"><svg class="icon"><use href="#ic-calendar"/></svg></button>
+  <div class="cal-panel" id="calPanel">
+    <div class="cal-head">
+      <button class="cal-nav" type="button" onclick="calMove(-1)">‹</button>
+      <b id="calTitle"></b>
+      <button class="cal-nav" type="button" onclick="calMove(1)">›</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-holidays" id="calHolidays"></div>
+  </div>
+
+  <script>
+    // ===== แปลข้อความแจ้งเตือนของฟอร์ม (HTML5 validation) เป็นภาษาไทย =====
+    (function(){
+      function thaiMsg(el){
+        var v = el.validity;
+        if (v.valueMissing) {
+          return (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio')
+            ? 'กรุณาเลือกรายการ' : 'กรุณากรอกข้อมูลในช่องนี้';
+        }
+        if (v.typeMismatch)  return 'รูปแบบข้อมูลไม่ถูกต้อง';
+        if (v.patternMismatch) return 'รูปแบบข้อมูลไม่ตรงตามที่กำหนด';
+        if (v.tooShort)  return 'ข้อมูลสั้นเกินไป';
+        if (v.tooLong)   return 'ข้อมูลยาวเกินไป';
+        if (v.rangeUnderflow || v.rangeOverflow) return 'ค่าที่กรอกอยู่นอกช่วงที่กำหนด';
+        if (v.stepMismatch) return 'ค่าที่กรอกไม่ถูกต้อง';
+        if (v.badInput)  return 'กรุณากรอกตัวเลขให้ถูกต้อง';
+        return '';
+      }
+      document.addEventListener('invalid', function(e){
+        e.target.setCustomValidity(thaiMsg(e.target));
+      }, true);
+      document.addEventListener('input', function(e){ e.target.setCustomValidity(''); }, true);
+      document.addEventListener('change', function(e){ e.target.setCustomValidity(''); }, true);
+    })();
+
+    function openSidebar(){ document.getElementById('sidebar').classList.add('open'); document.getElementById('sbOverlay').classList.add('show'); }
+    function closeSidebar(){ document.getElementById('sidebar').classList.remove('open'); document.getElementById('sbOverlay').classList.remove('show'); }
+    function toggleBell(e){ e.stopPropagation(); document.getElementById('bellPanel').classList.toggle('open'); }
+    document.addEventListener('click', function(e){
+      var p = document.getElementById('bellPanel');
+      if (p && p.classList.contains('open') && !e.target.closest('.bell-wrap')) p.classList.remove('open');
+    });
+
+    // ===== คงตำแหน่งสกรอลล์เมื่อกดบันทึกแล้วหน้ารีโหลด (ไม่เด้งขึ้นบนสุด) =====
+    (function(){
+      try {
+        // ก่อนส่งฟอร์ม: จำตำแหน่งสกรอลล์ + path + เวลา
+        document.addEventListener('submit', function(){
+          sessionStorage.setItem('dscroll', JSON.stringify({
+            p: location.pathname, y: window.scrollY, t: Date.now()
+          }));
+        }, true);
+        // หลังโหลดหน้า: ถ้าเป็น path เดิมและเพิ่งเกิดขึ้น (< 5 วิ) เลื่อนกลับที่เดิม
+        var raw = sessionStorage.getItem('dscroll');
+        if (raw) {
+          var s = JSON.parse(raw);
+          if (s && s.p === location.pathname && (Date.now() - s.t) < 5000) {
+            // หน่วงนิดให้ layout/แอนิเมชันเริ่มก่อน แล้วค่อยเลื่อน
+            window.requestAnimationFrame(function(){ window.scrollTo(0, s.y); });
+          }
+          sessionStorage.removeItem('dscroll');   // ใช้ครั้งเดียวแล้วลบทิ้ง
+        }
+      } catch(e){}
+    })();
+
+    // ===== ปฏิทินลอย: แสดงวันหยุด/นักขัตฤกษ์ไทย =====
+    var HOLI = {{ nav_holidays() | tojson }};
+    var THMON = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+                 'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+    var THMON_S = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    var DOWS = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+    var calY, calM;
+    (function(){ var n = new Date(); calY = n.getFullYear(); calM = n.getMonth(); })();
+    function _pad(n){ return (n < 10 ? '0' : '') + n; }
+    function toggleCal(e){
+      e.stopPropagation();
+      var p = document.getElementById('calPanel');
+      p.classList.toggle('open');
+      if (p.classList.contains('open')) renderCal();
+    }
+    function calMove(d){
+      calM += d;
+      if (calM < 0) { calM = 11; calY--; }
+      if (calM > 11) { calM = 0; calY++; }
+      renderCal();
+    }
+    function renderCal(){
+      document.getElementById('calTitle').textContent = THMON[calM] + ' ' + (calY + 543);
+      var grid = document.getElementById('calGrid'); grid.innerHTML = '';
+      DOWS.forEach(function(d){ var e = document.createElement('div'); e.className = 'dow'; e.textContent = d; grid.appendChild(e); });
+      var first = new Date(calY, calM, 1).getDay();
+      var days = new Date(calY, calM + 1, 0).getDate();
+      var today = new Date();
+      for (var i = 0; i < first; i++) { var e = document.createElement('div'); e.className = 'cal-cell'; grid.appendChild(e); }
+      var hlist = [];
+      for (var d = 1; d <= days; d++) {
+        var iso = calY + '-' + _pad(calM + 1) + '-' + _pad(d);
+        var dow = new Date(calY, calM, d).getDay();
+        var cell = document.createElement('div'); cell.className = 'cal-cell'; cell.textContent = d;
+        if (HOLI[iso]) { cell.className += ' hl'; cell.title = HOLI[iso]; hlist.push({ d: d, name: HOLI[iso] }); }
+        else if (dow === 0 || dow === 6) { cell.className += ' wk'; }
+        if (d === today.getDate() && calM === today.getMonth() && calY === today.getFullYear()) cell.className += ' today';
+        grid.appendChild(cell);
+      }
+      var hc = document.getElementById('calHolidays');
+      if (hlist.length) {
+        hc.innerHTML = hlist.map(function(h){
+          return '<div class="h"><b>' + h.d + ' ' + THMON_S[calM] + '</b><span>' + h.name + '</span></div>';
+        }).join('');
+      } else {
+        hc.innerHTML = '<span class="muted">ไม่มีวันหยุดนักขัตฤกษ์ในเดือนนี้</span>';
+      }
+    }
+    document.addEventListener('click', function(e){
+      var p = document.getElementById('calPanel');
+      if (p && p.classList.contains('open') && !e.target.closest('.cal-panel') && !e.target.closest('.fab-cal'))
+        p.classList.remove('open');
+    });
+  </script>
+</body>
+</html>

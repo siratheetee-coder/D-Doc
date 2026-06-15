@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}คำสั่งโรงเรียน{% endblock %}
+{% block content %}
+<div class="card" style="border:1px solid #ddd6fe; background:#faf8ff;">
+  <h1><svg class="icon"><use href="#ic-download"/></svg> นำเข้าคำสั่ง (มีไฟล์อยู่แล้ว)</h1>
+  {% set err = request.query_params.get('err') %}
+  {% if err %}
+  <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
+    {{ {'notpdf':'ไฟล์/ลิงก์ไม่ใช่ PDF หรือ Word (.docx) หรือต้องล็อกอินก่อน — ลองอัปโหลดไฟล์ที่ดาวน์โหลดมาแทน',
+        'url':'ลิงก์ไม่ถูกต้อง','fetch':'ดึงไฟล์จากลิงก์ไม่สำเร็จ (เครื่องต้องต่อเน็ตและเข้าถึงลิงก์ได้)'}.get(err, 'นำเข้าไม่สำเร็จ') }}
+  </div>
+  {% endif %}
+  <p class="muted" style="margin-top:0;">ระบบจะอ่าน เลขที่/วันที่/เรื่อง ให้ กรุณาตรวจก่อนบันทึก</p>
+  <div class="row" style="align-items:flex-end;">
+    <form method="post" action="/admin/orders/fetch" style="flex:2; display:flex; gap:8px; align-items:flex-end; margin:0;">
+      <div style="flex:1;"><label>วางลิงก์ไฟล์ (PDF/Word)</label><input name="url" placeholder="http://.../xxx.pdf หรือ .docx"></div>
+      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-download"/></svg> ดึงจากลิงก์</button>
+    </form>
+    <form method="post" action="/admin/orders/upload" enctype="multipart/form-data" style="flex:1; display:flex; gap:8px; align-items:flex-end; margin:0;">
+      <div style="flex:1;"><label>หรืออัปโหลดไฟล์ (PDF/Word)</label>
+        <input type="file" name="file" accept=".pdf,.docx" required style="padding:6px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; width:100%;"></div>
+      <button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อ่านไฟล์</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h1>ออกคำสั่งโรงเรียน (พิมพ์ใหม่)</h1>
+  <form method="post" action="/admin/orders">
+    <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+    <div class="row">
+      <div><label>เลขที่คำสั่ง</label><input name="order_no" value="{{ sug_order }}"></div>
+      <div><label>วันที่</label><input name="date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div style="flex:2;"><label>เรื่อง *</label><input name="subject" required placeholder="เช่น แต่งตั้งคณะกรรมการดำเนินงาน..."></div>
+    </div>
+    <label>เนื้อหาคำสั่ง</label>
+    <textarea name="body" rows="6" placeholder="พิมพ์เนื้อหาคำสั่ง เว้นบรรทัดเพื่อขึ้นย่อหน้าใหม่"></textarea>
+    <br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกและออกเลข</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>คำสั่งที่ออกแล้ว ({{ rows|length }})</h2>
+  {% if rows %}
+  <table>
+    <thead><tr><th>เลขที่</th><th>วันที่</th><th>เรื่อง</th><th></th></tr></thead>
+    <tbody>
+      {% for o in rows %}
+      <tr>
+        <td><a href="/admin/orders/{{ o.id }}">{{ o.order_no or "-" }}</a></td>
+        <td>{{ thai_date(o.date) if o.date else "-" }}</td>
+        <td>{{ o.subject or "-" }}</td>
+        <td class="right" style="white-space:nowrap;">
+          {% if o.file_path %}<a class="btn sm gray" href="/admin/uploaded/{{ o.file_path }}" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> ไฟล์แนบ</a>
+          {% else %}<a class="btn sm gray" href="/admin/orders/{{ o.id }}/generate"><svg class="icon"><use href="#ic-file"/></svg> Word</a>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">ยังไม่มีคำสั่ง</p>{% endif %}
+</div>
+
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

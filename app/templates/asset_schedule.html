@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}ตารางค่าเสื่อม - {{ a.name }}{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">ตารางคำนวณค่าเสื่อมราคา</h1>
+    <div>
+      <a class="btn gray sm" href="/assets"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับทะเบียน</a>
+      <button class="btn sm" onclick="window.print()"><svg class="icon"><use href="#ic-clipboard"/></svg> พิมพ์</button>
+    </div>
+  </div>
+  <table>
+    <tr><th style="width:200px;">ชื่อครุภัณฑ์</th><td>{{ a.name }}{% if a.asset_code %} (เลขครุภัณฑ์ {{ a.asset_code }}){% endif %}</td></tr>
+    <tr><th>ประเภท</th><td>{{ a.category }}</td></tr>
+    <tr><th>วันที่ได้มา</th><td>{{ thai_date(a.acquired_date) if a.acquired_date else "ยังไม่ระบุ" }}</td></tr>
+    <tr><th>ราคาทุน</th><td>{{ "{:,.2f}".format(a.cost or 0) }} บาท</td></tr>
+    <tr><th>อายุการใช้งาน</th><td>{{ a.useful_life }} ปี · มูลค่าซาก {{ "{:,.2f}".format(a.salvage_value or 0) }} บาท</td></tr>
+    <tr><th>ค่าเสื่อมราคาต่อปี</th><td><b>{{ "{:,.2f}".format(annual) }} บาท</b> (วิธีเส้นตรง)</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>ตารางค่าเสื่อมราคารายปีงบประมาณ</h2>
+  {% if schedule %}
+  <table>
+    <thead><tr><th>ปีงบประมาณ (พ.ศ.)</th><th class="right">ค่าเสื่อมราคา</th><th class="right">ค่าเสื่อมสะสม</th><th class="right">มูลค่าสุทธิตามบัญชี</th></tr></thead>
+    <tbody>
+      {% for r in schedule %}
+      <tr>
+        <td>{{ r.fy }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.dep) }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.acc) }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.nbv) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted" style="margin-top:8px;">หมายเหตุ: ปีแรกคิดค่าเสื่อมตามจำนวนวันจริงนับจากวันที่ได้มา (วิธีเส้นตรงรายวัน) มูลค่าสุทธิงวดสุดท้ายเท่ากับมูลค่าซาก</p>
+  {% else %}
+  <p class="muted">ยังคำนวณไม่ได้ ต้องระบุ <b>วันที่ได้มา</b> และ <b>ราคาทุน</b> ก่อน (กลับไปแก้ในทะเบียน)</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}สร้างใบเบิกวัสดุ{% endblock %}
+{% block content %}
+<datalist id="reqpersons">{% for p in persons %}<option value="{{ p.name }}">{% endfor %}</datalist>
+<datalist id="reqdepts">{% for d in departments %}<option value="{{ d.name }}">{% endfor %}</datalist>
+
+<div class="card">
+  <h1>สร้างใบเบิกวัสดุ</h1>
+  <form method="post" action="/requisitions/new">
+    <div class="row">
+      <div><label>เลขที่ใบเบิก</label><input name="req_no" placeholder="เช่น 1/2569"></div>
+      <div><label>วันที่</label><input name="date" value="{{ today_thai }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>ผู้ขอเบิก</label><input name="requester" list="reqpersons"></div>
+      <div><label>ฝ่าย/งาน</label><input name="department" list="reqdepts"></div>
+    </div>
+    <label>เพื่อใช้ในงาน/โครงการ</label>
+    <input name="purpose" placeholder="เช่น งานธุรการประจำเดือน">
+
+    <h2 style="margin-top:18px;">รายการที่ขอเบิก</h2>
+    <table id="itemtbl">
+      <thead><tr><th style="width:45%;">วัสดุ</th><th>จำนวน</th><th>หน่วย</th><th>คงเหลือ</th><th></th></tr></thead>
+      <tbody id="itembody"></tbody>
+    </table>
+    <button class="btn sm gray" type="button" onclick="addRow()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มรายการ</button>
+    <br><br>
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกใบเบิก</button>
+    <a class="btn gray" href="/requisitions">ยกเลิก</a>
+  </form>
+</div>
+
+<script>
+  // ข้อมูลวัสดุในระบบ: id, ชื่อ, หน่วย, คงเหลือ
+  var MATS = [
+    {% for it in items %}{id:{{ it.id }}, name:{{ it.name|tojson }}, unit:{{ it.unit|tojson }}, bal:{{ mat_balance(it) }}},
+    {% endfor %}
+  ];
+  function matOptions() {
+    return '<option value="">— เลือกวัสดุ หรือพิมพ์ชื่อใหม่ —</option>' +
+      MATS.map(function(m){return '<option value="'+m.id+'">'+m.name+' (คงเหลือ '+m.bal+' '+m.unit+')</option>';}).join('');
+  }
+  function addRow(){
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><select onchange="pick(this)" style="margin-bottom:4px;">'+matOptions()+'</select>'+
+        '<input name="item_name" placeholder="ชื่อวัสดุ" required>'+
+        '<input type="hidden" name="item_mid" value=""></td>'+     /* มีทุกแถวเสมอ เพื่อให้ index ตรงกัน */
+      '<td><input name="item_qty" type="number" step="0.01" min="0" value="1" style="width:90px;"></td>'+
+      '<td><input name="item_unit" value="หน่วย" style="width:90px;"></td>'+
+      '<td class="bal muted">-</td>'+
+      '<td><button class="btn red sm" type="button" onclick="this.closest(\'tr\').remove()"><svg class="icon"><use href="#ic-trash"/></svg></button></td>';
+    document.getElementById('itembody').appendChild(tr);
+  }
+  function pick(sel){
+    var m = MATS.find(function(x){return x.id==sel.value;});
+    var tr = sel.closest('tr');
+    if(m){
+      tr.querySelector('input[name=item_name]').value = m.name;
+      tr.querySelector('input[name=item_unit]').value = m.unit;
+      tr.querySelector('.bal').textContent = m.bal + ' ' + m.unit;
+      tr.querySelector('input[name=item_mid]').value = m.id;
+    } else {
+      tr.querySelector('.bal').textContent='-';
+      tr.querySelector('input[name=item_mid]').value = '';
+    }
+  }
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+  addRow();  // เริ่มต้น 1 แถว
+</script>
+{% endblock %}

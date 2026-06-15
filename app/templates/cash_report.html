@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}รายงานเงินคงเหลือประจำวัน{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">รายงานเงินคงเหลือประจำวัน</h1>
+    <a class="btn green" href="/finance/cash-report.docx?year={{ fiscal_year }}&date={{ as_of_be }}"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลด Word</a>
+  </div>
+  <form method="get" action="/finance/cash-report" style="margin-top:12px;">
+    <div class="row" style="align-items:flex-end;">
+      <div><label>ปีงบประมาณ</label>
+        <select name="year">{% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>{{ y }}</option>{% endfor %}</select>
+      </div>
+      <div><label>ณ วันที่</label><input name="date" value="{{ as_of_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-search"/></svg> แสดงรายงาน</button></div>
+    </div>
+  </form>
+  <p class="muted" style="font-size:13px; margin-bottom:0;">หมวด/บัญชีดึงจากที่สร้างในงานการเงิน · คอลัมน์เงินสด/ธนาคาร/ส่วนราชการผู้เบิก แยกตามที่ระบุไว้ที่แต่ละบัญชี (ตั้งได้ในหน้าทะเบียนคุมเงิน)</p>
+</div>
+
+<div class="card">
+  <h2>ตัวอย่างรายงาน ณ {{ thai_date(as_of) }}</h2>
+  <table>
+    <thead><tr>
+      <th>ประเภท</th><th class="right">เงินสด</th><th class="right">เงินฝากธนาคาร</th>
+      <th class="right">เงินฝากส่วนราชการผู้เบิก</th><th class="right">รวม</th><th>หมายเหตุ</th>
+    </tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>{% if r.indent %}<span style="display:inline-block; width:22px;"></span>{% endif %}{% if r.header %}<b>{{ r.name }}</b>{% else %}{{ r.name }}{% endif %}</td>
+        {% if r.header %}
+        <td></td><td></td><td></td><td></td><td></td>
+        {% else %}
+        <td class="right">{{ "{:,.2f}".format(r.cash) if r.cash else "-" }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.bank) if r.bank else "-" }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.agency) if r.agency else "-" }}</td>
+        <td class="right"><b>{{ "{:,.2f}".format(r.total) if r.total else "-" }}</b></td>
+        <td></td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr style="background:#f1f5f9; font-weight:700;">
+        <td>รวม</td>
+        <td class="right">{{ "{:,.2f}".format(totals.cash) }}</td>
+        <td class="right">{{ "{:,.2f}".format(totals.bank) }}</td>
+        <td class="right">{{ "{:,.2f}".format(totals.agency) }}</td>
+        <td class="right">{{ "{:,.2f}".format(totals.total) }}</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+  {% if not rows %}<p class="muted">ยังไม่มีบัญชี/หมวดในปีงบนี้ — <a href="/finance/accounts">ไปเพิ่มบัญชี</a></p>{% endif %}
+</div>
+
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

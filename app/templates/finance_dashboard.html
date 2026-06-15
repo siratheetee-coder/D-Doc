@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}งานการเงิน{% endblock %}
+{% block content %}
+<div class="hero" style="background:linear-gradient(120deg,#15803d,#16a34a 55%,#4ade80); box-shadow:0 10px 26px rgba(22,163,74,.28);">
+  <div>
+    <div class="hero-sub">ทะเบียนคุมเงิน · ขอเบิกจ่าย · ใบเสร็จ · รายงาน</div>
+    <span class="hero-title">งานการเงิน</span>
+    <div class="hero-meta">{{ school.name or "" }} · ปีงบประมาณ {{ fiscal_year }}</div>
+  </div>
+  <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+    <form method="get" action="/finance">
+      <select name="year" onchange="this.form.submit()" style="color:var(--text);">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
+      </select>
+    </form>
+    <a class="btn" href="/finance/disburse"><svg class="icon"><use href="#ic-file"/></svg> ออกบันทึกขอเบิกจ่าย</a>
+  </div>
+</div>
+
+{% if request.query_params.get("carried") %}<div class="alert">✔ คัดลอกยอดคงเหลือสิ้นปีงบ {{ request.query_params.get("carried") }} ไปตั้งเป็นยอดยกมาของปีงบ {{ fiscal_year }} แล้ว (ข้อมูลปีเก่ายังอยู่ครบ เลือกดูได้จากช่องเลือกปี)</div>{% endif %}
+
+<div class="card">
+  <div class="stat">
+    <div class="box"><div><div class="lab">เงินคงเหลือรวมทุกบัญชี</div><div class="num">{{ "{:,.2f}".format(total_bal) }}</div></div>
+      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+    <div class="box"><div><div class="lab">รับ (ปีนี้)</div><div class="num">{{ "{:,.0f}".format(total_in) }}</div></div>
+      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-download"/></svg></span></div>
+    <div class="box"><div><div class="lab">จ่าย (ปีนี้)</div><div class="num">{{ "{:,.0f}".format(total_out) }}</div></div>
+      <span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-upload"/></svg></span></div>
+    <div class="box"><div><div class="lab">บันทึกขอเบิกจ่าย</div><div class="num">{{ n_disburse }}</div></div>
+      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-file"/></svg></span></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="card" style="flex:1; min-width:320px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2 style="margin:0;">บัญชี/ประเภทเงิน</h2>
+      <a class="btn sm" href="/finance/accounts"><svg class="icon"><use href="#ic-arrow-right"/></svg> จัดการ</a>
+    </div>
+    {% if accounts %}
+    <table style="margin-top:12px;">
+      <thead><tr><th>บัญชี</th><th class="right">คงเหลือ</th></tr></thead>
+      <tbody>
+        {% for a in accounts %}
+        <tr><td><a href="/finance/accounts/{{ a.id }}?year={{ fiscal_year }}">{{ a.name }}</a></td>
+            <td class="right"><b>{{ "{:,.2f}".format(acct_balance_year(a, fiscal_year)) }}</b></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="muted">ยังไม่มีบัญชี — <a href="/finance/accounts">เพิ่มบัญชี</a> หรือ <a href="/finance/import">นำเข้าจาก Excel</a></p>{% endif %}
+  </div>
+  <div class="card" style="flex:1; min-width:320px;">
+    <h2>บันทึกขอเบิกจ่ายล่าสุด</h2>
+    {% if recent_disburse %}
+    <table><tbody>
+      {% for m in recent_disburse %}
+      <tr><td><a href="/finance/disburse/{{ m.id }}">{{ m.memo_no or "-" }}</a></td>
+          <td>{{ m.subject or "-" }}</td>
+          <td class="right">{{ "{:,.2f}".format(m.amount or 0) }}</td></tr>
+      {% endfor %}
+    </tbody></table>
+    {% else %}<p class="muted">ยังไม่มี</p>{% endif %}
+    <br><a class="btn sm" href="/finance/disburse"><svg class="icon"><use href="#ic-plus"/></svg> ออกบันทึกขอเบิกจ่าย</a>
+  </div>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-coins"/></svg> ยกยอดไปปีงบถัดไป</h2>
+  <p class="muted" style="margin-top:0;">เมื่อขึ้นปีงบใหม่ กดปุ่มนี้เพื่อ <b>คัดลอกยอดคงเหลือสิ้นปีงบ {{ fiscal_year }}</b> ของทุกบัญชี ไปตั้งเป็น <b>ยอดยกมาของปีงบ {{ fiscal_year + 1 }}</b> โดย <b>ไม่ลบข้อมูลปีเก่า</b> (เลือกดูย้อนหลังได้จากช่องเลือกปี) · กดซ้ำได้ ระบบจะอัปเดตยอดให้ตรงเสมอ</p>
+  <form method="post" action="/finance/carry-forward"
+        onsubmit="return confirm('คัดลอกยอดคงเหลือสิ้นปีงบ {{ fiscal_year }} ไปเป็นยอดยกมาปีงบ {{ fiscal_year + 1 }}?');">
+    <input type="hidden" name="year" value="{{ fiscal_year }}">
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-arrow-right"/></svg> ยกยอดไปปีงบ {{ fiscal_year + 1 }}</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}บัญชีวัสดุ{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">บัญชีคุมวัสดุ (รับ-จ่าย-คงเหลือ)</div>
+    <span class="hero-title">วัสดุ</span>
+    <div class="hero-meta">{{ items|length }} รายการ</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มรายการวัสดุ</h2>
+  <form method="post" action="/materials">
+    <div class="row">
+      <div style="flex:2;"><label>ชื่อวัสดุ *</label><input name="name" required placeholder="เช่น กระดาษ A4"></div>
+      <div><label>หน่วยนับ</label><input name="unit" value="หน่วย" placeholder="เช่น รีม, กล่อง"></div>
+      <div><label>จุดเตือนสั่งซื้อ</label><input name="min_stock" type="number" step="0.01" min="0" value="0"></div>
+    </div>
+    <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>รายการวัสดุในคลัง</h2>
+  {% if items %}
+  <table>
+    <thead><tr><th>ชื่อวัสดุ</th><th>หน่วย</th><th class="right">คงเหลือ</th><th>สถานะ</th><th></th></tr></thead>
+    <tbody>
+      {% for it in items %}
+      {% set bal = mat_balance(it) %}
+      <tr>
+        <td><a href="/materials/{{ it.id }}"><b>{{ it.name }}</b></a></td>
+        <td>{{ it.unit }}</td>
+        <td class="right"><b>{{ "%g"|format(bal) }}</b></td>
+        <td>
+          {% if it.min_stock and bal <= it.min_stock %}
+          <span class="pill" style="background:#fde8e8; color:#b91c1c;">ต่ำกว่าจุดสั่งซื้อ</span>
+          {% else %}<span class="muted">ปกติ</span>{% endif %}
+        </td>
+        <td class="right" style="white-space:nowrap;">
+          <a class="btn sm" href="/materials/{{ it.id }}"><svg class="icon"><use href="#ic-clipboard"/></svg> บัญชีรับ-จ่าย</a>
+          <form method="post" action="/materials/{{ it.id }}/delete" style="display:inline" onsubmit="return confirm('ลบวัสดุนี้และประวัติทั้งหมด?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">ยังไม่มีวัสดุ — เพิ่มด้านบน หรือนำเข้าจากเรื่องจัดซื้อ (ปุ่ม "นำเข้าทะเบียน" ในหน้ารายละเอียดเรื่อง)</p>
+  {% endif %}
+</div>
+{% endblock %}

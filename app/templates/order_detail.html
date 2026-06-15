@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}คำสั่ง {{ o.order_no }}{% endblock %}
+{% block content %}
+{% set uploaded = o.file_path %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">คำสั่ง เลขที่ {{ o.order_no or "-" }}</h1>
+    <div style="display:flex; gap:10px;">
+      {% if uploaded %}
+      <a class="btn" href="/admin/uploaded/{{ o.file_path }}" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์แนบ</a>
+      {% else %}
+      <a class="btn" href="/admin/orders/{{ o.id }}/generate"><svg class="icon"><use href="#ic-file"/></svg> ออก Word</a>
+      {% endif %}
+      <a class="btn gray" href="/admin/orders"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
+    </div>
+  </div>
+  {% if request.query_params.get("saved") %}<div class="alert" style="margin-top:10px;">✔ บันทึกการแก้ไขเรียบร้อย</div>{% endif %}
+  {% if uploaded %}
+  <div class="alert" style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+    <svg class="icon"><use href="#ic-info"/></svg>
+    <span>คำสั่งนี้นำเข้าจากไฟล์ — เนื้อหาอยู่ในไฟล์แนบ (กด "เปิดไฟล์แนบ") แก้ได้เฉพาะข้อมูลทะเบียน</span>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>แก้ไขข้อมูลทะเบียน</h2>
+  <form method="post" action="/admin/orders/{{ o.id }}/update">
+    <div class="row">
+      <div><label>เลขที่คำสั่ง</label><input name="order_no" value="{{ o.order_no }}"></div>
+      <div><label>วันที่</label><input name="date" value="{{ be_date(o.date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div style="flex:2;"><label>เรื่อง</label><input name="subject" required value="{{ o.subject }}"></div>
+    </div>
+
+    {% if uploaded %}
+    {# คำสั่งที่อัปโหลด: เก็บเนื้อหาเดิมไว้ (ไม่แสดงช่องให้กรอก) #}
+    <input type="hidden" name="body" value="{{ o.body }}">
+    {% else %}
+    <label>เนื้อหาคำสั่ง</label>
+    <textarea name="body" rows="10">{{ o.body }}</textarea>
+    {% endif %}
+
+    <br>
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
+    <button class="btn red" type="button" onclick="if(confirm('ลบคำสั่งนี้?')){document.getElementById('delform').submit()}"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button>
+  </form>
+  <form id="delform" method="post" action="/admin/orders/{{ o.id }}/delete" style="display:none;"></form>
+</div>
+
+{% if uploaded and o.file_path.lower().endswith('.pdf') %}
+<div class="card">
+  <h2>ไฟล์แนบ</h2>
+  <iframe src="/admin/uploaded/{{ o.file_path }}" style="width:100%; height:600px; border:1px solid var(--border); border-radius:10px;"></iframe>
+</div>
+{% endif %}
+
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

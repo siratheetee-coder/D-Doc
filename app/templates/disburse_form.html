@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}บันทึกขอเบิกจ่าย{% endblock %}
+{% block content %}
+<div class="card">
+  <h1><svg class="icon"><use href="#ic-file"/></svg> ออกบันทึกขออนุมัติเบิกจ่ายเงิน</h1>
+  <p class="muted" style="margin-top:0;">เลขที่บันทึกใช้ชุดเลขกลางร่วมกับทุกงาน · เลือกเรื่องจัดซื้อ/จัดจ้างเพื่อดึงข้อมูลให้อัตโนมัติได้</p>
+  <form method="post" action="/finance/disburse">
+    <div class="row">
+      <div><label>เลขที่บันทึก</label><input name="memo_no" value="{{ sug_memo }}"></div>
+      <div><label>วันที่</label><input name="date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div style="flex:2;"><label>ดึงข้อมูลจากเรื่องจัดซื้อ/จัดจ้าง (ไม่บังคับ)</label>
+        <select id="procSel" onchange="if(this.value)location.href='/finance/disburse?proc='+this.value;">
+          <option value="">— ไม่ผูกกับเรื่องพัสดุ —</option>
+          {% for p in procs %}
+          <option value="{{ p.id }}" {{ 'selected' if prefill and prefill.procurement_id==p.id }}>{{ p.memo_no or p.order_no or '-' }} · {{ p.proc_type }}{{ p.subject }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div style="flex:2;"><label>เรื่อง *</label><input name="subject" required value="{{ prefill.subject if prefill else '' }}" placeholder="เช่น จัดซื้อวัสดุสำนักงาน"></div>
+      <div style="flex:2;"><label>จ่ายให้ (ผู้รับเงิน)</label><input name="payee" value="{{ prefill.payee if prefill else '' }}" placeholder="ชื่อผู้ขาย/ผู้รับจ้าง"></div>
+    </div>
+    <div class="row">
+      <div><label>ประเภท</label>
+        <select name="proc_kind">
+          <option value="จัดซื้อ" {{ 'selected' if prefill and prefill.proc_kind=='จัดซื้อ' }}>จัดซื้อ</option>
+          <option value="จัดจ้าง" {{ 'selected' if prefill and prefill.proc_kind=='จัดจ้าง' }}>จัดจ้าง</option>
+        </select>
+      </div>
+      <div><label>จำนวนเงินขอเบิก (รวม VAT)</label><input name="amount" type="number" step="0.01" min="0" value="{{ '%.2f'|format(prefill.amount) if prefill else '0' }}"></div>
+      <div><label>แหล่งเงิน/หมวดงบ</label><input name="budget_source" value="{{ prefill.budget_source if prefill else '' }}" placeholder="เช่น เงินอุดหนุน"></div>
+      <div><label>เบิกจากบัญชี</label>
+        <select name="account_id">
+          <option value="">— เลือกภายหลัง —</option>
+          {% for a in accounts %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div><label>ภาษีมูลค่าเพิ่ม (VAT)</label><input name="vat" type="number" step="0.01" min="0" value="0"></div>
+      <div><label>หัก ภาษี ณ ที่จ่าย</label><input name="wht" type="number" step="0.01" min="0" value="0"></div>
+      <div><label>ค่าปรับ</label><input name="fine" type="number" step="0.01" min="0" value="0"></div>
+      <div><label>มูลค่าสินค้า / คงเหลือจ่ายจริง</label><input value="คำนวณให้อัตโนมัติในเอกสาร" disabled style="background:#f3f5f9;"></div>
+    </div>
+    <input type="hidden" name="procurement_id" value="{{ prefill.procurement_id if prefill else '' }}">
+    <label>รายละเอียดเพิ่มเติม</label>
+    <textarea name="note" placeholder="รายละเอียดประกอบการเบิกจ่าย (ไม่บังคับ)"></textarea>
+    <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกและสร้างเรื่อง</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>บันทึกขอเบิกจ่ายทั้งหมด</h2>
+  {% if rows %}
+  <table>
+    <thead><tr><th>เลขที่</th><th>วันที่</th><th>เรื่อง</th><th>จ่ายให้</th><th class="right">จำนวนเงิน</th><th>สถานะ</th></tr></thead>
+    <tbody>
+      {% for m in rows %}
+      <tr>
+        <td><a href="/finance/disburse/{{ m.id }}"><b>{{ m.memo_no or "-" }}</b></a></td>
+        <td>{{ thai_date(m.date) if m.date else "-" }}</td>
+        <td>{{ m.subject or "-" }}</td>
+        <td>{{ m.payee or "-" }}</td>
+        <td class="right">{{ "{:,.2f}".format(m.amount or 0) }}</td>
+        <td><span class="pill {{ 'approve' if m.status=='จ่ายแล้ว' }}">{{ m.status }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">ยังไม่มีบันทึกขอเบิกจ่าย</p>{% endif %}
+</div>
+
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}ใบเบิกวัสดุ{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">ใบเบิกวัสดุ</h1>
+    <a class="btn sm" href="/requisitions/new"><svg class="icon"><use href="#ic-plus"/></svg> สร้างใบเบิกใหม่</a>
+  </div>
+</div>
+
+<div class="card">
+  {% if reqs %}
+  <table>
+    <thead><tr><th>เลขที่</th><th>วันที่</th><th>ผู้เบิก</th><th>ฝ่าย/งาน</th><th>รายการ</th><th>สถานะ</th><th></th></tr></thead>
+    <tbody>
+      {% for r in reqs %}
+      <tr>
+        <td><a href="/requisitions/{{ r.id }}">{{ r.req_no or r.id }}</a></td>
+        <td>{{ thai_date(r.date) }}</td>
+        <td>{{ r.requester or "-" }}</td>
+        <td>{{ r.department or "-" }}</td>
+        <td>{{ r.items|length }} รายการ</td>
+        <td><span class="pill {{ 'done' if r.status=='จ่ายแล้ว' else '' }}">{{ r.status }}</span></td>
+        <td class="right"><a class="btn sm gray" href="/requisitions/{{ r.id }}">ดู</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">ยังไม่มีใบเบิก — กด "สร้างใบเบิกใหม่"</p>
+  {% endif %}
+</div>
+{% endblock %}

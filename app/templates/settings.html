@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}ตั้งค่าโรงเรียน{% endblock %}
+{% block content %}
+<datalist id="persons">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist>
+<div class="card">
+  <h1>ตั้งค่าข้อมูลโรงเรียน</h1>
+  <p class="muted">ข้อมูลนี้ถูกนำไปเติมหัวกระดาษและช่องลงนามของเอกสารทุกฉบับอัตโนมัติ</p>
+  {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกข้อมูลเรียบร้อยแล้ว</div>{% endif %}
+  <form method="post" action="/settings">
+    <label>ชื่อโรงเรียน</label>
+    <input name="name" value="{{ school.name }}" placeholder="เช่น โรงเรียนบ้านหินลาด">
+    <label>ที่อยู่ (สำหรับบรรทัด “ส่วนราชการ”)</label>
+    <input name="address" value="{{ school.address }}" placeholder="ตำบล... อำเภอ... จังหวัด...">
+    <div class="row">
+      <div><label>อำเภอ</label><input name="district" value="{{ school.district }}"></div>
+      <div><label>จังหวัด</label><input name="province" value="{{ school.province }}"></div>
+    </div>
+    <div class="row">
+      <div><label>ชื่อผู้อำนวยการ</label><input name="director_name" list="persons" value="{{ school.director_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
+      <div><label>ตำแหน่งผู้บริหาร</label><input name="director_position" value="{{ school.director_position }}"></div>
+    </div>
+    <div class="row">
+      <div><label>เจ้าหน้าที่ (พัสดุ)</label><input name="officer_name" list="persons" value="{{ school.officer_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
+      <div><label>หัวหน้าเจ้าหน้าที่ (พัสดุ)</label><input name="head_officer_name" list="persons" value="{{ school.head_officer_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
+    </div>
+    <div class="row">
+      <div><label>เจ้าหน้าที่การเงิน</label><input name="finance_officer_name" list="persons" value="{{ school.finance_officer_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
+      <div><label>หัวหน้าเจ้าหน้าที่การเงิน</label><input name="finance_head_name" list="persons" value="{{ school.finance_head_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
+      <div><label>เจ้าหน้าที่ธุรการ</label><input name="admin_officer_name" list="persons" value="{{ school.admin_officer_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
+    </div>
+    <div class="row">
+      <div><label>อักษรนำเลขหนังสือ</label><input name="doc_prefix" value="{{ school.doc_prefix }}"></div>
+      <div>
+        <label>เกณฑ์วงเงินแบ่งชุดเอกสาร (บาท)</label>
+        <input name="doc_set_threshold" type="number" step="any" value="{{ school.doc_set_threshold }}">
+        <span class="muted">วงเงิน ≤ เกณฑ์นี้ ใช้ผู้ตรวจรับคนเดียว (โดยอนุโลม)</span>
+      </div>
+    </div>
+    <label>API key สำหรับอ่านไฟล์ด้วย AI (ไม่บังคับ)</label>
+    <input name="ai_api_key" type="password" value="{{ school.ai_api_key }}" placeholder="วาง Anthropic API key (ขึ้นต้น sk-ant-...)" autocomplete="off">
+    <span class="muted" style="font-size:13px;">ใช้กับฟีเจอร์ "สร้างเรื่องจากไฟล์ → อ่านด้วย AI" เท่านั้น (ต้องต่อเน็ต มีค่าใช้จ่ายตาม API) เว้นว่างได้</span>
+    <br><br>
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-users"/></svg> ข้อมูลบุคลากร / ฝ่าย / โครงการ</h2>
+  <p class="muted">รายชื่อบุคลากร ฝ่าย/งาน และโครงการ ใช้ร่วมกันทั้งงานธุรการ พัสดุ และการเงิน — เลือกใช้ตอนสร้างเอกสาร/เลือกผู้ลงนาม</p>
+  <a class="btn" href="/masters"><svg class="icon"><use href="#ic-users"/></svg> จัดการบุคลากร / ฝ่าย / โครงการ</a>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-save"/></svg> สำรอง / กู้คืนข้อมูล</h2>
+  <p class="muted">ข้อมูลทั้งหมดเก็บในไฟล์เดียว แนะนำให้ดาวน์โหลดไฟล์สำรองเก็บไว้สม่ำเสมอ (เช่น ลงไดรฟ์/แฟลชไดรฟ์) เผื่อเครื่องเสียหรือต้องย้ายเครื่อง</p>
+  {% if request.query_params.get("restored") %}<div class="alert">✔ กู้คืนข้อมูลจากไฟล์สำรองเรียบร้อยแล้ว</div>{% endif %}
+  {% if request.query_params.get("restore_err") == "type" %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> ไฟล์ที่อัปโหลดไม่ใช่ไฟล์สำรองที่ถูกต้อง (.db)</div>{% endif %}
+  {% if request.query_params.get("restore_err") == "fail" %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> กู้คืนไม่สำเร็จ กรุณาลองใหม่</div>{% endif %}
+  <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; margin-top:10px;">
+    <a class="btn green" href="/backup"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดไฟล์สำรอง</a>
+    <form method="post" action="/restore" enctype="multipart/form-data"
+          style="display:flex; gap:8px; align-items:center; margin:0; flex-wrap:wrap;"
+          onsubmit="return confirm('กู้คืนข้อมูลจากไฟล์นี้? ข้อมูลปัจจุบันทั้งหมดจะถูกแทนที่ (ระบบจะสำรองไฟล์ปัจจุบันไว้ให้ก่อนอัตโนมัติ)');">
+      <input type="file" name="file" accept=".db" required
+             style="padding:6px; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
+      <button class="btn gray" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> กู้คืนจากไฟล์สำรอง</button>
+    </form>
+  </div>
+  <p class="muted" style="font-size:13px; margin-bottom:0;">เมื่อกู้คืนหรือนำเข้า ระบบจะเก็บสำเนาไฟล์ปัจจุบันไว้ในโฟลเดอร์ data/backups ให้อัตโนมัติ</p>
+</div>
+{% endblock %}

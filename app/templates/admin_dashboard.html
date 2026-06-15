@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}งานธุรการ{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">ทะเบียนหนังสือ · บันทึกข้อความ · คำสั่งโรงเรียน</div>
+    <span class="hero-title">งานธุรการ</span>
+    <div class="hero-meta">{{ school.name or "" }} · ปีงบประมาณ {{ fiscal_year }}</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="stat">
+    <div class="box"><div><div class="lab">หนังสือรับ (ปีนี้)</div><div class="num">{{ n_in }}</div></div>
+      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-download"/></svg></span></div>
+    <div class="box"><div><div class="lab">หนังสือส่ง (ปีนี้)</div><div class="num">{{ n_out }}</div></div>
+      <span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-upload"/></svg></span></div>
+    <div class="box"><div><div class="lab">บันทึกข้อความ</div><div class="num">{{ n_memo }}</div></div>
+      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-file"/></svg></span></div>
+    <div class="box"><div><div class="lab">คำสั่งโรงเรียน</div><div class="num">{{ n_order }}</div></div>
+      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-clipboard"/></svg></span></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="card" style="flex:1; min-width:300px;">
+    <h2>บันทึกข้อความล่าสุด</h2>
+    {% if recent_memos %}
+    <table><tbody>
+      {% for m in recent_memos %}
+      <tr><td><a href="/admin/memos/{{ m.id }}">{{ m.memo_no or "-" }}</a></td><td>{{ m.subject or "-" }}</td><td>{{ thai_date(m.date) if m.date else "" }}</td></tr>
+      {% endfor %}
+    </tbody></table>
+    {% else %}<p class="muted">ยังไม่มี</p>{% endif %}
+    <br><a class="btn sm" href="/admin/memos"><svg class="icon"><use href="#ic-plus"/></svg> ออกบันทึกข้อความ</a>
+  </div>
+  <div class="card" style="flex:1; min-width:300px;">
+    <h2>คำสั่งล่าสุด</h2>
+    {% if recent_orders %}
+    <table><tbody>
+      {% for o in recent_orders %}
+      <tr><td><a href="/admin/orders/{{ o.id }}">{{ o.order_no or "-" }}</a></td><td>{{ o.subject or "-" }}</td><td>{{ thai_date(o.date) if o.date else "" }}</td></tr>
+      {% endfor %}
+    </tbody></table>
+    {% else %}<p class="muted">ยังไม่มี</p>{% endif %}
+    <br><a class="btn sm" href="/admin/orders"><svg class="icon"><use href="#ic-plus"/></svg> ออกคำสั่ง</a>
+  </div>
+</div>
+{% endblock %}

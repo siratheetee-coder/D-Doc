@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}ทะเบียนคุมเงิน - {{ account.name }}{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">{{ account.name }} <span class="muted" style="font-size:16px;">ปีงบ {{ fiscal_year }}</span></h1>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <form method="get" action="/finance/accounts/{{ account.id }}">
+        <select name="year" onchange="this.form.submit()">
+          {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
+        </select>
+      </form>
+      <a class="btn gray sm" href="/finance/accounts"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
+    </div>
+  </div>
+  <div class="stat" style="margin-top:10px;">
+    <div class="box"><div><div class="lab">ยอดยกมา (ปีงบ {{ fiscal_year }})</div><div class="num">{{ "{:,.2f}".format(opening) }}</div></div>
+      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+    <div class="box"><div><div class="lab">คงเหลือสิ้นปีงบ {{ fiscal_year }}</div><div class="num">{{ "{:,.2f}".format(balance) }}</div></div>
+      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-coins"/></svg> งบรายหมวด (ปีงบ {{ fiscal_year }})</h2>
+  <p class="muted" style="margin-top:0;">แบ่งบัญชีนี้เป็นหมวด/รายการย่อย แต่ละหมวดตั้งงบไว้ แล้วเวลาบันทึกรับ-จ่ายเลือกหมวดได้ → ระบบคิดคงเหลือรายหมวดให้</p>
+  <form method="post" action="/finance/accounts/{{ account.id }}/item">
+    <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+    <div class="row">
+      <div style="flex:2;"><label>ชื่อหมวด/รายการ *</label><input name="name" required placeholder="เช่น ค่าจัดการเรียนการสอน, ค่าหนังสือเรียน"></div>
+      <div><label>งบที่ตั้งไว้ (บาท)</label><input name="budget" type="number" step="0.01" min="0" value="0"></div>
+      <div><label>เก็บเงินไว้ที่</label>
+        <select name="deposit_type">
+          <option value="bank">เงินฝากธนาคาร</option>
+          <option value="cash">เงินสด</option>
+          <option value="agency">เงินฝากส่วนราชการผู้เบิก</option>
+        </select>
+      </div>
+      <div style="flex:2;"><label>หมายเหตุ</label><input name="note"></div>
+    </div>
+    <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มหมวด</button>
+  </form>
+  <form method="post" action="/finance/accounts/{{ account.id }}/copy-items" style="margin-top:10px;"
+        onsubmit="return confirm('คัดลอกหมวดและงบจากปีงบ {{ fiscal_year - 1 }} มาปีงบ {{ fiscal_year }}? (ข้ามหมวดที่มีอยู่แล้ว)');">
+    <input type="hidden" name="year" value="{{ fiscal_year }}">
+    <button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-download"/></svg> คัดลอกหมวดจากปีงบ {{ fiscal_year - 1 }}</button>
+  </form>
+  {% if item_rows %}
+  <table style="margin-top:14px;">
+    <thead><tr><th>หมวด/รายการ</th><th>เก็บที่</th><th class="right">งบที่ตั้งไว้</th><th class="right">รับเพิ่ม</th><th class="right">จ่ายแล้ว</th><th class="right">คงเหลือ</th><th></th></tr></thead>
+    <tbody>
+      {% for r in item_rows %}
+      {% set _dep = {'bank':'ธนาคาร','cash':'เงินสด','agency':'ส่วนราชการผู้เบิก'} %}
+      <tr>
+        <td>{{ r.it.name }}{% if r.it.note %} <span class="muted">· {{ r.it.note }}</span>{% endif %}</td>
+        <td><span class="muted">{{ _dep.get(r.it.deposit_type, 'ธนาคาร') }}</span></td>
+        <td class="right">{{ "{:,.2f}".format(r.it.budget or 0) }}</td>
+        <td class="right" style="color:#16a34a;">{{ "{:,.2f}".format(r.tin) if r.tin else "-" }}</td>
+        <td class="right" style="color:#dc2626;">{{ "{:,.2f}".format(r.tout) if r.tout else "-" }}</td>
+        <td class="right"><b>{{ "{:,.2f}".format(r.remain) }}</b></td>
+        <td class="right"><form method="post" action="/finance/items/{{ r.it.id }}/delete" style="display:inline" onsubmit="return confirm('ลบหมวดนี้? (รายการเงินที่เคยผูกจะไม่ถูกลบ แต่จะไม่ผูกกับหมวดแล้ว)')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr style="background:#f1f5f9; font-weight:700;">
+        <td>รวมทุกหมวด</td><td></td>
+        <td class="right">{{ "{:,.2f}".format(item_budget_total) }}</td>
+        <td></td><td></td>
+        <td class="right">{{ "{:,.2f}".format(item_remain_total) }}</td><td></td>
+      </tr>
+    </tfoot>
+  </table>
+  {% else %}<p class="muted" style="margin-bottom:0;">ยังไม่มีหมวดในปีงบนี้ (จะลงรับ-จ่ายโดยไม่เลือกหมวดก็ได้)</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> บันทึกรับ / จ่าย</h2>
+  <form method="post" action="/finance/accounts/{{ account.id }}/txn">
+    <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+    <div class="row">
+      <div><label>ประเภท</label>
+        <select name="kind"><option value="in">รับเงิน (+)</option><option value="out">จ่ายเงิน (-)</option></select>
+      </div>
+      <div><label>จำนวนเงิน (บาท)</label><input name="amount" type="number" step="0.01" min="0" value="0" required></div>
+      <div><label>วันที่</label><input name="date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>หมวดงบ</label>
+        <select name="item_id">
+          <option value="">— ไม่ระบุหมวด —</option>
+          {% for it in items %}<option value="{{ it.id }}">{{ it.name }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div><label>เลขที่ใบเสร็จ/ใบสำคัญ</label><input name="receipt_no" placeholder="กรอกเพื่อลงทะเบียนใบเสร็จให้อัตโนมัติ"></div>
+      <div><label>คู่สัญญา/ผู้รับเงิน</label><input name="party" placeholder="ชื่อผู้รับ/ผู้จ่ายเงิน"></div>
+    </div>
+    <div class="row">
+      <div style="flex:2;"><label>อ้างอิง</label><input name="ref" placeholder="เลขที่เรื่อง/เอกสารอื่น"></div>
+      <div style="flex:2;"><label>หมายเหตุ</label><input name="note"></div>
+    </div>
+    <span class="muted" style="font-size:13px;">กรอก "เลขที่ใบเสร็จ/ใบสำคัญ" หรือ "คู่สัญญา" ระบบจะลงรายการใน <a href="/finance/receipts">ทะเบียนใบเสร็จ/ใบสำคัญ</a> ให้อัตโนมัติ (ไม่ต้องกรอกซ้ำ)</span>
+    <br><br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>ประวัติรับ-จ่าย-คงเหลือ</h2>
+  {% if rows %}
+  <table>
+    <thead><tr><th>วันที่</th><th>รายการ</th><th>หมวด</th><th>อ้างอิง</th>
+        <th class="right">รับ</th><th class="right">จ่าย</th><th class="right">คงเหลือ</th><th></th></tr></thead>
+    <tbody>
+      <tr><td colspan="6"><span class="muted">ยอดยกมา (ปีงบ {{ fiscal_year }})</span></td><td class="right"><b>{{ "{:,.2f}".format(opening) }}</b></td><td></td></tr>
+      {% for r in rows %}
+      <tr>
+        <td>{{ thai_date(r.t.date) }}</td>
+        <td>{% if r.t.kind=="in" %}<span style="color:#16a34a;">รับ</span>{% else %}<span style="color:#dc2626;">จ่าย</span>{% endif %}{% if r.t.note %} · {{ r.t.note }}{% endif %}{% if receipt_map.get(r.t.id) %} <span class="pill" style="background:#dcfce7; color:#15803d;">ใบเสร็จ {{ receipt_map.get(r.t.id) }}</span>{% endif %}</td>
+        <td>{{ r.t.item.name if r.t.item else (r.t.category or "-") }}</td>
+        <td>{{ r.t.ref or "-" }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.t.amount) if r.t.kind=="in" else "" }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.t.amount) if r.t.kind=="out" else "" }}</td>
+        <td class="right"><b>{{ "{:,.2f}".format(r.balance) }}</b></td>
+        <td class="right"><form method="post" action="/finance/txn/{{ r.t.id }}/delete" style="display:inline" onsubmit="return confirm('ลบรายการนี้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">ยังไม่มีการเคลื่อนไหว</p>
+  {% endif %}
+</div>
+
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

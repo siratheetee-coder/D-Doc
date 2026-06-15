@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}ใบเบิก {{ req.req_no or req.id }}{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">ใบเบิกวัสดุ เลขที่ {{ req.req_no or req.id }}</h1>
+    <span class="pill {{ 'done' if req.status=='จ่ายแล้ว' else '' }}">{{ req.status }}</span>
+  </div>
+  {% if request.query_params.get("issued") %}<div class="alert" style="margin-top:10px;">✔ จ่ายวัสดุเรียบร้อย ระบบตัดยอดในบัญชีวัสดุให้แล้ว</div>{% endif %}
+  <table>
+    <tr><th style="width:160px;">วันที่</th><td>{{ thai_date(req.date) }}</td></tr>
+    <tr><th>ผู้ขอเบิก</th><td>{{ req.requester or "-" }}</td></tr>
+    <tr><th>ฝ่าย/งาน</th><td>{{ req.department or "-" }}</td></tr>
+    <tr><th>เพื่อใช้ในงาน</th><td>{{ req.purpose or "-" }}</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>รายการที่เบิก</h2>
+  <table>
+    <thead><tr><th>ลำดับ</th><th>วัสดุ</th><th class="right">จำนวน</th><th>หน่วย</th><th>คงเหลือในคลัง</th></tr></thead>
+    <tbody>
+      {% for it in req.items %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ it.name }}</td>
+        <td class="right">{{ "%g"|format(it.qty) }}</td>
+        <td>{{ it.unit }}</td>
+        <td>
+          {% if it.id in stock and stock[it.id] is not none %}
+            {% set bal = stock[it.id] %}
+            {% if bal < it.qty and req.status != 'จ่ายแล้ว' %}
+            <span class="pill" style="background:#fde8e8; color:#b91c1c;">เหลือ {{ "%g"|format(bal) }} (ไม่พอ)</span>
+            {% else %}{{ "%g"|format(bal) }}{% endif %}
+          {% else %}<span class="muted">ไม่ผูกกับคลัง</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between;">
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      {% if req.status != 'จ่ายแล้ว' %}
+      <form method="post" action="/requisitions/{{ req.id }}/issue" onsubmit="return confirm('ยืนยันจ่ายวัสดุ? ระบบจะตัดยอดในบัญชีวัสดุตามรายการที่ผูกกับคลัง')">
+        <button class="btn green" type="submit"><svg class="icon"><use href="#ic-check"/></svg> ยืนยันจ่ายวัสดุ (ตัดสต๊อก)</button>
+      </form>
+      {% endif %}
+      <a class="btn" href="/requisitions/{{ req.id }}/print"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ใบเบิก (Word)</a>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <a class="btn gray" href="/requisitions"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
+      <form method="post" action="/requisitions/{{ req.id }}/delete" onsubmit="return confirm('ลบใบเบิกนี้? (ถ้าจ่ายแล้วจะคืนยอดสต๊อกให้)')">
+        <button class="btn red" type="submit"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

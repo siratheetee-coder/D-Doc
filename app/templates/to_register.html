@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}นำเข้าทะเบียน - {{ p.subject }}{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>นำเข้าสู่ทะเบียนครุภัณฑ์ / บัญชีวัสดุ</h1>
+  <p class="muted">เรื่อง: <b>{{ p.proc_type }}{{ p.subject }}</b> · ผู้ขาย {{ p.vendor.name if p.vendor else "-" }}</p>
+  <div class="alert" style="background:#eff6ff;">
+    <svg class="icon"><use href="#ic-info"/></svg>
+    <div style="flex:1;">เลือกประเภทของแต่ละรายการ ระบบเดาให้แล้วจากราคา/หน่วย (≥ {{ "{:,}".format(asset_threshold) }} บาท = ครุภัณฑ์)
+      <ul style="margin:6px 0 0; padding-left:20px;">
+        <li><b>ครุภัณฑ์</b>: สร้างระเบียนแยกตามจำนวนชิ้น พร้อมคำนวณค่าเสื่อม (วันที่ได้มา = วันที่ใบสั่ง)</li>
+        <li><b>วัสดุ</b>: บันทึกรับเข้าบัญชีวัสดุ (รวมเข้ารายการชื่อเดียวกันถ้ามีอยู่)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <form method="post" action="/procurement/{{ p.id }}/to-register">
+    <table>
+      <thead><tr><th>รายการ</th><th class="right">จำนวน</th><th class="right">ราคา/หน่วย</th><th>นำเข้าเป็น</th><th>ประเภทครุภัณฑ์</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        {% set i = loop.index0 %}
+        <tr>
+          <td><b>{{ r.it.name }}</b></td>
+          <td class="right">{{ "%g"|format(r.it.quantity) }} {{ r.it.unit }}</td>
+          <td class="right">{{ "{:,.2f}".format(r.it.unit_price) }}</td>
+          <td>
+            <select name="dest_{{ i }}" onchange="toggleCat(this, {{ i }})">
+              <option value="asset" {{ "selected" if r.guess=="asset" }}>ครุภัณฑ์</option>
+              <option value="material" {{ "selected" if r.guess=="material" }}>วัสดุ</option>
+              <option value="skip">ไม่นำเข้า</option>
+            </select>
+          </td>
+          <td>
+            <select name="cat_{{ i }}" id="cat_{{ i }}" {{ "" if r.guess=="asset" else "disabled" }}>
+              {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+            </select>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <br>
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> นำเข้าทะเบียน</button>
+    <a class="btn gray" href="/procurement/{{ p.id }}">ยกเลิก</a>
+  </form>
+</div>
+
+<script>
+  function toggleCat(sel, i){
+    document.getElementById('cat_'+i).disabled = (sel.value !== 'asset');
+  }
+</script>
+{% endblock %}

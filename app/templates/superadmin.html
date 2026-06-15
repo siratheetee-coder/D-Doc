@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>D-Doc | คอนโซลผู้ดูแลระบบ</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <style>
+    @font-face { font-family:"Prompt"; font-weight:400; src:url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:600; src:url("/static/fonts/Prompt-SemiBold.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:700; src:url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:"Prompt","Sarabun","Segoe UI",sans-serif; background:#F5F6FA; color:#202224; }
+    .top { background:#1b2433; color:#fff; padding:14px 26px; display:flex; justify-content:space-between; align-items:center; }
+    .top b { font-size:18px; }
+    .top a { color:#cbd5e1; text-decoration:none; font-size:15px; }
+    .wrap { max-width:1100px; margin:24px auto; padding:0 20px; }
+    .card { background:#fff; border:1px solid #eceef3; border-radius:14px; padding:20px 22px; margin-bottom:20px;
+      box-shadow:0 2px 8px rgba(16,24,40,.05); }
+    h1 { font-size:20px; margin:0 0 4px; } h2 { font-size:16px; margin:0 0 12px; }
+    label { display:block; font-weight:600; font-size:14px; margin:8px 0 4px; }
+    input { width:100%; padding:8px 11px; border:1px solid #dfe3ea; border-radius:9px; font-size:15px; font-family:inherit; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; } .row > div { flex:1; min-width:150px; }
+    .btn { background:#4880FF; color:#fff; border:none; padding:8px 16px; border-radius:9px; font-weight:600;
+      cursor:pointer; font-family:inherit; font-size:14.5px; text-decoration:none; display:inline-block; }
+    .btn.sm { padding:5px 11px; font-size:13px; } .btn.gray { background:#eef0f4; color:#5a6a85; }
+    .btn.red { background:#ef4444; } .btn.green { background:#16b364; }
+    table { width:100%; border-collapse:collapse; font-size:14.5px; } th,td { border-bottom:1px solid #eceef3; padding:9px 8px; text-align:left; vertical-align:top; }
+    .pill { padding:2px 10px; border-radius:999px; font-size:12.5px; font-weight:700; }
+    .pill.ok { background:#e3f9ee; color:#0e9152; } .pill.off { background:#fde8e8; color:#b91c1c; }
+    .pill.exp { background:#fff4e5; color:#d97706; }
+    .msg { background:#e9f7ef; color:#0e7a44; border:1px solid #b7ebcd; padding:10px 14px; border-radius:10px; margin-bottom:16px; }
+    .uline { font-size:13px; color:#5a6a85; display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:4px; }
+    form.inline { display:inline; }
+  </style>
+</head>
+<body>
+  <div class="top"><b>D-Doc · คอนโซลผู้ดูแลระบบ</b>
+    <span>{{ admin_name }} · <a href="/logout">ออกจากระบบ</a></span></div>
+  <div class="wrap">
+    {% if msg %}<div class="msg">{{ msg }}</div>{% endif %}
+
+    <div class="card">
+      <h1>เพิ่มโรงเรียนใหม่</h1>
+      <form method="post" action="/admin-console/tenant">
+        <div class="row">
+          <div style="flex:2;"><label>ชื่อโรงเรียน</label><input name="name" required placeholder="เช่น โรงเรียนบ้านหินลาด"></div>
+          <div><label>ชื่อผู้ใช้ (สำหรับล็อกอิน)</label><input name="admin_user" required placeholder="เช่น hinlad"></div>
+          <div><label>รหัสผ่านเริ่มต้น</label><input name="admin_pw" required></div>
+        </div>
+        <div class="row">
+          <div><label>วันหมดอายุ (เว้นว่าง = ไม่จำกัด)</label><input name="expiry" type="date"></div>
+          <div><label>จำนวนผู้ใช้สูงสุด</label><input name="max_users" type="number" value="3" min="1"></div>
+          <div style="display:flex; align-items:flex-end;"><button class="btn" type="submit">สร้างโรงเรียน</button></div>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>โรงเรียนทั้งหมด ({{ rows|length }})</h2>
+      <table>
+        <thead><tr><th>โรงเรียน</th><th>สถานะ</th><th>วันหมดอายุ</th><th>ผู้ใช้</th><th>จัดการ</th></tr></thead>
+        <tbody>
+        {% for r in rows %}
+          <tr>
+            <td><b>{{ r.t.name }}</b><br><span style="font-size:12px;color:#7b8190;">id {{ r.t.id }} · {{ r.t.slug }}</span></td>
+            <td>
+              {% if not r.t.active %}<span class="pill off">ระงับ</span>
+              {% elif r.expired %}<span class="pill exp">หมดอายุ</span>
+              {% else %}<span class="pill ok">ใช้งาน</span>{% endif %}
+              <form class="inline" method="post" action="/admin-console/tenant/{{ r.t.id }}/toggle">
+                <button class="btn sm gray" type="submit">{{ "เปิดใช้" if not r.t.active else "ระงับ" }}</button>
+              </form>
+            </td>
+            <td>
+              <form method="post" action="/admin-console/tenant/{{ r.t.id }}/expiry" style="display:flex;gap:5px;">
+                <input name="expiry" type="date" value="{{ r.t.expiry_date or '' }}" style="width:140px;">
+                <button class="btn sm" type="submit">ตั้ง</button>
+              </form>
+            </td>
+            <td>
+              {% for u in r.users %}
+              <div class="uline">
+                <b>{{ u.username }}</b>
+                <form class="inline" method="post" action="/admin-console/account/{{ u.id }}/reset" onsubmit="this.password.value=prompt('รหัสผ่านใหม่ของ {{ u.username }}')||''; return !!this.password.value;">
+                  <input type="hidden" name="password"><button class="btn sm gray" type="submit">รีเซ็ตรหัส</button>
+                </form>
+                <form class="inline" method="post" action="/admin-console/account/{{ u.id }}/delete" onsubmit="return confirm('ลบผู้ใช้ {{ u.username }}?')">
+                  <button class="btn sm red" type="submit">ลบ</button>
+                </form>
+              </div>
+              {% endfor %}
+              <form method="post" action="/admin-console/tenant/{{ r.t.id }}/adduser" style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;">
+                <input name="username" placeholder="ผู้ใช้ใหม่" style="width:110px;">
+                <input name="password" placeholder="รหัสผ่าน" style="width:110px;">
+                <button class="btn sm green" type="submit">เพิ่มผู้ใช้</button>
+              </form>
+            </td>
+            <td><a class="btn sm gray" href="/admin-console?focus={{ r.t.id }}">—</a></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

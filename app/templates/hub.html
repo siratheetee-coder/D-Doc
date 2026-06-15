@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}เลือกงาน{% endblock %}
+{% block content %}
+<style>
+  .hub-wrap { width: 100%; }
+  .hub-head { margin-bottom: 22px; }
+  .hub-head h1 { margin: 0 0 4px; font-size: 28px; }
+  .hub-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  @media (max-width: 860px){ .hub-grid { grid-template-columns: 1fr; } }
+  .hub-card {
+    display: flex; flex-direction: column; gap: 14px; padding: 30px 28px; border-radius: 20px;
+    min-height: 290px; background: linear-gradient(140deg, var(--c), var(--c2)); color: #fff;
+    text-decoration: none; box-shadow: 0 12px 30px rgba(16,24,40,.22);
+    transition: transform .15s ease, box-shadow .15s ease; position: relative; overflow: hidden;
+  }
+  .hub-card::after { content:""; position:absolute; right:-40px; top:-40px; width:160px; height:160px;
+    background: rgba(255,255,255,.10); border-radius: 50%; }
+  .hub-card:hover { transform: translateY(-6px); box-shadow: 0 20px 40px rgba(16,24,40,.32); }
+  .hub-card.dim { opacity: .6; cursor: default; }
+  .hub-card.dim:hover { transform: none; box-shadow: 0 12px 30px rgba(16,24,40,.22); }
+  .hub-ic { width: 66px; height: 66px; border-radius: 18px; display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,.22); color: #fff; position: relative; z-index: 1; }
+  .hub-ic .icon { width: 36px; height: 36px; }
+  .hub-card h2 { margin: 0; font-size: 24px; color: #fff; background: none; border: none; padding: 0; display: block; }
+  .hub-card .desc { color: rgba(255,255,255,.92); font-size: 15px; line-height: 1.55; flex: 1; }
+  .hub-stat { display: flex; align-items: baseline; gap: 8px; background: rgba(255,255,255,.16);
+    border-radius: 12px; padding: 10px 14px; align-self: flex-start; }
+  .hub-stat b { font-size: 26px; font-weight: 800; line-height: 1; }
+  .hub-stat span { font-size: 13.5px; color: rgba(255,255,255,.92); }
+  .hub-go { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: #fff; font-size: 16px; }
+  .hub-soon { font-size: 14px; color: rgba(255,255,255,.95); font-weight: 700; }
+
+  /* แถบภาพรวม */
+  .ov-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+  .ov-box { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border-radius: 14px;
+    background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); }
+  .ov-box .n { font-size: 24px; font-weight: 800; color: var(--text); line-height: 1; }
+  .ov-box .l { font-size: 13.5px; color: var(--muted); }
+  .ov-ic { width: 42px; height: 42px; border-radius: 11px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .ov-ic .icon { width: 22px; height: 22px; }
+  .ov-purple { background:#ede9fe; color:#7c3aed; } .ov-blue { background:#e8f0ff; color:#4880FF; }
+  .ov-green { background:#dcfce7; color:#16a34a; } .ov-amber { background:#fff4e5; color:#d97706; }
+</style>
+
+<div class="hub-wrap">
+  <div class="hub-head">
+    <h1>{{ school.name or "ระบบจัดการเอกสารโรงเรียน" }}</h1>
+    <p class="muted" style="margin:0;">เลือกงานที่ต้องการเข้าใช้ — เลขบันทึกข้อความและคำสั่งรันต่อเนื่องร่วมกันทุกงาน · ปีงบประมาณ {{ fiscal_year }}</p>
+  </div>
+
+  <div class="hub-grid">
+    <!-- งานธุรการ -->
+    <a class="hub-card {{ '' if modules_live.admin else 'dim' }}" style="--c:#7c3aed; --c2:#a78bfa;"
+       href="{{ '/admin' if modules_live.admin else '#' }}" {{ '' if modules_live.admin else 'onclick=return false;'|safe }}>
+      <span class="hub-ic"><svg class="icon"><use href="#ic-file"/></svg></span>
+      <h2>งานธุรการ</h2>
+      <div class="desc">ทะเบียนหนังสือรับ-ส่ง · ออกบันทึกข้อความ · คำสั่งโรงเรียน</div>
+      {% if modules_live.admin %}
+      <div class="hub-stat"><b>{{ admin_total }}</b><span>เอกสารปีนี้</span></div>
+      <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      {% else %}<span class="hub-soon">เร็วๆ นี้</span>{% endif %}
+    </a>
+
+    <!-- งานพัสดุ -->
+    <a class="hub-card" style="--c:#4880FF; --c2:#6f9bff;" href="/procurement">
+      <span class="hub-ic"><svg class="icon"><use href="#ic-package"/></svg></span>
+      <h2>งานพัสดุ</h2>
+      <div class="desc">จัดซื้อจัดจ้าง · ออกเอกสารครบชุด · ทะเบียนครุภัณฑ์ · บัญชีวัสดุ</div>
+      <div class="hub-stat"><b>{{ stats.proc }}</b><span>เรื่องปีนี้ · {{ "{:,.0f}".format(stats.proc_amount) }} บาท</span></div>
+      <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+    </a>
+
+    <!-- งานการเงิน -->
+    <a class="hub-card {{ '' if modules_live.finance else 'dim' }}" style="--c:#16a34a; --c2:#4ade80;"
+       href="{{ '/finance' if modules_live.finance else '#' }}" {{ '' if modules_live.finance else 'onclick=return false;'|safe }}>
+      <span class="hub-ic"><svg class="icon"><use href="#ic-coins"/></svg></span>
+      <h2>งานการเงิน</h2>
+      <div class="desc">ทะเบียนคุมเงินแยกบัญชี · บันทึกขอเบิกจ่าย · รายงานการเงิน · ใบเสร็จ/ใบสำคัญ</div>
+      {% if modules_live.finance %}
+      <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      {% else %}<span class="hub-soon">เร็วๆ นี้</span>{% endif %}
+    </a>
+  </div>
+
+  <!-- ภาพรวมปีงบ -->
+  <div class="card" style="margin-top:22px;">
+    <h2>ภาพรวมปีงบประมาณ {{ fiscal_year }}</h2>
+    <div class="ov-grid">
+      <div class="ov-box"><span class="ov-ic ov-blue"><svg class="icon"><use href="#ic-clipboard"/></svg></span><div><div class="n">{{ stats.proc }}</div><div class="l">เรื่องจัดซื้อจัดจ้าง</div></div></div>
+      <div class="ov-box"><span class="ov-ic ov-purple"><svg class="icon"><use href="#ic-file"/></svg></span><div><div class="n">{{ stats.memo }}</div><div class="l">บันทึกข้อความ</div></div></div>
+      <div class="ov-box"><span class="ov-ic ov-purple"><svg class="icon"><use href="#ic-clipboard"/></svg></span><div><div class="n">{{ stats.order }}</div><div class="l">คำสั่งโรงเรียน</div></div></div>
+      <div class="ov-box"><span class="ov-ic ov-amber"><svg class="icon"><use href="#ic-download"/></svg></span><div><div class="n">{{ stats.incoming }}</div><div class="l">หนังสือรับ</div></div></div>
+      <div class="ov-box"><span class="ov-ic ov-amber"><svg class="icon"><use href="#ic-upload"/></svg></span><div><div class="n">{{ stats.outgoing }}</div><div class="l">หนังสือส่ง</div></div></div>
+      <div class="ov-box"><span class="ov-ic ov-blue"><svg class="icon"><use href="#ic-package"/></svg></span><div><div class="n">{{ stats.asset }}</div><div class="l">ครุภัณฑ์</div></div></div>
+      <div class="ov-box"><span class="ov-ic ov-green"><svg class="icon"><use href="#ic-clipboard"/></svg></span><div><div class="n">{{ stats.material }}</div><div class="l">รายการวัสดุ</div></div></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

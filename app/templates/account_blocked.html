@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>D-Doc | แจ้งเตือน</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <style>
+    @font-face { font-family:"Prompt"; font-weight:400; src:url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:700; src:url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+      font-family:"Prompt","Sarabun","Segoe UI",sans-serif; background:#F5F6FA; color:#202224; padding:20px; }
+    .card { background:#fff; max-width:440px; border-radius:18px; padding:34px 30px; text-align:center;
+      box-shadow:0 12px 34px rgba(16,24,40,.12); border:1px solid #eceef3; }
+    .ic { width:64px; height:64px; border-radius:50%; background:#fff4e5; color:#d97706; display:flex;
+      align-items:center; justify-content:center; margin:0 auto 16px; font-size:34px; font-weight:700; }
+    h1 { font-size:22px; margin:0 0 8px; }
+    p { color:#5a6a85; line-height:1.6; }
+    .btn { display:inline-block; margin-top:18px; background:#4880FF; color:#fff; text-decoration:none;
+      padding:10px 20px; border-radius:11px; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="ic">!</div>
+    <h1>{{ reason }}</h1>
+    <p>โรงเรียน <b>{{ school or "-" }}</b><br>
+       {% if expiry %}วันหมดอายุ: {{ expiry }}<br>{% endif %}
+       กรุณาติดต่อผู้ขายเพื่อต่ออายุหรือเปิดใช้งานบัญชีอีกครั้ง</p>
+    <a class="btn" href="/logout">ออกจากระบบ</a>
+  </div>
+</body>
+</html>

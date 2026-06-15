@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}ค้นหา{% endblock %}
+{% block content %}
+<style>
+  .sr-group { margin-bottom: 8px; }
+  .sr-group h2 .cnt { font-weight: 600; font-size: 14px; color: var(--muted); }
+  .sr-item { display:block; padding: 11px 14px; border-radius: 10px; text-decoration: none; color: var(--text);
+    border: 1px solid var(--border); margin-bottom: 8px; transition: background .14s, border-color .14s; }
+  .sr-item:hover { background: var(--brand-soft); border-color: var(--brand); }
+  .sr-item .t { font-weight: 600; }
+  .sr-item .s { font-size: 13px; color: var(--muted); }
+  .sr-tag { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 20px; }
+  .tag-admin { background:#ede9fe; color:#7c3aed; } .tag-procurement { background:#e8f0ff; color:#4880FF; }
+</style>
+
+<div class="card">
+  <h1>ผลการค้นหา {% if q %}: "{{ q }}"{% endif %}</h1>
+  <form method="get" action="/search" style="display:flex; gap:8px; align-items:center; margin:0;">
+    <input name="q" value="{{ q }}" placeholder="ค้นหาเรื่อง / เลขที่ / ผู้ขาย / ชื่อวัสดุ-ครุภัณฑ์" autofocus style="flex:1;">
+    <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-search"/></svg> ค้นหา</button>
+  </form>
+  {% if q %}<p class="muted" style="margin:10px 0 0;">พบ {{ total }} รายการ จากทุกงาน (พัสดุ · ธุรการ)</p>{% endif %}
+</div>
+
+{% if q %}
+  {% set ns = namespace(any=false) %}
+  {% for label, mod, items in groups %}
+    {% if items %}
+    {% set ns.any = true %}
+    <div class="card sr-group">
+      <h2>
+        <span class="sr-tag tag-{{ mod }}">{{ 'ธุรการ' if mod=='admin' else 'พัสดุ' }}</span>
+        {{ label.split(': ')[1] if ': ' in label else label }}
+        <span class="cnt">({{ items|length }})</span>
+      </h2>
+      {% for it in items %}
+      <a class="sr-item" href="{{ it.url }}">
+        <div class="t">{{ it.title }}</div>
+        {% if it.sub %}<div class="s">{{ it.sub }}</div>{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endfor %}
+  {% if not ns.any %}
+  <div class="card"><p class="muted">ไม่พบรายการที่ตรงกับ "{{ q }}" ในทุกงาน</p></div>
+  {% endif %}
+{% endif %}
+{% endblock %}

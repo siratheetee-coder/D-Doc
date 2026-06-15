@@ -1,0 +1,75 @@
+# -*- coding: utf-8 -*-
+"""
+ai_extract.py
+-------------
+อ่านข้อมูลเรื่องจัดซื้อ/จัดจ้างจากข้อความเอกสารด้วย AI (Anthropic Claude API)
+เป็นทางเลือก (ออปชัน) — ต้องตั้งค่า API key ในตั้งค่าโรงเรียน + เครื่องต้องต่อเน็ต
+ดึงได้ครบกว่ารวมรายการพัสดุและกรรมการ (เทียบกับ heuristic ออฟไลน์)
+
+ใช้ urllib (stdlib) เรียก REST API โดยตรง ไม่ต้องเพิ่ม dependency
+"""
+import re
+import json
+import urllib.request
+
+_API_URL = "https://api.anthropic.com/v1/messages"
+_MODEL = "claude-haiku-4-5"   # โมเดลเล็ก เร็ว ประหยัด เหมาะกับงานสกัดข้อมูล
+
+_PROMPT = """คุณคือผู้ช่วยสกัดข้อมูลจากเอกสารราชการไทย (เรื่องจัดซื้อ/จัดจ้างของโรงเรียน)
+อ่านข้อความด้านล่างแล้วตอบกลับเป็น JSON เท่านั้น (ไม่มีคำอธิบายอื่น) ตามคีย์นี้:
+{
+ "proc_type": "ซื้อ หรือ จ้าง",
+ "subject": "ชื่อเรื่อง/รายการที่จัดซื้อ (ไม่ต้องมีคำว่า รายงานขอซื้อ/จ้าง)",
+ "memo_no": "เลขที่บันทึก เช่น 1/2569",
+ "request_date": "วันที่รายงาน รูปแบบ DD/MM/YYYY เป็น พ.ศ.",
+ "department": "ฝ่าย/งานที่ขอ",
+ "project_name": "ชื่อโครงการ",
+ "purpose": "เหตุผลความจำเป็น",
+ "budget_source": "แหล่งงบประมาณ",
+ "delivery_days": จำนวนวันส่งมอบ (ตัวเลข),
+ "vendor_name": "ชื่อผู้ขาย/ผู้รับจ้าง",
+ "order_no": "เลขที่ใบสั่งซื้อ/จ้าง (ถ้ามี)",
+ "command_no": "เลขที่คำสั่งแต่งตั้ง (ถ้ามี)",
+ "items": [{"name":"ชื่อพัสดุ","qty":จำนวน,"unit":"หน่วย","unit_price":ราคาต่อหน่วย}],
+ "inspectors": [{"name":"ชื่อ-สกุล","position":"ตำแหน่ง","role":"ประธานกรรมการ/กรรมการ/กรรมการและเลขานุการ/ผู้ตรวจรับ"}]
+}
+ถ้าฟิลด์ใดไม่พบ ให้ใส่ค่าว่าง "" หรือ [] (ตัวเลขใส่ 0). ใช้เลขอารบิก. คงข้อความไทยตามต้นฉบับ.
+
+ข้อความเอกสาร:
+---
+{TEXT}
+---
+ตอบเป็น JSON เท่านั้น:"""
+
+
+def extract_with_ai(text: str, api_key: str) -> dict:
+    """ส่งข้อความให้ AI สกัดข้อมูล คืน dict (หรือ {'error': ...} ถ้าพลาด)"""
+    if not (api_key or "").strip():
+        return {"error": "no_key"}
+    if not (text or "").strip():
+        return {"error": "no_text"}
+    prompt = _PROMPT.replace("{TEXT}", text[:18000])   # จำกัดความยาว
+    body = json.dumps({
+        "model": _MODEL, "max_tokens": 3000,
+        "messages": [{"role": "user", "content": prompt}],
+    }).encode("utf-8")
+    req = urllib.request.Request(_API_URL, data=body, headers={
+        "x-api-key": api_key.strip(),
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        return {"error": "request", "detail": str(e)[:200]}
+    out = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
+    m = re.search(r"\{.*\}", out, re.S)
+    if not m:
+        return {"error": "no_json"}
+    try:
+        result = json.loads(m.group(0))
+        result["ok"] = True
+        return result
+    except Exception:
+        return {"error": "bad_json"}

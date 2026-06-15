@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}บันทึกขอเบิกจ่าย {{ m.memo_no }}{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">บันทึกขอเบิกจ่าย {{ m.memo_no or "" }}</h1>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn gray sm" href="/finance/disburse"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
+      <a class="btn sm" href="/finance/disburse/{{ m.id }}/generate"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลด Word</a>
+    </div>
+  </div>
+  {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกข้อมูลเรียบร้อยแล้ว</div>{% endif %}
+  {% if request.query_params.get("posted") %}<div class="alert">✔ ลงรายการจ่ายเงินเข้าทะเบียนคุมเงินแล้ว</div>{% endif %}
+  {% if proc %}<div class="alert" style="background:#e8f0ff; color:#3568e0; border-color:#c7d7fb;">เชื่อมกับเรื่องพัสดุ: <a href="/procurement/{{ proc.id }}">{{ proc.memo_no or proc.order_no or '-' }} · {{ proc.proc_type }}{{ proc.subject }}</a></div>{% endif %}
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-edit"/></svg> รายละเอียด</h2>
+  <form method="post" action="/finance/disburse/{{ m.id }}/update">
+    <div class="row">
+      <div><label>เลขที่บันทึก</label><input name="memo_no" value="{{ m.memo_no }}"></div>
+      <div><label>วันที่</label><input name="date" value="{{ be_date(m.date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>สถานะ</label>
+        <select name="status">
+          {% for s in ["ร่าง","อนุมัติ","จ่ายแล้ว"] %}<option value="{{ s }}" {{ 'selected' if m.status==s }}>{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div style="flex:2;"><label>เรื่อง</label><input name="subject" value="{{ m.subject }}"></div>
+      <div style="flex:2;"><label>จ่ายให้</label><input name="payee" value="{{ m.payee }}"></div>
+    </div>
+    <div class="row">
+      <div><label>ประเภท</label>
+        <select name="proc_kind">
+          <option value="จัดซื้อ" {{ 'selected' if m.proc_kind=='จัดซื้อ' }}>จัดซื้อ</option>
+          <option value="จัดจ้าง" {{ 'selected' if m.proc_kind=='จัดจ้าง' }}>จัดจ้าง</option>
+        </select>
+      </div>
+      <div><label>จำนวนเงินขอเบิก (รวม VAT)</label><input name="amount" type="number" step="0.01" value="{{ '%.2f'|format(m.amount or 0) }}"></div>
+      <div><label>แหล่งเงิน/หมวดงบ</label><input name="budget_source" value="{{ m.budget_source }}"></div>
+      <div><label>เบิกจากบัญชี</label>
+        <select name="account_id">
+          <option value="">— ไม่ระบุ —</option>
+          {% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if m.account_id==a.id }}>{{ a.name }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div><label>ภาษีมูลค่าเพิ่ม (VAT)</label><input name="vat" type="number" step="0.01" value="{{ '%.2f'|format(m.vat or 0) }}"></div>
+      <div><label>หัก ภาษี ณ ที่จ่าย</label><input name="wht" type="number" step="0.01" value="{{ '%.2f'|format(m.wht or 0) }}"></div>
+      <div><label>ค่าปรับ</label><input name="fine" type="number" step="0.01" value="{{ '%.2f'|format(m.fine or 0) }}"></div>
+      <div><label>คงเหลือจ่ายจริง</label><input value="{{ '{:,.2f}'.format((m.amount or 0) - (m.wht or 0) - (m.fine or 0)) }} บาท" disabled style="background:#f3f5f9;"></div>
+    </div>
+    <label>รายละเอียดเพิ่มเติม</label>
+    <textarea name="note">{{ m.note or "" }}</textarea>
+    <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกการแก้ไข</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-coins"/></svg> ลงรายการจ่ายเงิน</h2>
+  {% if m.status == "จ่ายแล้ว" %}
+  <p class="muted">รายการนี้ลงจ่ายในทะเบียนคุมเงินแล้ว</p>
+  {% elif m.account_id %}
+  <p class="muted">กดเพื่อลงรายการจ่ายเงิน {{ "{:,.2f}".format(m.amount or 0) }} บาท เข้าทะเบียนคุมเงินบัญชีที่เลือก (สถานะจะเปลี่ยนเป็น "จ่ายแล้ว")</p>
+  <form method="post" action="/finance/disburse/{{ m.id }}/post" onsubmit="return confirm('ลงรายการจ่ายเงินเข้าทะเบียนคุมเงิน?')">
+    <button class="btn green" type="submit"><svg class="icon"><use href="#ic-check"/></svg> ลงจ่ายเข้าทะเบียนคุมเงิน</button>
+  </form>
+  {% else %}
+  <p class="muted">เลือก "เบิกจากบัญชี" ด้านบนก่อน จึงจะลงรายการจ่ายเข้าทะเบียนคุมเงินได้</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <form method="post" action="/finance/disburse/{{ m.id }}/delete" onsubmit="return confirm('ลบบันทึกนี้? (รายการเงินที่ผูกไว้จะถูกลบด้วย)')">
+    <button class="btn red sm" type="submit"><svg class="icon"><use href="#ic-trash"/></svg> ลบบันทึกนี้</button>
+  </form>
+</div>
+
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

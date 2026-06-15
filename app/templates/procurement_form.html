@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+{% set is_edit = p is not none %}
+{% block title %}{{ "แก้ไขเรื่อง" if is_edit else "สร้างเรื่องจัดซื้อใหม่" }}{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>{{ "แก้ไขเรื่องจัดซื้อ/จัดจ้าง" if is_edit else "สร้างเรื่องจัดซื้อ/จัดจ้างใหม่" }}</h1>
+  {% if not is_edit %}<p class="muted">วันนี้: {{ today_thai }}</p>{% endif %}
+
+  {% if pending_file|default('') %}
+  <div class="alert" style="display:flex;align-items:center;gap:8px;">
+    <svg class="icon"><use href="#ic-check"/></svg>
+    <span>ระบบอ่านข้อมูลจากไฟล์มาเติมให้แล้ว <b>โปรดตรวจสอบความถูกต้องก่อนบันทึก</b> — ไฟล์ต้นฉบับจะถูกแนบให้
+      {% if ai_note|default('') %}<br><b>{{ ai_note }}</b>{% endif %}</span>
+  </div>
+  {% endif %}
+  <form method="post" action="{{ action }}">
+    {% if pending_file|default('') %}<input type="hidden" name="pending_file" value="{{ pending_file }}">{% endif %}
+    <div class="row">
+      {% if not is_edit %}
+      <div><label>เลขที่บันทึก (รายงานขอซื้อ/จ้าง)</label>
+        <input name="memo_no" value="{{ prefill_memo|default('') or sug_memo }}" placeholder="เช่น 1/2569">
+      </div>
+      {% endif %}
+      <div><label>ปีงบประมาณ</label>
+        <input name="fiscal_year" value="{{ p.fiscal_year if is_edit else fiscal_year }}"></div>
+      <div><label>ประเภท</label>
+        {% set cur_type = p.proc_type if is_edit else prefill_type|default('ซื้อ') %}
+        <select name="proc_type" id="procType" onchange="syncType()">
+          <option value="ซื้อ" {{ "selected" if cur_type=="ซื้อ" }}>ซื้อ</option>
+          <option value="จ้าง" {{ "selected" if cur_type=="จ้าง" }}>จ้าง</option>
+        </select></div>
+      <div><label>วิธี</label>
+        <select name="method">
+          {% for mth in ["เฉพาะเจาะจง", "คัดเลือก", "ประกวดราคาอิเล็กทรอนิกส์ (e-bidding)"] %}
+          <option value="{{ mth }}" {{ "selected" if is_edit and p.method==mth }}>{{ mth }}</option>
+          {% endfor %}
+        </select></div>
+    </div>
+    {% if not is_edit %}<div class="alert" style="display:flex;align-items:center;gap:8px;">
+      <svg class="icon"><use href="#ic-info"/></svg>
+      <span>เลขที่บันทึกถูกเติมให้อัตโนมัติ โดยรันต่อจากเลขล่าสุดในปีงบประมาณนี้ (แก้ไขได้ถ้าต้องการ)</span>
+    </div>{% endif %}
+
+    <label>ชื่อเรื่อง/รายการที่จัดซื้อ *</label>
+    <input name="subject" required value="{{ p.subject if is_edit else (prefill_subject|default('')) }}" placeholder="เช่น วัสดุโครงการวันคริสต์มาส">
+
+    <div class="row">
+      <div><label>ชื่อโครงการ</label>
+        <input name="project_name" list="projects" value="{{ p.project_name if is_edit else prefill_project|default('') }}" placeholder="เลือกหรือพิมพ์">
+        <datalist id="projects">{% for pj in projects %}<option value="{{ pj.name }}">{% endfor %}</datalist>
+      </div>
+      <div><label>ฝ่าย/งานที่ขอ</label>
+        <input name="department" list="departments" value="{{ p.department if is_edit else prefill_dept|default('') }}" placeholder="เลือกหรือพิมพ์">
+        <datalist id="departments">{% for d in departments %}<option value="{{ d.name }}">{% endfor %}</datalist>
+      </div>
+    </div>
+
+    <label>เหตุผลความจำเป็น</label>
+    <textarea name="purpose" placeholder="เช่น เพื่อใช้จัดกิจกรรม...">{{ p.purpose if is_edit else prefill_purpose|default('') }}</textarea>
+
+    <div class="row">
+      <div><label>แหล่งงบประมาณ</label>
+        <input name="budget_source" value="{{ p.budget_source if is_edit else (prefill_budget|default('') or 'อุดหนุน') }}"></div>
+      <div><label>ที่มาราคากลาง</label>
+        <input name="price_ref_source" value="{{ p.price_ref_source if is_edit else 'การสืบราคาจากท้องตลาด' }}"></div>
+      <div><label>กำหนดส่งมอบ (วัน)</label>
+        <input name="delivery_days" type="number" value="{{ p.delivery_days if is_edit else prefill_delivery|default(7) }}"></div>
+      <div><label id="vendorLabel">ผู้ขาย</label>
+        <input name="vendor_name" id="vendorInput" list="vendors_dl" autocomplete="off"
+               value="{{ p.vendor.name if is_edit and p.vendor else prefill_vendor|default('') }}"
+               placeholder="พิมพ์ชื่อใหม่ หรือเลือกจากรายการ">
+        <datalist id="vendors_dl">{% for v in vendors %}<option value="{{ v.name }}">{% endfor %}</datalist>
+        <div style="margin-top:6px;">
+          <button type="button" class="btn gray sm" onclick="openVendorModal()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มผู้ขายใหม่</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div><label>ภาษีมูลค่าเพิ่ม (VAT)</label>
+        <select name="vat_mode">
+          <option value="none" {{ "selected" if not is_edit or p.vat_mode!='include' }}>ไม่คิดภาษีมูลค่าเพิ่ม</option>
+          <option value="include" {{ "selected" if is_edit and p.vat_mode=='include' }}>ราคารวมภาษีมูลค่าเพิ่ม 7%</option>
+        </select></div>
+      <div><label>ผู้ลงนามในใบสั่งซื้อ/จ้าง</label>
+        <select name="order_signer">
+          <option value="director" {{ "selected" if not is_edit or p.order_signer!='head_officer' }}>ผู้อำนวยการโรงเรียน</option>
+          <option value="head_officer" {{ "selected" if is_edit and p.order_signer=='head_officer' }}>หัวหน้าเจ้าหน้าที่</option>
+        </select></div>
+    </div>
+
+    <h2 style="margin-top:20px;">รายการพัสดุ</h2>
+    <table id="items">
+      <thead><tr><th style="width:45%;">รายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th><th></th></tr></thead>
+      <tbody>
+        {% if prefill_items %}
+          {% for it in prefill_items %}
+          <tr>
+            <td><input name="item_name" value="{{ it.name }}"></td>
+            <td><input name="item_qty" type="number" step="any" value="{{ '%g'|format(it.quantity) }}" oninput="calcTotal()"></td>
+            <td><input name="item_unit" value="{{ it.unit }}"></td>
+            <td><input name="item_price" type="number" step="any" value="{{ '%g'|format(it.unit_price) }}" oninput="calcTotal()"></td>
+            <td class="center"><button type="button" class="btn red sm" onclick="this.closest('tr').remove();calcTotal()">✕</button></td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td><input name="item_name"></td>
+            <td><input name="item_qty" type="number" step="any" value="1" oninput="calcTotal()"></td>
+            <td><input name="item_unit" value="ชิ้น"></td>
+            <td><input name="item_price" type="number" step="any" value="0" oninput="calcTotal()"></td>
+            <td class="center"><button type="button" class="btn red sm" onclick="this.closest('tr').remove();calcTotal()">✕</button></td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+    <br><button type="button" class="btn soft sm" onclick="addItem()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มรายการ</button>
+    <p style="margin-top:8px;">วงเงินรวมโดยประมาณ: <b id="totalShow">0.00</b> บาท</p>
+
+    <h2 style="margin-top:20px;">ผู้ตรวจรับพัสดุ</h2>
+    <div class="row">
+      <div style="max-width:340px;">
+        <label>รูปแบบ</label>
+        {% set cur_mode = p.inspection_mode if is_edit else prefill_mode|default('single') %}
+        <select name="inspection_mode" id="mode">
+          <option value="single" {{ "selected" if cur_mode=="single" }}>ผู้ตรวจรับคนเดียว (โดยอนุโลม)</option>
+          <option value="committee" {{ "selected" if cur_mode=="committee" }}>คณะกรรมการตรวจรับ</option>
+        </select>
+        <span class="muted" id="modeHint"></span>
+      </div>
+    </div>
+    <p class="muted" style="margin:-4px 0 10px;">บทบาท: ระบบเลือกให้อัตโนมัติ (คนเดียว = ผู้ตรวจรับ · หลายคน = ประธาน/กรรมการ/กรรมการและเลขานุการ) — <b>เปลี่ยนเองได้</b></p>
+    {% set roles = ["ผู้ตรวจรับ", "ประธานกรรมการ", "กรรมการ", "กรรมการและเลขานุการ"] %}
+    <table id="members">
+      <thead><tr><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th style="width:190px;">บทบาท</th><th></th></tr></thead>
+      <tbody>
+        {% if prefill_members %}
+          {% for m in prefill_members %}
+          <tr>
+            <td><input name="member_name" list="persons" value="{{ m.name }}"></td>
+            <td><input name="member_position" list="positions" value="{{ m.position }}"></td>
+            <td><select name="member_role" class="role-sel" data-touched="1" onchange="this.dataset.touched='1'">
+              {% for rl in roles %}<option value="{{ rl }}" {{ "selected" if m.role==rl }}>{{ rl }}</option>{% endfor %}
+            </select></td>
+            <td class="center"><button type="button" class="btn red sm" onclick="this.closest('tr').remove(); refreshAllRoles()">✕</button></td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td><input name="member_name" list="persons"></td>
+            <td><input name="member_position" list="positions" value="ครู"></td>
+            <td><select name="member_role" class="role-sel" onchange="this.dataset.touched='1'">
+              {% for rl in roles %}<option value="{{ rl }}">{{ rl }}</option>{% endfor %}
+            </select></td>
+            <td class="center"><button type="button" class="btn red sm" onclick="this.closest('tr').remove(); refreshAllRoles()">✕</button></td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+    <datalist id="persons">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist>
+    <datalist id="positions">{% for ps in positions %}<option value="{{ ps }}">{% endfor %}</datalist>
+    <br><button type="button" class="btn soft sm" onclick="addMember()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มกรรมการ</button>
+
+    <h2 style="margin-top:24px;">คณะกรรมการกำหนดคุณลักษณะเฉพาะ/ราคากลาง</h2>
+    <p class="muted" style="margin:-8px 0 12px;">ไม่บังคับ ใช้กรณีต้องจัดทำ TOR หรือแต่งตั้งคณะกรรมการกำหนดคุณลักษณะ</p>
+    {% set sroles = ["ประธานกรรมการ", "กรรมการ", "กรรมการและเลขานุการ"] %}
+    <table id="specmembers">
+      <thead><tr><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th style="width:190px;">บทบาท</th><th></th></tr></thead>
+      <tbody>
+        {% if prefill_spec_members %}
+          {% for m in prefill_spec_members %}
+          <tr>
+            <td><input name="spec_member_name" list="persons" value="{{ m.name }}"></td>
+            <td><input name="spec_member_position" list="positions" value="{{ m.position }}"></td>
+            <td><select name="spec_member_role" class="role-sel" data-touched="1" onchange="this.dataset.touched='1'">
+              {% for rl in sroles %}<option value="{{ rl }}" {{ "selected" if m.role==rl }}>{{ rl }}</option>{% endfor %}
+            </select></td>
+            <td class="center"><button type="button" class="btn red sm" onclick="this.closest('tr').remove(); refreshAllRoles()">✕</button></td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td><input name="spec_member_name" list="persons"></td>
+            <td><input name="spec_member_position" list="positions" value="ครู"></td>
+            <td><select name="spec_member_role" class="role-sel" onchange="this.dataset.touched='1'">
+              {% for rl in sroles %}<option value="{{ rl }}">{{ rl }}</option>{% endfor %}
+            </select></td>
+            <td class="center"><button type="button" class="btn red sm" onclick="this.closest('tr').remove(); refreshAllRoles()">✕</button></td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+    <br><button type="button" class="btn soft sm" onclick="addSpecMember()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มกรรมการคุณลักษณะ</button>
+
+    <br><br>
+    <button class="btn green" type="submit"><svg class="icon"><use href="#ic-save"/></svg> {{ "บันทึกการแก้ไข" if is_edit else "บันทึกและออกเลขที่" }}</button>
+    <a class="btn gray" href="{{ ('/procurement/' ~ p.id) if is_edit else '/' }}">ยกเลิก</a>
+  </form>
+</div>
+
+<!-- Floating card เพิ่มรายละเอียดผู้ขาย (ไม่ออกจากหน้า ข้อมูลที่พิมพ์ไม่หาย) -->
+<div id="vendorOverlay" style="display:none; position:fixed; inset:0; background:rgba(16,24,40,.45); z-index:100; align-items:center; justify-content:center; padding:24px 16px; overflow:auto;">
+  <div class="card" style="max-width:560px; width:100%; margin:0;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2 style="margin:0;"><svg class="icon"><use href="#ic-store"/></svg> เพิ่มผู้ขาย/ผู้รับจ้าง</h2>
+      <button type="button" class="btn gray sm" onclick="closeVendorModal()"><svg class="icon"><use href="#ic-x"/></svg></button>
+    </div>
+    <div id="vendorMsg"></div>
+    <div class="row">
+      <div style="flex:2;"><label>ชื่อร้าน/บริษัท/บุคคล *</label><input id="vm_name" placeholder="เช่น ห้างหุ้นส่วนจำกัด..."></div>
+      <div style="flex:1;"><label>ชื่อเจ้าของ/ผู้ลงนาม</label><input id="vm_owner" placeholder="เช่น นายสมชาย ใจดี"></div>
+    </div>
+    <div class="row">
+      <div><label>เลขประจำตัวผู้เสียภาษี</label><input id="vm_tax"></div>
+      <div><label>เบอร์โทร</label><input id="vm_phone"></div>
+      <div><label>เลขบัญชีธนาคาร</label><input id="vm_bank"></div>
+    </div>
+    <label>ที่อยู่</label><input id="vm_address">
+    <br><br>
+    <button type="button" class="btn" onclick="saveVendor()"><svg class="icon"><use href="#ic-save"/></svg> บันทึกผู้ขาย</button>
+    <button type="button" class="btn gray" onclick="closeVendorModal()">ยกเลิก</button>
+  </div>
+</div>
+
+<script>
+  function openVendorModal(){
+    var ov = document.getElementById('vendorOverlay');
+    // ย้าย overlay ไปไว้ที่ body กัน transform/animation ของ main ทำให้ position:fixed เพี้ยน
+    if (ov.parentNode !== document.body) document.body.appendChild(ov);
+    document.getElementById('vendorMsg').innerHTML = '';
+    // เติมชื่อที่พิมพ์ไว้ในช่องผู้ขาย (ถ้ามี) ลงในฟอร์มเพิ่มผู้ขาย
+    var typed = (document.getElementById('vendorInput').value || '').trim();
+    if (typed) document.getElementById('vm_name').value = typed;
+    ov.style.display = 'flex';
+  }
+  function closeVendorModal(){ document.getElementById('vendorOverlay').style.display = 'none'; }
+  function saveVendor(){
+    var name = document.getElementById('vm_name').value.trim();
+    if (!name){ document.getElementById('vendorMsg').innerHTML = '<div class="alert warn" style="margin:8px 0;">กรุณากรอกชื่อร้าน/บริษัท</div>'; return; }
+    var data = new URLSearchParams();
+    data.append('name', name);
+    data.append('owner_name', document.getElementById('vm_owner').value.trim());
+    data.append('tax_id', document.getElementById('vm_tax').value.trim());
+    data.append('phone', document.getElementById('vm_phone').value.trim());
+    data.append('bank_account', document.getElementById('vm_bank').value.trim());
+    data.append('address', document.getElementById('vm_address').value.trim());
+    fetch('/vendors/quick-add', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:data})
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if (res.ok){
+          // เลือกผู้ขายใหม่ในช่อง + เพิ่มเข้า datalist
+          document.getElementById('vendorInput').value = res.name;
+          var dl = document.getElementById('vendors_dl');
+          var opt = document.createElement('option'); opt.value = res.name; dl.appendChild(opt);
+          closeVendorModal();
+        } else {
+          document.getElementById('vendorMsg').innerHTML = '<div class="alert warn" style="margin:8px 0;">บันทึกไม่สำเร็จ</div>';
+        }
+      })
+      .catch(function(){ document.getElementById('vendorMsg').innerHTML = '<div class="alert warn" style="margin:8px 0;">เกิดข้อผิดพลาด</div>'; });
+  }
+
+  var THRESHOLD = {{ threshold }};
+  function addItem() {
+    var tb = document.querySelector('#items tbody');
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input name="item_name"></td>' +
+      '<td><input name="item_qty" type="number" step="any" value="1" oninput="calcTotal()"></td>' +
+      '<td><input name="item_unit" value="ชิ้น"></td>' +
+      '<td><input name="item_price" type="number" step="any" value="0" oninput="calcTotal()"></td>' +
+      '<td class="center"><button type="button" class="btn red sm" onclick="this.closest(\'tr\').remove();calcTotal()">✕</button></td>';
+    tb.appendChild(tr);
+  }
+  // ===== บทบาทอัตโนมัติ (ค่าตั้งต้น) แต่ผู้ใช้เปลี่ยนเองได้ =====
+  // ตั้งค่าให้เฉพาะ select ที่ผู้ใช้ "ยังไม่แตะ" (data-touched != 1)
+  function _roleFor(i, n, kind) {
+    if (n === 1) return (kind === 'inspect') ? 'ผู้ตรวจรับ' : 'ประธานกรรมการ';
+    if (i === 0) return 'ประธานกรรมการ';
+    if (i === n - 1) return 'กรรมการและเลขานุการ';
+    return 'กรรมการ';
+  }
+  function _refresh(tbodySel, kind) {
+    var rows = document.querySelectorAll(tbodySel + ' tr');
+    rows.forEach(function(tr, i){
+      var sel = tr.querySelector('select.role-sel');
+      if (sel && sel.dataset.touched !== '1') sel.value = _roleFor(i, rows.length, kind);
+    });
+  }
+  function refreshAllRoles() {
+    _refresh('#members tbody', 'inspect');
+    _refresh('#specmembers tbody', 'spec');
+  }
+  var INSPECT_OPTS = '<option value="ผู้ตรวจรับ">ผู้ตรวจรับ</option><option value="ประธานกรรมการ">ประธานกรรมการ</option><option value="กรรมการ">กรรมการ</option><option value="กรรมการและเลขานุการ">กรรมการและเลขานุการ</option>';
+  var SPEC_OPTS = '<option value="ประธานกรรมการ">ประธานกรรมการ</option><option value="กรรมการ">กรรมการ</option><option value="กรรมการและเลขานุการ">กรรมการและเลขานุการ</option>';
+  function addMember() {
+    var tb = document.querySelector('#members tbody');
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input name="member_name" list="persons"></td>' +
+      '<td><input name="member_position" list="positions" value="ครู"></td>' +
+      '<td><select name="member_role" class="role-sel" onchange="this.dataset.touched=\'1\'">' + INSPECT_OPTS + '</select></td>' +
+      '<td class="center"><button type="button" class="btn red sm" onclick="this.closest(\'tr\').remove(); refreshAllRoles()">✕</button></td>';
+    tb.appendChild(tr);
+    refreshAllRoles();
+  }
+  function addSpecMember() {
+    var tb = document.querySelector('#specmembers tbody');
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input name="spec_member_name" list="persons"></td>' +
+      '<td><input name="spec_member_position" list="positions" value="ครู"></td>' +
+      '<td><select name="spec_member_role" class="role-sel" onchange="this.dataset.touched=\'1\'">' + SPEC_OPTS + '</select></td>' +
+      '<td class="center"><button type="button" class="btn red sm" onclick="this.closest(\'tr\').remove(); refreshAllRoles()">✕</button></td>';
+    tb.appendChild(tr);
+    refreshAllRoles();
+  }
+  function calcTotal() {
+    var qty = document.getElementsByName('item_qty');
+    var price = document.getElementsByName('item_price');
+    var t = 0;
+    for (var i = 0; i < qty.length; i++) t += (parseFloat(qty[i].value)||0) * (parseFloat(price[i].value)||0);
+    document.getElementById('totalShow').innerText = t.toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
+    // บังคับโหมดตามวงเงิน: เกินเกณฑ์ -> คณะกรรมการ (ปิดตัวเลือกคนเดียว)
+    var modeSel = document.getElementById('mode');
+    var singleOpt = modeSel.querySelector('option[value="single"]');
+    var hint = document.getElementById('modeHint');
+    if (t > THRESHOLD) {
+      modeSel.value = 'committee'; singleOpt.disabled = true;
+      hint.innerText = ' (วงเงินเกิน ' + THRESHOLD.toLocaleString() + ' บังคับใช้คณะกรรมการ)';
+    } else {
+      singleOpt.disabled = false;
+      hint.innerText = ' (วงเงินไม่เกิน ' + THRESHOLD.toLocaleString() + ' ใช้คนเดียวได้)';
+    }
+  }
+  function syncType() {
+    var t = document.getElementById('procType').value;
+    document.getElementById('vendorLabel').innerText = (t === 'ซื้อ') ? 'ผู้ขาย' : 'ผู้รับจ้าง';
+  }
+  calcTotal(); syncType(); refreshAllRoles();
+
+  // เลือกชื่อบุคลากร -> เติมตำแหน่งให้อัตโนมัติ (จำตำแหน่งของแต่ละคน)
+  var PERSON_POS = {{ persons_pos | tojson }};
+  document.addEventListener('input', function(e){
+    var n = e.target && e.target.getAttribute && e.target.getAttribute('name');
+    if (n === 'member_name' || n === 'spec_member_name') {
+      var pos = PERSON_POS[(e.target.value || '').trim()];
+      if (pos) {
+        var row = e.target.closest('tr');
+        var pf = row && row.querySelector('input[name$="member_position"]');
+        if (pf) pf.value = pos;
+      }
+    }
+  });
+</script>
+{% endblock %}

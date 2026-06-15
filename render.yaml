@@ -1,0 +1,38 @@
+# Render Blueprint — deploy D-Doc ขึ้น Render ในคลิกเดียว
+# ใช้: Render Dashboard -> New -> Blueprint -> เชื่อม repo นี้ -> Apply
+# (แผน starter = มี persistent disk -> ข้อมูลไม่หายตอน redeploy)
+services:
+  - type: web
+    name: d-doc
+    runtime: python
+    plan: starter            # ต้องเป็นแผนเสียเงินจึงจะต่อ disk ถาวรได้
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    disk:
+      name: ddoc-data
+      mountPath: /opt/render/project/src/data   # โฟลเดอร์ data/ ของแอป (ข้อมูลทุกโรงเรียนอยู่ที่นี่)
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: DDOC_HTTPS
+        value: "1"            # บังคับคุกกี้ Secure (Render เป็น HTTPS)
+      - key: DDOC_AUTO_BACKUP
+        value: "1"            # สำรองข้อมูลอัตโนมัติทุกวันในตัวแอป
+      # --- ตั้งค่าต่อไปนี้ในหน้า Render (Environment) ห้าม commit ลง git ---
+      - key: DDOC_SUPERADMIN
+        sync: false           # ชื่อผู้ดูแลระบบ (คุณ)
+      - key: DDOC_SUPERADMIN_PW
+        sync: false           # รหัสผ่านผู้ดูแลระบบ
+      # --- สำรองขึ้นคลาวด์ (off-site) ตั้งเมื่อพร้อม (R2/B2) ---
+      - key: BACKUP_S3_ENDPOINT
+        sync: false
+      - key: BACKUP_S3_BUCKET
+        sync: false
+      - key: BACKUP_S3_KEY_ID
+        sync: false
+      - key: BACKUP_S3_SECRET
+        sync: false
+      - key: BACKUP_S3_REGION
+        value: auto

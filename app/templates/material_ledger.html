@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}บัญชีวัสดุ - {{ item.name }}{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">{{ item.name }} <span class="muted" style="font-size:16px;">({{ item.unit }})</span></h1>
+    <div>
+      <a class="btn gray sm" href="/materials"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับบัญชีวัสดุ</a>
+    </div>
+  </div>
+  <div class="stat" style="margin-top:10px;">
+    <div class="box"><div><div class="lab">คงเหลือปัจจุบัน</div><div class="num">{{ "%g"|format(balance) }} {{ item.unit }}</div></div>
+      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-package"/></svg></span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> บันทึกรับเข้า / จ่ายออก</h2>
+  <form method="post" action="/materials/{{ item.id }}/txn">
+    <div class="row">
+      <div><label>ประเภท</label>
+        <select name="kind"><option value="in">รับเข้า (+)</option><option value="out">จ่ายออก (-)</option></select>
+      </div>
+      <div><label>จำนวน</label><input name="qty" type="number" step="0.01" min="0" value="0" required></div>
+      <div><label>ราคา/หน่วย (รับเข้า)</label><input name="unit_price" type="number" step="0.01" min="0" value="0"></div>
+      <div><label>วันที่</label><input name="date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+    </div>
+    <div class="row">
+      <div style="flex:2;"><label>อ้างอิง</label><input name="ref" placeholder="เช่น เลขที่เรื่องจัดซื้อ / ใบเบิก"></div>
+      <div style="flex:2;"><label>หมายเหตุ</label><input name="note"></div>
+    </div>
+    <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>ประวัติรับ-จ่าย-คงเหลือ</h2>
+  {% if rows %}
+  <table>
+    <thead><tr><th>วันที่</th><th>รายการ</th><th>อ้างอิง</th>
+        <th class="right">รับ</th><th class="right">จ่าย</th><th class="right">คงเหลือ</th><th></th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>{{ thai_date(r.t.date) }}</td>
+        <td>{% if r.t.kind=="in" %}<span style="color:#16a34a;">รับเข้า</span>{% else %}<span style="color:#dc2626;">จ่ายออก</span>{% endif %}{% if r.t.note %} · {{ r.t.note }}{% endif %}</td>
+        <td>{{ r.t.ref or "-" }}</td>
+        <td class="right">{{ "%g"|format(r.t.qty) if r.t.kind=="in" else "" }}</td>
+        <td class="right">{{ "%g"|format(r.t.qty) if r.t.kind=="out" else "" }}</td>
+        <td class="right"><b>{{ "%g"|format(r.balance) }}</b></td>
+        <td class="right"><form method="post" action="/materials/txn/{{ r.t.id }}/delete" style="display:inline" onsubmit="return confirm('ลบรายการนี้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">ยังไม่มีการเคลื่อนไหว</p>
+  {% endif %}
+</div>
+
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

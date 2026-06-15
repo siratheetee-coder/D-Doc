@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}ตรวจก่อนลงทะเบียน{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>{{ {"incoming":"ลงทะเบียนหนังสือรับ","outgoing":"ลงทะเบียนหนังสือส่ง","memo":"ลงทะเบียนบันทึกข้อความ","order":"ลงทะเบียนคำสั่งโรงเรียน"}[kind] }} (จากไฟล์)</h1>
+  {% if fields.ok %}
+  <div class="alert" style="display:flex;align-items:center;gap:8px;">
+    <svg class="icon"><use href="#ic-check"/></svg>
+    <span>ระบบอ่านข้อมูลจาก PDF ให้แล้ว <b>โปรดตรวจสอบ/แก้ไขก่อนกดบันทึก</b> ช่องที่อ่านไม่ได้กรอกเพิ่มได้</span>
+  </div>
+  {% else %}
+  <div class="alert warn" style="display:flex;align-items:center;gap:8px;">
+    <svg class="icon"><use href="#ic-alert"/></svg>
+    <span>อ่านข้อความจาก PDF ไม่ได้ (อาจเป็นไฟล์สแกน) — กรุณากรอกข้อมูลเอง ไฟล์ยังแนบให้</span>
+  </div>
+  {% endif %}
+</div>
+
+<div class="row" style="align-items:flex-start;">
+  <div class="card" style="flex:1; min-width:320px;">
+    {% if kind == "incoming" %}
+    <form method="post" action="/admin/incoming">
+      <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+      <input type="hidden" name="pending_file" value="{{ pending_file }}">
+      <div class="row">
+        <div style="max-width:90px;"><label>เลขรับ</label><input name="recv_no" value="{{ sug_recv }}"></div>
+        <div><label>วันที่รับ</label><input name="recv_date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      </div>
+      <div class="row">
+        <div><label>ที่หนังสือ</label><input name="letter_no" value="{{ fields.letter_no }}"></div>
+        <div><label>ลงวันที่</label><input name="letter_date" value="{{ letter_date_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      </div>
+      <label>จาก (หน่วยงาน)</label><input name="from_org" value="{{ fields.from_org }}">
+      <label>ถึง/มอบให้</label><input name="to_person" value="{{ fields.addressee }}">
+      <label>เรื่อง *</label><input name="subject" required value="{{ fields.subject }}">
+      <label>การปฏิบัติ/หมายเหตุ</label><input name="action_note">
+      <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> เพิ่มลงทะเบียน</button>
+      <a class="btn gray" href="/admin/incoming">ยกเลิก</a>
+    </form>
+    {% elif kind == "outgoing" %}
+    <form method="post" action="/admin/outgoing">
+      <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+      <input type="hidden" name="pending_file" value="{{ pending_file }}">
+      <div class="row">
+        <div><label>เลขที่ส่ง</label><input name="send_no" value="{{ fields.letter_no or sug_no }}"></div>
+        <div><label>ลงวันที่</label><input name="date" value="{{ letter_date_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      </div>
+      <label>ถึง (หน่วยงาน)</label><input name="to_org" value="{{ fields.addressee }}">
+      <label>เรื่อง *</label><input name="subject" required value="{{ fields.subject }}">
+      <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> เพิ่มลงทะเบียน</button>
+      <a class="btn gray" href="/admin/outgoing">ยกเลิก</a>
+    </form>
+    {% elif kind == "memo" %}
+    <form method="post" action="/admin/memos">
+      <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+      <input type="hidden" name="pending_file" value="{{ pending_file }}">
+      <div class="row">
+        <div><label>เลขที่บันทึก</label><input name="memo_no" value="{{ fields.letter_no or sug_memo }}"></div>
+        <div><label>ลงวันที่</label><input name="date" value="{{ letter_date_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      </div>
+      <label>ส่วนราชการ/ฝ่ายที่ออก</label><input name="from_dept" value="{{ fields.from_org or school.name or '' }}">
+      <label>เรียน</label><input name="to_person" value="{{ fields.addressee }}">
+      <label>เรื่อง *</label><input name="subject" required value="{{ fields.subject }}">
+      <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> เพิ่มลงทะเบียน</button>
+      <a class="btn gray" href="/admin/memos">ยกเลิก</a>
+    </form>
+    {% else %}{# order #}
+    <form method="post" action="/admin/orders">
+      <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+      <input type="hidden" name="pending_file" value="{{ pending_file }}">
+      <div class="row">
+        <div><label>เลขที่คำสั่ง</label><input name="order_no" value="{{ fields.letter_no or sug_order }}"></div>
+        <div><label>ลงวันที่</label><input name="date" value="{{ letter_date_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      </div>
+      <label>เรื่อง *</label><input name="subject" required value="{{ fields.subject }}">
+      <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> เพิ่มลงทะเบียน</button>
+      <a class="btn gray" href="/admin/orders">ยกเลิก</a>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="card" style="flex:1; min-width:320px;">
+    <h2>ไฟล์ต้นฉบับ (แนบให้อัตโนมัติ)</h2>
+    {% if is_pdf %}
+    <iframe src="/admin/uploaded/{{ pending_file }}" style="width:100%; height:620px; border:1px solid var(--border); border-radius:10px;"></iframe>
+    {% else %}
+    <p class="muted">ไฟล์ Word เปิดดูในเบราว์เซอร์โดยตรงไม่ได้ — กดเปิด/ดาวน์โหลดไฟล์ หรือดูข้อความที่ระบบอ่านได้ด้านล่าง</p>
+    <a class="btn sm" href="/admin/uploaded/{{ pending_file }}" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์ Word</a>
+    <pre style="white-space:pre-wrap; max-height:520px; overflow:auto; margin-top:12px; padding:12px; background:#f8fafc; border:1px solid var(--border); border-radius:10px; font-family:inherit; font-size:14px;">{{ fields.raw_text or "(อ่านข้อความไม่ได้)" }}</pre>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

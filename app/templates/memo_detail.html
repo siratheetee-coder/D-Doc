@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}บันทึก {{ m.memo_no }}{% endblock %}
+{% block content %}
+<datalist id="persons">{% for p in persons %}<option value="{{ p.name }}">{% endfor %}</datalist>
+<datalist id="departments">{% for d in departments %}<option value="{{ d.name }}">{% endfor %}</datalist>
+
+{% set uploaded = m.file_path %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">บันทึกข้อความ เลขที่ {{ m.memo_no or "-" }}</h1>
+    <div style="display:flex; gap:10px;">
+      {% if uploaded %}
+      <a class="btn" href="/admin/uploaded/{{ m.file_path }}" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์แนบ</a>
+      {% else %}
+      <a class="btn" href="/admin/memos/{{ m.id }}/generate"><svg class="icon"><use href="#ic-file"/></svg> ออก Word</a>
+      {% endif %}
+      <a class="btn gray" href="/admin/memos"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
+    </div>
+  </div>
+  {% if request.query_params.get("saved") %}<div class="alert" style="margin-top:10px;">✔ บันทึกการแก้ไขเรียบร้อย</div>{% endif %}
+  {% if uploaded %}
+  <div class="alert" style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+    <svg class="icon"><use href="#ic-info"/></svg>
+    <span>บันทึกนี้นำเข้าจากไฟล์ — เนื้อหาอยู่ในไฟล์แนบ (กด "เปิดไฟล์แนบ") แก้ได้เฉพาะข้อมูลทะเบียน</span>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>แก้ไขข้อมูลทะเบียน</h2>
+  <form method="post" action="/admin/memos/{{ m.id }}/update">
+    <div class="row">
+      <div><label>เลขที่บันทึก</label><input name="memo_no" value="{{ m.memo_no }}"></div>
+      <div><label>วันที่</label><input name="date" value="{{ be_date(m.date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div style="flex:2;"><label>ส่วนราชการ/ฝ่าย</label><input name="from_dept" list="departments" value="{{ m.from_dept }}"></div>
+    </div>
+    <div class="row">
+      <div><label>เรียน</label><input name="to_person" list="persons" value="{{ m.to_person }}"></div>
+      <div style="flex:2;"><label>เรื่อง</label><input name="subject" required value="{{ m.subject }}"></div>
+    </div>
+
+    {% if uploaded %}
+    {# บันทึกที่อัปโหลด: เก็บค่าเนื้อหา/ผู้ลงนามเดิมไว้ (ไม่แสดงช่องให้กรอก) #}
+    <input type="hidden" name="body" value="{{ m.body }}">
+    <input type="hidden" name="signer_name" value="{{ m.signer_name }}">
+    <input type="hidden" name="signer_position" value="{{ m.signer_position }}">
+    {% else %}
+    <label>เนื้อหา</label>
+    <textarea name="body" rows="8">{{ m.body }}</textarea>
+    <div class="row">
+      <div><label>ผู้ลงนาม</label><input name="signer_name" list="persons" value="{{ m.signer_name }}"></div>
+      <div><label>ตำแหน่ง</label><input name="signer_position" value="{{ m.signer_position }}"></div>
+    </div>
+    {% endif %}
+
+    <br>
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
+    <button class="btn red" type="button" onclick="if(confirm('ลบบันทึกนี้?')){document.getElementById('delform').submit()}"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button>
+  </form>
+  <form id="delform" method="post" action="/admin/memos/{{ m.id }}/delete" style="display:none;"></form>
+</div>
+
+{% if uploaded and m.file_path.lower().endswith('.pdf') %}
+<div class="card">
+  <h2>ไฟล์แนบ</h2>
+  <iframe src="/admin/uploaded/{{ m.file_path }}" style="width:100%; height:600px; border:1px solid var(--border); border-radius:10px;"></iframe>
+</div>
+{% endif %}
+
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

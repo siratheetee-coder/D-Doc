@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+{% block title %}{{ p.memo_no }} - {{ p.subject }}{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; align-items:center;">
+    <h1 style="margin:0;">เลขที่ {{ p.memo_no or "-" }} : {{ p.proc_type }}{{ p.subject }}</h1>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <span class="pill {{ 'approve' if p.status=='อนุมัติ' else 'done' if p.status in ['ตรวจรับแล้ว','เบิกจ่ายแล้ว'] else '' }}">{{ p.status }}</span>
+      <a class="btn sm" href="/procurement/{{ p.id }}/edit"><svg class="icon"><use href="#ic-edit"/></svg> แก้ไขเรื่อง</a>
+      <form method="post" action="/procurement/{{ p.id }}/duplicate" style="margin:0;">
+        <button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-file"/></svg> คัดลอกเรื่อง</button>
+      </form>
+      {% if p.items %}
+      <a class="btn sm gray" href="/procurement/{{ p.id }}/to-register"><svg class="icon"><use href="#ic-package"/></svg> นำวัสดุเข้าบัญชีวัสดุ</a>
+      {% endif %}
+      {% if modules_live.finance %}
+      <a class="btn sm gray" href="/finance/disburse?proc={{ p.id }}"><svg class="icon"><use href="#ic-coins"/></svg> ออกบันทึกขอเบิกจ่าย</a>
+      {% endif %}
+      {% if p.file_path %}
+      <a class="btn sm gray" href="/procurement/file/{{ p.file_path }}" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> ไฟล์ต้นฉบับ</a>
+      {% endif %}
+    </div>
+  </div>
+  {% if request.query_params.get("saved") %}<div class="alert" style="margin-top:10px;">✔ บันทึกการแก้ไขเรียบร้อย</div>{% endif %}
+  {% set reg = request.query_params.get("registered") %}
+  {% if reg %}
+  {% set na = reg.split("a")[0] %}{% set nm = reg.split("a")[1].rstrip("m") %}
+  <div class="alert" style="margin-top:10px;"><svg class="icon"><use href="#ic-check"/></svg>
+    นำเข้าทะเบียนเรียบร้อย: ครุภัณฑ์ {{ na }} ระเบียน, วัสดุ {{ nm }} รายการ
+    <a href="/assets" style="margin-left:8px;">ดูครุภัณฑ์</a> · <a href="/materials">ดูวัสดุ</a>
+  </div>
+  {% endif %}
+  <table>
+    <tr><th style="width:200px;">วันที่</th><td>{{ thai_date(p.request_date) }}</td></tr>
+    <tr><th>โครงการ / ฝ่าย</th><td>{{ p.project_name or "-" }} / {{ p.department or "-" }}</td></tr>
+    <tr><th>วิธี</th><td>{{ p.method }}</td></tr>
+    <tr><th>เหตุผลความจำเป็น</th><td>{{ p.purpose or "-" }}</td></tr>
+    <tr><th>แหล่งงบ / ที่มาราคากลาง</th><td>{{ p.budget_source }} / {{ p.price_ref_source }}</td></tr>
+    <tr><th>ผู้ขาย/ผู้รับจ้าง</th><td>{{ p.vendor.name if p.vendor else "-" }}</td></tr>
+    <tr><th>วงเงินรวม</th><td><b>{{ "{:,.2f}".format(p.total_amount or 0) }}</b> บาท ({{ bahttext(p.total_amount or 0) }})</td></tr>
+    <tr><th>ผู้ตรวจรับ</th><td>
+      {% if inspect %}
+        {{ "คณะกรรมการ" if inspect.mode == "committee" else "ผู้ตรวจรับคนเดียว (โดยอนุโลม)" }}:
+        {% for m in inspect.members %}{{ m.name }} ({{ m.role }}){{ ", " if not loop.last }}{% endfor %}
+      {% else %}—{% endif %}
+    </td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>รายการพัสดุ</h2>
+  <table>
+    <thead><tr><th>ลำดับ</th><th>รายการ</th><th class="right">จำนวน</th><th class="right">ราคา/หน่วย</th><th class="right">จำนวนเงิน</th></tr></thead>
+    <tbody>
+      {% for it in p.items %}
+      <tr><td>{{ loop.index }}</td><td>{{ it.name }}</td>
+        <td class="right">{{ "%g"|format(it.quantity) }} {{ it.unit }}</td>
+        <td class="right">{{ "{:,.2f}".format(it.unit_price) }}</td>
+        <td class="right">{{ "{:,.2f}".format(it.amount) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>เลขที่เอกสาร & วันที่ <span class="muted" style="font-size:15px;">(แก้ไขภายหลังได้)</span></h2>
+  {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกเลขที่/วันที่เรียบร้อย</div>{% endif %}
+  <p class="muted">วันที่กรอกเป็น <b>พ.ศ.</b> รูปแบบ วว/ดด/ปปปป เช่น 06/06/2569 (ระบบเติม / ให้อัตโนมัติ)</p>
+  {% set has_spec = (p.committees | selectattr('kind', 'equalto', 'spec') | list | length) > 0 %}
+  {% set is_committee = inspect and inspect.mode == 'committee' %}
+  <form method="post" action="/procurement/{{ p.id }}/update-refs">
+
+    <div class="docgrp">
+      <div class="docgrp-h">รายงานขอ{{ p.proc_type }}</div>
+      <div class="row">
+        <div><label>เลขที่บันทึก</label><input name="memo_no" value="{{ p.memo_no }}"></div>
+        <div><label>ลงวันที่</label><input name="request_date" value="{{ be_date(p.request_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      </div>
+    </div>
+
+    <div class="docgrp">
+      <div class="docgrp-h">แต่งตั้ง กก.กำหนดคุณลักษณะ/ราคากลาง</div>
+      {% if has_spec %}
+      <div class="row">
+        <div><label>เลขที่บันทึก</label><input name="spec_memo_no" value="{{ p.spec_memo_no }}" placeholder="ไม่บังคับ"></div>
+        <div><label>ลงวันที่</label><input name="spec_memo_date" value="{{ be_date(p.spec_memo_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      </div>
+      {% else %}
+      <div class="docnote"><svg class="icon"><use href="#ic-info"/></svg> ท่านไม่มีข้อมูลของเอกสารนี้ ไม่จำเป็นต้องกรอก</div>
+      {% endif %}
+    </div>
+
+    <div class="docgrp">
+      <div class="docgrp-h">คำสั่งแต่งตั้งผู้ตรวจรับ</div>
+      {% if not is_committee %}
+      <div class="docnote"><svg class="icon"><use href="#ic-info"/></svg> โดยปกติใช้ผู้ตรวจรับคนเดียว (โดยอนุโลม) จึงไม่จำเป็นต้องมีคำสั่งนี้ แต่กรอกได้หากต้องการออกคำสั่ง</div>
+      {% endif %}
+      <div class="row">
+        <div><label>เลขที่คำสั่ง</label><input name="command_no" value="{{ p.command_no }}"></div>
+        <div><label>ลงวันที่</label><input name="command_date" value="{{ be_date(p.command_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      </div>
+    </div>
+
+    <div class="docgrp">
+      <div class="docgrp-h">รายงานผลการพิจารณา</div>
+      <div class="row">
+        <div><label>เลขที่บันทึก</label><input name="result_memo_no" value="{{ p.result_memo_no }}"></div>
+        <div><label>ลงวันที่</label><input name="result_memo_date" value="{{ be_date(p.result_memo_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      </div>
+    </div>
+
+    <div class="docgrp">
+      <div class="docgrp-h">ใบสั่ง{{ p.proc_type }}</div>
+      <div class="row">
+        <div><label>เลขที่ใบสั่ง</label><input name="order_no" value="{{ p.order_no }}"></div>
+        <div><label>ลงวันที่</label><input name="order_date" id="order_date" value="{{ be_date(p.order_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+        <div>
+          <label>ครบกำหนดส่งมอบ
+            <span class="muted" style="font-size:13px;">(คำนวณให้ถ้าว่าง)</span>
+          </label>
+          <input name="delivery_due_date" id="delivery_due_date" value="{{ be_date(p.delivery_due_date) }}" placeholder="วว/ดด/ปปปป" data-date="1">
+        </div>
+      </div>
+      <div class="docnote"><svg class="icon"><use href="#ic-info"/></svg>
+        กำหนดส่งมอบในเรื่องนี้: <b>{{ p.delivery_days or 7 }} วัน</b>
+        (ถ้ากรอกวันที่ใบสั่งซื้อ/จ้าง แล้วปล่อยช่องครบกำหนดว่าง ระบบจะคำนวณให้อัตโนมัติ)
+      </div>
+    </div>
+
+    <div class="docgrp">
+      <div class="docgrp-h">ส่งมอบ / ตรวจรับ / เบิกจ่าย</div>
+      <div class="row">
+        <div>
+          <label>วันที่ส่งมอบจริง (ใบส่งมอบงาน)
+          </label>
+          <input name="delivery_date" value="{{ be_date(p.delivery_date) }}" placeholder="วว/ดด/ปปปป" data-date="1">
+        </div>
+        <div><label>วันที่ตรวจรับ</label><input name="inspect_date" value="{{ be_date(p.inspect_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+        <div><label>เลขที่บันทึกเสนอผลตรวจรับ</label><input name="inspect_memo_no" value="{{ p.inspect_memo_no }}"></div>
+      </div>
+      <div class="row">
+        <div><label>ใบส่งของ เล่มที่</label><input name="delivery_note_book" value="{{ p.delivery_note_book }}"></div>
+        <div><label>ใบส่งของ เลขที่</label><input name="delivery_note_no" value="{{ p.delivery_note_no }}"></div>
+        <div><label>ส่งมอบเกินกำหนด (วัน)</label><input name="overdue_days" type="number" value="{{ p.overdue_days or 0 }}"></div>
+      </div>
+      <p class="muted">ระบบคำนวณค่าปรับให้อัตโนมัติในใบตรวจรับ (อัตราร้อยละ {{ "%g"|format(p.penalty_rate or 0.10) }} ต่อวัน × วงเงิน × จำนวนวันที่เกินมา)</p>
+    </div>
+
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกเลขที่/วันที่</button>
+    <button type="button" class="btn gray" onclick="sameAllDates()"><svg class="icon"><use href="#ic-clipboard"/></svg> ใช้วันที่เดียวกันทั้งหมด</button>
+  </form>
+</div>
+
+<style>
+  .btn-bundle {
+    display: flex; align-items: center; gap: 16px; width: 100%;
+    background: linear-gradient(135deg, #4880FF, #6f9bff); color: #fff;
+    padding: 18px 24px; border-radius: 14px; text-decoration: none;
+    box-shadow: 0 6px 18px rgba(72,128,255,.35); transition: transform .12s, box-shadow .12s;
+  }
+  .btn-bundle:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(72,128,255,.45); }
+  .btn-bundle .ic { width: 40px; height: 40px; background: rgba(255,255,255,.2); border-radius: 12px;
+                    display: flex; align-items: center; justify-content: center; flex: none; }
+  .btn-bundle .ic .icon { width: 24px; height: 24px; }
+  .btn-bundle .ttl { font-size: 20px; font-weight: 700; }
+  .btn-bundle .sub { font-size: 15px; font-weight: 400; opacity: .92; }
+  .btn-bundle .go { margin-left: auto; }
+  .btn-bundle .go .icon { width: 24px; height: 24px; }
+  .doc-onebyone { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .doc-onebyone form { margin: 0; }
+  .doc-onebyone .btn { background: #eef2ff; color: #3730a3; box-shadow: none; }
+  .doc-onebyone .btn:hover { background: #e0e7ff; }
+  .docgrp { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px 4px; margin-bottom: 12px; }
+  .docgrp-h { font-weight: 700; color: #1d4ed8; margin-bottom: 4px; }
+  .docnote { display: flex; align-items: center; gap: 8px; background: #f1f4f9; color: #6b7280;
+             border-radius: 8px; padding: 9px 13px; font-size: 15px; margin: 4px 0 10px; }
+  .docnote .icon { width: 18px; height: 18px; color: #94a3b8; flex: none; }
+  .date-warn { display: flex; align-items: center; gap: 6px; font-size: 13.5px; margin-top: 4px;
+               padding: 5px 10px; border-radius: 6px; line-height: 1.35; }
+  .date-warn.wk { background: #fff4e5; color: #b45309; }     /* เสาร์/อาทิตย์ */
+  .date-warn.hl { background: #fde8e8; color: #b91c1c; }     /* วันหยุดนักขัตฤกษ์ */
+  .date-warn .icon { width: 15px; height: 15px; flex: none; }
+</style>
+
+<div class="card">
+  <h2>ออกเอกสาร</h2>
+
+  <!-- ปุ่มหลัก -->
+  <a class="btn-bundle" href="/procurement/{{ p.id }}/bundle">
+    <span class="ic"><svg class="icon"><use href="#ic-package"/></svg></span>
+    <span>
+      <span class="ttl">ออกเอกสารทั้งชุด</span><br>
+      <span class="sub">รวมเอกสารเป็นไฟล์ Word เดียว พร้อมพิมพ์ในคลิกเดียว</span>
+    </span>
+    <span class="go"><svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+
+  <!-- ทางเลือก: ทีละใบ -->
+  <p class="muted" style="margin:16px 0 0;">หรือดาวน์โหลดทีละเอกสาร:</p>
+  <div class="doc-onebyone">
+    {% for kind in doc_kinds %}
+    <form method="post" action="/procurement/{{ p.id }}/generate">
+      <input type="hidden" name="doc_kind" value="{{ kind }}">
+      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-file"/></svg> {{ kind }}</button>
+    </form>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>ประวัติเอกสารที่ออก {% if documents %}<span class="muted" style="font-size:15px;">({{ documents|length }} ครั้ง)</span>{% endif %}</h2>
+  {% if documents %}
+  <table>
+    <thead><tr><th>ชนิดเอกสาร</th><th>วันที่ออก</th><th></th></tr></thead>
+    <tbody>
+      {% for d in documents %}
+      <tr>
+        <td>{{ d.doc_kind }}</td>
+        <td>{{ thai_date(d.created_at) }} {{ d.created_at.strftime('%H:%M') if d.created_at else '' }}</td>
+        <td class="right"><a class="btn sm gray" href="/document/{{ d.id }}/download"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดซ้ำ</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted" style="margin-top:8px;">ถ้าแก้ไขข้อมูลแล้ว แนะนำให้กดออกเอกสารใหม่ (ไฟล์เก่าจะยังเป็นข้อมูลเดิม)</p>
+  {% else %}
+  <p class="muted">ยังไม่เคยออกเอกสารสำหรับเรื่องนี้</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>เปลี่ยนสถานะ</h2>
+  <form method="post" action="/procurement/{{ p.id }}/status" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+    <select name="status" style="width:auto;">
+      {% for s in statuses %}<option value="{{ s }}" {{ "selected" if s==p.status }}>{{ s }}</option>{% endfor %}
+    </select>
+    <button class="btn" type="submit">อัปเดตสถานะ</button>
+  </form>
+  <br>
+  <div style="display:flex; justify-content:space-between;">
+    <a class="btn gray" href="/procurement"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับหน้าหลักพัสดุ</a>
+    <form method="post" action="/procurement/{{ p.id }}/delete" onsubmit="return confirm('ลบเรื่องนี้ทั้งหมด?');">
+      <button class="btn red" type="submit"><svg class="icon"><use href="#ic-trash"/></svg> ลบเรื่องนี้</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  // ===== Auto-format วันที่: เติม / อัตโนมัติขณะพิมพ์ =====
+  function _attachDateMask(el) {
+    el.addEventListener('input', function(e) {
+      var v = this.value.replace(/\D/g, '');       // เอาแค่ตัวเลข
+      if (v.length > 8) v = v.slice(0, 8);
+      var out = v;
+      if (v.length > 2) out = v.slice(0,2) + '/' + v.slice(2);
+      if (v.length > 4) out = v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4);
+      // ป้องกัน cursor กระโดดถ้าลบ
+      if (this.value !== out) this.value = out;
+    });
+  }
+  document.querySelectorAll('input[data-date]').forEach(_attachDateMask);
+
+  // ===== เตือนเมื่อวันที่ตรงวันหยุด (เสาร์/อาทิตย์/นักขัตฤกษ์) =====
+  var HOLIDAYS = {{ holidays_json | tojson }};
+  var DOW = ['วันอาทิตย์','วันจันทร์','วันอังคาร','วันพุธ','วันพฤหัสบดี','วันศุกร์','วันเสาร์'];
+  function _isoFromBE(v) {
+    // 'วว/ดด/ปปปป' (พ.ศ.) -> {iso:'yyyy-mm-dd', dow:0-6} หรือ null
+    var p = (v || '').split('/');
+    if (p.length !== 3) return null;
+    var d = parseInt(p[0],10), mo = parseInt(p[1],10), yr = parseInt(p[2],10);
+    if (!d || !mo || !yr || (''+p[2]).length < 4) return null;
+    if (yr > 2400) yr -= 543;                 // พ.ศ. -> ค.ศ.
+    var dt = new Date(yr, mo-1, d);
+    if (dt.getMonth() !== mo-1 || dt.getDate() !== d) return null;  // วันไม่ถูกต้อง
+    var iso = yr + '-' + String(mo).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    return { iso: iso, dow: dt.getDay() };
+  }
+  function _checkHoliday(el) {
+    // ลบกล่องเตือนเก่า
+    var old = el.parentNode.querySelector('.date-warn');
+    if (old) old.remove();
+    var info = _isoFromBE(el.value);
+    if (!info) return;
+    var warn = null;
+    if (HOLIDAYS[info.iso]) {
+      warn = { cls: 'hl', text: 'ตรงกับ ' + HOLIDAYS[info.iso] + ' (วันหยุดราชการ)' };
+    } else if (info.dow === 0 || info.dow === 6) {
+      warn = { cls: 'wk', text: 'ตรงกับ' + DOW[info.dow] + ' (วันหยุดสุดสัปดาห์)' };
+    }
+    if (warn) {
+      var div = document.createElement('div');
+      div.className = 'date-warn ' + warn.cls;
+      div.innerHTML = '<svg class="icon"><use href="#ic-alert"/></svg><span>' + warn.text + '</span>';
+      el.parentNode.appendChild(div);
+    }
+  }
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){ _checkHoliday(el); });
+    el.addEventListener('change', function(){ _checkHoliday(el); });
+    _checkHoliday(el);   // ตรวจค่าเริ่มต้นตอนโหลดหน้า
+  });
+
+  // ===== เตือนเลขที่เอกสารซ้ำ/เลยเลขมาแล้ว (เลขรันรวมทั้งโรงเรียน) =====
+  var DOCNO_USED = {{ docno_used | tojson }};
+  var ORDER_TYPE = {{ order_type | tojson }};
+  var NAME2TYPE = {memo_no:'memo', result_memo_no:'memo', spec_memo_no:'memo',
+                   inspect_memo_no:'memo', command_no:'command', order_no: ORDER_TYPE};
+  function _seq(v){ var m=(v||'').match(/^\s*(\d+)/); return m? parseInt(m[1],10):0; }
+  function _checkNo(el){
+    var old = el.parentNode.querySelector('.no-warn'); if(old) old.remove();
+    // ไม่เตือนถ้าเลขยังเป็นค่าเดิมที่บันทึกไว้ (เลขของเรื่องนี้เอง)
+    if(el.value === el.dataset.initial) return;
+    var dt = NAME2TYPE[el.name]; var info = DOCNO_USED[dt];
+    if(!info) return;
+    var seq = _seq(el.value); if(!seq) return;
+    var w = null;
+    if(info.used && Object.prototype.hasOwnProperty.call(info.used, seq)){
+      w = {cls:'hl', text:'เลขนี้ถูกใช้แล้ว: ' + (info.used[seq] || '(ไม่ระบุเรื่อง)')};
+    } else if(seq <= (info.last||0)){
+      w = {cls:'wk', text:'เลยเลขล่าสุดที่ใช้ไปแล้ว (ล่าสุด ' + info.last + ')'};
+    }
+    if(w){
+      var d = document.createElement('div');
+      d.className = 'date-warn no-warn ' + w.cls;   // ใช้สไตล์เดียวกับเตือนวันหยุด
+      d.innerHTML = '<svg class="icon"><use href="#ic-alert"/></svg><span>' + w.text + '</span>';
+      el.parentNode.appendChild(d);
+    }
+  }
+  document.querySelectorAll('input[name="memo_no"],input[name="result_memo_no"],input[name="spec_memo_no"],input[name="inspect_memo_no"],input[name="command_no"],input[name="order_no"]').forEach(function(el){
+    el.dataset.initial = el.value;   // จำค่าเดิมไว้ (จะไม่เตือนถ้ายังเป็นค่านี้)
+    el.addEventListener('input', function(){ _checkNo(el); });
+  });
+
+  // ===== คำนวณวันครบกำหนดจากวันที่ใบสั่ง + จำนวนวัน =====
+  var deliveryDays = {{ p.delivery_days or 7 }};
+  var orderInput = document.getElementById('order_date');
+  var dueInput   = document.getElementById('delivery_due_date');
+  if (orderInput && dueInput) {
+    orderInput.addEventListener('change', function() {
+      if (dueInput.value) return;   // ถ้ากรอกไว้แล้วไม่ override
+      var v = this.value;
+      var parts = v.split('/');
+      if (parts.length !== 3) return;
+      var d = parseInt(parts[0], 10), mo = parseInt(parts[1], 10), yr = parseInt(parts[2], 10);
+      if (!d || !mo || !yr) return;
+      if (yr > 2400) yr -= 543;     // แปลง พ.ศ. → ค.ศ.
+      var dt = new Date(yr, mo - 1, d);
+      dt.setDate(dt.getDate() + deliveryDays);
+      var dd = String(dt.getDate()).padStart(2,'0');
+      var dm = String(dt.getMonth()+1).padStart(2,'0');
+      var dy = String(dt.getFullYear() + 543);
+      dueInput.value = dd + '/' + dm + '/' + dy;
+      _checkHoliday(dueInput);   // อัปเดตการเตือนวันหยุดของช่องครบกำหนด
+    });
+  }
+
+  // ===== ใช้วันที่เดียวกันทุกช่อง =====
+  function sameAllDates() {
+    var src = document.querySelector('input[name="request_date"]');
+    if (!src || !src.value) { alert('กรุณากรอก "วันที่รายงานขอซื้อ/จ้าง" (ลงวันที่) ก่อน'); return; }
+    var names = ['spec_memo_date','command_date','result_memo_date',
+                 'order_date','delivery_due_date','delivery_date','inspect_date'];
+    names.forEach(function(n){
+      var el = document.querySelector('input[name="' + n + '"]');
+      if (el) { el.value = src.value; _checkHoliday(el); }
+    });
+  }
+</script>
+{% endblock %}

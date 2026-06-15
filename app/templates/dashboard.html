@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}หน้าหลัก{% endblock %}
+{% block content %}
+{% set incomplete = [] %}
+{% if not school.name %}{% set _ = incomplete.append("ชื่อโรงเรียน") %}{% endif %}
+{% if not school.director_name %}{% set _ = incomplete.append("ชื่อผู้อำนวยการ") %}{% endif %}
+{% if not school.officer_name %}{% set _ = incomplete.append("เจ้าหน้าที่พัสดุ") %}{% endif %}
+{% if not school.head_officer_name %}{% set _ = incomplete.append("หัวหน้าเจ้าหน้าที่พัสดุ") %}{% endif %}
+{% if incomplete %}
+<div class="alert warn">
+  <svg class="icon"><use href="#ic-alert"/></svg>
+  <div style="flex:1;">
+    <b>ยังตั้งค่าโรงเรียนไม่ครบ</b> เอกสารที่ออกจะมีช่องว่างตรงนี้: {{ incomplete|join(", ") }}
+    <div style="margin-top:10px;">
+      <a class="btn sm" href="/settings"><svg class="icon"><use href="#ic-settings"/></svg> ไปตั้งค่าโรงเรียน</a>
+    </div>
+  </div>
+</div>
+{% endif %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">ระบบจัดการเอกสารและพัสดุ</div>
+    <span class="hero-title">{{ school.name or "ยังไม่ได้ตั้งชื่อโรงเรียน" }}</span>
+    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }}</div>
+  </div>
+  <a class="btn" href="/procurement/new"><svg class="icon"><use href="#ic-plus"/></svg> สร้างเรื่องใหม่</a>
+</div>
+
+<div class="card">
+  <div class="stat">
+    <div class="box">
+      <div><div class="lab">ปีงบประมาณ</div><div class="num">{{ fiscal_year }}</div></div>
+      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-clipboard"/></svg></span>
+    </div>
+    <div class="box">
+      <div><div class="lab">จำนวนเรื่อง</div><div class="num">{{ count }}</div></div>
+      <span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-file"/></svg></span>
+    </div>
+    <div class="box">
+      <div><div class="lab">วงเงินรวม (บาท)</div><div class="num">{{ "{:,.0f}".format(total_amount) }}</div></div>
+      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-coins"/></svg></span>
+    </div>
+  </div>
+</div>
+
+{% if charts %}
+<div class="charts">
+  <!-- กราฟแท่ง: ยอดจัดซื้อรายเดือน -->
+  <div class="chart-card">
+    <div class="chart-title">ยอดจัดซื้อรายเดือน</div>
+    <div class="chart-note">ปีงบประมาณ {{ fiscal_year }} (สูงสุด {{ "{:,.0f}".format(charts.monthly_max) }} บาท)</div>
+    {% if charts.monthly_max > 0 %}
+    <svg viewBox="0 0 660 200" role="img" aria-label="ยอดจัดซื้อรายเดือน">
+      <line x1="6" y1="170" x2="654" y2="170" stroke="#e3e7ef" stroke-width="1"/>
+      {% for b in charts.bars %}
+      {% set x = 12 + loop.index0 * 53 %}
+      {% set h = (b.frac * 148)|round(1) %}
+      <rect x="{{ x }}" y="{{ (170 - h)|round(1) }}" width="34" height="{{ h }}" rx="4" fill="#4880FF">
+        <title>{{ b.label }}: {{ "{:,.0f}".format(b.value) }} บาท</title>
+      </rect>
+      <text x="{{ x + 17 }}" y="188" text-anchor="middle" font-size="12" fill="#7b8190">{{ b.label }}</text>
+      {% endfor %}
+    </svg>
+    {% else %}
+    <p class="muted">ยังไม่มีข้อมูลในปีงบนี้</p>
+    {% endif %}
+  </div>
+
+  <!-- โดนัท: สถานะเอกสาร -->
+  <div class="chart-card">
+    <div class="chart-title">สถานะเอกสาร</div>
+    <div class="chart-note">ทั้งหมด {{ charts.status_total }} เรื่อง</div>
+    <div class="donut-wrap">
+      <svg class="donut" viewBox="0 0 180 180" role="img" aria-label="สัดส่วนสถานะเอกสาร">
+        <g transform="rotate(-90 90 90)">
+          <circle cx="90" cy="90" r="70" fill="none" stroke="#eef1f6" stroke-width="22"/>
+          {% for s in charts.segs %}{% if s.count %}
+          <circle cx="90" cy="90" r="70" fill="none" stroke="{{ s.color }}" stroke-width="22"
+                  stroke-dasharray="{{ s.dash }} {{ charts.circ }}" stroke-dashoffset="{{ s.offset }}"/>
+          {% endif %}{% endfor %}
+        </g>
+        <text x="90" y="86" text-anchor="middle" font-size="32" font-weight="800" fill="#202224">{{ charts.status_total }}</text>
+        <text x="90" y="106" text-anchor="middle" font-size="13" fill="#7b8190">เรื่อง</text>
+      </svg>
+      <div class="legend">
+        {% for s in charts.segs %}
+        <div class="lg"><span class="dot" style="background:{{ s.color }}"></span>{{ s.label }} <b>{{ s.count }}</b> <span class="pc">({{ s.pct }}%)</span></div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% macro reg_table(rows) %}
+<table>
+  <thead>
+    <tr><th>เลขที่</th><th>วันที่</th><th>เรื่อง</th><th>วิธี</th>
+        <th class="right">วงเงิน</th><th>ผู้ขาย/ผู้รับจ้าง</th><th>สถานะ</th></tr>
+  </thead>
+  <tbody>
+    {% for p in rows %}
+    <tr>
+      <td><a href="/procurement/{{ p.id }}">{% if p.order_no %}{{ p.order_no }}{% else %}<span class="muted">ยังไม่ออกใบสั่ง</span>{% endif %}</a></td>
+      <td>{{ thai_date(p.request_date) }}</td>
+      <td>{{ p.proc_type }}{{ p.subject }}</td>
+      <td>{{ p.method }}</td>
+      <td class="right">{{ "{:,.2f}".format(p.total_amount or 0) }}</td>
+      <td>{{ p.vendor.name if p.vendor else "-" }}</td>
+      <td><span class="pill {{ 'approve' if p.status=='อนุมัติ' else 'done' if p.status in ['ตรวจรับแล้ว','เบิกจ่ายแล้ว'] else '' }}">{{ p.status }}</span></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+
+{% if q %}
+<!-- โหมดค้นหา: แสดงผลรวม (ข้ามเล่ม) -->
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h2>ผลการค้นหา: "{{ q }}" ({{ count }} รายการ)</h2>
+    <div><a class="btn gray sm" href="/procurement"><svg class="icon"><use href="#ic-x"/></svg> ล้างการค้นหา</a></div>
+  </div>
+  {% if procurements %}{{ reg_table(procurements) }}
+  {% else %}<p class="muted">ไม่พบรายการที่ตรงกับ "{{ q }}" (ค้นจากเรื่อง / เลขที่บันทึก / ชื่อผู้ขาย ทุกปีงบ)</p>{% endif %}
+</div>
+
+{% else %}
+<!-- แถบควบคุม: เลือกปีงบ + สร้างเรื่องใหม่ -->
+<div class="card" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+  <form method="get" action="/procurement" style="display:inline-flex; gap:8px; align-items:center; margin:0;">
+    <label style="margin:0;">ปีงบประมาณ</label>
+    <select name="year" onchange="this.form.submit()" style="width:auto;">
+      {% for y in years %}<option value="{{ y }}" {{ "selected" if y==fiscal_year }}>{{ y }}</option>{% endfor %}
+    </select>
+  </form>
+  <a class="btn sm" href="/procurement/new"><svg class="icon"><use href="#ic-plus"/></svg> สร้างเรื่องใหม่</a>
+</div>
+
+<!-- เล่มที่ 1: ทะเบียนคุมการจัดซื้อ -->
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h2>ทะเบียนคุมการจัดซื้อ <span class="muted" style="font-size:15px;">({{ buys|length }} เรื่อง · {{ "{:,.0f}".format(buy_total) }} บาท)</span></h2>
+    <a class="btn green sm" href="/register.xlsx?year={{ fiscal_year }}&kind=buy"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเล่มจัดซื้อ</a>
+  </div>
+  {% if buys %}{{ reg_table(buys) }}
+  {% else %}<p class="muted">ยังไม่มีเรื่องจัดซื้อในปีงบนี้</p>{% endif %}
+</div>
+
+<!-- เล่มที่ 2: ทะเบียนคุมการจัดจ้าง -->
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h2>ทะเบียนคุมการจัดจ้าง <span class="muted" style="font-size:15px;">({{ hires|length }} เรื่อง · {{ "{:,.0f}".format(hire_total) }} บาท)</span></h2>
+    <a class="btn green sm" href="/register.xlsx?year={{ fiscal_year }}&kind=hire"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเล่มจัดจ้าง</a>
+  </div>
+  {% if hires %}{{ reg_table(hires) }}
+  {% else %}<p class="muted">ยังไม่มีเรื่องจัดจ้างในปีงบนี้</p>{% endif %}
+</div>
+
+{% if not buys and not hires %}
+<div class="card"><p class="muted">ยังไม่มีรายการในปีงบประมาณนี้ กรุณากด "สร้างเรื่องใหม่" เพื่อเริ่มใช้งาน</p></div>
+{% endif %}
+{% endif %}
+{% endblock %}
