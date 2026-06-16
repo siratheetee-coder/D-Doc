@@ -80,6 +80,22 @@ def _upload_and_prune(client, bucket, zip_path: Path):
         print("    (เตือน) ตัดสำรองเก่าบนคลาวด์ไม่สำเร็จ:", e)
 
 
+def manual_backup() -> str:
+    """สำรองทันที + รายงานผลแบบอ่านได้ (ใช้กับปุ่มทดสอบในคอนโซล) — เผยข้อผิดพลาด R2 ตรง ๆ"""
+    try:
+        zip_path = _make_zip()
+    except Exception as e:
+        return f"สร้างไฟล์สำรองไม่สำเร็จ: {e}"
+    client, bucket, reason = _s3()
+    if not client:
+        return f"สำรองในเครื่องแล้ว ({zip_path.name}) แต่ {reason}"
+    try:
+        _upload_and_prune(client, bucket, zip_path)
+        return f"สำเร็จ! อัปขึ้นคลาวด์แล้ว: {zip_path.name}"
+    except Exception as e:
+        return f"สำรองในเครื่องได้ แต่อัปขึ้น R2 ไม่สำเร็จ: {e}"
+
+
 def restore_latest_from_s3() -> bool:
     """ดึงไฟล์สำรองล่าสุดจาก S3/R2 มากู้คืนลง data/ (ใช้ตอนเปิดเครื่องใหม่บนฟรีทีเออร์)
     คืน True ถ้ากู้คืนสำเร็จ"""

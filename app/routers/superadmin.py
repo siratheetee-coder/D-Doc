@@ -47,6 +47,15 @@ def console(request: Request, msg: str | None = None):
         db.close()
 
 
+@router.post("/admin-console/backup-now")
+def backup_now():
+    """สำรองข้อมูลทันที + ทดสอบการอัปขึ้น R2 (โชว์ผลบนหน้าคอนโซล)"""
+    from app.services.backup import manual_backup
+    msg = manual_backup()
+    from urllib.parse import quote
+    return RedirectResponse(f"/admin-console?msg={quote(msg)}", status_code=303)
+
+
 @router.post("/admin-console/tenant")
 def create_tenant(name: str = Form(...), admin_user: str = Form(...),
                   admin_pw: str = Form(...), expiry: str = Form(""),

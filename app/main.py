@@ -101,7 +101,7 @@ app.add_middleware(
 )
 
 
-@app.get("/healthz")
+@app.api_route("/healthz", methods=["GET", "HEAD"])
 def healthz():
     return {"ok": True}
 

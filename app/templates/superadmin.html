@@ -41,6 +41,14 @@
     {% if msg %}<div class="msg">{{ msg }}</div>{% endif %}
 
     <div class="card">
+      <h2>สำรองข้อมูล / ทดสอบ R2</h2>
+      <p style="color:#5a6a85; font-size:14px; margin:0 0 10px;">กดเพื่อสำรองข้อมูลทุกโรงเรียนขึ้นคลาวด์ทันที + ตรวจว่าตั้งค่า R2 ถูกต้องไหม (จะขึ้นผลด้านบน)</p>
+      <form method="post" action="/admin-console/backup-now">
+        <button class="btn" type="submit">สำรองข้อมูลเดี๋ยวนี้</button>
+      </form>
+    </div>
+
+    <div class="card">
       <h1>เพิ่มโรงเรียนใหม่</h1>
       <form method="post" action="/admin-console/tenant">
         <div class="row">
