@@ -74,6 +74,37 @@ def _upload_and_prune(client, bucket, zip_path: Path):
         print("    (เตือน) ตัดสำรองเก่าบนคลาวด์ไม่สำเร็จ:", e)
 
 
+def restore_latest_from_s3() -> bool:
+    """ดึงไฟล์สำรองล่าสุดจาก S3/R2 มากู้คืนลง data/ (ใช้ตอนเปิดเครื่องใหม่บนฟรีทีเออร์)
+    คืน True ถ้ากู้คืนสำเร็จ"""
+    client, bucket, reason = _s3()
+    if not client:
+        print("    [restore]", reason)
+        return False
+    try:
+        objs = client.list_objects_v2(Bucket=bucket, Prefix="ddoc-backups/").get("Contents", [])
+        keys = sorted((o["Key"] for o in objs if o["Key"].endswith(".zip")), reverse=True)
+        if not keys:
+            print("    [restore] ยังไม่มีไฟล์สำรองบนคลาวด์ (เริ่มใหม่)")
+            return False
+        latest = keys[0]
+        data_dir = get_data_dir()
+        tmp = data_dir / "_restore.zip"
+        client.download_file(bucket, latest, str(tmp))
+        with zipfile.ZipFile(tmp, "r") as z:
+            for member in z.namelist():
+                # กัน path traversal
+                dest = (data_dir / member).resolve()
+                if str(dest).startswith(str(data_dir.resolve())):
+                    z.extract(member, data_dir)
+        tmp.unlink(missing_ok=True)
+        print(f"    [restore] กู้คืนข้อมูลจากคลาวด์: {latest}")
+        return True
+    except Exception as e:
+        print("    [restore] กู้คืนไม่สำเร็จ:", e)
+        return False
+
+
 def run_backup() -> Path | None:
     """สำรอง 1 รอบ: zip + (ถ้าตั้งค่า) อัปขึ้นคลาวด์ + ตัดของเก่า คืนที่อยู่ไฟล์ zip"""
     if not get_data_dir().exists():

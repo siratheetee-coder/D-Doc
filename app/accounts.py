@@ -151,6 +151,13 @@ def get_secret_key() -> str:
 
 def bootstrap():
     """เริ่มระบบ: สร้าง accounts.db, superadmin เริ่มต้น, และย้ายข้อมูลเดิม (ถ้ามี) เป็นโรงเรียนแรก"""
+    # ฟรีทีเออร์ (ดิสก์ชั่วคราว): ถ้าดิสก์ว่าง แต่มีสำรองบนคลาวด์ -> กู้คืนก่อน กันข้อมูลหายตอน deploy ใหม่
+    if not (get_data_dir() / "accounts.db").exists():
+        try:
+            from app.services.backup import restore_latest_from_s3
+            restore_latest_from_s3()
+        except Exception as e:
+            print("[D-Doc] กู้คืนจากคลาวด์ตอนเปิดไม่สำเร็จ:", e)
     _ensure_engine()
     db = acc_session()
     try:

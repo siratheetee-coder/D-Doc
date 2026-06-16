@@ -106,6 +106,12 @@ def _start_auto_backup():
     import time
     from app.services.backup import run_backup
 
+    # ความถี่สำรอง (นาที) — ฟรีทีเออร์ควรตั้งถี่ เช่น 15 เพราะเครื่องอาจถูกล้างได้ตลอด
+    try:
+        interval = max(5, int(os.environ.get("DDOC_BACKUP_INTERVAL_MIN", "1440")))
+    except ValueError:
+        interval = 1440
+
     def loop():
         time.sleep(30)            # รอระบบพร้อมก่อน แล้วสำรองครั้งแรก
         while True:
@@ -113,10 +119,10 @@ def _start_auto_backup():
                 run_backup()
             except Exception as e:
                 print("[auto-backup] ผิดพลาด:", e)
-            time.sleep(24 * 60 * 60)   # ทุก 24 ชั่วโมง
+            time.sleep(interval * 60)
 
     threading.Thread(target=loop, daemon=True).start()
-    print("[D-Doc] เปิดสำรองข้อมูลอัตโนมัติ (ทุก 24 ชม.)")
+    print(f"[D-Doc] เปิดสำรองข้อมูลอัตโนมัติ (ทุก {interval} นาที)")
 
 
 _start_auto_backup()
