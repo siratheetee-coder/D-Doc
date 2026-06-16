@@ -122,10 +122,103 @@ def extract_letter_fields(pdf_path: str) -> dict:
     return result
 
 
+def _tables_pdf(path: str):
+    try:
+        import pdfplumber
+        out = []
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                out.extend(page.extract_tables() or [])
+        return out
+    except Exception:
+        return []
+
+
+def _tables_docx(path: str):
+    try:
+        from docx import Document as _D
+        d = _D(path)
+        return [[[c.text for c in row.cells] for row in t.rows] for t in d.tables]
+    except Exception:
+        return []
+
+
+def _extract_tables_any(path: str):
+    return _tables_docx(path) if path.lower().endswith(".docx") else _tables_pdf(path)
+
+
+def _num(s) -> str:
+    return re.sub(r"[^\d.]", "", _arabic(s or ""))
+
+
+def _parse_items_from_tables(tables) -> list:
+    """หาตารางที่มีหัวคอลัมน์ รายการ/จำนวน/ราคา แล้วดึงรายการพัสดุ (best-effort)"""
+    for tb in tables or []:
+        if not tb or len(tb) < 2:
+            continue
+        header, hidx = None, 0
+        for i, row in enumerate(tb[:3]):
+            joined = " ".join((c or "") for c in row)
+            if ("รายการ" in joined or "รายละเอียด" in joined) and ("จำนวน" in joined or "ราคา" in joined):
+                header, hidx = row, i
+                break
+        if header is None:
+            continue
+
+        def col(*keys):
+            for j, c in enumerate(header):
+                if any(k in (c or "") for k in keys):
+                    return j
+            return None
+
+        ci_name = col("รายการ", "รายละเอียด")
+        ci_qty, ci_unit = col("จำนวน"), col("หน่วย")
+        ci_price = col("ราคาต่อหน่วย", "ราคา/หน่วย", "หน่วยละ", "ราคา")
+        if ci_name is None:
+            continue
+        items = []
+        for row in tb[hidx + 1:]:
+            if not row or ci_name >= len(row):
+                continue
+            name = (row[ci_name] or "").strip().replace("\n", " ")
+            if not name or "รวม" in name or "ราคากลาง" in name:
+                continue
+            qty = _num(row[ci_qty]) if (ci_qty is not None and ci_qty < len(row)) else ""
+            unit = (row[ci_unit].strip() if (ci_unit is not None and ci_unit < len(row) and row[ci_unit]) else "")
+            price = _num(row[ci_price]) if (ci_price is not None and ci_price < len(row)) else ""
+            items.append({"name": name, "qty": qty or 1, "unit": unit or "ชิ้น", "unit_price": price or 0})
+        if items:
+            return items
+    return []
+
+
+def _parse_inspectors(text: str) -> list:
+    """ดึงชื่อกรรมการตรวจรับจากช่วงข้อความใกล้คำว่า 'ตรวจรับ' (best-effort)"""
+    idx = -1
+    for kw in ("คณะกรรมการตรวจรับ", "ผู้ตรวจรับ", "ตรวจรับพัสดุ", "ตรวจรับ"):
+        idx = text.find(kw)
+        if idx != -1:
+            break
+    if idx == -1:
+        return []
+    seg = text[idx: idx + 700]
+    out, seen = [], set()
+    _w = r"[ก-๎]+"   # คำไทย (รวมสระนำหน้า เ แ โ ใ ไ)
+    for m in re.finditer(r"(?:นาย|นาง|นางสาว|ว่าที่ร้อยตรี|ว่าที่)\s*" + _w + r"(?:\s+" + _w + r")?", seg):
+        nm = re.sub(r"\s+", " ", m.group(0)).strip()
+        if nm in seen:
+            continue
+        seen.add(nm)
+        out.append({"name": nm, "position": "ครู", "role": "กรรมการ"})
+        if len(out) >= 5:
+            break
+    return out
+
+
 def extract_procurement_fields(path: str) -> dict:
     """อ่านฟิลด์เรื่องจัดซื้อ/จัดจ้างจากไฟล์ (heuristic ออฟไลน์) — ดึงเพิ่มจากฟิลด์หนังสือทั่วไป
     รองรับรูปแบบ 'รายงานขอซื้อ/จ้าง' มาตรฐาน คืน dict (ฟิลด์ที่อ่านไม่ได้เป็นค่าว่าง)
-    หมายเหตุ: รายการพัสดุ/กรรมการ heuristic ดึงไม่ได้แม่น -> ปล่อยให้ AI หรือกรอกเอง"""
+    หมายเหตุ: รายการพัสดุ/กรรมการ เป็น best-effort -> ตรวจ/แก้ก่อนบันทึกเสมอ"""
     text = extract_text_any(path)
     base = extract_letter_fields(path)   # ใช้ letter_no/date/subject ที่ได้มาแล้ว
     # เลขที่บันทึก: ดึงเฉพาะรูปแบบ N/ปปปป (กันคว้า "วันที่..." ที่อยู่บรรทัดเดียวกัน)
@@ -161,5 +254,15 @@ def extract_procurement_fields(path: str) -> dict:
     r["delivery_days"] = _arabic(dd)
     # ผู้ขาย: "กับ <X> ซึ่งมีอาชีพ" (จากรายงานผลพิจารณา) เผื่อมี
     r["vendor_name"] = _first(r"(?:ตกลงราคากับ|จาก)\s+(.+?)\s*(?:ซึ่งมีอาชีพ|เป็นผู้)", text)
+
+    # รายการพัสดุ (จากตาราง) + กรรมการตรวจรับ (จากข้อความ) — best-effort
+    try:
+        r["items"] = _parse_items_from_tables(_extract_tables_any(path))
+    except Exception:
+        r["items"] = []
+    try:
+        r["inspectors"] = _parse_inspectors(text)
+    except Exception:
+        r["inspectors"] = []
 
     return r

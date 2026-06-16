@@ -61,6 +61,9 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
     request.session["role"] = user["role"]
     request.session["tid"] = user["tenant_id"]
     request.session["name"] = user["display_name"] or user["username"]
+    request.session["must_change"] = user.get("must_change", False)
+    if user.get("must_change"):
+        return RedirectResponse("/account/password", status_code=303)
     dest = "/admin-console" if user["role"] == "superadmin" else "/"
     return RedirectResponse(dest, status_code=303)
 

@@ -22,7 +22,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.accounts import bootstrap, get_secret_key, tenant_state
 from app.tenancy import current_school_id
 from app.templating import templates
-from app.routers import pages, admin, finance, auth, superadmin
+from app.routers import pages, admin, finance, auth, superadmin, account
 
 app = FastAPI(title="D-Doc : ระบบจัดการเอกสารและพัสดุโรงเรียน")
 
@@ -54,6 +54,14 @@ async def tenant_auth(request: Request, call_next):
     sess = request.session
     if not sess.get("uid"):
         return RedirectResponse("/login", status_code=303)
+
+    # บังคับเปลี่ยนรหัสผ่านครั้งแรก (ก่อนใช้งานอื่นใด)
+    if sess.get("must_change") and not path.startswith("/account"):
+        return RedirectResponse("/account/password", status_code=303)
+
+    # หน้าบัญชีตัวเอง (เปลี่ยนรหัสผ่าน) ใช้ได้ทุกบทบาท ไม่ต้องผูกฐานข้อมูลโรงเรียน
+    if path.startswith("/account"):
+        return await call_next(request)
 
     # ผู้ดูแลระบบ (ผู้ขาย): ใช้เฉพาะหน้าคอนโซล ไม่มีฐานข้อมูลโรงเรียน
     if sess.get("role") == "superadmin":
@@ -129,6 +137,7 @@ _start_auto_backup()
 
 
 app.include_router(auth.router)
+app.include_router(account.router)
 app.include_router(superadmin.router)
 app.include_router(pages.router)
 app.include_router(admin.router)

@@ -61,6 +61,49 @@ def build_admin_template() -> str:
     return str(path)
 
 
+def export_admin_register(incoming, outgoing, fiscal_year: int) -> str:
+    """ส่งออกทะเบียนหนังสือรับ + หนังสือส่ง เป็นไฟล์ Excel (2 ชีต)"""
+    from app.thai_utils import thai_date
+    wb = Workbook(); wb.remove(wb.active)
+
+    def _sheet(title, headers, widths, rows):
+        ws = wb.create_sheet(title)
+        ws.append([f"{title} ประจำปีงบประมาณ {fiscal_year}"])
+        ws.append([]); ws.append(headers)
+        n = len(headers)
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=n)
+        tc = ws.cell(row=1, column=1)
+        tc.font = Font(name=THAI_FONT, bold=True, size=18)
+        tc.alignment = Alignment(horizontal="center", vertical="center")
+        for col in range(1, n + 1):
+            _style_head(ws.cell(row=3, column=col, value=headers[col - 1]))
+        for r in rows:
+            ws.append(r)
+        for i, w in enumerate(widths, start=1):
+            ws.column_dimensions[chr(64 + i)].width = w
+        for row in ws.iter_rows(min_row=4):
+            for cell in row:
+                cell.font = Font(name=THAI_FONT, size=14); cell.border = _BORDER
+                cell.alignment = Alignment(vertical="center")
+
+    _sheet("หนังสือรับ",
+           ["เลขรับ", "วันที่รับ", "ที่หนังสือ", "ลงวันที่", "จาก", "ถึง/มอบให้", "เรื่อง", "การปฏิบัติ"],
+           [10, 16, 16, 16, 24, 20, 34, 20],
+           [[r.recv_no or "", thai_date(r.recv_date) if r.recv_date else "", r.letter_no or "",
+             thai_date(r.letter_date) if r.letter_date else "", r.from_org or "", r.to_person or "",
+             r.subject or "", r.action_note or ""] for r in incoming])
+    _sheet("หนังสือส่ง",
+           ["เลขที่ส่ง", "ลงวันที่", "ถึง", "เรื่อง"],
+           [22, 16, 28, 40],
+           [[r.send_no or "", thai_date(r.date) if r.date else "", r.to_org or "", r.subject or ""]
+            for r in outgoing])
+
+    out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
+    path = out_dir / f"ทะเบียนหนังสือ_ปีงบ{fiscal_year}.xlsx"
+    wb.save(str(path))
+    return str(path)
+
+
 def _s(v) -> str:
     if v is None:
         return ""

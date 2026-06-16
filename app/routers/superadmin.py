@@ -112,7 +112,7 @@ def add_user(tid: int, username: str = Form(...), password: str = Form(...)):
             return RedirectResponse("/admin-console?msg=ชื่อผู้ใช้นี้ถูกใช้แล้ว", status_code=303)
         db.add(Account(tenant_id=tid, username=username.strip(),
                        password_hash=hash_password(password), role="user",
-                       display_name=t.name))
+                       display_name=t.name, must_change_password=True))
         db.commit()
     finally:
         db.close()
@@ -126,6 +126,7 @@ def reset_password(aid: int, password: str = Form(...)):
         a = db.get(Account, aid)
         if a:
             a.password_hash = hash_password(password)
+            a.must_change_password = True   # ให้ผู้ใช้ตั้งรหัสของตัวเองหลังถูกรีเซ็ต
             db.commit()
     finally:
         db.close()

@@ -23,7 +23,7 @@ from app.services.doc_number import (
     suggest_next, commit_number, suggest_doc_no, commit_doc_no, check_doc_no, format_doc_no,
 )
 from app.services.office_doc import render_memo, render_order
-from app.services.admin_io import build_admin_template, import_admin_workbook
+from app.services.admin_io import build_admin_template, import_admin_workbook, export_admin_register
 from app.services.pdf_extract import extract_letter_fields
 from app.thai_utils import current_fiscal_year, parse_be_date, be_date_input
 from app.templating import templates
@@ -422,6 +422,17 @@ def admin_import_page(request: Request, db: Session = Depends(get_db),
     return templates.TemplateResponse("admin_import.html", {
         "request": request, "import_lines": lines, "import_err": err,
     })
+
+
+@router.get("/admin/letters/export.xlsx")
+def admin_letters_export(db: Session = Depends(get_db), year: int | None = None):
+    fy = year or current_fiscal_year()
+    incoming = (db.query(IncomingLetter).filter_by(fiscal_year=fy)
+                .order_by(IncomingLetter.recv_no).all())
+    outgoing = (db.query(OutgoingLetter).filter_by(fiscal_year=fy)
+                .order_by(OutgoingLetter.send_seq).all())
+    path = export_admin_register(incoming, outgoing, fy)
+    return FileResponse(path, filename=Path(path).name, media_type=_XLSX)
 
 
 @router.get("/admin/template.xlsx")

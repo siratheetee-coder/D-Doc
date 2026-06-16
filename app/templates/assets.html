@@ -9,6 +9,7 @@
     <span class="hero-title">ครุภัณฑ์</span>
     <div class="hero-meta">ราคาทุนรวม {{ "{:,.2f}".format(total_cost) }} บาท · มูลค่าสุทธิปัจจุบัน {{ "{:,.2f}".format(total_nbv) }} บาท</div>
   </div>
+  {% if assets %}<a class="btn" href="/assets/export.xlsx"><svg class="icon"><use href="#ic-download"/></svg> ส่งออก Excel</a>{% endif %}
 </div>
 
 <div class="card">

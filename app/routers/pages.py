@@ -1077,6 +1077,15 @@ def download_register(db: Session = Depends(get_db), year: int | None = None,
 # ============================================================
 # เฟส 3.1 — ทะเบียนครุภัณฑ์ + ค่าเสื่อมราคา
 # ============================================================
+@router.get("/assets/export.xlsx")
+def assets_export(db: Session = Depends(get_db)):
+    from app.services.asset_export import export_asset_register
+    assets = db.query(Asset).order_by(Asset.id).all()
+    path = export_asset_register(assets)
+    return FileResponse(path, filename=Path(path).name,
+                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
 @router.get("/assets", response_class=HTMLResponse)
 def assets_page(request: Request, db: Session = Depends(get_db)):
     assets = db.query(Asset).order_by(Asset.id.desc()).all()

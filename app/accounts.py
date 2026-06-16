@@ -51,6 +51,7 @@ class Account(AccBase):
     display_name = Column(String, default="")
     role = Column(String, default="user")          # user / superadmin
     active = Column(Boolean, default=True)
+    must_change_password = Column(Boolean, default=False)   # บังคับเปลี่ยนรหัสครั้งแรก
     created_at = Column(DateTime, default=datetime.now)
 
     tenant = relationship("Tenant", back_populates="accounts")
@@ -63,6 +64,13 @@ def _ensure_engine():
         path = get_data_dir() / "accounts.db"
         _engine = create_engine(f"sqlite:///{path}", connect_args={"check_same_thread": False})
         AccBase.metadata.create_all(bind=_engine)
+        # เพิ่มคอลัมน์ใหม่บน accounts.db เก่า (ปลอดภัย: ข้ามถ้ามีแล้ว)
+        try:
+            conn = _engine.raw_connection(); cur = conn.cursor()
+            cur.execute("ALTER TABLE account ADD COLUMN must_change_password BOOLEAN DEFAULT 0")
+            conn.commit(); conn.close()
+        except Exception:
+            pass
         _Session = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
     return _engine
 
@@ -88,6 +96,25 @@ def verify_password(pw: str, stored: str) -> bool:
         return False
 
 
+def change_password(uid: int, current_pw: str, new_pw: str) -> tuple[bool, str]:
+    """เปลี่ยนรหัสผ่านของผู้ใช้เอง (ตรวจรหัสเดิมก่อน) คืน (สำเร็จ, ข้อความ)"""
+    if len(new_pw or "") < 6:
+        return False, "รหัสผ่านใหม่ต้องยาวอย่างน้อย 6 ตัวอักษร"
+    db = acc_session()
+    try:
+        u = db.get(Account, uid)
+        if not u:
+            return False, "ไม่พบบัญชีผู้ใช้"
+        if not verify_password(current_pw, u.password_hash):
+            return False, "รหัสผ่านเดิมไม่ถูกต้อง"
+        u.password_hash = hash_password(new_pw)
+        u.must_change_password = False
+        db.commit()
+        return True, "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว"
+    finally:
+        db.close()
+
+
 def authenticate(username: str, password: str) -> dict | None:
     """ตรวจ user/password คืน dict ข้อมูลผู้ใช้ (ตัดการผูก ORM) หรือ None"""
     db = acc_session()
@@ -96,7 +123,8 @@ def authenticate(username: str, password: str) -> dict | None:
              .filter_by(username=(username or "").strip(), active=True).first())
         if u and verify_password(password, u.password_hash):
             return {"uid": u.id, "username": u.username, "role": u.role,
-                    "tenant_id": u.tenant_id, "display_name": u.display_name}
+                    "tenant_id": u.tenant_id, "display_name": u.display_name,
+                    "must_change": bool(u.must_change_password)}
         return None
     finally:
         db.close()
@@ -129,7 +157,7 @@ def provision_tenant(name: str, slug: str, admin_user: str, admin_pw: str,
         db.add(t); db.flush()
         db.add(Account(tenant_id=t.id, username=admin_user.strip(),
                        password_hash=hash_password(admin_pw), role="user",
-                       display_name=name.strip()))
+                       display_name=name.strip(), must_change_password=True))
         db.commit()
         tid = t.id
     finally:
@@ -166,7 +194,8 @@ def bootstrap():
             su = os.environ.get("DDOC_SUPERADMIN", "admin")
             sp = os.environ.get("DDOC_SUPERADMIN_PW", "admin123")
             db.add(Account(username=su, password_hash=hash_password(sp),
-                           role="superadmin", display_name="ผู้ดูแลระบบ"))
+                           role="superadmin", display_name="ผู้ดูแลระบบ",
+                           must_change_password=True))
             db.commit()
             print(f"[D-Doc] สร้าง superadmin เริ่มต้น: {su} / {sp}  (โปรดเปลี่ยนรหัสผ่าน)")
 
@@ -204,7 +233,7 @@ def _migrate_legacy_db():
         t = Tenant(name=name, slug="rongrian-1", max_users=3)
         db.add(t); db.flush()
         db.add(Account(tenant_id=t.id, username="school", password_hash=hash_password("school123"),
-                       role="user", display_name=name))
+                       role="user", display_name=name, must_change_password=True))
         db.commit()
         tid = t.id
     finally:
