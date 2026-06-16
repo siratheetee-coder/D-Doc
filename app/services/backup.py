@@ -29,6 +29,12 @@ def _backups_dir() -> Path:
 def _make_zip() -> Path:
     data = get_data_dir()
     backups = _backups_dir()
+    # flush WAL ของทุกโรงเรียนลงไฟล์หลักก่อน กันข้อมูลล่าสุดตกหล่น
+    try:
+        from app.tenancy import checkpoint_all
+        checkpoint_all()
+    except Exception:
+        pass
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     out = backups / f"ddoc-backup-{ts}.zip"
     n = 0
@@ -36,7 +42,7 @@ def _make_zip() -> Path:
         for p in data.rglob("*"):
             if backups in p.parents or p == backups:          # ข้ามโฟลเดอร์สำรองเอง
                 continue
-            if p.is_file() and p.suffix not in (".wal", ".shm"):  # ข้ามไฟล์ชั่วคราว SQLite
+            if p.is_file() and p.suffix != ".shm":             # เก็บ .db + .wal (เผื่อยังไม่ checkpoint) ข้ามแค่ .shm
                 z.write(p, p.relative_to(data))
                 n += 1
     print(f"[backup {ts}] {n} ไฟล์ -> {out.name} ({out.stat().st_size // 1024} KB)")

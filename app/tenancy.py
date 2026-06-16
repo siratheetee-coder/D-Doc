@@ -71,3 +71,13 @@ def dispose_engine(school_id):
     pair = _engines.pop(school_id, None)
     if pair:
         pair[0].dispose()
+
+
+def checkpoint_all():
+    """flush WAL ของทุกโรงเรียนลงไฟล์ .db หลัก (เรียกก่อนสำรองข้อมูล กันข้อมูลตกหล่นใน .wal)"""
+    for engine, _SL in list(_engines.values()):
+        try:
+            with engine.connect() as conn:
+                conn.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
+        except Exception:
+            pass
