@@ -67,17 +67,23 @@ def _s3():
     return client, bucket, None
 
 
+_LATEST_KEY = "ddoc-backups/latest.zip"
+
+
 def _upload_and_prune(client, bucket, zip_path: Path):
     key = f"ddoc-backups/{zip_path.name}"
     client.upload_file(str(zip_path), bucket, key)
-    print(f"    อัปขึ้นคลาวด์: s3://{bucket}/{key}")
+    # อัปทับ latest.zip ไว้ใช้กู้คืน (ดึงตรง ไม่ต้อง list -> เลี่ยงปัญหาสิทธิ์ list ของ R2)
+    client.upload_file(str(zip_path), bucket, _LATEST_KEY)
+    print(f"    อัปขึ้นคลาวด์: s3://{bucket}/{key} (+latest.zip)")
+    # ลบสำรองเก่า best-effort (ถ้า token ไม่มีสิทธิ์ list ก็ข้าม ไม่กระทบการกู้คืน)
     try:
-        objs = client.list_objects_v2(Bucket=bucket, Prefix="ddoc-backups/").get("Contents", [])
+        objs = client.list_objects_v2(Bucket=bucket, Prefix="ddoc-backups/ddoc-backup-").get("Contents", [])
         for old in sorted((o["Key"] for o in objs), reverse=True)[KEEP:]:
             client.delete_object(Bucket=bucket, Key=old)
             print("    ลบสำรองเก่าบนคลาวด์:", old)
     except Exception as e:
-        print("    (เตือน) ตัดสำรองเก่าบนคลาวด์ไม่สำเร็จ:", e)
+        print("    (ข้าม) ตัดสำรองเก่าไม่สำเร็จ:", e)
 
 
 def manual_backup() -> str:
@@ -103,28 +109,41 @@ def restore_latest_from_s3() -> bool:
     if not client:
         print("    [restore]", reason)
         return False
+    data_dir = get_data_dir()
+    tmp = data_dir / "_restore.zip"
+
+    # 1) ดึง latest.zip ตรง ๆ (GetObject — สิทธิ์เดียวกับที่อัปได้ ไม่ต้องใช้ list)
+    src = None
     try:
-        objs = client.list_objects_v2(Bucket=bucket, Prefix="ddoc-backups/").get("Contents", [])
-        keys = sorted((o["Key"] for o in objs if o["Key"].endswith(".zip")), reverse=True)
-        if not keys:
-            print("    [restore] ยังไม่มีไฟล์สำรองบนคลาวด์ (เริ่มใหม่)")
+        client.download_file(bucket, _LATEST_KEY, str(tmp))
+        src = _LATEST_KEY
+    except Exception as e1:
+        # 2) สำรอง: ลอง list หาไฟล์ล่าสุด (เผื่อ token มีสิทธิ์ list และยังไม่มี latest.zip)
+        try:
+            objs = client.list_objects_v2(Bucket=bucket, Prefix="ddoc-backups/").get("Contents", [])
+            keys = sorted((o["Key"] for o in objs if o["Key"].endswith(".zip")), reverse=True)
+            if not keys:
+                print("    [restore] ยังไม่มีไฟล์สำรองบนคลาวด์ (เริ่มใหม่)")
+                return False
+            client.download_file(bucket, keys[0], str(tmp))
+            src = keys[0]
+        except Exception as e2:
+            print(f"    [restore] ดึงไฟล์สำรองไม่สำเร็จ (latest: {e1}) (list: {e2})")
             return False
-        latest = keys[0]
-        data_dir = get_data_dir()
-        tmp = data_dir / "_restore.zip"
-        client.download_file(bucket, latest, str(tmp))
+
+    try:
         with zipfile.ZipFile(tmp, "r") as z:
             for member in z.namelist():
-                # กัน path traversal
                 dest = (data_dir / member).resolve()
-                if str(dest).startswith(str(data_dir.resolve())):
+                if str(dest).startswith(str(data_dir.resolve())):   # กัน path traversal
                     z.extract(member, data_dir)
-        tmp.unlink(missing_ok=True)
-        print(f"    [restore] กู้คืนข้อมูลจากคลาวด์: {latest}")
+        print(f"    [restore] กู้คืนข้อมูลจากคลาวด์: {src}")
         return True
     except Exception as e:
-        print("    [restore] กู้คืนไม่สำเร็จ:", e)
+        print("    [restore] แตกไฟล์สำรองไม่สำเร็จ:", e)
         return False
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def run_backup() -> Path | None:
