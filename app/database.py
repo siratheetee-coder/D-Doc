@@ -56,6 +56,13 @@ MIGRATIONS = [
     ("school", "finance_officer_name",  "VARCHAR DEFAULT ''"),
     ("school", "finance_head_name",     "VARCHAR DEFAULT ''"),
     ("school", "admin_officer_name",    "VARCHAR DEFAULT ''"),
+    ("asset", "brand_model",     "VARCHAR DEFAULT ''"),
+    ("asset", "vendor_address",  "VARCHAR DEFAULT ''"),
+    ("asset", "fund_type",       "VARCHAR DEFAULT 'เงินงบประมาณ'"),
+    ("asset", "acquire_method",  "VARCHAR DEFAULT 'วิธีเฉพาะเจาะจง'"),
+    ("asset", "doc_ref",         "VARCHAR DEFAULT ''"),
+    ("asset", "quantity",        "FLOAT DEFAULT 1"),
+    ("asset", "unit",            "VARCHAR DEFAULT 'หน่วย'"),
 ]
 
 

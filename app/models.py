@@ -476,12 +476,21 @@ class Asset(Base):
     useful_life = Column(Integer, default=12)      # อายุการใช้งาน (ปี)
     salvage_value = Column(Float, default=1.0)     # มูลค่าซาก (ปกติ 1 บาท)
 
-    location = Column(String, default="")          # สถานที่ตั้ง/ผู้รับผิดชอบ
-    funding_source = Column(String, default="")    # แหล่งเงิน
-    vendor_name = Column(String, default="")       # ผู้ขาย/ผู้รับจ้าง
+    location = Column(String, default="")          # สถานที่ใช้งาน/หน่วยงานรับผิดชอบ
+    funding_source = Column(String, default="")    # แหล่งเงิน (ข้อความอิสระ เดิม)
+    vendor_name = Column(String, default="")       # ชื่อผู้ขาย/ผู้รับจ้าง/ผู้บริจาค
     procurement_id = Column(Integer, ForeignKey("procurement.id"), nullable=True)  # มาจากเรื่องไหน
     note = Column(String, default="")
     status = Column(String, default="ใช้งาน")      # ใช้งาน / จำหน่ายแล้ว
+
+    # ฟิลด์ตามแบบฟอร์มทะเบียนคุมทรัพย์สิน (แบบ 2)
+    brand_model = Column(String, default="")       # ยี่ห้อ/รุ่น/ลักษณะเฉพาะ
+    vendor_address = Column(String, default="")    # ที่อยู่ผู้ขาย/ผู้บริจาค
+    fund_type = Column(String, default="เงินงบประมาณ")  # ประเภทเงิน
+    acquire_method = Column(String, default="วิธีเฉพาะเจาะจง")  # วิธีการได้มา
+    doc_ref = Column(String, default="")           # ที่เอกสาร (หลักฐานการได้มา)
+    quantity = Column(Float, default=1)            # จำนวน
+    unit = Column(String, default="หน่วย")         # หน่วย
     created_at = Column(DateTime, default=datetime.now)
 
 

@@ -9,7 +9,10 @@
     <span class="hero-title">ครุภัณฑ์</span>
     <div class="hero-meta">ราคาทุนรวม {{ "{:,.2f}".format(total_cost) }} บาท · มูลค่าสุทธิปัจจุบัน {{ "{:,.2f}".format(total_nbv) }} บาท</div>
   </div>
-  {% if assets %}<a class="btn" href="/assets/export.xlsx"><svg class="icon"><use href="#ic-download"/></svg> ส่งออก Excel</a>{% endif %}
+  {% if assets %}<div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a class="btn" href="/assets/form.xlsx"><svg class="icon"><use href="#ic-download"/></svg> แบบฟอร์มทะเบียนคุมทรัพย์สิน</a>
+    <a class="btn gray" href="/assets/export.xlsx"><svg class="icon"><use href="#ic-download"/></svg> ตารางสรุป (รายการเดียว)</a>
+  </div>{% endif %}
 </div>
 
 <div class="card">
@@ -31,8 +34,21 @@
       <div><label>แหล่งเงิน</label><input name="funding_source" placeholder="เช่น เงินอุดหนุน"></div>
     </div>
     <div class="row">
-      <div style="flex:2;"><label>สถานที่ตั้ง/ผู้รับผิดชอบ</label><input name="location" placeholder="เช่น ห้องธุรการ"></div>
-      <div style="flex:2;"><label>ผู้ขาย</label><input name="vendor_name"></div>
+      <div style="flex:2;"><label>ยี่ห้อ/รุ่น/ลักษณะเฉพาะ</label><input name="brand_model" placeholder="เช่น Dell OptiPlex 3090"></div>
+      <div style="flex:2;"><label>สถานที่ใช้งาน/หน่วยงานรับผิดชอบ</label><input name="location" placeholder="เช่น ห้องธุรการ"></div>
+      <div><label>จำนวน</label><input name="quantity" type="number" step="1" min="1" value="1"></div>
+      <div><label>หน่วย</label><input name="unit" value="หน่วย"></div>
+    </div>
+    <div class="row">
+      <div style="flex:2;"><label>ชื่อผู้ขาย/ผู้รับจ้าง/ผู้บริจาค</label><input name="vendor_name"></div>
+      <div style="flex:2;"><label>ที่อยู่ผู้ขาย</label><input name="vendor_address"></div>
+      <div><label>ที่เอกสาร</label><input name="doc_ref" placeholder="เลขที่ใบส่งของ/สัญญา"></div>
+    </div>
+    <div class="row">
+      <div><label>ประเภทเงิน</label>
+        <select name="fund_type">{% for ft in ["เงินงบประมาณ","เงินนอกงบประมาณ","เงินบริจาค/เงินช่วยเหลือ","อื่น"] %}<option>{{ ft }}</option>{% endfor %}</select></div>
+      <div><label>วิธีการได้มา</label>
+        <select name="acquire_method">{% for mt in ["วิธีตลาดอิเล็กทรอนิกส์","วิธีประกวดราคาอิเล็กทรอนิกส์","วิธีคัดเลือก","วิธีเฉพาะเจาะจง","รับบริจาค"] %}<option>{{ mt }}</option>{% endfor %}</select></div>
     </div>
     <br><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มครุภัณฑ์</button>
   </form>
@@ -78,13 +94,26 @@
               <div><label>มูลค่าซาก</label><input name="salvage_value" type="number" step="0.01" value="{{ a.salvage_value }}"></div>
             </div>
             <div class="row">
-              <div style="flex:2;"><label>สถานที่/ผู้รับผิดชอบ</label><input name="location" value="{{ a.location }}"></div>
-              <div><label>แหล่งเงิน</label><input name="funding_source" value="{{ a.funding_source }}"></div>
+              <div style="flex:2;"><label>ยี่ห้อ/รุ่น/ลักษณะเฉพาะ</label><input name="brand_model" value="{{ a.brand_model or '' }}"></div>
+              <div style="flex:2;"><label>สถานที่ใช้งาน/ผู้รับผิดชอบ</label><input name="location" value="{{ a.location }}"></div>
+              <div><label>จำนวน</label><input name="quantity" type="number" step="1" min="1" value="{{ a.quantity or 1 }}"></div>
+              <div><label>หน่วย</label><input name="unit" value="{{ a.unit or 'หน่วย' }}"></div>
+            </div>
+            <div class="row">
+              <div style="flex:2;"><label>ชื่อผู้ขาย/ผู้รับจ้าง/ผู้บริจาค</label><input name="vendor_name" value="{{ a.vendor_name }}"></div>
+              <div style="flex:2;"><label>ที่อยู่ผู้ขาย</label><input name="vendor_address" value="{{ a.vendor_address or '' }}"></div>
+              <div><label>ที่เอกสาร</label><input name="doc_ref" value="{{ a.doc_ref or '' }}"></div>
+            </div>
+            <div class="row">
+              <div><label>ประเภทเงิน</label>
+                <select name="fund_type">{% for ft in ["เงินงบประมาณ","เงินนอกงบประมาณ","เงินบริจาค/เงินช่วยเหลือ","อื่น"] %}<option {{ "selected" if a.fund_type==ft }}>{{ ft }}</option>{% endfor %}</select></div>
+              <div><label>วิธีการได้มา</label>
+                <select name="acquire_method">{% for mt in ["วิธีตลาดอิเล็กทรอนิกส์","วิธีประกวดราคาอิเล็กทรอนิกส์","วิธีคัดเลือก","วิธีเฉพาะเจาะจง","รับบริจาค"] %}<option {{ "selected" if a.acquire_method==mt }}>{{ mt }}</option>{% endfor %}</select></div>
+              <div><label>แหล่งเงิน (เพิ่มเติม)</label><input name="funding_source" value="{{ a.funding_source }}"></div>
               <div><label>สถานะ</label>
                 <select name="status"><option {{ "selected" if a.status=="ใช้งาน" }}>ใช้งาน</option><option {{ "selected" if a.status=="จำหน่ายแล้ว" }}>จำหน่ายแล้ว</option></select>
               </div>
             </div>
-            <input type="hidden" name="vendor_name" value="{{ a.vendor_name }}">
             <br>
             <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
             <button class="btn sm red" type="button" onclick="if(confirm('ลบครุภัณฑ์นี้?')){this.nextElementSibling.submit()}"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button>

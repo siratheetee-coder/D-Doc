@@ -1091,13 +1091,24 @@ def download_register(db: Session = Depends(get_db), year: int | None = None,
 # ============================================================
 # เฟส 3.1 — ทะเบียนครุภัณฑ์ + ค่าเสื่อมราคา
 # ============================================================
+_XLSX_MT = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
 @router.get("/assets/export.xlsx")
 def assets_export(db: Session = Depends(get_db)):
     from app.services.asset_export import export_asset_register
     assets = db.query(Asset).order_by(Asset.id).all()
     path = export_asset_register(assets)
-    return FileResponse(path, filename=Path(path).name,
-                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    return FileResponse(path, filename=Path(path).name, media_type=_XLSX_MT)
+
+
+@router.get("/assets/form.xlsx")
+def assets_form_export(db: Session = Depends(get_db)):
+    """ออกแบบฟอร์มทะเบียนคุมทรัพย์สิน (แบบ 2) — การ์ดต่อ 1 ครุภัณฑ์"""
+    from app.services.asset_export import export_asset_cards
+    assets = db.query(Asset).order_by(Asset.id).all()
+    path = export_asset_cards(assets, get_school(db))
+    return FileResponse(path, filename=Path(path).name, media_type=_XLSX_MT)
 
 
 @router.get("/assets", response_class=HTMLResponse)
@@ -1125,6 +1136,14 @@ def _asset_from_form(asset: Asset, form) -> None:
     asset.vendor_name = (form.get("vendor_name") or "").strip()
     asset.note = (form.get("note") or "").strip()
     asset.status = form.get("status") or "ใช้งาน"
+    # ฟิลด์ตามแบบฟอร์มทะเบียนคุมทรัพย์สิน
+    asset.brand_model = (form.get("brand_model") or "").strip()
+    asset.vendor_address = (form.get("vendor_address") or "").strip()
+    asset.fund_type = form.get("fund_type") or "เงินงบประมาณ"
+    asset.acquire_method = form.get("acquire_method") or "วิธีเฉพาะเจาะจง"
+    asset.doc_ref = (form.get("doc_ref") or "").strip()
+    asset.quantity = _to_float(form.get("quantity"), 1) or 1
+    asset.unit = (form.get("unit") or "หน่วย").strip() or "หน่วย"
 
 
 @router.post("/assets")
