@@ -33,7 +33,7 @@ from app.services.asset_utils import (
     CATEGORIES, CATEGORY_LIFE, annual_depreciation, accumulated_depreciation,
     net_book_value, depreciation_schedule, material_balance,
 )
-from app.services.doc_number import suggest_doc_no, commit_doc_no, check_doc_no, COUNTER_TYPES
+from app.services.doc_number import suggest_doc_no, commit_doc_no, check_doc_no, COUNTER_TYPES, parse_seq
 from app.services.render import render_document, render_bundle, AVAILABLE_KINDS
 from app.services.register_export import export_register
 from app.services.thai_holidays import holiday_map, year_range_for
@@ -61,6 +61,11 @@ def _to_float(v, default=0.0):
         return float(str(v).strip())
     except (TypeError, ValueError):
         return default
+
+
+def _order_sort_key(p):
+    """เรียงตามเลขใบสั่งซื้อ/จ้าง (ลำดับตัวเลข น้อย->มาก) เรื่องที่ยังไม่ออกใบสั่งไปท้าย"""
+    return (0, parse_seq(p.order_no)) if (p.order_no or "").strip() else (1, p.id)
 
 
 def get_school(db: Session) -> School:
@@ -263,8 +268,8 @@ def dashboard(request: Request, db: Session = Depends(get_db),
     # กราฟแสดงเฉพาะมุมมองรายปีงบ (ไม่แสดงตอนค้นหาข้ามปี)
     charts = None if q else _dashboard_charts(procurements)
     # แยกทะเบียนคุม: จัดซื้อ (ซื้อ) / จัดจ้าง (จ้าง) เป็นคนละเล่ม
-    buys = [p for p in procurements if (p.proc_type or "ซื้อ") == "ซื้อ"]
-    hires = [p for p in procurements if (p.proc_type or "ซื้อ") == "จ้าง"]
+    buys = sorted([p for p in procurements if (p.proc_type or "ซื้อ") == "ซื้อ"], key=_order_sort_key)
+    hires = sorted([p for p in procurements if (p.proc_type or "ซื้อ") == "จ้าง"], key=_order_sort_key)
     return templates.TemplateResponse("dashboard.html", {
         "request": request, "school": get_school(db), "procurements": procurements,
         "buys": buys, "hires": hires,
@@ -611,6 +616,12 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
     proc.order_signer = form.get("order_signer") or "director"
     proc.inspection_mode = form.get("inspection_mode") or "single"
     proc.vendor_id = _resolve_vendor(db, form)
+    # วันที่รายงานขอซื้อ/จ้าง (ถ้ากรอกมา) — กันไม่ให้ขึ้นเป็นวันปัจจุบันเสมอ
+    rd = (form.get("request_date") or "").strip()
+    if rd:
+        d = parse_be_date(rd)
+        if d:
+            proc.request_date = d
 
     # รายการพัสดุ (ล้างของเดิมแล้วสร้างใหม่)
     proc.items.clear()
@@ -651,6 +662,7 @@ def procurement_new_form(request: Request, db: Session = Depends(get_db)):
         "request": request, "p": None, "action": "/procurement/new",
         "prefill_items": [], "prefill_members": [], "prefill_spec_members": [],
         "prefill_subject": "", "prefill_memo": "", "prefill_date": "", "pending_file": "",
+        "today_input": be_date_input(datetime.now()),
         "fiscal_year": fy, "today_thai": thai_date(),
         "sug_memo": suggest_doc_no(db, "memo", fy),
         "threshold": school.doc_set_threshold or 5000, "positions": POSITION_CHOICES,
@@ -728,6 +740,8 @@ def _render_proc_from_file(request, db, pending_file: str, fields: dict, ai_note
         "prefill_delivery": _to_int(fields.get("delivery_days"), 7) or 7,
         "prefill_vendor": fields.get("vendor_name", ""),
         "prefill_mode": "committee" if len(members) > 1 else "single",
+        "prefill_date": be_date_input(fields.get("request_date")),
+        "today_input": be_date_input(datetime.now()),
         "pending_file": pending_file, "ai_note": ai_note,
         "fiscal_year": fy, "today_thai": thai_date(),
         "sug_memo": suggest_doc_no(db, "memo", fy),
@@ -1066,7 +1080,7 @@ def download_register(db: Session = Depends(get_db), year: int | None = None,
         query = query.filter(Procurement.proc_type == "ซื้อ")
     elif kind == "hire":
         query = query.filter(Procurement.proc_type == "จ้าง")
-    procurements = query.order_by(Procurement.id).all()
+    procurements = sorted(query.all(), key=_order_sort_key)   # เรียงตามเลขใบสั่ง น้อย->มาก
     path = export_register(procurements, fy, kind=kind)
     return FileResponse(
         path, filename=Path(path).name,

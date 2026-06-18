@@ -84,7 +84,7 @@ def export_admin_register(incoming, outgoing, fiscal_year: int) -> str:
         for row in ws.iter_rows(min_row=4):
             for cell in row:
                 cell.font = Font(name=THAI_FONT, size=14); cell.border = _BORDER
-                cell.alignment = Alignment(vertical="center")
+                cell.alignment = Alignment(vertical="top", wrap_text=True)
 
     _sheet("หนังสือรับ",
            ["เลขรับ", "วันที่รับ", "ที่หนังสือ", "ลงวันที่", "จาก", "ถึง/มอบให้", "เรื่อง", "การปฏิบัติ"],

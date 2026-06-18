@@ -66,7 +66,7 @@ def export_asset_register(assets) -> str:
         for cell in row:
             cell.font = Font(name=THAI_FONT, size=14)
             cell.border = _BORDER
-            cell.alignment = Alignment(vertical="center")
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
         for mc in money_cols:
             row[mc - 1].number_format = "#,##0.00"
     # แถวรวม ตัวหนา

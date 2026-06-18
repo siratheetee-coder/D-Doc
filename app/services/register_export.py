@@ -62,7 +62,7 @@ def export_register(procurements, fiscal_year: int, kind: str = "all") -> str:
     for p in procurements:
         ws.append([
             (p.order_no or "").strip() or p.doc_no or "-",
-            thai_date(p.request_date),
+            thai_date(p.order_date or p.request_date),
             p.subject,
             p.proc_type,
             p.method,
@@ -79,7 +79,8 @@ def export_register(procurements, fiscal_year: int, kind: str = "all") -> str:
         for cell in row:
             cell.font = Font(name=THAI_FONT, size=14)
             cell.border = border
-            cell.alignment = Alignment(vertical="center")
+            # wrap_text: ข้อความยาว (เรื่อง/ผู้ขาย) ขึ้นบรรทัดใหม่ในช่อง ไม่ถูกตัด
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
         row[5].number_format = "#,##0.00"  # คอลัมน์วงเงิน
 
     out_dir = get_data_dir() / "documents"

@@ -102,7 +102,7 @@
     {% for p in rows %}
     <tr>
       <td><a href="/procurement/{{ p.id }}">{% if p.order_no %}{{ p.order_no }}{% else %}<span class="muted">ยังไม่ออกใบสั่ง</span>{% endif %}</a></td>
-      <td>{{ thai_date(p.request_date) }}</td>
+      <td>{{ thai_date(p.order_date) if p.order_date else "-" }}</td>
       <td>{{ p.proc_type }}{{ p.subject }}</td>
       <td>{{ p.method }}</td>
       <td class="right">{{ "{:,.2f}".format(p.total_amount or 0) }}</td>

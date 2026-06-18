@@ -20,6 +20,9 @@
       <div><label>เลขที่บันทึก (รายงานขอซื้อ/จ้าง)</label>
         <input name="memo_no" value="{{ prefill_memo|default('') or sug_memo }}" placeholder="เช่น 1/2569">
       </div>
+      <div><label>วันที่รายงานขอซื้อ/จ้าง</label>
+        <input name="request_date" value="{{ prefill_date|default('') or today_input|default('') }}" placeholder="วว/ดด/ปปปป" data-date="1">
+      </div>
       {% endif %}
       <div><label>ปีงบประมาณ</label>
         <input name="fiscal_year" value="{{ p.fiscal_year if is_edit else fiscal_year }}"></div>

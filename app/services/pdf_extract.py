@@ -176,15 +176,24 @@ def _parse_items_from_tables(tables) -> list:
         ci_price = col("ราคาต่อหน่วย", "ราคา/หน่วย", "หน่วยละ", "ราคา")
         if ci_name is None:
             continue
+        # คำที่บอกว่าเป็นแถวหัวตาราง/ยอดรวม/คำอ่านบาท ไม่ใช่รายการพัสดุจริง
+        _JUNK = ("รวม", "ราคากลาง", "บาทถ้วน", "รายละเอียดพัสดุ", "รายการ",
+                 "ลงชื่อ", "หมายเหตุ", "จำนวนหน่วย")
         items = []
         for row in tb[hidx + 1:]:
             if not row or ci_name >= len(row):
                 continue
             name = (row[ci_name] or "").strip().replace("\n", " ")
-            if not name or "รวม" in name or "ราคากลาง" in name:
+            row_text = " ".join((c or "") for c in row)
+            # ข้าม: ว่าง / ขึ้นต้นวงเล็บ (คำอ่านบาท) / มีคำว่ายอดรวม/บาทถ้วน / เป็นหัวตารางซ้ำ
+            if (not name or name.startswith("(") or "บาทถ้วน" in row_text
+                    or any(k in name for k in _JUNK)):
                 continue
             qty = _num(row[ci_qty]) if (ci_qty is not None and ci_qty < len(row)) else ""
             unit = (row[ci_unit].strip() if (ci_unit is not None and ci_unit < len(row) and row[ci_unit]) else "")
+            # หน่วยที่เป็นคำอ่านบาท (ขึ้นต้นวงเล็บ) = แถวยอดรวม ข้าม
+            if unit.startswith("("):
+                continue
             price = _num(row[ci_price]) if (ci_price is not None and ci_price < len(row)) else ""
             items.append({"name": name, "qty": qty or 1, "unit": unit or "ชิ้น", "unit_price": price or 0})
         if items:
