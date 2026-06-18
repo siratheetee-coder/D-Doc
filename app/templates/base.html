@@ -165,6 +165,16 @@
     input:focus, select:focus, textarea:focus {
       outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(72,128,255,.18);
     }
+    /* dropdown สวย + กดง่าย: เอาลูกศรเดิมออก ใส่ลูกศรเอง + เพิ่มพื้นที่กด */
+    select {
+      appearance: none; -webkit-appearance: none; -moz-appearance: none;
+      padding: 11px 40px 11px 14px; cursor: pointer; line-height: 1.45;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237b8190' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 14px center; background-size: 16px;
+    }
+    select:hover { border-color: #c2ccda; }
+    select:focus { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234880FF' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); }
+    option { font-size: 16px; padding: 6px; }
     textarea { min-height: 72px; }
     .row { display: flex; gap: 16px; flex-wrap: wrap; }
     .row > div { flex: 1; min-width: 180px; }
