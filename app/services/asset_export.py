@@ -7,6 +7,8 @@ from pathlib import Path
 
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.worksheet.page import PageMargins
+from openpyxl.worksheet.properties import PageSetupProperties
 
 from app.database import get_data_dir
 from app.thai_utils import thai_date
@@ -126,19 +128,30 @@ def export_asset_cards(assets, school) -> str:
     used = set()
     for idx, a in enumerate(assets, 1):
         ws = wb.create_sheet(_safe_sheet(a.asset_code or a.name or f"ครุภัณฑ์{idx}", used))
-        for i, w in enumerate([12, 11, 26, 7, 8, 13, 13, 10, 12, 13, 13, 13, 12], start=1):
+        # ตั้งหน้ากระดาษ A4 แนวนอน + ขยายให้เต็มความกว้างหน้า (ไม่เหลือที่ว่าง)
+        ws.page_setup.orientation = "landscape"
+        ws.page_setup.paperSize = 9   # A4
+        ws.page_setup.fitToWidth = 1
+        ws.page_setup.fitToHeight = 0
+        ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
+        ws.page_margins = PageMargins(left=0.4, right=0.4, top=0.5, bottom=0.5)
+        # ความกว้างคอลัมน์รวม ~ เต็มหน้า A4 แนวนอน
+        for i, w in enumerate([13, 11, 26, 8, 9, 13, 13, 11, 13, 13, 13, 12, 12], start=1):
             ws.column_dimensions[chr(64 + i)].width = w
 
-        ws.merge_cells("A1:M1"); setc(ws, "A1", "ทะเบียนคุมทรัพย์สิน", bold=True, size=18, align="center")
+        ws.merge_cells("A1:M1"); setc(ws, "A1", "ทะเบียนคุมทรัพย์สิน", bold=True, size=22, align="center")
+        ws.row_dimensions[1].height = 30
         ws.merge_cells("A2:M2")
         setc(ws, "A2", f"ส่วนราชการ สำนักงานคณะกรรมการการศึกษาขั้นพื้นฐาน    หน่วยงาน {school.name or ''}",
-             align="center", size=13)
+             align="center", size=15)
+        ws.row_dimensions[2].height = 22
 
         def label(coord_l, lbl, coord_r_range, val):
             l = coord_l.split(":")[0]
-            ws.merge_cells(coord_l); setc(ws, l, lbl, bold=True)
+            ws.merge_cells(coord_l); setc(ws, l, lbl, bold=True, size=15)
             r0 = coord_r_range.split(":")[0]
-            ws.merge_cells(coord_r_range); setc(ws, r0, val)
+            ws.merge_cells(coord_r_range); setc(ws, r0, val, size=15)
+            ws.row_dimensions[int(l[1:])].height = 21
 
         label("A4:B4", "ประเภท", "C4:F4", a.category or "")
         label("G4:H4", "หมายเลขครุภัณฑ์", "I4:M4", a.asset_code or "")
@@ -154,10 +167,10 @@ def export_asset_cards(assets, school) -> str:
                    "มูลค่ารวม", "อายุใช้งาน(ปี)", "อัตราค่าเสื่อม(%)", "ค่าเสื่อมประจำปี",
                    "ค่าเสื่อมสะสม", "มูลค่าสุทธิ", "หมายเหตุ"]
         hr = 11
-        ws.row_dimensions[hr].height = 34
+        ws.row_dimensions[hr].height = 24
         for j, h in enumerate(headers, 1):
             setc(ws, ws.cell(row=hr, column=j).coordinate, h, bold=True, align="center",
-                 wrap=True, box=True, fill=_HEAD, size=13)
+                 wrap=False, box=True, fill=_HEAD, size=13)
 
         qty = a.quantity or 1
         cost = a.cost or 0
@@ -174,16 +187,15 @@ def export_asset_cards(assets, school) -> str:
             money = j in (6, 7, 12)
             align = "right" if (money or j in (4, 8, 9)) else "left"
             setc(ws, ws.cell(row=r, column=j).coordinate, v, align=align, box=True, money=money)
+        ws.row_dimensions[r].height = 23
 
-        # แถวค่าเสื่อมรายปีงบประมาณ
-        for row in depreciation_schedule(a.cost, a.salvage_value, a.useful_life, a.acquired_date):
+        # แถวว่างให้ผู้ใช้ลงค่าเสื่อมรายปีเอง (ค่าที่คำนวณดูได้ในหน้า "ตารางค่าเสื่อม")
+        n_blank = max(int(a.useful_life or 0) + 1, 12)
+        for _ in range(n_blank):
             r += 1
             for j in range(1, 14):
                 setc(ws, ws.cell(row=r, column=j).coordinate, "", box=True)
-            setc(ws, ws.cell(row=r, column=1).coordinate, "30 ก.ย. %d" % row["fy"], box=True, align="center")
-            setc(ws, ws.cell(row=r, column=10).coordinate, row["dep"], box=True, align="right", money=True)
-            setc(ws, ws.cell(row=r, column=11).coordinate, row["acc"], box=True, align="right", money=True)
-            setc(ws, ws.cell(row=r, column=12).coordinate, row["nbv"], box=True, align="right", money=True)
+            ws.row_dimensions[r].height = 23
 
     if not wb.sheetnames:
         wb.create_sheet("ว่าง")["A1"] = "ยังไม่มีครุภัณฑ์"
