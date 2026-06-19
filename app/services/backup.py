@@ -1,23 +1,29 @@
 # -*- coding: utf-8 -*-
 """
-backup.py — สำรองข้อมูลทุกโรงเรียน (zip ทั้งโฟลเดอร์ data/) + อัปขึ้นคลาวด์ (off-site, ทางเลือก)
+backup.py — สำรองข้อมูลทุกโรงเรียน + อัปขึ้นคลาวด์ (off-site) แบบ "ประหยัด bandwidth"
 
-ใช้ได้ 2 ทาง:
-- เรียกจากในแอป (ตัวจับเวลาเบื้องหลัง) — เหมาะกับ Render ที่ผูกดิสก์ได้ service เดียว
-- รันจาก cron ผ่าน tools/backup_all.py — เหมาะกับ VPS
+หลักการประหยัด egress (สำคัญบน Render ฟรีที่จำกัด bandwidth):
+- สำรองเฉพาะ "ข้อมูลจริง": ฐานข้อมูล (.db) + ไฟล์แนบ (uploads) — ไม่รวม documents/ (เอกสารที่ generate ใหม่ได้)
+- อัปขึ้นคลาวด์ "เฉพาะตอนข้อมูลเปลี่ยนจริง" (เทียบ fingerprint) ถ้าไม่เปลี่ยน -> ข้าม ไม่อัป
+- อัปทับ latest.zip ทุกครั้งที่เปลี่ยน (ไว้กู้คืน) + เก็บ snapshot ลงวันที่ "วันละ 1 ครั้ง" (ไว้ดูย้อนหลัง)
 
-ตั้งค่าอัปขึ้นคลาวด์ผ่าน env (S3-compatible: Cloudflare R2 / Backblaze B2 / S3 / Wasabi):
+ตั้งค่าผ่าน env (S3-compatible: Cloudflare R2 / B2 / S3 / Wasabi):
     BACKUP_S3_ENDPOINT, BACKUP_S3_BUCKET, BACKUP_S3_KEY_ID, BACKUP_S3_SECRET, BACKUP_S3_REGION
-ถ้าไม่ตั้ง -> สำรองแค่ในเครื่อง (ไม่ error)
 """
 import os
+import hashlib
 import zipfile
 from pathlib import Path
 from datetime import datetime
 
 from app.database import get_data_dir
 
-KEEP = 14   # เก็บย้อนหลังกี่ชุด (ทั้งในเครื่องและบนคลาวด์)
+KEEP = 14                                   # เก็บ snapshot ย้อนหลังกี่ชุด
+_EXCLUDE_TOP = {"backups", "documents"}     # ไม่สำรอง: โฟลเดอร์สำรองเอง + เอกสาร generate ใหม่ได้
+_LATEST_KEY = "ddoc-backups/latest.zip"
+
+_last_fp = None          # fingerprint ที่ซิงก์ขึ้นคลาวด์ล่าสุด (ในหน่วยความจำ)
+_last_snap_date = None   # วันที่ทำ snapshot ลงวันที่ล่าสุด (กันอัป snapshot ซ้ำหลายครั้ง/วัน)
 
 
 def _backups_dir() -> Path:
@@ -26,25 +32,48 @@ def _backups_dir() -> Path:
     return d
 
 
+def _included_files(data: Path):
+    """ไฟล์ที่ต้องสำรอง: ทุกอย่างใน data/ ยกเว้น backups/, documents/ และไฟล์ชั่วคราว"""
+    for p in data.rglob("*"):
+        if not p.is_file():
+            continue
+        rel = p.relative_to(data)
+        if rel.parts and rel.parts[0] in _EXCLUDE_TOP:
+            continue
+        if str(rel) == "school.db":          # ไฟล์ DB เดิมก่อน multi-tenant (ย้ายไป schools/ แล้ว) ไม่ต้องสำรอง
+            continue
+        if p.suffix == ".shm" or p.name == "_restore.zip":
+            continue
+        yield p, rel
+
+
+def _fingerprint(data: Path) -> str:
+    """ลายนิ้วมือของข้อมูล (ชื่อ+ขนาด+เวลาแก้ไข ของไฟล์ที่สำรอง) ใช้ตรวจว่าเปลี่ยนไหม"""
+    h = hashlib.sha256()
+    for p, rel in sorted(_included_files(data), key=lambda x: str(x[1])):
+        try:
+            st = p.stat()
+            h.update(f"{rel}|{st.st_size}|{int(st.st_mtime)}".encode())
+        except OSError:
+            pass
+    return h.hexdigest()
+
+
 def _make_zip() -> Path:
+    """สร้าง zip ของข้อมูลที่สำรอง (flush WAL ก่อน) คืนที่อยู่ไฟล์"""
     data = get_data_dir()
-    backups = _backups_dir()
-    # flush WAL ของทุกโรงเรียนลงไฟล์หลักก่อน กันข้อมูลล่าสุดตกหล่น
     try:
         from app.tenancy import checkpoint_all
         checkpoint_all()
     except Exception:
         pass
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-    out = backups / f"ddoc-backup-{ts}.zip"
+    out = _backups_dir() / f"ddoc-backup-{ts}.zip"
     n = 0
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-        for p in data.rglob("*"):
-            if backups in p.parents or p == backups:          # ข้ามโฟลเดอร์สำรองเอง
-                continue
-            if p.is_file() and p.suffix != ".shm":             # เก็บ .db + .wal (เผื่อยังไม่ checkpoint) ข้ามแค่ .shm
-                z.write(p, p.relative_to(data))
-                n += 1
+        for p, rel in _included_files(data):
+            z.write(p, rel)
+            n += 1
     print(f"[backup {ts}] {n} ไฟล์ -> {out.name} ({out.stat().st_size // 1024} KB)")
     return out
 
@@ -67,58 +96,94 @@ def _s3():
     return client, bucket, None
 
 
-_LATEST_KEY = "ddoc-backups/latest.zip"
-
-
-def _upload_and_prune(client, bucket, zip_path: Path):
-    key = f"ddoc-backups/{zip_path.name}"
-    client.upload_file(str(zip_path), bucket, key)
-    # อัปทับ latest.zip ไว้ใช้กู้คืน (ดึงตรง ไม่ต้อง list -> เลี่ยงปัญหาสิทธิ์ list ของ R2)
-    client.upload_file(str(zip_path), bucket, _LATEST_KEY)
-    print(f"    อัปขึ้นคลาวด์: s3://{bucket}/{key} (+latest.zip)")
-    # ลบสำรองเก่า best-effort (ถ้า token ไม่มีสิทธิ์ list ก็ข้าม ไม่กระทบการกู้คืน)
+def _prune_cloud(client, bucket):
+    """ตัด snapshot เก่าบนคลาวด์ให้เหลือ KEEP ล่าสุด (best-effort)"""
     try:
         objs = client.list_objects_v2(Bucket=bucket, Prefix="ddoc-backups/ddoc-backup-").get("Contents", [])
         for old in sorted((o["Key"] for o in objs), reverse=True)[KEEP:]:
             client.delete_object(Bucket=bucket, Key=old)
-            print("    ลบสำรองเก่าบนคลาวด์:", old)
+            print("    ลบ snapshot เก่าบนคลาวด์:", old)
     except Exception as e:
-        print("    (ข้าม) ตัดสำรองเก่าไม่สำเร็จ:", e)
+        print("    (ข้าม) ตัด snapshot เก่าไม่สำเร็จ:", e)
+
+
+def _upload(client, bucket, zip_path: Path, *, snapshot: bool):
+    """อัป latest.zip เสมอ + (ถ้า snapshot) อัปไฟล์ลงวันที่ด้วย"""
+    client.upload_file(str(zip_path), bucket, _LATEST_KEY)
+    msg = "อัป latest.zip"
+    if snapshot:
+        client.upload_file(str(zip_path), bucket, f"ddoc-backups/{zip_path.name}")
+        _prune_cloud(client, bucket)
+        msg += f" + snapshot {zip_path.name}"
+    print(f"    อัปขึ้นคลาวด์: {msg}")
+
+
+def mark_synced():
+    """ตั้งค่า baseline = ข้อมูลปัจจุบัน (เรียกหลังกู้คืน เพื่อไม่ให้อัปซ้ำทันที)"""
+    global _last_fp
+    _last_fp = _fingerprint(get_data_dir())
+
+
+def run_backup(force: bool = False) -> Path | None:
+    """สำรอง 1 รอบ — อัปขึ้นคลาวด์เฉพาะเมื่อข้อมูลเปลี่ยน (หรือ force=True)"""
+    global _last_fp, _last_snap_date
+    data = get_data_dir()
+    if not data.exists():
+        return None
+    fp = _fingerprint(data)
+    if not force and fp == _last_fp:
+        return None     # ไม่มีการเปลี่ยนแปลง -> ไม่ต้องทำอะไร (ประหยัด bandwidth)
+
+    zip_path = _make_zip()
+    client, bucket, reason = _s3()
+    if client:
+        today = datetime.now().strftime("%Y%m%d")
+        try:
+            _upload(client, bucket, zip_path, snapshot=(_last_snap_date != today))
+            if _last_snap_date != today:
+                _last_snap_date = today
+        except Exception as e:
+            print("    (ผิดพลาด) อัปขึ้นคลาวด์ไม่สำเร็จ:", e)
+    else:
+        print("   ", reason)
+
+    # ตัดสำรองในเครื่องให้เหลือไม่กี่ชุด (ดิสก์ฟรีพื้นที่จำกัด)
+    for old in sorted(_backups_dir().glob("ddoc-backup-*.zip"), reverse=True)[3:]:
+        old.unlink(missing_ok=True)
+    _last_fp = _fingerprint(data)   # baseline ใหม่ (หลัง checkpoint แล้ว)
+    return zip_path
 
 
 def manual_backup() -> str:
-    """สำรองทันที + รายงานผลแบบอ่านได้ (ใช้กับปุ่มทดสอบในคอนโซล) — เผยข้อผิดพลาด R2 ตรง ๆ"""
+    """สำรองทันที (บังคับอัป) + รายงานผลแบบอ่านได้ — ใช้กับปุ่มทดสอบในคอนโซล"""
+    client, bucket, reason = _s3()
     try:
         zip_path = _make_zip()
     except Exception as e:
         return f"สร้างไฟล์สำรองไม่สำเร็จ: {e}"
-    client, bucket, reason = _s3()
     if not client:
         return f"สำรองในเครื่องแล้ว ({zip_path.name}) แต่ {reason}"
     try:
-        _upload_and_prune(client, bucket, zip_path)
-        return f"สำเร็จ! อัปขึ้นคลาวด์แล้ว: {zip_path.name}"
+        _upload(client, bucket, zip_path, snapshot=True)
+        mark_synced()
+        return f"สำเร็จ! อัปขึ้นคลาวด์แล้ว: {zip_path.name} ({zip_path.stat().st_size // 1024} KB)"
     except Exception as e:
         return f"สำรองในเครื่องได้ แต่อัปขึ้น R2 ไม่สำเร็จ: {e}"
 
 
 def restore_latest_from_s3() -> bool:
-    """ดึงไฟล์สำรองล่าสุดจาก S3/R2 มากู้คืนลง data/ (ใช้ตอนเปิดเครื่องใหม่บนฟรีทีเออร์)
-    คืน True ถ้ากู้คืนสำเร็จ"""
+    """ดึงไฟล์สำรองล่าสุดจาก S3/R2 มากู้คืนลง data/ (ตอนเปิดเครื่องใหม่บนฟรีทีเออร์)"""
     client, bucket, reason = _s3()
     if not client:
         print("    [restore]", reason)
         return False
     data_dir = get_data_dir()
     tmp = data_dir / "_restore.zip"
-
-    # 1) ดึง latest.zip ตรง ๆ (GetObject — สิทธิ์เดียวกับที่อัปได้ ไม่ต้องใช้ list)
     src = None
     try:
         client.download_file(bucket, _LATEST_KEY, str(tmp))
         src = _LATEST_KEY
     except Exception as e1:
-        # 2) สำรอง: ลอง list หาไฟล์ล่าสุด (เผื่อ token มีสิทธิ์ list และยังไม่มี latest.zip)
         try:
             objs = client.list_objects_v2(Bucket=bucket, Prefix="ddoc-backups/").get("Contents", [])
             keys = sorted((o["Key"] for o in objs if o["Key"].endswith(".zip")), reverse=True)
@@ -130,12 +195,11 @@ def restore_latest_from_s3() -> bool:
         except Exception as e2:
             print(f"    [restore] ดึงไฟล์สำรองไม่สำเร็จ (latest: {e1}) (list: {e2})")
             return False
-
     try:
         with zipfile.ZipFile(tmp, "r") as z:
             for member in z.namelist():
                 dest = (data_dir / member).resolve()
-                if str(dest).startswith(str(data_dir.resolve())):   # กัน path traversal
+                if str(dest).startswith(str(data_dir.resolve())):
                     z.extract(member, data_dir)
         print(f"    [restore] กู้คืนข้อมูลจากคลาวด์: {src}")
         return True
@@ -144,22 +208,3 @@ def restore_latest_from_s3() -> bool:
         return False
     finally:
         tmp.unlink(missing_ok=True)
-
-
-def run_backup() -> Path | None:
-    """สำรอง 1 รอบ: zip + (ถ้าตั้งค่า) อัปขึ้นคลาวด์ + ตัดของเก่า คืนที่อยู่ไฟล์ zip"""
-    if not get_data_dir().exists():
-        return None
-    zip_path = _make_zip()
-    client, bucket, reason = _s3()
-    if client:
-        try:
-            _upload_and_prune(client, bucket, zip_path)
-        except Exception as e:
-            print("    (ผิดพลาด) อัปขึ้นคลาวด์ไม่สำเร็จ:", e)
-    else:
-        print("   ", reason)
-    for old in sorted(_backups_dir().glob("ddoc-backup-*.zip"), reverse=True)[KEEP:]:
-        old.unlink(missing_ok=True)
-        print("ลบสำรองเก่าในเครื่อง:", old.name)
-    return zip_path

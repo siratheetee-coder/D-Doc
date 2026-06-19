@@ -207,6 +207,14 @@ def bootstrap():
     if not has_tenant:
         _migrate_legacy_db()
 
+    # 3) ตั้ง baseline ของระบบสำรอง = สถานะตอนเปิดเครื่อง
+    #    -> ตัวจับเวลาจะอัปขึ้นคลาวด์ "เฉพาะเมื่อข้อมูลเปลี่ยนหลังจากนี้" (ประหยัด bandwidth)
+    try:
+        from app.services.backup import mark_synced
+        mark_synced()
+    except Exception:
+        pass
+
 
 def _migrate_legacy_db():
     """ถ้ามี data/school.db เดิม -> สร้างโรงเรียนแรกแล้วย้ายไฟล์เข้า data/schools/<id>/
