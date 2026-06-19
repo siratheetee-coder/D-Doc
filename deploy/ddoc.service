@@ -1,0 +1,15 @@
+[Unit]
+Description=D-Doc (ระบบจัดการเอกสารและพัสดุโรงเรียน)
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/ddoc
+EnvironmentFile=/etc/ddoc.env
+ExecStart=/opt/ddoc/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=3
+User=ddoc
+Group=ddoc
+
+[Install]
+WantedBy=multi-user.target
