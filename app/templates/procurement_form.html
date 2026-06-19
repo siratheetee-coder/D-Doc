@@ -17,7 +17,7 @@
     {% if pending_file|default('') %}<input type="hidden" name="pending_file" value="{{ pending_file }}">{% endif %}
     <div class="row">
       {% if not is_edit %}
-      <div><label>เลขที่บันทึก (รายงานขอซื้อ/จ้าง)</label>
+      <div><label>เลขที่บันทึกรายงานขอซื้อ/จ้าง</label>
         <input name="memo_no" value="{{ prefill_memo|default('') or sug_memo }}" placeholder="เช่น 1/2569">
       </div>
       <div><label>วันที่รายงานขอซื้อ/จ้าง</label>
