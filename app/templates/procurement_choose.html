@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}สร้างเรื่องจัดซื้อใหม่{% endblock %}
+{% block content %}
+<div class="card">
+  <h1><svg class="icon"><use href="#ic-file-plus"/></svg> สร้างเรื่องจัดซื้อ/จัดจ้างใหม่</h1>
+  <p class="muted" style="margin-bottom:0;">เลือกรูปแบบก่อน ระบบจะออกชุดเอกสารให้ตรงตามแบบที่เลือก —
+    <b>ซื้อของ</b> ใช้ ปกติ / ว.804 / ว.119 ตาราง 1 · <b>จ่ายค่าบริการ/อบรม</b> ใช้ ว.119 ตาราง 2</p>
+</div>
+
+<div class="card">
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px;">
+    {% for key, c in cases.items() %}
+    <a href="/procurement/new?case={{ key }}"
+       style="display:block; text-decoration:none; color:var(--text); border:1px solid var(--border,#dbe3ef);
+              border-radius:12px; padding:16px; background:{{ '#f5f9ff' if key!='normal' else '#fff' }};
+              transition:box-shadow .15s, border-color .15s;"
+       onmouseover="this.style.boxShadow='0 6px 18px rgba(72,128,255,.18)';this.style.borderColor='#86a9f0';"
+       onmouseout="this.style.boxShadow='';this.style.borderColor='';">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span class="ic-wrap {{ 'ic-blue' if key=='normal' else 'ic-green' }}"><svg class="icon"><use href="#ic-file"/></svg></span>
+        <span style="font-weight:700; font-size:16px;">{{ c.label }}</span>
+      </div>
+      <div class="muted" style="margin-top:8px; line-height:1.6;">{{ c.desc }}</div>
+      <div style="margin-top:10px;"><span class="btn sm">เลือกแบบนี้ <svg class="icon"><use href="#ic-arrow-right"/></svg></span></div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

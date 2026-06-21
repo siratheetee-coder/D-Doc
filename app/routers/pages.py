@@ -16,7 +16,7 @@ from pathlib import Path
 from datetime import datetime
 from types import SimpleNamespace
 
-from fastapi import APIRouter, Request, Depends, Form, UploadFile, File
+from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, Response
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
@@ -283,10 +283,15 @@ def dashboard(request: Request, db: Session = Depends(get_db),
 
 # ---------------- ตั้งค่าโรงเรียน ----------------
 @router.get("/settings", response_class=HTMLResponse)
-def settings_form(request: Request, db: Session = Depends(get_db)):
+def settings_form(request: Request, db: Session = Depends(get_db),
+                  imported: str | None = None, import_err: str | None = None):
+    err_msg = {"type": "ไฟล์ต้องเป็น .xlsx เท่านั้น",
+               "read": "อ่านไฟล์ไม่สำเร็จ ตรวจสอบว่าใช้เทมเพลตที่ถูกต้อง"}.get(import_err)
     return templates.TemplateResponse("settings.html", {
         "request": request, "school": get_school(db),
         "persons": db.query(Person).order_by(Person.name).all(),
+        "import_lines": _decode_import_summary(imported),
+        "import_err": err_msg,
     })
 
 
@@ -391,12 +396,12 @@ def masters_template():
 async def masters_import(db: Session = Depends(get_db), file: UploadFile = File(...)):
     """อัปโหลดไฟล์ Excel ที่กรอกแล้ว นำเข้าข้อมูลทุกชีต"""
     if not file.filename or not file.filename.lower().endswith(".xlsx"):
-        return RedirectResponse("/masters?import_err=type", status_code=303)
+        return RedirectResponse("/settings?import_err=type", status_code=303)
     content = await file.read()
     try:
         summary = import_workbook(content, db)
     except Exception:
-        return RedirectResponse("/masters?import_err=read", status_code=303)
+        return RedirectResponse("/settings?import_err=read", status_code=303)
     # เข้ารหัสสรุปผลเป็น query string สั้น ๆ เช่น บุคลากร:12+2,โครงการ:5+0
     parts = []
     for sheet, r in summary.items():
@@ -405,7 +410,7 @@ async def masters_import(db: Session = Depends(get_db), file: UploadFile = File(
         else:
             parts.append(f"{sheet}:{r.get('added',0)}+{r.get('skipped',0)}")
     q = ",".join(parts) if parts else "none"
-    return RedirectResponse(f"/masters?imported={q}", status_code=303)
+    return RedirectResponse(f"/settings?imported={q}", status_code=303)
 
 
 @router.post("/masters/person")
@@ -601,6 +606,23 @@ def _resolve_vendor(db: Session, form) -> int | None:
     return _to_int(vid, None) if vid else None
 
 
+# รูปแบบการจัดซื้อ -> ป้าย/คำอธิบาย/เอกสารวิธีพิเศษ (altkind=None แปลว่าชุดเอกสารปกติ)
+PROC_CASES = {
+    "normal": {"label": "จัดซื้อ/จัดจ้าง (ปกติ)", "altkind": None,
+               "short": "เฉพาะเจาะจงเต็มรูปแบบ",
+               "desc": "ชุดเอกสารครบ (รายงานขอซื้อ/ตั้งกรรมการ/ใบสั่ง/ตรวจรับ/เบิกจ่าย ฯลฯ) ใช้กับงานจัดซื้อทั่วไป"},
+    "w804": {"label": "ว.804 (ซื้อไม่เกิน 50,000 บาท)", "altkind": "w804",
+             "short": "ซื้อของไม่เกิน 50,000 บาท",
+             "desc": "เอกสารแบบย่อ เจ้าหน้าที่คนเดียวเป็นทั้งผู้ซื้อและผู้ตรวจรับ ไม่ต้องตั้งคณะกรรมการ"},
+    "w119t1": {"label": "ว.119 ตาราง 1 (ซื้อพัสดุไม่เกิน 10,000 บาท)", "altkind": "w119t1",
+               "short": "ซื้อพัสดุไม่เกิน 10,000 บาท",
+               "desc": "ซื้อของ/วัสดุ/ครุภัณฑ์ จ่ายไปก่อนได้ แล้วรายงานผลภายใน 5 วันทำการ เอกสารใบเดียวจบ"},
+    "w119t2": {"label": "ว.119 ตาราง 2 (ค่าบริหาร/ฝึกอบรม)", "altkind": "w119t2",
+               "short": "ค่าบริหารงาน/ฝึกอบรม",
+               "desc": "ค่าวิทยากร/ค่าอาหาร/จัดประชุม ไม่ถือเป็นการซื้อพัสดุ ไม่จำกัดวงเงิน เอกสารใบเดียวจบ"},
+}
+
+
 def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: float = 0) -> None:
     """อ่านค่าจากฟอร์ม เติมลง proc + สร้างรายการพัสดุ + คณะกรรมการ (ตรวจรับ + คุณลักษณะ)
     (ใช้ทั้งตอนสร้างและแก้ไข ไม่ยุ่งกับเลขที่/วันที่เอกสาร)"""
@@ -618,6 +640,11 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
     proc.purpose = (form.get("purpose") or "").strip()
     proc.proc_type = form.get("proc_type") or "ซื้อ"
     proc.method = form.get("method") or "เฉพาะเจาะจง"
+    case = (form.get("proc_case") or "").strip()
+    if case in PROC_CASES:
+        proc.proc_case = case
+    elif not proc.proc_case:
+        proc.proc_case = "normal"
     proc.budget_source = (form.get("budget_source") or "อุดหนุน").strip()
     proc.price_ref_source = (form.get("price_ref_source") or "การสืบราคาจากท้องตลาด").strip()
     proc.delivery_days = _to_int(form.get("delivery_days"), 7)
@@ -664,9 +691,15 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
 
 
 @router.get("/procurement/new", response_class=HTMLResponse)
-def procurement_new_form(request: Request, db: Session = Depends(get_db)):
+def procurement_new_form(request: Request, db: Session = Depends(get_db),
+                         case: str | None = None):
     school = get_school(db)
     fy = current_fiscal_year()
+    # ยังไม่เลือกรูปแบบ -> แสดงหน้าเลือกรูปแบบก่อน
+    if case not in PROC_CASES:
+        return templates.TemplateResponse("procurement_choose.html", {
+            "request": request, "cases": PROC_CASES,
+        })
     return templates.TemplateResponse("procurement_form.html", {
         "request": request, "p": None, "action": "/procurement/new",
         "prefill_items": [], "prefill_members": [], "prefill_spec_members": [],
@@ -675,6 +708,7 @@ def procurement_new_form(request: Request, db: Session = Depends(get_db)):
         "fiscal_year": fy, "today_thai": thai_date(),
         "sug_memo": suggest_doc_no(db, "memo", fy),
         "threshold": school.doc_set_threshold or 5000, "positions": POSITION_CHOICES,
+        "proc_case": case, "case_info": PROC_CASES[case],
         **_form_lists(db),
     })
 
@@ -885,6 +919,7 @@ def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get
         "sug_memo": suggest_doc_no(db, "memo", fy),
         "holidays_json": holiday_map(holiday_years),
         "docno_used": docno_used, "order_type": order_type,
+        "case_info": PROC_CASES.get(proc.proc_case or "normal", PROC_CASES["normal"]),
     })
 
 
@@ -1016,6 +1051,21 @@ def procurement_generate(proc_id: int, doc_kind: str = Form(...), db: Session = 
     file_path = render_document(doc_kind, proc, get_school(db))
     db.add(Document(procurement_id=proc.id, doc_kind=doc_kind, file_path=file_path))
     db.commit()
+    return FileResponse(
+        file_path, filename=Path(file_path).name,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+
+
+@router.get("/procurement/{proc_id}/altdoc/{kind}")
+def procurement_altdoc(proc_id: int, kind: str, db: Session = Depends(get_db)):
+    """ออกเอกสารจัดซื้อวิธีพิเศษ (ว.804 / ว.119 ตาราง 1 / ว.119 ตาราง 2)"""
+    from app.services.proc_alt_doc import RENDERERS
+    proc = db.get(Procurement, proc_id)
+    renderer = RENDERERS.get(kind)
+    if not proc or renderer is None:
+        return RedirectResponse(f"/procurement/{proc_id}", status_code=303)
+    file_path = renderer(proc, get_school(db))
     return FileResponse(
         file_path, filename=Path(file_path).name,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -1331,12 +1381,15 @@ def project_set_year(pid: int, db: Session = Depends(get_db),
 @router.post("/projects/{pid}/set-responsible")
 def project_set_responsible(pid: int, db: Session = Depends(get_db),
                             responsible: str = Form(""), back: str = Form("")):
-    """เปลี่ยนฝ่าย/ผู้รับผิดชอบของโครงการเดียว (จากตารางโดยไม่ต้องเข้ารายละเอียด)"""
+    """เปลี่ยนฝ่าย/ผู้รับผิดชอบของโครงการเดียว (เรียกแบบ AJAX จากตาราง ไม่ reload หน้า)"""
     p = db.get(Project, pid)
     if p:
         p.responsible = responsible.strip()
         db.commit()
-    return RedirectResponse(back or "/projects", status_code=303)
+    # back มีค่า = ฟอร์มแบบเดิม (ไม่มี JS) ให้ redirect; ปกติเรียกผ่าน fetch ตอบ 204
+    if back:
+        return RedirectResponse(back, status_code=303)
+    return Response(status_code=204)
 
 
 @router.post("/projects/assign-year")

@@ -53,10 +53,52 @@
   </form>
 </div>
 
+<div class="card" style="border:1px solid #c7d7fb; background:#f5f9ff;">
+  <h2><svg class="icon"><use href="#ic-download"/></svg> นำเข้าข้อมูลตั้งต้นจาก Excel (กรอกทีเดียวหลายร้อยรายการ)</h2>
+  {% if import_err %}
+  <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> นำเข้าไม่สำเร็จ: {{ import_err }}</div>
+  {% endif %}
+  {% if import_lines %}
+  <div class="alert"><svg class="icon"><use href="#ic-check"/></svg>
+    <div style="flex:1;"><b>นำเข้าเรียบร้อย</b>
+      <ul style="margin:6px 0 0; padding-left:20px;">
+        {% for ln in import_lines %}<li>{{ ln }}</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+  <ol class="muted" style="margin:6px 0 14px; padding-left:22px; line-height:1.9;">
+    <li>กด <b>ดาวน์โหลดเทมเพลต</b> จะได้ไฟล์ Excel ที่มีชีต: โรงเรียน / บุคลากร / ฝ่าย-งาน / โครงการ / ผู้ขาย</li>
+    <li>เปิดใน Excel กรอกข้อมูลตั้งแต่ <b>แถวที่ 3</b> ลงไป (แถวที่ 2 คือหัวตาราง ห้ามลบ)</li>
+    <li>กลับมา <b>เลือกไฟล์</b> แล้วกด <b>อัปโหลด</b> — ระบบเพิ่มให้อัตโนมัติ (ชื่อที่มีอยู่แล้วจะข้ามให้ ไม่ซ้ำ)</li>
+  </ol>
+  <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+    <a class="btn green sm" href="/masters/template.xlsx"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเทมเพลต</a>
+    <form method="post" action="/masters/import" enctype="multipart/form-data"
+          style="display:flex; gap:8px; align-items:center; margin:0; flex-wrap:wrap;">
+      <input type="file" name="file" accept=".xlsx" required
+             style="padding:6px; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
+      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลด</button>
+    </form>
+  </div>
+</div>
+
 <div class="card">
   <h2><svg class="icon"><use href="#ic-users"/></svg> ข้อมูลบุคลากร / ฝ่าย</h2>
   <p class="muted">รายชื่อบุคลากรและฝ่าย/งาน ใช้ร่วมกันทั้งงานธุรการ พัสดุ และการเงิน — เลือกใช้ตอนสร้างเอกสาร/เลือกผู้ลงนาม</p>
   <a class="btn" href="/masters"><svg class="icon"><use href="#ic-users"/></svg> จัดการบุคลากร / ฝ่าย</a>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-coins"/></svg> ข้อมูลโครงการ / แผนงบ</h2>
+  <p class="muted">โครงการแยกตามปี ติดตามงบที่ตั้ง vs ใช้จริง vs คงเหลือ และผูกกับเรื่องจัดซื้อ/เบิกจ่าย</p>
+  <a class="btn" href="/projects"><svg class="icon"><use href="#ic-coins"/></svg> จัดการโครงการ / แผนงบ</a>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-store"/></svg> ข้อมูลผู้ขาย / ผู้รับจ้าง</h2>
+  <p class="muted">รายชื่อร้าน/บริษัท/ผู้รับจ้าง ใช้เลือกตอนสร้างเรื่องจัดซื้อ/จัดจ้างและบันทึกเบิกจ่าย</p>
+  <a class="btn" href="/vendors"><svg class="icon"><use href="#ic-store"/></svg> จัดการผู้ขาย / ผู้รับจ้าง</a>
 </div>
 
 <div class="card">

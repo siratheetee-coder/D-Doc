@@ -67,6 +67,7 @@ MIGRATIONS = [
     ("project", "responsible",   "VARCHAR DEFAULT ''"),
     ("project", "active",        "BOOLEAN DEFAULT 1"),
     ("procurement", "project_id", "INTEGER"),
+    ("procurement", "proc_case", "VARCHAR DEFAULT 'normal'"),
     ("disburse_memo", "project_id", "INTEGER"),
     ("disburse_memo", "item_id", "INTEGER"),
     ("school", "project_year_mode", "VARCHAR DEFAULT 'budget'"),

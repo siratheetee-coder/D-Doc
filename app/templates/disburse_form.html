@@ -3,7 +3,7 @@
 {% block content %}
 <div class="card">
   <h1><svg class="icon"><use href="#ic-file"/></svg> ออกบันทึกขออนุมัติเบิกจ่ายเงิน</h1>
-  <p class="muted" style="margin-top:0;">เลขที่บันทึกใช้ชุดเลขกลางร่วมกับทุกงาน · เลือกเรื่องจัดซื้อ/จัดจ้างเพื่อดึงข้อมูลให้อัตโนมัติได้</p>
+  <p class="muted" style="margin-top:0;">กรอกข้อมูลเอง หรือ เลือกดึงข้อมูลจากเรื่องจัดซื้อ/จัดจ้างเพื่อให้ระบบกรอกให้ จากนั้นบันทึกเพื่อออกเอกสาร</p>
   <form method="post" action="/finance/disburse">
     <div class="row">
       <div><label>เลขที่บันทึก</label><input name="memo_no" value="{{ prefill.memo_no if prefill and prefill.memo_no else sug_memo }}"></div>
@@ -36,10 +36,10 @@
           {% for a in accounts %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
         </select>
       </div>
-      <div><label>หมวด/รายการ (หักงบรายหมวด)</label>
+      <div><label>หมวด/รายการ</label>
         <select name="item_id" id="itemSel"><option value="">— เลือกบัญชีก่อน —</option></select>
       </div>
-      <div><label>โครงการ (คุมงบ)</label>
+      <div><label>โครงการ</label>
         <select name="project_id">
           <option value="">— ไม่ผูกโครงการ —</option>
           {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if prefill and prefill.project_id==pj.id }}>{{ pj.name }}</option>{% endfor %}

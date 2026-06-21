@@ -91,15 +91,10 @@
     }
     .topbar .ttl { font-size: 18px; font-weight: 700; color: var(--text); }
     .topbar .who { color: var(--muted); font-size: 15px; }
-    main { padding: 24px 30px; max-width: 1480px; width: 100%; margin: 0 auto; animation: pageIn .30s ease both; }
-    /* ===== แอนิเมชันเปลี่ยนหน้า: เฟด + เลื่อนขึ้นเล็กน้อย ===== */
-    @keyframes pageIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    main { padding: 24px 30px; max-width: 1480px; width: 100%; margin: 0 auto; animation: pageIn .2s ease both; }
+    /* ===== แอนิเมชันเปลี่ยนหน้า: เฟดอย่างเดียว ไม่เลื่อนตำแหน่ง (กันหน้าขยับตอนสลับแท็บ) ===== */
+    @keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
     @keyframes dropIn { from { opacity: 0; transform: translateY(-8px) scale(.98); } to { opacity: 1; transform: none; } }
-    /* การ์ดทยอยปรากฏ (ไล่ลำดับเล็กน้อย) */
-    main > .card, main > .hero { animation: pageIn .34s ease both; }
-    main > .card:nth-child(2) { animation-delay: .04s; }
-    main > .card:nth-child(3) { animation-delay: .08s; }
-    main > .card:nth-child(4) { animation-delay: .12s; }
     /* การเปลี่ยนสี/พื้นหลังของลิงก์เมนู ปุ่ม อินพุต ให้ลื่น (ไม่ใช้ transform กันสั่นตอนเลื่อน) */
     .sidebar nav a { transition: background .18s ease, color .18s ease; }
     .btn { transition: background .16s ease, box-shadow .16s ease, transform .1s ease, opacity .16s ease; }
@@ -441,9 +436,6 @@
         <a href="/assets" class="{{ 'active' if path.startswith('/assets') }}"><svg class="icon"><use href="#ic-package"/></svg> ทะเบียนครุภัณฑ์</a>
         <a href="/materials" class="{{ 'active' if path.startswith('/materials') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> บัญชีวัสดุ</a>
         <a href="/requisitions" class="{{ 'active' if path.startswith('/requisitions') }}"><svg class="icon"><use href="#ic-file"/></svg> ใบเบิกวัสดุ</a>
-        <div class="nav-sec">ข้อมูลหลัก</div>
-        <a href="/vendors" class="{{ 'active' if path.startswith('/vendors') }}"><svg class="icon"><use href="#ic-store"/></svg> ผู้ขาย/ผู้รับจ้าง</a>
-        <a href="/masters" class="{{ 'active' if path.startswith('/masters') }}"><svg class="icon"><use href="#ic-users"/></svg> บุคลากร/ฝ่าย</a>
 
         {% elif module == 'admin' %}
         <div class="nav-sec">งานธุรการ</div>
@@ -478,6 +470,8 @@
         <div class="nav-sec">ระบบ</div>
         <a href="/docnos" class="{{ 'active' if path.startswith('/docnos') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ทะเบียนเลขหนังสือ</a>
         <a href="/projects" class="{{ 'active' if path.startswith('/projects') }}"><svg class="icon"><use href="#ic-coins"/></svg> โครงการ/แผนงบ</a>
+        <a href="/vendors" class="{{ 'active' if path.startswith('/vendors') }}"><svg class="icon"><use href="#ic-store"/></svg> ผู้ขาย/ผู้รับจ้าง</a>
+        <a href="/masters" class="{{ 'active' if path.startswith('/masters') }}"><svg class="icon"><use href="#ic-users"/></svg> บุคลากร/ฝ่าย</a>
         <a href="/settings" class="{{ 'active' if path.startswith('/settings') }}"><svg class="icon"><use href="#ic-settings"/></svg> ตั้งค่าโรงเรียน</a>
       </nav>
     </aside>

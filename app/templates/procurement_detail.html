@@ -182,6 +182,7 @@
   .date-warn .icon { width: 15px; height: 15px; flex: none; }
 </style>
 
+{% if not case_info.altkind %}
 <div class="card">
   <h2>ออกเอกสาร</h2>
 
@@ -206,7 +207,15 @@
     {% endfor %}
   </div>
 </div>
+{% else %}
+<div class="card" style="border:1px solid #c7d7fb; background:#f5f9ff;">
+  <h2><svg class="icon"><use href="#ic-file"/></svg> ออกเอกสาร — {{ case_info.label }}</h2>
+  <p class="muted" style="margin-top:0;">{{ case_info.desc }}</p>
+  <a class="btn" href="/procurement/{{ p.id }}/altdoc/{{ case_info.altkind }}"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเอกสาร {{ case_info.label }}</a>
+</div>
+{% endif %}
 
+{% if not case_info.altkind %}
 <div class="card">
   <h2>ประวัติเอกสารที่ออก {% if documents %}<span class="muted" style="font-size:15px;">({{ documents|length }} ครั้ง)</span>{% endif %}</h2>
   {% if documents %}
@@ -227,6 +236,7 @@
   <p class="muted">ยังไม่เคยออกเอกสารสำหรับเรื่องนี้</p>
   {% endif %}
 </div>
+{% endif %}
 
 <div class="card">
   <h2>เปลี่ยนสถานะ</h2>

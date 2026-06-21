@@ -7,40 +7,7 @@
   <h1>ข้อมูลตั้งต้น (เลือกใช้ซ้ำได้)</h1>
   <p class="muted">เพิ่มรายชื่อแค่ครั้งเดียว แล้วเลือกใช้ตอนสร้างเรื่อง พอเลือกชื่อคน ระบบจะเติมตำแหน่งให้อัตโนมัติ — แก้ไขได้โดยพิมพ์ทับแล้วกดบันทึก</p>
   {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกเรียบร้อย</div>{% endif %}
-</div>
-
-<!-- นำเข้าจาก Excel ทีละมาก ๆ -->
-<div class="card" style="border:1px solid #c7d7fb; background:#f5f9ff;">
-  <h2><svg class="icon"><use href="#ic-download"/></svg> นำเข้าจาก Excel (กรอกทีเดียวหลายร้อยรายการ)</h2>
-
-  {% if import_err %}
-  <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> นำเข้าไม่สำเร็จ: {{ import_err }}</div>
-  {% endif %}
-  {% if import_lines %}
-  <div class="alert"><svg class="icon"><use href="#ic-check"/></svg>
-    <div style="flex:1;"><b>นำเข้าเรียบร้อย</b>
-      <ul style="margin:6px 0 0; padding-left:20px;">
-        {% for ln in import_lines %}<li>{{ ln }}</li>{% endfor %}
-      </ul>
-    </div>
-  </div>
-  {% endif %}
-
-  <ol class="muted" style="margin:6px 0 14px; padding-left:22px; line-height:1.9;">
-    <li>กด <b>ดาวน์โหลดเทมเพลต</b> จะได้ไฟล์ Excel ที่มีชีต: โรงเรียน / บุคลากร / ฝ่าย-งาน / ผู้ขาย</li>
-    <li>เปิดใน Excel กรอกข้อมูลตั้งแต่ <b>แถวที่ 3</b> ลงไป (แถวที่ 2 คือหัวตาราง ห้ามลบ)</li>
-    <li>กลับมา <b>เลือกไฟล์</b> แล้วกด <b>อัปโหลด</b> — ระบบเพิ่มให้อัตโนมัติ (ชื่อที่มีอยู่แล้วจะข้ามให้ ไม่ซ้ำ)</li>
-  </ol>
-
-  <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
-    <a class="btn green sm" href="/masters/template.xlsx"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเทมเพลต</a>
-    <form method="post" action="/masters/import" enctype="multipart/form-data"
-          style="display:flex; gap:8px; align-items:center; margin:0; flex-wrap:wrap;">
-      <input type="file" name="file" accept=".xlsx" required
-             style="padding:6px; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
-      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลด</button>
-    </form>
-  </div>
+  <p class="muted" style="margin-bottom:0;">นำเข้าข้อมูลทีละมาก ๆ จาก Excel ได้ที่หน้า <a href="/settings">ตั้งค่าโรงเรียน</a></p>
 </div>
 
 <!-- บุคลากร: การ์ดเต็มความกว้าง เพื่อให้ชื่อ/ตำแหน่งแสดงเต็ม -->

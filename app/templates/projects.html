@@ -55,14 +55,11 @@
         <td><a href="/projects/{{ p.id }}"><b>{{ p.name }}</b></a>{% if not p.active %} <span class="pill">ปิด</span>{% endif %}
             {% if p.revisions %}<br><span class="muted" style="font-size:12px;">ปรับงบ {{ p.revisions|length }} ครั้ง</span>{% endif %}</td>
         <td>
-          <form method="post" action="/projects/{{ p.id }}/set-responsible" style="margin:0;">
-            <input type="hidden" name="back" value="/projects?year={{ fiscal_year }}">
-            <select name="responsible" onchange="this.form.submit()" style="width:auto; padding:4px 6px; font-size:13px;">
-              <option value="" {{ 'selected' if not p.responsible }}>— เลือกฝ่าย —</option>
-              {% for d in departments %}<option value="{{ d.name }}" {{ 'selected' if d.name==p.responsible }}>{{ d.name }}</option>{% endfor %}
-              {% if p.responsible and p.responsible not in departments|map(attribute='name')|list %}<option value="{{ p.responsible }}" selected>{{ p.responsible }}</option>{% endif %}
-            </select>
-          </form>
+          <select onchange="setResp({{ p.id }}, this)" style="width:auto; padding:4px 6px; font-size:13px;">
+            <option value="" {{ 'selected' if not p.responsible }}>— เลือกฝ่าย —</option>
+            {% for d in departments %}<option value="{{ d.name }}" {{ 'selected' if d.name==p.responsible }}>{{ d.name }}</option>{% endfor %}
+            {% if p.responsible and p.responsible not in departments|map(attribute='name')|list %}<option value="{{ p.responsible }}" selected>{{ p.responsible }}</option>{% endif %}
+          </select>
         </td>
         <td class="right">{{ "{:,.2f}".format(b) }}</td>
         <td class="right" style="color:#dc2626;">{{ "{:,.2f}".format(s) }}</td>
@@ -110,4 +107,24 @@
   </tbody></table>
 </div>
 {% endif %}
+
+<script>
+  // เปลี่ยนฝ่าย/ผู้รับผิดชอบแบบไม่ reload หน้า (หน้าคงอยู่ที่เดิม ไม่เด้งขึ้นบน)
+  function setResp(pid, sel){
+    sel.disabled = true;
+    fetch('/projects/' + pid + '/set-responsible', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({responsible: sel.value})
+    }).then(function(r){
+      sel.disabled = false;
+      if(!r.ok) throw 0;
+      sel.style.outline = '2px solid #16a34a';
+      setTimeout(function(){ sel.style.outline = ''; }, 700);
+    }).catch(function(){
+      sel.disabled = false;
+      alert('บันทึกฝ่ายไม่สำเร็จ ลองใหม่อีกครั้ง');
+    });
+  }
+</script>
 {% endblock %}
