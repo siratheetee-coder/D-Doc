@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}นำเข้าโครงการจาก Excel{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;"><svg class="icon"><use href="#ic-download"/></svg> นำเข้าโครงการจาก Excel</h1>
+    <a class="btn gray sm" href="/projects"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับโครงการ</a>
+  </div>
+  {% if request.query_params.get('err')=='type' %}<div class="alert" style="background:#fee2e2; color:#b91c1c; border-color:#fca5a5;">ไฟล์ต้องเป็นนามสกุล .xlsx</div>{% endif %}
+  {% if request.query_params.get('err')=='read' %}<div class="alert" style="background:#fee2e2; color:#b91c1c; border-color:#fca5a5;">อ่านไฟล์ไม่สำเร็จ ตรวจรูปแบบคอลัมน์อีกครั้ง</div>{% endif %}
+</div>
+
+{% if rows is none %}
+<div class="card">
+  <h2>1) เตรียมไฟล์</h2>
+  <p class="muted" style="margin-top:0;">หัวตาราง (แถวแรก) ใช้คอลัมน์: <b>ชื่อโครงการ</b> · <b>งบประมาณ</b> · <b>ฝ่าย/ผู้รับผิดชอบ</b> — โหลดไฟล์ตัวอย่างไปกรอกแล้วอัปโหลดกลับมาได้เลย</p>
+  <a class="btn sm gray" href="/projects/import/template.xlsx"><svg class="icon"><use href="#ic-download"/></svg> โหลดไฟล์ตัวอย่าง</a>
+</div>
+<div class="card">
+  <h2>2) อัปโหลดและเลือกปี</h2>
+  <form method="post" action="/projects/import" enctype="multipart/form-data">
+    <div class="row">
+      <div style="flex:2;"><label>ไฟล์ Excel (.xlsx)</label><input type="file" name="file" accept=".xlsx" required></div>
+      <div><label>ปี ({{ year_label }})</label>
+        <select name="plan_year">{% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>{{ y }}</option>{% endfor %}</select>
+      </div>
+    </div>
+    <br><button class="btn" type="submit"><svg class="icon"><use href="#ic-clipboard"/></svg> พรีวิวรายการ</button>
+  </form>
+</div>
+{% else %}
+<div class="card">
+  <h2>พรีวิว เข้า {{ year_label }} {{ fiscal_year }}</h2>
+  {% if rows %}
+  <p class="muted" style="margin-top:0;">สร้างใหม่ {{ n_new }} โครงการ{% if n_update %} · อัปเดตงบของที่ชื่อซ้ำในปีนี้ {{ n_update }} โครงการ (ไม่สร้างซ้ำ){% endif %}</p>
+  <table>
+    <thead><tr><th>#</th><th>ชื่อโครงการ</th><th>ฝ่าย/ผู้รับผิดชอบ</th><th class="right">งบประมาณ</th><th>สถานะ</th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr><td>{{ loop.index }}</td><td>{{ r.name }}</td><td>{{ r.responsible or '-' }}</td>
+          <td class="right">{{ "{:,.2f}".format(r.budget) }}</td>
+          <td>{% if r.dup %}<span class="pill" style="background:#fef3c7; color:#92400e;">อัปเดตงบ</span>{% else %}<span class="pill approve">ใหม่</span>{% endif %}</td></tr>
+      {% endfor %}
+    </tbody>
+    <tfoot><tr style="background:#f1f5f9; font-weight:700;"><td colspan="3">รวม</td>
+        <td class="right">{{ "{:,.2f}".format(total_budget) }}</td><td></td></tr></tfoot>
+  </table>
+  <form method="post" action="/projects/import/confirm" style="margin-top:14px;">
+    <input type="hidden" name="plan_year" value="{{ fiscal_year }}">
+    <textarea name="payload" style="display:none;">{{ payload }}</textarea>
+    <button class="btn green" type="submit"><svg class="icon"><use href="#ic-check"/></svg> ยืนยัน ({{ n_new }} ใหม่{% if n_update %} + {{ n_update }} อัปเดต{% endif %})</button>
+    <a class="btn gray" href="/projects/import">ยกเลิก / เลือกไฟล์ใหม่</a>
+  </form>
+  {% else %}
+  <p class="muted">ไม่พบรายการในไฟล์ — ตรวจว่ามีคอลัมน์ "ชื่อโครงการ" และมีข้อมูลอย่างน้อย 1 แถว</p>
+  <a class="btn gray" href="/projects/import">เลือกไฟล์ใหม่</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

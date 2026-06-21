@@ -16,8 +16,9 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import (
     FinanceAccount, FinanceTxn, DisburseMemo, Receipt, Procurement, AccountOpening,
-    AccountItem,
+    AccountItem, Project,
 )
+from app.services.budget import current_plan_year
 from app.services.asset_utils import (
     account_balance, account_balance_year, opening_for,
     account_balance_asof, item_remaining_asof,
@@ -249,6 +250,15 @@ def account_txn_delete(tid: int, db: Session = Depends(get_db)):
 
 
 # ---------------- บันทึกขออนุมัติเบิกจ่าย ----------------
+def _items_map(db, fy) -> dict:
+    """แผนที่ {account_id: [{id, name}]} ของหมวด/รายการย่อยในปีงบนั้น (ใช้ทำ dropdown หมวดตามบัญชี)"""
+    out: dict = {}
+    for it in (db.query(AccountItem).filter_by(fiscal_year=fy)
+               .order_by(AccountItem.name).all()):
+        out.setdefault(it.account_id, []).append({"id": it.id, "name": it.name})
+    return out
+
+
 @router.get("/finance/disburse", response_class=HTMLResponse)
 def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | None = None):
     fy = current_fiscal_year()
@@ -264,13 +274,20 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
                 "amount": p.total_amount or 0,
                 "budget_source": p.budget_source or "",
                 "procurement_id": p.id,
+                "project_id": p.project_id,
                 "proc_kind": "จัดจ้าง" if (p.proc_type or "") == "จ้าง" else "จัดซื้อ",
+                # เลขบันทึก+วันที่ ดึงจากบันทึกขอเบิกจ่าย/รายงานขอซื้อของเรื่องนั้น
+                "memo_no": p.inspect_memo_no or p.memo_no or "",
+                "date": p.inspect_date or p.request_date,
+                "item_id": None,
             }
     return templates.TemplateResponse("disburse_form.html", {
         "request": request, "rows": rows, "fiscal_year": fy,
         "sug_memo": suggest_doc_no(db, "memo", fy),
         "accounts": db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
+        "items_map": _items_map(db, fy),
         "procs": db.query(Procurement).filter_by(fiscal_year=fy).order_by(Procurement.id.desc()).all(),
+        "projects": db.query(Project).filter_by(active=True).order_by(Project.name).all(),
         "prefill": prefill,
     })
 
@@ -281,7 +298,8 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
                     payee: str = Form(""), amount: str = Form("0"), budget_source: str = Form(""),
                     account_id: str = Form(""), procurement_id: str = Form(""), note: str = Form(""),
                     vat: str = Form("0"), wht: str = Form("0"), fine: str = Form("0"),
-                    proc_kind: str = Form("จัดซื้อ")):
+                    proc_kind: str = Form("จัดซื้อ"), project_id: str = Form(""),
+                    item_id: str = Form("")):
     fy = _to_int(fiscal_year, current_fiscal_year())
     no = memo_no.strip() or suggest_doc_no(db, "memo", fy)
     m = DisburseMemo(
@@ -290,7 +308,9 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
         vat=_to_float(vat, 0.0), wht=_to_float(wht, 0.0), fine=_to_float(fine, 0.0),
         proc_kind=proc_kind.strip() or "จัดซื้อ",
         budget_source=budget_source.strip(), account_id=_to_int(account_id, 0) or None,
+        item_id=_to_int(item_id, 0) or None,
         procurement_id=_to_int(procurement_id, 0) or None, note=note,
+        project_id=_to_int(project_id, 0) or None,
     )
     db.add(m); db.flush()
     commit_doc_no(db, "memo", fy, no, source="finance", ref_id=m.id, subject=m.subject)
@@ -306,6 +326,8 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("disburse_detail.html", {
         "request": request, "m": m, "school": get_school(db),
         "accounts": db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
+        "items_map": _items_map(db, m.fiscal_year),
+        "projects": db.query(Project).filter_by(active=True).order_by(Project.name).all(),
         "proc": db.get(Procurement, m.procurement_id) if m.procurement_id else None,
     })
 
@@ -316,7 +338,8 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
                     amount: str = Form("0"), budget_source: str = Form(""),
                     account_id: str = Form(""), status: str = Form(""), note: str = Form(""),
                     vat: str = Form("0"), wht: str = Form("0"), fine: str = Form("0"),
-                    proc_kind: str = Form("จัดซื้อ")):
+                    proc_kind: str = Form("จัดซื้อ"), project_id: str = Form(""),
+                    item_id: str = Form("")):
     m = db.get(DisburseMemo, mid)
     if m:
         m.memo_no = memo_no.strip(); m.seq = parse_seq(memo_no)
@@ -325,9 +348,21 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
         m.vat = _to_float(vat, 0.0); m.wht = _to_float(wht, 0.0); m.fine = _to_float(fine, 0.0)
         m.proc_kind = proc_kind.strip() or "จัดซื้อ"
         m.account_id = _to_int(account_id, 0) or None
+        m.item_id = _to_int(item_id, 0) or None
+        m.project_id = _to_int(project_id, 0) or None
         if status.strip():
             m.status = status.strip()
         m.note = note
+        # ถ้าบันทึกนี้ลงจ่ายเข้าทะเบียนคุมเงินไปแล้ว ให้ปรับรายการในทะเบียนให้ตรงกัน
+        # (แก้หมวด/บัญชี/จำนวน/วันที่ ย้อนหลังได้ ยอดคงเหลือรายหมวดจะอัปเดตตาม)
+        txn = db.query(FinanceTxn).filter_by(disburse_id=m.id).first()
+        if txn:
+            if m.account_id:
+                txn.account_id = m.account_id
+            txn.item_id = m.item_id
+            txn.amount = m.amount or 0
+            txn.date = m.date or txn.date
+            txn.ref = m.memo_no or txn.ref
         commit_doc_no(db, "memo", m.fiscal_year, m.memo_no, source="finance", ref_id=m.id, subject=m.subject)
         db.commit()
     return RedirectResponse(f"/finance/disburse/{mid}?saved=1", status_code=303)
@@ -341,7 +376,7 @@ def disburse_post(mid: int, db: Session = Depends(get_db)):
             t.disburse_id == m.id for t in db.query(FinanceTxn).filter_by(disburse_id=m.id)):
         db.add(FinanceTxn(
             account_id=m.account_id, fiscal_year=m.fiscal_year, kind="out",
-            amount=m.amount or 0, date=m.date or datetime.now(),
+            item_id=m.item_id, amount=m.amount or 0, date=m.date or datetime.now(),
             category="เบิกจ่าย", ref=m.memo_no or "", note=f"จ่าย {m.payee}".strip(),
             disburse_id=m.id,
         ))

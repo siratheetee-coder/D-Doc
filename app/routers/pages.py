@@ -24,7 +24,7 @@ from sqlalchemy import or_, func
 from app.database import get_db
 from app.models import (
     School, Vendor, Procurement, ProcurementItem, Document,
-    Person, Department, Project, Committee, CommitteeMember,
+    Person, Department, Project, ProjectBudgetRevision, Committee, CommitteeMember,
     Asset, MaterialItem, MaterialTxn, Requisition, RequisitionItem, IssuedDocNo,
     DocNumberCounter, OfficeMemo, SchoolOrder, IncomingLetter, OutgoingLetter,
     DisburseMemo,
@@ -34,6 +34,7 @@ from app.services.asset_utils import (
     net_book_value, depreciation_schedule, material_balance,
 )
 from app.services.doc_number import suggest_doc_no, commit_doc_no, check_doc_no, COUNTER_TYPES, parse_seq
+from app.services.budget import current_plan_year, plan_year_label, project_budget, project_spent
 from app.services.render import render_document, render_bundle, AVAILABLE_KINDS
 from app.services.register_export import export_register
 from app.services.thai_holidays import holiday_map, year_range_for
@@ -299,7 +300,7 @@ def settings_save(
     finance_officer_name: str = Form(""), finance_head_name: str = Form(""),
     admin_officer_name: str = Form(""),
     doc_prefix: str = Form("ศธ"), doc_set_threshold: float = Form(5000.0),
-    ai_api_key: str = Form(""),
+    ai_api_key: str = Form(""), project_year_mode: str = Form("budget"),
 ):
     s = get_school(db)
     s.name, s.address, s.district, s.province = name, address, district, province
@@ -308,6 +309,7 @@ def settings_save(
     s.finance_officer_name = finance_officer_name.strip()
     s.finance_head_name = finance_head_name.strip()
     s.admin_officer_name = admin_officer_name.strip()
+    s.project_year_mode = "academic" if project_year_mode == "academic" else "budget"
     s.doc_prefix, s.doc_set_threshold = doc_prefix, doc_set_threshold
     s.ai_api_key = (ai_api_key or "").strip()
     db.commit()
@@ -605,6 +607,13 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
     proc.fiscal_year = _to_int(form.get("fiscal_year"), current_fiscal_year())
     proc.subject = (form.get("subject") or "").strip()
     proc.project_name = (form.get("project_name") or "").strip()
+    # ผูกกับโครงการในแผน (ถ้าชื่อตรงกับโครงการที่มีอยู่) -> ใช้ติดตามงบโครงการ
+    proc.project_id = None
+    if proc.project_name:
+        q = db.query(Project).filter(Project.name == proc.project_name)
+        proj = q.filter(Project.plan_year == current_plan_year(get_school(db))).first() or q.first()
+        if proj:
+            proc.project_id = proj.id
     proc.department = (form.get("department") or "").strip()
     proc.purpose = (form.get("purpose") or "").strip()
     proc.proc_type = form.get("proc_type") or "ซื้อ"
@@ -1094,6 +1103,264 @@ def download_register(db: Session = Depends(get_db), year: int | None = None,
 _XLSX_MT = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
+# ============================================================
+# โครงการ / แผนปฏิบัติการ (งบรายปี + ใช้จริง + ประวัติการปรับงบ)
+# ============================================================
+def _plan_years(db, cur):
+    # ปีที่มีโครงการอยู่จริง + ช่วงปีรอบ ๆ ปีปัจจุบัน (ย้อนหลัง 3 ปี ถึงปีหน้า) ให้เลือกล่วงหน้าได้
+    ys = {r[0] for r in db.query(Project.plan_year).distinct() if r[0]}
+    ys.update(range(cur - 3, cur + 2))
+    return sorted(ys, reverse=True)
+
+
+@router.get("/projects", response_class=HTMLResponse)
+def projects_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
+    school = get_school(db)
+    cur = year or current_plan_year(school)
+    rows = db.query(Project).filter(Project.plan_year == cur).order_by(Project.name).all()
+    # โครงการเดิมที่ยังไม่ระบุปี (ก่อนมีโมดูลนี้) แสดงให้กำหนดปีได้ เมื่อดูปีปัจจุบัน
+    legacy = []
+    if cur == current_plan_year(school):
+        legacy = db.query(Project).filter(Project.plan_year.is_(None)).order_by(Project.name).all()
+    return templates.TemplateResponse("projects.html", {
+        "request": request, "school": school, "rows": rows, "legacy": legacy,
+        "fiscal_year": cur, "year_label": plan_year_label(school),
+        "years": _plan_years(db, cur),
+        "departments": db.query(Department).order_by(Department.name).all(),
+        "total_budget": sum(project_budget(p) for p in rows),
+        "total_spent": sum(project_spent(p) for p in rows),
+    })
+
+
+@router.post("/projects")
+def project_add(db: Session = Depends(get_db), name: str = Form(...), budget: str = Form("0"),
+                responsible: str = Form(""), plan_year: str = Form("")):
+    py = _to_int(plan_year, current_plan_year(get_school(db)))
+    if name.strip():
+        db.add(Project(name=name.strip(), budget=_to_float(budget, 0.0),
+                       responsible=responsible.strip(), plan_year=py, active=True))
+        db.commit()
+    return RedirectResponse(f"/projects?year={py}", status_code=303)
+
+
+def _parse_projects_xlsx(content: bytes) -> list[dict]:
+    """อ่านไฟล์ Excel โครงการ คืนค่า [{name, budget, responsible}] (รองรับมีหัวตาราง/ไม่มี)"""
+    from openpyxl import load_workbook
+    import io as _io
+    wb = load_workbook(_io.BytesIO(content), data_only=True)
+    ws = wb.active
+    rows = list(ws.iter_rows(values_only=True))
+    if not rows:
+        return []
+    header = [str(c or "").strip() for c in rows[0]]
+
+    def find(*keys):
+        for i, h in enumerate(header):
+            if any(k in h for k in keys):
+                return i
+        return None
+
+    ci_name = find("ชื่อโครงการ", "โครงการ", "ชื่อ")
+    ci_budget = find("งบประมาณ", "งบ", "จำนวนเงิน", "วงเงิน")
+    ci_resp = find("ผู้รับผิดชอบ", "รับผิดชอบ", "ฝ่าย")
+    has_header = ci_name is not None
+    if not has_header:
+        ci_name, ci_budget, ci_resp = 0, 1, 2
+    data = rows[1:] if has_header else rows
+    out = []
+    for r in data:
+        if not r:
+            continue
+        def cell(i):
+            return r[i] if (i is not None and i < len(r) and r[i] is not None) else None
+        name = str(cell(ci_name)).strip() if cell(ci_name) is not None else ""
+        if not name:
+            continue
+        b = cell(ci_budget)
+        budget = _to_float(str(b).replace(",", ""), 0.0) if b is not None else 0.0
+        resp = str(cell(ci_resp)).strip() if cell(ci_resp) is not None else ""
+        out.append({"name": name, "budget": budget, "responsible": resp})
+    return out
+
+
+@router.get("/projects/import", response_class=HTMLResponse)
+def projects_import_form(request: Request, db: Session = Depends(get_db)):
+    school = get_school(db)
+    cur = current_plan_year(school)
+    return templates.TemplateResponse("projects_import.html", {
+        "request": request, "school": school, "rows": None,
+        "year_label": plan_year_label(school), "years": _plan_years(db, cur),
+        "fiscal_year": cur,
+    })
+
+
+@router.get("/projects/import/template.xlsx")
+def projects_import_template():
+    from openpyxl import Workbook
+    import tempfile
+    wb = Workbook(); ws = wb.active; ws.title = "โครงการ"
+    ws.append(["ชื่อโครงการ", "งบประมาณ", "ฝ่าย/ผู้รับผิดชอบ"])
+    ws.append(["โครงการพัฒนาการเรียนการสอน", 50000, "ฝ่ายบริหารงานวิชาการ"])
+    ws.append(["โครงการกีฬาสี", 20000, "ฝ่ายบริหารงานทั่วไป"])
+    for col, w in (("A", 40), ("B", 16), ("C", 28)):
+        ws.column_dimensions[col].width = w
+    path = Path(tempfile.gettempdir()) / "ตัวอย่างนำเข้าโครงการ.xlsx"
+    wb.save(path)
+    return FileResponse(path, filename=path.name, media_type=_XLSX_MT)
+
+
+@router.post("/projects/import")
+async def projects_import_preview(request: Request, db: Session = Depends(get_db),
+                                  file: UploadFile = File(...), plan_year: str = Form("")):
+    school = get_school(db)
+    py = _to_int(plan_year, current_plan_year(school))
+    if not file.filename or not file.filename.lower().endswith(".xlsx"):
+        return RedirectResponse("/projects/import?err=type", status_code=303)
+    content = await file.read()
+    try:
+        rows = _parse_projects_xlsx(content)
+    except Exception:
+        return RedirectResponse("/projects/import?err=read", status_code=303)
+    import json
+    # ทำเครื่องหมายแถวที่ชื่อซ้ำกับโครงการเดิมในปีเดียวกัน (จะอัปเดตงบ ไม่สร้างซ้ำ)
+    existing = {p.name for p in db.query(Project).filter(Project.plan_year == py).all()}
+    for r in rows:
+        r["dup"] = r["name"] in existing
+    n_update = sum(1 for r in rows if r["dup"])
+    return templates.TemplateResponse("projects_import.html", {
+        "request": request, "school": school, "rows": rows,
+        "year_label": plan_year_label(school), "fiscal_year": py,
+        "years": _plan_years(db, py), "payload": json.dumps(rows, ensure_ascii=False),
+        "total_budget": sum(r["budget"] for r in rows),
+        "n_update": n_update, "n_new": len(rows) - n_update,
+    })
+
+
+@router.post("/projects/import/confirm")
+def projects_import_confirm(db: Session = Depends(get_db),
+                            payload: str = Form(""), plan_year: str = Form("")):
+    import json
+    py = _to_int(plan_year, current_plan_year(get_school(db)))
+    try:
+        rows = json.loads(payload or "[]")
+    except Exception:
+        rows = []
+    # โครงการเดิมในปีนี้ (ไว้เช็คชื่อซ้ำ -> อัปเดตงบแทนสร้างใหม่)
+    existing = {p.name: p for p in db.query(Project).filter(Project.plan_year == py).all()}
+    added = updated = 0
+    for r in rows:
+        name = (r.get("name") or "").strip()
+        if not name:
+            continue
+        budget = _to_float(str(r.get("budget", 0)), 0.0)
+        resp = (r.get("responsible") or "").strip()
+        if name in existing:
+            p = existing[name]
+            p.budget = budget
+            if resp:
+                p.responsible = resp
+            updated += 1
+        else:
+            p = Project(name=name, budget=budget, responsible=resp,
+                        plan_year=py, active=True)
+            db.add(p)
+            existing[name] = p
+            added += 1
+    db.commit()
+    return RedirectResponse(f"/projects?year={py}&added={added}&updated={updated}", status_code=303)
+
+
+@router.get("/projects/{pid}", response_class=HTMLResponse)
+def project_detail(pid: int, request: Request, db: Session = Depends(get_db)):
+    p = db.get(Project, pid)
+    if not p:
+        return RedirectResponse("/projects", status_code=303)
+    procs = (db.query(Procurement).filter(Procurement.project_id == pid)
+             .order_by(Procurement.id.desc()).all())
+    disb = (db.query(DisburseMemo).filter(DisburseMemo.project_id == pid)
+            .order_by(DisburseMemo.id.desc()).all())
+    next_seq = max([r.seq or 0 for r in p.revisions], default=0) + 1
+    return templates.TemplateResponse("project_detail.html", {
+        "request": request, "school": get_school(db), "p": p,
+        "procs": procs, "disb": disb, "next_seq": next_seq,
+        "year_label": plan_year_label(get_school(db)),
+        "departments": db.query(Department).order_by(Department.name).all(),
+        "years": _plan_years(db, p.plan_year or current_plan_year(get_school(db))),
+    })
+
+
+@router.post("/projects/{pid}/revise")
+def project_revise(pid: int, db: Session = Depends(get_db), amount: str = Form("0"),
+                   date: str = Form(""), reason: str = Form("")):
+    p = db.get(Project, pid)
+    if p:
+        seq = max([r.seq or 0 for r in p.revisions], default=0) + 1
+        db.add(ProjectBudgetRevision(project_id=pid, seq=seq, amount=_to_float(amount, 0.0),
+                                     date=parse_be_date(date) or datetime.now(), reason=reason.strip()))
+        db.commit()
+    return RedirectResponse(f"/projects/{pid}?saved=1", status_code=303)
+
+
+@router.post("/projects/{pid}/update")
+def project_update(pid: int, db: Session = Depends(get_db), name: str = Form(...),
+                   responsible: str = Form(""), plan_year: str = Form(""), active: str = Form("")):
+    p = db.get(Project, pid)
+    if p:
+        p.name = name.strip()
+        p.responsible = responsible.strip()
+        p.plan_year = _to_int(plan_year, p.plan_year)
+        p.active = (active == "1")
+        db.commit()
+    return RedirectResponse(f"/projects/{pid}?saved=1", status_code=303)
+
+
+@router.post("/projects/{pid}/set-year")
+def project_set_year(pid: int, db: Session = Depends(get_db),
+                     plan_year: str = Form(""), back: str = Form("")):
+    """เปลี่ยนปีของโครงการเดียว (จากตารางหรือหน้ารายละเอียด)"""
+    p = db.get(Project, pid)
+    if p:
+        p.plan_year = _to_int(plan_year, p.plan_year)
+        db.commit()
+        py = p.plan_year
+    else:
+        py = current_plan_year(get_school(db))
+    return RedirectResponse(back or f"/projects?year={py}", status_code=303)
+
+
+@router.post("/projects/{pid}/set-responsible")
+def project_set_responsible(pid: int, db: Session = Depends(get_db),
+                            responsible: str = Form(""), back: str = Form("")):
+    """เปลี่ยนฝ่าย/ผู้รับผิดชอบของโครงการเดียว (จากตารางโดยไม่ต้องเข้ารายละเอียด)"""
+    p = db.get(Project, pid)
+    if p:
+        p.responsible = responsible.strip()
+        db.commit()
+    return RedirectResponse(back or "/projects", status_code=303)
+
+
+@router.post("/projects/assign-year")
+def projects_assign_year(db: Session = Depends(get_db),
+                         plan_year: str = Form(""), only_legacy: str = Form("1")):
+    """กำหนดปีให้หลายโครงการพร้อมกัน (ค่าเริ่มต้น = เฉพาะที่ยังไม่ระบุปี)"""
+    py = _to_int(plan_year, current_plan_year(get_school(db)))
+    q = db.query(Project)
+    if only_legacy == "1":
+        q = q.filter(Project.plan_year.is_(None))
+    for p in q.all():
+        p.plan_year = py
+    db.commit()
+    return RedirectResponse(f"/projects?year={py}", status_code=303)
+
+
+@router.post("/projects/{pid}/delete")
+def project_delete(pid: int, db: Session = Depends(get_db)):
+    p = db.get(Project, pid)
+    if p:
+        db.delete(p); db.commit()
+    return RedirectResponse("/projects", status_code=303)
+
+
 @router.get("/assets/export.xlsx")
 def assets_export(db: Session = Depends(get_db)):
     from app.services.asset_export import export_asset_register
@@ -1172,6 +1439,57 @@ def asset_delete(asset_id: int, db: Session = Depends(get_db)):
     if a:
         db.delete(a); db.commit()
     return RedirectResponse("/assets", status_code=303)
+
+
+@router.get("/assets/dispose", response_class=HTMLResponse)
+def assets_dispose_page(request: Request, db: Session = Depends(get_db)):
+    """หน้าเลือกครุภัณฑ์เพื่อขออนุมัติจำหน่าย (เลือกหลายรายการพร้อมกัน)"""
+    active = (db.query(Asset).filter(Asset.status != "จำหน่ายแล้ว")
+              .order_by(Asset.id.desc()).all())
+    disposed = (db.query(Asset).filter(Asset.status == "จำหน่ายแล้ว")
+                .order_by(Asset.id.desc()).all())
+    sug = suggest_doc_no(db, "memo", current_fiscal_year())
+    return templates.TemplateResponse("assets_dispose.html", {
+        "request": request, "active": active, "disposed": disposed, "sug_no": sug,
+    })
+
+
+@router.post("/assets/dispose")
+async def assets_dispose_submit(request: Request, db: Session = Depends(get_db)):
+    """อัปเดตสถานะครุภัณฑ์ที่เลือกเป็น 'จำหน่ายแล้ว' + ออกเอกสารบันทึกข้อความขออนุมัติจำหน่าย"""
+    from app.services.asset_dispose_doc import render_asset_disposal
+    form = await request.form()
+    ids = form.getlist("asset_ids")
+    if not ids:
+        return RedirectResponse("/assets/dispose?err=none", status_code=303)
+    doc_no = (form.get("doc_no") or "").strip()
+    doc_date = parse_be_date(form.get("doc_date")) or datetime.now()
+    method = (form.get("method") or "").strip()
+    reason = (form.get("reason") or "").strip()
+    note = (form.get("note") or "").strip()
+    value = _to_float(form.get("dispose_value"), 0.0)
+    school = get_school(db)
+    assets = (db.query(Asset).filter(Asset.id.in_([int(i) for i in ids]))
+              .order_by(Asset.id).all())
+    if not assets:
+        return RedirectResponse("/assets/dispose?err=none", status_code=303)
+    # แบ่งมูลค่าที่ขายได้รวม ไปยังแต่ละรายการตามสัดส่วนราคาทุน (ถ้าระบุมูลค่ารวม)
+    total_cost = sum(float(a.cost or 0) for a in assets) or 1.0
+    for a in assets:
+        a.status = "จำหน่ายแล้ว"
+        a.disposed_date = doc_date
+        a.dispose_method = method
+        a.dispose_reason = reason
+        a.dispose_doc_ref = doc_no
+        a.dispose_value = round(value * (float(a.cost or 0) / total_cost), 2) if value else 0.0
+    path = render_asset_disposal(assets, school, doc_no=doc_no, doc_date=doc_date,
+                                 method=method, reason=reason, note=note)
+    if doc_no:
+        commit_doc_no(db, "memo", current_fiscal_year(), doc_no,
+                      source="asset", subject="ขออนุมัติจำหน่ายครุภัณฑ์")
+    db.commit()
+    return FileResponse(path, filename=Path(path).name,
+                        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 @router.get("/assets/{asset_id}/schedule", response_class=HTMLResponse)

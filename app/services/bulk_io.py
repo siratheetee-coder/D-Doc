@@ -3,10 +3,10 @@
 bulk_io.py
 ----------
 นำเข้าข้อมูลตั้งต้นทีละมาก ๆ จากไฟล์ Excel (.xlsx) ไฟล์เดียว หลายชีต:
-  โรงเรียน / บุคลากร / ฝ่าย-งาน / โครงการ / ผู้ขาย
+  โรงเรียน / บุคลากร / ฝ่าย-งาน / ผู้ขาย
 
 แนวคิด: โหลดเทมเพลตที่มีหัวตาราง + คำอธิบายไปกรอกใน Excel แล้วอัปโหลดกลับ
-- ชีตข้อมูลหลัก (บุคลากร/ฝ่าย/โครงการ/ผู้ขาย): เพิ่มเข้าระบบ ข้ามชื่อซ้ำ
+- ชีตข้อมูลหลัก (บุคลากร/ฝ่าย/ผู้ขาย): เพิ่มเข้าระบบ ข้ามชื่อซ้ำ
 - ชีตโรงเรียน: อัปเดตข้อมูลโรงเรียน (มีรายการเดียว)
 
 ทุกชีต: แถว 1 = คำอธิบาย, แถว 2 = หัวตาราง, แถว 3 เป็นต้นไป = ข้อมูล
@@ -18,7 +18,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 
 from app.database import get_data_dir
-from app.models import School, Person, Department, Project, Vendor
+from app.models import School, Person, Department, Vendor
 
 THAI_FONT = "TH Sarabun New"
 
@@ -33,11 +33,6 @@ MASTER_SHEETS = {
         "headers": ["ชื่อฝ่าย/งาน"],
         "note": "กรอกชื่อฝ่าย/งานตั้งแต่แถวที่ 3 ลงไป  เช่น  ฝ่ายบริหารงานวิชาการ",
         "widths": [40],
-    },
-    "โครงการ": {
-        "headers": ["ชื่อโครงการ", "งบประมาณ (บาท)", "รายละเอียด/แหล่งงบ"],
-        "note": "กรอกชื่อโครงการตั้งแต่แถวที่ 3 ลงไป (งบประมาณ/รายละเอียดเว้นว่างได้)  เช่น  โครงการวันสำคัญทางวิชาการ | 5000 | เงินอุดหนุนรายหัว",
-        "widths": [40, 18, 30],
     },
     "ผู้ขาย": {
         "headers": ["ชื่อร้าน/บริษัท", "ชื่อเจ้าของ/ผู้ลงนาม", "เลขประจำตัวผู้เสียภาษี",
@@ -207,27 +202,6 @@ def import_workbook(file_bytes: bytes, db) -> dict:
             added += 1
         if added or skipped:
             summary["ฝ่าย-งาน"] = {"added": added, "skipped": skipped}
-
-    # ---- ชีตโครงการ ----
-    if "โครงการ" in wb.sheetnames:
-        existing = {pj.name for pj in db.query(Project).all()}
-        added = skipped = 0
-        for row in wb["โครงการ"].iter_rows(min_row=3, values_only=True):
-            name = _cell_str(row[0]) if row else ""
-            if not name:
-                continue
-            if name in existing:
-                skipped += 1
-                continue
-            db.add(Project(
-                name=name,
-                budget=_cell_float(row[1]) if len(row) > 1 else 0.0,
-                budget_note=_cell_str(row[2]) if len(row) > 2 else "",
-            ))
-            existing.add(name)
-            added += 1
-        if added or skipped:
-            summary["โครงการ"] = {"added": added, "skipped": skipped}
 
     # ---- ชีตผู้ขาย ----
     if "ผู้ขาย" in wb.sheetnames:

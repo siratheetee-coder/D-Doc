@@ -443,7 +443,7 @@
         <a href="/requisitions" class="{{ 'active' if path.startswith('/requisitions') }}"><svg class="icon"><use href="#ic-file"/></svg> ใบเบิกวัสดุ</a>
         <div class="nav-sec">ข้อมูลหลัก</div>
         <a href="/vendors" class="{{ 'active' if path.startswith('/vendors') }}"><svg class="icon"><use href="#ic-store"/></svg> ผู้ขาย/ผู้รับจ้าง</a>
-        <a href="/masters" class="{{ 'active' if path.startswith('/masters') }}"><svg class="icon"><use href="#ic-users"/></svg> บุคลากร/ฝ่าย/โครงการ</a>
+        <a href="/masters" class="{{ 'active' if path.startswith('/masters') }}"><svg class="icon"><use href="#ic-users"/></svg> บุคลากร/ฝ่าย</a>
 
         {% elif module == 'admin' %}
         <div class="nav-sec">งานธุรการ</div>
@@ -477,6 +477,7 @@
 
         <div class="nav-sec">ระบบ</div>
         <a href="/docnos" class="{{ 'active' if path.startswith('/docnos') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ทะเบียนเลขหนังสือ</a>
+        <a href="/projects" class="{{ 'active' if path.startswith('/projects') }}"><svg class="icon"><use href="#ic-coins"/></svg> โครงการ/แผนงบ</a>
         <a href="/settings" class="{{ 'active' if path.startswith('/settings') }}"><svg class="icon"><use href="#ic-settings"/></svg> ตั้งค่าโรงเรียน</a>
       </nav>
     </aside>

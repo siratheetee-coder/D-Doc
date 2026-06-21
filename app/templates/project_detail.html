@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}{{ p.name }}{% endblock %}
+{% block content %}
+{% set b = proj_budget(p) %}{% set s = proj_spent(p) %}{% set r = b - s %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">{{ p.name }}</h1>
+    <a class="btn gray sm" href="/projects?year={{ p.plan_year or '' }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับโครงการ</a>
+  </div>
+  {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกเรียบร้อยแล้ว</div>{% endif %}
+  <div class="hero-meta" style="color:var(--muted); margin-top:4px;">{{ year_label }} {{ p.plan_year or "(ยังไม่ระบุปี)" }}{% if p.responsible %} · {{ p.responsible }}{% endif %}</div>
+  <div class="stat" style="margin-top:12px;">
+    <div class="box"><div><div class="lab">งบปัจจุบัน</div><div class="num">{{ "{:,.2f}".format(b) }}</div></div>
+      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+    <div class="box"><div><div class="lab">ใช้ไปแล้ว</div><div class="num">{{ "{:,.2f}".format(s) }}</div></div>
+      <span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-upload"/></svg></span></div>
+    <div class="box"><div><div class="lab">คงเหลือ</div><div class="num" style="color:{{ '#dc2626' if r < 0 else '#16a34a' }};">{{ "{:,.2f}".format(r) }}</div></div>
+      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-edit"/></svg> ปรับงบประมาณ (ครั้งที่ {{ next_seq }})</h2>
+  <p class="muted" style="margin-top:0;">บันทึกเมื่อแผนเปลี่ยน/โอนงบ — งบปัจจุบันจะอัปเดตเป็นค่าล่าสุด แต่ดูย้อนหลังได้ทุกครั้ง</p>
+  <form method="post" action="/projects/{{ p.id }}/revise">
+    <div class="row">
+      <div><label>งบรวมหลังปรับ (บาท)</label><input name="amount" type="number" step="0.01" min="0" value="{{ '%.2f'|format(b) }}" required></div>
+      <div><label>วันที่</label><input name="date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div style="flex:2;"><label>เหตุผล/หมายเหตุ</label><input name="reason" placeholder="เช่น โอนงบเพิ่มจากโครงการอื่น / ปรับตามแผนกลางปี"></div>
+    </div>
+    <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกการปรับงบ</button>
+  </form>
+
+  {% if p.revisions %}
+  <table style="margin-top:14px;">
+    <thead><tr><th>ครั้งที่</th><th>วันที่</th><th class="right">งบรวมหลังปรับ</th><th>เหตุผล</th></tr></thead>
+    <tbody>
+      {% for rev in p.revisions %}
+      <tr><td>{{ rev.seq }}</td><td>{{ thai_date(rev.date) if rev.date else "-" }}</td>
+          <td class="right"><b>{{ "{:,.2f}".format(rev.amount or 0) }}</b></td><td>{{ rev.reason or "-" }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted" style="margin-bottom:0;">ยังไม่มีการปรับงบ — งบปัจจุบันใช้ค่าตั้งต้น {{ "{:,.2f}".format(p.budget or 0) }} บาท</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>รายการที่ผูกกับโครงการ (ใช้จริง)</h2>
+  {% if procs %}
+  <h3 style="font-size:15px; margin:6px 0;">เรื่องจัดซื้อ/จัดจ้าง</h3>
+  <table><thead><tr><th>เลขที่</th><th>เรื่อง</th><th class="right">วงเงิน</th><th>สถานะ</th></tr></thead>
+    <tbody>{% for pr in procs %}
+      <tr><td><a href="/procurement/{{ pr.id }}">{{ pr.order_no or pr.memo_no or "-" }}</a></td>
+          <td>{{ pr.proc_type }}{{ pr.subject }}</td>
+          <td class="right">{{ "{:,.2f}".format(pr.total_amount or 0) }}</td>
+          <td>{{ pr.status }}</td></tr>
+    {% endfor %}</tbody></table>
+  {% endif %}
+  {% if disb %}
+  <h3 style="font-size:15px; margin:14px 0 6px;">บันทึกขอเบิกจ่าย (ที่ไม่ผ่านเรื่องจัดซื้อ)</h3>
+  <table><thead><tr><th>เลขที่</th><th>เรื่อง</th><th class="right">จำนวนเงิน</th></tr></thead>
+    <tbody>{% for d in disb %}
+      <tr><td><a href="/finance/disburse/{{ d.id }}">{{ d.memo_no or "-" }}</a></td>
+          <td>{{ d.subject }}</td><td class="right">{{ "{:,.2f}".format(d.amount or 0) }}</td></tr>
+    {% endfor %}</tbody></table>
+  {% endif %}
+  {% if not procs and not disb %}<p class="muted">ยังไม่มีเรื่องจัดซื้อ/เบิกจ่ายผูกกับโครงการนี้ — เลือกโครงการนี้ตอนสร้างเรื่องจัดซื้อ/ขอเบิกจ่าย</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-edit"/></svg> แก้ไข/ลบโครงการ</h2>
+  <form method="post" action="/projects/{{ p.id }}/update">
+    <div class="row">
+      <div style="flex:2;"><label>ชื่อโครงการ</label><input name="name" value="{{ p.name }}" required></div>
+      <div style="flex:1.5;"><label>ฝ่าย/ผู้รับผิดชอบ</label>
+        <select name="responsible">
+          <option value="">— เลือกฝ่าย —</option>
+          {% for d in departments %}<option value="{{ d.name }}" {{ 'selected' if d.name==p.responsible }}>{{ d.name }}</option>{% endfor %}
+          {% if p.responsible and p.responsible not in departments|map(attribute='name')|list %}<option value="{{ p.responsible }}" selected>{{ p.responsible }} (เดิม)</option>{% endif %}
+        </select>
+      </div>
+      <div><label>ปี ({{ year_label }})</label>
+        <select name="plan_year">
+          <option value="">— ยังไม่ระบุ —</option>
+          {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==p.plan_year }}>{{ y }}</option>{% endfor %}
+        </select>
+      </div>
+      <div><label>สถานะ</label><select name="active"><option value="1" {{ 'selected' if p.active }}>เปิด</option><option value="0" {{ 'selected' if not p.active }}>ปิด</option></select></div>
+    </div>
+    <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
+    <button class="btn sm red" type="button" onclick="if(confirm('ลบโครงการนี้และประวัติการปรับงบทั้งหมด?')){document.getElementById('delp').submit()}"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button>
+  </form>
+  <form id="delp" method="post" action="/projects/{{ p.id }}/delete" style="display:none;"></form>
+</div>
+
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

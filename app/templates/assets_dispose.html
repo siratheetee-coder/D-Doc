@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}จำหน่ายครุภัณฑ์{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;"><svg class="icon"><use href="#ic-trash"/></svg> ขออนุมัติจำหน่ายครุภัณฑ์</h1>
+    <a class="btn gray sm" href="/assets"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับทะเบียนครุภัณฑ์</a>
+  </div>
+  <p class="muted" style="margin-bottom:0;">เลือกครุภัณฑ์ที่ชำรุด/เสื่อมสภาพ/หมดความจำเป็น แล้วออกบันทึกข้อความขออนุมัติจำหน่าย (Word) ระบบจะปรับสถานะรายการที่เลือกเป็น "จำหน่ายแล้ว" ให้อัตโนมัติ</p>
+  {% if request.query_params.get('err')=='none' %}<div class="alert" style="background:#fee2e2; color:#b91c1c; border-color:#fca5a5;">ยังไม่ได้เลือกครุภัณฑ์</div>{% endif %}
+</div>
+
+<form method="post" action="/assets/dispose">
+<div class="card">
+  <h2>ข้อมูลการจำหน่าย</h2>
+  <div class="row">
+    <div><label>เลขที่บันทึก</label><input name="doc_no" value="{{ sug_no }}"></div>
+    <div><label>วันที่</label><input name="doc_date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+    <div><label>เหตุผล/สภาพ</label>
+      <select name="reason">
+        {% for r in ["ชำรุด","เสื่อมสภาพ","ชำรุดและเสื่อมสภาพ","หมดความจำเป็นในการใช้งาน","ล้าสมัย","สูญหาย"] %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+      </select>
+    </div>
+    <div><label>วิธีจำหน่าย</label>
+      <select name="method">
+        {% for m in ["ขายทอดตลาด","ขาย","บริจาค","แลกเปลี่ยน","โอน","ทำลาย","ตัดจำหน่าย (สูญ/ไม่มีซาก)"] %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+      </select>
+    </div>
+    <div><label>มูลค่าที่คาดว่าจะได้ (กรณีขาย)</label><input name="dispose_value" type="number" step="0.01" min="0" value="0"></div>
+  </div>
+  <label>หมายเหตุเพิ่มเติม (ไม่บังคับ)</label>
+  <textarea name="note" placeholder="ข้อความเพิ่มเติมในเอกสาร (ถ้ามี)"></textarea>
+</div>
+
+<div class="card">
+  <h2>เลือกครุภัณฑ์ที่ขอจำหน่าย</h2>
+  {% if active %}
+  <table>
+    <thead><tr>
+      <th style="width:38px;"><input type="checkbox" id="checkall" title="เลือกทั้งหมด"></th>
+      <th>เลขครุภัณฑ์</th><th>ชื่อครุภัณฑ์</th><th class="right">ราคาทุน</th>
+      <th>วันที่ได้มา</th><th>สถานที่</th>
+    </tr></thead>
+    <tbody>
+      {% for a in active %}
+      <tr>
+        <td><input type="checkbox" class="pick" name="asset_ids" value="{{ a.id }}"></td>
+        <td>{{ a.asset_code or "-" }}</td>
+        <td>{{ a.name }}{% if a.brand_model %}<br><span class="muted" style="font-size:12px;">{{ a.brand_model }}</span>{% endif %}</td>
+        <td class="right">{{ "{:,.2f}".format(a.cost or 0) }}</td>
+        <td>{{ thai_date(a.acquired_date) if a.acquired_date else "-" }}</td>
+        <td>{{ a.location or "-" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <br><button class="btn red" type="submit" onclick="return confirm('ออกเอกสารและปรับสถานะครุภัณฑ์ที่เลือกเป็น จำหน่ายแล้ว?')"><svg class="icon"><use href="#ic-download"/></svg> ออกเอกสาร + ปรับสถานะ</button>
+  {% else %}<p class="muted">ไม่มีครุภัณฑ์ที่ใช้งานอยู่ให้จำหน่าย</p>{% endif %}
+</div>
+</form>
+
+{% if disposed %}
+<div class="card">
+  <h2>ครุภัณฑ์ที่จำหน่ายแล้ว ({{ disposed|length }})</h2>
+  <table>
+    <thead><tr><th>เลขครุภัณฑ์</th><th>ชื่อ</th><th>วันที่จำหน่าย</th><th>วิธี</th><th>เหตุผล</th><th>เลขที่อนุมัติ</th></tr></thead>
+    <tbody>
+      {% for a in disposed %}
+      <tr>
+        <td>{{ a.asset_code or "-" }}</td><td>{{ a.name }}</td>
+        <td>{{ thai_date(a.disposed_date) if a.disposed_date else "-" }}</td>
+        <td>{{ a.dispose_method or "-" }}</td><td>{{ a.dispose_reason or "-" }}</td>
+        <td>{{ a.dispose_doc_ref or "-" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<script>
+  var ca=document.getElementById('checkall');
+  if(ca){ca.addEventListener('change',function(){document.querySelectorAll('.pick').forEach(function(c){c.checked=ca.checked;});});}
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

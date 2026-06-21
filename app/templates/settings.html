@@ -29,6 +29,15 @@
       <div><label>เจ้าหน้าที่ธุรการ</label><input name="admin_officer_name" list="persons" value="{{ school.admin_officer_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
     </div>
     <div class="row">
+      <div><label>ปีของโครงการ/แผนปฏิบัติการ</label>
+        <select name="project_year_mode">
+          <option value="budget" {{ 'selected' if (school.project_year_mode or 'budget')=='budget' }}>ปีงบประมาณ (ต.ค.–ก.ย.)</option>
+          <option value="academic" {{ 'selected' if school.project_year_mode=='academic' }}>ปีการศึกษา (พ.ค.–เม.ย.)</option>
+        </select>
+        <span class="muted" style="font-size:13px;">ใช้จัดกลุ่มโครงการในเมนู "โครงการ/แผนงบ"</span>
+      </div>
+    </div>
+    <div class="row">
       <div><label>อักษรนำเลขหนังสือ</label><input name="doc_prefix" value="{{ school.doc_prefix }}"></div>
       <div>
         <label>เกณฑ์วงเงินแบ่งชุดเอกสาร (บาท)</label>
@@ -45,9 +54,9 @@
 </div>
 
 <div class="card">
-  <h2><svg class="icon"><use href="#ic-users"/></svg> ข้อมูลบุคลากร / ฝ่าย / โครงการ</h2>
-  <p class="muted">รายชื่อบุคลากร ฝ่าย/งาน และโครงการ ใช้ร่วมกันทั้งงานธุรการ พัสดุ และการเงิน — เลือกใช้ตอนสร้างเอกสาร/เลือกผู้ลงนาม</p>
-  <a class="btn" href="/masters"><svg class="icon"><use href="#ic-users"/></svg> จัดการบุคลากร / ฝ่าย / โครงการ</a>
+  <h2><svg class="icon"><use href="#ic-users"/></svg> ข้อมูลบุคลากร / ฝ่าย</h2>
+  <p class="muted">รายชื่อบุคลากรและฝ่าย/งาน ใช้ร่วมกันทั้งงานธุรการ พัสดุ และการเงิน — เลือกใช้ตอนสร้างเอกสาร/เลือกผู้ลงนาม</p>
+  <a class="btn" href="/masters"><svg class="icon"><use href="#ic-users"/></svg> จัดการบุคลากร / ฝ่าย</a>
 </div>
 
 <div class="card">

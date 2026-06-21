@@ -17,6 +17,7 @@ from app.services.asset_utils import (
     account_balance, account_balance_year, opening_for,
 )
 from app.services.nav import nav_alerts, nav_holidays
+from app.services.budget import project_budget, project_spent, project_remaining
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -32,5 +33,6 @@ templates.env.globals.update(
     annual_dep=annual_depreciation, mat_balance=material_balance,
     acct_balance=account_balance, acct_balance_year=account_balance_year,
     acct_opening=opening_for,
+    proj_budget=project_budget, proj_spent=project_spent, proj_remaining=project_remaining,
     modules_live=MODULES_LIVE,
 )

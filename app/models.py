@@ -40,6 +40,9 @@ class School(Base):
     finance_head_name = Column(String, default="")     # หัวหน้าเจ้าหน้าที่การเงิน
     admin_officer_name = Column(String, default="")    # เจ้าหน้าที่ธุรการ
 
+    # ปีของโครงการ/แผน: "budget" = ปีงบประมาณ (ต.ค.) / "academic" = ปีการศึกษา (พ.ค.)
+    project_year_mode = Column(String, default="budget")
+
     doc_prefix = Column(String, default="ศธ")      # อักษรนำเลขที่หนังสือ
 
     # เกณฑ์วงเงิน (บาท) ที่ใช้แบ่ง "ชุดเอกสารแบบย่อ + ผู้ตรวจรับคนเดียว"
@@ -68,13 +71,34 @@ class Department(Base):
 
 
 class Project(Base):
-    """ชื่อโครงการ (มาสเตอร์ลิสต์)"""
+    """โครงการในแผนปฏิบัติการ (รายปี) — งบที่ตั้ง + ติดตามใช้จริง + ประวัติการปรับงบ"""
     __tablename__ = "project"
 
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
-    budget = Column(Float, default=0.0)            # วงเงินงบประมาณของโครงการ (บาท)
+    budget = Column(Float, default=0.0)            # วงเงินงบประมาณตั้งต้น (ครั้งที่ 1)
     budget_note = Column(String, default="")       # รายละเอียด/แหล่งงบเพิ่มเติม
+    plan_year = Column(Integer, nullable=True)     # ปีของแผน (พ.ศ.) — ปีงบ หรือ ปีการศึกษา ตามตั้งค่าโรงเรียน
+    responsible = Column(String, default="")       # ฝ่าย/ผู้รับผิดชอบโครงการ
+    active = Column(Boolean, default=True)
+
+    revisions = relationship("ProjectBudgetRevision", back_populates="project",
+                             cascade="all, delete-orphan", order_by="ProjectBudgetRevision.seq")
+
+
+class ProjectBudgetRevision(Base):
+    """ประวัติการปรับงบของโครงการ (ครั้งที่ 1 แผนต้นปี, ครั้งที่ 2 ปรับกลางปี ...)
+    งบปัจจุบัน = amount ของ revision ล่าสุด (ถ้าไม่มี = Project.budget)"""
+    __tablename__ = "project_budget_revision"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("project.id"), nullable=False)
+    seq = Column(Integer, default=1)               # ครั้งที่
+    date = Column(DateTime, default=datetime.now)
+    amount = Column(Float, default=0.0)            # วงเงินรวมหลังปรับครั้งนี้
+    reason = Column(String, default="")            # เหตุผล/หมายเหตุการปรับ
+
+    project = relationship("Project", back_populates="revisions")
 
 
 class Vendor(Base):
@@ -100,7 +124,8 @@ class Procurement(Base):
     fiscal_year = Column(Integer, nullable=False)  # ปีงบประมาณ พ.ศ. เช่น 2569
 
     subject = Column(String, nullable=False)       # ชื่อเรื่อง/รายการที่จัดซื้อ
-    project_name = Column(String, default="")      # ชื่อโครงการ
+    project_name = Column(String, default="")      # ชื่อโครงการ (ข้อความ — คงไว้เพื่อความเข้ากันได้)
+    project_id = Column(Integer, ForeignKey("project.id"), nullable=True)  # ผูกกับโครงการในแผน
     department = Column(String, default="")        # ฝ่าย/งานที่ขอ
     purpose = Column(Text, default="")             # เหตุผลความจำเป็น
 
@@ -433,7 +458,9 @@ class DisburseMemo(Base):
     proc_kind = Column(String, default="จัดซื้อ")    # จัดซื้อ/จัดจ้าง (ใช้ในข้อความ)
     budget_source = Column(String, default="")       # แหล่งเงิน/หมวดงบ
     account_id = Column(Integer, ForeignKey("finance_account.id"), nullable=True)
+    item_id = Column(Integer, ForeignKey("account_item.id"), nullable=True)  # หมวด/รายการย่อยที่หักงบ
     procurement_id = Column(Integer, ForeignKey("procurement.id"), nullable=True)
+    project_id = Column(Integer, ForeignKey("project.id"), nullable=True)  # ผูกกับโครงการในแผน
     note = Column(Text, default="")                  # รายละเอียดเพิ่มเติม
     status = Column(String, default="ร่าง")          # ร่าง / อนุมัติ / จ่ายแล้ว
     file_path = Column(String, default="")
@@ -482,6 +509,13 @@ class Asset(Base):
     procurement_id = Column(Integer, ForeignKey("procurement.id"), nullable=True)  # มาจากเรื่องไหน
     note = Column(String, default="")
     status = Column(String, default="ใช้งาน")      # ใช้งาน / จำหน่ายแล้ว
+
+    # การจำหน่ายพัสดุ (เมื่อชำรุด/เสื่อมสภาพ/หมดความจำเป็น)
+    disposed_date = Column(DateTime, nullable=True)   # วันที่จำหน่าย/อนุมัติจำหน่าย
+    dispose_method = Column(String, default="")       # ขาย/บริจาค/แลกเปลี่ยน/โอน/ทำลาย/ตัดจำหน่าย
+    dispose_reason = Column(String, default="")       # ชำรุด/เสื่อมสภาพ/หมดความจำเป็น/สูญหาย
+    dispose_value = Column(Float, default=0.0)        # มูลค่าที่ได้จากการจำหน่าย (กรณีขาย)
+    dispose_doc_ref = Column(String, default="")      # เลขที่หนังสือ/คำสั่งอนุมัติจำหน่าย
 
     # ฟิลด์ตามแบบฟอร์มทะเบียนคุมทรัพย์สิน (แบบ 2)
     brand_model = Column(String, default="")       # ยี่ห้อ/รุ่น/ลักษณะเฉพาะ

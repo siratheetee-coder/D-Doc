@@ -63,6 +63,18 @@ MIGRATIONS = [
     ("asset", "doc_ref",         "VARCHAR DEFAULT ''"),
     ("asset", "quantity",        "FLOAT DEFAULT 1"),
     ("asset", "unit",            "VARCHAR DEFAULT 'หน่วย'"),
+    ("project", "plan_year",     "INTEGER"),
+    ("project", "responsible",   "VARCHAR DEFAULT ''"),
+    ("project", "active",        "BOOLEAN DEFAULT 1"),
+    ("procurement", "project_id", "INTEGER"),
+    ("disburse_memo", "project_id", "INTEGER"),
+    ("disburse_memo", "item_id", "INTEGER"),
+    ("school", "project_year_mode", "VARCHAR DEFAULT 'budget'"),
+    ("asset", "disposed_date",   "DATETIME"),
+    ("asset", "dispose_method",  "VARCHAR DEFAULT ''"),
+    ("asset", "dispose_reason",  "VARCHAR DEFAULT ''"),
+    ("asset", "dispose_value",   "FLOAT DEFAULT 0"),
+    ("asset", "dispose_doc_ref", "VARCHAR DEFAULT ''"),
 ]
 
 

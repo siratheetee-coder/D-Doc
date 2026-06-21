@@ -140,3 +140,14 @@ def current_fiscal_year(dt: datetime | None = None) -> int:
     if dt.month >= 10:          # ตั้งแต่ตุลาคม = ปีงบประมาณถัดไป
         return be_year + 1
     return be_year
+
+
+def current_academic_year(dt: datetime | None = None) -> int:
+    """หาปีการศึกษา พ.ศ. ปัจจุบัน
+    ปีการศึกษาไทยเริ่มราวพฤษภาคม ดังนั้น ม.ค.-เม.ย. ยังนับเป็นปีการศึกษาก่อนหน้า"""
+    if dt is None:
+        dt = datetime.now()
+    be_year = dt.year + 543
+    if dt.month <= 4:           # ม.ค.-เม.ย. = ยังเป็นปีการศึกษาก่อนหน้า
+        return be_year - 1
+    return be_year

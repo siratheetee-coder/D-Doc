@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}โครงการ/แผนงบ{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">แผนปฏิบัติการ · งบที่ตั้ง vs ใช้จริง vs คงเหลือ</div>
+    <span class="hero-title">โครงการ/แผนงบ</span>
+    <div class="hero-meta">{{ year_label }} {{ fiscal_year }} · {{ rows|length }} โครงการ · งบรวม {{ "{:,.0f}".format(total_budget) }} · ใช้ไป {{ "{:,.0f}".format(total_spent) }} บาท</div>
+  </div>
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <a class="btn sm gray" href="/projects/import"><svg class="icon"><use href="#ic-download"/></svg> นำเข้าจาก Excel</a>
+    <form method="get" action="/projects">
+      <select name="year" onchange="this.form.submit()" style="color:var(--text);">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>{{ year_label }} {{ y }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+</div>
+{% if request.query_params.get('added') or request.query_params.get('updated') %}<div class="alert">✔ นำเข้าโครงการแล้ว: สร้างใหม่ {{ request.query_params.get('added', 0) }} รายการ{% if request.query_params.get('updated') and request.query_params.get('updated')!='0' %} · อัปเดตงบ {{ request.query_params.get('updated') }} รายการ{% endif %}</div>{% endif %}
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มโครงการ ({{ year_label }} {{ fiscal_year }})</h2>
+  <p class="muted" style="margin-top:0;">เพิ่มโครงการได้ทุกเมื่อระหว่างปี (เช่น พอแผนปฏิบัติการออกตอนเปิดเทอม) · งบที่ตั้งนับเป็นการปรับงบ "ครั้งที่ 1"</p>
+  <form method="post" action="/projects">
+    <div class="row">
+      <div style="flex:2;"><label>ชื่อโครงการ *</label><input name="name" required placeholder="เช่น โครงการวันสำคัญทางวิชาการ"></div>
+      <div><label>งบที่ตั้งไว้ (บาท)</label><input name="budget" type="number" step="0.01" min="0" value="0"></div>
+      <div style="flex:1.5;"><label>ฝ่าย/ผู้รับผิดชอบ</label>
+        <select name="responsible">
+          <option value="">— เลือกฝ่าย —</option>
+          {% for d in departments %}<option value="{{ d.name }}">{{ d.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div><label>ปี ({{ year_label }})</label>
+        <select name="plan_year">
+          {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>{{ y }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <p class="muted" style="margin:6px 0 0; font-size:12px;">ยังไม่มีฝ่ายให้เลือก? เพิ่มได้ที่ <a href="/masters">ข้อมูลหลัก › ฝ่าย</a></p>
+    <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มโครงการ</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>โครงการ {{ year_label }} {{ fiscal_year }}</h2>
+  {% if rows %}
+  <table>
+    <thead><tr><th>โครงการ</th><th>ฝ่าย/ผู้รับผิดชอบ</th><th class="right">งบปัจจุบัน</th>
+        <th class="right">ใช้ไป</th><th class="right">คงเหลือ</th><th></th></tr></thead>
+    <tbody>
+      {% for p in rows %}
+      {% set b = proj_budget(p) %}{% set s = proj_spent(p) %}{% set r = b - s %}
+      <tr>
+        <td><a href="/projects/{{ p.id }}"><b>{{ p.name }}</b></a>{% if not p.active %} <span class="pill">ปิด</span>{% endif %}
+            {% if p.revisions %}<br><span class="muted" style="font-size:12px;">ปรับงบ {{ p.revisions|length }} ครั้ง</span>{% endif %}</td>
+        <td>
+          <form method="post" action="/projects/{{ p.id }}/set-responsible" style="margin:0;">
+            <input type="hidden" name="back" value="/projects?year={{ fiscal_year }}">
+            <select name="responsible" onchange="this.form.submit()" style="width:auto; padding:4px 6px; font-size:13px;">
+              <option value="" {{ 'selected' if not p.responsible }}>— เลือกฝ่าย —</option>
+              {% for d in departments %}<option value="{{ d.name }}" {{ 'selected' if d.name==p.responsible }}>{{ d.name }}</option>{% endfor %}
+              {% if p.responsible and p.responsible not in departments|map(attribute='name')|list %}<option value="{{ p.responsible }}" selected>{{ p.responsible }}</option>{% endif %}
+            </select>
+          </form>
+        </td>
+        <td class="right">{{ "{:,.2f}".format(b) }}</td>
+        <td class="right" style="color:#dc2626;">{{ "{:,.2f}".format(s) }}</td>
+        <td class="right"><b style="color:{{ '#dc2626' if r < 0 else '#16a34a' }};">{{ "{:,.2f}".format(r) }}</b></td>
+        <td class="right" style="white-space:nowrap;">
+          <form method="post" action="/projects/{{ p.id }}/set-year" style="display:inline;">
+            <input type="hidden" name="back" value="/projects?year={{ fiscal_year }}">
+            <select name="plan_year" onchange="this.form.submit()" title="ย้ายไปปีอื่น" style="width:auto; padding:4px 6px; font-size:13px;">
+              {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==p.plan_year }}>ปี {{ y }}</option>{% endfor %}
+            </select>
+          </form>
+          <a class="btn sm gray" href="/projects/{{ p.id }}"><svg class="icon"><use href="#ic-clipboard"/></svg> รายละเอียด</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr style="background:#f1f5f9; font-weight:700;">
+        <td>รวม</td><td></td>
+        <td class="right">{{ "{:,.2f}".format(total_budget) }}</td>
+        <td class="right">{{ "{:,.2f}".format(total_spent) }}</td>
+        <td class="right">{{ "{:,.2f}".format(total_budget - total_spent) }}</td><td></td>
+      </tr>
+    </tfoot>
+  </table>
+  {% else %}<p class="muted">ยังไม่มีโครงการในปีนี้ — เพิ่มด้านบน</p>{% endif %}
+</div>
+
+{% if legacy %}
+<div class="card" style="border:1px solid #ffe2ad; background:#fff8ec;">
+  <h2><svg class="icon"><use href="#ic-alert"/></svg> โครงการที่ยังไม่ได้ระบุปี ({{ legacy|length }})</h2>
+  <p class="muted" style="margin-top:0;">โครงการเดิมที่สร้างก่อนมีโมดูลนี้ — กำหนดปีให้พร้อมกันทั้งหมด หรือเปิดทีละโครงการเพื่อกำหนดปี</p>
+  <form method="post" action="/projects/assign-year" style="margin:0 0 12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <input type="hidden" name="only_legacy" value="1">
+    <span>ตั้งทุกโครงการที่ยังไม่ระบุปีเป็น:</span>
+    <select name="plan_year" style="width:auto;">
+      {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>{{ year_label }} {{ y }}</option>{% endfor %}
+    </select>
+    <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-check"/></svg> กำหนดปีให้ทั้งหมด</button>
+  </form>
+  <table><tbody>
+    {% for p in legacy %}
+    <tr><td><a href="/projects/{{ p.id }}">{{ p.name }}</a></td><td class="right">{{ "{:,.2f}".format(proj_budget(p)) }}</td></tr>
+    {% endfor %}
+  </tbody></table>
+</div>
+{% endif %}
+{% endblock %}

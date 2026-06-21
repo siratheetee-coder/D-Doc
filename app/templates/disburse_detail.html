@@ -40,9 +40,18 @@
       <div><label>จำนวนเงินขอเบิก (รวม VAT)</label><input name="amount" type="number" step="0.01" value="{{ '%.2f'|format(m.amount or 0) }}"></div>
       <div><label>แหล่งเงิน/หมวดงบ</label><input name="budget_source" value="{{ m.budget_source }}"></div>
       <div><label>เบิกจากบัญชี</label>
-        <select name="account_id">
+        <select name="account_id" id="acctSel">
           <option value="">— ไม่ระบุ —</option>
           {% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if m.account_id==a.id }}>{{ a.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div><label>หมวด/รายการ (หักงบรายหมวด)</label>
+        <select name="item_id" id="itemSel"><option value="">— เลือกบัญชีก่อน —</option></select>
+      </div>
+      <div><label>โครงการ (คุมงบ)</label>
+        <select name="project_id">
+          <option value="">— ไม่ผูกโครงการ —</option>
+          {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if m.project_id==pj.id }}>{{ pj.name }}</option>{% endfor %}
         </select>
       </div>
     </div>
@@ -54,6 +63,7 @@
     </div>
     <label>รายละเอียดเพิ่มเติม</label>
     <textarea name="note">{{ m.note or "" }}</textarea>
+    {% if m.status == "จ่ายแล้ว" %}<p class="muted" style="margin:10px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg> บันทึกนี้ลงจ่ายเข้าทะเบียนคุมเงินแล้ว: การแก้ "หมวด / บัญชี / จำนวนเงิน / วันที่" แล้วกดบันทึก จะอัปเดตรายการในทะเบียนคุมเงินให้อัตโนมัติ (ยอดคงเหลือรายหมวดปรับตาม)</p>{% endif %}
     <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกการแก้ไข</button>
   </form>
 </div>
@@ -87,5 +97,21 @@
       if(this.value!==o)this.value=o;
     });
   });
+  // เติมหมวด/รายการตามบัญชีที่เลือก (preselect หมวดเดิมของบันทึกนี้)
+  var ITEMS = {{ items_map|tojson }};
+  var acctSel=document.getElementById('acctSel'), itemSel=document.getElementById('itemSel');
+  function fillItems(sel){
+    if(!itemSel) return;
+    var list=ITEMS[acctSel.value]||[];
+    itemSel.innerHTML = list.length ? '<option value="">— ไม่ระบุหมวด —</option>'
+                                    : '<option value="">— บัญชีนี้ยังไม่มีหมวด —</option>';
+    list.forEach(function(it){
+      var o=document.createElement('option'); o.value=it.id; o.textContent=it.name;
+      if(String(it.id)===String(sel)) o.selected=true;
+      itemSel.appendChild(o);
+    });
+  }
+  if(acctSel){ acctSel.addEventListener('change', function(){fillItems(null);});
+    fillItems({{ m.item_id or 'null' }}); }
 </script>
 {% endblock %}
