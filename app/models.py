@@ -132,6 +132,7 @@ class Procurement(Base):
     proc_type = Column(String, default="ซื้อ")     # ซื้อ / จ้าง
     method = Column(String, default="เฉพาะเจาะจง") # วิธีจัดซื้อจัดจ้าง
     proc_case = Column(String, default="normal")   # รูปแบบ/ชุดเอกสาร: normal/w804/w119t1/w119t2
+    case_extra = Column(Text, default="")          # ฟิลด์เสริมเฉพาะรูปแบบ (เก็บเป็น JSON)
 
     budget_source = Column(String, default="เงินอุดหนุน")  # แหล่งงบประมาณ
     total_amount = Column(Float, default=0.0)      # วงเงินรวม (บาท)

@@ -424,7 +424,7 @@
       </div>
       <nav>
         {% if module != 'hub' %}
-        <a href="/" class="navback"><svg class="icon"><use href="#ic-arrow-left"/></svg> เลือกงาน</a>
+        <a href="/" class="navback" onclick="if(history.length>1){history.back();return false;}"><svg class="icon"><use href="#ic-arrow-left"/></svg> ย้อนกลับ</a>
         {% endif %}
 
         {% if module == 'procurement' %}

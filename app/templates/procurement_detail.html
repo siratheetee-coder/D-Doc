@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ p.memo_no }} - {{ p.subject }}{% endblock %}
 {% block content %}
+{% set case_info = case_info|default({'altkind': None, 'label': '', 'desc': ''}) %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; align-items:center;">
     <h1 style="margin:0;">เลขที่ {{ p.memo_no or "-" }} : {{ p.proc_type }}{{ p.subject }}</h1>

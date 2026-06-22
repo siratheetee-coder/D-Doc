@@ -620,7 +620,48 @@ PROC_CASES = {
     "w119t2": {"label": "ว.119 ตาราง 2 (ค่าบริหาร/ฝึกอบรม)", "altkind": "w119t2",
                "short": "ค่าบริหารงาน/ฝึกอบรม",
                "desc": "ค่าวิทยากร/ค่าอาหาร/จัดประชุม ไม่ถือเป็นการซื้อพัสดุ ไม่จำกัดวงเงิน เอกสารใบเดียวจบ"},
+    "clause79": {"label": "ข้อ 79 วรรค 2 (จำเป็นเร่งด่วน)", "altkind": "clause79",
+                 "short": "จำเป็นเร่งด่วน ทำไปก่อน",
+                 "desc": "กรณีจำเป็นเร่งด่วนที่ไม่ได้คาดหมายไว้ก่อนและทำตามปกติไม่ทัน ดำเนินการจัดซื้อไปก่อน แล้วรายงานขอความเห็นชอบ (หัวหน้าเจ้าหน้าที่อนุมัติ) ถือรายงานเป็นการตรวจรับโดยอนุโลม"},
 }
+
+
+# ฟิลด์เสริมเฉพาะรูปแบบ (key, ป้ายกำกับ, ชนิด) — ใช้สร้างช่องกรอกในฟอร์ม + เก็บลง case_extra (JSON)
+CASE_EXTRA_FIELDS = {
+    "w804": [
+        ("report2_no", "เลขที่บันทึกรายงานสรุปผล/ขอเบิกจ่าย", "text"),
+        ("report2_date", "วันที่รายงานสรุปผล/ขอเบิกจ่าย", "date"),
+        ("receipt_book", "ใบเสร็จรับเงิน เล่มที่", "text"),
+        ("receipt_no", "ใบเสร็จรับเงิน เลขที่", "text"),
+        ("receipt_date", "วันที่ใบเสร็จรับเงิน", "date"),
+        ("deliver_date", "วันที่รับมอบพัสดุ", "date"),
+    ],
+    "w119t1": [
+        ("budget_kind", "ประเภทงบ (เช่น รายหัว / 15 ปี / อื่น ๆ)", "text"),
+        ("advance_payer", "ผู้ทดรองจ่าย/ผู้ยืมเงิน", "text"),
+    ],
+    "w119t2": [
+        ("receipt_book", "ใบเสร็จ/ใบส่งของ เล่มที่", "text"),
+        ("receipt_no", "ใบเสร็จ/ใบส่งของ เลขที่", "text"),
+        ("receipt_date", "วันที่ใบเสร็จ/ใบส่งของ", "date"),
+    ],
+    "clause79": [
+        ("receipt_book", "ใบเสร็จ/ใบส่งของ เล่มที่", "text"),
+        ("receipt_no", "ใบเสร็จ/ใบส่งของ เลขที่", "text"),
+        ("receipt_date", "วันที่ใบเสร็จ/ใบส่งของ", "date"),
+    ],
+}
+
+
+def _collect_case_extra(proc: Procurement, form) -> None:
+    """เก็บค่าฟิลด์เสริมเฉพาะรูปแบบ -> JSON ลง proc.case_extra"""
+    import json
+    spec = CASE_EXTRA_FIELDS.get(proc.proc_case or "normal")
+    if not spec:
+        proc.case_extra = ""
+        return
+    data = {key: (form.get(key) or "").strip() for key, _label, _t in spec}
+    proc.case_extra = json.dumps(data, ensure_ascii=False)
 
 
 def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: float = 0) -> None:
@@ -645,6 +686,7 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
         proc.proc_case = case
     elif not proc.proc_case:
         proc.proc_case = "normal"
+    _collect_case_extra(proc, form)
     proc.budget_source = (form.get("budget_source") or "อุดหนุน").strip()
     proc.price_ref_source = (form.get("price_ref_source") or "การสืบราคาจากท้องตลาด").strip()
     proc.delivery_days = _to_int(form.get("delivery_days"), 7)
@@ -709,6 +751,7 @@ def procurement_new_form(request: Request, db: Session = Depends(get_db),
         "sug_memo": suggest_doc_no(db, "memo", fy),
         "threshold": school.doc_set_threshold or 5000, "positions": POSITION_CHOICES,
         "proc_case": case, "case_info": PROC_CASES[case],
+        "case_extra_fields": CASE_EXTRA_FIELDS.get(case, []), "case_extra": {},
         **_form_lists(db),
     })
 
@@ -861,6 +904,11 @@ def procurement_edit_form(proc_id: int, request: Request, db: Session = Depends(
     school = get_school(db)
     inspect = next((c for c in proc.committees if c.kind == "inspect"), None)
     spec = next((c for c in proc.committees if c.kind == "spec"), None)
+    import json
+    try:
+        extra_vals = json.loads(proc.case_extra) if proc.case_extra else {}
+    except Exception:
+        extra_vals = {}
     return templates.TemplateResponse("procurement_form.html", {
         "request": request, "p": proc, "action": f"/procurement/{proc.id}/edit",
         "prefill_items": list(proc.items),
@@ -868,6 +916,8 @@ def procurement_edit_form(proc_id: int, request: Request, db: Session = Depends(
         "prefill_spec_members": list(spec.members) if spec else [],
         "fiscal_year": proc.fiscal_year, "today_thai": thai_date(),
         "threshold": school.doc_set_threshold or 5000, "positions": POSITION_CHOICES,
+        "case_extra_fields": CASE_EXTRA_FIELDS.get(proc.proc_case or "normal", []),
+        "case_extra": extra_vals,
         **_form_lists(db),
     })
 

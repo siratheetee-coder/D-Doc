@@ -69,6 +69,21 @@ def _total(proc) -> float:
     return float(sum((i.quantity or 0) * (i.unit_price or 0) for i in items))
 
 
+def _extra(proc) -> dict:
+    """อ่านฟิลด์เสริมเฉพาะรูปแบบจาก proc.case_extra (JSON)"""
+    import json
+    try:
+        return json.loads(proc.case_extra) if getattr(proc, "case_extra", "") else {}
+    except Exception:
+        return {}
+
+
+def _x(extra: dict, key: str, blank: str = _BLANK_S) -> str:
+    """ค่าฟิลด์เสริม หรือจุดไข่ปลาถ้าเว้นว่าง"""
+    v = (extra.get(key) or "").strip()
+    return v or blank
+
+
 def _save(doc, name: str) -> str:
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)
@@ -103,10 +118,13 @@ def _header(doc, *, subject_line: str, school, doc_no="", doc_date=None,
             via_head=False):
     """หัวบันทึกข้อความ: ครุฑ + ส่วนราชการ/ที่/วันที่/เรื่อง/เรียน"""
     _krut_and_title(doc)
+    if isinstance(doc_date, str):
+        date_txt = doc_date.strip() or _BLANK
+    else:
+        date_txt = thai_date(doc_date) if doc_date else _BLANK
     _p_runs(doc, [("ส่วนราชการ  ", True), (_school_office(school), False)])
     _p_runs(doc, [("ที่  ", True), (doc_no or _BLANK, False),
-                  ("\t", False), ("วันที่ ", True),
-                  (thai_date(doc_date) if doc_date else _BLANK, False)], tab_cm=8)
+                  ("\t", False), ("วันที่ ", True), (date_txt, False)], tab_cm=8)
     _p_runs(doc, [("เรื่อง  ", True), (subject_line, False)])
     rian = _director_line(school) + ("  ผ่าน หัวหน้าเจ้าหน้าที่" if via_head else "")
     _p_runs(doc, [("เรียน  ", True), (rian, False)])
@@ -129,6 +147,7 @@ def render_w804(proc, school) -> str:
     fy = proc.fiscal_year or ""
     officer = (getattr(school, "officer_name", "") or "").strip()
     n = len(items) or 1
+    ex = _extra(proc)
 
     # ---------- ส่วนที่ 1: รายงานขอซื้อ ----------
     _header(doc, subject_line=f"รายงานขอซื้อ{subject} โดยวิธีเฉพาะเจาะจง",
@@ -193,7 +212,8 @@ def render_w804(proc, school) -> str:
     # ---------- ส่วนที่ 3: รายงานสรุปผล + ขออนุมัติเบิกจ่าย ----------
     doc.add_page_break()
     _header(doc, subject_line=f"รายงานสรุปผลการจัดซื้อ{subject} โดยวิธีเฉพาะเจาะจง และอนุมัติเบิกจ่าย",
-            school=school, doc_no=(proc.memo_no or "").strip(), doc_date=proc.request_date)
+            school=school, doc_no=ex.get("report2_no", "").strip() or (proc.memo_no or "").strip(),
+            doc_date=(ex.get("report2_date", "").strip() or proc.request_date))
     _p(doc, f"ตามที่ {school.name or 'โรงเรียน'} เห็นชอบให้ดำเนินการซื้อ{subject} "
             f"จำนวน {n} รายการ สำหรับโครงการ/กิจกรรม{_project(proc)} โดยวิธีเฉพาะเจาะจง "
             f"ประจำปีงบประมาณ พ.ศ. {fy} นั้น", align="justify", indent=1.25, after=2)
@@ -217,8 +237,9 @@ def render_w804(proc, school) -> str:
        align="justify", indent=0, after=2, size=14)
     _p(doc, "การจัดซื้อคราวนี้ไม่เกินวงเงินที่ประมาณไว้ และเห็นว่าเป็นราคาที่เหมาะสม และได้ใช้"
             f"เงินสดสำรองจ่าย ชำระให้ผู้ขายเรียบร้อยแล้ว ตามหลักฐานการรับเงิน ใบเสร็จรับเงิน "
-            f"เล่มที่ {_BLANK_S} เลขที่ {_BLANK_S} ลงวันที่ {_BLANK_S} และได้รับมอบพัสดุไว้"
-            f"ครบถ้วนเรียบร้อยแล้ว เมื่อวันที่ {_BLANK_S}", align="justify", indent=1.25, after=8)
+            f"เล่มที่ {_x(ex,'receipt_book')} เลขที่ {_x(ex,'receipt_no')} ลงวันที่ {_x(ex,'receipt_date')} "
+            f"และได้รับมอบพัสดุไว้ครบถ้วนเรียบร้อยแล้ว เมื่อวันที่ {_x(ex,'deliver_date')}",
+       align="justify", indent=1.25, after=8)
     _sign_table(doc, [[
         ("ลงชื่อ…………………………………………ผู้ตรวจรับพัสดุ (ผู้ได้รับมอบหมาย)", "center"),
         (f"( {officer or _BLANK} )", "center"),
@@ -239,8 +260,8 @@ def render_w804(proc, school) -> str:
     # ---------- ส่วนที่ 4: ใบติดใบเสร็จรับเงิน ----------
     doc.add_page_break()
     _p(doc, "ใบติดใบเสร็จรับเงิน", align="center", bold=True, size=18, after=6)
-    _p(doc, f"จำนวนเงินตามใบเสร็จรับเงิน เล่มที่ {_BLANK_S} เลขที่ {_BLANK_S} "
-            f"ลงวันที่ {_BLANK_S}", align="justify", indent=1.25, after=2)
+    _p(doc, f"จำนวนเงินตามใบเสร็จรับเงิน เล่มที่ {_x(ex,'receipt_book')} เลขที่ {_x(ex,'receipt_no')} "
+            f"ลงวันที่ {_x(ex,'receipt_date')}", align="justify", indent=1.25, after=2)
     _p(doc, f"ข้าพเจ้าได้ทดรองจ่ายไปก่อนแล้ว เป็นจำนวนเงิน {_money(total)} บาท ({bahttext(total)}) "
             f"และได้รับมอบพัสดุไว้ครบถ้วนถูกต้องแล้ว ข้าพเจ้าขอเบิกเงินจัดซื้อ{subject} "
             f"โดยวิธีเฉพาะเจาะจง จำนวนเงิน {_money(total)} บาท ({bahttext(total)})",
@@ -269,6 +290,7 @@ def render_w119_t1(proc, school) -> str:
     total = _total(proc)
     officer = (getattr(school, "officer_name", "") or "").strip()
     n = len(items) or 1
+    ex = _extra(proc)
     _header(doc, subject_line="รายงานขอความเห็นชอบการจัดซื้อจัดจ้าง และขออนุมัติเบิกจ่ายเงิน",
             school=school, doc_no=(proc.memo_no or "").strip(), doc_date=proc.request_date)
     _p(doc, f"ด้วยข้าพเจ้า {officer or _BLANK} ได้รับอนุมัติให้ดำเนินการตามกิจกรรม"
@@ -307,15 +329,17 @@ def render_w119_t1(proc, school) -> str:
     _p(doc, "โปรดพิจารณา", indent=1.25, after=1)
     _p(doc, "๑. ให้ความเห็นชอบการจัดซื้อจัดจ้างดังกล่าวข้างต้น", indent=1.5, after=1)
     _p(doc, f"๒. อนุมัติให้จ่ายเงิน จำนวน {_money(total)} บาท ({bahttext(total)}) "
-            f"ให้แก่ {_BLANK} ผู้ทดรองจ่าย/ผู้ยืมเงิน", indent=1.5, after=8)
+            f"ให้แก่ {_x(ex,'advance_payer',_BLANK)} ผู้ทดรองจ่าย/ผู้ยืมเงิน", indent=1.5, after=8)
     _sign_table(doc, [[
         ("(ลงชื่อ)............................................ เจ้าหน้าที่การเงิน", "center"),
         (f"( {fin or _BLANK} )", "center"),
     ]])
     # ความเห็นงานแผน/พัสดุ
     _p(doc, "ความเห็นของงานแผนงานและงานพัสดุ", bold=True, indent=1.25, after=1, size=15)
-    _p(doc, "( ) ใช้งบตามกิจกรรม/โครงการที่อนุมัติไว้ตามแผน   งบ ( ) รายหัว  ( ) 15 ปี  "
-            "( ) อื่น ๆ ..............................", indent=1.25, after=8)
+    _bk = (ex.get("budget_kind") or "").strip()
+    _p(doc, "( ) ใช้งบตามกิจกรรม/โครงการที่อนุมัติไว้ตามแผน   งบ "
+            + (_bk if _bk else "( ) รายหัว  ( ) 15 ปี  ( ) อื่น ๆ .............................."),
+       indent=1.25, after=8)
     _sign_table(doc, [
         [("(ลงชื่อ).............................................เจ้าหน้าที่พัสดุ", "center"),
          (f"( {officer or _BLANK} )", "center")],
@@ -340,6 +364,7 @@ def render_w119_t2(proc, school) -> str:
     doc = _font_doc()
     total = _total(proc)
     n = len(_items(proc)) or 1
+    ex = _extra(proc)
     officer = (getattr(school, "officer_name", "") or "").strip()
     vendor = proc.vendor.name if proc.vendor else _BLANK
     dept = (proc.department or "").strip() or (school.name or "หน่วยงาน")
@@ -349,8 +374,8 @@ def render_w119_t2(proc, school) -> str:
             f"จำนวน {n} รายการ รวมเป็นจำนวนเงินทั้งสิ้น {_money(total)} บาท ({bahttext(total)}) "
             f"และประสงค์จะรายงานขอความเห็นชอบในการดำเนินการจัดซื้อจัดจ้างในครั้งนี้ "
             f"ตามหลักฐานการจัดซื้อจัดจ้างเป็น ใบส่งของ/ใบแจ้งหนี้/ใบเสร็จรับเงิน/ใบสำคัญรับเงิน "
-            f"ของ {vendor} เล่มที่ {_BLANK_S} เลขที่ {_BLANK_S} วันที่ {_BLANK_S} "
-            f"เป็นเงิน {_money(total)} บาท ({bahttext(total)})",
+            f"ของ {vendor} เล่มที่ {_x(ex,'receipt_book')} เลขที่ {_x(ex,'receipt_no')} "
+            f"วันที่ {_x(ex,'receipt_date')} เป็นเงิน {_money(total)} บาท ({bahttext(total)})",
        align="justify", indent=1.25, after=2)
     _p(doc, f"ทั้งนี้ การดำเนินการจัดซื้อจัดจ้างดังกล่าวนี้ เป็นไปตาม{_W119_REF} "
             "ตามตารางที่ 2 กรณีจัดซื้อจัดจ้างพัสดุที่เกี่ยวกับค่าใช้จ่ายในการบริหารงานที่มีวงเงิน"
@@ -382,6 +407,49 @@ def render_w119_t2(proc, school) -> str:
     return _save(doc, f"ว119ตาราง2_{(proc.memo_no or proc.id)}_{(proc.subject or '').strip()}")
 
 
+# ============================================================
+# ข้อ 79 วรรค 2 — กรณีจำเป็นเร่งด่วน (ดำเนินการไปก่อน) — บันทึกเดียวจบ
+# ============================================================
+def render_clause79(proc, school) -> str:
+    """ข้อ 79 วรรคสอง — รายงานขอความเห็นชอบ (จำเป็นเร่งด่วน) อนุมัติโดยหัวหน้าเจ้าหน้าที่"""
+    doc = _font_doc()
+    total = _total(proc)
+    n = len(_items(proc)) or 1
+    ex = _extra(proc)
+    officer = (getattr(school, "officer_name", "") or "").strip()
+    head = (getattr(school, "head_officer_name", "") or "").strip()
+    vendor = proc.vendor.name if proc.vendor else _BLANK
+    who = officer or _BLANK
+    purpose = (proc.purpose or "").strip()
+    purpose_txt = ("เพื่อ" + purpose + " ") if purpose else ""
+    _header(doc, subject_line="รายงานขอความเห็นชอบการจัดซื้อจัดจ้างตามระเบียบฯ ข้อ 79 วรรคสอง",
+            school=school, doc_no=(proc.memo_no or "").strip(), doc_date=proc.request_date)
+    _p(doc, f"ด้วย {who} มีความจำเป็นต้องซื้อ{(proc.subject or '').strip()} {purpose_txt}"
+            f"จำนวน {n} รายการ เป็นจำนวนเงิน {_money(total)} บาท ({bahttext(total)}) "
+            f"จาก {vendor} ตาม (ใบเสร็จรับเงิน/ใบส่งของ) เล่มที่ {_x(ex,'receipt_book')} "
+            f"เลขที่ {_x(ex,'receipt_no')} วันที่ {_x(ex,'receipt_date')} "
+            "เนื่องจากเป็นกรณีที่มีความจำเป็นเร่งด่วนที่เกิดขึ้นโดยไม่ได้คาดหมายไว้ก่อนและไม่อาจ"
+            "ดำเนินการตามปกติได้ทัน จึงได้ดำเนินการจัดซื้อ/จัดจ้างไปก่อน ทั้งนี้ตามระเบียบกระทรวง"
+            "การคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 ข้อ 79 วรรคสอง",
+       align="justify", indent=1.25, after=2)
+    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณาให้ความเห็นชอบ และให้ถือรายงานนี้เป็นหลักฐานการตรวจรับพัสดุ"
+            "ตามระเบียบฯ ข้อ 79 วรรคสอง", align="justify", indent=1.25, after=10)
+    _sign_table(doc, [[
+        ("ลงชื่อ ...................................... เจ้าหน้าที่ผู้รับผิดชอบ", "center"),
+        (f"( {who} )", "center"),
+    ]])
+    _p(doc, "เรียน หัวหน้าเจ้าหน้าที่", indent=1.25, after=1)
+    _p(doc, "โปรดพิจารณา", indent=1.25, after=1)
+    _p(doc, "๑. ให้ความเห็นชอบการจัดซื้อ/จัดจ้างดังกล่าวข้างต้น", indent=1.5, after=1)
+    _p(doc, f"๒. อนุมัติให้จ่ายเงินจำนวน {_money(total)} บาท ({bahttext(total)})", indent=1.5, after=10)
+    _sign_table(doc, [[
+        ("ลงชื่อ .........................................", "center"),
+        (f"( {head or _BLANK} )", "center"),
+        ("หัวหน้าเจ้าหน้าที่", "center"),
+    ]])
+    return _save(doc, f"ข้อ79วรรค2_{(proc.memo_no or proc.id)}_{(proc.subject or '').strip()}")
+
+
 def _font_doc():
     from docx import Document
     doc = Document()
@@ -394,4 +462,5 @@ RENDERERS = {
     "w804": render_w804,
     "w119t1": render_w119_t1,
     "w119t2": render_w119_t2,
+    "clause79": render_clause79,
 }

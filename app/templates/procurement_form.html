@@ -22,12 +22,13 @@
   <form method="post" action="{{ action }}">
     {% if pending_file|default('') %}<input type="hidden" name="pending_file" value="{{ pending_file }}">{% endif %}
     <input type="hidden" name="proc_case" value="{{ proc_case if proc_case is defined else (p.proc_case if p and p.proc_case else 'normal') }}">
+    {% set is_special = (proc_case if proc_case is defined else (p.proc_case if p and p.proc_case else 'normal')) != 'normal' %}
     <div class="row">
       {% if not is_edit %}
-      <div><label>เลขที่บันทึกรายงานขอซื้อ/จ้าง</label>
+      <div><label>{{ "เลขที่บันทึก" if is_special else "เลขที่บันทึกรายงานขอซื้อ/จ้าง" }}</label>
         <input name="memo_no" value="{{ prefill_memo|default('') or sug_memo }}" placeholder="เช่น 1/2569">
       </div>
-      <div><label>วันที่รายงานขอซื้อ/จ้าง</label>
+      <div><label>{{ "วันที่บันทึก" if is_special else "วันที่รายงานขอซื้อ/จ้าง" }}</label>
         <input name="request_date" value="{{ prefill_date|default('') or today_input|default('') }}" placeholder="วว/ดด/ปปปป" data-date="1">
       </div>
       {% endif %}
@@ -39,12 +40,14 @@
           <option value="ซื้อ" {{ "selected" if cur_type=="ซื้อ" }}>ซื้อ</option>
           <option value="จ้าง" {{ "selected" if cur_type=="จ้าง" }}>จ้าง</option>
         </select></div>
+      {% if not is_special %}
       <div><label>วิธี</label>
         <select name="method">
           {% for mth in ["เฉพาะเจาะจง", "คัดเลือก", "ประกวดราคาอิเล็กทรอนิกส์ (e-bidding)"] %}
           <option value="{{ mth }}" {{ "selected" if is_edit and p.method==mth }}>{{ mth }}</option>
           {% endfor %}
         </select></div>
+      {% endif %}
     </div>
     {% if not is_edit %}<div class="alert" style="display:flex;align-items:center;gap:8px;">
       <svg class="icon"><use href="#ic-info"/></svg>
@@ -71,10 +74,12 @@
     <div class="row">
       <div><label>แหล่งงบประมาณ</label>
         <input name="budget_source" value="{{ p.budget_source if is_edit else (prefill_budget|default('') or 'อุดหนุน') }}"></div>
+      {% if not is_special %}
       <div><label>ที่มาราคากลาง</label>
         <input name="price_ref_source" value="{{ p.price_ref_source if is_edit else 'การสืบราคาจากท้องตลาด' }}"></div>
       <div><label>กำหนดส่งมอบ (วัน)</label>
         <input name="delivery_days" type="number" value="{{ p.delivery_days if is_edit else prefill_delivery|default(7) }}"></div>
+      {% endif %}
       <div><label id="vendorLabel">ผู้ขาย</label>
         <input name="vendor_name" id="vendorInput" list="vendors_dl" autocomplete="off"
                value="{{ p.vendor.name if is_edit and p.vendor else prefill_vendor|default('') }}"
@@ -86,6 +91,7 @@
       </div>
     </div>
 
+    {% if not is_special %}
     <div class="row">
       <div><label>ภาษีมูลค่าเพิ่ม (VAT)</label>
         <select name="vat_mode">
@@ -98,6 +104,7 @@
           <option value="head_officer" {{ "selected" if is_edit and p.order_signer=='head_officer' }}>หัวหน้าเจ้าหน้าที่</option>
         </select></div>
     </div>
+    {% endif %}
 
     <h2 style="margin-top:20px;">รายการพัสดุ</h2>
     <table id="items">
@@ -127,6 +134,20 @@
     <br><button type="button" class="btn soft sm" onclick="addItem()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มรายการ</button>
     <p style="margin-top:8px;">วงเงินรวมโดยประมาณ: <b id="totalShow">0.00</b> บาท</p>
 
+    {% if is_special and case_extra_fields %}
+    <h2 style="margin-top:20px;">ข้อมูลเพิ่มเติมสำหรับเอกสาร{{ (' ' ~ case_info.label) if case_info is defined else '' }}</h2>
+    <p class="muted" style="margin:-6px 0 10px;">เว้นว่างได้ — ช่องที่ไม่กรอก ระบบจะใส่จุดไข่ปลาให้เติมมือในเอกสาร</p>
+    <div class="row">
+      {% for key, label, typ in case_extra_fields %}
+      <div><label>{{ label }}</label>
+        <input name="{{ key }}" value="{{ case_extra.get(key, '') if case_extra else '' }}"
+               {% if typ == 'date' %}placeholder="วว/ดด/ปปปป" data-date="1"{% endif %}>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not is_special %}
     <h2 style="margin-top:20px;">ผู้ตรวจรับพัสดุ</h2>
     <div class="row">
       <div style="max-width:340px;">
@@ -201,6 +222,7 @@
       </tbody>
     </table>
     <br><button type="button" class="btn soft sm" onclick="addSpecMember()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มกรรมการคุณลักษณะ</button>
+    {% endif %}
 
     <br><br>
     <button class="btn green" type="submit"><svg class="icon"><use href="#ic-save"/></svg> {{ "บันทึกการแก้ไข" if is_edit else "บันทึกและออกเลขที่" }}</button>
@@ -333,6 +355,7 @@
     document.getElementById('totalShow').innerText = t.toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
     // บังคับโหมดตามวงเงิน: เกินเกณฑ์ -> คณะกรรมการ (ปิดตัวเลือกคนเดียว)
     var modeSel = document.getElementById('mode');
+    if (!modeSel) return;   // ฟอร์มแบบพิเศษไม่มีส่วนคณะกรรมการ
     var singleOpt = modeSel.querySelector('option[value="single"]');
     var hint = document.getElementById('modeHint');
     if (t > THRESHOLD) {
