@@ -732,6 +732,31 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
         proc.committees.append(spec)
 
 
+@router.post("/procurement/ocr-items")
+async def procurement_ocr_items(file: UploadFile = File(...)):
+    """OCR รูปรายการพัสดุ -> คืนรายการ (JSON) ให้ฟอร์มเติมในตารางรายการ (ไม่ออกจากหน้า)"""
+    from app.services.pdf_extract import ocr_image, _parse_items_from_text
+    import tempfile, os
+    data = await file.read()
+    ext = file_upload.detect_ext(data, file.filename or "")
+    if ext not in ("png", "jpg", "webp"):
+        return JSONResponse({"items": [], "error": "ไฟล์ต้องเป็นรูปภาพ (png/jpg/webp)"})
+    tmp = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix="." + ext, delete=False) as tf:
+            tf.write(data)
+            tmp = tf.name
+        text = ocr_image(tmp)
+        items = _parse_items_from_text(text)
+    finally:
+        if tmp:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+    return JSONResponse({"items": items, "ocr": bool((text or '').strip())})
+
+
 @router.get("/procurement/new", response_class=HTMLResponse)
 def procurement_new_form(request: Request, db: Session = Depends(get_db),
                          case: str | None = None):
