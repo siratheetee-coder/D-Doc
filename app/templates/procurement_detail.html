@@ -347,22 +347,26 @@
   var orderInput = document.getElementById('order_date');
   var dueInput   = document.getElementById('delivery_due_date');
   if (orderInput && dueInput) {
-    orderInput.addEventListener('change', function() {
-      if (dueInput.value) return;   // ถ้ากรอกไว้แล้วไม่ override
-      var v = this.value;
-      var parts = v.split('/');
+    var dueTouched = false;   // ผู้ใช้แก้ช่องครบกำหนดเองหรือยัง
+    dueInput.addEventListener('input', function(){ dueTouched = true; });
+    function _recalcDue() {
+      if (dueTouched) return;          // ถ้าผู้ใช้แก้เองแล้ว ไม่ override
+      var parts = (orderInput.value || '').split('/');
       if (parts.length !== 3) return;
       var d = parseInt(parts[0], 10), mo = parseInt(parts[1], 10), yr = parseInt(parts[2], 10);
       if (!d || !mo || !yr) return;
-      if (yr > 2400) yr -= 543;     // แปลง พ.ศ. → ค.ศ.
+      if (yr > 2400) yr -= 543;        // แปลง พ.ศ. → ค.ศ.
       var dt = new Date(yr, mo - 1, d);
       dt.setDate(dt.getDate() + deliveryDays);
       var dd = String(dt.getDate()).padStart(2,'0');
       var dm = String(dt.getMonth()+1).padStart(2,'0');
       var dy = String(dt.getFullYear() + 543);
       dueInput.value = dd + '/' + dm + '/' + dy;
-      _checkHoliday(dueInput);   // อัปเดตการเตือนวันหยุดของช่องครบกำหนด
-    });
+      _checkHoliday(dueInput);
+    }
+    // คำนวณใหม่ทุกครั้งที่วันที่ใบสั่งเปลี่ยน (กรอก/แก้) ตราบใดที่ยังไม่แก้ครบกำหนดเอง
+    orderInput.addEventListener('input', _recalcDue);
+    orderInput.addEventListener('change', _recalcDue);
   }
 
   // ===== ใช้วันที่เดียวกันทุกช่อง =====

@@ -372,6 +372,17 @@
   }
   calcTotal(); syncType(); refreshAllRoles();
 
+  // ใส่ / ให้อัตโนมัติในช่องวันที่ (วว/ดด/ปปปป)
+  function _attachDateMask(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  }
+  document.querySelectorAll('input[data-date]').forEach(_attachDateMask);
+
   // เลือกชื่อบุคลากร -> เติมตำแหน่งให้อัตโนมัติ (จำตำแหน่งของแต่ละคน)
   var PERSON_POS = {{ persons_pos | tojson }};
   document.addEventListener('input', function(e){
