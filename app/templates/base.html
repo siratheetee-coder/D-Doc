@@ -41,6 +41,13 @@
     .layout[data-module="finance"] { --brand:#16a34a; --brand-dark:#15803d; --brand-soft:#dcfce7; }
     /* พัสดุ + hub ใช้สีน้ำเงินเริ่มต้นจาก :root */
     * { box-sizing: border-box; }
+    /* กันหน้าจอ "ขยับซ้าย-ขวา" เวลาสลับหน้า (หน้าสั้นไม่มีสกรอลล์ vs หน้ายาวมีสกรอลล์) — จองที่สกรอลล์ไว้เสมอ */
+    html { overflow-y: scroll; scrollbar-gutter: stable; }
+    /* สปินเนอร์หมุน (ใช้ตอนรอ AI/OCR) */
+    .spin { display:inline-block; width:14px; height:14px; vertical-align:-2px;
+      border:2px solid rgba(72,128,255,.3); border-top-color:var(--brand); border-radius:50%;
+      animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     body {
       /* ฟอนต์ UI ทันสมัย (ใช้ฟอนต์ที่มีในเครื่อง Windows อยู่แล้ว ไม่ต้องต่อเน็ต):
          Sarabun (โมเดิร์น) -> Leelawadee UI (Thai UI ของ Windows) -> Segoe UI */
@@ -384,6 +391,7 @@
     <symbol id="ic-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></symbol>
     <symbol id="ic-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></symbol>
     <symbol id="ic-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="ic-ai" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"/><path d="M19 14l.8 2L22 16.8 20 17.6 19 20l-.8-2.4L16 16.8l2.2-.8z"/></symbol>
     <symbol id="ic-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
     <symbol id="ic-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></symbol>
     <symbol id="ic-package" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/></symbol>

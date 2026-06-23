@@ -48,7 +48,7 @@
   <!-- กราฟแท่ง: ยอดจัดซื้อรายเดือน -->
   <div class="chart-card">
     <div class="chart-title">ยอดจัดซื้อรายเดือน</div>
-    <div class="chart-note">ปีงบประมาณ {{ fiscal_year }} (สูงสุด {{ "{:,.0f}".format(charts.monthly_max) }} บาท)</div>
+    <div class="chart-note">ปีงบประมาณ {{ fiscal_year }} · ตามวันที่ใบสั่งซื้อ/จ้าง (สูงสุด {{ "{:,.0f}".format(charts.monthly_max) }} บาท)</div>
     {% if charts.monthly_max > 0 %}
     <svg viewBox="0 0 660 200" role="img" aria-label="ยอดจัดซื้อรายเดือน">
       <line x1="6" y1="170" x2="654" y2="170" stroke="#e3e7ef" stroke-width="1"/>

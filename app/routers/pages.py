@@ -94,8 +94,8 @@ def _dashboard_charts(procurements):
     # --- รายเดือน ---
     sums = {m: 0.0 for m in _FY_MONTHS}
     for p in procurements:
-        if p.request_date:
-            sums[p.request_date.month] = sums.get(p.request_date.month, 0) + (p.total_amount or 0)
+        if p.order_date:                     # อิงวันที่ใบสั่งซื้อ/จ้าง (เรื่องที่ยังไม่ออกใบสั่ง = ยังไม่นับเป็นยอดซื้อ)
+            sums[p.order_date.month] = sums.get(p.order_date.month, 0) + (p.total_amount or 0)
     maxv = max(sums.values()) or 1
     bars = [{"label": lab, "value": sums[m], "frac": sums[m] / maxv}
             for m, lab in zip(_FY_MONTHS, _FY_MONTH_LABELS)]

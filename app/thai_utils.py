@@ -80,9 +80,12 @@ def thai_date_official(dt: datetime | None = None) -> str:
 
 
 def be_date_input(dt) -> str:
-    """ฟอร์แมตวันที่เป็น พ.ศ. สำหรับช่องกรอก เช่น '06/06/2569' (ว่างถ้าไม่มี)"""
+    """ฟอร์แมตวันที่เป็น พ.ศ. สำหรับช่องกรอก เช่น '06/06/2569' (ว่างถ้าไม่มี)
+    รับได้ทั้ง datetime และสตริง (เช่นค่าที่ AI คืนมาเป็น 'วว/ดด/ปปปป' อยู่แล้ว)"""
     if not dt:
         return ""
+    if isinstance(dt, str):
+        return dt.strip()
     return f"{dt.day:02d}/{dt.month:02d}/{dt.year + 543}"
 
 
