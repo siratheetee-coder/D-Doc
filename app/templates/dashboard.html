@@ -107,7 +107,12 @@
       <td>{{ p.method }}</td>
       <td class="right">{{ "{:,.2f}".format(p.total_amount or 0) }}</td>
       <td>{{ p.vendor.name if p.vendor else "-" }}</td>
-      <td><span class="pill {{ 'approve' if p.status=='อนุมัติ' else 'done' if p.status in ['ตรวจรับแล้ว','เบิกจ่ายแล้ว'] else '' }}">{{ p.status }}</span></td>
+      <td>
+        <select class="status-sel" onchange="setStatus({{ p.id }}, this)" title="เปลี่ยนสถานะ"
+                style="width:auto; padding:4px 8px; font-size:13px;">
+          {% for s in ['ร่าง','อนุมัติ','ตรวจรับแล้ว','เบิกจ่ายแล้ว'] %}<option value="{{ s }}" {{ 'selected' if p.status==s }}>{{ s }}</option>{% endfor %}
+        </select>
+      </td>
     </tr>
     {% endfor %}
   </tbody>
@@ -161,4 +166,16 @@
 <div class="card"><p class="muted">ยังไม่มีรายการในปีงบประมาณนี้ กรุณากด "สร้างเรื่องใหม่" เพื่อเริ่มใช้งาน</p></div>
 {% endif %}
 {% endif %}
+
+<script>
+  // เปลี่ยนสถานะเรื่องจากตารางได้เลย (ไม่ต้องเข้าหน้ารายละเอียด)
+  function setStatus(id, sel){
+    sel.disabled = true;
+    var fd = new FormData(); fd.append('status', sel.value); fd.append('ajax', '1');
+    fetch('/procurement/' + id + '/status', {method:'POST', body:fd})
+      .then(function(r){ sel.disabled = false; if(!r.ok) throw 0;
+        sel.style.outline = '2px solid #16a34a'; setTimeout(function(){ sel.style.outline=''; }, 700); })
+      .catch(function(){ sel.disabled = false; alert('เปลี่ยนสถานะไม่สำเร็จ ลองใหม่อีกครั้ง'); });
+  }
+</script>
 {% endblock %}

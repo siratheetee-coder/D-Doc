@@ -3,7 +3,7 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">แผนปฏิบัติการ · งบที่ตั้ง vs ใช้จริง vs คงเหลือ</div>
+    <div class="hero-sub">แผนปฏิบัติการประจำปีและการบริหารงบประมาณโครงการ</div>
     <span class="hero-title">โครงการ/แผนงบ</span>
     <div class="hero-meta">{{ year_label }} {{ fiscal_year }} · {{ rows|length }} โครงการ · งบรวม {{ "{:,.0f}".format(total_budget) }} · ใช้ไป {{ "{:,.0f}".format(total_spent) }} บาท</div>
   </div>
@@ -20,7 +20,7 @@
 
 <div class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มโครงการ ({{ year_label }} {{ fiscal_year }})</h2>
-  <p class="muted" style="margin-top:0;">เพิ่มโครงการได้ทุกเมื่อระหว่างปี (เช่น พอแผนปฏิบัติการออกตอนเปิดเทอม) · งบที่ตั้งนับเป็นการปรับงบ "ครั้งที่ 1"</p>
+  <p class="muted" style="margin-top:0;">สามารถเพิ่มหรือแก้ไขโครงการได้ระหว่างปีงบประมาณ (เช่น เมื่อมีแผนปฏิบัติการประจำปีการศึกษาใหม่)</p>
   <form method="post" action="/projects">
     <div class="row">
       <div style="flex:2;"><label>ชื่อโครงการ *</label><input name="name" required placeholder="เช่น โครงการวันสำคัญทางวิชาการ"></div>

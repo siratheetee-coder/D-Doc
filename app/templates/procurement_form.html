@@ -133,8 +133,12 @@
     </table>
     <br><button type="button" class="btn soft sm" onclick="addItem()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มรายการ</button>
     <label class="btn gray sm" style="cursor:pointer; margin-left:6px;">
-      <svg class="icon"><use href="#ic-upload"/></svg> ถ่ายรูป/อัพโหลดรูปรายการ
+      <svg class="icon"><use href="#ic-upload"/></svg> ถ่ายรูป (อ่านเร็ว)
       <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="ocrItems(this)">
+    </label>
+    <label class="btn soft sm" style="cursor:pointer; margin-left:6px;">
+      <svg class="icon"><use href="#ic-upload"/></svg> ให้ AI ช่วยอ่าน (แม่นกว่า)
+      <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="aiItems(this)">
     </label>
     <span id="ocrMsg" class="muted" style="margin-left:8px; font-size:13px;"></span>
     <p style="margin-top:8px;">วงเงินรวมโดยประมาณ: <b id="totalShow">0.00</b> บาท</p>
@@ -401,23 +405,26 @@
       '<td class="center"><button type="button" class="btn red sm" onclick="this.closest(\'tr\').remove();calcTotal()">✕</button></td>';
     tb.appendChild(tr);
   }
-  function ocrItems(input){
+  function _uploadItems(input, url, busyMsg){
     if(!input.files || !input.files[0]) return;
     var msg = document.getElementById('ocrMsg');
-    msg.textContent = 'กำลังอ่านรูป...';
+    msg.textContent = busyMsg;
     var fd = new FormData(); fd.append('file', input.files[0]);
-    fetch('/procurement/ocr-items', {method:'POST', body:fd})
+    fetch(url, {method:'POST', body:fd})
       .then(function(r){ return r.json(); })
       .then(function(d){
         input.value = '';
+        if(d && d.error){ msg.textContent = d.error; return; }
         var items = (d && d.items) || [];
         if(!items.length){ msg.textContent = 'อ่านรายการจากรูปไม่ได้ — ลองถ่ายให้ชัด/ตรงขึ้น หรือเพิ่มรายการเอง'; return; }
         items.forEach(function(it){ _addItemRow(it.name, it.qty, it.unit, it.unit_price); });
         if(typeof calcTotal === 'function') calcTotal();
-        msg.textContent = 'เพิ่ม '+items.length+' รายการจากรูปแล้ว — โปรดตรวจ/แก้ให้ถูกต้องก่อนบันทึก';
+        msg.textContent = 'เพิ่ม '+items.length+' รายการแล้ว — โปรดตรวจ/แก้ให้ถูกต้องก่อนบันทึก';
       })
       .catch(function(){ input.value=''; msg.textContent = 'อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง'; });
   }
+  function ocrItems(input){ _uploadItems(input, '/procurement/ocr-items', 'กำลังอ่านรูป (OCR)...'); }
+  function aiItems(input){ _uploadItems(input, '/procurement/ai-items', 'กำลังให้ AI อ่านรูป...'); }
 
   // เลือกชื่อบุคลากร -> เติมตำแหน่งให้อัตโนมัติ (จำตำแหน่งของแต่ละคน)
   var PERSON_POS = {{ persons_pos | tojson }};

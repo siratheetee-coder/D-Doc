@@ -757,6 +757,36 @@ async def procurement_ocr_items(file: UploadFile = File(...)):
     return JSONResponse({"items": items, "ocr": bool((text or '').strip())})
 
 
+@router.post("/procurement/ai-items")
+async def procurement_ai_items(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """ให้ AI (vision) อ่านรูปรายการพัสดุ -> คืนรายการ (JSON) ใช้ API key ของโรงเรียน"""
+    from app.services.ai_extract import extract_items_from_image
+    key = (get_school(db).ai_api_key or "").strip()
+    if not key:
+        return JSONResponse({"items": [], "error": "ยังไม่ได้ตั้งค่า API key (ไปที่ตั้งค่าโรงเรียน)"})
+    data = await file.read()
+    ext = file_upload.detect_ext(data, file.filename or "")
+    if ext not in ("png", "jpg", "webp"):
+        return JSONResponse({"items": [], "error": "ไฟล์ต้องเป็นรูปภาพ (png/jpg/webp)"})
+    # ย่อรูปก่อนส่ง (ลดค่าใช้จ่าย + เข้าขนาดที่โมเดลรองรับ) แล้วส่งเป็น JPEG
+    try:
+        from PIL import Image, ImageOps
+        import io as _io
+        img = ImageOps.exif_transpose(Image.open(_io.BytesIO(data))).convert("RGB")
+        img.thumbnail((1600, 1600))
+        buf = _io.BytesIO(); img.save(buf, "JPEG", quality=85)
+        img_bytes, media = buf.getvalue(), "image/jpeg"
+    except Exception:
+        media = {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp"}[ext]
+        img_bytes = data
+    res = extract_items_from_image(img_bytes, media, key)
+    if res.get("error"):
+        msg = {"request": "เรียก AI ไม่สำเร็จ (ตรวจ API key/อินเทอร์เน็ต)",
+               "no_json": "AI ตอบไม่เป็นรูปแบบที่อ่านได้", "bad_json": "AI ตอบไม่เป็นรูปแบบที่อ่านได้"}
+        return JSONResponse({"items": [], "error": msg.get(res["error"], res["error"])})
+    return JSONResponse({"items": res.get("items", []), "ok": True})
+
+
 @router.get("/procurement/new", response_class=HTMLResponse)
 def procurement_new_form(request: Request, db: Session = Depends(get_db),
                          case: str | None = None):
@@ -1013,10 +1043,13 @@ def document_download(doc_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/procurement/{proc_id}/status")
-def procurement_set_status(proc_id: int, status: str = Form(...), db: Session = Depends(get_db)):
+def procurement_set_status(proc_id: int, status: str = Form(...),
+                           ajax: str = Form(""), db: Session = Depends(get_db)):
     proc = db.get(Procurement, proc_id)
     if proc:
         proc.status = status; db.commit()
+    if ajax:                              # เรียกจาก dropdown ในตาราง (ไม่ต้องเปลี่ยนหน้า)
+        return Response(status_code=204)
     return RedirectResponse(f"/procurement/{proc_id}", status_code=303)
 
 
@@ -1400,8 +1433,8 @@ def project_detail(pid: int, request: Request, db: Session = Depends(get_db)):
     p = db.get(Project, pid)
     if not p:
         return RedirectResponse("/projects", status_code=303)
-    procs = (db.query(Procurement).filter(Procurement.project_id == pid)
-             .order_by(Procurement.id.desc()).all())
+    from app.services.budget import project_procurements
+    procs = project_procurements(p)
     disb = (db.query(DisburseMemo).filter(DisburseMemo.project_id == pid)
             .order_by(DisburseMemo.id.desc()).all())
     next_seq = max([r.seq or 0 for r in p.revisions], default=0) + 1

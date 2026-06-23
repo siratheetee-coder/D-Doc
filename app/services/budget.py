@@ -28,16 +28,31 @@ def project_budget(project) -> float:
     return float(project.budget or 0)
 
 
+def project_procurements(project) -> list:
+    """เรื่องจัดซื้อที่ผูกกับโครงการนี้ = ผูกด้วย project_id หรือ (เรื่องเก่า) ชื่อโครงการ+ปีตรงกัน
+    (เผื่อเรื่องที่สร้างก่อนมีโมดูลนี้ ยังไม่มี project_id แต่เลือกชื่อโครงการไว้)"""
+    from app.models import Procurement
+    from sqlalchemy import or_, and_
+    from sqlalchemy.orm import object_session
+    db = object_session(project)
+    if db is None:
+        return []
+    cond = Procurement.project_id == project.id
+    if project.name:
+        cond = or_(cond, and_(Procurement.project_id.is_(None),
+                              Procurement.project_name == project.name,
+                              Procurement.fiscal_year == project.plan_year))
+    return db.query(Procurement).filter(cond).order_by(Procurement.id.desc()).all()
+
+
 def project_spent(project) -> float:
     """ยอดใช้จริงของโครงการ = เรื่องจัดซื้อที่ผูก + ขอเบิกจ่ายเดี่ยวที่ผูก (กันนับซ้ำเรื่องที่เบิกจากจัดซื้อ)"""
-    from app.models import Procurement, DisburseMemo
+    from app.models import DisburseMemo
     from sqlalchemy.orm import object_session
     db = object_session(project)
     if db is None:
         return 0.0
-    procs = (db.query(Procurement)
-             .filter(Procurement.project_id == project.id).all())
-    spent = sum(p.total_amount or 0 for p in procs)
+    spent = sum(p.total_amount or 0 for p in project_procurements(project))
     disb = (db.query(DisburseMemo)
             .filter(DisburseMemo.project_id == project.id,
                     DisburseMemo.procurement_id.is_(None)).all())
