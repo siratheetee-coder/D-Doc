@@ -14,11 +14,11 @@
   .toggle.disabled { cursor:not-allowed; opacity:.55; }
 </style>
 <div class="card" style="border:1px solid #c7d7fb; background:#f5f9ff;">
-  <h1><svg class="icon"><use href="#ic-download"/></svg> อัพโหลดเรื่องซื้อ/จ้าง (PDF/Word)</h1>
+  <h1><svg class="icon"><use href="#ic-download"/></svg> อัพโหลดเรื่องซื้อ/จ้าง (PDF/Word/รูปถ่าย)</h1>
   {% if err %}
   <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }} — ลองอัปโหลดไฟล์ใหม่อีกครั้ง</div>
   {% endif %}
-  <p class="muted" style="margin-top:0;">มีไฟล์เรื่องซื้อ/จ้าง (PDF หรือ Word) อยู่แล้ว อัปโหลดได้เลย ระบบจะอ่านข้อมูลมาเติมให้ กรุณาตรวจก่อนบันทึก <b>(แนะนำไฟล์ Word ถ้ามี — ดึงรายการพัสดุ/ข้อมูลแม่นกว่า PDF)</b></p>
+  <p class="muted" style="margin-top:0;">มีไฟล์เรื่องซื้อ/จ้าง (PDF/Word) หรือ <b>รูปถ่ายรายการพัสดุ/ใบเสนอราคา</b> ก็อัปโหลดได้ ระบบจะอ่านข้อมูลมาเติมให้ กรุณาตรวจก่อนบันทึก <b>(ไฟล์ Word แม่นสุด · รูปถ่ายใช้ OCR อ่านได้คร่าว ๆ ถ่ายชัด ๆ ตรง ๆ จะแม่นขึ้น)</b></p>
 
   <div class="row" style="align-items:stretch;">
     <!-- ซ้าย: อัปโหลดไฟล์ PDF/Word -->
@@ -28,8 +28,8 @@
         <div>ระบบอาจดึงข้อมูลได้ไม่ครบ เนื่องจากรูปแบบฟอร์มของแต่ละโรงเรียนอาจไม่ตรงกัน โปรดตรวจสอบและแก้ไขก่อนบันทึกทุกครั้ง</div>
       </div>
       <form method="post" action="/procurement/from-file/upload" enctype="multipart/form-data" onsubmit="syncAi(this)" style="margin:0;">
-        <label>เลือกไฟล์เรื่องซื้อ/จ้าง (PDF หรือ Word)</label>
-        <input type="file" name="file" accept=".pdf,.docx" required
+        <label>เลือกไฟล์ หรือ ถ่ายรูปรายการพัสดุ (PDF / Word / รูปภาพ)</label>
+        <input type="file" name="file" accept=".pdf,.docx,image/*" capture="environment" required
                style="padding:6px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; width:100%;">
         <br><br>
         <button class="btn" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อ่านไฟล์และเติมในฟอร์ม</button>

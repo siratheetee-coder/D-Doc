@@ -55,11 +55,68 @@ def _extract_text_docx(path: str) -> str:
         return ""
 
 
+_IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff")
+
+
+def _is_image(path: str) -> bool:
+    return path.lower().endswith(_IMAGE_EXTS)
+
+
+def ocr_image(path: str) -> str:
+    """อ่านตัวอักษรจากรูปภาพด้วย Tesseract (ไทย+อังกฤษ) — คืน '' ถ้าไม่ได้ติดตั้ง/อ่านไม่ได้"""
+    try:
+        import pytesseract
+        from PIL import Image, ImageOps
+    except Exception:
+        return ""
+    try:
+        img = Image.open(path)
+        img = ImageOps.exif_transpose(img)          # หมุนตาม EXIF (รูปจากมือถือ)
+        img = img.convert("L")                       # ขาวดำ ช่วยให้ OCR แม่นขึ้น
+        return pytesseract.image_to_string(img, lang="tha+eng")
+    except Exception:
+        return ""
+
+
 def extract_text_any(path: str) -> str:
-    """ดึงข้อความตามนามสกุลไฟล์: .docx ใช้ python-docx, อื่น ๆ ใช้ pdfplumber"""
+    """ดึงข้อความตามนามสกุลไฟล์: .docx ใช้ python-docx, รูปภาพใช้ OCR, อื่น ๆ ใช้ pdfplumber"""
     if path.lower().endswith(".docx"):
         return _extract_text_docx(path)
+    if _is_image(path):
+        return ocr_image(path)
     return extract_text(path)
+
+
+def _parse_items_from_text(text: str) -> list:
+    """แยกรายการพัสดุจากข้อความ OCR (best-effort): บรรทัดที่มีชื่อ + ตัวเลข
+    เดา ราคา = เลขท้ายบรรทัด, จำนวน = เลขจำนวนเต็มตัวแรกถ้ามี, ที่เหลือเป็นชื่อ"""
+    _SKIP = ("รวม", "ยอด", "บาทถ้วน", "ลำดับ", "ลายมือ", "ลงชื่อ", "ภาษีมูลค่าเพิ่ม",
+             "vat", "total", "subtotal", "รายการพัสดุ")
+    # ตัวเลขที่ "ยืนเดี่ยว" เท่านั้น (ไม่ติดกับตัวอักษร เช่น A4/B2 จะไม่ถูกนับเป็นจำนวน/ราคา)
+    _NUM = re.compile(r"(?<![A-Za-z0-9])\d[\d,]*(?:\.\d+)?(?![A-Za-z0-9])")
+    items = []
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        if not line or not re.search(r"[ก-๙a-zA-Z]", line):
+            continue
+        low = line.lower()
+        if any(k in low for k in _SKIP):
+            continue
+        nums = _NUM.findall(line)
+        if not nums:                                  # รายการต้องมีตัวเลข (อย่างน้อยราคา) ไม่งั้นข้าม (หัวตาราง/ลงชื่อ)
+            continue
+        name = _NUM.sub(" ", line)                    # ตัดเฉพาะตัวเลขยืนเดี่ยว เหลือชื่อ (คง A4 ไว้)
+        name = re.sub(r"\s{2,}", " ", name).strip(" .-|/")
+        if len(name) < 2:
+            continue
+        price = float(nums[-1].replace(",", ""))
+        qty = 1.0
+        if len(nums) >= 2:
+            q = nums[0].replace(",", "")
+            if "." not in q and float(q) <= 9999:
+                qty = float(q)
+        items.append({"name": name, "qty": qty, "unit": "", "unit_price": price})
+    return items
 
 
 def _parse_thai_date(text: str):
@@ -264,9 +321,12 @@ def extract_procurement_fields(path: str) -> dict:
     # ผู้ขาย: "กับ <X> ซึ่งมีอาชีพ" (จากรายงานผลพิจารณา) เผื่อมี
     r["vendor_name"] = _first(r"(?:ตกลงราคากับ|จาก)\s+(.+?)\s*(?:ซึ่งมีอาชีพ|เป็นผู้)", text)
 
-    # รายการพัสดุ (จากตาราง) + กรรมการตรวจรับ (จากข้อความ) — best-effort
+    # รายการพัสดุ: รูปภาพ -> แยกจากข้อความ OCR / ไฟล์เอกสาร -> แยกจากตาราง (best-effort)
     try:
-        r["items"] = _parse_items_from_tables(_extract_tables_any(path))
+        if _is_image(path):
+            r["items"] = _parse_items_from_text(text)
+        else:
+            r["items"] = _parse_items_from_tables(_extract_tables_any(path))
     except Exception:
         r["items"] = []
     try:

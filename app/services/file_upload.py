@@ -13,8 +13,8 @@ from pathlib import Path
 
 from app.database import get_data_dir
 
-# ชื่อไฟล์ปลอดภัย (กัน path traversal) — uuid 32 ตัว + นามสกุล pdf/docx
-SAFE_FILE_NAME = re.compile(r"^[0-9a-fA-F]{32}\.(pdf|docx)$")
+# ชื่อไฟล์ปลอดภัย (กัน path traversal) — uuid 32 ตัว + นามสกุลที่อนุญาต
+SAFE_FILE_NAME = re.compile(r"^[0-9a-fA-F]{32}\.(pdf|docx|png|jpg|webp)$")
 
 
 def uploads_dir() -> Path:
@@ -24,13 +24,26 @@ def uploads_dir() -> Path:
 
 
 def detect_ext(data: bytes, filename: str = "") -> str:
-    """เดานามสกุลจากเนื้อไฟล์/ชื่อไฟล์: 'pdf' / 'docx' / '' (ไม่รองรับ)"""
+    """เดานามสกุลจากเนื้อไฟล์/ชื่อไฟล์: 'pdf'/'docx'/'png'/'jpg'/'webp' / '' (ไม่รองรับ)"""
     if data[:5].startswith(b"%PDF"):
         return "pdf"
     if data[:2] == b"PK" and filename.lower().endswith(".docx"):
         return "docx"
-    if filename.lower().endswith(".pdf"):
+    if data[:3] == b"\xff\xd8\xff":                       # JPEG
+        return "jpg"
+    if data[:8] == b"\x89PNG\r\n\x1a\n":                  # PNG
+        return "png"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":     # WEBP
+        return "webp"
+    fn = filename.lower()
+    if fn.endswith(".pdf"):
         return "pdf"
+    if fn.endswith((".jpg", ".jpeg")):
+        return "jpg"
+    if fn.endswith(".png"):
+        return "png"
+    if fn.endswith(".webp"):
+        return "webp"
     return ""
 
 

@@ -8,7 +8,8 @@ APP_DIR=/opt/ddoc
 
 echo "[1/6] ติดตั้งแพ็กเกจระบบ..."
 apt update
-apt install -y python3-venv python3-pip nginx git
+apt install -y python3-venv python3-pip nginx git \
+    tesseract-ocr tesseract-ocr-tha
 
 echo "[2/6] สร้างผู้ใช้ ddoc + สิทธิ์โฟลเดอร์..."
 id ddoc >/dev/null 2>&1 || useradd --system --home "$APP_DIR" ddoc
