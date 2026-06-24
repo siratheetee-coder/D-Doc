@@ -119,7 +119,8 @@ def build_context(proc, school) -> dict:
         goods, vat = total, 0.0
     rate = float(proc.penalty_rate or 0.10)
     fine_num = round(total * rate / 100 * (proc.overdue_days or 0), 2)
-    wht_num = float(getattr(proc, "wht_amount", 0) or 0)   # ภาษีหัก ณ ที่จ่าย (ปกติ 0 เว้นแต่ตั้งค่า)
+    # ภาษีหัก ณ ที่จ่าย = อัตรา % ของมูลค่าก่อน VAT (goods); ปกติงานจ้าง/บริการ
+    wht_num = round(goods * float(getattr(proc, "wht_rate", 0) or 0) / 100, 2)
     net = round(total - wht_num - fine_num, 2)
 
     return {

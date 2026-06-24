@@ -8,14 +8,40 @@
     <div class="hero-meta">{{ items|length }} รายการ</div>
   </div>
 </div>
+{% if request.query_params.get('added') %}<div class="alert">✔ เพิ่มวัสดุแล้ว {{ request.query_params.get('added') }} รายการ</div>{% endif %}
+
+<div class="card" style="border:1px solid #c7d7fb; background:#f5f9ff;">
+  <h2><svg class="icon"><use href="#ic-ai"/></svg> เพิ่มหลายรายการจากรูป (สแกน)</h2>
+  <p class="muted" style="margin-top:0;">ถ่าย/อัปรูปรายการวัสดุ (บิล/ใบส่งของ) ระบบจะอ่านมาเติมตารางให้ — ตรวจ/แก้แล้วกดบันทึก</p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
+    <label class="btn gray sm" style="cursor:pointer;">
+      <svg class="icon"><use href="#ic-upload"/></svg> ถ่ายรูป (อ่านเร็ว)
+      <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="mScan(this,'/procurement/ocr-items','กำลังอ่านรูป (OCR)...')">
+    </label>
+    <label class="btn sm" style="cursor:pointer; background:linear-gradient(120deg,#7c3aed,#4880FF); color:#fff; border:none;">
+      <svg class="icon"><use href="#ic-ai"/></svg> ให้ AI ช่วยอ่าน
+      <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="mScan(this,'/procurement/ai-items','กำลังให้ AI อ่านรูป...')">
+    </label>
+    <button type="button" class="btn soft sm" onclick="mAddRow('','หน่วย',0,0)"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มแถว</button>
+    <span id="mMsg" class="muted" style="font-size:13px;"></span>
+  </div>
+  <form method="post" action="/materials/bulk">
+    <table id="mbulk">
+      <thead><tr><th style="width:42%;">ชื่อวัสดุ</th><th>หน่วย</th><th>จำนวน (ยอดยกมา)</th><th>แจ้งใกล้หมดที่</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <br><button class="btn green sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกทั้งหมด</button>
+  </form>
+</div>
 
 <div class="card">
-  <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มรายการวัสดุ</h2>
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มทีละรายการ</h2>
   <form method="post" action="/materials">
     <div class="row">
       <div style="flex:2;"><label>ชื่อวัสดุ *</label><input name="name" required placeholder="เช่น กระดาษ A4"></div>
       <div><label>หน่วยนับ</label><input name="unit" value="หน่วย" placeholder="เช่น รีม, กล่อง"></div>
-      <div><label>จุดเตือนสั่งซื้อ</label><input name="min_stock" type="number" step="0.01" min="0" value="0"></div>
+      <div><label>จำนวน (ยอดยกมา)</label><input name="opening" type="number" step="0.01" min="0" value="0"></div>
+      <div><label>แจ้งว่าใกล้หมดที่จำนวน</label><input name="min_stock" type="number" step="0.01" min="0" value="0"></div>
     </div>
     <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button>
   </form>
@@ -35,7 +61,7 @@
         <td class="right"><b>{{ "%g"|format(bal) }}</b></td>
         <td>
           {% if it.min_stock and bal <= it.min_stock %}
-          <span class="pill" style="background:#fde8e8; color:#b91c1c;">ต่ำกว่าจุดสั่งซื้อ</span>
+          <span class="pill" style="background:#fde8e8; color:#b91c1c;">ใกล้หมด (≤ {{ "%g"|format(it.min_stock) }})</span>
           {% else %}<span class="muted">ปกติ</span>{% endif %}
         </td>
         <td class="right" style="white-space:nowrap;">
@@ -50,4 +76,33 @@
   <p class="muted">ยังไม่มีวัสดุ — เพิ่มด้านบน หรือนำเข้าจากเรื่องจัดซื้อ (ปุ่ม "นำเข้าทะเบียน" ในหน้ารายละเอียดเรื่อง)</p>
   {% endif %}
 </div>
+
+<script>
+  function _me(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+  function mAddRow(name, unit, qty, min){
+    var tb = document.querySelector('#mbulk tbody');
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input name="m_name" value="'+_me(name)+'"></td>'+
+      '<td><input name="m_unit" value="'+_me(unit||'หน่วย')+'"></td>'+
+      '<td><input name="m_qty" type="number" step="any" value="'+(qty||0)+'"></td>'+
+      '<td><input name="m_min" type="number" step="any" value="'+(min||0)+'"></td>'+
+      '<td class="center"><button type="button" class="btn red sm" onclick="this.closest(\'tr\').remove()">✕</button></td>';
+    tb.appendChild(tr);
+  }
+  function mScan(input, url, busy){
+    if(!input.files || !input.files[0]) return;
+    var msg = document.getElementById('mMsg');
+    msg.innerHTML = '<span class="spin"></span> ' + busy;
+    var fd = new FormData(); fd.append('file', input.files[0]);
+    fetch(url, {method:'POST', body:fd}).then(function(r){ return r.json(); }).then(function(d){
+      input.value = '';
+      if(d && d.error){ msg.textContent = d.error; return; }
+      var items = (d && d.items) || [];
+      if(!items.length){ msg.textContent = 'อ่านรายการจากรูปไม่ได้ — ลองถ่ายให้ชัด/ตรงขึ้น หรือเพิ่มแถวเอง'; return; }
+      items.forEach(function(it){ mAddRow(it.name, it.unit, it.qty, 0); });
+      msg.textContent = 'เพิ่ม ' + items.length + ' รายการแล้ว — โปรดตรวจ/แก้ก่อนบันทึก';
+    }).catch(function(){ input.value=''; msg.textContent = 'อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง'; });
+  }
+</script>
 {% endblock %}

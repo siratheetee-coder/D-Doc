@@ -691,6 +691,7 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
     proc.price_ref_source = (form.get("price_ref_source") or "การสืบราคาจากท้องตลาด").strip()
     proc.delivery_days = _to_int(form.get("delivery_days"), 7)
     proc.vat_mode = form.get("vat_mode") or "none"
+    proc.wht_rate = _to_float(form.get("wht_rate"), 0.0)
     proc.order_signer = form.get("order_signer") or "director"
     proc.inspection_mode = form.get("inspection_mode") or "single"
     proc.vendor_id = _resolve_vendor(db, form)
@@ -1679,12 +1680,42 @@ def materials_page(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/materials")
 def material_add(db: Session = Depends(get_db), name: str = Form(...),
-                 unit: str = Form("หน่วย"), min_stock: str = Form("0")):
+                 unit: str = Form("หน่วย"), min_stock: str = Form("0"),
+                 opening: str = Form("0")):
     if name.strip():
-        db.add(MaterialItem(name=name.strip(), unit=unit.strip() or "หน่วย",
-                            min_stock=_to_float(min_stock, 0.0)))
+        it = MaterialItem(name=name.strip(), unit=unit.strip() or "หน่วย",
+                          min_stock=_to_float(min_stock, 0.0))
+        db.add(it); db.flush()
+        op = _to_float(opening, 0.0)
+        if op > 0:                       # มียอดเริ่มต้น -> ลงรับเป็น "ยอดยกมา"
+            db.add(MaterialTxn(material_id=it.id, kind="in", qty=op,
+                               date=datetime.now(), note="ยอดยกมา"))
         db.commit()
     return RedirectResponse("/materials", status_code=303)
+
+
+@router.post("/materials/bulk")
+async def materials_bulk_add(request: Request, db: Session = Depends(get_db)):
+    """เพิ่มวัสดุหลายรายการพร้อมกัน (จากการสแกนรูป/กรอกในตาราง)"""
+    form = await request.form()
+    names = form.getlist("m_name")
+    units, qtys, mins = form.getlist("m_unit"), form.getlist("m_qty"), form.getlist("m_min")
+    n = 0
+    for i, nm in enumerate(names):
+        nm = (nm or "").strip()
+        if not nm:
+            continue
+        it = MaterialItem(name=nm,
+                          unit=(units[i].strip() if i < len(units) and units[i] else "") or "หน่วย",
+                          min_stock=_to_float(mins[i] if i < len(mins) else "0", 0.0))
+        db.add(it); db.flush()
+        op = _to_float(qtys[i] if i < len(qtys) else "0", 0.0)
+        if op > 0:
+            db.add(MaterialTxn(material_id=it.id, kind="in", qty=op,
+                               date=datetime.now(), note="ยอดยกมา"))
+        n += 1
+    db.commit()
+    return RedirectResponse(f"/materials?added={n}", status_code=303)
 
 
 @router.post("/materials/{item_id}/delete")

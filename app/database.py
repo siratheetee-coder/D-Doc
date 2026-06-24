@@ -69,6 +69,7 @@ MIGRATIONS = [
     ("procurement", "project_id", "INTEGER"),
     ("procurement", "proc_case", "VARCHAR DEFAULT 'normal'"),
     ("procurement", "case_extra", "TEXT DEFAULT ''"),
+    ("procurement", "wht_rate", "FLOAT DEFAULT 0"),
     ("disburse_memo", "project_id", "INTEGER"),
     ("disburse_memo", "item_id", "INTEGER"),
     ("school", "project_year_mode", "VARCHAR DEFAULT 'budget'"),

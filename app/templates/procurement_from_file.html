@@ -32,7 +32,7 @@
         <input type="file" name="file" accept=".pdf,.docx,image/*" capture="environment" required
                style="padding:6px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; width:100%;">
         <br><br>
-        <button class="btn" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อ่านไฟล์และเติมในฟอร์ม</button>
+        <button class="btn" type="submit" id="goBtn"><svg class="icon"><use href="#ic-upload"/></svg> อ่านไฟล์และเติมในฟอร์ม</button>
       </form>
     </div>
 
@@ -42,7 +42,7 @@
         <label class="toggle {{ '' if has_ai_key else 'disabled' }}">
           <input type="checkbox" id="useAi" {{ "" if has_ai_key else "disabled" }}>
           <span class="track"><span class="thumb"></span></span>
-          <b>อ่านด้วย AI</b>
+          <b><svg class="icon" style="vertical-align:-3px; color:#7c3aed;"><use href="#ic-ai"/></svg> อ่านด้วย AI</b>
         </label>
         <div class="muted" style="font-size:13.5px; margin-top:6px;">ดึงข้อมูลครบถ้วนกว่าและรวดเร็ว</div>
         {% if not has_ai_key %}
@@ -63,6 +63,11 @@
     var h = form.querySelector('input[name="use_ai"]');
     if(!h){ h = document.createElement('input'); h.type='hidden'; h.name='use_ai'; form.appendChild(h); }
     h.value = on ? '1' : '';
+    // แสดงสถานะกำลังโหลด (กันกดซ้ำ + บอกผู้ใช้ว่ากำลังอ่าน โดยเฉพาะตอนใช้ AI ที่ใช้เวลา)
+    var b = document.getElementById('goBtn');
+    if(b){ b.disabled = true;
+      b.innerHTML = '<span class="spin" style="border-top-color:#fff; border-color:rgba(255,255,255,.4); border-top-color:#fff;"></span> '
+        + (on ? 'กำลังอ่านด้วย AI...' : 'กำลังอ่านไฟล์...'); }
   }
 </script>
 {% endblock %}

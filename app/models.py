@@ -143,6 +143,7 @@ class Procurement(Base):
     overdue_days = Column(Integer, default=0)      # ส่งมอบเกินกำหนด (วัน) -> คำนวณค่าปรับ
 
     vat_mode = Column(String, default="none")      # none = ไม่คิด VAT, include = ราคารวม VAT 7%
+    wht_rate = Column(Float, default=0.0)          # อัตราภาษีหัก ณ ที่จ่าย (% ของมูลค่าก่อน VAT)
     order_signer = Column(String, default="director")  # ผู้ลงนามใบสั่ง: director / head_officer
 
     delivery_note_no = Column(String, default="")  # เลขที่ใบส่งของ (งานซื้อ)
