@@ -36,6 +36,13 @@
       <form method="post" action="/procurement/{{ p.id }}/duplicate" style="margin:0;">
         <button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-file"/></svg> คัดลอกเรื่อง</button>
       </form>
+      {% if p.items %}
+      <a class="btn sm gray" href="/procurement/{{ p.id }}/to-register"><svg class="icon"><use href="#ic-package"/></svg> นำวัสดุเข้าทะเบียน</a>
+      {% endif %}
+      {% if modules_live.finance %}
+      <a class="btn sm gray" href="/finance/disburse?proc={{ p.id }}"><svg class="icon"><use href="#ic-coins"/></svg> ออกบันทึกขอเบิกจ่าย</a>
+      {% endif %}
+      <a class="btn sm gray" href="/procurement/{{ p.id }}/egp"><svg class="icon"><use href="#ic-clipboard"/></svg> ช่วยกรอก e-GP</a>
       {% if p.file_path %}
       <a class="btn sm gray" href="/procurement/file/{{ p.file_path }}" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> ไฟล์ต้นฉบับ</a>
       {% endif %}
