@@ -2,6 +2,31 @@
 {% block title %}{{ p.memo_no }} - {{ p.subject }}{% endblock %}
 {% block content %}
 {% set case_info = case_info|default({'altkind': None, 'label': '', 'desc': ''}) %}
+{% macro next_steps(p, modules_live) %}
+{% set received = p.status in ['ตรวจรับแล้ว','เบิกจ่ายแล้ว'] or p.inspect_date %}
+<p class="muted" style="margin:18px 0 0;">เมื่อได้ของและตรวจรับแล้ว ทำขั้นตอนถัดไป:</p>
+<div class="next-steps">
+  {% if p.items %}
+  <a class="ns-btn {{ '' if received else 'dim' }}" href="/procurement/{{ p.id }}/to-register">
+    <svg class="icon"><use href="#ic-package"/></svg>
+    <span><b>นำวัสดุ/ครุภัณฑ์เข้าทะเบียน</b><br>
+      <span class="ns-sub">บันทึกของที่ซื้อเข้าบัญชีวัสดุ/ทะเบียนครุภัณฑ์{{ " · ทำหลังรับของแล้ว" if not received }}</span></span>
+  </a>
+  {% endif %}
+  {% if modules_live.finance %}
+  <a class="ns-btn {{ '' if received else 'dim' }}" href="/finance/disburse?proc={{ p.id }}">
+    <svg class="icon"><use href="#ic-coins"/></svg>
+    <span><b>ออกบันทึกขอเบิกจ่าย</b><br>
+      <span class="ns-sub">ดึงยอด/ผู้รับเงินไปทำเรื่องเบิกอัตโนมัติ{{ " · ทำหลังตรวจรับแล้ว" if not received }}</span></span>
+  </a>
+  {% endif %}
+  <a class="ns-btn" href="/procurement/{{ p.id }}/egp">
+    <svg class="icon"><use href="#ic-clipboard"/></svg>
+    <span><b>ช่วยกรอก e-GP</b><br>
+      <span class="ns-sub">คัดลอกข้อมูลเรื่องนี้ไปวางในระบบ e-GP</span></span>
+  </a>
+</div>
+{% endmacro %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; align-items:center;">
     <h1 style="margin:0;">เลขที่ {{ p.memo_no or "-" }} : {{ p.proc_type }}{{ p.subject }}</h1>
@@ -11,13 +36,6 @@
       <form method="post" action="/procurement/{{ p.id }}/duplicate" style="margin:0;">
         <button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-file"/></svg> คัดลอกเรื่อง</button>
       </form>
-      {% if p.items %}
-      <a class="btn sm gray" href="/procurement/{{ p.id }}/to-register"><svg class="icon"><use href="#ic-package"/></svg> นำวัสดุเข้าบัญชีวัสดุ</a>
-      {% endif %}
-      {% if modules_live.finance %}
-      <a class="btn sm gray" href="/finance/disburse?proc={{ p.id }}"><svg class="icon"><use href="#ic-coins"/></svg> ออกบันทึกขอเบิกจ่าย</a>
-      {% endif %}
-      <a class="btn sm gray" href="/procurement/{{ p.id }}/egp"><svg class="icon"><use href="#ic-clipboard"/></svg> ช่วยกรอก e-GP</a>
       {% if p.file_path %}
       <a class="btn sm gray" href="/procurement/file/{{ p.file_path }}" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> ไฟล์ต้นฉบับ</a>
       {% endif %}
@@ -182,6 +200,16 @@
   .date-warn.wk { background: #fff4e5; color: #b45309; }     /* เสาร์/อาทิตย์ */
   .date-warn.hl { background: #fde8e8; color: #b91c1c; }     /* วันหยุดนักขัตฤกษ์ */
   .date-warn .icon { width: 15px; height: 15px; flex: none; }
+  .next-steps { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+  .ns-btn { display: flex; align-items: center; gap: 11px; padding: 12px 16px; border-radius: 10px;
+            background: #eef4ff; color: #1d4ed8; border: 1px solid #c7d7fb; text-decoration: none;
+            min-width: 240px; flex: 1; transition: transform .12s, background .12s; }
+  .ns-btn:hover { background: #e0e9ff; transform: translateY(-1px); }
+  .ns-btn .icon { width: 26px; height: 26px; flex: none; }
+  .ns-btn b { font-size: 15.5px; }
+  .ns-btn .ns-sub { font-size: 13px; font-weight: 400; color: #5b6b8c; }
+  .ns-btn.dim { opacity: .6; background: #f3f5f9; color: #64748b; border-color: #e2e8f0; }
+  .ns-btn.dim .ns-sub { color: #94a3b8; }
 </style>
 
 {% if not case_info.altkind %}
@@ -208,12 +236,14 @@
     </form>
     {% endfor %}
   </div>
+  {{ next_steps(p, modules_live) }}
 </div>
 {% else %}
 <div class="card" style="border:1px solid #c7d7fb; background:#f5f9ff;">
   <h2><svg class="icon"><use href="#ic-file"/></svg> ออกเอกสาร — {{ case_info.label }}</h2>
   <p class="muted" style="margin-top:0;">{{ case_info.desc }}</p>
   <a class="btn" href="/procurement/{{ p.id }}/altdoc/{{ case_info.altkind }}"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเอกสาร {{ case_info.label }}</a>
+  {{ next_steps(p, modules_live) }}
 </div>
 {% endif %}
 
