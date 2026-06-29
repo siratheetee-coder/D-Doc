@@ -1253,10 +1253,12 @@ def procurement_egp(proc_id: int, request: Request, db: Session = Depends(get_db
         "signer_pos": signer_pos,
         "signer_split": _split_name(signer),
     }
+    # คณะกรรมการ/ผู้ตรวจรับ (สำหรับช่อง "ชื่อผู้ตรวจรับ")
+    inspect = next((c for c in proc.committees if c.kind == "inspect"), None)
     return templates.TemplateResponse("egp_helper.html", {
         "request": request, "p": proc, "school": school,
         "vendor": proc.vendor, "items": proc.items,
-        "budget_in_pb": in_pb, "egp": egp,
+        "budget_in_pb": in_pb, "egp": egp, "inspect": inspect,
     })
 
 
