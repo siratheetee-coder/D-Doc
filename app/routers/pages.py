@@ -1195,20 +1195,68 @@ EXCLUDE_LARGE = {  # วงเงิน > เกณฑ์: ไม่ต้อง
 # แผนที่ "การเบิกจ่าย" -> งบใน/นอก พรบ.รายจ่าย (e-GP)
 _EGP_INPB = {"เงินงบประมาณ", "งบประมาณ", "เงินรายได้แผ่นดิน"}  # เงินในงบ พรบ.รายจ่าย
 
+# คำนำหน้าชื่อที่พบบ่อย (เรียงยาว->สั้น เพื่อจับแบบ longest-match) สำหรับแยกคำนำหน้า/ชื่อ/สกุล
+_NAME_PREFIXES = [
+    "ว่าที่ร้อยตรีหญิง", "ว่าที่ร้อยตรี", "ว่าที่ร้อยเอก", "ว่าที่ร้อยโท", "ว่าที่พันตรี",
+    "นางสาว", "นาง", "นาย", "ดร.", "ดร",
+]
+
+
+def _split_name(full: str) -> dict:
+    """แยกชื่อเต็ม -> {prefix, first, last} สำหรับช่อง P1/P2/P3 ใน e-GP (เดาแบบง่าย แก้เองได้)"""
+    full = (full or "").strip()
+    prefix = ""
+    for p in _NAME_PREFIXES:
+        if full.startswith(p):
+            prefix = p
+            full = full[len(p):].strip()
+            break
+    parts = full.split()
+    first = parts[0] if parts else ""
+    last = " ".join(parts[1:]) if len(parts) > 1 else ""
+    return {"prefix": prefix, "first": first, "last": last}
+
 
 @router.get("/procurement/{proc_id}/egp", response_class=HTMLResponse)
 def procurement_egp(proc_id: int, request: Request, db: Session = Depends(get_db)):
-    """หน้า 'ช่วยกรอก e-GP' (copy-assist) — จัดข้อมูลเรื่องจัดซื้อให้คัดลอกไปวางลง e-GP ทีละช่อง
+    """หน้า 'ช่วยกรอก e-GP' (copy-assist) — จัดข้อมูลเรื่องจัดซื้อให้คัดลอกไปวางลง e-GP ทีละช่อง/ทีละขั้นตอน
+    อิงโครงสร้างจริงของ e-GP (จัดทำโครงการ + รายงานขอซื้อขอจ้าง + ผู้ค้า/ราคา)
     ไม่ยุ่งกับบัญชี/รหัสผ่าน e-GP และไม่ทำ autofill อัตโนมัติ"""
     proc = db.get(Procurement, proc_id)
     if not proc:
         return RedirectResponse("/procurement", status_code=303)
+    school = get_school(db)
     src = (proc.budget_source or "").strip()
     in_pb = any(k in src for k in _EGP_INPB)   # เงินในงบ พรบ.รายจ่าย ?
+    buy_word = "ซื้อ" if (proc.proc_type or "ซื้อ") == "ซื้อ" else "จ้าง"
+
+    # เรียน = ผู้อำนวยการ + ชื่อโรงเรียน (ถ้าชื่อขึ้นต้นด้วย "โรงเรียน")
+    sname = (school.name or "").strip()
+    if sname.startswith("โรงเรียน"):
+        attn = "ผู้อำนวยการ" + sname
+    else:
+        attn = (school.director_position or "ผู้อำนวยการโรงเรียน")
+
+    # ผู้ลงนามในรายงานขอซื้อขอจ้าง = เจ้าหน้าที่พัสดุ (ผู้รายงาน) ถ้าไม่มีใช้หัวหน้าเจ้าหน้าที่
+    signer = (school.officer_name or school.head_officer_name or "").strip()
+    signer_pos = "เจ้าหน้าที่พัสดุ" if school.officer_name else "หัวหน้าเจ้าหน้าที่พัสดุ"
+
+    egp = {
+        "in_pb": in_pb,
+        "buy_word": buy_word,                       # ซื้อ / จ้าง
+        "school_name": sname,
+        "attn": attn,                               # เรียน
+        "report_subject": f"รายงานขอ{buy_word}",    # B2 เรื่อง
+        "committee": "ไม่จัดทำ" if (proc.inspection_mode or "single") == "single" else "จัดทำ",
+        "duration_text": f"{proc.delivery_days or 7} วัน",
+        "signer_name": signer,
+        "signer_pos": signer_pos,
+        "signer_split": _split_name(signer),
+    }
     return templates.TemplateResponse("egp_helper.html", {
-        "request": request, "p": proc, "school": get_school(db),
+        "request": request, "p": proc, "school": school,
         "vendor": proc.vendor, "items": proc.items,
-        "budget_in_pb": in_pb,
+        "budget_in_pb": in_pb, "egp": egp,
     })
 
 

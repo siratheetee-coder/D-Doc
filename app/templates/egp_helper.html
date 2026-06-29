@@ -1,62 +1,56 @@
 {% extends "base.html" %}
 {% block title %}ช่วยกรอก e-GP{% endblock %}
 {% block content %}
+{% macro cprow(label, id, value) %}
+<div class="egp-row">
+  <div class="egp-lbl">{{ label }}</div>
+  <div class="egp-val">
+    <span class="egp-text" id="{{ id }}">{{ value }}</span>
+    <button type="button" class="btn sm" onclick="cp(this,'{{ id }}')"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอก</button>
+  </div>
+</div>
+{% endmacro %}
 <div class="card">
   <h1><svg class="icon"><use href="#ic-clipboard"/></svg> ช่วยกรอก e-GP</h1>
   <p class="muted" style="margin-top:0;">
-    เปิดหน้านี้คู่กับ e-GP แล้วกด <b>คัดลอก</b> ทีละช่อง ไปวางในเว็บ e-GP
-    ช่องที่เป็น <b>ตัวเลือก (dropdown)</b> ของ e-GP คัดลอกไม่ได้ ให้เลือกตามที่ระบบบอก
+    เปิดหน้านี้คู่กับ e-GP แล้วกด <b>คัดลอก</b> ไปวางทีละช่อง จัดเรียงตามขั้นตอนจริงของ e-GP (วิธีเฉพาะเจาะจง)
+    ช่องที่เป็น <b>ตัวเลือก (dropdown/ปุ่มเลือก)</b> คัดลอกไม่ได้ ให้เลือกตามที่ระบบบอก (กล่องฟ้า)
   </p>
   <p class="muted" style="margin:0; font-size:13px;">
-    เรื่อง: <b>{{ p.subject }}</b> · ปีงบ {{ p.fiscal_year }} · วงเงิน {{ "{:,.2f}".format(p.total_amount or 0) }} บาท
+    เรื่อง: <b>{{ p.subject }}</b> · {{ p.proc_type }} · ปีงบ {{ p.fiscal_year }} · วงเงิน {{ "{:,.2f}".format(p.total_amount or 0) }} บาท
   </p>
 </div>
 
-<!-- ====== หน้า 1: จัดทำโครงการ ====== -->
+<!-- ============ ขั้นตอน: จัดทำโครงการ (prjsyse001) ============ -->
 <div class="card">
-  <h2>1) หน้า "จัดทำโครงการ"</h2>
+  <h2><span class="step-badge">จัดทำโครงการ</span> รายละเอียดโครงการ</h2>
 
   <div class="egp-row"><div class="egp-lbl">วิธีการจัดหา</div>
-    <div class="egp-val"><span class="egp-pick">เลือกใน e-GP: <b>{{ p.method or "เฉพาะเจาะจง" }}</b></span></div></div>
-
+    <div class="egp-val"><span class="egp-pick">เลือก: <b>{{ p.method or "เฉพาะเจาะจง" }}</b></span></div></div>
   <div class="egp-row"><div class="egp-lbl">ประเภทการจัดหา</div>
-    <div class="egp-val"><span class="egp-pick">เลือกใน e-GP: <b>{{ p.proc_type or "ซื้อ" }}</b></span></div></div>
-
+    <div class="egp-val"><span class="egp-pick">เลือก: <b>{{ p.proc_type or "ซื้อ" }}</b></span></div></div>
+  <div class="egp-row"><div class="egp-lbl">พัสดุที่จัดหา</div>
+    <div class="egp-val"><span class="egp-pick">เลือกเอง: ตามประเภทพัสดุ (เช่น วัสดุสำนักงาน / จ้างเหมาบริการ)</span></div></div>
   <div class="egp-row"><div class="egp-lbl">ปีงบประมาณ</div>
-    <div class="egp-val"><span class="egp-pick">เลือกใน e-GP: <b>{{ p.fiscal_year }}</b></span></div></div>
+    <div class="egp-val"><span class="egp-pick">เลือก: <b>{{ p.fiscal_year }}</b></span></div></div>
 
-  <div class="egp-row"><div class="egp-lbl">ชื่อโครงการ <span class="muted">(≤400 ตัว)</span></div>
-    <div class="egp-val">
-      <span class="egp-text" id="f_subject">{{ p.subject[:400] }}</span>
-      <button type="button" class="btn sm" onclick="cp(this,'f_subject')"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอก</button>
-    </div></div>
+  {{ cprow("ชื่อโครงการ (≤400 ตัว)", "g_subject", p.subject[:400]) }}
 
-  <div class="egp-row"><div class="egp-lbl">งบประมาณโครงการ</div>
-    <div class="egp-val">
-      <span class="egp-text" id="f_total">{{ "%.2f"|format(p.total_amount or 0) }}</span>
-      <button type="button" class="btn sm" onclick="cp(this,'f_total')"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอก</button>
-    </div></div>
+  <h3 class="sub-h">งบประมาณโครงการ</h3>
+  <div class="egp-row"><div class="egp-lbl">การเบิกจ่ายเงิน</div>
+    <div class="egp-val"><span class="egp-pick">เลือก: <b>ผ่าน GFMIS</b></span></div></div>
+  <div class="egp-row"><div class="egp-lbl">กำหนดมูลค่าโครงการเป็นสกุลเงิน</div>
+    <div class="egp-val"><span class="egp-pick">เลือก: <b>เงินบาท</b></span></div></div>
+  {{ cprow("งบประมาณโครงการ", "g_total", "%.2f"|format(p.total_amount or 0)) }}
+  {{ cprow("จำนวนเงินงบประมาณใน พรบ. รายจ่าย", "g_inpb", "%.2f"|format((p.total_amount or 0) if budget_in_pb else 0)) }}
+  {{ cprow("จำนวนเงินงบประมาณนอก พรบ. รายจ่าย" ~ (" (" ~ (p.budget_source or "เงินอุดหนุน") ~ ")"), "g_outpb", "%.2f"|format(0 if budget_in_pb else (p.total_amount or 0))) }}
 
-  {% if budget_in_pb %}
-  <div class="egp-row"><div class="egp-lbl">จำนวนเงินใน พ.ร.บ.รายจ่าย</div>
-    <div class="egp-val">
-      <span class="egp-text" id="f_inpb">{{ "%.2f"|format(p.total_amount or 0) }}</span>
-      <button type="button" class="btn sm" onclick="cp(this,'f_inpb')"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอก</button>
-    </div></div>
-  {% else %}
-  <div class="egp-row"><div class="egp-lbl">จำนวนเงินนอก พ.ร.บ.รายจ่าย <span class="muted">({{ p.budget_source or "เงินอุดหนุน" }})</span></div>
-    <div class="egp-val">
-      <span class="egp-text" id="f_outpb">{{ "%.2f"|format(p.total_amount or 0) }}</span>
-      <button type="button" class="btn sm" onclick="cp(this,'f_outpb')"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอก</button>
-    </div></div>
-  {% endif %}
-</div>
+  <h3 class="sub-h">การพิจารณา</h3>
+  <div class="egp-row"><div class="egp-lbl">การพิจารณา</div>
+    <div class="egp-val"><span class="egp-pick">เลือก: <b>ราคารวม</b></span></div></div>
 
-<!-- ====== modal: ระบุรายการสินค้าและบริการ ====== -->
-<div class="card">
-  <h2>2) ปุ่ม "ระบุรายการสินค้าและบริการ"</h2>
+  <h3 class="sub-h">รายการสินค้าและบริการ <span class="muted" style="font-weight:400;">(ปุ่ม "ระบุรายการสินค้าและบริการ")</span></h3>
   {% if items %}
-  <p class="muted" style="margin-top:0;">ใน e-GP กด "เพิ่มรายการ" ทีละแถว แล้วคัดลอกค่าจากตารางนี้ไปวาง</p>
   <div class="table-wrap">
   <table>
     <thead><tr><th>ลำดับ</th><th>ชื่อรายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th></tr></thead>
@@ -77,25 +71,47 @@
     </tbody>
   </table>
   </div>
+  {% else %}<p class="muted">เรื่องนี้ยังไม่มีรายการพัสดุ</p>{% endif %}
+</div>
+
+<!-- ============ ขั้นตอน 1: รายงานขอซื้อขอจ้าง ============ -->
+<div class="card">
+  <h2><span class="step-badge">ขั้นตอน 1</span> รายงานขอซื้อขอจ้าง</h2>
+
+  <h3 class="sub-h">บันทึกข้อความ</h3>
+  {{ cprow("B1 · ส่วนราชการ", "b1", egp.school_name) }}
+  {{ cprow("B2 · เรื่อง", "b2", egp.report_subject) }}
+  {{ cprow("B3 · เรียน", "b3", egp.attn) }}
+
+  <h3 class="sub-h">ข้อมูลรายงานขอซื้อขอจ้าง</h3>
+  {{ cprow("B4 · เหตุผลความจำเป็น", "b4", p.purpose or p.subject) }}
+  {{ cprow("B5 · ขอบเขตของงาน/รายละเอียดคุณลักษณะเฉพาะ", "b5", p.subject) }}
+  {{ cprow("B6 · วงเงินที่จะ" ~ egp.buy_word, "b6", "%.2f"|format(p.total_amount or 0)) }}
+  {{ cprow("B7 · กำหนดระยะเวลาแล้วเสร็จของงาน", "b7", egp.duration_text) }}
+  <div class="egp-row"><div class="egp-lbl">B8-3 · หลักเกณฑ์การพิจารณา</div>
+    <div class="egp-val"><span class="egp-pick">เลือก: <b>เกณฑ์ราคา</b></span></div></div>
+  <div class="egp-row"><div class="egp-lbl">B9 · แต่งตั้งคณะกรรมการซื้อหรือจ้าง</div>
+    <div class="egp-val"><span class="egp-pick">เลือก: <b>{{ egp.committee }}</b></span></div></div>
+
+  <h3 class="sub-h">ผู้ลงนาม (ผู้ขออนุมัติ) <span class="muted" style="font-weight:400;">— เจ้าหน้าที่พัสดุผู้รายงาน</span></h3>
+  {% if egp.signer_name %}
+  <div class="egp-row"><div class="egp-lbl">P1 · คำนำหน้า</div>
+    <div class="egp-val"><span class="egp-pick">เลือก: <b>{{ egp.signer_split.prefix or "(ระบุเอง)" }}</b></span></div></div>
+  {{ cprow("P2 · ชื่อ", "p2", egp.signer_split.first) }}
+  {{ cprow("P3 · นามสกุล", "p3", egp.signer_split.last) }}
+  {{ cprow("P4 · ตำแหน่ง", "p4", egp.signer_pos) }}
   {% else %}
-  <p class="muted">เรื่องนี้ยังไม่มีรายการพัสดุ</p>
+  <p class="muted">ยังไม่ได้ตั้งชื่อเจ้าหน้าที่พัสดุในตั้งค่าโรงเรียน</p>
   {% endif %}
 </div>
 
-<!-- ====== หน้าผู้ค้า ====== -->
+<!-- ============ ขั้นตอน 3-4: ผู้ค้า / ราคา ============ -->
 <div class="card">
-  <h2>3) ข้อมูลผู้ค้า</h2>
+  <h2><span class="step-badge">ขั้นตอน 3-4</span> ผู้เสนอราคา / ผู้ค้า</h2>
   {% if vendor %}
-  <div class="egp-row"><div class="egp-lbl">เลขประจำตัวผู้เสียภาษี</div>
-    <div class="egp-val">
-      <span class="egp-text" id="v_tax">{{ vendor.tax_id or "-" }}</span>
-      {% if vendor.tax_id %}<button type="button" class="btn sm" onclick="cp(this,'v_tax')"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอก</button>{% endif %}
-    </div></div>
-  <div class="egp-row"><div class="egp-lbl">ชื่อผู้ค้า</div>
-    <div class="egp-val">
-      <span class="egp-text" id="v_name">{{ vendor.name }}</span>
-      <button type="button" class="btn sm" onclick="cp(this,'v_name')"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอก</button>
-    </div></div>
+  {{ cprow("เลขประจำตัวผู้เสียภาษี", "v_tax", vendor.tax_id or "") }}
+  {{ cprow("ชื่อผู้ค้า", "v_name", vendor.name) }}
+  {{ cprow("ราคาที่เสนอ / ราคาที่ตกลงซื้อหรือจ้าง", "v_price", "%.2f"|format(p.total_amount or 0)) }}
   {% else %}
   <p class="muted">เรื่องนี้ยังไม่ได้ระบุผู้ขาย/ผู้รับจ้าง</p>
   {% endif %}
@@ -104,14 +120,17 @@
 <a class="btn gray" href="/procurement/{{ p.id }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับไปหน้าเรื่องจัดซื้อ</a>
 
 <style>
+  .step-badge { display:inline-block; background:#1d4ed8; color:#fff; font-size:13px; font-weight:600;
+                padding:2px 10px; border-radius:20px; margin-right:6px; vertical-align:middle; }
+  .sub-h { font-size:15px; color:#1d4ed8; margin:18px 0 4px; border-bottom:1px solid #e2e8f0; padding-bottom:4px; }
   .egp-row{display:flex; gap:12px; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); flex-wrap:wrap;}
   .egp-row:last-child{border-bottom:none;}
-  .egp-lbl{flex:0 0 230px; color:#475569; font-size:14px;}
+  .egp-lbl{flex:0 0 260px; color:#475569; font-size:14px;}
   .egp-val{flex:1; display:flex; gap:8px; align-items:center; min-width:240px;}
   .egp-text{font-weight:600; word-break:break-word;}
   .egp-pick{color:#0369a1; background:#e0f2fe; padding:3px 10px; border-radius:6px; font-size:14px;}
   .btn.xs{padding:2px 8px; font-size:12px;}
-  @media(max-width:560px){ .egp-lbl{flex-basis:100%;} }
+  @media(max-width:600px){ .egp-lbl{flex-basis:100%;} }
 </style>
 <script>
   function cp(btn, id){
