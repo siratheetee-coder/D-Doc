@@ -1192,6 +1192,26 @@ EXCLUDE_LARGE = {  # วงเงิน > เกณฑ์: ไม่ต้อง
 }
 
 
+# แผนที่ "การเบิกจ่าย" -> งบใน/นอก พรบ.รายจ่าย (e-GP)
+_EGP_INPB = {"เงินงบประมาณ", "งบประมาณ", "เงินรายได้แผ่นดิน"}  # เงินในงบ พรบ.รายจ่าย
+
+
+@router.get("/procurement/{proc_id}/egp", response_class=HTMLResponse)
+def procurement_egp(proc_id: int, request: Request, db: Session = Depends(get_db)):
+    """หน้า 'ช่วยกรอก e-GP' (copy-assist) — จัดข้อมูลเรื่องจัดซื้อให้คัดลอกไปวางลง e-GP ทีละช่อง
+    ไม่ยุ่งกับบัญชี/รหัสผ่าน e-GP และไม่ทำ autofill อัตโนมัติ"""
+    proc = db.get(Procurement, proc_id)
+    if not proc:
+        return RedirectResponse("/procurement", status_code=303)
+    src = (proc.budget_source or "").strip()
+    in_pb = any(k in src for k in _EGP_INPB)   # เงินในงบ พรบ.รายจ่าย ?
+    return templates.TemplateResponse("egp_helper.html", {
+        "request": request, "p": proc, "school": get_school(db),
+        "vendor": proc.vendor, "items": proc.items,
+        "budget_in_pb": in_pb,
+    })
+
+
 @router.get("/procurement/{proc_id}/bundle", response_class=HTMLResponse)
 def bundle_page(proc_id: int, request: Request, db: Session = Depends(get_db)):
     """หน้าเลือกเอกสารที่จะออกเป็นชุด (ติ๊กเลือกได้)"""

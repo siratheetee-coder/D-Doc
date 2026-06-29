@@ -17,6 +17,7 @@
       {% if modules_live.finance %}
       <a class="btn sm gray" href="/finance/disburse?proc={{ p.id }}"><svg class="icon"><use href="#ic-coins"/></svg> ออกบันทึกขอเบิกจ่าย</a>
       {% endif %}
+      <a class="btn sm gray" href="/procurement/{{ p.id }}/egp"><svg class="icon"><use href="#ic-clipboard"/></svg> ช่วยกรอก e-GP</a>
       {% if p.file_path %}
       <a class="btn sm gray" href="/procurement/file/{{ p.file_path }}" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> ไฟล์ต้นฉบับ</a>
       {% endif %}

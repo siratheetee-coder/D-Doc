@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}ช่วยกรอก e-GP{% endblock %}
+{% block content %}
+<div class="card">
+  <h1><svg class="icon"><use href="#ic-clipboard"/></svg> ช่วยกรอก e-GP</h1>
+  <p class="muted" style="margin-top:0;">
+    เปิดหน้านี้คู่กับ e-GP แล้วกด <b>คัดลอก</b> ทีละช่อง ไปวางในเว็บ e-GP
+    ช่องที่เป็น <b>ตัวเลือก (dropdown)</b> ของ e-GP คัดลอกไม่ได้ ให้เลือกตามที่ระบบบอก
+  </p>
+  <p class="muted" style="margin:0; font-size:13px;">
+    เรื่อง: <b>{{ p.subject }}</b> · ปีงบ {{ p.fiscal_year }} · วงเงิน {{ "{:,.2f}".format(p.total_amount or 0) }} บาท
+  </p>
+</div>
+
+<!-- ====== หน้า 1: จัดทำโครงการ ====== -->
+<div class="card">
+  <h2>1) หน้า "จัดทำโครงการ"</h2>
+
+  <div class="egp-row"><div class="egp-lbl">วิธีการจัดหา</div>
+    <div class="egp-val"><span class="egp-pick">เลือกใน e-GP: <b>{{ p.method or "เฉพาะเจาะจง" }}</b></span></div></div>
+
+  <div class="egp-row"><div class="egp-lbl">ประเภทการจัดหา</div>
+    <div class="egp-val"><span class="egp-pick">เลือกใน e-GP: <b>{{ p.proc_type or "ซื้อ" }}</b></span></div></div>
+
+  <div class="egp-row"><div class="egp-lbl">ปีงบประมาณ</div>
+    <div class="egp-val"><span class="egp-pick">เลือกใน e-GP: <b>{{ p.fiscal_year }}</b></span></div></div>
+
+  <div class="egp-row"><div class="egp-lbl">ชื่อโครงการ <span class="muted">(≤400 ตัว)</span></div>
+    <div class="egp-val">
+      <span class="egp-text" id="f_subject">{{ p.subject[:400] }}</span>
+      <button type="button" class="btn sm" onclick="cp(this,'f_subject')"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอก</button>
+    </div></div>
+
+  <div class="egp-row"><div class="egp-lbl">งบประมาณโครงการ</div>
+    <div class="egp-val">
+      <span class="egp-text" id="f_total">{{ "%.2f"|format(p.total_amount or 0) }}</span>
+      <button type="button" class="btn sm" onclick="cp(this,'f_total')"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอก</button>
+    </div></div>
+
+  {% if budget_in_pb %}
+  <div class="egp-row"><div class="egp-lbl">จำนวนเงินใน พ.ร.บ.รายจ่าย</div>
+    <div class="egp-val">
+      <span class="egp-text" id="f_inpb">{{ "%.2f"|format(p.total_amount or 0) }}</span>
+      <button type="button" class="btn sm" onclick="cp(this,'f_inpb')"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอก</button>
+    </div></div>
+  {% else %}
+  <div class="egp-row"><div class="egp-lbl">จำนวนเงินนอก พ.ร.บ.รายจ่าย <span class="muted">({{ p.budget_source or "เงินอุดหนุน" }})</span></div>
+    <div class="egp-val">
+      <span class="egp-text" id="f_outpb">{{ "%.2f"|format(p.total_amount or 0) }}</span>
+      <button type="button" class="btn sm" onclick="cp(this,'f_outpb')"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอก</button>
+    </div></div>
+  {% endif %}
+</div>
+
+<!-- ====== modal: ระบุรายการสินค้าและบริการ ====== -->
+<div class="card">
+  <h2>2) ปุ่ม "ระบุรายการสินค้าและบริการ"</h2>
+  {% if items %}
+  <p class="muted" style="margin-top:0;">ใน e-GP กด "เพิ่มรายการ" ทีละแถว แล้วคัดลอกค่าจากตารางนี้ไปวาง</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>ลำดับ</th><th>ชื่อรายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th></tr></thead>
+    <tbody>
+    {% for it in items %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td><span class="egp-text" id="i_name{{ loop.index }}">{{ it.name }}</span>
+            <button type="button" class="btn xs" onclick="cp(this,'i_name{{ loop.index }}')">คัดลอก</button></td>
+        <td><span class="egp-text" id="i_qty{{ loop.index }}">{{ it.quantity|int if it.quantity == it.quantity|int else it.quantity }}</span>
+            <button type="button" class="btn xs" onclick="cp(this,'i_qty{{ loop.index }}')">คัดลอก</button></td>
+        <td><span class="egp-text" id="i_unit{{ loop.index }}">{{ it.unit }}</span>
+            <button type="button" class="btn xs" onclick="cp(this,'i_unit{{ loop.index }}')">คัดลอก</button></td>
+        <td><span class="egp-text" id="i_price{{ loop.index }}">{{ "%.2f"|format(it.unit_price or 0) }}</span>
+            <button type="button" class="btn xs" onclick="cp(this,'i_price{{ loop.index }}')">คัดลอก</button></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">เรื่องนี้ยังไม่มีรายการพัสดุ</p>
+  {% endif %}
+</div>
+
+<!-- ====== หน้าผู้ค้า ====== -->
+<div class="card">
+  <h2>3) ข้อมูลผู้ค้า</h2>
+  {% if vendor %}
+  <div class="egp-row"><div class="egp-lbl">เลขประจำตัวผู้เสียภาษี</div>
+    <div class="egp-val">
+      <span class="egp-text" id="v_tax">{{ vendor.tax_id or "-" }}</span>
+      {% if vendor.tax_id %}<button type="button" class="btn sm" onclick="cp(this,'v_tax')"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอก</button>{% endif %}
+    </div></div>
+  <div class="egp-row"><div class="egp-lbl">ชื่อผู้ค้า</div>
+    <div class="egp-val">
+      <span class="egp-text" id="v_name">{{ vendor.name }}</span>
+      <button type="button" class="btn sm" onclick="cp(this,'v_name')"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอก</button>
+    </div></div>
+  {% else %}
+  <p class="muted">เรื่องนี้ยังไม่ได้ระบุผู้ขาย/ผู้รับจ้าง</p>
+  {% endif %}
+</div>
+
+<a class="btn gray" href="/procurement/{{ p.id }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับไปหน้าเรื่องจัดซื้อ</a>
+
+<style>
+  .egp-row{display:flex; gap:12px; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); flex-wrap:wrap;}
+  .egp-row:last-child{border-bottom:none;}
+  .egp-lbl{flex:0 0 230px; color:#475569; font-size:14px;}
+  .egp-val{flex:1; display:flex; gap:8px; align-items:center; min-width:240px;}
+  .egp-text{font-weight:600; word-break:break-word;}
+  .egp-pick{color:#0369a1; background:#e0f2fe; padding:3px 10px; border-radius:6px; font-size:14px;}
+  .btn.xs{padding:2px 8px; font-size:12px;}
+  @media(max-width:560px){ .egp-lbl{flex-basis:100%;} }
+</style>
+<script>
+  function cp(btn, id){
+    var el = document.getElementById(id); if(!el) return;
+    var txt = el.innerText.trim();
+    function ok(){ var o=btn.innerHTML; btn.innerHTML='<svg class="icon"><use href="#ic-check"/></svg> คัดลอกแล้ว'; btn.classList.add('green');
+      setTimeout(function(){ btn.innerHTML=o; btn.classList.remove('green'); }, 1200); }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(ok).catch(function(){ fallback(txt); ok(); });
+    } else { fallback(txt); ok(); }
+  }
+  function fallback(txt){
+    var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta);
+  }
+</script>
+{% endblock %}
