@@ -18,11 +18,14 @@ from sqlalchemy.orm import Session
 from app.database import get_db, get_data_dir
 from app.models import (
     School, IncomingLetter, OutgoingLetter, OfficeMemo, SchoolOrder, Person, Department,
+    OfficialLetter, CertificateBatch,
 )
+from app.services import file_upload
 from app.services.doc_number import (
     suggest_next, commit_number, suggest_doc_no, commit_doc_no, check_doc_no, format_doc_no,
+    parse_seq,
 )
-from app.services.office_doc import render_memo, render_order
+from app.services.office_doc import render_memo, render_order, render_official_letter
 from app.services.admin_io import build_admin_template, import_admin_workbook, export_admin_register
 from app.services.pdf_extract import extract_letter_fields
 from app.thai_utils import current_fiscal_year, parse_be_date, be_date_input
@@ -203,9 +206,14 @@ def serve_uploaded(name: str):
     path = _uploads_dir() / name
     if not path.exists():
         return RedirectResponse("/admin", status_code=303)
-    if name.lower().endswith(".pdf"):
+    low = name.lower()
+    if low.endswith(".pdf"):
         # PDF: inline ให้แสดงใน iframe/แท็บ ไม่บังคับดาวน์โหลด
         return FileResponse(str(path), media_type=_PDF, content_disposition_type="inline")
+    img_mt = {".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp"}
+    for ext, mt in img_mt.items():
+        if low.endswith(ext):                # รูป: inline ใช้พรีวิวเกียรติบัตร
+            return FileResponse(str(path), media_type=mt, content_disposition_type="inline")
     # Word: ให้เปิด/ดาวน์โหลด (เบราว์เซอร์เปิด docx ใน iframe ไม่ได้)
     return FileResponse(str(path), media_type=_DOCX, filename=name)
 
@@ -452,3 +460,190 @@ async def admin_import(db: Session = Depends(get_db), file: UploadFile = File(..
         return RedirectResponse("/admin/import?import_err=read", status_code=303)
     q = ",".join(f"{k}:{v}" for k, v in summary.items()) or "none"
     return RedirectResponse(f"/admin/import?imported={q}", status_code=303)
+
+
+# ============================================================
+# หนังสือราชการภายนอก (แม่แบบสำเร็จ + ออก Word)
+# ============================================================
+# แม่แบบสำเร็จ: key -> (label, เรื่อง, โครงร่างเนื้อความ)  ("…" = เว้นให้เติม)
+LETTER_PRESETS = {
+    "blank": ("ฟอร์มเปล่า", "", ""),
+    "invite_meeting": ("เชิญประชุม", "ขอเชิญประชุม………………………",
+        "ด้วย…………………………… กำหนดจัดประชุม…………………… ในวันที่…………… เวลา………… น. "
+        "ณ…………………………………\n\nในการนี้ จึงขอเรียนเชิญท่านเข้าร่วมประชุมตามวัน เวลา และสถานที่ดังกล่าว "
+        "จะเป็นพระคุณยิ่ง"),
+    "invite_speaker": ("เชิญเป็นวิทยากร", "ขอเชิญเป็นวิทยากร",
+        "ด้วย…………………………… กำหนดจัด…………………… ในวันที่…………… ณ……………………………\n\n"
+        "ในการนี้ เห็นว่าท่านเป็นผู้มีความรู้ความสามารถ จึงขอเรียนเชิญท่านเป็นวิทยากรในหัวข้อ"
+        "…………………………… จะเป็นพระคุณยิ่ง"),
+    "ask_permission": ("ขออนุญาต", "ขออนุญาต……………………",
+        "ด้วย…………………………… มีความประสงค์ขออนุญาต…………………… เนื่องด้วย……………………………\n\n"
+        "จึงเรียนมาเพื่อโปรดพิจารณาอนุญาต"),
+    "ask_support": ("ขอความอนุเคราะห์", "ขอความอนุเคราะห์……………………",
+        "ด้วย…………………………… จึงใคร่ขอความอนุเคราะห์…………………… จากท่าน เพื่อ……………………………\n\n"
+        "จึงเรียนมาเพื่อโปรดพิจารณาให้ความอนุเคราะห์"),
+    "thanks": ("ขอบคุณ", "ขอขอบคุณ……………………",
+        "ตามที่ท่านได้……………………………… นั้น\n\n…………………………… ขอขอบคุณในความอนุเคราะห์ของท่านมา ณ "
+        "โอกาสนี้ และหวังเป็นอย่างยิ่งว่าจะได้รับความอนุเคราะห์จากท่านในโอกาสต่อไป"),
+    "send_person": ("ส่งตัว", "ส่งตัว……………………",
+        "ตามที่…………………………… นั้น\n\n…………………………… ขอส่งตัว…………………… เพื่อ……………………………"),
+}
+
+
+def _letter_ctx(db, extra=None):
+    school = get_school(db)
+    fy = current_fiscal_year()
+    ctx = {
+        "school": school, "fiscal_year": fy,
+        "sug_no": suggest_doc_no(db, "outgoing", fy),
+        "presets": LETTER_PRESETS,
+        "persons": db.query(Person).order_by(Person.name).all(),
+        "today_input": be_date_input(datetime.now()),
+    }
+    if extra:
+        ctx.update(extra)
+    return ctx
+
+
+@router.get("/admin/letters", response_class=HTMLResponse)
+def letters_page(request: Request, db: Session = Depends(get_db)):
+    rows = db.query(OfficialLetter).order_by(OfficialLetter.id.desc()).all()
+    return templates.TemplateResponse("official_letters.html",
+                                      _letter_ctx(db, {"request": request, "rows": rows}))
+
+
+@router.post("/admin/letters")
+def letter_create(db: Session = Depends(get_db), fiscal_year: str = Form(""), doc_no: str = Form(""),
+                  date: str = Form(""), subject: str = Form(""), to: str = Form(""),
+                  ref: str = Form(""), enclosure: str = Form(""), body: str = Form(""),
+                  closing: str = Form("ขอแสดงความนับถือ"), signer_name: str = Form(""),
+                  signer_position: str = Form(""), preset: str = Form("")):
+    fy = _to_int(fiscal_year, current_fiscal_year())
+    no = doc_no.strip() or suggest_doc_no(db, "outgoing", fy)
+    lt = OfficialLetter(fiscal_year=fy, doc_no=no, seq=parse_seq(no), date=parse_be_date(date),
+                        subject=subject.strip(), to=to.strip(), ref=ref.strip(),
+                        enclosure=enclosure.strip(), body=body,
+                        closing=closing.strip() or "ขอแสดงความนับถือ",
+                        signer_name=signer_name.strip(), signer_position=signer_position.strip(),
+                        preset=preset.strip())
+    db.add(lt); db.flush()
+    commit_doc_no(db, "outgoing", fy, no, source="admin", ref_id=lt.id, subject=lt.subject)
+    db.commit(); db.refresh(lt)
+    return RedirectResponse(f"/admin/letters/{lt.id}", status_code=303)
+
+
+@router.get("/admin/letters/{lid}", response_class=HTMLResponse)
+def letter_detail(lid: int, request: Request, db: Session = Depends(get_db)):
+    lt = db.get(OfficialLetter, lid)
+    if not lt:
+        return RedirectResponse("/admin/letters", status_code=303)
+    return templates.TemplateResponse("official_letter_detail.html",
+                                      _letter_ctx(db, {"request": request, "lt": lt}))
+
+
+@router.post("/admin/letters/{lid}/update")
+def letter_update(lid: int, db: Session = Depends(get_db), doc_no: str = Form(""),
+                  date: str = Form(""), subject: str = Form(""), to: str = Form(""),
+                  ref: str = Form(""), enclosure: str = Form(""), body: str = Form(""),
+                  closing: str = Form("ขอแสดงความนับถือ"), signer_name: str = Form(""),
+                  signer_position: str = Form("")):
+    lt = db.get(OfficialLetter, lid)
+    if lt:
+        lt.doc_no = doc_no.strip(); lt.seq = parse_seq(doc_no)
+        lt.date = parse_be_date(date); lt.subject = subject.strip(); lt.to = to.strip()
+        lt.ref = ref.strip(); lt.enclosure = enclosure.strip(); lt.body = body
+        lt.closing = closing.strip() or "ขอแสดงความนับถือ"
+        lt.signer_name = signer_name.strip(); lt.signer_position = signer_position.strip()
+        commit_doc_no(db, "outgoing", lt.fiscal_year, lt.doc_no, source="admin",
+                      ref_id=lt.id, subject=lt.subject)
+        db.commit()
+    return RedirectResponse(f"/admin/letters/{lid}?saved=1", status_code=303)
+
+
+@router.post("/admin/letters/{lid}/delete")
+def letter_delete(lid: int, db: Session = Depends(get_db)):
+    lt = db.get(OfficialLetter, lid)
+    if lt:
+        db.delete(lt); db.commit()
+    return RedirectResponse("/admin/letters", status_code=303)
+
+
+@router.get("/admin/letters/{lid}/generate")
+def letter_generate(lid: int, db: Session = Depends(get_db)):
+    lt = db.get(OfficialLetter, lid)
+    if not lt:
+        return RedirectResponse("/admin/letters", status_code=303)
+    path = render_official_letter(lt, get_school(db))
+    return FileResponse(path, filename=Path(path).name, media_type=_DOCX)
+
+
+# ============================================================
+# เกียรติบัตร (อัปโหลดพื้นหลัง + พิมพ์ชื่อทับ -> PDF หลายหน้า)
+# ============================================================
+from fastapi.responses import JSONResponse
+
+
+@router.get("/admin/certificates", response_class=HTMLResponse)
+def certificates_page(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse("certificates.html", {
+        "request": request, "school": get_school(db),
+    })
+
+
+@router.post("/admin/certificates/bg")
+async def certificate_bg(file: UploadFile = File(...)):
+    """อัปโหลดรูปพื้นหลังเกียรติบัตร -> คืนชื่อไฟล์ + ขนาด (สำหรับพรีวิว/ปักตำแหน่ง)"""
+    data = await file.read()
+    ext = file_upload.detect_ext(data, file.filename or "")
+    if ext not in ("png", "jpg", "webp"):
+        return JSONResponse({"error": "ไฟล์ต้องเป็นรูปภาพ (png/jpg/webp)"})
+    name = file_upload.save_upload(data, ext)
+    try:
+        from PIL import Image
+        import io
+        w, h = Image.open(io.BytesIO(data)).size
+    except Exception:
+        w = h = 0
+    return JSONResponse({"file": name, "w": w, "h": h, "url": f"/admin/uploaded/{name}"})
+
+
+@router.post("/admin/certificates/names-excel")
+async def certificate_names_excel(file: UploadFile = File(...)):
+    """อ่านรายชื่อจาก Excel (คอลัมน์แรก) -> คืนเป็นรายการ"""
+    if not (file.filename or "").lower().endswith(".xlsx"):
+        return JSONResponse({"error": "ไฟล์ต้องเป็น .xlsx"})
+    data = await file.read()
+    try:
+        from openpyxl import load_workbook
+        import io
+        wb = load_workbook(io.BytesIO(data), data_only=True)
+        ws = wb.active
+        names = []
+        for row in ws.iter_rows(values_only=True):
+            if row and row[0] is not None:
+                v = str(row[0]).strip()
+                if v and v not in ("ชื่อ", "ชื่อ-นามสกุล", "รายชื่อ", "ลำดับ"):
+                    names.append(v)
+    except Exception:
+        return JSONResponse({"error": "อ่านไฟล์ Excel ไม่สำเร็จ"})
+    return JSONResponse({"names": names})
+
+
+@router.post("/admin/certificates")
+def certificate_generate(db: Session = Depends(get_db), title: str = Form(""),
+                         sub_text: str = Form(""), bg_image: str = Form(""),
+                         name_x: str = Form("50"), name_y: str = Form("45"),
+                         name_size: str = Form("48"), name_color: str = Form("#1a1a1a"),
+                         names: str = Form("")):
+    from app.services.cert_doc import render_certificates
+    name_list = [n.strip() for n in (names or "").splitlines() if n.strip()]
+    if not bg_image.strip() or not name_list:
+        return RedirectResponse("/admin/certificates?err=1", status_code=303)
+    batch = CertificateBatch(
+        title=title.strip(), sub_text=sub_text.strip(), bg_image=bg_image.strip(),
+        name_x=_to_float(name_x, 50.0), name_y=_to_float(name_y, 45.0),
+        name_size=_to_int(name_size, 48), name_color=name_color.strip() or "#1a1a1a",
+        names="\n".join(name_list))
+    db.add(batch); db.commit(); db.refresh(batch)
+    path = render_certificates(batch, name_list, get_school(db))
+    return FileResponse(path, filename=Path(path).name, media_type=_PDF)

@@ -11,11 +11,13 @@ office_doc.py
 from pathlib import Path
 
 from docx import Document
+from docx.shared import Cm
 
 from app.database import get_data_dir
 from app.thai_utils import thai_date, thai_date_official
 from app.services.build_templates import (
-    _font, _p, _p_runs, _krut_and_title, _krut_center, _sign_table, THAI_FONT,
+    _font, _p, _p_runs, _krut_and_title, _krut_center, _sign_table,
+    _no_borders, _set_cell, THAI_FONT,
 )
 
 
@@ -99,6 +101,60 @@ def render_order(order, school) -> str:
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)
     fname = _safe(f"คำสั่ง_{order.order_no or order.id}_{order.subject}") + ".docx"
+    out_path = out_dir / fname
+    doc.save(str(out_path))
+    return str(out_path)
+
+
+_BLANK = ".........................................."
+
+
+def render_official_letter(letter, school) -> str:
+    """สร้างไฟล์ .docx หนังสือราชการภายนอก (ครุฑกลาง + ขอแสดงความนับถือ) คืนค่าที่อยู่ไฟล์"""
+    doc = Document()
+    _font(doc)
+    _krut_center(doc, height_cm=2.0)
+
+    # บรรทัด "ที่ ..." (ซ้าย) + ชื่อ/ที่อยู่ส่วนราชการ (ขวา) แบบตารางไร้เส้น
+    t = doc.add_table(rows=1, cols=2)
+    _no_borders(t)
+    t.autofit = False
+    t.columns[0].width = Cm(7.5)
+    t.columns[1].width = Cm(8.0)
+    _set_cell(t.rows[0].cells[0], "ที่  " + (letter.doc_no or _BLANK), align="left", size=16)
+    right = (school.name or "") + (("\n" + school.address) if school.address else "")
+    _set_cell(t.rows[0].cells[1], right, align="left", size=16)
+
+    _p(doc, "วันที่ " + thai_date_official(letter.date), align="center", after=4)
+    _p_runs(doc, [("เรื่อง  ", True), (letter.subject or _BLANK, False)])
+    _p_runs(doc, [("เรียน  ", True), (letter.to or _BLANK, False)])
+    if (letter.ref or "").strip():
+        _p_runs(doc, [("อ้างถึง  ", True), (letter.ref, False)])
+    if (letter.enclosure or "").strip():
+        _p_runs(doc, [("สิ่งที่ส่งมาด้วย  ", True), (letter.enclosure, False)])
+
+    _p(doc, "", after=4)
+    _body_paragraphs(doc, letter.body)
+
+    # คำลงท้าย + ลงนาม (จัดกึ่งกลางครึ่งขวา)
+    _p(doc, "", after=8)
+    _p(doc, letter.closing or "ขอแสดงความนับถือ", align="center", after=10)
+    signer = (letter.signer_name or school.director_name or "")
+    position = (letter.signer_position or _director_office(school))
+    _sign_table(doc, [[
+        ("(ลงชื่อ).........................................", "center"),
+        (f"( {signer} )", "center"),
+        (position, "center"),
+    ]])
+
+    # ส่วนราชการเจ้าของเรื่อง + เบอร์โทร (ล่างซ้าย)
+    _p(doc, "", after=6)
+    _p(doc, school.name or "", align="left", after=0, size=15)
+    _p(doc, "โทร. ........................................", align="left", size=15)
+
+    out_dir = get_data_dir() / "documents"
+    out_dir.mkdir(exist_ok=True)
+    fname = _safe(f"หนังสือราชการ_{letter.doc_no or letter.id}_{letter.subject}") + ".docx"
     out_path = out_dir / fname
     doc.save(str(out_path))
     return str(out_path)

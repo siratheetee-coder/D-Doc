@@ -362,6 +362,45 @@ class SchoolOrder(Base):
     created_at = Column(DateTime, default=datetime.now)
 
 
+class OfficialLetter(Base):
+    """หนังสือราชการภายนอก (เลขที่ใช้ชุด 'outgoing' ร่วมกับทะเบียนหนังสือส่ง)"""
+    __tablename__ = "official_letter"
+
+    id = Column(Integer, primary_key=True)
+    fiscal_year = Column(Integer, nullable=False)
+    doc_no = Column(String, default="")             # เลขที่หนังสือ เช่น ศธ 04123/45
+    seq = Column(Integer, default=0)
+    date = Column(DateTime, nullable=True)          # ลงวันที่
+    subject = Column(String, default="")            # เรื่อง
+    to = Column(String, default="")                 # เรียน (ผู้รับ)
+    ref = Column(String, default="")                # อ้างถึง
+    enclosure = Column(String, default="")          # สิ่งที่ส่งมาด้วย
+    body = Column(Text, default="")                 # เนื้อความ (หลายย่อหน้า)
+    closing = Column(String, default="ขอแสดงความนับถือ")  # คำลงท้าย
+    signer_name = Column(String, default="")        # ผู้ลงนาม
+    signer_position = Column(String, default="")    # ตำแหน่งผู้ลงนาม
+    preset = Column(String, default="")             # แม่แบบที่ใช้ (อ้างอิง)
+    file_path = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class CertificateBatch(Base):
+    """ชุดเกียรติบัตร (อัปโหลดพื้นหลัง + พิมพ์ชื่อทับ ออกหลายใบจากรายชื่อ)"""
+    __tablename__ = "certificate_batch"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String, default="")              # ชื่อชุด/หัวเรื่อง (อ้างอิง)
+    sub_text = Column(Text, default="")             # ข้อความเสริมใต้ชื่อ (ไม่บังคับ)
+    date = Column(DateTime, nullable=True)
+    bg_image = Column(String, default="")           # ไฟล์รูปพื้นหลังใน uploads
+    name_x = Column(Float, default=50.0)            # ตำแหน่งชื่อ (% ของความกว้าง)
+    name_y = Column(Float, default=45.0)            # ตำแหน่งชื่อ (% ของความสูง)
+    name_size = Column(Integer, default=48)         # ขนาดฟอนต์ชื่อ (px เทียบความกว้างรูป)
+    name_color = Column(String, default="#1a1a1a")
+    names = Column(Text, default="")                # รายชื่อ (1 ชื่อ/บรรทัด)
+    created_at = Column(DateTime, default=datetime.now)
+
+
 # ============================================================
 # เฟส 3: ทะเบียนครุภัณฑ์ (+ค่าเสื่อม) และบัญชีวัสดุ (+ใบเบิก)
 # ============================================================

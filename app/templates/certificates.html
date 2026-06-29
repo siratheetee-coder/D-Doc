@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}เกียรติบัตร{% endblock %}
+{% block content %}
+<div class="card">
+  <h1><svg class="icon"><use href="#ic-ai"/></svg> ออกเกียรติบัตร (อัปโหลดพื้นหลัง + พิมพ์ชื่อทับ)</h1>
+  <p class="muted" style="margin-top:0;">อัปโหลดรูปเกียรติบัตรของคุณ → คลิกบนรูปเพื่อปักตำแหน่งชื่อ → ใส่รายชื่อ (วางหรืออัป Excel) → ได้ PDF หลายหน้า (1 คน/หน้า)</p>
+  {% if request.query_params.get('err') %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> ต้องอัปโหลดพื้นหลังและใส่รายชื่ออย่างน้อย 1 ชื่อ</div>{% endif %}
+</div>
+
+<form method="post" action="/admin/certificates" onsubmit="return onGen(this)">
+  <input type="hidden" name="bg_image" id="bg_image">
+  <input type="hidden" name="name_x" id="name_x" value="50">
+  <input type="hidden" name="name_y" id="name_y" value="45">
+
+  <div class="card">
+    <h2>1) รูปพื้นหลังเกียรติบัตร</h2>
+    <input type="file" accept="image/*" onchange="bgUpload(this)"
+           style="padding:6px; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
+    <span id="bgMsg" class="muted" style="margin-left:8px; font-size:13px;"></span>
+    <div id="previewWrap" style="display:none; margin-top:14px;">
+      <p class="muted" style="margin:0 0 6px;"><b>คลิกบนรูป</b> เพื่อปักตำแหน่งกึ่งกลางของชื่อ (จุดแดง)</p>
+      <div id="imgBox" style="position:relative; display:inline-block; max-width:100%; cursor:crosshair; border:1px solid var(--border);">
+        <img id="bgImg" style="display:block; max-width:100%; height:auto;" onclick="placeName(event)">
+        <div id="marker" style="position:absolute; width:14px; height:14px; margin:-7px 0 0 -7px; border-radius:50%; background:#e11; box-shadow:0 0 0 2px #fff; left:50%; top:45%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="optCard" style="display:none;">
+    <h2>2) รูปแบบชื่อ + ข้อความเสริม</h2>
+    <div class="row">
+      <div><label>ขนาดชื่อ</label><input name="name_size" id="name_size" type="number" min="10" max="120" value="48" oninput="preview()"></div>
+      <div><label>สีชื่อ</label><input name="name_color" id="name_color" type="color" value="#1a1a1a" oninput="preview()" style="height:42px; padding:4px;"></div>
+      <div style="flex:2;"><label>ข้อความเสริมใต้ชื่อ (ไม่บังคับ)</label><input name="sub_text" placeholder="เช่น ได้รับรางวัลชนะเลิศ..."></div>
+    </div>
+    <label>ชื่อชุด (ไว้อ้างอิง)</label><input name="title" placeholder="เช่น เกียรติบัตรกีฬาสี 2569">
+  </div>
+
+  <div class="card">
+    <h2>3) รายชื่อ <span class="muted" style="font-size:14px;">(1 ชื่อ/บรรทัด)</span></h2>
+    <div style="margin-bottom:8px;">
+      <label class="btn gray sm" style="cursor:pointer;">
+        <svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดรายชื่อจาก Excel
+        <input type="file" accept=".xlsx" style="display:none;" onchange="excelUpload(this)">
+      </label>
+      <span id="xlMsg" class="muted" style="margin-left:8px; font-size:13px;"></span>
+    </div>
+    <textarea name="names" id="names" rows="8" placeholder="นายสมชาย ใจดี&#10;นางสาวสมหญิง รักเรียน&#10;..."></textarea>
+    <br><br><button class="btn green" type="submit" id="genBtn"><svg class="icon"><use href="#ic-download"/></svg> ออกเกียรติบัตร (PDF)</button>
+  </div>
+</form>
+
+<script>
+  function bgUpload(input){
+    if(!input.files || !input.files[0]) return;
+    var msg = document.getElementById('bgMsg'); msg.innerHTML = '<span class="spin"></span> กำลังอัปโหลด...';
+    var fd = new FormData(); fd.append('file', input.files[0]);
+    fetch('/admin/certificates/bg', {method:'POST', body:fd}).then(function(r){return r.json();}).then(function(d){
+      if(d.error){ msg.textContent = d.error; return; }
+      document.getElementById('bg_image').value = d.file;
+      document.getElementById('bgImg').src = d.url;
+      document.getElementById('previewWrap').style.display = 'block';
+      document.getElementById('optCard').style.display = 'block';
+      msg.textContent = 'อัปโหลดแล้ว — คลิกบนรูปเพื่อปักตำแหน่งชื่อ';
+      setTimeout(preview, 200);
+    }).catch(function(){ msg.textContent = 'อัปโหลดไม่สำเร็จ'; });
+  }
+  function placeName(ev){
+    var img = document.getElementById('bgImg');
+    var rect = img.getBoundingClientRect();
+    var px = (ev.clientX - rect.left) / rect.width * 100;
+    var py = (ev.clientY - rect.top) / rect.height * 100;
+    document.getElementById('name_x').value = px.toFixed(1);
+    document.getElementById('name_y').value = py.toFixed(1);
+    preview();
+  }
+  function preview(){
+    var m = document.getElementById('marker');
+    m.style.left = document.getElementById('name_x').value + '%';
+    m.style.top  = document.getElementById('name_y').value + '%';
+  }
+  function excelUpload(input){
+    if(!input.files || !input.files[0]) return;
+    var msg = document.getElementById('xlMsg'); msg.innerHTML = '<span class="spin"></span> กำลังอ่าน Excel...';
+    var fd = new FormData(); fd.append('file', input.files[0]);
+    fetch('/admin/certificates/names-excel', {method:'POST', body:fd}).then(function(r){return r.json();}).then(function(d){
+      input.value = '';
+      if(d.error){ msg.textContent = d.error; return; }
+      var ta = document.getElementById('names');
+      var cur = ta.value.trim();
+      ta.value = (cur ? cur + '\n' : '') + (d.names || []).join('\n');
+      msg.textContent = 'เพิ่ม ' + (d.names||[]).length + ' ชื่อจาก Excel';
+    }).catch(function(){ msg.textContent = 'อ่าน Excel ไม่สำเร็จ'; });
+  }
+  function onGen(form){
+    if(!document.getElementById('bg_image').value){ alert('กรุณาอัปโหลดรูปพื้นหลังก่อน'); return false; }
+    if(!document.getElementById('names').value.trim()){ alert('กรุณาใส่รายชื่ออย่างน้อย 1 ชื่อ'); return false; }
+    var b = document.getElementById('genBtn');
+    b.disabled = true; b.innerHTML = '<span class="spin" style="border-color:rgba(255,255,255,.4); border-top-color:#fff;"></span> กำลังสร้าง PDF...';
+    setTimeout(function(){ b.disabled=false; b.innerHTML='<svg class="icon"><use href="#ic-download"/></svg> ออกเกียรติบัตร (PDF)'; }, 4000);
+    return true;
+  }
+</script>
+{% endblock %}

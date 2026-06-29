@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}ออกหนังสือราชการ{% endblock %}
+{% block content %}
+<div class="card">
+  <h1><svg class="icon"><use href="#ic-file"/></svg> ออกหนังสือราชการ (ภายนอก)</h1>
+  <p class="muted" style="margin-top:0;">เลือกแม่แบบเพื่อเติมเรื่อง/เนื้อความให้อัตโนมัติ แล้วแก้ได้ · เลขที่ใช้ชุดเดียวกับทะเบียนหนังสือส่ง</p>
+  <form method="post" action="/admin/letters">
+    <div class="row">
+      <div style="flex:2;"><label>แม่แบบสำเร็จ</label>
+        <select id="presetSel" onchange="applyPreset()">
+          {% for key, p in presets.items() %}<option value="{{ key }}">{{ p[0] }}</option>{% endfor %}
+        </select>
+      </div>
+      <div><label>เลขที่หนังสือ</label><input name="doc_no" value="{{ sug_no }}" placeholder="เช่น ศธ 04123/45"></div>
+      <div><label>ลงวันที่</label><input name="date" value="{{ today_input }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+    </div>
+    <label>เรื่อง *</label><input name="subject" id="f_subject" required placeholder="เช่น ขอเชิญประชุม...">
+    <label>เรียน *</label><input name="to" required placeholder="เช่น นายอำเภอเมือง / ผู้อำนวยการ...">
+    <div class="row">
+      <div><label>อ้างถึง (ไม่บังคับ)</label><input name="ref"></div>
+      <div><label>สิ่งที่ส่งมาด้วย (ไม่บังคับ)</label><input name="enclosure"></div>
+    </div>
+    <label>เนื้อความ</label>
+    <textarea name="body" id="f_body" rows="7" placeholder="พิมพ์เนื้อความ เว้นบรรทัดว่าง = ย่อหน้าใหม่"></textarea>
+    <div class="row">
+      <div><label>คำลงท้าย</label><input name="closing" value="ขอแสดงความนับถือ"></div>
+      <div><label>ผู้ลงนาม</label><input name="signer_name" list="persons_dl" value="{{ school.director_name }}"></div>
+      <div><label>ตำแหน่ง</label><input name="signer_position" value="{{ 'ผู้อำนวยการ' + school.name if school.name.startswith('โรงเรียน') else 'ผู้อำนวยการโรงเรียน' }}"></div>
+    </div>
+    <datalist id="persons_dl">{% for ps in persons %}<option value="{{ ps.name }}">{% endfor %}</datalist>
+    <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกและออกหนังสือ</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>หนังสือราชการที่ออกแล้ว</h2>
+  {% if rows %}
+  <table>
+    <thead><tr><th>เลขที่</th><th>วันที่</th><th>เรื่อง</th><th>เรียน</th><th></th></tr></thead>
+    <tbody>
+      {% for lt in rows %}
+      <tr>
+        <td><a href="/admin/letters/{{ lt.id }}"><b>{{ lt.doc_no or "-" }}</b></a></td>
+        <td>{{ thai_date(lt.date) if lt.date else "-" }}</td>
+        <td>{{ lt.subject or "-" }}</td>
+        <td>{{ lt.to or "-" }}</td>
+        <td class="right"><a class="btn sm gray" href="/admin/letters/{{ lt.id }}/generate"><svg class="icon"><use href="#ic-download"/></svg> Word</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">ยังไม่มีหนังสือราชการ</p>{% endif %}
+</div>
+
+<script>
+  var PRESETS = {{ presets|tojson }};
+  function applyPreset(){
+    var k = document.getElementById('presetSel').value;
+    var p = PRESETS[k]; if(!p) return;
+    var subj = document.getElementById('f_subject'), body = document.getElementById('f_body');
+    // เติมให้เฉพาะตอนช่องยังว่าง หรือผู้ใช้ยืนยันทับ
+    if(p[1] && (!subj.value || confirm('แทนที่เรื่อง/เนื้อความด้วยแม่แบบนี้?'))){ subj.value = p[1]; body.value = p[2]; }
+    else if(!subj.value){ subj.value = p[1]; body.value = p[2]; }
+  }
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

@@ -137,6 +137,13 @@
           </tr>
         {% endif %}
       </tbody>
+      <tfoot>
+        <tr style="background:#f1f5f9; font-weight:700;">
+          <td colspan="4" class="right">รวมทั้งสิ้น</td>
+          <td class="right" id="grandTotal">0.00</td>
+          <td></td>
+        </tr>
+      </tfoot>
     </table>
     <br><button type="button" class="btn soft sm" onclick="addItem()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มรายการ</button>
     <label class="btn gray sm" style="cursor:pointer; margin-left:6px;">
@@ -373,7 +380,9 @@
       var cell = tr.querySelector('.line-amt');
       if (cell) cell.innerText = amt.toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
     });
-    document.getElementById('totalShow').innerText = t.toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
+    var tStr = t.toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
+    document.getElementById('totalShow').innerText = tStr;
+    var gt = document.getElementById('grandTotal'); if (gt) gt.innerText = tStr;
     // บังคับโหมดตามวงเงิน: เกินเกณฑ์ -> คณะกรรมการ (ปิดตัวเลือกคนเดียว)
     var modeSel = document.getElementById('mode');
     if (!modeSel) return;   // ฟอร์มแบบพิเศษไม่มีส่วนคณะกรรมการ

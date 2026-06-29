@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}หนังสือราชการ {{ lt.doc_no }}{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">หนังสือราชการ {{ lt.doc_no or "" }}</h1>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn gray sm" href="/admin/letters"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
+      <a class="btn sm" href="/admin/letters/{{ lt.id }}/generate"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลด Word</a>
+    </div>
+  </div>
+  {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกเรียบร้อยแล้ว</div>{% endif %}
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-edit"/></svg> รายละเอียด</h2>
+  <form method="post" action="/admin/letters/{{ lt.id }}/update">
+    <div class="row">
+      <div><label>เลขที่หนังสือ</label><input name="doc_no" value="{{ lt.doc_no }}"></div>
+      <div><label>ลงวันที่</label><input name="date" value="{{ be_date(lt.date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+    </div>
+    <label>เรื่อง</label><input name="subject" value="{{ lt.subject }}">
+    <label>เรียน</label><input name="to" value="{{ lt.to }}">
+    <div class="row">
+      <div><label>อ้างถึง</label><input name="ref" value="{{ lt.ref }}"></div>
+      <div><label>สิ่งที่ส่งมาด้วย</label><input name="enclosure" value="{{ lt.enclosure }}"></div>
+    </div>
+    <label>เนื้อความ</label>
+    <textarea name="body" rows="8">{{ lt.body }}</textarea>
+    <div class="row">
+      <div><label>คำลงท้าย</label><input name="closing" value="{{ lt.closing }}"></div>
+      <div><label>ผู้ลงนาม</label><input name="signer_name" list="persons_dl" value="{{ lt.signer_name }}"></div>
+      <div><label>ตำแหน่ง</label><input name="signer_position" value="{{ lt.signer_position }}"></div>
+    </div>
+    <datalist id="persons_dl">{% for ps in persons %}<option value="{{ ps.name }}">{% endfor %}</datalist>
+    <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกการแก้ไข</button>
+  </form>
+</div>
+
+<div class="card">
+  <form method="post" action="/admin/letters/{{ lt.id }}/delete" onsubmit="return confirm('ลบหนังสือนี้?')">
+    <button class="btn red sm" type="submit"><svg class="icon"><use href="#ic-trash"/></svg> ลบหนังสือนี้</button>
+  </form>
+</div>
+
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}
