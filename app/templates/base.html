@@ -39,6 +39,7 @@
     /* ===== ธีมสีต่อกลุ่มงาน (override เฉพาะสีแบรนด์ คงสีพื้น/เลย์เอาต์ -> รักษากฎ 60/30/10) ===== */
     .layout[data-module="admin"]   { --brand:#7c3aed; --brand-dark:#6d28d9; --brand-soft:#ede9fe; }
     .layout[data-module="finance"] { --brand:#16a34a; --brand-dark:#15803d; --brand-soft:#dcfce7; }
+    .layout[data-module="lunch"]   { --brand:#ea580c; --brand-dark:#c2410c; --brand-soft:#ffedd5; }
     /* พัสดุ + hub ใช้สีน้ำเงินเริ่มต้นจาก :root */
     * { box-sizing: border-box; }
     /* กันหน้าจอ "ขยับซ้าย-ขวา" เวลาสลับหน้า (หน้าสั้นไม่มีสกรอลล์ vs หน้ายาวมีสกรอลล์) — จองที่สกรอลล์ไว้เสมอ */
@@ -415,11 +416,12 @@
   {% set path = request.url.path %}
   {% set module = 'admin' if path.startswith('/admin')
         else 'finance' if path.startswith('/finance')
+        else 'lunch' if path.startswith('/lunch')
         else 'procurement' if (path.startswith('/procurement') or path.startswith('/assets')
              or path.startswith('/materials') or path.startswith('/requisitions')
              or path.startswith('/register'))
         else 'hub' %}
-  {% set mod_label = {'admin':'งานธุรการ','procurement':'งานพัสดุ','finance':'งานการเงิน','hub':'เลือกงาน'}[module] %}
+  {% set mod_label = {'admin':'งานธุรการ','procurement':'งานพัสดุ','finance':'งานการเงิน','lunch':'งานอาหารกลางวัน','hub':'เลือกงาน'}[module] %}
   <div class="layout" data-module="{{ module }}">
     <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
     <aside class="sidebar" id="sidebar">
@@ -431,8 +433,8 @@
         </span>
       </div>
       <nav>
-        {% set section_home = '/admin' if module=='admin' else '/finance' if module=='finance' else '/procurement' if module=='procurement' else '/' %}
-        {% set section_prefixes = ['/admin'] if module=='admin' else ['/finance'] if module=='finance' else ['/procurement','/assets','/materials','/requisitions','/register'] if module=='procurement' else ['/'] %}
+        {% set section_home = '/admin' if module=='admin' else '/finance' if module=='finance' else '/lunch' if module=='lunch' else '/procurement' if module=='procurement' else '/' %}
+        {% set section_prefixes = ['/admin'] if module=='admin' else ['/finance'] if module=='finance' else ['/lunch'] if module=='lunch' else ['/procurement','/assets','/materials','/requisitions','/register'] if module=='procurement' else ['/'] %}
         {% if module != 'hub' %}
         <a href="{{ section_home }}" class="navback" onclick="return goBack(event)"><svg class="icon"><use href="#ic-arrow-left"/></svg> ย้อนกลับ</a>
         <script>
@@ -487,6 +489,11 @@
         <div class="nav-sec">ข้อมูล</div>
         <a href="/finance/import" class="{{ 'active' if path.startswith('/finance/import') }}"><svg class="icon"><use href="#ic-download"/></svg> นำเข้าข้อมูล</a>
 
+        {% elif module == 'lunch' %}
+        <div class="nav-sec">งานอาหารกลางวัน</div>
+        <a href="/lunch" class="{{ 'active' if path == '/lunch' }}"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลักอาหารกลางวัน</a>
+        <a href="/lunch/setup" class="{{ 'active' if path.startswith('/lunch/setup') }}"><svg class="icon"><use href="#ic-file-plus"/></svg> ตั้งโครงการ/คำนวณงบ</a>
+
         {% else %}{# hub #}
         <div class="nav-sec">เลือกงาน</div>
         {% if modules_live.admin %}<a href="/admin"><svg class="icon"><use href="#ic-file"/></svg> งานธุรการ</a>
@@ -494,6 +501,8 @@
         <a href="/procurement"><svg class="icon"><use href="#ic-package"/></svg> งานพัสดุ</a>
         {% if modules_live.finance %}<a href="/finance"><svg class="icon"><use href="#ic-coins"/></svg> งานการเงิน</a>
         {% else %}<span class="navdim"><svg class="icon"><use href="#ic-coins"/></svg> งานการเงิน (เร็วๆ นี้)</span>{% endif %}
+        {% if modules_live.lunch %}<a href="/lunch"><svg class="icon"><use href="#ic-coins"/></svg> งานอาหารกลางวัน</a>
+        {% else %}<span class="navdim"><svg class="icon"><use href="#ic-coins"/></svg> งานอาหารกลางวัน (เร็วๆ นี้)</span>{% endif %}
         {% endif %}
 
         <div class="nav-sec">ระบบ</div>

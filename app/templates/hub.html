@@ -80,6 +80,17 @@
       <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
       {% else %}<span class="hub-soon">เร็วๆ นี้</span>{% endif %}
     </a>
+
+    <!-- งานอาหารกลางวัน -->
+    <a class="hub-card {{ '' if modules_live.lunch else 'dim' }}" style="--c:#ea580c; --c2:#fb923c;"
+       href="{{ '/lunch' if modules_live.lunch else '#' }}" {{ '' if modules_live.lunch else 'onclick=return false;'|safe }}>
+      <span class="hub-ic"><svg class="icon"><use href="#ic-coins"/></svg></span>
+      <h2>งานอาหารกลางวัน</h2>
+      <div class="desc">คำนวณงบตามจำนวนนักเรียน · บัญชีรับ-จ่ายเงินอุดหนุน · เชื่อมเรื่องจ้างเหมา</div>
+      {% if modules_live.lunch %}
+      <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      {% else %}<span class="hub-soon">เร็วๆ นี้</span>{% endif %}
+    </a>
   </div>
 
   <!-- ภาพรวมปีงบ -->

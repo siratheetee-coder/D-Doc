@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}ตั้งโครงการอาหารกลางวัน{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>{{ 'แก้ไข' if p else 'ตั้ง' }}โครงการอาหารกลางวัน</h1>
+  <form method="post" action="/lunch/save">
+    {% if p %}<input type="hidden" name="pid" value="{{ p.id }}">{% endif %}
+    <div class="row">
+      <div><label>ปีการศึกษา (พ.ศ.)</label><input name="year" type="number" value="{{ default_year }}"></div>
+      <div><label>จำนวนวันทำการ</label><input name="days" type="number" id="days" value="{{ p.days if p else 200 }}" oninput="calc()"></div>
+      <div><label>วิธีดำเนินการ</label><select name="operate_mode">
+        {% for k,v in modes.items() %}<option value="{{ k }}" {{ 'selected' if p and p.operate_mode==k }}>{{ v }}</option>{% endfor %}
+      </select></div>
+    </div>
+    <div class="row">
+      <div><label>อปท.ผู้จัดสรร (เทศบาล/อบต.)</label><input name="funding_org" value="{{ p.funding_org if p else '' }}"></div>
+      <div><label>อัตราต่อหัว/วัน <span class="muted">(เว้นว่าง = เลือกอัตโนมัติตามขนาด)</span></label>
+        <input name="rate_per_head" id="rate" type="number" step="0.01" placeholder="อัตโนมัติ"
+               value="{{ '%g'|format(p.rate_per_head) if p and p.rate_per_head else '' }}" oninput="calc()"></div>
+    </div>
+
+    <h2>จำนวนนักเรียนแยกระดับชั้น</h2>
+    <table id="lvTable">
+      <thead><tr><th>ระดับชั้น</th><th>จำนวนนักเรียน</th></tr></thead>
+      <tbody>
+      {% for lv in levels %}
+        <tr>
+          <td><input name="level" value="{{ lv.level }}" style="width:130px;"></td>
+          <td><input name="num" type="number" min="0" value="{{ lv.num }}" class="numIn" oninput="calc()" style="width:130px;"></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <button type="button" class="btn sm gray" onclick="addRow()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มระดับชั้น</button>
+
+    <div class="card" style="background:var(--brand-soft); margin-top:16px;">
+      <div style="display:flex; gap:30px; flex-wrap:wrap; font-size:16px;">
+        <div>นักเรียนรวม: <b id="sTotal">0</b> คน</div>
+        <div>อัตราที่ใช้: <b id="sRate">0</b> บาท/หัว/วัน</div>
+        <div>จำนวนวัน: <b id="sDays">200</b></div>
+        <div style="font-size:19px;">งบประมาณ: <b id="sBudget" style="color:var(--brand-dark);">0.00</b> บาท</div>
+      </div>
+      <p class="muted" style="margin:8px 0 0;">อัตราตามขนาด: 1-40 คน = 36 · 41-100 = 27 · 101-120 = 24 · 121 คนขึ้นไป = 22 บาท</p>
+    </div>
+
+    <label style="margin-top:14px;">หมายเหตุ</label><textarea name="note" rows="2">{{ p.note if p else '' }}</textarea>
+    <br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก + คำนวณงบ</button>
+  </form>
+</div>
+<script>
+  function autoRate(t){ if(t<=0)return 0; if(t<=40)return 36; if(t<=100)return 27; if(t<=120)return 24; return 22; }
+  function calc(){
+    var t=0; document.querySelectorAll('.numIn').forEach(function(i){ t += parseInt(i.value||0)||0; });
+    var days=parseInt(document.getElementById('days').value||0)||0;
+    var rateIn=parseFloat(document.getElementById('rate').value||0)||0;
+    var rate = rateIn>0 ? rateIn : autoRate(t);
+    document.getElementById('sTotal').innerText=t;
+    document.getElementById('sRate').innerText=rate;
+    document.getElementById('sDays').innerText=days;
+    document.getElementById('sBudget').innerText=(t*rate*days).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+  function addRow(){
+    var tb=document.querySelector('#lvTable tbody');
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td><input name="level" style="width:130px;"></td>'+
+      '<td><input name="num" type="number" min="0" value="0" class="numIn" oninput="calc()" style="width:130px;"></td>';
+    tb.appendChild(tr);
+  }
+  calc();
+</script>
+{% endblock %}

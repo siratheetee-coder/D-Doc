@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}อาหารกลางวัน{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">โครงการอาหารกลางวัน</h1>
+    <a class="btn" href="/lunch/setup"><svg class="icon"><use href="#ic-file-plus"/></svg> ตั้งโครงการใหม่</a>
+  </div>
+  <p class="muted" style="margin-bottom:0;">คำนวณงบตามจำนวนนักเรียน × อัตราต่อหัว/วัน × จำนวนวัน และคุมบัญชีรับ-จ่ายเงินอุดหนุน</p>
+</div>
+
+<div class="card">
+  {% if rows %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr>
+      <th>ปีการศึกษา</th><th>วิธีดำเนินการ</th><th class="right">นักเรียน</th>
+      <th class="right">อัตรา</th><th class="right">วัน</th><th class="right">งบประมาณ</th>
+      <th class="right">รับ</th><th class="right">จ่าย</th><th class="right">คงเหลือ</th><th></th>
+    </tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td><a href="/lunch/{{ r.p.id }}"><b>{{ r.p.year }}</b></a></td>
+        <td>{{ modes.get(r.p.operate_mode, r.p.operate_mode) }}</td>
+        <td class="right">{{ r.p.total_students }}</td>
+        <td class="right">{{ "%g"|format(r.p.rate_per_head or 0) }}</td>
+        <td class="right">{{ r.p.days }}</td>
+        <td class="right"><b>{{ "{:,.2f}".format(r.p.budget) }}</b></td>
+        <td class="right">{{ "{:,.2f}".format(r.totals['in']) }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.totals['out']) }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.totals['balance']) }}</td>
+        <td><a class="btn sm gray" href="/lunch/{{ r.p.id }}">เปิด</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">ยังไม่มีโครงการอาหารกลางวัน กด "ตั้งโครงการใหม่" เพื่อเริ่ม</p>
+  {% endif %}
+</div>
+{% endblock %}

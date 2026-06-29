@@ -632,3 +632,62 @@ class RequisitionItem(Base):
 
     requisition = relationship("Requisition", back_populates="items")
     material = relationship("MaterialItem")
+
+
+# ==================== โครงการอาหารกลางวัน ====================
+class LunchProgram(Base):
+    """โครงการอาหารกลางวันต่อปีการศึกษา (คำนวณงบ + บัญชีรับ-จ่าย)
+    งบ = จำนวนนักเรียนรวม x อัตราต่อหัวต่อวัน x จำนวนวัน"""
+    __tablename__ = "lunch_program"
+
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, nullable=False)          # ปีการศึกษา พ.ศ. เช่น 2568
+    days = Column(Integer, default=200)             # จำนวนวันทำการ
+    rate_per_head = Column(Float, default=0.0)      # อัตราต่อหัว/วัน (เลือกอัตโนมัติตามขนาด แก้ได้)
+    operate_mode = Column(String, default="hire")   # hire=จ้างเหมาปรุงสำเร็จ / ingredient=ซื้อวัตถุดิบ+แม่ครัว / self=ทำเอง
+    funding_org = Column(String, default="")        # อปท.ผู้จัดสรร (เทศบาล/อบต.)
+    note = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+    classes = relationship("LunchClass", back_populates="program",
+                           cascade="all, delete-orphan", order_by="LunchClass.seq")
+    ledger = relationship("LunchLedger", back_populates="program",
+                          cascade="all, delete-orphan")
+
+    @property
+    def total_students(self) -> int:
+        return sum(c.num_students or 0 for c in self.classes)
+
+    @property
+    def budget(self) -> float:
+        return (self.total_students) * (self.rate_per_head or 0) * (self.days or 0)
+
+
+class LunchClass(Base):
+    """จำนวนนักเรียนแยกระดับชั้นในโครงการอาหารกลางวัน"""
+    __tablename__ = "lunch_class"
+
+    id = Column(Integer, primary_key=True)
+    program_id = Column(Integer, ForeignKey("lunch_program.id"), nullable=False)
+    seq = Column(Integer, default=0)                # ลำดับการแสดง
+    level = Column(String, default="")              # ระดับชั้น เช่น อ.1 / ป.1 / ม.1
+    num_students = Column(Integer, default=0)
+
+    program = relationship("LunchProgram", back_populates="classes")
+
+
+class LunchLedger(Base):
+    """บัญชีรับ-จ่ายเงินอาหารกลางวัน (รับเงินอุดหนุนเป็นงวด / จ่าย)"""
+    __tablename__ = "lunch_ledger"
+
+    id = Column(Integer, primary_key=True)
+    program_id = Column(Integer, ForeignKey("lunch_program.id"), nullable=False)
+    date = Column(DateTime, nullable=True)
+    kind = Column(String, default="in")             # in=รับ / out=จ่าย
+    detail = Column(String, default="")             # รายละเอียด
+    amount = Column(Float, default=0.0)
+    ref = Column(String, default="")                # เลขที่งวด/ใบเสร็จ
+    procurement_id = Column(Integer, ForeignKey("procurement.id"), nullable=True)  # ผูกเรื่องจ้างเหมา (ถ้ามี)
+    created_at = Column(DateTime, default=datetime.now)
+
+    program = relationship("LunchProgram", back_populates="ledger")
