@@ -12,12 +12,14 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import LunchProgram, LunchClass, LunchLedger
-from app.thai_utils import parse_be_date
+from app.models import LunchProgram, LunchClass, LunchLedger, LunchHireRound, Vendor
+from app.thai_utils import parse_be_date, be_date_input
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float
 
 router = APIRouter()
+
+PERIOD_TYPES = {"day": "รายวัน", "week": "รายสัปดาห์", "month": "รายเดือน"}
 
 # ระดับชั้นมาตรฐาน (เติม 0 ได้ถ้าไม่มีชั้นนั้น)
 DEFAULT_LEVELS = ["อ.1", "อ.2", "อ.3", "ป.1", "ป.2", "ป.3",
@@ -184,3 +186,119 @@ def lunch_ledger_delete(lid: int, db: Session = Depends(get_db)):
         db.delete(row)
         db.commit()
     return RedirectResponse(f"/lunch/{pid}" if pid else "/lunch", status_code=303)
+
+
+# ---------------- จ้างเหมารายรอบ ----------------
+def _weekday_count(start, end) -> int:
+    """นับวันจันทร์-ศุกร์ระหว่างสองวันที่ (รวมปลายทาง) ใช้เสนอจำนวนวันทำการ"""
+    if not start or not end or end < start:
+        return 0
+    n, cur = 0, start
+    while cur <= end:
+        if cur.weekday() < 5:
+            n += 1
+        cur = cur.fromordinal(cur.toordinal() + 1)
+    return n
+
+
+def _sync_round_ledger(db: Session, rnd: LunchHireRound) -> None:
+    """ผูกบัญชีอัตโนมัติ: รอบที่ 'จ่ายแล้ว' -> มีรายการจ่ายในบัญชี (1 รอบ = 1 รายการ)
+    ถ้ายังไม่จ่าย/ลบรอบ -> ลบรายการบัญชีที่ผูกไว้"""
+    existing = db.query(LunchLedger).filter_by(round_id=rnd.id).first()
+    if rnd.status == "จ่ายแล้ว" and (rnd.amount or 0) > 0:
+        detail = f"ค่าจ้างเหมาอาหารกลางวัน รอบที่ {rnd.seq}"
+        if rnd.start_date and rnd.end_date:
+            detail += f" ({be_date_input(rnd.start_date)}-{be_date_input(rnd.end_date)})"
+        d = rnd.end_date or rnd.start_date or datetime.now()
+        if existing:
+            existing.amount = rnd.amount
+            existing.detail = detail
+            existing.date = d
+            existing.procurement_id = rnd.procurement_id
+        else:
+            db.add(LunchLedger(program_id=rnd.program_id, round_id=rnd.id, kind="out",
+                               detail=detail, amount=rnd.amount, date=d,
+                               procurement_id=rnd.procurement_id))
+    elif existing:
+        db.delete(existing)
+
+
+def _rounds_page(request, db, prog, edit=None):
+    vendors = db.query(Vendor).order_by(Vendor.name).all()
+    paid = sum(r.amount or 0 for r in prog.rounds if r.status == "จ่ายแล้ว")
+    committed = sum(r.amount or 0 for r in prog.rounds)
+    return templates.TemplateResponse("lunch_rounds.html", {
+        "request": request, "school": get_school(db), "p": prog,
+        "rounds": prog.rounds, "vendors": vendors, "periods": PERIOD_TYPES,
+        "edit": edit, "paid": paid, "committed": committed,
+        "default_period": "month",
+    })
+
+
+@router.get("/lunch/{pid}/rounds", response_class=HTMLResponse)
+def rounds_page(pid: int, request: Request, db: Session = Depends(get_db)):
+    prog = db.get(LunchProgram, pid)
+    if not prog:
+        return RedirectResponse("/lunch", status_code=303)
+    return _rounds_page(request, db, prog)
+
+
+@router.get("/lunch/round/{rid}/edit", response_class=HTMLResponse)
+def round_edit(rid: int, request: Request, db: Session = Depends(get_db)):
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return RedirectResponse("/lunch", status_code=303)
+    return _rounds_page(request, db, rnd.program, edit=rnd)
+
+
+def _populate_round(rnd, form):
+    rnd.period_type = form.get("period_type") or "month"
+    rnd.start_date = parse_be_date(form.get("start_date") or "")
+    rnd.end_date = parse_be_date(form.get("end_date") or "")
+    rnd.days = _to_int(form.get("days"), 0)
+    rnd.vendor_id = _to_int(form.get("vendor_id"), 0) or None
+    rnd.amount = _to_float(form.get("amount"), 0.0)
+    rnd.procurement_id = _to_int(form.get("procurement_id"), 0) or None
+    rnd.status = form.get("status") or "ร่าง"
+    rnd.note = (form.get("note") or "").strip()
+
+
+@router.post("/lunch/{pid}/rounds/add")
+async def round_add(pid: int, request: Request, db: Session = Depends(get_db)):
+    prog = db.get(LunchProgram, pid)
+    if not prog:
+        return RedirectResponse("/lunch", status_code=303)
+    form = await request.form()
+    seq = max([r.seq for r in prog.rounds], default=0) + 1
+    rnd = LunchHireRound(program_id=pid, seq=seq)
+    _populate_round(rnd, form)
+    db.add(rnd)
+    db.flush()
+    _sync_round_ledger(db, rnd)
+    db.commit()
+    return RedirectResponse(f"/lunch/{pid}/rounds", status_code=303)
+
+
+@router.post("/lunch/round/{rid}/update")
+async def round_update(rid: int, request: Request, db: Session = Depends(get_db)):
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return RedirectResponse("/lunch", status_code=303)
+    form = await request.form()
+    _populate_round(rnd, form)
+    _sync_round_ledger(db, rnd)
+    db.commit()
+    return RedirectResponse(f"/lunch/{rnd.program_id}/rounds", status_code=303)
+
+
+@router.post("/lunch/round/{rid}/delete")
+def round_delete(rid: int, db: Session = Depends(get_db)):
+    rnd = db.get(LunchHireRound, rid)
+    pid = rnd.program_id if rnd else None
+    if rnd:
+        # ลบรายการบัญชีที่ผูกกับรอบนี้ก่อน (กัน FK ค้าง)
+        for l in db.query(LunchLedger).filter_by(round_id=rnd.id).all():
+            db.delete(l)
+        db.delete(rnd)
+        db.commit()
+    return RedirectResponse(f"/lunch/{pid}/rounds" if pid else "/lunch", status_code=303)

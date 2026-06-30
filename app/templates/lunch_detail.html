@@ -7,7 +7,7 @@
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <a class="btn sm" href="/lunch/{{ p.id }}/edit"><svg class="icon"><use href="#ic-edit"/></svg> แก้ไข/คำนวณงบ</a>
       {% if p.operate_mode == 'hire' %}
-      <a class="btn sm gray" href="/procurement/new?case=w119t2"><svg class="icon"><use href="#ic-file-plus"/></svg> สร้างเรื่องจ้างเหมา</a>
+      <a class="btn sm gray" href="/lunch/{{ p.id }}/rounds"><svg class="icon"><use href="#ic-file-plus"/></svg> จ้างเหมารายรอบ</a>
       {% endif %}
       <form method="post" action="/lunch/{{ p.id }}/delete" onsubmit="return confirm('ลบโครงการนี้?');" style="margin:0;">
         <button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button>

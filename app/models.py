@@ -653,6 +653,8 @@ class LunchProgram(Base):
                            cascade="all, delete-orphan", order_by="LunchClass.seq")
     ledger = relationship("LunchLedger", back_populates="program",
                           cascade="all, delete-orphan")
+    rounds = relationship("LunchHireRound", back_populates="program",
+                          cascade="all, delete-orphan", order_by="LunchHireRound.seq")
 
     @property
     def total_students(self) -> int:
@@ -688,6 +690,30 @@ class LunchLedger(Base):
     amount = Column(Float, default=0.0)
     ref = Column(String, default="")                # เลขที่งวด/ใบเสร็จ
     procurement_id = Column(Integer, ForeignKey("procurement.id"), nullable=True)  # ผูกเรื่องจ้างเหมา (ถ้ามี)
+    round_id = Column(Integer, ForeignKey("lunch_hire_round.id"), nullable=True)   # มาจากรอบจ้างเหมา (ถ้าใช่)
     created_at = Column(DateTime, default=datetime.now)
 
     program = relationship("LunchProgram", back_populates="ledger")
+
+
+class LunchHireRound(Base):
+    """รอบการจ้างเหมาประกอบอาหารกลางวัน (รายวัน/สัปดาห์/เดือน)
+    แต่ละรอบ = 1 ช่วงเวลา + วงเงิน ผูกเรื่องจัดจ้าง 1 เรื่อง และเมื่อจ่ายแล้วลงบัญชีอัตโนมัติ"""
+    __tablename__ = "lunch_hire_round"
+
+    id = Column(Integer, primary_key=True)
+    program_id = Column(Integer, ForeignKey("lunch_program.id"), nullable=False)
+    seq = Column(Integer, default=1)                 # รอบที่
+    period_type = Column(String, default="month")    # day=รายวัน / week=รายสัปดาห์ / month=รายเดือน
+    start_date = Column(DateTime, nullable=True)
+    end_date = Column(DateTime, nullable=True)
+    days = Column(Integer, default=0)                # จำนวนวันทำการในรอบ (หักวันหยุดแล้ว)
+    vendor_id = Column(Integer, ForeignKey("vendor.id"), nullable=True)  # ผู้รับจ้าง
+    amount = Column(Float, default=0.0)              # วงเงินรอบนี้
+    procurement_id = Column(Integer, ForeignKey("procurement.id"), nullable=True)  # เรื่องจัดจ้างที่ผูก
+    status = Column(String, default="ร่าง")          # ร่าง / จ้างแล้ว / จ่ายแล้ว
+    note = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+    program = relationship("LunchProgram", back_populates="rounds")
+    vendor = relationship("Vendor")

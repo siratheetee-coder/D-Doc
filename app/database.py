@@ -78,6 +78,7 @@ MIGRATIONS = [
     ("asset", "dispose_reason",  "VARCHAR DEFAULT ''"),
     ("asset", "dispose_value",   "FLOAT DEFAULT 0"),
     ("asset", "dispose_doc_ref", "VARCHAR DEFAULT ''"),
+    ("lunch_ledger", "round_id", "INTEGER"),
 ]
 
 
