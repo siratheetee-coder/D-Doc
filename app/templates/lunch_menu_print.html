@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <title>ตารางเมนูอาหารกลางวัน {{ p.year }}</title>
+  <style>
+    @page { size: A4; margin: 1.5cm; }
+    body { font-family: "TH Sarabun New", "Sarabun", sans-serif; color:#111; font-size:18px; }
+    h1 { text-align:center; font-size:22px; margin:0 0 2px; }
+    .sub { text-align:center; color:#444; margin:0 0 14px; font-size:17px; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { border:1px solid #333; padding:6px 8px; text-align:left; vertical-align:top; }
+    th { background:#f0f0f0; }
+    td.d { white-space:nowrap; width:110px; }
+    .noprint { text-align:center; margin:16px 0; }
+    .btn { padding:8px 18px; font-size:16px; cursor:pointer; }
+    @media print { .noprint { display:none; } }
+  </style>
+</head>
+<body>
+  <h1>ตารางเมนูอาหารกลางวัน</h1>
+  <p class="sub">{{ school.name }} &middot; ปีการศึกษา {{ p.year }}</p>
+  <table>
+    <thead><tr><th class="d">วันที่</th><th>อาหารคาว</th><th>ของหวาน/ผลไม้</th><th>หมายเหตุ</th></tr></thead>
+    <tbody>
+    {% for m in menus %}
+      <tr>
+        <td class="d">{{ be_date(m.date) if m.date else '-' }}</td>
+        <td>{{ m.main }}</td>
+        <td>{{ m.dessert }}</td>
+        <td>{{ m.note }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4" style="text-align:center; color:#888;">ยังไม่มีเมนู</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div class="noprint">
+    <button class="btn" onclick="window.print()">พิมพ์ / บันทึก PDF</button>
+  </div>
+</body>
+</html>

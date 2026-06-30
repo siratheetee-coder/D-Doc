@@ -655,6 +655,8 @@ class LunchProgram(Base):
                           cascade="all, delete-orphan")
     rounds = relationship("LunchHireRound", back_populates="program",
                           cascade="all, delete-orphan", order_by="LunchHireRound.seq")
+    menus = relationship("LunchMenu", back_populates="program",
+                         cascade="all, delete-orphan", order_by="LunchMenu.date")
 
     @property
     def total_students(self) -> int:
@@ -717,3 +719,18 @@ class LunchHireRound(Base):
 
     program = relationship("LunchProgram", back_populates="rounds")
     vendor = relationship("Vendor")
+
+
+class LunchMenu(Base):
+    """เมนู/สำรับอาหารกลางวันรายวัน (อาหารคาว + ของหวาน/ผลไม้) ใช้พิมพ์ตารางเมนูประจำเดือน"""
+    __tablename__ = "lunch_menu"
+
+    id = Column(Integer, primary_key=True)
+    program_id = Column(Integer, ForeignKey("lunch_program.id"), nullable=False)
+    date = Column(DateTime, nullable=True)
+    main = Column(String, default="")       # อาหารคาว (จานหลัก)
+    dessert = Column(String, default="")    # ของหวาน/ผลไม้
+    note = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+    program = relationship("LunchProgram", back_populates="menus")

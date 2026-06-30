@@ -9,6 +9,7 @@
       {% if p.operate_mode == 'hire' %}
       <a class="btn sm gray" href="/lunch/{{ p.id }}/rounds"><svg class="icon"><use href="#ic-file-plus"/></svg> จ้างเหมารายรอบ</a>
       {% endif %}
+      <a class="btn sm gray" href="/lunch/{{ p.id }}/menu"><svg class="icon"><use href="#ic-clipboard"/></svg> เมนู/สำรับ</a>
       <form method="post" action="/lunch/{{ p.id }}/delete" onsubmit="return confirm('ลบโครงการนี้?');" style="margin:0;">
         <button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button>
       </form>

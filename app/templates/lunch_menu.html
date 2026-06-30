@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}เมนูอาหารกลางวัน {{ p.year }}{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">เมนู/สำรับอาหารกลางวัน (ปีการศึกษา {{ p.year }})</h1>
+    <div style="display:flex; gap:8px;">
+      <a class="btn sm" href="/lunch/{{ p.id }}/menu/print" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ตารางเมนู</a>
+      <a class="btn sm gray" href="/lunch/{{ p.id }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับหน้าโครงการ</a>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>{{ 'แก้ไขเมนู' if edit else 'เพิ่มเมนูรายวัน' }}</h2>
+  <form method="post" action="{{ ('/lunch/menu/' ~ edit.id ~ '/update') if edit else ('/lunch/' ~ p.id ~ '/menu/add') }}">
+    <div class="row">
+      <div><label>วันที่</label><input name="date" value="{{ be_date(edit.date) if edit and edit.date else today_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div style="flex:2;"><label>อาหารคาว (จานหลัก)</label><input name="main" value="{{ edit.main if edit else '' }}" placeholder="เช่น ข้าว + ผัดกะเพราไก่ + ไข่ดาว"></div>
+      <div style="flex:2;"><label>ของหวาน / ผลไม้</label><input name="dessert" value="{{ edit.dessert if edit else '' }}" placeholder="เช่น กล้วยน้ำว้า"></div>
+    </div>
+    <label>หมายเหตุ</label><input name="note" value="{{ edit.note if edit else '' }}">
+    <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> {{ 'บันทึกการแก้ไข' if edit else 'เพิ่มเมนู' }}</button>
+    {% if edit %}<a class="btn gray" href="/lunch/{{ p.id }}/menu">ยกเลิก</a>{% endif %}
+  </form>
+</div>
+
+<div class="card">
+  <h2>เมนูทั้งหมด {% if menus %}<span class="muted" style="font-size:15px;">({{ menus|length }} วัน)</span>{% endif %}</h2>
+  {% if menus %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th style="width:120px;">วันที่</th><th>อาหารคาว</th><th>ของหวาน/ผลไม้</th><th>หมายเหตุ</th><th></th></tr></thead>
+    <tbody>
+    {% for m in menus %}
+      <tr>
+        <td>{{ be_date(m.date) if m.date else '-' }}</td>
+        <td>{{ m.main }}</td>
+        <td>{{ m.dessert }}</td>
+        <td class="muted">{{ m.note }}</td>
+        <td style="white-space:nowrap;">
+          <a class="btn sm gray" href="/lunch/{{ p.id }}/menu?edit={{ m.id }}">แก้ไข</a>
+          <form method="post" action="/lunch/menu/{{ m.id }}/delete" onsubmit="return confirm('ลบเมนูนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">ยังไม่มีเมนู เพิ่มด้านบน</p>
+  {% endif %}
+</div>
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

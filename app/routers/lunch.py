@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import LunchProgram, LunchClass, LunchLedger, LunchHireRound, Vendor
+from app.models import LunchProgram, LunchClass, LunchLedger, LunchHireRound, LunchMenu, Vendor
 from app.thai_utils import parse_be_date, be_date_input
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float
@@ -302,3 +302,68 @@ def round_delete(rid: int, db: Session = Depends(get_db)):
         db.delete(rnd)
         db.commit()
     return RedirectResponse(f"/lunch/{pid}/rounds" if pid else "/lunch", status_code=303)
+
+
+# ---------------- เมนู/สำรับ ----------------
+@router.get("/lunch/{pid}/menu", response_class=HTMLResponse)
+def menu_page(pid: int, request: Request, db: Session = Depends(get_db),
+              edit: int | None = None):
+    prog = db.get(LunchProgram, pid)
+    if not prog:
+        return RedirectResponse("/lunch", status_code=303)
+    edit_row = db.get(LunchMenu, edit) if edit else None
+    if edit_row and edit_row.program_id != pid:
+        edit_row = None
+    return templates.TemplateResponse("lunch_menu.html", {
+        "request": request, "school": get_school(db), "p": prog,
+        "menus": prog.menus, "edit": edit_row,
+        "today_be": be_date_input(datetime.now()),
+    })
+
+
+@router.post("/lunch/{pid}/menu/add")
+def menu_add(pid: int, db: Session = Depends(get_db),
+             date: str = Form(""), main: str = Form(""),
+             dessert: str = Form(""), note: str = Form("")):
+    if not db.get(LunchProgram, pid):
+        return RedirectResponse("/lunch", status_code=303)
+    db.add(LunchMenu(program_id=pid, date=parse_be_date(date), main=main.strip(),
+                     dessert=dessert.strip(), note=note.strip()))
+    db.commit()
+    return RedirectResponse(f"/lunch/{pid}/menu", status_code=303)
+
+
+@router.post("/lunch/menu/{mid}/update")
+def menu_update(mid: int, db: Session = Depends(get_db),
+                date: str = Form(""), main: str = Form(""),
+                dessert: str = Form(""), note: str = Form("")):
+    m = db.get(LunchMenu, mid)
+    if not m:
+        return RedirectResponse("/lunch", status_code=303)
+    m.date = parse_be_date(date)
+    m.main = main.strip()
+    m.dessert = dessert.strip()
+    m.note = note.strip()
+    db.commit()
+    return RedirectResponse(f"/lunch/{m.program_id}/menu", status_code=303)
+
+
+@router.post("/lunch/menu/{mid}/delete")
+def menu_delete(mid: int, db: Session = Depends(get_db)):
+    m = db.get(LunchMenu, mid)
+    pid = m.program_id if m else None
+    if m:
+        db.delete(m)
+        db.commit()
+    return RedirectResponse(f"/lunch/{pid}/menu" if pid else "/lunch", status_code=303)
+
+
+@router.get("/lunch/{pid}/menu/print", response_class=HTMLResponse)
+def menu_print(pid: int, request: Request, db: Session = Depends(get_db)):
+    prog = db.get(LunchProgram, pid)
+    if not prog:
+        return RedirectResponse("/lunch", status_code=303)
+    return templates.TemplateResponse("lunch_menu_print.html", {
+        "request": request, "school": get_school(db), "p": prog,
+        "menus": sorted(prog.menus, key=lambda m: (m.date or datetime.min)),
+    })
