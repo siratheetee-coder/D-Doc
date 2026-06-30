@@ -17,6 +17,20 @@
     <input name="purpose" placeholder="เช่น งานธุรการประจำเดือน">
 
     <h2 style="margin-top:18px;">รายการที่ขอเบิก</h2>
+    <div style="border:1px solid #c7d7fb; background:#f5f9ff; border-radius:10px; padding:12px 14px; margin-bottom:12px;">
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <span class="muted" style="font-size:13px;"><svg class="icon"><use href="#ic-ai"/></svg> สแกนรูปรายการของที่ขอเบิก ระบบจะอ่านมาเติมตารางให้:</span>
+        <label class="btn gray sm" style="cursor:pointer;">
+          <svg class="icon"><use href="#ic-upload"/></svg> ถ่ายรูป (อ่านเร็ว)
+          <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="reqScan(this,'/procurement/ocr-items','กำลังอ่านรูป (OCR)...')">
+        </label>
+        <label class="btn sm" style="cursor:pointer; background:linear-gradient(120deg,#7c3aed,#4880FF); color:#fff; border:none;">
+          <svg class="icon"><use href="#ic-ai"/></svg> ให้ AI ช่วยอ่าน
+          <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="reqScan(this,'/procurement/ai-items','กำลังให้ AI อ่านรูป...')">
+        </label>
+        <span id="reqScanMsg" class="muted" style="font-size:13px;"></span>
+      </div>
+    </div>
     <table id="itemtbl">
       <thead><tr><th style="width:45%;">วัสดุ</th><th>จำนวน</th><th>หน่วย</th><th>คงเหลือ</th><th></th></tr></thead>
       <tbody id="itembody"></tbody>
@@ -38,7 +52,7 @@
     return '<option value="">— เลือกวัสดุ หรือพิมพ์ชื่อใหม่ —</option>' +
       MATS.map(function(m){return '<option value="'+m.id+'">'+m.name+' (คงเหลือ '+m.bal+' '+m.unit+')</option>';}).join('');
   }
-  function addRow(){
+  function addRow(name, qty, unit){
     var tr = document.createElement('tr');
     tr.innerHTML =
       '<td><select onchange="pick(this)" style="margin-bottom:4px;">'+matOptions()+'</select>'+
@@ -49,6 +63,35 @@
       '<td class="bal muted">-</td>'+
       '<td><button class="btn red sm" type="button" onclick="this.closest(\'tr\').remove()"><svg class="icon"><use href="#ic-trash"/></svg></button></td>';
     document.getElementById('itembody').appendChild(tr);
+    if(name){
+      tr.querySelector('input[name=item_name]').value = name;
+      if(qty)  tr.querySelector('input[name=item_qty]').value = qty;
+      if(unit) tr.querySelector('input[name=item_unit]').value = unit;
+      // จับคู่วัสดุที่มีอยู่ในคลังโดยอัตโนมัติ (ชื่อตรงกัน) -> ผูก id + คงเหลือ
+      var key = String(name).trim().toLowerCase();
+      var m = MATS.find(function(x){ return (x.name||'').trim().toLowerCase() === key; });
+      if(m){
+        tr.querySelector('select').value = m.id;
+        tr.querySelector('input[name=item_mid]').value = m.id;
+        tr.querySelector('input[name=item_unit]').value = unit || m.unit;
+        tr.querySelector('.bal').textContent = m.bal + ' ' + m.unit;
+      }
+    }
+    return tr;
+  }
+  function reqScan(input, url, busy){
+    if(!input.files || !input.files[0]) return;
+    var msg = document.getElementById('reqScanMsg');
+    msg.innerHTML = '<span class="spin"></span> ' + busy;
+    var fd = new FormData(); fd.append('file', input.files[0]);
+    fetch(url, {method:'POST', body:fd}).then(function(r){ return r.json(); }).then(function(d){
+      input.value = '';
+      if(d && d.error){ msg.textContent = d.error; return; }
+      var items = (d && d.items) || [];
+      if(!items.length){ msg.textContent = 'อ่านรายการจากรูปไม่ได้ — ลองถ่ายให้ชัด/ตรงขึ้น หรือเพิ่มแถวเอง'; return; }
+      items.forEach(function(it){ addRow(it.name, it.qty, it.unit); });
+      msg.textContent = 'เพิ่ม ' + items.length + ' รายการแล้ว — โปรดตรวจ/แก้ก่อนบันทึก';
+    }).catch(function(){ input.value=''; msg.textContent = 'อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง'; });
   }
   function pick(sel){
     var m = MATS.find(function(x){return x.id==sel.value;});
