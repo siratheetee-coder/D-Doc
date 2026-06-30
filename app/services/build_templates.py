@@ -413,11 +413,8 @@ def _member_table(doc, list_name, *, prefix="", member_var="m", indent=0.4):
     op = table.rows[0].cells
     _set_cell(op[0], "{%%tr for %s in %s %%}" % (member_var, list_name))
     setw(op)
-    # เลขลำดับ: ถ้ามี prefix (เช่น "2.") ใช้ "2.1" (ไม่ต้องมีจุดท้ายซ้ำ)
-    #           ถ้าไม่มี prefix ใช้ "1." (มีจุดท้ายตามแบบรายการ)
-    # แต่ถ้ามีกรรมการคนเดียว ไม่ต้องใส่เลขลำดับ (กัน "2.1" โดด ๆ ดูแปลก)
-    num_inner = prefix + "{{ loop.index }}" + ("" if prefix else ".")
-    num_text = "{% if " + list_name + "|length > 1 %}" + num_inner + "{% endif %}"
+    # เลขลำดับกรรมการเป็น 1. 2. 3. (มีจุดท้าย) — ไม่ใช้รูปแบบ 2.1 2.2
+    num_text = prefix + "{{ loop.index }}" + ("" if prefix else ".")
     d = table.add_row().cells
     _set_cell(d[0], num_text, align="left", size=16)
     _set_cell(d[1], "{{ %s.name }}" % member_var, size=16)
@@ -476,7 +473,7 @@ def build_purchase_request():
     _p(doc, "{%p else %}")
     _p(doc, "เห็นชอบในรายงานขอ{{ proc_type }} ดังกล่าวข้างต้น และอนุมัติให้แต่งตั้งคณะกรรมการตรวจรับ ดังนี้",
        align="justify", indent=1.25)
-    _member_table(doc, "inspect_members", prefix="2.")
+    _member_table(doc, "inspect_members")
     _p(doc, "{%p endif %}")
 
     # ===== ลงนาม: เจ้าหน้าที่ / หัวหน้าเจ้าหน้าที่ (จัดคอลัมน์ด้วยตารางไร้เส้น) =====
