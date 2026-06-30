@@ -339,6 +339,8 @@ def _attachment_table(doc):
     _set_cell(d[6], "{{ it.amount }}", align="right")
     _set_cell(table.add_row().cells[0], "{%tr endfor %}")
     _summary_rows(table, label_cols=[0, 1, 2, 3, 4, 5], value_col=6, total_cols=7)
+    # ความกว้างคงที่: ช่อง "รายการ" กว้างสุด (รวม ~16.25 ซม.)
+    _fixed_cols(table, [Cm(1.0), Cm(5.6), Cm(1.4), Cm(1.4), Cm(2.2), Cm(2.1), Cm(2.55)])
     return table
 
 
@@ -349,6 +351,44 @@ def _table_indent(table, cm):
     ind.set(qn("w:w"), str(int(Cm(cm).twips)))
     ind.set(qn("w:type"), "dxa")
     tblPr.append(ind)
+
+
+def _fixed_cols(table, widths):
+    """กำหนดความกว้างคอลัมน์แบบคงที่ (ไม่ให้ Word ยืด-หดเอง) ให้ช่อง 'รายการ' กว้างสุด
+    widths = list ของ Cm() เรียงตามคอลัมน์ รวมไม่ควรเกิน ~16.25 ซม. (พื้นที่พิมพ์ A4)"""
+    table.autofit = False
+    table.allow_autofit = False
+    tbl = table._element
+    tblPr = tbl.tblPr
+    # layout แบบคงที่ (ใช้ความกว้างจาก tblGrid ไม่คำนวณจากเนื้อหา)
+    layout = tblPr.find(qn("w:tblLayout"))
+    if layout is None:
+        layout = OxmlElement("w:tblLayout")
+        tblPr.append(layout)
+    layout.set(qn("w:type"), "fixed")
+    # ความกว้างรวมของตาราง
+    total = sum(int(w.twips) for w in widths)
+    tblW = tblPr.find(qn("w:tblW"))
+    if tblW is None:
+        tblW = OxmlElement("w:tblW")
+        tblPr.append(tblW)
+    tblW.set(qn("w:w"), str(total))
+    tblW.set(qn("w:type"), "dxa")
+    # grid คอลัมน์ (ตัวกำหนดความกว้างจริงภายใต้ fixed layout)
+    for g in tbl.findall(qn("w:tblGrid")):
+        tbl.remove(g)
+    grid = OxmlElement("w:tblGrid")
+    for w in widths:
+        col = OxmlElement("w:gridCol")
+        col.set(qn("w:w"), str(int(w.twips)))
+        grid.append(col)
+    tblPr.addnext(grid)
+    # เผื่อ Word บางรุ่นอ่านจากความกว้างเซลล์ -> ตั้งให้แถวที่จำนวนเซลล์ตรงด้วย
+    for row in table.rows:
+        cells = row.cells
+        if len(cells) == len(widths):
+            for c, w in zip(cells, widths):
+                c.width = w
 
 
 def _member_table(doc, list_name, *, prefix="", member_var="m", indent=0.4):
@@ -375,7 +415,9 @@ def _member_table(doc, list_name, *, prefix="", member_var="m", indent=0.4):
     setw(op)
     # เลขลำดับ: ถ้ามี prefix (เช่น "2.") ใช้ "2.1" (ไม่ต้องมีจุดท้ายซ้ำ)
     #           ถ้าไม่มี prefix ใช้ "1." (มีจุดท้ายตามแบบรายการ)
-    num_text = prefix + "{{ loop.index }}" + ("" if prefix else ".")
+    # แต่ถ้ามีกรรมการคนเดียว ไม่ต้องใส่เลขลำดับ (กัน "2.1" โดด ๆ ดูแปลก)
+    num_inner = prefix + "{{ loop.index }}" + ("" if prefix else ".")
+    num_text = "{% if " + list_name + "|length > 1 %}" + num_inner + "{% endif %}"
     d = table.add_row().cells
     _set_cell(d[0], num_text, align="left", size=16)
     _set_cell(d[1], "{{ %s.name }}" % member_var, size=16)
@@ -594,6 +636,8 @@ def _item_table(doc):
     _set_cell(d[4], "{{ it.amount }}", align="right")
     _set_cell(table.add_row().cells[0], "{%tr endfor %}")
     _summary_rows(table, label_cols=[0, 1, 2, 3], value_col=4, total_cols=5)
+    # ความกว้างคงที่: ช่อง "รายการ" กว้างสุด (รวม ~16.25 ซม.)
+    _fixed_cols(table, [Cm(1.2), Cm(7.0), Cm(2.6), Cm(2.6), Cm(2.85)])
     return table
 
 
