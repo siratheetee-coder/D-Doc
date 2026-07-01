@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import (LunchProgram, LunchClass, LunchLedger, LunchHireRound,
-                        LunchMenu, LunchStudent, LunchMeasure, Vendor)
+                        LunchInstallment, LunchMenu, LunchStudent, LunchMeasure, Vendor)
 from app.services.growth_ref import (classify_all, age_months,
                                      WH_LABELS, HA_LABELS, WA_LABELS)
 from app.thai_utils import parse_be_date, be_date_input
@@ -468,3 +468,95 @@ def student_delete(sid: int, db: Session = Depends(get_db)):
         db.delete(s)
         db.commit()
     return RedirectResponse(f"/lunch/{pid}/nutrition" if pid else "/lunch", status_code=303)
+
+
+# ---------------- งวดงานย่อยในสัญญา ----------------
+def _sync_installment_ledger(db: Session, inst: LunchInstallment) -> None:
+    """ผูกบัญชีอัตโนมัติรายงวด: งวด 'จ่ายแล้ว' -> รายการจ่ายในบัญชี ; ไม่งั้นลบ"""
+    existing = db.query(LunchLedger).filter_by(installment_id=inst.id).first()
+    if inst.status == "จ่ายแล้ว" and (inst.amount or 0) > 0:
+        detail = f"ค่าจ้างเหมาอาหารกลางวัน งวดที่ {inst.seq}"
+        if inst.start_date and inst.end_date:
+            detail += f" ({be_date_input(inst.start_date)}-{be_date_input(inst.end_date)})"
+        d = inst.inspect_date or inst.end_date or datetime.now()
+        rnd = inst.round
+        if existing:
+            existing.amount = inst.amount
+            existing.detail = detail
+            existing.date = d
+            existing.procurement_id = rnd.procurement_id if rnd else None
+        else:
+            db.add(LunchLedger(program_id=inst.round.program_id, installment_id=inst.id,
+                               kind="out", detail=detail, amount=inst.amount, date=d,
+                               procurement_id=inst.round.procurement_id))
+    elif existing:
+        db.delete(existing)
+
+
+@router.get("/lunch/round/{rid}/plan", response_class=HTMLResponse)
+def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return RedirectResponse("/lunch", status_code=303)
+    paid = sum(i.amount or 0 for i in rnd.installments if i.status == "จ่ายแล้ว")
+    return templates.TemplateResponse("lunch_contract.html", {
+        "request": request, "school": get_school(db), "r": rnd, "p": rnd.program,
+        "installments": rnd.installments, "paid": paid,
+        "committed": sum(i.amount or 0 for i in rnd.installments),
+        "today_be": be_date_input(datetime.now()),
+    })
+
+
+@router.post("/lunch/round/{rid}/installment/add")
+def installment_add(rid: int, db: Session = Depends(get_db),
+                    start_date: str = Form(""), end_date: str = Form(""),
+                    days: str = Form(""), amount: str = Form(""),
+                    deliver_date: str = Form(""), inspect_date: str = Form(""),
+                    status: str = Form("ร่าง")):
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return RedirectResponse("/lunch", status_code=303)
+    seq = max([i.seq for i in rnd.installments], default=0) + 1
+    inst = LunchInstallment(
+        round_id=rid, seq=seq, start_date=parse_be_date(start_date),
+        end_date=parse_be_date(end_date), days=_to_int(days, 0),
+        amount=_to_float(amount, 0.0), deliver_date=parse_be_date(deliver_date),
+        inspect_date=parse_be_date(inspect_date), status=status)
+    db.add(inst)
+    db.flush()
+    _sync_installment_ledger(db, inst)
+    db.commit()
+    return RedirectResponse(f"/lunch/round/{rid}/plan", status_code=303)
+
+
+@router.post("/lunch/installment/{iid}/update")
+def installment_update(iid: int, db: Session = Depends(get_db),
+                       start_date: str = Form(""), end_date: str = Form(""),
+                       days: str = Form(""), amount: str = Form(""),
+                       deliver_date: str = Form(""), inspect_date: str = Form(""),
+                       status: str = Form("ร่าง")):
+    inst = db.get(LunchInstallment, iid)
+    if not inst:
+        return RedirectResponse("/lunch", status_code=303)
+    inst.start_date = parse_be_date(start_date)
+    inst.end_date = parse_be_date(end_date)
+    inst.days = _to_int(days, 0)
+    inst.amount = _to_float(amount, 0.0)
+    inst.deliver_date = parse_be_date(deliver_date)
+    inst.inspect_date = parse_be_date(inspect_date)
+    inst.status = status
+    _sync_installment_ledger(db, inst)
+    db.commit()
+    return RedirectResponse(f"/lunch/round/{inst.round_id}/plan", status_code=303)
+
+
+@router.post("/lunch/installment/{iid}/delete")
+def installment_delete(iid: int, db: Session = Depends(get_db)):
+    inst = db.get(LunchInstallment, iid)
+    rid = inst.round_id if inst else None
+    if inst:
+        for l in db.query(LunchLedger).filter_by(installment_id=inst.id).all():
+            db.delete(l)
+        db.delete(inst)
+        db.commit()
+    return RedirectResponse(f"/lunch/round/{rid}/plan" if rid else "/lunch", status_code=303)

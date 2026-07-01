@@ -62,6 +62,7 @@
         <td><span class="pill {{ 'done' if r.status=='จ่ายแล้ว' else 'approve' if r.status=='จ้างแล้ว' else '' }}">{{ r.status }}</span></td>
         <td>{% if r.status=='จ่ายแล้ว' %}<span class="muted" title="ลงบัญชีจ่ายอัตโนมัติแล้ว">✔ ลงแล้ว</span>{% else %}<span class="muted">-</span>{% endif %}</td>
         <td style="white-space:nowrap;">
+          <a class="btn sm" href="/lunch/round/{{ r.id }}/plan">จัดการงวด</a>
           <a class="btn sm gray" href="/lunch/round/{{ r.id }}/edit">แก้ไข</a>
           {% if r.procurement_id %}<a class="btn sm gray" href="/procurement/{{ r.procurement_id }}">เรื่องจัดจ้าง</a>
           {% else %}<a class="btn sm gray" href="/procurement/new?case=w119t2" title="ว.119 ตาราง 2 = ค่าจ้างเหมาบริการ">สร้างเรื่องจัดจ้าง</a>{% endif %}

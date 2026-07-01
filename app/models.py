@@ -695,6 +695,7 @@ class LunchLedger(Base):
     ref = Column(String, default="")                # เลขที่งวด/ใบเสร็จ
     procurement_id = Column(Integer, ForeignKey("procurement.id"), nullable=True)  # ผูกเรื่องจ้างเหมา (ถ้ามี)
     round_id = Column(Integer, ForeignKey("lunch_hire_round.id"), nullable=True)   # มาจากรอบจ้างเหมา (ถ้าใช่)
+    installment_id = Column(Integer, ForeignKey("lunch_installment.id"), nullable=True)  # มาจากงวด (ถ้าใช่)
     created_at = Column(DateTime, default=datetime.now)
 
     program = relationship("LunchProgram", back_populates="ledger")
@@ -721,6 +722,29 @@ class LunchHireRound(Base):
 
     program = relationship("LunchProgram", back_populates="rounds")
     vendor = relationship("Vendor")
+    installments = relationship("LunchInstallment", back_populates="round",
+                               cascade="all, delete-orphan", order_by="LunchInstallment.seq")
+
+
+class LunchInstallment(Base):
+    """งวดงานย่อยในสัญญาจ้างเหมา 1 รอบ (แต่ละงวด: ส่งมอบ -> ตรวจรับ -> เบิกจ่าย)
+    1 สัญญา (LunchHireRound) มักแบ่งเป็นหลายงวด เช่น 5 งวด งวดละ 10 วัน"""
+    __tablename__ = "lunch_installment"
+
+    id = Column(Integer, primary_key=True)
+    round_id = Column(Integer, ForeignKey("lunch_hire_round.id"), nullable=False)
+    seq = Column(Integer, default=1)                 # งวดที่
+    start_date = Column(DateTime, nullable=True)
+    end_date = Column(DateTime, nullable=True)
+    days = Column(Integer, default=0)                # จำนวนวันในงวด
+    amount = Column(Float, default=0.0)              # เงินงวดนี้
+    deliver_date = Column(DateTime, nullable=True)   # วันที่ส่งมอบงาน
+    inspect_date = Column(DateTime, nullable=True)   # วันที่ตรวจรับ
+    status = Column(String, default="ร่าง")          # ร่าง / ส่งมอบแล้ว / ตรวจรับแล้ว / จ่ายแล้ว
+    note = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+    round = relationship("LunchHireRound", back_populates="installments")
 
 
 class LunchMenu(Base):

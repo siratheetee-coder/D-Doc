@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}งวดงาน สัญญารอบที่ {{ r.seq }}{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">งวดงาน — สัญญาจ้างเหมา รอบที่ {{ r.seq }} (ปีการศึกษา {{ p.year }})</h1>
+    <a class="btn sm gray" href="/lunch/{{ p.id }}/rounds"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับรายการสัญญา</a>
+  </div>
+  <table>
+    <tr><th style="width:200px;">ผู้รับจ้าง</th><td>{{ r.vendor.name if r.vendor else '-' }}</td></tr>
+    <tr><th>ช่วงสัญญา</th><td>{{ be_date(r.start_date) if r.start_date else '-' }} ถึง {{ be_date(r.end_date) if r.end_date else '-' }} ({{ r.days }} วัน)</td></tr>
+    <tr><th>วงเงินสัญญา</th><td><b>{{ "{:,.2f}".format(r.amount or 0) }}</b> บาท</td></tr>
+    <tr><th>แบ่งงวดแล้ว</th><td>{{ "{:,.2f}".format(committed) }} บาท · จ่ายแล้ว <b style="color:var(--brand-dark);">{{ "{:,.2f}".format(paid) }}</b> บาท</td></tr>
+  </table>
+  <p class="muted" style="margin-bottom:0;">แบ่งสัญญาเป็นงวดย่อย (เช่น 5 งวด งวดละ 10 วัน) แต่ละงวด: ส่งมอบ → ตรวจรับ → เมื่อ "จ่ายแล้ว" ระบบลงบัญชีให้อัตโนมัติ</p>
+</div>
+
+<div class="card">
+  <h2>เพิ่มงวดงาน</h2>
+  <form method="post" action="/lunch/round/{{ r.id }}/installment/add" class="row" style="align-items:flex-end;">
+    <div><label>วันที่เริ่ม</label><input name="start_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;"></div>
+    <div><label>วันที่สิ้นสุด</label><input name="end_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;"></div>
+    <div><label>จำนวนวัน</label><input name="days" type="number" min="0" style="width:80px;"></div>
+    <div><label>วงเงินงวด</label><input name="amount" type="number" step="0.01" style="width:110px;"></div>
+    <div><label>วันส่งมอบ</label><input name="deliver_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;"></div>
+    <div><label>วันตรวจรับ</label><input name="inspect_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;"></div>
+    <div><label>สถานะ</label><select name="status">{% for s in ['ร่าง','ส่งมอบแล้ว','ตรวจรับแล้ว','จ่ายแล้ว'] %}<option>{{ s }}</option>{% endfor %}</select></div>
+    <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มงวด</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>งวดงานทั้งหมด</h2>
+  {% if installments %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>งวด</th><th>ช่วงวันที่</th><th class="right">วัน</th><th class="right">วงเงิน</th><th>ส่งมอบ</th><th>ตรวจรับ</th><th>สถานะ</th><th>บัญชี</th><th></th></tr></thead>
+    <tbody>
+    {% for i in installments %}
+      <tr>
+        <td>{{ i.seq }}</td>
+        <td>{{ be_date(i.start_date) if i.start_date else '-' }} ถึง {{ be_date(i.end_date) if i.end_date else '-' }}</td>
+        <td class="right">{{ i.days }}</td>
+        <td class="right">{{ "{:,.2f}".format(i.amount or 0) }}</td>
+        <td>{{ be_date(i.deliver_date) if i.deliver_date else '-' }}</td>
+        <td>{{ be_date(i.inspect_date) if i.inspect_date else '-' }}</td>
+        <td><span class="pill {{ 'done' if i.status=='จ่ายแล้ว' else 'approve' if i.status in ['ตรวจรับแล้ว','ส่งมอบแล้ว'] else '' }}">{{ i.status }}</span></td>
+        <td>{% if i.status=='จ่ายแล้ว' %}<span class="muted">✔ ลงแล้ว</span>{% else %}<span class="muted">-</span>{% endif %}</td>
+        <td><form method="post" action="/lunch/installment/{{ i.id }}/delete" onsubmit="return confirm('ลบงวดนี้?');" style="margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="muted" style="margin-top:10px;">เฟส 2: จะมีปุ่มออกเอกสาร "งวด X" (ควบคุม+ส่งมอบ+ตรวจรับ) และ "ขอเบิกจ่าย" ต่อแต่ละงวด</p>
+  {% else %}
+  <p class="muted">ยังไม่มีงวดงาน เพิ่มด้านบน</p>
+  {% endif %}
+</div>
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}
