@@ -48,6 +48,7 @@
         <td>{% if i.status=='จ่ายแล้ว' %}<span class="muted">✔ ลงแล้ว</span>{% else %}<span class="muted">-</span>{% endif %}</td>
         <td style="white-space:nowrap;">
           <a class="btn sm" href="/lunch/installment/{{ i.id }}/doc"><svg class="icon"><use href="#ic-download"/></svg> เอกสารงวด</a>
+          <a class="btn sm" href="/lunch/installment/{{ i.id }}/disburse-doc"><svg class="icon"><use href="#ic-coins"/></svg> ขอเบิกจ่าย</a>
           <form method="post" action="/lunch/installment/{{ i.id }}/delete" onsubmit="return confirm('ลบงวดนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
         </td>
       </tr>

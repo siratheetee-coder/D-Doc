@@ -580,3 +580,18 @@ def installment_doc(iid: int, db: Session = Depends(get_db)):
     return FileResponse(
         path, filename=Path(path).name,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.get("/lunch/installment/{iid}/disburse-doc")
+def installment_disburse_doc(iid: int, db: Session = Depends(get_db)):
+    """ออกเอกสารขอเบิกจ่ายรายงวด (บันทึก+ใบสำคัญรับเงิน+หนังสือรับรองหักภาษี)"""
+    from pathlib import Path
+    from fastapi.responses import FileResponse
+    from app.services.lunch_doc import render_disburse_lunch_doc
+    inst = db.get(LunchInstallment, iid)
+    if not inst:
+        return RedirectResponse("/lunch", status_code=303)
+    path = render_disburse_lunch_doc(inst, get_school(db))
+    return FileResponse(
+        path, filename=Path(path).name,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")

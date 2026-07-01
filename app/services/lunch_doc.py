@@ -158,3 +158,111 @@ def render_installment_doc(inst, school, menus) -> str:
     _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
 
     return _save(doc, f"งวดที่{inst.seq}_ปี{rnd.program.year}")
+
+
+def _simple_table(doc, headers, rows, widths):
+    t = doc.add_table(rows=1, cols=len(headers))
+    t.style = "Table Grid"
+    t.autofit = False
+    for c, h, w in zip(t.rows[0].cells, headers, widths):
+        _set_cell(c, h, bold=True, align="center", size=14)
+        c.width = w
+    for row in rows:
+        rc = t.add_row().cells
+        for c, v, w in zip(rc, row, widths):
+            _set_cell(c, v, size=14)
+            c.width = w
+    return t
+
+
+def render_disburse_lunch_doc(inst, school, wht_rate=0.01) -> str:
+    """เอกสารขอเบิกจ่ายรายงวด: บันทึกขออนุมัติ + ใบสำคัญรับเงิน + หนังสือรับรองหักภาษี ณ ที่จ่าย"""
+    doc = Document()
+    _font(doc)
+    rnd = inst.round
+    prog = rnd.program
+    vendor = rnd.vendor
+    vname = vendor.name if vendor else _BLANK
+    vaddr = (vendor.address if vendor else "") or _BLANK
+    vtax = (vendor.tax_id if vendor else "") or _BLANK
+    order_no = getattr(rnd, "order_no", None) or _BLANK
+    sname = (school.name or "").strip() or "โรงเรียน"
+    saddr = (school.address or "").strip()
+    director = (school.director_name or "").strip() or _BLANK
+    fin = (school.finance_officer_name or "").strip() or _BLANK
+    fund = (prog.funding_org or "").strip() or "องค์กรปกครองส่วนท้องถิ่น"
+    amt = round(float(inst.amount or 0), 2)
+    wht = round(amt * float(wht_rate or 0), 2)
+    net = round(amt - wht, 2)
+    A, W, N = _money(amt), _money(wht), _money(net)
+    period = (f"งวดที่ {inst.seq} ระหว่างวันที่ {_dnum(inst.start_date)} ถึงวันที่ "
+              f"{_dnum(inst.end_date)} รวม {inst.days or ''} วัน")
+
+    # ===== 1. บันทึกข้อความ ขออนุมัติเบิกจ่าย =====
+    _p(doc, "บันทึกข้อความ", align="center", bold=True, size=20, after=4)
+    _p(doc, f"ส่วนราชการ  {sname}  {saddr}", after=0)
+    _p(doc, f"ที่  -/{prog.year}                     วันที่  {_dnum(inst.inspect_date or inst.end_date)}", after=0)
+    _p(doc, f"เรื่อง  ขออนุมัติเบิกจ่ายเงินอุดหนุนอาหารกลางวัน รับจาก{fund}", after=0)
+    _p(doc, f"เรียน  ผู้อำนวยการ{sname}", after=6)
+    _p(doc, f"ตามที่{sname}ได้จ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) จำนวน {inst.days or ''} วัน "
+            f"จาก {vname} จำนวนเงิน {A} บาท ({bahttext(amt)}) ตามใบสั่งจ้าง เลขที่ {order_no} "
+            f"{period} จากเงินนอกงบประมาณ ประเภทเงินอุดหนุนอาหารกลางวันรับจาก{fund} นั้น",
+       align="justify", indent=1.25)
+    _p(doc, "บัดนี้ ผู้รับจ้างได้ส่งมอบอาหาร (ตามรายการอาหาร) ถูกต้องครบถ้วนแล้ว ตามนัยข้อ ๑๗๕ (๔) "
+            "แห่งระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. ๒๕๖๐ "
+            "เห็นควรเบิกจ่ายให้แก่ผู้รับจ้าง โดยมีรายละเอียด ดังนี้", align="justify", indent=1.25, after=4)
+    for label, val in [("จำนวนเงินขอเบิก", A), ("ภาษีมูลค่าเพิ่ม (ถ้ามี)", "-"),
+                       ("มูลค่าสินค้า", "-"), ("หัก ภาษี ณ ที่จ่าย", W),
+                       ("ค่าปรับ (ถ้ามี)", "-"), ("คงเหลือจ่ายจริง", N)]:
+        _p(doc, f"        {label}        {val}  บาท", indent=1.5, after=0)
+    _p(doc, f"จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติจ่ายเงิน (เงินอุดหนุนอาหารกลางวันรับจาก{fund}) "
+            f"แก่ผู้รับจ้าง จำนวน {N} บาท ({bahttext(net)})", align="justify", indent=1.25, after=10)
+    _sign_table(doc, [
+        [("(ลงชื่อ)...........................................เจ้าหน้าที่การเงิน", "center"),
+         (f"( {fin} )", "center")],
+    ])
+    _p(doc, "ความเห็นของผู้บริหารสถานศึกษา   (   ) อนุมัติ", indent=1.25, before=4, after=10)
+    _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
+    _p(doc, f"( {director} )", align="center", after=0)
+    _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
+
+    # ===== 2. ใบสำคัญรับเงิน =====
+    doc.add_page_break()
+    _p(doc, "ใบสำคัญรับเงิน", align="center", bold=True, size=18, after=4)
+    _p(doc, f"{sname}  {saddr}", align="right", after=0)
+    _p(doc, f"วันที่ {_dnum(inst.inspect_date or inst.end_date)}", align="right", after=6)
+    _p(doc, f"ข้าพเจ้า {vname} บ้านเลขที่ {vaddr} ได้รับเงินจาก {sname} ดังรายการต่อไปนี้",
+       align="justify", indent=1.25, after=4)
+    _simple_table(doc, ["ลำดับที่", "รายการ", "จำนวนเงิน"],
+                  [["1", f"ค่าจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) {period}", A],
+                   ["", "รวมเงิน", A]],
+                  [Cm(1.6), Cm(10.4), Cm(4.0)])
+    _p(doc, f"(ตัวอักษร)  ({bahttext(amt)})", indent=1.25, before=2, after=12)
+    _sign_table(doc, [
+        [("(ลงชื่อ)...........................................ผู้รับเงิน", "center"),
+         (f"( {vname} )", "center")],
+        [("(ลงชื่อ)...........................................ผู้จ่ายเงิน", "center"),
+         (f"( {fin} )", "center")],
+    ])
+
+    # ===== 3. หนังสือรับรองการหักภาษี ณ ที่จ่าย =====
+    doc.add_page_break()
+    _p(doc, "หนังสือรับรองการหักภาษี ณ ที่จ่าย", align="center", bold=True, size=18, after=2)
+    _p(doc, "ตามมาตรา ๕๐ ทวิ แห่งประมวลรัษฎากร", align="center", after=8)
+    _p(doc, "ผู้มีหน้าที่หักภาษี ณ ที่จ่าย :", bold=True, after=0)
+    _p(doc, f"ส่วนราชการ {sname}   เลขประจำตัวผู้เสียภาษี {getattr(school,'tax_id','') or _BLANK}", after=0)
+    _p(doc, f"ที่อยู่ {saddr or _BLANK}", after=0)
+    _p(doc, f"ขอรับรองว่าได้หักภาษี ณ ที่จ่าย ตามใบสั่งจ้าง เลขที่ {order_no}", after=6)
+    _p(doc, "ผู้ถูกหักภาษี ณ ที่จ่าย :", bold=True, after=0)
+    _p(doc, f"ชื่อ {vname}   เลขประจำตัวประชาชน {vtax}", after=0)
+    _p(doc, f"ที่อยู่ {vaddr}", after=6)
+    _simple_table(doc, ["ประเภทเงินได้ที่จ่าย", "วันที่จ่าย", "จำนวนเงินที่จ่าย", "ภาษีที่หัก"],
+                  [["ค่าจ้างเหมาประกอบอาหารกลางวัน", _dnum(inst.inspect_date or inst.end_date), A, W],
+                   ["รวม", "", A, W]],
+                  [Cm(6.4), Cm(3.2), Cm(3.2), Cm(3.2)])
+    _p(doc, f"รวมเงินภาษีที่หัก (ตัวอักษร)  ({bahttext(wht)})", indent=1.25, before=2, after=12)
+    _p(doc, "(ลงชื่อ)...........................................ผู้จ่ายเงิน", align="center", after=0)
+    _p(doc, f"( {director} )", align="center", after=0)
+    _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
+
+    return _save(doc, f"ขอเบิกจ่าย_งวดที่{inst.seq}_ปี{prog.year}")
