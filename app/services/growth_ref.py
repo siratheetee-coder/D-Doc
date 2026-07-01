@@ -10,7 +10,7 @@ import json
 from datetime import date, datetime
 from pathlib import Path
 
-_REF = json.loads((Path(__file__).resolve().parent.parent / "data" / "growth_ref.json")
+_REF = json.loads((Path(__file__).resolve().parent / "growth_ref.json")
                   .read_text(encoding="utf-8"))
 
 # ตำแหน่งใน 9 ค่า SD
