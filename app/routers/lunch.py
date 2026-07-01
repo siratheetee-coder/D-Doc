@@ -12,7 +12,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import LunchProgram, LunchClass, LunchLedger, LunchHireRound, LunchMenu, Vendor
+from app.models import (LunchProgram, LunchClass, LunchLedger, LunchHireRound,
+                        LunchMenu, LunchStudent, LunchMeasure, Vendor)
+from app.services.growth_ref import (classify_all, age_months,
+                                     WH_LABELS, HA_LABELS, WA_LABELS)
 from app.thai_utils import parse_be_date, be_date_input
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float
@@ -367,3 +370,101 @@ def menu_print(pid: int, request: Request, db: Session = Depends(get_db)):
         "request": request, "school": get_school(db), "p": prog,
         "menus": sorted(prog.menus, key=lambda m: (m.date or datetime.min)),
     })
+
+
+# ---------------- ภาวะโภชนาการ ----------------
+def _measure_result(stu, m):
+    """จัดกลุ่มภาวะโภชนาการของการชั่ง 1 ครั้ง (คืน dict ผล + อายุ)"""
+    if not m or not m.weight or not m.height:
+        return None
+    return classify_all(stu.sex, stu.birthdate, m.weight, m.height, m.date)
+
+
+def _nutrition_ctx(request, db, prog):
+    students = prog.students
+    rows = []
+    # นับสรุปจากผลเทอมล่าสุดของแต่ละคน
+    wh_count = {k: 0 for k in WH_LABELS}
+    ha_count = {k: 0 for k in HA_LABELS}
+    for s in students:
+        ms = {m.term: m for m in s.measures}
+        res = {t: _measure_result(s, ms.get(t)) for t in (1, 2)}
+        rows.append({"s": s, "m": ms, "res": res})
+        latest = res.get(2) or res.get(1)
+        if latest:
+            if latest["wh"] in wh_count:
+                wh_count[latest["wh"]] += 1
+            if latest["ha"] in ha_count:
+                ha_count[latest["ha"]] += 1
+    n = sum(wh_count.values())
+    return {
+        "request": request, "school": get_school(db), "p": prog,
+        "rows": rows, "wh_labels": WH_LABELS, "ha_labels": HA_LABELS,
+        "wh_count": wh_count, "ha_count": ha_count, "assessed": n,
+        "today_be": be_date_input(datetime.now()),
+    }
+
+
+@router.get("/lunch/{pid}/nutrition", response_class=HTMLResponse)
+def nutrition_page(pid: int, request: Request, db: Session = Depends(get_db)):
+    prog = db.get(LunchProgram, pid)
+    if not prog:
+        return RedirectResponse("/lunch", status_code=303)
+    return templates.TemplateResponse("lunch_nutrition.html", _nutrition_ctx(request, db, prog))
+
+
+@router.post("/lunch/{pid}/nutrition/student/add")
+def student_add(pid: int, db: Session = Depends(get_db),
+                name: str = Form(""), sex: str = Form(""),
+                birthdate: str = Form(""), level: str = Form("")):
+    if not db.get(LunchProgram, pid) or not name.strip():
+        return RedirectResponse(f"/lunch/{pid}/nutrition", status_code=303)
+    db.add(LunchStudent(program_id=pid, name=name.strip(), sex=sex,
+                        birthdate=parse_be_date(birthdate), level=level.strip()))
+    db.commit()
+    return RedirectResponse(f"/lunch/{pid}/nutrition", status_code=303)
+
+
+@router.post("/lunch/student/{sid}/update")
+def student_update(sid: int, db: Session = Depends(get_db),
+                   name: str = Form(""), sex: str = Form(""),
+                   birthdate: str = Form(""), level: str = Form("")):
+    s = db.get(LunchStudent, sid)
+    if not s:
+        return RedirectResponse("/lunch", status_code=303)
+    if name.strip():
+        s.name = name.strip()
+    s.sex = sex
+    s.birthdate = parse_be_date(birthdate)
+    s.level = level.strip()
+    db.commit()
+    return RedirectResponse(f"/lunch/{s.program_id}/nutrition", status_code=303)
+
+
+@router.post("/lunch/student/{sid}/measure")
+def student_measure(sid: int, db: Session = Depends(get_db),
+                    term: str = Form("1"), date: str = Form(""),
+                    weight: str = Form(""), height: str = Form("")):
+    s = db.get(LunchStudent, sid)
+    if not s:
+        return RedirectResponse("/lunch", status_code=303)
+    t = _to_int(term, 1)
+    m = next((x for x in s.measures if x.term == t), None)
+    if not m:
+        m = LunchMeasure(student_id=sid, term=t)
+        db.add(m)
+    m.date = parse_be_date(date)
+    m.weight = _to_float(weight, 0.0)
+    m.height = _to_float(height, 0.0)
+    db.commit()
+    return RedirectResponse(f"/lunch/{s.program_id}/nutrition", status_code=303)
+
+
+@router.post("/lunch/student/{sid}/delete")
+def student_delete(sid: int, db: Session = Depends(get_db)):
+    s = db.get(LunchStudent, sid)
+    pid = s.program_id if s else None
+    if s:
+        db.delete(s)
+        db.commit()
+    return RedirectResponse(f"/lunch/{pid}/nutrition" if pid else "/lunch", status_code=303)

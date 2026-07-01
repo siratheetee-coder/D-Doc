@@ -657,6 +657,8 @@ class LunchProgram(Base):
                           cascade="all, delete-orphan", order_by="LunchHireRound.seq")
     menus = relationship("LunchMenu", back_populates="program",
                          cascade="all, delete-orphan", order_by="LunchMenu.date")
+    students = relationship("LunchStudent", back_populates="program",
+                            cascade="all, delete-orphan", order_by="LunchStudent.name")
 
     @property
     def total_students(self) -> int:
@@ -734,3 +736,35 @@ class LunchMenu(Base):
     created_at = Column(DateTime, default=datetime.now)
 
     program = relationship("LunchProgram", back_populates="menus")
+
+
+class LunchStudent(Base):
+    """นักเรียนในโครงการอาหารกลางวัน (สำหรับติดตามภาวะโภชนาการ)"""
+    __tablename__ = "lunch_student"
+
+    id = Column(Integer, primary_key=True)
+    program_id = Column(Integer, ForeignKey("lunch_program.id"), nullable=False)
+    name = Column(String, nullable=False)           # ชื่อ-นามสกุล
+    sex = Column(String, default="")                # M=ชาย / F=หญิง
+    birthdate = Column(DateTime, nullable=True)     # วันเกิด (คำนวณอายุตอนชั่ง)
+    level = Column(String, default="")              # ระดับชั้น เช่น ป.1
+    created_at = Column(DateTime, default=datetime.now)
+
+    program = relationship("LunchProgram", back_populates="students")
+    measures = relationship("LunchMeasure", back_populates="student",
+                            cascade="all, delete-orphan", order_by="LunchMeasure.term")
+
+
+class LunchMeasure(Base):
+    """การชั่งน้ำหนัก/วัดส่วนสูง 1 ครั้ง (ต่อเทอม) -> ใช้จัดกลุ่มภาวะโภชนาการ"""
+    __tablename__ = "lunch_measure"
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey("lunch_student.id"), nullable=False)
+    term = Column(Integer, default=1)               # เทอม 1 / 2
+    date = Column(DateTime, nullable=True)          # วันที่ชั่ง
+    weight = Column(Float, default=0.0)             # กก.
+    height = Column(Float, default=0.0)             # ซม.
+    created_at = Column(DateTime, default=datetime.now)
+
+    student = relationship("LunchStudent", back_populates="measures")
