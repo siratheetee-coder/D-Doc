@@ -46,7 +46,10 @@
         <td>{{ be_date(i.inspect_date) if i.inspect_date else '-' }}</td>
         <td><span class="pill {{ 'done' if i.status=='จ่ายแล้ว' else 'approve' if i.status in ['ตรวจรับแล้ว','ส่งมอบแล้ว'] else '' }}">{{ i.status }}</span></td>
         <td>{% if i.status=='จ่ายแล้ว' %}<span class="muted">✔ ลงแล้ว</span>{% else %}<span class="muted">-</span>{% endif %}</td>
-        <td><form method="post" action="/lunch/installment/{{ i.id }}/delete" onsubmit="return confirm('ลบงวดนี้?');" style="margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form></td>
+        <td style="white-space:nowrap;">
+          <a class="btn sm" href="/lunch/installment/{{ i.id }}/doc"><svg class="icon"><use href="#ic-download"/></svg> เอกสารงวด</a>
+          <form method="post" action="/lunch/installment/{{ i.id }}/delete" onsubmit="return confirm('ลบงวดนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
+        </td>
       </tr>
     {% endfor %}
     </tbody>

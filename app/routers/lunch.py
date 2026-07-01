@@ -560,3 +560,23 @@ def installment_delete(iid: int, db: Session = Depends(get_db)):
         db.delete(inst)
         db.commit()
     return RedirectResponse(f"/lunch/round/{rid}/plan" if rid else "/lunch", status_code=303)
+
+
+@router.get("/lunch/installment/{iid}/doc")
+def installment_doc(iid: int, db: Session = Depends(get_db)):
+    """ออกเอกสาร 'งวด X' (ควบคุม+ส่งมอบ+ตรวจรับ) พร้อมเมนูรายวันในช่วงงวด"""
+    from pathlib import Path
+    from fastapi.responses import FileResponse
+    from app.services.lunch_doc import render_installment_doc
+    inst = db.get(LunchInstallment, iid)
+    if not inst:
+        return RedirectResponse("/lunch", status_code=303)
+    prog = inst.round.program
+    menus = [m for m in prog.menus
+             if m.date and inst.start_date and inst.end_date
+             and inst.start_date <= m.date <= inst.end_date]
+    menus.sort(key=lambda m: m.date)
+    path = render_installment_doc(inst, get_school(db), menus)
+    return FileResponse(
+        path, filename=Path(path).name,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
