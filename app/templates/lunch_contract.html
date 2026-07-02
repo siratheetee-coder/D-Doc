@@ -64,6 +64,38 @@
   <p class="muted">ยังไม่มีงวดงาน เพิ่มด้านบน</p>
   {% endif %}
 </div>
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h2 style="margin:0;">คณะกรรมการ (TOR / ควบคุมงาน / ตรวจรับ)</h2>
+    <a class="btn sm" href="/lunch/round/{{ r.id }}/committee-doc"><svg class="icon"><use href="#ic-download"/></svg> คำสั่งแต่งตั้ง (3 ฉบับ)</a>
+  </div>
+  <form method="post" action="/lunch/round/{{ r.id }}/committee/add" class="row" style="align-items:flex-end; margin-top:10px;">
+    <div><label>ชุดกรรมการ</label><select name="kind">
+      {% for k,v in com_kinds.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+    </select></div>
+    <div style="flex:2;"><label>ชื่อ-นามสกุล</label><input name="name" required></div>
+    <div><label>ตำแหน่ง</label><input name="position" value="ครู" style="width:150px;"></div>
+    <div><label>บทบาท</label><select name="role">
+      {% for rl in com_roles %}<option>{{ rl }}</option>{% endfor %}
+    </select></div>
+    <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
+  </form>
+  {% for k, label in com_kinds.items() %}
+  <h3 style="margin:14px 0 4px; color:var(--brand-dark); font-size:15px;">กรรมการ{{ label }}</h3>
+  {% if committees[k] %}
+  <table>
+    <thead><tr><th style="width:50px;">ที่</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>บทบาท</th><th></th></tr></thead>
+    <tbody>
+    {% for m in committees[k] %}
+      <tr><td>{{ loop.index }}</td><td>{{ m.name }}</td><td>{{ m.position }}</td><td>{{ m.role }}</td>
+        <td><form method="post" action="/lunch/committee/{{ m.id }}/delete" style="margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted" style="margin:2px 0;">ยังไม่มีรายชื่อ</p>{% endif %}
+  {% endfor %}
+</div>
+
 <script>
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){

@@ -142,14 +142,18 @@ def render_installment_doc(inst, school, menus) -> str:
     _p(doc, "เรียน  ผู้อำนวยการ" + sname, indent=1.25)
     _p(doc, "เพื่อโปรดทราบผลการตรวจรับพัสดุ และขออนุมัติจ่ายเงินให้ผู้รับจ้างต่อไป",
        align="justify", indent=1.25, after=10)
-    _sign_table(doc, [
-        [("(ลงชื่อ)...........................................ประธานกรรมการตรวจรับ", "center"),
-         ("(...........................................)", "center")],
-        [("(ลงชื่อ)...........................................กรรมการ", "center"),
-         ("(...........................................)", "center")],
-        [("(ลงชื่อ)...........................................กรรมการ", "center"),
-         ("(...........................................)", "center")],
-    ])
+    inspectors = [m for m in getattr(rnd, "committees", []) if m.kind == "inspect"]
+    if inspectors:
+        rows = [[(f"(ลงชื่อ)...........................................{m.role}", "center"),
+                 (f"( {m.name} )", "center")] for m in inspectors]
+    else:
+        rows = [[("(ลงชื่อ)...........................................ประธานกรรมการตรวจรับ", "center"),
+                 ("(...........................................)", "center")],
+                [("(ลงชื่อ)...........................................กรรมการ", "center"),
+                 ("(...........................................)", "center")],
+                [("(ลงชื่อ)...........................................กรรมการ", "center"),
+                 ("(...........................................)", "center")]]
+    _sign_table(doc, rows)
     _p(doc, "", after=4)
     _p(doc, "ความเห็นของผู้บริหารสถานศึกษา", indent=1.25, after=0)
     _p(doc, "(   ) ทราบผลการตรวจรับ          (   ) อนุมัติ", indent=1.5, after=10)
@@ -343,3 +347,58 @@ def render_order_doc(rnd, school) -> str:
          (f"( {vname} )", "center")],
     ])
     return _save(doc, f"ใบสั่งจ้าง_รอบที่{rnd.seq}_ปี{prog.year}")
+
+
+_COM_ORDER = [
+    ("tor", "แต่งตั้งคณะกรรมการจัดทำขอบเขตของงาน (TOR) การจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)",
+     "จัดทำขอบเขตของงาน (TOR) การจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ให้ถูกต้องครบถ้วน"),
+    ("control", "แต่งตั้งคณะกรรมการควบคุมงานจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)",
+     "ควบคุมงานจ้างเหมาประกอบอาหารกลางวัน ตรวจสอบคุณภาพ ความสะอาด และปริมาณอาหารเป็นรายวัน"),
+    ("inspect", "แต่งตั้งคณะกรรมการตรวจรับการจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)",
+     "ตรวจรับพัสดุงานจ้างเหมาประกอบอาหารกลางวัน ให้เป็นไปตามเงื่อนไขของสัญญาหรือข้อตกลง"),
+]
+
+
+def render_committee_order_doc(rnd, school) -> str:
+    """คำสั่งแต่งตั้งคณะกรรมการ 3 ฉบับในไฟล์เดียว (TOR / ควบคุมงาน / ตรวจรับ)"""
+    doc = Document()
+    _font(doc)
+    prog = rnd.program
+    sname = (school.name or "").strip() or "โรงเรียน"
+    director = (school.director_name or "").strip() or _BLANK
+    period = (f"(ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} "
+              f"จำนวน {rnd.days or ''} วัน)")
+    groups = {k: [m for m in rnd.committees if m.kind == k] for k, _, _ in _COM_ORDER}
+
+    first = True
+    for kind, subject, duty in _COM_ORDER:
+        members = groups.get(kind) or []
+        if not first:
+            doc.add_page_break()
+        first = False
+        _p(doc, f"คำสั่ง{sname}", align="center", bold=True, size=18, after=0)
+        _p(doc, f"ที่ ....../{prog.year}", align="center", bold=True, after=0)
+        _p(doc, f"เรื่อง {subject}", align="center", bold=True, after=0)
+        _p(doc, period, align="center", after=0)
+        _p(doc, "─────────────────────", align="center", after=6)
+        _p(doc, f"ด้วย{sname} จะดำเนินการจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ให้บริการแก่นักเรียน "
+                "เพื่อให้การดำเนินการจ้างดังกล่าวเป็นไปด้วยความเรียบร้อย บังเกิดผลดีแก่ทางราชการ "
+                "จึงอาศัยอำนาจตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ "
+                "พ.ศ. ๒๕๖๐ แต่งตั้งบุคคลต่อไปนี้เป็นคณะกรรมการ", align="justify", indent=1.25, after=4)
+        if members:
+            for i, m in enumerate(members, 1):
+                _p(doc, f"{i}. {m.name}        ตำแหน่ง {m.position}        {m.role}",
+                   indent=1.5, after=0)
+        else:
+            for i in range(1, 4):
+                _p(doc, f"{i}. ...........................................        ตำแหน่ง ..................        "
+                        f"{'ประธานกรรมการ' if i == 1 else 'กรรมการ'}", indent=1.5, after=0)
+        _p(doc, f"ให้คณะกรรมการที่ได้รับแต่งตั้ง {duty} และปฏิบัติหน้าที่ให้ถูกต้องตามระเบียบ"
+                "ของทางราชการอย่างเคร่งครัด", align="justify", indent=1.25, before=4)
+        _p(doc, "ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป", bold=True, indent=1.25, after=6)
+        _p(doc, f"สั่ง ณ วันที่ {_dnum(rnd.order_date)}", align="center", after=14)
+        _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
+        _p(doc, f"( {director} )", align="center", after=0)
+        _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
+
+    return _save(doc, f"คำสั่งแต่งตั้งกรรมการ_รอบที่{rnd.seq}_ปี{prog.year}")

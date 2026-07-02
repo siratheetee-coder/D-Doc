@@ -501,10 +501,12 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
     if not rnd:
         return RedirectResponse("/lunch", status_code=303)
     paid = sum(i.amount or 0 for i in rnd.installments if i.status == "จ่ายแล้ว")
+    committees = {k: [m for m in rnd.committees if m.kind == k] for k in COMMITTEE_KINDS}
     return templates.TemplateResponse("lunch_contract.html", {
         "request": request, "school": get_school(db), "r": rnd, "p": rnd.program,
         "installments": rnd.installments, "paid": paid,
         "committed": sum(i.amount or 0 for i in rnd.installments),
+        "committees": committees, "com_kinds": COMMITTEE_KINDS, "com_roles": COMMITTEE_ROLES,
         "today_be": be_date_input(datetime.now()),
     })
 
@@ -609,6 +611,52 @@ def contract_order_doc(rid: int, db: Session = Depends(get_db)):
     if not rnd:
         return RedirectResponse("/lunch", status_code=303)
     path = render_order_doc(rnd, get_school(db))
+    return FileResponse(
+        path, filename=Path(path).name,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+# ---------------- คณะกรรมการในสัญญา ----------------
+COMMITTEE_KINDS = {"tor": "จัดทำขอบเขตของงาน (TOR)", "control": "ควบคุมงาน", "inspect": "ตรวจรับ"}
+COMMITTEE_ROLES = ["ประธานกรรมการ", "กรรมการ", "กรรมการและเลขานุการ"]
+
+
+@router.post("/lunch/round/{rid}/committee/add")
+def committee_add(rid: int, db: Session = Depends(get_db),
+                  kind: str = Form("inspect"), name: str = Form(""),
+                  position: str = Form("ครู"), role: str = Form("กรรมการ")):
+    from app.models import LunchCommittee
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd or not name.strip():
+        return RedirectResponse(f"/lunch/round/{rid}/plan", status_code=303)
+    seq = max([m.seq for m in rnd.committees if m.kind == kind], default=0) + 1
+    db.add(LunchCommittee(round_id=rid, kind=kind, seq=seq, name=name.strip(),
+                          position=position.strip() or "ครู", role=role or "กรรมการ"))
+    db.commit()
+    return RedirectResponse(f"/lunch/round/{rid}/plan", status_code=303)
+
+
+@router.post("/lunch/committee/{cid}/delete")
+def committee_delete(cid: int, db: Session = Depends(get_db)):
+    from app.models import LunchCommittee
+    m = db.get(LunchCommittee, cid)
+    rid = m.round_id if m else None
+    if m:
+        db.delete(m)
+        db.commit()
+    return RedirectResponse(f"/lunch/round/{rid}/plan" if rid else "/lunch", status_code=303)
+
+
+@router.get("/lunch/round/{rid}/committee-doc")
+def committee_order_doc(rid: int, db: Session = Depends(get_db)):
+    """ออกคำสั่งแต่งตั้งคณะกรรมการ (3 คำสั่ง: TOR/ควบคุมงาน/ตรวจรับ)"""
+    from pathlib import Path
+    from fastapi.responses import FileResponse
+    from app.services.lunch_doc import render_committee_order_doc
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return RedirectResponse("/lunch", status_code=303)
+    path = render_committee_order_doc(rnd, get_school(db))
     return FileResponse(
         path, filename=Path(path).name,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")

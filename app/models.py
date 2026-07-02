@@ -726,6 +726,24 @@ class LunchHireRound(Base):
     vendor = relationship("Vendor")
     installments = relationship("LunchInstallment", back_populates="round",
                                cascade="all, delete-orphan", order_by="LunchInstallment.seq")
+    committees = relationship("LunchCommittee", back_populates="round",
+                             cascade="all, delete-orphan",
+                             order_by="LunchCommittee.kind, LunchCommittee.seq")
+
+
+class LunchCommittee(Base):
+    """กรรมการในสัญญาจ้างเหมาอาหารกลางวัน 3 ชุด: จัดทำ TOR / ควบคุมงาน / ตรวจรับ"""
+    __tablename__ = "lunch_committee"
+
+    id = Column(Integer, primary_key=True)
+    round_id = Column(Integer, ForeignKey("lunch_hire_round.id"), nullable=False)
+    kind = Column(String, default="inspect")        # tor / control / inspect
+    seq = Column(Integer, default=1)
+    name = Column(String, default="")
+    position = Column(String, default="ครู")        # ตำแหน่ง
+    role = Column(String, default="กรรมการ")        # ประธานกรรมการ / กรรมการ / กรรมการและเลขานุการ
+
+    round = relationship("LunchHireRound", back_populates="committees")
 
 
 class LunchInstallment(Base):
