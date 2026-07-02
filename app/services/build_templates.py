@@ -807,7 +807,7 @@ def build_quotation():
     doc = Document()
     _font(doc)
     _p(doc, "ใบเสนอราคา", align="center", bold=True, size=20, after=4)
-    _p(doc, "วันที่ {{ order_date_thai }}", align="right")
+    _p(doc, "วันที่ {{ quote_date_thai }}", align="right")
     _p(doc, "เรียน  ผู้อำนวยการ{{ school_name }}")
     _p(doc,
        "ข้าพเจ้า {{ vendor_name }} อยู่บ้านเลขที่ {{ vendor_address }} โทรศัพท์ {{ vendor_phone }} "

@@ -203,6 +203,7 @@ def build_context(proc, school) -> dict:
         "delivery_note_no": proc.delivery_note_no or "..............",
         "delivery_note_book": proc.delivery_note_book or "..............",
         # วันที่ (แก้ไขได้ภายหลัง)
+        "quote_date_thai": _d(getattr(proc, "quotation_date", None) or proc.order_date),
         "order_date_thai": _d(proc.order_date),
         "order_date_official": _do(proc.order_date),
         "delivery_due_thai": _d(proc.delivery_due_date),

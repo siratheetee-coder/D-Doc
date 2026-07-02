@@ -1083,6 +1083,7 @@ async def procurement_update_refs(proc_id: int, request: Request, db: Session = 
     proc.spec_memo_date   = _parse_date(form.get("spec_memo_date"))
     proc.command_date     = _parse_date(form.get("command_date"))
     proc.result_memo_date = _parse_date(form.get("result_memo_date"))
+    proc.quotation_date   = _parse_date(form.get("quotation_date"))
     proc.order_date       = _parse_date(form.get("order_date"))
     proc.inspect_date     = _parse_date(form.get("inspect_date"))
 

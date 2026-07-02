@@ -165,6 +165,7 @@ class Procurement(Base):
     vendor_id = Column(Integer, ForeignKey("vendor.id"), nullable=True)
     request_date = Column(DateTime, default=datetime.now)   # วันที่รายงานขอซื้อ
     # วันที่ที่เกิดภายหลัง (แก้ไขได้ในหน้ารายละเอียด)
+    quotation_date = Column(DateTime, nullable=True)       # วันที่ใบเสนอราคา
     order_date = Column(DateTime, nullable=True)            # วันที่ใบสั่งซื้อ/สั่งจ้าง
     delivery_due_date = Column(DateTime, nullable=True)     # ครบกำหนดส่งมอบ
     delivery_date = Column(DateTime, nullable=True)         # วันที่ส่งมอบจริง (ใบส่งมอบงาน)
