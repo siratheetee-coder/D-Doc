@@ -532,6 +532,25 @@ def letter_create(db: Session = Depends(get_db), fiscal_year: str = Form(""), do
     return RedirectResponse(f"/admin/letters/{lt.id}", status_code=303)
 
 
+@router.post("/admin/letters/ai-write")
+def letter_ai_write(db: Session = Depends(get_db), subject: str = Form(""),
+                    to: str = Form(""), points: str = Form(""), detail: str = Form("")):
+    """ให้ AI ร่างเนื้อความหนังสือราชการจากข้อมูลสำคัญ -> คืน JSON {subject, body}"""
+    from fastapi.responses import JSONResponse
+    from app.services.ai_extract import write_official_letter
+    school = get_school(db)
+    key = (getattr(school, "ai_api_key", "") or "").strip()
+    if not key:
+        return JSONResponse({"error": "ยังไม่ได้ตั้งค่า API key ของ AI ในตั้งค่าโรงเรียน"}, status_code=400)
+    res = write_official_letter({
+        "school": school.name or "", "subject": subject, "to": to,
+        "points": points, "detail": detail,
+    }, key)
+    if res.get("error"):
+        return JSONResponse({"error": "AI เขียนไม่สำเร็จ ลองใหม่อีกครั้ง"}, status_code=502)
+    return JSONResponse({"subject": res.get("subject", ""), "body": res.get("body", "")})
+
+
 @router.get("/admin/letters/{lid}", response_class=HTMLResponse)
 def letter_detail(lid: int, request: Request, db: Session = Depends(get_db)):
     lt = db.get(OfficialLetter, lid)

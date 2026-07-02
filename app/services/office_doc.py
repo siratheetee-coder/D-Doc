@@ -11,7 +11,10 @@ office_doc.py
 from pathlib import Path
 
 from docx import Document
-from docx.shared import Cm
+from docx.shared import Cm, Pt
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 from app.database import get_data_dir
 from app.thai_utils import thai_date, thai_date_official
@@ -19,6 +22,21 @@ from app.services.build_templates import (
     _font, _p, _p_runs, _krut_and_title, _krut_center, _sign_table,
     _no_borders, _set_cell, THAI_FONT,
 )
+
+
+def _foot_line(par, text, size=15):
+    """เพิ่มบรรทัดใน footer ด้วยฟอนต์ไทย (ชิดซ้าย)"""
+    par.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    run = par.add_run(text)
+    run.font.name = THAI_FONT
+    run.font.size = Pt(size)
+    rpr = run._element.get_or_add_rPr()
+    rf = rpr.find(qn("w:rFonts"))
+    if rf is None:
+        rf = OxmlElement("w:rFonts")
+        rpr.append(rf)
+    for a in ("w:ascii", "w:hAnsi", "w:cs"):
+        rf.set(qn(a), THAI_FONT)
 
 
 def _safe(text: str) -> str:
@@ -123,7 +141,7 @@ def render_official_letter(letter, school) -> str:
     t.columns[1].width = Cm(8.0)
     _set_cell(t.rows[0].cells[0], "ที่  " + (letter.doc_no or _BLANK), align="left", size=16)
     right = (school.name or "") + (("\n" + school.address) if school.address else "")
-    _set_cell(t.rows[0].cells[1], right, align="left", size=16)
+    _set_cell(t.rows[0].cells[1], right, align="right", size=16)
 
     _p(doc, "วันที่ " + thai_date_official(letter.date), align="center", after=4)
     _p_runs(doc, [("เรื่อง  ", True), (letter.subject or _BLANK, False)])
@@ -147,10 +165,12 @@ def render_official_letter(letter, school) -> str:
         (position, "center"),
     ]])
 
-    # ส่วนราชการเจ้าของเรื่อง + เบอร์โทร (ล่างซ้าย)
-    _p(doc, "", after=6)
-    _p(doc, school.name or "", align="left", after=0, size=15)
-    _p(doc, "โทร. ........................................", align="left", size=15)
+    # ส่วนราชการเจ้าของเรื่อง + เบอร์โทร -> ตรึงไว้ท้ายหน้า (footer)
+    foot = doc.sections[0].footer
+    foot.is_linked_to_previous = False
+    _foot_line(foot.paragraphs[0] if foot.paragraphs else foot.add_paragraph(),
+               school.name or "")
+    _foot_line(foot.add_paragraph(), "โทร. ........................................")
 
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)

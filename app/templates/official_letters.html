@@ -4,6 +4,24 @@
 <div class="card">
   <h1><svg class="icon"><use href="#ic-file"/></svg> ออกหนังสือราชการ (ภายนอก)</h1>
   <p class="muted" style="margin-top:0;">เลือกแม่แบบเพื่อเติมเรื่อง/เนื้อความให้อัตโนมัติ แล้วแก้ได้ · เลขที่ใช้ชุดเดียวกับทะเบียนหนังสือส่ง</p>
+
+  <div style="border:1px solid #c7d7fb; background:#f5f9ff; border-radius:10px; padding:12px 14px; margin-bottom:14px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+      <b><svg class="icon"><use href="#ic-ai"/></svg> ให้ AI ช่วยเขียน</b>
+      <span id="aiMsg" class="muted" style="font-size:13px;"></span>
+    </div>
+    <p class="muted" style="margin:6px 0;">กรอกข้อมูลสำคัญ แล้วให้ AI ร่างเรื่อง+เนื้อความให้ (ตรวจ/แก้ก่อนบันทึกได้)</p>
+    <div class="row">
+      <div style="flex:2;"><label>ต้องการเขียนเรื่องอะไร</label><input id="ai_subject" placeholder="เช่น ขออนุญาตใช้สนามกีฬาอำเภอจัดกีฬาสี"></div>
+      <div style="flex:2;"><label>ถึงใคร (เรียน)</label><input id="ai_to" placeholder="เช่น นายอำเภอเมืองมหาสารคาม"></div>
+    </div>
+    <label>จุดประสงค์/ประเด็นสำคัญ (ใส่ วัน เวลา สถานที่ จำนวนคน ฯลฯ)</label>
+    <textarea id="ai_points" rows="3" placeholder="เช่น ขอใช้สนามวันที่ 15 ส.ค. 2569 เวลา 08.00-16.00 น. นักเรียน 300 คน จัดกีฬาสีประจำปี"></textarea>
+    <label>รายละเอียดเพิ่มเติม (ไม่บังคับ)</label>
+    <input id="ai_detail" placeholder="ข้อมูลอื่นที่อยากให้ AI รู้">
+    <br><br><button type="button" class="btn sm" style="background:linear-gradient(120deg,#7c3aed,#4880FF); color:#fff; border:none;" onclick="aiWrite(this)"><svg class="icon"><use href="#ic-ai"/></svg> ให้ AI ช่วยเขียน</button>
+  </div>
+
   <form method="post" action="/admin/letters">
     <div class="row">
       <div style="flex:2;"><label>แม่แบบสำเร็จ</label>
@@ -53,6 +71,27 @@
 </div>
 
 <script>
+  function aiWrite(btn){
+    var msg=document.getElementById('aiMsg');
+    var subj=document.getElementById('ai_subject').value.trim();
+    var pts=document.getElementById('ai_points').value.trim();
+    if(!subj && !pts){ msg.textContent='กรอกเรื่อง หรือ ประเด็นสำคัญก่อน'; return; }
+    var fd=new FormData();
+    fd.append('subject', subj);
+    fd.append('to', document.getElementById('ai_to').value.trim());
+    fd.append('points', pts);
+    fd.append('detail', document.getElementById('ai_detail').value.trim());
+    btn.disabled=true; msg.innerHTML='<span class="spin"></span> AI กำลังเขียน...';
+    fetch('/admin/letters/ai-write', {method:'POST', body:fd}).then(function(r){return r.json();}).then(function(d){
+      btn.disabled=false;
+      if(d.error){ msg.textContent=d.error; return; }
+      if(d.subject){ document.getElementById('f_subject').value=d.subject; }
+      if(d.body){ document.getElementById('f_body').value=d.body; }
+      var to=document.getElementById('ai_to').value.trim();
+      if(to && !document.querySelector('input[name=to]').value){ document.querySelector('input[name=to]').value=to; }
+      msg.textContent='AI เขียนให้แล้ว — ตรวจ/แก้ด้านล่างก่อนบันทึก';
+    }).catch(function(){ btn.disabled=false; msg.textContent='เชื่อมต่อ AI ไม่สำเร็จ'; });
+  }
   var PRESETS = {{ presets|tojson }};
   function applyPreset(){
     var k = document.getElementById('presetSel').value;

@@ -122,3 +122,59 @@ def extract_with_ai(text: str, api_key: str) -> dict:
         return result
     except Exception:
         return {"error": "bad_json"}
+
+
+_LETTER_PROMPT = """คุณคือผู้ช่วยร่าง "หนังสือราชการภายนอก" ของโรงเรียนไทย ให้ถูกต้องตามระเบียบงานสารบรรณ
+เขียนด้วยภาษาราชการสุภาพ กระชับ ครบถ้วน
+
+ข้อมูลที่ได้รับ:
+- โรงเรียนผู้ส่ง: {SCHOOL}
+- เรื่อง: {SUBJECT}
+- เรียน (ผู้รับ): {TO}
+- จุดประสงค์/ประเด็นสำคัญ: {POINTS}
+- รายละเอียดเพิ่มเติม: {DETAIL}
+
+ให้ตอบกลับเป็น JSON เท่านั้น (ไม่มีคำอธิบายอื่น):
+{
+ "subject": "เรื่อง (กระชับ เป็นทางการ)",
+ "body": "เนื้อความหนังสือ ขึ้นต้นด้วย 'ด้วย...' หรือ 'ตามที่...' อธิบายเหตุ ความประสงค์ และปิดท้ายด้วย 'จึงเรียนมาเพื่อ...' โดยเว้นบรรทัดว่างคั่นย่อหน้า (ไม่ต้องมีคำลงท้าย ไม่ต้องมีลายเซ็น)"
+}
+- ใช้สรรพนามและถ้อยคำราชการ เช่น ขอความอนุเคราะห์/ขอเรียนเชิญ/ขออนุญาต ตามบริบท
+- คงข้อเท็จจริงตามที่ให้มา อย่าแต่งข้อมูลเท็จ (วันเวลา/สถานที่ที่ไม่ทราบให้เว้นเป็น ...)
+ตอบเป็น JSON เท่านั้น:"""
+
+
+def write_official_letter(info: dict, api_key: str) -> dict:
+    """ให้ AI ร่างหนังสือราชการ คืน {'subject':..., 'body':..., 'ok':True} หรือ {'error':...}"""
+    if not (api_key or "").strip():
+        return {"error": "no_key"}
+    prompt = (_LETTER_PROMPT
+              .replace("{SCHOOL}", (info.get("school") or "")[:120])
+              .replace("{SUBJECT}", (info.get("subject") or "")[:300])
+              .replace("{TO}", (info.get("to") or "")[:200])
+              .replace("{POINTS}", (info.get("points") or "")[:1500])
+              .replace("{DETAIL}", (info.get("detail") or "")[:2500]))
+    body = json.dumps({
+        "model": _VISION_MODEL, "max_tokens": 2000,   # ใช้โมเดลที่เขียนดีกว่า
+        "messages": [{"role": "user", "content": prompt}],
+    }).encode("utf-8")
+    req = urllib.request.Request(_API_URL, data=body, headers={
+        "x-api-key": api_key.strip(),
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=90) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        return {"error": "request", "detail": str(e)[:200]}
+    out = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
+    m = re.search(r"\{.*\}", out, re.S)
+    if not m:
+        return {"error": "no_json"}
+    try:
+        result = json.loads(m.group(0))
+        result["ok"] = True
+        return result
+    except Exception:
+        return {"error": "bad_json"}
