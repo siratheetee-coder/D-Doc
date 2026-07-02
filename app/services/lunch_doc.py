@@ -42,6 +42,21 @@ def _save(doc, name: str) -> str:
     return str(out_path)
 
 
+def _begin(doc):
+    """เริ่มเอกสาร: ถ้า doc=None สร้างใหม่ (own=True) ไม่งั้นต่อท้ายด้วย page break (own=False)"""
+    if doc is None:
+        doc = Document()
+        _font(doc)
+        return doc, True
+    if doc.paragraphs or doc.tables:   # เว้นหน้าเฉพาะเมื่อมีเนื้อหาก่อนหน้าแล้ว
+        doc.add_page_break()
+    return doc, False
+
+
+def _finish(doc, own, name):
+    return _save(doc, name) if own else doc
+
+
 def _dnum(dt) -> str:
     return thai_date(dt) if dt else _BLANK
 
@@ -281,10 +296,9 @@ def _student_tiers(prog):
     return t1, t2
 
 
-def render_order_doc(rnd, school) -> str:
+def render_order_doc(rnd, school, doc=None) -> str:
     """ใบสั่งจ้างเหมาประกอบอาหารกลางวัน (สัญญา 1 รอบ) — ใช้ข้อมูลงวดที่บันทึกไว้"""
-    doc = Document()
-    _font(doc)
+    doc, own = _begin(doc)
     prog = rnd.program
     vendor = rnd.vendor
     vname = vendor.name if vendor else _BLANK
@@ -346,7 +360,7 @@ def render_order_doc(rnd, school) -> str:
         [("(ลงชื่อ)...........................................ผู้รับใบสั่งจ้าง", "center"),
          (f"( {vname} )", "center")],
     ])
-    return _save(doc, f"ใบสั่งจ้าง_รอบที่{rnd.seq}_ปี{prog.year}")
+    return _finish(doc, own, f"ใบสั่งจ้าง_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
 _COM_ORDER = [
@@ -359,10 +373,9 @@ _COM_ORDER = [
 ]
 
 
-def render_committee_order_doc(rnd, school) -> str:
+def render_committee_order_doc(rnd, school, doc=None) -> str:
     """คำสั่งแต่งตั้งคณะกรรมการ 3 ฉบับในไฟล์เดียว (TOR / ควบคุมงาน / ตรวจรับ)"""
-    doc = Document()
-    _font(doc)
+    doc, own = _begin(doc)
     prog = rnd.program
     sname = (school.name or "").strip() or "โรงเรียน"
     director = (school.director_name or "").strip() or _BLANK
@@ -401,7 +414,7 @@ def render_committee_order_doc(rnd, school) -> str:
         _p(doc, f"( {director} )", align="center", after=0)
         _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
 
-    return _save(doc, f"คำสั่งแต่งตั้งกรรมการ_รอบที่{rnd.seq}_ปี{prog.year}")
+    return _finish(doc, own, f"คำสั่งแต่งตั้งกรรมการ_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
 def _committee_lines(doc, members, fallback_n=3):
@@ -415,10 +428,9 @@ def _committee_lines(doc, members, fallback_n=3):
                     f"{'ประธานกรรมการ' if i == 1 else 'กรรมการ'}", indent=1.75, after=0)
 
 
-def render_hire_report_doc(rnd, school) -> str:
+def render_hire_report_doc(rnd, school, doc=None) -> str:
     """รายงานขอจ้างเหมาประกอบอาหารกลางวัน (บันทึกข้อความเปิดเรื่อง)"""
-    doc = Document()
-    _font(doc)
+    doc, own = _begin(doc)
     prog = rnd.program
     sname = (school.name or "").strip() or "โรงเรียน"
     saddr = (school.address or "").strip()
@@ -484,7 +496,7 @@ def render_hire_report_doc(rnd, school) -> str:
     _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
     _p(doc, f"( {director} )", align="center", after=0)
     _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
-    return _save(doc, f"รายงานขอจ้าง_รอบที่{rnd.seq}_ปี{prog.year}")
+    return _finish(doc, own, f"รายงานขอจ้าง_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
 def _hdr_memo(doc, school, prog, subject_lines, date):
@@ -496,10 +508,9 @@ def _hdr_memo(doc, school, prog, subject_lines, date):
     _p(doc, f"เรียน  ผู้อำนวยการ{(school.name or '').strip()}", after=6)
 
 
-def render_winner_doc(rnd, school) -> str:
+def render_winner_doc(rnd, school, doc=None) -> str:
     """ประกาศผู้ชนะการเสนอราคา (จ้างเหมาอาหารกลางวัน)"""
-    doc = Document()
-    _font(doc)
+    doc, own = _begin(doc)
     prog = rnd.program
     sname = (school.name or "").strip() or "โรงเรียน"
     director = (school.director_name or "").strip() or _BLANK
@@ -521,13 +532,12 @@ def render_winner_doc(rnd, school) -> str:
     _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
     _p(doc, f"( {director} )", align="center", after=0)
     _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
-    return _save(doc, f"ประกาศผู้ชนะ_รอบที่{rnd.seq}_ปี{prog.year}")
+    return _finish(doc, own, f"ประกาศผู้ชนะ_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
-def render_result_doc(rnd, school) -> str:
+def render_result_doc(rnd, school, doc=None) -> str:
     """รายงานผลการพิจารณาและขออนุมัติสั่งจ้าง"""
-    doc = Document()
-    _font(doc)
+    doc, own = _begin(doc)
     prog = rnd.program
     sname = (school.name or "").strip() or "โรงเรียน"
     director = (school.director_name or "").strip() or _BLANK
@@ -556,13 +566,12 @@ def render_result_doc(rnd, school) -> str:
     _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
     _p(doc, f"( {director} )", align="center", after=0)
     _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
-    return _save(doc, f"รายงานผลพิจารณา_รอบที่{rnd.seq}_ปี{prog.year}")
+    return _finish(doc, own, f"รายงานผลพิจารณา_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
-def render_tor_request_doc(rnd, school) -> str:
+def render_tor_request_doc(rnd, school, doc=None) -> str:
     """บันทึกข้อความขออนุมัติแต่งตั้งคณะกรรมการจัดทำ TOR"""
-    doc = Document()
-    _font(doc)
+    doc, own = _begin(doc)
     prog = rnd.program
     sname = (school.name or "").strip() or "โรงเรียน"
     officer = (school.officer_name or "").strip() or _BLANK
@@ -587,4 +596,17 @@ def render_tor_request_doc(rnd, school) -> str:
         [("(ลงชื่อ)...........................................หัวหน้าเจ้าหน้าที่", "center"),
          (f"( {head} )", "center")],
     ])
-    return _save(doc, f"ขออนุมัติTOR_รอบที่{rnd.seq}_ปี{prog.year}")
+    return _finish(doc, own, f"ขออนุมัติTOR_รอบที่{rnd.seq}_ปี{prog.year}")
+
+
+def render_contract_bundle(rnd, school) -> str:
+    """ออกเอกสารต่อรอบทั้งชุดเป็นไฟล์ Word เดียว (เรียงตามลำดับงานจริง)"""
+    doc = Document()
+    _font(doc)
+    render_tor_request_doc(rnd, school, doc)        # บันทึกขออนุมัติ TOR
+    render_committee_order_doc(rnd, school, doc)     # คำสั่งแต่งตั้งกรรมการ (3 ฉบับ)
+    render_hire_report_doc(rnd, school, doc)         # รายงานขอจ้าง
+    render_result_doc(rnd, school, doc)              # รายงานผลพิจารณา
+    render_winner_doc(rnd, school, doc)              # ประกาศผู้ชนะ
+    render_order_doc(rnd, school, doc)               # ใบสั่งจ้าง
+    return _save(doc, f"ชุดเอกสารจ้างเหมา_รอบที่{rnd.seq}_ปี{rnd.program.year}")

@@ -711,3 +711,9 @@ def contract_result_doc(rid: int, db: Session = Depends(get_db)):
 @router.get("/lunch/round/{rid}/tor-request-doc")
 def contract_tor_request_doc(rid: int, db: Session = Depends(get_db)):
     return _round_docfile(rid, db, "render_tor_request_doc")
+
+
+@router.get("/lunch/round/{rid}/bundle-doc")
+def contract_bundle_doc(rid: int, db: Session = Depends(get_db)):
+    """ออกเอกสารต่อรอบทั้งชุดเป็นไฟล์เดียว"""
+    return _round_docfile(rid, db, "render_contract_bundle")
