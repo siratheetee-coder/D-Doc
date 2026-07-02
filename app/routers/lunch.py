@@ -226,6 +226,13 @@ def _sync_round_ledger(db: Session, rnd: LunchHireRound) -> None:
         db.delete(existing)
 
 
+def _lunch_holidays(prog) -> dict:
+    """วันหยุดราชการ (ISO ค.ศ.) ครอบคลุมปีการศึกษาของโครงการ (พ.ค.-มี.ค.) เผื่อ +/-1"""
+    from app.services.thai_holidays import holiday_map
+    base = (prog.year or 2568) - 543
+    return holiday_map([base - 1, base, base + 1])
+
+
 def _rounds_page(request, db, prog, edit=None):
     vendors = db.query(Vendor).order_by(Vendor.name).all()
     paid = sum(r.amount or 0 for r in prog.rounds if r.status == "จ่ายแล้ว")
@@ -234,7 +241,7 @@ def _rounds_page(request, db, prog, edit=None):
         "request": request, "school": get_school(db), "p": prog,
         "rounds": prog.rounds, "vendors": vendors, "periods": PERIOD_TYPES,
         "edit": edit, "paid": paid, "committed": committed,
-        "default_period": "month",
+        "default_period": "month", "holidays": _lunch_holidays(prog),
     })
 
 
@@ -507,6 +514,7 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         "installments": rnd.installments, "paid": paid,
         "committed": sum(i.amount or 0 for i in rnd.installments),
         "committees": committees, "com_kinds": COMMITTEE_KINDS, "com_roles": COMMITTEE_ROLES,
+        "holidays": _lunch_holidays(rnd.program),
         "today_be": be_date_input(datetime.now()),
     })
 

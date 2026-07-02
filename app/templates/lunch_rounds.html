@@ -23,9 +23,9 @@
       <div><label>รูปแบบรอบ</label><select name="period_type">
         {% for k,v in periods.items() %}<option value="{{ k }}" {{ 'selected' if (edit.period_type if edit else default_period)==k }}>{{ v }}</option>{% endfor %}
       </select></div>
-      <div><label>วันที่เริ่ม</label><input name="start_date" id="sd" value="{{ be_date(edit.start_date) if edit else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" oninput="calc()"></div>
-      <div><label>วันที่สิ้นสุด</label><input name="end_date" id="ed" value="{{ be_date(edit.end_date) if edit else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" oninput="calc()"></div>
-      <div><label>จำนวนวันทำการ <span class="muted">(หักวันหยุด)</span></label><input name="days" id="days" type="number" min="0" value="{{ edit.days if edit else 0 }}" oninput="calcAmt()"></div>
+      <div><label>วันที่เริ่ม</label><input name="start_date" id="sd" value="{{ be_date(edit.start_date) if edit else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" oninput="onStart()"></div>
+      <div><label>วันที่สิ้นสุด <span class="muted">(คำนวณให้)</span></label><input name="end_date" id="ed" value="{{ be_date(edit.end_date) if edit else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" oninput="onEnd()"></div>
+      <div><label>จำนวนวันทำการ <span class="muted">(หักเสาร์-อาทิตย์+วันหยุด)</span></label><input name="days" id="days" type="number" min="0" value="{{ edit.days if edit else 0 }}" oninput="fromDays()"></div>
     </div>
     <div class="row">
       <div style="flex:2;"><label>ผู้รับจ้าง</label><select name="vendor_id">
@@ -33,8 +33,8 @@
         {% for v in vendors %}<option value="{{ v.id }}" {{ 'selected' if edit and edit.vendor_id==v.id }}>{{ v.name }}</option>{% endfor %}
       </select></div>
       <div><label>วงเงินรอบนี้ (บาท)</label><input name="amount" id="amt" type="number" step="0.01" value="{{ '%g'|format(edit.amount) if edit and edit.amount else '' }}"></div>
-      <div><label>เลขที่ใบสั่งจ้าง</label><input name="order_no" value="{{ edit.order_no if edit else '' }}" placeholder="เช่น 27/2568" style="width:110px;"></div>
-      <div><label>วันที่ใบสั่งจ้าง</label><input name="order_date" value="{{ be_date(edit.order_date) if edit and edit.order_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;"></div>
+      <div><label>เลขที่ใบสั่งจ้าง</label><input name="order_no" value="{{ edit.order_no if edit else '' }}" placeholder="เช่น 27/2568" style="min-width:150px;"></div>
+      <div><label>วันที่ใบสั่งจ้าง</label><input name="order_date" value="{{ be_date(edit.order_date) if edit and edit.order_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="min-width:150px;"></div>
       <div><label>สถานะ</label><select name="status">
         {% for s in ['ร่าง','จ้างแล้ว','จ่ายแล้ว'] %}<option value="{{ s }}" {{ 'selected' if (edit.status if edit else 'ร่าง')==s }}>{{ s }}</option>{% endfor %}
       </select></div>
@@ -82,26 +82,46 @@
 
 <script>
   var STUDENTS = {{ p.total_students }}, RATE = {{ p.rate_per_head or 0 }};
+  var HOLIDAYS = {{ holidays | tojson }};   // { 'YYYY-MM-DD(ค.ศ.)': ชื่อวันหยุด }
+  function _iso(dt){ return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2); }
+  function _work(dt){ return dt.getDay()>=1 && dt.getDay()<=5 && !HOLIDAYS[_iso(dt)]; }  // วันทำการ (จ-ศ ไม่ใช่วันหยุด)
   function _parseBE(s){
     var m=(s||'').split('/'); if(m.length!==3) return null;
     var d=+m[0], mo=+m[1]-1, y=+m[2]-543; if(!d||!m[2]) return null;
     var dt=new Date(y,mo,d); return isNaN(dt) ? null : dt;
   }
-  function weekdays(a,b){ if(!a||!b||b<a) return 0; var n=0,c=new Date(a); while(c<=b){ if(c.getDay()>=1&&c.getDay()<=5)n++; c.setDate(c.getDate()+1);} return n; }
-  function calc(){
-    var a=_parseBE(document.getElementById('sd').value), b=_parseBE(document.getElementById('ed').value);
-    var w=weekdays(a,b);
-    if(w>0){ document.getElementById('days').value=w; }
+  function _toBE(dt){ return ('0'+dt.getDate()).slice(-2)+'/'+('0'+(dt.getMonth()+1)).slice(-2)+'/'+(dt.getFullYear()+543); }
+  function workdays(a,b){ if(!a||!b||b<a) return 0; var n=0,c=new Date(a); while(c<=b){ if(_work(c))n++; c.setDate(c.getDate()+1);} return n; }
+  function addWork(start, n){  // หาวันสิ้นสุด = วันทำการที่ n นับจาก start (รวม start ถ้าเป็นวันทำการ)
+    if(!start || n<=0) return null;
+    var c=new Date(start), cnt=0, last=null;
+    while(cnt<n){ if(_work(c)){ cnt++; last=new Date(c);} if(cnt>=n) break; c.setDate(c.getDate()+1); }
+    return last;
+  }
+  var $=function(id){return document.getElementById(id);};
+  function onStart(){  // เปลี่ยนวันเริ่ม -> ถ้ามีจำนวนวันคำนวณวันสิ้นสุด ไม่งั้นถ้ามีวันสิ้นสุดคำนวณจำนวนวัน
+    var s=_parseBE($('sd').value);
+    var d=parseInt($('days').value||0)||0;
+    if(s && d>0){ var e=addWork(s,d); if(e) $('ed').value=_toBE(e); }
+    else { var e2=_parseBE($('ed').value); if(s&&e2) $('days').value=workdays(s,e2); }
+    calcAmt();
+  }
+  function onEnd(){  // เปลี่ยนวันสิ้นสุด -> คำนวณจำนวนวันทำการจากช่วง
+    var s=_parseBE($('sd').value), e=_parseBE($('ed').value);
+    if(s&&e){ $('days').value=workdays(s,e); }
+    calcAmt();
+  }
+  function fromDays(){  // เปลี่ยนจำนวนวัน -> คำนวณวันสิ้นสุดจากวันเริ่ม
+    var s=_parseBE($('sd').value), d=parseInt($('days').value||0)||0;
+    if(s && d>0){ var e=addWork(s,d); if(e) $('ed').value=_toBE(e); }
     calcAmt();
   }
   function calcAmt(){
-    var days=parseInt(document.getElementById('days').value||0)||0;
-    var sug=days*STUDENTS*RATE;
-    var amt=document.getElementById('amt');
+    var days=parseInt($('days').value||0)||0, sug=days*STUDENTS*RATE, amt=$('amt');
     if(days>0){
-      document.getElementById('sug').innerText='แนะนำวงเงิน = '+days+' วัน × '+STUDENTS+' คน × '+RATE+' บาท = '+sug.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})+' บาท';
+      $('sug').innerText='แนะนำวงเงิน = '+days+' วัน × '+STUDENTS+' คน × '+RATE+' บาท = '+sug.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})+' บาท';
       if(!amt.value){ amt.value=sug.toFixed(2); }
-    } else { document.getElementById('sug').innerText=''; }
+    } else { $('sug').innerText=''; }
   }
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){
