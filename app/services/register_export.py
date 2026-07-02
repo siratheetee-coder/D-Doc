@@ -35,7 +35,7 @@ def export_register(procurements, fiscal_year: int, kind: str = "all") -> str:
     ws.append([])
 
     headers = ["เลขที่", "วันที่", "เรื่อง", "ประเภท", "วิธี",
-               "วงเงิน (บาท)", "ผู้ขาย/ผู้รับจ้าง", "สถานะ"]
+               "วงเงิน (บาท)", "ผู้ขาย/ผู้รับจ้าง", "หมายเหตุ"]
     ws.append(headers)
 
     thin = Side(style="thin")
@@ -68,7 +68,7 @@ def export_register(procurements, fiscal_year: int, kind: str = "all") -> str:
             p.method,
             p.total_amount or 0,
             p.vendor.name if p.vendor else "-",
-            p.status,
+            "",   # หมายเหตุ (เว้นว่างไว้ให้เขียนเอง)
         ])
 
     # จัดรูปทุกเซลล์ข้อมูล + กำหนดความกว้างคอลัมน์
