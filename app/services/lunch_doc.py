@@ -485,3 +485,106 @@ def render_hire_report_doc(rnd, school) -> str:
     _p(doc, f"( {director} )", align="center", after=0)
     _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
     return _save(doc, f"รายงานขอจ้าง_รอบที่{rnd.seq}_ปี{prog.year}")
+
+
+def _hdr_memo(doc, school, prog, subject_lines, date):
+    _p(doc, "บันทึกข้อความ", align="center", bold=True, size=20, after=4)
+    _p(doc, f"ส่วนราชการ  {(school.name or '').strip()}  {(school.address or '').strip()}", after=0)
+    _p(doc, f"ที่  -/{prog.year}                     วันที่  {date}", after=0)
+    for i, s in enumerate(subject_lines):
+        _p(doc, (("เรื่อง  " + s) if i == 0 else "        " + s), after=0)
+    _p(doc, f"เรียน  ผู้อำนวยการ{(school.name or '').strip()}", after=6)
+
+
+def render_winner_doc(rnd, school) -> str:
+    """ประกาศผู้ชนะการเสนอราคา (จ้างเหมาอาหารกลางวัน)"""
+    doc = Document()
+    _font(doc)
+    prog = rnd.program
+    sname = (school.name or "").strip() or "โรงเรียน"
+    director = (school.director_name or "").strip() or _BLANK
+    vname = rnd.vendor.name if rnd.vendor else _BLANK
+    total = round(float(rnd.amount or 0), 2)
+    period = (f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} "
+              f"จำนวน {rnd.days or ''} วัน")
+    _p(doc, f"ประกาศ{sname}", align="center", bold=True, size=18, after=0)
+    _p(doc, "เรื่อง ประกาศผู้ชนะการเสนอราคา สำหรับการจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)",
+       align="center", bold=True, after=0)
+    _p(doc, f"({period}) โดยวิธีเฉพาะเจาะจง", align="center", after=0)
+    _p(doc, "─────────────────────", align="center", after=6)
+    _p(doc, f"ตามที่{sname} ได้มีโครงการจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) {period} "
+            f"โดยวิธีเฉพาะเจาะจงนั้น", align="justify", indent=1.25)
+    _p(doc, f"การจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ผู้ได้รับการคัดเลือก ได้แก่ {vname} "
+            f"โดยเสนอราคาเป็นเงินทั้งสิ้น {_money(total)} บาท ({bahttext(total)})",
+       align="justify", indent=1.25, after=10)
+    _p(doc, f"ประกาศ ณ วันที่ {_dnum(rnd.order_date)}", align="center", after=14)
+    _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
+    _p(doc, f"( {director} )", align="center", after=0)
+    _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
+    return _save(doc, f"ประกาศผู้ชนะ_รอบที่{rnd.seq}_ปี{prog.year}")
+
+
+def render_result_doc(rnd, school) -> str:
+    """รายงานผลการพิจารณาและขออนุมัติสั่งจ้าง"""
+    doc = Document()
+    _font(doc)
+    prog = rnd.program
+    sname = (school.name or "").strip() or "โรงเรียน"
+    director = (school.director_name or "").strip() or _BLANK
+    officer = (school.officer_name or "").strip() or _BLANK
+    head = (school.head_officer_name or "").strip() or _BLANK
+    vname = rnd.vendor.name if rnd.vendor else _BLANK
+    total = round(float(rnd.amount or 0), 2)
+    period = f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} จำนวน {rnd.days or ''} วัน"
+    _hdr_memo(doc, school, prog,
+              ["รายงานผลการพิจารณาและขออนุมัติสั่งจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)",
+               f"ประจำปีการศึกษา {prog.year} ({period})"], _dnum(rnd.order_date))
+    _p(doc, f"ตามที่ผู้อำนวยการ{sname} เห็นชอบให้ดำเนินการจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) "
+            f"ให้แก่นักเรียน {period} โดยวิธีเฉพาะเจาะจงนั้น", align="justify", indent=1.25)
+    _p(doc, f"บัดนี้ ได้ดำเนินการพิจารณาแล้ว จึงเห็นสมควรรับราคาจาก {vname} เป็นเงิน {_money(total)} บาท "
+            f"({bahttext(total)}) การจัดจ้างครั้งนี้ไม่เกินวงเงินที่ประมาณไว้และไม่สูงกว่าราคากลาง",
+       align="justify", indent=1.25)
+    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติให้ดำเนินการจัดจ้างจากผู้ชนะการเสนอราคาดังกล่าว "
+            "และลงนามในประกาศรายชื่อผู้ชนะการเสนอราคา", align="justify", indent=1.25, after=12)
+    _sign_table(doc, [
+        [("(ลงชื่อ)...........................................เจ้าหน้าที่", "center"),
+         (f"( {officer} )", "center")],
+        [("(ลงชื่อ)...........................................หัวหน้าเจ้าหน้าที่", "center"),
+         (f"( {head} )", "center")],
+    ])
+    _p(doc, "อนุมัติ/ลงนามแล้ว", align="center", bold=True, before=4, after=8)
+    _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
+    _p(doc, f"( {director} )", align="center", after=0)
+    _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
+    return _save(doc, f"รายงานผลพิจารณา_รอบที่{rnd.seq}_ปี{prog.year}")
+
+
+def render_tor_request_doc(rnd, school) -> str:
+    """บันทึกข้อความขออนุมัติแต่งตั้งคณะกรรมการจัดทำ TOR"""
+    doc = Document()
+    _font(doc)
+    prog = rnd.program
+    sname = (school.name or "").strip() or "โรงเรียน"
+    officer = (school.officer_name or "").strip() or _BLANK
+    head = (school.head_officer_name or "").strip() or _BLANK
+    period = f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} จำนวน {rnd.days or ''} วัน"
+    _hdr_memo(doc, school, prog,
+              ["ขออนุมัติแต่งตั้งคณะกรรมการจัดทำขอบเขตของงาน (TOR) "
+               "งานจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)"], _dnum(rnd.order_date))
+    _p(doc, "ข้อเท็จจริง", bold=True, indent=1.25, after=0)
+    _p(doc, f"{sname} ดำเนินการจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ประจำปีการศึกษา {prog.year} "
+            f"({period}) โดยวิธีเฉพาะเจาะจง สำหรับนักเรียนระดับชั้นอนุบาลถึงระดับชั้นมัธยมศึกษาปีที่ ๓ "
+            "ในโรงเรียนขยายโอกาสทางการศึกษา", align="justify", indent=1.5)
+    _p(doc, "ข้อเสนอและข้อพิจารณา", bold=True, indent=1.25, after=0)
+    _p(doc, "เพื่อให้เป็นไปตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ "
+            "พ.ศ. ๒๕๖๐ ข้อ ๒๑ เห็นควรแต่งตั้งคณะกรรมการจัดทำขอบเขตของงาน (TOR) ดังรายชื่อต่อไปนี้",
+       align="justify", indent=1.5)
+    _committee_lines(doc, [m for m in rnd.committees if m.kind == "tor"])
+    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณา", indent=1.25, before=4, after=12)
+    _sign_table(doc, [
+        [("(ลงชื่อ)...........................................เจ้าหน้าที่", "center"),
+         (f"( {officer} )", "center")],
+        [("(ลงชื่อ)...........................................หัวหน้าเจ้าหน้าที่", "center"),
+         (f"( {head} )", "center")],
+    ])
+    return _save(doc, f"ขออนุมัติTOR_รอบที่{rnd.seq}_ปี{prog.year}")

@@ -675,3 +675,31 @@ def contract_hire_report_doc(rid: int, db: Session = Depends(get_db)):
     return FileResponse(
         path, filename=Path(path).name,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+def _round_docfile(rid, db, render_name):
+    from pathlib import Path
+    from fastapi.responses import FileResponse
+    import app.services.lunch_doc as ld
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return RedirectResponse("/lunch", status_code=303)
+    path = getattr(ld, render_name)(rnd, get_school(db))
+    return FileResponse(
+        path, filename=Path(path).name,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.get("/lunch/round/{rid}/winner-doc")
+def contract_winner_doc(rid: int, db: Session = Depends(get_db)):
+    return _round_docfile(rid, db, "render_winner_doc")
+
+
+@router.get("/lunch/round/{rid}/result-doc")
+def contract_result_doc(rid: int, db: Session = Depends(get_db)):
+    return _round_docfile(rid, db, "render_result_doc")
+
+
+@router.get("/lunch/round/{rid}/tor-request-doc")
+def contract_tor_request_doc(rid: int, db: Session = Depends(get_db)):
+    return _round_docfile(rid, db, "render_tor_request_doc")

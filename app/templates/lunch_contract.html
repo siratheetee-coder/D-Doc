@@ -4,10 +4,13 @@
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h1 style="margin:0;">งวดงาน — สัญญาจ้างเหมา รอบที่ {{ r.seq }} (ปีการศึกษา {{ p.year }})</h1>
-    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+      <a class="btn sm" href="/lunch/round/{{ r.id }}/tor-request-doc"><svg class="icon"><use href="#ic-download"/></svg> ขออนุมัติ TOR</a>
       <a class="btn sm" href="/lunch/round/{{ r.id }}/hire-report-doc"><svg class="icon"><use href="#ic-download"/></svg> รายงานขอจ้าง</a>
+      <a class="btn sm" href="/lunch/round/{{ r.id }}/result-doc"><svg class="icon"><use href="#ic-download"/></svg> รายงานผลพิจารณา</a>
+      <a class="btn sm" href="/lunch/round/{{ r.id }}/winner-doc"><svg class="icon"><use href="#ic-download"/></svg> ประกาศผู้ชนะ</a>
       <a class="btn sm" href="/lunch/round/{{ r.id }}/order-doc"><svg class="icon"><use href="#ic-download"/></svg> ใบสั่งจ้าง</a>
-      <a class="btn sm gray" href="/lunch/{{ p.id }}/rounds"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับรายการสัญญา</a>
+      <a class="btn sm gray" href="/lunch/{{ p.id }}/rounds"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
     </div>
   </div>
   <table>
