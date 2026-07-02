@@ -12,7 +12,7 @@
         <select id="procSel" onchange="if(this.value)location.href='/finance/disburse?proc='+this.value;">
           <option value="">— ไม่ผูกกับเรื่องพัสดุ —</option>
           {% for p in procs %}
-          <option value="{{ p.id }}" {{ 'selected' if prefill and prefill.procurement_id==p.id }}>{{ p.memo_no or p.order_no or '-' }} · {{ p.proc_type }}{{ p.subject }}</option>
+          <option value="{{ p.id }}" {{ 'selected' if prefill and prefill.procurement_id==p.id }}>{{ p.order_no or p.memo_no or '-' }} · {{ p.proc_type }}{{ p.subject }}</option>
           {% endfor %}
         </select>
       </div>

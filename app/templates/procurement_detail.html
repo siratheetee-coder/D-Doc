@@ -365,8 +365,8 @@
     var w = null;
     if(info.used && Object.prototype.hasOwnProperty.call(info.used, seq)){
       w = {cls:'hl', text:'เลขนี้ถูกใช้แล้ว: ' + (info.used[seq] || '(ไม่ระบุเรื่อง)')};
-    } else if(seq <= (info.last||0)){
-      w = {cls:'wk', text:'เลยเลขล่าสุดที่ใช้ไปแล้ว (ล่าสุด ' + info.last + ')'};
+    } else if(seq < (info.last||0)){
+      w = {cls:'wk', text:'เลขล่าสุดคือ ' + info.last};
     }
     if(w){
       var d = document.createElement('div');

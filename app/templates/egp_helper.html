@@ -44,10 +44,6 @@
   {{ cprow("ชื่อโครงการ (≤400 ตัว)", "g_subject", p.subject[:400]) }}
 
   <h3 class="sub-h">งบประมาณโครงการ</h3>
-  <div class="egp-row"><div class="egp-lbl">การเบิกจ่ายเงิน</div>
-    <div class="egp-val"><span class="egp-pick">เลือก: <b>ผ่าน GFMIS</b></span></div></div>
-  <div class="egp-row"><div class="egp-lbl">กำหนดมูลค่าโครงการเป็นสกุลเงิน</div>
-    <div class="egp-val"><span class="egp-pick">เลือก: <b>เงินบาท</b></span></div></div>
   {{ cprow("งบประมาณโครงการ", "g_total", "%.2f"|format(p.total_amount or 0)) }}
   {{ cprow("จำนวนเงินงบประมาณใน พรบ. รายจ่าย", "g_inpb", "%.2f"|format((p.total_amount or 0) if budget_in_pb else 0)) }}
   {{ cprow("จำนวนเงินงบประมาณนอก พรบ. รายจ่าย" ~ (" (" ~ (p.budget_source or "เงินอุดหนุน") ~ ")"), "g_outpb", "%.2f"|format(0 if budget_in_pb else (p.total_amount or 0))) }}
@@ -67,10 +63,8 @@
         <td>{{ loop.index }}</td>
         <td><span class="egp-text" id="i_name{{ loop.index }}">{{ it.name }}</span>
             <button type="button" class="btn xs" onclick="cp(this,'i_name{{ loop.index }}')">คัดลอก</button></td>
-        <td><span class="egp-text" id="i_qty{{ loop.index }}">{{ it.quantity|int if it.quantity == it.quantity|int else it.quantity }}</span>
-            <button type="button" class="btn xs" onclick="cp(this,'i_qty{{ loop.index }}')">คัดลอก</button></td>
-        <td><span class="egp-text" id="i_unit{{ loop.index }}">{{ it.unit }}</span>
-            <button type="button" class="btn xs" onclick="cp(this,'i_unit{{ loop.index }}')">คัดลอก</button></td>
+        <td>{{ it.quantity|int if it.quantity == it.quantity|int else it.quantity }}</td>
+        <td>{{ it.unit }}</td>
         <td><span class="egp-text" id="i_price{{ loop.index }}">{{ "%.2f"|format(it.unit_price or 0) }}</span>
             <button type="button" class="btn xs" onclick="cp(this,'i_price{{ loop.index }}')">คัดลอก</button></td>
       </tr>
@@ -97,8 +91,6 @@
   {{ cprow("B7 · กำหนดระยะเวลาแล้วเสร็จของงาน", "b7", egp.duration_text) }}
   <div class="egp-row"><div class="egp-lbl">B8-3 · หลักเกณฑ์การพิจารณา</div>
     <div class="egp-val"><span class="egp-pick">เลือก: <b>เกณฑ์ราคา</b></span></div></div>
-  <div class="egp-row"><div class="egp-lbl">B9 · แต่งตั้งคณะกรรมการซื้อหรือจ้าง</div>
-    <div class="egp-val"><span class="egp-pick">เลือก: <b>{{ egp.committee }}</b></span></div></div>
 
   <h3 class="sub-h">ผู้ลงนาม (ผู้ขออนุมัติ) <span class="muted" style="font-weight:400;">— เจ้าหน้าที่พัสดุผู้รายงาน</span></h3>
   {% if egp.signer_name %}
@@ -112,12 +104,38 @@
   {% endif %}
 </div>
 
+<!-- ============ เลขที่และวันที่เอกสาร (ย้ายขึ้นใต้ขั้นตอน 1) ============ -->
+<div class="card">
+  <h2>เลขที่และวันที่เอกสาร</h2>
+  <p class="muted" style="margin-top:0;">ไว้กรอกช่อง "เลขที่ / ลงวันที่" ในเอกสารต่าง ๆ ของ e-GP (วันที่เป็น พ.ศ. รูปแบบ วว/ดด/ปปปป)</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>เอกสาร</th><th>เลขที่</th><th>ลงวันที่</th></tr></thead>
+    <tbody>
+      {{ docrow("รายงานขอ" ~ egp.buy_word, "d1n", p.memo_no, "d1d", be_date(p.request_date) if p.request_date else "") }}
+      {{ docrow("แต่งตั้ง กก.กำหนดคุณลักษณะ/ราคากลาง", "d2n", p.spec_memo_no, "d2d", be_date(p.spec_memo_date) if p.spec_memo_date else "") }}
+      {{ docrow("คำสั่งแต่งตั้งผู้ตรวจรับ", "d3n", p.command_no, "d3d", be_date(p.command_date) if p.command_date else "") }}
+      {{ docrow("รายงานผลการพิจารณา", "d4n", p.result_memo_no, "d4d", be_date(p.result_memo_date) if p.result_memo_date else "") }}
+      {{ docrow("ใบสั่ง" ~ egp.buy_word ~ " / สัญญา", "d5n", p.order_no, "d5d", be_date(p.order_date) if p.order_date else "") }}
+      {{ docrow("บันทึกเสนอผลตรวจรับ", "d6n", p.inspect_memo_no, "d6d", be_date(p.inspect_date) if p.inspect_date else "") }}
+    </tbody>
+  </table></div>
+</div>
+
 <!-- ============ ขั้นตอน 3-4: ผู้เสนอราคา / ผู้ค้า ============ -->
 <div class="card">
   <h2><span class="step-badge">ขั้นตอน 3-4</span> ผู้เสนอราคา / ผู้ค้า (คู่สัญญา)</h2>
   {% if vendor %}
   {{ cprow("เลขประจำตัวผู้เสียภาษีอากร", "v_tax", vendor.tax_id or "") }}
   {{ cprow("ชื่อผู้เสนอราคา / ผู้ค้า", "v_name", vendor.name) }}
+  {% if vendor.owner_name %}
+  <h3 class="sub-h">ชื่อเจ้าของร้าน / ผู้มีอำนาจลงนาม</h3>
+  <div class="egp-row"><div class="egp-lbl">คำนำหน้า</div>
+    <div class="egp-val"><span class="egp-pick">เลือก: <b>{{ egp.owner_split.prefix or "(ระบุเอง)" }}</b></span></div></div>
+  {{ cprow("ชื่อ", "o_first", egp.owner_split.first) }}
+  {{ cprow("นามสกุล", "o_last", egp.owner_split.last) }}
+  <div class="egp-row"><div class="egp-lbl">ตำแหน่ง</div>
+    <div class="egp-val"><span class="egp-pick">กรอกเอง: เช่น เจ้าของกิจการ / หุ้นส่วนผู้จัดการ</span></div></div>
+  {% endif %}
   {% if vendor.address %}{{ cprow("ที่อยู่", "v_addr", vendor.address) }}{% endif %}
   {% if vendor.phone %}{{ cprow("โทรศัพท์", "v_phone", vendor.phone) }}{% endif %}
   {{ cprow("ราคาที่เสนอ", "v_price1", "%.2f"|format(p.total_amount or 0)) }}
@@ -125,16 +143,6 @@
   {% else %}
   <p class="muted">เรื่องนี้ยังไม่ได้ระบุผู้ขาย/ผู้รับจ้าง</p>
   {% endif %}
-</div>
-
-<!-- ============ ขั้นตอน 5-7: สัญญา / ใบสั่ง ============ -->
-<div class="card">
-  <h2><span class="step-badge">ขั้นตอน 5-7</span> ข้อมูลสาระสำคัญในสัญญา</h2>
-  {{ cprow("เลขที่สัญญา / ใบสั่งซื้อหรือสั่งจ้าง", "c_no", p.order_no or "") }}
-  {{ cprow("วันที่ทำสัญญา / วันที่ใบสั่ง", "c_date", be_date(p.order_date) if p.order_date else "") }}
-  {{ cprow("ราคาที่ตกลงซื้อหรือจ้าง", "c_price", "%.2f"|format(p.total_amount or 0)) }}
-  {{ cprow("วันที่ครบกำหนดส่งมอบ / สิ้นสุดสัญญา", "c_due", be_date(p.delivery_due_date) if p.delivery_due_date else "") }}
-  <p class="muted" style="font-size:13px; margin-top:8px;">หมายเหตุ: เลขที่โครงการ e-GP จะสร้างให้เองตอนจัดทำโครงการ (ไม่ต้องกรอกจากระบบเรา)</p>
 </div>
 
 <!-- ============ ผู้ตรวจรับ ============ -->
@@ -158,23 +166,6 @@
   {% endif %}
 </div>
 
-<!-- ============ เลขที่และวันที่เอกสาร ============ -->
-<div class="card">
-  <h2>เลขที่และวันที่เอกสาร</h2>
-  <p class="muted" style="margin-top:0;">ไว้กรอกช่อง "เลขที่ / ลงวันที่" ในเอกสารต่าง ๆ ของ e-GP (วันที่เป็น พ.ศ. รูปแบบ วว/ดด/ปปปป)</p>
-  <div class="table-wrap"><table>
-    <thead><tr><th>เอกสาร</th><th>เลขที่</th><th>ลงวันที่</th></tr></thead>
-    <tbody>
-      {{ docrow("รายงานขอ" ~ egp.buy_word, "d1n", p.memo_no, "d1d", be_date(p.request_date) if p.request_date else "") }}
-      {{ docrow("แต่งตั้ง กก.กำหนดคุณลักษณะ/ราคากลาง", "d2n", p.spec_memo_no, "d2d", be_date(p.spec_memo_date) if p.spec_memo_date else "") }}
-      {{ docrow("คำสั่งแต่งตั้งผู้ตรวจรับ", "d3n", p.command_no, "d3d", be_date(p.command_date) if p.command_date else "") }}
-      {{ docrow("รายงานผลการพิจารณา", "d4n", p.result_memo_no, "d4d", be_date(p.result_memo_date) if p.result_memo_date else "") }}
-      {{ docrow("ใบสั่ง" ~ egp.buy_word ~ " / สัญญา", "d5n", p.order_no, "d5d", be_date(p.order_date) if p.order_date else "") }}
-      {{ docrow("บันทึกเสนอผลตรวจรับ", "d6n", p.inspect_memo_no, "d6d", be_date(p.inspect_date) if p.inspect_date else "") }}
-    </tbody>
-  </table></div>
-</div>
-
 <a class="btn gray" href="/procurement/{{ p.id }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับไปหน้าเรื่องจัดซื้อ</a>
 
 <style>
@@ -184,10 +175,11 @@
   .egp-row{display:flex; gap:12px; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); flex-wrap:wrap;}
   .egp-row:last-child{border-bottom:none;}
   .egp-lbl{flex:0 0 260px; color:#475569; font-size:14px;}
-  .egp-val{flex:1; display:flex; gap:8px; align-items:center; min-width:240px;}
-  .egp-text{font-weight:600; word-break:break-word;}
+  .egp-val{flex:1; display:flex; gap:8px; align-items:center; min-width:240px; flex-wrap:nowrap;}
+  .egp-text{font-weight:600; overflow-wrap:anywhere; min-width:0; flex:1;}
+  .egp-val .btn{flex:none; white-space:nowrap;}
   .egp-pick{color:#0369a1; background:#e0f2fe; padding:3px 10px; border-radius:6px; font-size:14px;}
-  .btn.xs{padding:2px 8px; font-size:12px;}
+  .btn.xs{padding:2px 8px; font-size:12px; flex:none; white-space:nowrap;}
   @media(max-width:600px){ .egp-lbl{flex-basis:100%;} }
 </style>
 <script>
