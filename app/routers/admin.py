@@ -604,8 +604,15 @@ from fastapi.responses import JSONResponse
 
 @router.get("/admin/certificates", response_class=HTMLResponse)
 def certificates_page(request: Request, db: Session = Depends(get_db)):
+    batches = db.query(CertificateBatch).order_by(CertificateBatch.id.desc()).all()
+    saved = [{
+        "id": b.id, "title": b.title or f"ชุดที่ {b.id}", "bg_image": b.bg_image or "",
+        "url": f"/admin/uploaded/{b.bg_image}" if b.bg_image else "",
+        "name_x": b.name_x, "name_y": b.name_y, "name_size": b.name_size,
+        "name_color": b.name_color or "#1a1a1a", "sub_text": b.sub_text or "",
+    } for b in batches if b.bg_image]
     return templates.TemplateResponse("certificates.html", {
-        "request": request, "school": get_school(db),
+        "request": request, "school": get_school(db), "saved": saved,
     })
 
 

@@ -13,6 +13,19 @@
   <input type="hidden" name="name_y" id="name_y" value="45">
 
   <div class="card">
+    <h2>ชื่อชุดเกียรติบัตร</h2>
+    <input name="title" id="f_title" placeholder="เช่น เกียรติบัตรกีฬาสี 2569 (ตั้งชื่อไว้เรียกใช้ทีหลัง)">
+    {% if saved %}
+    <label style="margin-top:10px; display:block;">หรือเลือกชุดที่บันทึกไว้ (โหลดพื้นหลัง+ตำแหน่ง+รูปแบบ)</label>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;">
+      {% for b in saved %}
+      <button type="button" class="btn sm gray" onclick='loadBatch({{ b|tojson }})'><svg class="icon"><use href="#ic-file"/></svg> {{ b.title }}</button>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
     <h2>1) รูปพื้นหลังเกียรติบัตร</h2>
     <input type="file" accept="image/*" onchange="bgUpload(this)"
            style="padding:6px; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
@@ -21,8 +34,10 @@
       <p class="muted" style="margin:0 0 6px;"><b>คลิกบนรูป</b> เพื่อปักตำแหน่งกึ่งกลางของชื่อ (จุดแดง)</p>
       <div id="imgBox" style="position:relative; display:inline-block; max-width:100%; cursor:crosshair; border:1px solid var(--border);">
         <img id="bgImg" style="display:block; max-width:100%; height:auto;" onclick="placeName(event)">
-        <div id="marker" style="position:absolute; width:14px; height:14px; margin:-7px 0 0 -7px; border-radius:50%; background:#e11; box-shadow:0 0 0 2px #fff; left:50%; top:45%;"></div>
+        <div id="pvName" style="position:absolute; left:50%; top:45%; transform:translate(-50%,-50%); text-align:center; pointer-events:none; white-space:nowrap; line-height:1.1;"></div>
+        <div id="marker" style="position:absolute; width:10px; height:10px; margin:-5px 0 0 -5px; border-radius:50%; background:#e11; box-shadow:0 0 0 2px #fff; left:50%; top:45%; pointer-events:none;"></div>
       </div>
+      <p class="muted" style="margin:6px 0 0; font-size:13px;">ตัวอย่างแสดงชื่อแรกในรายการ (พิมพ์รายชื่อด้านล่างเพื่อดูตัวอย่างสด)</p>
     </div>
   </div>
 
@@ -31,9 +46,8 @@
     <div class="row">
       <div><label>ขนาดชื่อ</label><input name="name_size" id="name_size" type="number" min="10" max="120" value="48" oninput="preview()"></div>
       <div><label>สีชื่อ</label><input name="name_color" id="name_color" type="color" value="#1a1a1a" oninput="preview()" style="height:42px; padding:4px;"></div>
-      <div style="flex:2;"><label>ข้อความเสริมใต้ชื่อ (ไม่บังคับ)</label><input name="sub_text" placeholder="เช่น ได้รับรางวัลชนะเลิศ..."></div>
+      <div style="flex:2;"><label>ข้อความเสริมใต้ชื่อ (ไม่บังคับ)</label><input name="sub_text" id="f_sub" placeholder="เช่น ได้รับรางวัลชนะเลิศ..." oninput="preview()"></div>
     </div>
-    <label>ชื่อชุด (ไว้อ้างอิง)</label><input name="title" placeholder="เช่น เกียรติบัตรกีฬาสี 2569">
   </div>
 
   <div class="card">
@@ -45,7 +59,7 @@
       </label>
       <span id="xlMsg" class="muted" style="margin-left:8px; font-size:13px;"></span>
     </div>
-    <textarea name="names" id="names" rows="8" placeholder="นายสมชาย ใจดี&#10;นางสาวสมหญิง รักเรียน&#10;..."></textarea>
+    <textarea name="names" id="names" rows="8" oninput="preview()" placeholder="นายสมชาย ใจดี&#10;นางสาวสมหญิง รักเรียน&#10;..."></textarea>
     <br><br><button class="btn green" type="submit" id="genBtn"><svg class="icon"><use href="#ic-download"/></svg> ออกเกียรติบัตร (PDF)</button>
   </div>
 </form>
@@ -75,10 +89,38 @@
     preview();
   }
   function preview(){
+    var x = document.getElementById('name_x').value + '%';
+    var y = document.getElementById('name_y').value + '%';
     var m = document.getElementById('marker');
-    m.style.left = document.getElementById('name_x').value + '%';
-    m.style.top  = document.getElementById('name_y').value + '%';
+    m.style.left = x; m.style.top = y;
+    var pv = document.getElementById('pvName'); if(!pv) return;
+    pv.style.left = x; pv.style.top = y;
+    var img = document.getElementById('bgImg');
+    var w = img.clientWidth || 600;
+    var size = parseInt(document.getElementById('name_size').value||48)||48;
+    var color = document.getElementById('name_color').value || '#1a1a1a';
+    var px = w * size / 1000;                       // สเกลเดียวกับตอน render จริง
+    var first = (document.getElementById('names').value.split('\n').map(function(s){return s.trim();}).filter(Boolean)[0]) || 'ชื่อ-นามสกุล';
+    var sub = (document.getElementById('f_sub') ? document.getElementById('f_sub').value.trim() : '');
+    pv.innerHTML = '<div style="font-size:'+px+'px; color:'+color+'; font-weight:600;">'+_esc(first)+'</div>' +
+      (sub ? '<div style="font-size:'+(px*0.5)+'px; color:'+color+';">'+_esc(sub)+'</div>' : '');
   }
+  function _esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function loadBatch(b){
+    document.getElementById('bg_image').value = b.bg_image;
+    document.getElementById('bgImg').src = b.url;
+    document.getElementById('previewWrap').style.display = 'block';
+    document.getElementById('optCard').style.display = 'block';
+    document.getElementById('name_x').value = b.name_x;
+    document.getElementById('name_y').value = b.name_y;
+    document.getElementById('name_size').value = b.name_size;
+    document.getElementById('name_color').value = b.name_color;
+    if(document.getElementById('f_sub')) document.getElementById('f_sub').value = b.sub_text || '';
+    if(!document.getElementById('f_title').value) document.getElementById('f_title').value = b.title || '';
+    document.getElementById('bgMsg').textContent = 'โหลดชุด "'+b.title+'" แล้ว — ใส่รายชื่อได้เลย';
+    setTimeout(preview, 200);
+  }
+  window.addEventListener('resize', preview);
   function excelUpload(input){
     if(!input.files || !input.files[0]) return;
     var msg = document.getElementById('xlMsg'); msg.innerHTML = '<span class="spin"></span> กำลังอ่าน Excel...';
