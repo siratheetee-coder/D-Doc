@@ -402,3 +402,86 @@ def render_committee_order_doc(rnd, school) -> str:
         _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
 
     return _save(doc, f"คำสั่งแต่งตั้งกรรมการ_รอบที่{rnd.seq}_ปี{prog.year}")
+
+
+def _committee_lines(doc, members, fallback_n=3):
+    if members:
+        for i, m in enumerate(members, 1):
+            _p(doc, f"{i}. {m.name}        ตำแหน่ง {m.position}        {m.role}",
+               indent=1.75, after=0)
+    else:
+        for i in range(1, fallback_n + 1):
+            _p(doc, f"{i}. ...........................................  ตำแหน่ง ..............  "
+                    f"{'ประธานกรรมการ' if i == 1 else 'กรรมการ'}", indent=1.75, after=0)
+
+
+def render_hire_report_doc(rnd, school) -> str:
+    """รายงานขอจ้างเหมาประกอบอาหารกลางวัน (บันทึกข้อความเปิดเรื่อง)"""
+    doc = Document()
+    _font(doc)
+    prog = rnd.program
+    sname = (school.name or "").strip() or "โรงเรียน"
+    saddr = (school.address or "").strip()
+    director = (school.director_name or "").strip() or _BLANK
+    officer = (school.officer_name or "").strip() or _BLANK
+    head = (school.head_officer_name or "").strip() or _BLANK
+    fund = (prog.funding_org or "").strip() or "องค์กรปกครองส่วนท้องถิ่น"
+    total = round(float(rnd.amount or 0), 2)
+    rate = prog.rate_per_head or 0
+    days = rnd.days or 0
+    t1, t2 = _student_tiers(prog)
+    period = (f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} "
+              f"จำนวน {days} วัน")
+
+    _p(doc, "บันทึกข้อความ", align="center", bold=True, size=20, after=4)
+    _p(doc, f"ส่วนราชการ  {sname}  {saddr}", after=0)
+    _p(doc, f"ที่  -/{prog.year}                     วันที่  {_dnum(rnd.order_date)}", after=0)
+    _p(doc, f"เรื่อง  รายงานขอจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ประจำปีการศึกษา {prog.year} "
+            f"({period})", after=0)
+    _p(doc, f"เรียน  ผู้อำนวยการ{sname}", after=6)
+    _p(doc, f"ด้วย{sname} มีความประสงค์จ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ให้แก่นักเรียน "
+            f"ระดับชั้นอนุบาลถึงระดับชั้นมัธยมศึกษา โดยมีรายละเอียด ดังนี้", align="justify", indent=1.25)
+    _p(doc, "๑. เหตุผลและความจำเป็นที่ต้องจ้าง", bold=True, indent=1.25, after=0)
+    _p(doc, f"เพื่อประกอบอาหารกลางวัน (ปรุงสำเร็จ) ให้กับนักเรียน{sname} ตั้งแต่ระดับชั้นอนุบาล"
+            "ถึงระดับชั้นมัธยมศึกษาปีที่ ๓ (โรงเรียนขยายโอกาส) ให้ได้รับประทานอาหารที่มีคุณค่า "
+            "ครบถ้วนตามหลักโภชนาการ", align="justify", indent=1.5)
+    _p(doc, "๒. ขอบเขตของงานพัสดุที่จะจ้าง", bold=True, indent=1.25, after=0)
+    _p(doc, "การจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ตามรายละเอียดขอบเขตของงาน (TOR) แนบท้าย",
+       align="justify", indent=1.5)
+    _p(doc, "๓. ราคากลางของพัสดุที่จะจ้าง", bold=True, indent=1.25, after=0)
+    _p(doc, f"เป็นเงิน {_money(total)} บาท ({bahttext(total)}) โดยมีแหล่งที่มาจาก{fund}",
+       indent=1.5)
+    _p(doc, "๔. วงเงินที่จะจ้าง", bold=True, indent=1.25, after=0)
+    _p(doc, f"เป็นเงิน {_money(total)} บาท ({bahttext(total)})", indent=1.5)
+    _p(doc, "๕. รายละเอียดการคำนวณ", bold=True, indent=1.25, after=0)
+    if t1:
+        _p(doc, f"ระดับชั้นอนุบาล-ประถมศึกษา จำนวนนักเรียน {t1} คน ในอัตราคนละ {_money(rate)} บาท/วัน "
+                f"จำนวน {days} วัน เป็นเงิน {_money(t1*rate*days)} บาท", indent=1.5, after=0)
+    if t2:
+        _p(doc, f"ระดับชั้นมัธยมศึกษา จำนวนนักเรียน {t2} คน ในอัตราคนละ {_money(rate)} บาท/วัน "
+                f"จำนวน {days} วัน เป็นเงิน {_money(t2*rate*days)} บาท", indent=1.5, after=0)
+    _p(doc, f"รวมเป็นเงินทั้งสิ้น {_money(total)} บาท ({bahttext(total)})", indent=1.5, bold=True)
+    _p(doc, "๖. วิธีที่จะจ้าง และเหตุผลที่จะจ้างโดยวิธีนั้น", bold=True, indent=1.25, after=0)
+    _p(doc, "ดำเนินการด้วยวิธีเฉพาะเจาะจง เนื่องจากการจัดจ้างมีวงเงินไม่เกิน ๕๐๐,๐๐๐ บาท "
+            "ตามระเบียบกระทรวงการคลังฯ", align="justify", indent=1.5)
+    _p(doc, "๗. หลักเกณฑ์การพิจารณาคัดเลือกข้อเสนอ", bold=True, indent=1.25, after=0)
+    _p(doc, "การพิจารณาคัดเลือกข้อเสนอโดยใช้เกณฑ์ราคา", indent=1.5)
+    _p(doc, "๘. การขออนุมัติแต่งตั้งคณะกรรมการ", bold=True, indent=1.25, after=0)
+    _p(doc, "๘.๑ คณะกรรมการควบคุมงานจ้างประกอบอาหารกลางวัน", indent=1.5, after=0)
+    _committee_lines(doc, [m for m in rnd.committees if m.kind == "control"])
+    _p(doc, "๘.๒ คณะกรรมการตรวจรับการจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)", indent=1.5, before=2, after=0)
+    _committee_lines(doc, [m for m in rnd.committees if m.kind == "inspect"])
+    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณา หากเห็นชอบขอได้โปรดอนุมัติให้ดำเนินการจ้างเหมาประกอบ"
+            "อาหารกลางวัน (ปรุงสำเร็จ) และแต่งตั้งคณะกรรมการตามข้อ ๘.๑ และ ๘.๒",
+       align="justify", indent=1.25, before=4, after=12)
+    _sign_table(doc, [
+        [("(ลงชื่อ)...........................................เจ้าหน้าที่", "center"),
+         (f"( {officer} )", "center")],
+        [("(ลงชื่อ)...........................................หัวหน้าเจ้าหน้าที่", "center"),
+         (f"( {head} )", "center")],
+    ])
+    _p(doc, "ความเห็นของผู้อำนวยการ  (   ) เห็นชอบ/อนุมัติ", indent=1.25, before=4, after=10)
+    _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
+    _p(doc, f"( {director} )", align="center", after=0)
+    _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
+    return _save(doc, f"รายงานขอจ้าง_รอบที่{rnd.seq}_ปี{prog.year}")

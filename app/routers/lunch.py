@@ -660,3 +660,18 @@ def committee_order_doc(rid: int, db: Session = Depends(get_db)):
     return FileResponse(
         path, filename=Path(path).name,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.get("/lunch/round/{rid}/hire-report-doc")
+def contract_hire_report_doc(rid: int, db: Session = Depends(get_db)):
+    """ออกรายงานขอจ้าง (บันทึกข้อความเปิดเรื่อง)"""
+    from pathlib import Path
+    from fastapi.responses import FileResponse
+    from app.services.lunch_doc import render_hire_report_doc
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return RedirectResponse("/lunch", status_code=303)
+    path = render_hire_report_doc(rnd, get_school(db))
+    return FileResponse(
+        path, filename=Path(path).name,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
