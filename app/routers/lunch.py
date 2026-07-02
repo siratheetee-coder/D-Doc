@@ -262,6 +262,8 @@ def _populate_round(rnd, form):
     rnd.vendor_id = _to_int(form.get("vendor_id"), 0) or None
     rnd.amount = _to_float(form.get("amount"), 0.0)
     rnd.procurement_id = _to_int(form.get("procurement_id"), 0) or None
+    rnd.order_no = (form.get("order_no") or "").strip()
+    rnd.order_date = parse_be_date(form.get("order_date") or "")
     rnd.status = form.get("status") or "ร่าง"
     rnd.note = (form.get("note") or "").strip()
 
@@ -592,6 +594,21 @@ def installment_disburse_doc(iid: int, db: Session = Depends(get_db)):
     if not inst:
         return RedirectResponse("/lunch", status_code=303)
     path = render_disburse_lunch_doc(inst, get_school(db))
+    return FileResponse(
+        path, filename=Path(path).name,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.get("/lunch/round/{rid}/order-doc")
+def contract_order_doc(rid: int, db: Session = Depends(get_db)):
+    """ออกใบสั่งจ้าง (สัญญาต่อรอบ)"""
+    from pathlib import Path
+    from fastapi.responses import FileResponse
+    from app.services.lunch_doc import render_order_doc
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return RedirectResponse("/lunch", status_code=303)
+    path = render_order_doc(rnd, get_school(db))
     return FileResponse(
         path, filename=Path(path).name,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")

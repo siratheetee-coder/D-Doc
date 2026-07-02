@@ -33,6 +33,8 @@
         {% for v in vendors %}<option value="{{ v.id }}" {{ 'selected' if edit and edit.vendor_id==v.id }}>{{ v.name }}</option>{% endfor %}
       </select></div>
       <div><label>วงเงินรอบนี้ (บาท)</label><input name="amount" id="amt" type="number" step="0.01" value="{{ '%g'|format(edit.amount) if edit and edit.amount else '' }}"></div>
+      <div><label>เลขที่ใบสั่งจ้าง</label><input name="order_no" value="{{ edit.order_no if edit else '' }}" placeholder="เช่น 27/2568" style="width:110px;"></div>
+      <div><label>วันที่ใบสั่งจ้าง</label><input name="order_date" value="{{ be_date(edit.order_date) if edit and edit.order_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;"></div>
       <div><label>สถานะ</label><select name="status">
         {% for s in ['ร่าง','จ้างแล้ว','จ่ายแล้ว'] %}<option value="{{ s }}" {{ 'selected' if (edit.status if edit else 'ร่าง')==s }}>{{ s }}</option>{% endfor %}
       </select></div>

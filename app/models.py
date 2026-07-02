@@ -716,6 +716,8 @@ class LunchHireRound(Base):
     vendor_id = Column(Integer, ForeignKey("vendor.id"), nullable=True)  # ผู้รับจ้าง
     amount = Column(Float, default=0.0)              # วงเงินรอบนี้
     procurement_id = Column(Integer, ForeignKey("procurement.id"), nullable=True)  # เรื่องจัดจ้างที่ผูก
+    order_no = Column(String, default="")            # เลขที่ใบสั่งจ้าง เช่น 27/2568
+    order_date = Column(DateTime, nullable=True)     # วันที่ใบสั่งจ้าง
     status = Column(String, default="ร่าง")          # ร่าง / จ้างแล้ว / จ่ายแล้ว
     note = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)

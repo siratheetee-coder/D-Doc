@@ -266,3 +266,80 @@ def render_disburse_lunch_doc(inst, school, wht_rate=0.01) -> str:
     _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
 
     return _save(doc, f"ขอเบิกจ่าย_งวดที่{inst.seq}_ปี{prog.year}")
+
+
+def _student_tiers(prog):
+    """แยกนักเรียนเป็น 2 กลุ่มตามใบสั่งจ้าง: (อนุบาล-ประถม) และ (มัธยม)"""
+    t1 = sum((c.num_students or 0) for c in prog.classes
+             if (c.level or "").startswith(("อ", "ป")))
+    t2 = sum((c.num_students or 0) for c in prog.classes
+             if (c.level or "").startswith("ม"))
+    return t1, t2
+
+
+def render_order_doc(rnd, school) -> str:
+    """ใบสั่งจ้างเหมาประกอบอาหารกลางวัน (สัญญา 1 รอบ) — ใช้ข้อมูลงวดที่บันทึกไว้"""
+    doc = Document()
+    _font(doc)
+    prog = rnd.program
+    vendor = rnd.vendor
+    vname = vendor.name if vendor else _BLANK
+    sname = (school.name or "").strip() or "โรงเรียน"
+    director = (school.director_name or "").strip() or _BLANK
+    order_no = (rnd.order_no or "").strip() or _BLANK
+    total = round(float(rnd.amount or 0), 2)
+    rate = prog.rate_per_head or 0
+    days = rnd.days or 0
+    t1, t2 = _student_tiers(prog)
+    insts = list(rnd.installments)
+    n_inst = len(insts)
+    per_days = (insts[0].days if insts else 0)
+
+    _p(doc, "ใบสั่งจ้าง", align="center", bold=True, size=20, after=4)
+    _simple_table(doc, ["ผู้รับจ้าง", "ใบสั่งจ้าง"],
+                  [[vname, f"เลขที่ {order_no}  ลงวันที่ {_dnum(rnd.order_date)}"]],
+                  [Cm(8.0), Cm(8.0)])
+    _p(doc, f"ตามที่ {vname} ได้เสนอราคาไว้ต่อ{sname} ซึ่งได้รับราคาและตกลงจ้าง "
+            f"ตามรายการดังต่อไปนี้", align="justify", indent=1.25, after=4)
+    rows = []
+    if t1:
+        rows.append(["๑", "จ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ระดับอนุบาล-ประถมศึกษา",
+                     f"{t1} คน", f"{_money(rate)} บาท/วัน", str(days), _money(t1*rate*days)])
+    if t2:
+        rows.append(["๒", "จ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ระดับมัธยมศึกษา",
+                     f"{t2} คน", f"{_money(rate)} บาท/วัน", str(days), _money(t2*rate*days)])
+    if not rows:
+        rows.append(["๑", "จ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)",
+                     f"{prog.total_students} คน", f"{_money(rate)} บาท/วัน", str(days), _money(total)])
+    rows.append(["", "", "", "", "รวมเป็นเงินทั้งสิ้น", _money(total)])
+    _simple_table(doc, ["ลำดับ", "รายการ", "จำนวน", "ราคาต่อหน่วย", "จำนวนวัน", "จำนวนเงิน (บาท)"],
+                  rows, [Cm(1.2), Cm(6.0), Cm(2.0), Cm(2.6), Cm(1.8), Cm(2.6)])
+    _p(doc, f"(ตัวอักษร) {bahttext(total)}", indent=1.25, before=2, after=6)
+
+    _p(doc, "การสั่งจ้าง อยู่ภายใต้เงื่อนไขต่อไปนี้", bold=True, indent=1.25)
+    _p(doc, f"๑. กำหนดส่งมอบภายใน ตามงวดงาน {n_inst or '-'} งวดงาน งวดงานละ {per_days or '-'} วัน "
+            f"รวม {days} วัน นับถัดจากวันที่ผู้รับจ้างได้รับใบสั่งจ้าง", align="justify", indent=1.25)
+    _p(doc, f"๒. สถานที่ส่งมอบ {sname}", indent=1.25)
+    _p(doc, "๓. สงวนสิทธิ์ค่าปรับกรณีส่งมอบเกินกำหนด โดยคิดค่าปรับเป็นรายวันในอัตราร้อยละ ๐.๒๐ "
+            "ของมูลค่าตามใบสั่งจ้าง", align="justify", indent=1.25)
+    _p(doc, "๔. การส่งมอบงานและการจ่ายเงิน แบ่งจ่ายตามงวดงาน ดังนี้", indent=1.25)
+    if insts:
+        for i in insts:
+            _p(doc, f"    งวดที่ {i.seq} จ่ายเป็นเงิน {_money(i.amount or 0)} บาท "
+                    f"({bahttext(i.amount or 0)}) เมื่อได้ส่งมอบงานงวดที่ {i.seq} เรียบร้อยแล้ว",
+               align="justify", indent=1.5, after=0)
+    else:
+        _p(doc, "    (ยังไม่ได้แบ่งงวด — เพิ่มงวดในหน้าจัดการงวด)", indent=1.5, after=0)
+    _p(doc, f"๕. กำหนดมูลค่าตามใบสั่งจ้างให้อยู่ภายในวงเงิน {_money(total)} บาท ({bahttext(total)}) "
+            f"ระยะเวลาดำเนินการภายใน {days} วัน นับถัดจากวันลงนามในใบสั่งจ้าง",
+       align="justify", indent=1.25, before=4)
+    _p(doc, "๖. เอกสารแนบท้ายใบสั่งจ้าง : ขอบเขตของงาน (TOR) และใบเสนอราคา",
+       align="justify", indent=1.25, after=14)
+    _sign_table(doc, [
+        [("(ลงชื่อ)...........................................ผู้สั่งจ้าง", "center"),
+         (f"( {director} )", "center"),
+         (f"ผู้อำนวยการ{sname}", "center")],
+        [("(ลงชื่อ)...........................................ผู้รับใบสั่งจ้าง", "center"),
+         (f"( {vname} )", "center")],
+    ])
+    return _save(doc, f"ใบสั่งจ้าง_รอบที่{rnd.seq}_ปี{prog.year}")
