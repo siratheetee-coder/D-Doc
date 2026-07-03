@@ -32,7 +32,7 @@
         <option value="">— ไม่ระบุ —</option>
         {% for v in vendors %}<option value="{{ v.id }}" {{ 'selected' if edit and edit.vendor_id==v.id }}>{{ v.name }}</option>{% endfor %}
       </select></div>
-      <div><label>วงเงินรอบนี้ (บาท) <span class="muted">(คำนวณให้)</span></label><input name="amount" id="amt" type="number" step="0.01" value="{{ '%g'|format(edit.amount) if edit and edit.amount else '' }}" oninput="amtManual=true"></div>
+      <div><label>วงเงินรอบนี้ (บาท) <span class="muted">(คำนวณให้)</span></label><input name="amount" id="amt" type="number" step="0.01" value="{{ '%g'|format(edit.amount) if edit and edit.amount else '' }}"></div>
       <div><label>เลขที่ใบสั่งจ้าง</label><input name="order_no" value="{{ edit.order_no if edit else '' }}" placeholder="เช่น 27/2568" style="min-width:150px;"></div>
       <div><label>วันที่ใบสั่งจ้าง</label><input name="order_date" value="{{ be_date(edit.order_date) if edit and edit.order_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="min-width:150px;"></div>
       <div><label>สถานะ</label><select name="status">
@@ -66,8 +66,7 @@
         <td style="white-space:nowrap;">
           <a class="btn sm" href="/lunch/round/{{ r.id }}/plan">จัดการงวด</a>
           <a class="btn sm gray" href="/lunch/round/{{ r.id }}/edit">แก้ไข</a>
-          {% if r.procurement_id %}<a class="btn sm gray" href="/procurement/{{ r.procurement_id }}">เรื่องจัดจ้าง</a>
-          {% else %}<a class="btn sm gray" href="/procurement/new?case=w119t2" title="ว.119 ตาราง 2 = ค่าจ้างเหมาบริการ">สร้างเรื่องจัดจ้าง</a>{% endif %}
+          {% if r.procurement_id %}<a class="btn sm gray" href="/procurement/{{ r.procurement_id }}">เรื่องจัดจ้าง</a>{% endif %}
           <form method="post" action="/lunch/round/{{ r.id }}/delete" onsubmit="return confirm('ลบรอบนี้? (รวมรายการบัญชีที่ผูกไว้)');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
         </td>
       </tr>
@@ -116,12 +115,20 @@
     if(s && d>0){ var e=addWork(s,d); if(e) $('ed').value=_toBE(e); }
     calcAmt();
   }
+  var lastAuto = null;   // วงเงินที่ระบบเติมให้ล่าสุด (ใช้ดูว่าผู้ใช้แก้เองหรือยัง)
+  function applySug(v){ $('amt').value=v.toFixed(2); lastAuto=v; calcAmt(); }
   function calcAmt(){
-    var days=parseInt($('days').value||0)||0, sug=days*STUDENTS*RATE, amt=$('amt');
-    if(days>0){
-      $('sug').innerText='แนะนำวงเงิน = '+days+' วัน × '+STUDENTS+' คน × '+RATE+' บาท = '+sug.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})+' บาท';
-      if(!amt.value){ amt.value=sug.toFixed(2); }
-    } else { $('sug').innerText=''; }
+    var days=parseInt($('days').value||0)||0, sug=days*STUDENTS*RATE, amt=$('amt'), el=$('sug');
+    if(days<=0){ el.innerText=''; return; }
+    var cur = parseFloat(amt.value||'');
+    // เติม/อัปเดตอัตโนมัติ ถ้าช่องว่าง หรือค่ายังเป็นค่าที่ระบบเติมไว้ (ผู้ใช้ยังไม่ได้แก้เอง)
+    if(!amt.value || (lastAuto!==null && Math.abs(cur-lastAuto)<0.005)){
+      amt.value=sug.toFixed(2); lastAuto=sug;
+    }
+    var sugStr=sug.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
+    var mismatch = amt.value && Math.abs(parseFloat(amt.value)-sug)>=0.005;
+    el.innerHTML='แนะนำวงเงิน = '+days+' วัน × '+STUDENTS+' คน × '+RATE+' บาท = '+sugStr+' บาท'
+      + (mismatch ? ' <a href="#" onclick="applySug('+sug+');return false;" style="color:var(--brand-dark);font-weight:600;">[ใช้ค่านี้]</a>' : '');
   }
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){
