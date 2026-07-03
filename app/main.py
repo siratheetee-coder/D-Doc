@@ -73,6 +73,10 @@ async def tenant_auth(request: Request, call_next):
         finally:
             current_school_id.reset(token)
 
+    # กันผู้ใช้โรงเรียน (ไม่ใช่ superadmin) แอบเข้าคอนโซลผู้ดูแลระบบ
+    if path.startswith("/admin-console"):
+        return RedirectResponse("/", status_code=303)
+
     # ผู้ใช้โรงเรียน: ตรวจสถานะโรงเรียนก่อน
     tid = sess.get("tid")
     st = tenant_state(tid)

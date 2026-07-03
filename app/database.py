@@ -83,6 +83,7 @@ MIGRATIONS = [
     ("lunch_hire_round", "order_no", "VARCHAR DEFAULT ''"),
     ("lunch_hire_round", "order_date", "DATETIME"),
     ("procurement", "quotation_date", "DATETIME"),
+    ("lunch_ledger", "finance_txn_id", "INTEGER"),   # ผูกกับรายการในบัญชีการเงินหลัก
 ]
 
 

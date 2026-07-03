@@ -7,13 +7,21 @@ superadmin.py — คอนโซลผู้ดูแลระบบ (ผู้
 import re
 from datetime import date
 
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Request, Form, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.accounts import acc_session, Tenant, Account, hash_password, provision_tenant
 from app.templating import templates
 
-router = APIRouter()
+
+def require_superadmin(request: Request):
+    """ป้องกันชั้นที่สอง (นอกเหนือจาก middleware): ทุก route ในคอนโซลต้องเป็น superadmin เท่านั้น"""
+    if request.session.get("role") != "superadmin":
+        raise HTTPException(status_code=403, detail="เฉพาะผู้ดูแลระบบเท่านั้น")
+
+
+# dependencies ระดับ router -> บังคับกับทุก endpoint ใต้ /admin-console โดยอัตโนมัติ
+router = APIRouter(dependencies=[Depends(require_superadmin)])
 
 
 def _slugify(s: str) -> str:

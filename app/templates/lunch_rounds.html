@@ -9,10 +9,15 @@
   <p class="muted" style="margin-bottom:0;">จัดจ้างเป็นรอบ (รายวัน/สัปดาห์/เดือน) แต่ละรอบผูกเรื่องจัดจ้าง 1 เรื่อง เมื่อตั้งสถานะ "จ่ายแล้ว" ระบบลงบัญชีจ่ายให้อัตโนมัติ</p>
   <div style="display:flex; gap:24px; flex-wrap:wrap; margin-top:10px; font-size:16px;">
     <div>งบทั้งปี: <b>{{ "{:,.2f}".format(p.budget) }}</b></div>
-    <div>ผูกจ้างแล้ว (ทุกรอบ): <b>{{ "{:,.2f}".format(committed) }}</b></div>
+    <div>ผูกจ้างแล้ว (ทุกรอบ): <b {{ 'style="color:#dc2626;"' if committed > p.budget else '' }}>{{ "{:,.2f}".format(committed) }}</b></div>
     <div>จ่ายแล้ว: <b style="color:var(--brand-dark);">{{ "{:,.2f}".format(paid) }}</b></div>
-    <div>คงเหลือจากงบ: <b>{{ "{:,.2f}".format(p.budget - paid) }}</b></div>
+    <div>คงเหลือจากงบ: <b {{ 'style="color:#dc2626;"' if (p.budget - committed) < 0 else '' }}>{{ "{:,.2f}".format(p.budget - committed) }}</b></div>
   </div>
+  {% if committed > p.budget %}
+  <div style="margin-top:12px; padding:10px 14px; border-radius:9px; background:#fef2f2; border:1px solid #fca5a5; color:#b91c1c; font-weight:600;">
+    <svg class="icon"><use href="#ic-alert"/></svg> ผูกจ้างเกินงบทั้งปี {{ "{:,.2f}".format(committed - p.budget) }} บาท — ตรวจสอบวงเงินแต่ละรอบอีกครั้ง
+  </div>
+  {% endif %}
 </div>
 
 <div class="card">
@@ -28,16 +33,34 @@
       <div><label>จำนวนวันทำการ <span class="muted">(ไม่นับวันหยุด)</span></label><input name="days" id="days" type="number" min="0" value="{{ edit.days if edit else 0 }}" oninput="fromDays()"></div>
     </div>
     <div class="row">
-      <div style="flex:2;"><label>ผู้รับจ้าง</label><select name="vendor_id">
+      <div style="flex:2;"><label>ผู้รับจ้าง</label><select name="vendor_id" id="vsel">
         <option value="">— ไม่ระบุ —</option>
         {% for v in vendors %}<option value="{{ v.id }}" {{ 'selected' if edit and edit.vendor_id==v.id }}>{{ v.name }}</option>{% endfor %}
-      </select></div>
-      <div><label>วงเงินรอบนี้ (บาท) <span class="muted">(คำนวณให้)</span></label><input name="amount" id="amt" type="number" step="0.01" value="{{ '%g'|format(edit.amount) if edit and edit.amount else '' }}"></div>
+      </select>
+      <a href="#" onclick="toggleNV();return false;" id="nvToggle" class="muted" style="display:inline-block; margin-top:4px; font-size:13px; color:var(--brand-dark);">+ เพิ่มผู้รับจ้างใหม่</a></div>
+      <div><label>วงเงินรอบนี้ (บาท) <span class="muted"></span></label><input name="amount" id="amt" type="number" step="0.01" value="{{ '%g'|format(edit.amount) if edit and edit.amount else '' }}"></div>
       <div><label>เลขที่ใบสั่งจ้าง</label><input name="order_no" value="{{ edit.order_no if edit else '' }}" placeholder="เช่น 27/2568" style="min-width:150px;"></div>
       <div><label>วันที่ใบสั่งจ้าง</label><input name="order_date" value="{{ be_date(edit.order_date) if edit and edit.order_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="min-width:150px;"></div>
       <div><label>สถานะ</label><select name="status">
         {% for s in ['ร่าง','จ้างแล้ว','จ่ายแล้ว'] %}<option value="{{ s }}" {{ 'selected' if (edit.status if edit else 'ร่าง')==s }}>{{ s }}</option>{% endfor %}
       </select></div>
+    </div>
+    <div id="nvBox" style="display:none; border:1px dashed var(--border); border-radius:8px; padding:12px; margin:4px 0 10px; background:#fff7ed;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <b style="color:var(--brand-dark);">ผู้รับจ้างใหม่</b>
+        <a href="#" onclick="toggleNV();return false;" class="muted" style="font-size:13px;">ยกเลิก (ใช้รายชื่อเดิม)</a>
+      </div>
+      <p class="muted" style="margin:4px 0 8px; font-size:13px;">กรอกชื่อไว้ ระบบจะบันทึกผู้รับจ้างใหม่และผูกกับรอบนี้ให้ (ช่องเลือกด้านบนจะถูกข้าม)</p>
+      <div class="row">
+        <div style="flex:2;"><label>ชื่อร้าน/ผู้รับจ้าง *</label><input name="nv_name" id="nv_name" placeholder="เช่น ร้านครัวคุณแม่"></div>
+        <div style="flex:2;"><label>ชื่อเจ้าของ/ผู้มีอำนาจลงนาม</label><input name="nv_owner" placeholder="เช่น นางสมศรี ใจดี"></div>
+        <div><label>เลขผู้เสียภาษี</label><input name="nv_tax" placeholder="13 หลัก"></div>
+        <div><label>เบอร์โทร</label><input name="nv_phone"></div>
+      </div>
+      <div class="row">
+        <div style="flex:3;"><label>ที่อยู่</label><input name="nv_address"></div>
+        <div style="flex:2;"><label>เลขบัญชีธนาคาร</label><input name="nv_bank"></div>
+      </div>
     </div>
     <label>หมายเหตุ</label><input name="note" value="{{ edit.note if edit else '' }}">
     <p class="muted" id="sug" style="margin:8px 0;"></p>
@@ -98,6 +121,13 @@
     return last;
   }
   var $=function(id){return document.getElementById(id);};
+  function toggleNV(){
+    var box=$('nvBox'), show=(box.style.display==='none');
+    box.style.display = show ? 'block' : 'none';
+    $('nvToggle').style.display = show ? 'none' : 'inline-block';
+    $('vsel').disabled = show;                 // ซ่อน/ปิด dropdown เดิมเมื่อกรอกรายใหม่
+    if(show){ $('nv_name').focus(); } else { $('nv_name').value=''; }
+  }
   function onStart(){  // เปลี่ยนวันเริ่ม -> ถ้ามีจำนวนวันคำนวณวันสิ้นสุด ไม่งั้นถ้ามีวันสิ้นสุดคำนวณจำนวนวัน
     var s=_parseBE($('sd').value);
     var d=parseInt($('days').value||0)||0;

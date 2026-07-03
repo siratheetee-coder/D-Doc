@@ -10,8 +10,13 @@
     <tr><th style="width:200px;">ผู้รับจ้าง</th><td>{{ r.vendor.name if r.vendor else '-' }}</td></tr>
     <tr><th>ช่วงสัญญา</th><td>{{ be_date(r.start_date) if r.start_date else '-' }} ถึง {{ be_date(r.end_date) if r.end_date else '-' }} ({{ r.days }} วัน)</td></tr>
     <tr><th>วงเงินสัญญา</th><td><b>{{ "{:,.2f}".format(r.amount or 0) }}</b> บาท</td></tr>
-    <tr><th>แบ่งงวดแล้ว</th><td>{{ "{:,.2f}".format(committed) }} บาท · จ่ายแล้ว <b style="color:var(--brand-dark);">{{ "{:,.2f}".format(paid) }}</b> บาท</td></tr>
+    <tr><th>แบ่งงวดแล้ว</th><td><b {{ 'style="color:#dc2626;"' if committed > (r.amount or 0) else '' }}>{{ "{:,.2f}".format(committed) }}</b> บาท · จ่ายแล้ว <b style="color:var(--brand-dark);">{{ "{:,.2f}".format(paid) }}</b> บาท · เหลือแบ่งได้ <b {{ 'style="color:#dc2626;"' if ((r.amount or 0) - committed) < 0 else '' }}>{{ "{:,.2f}".format((r.amount or 0) - committed) }}</b> บาท</td></tr>
   </table>
+  {% if committed > (r.amount or 0) %}
+  <div style="margin-top:10px; padding:10px 14px; border-radius:9px; background:#fef2f2; border:1px solid #fca5a5; color:#b91c1c; font-weight:600;">
+    <svg class="icon"><use href="#ic-alert"/></svg> แบ่งงวดเกินวงเงินสัญญา {{ "{:,.2f}".format(committed - (r.amount or 0)) }} บาท — ปรับวงเงินงวดให้รวมไม่เกินวงเงินสัญญา
+  </div>
+  {% endif %}
   <p class="muted" style="margin-bottom:0;">แบ่งสัญญาเป็นงวดย่อย (เช่น 5 งวด งวดละ 10 วัน) แต่ละงวด: ส่งมอบ → ตรวจรับ → เมื่อ "จ่ายแล้ว" ระบบลงบัญชีให้อัตโนมัติ</p>
 </div>
 
@@ -56,7 +61,6 @@
     </tbody>
   </table>
   </div>
-  <p class="muted" style="margin-top:10px;">เฟส 2: จะมีปุ่มออกเอกสาร "งวด X" (ควบคุม+ส่งมอบ+ตรวจรับ) และ "ขอเบิกจ่าย" ต่อแต่ละงวด</p>
   {% else %}
   <p class="muted">ยังไม่มีงวดงาน เพิ่มด้านบน</p>
   {% endif %}
@@ -104,7 +108,9 @@
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <a class="btn sm gray" href="/lunch/round/{{ r.id }}/tor-request-doc"><svg class="icon"><use href="#ic-file"/></svg> ขออนุมัติ TOR</a>
     <a class="btn sm gray" href="/lunch/round/{{ r.id }}/committee-doc"><svg class="icon"><use href="#ic-file"/></svg> คำสั่งแต่งตั้งกรรมการ</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/tor-doc"><svg class="icon"><use href="#ic-file"/></svg> ขอบเขตของงาน (TOR)</a>
     <a class="btn sm gray" href="/lunch/round/{{ r.id }}/hire-report-doc"><svg class="icon"><use href="#ic-file"/></svg> รายงานขอจ้าง</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/quotation-doc"><svg class="icon"><use href="#ic-file"/></svg> ใบเสนอราคา</a>
     <a class="btn sm gray" href="/lunch/round/{{ r.id }}/result-doc"><svg class="icon"><use href="#ic-file"/></svg> รายงานผลพิจารณา</a>
     <a class="btn sm gray" href="/lunch/round/{{ r.id }}/winner-doc"><svg class="icon"><use href="#ic-file"/></svg> ประกาศผู้ชนะ</a>
     <a class="btn sm gray" href="/lunch/round/{{ r.id }}/order-doc"><svg class="icon"><use href="#ic-file"/></svg> ใบสั่งจ้าง</a>

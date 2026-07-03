@@ -7,7 +7,7 @@ lunch_doc.py
     (1) บันทึกรายงานผู้ควบคุม + ตารางเมนูรายวัน  (2) ใบส่งมอบงาน  (3) ใบตรวจรับพัสดุ
 
 อิงโครงสร้าง/ถ้อยคำจากไฟล์จริงที่โรงเรียนใช้ ใช้ helper ร่วมกับ build_templates
-ช่องลงนามคณะกรรมการเว้นจุดไข่ปลาให้เซ็น (ยังไม่เก็บรายชื่อกรรมการในระบบ)
+ดึงรายชื่อคณะกรรมการที่กรอกไว้ (LunchCommittee) มาลงในเอกสาร ถ้าไม่มีเว้นจุดไข่ปลาให้เซ็น
 """
 from pathlib import Path
 
@@ -599,13 +599,119 @@ def render_tor_request_doc(rnd, school, doc=None) -> str:
     return _finish(doc, own, f"ขออนุมัติTOR_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
+def render_tor_doc(rnd, school, doc=None) -> str:
+    """ขอบเขตของงาน (TOR) จ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) — เอกสารแนบท้ายรายงานขอจ้าง"""
+    doc, own = _begin(doc)
+    prog = rnd.program
+    sname = (school.name or "").strip() or "โรงเรียน"
+    total = round(float(rnd.amount or 0), 2)
+    rate = prog.rate_per_head or 0
+    days = rnd.days or 0
+    students = prog.total_students
+    fund = (prog.funding_org or "").strip() or "องค์กรปกครองส่วนท้องถิ่น"
+    period = f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} จำนวน {days} วัน"
+
+    _p(doc, "ขอบเขตของงาน (Terms of Reference : TOR)", align="center", bold=True, size=18, after=0)
+    _p(doc, "งานจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)", align="center", bold=True, after=0)
+    _p(doc, f"{sname}  ประจำปีการศึกษา {prog.year}", align="center", after=6)
+
+    _p(doc, "๑. ความเป็นมา", bold=True, indent=0.5, after=0)
+    _p(doc, f"{sname} ได้รับจัดสรรงบประมาณเงินอุดหนุนค่าอาหารกลางวันจาก{fund} เพื่อจัดอาหารกลางวัน "
+            "ให้แก่นักเรียนตั้งแต่ระดับชั้นอนุบาลถึงระดับชั้นมัธยมศึกษาปีที่ ๓ ให้ได้รับประทานอาหาร "
+            "ที่มีคุณค่าทางโภชนาการครบถ้วนและเพียงพอ", align="justify", indent=1)
+    _p(doc, "๒. วัตถุประสงค์", bold=True, indent=0.5, after=0)
+    _p(doc, "เพื่อจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ให้นักเรียนได้รับประทานอาหารที่สะอาด "
+            "ถูกสุขลักษณะ มีคุณค่าทางโภชนาการครบ ๕ หมู่ อย่างเพียงพอทุกวันทำการ", align="justify", indent=1)
+    _p(doc, "๓. คุณสมบัติของผู้เสนอราคา", bold=True, indent=0.5, after=0)
+    _p(doc, "๓.๑ เป็นผู้มีอาชีพรับจ้างงานที่จ้าง และไม่เป็นผู้ถูกระบุชื่อไว้ในบัญชีรายชื่อผู้ทิ้งงาน",
+       align="justify", indent=1, after=0)
+    _p(doc, "๓.๒ ไม่เป็นผู้มีผลประโยชน์ร่วมกันกับผู้เสนอราคารายอื่น และไม่เป็นผู้กระทำการอันเป็น "
+            "การขัดขวางการแข่งขันราคาอย่างเป็นธรรม", align="justify", indent=1, after=0)
+    _p(doc, "๓.๓ สามารถประกอบอาหารและจัดส่งได้ตรงตามเวลาที่โรงเรียนกำหนดในทุกวันทำการ",
+       align="justify", indent=1)
+    _p(doc, "๔. ขอบเขตของงานที่จ้าง", bold=True, indent=0.5, after=0)
+    _p(doc, f"๔.๑ ประกอบอาหารกลางวัน (ปรุงสำเร็จ) ให้แก่นักเรียนจำนวน {students} คน วันละ ๑ มื้อ "
+            f"ในอัตราคนละ {_money(rate)} บาทต่อวัน {period}", align="justify", indent=1, after=0)
+    _p(doc, "๔.๒ จัดรายการอาหารให้หลากหลายหมุนเวียนตามหลักโภชนาการ ครบ ๕ หมู่ มีข้าว กับข้าว "
+            "อย่างน้อย ๑-๒ อย่าง และผลไม้หรือของหวานตามความเหมาะสม (อ้างอิงโปรแกรม Thai School Lunch)",
+       align="justify", indent=1, after=0)
+    _p(doc, "๔.๓ วัตถุดิบที่ใช้ต้องสด สะอาด ปลอดภัย ได้มาตรฐาน ภาชนะและสถานที่ประกอบอาหาร "
+            "ถูกสุขลักษณะตามหลักสุขาภิบาลอาหาร", align="justify", indent=1, after=0)
+    _p(doc, "๔.๔ จัดส่งอาหารให้ทันก่อนเวลารับประทานอาหารกลางวันของนักเรียนในแต่ละวัน",
+       align="justify", indent=1)
+    _p(doc, "๕. ระยะเวลาดำเนินการ", bold=True, indent=0.5, after=0)
+    _p(doc, f"ดำเนินการ {period} (เฉพาะวันทำการ ไม่รวมวันหยุดราชการและวันหยุดนักขัตฤกษ์)",
+       align="justify", indent=1)
+    _p(doc, "๖. วงเงินในการจัดจ้าง", bold=True, indent=0.5, after=0)
+    _p(doc, f"เป็นเงินทั้งสิ้น {_money(total)} บาท ({bahttext(total)}) โดยใช้เงินอุดหนุนค่าอาหารกลางวัน",
+       align="justify", indent=1)
+    _p(doc, "๗. การส่งมอบงานและการตรวจรับ", bold=True, indent=0.5, after=0)
+    _p(doc, "ผู้รับจ้างส่งมอบอาหารทุกวันทำการ และคณะกรรมการตรวจรับพัสดุตรวจรับตามงวดงานที่กำหนด "
+            "ก่อนเบิกจ่ายเงินให้ผู้รับจ้าง", align="justify", indent=1)
+    _p(doc, "๘. การจ่ายเงิน", bold=True, indent=0.5, after=0)
+    _p(doc, "จ่ายเงินให้ผู้รับจ้างตามงวดงานที่ส่งมอบและผ่านการตรวจรับเรียบร้อยแล้ว", align="justify", indent=1)
+    _p(doc, "๙. ค่าปรับ", bold=True, indent=0.5, after=0)
+    _p(doc, "หากผู้รับจ้างไม่สามารถส่งมอบงานได้ตามกำหนด หรือส่งมอบไม่ถูกต้อง ให้ปรับตามอัตรา "
+            "ที่กำหนดในสัญญาจ้าง/ใบสั่งจ้าง", align="justify", indent=1)
+    return _finish(doc, own, f"ขอบเขตของงาน_TOR_รอบที่{rnd.seq}_ปี{prog.year}")
+
+
+def render_quotation_doc(rnd, school, doc=None) -> str:
+    """ใบเสนอราคา (ผู้รับจ้างเสนอราคาจ้างเหมาประกอบอาหารกลางวัน)"""
+    doc, own = _begin(doc)
+    prog = rnd.program
+    sname = (school.name or "").strip() or "โรงเรียน"
+    total = round(float(rnd.amount or 0), 2)
+    rate = prog.rate_per_head or 0
+    days = rnd.days or 0
+    students = prog.total_students
+    v = rnd.vendor
+    vname = v.name if v else _BLANK
+    vaddr = (getattr(v, "address", "") or "").strip() if v else ""
+    vphone = (getattr(v, "phone", "") or "").strip() if v else ""
+    vowner = (getattr(v, "owner_name", "") or "").strip() if v else ""
+    vtax = (getattr(v, "tax_id", "") or "").strip() if v else ""
+    period = f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} จำนวน {days} วัน"
+
+    _p(doc, "ใบเสนอราคา", align="center", bold=True, size=20, after=6)
+    _p(doc, f"เขียนที่  {vaddr or _BLANK}", align="right", after=0)
+    _p(doc, f"วันที่  {_dnum(rnd.order_date)}", align="right", after=6)
+    _p(doc, f"เรื่อง  เสนอราคาจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)", after=0)
+    _p(doc, f"เรียน  ผู้อำนวยการ{sname}", after=6)
+    _p(doc, f"ตามที่{sname} มีความประสงค์จ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ประจำปีการศึกษา "
+            f"{prog.year} ({period}) นั้น ข้าพเจ้า {vname} มีความยินดีขอเสนอราคาดังรายการต่อไปนี้",
+       align="justify", indent=1.25, after=6)
+
+    headers = ["ลำดับ", "รายการ", "จำนวน", "ราคา/หน่วย (บาท)", "จำนวนเงิน (บาท)"]
+    unit_desc = f"อาหารกลางวัน {students} คน x {days} วัน"
+    rows = [["๑", "จ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)", unit_desc,
+             _money(rate), _money(total)]]
+    _simple_table(doc, headers, rows,
+                  [Cm(1.4), Cm(6.6), Cm(4.2), Cm(2.4), Cm(2.4)])
+    _p(doc, f"รวมเป็นเงินทั้งสิ้น  {_money(total)} บาท  ({bahttext(total)})",
+       bold=True, indent=1.25, before=4, after=10)
+    _p(doc, "ทั้งนี้ ข้าพเจ้าขอรับรองว่าจะประกอบอาหารที่สะอาด ถูกสุขลักษณะ และมีคุณค่าทางโภชนาการ "
+            "ครบถ้วนตามขอบเขตของงานที่โรงเรียนกำหนด", align="justify", indent=1.25, after=12)
+    _sign_table(doc, [
+        [("(ลงชื่อ)...........................................ผู้เสนอราคา", "center"),
+         (f"( {vowner or vname} )", "center")],
+    ])
+    if vtax or vphone:
+        info = "  ".join(x for x in [f"เลขประจำตัวผู้เสียภาษี {vtax}" if vtax else "",
+                                     f"โทร. {vphone}" if vphone else ""] if x)
+        _p(doc, info, align="center", after=0)
+    return _finish(doc, own, f"ใบเสนอราคา_รอบที่{rnd.seq}_ปี{prog.year}")
+
+
 def render_contract_bundle(rnd, school) -> str:
     """ออกเอกสารต่อรอบทั้งชุดเป็นไฟล์ Word เดียว (เรียงตามลำดับงานจริง)"""
     doc = Document()
     _font(doc)
     render_tor_request_doc(rnd, school, doc)        # บันทึกขออนุมัติ TOR
     render_committee_order_doc(rnd, school, doc)     # คำสั่งแต่งตั้งกรรมการ (3 ฉบับ)
+    render_tor_doc(rnd, school, doc)                 # ขอบเขตของงาน (TOR)
     render_hire_report_doc(rnd, school, doc)         # รายงานขอจ้าง
+    render_quotation_doc(rnd, school, doc)           # ใบเสนอราคา
     render_result_doc(rnd, school, doc)              # รายงานผลพิจารณา
     render_winner_doc(rnd, school, doc)              # ประกาศผู้ชนะ
     render_order_doc(rnd, school, doc)               # ใบสั่งจ้าง

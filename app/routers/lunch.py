@@ -13,10 +13,11 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import (LunchProgram, LunchClass, LunchLedger, LunchHireRound,
-                        LunchInstallment, LunchMenu, LunchStudent, LunchMeasure, Vendor)
+                        LunchInstallment, LunchMenu, LunchStudent, LunchMeasure, Vendor,
+                        FinanceAccount, FinanceTxn, Procurement)
 from app.services.growth_ref import (classify_all, age_months,
                                      WH_LABELS, HA_LABELS, WA_LABELS)
-from app.thai_utils import parse_be_date, be_date_input
+from app.thai_utils import parse_be_date, be_date_input, current_fiscal_year
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float
 
@@ -139,6 +140,9 @@ async def lunch_save(request: Request, db: Session = Depends(get_db)):
 def lunch_delete(pid: int, db: Session = Depends(get_db)):
     prog = db.get(LunchProgram, pid)
     if prog:
+        # ลบรายการคู่ในการเงินก่อน (cascade ลบ LunchLedger แต่ไม่ลบ FinanceTxn ให้)
+        for l in list(prog.ledger):
+            _unmirror_finance(db, l)
         db.delete(prog)
         db.commit()
     return RedirectResponse("/lunch", status_code=303)
@@ -172,11 +176,14 @@ def lunch_ledger_add(pid: int, db: Session = Depends(get_db),
     prog = db.get(LunchProgram, pid)
     if not prog:
         return RedirectResponse("/lunch", status_code=303)
-    db.add(LunchLedger(
+    led = LunchLedger(
         program_id=pid, date=parse_be_date(date) or datetime.now(),
         kind=("out" if kind == "out" else "in"), detail=detail.strip(),
         amount=_to_float(amount, 0.0), ref=ref.strip(),
-    ))
+    )
+    db.add(led)
+    db.flush()
+    _mirror_finance(db, led)     # สะท้อนเข้าบัญชีการเงินหลัก
     db.commit()
     return RedirectResponse(f"/lunch/{pid}", status_code=303)
 
@@ -186,7 +193,7 @@ def lunch_ledger_delete(lid: int, db: Session = Depends(get_db)):
     row = db.get(LunchLedger, lid)
     pid = row.program_id if row else None
     if row:
-        db.delete(row)
+        _delete_ledger(db, row)
         db.commit()
     return RedirectResponse(f"/lunch/{pid}" if pid else "/lunch", status_code=303)
 
@@ -204,6 +211,83 @@ def _weekday_count(start, end) -> int:
     return n
 
 
+LUNCH_ACCOUNT_NAME = "อาหารกลางวัน"
+
+
+def _ensure_lunch_account(db: Session) -> FinanceAccount:
+    """หา/สร้างบัญชี 'อาหารกลางวัน' ในโมดูลการเงิน (ปลายทางที่รายการอาหารกลางวันไปสะท้อน)"""
+    acc = db.query(FinanceAccount).filter_by(name=LUNCH_ACCOUNT_NAME).first()
+    if not acc:
+        acc = FinanceAccount(name=LUNCH_ACCOUNT_NAME, deposit_type="agency",
+                             note="เชื่อมอัตโนมัติจากงานอาหารกลางวัน")
+        db.add(acc)
+        db.flush()
+    return acc
+
+
+def _mirror_finance(db: Session, ledger: LunchLedger) -> None:
+    """สร้าง/อัปเดตรายการคู่ใน FinanceTxn (บัญชีอาหารกลางวัน) ให้ตรงกับรายการบัญชีอาหารกลางวัน 1 แถว
+    -> ยอดรับ-จ่ายอาหารกลางวันไปโผล่ในงบการเงินรวม/รายงานเงินคงเหลือ"""
+    acc = _ensure_lunch_account(db)
+    d = ledger.date or datetime.now()
+    txn = db.get(FinanceTxn, ledger.finance_txn_id) if ledger.finance_txn_id else None
+    if not txn:
+        txn = FinanceTxn(account_id=acc.id, fiscal_year=current_fiscal_year(d))
+        db.add(txn)
+    txn.account_id = acc.id
+    txn.fiscal_year = current_fiscal_year(d)
+    txn.date = d
+    txn.kind = ledger.kind
+    txn.amount = ledger.amount or 0
+    txn.category = LUNCH_ACCOUNT_NAME
+    txn.ref = ledger.ref or ""
+    txn.note = ledger.detail or ""
+    db.flush()
+    ledger.finance_txn_id = txn.id
+
+
+def _unmirror_finance(db: Session, ledger: LunchLedger) -> None:
+    """ลบรายการคู่ในการเงินเมื่อรายการบัญชีอาหารกลางวันถูกลบ"""
+    if ledger.finance_txn_id:
+        t = db.get(FinanceTxn, ledger.finance_txn_id)
+        if t:
+            db.delete(t)
+        ledger.finance_txn_id = None
+
+
+def _delete_ledger(db: Session, ledger: LunchLedger) -> None:
+    """ลบรายการบัญชีอาหารกลางวัน + รายการคู่ในการเงิน"""
+    _unmirror_finance(db, ledger)
+    db.delete(ledger)
+
+
+def _sync_round_procurement(db: Session, rnd: LunchHireRound) -> None:
+    """ผูกใบสั่งจ้างของรอบกับ 'เรื่องจัดจ้าง' ในงานพัสดุ เมื่อกรอกเลขที่ใบสั่งจ้างแล้ว
+    -> เลขที่ใบสั่งจ้างไปโผล่ในทะเบียนคุมการจัดจ้างอัตโนมัติ (ไม่ต้องสร้างเรื่องเอง)"""
+    if not (rnd.order_no or "").strip():
+        return   # ยังไม่ออกใบสั่งจ้าง -> ไม่สร้างเรื่อง (กันทะเบียนรก)
+    prog = rnd.program
+    fy = current_fiscal_year(rnd.order_date) if rnd.order_date else (prog.year or current_fiscal_year())
+    subject = f"จ้างเหมาประกอบอาหารกลางวัน รอบที่ {rnd.seq} ปีการศึกษา {prog.year}"
+    proc = db.get(Procurement, rnd.procurement_id) if rnd.procurement_id else None
+    if not proc:
+        proc = Procurement(fiscal_year=fy, subject=subject, proc_type="จ้าง",
+                           method="เฉพาะเจาะจง", proc_case="w119t2",
+                           budget_source=prog.funding_org or "เงินอุดหนุนอาหารกลางวัน")
+        db.add(proc)
+        db.flush()
+        rnd.procurement_id = proc.id
+    proc.fiscal_year = fy
+    proc.proc_type = "จ้าง"
+    proc.subject = subject
+    proc.order_no = (rnd.order_no or "").strip()
+    proc.order_date = rnd.order_date
+    proc.total_amount = rnd.amount or 0
+    proc.vendor_id = rnd.vendor_id
+    proc.status = ("เบิกจ่ายแล้ว" if rnd.status == "จ่ายแล้ว"
+                   else "อนุมัติ" if rnd.status == "จ้างแล้ว" else "ร่าง")
+
+
 def _sync_round_ledger(db: Session, rnd: LunchHireRound) -> None:
     """ผูกบัญชีอัตโนมัติ: รอบที่ 'จ่ายแล้ว' -> มีรายการจ่ายในบัญชี (1 รอบ = 1 รายการ)
     ถ้ายังไม่จ่าย/ลบรอบ -> ลบรายการบัญชีที่ผูกไว้"""
@@ -218,12 +302,16 @@ def _sync_round_ledger(db: Session, rnd: LunchHireRound) -> None:
             existing.detail = detail
             existing.date = d
             existing.procurement_id = rnd.procurement_id
+            led = existing
         else:
-            db.add(LunchLedger(program_id=rnd.program_id, round_id=rnd.id, kind="out",
-                               detail=detail, amount=rnd.amount, date=d,
-                               procurement_id=rnd.procurement_id))
+            led = LunchLedger(program_id=rnd.program_id, round_id=rnd.id, kind="out",
+                              detail=detail, amount=rnd.amount, date=d,
+                              procurement_id=rnd.procurement_id)
+            db.add(led)
+        db.flush()
+        _mirror_finance(db, led)
     elif existing:
-        db.delete(existing)
+        _delete_ledger(db, existing)
 
 
 def _lunch_holidays(prog) -> dict:
@@ -261,12 +349,31 @@ def round_edit(rid: int, request: Request, db: Session = Depends(get_db)):
     return _rounds_page(request, db, rnd.program, edit=rnd)
 
 
-def _populate_round(rnd, form):
+def _maybe_new_vendor(db, form):
+    """ถ้ากรอกชื่อผู้รับจ้างใหม่ในฟอร์ม -> สร้าง Vendor แล้วคืน id (ไม่งั้นคืน None)"""
+    name = (form.get("nv_name") or "").strip()
+    if not name:
+        return None
+    v = Vendor(
+        name=name,
+        owner_name=(form.get("nv_owner") or "").strip(),
+        tax_id=(form.get("nv_tax") or "").strip(),
+        phone=(form.get("nv_phone") or "").strip(),
+        address=(form.get("nv_address") or "").strip(),
+        bank_account=(form.get("nv_bank") or "").strip(),
+    )
+    db.add(v)
+    db.flush()
+    return v.id
+
+
+def _populate_round(rnd, form, db):
     rnd.period_type = form.get("period_type") or "month"
     rnd.start_date = parse_be_date(form.get("start_date") or "")
     rnd.end_date = parse_be_date(form.get("end_date") or "")
     rnd.days = _to_int(form.get("days"), 0)
-    rnd.vendor_id = _to_int(form.get("vendor_id"), 0) or None
+    new_vid = _maybe_new_vendor(db, form)
+    rnd.vendor_id = new_vid or (_to_int(form.get("vendor_id"), 0) or None)
     rnd.amount = _to_float(form.get("amount"), 0.0)
     rnd.procurement_id = _to_int(form.get("procurement_id"), 0) or None
     rnd.order_no = (form.get("order_no") or "").strip()
@@ -283,9 +390,10 @@ async def round_add(pid: int, request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     seq = max([r.seq for r in prog.rounds], default=0) + 1
     rnd = LunchHireRound(program_id=pid, seq=seq)
-    _populate_round(rnd, form)
+    _populate_round(rnd, form, db)
     db.add(rnd)
     db.flush()
+    _sync_round_procurement(db, rnd)   # ผูกเรื่องจัดจ้าง (ถ้ามีเลขใบสั่งจ้าง)
     _sync_round_ledger(db, rnd)
     db.commit()
     return RedirectResponse(f"/lunch/{pid}/rounds", status_code=303)
@@ -297,7 +405,8 @@ async def round_update(rid: int, request: Request, db: Session = Depends(get_db)
     if not rnd:
         return RedirectResponse("/lunch", status_code=303)
     form = await request.form()
-    _populate_round(rnd, form)
+    _populate_round(rnd, form, db)
+    _sync_round_procurement(db, rnd)   # ผูก/อัปเดตเรื่องจัดจ้าง (ถ้ามีเลขใบสั่งจ้าง)
     _sync_round_ledger(db, rnd)
     db.commit()
     return RedirectResponse(f"/lunch/{rnd.program_id}/rounds", status_code=303)
@@ -308,9 +417,18 @@ def round_delete(rid: int, db: Session = Depends(get_db)):
     rnd = db.get(LunchHireRound, rid)
     pid = rnd.program_id if rnd else None
     if rnd:
-        # ลบรายการบัญชีที่ผูกกับรอบนี้ก่อน (กัน FK ค้าง)
+        # ลบรายการบัญชี (+ รายการคู่ในการเงิน) ที่ผูกกับรอบนี้ รวมงวดย่อยด้วย
+        insts = {i.id for i in rnd.installments}
         for l in db.query(LunchLedger).filter_by(round_id=rnd.id).all():
-            db.delete(l)
+            _delete_ledger(db, l)
+        for iid in insts:
+            for l in db.query(LunchLedger).filter_by(installment_id=iid).all():
+                _delete_ledger(db, l)
+        # ลบเรื่องจัดจ้างที่ระบบผูกให้อัตโนมัติ (เฉพาะที่เราสร้างเอง = w119t2 อาหารกลางวัน)
+        if rnd.procurement_id:
+            proc = db.get(Procurement, rnd.procurement_id)
+            if proc and proc.proc_case == "w119t2" and "อาหารกลางวัน" in (proc.subject or ""):
+                db.delete(proc)
         db.delete(rnd)
         db.commit()
     return RedirectResponse(f"/lunch/{pid}/rounds" if pid else "/lunch", status_code=303)
@@ -494,12 +612,16 @@ def _sync_installment_ledger(db: Session, inst: LunchInstallment) -> None:
             existing.detail = detail
             existing.date = d
             existing.procurement_id = rnd.procurement_id if rnd else None
+            led = existing
         else:
-            db.add(LunchLedger(program_id=inst.round.program_id, installment_id=inst.id,
-                               kind="out", detail=detail, amount=inst.amount, date=d,
-                               procurement_id=inst.round.procurement_id))
+            led = LunchLedger(program_id=inst.round.program_id, installment_id=inst.id,
+                              kind="out", detail=detail, amount=inst.amount, date=d,
+                              procurement_id=inst.round.procurement_id)
+            db.add(led)
+        db.flush()
+        _mirror_finance(db, led)
     elif existing:
-        db.delete(existing)
+        _delete_ledger(db, existing)
 
 
 @router.get("/lunch/round/{rid}/plan", response_class=HTMLResponse)
@@ -568,7 +690,7 @@ def installment_delete(iid: int, db: Session = Depends(get_db)):
     rid = inst.round_id if inst else None
     if inst:
         for l in db.query(LunchLedger).filter_by(installment_id=inst.id).all():
-            db.delete(l)
+            _delete_ledger(db, l)
         db.delete(inst)
         db.commit()
     return RedirectResponse(f"/lunch/round/{rid}/plan" if rid else "/lunch", status_code=303)
@@ -711,6 +833,16 @@ def contract_result_doc(rid: int, db: Session = Depends(get_db)):
 @router.get("/lunch/round/{rid}/tor-request-doc")
 def contract_tor_request_doc(rid: int, db: Session = Depends(get_db)):
     return _round_docfile(rid, db, "render_tor_request_doc")
+
+
+@router.get("/lunch/round/{rid}/tor-doc")
+def contract_tor_doc(rid: int, db: Session = Depends(get_db)):
+    return _round_docfile(rid, db, "render_tor_doc")
+
+
+@router.get("/lunch/round/{rid}/quotation-doc")
+def contract_quotation_doc(rid: int, db: Session = Depends(get_db)):
+    return _round_docfile(rid, db, "render_quotation_doc")
 
 
 @router.get("/lunch/round/{rid}/bundle-doc")

@@ -697,6 +697,7 @@ class LunchLedger(Base):
     procurement_id = Column(Integer, ForeignKey("procurement.id"), nullable=True)  # ผูกเรื่องจ้างเหมา (ถ้ามี)
     round_id = Column(Integer, ForeignKey("lunch_hire_round.id"), nullable=True)   # มาจากรอบจ้างเหมา (ถ้าใช่)
     installment_id = Column(Integer, ForeignKey("lunch_installment.id"), nullable=True)  # มาจากงวด (ถ้าใช่)
+    finance_txn_id = Column(Integer, ForeignKey("finance_txn.id"), nullable=True)  # รายการคู่ในบัญชีการเงินหลัก
     created_at = Column(DateTime, default=datetime.now)
 
     program = relationship("LunchProgram", back_populates="ledger")
