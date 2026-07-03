@@ -32,7 +32,7 @@
         <option value="">— ไม่ระบุ —</option>
         {% for v in vendors %}<option value="{{ v.id }}" {{ 'selected' if edit and edit.vendor_id==v.id }}>{{ v.name }}</option>{% endfor %}
       </select></div>
-      <div><label>วงเงินรอบนี้ (บาท)</label><input name="amount" id="amt" type="number" step="0.01" value="{{ '%g'|format(edit.amount) if edit and edit.amount else '' }}"></div>
+      <div><label>วงเงินรอบนี้ (บาท) <span class="muted">(คำนวณให้)</span></label><input name="amount" id="amt" type="number" step="0.01" value="{{ '%g'|format(edit.amount) if edit and edit.amount else '' }}" oninput="amtManual=true"></div>
       <div><label>เลขที่ใบสั่งจ้าง</label><input name="order_no" value="{{ edit.order_no if edit else '' }}" placeholder="เช่น 27/2568" style="min-width:150px;"></div>
       <div><label>วันที่ใบสั่งจ้าง</label><input name="order_date" value="{{ be_date(edit.order_date) if edit and edit.order_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="min-width:150px;"></div>
       <div><label>สถานะ</label><select name="status">
@@ -116,11 +116,12 @@
     if(s && d>0){ var e=addWork(s,d); if(e) $('ed').value=_toBE(e); }
     calcAmt();
   }
+  var amtManual = {{ 'true' if edit and edit.amount else 'false' }};   // แก้เอง = ไม่คำนวณทับ
   function calcAmt(){
     var days=parseInt($('days').value||0)||0, sug=days*STUDENTS*RATE, amt=$('amt');
     if(days>0){
       $('sug').innerText='แนะนำวงเงิน = '+days+' วัน × '+STUDENTS+' คน × '+RATE+' บาท = '+sug.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})+' บาท';
-      if(!amt.value){ amt.value=sug.toFixed(2); }
+      if(!amtManual){ amt.value=sug.toFixed(2); }   // อัปเดตตามสูตรจนกว่าผู้ใช้พิมพ์แก้เอง
     } else { $('sug').innerText=''; }
   }
   document.querySelectorAll('input[data-date]').forEach(function(el){
