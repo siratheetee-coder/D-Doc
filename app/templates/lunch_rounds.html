@@ -25,7 +25,7 @@
       </select></div>
       <div><label>วันที่เริ่ม</label><input name="start_date" id="sd" value="{{ be_date(edit.start_date) if edit else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" oninput="onStart()"></div>
       <div><label>วันที่สิ้นสุด <span class="muted">(คำนวณให้)</span></label><input name="end_date" id="ed" value="{{ be_date(edit.end_date) if edit else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" oninput="onEnd()"></div>
-      <div><label>จำนวนวันทำการ <span class="muted">(หักเสาร์-อาทิตย์+วันหยุด)</span></label><input name="days" id="days" type="number" min="0" value="{{ edit.days if edit else 0 }}" oninput="fromDays()"></div>
+      <div><label>จำนวนวันทำการ <span class="muted">(ไม่นับวันหยุด)</span></label><input name="days" id="days" type="number" min="0" value="{{ edit.days if edit else 0 }}" oninput="fromDays()"></div>
     </div>
     <div class="row">
       <div style="flex:2;"><label>ผู้รับจ้าง</label><select name="vendor_id">
@@ -116,12 +116,11 @@
     if(s && d>0){ var e=addWork(s,d); if(e) $('ed').value=_toBE(e); }
     calcAmt();
   }
-  var amtManual = {{ 'true' if edit and edit.amount else 'false' }};   // แก้เอง = ไม่คำนวณทับ
   function calcAmt(){
     var days=parseInt($('days').value||0)||0, sug=days*STUDENTS*RATE, amt=$('amt');
     if(days>0){
       $('sug').innerText='แนะนำวงเงิน = '+days+' วัน × '+STUDENTS+' คน × '+RATE+' บาท = '+sug.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})+' บาท';
-      if(!amtManual){ amt.value=sug.toFixed(2); }   // อัปเดตตามสูตรจนกว่าผู้ใช้พิมพ์แก้เอง
+      if(!amt.value){ amt.value=sug.toFixed(2); }
     } else { $('sug').innerText=''; }
   }
   document.querySelectorAll('input[data-date]').forEach(function(el){

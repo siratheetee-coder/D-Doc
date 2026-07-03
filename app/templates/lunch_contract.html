@@ -21,9 +21,9 @@
     <div><label>วันที่เริ่ม</label><input name="start_date" id="isd" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;" oninput="iStart()"></div>
     <div><label>วันที่สิ้นสุด <span class="muted">(คำนวณให้)</span></label><input name="end_date" id="ied" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;" oninput="iEnd()"></div>
     <div><label>จำนวนวัน <span class="muted">(หักวันหยุด)</span></label><input name="days" id="idays" type="number" min="0" style="width:90px;" oninput="iDays()"></div>
-    <div><label>วงเงินงวด</label><input name="amount" type="number" step="0.01" style="width:110px;"></div>
-    <div><label>วันส่งมอบ</label><input name="deliver_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;"></div>
-    <div><label>วันตรวจรับ</label><input name="inspect_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;"></div>
+    <div><label>วงเงินงวด <span class="muted">(คำนวณให้)</span></label><input name="amount" id="iamt" type="number" step="0.01" style="width:120px;" oninput="iamtManual=true"></div>
+    <div><label>วันส่งมอบ</label><input name="deliver_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:150px;"></div>
+    <div><label>วันตรวจรับ</label><input name="inspect_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:150px;"></div>
     <div><label>สถานะ</label><select name="status">{% for s in ['ร่าง','ส่งมอบแล้ว','ตรวจรับแล้ว','จ่ายแล้ว'] %}<option>{{ s }}</option>{% endfor %}</select></div>
     <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มงวด</button></div>
   </form>
@@ -113,6 +113,7 @@
 
 <script>
   var HOLIDAYS = {{ holidays | tojson }};
+  var STUDENTS = {{ p.total_students }}, RATE = {{ p.rate_per_head or 0 }}, iamtManual = false;
   function _iso(dt){ return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2); }
   function _work(dt){ return dt.getDay()>=1 && dt.getDay()<=5 && !HOLIDAYS[_iso(dt)]; }
   function _pBE(s){ var m=(s||'').split('/'); if(m.length!==3) return null; var d=+m[0],mo=+m[1]-1,y=+m[2]-543; if(!d||!m[2])return null; var dt=new Date(y,mo,d); return isNaN(dt)?null:dt; }
@@ -120,10 +121,11 @@
   function _wd(a,b){ if(!a||!b||b<a)return 0; var n=0,c=new Date(a); while(c<=b){ if(_work(c))n++; c.setDate(c.getDate()+1);} return n; }
   function _addW(s,n){ if(!s||n<=0)return null; var c=new Date(s),cnt=0,last=null; while(cnt<n){ if(_work(c)){cnt++;last=new Date(c);} if(cnt>=n)break; c.setDate(c.getDate()+1);} return last; }
   var $=function(id){return document.getElementById(id);};
+  function iCalcAmt(){ var d=parseInt($('idays').value||0)||0; if(d>0 && !iamtManual){ $('iamt').value=(d*STUDENTS*RATE).toFixed(2); } }
   function iStart(){ var s=_pBE($('isd').value), d=parseInt($('idays').value||0)||0;
-    if(s&&d>0){ var e=_addW(s,d); if(e)$('ied').value=_bBE(e); } else { var e2=_pBE($('ied').value); if(s&&e2)$('idays').value=_wd(s,e2); } }
-  function iEnd(){ var s=_pBE($('isd').value), e=_pBE($('ied').value); if(s&&e)$('idays').value=_wd(s,e); }
-  function iDays(){ var s=_pBE($('isd').value), d=parseInt($('idays').value||0)||0; if(s&&d>0){ var e=_addW(s,d); if(e)$('ied').value=_bBE(e); } }
+    if(s&&d>0){ var e=_addW(s,d); if(e)$('ied').value=_bBE(e); } else { var e2=_pBE($('ied').value); if(s&&e2)$('idays').value=_wd(s,e2); } iCalcAmt(); }
+  function iEnd(){ var s=_pBE($('isd').value), e=_pBE($('ied').value); if(s&&e)$('idays').value=_wd(s,e); iCalcAmt(); }
+  function iDays(){ var s=_pBE($('isd').value), d=parseInt($('idays').value||0)||0; if(s&&d>0){ var e=_addW(s,d); if(e)$('ied').value=_bBE(e); } iCalcAmt(); }
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){
       var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
