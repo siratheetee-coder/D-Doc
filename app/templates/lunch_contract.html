@@ -20,6 +20,40 @@
   <p class="muted" style="margin-bottom:0;">แบ่งสัญญาเป็นงวดย่อย (เช่น 5 งวด งวดละ 10 วัน) แต่ละงวด: ส่งมอบ → ตรวจรับ → เมื่อ "จ่ายแล้ว" ระบบลงบัญชีให้อัตโนมัติ</p>
 </div>
 
+<div class="card" id="committee">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h2 style="margin:0;">คณะกรรมการ (TOR / ควบคุมงาน / ตรวจรับ)</h2>
+    <a class="btn sm" href="/lunch/round/{{ r.id }}/committee-doc"><svg class="icon"><use href="#ic-download"/></svg> คำสั่งแต่งตั้ง (3 ฉบับ)</a>
+  </div>
+  <p class="muted" style="margin:4px 0 0;">กรอกรายชื่อกรรมการให้ครบก่อนออกเอกสาร (ข้อมูลนี้จะถูกดึงไปใส่ในเอกสารทุกใบ)</p>
+  <form method="post" action="/lunch/round/{{ r.id }}/committee/add" class="row" style="align-items:flex-end; margin-top:10px;">
+    <div><label>ชุดกรรมการ</label><select name="kind">
+      {% for k,v in com_kinds.items() %}<option value="{{ k }}" {{ 'selected' if k==sel_kind }}>{{ v }}</option>{% endfor %}
+    </select></div>
+    <div style="flex:2;"><label>ชื่อ-นามสกุล</label><input name="name" list="persons_dl" oninput="fillPos(this)" required></div>
+    <div><label>ตำแหน่ง</label><input name="position" value="ครู" style="width:150px;"></div>
+    <div><label>บทบาท</label><select name="role">
+      {% for rl in com_roles %}<option>{{ rl }}</option>{% endfor %}
+    </select></div>
+    <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
+  </form>
+  <datalist id="persons_dl">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist>
+  {% for k, label in com_kinds.items() %}
+  <h3 style="margin:14px 0 4px; color:var(--brand-dark); font-size:15px;">กรรมการ{{ label }}</h3>
+  {% if committees[k] %}
+  <table>
+    <thead><tr><th style="width:50px;">ที่</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>บทบาท</th><th></th></tr></thead>
+    <tbody>
+    {% for m in committees[k] %}
+      <tr><td>{{ loop.index }}</td><td>{{ m.name }}</td><td>{{ m.position }}</td><td>{{ m.role }}</td>
+        <td><form method="post" action="/lunch/committee/{{ m.id }}/delete" style="margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted" style="margin:2px 0;">ยังไม่มีรายชื่อ</p>{% endif %}
+  {% endfor %}
+</div>
+
 <div class="card">
   <h2>เพิ่มงวดงาน</h2>
   <form method="post" action="/lunch/round/{{ r.id }}/installment/add" class="row" style="align-items:flex-end;">
@@ -65,37 +99,6 @@
   <p class="muted">ยังไม่มีงวดงาน เพิ่มด้านบน</p>
   {% endif %}
 </div>
-<div class="card">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-    <h2 style="margin:0;">คณะกรรมการ (TOR / ควบคุมงาน / ตรวจรับ)</h2>
-    <a class="btn sm" href="/lunch/round/{{ r.id }}/committee-doc"><svg class="icon"><use href="#ic-download"/></svg> คำสั่งแต่งตั้ง (3 ฉบับ)</a>
-  </div>
-  <form method="post" action="/lunch/round/{{ r.id }}/committee/add" class="row" style="align-items:flex-end; margin-top:10px;">
-    <div><label>ชุดกรรมการ</label><select name="kind">
-      {% for k,v in com_kinds.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
-    </select></div>
-    <div style="flex:2;"><label>ชื่อ-นามสกุล</label><input name="name" required></div>
-    <div><label>ตำแหน่ง</label><input name="position" value="ครู" style="width:150px;"></div>
-    <div><label>บทบาท</label><select name="role">
-      {% for rl in com_roles %}<option>{{ rl }}</option>{% endfor %}
-    </select></div>
-    <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
-  </form>
-  {% for k, label in com_kinds.items() %}
-  <h3 style="margin:14px 0 4px; color:var(--brand-dark); font-size:15px;">กรรมการ{{ label }}</h3>
-  {% if committees[k] %}
-  <table>
-    <thead><tr><th style="width:50px;">ที่</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>บทบาท</th><th></th></tr></thead>
-    <tbody>
-    {% for m in committees[k] %}
-      <tr><td>{{ loop.index }}</td><td>{{ m.name }}</td><td>{{ m.position }}</td><td>{{ m.role }}</td>
-        <td><form method="post" action="/lunch/committee/{{ m.id }}/delete" style="margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form></td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  {% else %}<p class="muted" style="margin:2px 0;">ยังไม่มีรายชื่อ</p>{% endif %}
-  {% endfor %}
-</div>
 
 <!-- ============ ออกเอกสาร (หลังกรอกกรรมการ เพื่อให้ข้อมูลครบก่อน gen) ============ -->
 {% if p.operate_mode == 'ingredient' %}
@@ -140,6 +143,13 @@
 <script>
   var HOLIDAYS = {{ holidays | tojson }};
   var STUDENTS = {{ p.total_students }}, RATE = {{ p.rate_per_head or 0 }}, iamtManual = false;
+  // เติมตำแหน่งอัตโนมัติเมื่อเลือกชื่อครูจากรายชื่อบุคลากร
+  var PERSONS_POS = {{ persons_pos | tojson }};
+  function fillPos(inp){
+    var pos = PERSONS_POS[(inp.value||'').trim()];
+    var pi = inp.closest('form').querySelector('input[name="position"]');
+    if(pos && pi){ pi.value = pos; }
+  }
   function _iso(dt){ return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2); }
   function _work(dt){ return dt.getDay()>=1 && dt.getDay()<=5 && !HOLIDAYS[_iso(dt)]; }
   function _pBE(s){ var m=(s||'').split('/'); if(m.length!==3) return null; var d=+m[0],mo=+m[1]-1,y=+m[2]-543; if(!d||!m[2])return null; var dt=new Date(y,mo,d); return isNaN(dt)?null:dt; }

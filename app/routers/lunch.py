@@ -629,13 +629,20 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
     rnd = db.get(LunchHireRound, rid)
     if not rnd:
         return RedirectResponse("/lunch", status_code=303)
+    from app.models import Person
     paid = sum(i.amount or 0 for i in rnd.installments if i.status == "จ่ายแล้ว")
     committees = {k: [m for m in rnd.committees if m.kind == k] for k in COMMITTEE_KINDS}
+    persons = db.query(Person).order_by(Person.name).all()
+    sel_kind = request.query_params.get("kind")
+    if sel_kind not in COMMITTEE_KINDS:
+        sel_kind = "tor"
     return templates.TemplateResponse("lunch_contract.html", {
         "request": request, "school": get_school(db), "r": rnd, "p": rnd.program,
         "installments": rnd.installments, "paid": paid,
         "committed": sum(i.amount or 0 for i in rnd.installments),
         "committees": committees, "com_kinds": COMMITTEE_KINDS, "com_roles": COMMITTEE_ROLES,
+        "persons": persons, "persons_pos": {p.name: p.position for p in persons},
+        "sel_kind": sel_kind,
         "holidays": _lunch_holidays(rnd.program),
         "today_be": be_date_input(datetime.now()),
     })
@@ -763,7 +770,7 @@ def committee_add(rid: int, db: Session = Depends(get_db),
     db.add(LunchCommittee(round_id=rid, kind=kind, seq=seq, name=name.strip(),
                           position=position.strip() or "ครู", role=role or "กรรมการ"))
     db.commit()
-    return RedirectResponse(f"/lunch/round/{rid}/plan", status_code=303)
+    return RedirectResponse(f"/lunch/round/{rid}/plan?kind={kind}#committee", status_code=303)
 
 
 @router.post("/lunch/committee/{cid}/delete")
@@ -771,10 +778,12 @@ def committee_delete(cid: int, db: Session = Depends(get_db)):
     from app.models import LunchCommittee
     m = db.get(LunchCommittee, cid)
     rid = m.round_id if m else None
+    kind = m.kind if m else ""
     if m:
         db.delete(m)
         db.commit()
-    return RedirectResponse(f"/lunch/round/{rid}/plan" if rid else "/lunch", status_code=303)
+    return RedirectResponse(f"/lunch/round/{rid}/plan?kind={kind}#committee" if rid else "/lunch",
+                           status_code=303)
 
 
 @router.get("/lunch/round/{rid}/committee-doc")

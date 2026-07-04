@@ -18,6 +18,7 @@ from app.database import get_data_dir
 from app.thai_utils import thai_date, bahttext
 from app.services.build_templates import (
     _font, _p, _set_cell, _repeat_header_row, _no_split_row, _sign_table,
+    _krut_and_title, _krut_center,
 )
 
 _BLANK = "............................"
@@ -69,31 +70,47 @@ def _menu_text(m) -> str:
 
 
 def _daily_table(doc, menus):
-    """ตารางควบคุมงานรายวัน: วัน/เดือน/ปี | รายการอาหาร | ผลการดำเนินงาน | ผู้ควบคุมงาน"""
-    widths = [Cm(2.6), Cm(6.6), Cm(3.4), Cm(3.6)]
+    """ตารางควบคุมงานรายวัน (08): วัน เดือน ปี | รายการอาหารตาม TOR | ผลการดำเนินงาน | ผู้ควบคุมและคณะกรรมการ"""
+    widths = [Cm(2.6), Cm(6.2), Cm(3.2), Cm(4.2)]
+    headers = ["วัน เดือน ปี", "รายการอาหาร\nตามขอบเขตงาน TOR", "ผลการดำเนินงาน",
+               "ผู้ควบคุมและคณะกรรมการ\nตรวจการประกอบอาหาร"]
     t = doc.add_table(rows=1, cols=4)
     t.style = "Table Grid"
     t.autofit = False
     hdr = t.rows[0]
     _repeat_header_row(hdr)
-    for c, h, w in zip(hdr.cells, ["วัน/เดือน/ปี", "รายการอาหาร",
-                                   "ผลการดำเนินงาน", "ผู้ควบคุมงาน"], widths):
+    for c, h, w in zip(hdr.cells, headers, widths):
         _set_cell(c, h, bold=True, align="center", size=14)
         c.width = w
-    if menus:
-        for m in menus:
-            r = t.add_row()
-            _no_split_row(r)
-            vals = [thai_date(m.date) if m.date else "", _menu_text(m), "", ""]
-            for c, v, w in zip(r.cells, vals, widths):
-                _set_cell(c, v, size=14)
-                c.width = w
-    else:
-        for _ in range(5):
-            r = t.add_row()
-            for c, w in zip(r.cells, widths):
-                _set_cell(c, "", size=14)
-                c.width = w
+    rows_menus = menus if menus else [None] * 5
+    for m in rows_menus:
+        r = t.add_row()
+        _no_split_row(r)
+        vals = [thai_date(m.date) if (m and m.date) else "", _menu_text(m) if m else "", "", ""]
+        for c, v, w in zip(r.cells, vals, widths):
+            _set_cell(c, v, size=14)
+            c.width = w
+    return t
+
+
+def _menu_table3(doc, menus, third_header):
+    """ตาราง 3 คอลัมน์ (09 ใบส่งมอบ / 10 ใบตรวจรับ): วัน เดือน ปี | รายการอาหาร | <third_header>"""
+    widths = [Cm(3.0), Cm(7.0), Cm(6.2)]
+    t = doc.add_table(rows=1, cols=3)
+    t.style = "Table Grid"
+    t.autofit = False
+    hdr = t.rows[0]
+    _repeat_header_row(hdr)
+    for c, h, w in zip(hdr.cells, ["วัน เดือน ปี", "รายการอาหาร", third_header], widths):
+        _set_cell(c, h, bold=True, align="center", size=14)
+        c.width = w
+    for m in (menus if menus else [None] * 5):
+        r = t.add_row()
+        _no_split_row(r)
+        vals = [thai_date(m.date) if (m and m.date) else "", _menu_text(m) if m else "", ""]
+        for c, v, w in zip(r.cells, vals, widths):
+            _set_cell(c, v, size=14)
+            c.width = w
     return t
 
 
@@ -136,8 +153,9 @@ def render_installment_doc(inst, school, menus) -> str:
             f"เพื่อประกอบอาหารกลางวัน (ปรุงสำเร็จ) สำหรับนักเรียน งวดที่ {inst.seq} "
             f"ระหว่าง{period} นั้น", align="justify", indent=1.25)
     _p(doc, "บัดนี้ ข้าพเจ้าได้ดำเนินการประกอบอาหารเสร็จเรียบร้อยตามข้อกำหนดของงานแล้ว "
-            "จึงขอส่งมอบงานตามเอกสารที่แนบมาพร้อมนี้", align="justify", indent=1.25)
-    _p(doc, f"ขอเบิกเงิน จำนวน {amount} บาท ({amt_text})", indent=1.25, after=14)
+            "จึงขอส่งมอบงานตามเอกสารที่แนบมาพร้อมนี้", align="justify", indent=1.25, after=4)
+    _menu_table3(doc, menus, "ผู้ส่งมอบงาน")
+    _p(doc, f"ขอเบิกเงิน จำนวน {amount} บาท ({amt_text})", indent=1.25, before=4, after=14)
     _sign_table(doc, [
         [("(ลงชื่อ)...........................................ผู้ส่งมอบงาน", "center"),
          (f"( {vname} )", "center")],
@@ -153,8 +171,9 @@ def render_installment_doc(inst, school, menus) -> str:
        align="justify", indent=1.25)
     _p(doc, f"บัดนี้ ผู้รับจ้างได้ส่งมอบพัสดุทุกวันตามข้อตกลง และคณะกรรมการตรวจรับพัสดุ "
             f"ได้ตรวจรับไว้ถูกต้องครบถ้วนแล้ว เห็นควรเบิกจ่ายเงินให้ผู้รับจ้าง งวดที่ {inst.seq} "
-            f"ระหว่าง{period} เป็นเงิน {amount} บาท ({amt_text})", align="justify", indent=1.25, after=6)
-    _p(doc, "เรียน  ผู้อำนวยการ" + sname, indent=1.25)
+            f"ระหว่าง{period} เป็นเงิน {amount} บาท ({amt_text})", align="justify", indent=1.25, after=4)
+    _menu_table3(doc, menus, "ผู้ตรวจรับพัสดุหรือคณะกรรมการ\nตรวจรับพัสดุ")
+    _p(doc, "เรียน  ผู้อำนวยการ" + sname, indent=1.25, before=4)
     _p(doc, "เพื่อโปรดทราบผลการตรวจรับพัสดุ และขออนุมัติจ่ายเงินให้ผู้รับจ้างต่อไป",
        align="justify", indent=1.25, after=10)
     inspectors = [m for m in getattr(rnd, "committees", []) if m.kind == "inspect"]
@@ -218,7 +237,7 @@ def render_disburse_lunch_doc(inst, school, wht_rate=0.01) -> str:
               f"{_dnum(inst.end_date)} รวม {inst.days or ''} วัน")
 
     # ===== 1. บันทึกข้อความ ขออนุมัติเบิกจ่าย =====
-    _p(doc, "บันทึกข้อความ", align="center", bold=True, size=20, after=4)
+    _krut_and_title(doc)
     _p(doc, f"ส่วนราชการ  {sname}  {saddr}", after=0)
     _p(doc, f"ที่  -/{prog.year}                     วันที่  {_dnum(inst.inspect_date or inst.end_date)}", after=0)
     _p(doc, f"เรื่อง  ขออนุมัติเบิกจ่ายเงินอุดหนุนอาหารกลางวัน รับจาก{fund}", after=0)
@@ -395,7 +414,8 @@ def render_committee_order_doc(rnd, school, doc=None) -> str:
         if not first:
             doc.add_page_break()
         first = False
-        _p(doc, f"คำสั่ง{sname}", align="center", bold=True, size=18, after=0)
+        _krut_center(doc)
+        _p(doc, f"คำสั่งโรงเรียน{sname}", align="center", bold=True, size=18, after=0)
         _p(doc, f"ที่ ....../{prog.year}", align="center", bold=True, after=0)
         _p(doc, f"เรื่อง {subject}", align="center", bold=True, after=0)
         _p(doc, period, align="center", after=0)
@@ -452,7 +472,7 @@ def render_hire_report_doc(rnd, school, doc=None) -> str:
               f"จำนวน {days} วัน")
 
     dr = f"ประจำวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}"
-    _p(doc, "บันทึกข้อความ", align="center", bold=True, size=20, after=4)
+    _krut_and_title(doc)
     _p(doc, f"ส่วนราชการ  โรงเรียน{sname}  {saddr}", after=0)
     _p(doc, f"ที่  {(rnd.order_no or '').strip() or _BLANK}\t\tวันที่  {_dnum(rnd.order_date)}", after=0)
     _p(doc, f"เรื่อง  รายงานขอจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ประจำปีการศึกษา {prog.year} "
@@ -509,7 +529,7 @@ def render_hire_report_doc(rnd, school, doc=None) -> str:
 
 
 def _hdr_memo(doc, school, prog, subject_lines, date):
-    _p(doc, "บันทึกข้อความ", align="center", bold=True, size=20, after=4)
+    _krut_and_title(doc)
     _p(doc, f"ส่วนราชการ  {(school.name or '').strip()}  {(school.address or '').strip()}", after=0)
     _p(doc, f"ที่  -/{prog.year}                     วันที่  {date}", after=0)
     for i, s in enumerate(subject_lines):
@@ -528,7 +548,8 @@ def render_winner_doc(rnd, school, doc=None) -> str:
     period = (f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} "
               f"จำนวน {rnd.days or ''} วัน")
     dr = f"ประจำวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} ({rnd.days or ''} วันทำการ)"
-    _p(doc, f"ประกาศ โรงเรียน{sname}", align="center", bold=True, size=18, after=0)
+    _krut_center(doc)
+    _p(doc, f"ประกาศโรงเรียน{sname}", align="center", bold=True, size=18, after=0)
     _p(doc, "เรื่อง ประกาศผู้ชนะการเสนอราคา สำหรับการจ้างประกอบอาหารกลางวัน (ปรุงสำเร็จ)",
        align="center", bold=True, after=0)
     _p(doc, f"{dr}", align="center", after=0)

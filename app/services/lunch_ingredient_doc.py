@@ -16,6 +16,7 @@ from docx.shared import Cm
 from app.thai_utils import bahttext
 from app.services.build_templates import (
     _font, _p, _sign_table, _set_cell, _repeat_header_row, _no_split_row,
+    _krut_and_title,
 )
 from app.services.lunch_doc import _money, _dnum, _save, _simple_table, _BLANK
 
@@ -66,7 +67,7 @@ def render_borrow_memo(rnd, school, doc=None) -> str:
     rate = prog.rate_per_head or 0
     total = round(float(rnd.amount or 0), 2)
 
-    _p(doc, "บันทึกข้อความ", align="center", bold=True, size=20, after=4)
+    _krut_and_title(doc)
     _p(doc, f"ส่วนราชการ  โรงเรียน{sname}  {saddr}", after=0)
     _p(doc, f"ที่  {(rnd.order_no or '').strip() or _BLANK}\t\tวันที่  {_dnum(rnd.order_date)}", after=0)
     _p(doc, f"เรื่อง  ขออนุมัติยืมเงิน (เงินอุดหนุนอาหารกลางวันรับจาก{fund})", after=0)
@@ -268,7 +269,7 @@ def render_repay_memo(rnd, school, doc=None) -> str:
     director = (school.director_name or "").strip() or _BLANK
     total = round(float(rnd.amount or 0), 2)
 
-    _p(doc, "บันทึกข้อความ", align="center", bold=True, size=20, after=4)
+    _krut_and_title(doc)
     _p(doc, f"ส่วนราชการ  โรงเรียน{sname}  {saddr}", after=0)
     _p(doc, f"ที่  {(rnd.order_no or '').strip() or _BLANK}\t\tวันที่  {_dnum(rnd.end_date)}", after=0)
     _p(doc, f"เรื่อง  ขออนุมัติเบิกจ่ายเงินเพื่อส่งใช้เงินยืม (เงินอุดหนุนอาหารกลางวันรับจาก{fund})", after=0)
