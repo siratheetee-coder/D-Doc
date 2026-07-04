@@ -22,7 +22,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.accounts import bootstrap, get_secret_key, tenant_state
 from app.tenancy import current_school_id
 from app.templating import templates
-from app.routers import pages, admin, finance, lunch, auth, superadmin, account
+from app.routers import pages, admin, finance, lunch, auth, superadmin, account, textbooks
 
 app = FastAPI(title="D-Doc : ระบบจัดการเอกสารและพัสดุโรงเรียน")
 
@@ -147,6 +147,7 @@ app.include_router(pages.router)
 app.include_router(admin.router)
 app.include_router(finance.router)
 app.include_router(lunch.router)
+app.include_router(textbooks.router)
 
 
 def _open_browser():

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}บัญชีหนังสือเรียน{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> ทะเบียนหนังสือเรียน/แบบฝึกหัด</h1>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn sm gray" href="/textbooks/berk?year={{ year }}"><svg class="icon"><use href="#ic-file"/></svg> ใบเบิกหนังสือ</a>
+      <a class="btn sm green" href="/textbooks/export.xlsx?year={{ year }}"><svg class="icon"><use href="#ic-download"/></svg> ส่งออก Excel</a>
+    </div>
+  </div>
+  <form method="get" action="/textbooks" style="margin-top:10px;">
+    <label>ปีการศึกษา</label>
+    <select name="year" onchange="this.form.submit()" style="width:auto;">
+      {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
+    </select>
+  </form>
+  <div style="display:flex; gap:24px; flex-wrap:wrap; margin-top:10px; font-size:16px;">
+    <div>รวมจำนวน: <b>{{ "{:,}".format(total_qty) }}</b> เล่ม</div>
+    <div>มูลค่ารับเข้ารวม: <b style="color:var(--brand-dark);">{{ "{:,.2f}".format(total_amount) }}</b> บาท</div>
+  </div>
+  {% if saved %}<div class="alert" style="margin-top:10px;">✔ บันทึกแล้ว{% if saved|int > 1 %} (นำเข้า {{ saved }} รายการ){% endif %}</div>{% endif %}
+</div>
+
+<div class="card">
+  <h2>เพิ่มหนังสือ</h2>
+  <form method="post" action="/textbooks/add" class="row" style="align-items:flex-end;">
+    <input type="hidden" name="year" value="{{ year }}">
+    <div><label>ระดับชั้น</label><input name="level" placeholder="ป.1" style="width:90px;"></div>
+    <div><label>กลุ่มสาระ/วิชา</label><input name="subject" placeholder="ภาษาไทย" style="width:130px;"></div>
+    <div style="flex:2;"><label>ชื่อหนังสือ *</label><input name="title" required></div>
+    <div><label>สำนักพิมพ์</label><input name="publisher" style="width:120px;"></div>
+    <div><label>ราคา/เล่ม</label><input name="unit_price" type="number" step="0.01" value="0" style="width:100px;"></div>
+    <div><label>รับเข้า(เล่ม)</label><input name="qty_received" type="number" min="0" value="0" style="width:100px;"></div>
+    <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
+  </form>
+  <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
+    <form method="post" action="/textbooks/import" enctype="multipart/form-data" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <input type="hidden" name="year" value="{{ year }}">
+      <b style="font-size:14px;">นำเข้าจาก Excel:</b>
+      <a class="btn gray sm" href="/textbooks/template.xlsx"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดแบบฟอร์ม</a>
+      <input type="file" name="file" accept=".xlsx" required style="padding:5px; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
+      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> นำเข้า</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h2>รายการหนังสือ ปีการศึกษา {{ year }} <span class="muted" style="font-size:15px;">({{ rows|length }} รายการ)</span></h2>
+  {% if rows %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>ชั้น</th><th>วิชา</th><th>ชื่อหนังสือ</th><th>สนพ.</th><th class="right">ราคา</th><th class="right">รับเข้า</th><th class="right">เบิกออก</th><th class="right">คงเหลือ</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <form method="post" action="/textbooks/{{ r.b.id }}/update" style="display:contents;">
+          <td><input name="level" value="{{ r.b.level }}" style="width:70px;"></td>
+          <td><input name="subject" value="{{ r.b.subject }}" style="width:110px;"></td>
+          <td><input name="title" value="{{ r.b.title }}"></td>
+          <td><input name="publisher" value="{{ r.b.publisher }}" style="width:100px;"></td>
+          <td><input name="unit_price" type="number" step="0.01" value="{{ '%g'|format(r.b.unit_price) }}" style="width:80px;"></td>
+          <td><input name="qty_received" type="number" min="0" value="{{ r.b.qty_received }}" style="width:75px;"></td>
+          <td class="right">{{ r.issued }}</td>
+          <td class="right"><b {{ 'style="color:#dc2626;"' if r.left < 0 else '' }}>{{ r.left }}</b></td>
+          <td style="white-space:nowrap;">
+            <button class="btn sm" type="submit">บันทึก</button>
+        </form>
+            <form method="post" action="/textbooks/{{ r.b.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบหนังสือนี้?');"><button class="btn sm gray" type="submit">ลบ</button></form>
+          </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">ยังไม่มีหนังสือในปีการศึกษานี้ เพิ่มด้านบน หรือ นำเข้าจาก Excel</p>
+  {% endif %}
+</div>
+{% endblock %}

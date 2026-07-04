@@ -27,7 +27,7 @@ from app.models import (
     Person, Department, Project, ProjectBudgetRevision, Committee, CommitteeMember,
     Asset, MaterialItem, MaterialTxn, Requisition, RequisitionItem, IssuedDocNo,
     DocNumberCounter, OfficeMemo, SchoolOrder, IncomingLetter, OutgoingLetter,
-    DisburseMemo,
+    DisburseMemo, ItemCatalog,
 )
 from app.services.asset_utils import (
     CATEGORIES, CATEGORY_LIFE, annual_depreciation, accumulated_depreciation,
@@ -462,6 +462,62 @@ def delete_master(kind: str, item_id: int, db: Session = Depends(get_db)):
     return RedirectResponse("/masters", status_code=303)
 
 
+# ---------------- คลังรายการพัสดุมาตรฐาน (ItemCatalog) ----------------
+def _catalog_upsert(db, name: str, unit: str, price: float) -> None:
+    """เก็บรายการพัสดุเข้าคลังอัตโนมัติ (dedupe ตามชื่อ, อัปเดตหน่วย/ราคาล่าสุด)"""
+    name = (name or "").strip()
+    if not name:
+        return
+    row = db.query(ItemCatalog).filter(ItemCatalog.name == name).first()
+    if row:
+        if unit:
+            row.unit = unit
+        if price:
+            row.unit_price = price
+    else:
+        db.add(ItemCatalog(name=name, unit=unit or "ชิ้น", unit_price=price or 0))
+
+
+@router.get("/catalog", response_class=HTMLResponse)
+def catalog_page(request: Request, db: Session = Depends(get_db), saved: str | None = None):
+    rows = db.query(ItemCatalog).order_by(ItemCatalog.category, ItemCatalog.name).all()
+    return templates.TemplateResponse("catalog.html", {
+        "request": request, "school": get_school(db), "rows": rows, "saved": saved,
+    })
+
+
+@router.post("/catalog/add")
+def catalog_add(db: Session = Depends(get_db), name: str = Form(""), unit: str = Form("ชิ้น"),
+                unit_price: str = Form("0"), category: str = Form("")):
+    nm = (name or "").strip()
+    if nm and not db.query(ItemCatalog).filter(ItemCatalog.name == nm).first():
+        db.add(ItemCatalog(name=nm, unit=(unit or "ชิ้น").strip(),
+                           unit_price=_to_float(unit_price, 0.0), category=(category or "").strip()))
+        db.commit()
+    return RedirectResponse("/catalog?saved=1", status_code=303)
+
+
+@router.post("/catalog/{item_id}/update")
+def catalog_update(item_id: int, db: Session = Depends(get_db), name: str = Form(""),
+                   unit: str = Form("ชิ้น"), unit_price: str = Form("0"), category: str = Form("")):
+    row = db.get(ItemCatalog, item_id)
+    if row:
+        row.name = (name or "").strip() or row.name
+        row.unit = (unit or "ชิ้น").strip()
+        row.unit_price = _to_float(unit_price, 0.0)
+        row.category = (category or "").strip()
+        db.commit()
+    return RedirectResponse("/catalog?saved=1", status_code=303)
+
+
+@router.post("/catalog/{item_id}/delete")
+def catalog_delete(item_id: int, db: Session = Depends(get_db)):
+    row = db.get(ItemCatalog, item_id)
+    if row:
+        db.delete(row); db.commit()
+    return RedirectResponse("/catalog", status_code=303)
+
+
 # ---------------- ผู้ขาย ----------------
 @router.get("/vendors", response_class=HTMLResponse)
 def vendors_page(request: Request, db: Session = Depends(get_db)):
@@ -528,6 +584,7 @@ def _form_lists(db: Session) -> dict:
         "persons": persons,
         "departments": db.query(Department).order_by(Department.name).all(),
         "projects": db.query(Project).order_by(Project.name).all(),
+        "catalog": db.query(ItemCatalog).order_by(ItemCatalog.name).all(),
         # แผนที่ ชื่อ -> ตำแหน่ง สำหรับเติมตำแหน่งอัตโนมัติเมื่อเลือกชื่อ
         "persons_pos": {p.name: p.position for p in persons},
     }
@@ -716,6 +773,7 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
         unit = (units[i] if i < len(units) else "") or "หน่วย"
         proc.items.append(ProcurementItem(name=nm, quantity=qty, unit=unit, unit_price=price))
         total += qty * price
+        _catalog_upsert(db, nm, unit, price)   # เก็บเข้าคลังรายการพัสดุอัตโนมัติ
     proc.total_amount = total
 
     # บังคับโหมดตามวงเงิน: เกินเกณฑ์ต้องใช้คณะกรรมการตรวจรับ
@@ -1328,6 +1386,20 @@ def download_register(db: Session = Depends(get_db), year: int | None = None,
     )
 
 
+@router.get("/summary.xlsx")
+def download_monthly_summary(db: Session = Depends(get_db), year: int | None = None):
+    """ดาวน์โหลดแบบ สขร.๑ (สรุปผลการจัดซื้อจัดจ้างรายเดือน) แยกชีตตามเดือน"""
+    from app.services.register_export import export_monthly_summary
+    fy = year or current_fiscal_year()
+    procurements = db.query(Procurement).filter(Procurement.fiscal_year == fy).all()
+    school = get_school(db)
+    path = export_monthly_summary(procurements, fy, school_name=(school.name if school else ""))
+    return FileResponse(
+        path, filename=Path(path).name,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
 # ============================================================
 # เฟส 3.1 — ทะเบียนครุภัณฑ์ + ค่าเสื่อมราคา
 # ============================================================
@@ -1622,6 +1694,44 @@ def assets_page(request: Request, db: Session = Depends(get_db)):
         "request": request, "assets": assets, "categories": CATEGORIES,
         "category_life": CATEGORY_LIFE, "total_cost": total_cost, "total_nbv": total_nbv,
     })
+
+
+@router.get("/assets/audit", response_class=HTMLResponse)
+def asset_audit_page(request: Request, db: Session = Depends(get_db)):
+    school = get_school(db)
+    live = db.query(Asset).filter(Asset.status != "จำหน่ายแล้ว").count()
+    return templates.TemplateResponse("asset_audit.html", {
+        "request": request, "school": school,
+        "year": current_fiscal_year(), "live_count": live,
+        "today_input": be_date_input(datetime.now()),
+    })
+
+
+@router.post("/assets/audit")
+async def asset_audit_generate(request: Request, db: Session = Depends(get_db)):
+    from app.services.asset_audit_doc import render_audit_bundle
+    form = await request.form()
+    members = []
+    for i in range(1, 6):
+        nm = (form.get(f"m{i}_name") or "").strip()
+        if nm:
+            members.append({"name": nm,
+                            "position": (form.get(f"m{i}_pos") or "ครู").strip(),
+                            "role": (form.get(f"m{i}_role") or "กรรมการ").strip()})
+    ctx = {
+        "year": _to_int(form.get("year"), current_fiscal_year()),
+        "date": parse_be_date(form.get("date") or ""),
+        "memo_no": (form.get("memo_no") or "").strip(),
+        "order_no": (form.get("order_no") or "").strip(),
+        "result_memo_no": (form.get("result_memo_no") or "").strip(),
+        "damaged_count": (form.get("damaged_count") or "").strip(),
+        "members": members,
+    }
+    assets = db.query(Asset).filter(Asset.status != "จำหน่ายแล้ว").order_by(Asset.asset_code, Asset.id).all()
+    path = render_audit_bundle(get_school(db), ctx, assets)
+    return FileResponse(
+        path, filename=Path(path).name,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 def _asset_from_form(asset: Asset, form) -> None:

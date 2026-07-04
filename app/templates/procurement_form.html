@@ -118,7 +118,7 @@
         {% if prefill_items %}
           {% for it in prefill_items %}
           <tr>
-            <td><input name="item_name" value="{{ it.name }}"></td>
+            <td><input name="item_name" list="catalog_dl" oninput="fillCat(this)" value="{{ it.name }}"></td>
             <td><input name="item_qty" type="number" step="any" value="{{ '%g'|format(it.quantity) }}" oninput="calcTotal()"></td>
             <td><input name="item_unit" value="{{ it.unit }}"></td>
             <td><input name="item_price" type="number" step="any" value="{{ '%g'|format(it.unit_price) }}" oninput="calcTotal()"></td>
@@ -128,7 +128,7 @@
           {% endfor %}
         {% else %}
           <tr>
-            <td><input name="item_name"></td>
+            <td><input name="item_name" list="catalog_dl" oninput="fillCat(this)"></td>
             <td><input name="item_qty" type="number" step="any" value="1" oninput="calcTotal()"></td>
             <td><input name="item_unit" value="ชิ้น"></td>
             <td><input name="item_price" type="number" step="any" value="0" oninput="calcTotal()"></td>
@@ -145,6 +145,8 @@
         </tr>
       </tfoot>
     </table>
+    <datalist id="catalog_dl">{% for c in catalog %}<option value="{{ c.name }}">{% endfor %}</datalist>
+    <p class="muted" style="font-size:13px; margin:4px 0 0;">พิมพ์ชื่อรายการเพื่อเลือกจาก <a href="/catalog" target="_blank">คลังรายการพัสดุ</a> (เติมหน่วย+ราคาให้อัตโนมัติ) · รายการใหม่จะถูกเก็บเข้าคลังให้เอง</p>
     <br><button type="button" class="btn soft sm" onclick="addItem()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มรายการ</button>
     <label class="btn gray sm" style="cursor:pointer; margin-left:6px;">
       <svg class="icon"><use href="#ic-upload"/></svg> ถ่ายรูป (อ่านเร็ว)
@@ -316,11 +318,22 @@
   }
 
   var THRESHOLD = {{ threshold }};
+  // คลังรายการพัสดุ: ชื่อ -> {unit, price} สำหรับเติมหน่วย+ราคาอัตโนมัติ
+  var CATALOG = { {% for c in catalog %}{{ c.name|tojson }}: {u: {{ c.unit|tojson }}, p: {{ c.unit_price or 0 }}}{{ "," if not loop.last }}{% endfor %} };
+  function fillCat(input){
+    var hit = CATALOG[(input.value||'').trim()];
+    if(!hit) return;
+    var tr = input.closest('tr');
+    var u = tr.querySelector('input[name="item_unit"]'), p = tr.querySelector('input[name="item_price"]');
+    if(u && !u.dataset.touched) u.value = hit.u || u.value;
+    if(p && (!p.value || p.value==='0') && !p.dataset.touched){ p.value = hit.p || 0; }
+    calcTotal();
+  }
   function addItem() {
     var tb = document.querySelector('#items tbody');
     var tr = document.createElement('tr');
     tr.innerHTML =
-      '<td><input name="item_name"></td>' +
+      '<td><input name="item_name" list="catalog_dl" oninput="fillCat(this)"></td>' +
       '<td><input name="item_qty" type="number" step="any" value="1" oninput="calcTotal()"></td>' +
       '<td><input name="item_unit" value="ชิ้น"></td>' +
       '<td><input name="item_price" type="number" step="any" value="0" oninput="calcTotal()"></td>' +
@@ -419,7 +432,7 @@
     var tb = document.querySelector('#items tbody');
     var tr = document.createElement('tr');
     tr.innerHTML =
-      '<td><input name="item_name" value="'+_esc(name)+'"></td>'+
+      '<td><input name="item_name" list="catalog_dl" oninput="fillCat(this)" value="'+_esc(name)+'"></td>'+
       '<td><input name="item_qty" type="number" step="any" value="'+(qty||1)+'" oninput="calcTotal()"></td>'+
       '<td><input name="item_unit" value="'+_esc(unit||'')+'"></td>'+
       '<td><input name="item_price" type="number" step="any" value="'+(price||0)+'" oninput="calcTotal()"></td>'+

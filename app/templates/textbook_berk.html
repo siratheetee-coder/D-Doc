@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}ใบเบิกหนังสือเรียน{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;"><svg class="icon"><use href="#ic-file"/></svg> ใบเบิกหนังสือเรียน/แบบฝึกหัด (ปีการศึกษา {{ year }})</h1>
+    <a class="btn sm gray" href="/textbooks?year={{ year }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับทะเบียนหนังสือ</a>
+  </div>
+</div>
+
+<div class="card">
+  <h2>สร้างใบเบิก</h2>
+  {% if not books %}
+  <p class="muted">ยังไม่มีหนังสือในปีการศึกษานี้ กรุณาเพิ่มในทะเบียนหนังสือก่อน</p>
+  {% else %}
+  <form method="post" action="/textbooks/berk/add">
+    <input type="hidden" name="year" value="{{ year }}">
+    <div class="row">
+      <div><label>เลขที่ใบเบิก</label><input name="berk_no" placeholder="เช่น 1/2569"></div>
+      <div><label>วันที่</label><input name="date" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div style="flex:2;"><label>ผู้รับ / ชั้นเรียน</label><input name="recipient" placeholder="เช่น ครูประจำชั้น ป.1"></div>
+    </div>
+    <table id="bkTable">
+      <thead><tr><th style="width:60%;">หนังสือ</th><th>จำนวน (เล่ม)</th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <td><select name="book_id">
+            <option value="">— เลือกหนังสือ —</option>
+            {% for b in books %}<option value="{{ b.id }}">{{ b.level }} {{ b.title }}{{ ' ('~b.subject~')' if b.subject }}</option>{% endfor %}
+          </select></td>
+          <td><input name="qty" type="number" min="0" value="1" style="width:110px;"></td>
+          <td><button type="button" class="btn red sm" onclick="this.closest('tr').remove()">✕</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <br><button type="button" class="btn soft sm" onclick="addRow()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มบรรทัด</button>
+    <button class="btn" type="submit" style="margin-left:8px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกใบเบิก</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>ใบเบิกที่ออกแล้ว</h2>
+  {% if berks %}
+  <table>
+    <thead><tr><th>เลขที่</th><th>วันที่</th><th>ผู้รับ/ชั้น</th><th class="right">รายการ</th><th></th></tr></thead>
+    <tbody>
+    {% for b in berks %}
+      <tr>
+        <td><b>{{ b.berk_no or '-' }}</b></td>
+        <td>{{ thai_date(b.date) if b.date else '-' }}</td>
+        <td>{{ b.recipient or '-' }}</td>
+        <td class="right">{{ b.items|length }} รายการ · {{ b.items|sum(attribute='qty') }} เล่ม</td>
+        <td style="white-space:nowrap;">
+          <a class="btn sm" href="/textbooks/berk/{{ b.id }}/print" target="_blank"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์</a>
+          <form method="post" action="/textbooks/berk/{{ b.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบใบเบิกนี้? (คืนยอดคงเหลือ)');"><button class="btn sm gray" type="submit">ลบ</button></form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">ยังไม่มีใบเบิก</p>
+  {% endif %}
+</div>
+
+<script>
+  function addRow(){
+    var tb = document.querySelector('#bkTable tbody');
+    var first = tb.querySelector('tr');
+    var tr = first.cloneNode(true);
+    tr.querySelector('select').value = '';
+    tr.querySelector('input[name="qty"]').value = 1;
+    tb.appendChild(tr);
+  }
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

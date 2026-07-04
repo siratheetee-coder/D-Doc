@@ -98,6 +98,25 @@
 </div>
 
 <!-- ============ ออกเอกสาร (หลังกรอกกรรมการ เพื่อให้ข้อมูลครบก่อน gen) ============ -->
+{% if p.operate_mode == 'ingredient' %}
+<div class="card">
+  <h2>ออกเอกสารซื้อวัตถุดิบ (ยืมเงิน → ส่งใช้)</h2>
+  <p class="muted" style="margin-top:0;">กรอกเลขที่/วันที่สัญญายืม จำนวนวัน และวงเงินให้ครบก่อน เอกสารจะดึงข้อมูลไปกรอกให้ (ตามคู่มืออาหารกลางวัน สพฐ.)</p>
+  <a class="btn" href="/lunch/round/{{ r.id }}/ingredient-doc/bundle" style="font-size:16px; padding:11px 20px;">
+    <svg class="icon"><use href="#ic-download"/></svg> ออกเอกสารทั้งชุด (ไฟล์เดียว)
+  </a>
+  <p class="muted" style="margin:14px 0 6px;">หรือออกทีละใบ:</p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/borrow"><svg class="icon"><use href="#ic-file"/></svg> ขออนุมัติยืมเงิน</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/estimate"><svg class="icon"><use href="#ic-file"/></svg> แบบประมาณการ</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/purchase"><svg class="icon"><use href="#ic-file"/></svg> ใบจัดซื้อวัสดุเครื่องบริโภค</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/material"><svg class="icon"><use href="#ic-file"/></svg> ใบรับรายงานวัตถุดิบ</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/receipt"><svg class="icon"><use href="#ic-file"/></svg> ใบเสร็จ/ใบรับรองการจ่าย</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/control"><svg class="icon"><use href="#ic-file"/></svg> บันทึกตรวจการประกอบอาหาร</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/repay"><svg class="icon"><use href="#ic-file"/></svg> ขออนุมัติส่งใช้เงินยืม</a>
+  </div>
+</div>
+{% else %}
 <div class="card">
   <h2>ออกเอกสาร (ต่อรอบ/สัญญา)</h2>
   <p class="muted" style="margin-top:0;">กรอกผู้รับจ้าง เลขที่/วันที่ใบสั่งจ้าง งวดงาน และรายชื่อกรรมการให้ครบก่อน เอกสารจะดึงข้อมูลไปกรอกให้</p>
@@ -116,6 +135,7 @@
     <a class="btn sm gray" href="/lunch/round/{{ r.id }}/order-doc"><svg class="icon"><use href="#ic-file"/></svg> ใบสั่งจ้าง</a>
   </div>
 </div>
+{% endif %}
 
 <script>
   var HOLIDAYS = {{ holidays | tojson }};

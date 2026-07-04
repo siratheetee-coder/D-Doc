@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}ตรวจสอบพัสดุประจำปี{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> ตรวจสอบพัสดุประจำปี</h1>
+    <a class="btn sm gray" href="/assets"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับทะเบียนครุภัณฑ์</a>
+  </div>
+  <p class="muted" style="margin-top:0;">ออกชุดเอกสารตรวจสอบพัสดุประจำปี (ระเบียบฯ พ.ศ. 2560 ข้อ 213) เป็นไฟล์เดียว: ขอแต่งตั้งคณะกรรมการ + คำสั่งแต่งตั้ง + รายงานผลการตรวจสอบ + บัญชีครุภัณฑ์คงเหลือ (ดึงจากทะเบียน {{ live_count }} รายการอัตโนมัติ)</p>
+</div>
+
+<form method="post" action="/assets/audit">
+  <div class="card">
+    <h2>ข้อมูลการตรวจสอบ</h2>
+    <div class="row">
+      <div><label>ปีงบประมาณ (พ.ศ.)</label><input name="year" type="number" value="{{ year }}"></div>
+      <div><label>วันที่ (สั่ง/ตรวจ)</label><input name="date" value="{{ today_input }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>ครุภัณฑ์ชำรุด (รายการ)</label><input name="damaged_count" placeholder="- (ถ้าไม่มี)"></div>
+    </div>
+    <div class="row">
+      <div><label>เลขที่บันทึกขอแต่งตั้ง</label><input name="memo_no" placeholder="เช่น 1/2568"></div>
+      <div><label>เลขที่คำสั่งแต่งตั้ง</label><input name="order_no" placeholder="เช่น 100/2568"></div>
+      <div><label>เลขที่บันทึกรายงานผล</label><input name="result_memo_no" placeholder="เช่น 2/2568"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>คณะกรรมการตรวจสอบพัสดุ <span class="muted" style="font-size:14px;">(กรรมการต้องไม่ใช่เจ้าหน้าที่พัสดุ)</span></h2>
+    <table>
+      <thead><tr><th style="width:45%;">ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>บทบาท</th></tr></thead>
+      <tbody>
+        {% for i in range(1,4) %}
+        <tr>
+          <td><input name="m{{ i }}_name" placeholder="{{ 'ประธาน' if i==1 else 'กรรมการ' }}"></td>
+          <td><input name="m{{ i }}_pos" value="ครู"></td>
+          <td><input name="m{{ i }}_role" value="{{ 'ประธานกรรมการ' if i==1 else ('กรรมการและเลขานุการ' if i==3 else 'กรรมการ') }}"></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="muted" style="font-size:13px; margin:6px 0 0;">เว้นว่างได้ ระบบจะเว้นจุดไข่ปลาให้เซ็น</p>
+  </div>
+
+  <div class="card">
+    <button class="btn green" type="submit"><svg class="icon"><use href="#ic-download"/></svg> ออกชุดเอกสารตรวจสอบพัสดุ (Word)</button>
+  </div>
+</form>
+
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

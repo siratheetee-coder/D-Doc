@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}คลังรายการพัสดุ{% endblock %}
+{% block content %}
+<div class="card">
+  <h1><svg class="icon"><use href="#ic-clipboard"/></svg> คลังรายการพัสดุมาตรฐาน</h1>
+  <p class="muted" style="margin-top:0;">พิมพ์ชื่อพัสดุครั้งเดียว เก็บไว้เลือกใช้ซ้ำในเรื่องจัดซื้อ/จัดจ้าง (ระบบจะเติมหน่วยและราคาให้อัตโนมัติ) · รายการที่กรอกในเรื่องจัดซื้อจะถูกเก็บเข้าคลังนี้ให้เองด้วย</p>
+  {% if saved %}<div class="alert">✔ บันทึกแล้ว</div>{% endif %}
+</div>
+
+<div class="card">
+  <h2>เพิ่มรายการใหม่</h2>
+  <form method="post" action="/catalog/add" class="row" style="align-items:flex-end;">
+    <div style="flex:2;"><label>ชื่อพัสดุ *</label><input name="name" required placeholder="เช่น กระดาษ A4 80 แกรม"></div>
+    <div><label>หน่วยนับ</label><input name="unit" value="ชิ้น" style="width:120px;"></div>
+    <div><label>ราคา/หน่วย (บาท)</label><input name="unit_price" type="number" step="0.01" value="0" style="width:130px;"></div>
+    <div><label>กลุ่ม/ประเภท</label><input name="category" placeholder="เช่น วัสดุสำนักงาน" style="width:160px;"></div>
+    <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>รายการทั้งหมด <span class="muted" style="font-size:15px;">({{ rows|length }} รายการ)</span></h2>
+  {% if rows %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>ชื่อพัสดุ</th><th>หน่วยนับ</th><th class="right">ราคา/หน่วย</th><th>กลุ่ม/ประเภท</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <form method="post" action="/catalog/{{ r.id }}/update" style="display:contents;">
+          <td><input name="name" value="{{ r.name }}"></td>
+          <td><input name="unit" value="{{ r.unit }}" style="width:100px;"></td>
+          <td><input name="unit_price" type="number" step="0.01" value="{{ '%g'|format(r.unit_price) }}" style="width:110px;"></td>
+          <td><input name="category" value="{{ r.category }}" style="width:150px;"></td>
+          <td style="white-space:nowrap;">
+            <button class="btn sm" type="submit">บันทึก</button>
+        </form>
+            <form method="post" action="/catalog/{{ r.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบรายการนี้?');"><button class="btn sm gray" type="submit">ลบ</button></form>
+          </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">ยังไม่มีรายการ เพิ่มด้านบน หรือกรอกในเรื่องจัดซื้อแล้วระบบจะเก็บให้อัตโนมัติ</p>
+  {% endif %}
+</div>
+{% endblock %}

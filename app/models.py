@@ -209,6 +209,19 @@ class ProcurementItem(Base):
         return (self.quantity or 0) * (self.unit_price or 0)
 
 
+class ItemCatalog(Base):
+    """คลังรายการพัสดุมาตรฐาน (ใช้ซ้ำ) — พิมพ์ชื่อครั้งเดียว เลือกใช้ในเรื่องจัดซื้อทุกครั้ง
+    ระบบเติมให้อัตโนมัติจากรายการที่เคยกรอก (dedupe ตามชื่อ)"""
+    __tablename__ = "item_catalog"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)              # ชื่อพัสดุ
+    unit = Column(String, default="ชิ้น")             # หน่วยนับ
+    unit_price = Column(Float, default=0.0)            # ราคาต่อหน่วยล่าสุด
+    category = Column(String, default="")             # กลุ่ม/ประเภท (ไม่บังคับ)
+    created_at = Column(DateTime, default=datetime.now)
+
+
 class Committee(Base):
     """
     คณะกรรมการ/ผู้ตรวจรับในแต่ละเรื่อง
@@ -814,3 +827,56 @@ class LunchMeasure(Base):
     created_at = Column(DateTime, default=datetime.now)
 
     student = relationship("LunchStudent", back_populates="measures")
+
+
+# ============================================================
+# บัญชีหนังสือเรียน / แบบฝึกหัด (เงินอุดหนุนค่าหนังสือเรียน)
+# ============================================================
+class TextBook(Base):
+    """ทะเบียนหนังสือเรียน/แบบฝึกหัด 1 รายการ (ต่อปีการศึกษา)
+    คงเหลือ = รับเข้า - เบิกออก (คำนวณจากใบเบิก)"""
+    __tablename__ = "textbook"
+
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, nullable=False)          # ปีการศึกษา พ.ศ.
+    level = Column(String, default="")              # ระดับชั้น เช่น ป.1
+    subject = Column(String, default="")            # กลุ่มสาระ/วิชา
+    title = Column(String, nullable=False)          # ชื่อหนังสือ
+    publisher = Column(String, default="")          # สำนักพิมพ์
+    unit_price = Column(Float, default=0.0)         # ราคาต่อเล่ม
+    qty_received = Column(Integer, default=0)       # จำนวนรับเข้า (เล่ม)
+    note = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+    @property
+    def amount(self) -> float:
+        return (self.qty_received or 0) * (self.unit_price or 0)
+
+
+class TextbookBerk(Base):
+    """ใบเบิกหนังสือเรียน/แบบฝึกหัด (จ่ายหนังสือให้ชั้นเรียน/ครูผู้รับ)"""
+    __tablename__ = "textbook_berk"
+
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, nullable=False)          # ปีการศึกษา พ.ศ.
+    berk_no = Column(String, default="")            # เลขที่ใบเบิก
+    date = Column(DateTime, nullable=True)
+    recipient = Column(String, default="")          # ผู้รับ/ชั้นเรียน
+    note = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+    items = relationship("TextbookBerkItem", back_populates="berk",
+                         cascade="all, delete-orphan")
+
+
+class TextbookBerkItem(Base):
+    """รายการหนังสือในใบเบิก 1 ใบ"""
+    __tablename__ = "textbook_berk_item"
+
+    id = Column(Integer, primary_key=True)
+    berk_id = Column(Integer, ForeignKey("textbook_berk.id"), nullable=False)
+    book_id = Column(Integer, ForeignKey("textbook.id"), nullable=True)
+    qty = Column(Integer, default=0)
+
+    berk = relationship("TextbookBerk", back_populates="items")
+    book = relationship("TextBook")

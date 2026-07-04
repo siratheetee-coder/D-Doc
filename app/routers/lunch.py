@@ -849,3 +849,34 @@ def contract_quotation_doc(rid: int, db: Session = Depends(get_db)):
 def contract_bundle_doc(rid: int, db: Session = Depends(get_db)):
     """ออกเอกสารต่อรอบทั้งชุดเป็นไฟล์เดียว"""
     return _round_docfile(rid, db, "render_contract_bundle")
+
+
+# ---------------- เอกสารรูปแบบ 1: ซื้อวัตถุดิบ (ยืมเงิน->ส่งใช้) ----------------
+def _round_ingredient_doc(rid, db, render_name):
+    from pathlib import Path
+    from fastapi.responses import FileResponse
+    import app.services.lunch_ingredient_doc as ig
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return RedirectResponse("/lunch", status_code=303)
+    path = getattr(ig, render_name)(rnd, get_school(db))
+    return FileResponse(
+        path, filename=Path(path).name,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+# kind -> ฟังก์ชัน สำหรับเอกสารซื้อวัตถุดิบ
+_INGREDIENT_DOCS = {
+    "borrow": "render_borrow_memo", "estimate": "render_estimate",
+    "purchase": "render_purchase_form", "material": "render_material_report_form",
+    "receipt": "render_receipt_form", "control": "render_control_report",
+    "repay": "render_repay_memo", "bundle": "render_ingredient_bundle",
+}
+
+
+@router.get("/lunch/round/{rid}/ingredient-doc/{kind}")
+def contract_ingredient_doc(rid: int, kind: str, db: Session = Depends(get_db)):
+    render_name = _INGREDIENT_DOCS.get(kind)
+    if not render_name:
+        return RedirectResponse(f"/lunch/round/{rid}/plan", status_code=303)
+    return _round_ingredient_doc(rid, db, render_name)

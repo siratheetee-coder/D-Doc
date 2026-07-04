@@ -17,6 +17,10 @@
   <a class="btn" href="/lunch/{{ p.id }}/rounds" style="margin-top:12px; font-size:17px; padding:12px 22px;">
     <svg class="icon"><use href="#ic-file-plus"/></svg> สร้างเรื่องจ้างเหมา
   </a>
+  {% elif p.operate_mode == 'ingredient' %}
+  <a class="btn" href="/lunch/{{ p.id }}/rounds" style="margin-top:12px; font-size:17px; padding:12px 22px;">
+    <svg class="icon"><use href="#ic-file-plus"/></svg> สร้างเรื่องซื้อวัตถุดิบ (ยืมเงิน)
+  </a>
   {% endif %}
   <table>
     <tr><th style="width:200px;">วิธีดำเนินการ</th><td>{{ modes.get(p.operate_mode, p.operate_mode) }}</td></tr>

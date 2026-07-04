@@ -84,6 +84,16 @@ def _x(extra: dict, key: str, blank: str = _BLANK_S) -> str:
     return v or blank
 
 
+def _xdate(extra: dict, key: str, blank: str = _BLANK_S) -> str:
+    """ค่าฟิลด์เสริมชนิดวันที่ -> แปลงเป็นวันที่ไทยเต็ม (เช่น ๒๒ มิถุนายน พ.ศ. ๒๕๖๙)"""
+    from app.thai_utils import parse_be_date
+    v = (extra.get(key) or "").strip()
+    if not v:
+        return blank
+    d = parse_be_date(v)
+    return thai_date(d) if d else v
+
+
 def _save(doc, name: str) -> str:
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)
@@ -237,8 +247,8 @@ def render_w804(proc, school) -> str:
        align="justify", indent=0, after=2, size=14)
     _p(doc, "การจัดซื้อคราวนี้ไม่เกินวงเงินที่ประมาณไว้ และเห็นว่าเป็นราคาที่เหมาะสม และได้ใช้"
             f"เงินสดสำรองจ่าย ชำระให้ผู้ขายเรียบร้อยแล้ว ตามหลักฐานการรับเงิน ใบเสร็จรับเงิน "
-            f"เล่มที่ {_x(ex,'receipt_book')} เลขที่ {_x(ex,'receipt_no')} ลงวันที่ {_x(ex,'receipt_date')} "
-            f"และได้รับมอบพัสดุไว้ครบถ้วนเรียบร้อยแล้ว เมื่อวันที่ {_x(ex,'deliver_date')}",
+            f"เล่มที่ {_x(ex,'receipt_book')} เลขที่ {_x(ex,'receipt_no')} ลงวันที่ {_xdate(ex,'receipt_date')} "
+            f"และได้รับมอบพัสดุไว้ครบถ้วนเรียบร้อยแล้ว เมื่อวันที่ {_xdate(ex,'deliver_date')}",
        align="justify", indent=1.25, after=8)
     _sign_table(doc, [[
         ("ลงชื่อ…………………………………………ผู้ตรวจรับพัสดุ (ผู้ได้รับมอบหมาย)", "center"),
@@ -261,7 +271,7 @@ def render_w804(proc, school) -> str:
     doc.add_page_break()
     _p(doc, "ใบติดใบเสร็จรับเงิน", align="center", bold=True, size=18, after=6)
     _p(doc, f"จำนวนเงินตามใบเสร็จรับเงิน เล่มที่ {_x(ex,'receipt_book')} เลขที่ {_x(ex,'receipt_no')} "
-            f"ลงวันที่ {_x(ex,'receipt_date')}", align="justify", indent=1.25, after=2)
+            f"ลงวันที่ {_xdate(ex,'receipt_date')}", align="justify", indent=1.25, after=2)
     _p(doc, f"ข้าพเจ้าได้ทดรองจ่ายไปก่อนแล้ว เป็นจำนวนเงิน {_money(total)} บาท ({bahttext(total)}) "
             f"และได้รับมอบพัสดุไว้ครบถ้วนถูกต้องแล้ว ข้าพเจ้าขอเบิกเงินจัดซื้อ{subject} "
             f"โดยวิธีเฉพาะเจาะจง จำนวนเงิน {_money(total)} บาท ({bahttext(total)})",
@@ -375,7 +385,7 @@ def render_w119_t2(proc, school) -> str:
             f"และประสงค์จะรายงานขอความเห็นชอบในการดำเนินการจัดซื้อจัดจ้างในครั้งนี้ "
             f"ตามหลักฐานการจัดซื้อจัดจ้างเป็น ใบส่งของ/ใบแจ้งหนี้/ใบเสร็จรับเงิน/ใบสำคัญรับเงิน "
             f"ของ {vendor} เล่มที่ {_x(ex,'receipt_book')} เลขที่ {_x(ex,'receipt_no')} "
-            f"วันที่ {_x(ex,'receipt_date')} เป็นเงิน {_money(total)} บาท ({bahttext(total)})",
+            f"วันที่ {_xdate(ex,'receipt_date')} เป็นเงิน {_money(total)} บาท ({bahttext(total)})",
        align="justify", indent=1.25, after=2)
     _p(doc, f"ทั้งนี้ การดำเนินการจัดซื้อจัดจ้างดังกล่าวนี้ เป็นไปตาม{_W119_REF} "
             "ตามตารางที่ 2 กรณีจัดซื้อจัดจ้างพัสดุที่เกี่ยวกับค่าใช้จ่ายในการบริหารงานที่มีวงเงิน"
@@ -421,13 +431,15 @@ def render_clause79(proc, school) -> str:
     vendor = proc.vendor.name if proc.vendor else _BLANK
     who = officer or _BLANK
     purpose = (proc.purpose or "").strip()
+    if purpose.startswith("เพื่อ"):        # กัน "เพื่อเพื่อ..." เมื่อ purpose ขึ้นต้นด้วยเพื่ออยู่แล้ว
+        purpose = purpose[len("เพื่อ"):].strip()
     purpose_txt = ("เพื่อ" + purpose + " ") if purpose else ""
     _header(doc, subject_line="รายงานขอความเห็นชอบการจัดซื้อจัดจ้างตามระเบียบฯ ข้อ 79 วรรคสอง",
             school=school, doc_no=(proc.memo_no or "").strip(), doc_date=proc.request_date)
     _p(doc, f"ด้วย {who} มีความจำเป็นต้องซื้อ{(proc.subject or '').strip()} {purpose_txt}"
             f"จำนวน {n} รายการ เป็นจำนวนเงิน {_money(total)} บาท ({bahttext(total)}) "
             f"จาก {vendor} ตาม (ใบเสร็จรับเงิน/ใบส่งของ) เล่มที่ {_x(ex,'receipt_book')} "
-            f"เลขที่ {_x(ex,'receipt_no')} วันที่ {_x(ex,'receipt_date')} "
+            f"เลขที่ {_x(ex,'receipt_no')} วันที่ {_xdate(ex,'receipt_date')} "
             "เนื่องจากเป็นกรณีที่มีความจำเป็นเร่งด่วนที่เกิดขึ้นโดยไม่ได้คาดหมายไว้ก่อนและไม่อาจ"
             "ดำเนินการตามปกติได้ทัน จึงได้ดำเนินการจัดซื้อ/จัดจ้างไปก่อน ทั้งนี้ตามระเบียบกระทรวง"
             "การคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 ข้อ 79 วรรคสอง",
