@@ -16,7 +16,22 @@
   </div>
 </div>
 {% if request.query_params.get('added') %}<div class="alert">✔ นำเข้านักเรียนแล้ว {{ request.query_params.get('added') }} คน</div>{% endif %}
+{% if request.query_params.get('promoted') %}<div class="alert">✔ เลื่อนชั้นแล้ว {{ request.query_params.get('promoted') }} คน (ชั้นสูงสุดถูกตั้งเป็น "จบการศึกษา")</div>{% endif %}
+{% if request.query_params.get('removed') %}<div class="alert">✔ ลบนักเรียนที่จบการศึกษาแล้ว {{ request.query_params.get('removed') }} คน</div>{% endif %}
 {% if request.query_params.get('err') %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> อ่านไฟล์ Excel ไม่สำเร็จ ตรวจรูปแบบตามแบบฟอร์ม</div>{% endif %}
+
+<div class="card" style="background:#f0f9ff; border:1px solid #bae6fd;">
+  <h2 style="margin-top:0;">ขึ้นปีการศึกษาใหม่ (เลื่อนชั้น)</h2>
+  <p class="muted" style="margin-top:0;">ขั้นตอนเมื่อขึ้นปีการศึกษาใหม่: (1) เลื่อนชั้นทุกคนขึ้น 1 ระดับ (อ.1→อ.2→...→ป.6→ม.1→...→ม.3 · ม.3 → จบการศึกษา) (2) ลบคนที่จบแล้ว (3) เพิ่มนักเรียนใหม่ (ป.1/อ.1) ด้านล่าง</p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    <form method="post" action="/students/promote" style="margin:0;" onsubmit="return confirm('เลื่อนชั้นนักเรียนทุกคนขึ้น 1 ระดับ? (ม.3 จะกลายเป็น จบการศึกษา)');">
+      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-check"/></svg> เลื่อนชั้น (ขึ้นปีการศึกษาใหม่)</button>
+    </form>
+    <form method="post" action="/students/remove-graduated" style="margin:0;" onsubmit="return confirm('ลบนักเรียนที่จบการศึกษาแล้วทั้งหมด?');">
+      <button class="btn sm gray" type="submit"{% if not graduated %} disabled{% endif %}><svg class="icon"><use href="#ic-trash"/></svg> ลบนักเรียนที่จบแล้ว{% if graduated %} ({{ graduated }}){% endif %}</button>
+    </form>
+  </div>
+</div>
 
 <div class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มนักเรียน</h2>
@@ -40,25 +55,27 @@
 </div>
 
 <div class="card">
-  <h2>รายชื่อนักเรียน {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }} คน)</span>{% endif %}</h2>
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;">รายชื่อนักเรียน {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }} คน)</span>{% endif %}</h2>
+    {% if rows %}<button class="btn sm" type="button" onclick="saveAll(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึกทั้งหมด</button>{% endif %}
+  </div>
+  <p class="muted" style="font-size:13px; margin:4px 0 8px;">แก้ได้หลายแถวพร้อมกัน แล้วกด "บันทึกทั้งหมด" ครั้งเดียว (หรือกดบันทึกทีละแถว) — ข้อมูลแถวอื่นจะไม่หาย</p>
   {% if rows %}
   <div class="table-wrap">
   <table>
     <thead><tr><th>เลขประจำตัว</th><th>ชื่อ-นามสกุล</th><th>เพศ</th><th>วันเกิด</th><th>ชั้น</th><th></th></tr></thead>
     <tbody>
     {% for s in rows %}
-      <tr>
-        <form method="post" action="/students/{{ s.id }}/update" style="display:contents;">
-          <td><input name="student_no" value="{{ s.student_no }}" style="width:90px;"></td>
-          <td><input name="name" value="{{ s.name }}"></td>
-          <td><select name="sex" style="width:75px;"><option value="" {{ 'selected' if not s.sex }}>-</option><option value="ช" {{ 'selected' if s.sex=='M' }}>ชาย</option><option value="ญ" {{ 'selected' if s.sex=='F' }}>หญิง</option></select></td>
-          <td><input name="birthdate" value="{{ be_date(s.birthdate) if s.birthdate else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;"></td>
-          <td><input name="level" value="{{ s.level }}" style="width:80px;"></td>
-          <td style="white-space:nowrap;">
-            <button class="btn sm" type="submit">บันทึก</button>
-        </form>
-            <form method="post" action="/students/{{ s.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบนักเรียนคนนี้?');"><button class="btn sm gray" type="submit">ลบ</button></form>
-          </td>
+      <tr data-sid="{{ s.id }}">
+        <td><input name="student_no" value="{{ s.student_no }}" style="width:90px;"></td>
+        <td><input name="name" value="{{ s.name }}"></td>
+        <td><select name="sex" style="width:100px;"><option value="" {{ 'selected' if not s.sex }}>-</option><option value="ช" {{ 'selected' if s.sex=='M' }}>ชาย</option><option value="ญ" {{ 'selected' if s.sex=='F' }}>หญิง</option></select></td>
+        <td><input name="birthdate" value="{{ be_date(s.birthdate) if s.birthdate else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:140px;"></td>
+        <td><input name="level" value="{{ s.level }}" style="width:80px;"></td>
+        <td style="white-space:nowrap;">
+          <button class="btn sm" type="button" onclick="saveRow(this)">บันทึก</button>
+          <form method="post" action="/students/{{ s.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบนักเรียนคนนี้?');"><button class="btn sm gray" type="submit">ลบ</button></form>
+        </td>
       </tr>
     {% endfor %}
     </tbody>
@@ -75,5 +92,33 @@
       if(this.value!==o)this.value=o;
     });
   });
+  function _rowData(tr){
+    var d = new URLSearchParams();
+    tr.querySelectorAll('input,select').forEach(function(el){ if(el.name) d.append(el.name, el.value); });
+    return d;
+  }
+  function saveRow(btn){
+    var tr = btn.closest('tr'), sid = tr.getAttribute('data-sid');
+    btn.disabled = true;
+    return fetch('/students/'+sid+'/update', {
+      method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'fetch'},
+      body: _rowData(tr)
+    }).then(function(r){ btn.disabled=false; if(!r.ok) throw 0;
+      tr.style.background='#dcfce7'; setTimeout(function(){ tr.style.background=''; }, 700);
+    }).catch(function(){ btn.disabled=false; alert('บันทึกไม่สำเร็จ ลองใหม่'); });
+  }
+  function saveAll(btn){
+    btn.disabled = true;
+    var rows = Array.prototype.slice.call(document.querySelectorAll('tr[data-sid]'));
+    Promise.all(rows.map(function(tr){
+      return fetch('/students/'+tr.getAttribute('data-sid')+'/update', {
+        method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'fetch'},
+        body: _rowData(tr)
+      });
+    })).then(function(){ btn.disabled=false;
+      rows.forEach(function(tr){ tr.style.background='#dcfce7'; });
+      setTimeout(function(){ rows.forEach(function(tr){ tr.style.background=''; }); }, 900);
+    }).catch(function(){ btn.disabled=false; alert('บันทึกบางรายการไม่สำเร็จ'); });
+  }
 </script>
 {% endblock %}

@@ -523,6 +523,17 @@ _SEX_MAP = {"ช": "M", "ชาย": "M", "m": "M", "M": "M",
             "ญ": "F", "หญิง": "F", "f": "F", "F": "F"}
 
 
+def _xlsx_download(wb, filename: str) -> Response:
+    """ส่งไฟล์ Excel จากหน่วยความจำ (ไม่เขียนดิสก์) — กันปัญหา path/permission บนเซิร์ฟเวอร์"""
+    import io as _io
+    from urllib.parse import quote
+    buf = _io.BytesIO()
+    wb.save(buf)
+    dispo = f"attachment; filename*=utf-8''{quote(filename)}"
+    return Response(content=buf.getvalue(), media_type=_XLSX_MT,
+                    headers={"Content-Disposition": dispo})
+
+
 def _norm_sex(s: str) -> str:
     return _SEX_MAP.get((s or "").strip(), "")
 
@@ -530,9 +541,10 @@ def _norm_sex(s: str) -> str:
 @router.get("/students", response_class=HTMLResponse)
 def students_page(request: Request, db: Session = Depends(get_db)):
     rows = db.query(Student).order_by(Student.level, Student.name).all()
+    grad = sum(1 for s in rows if (s.level or "").strip() == "จบการศึกษา")
     return templates.TemplateResponse("students.html", {
         "request": request, "school": get_school(db), "rows": rows,
-        "today_input": be_date_input(datetime.now()),
+        "graduated": grad, "today_input": be_date_input(datetime.now()),
     })
 
 
@@ -548,7 +560,7 @@ def student_add(db: Session = Depends(get_db), name: str = Form(""), sex: str = 
 
 
 @router.post("/students/{sid}/update")
-def student_master_update(sid: int, db: Session = Depends(get_db), name: str = Form(""),
+def student_master_update(sid: int, request: Request, db: Session = Depends(get_db), name: str = Form(""),
                           sex: str = Form(""), birthdate: str = Form(""),
                           level: str = Form(""), student_no: str = Form("")):
     s = db.get(Student, sid)
@@ -559,6 +571,8 @@ def student_master_update(sid: int, db: Session = Depends(get_db), name: str = F
         s.level = (level or "").strip()
         s.student_no = (student_no or "").strip()
         db.commit()
+    if request.headers.get("x-requested-with") == "fetch":
+        return JSONResponse({"ok": bool(s)})
     return RedirectResponse("/students?saved=1", status_code=303)
 
 
@@ -568,6 +582,38 @@ def student_master_delete(sid: int, db: Session = Depends(get_db)):
     if s:
         db.delete(s); db.commit()
     return RedirectResponse("/students", status_code=303)
+
+
+# ลำดับชั้นเรียนสำหรับเลื่อนชั้นขึ้นปีใหม่
+_LEVEL_LADDER = ["อ.1", "อ.2", "อ.3", "ป.1", "ป.2", "ป.3", "ป.4", "ป.5", "ป.6",
+                 "ม.1", "ม.2", "ม.3"]
+_GRADUATED = "จบการศึกษา"
+
+
+@router.post("/students/promote")
+def students_promote(db: Session = Depends(get_db)):
+    """เลื่อนชั้นทุกคนขึ้น 1 ระดับ (ขึ้นปีการศึกษาใหม่) — ชั้นสูงสุดตั้งเป็น 'จบการศึกษา'"""
+    idx = {lv: i for i, lv in enumerate(_LEVEL_LADDER)}
+    n = 0
+    for s in db.query(Student).all():
+        i = idx.get((s.level or "").strip())
+        if i is None:
+            continue
+        s.level = _GRADUATED if i >= len(_LEVEL_LADDER) - 1 else _LEVEL_LADDER[i + 1]
+        n += 1
+    db.commit()
+    return RedirectResponse(f"/students?promoted={n}", status_code=303)
+
+
+@router.post("/students/remove-graduated")
+def students_remove_graduated(db: Session = Depends(get_db)):
+    """ลบนักเรียนที่จบการศึกษาแล้ว"""
+    rows = db.query(Student).filter(Student.level == _GRADUATED).all()
+    n = len(rows)
+    for s in rows:
+        db.delete(s)
+    db.commit()
+    return RedirectResponse(f"/students?removed={n}", status_code=303)
 
 
 @router.post("/students/bulk")
@@ -600,10 +646,7 @@ def students_template():
         ws.cell(1, c).font = Font(name="TH Sarabun New", bold=True, size=14)
         ws.column_dimensions[chr(64 + c)].width = 24
     ws.append(["เด็กชายสมชาย ใจดี", "ช", "15/05/2562", "ป.1", "10001"])
-    out = get_data_dir() / "documents"; out.mkdir(exist_ok=True)
-    path = out / "แบบฟอร์มนำเข้านักเรียน.xlsx"
-    wb.save(str(path))
-    return FileResponse(path, filename=path.name, media_type=_XLSX_MT)
+    return _xlsx_download(wb, "แบบฟอร์มนำเข้านักเรียน.xlsx")
 
 
 @router.post("/students/import")
@@ -650,10 +693,7 @@ def vendors_template():
         ws.cell(1, c).font = Font(name="TH Sarabun New", bold=True, size=14)
         ws.column_dimensions[chr(64 + c)].width = 24
     ws.append(["หจก. ตัวอย่างการค้า", "นายสมชาย ใจดี", "0123456789012", "123 ต.ในเมือง", "0812345678", ""])
-    out = get_data_dir() / "documents"; out.mkdir(exist_ok=True)
-    path = out / "แบบฟอร์มนำเข้าผู้ขาย.xlsx"
-    wb.save(str(path))
-    return FileResponse(path, filename=path.name, media_type=_XLSX_MT)
+    return _xlsx_download(wb, "แบบฟอร์มนำเข้าผู้ขาย.xlsx")
 
 
 @router.post("/vendors/import")
