@@ -3,54 +3,72 @@
 <head>
   <meta charset="utf-8">
   <title>ใบเบิกหนังสือเรียน {{ b.berk_no or '' }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
   <style>
     @page { size: A4; margin: 1.8cm; }
-    body { font-family: "TH Sarabun New", "Sarabun", sans-serif; color:#111; font-size:18px; }
-    h1 { text-align:center; font-size:22px; margin:0 0 2px; }
-    .sub { text-align:center; color:#444; margin:0 0 6px; font-size:17px; }
-    .meta { margin:10px 0; }
-    .meta span { display:inline-block; margin-right:30px; }
-    table { width:100%; border-collapse:collapse; margin-top:6px; }
-    th, td { border:1px solid #333; padding:6px 8px; text-align:left; vertical-align:top; }
-    th { background:#f0f0f0; }
+    * { box-sizing: border-box; }
+    body { font-family: "TH Sarabun New", "Sarabun", sans-serif; color:#111; font-size:18px; line-height:1.5; margin:0; }
+    .head { text-align:center; margin-bottom:10px; }
+    .head .sch { font-size:20px; font-weight:700; }
+    .head .addr { font-size:15px; color:#444; }
+    h1 { text-align:center; font-size:22px; font-weight:700; margin:12px 0 2px; }
+    .sub { text-align:center; color:#444; margin:0 0 12px; font-size:16px; }
+    .meta { margin:6px 0 4px; }
+    .meta .row { display:flex; gap:30px; flex-wrap:wrap; }
+    .meta b { font-weight:700; }
+    table { width:100%; border-collapse:collapse; margin-top:8px; }
+    th, td { border:1px solid #333; padding:7px 9px; vertical-align:top; }
+    th { background:#eef1f4; font-weight:700; text-align:center; }
     td.c { text-align:center; } td.r { text-align:right; }
-    .sign { margin-top:40px; display:flex; justify-content:space-around; text-align:center; }
-    .noprint { text-align:center; margin:16px 0; }
-    .btn { padding:8px 18px; font-size:16px; cursor:pointer; }
-    @media print { .noprint { display:none; } }
+    tfoot td { font-weight:700; background:#f7f8fa; }
+    .note { margin-top:10px; }
+    .sign { margin-top:46px; display:flex; justify-content:space-around; text-align:center; gap:24px; }
+    .sign .line { font-size:17px; }
+    .noprint { text-align:center; margin:20px 0; }
+    .btn { padding:9px 22px; font-size:16px; cursor:pointer; border:1px solid #888; border-radius:8px; background:#f3f4f6; }
+    @media print { .noprint { display:none; } body { font-size:17px; } }
   </style>
 </head>
 <body>
-  <h1>ใบเบิกหนังสือเรียน/แบบฝึกหัด</h1>
-  <p class="sub">{{ school.name }} &middot; ปีการศึกษา {{ b.year }}</p>
+  <div class="head">
+    <div class="sch">{{ school.name }}</div>
+    {% if school.address %}<div class="addr">{{ school.address }}{% if school.district %} อ.{{ school.district }}{% endif %}{% if school.province %} จ.{{ school.province }}{% endif %}</div>{% endif %}
+  </div>
+  <h1>ใบเบิกหนังสือเรียน / แบบฝึกหัด</h1>
+  <p class="sub">ประจำปีการศึกษา {{ b.year }}</p>
   <div class="meta">
-    <span>เลขที่ใบเบิก: <b>{{ b.berk_no or '.................' }}</b></span>
-    <span>วันที่: <b>{{ thai_date(b.date) if b.date else '.................' }}</b></span>
-    <br><span style="margin-top:6px;">ผู้รับ/ชั้นเรียน: <b>{{ b.recipient or '.................................' }}</b></span>
+    <div class="row">
+      <span>เลขที่ใบเบิก: <b>{{ b.berk_no or '.................' }}</b></span>
+      <span>วันที่: <b>{{ thai_date(b.date) if b.date else '.................' }}</b></span>
+    </div>
+    <div style="margin-top:4px;">ผู้เบิก / ครูประจำชั้น: <b>{{ b.recipient or '.................................................' }}</b></div>
   </div>
   <table>
-    <thead><tr><th style="width:50px;">ที่</th><th>ระดับชั้น</th><th>ชื่อหนังสือ</th><th style="width:90px;">จำนวน</th><th style="width:110px;">ราคา/เล่ม</th><th style="width:120px;">จำนวนเงิน</th></tr></thead>
+    <thead><tr><th style="width:46px;">ที่</th><th style="width:90px;">ระดับชั้น</th><th>ชื่อหนังสือ / แบบฝึกหัด</th><th style="width:80px;">จำนวน</th><th style="width:100px;">ราคา/เล่ม</th><th style="width:110px;">จำนวนเงิน</th></tr></thead>
     <tbody>
       {% for it in b.items %}
       <tr>
         <td class="c">{{ loop.index }}</td>
-        <td>{{ it.book.level if it.book else '' }}</td>
+        <td class="c">{{ it.book.level if it.book else '' }}</td>
         <td>{{ it.book.title if it.book else '-' }}{{ ' ('~it.book.subject~')' if it.book and it.book.subject }}</td>
         <td class="c">{{ it.qty }} เล่ม</td>
         <td class="r">{{ "{:,.2f}".format(it.book.unit_price if it.book else 0) }}</td>
         <td class="r">{{ "{:,.2f}".format((it.qty or 0) * (it.book.unit_price if it.book else 0)) }}</td>
       </tr>
       {% endfor %}
-      <tr><td colspan="5" class="r"><b>รวมทั้งสิ้น</b></td><td class="r"><b>{{ "{:,.2f}".format(total) }}</b></td></tr>
     </tbody>
+    <tfoot>
+      <tr><td colspan="5" class="r">รวมทั้งสิ้น</td><td class="r">{{ "{:,.2f}".format(total) }}</td></tr>
+    </tfoot>
   </table>
-  {% if b.note %}<p style="margin-top:10px;">หมายเหตุ: {{ b.note }}</p>{% endif %}
+  {% if b.note %}<p class="note">หมายเหตุ: {{ b.note }}</p>{% endif %}
   <div class="sign">
-    <div>ลงชื่อ.............................................ผู้เบิก<br>(.............................................)</div>
-    <div>ลงชื่อ.............................................ผู้จ่าย<br>(.............................................)</div>
+    <div class="line">ลงชื่อ.............................................ผู้เบิก<br>( {{ b.recipient or '.............................................' }} )</div>
+    <div class="line">ลงชื่อ.............................................ผู้จ่าย<br>(.............................................)</div>
   </div>
   <div class="noprint">
-    <button class="btn" onclick="window.print()">พิมพ์</button>
+    <button class="btn" onclick="window.print()">🖨 พิมพ์</button>
   </div>
 </body>
 </html>

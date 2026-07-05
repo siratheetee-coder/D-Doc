@@ -22,15 +22,10 @@
 
 <div class="card" style="background:#f0f9ff; border:1px solid #bae6fd;">
   <h2 style="margin-top:0;">ขึ้นปีการศึกษาใหม่ (เลื่อนชั้น)</h2>
-  <p class="muted" style="margin-top:0;">ขั้นตอนเมื่อขึ้นปีการศึกษาใหม่: (1) เลื่อนชั้นทุกคนขึ้น 1 ระดับ (อ.1→อ.2→...→ป.6→ม.1→...→ม.3 · ม.3 → จบการศึกษา) (2) ลบคนที่จบแล้ว (3) เพิ่มนักเรียนใหม่ (ป.1/อ.1) ด้านล่าง</p>
-  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-    <form method="post" action="/students/promote" style="margin:0;" onsubmit="return confirm('เลื่อนชั้นนักเรียนทุกคนขึ้น 1 ระดับ? (ม.3 จะกลายเป็น จบการศึกษา)');">
-      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-check"/></svg> เลื่อนชั้น (ขึ้นปีการศึกษาใหม่)</button>
-    </form>
-    <form method="post" action="/students/remove-graduated" style="margin:0;" onsubmit="return confirm('ลบนักเรียนที่จบการศึกษาแล้วทั้งหมด?');">
-      <button class="btn sm gray" type="submit"{% if not graduated %} disabled{% endif %}><svg class="icon"><use href="#ic-trash"/></svg> ลบนักเรียนที่จบแล้ว{% if graduated %} ({{ graduated }}){% endif %}</button>
-    </form>
-  </div>
+  <p class="muted" style="margin-top:0;">ขั้นตอนเมื่อขึ้นปีการศึกษาใหม่: (1) เลื่อนชั้นทุกคนขึ้น 1 ระดับ (อ.1→อ.2→...→ป.6→ม.1→...→ม.3 · ม.3 → จบการศึกษา) (2) เพิ่มนักเรียนใหม่ (ป.1/อ.1) ด้านล่าง</p>
+  <form method="post" action="/students/promote" style="margin:0;" onsubmit="return confirm('เลื่อนชั้นนักเรียนทุกคนขึ้น 1 ระดับ? (ม.3 จะกลายเป็น จบการศึกษา)');">
+    <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-check"/></svg> เลื่อนชั้น (ขึ้นปีการศึกษาใหม่)</button>
+  </form>
 </div>
 
 <div class="card">

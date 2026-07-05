@@ -420,7 +420,8 @@
         else 'lunch' if path.startswith('/lunch')
         else 'procurement' if (path.startswith('/procurement') or path.startswith('/assets')
              or path.startswith('/materials') or path.startswith('/requisitions')
-             or path.startswith('/register'))
+             or path.startswith('/register') or path.startswith('/catalog')
+             or path.startswith('/textbooks'))
         else 'hub' %}
   {% set mod_label = {'admin':'งานธุรการ','procurement':'งานพัสดุ','finance':'งานการเงิน','lunch':'งานอาหารกลางวัน','hub':'เลือกงาน'}[module] %}
   <div class="layout" data-module="{{ module }}">
@@ -435,7 +436,7 @@
       </a>
       <nav>
         {% set section_home = '/admin' if module=='admin' else '/finance' if module=='finance' else '/lunch' if module=='lunch' else '/procurement' if module=='procurement' else '/' %}
-        {% set section_prefixes = ['/admin'] if module=='admin' else ['/finance'] if module=='finance' else ['/lunch'] if module=='lunch' else ['/procurement','/assets','/materials','/requisitions','/register'] if module=='procurement' else ['/'] %}
+        {% set section_prefixes = ['/admin'] if module=='admin' else ['/finance'] if module=='finance' else ['/lunch'] if module=='lunch' else ['/procurement','/assets','/materials','/requisitions','/register','/catalog','/textbooks'] if module=='procurement' else ['/'] %}
         {% set is_section_home = (path == section_home) %}
         {% if module != 'hub' %}
         <a href="{{ '/' if is_section_home else section_home }}" class="navback" onclick="return goBack(event)"><svg class="icon"><use href="#ic-arrow-left"/></svg> {{ 'หน้าเลือกงาน' if is_section_home else 'ย้อนกลับ' }}</a>

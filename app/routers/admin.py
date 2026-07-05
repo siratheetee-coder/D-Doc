@@ -551,6 +551,38 @@ def letter_ai_write(db: Session = Depends(get_db), subject: str = Form(""),
     return JSONResponse({"subject": res.get("subject", ""), "body": res.get("body", "")})
 
 
+@router.post("/admin/memos/ai-write")
+def memo_ai_write(db: Session = Depends(get_db), subject: str = Form(""),
+                  from_dept: str = Form(""), to: str = Form(""), points: str = Form("")):
+    """ให้ AI ร่างบันทึกข้อความ -> คืน JSON {subject, body}"""
+    from fastapi.responses import JSONResponse
+    from app.services.ai_extract import write_memo
+    school = get_school(db)
+    key = (getattr(school, "ai_api_key", "") or "").strip()
+    if not key:
+        return JSONResponse({"error": "ยังไม่ได้ตั้งค่า API key ของ AI ในตั้งค่าโรงเรียน"}, status_code=400)
+    res = write_memo({"school": school.name or "", "subject": subject,
+                      "from_dept": from_dept, "to": to, "points": points}, key)
+    if res.get("error"):
+        return JSONResponse({"error": "AI เขียนไม่สำเร็จ ลองใหม่อีกครั้ง"}, status_code=502)
+    return JSONResponse({"subject": res.get("subject", ""), "body": res.get("body", "")})
+
+
+@router.post("/admin/orders/ai-write")
+def order_ai_write(db: Session = Depends(get_db), subject: str = Form(""), points: str = Form("")):
+    """ให้ AI ร่างคำสั่งโรงเรียน -> คืน JSON {subject, body}"""
+    from fastapi.responses import JSONResponse
+    from app.services.ai_extract import write_order
+    school = get_school(db)
+    key = (getattr(school, "ai_api_key", "") or "").strip()
+    if not key:
+        return JSONResponse({"error": "ยังไม่ได้ตั้งค่า API key ของ AI ในตั้งค่าโรงเรียน"}, status_code=400)
+    res = write_order({"school": school.name or "", "subject": subject, "points": points}, key)
+    if res.get("error"):
+        return JSONResponse({"error": "AI เขียนไม่สำเร็จ ลองใหม่อีกครั้ง"}, status_code=502)
+    return JSONResponse({"subject": res.get("subject", ""), "body": res.get("body", "")})
+
+
 @router.get("/admin/letters/{lid}", response_class=HTMLResponse)
 def letter_detail(lid: int, request: Request, db: Session = Depends(get_db)):
     lt = db.get(OfficialLetter, lid)

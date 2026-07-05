@@ -26,15 +26,28 @@
 
 <div class="card">
   <h1>ออกคำสั่งโรงเรียน (พิมพ์ใหม่)</h1>
+
+  <div style="border:1px solid #c7d7fb; background:#f5f9ff; border-radius:10px; padding:12px 14px; margin-bottom:14px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+      <b><svg class="icon"><use href="#ic-ai"/></svg> ให้ AI ช่วยเขียน</b>
+      <span id="aiMsg" class="muted" style="font-size:13px;"></span>
+    </div>
+    <p class="muted" style="margin:6px 0;">กรอกเรื่อง+ประเด็นสำคัญ (ผู้ได้รับแต่งตั้ง/หน้าที่/วันเวลา) แล้วให้ AI ร่างคำสั่งให้</p>
+    <label>ต้องการออกคำสั่งเรื่องอะไร</label><input id="ai_subject" placeholder="เช่น แต่งตั้งคณะกรรมการจัดงานกีฬาสี 2569">
+    <label>ประเด็น/รายละเอียดสำคัญ</label>
+    <textarea id="ai_points" rows="3" placeholder="เช่น มอบหมายครู 5 คนเป็นกรรมการ จัดงาน 15 ส.ค. 2569 หน้าที่ควบคุมการแข่งขันและดูแลความปลอดภัย"></textarea>
+    <br><br><button type="button" class="btn sm" style="background:linear-gradient(120deg,#7c3aed,#4880FF); color:#fff; border:none;" onclick="aiWrite(this)"><svg class="icon"><use href="#ic-ai"/></svg> ให้ AI ช่วยเขียน</button>
+  </div>
+
   <form method="post" action="/admin/orders">
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
     <div class="row">
       <div><label>เลขที่คำสั่ง</label><input name="order_no" value="{{ sug_order }}"></div>
       <div><label>วันที่</label><input name="date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
-      <div style="flex:2;"><label>เรื่อง *</label><input name="subject" required placeholder="เช่น แต่งตั้งคณะกรรมการดำเนินงาน..."></div>
+      <div style="flex:2;"><label>เรื่อง *</label><input id="o_subject" name="subject" required placeholder="เช่น แต่งตั้งคณะกรรมการดำเนินงาน..."></div>
     </div>
     <label>เนื้อหาคำสั่ง</label>
-    <textarea name="body" rows="6" placeholder="พิมพ์เนื้อหาคำสั่ง เว้นบรรทัดเพื่อขึ้นย่อหน้าใหม่"></textarea>
+    <textarea id="o_body" name="body" rows="6" placeholder="พิมพ์เนื้อหาคำสั่ง เว้นบรรทัดเพื่อขึ้นย่อหน้าใหม่"></textarea>
     <br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกและออกเลข</button>
   </form>
 </div>
@@ -62,6 +75,21 @@
 </div>
 
 <script>
+  function aiWrite(btn){
+    var msg=document.getElementById('aiMsg');
+    var subj=document.getElementById('ai_subject').value.trim();
+    var pts=document.getElementById('ai_points').value.trim();
+    if(!subj && !pts){ msg.textContent='กรอกเรื่อง หรือ ประเด็นสำคัญก่อน'; return; }
+    var fd=new FormData(); fd.append('subject', subj); fd.append('points', pts);
+    btn.disabled=true; msg.innerHTML='<span class="spin"></span> AI กำลังเขียน...';
+    fetch('/admin/orders/ai-write', {method:'POST', body:fd}).then(function(r){return r.json();}).then(function(d){
+      btn.disabled=false;
+      if(d.error){ msg.textContent=d.error; return; }
+      if(d.subject){ document.getElementById('o_subject').value=d.subject; }
+      if(d.body){ document.getElementById('o_body').value=d.body; }
+      msg.textContent='AI เขียนให้แล้ว — ตรวจ/แก้ด้านล่างก่อนบันทึก';
+    }).catch(function(){ btn.disabled=false; msg.textContent='เชื่อมต่อ AI ไม่สำเร็จ'; });
+  }
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){
       var v=this.value.replace(/\D/g,'').slice(0,8), o=v;

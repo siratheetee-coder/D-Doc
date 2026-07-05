@@ -29,19 +29,35 @@
 
 <div class="card">
   <h1>ออกบันทึกข้อความ (พิมพ์ใหม่)</h1>
+
+  <div style="border:1px solid #c7d7fb; background:#f5f9ff; border-radius:10px; padding:12px 14px; margin-bottom:14px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+      <b><svg class="icon"><use href="#ic-ai"/></svg> ให้ AI ช่วยเขียน</b>
+      <span id="aiMsg" class="muted" style="font-size:13px;"></span>
+    </div>
+    <p class="muted" style="margin:6px 0;">กรอกเรื่อง+ประเด็นสำคัญ แล้วให้ AI ร่างเรื่อง/เนื้อความให้ (ตรวจ/แก้ก่อนบันทึกได้)</p>
+    <div class="row">
+      <div style="flex:2;"><label>ต้องการเขียนเรื่องอะไร</label><input id="ai_subject" placeholder="เช่น รายงานผลการจัดกิจกรรมวันวิทยาศาสตร์"></div>
+      <div><label>เรียน (ผู้รับ)</label><input id="ai_to" placeholder="เช่น ผู้อำนวยการโรงเรียน"></div>
+    </div>
+    <label>ประเด็น/รายละเอียดสำคัญ (วัน เวลา สถานที่ ผลลัพธ์ ฯลฯ)</label>
+    <textarea id="ai_points" rows="3" placeholder="เช่น จัดกิจกรรม 18 ส.ค. 2569 นักเรียนเข้าร่วม 250 คน กิจกรรมสำเร็จเรียบร้อย ขอรายงานให้ทราบ"></textarea>
+    <br><br><button type="button" class="btn sm" style="background:linear-gradient(120deg,#7c3aed,#4880FF); color:#fff; border:none;" onclick="aiWrite(this)"><svg class="icon"><use href="#ic-ai"/></svg> ให้ AI ช่วยเขียน</button>
+  </div>
+
   <form method="post" action="/admin/memos">
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
     <div class="row">
       <div><label>เลขที่บันทึก</label><input name="memo_no" value="{{ sug_memo }}"></div>
       <div><label>วันที่</label><input name="date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
-      <div style="flex:2;"><label>ส่วนราชการ/ฝ่ายที่ออก</label><input name="from_dept" list="departments" value="{{ school.name or '' }}"></div>
+      <div style="flex:2;"><label>ส่วนราชการ/ฝ่ายที่ออก</label><input id="m_from" name="from_dept" list="departments" value="{{ school.name or '' }}"></div>
     </div>
     <div class="row">
-      <div><label>เรียน</label><input name="to_person" list="persons" placeholder="เช่น ผู้อำนวยการโรงเรียน"></div>
-      <div style="flex:2;"><label>เรื่อง *</label><input name="subject" required></div>
+      <div><label>เรียน</label><input id="m_to" name="to_person" list="persons" placeholder="เช่น ผู้อำนวยการโรงเรียน"></div>
+      <div style="flex:2;"><label>เรื่อง *</label><input id="m_subject" name="subject" required></div>
     </div>
     <label>เนื้อหา</label>
-    <textarea name="body" rows="6" placeholder="พิมพ์เนื้อหาบันทึก เว้นบรรทัดเพื่อขึ้นย่อหน้าใหม่"></textarea>
+    <textarea id="m_body" name="body" rows="6" placeholder="พิมพ์เนื้อหาบันทึก เว้นบรรทัดเพื่อขึ้นย่อหน้าใหม่"></textarea>
     <div class="row">
       <div><label>ผู้ลงนาม</label><input name="signer_name" list="persons" value="{{ school.director_name or '' }}"></div>
       <div><label>ตำแหน่ง</label><input name="signer_position" value="{{ school.director_position or 'ผู้อำนวยการโรงเรียน' }}"></div>
@@ -74,6 +90,27 @@
 </div>
 
 <script>
+  function aiWrite(btn){
+    var msg=document.getElementById('aiMsg');
+    var subj=document.getElementById('ai_subject').value.trim();
+    var pts=document.getElementById('ai_points').value.trim();
+    if(!subj && !pts){ msg.textContent='กรอกเรื่อง หรือ ประเด็นสำคัญก่อน'; return; }
+    var fd=new FormData();
+    fd.append('subject', subj);
+    fd.append('from_dept', document.getElementById('m_from') ? document.getElementById('m_from').value.trim() : '');
+    fd.append('to', document.getElementById('ai_to').value.trim());
+    fd.append('points', pts);
+    btn.disabled=true; msg.innerHTML='<span class="spin"></span> AI กำลังเขียน...';
+    fetch('/admin/memos/ai-write', {method:'POST', body:fd}).then(function(r){return r.json();}).then(function(d){
+      btn.disabled=false;
+      if(d.error){ msg.textContent=d.error; return; }
+      if(d.subject){ document.getElementById('m_subject').value=d.subject; }
+      if(d.body){ document.getElementById('m_body').value=d.body; }
+      var to=document.getElementById('ai_to').value.trim();
+      if(to && !document.getElementById('m_to').value){ document.getElementById('m_to').value=to; }
+      msg.textContent='AI เขียนให้แล้ว — ตรวจ/แก้ด้านล่างก่อนบันทึก';
+    }).catch(function(){ btn.disabled=false; msg.textContent='เชื่อมต่อ AI ไม่สำเร็จ'; });
+  }
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){
       var v=this.value.replace(/\D/g,'').slice(0,8), o=v;

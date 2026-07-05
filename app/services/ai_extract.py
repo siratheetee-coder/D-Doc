@@ -178,3 +178,89 @@ def write_official_letter(info: dict, api_key: str) -> dict:
         return result
     except Exception:
         return {"error": "bad_json"}
+
+
+def _ai_write_json(prompt: str, api_key: str) -> dict:
+    """ส่ง prompt ให้ AI (โมเดลเขียนดี) คาดหวังผลเป็น JSON คืน dict + ok/error"""
+    if not (api_key or "").strip():
+        return {"error": "no_key"}
+    body = json.dumps({
+        "model": _VISION_MODEL, "max_tokens": 2000,
+        "messages": [{"role": "user", "content": prompt}],
+    }).encode("utf-8")
+    req = urllib.request.Request(_API_URL, data=body, headers={
+        "x-api-key": api_key.strip(),
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=90) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        return {"error": "request", "detail": str(e)[:200]}
+    out = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
+    m = re.search(r"\{.*\}", out, re.S)
+    if not m:
+        return {"error": "no_json"}
+    try:
+        result = json.loads(m.group(0))
+        result["ok"] = True
+        return result
+    except Exception:
+        return {"error": "bad_json"}
+
+
+_MEMO_PROMPT = """คุณคือผู้ช่วยร่าง "บันทึกข้อความ" (หนังสือราชการภายใน) ของโรงเรียนไทย ตามระเบียบงานสารบรรณ
+ภาษาราชการสุภาพ กระชับ ครบถ้วน
+
+ข้อมูล:
+- โรงเรียน: {SCHOOL}
+- จากหน่วยงาน/ฝ่าย: {FROM}
+- เรียน (ผู้รับ): {TO}
+- เรื่อง: {SUBJECT}
+- ประเด็น/รายละเอียดที่ต้องการสื่อ: {POINTS}
+
+ตอบกลับเป็น JSON เท่านั้น:
+{
+ "subject": "เรื่อง (กระชับ เป็นทางการ)",
+ "body": "เนื้อความบันทึกข้อความ ขึ้นต้นด้วย 'ด้วย...' หรือ 'ตามที่...' อธิบายเหตุและความประสงค์ ปิดท้ายด้วย 'จึงเรียนมาเพื่อโปรด...' (เช่น โปรดทราบ/พิจารณา/อนุมัติ) เว้นบรรทัดว่างคั่นย่อหน้า ไม่ต้องมีหัวกระดาษ/ลายเซ็น"
+}
+- คงข้อเท็จจริงตามที่ให้มา อย่าแต่งข้อมูลเท็จ (ที่ไม่ทราบให้เว้น ...)
+ตอบเป็น JSON เท่านั้น:"""
+
+
+_ORDER_PROMPT = """คุณคือผู้ช่วยร่าง "คำสั่งโรงเรียน" ของโรงเรียนไทย ตามระเบียบงานสารบรรณและแบบคำสั่งราชการ
+ภาษาราชการสุภาพ ถูกต้องตามรูปแบบคำสั่ง
+
+ข้อมูล:
+- โรงเรียน: {SCHOOL}
+- เรื่อง (คำสั่ง): {SUBJECT}
+- ประเด็น/รายละเอียด (เหตุผล วัตถุประสงค์ ผู้ได้รับมอบหมาย หน้าที่ วันเวลา ฯลฯ): {POINTS}
+
+ตอบกลับเป็น JSON เท่านั้น:
+{
+ "subject": "เรื่อง (ขึ้นต้นด้วยคำกริยา เช่น แต่งตั้ง.../มอบหมาย.../ให้...)",
+ "body": "เนื้อความคำสั่ง ขึ้นต้นด้วย 'ด้วย...' หรือ 'เพื่อให้...' อธิบายเหตุและอำนาจ แล้วระบุการสั่ง (เช่น จึงแต่งตั้ง.../มอบหมายให้...) ปิดท้ายด้วย 'ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป' เว้นบรรทัดว่างคั่นย่อหน้า ไม่ต้องมีหัวครุฑ/เลขที่/ลายเซ็น/สั่ง ณ วันที่"
+}
+- คงข้อเท็จจริงตามที่ให้มา อย่าแต่งข้อมูลเท็จ (ที่ไม่ทราบให้เว้น ...)
+ตอบเป็น JSON เท่านั้น:"""
+
+
+def write_memo(info: dict, api_key: str) -> dict:
+    """ให้ AI ร่างบันทึกข้อความ คืน {'subject':..., 'body':..., 'ok':True} หรือ {'error':...}"""
+    prompt = (_MEMO_PROMPT
+              .replace("{SCHOOL}", (info.get("school") or "")[:120])
+              .replace("{FROM}", (info.get("from_dept") or "")[:120])
+              .replace("{TO}", (info.get("to") or "")[:200])
+              .replace("{SUBJECT}", (info.get("subject") or "")[:300])
+              .replace("{POINTS}", (info.get("points") or "")[:2500]))
+    return _ai_write_json(prompt, api_key)
+
+
+def write_order(info: dict, api_key: str) -> dict:
+    """ให้ AI ร่างคำสั่งโรงเรียน คืน {'subject':..., 'body':..., 'ok':True} หรือ {'error':...}"""
+    prompt = (_ORDER_PROMPT
+              .replace("{SCHOOL}", (info.get("school") or "")[:120])
+              .replace("{SUBJECT}", (info.get("subject") or "")[:300])
+              .replace("{POINTS}", (info.get("points") or "")[:2500]))
+    return _ai_write_json(prompt, api_key)

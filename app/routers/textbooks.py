@@ -107,9 +107,12 @@ def berk_page(request: Request, db: Session = Depends(get_db), year: int | None 
              .order_by(TextBook.level, TextBook.title).all())
     berks = (db.query(TextbookBerk).filter_by(year=yr)
              .order_by(TextbookBerk.date, TextbookBerk.id).all())
+    from app.models import Person
+    persons = db.query(Person).order_by(Person.name).all()
     return templates.TemplateResponse("textbook_berk.html", {
         "request": request, "school": get_school(db), "books": books, "berks": berks,
         "year": yr, "years": _years(db), "today_be": be_date_input(datetime.now()),
+        "persons": persons,
     })
 
 
