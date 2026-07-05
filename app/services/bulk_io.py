@@ -18,7 +18,11 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 
 from app.database import get_data_dir
-from app.models import School, Person, Department, Vendor
+from app.models import School, Person, Department, Vendor, Student
+from app.thai_utils import parse_be_date
+
+_SEX_MAP = {"ช": "M", "ชาย": "M", "m": "M", "M": "M",
+            "ญ": "F", "หญิง": "F", "f": "F", "F": "F"}
 
 THAI_FONT = "TH Sarabun New"
 
@@ -44,6 +48,11 @@ MASTER_SHEETS = {
                     "ที่อยู่", "เบอร์โทร", "เลขบัญชีธนาคาร"],
         "note": "กรอกข้อมูลผู้ขาย/ผู้รับจ้างตั้งแต่แถวที่ 3 ลงไป (จำเป็นเฉพาะชื่อร้าน คอลัมน์อื่นเว้นว่างได้)",
         "widths": [30, 24, 22, 36, 16, 22],
+    },
+    "นักเรียน": {
+        "headers": ["ชื่อ-นามสกุล", "เพศ (ช/ญ)", "วันเกิด (วว/ดด/ปปปป)", "ระดับชั้น", "เลขประจำตัว"],
+        "note": "กรอกรายชื่อนักเรียนตั้งแต่แถวที่ 3 ลงไป (จำเป็นเฉพาะชื่อ) เพศใส่ ช หรือ ญ  เช่น  เด็กชายสมชาย ใจดี | ช | 15/05/2562 | ป.1 | 10001",
+        "widths": [30, 12, 22, 12, 14],
     },
 }
 
@@ -258,6 +267,29 @@ def import_workbook(file_bytes: bytes, db) -> dict:
             added += 1
         if added or skipped:
             summary["ผู้ขาย"] = {"added": added, "skipped": skipped}
+
+    # ---- ชีตนักเรียน (ชื่อ | เพศ | วันเกิด | ชั้น | เลขประจำตัว) ----
+    if "นักเรียน" in wb.sheetnames:
+        existing = {s.name for s in db.query(Student).all()}
+        added = skipped = 0
+        for row in wb["นักเรียน"].iter_rows(min_row=3, values_only=True):
+            name = _cell_str(row[0]) if row else ""
+            if not name:
+                continue
+            if name in existing:
+                skipped += 1
+                continue
+            db.add(Student(
+                name=name,
+                sex=_SEX_MAP.get(_cell_str(row[1]) if len(row) > 1 else "", ""),
+                birthdate=parse_be_date(_cell_str(row[2])) if len(row) > 2 else None,
+                level=_cell_str(row[3]) if len(row) > 3 else "",
+                student_no=_cell_str(row[4]) if len(row) > 4 else "",
+            ))
+            existing.add(name)
+            added += 1
+        if added or skipped:
+            summary["นักเรียน"] = {"added": added, "skipped": skipped}
 
     db.commit()
     return summary

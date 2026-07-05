@@ -27,7 +27,7 @@ from app.models import (
     Person, Department, Project, ProjectBudgetRevision, Committee, CommitteeMember,
     Asset, MaterialItem, MaterialTxn, Requisition, RequisitionItem, IssuedDocNo,
     DocNumberCounter, OfficeMemo, SchoolOrder, IncomingLetter, OutgoingLetter,
-    DisburseMemo, ItemCatalog,
+    DisburseMemo, ItemCatalog, Student,
 )
 from app.services.asset_utils import (
     CATEGORIES, CATEGORY_LIFE, annual_depreciation, accumulated_depreciation,
@@ -518,12 +518,168 @@ def catalog_delete(item_id: int, db: Session = Depends(get_db)):
     return RedirectResponse("/catalog", status_code=303)
 
 
+# ---------------- ทะเบียนนักเรียนกลาง (Student master) ----------------
+_SEX_MAP = {"ช": "M", "ชาย": "M", "m": "M", "M": "M",
+            "ญ": "F", "หญิง": "F", "f": "F", "F": "F"}
+
+
+def _norm_sex(s: str) -> str:
+    return _SEX_MAP.get((s or "").strip(), "")
+
+
+@router.get("/students", response_class=HTMLResponse)
+def students_page(request: Request, db: Session = Depends(get_db)):
+    rows = db.query(Student).order_by(Student.level, Student.name).all()
+    return templates.TemplateResponse("students.html", {
+        "request": request, "school": get_school(db), "rows": rows,
+        "today_input": be_date_input(datetime.now()),
+    })
+
+
+@router.post("/students")
+def student_add(db: Session = Depends(get_db), name: str = Form(""), sex: str = Form(""),
+                birthdate: str = Form(""), level: str = Form(""), student_no: str = Form("")):
+    nm = (name or "").strip()
+    if nm:
+        db.add(Student(name=nm, sex=_norm_sex(sex), birthdate=parse_be_date(birthdate),
+                       level=(level or "").strip(), student_no=(student_no or "").strip()))
+        db.commit()
+    return RedirectResponse("/students", status_code=303)
+
+
+@router.post("/students/{sid}/update")
+def student_master_update(sid: int, db: Session = Depends(get_db), name: str = Form(""),
+                          sex: str = Form(""), birthdate: str = Form(""),
+                          level: str = Form(""), student_no: str = Form("")):
+    s = db.get(Student, sid)
+    if s:
+        s.name = (name or "").strip() or s.name
+        s.sex = _norm_sex(sex)
+        s.birthdate = parse_be_date(birthdate)
+        s.level = (level or "").strip()
+        s.student_no = (student_no or "").strip()
+        db.commit()
+    return RedirectResponse("/students?saved=1", status_code=303)
+
+
+@router.post("/students/{sid}/delete")
+def student_master_delete(sid: int, db: Session = Depends(get_db)):
+    s = db.get(Student, sid)
+    if s:
+        db.delete(s); db.commit()
+    return RedirectResponse("/students", status_code=303)
+
+
+@router.post("/students/bulk")
+def students_master_bulk(db: Session = Depends(get_db), bulk: str = Form("")):
+    """เพิ่มนักเรียนทีละหลายคน: 1 บรรทัด = ชื่อ, เพศ(ช/ญ), วันเกิด, ชั้น, เลขประจำตัว"""
+    import re as _re
+    n = 0
+    for line in (bulk or "").splitlines():
+        parts = [p.strip() for p in _re.split(r"[,\t]", line.strip())]
+        if not parts or not parts[0]:
+            continue
+        db.add(Student(
+            name=parts[0], sex=_norm_sex(parts[1] if len(parts) > 1 else ""),
+            birthdate=parse_be_date(parts[2]) if len(parts) > 2 else None,
+            level=parts[3] if len(parts) > 3 else "",
+            student_no=parts[4] if len(parts) > 4 else ""))
+        n += 1
+    db.commit()
+    return RedirectResponse(f"/students?added={n}", status_code=303)
+
+
+@router.get("/students/template.xlsx")
+def students_template():
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+    wb = Workbook(); ws = wb.active; ws.title = "นักเรียน"
+    headers = ["ชื่อ-นามสกุล", "เพศ (ช/ญ)", "วันเกิด (วว/ดด/ปปปป)", "ระดับชั้น", "เลขประจำตัว"]
+    ws.append(headers)
+    for c in range(1, len(headers) + 1):
+        ws.cell(1, c).font = Font(name="TH Sarabun New", bold=True, size=14)
+        ws.column_dimensions[chr(64 + c)].width = 24
+    ws.append(["เด็กชายสมชาย ใจดี", "ช", "15/05/2562", "ป.1", "10001"])
+    out = get_data_dir() / "documents"; out.mkdir(exist_ok=True)
+    path = out / "แบบฟอร์มนำเข้านักเรียน.xlsx"
+    wb.save(str(path))
+    return FileResponse(path, filename=path.name, media_type=_XLSX_MT)
+
+
+@router.post("/students/import")
+async def students_import(db: Session = Depends(get_db), file: UploadFile = File(...)):
+    import io as _io
+    from openpyxl import load_workbook
+    data = await file.read()
+    n = 0
+    try:
+        ws = load_workbook(_io.BytesIO(data), data_only=True).active
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if not row or not row[0]:
+                continue
+            db.add(Student(
+                name=str(row[0]).strip(),
+                sex=_norm_sex(str(row[1]).strip() if len(row) > 1 and row[1] else ""),
+                birthdate=parse_be_date(str(row[2])) if len(row) > 2 and row[2] else None,
+                level=str(row[3]).strip() if len(row) > 3 and row[3] else "",
+                student_no=str(row[4]).strip() if len(row) > 4 and row[4] else ""))
+            n += 1
+        db.commit()
+    except Exception:
+        return RedirectResponse("/students?err=read", status_code=303)
+    return RedirectResponse(f"/students?added={n}", status_code=303)
+
+
 # ---------------- ผู้ขาย ----------------
 @router.get("/vendors", response_class=HTMLResponse)
 def vendors_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("vendors.html", {
         "request": request, "vendors": db.query(Vendor).order_by(Vendor.name).all(),
     })
+
+
+@router.get("/vendors/template.xlsx")
+def vendors_template():
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+    wb = Workbook(); ws = wb.active; ws.title = "ผู้ขาย"
+    headers = ["ชื่อร้าน/บริษัท", "ชื่อเจ้าของ/ผู้ลงนาม", "เลขประจำตัวผู้เสียภาษี",
+               "ที่อยู่", "เบอร์โทร", "เลขบัญชีธนาคาร"]
+    ws.append(headers)
+    for c in range(1, len(headers) + 1):
+        ws.cell(1, c).font = Font(name="TH Sarabun New", bold=True, size=14)
+        ws.column_dimensions[chr(64 + c)].width = 24
+    ws.append(["หจก. ตัวอย่างการค้า", "นายสมชาย ใจดี", "0123456789012", "123 ต.ในเมือง", "0812345678", ""])
+    out = get_data_dir() / "documents"; out.mkdir(exist_ok=True)
+    path = out / "แบบฟอร์มนำเข้าผู้ขาย.xlsx"
+    wb.save(str(path))
+    return FileResponse(path, filename=path.name, media_type=_XLSX_MT)
+
+
+@router.post("/vendors/import")
+async def vendors_import(db: Session = Depends(get_db), file: UploadFile = File(...)):
+    import io as _io
+    from openpyxl import load_workbook
+    data = await file.read()
+    existing = {v.name for v in db.query(Vendor).all()}
+    n = 0
+    try:
+        ws = load_workbook(_io.BytesIO(data), data_only=True).active
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            nm = (str(row[0]).strip() if row and row[0] else "")
+            if not nm or nm in existing:
+                continue
+            db.add(Vendor(name=nm,
+                          owner_name=str(row[1]).strip() if len(row) > 1 and row[1] else "",
+                          tax_id=str(row[2]).strip() if len(row) > 2 and row[2] else "",
+                          address=str(row[3]).strip() if len(row) > 3 and row[3] else "",
+                          phone=str(row[4]).strip() if len(row) > 4 and row[4] else "",
+                          bank_account=str(row[5]).strip() if len(row) > 5 and row[5] else ""))
+            existing.add(nm); n += 1
+        db.commit()
+    except Exception:
+        return RedirectResponse("/vendors?err=read", status_code=303)
+    return RedirectResponse(f"/vendors?added={n}", status_code=303)
 
 
 @router.post("/vendors")

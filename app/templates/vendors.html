@@ -4,6 +4,22 @@
 <style>
   .vbox { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; }
 </style>
+<div class="hero">
+  <div>
+    <div class="hero-sub">ทะเบียนผู้ขาย/ผู้รับจ้างของโรงเรียน (ใช้ซ้ำในทุกเรื่องจัดซื้อจัดจ้าง)</div>
+    <span class="hero-title">ผู้ขาย/ผู้รับจ้าง</span>
+    <div class="hero-meta">{{ vendors|length }} ราย</div>
+  </div>
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <a class="btn sm gray" href="/vendors/template.xlsx"><svg class="icon"><use href="#ic-download"/></svg> แบบฟอร์ม Excel</a>
+    <form method="post" action="/vendors/import" enctype="multipart/form-data" style="display:flex; gap:6px; align-items:center;">
+      <input type="file" name="file" accept=".xlsx" required style="max-width:180px; padding:5px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:var(--text);">
+      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> นำเข้า</button>
+    </form>
+  </div>
+</div>
+{% if request.query_params.get('added') %}<div class="alert">✔ นำเข้าผู้ขายแล้ว {{ request.query_params.get('added') }} ราย</div>{% endif %}
+{% if request.query_params.get('err') %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> อ่านไฟล์ Excel ไม่สำเร็จ</div>{% endif %}
 <div class="card">
   <h1>เพิ่มผู้ขาย / ผู้รับจ้าง</h1>
   <form method="post" action="/vendors">

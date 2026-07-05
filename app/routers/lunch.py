@@ -564,6 +564,28 @@ def student_add(pid: int, db: Session = Depends(get_db),
     return RedirectResponse(f"/lunch/{pid}/nutrition", status_code=303)
 
 
+@router.post("/lunch/{pid}/nutrition/pull-roster")
+def nutrition_pull_roster(pid: int, db: Session = Depends(get_db), level: str = Form("")):
+    """ดึงนักเรียนจากทะเบียนกลางเข้าโครงการนี้ (ข้ามคนที่ดึงมาแล้ว/ชื่อซ้ำ)"""
+    from app.models import Student
+    prog = db.get(LunchProgram, pid)
+    if not prog:
+        return RedirectResponse("/lunch", status_code=303)
+    have_ids = {s.student_id for s in prog.students if s.student_id}
+    have_names = {(s.name or "").strip() for s in prog.students}
+    q = db.query(Student)
+    lv = (level or "").strip()
+    if lv:
+        q = q.filter(Student.level == lv)
+    for st in q.order_by(Student.level, Student.name).all():
+        if st.id in have_ids or (st.name or "").strip() in have_names:
+            continue
+        db.add(LunchStudent(program_id=pid, student_id=st.id, name=st.name,
+                            sex=st.sex, birthdate=st.birthdate, level=st.level))
+    db.commit()
+    return RedirectResponse(f"/lunch/{pid}/nutrition", status_code=303)
+
+
 @router.post("/lunch/{pid}/nutrition/students/bulk")
 def students_bulk_add(pid: int, db: Session = Depends(get_db), bulk: str = Form("")):
     """เพิ่มนักเรียนทีละหลายคน: 1 บรรทัด = ชื่อ, เพศ(ช/ญ), วันเกิด, ชั้น (คั่นจุลภาคหรือ Tab)"""

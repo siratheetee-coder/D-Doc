@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 {% block title %}เกียรติบัตร{% endblock %}
 {% block content %}
+<style>
+  /* ใช้ฟอนต์ Prompt เดียวกับตอน render จริง เพื่อให้ตัวอย่างตรงกับไฟล์ที่ได้ */
+  @font-face { font-family:'PromptCert'; src:url('/static/fonts/Prompt-SemiBold.ttf'); font-weight:600; }
+  @font-face { font-family:'PromptCert'; src:url('/static/fonts/Prompt-Regular.ttf'); font-weight:400; }
+  #pvName { font-family:'PromptCert', sans-serif; font-weight:600; }
+  #pvSub  { font-family:'PromptCert', sans-serif; font-weight:400; }
+</style>
 <div class="card">
   <h1><svg class="icon"><use href="#ic-ai"/></svg> ออกเกียรติบัตร (อัปโหลดพื้นหลัง + พิมพ์ชื่อทับ)</h1>
   <p class="muted" style="margin-top:0;">อัปโหลดรูปเกียรติบัตรของคุณ → คลิกบนรูปเพื่อปักตำแหน่งชื่อ → ใส่รายชื่อ (วางหรืออัป Excel) → ได้ PDF หลายหน้า (1 คน/หน้า)</p>
@@ -34,7 +41,8 @@
       <p class="muted" style="margin:0 0 6px;"><b>คลิกบนรูป</b> เพื่อปักตำแหน่งกึ่งกลางของชื่อ (จุดแดง)</p>
       <div id="imgBox" style="position:relative; display:inline-block; max-width:100%; cursor:crosshair; border:1px solid var(--border);">
         <img id="bgImg" style="display:block; max-width:100%; height:auto;" onclick="placeName(event)">
-        <div id="pvName" style="position:absolute; left:50%; top:45%; transform:translate(-50%,-50%); text-align:center; pointer-events:none; white-space:nowrap; line-height:1.1;"></div>
+        <div id="pvName" style="position:absolute; transform:translate(-50%,-50%); text-align:center; pointer-events:none; white-space:nowrap; line-height:1;"></div>
+        <div id="pvSub" style="position:absolute; transform:translate(-50%,-50%); text-align:center; pointer-events:none; white-space:pre; line-height:1;"></div>
         <div id="marker" style="position:absolute; width:10px; height:10px; margin:-5px 0 0 -5px; border-radius:50%; background:#e11; box-shadow:0 0 0 2px #fff; left:50%; top:45%; pointer-events:none;"></div>
       </div>
       <p class="muted" style="margin:6px 0 0; font-size:13px;">ตัวอย่างแสดงชื่อแรกในรายการ (พิมพ์รายชื่อด้านล่างเพื่อดูตัวอย่างสด)</p>
@@ -89,21 +97,31 @@
     preview();
   }
   function preview(){
-    var x = document.getElementById('name_x').value + '%';
-    var y = document.getElementById('name_y').value + '%';
+    var nxp = parseFloat(document.getElementById('name_x').value)||50;
+    var nyp = parseFloat(document.getElementById('name_y').value)||45;
     var m = document.getElementById('marker');
-    m.style.left = x; m.style.top = y;
-    var pv = document.getElementById('pvName'); if(!pv) return;
-    pv.style.left = x; pv.style.top = y;
+    m.style.left = nxp + '%'; m.style.top = nyp + '%';
+    var pv = document.getElementById('pvName'), sv = document.getElementById('pvSub');
+    if(!pv) return;
     var img = document.getElementById('bgImg');
-    var w = img.clientWidth || 600;
+    var w = img.clientWidth || 600, h = img.clientHeight || 400;
     var size = parseInt(document.getElementById('name_size').value||48)||48;
     var color = document.getElementById('name_color').value || '#1a1a1a';
-    var px = w * size / 1000;                       // สเกลเดียวกับตอน render จริง
+    var px = w * size / 1000;                       // สเกลเดียวกับตอน render จริง (อิงความกว้างรูป)
+    var xpx = w * nxp / 100, ypx = h * nyp / 100;   // จุดที่คลิก (พิกเซลบนรูปที่แสดง)
     var first = (document.getElementById('names').value.split('\n').map(function(s){return s.trim();}).filter(Boolean)[0]) || 'ชื่อ-นามสกุล';
-    var sub = (document.getElementById('f_sub') ? document.getElementById('f_sub').value.trim() : '');
-    pv.innerHTML = '<div style="font-size:'+px+'px; color:'+color+'; font-weight:600;">'+_esc(first)+'</div>' +
-      (sub ? '<div style="font-size:'+(px*0.5)+'px; color:'+color+';">'+_esc(sub)+'</div>' : '');
+    var sub = (document.getElementById('f_sub') ? document.getElementById('f_sub').value : '');
+    // ชื่อ: กึ่งกลางอยู่ที่จุดพอดี (ตรงกับ render anchor="mm" ที่ (nx,ny))
+    pv.style.left = xpx + 'px'; pv.style.top = ypx + 'px';
+    pv.style.fontSize = px + 'px'; pv.style.color = color; pv.style.fontWeight = '600';
+    pv.textContent = first;
+    // บรรทัดรอง: กึ่งกลางห่างลงมา name_px*0.95 (ตรงกับ render)
+    if(sub && sub.trim()){
+      sv.style.display = 'block';
+      sv.style.left = xpx + 'px'; sv.style.top = (ypx + px*0.95) + 'px';
+      sv.style.fontSize = (px*0.5) + 'px'; sv.style.color = color;
+      sv.textContent = sub;
+    } else { sv.style.display = 'none'; }
   }
   function _esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function loadBatch(b){

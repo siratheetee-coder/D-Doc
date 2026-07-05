@@ -209,6 +209,21 @@ class ProcurementItem(Base):
         return (self.quantity or 0) * (self.unit_price or 0)
 
 
+class Student(Base):
+    """ทะเบียนนักเรียนกลางของโรงเรียน (ใช้ซ้ำทุกปี) — ข้อมูลหลักเหมือนบุคลากร/ผู้ขาย
+    งานภาวะโภชนาการดึงรายชื่อจากที่นี่เข้าโครงการรายปีเพื่อบันทึกน้ำหนัก/ส่วนสูง"""
+    __tablename__ = "student"
+
+    id = Column(Integer, primary_key=True)
+    student_no = Column(String, default="")         # เลขประจำตัวนักเรียน (ไม่บังคับ)
+    name = Column(String, nullable=False)           # ชื่อ-นามสกุล
+    sex = Column(String, default="")                # M/F
+    birthdate = Column(DateTime, nullable=True)     # วันเกิด
+    level = Column(String, default="")              # ระดับชั้น เช่น ป.1
+    note = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+
 class ItemCatalog(Base):
     """คลังรายการพัสดุมาตรฐาน (ใช้ซ้ำ) — พิมพ์ชื่อครั้งเดียว เลือกใช้ในเรื่องจัดซื้อทุกครั้ง
     ระบบเติมให้อัตโนมัติจากรายการที่เคยกรอก (dedupe ตามชื่อ)"""
@@ -803,6 +818,7 @@ class LunchStudent(Base):
 
     id = Column(Integer, primary_key=True)
     program_id = Column(Integer, ForeignKey("lunch_program.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("student.id"), nullable=True)  # มาจากทะเบียนกลาง (ถ้าดึงเข้ามา)
     name = Column(String, nullable=False)           # ชื่อ-นามสกุล
     sex = Column(String, default="")                # M=ชาย / F=หญิง
     birthdate = Column(DateTime, nullable=True)     # วันเกิด (คำนวณอายุตอนชั่ง)

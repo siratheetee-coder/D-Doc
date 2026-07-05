@@ -46,7 +46,16 @@
 </div>
 
 <div class="card">
-  <h2>เพิ่มนักเรียน</h2>
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h2 style="margin:0;">นักเรียนในโครงการ (ปีการศึกษา {{ p.year }})</h2>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <form method="post" action="/lunch/{{ p.id }}/nutrition/pull-roster" style="margin:0;">
+        <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-users"/></svg> ดึงจากทะเบียนนักเรียนกลาง</button>
+      </form>
+      <a class="btn sm gray" href="/students" target="_blank"><svg class="icon"><use href="#ic-clipboard"/></svg> จัดการ/นำเข้าทะเบียนนักเรียน</a>
+    </div>
+  </div>
+  <p class="muted" style="margin:6px 0 10px;">ดึงรายชื่อจาก <a href="/students" target="_blank">ทะเบียนนักเรียนกลาง</a> (นำเข้า Excel ได้ที่นั่น) เข้าโครงการปีนี้เพื่อบันทึกน้ำหนัก/ส่วนสูง · หรือเพิ่มทีละคนด้านล่าง</p>
   <form method="post" action="/lunch/{{ p.id }}/nutrition/student/add" class="row" style="align-items:flex-end;">
     <div style="flex:2;"><label>ชื่อ-นามสกุล</label><input name="name" required></div>
     <div><label>เพศ</label><select name="sex"><option value="M">ชาย</option><option value="F">หญิง</option></select></div>
@@ -56,14 +65,6 @@
   </form>
   <datalist id="lvlist"><option value="อ.1"><option value="อ.2"><option value="อ.3"><option value="ป.1"><option value="ป.2"><option value="ป.3"><option value="ป.4"><option value="ป.5"><option value="ป.6"><option value="ม.1"><option value="ม.2"><option value="ม.3"></datalist>
 
-  <div style="margin-top:14px; border-top:1px solid var(--border); padding-top:10px;">
-    <b style="font-size:14px;">เพิ่มทีละหลายคน (วางจาก Excel)</b>
-    <p class="muted" style="font-size:13px; margin:4px 0;">1 คน/บรรทัด รูปแบบ: <b>ชื่อ-นามสกุล , เพศ(ช/ญ) , วันเกิด(วว/ดด/ปปปป) , ชั้น</b> (คั่นด้วยจุลภาค หรือ Tab) · เว้นช่องหลังได้</p>
-    <form method="post" action="/lunch/{{ p.id }}/nutrition/students/bulk">
-      <textarea name="bulk" rows="5" placeholder="เด็กชายสมชาย ใจดี, ช, 15/05/2562, ป.1&#10;เด็กหญิงสมหญิง รักเรียน, ญ, 20/07/2562, ป.1"></textarea>
-      <br><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มทั้งหมด</button>
-    </form>
-  </div>
 </div>
 
 <div class="card">

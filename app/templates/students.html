@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}ข้อมูลนักเรียน{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">ทะเบียนนักเรียนกลางของโรงเรียน (ใช้ซ้ำทุกปี)</div>
+    <span class="hero-title">ข้อมูลนักเรียน</span>
+    <div class="hero-meta">{{ rows|length }} คน · ใช้ในงานภาวะโภชนาการและงานอื่น ๆ</div>
+  </div>
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <a class="btn sm gray" href="/students/template.xlsx"><svg class="icon"><use href="#ic-download"/></svg> แบบฟอร์ม Excel</a>
+    <form method="post" action="/students/import" enctype="multipart/form-data" style="display:flex; gap:6px; align-items:center;">
+      <input type="file" name="file" accept=".xlsx" required style="max-width:180px; padding:5px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:var(--text);">
+      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> นำเข้า</button>
+    </form>
+  </div>
+</div>
+{% if request.query_params.get('added') %}<div class="alert">✔ นำเข้านักเรียนแล้ว {{ request.query_params.get('added') }} คน</div>{% endif %}
+{% if request.query_params.get('err') %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> อ่านไฟล์ Excel ไม่สำเร็จ ตรวจรูปแบบตามแบบฟอร์ม</div>{% endif %}
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มนักเรียน</h2>
+  <form method="post" action="/students" class="row" style="align-items:flex-end;">
+    <div><label>เลขประจำตัว</label><input name="student_no" style="width:110px;"></div>
+    <div style="flex:2;"><label>ชื่อ-นามสกุล *</label><input name="name" required></div>
+    <div><label>เพศ</label><select name="sex"><option value="">-</option><option value="ช">ชาย</option><option value="ญ">หญิง</option></select></div>
+    <div><label>วันเกิด</label><input name="birthdate" placeholder="วว/ดด/ปปปป" data-date="1" style="width:130px;"></div>
+    <div><label>ระดับชั้น</label><input name="level" list="lvlist" style="width:100px;"></div>
+    <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
+  </form>
+  <datalist id="lvlist"><option value="อ.1"><option value="อ.2"><option value="อ.3"><option value="ป.1"><option value="ป.2"><option value="ป.3"><option value="ป.4"><option value="ป.5"><option value="ป.6"><option value="ม.1"><option value="ม.2"><option value="ม.3"></datalist>
+  <div style="margin-top:14px; border-top:1px solid var(--border); padding-top:10px;">
+    <b style="font-size:14px;">เพิ่มทีละหลายคน (วางจาก Excel)</b>
+    <p class="muted" style="font-size:13px; margin:4px 0;">1 คน/บรรทัด: <b>ชื่อ-นามสกุล , เพศ(ช/ญ) , วันเกิด , ชั้น , เลขประจำตัว</b> (คั่นจุลภาคหรือ Tab · เว้นช่องหลังได้)</p>
+    <form method="post" action="/students/bulk">
+      <textarea name="bulk" rows="4" placeholder="เด็กชายสมชาย ใจดี, ช, 15/05/2562, ป.1, 10001&#10;เด็กหญิงสมหญิง รักเรียน, ญ, 20/07/2562, ป.1, 10002"></textarea>
+      <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มทั้งหมด</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h2>รายชื่อนักเรียน {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }} คน)</span>{% endif %}</h2>
+  {% if rows %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>เลขประจำตัว</th><th>ชื่อ-นามสกุล</th><th>เพศ</th><th>วันเกิด</th><th>ชั้น</th><th></th></tr></thead>
+    <tbody>
+    {% for s in rows %}
+      <tr>
+        <form method="post" action="/students/{{ s.id }}/update" style="display:contents;">
+          <td><input name="student_no" value="{{ s.student_no }}" style="width:90px;"></td>
+          <td><input name="name" value="{{ s.name }}"></td>
+          <td><select name="sex" style="width:75px;"><option value="" {{ 'selected' if not s.sex }}>-</option><option value="ช" {{ 'selected' if s.sex=='M' }}>ชาย</option><option value="ญ" {{ 'selected' if s.sex=='F' }}>หญิง</option></select></td>
+          <td><input name="birthdate" value="{{ be_date(s.birthdate) if s.birthdate else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;"></td>
+          <td><input name="level" value="{{ s.level }}" style="width:80px;"></td>
+          <td style="white-space:nowrap;">
+            <button class="btn sm" type="submit">บันทึก</button>
+        </form>
+            <form method="post" action="/students/{{ s.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบนักเรียนคนนี้?');"><button class="btn sm gray" type="submit">ลบ</button></form>
+          </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted">ยังไม่มีนักเรียน เพิ่มด้านบน หรือ นำเข้าจาก Excel</p>{% endif %}
+</div>
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}
