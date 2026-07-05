@@ -5,6 +5,7 @@ lunch.py — งานอาหารกลางวัน
 + บัญชีรับ-จ่ายเงินอาหารกลางวัน + เชื่อมไปเรื่องจ้างเหมา (โมดูลจัดซื้อ)
 ตารางใหม่สร้างอัตโนมัติด้วย init_school_db (ไม่ต้อง ALTER)
 """
+import re
 from datetime import datetime
 
 from fastapi import APIRouter, Request, Depends, Form
@@ -444,9 +445,17 @@ def menu_page(pid: int, request: Request, db: Session = Depends(get_db),
     edit_row = db.get(LunchMenu, edit) if edit else None
     if edit_row and edit_row.program_id != pid:
         edit_row = None
+    # คลังเมนูที่เคยใช้ (ทุกโครงการของโรงเรียน) เลือกใช้ซ้ำได้ ไม่ต้องพิมพ์ใหม่
+    seen, past = set(), []
+    for mm in db.query(LunchMenu).order_by(LunchMenu.id.desc()).all():
+        key = (mm.main or "").strip()
+        if key and key not in seen:
+            seen.add(key)
+            past.append({"main": key, "dessert": (mm.dessert or "").strip()})
+    desserts = sorted({(mm.dessert or "").strip() for mm in db.query(LunchMenu).all() if (mm.dessert or "").strip()})
     return templates.TemplateResponse("lunch_menu.html", {
         "request": request, "school": get_school(db), "p": prog,
-        "menus": prog.menus, "edit": edit_row,
+        "menus": prog.menus, "edit": edit_row, "past_menus": past, "desserts": desserts,
         "today_be": be_date_input(datetime.now()),
     })
 
@@ -513,6 +522,7 @@ def _nutrition_ctx(request, db, prog):
     # นับสรุปจากผลเทอมล่าสุดของแต่ละคน
     wh_count = {k: 0 for k in WH_LABELS}
     ha_count = {k: 0 for k in HA_LABELS}
+    wa_count = {k: 0 for k in WA_LABELS}
     for s in students:
         ms = {m.term: m for m in s.measures}
         res = {t: _measure_result(s, ms.get(t)) for t in (1, 2)}
@@ -523,11 +533,13 @@ def _nutrition_ctx(request, db, prog):
                 wh_count[latest["wh"]] += 1
             if latest["ha"] in ha_count:
                 ha_count[latest["ha"]] += 1
+            if latest.get("wa") in wa_count:
+                wa_count[latest["wa"]] += 1
     n = sum(wh_count.values())
     return {
         "request": request, "school": get_school(db), "p": prog,
-        "rows": rows, "wh_labels": WH_LABELS, "ha_labels": HA_LABELS,
-        "wh_count": wh_count, "ha_count": ha_count, "assessed": n,
+        "rows": rows, "wh_labels": WH_LABELS, "ha_labels": HA_LABELS, "wa_labels": WA_LABELS,
+        "wh_count": wh_count, "ha_count": ha_count, "wa_count": wa_count, "assessed": n,
         "today_be": be_date_input(datetime.now()),
     }
 
@@ -548,6 +560,30 @@ def student_add(pid: int, db: Session = Depends(get_db),
         return RedirectResponse(f"/lunch/{pid}/nutrition", status_code=303)
     db.add(LunchStudent(program_id=pid, name=name.strip(), sex=sex,
                         birthdate=parse_be_date(birthdate), level=level.strip()))
+    db.commit()
+    return RedirectResponse(f"/lunch/{pid}/nutrition", status_code=303)
+
+
+@router.post("/lunch/{pid}/nutrition/students/bulk")
+def students_bulk_add(pid: int, db: Session = Depends(get_db), bulk: str = Form("")):
+    """เพิ่มนักเรียนทีละหลายคน: 1 บรรทัด = ชื่อ, เพศ(ช/ญ), วันเกิด, ชั้น (คั่นจุลภาคหรือ Tab)"""
+    if not db.get(LunchProgram, pid):
+        return RedirectResponse("/lunch", status_code=303)
+    n = 0
+    for line in (bulk or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = [p.strip() for p in re.split(r"[,\t]", line)]
+        name = parts[0] if parts else ""
+        if not name:
+            continue
+        sx = (parts[1] if len(parts) > 1 else "").strip()
+        sex = "M" if sx in ("ช", "ชาย", "M", "m") else "F" if sx in ("ญ", "หญิง", "F", "f") else ""
+        birth = parse_be_date(parts[2]) if len(parts) > 2 else None
+        level = parts[3] if len(parts) > 3 else ""
+        db.add(LunchStudent(program_id=pid, name=name, sex=sex, birthdate=birth, level=level))
+        n += 1
     db.commit()
     return RedirectResponse(f"/lunch/{pid}/nutrition", status_code=303)
 

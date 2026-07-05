@@ -16,9 +16,12 @@
   <form method="post" action="{{ ('/lunch/menu/' ~ edit.id ~ '/update') if edit else ('/lunch/' ~ p.id ~ '/menu/add') }}">
     <div class="row">
       <div><label>วันที่</label><input name="date" value="{{ be_date(edit.date) if edit and edit.date else today_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
-      <div style="flex:2;"><label>อาหารคาว (จานหลัก)</label><input name="main" value="{{ edit.main if edit else '' }}" placeholder="เช่น ข้าว + ผัดกะเพราไก่ + ไข่ดาว"></div>
-      <div style="flex:2;"><label>ของหวาน / ผลไม้</label><input name="dessert" value="{{ edit.dessert if edit else '' }}" placeholder="เช่น กล้วยน้ำว้า"></div>
+      <div style="flex:2;"><label>อาหารคาว (จานหลัก)</label><input name="main" id="m_main" list="mains_dl" oninput="fillDessert(this)" value="{{ edit.main if edit else '' }}" placeholder="พิมพ์/เลือกเมนูที่เคยใช้"></div>
+      <div style="flex:2;"><label>ของหวาน / ผลไม้</label><input name="dessert" id="m_dessert" list="desserts_dl" value="{{ edit.dessert if edit else '' }}" placeholder="เช่น กล้วยน้ำว้า"></div>
     </div>
+    <datalist id="mains_dl">{% for pm in past_menus %}<option value="{{ pm.main }}">{% endfor %}</datalist>
+    <datalist id="desserts_dl">{% for d in desserts %}<option value="{{ d }}">{% endfor %}</datalist>
+    <p class="muted" style="font-size:13px; margin:2px 0;">เลือกจานหลักที่เคยใช้ ระบบจะเติมของหวานที่เคยคู่กันให้อัตโนมัติ (แก้ได้)</p>
     <label>หมายเหตุ</label><input name="note" value="{{ edit.note if edit else '' }}">
     <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> {{ 'บันทึกการแก้ไข' if edit else 'เพิ่มเมนู' }}</button>
     {% if edit %}<a class="btn gray" href="/lunch/{{ p.id }}/menu">ยกเลิก</a>{% endif %}
@@ -52,6 +55,13 @@
   {% endif %}
 </div>
 <script>
+  // จานหลัก -> ของหวานที่เคยคู่กัน (เติมให้เมื่อของหวานยังว่าง)
+  var MENU_PAIR = { {% for pm in past_menus %}{{ pm.main|tojson }}: {{ pm.dessert|tojson }}{{ "," if not loop.last }}{% endfor %} };
+  function fillDessert(inp){
+    var d = MENU_PAIR[(inp.value||'').trim()];
+    var de = document.getElementById('m_dessert');
+    if(d && de && !de.value.trim()){ de.value = d; }
+  }
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){
       var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
