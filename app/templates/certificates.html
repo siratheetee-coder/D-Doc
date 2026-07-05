@@ -26,7 +26,10 @@
     <label style="margin-top:10px; display:block;">หรือเลือกชุดที่บันทึกไว้ (โหลดพื้นหลัง+ตำแหน่ง+รูปแบบ)</label>
     <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;">
       {% for b in saved %}
-      <button type="button" class="btn sm gray" onclick='loadBatch({{ b|tojson }})'><svg class="icon"><use href="#ic-file"/></svg> {{ b.title }}</button>
+      <span style="display:inline-flex; border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+        <button type="button" class="btn sm gray" style="border:none; border-radius:0;" onclick='loadBatch({{ b|tojson }})'><svg class="icon"><use href="#ic-file"/></svg> {{ b.title }}</button>
+        <button type="button" class="btn sm gray" style="border:none; border-radius:0; border-left:1px solid var(--border); color:#dc2626; padding:5px 9px;" title="ลบชุดนี้" onclick='deleteBatch({{ b.id }}, {{ b.title|tojson }})'>✕</button>
+      </span>
       {% endfor %}
     </div>
     {% endif %}
@@ -124,6 +127,13 @@
     } else { sv.style.display = 'none'; }
   }
   function _esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function deleteBatch(id, title){
+    if(!confirm('ลบชุดเกียรติบัตร "'+title+'" ?')) return;
+    var fd=new FormData();
+    fetch('/admin/certificates/'+id+'/delete', {method:'POST', body:fd})
+      .then(function(){ location.reload(); })
+      .catch(function(){ alert('ลบไม่สำเร็จ'); });
+  }
   function loadBatch(b){
     document.getElementById('bg_image').value = b.bg_image;
     document.getElementById('bgImg').src = b.url;

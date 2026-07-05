@@ -648,6 +648,15 @@ def certificates_page(request: Request, db: Session = Depends(get_db)):
     })
 
 
+@router.post("/admin/certificates/{bid}/delete")
+def certificate_delete(bid: int, db: Session = Depends(get_db)):
+    """ลบชุดเกียรติบัตรที่บันทึกไว้"""
+    b = db.get(CertificateBatch, bid)
+    if b:
+        db.delete(b); db.commit()
+    return RedirectResponse("/admin/certificates", status_code=303)
+
+
 @router.post("/admin/certificates/bg")
 async def certificate_bg(file: UploadFile = File(...)):
     """อัปโหลดรูปพื้นหลังเกียรติบัตร -> คืนชื่อไฟล์ + ขนาด (สำหรับพรีวิว/ปักตำแหน่ง)"""

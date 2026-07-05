@@ -446,18 +446,11 @@
           window.IS_SECTION_HOME = {{ 'true' if is_section_home else 'false' }};
           function goBack(ev){
             ev.preventDefault();
-            // อยู่หน้าหลักของงานแล้ว -> ย้อนไปหน้าเลือกงาน (hub)
+            // อยู่หน้าแรกของงาน (section home) -> ไปหน้าเลือกงาน (hub) ทันที
             if(window.IS_SECTION_HOME){ location.href = "/"; return false; }
-            // อยู่หน้าย่อย -> ย้อนภายใน section เดียวกัน (ถ้าหน้าก่อนหน้าอยู่ใน section นี้)
-            var same = false;
-            try{ if(document.referrer){ var u = new URL(document.referrer);
-              if(u.origin === location.origin){
-                for(var i=0;i<window.SECTION_PREFIXES.length;i++){
-                  if(u.pathname.indexOf(window.SECTION_PREFIXES[i])===0){ same=true; break; }
-                }
-              }
-            } }catch(e){}
-            if(same && history.length>1){ history.back(); } else { location.href = window.SECTION_HOME; }
+            // อยู่หน้าย่อย -> ย้อนไปหน้าก่อนหน้า (previous) ; ถ้าไม่มีประวัติ ใช้หน้าแรกของงาน
+            if(document.referrer && history.length > 1){ history.back(); }
+            else { location.href = window.SECTION_HOME; }
             return false;
           }
         </script>

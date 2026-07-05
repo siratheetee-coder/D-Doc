@@ -207,6 +207,39 @@ async def textbook_import(db: Session = Depends(get_db), year: str = Form(""),
     return RedirectResponse(f"/textbooks?year={yr}&saved={n}", status_code=303)
 
 
+_LEVEL_ORDER = ["อ.1", "อ.2", "อ.3", "ป.1", "ป.2", "ป.3", "ป.4", "ป.5", "ป.6",
+                "ม.1", "ม.2", "ม.3"]
+
+
+@router.get("/textbooks/receipt.docx")
+def book_receipt(db: Session = Depends(get_db), year: int | None = None):
+    """บัญชีรายชื่อนักเรียนรับหนังสือเรียน แยกตามชั้น (Word) — นักเรียนจากทะเบียนกลาง"""
+    from app.models import Student
+    from app.services.book_receipt_doc import render_book_receipt
+    yr = year or current_academic_year()
+    books = db.query(TextBook).filter_by(year=yr).order_by(TextBook.subject, TextBook.title).all()
+    students = db.query(Student).order_by(Student.name).all()
+    # จัดกลุ่มตามชั้น
+    levels = []
+    seen = set()
+    for lst in (books, students):
+        for x in lst:
+            lv = (x.level or "").strip()
+            if lv and lv not in seen:
+                seen.add(lv); levels.append(lv)
+    levels.sort(key=lambda l: _LEVEL_ORDER.index(l) if l in _LEVEL_ORDER else 99)
+    groups = []
+    for lv in levels:
+        lv_books = [b for b in books if (b.level or "").strip() == lv]
+        lv_students = [s for s in students if (s.level or "").strip() == lv]
+        groups.append((lv, lv_books, lv_students))
+    if not groups:
+        groups = [("", [], [])]
+    path = render_book_receipt(yr, groups, get_school(db))
+    return FileResponse(path, filename=Path(path).name,
+                        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
 @router.get("/textbooks/export.xlsx")
 def textbook_export(db: Session = Depends(get_db), year: int | None = None):
     from openpyxl import Workbook

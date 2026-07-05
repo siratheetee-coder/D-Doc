@@ -71,44 +71,50 @@
   <h2>ทะเบียนนักเรียน {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }} คน)</span>{% endif %}</h2>
   {% if rows %}
   <div class="table-wrap">
-  <table>
+  <table class="nut">
     <thead><tr>
-      <th>ชื่อ</th><th>เพศ / วันเกิด / ชั้น</th>
-      <th>เทอม 1 (นน./สส. → ภาวะ)</th><th>เทอม 2 (นน./สส. → ภาวะ)</th><th></th>
+      <th style="min-width:170px;">นักเรียน</th>
+      <th>เทอม 1</th><th>เทอม 2</th><th style="width:46px;"></th>
     </tr></thead>
     <tbody>
     {% for r in rows %}
       <tr>
-        <td>{{ r.s.name }}{% if not r.s.birthdate %}<br><span class="pill" style="background:#fff4e5;color:#b45309; font-size:11px;">⚠ ไม่มีวันเกิด</span>{% endif %}</td>
-        <td>
-          <form method="post" action="/lunch/student/{{ r.s.id }}/update" style="display:flex; gap:4px; align-items:center; flex-wrap:wrap; margin:0;">
-            <input type="hidden" name="name" value="{{ r.s.name }}">
-            <select name="sex" style="width:70px;"><option value="" {{ 'selected' if not r.s.sex }}>-</option><option value="M" {{ 'selected' if r.s.sex=='M' }}>ชาย</option><option value="F" {{ 'selected' if r.s.sex=='F' }}>หญิง</option></select>
-            <input name="birthdate" value="{{ be_date(r.s.birthdate) if r.s.birthdate else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;">
-            <input name="level" value="{{ r.s.level }}" style="width:64px;">
-            <button class="btn sm gray" type="submit">แก้</button>
-          </form>
+        <td style="min-width:170px;">
+          <b>{{ r.s.name }}</b>
+          <div class="muted" style="font-size:12px; line-height:1.3;">
+            {{ 'ชาย' if r.s.sex=='M' else 'หญิง' if r.s.sex=='F' else '—' }} · {{ r.s.level or '—' }}{% if r.s.birthdate %} · เกิด {{ be_date(r.s.birthdate) }}{% endif %}
+          </div>
+          {% if not r.s.sex or not r.s.birthdate %}<span class="pill" style="background:#fff4e5;color:#b45309; font-size:11px;">⚠ ใส่เพศ/วันเกิด</span>{% endif %}
+          <details style="margin-top:2px;">
+            <summary style="font-size:12px; cursor:pointer; color:var(--brand-dark);">แก้ข้อมูล</summary>
+            <form method="post" action="/lunch/student/{{ r.s.id }}/update" style="display:flex; gap:4px; align-items:center; flex-wrap:wrap; margin:4px 0 0;">
+              <input type="hidden" name="name" value="{{ r.s.name }}">
+              <select name="sex" style="width:70px;"><option value="" {{ 'selected' if not r.s.sex }}>-</option><option value="M" {{ 'selected' if r.s.sex=='M' }}>ชาย</option><option value="F" {{ 'selected' if r.s.sex=='F' }}>หญิง</option></select>
+              <input name="birthdate" value="{{ be_date(r.s.birthdate) if r.s.birthdate else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:118px;">
+              <input name="level" value="{{ r.s.level }}" placeholder="ชั้น" style="width:60px;">
+              <button class="btn sm gray" type="submit">บันทึก</button>
+            </form>
+          </details>
         </td>
         {% for t in [1,2] %}
         <td>
           {% set m = r.m.get(t) %}{% set res = r.res.get(t) %}
-          {% if m and m.weight %}<span class="muted" style="font-size:13px;">{{ "%g"|format(m.weight) }}กก./{{ "%g"|format(m.height) }}ซม.</span><br>{% endif %}
-          {% if res %}<div style="display:flex; gap:3px; flex-wrap:wrap; margin-bottom:2px;">
-            {{ badge(res.wh) }}
-            {% if res.ha %}<span class="pill" style="{{ whcolor(res.ha) }} font-size:11px;">สูง/อายุ: {{ res.ha }}</span>{% endif %}
-            {% if res.wa %}<span class="pill" style="{{ whcolor(res.wa) }} font-size:11px;">นน./อายุ: {{ res.wa }}</span>{% endif %}
-            {% if not res.ha and m and m.weight %}<span class="muted" style="font-size:11px;">(ใส่วันเกิดเพื่อดูตามอายุ)</span>{% endif %}
-          </div>{% endif %}
-          <form method="post" action="/lunch/student/{{ r.s.id }}/measure" style="margin:4px 0 0; display:flex; gap:4px; align-items:center;">
+          <form method="post" action="/lunch/student/{{ r.s.id }}/measure" style="margin:0; display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
             <input type="hidden" name="term" value="{{ t }}">
-            <input name="weight" type="number" step="0.1" placeholder="นน.(กก.)" value="{{ '%g'|format(m.weight) if m and m.weight else '' }}" style="width:82px;">
-            <input name="height" type="number" step="0.1" placeholder="สส.(ซม.)" value="{{ '%g'|format(m.height) if m and m.height else '' }}" style="width:82px;">
-            <input name="date" placeholder="วว/ดด/ปปปป" data-date="1" value="{{ be_date(m.date) if m and m.date else today_be }}" style="width:130px;">
+            <input name="weight" type="number" step="0.1" title="น้ำหนัก (กก.)" placeholder="นน." value="{{ '%g'|format(m.weight) if m and m.weight else '' }}" style="width:58px;">
+            <input name="height" type="number" step="0.1" title="ส่วนสูง (ซม.)" placeholder="สส." value="{{ '%g'|format(m.height) if m and m.height else '' }}" style="width:58px;">
+            <input name="date" placeholder="วว/ดด/ปปปป" data-date="1" value="{{ be_date(m.date) if m and m.date else today_be }}" style="width:110px;">
             <button class="btn sm" type="submit">บันทึก</button>
           </form>
+          {% if res %}<div style="display:flex; gap:3px; flex-wrap:wrap; margin-top:4px; align-items:center;">
+            {% if res.wh %}<span class="pill" style="{{ whcolor(res.wh) }} font-size:11px;" title="น้ำหนักตามเกณฑ์ส่วนสูง">{{ res.wh }}</span>{% endif %}
+            {% if res.ha %}<span class="pill" style="{{ whcolor(res.ha) }} font-size:11px;" title="ส่วนสูงตามเกณฑ์อายุ">ส.{{ res.ha }}</span>{% endif %}
+            {% if res.wa %}<span class="pill" style="{{ whcolor(res.wa) }} font-size:11px;" title="น้ำหนักตามเกณฑ์อายุ">น.{{ res.wa }}</span>{% endif %}
+            {% if not res.ha and m and m.weight %}<span class="muted" style="font-size:11px;">(ใส่วันเกิดเพื่อดูตามอายุ)</span>{% endif %}
+          </div>{% endif %}
         </td>
         {% endfor %}
-        <td><form method="post" action="/lunch/student/{{ r.s.id }}/delete" onsubmit="return confirm('ลบนักเรียนคนนี้?');" style="margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form></td>
+        <td><form method="post" action="/lunch/student/{{ r.s.id }}/delete" onsubmit="return confirm('ลบนักเรียนคนนี้?');" style="margin:0;"><button class="btn sm gray" type="submit">✕</button></form></td>
       </tr>
     {% endfor %}
     </tbody>
