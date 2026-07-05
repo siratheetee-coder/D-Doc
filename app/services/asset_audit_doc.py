@@ -12,8 +12,8 @@ from docx.shared import Cm
 from app.database import get_data_dir
 from app.thai_utils import thai_date
 from app.services.build_templates import (
-    _font, _krut_and_title, _p, _p_runs, _sign_table, _set_cell,
-    _repeat_header_row, _no_split_row,
+    _font, _krut_and_title, _p, _p_runs, _sign_table, _set_cell, _hr,
+    _repeat_header_row, _no_split_row, _no_borders,
 )
 
 _BLANK = "............................"
@@ -49,14 +49,22 @@ def _members(ctx) -> list:
 
 
 def _member_lines(doc, members):
-    for i, m in enumerate(members, start=1):
-        pos = (m.get("position") or "ครู").strip()
-        role = (m.get("role") or "กรรมการ").strip()
-        _p(doc, f"{i}. {m['name'].strip()}    ตำแหน่ง {pos}    {role}",
-           indent=1.5, after=1)
-    if not members:
-        for i in range(1, 4):
-            _p(doc, f"{i}. {_BLANK}", indent=1.5, after=1)
+    """รายชื่อกรรมการเป็นตารางไร้เส้นขอบ ให้ ชื่อ/ตำแหน่ง/บทบาท ตรงคอลัมน์กัน"""
+    data = list(members) if members else [None, None, None]
+    widths = [Cm(1.0), Cm(6.6), Cm(4.8), Cm(4.2)]
+    t = doc.add_table(rows=len(data), cols=4)
+    _no_borders(t)
+    for i, (row, m) in enumerate(zip(t.rows, data), 1):
+        if m:
+            name = (m.get("name") or "").strip()
+            pos = "ตำแหน่ง " + ((m.get("position") or "ครู").strip())
+            role = (m.get("role") or "กรรมการ").strip()
+        else:
+            name, pos = _BLANK, "ตำแหน่ง .................."
+            role = "ประธานกรรมการ" if i == 1 else "กรรมการ"
+        for c, v, w in zip(row.cells, [f"{i}.", name, pos, role], widths):
+            _set_cell(c, v, size=16, align="left")
+            c.width = w
 
 
 def _memo_header(doc, school, subject, doc_no, date_txt):
@@ -66,6 +74,7 @@ def _memo_header(doc, school, subject, doc_no, date_txt):
                   ("\t", False), ("วันที่ ", True), (date_txt, False)], tab_cm=8)
     _p_runs(doc, [("เรื่อง  ", True), (subject, False)])
     _p_runs(doc, [("เรียน  ", True), (_director_line(school), False)])
+    _hr(doc)
 
 
 _LEGAL = ("อาศัยอำนาจตามความในข้อ 213 แห่งระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและ"

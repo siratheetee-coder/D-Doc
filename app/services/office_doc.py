@@ -19,7 +19,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from app.database import get_data_dir
 from app.thai_utils import thai_date, thai_date_official
 from app.services.build_templates import (
-    _font, _p, _p_runs, _krut_and_title, _krut_center, _sign_table,
+    _font, _p, _p_runs, _krut_and_title, _krut_center, _sign_table, _hr,
     _no_borders, _set_cell, THAI_FONT,
 )
 
@@ -76,8 +76,7 @@ def render_memo(memo, school) -> str:
                   ("\t", False), ("วันที่ ", True), (thai_date(memo.date), False)], tab_cm=7)
     _p_runs(doc, [("เรื่อง  ", True), (memo.subject or "", False)])
     _p_runs(doc, [("เรียน  ", True), (memo.to_person or _director_office(school), False)])
-
-    _p(doc, "", after=4)
+    _hr(doc)
     _body_paragraphs(doc, memo.body)
 
     # ลงนาม

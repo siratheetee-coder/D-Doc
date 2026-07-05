@@ -18,7 +18,7 @@ from app.database import get_data_dir
 from app.thai_utils import thai_date, bahttext
 from app.services.build_templates import (
     _font, _p, _set_cell, _repeat_header_row, _no_split_row, _sign_table,
-    _krut_and_title, _krut_center,
+    _krut_and_title, _krut_center, _p_runs, _hr, _no_borders,
 )
 
 _BLANK = "............................"
@@ -237,11 +237,8 @@ def render_disburse_lunch_doc(inst, school, wht_rate=0.01) -> str:
               f"{_dnum(inst.end_date)} รวม {inst.days or ''} วัน")
 
     # ===== 1. บันทึกข้อความ ขออนุมัติเบิกจ่าย =====
-    _krut_and_title(doc)
-    _p(doc, f"ส่วนราชการ  {sname}  {saddr}", after=0)
-    _p(doc, f"ที่  -/{prog.year}                     วันที่  {_dnum(inst.inspect_date or inst.end_date)}", after=0)
-    _p(doc, f"เรื่อง  ขออนุมัติเบิกจ่ายเงินอุดหนุนอาหารกลางวัน รับจาก{fund}", after=0)
-    _p(doc, f"เรียน  ผู้อำนวยการ{sname}", after=6)
+    _memo_head(doc, school, [f"ขออนุมัติเบิกจ่ายเงินอุดหนุนอาหารกลางวัน รับจาก{fund}"],
+               _dnum(inst.inspect_date or inst.end_date), order_no)
     _p(doc, f"ตามที่{sname}ได้จ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) จำนวน {inst.days or ''} วัน "
             f"จาก {vname} จำนวนเงิน {A} บาท ({bahttext(amt)}) ตามใบสั่งจ้าง เลขที่ {order_no} "
             f"{period} จากเงินนอกงบประมาณ ประเภทเงินอุดหนุนอาหารกลางวันรับจาก{fund} นั้น",
@@ -444,14 +441,21 @@ def render_committee_order_doc(rnd, school, doc=None) -> str:
 
 
 def _committee_lines(doc, members, fallback_n=3):
-    if members:
-        for i, m in enumerate(members, 1):
-            _p(doc, f"{i}. {m.name}        ตำแหน่ง {m.position}        {m.role}",
-               indent=1.75, after=0)
-    else:
-        for i in range(1, fallback_n + 1):
-            _p(doc, f"{i}. ...........................................  ตำแหน่ง ..............  "
-                    f"{'ประธานกรรมการ' if i == 1 else 'กรรมการ'}", indent=1.75, after=0)
+    """รายชื่อกรรมการเป็นตารางไร้เส้นขอบ ให้ ชื่อ/ตำแหน่ง/บทบาท ตรงคอลัมน์กัน"""
+    data = list(members) if members else [None] * fallback_n
+    widths = [Cm(1.0), Cm(6.6), Cm(4.8), Cm(4.2)]
+    t = doc.add_table(rows=len(data), cols=4)
+    _no_borders(t)
+    for i, (row, m) in enumerate(zip(t.rows, data), 1):
+        if m:
+            name, pos, role = m.name, ("ตำแหน่ง " + (m.position or "ครู")), m.role
+        else:
+            name = "..........................................."
+            pos = "ตำแหน่ง .................."
+            role = "ประธานกรรมการ" if i == 1 else "กรรมการ"
+        for c, v, w in zip(row.cells, [f"{i}.", name, pos, role], widths):
+            _set_cell(c, v, size=16, align="left")
+            c.width = w
 
 
 def render_hire_report_doc(rnd, school, doc=None) -> str:
@@ -472,12 +476,10 @@ def render_hire_report_doc(rnd, school, doc=None) -> str:
               f"จำนวน {days} วัน")
 
     dr = f"ประจำวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}"
-    _krut_and_title(doc)
-    _p(doc, f"ส่วนราชการ  โรงเรียน{sname}  {saddr}", after=0)
-    _p(doc, f"ที่  {(rnd.order_no or '').strip() or _BLANK}\t\tวันที่  {_dnum(rnd.order_date)}", after=0)
-    _p(doc, f"เรื่อง  รายงานขอจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ประจำปีการศึกษา {prog.year} "
-            f"({dr} จำนวน {days} วัน)", after=0)
-    _p(doc, f"เรียน  ผู้อำนวยการโรงเรียน{sname}", after=6)
+    _memo_head(doc, school,
+               [f"รายงานขอจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ประจำปีการศึกษา {prog.year} "
+                f"({dr} จำนวน {days} วัน)"],
+               _dnum(rnd.order_date), rnd.order_no)
     _p(doc, f"ด้วยโรงเรียน{sname} จ้างเหมาประกอบอาหาร (ปรุงสำเร็จ) ให้แก่นักเรียนรับประทาน {dr} "
             f"ปีการศึกษา {prog.year} การจัดจ้างครั้งนี้ดำเนินการโดยวิธีเฉพาะเจาะจงตามมาตรา 56 (2) (ข) "
             "ประกอบหนังสือกระทรวงการคลัง ด่วนที่สุด ที่ กค (กวจ) 0405.2/ว 116 ลงวันที่ 12 มีนาคม 2562 "
@@ -528,13 +530,25 @@ def render_hire_report_doc(rnd, school, doc=None) -> str:
     return _finish(doc, own, f"รายงานขอจ้าง_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
-def _hdr_memo(doc, school, prog, subject_lines, date):
+def _memo_head(doc, school, subject_lines, date, doc_no=None):
+    """หัวบันทึกข้อความมาตรฐานสารบรรณ: ครุฑ + หัวข้อตัวหนา (ส่วนราชการ/ที่/วันที่/เรื่อง/เรียน) + เส้นคั่น"""
+    sname = (school.name or "").strip() or "โรงเรียน"
+    office = (f"โรงเรียน{sname}  " + (school.address or "").strip()).strip()
     _krut_and_title(doc)
-    _p(doc, f"ส่วนราชการ  {(school.name or '').strip()}  {(school.address or '').strip()}", after=0)
-    _p(doc, f"ที่  -/{prog.year}                     วันที่  {date}", after=0)
+    _p_runs(doc, [("ส่วนราชการ  ", True), (office, False)], after=0)
+    _p_runs(doc, [("ที่  ", True), ((doc_no or "").strip() or _BLANK, False),
+                  ("\t", False), ("วันที่  ", True), (date, False)], tab_cm=8, after=0)
     for i, s in enumerate(subject_lines):
-        _p(doc, (("เรื่อง  " + s) if i == 0 else "        " + s), after=0)
-    _p(doc, f"เรียน  ผู้อำนวยการ{(school.name or '').strip()}", after=6)
+        if i == 0:
+            _p_runs(doc, [("เรื่อง  ", True), (s, False)], after=0)
+        else:
+            _p(doc, "        " + s, after=0)
+    _p_runs(doc, [("เรียน  ", True), (f"ผู้อำนวยการโรงเรียน{sname}", False)], after=0)
+    _hr(doc)
+
+
+def _hdr_memo(doc, school, prog, subject_lines, date, doc_no=None):
+    _memo_head(doc, school, subject_lines, date, doc_no)
 
 
 def render_winner_doc(rnd, school, doc=None) -> str:
@@ -582,7 +596,7 @@ def render_result_doc(rnd, school, doc=None) -> str:
     dr = f"ประจำวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} ({rnd.days or ''} วันทำการ)"
     _hdr_memo(doc, school, prog,
               ["รายงานผลการพิจารณาและขออนุมัติสั่งจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)",
-               dr], _dnum(rnd.order_date))
+               dr], _dnum(rnd.order_date), rnd.order_no)
     _p(doc, f"ตามที่ผู้อำนวยการโรงเรียน{sname} เห็นชอบให้ดำเนินการจ้างเหมาประกอบอาหารกลางวัน {dr} "
             f"โดยวิธีเฉพาะเจาะจง วงเงินงบประมาณ {_money(total)} บาท ({bahttext(total)}) นั้น เจ้าหน้าที่ได้"
             "เจรจาตกลงราคากับผู้ประกอบการโดยตรงตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและ"
@@ -623,7 +637,7 @@ def render_tor_request_doc(rnd, school, doc=None) -> str:
     period = f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} จำนวน {rnd.days or ''} วัน"
     _hdr_memo(doc, school, prog,
               ["ขออนุมัติแต่งตั้งคณะกรรมการจัดทำขอบเขตของงาน (TOR) "
-               "งานจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)"], _dnum(rnd.order_date))
+               "งานจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)"], _dnum(rnd.order_date), rnd.order_no)
     _p(doc, "ข้อเท็จจริง", bold=True, indent=1.25, after=0)
     _p(doc, f"{sname} ดำเนินการจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ประจำปีการศึกษา {prog.year} "
             f"({period}) โดยวิธีเฉพาะเจาะจง สำหรับนักเรียนระดับชั้นอนุบาลถึงระดับชั้นมัธยมศึกษาปีที่ ๓ "
@@ -751,11 +765,13 @@ def render_quotation_doc(rnd, school, doc=None) -> str:
        align="justify", indent=1.25, after=2)
     _p(doc, f"4. กำหนดส่งมอบ {dr} นับถัดจากวันลงนามใบสั่งจ้าง/ข้อตกลงจ้าง",
        align="justify", indent=1.25, after=14)
-    _sign_table(doc, [[
-        ("ลงชื่อ ....................................ผู้เจรจาตกลงราคา", "center"),
-        ("ลงชื่อ ....................................ผู้เสนอราคา", "center")],
-        [(f"( {officer} )", "center"), (f"( {vowner or vname} )", "center")],
-        [("เจ้าหน้าที่", "center"), ("", "center")]])
+    _sign_table(doc, [
+        [("ลงชื่อ ...........................................ผู้เจรจาตกลงราคา", "center"),
+         (f"( {officer} )", "center"),
+         ("เจ้าหน้าที่", "center")],
+        [("ลงชื่อ ...........................................ผู้เสนอราคา", "center"),
+         (f"( {vowner or vname} )", "center"),
+         ("", "center")]])
     return _finish(doc, own, f"ใบเสนอราคา_รอบที่{rnd.seq}_ปี{prog.year}")
 
 

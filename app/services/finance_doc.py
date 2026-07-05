@@ -17,7 +17,7 @@ from docx.oxml import OxmlElement
 from app.database import get_data_dir
 from app.thai_utils import thai_date, bahttext
 from app.services.build_templates import (
-    _font, _p, _p_runs, _krut_and_title, _sign_table,
+    _font, _p, _p_runs, _krut_and_title, _sign_table, _hr,
 )
 
 
@@ -105,8 +105,7 @@ def render_disburse(memo, school) -> str:
     _p_runs(doc, [("เรื่อง  ", True),
                   (f"ขออนุมัติเบิกจ่ายเงินนอกงบประมาณ ประเภท{src}", False)])
     _p_runs(doc, [("เรียน  ", True), (_director_office(school), False)])
-
-    _p(doc, "", after=4)
+    _hr(doc)
 
     # ย่อหน้านำ
     _p(doc,
