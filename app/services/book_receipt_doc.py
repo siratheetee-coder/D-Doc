@@ -8,6 +8,7 @@ from docx import Document
 from docx.shared import Cm, Pt
 from docx.enum.section import WD_ORIENT
 from docx.enum.table import WD_ALIGN_VERTICAL
+from docx.enum.table import WD_ROW_HEIGHT_RULE
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
@@ -67,20 +68,25 @@ def render_book_receipt(year, groups, school) -> str:
         _p(doc, f"ชั้น{level or '.................'}", align="center", bold=True, size=15, after=4)
 
         n_books = len(books)
-        # คอลัมน์: ลำดับ + ชื่อ-สกุล + หนังสือ(n) + หมายเหตุ/ลงชื่อ
+        # คอลัมน์: ลำดับ + ชื่อ-สกุล + หนังสือ(n) + ลงชื่อ
         ncols = 2 + n_books + 1
+        # กว้างคอลัมน์หนังสือ: ปรับตามจำนวนหนังสือให้พอดีหน้ากระดาษแนวนอน (พื้นที่หนังสือ ~ 16 ซม.)
+        book_w = Cm(1.1) if n_books <= 12 else Cm(max(0.8, 16.0 / n_books))
         t = doc.add_table(rows=1, cols=ncols)
         t.style = "Table Grid"
         t.autofit = False
         hdr = t.rows[0]
         _repeat_header_row(hdr)
         _no_split_row(hdr)
+        # แถวหัวสูงพอสำหรับข้อความชื่อหนังสือแนวตั้ง (กันตัวอักษรถูกบีบ)
+        hdr.height = Cm(4.0)
+        hdr.height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
         _set_cell(hdr.cells[0], "ที่", bold=True, align="center", size=13); hdr.cells[0].width = Cm(1.0)
         _set_cell(hdr.cells[1], "ชื่อ - สกุล", bold=True, align="center", size=13); hdr.cells[1].width = Cm(6.0)
         for i, b in enumerate(books):
             _set_cell_v(hdr.cells[2 + i], b.title or "-")
-            hdr.cells[2 + i].width = Cm(0.9)
-        _set_cell(hdr.cells[-1], "ลงชื่อผู้รับ", bold=True, align="center", size=13); hdr.cells[-1].width = Cm(3.5)
+            hdr.cells[2 + i].width = book_w
+        _set_cell(hdr.cells[-1], "ลงชื่อผู้รับ", bold=True, align="center", size=13); hdr.cells[-1].width = Cm(3.2)
 
         rows_students = students if students else []
         # อย่างน้อย 10 แถวว่างถ้าไม่มีนักเรียน (ไว้เขียนมือ)
@@ -96,8 +102,8 @@ def render_book_receipt(year, groups, school) -> str:
                 _set_cell(r.cells[1], "", align="left", size=13)
             for i in range(n_books):
                 _set_cell(r.cells[2 + i], "", align="center", size=13)
-                r.cells[2 + i].width = Cm(0.9)
-            _set_cell(r.cells[-1], "", align="center", size=13); r.cells[-1].width = Cm(3.5)
+                r.cells[2 + i].width = book_w
+            _set_cell(r.cells[-1], "", align="center", size=13); r.cells[-1].width = Cm(3.2)
 
         _p(doc, "", after=6)
         _p(doc, "ลงชื่อ ....................................................... ครูประจำชั้น",

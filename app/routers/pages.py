@@ -239,6 +239,31 @@ def docnos_page(request: Request, db: Session = Depends(get_db),
     })
 
 
+@router.post("/docnos/{did}/update")
+def docno_update(did: int, db: Session = Depends(get_db), subject: str = Form(""),
+                 date: str = Form("")):
+    """แก้ไขเรื่อง/วันที่ของเลขที่ในทะเบียนกลาง"""
+    r = db.get(IssuedDocNo, did)
+    fy = r.fiscal_year if r else current_fiscal_year()
+    if r:
+        r.subject = (subject or "").strip()
+        d = parse_be_date(date)
+        if d:
+            r.date = d
+        db.commit()
+    return RedirectResponse(f"/docnos?year={fy}&saved=1", status_code=303)
+
+
+@router.post("/docnos/{did}/delete")
+def docno_delete(did: int, db: Session = Depends(get_db)):
+    """ลบเลขที่ออกจากทะเบียนกลาง (ลบเฉพาะรายการทะเบียน ไม่ลบเอกสารต้นทาง)"""
+    r = db.get(IssuedDocNo, did)
+    fy = r.fiscal_year if r else current_fiscal_year()
+    if r:
+        db.delete(r); db.commit()
+    return RedirectResponse(f"/docnos?year={fy}", status_code=303)
+
+
 # ---------------- งานพัสดุ: Dashboard / ทะเบียน ----------------
 @router.get("/procurement", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db),

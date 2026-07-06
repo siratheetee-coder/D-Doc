@@ -11,29 +11,48 @@
       </select>
     </form>
   </div>
-  <p class="muted">เลขที่ใช้จริงของทุกงาน (ธุรการ/พัสดุ/การเงิน) รวมศูนย์ที่นี่ — บันทึกข้อความและคำสั่งรันต่อเนื่องร่วมกัน</p>
+  <p class="muted">เลขที่ใช้จริงของทุกงาน (ธุรการ/พัสดุ/การเงิน) รวมศูนย์ที่นี่ — บันทึกข้อความและคำสั่งรันต่อเนื่องร่วมกัน · แก้เรื่อง/วันที่ได้ · ลบได้ (ลบเฉพาะรายการทะเบียน ไม่ลบเอกสารต้นทาง)</p>
+  {% if request.query_params.get('saved') %}<div class="alert" style="margin-bottom:0;">✔ บันทึกแล้ว</div>{% endif %}
 </div>
 
 {% if groups %}
 {% for dt, rows in groups.items() %}
 <div class="card">
   <h2>{{ type_labels.get(dt, dt) }} <span class="muted" style="font-size:15px;">({{ rows|length }} เลข)</span></h2>
+  <div class="table-wrap">
   <table>
-    <thead><tr><th style="width:120px;">เลขที่</th><th>เรื่อง</th><th style="width:130px;">งาน</th><th style="width:150px;">วันที่บันทึก</th></tr></thead>
+    <thead><tr><th style="width:110px;">เลขที่</th><th>เรื่อง</th><th style="width:110px;">งาน</th><th style="width:140px;">วันที่บันทึก</th><th style="width:120px;"></th></tr></thead>
     <tbody>
       {% for r in rows %}
       <tr>
         <td><b>{{ r.full_no }}</b></td>
-        <td>{{ r.subject or "-" }}</td>
-        <td>{{ {'procurement':'พัสดุ','admin':'ธุรการ','finance':'การเงิน'}.get(r.source, r.source or '-') }}</td>
-        <td>{{ thai_date(r.date) }}</td>
+        <form method="post" action="/docnos/{{ r.id }}/update" style="display:contents;">
+          <td><input name="subject" value="{{ r.subject }}" placeholder="(ไม่ระบุ)"></td>
+          <td>{{ {'procurement':'พัสดุ','admin':'ธุรการ','finance':'การเงิน'}.get(r.source, r.source or '-') }}</td>
+          <td><input name="date" value="{{ be_date(r.date) if r.date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;"></td>
+          <td style="white-space:nowrap;">
+            <button class="btn sm" type="submit">บันทึก</button>
+        </form>
+            <form method="post" action="/docnos/{{ r.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบเลขที่ {{ r.full_no }} ออกจากทะเบียน? (ไม่ลบเอกสารต้นทาง)');"><button class="btn sm gray" type="submit">ลบ</button></form>
+          </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </div>
 {% endfor %}
 {% else %}
 <div class="card"><p class="muted">ยังไม่มีเลขที่ถูกใช้ในปีงบประมาณนี้</p></div>
 {% endif %}
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
 {% endblock %}
