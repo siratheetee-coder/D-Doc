@@ -10,6 +10,8 @@
           {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
         </select>
       </form>
+      <a class="btn sm" href="/finance/accounts/{{ account.id }}/ledger.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> บัญชีแยกประเภท (Word)</a>
+      <a class="btn sm green" href="/finance/accounts/{{ account.id }}/ledger.xlsx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> Excel</a>
       <a class="btn gray sm" href="/finance/accounts"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
     </div>
   </div>

@@ -209,6 +209,45 @@ class ProcurementItem(Base):
         return (self.quantity or 0) * (self.unit_price or 0)
 
 
+class Contract(Base):
+    """ทะเบียนคุมสัญญา/ใบสั่งซื้อ-สั่งจ้าง/ข้อตกลง — ติดตามวันครบกำหนดและแจ้งเตือน"""
+    __tablename__ = "contract"
+
+    id = Column(Integer, primary_key=True)
+    fiscal_year = Column(Integer, nullable=False)   # ปีงบประมาณ พ.ศ.
+    contract_no = Column(String, default="")        # เลขที่สัญญา/ใบสั่ง
+    ctype = Column(String, default="ใบสั่งจ้าง")     # สัญญาจ้าง/สัญญาซื้อ/ใบสั่งจ้าง/ใบสั่งซื้อ/ข้อตกลง
+    party = Column(String, default="")              # คู่สัญญา (ผู้ขาย/ผู้รับจ้าง)
+    subject = Column(String, default="")            # เรื่อง/งาน
+    amount = Column(Float, default=0.0)             # วงเงิน
+    sign_date = Column(DateTime, nullable=True)     # วันที่ทำสัญญา/ใบสั่ง
+    start_date = Column(DateTime, nullable=True)
+    end_date = Column(DateTime, nullable=True)      # วันสิ้นสุด/ครบกำหนดส่งมอบ (ใช้แจ้งเตือน)
+    warranty_end = Column(DateTime, nullable=True)  # สิ้นสุดประกัน (ถ้ามี)
+    status = Column(String, default="ระหว่างดำเนินการ")  # ระหว่างดำเนินการ/ส่งมอบแล้ว/ตรวจรับแล้ว/สิ้นสุด
+    source = Column(String, default="manual")       # manual / procurement / lunch
+    ref_id = Column(Integer, nullable=True)         # id ต้นทาง (procurement/lunch round)
+    note = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class ProcurementPlan(Base):
+    """แผนการจัดซื้อจัดจ้างประจำปีงบประมาณ (ต้องประกาศเผยแพร่ต้นปีงบตามระเบียบ ม.11)"""
+    __tablename__ = "procurement_plan"
+
+    id = Column(Integer, primary_key=True)
+    fiscal_year = Column(Integer, nullable=False)   # ปีงบประมาณ พ.ศ.
+    seq = Column(Integer, default=0)                # ลำดับ
+    name = Column(String, nullable=False)           # รายการ/โครงการที่จะจัดซื้อจัดจ้าง
+    budget = Column(Float, default=0.0)             # งบประมาณโดยประมาณ (บาท)
+    method = Column(String, default="เฉพาะเจาะจง")  # วิธีที่คาดว่าจะใช้
+    expected_period = Column(String, default="")    # เดือน/ปีที่คาดว่าจะประกาศจัดซื้อ เช่น "ตุลาคม 2568"
+    source = Column(String, default="เงินอุดหนุน")  # แหล่งเงิน
+    project_id = Column(Integer, ForeignKey("project.id"), nullable=True)  # ผูกโครงการในแผน (ถ้าดึงมา)
+    note = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+
 class Student(Base):
     """ทะเบียนนักเรียนกลางของโรงเรียน (ใช้ซ้ำทุกปี) — ข้อมูลหลักเหมือนบุคลากร/ผู้ขาย
     งานภาวะโภชนาการดึงรายชื่อจากที่นี่เข้าโครงการรายปีเพื่อบันทึกน้ำหนัก/ส่วนสูง"""

@@ -20,7 +20,7 @@ from app.services.growth_ref import (classify_all, age_months,
                                      WH_LABELS, HA_LABELS, WA_LABELS)
 from app.thai_utils import parse_be_date, be_date_input, current_fiscal_year
 from app.templating import templates
-from app.routers.pages import get_school, _to_int, _to_float
+from app.routers.pages import get_school, _to_int, _to_float, serve_generated
 
 router = APIRouter()
 
@@ -32,7 +32,8 @@ DEFAULT_LEVELS = ["อ.1", "อ.2", "อ.3", "ป.1", "ป.2", "ป.3",
 
 OPERATE_MODES = {
     "hire": "จ้างเหมาประกอบอาหาร (ปรุงสำเร็จ)",
-    "ingredient": "ซื้อวัตถุดิบ + จ้างแม่ครัว",
+    "person": "จ้างบุคคลประกอบอาหาร (แม่ครัว)",
+    "ingredient": "ซื้อวัตถุดิบเพื่อประกอบอาหาร (ยืมเงิน)",
     "self": "โรงเรียนดำเนินการเอง",
 }
 
@@ -775,10 +776,12 @@ def installment_doc(iid: int, db: Session = Depends(get_db)):
              if m.date and inst.start_date and inst.end_date
              and inst.start_date <= m.date <= inst.end_date]
     menus.sort(key=lambda m: m.date)
-    path = render_installment_doc(inst, get_school(db), menus)
-    return FileResponse(
-        path, filename=Path(path).name,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    if prog.operate_mode == "person":
+        from app.services.lunch_person_doc import render_p_installment
+        path = render_p_installment(inst, get_school(db), menus)
+    else:
+        path = render_installment_doc(inst, get_school(db), menus)
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 @router.get("/lunch/installment/{iid}/disburse-doc")
@@ -790,10 +793,12 @@ def installment_disburse_doc(iid: int, db: Session = Depends(get_db)):
     inst = db.get(LunchInstallment, iid)
     if not inst:
         return RedirectResponse("/lunch", status_code=303)
-    path = render_disburse_lunch_doc(inst, get_school(db))
-    return FileResponse(
-        path, filename=Path(path).name,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    if inst.round.program.operate_mode == "person":
+        from app.services.lunch_person_doc import render_p_disburse
+        path = render_p_disburse(inst, get_school(db))
+    else:
+        path = render_disburse_lunch_doc(inst, get_school(db))
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 @router.get("/lunch/round/{rid}/order-doc")
@@ -806,9 +811,7 @@ def contract_order_doc(rid: int, db: Session = Depends(get_db)):
     if not rnd:
         return RedirectResponse("/lunch", status_code=303)
     path = render_order_doc(rnd, get_school(db))
-    return FileResponse(
-        path, filename=Path(path).name,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 # ---------------- คณะกรรมการในสัญญา ----------------
@@ -854,9 +857,7 @@ def committee_order_doc(rid: int, db: Session = Depends(get_db)):
     if not rnd:
         return RedirectResponse("/lunch", status_code=303)
     path = render_committee_order_doc(rnd, get_school(db))
-    return FileResponse(
-        path, filename=Path(path).name,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 @router.get("/lunch/round/{rid}/hire-report-doc")
@@ -869,9 +870,7 @@ def contract_hire_report_doc(rid: int, db: Session = Depends(get_db)):
     if not rnd:
         return RedirectResponse("/lunch", status_code=303)
     path = render_hire_report_doc(rnd, get_school(db))
-    return FileResponse(
-        path, filename=Path(path).name,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 def _round_docfile(rid, db, render_name):
@@ -882,9 +881,7 @@ def _round_docfile(rid, db, render_name):
     if not rnd:
         return RedirectResponse("/lunch", status_code=303)
     path = getattr(ld, render_name)(rnd, get_school(db))
-    return FileResponse(
-        path, filename=Path(path).name,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 @router.get("/lunch/round/{rid}/winner-doc")
@@ -927,9 +924,7 @@ def _round_ingredient_doc(rid, db, render_name):
     if not rnd:
         return RedirectResponse("/lunch", status_code=303)
     path = getattr(ig, render_name)(rnd, get_school(db))
-    return FileResponse(
-        path, filename=Path(path).name,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 # kind -> ฟังก์ชัน สำหรับเอกสารซื้อวัตถุดิบ
@@ -947,3 +942,25 @@ def contract_ingredient_doc(rid: int, kind: str, db: Session = Depends(get_db)):
     if not render_name:
         return RedirectResponse(f"/lunch/round/{rid}/plan", status_code=303)
     return _round_ingredient_doc(rid, db, render_name)
+
+
+# ---------------- เอกสารรูปแบบ 2: จ้างบุคคล (แม่ครัว) ----------------
+_PERSON_DOCS = {
+    "tor": "render_p_tor", "hire-report": "render_p_hire_report",
+    "quotation": "render_p_quotation", "result": "render_p_result",
+    "winner": "render_p_winner", "order": "render_p_order",
+    "bundle": "render_person_bundle",
+}
+
+
+@router.get("/lunch/round/{rid}/person-doc/{kind}")
+def contract_person_doc(rid: int, kind: str, db: Session = Depends(get_db)):
+    from pathlib import Path
+    from fastapi.responses import FileResponse
+    import app.services.lunch_person_doc as pd
+    render_name = _PERSON_DOCS.get(kind)
+    rnd = db.get(LunchHireRound, rid)
+    if not render_name or not rnd:
+        return RedirectResponse(f"/lunch/round/{rid}/plan", status_code=303)
+    path = getattr(pd, render_name)(rnd, get_school(db))
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")

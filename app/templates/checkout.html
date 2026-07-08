@@ -1,0 +1,105 @@
+{% extends "public_base.html" %}
+{% block title %}สั่งซื้อ / ชำระเงิน | D-Doc{% endblock %}
+{% block extra_css %}
+  .pay-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+  .qr-box{ text-align:center; }
+  .qr-box img{ width:230px; max-width:100%; border:1px solid var(--line); border-radius:14px; padding:10px; background:#fff; }
+  .qr-none{ width:230px; height:230px; max-width:100%; margin:0 auto; border:2px dashed var(--line);
+            border-radius:14px; display:flex; align-items:center; justify-content:center; color:var(--muted);
+            font-size:13px; text-align:center; padding:16px; }
+  .amt{ font-size:34px; font-weight:700; color:var(--blue); letter-spacing:-1px; }
+  .bank-row{ display:flex; justify-content:space-between; gap:12px; padding:9px 0;
+             border-bottom:1px dashed var(--line); font-size:14.5px; }
+  .bank-row:last-child{ border-bottom:0; }
+  .bank-row b{ font-weight:700; }
+  .steps{ counter-reset:s; list-style:none; margin:6px 0 0; }
+  .steps li{ counter-increment:s; position:relative; padding:5px 0 5px 30px; font-size:14px; color:var(--muted); }
+  .steps li::before{ content:counter(s); position:absolute; left:0; top:5px; width:20px; height:20px;
+             background:var(--blue); color:#fff; border-radius:50%; font-size:12px; font-weight:700;
+             display:flex; align-items:center; justify-content:center; }
+  @media (max-width:600px){ .pay-grid{ grid-template-columns:1fr; } }
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>สั่งซื้อ / ชำระเงิน</h1>
+  <p>โอนชำระผ่าน PromptPay หรือบัญชีธนาคาร แล้วแจ้งสลิปด้านล่าง ทีมงานจะเปิดใช้งานให้และติดต่อกลับ</p>
+</div>
+
+<div class="card">
+  <h2>สรุปคำสั่งซื้อ</h2>
+  <div class="bank-row"><span>รายการที่เลือก</span><b>{{ packages or 'ครบทุกงาน' }}</b></div>
+  <div class="bank-row"><span>ยอดชำระ</span><span class="amt">{{ "{:,.0f}".format(amount) if amount else '2,290' }} <small style="font-size:14px; color:var(--muted); font-weight:500;">บาท/ปี</small></span></div>
+</div>
+
+<div class="card">
+  <h2>ช่องทางชำระเงิน</h2>
+  <div class="pay-grid">
+    <div class="qr-box">
+      {% if seller.promptpay_qr_exists %}
+        <img src="{{ seller.promptpay_qr }}" alt="PromptPay QR">
+        <div class="hint">สแกน QR แล้วกรอกยอด {{ "{:,.0f}".format(amount) if amount else '2,290' }} บาท</div>
+      {% else %}
+        <div class="qr-none">วาง QR PromptPay ที่<br>app/static/landing/promptpay.png</div>
+      {% endif %}
+    </div>
+    <div>
+      <div class="bank-row"><span>ธนาคาร</span><b>{{ seller.bank_name }}</b></div>
+      <div class="bank-row"><span>เลขบัญชี</span><b>{{ seller.bank_account_no }}</b></div>
+      <div class="bank-row"><span>ชื่อบัญชี</span><b>{{ seller.bank_account_name }}</b></div>
+      <ol class="steps">
+        <li>โอนเงินตามยอดด้านบน</li>
+        <li>บันทึกภาพสลิป</li>
+        <li>แจ้งสลิป + ข้อมูลติดต่อด้านล่าง</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<form class="card" method="post" action="/checkout" enctype="multipart/form-data">
+  <h2>แจ้งชำระเงิน</h2>
+  <input type="hidden" name="packages" value="{{ packages or 'ครบทุกงาน' }}">
+  <input type="hidden" name="amount" value="{{ amount or 2290 }}">
+  <div class="grid2">
+    <div>
+      <label>ชื่อโรงเรียน/หน่วยงาน <span class="req">*</span></label>
+      <input name="school_name" required placeholder="เช่น โรงเรียนบ้านหินลาด">
+    </div>
+    <div>
+      <label>ชื่อผู้ติดต่อ <span class="req">*</span></label>
+      <input name="contact_name" required placeholder="ชื่อ-นามสกุล">
+    </div>
+  </div>
+  <div class="grid2">
+    <div>
+      <label>อีเมล <span class="req">*</span></label>
+      <input name="email" type="email" required placeholder="name@example.com">
+    </div>
+    <div>
+      <label>เบอร์โทร <span class="req">*</span></label>
+      <input name="phone" inputmode="tel" required placeholder="0xx-xxx-xxxx">
+    </div>
+  </div>
+
+  <label style="margin-top:16px;">ที่อยู่สำหรับออกใบเสร็จ <span class="req">*</span></label>
+  <p class="hint" style="margin-top:0;">ระบบจะนำที่อยู่นี้ไปออกใบเสร็จรับเงินให้</p>
+  <div class="grid2">
+    <div><label style="font-weight:500; font-size:13.5px;">เลขที่</label><input name="addr_no" required placeholder="เช่น 99"></div>
+    <div><label style="font-weight:500; font-size:13.5px;">หมู่</label><input name="addr_moo" placeholder="เช่น 5"></div>
+  </div>
+  <div class="grid2">
+    <div><label style="font-weight:500; font-size:13.5px;">ตำบล/แขวง <span class="req">*</span></label><input name="addr_tambon" required placeholder="ตำบล/แขวง"></div>
+    <div><label style="font-weight:500; font-size:13.5px;">อำเภอ/เขต <span class="req">*</span></label><input name="addr_amphoe" required placeholder="อำเภอ/เขต"></div>
+  </div>
+  <div class="grid2">
+    <div><label style="font-weight:500; font-size:13.5px;">จังหวัด <span class="req">*</span></label><input name="addr_province" required placeholder="จังหวัด"></div>
+    <div><label style="font-weight:500; font-size:13.5px;">รหัสไปรษณีย์ <span class="req">*</span></label><input name="addr_zip" required inputmode="numeric" maxlength="5" placeholder="5 หลัก"></div>
+  </div>
+
+  <label style="margin-top:16px;">แนบสลิปการโอน (รูปภาพ) <span class="req">*</span></label>
+  <input name="slip" type="file" accept="image/*" required>
+  <label>หมายเหตุ</label>
+  <textarea name="note" placeholder="วัน-เวลาที่โอน หรือรายละเอียดเพิ่มเติม"></textarea>
+  <button class="btn btn-primary btn-full" type="submit" style="margin-top:22px;">แจ้งชำระเงิน</button>
+  <p class="hint" style="text-align:center;">ทีมงานจะตรวจสอบและเปิดใช้งานให้ พร้อมติดต่อกลับทางอีเมล/โทรศัพท์</p>
+</form>
+{% endblock %}

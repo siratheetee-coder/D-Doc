@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D-Doc — ระบบเอกสารโรงเรียน ลดงานธุรการ ให้ครูได้กลับไปสอน</title>
+<meta name="description" content="D-Doc รวมงานพัสดุ การเงิน ธุรการ และอาหารกลางวันไว้ในระบบเดียว กรอกข้อมูลครั้งเดียว ออกเอกสารราชการครบชุดกว่า 60 แบบ ถูกต้องตามระเบียบ พร้อมพิมพ์ทันที ออกแบบเพื่อครูโรงเรียนไทย">
+<meta property="og:type" content="website">
+<meta property="og:title" content="D-Doc — ลดงานเอกสาร ให้ครูได้กลับไปสอน">
+<meta property="og:description" content="ระบบพัสดุ การเงิน ธุรการ อาหารกลางวัน ในที่เดียว ออกเอกสารราชการครบชุดใน 1 คลิก">
+<meta property="og:image" content="/static/landing/teacher-hero.png">
+<meta name="theme-color" content="#2563eb">
+<link rel="icon" href="/static/favicon.png">
+<style>
+  /* ===== ฟอนต์ Prompt (ชุดเดียวกับเว็บหลัก base.html) ===== */
+  @font-face { font-family: "Prompt"; font-weight: 400; font-display: swap;
+               src: url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+  @font-face { font-family: "Prompt"; font-weight: 500; font-display: swap;
+               src: url("/static/fonts/Prompt-Medium.ttf") format("truetype"); }
+  @font-face { font-family: "Prompt"; font-weight: 600; font-display: swap;
+               src: url("/static/fonts/Prompt-SemiBold.ttf") format("truetype"); }
+  @font-face { font-family: "Prompt"; font-weight: 700; font-display: swap;
+               src: url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+  @font-face { font-family: "Prompt"; font-weight: 800; font-display: swap;
+               src: url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+
+  :root{
+    --blue:#2563eb; --blue-deep:#1d4ed8; --navy:#0b2a6b;
+    --ink:#0f172a; --muted:#5b6b84; --line:#e6ebf3;
+    --bg-soft:#f6f9fd; --yellow:#fbbf24; --sky:#7dd3fc; --green:#22c55e;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  /* กันเนื้อหาโดน navbar (sticky 70px) บังตอนกดลิงก์ #anchor + กันรูปหัวโผล่ดันจอเลื่อนข้าง */
+  section[id]{ scroll-margin-top:84px; }
+  body{ overflow-x:hidden; }
+  body{ font-family: "Prompt", "Sarabun", "Leelawadee UI", "Segoe UI", system-ui,
+                     -apple-system, "Noto Sans Thai", sans-serif;
+        color:var(--ink); background:#fff; line-height:1.65; }
+  a{ text-decoration:none; color:inherit; }
+  img{ max-width:100%; display:block; }
+  .wrap{ max-width:1140px; margin:0 auto; padding:0 24px; }
+  section{ position:relative; }
+
+  /* ---------- ไอคอน ---------- */
+  .ico{ width:1em; height:1em; fill:none; stroke:currentColor; stroke-width:2;
+        stroke-linecap:round; stroke-linejoin:round; vertical-align:-0.125em; flex:none; }
+
+  /* ---------- ปุ่ม ---------- */
+  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; border-radius:999px;
+        padding:12px 26px; font-size:15px; font-weight:600; cursor:pointer;
+        border:0; transition:.18s; white-space:nowrap; font-family:inherit; line-height:1.2; }
+  .btn-primary{ background:var(--blue); color:#fff; box-shadow:0 8px 20px rgba(37,99,235,.28); }
+  .btn-primary:hover{ background:var(--blue-deep); transform:translateY(-2px); }
+  .btn-ghost{ background:transparent; color:var(--ink); border:1.5px solid var(--line); }
+  .btn-ghost:hover{ border-color:var(--blue); color:var(--blue); }
+  .btn-white{ background:#fff; color:var(--blue-deep); }
+  .btn-white:hover{ transform:translateY(-2px); }
+  .btn-play{ background:transparent; color:var(--ink); font-weight:600; }
+  .btn-play .ic{ width:40px; height:40px; border-radius:50%; border:1.5px solid var(--line);
+                 display:inline-flex; align-items:center; justify-content:center; color:var(--blue); }
+  .btn-play:hover .ic{ border-color:var(--blue); }
+
+  /* ---------- แถบนำทาง ---------- */
+  header{ position:sticky; top:0; z-index:50; background:rgba(255,255,255,.92);
+          backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .nav{ display:flex; align-items:center; justify-content:space-between; height:70px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-size:21px; font-weight:700; }
+  .brand img{ height:36px; }
+  .brand b{ color:var(--blue); }
+  .nav-links{ display:flex; gap:30px; font-size:14.5px; color:var(--muted); font-weight:500; }
+  .nav-links a:hover{ color:var(--blue); }
+  .nav-cta{ display:flex; gap:10px; align-items:center; }
+  .nav-cta .btn{ padding:9px 20px; font-size:14px; }
+
+  /* ---------- ฮีโร่ ---------- */
+  .hero{ padding:64px 0 0; overflow:hidden; }
+  .hero-grid{ display:grid; grid-template-columns:1.05fr .95fr; gap:40px; align-items:center; }
+  .chip{ display:inline-flex; align-items:center; gap:8px; background:#eef4ff; color:var(--blue-deep);
+         font-size:13.5px; font-weight:600; border-radius:999px; padding:7px 16px; margin-bottom:18px; }
+  h1{ font-size:52px; line-height:1.18; font-weight:700; letter-spacing:-.5px; }
+  h1 .hl{ color:var(--blue); }
+  .hero p.lead{ margin:18px 0 26px; color:var(--muted); font-size:17px; max-width:34em; }
+  .hero-actions{ display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
+  .hero-stats{ display:flex; gap:44px; margin:40px 0 34px; flex-wrap:wrap; }
+  .stat b{ font-size:26px; font-weight:700; }
+  .stat b em{ color:var(--yellow); font-style:normal; }
+  .stat span{ display:block; font-size:13.5px; color:var(--muted); }
+
+  /* ซุ้มโค้ง + รูปครู */
+  .stage{ position:relative; padding:12px 8px 0; }
+  /* กรอบแบบหัวโผล่: รูปอยู่นอกซุ้ม (ไม่ถูก clip ด้านบน) ชิดขอบล่างซุ้ม */
+  .pop{ position:relative; width:min(400px,88%); margin:0 auto; }
+  .pop .arch{ width:100%; }
+  .photo-pop{ position:absolute; bottom:0; left:50%; transform:translateX(-50%);
+              width:100%; max-width:none; height:auto; z-index:2; border-radius:0 0 26px 26px;
+              filter:drop-shadow(0 18px 30px rgba(11,42,107,.28)); }
+  /* รูปท่าชี้นิ้ว: หัวอยู่กึ่งกลางซุ้ม (โผล่พ้นโดม) มือชี้ยื่นออกนอกกรอบไปทางข้อความ */
+  .photo-pop.pp-point{ width:136%; left:auto; right:-3.9%; transform:none; }
+  .arch{ position:relative; width:min(400px,88%); margin:0 auto; aspect-ratio:4/5;
+         border-radius:999px 999px 26px 26px; overflow:hidden;
+         background:
+           radial-gradient(circle at 22% 18%, rgba(255,255,255,.16) 0 2px, transparent 2.6px),
+           radial-gradient(circle at 68% 34%, rgba(255,255,255,.13) 0 2px, transparent 2.6px),
+           radial-gradient(circle at 40% 62%, rgba(255,255,255,.10) 0 2px, transparent 2.6px),
+           linear-gradient(160deg,#3b82f6 0%,#1d4ed8 60%,#0b2a6b 130%);
+         background-size:90px 90px,120px 120px,70px 70px,cover; }
+  .ph-note{ position:absolute; left:50%; bottom:14px; transform:translateX(-50%); z-index:3;
+            background:rgba(255,255,255,.16); border:1px dashed rgba(255,255,255,.55); color:#fff;
+            font-size:11.5px; padding:5px 12px; border-radius:8px; white-space:nowrap; backdrop-filter:blur(3px); }
+  /* มีรูปจริงเมื่อไหร่ ป้ายบอกตำแหน่งวางไฟล์จะหายเอง (ถ้ารูปหาย onerror ลบ img ป้ายกลับมา) */
+  .pop img.photo-pop ~ .ph-note{ display:none; }
+
+  /* การ์ดลอย + จุดสี */
+  .float-card{ position:absolute; background:#fff; border-radius:14px; padding:12px 16px;
+               box-shadow:0 14px 34px rgba(15,23,42,.14); font-size:13px; font-weight:600;
+               animation:float 4.5s ease-in-out infinite; z-index:4; }
+  .float-card small{ display:block; font-weight:500; color:var(--muted); font-size:11.5px; }
+  .float-card .ico{ color:var(--blue); font-size:15px; }
+  .fc-1{ top:12%; left:-4%; animation-delay:.2s; }
+  .fc-2{ bottom:14%; right:0; animation-delay:1.4s; }
+  .fc-3{ bottom:8%; left:-8%; animation-delay:2.2s; }
+  /* การ์ดรอบรูปครูชี้นิ้ว (ส่วนฟีเจอร์) — วางเลี่ยงแนวมือที่ยื่นออกซ้ายช่วงกลางรูป */
+  .fc-a{ top:2%; left:-12%; animation-delay:.6s; }
+  .fc-b{ bottom:3%; left:-6%; animation-delay:1.8s; }
+  .fc-c{ top:20%; right:-7%; animation-delay:2.6s; }
+  .up{ color:var(--green); }
+  .dot{ position:absolute; border-radius:50%; animation:float 5s ease-in-out infinite; }
+  .d-y{ width:18px; height:18px; background:var(--yellow); top:6%; right:10%; }
+  .d-b{ width:13px; height:13px; background:var(--sky); top:32%; right:-2%; animation-delay:1s; }
+  .d-b2{ width:10px; height:10px; background:var(--blue); bottom:8%; left:2%; animation-delay:2s; }
+  @keyframes float{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-10px);} }
+
+  /* ---------- แถบโมดูล (เหมือนแถบโลโก้) ---------- */
+  .trust{ margin-top:-6px; }
+  .trust-bar{ background:#fff; border:1px solid var(--line); border-radius:18px;
+              box-shadow:0 18px 44px rgba(15,23,42,.07); padding:22px 30px;
+              display:flex; justify-content:space-around; gap:18px; flex-wrap:wrap;
+              position:relative; z-index:5; }
+  .trust-item{ display:flex; align-items:center; gap:10px; font-weight:600; color:#42526b; font-size:15px; }
+  .trust-item .tic{ width:34px; height:34px; border-radius:10px; display:inline-flex; align-items:center;
+                    justify-content:center; font-size:17px; background:#eef4ff; color:var(--blue); }
+
+  /* ---------- หัวข้อกลาง ---------- */
+  .sec-head{ text-align:center; max-width:620px; margin:0 auto 46px; }
+  .sec-head h2{ font-size:34px; font-weight:700; }
+  .sec-head h2 i{ color:var(--blue); font-style:normal; }
+  .sec-head p{ color:var(--muted); margin-top:10px; font-size:15.5px; }
+
+  /* ---------- ใช้งานยังไง ---------- */
+  .how{ padding:90px 0 70px; }
+  .how-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:26px; }
+  .how-card{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:30px 26px;
+             box-shadow:0 10px 30px rgba(15,23,42,.05); transition:.2s; text-align:center; }
+  .how-card:hover{ transform:translateY(-5px); box-shadow:0 18px 40px rgba(37,99,235,.12); }
+  .how-num{ width:34px; height:34px; border-radius:50%; background:var(--blue); color:#fff;
+            display:flex; align-items:center; justify-content:center; font-weight:700;
+            margin:0 auto 16px; }
+  .how-ic{ width:52px; height:52px; border-radius:14px; display:flex; align-items:center; justify-content:center;
+           font-size:24px; margin:0 auto 14px; }
+  .how-card h3{ font-size:18px; margin-bottom:8px; }
+  .how-card p{ color:var(--muted); font-size:14px; }
+
+  /* ---------- ฟีเจอร์สลับข้าง ---------- */
+  .feat{ padding:70px 0; }
+  .feat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:56px; align-items:center; }
+  .feat h2{ font-size:32px; font-weight:700; line-height:1.3; }
+  .feat h2 i{ color:var(--blue); font-style:normal; }
+  .feat .sub{ color:var(--muted); margin:12px 0 22px; font-size:15.5px; }
+  .checks{ list-style:none; display:grid; gap:14px; margin-bottom:28px; }
+  .checks li{ display:flex; gap:12px; align-items:flex-start; font-size:15px; font-weight:500; }
+  .checks .ck{ flex:0 0 22px; height:22px; border-radius:50%; background:#e8f9ef; color:var(--green);
+               display:inline-flex; align-items:center; justify-content:center; font-size:12px; margin-top:2px; }
+  .stage.sm .pop{ width:min(330px,84%); }
+
+  /* ---------- แถบน้ำเงินเข้ม ---------- */
+  .band{ background:linear-gradient(115deg,#0b2a6b,#1d4ed8 80%); color:#fff; padding:64px 0;
+         clip-path:polygon(0 8%, 100% 0, 100% 100%, 0 100%); margin-top:40px; }
+  .band-grid{ display:flex; justify-content:space-between; align-items:center; gap:30px; flex-wrap:wrap; }
+  .band h2{ font-size:30px; font-weight:700; max-width:18em; line-height:1.35; }
+  .band h2 em{ color:var(--yellow); font-style:normal; }
+  .band p{ color:#c9d8f5; margin-top:10px; max-width:34em; font-size:15px; }
+
+  /* ---------- โมดูล ---------- */
+  .mods{ padding:90px 0 40px; background:var(--bg-soft); }
+  .mods-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:22px; }
+  .mod{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:26px 22px; transition:.2s; }
+  .mod:hover{ transform:translateY(-5px); box-shadow:0 18px 40px rgba(37,99,235,.12); }
+  .mod .mic{ width:48px; height:48px; border-radius:13px; display:flex; align-items:center; justify-content:center;
+             font-size:23px; margin-bottom:14px; }
+  .mod h3{ font-size:17px; margin-bottom:8px; }
+  .mod ul{ list-style:none; display:grid; gap:6px; }
+  .mod li{ color:var(--muted); font-size:13.5px; padding-left:16px; position:relative; }
+  .mod li::before{ content:"•"; color:var(--blue); position:absolute; left:2px; }
+
+  /* ---------- ราคา (เลือกงานที่ต้องการ รายปี) ---------- */
+  .pricing{ padding:90px 0 40px; }
+  .pick-wrap{ display:grid; grid-template-columns:1.5fr 1fr; gap:26px; align-items:start; }
+  .pick-list{ display:grid; gap:14px; }
+  .pick-item{ display:flex; align-items:center; gap:16px; background:#fff; border:2px solid var(--line);
+              border-radius:16px; padding:18px 20px; cursor:pointer; transition:.18s; position:relative; }
+  .pick-item:hover{ border-color:#c7d6f5; }
+  .pick-item input{ position:absolute; opacity:0; pointer-events:none; }
+  .pick-item.on{ border-color:var(--blue); background:#f5f8ff; }
+  .pick-box{ flex:0 0 24px; height:24px; border-radius:7px; border:2px solid var(--line);
+             display:flex; align-items:center; justify-content:center; color:#fff; transition:.18s; }
+  .pick-item.on .pick-box{ background:var(--blue); border-color:var(--blue); }
+  .pick-box .ico{ width:14px; height:14px; opacity:0; }
+  .pick-item.on .pick-box .ico{ opacity:1; }
+  .pick-mic{ flex:0 0 44px; height:44px; border-radius:12px; background:#eef4ff; color:var(--blue);
+             display:flex; align-items:center; justify-content:center; font-size:21px; }
+  .pick-body{ flex:1; }
+  .pick-body h4{ font-size:16px; margin-bottom:2px; }
+  .pick-body p{ color:var(--muted); font-size:12.5px; line-height:1.4; }
+  .pick-price{ text-align:right; font-weight:700; font-size:15px; white-space:nowrap; }
+  .pick-price small{ display:block; font-weight:500; font-size:11px; color:var(--muted); }
+  .pick-free{ display:flex; align-items:center; gap:14px; background:#fff; border:1px solid var(--line);
+              border-left:4px solid var(--green); border-radius:14px; padding:14px 18px;
+              box-shadow:0 6px 18px rgba(15,23,42,.05); }
+  .pick-free .free-badge{ flex:0 0 40px; height:40px; border-radius:11px;
+              background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff;
+              display:flex; align-items:center; justify-content:center; font-size:19px; }
+  .pick-free .free-txt{ flex:1; font-size:13.5px; color:var(--ink); font-weight:600; line-height:1.35; }
+  .pick-free .free-txt small{ display:block; font-weight:500; color:var(--muted); font-size:12px; }
+  .pick-free .free-tag{ background:#dcfce7; color:#15803d; font-size:12px; font-weight:700;
+              padding:5px 12px; border-radius:999px; white-space:nowrap; }
+  /* กล่องสรุปยอด (ติดขอบบนเวลาเลื่อน) */
+  .pick-sum{ background:#fff; border:1px solid var(--line); border-radius:20px; padding:26px 24px;
+             box-shadow:0 14px 40px rgba(15,23,42,.08); position:sticky; top:90px; }
+  .pick-sum h3{ font-size:17px; margin-bottom:4px; }
+  .pick-sum .sub{ color:var(--muted); font-size:12.5px; margin-bottom:16px; }
+  .pick-all{ width:100%; margin-bottom:16px; justify-content:center; }
+  .sum-rows{ border-top:1px solid var(--line); padding-top:14px; margin-bottom:14px;
+             display:grid; gap:8px; min-height:24px; }
+  .sum-rows .row{ display:flex; justify-content:space-between; font-size:13.5px; color:#334155; }
+  .sum-rows .empty{ color:var(--muted); font-size:13px; }
+  .sum-save{ display:flex; justify-content:space-between; font-size:13px; color:var(--green); font-weight:600; }
+  .sum-total{ display:flex; justify-content:space-between; align-items:baseline;
+              border-top:2px solid var(--line); padding-top:14px; margin-top:6px; }
+  .sum-total .lab{ font-size:14px; font-weight:600; }
+  .sum-total .val{ font-size:34px; font-weight:700; letter-spacing:-1px; }
+  .sum-total .val small{ font-size:14px; font-weight:500; color:var(--muted); }
+  .pick-sum .btn{ width:100%; justify-content:center; margin-top:18px; }
+  .pick-sum .note{ text-align:center; color:var(--muted); font-size:11.5px; margin-top:10px; }
+  .price-foot{ text-align:center; color:var(--muted); font-size:13.5px; margin-top:26px; }
+
+  /* ---------- ปิดท้าย ---------- */
+  .cta-final{ padding:90px 0; text-align:center; background:var(--bg-soft); }
+  .cta-box{ background:linear-gradient(120deg,#2563eb,#1d4ed8); border-radius:26px; color:#fff;
+            padding:56px 30px; position:relative; overflow:hidden; }
+  .cta-box::before{ content:""; position:absolute; width:220px; height:220px; border-radius:50%;
+                    background:rgba(255,255,255,.08); top:-80px; right:-60px; }
+  .cta-box::after{ content:""; position:absolute; width:150px; height:150px; border-radius:50%;
+                   background:rgba(255,255,255,.07); bottom:-60px; left:-40px; }
+  .cta-box h2{ font-size:32px; font-weight:700; margin-bottom:10px; }
+  .cta-box p{ color:#d4e0f9; margin-bottom:26px; }
+
+  footer{ padding:36px 0; border-top:1px solid var(--line); }
+  .foot{ display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;
+         color:var(--muted); font-size:13.5px; }
+  .foot .brand{ font-size:17px; }
+  .foot .brand img{ height:28px; }
+
+  /* ---------- จอเล็ก ---------- */
+  @media (max-width:960px){
+    h1{ font-size:38px; }
+    .hero-grid,.feat-grid{ grid-template-columns:1fr; }
+    .how-grid{ grid-template-columns:1fr; }
+    .mods-grid{ grid-template-columns:repeat(2,1fr); }
+    .pick-wrap{ grid-template-columns:1fr; }
+    .pick-sum{ position:static; }
+    .nav-links{ display:none; }
+    .stage{ order:-1; }
+    .feat-grid .stage{ order:0; }
+    .band{ clip-path:polygon(0 3%, 100% 0, 100% 100%, 0 100%); }
+  }
+  @media (max-width:560px){
+    .mods-grid{ grid-template-columns:1fr; }
+    h1{ font-size:32px; }
+    /* จอเล็ก: เหลือการ์ดลอยรูปละ 1-2 ใบ กันบังตัวคน/ล้นจอ */
+    .fc-3,.fc-a,.fc-c{ display:none; }
+    .fc-1{ left:0; }
+    .fc-b{ left:0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= ไอคอน SVG (แทน emoji ทั้งหน้า) ================= -->
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="ic-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.9L20 12l-6.1 3.1L12 21l-1.9-5.9L4 12l6.1-3.1z"/></symbol>
+  <symbol id="ic-play" viewBox="0 0 24 24"><polygon points="7 4 20 12 7 20 7 4" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="ic-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="ic-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14"/><polyline points="19 12 12 19 5 12"/></symbol>
+  <symbol id="ic-package" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></symbol>
+  <symbol id="ic-coins" viewBox="0 0 24 24"><circle cx="8" cy="8" r="6"/><path d="M18.1 10.4A6 6 0 1 1 10.3 18"/><path d="M6.3 6.3h3.4M8 4.6v3.4"/></symbol>
+  <symbol id="ic-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></symbol>
+  <symbol id="ic-food" viewBox="0 0 24 24"><path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M7 11V9a5 5 0 0 1 10 0v2"/><path d="M5 21h14"/></symbol>
+  <symbol id="ic-cap" viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/><path d="M22 10v6"/></symbol>
+  <symbol id="ic-pencil" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></symbol>
+  <symbol id="ic-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></symbol>
+  <symbol id="ic-printer" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/></symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+  <symbol id="ic-doc" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8M8 17h5"/></symbol>
+  <symbol id="ic-facebook" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></symbol>
+  <symbol id="ic-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="ic-star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></symbol>
+  <symbol id="ic-building" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/></symbol>
+</svg>
+
+<!-- ================= NAVBAR ================= -->
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="/landing"><img src="/static/logo.png" alt="D-Doc" onerror="this.remove()">D<b>-</b>Doc<b>.</b></a>
+    <nav class="nav-links">
+      <a href="#how">วิธีใช้งาน</a>
+      <a href="#features">จุดเด่น</a>
+      <a href="#modules">โมดูล</a>
+      <a href="#pricing">ราคา</a>
+      <a href="#contact">ติดต่อ</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn btn-ghost" href="/login">เข้าสู่ระบบ</a>
+      <a class="btn btn-primary" href="#pricing">ทดลองใช้ฟรี</a>
+    </div>
+  </div>
+</header>
+
+<!-- ================= HERO ================= -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="chip"><svg class="ico"><use href="#ic-spark"/></svg> ออกแบบมาเพื่อครูโรงเรียนไทยโดยเฉพาะ</span>
+      <h1>ลดงานเอกสาร<br><span class="hl">ให้ครูได้กลับไปสอน</span></h1>
+      <p class="lead">D-Doc รวมงานพัสดุ การเงิน ธุรการ และอาหารกลางวันไว้ในที่เดียว
+        กรอกข้อมูลครั้งเดียว ระบบออกเอกสารราชการให้ครบชุด ถูกต้องตามระเบียบ พร้อมพิมพ์ทันที</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#contact">ทดลองใช้ฟรี</a>
+        <a class="btn btn-play" href="#how"><span class="ic"><svg class="ico" style="font-size:13px;"><use href="#ic-play"/></svg></span> ดูวิธีใช้งาน</a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><b>60<em>+</em></b><span>แบบเอกสารราชการ</span></div>
+        <div class="stat"><b>4<em>+</em></b><span>งานหลักในระบบเดียว</span></div>
+        <div class="stat"><b>1 <em>คลิก</em></b><span>ออกเอกสารครบชุด</span></div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="pop">
+        <div class="arch"></div>
+        <img class="photo-pop" src="/static/landing/teacher-hero.png" alt="ครูผู้ใช้งาน D-Doc">
+      </div>
+      <div class="float-card fc-1"><svg class="ico"><use href="#ic-grid"/></svg> ใช้งานง่าย <small>ครอบคลุมหลายฝ่ายงาน</small></div>
+      <div class="float-card fc-2">งานเอกสาร <small class="up"><svg class="ico" style="color:var(--green);"><use href="#ic-arrow-down"/></svg> ลดลงกว่า 80%</small></div>
+      <div class="float-card fc-3"><svg class="ico"><use href="#ic-spark"/></svg> มี AI ช่วยงานเอกสาร <small>ร่างบันทึก/หนังสือราชการให้อัตโนมัติ</small></div>
+      <span class="dot d-y"></span><span class="dot d-b"></span><span class="dot d-b2"></span>
+    </div>
+  </div>
+
+  <!-- แถบโมดูล -->
+  <div class="wrap trust">
+    <div class="trust-bar">
+      <span class="trust-item"><span class="tic"><svg class="ico"><use href="#ic-package"/></svg></span>งานพัสดุ</span>
+      <span class="trust-item"><span class="tic"><svg class="ico"><use href="#ic-coins"/></svg></span>งานการเงิน</span>
+      <span class="trust-item"><span class="tic"><svg class="ico"><use href="#ic-mail"/></svg></span>งานธุรการ</span>
+      <span class="trust-item"><span class="tic"><svg class="ico"><use href="#ic-food"/></svg></span>อาหารกลางวัน</span>
+      <span class="trust-item"><span class="tic"><svg class="ico"><use href="#ic-cap"/></svg></span>ทะเบียนนักเรียน</span>
+    </div>
+  </div>
+</section>
+
+<!-- ================= HOW IT WORKS ================= -->
+<section class="how" id="how">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>ใช้งานยังไง<i>?</i></h2>
+      <p>สามขั้นตอน แค่กรอกข้อมูล เลือกเอกสารที่ต้องการ และพิมพ์</p>
+    </div>
+    <div class="how-grid">
+      <div class="how-card">
+        <div class="how-num">1</div>
+        <div class="how-ic" style="background:#e8f9ef; color:var(--green);"><svg class="ico"><use href="#ic-pencil"/></svg></div>
+        <h3>กรอกข้อมูลครั้งเดียว</h3>
+        <p>บันทึกเรื่องจัดซื้อ รายการพัสดุ ผู้ขาย หรือรายชื่อนักเรียน แค่ครั้งเดียว
+           ระบบจำและนำไปใช้ทุกเอกสารที่เกี่ยวข้อง</p>
+      </div>
+      <div class="how-card">
+        <div class="how-num">2</div>
+        <div class="how-ic" style="background:#eef4ff; color:var(--blue);"><svg class="ico"><use href="#ic-layers"/></svg></div>
+        <h3>ระบบจัดเอกสารให้ครบชุด</h3>
+        <p>บันทึกขอซื้อ ใบสั่งซื้อ ตรวจรับ ขอเบิกจ่าย ครบทุกใบตามระเบียบพัสดุฯ
+           เลขที่เอกสารรันอัตโนมัติ ไม่ชนกัน</p>
+      </div>
+      <div class="how-card">
+        <div class="how-num">3</div>
+        <div class="how-ic" style="background:#fff7e6; color:#b45309;"><svg class="ico"><use href="#ic-printer"/></svg></div>
+        <h3>ดาวน์โหลด Word พร้อมพิมพ์</h3>
+        <p>ได้ไฟล์ Word ฟอนต์ราชการ TH Sarabun จัดหน้าถูกต้อง
+           เปิดแก้เพิ่มได้เอง พิมพ์เสนอเซ็นได้ทันที</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FEATURE 1 ================= -->
+<section class="feat" id="features">
+  <div class="wrap feat-grid">
+    <div>
+      <h2>ช่วยงานเอกสาร<br>ที่ครูทำอยู่ทุกวัน</h2>
+      <p class="sub">เปลี่ยนจากการพิมพ์ซ้ำ ๆ ให้ D-Doc จัดการแทน</p>
+      <ul class="checks">
+        <li><span class="ck"><svg class="ico"><use href="#ic-check"/></svg></span>ชุดเอกสารจัดซื้อจัดจ้างครบ 11 เอกสาร รวม ว.804 / ว.119 วิธีพิเศษ</li>
+        <li><span class="ck"><svg class="ico"><use href="#ic-check"/></svg></span>มีทะเบียนข้อมูลโรงเรียน ระบบดึงรายชื่อไปใช้ได้ทุกเอกสาร ไม่ต้องกรอกใหม่</li>
+        <li><span class="ck"><svg class="ico"><use href="#ic-check"/></svg></span>ออกเอกสารทุกประเภท พร้อมรูปแบบราชการ</li>
+      </ul>
+      <a class="btn btn-primary" href="#contact">ทดลองใช้ฟรี</a>
+    </div>
+    <div class="stage sm">
+      <div class="pop">
+        <div class="arch"></div>
+        <img class="photo-pop pp-point" src="/static/landing/teacher-2.png" alt="" onerror="this.remove()">
+        <span class="ph-note">วางรูปครู → app/static/landing/teacher-2.png</span>
+      </div>
+      <div class="float-card fc-2">ชุดเอกสารจัดซื้อ <small class="up"><svg class="ico" style="color:var(--green);"><use href="#ic-check"/></svg> ครบ 11 เอกสารใน 1 คลิก</small></div>
+      <div class="float-card fc-a"><svg class="ico"><use href="#ic-coins"/></svg> บัญชีเงินคงเหลือประจำวัน <small class="up"><svg class="ico" style="color:var(--green);"><use href="#ic-check"/></svg> พร้อมพิมพ์</small></div>
+      <div class="float-card fc-b"><svg class="ico"><use href="#ic-food"/></svg> เอกสารจ้างอาหารกลางวัน <small>ครบ 3 รูปแบบ</small></div>
+      <div class="float-card fc-c"><svg class="ico"><use href="#ic-doc"/></svg> ช่วยเขียนหนังสือราชการ <small>6 รูปแบบสำเร็จรูป</small></div>
+      <span class="dot d-y"></span><span class="dot d-b2"></span>
+    </div>
+  </div>
+</section>
+
+<!-- ================= แถบน้ำเงิน ================= -->
+<section class="band">
+  <div class="wrap band-grid">
+    <div>
+      <h2>ครูใช้เวลากับงานธุรการ<br>มากกว่า <em>1 ใน 3</em> ของเวลาทำงาน</h2>
+      <p>ให้ D-Doc รับภาระงานเอกสารแทน แล้วคืนเวลาให้ห้องเรียน
+         ระบบคิดเลข คุมยอด คุมเลขที่เอกสาร และจัดรูปแบบราชการให้ทั้งหมด</p>
+    </div>
+    <a class="btn btn-white" href="#contact">เริ่มใช้กับโรงเรียนของคุณ</a>
+  </div>
+</section>
+
+<!-- ================= โมดูล ================= -->
+<section class="mods" id="modules">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>มีครบทุกงานเอกสารหลักในโรงเรียน</h2>
+      <p>สี่งานที่กินเวลาครูที่สุด รวมอยู่ในระบบเดียว ข้อมูลเชื่อมถึงกันได้</p>
+    </div>
+    <div class="mods-grid">
+      <div class="mod">
+        <div class="mic" style="background:#eef4ff; color:var(--blue);"><svg class="ico"><use href="#ic-package"/></svg></div>
+        <h3>งานพัสดุ</h3>
+        <ul>
+          <li>เอกสารจัดซื้อจัดจ้างครบชุด</li>
+          <li>ทะเบียนคุมทรัพย์สิน–ค่าเสื่อม</li>
+          <li>แผนจัดซื้อ + ทะเบียนคุมสัญญา</li>
+        </ul>
+      </div>
+      <div class="mod">
+        <div class="mic" style="background:#e8f9ef; color:var(--green);"><svg class="ico"><use href="#ic-coins"/></svg></div>
+        <h3>งานการเงิน</h3>
+        <ul>
+          <li>ทะเบียนคุมเงิน รับ–จ่าย–คงเหลือ</li>
+          <li>สมุดเงินสด + บัญชีแยกประเภท</li>
+          <li>รายงานแบบ สตง. + เงินคงเหลือประจำวัน</li>
+        </ul>
+      </div>
+      <div class="mod">
+        <div class="mic" style="background:#fff2f2; color:#dc2626;"><svg class="ico"><use href="#ic-mail"/></svg></div>
+        <h3>งานธุรการ</h3>
+        <ul>
+          <li>ทะเบียนหนังสือรับ–ส่ง</li>
+          <li>บันทึกข้อความ + คำสั่ง (มี AI ช่วย)</li>
+          <li>เขียนหนังราชการได้ 6 รูปแบบ (มี AI ช่วย)</li>
+        </ul>
+      </div>
+      <div class="mod">
+        <div class="mic" style="background:#fff7e6; color:#b45309;"><svg class="ico"><use href="#ic-food"/></svg></div>
+        <h3>อาหารกลางวัน</h3>
+        <ul>
+          <li>คำนวณงบต่อหัวอัตโนมัติ</li>
+          <li>เอกสารจ้างเหมา/จ้างแม่ครัว/ซื้อวัตถุดิบ</li>
+          <li>ภาวะโภชนาการจากทะเบียนนักเรียน</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ราคา (เลือกงานที่ต้องการ รายปี) ================= -->
+<section class="pricing" id="pricing">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>เลือกจ่ายเฉพาะงานที่ใช้<i>.</i></h2>
+      <p>ราคารายปี · เลือกกี่งานก็ได้ · เลือกครบทุกงานคุ้มกว่า · ทะเบียนนักเรียนกลางแถมฟรีทุกแพ็กเกจ</p>
+    </div>
+
+    <div class="pick-wrap">
+      <!-- รายการงานให้เลือก -->
+      <div>
+        <div class="pick-list" id="pickList">
+          <label class="pick-item" data-price="890">
+            <input type="checkbox" checked>
+            <span class="pick-box"><svg class="ico"><use href="#ic-check"/></svg></span>
+            <span class="pick-mic"><svg class="ico"><use href="#ic-package"/></svg></span>
+            <span class="pick-body"><h4>งานพัสดุ</h4><p>จัดซื้อจัดจ้างครบชุด · ว.804/ว.119 · ทรัพย์สิน/ค่าเสื่อม · แผนจัดซื้อ · ทะเบียนคุมสัญญา · ช่วยกรอก e-GP</p></span>
+            <span class="pick-price">890<small>บาท/ปี</small></span>
+          </label>
+          <label class="pick-item" data-price="690">
+            <input type="checkbox" checked>
+            <span class="pick-box"><svg class="ico"><use href="#ic-check"/></svg></span>
+            <span class="pick-mic" style="background:#e8f9ef; color:var(--green);"><svg class="ico"><use href="#ic-coins"/></svg></span>
+            <span class="pick-body"><h4>งานการเงิน</h4><p>ทะเบียนคุมเงิน · สมุดเงินสด · บัญชีแยกประเภท · รายงานแบบ สตง.</p></span>
+            <span class="pick-price">690<small>บาท/ปี</small></span>
+          </label>
+          <label class="pick-item" data-price="590">
+            <input type="checkbox" checked>
+            <span class="pick-box"><svg class="ico"><use href="#ic-check"/></svg></span>
+            <span class="pick-mic" style="background:#fff2f2; color:#dc2626;"><svg class="ico"><use href="#ic-mail"/></svg></span>
+            <span class="pick-body"><h4>งานธุรการ</h4><p>ทะเบียนหนังสือรับ–ส่ง · บันทึก/คำสั่ง · หนังสือราชการ 6 แบบ (มี AI ช่วย) · เกียรติบัตร</p></span>
+            <span class="pick-price">590<small>บาท/ปี</small></span>
+          </label>
+          <label class="pick-item" data-price="590">
+            <input type="checkbox" checked>
+            <span class="pick-box"><svg class="ico"><use href="#ic-check"/></svg></span>
+            <span class="pick-mic" style="background:#fff7e6; color:#b45309;"><svg class="ico"><use href="#ic-food"/></svg></span>
+            <span class="pick-body"><h4>งานอาหารกลางวัน</h4><p>คำนวณงบต่อหัว · เอกสารจ้าง 3 รูปแบบ · ภาวะโภชนาการ</p></span>
+            <span class="pick-price">590<small>บาท/ปี</small></span>
+          </label>
+        </div>
+        <div class="pick-free" style="margin-top:14px;">
+          <span class="free-badge"><svg class="ico"><use href="#ic-cap"/></svg></span>
+          <span class="free-txt">ทะเบียนนักเรียนกลาง<small>ป้อนรายชื่อให้ทุกงานอัตโนมัติ ไม่ต้องกรอกซ้ำ</small></span>
+          <span class="free-tag">แถมฟรีทุกแพ็กเกจ</span>
+        </div>
+      </div>
+
+      <!-- สรุปยอด -->
+      <div class="pick-sum">
+        <h3>สรุปแพ็กเกจของคุณ</h3>
+        <div class="sub">เลือกงานด้านซ้าย ระบบคิดราคาให้อัตโนมัติ</div>
+        <button type="button" class="btn btn-ghost pick-all" id="pickAll">เลือกครบทุกงาน (คุ้มสุด)</button>
+        <div class="sum-rows" id="sumRows"></div>
+        <div class="sum-save" id="sumSave" style="display:none;"><span><svg class="ico"><use href="#ic-star"/></svg> ส่วนลดครบทุกงาน</span><span id="sumSaveVal"></span></div>
+        <div class="sum-total"><span class="lab">รวมทั้งสิ้น</span><span class="val"><span id="sumTotal">2,290</span> <small>บาท/ปี</small></span></div>
+        <a class="btn btn-primary" href="/checkout" id="btnBuy"><svg class="ico"><use href="#ic-coins"/></svg> สั่งซื้อ / ชำระเงิน</a>
+        <a class="btn btn-ghost" href="/quote" id="btnQuote" style="margin-top:10px;"><svg class="ico"><use href="#ic-doc"/></svg> ขอใบเสนอราคา</a>
+        <div class="note">ทดลองใช้ฟรีก่อนตัดสินใจ · อัปเดตฟรีเมื่อระเบียบเปลี่ยน</div>
+      </div>
+    </div>
+    <p class="price-foot">อยากได้ทุกงานในราคาเดียว? แพ็ก <b>“ครบทุกงาน” 2,290 บาท/ปี</b> (จากปกติ 2,760) — เพิ่มงานสุดท้ายแค่หลักร้อย ถูกกว่าซื้อแยก 470 บาท · โรงเรียนขนาดใหญ่/กลุ่มโรงเรียน <a href="/quote" style="color:var(--blue); font-weight:600;">ขอใบเสนอราคาพิเศษ</a></p>
+  </div>
+</section>
+
+<script>
+  (function(){
+    var BUNDLE = 2290;                     // ครบทุกงาน: สูงกว่าราคา 3 งาน (2,170) เล็กน้อย + ถูกกว่าซื้อแยก 4 งาน (2,760)
+    var items = [].slice.call(document.querySelectorAll('#pickList .pick-item'));
+    var sumRows = document.getElementById('sumRows');
+    var sumTotal = document.getElementById('sumTotal');
+    var sumSave = document.getElementById('sumSave');
+    var sumSaveVal = document.getElementById('sumSaveVal');
+    var btnBuy = document.getElementById('btnBuy');
+    var btnQuote = document.getElementById('btnQuote');
+    var fmt = function(n){ return n.toLocaleString('en-US'); };
+    function render(){
+      var chosen = items.filter(function(it){ return it.querySelector('input').checked; });
+      items.forEach(function(it){ it.classList.toggle('on', it.querySelector('input').checked); });
+      var listSum = chosen.reduce(function(s,it){ return s + (+it.dataset.price); }, 0);
+      var all = chosen.length === items.length && items.length > 0;
+      var total = all ? BUNDLE : listSum;
+      // พก package+ยอดที่เลือกไปหน้า checkout/quote
+      var label = all ? 'ครบทุกงาน' : chosen.map(function(it){ return it.querySelector('h4').textContent; }).join(' + ');
+      var qs = '?packages=' + encodeURIComponent(label || '') + '&amount=' + total;
+      if(btnBuy) btnBuy.href = '/checkout' + qs;
+      if(btnQuote) btnQuote.href = '/quote' + qs;
+      sumRows.innerHTML = chosen.length
+        ? chosen.map(function(it){ return '<div class="row"><span>'+ it.querySelector('h4').textContent +'</span><span>'+ fmt(+it.dataset.price) +'</span></div>'; }).join('')
+        : '<div class="empty">ยังไม่ได้เลือกงาน — เลือกอย่างน้อย 1 งาน</div>';
+      if(all){
+        sumSave.style.display = 'flex';
+        sumSaveVal.textContent = '−' + fmt(listSum - BUNDLE) + ' บาท';
+      } else { sumSave.style.display = 'none'; }
+      sumTotal.textContent = fmt(total);
+    }
+    items.forEach(function(it){ it.querySelector('input').addEventListener('change', render); });
+    document.getElementById('pickAll').addEventListener('click', function(){
+      items.forEach(function(it){ it.querySelector('input').checked = true; });
+      render();
+    });
+    render();
+  })();
+</script>
+
+<!-- ================= CTA ================= -->
+<section class="cta-final" id="contact">
+  <div class="wrap">
+    <div class="cta-box">
+      <h2>เริ่มคืนเวลาให้ห้องเรียน</h2>
+      <p>ทดลองใช้ฟรี ไม่ต้องติดตั้งโปรแกรม ใช้ได้ทันทีผ่านเบราว์เซอร์ · สอบถามหรือขอทดลองใช้ทาง Facebook</p>
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+        <a class="btn btn-white" href="https://www.facebook.com/profile.php?id=61590718498881&locale=th_TH" target="_blank" rel="noopener"><svg class="ico"><use href="#ic-facebook"/></svg> ติดต่อทาง Facebook</a>
+        <a class="btn btn-ghost" href="/login" style="color:#fff; border-color:rgba(255,255,255,.5);">เข้าสู่ระบบ</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <a class="brand" href="/landing"><img src="/static/logo.png" alt="" onerror="this.remove()">D<b>-</b>Doc<b>.</b></a>
+    <span>ระบบจัดการเอกสารและพัสดุโรงเรียน</span>
+    <a class="fb-link" href="https://www.facebook.com/profile.php?id=61590718498881&locale=th_TH" target="_blank" rel="noopener"
+       style="display:inline-flex; align-items:center; gap:7px; color:var(--blue); font-weight:600;">
+      <svg class="ico"><use href="#ic-facebook"/></svg> ติดตามเราบน Facebook
+    </a>
+    <span>© 2569 D-Doc</span>
+  </div>
+</footer>
+
+</body>
+</html>

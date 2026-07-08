@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}แผนการจัดซื้อจัดจ้างประจำปี{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">แผนการจัดซื้อจัดจ้างประจำปีงบประมาณ (ประกาศเผยแพร่ตาม พ.ร.บ. จัดซื้อจัดจ้างฯ มาตรา 11)</div>
+    <span class="hero-title">แผนจัดซื้อจัดจ้าง</span>
+    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} · {{ rows|length }} รายการ · งบรวม {{ "{:,.0f}".format(total) }} บาท</div>
+  </div>
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <a class="btn sm" href="/procurement/plan/announce.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> ประกาศเผยแพร่แผน (Word)</a>
+    <form method="get" action="/procurement/plan">
+      <select name="year" onchange="this.form.submit()" style="color:var(--text);">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+</div>
+{% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกแล้ว</div>{% endif %}
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มรายการในแผน (ปีงบ {{ fiscal_year }})</h2>
+  <form method="post" action="/procurement/plan/add" class="row" style="align-items:flex-end;">
+    <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+    <div style="flex:2;"><label>รายการ/โครงการที่จะจัดซื้อจัดจ้าง *</label><input name="name" required placeholder="เช่น จัดซื้อวัสดุการศึกษา"></div>
+    <div><label>งบประมาณ (บาท)</label><input name="budget" type="number" step="0.01" min="0" value="0" style="width:130px;"></div>
+    <div><label>วิธี</label><input name="method" value="เฉพาะเจาะจง" style="width:120px;"></div>
+    <div><label>คาดว่าจะประกาศ (เดือน/ปี)</label><input name="expected_period" placeholder="เช่น ตุลาคม 2568" style="width:150px;"></div>
+    <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
+  </form>
+  <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
+    <form method="post" action="/procurement/plan/pull-projects" style="margin:0;" onsubmit="return confirm('ดึงรายการจากโครงการ/แผนงบปี {{ fiscal_year }} มาเป็นแผนจัดซื้อ?');">
+      <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+      <button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-coins"/></svg> ดึงจากโครงการ/แผนงบ (ปี {{ fiscal_year }})</button>
+      <span class="muted" style="font-size:13px; margin-left:6px;">นำชื่อ+งบของโครงการมาเป็นรายการในแผน (ข้ามชื่อที่มีแล้ว)</span>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h2>รายการในแผน {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }} รายการ)</span>{% endif %}</h2>
+  {% if rows %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th style="width:44px;">ที่</th><th>รายการ/โครงการ</th><th class="right">งบประมาณ</th><th>วิธี</th><th>คาดว่าจะประกาศ</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td class="center">{{ loop.index }}</td>
+        <form method="post" action="/procurement/plan/{{ r.id }}/update" style="display:contents;">
+          <td><input name="name" value="{{ r.name }}"></td>
+          <td><input name="budget" type="number" step="0.01" value="{{ '%g'|format(r.budget) }}" style="width:110px; text-align:right;"></td>
+          <td><input name="method" value="{{ r.method }}" style="width:110px;"></td>
+          <td><input name="expected_period" value="{{ r.expected_period }}" style="width:130px;"></td>
+          <td style="white-space:nowrap;">
+            <button class="btn sm" type="submit">บันทึก</button>
+        </form>
+            <form method="post" action="/procurement/plan/{{ r.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบรายการนี้จากแผน?');"><button class="btn sm gray" type="submit">ลบ</button></form>
+          </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr style="background:#f1f5f9; font-weight:700;">
+        <td></td><td class="right">รวมทั้งสิ้น</td><td class="right">{{ "{:,.2f}".format(total) }}</td><td colspan="3"></td>
+      </tr>
+    </tfoot>
+  </table>
+  </div>
+  {% else %}<p class="muted">ยังไม่มีรายการในแผน — เพิ่มด้านบน หรือ ดึงจากโครงการ/แผนงบ</p>{% endif %}
+</div>
+{% endblock %}

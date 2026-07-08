@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}ทะเบียนคุมสัญญา{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">ทะเบียนคุมสัญญา/ใบสั่งซื้อสั่งจ้าง + แจ้งเตือนวันครบกำหนด</div>
+    <span class="hero-title">ทะเบียนคุมสัญญา</span>
+    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} · {{ items|length }} สัญญา{% if alerts %} · <span style="color:#fca5a5;">ใกล้/เกินกำหนด {{ alerts|length }}</span>{% endif %}</div>
+  </div>
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <a class="btn sm green" href="/procurement/contracts/export.xlsx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> ส่งออก Excel</a>
+    <form method="get" action="/procurement/contracts">
+      <select name="year" onchange="this.form.submit()" style="color:var(--text);">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+</div>
+{% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกแล้ว</div>{% endif %}
+
+{% if alerts %}
+<div class="card" style="border:1px solid #fca5a5; background:#fef2f2;">
+  <h2 style="margin-top:0; color:#b91c1c;"><svg class="icon"><use href="#ic-alert"/></svg> แจ้งเตือนสัญญาใกล้/เกินกำหนด ({{ alerts|length }})</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>เลขที่</th><th>คู่สัญญา</th><th>เรื่อง</th><th>ครบกำหนด</th><th>สถานะเวลา</th></tr></thead>
+    <tbody>
+    {% for it in alerts %}
+      <tr>
+        <td><b>{{ it.c.contract_no or '-' }}</b></td>
+        <td>{{ it.c.party or '-' }}</td>
+        <td>{{ it.c.subject or '-' }}</td>
+        <td>{{ thai_date(it.c.end_date) }}</td>
+        <td>{% if it.level=='overdue' %}<span class="pill" style="background:#fde8e8;color:#b91c1c;">เกินกำหนด {{ -it.days_left }} วัน</span>{% else %}<span class="pill" style="background:#fff4e5;color:#b45309;">เหลือ {{ it.days_left }} วัน</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มสัญญา (ปีงบ {{ fiscal_year }})</h2>
+  <form method="post" action="/procurement/contracts/add" class="row" style="align-items:flex-end;">
+    <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+    <div><label>เลขที่สัญญา/ใบสั่ง</label><input name="contract_no" style="width:120px;"></div>
+    <div><label>ประเภท</label><select name="ctype">{% for t in types %}<option>{{ t }}</option>{% endfor %}</select></div>
+    <div style="flex:1.5;"><label>คู่สัญญา</label><input name="party" list="vendors_dl"></div>
+    <div style="flex:2;"><label>เรื่อง/งาน</label><input name="subject"></div>
+    <div><label>วงเงิน</label><input name="amount" type="number" step="0.01" value="0" style="width:110px;"></div>
+    <div><label>วันทำสัญญา</label><input name="sign_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;"></div>
+    <div><label>ครบกำหนด</label><input name="end_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;"></div>
+    <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
+  </form>
+  <datalist id="vendors_dl">{% for v in vendors %}<option value="{{ v.name }}">{% endfor %}</datalist>
+  <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    <b style="font-size:14px;">ดึงจากข้อมูลที่มี:</b>
+    <form method="post" action="/procurement/contracts/pull-procurement" style="margin:0;"><input type="hidden" name="fiscal_year" value="{{ fiscal_year }}"><button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-package"/></svg> เรื่องจัดซื้อจัดจ้าง</button></form>
+    <form method="post" action="/procurement/contracts/pull-lunch" style="margin:0;"><input type="hidden" name="fiscal_year" value="{{ fiscal_year }}"><button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-food"/></svg> จ้างเหมาอาหารกลางวัน</button></form>
+    <span class="muted" style="font-size:13px;">นำเรื่องที่มีเลขใบสั่งมาลงทะเบียนสัญญา (กันซ้ำ)</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>รายการสัญญา {% if items %}<span class="muted" style="font-size:15px;">({{ items|length }})</span>{% endif %}</h2>
+  {% if items %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>เลขที่</th><th>ประเภท</th><th>คู่สัญญา</th><th>เรื่อง</th><th class="right">วงเงิน</th><th>ครบกำหนด</th><th>สถานะ</th><th>เวลา</th><th></th></tr></thead>
+    <tbody>
+    {% for it in items %}
+      <tr>
+        <form method="post" action="/procurement/contracts/{{ it.c.id }}/update" style="display:contents;">
+          <td><input name="contract_no" value="{{ it.c.contract_no }}" style="width:85px;"></td>
+          <td><select name="ctype" style="width:100px;">{% for t in types %}<option {{ 'selected' if t==it.c.ctype }}>{{ t }}</option>{% endfor %}</select></td>
+          <td><input name="party" value="{{ it.c.party }}" style="width:120px;"></td>
+          <td><input name="subject" value="{{ it.c.subject }}"></td>
+          <td><input name="amount" type="number" step="0.01" value="{{ '%g'|format(it.c.amount) }}" style="width:95px; text-align:right;"></td>
+          <td><input name="end_date" value="{{ be_date(it.c.end_date) if it.c.end_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:112px;"></td>
+          <td><select name="status" style="width:120px;">{% for s in statuses %}<option {{ 'selected' if s==it.c.status }}>{{ s }}</option>{% endfor %}{% if it.c.status not in statuses %}<option selected>{{ it.c.status }}</option>{% endif %}</select></td>
+          <td style="white-space:nowrap;">
+            {% if it.level=='overdue' %}<span class="pill" style="background:#fde8e8;color:#b91c1c; font-size:11px;">เกิน {{ -it.days_left }} ว.</span>
+            {% elif it.level=='soon' %}<span class="pill" style="background:#fff4e5;color:#b45309; font-size:11px;">{{ it.days_left }} ว.</span>
+            {% elif it.days_left is not none %}<span class="muted" style="font-size:11px;">{{ it.days_left }} ว.</span>{% endif %}
+          </td>
+          <td style="white-space:nowrap;">
+            <button class="btn sm" type="submit">บันทึก</button>
+        </form>
+            <form method="post" action="/procurement/contracts/{{ it.c.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบสัญญานี้?');"><button class="btn sm gray" type="submit">ลบ</button></form>
+          </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted">ยังไม่มีสัญญาในปีนี้ — เพิ่มด้านบน หรือ ดึงจากเรื่องจัดซื้อจัดจ้าง/อาหารกลางวัน</p>{% endif %}
+</div>
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

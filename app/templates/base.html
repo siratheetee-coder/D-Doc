@@ -461,6 +461,8 @@
         <a href="/procurement" class="{{ 'active' if path == '/procurement' }}"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลักพัสดุ</a>
         <a href="/procurement/new" class="{{ 'active' if path.startswith('/procurement/new') }}"><svg class="icon"><use href="#ic-file-plus"/></svg> สร้างเรื่องใหม่</a>
         <a href="/procurement/from-file" class="{{ 'active' if path.startswith('/procurement/from-file') }}"><svg class="icon"><use href="#ic-download"/></svg> อัพโหลดเรื่องซื้อ/จ้าง</a>
+        <a href="/procurement/plan" class="{{ 'active' if path.startswith('/procurement/plan') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> แผนจัดซื้อจัดจ้าง</a>
+        <a href="/procurement/contracts" class="{{ 'active' if path.startswith('/procurement/contracts') }}"><svg class="icon"><use href="#ic-file"/></svg> ทะเบียนคุมสัญญา</a>
         <div class="nav-sec">พัสดุ/ทรัพย์สิน</div>
         <a href="/assets" class="{{ 'active' if path.startswith('/assets') }}"><svg class="icon"><use href="#ic-package"/></svg> ทะเบียนครุภัณฑ์</a>
         <a href="/materials" class="{{ 'active' if path.startswith('/materials') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> บัญชีวัสดุ</a>
@@ -486,8 +488,10 @@
         <a href="/finance/accounts" class="{{ 'active' if path.startswith('/finance/accounts') }}"><svg class="icon"><use href="#ic-coins"/></svg> ทะเบียนคุมเงิน</a>
         <a href="/finance/disburse" class="{{ 'active' if path.startswith('/finance/disburse') }}"><svg class="icon"><use href="#ic-file"/></svg> บันทึกขอเบิกจ่าย</a>
         <a href="/finance/receipts" class="{{ 'active' if path.startswith('/finance/receipts') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ทะเบียนใบเสร็จ/ใบสำคัญ</a>
+        <a href="/finance/cashbook" class="{{ 'active' if path.startswith('/finance/cashbook') }}"><svg class="icon"><use href="#ic-coins"/></svg> สมุดเงินสด</a>
         <a href="/finance/cash-report" class="{{ 'active' if path.startswith('/finance/cash-report') }}"><svg class="icon"><use href="#ic-file"/></svg> เงินคงเหลือประจำวัน</a>
         <a href="/finance/report" class="{{ 'active' if path.startswith('/finance/report') }}"><svg class="icon"><use href="#ic-coins"/></svg> รายงานการเงิน</a>
+        <a href="/finance/audit" class="{{ 'active' if path.startswith('/finance/audit') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> รายงานแบบ สตง.</a>
         <div class="nav-sec">ข้อมูล</div>
         <a href="/finance/import" class="{{ 'active' if path.startswith('/finance/import') }}"><svg class="icon"><use href="#ic-download"/></svg> นำเข้าข้อมูล</a>
 

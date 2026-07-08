@@ -24,13 +24,16 @@ from app.services.asset_utils import (
     account_balance_asof, item_remaining_asof,
 )
 from app.services.cash_report import render_cash_report, DEPOSIT_TYPES
+from app.services.ledger_book_doc import (
+    render_cash_book, build_cash_book_xlsx, render_general_ledger, build_ledger_xlsx,
+)
 from app.services.doc_number import suggest_doc_no, commit_doc_no, check_doc_no, parse_seq
 from app.services.finance_doc import render_disburse
 from app.services.finance_io import build_finance_template, import_finance_workbook
 from app.services.finance_report import export_finance_report
-from app.thai_utils import current_fiscal_year, parse_be_date, be_date_input
+from app.thai_utils import current_fiscal_year, parse_be_date, be_date_input, thai_date
 from app.templating import templates
-from app.routers.pages import get_school, _to_int, _to_float
+from app.routers.pages import get_school, _to_int, _to_float, serve_generated
 
 router = APIRouter()
 
@@ -402,7 +405,7 @@ def disburse_generate(mid: int, db: Session = Depends(get_db)):
     if not m:
         return RedirectResponse("/finance/disburse", status_code=303)
     path = render_disburse(m, get_school(db))
-    return FileResponse(path, filename=Path(path).name, media_type=_DOCX)
+    return serve_generated(path, _DOCX)
 
 
 # ---------------- ทะเบียนใบเสร็จ/ใบสำคัญ ----------------
@@ -514,7 +517,150 @@ def cash_report_docx(db: Session = Depends(get_db),
     accounts = db.query(FinanceAccount).order_by(FinanceAccount.id).all()
     rows, totals = _build_cash_rows(accounts, fy, as_of)
     path = render_cash_report(get_school(db), rows, totals, as_of)
-    return FileResponse(path, filename=Path(path).name, media_type=_DOCX)
+    return serve_generated(path, _DOCX)
+
+
+# ---------------- สมุดเงินสด + บัญชีแยกประเภท (แบบ สตง.) ----------------
+_MONTH_NAME = {1: "มกราคม", 2: "กุมภาพันธ์", 3: "มีนาคม", 4: "เมษายน", 5: "พฤษภาคม",
+               6: "มิถุนายน", 7: "กรกฎาคม", 8: "สิงหาคม", 9: "กันยายน",
+               10: "ตุลาคม", 11: "พฤศจิกายน", 12: "ธันวาคม"}
+
+
+def _build_book_rows(txns, opening, *, acct_names=None, ledger=False):
+    """สร้างแถวสมุดเงินสด/บัญชีแยกประเภท: เรียงตามวันที่ + ยอดคงเหลือสะสม + แถวรวมรายเดือน
+    txns: FinanceTxn (in=เดบิต/รับ, out=เครดิต/จ่าย)
+    acct_names: {account_id: ชื่อบัญชี} เพื่อใส่ชื่อบัญชีนำหน้ารายการ (โหมดรวมทุกบัญชี)
+    ledger=True: เพิ่มคอลัมน์ 'ดุล' (เดบิต/เครดิต) จากยอดคงเหลือ"""
+    rows = []
+    bal = float(opening or 0)
+    tot_d = tot_c = 0.0
+    ordered = sorted(txns, key=lambda t: (t.date or datetime.min, t.id))
+    cur_month = None
+    m_d = m_c = 0.0
+
+    def _side():
+        return "เดบิต" if bal >= 0 else "เครดิต"
+
+    def flush():
+        nonlocal m_d, m_c
+        if cur_month is not None:
+            r = {"subtotal": True, "date": "", "ref": "",
+                 "desc": f"รวมรับ-จ่ายเดือน{_MONTH_NAME.get(cur_month, '')}",
+                 "debit": round(m_d, 2), "credit": round(m_c, 2), "balance": round(bal, 2)}
+            if ledger:
+                r["side"] = _side()
+            rows.append(r)
+        m_d = m_c = 0.0
+
+    for t in ordered:
+        m = t.date.month if t.date else None
+        if cur_month is not None and m != cur_month:
+            flush()
+        cur_month = m
+        debit = (t.amount or 0) if t.kind == "in" else 0.0
+        credit = (t.amount or 0) if t.kind == "out" else 0.0
+        bal += debit - credit
+        m_d += debit; m_c += credit
+        tot_d += debit; tot_c += credit
+        desc = " ".join(x for x in [(t.category or "").strip(), (t.note or "").strip()] if x) or "-"
+        if acct_names:
+            nm = acct_names.get(t.account_id)
+            if nm:
+                desc = f"[{nm}] {desc}"
+        r = {"date": thai_date(t.date) if t.date else "", "desc": desc, "ref": (t.ref or "").strip(),
+             "debit": debit, "credit": credit, "balance": round(bal, 2)}
+        if ledger:
+            r["side"] = _side()
+        rows.append(r)
+    flush()
+    return rows, {"debit": round(tot_d, 2), "credit": round(tot_c, 2), "balance": round(bal, 2)}
+
+
+def _cashbook_data(db, fy, account_id=None):
+    accounts = db.query(FinanceAccount).order_by(FinanceAccount.id).all()
+    if account_id:
+        acc = db.get(FinanceAccount, account_id)
+        scope = acc.name if acc else "ทุกบัญชี"
+        opening = opening_for(acc, fy) if acc else 0.0
+        txns = [t for t in (acc.txns if acc else []) if t.fiscal_year == fy]
+        acct_names = None
+    else:
+        scope = "ทุกบัญชี"
+        opening = sum(opening_for(a, fy) for a in accounts)
+        txns = db.query(FinanceTxn).filter_by(fiscal_year=fy).all()
+        acct_names = {a.id: a.name for a in accounts}
+    rows, totals = _build_book_rows(txns, opening, acct_names=acct_names)
+    return accounts, scope, opening, rows, totals
+
+
+@router.get("/finance/cashbook", response_class=HTMLResponse)
+def cashbook_page(request: Request, db: Session = Depends(get_db),
+                  year: int | None = None, account: int | None = None):
+    fy = year or current_fiscal_year()
+    accounts, scope, opening, rows, totals = _cashbook_data(db, fy, account)
+    return templates.TemplateResponse("finance_cashbook.html", {
+        "request": request, "school": get_school(db), "fiscal_year": fy,
+        "years": _finance_years(db, fy), "accounts": accounts, "sel_account": account,
+        "scope": scope, "opening": opening, "rows": rows, "totals": totals,
+    })
+
+
+@router.get("/finance/cashbook.docx")
+def cashbook_docx(db: Session = Depends(get_db), year: int | None = None, account: int | None = None):
+    fy = year or current_fiscal_year()
+    _a, scope, opening, rows, totals = _cashbook_data(db, fy, account)
+    path = render_cash_book(get_school(db), fy, rows, opening, totals, scope)
+    return serve_generated(path, _DOCX)
+
+
+@router.get("/finance/cashbook.xlsx")
+def cashbook_xlsx(db: Session = Depends(get_db), year: int | None = None, account: int | None = None):
+    fy = year or current_fiscal_year()
+    _a, scope, opening, rows, totals = _cashbook_data(db, fy, account)
+    path = build_cash_book_xlsx(fy, rows, opening, totals, scope)
+    return serve_generated(path, _XLSX)
+
+
+def _ledger_data(db, aid, fy):
+    a = db.get(FinanceAccount, aid)
+    if not a:
+        return None, 0.0, []
+    opening = opening_for(a, fy)
+    txns = [t for t in a.txns if t.fiscal_year == fy]
+    rows, _totals = _build_book_rows(txns, opening, ledger=True)
+    return a, opening, rows
+
+
+@router.get("/finance/accounts/{aid}/ledger.docx")
+def ledger_docx(aid: int, db: Session = Depends(get_db), year: int | None = None):
+    fy = year or current_fiscal_year()
+    a, opening, rows = _ledger_data(db, aid, fy)
+    if not a:
+        return RedirectResponse("/finance/accounts", status_code=303)
+    path = render_general_ledger(get_school(db), a, fy, rows, opening)
+    return serve_generated(path, _DOCX)
+
+
+@router.get("/finance/accounts/{aid}/ledger.xlsx")
+def ledger_xlsx(aid: int, db: Session = Depends(get_db), year: int | None = None):
+    fy = year or current_fiscal_year()
+    a, opening, rows = _ledger_data(db, aid, fy)
+    if not a:
+        return RedirectResponse("/finance/accounts", status_code=303)
+    path = build_ledger_xlsx(a, fy, rows, opening)
+    return serve_generated(path, _XLSX)
+
+
+# ---------------- ศูนย์รายงานแบบ สตง. ----------------
+@router.get("/finance/audit", response_class=HTMLResponse)
+def audit_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
+    fy = year or current_fiscal_year()
+    accounts = db.query(FinanceAccount).order_by(FinanceAccount.name).all()
+    return templates.TemplateResponse("finance_audit.html", {
+        "request": request, "school": get_school(db), "fiscal_year": fy,
+        "years": _finance_years(db, fy), "accounts": accounts,
+        "today_be": be_date_input(datetime.now()),
+    })
 
 
 @router.get("/finance/report.xlsx")
@@ -523,7 +669,7 @@ def report_xlsx(db: Session = Depends(get_db), year: int | None = None):
     accounts = db.query(FinanceAccount).order_by(FinanceAccount.name).all()
     txns = db.query(FinanceTxn).filter_by(fiscal_year=fy).all()
     path = export_finance_report(accounts, txns, fy)
-    return FileResponse(path, filename=Path(path).name, media_type=_XLSX)
+    return serve_generated(path, _XLSX)
 
 
 # ---------------- นำเข้า Excel ----------------
@@ -545,7 +691,7 @@ def finance_import_page(request: Request, imported: str | None = None, import_er
 @router.get("/finance/template.xlsx")
 def finance_template():
     path = build_finance_template()
-    return FileResponse(path, filename=Path(path).name, media_type=_XLSX)
+    return serve_generated(path, _XLSX)
 
 
 @router.post("/finance/import")

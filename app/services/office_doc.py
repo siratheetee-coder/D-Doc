@@ -45,6 +45,22 @@ def _safe(text: str) -> str:
     return text.strip()
 
 
+def _save_doc(doc, fname: str) -> str:
+    """บันทึก .docx ลง data/documents; ถ้าเขียนไม่ได้ (path/permission บนเซิร์ฟเวอร์)
+    ใช้โฟลเดอร์ชั่วคราวของระบบแทน แล้วคืน path (เสิร์ฟจากหน่วยความจำภายหลัง)"""
+    import tempfile
+    try:
+        out_dir = get_data_dir() / "documents"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / fname
+        doc.save(str(out_path))
+        return str(out_path)
+    except OSError:
+        out_path = Path(tempfile.gettempdir()) / fname
+        doc.save(str(out_path))
+        return str(out_path)
+
+
 def _school_office(school) -> str:
     parts = [school.name or "", school.address or ""]
     return "  ".join(p for p in parts if p).strip()
@@ -89,12 +105,8 @@ def render_memo(memo, school) -> str:
         (position, "center"),
     ]])
 
-    out_dir = get_data_dir() / "documents"
-    out_dir.mkdir(exist_ok=True)
     fname = _safe(f"บันทึกข้อความ_{memo.memo_no or memo.id}_{memo.subject}") + ".docx"
-    out_path = out_dir / fname
-    doc.save(str(out_path))
-    return str(out_path)
+    return _save_doc(doc, fname)
 
 
 def render_order(order, school) -> str:
@@ -115,12 +127,8 @@ def render_order(order, school) -> str:
     _p(doc, f"( {school.director_name or ''} )", align="center")
     _p(doc, _director_office(school), align="center")
 
-    out_dir = get_data_dir() / "documents"
-    out_dir.mkdir(exist_ok=True)
     fname = _safe(f"คำสั่ง_{order.order_no or order.id}_{order.subject}") + ".docx"
-    out_path = out_dir / fname
-    doc.save(str(out_path))
-    return str(out_path)
+    return _save_doc(doc, fname)
 
 
 _BLANK = ".........................................."
@@ -171,9 +179,5 @@ def render_official_letter(letter, school) -> str:
                school.name or "")
     _foot_line(foot.add_paragraph(), "โทร. ........................................")
 
-    out_dir = get_data_dir() / "documents"
-    out_dir.mkdir(exist_ok=True)
     fname = _safe(f"หนังสือราชการ_{letter.doc_no or letter.id}_{letter.subject}") + ".docx"
-    out_path = out_dir / fname
-    doc.save(str(out_path))
-    return str(out_path)
+    return _save_doc(doc, fname)

@@ -1,0 +1,60 @@
+{% extends "public_base.html" %}
+{% block title %}ขอใบเสนอราคา | D-Doc{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>ขอใบเสนอราคา</h1>
+  <p>กรอกข้อมูลสำหรับออกใบเสนอราคา ทีมงานจะส่งใบเสนอราคาให้ทางอีเมลที่ระบุ (ปกติภายใน 1 วันทำการ)</p>
+</div>
+
+<form class="card" method="post" action="/quote" autocomplete="on">
+  <h2>ข้อมูลหน่วยงาน</h2>
+  <label>ชื่อโรงเรียน/หน่วยงาน <span class="req">*</span></label>
+  <input name="school_name" required placeholder="เช่น โรงเรียนบ้านหินลาด" value="{{ prefill.school_name or '' }}">
+
+  <label>ที่อยู่ (สำหรับออกใบเสนอราคา)</label>
+  <textarea name="address" placeholder="ที่อยู่หน่วยงาน สำหรับระบุในใบเสนอราคา">{{ prefill.address or '' }}</textarea>
+
+  <div class="grid2">
+    <div>
+      <label>เลขประจำตัวผู้เสียภาษี</label>
+      <input name="tax_id" inputmode="numeric" maxlength="13" placeholder="13 หลัก (ถ้ามี)" value="{{ prefill.tax_id or '' }}">
+    </div>
+    <div>
+      <label>เบอร์โทรติดต่อ</label>
+      <input name="phone" inputmode="tel" placeholder="0xx-xxx-xxxx" value="{{ prefill.phone or '' }}">
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div>
+      <label>ชื่อผู้ติดต่อ <span class="req">*</span></label>
+      <input name="contact_name" required placeholder="ชื่อ-นามสกุล ผู้ประสานงาน" value="{{ prefill.contact_name or '' }}">
+    </div>
+    <div>
+      <label>อีเมล (รับใบเสนอราคา) <span class="req">*</span></label>
+      <input name="email" type="email" required placeholder="name@example.com" value="{{ prefill.email or '' }}">
+    </div>
+  </div>
+
+  <h2 style="margin-top:22px;">งานที่ต้องการ</h2>
+  <label>รายการงาน/แพ็กเกจ</label>
+  <input name="packages" placeholder="เช่น ครบทุกงาน หรือ งานพัสดุ + งานการเงิน" value="{{ prefill.packages or '' }}">
+
+  <div class="grid2">
+    <div>
+      <label>ยอดเงินโดยประมาณ (บาท/ปี)</label>
+      <input name="amount" inputmode="numeric" placeholder="เช่น 1990" value="{{ prefill.amount or '' }}">
+    </div>
+    <div>
+      <label>จำนวนโรงเรียน (กรณีกลุ่มโรงเรียน)</label>
+      <input name="qty_school" inputmode="numeric" placeholder="1">
+    </div>
+  </div>
+
+  <label>หมายเหตุ/ความต้องการเพิ่มเติม</label>
+  <textarea name="note" placeholder="รายละเอียดเพิ่มเติม เช่น ต้องการใบเสนอราคาในนามหน่วยงาน / ระยะเวลาที่ต้องการ">{{ prefill.note or '' }}</textarea>
+
+  <button class="btn btn-primary btn-full" type="submit" style="margin-top:22px;">ส่งคำขอใบเสนอราคา</button>
+  <p class="hint" style="text-align:center;">เราจะใช้ข้อมูลนี้ออกใบเสนอราคาและติดต่อกลับเท่านั้น</p>
+</form>
+{% endblock %}

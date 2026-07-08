@@ -119,6 +119,32 @@
     <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/repay"><svg class="icon"><use href="#ic-file"/></svg> ขออนุมัติส่งใช้เงินยืม</a>
   </div>
 </div>
+{% elif p.operate_mode == 'person' %}
+<div class="card">
+  <h2>ออกเอกสารจ้างบุคคล (แม่ครัว)</h2>
+  <p class="muted" style="margin-top:0;">ชุดจ้างบุคคล + ยืมเงินซื้อวัตถุดิบ · กรอกผู้รับจ้าง เลขที่/วันที่ใบสั่งจ้าง งวดงาน และกรรมการให้ครบก่อน (ตามคู่มืออาหารกลางวัน สพฐ.)</p>
+  <a class="btn" href="/lunch/round/{{ r.id }}/person-doc/bundle" style="font-size:16px; padding:11px 20px;">
+    <svg class="icon"><use href="#ic-download"/></svg> ออกเอกสารทั้งชุด (ไฟล์เดียว)
+  </a>
+  <p class="muted" style="margin:14px 0 6px;">หรือออกทีละใบ (จ้างบุคคล):</p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/tor"><svg class="icon"><use href="#ic-file"/></svg> ขอบเขตของงาน (TOR)</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/hire-report"><svg class="icon"><use href="#ic-file"/></svg> รายงานขอจ้างบุคคล</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/quotation"><svg class="icon"><use href="#ic-file"/></svg> ใบเสนอราคา</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/result"><svg class="icon"><use href="#ic-file"/></svg> รายงานผลพิจารณา</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/winner"><svg class="icon"><use href="#ic-file"/></svg> ประกาศผู้ชนะ</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/order"><svg class="icon"><use href="#ic-file"/></svg> ใบสั่งจ้าง</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/committee-doc"><svg class="icon"><use href="#ic-file"/></svg> คำสั่งแต่งตั้งกรรมการ</a>
+  </div>
+  <p class="muted" style="margin:12px 0 6px;">ชุดยืมเงินซื้อวัตถุดิบ:</p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/borrow"><svg class="icon"><use href="#ic-file"/></svg> ขออนุมัติยืมเงิน</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/estimate"><svg class="icon"><use href="#ic-file"/></svg> แบบประมาณการ</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/purchase"><svg class="icon"><use href="#ic-file"/></svg> ใบจัดซื้อวัสดุ</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/repay"><svg class="icon"><use href="#ic-file"/></svg> ขออนุมัติส่งใช้เงินยืม</a>
+  </div>
+  <p class="muted" style="margin:12px 0 0; font-size:13px;">งวดงาน (ควบคุม/ส่งมอบ/ตรวจรับ) และขอเบิกจ่าย+หัก ณ ที่จ่าย ออกได้จากปุ่มในแต่ละงวดด้านบน</p>
+</div>
 {% else %}
 <div class="card">
   <h2>ออกเอกสาร (ต่อรอบ/สัญญา)</h2>

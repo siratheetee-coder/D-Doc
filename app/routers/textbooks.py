@@ -17,7 +17,7 @@ from app.models import TextBook, TextbookBerk, TextbookBerkItem
 from app.thai_utils import (current_academic_year, parse_be_date, be_date_input,
                             thai_date)
 from app.templating import templates
-from app.routers.pages import get_school, _to_int, _to_float
+from app.routers.pages import get_school, _to_int, _to_float, serve_generated
 
 router = APIRouter()
 
@@ -173,8 +173,7 @@ def berk_template():
     out = get_data_dir() / "documents"; out.mkdir(exist_ok=True)
     path = out / "แบบฟอร์มนำเข้าหนังสือเรียน.xlsx"
     wb.save(str(path))
-    return FileResponse(path, filename=path.name,
-                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @router.post("/textbooks/import")
@@ -236,8 +235,7 @@ def book_receipt(db: Session = Depends(get_db), year: int | None = None):
     if not groups:
         groups = [("", [], [])]
     path = render_book_receipt(yr, groups, get_school(db))
-    return FileResponse(path, filename=Path(path).name,
-                        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 @router.get("/textbooks/export.xlsx")
@@ -287,5 +285,4 @@ def textbook_export(db: Session = Depends(get_db), year: int | None = None):
     out = get_data_dir() / "documents"; out.mkdir(exist_ok=True)
     path = out / f"ทะเบียนหนังสือเรียน_ปีการศึกษา{yr}.xlsx"
     wb.save(str(path))
-    return FileResponse(path, filename=path.name,
-                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

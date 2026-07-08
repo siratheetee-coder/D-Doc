@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}D-Doc{% endblock %}</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <style>
+    @font-face { font-family:"Prompt"; font-weight:400; font-display:swap; src:url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:500; font-display:swap; src:url("/static/fonts/Prompt-Medium.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:600; font-display:swap; src:url("/static/fonts/Prompt-SemiBold.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:700; font-display:swap; src:url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+    :root{ --blue:#2563eb; --blue-deep:#1d4ed8; --ink:#0f172a; --muted:#5b6b84;
+           --line:#e6ebf3; --bg:#f6f9fd; --green:#16a34a; }
+    *{ box-sizing:border-box; margin:0; padding:0; }
+    a{ text-decoration:none; color:inherit; }
+    body{ font-family:"Prompt","Sarabun","Leelawadee UI","Segoe UI",sans-serif;
+          background:var(--bg); color:var(--ink); line-height:1.6; }
+    .top{ background:#fff; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:10; }
+    .top .in{ max-width:940px; margin:0 auto; padding:0 20px; height:62px; display:flex;
+              align-items:center; justify-content:space-between; }
+    .brand{ display:flex; align-items:center; gap:9px; font-size:20px; font-weight:700; }
+    .brand img{ height:32px; }
+    .brand b{ color:var(--blue); }
+    .back{ color:var(--muted); font-size:14.5px; font-weight:500; text-decoration:none; }
+    .back:hover{ color:var(--blue); }
+    .wrap{ max-width:940px; margin:0 auto; padding:34px 20px 60px; }
+    .page-head{ margin-bottom:22px; }
+    .page-head h1{ font-size:27px; font-weight:700; }
+    .page-head p{ color:var(--muted); font-size:15px; margin-top:5px; }
+    .card{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:26px 24px;
+           box-shadow:0 10px 30px rgba(15,23,42,.05); margin-bottom:18px; }
+    .card h2{ font-size:18px; margin-bottom:14px; }
+    label{ display:block; margin:12px 0 5px; font-weight:600; font-size:14.5px; }
+    .req{ color:#dc2626; }
+    input,textarea,select{ width:100%; padding:11px 13px; border:1px solid #dfe3ea; border-radius:10px;
+           font-size:15.5px; font-family:inherit; color:var(--ink); background:#fff; }
+    input:focus,textarea:focus,select:focus{ outline:none; border-color:var(--blue);
+           box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+    textarea{ resize:vertical; min-height:70px; }
+    .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
+    .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; border:0;
+          border-radius:11px; padding:13px 26px; font-size:16px; font-weight:700; cursor:pointer;
+          font-family:inherit; text-decoration:none; transition:.18s; }
+    .btn-primary{ background:var(--blue); color:#fff; box-shadow:0 8px 20px rgba(37,99,235,.26); }
+    .btn-primary:hover{ background:var(--blue-deep); }
+    .btn-ghost{ background:#fff; color:var(--ink); border:1.5px solid var(--line); }
+    .btn-ghost:hover{ border-color:var(--blue); color:var(--blue); }
+    .btn-full{ width:100%; }
+    .muted{ color:var(--muted); }
+    .hint{ font-size:13px; color:var(--muted); margin-top:4px; }
+    @media (max-width:600px){ .grid2{ grid-template-columns:1fr; } }
+    {% block extra_css %}{% endblock %}
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div class="in">
+      <a class="brand" href="/landing"><img src="/static/logo.png" alt="" onerror="this.remove()">D<b>-</b>Doc<b>.</b></a>
+      <a class="back" href="/landing">← กลับหน้าหลัก</a>
+    </div>
+  </div>
+  <div class="wrap">
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

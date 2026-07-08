@@ -15,7 +15,7 @@ import shutil
 from datetime import datetime, date
 
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Boolean, DateTime, Date, ForeignKey
+    create_engine, Column, Integer, String, Boolean, DateTime, Date, ForeignKey, Float, Text
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
@@ -55,6 +55,38 @@ class Account(AccBase):
     created_at = Column(DateTime, default=datetime.now)
 
     tenant = relationship("Tenant", back_populates="accounts")
+
+
+class Lead(AccBase):
+    """คำขอจากหน้าเว็บสาธารณะ (landing): quote=ขอใบเสนอราคา, order=สั่งซื้อ/แจ้งชำระเงิน
+    เก็บในฐานข้อมูลกลาง (ยังไม่ผูกโรงเรียน) — ผู้ขายดูได้ในคอนโซลผู้ดูแลระบบ"""
+    __tablename__ = "lead"
+    id = Column(Integer, primary_key=True)
+    kind = Column(String, default="quote")        # quote / order
+    school_name = Column(String, default="")
+    address = Column(Text, default="")
+    tax_id = Column(String, default="")
+    contact_name = Column(String, default="")
+    email = Column(String, default="")
+    phone = Column(String, default="")
+    packages = Column(String, default="")         # งานที่เลือก (ข้อความ)
+    amount = Column(Float, default=0.0)
+    slip_file = Column(String, default="")        # ชื่อไฟล์สลิป (เฉพาะ order)
+    note = Column(Text, default="")
+    status = Column(String, default="ใหม่")        # ใหม่ / ตอบแล้ว / ปิด
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class SaleDoc(AccBase):
+    """เลขที่เอกสารขาย: quotation=ใบเสนอราคา (QT), receipt=ใบเสร็จ (RC) — 1 lead/kind มีเลขเดียว (กันออกซ้ำ)"""
+    __tablename__ = "sale_doc"
+    id = Column(Integer, primary_key=True)
+    lead_id = Column(Integer, nullable=True)
+    kind = Column(String)                          # quotation / receipt
+    year = Column(Integer)                         # พ.ศ.
+    seq = Column(Integer)
+    doc_no = Column(String)
+    created_at = Column(DateTime, default=datetime.now)
 
 
 # ===================== engine / session =====================
@@ -141,6 +173,80 @@ def tenant_state(tenant_id) -> dict | None:
         expired = bool(t.expiry_date and t.expiry_date < date.today())
         return {"name": t.name, "active": bool(t.active), "expired": expired,
                 "expiry_date": t.expiry_date}
+    finally:
+        db.close()
+
+
+# ===================== คำขอจากหน้าเว็บ (leads) =====================
+def add_lead(**fields) -> int:
+    """บันทึกคำขอ (ขอใบเสนอราคา/สั่งซื้อ) จากหน้าเว็บสาธารณะ คืน id"""
+    db = acc_session()
+    try:
+        lead = Lead(**{k: v for k, v in fields.items() if hasattr(Lead, k)})
+        db.add(lead); db.commit()
+        return lead.id
+    finally:
+        db.close()
+
+
+def list_leads(kind: str | None = None) -> list[dict]:
+    """รายการคำขอทั้งหมด (ใหม่ก่อน) แบบ dict (ตัดการผูก ORM)"""
+    db = acc_session()
+    try:
+        q = db.query(Lead).order_by(Lead.id.desc())
+        if kind:
+            q = q.filter_by(kind=kind)
+        return [{c.name: getattr(l, c.name) for c in Lead.__table__.columns} for l in q.all()]
+    finally:
+        db.close()
+
+
+def set_lead_status(lead_id: int, status: str) -> None:
+    db = acc_session()
+    try:
+        l = db.get(Lead, lead_id)
+        if l:
+            l.status = status; db.commit()
+    finally:
+        db.close()
+
+
+def count_new_leads() -> int:
+    db = acc_session()
+    try:
+        return db.query(Lead).filter_by(status="ใหม่").count()
+    finally:
+        db.close()
+
+
+def get_lead(lead_id: int) -> dict | None:
+    db = acc_session()
+    try:
+        l = db.get(Lead, lead_id)
+        if not l:
+            return None
+        return {c.name: getattr(l, c.name) for c in Lead.__table__.columns}
+    finally:
+        db.close()
+
+
+def issue_sale_doc(kind: str, lead_id: int, year: int) -> dict:
+    """คืนเลขที่เอกสารของ lead+kind นี้ (ถ้ามีแล้วใช้ซ้ำ ไม่มีก็สร้างเลขถัดไปของปีนั้น)
+    kind: quotation -> QT-<ปีพ.ศ.>-0001, receipt -> RC-<ปีพ.ศ.>-0001"""
+    db = acc_session()
+    try:
+        exist = (db.query(SaleDoc).filter_by(kind=kind, lead_id=lead_id)
+                 .order_by(SaleDoc.id.desc()).first())
+        if exist:
+            return {"doc_no": exist.doc_no, "seq": exist.seq, "created_at": exist.created_at}
+        last = (db.query(SaleDoc).filter_by(kind=kind, year=year)
+                .order_by(SaleDoc.seq.desc()).first())
+        seq = (last.seq if last else 0) + 1
+        prefix = "QT" if kind == "quotation" else "RC"
+        doc_no = f"{prefix}-{year}-{seq:04d}"
+        d = SaleDoc(lead_id=lead_id, kind=kind, year=year, seq=seq, doc_no=doc_no)
+        db.add(d); db.commit()
+        return {"doc_no": doc_no, "seq": seq, "created_at": d.created_at}
     finally:
         db.close()
 

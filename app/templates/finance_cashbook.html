@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}สมุดเงินสด{% endblock %}
+{% block content %}
+{% set _q = ('&account=' ~ sel_account) if sel_account else '' %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">สมุดเงินสด (Cash Book) — บันทึกรับ-จ่ายทุกบัญชีเรียงตามวันที่ พร้อมยอดคงเหลือสะสม แบบ สตง.</div>
+    <span class="hero-title">สมุดเงินสด</span>
+    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} · {{ scope }} · คงเหลือยกไป {{ "{:,.2f}".format(totals.balance) }} บาท</div>
+  </div>
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <a class="btn sm" href="/finance/cashbook.docx?year={{ fiscal_year }}{{ _q }}"><svg class="icon"><use href="#ic-download"/></svg> Word</a>
+    <a class="btn sm green" href="/finance/cashbook.xlsx?year={{ fiscal_year }}{{ _q }}"><svg class="icon"><use href="#ic-download"/></svg> Excel</a>
+  </div>
+</div>
+
+<div class="card">
+  <form method="get" action="/finance/cashbook" class="row" style="align-items:flex-end;">
+    <div><label>ปีงบประมาณ</label>
+      <select name="year" onchange="this.form.submit()">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
+      </select>
+    </div>
+    <div style="flex:1;"><label>ขอบเขต</label>
+      <select name="account" onchange="this.form.submit()">
+        <option value="">ทุกบัญชี (รวม)</option>
+        {% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if sel_account==a.id }}>{{ a.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div><noscript><button class="btn sm" type="submit">แสดง</button></noscript></div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="stat">
+    <div class="box"><div><div class="lab">ยอดยกมา</div><div class="num">{{ "{:,.2f}".format(opening) }}</div></div>
+      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+    <div class="box"><div><div class="lab">รวมรับ (เดบิต)</div><div class="num" style="color:#16a34a;">{{ "{:,.2f}".format(totals.debit) }}</div></div>
+      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-plus"/></svg></span></div>
+    <div class="box"><div><div class="lab">รวมจ่าย (เครดิต)</div><div class="num" style="color:#dc2626;">{{ "{:,.2f}".format(totals.credit) }}</div></div>
+      <span class="ic-wrap ic-red"><svg class="icon"><use href="#ic-file"/></svg></span></div>
+    <div class="box"><div><div class="lab">คงเหลือยกไป</div><div class="num">{{ "{:,.2f}".format(totals.balance) }}</div></div>
+      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>รายการเคลื่อนไหว {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|selectattr('subtotal','undefined')|list|length }} รายการ)</span>{% endif %}</h2>
+  {% if rows %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>ว/ด/ป</th><th>รายการ</th><th>เลขที่เอกสาร</th>
+        <th class="right">รับ (เดบิต)</th><th class="right">จ่าย (เครดิต)</th><th class="right">คงเหลือ</th></tr></thead>
+    <tbody>
+      <tr style="background:#f8fafc;"><td></td><td><b>ยอดยกมา</b></td><td></td><td></td><td></td><td class="right"><b>{{ "{:,.2f}".format(opening) }}</b></td></tr>
+      {% for r in rows %}
+      {% if r.subtotal %}
+      <tr style="background:#fef9c3; font-weight:600;">
+        <td></td><td>{{ r.desc }}</td><td></td>
+        <td class="right">{{ "{:,.2f}".format(r.debit) if r.debit else "" }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.credit) if r.credit else "" }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.balance) }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td style="white-space:nowrap;">{{ r.date }}</td>
+        <td>{{ r.desc }}</td>
+        <td>{{ r.ref or "-" }}</td>
+        <td class="right" style="color:#16a34a;">{{ "{:,.2f}".format(r.debit) if r.debit else "" }}</td>
+        <td class="right" style="color:#dc2626;">{{ "{:,.2f}".format(r.credit) if r.credit else "" }}</td>
+        <td class="right"><b>{{ "{:,.2f}".format(r.balance) }}</b></td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr style="background:#f1f5f9; font-weight:700;">
+        <td></td><td class="right">รวมทั้งสิ้น</td><td></td>
+        <td class="right">{{ "{:,.2f}".format(totals.debit) }}</td>
+        <td class="right">{{ "{:,.2f}".format(totals.credit) }}</td>
+        <td class="right">{{ "{:,.2f}".format(totals.balance) }}</td>
+      </tr>
+    </tfoot>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">ยังไม่มีการเคลื่อนไหวในปีงบนี้ — บันทึกรับ-จ่ายได้ที่ <a href="/finance/accounts">ทะเบียนคุมเงิน</a></p>
+  {% endif %}
+</div>
+{% endblock %}

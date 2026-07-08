@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}รายงานแบบ สตง.{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">ชุดรายงานการเงินสำหรับตรวจสอบ (แบบสำนักงานการตรวจเงินแผ่นดิน) — ออกจากข้อมูลที่บันทึกไว้ในระบบ</div>
+    <span class="hero-title">รายงานแบบ สตง.</span>
+    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }}</div>
+  </div>
+  <form method="get" action="/finance/audit">
+    <select name="year" onchange="this.form.submit()">
+      {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-file"/></svg> สมุดเงินสด</h2>
+  <p class="muted" style="margin-top:0;">บันทึกการรับ-จ่ายเงินทุกบัญชีเรียงตามวันที่ พร้อมยอดคงเหลือสะสมและยอดรวมรายเดือน — เป็นสมุดบัญชีหลักที่ สตง. ใช้ตรวจ</p>
+  <a class="btn" href="/finance/cashbook?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-coins"/></svg> เปิดสมุดเงินสด</a>
+  <a class="btn gray" href="/finance/cashbook.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> Word</a>
+  <a class="btn green" href="/finance/cashbook.xlsx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> Excel</a>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-clipboard"/></svg> บัญชีแยกประเภททั่วไป (เต็มรูปแบบ)</h2>
+  <p class="muted" style="margin-top:0;">แยกตามบัญชี/ประเภทเงิน แสดง เดบิต–เครดิต–ดุล–คงเหลือ ตามหลักบัญชีของหน่วยงานภาครัฐ</p>
+  {% if accounts %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>บัญชี/ประเภทเงิน</th><th class="right">ดาวน์โหลด</th></tr></thead>
+    <tbody>
+      {% for a in accounts %}
+      <tr>
+        <td>{{ a.name }}</td>
+        <td class="right" style="white-space:nowrap;">
+          <a class="btn sm" href="/finance/accounts/{{ a.id }}/ledger.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> Word</a>
+          <a class="btn sm green" href="/finance/accounts/{{ a.id }}/ledger.xlsx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> Excel</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted">ยังไม่มีบัญชี — สร้างได้ที่ <a href="/finance/accounts">ทะเบียนคุมเงิน</a></p>{% endif %}
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-file"/></svg> รายงานเงินคงเหลือประจำวัน</h2>
+  <p class="muted" style="margin-top:0;">แสดงเงินคงเหลือ ณ วันที่ที่ระบุ แยกคอลัมน์ เงินสด / เงินฝากธนาคาร / เงินฝากส่วนราชการผู้เบิก พร้อมช่องลงนามคณะกรรมการเก็บรักษาเงิน</p>
+  <form method="get" action="/finance/cash-report" class="row" style="align-items:flex-end;">
+    <input type="hidden" name="year" value="{{ fiscal_year }}">
+    <div><label>ณ วันที่</label><input name="date" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:130px;"></div>
+    <div><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-file"/></svg> เปิดรายงาน</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-coins"/></svg> รายงานสรุปการเงิน (แยกบัญชี + รายเดือน + งบรายหมวด)</h2>
+  <p class="muted" style="margin-top:0;">สรุปยอดยกมา–รับ–จ่าย–คงเหลือ แยกตามบัญชี และสรุปรับ-จ่ายรายเดือนตลอดปีงบ (ไฟล์ Excel หลายชีต)</p>
+  <a class="btn" href="/finance/report?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-coins"/></svg> ดูสรุปบนหน้าจอ</a>
+  <a class="btn green" href="/finance/report.xlsx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลด Excel</a>
+</div>
+
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

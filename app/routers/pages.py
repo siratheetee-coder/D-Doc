@@ -27,7 +27,7 @@ from app.models import (
     Person, Department, Project, ProjectBudgetRevision, Committee, CommitteeMember,
     Asset, MaterialItem, MaterialTxn, Requisition, RequisitionItem, IssuedDocNo,
     DocNumberCounter, OfficeMemo, SchoolOrder, IncomingLetter, OutgoingLetter,
-    DisburseMemo, ItemCatalog, Student,
+    DisburseMemo, ItemCatalog, Student, ProcurementPlan, Contract,
 )
 from app.services.asset_utils import (
     CATEGORIES, CATEGORY_LIFE, annual_depreciation, accumulated_depreciation,
@@ -353,7 +353,7 @@ def backup_download():
     from app.database import current_db_path, _checkpoint
     _checkpoint()
     fname = f"school-backup-{datetime.now():%Y%m%d-%H%M}.db"
-    return FileResponse(str(current_db_path()), filename=fname, media_type="application/octet-stream")
+    return serve_generated(str(current_db_path()), "application/octet-stream")
 
 
 @router.post("/restore")
@@ -411,10 +411,7 @@ def masters_page(request: Request, db: Session = Depends(get_db),
 def masters_template():
     """ดาวน์โหลดเทมเพลต Excel สำหรับกรอกข้อมูลตั้งต้นทีละมาก ๆ"""
     path = build_import_template()
-    return FileResponse(
-        path, filename=Path(path).name,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @router.post("/masters/import")
@@ -559,6 +556,21 @@ def _xlsx_download(wb, filename: str) -> Response:
                     headers={"Content-Disposition": dispo})
 
 
+def serve_generated(path, media_type: str | None = None, *,
+                    inline: bool = False, download_name: str | None = None) -> Response:
+    """อ่านไฟล์ที่สร้างไว้เข้าหน่วยความจำแล้วส่งกลับ พร้อม Content-Disposition แบบ RFC 5987
+    (filename*=utf-8'') — เลี่ยงปัญหา FileResponse กับชื่อไฟล์ภาษาไทยบนเซิร์ฟเวอร์
+    (บาง Starlette/สภาพแวดล้อม stat/serve ไฟล์ชื่อไทยแล้ว 500)"""
+    from urllib.parse import quote
+    p = Path(path)
+    data = p.read_bytes()
+    name = download_name or p.name
+    disp = "inline" if inline else "attachment"
+    dispo = f"{disp}; filename*=utf-8''{quote(name)}"
+    return Response(content=data, media_type=media_type or "application/octet-stream",
+                    headers={"Content-Disposition": dispo})
+
+
 def _norm_sex(s: str) -> str:
     return _SEX_MAP.get((s or "").strip(), "")
 
@@ -696,6 +708,249 @@ async def students_import(db: Session = Depends(get_db), file: UploadFile = File
     except Exception:
         return RedirectResponse("/students?err=read", status_code=303)
     return RedirectResponse(f"/students?added={n}", status_code=303)
+
+
+# ---------------- แผนการจัดซื้อจัดจ้างประจำปี ----------------
+@router.get("/procurement/plan", response_class=HTMLResponse)
+def proc_plan_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
+    fy = year or current_fiscal_year()
+    rows = (db.query(ProcurementPlan).filter_by(fiscal_year=fy)
+            .order_by(ProcurementPlan.seq, ProcurementPlan.id).all())
+    years = sorted({r[0] for r in db.query(ProcurementPlan.fiscal_year).distinct()} |
+                   set(range(fy - 2, fy + 2)), reverse=True)
+    return templates.TemplateResponse("proc_plan.html", {
+        "request": request, "school": get_school(db), "rows": rows, "fiscal_year": fy,
+        "years": years, "total": sum(float(r.budget or 0) for r in rows),
+        "today_input": be_date_input(datetime.now()),
+    })
+
+
+@router.post("/procurement/plan/add")
+def proc_plan_add(db: Session = Depends(get_db), fiscal_year: str = Form(""), name: str = Form(""),
+                  budget: str = Form("0"), method: str = Form("เฉพาะเจาะจง"),
+                  expected_period: str = Form(""), source: str = Form("เงินอุดหนุน")):
+    fy = _to_int(fiscal_year, current_fiscal_year())
+    nm = (name or "").strip()
+    if nm:
+        seq = (db.query(ProcurementPlan).filter_by(fiscal_year=fy).count()) + 1
+        db.add(ProcurementPlan(fiscal_year=fy, seq=seq, name=nm, budget=_to_float(budget, 0.0),
+                               method=(method or "").strip(), expected_period=(expected_period or "").strip(),
+                               source=(source or "").strip()))
+        db.commit()
+    return RedirectResponse(f"/procurement/plan?year={fy}", status_code=303)
+
+
+@router.post("/procurement/plan/{pid}/update")
+def proc_plan_update(pid: int, db: Session = Depends(get_db), name: str = Form(""),
+                     budget: str = Form("0"), method: str = Form(""),
+                     expected_period: str = Form(""), source: str = Form("")):
+    p = db.get(ProcurementPlan, pid)
+    fy = p.fiscal_year if p else current_fiscal_year()
+    if p:
+        p.name = (name or "").strip() or p.name
+        p.budget = _to_float(budget, 0.0)
+        p.method = (method or "").strip()
+        p.expected_period = (expected_period or "").strip()
+        p.source = (source or "").strip()
+        db.commit()
+    return RedirectResponse(f"/procurement/plan?year={fy}&saved=1", status_code=303)
+
+
+@router.post("/procurement/plan/{pid}/delete")
+def proc_plan_delete(pid: int, db: Session = Depends(get_db)):
+    p = db.get(ProcurementPlan, pid)
+    fy = p.fiscal_year if p else current_fiscal_year()
+    if p:
+        db.delete(p); db.commit()
+    return RedirectResponse(f"/procurement/plan?year={fy}", status_code=303)
+
+
+@router.post("/procurement/plan/pull-projects")
+def proc_plan_pull(db: Session = Depends(get_db), fiscal_year: str = Form("")):
+    """ดึงรายการจากโครงการ/แผนงบ (ปีเดียวกัน) มาเป็นแผนจัดซื้อ (ข้ามชื่อที่มีแล้ว)"""
+    fy = _to_int(fiscal_year, current_fiscal_year())
+    have = {(p.name or "").strip() for p in db.query(ProcurementPlan).filter_by(fiscal_year=fy).all()}
+    projs = db.query(Project).filter(Project.plan_year == fy).order_by(Project.name).all()
+    seq = len(have)
+    for pj in projs:
+        nm = (pj.name or "").strip()
+        if not nm or nm in have:
+            continue
+        seq += 1
+        db.add(ProcurementPlan(fiscal_year=fy, seq=seq, name=nm, budget=pj.budget or 0.0,
+                               project_id=pj.id, source="เงินอุดหนุน"))
+        have.add(nm)
+    db.commit()
+    return RedirectResponse(f"/procurement/plan?year={fy}", status_code=303)
+
+
+@router.get("/procurement/plan/announce.docx")
+def proc_plan_announce(db: Session = Depends(get_db), year: int | None = None, date: str = ""):
+    from app.services.proc_plan_doc import render_plan_announcement
+    fy = year or current_fiscal_year()
+    rows = (db.query(ProcurementPlan).filter_by(fiscal_year=fy)
+            .order_by(ProcurementPlan.seq, ProcurementPlan.id).all())
+    path = render_plan_announcement(get_school(db), fy, rows, parse_be_date(date))
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+# ---------------- ทะเบียนคุมสัญญา + แจ้งเตือนครบกำหนด ----------------
+CONTRACT_TYPES = ["สัญญาจ้าง", "สัญญาซื้อ", "ใบสั่งจ้าง", "ใบสั่งซื้อ", "ข้อตกลง"]
+CONTRACT_STATUS = ["ระหว่างดำเนินการ", "ส่งมอบแล้ว", "ตรวจรับแล้ว", "สิ้นสุด"]
+_ALERT_DAYS = 15   # เตือนล่วงหน้ากี่วันก่อนครบกำหนด
+
+
+def _contract_alert(c, today):
+    """คืน (days_left, level) : level = overdue/soon/None (เฉพาะสัญญาที่ยังไม่สิ้นสุด)"""
+    if c.status == "สิ้นสุด" or not c.end_date:
+        return None, None
+    dl = (c.end_date.date() - today).days
+    if dl < 0:
+        return dl, "overdue"
+    if dl <= _ALERT_DAYS:
+        return dl, "soon"
+    return dl, None
+
+
+@router.get("/procurement/contracts", response_class=HTMLResponse)
+def contracts_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
+    fy = year or current_fiscal_year()
+    today = datetime.now().date()
+    rows = (db.query(Contract).filter_by(fiscal_year=fy)
+            .order_by(Contract.end_date.is_(None), Contract.end_date).all())
+    items = []
+    for c in rows:
+        dl, lvl = _contract_alert(c, today)
+        items.append({"c": c, "days_left": dl, "level": lvl})
+    alerts = [it for it in items if it["level"]]
+    years = sorted({r[0] for r in db.query(Contract.fiscal_year).distinct()} |
+                   set(range(fy - 2, fy + 2)), reverse=True)
+    return templates.TemplateResponse("contracts.html", {
+        "request": request, "school": get_school(db), "items": items, "alerts": alerts,
+        "fiscal_year": fy, "years": years, "types": CONTRACT_TYPES, "statuses": CONTRACT_STATUS,
+        "vendors": db.query(Vendor).order_by(Vendor.name).all(),
+        "today_input": be_date_input(datetime.now()),
+    })
+
+
+@router.post("/procurement/contracts/add")
+def contract_add(db: Session = Depends(get_db), fiscal_year: str = Form(""), contract_no: str = Form(""),
+                 ctype: str = Form("ใบสั่งจ้าง"), party: str = Form(""), subject: str = Form(""),
+                 amount: str = Form("0"), sign_date: str = Form(""), end_date: str = Form(""),
+                 status: str = Form("ระหว่างดำเนินการ")):
+    fy = _to_int(fiscal_year, current_fiscal_year())
+    if (subject or party or contract_no).strip():
+        db.add(Contract(fiscal_year=fy, contract_no=contract_no.strip(), ctype=ctype.strip() or "ใบสั่งจ้าง",
+                        party=party.strip(), subject=subject.strip(), amount=_to_float(amount, 0.0),
+                        sign_date=parse_be_date(sign_date), end_date=parse_be_date(end_date),
+                        status=status.strip() or "ระหว่างดำเนินการ"))
+        db.commit()
+    return RedirectResponse(f"/procurement/contracts?year={fy}", status_code=303)
+
+
+@router.post("/procurement/contracts/{cid}/update")
+def contract_update(cid: int, db: Session = Depends(get_db), contract_no: str = Form(""),
+                    ctype: str = Form(""), party: str = Form(""), subject: str = Form(""),
+                    amount: str = Form("0"), sign_date: str = Form(""), end_date: str = Form(""),
+                    status: str = Form("")):
+    c = db.get(Contract, cid)
+    fy = c.fiscal_year if c else current_fiscal_year()
+    if c:
+        c.contract_no = contract_no.strip(); c.ctype = ctype.strip() or c.ctype
+        c.party = party.strip(); c.subject = subject.strip(); c.amount = _to_float(amount, 0.0)
+        c.sign_date = parse_be_date(sign_date); c.end_date = parse_be_date(end_date)
+        c.status = status.strip() or c.status
+        db.commit()
+    return RedirectResponse(f"/procurement/contracts?year={fy}&saved=1", status_code=303)
+
+
+@router.post("/procurement/contracts/{cid}/delete")
+def contract_delete(cid: int, db: Session = Depends(get_db)):
+    c = db.get(Contract, cid)
+    fy = c.fiscal_year if c else current_fiscal_year()
+    if c:
+        db.delete(c); db.commit()
+    return RedirectResponse(f"/procurement/contracts?year={fy}", status_code=303)
+
+
+@router.post("/procurement/contracts/pull-procurement")
+def contracts_pull_procurement(db: Session = Depends(get_db), fiscal_year: str = Form("")):
+    """ดึงเรื่องจัดซื้อจัดจ้างที่มีเลขใบสั่ง มาเป็นสัญญาในทะเบียน (ข้ามที่ดึงแล้ว)"""
+    fy = _to_int(fiscal_year, current_fiscal_year())
+    have = {(c.source, c.ref_id) for c in db.query(Contract).filter_by(fiscal_year=fy).all()}
+    procs = (db.query(Procurement).filter(Procurement.fiscal_year == fy,
+             Procurement.order_no != "").all())
+    for p in procs:
+        if ("procurement", p.id) in have or not (p.order_no or "").strip():
+            continue
+        ctype = "ใบสั่งจ้าง" if p.proc_type == "จ้าง" else "ใบสั่งซื้อ"
+        db.add(Contract(fiscal_year=fy, contract_no=(p.order_no or "").strip(), ctype=ctype,
+                        party=(p.vendor.name if p.vendor else ""), subject=p.subject,
+                        amount=p.total_amount or 0.0, sign_date=p.order_date,
+                        end_date=p.delivery_due_date or p.delivery_date,
+                        status="ตรวจรับแล้ว" if p.status in ("ตรวจรับแล้ว", "เบิกจ่ายแล้ว") else "ระหว่างดำเนินการ",
+                        source="procurement", ref_id=p.id))
+    db.commit()
+    return RedirectResponse(f"/procurement/contracts?year={fy}", status_code=303)
+
+
+@router.post("/procurement/contracts/pull-lunch")
+def contracts_pull_lunch(db: Session = Depends(get_db), fiscal_year: str = Form("")):
+    """ดึงรอบจ้างเหมาอาหารกลางวันที่มีเลขใบสั่งจ้าง มาเป็นสัญญาในทะเบียน"""
+    from app.models import LunchHireRound
+    fy = _to_int(fiscal_year, current_fiscal_year())
+    have = {(c.source, c.ref_id) for c in db.query(Contract).filter_by(fiscal_year=fy).all()}
+    for r in db.query(LunchHireRound).filter(LunchHireRound.order_no != "").all():
+        if ("lunch", r.id) in have or not (r.order_no or "").strip():
+            continue
+        db.add(Contract(fiscal_year=fy, contract_no=(r.order_no or "").strip(), ctype="ใบสั่งจ้าง",
+                        party=(r.vendor.name if r.vendor else ""),
+                        subject=f"จ้างเหมาประกอบอาหารกลางวัน รอบที่ {r.seq}",
+                        amount=r.amount or 0.0, sign_date=r.order_date,
+                        start_date=r.start_date, end_date=r.end_date,
+                        status="จ่ายแล้ว" if r.status == "จ่ายแล้ว" else "ระหว่างดำเนินการ",
+                        source="lunch", ref_id=r.id))
+    db.commit()
+    return RedirectResponse(f"/procurement/contracts?year={fy}", status_code=303)
+
+
+@router.get("/procurement/contracts/export.xlsx")
+def contracts_export(db: Session = Depends(get_db), year: int | None = None):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+    fy = year or current_fiscal_year()
+    today = datetime.now().date()
+    rows = (db.query(Contract).filter_by(fiscal_year=fy)
+            .order_by(Contract.end_date.is_(None), Contract.end_date).all())
+    wb = Workbook(); ws = wb.active; ws.title = f"ทะเบียนคุมสัญญา {fy}"[:31]
+    ws.append([f"ทะเบียนคุมสัญญา/ใบสั่งซื้อสั่งจ้าง ประจำปีงบประมาณ {fy}"])
+    ws.append([])
+    headers = ["ลำดับ", "เลขที่สัญญา/ใบสั่ง", "ประเภท", "คู่สัญญา", "เรื่อง/งาน", "วงเงิน (บาท)",
+               "วันทำสัญญา", "ครบกำหนด", "สถานะ", "คงเหลือ (วัน)"]
+    ws.append(headers)
+    thin = Side(style="thin"); border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    for c in range(1, len(headers) + 1):
+        cell = ws.cell(3, c); cell.font = Font(name="TH Sarabun New", bold=True, size=14)
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = border; cell.fill = PatternFill("solid", fgColor="D9E1F2")
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+    ws.cell(1, 1).font = Font(name="TH Sarabun New", bold=True, size=16)
+    ws.cell(1, 1).alignment = Alignment(horizontal="center")
+    for i, c in enumerate(rows, start=1):
+        dl, lvl = _contract_alert(c, today)
+        left = ("เกินกำหนด %d วัน" % abs(dl)) if lvl == "overdue" else (str(dl) if dl is not None else "-")
+        ws.append([i, c.contract_no or "-", c.ctype, c.party or "-", c.subject or "-", c.amount or 0,
+                   thai_date(c.sign_date) if c.sign_date else "-",
+                   thai_date(c.end_date) if c.end_date else "-", c.status, left])
+    widths = [7, 16, 12, 22, 30, 14, 16, 16, 16, 14]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[chr(64 + i)].width = w
+    for row in ws.iter_rows(min_row=4):
+        for cell in row:
+            cell.font = Font(name="TH Sarabun New", size=13); cell.border = border
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
+        row[5].number_format = "#,##0.00"
+    return _xlsx_download(wb, f"ทะเบียนคุมสัญญา_ปีงบ{fy}.xlsx")
 
 
 # ---------------- ผู้ขาย ----------------
@@ -1225,10 +1480,8 @@ def proc_serve_file(name: str):
     if not path.exists():
         return RedirectResponse("/procurement", status_code=303)
     if name.lower().endswith(".pdf"):
-        return FileResponse(str(path), media_type="application/pdf", content_disposition_type="inline")
-    return FileResponse(str(path),
-                        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        filename=name)
+        return serve_generated(str(path), "application/pdf", inline=True)
+    return serve_generated(str(path), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 @router.get("/procurement/{proc_id}/edit", response_class=HTMLResponse)
@@ -1316,10 +1569,7 @@ def document_download(doc_id: int, db: Session = Depends(get_db)):
         # ไฟล์ถูกลบ/ย้าย ให้กลับไปหน้ารายละเอียดเพื่อสร้างใหม่
         ref = doc.procurement_id if doc else ""
         return RedirectResponse(f"/procurement/{ref}", status_code=303)
-    return FileResponse(
-        doc.file_path, filename=Path(doc.file_path).name,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    )
+    return serve_generated(doc.file_path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 @router.post("/procurement/{proc_id}/status")
@@ -1440,10 +1690,7 @@ def procurement_generate(proc_id: int, doc_kind: str = Form(...), db: Session = 
     file_path = render_document(doc_kind, proc, get_school(db))
     db.add(Document(procurement_id=proc.id, doc_kind=doc_kind, file_path=file_path))
     db.commit()
-    return FileResponse(
-        file_path, filename=Path(file_path).name,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    )
+    return serve_generated(file_path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 @router.get("/procurement/{proc_id}/altdoc/{kind}")
@@ -1455,10 +1702,7 @@ def procurement_altdoc(proc_id: int, kind: str, db: Session = Depends(get_db)):
     if not proc or renderer is None:
         return RedirectResponse(f"/procurement/{proc_id}", status_code=303)
     file_path = renderer(proc, get_school(db))
-    return FileResponse(
-        file_path, filename=Path(file_path).name,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    )
+    return serve_generated(file_path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 # ---------------- ทะเบียน Excel ----------------
@@ -1580,12 +1824,8 @@ async def bundle_generate(proc_id: int, request: Request, db: Session = Depends(
                     doc_kind=f"ชุดเอกสาร ({len(selected)} ใบ)", file_path=out_path))
     db.commit()
 
-    # FileResponse จัดการชื่อไฟล์ภาษาไทยใน header ให้เอง
-    return FileResponse(
-        out_path,
-        filename=Path(out_path).name,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    )
+    # เสิร์ฟจากหน่วยความจำ + Content-Disposition แบบ RFC 5987 (รองรับชื่อไฟล์ไทยบนเซิร์ฟเวอร์)
+    return serve_generated(out_path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 @router.get("/register.xlsx")
@@ -1601,24 +1841,18 @@ def download_register(db: Session = Depends(get_db), year: int | None = None,
         query = query.filter(Procurement.proc_type == "จ้าง")
     procurements = sorted(query.all(), key=_order_sort_key)   # เรียงตามเลขใบสั่ง น้อย->มาก
     path = export_register(procurements, fy, kind=kind)
-    return FileResponse(
-        path, filename=Path(path).name,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @router.get("/summary.xlsx")
 def download_monthly_summary(db: Session = Depends(get_db), year: int | None = None):
-    """ดาวน์โหลดแบบ สขร.๑ (สรุปผลการจัดซื้อจัดจ้างรายเดือน) แยกชีตตามเดือน"""
+    """ดาวน์โหลดแบบ สขร.1 (สรุปผลการจัดซื้อจัดจ้างรายเดือน) แยกชีตตามเดือน"""
     from app.services.register_export import export_monthly_summary
     fy = year or current_fiscal_year()
     procurements = db.query(Procurement).filter(Procurement.fiscal_year == fy).all()
     school = get_school(db)
     path = export_monthly_summary(procurements, fy, school_name=(school.name if school else ""))
-    return FileResponse(
-        path, filename=Path(path).name,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 # ============================================================
@@ -1730,7 +1964,7 @@ def projects_import_template():
         ws.column_dimensions[col].width = w
     path = Path(tempfile.gettempdir()) / "ตัวอย่างนำเข้าโครงการ.xlsx"
     wb.save(path)
-    return FileResponse(path, filename=path.name, media_type=_XLSX_MT)
+    return serve_generated(path, _XLSX_MT)
 
 
 @router.post("/projects/import")
@@ -1893,7 +2127,7 @@ def assets_export(db: Session = Depends(get_db)):
     from app.services.asset_export import export_asset_register
     assets = db.query(Asset).order_by(Asset.id).all()
     path = export_asset_register(assets)
-    return FileResponse(path, filename=Path(path).name, media_type=_XLSX_MT)
+    return serve_generated(path, _XLSX_MT)
 
 
 @router.get("/assets/form.xlsx")
@@ -1902,7 +2136,7 @@ def assets_form_export(db: Session = Depends(get_db)):
     from app.services.asset_export import export_asset_cards
     assets = db.query(Asset).order_by(Asset.id).all()
     path = export_asset_cards(assets, get_school(db))
-    return FileResponse(path, filename=Path(path).name, media_type=_XLSX_MT)
+    return serve_generated(path, _XLSX_MT)
 
 
 @router.get("/assets", response_class=HTMLResponse)
@@ -1950,9 +2184,7 @@ async def asset_audit_generate(request: Request, db: Session = Depends(get_db)):
     }
     assets = db.query(Asset).filter(Asset.status != "จำหน่ายแล้ว").order_by(Asset.asset_code, Asset.id).all()
     path = render_audit_bundle(get_school(db), ctx, assets)
-    return FileResponse(
-        path, filename=Path(path).name,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 def _asset_from_form(asset: Asset, form) -> None:
@@ -2053,8 +2285,7 @@ async def assets_dispose_submit(request: Request, db: Session = Depends(get_db))
         commit_doc_no(db, "memo", current_fiscal_year(), doc_no,
                       source="asset", subject="ขออนุมัติจำหน่ายครุภัณฑ์")
     db.commit()
-    return FileResponse(path, filename=Path(path).name,
-                        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 @router.get("/assets/{asset_id}/schedule", response_class=HTMLResponse)
@@ -2275,10 +2506,7 @@ def requisition_print(req_id: int, db: Session = Depends(get_db)):
     if not req:
         return RedirectResponse("/requisitions", status_code=303)
     path = render_requisition(req, get_school(db))
-    return FileResponse(
-        path, filename=Path(path).name,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    )
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 # ============================================================

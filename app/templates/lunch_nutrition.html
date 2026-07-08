@@ -101,9 +101,9 @@
           {% set m = r.m.get(t) %}{% set res = r.res.get(t) %}
           <form method="post" action="/lunch/student/{{ r.s.id }}/measure" style="margin:0; display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
             <input type="hidden" name="term" value="{{ t }}">
-            <input name="weight" type="number" step="0.1" title="น้ำหนัก (กก.)" placeholder="นน." value="{{ '%g'|format(m.weight) if m and m.weight else '' }}" style="width:58px;">
-            <input name="height" type="number" step="0.1" title="ส่วนสูง (ซม.)" placeholder="สส." value="{{ '%g'|format(m.height) if m and m.height else '' }}" style="width:58px;">
-            <input name="date" placeholder="วว/ดด/ปปปป" data-date="1" value="{{ be_date(m.date) if m and m.date else today_be }}" style="width:110px;">
+            <input name="weight" type="number" step="0.1" title="น้ำหนัก (กก.)" placeholder="นน." value="{{ '%g'|format(m.weight) if m and m.weight else '' }}" style="width:86px;">
+            <input name="height" type="number" step="0.1" title="ส่วนสูง (ซม.)" placeholder="สส." value="{{ '%g'|format(m.height) if m and m.height else '' }}" style="width:86px;">
+            <input name="date" placeholder="วว/ดด/ปปปป" data-date="1" value="{{ be_date(m.date) if m and m.date else today_be }}" style="width:124px;">
             <button class="btn sm" type="submit">บันทึก</button>
           </form>
           {% if res %}<div style="display:flex; gap:3px; flex-wrap:wrap; margin-top:4px; align-items:center;">

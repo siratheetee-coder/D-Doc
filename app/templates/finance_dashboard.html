@@ -66,6 +66,16 @@
 </div>
 
 <div class="card">
+  <h2><svg class="icon"><use href="#ic-clipboard"/></svg> สมุดบัญชี &amp; รายงานแบบ สตง.</h2>
+  <p class="muted" style="margin-top:0;">ออกสมุดเงินสด บัญชีแยกประเภท และชุดรายงานการเงินสำหรับตรวจสอบ จากข้อมูลที่บันทึกไว้</p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a class="btn" href="/finance/cashbook?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-coins"/></svg> สมุดเงินสด</a>
+    <a class="btn gray" href="/finance/audit?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-clipboard"/></svg> รายงานแบบ สตง.</a>
+    <a class="btn gray" href="/finance/cash-report?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-file"/></svg> เงินคงเหลือประจำวัน</a>
+  </div>
+</div>
+
+<div class="card">
   <h2><svg class="icon"><use href="#ic-coins"/></svg> ยกยอดไปปีงบถัดไป</h2>
   <p class="muted" style="margin-top:0;">เมื่อขึ้นปีงบใหม่ กดปุ่มนี้เพื่อ <b>คัดลอกยอดคงเหลือสิ้นปีงบ {{ fiscal_year }}</b> ของทุกบัญชี ไปตั้งเป็น <b>ยอดยกมาของปีงบ {{ fiscal_year + 1 }}</b> โดย <b>ไม่ลบข้อมูลปีเก่า</b> (เลือกดูย้อนหลังได้จากช่องเลือกปี) · กดซ้ำได้ ระบบจะอัปเดตยอดให้ตรงเสมอ</p>
   <form method="post" action="/finance/carry-forward"

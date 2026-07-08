@@ -397,8 +397,8 @@ def _member_table(doc, list_name, *, prefix="", member_var="m", indent=0.4):
     list_name = ชื่อตัวแปร list ในแม่แบบ (เช่น 'inspect_members' / 'spec_members')
     """
     # ความกว้างรวม + ระยะเยื้อง ต้องไม่เกินพื้นที่พิมพ์ A4 (~16.25 ซม.)
-    # คอลัมน์ลำดับต้องกว้างพอให้ "2.10" ไม่ตกบรรทัด, คอลัมน์ท้ายพอสำหรับ "กรรมการและเลขานุการ"
-    widths = [Cm(1.3), Cm(5.3), Cm(4.4), Cm(4.75)]   # รวม 15.75 ซม.
+    # เลขลำดับแคบ (ให้ชิดชื่อ) · คอลัมน์ตำแหน่งกว้างพอให้ "ตำแหน่ง ครูชำนาญการพิเศษ" อยู่บรรทัดเดียว
+    widths = [Cm(0.85), Cm(4.8), Cm(5.6), Cm(4.5)]   # รวม 15.75 ซม.
     table = doc.add_table(rows=1, cols=4)
     _no_borders(table)
     table.autofit = False
@@ -790,9 +790,8 @@ def build_inspect_command():
     _p(doc, "อำนาจและหน้าที่", bold=True, indent=1.25)
     _p(doc, "ทำการตรวจรับพัสดุให้เป็นไปตามเงื่อนไขของสัญญาหรือข้อตกลงนั้น",
        align="justify", indent=1.25)
-    _p(doc, "ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป", bold=True, indent=1.25, after=6)
-    _p(doc, "สั่ง ณ วันที่ {{ command_date_official }}", align="center", after=12)
-    _p(doc, "(ลงชื่อ).........................................", align="center")
+    _p(doc, "ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป", bold=True, indent=2.5, after=6)
+    _p(doc, "สั่ง ณ วันที่ {{ command_date_official }}", align="center", after=24)
     _p(doc, "( {{ director_name }} )", align="center")
     _p(doc, "{{ director_office }}", align="center")
 

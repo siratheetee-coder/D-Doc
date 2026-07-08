@@ -8,6 +8,9 @@ venv/
 # ห้าม commit ขึ้น git — บนคลาวด์ใช้ persistent disk, ในเครื่องเป็นข้อมูลจริงของผู้ใช้
 data/
 
+# ข้อมูลส่วนตัวผู้ขาย (ชื่อ/ที่อยู่/เลขบัตร ปชช./เบอร์/บัญชี) — ห้ามขึ้น git (เรปเป็น public)
+app/seller_local.py
+
 # ไฟล์ระบบ
 desktop.ini
 Thumbs.db

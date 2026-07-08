@@ -32,6 +32,12 @@ def _record_fail(ip: str):
     _fails[ip] = (n + 1, time.time())
 
 
+@router.get("/landing", response_class=HTMLResponse)
+def landing_page(request: Request):
+    """หน้า landing สาธารณะ (สำหรับแนะนำระบบ/ขาย) — ยังไม่ผูกโดเมนจริง ดูผ่าน /landing"""
+    return templates.TemplateResponse("landing.html", {"request": request})
+
+
 @router.get("/login", response_class=HTMLResponse)
 def login_page(request: Request, error: str | None = None):
     # ถ้าล็อกอินอยู่แล้ว ส่งไปหน้าที่เหมาะสม

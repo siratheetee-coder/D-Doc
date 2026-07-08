@@ -129,7 +129,7 @@ def export_monthly_summary(procurements, fiscal_year: int, school_name: str = ""
         title_month = f"{_THAI_MONTHS[mo]} พ.ศ. {yr + 543}"
         ws = wb.create_sheet(f"{_THAI_MONTHS[mo]} {yr + 543}"[:31])
         ws.append([f"แบบสรุปผลการดำเนินการจัดซื้อจัดจ้างในรอบเดือน {title_month}"])
-        ws.append([f"{school_name}   (แบบ สขร.๑)"])
+        ws.append([f"{school_name}   (แบบ สขร.1)"])
         ws.append([])
         ws.append(headers)
         hrow = 4

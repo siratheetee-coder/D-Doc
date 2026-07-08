@@ -30,7 +30,7 @@ from app.services.admin_io import build_admin_template, import_admin_workbook, e
 from app.services.pdf_extract import extract_letter_fields
 from app.thai_utils import current_fiscal_year, parse_be_date, be_date_input
 from app.templating import templates
-from app.routers.pages import get_school, _to_int, _to_float
+from app.routers.pages import get_school, _to_int, _to_float, serve_generated
 
 router = APIRouter()
 
@@ -324,7 +324,7 @@ def memo_generate(mid: int, db: Session = Depends(get_db)):
     if not m:
         return RedirectResponse("/admin/memos", status_code=303)
     path = render_memo(m, get_school(db))
-    return FileResponse(path, filename=Path(path).name, media_type=_DOCX)
+    return serve_generated(path, _DOCX)
 
 
 # ---------------- คำสั่งโรงเรียน ----------------
@@ -412,7 +412,7 @@ def order_generate(oid: int, db: Session = Depends(get_db)):
     if not o:
         return RedirectResponse("/admin/orders", status_code=303)
     path = render_order(o, get_school(db))
-    return FileResponse(path, filename=Path(path).name, media_type=_DOCX)
+    return serve_generated(path, _DOCX)
 
 
 # ---------------- นำเข้า Excel (ทะเบียนหนังสือรับ/ส่ง) ----------------
@@ -440,13 +440,13 @@ def admin_letters_export(db: Session = Depends(get_db), year: int | None = None)
     outgoing = (db.query(OutgoingLetter).filter_by(fiscal_year=fy)
                 .order_by(OutgoingLetter.send_seq).all())
     path = export_admin_register(incoming, outgoing, fy)
-    return FileResponse(path, filename=Path(path).name, media_type=_XLSX)
+    return serve_generated(path, _XLSX)
 
 
 @router.get("/admin/template.xlsx")
 def admin_template():
     path = build_admin_template()
-    return FileResponse(path, filename=Path(path).name, media_type=_XLSX)
+    return serve_generated(path, _XLSX)
 
 
 @router.post("/admin/import")
@@ -625,7 +625,7 @@ def letter_generate(lid: int, db: Session = Depends(get_db)):
     if not lt:
         return RedirectResponse("/admin/letters", status_code=303)
     path = render_official_letter(lt, get_school(db))
-    return FileResponse(path, filename=Path(path).name, media_type=_DOCX)
+    return serve_generated(path, _DOCX)
 
 
 # ============================================================
@@ -713,4 +713,4 @@ def certificate_generate(db: Session = Depends(get_db), title: str = Form(""),
         names="\n".join(name_list))
     db.add(batch); db.commit(); db.refresh(batch)
     path = render_certificates(batch, name_list, get_school(db))
-    return FileResponse(path, filename=Path(path).name, media_type=_PDF)
+    return serve_generated(path, _PDF)

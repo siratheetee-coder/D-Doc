@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>D-Doc | คำขอจากเว็บ</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <style>
+    @font-face { font-family:"Prompt"; font-weight:400; src:url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:600; src:url("/static/fonts/Prompt-SemiBold.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:700; src:url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:"Prompt","Sarabun","Segoe UI",sans-serif; background:#F5F6FA; color:#202224; }
+    .top { background:#1b2433; color:#fff; padding:14px 26px; display:flex; justify-content:space-between; align-items:center; }
+    .top b { font-size:18px; } .top a { color:#cbd5e1; text-decoration:none; font-size:15px; }
+    .wrap { max-width:1100px; margin:24px auto; padding:0 20px; }
+    .card { background:#fff; border:1px solid #eceef3; border-radius:14px; padding:20px 22px; margin-bottom:20px;
+      box-shadow:0 2px 8px rgba(16,24,40,.05); }
+    h1 { font-size:20px; margin:0 0 14px; }
+    .tabs { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+    .tab { padding:7px 16px; border-radius:999px; font-size:14px; font-weight:600; text-decoration:none;
+      background:#eef0f4; color:#5a6a85; }
+    .tab.on { background:#4880FF; color:#fff; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th,td { border-bottom:1px solid #eceef3; padding:10px 8px; text-align:left; vertical-align:top; }
+    th { font-size:13px; color:#5a6a85; }
+    .pill { padding:2px 10px; border-radius:999px; font-size:12px; font-weight:700; white-space:nowrap; }
+    .k-quote { background:#eef4ff; color:#2563eb; } .k-order { background:#e3f9ee; color:#0e9152; }
+    .s-new { background:#fff4e5; color:#d97706; } .s-done { background:#e3f9ee; color:#0e9152; } .s-close { background:#eef0f4; color:#5a6a85; }
+    .btn { background:#4880FF; color:#fff; border:none; padding:5px 11px; border-radius:8px; font-weight:600;
+      cursor:pointer; font-family:inherit; font-size:12.5px; text-decoration:none; display:inline-block; }
+    .btn.gray { background:#eef0f4; color:#5a6a85; } .btn.green { background:#16b364; }
+    .sub { color:#5a6a85; font-size:12.5px; }
+    a.slip { color:#2563eb; font-weight:600; text-decoration:none; }
+    form.inline { display:inline; margin:0; }
+    .amt { font-weight:700; white-space:nowrap; }
+    .empty { color:#5a6a85; padding:20px; text-align:center; }
+  </style>
+</head>
+<body>
+  <div class="top"><b>📥 คำขอจากเว็บ</b>
+    <span><a href="/admin-console">← คอนโซล</a> · {{ admin_name }} · <a href="/logout">ออกจากระบบ</a></span></div>
+  <div class="wrap">
+    <div class="card">
+      <h1>คำขอจากหน้าเว็บ ({{ leads|length }})</h1>
+      <div class="tabs">
+        <a class="tab {{ 'on' if not kind }}" href="/admin-console/leads">ทั้งหมด</a>
+        <a class="tab {{ 'on' if kind=='quote' }}" href="/admin-console/leads?kind=quote">ขอใบเสนอราคา</a>
+        <a class="tab {{ 'on' if kind=='order' }}" href="/admin-console/leads?kind=order">สั่งซื้อ/ชำระเงิน</a>
+      </div>
+
+      {% if leads %}
+      <div style="overflow-x:auto;">
+      <table>
+        <thead><tr>
+          <th>วันที่</th><th>ประเภท</th><th>หน่วยงาน / ผู้ติดต่อ</th><th>ติดต่อ</th>
+          <th>รายการ</th><th class="amt">ยอด</th><th>สลิป</th><th>เอกสาร</th><th>สถานะ</th><th></th>
+        </tr></thead>
+        <tbody>
+        {% for l in leads %}
+          <tr>
+            <td class="sub">{{ l.created_at.strftime('%d/%m/%y %H:%M') if l.created_at else '-' }}<br>#{{ l.id }}</td>
+            <td><span class="pill {{ 'k-order' if l.kind=='order' else 'k-quote' }}">{{ 'สั่งซื้อ' if l.kind=='order' else 'ใบเสนอราคา' }}</span></td>
+            <td><b>{{ l.school_name or '-' }}</b>{% if l.contact_name %}<br><span class="sub">{{ l.contact_name }}</span>{% endif %}
+                {% if l.tax_id %}<br><span class="sub">เลขภาษี {{ l.tax_id }}</span>{% endif %}
+                {% if l.address %}<br><span class="sub">{{ l.address }}</span>{% endif %}
+                {% if l.note %}<br><span class="sub">📝 {{ l.note }}</span>{% endif %}</td>
+            <td class="sub">{% if l.email %}<a class="slip" href="mailto:{{ l.email }}">{{ l.email }}</a><br>{% endif %}{{ l.phone or '' }}</td>
+            <td class="sub">{{ l.packages or '-' }}</td>
+            <td class="amt">{{ "{:,.0f}".format(l.amount) if l.amount else '-' }}</td>
+            <td>{% if l.slip_file %}<a class="slip" href="/admin-console/leads/slip/{{ l.slip_file }}" target="_blank">ดูสลิป</a>{% else %}<span class="sub">-</span>{% endif %}</td>
+            <td style="white-space:nowrap;">
+              <a class="btn gray" href="/admin-console/leads/{{ l.id }}/quotation.docx" style="margin-bottom:3px;">📄 ใบเสนอราคา</a><br>
+              <a class="btn gray" href="/admin-console/leads/{{ l.id }}/receipt.docx">🧾 ใบเสร็จ</a>
+            </td>
+            <td><span class="pill {{ 's-done' if l.status=='ตอบแล้ว' else 's-close' if l.status=='ปิด' else 's-new' }}">{{ l.status }}</span></td>
+            <td style="white-space:nowrap;">
+              <form class="inline" method="post" action="/admin-console/leads/{{ l.id }}/status">
+                <input type="hidden" name="kind" value="{{ kind or '' }}">
+                {% if l.status != 'ตอบแล้ว' %}<button class="btn green" name="status" value="ตอบแล้ว">ตอบแล้ว</button>{% endif %}
+                {% if l.status != 'ปิด' %}<button class="btn gray" name="status" value="ปิด">ปิด</button>{% endif %}
+                {% if l.status != 'ใหม่' %}<button class="btn gray" name="status" value="ใหม่">ใหม่</button>{% endif %}
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}
+      <div class="empty">ยังไม่มีคำขอ</div>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>
