@@ -14,7 +14,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from datetime import datetime
 
 from app.accounts import (acc_session, Tenant, Account, hash_password, provision_tenant,
-                          list_leads, set_lead_status, get_lead, issue_sale_doc)
+                          list_leads, set_lead_status, get_lead, issue_sale_doc,
+                          renew_lead)
 from app.database import get_data_dir
 from app.seller_config import SELLER
 from app.templating import templates
@@ -66,11 +67,26 @@ def console(request: Request, msg: str | None = None):
 # ---------------- คำขอจากหน้าเว็บ (ขอใบเสนอราคา / สั่งซื้อ) ----------------
 @router.get("/admin-console/leads", response_class=HTMLResponse)
 def leads_page(request: Request, kind: str | None = None):
-    k = kind if kind in ("quote", "order") else None
+    k = kind if kind in ("quote", "order", "trial") else None
+    msg = request.session.pop("lead_msg", None)   # ผลการอนุมัติ/ต่ออายุ (แสดงครั้งเดียว)
     return templates.TemplateResponse("superadmin_leads.html", {
-        "request": request, "leads": list_leads(k), "kind": k,
+        "request": request, "leads": list_leads(k), "kind": k, "lead_msg": msg,
         "admin_name": request.session.get("name", "ผู้ดูแลระบบ"),
     })
+
+
+@router.post("/admin-console/leads/{lid}/approve")
+def approve_lead(lid: int, request: Request, kind: str = Form("")):
+    """(B) อนุมัติคำสั่งซื้อ -> ต่ออายุบัญชีเดิมของลูกค้า 1 ปี (อีเมลเดิม รหัสเดิม)"""
+    res = renew_lead(lid)
+    if res and res.get("error"):
+        from urllib.parse import quote
+        request.session["lead_msg"] = {"ok": False, "text": res["error"]}
+    elif res:
+        request.session["lead_msg"] = {"ok": True,
+            "text": f"ต่ออายุบัญชี {res['username']} แล้ว ใช้งานได้ถึง {res['expiry']}"}
+    q = f"?kind={kind}" if kind in ("quote", "order", "trial") else ""
+    return RedirectResponse(f"/admin-console/leads{q}", status_code=303)
 
 
 @router.post("/admin-console/leads/{lid}/status")
@@ -81,23 +97,26 @@ def lead_status(lid: int, status: str = Form(""), kind: str = Form("")):
     return RedirectResponse(f"/admin-console/leads{q}", status_code=303)
 
 
-def _issue_doc(kind: str, lid: int):
-    """ออกใบเสนอราคา/ใบเสร็จจาก lead -> คืน path ไฟล์ Word (หรือ None ถ้าไม่พบ lead)"""
-    from app.services.sale_doc import render_quotation, render_receipt
+def _issue_doc(kind: str, lid: int, fmt: str = "docx"):
+    """ออกใบเสนอราคา/ใบเสร็จจาก lead (Word หรือ PDF) -> คืน path (หรือ None ถ้าไม่พบ lead)"""
+    from app.services import sale_doc
     lead = get_lead(lid)
     if not lead:
         return None
     be_year = datetime.now().year + 543
     info = issue_sale_doc(kind, lid, be_year)
     doc_date = lead.get("created_at") if kind == "receipt" else datetime.now()
-    render = render_quotation if kind == "quotation" else render_receipt
-    return render(lead, SELLER, info["doc_no"], doc_date)
+    renderers = {
+        ("quotation", "docx"): sale_doc.render_quotation, ("receipt", "docx"): sale_doc.render_receipt,
+        ("quotation", "pdf"): sale_doc.render_quotation_pdf, ("receipt", "pdf"): sale_doc.render_receipt_pdf,
+    }
+    return renderers[(kind, fmt)](lead, SELLER, info["doc_no"], doc_date)
 
 
 @router.get("/admin-console/leads/{lid}/quotation.docx")
 def lead_quotation(lid: int):
     from app.routers.pages import serve_generated
-    path = _issue_doc("quotation", lid)
+    path = _issue_doc("quotation", lid, "docx")
     if not path:
         return RedirectResponse("/admin-console/leads", status_code=303)
     return serve_generated(path, _DOCX_MT)
@@ -106,10 +125,28 @@ def lead_quotation(lid: int):
 @router.get("/admin-console/leads/{lid}/receipt.docx")
 def lead_receipt(lid: int):
     from app.routers.pages import serve_generated
-    path = _issue_doc("receipt", lid)
+    path = _issue_doc("receipt", lid, "docx")
     if not path:
         return RedirectResponse("/admin-console/leads", status_code=303)
     return serve_generated(path, _DOCX_MT)
+
+
+@router.get("/admin-console/leads/{lid}/quotation.pdf")
+def lead_quotation_pdf(lid: int):
+    from app.routers.pages import serve_generated
+    path = _issue_doc("quotation", lid, "pdf")
+    if not path:
+        return RedirectResponse("/admin-console/leads", status_code=303)
+    return serve_generated(path, "application/pdf", inline=True)
+
+
+@router.get("/admin-console/leads/{lid}/receipt.pdf")
+def lead_receipt_pdf(lid: int):
+    from app.routers.pages import serve_generated
+    path = _issue_doc("receipt", lid, "pdf")
+    if not path:
+        return RedirectResponse("/admin-console/leads", status_code=303)
+    return serve_generated(path, "application/pdf", inline=True)
 
 
 _SLIP_NAME = re.compile(r"^slip_\d{14}_[0-9a-f]{8}\.(png|jpg|jpeg|webp|pdf)$")

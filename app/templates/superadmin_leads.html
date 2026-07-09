@@ -26,6 +26,7 @@
     th { font-size:13px; color:#5a6a85; }
     .pill { padding:2px 10px; border-radius:999px; font-size:12px; font-weight:700; white-space:nowrap; }
     .k-quote { background:#eef4ff; color:#2563eb; } .k-order { background:#e3f9ee; color:#0e9152; }
+    .k-trial { background:#fff4e5; color:#d97706; }
     .s-new { background:#fff4e5; color:#d97706; } .s-done { background:#e3f9ee; color:#0e9152; } .s-close { background:#eef0f4; color:#5a6a85; }
     .btn { background:#4880FF; color:#fff; border:none; padding:5px 11px; border-radius:8px; font-weight:600;
       cursor:pointer; font-family:inherit; font-size:12.5px; text-decoration:none; display:inline-block; }
@@ -41,12 +42,20 @@
   <div class="top"><b>📥 คำขอจากเว็บ</b>
     <span><a href="/admin-console">← คอนโซล</a> · {{ admin_name }} · <a href="/logout">ออกจากระบบ</a></span></div>
   <div class="wrap">
+    {% if lead_msg %}
+    <div class="card" style="background:{{ '#e9f7ef' if lead_msg.ok else '#fde8e8' }}; border:1px solid {{ '#b7ebcd' if lead_msg.ok else '#f7caca' }};">
+      <h2 style="color:{{ '#0e7a44' if lead_msg.ok else '#b91c1c' }}; margin:0;">{{ '✅' if lead_msg.ok else '⚠️' }} {{ lead_msg.text }}</h2>
+      {% if lead_msg.ok %}<p class="sub" style="margin-bottom:0;">ลูกค้าใช้อีเมล+รหัสเดิมเข้าใช้งานต่อได้ทันที ไม่ต้องส่งรหัสให้</p>{% endif %}
+    </div>
+    {% endif %}
+
     <div class="card">
       <h1>คำขอจากหน้าเว็บ ({{ leads|length }})</h1>
       <div class="tabs">
         <a class="tab {{ 'on' if not kind }}" href="/admin-console/leads">ทั้งหมด</a>
-        <a class="tab {{ 'on' if kind=='quote' }}" href="/admin-console/leads?kind=quote">ขอใบเสนอราคา</a>
         <a class="tab {{ 'on' if kind=='order' }}" href="/admin-console/leads?kind=order">สั่งซื้อ/ชำระเงิน</a>
+        <a class="tab {{ 'on' if kind=='quote' }}" href="/admin-console/leads?kind=quote">ขอใบเสนอราคา</a>
+        <a class="tab {{ 'on' if kind=='trial' }}" href="/admin-console/leads?kind=trial">ทดลองใช้ฟรี</a>
       </div>
 
       {% if leads %}
@@ -60,7 +69,7 @@
         {% for l in leads %}
           <tr>
             <td class="sub">{{ l.created_at.strftime('%d/%m/%y %H:%M') if l.created_at else '-' }}<br>#{{ l.id }}</td>
-            <td><span class="pill {{ 'k-order' if l.kind=='order' else 'k-quote' }}">{{ 'สั่งซื้อ' if l.kind=='order' else 'ใบเสนอราคา' }}</span></td>
+            <td><span class="pill {{ 'k-order' if l.kind=='order' else 'k-trial' if l.kind=='trial' else 'k-quote' }}">{{ 'สั่งซื้อ' if l.kind=='order' else 'ทดลองใช้' if l.kind=='trial' else 'ใบเสนอราคา' }}</span></td>
             <td><b>{{ l.school_name or '-' }}</b>{% if l.contact_name %}<br><span class="sub">{{ l.contact_name }}</span>{% endif %}
                 {% if l.tax_id %}<br><span class="sub">เลขภาษี {{ l.tax_id }}</span>{% endif %}
                 {% if l.address %}<br><span class="sub">{{ l.address }}</span>{% endif %}
@@ -69,17 +78,33 @@
             <td class="sub">{{ l.packages or '-' }}</td>
             <td class="amt">{{ "{:,.0f}".format(l.amount) if l.amount else '-' }}</td>
             <td>{% if l.slip_file %}<a class="slip" href="/admin-console/leads/slip/{{ l.slip_file }}" target="_blank">ดูสลิป</a>{% else %}<span class="sub">-</span>{% endif %}</td>
-            <td style="white-space:nowrap;">
-              <a class="btn gray" href="/admin-console/leads/{{ l.id }}/quotation.docx" style="margin-bottom:3px;">📄 ใบเสนอราคา</a><br>
-              <a class="btn gray" href="/admin-console/leads/{{ l.id }}/receipt.docx">🧾 ใบเสร็จ</a>
+            <td style="white-space:nowrap; line-height:2;">
+              <span class="sub">ใบเสนอราคา:</span>
+              <a class="btn gray" href="/admin-console/leads/{{ l.id }}/quotation.pdf" target="_blank">PDF</a>
+              <a class="btn gray" href="/admin-console/leads/{{ l.id }}/quotation.docx">Word</a><br>
+              <span class="sub">ใบเสร็จ:</span>
+              <a class="btn gray" href="/admin-console/leads/{{ l.id }}/receipt.pdf" target="_blank">PDF</a>
+              <a class="btn gray" href="/admin-console/leads/{{ l.id }}/receipt.docx">Word</a>
             </td>
             <td><span class="pill {{ 's-done' if l.status=='ตอบแล้ว' else 's-close' if l.status=='ปิด' else 's-new' }}">{{ l.status }}</span></td>
             <td style="white-space:nowrap;">
-              <form class="inline" method="post" action="/admin-console/leads/{{ l.id }}/status">
+              {% if l.login_user %}<div class="sub" style="margin-bottom:4px;">บัญชี: <b>{{ l.login_user }}</b></div>{% endif %}
+              {% if l.kind == 'order' %}
+                {% if l.status == 'ต่ออายุแล้ว' %}
+                  <div class="pill s-done">✓ ต่ออายุ 1 ปีแล้ว</div><br>
+                {% else %}
+                  <form class="inline" method="post" action="/admin-console/leads/{{ l.id }}/approve"
+                        onsubmit="return confirm('ตรวจสลิปแล้ว? ระบบจะต่ออายุบัญชีลูกค้า 1 ปี (ใช้อีเมลเดิม)');">
+                    <input type="hidden" name="kind" value="{{ kind or '' }}">
+                    <button class="btn green" type="submit">✓ อนุมัติ + ต่ออายุ 1 ปี</button>
+                  </form>
+                {% endif %}
+              {% elif l.kind == 'trial' %}
+                <div class="pill k-trial">กำลังทดลองใช้</div><br>
+              {% endif %}
+              <form class="inline" method="post" action="/admin-console/leads/{{ l.id }}/status" style="margin-top:5px;">
                 <input type="hidden" name="kind" value="{{ kind or '' }}">
-                {% if l.status != 'ตอบแล้ว' %}<button class="btn green" name="status" value="ตอบแล้ว">ตอบแล้ว</button>{% endif %}
                 {% if l.status != 'ปิด' %}<button class="btn gray" name="status" value="ปิด">ปิด</button>{% endif %}
-                {% if l.status != 'ใหม่' %}<button class="btn gray" name="status" value="ใหม่">ใหม่</button>{% endif %}
               </form>
             </td>
           </tr>

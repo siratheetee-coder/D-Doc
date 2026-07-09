@@ -14,7 +14,7 @@ from fastapi import APIRouter, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.database import get_data_dir
-from app.accounts import add_lead
+from app.accounts import add_lead, register_account
 from app.seller_config import SELLER
 from app.templating import templates
 
@@ -31,10 +31,26 @@ def _to_float(v, d=0.0):
 
 
 def _seller_ctx() -> dict:
-    """ข้อมูลผู้ขาย + เช็กว่ามีไฟล์ QR จริงไหม (ไม่มี -> แสดงกล่องบอกให้วางไฟล์)"""
+    """ข้อมูลผู้ขาย + สถานะ QR: promptpay_dynamic (สร้างตามยอด) / promptpay_qr_exists (รูปตายตัว)"""
     qr_rel = SELLER["promptpay_qr"].lstrip("/")
     qr_path = Path(__file__).resolve().parent.parent / qr_rel
-    return {**SELLER, "promptpay_qr_exists": qr_path.exists()}
+    return {**SELLER,
+            "promptpay_dynamic": bool((SELLER.get("promptpay_id") or "").strip()),
+            "promptpay_qr_exists": qr_path.exists()}
+
+
+@router.get("/checkout/promptpay.png")
+def checkout_promptpay(amount: str = ""):
+    """สร้าง QR PromptPay ตามยอดเงิน (dynamic) — สแกนแล้วยอดขึ้นตามราคาที่เลือก"""
+    from fastapi.responses import Response as _Resp
+    from app.services.promptpay import promptpay_png
+    pid = (SELLER.get("promptpay_id") or "").strip()
+    if not pid:
+        return _Resp(status_code=404)
+    amt = _to_float(amount, 0.0)
+    png = promptpay_png(pid, amt if amt > 0 else None)
+    return _Resp(content=png, media_type="image/png",
+                 headers={"Cache-Control": "no-store"})
 
 
 # ---------------- ขอใบเสนอราคา ----------------
@@ -62,9 +78,15 @@ def quote_submit(school_name: str = Form(""), address: str = Form(""), tax_id: s
 # ---------------- สั่งซื้อ / ชำระเงิน ----------------
 @router.get("/checkout", response_class=HTMLResponse)
 def checkout_page(request: Request, packages: str = "", amount: str = ""):
+    # ต้องลงทะเบียน/เข้าสู่ระบบก่อน (ผูกคำสั่งซื้อกับบัญชีอีเมล)
+    if not request.session.get("uid"):
+        from urllib.parse import quote as _q
+        return RedirectResponse(f"/register?next=checkout&packages={_q(packages)}&amount={amount}", status_code=303)
     return templates.TemplateResponse("checkout.html", {
         "request": request, "packages": packages,
         "amount": _to_float(amount, 0.0), "seller": _seller_ctx(),
+        "acct_email": request.session.get("username", ""),
+        "acct_school": request.session.get("name", ""),
     })
 
 
@@ -87,12 +109,17 @@ def _join_address(no, moo, tambon, amphoe, province, zipcode) -> str:
 
 
 @router.post("/checkout")
-async def checkout_submit(school_name: str = Form(""), contact_name: str = Form(""),
-                          email: str = Form(""), phone: str = Form(""), packages: str = Form(""),
+async def checkout_submit(request: Request, school_name: str = Form(""), contact_name: str = Form(""),
+                          phone: str = Form(""), packages: str = Form(""),
                           amount: str = Form(""), note: str = Form(""),
                           addr_no: str = Form(""), addr_moo: str = Form(""), addr_tambon: str = Form(""),
                           addr_amphoe: str = Form(""), addr_province: str = Form(""), addr_zip: str = Form(""),
                           slip: UploadFile = File(None)):
+    # ผูกคำสั่งซื้อกับบัญชีที่ล็อกอิน (อีเมล = username, tenant) เพื่อให้ "อนุมัติ" ต่ออายุบัญชีเดิม
+    if not request.session.get("uid"):
+        return RedirectResponse("/register?next=checkout", status_code=303)
+    email = request.session.get("username", "")
+    tid = request.session.get("tid")
     slip_name = ""
     if slip and slip.filename:
         ext = (Path(slip.filename).suffix or ".png").lower()
@@ -102,11 +129,52 @@ async def checkout_submit(school_name: str = Form(""), contact_name: str = Form(
         slip_name = f"slip_{datetime.now():%Y%m%d%H%M%S}_{secrets.token_hex(4)}{ext}"
         (_LEADS_DIR / slip_name).write_bytes(await slip.read())
     address = _join_address(addr_no, addr_moo, addr_tambon, addr_amphoe, addr_province, addr_zip)
-    lid = add_lead(kind="order", school_name=school_name.strip(), contact_name=contact_name.strip(),
-                   email=email.strip(), phone=phone.strip(), packages=packages.strip(),
-                   amount=_to_float(amount), address=address, slip_file=slip_name,
-                   note=(note or "").strip())
+    lid = add_lead(kind="order", school_name=school_name.strip() or request.session.get("name", ""),
+                   contact_name=contact_name.strip(), email=email, phone=phone.strip(),
+                   packages=packages.strip(), amount=_to_float(amount), address=address,
+                   slip_file=slip_name, tenant_id=tid, login_user=email, note=(note or "").strip())
     return RedirectResponse(f"/sale-thanks?type=order&ref={lid}", status_code=303)
+
+
+# ---------------- ลงทะเบียน (อีเมล+รหัส) -> ทดลองใช้ทันที ----------------
+@router.get("/register", response_class=HTMLResponse)
+def register_page(request: Request, next: str = "", packages: str = "", amount: str = ""):
+    if request.session.get("uid"):   # ล็อกอินอยู่แล้ว
+        return RedirectResponse("/", status_code=303)
+    return templates.TemplateResponse("register.html", {
+        "request": request, "form": {}, "error": None,
+        "next": next, "packages": packages, "amount": amount})
+
+
+@router.post("/register")
+def register_submit(request: Request, email: str = Form(""), password: str = Form(""),
+                    school_name: str = Form(""), contact_name: str = Form(""), phone: str = Form(""),
+                    next: str = Form(""), packages: str = Form(""), amount: str = Form("")):
+    res = register_account(email, password, school_name, contact_name, phone, trial_days=14)
+    if res.get("error"):
+        return templates.TemplateResponse("register.html", {
+            "request": request, "error": res["error"],
+            "form": {"email": email, "school_name": school_name,
+                     "contact_name": contact_name, "phone": phone},
+            "next": next, "packages": packages, "amount": amount})
+    # ลงทะเบียนสำเร็จ -> ล็อกอินอัตโนมัติ เข้าใช้งานทันที
+    request.session.clear()
+    request.session["uid"] = res["uid"]
+    request.session["username"] = res["username"]
+    request.session["role"] = "user"
+    request.session["tid"] = res["tenant_id"]
+    request.session["name"] = res["display_name"]
+    request.session["must_change"] = False
+    # ถ้ามาจากปุ่มสั่งซื้อ -> พาไปหน้า checkout ต่อ
+    if next == "checkout":
+        from urllib.parse import quote as _q
+        return RedirectResponse(f"/checkout?packages={_q(packages)}&amount={amount}", status_code=303)
+    return RedirectResponse("/", status_code=303)
+
+
+@router.get("/trial")
+def trial_redirect():
+    return RedirectResponse("/register", status_code=307)
 
 
 @router.get("/sale-thanks", response_class=HTMLResponse)

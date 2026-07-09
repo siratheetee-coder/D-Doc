@@ -34,7 +34,8 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # เส้นทางที่เข้าได้โดยไม่ต้องล็อกอิน
 PUBLIC_PATHS = {"/login", "/logout", "/healthz", "/favicon.ico", "/landing",
-                "/quote", "/checkout", "/sale-thanks"}
+                "/quote", "/checkout", "/checkout/promptpay.png", "/sale-thanks",
+                "/trial", "/register"}
 
 
 @app.middleware("http")

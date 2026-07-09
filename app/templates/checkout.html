@@ -35,11 +35,15 @@
   <h2>ช่องทางชำระเงิน</h2>
   <div class="pay-grid">
     <div class="qr-box">
-      {% if seller.promptpay_qr_exists %}
+      {% if seller.promptpay_dynamic %}
+        <div style="font-size:12px; color:var(--green); font-weight:600; margin-bottom:6px;">✓ QR พร้อมเพย์ระบุยอดอัตโนมัติ</div>
+        <img src="/checkout/promptpay.png?amount={{ amount }}" alt="PromptPay QR {{ amount }} บาท">
+        <div class="hint">สแกน QR นี้ ยอด <b>{{ "{:,.2f}".format(amount) if amount else '2,290.00' }} บาท</b> จะขึ้นให้อัตโนมัติ</div>
+      {% elif seller.promptpay_qr_exists %}
         <img src="{{ seller.promptpay_qr }}" alt="PromptPay QR">
         <div class="hint">สแกน QR แล้วกรอกยอด {{ "{:,.0f}".format(amount) if amount else '2,290' }} บาท</div>
       {% else %}
-        <div class="qr-none">วาง QR PromptPay ที่<br>app/static/landing/promptpay.png</div>
+        <div class="qr-none">ตั้งค่า promptpay_id ใน seller_local.py<br>หรือวางรูป QR ที่ app/static/landing/promptpay.png</div>
       {% endif %}
     </div>
     <div>
@@ -59,26 +63,21 @@
   <h2>แจ้งชำระเงิน</h2>
   <input type="hidden" name="packages" value="{{ packages or 'ครบทุกงาน' }}">
   <input type="hidden" name="amount" value="{{ amount or 2290 }}">
+  <div style="background:#eef4ff; border:1px solid #cddffb; border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:14px;">
+    ชำระเงินเพื่อ<b>ต่ออายุบัญชี 1 ปี</b> สำหรับ: <b>{{ acct_email }}</b>{% if acct_school %} · {{ acct_school }}{% endif %}
+  </div>
   <div class="grid2">
     <div>
-      <label>ชื่อโรงเรียน/หน่วยงาน <span class="req">*</span></label>
-      <input name="school_name" required placeholder="เช่น โรงเรียนบ้านหินลาด">
+      <label>ชื่อโรงเรียน/หน่วยงาน (สำหรับใบเสร็จ) <span class="req">*</span></label>
+      <input name="school_name" required placeholder="เช่น โรงเรียนบ้านหินลาด" value="{{ acct_school or '' }}">
     </div>
     <div>
       <label>ชื่อผู้ติดต่อ <span class="req">*</span></label>
       <input name="contact_name" required placeholder="ชื่อ-นามสกุล">
     </div>
   </div>
-  <div class="grid2">
-    <div>
-      <label>อีเมล <span class="req">*</span></label>
-      <input name="email" type="email" required placeholder="name@example.com">
-    </div>
-    <div>
-      <label>เบอร์โทร <span class="req">*</span></label>
-      <input name="phone" inputmode="tel" required placeholder="0xx-xxx-xxxx">
-    </div>
-  </div>
+  <label>เบอร์โทร <span class="req">*</span></label>
+  <input name="phone" inputmode="tel" required placeholder="0xx-xxx-xxxx">
 
   <label style="margin-top:16px;">ที่อยู่สำหรับออกใบเสร็จ <span class="req">*</span></label>
   <p class="hint" style="margin-top:0;">ระบบจะนำที่อยู่นี้ไปออกใบเสร็จรับเงินให้</p>

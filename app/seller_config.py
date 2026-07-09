@@ -17,7 +17,8 @@ SELLER = {
     "logo": "/static/logo.png",
 
     # ---- ช่องทางรับเงิน (หน้า checkout) ----
-    "promptpay_qr": "/static/landing/promptpay.png",   # วางไฟล์ QR PromptPay ที่ app/static/landing/promptpay.png
+    "promptpay_id": "",                       # เบอร์ (10 หลัก) หรือเลขบัตร ปชช. (13 หลัก) ที่ผูกพร้อมเพย์ -> ระบบสร้าง QR ตามยอดเงินให้เอง
+    "promptpay_qr": "/static/landing/promptpay.png",   # (สำรอง) รูป QR แบบตายตัว ถ้าไม่ตั้ง promptpay_id
     "bank_name": "(ตั้งใน app/seller_local.py)",
     "bank_account_no": "xxx-x-xxxxx-x",
     "bank_account_name": "",

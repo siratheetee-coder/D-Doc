@@ -261,3 +261,191 @@ def render_receipt(lead, seller, doc_no, doc_date=None) -> str:
        align="left", size=12.5, after=2)
     _sign2(doc, seller, "ผู้สั่งซื้อ", "ผู้รับเงิน", left_name=lead.get("contact_name", ""))
     return _finish(doc, _safe(f"ใบเสร็จรับเงิน_{doc_no}_{lead.get('school_name','')}") + ".docx")
+
+
+# ==================== เวอร์ชัน PDF (Pillow -> PDF, ฟอนต์ Prompt ฝังในรีโป) ====================
+_FONT_DIR = _STATIC / "fonts"
+_A4 = (1240, 1754)          # A4 ที่ 150 dpi
+_ML = 106                   # ขอบซ้าย/ขวา ~1.8 ซม.
+_MR = _A4[0] - _ML          # ขอบขวา = 1134
+_INK = (15, 23, 42)
+_MUT = (91, 107, 132)
+_PBLUE = (29, 78, 216)
+_PLINE = (208, 215, 226)
+_HEADBG = (220, 230, 247)
+
+
+def _pf(size, w="reg"):
+    from PIL import ImageFont
+    fn = {"reg": "Prompt-Regular.ttf", "med": "Prompt-Medium.ttf",
+          "semi": "Prompt-SemiBold.ttf", "bold": "Prompt-Bold.ttf"}[w]
+    return ImageFont.truetype(str(_FONT_DIR / fn), int(size))
+
+
+def _wrap(d, text, font, max_w):
+    words = (text or "").split(" ")
+    lines, cur = [], ""
+    for wd in words:
+        trial = (cur + " " + wd).strip()
+        if d.textlength(trial, font=font) <= max_w or not cur:
+            cur = trial
+        else:
+            lines.append(cur); cur = wd
+    if cur:
+        lines.append(cur)
+    return lines or [""]
+
+
+def _cx_an(cols, i, align):
+    cx = {"l": cols[i] + 14, "c": (cols[i] + cols[i + 1]) // 2, "r": cols[i + 1] - 14}[align]
+    an = {"l": "lm", "c": "mm", "r": "rm"}[align]
+    return cx, an
+
+
+def _render_sale_pdf(lead, seller, doc_no, doc_date, kind):
+    from PIL import Image, ImageDraw
+    is_q = (kind == "quotation")
+    img = Image.new("RGB", _A4, "white")
+    d = ImageDraw.Draw(img)
+    y = 92
+
+    # ---- โลโก้ + ชื่อแบรนด์ (ซ้าย) ----
+    dx = _ML
+    logo = _STATIC / "logo.png"
+    if logo.exists():
+        try:
+            lg = Image.open(logo).convert("RGBA")
+            h = 74; w = int(lg.width * h / lg.height)
+            lg = lg.resize((w, h))
+            img.paste(lg, (_ML, y), lg)
+            dx = _ML + w + 12
+        except Exception:
+            dx = _ML
+    d.text((dx, y + 10), "D-Doc", font=_pf(54, "bold"), fill=_PBLUE, anchor="la")
+
+    # ---- ชื่อเอกสาร + เลขที่ + วันที่ (ขวา) ----
+    d.text((_MR, y), "ใบเสนอราคา" if is_q else "ใบเสร็จรับเงิน", font=_pf(52, "bold"), fill=_PBLUE, anchor="ra")
+    d.text((_MR, y + 66), "เลขที่  " + doc_no, font=_pf(28), fill=_INK, anchor="ra")
+    d.text((_MR, y + 102), "วันที่  " + thai_date(doc_date), font=_pf(28), fill=_INK, anchor="ra")
+
+    # ---- ข้อมูลผู้ขาย (ใต้โลโก้) ----
+    y2 = y + 92
+    email = ("  อีเมล " + seller["email"]) if seller.get("email") else ""
+    seller_lines = [(seller.get("name", ""), _pf(30, "semi")),
+                    (seller.get("address", ""), _pf(25)),
+                    ("เลขประจำตัวผู้เสียภาษี " + str(seller.get("tax_id", "")), _pf(25)),
+                    ("โทร. " + str(seller.get("phone", "")) + email, _pf(25))]
+    for txt, f in seller_lines:
+        d.text((_ML, y2), txt, font=f, fill=_INK, anchor="la"); y2 += 37
+    y = max(y2, y + 150) + 6
+    d.line([(_ML, y), (_MR, y)], fill=_PBLUE, width=3); y += 22
+
+    # ---- กล่องข้อมูลลูกค้า ----
+    label = "เรียน" if is_q else "ได้รับเงินจาก"
+    cust = [(label + "  " + (lead.get("school_name") or "-"), True)]
+    if lead.get("address"):
+        cust.append(("ที่อยู่  " + lead["address"], False))
+    if lead.get("tax_id"):
+        cust.append(("เลขประจำตัวผู้เสียภาษี  " + lead["tax_id"], False))
+    c2 = []
+    if lead.get("contact_name"):
+        c2.append("ผู้ติดต่อ " + lead["contact_name"])
+    if lead.get("phone"):
+        c2.append("โทร. " + lead["phone"])
+    if c2:
+        cust.append(("  ·  ".join(c2), False))
+    box_lines = []
+    for text, hd in cust:
+        for wl in _wrap(d, text, _pf(27, "semi" if hd else "reg"), _MR - _ML - 40):
+            box_lines.append((wl, hd))
+    box_h = 20 + len(box_lines) * 36 + 8
+    d.rounded_rectangle([(_ML, y), (_MR, y + box_h)], radius=12, outline=_PLINE, width=2)
+    yy = y + 16
+    for wl, hd in box_lines:
+        d.text((_ML + 20, yy), wl, font=_pf(27, "semi" if hd else "reg"), fill=_INK, anchor="la"); yy += 36
+    y += box_h + 24
+
+    # ---- ข้อความนำ ----
+    intro = ("บริษัท/ผู้ประกอบการ มีความยินดีเสนอราคาสินค้า/บริการ ตามรายการดังต่อไปนี้" if is_q
+             else "ได้รับชำระเงินค่าสินค้า/บริการ ตามรายการดังต่อไปนี้")
+    d.text((_ML, y), intro, font=_pf(27), fill=_INK, anchor="la"); y += 46
+
+    # ---- ตารางรายการ ----
+    amount = float(lead.get("amount") or 0)
+    desc = "ค่าบริการระบบบริหารงานเอกสารโรงเรียน D-Doc — " + (lead.get("packages") or "ครบทุกงาน") + " (สมาชิกรายปี)"
+    cols = [_ML, 180, 726, 858, 1000, _MR]
+    heads = ["ลำดับ", "รายการ", "จำนวน", "ราคาต่อหน่วย", "จำนวนเงิน"]
+    aligns = ["c", "l", "c", "r", "r"]
+    cf = _pf(26)
+    hh = 48
+    d.rectangle([(_ML, y), (_MR, y + hh)], fill=_HEADBG)
+    for i, h in enumerate(heads):
+        cx, an = _cx_an(cols, i, aligns[i])
+        d.text((cx, y + hh // 2), h, font=_pf(26, "semi"), fill=_INK, anchor=an)
+    y += hh
+    dlines = _wrap(d, desc, cf, cols[2] - cols[1] - 28)
+    row_h = max(48, 20 + len(dlines) * 34)
+    vals = ["1", None, "1 ปี", _fmt(amount), _fmt(amount)]
+    for i, v in enumerate(vals):
+        if i == 1:
+            ty = y + 14
+            for dl in dlines:
+                d.text((cols[1] + 14, ty), dl, font=cf, fill=_INK, anchor="la"); ty += 34
+            continue
+        cx, an = _cx_an(cols, i, aligns[i])
+        d.text((cx, y + row_h // 2), v, font=cf, fill=_INK, anchor=an)
+    y += row_h
+    trh = 50
+    d.rectangle([(_ML, y), (_MR, y + trh)], fill=(241, 245, 249))
+    d.text((cols[4] - 14, y + trh // 2), "รวมเป็นเงินทั้งสิ้น", font=_pf(26, "semi"), fill=_INK, anchor="rm")
+    d.text((_MR - 14, y + trh // 2), _fmt(amount), font=_pf(26, "semi"), fill=_INK, anchor="rm")
+    top = y - hh - row_h
+    d.rectangle([(_ML, top), (_MR, y + trh)], outline=_PLINE, width=2)
+    for cx in cols[1:-1]:
+        d.line([(cx, top), (cx, y)], fill=_PLINE, width=1)
+    d.line([(_ML, top + hh), (_MR, top + hh)], fill=_PLINE, width=1)
+    d.line([(_ML, y), (_MR, y)], fill=_PLINE, width=1)
+    y += trh + 10
+    d.text(((_ML + _MR) // 2, y), "(" + bahttext(amount) + ")", font=_pf(27, "semi"), fill=_INK, anchor="ma"); y += 52
+
+    # ---- เงื่อนไข / หมายเหตุ ----
+    if is_q:
+        valid = int(seller.get("quote_valid_days", 30) or 30)
+        d.text((_ML, y), "เงื่อนไข: ยืนราคา %d วัน นับจากวันที่ในใบเสนอราคา" % valid, font=_pf(25), fill=_INK, anchor="la"); y += 44
+    else:
+        d.text((_ML, y), "การชำระเงิน: โอนเงินผ่านพร้อมเพย์/ธนาคาร ได้รับเงินไว้เป็นการถูกต้องเรียบร้อยแล้ว", font=_pf(25), fill=_INK, anchor="la"); y += 38
+        d.text((_ML, y), "หมายเหตุ: ผู้ขายไม่ได้จดทะเบียนภาษีมูลค่าเพิ่ม จำนวนเงินข้างต้นไม่รวมภาษีมูลค่าเพิ่ม", font=_pf(23), fill=_MUT, anchor="la"); y += 44
+
+    # ---- ลงนาม 2 คอลัมน์ ----
+    y = max(y + 40, _A4[1] - 300)
+    right_role = "ผู้เสนอราคา" if is_q else "ผู้รับเงิน"
+    left_name = lead.get("contact_name", "")
+    cxs = [_ML + (_MR - _ML) // 4, _ML + 3 * (_MR - _ML) // 4]
+    names = [("( " + left_name + " )") if left_name else "(...........................................)",
+             "( " + str(seller.get("signer", "")) + " )"]
+    roles = ["ผู้สั่งซื้อ", right_role]
+    for cx, nm, role in zip(cxs, names, roles):
+        d.text((cx, y), "ลงชื่อ ...........................................", font=_pf(26), fill=_INK, anchor="ma")
+        d.text((cx, y + 46), nm, font=_pf(26), fill=_INK, anchor="ma")
+        d.text((cx, y + 90), role, font=_pf(26), fill=_INK, anchor="ma")
+
+    out_dir = get_data_dir() / "documents"; out_dir.mkdir(parents=True, exist_ok=True)
+    title = "ใบเสนอราคา" if is_q else "ใบเสร็จรับเงิน"
+    fname = _safe(title + "_" + doc_no + "_" + (lead.get("school_name") or "")) + ".pdf"
+    try:
+        path = out_dir / fname
+        img.save(str(path), "PDF", resolution=150.0)
+        return str(path)
+    except OSError:
+        import tempfile
+        path = Path(tempfile.gettempdir()) / fname
+        img.save(str(path), "PDF", resolution=150.0)
+        return str(path)
+
+
+def render_quotation_pdf(lead, seller, doc_no, doc_date=None) -> str:
+    return _render_sale_pdf(lead, seller, doc_no, doc_date or datetime.now(), "quotation")
+
+
+def render_receipt_pdf(lead, seller, doc_no, doc_date=None) -> str:
+    return _render_sale_pdf(lead, seller, doc_no, doc_date or datetime.now(), "receipt")

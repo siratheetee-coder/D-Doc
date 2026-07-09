@@ -1,0 +1,43 @@
+{% extends "public_base.html" %}
+{% block title %}ลงทะเบียน / ทดลองใช้ฟรี | D-Doc{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% if next == 'checkout' %}ลงทะเบียนก่อนสั่งซื้อ{% else %}ลงทะเบียน — ทดลองใช้ฟรี 14 วัน{% endif %}</h1>
+  <p>ใช้อีเมลเป็นชื่อผู้ใช้ ตั้งรหัสผ่านเอง · ลงทะเบียนแล้วเข้าใช้งานได้ทันที ครบทุกฟีเจอร์ ไม่ต้องผูกบัตร
+     {% if next == 'checkout' %}<br>เมื่อลงทะเบียนเสร็จ ระบบจะพาไปหน้าชำระเงินต่อ{% endif %}</p>
+</div>
+
+<form class="card" method="post" action="/register" autocomplete="on" style="max-width:600px;">
+  {% if error %}<div style="background:#fde8e8; color:#b91c1c; border:1px solid #f7caca; padding:11px 14px; border-radius:10px; margin-bottom:14px;">{{ error }}
+    {% if 'ลงทะเบียนแล้ว' in error %}<a href="/login" style="color:#b91c1c; font-weight:700;">เข้าสู่ระบบ</a>{% endif %}</div>{% endif %}
+  <input type="hidden" name="next" value="{{ next }}">
+  <input type="hidden" name="packages" value="{{ packages }}">
+  <input type="hidden" name="amount" value="{{ amount }}">
+
+  <label>อีเมล (ใช้เป็นชื่อผู้ใช้เข้าระบบ) <span class="req">*</span></label>
+  <input name="email" type="email" required placeholder="name@example.com" value="{{ form.email or '' }}">
+
+  <label>ตั้งรหัสผ่าน <span class="req">*</span></label>
+  <input name="password" type="password" required minlength="6" placeholder="อย่างน้อย 6 ตัวอักษร">
+
+  <label>ชื่อโรงเรียน/หน่วยงาน <span class="req">*</span></label>
+  <input name="school_name" required placeholder="เช่น โรงเรียนบ้านหินลาด" value="{{ form.school_name or '' }}">
+
+  <div class="grid2">
+    <div>
+      <label>ชื่อผู้ติดต่อ</label>
+      <input name="contact_name" placeholder="ชื่อ-นามสกุล" value="{{ form.contact_name or '' }}">
+    </div>
+    <div>
+      <label>เบอร์โทร</label>
+      <input name="phone" inputmode="tel" placeholder="0xx-xxx-xxxx" value="{{ form.phone or '' }}">
+    </div>
+  </div>
+
+  <button class="btn btn-primary btn-full" type="submit" style="margin-top:22px;">
+    {% if next == 'checkout' %}ลงทะเบียนแล้วไปชำระเงิน{% else %}ลงทะเบียน เริ่มใช้งานฟรี{% endif %}
+  </button>
+  <p class="hint" style="text-align:center;">มีบัญชีอยู่แล้ว? <a href="/login" style="color:var(--blue); font-weight:600;">เข้าสู่ระบบ</a>
+    · ทดลองใช้ 14 วัน หมดอายุแล้วต่ออายุด้วยอีเมลเดิมได้เลย</p>
+</form>
+{% endblock %}
