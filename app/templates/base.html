@@ -554,15 +554,21 @@
         </div>
         {% set st = account_status(request.session.get('tid')) %}
         {% if st %}
-        {% set warn = (st.days_left is not none) and (st.days_left <= (7 if st.plan=='trial' else 30)) %}
-        <a href="/checkout" title="สถานะการใช้งาน (กดเพื่อต่ออายุ)"
+        {% if st.plan == 'trial' %}
+          {% set warn = st.docs_left <= 3 %}
+          {% set label = 'ทดลองใช้ · เหลือ ' ~ st.docs_left ~ ' ฉบับ' %}
+        {% else %}
+          {% set warn = (st.days_left is not none) and (st.days_left <= 30) %}
+          {% set label = 'สมาชิก' ~ (' · ไม่จำกัด' if st.unlimited else (' · เหลือ ' ~ st.days_left ~ ' วัน')) %}
+        {% endif %}
+        <a href="/checkout" title="สถานะการใช้งาน (กดเพื่อต่ออายุ/เป็นสมาชิก)"
            style="display:inline-flex; align-items:center; gap:7px; text-decoration:none; margin-right:8px;
                   font-size:13px; font-weight:600; padding:6px 13px; border-radius:999px; white-space:nowrap;
                   {% if warn %}background:#fef2f2; color:#b91c1c; border:1px solid #fecaca;
                   {% elif st.plan=='trial' %}background:#fff4e5; color:#b45309; border:1px solid #fed7aa;
                   {% else %}background:#e8f9ef; color:#15803d; border:1px solid #bbf7d0;{% endif %}">
           <span style="width:7px; height:7px; border-radius:50%; background:currentColor;"></span>
-          {{ 'ทดลองใช้' if st.plan=='trial' else 'สมาชิก' }}{% if st.unlimited %} · ไม่จำกัด{% elif st.days_left is not none %} · เหลือ {{ st.days_left }} วัน{% endif %}{% if warn %} · ต่ออายุ{% endif %}
+          {{ label }}{% if warn %} · {{ 'เป็นสมาชิก' if st.plan=='trial' else 'ต่ออายุ' }}{% endif %}
         </a>
         {% endif %}
         <div class="brandchip">

@@ -330,7 +330,7 @@ def settings_save(
     finance_officer_name: str = Form(""), finance_head_name: str = Form(""),
     admin_officer_name: str = Form(""),
     doc_prefix: str = Form("ศธ"), doc_set_threshold: float = Form(5000.0),
-    ai_api_key: str = Form(""), project_year_mode: str = Form("budget"),
+    project_year_mode: str = Form("budget"),
 ):
     s = get_school(db)
     s.name, s.address, s.district, s.province = name, address, district, province
@@ -341,7 +341,6 @@ def settings_save(
     s.admin_officer_name = admin_officer_name.strip()
     s.project_year_mode = "academic" if project_year_mode == "academic" else "budget"
     s.doc_prefix, s.doc_set_threshold = doc_prefix, doc_set_threshold
-    s.ai_api_key = (ai_api_key or "").strip()
     db.commit()
     return RedirectResponse("/settings?saved=1", status_code=303)
 
@@ -353,7 +352,7 @@ def backup_download():
     from app.database import current_db_path, _checkpoint
     _checkpoint()
     fname = f"school-backup-{datetime.now():%Y%m%d-%H%M}.db"
-    return serve_generated(str(current_db_path()), "application/octet-stream")
+    return serve_generated(str(current_db_path()), "application/octet-stream", count=False)
 
 
 @router.post("/restore")
@@ -557,10 +556,17 @@ def _xlsx_download(wb, filename: str) -> Response:
 
 
 def serve_generated(path, media_type: str | None = None, *,
-                    inline: bool = False, download_name: str | None = None) -> Response:
+                    inline: bool = False, download_name: str | None = None,
+                    count: bool = True) -> Response:
     """อ่านไฟล์ที่สร้างไว้เข้าหน่วยความจำแล้วส่งกลับ พร้อม Content-Disposition แบบ RFC 5987
     (filename*=utf-8'') — เลี่ยงปัญหา FileResponse กับชื่อไฟล์ภาษาไทยบนเซิร์ฟเวอร์
-    (บาง Starlette/สภาพแวดล้อม stat/serve ไฟล์ชื่อไทยแล้ว 500)"""
+    count=True: นับโควตาเอกสาร (ทดลองใช้) — ครบแล้วพาไปหน้าต่ออายุ"""
+    if count:
+        from app.tenancy import current_school_id
+        from app.accounts import consume_doc_quota
+        ok, _info = consume_doc_quota(current_school_id.get())
+        if not ok:
+            return RedirectResponse("/trial-limit", status_code=303)
     from urllib.parse import quote
     p = Path(path)
     data = p.read_bytes()
@@ -569,6 +575,13 @@ def serve_generated(path, media_type: str | None = None, *,
     dispo = f"{disp}; filename*=utf-8''{quote(name)}"
     return Response(content=data, media_type=media_type or "application/octet-stream",
                     headers={"Content-Disposition": dispo})
+
+
+def _ai_key() -> str:
+    """AI key กลาง (หลังบ้าน) ของโรงเรียนที่ล็อกอิน — คืน '' ถ้าไม่ใช่สมาชิก/ไม่ได้ตั้ง key"""
+    from app.tenancy import current_school_id
+    from app.accounts import ai_key_for
+    return ai_key_for(current_school_id.get())
 
 
 def _norm_sex(s: str) -> str:
@@ -1296,9 +1309,9 @@ async def procurement_ocr_items(file: UploadFile = File(...)):
 async def procurement_ai_items(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """ให้ AI (vision) อ่านรูปรายการพัสดุ -> คืนรายการ (JSON) ใช้ API key ของโรงเรียน"""
     from app.services.ai_extract import extract_items_from_image
-    key = (get_school(db).ai_api_key or "").strip()
+    key = _ai_key()
     if not key:
-        return JSONResponse({"items": [], "error": "ยังไม่ได้ตั้งค่า API key (ไปที่ตั้งค่าโรงเรียน)"})
+        return JSONResponse({"items": [], "error": "ฟีเจอร์ AI สำหรับสมาชิก — ต่ออายุ/เป็นสมาชิกเพื่อใช้งาน"})
     data = await file.read()
     ext = file_upload.detect_ext(data, file.filename or "")
     if ext not in ("png", "jpg", "webp"):
@@ -1429,9 +1442,9 @@ def _render_proc_from_file(request, db, pending_file: str, fields: dict, ai_note
 def _extract_proc(path: str, use_ai: bool, db):
     """สกัดข้อมูล: ถ้าเลือก AI และตั้งค่า key ไว้ ใช้ AI ไม่งั้น heuristic; คืน (fields, ai_note)"""
     if use_ai:
-        key = (get_school(db).ai_api_key or "").strip()
+        key = _ai_key()
         if not key:
-            return extract_procurement_fields(path), "ยังไม่ได้ตั้งค่า API key (ไปที่ตั้งค่าโรงเรียน) — ใช้การอ่านแบบปกติแทน"
+            return extract_procurement_fields(path), "ฟีเจอร์ AI สำหรับสมาชิก — ใช้การอ่านแบบปกติแทน (ต่ออายุเพื่อเปิด AI)"
         res = extract_with_ai(extract_text_any(path), key)
         if res.get("ok"):
             return res, "อ่านด้วย AI สำเร็จ — โปรดตรวจสอบความถูกต้องก่อนบันทึก"
@@ -1445,7 +1458,7 @@ def proc_from_file_page(request: Request, db: Session = Depends(get_db), err: st
                "url": "ลิงก์ไม่ถูกต้อง",
                "fetch": "ดึงไฟล์จากลิงก์ไม่สำเร็จ (เครื่องต้องต่อเน็ตและเข้าถึงลิงก์ได้)"}.get(err)
     return templates.TemplateResponse("procurement_from_file.html", {
-        "request": request, "err": err_msg, "has_ai_key": bool((get_school(db).ai_api_key or "").strip()),
+        "request": request, "err": err_msg, "has_ai_key": bool(_ai_key()),
     })
 
 

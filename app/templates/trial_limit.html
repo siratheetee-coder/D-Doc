@@ -1,0 +1,15 @@
+{% extends "public_base.html" %}
+{% block title %}ทดลองใช้ครบแล้ว | D-Doc{% endblock %}
+{% block content %}
+<div class="card" style="text-align:center; max-width:580px; margin:24px auto; padding:46px 28px;">
+  <div style="width:72px; height:72px; border-radius:50%; background:#fff4e5; color:#d97706;
+              display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:34px;">!</div>
+  <h1 style="font-size:24px; margin-bottom:8px;">ทดลองใช้ครบ {{ st.docs_limit if st else 10 }} ฉบับแล้ว</h1>
+  <p class="muted">คุณออกเอกสารในช่วงทดลองใช้ครบตามจำนวนแล้ว<br>
+     ชำระเงินเป็นสมาชิกเพื่อ<b>ออกเอกสารได้ไม่จำกัด 1 ปี</b> โดยใช้อีเมล/รหัสเดิม · ข้อมูลที่กรอกไว้ยังอยู่ครบ</p>
+  <div style="margin-top:26px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+    <a class="btn btn-primary" href="/checkout">ชำระเงิน เป็นสมาชิก</a>
+    <a class="btn btn-ghost" href="/">กลับหน้าหลักระบบ</a>
+  </div>
+</div>
+{% endblock %}

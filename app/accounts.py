@@ -36,6 +36,8 @@ class Tenant(AccBase):
     expiry_date = Column(Date, nullable=True)      # วันหมดอายุ (None = ไม่จำกัด)
     max_users = Column(Integer, default=3)         # จำนวนผู้ใช้สูงสุดต่อโรงเรียน
     plan = Column(String, default="member")        # trial = ทดลองใช้, member = สมาชิก(จ่ายแล้ว)
+    docs_used = Column(Integer, default=0)         # จำนวนเอกสารที่ออกไปแล้ว (ใช้กับ trial)
+    docs_limit = Column(Integer, default=0)        # โควตาเอกสารทดลองใช้ (0 = ไม่จำกัด/สมาชิก)
     created_at = Column(DateTime, default=datetime.now)
 
     accounts = relationship("Account", back_populates="tenant",
@@ -53,6 +55,8 @@ class Account(AccBase):
     role = Column(String, default="user")          # user / superadmin
     active = Column(Boolean, default=True)
     must_change_password = Column(Boolean, default=False)   # บังคับเปลี่ยนรหัสครั้งแรก
+    verified = Column(Boolean, default=True)        # ยืนยันอีเมลแล้วหรือยัง (สมัครใหม่ = False ถ้าเปิด SMTP)
+    verify_token = Column(String, default="")       # โทเคนยืนยันอีเมล (ล้างเมื่อยืนยันแล้ว)
     created_at = Column(DateTime, default=datetime.now)
 
     tenant = relationship("Tenant", back_populates="accounts")
@@ -103,7 +107,11 @@ def _ensure_engine():
         for sql in ("ALTER TABLE account ADD COLUMN must_change_password BOOLEAN DEFAULT 0",
                     "ALTER TABLE lead ADD COLUMN tenant_id INTEGER",
                     "ALTER TABLE lead ADD COLUMN login_user VARCHAR DEFAULT ''",
-                    "ALTER TABLE tenant ADD COLUMN plan VARCHAR DEFAULT 'member'"):
+                    "ALTER TABLE tenant ADD COLUMN plan VARCHAR DEFAULT 'member'",
+                    "ALTER TABLE tenant ADD COLUMN docs_used INTEGER DEFAULT 0",
+                    "ALTER TABLE tenant ADD COLUMN docs_limit INTEGER DEFAULT 0",
+                    "ALTER TABLE account ADD COLUMN verified BOOLEAN DEFAULT 1",
+                    "ALTER TABLE account ADD COLUMN verify_token VARCHAR DEFAULT ''"):
             try:
                 conn = _engine.raw_connection(); cur = conn.cursor()
                 cur.execute(sql); conn.commit(); conn.close()
@@ -162,7 +170,8 @@ def authenticate(username: str, password: str) -> dict | None:
         if u and verify_password(password, u.password_hash):
             return {"uid": u.id, "username": u.username, "role": u.role,
                     "tenant_id": u.tenant_id, "display_name": u.display_name,
-                    "must_change": bool(u.must_change_password)}
+                    "must_change": bool(u.must_change_password),
+                    "verified": bool(getattr(u, "verified", True))}
         return None
     finally:
         db.close()
@@ -184,7 +193,9 @@ def tenant_state(tenant_id) -> dict | None:
 
 
 def tenant_status(tenant_id) -> dict | None:
-    """สถานะแพ็กเกจสำหรับแสดงในแอป: {plan, days_left, expiry_date, unlimited} หรือ None"""
+    """สถานะแพ็กเกจสำหรับแสดงในแอป:
+    trial -> {plan:'trial', docs_left, docs_limit, docs_used}
+    member -> {plan:'member', days_left, expiry_date, unlimited}"""
     if not tenant_id:
         return None
     db = acc_session()
@@ -192,12 +203,52 @@ def tenant_status(tenant_id) -> dict | None:
         t = db.get(Tenant, tenant_id)
         if not t:
             return None
+        plan = t.plan or "member"
+        if plan == "trial" and (t.docs_limit or 0) > 0:
+            used = t.docs_used or 0
+            return {"plan": "trial", "docs_limit": t.docs_limit,
+                    "docs_used": used, "docs_left": max(0, t.docs_limit - used)}
         if not t.expiry_date:
-            return {"plan": t.plan or "member", "days_left": None,
-                    "expiry_date": None, "unlimited": True}
-        days = (t.expiry_date - date.today()).days
-        return {"plan": t.plan or "member", "days_left": days,
+            return {"plan": "member", "days_left": None, "expiry_date": None, "unlimited": True}
+        return {"plan": "member", "days_left": (t.expiry_date - date.today()).days,
                 "expiry_date": t.expiry_date, "unlimited": False}
+    finally:
+        db.close()
+
+
+def ai_key_for(tenant_id) -> str:
+    """คืน AI key กลาง (หลังบ้าน) เฉพาะโรงเรียนที่เป็นสมาชิก (จ่ายแล้ว ไม่ใช่ trial)
+    มิฉะนั้นคืน '' (ปิด AI) — key ไม่เคยผูก per-tenant/ไม่ส่งถึง client"""
+    from app.seller_config import SELLER
+    key = (SELLER.get("ai_api_key") or "").strip()
+    if not key or not tenant_id:
+        return ""
+    db = acc_session()
+    try:
+        t = db.get(Tenant, tenant_id)
+        if not t or (t.plan or "member") == "trial":
+            return ""
+        return key
+    finally:
+        db.close()
+
+
+def consume_doc_quota(tenant_id) -> tuple:
+    """เรียกก่อนออกเอกสาร: ถ้าเป็น trial ยังไม่ครบโควตา -> +1 คืน (True, info)
+    ถ้าครบโควตา -> (False, info) · สมาชิก/ไม่มี tenant -> (True, None)"""
+    if not tenant_id:
+        return True, None
+    db = acc_session()
+    try:
+        t = db.get(Tenant, tenant_id)
+        if not t or (t.plan or "member") != "trial" or not (t.docs_limit or 0):
+            return True, None
+        used = t.docs_used or 0
+        if used >= t.docs_limit:
+            return False, {"used": used, "limit": t.docs_limit}
+        t.docs_used = used + 1
+        db.commit()
+        return True, {"used": t.docs_used, "limit": t.docs_limit}
     finally:
         db.close()
 
@@ -279,13 +330,13 @@ def issue_sale_doc(kind: str, lead_id: int, year: int) -> dict:
 # ===================== จัดการโรงเรียน/ผู้ใช้ (super-admin) =====================
 def provision_tenant(name: str, slug: str, admin_user: str, admin_pw: str,
                      expiry_date=None, max_users: int = 3, must_change: bool = True,
-                     plan: str = "member") -> int:
+                     plan: str = "member", docs_limit: int = 0) -> int:
     """สร้างโรงเรียนใหม่ + ผู้ใช้แรก + สร้างไฟล์ฐานข้อมูลของโรงเรียน คืน tenant_id"""
     from app.tenancy import ensure_school_db
     db = acc_session()
     try:
         t = Tenant(name=name.strip(), slug=slug.strip(), expiry_date=expiry_date,
-                   max_users=max_users, plan=plan)
+                   max_users=max_users, plan=plan, docs_limit=docs_limit)
         db.add(t); db.flush()
         db.add(Account(tenant_id=t.id, username=admin_user.strip(),
                        password_hash=hash_password(admin_pw), role="user",
@@ -352,9 +403,12 @@ def account_by_email(email: str):
         db.close()
 
 
+TRIAL_DOC_LIMIT = 50   # ทดลองใช้: ออกเอกสารฟรีได้กี่ฉบับ (นับรวมทุกงาน)
+
+
 def register_account(email: str, password: str, school_name: str,
                      contact_name: str = "", phone: str = "", trial_days: int = 14) -> dict:
-    """ลงทะเบียน: อีเมล = ชื่อผู้ใช้, ตั้งรหัสเอง -> สร้างโรงเรียน (ทดลองใช้ +trial_days วัน) + auto-login
+    """ลงทะเบียน: อีเมล = ชื่อผู้ใช้, ตั้งรหัสเอง -> ทดลองใช้ (ออกเอกสารฟรี TRIAL_DOC_LIMIT ฉบับ ไม่จำกัดเวลา) + auto-login
     อีเมลเดิมใช้เป็น username ตลอด (ต่ออายุก็อีเมลนี้) · คืน {uid, tenant_id, username, display_name} หรือ {error}"""
     from datetime import date, timedelta
     email = (email or "").strip().lower()
@@ -372,17 +426,60 @@ def register_account(email: str, password: str, school_name: str,
         slug = _uniq_slug(db, _slugify_acc(email.split("@")[0]))
     finally:
         db.close()
-    exp = date.today() + timedelta(days=trial_days)
-    tid = provision_tenant(school_name, slug, email, password, expiry_date=exp,
-                           max_users=3, must_change=False, plan="trial")
+    # ทดลองใช้: ไม่จำกัดเวลา (expiry=None) แต่จำกัดจำนวนเอกสารที่ออก
+    tid = provision_tenant(school_name, slug, email, password, expiry_date=None,
+                           max_users=3, must_change=False, plan="trial",
+                           docs_limit=TRIAL_DOC_LIMIT)
+    import secrets
+    from app.services.mailer import smtp_configured
+    need_verify = smtp_configured()
+    token = secrets.token_urlsafe(24) if need_verify else ""
     db = acc_session()
     try:
         acc = db.query(Account).filter_by(username=email).first()
+        if need_verify:
+            acc.verified = False
+            acc.verify_token = token
         db.add(Lead(kind="trial", school_name=school_name, contact_name=contact_name.strip(),
                     email=email, phone=phone.strip(), tenant_id=tid,
                     login_user=email, status="ทดลองใช้"))
         db.commit()
-        return {"uid": acc.id, "tenant_id": tid, "username": email, "display_name": school_name}
+        return {"uid": acc.id, "tenant_id": tid, "username": email, "display_name": school_name,
+                "needs_verify": need_verify, "verify_token": token, "email": email}
+    finally:
+        db.close()
+
+
+def verify_email(token: str) -> dict | None:
+    """ยืนยันอีเมลจากโทเคน -> เปิดใช้งานบัญชี คืนข้อมูลบัญชี (สำหรับ auto-login) หรือ None"""
+    token = (token or "").strip()
+    if not token:
+        return None
+    db = acc_session()
+    try:
+        a = db.query(Account).filter_by(verify_token=token).first()
+        if not a:
+            return None
+        a.verified = True
+        a.verify_token = ""
+        db.commit()
+        return {"uid": a.id, "username": a.username, "role": a.role,
+                "tenant_id": a.tenant_id, "display_name": a.display_name}
+    finally:
+        db.close()
+
+
+def new_verify_token(email: str) -> str | None:
+    """ออกโทเคนยืนยันใหม่ (สำหรับส่งอีเมลซ้ำ) คืนโทเคน หรือ None ถ้าไม่พบ/ยืนยันแล้ว"""
+    import secrets
+    db = acc_session()
+    try:
+        a = db.query(Account).filter_by(username=(email or "").strip().lower()).first()
+        if not a or a.verified:
+            return None
+        a.verify_token = secrets.token_urlsafe(24)
+        db.commit()
+        return a.verify_token
     finally:
         db.close()
 
@@ -410,6 +507,7 @@ def renew_lead(lead_id: int, days: int = 365) -> dict | None:
         t.expiry_date = base + timedelta(days=days)
         t.active = True
         t.plan = "member"          # อัปเกรดจากทดลองใช้ -> สมาชิก
+        t.docs_limit = 0           # สมาชิก: ออกเอกสารไม่จำกัด
         acc = db.query(Account).filter_by(tenant_id=tid).first()
         lead.tenant_id = tid
         lead.login_user = acc.username if acc else email

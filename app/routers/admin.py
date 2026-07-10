@@ -38,6 +38,13 @@ _DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document
 _XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 _PDF = "application/pdf"
 
+
+def _ai_key() -> str:
+    """AI key กลาง (หลังบ้าน) เฉพาะสมาชิก — คืน '' ถ้าไม่ใช่สมาชิก/ไม่ได้ตั้ง key"""
+    from app.tenancy import current_school_id
+    from app.accounts import ai_key_for
+    return ai_key_for(current_school_id.get())
+
 # ใช้ฟังก์ชันกลางจาก file_upload (alias ชื่อเดิมเพื่อความเข้ากันได้)
 from app.services.file_upload import (
     SAFE_FILE_NAME as _SAFE_FILE_NAME, uploads_dir as _uploads_dir,
@@ -539,9 +546,9 @@ def letter_ai_write(db: Session = Depends(get_db), subject: str = Form(""),
     from fastapi.responses import JSONResponse
     from app.services.ai_extract import write_official_letter
     school = get_school(db)
-    key = (getattr(school, "ai_api_key", "") or "").strip()
+    key = _ai_key()
     if not key:
-        return JSONResponse({"error": "ยังไม่ได้ตั้งค่า API key ของ AI ในตั้งค่าโรงเรียน"}, status_code=400)
+        return JSONResponse({"error": "ฟีเจอร์ AI สำหรับสมาชิกเท่านั้น — ต่ออายุ/เป็นสมาชิกเพื่อใช้งาน"}, status_code=400)
     res = write_official_letter({
         "school": school.name or "", "subject": subject, "to": to,
         "points": points, "detail": detail,
@@ -558,9 +565,9 @@ def memo_ai_write(db: Session = Depends(get_db), subject: str = Form(""),
     from fastapi.responses import JSONResponse
     from app.services.ai_extract import write_memo
     school = get_school(db)
-    key = (getattr(school, "ai_api_key", "") or "").strip()
+    key = _ai_key()
     if not key:
-        return JSONResponse({"error": "ยังไม่ได้ตั้งค่า API key ของ AI ในตั้งค่าโรงเรียน"}, status_code=400)
+        return JSONResponse({"error": "ฟีเจอร์ AI สำหรับสมาชิกเท่านั้น — ต่ออายุ/เป็นสมาชิกเพื่อใช้งาน"}, status_code=400)
     res = write_memo({"school": school.name or "", "subject": subject,
                       "from_dept": from_dept, "to": to, "points": points}, key)
     if res.get("error"):
@@ -574,9 +581,9 @@ def order_ai_write(db: Session = Depends(get_db), subject: str = Form(""), point
     from fastapi.responses import JSONResponse
     from app.services.ai_extract import write_order
     school = get_school(db)
-    key = (getattr(school, "ai_api_key", "") or "").strip()
+    key = _ai_key()
     if not key:
-        return JSONResponse({"error": "ยังไม่ได้ตั้งค่า API key ของ AI ในตั้งค่าโรงเรียน"}, status_code=400)
+        return JSONResponse({"error": "ฟีเจอร์ AI สำหรับสมาชิกเท่านั้น — ต่ออายุ/เป็นสมาชิกเพื่อใช้งาน"}, status_code=400)
     res = write_order({"school": school.name or "", "subject": subject, "points": points}, key)
     if res.get("error"):
         return JSONResponse({"error": "AI เขียนไม่สำเร็จ ลองใหม่อีกครั้ง"}, status_code=502)

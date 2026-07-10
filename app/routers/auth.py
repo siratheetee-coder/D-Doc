@@ -60,6 +60,11 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
         return templates.TemplateResponse("login.html", {
             "request": request, "error": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
         }, status_code=401)
+    if not user.get("verified", True):
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": "กรุณายืนยันอีเมลก่อนเข้าใช้งาน (ตรวจสอบลิงก์ยืนยันในอีเมลของคุณ)",
+        }, status_code=403)
     # ล็อกอินสำเร็จ — เก็บข้อมูลใน session
     request.session.clear()
     request.session["uid"] = user["uid"]

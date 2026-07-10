@@ -18,6 +18,21 @@
              background:var(--blue); color:#fff; border-radius:50%; font-size:12px; font-weight:700;
              display:flex; align-items:center; justify-content:center; }
   @media (max-width:600px){ .pay-grid{ grid-template-columns:1fr; } }
+  /* ตัวเลือกแพ็กเกจ */
+  .co-list{ display:grid; gap:10px; }
+  .co-item{ display:flex; align-items:center; gap:12px; border:2px solid var(--line); border-radius:12px;
+            padding:12px 14px; cursor:pointer; transition:.15s; }
+  .co-item:hover{ border-color:#c7d6f5; }
+  .co-item.on{ border-color:var(--blue); background:#f5f8ff; }
+  .co-item input{ position:absolute; opacity:0; pointer-events:none; }
+  .co-check{ flex:0 0 22px; height:22px; border-radius:6px; border:2px solid var(--line);
+             display:flex; align-items:center; justify-content:center; color:#fff; }
+  .co-item.on .co-check{ background:var(--blue); border-color:var(--blue); }
+  .co-item.on .co-check::after{ content:"✔"; font-size:12px; }
+  .co-name{ flex:1; font-weight:600; font-size:15px; }
+  .co-name small{ display:block; font-weight:400; color:var(--muted); font-size:12px; }
+  .co-price{ font-weight:700; white-space:nowrap; }
+  .co-price::after{ content:" บาท"; font-weight:400; color:var(--muted); font-size:12px; }
 {% endblock %}
 {% block content %}
 <div class="page-head">
@@ -25,10 +40,42 @@
   <p>โอนชำระผ่าน PromptPay หรือบัญชีธนาคาร แล้วแจ้งสลิปด้านล่าง ทีมงานจะเปิดใช้งานให้และติดต่อกลับ</p>
 </div>
 
+{% set pk = packages or 'ครบทุกงาน' %}
+{% set is_all = ('ครบทุกงาน' in pk) or (not packages) %}
 <div class="card">
-  <h2>สรุปคำสั่งซื้อ</h2>
-  <div class="bank-row"><span>รายการที่เลือก</span><b>{{ packages or 'ครบทุกงาน' }}</b></div>
-  <div class="bank-row"><span>ยอดชำระ</span><span class="amt">{{ "{:,.0f}".format(amount) if amount else '2,290' }} <small style="font-size:14px; color:var(--muted); font-weight:500;">บาท/ปี</small></span></div>
+  <h2>เลือกแพ็กเกจที่ต้องการ</h2>
+  <p class="hint" style="margin-top:0;">เลือกงานที่ต้องการ ระบบคิดราคาและอัปเดต QR ให้อัตโนมัติ · ครบทุกงานคุ้มสุด</p>
+  <div class="co-list" id="coList">
+    <label class="co-item" data-price="890" data-name="งานพัสดุ">
+      <input type="checkbox" {{ 'checked' if is_all or 'พัสดุ' in pk }}>
+      <span class="co-check"></span>
+      <span class="co-name">งานพัสดุ<small>จัดซื้อจัดจ้าง · ทรัพย์สิน · สัญญา · e-GP</small></span>
+      <span class="co-price">890</span>
+    </label>
+    <label class="co-item" data-price="690" data-name="งานการเงิน">
+      <input type="checkbox" {{ 'checked' if is_all or 'การเงิน' in pk }}>
+      <span class="co-check"></span>
+      <span class="co-name">งานการเงิน<small>สมุดเงินสด · บัญชีแยกประเภท · สตง.</small></span>
+      <span class="co-price">690</span>
+    </label>
+    <label class="co-item" data-price="590" data-name="งานธุรการ">
+      <input type="checkbox" {{ 'checked' if is_all or 'ธุรการ' in pk }}>
+      <span class="co-check"></span>
+      <span class="co-name">งานธุรการ<small>หนังสือรับ-ส่ง · บันทึก/คำสั่ง · เกียรติบัตร</small></span>
+      <span class="co-price">590</span>
+    </label>
+    <label class="co-item" data-price="590" data-name="งานอาหารกลางวัน">
+      <input type="checkbox" {{ 'checked' if is_all or 'อาหาร' in pk }}>
+      <span class="co-check"></span>
+      <span class="co-name">งานอาหารกลางวัน<small>คำนวณงบ · เอกสารจ้าง · โภชนาการ</small></span>
+      <span class="co-price">590</span>
+    </label>
+  </div>
+  <button type="button" class="btn btn-ghost" id="coAll" style="margin-top:12px; width:100%;">เลือกครบทุกงาน (คุ้มสุด 2,290 บาท)</button>
+  <div class="bank-row" style="margin-top:14px; border-bottom:0;">
+    <span style="font-weight:600;">ยอดชำระ (ต่ออายุ 1 ปี)</span>
+    <span class="amt"><span id="coAmount">2,290</span> <small style="font-size:14px; color:var(--muted); font-weight:500;">บาท/ปี</small></span>
+  </div>
 </div>
 
 <div class="card">
@@ -37,8 +84,8 @@
     <div class="qr-box">
       {% if seller.promptpay_dynamic %}
         <div style="font-size:12px; color:var(--green); font-weight:600; margin-bottom:6px;">✓ QR พร้อมเพย์ระบุยอดอัตโนมัติ</div>
-        <img src="/checkout/promptpay.png?amount={{ amount }}" alt="PromptPay QR {{ amount }} บาท">
-        <div class="hint">สแกน QR นี้ ยอด <b>{{ "{:,.2f}".format(amount) if amount else '2,290.00' }} บาท</b> จะขึ้นให้อัตโนมัติ</div>
+        <img id="coQR" src="/checkout/promptpay.png?amount={{ amount or 2290 }}" alt="PromptPay QR">
+        <div class="hint">สแกน QR นี้ ยอด <b><span id="coQRhint">2,290.00</span> บาท</b> จะขึ้นให้อัตโนมัติ</div>
       {% elif seller.promptpay_qr_exists %}
         <img src="{{ seller.promptpay_qr }}" alt="PromptPay QR">
         <div class="hint">สแกน QR แล้วกรอกยอด {{ "{:,.0f}".format(amount) if amount else '2,290' }} บาท</div>
@@ -61,8 +108,8 @@
 
 <form class="card" method="post" action="/checkout" enctype="multipart/form-data">
   <h2>แจ้งชำระเงิน</h2>
-  <input type="hidden" name="packages" value="{{ packages or 'ครบทุกงาน' }}">
-  <input type="hidden" name="amount" value="{{ amount or 2290 }}">
+  <input type="hidden" name="packages" id="fPackages" value="{{ packages or 'ครบทุกงาน' }}">
+  <input type="hidden" name="amount" id="fAmount" value="{{ amount or 2290 }}">
   <div style="background:#eef4ff; border:1px solid #cddffb; border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:14px;">
     ชำระเงินเพื่อ<b>ต่ออายุบัญชี 1 ปี</b> สำหรับ: <b>{{ acct_email }}</b>{% if acct_school %} · {{ acct_school }}{% endif %}
   </div>
@@ -101,4 +148,37 @@
   <button class="btn btn-primary btn-full" type="submit" style="margin-top:22px;">แจ้งชำระเงิน</button>
   <p class="hint" style="text-align:center;">ทีมงานจะตรวจสอบและเปิดใช้งานให้ พร้อมติดต่อกลับทางอีเมล/โทรศัพท์</p>
 </form>
+
+<script>
+  (function(){
+    var BUNDLE = 2290;
+    var items = [].slice.call(document.querySelectorAll('#coList .co-item'));
+    var amtEl = document.getElementById('coAmount');
+    var qr = document.getElementById('coQR');
+    var qrHint = document.getElementById('coQRhint');
+    var fAmount = document.getElementById('fAmount');
+    var fPackages = document.getElementById('fPackages');
+    var fmt = function(n){ return n.toLocaleString('en-US'); };
+    function calc(){
+      var chosen = items.filter(function(it){ return it.querySelector('input').checked; });
+      items.forEach(function(it){ it.classList.toggle('on', it.querySelector('input').checked); });
+      var listSum = chosen.reduce(function(s,it){ return s + (+it.dataset.price); }, 0);
+      var all = chosen.length === items.length && items.length > 0;
+      var total = all ? BUNDLE : listSum;
+      var label = all ? 'ครบทุกงาน' : chosen.map(function(it){ return it.dataset.name; }).join(' + ');
+      if(amtEl) amtEl.textContent = fmt(total);
+      if(fAmount) fAmount.value = total;
+      if(fPackages) fPackages.value = label || '';
+      if(qr && total > 0) qr.src = '/checkout/promptpay.png?amount=' + total;
+      if(qrHint) qrHint.textContent = fmt(total) + '.00';
+      return total;
+    }
+    items.forEach(function(it){ it.querySelector('input').addEventListener('change', calc); });
+    var allBtn = document.getElementById('coAll');
+    if(allBtn) allBtn.addEventListener('click', function(){
+      items.forEach(function(it){ it.querySelector('input').checked = true; }); calc();
+    });
+    calc();
+  })();
+</script>
 {% endblock %}

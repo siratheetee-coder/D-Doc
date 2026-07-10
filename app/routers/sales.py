@@ -157,7 +157,13 @@ def register_submit(request: Request, email: str = Form(""), password: str = For
             "form": {"email": email, "school_name": school_name,
                      "contact_name": contact_name, "phone": phone},
             "next": next, "packages": packages, "amount": amount})
-    # ลงทะเบียนสำเร็จ -> ล็อกอินอัตโนมัติ เข้าใช้งานทันที
+    # เปิด SMTP -> ต้องยืนยันอีเมลก่อน (ยังไม่ล็อกอิน)
+    if res.get("needs_verify"):
+        from app.services.mailer import send_verify_email
+        send_verify_email(res["email"], _verify_link(request, res["verify_token"]))
+        return templates.TemplateResponse("register_sent.html", {
+            "request": request, "email": res["email"]})
+    # ไม่เปิด SMTP -> ล็อกอินอัตโนมัติ เข้าใช้งานทันที
     request.session.clear()
     request.session["uid"] = res["uid"]
     request.session["username"] = res["username"]
@@ -175,6 +181,47 @@ def register_submit(request: Request, email: str = Form(""), password: str = For
 @router.get("/trial")
 def trial_redirect():
     return RedirectResponse("/register", status_code=307)
+
+
+def _verify_link(request: Request, token: str) -> str:
+    base = (SELLER.get("base_url") or "").strip().rstrip("/") or str(request.base_url).rstrip("/")
+    return f"{base}/verify?token={token}"
+
+
+@router.get("/verify", response_class=HTMLResponse)
+def verify_email_route(request: Request, token: str = ""):
+    from app.accounts import verify_email
+    res = verify_email(token)
+    if not res:
+        return templates.TemplateResponse("register_sent.html", {
+            "request": request, "email": "", "bad": True})
+    # ยืนยันแล้ว -> ล็อกอินอัตโนมัติ เข้าใช้งานทันที
+    request.session.clear()
+    request.session["uid"] = res["uid"]
+    request.session["username"] = res["username"]
+    request.session["role"] = res.get("role", "user")
+    request.session["tid"] = res["tenant_id"]
+    request.session["name"] = res["display_name"]
+    request.session["must_change"] = False
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/register/resend")
+def register_resend(request: Request, email: str = Form("")):
+    from app.accounts import new_verify_token
+    from app.services.mailer import send_verify_email
+    token = new_verify_token(email)
+    if token:
+        send_verify_email(email.strip().lower(), _verify_link(request, token))
+    return templates.TemplateResponse("register_sent.html", {
+        "request": request, "email": email.strip().lower(), "resent": True})
+
+
+@router.get("/trial-limit", response_class=HTMLResponse)
+def trial_limit_page(request: Request):
+    from app.accounts import tenant_status
+    st = tenant_status(request.session.get("tid"))
+    return templates.TemplateResponse("trial_limit.html", {"request": request, "st": st})
 
 
 @router.get("/sale-thanks", response_class=HTMLResponse)

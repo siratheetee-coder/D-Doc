@@ -54,10 +54,11 @@
   </style>
 </head>
 <body>
+  {% set _home = '/' if request.session.get('uid') else '/landing' %}
   <div class="top">
     <div class="in">
-      <a class="brand" href="/landing"><img src="/static/logo.png" alt="" onerror="this.remove()">D<b>-</b>Doc<b>.</b></a>
-      <a class="back" href="/landing">← กลับหน้าหลัก</a>
+      <a class="brand" href="{{ _home }}"><img src="/static/logo.png" alt="" onerror="this.remove()">D<b>-</b>Doc<b>.</b></a>
+      <a class="back" href="{{ _home }}">← {{ 'กลับหน้าหลักระบบ' if request.session.get('uid') else 'กลับหน้าหลัก' }}</a>
     </div>
   </div>
   <div class="wrap">
