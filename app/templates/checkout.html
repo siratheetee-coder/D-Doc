@@ -33,6 +33,26 @@
   .co-name small{ display:block; font-weight:400; color:var(--muted); font-size:12px; }
   .co-price{ font-weight:700; white-space:nowrap; }
   .co-price::after{ content:" บาท"; font-weight:400; color:var(--muted); font-size:12px; }
+  /* แถบโปรโมชั่นเปิดตัว (แบบ 2) */
+  .promo-band{ border-radius:16px; overflow:hidden; margin-bottom:18px; color:#fff;
+    background:linear-gradient(120deg,#2563eb 0%,#1d4ed8 55%,#0b2a6b 120%); box-shadow:0 16px 40px rgba(29,78,216,.28); }
+  .promo-band .pb-top{ display:flex; align-items:center; gap:18px; padding:18px 20px 14px; flex-wrap:wrap; }
+  .promo-band .pb-lead{ flex:none; padding-right:16px; border-right:1px solid rgba(255,255,255,.22); }
+  .promo-band .pb-yellow{ color:#fbbf24; font-weight:800; font-size:26px; line-height:1.05; letter-spacing:-.3px; }
+  .promo-band .pb-lead-sub{ font-size:12px; opacity:.85; margin-top:2px; }
+  .promo-band .pb-headline{ flex:1; min-width:180px; }
+  .promo-band .pb-h{ font-size:17px; font-weight:700; }
+  .promo-band .pb-h b{ color:#fbbf24; }
+  .promo-band .pb-s{ font-size:12.5px; opacity:.85; }
+  .promo-band .pb-cd{ display:flex; gap:6px; }
+  .promo-band .pb-cd .box{ background:rgba(255,255,255,.14); border-radius:9px; padding:5px 0; width:46px; text-align:center; }
+  .promo-band .pb-cd .box b{ display:block; font-size:17px; font-weight:800; line-height:1.1; }
+  .promo-band .pb-cd .box span{ font-size:9.5px; opacity:.8; }
+  .promo-band .pb-meter{ background:rgba(0,0,0,.16); padding:11px 20px 14px; }
+  .promo-band .pb-mrow{ display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px; }
+  .promo-band .pb-mrow b{ color:#fbbf24; }
+  .promo-band .pb-bar{ height:7px; border-radius:999px; background:rgba(255,255,255,.22); overflow:hidden; }
+  .promo-band .pb-bar i{ display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#fde047,#fbbf24); }
 {% endblock %}
 {% block content %}
 <div class="page-head">
@@ -47,8 +67,22 @@
   <h2>เลือกแพ็กเกจที่ต้องการ</h2>
   <p class="hint" style="margin-top:0;">เลือกงานที่ต้องการ ระบบคิดราคาและอัปเดต QR ให้อัตโนมัติ · ครบทุกงานคุ้มสุด</p>
   {% if promo_active %}
-  <div style="display:inline-flex; align-items:center; gap:8px; background:#fff4e6; border:1px solid #ffd9a8; color:#9a3412; font-size:13.5px; padding:7px 13px; border-radius:999px; margin-bottom:12px;">
-    <svg class="ico" style="width:15px;height:15px;color:#f97316;"><use href="#ic-star"/></svg> ราคาเปิดตัว · เฉพาะ {{ promo_slots }} สิทธิ์แรก · เหลืออีก {{ promo_days_left }} วัน
+  <div class="promo-band" data-promo-end="{{ promo_end_iso }}">
+    <div class="pb-top">
+      <div class="pb-lead">
+        <div class="pb-yellow">โปรเปิดตัว</div>
+        <div class="pb-lead-sub">ลดสูงสุด {{ "{:,}".format(reg.bundle - px.bundle) }} บาท</div>
+      </div>
+      <div class="pb-headline">
+        <div class="pb-h">เลือกแพ็กเกจเต็ม เพียง <b>{{ "{:,}".format(px.bundle) }} บาท/ปี</b></div>
+        <div class="pb-s">จากปกติ {{ "{:,}".format(reg.bundle) }} บาท · ประหยัดทันที {{ "{:,}".format(reg.bundle - px.bundle) }} บาท</div>
+      </div>
+      <div class="pb-cd" data-promo-cd></div>
+    </div>
+    <div class="pb-meter">
+      <div class="pb-mrow"><span>สิทธิ์ราคาพิเศษ</span><span>เหลือ <b>{{ promo_slots_left }}</b> จาก {{ promo_slots }} สิทธิ์</span></div>
+      <div class="pb-bar"><i style="width:{{ (promo_slots_left / promo_slots * 100) if promo_slots else 0 }}%"></i></div>
+    </div>
   </div>
   {% endif %}
   <div class="co-list" id="coList">
@@ -185,6 +219,24 @@
       items.forEach(function(it){ it.querySelector('input').checked = true; }); calc();
     });
     calc();
+  })();
+
+  (function(){
+    var band = document.querySelector('.promo-band[data-promo-end]');
+    if(!band) return;
+    var box = band.querySelector('[data-promo-cd]');
+    var end = new Date(band.dataset.promoEnd + 'T23:59:00');
+    var U = [['วัน',86400],['ชม.',3600],['นาที',60],['วิ',1]];
+    function pad(n){ return (n<10?'0':'')+n; }
+    function tick(){
+      var s = Math.max(0, Math.floor((end - new Date())/1000));
+      var d = Math.floor(s/86400); s-=d*86400;
+      var h = Math.floor(s/3600); s-=h*3600;
+      var m = Math.floor(s/60); var sec = s-m*60;
+      var v = [d,h,m,sec];
+      box.innerHTML = U.map(function(u,i){ return '<div class="box"><b>'+(i===0?v[i]:pad(v[i]))+'</b><span>'+u[0]+'</span></div>'; }).join('');
+    }
+    tick(); setInterval(tick,1000);
   })();
 </script>
 {% endblock %}

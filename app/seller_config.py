@@ -83,7 +83,16 @@ def pricing_context():
             pass
     if active:
         eff = {k: promo.get(k, reg[k]) for k in reg}
+        slots = int(promo.get("slots", 30))
+        try:
+            from app.accounts import members_since
+            used = members_since(promo["start"])
+        except Exception:
+            used = 0
         return {"prices": eff, "regular": reg, "promo_active": True,
-                "promo_days_left": days_left, "promo_slots": int(promo.get("slots", 30))}
+                "promo_days_left": days_left, "promo_slots": slots,
+                "promo_slots_left": max(0, slots - used),
+                "promo_end_iso": end.isoformat()}
     return {"prices": reg, "regular": reg, "promo_active": False,
-            "promo_days_left": 0, "promo_slots": 0}
+            "promo_days_left": 0, "promo_slots": 0,
+            "promo_slots_left": 0, "promo_end_iso": ""}

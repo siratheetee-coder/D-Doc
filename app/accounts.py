@@ -192,6 +192,25 @@ def tenant_state(tenant_id) -> dict | None:
         db.close()
 
 
+def members_since(start) -> int:
+    """นับจำนวนโรงเรียนที่เป็นสมาชิก (จ่ายแล้ว) ตั้งแต่วันที่ start เป็นต้นมา
+    ใช้คิด 'สิทธิ์ที่เหลือ' ของโปรโมชั่นเปิดตัวจากยอดจริง"""
+    from datetime import datetime as _dt
+    if isinstance(start, str):
+        try:
+            start = date.fromisoformat(start.strip())
+        except (ValueError, TypeError):
+            return 0
+    db = acc_session()
+    try:
+        start_dt = _dt.combine(start, _dt.min.time())
+        return (db.query(Tenant)
+                  .filter(Tenant.plan == "member", Tenant.created_at >= start_dt)
+                  .count())
+    finally:
+        db.close()
+
+
 def tenant_status(tenant_id) -> dict | None:
     """สถานะแพ็กเกจสำหรับแสดงในแอป:
     trial -> {plan:'trial', docs_left, docs_limit, docs_used}
