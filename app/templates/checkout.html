@@ -65,7 +65,7 @@
 {% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':590,'bundle':2290}) %}
 <div class="card">
   <h2>เลือกแพ็กเกจที่ต้องการ</h2>
-  <p class="hint" style="margin-top:0;">เลือกงานที่ต้องการ ระบบคิดราคาและอัปเดต QR ให้อัตโนมัติ · ครบทุกงานคุ้มสุด</p>
+  <p class="hint" style="margin-top:0;">เลือกงานที่ต้องการ ระบบคิดราคาและอัปเดต QR ให้อัตโนมัติ</p>
   {% if promo_active %}
   <div class="promo-band" data-promo-end="{{ promo_end_iso }}">
     <div class="pb-top">
@@ -75,7 +75,7 @@
       </div>
       <div class="pb-headline">
         <div class="pb-h">เลือกแพ็กเกจเต็ม เพียง <b>{{ "{:,}".format(px.bundle) }} บาท/ปี</b></div>
-        <div class="pb-s">จากปกติ {{ "{:,}".format(reg.bundle) }} บาท · ประหยัดทันที {{ "{:,}".format(reg.bundle - px.bundle) }} บาท</div>
+        <div class="pb-s">จากปกติ {{ "{:,}".format(reg.bundle) }} บาท ประหยัดทันที {{ "{:,}".format(reg.bundle - px.bundle) }} บาท</div>
       </div>
       <div class="pb-cd" data-promo-cd></div>
     </div>
@@ -89,25 +89,25 @@
     <label class="co-item" data-price="{{ px.p_proc }}" data-name="งานพัสดุ">
       <input type="checkbox" {{ 'checked' if is_all or 'พัสดุ' in pk }}>
       <span class="co-check"></span>
-      <span class="co-name">งานพัสดุ<small>จัดซื้อจัดจ้าง · ทรัพย์สิน · สัญญา · e-GP</small></span>
+      <span class="co-name">งานพัสดุ<small>จัดซื้อจัดจ้าง · ทรัพย์สิน/ครุภัณฑ์ · ใบเบิกพัสดุ สัญญา · ตัวช่วยกรอก e-GP</small></span>
       <span class="co-price">{{ px.p_proc }}</span>
     </label>
     <label class="co-item" data-price="{{ px.p_fin }}" data-name="งานการเงิน">
       <input type="checkbox" {{ 'checked' if is_all or 'การเงิน' in pk }}>
       <span class="co-check"></span>
-      <span class="co-name">งานการเงิน<small>สมุดเงินสด · บัญชีแยกประเภท · สตง.</small></span>
+      <span class="co-name">งานการเงิน<small>สมุดเงินสด · บัญชีแยกประเภท · บัญชีเงินคงเหลือประจำวัน · บันทึกเบิกจ่าย</small></span>
       <span class="co-price">{{ px.p_fin }}</span>
     </label>
     <label class="co-item" data-price="{{ px.p_admin }}" data-name="งานธุรการ">
       <input type="checkbox" {{ 'checked' if is_all or 'ธุรการ' in pk }}>
       <span class="co-check"></span>
-      <span class="co-name">งานธุรการ<small>หนังสือรับ-ส่ง · บันทึก/คำสั่ง · เกียรติบัตร</small></span>
+      <span class="co-name">งานธุรการ<small>หนังสือรับ-ส่ง · บันทึกข้อความ/คำสั่ง · เกียรติบัตร · AI ช่วยเขียนเอกสาร</small></span>
       <span class="co-price">{{ px.p_admin }}</span>
     </label>
     <label class="co-item" data-price="{{ px.p_lunch }}" data-name="งานอาหารกลางวัน">
       <input type="checkbox" {{ 'checked' if is_all or 'อาหาร' in pk }}>
       <span class="co-check"></span>
-      <span class="co-name">งานอาหารกลางวัน<small>คำนวณงบ · เอกสารจ้าง · โภชนาการ</small></span>
+      <span class="co-name">งานอาหารกลางวัน<small>คำนวณงบ · เอกสารจ้าง · ภาวะโภชนาการ</small></span>
       <span class="co-price">{{ px.p_lunch }}</span>
     </label>
   </div>
@@ -155,7 +155,7 @@
   </div>
   <div class="grid2">
     <div>
-      <label>ชื่อโรงเรียน/หน่วยงาน (สำหรับใบเสร็จ) <span class="req">*</span></label>
+      <label>ชื่อโรงเรียน/หน่วยงาน (สำหรับออกใบเสร็จ) <span class="req">*</span></label>
       <input name="school_name" required placeholder="เช่น โรงเรียนบ้านหินลาด" value="{{ acct_school or '' }}">
     </div>
     <div>

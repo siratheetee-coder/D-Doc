@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>D-Doc | ตั้งรหัสผ่านใหม่</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <style>
+    @font-face { font-family:"Prompt"; font-weight:400; src:url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:600; src:url("/static/fonts/Prompt-SemiBold.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:700; src:url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+      font-family:"Prompt","Sarabun","Leelawadee UI","Segoe UI",sans-serif;
+      background:linear-gradient(135deg,#3568e0,#4880FF 55%,#6f9bff); color:#202224; padding:20px; }
+    .card { background:#fff; width:100%; max-width:400px; border-radius:18px; padding:34px 30px;
+      box-shadow:0 20px 50px rgba(16,24,40,.30); }
+    .brand { display:flex; flex-direction:column; align-items:center; gap:8px; margin-bottom:14px; }
+    .brand img { width:56px; height:56px; object-fit:contain; }
+    .brand .name { font-size:24px; font-weight:800; }
+    h1 { font-size:20px; margin:6px 0 4px; text-align:center; }
+    p.lead { color:#5b6b84; font-size:14.5px; text-align:center; margin:0 0 8px; }
+    label { display:block; margin:14px 0 5px; font-weight:600; font-size:15px; }
+    input { width:100%; padding:11px 13px; border:1px solid #dfe3ea; border-radius:10px; font-size:16px; font-family:inherit; }
+    input:focus { outline:none; border-color:#4880FF; box-shadow:0 0 0 3px rgba(72,128,255,.18); }
+    .hint { color:#8b93a3; font-size:12.5px; margin-top:5px; }
+    .btn { width:100%; margin-top:20px; background:#4880FF; color:#fff; border:none; padding:12px;
+      border-radius:11px; font-size:16px; font-weight:700; cursor:pointer; font-family:inherit; }
+    .btn:hover { background:#3568e0; }
+    .back { display:block; text-align:center; margin-top:16px; color:#5b6b84; font-size:14px; text-decoration:none; }
+    .back:hover { color:#4880FF; }
+    .err { background:#fde8e8; color:#b91c1c; border:1px solid #f7caca; padding:10px 13px;
+      border-radius:10px; font-size:14.5px; margin-bottom:6px; }
+    .icon-bad { width:56px; height:56px; margin:0 auto 12px; border-radius:50%; background:#fde8e8;
+      display:flex; align-items:center; justify-content:center; font-size:28px; color:#dc2626; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <img src="/static/logo.png" alt="D-Doc">
+      <span class="name">D-Doc</span>
+    </div>
+    {% if valid %}
+      <h1>ตั้งรหัสผ่านใหม่</h1>
+      <p class="lead">ตั้งรหัสผ่านใหม่สำหรับบัญชีของคุณ</p>
+      {% if error %}<div class="err">{{ error }}</div>{% endif %}
+      <form method="post" action="/reset">
+        <input type="hidden" name="token" value="{{ token }}">
+        <label>รหัสผ่านใหม่</label>
+        <input name="password" type="password" autocomplete="new-password" required autofocus minlength="6">
+        <div class="hint">อย่างน้อย 6 ตัวอักษร</div>
+        <label>ยืนยันรหัสผ่านใหม่</label>
+        <input name="password2" type="password" autocomplete="new-password" required minlength="6">
+        <button class="btn" type="submit">บันทึกรหัสผ่านใหม่</button>
+      </form>
+      <a class="back" href="/login">← กลับไปหน้าเข้าสู่ระบบ</a>
+    {% else %}
+      <div class="icon-bad">!</div>
+      <h1>ลิงก์ใช้ไม่ได้</h1>
+      <p class="lead">{{ error or "ลิงก์รีเซ็ตหมดอายุหรือไม่ถูกต้อง" }} กรุณาขอลิงก์ใหม่อีกครั้ง</p>
+      <a class="btn" href="/forgot" style="display:block; text-align:center; text-decoration:none; margin-top:18px;">ขอลิงก์รีเซ็ตใหม่</a>
+      <a class="back" href="/login">← กลับไปหน้าเข้าสู่ระบบ</a>
+    {% endif %}
+  </div>
+</body>
+</html>

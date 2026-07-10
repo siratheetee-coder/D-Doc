@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>D-Doc | ลืมรหัสผ่าน</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <style>
+    @font-face { font-family:"Prompt"; font-weight:400; src:url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:600; src:url("/static/fonts/Prompt-SemiBold.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:700; src:url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+      font-family:"Prompt","Sarabun","Leelawadee UI","Segoe UI",sans-serif;
+      background:linear-gradient(135deg,#3568e0,#4880FF 55%,#6f9bff); color:#202224; padding:20px; }
+    .card { background:#fff; width:100%; max-width:400px; border-radius:18px; padding:34px 30px;
+      box-shadow:0 20px 50px rgba(16,24,40,.30); }
+    .brand { display:flex; flex-direction:column; align-items:center; gap:8px; margin-bottom:14px; }
+    .brand img { width:56px; height:56px; object-fit:contain; }
+    .brand .name { font-size:24px; font-weight:800; }
+    h1 { font-size:20px; margin:6px 0 4px; text-align:center; }
+    p.lead { color:#5b6b84; font-size:14.5px; text-align:center; margin:0 0 18px; }
+    label { display:block; margin:14px 0 5px; font-weight:600; font-size:15px; }
+    input { width:100%; padding:11px 13px; border:1px solid #dfe3ea; border-radius:10px; font-size:16px; font-family:inherit; }
+    input:focus { outline:none; border-color:#4880FF; box-shadow:0 0 0 3px rgba(72,128,255,.18); }
+    .btn { width:100%; margin-top:20px; background:#4880FF; color:#fff; border:none; padding:12px;
+      border-radius:11px; font-size:16px; font-weight:700; cursor:pointer; font-family:inherit; }
+    .btn:hover { background:#3568e0; }
+    .back { display:block; text-align:center; margin-top:16px; color:#5b6b84; font-size:14px; text-decoration:none; }
+    .back:hover { color:#4880FF; }
+    .ok { background:#e9f7ef; color:#0e7a44; border:1px solid #b7ebcd; padding:14px 15px;
+      border-radius:12px; font-size:14.5px; line-height:1.6; }
+    .warn { background:#fff7e6; color:#a15c07; border:1px solid #ffe0a8; padding:10px 13px;
+      border-radius:10px; font-size:13px; margin-top:12px; }
+    .icon-ok { width:56px; height:56px; margin:0 auto 12px; border-radius:50%; background:#e9f7ef;
+      display:flex; align-items:center; justify-content:center; font-size:28px; color:#16a34a; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <img src="/static/logo.png" alt="D-Doc">
+      <span class="name">D-Doc</span>
+    </div>
+    {% if sent %}
+      <div class="icon-ok">✓</div>
+      <h1>ตรวจสอบอีเมลของคุณ</h1>
+      <div class="ok">ถ้ามีบัญชีที่ผูกกับ <b>{{ email }}</b> เราได้ส่งลิงก์สำหรับตั้งรหัสผ่านใหม่ไปให้แล้ว
+        กรุณาเปิดอีเมลแล้วกดลิงก์ (ลิงก์มีอายุ 1 ชั่วโมง)</div>
+      {% if no_smtp %}<div class="warn">⚠ ระบบยังไม่ได้ตั้งค่าการส่งอีเมล (SMTP) — บนเครื่องนี้จะยังไม่มีอีเมลส่งจริง</div>{% endif %}
+      <a class="back" href="/login">← กลับไปหน้าเข้าสู่ระบบ</a>
+    {% else %}
+      <h1>ลืมรหัสผ่าน?</h1>
+      <p class="lead">กรอกอีเมลที่ใช้ลงทะเบียน เราจะส่งลิงก์ตั้งรหัสผ่านใหม่ไปให้</p>
+      <form method="post" action="/forgot">
+        <label>อีเมล</label>
+        <input name="email" type="email" autocomplete="email" required autofocus placeholder="you@example.com">
+        <button class="btn" type="submit">ส่งลิงก์รีเซ็ตรหัสผ่าน</button>
+      </form>
+      <a class="back" href="/login">← กลับไปหน้าเข้าสู่ระบบ</a>
+    {% endif %}
+  </div>
+</body>
+</html>

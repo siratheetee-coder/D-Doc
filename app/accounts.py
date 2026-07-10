@@ -57,6 +57,8 @@ class Account(AccBase):
     must_change_password = Column(Boolean, default=False)   # บังคับเปลี่ยนรหัสครั้งแรก
     verified = Column(Boolean, default=True)        # ยืนยันอีเมลแล้วหรือยัง (สมัครใหม่ = False ถ้าเปิด SMTP)
     verify_token = Column(String, default="")       # โทเคนยืนยันอีเมล (ล้างเมื่อยืนยันแล้ว)
+    reset_token = Column(String, default="")        # โทเคนรีเซ็ตรหัสผ่าน (ล้างเมื่อใช้แล้ว)
+    reset_expires = Column(DateTime, nullable=True)  # วันหมดอายุของลิงก์รีเซ็ต
     created_at = Column(DateTime, default=datetime.now)
 
     tenant = relationship("Tenant", back_populates="accounts")
@@ -111,7 +113,9 @@ def _ensure_engine():
                     "ALTER TABLE tenant ADD COLUMN docs_used INTEGER DEFAULT 0",
                     "ALTER TABLE tenant ADD COLUMN docs_limit INTEGER DEFAULT 0",
                     "ALTER TABLE account ADD COLUMN verified BOOLEAN DEFAULT 1",
-                    "ALTER TABLE account ADD COLUMN verify_token VARCHAR DEFAULT ''"):
+                    "ALTER TABLE account ADD COLUMN verify_token VARCHAR DEFAULT ''",
+                    "ALTER TABLE account ADD COLUMN reset_token VARCHAR DEFAULT ''",
+                    "ALTER TABLE account ADD COLUMN reset_expires DATETIME"):
             try:
                 conn = _engine.raw_connection(); cur = conn.cursor()
                 cur.execute(sql); conn.commit(); conn.close()
@@ -499,6 +503,60 @@ def new_verify_token(email: str) -> str | None:
         a.verify_token = secrets.token_urlsafe(24)
         db.commit()
         return a.verify_token
+    finally:
+        db.close()
+
+
+def create_reset_token(email: str) -> str | None:
+    """ออกโทเคนรีเซ็ตรหัสผ่าน (อายุ 1 ชม.) คืนโทเคน หรือ None ถ้าไม่พบอีเมล/บัญชีถูกระงับ"""
+    import secrets
+    from datetime import timedelta
+    db = acc_session()
+    try:
+        a = db.query(Account).filter_by(username=(email or "").strip().lower()).first()
+        if not a or not a.active:
+            return None
+        a.reset_token = secrets.token_urlsafe(24)
+        a.reset_expires = datetime.now() + timedelta(hours=1)
+        db.commit()
+        return a.reset_token
+    finally:
+        db.close()
+
+
+def account_by_reset_token(token: str):
+    """ตรวจโทเคนรีเซ็ต -> คืน {uid, username} ถ้ายังไม่หมดอายุ หรือ None"""
+    token = (token or "").strip()
+    if not token:
+        return None
+    db = acc_session()
+    try:
+        a = db.query(Account).filter_by(reset_token=token).first()
+        if not a or not a.reset_expires or a.reset_expires < datetime.now():
+            return None
+        return {"uid": a.id, "username": a.username}
+    finally:
+        db.close()
+
+
+def reset_password_with_token(token: str, new_password: str) -> dict:
+    """ตั้งรหัสผ่านใหม่จากโทเคนรีเซ็ต -> {ok, username} หรือ {error}
+    ผู้ที่รีเซ็ตได้ = เข้าถึงอีเมลจริง จึงถือว่ายืนยันอีเมลแล้วด้วย"""
+    token = (token or "").strip()
+    if len(new_password or "") < 6:
+        return {"error": "รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร"}
+    db = acc_session()
+    try:
+        a = db.query(Account).filter_by(reset_token=token).first()
+        if not a or not a.reset_expires or a.reset_expires < datetime.now():
+            return {"error": "ลิงก์รีเซ็ตหมดอายุหรือไม่ถูกต้อง กรุณาขอลิงก์ใหม่"}
+        a.password_hash = hash_password(new_password)
+        a.reset_token = ""
+        a.reset_expires = None
+        a.must_change_password = False
+        a.verified = True
+        db.commit()
+        return {"ok": True, "username": a.username}
     finally:
         db.close()
 

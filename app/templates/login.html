@@ -26,8 +26,19 @@
     .btn { width:100%; margin-top:22px; background:#4880FF; color:#fff; border:none; padding:12px;
       border-radius:11px; font-size:17px; font-weight:700; cursor:pointer; font-family:inherit; }
     .btn:hover { background:#3568e0; }
+    .btn-outline { display:block; width:100%; margin-top:11px; text-align:center; text-decoration:none;
+      background:#fff; color:#3568e0; border:1.5px solid #cddbf7; padding:11px; border-radius:11px;
+      font-size:16px; font-weight:700; }
+    .btn-outline:hover { border-color:#4880FF; background:#f5f8ff; }
     .err { background:#fde8e8; color:#b91c1c; border:1px solid #f7caca; padding:10px 13px;
       border-radius:10px; font-size:14.5px; margin-bottom:6px; }
+    .ok { background:#e9f7ef; color:#0e7a44; border:1px solid #b7ebcd; padding:10px 13px;
+      border-radius:10px; font-size:14.5px; margin-bottom:6px; }
+    .forgot { text-align:right; margin-top:9px; }
+    .forgot a { color:#5b6b84; font-size:13.5px; text-decoration:none; }
+    .forgot a:hover { color:#4880FF; text-decoration:underline; }
+    .sep { display:flex; align-items:center; gap:12px; margin:22px 0 4px; color:#9aa3b2; font-size:13px; }
+    .sep::before, .sep::after { content:""; flex:1; height:1px; background:#e6ebf3; }
   </style>
 </head>
 <body>
@@ -37,12 +48,16 @@
       <span class="name">D-Doc</span>
       <span class="sub">ระบบจัดการเอกสารและพัสดุโรงเรียน</span>
     </div>
+    {% if ok_msg %}<div class="ok">{{ ok_msg }}</div>{% endif %}
     {% if error %}<div class="err">{{ error }}</div>{% endif %}
-    <label>ชื่อผู้ใช้</label>
+    <label>ชื่อผู้ใช้ (อีเมล)</label>
     <input name="username" autocomplete="username" required autofocus>
     <label>รหัสผ่าน</label>
     <input name="password" type="password" autocomplete="current-password" required>
+    <div class="forgot"><a href="/forgot">ลืมรหัสผ่าน?</a></div>
     <button class="btn" type="submit">เข้าสู่ระบบ</button>
+    <div class="sep">ยังไม่มีบัญชี?</div>
+    <a class="btn-outline" href="/register">ลงทะเบียน / ทดลองใช้ฟรี</a>
   </form>
 </body>
 </html>

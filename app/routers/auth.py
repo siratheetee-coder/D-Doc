@@ -40,12 +40,13 @@ def landing_page(request: Request):
 
 
 @router.get("/login", response_class=HTMLResponse)
-def login_page(request: Request, error: str | None = None):
+def login_page(request: Request, error: str | None = None, ok: str | None = None):
     # ถ้าล็อกอินอยู่แล้ว ส่งไปหน้าที่เหมาะสม
     if request.session.get("uid"):
         dest = "/admin-console" if request.session.get("role") == "superadmin" else "/"
         return RedirectResponse(dest, status_code=303)
-    return templates.TemplateResponse("login.html", {"request": request, "error": error})
+    msg = "ตั้งรหัสผ่านใหม่เรียบร้อยแล้ว เข้าสู่ระบบด้วยรหัสใหม่ได้เลย" if ok == "reset" else None
+    return templates.TemplateResponse("login.html", {"request": request, "error": error, "ok_msg": msg})
 
 
 @router.post("/login")
@@ -85,3 +86,53 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
 def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/login", status_code=303)
+
+
+# ---------------- ลืมรหัสผ่าน / รีเซ็ต (ยืนยันผ่านลิงก์อีเมล) ----------------
+def _abs_link(request: Request, path: str) -> str:
+    from app.seller_config import SELLER
+    base = (SELLER.get("base_url") or "").strip().rstrip("/") or str(request.base_url).rstrip("/")
+    return base + path
+
+
+@router.get("/forgot", response_class=HTMLResponse)
+def forgot_page(request: Request):
+    return templates.TemplateResponse("forgot.html", {"request": request, "sent": False})
+
+
+@router.post("/forgot", response_class=HTMLResponse)
+def forgot_submit(request: Request, email: str = Form("")):
+    from app.accounts import create_reset_token
+    from app.services.mailer import send_reset_email, smtp_configured
+    token = create_reset_token(email)
+    if token:
+        send_reset_email(email.strip().lower(), _abs_link(request, f"/reset?token={token}"))
+    # แสดงข้อความเดียวกันเสมอ (ไม่บอกว่าอีเมลมีอยู่จริงไหม เพื่อกันการสแกนอีเมล)
+    return templates.TemplateResponse("forgot.html", {
+        "request": request, "sent": True, "email": email.strip().lower(),
+        "no_smtp": not smtp_configured()})
+
+
+@router.get("/reset", response_class=HTMLResponse)
+def reset_page(request: Request, token: str = ""):
+    from app.accounts import account_by_reset_token
+    valid = account_by_reset_token(token)
+    return templates.TemplateResponse("reset.html", {
+        "request": request, "token": token, "valid": bool(valid), "error": None})
+
+
+@router.post("/reset", response_class=HTMLResponse)
+def reset_submit(request: Request, token: str = Form(""),
+                 password: str = Form(""), password2: str = Form("")):
+    if password != password2:
+        return templates.TemplateResponse("reset.html", {
+            "request": request, "token": token, "valid": True,
+            "error": "รหัสผ่านทั้งสองช่องไม่ตรงกัน"})
+    from app.accounts import reset_password_with_token
+    res = reset_password_with_token(token, password)
+    if res.get("error"):
+        # โทเคนหมดอายุ -> valid=False (โชว์ให้ขอใหม่), รหัสสั้น -> valid=True (แก้ในฟอร์มเดิม)
+        expired = "หมดอายุ" in res["error"]
+        return templates.TemplateResponse("reset.html", {
+            "request": request, "token": token, "valid": not expired, "error": res["error"]})
+    return RedirectResponse("/login?ok=reset", status_code=303)
