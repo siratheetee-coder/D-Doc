@@ -42,39 +42,45 @@
 
 {% set pk = packages or 'ครบทุกงาน' %}
 {% set is_all = ('ครบทุกงาน' in pk) or (not packages) %}
+{% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':590,'bundle':2290}) %}
 <div class="card">
   <h2>เลือกแพ็กเกจที่ต้องการ</h2>
   <p class="hint" style="margin-top:0;">เลือกงานที่ต้องการ ระบบคิดราคาและอัปเดต QR ให้อัตโนมัติ · ครบทุกงานคุ้มสุด</p>
+  {% if promo_active %}
+  <div style="display:inline-flex; align-items:center; gap:8px; background:#fff4e6; border:1px solid #ffd9a8; color:#9a3412; font-size:13.5px; padding:7px 13px; border-radius:999px; margin-bottom:12px;">
+    <svg class="ico" style="width:15px;height:15px;color:#f97316;"><use href="#ic-star"/></svg> ราคาเปิดตัว · เฉพาะ {{ promo_slots }} สิทธิ์แรก · เหลืออีก {{ promo_days_left }} วัน
+  </div>
+  {% endif %}
   <div class="co-list" id="coList">
-    <label class="co-item" data-price="890" data-name="งานพัสดุ">
+    <label class="co-item" data-price="{{ px.p_proc }}" data-name="งานพัสดุ">
       <input type="checkbox" {{ 'checked' if is_all or 'พัสดุ' in pk }}>
       <span class="co-check"></span>
       <span class="co-name">งานพัสดุ<small>จัดซื้อจัดจ้าง · ทรัพย์สิน · สัญญา · e-GP</small></span>
-      <span class="co-price">890</span>
+      <span class="co-price">{{ px.p_proc }}</span>
     </label>
-    <label class="co-item" data-price="690" data-name="งานการเงิน">
+    <label class="co-item" data-price="{{ px.p_fin }}" data-name="งานการเงิน">
       <input type="checkbox" {{ 'checked' if is_all or 'การเงิน' in pk }}>
       <span class="co-check"></span>
       <span class="co-name">งานการเงิน<small>สมุดเงินสด · บัญชีแยกประเภท · สตง.</small></span>
-      <span class="co-price">690</span>
+      <span class="co-price">{{ px.p_fin }}</span>
     </label>
-    <label class="co-item" data-price="590" data-name="งานธุรการ">
+    <label class="co-item" data-price="{{ px.p_admin }}" data-name="งานธุรการ">
       <input type="checkbox" {{ 'checked' if is_all or 'ธุรการ' in pk }}>
       <span class="co-check"></span>
       <span class="co-name">งานธุรการ<small>หนังสือรับ-ส่ง · บันทึก/คำสั่ง · เกียรติบัตร</small></span>
-      <span class="co-price">590</span>
+      <span class="co-price">{{ px.p_admin }}</span>
     </label>
-    <label class="co-item" data-price="590" data-name="งานอาหารกลางวัน">
+    <label class="co-item" data-price="{{ px.p_lunch }}" data-name="งานอาหารกลางวัน">
       <input type="checkbox" {{ 'checked' if is_all or 'อาหาร' in pk }}>
       <span class="co-check"></span>
       <span class="co-name">งานอาหารกลางวัน<small>คำนวณงบ · เอกสารจ้าง · โภชนาการ</small></span>
-      <span class="co-price">590</span>
+      <span class="co-price">{{ px.p_lunch }}</span>
     </label>
   </div>
-  <button type="button" class="btn btn-ghost" id="coAll" style="margin-top:12px; width:100%;">เลือกครบทุกงาน (คุ้มสุด 2,290 บาท)</button>
+  <button type="button" class="btn btn-ghost" id="coAll" style="margin-top:12px; width:100%;">เลือกครบทุกงาน (คุ้มสุด {{ "{:,}".format(px.bundle) }} บาท)</button>
   <div class="bank-row" style="margin-top:14px; border-bottom:0;">
     <span style="font-weight:600;">ยอดชำระ (ต่ออายุ 1 ปี)</span>
-    <span class="amt"><span id="coAmount">2,290</span> <small style="font-size:14px; color:var(--muted); font-weight:500;">บาท/ปี</small></span>
+    <span class="amt"><span id="coAmount">{{ "{:,}".format(px.bundle) }}</span> <small style="font-size:14px; color:var(--muted); font-weight:500;">บาท/ปี</small></span>
   </div>
 </div>
 
@@ -84,11 +90,11 @@
     <div class="qr-box">
       {% if seller.promptpay_dynamic %}
         <div style="font-size:12px; color:var(--green); font-weight:600; margin-bottom:6px;">✓ QR พร้อมเพย์ระบุยอดอัตโนมัติ</div>
-        <img id="coQR" src="/checkout/promptpay.png?amount={{ amount or 2290 }}" alt="PromptPay QR">
-        <div class="hint">สแกน QR นี้ ยอด <b><span id="coQRhint">2,290.00</span> บาท</b> จะขึ้นให้อัตโนมัติ</div>
+        <img id="coQR" src="/checkout/promptpay.png?amount={{ amount or px.bundle }}" alt="PromptPay QR">
+        <div class="hint">สแกน QR นี้ ยอด <b><span id="coQRhint">{{ "{:,.2f}".format(px.bundle) }}</span> บาท</b> จะขึ้นให้อัตโนมัติ</div>
       {% elif seller.promptpay_qr_exists %}
         <img src="{{ seller.promptpay_qr }}" alt="PromptPay QR">
-        <div class="hint">สแกน QR แล้วกรอกยอด {{ "{:,.0f}".format(amount) if amount else '2,290' }} บาท</div>
+        <div class="hint">สแกน QR แล้วกรอกยอด {{ "{:,.0f}".format(amount) if amount else "{:,}".format(px.bundle) }} บาท</div>
       {% else %}
         <div class="qr-none">ตั้งค่า promptpay_id ใน seller_local.py<br>หรือวางรูป QR ที่ app/static/landing/promptpay.png</div>
       {% endif %}
@@ -109,7 +115,7 @@
 <form class="card" method="post" action="/checkout" enctype="multipart/form-data">
   <h2>แจ้งชำระเงิน</h2>
   <input type="hidden" name="packages" id="fPackages" value="{{ packages or 'ครบทุกงาน' }}">
-  <input type="hidden" name="amount" id="fAmount" value="{{ amount or 2290 }}">
+  <input type="hidden" name="amount" id="fAmount" value="{{ amount or px.bundle }}">
   <div style="background:#eef4ff; border:1px solid #cddffb; border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:14px;">
     ชำระเงินเพื่อ<b>ต่ออายุบัญชี 1 ปี</b> สำหรับ: <b>{{ acct_email }}</b>{% if acct_school %} · {{ acct_school }}{% endif %}
   </div>
@@ -151,7 +157,7 @@
 
 <script>
   (function(){
-    var BUNDLE = 2290;
+    var BUNDLE = {{ px.bundle }};
     var items = [].slice.call(document.querySelectorAll('#coList .co-item'));
     var amtEl = document.getElementById('coAmount');
     var qr = document.getElementById('coQR');

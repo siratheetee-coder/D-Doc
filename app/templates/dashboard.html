@@ -20,8 +20,8 @@
 <div class="hero">
   <div>
     <div class="hero-sub">ระบบจัดการเอกสารและพัสดุ</div>
-    <span class="hero-title">{{ school.name or "ยังไม่ได้ตั้งชื่อโรงเรียน" }}</span>
-    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }}</div>
+    <span class="hero-title">{{ school.name or "ยังตั้งค่าโรงเรียนไม่ครบ" }}</span>
+    <div class="hero-meta">{% if not school.name %}เพื่อให้เอกสารมีข้อมูลครบถ้วน ควรกรอกข้อมูลโรงเรียนก่อน · {% endif %}ปีงบประมาณ {{ fiscal_year }}</div>
   </div>
   <a class="btn" href="/procurement/new"><svg class="icon"><use href="#ic-plus"/></svg> สร้างเรื่องใหม่</a>
 </div>

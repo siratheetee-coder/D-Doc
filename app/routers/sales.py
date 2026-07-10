@@ -82,11 +82,13 @@ def checkout_page(request: Request, packages: str = "", amount: str = ""):
     if not request.session.get("uid"):
         from urllib.parse import quote as _q
         return RedirectResponse(f"/register?next=checkout&packages={_q(packages)}&amount={amount}", status_code=303)
+    from app.seller_config import pricing_context
     return templates.TemplateResponse("checkout.html", {
         "request": request, "packages": packages,
         "amount": _to_float(amount, 0.0), "seller": _seller_ctx(),
         "acct_email": request.session.get("username", ""),
         "acct_school": request.session.get("name", ""),
+        **pricing_context(),
     })
 
 

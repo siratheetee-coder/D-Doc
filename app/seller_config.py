@@ -30,6 +30,16 @@ SELLER = {
     # ---- AI key กลาง (หลังบ้านอย่างเดียว) เปิดใช้เฉพาะสมาชิก ----
     "ai_api_key": "",                         # Anthropic API key ของคุณ (ตั้งใน seller_local.py) เว้นว่าง = ปิด AI
 
+    # ---- โปรโมชั่นเปิดตัว (แก้ enabled/start เพื่อเปิด) ----
+    "promo": {
+        "enabled": False,                     # เปิดโปร -> True
+        "start": "",                          # วันเริ่มนับ เช่น "2026-07-20" (โปร 7 วันจากวันนี้)
+        "days": 7,
+        "slots": 30,                          # จำกัดกี่สิทธิ์แรก (แสดงเป็นข้อความ)
+        "bundle": 1960,                       # ราคาครบทุกงานช่วงโปร
+        "p_proc": 690, "p_fin": 490, "p_admin": 390, "p_lunch": 390,   # ราคาต่องานช่วงโปร
+    },
+
     # ---- SMTP สำหรับส่งอีเมลยืนยัน (ตั้งใน seller_local.py) ----
     # ถ้าไม่ตั้ง -> ระบบข้ามการยืนยันอีเมล (ใช้งาน local ได้เลย)
     "smtp_host": "",                          # เช่น smtp.gmail.com
@@ -46,3 +56,34 @@ try:
     SELLER.update(SELLER_LOCAL)
 except ImportError:
     pass
+
+
+# ---- ราคาปกติ (ยึดเป็นราคาตั้งต้น/ราคาขีดฆ่าตอนมีโปร) ----
+REGULAR_PRICES = {"p_proc": 890, "p_fin": 690, "p_admin": 590, "p_lunch": 590, "bundle": 2290}
+
+
+def pricing_context():
+    """คืนราคาที่ใช้จริง + สถานะโปรโมชั่น (สำหรับหน้า landing/checkout)
+
+    - โปรปิด หรือยังไม่ถึง/เลยกำหนด -> ใช้ราคาปกติ (promo_active=False)
+    - โปรเปิดและอยู่ในช่วง -> ใช้ราคาโปร + นับวันเหลือ (promo_active=True)
+    """
+    from datetime import date, timedelta
+    reg = dict(REGULAR_PRICES)
+    promo = SELLER.get("promo") or {}
+    active, days_left = False, 0
+    if promo.get("enabled") and promo.get("start"):
+        try:
+            start = date.fromisoformat(str(promo["start"]).strip())
+            end = start + timedelta(days=int(promo.get("days", 7)))
+            if start <= date.today() <= end:
+                active = True
+                days_left = (end - date.today()).days + 1   # รวมวันนี้
+        except (ValueError, TypeError):
+            pass
+    if active:
+        eff = {k: promo.get(k, reg[k]) for k in reg}
+        return {"prices": eff, "regular": reg, "promo_active": True,
+                "promo_days_left": days_left, "promo_slots": int(promo.get("slots", 30))}
+    return {"prices": reg, "regular": reg, "promo_active": False,
+            "promo_days_left": 0, "promo_slots": 0}

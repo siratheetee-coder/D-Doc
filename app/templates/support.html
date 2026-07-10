@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}ติดต่อเจ้าหน้าที่{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">แจ้งปัญหา สอบถามการใช้งาน หรือให้คะแนน</div>
+    <span class="hero-title">ติดต่อเจ้าหน้าที่</span>
+    <div class="hero-meta">ทีมงานยินดีช่วยเหลือ · ตอบกลับผ่านอีเมล/Facebook</div>
+  </div>
+</div>
+
+{% if sent %}<div class="alert">✔ ส่งข้อความถึงเจ้าหน้าที่แล้ว ทีมงานจะติดต่อกลับโดยเร็ว</div>{% endif %}
+{% if rated %}<div class="alert">✔ ขอบคุณสำหรับคะแนนและรีวิว 🙏</div>{% endif %}
+
+<div class="row">
+  <!-- 1. แจ้งปัญหา -->
+  <div class="card" style="flex:1; min-width:320px;">
+    <h2><svg class="icon"><use href="#ic-file"/></svg> แจ้งปัญหา / สอบถาม</h2>
+    <p class="muted" style="margin-top:0;">พิมพ์รายละเอียดปัญหาหรือคำถาม ทีมงานจะตอบกลับทางอีเมลที่คุณลงทะเบียนไว้</p>
+    <form method="post" action="/support">
+      <textarea name="message" required rows="5" placeholder="เช่น ออกเอกสารแล้วข้อมูลไม่ครบ / ใช้ฟีเจอร์นี้ยังไง / พบข้อผิดพลาด..."
+                style="width:100%; padding:11px 13px; border:1px solid #dfe3ea; border-radius:10px; font-family:inherit; font-size:15.5px; resize:vertical;"></textarea>
+      <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-send"/></svg> ส่งถึงเจ้าหน้าที่</button>
+    </form>
+  </div>
+
+  <!-- 2. Facebook -->
+  <div class="card" style="flex:1; min-width:320px;">
+    <h2>ติดต่อผ่าน Facebook</h2>
+    <p class="muted" style="margin-top:0;">แชทสอบถามแบบเรียลไทม์ผ่านเพจของเรา</p>
+    <a class="btn" href="{{ facebook or '#' }}" target="_blank" rel="noopener"
+       style="background:#1877f2; border-color:#1877f2;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-3px;">
+        <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+      เปิด Facebook Page
+    </a>
+    <div class="muted" style="font-size:13px; margin-top:12px;">เวลาทำการ จันทร์–ศุกร์ 08.30–17.00 น.</div>
+  </div>
+</div>
+
+<!-- 3. รีวิวให้ดาว -->
+<div class="card">
+  <h2>ให้คะแนนการใช้งาน</h2>
+  <p class="muted" style="margin-top:0;">รีวิวของคุณช่วยให้เราพัฒนาระบบให้ดีขึ้น</p>
+  <form method="post" action="/support/review">
+    <div class="stars" id="stars" style="font-size:38px; line-height:1; color:#e2e8f0; user-select:none;">
+      <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+    </div>
+    <input type="hidden" name="stars" id="starVal" value="5">
+    <label style="display:block; margin:14px 0 5px; font-weight:600;">ความคิดเห็น (ไม่บังคับ)</label>
+    <textarea name="comment" rows="3" placeholder="สิ่งที่ชอบ / อยากให้เพิ่ม"
+              style="width:100%; max-width:560px; padding:11px 13px; border:1px solid #dfe3ea; border-radius:10px; font-family:inherit; font-size:15.5px; resize:vertical;"></textarea>
+    <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-star"/></svg> ส่งรีวิว</button>
+  </form>
+</div>
+
+<script>
+  (function(){
+    var wrap = document.getElementById('stars');
+    var val = document.getElementById('starVal');
+    var stars = [].slice.call(wrap.querySelectorAll('span'));
+    function paint(n){ stars.forEach(function(s){ s.style.color = (+s.dataset.v <= n) ? '#f59e0b' : '#e2e8f0'; }); }
+    stars.forEach(function(s){
+      s.style.cursor = 'pointer';
+      s.addEventListener('mouseenter', function(){ paint(+s.dataset.v); });
+      s.addEventListener('click', function(){ val.value = s.dataset.v; paint(+s.dataset.v); });
+    });
+    wrap.addEventListener('mouseleave', function(){ paint(+val.value); });
+    paint(5);
+  })();
+</script>
+{% endblock %}

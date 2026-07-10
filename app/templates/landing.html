@@ -243,6 +243,15 @@
   .pick-sum .btn{ width:100%; justify-content:center; margin-top:18px; }
   .pick-sum .note{ text-align:center; color:var(--muted); font-size:11.5px; margin-top:10px; }
   .price-foot{ text-align:center; color:var(--muted); font-size:13.5px; margin-top:26px; }
+  .pick-price s{ color:var(--muted); font-weight:500; margin-right:6px; opacity:.7; }
+  .promo-band{ display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap;
+    max-width:640px; margin:-24px auto 34px; padding:12px 20px; border-radius:14px;
+    background:linear-gradient(90deg,#fff4e6,#ffe9e9); border:1px solid #ffd9a8; }
+  .promo-band .promo-tag{ display:inline-flex; align-items:center; gap:6px; background:#f97316; color:#fff;
+    font-weight:700; font-size:13.5px; padding:5px 12px; border-radius:999px; white-space:nowrap; }
+  .promo-band .promo-tag .ico{ width:15px; height:15px; }
+  .promo-band .promo-txt{ color:#9a3412; font-size:14.5px; }
+  .promo-band .promo-txt b{ color:#c2410c; }
 
   /* ---------- ปิดท้าย ---------- */
   .cta-final{ padding:90px 0; text-align:center; background:var(--bg-soft); }
@@ -491,6 +500,8 @@
 </section>
 
 <!-- ================= ราคา (เลือกงานที่ต้องการ รายปี) ================= -->
+{% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':590,'bundle':2290}) %}
+{% set reg = regular | default({'bundle':2760}) %}
 <section class="pricing" id="pricing">
   <div class="wrap">
     <div class="sec-head">
@@ -498,37 +509,44 @@
       <p>ราคารายปี · เลือกกี่งานก็ได้ · เลือกครบทุกงานคุ้มกว่า · ทะเบียนนักเรียนกลางแถมฟรีทุกแพ็กเกจ</p>
     </div>
 
+    {% if promo_active %}
+    <div class="promo-band">
+      <span class="promo-tag"><svg class="ico"><use href="#ic-star"/></svg> ราคาเปิดตัว</span>
+      <span class="promo-txt">ลดพิเศษเฉพาะ <b>{{ promo_slots }} สิทธิ์แรก</b> · เหลืออีก <b>{{ promo_days_left }} วัน</b></span>
+    </div>
+    {% endif %}
+
     <div class="pick-wrap">
       <!-- รายการงานให้เลือก -->
       <div>
         <div class="pick-list" id="pickList">
-          <label class="pick-item" data-price="890">
+          <label class="pick-item" data-price="{{ px.p_proc }}">
             <input type="checkbox" checked>
             <span class="pick-box"><svg class="ico"><use href="#ic-check"/></svg></span>
             <span class="pick-mic"><svg class="ico"><use href="#ic-package"/></svg></span>
             <span class="pick-body"><h4>งานพัสดุ</h4><p>จัดซื้อจัดจ้างครบชุด · ว.804/ว.119 · ทรัพย์สิน/ค่าเสื่อม · แผนจัดซื้อ · ทะเบียนคุมสัญญา · ช่วยกรอก e-GP</p></span>
-            <span class="pick-price">890<small>บาท/ปี</small></span>
+            <span class="pick-price">{% if promo_active %}<s>{{ reg.p_proc }}</s>{% endif %}{{ px.p_proc }}<small>บาท/ปี</small></span>
           </label>
-          <label class="pick-item" data-price="690">
+          <label class="pick-item" data-price="{{ px.p_fin }}">
             <input type="checkbox" checked>
             <span class="pick-box"><svg class="ico"><use href="#ic-check"/></svg></span>
             <span class="pick-mic" style="background:#e8f9ef; color:var(--green);"><svg class="ico"><use href="#ic-coins"/></svg></span>
             <span class="pick-body"><h4>งานการเงิน</h4><p>ทะเบียนคุมเงิน · สมุดเงินสด · บัญชีแยกประเภท · รายงานแบบ สตง.</p></span>
-            <span class="pick-price">690<small>บาท/ปี</small></span>
+            <span class="pick-price">{% if promo_active %}<s>{{ reg.p_fin }}</s>{% endif %}{{ px.p_fin }}<small>บาท/ปี</small></span>
           </label>
-          <label class="pick-item" data-price="590">
+          <label class="pick-item" data-price="{{ px.p_admin }}">
             <input type="checkbox" checked>
             <span class="pick-box"><svg class="ico"><use href="#ic-check"/></svg></span>
             <span class="pick-mic" style="background:#fff2f2; color:#dc2626;"><svg class="ico"><use href="#ic-mail"/></svg></span>
             <span class="pick-body"><h4>งานธุรการ</h4><p>ทะเบียนหนังสือรับ–ส่ง · บันทึก/คำสั่ง · หนังสือราชการ 6 แบบ (มี AI ช่วย) · เกียรติบัตร</p></span>
-            <span class="pick-price">590<small>บาท/ปี</small></span>
+            <span class="pick-price">{% if promo_active %}<s>{{ reg.p_admin }}</s>{% endif %}{{ px.p_admin }}<small>บาท/ปี</small></span>
           </label>
-          <label class="pick-item" data-price="590">
+          <label class="pick-item" data-price="{{ px.p_lunch }}">
             <input type="checkbox" checked>
             <span class="pick-box"><svg class="ico"><use href="#ic-check"/></svg></span>
             <span class="pick-mic" style="background:#fff7e6; color:#b45309;"><svg class="ico"><use href="#ic-food"/></svg></span>
             <span class="pick-body"><h4>งานอาหารกลางวัน</h4><p>คำนวณงบต่อหัว · เอกสารจ้าง 3 รูปแบบ · ภาวะโภชนาการ</p></span>
-            <span class="pick-price">590<small>บาท/ปี</small></span>
+            <span class="pick-price">{% if promo_active %}<s>{{ reg.p_lunch }}</s>{% endif %}{{ px.p_lunch }}<small>บาท/ปี</small></span>
           </label>
         </div>
         <div class="pick-free" style="margin-top:14px;">
@@ -545,19 +563,19 @@
         <button type="button" class="btn btn-ghost pick-all" id="pickAll">เลือกครบทุกงาน (คุ้มสุด)</button>
         <div class="sum-rows" id="sumRows"></div>
         <div class="sum-save" id="sumSave" style="display:none;"><span><svg class="ico"><use href="#ic-star"/></svg> ส่วนลดครบทุกงาน</span><span id="sumSaveVal"></span></div>
-        <div class="sum-total"><span class="lab">รวมทั้งสิ้น</span><span class="val"><span id="sumTotal">2,290</span> <small>บาท/ปี</small></span></div>
+        <div class="sum-total"><span class="lab">รวมทั้งสิ้น</span><span class="val"><span id="sumTotal">{{ "{:,}".format(px.bundle) }}</span> <small>บาท/ปี</small></span></div>
         <a class="btn btn-primary" href="/checkout" id="btnBuy"><svg class="ico"><use href="#ic-coins"/></svg> สั่งซื้อ / ชำระเงิน</a>
         <a class="btn btn-ghost" href="/quote" id="btnQuote" style="margin-top:10px;"><svg class="ico"><use href="#ic-doc"/></svg> ขอใบเสนอราคา</a>
         <div class="note">ทดลองใช้ฟรีก่อนตัดสินใจ · อัปเดตฟรีเมื่อระเบียบเปลี่ยน</div>
       </div>
     </div>
-    <p class="price-foot">อยากได้ทุกงานในราคาเดียว? แพ็ก <b>“ครบทุกงาน” 2,290 บาท/ปี</b> (จากปกติ 2,760) — เพิ่มงานสุดท้ายแค่หลักร้อย ถูกกว่าซื้อแยก 470 บาท · โรงเรียนขนาดใหญ่/กลุ่มโรงเรียน <a href="/quote" style="color:var(--blue); font-weight:600;">ขอใบเสนอราคาพิเศษ</a></p>
+    <p class="price-foot">อยากได้ทุกงานในราคาเดียว? แพ็ก <b>“ครบทุกงาน” {{ "{:,}".format(px.bundle) }} บาท/ปี</b> {% if promo_active %}(ราคาเปิดตัว จากปกติ {{ "{:,}".format(reg.bundle) }}){% else %}(จากปกติ {{ "{:,}".format(px.p_proc + px.p_fin + px.p_admin + px.p_lunch) }}){% endif %} · โรงเรียนขนาดใหญ่/กลุ่มโรงเรียน <a href="/quote" style="color:var(--blue); font-weight:600;">ขอใบเสนอราคาพิเศษ</a></p>
   </div>
 </section>
 
 <script>
   (function(){
-    var BUNDLE = 2290;                     // ครบทุกงาน: สูงกว่าราคา 3 งาน (2,170) เล็กน้อย + ถูกกว่าซื้อแยก 4 งาน (2,760)
+    var BUNDLE = {{ px.bundle }};          // ครบทุกงาน (ราคาโปรถ้ามี ไม่งั้นราคาปกติ) — คิดจาก pricing_context()
     var items = [].slice.call(document.querySelectorAll('#pickList .pick-item'));
     var sumRows = document.getElementById('sumRows');
     var sumTotal = document.getElementById('sumTotal');

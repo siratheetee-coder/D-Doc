@@ -67,7 +67,7 @@ def console(request: Request, msg: str | None = None):
 # ---------------- คำขอจากหน้าเว็บ (ขอใบเสนอราคา / สั่งซื้อ) ----------------
 @router.get("/admin-console/leads", response_class=HTMLResponse)
 def leads_page(request: Request, kind: str | None = None):
-    k = kind if kind in ("quote", "order", "trial") else None
+    k = kind if kind in ("quote", "order", "trial", "support", "review") else None
     msg = request.session.pop("lead_msg", None)   # ผลการอนุมัติ/ต่ออายุ (แสดงครั้งเดียว)
     return templates.TemplateResponse("superadmin_leads.html", {
         "request": request, "leads": list_leads(k), "kind": k, "lead_msg": msg,
@@ -85,7 +85,7 @@ def approve_lead(lid: int, request: Request, kind: str = Form("")):
     elif res:
         request.session["lead_msg"] = {"ok": True,
             "text": f"ต่ออายุบัญชี {res['username']} แล้ว ใช้งานได้ถึง {res['expiry']}"}
-    q = f"?kind={kind}" if kind in ("quote", "order", "trial") else ""
+    q = f"?kind={kind}" if kind in ("quote", "order", "trial", "support", "review") else ""
     return RedirectResponse(f"/admin-console/leads{q}", status_code=303)
 
 

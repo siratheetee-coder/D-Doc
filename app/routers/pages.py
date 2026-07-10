@@ -345,6 +345,36 @@ def settings_save(
     return RedirectResponse("/settings?saved=1", status_code=303)
 
 
+# ---------------- ติดต่อเจ้าหน้าที่ / รีวิว ----------------
+@router.get("/support", response_class=HTMLResponse)
+def support_page(request: Request):
+    from app.seller_config import SELLER
+    return templates.TemplateResponse("support.html", {
+        "request": request, "facebook": SELLER.get("facebook", ""),
+        "sent": request.query_params.get("sent"), "rated": request.query_params.get("rated"),
+    })
+
+
+@router.post("/support")
+def support_submit(request: Request, message: str = Form("")):
+    from app.accounts import add_lead
+    if message.strip():
+        add_lead(kind="support", school_name=request.session.get("name", ""),
+                 email=request.session.get("username", ""), tenant_id=request.session.get("tid"),
+                 login_user=request.session.get("username", ""), note=message.strip(), status="ใหม่")
+    return RedirectResponse("/support?sent=1", status_code=303)
+
+
+@router.post("/support/review")
+def support_review(request: Request, stars: str = Form("5"), comment: str = Form("")):
+    from app.accounts import add_lead
+    add_lead(kind="review", school_name=request.session.get("name", ""),
+             email=request.session.get("username", ""), tenant_id=request.session.get("tid"),
+             login_user=request.session.get("username", ""), amount=_to_float(stars, 5),
+             note=comment.strip(), status="ใหม่")
+    return RedirectResponse("/support?rated=1", status_code=303)
+
+
 # ---------------- สำรอง / กู้คืนข้อมูล ----------------
 @router.get("/backup")
 def backup_download():

@@ -35,7 +35,8 @@ def _record_fail(ip: str):
 @router.get("/landing", response_class=HTMLResponse)
 def landing_page(request: Request):
     """หน้า landing สาธารณะ (สำหรับแนะนำระบบ/ขาย) — ยังไม่ผูกโดเมนจริง ดูผ่าน /landing"""
-    return templates.TemplateResponse("landing.html", {"request": request})
+    from app.seller_config import pricing_context
+    return templates.TemplateResponse("landing.html", {"request": request, **pricing_context()})
 
 
 @router.get("/login", response_class=HTMLResponse)

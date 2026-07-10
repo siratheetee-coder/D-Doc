@@ -305,8 +305,9 @@
       all: unset; display: block; font-size: 26px; font-weight: 800; line-height: 1.2; margin: 4px 0 6px;
     }
     .hero .hero-meta { font-size: 14.5px; opacity: .92; }
-    .hero .btn { background: rgba(255,255,255,.16); box-shadow: none; backdrop-filter: blur(2px); }
-    .hero .btn:hover { background: rgba(255,255,255,.28); box-shadow: none; }
+    .hero .btn { background: rgba(255,255,255,.16); color: #fff; box-shadow: none; backdrop-filter: blur(2px); }
+    .hero .btn:hover { background: rgba(255,255,255,.28); color: #fff; box-shadow: none; }
+    .hero .btn .icon { color: #fff; }
 
     /* ===== Charts (วาดด้วย SVG ฝั่งเซิร์ฟเวอร์ ไม่ใช้ไลบรารีภายนอก) ===== */
     .charts { display: grid; grid-template-columns: 1.7fr 1fr; gap: 22px; margin-bottom: 22px; }
@@ -389,6 +390,8 @@
     <symbol id="ic-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3 3 0 0 1 0 5.6"/><path d="M17.5 14.3A5.5 5.5 0 0 1 21 20"/></symbol>
     <symbol id="ic-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13c.04-.33.1-.66.1-1s-.06-.67-.1-1l2-1.5-2-3.4-2.3 1a7.7 7.7 0 0 0-1.7-1L14 2h-4l-.5 2.6a7.7 7.7 0 0 0-1.7 1l-2.3-1-2 3.4L5.6 11c-.04.33-.1.66-.1 1s.06.67.1 1l-2 1.5 2 3.4 2.3-1a7.7 7.7 0 0 0 1.7 1L10 22h4l.5-2.6a7.7 7.7 0 0 0 1.7-1l2.3 1 2-3.4z"/></symbol>
     <symbol id="ic-file" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h8M8 9h2"/></symbol>
+    <symbol id="ic-send" viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></symbol>
+    <symbol id="ic-star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></symbol>
     <symbol id="ic-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></symbol>
     <symbol id="ic-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></symbol>
     <symbol id="ic-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
@@ -518,6 +521,7 @@
         <a href="/masters" class="{{ 'active' if path.startswith('/masters') }}"><svg class="icon"><use href="#ic-users"/></svg> บุคลากร/ฝ่าย</a>
         <a href="/students" class="{{ 'active' if path.startswith('/students') }}"><svg class="icon"><use href="#ic-users"/></svg> ข้อมูลนักเรียน</a>
         <a href="/settings" class="{{ 'active' if path.startswith('/settings') }}"><svg class="icon"><use href="#ic-settings"/></svg> ตั้งค่าโรงเรียน</a>
+        <a href="/support" class="{{ 'active' if path.startswith('/support') }}"><svg class="icon"><use href="#ic-send"/></svg> ติดต่อเจ้าหน้าที่</a>
       </nav>
     </aside>
 
@@ -583,6 +587,26 @@
         </div>
       </div>
       <main>
+        {% set _st = account_status(request.session.get('tid')) %}
+        {% if _st and _st.plan == 'trial' and _st.docs_left is not none and _st.docs_left <= 10 %}
+          {% if _st.docs_left <= 0 %}
+          <div style="background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; border-radius:12px;
+                      padding:14px 18px; margin-bottom:16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <svg class="icon" style="flex:none;"><use href="#ic-alert"/></svg>
+            <span style="flex:1; min-width:200px;"><b>จำนวนการทดลองใช้ของท่านหมดแล้ว</b> — แต่ระบบยังเก็บข้อมูลของท่านไว้ครบ ต้องการใช้งานต่อ?</span>
+            <a href="/checkout" style="background:#dc2626; color:#fff; text-decoration:none; font-weight:700;
+               padding:8px 18px; border-radius:9px; white-space:nowrap;">คลิกที่นี่</a>
+          </div>
+          {% else %}
+          <div style="background:#fff7ed; border:1px solid #fed7aa; color:#b45309; border-radius:12px;
+                      padding:13px 18px; margin-bottom:16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <svg class="icon" style="flex:none;"><use href="#ic-bell"/></svg>
+            <span style="flex:1; min-width:200px;">เหลือให้ทดลองใช้อีกเพียง <b>{{ _st.docs_left }} ฉบับ</b> — ออกเอกสารแบบไม่จำกัดเมื่อเป็นสมาชิก</span>
+            <a href="/checkout" style="background:#2563eb; color:#fff; text-decoration:none; font-weight:700;
+               padding:8px 18px; border-radius:9px; white-space:nowrap;">ออกเอกสารแบบไม่จำกัด คลิกที่นี่</a>
+          </div>
+          {% endif %}
+        {% endif %}
         {% block content %}{% endblock %}
       </main>
     </div>
