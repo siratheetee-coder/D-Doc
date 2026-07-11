@@ -13,13 +13,63 @@ proc_alt_doc.py
 from pathlib import Path
 
 from docx.shared import Cm, Pt
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn
 
 from app.database import get_data_dir
 from app.thai_utils import thai_date, bahttext
 from app.services.build_templates import (
     _font, _krut_and_title, _hr, _p, _p_runs, _sign_table, _set_cell,
-    _repeat_header_row, _no_split_row,
+    _repeat_header_row, _no_split_row, THAI_FONT, _csize, _bcs,
 )
+
+_ALIGN = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER,
+          "right": WD_ALIGN_PARAGRAPH.RIGHT}
+
+
+def _cell_ml(cell, lines, *, size=15):
+    """เขียนหลายบรรทัดในเซลล์เดียว (ฟอนต์ไทย) — lines = [(text, align, bold), ...]"""
+    cell.text = ""
+    for i, (text, align, bold) in enumerate(lines):
+        p = cell.paragraphs[0] if i == 0 else cell.add_paragraph()
+        p.alignment = _ALIGN[align]
+        p.paragraph_format.space_after = Pt(2)
+        p.paragraph_format.space_before = Pt(0)
+        r = p.add_run(text)
+        r.font.name = THAI_FONT
+        _csize(r, size)
+        _bcs(r, bold)
+        r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
+
+
+def _opinion_box(doc, head_officer, approver):
+    """กล่องมีเส้นขอบ 2 คอลัมน์ (ตาม template ว.804):
+    ซ้าย = ความเห็นของหัวหน้าเจ้าหน้าที่ + ช่องลงนาม
+    ขวา = ☐ เห็นชอบ / ☐ ลงนามแล้ว + ช่องลงนาม"""
+    t = doc.add_table(rows=1, cols=2)
+    t.style = "Table Grid"
+    t.autofit = False
+    left, right = t.rows[0].cells
+    left.width = Cm(8.0)
+    right.width = Cm(8.0)
+    _line = "ลงชื่อ......................................."
+    _date = "วันที่......................................."
+    _cell_ml(left, [
+        ("ความเห็นของหัวหน้าเจ้าหน้าที่", "left", True),
+        ("", "left", False),
+        (_line, "center", False),
+        (f"( {head_officer} )", "center", False),
+        (_date, "center", False),
+    ])
+    _cell_ml(right, [
+        ("☐  เห็นชอบ", "left", False),
+        ("☐  ลงนามแล้ว", "left", False),
+        ("", "left", False),
+        (_line, "center", False),
+        (f"( {approver} )", "center", False),
+        (_date, "center", False),
+    ])
+    return t
 
 _BLANK = "............................"
 _BLANK_S = "................"
@@ -189,13 +239,10 @@ def render_w804(proc, school) -> str:
         (f"( {officer or _BLANK} )", "center"),
         ("เจ้าหน้าที่", "center"),
     ]])
-    _sign_table(doc, [[
-        ("ความเห็นหัวหน้าเจ้าหน้าที่", "left"),
-        ("เห็นชอบ", "left"),
-        ("ลงชื่อ.........................................", "left"),
-        (f"( {(getattr(school, 'head_officer_name', '') or '').strip() or _BLANK} )", "left"),
-        ("วันที่.........................................", "left"),
-    ]], gap=False)
+    _p(doc, "", after=4)
+    head_officer = (getattr(school, "head_officer_name", "") or "").strip() or _BLANK
+    director = (getattr(school, "director_name", "") or "").strip() or _BLANK
+    _opinion_box(doc, head_officer, director)
 
     # ---------- ส่วนที่ 2: รายละเอียดคุณลักษณะเฉพาะ (แนบท้าย) ----------
     doc.add_page_break()
