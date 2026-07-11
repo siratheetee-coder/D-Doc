@@ -34,6 +34,8 @@
 <!-- บุคลากร: การ์ดเต็มความกว้าง เพื่อให้ชื่อ/ตำแหน่งแสดงเต็ม -->
 <div class="card">
   <h2><svg class="icon"><use href="#ic-users"/></svg> บุคลากร (ครู/กรรมการ/ผู้ลงนาม)</h2>
+  <p class="muted" style="margin:2px 0 16px; font-size:13px;">
+    <svg class="icon"><use href="#ic-info"/></svg> อัปโหลดลายเซ็นของแต่ละคนได้ ระบบจะ<b>ลบพื้นหลังขาวให้อัตโนมัติ</b> แล้วนำไปวางในเอกสารให้เองเมื่อบุคคลนั้นเป็นผู้ลงนาม</p>
   <form method="post" action="/masters/person">
     <div class="row">
       <div><label>ชื่อ-นามสกุล</label><input name="name" required placeholder="เช่น นายสมชาย ใจดี"></div>
@@ -41,8 +43,6 @@
     </div>
     <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มบุคลากร</button>
   </form>
-  <p class="muted" style="margin:-4px 0 10px; font-size:13px;">
-    <svg class="icon"><use href="#ic-info"/></svg> อัปโหลดลายเซ็นของแต่ละคนได้ ระบบจะ<b>ลบพื้นหลังขาวให้อัตโนมัติ</b> แล้วนำไปวางในเอกสารให้เองเมื่อบุคคลนั้นเป็นผู้ลงนาม</p>
   <table>
     <thead><tr><th style="width:38%;">ชื่อ-นามสกุล</th><th style="width:22%;">ตำแหน่ง</th><th style="width:22%;">ลายเซ็น</th><th></th></tr></thead>
     <tbody>
@@ -128,6 +128,7 @@
 <style>
   .sig-overlay{ position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:1000;
     display:flex; align-items:center; justify-content:center; padding:20px; }
+  .sig-overlay[hidden]{ display:none; }
   .sig-box{ background:#fff; border-radius:16px; padding:22px 22px 18px; width:100%; max-width:520px;
     box-shadow:0 24px 60px rgba(0,0,0,.35); }
   .sig-stage{ border:1px solid var(--line); border-radius:10px; overflow:hidden;
