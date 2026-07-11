@@ -233,13 +233,12 @@ def render_w804(proc, school) -> str:
     _p(doc, "๑. เห็นชอบรายละเอียดคุณลักษณะเฉพาะของพัสดุหรือขอบเขตของงานตามข้อ ๑",
        align="justify", indent=1.25, after=2)
     _p(doc, "๒. อนุมัติให้ดำเนินการ และมอบหมายผู้รับผิดชอบดำเนินการจัดซื้อ ตามรายละเอียด"
-            "ในรายงานขอซื้อดังกล่าวข้างต้น", align="justify", indent=1.25, after=10)
+            "ในรายงานขอซื้อดังกล่าวข้างต้น", align="justify", indent=1.25, after=6)
     _sign_table(doc, [[
         ("ลงชื่อ.........................................", "center"),
         (f"( {officer or _BLANK} )", "center"),
         ("เจ้าหน้าที่", "center"),
     ]])
-    _p(doc, "", after=4)
     head_officer = (getattr(school, "head_officer_name", "") or "").strip() or _BLANK
     director = (getattr(school, "director_name", "") or "").strip() or _BLANK
     _opinion_box(doc, head_officer, director)
@@ -273,9 +272,9 @@ def render_w804(proc, school) -> str:
             doc_date=(ex.get("report2_date", "").strip() or proc.request_date))
     _p(doc, f"ตามที่ {school.name or 'โรงเรียน'} เห็นชอบให้ดำเนินการซื้อ{subject} "
             f"จำนวน {n} รายการ สำหรับโครงการ/กิจกรรม{_project(proc)} โดยวิธีเฉพาะเจาะจง "
-            f"ประจำปีงบประมาณ พ.ศ. {fy} นั้น", align="justify", indent=1.25, after=2)
+            f"ประจำปีงบประมาณ พ.ศ. {fy} นั้น", align="justify", indent=1.25, after=1)
     _p(doc, f"เจ้าหน้าที่ผู้รับผิดชอบได้ดำเนินการจัดซื้อกับผู้ประกอบการโดยตรงตาม{_W804_REF} "
-            "ขอรายงานผลการดำเนินการ ดังนี้", align="justify", indent=1.25, after=2)
+            "ขอรายงานผลการดำเนินการ ดังนี้", align="justify", indent=1.25, after=1)
     _p_runs(doc, [("ชื่อผู้ประกอบการ บริษัท/ห้าง/ร้าน  ", False),
                   ((proc.vendor.name if proc.vendor else _BLANK), False)], indent=1.25)
     w2 = [Cm(7.5), Cm(2.0), Cm(2.0), Cm(2.7), Cm(2.8)]
@@ -291,23 +290,23 @@ def render_w804(proc, school) -> str:
     rtot.cells[0].merge(rtot.cells[3])
     _set_cell(rtot.cells[4], _money(total), bold=True, align="right", size=14)
     _p(doc, "**ซึ่งเป็นราคาที่รวมภาษีมูลค่าเพิ่มและค่าใช้จ่ายทั้งปวงไว้แล้วด้วย",
-       align="justify", indent=0, after=2, size=14)
+       align="justify", indent=0, after=1, size=14)
     _p(doc, "การจัดซื้อคราวนี้ไม่เกินวงเงินที่ประมาณไว้ และเห็นว่าเป็นราคาที่เหมาะสม และได้ใช้"
             f"เงินสดสำรองจ่าย ชำระให้ผู้ขายเรียบร้อยแล้ว ตามหลักฐานการรับเงิน ใบเสร็จรับเงิน "
             f"เล่มที่ {_x(ex,'receipt_book')} เลขที่ {_x(ex,'receipt_no')} ลงวันที่ {_xdate(ex,'receipt_date')} "
             f"และได้รับมอบพัสดุไว้ครบถ้วนเรียบร้อยแล้ว เมื่อวันที่ {_xdate(ex,'deliver_date')}",
-       align="justify", indent=1.25, after=8)
+       align="justify", indent=1.25, after=4)
     _sign_table(doc, [[
         ("ลงชื่อ…………………………………………ผู้ตรวจรับพัสดุ (ผู้ได้รับมอบหมาย)", "center"),
         (f"( {officer or _BLANK} )", "center"),
-    ]])
-    _p(doc, "จึงเรียนมาเพื่อโปรดทราบและขออนุมัติเบิกจ่ายต่อไป", align="justify", indent=1.25, after=10)
+    ]], gap=False)
+    _p(doc, "จึงเรียนมาเพื่อโปรดทราบและขออนุมัติเบิกจ่ายต่อไป", align="justify", indent=1.25, after=4)
     _sign_table(doc, [[
         ("ลงชื่อ…………………………………………เจ้าหน้าที่", "center"),
         (f"( {officer or _BLANK} )", "center"),
-    ]])
+    ]], gap=False)
     _p(doc, "☐  ทราบ", after=1)
-    _p(doc, "☐  อนุมัติ", after=10)
+    _p(doc, "☐  อนุมัติ", after=4)
     _sign_table(doc, [[
         ("ลงชื่อ…………………………………………", "center"),
         (f"( {(getattr(school, 'director_name', '') or '').strip() or _BLANK} )", "center"),
@@ -320,13 +319,13 @@ def render_w804(proc, school) -> str:
     _p(doc, "ใบติดใบเสร็จรับเงิน", align="center", bold=True, size=18, after=2)
     # เว้นพื้นที่ว่างกลางหน้าไว้สำหรับติดใบเสร็จจริง แล้วดันข้อความ+ลายเซ็นไปอยู่ล่างหน้า
     spacer = doc.add_paragraph()
-    spacer.paragraph_format.space_after = Cm(17)
+    spacer.paragraph_format.space_after = Cm(18)
     _p(doc, f"จำนวนเงินตามใบเสร็จรับเงิน เล่มที่ {_x(ex,'receipt_book')} เลขที่ {_x(ex,'receipt_no')} "
             f"ลงวันที่ {_xdate(ex,'receipt_date')}", align="justify", indent=1.25, after=2)
     _p(doc, f"ข้าพเจ้าได้ทดรองจ่ายไปก่อนแล้ว เป็นจำนวนเงิน {_money(total)} บาท ({bahttext(total)}) "
             f"และได้รับมอบพัสดุไว้ครบถ้วนถูกต้องแล้ว ข้าพเจ้าขอเบิกเงินจัดซื้อ{subject} "
             f"โดยวิธีเฉพาะเจาะจง จำนวนเงิน {_money(total)} บาท ({bahttext(total)})",
-       align="justify", indent=1.25, after=10)
+       align="justify", indent=1.25, after=5)
     _sign_table(doc, [[
         ("ลงชื่อ..............................................ผู้ขอเบิก", "center"),
         (f"( {officer or _BLANK} )", "center"),

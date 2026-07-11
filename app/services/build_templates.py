@@ -82,19 +82,9 @@ def _p_runs(doc, segments, *, indent=None, align=None, tab_cm=None, size=16, aft
 
 
 def _hr(doc):
-    """เส้นขีดคั่นแนวนอนเต็มความกว้าง (ใช้คั่นใต้ 'เรื่อง')"""
-    p = doc.add_paragraph()
-    p.paragraph_format.space_before = Pt(1)
-    p.paragraph_format.space_after = Pt(4)
-    pPr = p._p.get_or_add_pPr()
-    pbdr = OxmlElement("w:pBdr")
-    bottom = OxmlElement("w:bottom")
-    bottom.set(qn("w:val"), "single")
-    bottom.set(qn("w:sz"), "6")
-    bottom.set(qn("w:space"), "1")
-    bottom.set(qn("w:color"), "000000")
-    pbdr.append(bottom)
-    pPr.append(pbdr)
+    """เส้นขีดคั่นใต้หัวเรื่องบันทึกข้อความ — ยกเลิกแล้ว (เอาออกทุก template เพื่อประหยัดพื้นที่)
+    คงฟังก์ชันไว้เพื่อให้จุดที่เรียกใช้เดิมยังทำงานได้ แต่ไม่วาดเส้น/ไม่เพิ่มย่อหน้า"""
+    return
 
 LEGAL_INTRO = (
     "งานพัสดุได้ตรวจสอบแล้วเห็นควรจัด{{ proc_type }}ตามเสนอ และเพื่อให้เป็นไปตาม"
