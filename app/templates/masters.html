@@ -58,10 +58,13 @@
           {% endif %}
           <div style="margin-top:5px; white-space:nowrap;">
             <label class="btn sm ghost" style="cursor:pointer;">
-              <svg class="icon"><use href="#ic-upload"/></svg> {{ 'เปลี่ยน' if p.signature else 'อัปโหลด' }}
+              <svg class="icon"><use href="#ic-upload"/></svg> {{ 'เปลี่ยนรูป' if p.signature else 'อัปโหลด' }}
               <input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="openSigEditor({{ p.id }}, this)">
             </label>
             {% if p.signature %}
+            <button type="button" class="btn sm ghost"
+                    onclick="openSigEditorUrl({{ p.id }}, '/signatures/{{ p.signature }}')">
+              <svg class="icon"><use href="#ic-edit"/></svg> แก้ไข</button>
             <form method="post" action="/masters/person/{{ p.id }}/signature/delete" style="display:inline"
                   onsubmit="return confirm('ลบลายเซ็นของ {{ p.name }}?');">
               <button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button>
@@ -102,21 +105,30 @@
   </table>
 </div>
 
-<!-- ตัวแก้ไขลายเซ็น: ปรับการลบพื้นหลัง + ยางลบ ก่อนบันทึก -->
+<!-- ตัวแก้ไขลายเซ็น: ลบพื้นหลัง (toggle) + ยางลบ (toggle) + ย้อนกลับ ก่อนบันทึก -->
 <div id="sigModal" class="sig-overlay" hidden>
   <div class="sig-box">
     <h2 style="margin:0 0 4px;">ปรับลายเซ็น</h2>
-    <p class="muted" style="margin:0 0 12px; font-size:13px;">เลื่อน “ลบพื้นหลัง” จนพื้นหายหมด เหลือแต่เส้น · ใช้ “ยางลบ” ป้ายลบจุดที่ยังค้าง</p>
-    <div class="sig-stage"><canvas id="sigCanvas"></canvas></div>
-    <div style="margin-top:12px;">
-      <label style="font-weight:600; font-size:14px;">ลบพื้นหลัง (ความไว)</label>
-      <input type="range" id="sigThresh" min="120" max="254" value="238" style="width:100%;">
+    <p class="muted" style="margin:0 0 10px; font-size:12.5px;">เปิด “ลบพื้นหลัง” แล้วเลื่อนความไวจนพื้นหาย · เปิด “ยางลบ” ป้ายลบจุดที่ค้าง · “ย้อนกลับ” เพื่อเลิกทำ</p>
+    <div class="sig-stage" id="sigStage">
+      <canvas id="sigCanvas"></canvas>
+      <div id="sigCursor" class="sig-cursor" hidden></div>
     </div>
-    <div class="sig-tools">
-      <button type="button" class="btn sm ghost" id="sigEraseBtn"><svg class="icon"><use href="#ic-trash"/></svg> ยางลบ: ปิด</button>
-      <span style="font-size:13px; color:var(--muted);">ขนาดยางลบ</span>
-      <input type="range" id="sigBrush" min="6" max="70" value="26" style="width:120px;">
-      <button type="button" class="btn sm gray" id="sigReset">รีเซ็ตทั้งหมด</button>
+    <div class="sig-row">
+      <button type="button" class="btn sm" id="sigBgBtn">ลบพื้นหลัง: เปิด</button>
+      <div id="sigThreshWrap" class="sig-grow">
+        <span class="muted" style="font-size:12.5px;">ความไว</span>
+        <input type="range" id="sigThresh" min="120" max="254" value="238" style="flex:1;">
+      </div>
+    </div>
+    <div class="sig-row">
+      <button type="button" class="btn sm" id="sigEraseBtn">ยางลบ: ปิด</button>
+      <div id="sigBrushWrap" class="sig-brushwrap" hidden>
+        <span class="muted" style="font-size:12.5px;">ขนาด</span>
+        <input type="range" id="sigBrush" min="6" max="70" value="26" style="width:100px;">
+      </div>
+      <button type="button" class="btn sm gray" id="sigUndo" disabled>↶ ย้อนกลับ</button>
+      <button type="button" class="btn sm gray" id="sigReset">รีเซ็ต</button>
     </div>
     <div class="sig-actions">
       <button type="button" class="btn" id="sigSave"><svg class="icon"><use href="#ic-save"/></svg> บันทึกลายเซ็น</button>
@@ -127,19 +139,25 @@
 
 <style>
   .sig-overlay{ position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:1000;
-    display:flex; align-items:center; justify-content:center; padding:20px; }
+    display:flex; align-items:center; justify-content:center; padding:16px; }
   .sig-overlay[hidden]{ display:none; }
-  .sig-box{ background:#fff; border-radius:16px; padding:22px 22px 18px; width:100%; max-width:520px;
-    box-shadow:0 24px 60px rgba(0,0,0,.35); }
-  .sig-stage{ border:1px solid var(--line); border-radius:10px; overflow:hidden;
+  .sig-box{ background:#fff; border-radius:16px; padding:18px 20px 16px; width:100%; max-width:500px;
+    max-height:92vh; overflow:auto; box-shadow:0 24px 60px rgba(0,0,0,.35); }
+  .sig-stage{ position:relative; border:1px solid var(--line); border-radius:10px; overflow:hidden;
     background-color:#fff;
     background-image:linear-gradient(45deg,#e9edf4 25%,transparent 25%,transparent 75%,#e9edf4 75%),
                      linear-gradient(45deg,#e9edf4 25%,transparent 25%,transparent 75%,#e9edf4 75%);
     background-size:16px 16px; background-position:0 0,8px 8px; text-align:center; }
-  #sigCanvas{ max-width:100%; max-height:300px; cursor:crosshair; touch-action:none; }
-  .sig-tools{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px; }
-  .sig-tools .btn.on{ background:var(--blue); color:#fff; }
-  .sig-actions{ display:flex; gap:10px; margin-top:18px; }
+  #sigCanvas{ max-width:100%; max-height:220px; vertical-align:middle; cursor:crosshair; touch-action:none; }
+  #sigCanvas.erasing{ cursor:none; }
+  .sig-cursor{ position:absolute; border:1.5px solid #2563eb; background:rgba(37,99,235,.12);
+    border-radius:50%; pointer-events:none; transform:translate(-50%,-50%); z-index:3; }
+  .sig-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .sig-grow{ flex:1; display:flex; align-items:center; gap:8px; min-width:140px; }
+  .sig-brushwrap{ display:flex; align-items:center; gap:8px; }
+  .sig-brushwrap[hidden]{ display:none; }
+  .sig-row .btn.on{ background:var(--blue); color:#fff; border-color:var(--blue); }
+  .sig-actions{ display:flex; gap:10px; margin-top:16px; }
   .sig-actions .btn{ flex:1; justify-content:center; }
 </style>
 
@@ -148,14 +166,23 @@
   var modal=document.getElementById('sigModal');
   if(!modal) return;
   var canvas=document.getElementById('sigCanvas'), ctx=canvas.getContext('2d');
-  var threshEl=document.getElementById('sigThresh'), brushEl=document.getElementById('sigBrush');
-  var eraseBtn=document.getElementById('sigEraseBtn');
-  var curPid=null, orig=null, W=0, H=0, mask=null, erasing=false, painting=false;
+  var stage=document.getElementById('sigStage'), cursor=document.getElementById('sigCursor');
+  var threshEl=document.getElementById('sigThresh'), threshWrap=document.getElementById('sigThreshWrap');
+  var brushEl=document.getElementById('sigBrush'), brushWrap=document.getElementById('sigBrushWrap');
+  var bgBtn=document.getElementById('sigBgBtn'), eraseBtn=document.getElementById('sigEraseBtn');
+  var undoBtn=document.getElementById('sigUndo');
+  var curPid=null, orig=null, W=0, H=0, mask=null;
+  var removeBg=true, erasing=false, painting=false, undoStack=[];
   var MAXW=900;
 
-  window.openSigEditor=function(pid, input){
-    var f=input.files && input.files[0]; if(!f) return;
-    curPid=pid;
+  function setBg(on){ removeBg=on; bgBtn.classList.toggle('on', on);
+    bgBtn.textContent='ลบพื้นหลัง: '+(on?'เปิด':'ปิด');
+    threshWrap.style.visibility = on ? 'visible' : 'hidden'; render(); }
+  function setErase(on){ erasing=on; eraseBtn.classList.toggle('on', on);
+    eraseBtn.textContent='ยางลบ: '+(on?'เปิด':'ปิด');
+    brushWrap.hidden=!on; canvas.classList.toggle('erasing', on); cursor.hidden=true; }
+
+  function loadImage(src, defRemoveBg){
     var img=new Image();
     img.onload=function(){
       var scale=Math.min(1, MAXW/img.width);
@@ -163,44 +190,52 @@
       canvas.width=W; canvas.height=H;
       ctx.clearRect(0,0,W,H); ctx.drawImage(img,0,0,W,H);
       orig=ctx.getImageData(0,0,W,H);
-      mask=new Uint8Array(W*H);
-      erasing=false; eraseBtn.classList.remove('on'); eraseBtn.innerHTML=eraseBtn.innerHTML.replace('เปิด','ปิด');
+      mask=new Uint8Array(W*H); undoStack=[]; updateUndo();
       threshEl.value=238;
-      render();
+      setErase(false); setBg(defRemoveBg);
       modal.hidden=false;
     };
     img.onerror=function(){ alert('เปิดรูปไม่ได้ ลองไฟล์อื่น'); };
-    img.src=URL.createObjectURL(f);
-    input.value='';
+    img.src=src;
+  }
+  window.openSigEditor=function(pid, input){
+    var f=input.files && input.files[0]; if(!f) return;
+    curPid=pid; loadImage(URL.createObjectURL(f), true); input.value='';
+  };
+  window.openSigEditorUrl=function(pid, url){
+    curPid=pid; loadImage(url + (url.indexOf('?')<0?'?':'&') + 't=' + Date.now(), false);
   };
 
   function render(){
     if(!orig) return;
-    var th=+threshEl.value;
-    var out=ctx.createImageData(W,H);
+    var th=+threshEl.value, out=ctx.createImageData(W,H);
     var s=orig.data, d=out.data;
     for(var i=0;i<W*H;i++){
       var p=i*4, r=s[p], g=s[p+1], b=s[p+2];
       d[p]=r; d[p+1]=g; d[p+2]=b;
-      var lum=0.299*r+0.587*g+0.114*b;
-      var a=255;
-      if(lum>=th) a=0;
-      else if(lum>th-28) a=Math.round((th-lum)/28*255);
+      var a=s[p+3];
+      if(removeBg){
+        var lum=0.299*r+0.587*g+0.114*b;
+        if(lum>=th) a=0;
+        else if(lum>th-28) a=Math.min(a, Math.round((th-lum)/28*255));
+      }
       if(mask[i]) a=0;
-      d[p+3]=Math.min(a, s[p+3]);
+      d[p+3]=a;
     }
     ctx.putImageData(out,0,0);
   }
-
   threshEl.addEventListener('input', render);
-
-  eraseBtn.addEventListener('click', function(){
-    erasing=!erasing;
-    eraseBtn.classList.toggle('on', erasing);
-    eraseBtn.innerHTML='<svg class="icon"><use href="#ic-trash"/></svg> ยางลบ: '+(erasing?'เปิด':'ปิด');
-  });
+  bgBtn.addEventListener('click', function(){ setBg(!removeBg); });
+  eraseBtn.addEventListener('click', function(){ setErase(!erasing); });
   document.getElementById('sigReset').addEventListener('click', function(){
-    if(mask) mask.fill(0); threshEl.value=238; render();
+    if(mask){ pushUndo(); mask.fill(0); } threshEl.value=238; render();
+  });
+
+  function pushUndo(){ if(!mask) return; undoStack.push(mask.slice());
+    if(undoStack.length>25) undoStack.shift(); updateUndo(); }
+  function updateUndo(){ undoBtn.disabled = undoStack.length===0; }
+  undoBtn.addEventListener('click', function(){
+    if(!undoStack.length) return; mask=undoStack.pop(); updateUndo(); render();
   });
 
   function paintAt(ev){
@@ -208,7 +243,7 @@
     var rect=canvas.getBoundingClientRect();
     var x=Math.round((ev.clientX-rect.left)*W/rect.width);
     var y=Math.round((ev.clientY-rect.top)*H/rect.height);
-    var rad=Math.round(+brushEl.value * W/rect.width /2);
+    var rad=Math.max(1, Math.round(+brushEl.value * W/rect.width /2));
     for(var dy=-rad;dy<=rad;dy++)for(var dx=-rad;dx<=rad;dx++){
       if(dx*dx+dy*dy>rad*rad) continue;
       var xx=x+dx, yy=y+dy;
@@ -217,8 +252,17 @@
     }
     render();
   }
-  canvas.addEventListener('pointerdown', function(e){ painting=true; paintAt(e); });
-  canvas.addEventListener('pointermove', function(e){ if(painting) paintAt(e); });
+  function moveCursor(ev){
+    if(!erasing){ cursor.hidden=true; return; }
+    var sr=stage.getBoundingClientRect(), sz=+brushEl.value;
+    cursor.hidden=false;
+    cursor.style.width=sz+'px'; cursor.style.height=sz+'px';
+    cursor.style.left=(ev.clientX-sr.left)+'px';
+    cursor.style.top=(ev.clientY-sr.top)+'px';
+  }
+  canvas.addEventListener('pointerdown', function(e){ if(erasing){ pushUndo(); painting=true; paintAt(e); } });
+  canvas.addEventListener('pointermove', function(e){ moveCursor(e); if(painting) paintAt(e); });
+  canvas.addEventListener('pointerleave', function(){ cursor.hidden=true; });
   window.addEventListener('pointerup', function(){ painting=false; });
 
   document.getElementById('sigCancel').addEventListener('click', function(){ modal.hidden=true; });
