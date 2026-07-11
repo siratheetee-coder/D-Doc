@@ -95,6 +95,8 @@
   <p class="muted">วันที่กรอกเป็น <b>พ.ศ.</b> รูปแบบ วว/ดด/ปปปป เช่น 06/06/2569 (ระบบเติม / ให้อัตโนมัติ)</p>
   {% set has_spec = (p.committees | selectattr('kind', 'equalto', 'spec') | list | length) > 0 %}
   {% set is_committee = inspect and inspect.mode == 'committee' %}
+  {# รูปแบบพิเศษ (ว.804 / ว.119 / ข้อ 79) เป็นชุดเอกสารในตัวเอง ไม่มีคำสั่ง/ใบเสนอราคา/ใบสั่งซื้อ/ตรวจรับ แยก #}
+  {% set is_special = (p.proc_case or 'normal') != 'normal' %}
   <form method="post" action="/procurement/{{ p.id }}/update-refs">
 
     <div class="docgrp">
@@ -104,6 +106,14 @@
         <div><label>ลงวันที่</label><input name="request_date" value="{{ be_date(p.request_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       </div>
     </div>
+
+    {% if is_special %}
+    <div class="docnote" style="margin-bottom:16px;"><svg class="icon"><use href="#ic-info"/></svg>
+      รูปแบบ <b>{{ case_info.label if case_info else p.proc_case }}</b> เป็นชุดเอกสารในตัวเอง
+      ไม่มีใบเสนอราคา/คำสั่ง/ใบสั่งซื้อ/รายงานผลการพิจารณา/ใบส่งมอบ/ใบตรวจรับ แยกต่างหาก
+      — ช่องเฉพาะของรูปแบบนี้ (เลขที่รายงานสรุปผล/ใบเสร็จ/วันรับมอบ ฯลฯ) แก้ไขได้ที่ปุ่ม “แก้ไขเรื่อง”
+    </div>
+    {% else %}
 
     <div class="docgrp">
       <div class="docgrp-h">แต่งตั้ง กก.กำหนดคุณลักษณะ/ราคากลาง</div>
@@ -180,6 +190,7 @@
       </div>
       <p class="muted">ระบบคำนวณค่าปรับให้อัตโนมัติในใบตรวจรับ (อัตราร้อยละ {{ "%g"|format(p.penalty_rate or 0.10) }} ต่อวัน × วงเงิน × จำนวนวันที่เกินมา)</p>
     </div>
+    {% endif %}
 
     <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกเลขที่/วันที่</button>
     <button type="button" class="btn gray" onclick="sameAllDates()"><svg class="icon"><use href="#ic-clipboard"/></svg> ใช้วันที่เดียวกันทั้งหมด</button>
