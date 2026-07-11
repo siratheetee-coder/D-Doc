@@ -252,16 +252,6 @@ def _sign_table(doc, columns, *, after=6, gap=True):
         for text, align in lines:
             p = cell.paragraphs[0] if first else cell.add_paragraph()
             first = False
-            # บรรทัดรูปลายเซ็น: ("__SIG__", "<path>") -> วางรูปกึ่งกลาง (PNG โปร่งใส ไม่ทับข้อความ)
-            if text == "__SIG__" and align:
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.paragraph_format.space_after = Pt(0)
-                p.paragraph_format.space_before = Pt(0)
-                try:
-                    p.add_run().add_picture(align, height=Cm(1.35))
-                except Exception:
-                    pass
-                continue
             p.alignment = amap[align]
             p.paragraph_format.space_after = Pt(0)
             r = p.add_run(text)

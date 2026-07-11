@@ -518,7 +518,8 @@ def delete_master(kind: str, item_id: int, db: Session = Depends(get_db)):
 
 # ---------------- ลายเซ็นบุคลากร ----------------
 @router.post("/masters/person/{pid}/signature")
-async def upload_signature(pid: int, db: Session = Depends(get_db), file: UploadFile = File(...)):
+async def upload_signature(pid: int, db: Session = Depends(get_db),
+                           file: UploadFile = File(...), mode: str = Form("")):
     from app.services.signature import process_signature, delete_signature
     p = db.get(Person, pid)
     if not p:
@@ -526,7 +527,8 @@ async def upload_signature(pid: int, db: Session = Depends(get_db), file: Upload
     data = await file.read()
     if len(data) > 8 * 1024 * 1024:      # จำกัด ~8MB
         return RedirectResponse("/masters?sig=big", status_code=303)
-    new_name = process_signature(data, remove_white=True)
+    # mode=client -> ผู้ใช้ปรับ/ลบพื้นหลังเองจาก editor แล้ว เซิร์ฟเวอร์แค่ตัดขอบ+ย่อ (ไม่ลบขาวซ้ำ)
+    new_name = process_signature(data, remove_white=(mode != "client"))
     if not new_name:
         return RedirectResponse("/masters?sig=bad", status_code=303)
     if p.signature:                       # ลบไฟล์เก่า

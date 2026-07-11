@@ -45,35 +45,47 @@ def _safe(text: str) -> str:
     return text.strip()
 
 
-def _sign_image(doc, signer_name, height_cm=1.35):
-    """ถ้าผู้ลงนามชื่อ signer_name มีลายเซ็น -> เพิ่มพารากราฟรูปลายเซ็น (กึ่งกลาง) เหนือบรรทัดชื่อ
-    คืน True ถ้าใส่รูปแล้ว (ไฟล์เป็น PNG โปร่งใส จึงไม่มีกล่องขาวไปทับข้อความ)"""
+def _inline_to_anchor(inline, dy_emu):
+    """แปลง <wp:inline> (รูปแบบไหลตามข้อความ) เป็น <wp:anchor> แบบ 'อยู่หน้าข้อความ'
+    (behindDoc=0, wrapNone) จัดกึ่งกลางคอลัมน์ + เลื่อนแนวตั้ง dy_emu (ลบ = ขึ้น)"""
+    drawing = inline.getparent()
+    anchor = OxmlElement("wp:anchor")
+    for k, v in (("distT", "0"), ("distB", "0"), ("distL", "0"), ("distR", "0"),
+                 ("simplePos", "0"), ("relativeHeight", "251658240"), ("behindDoc", "0"),
+                 ("locked", "0"), ("layoutInCell", "1"), ("allowOverlap", "1")):
+        anchor.set(k, v)
+    sp = OxmlElement("wp:simplePos"); sp.set("x", "0"); sp.set("y", "0"); anchor.append(sp)
+    ph = OxmlElement("wp:positionH"); ph.set("relativeFrom", "column")
+    al = OxmlElement("wp:align"); al.text = "center"; ph.append(al); anchor.append(ph)
+    pv = OxmlElement("wp:positionV"); pv.set("relativeFrom", "paragraph")
+    off = OxmlElement("wp:posOffset"); off.text = str(int(dy_emu)); pv.append(off); anchor.append(pv)
+    # ย้ายลูก extent/effectExtent มาก่อน แล้วแทรก wrapNone ตามด้วย docPr/graphic (ลำดับตาม schema)
+    for tag in ("wp:extent", "wp:effectExtent"):
+        el = inline.find(qn(tag))
+        if el is not None:
+            anchor.append(el)
+    anchor.append(OxmlElement("wp:wrapNone"))
+    for tag in ("wp:docPr", "wp:cNvGraphicFramePr", "a:graphic"):
+        el = inline.find(qn(tag))
+        if el is not None:
+            anchor.append(el)
+    drawing.remove(inline)
+    drawing.append(anchor)
+
+
+def _float_signature(paragraph, signer_name, height_cm=1.45, dy_cm=-0.55):
+    """ถ้าผู้ลงนามมีลายเซ็น -> วางรูปลายเซ็นแบบ 'อยู่หน้าข้อความ' ทับบนพารากราฟที่ระบุ
+    (PNG โปร่งใส ลอยทับบรรทัด '(ลงชื่อ)' ไม่ดันข้อความ) คืน True ถ้าใส่แล้ว"""
     from app.services.signature import signature_path_for_current
     path = signature_path_for_current(signer_name)
     if not path:
         return False
     try:
-        par = doc.add_paragraph()
-        par.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        par.paragraph_format.space_before = Pt(0)
-        par.paragraph_format.space_after = Pt(0)
-        par.add_run().add_picture(path, height=Cm(height_cm))
+        shape = paragraph.add_run().add_picture(path, height=Cm(height_cm))
+        _inline_to_anchor(shape._inline, dy_cm * 360000)
         return True
     except Exception:
         return False
-
-
-def _sign_lines(label, signer, position):
-    """สร้างบรรทัดสำหรับ _sign_table (ช่องลงนามครึ่งขวา) + แทรกรูปลายเซ็นเหนือบรรทัดชื่อถ้ามี"""
-    from app.services.signature import signature_path_for_current
-    lines = []
-    path = signature_path_for_current(signer)
-    if path:
-        lines.append(("__SIG__", path))
-    lines.append((label, "center"))
-    lines.append((f"( {signer} )", "center"))
-    lines.append((position, "center"))
-    return lines
 
 
 def _save_doc(doc, fname: str) -> str:
@@ -130,7 +142,12 @@ def render_memo(memo, school) -> str:
     _p(doc, "", after=12)
     signer = (memo.signer_name or school.director_name or "")
     position = (memo.signer_position or _director_office(school))
-    _sign_table(doc, [_sign_lines("ลงชื่อ.........................................", signer, position)])
+    tbl = _sign_table(doc, [[
+        ("ลงชื่อ.........................................", "center"),
+        (f"( {signer} )", "center"),
+        (position, "center"),
+    ]])
+    _float_signature(tbl.rows[0].cells[0].paragraphs[0], signer)
 
     fname = _safe(f"บันทึกข้อความ_{memo.memo_no or memo.id}_{memo.subject}") + ".docx"
     return _save_doc(doc, fname)
@@ -150,8 +167,8 @@ def render_order(order, school) -> str:
 
     _p(doc, "", after=6)
     _p(doc, "สั่ง ณ วันที่ " + thai_date_official(order.date), align="center", after=12)
-    _sign_image(doc, school.director_name)
-    _p(doc, "(ลงชื่อ).........................................", align="center")
+    sign_p = _p(doc, "(ลงชื่อ).........................................", align="center")
+    _float_signature(sign_p, school.director_name)
     _p(doc, f"( {school.director_name or ''} )", align="center")
     _p(doc, _director_office(school), align="center")
 
@@ -194,7 +211,12 @@ def render_official_letter(letter, school) -> str:
     _p(doc, letter.closing or "ขอแสดงความนับถือ", align="center", after=10)
     signer = (letter.signer_name or school.director_name or "")
     position = (letter.signer_position or _director_office(school))
-    _sign_table(doc, [_sign_lines("(ลงชื่อ).........................................", signer, position)])
+    tbl = _sign_table(doc, [[
+        ("(ลงชื่อ).........................................", "center"),
+        (f"( {signer} )", "center"),
+        (position, "center"),
+    ]])
+    _float_signature(tbl.rows[0].cells[0].paragraphs[0], signer)
 
     # ส่วนราชการเจ้าของเรื่อง + เบอร์โทร -> ตรึงไว้ท้ายหน้า (footer)
     foot = doc.sections[0].footer
