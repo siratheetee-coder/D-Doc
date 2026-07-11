@@ -306,17 +306,21 @@ def render_w804(proc, school) -> str:
         ("ลงชื่อ…………………………………………เจ้าหน้าที่", "center"),
         (f"( {officer or _BLANK} )", "center"),
     ]])
-    _p(doc, "ทราบ  /  อนุมัติ", align="center", after=8)
+    _p(doc, "☐  ทราบ", after=1)
+    _p(doc, "☐  อนุมัติ", after=10)
     _sign_table(doc, [[
         ("ลงชื่อ…………………………………………", "center"),
         (f"( {(getattr(school, 'director_name', '') or '').strip() or _BLANK} )", "center"),
-        (_director_office(school), "center"),
+        ("ตำแหน่ง " + _director_office(school), "center"),
         ("วันที่........................................", "center"),
     ]])
 
     # ---------- ส่วนที่ 4: ใบติดใบเสร็จรับเงิน ----------
     doc.add_page_break()
-    _p(doc, "ใบติดใบเสร็จรับเงิน", align="center", bold=True, size=18, after=6)
+    _p(doc, "ใบติดใบเสร็จรับเงิน", align="center", bold=True, size=18, after=2)
+    # เว้นพื้นที่ว่างกลางหน้าไว้สำหรับติดใบเสร็จจริง แล้วดันข้อความ+ลายเซ็นไปอยู่ล่างหน้า
+    spacer = doc.add_paragraph()
+    spacer.paragraph_format.space_after = Cm(17)
     _p(doc, f"จำนวนเงินตามใบเสร็จรับเงิน เล่มที่ {_x(ex,'receipt_book')} เลขที่ {_x(ex,'receipt_no')} "
             f"ลงวันที่ {_xdate(ex,'receipt_date')}", align="justify", indent=1.25, after=2)
     _p(doc, f"ข้าพเจ้าได้ทดรองจ่ายไปก่อนแล้ว เป็นจำนวนเงิน {_money(total)} บาท ({bahttext(total)}) "
