@@ -40,13 +40,60 @@
   .ov-ic .icon { width: 22px; height: 22px; }
   .ov-purple { background:#ede9fe; color:#7c3aed; } .ov-blue { background:#e8f0ff; color:#4880FF; }
   .ov-green { background:#dcfce7; color:#16a34a; } .ov-amber { background:#fff4e5; color:#d97706; }
+
+  /* checklist เริ่มต้นใช้งาน */
+  .onboard { margin-bottom: 22px; }
+  .onboard .ob-bar { height:8px; border-radius:999px; background:#eef0f4; overflow:hidden; margin:12px 0 16px; }
+  .onboard .ob-bar i { display:block; height:100%; background:#16a34a; border-radius:999px; transition:width .3s; }
+  .ob-list { display:flex; flex-direction:column; gap:10px; }
+  .ob-item { display:flex; align-items:center; gap:12px; padding:11px 14px; border:1px solid var(--border); border-radius:12px; }
+  .ob-item.done { background:#f2fbf5; border-color:#cdeed7; }
+  .ob-chk { width:26px; height:26px; border-radius:50%; border:2px solid #d3d9e3; flex:none;
+    display:flex; align-items:center; justify-content:center; color:#fff; }
+  .ob-item.done .ob-chk { background:#16a34a; border-color:#16a34a; }
+  .ob-chk .icon { width:15px; height:15px; }
+  .ob-body { flex:1; min-width:0; }
+  .ob-label { font-weight:600; }
+  .ob-item.done .ob-label { color:#15803d; }
 </style>
 
 <div class="hub-wrap">
   <div class="hub-head">
     <h1>{{ school.name or "ระบบจัดการเอกสารโรงเรียน" }}</h1>
-    <p class="muted" style="margin:0;">เลือกงานที่ต้องการเข้าใช้ — เลขบันทึกข้อความและคำสั่งรันต่อเนื่องร่วมกันทุกงาน · ปีงบประมาณ {{ fiscal_year }}</p>
+    <p class="muted" style="margin:0;">เลือกงานที่ต้องการเข้าใช้ เลขบันทึกข้อความและคำสั่งรันต่อเนื่องร่วมกันทุกงาน ปีงบประมาณ {{ fiscal_year }}</p>
   </div>
+
+  {% if onboard_done < onboard_total %}
+  <div class="card onboard" id="onboardCard">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+      <h2 style="margin:0; border:none; background:none; padding:0;"><svg class="icon"><use href="#ic-check"/></svg> เริ่มต้นใช้งาน</h2>
+      <span class="muted">ทำแล้ว {{ onboard_done }}/{{ onboard_total }} ขั้น</span>
+    </div>
+    <div class="ob-bar"><i style="width:{{ (onboard_done / onboard_total * 100)|round(0,'floor') }}%"></i></div>
+    <div class="ob-list">
+      {% for s in onboard %}
+      <div class="ob-item {{ 'done' if s.done }}">
+        <span class="ob-chk">{% if s.done %}<svg class="icon"><use href="#ic-check"/></svg>{% endif %}</span>
+        <div class="ob-body">
+          <div class="ob-label">{{ s.label }}</div>
+          <div class="muted" style="font-size:12.5px;">{{ s.hint }}</div>
+        </div>
+        {% if not s.done %}<a class="btn sm" href="{{ s.href }}">ไปทำ <svg class="icon"><use href="#ic-arrow-right"/></svg></a>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div style="margin-top:14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <a class="btn soft sm" href="/guide"><svg class="icon"><use href="#ic-info"/></svg> ดูวิธีใช้งานทั้งหมด</a>
+      <button type="button" class="btn gray sm" onclick="dismissOnboard()">ซ่อนไปก่อน</button>
+    </div>
+  </div>
+  <script>
+    (function(){ if(localStorage.getItem('ddoc_onboard_hidden')==='1'){
+      var c=document.getElementById('onboardCard'); if(c) c.style.display='none'; } })();
+    function dismissOnboard(){ localStorage.setItem('ddoc_onboard_hidden','1');
+      var c=document.getElementById('onboardCard'); if(c) c.style.display='none'; }
+  </script>
+  {% endif %}
 
   <div class="hub-grid">
     <!-- งานธุรการ -->

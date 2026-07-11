@@ -142,9 +142,33 @@ def hub(request: Request, db: Session = Depends(get_db)):
         "material": db.query(MaterialItem).count(),
     }
     admin_total = stats["memo"] + stats["order"] + stats["incoming"] + stats["outgoing"]
+
+    # ---- checklist เริ่มต้นใช้งาน (ติ๊กอัตโนมัติจากข้อมูลจริง) ----
+    school = get_school(db)
+    settings_ok = all([school.name, school.director_name,
+                       school.officer_name, school.head_officer_name])
+    has_person = db.query(Person).count() > 0
+    has_signature = db.query(Person).filter(Person.signature != "").count() > 0
+    has_register = (db.query(Vendor).count() > 0) or (db.query(Student).count() > 0)
+    has_doc = (stats["proc"] + admin_total) > 0
+    onboard = [
+        {"label": "ตั้งค่าข้อมูลโรงเรียน", "hint": "ชื่อโรงเรียน ผู้อำนวยการ เจ้าหน้าที่พัสดุ",
+         "done": settings_ok, "href": "/settings", "icon": "ic-settings"},
+        {"label": "เพิ่มบุคลากร / ผู้ลงนาม", "hint": "ครู กรรมการ ผู้ลงนามในเอกสาร",
+         "done": has_person, "href": "/masters", "icon": "ic-users"},
+        {"label": "อัปโหลดลายเซ็นผู้ลงนาม", "hint": "ระบบจะใส่ลายเซ็นในเอกสารให้อัตโนมัติ",
+         "done": has_signature, "href": "/masters", "icon": "ic-edit"},
+        {"label": "เพิ่มทะเบียนข้อมูล", "hint": "ผู้ขาย/ผู้รับจ้าง หรือรายชื่อนักเรียน (กรอกครั้งเดียวใช้ซ้ำ)",
+         "done": has_register, "href": "/vendors", "icon": "ic-store"},
+        {"label": "สร้างเอกสารฉบับแรก", "hint": "เริ่มจากงานที่ต้องการ ระบบออกเอกสารให้ครบชุด",
+         "done": has_doc, "href": "/procurement/new", "icon": "ic-file-plus"},
+    ]
+    onboard_done = sum(1 for s in onboard if s["done"])
+
     return templates.TemplateResponse("hub.html", {
-        "request": request, "school": get_school(db), "fiscal_year": fy,
+        "request": request, "school": school, "fiscal_year": fy,
         "stats": stats, "admin_total": admin_total,
+        "onboard": onboard, "onboard_done": onboard_done, "onboard_total": len(onboard),
     })
 
 
@@ -343,6 +367,12 @@ def settings_save(
     s.doc_prefix, s.doc_set_threshold = doc_prefix, doc_set_threshold
     db.commit()
     return RedirectResponse("/settings?saved=1", status_code=303)
+
+
+# ---------------- วิธีใช้งาน (คู่มือในแอป) ----------------
+@router.get("/guide", response_class=HTMLResponse)
+def guide_page(request: Request):
+    return templates.TemplateResponse("guide.html", {"request": request})
 
 
 # ---------------- ติดต่อเจ้าหน้าที่ / รีวิว ----------------

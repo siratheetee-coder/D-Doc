@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}วิธีใช้งาน{% endblock %}
+{% block content %}
+<style>
+  .acc { border:1px solid var(--border); border-radius:14px; margin-bottom:14px; background:var(--surface); overflow:hidden; }
+  .acc > summary { list-style:none; cursor:pointer; padding:16px 20px; display:flex; align-items:center; gap:12px;
+    font-weight:700; font-size:16.5px; user-select:none; }
+  .acc > summary::-webkit-details-marker { display:none; }
+  .acc > summary .chev { margin-left:auto; transition:transform .2s; color:var(--muted); }
+  .acc[open] > summary .chev { transform:rotate(90deg); }
+  .acc > summary .sic { width:38px; height:38px; border-radius:11px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .acc > summary .sic .icon { width:20px; height:20px; }
+  .acc .acc-body { padding:4px 20px 20px; }
+  .steps { display:flex; flex-direction:column; gap:14px; }
+  .step { display:flex; gap:14px; }
+  .step .num { width:30px; height:30px; border-radius:50%; background:var(--brand); color:#fff; flex:none;
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px; }
+  .step .st-body h4 { margin:2px 0 3px; font-size:15.5px; }
+  .step .st-body p { margin:0; color:var(--muted); font-size:14px; line-height:1.6; }
+  .tips { margin:0; padding-left:0; list-style:none; display:flex; flex-direction:column; gap:11px; }
+  .tips li { display:flex; gap:10px; align-items:flex-start; font-size:14.5px; line-height:1.6; }
+  .tips li .icon { color:#16a34a; flex:none; margin-top:3px; }
+  .faq-q { font-weight:700; margin:16px 0 4px; }
+  .faq-q:first-child { margin-top:4px; }
+  .faq-a { color:var(--muted); font-size:14.5px; line-height:1.65; margin:0; }
+  .g-purple { background:#ede9fe; color:#7c3aed; } .g-blue { background:#e8f0ff; color:#4880FF; }
+  .g-green { background:#dcfce7; color:#16a34a; } .g-amber { background:#fff4e5; color:#d97706; }
+  .g-gray { background:#eef0f4; color:#5a6a85; }
+</style>
+
+<div class="hero">
+  <div>
+    <div class="hero-sub">คู่มือการใช้งานระบบ D-Doc</div>
+    <span class="hero-title">วิธีใช้งาน</span>
+    <div class="hero-meta">กรอกข้อมูลครั้งเดียว · ระบบออกเอกสารราชการให้ครบชุด · ดาวน์โหลด Word พร้อมพิมพ์</div>
+  </div>
+</div>
+
+<!-- เริ่มต้นใช้งาน -->
+<details class="acc" open>
+  <summary><span class="sic g-gray"><svg class="icon"><use href="#ic-check"/></svg></span> เริ่มต้นใช้งาน (แนะนำทำตามลำดับ) <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
+  <div class="acc-body">
+    <div class="steps">
+      <div class="step"><span class="num">1</span><div class="st-body"><h4>ตั้งค่าข้อมูลโรงเรียน</h4><p>กรอกชื่อโรงเรียน ผู้อำนวยการ เจ้าหน้าที่พัสดุ เพื่อให้เอกสารมีข้อมูลครบ · <a href="/settings">ไปตั้งค่าโรงเรียน</a></p></div></div>
+      <div class="step"><span class="num">2</span><div class="st-body"><h4>เพิ่มบุคลากร / ผู้ลงนาม</h4><p>บันทึกรายชื่อครู กรรมการ และผู้ลงนาม ใช้ซ้ำตอนสร้างเรื่องหรือแต่งตั้งกรรมการ · <a href="/masters">ไปหน้าบุคลากร</a></p></div></div>
+      <div class="step"><span class="num">3</span><div class="st-body"><h4>อัปโหลดลายเซ็นผู้ลงนาม</h4><p>อัปโหลดลายเซ็นของแต่ละคน (ระบบลบพื้นหลังขาวให้อัตโนมัติ) แล้วระบบจะใส่ลายเซ็นในเอกสารให้เองเมื่อบุคคลนั้นเป็นผู้ลงนาม · <a href="/masters">อัปโหลดที่หน้าบุคลากร</a></p></div></div>
+      <div class="step"><span class="num">4</span><div class="st-body"><h4>เพิ่มทะเบียนข้อมูล (กรอกครั้งเดียวใช้ซ้ำ)</h4><p>เพิ่มผู้ขาย/ผู้รับจ้าง (<a href="/vendors">ผู้ขาย</a>) หรือรายชื่อนักเรียน (<a href="/students">นักเรียน</a>) ระบบจะดึงไปใช้ทุกเอกสารที่เกี่ยวข้อง ไม่ต้องกรอกซ้ำ</p></div></div>
+      <div class="step"><span class="num">5</span><div class="st-body"><h4>สร้างเอกสารฉบับแรก</h4><p>เลือกงานที่ต้องการจากหน้าแรก แล้วเริ่มสร้างเรื่อง ระบบจะออกเอกสารให้ครบชุดตามระเบียบ</p></div></div>
+    </div>
+  </div>
+</details>
+
+<!-- งานพัสดุ -->
+<details class="acc">
+  <summary><span class="sic g-blue"><svg class="icon"><use href="#ic-package"/></svg></span> งานพัสดุ (จัดซื้อจัดจ้าง) <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
+  <div class="acc-body">
+    <div class="steps">
+      <div class="step"><span class="num">1</span><div class="st-body"><h4>สร้างเรื่องจัดซื้อ/จัดจ้าง</h4><p>บันทึกรายละเอียด เลือกผู้ขาย และรายการพัสดุ กรอกครั้งเดียว ระบบจำและนำไปใช้ทุกเอกสารที่เกี่ยวข้อง</p></div></div>
+      <div class="step"><span class="num">2</span><div class="st-body"><h4>ระบบออกเอกสารให้ครบชุด</h4><p>บันทึกขอซื้อ ใบสั่งซื้อ ตรวจรับ ขอเบิกจ่าย ครบทุกใบตามระเบียบพัสดุฯ (รวม ว.804 / ว.119 วิธีเฉพาะเจาะจง) เลขที่เอกสารรันอัตโนมัติ ไม่ชนกัน</p></div></div>
+      <div class="step"><span class="num">3</span><div class="st-body"><h4>ตรวจรับเมื่อได้ของ</h4><p>เมื่อได้ของและตรวจรับแล้ว ทำขั้นตอนถัดไปในหน้าเรื่องได้เลย พร้อมช่วยกรอกข้อมูลลง e-GP</p></div></div>
+      <div class="step"><span class="num">4</span><div class="st-body"><h4>ดาวน์โหลด Word พร้อมพิมพ์</h4><p>ได้ไฟล์ Word ฟอนต์ราชการ TH Sarabun จัดหน้าถูกต้อง เปิดแก้เพิ่มได้เอง พิมพ์เสนอเซ็นได้ทันที</p></div></div>
+    </div>
+  </div>
+</details>
+
+<!-- งานการเงิน -->
+<details class="acc">
+  <summary><span class="sic g-green"><svg class="icon"><use href="#ic-coins"/></svg></span> งานการเงิน <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
+  <div class="acc-body">
+    <div class="steps">
+      <div class="step"><span class="num">1</span><div class="st-body"><h4>เปิดบัญชี / ทะเบียนคุมเงิน</h4><p>ตั้งค่าบัญชีเงินฝากและประเภทเงิน เพื่อคุมยอดรับ-จ่ายแต่ละบัญชี</p></div></div>
+      <div class="step"><span class="num">2</span><div class="st-body"><h4>บันทึกรับ-จ่ายในสมุดเงินสด</h4><p>ลงรายการรับ-จ่ายในสมุดเงินสด (Cash Book) ระบบคุมยอดคงเหลือให้อัตโนมัติ</p></div></div>
+      <div class="step"><span class="num">3</span><div class="st-body"><h4>ออกรายงานแบบ สตง.</h4><p>บัญชีแยกประเภทและรายงานการเงินตามรูปแบบที่ตรวจสอบได้ พร้อมดาวน์โหลด</p></div></div>
+    </div>
+  </div>
+</details>
+
+<!-- งานธุรการ -->
+<details class="acc">
+  <summary><span class="sic g-purple"><svg class="icon"><use href="#ic-file"/></svg></span> งานธุรการ (หนังสือราชการ) <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
+  <div class="acc-body">
+    <div class="steps">
+      <div class="step"><span class="num">1</span><div class="st-body"><h4>ลงทะเบียนหนังสือรับ-ส่ง</h4><p>อัปโหลดไฟล์ PDF หรือ Word ระบบจะอ่านเลขที่/วันที่/เรื่อง/ผู้รับให้อัตโนมัติ (แนะนำ Word ดึงข้อมูลแม่นกว่า) ตรวจก่อนบันทึก</p></div></div>
+      <div class="step"><span class="num">2</span><div class="st-body"><h4>ออกบันทึกข้อความ / คำสั่ง</h4><p>ร่างบันทึกข้อความและคำสั่งโรงเรียน มี AI ช่วยร่างเนื้อหาให้ เลขที่รันต่อเนื่องร่วมกันทุกงาน</p></div></div>
+      <div class="step"><span class="num">3</span><div class="st-body"><h4>หนังสือราชการ + เกียรติบัตร</h4><p>ออกหนังสือราชการ 6 แบบ และพิมพ์เกียรติบัตรจากรายชื่อได้</p></div></div>
+    </div>
+  </div>
+</details>
+
+<!-- งานอาหารกลางวัน -->
+<details class="acc">
+  <summary><span class="sic g-amber"><svg class="icon"><use href="#ic-food"/></svg></span> งานอาหารกลางวัน <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
+  <div class="acc-body">
+    <div class="steps">
+      <div class="step"><span class="num">1</span><div class="st-body"><h4>ตั้งค่าโครงการ</h4><p>กรอกจำนวนนักเรียนและงบประมาณต่อหัว (ตามคู่มืออาหารกลางวัน สพฐ.)</p></div></div>
+      <div class="step"><span class="num">2</span><div class="st-body"><h4>คำนวณงบ + ออกเอกสารจ้าง</h4><p>ระบบคำนวณวงเงินให้ พร้อมออกเอกสารจ้าง 3 รูปแบบ</p></div></div>
+      <div class="step"><span class="num">3</span><div class="st-body"><h4>บันทึกภาวะโภชนาการ</h4><p>บันทึกและติดตามภาวะโภชนาการของนักเรียน</p></div></div>
+    </div>
+  </div>
+</details>
+
+<!-- เคล็ดลับ -->
+<details class="acc">
+  <summary><span class="sic g-amber"><svg class="icon"><use href="#ic-star"/></svg></span> เคล็ดลับให้ใช้งานคุ้มที่สุด <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
+  <div class="acc-body">
+    <ul class="tips">
+      <li><svg class="icon"><use href="#ic-check"/></svg><span><b>เลขเอกสารรันต่อเนื่องอัตโนมัติ</b> — บันทึกข้อความและคำสั่งใช้เลขชุดเดียวกันทุกงาน ไม่ชนกัน</span></li>
+      <li><svg class="icon"><use href="#ic-check"/></svg><span><b>ทะเบียนข้อมูลกรอกครั้งเดียว ใช้ซ้ำ</b> — บุคลากร ผู้ขาย นักเรียน ที่บันทึกไว้ ระบบดึงไปใช้ทุกเอกสาร ไม่ต้องกรอกใหม่</span></li>
+      <li><svg class="icon"><use href="#ic-check"/></svg><span><b>ลายเซ็นอัตโนมัติ</b> — อัปโหลดลายเซ็นที่หน้าบุคลากร ระบบจะวางในเอกสารให้เองเมื่อคนนั้นเป็นผู้ลงนาม</span></li>
+      <li><svg class="icon"><use href="#ic-check"/></svg><span><b>สำรองข้อมูลสม่ำเสมอ</b> — ดาวน์โหลดไฟล์สำรองเก็บไว้เป็นระยะที่หน้าตั้งค่าโรงเรียน</span></li>
+    </ul>
+  </div>
+</details>
+
+<!-- FAQ -->
+<details class="acc">
+  <summary><span class="sic g-gray"><svg class="icon"><use href="#ic-info"/></svg></span> คำถามที่พบบ่อย <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
+  <div class="acc-body">
+    <div class="faq-q">ออกเอกสารแล้วมีช่องว่าง ไม่มีชื่อโรงเรียน/ผู้อำนวยการ?</div>
+    <p class="faq-a">ยังตั้งค่าโรงเรียนไม่ครบ ไปกรอกข้อมูลให้ครบที่หน้า <a href="/settings">ตั้งค่าโรงเรียน</a> แล้วออกเอกสารใหม่</p>
+    <div class="faq-q">แก้ไขข้อมูลในเรื่องแล้ว ต้องออกเอกสารใหม่ไหม?</div>
+    <p class="faq-a">ต้องกดออกเอกสารใหม่อีกครั้ง ไฟล์ที่ดาวน์โหลดไปก่อนหน้าจะยังเป็นข้อมูลเดิม</p>
+    <div class="faq-q">ขึ้นปีการศึกษาใหม่ ต้องทำอะไร?</div>
+    <p class="faq-a">ไปที่ <a href="/students">ข้อมูลนักเรียน</a> เลื่อนชั้นทุกคนขึ้น 1 ระดับ แล้วเพิ่มนักเรียนใหม่ ระบบเก็บทะเบียนไว้ใช้ซ้ำทุกปี</p>
+    <div class="faq-q">ลายเซ็นที่อัปโหลดมีพื้นหลังขาว จะไปทับข้อความไหม?</div>
+    <p class="faq-a">ไม่ทับ — ระบบลบพื้นหลังขาวให้อัตโนมัติเป็น PNG โปร่งใส และมีตัวปรับ (ลบพื้นหลัง/ยางลบ) ให้แต่งเองได้ก่อนบันทึก</p>
+  </div>
+</details>
+
+<div class="card" style="text-align:center; margin-top:6px;">
+  <h2 style="justify-content:center; border:none; background:none; padding:0;">ยังไม่หายสงสัย?</h2>
+  <p class="muted" style="margin:0 0 14px;">ทีมงานยินดีช่วยเหลือ แจ้งปัญหาหรือสอบถามการใช้งานได้เลย</p>
+  <a class="btn" href="/support"><svg class="icon"><use href="#ic-send"/></svg> ติดต่อเจ้าหน้าที่</a>
+</div>
+{% endblock %}
