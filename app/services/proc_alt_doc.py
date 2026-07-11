@@ -175,9 +175,13 @@ def _grow(t, values, widths, aligns, *, bold=False):
 
 
 def _header(doc, *, subject_line: str, school, doc_no="", doc_date=None,
-            via_head=False):
-    """หัวบันทึกข้อความ: ครุฑ + ส่วนราชการ/ที่/วันที่/เรื่อง/เรียน"""
+            via_head=False, page_break=False):
+    """หัวบันทึกข้อความ: ครุฑ + ส่วนราชการ/ที่/วันที่/เรื่อง/เรียน
+    page_break=True: ขึ้นหน้าใหม่ก่อนหัวเรื่อง (ใช้ page_break_before บนย่อหน้าครุฑ
+    แทน add_page_break เพื่อไม่ให้เกิดหน้าว่างคั่น)"""
     _krut_and_title(doc)
+    if page_break:
+        doc.paragraphs[-1].paragraph_format.page_break_before = True
     if isinstance(doc_date, str):
         date_txt = doc_date.strip() or _BLANK
     else:
@@ -244,8 +248,8 @@ def render_w804(proc, school) -> str:
     _opinion_box(doc, head_officer, director)
 
     # ---------- ส่วนที่ 2: รายละเอียดคุณลักษณะเฉพาะ (แนบท้าย) ----------
-    doc.add_page_break()
-    _p(doc, "รายละเอียดคุณลักษณะเฉพาะของพัสดุที่จะดำเนินการซื้อ", align="center", bold=True, after=2)
+    p2 = _p(doc, "รายละเอียดคุณลักษณะเฉพาะของพัสดุที่จะดำเนินการซื้อ", align="center", bold=True, after=2)
+    p2.paragraph_format.page_break_before = True
     _p(doc, f"งานจัดซื้อวัสดุโครงการ/กิจกรรม{_project(proc)} จำนวน {n} รายการ",
        align="center", after=1)
     _p(doc, f"แนบท้ายบันทึกข้อความ ที่ {(proc.memo_no or '').strip() or _BLANK_S} "
@@ -266,10 +270,9 @@ def render_w804(proc, school) -> str:
     ]])
 
     # ---------- ส่วนที่ 3: รายงานสรุปผล + ขออนุมัติเบิกจ่าย ----------
-    doc.add_page_break()
     _header(doc, subject_line=f"รายงานสรุปผลการจัดซื้อ{subject} โดยวิธีเฉพาะเจาะจง และอนุมัติเบิกจ่าย",
             school=school, doc_no=ex.get("report2_no", "").strip() or (proc.memo_no or "").strip(),
-            doc_date=(ex.get("report2_date", "").strip() or proc.request_date))
+            doc_date=(ex.get("report2_date", "").strip() or proc.request_date), page_break=True)
     _p(doc, f"ตามที่ {school.name or 'โรงเรียน'} เห็นชอบให้ดำเนินการซื้อ{subject} "
             f"จำนวน {n} รายการ สำหรับโครงการ/กิจกรรม{_project(proc)} โดยวิธีเฉพาะเจาะจง "
             f"ประจำปีงบประมาณ พ.ศ. {fy} นั้น", align="justify", indent=1.25, after=1)
@@ -315,8 +318,8 @@ def render_w804(proc, school) -> str:
     ]])
 
     # ---------- ส่วนที่ 4: ใบติดใบเสร็จรับเงิน ----------
-    doc.add_page_break()
-    _p(doc, "ใบติดใบเสร็จรับเงิน", align="center", bold=True, size=18, after=2)
+    p4 = _p(doc, "ใบติดใบเสร็จรับเงิน", align="center", bold=True, size=18, after=2)
+    p4.paragraph_format.page_break_before = True
     # เว้นพื้นที่ว่างกลางหน้าไว้สำหรับติดใบเสร็จจริง แล้วดันข้อความ+ลายเซ็นไปอยู่ล่างหน้า
     spacer = doc.add_paragraph()
     spacer.paragraph_format.space_after = Cm(18)
