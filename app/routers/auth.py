@@ -65,7 +65,8 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
     if not user.get("verified", True):
         return templates.TemplateResponse("login.html", {
             "request": request,
-            "error": "กรุณายืนยันอีเมลก่อนเข้าใช้งาน (ตรวจสอบลิงก์ยืนยันในอีเมลของคุณ)",
+            "error": "อีเมลนี้ยังไม่ได้ยืนยัน โปรดตรวจสอบลิงก์ยืนยันในอีเมลของท่านก่อน (ถ้าไม่พบ ลองดูในกล่อง Spam)",
+            "unverified_email": user["username"],
         }, status_code=403)
     # ล็อกอินสำเร็จ — เก็บข้อมูลใน session
     request.session.clear()

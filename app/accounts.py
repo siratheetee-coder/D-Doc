@@ -454,21 +454,19 @@ def register_account(email: str, password: str, school_name: str,
                            max_users=3, must_change=False, plan="trial",
                            docs_limit=TRIAL_DOC_LIMIT)
     import secrets
-    from app.services.mailer import smtp_configured
-    need_verify = smtp_configured()
-    token = secrets.token_urlsafe(24) if need_verify else ""
+    # บังคับยืนยันอีเมลเสมอ (fail-closed): บัญชีใหม่ต้องยืนยันอีเมลก่อนเข้าใช้งาน
+    token = secrets.token_urlsafe(24)
     db = acc_session()
     try:
         acc = db.query(Account).filter_by(username=email).first()
-        if need_verify:
-            acc.verified = False
-            acc.verify_token = token
+        acc.verified = False
+        acc.verify_token = token
         db.add(Lead(kind="trial", school_name=school_name, contact_name=contact_name.strip(),
                     email=email, phone=phone.strip(), tenant_id=tid,
                     login_user=email, status="ทดลองใช้"))
         db.commit()
         return {"uid": acc.id, "tenant_id": tid, "username": email, "display_name": school_name,
-                "needs_verify": need_verify, "verify_token": token, "email": email}
+                "needs_verify": True, "verify_token": token, "email": email}
     finally:
         db.close()
 

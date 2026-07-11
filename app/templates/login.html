@@ -50,6 +50,14 @@
     </div>
     {% if ok_msg %}<div class="ok">{{ ok_msg }}</div>{% endif %}
     {% if error %}<div class="err">{{ error }}</div>{% endif %}
+    {% if unverified_email %}
+    <form method="post" action="/register/resend" style="margin:-2px 0 6px;">
+      <input type="hidden" name="email" value="{{ unverified_email }}">
+      <button type="submit" style="width:100%; background:#fff7e6; color:#a15c07; border:1px solid #ffe0a8;
+        padding:9px; border-radius:10px; font-weight:600; font-size:14px; cursor:pointer; font-family:inherit;">
+        ส่งอีเมลยืนยันอีกครั้ง</button>
+    </form>
+    {% endif %}
     <label>ชื่อผู้ใช้ (อีเมล)</label>
     <input name="username" autocomplete="username" required autofocus>
     <label>รหัสผ่าน</label>
