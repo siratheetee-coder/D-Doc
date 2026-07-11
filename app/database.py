@@ -85,6 +85,7 @@ MIGRATIONS = [
     ("procurement", "quotation_date", "DATETIME"),
     ("lunch_ledger", "finance_txn_id", "INTEGER"),   # ผูกกับรายการในบัญชีการเงินหลัก
     ("lunch_student", "student_id", "INTEGER"),       # ดึงมาจากทะเบียนนักเรียนกลาง
+    ("person", "signature", "VARCHAR DEFAULT ''"),    # ไฟล์ลายเซ็นบุคลากร (PNG โปร่งใส)
 ]
 
 

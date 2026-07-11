@@ -60,6 +60,7 @@ class Person(Base):
     name = Column(String, nullable=False)          # ชื่อ-นามสกุล (มีคำนำหน้า)
     position = Column(String, default="ครู")       # ตำแหน่ง
     active = Column(Boolean, default=True)
+    signature = Column(String, default="")         # ไฟล์ลายเซ็น (PNG โปร่งใส) ใน data/signatures/
 
 
 class Department(Base):

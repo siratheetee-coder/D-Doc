@@ -2,6 +2,14 @@
 {% block title %}บุคลากร/ฝ่าย{% endblock %}
 {% block content %}
 <datalist id="positions">{% for ps in positions %}<option value="{{ ps }}">{% endfor %}</datalist>
+<style>
+  .sig-thumb{ max-height:46px; max-width:150px; vertical-align:middle; border:1px solid var(--line);
+    border-radius:8px; padding:3px 6px;
+    background-color:#fff;
+    background-image:linear-gradient(45deg,#eef1f6 25%,transparent 25%,transparent 75%,#eef1f6 75%),
+                     linear-gradient(45deg,#eef1f6 25%,transparent 25%,transparent 75%,#eef1f6 75%);
+    background-size:12px 12px; background-position:0 0,6px 6px; }
+</style>
 
 <div class="hero">
   <div>
@@ -33,19 +41,42 @@
     </div>
     <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มบุคลากร</button>
   </form>
+  <p class="muted" style="margin:-4px 0 10px; font-size:13px;">
+    <svg class="icon"><use href="#ic-info"/></svg> อัปโหลดลายเซ็นของแต่ละคนได้ ระบบจะ<b>ลบพื้นหลังขาวให้อัตโนมัติ</b> แล้วนำไปวางในเอกสารให้เองเมื่อบุคคลนั้นเป็นผู้ลงนาม</p>
   <table>
-    <thead><tr><th style="width:50%;">ชื่อ-นามสกุล</th><th style="width:32%;">ตำแหน่ง</th><th></th></tr></thead>
+    <thead><tr><th style="width:38%;">ชื่อ-นามสกุล</th><th style="width:22%;">ตำแหน่ง</th><th style="width:22%;">ลายเซ็น</th><th></th></tr></thead>
     <tbody>
       {% for p in persons %}
       <tr>
         <td><form id="pf{{ p.id }}" method="post" action="/masters/person/{{ p.id }}/update"><input name="name" value="{{ p.name }}" required></form></td>
         <td><input name="position" value="{{ p.position }}" list="positions" form="pf{{ p.id }}"></td>
+        <td>
+          {% if p.signature %}
+            <img class="sig-thumb" src="/signatures/{{ p.signature }}" alt="ลายเซ็น {{ p.name }}">
+          {% else %}
+            <span class="muted" style="font-size:12.5px;">— ยังไม่มี —</span>
+          {% endif %}
+          <div style="margin-top:5px; white-space:nowrap;">
+            <form method="post" action="/masters/person/{{ p.id }}/signature" enctype="multipart/form-data" style="display:inline">
+              <label class="btn sm ghost" style="cursor:pointer;">
+                <svg class="icon"><use href="#ic-upload"/></svg> {{ 'เปลี่ยน' if p.signature else 'อัปโหลด' }}
+                <input type="file" name="file" accept="image/png,image/jpeg,image/webp" hidden onchange="this.form.submit()">
+              </label>
+            </form>
+            {% if p.signature %}
+            <form method="post" action="/masters/person/{{ p.id }}/signature/delete" style="display:inline"
+                  onsubmit="return confirm('ลบลายเซ็นของ {{ p.name }}?');">
+              <button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button>
+            </form>
+            {% endif %}
+          </div>
+        </td>
         <td class="right" style="white-space:nowrap;">
           <button class="btn sm" type="submit" form="pf{{ p.id }}"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
           <form method="post" action="/masters/person/{{ p.id }}/delete" style="display:inline"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
         </td>
       </tr>
-      {% else %}<tr><td colspan="3" class="muted">ยังไม่มี</td></tr>{% endfor %}
+      {% else %}<tr><td colspan="4" class="muted">ยังไม่มี</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>

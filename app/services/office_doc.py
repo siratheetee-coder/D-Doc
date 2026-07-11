@@ -45,6 +45,37 @@ def _safe(text: str) -> str:
     return text.strip()
 
 
+def _sign_image(doc, signer_name, height_cm=1.35):
+    """ถ้าผู้ลงนามชื่อ signer_name มีลายเซ็น -> เพิ่มพารากราฟรูปลายเซ็น (กึ่งกลาง) เหนือบรรทัดชื่อ
+    คืน True ถ้าใส่รูปแล้ว (ไฟล์เป็น PNG โปร่งใส จึงไม่มีกล่องขาวไปทับข้อความ)"""
+    from app.services.signature import signature_path_for_current
+    path = signature_path_for_current(signer_name)
+    if not path:
+        return False
+    try:
+        par = doc.add_paragraph()
+        par.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        par.paragraph_format.space_before = Pt(0)
+        par.paragraph_format.space_after = Pt(0)
+        par.add_run().add_picture(path, height=Cm(height_cm))
+        return True
+    except Exception:
+        return False
+
+
+def _sign_lines(label, signer, position):
+    """สร้างบรรทัดสำหรับ _sign_table (ช่องลงนามครึ่งขวา) + แทรกรูปลายเซ็นเหนือบรรทัดชื่อถ้ามี"""
+    from app.services.signature import signature_path_for_current
+    lines = []
+    path = signature_path_for_current(signer)
+    if path:
+        lines.append(("__SIG__", path))
+    lines.append((label, "center"))
+    lines.append((f"( {signer} )", "center"))
+    lines.append((position, "center"))
+    return lines
+
+
 def _save_doc(doc, fname: str) -> str:
     """บันทึก .docx ลง data/documents; ถ้าเขียนไม่ได้ (path/permission บนเซิร์ฟเวอร์)
     ใช้โฟลเดอร์ชั่วคราวของระบบแทน แล้วคืน path (เสิร์ฟจากหน่วยความจำภายหลัง)"""
@@ -99,11 +130,7 @@ def render_memo(memo, school) -> str:
     _p(doc, "", after=12)
     signer = (memo.signer_name or school.director_name or "")
     position = (memo.signer_position or _director_office(school))
-    _sign_table(doc, [[
-        ("ลงชื่อ.........................................", "center"),
-        (f"( {signer} )", "center"),
-        (position, "center"),
-    ]])
+    _sign_table(doc, [_sign_lines("ลงชื่อ.........................................", signer, position)])
 
     fname = _safe(f"บันทึกข้อความ_{memo.memo_no or memo.id}_{memo.subject}") + ".docx"
     return _save_doc(doc, fname)
@@ -123,6 +150,7 @@ def render_order(order, school) -> str:
 
     _p(doc, "", after=6)
     _p(doc, "สั่ง ณ วันที่ " + thai_date_official(order.date), align="center", after=12)
+    _sign_image(doc, school.director_name)
     _p(doc, "(ลงชื่อ).........................................", align="center")
     _p(doc, f"( {school.director_name or ''} )", align="center")
     _p(doc, _director_office(school), align="center")
@@ -166,11 +194,7 @@ def render_official_letter(letter, school) -> str:
     _p(doc, letter.closing or "ขอแสดงความนับถือ", align="center", after=10)
     signer = (letter.signer_name or school.director_name or "")
     position = (letter.signer_position or _director_office(school))
-    _sign_table(doc, [[
-        ("(ลงชื่อ).........................................", "center"),
-        (f"( {signer} )", "center"),
-        (position, "center"),
-    ]])
+    _sign_table(doc, [_sign_lines("(ลงชื่อ).........................................", signer, position)])
 
     # ส่วนราชการเจ้าของเรื่อง + เบอร์โทร -> ตรึงไว้ท้ายหน้า (footer)
     foot = doc.sections[0].footer

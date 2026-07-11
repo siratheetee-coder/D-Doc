@@ -16,7 +16,7 @@ from pathlib import Path
 from datetime import datetime
 from types import SimpleNamespace
 
-from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, Response
+from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, Response, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
@@ -509,8 +509,52 @@ def delete_master(kind: str, item_id: int, db: Session = Depends(get_db)):
     if model:
         obj = db.get(model, item_id)
         if obj:
+            if kind == "person" and getattr(obj, "signature", ""):
+                from app.services.signature import delete_signature
+                delete_signature(obj.signature)
             db.delete(obj); db.commit()
     return RedirectResponse("/masters", status_code=303)
+
+
+# ---------------- ลายเซ็นบุคลากร ----------------
+@router.post("/masters/person/{pid}/signature")
+async def upload_signature(pid: int, db: Session = Depends(get_db), file: UploadFile = File(...)):
+    from app.services.signature import process_signature, delete_signature
+    p = db.get(Person, pid)
+    if not p:
+        return RedirectResponse("/masters", status_code=303)
+    data = await file.read()
+    if len(data) > 8 * 1024 * 1024:      # จำกัด ~8MB
+        return RedirectResponse("/masters?sig=big", status_code=303)
+    new_name = process_signature(data, remove_white=True)
+    if not new_name:
+        return RedirectResponse("/masters?sig=bad", status_code=303)
+    if p.signature:                       # ลบไฟล์เก่า
+        delete_signature(p.signature)
+    p.signature = new_name
+    db.commit()
+    return RedirectResponse("/masters?sig=ok", status_code=303)
+
+
+@router.post("/masters/person/{pid}/signature/delete")
+def remove_signature(pid: int, db: Session = Depends(get_db)):
+    from app.services.signature import delete_signature
+    p = db.get(Person, pid)
+    if p and p.signature:
+        delete_signature(p.signature)
+        p.signature = ""
+        db.commit()
+    return RedirectResponse("/masters", status_code=303)
+
+
+@router.get("/signatures/{name}")
+def serve_signature(name: str):
+    from app.services.signature import signature_full_path
+    path = signature_full_path(name)
+    if not path:
+        raise HTTPException(status_code=404)
+    return FileResponse(str(path), media_type="image/png",
+                        headers={"Cache-Control": "no-cache"})
 
 
 # ---------------- คลังรายการพัสดุมาตรฐาน (ItemCatalog) ----------------
