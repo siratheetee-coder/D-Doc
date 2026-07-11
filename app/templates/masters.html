@@ -115,14 +115,14 @@
       <div id="sigCursor" class="sig-cursor" hidden></div>
     </div>
     <div class="sig-row">
-      <button type="button" class="btn sm" id="sigBgBtn">ลบพื้นหลัง: เปิด</button>
+      <label class="ios-sw"><input type="checkbox" id="sigBgChk" checked><span class="ios-track"></span><span>ลบพื้นหลัง</span></label>
       <div id="sigThreshWrap" class="sig-grow">
         <span class="muted" style="font-size:12.5px;">ความไว</span>
         <input type="range" id="sigThresh" min="120" max="254" value="238" style="flex:1;">
       </div>
     </div>
     <div class="sig-row">
-      <button type="button" class="btn sm" id="sigEraseBtn">ยางลบ: ปิด</button>
+      <label class="ios-sw"><input type="checkbox" id="sigEraseChk"><span class="ios-track"></span><span>ยางลบ</span></label>
       <div id="sigBrushWrap" class="sig-brushwrap" hidden>
         <span class="muted" style="font-size:12.5px;">ขนาด</span>
         <input type="range" id="sigBrush" min="6" max="70" value="26" style="width:100px;">
@@ -157,6 +157,16 @@
   .sig-brushwrap{ display:flex; align-items:center; gap:8px; }
   .sig-brushwrap[hidden]{ display:none; }
   .sig-row .btn.on{ background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ios-sw{ display:inline-flex; align-items:center; gap:8px; cursor:pointer; user-select:none;
+    font-weight:600; font-size:14px; }
+  .ios-sw input{ position:absolute; opacity:0; width:0; height:0; }
+  .ios-track{ width:44px; height:26px; border-radius:999px; background:#cfd6e0; position:relative;
+    transition:.22s; flex:none; }
+  .ios-track::after{ content:""; position:absolute; top:3px; left:3px; width:20px; height:20px;
+    border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3); transition:.22s; }
+  .ios-sw input:checked + .ios-track{ background:#34c759; }
+  .ios-sw input:checked + .ios-track::after{ transform:translateX(18px); }
+  .ios-sw input:focus-visible + .ios-track{ box-shadow:0 0 0 3px rgba(52,199,89,.35); }
   .sig-actions{ display:flex; gap:10px; margin-top:16px; }
   .sig-actions .btn{ flex:1; justify-content:center; }
 </style>
@@ -169,17 +179,15 @@
   var stage=document.getElementById('sigStage'), cursor=document.getElementById('sigCursor');
   var threshEl=document.getElementById('sigThresh'), threshWrap=document.getElementById('sigThreshWrap');
   var brushEl=document.getElementById('sigBrush'), brushWrap=document.getElementById('sigBrushWrap');
-  var bgBtn=document.getElementById('sigBgBtn'), eraseBtn=document.getElementById('sigEraseBtn');
+  var bgChk=document.getElementById('sigBgChk'), eraseChk=document.getElementById('sigEraseChk');
   var undoBtn=document.getElementById('sigUndo');
   var curPid=null, orig=null, W=0, H=0, mask=null;
   var removeBg=true, erasing=false, painting=false, undoStack=[];
   var MAXW=900;
 
-  function setBg(on){ removeBg=on; bgBtn.classList.toggle('on', on);
-    bgBtn.textContent='ลบพื้นหลัง: '+(on?'เปิด':'ปิด');
+  function setBg(on){ removeBg=on; bgChk.checked=on;
     threshWrap.style.visibility = on ? 'visible' : 'hidden'; render(); }
-  function setErase(on){ erasing=on; eraseBtn.classList.toggle('on', on);
-    eraseBtn.textContent='ยางลบ: '+(on?'เปิด':'ปิด');
+  function setErase(on){ erasing=on; eraseChk.checked=on;
     brushWrap.hidden=!on; canvas.classList.toggle('erasing', on); cursor.hidden=true; }
 
   function loadImage(src, defRemoveBg){
@@ -225,8 +233,8 @@
     ctx.putImageData(out,0,0);
   }
   threshEl.addEventListener('input', render);
-  bgBtn.addEventListener('click', function(){ setBg(!removeBg); });
-  eraseBtn.addEventListener('click', function(){ setErase(!erasing); });
+  bgChk.addEventListener('change', function(){ setBg(bgChk.checked); });
+  eraseChk.addEventListener('change', function(){ setErase(eraseChk.checked); });
   document.getElementById('sigReset').addEventListener('click', function(){
     if(mask){ pushUndo(); mask.fill(0); } threshEl.value=238; render();
   });

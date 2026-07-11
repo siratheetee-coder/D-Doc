@@ -32,6 +32,26 @@
     .msg { background:#e9f7ef; color:#0e7a44; border:1px solid #b7ebcd; padding:10px 14px; border-radius:10px; margin-bottom:16px; }
     .uline { font-size:13px; color:#5a6a85; display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:4px; }
     form.inline { display:inline; }
+    .pill.trial { background:#fff4e5; color:#d97706; } .pill.member { background:#eef4ff; color:#2563eb; }
+    .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(115px,1fr)); gap:12px; }
+    .stat { background:#f8fafc; border:1px solid #eceef3; border-radius:12px; padding:13px 15px; }
+    .stat .n { font-size:26px; font-weight:800; line-height:1; }
+    .stat .l { font-size:12.5px; color:#5a6a85; margin-top:5px; }
+    .stat.blue .n{color:#2563eb;} .stat.green .n{color:#0e9152;} .stat.amber .n{color:#d97706;}
+    .stat.red .n{color:#b91c1c;} .stat.slate .n{color:#334155;}
+    .qbar { height:7px; border-radius:999px; background:#eef0f4; overflow:hidden; margin-top:5px; max-width:160px; }
+    .qbar i { display:block; height:100%; background:#16b364; }
+    .qbar i.low { background:#f59e0b; } .qbar i.out { background:#ef4444; }
+    .ios { display:inline-flex; align-items:center; cursor:pointer; vertical-align:middle; }
+    .ios input { position:absolute; opacity:0; width:0; height:0; }
+    .ios .tr { width:40px; height:23px; border-radius:999px; background:#cfd6e0; position:relative; transition:.2s; }
+    .ios .tr::after { content:""; position:absolute; top:2.5px; left:2.5px; width:18px; height:18px; border-radius:50%;
+      background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.3); transition:.2s; }
+    .ios input:checked + .tr { background:#34c759; }
+    .ios input:checked + .tr::after { transform:translateX(17px); }
+    .muted2 { font-size:12px; color:#7b8190; }
+    .find { max-width:300px; padding:9px 12px; margin-bottom:14px; }
+    .actcol form { margin-bottom:5px; }
   </style>
 </head>
 <body>
@@ -39,6 +59,18 @@
     <span><a href="/admin-console/leads" style="color:#fff; font-weight:600;">📥 คำขอจากเว็บ</a> · {{ admin_name }} · <a href="/account/password">เปลี่ยนรหัสผ่าน</a> · <a href="/logout">ออกจากระบบ</a></span></div>
   <div class="wrap">
     {% if msg %}<div class="msg">{{ msg }}</div>{% endif %}
+
+    <div class="card">
+      <h1>ภาพรวมระบบ</h1>
+      <div class="stats">
+        <div class="stat slate"><div class="n">{{ summ.total }}</div><div class="l">โรงเรียนทั้งหมด</div></div>
+        <div class="stat green"><div class="n">{{ summ.active }}</div><div class="l">ใช้งานอยู่</div></div>
+        <div class="stat amber"><div class="n">{{ summ.trial }}</div><div class="l">ทดลองใช้</div></div>
+        <div class="stat blue"><div class="n">{{ summ.member }}</div><div class="l">สมาชิก (จ่ายแล้ว)</div></div>
+        <div class="stat amber"><div class="n">{{ summ.expiring }}</div><div class="l">ใกล้หมดอายุ ≤30 วัน</div></div>
+        <div class="stat red"><div class="n">{{ summ.expired }}</div><div class="l">หมดอายุแล้ว</div></div>
+      </div>
+    </div>
 
     <div class="card">
       <h2>สำรองข้อมูล / ทดสอบ R2</h2>
@@ -66,30 +98,50 @@
 
     <div class="card">
       <h2>โรงเรียนทั้งหมด ({{ rows|length }})</h2>
+      <input class="find" id="findBox" placeholder="🔍 ค้นหา ชื่อโรงเรียน / slug / ผู้ใช้...">
+      <div style="overflow-x:auto;">
       <table>
-        <thead><tr><th>โรงเรียน</th><th>สถานะ</th><th>วันหมดอายุ</th><th>ผู้ใช้</th><th>จัดการ</th></tr></thead>
+        <thead><tr><th>โรงเรียน</th><th>แพ็กเกจ / สถานะ</th><th>โควตา / อายุการใช้งาน</th><th>ผู้ใช้</th><th>จัดการ</th></tr></thead>
         <tbody>
         {% for r in rows %}
-          <tr>
-            <td><b>{{ r.t.name }}</b><br><span style="font-size:12px;color:#7b8190;">id {{ r.t.id }} · {{ r.t.slug }}</span></td>
+          <tr class="trow" data-find="{{ r.t.name }} {{ r.t.slug }} {% for u in r.users %}{{ u.username }} {% endfor %}">
+            <td><b>{{ r.t.name }}</b><br><span class="muted2">id {{ r.t.id }} · {{ r.t.slug }}</span></td>
             <td>
+              <span class="pill {{ r.plan }}">{{ 'ทดลองใช้' if r.plan=='trial' else 'สมาชิก' }}</span>
               {% if not r.t.active %}<span class="pill off">ระงับ</span>
               {% elif r.expired %}<span class="pill exp">หมดอายุ</span>
               {% else %}<span class="pill ok">ใช้งาน</span>{% endif %}
-              <form class="inline" method="post" action="/admin-console/tenant/{{ r.t.id }}/toggle">
-                <button class="btn sm gray" type="submit">{{ "เปิดใช้" if not r.t.active else "ระงับ" }}</button>
-              </form>
+              <div style="margin-top:8px; display:flex; align-items:center; gap:7px;">
+                <label class="ios" title="เปิด/ระงับการใช้งาน">
+                  <input type="checkbox" {{ 'checked' if r.t.active }} onchange="document.getElementById('tg{{ r.t.id }}').submit()">
+                  <span class="tr"></span>
+                </label>
+                <span class="muted2">{{ 'เปิดใช้งาน' if r.t.active else 'ระงับอยู่' }}</span>
+                <form id="tg{{ r.t.id }}" method="post" action="/admin-console/tenant/{{ r.t.id }}/toggle"></form>
+              </div>
             </td>
             <td>
-              <form method="post" action="/admin-console/tenant/{{ r.t.id }}/expiry" style="display:flex;gap:5px;">
-                <input name="expiry" type="date" value="{{ r.t.expiry_date or '' }}" style="width:140px;">
-                <button class="btn sm" type="submit">ตั้ง</button>
+              {% if r.plan == 'trial' %}
+                <div>ออกเอกสารแล้ว <b>{{ r.docs_used }}/{{ r.docs_limit }}</b> ฉบับ</div>
+                <div class="muted2">เหลือให้ทดลองอีก <b style="color:{{ '#b91c1c' if r.docs_left==0 else '#d97706' if r.docs_left<=10 else '#0e9152' }};">{{ r.docs_left }}</b> ฉบับ</div>
+                <div class="qbar"><i class="{{ 'out' if r.docs_left==0 else 'low' if r.docs_left<=10 else '' }}"
+                     style="width:{{ ((r.docs_used/r.docs_limit*100)|round(0,'floor')) if r.docs_limit else 0 }}%"></i></div>
+              {% else %}
+                {% if r.t.expiry_date %}
+                  <div>หมดอายุ <b>{{ r.t.expiry_date }}</b></div>
+                  <div class="muted2">{% if r.days_left >= 0 %}เหลือ {{ r.days_left }} วัน{% else %}เกินมา {{ -r.days_left }} วัน{% endif %}</div>
+                {% else %}<div class="muted2">สมาชิก · ไม่จำกัดเวลา</div>{% endif %}
+              {% endif %}
+              <form method="post" action="/admin-console/tenant/{{ r.t.id }}/expiry" style="display:flex;gap:4px;margin-top:7px;">
+                <input name="expiry" type="date" value="{{ r.t.expiry_date or '' }}" style="width:135px;">
+                <button class="btn sm gray" type="submit">ตั้ง</button>
               </form>
             </td>
             <td>
               {% for u in r.users %}
               <div class="uline">
                 <b>{{ u.username }}</b>
+                {% if not u.verified %}<span class="pill exp" style="font-size:11px;">ยังไม่ยืนยัน</span>{% endif %}
                 <form class="inline" method="post" action="/admin-console/account/{{ u.id }}/reset" onsubmit="this.password.value=prompt('รหัสผ่านใหม่ของ {{ u.username }}')||''; return !!this.password.value;">
                   <input type="hidden" name="password"><button class="btn sm gray" type="submit">รีเซ็ตรหัส</button>
                 </form>
@@ -97,19 +149,46 @@
                   <button class="btn sm red" type="submit">ลบ</button>
                 </form>
               </div>
-              {% endfor %}
+              {% else %}<span class="muted2">ยังไม่มีผู้ใช้</span>{% endfor %}
               <form method="post" action="/admin-console/tenant/{{ r.t.id }}/adduser" style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;">
                 <input name="username" placeholder="ผู้ใช้ใหม่" style="width:110px;">
                 <input name="password" placeholder="รหัสผ่าน" style="width:110px;">
                 <button class="btn sm green" type="submit">เพิ่มผู้ใช้</button>
               </form>
             </td>
-            <td><a class="btn sm gray" href="/admin-console?focus={{ r.t.id }}">—</a></td>
+            <td class="actcol" style="white-space:nowrap;">
+              <form method="post" action="/admin-console/tenant/{{ r.t.id }}/renew"
+                    onsubmit="return confirm('ต่ออายุ {{ r.t.name }} เป็นสมาชิก 1 ปี?');">
+                <button class="btn sm green" type="submit">✓ ต่อ 1 ปี (สมาชิก)</button>
+              </form>
+              {% if r.plan == 'trial' %}
+              <form method="post" action="/admin-console/tenant/{{ r.t.id }}/quota">
+                <button class="btn sm gray" type="submit">+50 โควตาทดลอง</button>
+              </form>
+              {% endif %}
+              <form method="post" action="/admin-console/tenant/{{ r.t.id }}/delete"
+                    onsubmit="return confirm('⚠ ลบโรงเรียน {{ r.t.name }} ถาวร?\n\nข้อมูลทั้งหมด (เอกสาร/ผู้ใช้/ฐานข้อมูล) จะถูกลบและกู้คืนไม่ได้');">
+                <button class="btn sm red" type="submit"><span style="font-weight:700;">🗑 ลบโรงเรียน</span></button>
+              </form>
+            </td>
           </tr>
         {% endfor %}
         </tbody>
       </table>
+      </div>
+      <div id="findEmpty" class="muted2" style="display:none; padding:14px; text-align:center;">ไม่พบโรงเรียนที่ค้นหา</div>
     </div>
   </div>
+  <script>
+    var fb=document.getElementById('findBox');
+    if(fb) fb.addEventListener('input', function(){
+      var q=this.value.trim().toLowerCase(), shown=0;
+      document.querySelectorAll('tr.trow').forEach(function(r){
+        var ok = !q || (r.dataset.find||'').toLowerCase().indexOf(q)>=0;
+        r.style.display = ok ? '' : 'none'; if(ok) shown++;
+      });
+      document.getElementById('findEmpty').style.display = shown ? 'none' : 'block';
+    });
+  </script>
 </body>
 </html>

@@ -50,14 +50,36 @@ def _parse_date(s: str):
 def console(request: Request, msg: str | None = None):
     db = acc_session()
     try:
+        today = date.today()
         tenants = db.query(Tenant).order_by(Tenant.id.desc()).all()
         rows = []
+        summ = {"total": 0, "active": 0, "trial": 0, "member": 0, "expired": 0, "expiring": 0}
         for t in tenants:
             users = db.query(Account).filter_by(tenant_id=t.id).all()
-            rows.append({"t": t, "users": users,
-                         "expired": bool(t.expiry_date and t.expiry_date < date.today())})
+            expired = bool(t.expiry_date and t.expiry_date < today)
+            plan = t.plan or "member"
+            days_left = (t.expiry_date - today).days if t.expiry_date else None
+            docs_limit = t.docs_limit or 0
+            docs_used = t.docs_used or 0
+            rows.append({
+                "t": t, "users": users, "expired": expired, "plan": plan,
+                "days_left": days_left, "docs_used": docs_used, "docs_limit": docs_limit,
+                "docs_left": max(0, docs_limit - docs_used),
+                "unverified": sum(1 for u in users if not getattr(u, "verified", True)),
+            })
+            summ["total"] += 1
+            if t.active and not expired:
+                summ["active"] += 1
+            if plan == "trial":
+                summ["trial"] += 1
+            else:
+                summ["member"] += 1
+            if expired:
+                summ["expired"] += 1
+            elif days_left is not None and 0 <= days_left <= 30:
+                summ["expiring"] += 1
         return templates.TemplateResponse("superadmin.html", {
-            "request": request, "rows": rows, "today": date.today(),
+            "request": request, "rows": rows, "today": today, "summ": summ,
             "msg": msg, "admin_name": request.session.get("name", "ผู้ดูแลระบบ"),
         })
     finally:
@@ -268,3 +290,78 @@ def delete_user(aid: int):
     finally:
         db.close()
     return RedirectResponse("/admin-console?msg=ลบผู้ใช้แล้ว", status_code=303)
+
+
+@router.post("/admin-console/tenant/{tid}/delete")
+def delete_tenant(tid: int):
+    """ลบโรงเรียนออกจากระบบทั้งหมด: บัญชีผู้ใช้ + ข้อมูลกลาง + ไฟล์ฐานข้อมูลของโรงเรียน
+    (ลบถาวร ใช้เมื่อโรงเรียนเลิกใช้/สร้างผิด)"""
+    import shutil
+    from urllib.parse import quote
+    db = acc_session()
+    try:
+        t = db.get(Tenant, tid)
+        if not t:
+            return RedirectResponse("/admin-console?msg=ไม่พบโรงเรียน", status_code=303)
+        name = t.name
+        db.query(Account).filter_by(tenant_id=tid).delete()
+        db.delete(t)
+        db.commit()
+    finally:
+        db.close()
+    # ลบไฟล์ฐานข้อมูลของโรงเรียน (ปิด engine ก่อน)
+    try:
+        from app.tenancy import dispose_engine
+        dispose_engine(tid)
+        folder = get_data_dir() / "schools" / str(tid)
+        if folder.exists():
+            shutil.rmtree(folder, ignore_errors=True)
+    except Exception:
+        pass
+    return RedirectResponse(f"/admin-console?msg={quote('ลบโรงเรียน ' + name + ' ออกจากระบบแล้ว')}", status_code=303)
+
+
+@router.post("/admin-console/tenant/{tid}/renew")
+def renew_tenant(tid: int, days: str = Form("365")):
+    """ต่ออายุเป็นสมาชิก: ตั้ง plan=member, ปลดล็อกโควตา, ต่อวันหมดอายุจากวันนี้/วันเดิม"""
+    from datetime import timedelta
+    from urllib.parse import quote
+    try:
+        add = int(days)
+    except ValueError:
+        add = 365
+    db = acc_session()
+    try:
+        t = db.get(Tenant, tid)
+        if t:
+            base = max(date.today(), t.expiry_date) if t.expiry_date else date.today()
+            t.expiry_date = base + timedelta(days=add)
+            t.plan = "member"
+            t.docs_limit = 0
+            db.commit()
+            exp = t.expiry_date.isoformat()
+        else:
+            return RedirectResponse("/admin-console?msg=ไม่พบโรงเรียน", status_code=303)
+    finally:
+        db.close()
+    return RedirectResponse(f"/admin-console?msg={quote('ต่ออายุเป็นสมาชิกถึง ' + exp)}", status_code=303)
+
+
+@router.post("/admin-console/tenant/{tid}/quota")
+def add_quota(tid: int, amount: str = Form("50")):
+    """เพิ่มโควตาเอกสารช่วงทดลองใช้ (บวกเข้ากับ docs_limit เดิม)"""
+    from urllib.parse import quote
+    try:
+        add = int(amount)
+    except ValueError:
+        add = 50
+    db = acc_session()
+    try:
+        t = db.get(Tenant, tid)
+        if t:
+            t.plan = "trial"
+            t.docs_limit = (t.docs_limit or 0) + add
+            db.commit()
+    finally:
+        db.close()
+    return RedirectResponse(f"/admin-console?msg={quote('เพิ่มโควตาทดลองใช้ +' + str(add) + ' ฉบับ')}", status_code=303)
