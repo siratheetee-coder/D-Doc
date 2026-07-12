@@ -99,8 +99,9 @@
   {% set is_special = (p.proc_case or 'normal') != 'normal' %}
   <form method="post" action="/procurement/{{ p.id }}/update-refs">
 
+    {% set _memo_h = 'รายงานขอความเห็นชอบการจัดซื้อจัดจ้าง' if (p.proc_case in ['w119t1','w119t2','clause79']) else ('รายงานขอ' ~ p.proc_type) %}
     <div class="docgrp">
-      <div class="docgrp-h">รายงานขอ{{ p.proc_type }}</div>
+      <div class="docgrp-h">{{ _memo_h }}</div>
       <div class="row">
         <div><label>เลขที่บันทึก</label><input name="memo_no" value="{{ p.memo_no }}"></div>
         <div><label>ลงวันที่</label><input name="request_date" value="{{ be_date(p.request_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>

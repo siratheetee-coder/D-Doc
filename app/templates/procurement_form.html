@@ -15,7 +15,7 @@
   {% if pending_file|default('') %}
   <div class="alert" style="display:flex;align-items:center;gap:8px;">
     <svg class="icon"><use href="#ic-check"/></svg>
-    <span>ระบบอ่านข้อมูลจากไฟล์มาเติมให้แล้ว <b>โปรดตรวจสอบความถูกต้องก่อนบันทึก</b> — ไฟล์ต้นฉบับจะถูกแนบให้
+    <span>ระบบอ่านข้อมูลจากไฟล์มาเติมให้แล้ว <b>โปรดตรวจสอบความถูกต้องก่อนบันทึก</b> ไฟล์ต้นฉบับจะถูกแนบให้
       {% if ai_note|default('') %}<br><b>{{ ai_note }}</b>{% endif %}</span>
   </div>
   {% endif %}
@@ -146,7 +146,7 @@
       </tfoot>
     </table>
     <datalist id="catalog_dl">{% for c in catalog %}<option value="{{ c.name }}">{% endfor %}</datalist>
-    <p class="muted" style="font-size:13px; margin:4px 0 0;">พิมพ์ชื่อรายการเพื่อเลือกจาก <a href="/catalog" target="_blank">คลังรายการพัสดุ</a> (เติมหน่วย+ราคาให้อัตโนมัติ) · รายการใหม่จะถูกเก็บเข้าคลังให้เอง</p>
+    <p class="muted" style="font-size:13px; margin:4px 0 0;">พิมพ์ชื่อรายการเพื่อเลือกจาก <a href="/catalog" target="_blank">คลังรายการพัสดุ</a> (เติมหน่วย+ราคาให้อัตโนมัติ) โดยรายการใหม่จะถูกเก็บเข้าคลังให้เอง</p>
     <br><button type="button" class="btn soft sm" onclick="addItem()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มรายการ</button>
     <label class="btn gray sm" style="cursor:pointer; margin-left:6px;">
       <svg class="icon"><use href="#ic-upload"/></svg> ถ่ายรูป (อ่านเร็ว)
@@ -161,12 +161,21 @@
 
     {% if is_special and case_extra_fields %}
     <h2 style="margin-top:20px;">ข้อมูลเพิ่มเติมสำหรับเอกสาร{{ (' ' ~ case_info.label) if case_info is defined else '' }}</h2>
-    <p class="muted" style="margin:-6px 0 10px;">เว้นว่างได้ — ช่องที่ไม่กรอก ระบบจะใส่จุดไข่ปลาให้เติมมือในเอกสาร</p>
+    <p class="muted" style="margin:-6px 0 10px;">เว้นว่างได้ โดยช่องที่ไม่กรอกระบบจะใส่จุดไข่ปลาให้เติมมือในเอกสาร</p>
     <div class="row">
       {% for key, label, typ in case_extra_fields %}
       <div><label>{{ label }}</label>
+        {% if typ == 'select' %}
+        <select name="{{ key }}">
+          <option value="">— เลือก —</option>
+          {% for o in (case_select_options.get(key, []) if case_select_options is defined else []) %}
+          <option value="{{ o }}" {{ 'selected' if case_extra and case_extra.get(key) == o }}>{{ o }}</option>
+          {% endfor %}
+        </select>
+        {% else %}
         <input name="{{ key }}" value="{{ case_extra.get(key, '') if case_extra else '' }}"
                {% if typ == 'date' %}placeholder="วว/ดด/ปปปป" data-date="1"{% endif %}>
+        {% endif %}
       </div>
       {% endfor %}
     </div>

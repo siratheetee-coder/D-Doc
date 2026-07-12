@@ -1281,15 +1281,16 @@ PROC_CASES = {
 # ฟิลด์เสริมเฉพาะรูปแบบ (key, ป้ายกำกับ, ชนิด) — ใช้สร้างช่องกรอกในฟอร์ม + เก็บลง case_extra (JSON)
 CASE_EXTRA_FIELDS = {
     "w804": [
-        ("report2_no", "เลขที่บันทึกรายงานสรุปผล/ขอเบิกจ่าย", "text"),
-        ("report2_date", "วันที่รายงานสรุปผล/ขอเบิกจ่าย", "date"),
+        ("report2_no", "เลขที่รายงานสรุปผล", "text"),
+        ("report2_date", "วันที่รายงานสรุปผล", "date"),
         ("receipt_book", "ใบเสร็จรับเงิน เล่มที่", "text"),
         ("receipt_no", "ใบเสร็จรับเงิน เลขที่", "text"),
         ("receipt_date", "วันที่ใบเสร็จรับเงิน", "date"),
         ("deliver_date", "วันที่รับมอบพัสดุ", "date"),
     ],
     "w119t1": [
-        ("budget_kind", "ประเภทงบ (เช่น รายหัว / 15 ปี / อื่น ๆ)", "text"),
+        ("budget_kind", "งบประมาณ (ระบบจะติ๊กให้ในเอกสาร)", "select"),
+        ("budget_other", "งบอื่น ๆ (ระบุ ถ้าเลือก “อื่นๆ”)", "text"),
         ("advance_payer", "ผู้ทดรองจ่าย/ผู้ยืมเงิน", "text"),
     ],
     "w119t2": [
@@ -1302,6 +1303,11 @@ CASE_EXTRA_FIELDS = {
         ("receipt_no", "ใบเสร็จ/ใบส่งของ เลขที่", "text"),
         ("receipt_date", "วันที่ใบเสร็จ/ใบส่งของ", "date"),
     ],
+}
+
+# ตัวเลือกสำหรับฟิลด์ชนิด select ในฟอร์มรูปแบบพิเศษ (คีย์ = ชื่อฟิลด์)
+CASE_SELECT_OPTIONS = {
+    "budget_kind": ["รายหัว", "15 ปี", "ตามแผน", "อื่นๆ"],
 }
 
 
@@ -1461,6 +1467,7 @@ def procurement_new_form(request: Request, db: Session = Depends(get_db),
         "threshold": school.doc_set_threshold or 5000, "positions": POSITION_CHOICES,
         "proc_case": case, "case_info": PROC_CASES[case],
         "case_extra_fields": CASE_EXTRA_FIELDS.get(case, []), "case_extra": {},
+        "case_select_options": CASE_SELECT_OPTIONS,
         **_form_lists(db),
     })
 
@@ -1624,7 +1631,7 @@ def procurement_edit_form(proc_id: int, request: Request, db: Session = Depends(
         "fiscal_year": proc.fiscal_year, "today_thai": thai_date(),
         "threshold": school.doc_set_threshold or 5000, "positions": POSITION_CHOICES,
         "case_extra_fields": CASE_EXTRA_FIELDS.get(proc.proc_case or "normal", []),
-        "case_extra": extra_vals,
+        "case_extra": extra_vals, "case_select_options": CASE_SELECT_OPTIONS,
         **_form_lists(db),
     })
 
