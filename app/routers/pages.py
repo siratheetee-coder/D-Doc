@@ -1353,7 +1353,11 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
     proc.order_signer = form.get("order_signer") or "director"
     proc.inspection_mode = form.get("inspection_mode") or "single"
     proc.vendor_id = _resolve_vendor(db, form)
-    # วันที่รายงานขอซื้อ/จ้าง (ถ้ากรอกมา) — กันไม่ให้ขึ้นเป็นวันปัจจุบันเสมอ
+    # เลขที่/วันที่รายงานขอซื้อ/จ้าง (กรอกได้ทั้งตอนสร้าง และตอนแก้ไขรูปแบบพิเศษ)
+    # เซ็ตเฉพาะเมื่อมีค่าส่งมา -> ถ้าฟอร์มไม่มีช่องนี้ (แก้ไขแบบปกติ) จะไม่ล้างของเดิม
+    mn = (form.get("memo_no") or "").strip()
+    if mn:
+        proc.memo_no = mn
     rd = (form.get("request_date") or "").strip()
     if rd:
         d = parse_be_date(rd)

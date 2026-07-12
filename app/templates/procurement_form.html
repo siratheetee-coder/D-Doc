@@ -24,12 +24,13 @@
     <input type="hidden" name="proc_case" value="{{ proc_case if proc_case is defined else (p.proc_case if p and p.proc_case else 'normal') }}">
     {% set is_special = (proc_case if proc_case is defined else (p.proc_case if p and p.proc_case else 'normal')) != 'normal' %}
     <div class="row">
-      {% if not is_edit %}
-      <div><label>{{ "เลขที่บันทึก" if is_special else "เลขที่บันทึกรายงานขอซื้อ/จ้าง" }}</label>
-        <input name="memo_no" value="{{ prefill_memo|default('') or sug_memo }}" placeholder="เช่น 1/2569">
+      {% if not is_edit or is_special %}
+      {% set _memo_lbl = ('เลขที่รายงานขอความเห็นชอบ' if p and p.proc_case in ['w119t1','w119t2','clause79'] else ('เลขที่บันทึก' if is_special else 'เลขที่บันทึกรายงานขอซื้อ/จ้าง')) %}
+      <div><label>{{ _memo_lbl }}</label>
+        <input name="memo_no" value="{{ (p.memo_no if is_edit else (prefill_memo|default('') or sug_memo)) }}" placeholder="เช่น 1/2569">
       </div>
-      <div><label>{{ "วันที่บันทึก" if is_special else "วันที่รายงานขอซื้อ/จ้าง" }}</label>
-        <input name="request_date" value="{{ prefill_date|default('') or today_input|default('') }}" placeholder="วว/ดด/ปปปป" data-date="1">
+      <div><label>ลงวันที่</label>
+        <input name="request_date" value="{{ be_date(p.request_date) if is_edit else (prefill_date|default('') or today_input|default('')) }}" placeholder="วว/ดด/ปปปป" data-date="1">
       </div>
       {% endif %}
       <div><label>ปีงบประมาณ</label>
