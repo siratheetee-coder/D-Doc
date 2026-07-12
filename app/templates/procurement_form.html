@@ -176,6 +176,10 @@
           <option value="{{ o }}" {{ 'selected' if case_extra and case_extra.get(key) == o }}>{{ o }}</option>
           {% endfor %}
         </select>
+        {% elif typ == 'person' %}
+        <input name="{{ key }}" value="{{ case_extra.get(key, '') if case_extra else '' }}"
+               list="dl_persons" placeholder="เลือกหรือพิมพ์ชื่อ">
+        <datalist id="dl_persons">{% for pp in persons %}<option value="{{ pp.name }}">{% endfor %}</datalist>
         {% else %}
         <input name="{{ key }}" value="{{ case_extra.get(key, '') if case_extra else '' }}"
                {% if typ == 'date' %}placeholder="วว/ดด/ปปปป" data-date="1"{% endif %}>
