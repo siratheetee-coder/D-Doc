@@ -89,20 +89,14 @@
   </table>
 </div>
 
+{# รูปแบบพิเศษ (ว.804/ว.119/ข้อ 79) ไม่แสดงการ์ด "เลขที่เอกสาร & วันที่" — แก้เลขที่/ช่องต่างๆ ที่ปุ่ม "แก้ไขเรื่อง" #}
+{% set is_special = (p.proc_case or 'normal') != 'normal' %}
+{% if not is_special %}
 <div class="card">
   <h2>เลขที่เอกสาร & วันที่ <span class="muted" style="font-size:15px;">(แก้ไขภายหลังได้)</span></h2>
   {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกเลขที่/วันที่เรียบร้อย</div>{% endif %}
   {% set has_spec = (p.committees | selectattr('kind', 'equalto', 'spec') | list | length) > 0 %}
   {% set is_committee = inspect and inspect.mode == 'committee' %}
-  {# รูปแบบพิเศษ (ว.804 / ว.119 / ข้อ 79) เป็นชุดเอกสารในตัวเอง — เลขที่/ช่องต่างๆ แก้ที่ปุ่ม "แก้ไขเรื่อง" #}
-  {% set is_special = (p.proc_case or 'normal') != 'normal' %}
-  {% if is_special %}
-  <div class="docnote" style="margin:6px 0 0;"><svg class="icon"><use href="#ic-info"/></svg>
-    รูปแบบ <b>{{ case_info.label if case_info else p.proc_case }}</b> เป็นชุดเอกสารในตัวเอง —
-    เลขที่/วันที่บันทึก และช่องเฉพาะของรูปแบบนี้ (เลขที่รายงานสรุปผล/ใบเสร็จ/วันรับมอบ ฯลฯ)
-    แก้ไขได้ที่ปุ่ม “แก้ไขเรื่อง” · ไม่มีใบเสนอราคา/คำสั่ง/ใบสั่งซื้อ/รายงานผลการพิจารณา/ใบส่งมอบ/ใบตรวจรับ แยกต่างหาก
-  </div>
-  {% else %}
   <p class="muted">วันที่กรอกเป็น <b>พ.ศ.</b> รูปแบบ วว/ดด/ปปปป เช่น 06/06/2569 (ระบบเติม / ให้อัตโนมัติ)</p>
   <form method="post" action="/procurement/{{ p.id }}/update-refs">
 
@@ -193,8 +187,8 @@
     <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกเลขที่/วันที่</button>
     <button type="button" class="btn gray" onclick="sameAllDates()"><svg class="icon"><use href="#ic-clipboard"/></svg> ใช้วันที่เดียวกันทั้งหมด</button>
   </form>
-  {% endif %}
 </div>
+{% endif %}
 
 <style>
   .btn-bundle {

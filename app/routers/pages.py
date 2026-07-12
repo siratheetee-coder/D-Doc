@@ -1809,7 +1809,7 @@ def procurement_delete(proc_id: int, db: Session = Depends(get_db)):
     proc = db.get(Procurement, proc_id)
     if proc:
         db.delete(proc); db.commit()
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/procurement", status_code=303)
 
 
 @router.post("/procurement/{proc_id}/generate")

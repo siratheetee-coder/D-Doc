@@ -25,7 +25,10 @@
     {% set is_special = (proc_case if proc_case is defined else (p.proc_case if p and p.proc_case else 'normal')) != 'normal' %}
     <div class="row">
       {% if not is_edit or is_special %}
-      {% set _memo_lbl = ('เลขที่รายงานขอความเห็นชอบ' if p and p.proc_case in ['w119t1','w119t2','clause79'] else ('เลขที่บันทึก' if is_special else 'เลขที่บันทึกรายงานขอซื้อ/จ้าง')) %}
+      {% set _case = (proc_case if proc_case is defined else (p.proc_case if p and p.proc_case else 'normal')) %}
+      {% set _ptype = (p.proc_type if is_edit else prefill_type|default('ซื้อ')) %}
+      {% set _memo_lbl = 'เลขที่รายงานขอความเห็นชอบ' if _case in ['w119t1','w119t2','clause79']
+                         else ('เลขที่รายงานขอ' ~ _ptype if is_special else 'เลขที่บันทึกรายงานขอซื้อ/จ้าง') %}
       <div><label>{{ _memo_lbl }}</label>
         <input name="memo_no" value="{{ (p.memo_no if is_edit else (prefill_memo|default('') or sug_memo)) }}" placeholder="เช่น 1/2569">
       </div>
