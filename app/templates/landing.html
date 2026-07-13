@@ -244,29 +244,90 @@
   .pick-sum .note{ text-align:center; color:var(--muted); font-size:11.5px; margin-top:10px; }
   .price-foot{ text-align:center; color:var(--muted); font-size:13.5px; margin-top:26px; }
   .pick-price s{ color:var(--muted); font-weight:500; margin-right:6px; opacity:.7; }
-  /* แถบโปรโมชั่นเปิดตัว (แบบ 2: ไล่สีน้ำเงิน + นับถอยหลัง + มิเตอร์สิทธิ์) */
-  .promo-band{ max-width:760px; margin:-20px auto 38px; border-radius:18px; overflow:hidden;
-    background:linear-gradient(120deg,#2563eb 0%,#1d4ed8 55%,#0b2a6b 120%); color:#fff;
-    box-shadow:0 20px 50px rgba(29,78,216,.30); }
-  .promo-band .pb-top{ display:flex; align-items:center; gap:22px; padding:22px 26px 18px; flex-wrap:wrap; }
-  .promo-band .pb-lead{ flex:none; padding-right:20px; border-right:1px solid rgba(255,255,255,.22); }
-  .promo-band .pb-yellow{ display:flex; align-items:center; gap:8px; color:#ffde3d; font-weight:800;
-    font-size:30px; line-height:1.05; letter-spacing:-.3px; }
-  .promo-band .pb-yellow .ico{ width:26px; height:26px; fill:currentColor; stroke:currentColor; stroke-width:1; }
-  .promo-band .pb-lead-sub{ font-size:12.5px; opacity:.85; margin-top:3px; }
-  .promo-band .pb-headline{ flex:1; min-width:200px; }
-  .promo-band .pb-h{ font-size:19px; font-weight:700; }
-  .promo-band .pb-h b{ color:#ffde3d; }
-  .promo-band .pb-s{ font-size:13px; opacity:.85; }
-  .promo-band .pb-cd{ display:flex; gap:7px; }
-  .promo-band .pb-cd .box{ background:rgba(255,255,255,.14); border-radius:10px; padding:6px 0; width:50px; text-align:center; }
-  .promo-band .pb-cd .box b{ display:block; font-size:19px; font-weight:800; line-height:1.1; }
-  .promo-band .pb-cd .box span{ font-size:10px; opacity:.8; }
-  .promo-band .pb-meter{ background:rgba(0,0,0,.16); padding:13px 26px 16px; }
-  .promo-band .pb-mrow{ display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:7px; }
-  .promo-band .pb-mrow b{ color:#ffde3d; }
-  .promo-band .pb-bar{ height:8px; border-radius:999px; background:rgba(255,255,255,.22); overflow:hidden; }
-  .promo-band .pb-bar i{ display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#fde047,#fbbf24); }
+
+  /* ===== การ์ดแพ็กเกจรวม (แนะนำ) ===== */
+  .bundle-card{ position:relative; display:flex; align-items:center; justify-content:space-between;
+    gap:24px; flex-wrap:wrap; max-width:920px; margin:8px auto 44px; padding:30px 34px; border-radius:24px;
+    background:linear-gradient(120deg,#eef4ff,#e2ecff 60%,#dbe7ff); border:1px solid #cddbf7;
+    box-shadow:0 20px 48px rgba(37,99,235,.13); }
+  .bundle-card.promo{ background:linear-gradient(120deg,#2563eb,#1d4ed8 130%); border-color:transparent; color:#fff; }
+  .bc-badge{ position:absolute; top:-14px; left:50%; transform:translateX(-50%); background:#fbbf24; color:#7c4a03;
+    font-weight:800; font-size:13.5px; padding:6px 20px; border-radius:999px; display:inline-flex; align-items:center;
+    gap:6px; box-shadow:0 6px 16px rgba(251,191,36,.45); white-space:nowrap; }
+  .bc-badge .ico{ width:15px; height:15px; fill:currentColor; stroke:currentColor; }
+  .bc-left{ display:flex; align-items:center; gap:20px; flex:1; min-width:250px; }
+  .bc-illus{ font-size:50px; line-height:1; flex:none; }
+  .bc-left h3{ font-size:23px; margin:0; }
+  .bundle-card.promo .bc-left h3{ color:#fff; }
+  .bc-left p{ color:var(--muted); font-size:14.5px; margin:2px 0 0; }
+  .bundle-card.promo .bc-left p{ color:rgba(255,255,255,.9); }
+  .bc-mods{ display:flex; gap:8px; margin-top:12px; }
+  .bc-mods span{ width:36px; height:36px; border-radius:10px; background:rgba(37,99,235,.1); color:var(--blue);
+    display:flex; align-items:center; justify-content:center; }
+  .bc-mods .ico{ width:19px; height:19px; }
+  .bundle-card.promo .bc-mods span{ background:rgba(255,255,255,.18); color:#fff; }
+  .bc-right{ text-align:right; flex:none; }
+  .bc-promo{ display:inline-block; background:#fbbf24; color:#7c4a03; font-weight:700; font-size:12.5px;
+    padding:4px 13px; border-radius:999px; margin-bottom:8px; }
+  .bc-was{ font-size:14px; color:var(--muted); }
+  .bundle-card.promo .bc-was{ color:rgba(255,255,255,.82); }
+  .bc-save{ display:inline-block; background:#dcfce7; color:#15803d; font-weight:800; font-size:13px;
+    padding:3px 13px; border-radius:999px; margin:5px 0; }
+  .bundle-card.promo .bc-save{ background:rgba(255,255,255,.18); color:#fff; }
+  .bc-price{ font-size:16px; color:var(--muted); margin-top:2px; }
+  .bundle-card.promo .bc-price{ color:rgba(255,255,255,.92); }
+  .bc-price b{ font-size:44px; font-weight:800; color:var(--blue); letter-spacing:-1.5px; }
+  .bundle-card.promo .bc-price b{ color:#fff; }
+  .bc-btn{ margin-top:14px; }
+  .bundle-card.promo .bc-btn{ background:#fff; color:var(--blue-deep); box-shadow:0 8px 20px rgba(0,0,0,.18); }
+  .bundle-card.promo .bc-btn .ico{ color:var(--blue-deep); }
+
+  /* ===== การ์ดงานแยก (แนวนอน 4 ใบ) ===== */
+  .or-head{ text-align:center; font-size:18px; font-weight:700; color:var(--muted); margin:0 0 22px; }
+  .mgrid{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+  .mcard{ background:#fff; border:2px solid var(--line); border-radius:18px; padding:20px 18px 16px;
+    cursor:pointer; transition:.16s; position:relative; display:flex; flex-direction:column; }
+  .mcard:hover{ border-color:#c7d6f5; }
+  .mcard.on{ border-color:var(--blue); box-shadow:0 12px 30px rgba(37,99,235,.12); }
+  .mcard input{ position:absolute; opacity:0; pointer-events:none; }
+  .mc-ic{ width:46px; height:46px; border-radius:13px; background:#eef4ff; color:var(--blue);
+    display:flex; align-items:center; justify-content:center; margin-bottom:12px; }
+  .mc-ic .ico{ width:23px; height:23px; }
+  .mcard h4{ font-size:16px; margin:0 0 4px; }
+  .mcard p{ color:var(--muted); font-size:12.5px; line-height:1.45; flex:1; }
+  .mc-price{ font-weight:800; font-size:20px; margin:12px 0 12px; }
+  .mc-price small{ font-weight:500; font-size:12px; color:var(--muted); }
+  .mc-pick{ display:flex; align-items:center; justify-content:center; gap:7px; border:1.5px solid var(--line);
+    border-radius:10px; padding:8px 0; font-weight:700; font-size:14px; color:var(--muted); }
+  .mc-pick .ico{ width:15px; height:15px; opacity:0; }
+  .mcard.on .mc-pick{ background:var(--blue); border-color:var(--blue); color:#fff; }
+  .mcard.on .mc-pick .ico{ opacity:1; }
+
+  /* ===== แถบสรุปยอด ===== */
+  .sbar{ display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;
+    background:#fff; border:1px solid var(--line); border-radius:20px; padding:22px 28px; margin-top:22px;
+    box-shadow:0 14px 40px rgba(15,23,42,.07); }
+  .sb-left .sb-title{ font-weight:700; font-size:15px; }
+  .sb-left .sb-sel{ color:var(--muted); font-size:13px; margin-top:2px; }
+  .sb-save{ display:inline-block; background:#dcfce7; color:#15803d; font-weight:700; font-size:12.5px;
+    padding:3px 11px; border-radius:999px; margin-top:7px; }
+  .sb-mid{ text-align:center; }
+  .sb-mid .sb-lbl{ font-size:13px; color:var(--muted); }
+  .sb-mid .sb-total b{ font-size:38px; font-weight:800; letter-spacing:-1.5px; color:var(--ink); }
+  .sb-mid .sb-total small{ font-size:14px; color:var(--muted); }
+  .sb-right{ text-align:center; }
+  .sb-right .btn{ padding:13px 24px; }
+  .sb-note{ font-size:11.5px; color:var(--muted); margin-top:8px; }
+
+  /* ===== แถบความน่าเชื่อถือ ===== */
+  .price-trust{ margin-top:46px; }
+  .pt-badges{ display:flex; justify-content:center; gap:14px; flex-wrap:wrap; }
+  .pt-badge{ display:flex; align-items:center; gap:11px; background:#fff; border:1px solid var(--line);
+    border-radius:14px; padding:13px 17px; max-width:250px; }
+  .pt-ic{ width:38px; height:38px; border-radius:10px; flex:none; display:flex; align-items:center;
+    justify-content:center; color:#fff; }
+  .pt-ic .ico{ width:19px; height:19px; }
+  .pt-badge b{ display:block; font-size:13.5px; } .pt-badge span{ color:var(--muted); font-size:11.5px; }
 
   /* ---------- ปิดท้าย ---------- */
   .cta-final{ padding:90px 0; text-align:center; background:var(--bg-soft); }
@@ -293,6 +354,13 @@
     .mods-grid{ grid-template-columns:repeat(2,1fr); }
     .pick-wrap{ grid-template-columns:1fr; }
     .pick-sum{ position:static; }
+    .mgrid{ grid-template-columns:repeat(2,1fr); }
+    .bundle-card{ flex-direction:column; text-align:center; }
+    .bundle-card .bc-left{ flex-direction:column; text-align:center; }
+    .bundle-card .bc-right{ text-align:center; }
+    .bc-mods{ justify-content:center; }
+    .sbar{ flex-direction:column; text-align:center; }
+    .sb-right .btn{ width:100%; }
     .nav-links{ display:none; }
     .stage{ order:-1; }
     .feat-grid .stage{ order:0; }
@@ -300,6 +368,7 @@
   }
   @media (max-width:560px){
     .mods-grid{ grid-template-columns:1fr; }
+    .mgrid{ grid-template-columns:1fr; }
     h1{ font-size:32px; }
     /* จอเล็ก: เหลือการ์ดลอยรูปละ 1-2 ใบ กันบังตัวคน/ล้นจอ */
     .fc-3,.fc-a,.fc-c{ display:none; }
@@ -316,6 +385,7 @@
   <symbol id="ic-play" viewBox="0 0 24 24"><polygon points="7 4 20 12 7 20 7 4" fill="currentColor" stroke="none"/></symbol>
   <symbol id="ic-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
   <symbol id="ic-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14"/><polyline points="19 12 12 19 5 12"/></symbol>
+  <symbol id="ic-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14"/><polyline points="12 5 19 12 12 19"/></symbol>
   <symbol id="ic-package" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></symbol>
   <symbol id="ic-coins" viewBox="0 0 24 24"><circle cx="8" cy="8" r="6"/><path d="M18.1 10.4A6 6 0 1 1 10.3 18"/><path d="M6.3 6.3h3.4M8 4.6v3.4"/></symbol>
   <symbol id="ic-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></symbol>
@@ -514,148 +584,143 @@
   </div>
 </section>
 
-<!-- ================= ราคา (เลือกงานที่ต้องการ รายปี) ================= -->
-{% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':590,'bundle':2290}) %}
-{% set reg = regular | default({'bundle':2760}) %}
+<!-- ================= ราคา ================= -->
+{% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':190,'bundle':1990}) %}
+{% set full = full_sum | default(2360) %}
+{% set save = bundle_save | default(370) %}
 <section class="pricing" id="pricing">
   <div class="wrap">
     <div class="sec-head">
-      <h2>เลือกจ่ายเฉพาะงานที่ใช้<i>.</i></h2>
-      <p>ราคารายปี · เลือกกี่งานก็ได้ · เลือกครบทุกงานคุ้มกว่า</p>
+      <h2>ราคาที่คุ้มค่าสำหรับโรงเรียน<i>.</i></h2>
+      <p>รายปี · เริ่มทดลองใช้ฟรี 50 เอกสารก่อนตัดสินใจ · อัปเดตฟรีเมื่อระเบียบเปลี่ยน</p>
     </div>
 
-    {% if promo_active %}
-    <div class="promo-band" data-promo-end="{{ promo_end_iso }}">
-      <div class="pb-top">
-        <div class="pb-lead">
-          <div class="pb-yellow"><svg class="ico"><use href="#ic-star"/></svg> โปรเปิดตัว</div>
-          <div class="pb-lead-sub">ลดสูงสุด {{ "{:,}".format(reg.bundle - px.bundle) }} บาท ทุกแพ็กเกจ</div>
-        </div>
-        <div class="pb-headline">
-          <div class="pb-h">เลือกแพ็กเกจเต็ม เพียง <b>{{ "{:,}".format(px.bundle) }} บาท/ปี</b></div>
-          <div class="pb-s">จากปกติ {{ "{:,}".format(reg.bundle) }} บาท · ประหยัดทันที {{ "{:,}".format(reg.bundle - px.bundle) }} บาท · ทุกงานครบในราคาเดียว</div>
-        </div>
-        <div class="pb-cd" data-promo-cd></div>
-      </div>
-      <div class="pb-meter">
-        <div class="pb-mrow"><span>สิทธิ์ราคาพิเศษ</span><span>เหลือ <b>{{ promo_slots_left }}</b> จาก {{ promo_slots }} สิทธิ์</span></div>
-        <div class="pb-bar"><i style="width:{{ (promo_slots_left / promo_slots * 100) if promo_slots else 0 }}%"></i></div>
-      </div>
-    </div>
-    {% endif %}
-
-    <div class="pick-wrap">
-      <!-- รายการงานให้เลือก -->
-      <div>
-        <div class="pick-list" id="pickList">
-          <label class="pick-item" data-price="{{ px.p_proc }}">
-            <input type="checkbox" checked>
-            <span class="pick-box"><svg class="ico"><use href="#ic-check"/></svg></span>
-            <span class="pick-mic"><svg class="ico"><use href="#ic-package"/></svg></span>
-            <span class="pick-body"><h4>งานพัสดุ</h4><p>จัดซื้อจัดจ้างครบชุด · ว.804/ว.119 · ทรัพย์สิน/ค่าเสื่อม · แผนจัดซื้อ · ทะเบียนคุมสัญญา · ช่วยกรอก e-GP</p></span>
-            <span class="pick-price">{% if promo_active %}<s>{{ reg.p_proc }}</s>{% endif %}{{ px.p_proc }}<small>บาท/ปี</small></span>
-          </label>
-          <label class="pick-item" data-price="{{ px.p_fin }}">
-            <input type="checkbox" checked>
-            <span class="pick-box"><svg class="ico"><use href="#ic-check"/></svg></span>
-            <span class="pick-mic" style="background:#e8f9ef; color:var(--green);"><svg class="ico"><use href="#ic-coins"/></svg></span>
-            <span class="pick-body"><h4>งานการเงิน</h4><p>ทะเบียนคุมเงิน · สมุดเงินสด · บัญชีแยกประเภท · รายงานแบบ สตง.</p></span>
-            <span class="pick-price">{% if promo_active %}<s>{{ reg.p_fin }}</s>{% endif %}{{ px.p_fin }}<small>บาท/ปี</small></span>
-          </label>
-          <label class="pick-item" data-price="{{ px.p_admin }}">
-            <input type="checkbox" checked>
-            <span class="pick-box"><svg class="ico"><use href="#ic-check"/></svg></span>
-            <span class="pick-mic" style="background:#fff2f2; color:#dc2626;"><svg class="ico"><use href="#ic-mail"/></svg></span>
-            <span class="pick-body"><h4>งานธุรการ</h4><p>ทะเบียนหนังสือรับ–ส่ง · บันทึก/คำสั่ง · หนังสือราชการ 6 แบบ (มี AI ช่วย) · เกียรติบัตร</p></span>
-            <span class="pick-price">{% if promo_active %}<s>{{ reg.p_admin }}</s>{% endif %}{{ px.p_admin }}<small>บาท/ปี</small></span>
-          </label>
-          <label class="pick-item" data-price="{{ px.p_lunch }}">
-            <input type="checkbox" checked>
-            <span class="pick-box"><svg class="ico"><use href="#ic-check"/></svg></span>
-            <span class="pick-mic" style="background:#fff7e6; color:#b45309;"><svg class="ico"><use href="#ic-food"/></svg></span>
-            <span class="pick-body"><h4>งานอาหารกลางวัน</h4><p>คำนวณงบต่อหัว · เอกสารจ้าง 3 รูปแบบ · ภาวะโภชนาการ</p></span>
-            <span class="pick-price">{% if promo_active %}<s>{{ reg.p_lunch }}</s>{% endif %}{{ px.p_lunch }}<small>บาท/ปี</small></span>
-          </label>
-        </div>
-        <div class="pick-free" style="margin-top:14px;">
-          <span class="free-badge"><svg class="ico"><use href="#ic-cap"/></svg></span>
-          <span class="free-txt">ข้อมูลโรงเรียน<small>ป้อนข้อมูลให้ทุกงานอัตโนมัติ ไม่ต้องกรอกซ้ำ</small></span>
-          <span class="free-tag">แถมฟรีทุกแพ็กเกจ</span>
+    <!-- การ์ดแพ็กเกจรวม (แนะนำ) -->
+    <div class="bundle-card{% if promo_active %} promo{% endif %}">
+      <div class="bc-badge"><svg class="ico"><use href="#ic-star"/></svg> แนะนำ</div>
+      <div class="bc-left">
+        <div class="bc-illus">🏫</div>
+        <div>
+          <h3>แพ็กเกจโรงเรียน</h3>
+          <p>ครบทุกงาน ในราคาคุ้มที่สุด</p>
+          <div class="bc-mods">
+            <span><svg class="ico"><use href="#ic-package"/></svg></span>
+            <span><svg class="ico"><use href="#ic-coins"/></svg></span>
+            <span><svg class="ico"><use href="#ic-mail"/></svg></span>
+            <span><svg class="ico"><use href="#ic-food"/></svg></span>
+          </div>
         </div>
       </div>
-
-      <!-- สรุปยอด -->
-      <div class="pick-sum">
-        <h3>สรุปแพ็กเกจของคุณ</h3>
-        <div class="sub">เลือกงานด้านซ้าย ระบบคิดราคาให้อัตโนมัติ</div>
-        <button type="button" class="btn btn-ghost pick-all" id="pickAll">เลือกครบทุกงาน (คุ้มสุด)</button>
-        <div class="sum-rows" id="sumRows"></div>
-        <div class="sum-save" id="sumSave" style="display:none;"><span><svg class="ico"><use href="#ic-star"/></svg> ส่วนลดครบทุกงาน</span><span id="sumSaveVal"></span></div>
-        <div class="sum-total"><span class="lab">รวมทั้งสิ้น</span><span class="val"><span id="sumTotal">{{ "{:,}".format(px.bundle) }}</span> <small>บาท/ปี</small></span></div>
-        <a class="btn btn-primary" href="/checkout" id="btnBuy"><svg class="ico"><use href="#ic-coins"/></svg> สั่งซื้อ / ชำระเงิน</a>
-        <a class="btn btn-ghost" href="/quote" id="btnQuote" style="margin-top:10px;"><svg class="ico"><use href="#ic-doc"/></svg> ขอใบเสนอราคา</a>
-        <div class="note">ทดลองใช้ฟรีก่อนตัดสินใจ · อัปเดตฟรีเมื่อระเบียบเปลี่ยน</div>
+      <div class="bc-right">
+        {% if promo_active %}<div class="bc-promo">ราคาเปิดตัว · เหลืออีก {{ promo_days_left }} วัน</div>{% endif %}
+        <div class="bc-was">จากปกติ <s>{{ "{:,}".format(full) }}</s> บาท</div>
+        <div class="bc-save">ประหยัด {{ "{:,}".format(save) }} บาท</div>
+        <div class="bc-price"><b>{{ "{:,}".format(px.bundle) }}</b> บาท/ปี</div>
+        <a class="btn btn-primary bc-btn" href="/register?next=checkout&packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}"><svg class="ico"><use href="#ic-arrow-right"/></svg> เริ่มทดลองใช้ฟรี 50 เอกสาร</a>
       </div>
     </div>
-    <p class="price-foot">อยากได้ทุกงานในราคาเดียว? แพ็ก <b>“ครบทุกงาน” {{ "{:,}".format(px.bundle) }} บาท/ปี</b> {% if promo_active %}(ราคาเปิดตัว จากปกติ {{ "{:,}".format(reg.bundle) }}){% else %}(จากปกติ {{ "{:,}".format(px.p_proc + px.p_fin + px.p_admin + px.p_lunch) }}){% endif %} · โรงเรียนขนาดใหญ่/กลุ่มโรงเรียน <a href="/quote" style="color:var(--blue); font-weight:600;">ขอใบเสนอราคาพิเศษ</a></p>
+
+    <!-- หรือเลือกเฉพาะงาน -->
+    <div class="or-head">หรือเลือกเฉพาะงานที่ต้องใช้</div>
+    <div class="mgrid" id="pickList">
+      <label class="mcard on" data-price="{{ px.p_proc }}" data-name="งานพัสดุ">
+        <input type="checkbox" checked>
+        <div class="mc-ic"><svg class="ico"><use href="#ic-package"/></svg></div>
+        <h4>งานพัสดุ</h4>
+        <p>จัดซื้อจัดจ้าง + ออกเอกสารราชการอัตโนมัติ (ว.804/ว.119)</p>
+        <div class="mc-price">{{ px.p_proc }} <small>บาท/ปี</small></div>
+        <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
+      </label>
+      <label class="mcard on" data-price="{{ px.p_fin }}" data-name="งานการเงิน">
+        <input type="checkbox" checked>
+        <div class="mc-ic" style="background:#e8f9ef; color:var(--green);"><svg class="ico"><use href="#ic-coins"/></svg></div>
+        <h4>งานการเงิน</h4>
+        <p>สมุดเงินสด/บัญชีแยกประเภท + รายงานแบบ สตง.</p>
+        <div class="mc-price">{{ px.p_fin }} <small>บาท/ปี</small></div>
+        <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
+      </label>
+      <label class="mcard on" data-price="{{ px.p_admin }}" data-name="งานธุรการ">
+        <input type="checkbox" checked>
+        <div class="mc-ic" style="background:#fff2f2; color:#dc2626;"><svg class="ico"><use href="#ic-mail"/></svg></div>
+        <h4>งานธุรการ</h4>
+        <p>หนังสือราชการ 6 แบบ (มี AI ช่วย) + ทะเบียนรับ-ส่ง</p>
+        <div class="mc-price">{{ px.p_admin }} <small>บาท/ปี</small></div>
+        <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
+      </label>
+      <label class="mcard on" data-price="{{ px.p_lunch }}" data-name="งานอาหารกลางวัน">
+        <input type="checkbox" checked>
+        <div class="mc-ic" style="background:#fff7e6; color:#b45309;"><svg class="ico"><use href="#ic-food"/></svg></div>
+        <h4>อาหารกลางวัน</h4>
+        <p>คำนวณงบต่อหัว + เอกสารจ้าง/ตรวจรับ · ภาวะโภชนาการ</p>
+        <div class="mc-price">{{ px.p_lunch }} <small>บาท/ปี</small></div>
+        <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
+      </label>
+    </div>
+
+    <!-- แถบสรุป -->
+    <div class="sbar">
+      <div class="sb-left">
+        <div class="sb-title">สรุปของคุณ</div>
+        <div class="sb-sel" id="sbSel">เลือกครบทุกงาน</div>
+        <div class="sb-save" id="sbSave"></div>
+      </div>
+      <div class="sb-mid">
+        <div class="sb-lbl">รวมทั้งหมด</div>
+        <div class="sb-total"><b id="sumTotal">{{ "{:,}".format(px.bundle) }}</b> <small>บาท/ปี</small></div>
+      </div>
+      <div class="sb-right">
+        <a class="btn btn-primary" href="/register" id="btnBuy"><svg class="ico"><use href="#ic-arrow-right"/></svg> เริ่มทดลองใช้ฟรี 50 เอกสาร</a>
+        <div class="sb-note">🔒 ทดลองใช้ก่อน ไม่ต้องจ่าย · <a href="/quote" id="btnQuote" style="color:var(--blue); font-weight:600;">ขอใบเสนอราคา</a></div>
+      </div>
+    </div>
+
+    <!-- แถมฟรี -->
+    <div class="pick-free" style="max-width:920px; margin:22px auto 0;">
+      <span class="free-badge"><svg class="ico"><use href="#ic-cap"/></svg></span>
+      <span class="free-txt">ข้อมูลโรงเรียน + ทะเบียนนักเรียนกลาง<small>ป้อนครั้งเดียว ทุกงานดึงไปใช้อัตโนมัติ ไม่ต้องกรอกซ้ำ</small></span>
+      <span class="free-tag">แถมฟรีทุกแพ็กเกจ</span>
+    </div>
+
+    <!-- ความน่าเชื่อถือ -->
+    <div class="price-trust">
+      <div class="pt-badges">
+        <div class="pt-badge"><span class="pt-ic" style="background:#2563eb;"><svg class="ico"><use href="#ic-check"/></svg></span><div><b>ปลอดภัย</b><span>ข้อมูลสำคัญเข้ารหัส · สำรองอัตโนมัติ</span></div></div>
+        <div class="pt-badge"><span class="pt-ic" style="background:#16a34a;"><svg class="ico"><use href="#ic-facebook"/></svg></span><div><b>มีทีมช่วยเหลือ</b><span>จันทร์–ศุกร์ 08.30–17.00 น.</span></div></div>
+        <div class="pt-badge"><span class="pt-ic" style="background:#7c3aed;"><svg class="ico"><use href="#ic-cap"/></svg></span><div><b>อัปเดตต่อเนื่อง</b><span>ปรับตามระเบียบใหม่ให้ฟรี</span></div></div>
+        <div class="pt-badge"><span class="pt-ic" style="background:#d97706;"><svg class="ico"><use href="#ic-star"/></svg></span><div><b>ใช้งานง่าย</b><span>ออกแบบเพื่อครู กรอกน้อย ได้เอกสารครบ</span></div></div>
+      </div>
+    </div>
   </div>
 </section>
 
 <script>
   (function(){
-    var BUNDLE = {{ px.bundle }};          // ครบทุกงาน (ราคาโปรถ้ามี ไม่งั้นราคาปกติ) — คิดจาก pricing_context()
-    var items = [].slice.call(document.querySelectorAll('#pickList .pick-item'));
-    var sumRows = document.getElementById('sumRows');
+    var BUNDLE = {{ px.bundle }};                 // แพ็กครบทุกงาน (ราคาโปรถ้ามี) — จาก pricing_context()
+    var FULL = {{ full_sum | default(2360) }};    // รวมงานแยกเต็ม (ราคาขีดฆ่า)
+    var cards = [].slice.call(document.querySelectorAll('#pickList .mcard'));
     var sumTotal = document.getElementById('sumTotal');
-    var sumSave = document.getElementById('sumSave');
-    var sumSaveVal = document.getElementById('sumSaveVal');
+    var sbSel = document.getElementById('sbSel');
+    var sbSave = document.getElementById('sbSave');
     var btnBuy = document.getElementById('btnBuy');
     var btnQuote = document.getElementById('btnQuote');
     var fmt = function(n){ return n.toLocaleString('en-US'); };
     function render(){
-      var chosen = items.filter(function(it){ return it.querySelector('input').checked; });
-      items.forEach(function(it){ it.classList.toggle('on', it.querySelector('input').checked); });
-      var listSum = chosen.reduce(function(s,it){ return s + (+it.dataset.price); }, 0);
-      var all = chosen.length === items.length && items.length > 0;
+      var chosen = cards.filter(function(c){ return c.querySelector('input').checked; });
+      cards.forEach(function(c){ c.classList.toggle('on', c.querySelector('input').checked); });
+      var listSum = chosen.reduce(function(s,c){ return s + (+c.dataset.price); }, 0);
+      var all = chosen.length === cards.length && cards.length > 0;
       var total = all ? BUNDLE : listSum;
-      // พก package+ยอดที่เลือกไปหน้า checkout/quote
-      var label = all ? 'ครบทุกงาน' : chosen.map(function(it){ return it.querySelector('h4').textContent; }).join(' + ');
-      var qs = '?packages=' + encodeURIComponent(label || '') + '&amount=' + total;
-      if(btnBuy) btnBuy.href = '/checkout' + qs;
-      if(btnQuote) btnQuote.href = '/quote' + qs;
-      sumRows.innerHTML = chosen.length
-        ? chosen.map(function(it){ return '<div class="row"><span>'+ it.querySelector('h4').textContent +'</span><span>'+ fmt(+it.dataset.price) +'</span></div>'; }).join('')
-        : '<div class="empty">ยังไม่ได้เลือกงาน — เลือกอย่างน้อย 1 งาน</div>';
-      if(all){
-        sumSave.style.display = 'flex';
-        sumSaveVal.textContent = '−' + fmt(listSum - BUNDLE) + ' บาท';
-      } else { sumSave.style.display = 'none'; }
+      var label = all ? 'ครบทุกงาน' : chosen.map(function(c){ return c.dataset.name; }).join(' + ');
+      sbSel.textContent = chosen.length ? label : 'ยังไม่ได้เลือกงาน';
+      if(all){ sbSave.style.display=''; sbSave.textContent = 'ประหยัด −' + fmt(FULL - BUNDLE) + ' บาท'; }
+      else { sbSave.style.display = 'none'; }
       sumTotal.textContent = fmt(total);
+      var q = '?packages=' + encodeURIComponent(label || '') + '&amount=' + total;
+      if(btnBuy) btnBuy.href = '/register?next=checkout&packages=' + encodeURIComponent(label || '') + '&amount=' + total;
+      if(btnQuote) btnQuote.href = '/quote' + q;
     }
-    items.forEach(function(it){ it.querySelector('input').addEventListener('change', render); });
-    document.getElementById('pickAll').addEventListener('click', function(){
-      items.forEach(function(it){ it.querySelector('input').checked = true; });
-      render();
-    });
+    cards.forEach(function(c){ c.querySelector('input').addEventListener('change', render); });
     render();
-  })();
-
-  (function(){
-    var band = document.querySelector('.promo-band[data-promo-end]');
-    if(!band) return;
-    var box = band.querySelector('[data-promo-cd]');
-    var end = new Date(band.dataset.promoEnd + 'T23:59:00');
-    var U = [['วัน',86400],['ชม.',3600],['นาที',60],['วิ',1]];
-    function pad(n){ return (n<10?'0':'')+n; }
-    function tick(){
-      var s = Math.max(0, Math.floor((end - new Date())/1000));
-      var d = Math.floor(s/86400); s-=d*86400;
-      var h = Math.floor(s/3600); s-=h*3600;
-      var m = Math.floor(s/60); var sec = s-m*60;
-      var v = [d,h,m,sec];
-      box.innerHTML = U.map(function(u,i){ return '<div class="box"><b>'+(i===0?v[i]:pad(v[i]))+'</b><span>'+u[0]+'</span></div>'; }).join('');
-    }
-    tick(); setInterval(tick,1000);
   })();
 </script>
 

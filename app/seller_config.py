@@ -31,13 +31,14 @@ SELLER = {
     "ai_api_key": "",                         # Anthropic API key ของคุณ (ตั้งใน seller_local.py) เว้นว่าง = ปิด AI
 
     # ---- โปรโมชั่นเปิดตัว (แก้ enabled/start เพื่อเปิด) ----
+    # โปรลดเฉพาะราคา bundle (ครบทุกงาน) ราคางานแยกคงเดิม
     "promo": {
         "enabled": False,                     # เปิดโปร -> True
         "start": "",                          # วันเริ่มนับ เช่น "2026-07-20" (โปร 7 วันจากวันนี้)
         "days": 7,
         "slots": 30,                          # จำกัดกี่สิทธิ์แรก (แสดงเป็นข้อความ)
-        "bundle": 1960,                       # ราคาครบทุกงานช่วงโปร
-        "p_proc": 690, "p_fin": 490, "p_admin": 390, "p_lunch": 390,   # ราคาต่องานช่วงโปร
+        "bundle": 1590,                       # ราคาครบทุกงานช่วงโปร (จากปกติ 1,990)
+        "p_proc": 890, "p_fin": 690, "p_admin": 590, "p_lunch": 190,   # ราคาต่องานช่วงโปร = คงเดิม
     },
 
     # ---- SMTP สำหรับส่งอีเมลยืนยัน (ตั้งใน seller_local.py) ----
@@ -59,7 +60,8 @@ except ImportError:
 
 
 # ---- ราคาปกติ (ยึดเป็นราคาตั้งต้น/ราคาขีดฆ่าตอนมีโปร) ----
-REGULAR_PRICES = {"p_proc": 890, "p_fin": 690, "p_admin": 590, "p_lunch": 590, "bundle": 2290}
+# รวมงานแยก = 890+690+590+190 = 2,360 · แพ็กครบทุกงาน (bundle) = 1,990 (ประหยัด 370)
+REGULAR_PRICES = {"p_proc": 890, "p_fin": 690, "p_admin": 590, "p_lunch": 190, "bundle": 1990}
 
 
 def pricing_context():
@@ -81,6 +83,11 @@ def pricing_context():
                 days_left = (end - date.today()).days + 1   # รวมวันนี้
         except (ValueError, TypeError):
             pass
+    def _extra(px):
+        """ราคารวมงานแยก (ราคาเต็ม/ขีดฆ่า) + ส่วนที่ประหยัดเมื่อซื้อ bundle"""
+        full = px["p_proc"] + px["p_fin"] + px["p_admin"] + px["p_lunch"]
+        return {"full_sum": full, "bundle_save": max(0, full - px["bundle"])}
+
     if active:
         eff = {k: promo.get(k, reg[k]) for k in reg}
         slots = int(promo.get("slots", 30))
@@ -92,7 +99,7 @@ def pricing_context():
         return {"prices": eff, "regular": reg, "promo_active": True,
                 "promo_days_left": days_left, "promo_slots": slots,
                 "promo_slots_left": max(0, slots - used),
-                "promo_end_iso": end.isoformat()}
+                "promo_end_iso": end.isoformat(), **_extra(eff)}
     return {"prices": reg, "regular": reg, "promo_active": False,
             "promo_days_left": 0, "promo_slots": 0,
-            "promo_slots_left": 0, "promo_end_iso": ""}
+            "promo_slots_left": 0, "promo_end_iso": "", **_extra(reg)}
