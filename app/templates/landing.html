@@ -249,7 +249,7 @@
   .bundle-card{ position:relative; display:flex; align-items:center; justify-content:space-between;
     gap:20px; flex-wrap:wrap; max-width:930px; margin:24px auto 46px; padding:26px 36px 26px 28px; border-radius:28px;
     background:linear-gradient(150deg,#dcebff 0%,#c3ddff 55%,#aecdff 100%); border:none;
-    box-shadow:0 24px 54px rgba(37,99,235,.22); }
+    box-shadow:none; }
   /* เมฆประดับ (คุมให้อยู่ในการ์ด ไม่ตัดป้ายแนะนำ) */
   .bundle-card::before{ content:""; position:absolute; top:20px; left:42%; width:80px; height:24px; border-radius:999px;
     background:rgba(255,255,255,.55); box-shadow:44px 10px 0 -6px rgba(255,255,255,.45), -30px 7px 0 -8px rgba(255,255,255,.4);
@@ -257,13 +257,13 @@
   .bundle-card::after{ content:""; position:absolute; bottom:24px; left:34%; width:50px; height:15px; border-radius:999px;
     background:rgba(255,255,255,.38); box-shadow:24px 5px 0 -4px rgba(255,255,255,.32); pointer-events:none; }
   .bundle-card.promo{ background:linear-gradient(140deg,#2563eb,#1d4ed8 130%); color:#fff; }
-  .bc-badge{ position:absolute; top:-14px; left:50%; transform:translateX(-50%); background:#1d4ed8; color:#ffe310;
+  .bc-badge{ position:absolute; top:-14px; left:50%; transform:translateX(-50%); background:#1d4ed8; color:#fff;
     font-weight:800; font-size:13.5px; padding:6px 22px; border-radius:999px; display:inline-flex; align-items:center;
-    gap:6px; box-shadow:0 6px 16px rgba(251,191,36,.5); white-space:nowrap; z-index:3; }
-  .bc-badge .ico{ width:15px; height:15px; fill:currentColor; stroke:currentColor; }
-  .bc-left{ display:flex; align-items:center; gap:22px; flex:1; min-width:300px; position:relative; z-index:1; }
-  .bc-illus{ width:190px; height:auto; flex:none; background:transparent;
-    filter:drop-shadow(0 12px 18px rgba(20,45,95,.22)); }
+    gap:6px; box-shadow:none; white-space:nowrap; z-index:3; }
+  .bc-badge .ico{ width:15px; height:15px; fill:#ffe310; stroke:#ffe310; color:#ffe310; }
+  .bc-left{ display:flex; align-items:center; gap:22px; flex:1; min-width:300px; position:relative; z-index:1;
+    padding-right:24px; border-right:1px solid rgba(29,78,216,.22); }
+  .bc-illus{ width:230px; height:auto; flex:none; background:transparent; filter:none; }
   .bc-illus-emoji{ font-size:120px; line-height:1; flex:none; }
   .bc-info{ flex:1; }
   .bc-info h3{ font-size:30px; margin:0; color:var(--navy); line-height:1.15; }
@@ -278,17 +278,19 @@
   .bc-mods .m1 .ico{ color:var(--blue); } .bc-mods .m2 .ico{ color:#16a34a; }
   .bc-mods .m3 .ico{ color:#dc2626; } .bc-mods .m4 .ico{ color:#d97706; }
   .bundle-card.promo .bc-mods span{ background:#fff; }
-  .bc-right{ text-align:right; flex:none; position:relative; z-index:1; }
+  .bc-right{ text-align:center; flex:none; position:relative; z-index:1; padding-left:12px; display:flex;
+    flex-direction:column; align-items:center; justify-content:center; }
   .bc-promo{ display:inline-block; background:#fbbf24; color:#7c4a03; font-weight:700; font-size:12.5px;
     padding:4px 13px; border-radius:999px; margin-bottom:8px; }
   .bc-was{ font-size:14px; color:#5b6b84; }
   .bundle-card.promo .bc-was{ color:rgba(255,255,255,.85); }
-  .bc-was s{ opacity:.85; }
+  .bc-was s{ opacity:.85; text-decoration-color:#dc2626; }
   .bc-save{ display:inline-block; background:#22c55e; color:#fff; font-weight:800; font-size:13px;
     padding:4px 14px; border-radius:999px; margin:6px 0; box-shadow:0 4px 10px rgba(34,197,94,.35); }
   .bundle-card.promo .bc-save{ background:rgba(255,255,255,.2); }
   .bc-price{ margin-top:2px; }
-  .bc-price b{ font-size:54px; font-weight:800; color:var(--navy); letter-spacing:-2px; line-height:1; }
+  .bc-price b{ font-size:54px; font-weight:800; color:var(--blue-deep); letter-spacing:-2px; line-height:1;
+    -webkit-text-stroke:1px #fff; text-shadow:0 0 1px rgba(255,255,255,.8); }
   .bundle-card.promo .bc-price b{ color:#fff; }
   .bc-price span{ display:block; font-size:14px; color:#5b6b84; margin-top:2px; font-weight:600; }
   .bundle-card.promo .bc-price span{ color:rgba(255,255,255,.9); }
@@ -301,13 +303,13 @@
   .mgrid{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
   .mcard{ background:#fff; border:2px solid var(--line); border-radius:18px; padding:20px 18px 16px;
     cursor:pointer; transition:.16s; position:relative; display:flex; flex-direction:column; }
-  .mcard:hover{ border-color:#c7d6f5; }
+  .mcard:hover{ border-color:var(--blue); transform:translateY(-2px); box-shadow:0 10px 24px rgba(37,99,235,.14); }
   .mcard.on{ border-color:var(--blue); box-shadow:0 12px 30px rgba(37,99,235,.12); }
+  .mcard.on:hover{ box-shadow:0 14px 32px rgba(37,99,235,.18); }
   .mcard input{ position:absolute; opacity:0; pointer-events:none; }
-  .mc-ic{ width:46px; height:46px; border-radius:13px; background:#eef4ff; color:var(--blue);
-    display:flex; align-items:center; justify-content:center; margin-bottom:12px; }
-  .mc-ic .ico{ width:23px; height:23px; }
-  .mcard h4{ font-size:16px; margin:0 0 4px; }
+  .mc-head{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .mc-head .ico{ width:26px; height:26px; flex:none; color:var(--blue); }
+  .mcard h4{ font-size:16px; margin:0; }
   .mcard p{ color:var(--muted); font-size:12.5px; line-height:1.45; flex:1; }
   .mc-price{ font-weight:800; font-size:20px; margin:12px 0 12px; }
   .mc-price small{ font-weight:500; font-size:12px; color:var(--muted); }
@@ -321,6 +323,7 @@
   .sbar{ display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;
     background:#fff; border:1px solid var(--line); border-radius:20px; padding:22px 28px; margin-top:22px;
     box-shadow:0 14px 40px rgba(15,23,42,.07); }
+  .sb-left{ min-width:240px; }
   .sb-left .sb-title{ font-weight:700; font-size:15px; }
   .sb-left .sb-sel{ color:var(--muted); font-size:13px; margin-top:2px; }
   .sb-save{ display:inline-block; background:#dcfce7; color:#15803d; font-weight:700; font-size:12.5px;
@@ -332,15 +335,20 @@
   .sb-right{ text-align:center; }
   .sb-right .btn{ padding:13px 24px; }
   .sb-note{ font-size:11.5px; color:var(--muted); margin-top:8px; }
+  .sb-breakdown{ width:100%; display:grid; gap:8px; margin-top:14px; padding-top:14px; border-top:1px solid rgba(29,78,216,.14); }
+  .sb-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:13px; color:var(--muted); }
+  .sb-row strong{ font-size:14px; color:var(--ink); }
+  .sb-row.discount strong{ color:#dc2626; }
+  .sb-row.net strong{ color:var(--blue-deep); font-size:16px; }
+  .sb-row.saved strong{ color:#15803d; }
+  .sb-upsell{ margin-top:4px; font-size:12.5px; font-weight:700; color:var(--blue-deep); }
 
   /* ===== แถบความน่าเชื่อถือ ===== */
   .price-trust{ margin-top:46px; }
   .pt-badges{ display:flex; justify-content:center; gap:14px; flex-wrap:wrap; }
   .pt-badge{ display:flex; align-items:center; gap:11px; background:#fff; border:1px solid var(--line);
     border-radius:14px; padding:13px 17px; max-width:250px; }
-  .pt-ic{ width:38px; height:38px; border-radius:10px; flex:none; display:flex; align-items:center;
-    justify-content:center; color:#fff; }
-  .pt-ic .ico{ width:19px; height:19px; }
+  .pt-badge .ico{ width:26px; height:26px; flex:none; color:#fff; }
   .pt-badge b{ display:block; font-size:13.5px; } .pt-badge span{ color:var(--muted); font-size:11.5px; }
 
   /* ---------- ปิดท้าย ---------- */
@@ -640,32 +648,40 @@
     <div class="mgrid" id="pickList">
       <label class="mcard on" data-price="{{ px.p_proc }}" data-name="งานพัสดุ">
         <input type="checkbox" checked>
-        <div class="mc-ic"><svg class="ico"><use href="#ic-package"/></svg></div>
-        <h4>งานพัสดุ</h4>
+        <div class="mc-head">
+          <svg class="ico" style="color:var(--blue);"><use href="#ic-package"/></svg>
+          <h4>งานพัสดุ</h4>
+        </div>
         <p>จัดซื้อจัดจ้าง + ออกเอกสารราชการอัตโนมัติ (ว.804/ว.119)</p>
         <div class="mc-price">{{ px.p_proc }} <small>บาท/ปี</small></div>
         <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
       </label>
       <label class="mcard on" data-price="{{ px.p_fin }}" data-name="งานการเงิน">
         <input type="checkbox" checked>
-        <div class="mc-ic" style="background:#e8f9ef; color:var(--green);"><svg class="ico"><use href="#ic-coins"/></svg></div>
-        <h4>งานการเงิน</h4>
+        <div class="mc-head">
+          <svg class="ico" style="color:var(--green);"><use href="#ic-coins"/></svg>
+          <h4>งานการเงิน</h4>
+        </div>
         <p>สมุดเงินสด/บัญชีแยกประเภท + รายงานแบบ สตง.</p>
         <div class="mc-price">{{ px.p_fin }} <small>บาท/ปี</small></div>
         <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
       </label>
       <label class="mcard on" data-price="{{ px.p_admin }}" data-name="งานธุรการ">
         <input type="checkbox" checked>
-        <div class="mc-ic" style="background:#fff2f2; color:#dc2626;"><svg class="ico"><use href="#ic-mail"/></svg></div>
-        <h4>งานธุรการ</h4>
+        <div class="mc-head">
+          <svg class="ico" style="color:#dc2626;"><use href="#ic-mail"/></svg>
+          <h4>งานธุรการ</h4>
+        </div>
         <p>หนังสือราชการ 6 แบบ (มี AI ช่วย) + ทะเบียนรับ-ส่ง</p>
         <div class="mc-price">{{ px.p_admin }} <small>บาท/ปี</small></div>
         <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
       </label>
       <label class="mcard on" data-price="{{ px.p_lunch }}" data-name="งานอาหารกลางวัน">
         <input type="checkbox" checked>
-        <div class="mc-ic" style="background:#fff7e6; color:#b45309;"><svg class="ico"><use href="#ic-food"/></svg></div>
-        <h4>อาหารกลางวัน</h4>
+        <div class="mc-head">
+          <svg class="ico" style="color:#b45309;"><use href="#ic-food"/></svg>
+          <h4>อาหารกลางวัน</h4>
+        </div>
         <p>คำนวณงบต่อหัว + เอกสารจ้าง/ตรวจรับ · ภาวะโภชนาการ</p>
         <div class="mc-price">{{ px.p_lunch }} <small>บาท/ปี</small></div>
         <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
@@ -687,6 +703,13 @@
         <a class="btn btn-primary" href="/register" id="btnBuy"><svg class="ico"><use href="#ic-arrow-right"/></svg> เริ่มทดลองใช้ฟรี 50 เอกสาร</a>
         <div class="sb-note">🔒 ทดลองใช้ก่อน ไม่ต้องจ่าย · <a href="/quote" id="btnQuote" style="color:var(--blue); font-weight:600;">ขอใบเสนอราคา</a></div>
       </div>
+      <div class="sb-breakdown">
+        <div class="sb-row"><span id="sbBeforeLabel">ราคาสินค้า</span><strong id="sbBefore">{{ "{:,}".format(px.bundle) }} บาท</strong></div>
+        <div class="sb-row discount"><span id="sbDiscountLabel">ส่วนลดที่ได้รับ</span><strong id="sbDiscount">−{{ "{:,}".format(save) }} บาท</strong></div>
+        <div class="sb-row net"><span>ยอดชำระ</span><strong id="sbNet">{{ "{:,}".format(px.bundle) }} บาท</strong></div>
+        <div class="sb-row saved"><span>คุณประหยัด</span><strong id="sbSaved">{{ "{:,}".format(save) }} บาท</strong></div>
+        <div class="sb-upsell" id="sbUpsell"></div>
+      </div>
     </div>
 
     <!-- แถมฟรี -->
@@ -699,10 +722,10 @@
     <!-- ความน่าเชื่อถือ -->
     <div class="price-trust">
       <div class="pt-badges">
-        <div class="pt-badge"><span class="pt-ic" style="background:#2563eb;"><svg class="ico"><use href="#ic-check"/></svg></span><div><b>ปลอดภัย</b><span>ข้อมูลสำคัญเข้ารหัส · สำรองอัตโนมัติ</span></div></div>
-        <div class="pt-badge"><span class="pt-ic" style="background:#16a34a;"><svg class="ico"><use href="#ic-facebook"/></svg></span><div><b>มีทีมช่วยเหลือ</b><span>จันทร์–ศุกร์ 08.30–17.00 น.</span></div></div>
-        <div class="pt-badge"><span class="pt-ic" style="background:#7c3aed;"><svg class="ico"><use href="#ic-cap"/></svg></span><div><b>อัปเดตต่อเนื่อง</b><span>ปรับตามระเบียบใหม่ให้ฟรี</span></div></div>
-        <div class="pt-badge"><span class="pt-ic" style="background:#f3df0b;"><svg class="ico"><use href="#ic-star"/></svg></span><div><b>ใช้งานง่าย</b><span>ออกแบบเพื่อครู กรอกน้อย ได้เอกสารครบ</span></div></div>
+        <div class="pt-badge"><svg class="ico" style="background:#2563eb; border-radius:10px; padding:6px;"><use href="#ic-check"/></svg><div><b>ปลอดภัย</b><span>ข้อมูลสำคัญเข้ารหัส · สำรองอัตโนมัติ</span></div></div>
+        <div class="pt-badge"><svg class="ico" style="background:#2563eb; border-radius:10px; padding:6px;"><use href="#ic-facebook"/></svg><div><b>มีทีมช่วยเหลือ</b><span>จันทร์–ศุกร์ 08.30–17.00 น.</span></div></div>
+        <div class="pt-badge"><svg class="ico" style="background:#2563eb; border-radius:10px; padding:6px;"><use href="#ic-cap"/></svg><div><b>อัปเดตต่อเนื่อง</b><span>ปรับตามระเบียบใหม่ให้ฟรี</span></div></div>
+        <div class="pt-badge"><svg class="ico" style="background:#2563eb; border-radius:10px; padding:6px;"><use href="#ic-star"/></svg><div><b>ใช้งานง่าย</b><span>ออกแบบเพื่อครู กรอกน้อย ได้เอกสารครบ</span></div></div>
       </div>
     </div>
   </div>
@@ -716,20 +739,57 @@
     var sumTotal = document.getElementById('sumTotal');
     var sbSel = document.getElementById('sbSel');
     var sbSave = document.getElementById('sbSave');
+    var sbBeforeLabel = document.getElementById('sbBeforeLabel');
+    var sbBefore = document.getElementById('sbBefore');
+    var sbDiscountLabel = document.getElementById('sbDiscountLabel');
+    var sbDiscount = document.getElementById('sbDiscount');
+    var sbNet = document.getElementById('sbNet');
+    var sbSaved = document.getElementById('sbSaved');
+    var sbUpsell = document.getElementById('sbUpsell');
     var btnBuy = document.getElementById('btnBuy');
     var btnQuote = document.getElementById('btnQuote');
     var fmt = function(n){ return n.toLocaleString('en-US'); };
     function render(){
       var chosen = cards.filter(function(c){ return c.querySelector('input').checked; });
       cards.forEach(function(c){ c.classList.toggle('on', c.querySelector('input').checked); });
+      var count = chosen.length;
       var listSum = chosen.reduce(function(s,c){ return s + (+c.dataset.price); }, 0);
-      var all = chosen.length === cards.length && cards.length > 0;
-      var total = all ? BUNDLE : listSum;
-      var label = all ? 'ครบทุกงาน' : chosen.map(function(c){ return c.dataset.name; }).join(' + ');
-      sbSel.textContent = chosen.length ? label : 'ยังไม่ได้เลือกงาน';
-      if(all){ sbSave.style.display=''; sbSave.textContent = 'ประหยัด −' + fmt(FULL - BUNDLE) + ' บาท'; }
-      else { sbSave.style.display = 'none'; }
+      var discount = count === 4 ? (FULL - BUNDLE) : count === 3 ? 200 : count === 2 ? 100 : 0;
+      var total = count === 4 ? BUNDLE : (count ? Math.max(0, listSum - discount) : 0);
+      var savings = Math.max(0, listSum - total);
+      var label = count === 4 ? 'ครบทุกงาน' : (count ? chosen.map(function(c){ return c.dataset.name; }).join(' + ') : 'ยังไม่ได้เลือกงาน');
+
+      sbSel.textContent = count ? label : 'ยังไม่ได้เลือกงาน';
       sumTotal.textContent = fmt(total);
+
+      sbBeforeLabel.textContent = count === 4 ? 'ราคาปกติทั้งชุด' : 'ราคาสินค้า';
+      sbBefore.textContent = count ? fmt(listSum) + ' บาท' : '0 บาท';
+      sbDiscountLabel.textContent = count === 4 ? 'ส่วนลดแพ็กเกจ' : 'ส่วนลดที่ได้รับ';
+      sbDiscount.textContent = count ? '−' + fmt(discount) + ' บาท' : '0 บาท';
+      sbNet.textContent = count ? fmt(total) + ' บาท' : '0 บาท';
+      sbSaved.textContent = count ? fmt(savings) + ' บาท' : '0 บาท';
+
+      if(count === 4){
+        sbSave.style.display = '';
+        sbSave.textContent = 'ส่วนลดแพ็กเกจ: −' + fmt(FULL - BUNDLE) + ' บาท';
+        sbUpsell.textContent = '';
+      } else if(count === 3){
+        sbSave.style.display = '';
+        sbSave.textContent = 'ส่วนลดซื้อครบ 3 รายการ: −' + fmt(discount) + ' บาท';
+        sbUpsell.textContent = 'เพิ่มอีกเพียง ' + fmt(BUNDLE - total) + ' บาท เพื่อรับครบทั้ง 4 งาน!';
+      } else if(count === 2){
+        sbSave.style.display = '';
+        sbSave.textContent = 'ลด 100 บาท สำหรับเลือก 2 รายการ';
+        sbUpsell.textContent = '';
+      } else if(count === 1){
+        sbSave.style.display = '';
+        sbSave.textContent = 'ราคาเต็ม (ไม่มีส่วนลด)';
+        sbUpsell.textContent = '';
+      } else {
+        sbSave.style.display = 'none';
+        sbUpsell.textContent = '';
+      }
+
       var q = '?packages=' + encodeURIComponent(label || '') + '&amount=' + total;
       if(btnBuy) btnBuy.href = '/register?next=checkout&packages=' + encodeURIComponent(label || '') + '&amount=' + total;
       if(btnQuote) btnQuote.href = '/quote' + q;
