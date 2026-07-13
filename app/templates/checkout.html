@@ -191,7 +191,7 @@
 
 <script>
   (function(){
-    var BUNDLE = {{ px.bundle }};
+    var BUNDLE = {{ px.bundle | tojson }};
     var items = [].slice.call(document.querySelectorAll('#coList .co-item'));
     var amtEl = document.getElementById('coAmount');
     var qr = document.getElementById('coQR');

@@ -5,8 +5,8 @@
   {% if bad %}
     <div style="width:70px; height:70px; border-radius:50%; background:#fef2f2; color:#b91c1c;
                 display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:32px;">!</div>
-    <h1 style="font-size:23px; margin-bottom:8px;">ลิงก์ยืนยันไม่ถูกต้องหรือหมดอายุ</h1>
-    <p class="muted">อาจยืนยันไปแล้ว ลองเข้าสู่ระบบ หรือขอลิงก์ยืนยันใหม่</p>
+    <h1 style="font-size:23px; margin-bottom:8px;">ลิงก์ยืนยันไม่ถูกต้องหรือหมดอายุแล้ว</h1>
+    <p class="muted">หากยืนยันไปแล้ว ลองเข้าสู่ระบบ หรือขอลิงก์ยืนยันใหม่</p>
     <div style="margin-top:22px;"><a class="btn btn-primary" href="/login">เข้าสู่ระบบ</a></div>
   {% else %}
     <div style="width:70px; height:70px; border-radius:50%; background:#eef4ff; color:#2563eb;
@@ -16,7 +16,7 @@
     </div>
     <h1 style="font-size:23px; margin-bottom:8px;">{% if resent %}ส่งลิงก์ยืนยันอีกครั้งแล้ว{% else %}ตรวจสอบอีเมลของคุณ{% endif %}</h1>
     <p class="muted">เราส่งลิงก์ยืนยันไปที่ <b>{{ email }}</b><br>
-       กดลิงก์ในอีเมลเพื่อเปิดใช้งานบัญชี แล้วเริ่มทดลองใช้ได้ทันที (ถ้าไม่พบ ลองดูในกล่อง Spam)</p>
+       กดลิงก์ในอีเมลเพื่อเปิดใช้งานบัญชี แล้วเริ่มทดลองใช้ได้ทันที (ถ้าไม่พบ ลองดูในอีเมลขยะ หรือ Spam)</p>
     <form method="post" action="/register/resend" style="margin-top:22px;">
       <input type="hidden" name="email" value="{{ email }}">
       <button class="btn btn-ghost" type="submit">ส่งลิงก์ยืนยันอีกครั้ง</button>
