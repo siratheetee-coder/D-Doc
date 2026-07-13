@@ -1297,6 +1297,9 @@ CASE_EXTRA_FIELDS = {
         ("receipt_book", "ใบเสร็จ/ใบส่งของ เล่มที่", "text"),
         ("receipt_no", "ใบเสร็จ/ใบส่งของ เลขที่", "text"),
         ("receipt_date", "วันที่ใบเสร็จ/ใบส่งของ", "date"),
+        ("budget_kind", "งบประมาณ (ระบบจะติ๊กให้ในเอกสาร)", "select"),
+        ("budget_other", "งบอื่น ๆ (ระบุ ถ้าเลือก “อื่นๆ”)", "text"),
+        ("advance_payer", "ผู้ทดรองจ่าย/ผู้ยืมเงิน", "person"),
     ],
     "clause79": [
         ("receipt_book", "ใบเสร็จ/ใบส่งของ เล่มที่", "text"),
