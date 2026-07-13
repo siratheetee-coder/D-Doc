@@ -245,40 +245,51 @@
   .price-foot{ text-align:center; color:var(--muted); font-size:13.5px; margin-top:26px; }
   .pick-price s{ color:var(--muted); font-weight:500; margin-right:6px; opacity:.7; }
 
-  /* ===== การ์ดแพ็กเกจรวม (แนะนำ) ===== */
-  .bundle-card{ position:relative; display:flex; align-items:center; justify-content:space-between;
-    gap:24px; flex-wrap:wrap; max-width:920px; margin:8px auto 44px; padding:30px 34px; border-radius:24px;
-    background:linear-gradient(120deg,#eef4ff,#e2ecff 60%,#dbe7ff); border:1px solid #cddbf7;
-    box-shadow:0 20px 48px rgba(37,99,235,.13); }
-  .bundle-card.promo{ background:linear-gradient(120deg,#2563eb,#1d4ed8 130%); border-color:transparent; color:#fff; }
-  .bc-badge{ position:absolute; top:-14px; left:50%; transform:translateX(-50%); background:#fbbf24; color:#7c4a03;
-    font-weight:800; font-size:13.5px; padding:6px 20px; border-radius:999px; display:inline-flex; align-items:center;
-    gap:6px; box-shadow:0 6px 16px rgba(251,191,36,.45); white-space:nowrap; }
+  /* ===== การ์ดแพ็กเกจรวม (แนะนำ) — สไตล์ฟ้าอ่อน + เมฆ + รูปโรงเรียน 3D ===== */
+  .bundle-card{ position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between;
+    gap:20px; flex-wrap:wrap; max-width:930px; margin:10px auto 46px; padding:26px 34px 26px 26px; border-radius:28px;
+    background:linear-gradient(150deg,#dcebff 0%,#c3ddff 55%,#aecdff 100%); border:none;
+    box-shadow:0 24px 54px rgba(37,99,235,.22); }
+  /* เมฆประดับ */
+  .bundle-card::before{ content:""; position:absolute; top:20px; left:42%; width:80px; height:24px; border-radius:999px;
+    background:rgba(255,255,255,.6); box-shadow:44px 10px 0 -5px rgba(255,255,255,.5), -30px 7px 0 -7px rgba(255,255,255,.45);
+    pointer-events:none; }
+  .bundle-card::after{ content:""; position:absolute; bottom:26px; left:33%; width:54px; height:16px; border-radius:999px;
+    background:rgba(255,255,255,.42); box-shadow:26px 5px 0 -4px rgba(255,255,255,.36); pointer-events:none; }
+  .bundle-card.promo{ background:linear-gradient(140deg,#2563eb,#1d4ed8 130%); color:#fff; }
+  .bc-badge{ position:absolute; top:-13px; left:50%; transform:translateX(-50%); background:#fbbf24; color:#7c4a03;
+    font-weight:800; font-size:13.5px; padding:6px 22px; border-radius:999px; display:inline-flex; align-items:center;
+    gap:6px; box-shadow:0 6px 16px rgba(251,191,36,.5); white-space:nowrap; z-index:2; }
   .bc-badge .ico{ width:15px; height:15px; fill:currentColor; stroke:currentColor; }
-  .bc-left{ display:flex; align-items:center; gap:20px; flex:1; min-width:250px; }
-  .bc-illus{ font-size:50px; line-height:1; flex:none; }
-  .bc-left h3{ font-size:23px; margin:0; }
-  .bundle-card.promo .bc-left h3{ color:#fff; }
-  .bc-left p{ color:var(--muted); font-size:14.5px; margin:2px 0 0; }
-  .bundle-card.promo .bc-left p{ color:rgba(255,255,255,.9); }
-  .bc-mods{ display:flex; gap:8px; margin-top:12px; }
-  .bc-mods span{ width:36px; height:36px; border-radius:10px; background:rgba(37,99,235,.1); color:var(--blue);
-    display:flex; align-items:center; justify-content:center; }
-  .bc-mods .ico{ width:19px; height:19px; }
-  .bundle-card.promo .bc-mods span{ background:rgba(255,255,255,.18); color:#fff; }
-  .bc-right{ text-align:right; flex:none; }
+  .bc-left{ display:flex; align-items:center; gap:18px; flex:1; min-width:280px; position:relative; z-index:1; }
+  .bc-illus{ width:148px; height:auto; flex:none; filter:drop-shadow(0 12px 18px rgba(20,45,95,.22)); }
+  .bc-illus-emoji{ font-size:88px; line-height:1; flex:none; }
+  .bc-info h3{ font-size:25px; margin:0; color:var(--navy); }
+  .bundle-card.promo .bc-info h3{ color:#fff; }
+  .bc-info p{ color:#40598a; font-size:15px; margin:3px 0 0; font-weight:500; }
+  .bundle-card.promo .bc-info p{ color:rgba(255,255,255,.92); }
+  .bc-mods{ display:flex; gap:9px; margin-top:14px; }
+  .bc-mods span{ width:40px; height:40px; border-radius:12px; background:#fff;
+    box-shadow:0 5px 12px rgba(20,45,95,.14); display:flex; align-items:center; justify-content:center; }
+  .bc-mods .ico{ width:21px; height:21px; }
+  .bc-mods .m1{ color:var(--blue); } .bc-mods .m2{ color:#16a34a; }
+  .bc-mods .m3{ color:#dc2626; } .bc-mods .m4{ color:#d97706; }
+  .bundle-card.promo .bc-mods span{ background:rgba(255,255,255,.9); }
+  .bc-right{ text-align:right; flex:none; position:relative; z-index:1; }
   .bc-promo{ display:inline-block; background:#fbbf24; color:#7c4a03; font-weight:700; font-size:12.5px;
     padding:4px 13px; border-radius:999px; margin-bottom:8px; }
-  .bc-was{ font-size:14px; color:var(--muted); }
-  .bundle-card.promo .bc-was{ color:rgba(255,255,255,.82); }
-  .bc-save{ display:inline-block; background:#dcfce7; color:#15803d; font-weight:800; font-size:13px;
-    padding:3px 13px; border-radius:999px; margin:5px 0; }
-  .bundle-card.promo .bc-save{ background:rgba(255,255,255,.18); color:#fff; }
-  .bc-price{ font-size:16px; color:var(--muted); margin-top:2px; }
-  .bundle-card.promo .bc-price{ color:rgba(255,255,255,.92); }
-  .bc-price b{ font-size:44px; font-weight:800; color:var(--blue); letter-spacing:-1.5px; }
+  .bc-was{ font-size:14px; color:#5b6b84; }
+  .bundle-card.promo .bc-was{ color:rgba(255,255,255,.85); }
+  .bc-was s{ opacity:.85; }
+  .bc-save{ display:inline-block; background:#22c55e; color:#fff; font-weight:800; font-size:13px;
+    padding:4px 14px; border-radius:999px; margin:6px 0; box-shadow:0 4px 10px rgba(34,197,94,.35); }
+  .bundle-card.promo .bc-save{ background:rgba(255,255,255,.2); }
+  .bc-price{ margin-top:2px; }
+  .bc-price b{ font-size:54px; font-weight:800; color:var(--navy); letter-spacing:-2px; line-height:1; }
   .bundle-card.promo .bc-price b{ color:#fff; }
-  .bc-btn{ margin-top:14px; }
+  .bc-price span{ display:block; font-size:14px; color:#5b6b84; margin-top:2px; font-weight:600; }
+  .bundle-card.promo .bc-price span{ color:rgba(255,255,255,.9); }
+  .bc-btn{ margin-top:14px; box-shadow:0 10px 22px rgba(37,99,235,.35); }
   .bundle-card.promo .bc-btn{ background:#fff; color:var(--blue-deep); box-shadow:0 8px 20px rgba(0,0,0,.18); }
   .bundle-card.promo .bc-btn .ico{ color:var(--blue-deep); }
 
@@ -599,15 +610,16 @@
     <div class="bundle-card{% if promo_active %} promo{% endif %}">
       <div class="bc-badge"><svg class="ico"><use href="#ic-star"/></svg> แนะนำ</div>
       <div class="bc-left">
-        <div class="bc-illus">🏫</div>
-        <div>
+        <img class="bc-illus" src="/static/landing/school.png" alt="โรงเรียน"
+             onerror="this.outerHTML='<div class=&quot;bc-illus-emoji&quot;>🏫</div>'">
+        <div class="bc-info">
           <h3>แพ็กเกจโรงเรียน</h3>
           <p>ครบทุกงาน ในราคาคุ้มที่สุด</p>
           <div class="bc-mods">
-            <span><svg class="ico"><use href="#ic-package"/></svg></span>
-            <span><svg class="ico"><use href="#ic-coins"/></svg></span>
-            <span><svg class="ico"><use href="#ic-mail"/></svg></span>
-            <span><svg class="ico"><use href="#ic-food"/></svg></span>
+            <span class="m1"><svg class="ico"><use href="#ic-package"/></svg></span>
+            <span class="m2"><svg class="ico"><use href="#ic-coins"/></svg></span>
+            <span class="m3"><svg class="ico"><use href="#ic-mail"/></svg></span>
+            <span class="m4"><svg class="ico"><use href="#ic-food"/></svg></span>
           </div>
         </div>
       </div>
@@ -615,8 +627,8 @@
         {% if promo_active %}<div class="bc-promo">ราคาเปิดตัว · เหลืออีก {{ promo_days_left }} วัน</div>{% endif %}
         <div class="bc-was">จากปกติ <s>{{ "{:,}".format(full) }}</s> บาท</div>
         <div class="bc-save">ประหยัด {{ "{:,}".format(save) }} บาท</div>
-        <div class="bc-price"><b>{{ "{:,}".format(px.bundle) }}</b> บาท/ปี</div>
-        <a class="btn btn-primary bc-btn" href="/register?next=checkout&packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}"><svg class="ico"><use href="#ic-arrow-right"/></svg> เริ่มทดลองใช้ฟรี 50 เอกสาร</a>
+        <div class="bc-price"><b>{{ "{:,}".format(px.bundle) }}</b><span>บาท / ปี</span></div>
+        <a class="btn btn-primary bc-btn" href="/register?next=checkout&packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}">เริ่มใช้ฟรี 50 เอกสาร <svg class="ico"><use href="#ic-arrow-right"/></svg></a>
       </div>
     </div>
 
