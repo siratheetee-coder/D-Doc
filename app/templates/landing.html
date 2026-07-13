@@ -246,35 +246,38 @@
   .pick-price s{ color:var(--muted); font-weight:500; margin-right:6px; opacity:.7; }
 
   /* ===== การ์ดแพ็กเกจรวม (แนะนำ) — สไตล์ฟ้าอ่อน + เมฆ + รูปโรงเรียน 3D ===== */
-  .bundle-card{ position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between;
-    gap:20px; flex-wrap:wrap; max-width:930px; margin:10px auto 46px; padding:26px 34px 26px 26px; border-radius:28px;
+  .bundle-card{ position:relative; display:flex; align-items:center; justify-content:space-between;
+    gap:20px; flex-wrap:wrap; max-width:930px; margin:24px auto 46px; padding:26px 36px 26px 28px; border-radius:28px;
     background:linear-gradient(150deg,#dcebff 0%,#c3ddff 55%,#aecdff 100%); border:none;
     box-shadow:0 24px 54px rgba(37,99,235,.22); }
-  /* เมฆประดับ */
+  /* เมฆประดับ (คุมให้อยู่ในการ์ด ไม่ตัดป้ายแนะนำ) */
   .bundle-card::before{ content:""; position:absolute; top:20px; left:42%; width:80px; height:24px; border-radius:999px;
-    background:rgba(255,255,255,.6); box-shadow:44px 10px 0 -5px rgba(255,255,255,.5), -30px 7px 0 -7px rgba(255,255,255,.45);
+    background:rgba(255,255,255,.55); box-shadow:44px 10px 0 -6px rgba(255,255,255,.45), -30px 7px 0 -8px rgba(255,255,255,.4);
     pointer-events:none; }
-  .bundle-card::after{ content:""; position:absolute; bottom:26px; left:33%; width:54px; height:16px; border-radius:999px;
-    background:rgba(255,255,255,.42); box-shadow:26px 5px 0 -4px rgba(255,255,255,.36); pointer-events:none; }
+  .bundle-card::after{ content:""; position:absolute; bottom:24px; left:34%; width:50px; height:15px; border-radius:999px;
+    background:rgba(255,255,255,.38); box-shadow:24px 5px 0 -4px rgba(255,255,255,.32); pointer-events:none; }
   .bundle-card.promo{ background:linear-gradient(140deg,#2563eb,#1d4ed8 130%); color:#fff; }
-  .bc-badge{ position:absolute; top:-13px; left:50%; transform:translateX(-50%); background:#fbbf24; color:#7c4a03;
+  .bc-badge{ position:absolute; top:-14px; left:50%; transform:translateX(-50%); background:#fbbf24; color:#7c4a03;
     font-weight:800; font-size:13.5px; padding:6px 22px; border-radius:999px; display:inline-flex; align-items:center;
-    gap:6px; box-shadow:0 6px 16px rgba(251,191,36,.5); white-space:nowrap; z-index:2; }
+    gap:6px; box-shadow:0 6px 16px rgba(251,191,36,.5); white-space:nowrap; z-index:3; }
   .bc-badge .ico{ width:15px; height:15px; fill:currentColor; stroke:currentColor; }
-  .bc-left{ display:flex; align-items:center; gap:18px; flex:1; min-width:280px; position:relative; z-index:1; }
-  .bc-illus{ width:148px; height:auto; flex:none; filter:drop-shadow(0 12px 18px rgba(20,45,95,.22)); }
-  .bc-illus-emoji{ font-size:88px; line-height:1; flex:none; }
-  .bc-info h3{ font-size:25px; margin:0; color:var(--navy); }
+  .bc-left{ display:flex; align-items:center; gap:22px; flex:1; min-width:300px; position:relative; z-index:1; }
+  .bc-illus{ width:190px; height:auto; flex:none; background:transparent;
+    filter:drop-shadow(0 12px 18px rgba(20,45,95,.22)); }
+  .bc-illus-emoji{ font-size:120px; line-height:1; flex:none; }
+  .bc-info{ flex:1; }
+  .bc-info h3{ font-size:30px; margin:0; color:var(--navy); line-height:1.15; }
   .bundle-card.promo .bc-info h3{ color:#fff; }
-  .bc-info p{ color:#40598a; font-size:15px; margin:3px 0 0; font-weight:500; }
+  .bc-info p{ color:#40598a; font-size:17px; margin:5px 0 0; font-weight:500; }
   .bundle-card.promo .bc-info p{ color:rgba(255,255,255,.92); }
-  .bc-mods{ display:flex; gap:9px; margin-top:14px; }
-  .bc-mods span{ width:40px; height:40px; border-radius:12px; background:#fff;
-    box-shadow:0 5px 12px rgba(20,45,95,.14); display:flex; align-items:center; justify-content:center; }
-  .bc-mods .ico{ width:21px; height:21px; }
-  .bc-mods .m1{ color:var(--blue); } .bc-mods .m2{ color:#16a34a; }
-  .bc-mods .m3{ color:#dc2626; } .bc-mods .m4{ color:#d97706; }
-  .bundle-card.promo .bc-mods span{ background:rgba(255,255,255,.9); }
+  .bc-mods{ display:flex; gap:10px; margin-top:18px; }
+  .bc-mods span{ display:flex; flex-direction:column; align-items:center; gap:5px; min-width:64px;
+    padding:10px 8px 7px; border-radius:15px; background:#fff; box-shadow:0 5px 12px rgba(20,45,95,.14); }
+  .bc-mods .ico{ width:23px; height:23px; }
+  .bc-mods b{ font-size:11px; font-weight:600; color:var(--navy); line-height:1.1; text-align:center; }
+  .bc-mods .m1 .ico{ color:var(--blue); } .bc-mods .m2 .ico{ color:#16a34a; }
+  .bc-mods .m3 .ico{ color:#dc2626; } .bc-mods .m4 .ico{ color:#d97706; }
+  .bundle-card.promo .bc-mods span{ background:#fff; }
   .bc-right{ text-align:right; flex:none; position:relative; z-index:1; }
   .bc-promo{ display:inline-block; background:#fbbf24; color:#7c4a03; font-weight:700; font-size:12.5px;
     padding:4px 13px; border-radius:999px; margin-bottom:8px; }
@@ -616,10 +619,10 @@
           <h3>แพ็กเกจโรงเรียน</h3>
           <p>ครบทุกงาน ในราคาคุ้มที่สุด</p>
           <div class="bc-mods">
-            <span class="m1"><svg class="ico"><use href="#ic-package"/></svg></span>
-            <span class="m2"><svg class="ico"><use href="#ic-coins"/></svg></span>
-            <span class="m3"><svg class="ico"><use href="#ic-mail"/></svg></span>
-            <span class="m4"><svg class="ico"><use href="#ic-food"/></svg></span>
+            <span class="m1"><svg class="ico"><use href="#ic-package"/></svg><b>พัสดุ</b></span>
+            <span class="m2"><svg class="ico"><use href="#ic-coins"/></svg><b>การเงิน</b></span>
+            <span class="m3"><svg class="ico"><use href="#ic-mail"/></svg><b>ธุรการ</b></span>
+            <span class="m4"><svg class="ico"><use href="#ic-food"/></svg><b>อาหารกลางวัน</b></span>
           </div>
         </div>
       </div>
@@ -707,8 +710,8 @@
 
 <script>
   (function(){
-    var BUNDLE = {{ px.bundle }};                 // แพ็กครบทุกงาน (ราคาโปรถ้ามี) — จาก pricing_context()
-    var FULL = {{ full_sum | default(2360) }};    // รวมงานแยกเต็ม (ราคาขีดฆ่า)
+    var BUNDLE = {{ px.bundle | tojson }};                 // แพ็กครบทุกงาน (ราคาโปรถ้ามี) — จาก pricing_context()
+    var FULL = {{ full_sum | default(2360) | tojson }};    // รวมงานแยกเต็ม (ราคาขีดฆ่า)
     var cards = [].slice.call(document.querySelectorAll('#pickList .mcard'));
     var sumTotal = document.getElementById('sumTotal');
     var sbSel = document.getElementById('sbSel');
