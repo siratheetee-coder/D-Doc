@@ -113,8 +113,12 @@ def carry_forward(db: Session = Depends(get_db), year: str = Form("")):
 def accounts_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
     fy = year or current_fiscal_year()
     accounts = db.query(FinanceAccount).order_by(FinanceAccount.name).all()
+    # งบตามหมวด (รวมทุกหมวด/รายการย่อยของบัญชี ในปีงบนั้น) — โชว์ระดับบัญชี
+    budget_by_acct = {}
+    for it in db.query(AccountItem).filter_by(fiscal_year=fy).all():
+        budget_by_acct[it.account_id] = budget_by_acct.get(it.account_id, 0.0) + (it.budget or 0.0)
     return templates.TemplateResponse("finance_accounts.html", {
-        "request": request, "accounts": accounts,
+        "request": request, "accounts": accounts, "budget_by_acct": budget_by_acct,
         "fiscal_year": fy, "years": _finance_years(db, fy),
     })
 
@@ -720,11 +724,39 @@ def _cashbook_fund_data(db, fy, account_id=None):
 def cashbook_page(request: Request, db: Session = Depends(get_db),
                   year: int | None = None, account: int | None = None):
     fy = year or current_fiscal_year()
-    accounts, scope, opening, rows, totals = _cashbook_data(db, fy, account)
+    accounts = db.query(FinanceAccount).order_by(FinanceAccount.name).all()
+    scope, open_by_fund, receipts, payments = _cashbook_fund_data(db, fy, account)
+
+    def _sect_tot(rows, opening=None):
+        tot = {"cash": 0.0}
+        for f in FUND_TYPES:
+            tot[f] = 0.0
+        if opening is not None:
+            for f in FUND_TYPES:
+                tot[f] += opening.get(f, 0.0); tot["cash"] += opening.get(f, 0.0)
+        for r in rows:
+            tot["cash"] += r["amount"]; tot[r["fund"]] = tot.get(r["fund"], 0.0) + r["amount"]
+        return tot
+
+    rin = _sect_tot(receipts, open_by_fund)
+    rout = _sect_tot(payments)
+    opening_cash = sum(open_by_fund.get(f, 0.0) for f in FUND_TYPES)
+    recv_total = sum(r["amount"] for r in receipts)
+    pay_total = sum(r["amount"] for r in payments)
+    carry = {"cash": rin["cash"] - rout["cash"]}
+    for f in FUND_TYPES:
+        carry[f] = rin[f] - rout[f]
+    sections = [
+        {"title": "ด้านรับ  (เดบิต = เงินสด · เครดิตแยกตามประเภทเงิน)",
+         "total_label": "รวมด้านรับ", "rows": receipts, "opening": open_by_fund, "tot": rin},
+        {"title": "ด้านจ่าย  (เครดิต = เงินสด · เดบิตแยกตามประเภทเงิน)",
+         "total_label": "รวมด้านจ่าย", "rows": payments, "opening": None, "tot": rout},
+    ]
     return templates.TemplateResponse("finance_cashbook.html", {
         "request": request, "school": get_school(db), "fiscal_year": fy,
         "years": _finance_years(db, fy), "accounts": accounts, "sel_account": account,
-        "scope": scope, "opening": opening, "rows": rows, "totals": totals,
+        "scope": scope, "funds": FUND_TYPES, "sections": sections, "carry": carry,
+        "opening_cash": opening_cash, "recv_total": recv_total, "pay_total": pay_total,
     })
 
 

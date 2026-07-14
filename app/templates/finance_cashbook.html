@@ -4,9 +4,9 @@
 {% set _q = ('&account=' ~ sel_account) if sel_account else '' %}
 <div class="hero">
   <div>
-    <div class="hero-sub">สมุดเงินสด (Cash Book) — บันทึกรับ-จ่ายทุกบัญชีเรียงตามวันที่ พร้อมยอดคงเหลือสะสม แบบ สตง.</div>
+    <div class="hero-sub">สมุดเงินสดแบบราชการ — แยกด้านรับ (เดบิต) / ด้านจ่าย (เครดิต) · เครดิตแยกตามประเภทเงิน</div>
     <span class="hero-title">สมุดเงินสด</span>
-    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} · {{ scope }} · คงเหลือยกไป {{ "{:,.2f}".format(totals.balance) }} บาท</div>
+    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} · {{ scope }} · เงินสดคงเหลือยกไป {{ "{:,.2f}".format(carry.cash) }} บาท</div>
   </div>
   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <a class="btn sm" href="/finance/cashbook.docx?year={{ fiscal_year }}{{ _q }}"><svg class="icon"><use href="#ic-download"/></svg> Word</a>
@@ -33,58 +33,71 @@
 
 <div class="card">
   <div class="stat">
-    <div class="box"><div><div class="lab">ยอดยกมา</div><div class="num">{{ "{:,.2f}".format(opening) }}</div></div>
+    <div class="box"><div><div class="lab">ยอดยกมา (เงินสด)</div><div class="num">{{ "{:,.2f}".format(opening_cash) }}</div></div>
       <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
-    <div class="box"><div><div class="lab">รวมรับ (เดบิต)</div><div class="num" style="color:#16a34a;">{{ "{:,.2f}".format(totals.debit) }}</div></div>
+    <div class="box"><div><div class="lab">รวมด้านรับ</div><div class="num" style="color:#16a34a;">{{ "{:,.2f}".format(recv_total) }}</div></div>
       <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-plus"/></svg></span></div>
-    <div class="box"><div><div class="lab">รวมจ่าย (เครดิต)</div><div class="num" style="color:#dc2626;">{{ "{:,.2f}".format(totals.credit) }}</div></div>
+    <div class="box"><div><div class="lab">รวมด้านจ่าย</div><div class="num" style="color:#dc2626;">{{ "{:,.2f}".format(pay_total) }}</div></div>
       <span class="ic-wrap ic-red"><svg class="icon"><use href="#ic-file"/></svg></span></div>
-    <div class="box"><div><div class="lab">คงเหลือยกไป</div><div class="num">{{ "{:,.2f}".format(totals.balance) }}</div></div>
+    <div class="box"><div><div class="lab">เงินสดคงเหลือยกไป</div><div class="num">{{ "{:,.2f}".format(carry.cash) }}</div></div>
       <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
   </div>
 </div>
 
+{% for sec in sections %}
 <div class="card">
-  <h2>รายการเคลื่อนไหว {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|selectattr('subtotal','undefined')|list|length }} รายการ)</span>{% endif %}</h2>
-  {% if rows %}
+  <h2><svg class="icon"><use href="#ic-coins"/></svg> {{ sec.title }}</h2>
   <div class="table-wrap">
   <table>
-    <thead><tr><th>ว/ด/ป</th><th>รายการ</th><th>เลขที่เอกสาร</th>
-        <th class="right">รับ (เดบิต)</th><th class="right">จ่าย (เครดิต)</th><th class="right">คงเหลือ</th></tr></thead>
+    <thead><tr>
+      <th>วันที่</th><th>เลขที่เอกสาร</th><th>รายการ</th>
+      <th class="right">เงินสด</th>
+      {% for f in funds %}<th class="right">{{ f }}</th>{% endfor %}
+    </tr></thead>
     <tbody>
-      <tr style="background:#f8fafc;"><td></td><td><b>ยอดยกมา</b></td><td></td><td></td><td></td><td class="right"><b>{{ "{:,.2f}".format(opening) }}</b></td></tr>
-      {% for r in rows %}
-      {% if r.subtotal %}
-      <tr style="background:#fef9c3; font-weight:600;">
-        <td></td><td>{{ r.desc }}</td><td></td>
-        <td class="right">{{ "{:,.2f}".format(r.debit) if r.debit else "" }}</td>
-        <td class="right">{{ "{:,.2f}".format(r.credit) if r.credit else "" }}</td>
-        <td class="right">{{ "{:,.2f}".format(r.balance) }}</td>
-      </tr>
-      {% else %}
-      <tr>
-        <td style="white-space:nowrap;">{{ r.date }}</td>
-        <td>{{ r.desc }}</td>
-        <td>{{ r.ref or "-" }}</td>
-        <td class="right" style="color:#16a34a;">{{ "{:,.2f}".format(r.debit) if r.debit else "" }}</td>
-        <td class="right" style="color:#dc2626;">{{ "{:,.2f}".format(r.credit) if r.credit else "" }}</td>
-        <td class="right"><b>{{ "{:,.2f}".format(r.balance) }}</b></td>
+      {% if sec.opening is not none %}
+      <tr style="background:#f8fafc; font-weight:600;">
+        <td></td><td></td><td>ยอดยกมา</td>
+        <td class="right">{{ "{:,.2f}".format(sec.opening.values()|sum) }}</td>
+        {% for f in funds %}<td class="right">{{ "{:,.2f}".format(sec.opening.get(f, 0)) if sec.opening.get(f, 0) else "" }}</td>{% endfor %}
       </tr>
       {% endif %}
+      {% for r in sec.rows %}
+      <tr>
+        <td style="white-space:nowrap;">{{ r.date or "" }}</td>
+        <td>{{ r.ref or "-" }}</td>
+        <td>{{ r.desc }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.amount) }}</td>
+        {% for f in funds %}<td class="right">{{ "{:,.2f}".format(r.amount) if r.fund==f else "" }}</td>{% endfor %}
+      </tr>
       {% endfor %}
     </tbody>
     <tfoot>
       <tr style="background:#f1f5f9; font-weight:700;">
-        <td></td><td class="right">รวมทั้งสิ้น</td><td></td>
-        <td class="right">{{ "{:,.2f}".format(totals.debit) }}</td>
-        <td class="right">{{ "{:,.2f}".format(totals.credit) }}</td>
-        <td class="right">{{ "{:,.2f}".format(totals.balance) }}</td>
+        <td></td><td></td><td class="right">{{ sec.total_label }}</td>
+        <td class="right">{{ "{:,.2f}".format(sec.tot.cash) }}</td>
+        {% for f in funds %}<td class="right">{{ "{:,.2f}".format(sec.tot[f]) }}</td>{% endfor %}
       </tr>
     </tfoot>
   </table>
   </div>
-  {% else %}
-  <p class="muted">ยังไม่มีการเคลื่อนไหวในปีงบนี้ — บันทึกรับ-จ่ายได้ที่ <a href="/finance/accounts">ทะเบียนคุมเงิน</a></p>
-  {% endif %}
+  {% if not sec.rows %}<p class="muted" style="margin:8px 0 0;">ยังไม่มีรายการ{{ 'รับ' if sec.total_label=='รวมด้านรับ' else 'จ่าย' }}ในปีงบนี้</p>{% endif %}
+</div>
+{% endfor %}
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-coins"/></svg> คงเหลือยกไป แยกตามประเภทเงิน</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>เงินสด (รวม)</th>{% for f in funds %}<th class="right">{{ f }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      <tr>
+        <td class="right"><b>{{ "{:,.2f}".format(carry.cash) }}</b></td>
+        {% for f in funds %}<td class="right"><b>{{ "{:,.2f}".format(carry[f]) }}</b></td>{% endfor %}
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="muted" style="margin:8px 0 0;">คงเหลือยกไป = ยอดยกมา + รวมด้านรับ − รวมด้านจ่าย (แยกยอดแต่ละประเภทเงิน)</p>
 </div>
 {% endblock %}

@@ -44,7 +44,7 @@
   <h2>บัญชีทั้งหมด</h2>
   {% if accounts %}
   <table>
-    <thead><tr><th>บัญชี/ประเภทเงิน</th><th>เก็บเงินไว้ที่</th><th class="right">ยอดยกมา (ปีงบ {{ fiscal_year }})</th><th class="right">คงเหลือ (ปีงบ {{ fiscal_year }})</th><th></th></tr></thead>
+    <thead><tr><th>บัญชี/ประเภทเงิน</th><th>เก็บเงินไว้ที่</th><th class="right">งบตามหมวด (ปีงบ {{ fiscal_year }})</th><th class="right">ยอดยกมา (ปีงบ {{ fiscal_year }})</th><th class="right">คงเหลือ (ปีงบ {{ fiscal_year }})</th><th></th></tr></thead>
     <tbody>
       {% for a in accounts %}
       <tr>
@@ -61,6 +61,7 @@
             </select>
           </form>
         </td>
+        <td class="right">{{ "{:,.2f}".format(budget_by_acct.get(a.id, 0)) }}</td>
         <td class="right">{{ "{:,.2f}".format(acct_opening(a, fiscal_year)) }}</td>
         <td class="right"><b>{{ "{:,.2f}".format(acct_balance_year(a, fiscal_year)) }}</b></td>
         <td class="right" style="white-space:nowrap;">
