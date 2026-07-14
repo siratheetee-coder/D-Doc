@@ -86,6 +86,8 @@ MIGRATIONS = [
     ("lunch_ledger", "finance_txn_id", "INTEGER"),   # ผูกกับรายการในบัญชีการเงินหลัก
     ("lunch_student", "student_id", "INTEGER"),       # ดึงมาจากทะเบียนนักเรียนกลาง
     ("person", "signature", "VARCHAR DEFAULT ''"),    # ไฟล์ลายเซ็นบุคลากร (PNG โปร่งใส)
+    ("finance_account", "fund_type", "VARCHAR DEFAULT 'เงินนอกงบประมาณ'"),  # ประเภทเงินตามงบ (สมุดเงินสด)
+    ("account_item", "parent_id", "INTEGER"),         # หมวดแม่ (ซ้อนหมวดย่อย 2 ชั้น)
 ]
 
 

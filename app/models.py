@@ -15,7 +15,7 @@ from datetime import datetime
 from sqlalchemy import (
     Column, Integer, String, Float, Text, DateTime, ForeignKey, UniqueConstraint, Boolean
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 
 from app.database import Base
 
@@ -487,6 +487,7 @@ class FinanceAccount(Base):
     name = Column(String, nullable=False)            # ชื่อบัญชี/ประเภทเงิน
     opening_balance = Column(Float, default=0.0)     # ยอดยกมา (ต้นปีงบ)
     deposit_type = Column(String, default="bank")    # เก็บเงินไว้ที่: cash/bank/agency (สำหรับรายงานเงินคงเหลือ)
+    fund_type = Column(String, default="เงินนอกงบประมาณ")  # ประเภทเงินตามงบ (สมุดเงินสด): เงินงบประมาณ/เงินรายได้แผ่นดิน/เงินนอกงบประมาณ
     note = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)
 
@@ -521,6 +522,7 @@ class AccountItem(Base):
 
     id = Column(Integer, primary_key=True)
     account_id = Column(Integer, ForeignKey("finance_account.id"), nullable=False)
+    parent_id = Column(Integer, ForeignKey("account_item.id"), nullable=True)  # หมวดแม่ (ซ้อนได้ 2 ชั้น) None=หมวดหลัก
     fiscal_year = Column(Integer, nullable=False)
     name = Column(String, nullable=False)            # ชื่อหมวด/รายการ
     budget = Column(Float, default=0.0)              # งบที่ตั้งไว้/ได้รับจัดสรร
@@ -528,6 +530,8 @@ class AccountItem(Base):
     note = Column(String, default="")
 
     account = relationship("FinanceAccount", back_populates="items")
+    children = relationship("AccountItem", cascade="all, delete-orphan",
+                            backref=backref("parent", remote_side=[id]))
 
 
 class FinanceTxn(Base):

@@ -25,7 +25,8 @@ from app.services.asset_utils import (
 )
 from app.services.cash_report import render_cash_report, DEPOSIT_TYPES
 from app.services.ledger_book_doc import (
-    render_cash_book, build_cash_book_xlsx, render_general_ledger, build_ledger_xlsx,
+    render_cash_book, render_cash_book_fund, build_cash_book_xlsx,
+    render_general_ledger, build_ledger_xlsx,
 )
 from app.services.doc_number import suggest_doc_no, commit_doc_no, check_doc_no, parse_seq
 from app.services.finance_doc import render_disburse
@@ -39,6 +40,25 @@ router = APIRouter()
 
 _DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 _XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+# ประเภทเงินตามงบ (คอลัมน์สมุดเงินสดราชการ) — เก็บเป็นข้อความไทยตรงๆ
+FUND_TYPES = ["เงินงบประมาณ", "เงินรายได้แผ่นดิน", "เงินนอกงบประมาณ"]
+_FUND_DEFAULT = "เงินนอกงบประมาณ"
+
+# ชุดหมวดสำเร็จรูป (กดปุ่มเดียวสร้างทั้งโครง) — (ชื่อหมวดแม่ | None, [รายการลูก])
+PRESET_SETS = {
+    "subsidy_head": {
+        "label": "เงินอุดหนุนรายหัว (5 รายการมาตรฐาน)",
+        "parent": "เงินอุดหนุนทั่วไป",
+        "children": ["ค่าจัดการเรียนการสอน", "ค่าหนังสือเรียน", "ค่าอุปกรณ์การเรียน",
+                     "ค่าเครื่องแบบนักเรียน", "ค่ากิจกรรมพัฒนาคุณภาพผู้เรียน"],
+    },
+    "state_interest": {
+        "label": "ดอกเบี้ยรายได้แผ่นดิน",
+        "parent": None,
+        "children": ["ดอกเบี้ยเงินฝากธนาคาร", "ดอกเบี้ยเงินอุดหนุน", "ดอกเบี้ยเงินอาหารกลางวัน"],
+    },
+}
 
 
 def _finance_years(db, fy: int) -> list:
@@ -102,14 +122,26 @@ def accounts_page(request: Request, db: Session = Depends(get_db), year: int | N
 @router.post("/finance/accounts")
 def account_add(db: Session = Depends(get_db), name: str = Form(...),
                 opening_balance: str = Form("0"), note: str = Form(""),
-                deposit_type: str = Form("bank")):
+                deposit_type: str = Form("bank"), fund_type: str = Form(_FUND_DEFAULT)):
     if name.strip():
         dt = deposit_type if deposit_type in DEPOSIT_TYPES else "bank"
+        ft = fund_type if fund_type in FUND_TYPES else _FUND_DEFAULT
         db.add(FinanceAccount(name=name.strip(),
                               opening_balance=_to_float(opening_balance, 0.0),
-                              deposit_type=dt, note=note.strip()))
+                              deposit_type=dt, fund_type=ft, note=note.strip()))
         db.commit()
     return RedirectResponse("/finance/accounts", status_code=303)
+
+
+@router.post("/finance/accounts/{aid}/fund-type")
+def account_set_fund_type(aid: int, db: Session = Depends(get_db),
+                          fund_type: str = Form(_FUND_DEFAULT), year: str = Form("")):
+    a = db.get(FinanceAccount, aid)
+    if a and fund_type in FUND_TYPES:
+        a.fund_type = fund_type
+        db.commit()
+    fy = _to_int(year, current_fiscal_year())
+    return RedirectResponse(f"/finance/accounts/{aid}?year={fy}", status_code=303)
 
 
 @router.post("/finance/accounts/{aid}/deposit-type")
@@ -144,15 +176,37 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
     for t in sorted(txns, key=lambda x: (x.date or datetime.min, x.id)):
         bal += (t.amount or 0) if t.kind == "in" else -(t.amount or 0)
         rows.append({"t": t, "balance": round(bal, 2)})
-    # สรุปงบรายหมวด (เฉพาะปีงบที่เลือก)
+    # สรุปงบรายหมวด (เฉพาะปีงบที่เลือก) — เป็นต้นไม้ซ้อน 2 ชั้น หมวดแม่รวมยอดลูก
     items = (db.query(AccountItem).filter_by(account_id=a.id, fiscal_year=fy)
              .order_by(AccountItem.id).all())
-    item_rows = []
-    for it in items:
+
+    def _self(it):
         tin = sum(t.amount or 0 for t in txns if t.item_id == it.id and t.kind == "in")
         tout = sum(t.amount or 0 for t in txns if t.item_id == it.id and t.kind == "out")
-        item_rows.append({"it": it, "tin": tin, "tout": tout,
-                          "remain": round((it.budget or 0) + tin - tout, 2)})
+        return tin, tout
+
+    parents = [it for it in items if it.parent_id is None]
+    children_by = {}
+    for it in items:
+        if it.parent_id is not None:
+            children_by.setdefault(it.parent_id, []).append(it)
+    item_rows = []          # เรียงตามการแสดง (หมวดแม่ตามด้วยลูก) + level
+    for p in parents:
+        p_in, p_out = _self(p)
+        p_bud = p.budget or 0
+        kids = children_by.get(p.id, [])
+        krows = []
+        for k in kids:
+            k_in, k_out = _self(k)
+            krows.append({"it": k, "level": 1, "tin": k_in, "tout": k_out,
+                          "budget": k.budget or 0, "remain": round((k.budget or 0) + k_in - k_out, 2)})
+        # หมวดแม่ = ยอดของตัวเอง + รวมลูก
+        tin = p_in + sum(r["tin"] for r in krows)
+        tout = p_out + sum(r["tout"] for r in krows)
+        budget = p_bud + sum(r["budget"] for r in krows)
+        item_rows.append({"it": p, "level": 0, "tin": tin, "tout": tout, "budget": budget,
+                          "remain": round(budget + tin - tout, 2), "has_kids": bool(krows)})
+        item_rows.extend(krows)
     # แผนที่ รายการเงิน -> เลขใบเสร็จที่ออกผูกกัน (ไว้แสดงในประวัติ)
     receipt_map = {rc.txn_id: (rc.receipt_no or "(ไม่มีเลข)")
                    for rc in db.query(Receipt).filter(Receipt.txn_id.isnot(None)).all()
@@ -161,21 +215,52 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
         "request": request, "account": a, "rows": rows, "balance": round(bal, 2),
         "opening": opening, "fiscal_year": fy, "years": _finance_years(db, fy),
         "items": items, "item_rows": item_rows, "receipt_map": receipt_map,
-        "item_budget_total": sum(it.budget or 0 for it in items),
-        "item_remain_total": sum(r["remain"] for r in item_rows),
+        "parents": parents, "fund_types": FUND_TYPES, "presets": PRESET_SETS,
+        "item_budget_total": sum(r["budget"] for r in item_rows if r["level"] == 0),
+        "item_remain_total": sum(r["remain"] for r in item_rows if r["level"] == 0),
     })
 
 
 @router.post("/finance/accounts/{aid}/item")
 def account_item_add(aid: int, db: Session = Depends(get_db), name: str = Form(...),
                      budget: str = Form("0"), note: str = Form(""), fiscal_year: str = Form(""),
-                     deposit_type: str = Form("bank")):
+                     deposit_type: str = Form("bank"), parent_id: str = Form("")):
     a = db.get(FinanceAccount, aid)
     fy = _to_int(fiscal_year, current_fiscal_year())
     if a and name.strip():
         dt = deposit_type if deposit_type in DEPOSIT_TYPES else "bank"
-        db.add(AccountItem(account_id=a.id, fiscal_year=fy, name=name.strip(),
+        # หมวดแม่ต้องอยู่บัญชี+ปีเดียวกัน และเป็นหมวดหลัก (ไม่ให้ซ้อนเกิน 2 ชั้น)
+        pid = _to_int(parent_id, 0) or None
+        if pid:
+            par = db.get(AccountItem, pid)
+            if not (par and par.account_id == a.id and par.fiscal_year == fy and par.parent_id is None):
+                pid = None
+        db.add(AccountItem(account_id=a.id, fiscal_year=fy, name=name.strip(), parent_id=pid,
                            budget=_to_float(budget, 0.0), deposit_type=dt, note=note.strip()))
+        db.commit()
+    return RedirectResponse(f"/finance/accounts/{aid}?year={fy}", status_code=303)
+
+
+@router.post("/finance/accounts/{aid}/preset")
+def account_add_preset(aid: int, db: Session = Depends(get_db),
+                       preset: str = Form(""), fiscal_year: str = Form("")):
+    """สร้างชุดหมวดสำเร็จรูป (หมวดแม่ + ลูก) ในคลิกเดียว — ข้ามชื่อที่มีอยู่แล้ว"""
+    a = db.get(FinanceAccount, aid)
+    fy = _to_int(fiscal_year, current_fiscal_year())
+    spec = PRESET_SETS.get(preset)
+    if a and spec:
+        existing = {it.name.strip() for it in a.items if it.fiscal_year == fy}
+        parent = None
+        if spec["parent"]:
+            parent = next((it for it in a.items if it.fiscal_year == fy
+                           and it.name.strip() == spec["parent"] and it.parent_id is None), None)
+            if not parent:
+                parent = AccountItem(account_id=a.id, fiscal_year=fy, name=spec["parent"])
+                db.add(parent); db.flush()
+        for cname in spec["children"]:
+            if cname not in existing:
+                db.add(AccountItem(account_id=a.id, fiscal_year=fy, name=cname,
+                                   parent_id=parent.id if parent else None))
         db.commit()
     return RedirectResponse(f"/finance/accounts/{aid}?year={fy}", status_code=303)
 
@@ -188,11 +273,18 @@ def account_copy_items(aid: int, db: Session = Depends(get_db), year: str = Form
     fy = _to_int(year, current_fiscal_year())
     if a:
         existing = {it.name.strip() for it in a.items if it.fiscal_year == fy}
-        for it in a.items:
-            if it.fiscal_year == fy - 1 and it.name.strip() not in existing:
-                db.add(AccountItem(account_id=a.id, fiscal_year=fy, name=it.name,
-                                   budget=it.budget, deposit_type=it.deposit_type, note=it.note))
-                existing.add(it.name.strip())
+        prev = [it for it in a.items if it.fiscal_year == fy - 1]
+        id_map = {}  # old item id -> new AccountItem (คงโครงหมวดแม่-ลูก)
+        # หมวดแม่ก่อน แล้วค่อยลูก (จะได้ผูก parent_id ได้ถูก)
+        for it in sorted(prev, key=lambda x: (x.parent_id is not None, x.id)):
+            if it.name.strip() in existing:
+                continue
+            pid = id_map[it.parent_id].id if (it.parent_id and it.parent_id in id_map) else None
+            new = AccountItem(account_id=a.id, fiscal_year=fy, name=it.name, parent_id=pid,
+                              budget=it.budget, deposit_type=it.deposit_type, note=it.note)
+            db.add(new); db.flush()
+            id_map[it.id] = new
+            existing.add(it.name.strip())
         db.commit()
     return RedirectResponse(f"/finance/accounts/{aid}?year={fy}", status_code=303)
 
@@ -593,6 +685,37 @@ def _cashbook_data(db, fy, account_id=None):
     return accounts, scope, opening, rows, totals
 
 
+def _cashbook_fund_data(db, fy, account_id=None):
+    """ข้อมูลสมุดเงินสดแบบราชการ (แยกด้านรับ/จ่าย + แยกประเภทเงินตามงบ)
+    คืน (scope, open_by_fund{งบ:ยอดยกมา}, receipts[], payments[])
+    แต่ละรายการ = {date, ref, desc, amount, fund}"""
+    if account_id:
+        acc = db.get(FinanceAccount, account_id)
+        accts = [acc] if acc else []
+        scope = acc.name if acc else "ทุกบัญชี"
+        multi = False
+    else:
+        accts = db.query(FinanceAccount).order_by(FinanceAccount.id).all()
+        scope = "ทุกบัญชี"
+        multi = True
+    fund_of = {a.id: (a.fund_type or _FUND_DEFAULT) for a in accts}
+    name_of = {a.id: a.name for a in accts}
+    open_by_fund = {f: 0.0 for f in FUND_TYPES}
+    for a in accts:
+        open_by_fund[fund_of[a.id]] = open_by_fund.get(fund_of[a.id], 0.0) + (opening_for(a, fy) or 0.0)
+    aids = set(fund_of)
+    txns = [t for t in db.query(FinanceTxn).filter_by(fiscal_year=fy).all() if t.account_id in aids]
+    receipts, payments = [], []
+    for t in sorted(txns, key=lambda x: (x.date or datetime.min, x.id)):
+        desc = " ".join(x for x in [(t.category or "").strip(), (t.note or "").strip()] if x) or "-"
+        if multi and name_of.get(t.account_id):
+            desc = f"[{name_of[t.account_id]}] {desc}"
+        row = {"date": thai_date(t.date) if t.date else "", "ref": (t.ref or "").strip(),
+               "desc": desc, "amount": t.amount or 0.0, "fund": fund_of.get(t.account_id, _FUND_DEFAULT)}
+        (receipts if t.kind == "in" else payments).append(row)
+    return scope, open_by_fund, receipts, payments
+
+
 @router.get("/finance/cashbook", response_class=HTMLResponse)
 def cashbook_page(request: Request, db: Session = Depends(get_db),
                   year: int | None = None, account: int | None = None):
@@ -608,8 +731,8 @@ def cashbook_page(request: Request, db: Session = Depends(get_db),
 @router.get("/finance/cashbook.docx")
 def cashbook_docx(db: Session = Depends(get_db), year: int | None = None, account: int | None = None):
     fy = year or current_fiscal_year()
-    _a, scope, opening, rows, totals = _cashbook_data(db, fy, account)
-    path = render_cash_book(get_school(db), fy, rows, opening, totals, scope)
+    scope, open_by_fund, receipts, payments = _cashbook_fund_data(db, fy, account)
+    path = render_cash_book_fund(get_school(db), fy, scope, open_by_fund, receipts, payments)
     return serve_generated(path, _DOCX)
 
 

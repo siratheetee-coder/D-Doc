@@ -168,6 +168,86 @@ def render_cash_book(school, fiscal_year, rows, opening, totals, scope_name="ท
     return str(out)
 
 
+# ---------------- สมุดเงินสดแบบราชการ: แยกรับ/จ่าย + 3 งบ (Word) ----------------
+_FUND_COLS = ["เงินงบประมาณ", "เงินรายได้แผ่นดิน", "เงินนอกงบประมาณ"]
+
+
+def _cb_section(doc, title, total_label, rows, *, open_by_fund=None):
+    """สร้าง 1 ตารางของสมุดเงินสด (ด้านรับ หรือ ด้านจ่าย) คืน dict ยอดรวมแต่ละคอลัมน์"""
+    _p(doc, title, align="left", bold=True, size=13.5, after=2)
+    headers = ["วันที่", "เลขที่เอกสาร", "รายการ", "เงินสด"] + _FUND_COLS
+    widths = [Cm(2.3), Cm(3.0), Cm(8.2), Cm(3.2), Cm(3.2), Cm(3.4), Cm(3.4)]
+    table = doc.add_table(rows=1, cols=len(headers))
+    table.style = "Table Grid"
+    for c, (h, w) in enumerate(zip(headers, widths)):
+        _set_cell(table.rows[0].cells[c], h, bold=True, align="center", fill="DCFCE7")
+        table.rows[0].cells[c].width = w
+    tot = {"เงินสด": 0.0}
+    for f in _FUND_COLS:
+        tot[f] = 0.0
+
+    def _row(date, ref, desc, cash, fund_amt: dict, *, bold=False, fill=None):
+        cells = table.add_row().cells
+        _set_cell(cells[0], date, align="center", fill=fill)
+        _set_cell(cells[1], ref, align="center", fill=fill)
+        _set_cell(cells[2], desc, bold=bold, fill=fill)
+        _set_cell(cells[3], _fmt0(cash), align="right", bold=bold, fill=fill)
+        for i, f in enumerate(_FUND_COLS):
+            _set_cell(cells[4 + i], _fmt0(fund_amt.get(f, 0)), align="right", bold=bold, fill=fill)
+        for c, w in enumerate(widths):
+            cells[c].width = w
+
+    if open_by_fund is not None:
+        op_cash = sum(open_by_fund.get(f, 0) for f in _FUND_COLS)
+        _row("", "", "ยอดยกมา", op_cash, open_by_fund, bold=True)
+        tot["เงินสด"] += op_cash
+        for f in _FUND_COLS:
+            tot[f] += open_by_fund.get(f, 0)
+    for r in rows:
+        amt = r["amount"] or 0
+        _row(r["date"], r["ref"], r["desc"], amt, {r["fund"]: amt})
+        tot["เงินสด"] += amt
+        tot[r["fund"]] = tot.get(r["fund"], 0) + amt
+    # แถวรวม
+    cells = table.add_row().cells
+    _set_cell(cells[0], "", fill="F1F5F9"); _set_cell(cells[1], "", fill="F1F5F9")
+    _set_cell(cells[2], total_label, bold=True, align="right", fill="F1F5F9")
+    _set_cell(cells[3], _fmt(tot["เงินสด"]), bold=True, align="right", fill="F1F5F9")
+    for i, f in enumerate(_FUND_COLS):
+        _set_cell(cells[4 + i], _fmt(tot[f]), bold=True, align="right", fill="F1F5F9")
+    for c, w in enumerate(widths):
+        cells[c].width = w
+    return tot
+
+
+def render_cash_book_fund(school, fiscal_year, scope_name, open_by_fund, receipts, payments) -> str:
+    """สมุดเงินสดแบบราชการ แนวนอน: ด้านรับ (เดบิตเงินสด) + ด้านจ่าย (เครดิตเงินสด)
+    เครดิต/เดบิตแยกตามประเภทเงิน (งบประมาณ/รายได้แผ่นดิน/นอกงบประมาณ)"""
+    doc = Document()
+    _landscape(doc)
+    _p(doc, "สมุดเงินสด", align="center", bold=True, size=18, after=0)
+    _p(doc, (school.name or ""), align="center", bold=True, size=15, after=0)
+    _p(doc, f"ประจำปีงบประมาณ {fiscal_year}   ({scope_name})", align="center", size=14, after=8)
+
+    rin = _cb_section(doc, "ด้านรับ  (เดบิต = เงินสด · เครดิตแยกตามประเภทเงิน)",
+                      "รวมด้านรับ", receipts, open_by_fund=open_by_fund)
+    _p(doc, "", after=6)
+    rout = _cb_section(doc, "ด้านจ่าย  (เครดิต = เงินสด · เดบิตแยกตามประเภทเงิน)",
+                       "รวมด้านจ่าย", payments)
+
+    _p(doc, "", after=4)
+    carry_cash = rin["เงินสด"] - rout["เงินสด"]
+    per_fund = "   ".join(f"{f} {_fmt(rin[f] - rout[f])}" for f in _FUND_COLS)
+    _p(doc, f"เงินสดคงเหลือยกไป  {_fmt(carry_cash)}  บาท", align="right", bold=True, size=14, after=0)
+    _p(doc, f"คงเหลือแยกประเภทเงิน:  {per_fund}", align="right", size=12.5, after=2)
+
+    _sign_block(doc, school)
+    out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
+    out = out_dir / (_safe(f"สมุดเงินสด_ปีงบ{fiscal_year}_{scope_name}") + ".docx")
+    doc.save(str(out))
+    return str(out)
+
+
 # ---------------- บัญชีแยกประเภท เต็มรูปแบบ (Word) ----------------
 def render_general_ledger(school, account, fiscal_year, rows, opening) -> str:
     """rows: list ของ dict {date, desc, ref, debit, credit, balance, side, subtotal, month}"""

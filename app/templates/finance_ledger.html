@@ -15,6 +15,15 @@
       <a class="btn gray sm" href="/finance/accounts"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
     </div>
   </div>
+  <div style="margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+    <span class="muted">ประเภทเงินตามงบ (สำหรับสมุดเงินสด):</span>
+    <form method="post" action="/finance/accounts/{{ account.id }}/fund-type" style="margin:0;">
+      <input type="hidden" name="year" value="{{ fiscal_year }}">
+      <select name="fund_type" onchange="this.form.submit()" style="padding:5px 10px; font-size:14px;">
+        {% for f in fund_types %}<option value="{{ f }}" {{ 'selected' if (account.fund_type or 'เงินนอกงบประมาณ')==f }}>{{ f }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
   <div class="stat" style="margin-top:10px;">
     <div class="box"><div><div class="lab">ยอดยกมา (ปีงบ {{ fiscal_year }})</div><div class="num">{{ "{:,.2f}".format(opening) }}</div></div>
       <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
@@ -31,6 +40,12 @@
     <div class="row">
       <div style="flex:2;"><label>ชื่อหมวด/รายการ *</label><input name="name" required placeholder="เช่น ค่าจัดการเรียนการสอน, ค่าหนังสือเรียน"></div>
       <div><label>งบที่ตั้งไว้ (บาท)</label><input name="budget" type="number" step="0.01" min="0" value="0"></div>
+      <div><label>หมวดแม่ (ถ้าเป็นรายการย่อย)</label>
+        <select name="parent_id">
+          <option value="">— เป็นหมวดหลัก —</option>
+          {% for p in parents %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        </select>
+      </div>
       <div><label>เก็บเงินไว้ที่</label>
         <select name="deposit_type">
           <option value="bank">เงินฝากธนาคาร</option>
@@ -42,21 +57,31 @@
     </div>
     <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มหมวด</button>
   </form>
-  <form method="post" action="/finance/accounts/{{ account.id }}/copy-items" style="margin-top:10px;"
-        onsubmit="return confirm('คัดลอกหมวดและงบจากปีงบ {{ fiscal_year - 1 }} มาปีงบ {{ fiscal_year }}? (ข้ามหมวดที่มีอยู่แล้ว)');">
-    <input type="hidden" name="year" value="{{ fiscal_year }}">
-    <button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-download"/></svg> คัดลอกหมวดจากปีงบ {{ fiscal_year - 1 }}</button>
-  </form>
+  <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    <span class="muted">ชุดสำเร็จรูป (กดสร้างทั้งชุด):</span>
+    {% for key, sp in presets.items() %}
+    <form method="post" action="/finance/accounts/{{ account.id }}/preset" style="margin:0;">
+      <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+      <input type="hidden" name="preset" value="{{ key }}">
+      <button class="btn sm soft" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> {{ sp.label }}</button>
+    </form>
+    {% endfor %}
+    <form method="post" action="/finance/accounts/{{ account.id }}/copy-items" style="margin:0;"
+          onsubmit="return confirm('คัดลอกหมวดและงบจากปีงบ {{ fiscal_year - 1 }} มาปีงบ {{ fiscal_year }}? (ข้ามหมวดที่มีอยู่แล้ว)');">
+      <input type="hidden" name="year" value="{{ fiscal_year }}">
+      <button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-download"/></svg> คัดลอกหมวดจากปีงบ {{ fiscal_year - 1 }}</button>
+    </form>
+  </div>
   {% if item_rows %}
   <table style="margin-top:14px;">
     <thead><tr><th>หมวด/รายการ</th><th>เก็บที่</th><th class="right">งบที่ตั้งไว้</th><th class="right">รับเพิ่ม</th><th class="right">จ่ายแล้ว</th><th class="right">คงเหลือ</th><th></th></tr></thead>
     <tbody>
       {% for r in item_rows %}
       {% set _dep = {'bank':'ธนาคาร','cash':'เงินสด','agency':'ส่วนราชการผู้เบิก'} %}
-      <tr>
-        <td>{{ r.it.name }}{% if r.it.note %} <span class="muted">· {{ r.it.note }}</span>{% endif %}</td>
+      <tr {% if r.level==0 and r.has_kids %}style="background:#f8fafc;"{% endif %}>
+        <td style="padding-left:{{ 8 + r.level*26 }}px;">{% if r.level==1 %}<span class="muted">└ </span>{% endif %}{% if r.level==0 %}<b>{{ r.it.name }}</b>{% else %}{{ r.it.name }}{% endif %}{% if r.it.note %} <span class="muted">· {{ r.it.note }}</span>{% endif %}</td>
         <td><span class="muted">{{ _dep.get(r.it.deposit_type, 'ธนาคาร') }}</span></td>
-        <td class="right">{{ "{:,.2f}".format(r.it.budget or 0) }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.budget or 0) }}</td>
         <td class="right" style="color:#16a34a;">{{ "{:,.2f}".format(r.tin) if r.tin else "-" }}</td>
         <td class="right" style="color:#dc2626;">{{ "{:,.2f}".format(r.tout) if r.tout else "-" }}</td>
         <td class="right"><b>{{ "{:,.2f}".format(r.remain) }}</b></td>
@@ -89,7 +114,7 @@
       <div><label>หมวดงบ</label>
         <select name="item_id">
           <option value="">— ไม่ระบุหมวด —</option>
-          {% for it in items %}<option value="{{ it.id }}">{{ it.name }}</option>{% endfor %}
+          {% for r in item_rows %}<option value="{{ r.it.id }}">{{ '　└ ' if r.level==1 }}{{ r.it.name }}</option>{% endfor %}
         </select>
       </div>
     </div>
