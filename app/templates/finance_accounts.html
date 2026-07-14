@@ -18,15 +18,16 @@
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มบัญชี/ประเภทเงิน</h2>
   <form method="post" action="/finance/accounts">
     <div class="row">
-      <div style="flex:2;"><label>ชื่อบัญชี *</label><input name="name" required placeholder="เช่น เงินอุดหนุน, รายได้สถานศึกษา, อาหารกลางวัน"></div>
-      <div><label>ยอดยกมา (บาท)</label><input name="opening_balance" type="number" step="0.01" value="0"></div>
-      <div><label>ประเภทเงินตามงบ</label>
-        <select name="fund_type">
-          <option value="เงินนอกงบประมาณ" selected>เงินนอกงบประมาณ</option>
-          <option value="เงินงบประมาณ">เงินงบประมาณ</option>
-          <option value="เงินรายได้แผ่นดิน">เงินรายได้แผ่นดิน</option>
-        </select>
+      <div style="flex:2;"><label>ประเภทเงิน / ชื่อบัญชี *</label>
+        <input name="name" list="fundList" required autocomplete="off" placeholder="เลือกประเภทเงิน หรือพิมพ์ชื่อบัญชีเอง">
+        <datalist id="fundList">
+          <option value="เงินงบประมาณ"></option>
+          <option value="เงินรายได้แผ่นดิน"></option>
+          <option value="เงินนอกงบประมาณ"></option>
+        </datalist>
+        <div class="hint" style="margin-top:2px;">เลือก 3 งบมาตรฐาน หรือพิมพ์ชื่อเอง · ถ้าพิมพ์ชื่ออื่น ปรับประเภทเงินตามงบได้ในหน้าบัญชี</div>
       </div>
+      <div><label>ยอดยกมา (บาท)</label><input name="opening_balance" type="number" step="0.01" value="0"></div>
       <div><label>เก็บเงินไว้ที่</label>
         <select name="deposit_type">
           <option value="bank">เงินฝากธนาคาร</option>

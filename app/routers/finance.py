@@ -128,9 +128,11 @@ def account_add(db: Session = Depends(get_db), name: str = Form(...),
                 opening_balance: str = Form("0"), note: str = Form(""),
                 deposit_type: str = Form("bank"), fund_type: str = Form(_FUND_DEFAULT)):
     if name.strip():
+        nm = name.strip()
         dt = deposit_type if deposit_type in DEPOSIT_TYPES else "bank"
-        ft = fund_type if fund_type in FUND_TYPES else _FUND_DEFAULT
-        db.add(FinanceAccount(name=name.strip(),
+        # ช่องเดียวรวมชื่อ+ประเภทเงิน: ถ้าชื่อตรง 3 งบ ใช้เป็น fund_type เลย · ชื่ออื่น = นอกงบฯ (ปรับได้ภายหลัง)
+        ft = fund_type if fund_type in FUND_TYPES else (nm if nm in FUND_TYPES else _FUND_DEFAULT)
+        db.add(FinanceAccount(name=nm,
                               opening_balance=_to_float(opening_balance, 0.0),
                               deposit_type=dt, fund_type=ft, note=note.strip()))
         db.commit()
@@ -617,6 +619,9 @@ def _build_cash_rows(accounts, fy, as_of):
         for a in f_accts:
             acc_col = col_of(a.deposit_type)
             items = [it for it in a.items if it.fiscal_year == fy]
+            # ชื่อบัญชี = ชื่อกลุ่มงบ -> ไม่แสดงแถวบัญชีซ้ำ เลื่อนหมวดขึ้นมาอยู่ใต้กลุ่มงบเลย
+            redundant = a.name.strip() == fund
+            off = 0 if redundant else 1
             if items:
                 a_sub = _blank_amt()
                 a_body = []
@@ -635,21 +640,23 @@ def _build_cash_rows(accounts, fy, as_of):
                         krows = []
                         for k in kids:
                             k_amt = amt_of(col_of(k.deposit_type or acc_col), item_remaining_asof(k, as_of))
-                            krows.append({"name": k.name, "level": 3, "kind": "leaf", **k_amt})
+                            krows.append({"name": k.name, "level": 2 + off, "kind": "leaf", **k_amt})
                             _add_amt(p_roll, k_amt)
-                        a_body.append({"name": p.name, "level": 2, "kind": "sub", **p_roll})
+                        a_body.append({"name": p.name, "level": 1 + off, "kind": "sub", **p_roll})
                         a_body.extend(krows)
                         _add_amt(a_sub, p_roll)
                     else:
                         p_amt = amt_of(p_col, item_remaining_asof(p, as_of))
-                        a_body.append({"name": p.name, "level": 2, "kind": "leaf", **p_amt})
+                        a_body.append({"name": p.name, "level": 1 + off, "kind": "leaf", **p_amt})
                         _add_amt(a_sub, p_amt)
-                body.append({"name": a.name, "level": 1, "kind": "sub", **a_sub})
+                if not redundant:
+                    body.append({"name": a.name, "level": 1, "kind": "sub", **a_sub})
                 body.extend(a_body)
                 _add_amt(f_sub, a_sub)
             else:
                 b_amt = amt_of(acc_col, account_balance_asof(a, fy, as_of))
-                body.append({"name": a.name, "level": 1, "kind": "leaf", **b_amt})
+                if not redundant:
+                    body.append({"name": a.name, "level": 1, "kind": "leaf", **b_amt})
                 _add_amt(f_sub, b_amt)
         rows.append({"name": fund, "level": 0, "kind": "group", **f_sub})
         rows.extend(body)
