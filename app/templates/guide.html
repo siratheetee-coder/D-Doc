@@ -32,8 +32,13 @@
   .price-row .pc .v { font-size:16px; font-weight:700; color:#1e3a66; }
   .price-row .pc.best { background:#eafaf0; } .price-row .pc.best .n { color:#15803d; } .price-row .pc.best .v { color:#166534; }
   .price-note { font-size:12.5px; color:var(--muted); margin:0 0 8px; }
+  .step-img { display:block; width:100%; max-width:560px; margin:9px 0 2px; border:1px solid var(--border); border-radius:10px; cursor:zoom-in; }
+  .gimg-box { position:fixed; inset:0; z-index:3000; background:rgba(15,23,42,.82); display:none; align-items:center; justify-content:center; padding:24px; cursor:zoom-out; }
+  .gimg-box.on { display:flex; }
+  .gimg-box img { max-width:100%; max-height:100%; border-radius:8px; }
 </style>
 {% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':190,'bundle':1990}) %}
+{% macro simg(name) %}<img class="step-img" src="/static/guide/{{ name }}.png" alt="" loading="lazy" onerror="this.remove()">{% endmacro %}
 
 <div class="hero">
   <div>
@@ -48,11 +53,11 @@
   <summary><span class="sic g-gray"><svg class="icon"><use href="#ic-check"/></svg></span> เริ่มต้นใช้งาน (แนะนำทำตามลำดับ) <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
   <div class="acc-body">
     <div class="steps">
-      <div class="step"><span class="num">1</span><div class="st-body"><h4>ตั้งค่าข้อมูลโรงเรียน</h4><p>กรอกชื่อโรงเรียน ผู้อำนวยการ เจ้าหน้าที่พัสดุ เพื่อให้เอกสารมีข้อมูลครบ · <a href="/settings">ไปตั้งค่าโรงเรียน</a></p></div></div>
-      <div class="step"><span class="num">2</span><div class="st-body"><h4>เพิ่มบุคลากร / ผู้ลงนาม</h4><p>บันทึกรายชื่อครู กรรมการ และผู้ลงนาม ใช้ซ้ำตอนสร้างเรื่องหรือแต่งตั้งกรรมการ · <a href="/masters">ไปหน้าบุคลากร</a></p></div></div>
-      <div class="step"><span class="num">3</span><div class="st-body"><h4>อัปโหลดลายเซ็นผู้ลงนาม</h4><p>อัปโหลดลายเซ็นของแต่ละคน (ระบบลบพื้นหลังขาวให้อัตโนมัติ) แล้วระบบจะใส่ลายเซ็นในเอกสารให้เองเมื่อบุคคลนั้นเป็นผู้ลงนาม · <a href="/masters">อัปโหลดที่หน้าบุคลากร</a></p></div></div>
-      <div class="step"><span class="num">4</span><div class="st-body"><h4>เพิ่มทะเบียนข้อมูล (กรอกครั้งเดียวใช้ซ้ำ)</h4><p>เพิ่มผู้ขาย/ผู้รับจ้าง (<a href="/vendors">ผู้ขาย</a>) หรือรายชื่อนักเรียน (<a href="/students">นักเรียน</a>) ระบบจะดึงไปใช้ทุกเอกสารที่เกี่ยวข้อง ไม่ต้องกรอกซ้ำ</p></div></div>
-      <div class="step"><span class="num">5</span><div class="st-body"><h4>สร้างเอกสารฉบับแรก</h4><p>เลือกงานที่ต้องการจากหน้าแรก แล้วเริ่มสร้างเรื่อง ระบบจะออกเอกสารให้ครบชุดตามระเบียบ</p></div></div>
+      <div class="step"><span class="num">1</span><div class="st-body"><h4>ตั้งค่าข้อมูลโรงเรียน</h4><p>กรอกชื่อโรงเรียน ผู้อำนวยการ เจ้าหน้าที่พัสดุ เพื่อให้เอกสารมีข้อมูลครบ · <a href="/settings">ไปตั้งค่าโรงเรียน</a></p>{{ simg('start-1') }}</div></div>
+      <div class="step"><span class="num">2</span><div class="st-body"><h4>เพิ่มบุคลากร / ผู้ลงนาม</h4><p>บันทึกรายชื่อครู กรรมการ และผู้ลงนาม ใช้ซ้ำตอนสร้างเรื่องหรือแต่งตั้งกรรมการ · <a href="/masters">ไปหน้าบุคลากร</a></p>{{ simg('start-2') }}</div></div>
+      <div class="step"><span class="num">3</span><div class="st-body"><h4>อัปโหลดลายเซ็นผู้ลงนาม</h4><p>อัปโหลดลายเซ็นของแต่ละคน (ระบบลบพื้นหลังขาวให้อัตโนมัติ) แล้วระบบจะใส่ลายเซ็นในเอกสารให้เองเมื่อบุคคลนั้นเป็นผู้ลงนาม · <a href="/masters">อัปโหลดที่หน้าบุคลากร</a></p>{{ simg('start-3') }}</div></div>
+      <div class="step"><span class="num">4</span><div class="st-body"><h4>เพิ่มทะเบียนข้อมูล (กรอกครั้งเดียวใช้ซ้ำ)</h4><p>เพิ่มผู้ขาย/ผู้รับจ้าง (<a href="/vendors">ผู้ขาย</a>) หรือรายชื่อนักเรียน (<a href="/students">นักเรียน</a>) ระบบจะดึงไปใช้ทุกเอกสารที่เกี่ยวข้อง ไม่ต้องกรอกซ้ำ</p>{{ simg('start-4') }}</div></div>
+      <div class="step"><span class="num">5</span><div class="st-body"><h4>สร้างเอกสารฉบับแรก</h4><p>เลือกงานที่ต้องการจากหน้าแรก แล้วเริ่มสร้างเรื่อง ระบบจะออกเอกสารให้ครบชุดตามระเบียบ</p>{{ simg('start-5') }}</div></div>
     </div>
   </div>
 </details>
@@ -62,10 +67,10 @@
   <summary><span class="sic g-blue"><svg class="icon"><use href="#ic-package"/></svg></span> งานพัสดุ (จัดซื้อจัดจ้าง) <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
   <div class="acc-body">
     <div class="steps">
-      <div class="step"><span class="num">1</span><div class="st-body"><h4>สร้างเรื่องจัดซื้อ/จัดจ้าง</h4><p>บันทึกรายละเอียด เลือกผู้ขาย และรายการพัสดุ กรอกครั้งเดียว ระบบจำและนำไปใช้ทุกเอกสารที่เกี่ยวข้อง</p></div></div>
-      <div class="step"><span class="num">2</span><div class="st-body"><h4>ระบบออกเอกสารให้ครบชุด</h4><p>บันทึกขอซื้อ ใบสั่งซื้อ ตรวจรับ ขอเบิกจ่าย ครบทุกใบตามระเบียบพัสดุฯ (รวม ว.804 / ว.119 วิธีเฉพาะเจาะจง) เลขที่เอกสารรันอัตโนมัติ ไม่ชนกัน</p></div></div>
-      <div class="step"><span class="num">3</span><div class="st-body"><h4>ตรวจรับเมื่อได้ของ</h4><p>เมื่อได้ของและตรวจรับแล้ว ทำขั้นตอนถัดไปในหน้าเรื่องได้เลย พร้อมช่วยกรอกข้อมูลลง e-GP</p></div></div>
-      <div class="step"><span class="num">4</span><div class="st-body"><h4>ดาวน์โหลด Word พร้อมพิมพ์</h4><p>ได้ไฟล์ Word ฟอนต์ราชการ TH Sarabun จัดหน้าถูกต้อง เปิดแก้เพิ่มได้เอง พิมพ์เสนอเซ็นได้ทันที</p></div></div>
+      <div class="step"><span class="num">1</span><div class="st-body"><h4>สร้างเรื่องจัดซื้อ/จัดจ้าง</h4><p>บันทึกรายละเอียด เลือกผู้ขาย และรายการพัสดุ กรอกครั้งเดียว ระบบจำและนำไปใช้ทุกเอกสารที่เกี่ยวข้อง</p>{{ simg('proc-1') }}</div></div>
+      <div class="step"><span class="num">2</span><div class="st-body"><h4>ระบบออกเอกสารให้ครบชุด</h4><p>บันทึกขอซื้อ ใบสั่งซื้อ ตรวจรับ ขอเบิกจ่าย ครบทุกใบตามระเบียบพัสดุฯ (รวม ว.804 / ว.119 วิธีเฉพาะเจาะจง) เลขที่เอกสารรันอัตโนมัติ ไม่ชนกัน</p>{{ simg('proc-2') }}</div></div>
+      <div class="step"><span class="num">3</span><div class="st-body"><h4>ตรวจรับเมื่อได้ของ</h4><p>เมื่อได้ของและตรวจรับแล้ว ทำขั้นตอนถัดไปในหน้าเรื่องได้เลย พร้อมช่วยกรอกข้อมูลลง e-GP</p>{{ simg('proc-3') }}</div></div>
+      <div class="step"><span class="num">4</span><div class="st-body"><h4>ดาวน์โหลด Word พร้อมพิมพ์</h4><p>ได้ไฟล์ Word ฟอนต์ราชการ TH Sarabun จัดหน้าถูกต้อง เปิดแก้เพิ่มได้เอง พิมพ์เสนอเซ็นได้ทันที</p>{{ simg('proc-4') }}</div></div>
     </div>
   </div>
 </details>
@@ -75,9 +80,9 @@
   <summary><span class="sic g-green"><svg class="icon"><use href="#ic-coins"/></svg></span> งานการเงิน <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
   <div class="acc-body">
     <div class="steps">
-      <div class="step"><span class="num">1</span><div class="st-body"><h4>เปิดบัญชี / ทะเบียนคุมเงิน</h4><p>ตั้งค่าบัญชีเงินฝากและประเภทเงิน เพื่อคุมยอดรับ-จ่ายแต่ละบัญชี</p></div></div>
-      <div class="step"><span class="num">2</span><div class="st-body"><h4>บันทึกรับ-จ่ายในสมุดเงินสด</h4><p>ลงรายการรับ-จ่ายในสมุดเงินสด (Cash Book) ระบบคุมยอดคงเหลือให้อัตโนมัติ</p></div></div>
-      <div class="step"><span class="num">3</span><div class="st-body"><h4>ออกรายงานแบบ สตง.</h4><p>บัญชีแยกประเภทและรายงานการเงินตามรูปแบบที่ตรวจสอบได้ พร้อมดาวน์โหลด</p></div></div>
+      <div class="step"><span class="num">1</span><div class="st-body"><h4>เปิดบัญชี / ทะเบียนคุมเงิน</h4><p>ตั้งค่าบัญชีเงินฝากและประเภทเงิน เพื่อคุมยอดรับ-จ่ายแต่ละบัญชี</p>{{ simg('fin-1') }}</div></div>
+      <div class="step"><span class="num">2</span><div class="st-body"><h4>บันทึกรับ-จ่ายในสมุดเงินสด</h4><p>ลงรายการรับ-จ่ายในสมุดเงินสด (Cash Book) ระบบคุมยอดคงเหลือให้อัตโนมัติ</p>{{ simg('fin-2') }}</div></div>
+      <div class="step"><span class="num">3</span><div class="st-body"><h4>ออกรายงานแบบ สตง.</h4><p>บัญชีแยกประเภทและรายงานการเงินตามรูปแบบที่ตรวจสอบได้ พร้อมดาวน์โหลด</p>{{ simg('fin-3') }}</div></div>
     </div>
   </div>
 </details>
@@ -87,9 +92,9 @@
   <summary><span class="sic g-purple"><svg class="icon"><use href="#ic-file"/></svg></span> งานธุรการ (หนังสือราชการ) <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
   <div class="acc-body">
     <div class="steps">
-      <div class="step"><span class="num">1</span><div class="st-body"><h4>ลงทะเบียนหนังสือรับ-ส่ง</h4><p>อัปโหลดไฟล์ PDF หรือ Word ระบบจะอ่านเลขที่/วันที่/เรื่อง/ผู้รับให้อัตโนมัติ (แนะนำ Word ดึงข้อมูลแม่นกว่า) ตรวจก่อนบันทึก</p></div></div>
-      <div class="step"><span class="num">2</span><div class="st-body"><h4>ออกบันทึกข้อความ / คำสั่ง</h4><p>ร่างบันทึกข้อความและคำสั่งโรงเรียน มี AI ช่วยร่างเนื้อหาให้ เลขที่รันต่อเนื่องร่วมกันทุกงาน</p></div></div>
-      <div class="step"><span class="num">3</span><div class="st-body"><h4>หนังสือราชการ + เกียรติบัตร</h4><p>ออกหนังสือราชการ 6 แบบ และพิมพ์เกียรติบัตรจากรายชื่อได้</p></div></div>
+      <div class="step"><span class="num">1</span><div class="st-body"><h4>ลงทะเบียนหนังสือรับ-ส่ง</h4><p>อัปโหลดไฟล์ PDF หรือ Word ระบบจะอ่านเลขที่/วันที่/เรื่อง/ผู้รับให้อัตโนมัติ (แนะนำ Word ดึงข้อมูลแม่นกว่า) ตรวจก่อนบันทึก</p>{{ simg('admin-1') }}</div></div>
+      <div class="step"><span class="num">2</span><div class="st-body"><h4>ออกบันทึกข้อความ / คำสั่ง</h4><p>ร่างบันทึกข้อความและคำสั่งโรงเรียน มี AI ช่วยร่างเนื้อหาให้ เลขที่รันต่อเนื่องร่วมกันทุกงาน</p>{{ simg('admin-2') }}</div></div>
+      <div class="step"><span class="num">3</span><div class="st-body"><h4>หนังสือราชการ + เกียรติบัตร</h4><p>ออกหนังสือราชการ 6 แบบ และพิมพ์เกียรติบัตรจากรายชื่อได้</p>{{ simg('admin-3') }}</div></div>
     </div>
   </div>
 </details>
@@ -99,9 +104,9 @@
   <summary><span class="sic g-amber"><svg class="icon"><use href="#ic-food"/></svg></span> งานอาหารกลางวัน <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
   <div class="acc-body">
     <div class="steps">
-      <div class="step"><span class="num">1</span><div class="st-body"><h4>ตั้งค่าโครงการ</h4><p>กรอกจำนวนนักเรียนและงบประมาณต่อหัว (ตามคู่มืออาหารกลางวัน สพฐ.)</p></div></div>
-      <div class="step"><span class="num">2</span><div class="st-body"><h4>คำนวณงบ + ออกเอกสารจ้าง</h4><p>ระบบคำนวณวงเงินให้ พร้อมออกเอกสารจ้าง 3 รูปแบบ</p></div></div>
-      <div class="step"><span class="num">3</span><div class="st-body"><h4>บันทึกภาวะโภชนาการ</h4><p>บันทึกและติดตามภาวะโภชนาการของนักเรียน</p></div></div>
+      <div class="step"><span class="num">1</span><div class="st-body"><h4>ตั้งค่าโครงการ</h4><p>กรอกจำนวนนักเรียนและงบประมาณต่อหัว (ตามคู่มืออาหารกลางวัน สพฐ.)</p>{{ simg('lunch-1') }}</div></div>
+      <div class="step"><span class="num">2</span><div class="st-body"><h4>คำนวณงบ + ออกเอกสารจ้าง</h4><p>ระบบคำนวณวงเงินให้ พร้อมออกเอกสารจ้าง 3 รูปแบบ</p>{{ simg('lunch-2') }}</div></div>
+      <div class="step"><span class="num">3</span><div class="st-body"><h4>บันทึกภาวะโภชนาการ</h4><p>บันทึกและติดตามภาวะโภชนาการของนักเรียน</p>{{ simg('lunch-3') }}</div></div>
     </div>
   </div>
 </details>
@@ -166,4 +171,14 @@
   <p class="muted" style="margin:0 0 14px;">ทีมงานยินดีช่วยเหลือ แจ้งปัญหาหรือสอบถามการใช้งานได้เลย</p>
   <a class="btn" href="/support"><svg class="icon"><use href="#ic-send"/></svg> ติดต่อเจ้าหน้าที่</a>
 </div>
+
+<div class="gimg-box" id="gimgBox" onclick="this.classList.remove('on')"><img id="gimgFull" alt=""></div>
+<script>
+  document.addEventListener('click', function(e){
+    var im = e.target.closest('.step-img');
+    if(!im) return;
+    document.getElementById('gimgFull').src = im.src;
+    document.getElementById('gimgBox').classList.add('on');
+  });
+</script>
 {% endblock %}
