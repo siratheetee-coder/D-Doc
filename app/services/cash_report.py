@@ -38,7 +38,7 @@ def _fmt(v):
     return "{:,.2f}".format(v) if v else "-"
 
 
-def _set_cell(cell, text, *, bold=False, align="left", size=14):
+def _set_cell(cell, text, *, bold=False, align="left", size=14, fill=None):
     cell.text = ""
     p = cell.paragraphs[0]
     p.alignment = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER,
@@ -51,6 +51,11 @@ def _set_cell(cell, text, *, bold=False, align="left", size=14):
     r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
     r._element.rPr.rFonts.set(qn("w:ascii"), THAI_FONT)
     r._element.rPr.rFonts.set(qn("w:hAnsi"), THAI_FONT)
+    if fill is not None:
+        tcpr = cell._tc.get_or_add_tcPr()
+        shd = tcpr.makeelement(qn("w:shd"), {
+            qn("w:val"): "clear", qn("w:color"): "auto", qn("w:fill"): fill})
+        tcpr.append(shd)
 
 
 def _p(doc, text="", *, align="left", bold=False, size=14, after=2):
@@ -91,17 +96,17 @@ def render_cash_report(school, rows, totals, as_of) -> str:
 
     for row in rows:
         cells = table.add_row().cells
-        name = ("        " if row.get("indent") else "") + row["name"]
-        _set_cell(cells[0], name, bold=row.get("header", False))
-        if row.get("header"):
-            for i in range(1, 6):
-                _set_cell(cells[i], "")
-        else:
-            _set_cell(cells[1], _fmt(row.get("cash")), align="right")
-            _set_cell(cells[2], _fmt(row.get("bank")), align="right")
-            _set_cell(cells[3], _fmt(row.get("agency")), align="right")
-            _set_cell(cells[4], _fmt(row.get("total")), align="right")
-            _set_cell(cells[5], "")
+        lvl = row.get("level", 0)
+        kind = row.get("kind", "leaf")
+        name = ("    " * lvl) + row["name"]
+        bold = kind in ("group", "sub")
+        fill = "DCFCE7" if kind == "group" else ("F1F5F9" if kind == "sub" else None)
+        _set_cell(cells[0], name, bold=bold, fill=fill)
+        _set_cell(cells[1], _fmt(row.get("cash")), align="right", bold=bold, fill=fill)
+        _set_cell(cells[2], _fmt(row.get("bank")), align="right", bold=bold, fill=fill)
+        _set_cell(cells[3], _fmt(row.get("agency")), align="right", bold=bold, fill=fill)
+        _set_cell(cells[4], _fmt(row.get("total")), align="right", bold=bold, fill=fill)
+        _set_cell(cells[5], "", fill=fill)
         for c, w in enumerate(widths):
             cells[c].width = w
 

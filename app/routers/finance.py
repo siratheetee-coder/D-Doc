@@ -564,29 +564,70 @@ def report_page(request: Request, db: Session = Depends(get_db), year: int | Non
 
 
 # ---------------- รายงานเงินคงเหลือประจำวัน ----------------
+def _blank_amt():
+    return {"cash": 0.0, "bank": 0.0, "agency": 0.0, "total": 0.0}
+
+
+def _add_amt(dst, src):
+    for k in ("cash", "bank", "agency", "total"):
+        dst[k] += src[k]
+
+
 def _build_cash_rows(accounts, fy, as_of):
-    """สร้างแถวรายงาน + ยอดรวมแต่ละคอลัมน์ (เงินสด/ธนาคาร/ส่วนราชการผู้เบิก/รวม)"""
+    """สร้างแถวรายงานเงินคงเหลือแบบแบ่งชั้น: 3 งบใหญ่ → บัญชี → หมวดแม่ → หมวดย่อย
+    แต่ละชั้นมียอดรวม แยกคอลัมน์ (เงินสด/ธนาคาร/ส่วนราชการผู้เบิก/รวม)
+    row = {name, level(0-3), kind(group/sub/leaf), cash, bank, agency, total}"""
     rows = []
-    tot = {"cash": 0.0, "bank": 0.0, "agency": 0.0, "total": 0.0}
+    tot = _blank_amt()
 
-    def leaf(name, amt, col, indent):
-        d = {"name": name, "header": False, "indent": indent,
-             "cash": 0.0, "bank": 0.0, "agency": 0.0, "total": amt}
-        d[col] = amt
-        tot[col] += amt
-        tot["total"] += amt
-        return d
+    def col_of(dt):
+        return dt if dt in DEPOSIT_TYPES else "bank"
 
-    for a in accounts:
-        acc_col = a.deposit_type if a.deposit_type in DEPOSIT_TYPES else "bank"
-        items = [it for it in a.items if it.fiscal_year == fy]
-        if items:
-            rows.append({"name": a.name, "header": True, "indent": False})
-            for it in items:
-                col = it.deposit_type if it.deposit_type in DEPOSIT_TYPES else acc_col
-                rows.append(leaf(it.name, item_remaining_asof(it, as_of), col, True))
-        else:
-            rows.append(leaf(a.name, account_balance_asof(a, fy, as_of), acc_col, False))
+    def amt_of(col, val):
+        a = _blank_amt(); a[col] = val; a["total"] = val
+        return a
+
+    for fund in FUND_TYPES:
+        f_accts = [a for a in accounts if (a.fund_type or _FUND_DEFAULT) == fund]
+        f_sub = _blank_amt()
+        body = []
+        for a in f_accts:
+            acc_col = col_of(a.deposit_type)
+            items = [it for it in a.items if it.fiscal_year == fy]
+            if items:
+                a_sub = _blank_amt()
+                a_body = []
+                parents = [it for it in items if it.parent_id is None]
+                kids_by = {}
+                for it in items:
+                    if it.parent_id is not None:
+                        kids_by.setdefault(it.parent_id, []).append(it)
+                for p in parents:
+                    p_amt = amt_of(col_of(p.deposit_type or acc_col), item_remaining_asof(p, as_of))
+                    kids = kids_by.get(p.id, [])
+                    if kids:
+                        p_roll = _blank_amt(); _add_amt(p_roll, p_amt)
+                        krows = []
+                        for k in kids:
+                            k_amt = amt_of(col_of(k.deposit_type or acc_col), item_remaining_asof(k, as_of))
+                            krows.append({"name": k.name, "level": 3, "kind": "leaf", **k_amt})
+                            _add_amt(p_roll, k_amt)
+                        a_body.append({"name": p.name, "level": 2, "kind": "sub", **p_roll})
+                        a_body.extend(krows)
+                        _add_amt(a_sub, p_roll)
+                    else:
+                        a_body.append({"name": p.name, "level": 2, "kind": "leaf", **p_amt})
+                        _add_amt(a_sub, p_amt)
+                body.append({"name": a.name, "level": 1, "kind": "sub", **a_sub})
+                body.extend(a_body)
+                _add_amt(f_sub, a_sub)
+            else:
+                b_amt = amt_of(acc_col, account_balance_asof(a, fy, as_of))
+                body.append({"name": a.name, "level": 1, "kind": "leaf", **b_amt})
+                _add_amt(f_sub, b_amt)
+        rows.append({"name": fund, "level": 0, "kind": "group", **f_sub})
+        rows.extend(body)
+        _add_amt(tot, f_sub)
     return rows, {k: round(v, 2) for k, v in tot.items()}
 
 

@@ -27,17 +27,13 @@
     </tr></thead>
     <tbody>
       {% for r in rows %}
-      <tr>
-        <td>{% if r.indent %}<span style="display:inline-block; width:22px;"></span>{% endif %}{% if r.header %}<b>{{ r.name }}</b>{% else %}{{ r.name }}{% endif %}</td>
-        {% if r.header %}
-        <td></td><td></td><td></td><td></td><td></td>
-        {% else %}
+      <tr {% if r.kind=='group' %}style="background:#dcfce7; font-weight:700;"{% elif r.kind=='sub' %}style="background:#f8fafc; font-weight:600;"{% endif %}>
+        <td style="padding-left:{{ 8 + r.level*22 }}px;">{{ r.name }}</td>
         <td class="right">{{ "{:,.2f}".format(r.cash) if r.cash else "-" }}</td>
         <td class="right">{{ "{:,.2f}".format(r.bank) if r.bank else "-" }}</td>
         <td class="right">{{ "{:,.2f}".format(r.agency) if r.agency else "-" }}</td>
         <td class="right"><b>{{ "{:,.2f}".format(r.total) if r.total else "-" }}</b></td>
         <td></td>
-        {% endif %}
       </tr>
       {% endfor %}
     </tbody>
