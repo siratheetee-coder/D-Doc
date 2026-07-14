@@ -667,8 +667,8 @@ def _build_cash_rows(accounts, fy, as_of):
 @router.get("/finance/cash-report", response_class=HTMLResponse)
 def cash_report_page(request: Request, db: Session = Depends(get_db),
                      year: int | None = None, date: str | None = None):
-    fy = year or current_fiscal_year()
     as_of = parse_be_date(date) if date else datetime.now()
+    fy = year or current_fiscal_year(as_of)   # ปีงบคิดจากวันที่ที่เลือก
     accounts = db.query(FinanceAccount).order_by(FinanceAccount.id).all()
     rows, totals = _build_cash_rows(accounts, fy, as_of)
     return templates.TemplateResponse("cash_report.html", {
@@ -682,8 +682,8 @@ def cash_report_page(request: Request, db: Session = Depends(get_db),
 @router.get("/finance/cash-report.docx")
 def cash_report_docx(db: Session = Depends(get_db),
                      year: int | None = None, date: str | None = None):
-    fy = year or current_fiscal_year()
     as_of = parse_be_date(date) if date else datetime.now()
+    fy = year or current_fiscal_year(as_of)
     accounts = db.query(FinanceAccount).order_by(FinanceAccount.id).all()
     rows, totals = _build_cash_rows(accounts, fy, as_of)
     path = render_cash_report(get_school(db), rows, totals, as_of)

@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 {% block title %}รายงานเงินคงเหลือประจำวัน{% endblock %}
 {% block content %}
-<div class="card">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-    <h1 style="margin:0;">รายงานเงินคงเหลือประจำวัน</h1>
-    <a class="btn green" href="/finance/cash-report.docx?year={{ fiscal_year }}&date={{ as_of_be }}"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลด Word</a>
+<div class="hero">
+  <div>
+    <div class="hero-sub">แสดงเงินคงเหลือ ณ วันที่ที่ระบุ · แยกคอลัมน์ เงินสด / เงินฝากธนาคาร / เงินฝากส่วนราชการผู้เบิก · แบ่งชั้นตามประเภทเงิน พร้อมช่องลงนามคณะกรรมการเก็บรักษาเงิน</div>
+    <span class="hero-title">รายงานเงินคงเหลือประจำวัน</span>
+    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} · ณ {{ thai_date(as_of) }}</div>
   </div>
-  <form method="get" action="/finance/cash-report" style="margin-top:12px;">
-    <div class="row" style="align-items:flex-end;">
-      <div><label>ปีงบประมาณ</label>
-        <select name="year">{% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>{{ y }}</option>{% endfor %}</select>
-      </div>
-      <div><label>ณ วันที่</label><input name="date" value="{{ as_of_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
-      <div><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-search"/></svg> แสดงรายงาน</button></div>
-    </div>
+  <a class="btn" href="/finance/cash-report.docx?date={{ as_of_be }}"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลด Word</a>
+</div>
+
+<div class="card">
+  <form method="get" action="/finance/cash-report" style="display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; margin:0;">
+    <div><label>ณ วันที่</label><input name="date" value="{{ as_of_be }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:150px;"></div>
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-search"/></svg> เปิดรายงาน</button>
   </form>
-  <p class="muted" style="font-size:13px; margin-bottom:0;">หมวด/บัญชีดึงจากที่สร้างในงานการเงิน · คอลัมน์เงินสด/ธนาคาร/ส่วนราชการผู้เบิก แยกตามที่ระบุไว้ที่แต่ละบัญชี (ตั้งได้ในหน้าทะเบียนคุมเงิน)</p>
+  <p class="muted" style="font-size:13px; margin:12px 0 0;">หมวด/บัญชีดึงจากที่สร้างในงานการเงิน · ปีงบประมาณคิดจากวันที่ที่เลือกให้อัตโนมัติ</p>
 </div>
 
 <div class="card">
