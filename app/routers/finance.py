@@ -204,10 +204,11 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
             k_in, k_out = _self(k)
             krows.append({"it": k, "level": 1, "tin": k_in, "tout": k_out,
                           "budget": k.budget or 0, "remain": round((k.budget or 0) + k_in - k_out, 2)})
-        # หมวดแม่ = ยอดของตัวเอง + รวมลูก
+        # หมวดแม่: รับ-จ่ายรวมลูก (เงินลงหมวดแม่ตรงๆ ก็นับ) แต่ "งบ" ไม่บวกซ้ำ
+        # ถ้ามีลูก งบ = ผลรวมงบลูกเท่านั้น (งบที่เคยตั้งบนหมวดแม่จะถูกแทนด้วยผลรวมลูก)
         tin = p_in + sum(r["tin"] for r in krows)
         tout = p_out + sum(r["tout"] for r in krows)
-        budget = p_bud + sum(r["budget"] for r in krows)
+        budget = sum(r["budget"] for r in krows) if krows else p_bud
         item_rows.append({"it": p, "level": 0, "tin": tin, "tout": tout, "budget": budget,
                           "remain": round(budget + tin - tout, 2), "has_kids": bool(krows)})
         item_rows.extend(krows)
@@ -603,10 +604,12 @@ def _build_cash_rows(accounts, fy, as_of):
                     if it.parent_id is not None:
                         kids_by.setdefault(it.parent_id, []).append(it)
                 for p in parents:
-                    p_amt = amt_of(col_of(p.deposit_type or acc_col), item_remaining_asof(p, as_of))
+                    p_col = col_of(p.deposit_type or acc_col)
                     kids = kids_by.get(p.id, [])
                     if kids:
-                        p_roll = _blank_amt(); _add_amt(p_roll, p_amt)
+                        # หมวดแม่มีลูก: ไม่นับงบตัวเอง (นับเฉพาะเงินที่ลงหมวดแม่ตรงๆ) + รวมลูก
+                        p_own = item_remaining_asof(p, as_of) - (p.budget or 0)
+                        p_roll = amt_of(p_col, p_own)
                         krows = []
                         for k in kids:
                             k_amt = amt_of(col_of(k.deposit_type or acc_col), item_remaining_asof(k, as_of))
@@ -616,6 +619,7 @@ def _build_cash_rows(accounts, fy, as_of):
                         a_body.extend(krows)
                         _add_amt(a_sub, p_roll)
                     else:
+                        p_amt = amt_of(p_col, item_remaining_asof(p, as_of))
                         a_body.append({"name": p.name, "level": 2, "kind": "leaf", **p_amt})
                         _add_amt(a_sub, p_amt)
                 body.append({"name": a.name, "level": 1, "kind": "sub", **a_sub})

@@ -42,10 +42,10 @@
     <div class="row">
       <div style="flex:2;"><label>ชื่อหมวด/รายการ *</label><input name="name" required placeholder="เช่น ค่าจัดการเรียนการสอน, ค่าหนังสือเรียน"></div>
       <div><label>งบที่ตั้งไว้ (บาท)</label><input name="budget" type="number" step="0.01" min="0" value="0"></div>
-      <div><label>หมวดแม่ (ถ้าเป็นรายการย่อย)</label>
+      <div><label>ระดับหมวด</label>
         <select name="parent_id">
-          <option value="">— เป็นหมวดหลัก —</option>
-          {% for p in parents %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+          <option value="">หมวดหลัก</option>
+          {% for p in parents %}<option value="{{ p.id }}">รายการย่อยใต้ — {{ p.name }}</option>{% endfor %}
         </select>
       </div>
       <div><label>เก็บเงินไว้ที่</label>
@@ -83,7 +83,7 @@
       <tr {% if r.level==0 and r.has_kids %}style="background:#f8fafc;"{% endif %}>
         <td style="padding-left:{{ 8 + r.level*26 }}px;">{% if r.level==1 %}<span class="muted">└ </span>{% endif %}{% if r.level==0 %}<b>{{ r.it.name }}</b>{% else %}{{ r.it.name }}{% endif %}{% if r.it.note %} <span class="muted">· {{ r.it.note }}</span>{% endif %}</td>
         <td><span class="muted">{{ _dep.get(r.it.deposit_type, 'ธนาคาร') }}</span></td>
-        <td class="right">{{ "{:,.2f}".format(r.budget or 0) }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.budget or 0) }}{% if r.level==0 and r.has_kids %} <span class="muted" style="font-size:11px;">(รวมย่อย)</span>{% endif %}</td>
         <td class="right" style="color:#16a34a;">{{ "{:,.2f}".format(r.tin) if r.tin else "-" }}</td>
         <td class="right" style="color:#dc2626;">{{ "{:,.2f}".format(r.tout) if r.tout else "-" }}</td>
         <td class="right"><b>{{ "{:,.2f}".format(r.remain) }}</b></td>
