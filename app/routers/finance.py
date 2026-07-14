@@ -25,7 +25,7 @@ from app.services.asset_utils import (
 )
 from app.services.cash_report import render_cash_report, DEPOSIT_TYPES
 from app.services.ledger_book_doc import (
-    render_cash_book, render_cash_book_fund, build_cash_book_xlsx,
+    render_cash_book, render_cash_book_fund, build_cash_book_xlsx, build_cash_book_fund_xlsx,
     render_general_ledger, build_ledger_xlsx,
 )
 from app.services.doc_number import suggest_doc_no, commit_doc_no, check_doc_no, parse_seq
@@ -771,8 +771,8 @@ def cashbook_docx(db: Session = Depends(get_db), year: int | None = None, accoun
 @router.get("/finance/cashbook.xlsx")
 def cashbook_xlsx(db: Session = Depends(get_db), year: int | None = None, account: int | None = None):
     fy = year or current_fiscal_year()
-    _a, scope, opening, rows, totals = _cashbook_data(db, fy, account)
-    path = build_cash_book_xlsx(fy, rows, opening, totals, scope)
+    scope, open_by_fund, receipts, payments = _cashbook_fund_data(db, fy, account)
+    path = build_cash_book_fund_xlsx(fy, scope, open_by_fund, receipts, payments)
     return serve_generated(path, _XLSX)
 
 
