@@ -43,11 +43,26 @@
       <div style="flex:2;"><label>ชื่อหมวด/รายการ *</label><input name="name" required placeholder="เช่น ค่าจัดการเรียนการสอน, ค่าหนังสือเรียน"></div>
       <div><label>งบที่ตั้งไว้ (บาท)</label><input name="budget" type="number" step="0.01" min="0" value="0"></div>
       <div><label>ระดับหมวด</label>
-        <select name="parent_id">
-          <option value="">หมวดหลัก</option>
-          {% for p in parents %}<option value="{{ p.id }}">รายการย่อยใต้ — {{ p.name }}</option>{% endfor %}
+        <select id="levelSel" onchange="cbToggleParent()">
+          <option value="main">หมวดหลัก</option>
+          {% if parents %}<option value="sub">หมวดย่อย</option>{% endif %}
         </select>
       </div>
+      <div id="parentWrap" style="display:none;"><label>อยู่ใต้หมวด</label>
+        <select name="parent_id" id="parentSel">
+          <option value="">— เลือกหมวดหลัก —</option>
+          {% for p in parents %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <script>
+        function cbToggleParent(){
+          var sub = document.getElementById('levelSel').value === 'sub';
+          document.getElementById('parentWrap').style.display = sub ? '' : 'none';
+          var sel = document.getElementById('parentSel');
+          if(!sub){ sel.value = ''; }
+          else if(!sel.value && sel.options.length > 1){ sel.selectedIndex = 1; }
+        }
+      </script>
       <div><label>เก็บเงินไว้ที่</label>
         <select name="deposit_type">
           <option value="bank">เงินฝากธนาคาร</option>
