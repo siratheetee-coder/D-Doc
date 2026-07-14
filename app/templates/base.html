@@ -591,13 +591,45 @@
         {% set _st = account_status(request.session.get('tid')) %}
         {% if _st and _st.plan == 'trial' and _st.docs_left is not none and _st.docs_left <= 10 %}
           {% if _st.docs_left <= 0 %}
-          <div style="background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; border-radius:12px;
-                      padding:14px 18px; margin-bottom:16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-            <svg class="icon" style="flex:none;"><use href="#ic-alert"/></svg>
-            <span style="flex:1; min-width:200px;"><b>จำนวนการทดลองใช้ของท่านหมดแล้ว</b> — แต่ระบบยังเก็บข้อมูลของท่านไว้ครบ ต้องการใช้งานต่อ?</span>
-            <a href="/checkout" style="background:#dc2626; color:#fff; text-decoration:none; font-weight:700;
-               padding:8px 18px; border-radius:9px; white-space:nowrap;">คลิกที่นี่</a>
+          <div class="trial-modal" id="trialEndModal" role="dialog" aria-modal="true" aria-labelledby="tmTitle">
+            <div class="trial-card">
+              <div class="tm-ic"><svg class="icon"><use href="#ic-alert"/></svg></div>
+              <h3 id="tmTitle">โควตาทดลองใช้หมดแล้ว</h3>
+              <p>โควต้าทดลองใช้ของคุณหมดแล้ว แต่ระบบยังจำข้อมูลของคุณไว้อยู่ครบ<br>โปรดต่ออายุเพื่อใช้งานต่อ</p>
+              <a class="tm-go" href="/checkout"><svg class="icon"><use href="#ic-star"/></svg> ต่ออายุ / สมัครสมาชิก</a>
+              <button type="button" class="tm-later" onclick="dismissTrialModal()">ไว้ภายหลัง</button>
+            </div>
           </div>
+          <style>
+            .trial-modal{ position:fixed; inset:0; z-index:2000; background:rgba(15,23,42,.55);
+              display:flex; align-items:center; justify-content:center; padding:20px; }
+            .trial-modal .trial-card{ background:#fff; border-radius:18px; max-width:420px; width:100%;
+              padding:32px 28px 24px; text-align:center; box-shadow:0 24px 60px rgba(0,0,0,.28); }
+            .trial-modal .tm-ic{ width:66px; height:66px; border-radius:50%; background:#fff4e5; color:#d97706;
+              display:flex; align-items:center; justify-content:center; margin:0 auto 16px; }
+            .trial-modal .tm-ic .icon{ width:32px; height:32px; }
+            .trial-modal h3{ font-size:20px; margin:0 0 10px; color:#0f172a; }
+            .trial-modal p{ color:#5b6b84; font-size:15px; line-height:1.65; margin:0 0 22px; }
+            .trial-modal .tm-go{ display:inline-flex; align-items:center; gap:8px; background:#2563eb; color:#fff;
+              text-decoration:none; font-weight:700; font-size:15.5px; padding:12px 24px; border-radius:11px; }
+            .trial-modal .tm-go:hover{ background:#1d4ed8; }
+            .trial-modal .tm-go .icon{ width:18px; height:18px; }
+            .trial-modal .tm-later{ display:block; margin:14px auto 0; background:none; border:none; color:#8a97ab;
+              font-size:13.5px; cursor:pointer; font-family:inherit; }
+            .trial-modal .tm-later:hover{ color:#5b6b84; text-decoration:underline; }
+          </style>
+          <script>
+            (function(){
+              var m=document.getElementById('trialEndModal');
+              if(!m) return;
+              if(sessionStorage.getItem('trialEndDismissed')==='1'){ m.remove(); return; }
+              document.body.style.overflow='hidden';
+            })();
+            function dismissTrialModal(){
+              var m=document.getElementById('trialEndModal');
+              if(m){ m.remove(); document.body.style.overflow=''; try{ sessionStorage.setItem('trialEndDismissed','1'); }catch(e){} }
+            }
+          </script>
           {% else %}
           <div style="background:#fff7ed; border:1px solid #fed7aa; color:#b45309; border-radius:12px;
                       padding:13px 18px; margin-bottom:16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">

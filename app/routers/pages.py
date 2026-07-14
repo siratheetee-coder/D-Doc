@@ -372,7 +372,8 @@ def settings_save(
 # ---------------- วิธีใช้งาน (คู่มือในแอป) ----------------
 @router.get("/guide", response_class=HTMLResponse)
 def guide_page(request: Request):
-    return templates.TemplateResponse("guide.html", {"request": request})
+    from app.seller_config import pricing_context
+    return templates.TemplateResponse("guide.html", {"request": request, **pricing_context()})
 
 
 # ---------------- ติดต่อเจ้าหน้าที่ / รีวิว ----------------

@@ -26,7 +26,14 @@
   .g-purple { background:#ede9fe; color:#7c3aed; } .g-blue { background:#e8f0ff; color:#4880FF; }
   .g-green { background:#dcfce7; color:#16a34a; } .g-amber { background:#fff4e5; color:#d97706; }
   .g-gray { background:#eef0f4; color:#5a6a85; }
+  .price-row { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 6px; }
+  .price-row .pc { flex:1 1 96px; background:#f3f6fc; border-radius:10px; padding:9px 12px; }
+  .price-row .pc .n { font-size:12.5px; color:#33507a; }
+  .price-row .pc .v { font-size:16px; font-weight:700; color:#1e3a66; }
+  .price-row .pc.best { background:#eafaf0; } .price-row .pc.best .n { color:#15803d; } .price-row .pc.best .v { color:#166534; }
+  .price-note { font-size:12.5px; color:var(--muted); margin:0 0 8px; }
 </style>
+{% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':190,'bundle':1990}) %}
 
 <div class="hero">
   <div>
@@ -109,6 +116,33 @@
       <li><svg class="icon"><use href="#ic-check"/></svg><span><b>ลายเซ็นอัตโนมัติ</b> — อัปโหลดลายเซ็นที่หน้าบุคลากร ระบบจะวางในเอกสารให้เองเมื่อคนนั้นเป็นผู้ลงนาม</span></li>
       <li><svg class="icon"><use href="#ic-check"/></svg><span><b>สำรองข้อมูลสม่ำเสมอ</b> — ดาวน์โหลดไฟล์สำรองเก็บไว้เป็นระยะที่หน้าตั้งค่าโรงเรียน</span></li>
     </ul>
+  </div>
+</details>
+
+<!-- การต่ออายุ / แพ็กเกจ / ทดลองฟรี -->
+<details class="acc">
+  <summary><span class="sic g-amber"><svg class="icon"><use href="#ic-coins"/></svg></span> การต่ออายุ · แพ็กเกจ · ทดลองฟรี <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
+  <div class="acc-body">
+    <p class="muted" style="font-size:14.5px; line-height:1.6; margin:2px 0 12px;">เริ่มใช้ฟรีได้ทันที ออกเอกสารทดลอง <b>50 ฉบับ (นับรวมทุกงาน) ไม่จำกัดเวลา</b> เมื่อพร้อมค่อยสมัครสมาชิกรายปี</p>
+    <div class="price-row">
+      <div class="pc"><div class="n">งานพัสดุ</div><div class="v">{{ px.p_proc }}</div></div>
+      <div class="pc"><div class="n">งานการเงิน</div><div class="v">{{ px.p_fin }}</div></div>
+      <div class="pc"><div class="n">งานธุรการ</div><div class="v">{{ px.p_admin }}</div></div>
+      <div class="pc"><div class="n">อาหารกลางวัน</div><div class="v">{{ px.p_lunch }}</div></div>
+      <div class="pc best"><div class="n">ครบทุกงาน</div><div class="v">{{ "{:,}".format(px.bundle) }}</div></div>
+    </div>
+    <p class="price-note">ราคาต่อปี (บาท) · ยิ่งเลือกมากยิ่งลด: 2 งาน ลด 100 · 3 งาน ลด 200 · ครบ 4 งาน เหลือ {{ "{:,}".format(px.bundle) }}</p>
+    <div class="faq-q">ทดลองฟรีได้แค่ไหน?</div>
+    <p class="faq-a">ออกเอกสารได้ฟรี <b>50 ฉบับ นับรวมทุกงาน ไม่จำกัดเวลา</b> — ดูจำนวนที่เหลือได้ที่มุมบนของระบบ</p>
+    <div class="faq-q">โควตา 50 ฉบับหมดแล้วทำยังไง?</div>
+    <p class="faq-a">สมัครสมาชิกที่หน้าสั่งซื้อ ข้อมูลและเอกสารเดิม<b>ยังอยู่ครบ</b> ออกเอกสารต่อได้ทันทีหลังทีมงานเปิดใช้งาน</p>
+    <div class="faq-q">ต่ออายุ / สมัครสมาชิกยังไง?</div>
+    <p class="faq-a">เข้าหน้าสั่งซื้อ เลือกงานที่ต้องการ → โอนผ่าน PromptPay หรือบัญชีธนาคาร → แจ้งสลิป ทีมงานเปิดใช้งานให้ (สมาชิก 1 ปี) ใช้<b>อีเมลเดิม</b>ตลอด</p>
+    <div class="faq-q">เพิ่มงานทีหลังได้ไหม?</div>
+    <p class="faq-a">ได้ เลือกงานเพิ่มที่หน้าสั่งซื้อได้ตลอด ระบบคิดส่วนลดขั้นบันไดให้อัตโนมัติ</p>
+    <div class="faq-q">สมาชิกได้อะไรเพิ่มจากทดลอง?</div>
+    <p class="faq-a">ออกเอกสาร<b>ไม่จำกัดจำนวน</b> + เปิดใช้ <b>AI ช่วยร่างเอกสาร</b> (บันทึกข้อความ/คำสั่ง/หนังสือราชการ)</p>
+    <a class="btn" href="/checkout" style="margin-top:14px;"><svg class="icon"><use href="#ic-star"/></svg> ไปหน้าสั่งซื้อ / ต่ออายุ</a>
   </div>
 </details>
 
