@@ -23,6 +23,7 @@
       --brand: #4880FF;           /* primary */
       --brand-dark: #3568e0;
       --brand-soft: #e8f0ff;
+      --brand-lite: #6f9bff;      /* เฉดอ่อน ปลายไล่สีแถบ hero */
       --bg: #F5F6FA;              /* พื้นหลัง */
       --surface: #ffffff;
       --border: #eceef3;
@@ -37,9 +38,9 @@
       --shadow: 0 2px 8px rgba(16,24,40,.05), 0 1px 2px rgba(16,24,40,.04);
     }
     /* ===== ธีมสีต่อกลุ่มงาน (override เฉพาะสีแบรนด์ คงสีพื้น/เลย์เอาต์ -> รักษากฎ 60/30/10) ===== */
-    .layout[data-module="admin"]   { --brand:#7c3aed; --brand-dark:#6d28d9; --brand-soft:#ede9fe; }
-    .layout[data-module="finance"] { --brand:#16a34a; --brand-dark:#15803d; --brand-soft:#dcfce7; }
-    .layout[data-module="lunch"]   { --brand:#ea580c; --brand-dark:#c2410c; --brand-soft:#ffedd5; }
+    .layout[data-module="admin"]   { --brand:#7c3aed; --brand-dark:#6d28d9; --brand-soft:#ede9fe; --brand-lite:#a78bfa; }
+    .layout[data-module="finance"] { --brand:#16a34a; --brand-dark:#15803d; --brand-soft:#dcfce7; --brand-lite:#4ade80; }
+    .layout[data-module="lunch"]   { --brand:#ea580c; --brand-dark:#c2410c; --brand-soft:#ffedd5; --brand-lite:#fb923c; }
     /* พัสดุ + hub ใช้สีน้ำเงินเริ่มต้นจาก :root */
     * { box-sizing: border-box; }
     /* กันหน้าจอ "ขยับซ้าย-ขวา" เวลาสลับหน้า (หน้าสั้นไม่มีสกรอลล์ vs หน้ายาวมีสกรอลล์) — จองที่สกรอลล์ไว้เสมอ */
@@ -295,9 +296,9 @@
 
     /* ===== Hero banner (แดชบอร์ด) ===== */
     .hero {
-      background: linear-gradient(120deg, #3568e0, #4880FF 55%, #6f9bff);
+      background: linear-gradient(120deg, var(--brand-dark), var(--brand) 55%, var(--brand-lite));
       color: #fff; border-radius: var(--radius); padding: 26px 28px; margin-bottom: 22px;
-      box-shadow: 0 10px 26px rgba(72,128,255,.28);
+      box-shadow: 0 10px 26px rgba(15,23,42,.18);
       display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap;
     }
     .hero .hero-sub { font-size: 14px; font-weight: 600; opacity: .9; }
