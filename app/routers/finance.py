@@ -294,6 +294,28 @@ def account_copy_items(aid: int, db: Session = Depends(get_db), year: str = Form
     return RedirectResponse(f"/finance/accounts/{aid}?year={fy}", status_code=303)
 
 
+@router.post("/finance/items/{iid}/update")
+def account_item_update(iid: int, db: Session = Depends(get_db), budget: str = Form(None),
+                        name: str = Form(None), deposit_type: str = Form(None),
+                        note: str = Form(None), year: str = Form("")):
+    """แก้ไขหมวดในตาราง (งบ/ชื่อ/เก็บที่/หมายเหตุ) — บันทึกอินไลน์"""
+    it = db.get(AccountItem, iid)
+    if it:
+        if budget is not None:
+            it.budget = _to_float(budget, it.budget or 0.0)
+        if name is not None and name.strip():
+            it.name = name.strip()
+        if deposit_type is not None and deposit_type in DEPOSIT_TYPES:
+            it.deposit_type = deposit_type
+        if note is not None:
+            it.note = note.strip()
+        db.commit()
+    aid = it.account_id if it else None
+    fy = _to_int(year, it.fiscal_year if it else current_fiscal_year())
+    return RedirectResponse(f"/finance/accounts/{aid}?year={fy}" if aid else "/finance/accounts",
+                            status_code=303)
+
+
 @router.post("/finance/items/{iid}/delete")
 def account_item_delete(iid: int, db: Session = Depends(get_db)):
     it = db.get(AccountItem, iid)
