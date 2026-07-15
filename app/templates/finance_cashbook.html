@@ -4,7 +4,7 @@
 {% set _q = ('&account=' ~ sel_account) if sel_account else '' %}
 <div class="hero">
   <div>
-    <div class="hero-sub">สมุดเงินสดแบบราชการ — แยกด้านรับ (เดบิต) / ด้านจ่าย (เครดิต) · เครดิตแยกตามประเภทเงิน</div>
+    <div class="hero-sub">สมุดเงินสด แยกรายรับ (เดบิต) / รายจ่าย (เครดิต)</div>
     <span class="hero-title">สมุดเงินสด</span>
     <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} · {{ scope }} · เงินสดคงเหลือยกไป {{ "{:,.2f}".format(carry.cash) }} บาท</div>
   </div>
