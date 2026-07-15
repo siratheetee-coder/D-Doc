@@ -452,9 +452,27 @@
             ev.preventDefault();
             // อยู่หน้าแรกของงาน (section home) -> ไปหน้าเลือกงาน (hub) ทันที
             if(window.IS_SECTION_HOME){ location.href = "/"; return false; }
-            // อยู่หน้าย่อย -> ย้อนไปหน้าก่อนหน้า (previous) ; ถ้าไม่มีประวัติ ใช้หน้าแรกของงาน
-            if(document.referrer && history.length > 1){ history.back(); }
-            else { location.href = window.SECTION_HOME; }
+            // ตรวจหน้าก่อนหน้า: อยู่ section เดียวกันไหม + เป็นคนละหน้ากับที่อยู่ตอนนี้ไหม
+            var sameSec = false, sameUrl = false;
+            try{
+              if(document.referrer){
+                var u = new URL(document.referrer);
+                sameUrl = (u.pathname === location.pathname);
+                if(u.origin === location.origin){
+                  for(var i=0;i<window.SECTION_PREFIXES.length;i++){
+                    if(u.pathname.indexOf(window.SECTION_PREFIXES[i])===0){ sameSec=true; break; }
+                  }
+                }
+              }
+            }catch(e){}
+            // หน้าก่อนหน้าอยู่ section เดียวกันและคนละหน้า -> ย้อนปกติ
+            if(sameSec && !sameUrl && history.length>1){ history.back(); return false; }
+            // ไม่งั้น (เช่น ฟอร์ม auto-save วน history หน้าเดิม / มาจากนอก section) -> ขึ้นพาเรนต์หนึ่งระดับใน section
+            var parts = location.pathname.replace(/\/+$/,'').split('/'); parts.pop();
+            var up = parts.join('/') || '/';
+            var inSec = false;
+            for(var j=0;j<window.SECTION_PREFIXES.length;j++){ if(up.indexOf(window.SECTION_PREFIXES[j])===0){ inSec=true; break; } }
+            location.href = inSec ? up : window.SECTION_HOME;
             return false;
           }
         </script>
