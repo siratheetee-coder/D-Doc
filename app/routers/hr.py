@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Person, LeaveRecord, LeaveEntitlement
+from app.models import Person, LeaveRecord, LeaveEntitlement, TravelRecord
 from app.thai_utils import parse_be_date, be_date_input, thai_date
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
@@ -190,6 +190,66 @@ def hr_leave_entitlement_std(db: Session = Depends(get_db), year: str = Form("")
     yr = _to_int(year, _cur_year())
     _set_entitlement(db, yr, STD_ENTITLEMENT)
     return RedirectResponse(f"/hr/leave?year={yr}", status_code=303)
+
+
+# ==================== ทะเบียนไปราชการ ====================
+@router.get("/hr/travel", response_class=HTMLResponse)
+def hr_travel(request: Request, db: Session = Depends(get_db), year: int | None = None):
+    year = year or _cur_year()
+    records = (db.query(TravelRecord).filter(TravelRecord.year == year)
+               .order_by(TravelRecord.start_date.desc(), TravelRecord.id.desc()).all())
+    persons = db.query(Person).filter(Person.active == True).order_by(Person.id).all()  # noqa: E712
+    # สรุปวันไปราชการต่อคน
+    by_person = {}
+    for r in records:
+        by_person.setdefault(r.person_id, {"days": 0.0, "n": 0, "budget": 0.0})
+        by_person[r.person_id]["days"] += r.days or 0
+        by_person[r.person_id]["n"] += 1
+        by_person[r.person_id]["budget"] += r.budget or 0
+    summary = [{"p": p, **by_person[p.id]} for p in persons if p.id in by_person]
+    years = sorted({year} | {r[0] for r in db.query(TravelRecord.year).distinct()}, reverse=True)
+    return templates.TemplateResponse("hr_travel.html", {
+        "request": request, "school": get_school(db), "year": year, "years": years,
+        "records": records, "persons": persons, "summary": summary,
+        "total_days": sum(r.days or 0 for r in records),
+        "total_budget": sum(r.budget or 0 for r in records),
+    })
+
+
+@router.post("/hr/travel/add")
+def hr_travel_add(db: Session = Depends(get_db), person_id: str = Form(""),
+                  subject: str = Form(""), place: str = Form(""), start_date: str = Form(""),
+                  end_date: str = Form(""), days: str = Form("0"), budget: str = Form("0"),
+                  doc_no: str = Form(""), doc_date: str = Form(""), note: str = Form(""),
+                  year: str = Form("")):
+    pid = _to_int(person_id, 0)
+    yr = _to_int(year, _cur_year())
+    if pid and db.get(Person, pid):
+        db.add(TravelRecord(person_id=pid, year=yr, subject=subject.strip(), place=place.strip(),
+                            start_date=parse_be_date(start_date), end_date=parse_be_date(end_date),
+                            days=_to_float(days, 0.0), budget=_to_float(budget, 0.0),
+                            doc_no=doc_no.strip(), doc_date=parse_be_date(doc_date), note=note.strip()))
+        db.commit()
+    return RedirectResponse(f"/hr/travel?year={yr}", status_code=303)
+
+
+@router.post("/hr/travel/{tid}/delete")
+def hr_travel_delete(tid: int, db: Session = Depends(get_db)):
+    r = db.get(TravelRecord, tid)
+    yr = r.year if r else _cur_year()
+    if r:
+        db.delete(r); db.commit()
+    return RedirectResponse(f"/hr/travel?year={yr}", status_code=303)
+
+
+@router.get("/hr/travel/{tid}/order.docx")
+def hr_travel_order_docx(tid: int, db: Session = Depends(get_db)):
+    from app.services.hr_doc import render_travel_order
+    r = db.get(TravelRecord, tid)
+    if not r:
+        return RedirectResponse("/hr/travel", status_code=303)
+    path = render_travel_order(get_school(db), r.person, r)
+    return serve_generated(path, _DOCX)
 
 
 # ==================== เอกสาร (Word) ====================

@@ -73,6 +73,8 @@ class Person(Base):
 
     leaves = relationship("LeaveRecord", back_populates="person",
                           cascade="all, delete-orphan", order_by="LeaveRecord.start_date")
+    travels = relationship("TravelRecord", back_populates="person",
+                           cascade="all, delete-orphan", order_by="TravelRecord.start_date")
 
 
 class Department(Base):
@@ -984,3 +986,24 @@ class LeaveRecord(Base):
     created_at = Column(DateTime, default=datetime.now)
 
     person = relationship("Person", back_populates="leaves")
+
+
+class TravelRecord(Base):
+    """ทะเบียนไปราชการของบุคลากร + ออกคำสั่งไปราชการ"""
+    __tablename__ = "travel_record"
+
+    id = Column(Integer, primary_key=True)
+    person_id = Column(Integer, ForeignKey("person.id"), nullable=False)
+    year = Column(Integer, nullable=False)          # ปี พ.ศ.
+    subject = Column(String, default="")            # เรื่อง/ภารกิจ (เช่น อบรมหลักสูตร...)
+    place = Column(String, default="")              # สถานที่/จังหวัด
+    start_date = Column(DateTime, nullable=True)
+    end_date = Column(DateTime, nullable=True)
+    days = Column(Float, default=0.0)
+    budget = Column(Float, default=0.0)             # ค่าใช้จ่าย/งบประมาณ
+    doc_no = Column(String, default="")             # เลขที่คำสั่ง
+    doc_date = Column(DateTime, nullable=True)      # วันที่คำสั่ง
+    note = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+    person = relationship("Person", back_populates="travels")

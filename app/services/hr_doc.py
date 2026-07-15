@@ -144,6 +144,41 @@ def render_certificate(school, person, kind="status") -> str:
     return str(out)
 
 
+# ---------------- คำสั่งไปราชการ ----------------
+def render_travel_order(school, person, record) -> str:
+    doc = _doc()
+    _p(doc, "คำสั่ง" + (school.name or "โรงเรียน"), align="center", bold=True, size=17, after=0)
+    _p(doc, f"ที่  {record.doc_no or '............/............'}", align="center", size=14, after=0)
+    _p(doc, "เรื่อง  ให้ข้าราชการครูและบุคลากรทางการศึกษาไปราชการ", align="center", bold=True, size=15, after=8)
+    _p(doc, "───────────────────", align="center", after=8)
+
+    name = person.name or _BLANK
+    pos = person.position or "ครู"
+    subject = (record.subject or "").strip() or "ปฏิบัติราชการ"
+    place = (record.place or "").strip() or _BLANK
+    _p(doc, f"ด้วย {school.name or 'โรงเรียน'} มีความจำเป็นต้องให้บุคลากรไปราชการเพื่อ {subject} "
+            f"จึงอาศัยอำนาจตามความในมาตราที่เกี่ยวข้อง แต่งตั้งให้บุคคลดังต่อไปนี้ไปราชการ",
+       align="justify", size=15, after=6, indent=1.25)
+    _p(doc, f"{name} ตำแหน่ง {pos} "
+            f"ไปราชการ ณ {place} "
+            f"ตั้งแต่วันที่ {_dt(record.start_date)} ถึงวันที่ {_dt(record.end_date)} "
+            f"รวม {record.days:g} วัน"
+            + (f" โดยเบิกค่าใช้จ่ายในการเดินทางไปราชการ จำนวน {record.budget:,.2f} บาท" if (record.budget or 0) else ""),
+       align="justify", size=15, after=6, indent=1.25)
+    _p(doc, "ทั้งนี้ ให้ผู้ได้รับแต่งตั้งปฏิบัติหน้าที่ที่ได้รับมอบหมายด้วยความเรียบร้อย เกิดผลดีแก่ทางราชการ",
+       align="justify", size=15, after=8, indent=1.25)
+    _p(doc, f"สั่ง ณ วันที่ {_dt(record.doc_date)}", align="center", after=24)
+
+    _p(doc, "(ลงชื่อ)...................................", align="center", after=0)
+    _p(doc, f"( {(getattr(school, 'director_name', '') or '').strip() or _BLANK} )", align="center", after=0)
+    _p(doc, _director_pos(school), align="center", after=2)
+
+    out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
+    out = out_dir / (_safe(f"คำสั่งไปราชการ_{name}_{record.id}") + ".docx")
+    doc.save(str(out))
+    return str(out)
+
+
 def _baht(v):
     try:
         from app.thai_utils import bahttext

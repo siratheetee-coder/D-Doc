@@ -452,29 +452,11 @@
           window.IS_SECTION_HOME = {{ 'true' if is_section_home else 'false' }};
           function goBack(ev){
             ev.preventDefault();
-            // อยู่หน้าแรกของงาน (section home) -> ไปหน้าเลือกงาน (hub) ทันที
+            // หน้าหลักของงาน (section home) -> ไปหน้าเลือกงาน (hub)
             if(window.IS_SECTION_HOME){ location.href = "/"; return false; }
-            // ตรวจหน้าก่อนหน้า: อยู่ section เดียวกันไหม + เป็นคนละหน้ากับที่อยู่ตอนนี้ไหม
-            var sameSec = false, sameUrl = false;
-            try{
-              if(document.referrer){
-                var u = new URL(document.referrer);
-                sameUrl = (u.pathname === location.pathname);
-                if(u.origin === location.origin){
-                  for(var i=0;i<window.SECTION_PREFIXES.length;i++){
-                    if(u.pathname.indexOf(window.SECTION_PREFIXES[i])===0){ sameSec=true; break; }
-                  }
-                }
-              }
-            }catch(e){}
-            // หน้าก่อนหน้าอยู่ section เดียวกันและคนละหน้า -> ย้อนปกติ
-            if(sameSec && !sameUrl && history.length>1){ history.back(); return false; }
-            // ไม่งั้น (เช่น ฟอร์ม auto-save วน history หน้าเดิม / มาจากนอก section) -> ขึ้นพาเรนต์หนึ่งระดับใน section
-            var parts = location.pathname.replace(/\/+$/,'').split('/'); parts.pop();
-            var up = parts.join('/') || '/';
-            var inSec = false;
-            for(var j=0;j<window.SECTION_PREFIXES.length;j++){ if(up.indexOf(window.SECTION_PREFIXES[j])===0){ inSec=true; break; } }
-            location.href = inSec ? up : window.SECTION_HOME;
+            // หน้าย่อย -> ย้อนไปหน้าที่แล้ว ; ถ้าไม่มีประวัติ ใช้หน้าหลักของงาน
+            if(history.length > 1){ history.back(); return false; }
+            location.href = window.SECTION_HOME;
             return false;
           }
         </script>
@@ -530,6 +512,7 @@
         <a href="/hr" class="{{ 'active' if path == '/hr' }}"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลักงานบุคคล</a>
         <a href="/hr/staff" class="{{ 'active' if path.startswith('/hr/staff') }}"><svg class="icon"><use href="#ic-users"/></svg> ทะเบียนบุคลากร</a>
         <a href="/hr/leave" class="{{ 'active' if path.startswith('/hr/leave') }}"><svg class="icon"><use href="#ic-calendar"/></svg> ทะเบียนวันลา</a>
+        <a href="/hr/travel" class="{{ 'active' if path.startswith('/hr/travel') }}"><svg class="icon"><use href="#ic-send"/></svg> ทะเบียนไปราชการ</a>
 
         {% else %}{# hub #}
         <div class="nav-sec">เลือกงาน</div>

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}ทะเบียนไปราชการ{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">ทะเบียนไปราชการ <span class="muted" style="font-size:16px;">ปี พ.ศ. {{ year }}</span></h1>
+    <form method="get" action="/hr/travel">
+      <select name="year" onchange="this.form.submit()">{% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>ปี {{ y }}</option>{% endfor %}</select>
+    </form>
+  </div>
+  <div class="stat" style="margin-top:10px;">
+    <div class="box"><div><div class="lab">รายการไปราชการ ปี {{ year }}</div><div class="num">{{ records|length }}</div></div>
+      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-send"/></svg></span></div>
+    <div class="box"><div><div class="lab">รวมวันไปราชการ</div><div class="num">{{ "%g"|format(total_days) }}</div></div>
+      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-calendar"/></svg></span></div>
+    <div class="box"><div><div class="lab">รวมค่าใช้จ่าย (บาท)</div><div class="num">{{ "{:,.0f}".format(total_budget) }}</div></div>
+      <span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> บันทึกการไปราชการ</h2>
+  <form method="post" action="/hr/travel/add">
+    <input type="hidden" name="year" value="{{ year }}">
+    <div class="row">
+      <div style="flex:2;"><label>บุคลากร *</label>
+        <select name="person_id" required><option value="">— เลือก —</option>{% for p in persons %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
+      </div>
+      <div style="flex:2;"><label>เรื่อง/ภารกิจ</label><input name="subject" placeholder="เช่น อบรมหลักสูตร..."></div>
+      <div style="flex:2;"><label>สถานที่/จังหวัด</label><input name="place"></div>
+    </div>
+    <div class="row">
+      <div><label>ตั้งแต่วันที่</label><input name="start_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:124px;"></div>
+      <div><label>ถึงวันที่</label><input name="end_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:124px;"></div>
+      <div><label>จำนวน (วัน)</label><input name="days" type="number" step="0.5" min="0" value="1" style="width:84px;"></div>
+      <div><label>ค่าใช้จ่าย (บาท)</label><input name="budget" type="number" step="0.01" style="width:120px;"></div>
+      <div><label>เลขที่คำสั่ง</label><input name="doc_no" style="width:110px;"></div>
+      <div><label>วันที่คำสั่ง</label><input name="doc_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:124px;"></div>
+    </div>
+    <br><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button>
+  </form>
+</div>
+
+{% if summary %}
+<div class="card">
+  <h2>สรุปวันไปราชการรายคน</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>บุคลากร</th><th class="right">จำนวนครั้ง</th><th class="right">รวมวัน</th><th class="right">รวมค่าใช้จ่าย</th></tr></thead>
+    <tbody>
+    {% for s in summary %}
+      <tr><td>{{ s.p.name }}</td><td class="right">{{ s.n }}</td><td class="right">{{ "%g"|format(s.days) }}</td><td class="right">{{ "{:,.2f}".format(s.budget) }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>รายการไปราชการ ปี {{ year }} {% if records %}<span class="muted" style="font-size:15px;">({{ records|length }} รายการ)</span>{% endif %}</h2>
+  {% if records %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>บุคลากร</th><th>เรื่อง</th><th>สถานที่</th><th>ช่วงวันที่</th><th class="right">วัน</th><th class="right">ค่าใช้จ่าย</th><th></th></tr></thead>
+    <tbody>
+    {% for r in records %}
+      <tr>
+        <td>{{ r.person.name if r.person else '-' }}</td>
+        <td>{{ r.subject }}</td>
+        <td>{{ r.place }}</td>
+        <td>{{ be_date(r.start_date) if r.start_date else '-' }}{% if r.end_date %} – {{ be_date(r.end_date) }}{% endif %}</td>
+        <td class="right">{{ "%g"|format(r.days) }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.budget) if r.budget else '-' }}</td>
+        <td style="white-space:nowrap;">
+          <a class="btn sm gray" href="/hr/travel/{{ r.id }}/order.docx"><svg class="icon"><use href="#ic-download"/></svg> คำสั่งไปราชการ</a>
+          <form method="post" action="/hr/travel/{{ r.id }}/delete" onsubmit="return confirm('ลบรายการนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted">ยังไม่มีรายการไปราชการในปีนี้</p>{% endif %}
+</div>
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}
