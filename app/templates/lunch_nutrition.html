@@ -5,7 +5,10 @@
 {% macro badge(g) %}{% if g %}<span class="pill" style="{{ whcolor(g) }}">{{ g }}</span>{% else %}<span class="muted">-</span>{% endif %}{% endmacro %}
 
 <div class="card">
-  <h1 style="margin:0;">ภาวะโภชนาการนักเรียน</h1>
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">ภาวะโภชนาการนักเรียน</h1>
+    <a class="btn green" href="/lunch/nutrition/report.docx"><svg class="icon"><use href="#ic-download"/></svg> รายงานภาวะโภชนาการ (Word)</a>
+  </div>
   <p class="muted" style="margin-bottom:0;">ทะเบียนรวมของโรงเรียน · บันทึกน้ำหนัก/ส่วนสูงรายเทอม ระบบจัดกลุ่มอัตโนมัติตามเกณฑ์กรมอนามัย (ใช้ผลเทอมล่าสุดในสรุป)</p>
 </div>
 

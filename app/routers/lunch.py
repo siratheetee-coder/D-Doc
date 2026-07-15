@@ -604,6 +604,42 @@ def _nutrition_pool(db) -> LunchProgram:
     return pool
 
 
+def _nutrition_report_data(prog):
+    """นับภาวะโภชนาการ (น้ำหนักตามเกณฑ์ส่วนสูง) จากผลเทอมล่าสุด แยกตามชั้นและเพศ"""
+    cats = WH_LABELS
+    order = {lv: i for i, lv in enumerate(DEFAULT_LEVELS)}
+    students = sorted(prog.students, key=lambda s: (order.get((s.level or "").strip(), 99),
+                                                    (s.level or ""), s.name or ""))
+    totals = {c: 0 for c in cats}
+    sex_counts = {"ชาย": {c: 0 for c in cats}, "หญิง": {c: 0 for c in cats}}
+    class_counts, cur, assessed = [], None, 0
+    for s in students:
+        ms = {m.term: m for m in s.measures}
+        res = _measure_result(s, ms.get(2)) or _measure_result(s, ms.get(1))
+        if not res or res.get("wh") not in totals:
+            continue
+        cat = res["wh"]
+        lv = (s.level or "").strip() or "ไม่ระบุชั้น"
+        if cur is None or cur["level"] != lv:
+            cur = {"level": lv, "counts": {c: 0 for c in cats}, "total": 0}
+            class_counts.append(cur)
+        cur["counts"][cat] += 1; cur["total"] += 1
+        totals[cat] += 1; assessed += 1
+        sx = "ชาย" if s.sex == "M" else "หญิง" if s.sex == "F" else None
+        if sx:
+            sex_counts[sx][cat] += 1
+    return cats, class_counts, sex_counts, totals, assessed
+
+
+@router.get("/lunch/nutrition/report.docx")
+def nutrition_report_docx(db: Session = Depends(get_db)):
+    from app.services.nutrition_report import render_nutrition_report
+    cats, class_counts, sex_counts, totals, assessed = _nutrition_report_data(_nutrition_pool(db))
+    path = render_nutrition_report(get_school(db), cats, class_counts, sex_counts, totals, assessed,
+                                   as_of=datetime.now())
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
 @router.post("/lunch/nutrition/student/add")
 def student_add(db: Session = Depends(get_db), name: str = Form(""), sex: str = Form(""),
                 birthdate: str = Form(""), level: str = Form("")):
