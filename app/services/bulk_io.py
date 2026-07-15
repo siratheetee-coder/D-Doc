@@ -29,9 +29,11 @@ THAI_FONT = "TH Sarabun New"
 # ---- นิยามแต่ละชีตข้อมูลหลัก: (ชื่อชีต, [หัวคอลัมน์], คำอธิบาย, ความกว้างคอลัมน์) ----
 MASTER_SHEETS = {
     "บุคลากร": {
-        "headers": ["ชื่อ-นามสกุล", "ตำแหน่ง"],
-        "note": "กรอกรายชื่อครู/บุคลากรตั้งแต่แถวที่ 3 ลงไป (ตำแหน่งเว้นว่างได้ ระบบจะใส่ 'ครู' ให้)  เช่น  นายสมชาย ใจดี | ครูชำนาญการ",
-        "widths": [34, 26],
+        "headers": ["ชื่อ-นามสกุล", "ประเภท (ครู/ผู้บริหาร/ธุรการ/นักการ)", "ตำแหน่ง",
+                    "วิทยฐานะ/ระดับ", "เลขบัตรประชาชน", "วันเกิด (วว/ดด/ปปปป)",
+                    "วันบรรจุ (วว/ดด/ปปปป)", "เบอร์โทร", "อีเมล", "เงินเดือน"],
+        "note": "กรอกรายชื่อครู/บุคลากรตั้งแต่แถวที่ 3 ลงไป (จำเป็นเฉพาะชื่อ คอลัมน์อื่นเว้นว่างได้)  เช่น  นายสมชาย ใจดี | ครู | ครู | ครู คศ.2 | 1234567890123 | 15/05/2530 | 01/05/2555 | 08x-xxxxxxx | a@b.com | 30000",
+        "widths": [30, 22, 18, 18, 20, 20, 20, 16, 22, 14],
     },
     "ฝ่าย-งาน": {
         "headers": ["ชื่อฝ่าย/งาน"],
@@ -193,8 +195,18 @@ def import_workbook(file_bytes: bytes, db) -> dict:
             if name in existing:
                 skipped += 1
                 continue
-            pos = _cell_str(row[1]) if len(row) > 1 else ""
-            db.add(Person(name=name, position=pos or "ครู"))
+
+            def _c(i):
+                return _cell_str(row[i]) if len(row) > i else ""
+            db.add(Person(
+                name=name,
+                person_type=_c(1) or "ครู",
+                position=_c(2) or "ครู",
+                rank=_c(3), id_card=_c(4),
+                birthdate=parse_be_date(_c(5)), start_date=parse_be_date(_c(6)),
+                phone=_c(7), email=_c(8),
+                salary=_cell_float(row[9]) if len(row) > 9 else 0.0,
+            ))
             existing.add(name)
             added += 1
         if added or skipped:

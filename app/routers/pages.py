@@ -496,8 +496,17 @@ async def masters_import(db: Session = Depends(get_db), file: UploadFile = File(
 
 
 @router.post("/masters/person")
-def add_person(db: Session = Depends(get_db), name: str = Form(...), position: str = Form("ครู")):
-    db.add(Person(name=name, position=position)); db.commit()
+def add_person(db: Session = Depends(get_db), name: str = Form(...), position: str = Form("ครู"),
+               person_type: str = Form("ครู"), rank: str = Form(""), id_card: str = Form(""),
+               birthdate: str = Form(""), start_date: str = Form(""), phone: str = Form(""),
+               email: str = Form(""), salary: str = Form("0")):
+    from app.thai_utils import parse_be_date
+    db.add(Person(name=name.strip(), position=(position or "ครู").strip(),
+                  person_type=(person_type or "ครู").strip(), rank=rank.strip(),
+                  id_card=id_card.strip(), birthdate=parse_be_date(birthdate),
+                  start_date=parse_be_date(start_date), phone=phone.strip(),
+                  email=email.strip(), salary=_to_float(salary, 0.0)))
+    db.commit()
     return RedirectResponse("/masters", status_code=303)
 
 
