@@ -89,6 +89,7 @@ MIGRATIONS = [
     ("finance_account", "fund_type", "VARCHAR DEFAULT 'เงินนอกงบประมาณ'"),  # ประเภทเงินตามงบ (สมุดเงินสด)
     ("account_item", "parent_id", "INTEGER"),         # หมวดแม่ (ซ้อนหมวดย่อย 2 ชั้น)
     ("lunch_program", "pool", "INTEGER DEFAULT 0"),   # 1 = ทะเบียนภาวะโภชนาการรวมของโรงเรียน (ซ่อนจากรายการโครงการ)
+    ("lunch_menu", "groups", "VARCHAR DEFAULT ''"),   # หมู่อาหารครบ 5 หมู่ (1-5 คั่นจุลภาค)
 ]
 
 

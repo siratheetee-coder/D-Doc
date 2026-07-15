@@ -22,6 +22,14 @@
     <datalist id="mains_dl">{% for pm in past_menus %}<option value="{{ pm.main }}">{% endfor %}</datalist>
     <datalist id="desserts_dl">{% for d in desserts %}<option value="{{ d }}">{% endfor %}</datalist>
     <p class="muted" style="font-size:13px; margin:2px 0;">เลือกจานหลักที่เคยใช้ ระบบจะเติมของหวานที่เคยคู่กันให้อัตโนมัติ (แก้ได้)</p>
+    <label>อาหารครบ 5 หมู่ <span class="muted" style="font-weight:400;">(ติ๊กหมู่ที่มีในเมนูวันนี้ ตามหลักโภชนาการ)</span></label>
+    <div style="display:flex; gap:16px; flex-wrap:wrap; margin:4px 0 10px;">
+      {% for gid, gname in food_groups.items() %}
+      <label style="display:flex; align-items:center; gap:5px; font-weight:400; font-size:14px;">
+        <input type="checkbox" name="groups" value="{{ gid }}" {{ 'checked' if gid in edit_groups }}> {{ gid }}. {{ gname }}
+      </label>
+      {% endfor %}
+    </div>
     <label>หมายเหตุ</label><input name="note" value="{{ edit.note if edit else '' }}">
     <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> {{ 'บันทึกการแก้ไข' if edit else 'เพิ่มเมนู' }}</button>
     {% if edit %}<a class="btn gray" href="/lunch/{{ p.id }}/menu">ยกเลิก</a>{% endif %}
@@ -29,21 +37,46 @@
 </div>
 
 <div class="card">
-  <h2>เมนูทั้งหมด {% if menus %}<span class="muted" style="font-size:15px;">({{ menus|length }} วัน)</span>{% endif %}</h2>
-  {% if menus %}
+  <h2>เมนูแนะนำ (ครบ 5 หมู่)</h2>
+  <p class="muted" style="margin-top:0;">กด "เพิ่ม" เพื่อใส่ลงตารางเลย (ครบ 5 หมู่ให้อัตโนมัติ) แล้วค่อยกำหนดวันที่ · ไว้หมุนเวียนรายสัปดาห์</p>
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    {% for sm in std_menus %}
+    <form method="post" action="/lunch/{{ p.id }}/menu/add" style="margin:0; border:1px solid var(--border); border-radius:10px; padding:8px 10px; min-width:210px;">
+      <input type="hidden" name="main" value="{{ sm.main }}">
+      <input type="hidden" name="dessert" value="{{ sm.dessert }}">
+      {% for gid in food_groups %}<input type="hidden" name="groups" value="{{ gid }}">{% endfor %}
+      <div style="font-size:14px; font-weight:600;">{{ sm.main }}</div>
+      <div class="muted" style="font-size:12.5px;">ของหวาน: {{ sm.dessert }}</div>
+      <button class="btn sm soft" type="submit" style="margin-top:6px;"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มลงตาราง</button>
+    </form>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>เมนูทั้งหมด {% if menu_rows %}<span class="muted" style="font-size:15px;">({{ menu_rows|length }} วัน)</span>{% endif %}</h2>
+  {% if menu_rows %}
   <div class="table-wrap">
   <table>
-    <thead><tr><th style="width:120px;">วันที่</th><th>อาหารคาว</th><th>ของหวาน/ผลไม้</th><th>หมายเหตุ</th><th></th></tr></thead>
+    <thead><tr><th style="width:120px;">วันที่</th><th>อาหารคาว</th><th>ของหวาน/ผลไม้</th><th>ครบ 5 หมู่</th><th>หมายเหตุ</th><th></th></tr></thead>
     <tbody>
-    {% for m in menus %}
+    {% for r in menu_rows %}
       <tr>
-        <td>{{ be_date(m.date) if m.date else '-' }}</td>
-        <td>{{ m.main }}</td>
-        <td>{{ m.dessert }}</td>
-        <td class="muted">{{ m.note }}</td>
+        <td>{{ be_date(r.m.date) if r.m.date else '-' }}</td>
+        <td>{{ r.m.main }}</td>
+        <td>{{ r.m.dessert }}</td>
         <td style="white-space:nowrap;">
-          <a class="btn sm gray" href="/lunch/{{ p.id }}/menu?edit={{ m.id }}">แก้ไข</a>
-          <form method="post" action="/lunch/menu/{{ m.id }}/delete" onsubmit="return confirm('ลบเมนูนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
+          {% if not r.got %}<span class="muted">—</span>
+          {% elif not r.missing %}<span class="pill" style="background:#dcfce7;color:#15803d;font-size:12px;">✓ ครบ 5 หมู่</span>
+          {% else %}
+            <span class="pill" style="background:#fff4e5;color:#b45309;font-size:12px;">{{ r.got|length }}/5 หมู่</span>
+            <div class="muted" style="font-size:11px;">ขาด: {{ r.missing|join(', ') }}</div>
+          {% endif %}
+        </td>
+        <td class="muted">{{ r.m.note }}</td>
+        <td style="white-space:nowrap;">
+          <a class="btn sm gray" href="/lunch/{{ p.id }}/menu?edit={{ r.m.id }}">แก้ไข</a>
+          <form method="post" action="/lunch/menu/{{ r.m.id }}/delete" onsubmit="return confirm('ลบเมนูนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
         </td>
       </tr>
     {% endfor %}
@@ -51,7 +84,7 @@
   </table>
   </div>
   {% else %}
-  <p class="muted">ยังไม่มีเมนู เพิ่มด้านบน</p>
+  <p class="muted">ยังไม่มีเมนู เพิ่มด้านบน หรือกดเมนูแนะนำ</p>
   {% endif %}
 </div>
 <script>

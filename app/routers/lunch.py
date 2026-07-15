@@ -37,6 +37,29 @@ OPERATE_MODES = {
     "self": "โรงเรียนดำเนินการเอง",
 }
 
+# อาหารหลัก 5 หมู่ (ตามหลักโภชนาการ)
+FOOD_GROUPS = {
+    "1": "โปรตีน (เนื้อ/ไข่/นม/ถั่ว)",
+    "2": "ข้าว-แป้ง (คาร์โบไฮเดรต)",
+    "3": "ผัก (เกลือแร่)",
+    "4": "ผลไม้ (วิตามิน)",
+    "5": "ไขมัน",
+}
+
+# เมนูแนะนำมาตรฐาน (ครบ 5 หมู่) — กดเพิ่มเข้าตารางได้เลย ไว้หมุนเวียนรายสัปดาห์
+STD_MENUS = [
+    {"main": "ข้าว + ผัดกะเพราไก่ ไข่ดาว", "dessert": "กล้วยน้ำว้า"},
+    {"main": "ข้าว + แกงจืดเต้าหู้หมูสับ", "dessert": "ส้ม"},
+    {"main": "ข้าว + ไข่พะโล้ + ผักลวก", "dessert": "มะละกอสุก"},
+    {"main": "ข้าว + ผัดผักรวมใส่หมู", "dessert": "แตงโม"},
+    {"main": "ก๋วยเตี๋ยวหมูตุ๋น ใส่ผัก", "dessert": "ฝรั่ง"},
+    {"main": "ข้าว + ไก่ทอด + ต้มจืดผัก", "dessert": "สับปะรด"},
+    {"main": "ข้าว + แกงเขียวหวานไก่", "dessert": "กล้วยบวชชี"},
+    {"main": "ข้าว + หมูผัดขิง + ผักลวก", "dessert": "มะม่วงสุก"},
+    {"main": "ข้าวผัดหมู/ไก่ ใส่ผัก", "dessert": "นมจืด + กล้วย"},
+    {"main": "ข้าว + ปลาทอด + ต้มจืดฟัก", "dessert": "องุ่น"},
+]
+
 
 def lunch_rate(total: int) -> float:
     """อัตราเงินอุดหนุนต่อหัว/วัน ตามขนาดโรงเรียน (มติ ครม. 8 พ.ย. 2565)"""
@@ -481,29 +504,41 @@ def menu_page(pid: int, request: Request, db: Session = Depends(get_db),
             seen.add(key)
             past.append({"main": key, "dessert": (mm.dessert or "").strip()})
     desserts = sorted({(mm.dessert or "").strip() for mm in db.query(LunchMenu).all() if (mm.dessert or "").strip()})
+    # แต่ละเมนู: หมู่ที่ครบ + หมู่ที่ขาด (ตาม 5 หมู่)
+    menu_rows = []
+    for m in prog.menus:
+        got = [g for g in (m.groups or "").split(",") if g in FOOD_GROUPS]
+        missing = [FOOD_GROUPS[g] for g in FOOD_GROUPS if g not in got]
+        menu_rows.append({"m": m, "got": got, "missing": missing})
     return templates.TemplateResponse("lunch_menu.html", {
         "request": request, "school": get_school(db), "p": prog,
-        "menus": prog.menus, "edit": edit_row, "past_menus": past, "desserts": desserts,
+        "menu_rows": menu_rows, "edit": edit_row, "past_menus": past, "desserts": desserts,
+        "food_groups": FOOD_GROUPS, "std_menus": STD_MENUS,
+        "edit_groups": [g for g in (edit_row.groups or "").split(",")] if edit_row else [],
         "today_be": be_date_input(datetime.now()),
     })
 
 
+def _clean_groups(groups) -> str:
+    return ",".join(g for g in FOOD_GROUPS if g in (groups or []))
+
+
 @router.post("/lunch/{pid}/menu/add")
 def menu_add(pid: int, db: Session = Depends(get_db),
-             date: str = Form(""), main: str = Form(""),
-             dessert: str = Form(""), note: str = Form("")):
+             date: str = Form(""), main: str = Form(""), dessert: str = Form(""),
+             note: str = Form(""), groups: list[str] = Form([])):
     if not db.get(LunchProgram, pid):
         return RedirectResponse("/lunch", status_code=303)
     db.add(LunchMenu(program_id=pid, date=parse_be_date(date), main=main.strip(),
-                     dessert=dessert.strip(), note=note.strip()))
+                     dessert=dessert.strip(), note=note.strip(), groups=_clean_groups(groups)))
     db.commit()
     return RedirectResponse(f"/lunch/{pid}/menu", status_code=303)
 
 
 @router.post("/lunch/menu/{mid}/update")
 def menu_update(mid: int, db: Session = Depends(get_db),
-                date: str = Form(""), main: str = Form(""),
-                dessert: str = Form(""), note: str = Form("")):
+                date: str = Form(""), main: str = Form(""), dessert: str = Form(""),
+                note: str = Form(""), groups: list[str] = Form([])):
     m = db.get(LunchMenu, mid)
     if not m:
         return RedirectResponse("/lunch", status_code=303)
@@ -511,6 +546,7 @@ def menu_update(mid: int, db: Session = Depends(get_db),
     m.main = main.strip()
     m.dessert = dessert.strip()
     m.note = note.strip()
+    m.groups = _clean_groups(groups)
     db.commit()
     return RedirectResponse(f"/lunch/{m.program_id}/menu", status_code=303)
 
