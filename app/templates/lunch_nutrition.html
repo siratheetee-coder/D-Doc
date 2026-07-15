@@ -5,11 +5,8 @@
 {% macro badge(g) %}{% if g %}<span class="pill" style="{{ whcolor(g) }}">{{ g }}</span>{% else %}<span class="muted">-</span>{% endif %}{% endmacro %}
 
 <div class="card">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-    <h1 style="margin:0;">ภาวะโภชนาการนักเรียน (ปีการศึกษา {{ p.year }})</h1>
-    <a class="btn sm gray" href="/lunch/{{ p.id }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับหน้าโครงการ</a>
-  </div>
-  <p class="muted" style="margin-bottom:0;">บันทึกน้ำหนัก/ส่วนสูงรายเทอม ระบบจัดกลุ่มอัตโนมัติตามเกณฑ์กรมอนามัย (ใช้ผลเทอมล่าสุดในสรุป)</p>
+  <h1 style="margin:0;">ภาวะโภชนาการนักเรียน</h1>
+  <p class="muted" style="margin-bottom:0;">ทะเบียนรวมของโรงเรียน · บันทึกน้ำหนัก/ส่วนสูงรายเทอม ระบบจัดกลุ่มอัตโนมัติตามเกณฑ์กรมอนามัย (ใช้ผลเทอมล่าสุดในสรุป)</p>
 </div>
 
 <div class="card">
@@ -47,16 +44,16 @@
 
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-    <h2 style="margin:0;">นักเรียนในโครงการ (ปีการศึกษา {{ p.year }})</h2>
+    <h2 style="margin:0;">ทะเบียนนักเรียน (ภาวะโภชนาการ)</h2>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <form method="post" action="/lunch/{{ p.id }}/nutrition/pull-roster" style="margin:0;">
+      <form method="post" action="/lunch/nutrition/pull-roster" style="margin:0;">
         <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-users"/></svg> ดึงจากทะเบียนนักเรียนกลาง</button>
       </form>
       <a class="btn sm gray" href="/students" target="_blank"><svg class="icon"><use href="#ic-clipboard"/></svg> จัดการ/นำเข้าทะเบียนนักเรียน</a>
     </div>
   </div>
   <p class="muted" style="margin:6px 0 10px;">ดึงรายชื่อจาก <a href="/students" target="_blank">ทะเบียนนักเรียนกลาง</a> (นำเข้า Excel ได้ที่นั่น) เข้าโครงการปีนี้เพื่อบันทึกน้ำหนัก/ส่วนสูง · หรือเพิ่มทีละคนด้านล่าง</p>
-  <form method="post" action="/lunch/{{ p.id }}/nutrition/student/add" class="row" style="align-items:flex-end;">
+  <form method="post" action="/lunch/nutrition/student/add" class="row" style="align-items:flex-end;">
     <div style="flex:2;"><label>ชื่อ-นามสกุล</label><input name="name" required></div>
     <div><label>เพศ</label><select name="sex"><option value="M">ชาย</option><option value="F">หญิง</option></select></div>
     <div><label>วันเกิด</label><input name="birthdate" placeholder="วว/ดด/ปปปป" data-date="1" style="width:130px;"></div>

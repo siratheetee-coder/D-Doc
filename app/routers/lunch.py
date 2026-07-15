@@ -67,8 +67,9 @@ def _ledger_totals(prog: LunchProgram) -> dict:
 # ---------------- หน้าหลัก ----------------
 @router.get("/lunch", response_class=HTMLResponse)
 def lunch_home(request: Request, db: Session = Depends(get_db)):
-    progs = db.query(LunchProgram).order_by(LunchProgram.year.desc(),
-                                            LunchProgram.id.desc()).all()
+    progs = (db.query(LunchProgram)
+             .filter((LunchProgram.pool == 0) | (LunchProgram.pool.is_(None)))
+             .order_by(LunchProgram.year.desc(), LunchProgram.id.desc()).all())
     rows = [{"p": p, "totals": _ledger_totals(p)} for p in progs]
     return templates.TemplateResponse("lunch_home.html", {
         "request": request, "school": get_school(db), "rows": rows,
@@ -91,13 +92,21 @@ def lunch_setup_edit(pid: int, request: Request, db: Session = Depends(get_db)):
 
 
 def _setup_form(request, db, prog):
+    from_roster = False
     if prog and prog.classes:
         levels = [{"level": c.level, "num": c.num_students or 0} for c in prog.classes]
     else:
-        levels = [{"level": lv, "num": 0} for lv in DEFAULT_LEVELS]
+        # โครงการใหม่: ดึงจำนวนนักเรียนแต่ละชั้นจากทะเบียนนักเรียนกลางให้อัตโนมัติ
+        from app.models import Student
+        from collections import Counter
+        counts = Counter((s.level or "").strip() for s in db.query(Student).all()
+                         if (s.level or "").strip())
+        ordered = list(DEFAULT_LEVELS) + [lv for lv in counts if lv not in DEFAULT_LEVELS]
+        levels = [{"level": lv, "num": counts.get(lv, 0)} for lv in ordered]
+        from_roster = bool(counts)
     return templates.TemplateResponse("lunch_setup.html", {
         "request": request, "school": get_school(db), "p": prog,
-        "levels": levels, "modes": OPERATE_MODES,
+        "levels": levels, "modes": OPERATE_MODES, "from_roster": from_roster,
         "default_year": prog.year if prog else _current_academic_year(),
     })
 
@@ -148,6 +157,13 @@ def lunch_delete(pid: int, db: Session = Depends(get_db)):
         db.delete(prog)
         db.commit()
     return RedirectResponse("/lunch", status_code=303)
+
+
+# ---------------- ภาวะโภชนาการ (เมนูของตัวเอง — ต้องมาก่อน /lunch/{pid}) ----------------
+@router.get("/lunch/nutrition", response_class=HTMLResponse)
+def nutrition_page(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse("lunch_nutrition.html",
+                                      _nutrition_ctx(request, db, _nutrition_pool(db)))
 
 
 # ---------------- รายละเอียดโครงการ + บัญชีรับ-จ่าย ----------------
@@ -545,35 +561,33 @@ def _nutrition_ctx(request, db, prog):
     }
 
 
-@router.get("/lunch/{pid}/nutrition", response_class=HTMLResponse)
-def nutrition_page(pid: int, request: Request, db: Session = Depends(get_db)):
-    prog = db.get(LunchProgram, pid)
-    if not prog:
-        return RedirectResponse("/lunch", status_code=303)
-    return templates.TemplateResponse("lunch_nutrition.html", _nutrition_ctx(request, db, prog))
+def _nutrition_pool(db) -> LunchProgram:
+    """โปรแกรมพิเศษ (ซ่อน) เก็บทะเบียนภาวะโภชนาการรวมของโรงเรียน — สร้างครั้งเดียว ใช้ตลอด
+    ทำให้ภาวะโภชนาการเป็นเมนูของตัวเอง ไม่ผูกกับเรื่องจ้างเหมาแต่ละโครงการ"""
+    pool = db.query(LunchProgram).filter(LunchProgram.pool == 1).first()
+    if not pool:
+        pool = LunchProgram(year=_current_academic_year(), pool=1, note="ทะเบียนภาวะโภชนาการ")
+        db.add(pool); db.commit()
+    return pool
 
 
-@router.post("/lunch/{pid}/nutrition/student/add")
-def student_add(pid: int, db: Session = Depends(get_db),
-                name: str = Form(""), sex: str = Form(""),
+@router.post("/lunch/nutrition/student/add")
+def student_add(db: Session = Depends(get_db), name: str = Form(""), sex: str = Form(""),
                 birthdate: str = Form(""), level: str = Form("")):
-    if not db.get(LunchProgram, pid) or not name.strip():
-        return RedirectResponse(f"/lunch/{pid}/nutrition", status_code=303)
-    db.add(LunchStudent(program_id=pid, name=name.strip(), sex=sex,
-                        birthdate=parse_be_date(birthdate), level=level.strip()))
-    db.commit()
-    return RedirectResponse(f"/lunch/{pid}/nutrition", status_code=303)
+    if name.strip():
+        db.add(LunchStudent(program_id=_nutrition_pool(db).id, name=name.strip(), sex=sex,
+                            birthdate=parse_be_date(birthdate), level=level.strip()))
+        db.commit()
+    return RedirectResponse("/lunch/nutrition", status_code=303)
 
 
-@router.post("/lunch/{pid}/nutrition/pull-roster")
-def nutrition_pull_roster(pid: int, db: Session = Depends(get_db), level: str = Form("")):
-    """ดึงนักเรียนจากทะเบียนกลางเข้าโครงการนี้ (ข้ามคนที่ดึงมาแล้ว/ชื่อซ้ำ)"""
+@router.post("/lunch/nutrition/pull-roster")
+def nutrition_pull_roster(db: Session = Depends(get_db), level: str = Form("")):
+    """ดึงนักเรียนจากทะเบียนกลางเข้าทะเบียนภาวะโภชนาการ (ข้ามคนที่ดึงมาแล้ว/ชื่อซ้ำ)"""
     from app.models import Student
-    prog = db.get(LunchProgram, pid)
-    if not prog:
-        return RedirectResponse("/lunch", status_code=303)
-    have_ids = {s.student_id for s in prog.students if s.student_id}
-    have_names = {(s.name or "").strip() for s in prog.students}
+    pool = _nutrition_pool(db)
+    have_ids = {s.student_id for s in pool.students if s.student_id}
+    have_names = {(s.name or "").strip() for s in pool.students}
     q = db.query(Student)
     lv = (level or "").strip()
     if lv:
@@ -581,18 +595,16 @@ def nutrition_pull_roster(pid: int, db: Session = Depends(get_db), level: str = 
     for st in q.order_by(Student.level, Student.name).all():
         if st.id in have_ids or (st.name or "").strip() in have_names:
             continue
-        db.add(LunchStudent(program_id=pid, student_id=st.id, name=st.name,
+        db.add(LunchStudent(program_id=pool.id, student_id=st.id, name=st.name,
                             sex=st.sex, birthdate=st.birthdate, level=st.level))
     db.commit()
-    return RedirectResponse(f"/lunch/{pid}/nutrition", status_code=303)
+    return RedirectResponse("/lunch/nutrition", status_code=303)
 
 
-@router.post("/lunch/{pid}/nutrition/students/bulk")
-def students_bulk_add(pid: int, db: Session = Depends(get_db), bulk: str = Form("")):
+@router.post("/lunch/nutrition/students/bulk")
+def students_bulk_add(db: Session = Depends(get_db), bulk: str = Form("")):
     """เพิ่มนักเรียนทีละหลายคน: 1 บรรทัด = ชื่อ, เพศ(ช/ญ), วันเกิด, ชั้น (คั่นจุลภาคหรือ Tab)"""
-    if not db.get(LunchProgram, pid):
-        return RedirectResponse("/lunch", status_code=303)
-    n = 0
+    pool = _nutrition_pool(db)
     for line in (bulk or "").splitlines():
         line = line.strip()
         if not line:
@@ -605,10 +617,9 @@ def students_bulk_add(pid: int, db: Session = Depends(get_db), bulk: str = Form(
         sex = "M" if sx in ("ช", "ชาย", "M", "m") else "F" if sx in ("ญ", "หญิง", "F", "f") else ""
         birth = parse_be_date(parts[2]) if len(parts) > 2 else None
         level = parts[3] if len(parts) > 3 else ""
-        db.add(LunchStudent(program_id=pid, name=name, sex=sex, birthdate=birth, level=level))
-        n += 1
+        db.add(LunchStudent(program_id=pool.id, name=name, sex=sex, birthdate=birth, level=level))
     db.commit()
-    return RedirectResponse(f"/lunch/{pid}/nutrition", status_code=303)
+    return RedirectResponse("/lunch/nutrition", status_code=303)
 
 
 @router.post("/lunch/student/{sid}/update")
@@ -624,7 +635,7 @@ def student_update(sid: int, db: Session = Depends(get_db),
     s.birthdate = parse_be_date(birthdate)
     s.level = level.strip()
     db.commit()
-    return RedirectResponse(f"/lunch/{s.program_id}/nutrition", status_code=303)
+    return RedirectResponse("/lunch/nutrition", status_code=303)
 
 
 @router.post("/lunch/student/{sid}/measure")
@@ -643,7 +654,7 @@ def student_measure(sid: int, db: Session = Depends(get_db),
     m.weight = _to_float(weight, 0.0)
     m.height = _to_float(height, 0.0)
     db.commit()
-    return RedirectResponse(f"/lunch/{s.program_id}/nutrition", status_code=303)
+    return RedirectResponse("/lunch/nutrition", status_code=303)
 
 
 @router.post("/lunch/student/{sid}/delete")
@@ -653,7 +664,7 @@ def student_delete(sid: int, db: Session = Depends(get_db)):
     if s:
         db.delete(s)
         db.commit()
-    return RedirectResponse(f"/lunch/{pid}/nutrition" if pid else "/lunch", status_code=303)
+    return RedirectResponse("/lunch/nutrition", status_code=303)
 
 
 # ---------------- งวดงานย่อยในสัญญา ----------------

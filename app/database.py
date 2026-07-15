@@ -88,6 +88,7 @@ MIGRATIONS = [
     ("person", "signature", "VARCHAR DEFAULT ''"),    # ไฟล์ลายเซ็นบุคลากร (PNG โปร่งใส)
     ("finance_account", "fund_type", "VARCHAR DEFAULT 'เงินนอกงบประมาณ'"),  # ประเภทเงินตามงบ (สมุดเงินสด)
     ("account_item", "parent_id", "INTEGER"),         # หมวดแม่ (ซ้อนหมวดย่อย 2 ชั้น)
+    ("lunch_program", "pool", "INTEGER DEFAULT 0"),   # 1 = ทะเบียนภาวะโภชนาการรวมของโรงเรียน (ซ่อนจากรายการโครงการ)
 ]
 
 

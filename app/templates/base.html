@@ -520,7 +520,8 @@
         {% elif module == 'lunch' %}
         <div class="nav-sec">งานอาหารกลางวัน</div>
         <a href="/lunch" class="{{ 'active' if path == '/lunch' }}"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลักอาหารกลางวัน</a>
-        <a href="/lunch/setup" class="{{ 'active' if path.startswith('/lunch/setup') }}"><svg class="icon"><use href="#ic-file-plus"/></svg> ตั้งโครงการ/คำนวณงบ</a>
+        <a href="/lunch/setup" class="{{ 'active' if path.startswith('/lunch/setup') }}"><svg class="icon"><use href="#ic-file-plus"/></svg> สร้างโครงการใหม่</a>
+        <a href="/lunch/nutrition" class="{{ 'active' if path.startswith('/lunch/nutrition') }}"><svg class="icon"><use href="#ic-users"/></svg> ภาวะโภชนาการ</a>
 
         {% else %}{# hub #}
         <div class="nav-sec">เลือกงาน</div>

@@ -720,6 +720,7 @@ class LunchProgram(Base):
     operate_mode = Column(String, default="hire")   # hire=จ้างเหมาปรุงสำเร็จ / ingredient=ซื้อวัตถุดิบ+แม่ครัว / self=ทำเอง
     funding_org = Column(String, default="")        # อปท.ผู้จัดสรร (เทศบาล/อบต.)
     note = Column(Text, default="")
+    pool = Column(Integer, default=0)               # 1 = โปรแกรมพิเศษเก็บทะเบียนภาวะโภชนาการรวมของโรงเรียน (ซ่อนจากรายการโครงการ)
     created_at = Column(DateTime, default=datetime.now)
 
     classes = relationship("LunchClass", back_populates="program",

@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}ตั้งโครงการอาหารกลางวัน{% endblock %}
+{% block title %}{{ 'แก้ไขโครงการ' if p else 'สร้างโครงการใหม่' }}อาหารกลางวัน{% endblock %}
 {% block content %}
 <div class="card">
-  <h1>{{ 'แก้ไข' if p else 'ตั้ง' }}โครงการอาหารกลางวัน</h1>
+  <h1>{{ 'แก้ไขโครงการ' if p else 'สร้างโครงการใหม่' }}อาหารกลางวัน</h1>
   <form method="post" action="/lunch/save">
     {% if p %}<input type="hidden" name="pid" value="{{ p.id }}">{% endif %}
     <div class="row">
@@ -20,6 +20,7 @@
     </div>
 
     <h2 style="margin-top:20px;">จำนวนนักเรียนแยกระดับชั้น</h2>
+    {% if from_roster %}<p class="muted" style="margin-top:0;">✓ ดึงจำนวนนักเรียนแต่ละชั้นจาก<a href="/students" target="_blank">ทะเบียนนักเรียนกลาง</a>ให้อัตโนมัติแล้ว — แก้ไขได้ตามต้องการ</p>{% endif %}
     <table id="lvTable">
       <thead><tr><th>ระดับชั้น</th><th>จำนวนนักเรียน</th></tr></thead>
       <tbody>
