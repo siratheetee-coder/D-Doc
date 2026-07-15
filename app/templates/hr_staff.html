@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}ทะเบียนบุคลากร{% endblock %}
+{% block content %}
+<div class="card">
+  <h1 style="margin:0;">ทะเบียนบุคลากร</h1>
+  <p class="muted" style="margin:6px 0 0;">ข้อมูลใช้ร่วมกับทั้งระบบ (กรรมการ/ผู้ลงนาม) · เพิ่มข้อมูลงานบุคคลเพื่อออกหนังสือรับรอง/ใบลา</p>
+</div>
+
+<div class="card">
+  <h2>{{ 'แก้ไขบุคลากร' if edit else 'เพิ่มบุคลากร' }}</h2>
+  <form method="post" action="{{ ('/hr/staff/' ~ edit.id ~ '/update') if edit else '/hr/staff/add' }}">
+    <div class="row">
+      <div style="flex:2;"><label>ชื่อ-นามสกุล (มีคำนำหน้า) *</label><input name="name" required value="{{ edit.name if edit else '' }}" placeholder="เช่น นายสมชาย ใจดี"></div>
+      <div><label>ประเภท</label>
+        <select name="person_type">{% for t in person_types %}<option value="{{ t }}" {{ 'selected' if edit and edit.person_type==t }}>{{ t }}</option>{% endfor %}</select>
+      </div>
+      <div><label>ตำแหน่ง</label><input name="position" value="{{ edit.position if edit else 'ครู' }}"></div>
+      <div><label>วิทยฐานะ/ระดับ</label><input name="rank" value="{{ edit.rank if edit else '' }}" placeholder="เช่น ครู คศ.1"></div>
+    </div>
+    <div class="row">
+      <div><label>เลขบัตรประชาชน</label><input name="id_card" value="{{ edit.id_card if edit else '' }}" inputmode="numeric" maxlength="13"></div>
+      <div><label>วันเกิด</label><input name="birthdate" value="{{ be_date(edit.birthdate) if edit and edit.birthdate else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>วันบรรจุ/เริ่มงาน</label><input name="start_date" value="{{ be_date(edit.start_date) if edit and edit.start_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>เงินเดือน (บาท)</label><input name="salary" type="number" step="0.01" value="{{ '%g'|format(edit.salary) if edit and edit.salary else '' }}"></div>
+    </div>
+    <div class="row">
+      <div><label>เบอร์โทร</label><input name="phone" value="{{ edit.phone if edit else '' }}"></div>
+      <div><label>อีเมล</label><input name="email" value="{{ edit.email if edit else '' }}"></div>
+      <div><label>สถานะ</label><select name="active"><option value="1" {{ 'selected' if not edit or edit.active }}>ปฏิบัติงาน</option><option value="0" {{ 'selected' if edit and not edit.active }}>พ้น/ย้าย</option></select></div>
+    </div>
+    <br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> {{ 'บันทึกการแก้ไข' if edit else 'เพิ่มบุคลากร' }}</button>
+    {% if edit %}<a class="btn gray" href="/hr/staff">ยกเลิก</a>{% endif %}
+  </form>
+</div>
+
+<div class="card">
+  <h2>บุคลากรทั้งหมด {% if persons %}<span class="muted" style="font-size:15px;">({{ persons|length }} คน)</span>{% endif %}</h2>
+  {% if persons %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>ชื่อ-นามสกุล</th><th>ประเภท</th><th>ตำแหน่ง/วิทยฐานะ</th><th>วันบรรจุ</th><th>สถานะ</th><th>หนังสือรับรอง</th><th></th></tr></thead>
+    <tbody>
+    {% for p in persons %}
+      <tr{% if not p.active %} style="opacity:.55;"{% endif %}>
+        <td><b>{{ p.name }}</b>{% if p.phone %} <span class="muted" style="font-size:12px;">· {{ p.phone }}</span>{% endif %}</td>
+        <td>{{ p.person_type or '-' }}</td>
+        <td>{{ p.position or '-' }}{% if p.rank %} <span class="muted">· {{ p.rank }}</span>{% endif %}</td>
+        <td>{{ be_date(p.start_date) if p.start_date else '-' }}</td>
+        <td>{% if p.active %}<span class="pill" style="background:var(--brand-soft);color:var(--brand-dark);">ปฏิบัติงาน</span>{% else %}<span class="muted">พ้น/ย้าย</span>{% endif %}</td>
+        <td style="white-space:nowrap;">
+          <a class="btn sm gray" href="/hr/staff/{{ p.id }}/certificate.docx?kind=status" title="รับรองการเป็นบุคลากร">การเป็นบุคลากร</a>
+          <a class="btn sm gray" href="/hr/staff/{{ p.id }}/certificate.docx?kind=salary" title="รับรองเงินเดือน">เงินเดือน</a>
+        </td>
+        <td style="white-space:nowrap;">
+          <a class="btn sm gray" href="/hr/staff?edit={{ p.id }}">แก้ไข</a>
+          <form method="post" action="/hr/staff/{{ p.id }}/delete" onsubmit="return confirm('ลบบุคลากรคนนี้? (รายการลาที่ผูกจะถูกลบด้วย)');" style="display:inline; margin:0;"><button class="btn red sm" type="submit"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted">ยังไม่มีบุคลากร เพิ่มด้านบน</p>{% endif %}
+</div>
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

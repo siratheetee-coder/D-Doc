@@ -90,6 +90,15 @@ MIGRATIONS = [
     ("account_item", "parent_id", "INTEGER"),         # หมวดแม่ (ซ้อนหมวดย่อย 2 ชั้น)
     ("lunch_program", "pool", "INTEGER DEFAULT 0"),   # 1 = ทะเบียนภาวะโภชนาการรวมของโรงเรียน (ซ่อนจากรายการโครงการ)
     ("lunch_menu", "groups", "VARCHAR DEFAULT ''"),   # หมู่อาหารครบ 5 หมู่ (1-5 คั่นจุลภาค)
+    # ---- งานบุคคล: ข้อมูลเพิ่มใน Person ----
+    ("person", "person_type", "VARCHAR DEFAULT 'ครู'"),
+    ("person", "rank", "VARCHAR DEFAULT ''"),
+    ("person", "id_card", "VARCHAR DEFAULT ''"),
+    ("person", "birthdate", "DATETIME"),
+    ("person", "start_date", "DATETIME"),
+    ("person", "phone", "VARCHAR DEFAULT ''"),
+    ("person", "email", "VARCHAR DEFAULT ''"),
+    ("person", "salary", "FLOAT DEFAULT 0"),
 ]
 
 

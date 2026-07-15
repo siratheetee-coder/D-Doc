@@ -138,6 +138,16 @@
       <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
       {% else %}<span class="hub-soon">เร็วๆ นี้</span>{% endif %}
     </a>
+
+    <a class="hub-card {{ '' if modules_live.hr else 'dim' }}" style="--c:#0d9488; --c2:#2dd4bf;"
+       href="{{ '/hr' if modules_live.hr else '#' }}" {{ '' if modules_live.hr else 'onclick=return false;'|safe }}>
+      <span class="hub-ic"><svg class="icon"><use href="#ic-users"/></svg></span>
+      <h2>งานบุคคล</h2>
+      <div class="desc">ทะเบียนบุคลากร · ทะเบียนวันลา (คงเหลืออัตโนมัติ) · ใบลา · หนังสือรับรอง</div>
+      {% if modules_live.hr %}
+      <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      {% else %}<span class="hub-soon">เร็วๆ นี้</span>{% endif %}
+    </a>
   </div>
 
   <!-- ภาพรวมปีงบ -->

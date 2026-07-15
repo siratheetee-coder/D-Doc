@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}ทะเบียนวันลา{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">ทะเบียนวันลา <span class="muted" style="font-size:16px;">ปี พ.ศ. {{ year }}</span></h1>
+    <form method="get" action="/hr/leave">
+      <select name="year" onchange="this.form.submit()">{% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>ปี {{ y }}</option>{% endfor %}</select>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-calendar"/></svg> สิทธิ์วันลาต่อปี (ปี {{ year }})</h2>
+  <p class="muted" style="margin-top:0;">ตั้งจำนวนวันลาที่ได้ต่อปีของแต่ละประเภท (วันทำการ) หรือกดตั้งตามระเบียบราชการ</p>
+  <form method="post" action="/hr/leave/entitlement">
+    <input type="hidden" name="year" value="{{ year }}">
+    <div class="row" style="align-items:flex-end;">
+      {% for lt, label in leave_types.items() %}
+      <div><label>{{ label }}</label><input name="ent_{{ lt }}" type="number" step="0.5" min="0" value="{{ '%g'|format(ent[lt]) if ent[lt] else '' }}" style="width:100px;"></div>
+      {% endfor %}
+      <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกสิทธิ์</button></div>
+    </div>
+  </form>
+  <form method="post" action="/hr/leave/entitlement/standard" style="margin-top:10px;"
+        onsubmit="return confirm('ตั้งสิทธิ์ลาตามระเบียบราชการ (ป่วย 60 / กิจ 45 / พักผ่อน 10 / คลอด 90 / อุปสมบท 120)?');">
+    <input type="hidden" name="year" value="{{ year }}">
+    <button class="btn sm soft" type="submit"><svg class="icon"><use href="#ic-download"/></svg> ตั้งสิทธิ์ลาตามระเบียบราชการ</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> บันทึกการลา</h2>
+  <form method="post" action="/hr/leave/add" class="row" style="align-items:flex-end;">
+    <input type="hidden" name="year" value="{{ year }}">
+    <div style="flex:2;"><label>บุคลากร *</label>
+      <select name="person_id" required><option value="">— เลือก —</option>{% for p in persons %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
+    </div>
+    <div><label>ประเภทลา</label><select name="leave_type">{% for lt, label in leave_types.items() %}<option value="{{ lt }}">{{ label }}</option>{% endfor %}</select></div>
+    <div><label>ตั้งแต่วันที่</label><input name="start_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:124px;"></div>
+    <div><label>ถึงวันที่</label><input name="end_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:124px;"></div>
+    <div><label>จำนวน (วัน)</label><input name="days" type="number" step="0.5" min="0" value="1" style="width:84px;"></div>
+    <div style="flex:2;"><label>เหตุผล</label><input name="reason"></div>
+    <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>สรุปวันลาคงเหลือรายคน</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>บุคลากร</th>{% for lt, label in leave_types.items() %}<th class="right">{{ label }}<br><span class="muted" style="font-weight:400; font-size:11px;">ใช้/คงเหลือ</span></th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for s in summary %}
+      <tr>
+        <td><b>{{ s.p.name }}</b></td>
+        {% for lt in leave_types %}
+        <td class="right">
+          <span style="{{ 'color:#dc2626;font-weight:700;' if s.rows[lt].remain < 0 }}">{{ '%g'|format(s.rows[lt].used) }}</span>
+          <span class="muted"> / {{ '%g'|format(s.rows[lt].remain) }}</span>
+        </td>
+        {% endfor %}
+      </tr>
+    {% else %}<tr><td colspan="{{ leave_types|length + 1 }}" class="muted">ยังไม่มีบุคลากร</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="muted" style="font-size:12.5px; margin:6px 0 0;">ตัวเลข = วันที่ใช้ไป / วันคงเหลือ (คงเหลือ = สิทธิ์ − ใช้ไป) · แดง = ใช้เกินสิทธิ์</p>
+</div>
+
+<div class="card">
+  <h2>รายการลา ปี {{ year }} {% if records %}<span class="muted" style="font-size:15px;">({{ records|length }} รายการ)</span>{% endif %}</h2>
+  {% if records %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>บุคลากร</th><th>ประเภท</th><th>ช่วงวันที่</th><th class="right">วัน</th><th>เหตุผล</th><th></th></tr></thead>
+    <tbody>
+    {% for r in records %}
+      <tr>
+        <td>{{ r.person.name if r.person else '-' }}</td>
+        <td>{{ leave_types.get(r.leave_type, r.leave_type) }}</td>
+        <td>{{ be_date(r.start_date) if r.start_date else '-' }}{% if r.end_date %} – {{ be_date(r.end_date) }}{% endif %}</td>
+        <td class="right">{{ '%g'|format(r.days) }}</td>
+        <td class="muted">{{ r.reason }}</td>
+        <td style="white-space:nowrap;">
+          <a class="btn sm gray" href="/hr/leave/{{ r.id }}/form.docx"><svg class="icon"><use href="#ic-download"/></svg> ใบลา</a>
+          <form method="post" action="/hr/leave/{{ r.id }}/delete" onsubmit="return confirm('ลบรายการลานี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted">ยังไม่มีรายการลาในปีนี้</p>{% endif %}
+</div>
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

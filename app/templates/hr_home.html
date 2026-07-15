@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}งานบุคคล{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">บริหารงานบุคคล · ทะเบียนบุคลากร · วันลา · หนังสือรับรอง</div>
+    <span class="hero-title">งานบุคคล</span>
+    <div class="hero-meta">{{ school.name or "" }} · ปี พ.ศ. {{ year }}</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="stat">
+    <div class="box"><div><div class="lab">บุคลากร (ปฏิบัติงาน)</div><div class="num">{{ n_staff }}</div></div>
+      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-users"/></svg></span></div>
+    <div class="box"><div><div class="lab">รายการลา ปี {{ year }}</div><div class="num">{{ n_leaves }}</div></div>
+      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-calendar"/></svg></span></div>
+    <div class="box"><div><div class="lab">รวมวันลา ปี {{ year }}</div><div class="num">{{ "%g"|format(days_leaves) }}</div></div>
+      <span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-file"/></svg></span></div>
+  </div>
+</div>
+
+<div class="hub-grid" style="grid-template-columns:repeat(2,1fr); gap:18px;">
+  <a class="card" href="/hr/staff" style="text-decoration:none;">
+    <h2><svg class="icon"><use href="#ic-users"/></svg> ทะเบียนบุคลากร</h2>
+    <p class="muted" style="margin:0;">ข้อมูลครู/บุคลากร ตำแหน่ง วิทยฐานะ วันบรรจุ · ออกหนังสือรับรอง (การเป็นบุคลากร/เงินเดือน)</p>
+  </a>
+  <a class="card" href="/hr/leave" style="text-decoration:none;">
+    <h2><svg class="icon"><use href="#ic-calendar"/></svg> ทะเบียนวันลา</h2>
+    <p class="muted" style="margin:0;">บันทึกการลา (ป่วย/กิจ/พักผ่อน ฯลฯ) · คำนวณวันลาคงเหลืออัตโนมัติ · ออกใบลา</p>
+  </a>
+</div>
+{% endblock %}

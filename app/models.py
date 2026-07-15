@@ -53,7 +53,7 @@ class School(Base):
 
 
 class Person(Base):
-    """รายชื่อครู/บุคลากร (มาสเตอร์ลิสต์) ใช้เลือกเป็นกรรมการหรือผู้ลงนาม"""
+    """รายชื่อครู/บุคลากร (มาสเตอร์ลิสต์) ใช้เลือกเป็นกรรมการหรือผู้ลงนาม + ข้อมูลงานบุคคล"""
     __tablename__ = "person"
 
     id = Column(Integer, primary_key=True)
@@ -61,6 +61,18 @@ class Person(Base):
     position = Column(String, default="ครู")       # ตำแหน่ง
     active = Column(Boolean, default=True)
     signature = Column(String, default="")         # ไฟล์ลายเซ็น (PNG โปร่งใส) ใน data/signatures/
+    # ---- ข้อมูลงานบุคคล (เพิ่มเติม, ไม่บังคับ) ----
+    person_type = Column(String, default="ครู")    # ครู/ผู้บริหาร/ธุรการ/นักการ/อื่นๆ
+    rank = Column(String, default="")              # วิทยฐานะ/ระดับ เช่น ครู คศ.1
+    id_card = Column(String, default="")           # เลขบัตรประชาชน
+    birthdate = Column(DateTime, nullable=True)    # วันเดือนปีเกิด
+    start_date = Column(DateTime, nullable=True)   # วันบรรจุ/เริ่มปฏิบัติงาน
+    phone = Column(String, default="")
+    email = Column(String, default="")
+    salary = Column(Float, default=0.0)            # เงินเดือน (สำหรับหนังสือรับรอง)
+
+    leaves = relationship("LeaveRecord", back_populates="person",
+                          cascade="all, delete-orphan", order_by="LeaveRecord.start_date")
 
 
 class Department(Base):
@@ -942,3 +954,33 @@ class TextbookBerkItem(Base):
 
     berk = relationship("TextbookBerk", back_populates="items")
     book = relationship("TextBook")
+
+
+class LeaveEntitlement(Base):
+    """สิทธิ์วันลาต่อปี (ตั้งเองหรือกดตามระเบียบราชการ) ระดับโรงเรียน แยกตามปี+ประเภทลา"""
+    __tablename__ = "leave_entitlement"
+    __table_args__ = (UniqueConstraint("year", "leave_type", name="uq_leave_ent_year_type"),)
+
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, nullable=False)          # ปี พ.ศ.
+    leave_type = Column(String, nullable=False)     # sick/personal/vacation/maternity/ordain
+    days = Column(Float, default=0.0)               # สิทธิ์ (วันทำการ) ต่อปี
+
+
+class LeaveRecord(Base):
+    """รายการลาของบุคลากร (คำนวณวันลาคงเหลือ + ออกใบลา)"""
+    __tablename__ = "leave_record"
+
+    id = Column(Integer, primary_key=True)
+    person_id = Column(Integer, ForeignKey("person.id"), nullable=False)
+    year = Column(Integer, nullable=False)          # ปี พ.ศ. ที่นับสิทธิ์
+    leave_type = Column(String, default="sick")     # sick/personal/vacation/maternity/ordain
+    start_date = Column(DateTime, nullable=True)
+    end_date = Column(DateTime, nullable=True)
+    days = Column(Float, default=0.0)               # จำนวนวันลา (วันทำการ)
+    reason = Column(String, default="")             # เหตุผล/รายละเอียด
+    contact = Column(String, default="")            # ที่อยู่/เบอร์ติดต่อระหว่างลา
+    doc_no = Column(String, default="")             # เลขที่ใบลา (ถ้ามี)
+    created_at = Column(DateTime, default=datetime.now)
+
+    person = relationship("Person", back_populates="leaves")
