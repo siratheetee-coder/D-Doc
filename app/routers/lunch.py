@@ -216,6 +216,17 @@ def lunch_ledger_delete(lid: int, db: Session = Depends(get_db)):
     return RedirectResponse(f"/lunch/{pid}" if pid else "/lunch", status_code=303)
 
 
+@router.get("/lunch/ledger/{lid}/receipt.docx")
+def lunch_receipt_docx(lid: int, db: Session = Depends(get_db)):
+    """ใบสำคัญรับเงิน (จากรายการ 'รับ' ในบัญชีอาหารกลางวัน)"""
+    from app.services.lunch_receipt import render_lunch_receipt
+    led = db.get(LunchLedger, lid)
+    if not led:
+        return RedirectResponse("/lunch", status_code=303)
+    path = render_lunch_receipt(get_school(db), led.program, led)
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
 # ---------------- จ้างเหมารายรอบ ----------------
 def _weekday_count(start, end) -> int:
     """นับวันจันทร์-ศุกร์ระหว่างสองวันที่ (รวมปลายทาง) ใช้เสนอจำนวนวันทำการ"""

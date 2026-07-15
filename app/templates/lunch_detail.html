@@ -76,7 +76,10 @@
         <td class="right">{{ "{:,.2f}".format(r.l.amount) if r.l.kind=='in' else '' }}</td>
         <td class="right">{{ "{:,.2f}".format(r.l.amount) if r.l.kind=='out' else '' }}</td>
         <td class="right">{{ "{:,.2f}".format(r.running) }}</td>
-        <td><form method="post" action="/lunch/ledger/{{ r.l.id }}/delete" onsubmit="return confirm('ลบรายการนี้?');" style="margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form></td>
+        <td style="white-space:nowrap;">
+          {% if r.l.kind=='in' %}<a class="btn sm gray" href="/lunch/ledger/{{ r.l.id }}/receipt.docx" title="ใบสำคัญรับเงิน"><svg class="icon"><use href="#ic-download"/></svg> ใบสำคัญรับเงิน</a>{% endif %}
+          <form method="post" action="/lunch/ledger/{{ r.l.id }}/delete" onsubmit="return confirm('ลบรายการนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
+        </td>
       </tr>
     {% else %}
       <tr><td colspan="7" class="muted">ยังไม่มีรายการ</td></tr>
