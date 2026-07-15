@@ -533,17 +533,33 @@ def _measure_result(stu, m):
     return classify_all(stu.sex, stu.birthdate, m.weight, m.height, m.date)
 
 
+# น้ำหนักตามเกณฑ์ส่วนสูง: สมส่วน (index 2) = ดีที่สุด · ยิ่งห่างยิ่งเสี่ยง
+_WH_ORDER = {lbl: i for i, lbl in enumerate(WH_LABELS)}
+_WH_RISK = {"ผอม", "ค่อนข้างผอม", "เริ่มอ้วน", "อ้วน"}   # กลุ่มเฝ้าระวัง
+
+
+def _wh_trend(res):
+    """เทียบน้ำหนัก/ส่วนสูง เทอม 1 -> เทอม 2 : up=ดีขึ้น / down=แย่ลง / same=คงที่ / None=ข้อมูลไม่พอ"""
+    r1, r2 = res.get(1), res.get(2)
+    if not (r1 and r2 and r1.get("wh") in _WH_ORDER and r2.get("wh") in _WH_ORDER):
+        return None
+    d1 = abs(_WH_ORDER[r1["wh"]] - 2)
+    d2 = abs(_WH_ORDER[r2["wh"]] - 2)
+    return "up" if d2 < d1 else "down" if d2 > d1 else "same"
+
+
 def _nutrition_ctx(request, db, prog):
     students = prog.students
     rows = []
-    # นับสรุปจากผลเทอมล่าสุดของแต่ละคน
     wh_count = {k: 0 for k in WH_LABELS}
     ha_count = {k: 0 for k in HA_LABELS}
     wa_count = {k: 0 for k in WA_LABELS}
+    watch = []
     for s in students:
         ms = {m.term: m for m in s.measures}
         res = {t: _measure_result(s, ms.get(t)) for t in (1, 2)}
-        rows.append({"s": s, "m": ms, "res": res})
+        trend = _wh_trend(res)
+        rows.append({"s": s, "m": ms, "res": res, "trend": trend})
         latest = res.get(2) or res.get(1)
         if latest:
             if latest["wh"] in wh_count:
@@ -552,10 +568,27 @@ def _nutrition_ctx(request, db, prog):
                 ha_count[latest["ha"]] += 1
             if latest.get("wa") in wa_count:
                 wa_count[latest["wa"]] += 1
+            if latest.get("wh") in _WH_RISK:
+                r1w = (res.get(1) or {}).get("wh")
+                r2w = (res.get(2) or {}).get("wh")
+                watch.append({"s": s, "wh": latest["wh"], "trend": trend,
+                              "repeat": (r1w in _WH_RISK and r2w in _WH_RISK)})
     n = sum(wh_count.values())
+    # จัดกลุ่มตามระดับชั้น (ตามลำดับมาตรฐาน)
+    order = {lv: i for i, lv in enumerate(DEFAULT_LEVELS)}
+    rows_sorted = sorted(rows, key=lambda r: (order.get((r["s"].level or "").strip(), 99),
+                                              (r["s"].level or ""), r["s"].name or ""))
+    by_class = []
+    for r in rows_sorted:
+        lv = (r["s"].level or "").strip() or "ไม่ระบุชั้น"
+        if not by_class or by_class[-1]["level"] != lv:
+            by_class.append({"level": lv, "rows": []})
+        by_class[-1]["rows"].append(r)
+    watch.sort(key=lambda w: (not w["repeat"], order.get((w["s"].level or "").strip(), 99)))
     return {
         "request": request, "school": get_school(db), "p": prog,
-        "rows": rows, "wh_labels": WH_LABELS, "ha_labels": HA_LABELS, "wa_labels": WA_LABELS,
+        "rows": rows, "by_class": by_class, "watch": watch,
+        "wh_labels": WH_LABELS, "ha_labels": HA_LABELS, "wa_labels": WA_LABELS,
         "wh_count": wh_count, "ha_count": ha_count, "wa_count": wa_count, "assessed": n,
         "today_be": be_date_input(datetime.now()),
     }
