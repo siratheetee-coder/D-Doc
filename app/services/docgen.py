@@ -131,9 +131,9 @@ def generate_purchase_request(db, procurement: Procurement, school: School) -> s
         row = table.add_row().cells
         row[0].text = str(idx)
         row[1].text = item.name
-        row[2].text = f"{item.quantity:g} {item.unit}"
-        row[3].text = f"{item.unit_price:,.2f}"
-        row[4].text = f"{item.amount:,.2f}"
+        row[2].text = f"{(item.quantity or 0):g} {item.unit or ''}"
+        row[3].text = f"{(item.unit_price or 0):,.2f}"
+        row[4].text = f"{(item.amount or 0):,.2f}"
 
     # แถวรวมเงิน
     sum_row = table.add_row().cells
@@ -212,8 +212,8 @@ def generate_inspection_report(db, procurement: Procurement, school: School) -> 
         row = table.add_row().cells
         row[0].text = str(idx)
         row[1].text = item.name
-        row[2].text = f"{item.quantity:g} {item.unit}"
-        row[3].text = f"{item.amount:,.2f}"
+        row[2].text = f"{(item.quantity or 0):g} {item.unit or ''}"
+        row[3].text = f"{(item.amount or 0):,.2f}"
 
     total = procurement.total_amount or 0
     _add_para(doc, "")

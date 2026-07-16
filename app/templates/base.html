@@ -148,6 +148,42 @@
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 22px 24px; box-shadow: var(--shadow); margin-bottom: 22px;
     }
+    /* การ์ดลิงก์บนหน้าหลักของแต่ละงาน — ใช้สีประจำโมดูลอัตโนมัติผ่าน var(--brand) */
+    .nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+    .nav-card {
+      display: flex; flex-direction: column; gap: 12px; padding: 22px 24px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: var(--shadow); text-decoration: none; color: inherit; cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    }
+    .nav-card:hover {
+      transform: translateY(-4px); border-color: var(--brand);
+      box-shadow: 0 14px 30px rgba(16,24,40,.14);
+    }
+    .nav-card:active { transform: translateY(-1px); }
+    .nav-card:focus-visible { outline: 3px solid var(--brand-soft); outline-offset: 2px; border-color: var(--brand); }
+    .nav-card .nc-head { display: flex; align-items: center; gap: 12px; }
+    .nav-card .nc-ic {
+      width: 44px; height: 44px; border-radius: 12px; flex: none;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--brand-soft); color: var(--brand);
+      transition: background .15s ease, color .15s ease;
+    }
+    .nav-card:hover .nc-ic { background: var(--brand); color: #fff; }
+    .nav-card .nc-ic .icon { width: 22px; height: 22px; }
+    .nav-card h3 { margin: 0; font-size: 18px; font-weight: 800; color: #1b2433; }
+    .nav-card .nc-desc { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.55; flex: 1; }
+    .nav-card .nc-go {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--brand); font-weight: 700; font-size: 14.5px;
+      transition: gap .15s ease;
+    }
+    .nav-card:hover .nc-go { gap: 11px; }
+    .nav-card .nc-go .icon { width: 16px; height: 16px; }
+    @media (prefers-reduced-motion: reduce) {
+      .nav-card, .nav-card .nc-ic, .nav-card .nc-go { transition: none; }
+      .nav-card:hover { transform: none; }
+    }
     /* หัวข้อหน้า + หัว section: แถบสีเทา + แถบ accent น้ำเงินด้านซ้าย + ตัวหนาเข้ม
        ตั้งใจให้คนละโทนกับ "ปุ่ม" (ปุ่มเป็นน้ำเงินเข้ม/ฟ้าอ่อน) จะได้แยกออกชัด */
     h1, h2 {
@@ -547,17 +583,17 @@
           <input type="search" name="q" placeholder="ค้นหาทุกงาน: เรื่อง / เลขที่ / ผู้ขาย / วัสดุ" value="{{ request.query_params.get('q','') }}">
         </form>
         <span class="grow"></span>
-        {% set alerts = nav_alerts() %}
+        {% set bell_alerts = nav_alerts() %}   {# ชื่อเฉพาะ กัน {% block content %} ของหน้าลูกที่ส่ง alerts มาเองโดนทับ #}
         <div class="bell-wrap">
           <button class="bell" onclick="toggleBell(event)" aria-label="การแจ้งเตือน">
             <svg class="icon"><use href="#ic-bell"/></svg>
-            {% if alerts %}<span class="bell-badge">{{ alerts|length }}</span>{% endif %}
+            {% if bell_alerts %}<span class="bell-badge">{{ bell_alerts|length }}</span>{% endif %}
           </button>
           <div class="bell-panel" id="bellPanel">
-            <div class="bell-head">การแจ้งเตือน ({{ alerts|length }})</div>
-            {% if alerts %}
+            <div class="bell-head">การแจ้งเตือน ({{ bell_alerts|length }})</div>
+            {% if bell_alerts %}
             <div class="bell-list">
-              {% for a in alerts %}
+              {% for a in bell_alerts %}
               <a class="bell-item lv-{{ a.level }}" href="/procurement/{{ a.id }}">
                 <span class="bell-dot"></span>
                 <span><span class="bell-title">{{ a.title }}</span><span class="bell-reason">{{ a.reason }}</span></span>

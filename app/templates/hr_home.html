@@ -20,18 +20,30 @@
   </div>
 </div>
 
-<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px;">
-  <a class="card" href="/hr/staff" style="text-decoration:none; display:block; margin:0;">
-    <h2><svg class="icon"><use href="#ic-users"/></svg> ทะเบียนบุคลากร</h2>
-    <p class="muted" style="margin:0;">ข้อมูลครู/บุคลากร ตำแหน่ง วิทยฐานะ วันบรรจุ · ออกหนังสือรับรอง (การเป็นบุคลากร/เงินเดือน)</p>
+<div class="nav-grid">
+  <a class="nav-card" href="/hr/staff">
+    <div class="nc-head">
+      <span class="nc-ic"><svg class="icon"><use href="#ic-users"/></svg></span>
+      <h3>ทะเบียนบุคลากร</h3>
+    </div>
+    <p class="nc-desc">ข้อมูลครู/บุคลากร ตำแหน่ง วิทยฐานะ วันบรรจุ · ออกหนังสือรับรอง (การเป็นบุคลากร/เงินเดือน)</p>
+    <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
-  <a class="card" href="/hr/leave" style="text-decoration:none; display:block; margin:0;">
-    <h2><svg class="icon"><use href="#ic-calendar"/></svg> ทะเบียนวันลา</h2>
-    <p class="muted" style="margin:0;">บันทึกการลา (ป่วย/กิจ/พักผ่อน ฯลฯ) · คำนวณวันลาคงเหลืออัตโนมัติ · ออกใบลา</p>
+  <a class="nav-card" href="/hr/leave">
+    <div class="nc-head">
+      <span class="nc-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
+      <h3>ทะเบียนวันลา</h3>
+    </div>
+    <p class="nc-desc">บันทึกการลา (ป่วย/กิจ/พักผ่อน ฯลฯ) · คำนวณวันลาคงเหลืออัตโนมัติ · ออกใบลา</p>
+    <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
-  <a class="card" href="/hr/travel" style="text-decoration:none; display:block; margin:0;">
-    <h2><svg class="icon"><use href="#ic-send"/></svg> ทะเบียนไปราชการ</h2>
-    <p class="muted" style="margin:0;">บันทึกการไปราชการ/อบรม · สรุปวันไปราชการรายคน · ออกคำสั่งไปราชการ</p>
+  <a class="nav-card" href="/hr/travel">
+    <div class="nc-head">
+      <span class="nc-ic"><svg class="icon"><use href="#ic-send"/></svg></span>
+      <h3>ทะเบียนไปราชการ</h3>
+    </div>
+    <p class="nc-desc">บันทึกการไปราชการ/อบรม · สรุปวันไปราชการรายคน · ออกคำสั่งไปราชการ</p>
+    <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
 </div>
 {% endblock %}

@@ -76,7 +76,7 @@ def render_leave_form(school, person, record, type_label) -> str:
     pos = person.position or "ครู"
     _p(doc, f"ข้าพเจ้า {name} ตำแหน่ง {pos} "
             f"ขอ{type_label}ตั้งแต่วันที่ {_dt(record.start_date)} ถึงวันที่ {_dt(record.end_date)} "
-            f"มีกำหนด {record.days:g} วัน "
+            f"มีกำหนด {(record.days or 0):g} วัน "
             + (f"เนื่องจาก {record.reason} " if (record.reason or '').strip() else "")
             + "ในระหว่างลาข้าพเจ้าจะติดต่อได้ที่ "
             + ((record.contact or '').strip() or _BLANK),
@@ -211,7 +211,7 @@ def render_travel_order(school, person, record) -> str:
     _p(doc, f"{name} ตำแหน่ง {pos} "
             f"ไปราชการ ณ {place} "
             f"ตั้งแต่วันที่ {_dt(record.start_date)} ถึงวันที่ {_dt(record.end_date)} "
-            f"รวม {record.days:g} วัน"
+            f"รวม {(record.days or 0):g} วัน"
             + (f" โดยเบิกค่าใช้จ่ายในการเดินทางไปราชการ จำนวน {record.budget:,.2f} บาท" if (record.budget or 0) else ""),
        align="justify", size=15, after=6, indent=1.25)
     _p(doc, "ทั้งนี้ ให้ผู้ได้รับแต่งตั้งปฏิบัติหน้าที่ที่ได้รับมอบหมายด้วยความเรียบร้อย เกิดผลดีแก่ทางราชการ",

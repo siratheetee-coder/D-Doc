@@ -87,7 +87,7 @@ def build_context(proc, school) -> dict:
     """รวบรวมข้อมูลทั้งหมดที่แม่แบบต้องใช้"""
     items = [{
         "name": it.name,
-        "qty": f"{it.quantity:g}",
+        "qty": f"{(it.quantity or 0):g}",
         "unit": it.unit,
         "unit_price": _money(it.unit_price),
         "amount": _money(it.amount),
