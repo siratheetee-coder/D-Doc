@@ -45,7 +45,7 @@ def render_plan_announcement(school, fiscal_year, rows, announce_date=None) -> s
 
     headers = ["ลำดับ", "รายการ/โครงการที่จะจัดซื้อจัดจ้าง", "งบประมาณโครงการ\n(บาท)",
                "คาดว่าจะประกาศ\nจัดซื้อจัดจ้าง"]
-    widths = [Cm(1.4), Cm(8.5), Cm(3.2), Cm(3.4)]
+    widths = [Cm(1.4), Cm(8.25), Cm(3.2), Cm(3.4)]   # รวม 16.25 = พื้นที่พิมพ์ A4
     t = doc.add_table(rows=1, cols=len(headers))
     t.style = "Table Grid"; t.autofit = False; t.alignment = WD_TABLE_ALIGNMENT.CENTER
     _repeat_header_row(t.rows[0]); _no_split_row(t.rows[0])

@@ -955,7 +955,7 @@ def _finance_table(doc):
     table.autofit = False
     table.allow_autofit = False
     _table_indent(table, 1.6)
-    widths = [Cm(6.0), Cm(3.2), Cm(6.5)]
+    widths = [Cm(5.6), Cm(3.0), Cm(6.05)]   # รวม 14.65 + เยื้อง 1.6 = 16.25 = พื้นที่พิมพ์ A4
     for i, (label, amount, unit) in enumerate(lines):
         cells = table.rows[i].cells
         bold = (i == len(lines) - 1)        # แถวสุดท้าย (คงเหลือจ่ายจริง) ตัวหนา

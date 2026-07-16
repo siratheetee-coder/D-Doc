@@ -91,7 +91,7 @@ def render_cash_report(school, rows, totals, as_of) -> str:
     headers = ["ประเภท", "เงินสด", "เงินฝากธนาคาร", "เงินฝากส่วนราชการผู้เบิก", "รวม", "หมายเหตุ"]
     table = doc.add_table(rows=1, cols=len(headers))
     table.style = "Table Grid"
-    widths = [Cm(6.2), Cm(2.6), Cm(2.8), Cm(3.2), Cm(2.8), Cm(2.2)]
+    widths = [Cm(5.4), Cm(2.4), Cm(2.6), Cm(2.9), Cm(2.6), Cm(2.1)]   # รวม 18.0 = พื้นที่พิมพ์ A4 (21.0 - ขอบ 1.5x2)
     for c, (h, w) in enumerate(zip(headers, widths)):
         _set_cell(table.rows[0].cells[c], h, bold=True, align="center")
         table.rows[0].cells[c].width = w

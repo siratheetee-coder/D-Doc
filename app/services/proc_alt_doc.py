@@ -282,7 +282,7 @@ def render_w804(proc, school) -> str:
     _p(doc, f"แนบท้ายบันทึกข้อความ ที่ {(proc.memo_no or '').strip() or _BLANK_S} "
             f"ลงวันที่ {thai_date(proc.request_date) if proc.request_date else _BLANK_S}",
        align="center", after=4)
-    w = [Cm(1.5), Cm(10.5), Cm(2.5), Cm(2.5)]
+    w = [Cm(1.5), Cm(9.75), Cm(2.5), Cm(2.5)]   # รวม 16.25 = พื้นที่พิมพ์ A4
     t = _grid(doc, ["ลำดับ", "ชื่อพัสดุ และรายละเอียดคุณลักษณะเฉพาะ", "จำนวน", "หน่วยนับ"], w)
     for i, it in enumerate(items, 1):
         _grow(t, [str(i), (it.name or "").strip(), _money(it.quantity), (it.unit or "").strip()],
@@ -307,7 +307,7 @@ def render_w804(proc, school) -> str:
             "ขอรายงานผลการดำเนินการ ดังนี้", align="justify", indent=1.25, after=1)
     _p_runs(doc, [("ชื่อผู้ประกอบการ บริษัท/ห้าง/ร้าน  ", False),
                   ((proc.vendor.name if proc.vendor else _BLANK), False)], indent=1.25)
-    w2 = [Cm(7.5), Cm(2.0), Cm(2.0), Cm(2.7), Cm(2.8)]
+    w2 = [Cm(6.75), Cm(2.0), Cm(2.0), Cm(2.7), Cm(2.8)]   # รวม 16.25 = พื้นที่พิมพ์ A4
     t2 = _grid(doc, ["รายการจัดซื้อ", "จำนวน", "หน่วยนับ", "ราคาต่อหน่วย", "จำนวนเงิน"], w2)
     for it in items:
         amt = (it.quantity or 0) * (it.unit_price or 0)
@@ -446,7 +446,7 @@ def render_w119_t1(proc, school) -> str:
             f"{_project(proc)} โครงการ{_project(proc)} และได้ดำเนินการจัดซื้อจัดจ้าง "
             f"จำนวน {n} รายการ เพื่อใช้ในกิจกรรมดังกล่าว โดยมีรายละเอียด ดังนี้",
        align="justify", indent=1.25, after=4)
-    w = [Cm(1.2), Cm(6.3), Cm(1.6), Cm(2.3), Cm(2.6), Cm(2.5)]
+    w = [Cm(1.2), Cm(6.05), Cm(1.6), Cm(2.3), Cm(2.6), Cm(2.5)]   # รวม 16.25 = พื้นที่พิมพ์ A4
     t = _grid(doc, ["ที่", "รายการ", "จำนวน", "ราคาต่อหน่วย", "จำนวนเงิน", "หลักฐานลำดับที่"], w)
     for i, it in enumerate(items, 1):
         amt = (it.quantity or 0) * (it.unit_price or 0)

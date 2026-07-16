@@ -262,7 +262,7 @@ def render_kp7(school, person) -> str:
     for label, val in info:
         cells = t.add_row().cells
         _tc(cells[0], label, bold=True, fill="F1F5F9"); _tc(cells[1], val)
-        cells[0].width = Cm(5.5); cells[1].width = Cm(11)
+        cells[0].width = Cm(5.3); cells[1].width = Cm(10.7)   # รวม 16.0 = พื้นที่พิมพ์ A4
     _p(doc, "", after=6)
 
     # ประวัติการดำรงตำแหน่ง/วิทยฐานะ
