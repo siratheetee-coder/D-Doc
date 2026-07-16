@@ -42,6 +42,7 @@ def _p(doc, text="", *, align="left", bold=False, size=15, after=6, indent=0.0):
 def _doc():
     doc = Document()
     sec = doc.sections[0]
+    sec.page_width, sec.page_height = Cm(21.0), Cm(29.7)   # A4 (ค่าเริ่มต้นของ python-docx คือ Letter)
     sec.left_margin = sec.right_margin = Cm(2.5)
     sec.top_margin = Cm(2.0); sec.bottom_margin = Cm(1.5)
     base = doc.styles["Normal"]; base.font.name = THAI_FONT; base.font.size = Pt(15)
@@ -118,6 +119,7 @@ def render_certificate(school, person) -> str:
     from docx.enum.table import WD_ALIGN_VERTICAL
 
     doc = _doc()
+    doc.sections[0].right_margin = Cm(1.5)   # ขอบขวาแคบลง -> ตารางหัวกระดาษยืดไปทางขวาได้
     # ---- หัวกระดาษแถวเดียว: ที่ (ซ้าย) | ครุฑ (กลาง) | ชื่อ+ที่อยู่โรงเรียน (ขวา) ----
     addr = [school.name or ""]
     if (getattr(school, "address", "") or "").strip():
@@ -144,8 +146,8 @@ def render_certificate(school, person) -> str:
     if krut:
         mp.add_run().add_picture(str(krut), height=Cm(2.0))
     _hdr_cell(right, addr, size=13.5)
-    # ซ้าย+กลางกว้างขึ้น -> ครุฑอยู่กลางหน้า และบล็อกที่อยู่เลื่อนไปทางขวา
-    left.width = Cm(6.0); mid.width = Cm(3.2); right.width = Cm(6.8)
+    # ซ้าย+กลางกว้างขึ้น -> บล็อกที่อยู่เลื่อนไปทางขวา และตารางยืดไปจนสุดขอบขวา (รวม 17 ซม.)
+    left.width = Cm(7.0); mid.width = Cm(3.2); right.width = Cm(6.8)
     _p(doc, "", after=12)
 
     name = person.name or _BLANK
