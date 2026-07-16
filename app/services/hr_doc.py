@@ -131,8 +131,10 @@ def render_certificate(school, person) -> str:
     prefix = (getattr(school, "doc_prefix", "") or "").strip()
 
     t = doc.add_table(rows=1, cols=3)
+    t.autofit = False
     left, mid, right = t.rows[0].cells
     left.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    right.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     _hdr_cell(left, [f"ที่  {prefix} ............/............".replace("  ", " ").strip()])
     mid.text = ""
     mp = mid.paragraphs[0]
@@ -140,9 +142,10 @@ def render_certificate(school, person) -> str:
     mp.paragraph_format.space_after = Pt(0)
     krut = _krut_path()
     if krut:
-        mp.add_run().add_picture(str(krut), height=Cm(1.25))
-    _hdr_cell(right, addr, size=14)
-    left.width = Cm(4.8); mid.width = Cm(3.0); right.width = Cm(8.2)
+        mp.add_run().add_picture(str(krut), height=Cm(2.0))
+    _hdr_cell(right, addr, size=13.5)
+    # ซ้าย+กลางกว้างขึ้น -> ครุฑอยู่กลางหน้า และบล็อกที่อยู่เลื่อนไปทางขวา
+    left.width = Cm(6.0); mid.width = Cm(3.2); right.width = Cm(6.8)
     _p(doc, "", after=12)
 
     name = person.name or _BLANK
