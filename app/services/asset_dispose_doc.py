@@ -10,6 +10,8 @@ from pathlib import Path
 
 from docx.shared import Cm, Pt
 
+from app.services.doc_page import set_a4
+
 from app.database import get_data_dir
 from app.thai_utils import thai_date, bahttext
 from app.services.build_templates import (
@@ -44,7 +46,7 @@ def render_asset_disposal(assets, school, *, doc_no="", doc_date=None,
                           method="", reason="", note="") -> str:
     """สร้าง .docx ขออนุมัติจำหน่ายครุภัณฑ์ จากรายการครุภัณฑ์ที่เลือก คืนค่าที่อยู่ไฟล์"""
     from docx import Document
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     _krut_and_title(doc)   # ครุฑ + "บันทึกข้อความ"
 

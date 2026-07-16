@@ -16,6 +16,8 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
+from app.services.doc_page import set_a4
+
 from app.database import get_data_dir
 from app.thai_utils import thai_date, thai_date_official
 from app.services.build_templates import (
@@ -126,7 +128,7 @@ def _body_paragraphs(doc, body: str):
 
 def render_memo(memo, school) -> str:
     """สร้างไฟล์ .docx บันทึกข้อความ คืนค่าที่อยู่ไฟล์"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     _krut_and_title(doc)   # ครุฑ + "บันทึกข้อความ"
 
@@ -155,7 +157,7 @@ def render_memo(memo, school) -> str:
 
 def render_order(order, school) -> str:
     """สร้างไฟล์ .docx คำสั่งโรงเรียน คืนค่าที่อยู่ไฟล์"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     _krut_center(doc, height_cm=1.8)
     _p(doc, "คำสั่ง" + (school.name or ""), align="center", bold=True, size=18, after=0)
@@ -181,7 +183,7 @@ _BLANK = ".........................................."
 
 def render_official_letter(letter, school) -> str:
     """สร้างไฟล์ .docx หนังสือราชการภายนอก (ครุฑกลาง + ขอแสดงความนับถือ) คืนค่าที่อยู่ไฟล์"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     _krut_center(doc, height_cm=2.0)
 

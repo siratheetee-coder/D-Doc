@@ -9,6 +9,8 @@ from pathlib import Path
 
 from docx import Document
 
+from app.services.doc_page import set_a4
+
 from app.database import get_data_dir
 from app.thai_utils import thai_date
 from app.services.build_templates import _font, _p, _set_cell, THAI_FONT
@@ -22,7 +24,7 @@ def _safe(text: str) -> str:
 
 def render_requisition(req, school) -> str:
     """สร้างไฟล์ .docx ใบเบิกวัสดุ คืนค่าที่อยู่ไฟล์"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
 
     _p(doc, "ใบเบิกวัสดุ", align="center", bold=True, size=20, after=2)

@@ -18,6 +18,8 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT, WD_LINE_SPACING
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
+from app.services.doc_page import set_a4
+
 THAI_FONT = "TH Sarabun New"
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "doc_templates"
 ASSETS_DIR = TEMPLATES_DIR / "assets"
@@ -419,7 +421,7 @@ def _member_table(doc, list_name, *, prefix="", member_var="m", indent=0.4):
 
 def build_purchase_request():
     """แม่แบบ: บันทึกข้อความ รายงานขอซื้อ/จ้าง (+ รายละเอียดแนบท้าย)"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
 
     # ===== ตราครุฑ (ซ้าย) + "บันทึกข้อความ" (กึ่งกลาง) =====
@@ -511,7 +513,7 @@ def build_inspection():
     รองรับผู้ตรวจรับคนเดียว และคณะกรรมการตรวจรับ
     หมายเหตุ: วันที่ส่งมอบ/ตรวจรับ/ใบส่งของ เป็นช่องจุดไข่ปลาให้กรอกตอนตรวจรับจริง
     """
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
 
     _p(doc, "ใบตรวจรับพัสดุ", align="center", bold=True, size=20, after=2)
@@ -632,7 +634,7 @@ def build_purchase_order():
     """แม่แบบ: ใบสั่งซื้อ / ใบสั่งจ้าง (ชื่อหัวเปลี่ยนตามประเภทอัตโนมัติ)
     Layout: โรงเรียน (ผู้สั่ง) ซ้าย + เลขที่/วันที่ ขวา → ผู้ขาย/รับจ้าง ด้านล่าง
     """
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
 
     # ตราครุฑกึ่งกลาง + ชื่อเอกสาร (ตามแบบฟอร์มจริง) — ครุฑใหญ่ขึ้นให้เด่น
@@ -727,7 +729,7 @@ def _signoff_director(doc, *, with_approve=True):
 
 def build_result_report():
     """แม่แบบ: บันทึกข้อความ รายงานผลการพิจารณาและขออนุมัติสั่งซื้อ/สั่งจ้าง"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     _memo_head(doc,
                "รายงานผลการพิจารณาและขออนุมัติสั่ง{{ proc_type }}",
@@ -761,7 +763,7 @@ def build_result_report():
 
 def build_inspect_command():
     """แม่แบบ: คำสั่งแต่งตั้งผู้ตรวจรับ (ครุฑกึ่งกลาง)"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     _krut_center(doc)
     _p(doc, "คำสั่ง{{ school_name }}", align="center", bold=True, size=18, after=0)
@@ -793,7 +795,7 @@ def build_inspect_command():
 
 def build_quotation():
     """แม่แบบ: ใบเสนอราคา (จากผู้ขาย/ผู้รับจ้าง)"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     _p(doc, "ใบเสนอราคา", align="center", bold=True, size=20, after=4)
     _p(doc, "วันที่ {{ quote_date_thai }}", align="right")
@@ -828,7 +830,7 @@ def build_quotation():
 
 def build_winner_announcement():
     """แม่แบบ: ประกาศผู้ชนะการเสนอราคา"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     _p(doc, "ประกาศ{{ school_name }}", align="center", bold=True, size=18, after=0)
     _p(doc, "เรื่อง ประกาศผู้ชนะการเสนอราคา {{ proc_type }}{{ subject }} โดยวิธี{{ method }}",
@@ -855,7 +857,7 @@ def build_winner_announcement():
 
 def build_spec_committee():
     """แม่แบบ: บันทึกขออนุมัติแต่งตั้งคณะกรรมการกำหนดคุณลักษณะเฉพาะ/ราคากลาง (ข้อ 21)"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     _memo_head(doc, "ขออนุมัติแต่งตั้งคณะกรรมการกำหนดรายละเอียดคุณลักษณะเฉพาะพัสดุ และราคากลาง",
                memo_no_expr="{{ spec_memo_no }}", date_expr="{{ spec_date_thai }}")
@@ -878,7 +880,7 @@ def build_spec_committee():
 
 def build_tor():
     """แม่แบบ: รายละเอียดคุณลักษณะเฉพาะของพัสดุ (TOR)"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     _p(doc, "รายละเอียดคุณลักษณะเฉพาะของพัสดุที่จะ{{ proc_type }} (TOR)", align="center", bold=True, size=18)
     _p(doc, "ตามพระราชบัญญัติการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 (ข้อ 21)",
@@ -911,7 +913,7 @@ def build_tor():
 
 def build_delivery_note():
     """แม่แบบ: ใบส่งมอบงาน + แจ้งหนี้ขอเบิกเงิน"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     _p(doc, "ใบส่งมอบงาน", align="center", bold=True, size=20, after=4)
     _p(doc, "เขียนที่ {{ school_name }}", align="right")
@@ -968,7 +970,7 @@ def _finance_table(doc):
 def build_disbursement():
     """แม่แบบ: บันทึกข้อความ รายงานผลการตรวจรับพัสดุและอนุมัติเบิกจ่ายเงิน
     (รวมความเห็นเจ้าหน้าที่การเงิน + รายละเอียดการคำนวณเงินที่จ่ายจริง)"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     _memo_head(doc, "รายงานผลการตรวจรับพัสดุและอนุมัติเบิกจ่ายเงิน",
                memo_no_expr="{{ inspect_memo_no }}",

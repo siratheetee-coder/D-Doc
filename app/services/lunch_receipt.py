@@ -10,6 +10,8 @@ from docx.shared import Cm, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 
+from app.services.doc_page import set_a4
+
 from app.database import get_data_dir
 from app.thai_utils import thai_date, bahttext
 
@@ -38,7 +40,7 @@ def _p(doc, text="", *, align="left", bold=False, size=15, after=6, indent=0.0):
 
 
 def render_lunch_receipt(school, program, ledger) -> str:
-    doc = Document()
+    doc = Document(); set_a4(doc)
     sec = doc.sections[0]
     sec.left_margin = sec.right_margin = Cm(2.5)
     sec.top_margin = Cm(2.0); sec.bottom_margin = Cm(1.5)

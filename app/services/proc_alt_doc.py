@@ -16,6 +16,8 @@ from docx.shared import Cm, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_UNDERLINE
 from docx.oxml.ns import qn
 
+from app.services.doc_page import set_a4
+
 from app.database import get_data_dir
 from app.thai_utils import thai_date, bahttext
 from app.services.build_templates import (
@@ -562,7 +564,7 @@ def render_clause79(proc, school) -> str:
 
 def _font_doc():
     from docx import Document
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     return doc
 

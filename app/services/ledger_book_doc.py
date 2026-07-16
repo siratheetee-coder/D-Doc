@@ -16,6 +16,8 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.section import WD_ORIENT
 from docx.oxml.ns import qn
 
+from app.services.doc_page import set_a4
+
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 
@@ -112,7 +114,7 @@ def _sign_block(doc, school):
 # ---------------- สมุดเงินสด (Word) ----------------
 def render_cash_book(school, fiscal_year, rows, opening, totals, scope_name="ทุกบัญชี") -> str:
     """rows: list ของ dict {date, desc, ref, debit(รับ), credit(จ่าย), balance, subtotal(bool), month}"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _landscape(doc)
     _p(doc, "สมุดเงินสด", align="center", bold=True, size=18, after=0)
     _p(doc, (school.name or ""), align="center", bold=True, size=15, after=0)
@@ -223,7 +225,7 @@ def _cb_section(doc, title, total_label, rows, *, open_by_fund=None):
 def render_cash_book_fund(school, fiscal_year, scope_name, open_by_fund, receipts, payments) -> str:
     """สมุดเงินสดแบบราชการ แนวนอน: ด้านรับ (เดบิตเงินสด) + ด้านจ่าย (เครดิตเงินสด)
     เครดิต/เดบิตแยกตามประเภทเงิน (งบประมาณ/รายได้แผ่นดิน/นอกงบประมาณ)"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _landscape(doc)
     _p(doc, "สมุดเงินสด", align="center", bold=True, size=18, after=0)
     _p(doc, (school.name or ""), align="center", bold=True, size=15, after=0)
@@ -251,7 +253,7 @@ def render_cash_book_fund(school, fiscal_year, scope_name, open_by_fund, receipt
 # ---------------- บัญชีแยกประเภท เต็มรูปแบบ (Word) ----------------
 def render_general_ledger(school, account, fiscal_year, rows, opening) -> str:
     """rows: list ของ dict {date, desc, ref, debit, credit, balance, side, subtotal, month}"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _landscape(doc)
     _p(doc, "บัญชีแยกประเภททั่วไป", align="center", bold=True, size=18, after=0)
     _p(doc, (school.name or ""), align="center", bold=True, size=15, after=0)

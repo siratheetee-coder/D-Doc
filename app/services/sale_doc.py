@@ -12,6 +12,8 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn
 
+from app.services.doc_page import set_a4
+
 from app.database import get_data_dir
 from app.thai_utils import thai_date, bahttext
 
@@ -215,7 +217,7 @@ def _finish(doc, fname):
 
 
 def _base_doc():
-    doc = Document()
+    doc = Document(); set_a4(doc)
     sec = doc.sections[0]
     sec.left_margin = sec.right_margin = Cm(1.8)
     sec.top_margin = Cm(1.3)

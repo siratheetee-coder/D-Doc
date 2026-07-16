@@ -14,6 +14,8 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
+from app.services.doc_page import set_a4
+
 from app.database import get_data_dir
 from app.thai_utils import thai_date, bahttext
 from app.services.build_templates import (
@@ -85,7 +87,7 @@ def _money_breakdown(doc, lines):
 
 def render_disburse(memo, school) -> str:
     """สร้างไฟล์ .docx บันทึกข้อความขออนุมัติเบิกจ่ายเงินนอกงบประมาณ คืนค่าที่อยู่ไฟล์"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     _krut_and_title(doc)   # ครุฑ + "บันทึกข้อความ"
 

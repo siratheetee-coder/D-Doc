@@ -7,6 +7,8 @@ from docx import Document
 from docx.shared import Cm
 from docx.enum.table import WD_TABLE_ALIGNMENT
 
+from app.services.doc_page import set_a4
+
 from app.database import get_data_dir
 from app.thai_utils import thai_date, bahttext
 from app.services.build_templates import (
@@ -24,7 +26,7 @@ def _safe(text: str) -> str:
 
 def render_plan_announcement(school, fiscal_year, rows, announce_date=None) -> str:
     """rows = list ของ ProcurementPlan (เรียงแล้ว)"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     sname = (school.name or "โรงเรียน").strip()
     total = sum(float(r.budget or 0) for r in rows)

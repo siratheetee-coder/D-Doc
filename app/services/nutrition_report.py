@@ -12,6 +12,8 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.section import WD_ORIENT
 from docx.oxml.ns import qn
 
+from app.services.doc_page import set_a4
+
 from app.database import get_data_dir
 from app.thai_utils import thai_date
 
@@ -68,7 +70,7 @@ def _pct(n, total):
 def render_nutrition_report(school, cats, class_counts, sex_counts, totals, assessed, as_of=None) -> str:
     """cats: รายชื่อภาวะ (WH_LABELS) · class_counts: [{level, counts{cat:n}, total}]
     sex_counts: {'ชาย':{cat:n}, 'หญิง':{cat:n}} · totals: {cat:n} · assessed: int"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     sec = doc.sections[0]
     sec.orientation = WD_ORIENT.LANDSCAPE
     sec.page_width, sec.page_height = sec.page_height, sec.page_width

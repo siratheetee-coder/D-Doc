@@ -12,6 +12,8 @@ from docx.enum.table import WD_ROW_HEIGHT_RULE
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
+from app.services.doc_page import set_a4
+
 from app.database import get_data_dir
 from app.services.build_templates import (
     _font, _p, _set_cell, _repeat_header_row, _no_split_row,
@@ -50,7 +52,7 @@ def _set_cell_v(cell, text):
 
 def render_book_receipt(year, groups, school) -> str:
     """groups = [(level, [books], [students]), ...] เรียงตามชั้น"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     _landscape(doc)
     sname = (school.name or "โรงเรียน").strip()

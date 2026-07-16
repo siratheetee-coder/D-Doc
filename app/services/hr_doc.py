@@ -11,6 +11,8 @@ from docx.shared import Cm, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 
+from app.services.doc_page import set_a4
+
 from app.database import get_data_dir
 from app.thai_utils import thai_date
 
@@ -40,7 +42,7 @@ def _p(doc, text="", *, align="left", bold=False, size=15, after=6, indent=0.0):
 
 
 def _doc():
-    doc = Document()
+    doc = Document(); set_a4(doc)
     sec = doc.sections[0]
     sec.page_width, sec.page_height = Cm(21.0), Cm(29.7)   # A4 (ค่าเริ่มต้นของ python-docx คือ Letter)
     sec.left_margin = sec.right_margin = Cm(2.5)

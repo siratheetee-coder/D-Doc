@@ -9,6 +9,8 @@ asset_audit_doc.py — เอกสารตรวจสอบพัสดุป
 from docx import Document
 from docx.shared import Cm
 
+from app.services.doc_page import set_a4
+
 from app.database import get_data_dir
 from app.thai_utils import thai_date
 from app.services.build_templates import (
@@ -90,7 +92,7 @@ def render_appoint_memo(school, ctx, doc=None):
     """(1) บันทึกข้อความ ขอแต่งตั้งคณะกรรมการตรวจสอบพัสดุประจำปี"""
     own = doc is None
     if own:
-        doc = Document(); _font(doc)
+        doc = Document(); set_a4(doc); _font(doc)
     else:
         doc.add_page_break()
     year = ctx.get("year")
@@ -122,7 +124,7 @@ def render_appoint_order(school, ctx, doc=None):
     """(2) คำสั่งโรงเรียน แต่งตั้งคณะกรรมการตรวจสอบพัสดุประจำปี"""
     own = doc is None
     if own:
-        doc = Document(); _font(doc)
+        doc = Document(); set_a4(doc); _font(doc)
     else:
         doc.add_page_break()
     year = ctx.get("year")
@@ -153,7 +155,7 @@ def render_result_memo(school, ctx, assets=None, doc=None):
     """(3) บันทึกข้อความ รายงานผลการตรวจสอบพัสดุประจำปี"""
     own = doc is None
     if own:
-        doc = Document(); _font(doc)
+        doc = Document(); set_a4(doc); _font(doc)
     else:
         doc.add_page_break()
     year = ctx.get("year")
@@ -195,7 +197,7 @@ def render_inventory(school, ctx, assets, doc=None):
     """(4) บัญชีครุภัณฑ์คงเหลือ (ดึงจากทะเบียนครุภัณฑ์ที่ยังใช้งาน)"""
     own = doc is None
     if own:
-        doc = Document(); _font(doc)
+        doc = Document(); set_a4(doc); _font(doc)
     else:
         doc.add_page_break()
     year = ctx.get("year")
@@ -235,7 +237,7 @@ def render_inventory(school, ctx, assets, doc=None):
 
 def render_audit_bundle(school, ctx, assets) -> str:
     """ออกชุดเอกสารตรวจสอบพัสดุประจำปีทั้งชุดเป็นไฟล์เดียว"""
-    doc = Document(); _font(doc)
+    doc = Document(); set_a4(doc); _font(doc)
     render_appoint_memo(school, ctx, doc)
     render_appoint_order(school, ctx, doc)
     render_result_memo(school, ctx, assets, doc)

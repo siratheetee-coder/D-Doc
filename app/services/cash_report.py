@@ -14,6 +14,8 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
+from app.services.doc_page import set_a4
+
 from app.database import get_data_dir
 from app.thai_utils import _THAI_MONTHS
 
@@ -74,7 +76,7 @@ def _p(doc, text="", *, align="left", bold=False, size=14, after=2):
 def render_cash_report(school, rows, totals, as_of) -> str:
     """rows: list ของ dict {name, header(bool), indent(bool), cash, bank, agency, total}
     totals: dict {cash, bank, agency, total}"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     sec = doc.sections[0]
     sec.left_margin = sec.right_margin = Cm(1.5)
     base = doc.styles["Normal"]

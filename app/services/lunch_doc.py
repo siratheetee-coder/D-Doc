@@ -14,6 +14,8 @@ from pathlib import Path
 from docx import Document
 from docx.shared import Cm
 
+from app.services.doc_page import set_a4
+
 from app.database import get_data_dir
 from app.thai_utils import thai_date, bahttext
 from app.services.build_templates import (
@@ -46,7 +48,7 @@ def _save(doc, name: str) -> str:
 def _begin(doc):
     """เริ่มเอกสาร: ถ้า doc=None สร้างใหม่ (own=True) ไม่งั้นต่อท้ายด้วย page break (own=False)"""
     if doc is None:
-        doc = Document()
+        doc = Document(); set_a4(doc)
         _font(doc)
         return doc, True
     if doc.paragraphs or doc.tables:   # เว้นหน้าเฉพาะเมื่อมีเนื้อหาก่อนหน้าแล้ว
@@ -115,7 +117,7 @@ def _menu_table3(doc, menus, third_header):
 
 
 def render_installment_doc(inst, school, menus) -> str:
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     rnd = inst.round
     vendor = rnd.vendor
@@ -215,7 +217,7 @@ def _simple_table(doc, headers, rows, widths):
 
 def render_disburse_lunch_doc(inst, school, wht_rate=0.01) -> str:
     """เอกสารขอเบิกจ่ายรายงวด: บันทึกขออนุมัติ + ใบสำคัญรับเงิน + หนังสือรับรองหักภาษี ณ ที่จ่าย"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     rnd = inst.round
     prog = rnd.program
@@ -777,7 +779,7 @@ def render_quotation_doc(rnd, school, doc=None) -> str:
 
 def render_contract_bundle(rnd, school) -> str:
     """ออกเอกสารต่อรอบทั้งชุดเป็นไฟล์ Word เดียว (เรียงตามลำดับงานจริง)"""
-    doc = Document()
+    doc = Document(); set_a4(doc)
     _font(doc)
     render_tor_request_doc(rnd, school, doc)        # บันทึกขออนุมัติ TOR
     render_committee_order_doc(rnd, school, doc)     # คำสั่งแต่งตั้งกรรมการ (3 ฉบับ)
