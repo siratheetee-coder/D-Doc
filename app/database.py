@@ -99,6 +99,7 @@ MIGRATIONS = [
     ("person", "phone", "VARCHAR DEFAULT ''"),
     ("person", "email", "VARCHAR DEFAULT ''"),
     ("person", "salary", "FLOAT DEFAULT 0"),
+    ("school", "area_office", "VARCHAR DEFAULT ''"),   # สำนักงานเขตพื้นที่การศึกษาที่สังกัด
 ]
 
 

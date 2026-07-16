@@ -348,7 +348,7 @@ def settings_form(request: Request, db: Session = Depends(get_db),
 def settings_save(
     db: Session = Depends(get_db),
     name: str = Form(""), address: str = Form(""),
-    district: str = Form(""), province: str = Form(""),
+    district: str = Form(""), province: str = Form(""), area_office: str = Form(""),
     director_name: str = Form(""), director_position: str = Form("ผู้อำนวยการโรงเรียน"),
     officer_name: str = Form(""), head_officer_name: str = Form(""),
     finance_officer_name: str = Form(""), finance_head_name: str = Form(""),
@@ -358,6 +358,7 @@ def settings_save(
 ):
     s = get_school(db)
     s.name, s.address, s.district, s.province = name, address, district, province
+    s.area_office = area_office.strip()
     s.director_name, s.director_position = director_name, director_position
     s.officer_name, s.head_officer_name = officer_name, head_officer_name
     s.finance_officer_name = finance_officer_name.strip()

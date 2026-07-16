@@ -16,6 +16,12 @@
       <div><label>จังหวัด</label><input name="province" value="{{ school.province }}"></div>
     </div>
     <div class="row">
+      <div style="flex:2;"><label>สำนักงานเขตพื้นที่การศึกษาที่สังกัด</label>
+        <input name="area_office" value="{{ school.area_office or '' }}" placeholder="เช่น สำนักงานเขตพื้นที่การศึกษาประถมศึกษามหาสารคาม เขต 1">
+        <div class="hint">ใช้ในหนังสือรับรองบุคลากร (สังกัด...) และเอกสารราชการอื่น</div>
+      </div>
+    </div>
+    <div class="row">
       <div><label>ชื่อผู้อำนวยการ</label><input name="director_name" list="persons" value="{{ school.director_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
       <div><label>ตำแหน่งผู้บริหาร</label><input name="director_position" value="{{ school.director_position }}"></div>
     </div>

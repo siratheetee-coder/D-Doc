@@ -29,6 +29,7 @@ class School(Base):
     address = Column(Text, default="")             # ที่อยู่ (บรรทัดเดียวสำหรับส่วนราชการ)
     district = Column(String, default="")          # อำเภอ
     province = Column(String, default="")          # จังหวัด
+    area_office = Column(String, default="")       # สำนักงานเขตพื้นที่การศึกษาที่สังกัด (ใช้ในหนังสือรับรอง ฯลฯ)
 
     director_name = Column(String, default="")     # ชื่อผู้อำนวยการ
     director_position = Column(String, default="ผู้อำนวยการโรงเรียน")

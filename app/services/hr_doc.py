@@ -115,15 +115,10 @@ def render_certificate(school, person) -> str:
     from app.thai_utils import _THAI_MONTHS
     import datetime as _d
 
-    doc = _doc()
-    # ---- ครุฑ ----
-    kp = doc.add_paragraph(); kp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    kp.paragraph_format.space_after = Pt(0)
-    krut = _krut_path()
-    if krut:
-        kp.add_run().add_picture(str(krut), height=Cm(1.5))
+    from docx.enum.table import WD_ALIGN_VERTICAL
 
-    # ---- ที่ ..../....  |  ที่อยู่โรงเรียน ----
+    doc = _doc()
+    # ---- หัวกระดาษแถวเดียว: ที่ (ซ้าย) | ครุฑ (กลาง) | ชื่อ+ที่อยู่โรงเรียน (ขวา) ----
     addr = [school.name or ""]
     if (getattr(school, "address", "") or "").strip():
         addr.append(school.address.strip())
@@ -133,22 +128,35 @@ def render_certificate(school, person) -> str:
     ] if x)
     if dp:
         addr.append(dp)
-    t = doc.add_table(rows=1, cols=2)
-    _hdr_cell(t.rows[0].cells[0], ["ที่  ............ / ............"])
-    _hdr_cell(t.rows[0].cells[1], addr, size=14)
-    t.rows[0].cells[0].width = Cm(6.0); t.rows[0].cells[1].width = Cm(10.0)
-    _p(doc, "", after=10)
+    prefix = (getattr(school, "doc_prefix", "") or "").strip()
+
+    t = doc.add_table(rows=1, cols=3)
+    left, mid, right = t.rows[0].cells
+    left.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    _hdr_cell(left, [f"ที่  {prefix} ............/............".replace("  ", " ").strip()])
+    mid.text = ""
+    mp = mid.paragraphs[0]
+    mp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    mp.paragraph_format.space_after = Pt(0)
+    krut = _krut_path()
+    if krut:
+        mp.add_run().add_picture(str(krut), height=Cm(1.25))
+    _hdr_cell(right, addr, size=14)
+    left.width = Cm(4.8); mid.width = Cm(3.0); right.width = Cm(8.2)
+    _p(doc, "", after=12)
 
     name = person.name or _BLANK
     pos = (person.position or "ครู").strip()
     rank = (person.rank or "").strip()
     sal = person.salary or 0
 
+    area = (getattr(school, "area_office", "") or "").strip()
+    sangkad = f"สังกัด{area} " if area else "สังกัด................................................ "
     body = (f"หนังสือฉบับนี้ให้ไว้เพื่อรับรองว่า {name} ปัจจุบันเป็นข้าราชการครูและ"
             f"บุคลากรทางการศึกษา ตำแหน่ง{pos}"
             + (f" วิทยฐานะ{rank}" if rank else "")
-            + f" {school.name or 'โรงเรียน'} สังกัดสำนักงานคณะกรรมการการศึกษาขั้นพื้นฐาน "
-              f"กระทรวงศึกษาธิการ "
+            + f" {school.name or 'โรงเรียน'} {sangkad}"
+              f"สำนักงานคณะกรรมการการศึกษาขั้นพื้นฐาน กระทรวงศึกษาธิการ "
             + (f"รับเงินเดือนในอัตรา {sal:,.2f} บาท ({_baht(sal)}) " if sal else
                "รับเงินเดือนในอัตรา ........................ บาท (........................................บาทถ้วน) ")
             + "เริ่มรับราชการ ตั้งแต่วันที่ "
@@ -161,7 +169,9 @@ def render_certificate(school, person) -> str:
 
     now = _d.datetime.now()
     _p(doc, f"ให้ไว้  ณ  วันที่ {now.day} เดือน{_THAI_MONTHS[now.month]} พ.ศ. {now.year + 543}",
-       align="center", size=15, after=6)
+       align="center", size=15, after=0)
+    _p(doc, "", after=0, size=15)   # เว้นที่ให้ลายเซ็น ผอ.
+    _p(doc, "", after=0, size=15)
 
     # ---- ลงนาม ผอ. (วางลายเซ็นจริงถ้ามี) ----
     director = (getattr(school, "director_name", "") or "").strip()
