@@ -48,8 +48,7 @@
         <td>{{ be_date(p.start_date) if p.start_date else '-' }}</td>
         <td>{% if p.active %}<span class="pill" style="background:var(--brand-soft);color:var(--brand-dark);">ปฏิบัติงาน</span>{% else %}<span class="muted">พ้น/ย้าย</span>{% endif %}</td>
         <td style="white-space:nowrap;">
-          <a class="btn sm gray" href="/hr/staff/{{ p.id }}/certificate.docx?kind=status" title="รับรองการเป็นบุคลากร">การเป็นบุคลากร</a>
-          <a class="btn sm gray" href="/hr/staff/{{ p.id }}/certificate.docx?kind=salary" title="รับรองเงินเดือน">เงินเดือน</a>
+          <a class="btn sm gray" href="/hr/staff/{{ p.id }}/certificate.docx" title="หนังสือรับรองบุคลากร (ฟอร์มราชการ)"><svg class="icon"><use href="#ic-download"/></svg> หนังสือรับรอง</a>
         </td>
         <td style="white-space:nowrap;">
           <a class="btn sm" href="/hr/staff/{{ p.id }}">ประวัติ (ก.พ.7)</a>

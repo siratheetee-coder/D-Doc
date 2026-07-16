@@ -332,10 +332,11 @@ def hr_leave_form_docx(lid: int, db: Session = Depends(get_db)):
 
 
 @router.get("/hr/staff/{pid}/certificate.docx")
-def hr_certificate_docx(pid: int, db: Session = Depends(get_db), kind: str = "status"):
+def hr_certificate_docx(pid: int, db: Session = Depends(get_db)):
+    """หนังสือรับรองบุคลากร (ฟอร์มราชการ + ลายเซ็น ผอ.)"""
     from app.services.hr_doc import render_certificate
     p = db.get(Person, pid)
     if not p:
         return RedirectResponse("/hr/staff", status_code=303)
-    path = render_certificate(get_school(db), p, kind)
+    path = render_certificate(get_school(db), p)
     return serve_generated(path, _DOCX)

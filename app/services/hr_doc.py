@@ -97,49 +97,81 @@ def render_leave_form(school, person, record, type_label) -> str:
     return str(out)
 
 
-# ---------------- หนังสือรับรอง ----------------
-def render_certificate(school, person, kind="status") -> str:
-    doc = _doc()
-    _p(doc, (school.name or ""), align="center", bold=True, size=16, after=0)
-    if getattr(school, "address", ""):
-        _p(doc, school.address, align="center", size=13, after=8)
-    else:
-        _p(doc, "", after=6)
+# ---------------- หนังสือรับรองบุคลากร (ฟอร์มราชการ: ครุฑ + ที่ + ที่อยู่) ----------------
+def _hdr_cell(cell, lines, *, align="left", size=15):
+    cell.text = ""
+    for i, txt in enumerate(lines):
+        p = cell.paragraphs[0] if i == 0 else cell.add_paragraph()
+        p.alignment = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER}[align]
+        p.paragraph_format.space_after = Pt(0)
+        r = p.add_run(txt); r.font.size = Pt(size); r.font.name = THAI_FONT
+        r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
 
-    _p(doc, "หนังสือรับรอง", align="center", bold=True, size=18, after=10)
+
+def render_certificate(school, person) -> str:
+    """หนังสือรับรองบุคลากร — ฟอร์มราชการ (ครุฑ / ที่ / ที่อยู่โรงเรียน) + ลายเซ็น ผอ."""
+    from app.services.build_templates import _krut_path
+    from app.services.office_doc import _float_signature
+    from app.thai_utils import _THAI_MONTHS
+    import datetime as _d
+
+    doc = _doc()
+    # ---- ครุฑ ----
+    kp = doc.add_paragraph(); kp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    kp.paragraph_format.space_after = Pt(0)
+    krut = _krut_path()
+    if krut:
+        kp.add_run().add_picture(str(krut), height=Cm(1.5))
+
+    # ---- ที่ ..../....  |  ที่อยู่โรงเรียน ----
+    addr = [school.name or ""]
+    if (getattr(school, "address", "") or "").strip():
+        addr.append(school.address.strip())
+    dp = " ".join(x for x in [
+        ("อำเภอ" + school.district) if (getattr(school, "district", "") or "").strip() else "",
+        ("จังหวัด" + school.province) if (getattr(school, "province", "") or "").strip() else "",
+    ] if x)
+    if dp:
+        addr.append(dp)
+    t = doc.add_table(rows=1, cols=2)
+    _hdr_cell(t.rows[0].cells[0], ["ที่  ............ / ............"])
+    _hdr_cell(t.rows[0].cells[1], addr, size=14)
+    t.rows[0].cells[0].width = Cm(6.0); t.rows[0].cells[1].width = Cm(10.0)
+    _p(doc, "", after=10)
 
     name = person.name or _BLANK
-    pos = person.position or "ครู"
+    pos = (person.position or "ครู").strip()
     rank = (person.rank or "").strip()
-    idc = (person.id_card or "").strip()
-    detail_pos = (f"{pos} {rank}".strip())
+    sal = person.salary or 0
 
-    lead = (f"หนังสือฉบับนี้ให้ไว้เพื่อรับรองว่า {name} "
-            + (f"เลขประจำตัวประชาชน {idc} " if idc else "")
-            + f"ตำแหน่ง {detail_pos} ")
-
-    if kind == "salary":
-        body = (lead + f"เป็นบุคลากรของ{school.name or 'โรงเรียน'} "
-                + (f"ปฏิบัติงานตั้งแต่วันที่ {thai_date(person.start_date)} " if person.start_date else "")
-                + f"ปัจจุบันได้รับเงินเดือน เดือนละ {(person.salary or 0):,.2f} บาท "
-                + f"({_baht(person.salary or 0)}) จริง")
-        title_note = "รับรองเงินเดือน"
-    else:
-        body = (lead + f"เป็นบุคลากรของ{school.name or 'โรงเรียน'} "
-                + (f"ปฏิบัติหน้าที่ตั้งแต่วันที่ {thai_date(person.start_date)} " if person.start_date else "")
-                + "จนถึงปัจจุบันจริง")
-        title_note = "รับรองการเป็นบุคลากร"
-
+    body = (f"หนังสือฉบับนี้ให้ไว้เพื่อรับรองว่า {name} ปัจจุบันเป็นข้าราชการครูและ"
+            f"บุคลากรทางการศึกษา ตำแหน่ง{pos}"
+            + (f" วิทยฐานะ{rank}" if rank else "")
+            + f" {school.name or 'โรงเรียน'} สังกัดสำนักงานคณะกรรมการการศึกษาขั้นพื้นฐาน "
+              f"กระทรวงศึกษาธิการ "
+            + (f"รับเงินเดือนในอัตรา {sal:,.2f} บาท ({_baht(sal)}) " if sal else
+               "รับเงินเดือนในอัตรา ........................ บาท (........................................บาทถ้วน) ")
+            + "เริ่มรับราชการ ตั้งแต่วันที่ "
+            + (thai_date(person.start_date) if person.start_date else "........................................")
+            + " จนถึงปัจจุบันจริง")
     _p(doc, body, align="justify", size=15, after=6, indent=1.25)
-    _p(doc, f"ให้ไว้ ณ วันที่ {thai_date(__import__('datetime').datetime.now())}",
-       align="justify", after=24, indent=1.25)
+    _p(doc, "หนังสือรับรองฉบับนี้ออกให้เพื่อนำไป"
+            "................................................................ เท่านั้น",
+       align="justify", size=15, after=14, indent=1.25)
 
-    _p(doc, "(ลงชื่อ)...................................", align="center", after=0)
-    _p(doc, f"( {(getattr(school, 'director_name', '') or '').strip() or _BLANK} )", align="center", after=0)
+    now = _d.datetime.now()
+    _p(doc, f"ให้ไว้  ณ  วันที่ {now.day} เดือน{_THAI_MONTHS[now.month]} พ.ศ. {now.year + 543}",
+       align="center", size=15, after=6)
+
+    # ---- ลงนาม ผอ. (วางลายเซ็นจริงถ้ามี) ----
+    director = (getattr(school, "director_name", "") or "").strip()
+    sign_p = _p(doc, "(ลงชื่อ)..............................................", align="center", after=0)
+    _float_signature(sign_p, director)
+    _p(doc, f"( {director or _BLANK} )", align="center", after=0)
     _p(doc, _director_pos(school), align="center", after=2)
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
-    out = out_dir / (_safe(f"หนังสือรับรอง_{title_note}_{name}") + ".docx")
+    out = out_dir / (_safe(f"หนังสือรับรองบุคลากร_{name}") + ".docx")
     doc.save(str(out))
     return str(out)
 
