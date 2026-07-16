@@ -179,6 +179,82 @@ def render_travel_order(school, person, record) -> str:
     return str(out)
 
 
+# ---------------- ก.พ.7 (ทะเบียนประวัติ) ----------------
+def _tc(cell, text, *, bold=False, align="left", fill=None):
+    cell.text = ""
+    p = cell.paragraphs[0]
+    p.alignment = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER,
+                   "right": WD_ALIGN_PARAGRAPH.RIGHT}[align]
+    p.paragraph_format.space_after = Pt(0)
+    r = p.add_run(str(text)); r.bold = bold; r.font.size = Pt(13); r.font.name = THAI_FONT
+    r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
+    if fill:
+        tcpr = cell._tc.get_or_add_tcPr()
+        tcpr.append(tcpr.makeelement(qn("w:shd"), {qn("w:val"): "clear", qn("w:color"): "auto", qn("w:fill"): fill}))
+
+
+def render_kp7(school, person) -> str:
+    doc = _doc()
+    _p(doc, "ทะเบียนประวัติบุคลากร (ก.พ.7)", align="center", bold=True, size=18, after=0)
+    _p(doc, (school.name or ""), align="center", bold=True, size=15, after=8)
+
+    # ข้อมูลส่วนตัว
+    info = [
+        ("ชื่อ-นามสกุล", person.name or _BLANK),
+        ("ประเภท/ตำแหน่ง", f"{person.person_type or '-'} · {person.position or '-'}"),
+        ("วิทยฐานะ/ระดับ", person.rank or "-"),
+        ("เลขประจำตัวประชาชน", person.id_card or "-"),
+        ("วันเดือนปีเกิด", thai_date(person.birthdate) if person.birthdate else "-"),
+        ("วันบรรจุ/เริ่มปฏิบัติงาน", thai_date(person.start_date) if person.start_date else "-"),
+        ("เงินเดือนปัจจุบัน", f"{(person.salary or 0):,.2f} บาท" if person.salary else "-"),
+        ("โทรศัพท์ / อีเมล", f"{person.phone or '-'} / {person.email or '-'}"),
+    ]
+    t = doc.add_table(rows=0, cols=2); t.style = "Table Grid"
+    for label, val in info:
+        cells = t.add_row().cells
+        _tc(cells[0], label, bold=True, fill="F1F5F9"); _tc(cells[1], val)
+        cells[0].width = Cm(5.5); cells[1].width = Cm(11)
+    _p(doc, "", after=6)
+
+    # ประวัติการดำรงตำแหน่ง/วิทยฐานะ
+    _p(doc, "ประวัติการดำรงตำแหน่ง / เลื่อนวิทยฐานะ", bold=True, size=14, after=2)
+    rt = doc.add_table(rows=1, cols=4); rt.style = "Table Grid"
+    for c, h in enumerate(["วันที่", "ตำแหน่ง", "วิทยฐานะ/ระดับ", "เลขที่คำสั่ง"]):
+        _tc(rt.rows[0].cells[c], h, bold=True, align="center", fill="CCFBF1")
+    rows = sorted(person.rank_history, key=lambda r: (r.date or __import__('datetime').datetime.min))
+    for r in rows:
+        cells = rt.add_row().cells
+        _tc(cells[0], thai_date(r.date) if r.date else "-", align="center")
+        _tc(cells[1], r.position or "-"); _tc(cells[2], r.rank or "-")
+        _tc(cells[3], r.doc_no or "-", align="center")
+    if not rows:
+        _tc(rt.add_row().cells[0], "-")
+    _p(doc, "", after=6)
+
+    # เครื่องราชอิสริยาภรณ์
+    _p(doc, "เครื่องราชอิสริยาภรณ์ที่ได้รับ", bold=True, size=14, after=2)
+    dt = doc.add_table(rows=1, cols=3); dt.style = "Table Grid"
+    for c, h in enumerate(["ปี พ.ศ.", "ชั้นตรา", "เลขที่ประกาศ"]):
+        _tc(dt.rows[0].cells[c], h, bold=True, align="center", fill="CCFBF1")
+    decs = sorted(person.decorations, key=lambda d: (d.year or 0))
+    for d in decs:
+        cells = dt.add_row().cells
+        _tc(cells[0], d.year or "-", align="center"); _tc(cells[1], d.name or "-")
+        _tc(cells[2], d.ref or "-", align="center")
+    if not decs:
+        _tc(dt.add_row().cells[0], "-")
+
+    _p(doc, "", after=16)
+    _p(doc, "(ลงชื่อ)...................................ผู้จัดทำ/รับรอง", align="center", after=0)
+    _p(doc, f"( {(getattr(school, 'director_name', '') or '').strip() or _BLANK} )", align="center", after=0)
+    _p(doc, _director_pos(school), align="center", after=2)
+
+    out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
+    out = out_dir / (_safe(f"กพ7_{person.name}") + ".docx")
+    doc.save(str(out))
+    return str(out)
+
+
 def _baht(v):
     try:
         from app.thai_utils import bahttext

@@ -11,7 +11,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Person, LeaveRecord, LeaveEntitlement, TravelRecord
+from app.models import (Person, LeaveRecord, LeaveEntitlement, TravelRecord,
+                        Decoration, RankHistory)
 from app.thai_utils import parse_be_date, be_date_input, thai_date
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
@@ -190,6 +191,73 @@ def hr_leave_entitlement_std(db: Session = Depends(get_db), year: str = Form("")
     yr = _to_int(year, _cur_year())
     _set_entitlement(db, yr, STD_ENTITLEMENT)
     return RedirectResponse(f"/hr/leave?year={yr}", status_code=303)
+
+
+# ==================== ประวัติบุคลากร (ก.พ.7) ====================
+@router.get("/hr/staff/{pid}", response_class=HTMLResponse)
+def hr_profile(pid: int, request: Request, db: Session = Depends(get_db)):
+    p = db.get(Person, pid)
+    if not p:
+        return RedirectResponse("/hr/staff", status_code=303)
+    leaves = sorted(p.leaves, key=lambda l: (l.start_date or datetime.min), reverse=True)
+    travels = sorted(p.travels, key=lambda t: (t.start_date or datetime.min), reverse=True)
+    return templates.TemplateResponse("hr_profile.html", {
+        "request": request, "school": get_school(db), "p": p,
+        "leave_types": LEAVE_TYPES, "leaves": leaves[:20], "travels": travels[:20],
+        "decorations": sorted(p.decorations, key=lambda d: (d.year or 0)),
+        "rank_history": sorted(p.rank_history, key=lambda r: (r.date or datetime.min)),
+        "leave_days": sum(l.days or 0 for l in p.leaves),
+        "travel_days": sum(t.days or 0 for t in p.travels),
+    })
+
+
+@router.post("/hr/staff/{pid}/decoration/add")
+def hr_decoration_add(pid: int, db: Session = Depends(get_db), name: str = Form(""),
+                      year: str = Form(""), ref: str = Form("")):
+    if db.get(Person, pid) and name.strip():
+        db.add(Decoration(person_id=pid, name=name.strip(),
+                          year=_to_int(year, 0) or None, ref=ref.strip()))
+        db.commit()
+    return RedirectResponse(f"/hr/staff/{pid}", status_code=303)
+
+
+@router.post("/hr/decoration/{did}/delete")
+def hr_decoration_delete(did: int, db: Session = Depends(get_db)):
+    d = db.get(Decoration, did)
+    pid = d.person_id if d else None
+    if d:
+        db.delete(d); db.commit()
+    return RedirectResponse(f"/hr/staff/{pid}" if pid else "/hr/staff", status_code=303)
+
+
+@router.post("/hr/staff/{pid}/rank/add")
+def hr_rank_add(pid: int, db: Session = Depends(get_db), date: str = Form(""),
+                position: str = Form(""), rank: str = Form(""), doc_no: str = Form(""),
+                note: str = Form("")):
+    if db.get(Person, pid) and (position.strip() or rank.strip()):
+        db.add(RankHistory(person_id=pid, date=parse_be_date(date), position=position.strip(),
+                           rank=rank.strip(), doc_no=doc_no.strip(), note=note.strip()))
+        db.commit()
+    return RedirectResponse(f"/hr/staff/{pid}", status_code=303)
+
+
+@router.post("/hr/rank/{rid}/delete")
+def hr_rank_delete(rid: int, db: Session = Depends(get_db)):
+    r = db.get(RankHistory, rid)
+    pid = r.person_id if r else None
+    if r:
+        db.delete(r); db.commit()
+    return RedirectResponse(f"/hr/staff/{pid}" if pid else "/hr/staff", status_code=303)
+
+
+@router.get("/hr/staff/{pid}/kp7.docx")
+def hr_kp7_docx(pid: int, db: Session = Depends(get_db)):
+    from app.services.hr_doc import render_kp7
+    p = db.get(Person, pid)
+    if not p:
+        return RedirectResponse("/hr/staff", status_code=303)
+    path = render_kp7(get_school(db), p)
+    return serve_generated(path, _DOCX)
 
 
 # ==================== ทะเบียนไปราชการ ====================

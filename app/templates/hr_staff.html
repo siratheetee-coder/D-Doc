@@ -52,8 +52,9 @@
           <a class="btn sm gray" href="/hr/staff/{{ p.id }}/certificate.docx?kind=salary" title="รับรองเงินเดือน">เงินเดือน</a>
         </td>
         <td style="white-space:nowrap;">
+          <a class="btn sm" href="/hr/staff/{{ p.id }}">ประวัติ (ก.พ.7)</a>
           <a class="btn sm gray" href="/hr/staff?edit={{ p.id }}">แก้ไข</a>
-          <form method="post" action="/hr/staff/{{ p.id }}/delete" onsubmit="return confirm('ลบบุคลากรคนนี้? (รายการลาที่ผูกจะถูกลบด้วย)');" style="display:inline; margin:0;"><button class="btn red sm" type="submit"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
+          <form method="post" action="/hr/staff/{{ p.id }}/delete" onsubmit="return confirm('ลบบุคลากรคนนี้? (รายการลา/ไปราชการ/ประวัติที่ผูกจะถูกลบด้วย)');" style="display:inline; margin:0;"><button class="btn red sm" type="submit"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
         </td>
       </tr>
     {% endfor %}

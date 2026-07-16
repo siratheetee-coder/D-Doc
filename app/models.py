@@ -75,6 +75,10 @@ class Person(Base):
                           cascade="all, delete-orphan", order_by="LeaveRecord.start_date")
     travels = relationship("TravelRecord", back_populates="person",
                            cascade="all, delete-orphan", order_by="TravelRecord.start_date")
+    decorations = relationship("Decoration", back_populates="person",
+                               cascade="all, delete-orphan", order_by="Decoration.year")
+    rank_history = relationship("RankHistory", back_populates="person",
+                                cascade="all, delete-orphan", order_by="RankHistory.date")
 
 
 class Department(Base):
@@ -1007,3 +1011,29 @@ class TravelRecord(Base):
     created_at = Column(DateTime, default=datetime.now)
 
     person = relationship("Person", back_populates="travels")
+
+
+class Decoration(Base):
+    """เครื่องราชอิสริยาภรณ์ที่บุคลากรได้รับ (สำหรับ ก.พ.7)"""
+    __tablename__ = "decoration"
+
+    id = Column(Integer, primary_key=True)
+    person_id = Column(Integer, ForeignKey("person.id"), nullable=False)
+    name = Column(String, default="")       # ชั้นตรา เช่น เบญจมดิเรกคุณาภรณ์ (บ.ภ.)
+    year = Column(Integer, nullable=True)   # ปี พ.ศ. ที่ได้รับ
+    ref = Column(String, default="")        # เลขที่ประกาศ/ราชกิจจานุเบกษา
+    person = relationship("Person", back_populates="decorations")
+
+
+class RankHistory(Base):
+    """ประวัติการดำรงตำแหน่ง/เลื่อนวิทยฐานะ (สำหรับ ก.พ.7)"""
+    __tablename__ = "rank_history"
+
+    id = Column(Integer, primary_key=True)
+    person_id = Column(Integer, ForeignKey("person.id"), nullable=False)
+    date = Column(DateTime, nullable=True)  # วันที่มีผล
+    position = Column(String, default="")   # ตำแหน่ง
+    rank = Column(String, default="")       # วิทยฐานะ/ระดับ
+    doc_no = Column(String, default="")     # เลขที่คำสั่ง
+    note = Column(String, default="")
+    person = relationship("Person", back_populates="rank_history")

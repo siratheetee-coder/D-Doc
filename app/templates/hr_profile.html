@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}ประวัติ {{ p.name }}{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">{{ p.name }} <span class="muted" style="font-size:15px;">{{ p.position or '' }}{% if p.rank %} · {{ p.rank }}{% endif %}</span></h1>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn green" href="/hr/staff/{{ p.id }}/kp7.docx"><svg class="icon"><use href="#ic-download"/></svg> ก.พ.7 (Word)</a>
+      <a class="btn sm gray" href="/hr/staff?edit={{ p.id }}"><svg class="icon"><use href="#ic-edit"/></svg> แก้ไขข้อมูล</a>
+      <a class="btn sm gray" href="/hr/staff"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>ข้อมูลส่วนตัว</h2>
+  <table>
+    <tr><th style="width:210px;">ประเภท/ตำแหน่ง</th><td>{{ p.person_type or '-' }} · {{ p.position or '-' }}</td></tr>
+    <tr><th>วิทยฐานะ/ระดับ</th><td>{{ p.rank or '-' }}</td></tr>
+    <tr><th>เลขประจำตัวประชาชน</th><td>{{ p.id_card or '-' }}</td></tr>
+    <tr><th>วันเกิด</th><td>{{ thai_date(p.birthdate) if p.birthdate else '-' }}</td></tr>
+    <tr><th>วันบรรจุ/เริ่มงาน</th><td>{{ thai_date(p.start_date) if p.start_date else '-' }}</td></tr>
+    <tr><th>เงินเดือน</th><td>{{ "{:,.2f}".format(p.salary) if p.salary else '-' }} บาท</td></tr>
+    <tr><th>โทร / อีเมล</th><td>{{ p.phone or '-' }} / {{ p.email or '-' }}</td></tr>
+  </table>
+  <div class="stat" style="margin-top:12px;">
+    <div class="box"><div><div class="lab">รวมวันลา (ทั้งหมด)</div><div class="num">{{ "%g"|format(leave_days) }}</div></div><span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-calendar"/></svg></span></div>
+    <div class="box"><div><div class="lab">รวมวันไปราชการ</div><div class="num">{{ "%g"|format(travel_days) }}</div></div><span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-send"/></svg></span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>ประวัติการดำรงตำแหน่ง / เลื่อนวิทยฐานะ</h2>
+  <form method="post" action="/hr/staff/{{ p.id }}/rank/add" class="row" style="align-items:flex-end;">
+    <div><label>วันที่มีผล</label><input name="date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:124px;"></div>
+    <div><label>ตำแหน่ง</label><input name="position" placeholder="เช่น ครู"></div>
+    <div><label>วิทยฐานะ/ระดับ</label><input name="rank" placeholder="เช่น ครู คศ.1"></div>
+    <div><label>เลขที่คำสั่ง</label><input name="doc_no" style="width:110px;"></div>
+    <div><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
+  </form>
+  {% if rank_history %}
+  <table style="margin-top:10px;">
+    <thead><tr><th>วันที่</th><th>ตำแหน่ง</th><th>วิทยฐานะ/ระดับ</th><th>เลขที่คำสั่ง</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rank_history %}
+      <tr><td>{{ be_date(r.date) if r.date else '-' }}</td><td>{{ r.position or '-' }}</td><td>{{ r.rank or '-' }}</td><td>{{ r.doc_no or '-' }}</td>
+        <td><form method="post" action="/hr/rank/{{ r.id }}/delete" onsubmit="return confirm('ลบ?');" style="margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted" style="margin:8px 0 0;">ยังไม่มีข้อมูล</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>เครื่องราชอิสริยาภรณ์</h2>
+  <form method="post" action="/hr/staff/{{ p.id }}/decoration/add" class="row" style="align-items:flex-end;">
+    <div style="flex:2;"><label>ชั้นตรา</label><input name="name" placeholder="เช่น เบญจมดิเรกคุณาภรณ์ (บ.ภ.)"></div>
+    <div><label>ปี พ.ศ.</label><input name="year" type="number" style="width:90px;"></div>
+    <div><label>เลขที่ประกาศ</label><input name="ref"></div>
+    <div><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
+  </form>
+  {% if decorations %}
+  <table style="margin-top:10px;">
+    <thead><tr><th>ปี พ.ศ.</th><th>ชั้นตรา</th><th>เลขที่ประกาศ</th><th></th></tr></thead>
+    <tbody>
+    {% for d in decorations %}
+      <tr><td>{{ d.year or '-' }}</td><td>{{ d.name }}</td><td>{{ d.ref or '-' }}</td>
+        <td><form method="post" action="/hr/decoration/{{ d.id }}/delete" onsubmit="return confirm('ลบ?');" style="margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted" style="margin:8px 0 0;">ยังไม่มีข้อมูล</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>การลาล่าสุด</h2>
+  {% if leaves %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>ประเภท</th><th>ช่วงวันที่</th><th class="right">วัน</th><th>เหตุผล</th></tr></thead>
+    <tbody>{% for l in leaves %}<tr><td>{{ leave_types.get(l.leave_type, l.leave_type) }}</td><td>{{ be_date(l.start_date) if l.start_date else '-' }}{% if l.end_date %} – {{ be_date(l.end_date) }}{% endif %}</td><td class="right">{{ "%g"|format(l.days) }}</td><td class="muted">{{ l.reason }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">ยังไม่มีรายการลา</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>การไปราชการล่าสุด</h2>
+  {% if travels %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>เรื่อง</th><th>สถานที่</th><th>ช่วงวันที่</th><th class="right">วัน</th></tr></thead>
+    <tbody>{% for t in travels %}<tr><td>{{ t.subject }}</td><td>{{ t.place }}</td><td>{{ be_date(t.start_date) if t.start_date else '-' }}{% if t.end_date %} – {{ be_date(t.end_date) }}{% endif %}</td><td class="right">{{ "%g"|format(t.days) }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">ยังไม่มีรายการไปราชการ</p>{% endif %}
+</div>
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}
