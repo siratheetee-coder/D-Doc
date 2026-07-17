@@ -18,7 +18,7 @@ from app.models import (LunchProgram, LunchClass, LunchLedger, LunchHireRound,
                         FinanceAccount, FinanceTxn, Procurement)
 from app.services.growth_ref import (classify_all, age_months,
                                      WH_LABELS, HA_LABELS, WA_LABELS)
-from app.thai_utils import parse_be_date, be_date_input, current_fiscal_year
+from app.thai_utils import parse_be_date, be_date_input, current_fiscal_year, SCHOOL_LEVELS
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
 
@@ -27,8 +27,7 @@ router = APIRouter()
 PERIOD_TYPES = {"day": "รายวัน", "week": "รายสัปดาห์", "month": "รายเดือน"}
 
 # ระดับชั้นมาตรฐาน (เติม 0 ได้ถ้าไม่มีชั้นนั้น)
-DEFAULT_LEVELS = ["อ.1", "อ.2", "อ.3", "ป.1", "ป.2", "ป.3",
-                  "ป.4", "ป.5", "ป.6", "ม.1", "ม.2", "ม.3"]
+DEFAULT_LEVELS = SCHOOL_LEVELS         # ใช้ลิสต์ร่วมจาก thai_utils (แหล่งความจริงเดียว)
 
 OPERATE_MODES = {
     "hire": "จ้างเหมาประกอบอาหาร (ปรุงสำเร็จ)",

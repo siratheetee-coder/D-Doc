@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db, get_data_dir
 from app.models import TextBook, TextbookBerk, TextbookBerkItem
 from app.thai_utils import (current_academic_year, parse_be_date, be_date_input,
-                            thai_date)
+                            thai_date, SCHOOL_LEVELS)
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
 
@@ -206,8 +206,7 @@ async def textbook_import(db: Session = Depends(get_db), year: str = Form(""),
     return RedirectResponse(f"/textbooks?year={yr}&saved={n}", status_code=303)
 
 
-_LEVEL_ORDER = ["อ.1", "อ.2", "อ.3", "ป.1", "ป.2", "ป.3", "ป.4", "ป.5", "ป.6",
-                "ม.1", "ม.2", "ม.3"]
+_LEVEL_ORDER = SCHOOL_LEVELS           # ใช้ลิสต์ร่วมจาก thai_utils (แหล่งความจริงเดียว)
 
 
 @router.get("/textbooks/receipt.docx")

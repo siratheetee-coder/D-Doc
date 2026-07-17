@@ -52,9 +52,9 @@ MASTER_SHEETS = {
         "widths": [30, 24, 22, 36, 16, 22],
     },
     "นักเรียน": {
-        "headers": ["ชื่อ-นามสกุล", "เพศ (ช/ญ)", "วันเกิด (วว/ดด/ปปปป)", "ระดับชั้น", "เลขประจำตัว"],
-        "note": "กรอกรายชื่อนักเรียนตั้งแต่แถวที่ 3 ลงไป (จำเป็นเฉพาะชื่อ) เพศใส่ ช หรือ ญ  เช่น  เด็กชายสมชาย ใจดี | ช | 15/05/2562 | ป.1 | 10001",
-        "widths": [30, 12, 22, 12, 14],
+        "headers": ["ชื่อ-นามสกุล", "เพศ (ช/ญ)", "วันเกิด (วว/ดด/ปปปป)", "ระดับชั้น", "เลขประจำตัว", "ห้อง"],
+        "note": "กรอกรายชื่อนักเรียนตั้งแต่แถวที่ 3 ลงไป (จำเป็นเฉพาะชื่อ) เพศใส่ ช หรือ ญ  ห้องใส่เฉพาะเลข  เช่น  เด็กชายสมชาย ใจดี | ช | 15/05/2562 | ป.1 | 10001 | 1",
+        "widths": [30, 12, 22, 12, 14, 8],
     },
 }
 
@@ -280,7 +280,7 @@ def import_workbook(file_bytes: bytes, db) -> dict:
         if added or skipped:
             summary["ผู้ขาย"] = {"added": added, "skipped": skipped}
 
-    # ---- ชีตนักเรียน (ชื่อ | เพศ | วันเกิด | ชั้น | เลขประจำตัว) ----
+    # ---- ชีตนักเรียน (ชื่อ | เพศ | วันเกิด | ชั้น | เลขประจำตัว | ห้อง) ----
     if "นักเรียน" in wb.sheetnames:
         existing = {s.name for s in db.query(Student).all()}
         added = skipped = 0
@@ -297,6 +297,7 @@ def import_workbook(file_bytes: bytes, db) -> dict:
                 birthdate=parse_be_date(_cell_str(row[2])) if len(row) > 2 else None,
                 level=_cell_str(row[3]) if len(row) > 3 else "",
                 student_no=_cell_str(row[4]) if len(row) > 4 else "",
+                room=_cell_str(row[5]) if len(row) > 5 else "",
             ))
             existing.add(name)
             added += 1

@@ -42,7 +42,8 @@ from app.services.bulk_io import build_import_template, import_workbook
 from app.services import file_upload
 from app.services.pdf_extract import extract_letter_fields, extract_procurement_fields, extract_text_any
 from app.services.ai_extract import extract_with_ai
-from app.thai_utils import current_fiscal_year, thai_date, bahttext, be_date_input, parse_be_date
+from app.thai_utils import (current_fiscal_year, thai_date, bahttext, be_date_input, parse_be_date,
+                            SCHOOL_LEVELS, GRADUATED)
 from app.templating import templates
 
 router = APIRouter()
@@ -718,11 +719,13 @@ def students_page(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/students")
 def student_add(db: Session = Depends(get_db), name: str = Form(""), sex: str = Form(""),
-                birthdate: str = Form(""), level: str = Form(""), student_no: str = Form("")):
+                birthdate: str = Form(""), level: str = Form(""), room: str = Form(""),
+                student_no: str = Form("")):
     nm = (name or "").strip()
     if nm:
         db.add(Student(name=nm, sex=_norm_sex(sex), birthdate=parse_be_date(birthdate),
-                       level=(level or "").strip(), student_no=(student_no or "").strip()))
+                       level=(level or "").strip(), room=(room or "").strip(),
+                       student_no=(student_no or "").strip()))
         db.commit()
     return RedirectResponse("/students", status_code=303)
 
@@ -730,13 +733,14 @@ def student_add(db: Session = Depends(get_db), name: str = Form(""), sex: str = 
 @router.post("/students/{sid}/update")
 def student_master_update(sid: int, request: Request, db: Session = Depends(get_db), name: str = Form(""),
                           sex: str = Form(""), birthdate: str = Form(""),
-                          level: str = Form(""), student_no: str = Form("")):
+                          level: str = Form(""), room: str = Form(""), student_no: str = Form("")):
     s = db.get(Student, sid)
     if s:
         s.name = (name or "").strip() or s.name
         s.sex = _norm_sex(sex)
         s.birthdate = parse_be_date(birthdate)
         s.level = (level or "").strip()
+        s.room = (room or "").strip()
         s.student_no = (student_no or "").strip()
         db.commit()
     if request.headers.get("x-requested-with") == "fetch":
@@ -753,9 +757,8 @@ def student_master_delete(sid: int, db: Session = Depends(get_db)):
 
 
 # ลำดับชั้นเรียนสำหรับเลื่อนชั้นขึ้นปีใหม่
-_LEVEL_LADDER = ["อ.1", "อ.2", "อ.3", "ป.1", "ป.2", "ป.3", "ป.4", "ป.5", "ป.6",
-                 "ม.1", "ม.2", "ม.3"]
-_GRADUATED = "จบการศึกษา"
+_LEVEL_LADDER = SCHOOL_LEVELS          # ใช้ลิสต์ร่วมจาก thai_utils (แหล่งความจริงเดียว)
+_GRADUATED = GRADUATED
 
 
 @router.post("/students/promote")
@@ -786,7 +789,7 @@ def students_remove_graduated(db: Session = Depends(get_db)):
 
 @router.post("/students/bulk")
 def students_master_bulk(db: Session = Depends(get_db), bulk: str = Form("")):
-    """เพิ่มนักเรียนทีละหลายคน: 1 บรรทัด = ชื่อ, เพศ(ช/ญ), วันเกิด, ชั้น, เลขประจำตัว"""
+    """เพิ่มนักเรียนทีละหลายคน: 1 บรรทัด = ชื่อ, เพศ(ช/ญ), วันเกิด, ชั้น, เลขประจำตัว, ห้อง"""
     import re as _re
     n = 0
     for line in (bulk or "").splitlines():
@@ -797,7 +800,8 @@ def students_master_bulk(db: Session = Depends(get_db), bulk: str = Form("")):
             name=parts[0], sex=_norm_sex(parts[1] if len(parts) > 1 else ""),
             birthdate=parse_be_date(parts[2]) if len(parts) > 2 else None,
             level=parts[3] if len(parts) > 3 else "",
-            student_no=parts[4] if len(parts) > 4 else ""))
+            student_no=parts[4] if len(parts) > 4 else "",
+            room=parts[5] if len(parts) > 5 else ""))
         n += 1
     db.commit()
     return RedirectResponse(f"/students?added={n}", status_code=303)
@@ -808,12 +812,12 @@ def students_template():
     from openpyxl import Workbook
     from openpyxl.styles import Font
     wb = Workbook(); ws = wb.active; ws.title = "นักเรียน"
-    headers = ["ชื่อ-นามสกุล", "เพศ (ช/ญ)", "วันเกิด (วว/ดด/ปปปป)", "ระดับชั้น", "เลขประจำตัว"]
+    headers = ["ชื่อ-นามสกุล", "เพศ (ช/ญ)", "วันเกิด (วว/ดด/ปปปป)", "ระดับชั้น", "เลขประจำตัว", "ห้อง"]
     ws.append(headers)
     for c in range(1, len(headers) + 1):
         ws.cell(1, c).font = Font(name="TH Sarabun New", bold=True, size=14)
         ws.column_dimensions[chr(64 + c)].width = 24
-    ws.append(["เด็กชายสมชาย ใจดี", "ช", "15/05/2562", "ป.1", "10001"])
+    ws.append(["เด็กชายสมชาย ใจดี", "ช", "15/05/2562", "ป.1", "10001", "1"])
     return _xlsx_download(wb, "แบบฟอร์มนำเข้านักเรียน.xlsx")
 
 
@@ -833,7 +837,8 @@ async def students_import(db: Session = Depends(get_db), file: UploadFile = File
                 sex=_norm_sex(str(row[1]).strip() if len(row) > 1 and row[1] else ""),
                 birthdate=parse_be_date(str(row[2])) if len(row) > 2 and row[2] else None,
                 level=str(row[3]).strip() if len(row) > 3 and row[3] else "",
-                student_no=str(row[4]).strip() if len(row) > 4 and row[4] else ""))
+                student_no=str(row[4]).strip() if len(row) > 4 and row[4] else "",
+                room=str(row[5]).strip() if len(row) > 5 and row[5] else ""))
             n += 1
         db.commit()
     except Exception:

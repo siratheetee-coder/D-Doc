@@ -100,6 +100,7 @@ MIGRATIONS = [
     ("person", "email", "VARCHAR DEFAULT ''"),
     ("person", "salary", "FLOAT DEFAULT 0"),
     ("school", "area_office", "VARCHAR DEFAULT ''"),   # สำนักงานเขตพื้นที่การศึกษาที่สังกัด
+    ("student", "room", "VARCHAR DEFAULT ''"),         # ห้องเรียน (งานวิชาการ: ปพ.5 เป็นเอกสารรายห้อง)
 ]
 
 

@@ -279,6 +279,7 @@ class Student(Base):
     sex = Column(String, default="")                # M/F
     birthdate = Column(DateTime, nullable=True)     # วันเกิด
     level = Column(String, default="")              # ระดับชั้น เช่น ป.1
+    room = Column(String, default="")               # ห้อง เช่น 1 (คู่กับ level -> "ป.1/1") ว่างได้ถ้าชั้นละห้อง
     note = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)
 
