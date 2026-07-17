@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}ห้องเรียน{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานวิชาการ</div>
+    <span class="hero-title">ห้องเรียน</span>
+    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+  </div>
+</div>
+
+<div class="card">
+  <form method="get" action="/academic/classes" class="row" style="align-items:flex-end; margin:0;">
+    <div><label>ปีการศึกษา</label>
+      <select name="year" onchange="this.form.submit()">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
+      </select>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มห้องเรียน</h2>
+  {% if not teachers %}
+  <div class="alert">ยังไม่มีรายชื่อครูในระบบ — <a href="/masters">เพิ่มบุคลากรที่ทะเบียนกลาง</a> ก่อน แล้วค่อยกลับมาเลือกครูประจำชั้น</div>
+  {% endif %}
+  <form method="post" action="/academic/classes/add" class="row" style="align-items:flex-end;">
+    <input type="hidden" name="year" value="{{ year }}">
+    <div><label>ระดับชั้น *</label>
+      <select name="level" required>
+        {% for lv in levels %}<option value="{{ lv }}">{{ lv }}</option>{% endfor %}
+      </select>
+    </div>
+    <div><label>ห้อง</label><input name="room" placeholder="1" style="width:80px;"></div>
+    <div style="flex:1;"><label>ครูประจำชั้น</label>
+      <select name="homeroom_id"><option value="">-</option>
+        {% for t in teachers %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div style="flex:1;"><label>ครูคู่ชั้น</label>
+      <select name="co_homeroom_id"><option value="">-</option>
+        {% for t in teachers %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;">ห้องเรียนปี {{ year }} {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }} ห้อง)</span>{% endif %}</h2>
+  {% if rows %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>ชั้น/ห้อง</th><th>ครูประจำชั้น</th><th>ครูคู่ชั้น</th><th>นักเรียน</th><th></th></tr></thead>
+    <tbody>
+    {% for c in rows %}
+      <tr>
+        <td><a href="/academic/classes/{{ c.id }}"><b>{{ class_label(c) }}</b></a></td>
+        <td>{{ c.homeroom.name if c.homeroom else '-' }}</td>
+        <td>{{ c.co_homeroom.name if c.co_homeroom else '-' }}</td>
+        <td>{{ c.students|length }} คน</td>
+        <td style="white-space:nowrap;">
+          <a class="btn sm" href="/academic/classes/{{ c.id }}">เปิด</a>
+          <form method="post" action="/academic/classes/{{ c.id }}/delete" style="display:inline; margin:0;"
+                onsubmit="return confirm('ลบห้อง {{ class_label(c) }}? ผลการเรียนในห้องนี้จะถูกลบด้วย');">
+            <button class="btn sm gray" type="submit">ลบ</button></form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">ยังไม่มีห้องเรียนของปีนี้ — เพิ่มด้านบนได้เลย</p>
+  {% endif %}
+</div>
+{% endblock %}

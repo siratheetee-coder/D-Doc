@@ -59,7 +59,8 @@ TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 # โมดูลที่ "สร้างเสร็จแล้ว" ในระบบ (คนละเรื่องกับ "โรงเรียนนี้ซื้อหรือยัง" -> my_modules)
-MODULES_LIVE = {"procurement": True, "admin": True, "finance": True, "lunch": True, "hr": True}
+MODULES_LIVE = {"procurement": True, "admin": True, "finance": True, "lunch": True, "hr": True,
+                "academic": True}
 
 # global helper ใช้ได้ทุกเทมเพลต
 templates.env.globals.update(

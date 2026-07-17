@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}ห้อง {{ class_label }}{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานวิชาการ · ห้องเรียน</div>
+    <span class="hero-title">ห้อง {{ class_label }}</span>
+    <div class="hero-meta">ปีการศึกษา {{ c.year }} ·
+      ครูประจำชั้น {{ c.homeroom.name if c.homeroom else '-' }}{% if c.co_homeroom %} · ครูคู่ชั้น {{ c.co_homeroom.name }}{% endif %}
+      · {{ 'ตัดสินรายภาค (มัธยม)' if is_sec else 'ตัดสินรายปี (ประถม)' }}</div>
+  </div>
+</div>
+
+{% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกแล้ว</div>{% endif %}
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;">นักเรียนในห้อง <span class="muted" style="font-size:15px;">({{ students|length }} คน)</span></h2>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <form method="post" action="/academic/classes/{{ c.id }}/pull-roster" style="margin:0;">
+        <button class="btn" type="submit"><svg class="icon"><use href="#ic-download"/></svg> ดึงนักเรียนจากทะเบียนกลาง</button>
+      </form>
+      {% if students %}
+      <a class="btn soft" href="/academic/classes/{{ c.id }}/pp6-all.docx"><svg class="icon"><use href="#ic-file"/></svg> สมุดพกทั้งห้อง (ปพ.6)</a>
+      {% endif %}
+    </div>
+  </div>
+  <p class="muted" style="font-size:13px; margin:6px 0 8px;">ดึงจากทะเบียนกลางโดยจับคู่ <b>ชั้น {{ c.level }}{% if c.room %} ห้อง {{ c.room }}{% endif %}</b>
+    — ถ้าไม่พบใคร ให้ไปตั้งชั้น/ห้องให้นักเรียนที่ <a href="/students">ทะเบียนนักเรียน</a> ก่อน</p>
+  {% if students %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>เลขที่</th><th>เลขประจำตัว</th><th>ชื่อ-นามสกุล</th><th>เพศ</th><th></th></tr></thead>
+    <tbody>
+    {% for s in students %}
+      <tr>
+        <td><form method="post" action="/academic/student/{{ s.id }}/update" id="stf{{ s.id }}"></form>
+          <input form="stf{{ s.id }}" name="seq" value="{{ s.seq or '' }}" style="width:60px;"></td>
+        <td><input form="stf{{ s.id }}" name="student_no" value="{{ s.student_no }}" style="width:100px;"></td>
+        <td><input form="stf{{ s.id }}" name="name" value="{{ s.name }}"></td>
+        <td><select form="stf{{ s.id }}" name="sex" style="width:90px;">
+          <option value="" {{ 'selected' if not s.sex }}>-</option>
+          <option value="M" {{ 'selected' if s.sex=='M' }}>ชาย</option>
+          <option value="F" {{ 'selected' if s.sex=='F' }}>หญิง</option></select></td>
+        <td style="white-space:nowrap;">
+          <button class="btn sm" form="stf{{ s.id }}" type="submit">บันทึก</button>
+          <a class="btn sm soft" href="/academic/student/{{ s.id }}/pp6.docx">สมุดพก</a>
+          <form method="post" action="/academic/student/{{ s.id }}/delete" style="display:inline; margin:0;"
+                onsubmit="return confirm('เอา {{ s.name }} ออกจากห้องนี้?');">
+            <button class="btn sm gray" type="submit">ลบ</button></form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">ยังไม่มีนักเรียนในห้องนี้ — กดปุ่ม "ดึงนักเรียนจากทะเบียนกลาง" ด้านบน</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-users"/></svg> ครูผู้สอนรายวิชาของห้องนี้</h2>
+  <p class="muted" style="font-size:13px; margin:4px 0 8px;">กำหนดแยกรายห้องได้ — วิชาเดียวกันคนละห้องใช้คนละครูได้ · ชื่อนี้จะไปลงนามท้าย ปพ.5</p>
+  {% if subjects %}
+  <form method="post" action="/academic/classes/{{ c.id }}/teaching">
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>รหัส</th><th>รายวิชา</th><th>ภาค</th><th>ครูผู้สอน</th><th>ปพ.5</th></tr></thead>
+      <tbody>
+      {% for s in subjects %}
+        <tr>
+          <td>{{ s.code }}</td>
+          <td>{{ s.name }}</td>
+          <td>{{ term_label(s.term) }}</td>
+          <td><select name="teacher_{{ s.id }}">
+            <option value="">-</option>
+            {% for t in teachers %}
+            <option value="{{ t.id }}" {{ 'selected' if teach.get(s.id) and teach[s.id].teacher_id==t.id }}>{{ t.name }}</option>
+            {% endfor %}
+          </select></td>
+          <td><a class="btn sm soft" href="/academic/classes/{{ c.id }}/pp5.docx?sid={{ s.id }}">ออก ปพ.5</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกครูผู้สอน</button>
+  </form>
+  {% else %}
+  <p class="muted">ยังไม่มีรายวิชาของชั้น {{ c.level }} ปี {{ c.year }} — <a href="/academic/subjects?year={{ c.year }}&level={{ c.level }}">ไปสร้างรายวิชา</a></p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}ประเมิน + สมุดพก{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานวิชาการ</div>
+    <span class="hero-title">ประเมิน + สมุดพก</span>
+    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+  </div>
+</div>
+
+{% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกผลการประเมินแล้ว</div>{% endif %}
+
+<div class="card">
+  <form method="get" action="/academic/eval" class="row" style="align-items:flex-end; margin:0;">
+    <div><label>ปีการศึกษา</label>
+      <select name="year" onchange="this.form.submit()">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
+      </select></div>
+    <div><label>ห้องเรียน</label>
+      <select name="cid" onchange="this.form.submit()">
+        <option value="">- เลือกห้อง -</option>
+        {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id==c.id }}>{{ class_label(k) }}</option>{% endfor %}
+      </select></div>
+  </form>
+</div>
+
+{% if c %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;">ห้อง {{ class_label(c) }} <span class="muted" style="font-size:15px;">({{ students|length }} คน)</span></h2>
+    {% if students %}<a class="btn soft" href="/academic/classes/{{ c.id }}/pp6-all.docx"><svg class="icon"><use href="#ic-file"/></svg> สมุดพกทั้งห้อง (ปพ.6)</a>{% endif %}
+  </div>
+  <p class="muted" style="font-size:13px; margin:6px 0 8px;">ผลการประเมินเหล่านี้จะไปแสดงในสมุดพก ปพ.6 · เว้นว่างได้ถ้ายังไม่ประเมิน</p>
+  {% if students %}
+  <form method="post" action="/academic/eval/save">
+    <input type="hidden" name="cid" value="{{ c.id }}">
+    <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>เลขที่</th><th>ชื่อ-นามสกุล</th><th>อ่านคิดวิเคราะห์</th><th>คุณลักษณะฯ</th>
+        <th>แนะแนว</th><th>ลูกเสือ</th><th>ชุมนุม</th><th>เพื่อสังคม</th>
+        <th>มาเรียน</th><th>วันเปิด</th><th></th>
+      </tr></thead>
+      <tbody>
+      {% for s in students %}
+        {% set e = s.eval %}
+        <tr>
+          <td>{{ s.seq or '' }}</td>
+          <td style="white-space:nowrap;">{{ s.name }}</td>
+          <td><select name="read_{{ s.id }}" style="width:100px;"><option value="">-</option>
+            {% for q in quality %}<option value="{{ q }}" {{ 'selected' if e and e.read_think==q }}>{{ q }}</option>{% endfor %}</select></td>
+          <td><select name="char_{{ s.id }}" style="width:100px;"><option value="">-</option>
+            {% for q in quality %}<option value="{{ q }}" {{ 'selected' if e and e.desired_char==q }}>{{ q }}</option>{% endfor %}</select></td>
+          <td><select name="guid_{{ s.id }}" style="width:70px;"><option value="">-</option>
+            {% for q in passfail %}<option value="{{ q }}" {{ 'selected' if e and e.act_guidance==q }}>{{ q }}</option>{% endfor %}</select></td>
+          <td><select name="scout_{{ s.id }}" style="width:70px;"><option value="">-</option>
+            {% for q in passfail %}<option value="{{ q }}" {{ 'selected' if e and e.act_scout==q }}>{{ q }}</option>{% endfor %}</select></td>
+          <td><select name="club_{{ s.id }}" style="width:70px;"><option value="">-</option>
+            {% for q in passfail %}<option value="{{ q }}" {{ 'selected' if e and e.act_club==q }}>{{ q }}</option>{% endfor %}</select></td>
+          <td><select name="social_{{ s.id }}" style="width:70px;"><option value="">-</option>
+            {% for q in passfail %}<option value="{{ q }}" {{ 'selected' if e and e.act_social==q }}>{{ q }}</option>{% endfor %}</select></td>
+          <td><input name="dpres_{{ s.id }}" value="{{ e.days_present if e and e.days_present is not none else '' }}" style="width:60px;"></td>
+          <td><input name="dopen_{{ s.id }}" value="{{ e.days_open if e and e.days_open is not none else '' }}" style="width:60px;"></td>
+          <td><a class="btn sm soft" href="/academic/student/{{ s.id }}/pp6.docx">สมุดพก</a></td>
+        </tr>
+        <tr>
+          <td></td>
+          <td colspan="10"><input name="cmt_{{ s.id }}" value="{{ e.comment if e else '' }}"
+                                  placeholder="ความเห็นครูประจำชั้น (แสดงในสมุดพก)" style="width:100%;"></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกผลการประเมิน</button>
+  </form>
+  {% else %}
+  <p class="muted">ห้องนี้ยังไม่มีนักเรียน — <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

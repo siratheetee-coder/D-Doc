@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}งานวิชาการ{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">ผลการเรียน · ปพ.5 · สมุดพก ปพ.6</div>
+    <span class="hero-title">งานวิชาการ</span>
+    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="stat">
+    <div class="box"><div><div class="lab">ห้องเรียน ปี {{ year }}</div><div class="num">{{ n_classes }}</div></div>
+      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-users"/></svg></span></div>
+    <div class="box"><div><div class="lab">นักเรียนในห้อง</div><div class="num">{{ n_students }}</div></div>
+      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-users"/></svg></span></div>
+    <div class="box"><div><div class="lab">รายวิชา</div><div class="num">{{ n_subjects }}</div></div>
+      <span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-clipboard"/></svg></span></div>
+  </div>
+</div>
+
+<div class="nav-grid">
+  <a class="nav-card" href="/academic/classes">
+    <div class="nc-head">
+      <span class="nc-ic"><svg class="icon"><use href="#ic-users"/></svg></span>
+      <h3>ห้องเรียน</h3>
+    </div>
+    <p class="nc-desc">ตั้งห้องเรียนรายปี · ครูประจำชั้น/ครูคู่ชั้น · ดึงนักเรียนจากทะเบียนกลาง · กำหนดครูผู้สอนรายวิชา</p>
+    <span class="nc-go">เปิดห้องเรียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  <a class="nav-card" href="/academic/subjects">
+    <div class="nc-head">
+      <span class="nc-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span>
+      <h3>รายวิชา</h3>
+    </div>
+    <p class="nc-desc">รายวิชาแต่ละชั้น · ปุ่มสร้างรายวิชาพื้นฐาน 8 กลุ่มสาระพร้อมรหัสวิชาในคลิกเดียว</p>
+    <span class="nc-go">เปิดรายวิชา <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  <a class="nav-card" href="/academic/grades">
+    <div class="nc-head">
+      <span class="nc-ic"><svg class="icon"><use href="#ic-edit"/></svg></span>
+      <h3>กรอกผลการเรียน</h3>
+    </div>
+    <p class="nc-desc">กรอกคะแนนทั้งห้องในตารางเดียว · คิดเกรดให้อัตโนมัติ · ออก ปพ.5</p>
+    <span class="nc-go">กรอกคะแนน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  <a class="nav-card" href="/academic/eval">
+    <div class="nc-head">
+      <span class="nc-ic"><svg class="icon"><use href="#ic-check"/></svg></span>
+      <h3>ประเมิน + สมุดพก</h3>
+    </div>
+    <p class="nc-desc">อ่านคิดวิเคราะห์ · คุณลักษณะอันพึงประสงค์ · กิจกรรมพัฒนาผู้เรียน · ออกสมุดพก ปพ.6</p>
+    <span class="nc-go">ประเมิน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+</div>
+{% endblock %}

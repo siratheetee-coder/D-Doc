@@ -275,7 +275,7 @@
   .bc-mods b{ font-size:11px; font-weight:600; color:var(--navy); line-height:1.1; text-align:center; }
   .bc-mods .m1 .ico{ color:var(--blue); } .bc-mods .m2 .ico{ color:#16a34a; }
   .bc-mods .m3 .ico{ color:#dc2626; } .bc-mods .m4 .ico{ color:#d97706; }
-  .bc-mods .m5 .ico{ color:#0d9488; }
+  .bc-mods .m5 .ico{ color:#0d9488; } .bc-mods .m6 .ico{ color:#4f46e5; }
   .bundle-card.promo .bc-mods span{ background:#fff; }
   .bc-right{ text-align:center; flex:none; position:relative; z-index:1; padding-left:12px; display:flex;
     flex-direction:column; align-items:center; justify-content:center; }
@@ -623,9 +623,9 @@
 </section>
 
 <!-- ================= ราคา ================= -->
-{% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':190,'p_hr':390,'bundle':2190}) %}
-{% set full = full_sum | default(2750) %}
-{% set save = bundle_save | default(560) %}
+{% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':190,'p_hr':390,'p_acad':690,'bundle':2690}) %}
+{% set full = full_sum | default(3440) %}
+{% set save = bundle_save | default(750) %}
 <section class="pricing" id="pricing">
   <div class="wrap">
     <div class="sec-head">
@@ -648,6 +648,7 @@
             <span class="m3"><svg class="ico"><use href="#ic-mail"/></svg><b>ธุรการ</b></span>
             <span class="m4"><svg class="ico"><use href="#ic-food"/></svg><b>อาหารกลางวัน</b></span>
             <span class="m5"><svg class="ico"><use href="#ic-users"/></svg><b>บุคคล</b></span>
+            <span class="m6"><svg class="ico"><use href="#ic-clipboard"/></svg><b>วิชาการ</b></span>
           </div>
         </div>
       </div>
@@ -675,10 +676,14 @@
         <svg class="ico"><use href="#ic-tag"/></svg>
         <div class="sl-txt"><b>4 งาน</b><span>ลด 300 บาท</span></div>
       </div>
+      <div class="sl-card">
+        <svg class="ico"><use href="#ic-tag"/></svg>
+        <div class="sl-txt"><b>5 งาน</b><span>ลด 400 บาท</span></div>
+      </div>
       <div class="sl-card sl-best">
         <span class="sl-ribbon">คุ้มสุด!</span>
         <svg class="ico"><use href="#ic-star"/></svg>
-        <div class="sl-txt"><b>5 งาน <i>(ครบทุกงาน)</i></b><span>เหลือ {{ "{:,}".format(px.bundle) }} บาท</span></div>
+        <div class="sl-txt"><b>6 งาน <i>(ครบทุกงาน)</i></b><span>เหลือ {{ "{:,}".format(px.bundle) }} บาท</span></div>
       </div>
     </div>
     <div class="mgrid" id="pickList">
@@ -732,6 +737,16 @@
         <div class="mc-price">{{ px.p_hr }} <small>บาท/ปี</small></div>
         <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
       </label>
+      <label class="mcard on" data-price="{{ px.p_acad }}" data-name="งานวิชาการ">
+        <input type="checkbox" checked>
+        <div class="mc-head">
+          <svg class="ico" style="color:#4f46e5;"><use href="#ic-clipboard"/></svg>
+          <h4>งานวิชาการ</h4>
+        </div>
+        <p>ผลการเรียน + ปพ.5 + สมุดพก ปพ.6 · รายวิชา 8 กลุ่มสาระสำเร็จรูป</p>
+        <div class="mc-price">{{ px.p_acad }} <small>บาท/ปี</small></div>
+        <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
+      </label>
     </div>
 
     <!-- แถบสรุป -->
@@ -781,7 +796,7 @@
 <script>
   (function(){
     var BUNDLE = {{ px.bundle | tojson }};                 // แพ็กครบทุกงาน (ราคาโปรถ้ามี) — จาก pricing_context()
-    var FULL = {{ full_sum | default(2750) | tojson }};    // รวมงานแยกเต็ม (ราคาขีดฆ่า)
+    var FULL = {{ full_sum | default(3440) | tojson }};    // รวมงานแยกเต็ม (ราคาขีดฆ่า)
     var cards = [].slice.call(document.querySelectorAll('#pickList .mcard'));
     var TIERS = {{ tier_discount | default({2:100, 3:200, 4:300}) | tojson }};
     var NMODS = cards.length;

@@ -80,7 +80,7 @@
 
 {% set pk = packages or 'ครบทุกงาน' %}
 {% set is_all = ('ครบทุกงาน' in pk) or (not packages) %}
-{% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':190,'p_hr':390,'bundle':2190}) %}
+{% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':190,'p_hr':390,'p_acad':690,'bundle':2690}) %}
 <div class="card">
   <h2>เลือกแพ็กเกจที่ต้องการ</h2>
   <p class="hint" style="margin-top:0;">เลือกงานที่ต้องการ ระบบคิดราคาและอัปเดต QR ให้อัตโนมัติ</p>
@@ -116,10 +116,14 @@
       <svg class="ico" viewBox="0 0 24 24"><path d="M20.59 13.41 12 22l-9-9V3h10l7.59 7.59a2 2 0 0 1 0 2.82z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
       <div class="sl-txt"><b>4 งาน</b><span>ลด 300 บาท</span></div>
     </div>
+    <div class="sl-card">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M20.59 13.41 12 22l-9-9V3h10l7.59 7.59a2 2 0 0 1 0 2.82z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
+      <div class="sl-txt"><b>5 งาน</b><span>ลด 400 บาท</span></div>
+    </div>
     <div class="sl-card sl-best">
       <span class="sl-ribbon">คุ้มสุด!</span>
       <svg class="ico" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      <div class="sl-txt"><b>5 งาน <i>(ครบทุกงาน)</i></b><span>เหลือ {{ "{:,}".format(px.bundle) }} บาท</span></div>
+      <div class="sl-txt"><b>6 งาน <i>(ครบทุกงาน)</i></b><span>เหลือ {{ "{:,}".format(px.bundle) }} บาท</span></div>
     </div>
   </div>
   <div class="co-list" id="coList">
@@ -152,6 +156,12 @@
       <span class="co-check"></span>
       <span class="co-name">งานบุคคล<small>ทะเบียนบุคลากร · วันลา · ไปราชการ · ก.พ.7 · หนังสือรับรอง</small></span>
       <span class="co-price">{{ px.p_hr }}</span>
+    </label>
+    <label class="co-item" data-price="{{ px.p_acad }}" data-name="งานวิชาการ">
+      <input type="checkbox" name="mod" value="academic" form="orderForm" {{ 'checked' if is_all or 'วิชาการ' in pk }}>
+      <span class="co-check"></span>
+      <span class="co-name">งานวิชาการ<small>ห้องเรียน/ครูประจำชั้น · รายวิชา 8 กลุ่มสาระ · ผลการเรียน · ปพ.5 · สมุดพก ปพ.6</small></span>
+      <span class="co-price">{{ px.p_acad }}</span>
     </label>
   </div>
   <button type="button" class="btn btn-ghost" id="coAll" style="margin-top:12px; width:100%;">เลือกครบทุกงาน (คุ้มสุด {{ "{:,}".format(px.bundle) }} บาท)</button>

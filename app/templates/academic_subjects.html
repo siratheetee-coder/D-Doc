@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}รายวิชา{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานวิชาการ</div>
+    <span class="hero-title">รายวิชา</span>
+    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+  </div>
+</div>
+
+<div class="card">
+  <form method="get" action="/academic/subjects" class="row" style="align-items:flex-end; margin:0;">
+    <div><label>ปีการศึกษา</label>
+      <select name="year" onchange="this.form.submit()">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
+      </select>
+    </div>
+    <div><label>ระดับชั้น</label>
+      <select name="level" onchange="this.form.submit()">
+        <option value="">ทุกชั้น</option>
+        {% for lv in levels %}<option value="{{ lv }}" {{ 'selected' if lv==level }}>{{ lv }}</option>{% endfor %}
+      </select>
+    </div>
+  </form>
+</div>
+
+{% if level %}
+<div class="card" style="border:1px solid #ddd6fe; background:#faf8ff;">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-star"/></svg> สร้างรายวิชาพื้นฐานสำเร็จรูป</h2>
+  <p class="muted" style="margin:4px 0 10px;">สร้างรายวิชาพื้นฐาน 8 กลุ่มสาระของ <b>{{ level }}</b> พร้อมรหัสวิชาตามหลักสูตรแกนกลาง
+    {% if is_secondary(level) %}(มัธยม: สร้างให้ทั้ง 2 ภาคเรียน){% else %}(ประถม: ตัดสินรายปี){% endif %}
+    · <b>เวลาเรียน/หน่วยกิตเป็นค่าเริ่มต้น แก้ได้ทุกช่อง</b> · วิชาที่มีรหัสซ้ำจะถูกข้าม</p>
+  <form method="post" action="/academic/subjects/preset">
+    <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="level" value="{{ level }}">
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> สร้างรายวิชาพื้นฐานของ {{ level }}</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มรายวิชา</h2>
+  <form method="post" action="/academic/subjects/add" class="row" style="align-items:flex-end;">
+    <input type="hidden" name="year" value="{{ year }}">
+    <div><label>ชั้น *</label>
+      <select name="level" required>
+        {% for lv in levels %}<option value="{{ lv }}" {{ 'selected' if lv==level }}>{{ lv }}</option>{% endfor %}
+      </select></div>
+    <div><label>รหัสวิชา</label><input name="code" style="width:100px;" placeholder="ท11101"></div>
+    <div style="flex:1.4;"><label>ชื่อรายวิชา *</label><input name="name" required></div>
+    <div style="flex:1.2;"><label>กลุ่มสาระ</label><input name="learn_group"></div>
+    <div><label>ประเภท</label><select name="kind">{% for k in kinds %}<option>{{ k }}</option>{% endfor %}</select></div>
+    <div><label>เวลาเรียน</label><input name="hours" style="width:80px;" placeholder="80"></div>
+    <div><label>หน่วยกิต</label><input name="credit" style="width:80px;" placeholder="1.0"></div>
+    <div><label>ภาคเรียน</label>
+      <select name="term"><option value="0">ทั้งปี</option><option value="1">ภาค 1</option><option value="2">ภาค 2</option></select></div>
+    <div><button class="btn" type="submit">เพิ่ม</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;">รายวิชา {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }})</span>{% endif %}</h2>
+  {% if rows %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>ชั้น</th><th>รหัส</th><th>ชื่อรายวิชา</th><th>กลุ่มสาระ</th><th>ประเภท</th><th>เวลา</th><th>หน่วยกิต</th><th>ภาค</th><th></th></tr></thead>
+    <tbody>
+    {% for s in rows %}
+      <tr>
+        <td>{{ s.level }}<form method="post" action="/academic/subjects/{{ s.id }}/update" id="sf{{ s.id }}"></form></td>
+        <td><input form="sf{{ s.id }}" name="code" value="{{ s.code }}" style="width:90px;"></td>
+        <td><input form="sf{{ s.id }}" name="name" value="{{ s.name }}"></td>
+        <td><input form="sf{{ s.id }}" name="learn_group" value="{{ s.learn_group }}"></td>
+        <td><select form="sf{{ s.id }}" name="kind">{% for k in kinds %}<option {{ 'selected' if k==s.kind }}>{{ k }}</option>{% endfor %}</select></td>
+        <td><input form="sf{{ s.id }}" name="hours" value="{{ s.hours or '' }}" style="width:60px;"></td>
+        <td><input form="sf{{ s.id }}" name="credit" value="{{ ('%g'|format(s.credit)) if s.credit else '' }}" style="width:60px;"></td>
+        <td><select form="sf{{ s.id }}" name="term">
+          <option value="0" {{ 'selected' if s.term==0 }}>ทั้งปี</option>
+          <option value="1" {{ 'selected' if s.term==1 }}>ภาค 1</option>
+          <option value="2" {{ 'selected' if s.term==2 }}>ภาค 2</option></select></td>
+        <td style="white-space:nowrap;">
+          <button class="btn sm" form="sf{{ s.id }}" type="submit">บันทึก</button>
+          <form method="post" action="/academic/subjects/{{ s.id }}/delete" style="display:inline; margin:0;"
+                onsubmit="return confirm('ลบรายวิชานี้? ผลการเรียนของวิชานี้จะถูกลบด้วย');">
+            <button class="btn sm gray" type="submit">ลบ</button></form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">ยังไม่มีรายวิชา — เลือกชั้นด้านบนแล้วกดปุ่มสร้างสำเร็จรูปได้เลย</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -42,6 +42,7 @@
     .layout[data-module="finance"] { --brand:#16a34a; --brand-dark:#15803d; --brand-soft:#dcfce7; --brand-lite:#4ade80; }
     .layout[data-module="lunch"]   { --brand:#ea580c; --brand-dark:#c2410c; --brand-soft:#ffedd5; --brand-lite:#fb923c; }
     .layout[data-module="hr"]      { --brand:#0d9488; --brand-dark:#0f766e; --brand-soft:#ccfbf1; --brand-lite:#2dd4bf; }
+    .layout[data-module="academic"] { --brand:#4f46e5; --brand-dark:#4338ca; --brand-soft:#e0e7ff; --brand-lite:#818cf8; }
     /* พัสดุ + hub ใช้สีน้ำเงินเริ่มต้นจาก :root */
     * { box-sizing: border-box; }
     /* กันหน้าจอ "ขยับซ้าย-ขวา" เวลาสลับหน้า (หน้าสั้นไม่มีสกรอลล์ vs หน้ายาวมีสกรอลล์) — จองที่สกรอลล์ไว้เสมอ */
@@ -460,12 +461,13 @@
         else 'finance' if path.startswith('/finance')
         else 'lunch' if path.startswith('/lunch')
         else 'hr' if path.startswith('/hr')
+        else 'academic' if path.startswith('/academic')
         else 'procurement' if (path.startswith('/procurement') or path.startswith('/assets')
              or path.startswith('/materials') or path.startswith('/requisitions')
              or path.startswith('/register') or path.startswith('/catalog')
              or path.startswith('/textbooks'))
         else 'hub' %}
-  {% set mod_label = {'admin':'งานธุรการ','procurement':'งานพัสดุ','finance':'งานการเงิน','lunch':'งานอาหารกลางวัน','hr':'งานบุคคล','hub':'เลือกงาน'}[module] %}
+  {% set mod_label = {'admin':'งานธุรการ','procurement':'งานพัสดุ','finance':'งานการเงิน','lunch':'งานอาหารกลางวัน','hr':'งานบุคคล','academic':'งานวิชาการ','hub':'เลือกงาน'}[module] %}
   <div class="layout" data-module="{{ module }}">
     <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
     <aside class="sidebar" id="sidebar">
@@ -477,8 +479,8 @@
         </span>
       </a>
       <nav>
-        {% set section_home = '/admin' if module=='admin' else '/finance' if module=='finance' else '/lunch' if module=='lunch' else '/hr' if module=='hr' else '/procurement' if module=='procurement' else '/' %}
-        {% set section_prefixes = ['/admin'] if module=='admin' else ['/finance'] if module=='finance' else ['/lunch'] if module=='lunch' else ['/hr'] if module=='hr' else ['/procurement','/assets','/materials','/requisitions','/register','/catalog','/textbooks'] if module=='procurement' else ['/'] %}
+        {% set section_home = '/admin' if module=='admin' else '/finance' if module=='finance' else '/lunch' if module=='lunch' else '/hr' if module=='hr' else '/academic' if module=='academic' else '/procurement' if module=='procurement' else '/' %}
+        {% set section_prefixes = ['/admin'] if module=='admin' else ['/finance'] if module=='finance' else ['/lunch'] if module=='lunch' else ['/hr'] if module=='hr' else ['/academic'] if module=='academic' else ['/procurement','/assets','/materials','/requisitions','/register','/catalog','/textbooks'] if module=='procurement' else ['/'] %}
         {% set is_section_home = (path == section_home) %}
         {% if module != 'hub' %}
         <a href="{{ '/' if is_section_home else section_home }}" class="navback" onclick="return goBack(event)"><svg class="icon"><use href="#ic-arrow-left"/></svg> {{ 'หน้าเลือกงาน' if is_section_home else 'ย้อนกลับ' }}</a>
@@ -550,13 +552,21 @@
         <a href="/hr/leave" class="{{ 'active' if path.startswith('/hr/leave') }}"><svg class="icon"><use href="#ic-calendar"/></svg> ทะเบียนวันลา</a>
         <a href="/hr/travel" class="{{ 'active' if path.startswith('/hr/travel') }}"><svg class="icon"><use href="#ic-send"/></svg> ทะเบียนไปราชการ</a>
 
+        {% elif module == 'academic' %}
+        <div class="nav-sec">งานวิชาการ</div>
+        <a href="/academic" class="{{ 'active' if path == '/academic' }}"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลักงานวิชาการ</a>
+        <a href="/academic/classes" class="{{ 'active' if path.startswith('/academic/classes') }}"><svg class="icon"><use href="#ic-users"/></svg> ห้องเรียน</a>
+        <a href="/academic/subjects" class="{{ 'active' if path.startswith('/academic/subjects') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> รายวิชา</a>
+        <a href="/academic/grades" class="{{ 'active' if path.startswith('/academic/grades') }}"><svg class="icon"><use href="#ic-edit"/></svg> กรอกผลการเรียน</a>
+        <a href="/academic/eval" class="{{ 'active' if path.startswith('/academic/eval') }}"><svg class="icon"><use href="#ic-check"/></svg> ประเมิน + สมุดพก</a>
+
         {% else %}{# hub #}
         <div class="nav-sec">เลือกงาน</div>
         {# 3 สถานะ: ยังไม่ได้สร้าง (เร็วๆ นี้) · ยังไม่ได้ซื้อและโควตาหมด (ชวนซื้อ) · เข้าได้ #}
         {% set _tid = request.session.get('tid') %}
         {% set _mine = my_modules(_tid) %}
         {% for k, ico in [('admin','#ic-file'), ('procurement','#ic-package'), ('finance','#ic-coins'),
-                          ('lunch','#ic-food'), ('hr','#ic-users')] %}
+                          ('lunch','#ic-food'), ('hr','#ic-users'), ('academic','#ic-clipboard')] %}
           {% if not modules_live[k] %}
         <span class="navdim"><svg class="icon"><use href="{{ ico }}"/></svg> {{ module_labels[k] }} (เร็วๆ นี้)</span>
           {% elif can_use(_tid, k) %}

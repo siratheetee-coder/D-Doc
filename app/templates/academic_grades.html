@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}กรอกผลการเรียน{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานวิชาการ</div>
+    <span class="hero-title">กรอกผลการเรียน</span>
+    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+  </div>
+</div>
+
+{% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกคะแนนแล้ว</div>{% endif %}
+
+<div class="card">
+  <form method="get" action="/academic/grades" class="row" style="align-items:flex-end; margin:0;">
+    <div><label>ปีการศึกษา</label>
+      <select name="year" onchange="this.form.submit()">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
+      </select></div>
+    <div><label>ห้องเรียน</label>
+      <select name="cid" onchange="this.form.submit()">
+        <option value="">- เลือกห้อง -</option>
+        {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id==c.id }}>{{ class_label(k) }}</option>{% endfor %}
+      </select></div>
+    {% if c %}
+    <div style="flex:1;"><label>รายวิชา</label>
+      <select name="sid" onchange="this.form.submit()">
+        <option value="">- เลือกวิชา -</option>
+        {% for s in subjects %}
+        <option value="{{ s.id }}" {{ 'selected' if subj and s.id==subj.id }}>{{ s.code }} {{ s.name }} — {{ term_label(s.term) }}</option>
+        {% endfor %}
+      </select></div>
+    {% endif %}
+  </form>
+  {% if c and not subjects %}
+  <p class="muted" style="margin:10px 0 0;">ชั้น {{ c.level }} ปี {{ c.year }} ยังไม่มีรายวิชา —
+    <a href="/academic/subjects?year={{ c.year }}&level={{ c.level }}">ไปสร้างรายวิชา</a></p>
+  {% endif %}
+</div>
+
+{% if c and subj %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;">{{ subj.code }} {{ subj.name }} · ห้อง {{ class_label(c) }} · {{ term_label(subj.term) }}</h2>
+    <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5.docx?sid={{ subj.id }}"><svg class="icon"><use href="#ic-file"/></svg> ออก ปพ.5</a>
+  </div>
+  <p class="muted" style="font-size:13px; margin:6px 0 8px;">กรอกคะแนนเก็บ + ปลายภาค แล้วระบบคิดเกรดจากคะแนนรวมให้
+    (80=4 · 75=3.5 · 70=3 · 65=2.5 · 60=2 · 55=1.5 · 50=1) · ถ้าเลือกเกรดเองจะใช้ค่าที่เลือกแทน (เช่น ร / มส)</p>
+  {% if students %}
+  <form method="post" action="/academic/grades/save">
+    <input type="hidden" name="cid" value="{{ c.id }}"><input type="hidden" name="sid" value="{{ subj.id }}">
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>เลขที่</th><th>ชื่อ-นามสกุล</th><th>คะแนนเก็บ</th><th>ปลายภาค</th><th>รวม</th><th>ผลการเรียน</th></tr></thead>
+      <tbody>
+      {% for s in students %}
+        {% set sc = scores.get(s.id) %}
+        <tr>
+          <td>{{ s.seq or '' }}</td>
+          <td>{{ s.name }}</td>
+          <td><input name="mid_{{ s.id }}" value="{{ '%g'|format(sc.score_mid) if sc and sc.score_mid is not none else '' }}"
+                     inputmode="decimal" style="width:90px;" data-sum="{{ s.id }}"></td>
+          <td><input name="fin_{{ s.id }}" value="{{ '%g'|format(sc.score_final) if sc and sc.score_final is not none else '' }}"
+                     inputmode="decimal" style="width:90px;" data-sum="{{ s.id }}"></td>
+          <td><b id="sum{{ s.id }}">{{ '%g'|format(sc.score) if sc and sc.score is not none else '-' }}</b></td>
+          <td><select name="grade_{{ s.id }}" style="width:100px;">
+            <option value="">(คิดอัตโนมัติ)</option>
+            {% for g in grades %}<option value="{{ g }}" {{ 'selected' if sc and sc.grade==g }}>{{ g }}</option>{% endfor %}
+          </select></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกคะแนนทั้งห้อง</button>
+  </form>
+  <script>
+    // แสดงคะแนนรวมสดขณะพิมพ์ (เกรดจริงคำนวณที่เซิร์ฟเวอร์ตอนบันทึก)
+    document.querySelectorAll('input[data-sum]').forEach(function(el){
+      el.addEventListener('input', function(){
+        var id = el.dataset.sum;
+        var mid = parseFloat(document.querySelector('input[name="mid_'+id+'"]').value) || 0;
+        var fin = parseFloat(document.querySelector('input[name="fin_'+id+'"]').value) || 0;
+        var box = document.getElementById('sum'+id);
+        if(box) box.textContent = (mid+fin) ? (mid+fin) : '-';
+      });
+    });
+  </script>
+  {% else %}
+  <p class="muted">ห้องนี้ยังไม่มีนักเรียน — <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

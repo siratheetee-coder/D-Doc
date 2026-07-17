@@ -173,6 +173,19 @@
       <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
       {% else %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
     </a>
+
+    {%- set live = modules_live['academic'] %}{% set owned = 'academic' in _mine %}{% set usable = can_use(_tid, 'academic') %}
+    <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not usable) else '' }}" style="--c:#4f46e5; --c2:#818cf8;"
+       href="{{ '/academic' if (live and usable) else ('/checkout' if live else '#') }}" {{ '' if live else 'onclick=return false;'|safe }}>
+      {% if live and usable and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
+      <span class="hub-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span>
+      <h2>งานวิชาการ</h2>
+      <div class="desc">ห้องเรียน/ครูประจำชั้น · รายวิชา 8 กลุ่มสาระ · กรอกผลการเรียน · ปพ.5 · สมุดพก ปพ.6</div>
+      {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
+      {% elif usable %}
+      <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      {% else %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
+    </a>
   </div>
 
   <!-- ภาพรวมปีงบ -->

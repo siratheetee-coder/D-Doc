@@ -1039,3 +1039,125 @@ class RankHistory(Base):
     doc_no = Column(String, default="")     # เลขที่คำสั่ง
     note = Column(String, default="")
     person = relationship("Person", back_populates="rank_history")
+
+
+# ===================== งานวิชาการ (ผลการเรียน · ปพ.5 / ปพ.6) =====================
+# หลักคิด: ทะเบียนนักเรียนกลาง (Student) คือมาสเตอร์ที่ "ใช้ซ้ำทุกปี" และเลื่อนชั้นได้
+# งานวิชาการจึง "คัดลอกตอนดึง" เข้ามาเก็บเป็นสำเนารายปี (AcadStudent) เหมือนที่งาน
+# ภาวะโภชนาการทำ — เพื่อให้ผลการเรียนปี 2567 ไม่ขยับตามเมื่อเด็กเลื่อนชั้นไป ป.2
+
+class AcadClass(Base):
+    """ห้องเรียนของปีการศึกษาหนึ่ง (ปี × ชั้น × ห้อง)"""
+    __tablename__ = "acad_class"
+
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, nullable=False)          # ปีการศึกษา (พ.ศ.)
+    level = Column(String, default="")              # ระดับชั้น เช่น ป.1
+    room = Column(String, default="")               # ห้อง เช่น 1
+    # ครูประจำชั้นเป็นความสัมพันธ์ "ปี×ชั้น×ห้อง -> ครู" ไม่ใช่คุณสมบัติของครู
+    # (ถ้าเก็บไว้ที่ Person ปีหน้าครูย้ายห้อง ปพ.6 ของปีเก่าจะเปลี่ยนชื่อตามไปด้วย)
+    homeroom_id = Column(Integer, ForeignKey("person.id"), nullable=True)     # ครูประจำชั้น
+    co_homeroom_id = Column(Integer, ForeignKey("person.id"), nullable=True)  # ครูคู่ชั้น (ไม่บังคับ)
+    note = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+    homeroom = relationship("Person", foreign_keys=[homeroom_id])
+    co_homeroom = relationship("Person", foreign_keys=[co_homeroom_id])
+    students = relationship("AcadStudent", back_populates="klass",
+                            cascade="all, delete-orphan")
+    teachings = relationship("AcadTeaching", back_populates="klass",
+                             cascade="all, delete-orphan")
+
+
+class AcadStudent(Base):
+    """สำเนานักเรียนในห้องนั้นของปีนั้น (ดึงจากทะเบียนกลาง แล้วเก็บสำเนาไว้)"""
+    __tablename__ = "acad_student"
+
+    id = Column(Integer, primary_key=True)
+    class_id = Column(Integer, ForeignKey("acad_class.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("student.id"), nullable=True)  # ย้อนไปทะเบียนกลาง (ถ้าดึงมา)
+    seq = Column(Integer, default=0)                # เลขที่ในห้อง
+    student_no = Column(String, default="")         # เลขประจำตัวนักเรียน (สำเนา)
+    name = Column(String, nullable=False)
+    sex = Column(String, default="")                # M/F
+
+    klass = relationship("AcadClass", back_populates="students")
+    scores = relationship("AcadScore", back_populates="student",
+                          cascade="all, delete-orphan")
+    eval = relationship("AcadEval", back_populates="student", uselist=False,
+                        cascade="all, delete-orphan")
+
+
+class AcadSubject(Base):
+    """รายวิชาของระดับชั้นในปีนั้น (ไม่ผูกห้อง — ครูผู้สอนอยู่ที่ AcadTeaching)"""
+    __tablename__ = "acad_subject"
+
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, nullable=False)          # ปีการศึกษา (พ.ศ.)
+    level = Column(String, default="")              # ระดับชั้น เช่น ป.1
+    code = Column(String, default="")               # รหัสวิชา เช่น ท11101
+    name = Column(String, nullable=False)           # ชื่อรายวิชา
+    learn_group = Column(String, default="")        # กลุ่มสาระการเรียนรู้
+    kind = Column(String, default="พื้นฐาน")        # พื้นฐาน / เพิ่มเติม
+    hours = Column(Integer, default=0)              # เวลาเรียน (ชม./ปี หรือ ชม./ภาค)
+    credit = Column(Float, default=0.0)             # หน่วยกิต (มัธยม)
+    term = Column(Integer, default=0)               # 0 = ทั้งปี (ประถม) · 1/2 = ภาคเรียน (มัธยม)
+    seq = Column(Integer, default=0)                # ลำดับแสดงผล
+    created_at = Column(DateTime, default=datetime.now)
+
+    teachings = relationship("AcadTeaching", back_populates="subject",
+                             cascade="all, delete-orphan")
+    scores = relationship("AcadScore", back_populates="subject",
+                          cascade="all, delete-orphan")
+
+
+class AcadTeaching(Base):
+    """ครูผู้สอน = รายวิชา × ห้อง (วิชาเดียวกันคนละห้อง คนละครูได้)"""
+    __tablename__ = "acad_teaching"
+
+    id = Column(Integer, primary_key=True)
+    class_id = Column(Integer, ForeignKey("acad_class.id"), nullable=False)
+    subject_id = Column(Integer, ForeignKey("acad_subject.id"), nullable=False)
+    teacher_id = Column(Integer, ForeignKey("person.id"), nullable=True)
+
+    klass = relationship("AcadClass", back_populates="teachings")
+    subject = relationship("AcadSubject", back_populates="teachings")
+    teacher = relationship("Person")
+
+
+class AcadScore(Base):
+    """ผลการเรียนรายวิชาของนักเรียน 1 คน"""
+    __tablename__ = "acad_score"
+
+    id = Column(Integer, primary_key=True)
+    acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
+    subject_id = Column(Integer, ForeignKey("acad_subject.id"), nullable=False)
+    term = Column(Integer, default=0)               # 0 = ทั้งปี · 1/2 = ภาคเรียน
+    score_mid = Column(Float, nullable=True)        # คะแนนเก็บ/ระหว่างภาค
+    score_final = Column(Float, nullable=True)      # คะแนนปลายภาค
+    score = Column(Float, nullable=True)            # คะแนนรวม (0-100)
+    grade = Column(String, default="")              # 4/3.5/.../0 หรือ ร/มส (แก้มือทับได้)
+
+    student = relationship("AcadStudent", back_populates="scores")
+    subject = relationship("AcadSubject", back_populates="scores")
+
+
+class AcadEval(Base):
+    """ผลการประเมินรายคน/ปี ที่ ปพ.6 (สมุดพก) ต้องใช้"""
+    __tablename__ = "acad_eval"
+
+    id = Column(Integer, primary_key=True)
+    acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
+    read_think = Column(String, default="")         # อ่าน คิดวิเคราะห์ และเขียน
+    desired_char = Column(String, default="")       # คุณลักษณะอันพึงประสงค์
+    act_guidance = Column(String, default="")       # กิจกรรมแนะแนว (ผ/มผ)
+    act_scout = Column(String, default="")          # ลูกเสือ/เนตรนารี
+    act_club = Column(String, default="")           # ชุมนุม
+    act_social = Column(String, default="")         # กิจกรรมเพื่อสังคมและสาธารณประโยชน์
+    days_open = Column(Integer, nullable=True)      # จำนวนวันเปิดเรียน
+    days_present = Column(Integer, nullable=True)   # จำนวนวันมาเรียน
+    weight = Column(Float, nullable=True)           # น้ำหนัก (กก.)
+    height = Column(Float, nullable=True)           # ส่วนสูง (ซม.)
+    comment = Column(Text, default="")              # ความเห็นครูประจำชั้น
+
+    student = relationship("AcadStudent", back_populates="eval")

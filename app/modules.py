@@ -10,7 +10,7 @@ modules.py
 - MODULE_PREFIXES ยกมาจากตรรกะเดิมใน base.html (การตรวจโมดูลจาก path)
 """
 
-MODULE_KEYS = ["procurement", "admin", "finance", "lunch", "hr"]
+MODULE_KEYS = ["procurement", "admin", "finance", "lunch", "hr", "academic"]
 
 MODULE_LABELS = {
     "procurement": "งานพัสดุ",
@@ -18,6 +18,7 @@ MODULE_LABELS = {
     "finance": "งานการเงิน",
     "lunch": "งานอาหารกลางวัน",
     "hr": "งานบุคคล",
+    "academic": "งานวิชาการ",
 }
 
 # คีย์ราคาใน seller_config.REGULAR_PRICES
@@ -27,6 +28,7 @@ MODULE_PRICE_KEY = {
     "finance": "p_fin",
     "lunch": "p_lunch",
     "hr": "p_hr",
+    "academic": "p_acad",
 }
 
 # path ขึ้นต้นด้วยอะไร -> เป็นของงานไหน
@@ -37,6 +39,7 @@ MODULE_PREFIXES = {
     "finance": ["/finance"],
     "lunch": ["/lunch"],
     "hr": ["/hr"],
+    "academic": ["/academic"],
     "procurement": ["/procurement", "/assets", "/materials", "/requisitions",
                     "/catalog", "/textbooks", "/register."],
 }

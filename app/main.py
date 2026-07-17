@@ -24,7 +24,8 @@ from app.modules import MODULE_LABELS, MODULE_PRICE_KEY, module_for_path
 from app.seller_config import pricing_context
 from app.tenancy import current_school_id, current_module
 from app.templating import templates
-from app.routers import pages, admin, finance, lunch, auth, superadmin, account, textbooks, sales, hr
+from app.routers import (pages, admin, finance, lunch, auth, superadmin, account, textbooks,
+                         sales, hr, academic)
 
 app = FastAPI(title="D-Doc : ระบบจัดการเอกสารและพัสดุโรงเรียน")
 
@@ -165,6 +166,7 @@ app.include_router(admin.router)
 app.include_router(finance.router)
 app.include_router(lunch.router)
 app.include_router(hr.router)
+app.include_router(academic.router)
 app.include_router(textbooks.router)
 app.include_router(sales.router)
 
