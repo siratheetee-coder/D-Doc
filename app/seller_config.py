@@ -60,8 +60,12 @@ except ImportError:
 
 
 # ---- ราคาปกติ (ยึดเป็นราคาตั้งต้น/ราคาขีดฆ่าตอนมีโปร) ----
-# รวมงานแยก = 890+690+590+190 = 2,360 · แพ็กครบทุกงาน (bundle) = 1,990 (ประหยัด 370)
-REGULAR_PRICES = {"p_proc": 890, "p_fin": 690, "p_admin": 590, "p_lunch": 190, "bundle": 1990}
+# รวมงานแยก = 890+690+590+190+390 = 2,750 · แพ็กครบทุกงาน (bundle) = 2,190 (ประหยัด 560)
+REGULAR_PRICES = {"p_proc": 890, "p_fin": 690, "p_admin": 590, "p_lunch": 190, "p_hr": 390,
+                  "bundle": 2190}
+
+# ส่วนลดตามจำนวนงานที่เลือก (ยิ่งซื้อยิ่งลด) · ครบทุกงานใช้ราคา bundle แทน
+TIER_DISCOUNT = {2: 100, 3: 200, 4: 300}
 
 
 def pricing_context():
@@ -85,8 +89,10 @@ def pricing_context():
             pass
     def _extra(px):
         """ราคารวมงานแยก (ราคาเต็ม/ขีดฆ่า) + ส่วนที่ประหยัดเมื่อซื้อ bundle"""
-        full = px["p_proc"] + px["p_fin"] + px["p_admin"] + px["p_lunch"]
-        return {"full_sum": full, "bundle_save": max(0, full - px["bundle"])}
+        from app.modules import MODULE_KEYS, MODULE_PRICE_KEY
+        full = sum(px[MODULE_PRICE_KEY[k]] for k in MODULE_KEYS)
+        return {"full_sum": full, "bundle_save": max(0, full - px["bundle"]),
+                "tier_discount": dict(TIER_DISCOUNT)}
 
     if active:
         eff = {k: promo.get(k, reg[k]) for k in reg}
@@ -103,3 +109,24 @@ def pricing_context():
     return {"prices": reg, "regular": reg, "promo_active": False,
             "promo_days_left": 0, "promo_slots": 0,
             "promo_slots_left": 0, "promo_end_iso": "", **_extra(reg)}
+
+
+def price_for(modules) -> dict:
+    """คำนวณราคาของชุดงานที่เลือก — **แหล่งความจริงเดียวของราคา**
+
+    ฝั่งเซิร์ฟเวอร์ต้องเรียกอันนี้เสมอ ห้ามเชื่อยอดเงินที่ส่งมาจากหน้าเว็บ
+    (JS บนหน้า checkout/landing มีหน้าที่แค่แสดงผลให้ตรงกับสูตรนี้)
+
+    คืน {modules, count, list_sum, discount, total, label}
+    """
+    from app.modules import MODULE_KEYS, MODULE_PRICE_KEY, parse_modules, modules_csv, label_for
+    px = pricing_context()["prices"]
+    mods = parse_modules(modules_csv(modules))
+    n = len(mods)
+    list_sum = sum(px[MODULE_PRICE_KEY[k]] for k in MODULE_KEYS if k in mods)
+    if n == len(MODULE_KEYS):                 # ครบทุกงาน -> ราคาแพ็ก
+        total = px["bundle"]
+    else:
+        total = max(0, list_sum - TIER_DISCOUNT.get(n, 0))
+    return {"modules": modules_csv(mods), "count": n, "list_sum": list_sum,
+            "discount": max(0, list_sum - total), "total": total, "label": label_for(mods)}

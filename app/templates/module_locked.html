@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>D-Doc | {{ module_label }}</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <style>
+    @font-face { font-family:"Prompt"; font-weight:400; src:url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:700; src:url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+      font-family:"Prompt","Sarabun","Segoe UI",sans-serif; background:#F5F6FA; color:#202224; padding:20px; }
+    .card { background:#fff; max-width:460px; border-radius:18px; padding:34px 30px; text-align:center;
+      box-shadow:0 12px 34px rgba(16,24,40,.12); border:1px solid #eceef3; }
+    .ic { width:64px; height:64px; border-radius:50%; background:#e8f0ff; color:#4880FF; display:flex;
+      align-items:center; justify-content:center; margin:0 auto 16px; }
+    .ic svg { width:32px; height:32px; }
+    h1 { font-size:22px; margin:0 0 8px; }
+    p { color:#5a6a85; line-height:1.7; margin:0; }
+    .price { display:inline-flex; align-items:baseline; gap:6px; margin:18px 0 4px;
+      background:#f4f7ff; border:1px solid #dbe6ff; border-radius:12px; padding:10px 18px; }
+    .price b { font-size:26px; color:#2b58c9; }
+    .price span { font-size:14px; color:#5a6a85; }
+    .btn { display:inline-block; margin-top:18px; background:#4880FF; color:#fff; text-decoration:none;
+      padding:11px 22px; border-radius:11px; font-weight:700; }
+    .btn.gray { background:#eef0f4; color:#5a6a85; margin-left:6px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="ic">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </div>
+
+    {% if st and st.modules_count %}
+      {# ซื้อบางงานแล้ว แต่งานนี้ยังไม่ได้ซื้อ #}
+      <h1>ยังไม่ได้ซื้อ{{ module_label }}</h1>
+      <p>บัญชีของคุณเป็นสมาชิก {{ st.modules_count }} งานอยู่แล้ว<br>
+         เพิ่ม<b>{{ module_label }}</b>เข้าไปเพื่อเปิดใช้งานส่วนนี้</p>
+      {% if price %}<div class="price"><b>{{ "{:,}".format(price) }}</b> <span>บาท / ปี</span></div>{% endif %}
+    {% else %}
+      {# ยังไม่เคยซื้ออะไร + โควตาทดลองหมดแล้ว #}
+      <h1>โควตาทดลองใช้หมดแล้ว</h1>
+      <p>โควต้าทดลองใช้ของคุณหมดแล้ว<br>
+         แต่ระบบยังจำข้อมูลของคุณไว้อยู่ครบ<br>
+         โปรดต่ออายุเพื่อใช้งานต่อ</p>
+    {% endif %}
+
+    <div>
+      <a class="btn" href="/checkout">ซื้อ / ต่ออายุ</a>
+      <a class="btn gray" href="/">กลับหน้าเลือกงาน</a>
+    </div>
+  </div>
+</body>
+</html>

@@ -20,6 +20,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
 from app.database import get_data_dir
+from app.modules import ALL_MODULES_CSV, MODULE_KEYS, modules_csv, modules_from_label, parse_modules
 
 AccBase = declarative_base()
 _engine = None
@@ -36,8 +37,11 @@ class Tenant(AccBase):
     expiry_date = Column(Date, nullable=True)      # วันหมดอายุ (None = ไม่จำกัด)
     max_users = Column(Integer, default=3)         # จำนวนผู้ใช้สูงสุดต่อโรงเรียน
     plan = Column(String, default="member")        # trial = ทดลองใช้, member = สมาชิก(จ่ายแล้ว)
-    docs_used = Column(Integer, default=0)         # จำนวนเอกสารที่ออกไปแล้ว (ใช้กับ trial)
-    docs_limit = Column(Integer, default=0)        # โควตาเอกสารทดลองใช้ (0 = ไม่จำกัด/สมาชิก)
+    docs_used = Column(Integer, default=0)         # จำนวนเอกสารที่ออกไปแล้ว (ใช้กับโควตาทดลอง)
+    docs_limit = Column(Integer, default=0)        # โควตาเอกสารทดลองใช้ (0 = ไม่จำกัด/ซื้อครบแล้ว)
+    # งานที่ "ซื้อแล้ว" (CSV) — ไม่ใช่ "งานที่เข้าได้" · ว่าง = ยังไม่ซื้อ ใช้สิทธิ์ทดลองอยู่
+    # สิทธิ์เข้าใช้จริง = ซื้อแล้ว OR โควตาทดลองยังเหลือ (ดู can_use_module)
+    modules = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)
 
     accounts = relationship("Account", back_populates="tenant",
@@ -76,7 +80,8 @@ class Lead(AccBase):
     contact_name = Column(String, default="")
     email = Column(String, default="")
     phone = Column(String, default="")
-    packages = Column(String, default="")         # งานที่เลือก (ข้อความ)
+    packages = Column(String, default="")         # งานที่เลือก (ข้อความ — ใช้แสดงผล/ใบเสนอราคา)
+    modules = Column(String, default="")          # งานที่เลือก (CSV — ค่าที่ระบบใช้จริงตอนอนุมัติ)
     amount = Column(Float, default=0.0)
     slip_file = Column(String, default="")        # ชื่อไฟล์สลิป (เฉพาะ order)
     note = Column(Text, default="")
@@ -115,7 +120,14 @@ def _ensure_engine():
                     "ALTER TABLE account ADD COLUMN verified BOOLEAN DEFAULT 1",
                     "ALTER TABLE account ADD COLUMN verify_token VARCHAR DEFAULT ''",
                     "ALTER TABLE account ADD COLUMN reset_token VARCHAR DEFAULT ''",
-                    "ALTER TABLE account ADD COLUMN reset_expires DATETIME"):
+                    "ALTER TABLE account ADD COLUMN reset_expires DATETIME",
+                    "ALTER TABLE tenant ADD COLUMN modules VARCHAR DEFAULT ''",
+                    "ALTER TABLE lead ADD COLUMN modules VARCHAR DEFAULT ''",
+                    # โรงเรียนที่จ่ายเงินแล้วก่อนมีระบบสิทธิ์รายงาน -> ให้ครบทุกงาน (ไม่มีใครใช้งานสะดุด)
+                    # ยิงเฉพาะแถวที่ยังว่าง จึงรันซ้ำได้ และไม่แตะโรงเรียนที่ยังทดลองอยู่ (ต้องเป็น '' ต่อไป
+                    # ไม่งั้นจะกลายเป็น "ซื้อครบ" = ใช้ฟรีไม่จำกัด)
+                    f"UPDATE tenant SET modules='{ALL_MODULES_CSV}' "
+                    f"WHERE plan='member' AND (modules IS NULL OR modules='')"):
             try:
                 conn = _engine.raw_connection(); cur = conn.cursor()
                 cur.execute(sql); conn.commit(); conn.close()
@@ -216,9 +228,13 @@ def members_since(start) -> int:
 
 
 def tenant_status(tenant_id) -> dict | None:
-    """สถานะแพ็กเกจสำหรับแสดงในแอป:
-    trial -> {plan:'trial', docs_left, docs_limit, docs_used}
-    member -> {plan:'member', days_left, expiry_date, unlimited}"""
+    """สถานะแพ็กเกจสำหรับแสดงในแอป — คืน "ทั้งสองด้าน" พร้อมกันเสมอ เพราะโรงเรียนหนึ่ง
+    อาจเป็นสมาชิกของบางงาน และยังใช้สิทธิ์ทดลองกับงานที่เหลืออยู่ในเวลาเดียวกัน
+
+    {plan, modules, modules_count,            # ด้านสมาชิก (งานที่ซื้อแล้ว)
+     days_left, expiry_date, unlimited,       # ด้านสมาชิก (อายุ)
+     docs_limit, docs_used, docs_left}        # ด้านทดลอง (None ถ้าไม่มีโควตาแล้ว)
+    """
     if not tenant_id:
         return None
     db = acc_session()
@@ -226,17 +242,73 @@ def tenant_status(tenant_id) -> dict | None:
         t = db.get(Tenant, tenant_id)
         if not t:
             return None
-        plan = t.plan or "member"
-        if plan == "trial" and (t.docs_limit or 0) > 0:
-            used = t.docs_used or 0
-            return {"plan": "trial", "docs_limit": t.docs_limit,
-                    "docs_used": used, "docs_left": max(0, t.docs_limit - used)}
-        if not t.expiry_date:
-            return {"plan": "member", "days_left": None, "expiry_date": None, "unlimited": True}
-        return {"plan": "member", "days_left": (t.expiry_date - date.today()).days,
-                "expiry_date": t.expiry_date, "unlimited": False}
+        mods = parse_modules(t.modules)
+        limit = t.docs_limit or 0
+        used = t.docs_used or 0
+        out = {
+            "plan": t.plan or "member",
+            "modules": [k for k in MODULE_KEYS if k in mods],
+            "modules_count": len(mods),
+            "docs_limit": limit or None,
+            "docs_used": used,
+            "docs_left": max(0, limit - used) if limit else None,
+            "days_left": None, "expiry_date": None, "unlimited": True,
+        }
+        if t.expiry_date:
+            out.update({"days_left": (t.expiry_date - date.today()).days,
+                        "expiry_date": t.expiry_date, "unlimited": False})
+        return out
     finally:
         db.close()
+
+
+def tenant_modules(tenant_id) -> set:
+    """งานที่โรงเรียนนี้ "ซื้อแล้ว" · fail-open: อ่านไม่ได้ให้ถือว่าครบทุกงาน
+    (นี่คือการกั้นรายได้ ไม่ใช่การกั้นความปลอดภัย — DB สะดุดต้องไม่ล็อกคนที่จ่ายเงินแล้วออกจากระบบ)"""
+    if not tenant_id:
+        return set(MODULE_KEYS)
+    try:
+        db = acc_session()
+        try:
+            t = db.get(Tenant, tenant_id)
+            return parse_modules(t.modules) if t else set(MODULE_KEYS)
+        finally:
+            db.close()
+    except Exception:
+        return set(MODULE_KEYS)
+
+
+def can_use_module(tenant_id, module) -> bool:
+    """สิทธิ์เข้าใช้งานหนึ่ง ๆ = **ซื้อแล้ว** หรือ **โควตาทดลองยังเหลือ**
+
+    รวมกติกาไว้ที่เดียว (middleware/เทมเพลตเรียกอันนี้) จะได้ไม่มีใครลืมเงื่อนไขทดลอง
+    เฟส 2 (ไอดีย่อยรายงาน) ค่อยเพิ่มพารามิเตอร์ account_id แล้ว intersect เพิ่มอีกชั้นตรงนี้จุดเดียว
+    """
+    if not module:
+        return True
+    if not tenant_id:
+        return True
+    try:
+        db = acc_session()
+        try:
+            t = db.get(Tenant, tenant_id)
+            if not t:
+                return True
+            mods = parse_modules(t.modules)
+            if module in mods:                           # ซื้องานนี้แล้ว
+                return True
+            if not mods:
+                # ยังไม่เคยซื้ออะไร = ทดลองใช้ล้วน -> เข้าดูได้ทุกงานเหมือนเดิม
+                # (โควตาคุมที่ "การออกเอกสาร" ไม่ใช่การเข้าหน้า — โควตาหมดยังเปิดดูข้อมูลตัวเองได้)
+                return True
+            limit = t.docs_limit or 0
+            if not limit:                                # ซื้อบางงานแล้วและไม่มีโควตาเหลือ
+                return False
+            return (t.docs_used or 0) < limit            # ยังมีโควตาทดลองเหลือ
+        finally:
+            db.close()
+    except Exception:
+        return True
 
 
 def ai_key_for(tenant_id) -> str:
@@ -256,15 +328,23 @@ def ai_key_for(tenant_id) -> str:
         db.close()
 
 
-def consume_doc_quota(tenant_id) -> tuple:
-    """เรียกก่อนออกเอกสาร: ถ้าเป็น trial ยังไม่ครบโควตา -> +1 คืน (True, info)
-    ถ้าครบโควตา -> (False, info) · สมาชิก/ไม่มี tenant -> (True, None)"""
+def consume_doc_quota(tenant_id, module=None) -> tuple:
+    """เรียกก่อนออกเอกสาร — **กินโควตาเฉพาะงานที่ยังไม่ได้ซื้อ**
+
+    - งานที่ซื้อแล้ว -> ผ่านฟรี ไม่แตะตัวนับ (จ่ายเงินแล้วต้องไม่โดนหักโควตา)
+    - ไม่มีโควตา (ซื้อครบ/สมาชิกเดิม) -> ผ่านฟรี
+    - งานที่ยังไม่ซื้อ + ยังมีโควตา -> +1 คืน (True, info) · ครบโควตา -> (False, info)
+    """
     if not tenant_id:
         return True, None
     db = acc_session()
     try:
         t = db.get(Tenant, tenant_id)
-        if not t or (t.plan or "member") != "trial" or not (t.docs_limit or 0):
+        if not t:
+            return True, None
+        if module and module in parse_modules(t.modules):   # ซื้องานนี้แล้ว
+            return True, None
+        if not (t.docs_limit or 0):                          # ซื้อครบ / ไม่จำกัด
             return True, None
         used = t.docs_used or 0
         if used >= t.docs_limit:
@@ -353,13 +433,21 @@ def issue_sale_doc(kind: str, lead_id: int, year: int) -> dict:
 # ===================== จัดการโรงเรียน/ผู้ใช้ (super-admin) =====================
 def provision_tenant(name: str, slug: str, admin_user: str, admin_pw: str,
                      expiry_date=None, max_users: int = 3, must_change: bool = True,
-                     plan: str = "member", docs_limit: int = 0) -> int:
-    """สร้างโรงเรียนใหม่ + ผู้ใช้แรก + สร้างไฟล์ฐานข้อมูลของโรงเรียน คืน tenant_id"""
+                     plan: str = "member", docs_limit: int = 0,
+                     modules: str | None = None) -> int:
+    """สร้างโรงเรียนใหม่ + ผู้ใช้แรก + สร้างไฟล์ฐานข้อมูลของโรงเรียน คืน tenant_id
+
+    modules = งานที่ "ซื้อแล้ว" · ไม่ระบุ -> สมาชิก = ครบทุกงาน, ทดลองใช้ = ว่าง
+    (ทดลองใช้ต้องเป็นค่าว่าง ไม่งั้นจะกลายเป็น "ซื้อครบ" = ใช้ฟรีไม่จำกัด — สิทธิ์ทดลองมาจากโควตาเอกสารแทน)
+    """
     from app.tenancy import ensure_school_db
+    if modules is None:
+        modules = "" if plan == "trial" else ALL_MODULES_CSV
     db = acc_session()
     try:
         t = Tenant(name=name.strip(), slug=slug.strip(), expiry_date=expiry_date,
-                   max_users=max_users, plan=plan, docs_limit=docs_limit)
+                   max_users=max_users, plan=plan, docs_limit=docs_limit,
+                   modules=modules_csv(parse_modules(modules)))
         db.add(t); db.flush()
         db.add(Account(tenant_id=t.id, username=admin_user.strip(),
                        password_hash=hash_password(admin_pw), role="user",
@@ -582,7 +670,18 @@ def renew_lead(lead_id: int, days: int = 365) -> dict | None:
         t.expiry_date = base + timedelta(days=days)
         t.active = True
         t.plan = "member"          # อัปเกรดจากทดลองใช้ -> สมาชิก
-        t.docs_limit = 0           # สมาชิก: ออกเอกสารไม่จำกัด
+
+        # สิทธิ์งาน: รวมกับของเดิม (union) เพื่อให้ "ซื้อเพิ่มภายหลัง" สะสมได้
+        # lead เก่าที่ยังไม่มีคอลัมน์ modules -> แกะจากข้อความ packages แทน
+        bought = parse_modules(lead.modules) or modules_from_label(lead.packages)
+        if bought:
+            t.modules = modules_csv(parse_modules(t.modules) | bought)
+
+        # โควตาทดลอง: ล้างเฉพาะเมื่อซื้อครบทุกงานแล้ว
+        # ถ้าซื้อบางงาน ต้องคงโควตาที่เหลือไว้ให้ใช้กับงานที่ยังไม่ได้ซื้อ —
+        # การซื้องานแรกต้องเป็นการอัปเกรดล้วน ๆ ห้ามริบสิทธิ์ทดลองของงานที่เหลือ
+        if parse_modules(t.modules) == set(MODULE_KEYS):
+            t.docs_limit = 0       # ซื้อครบ: ออกเอกสารไม่จำกัดทุกงาน
         acc = db.query(Account).filter_by(tenant_id=tid).first()
         lead.tenant_id = tid
         lead.login_user = acc.username if acc else email

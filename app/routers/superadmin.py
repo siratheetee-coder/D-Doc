@@ -321,11 +321,43 @@ def delete_tenant(tid: int):
     return RedirectResponse(f"/admin-console?msg={quote('ลบโรงเรียน ' + name + ' ออกจากระบบแล้ว')}", status_code=303)
 
 
+@router.post("/admin-console/tenant/{tid}/modules")
+def set_tenant_modules(tid: int, mod: list[str] = Form([])):
+    """กำหนดว่าโรงเรียนนี้ "ซื้อ" งานไหนไว้บ้าง (ปุ่มแก้มือของผู้ขาย)
+
+    ถ้าตั้งครบทุกงาน -> ปลดโควตาทดลอง (ไม่ต้องใช้แล้ว)
+    ถ้าตั้งไม่ครบ + ยังไม่มีโควตา -> ให้โควตาทดลองไว้ใช้กับงานที่เหลือ
+    """
+    from urllib.parse import quote
+    from app.modules import MODULE_KEYS, modules_csv, parse_modules
+    from app.accounts import TRIAL_DOC_LIMIT
+    db = acc_session()
+    try:
+        t = db.get(Tenant, tid)
+        if not t:
+            return RedirectResponse("/admin-console?msg=ไม่พบโรงเรียน", status_code=303)
+        mods = parse_modules(",".join(mod or []))
+        t.modules = modules_csv(mods)
+        if mods:
+            t.plan = "member"
+        if mods == set(MODULE_KEYS):
+            t.docs_limit = 0                       # ซื้อครบ: ไม่ต้องใช้โควตาอีก
+        elif not (t.docs_limit or 0):
+            t.docs_limit = TRIAL_DOC_LIMIT         # ยังไม่ครบ: มีโควตาไว้ทดลองงานที่เหลือ
+        db.commit()
+        n = len(mods)
+    finally:
+        db.close()
+    return RedirectResponse(f"/admin-console?msg={quote('ตั้งสิทธิ์เป็น %d งานแล้ว' % n)}", status_code=303)
+
+
 @router.post("/admin-console/tenant/{tid}/renew")
 def renew_tenant(tid: int, days: str = Form("365")):
-    """ต่ออายุเป็นสมาชิก: ตั้ง plan=member, ปลดล็อกโควตา, ต่อวันหมดอายุจากวันนี้/วันเดิม"""
+    """ต่ออายุเป็นสมาชิก "ครบทุกงาน": ตั้ง plan=member, ให้สิทธิ์ครบ, ปลดโควตา, ต่อวันหมดอายุ
+    (ถ้าต้องการขายเป็นรายงาน ใช้ปุ่มตั้งสิทธิ์รายงานแทน)"""
     from datetime import timedelta
     from urllib.parse import quote
+    from app.modules import ALL_MODULES_CSV
     try:
         add = int(days)
     except ValueError:
@@ -337,6 +369,7 @@ def renew_tenant(tid: int, days: str = Form("365")):
             base = max(date.today(), t.expiry_date) if t.expiry_date else date.today()
             t.expiry_date = base + timedelta(days=add)
             t.plan = "member"
+            t.modules = ALL_MODULES_CSV
             t.docs_limit = 0
             db.commit()
             exp = t.expiry_date.isoformat()

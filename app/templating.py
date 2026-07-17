@@ -18,6 +18,8 @@ from app.services.asset_utils import (
 )
 from app.services.nav import nav_alerts, nav_holidays
 from app.services.budget import project_budget, project_spent, project_remaining
+from app.modules import MODULE_KEYS, MODULE_LABELS, MODULE_PRICE_KEY, module_for_path
+from app.seller_config import pricing_context
 
 
 def account_status(tenant_id=None):
@@ -32,10 +34,31 @@ def account_status(tenant_id=None):
     except Exception:
         return None
 
+def my_modules(tenant_id=None) -> set:
+    """งานที่โรงเรียนนี้ "ซื้อแล้ว" (ไม่ใช่งานที่เข้าได้ — งานที่ยังไม่ซื้ออาจเข้าได้ด้วยโควตาทดลอง)"""
+    try:
+        from app.accounts import tenant_modules
+        if tenant_id is None:
+            from app.tenancy import current_school_id
+            tenant_id = current_school_id.get()
+        return tenant_modules(tenant_id)
+    except Exception:
+        return set()
+
+
+def can_use(tenant_id, module) -> bool:
+    """เข้าใช้งานนี้ได้ไหม = ซื้อแล้ว หรือ โควตาทดลองยังเหลือ (ตรรกะเดียวกับ middleware)"""
+    try:
+        from app.accounts import can_use_module
+        return can_use_module(tenant_id, module)
+    except Exception:
+        return True
+
+
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-# โมดูลที่เปิดใช้งานแล้ว (เปิดทีละเฟส: พัสดุ -> ธุรการ -> การเงิน)
+# โมดูลที่ "สร้างเสร็จแล้ว" ในระบบ (คนละเรื่องกับ "โรงเรียนนี้ซื้อหรือยัง" -> my_modules)
 MODULES_LIVE = {"procurement": True, "admin": True, "finance": True, "lunch": True, "hr": True}
 
 # global helper ใช้ได้ทุกเทมเพลต
@@ -48,4 +71,10 @@ templates.env.globals.update(
     acct_opening=opening_for,
     proj_budget=project_budget, proj_spent=project_spent, proj_remaining=project_remaining,
     modules_live=MODULES_LIVE, account_status=account_status,
+    my_modules=my_modules, can_use=can_use,
+    module_labels=MODULE_LABELS, module_keys=MODULE_KEYS,
+    module_price_key=MODULE_PRICE_KEY, module_for_path=module_for_path,
+    # ตั้งชื่อ price_list ไม่ใช่ prices เพราะหลายหน้า (landing/checkout/guide) ส่ง key ชื่อ
+    # "prices" (dict) เข้ามาเองผ่าน pricing_context() ซึ่งจะทับ global ตัวนี้จนเรียกใช้ไม่ได้
+    price_list=lambda: pricing_context()["prices"],
 )

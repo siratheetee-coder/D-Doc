@@ -80,7 +80,7 @@
 
 {% set pk = packages or 'ครบทุกงาน' %}
 {% set is_all = ('ครบทุกงาน' in pk) or (not packages) %}
-{% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':190,'bundle':1990}) %}
+{% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':190,'p_hr':390,'bundle':2190}) %}
 <div class="card">
   <h2>เลือกแพ็กเกจที่ต้องการ</h2>
   <p class="hint" style="margin-top:0;">เลือกงานที่ต้องการ ระบบคิดราคาและอัปเดต QR ให้อัตโนมัติ</p>
@@ -112,36 +112,46 @@
       <svg class="ico" viewBox="0 0 24 24"><path d="M20.59 13.41 12 22l-9-9V3h10l7.59 7.59a2 2 0 0 1 0 2.82z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
       <div class="sl-txt"><b>3 งาน</b><span>ลด 200 บาท</span></div>
     </div>
+    <div class="sl-card">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M20.59 13.41 12 22l-9-9V3h10l7.59 7.59a2 2 0 0 1 0 2.82z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
+      <div class="sl-txt"><b>4 งาน</b><span>ลด 300 บาท</span></div>
+    </div>
     <div class="sl-card sl-best">
       <span class="sl-ribbon">คุ้มสุด!</span>
       <svg class="ico" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      <div class="sl-txt"><b>4 งาน <i>(ครบทุกงาน)</i></b><span>เหลือ {{ "{:,}".format(px.bundle) }} บาท</span></div>
+      <div class="sl-txt"><b>5 งาน <i>(ครบทุกงาน)</i></b><span>เหลือ {{ "{:,}".format(px.bundle) }} บาท</span></div>
     </div>
   </div>
   <div class="co-list" id="coList">
     <label class="co-item" data-price="{{ px.p_proc }}" data-name="งานพัสดุ">
-      <input type="checkbox" {{ 'checked' if is_all or 'พัสดุ' in pk }}>
+      <input type="checkbox" name="mod" value="procurement" form="orderForm" {{ 'checked' if is_all or 'พัสดุ' in pk }}>
       <span class="co-check"></span>
       <span class="co-name">งานพัสดุ<small>จัดซื้อจัดจ้าง · ทรัพย์สิน/ครุภัณฑ์ · ใบเบิกพัสดุ สัญญา · ตัวช่วยกรอก e-GP</small></span>
       <span class="co-price">{{ px.p_proc }}</span>
     </label>
     <label class="co-item" data-price="{{ px.p_fin }}" data-name="งานการเงิน">
-      <input type="checkbox" {{ 'checked' if is_all or 'การเงิน' in pk }}>
+      <input type="checkbox" name="mod" value="finance" form="orderForm" {{ 'checked' if is_all or 'การเงิน' in pk }}>
       <span class="co-check"></span>
       <span class="co-name">งานการเงิน<small>สมุดเงินสด · บัญชีแยกประเภท · บัญชีเงินคงเหลือประจำวัน · บันทึกเบิกจ่าย</small></span>
       <span class="co-price">{{ px.p_fin }}</span>
     </label>
     <label class="co-item" data-price="{{ px.p_admin }}" data-name="งานธุรการ">
-      <input type="checkbox" {{ 'checked' if is_all or 'ธุรการ' in pk }}>
+      <input type="checkbox" name="mod" value="admin" form="orderForm" {{ 'checked' if is_all or 'ธุรการ' in pk }}>
       <span class="co-check"></span>
       <span class="co-name">งานธุรการ<small>หนังสือรับ-ส่ง · บันทึกข้อความ/คำสั่ง · เกียรติบัตร · AI ช่วยเขียนเอกสาร</small></span>
       <span class="co-price">{{ px.p_admin }}</span>
     </label>
     <label class="co-item" data-price="{{ px.p_lunch }}" data-name="งานอาหารกลางวัน">
-      <input type="checkbox" {{ 'checked' if is_all or 'อาหาร' in pk }}>
+      <input type="checkbox" name="mod" value="lunch" form="orderForm" {{ 'checked' if is_all or 'อาหาร' in pk }}>
       <span class="co-check"></span>
       <span class="co-name">งานอาหารกลางวัน<small>คำนวณงบ · เอกสารจ้าง · ภาวะโภชนาการ</small></span>
       <span class="co-price">{{ px.p_lunch }}</span>
+    </label>
+    <label class="co-item" data-price="{{ px.p_hr }}" data-name="งานบุคคล">
+      <input type="checkbox" name="mod" value="hr" form="orderForm" {{ 'checked' if is_all or 'บุคคล' in pk }}>
+      <span class="co-check"></span>
+      <span class="co-name">งานบุคคล<small>ทะเบียนบุคลากร · วันลา · ไปราชการ · ก.พ.7 · หนังสือรับรอง</small></span>
+      <span class="co-price">{{ px.p_hr }}</span>
     </label>
   </div>
   <button type="button" class="btn btn-ghost" id="coAll" style="margin-top:12px; width:100%;">เลือกครบทุกงาน (คุ้มสุด {{ "{:,}".format(px.bundle) }} บาท)</button>
@@ -179,10 +189,10 @@
   </div>
 </div>
 
-<form class="card" method="post" action="/checkout" enctype="multipart/form-data">
+<form class="card" method="post" action="/checkout" enctype="multipart/form-data" id="orderForm">
   <h2>แจ้งชำระเงิน</h2>
-  <input type="hidden" name="packages" id="fPackages" value="{{ packages or 'ครบทุกงาน' }}">
-  <input type="hidden" name="amount" id="fAmount" value="{{ amount or px.bundle }}">
+  {# งานที่เลือก (name="mod") ส่งมาจาก checkbox ด้านบนผ่าน form="orderForm"
+     ราคาคำนวณใหม่ที่เซิร์ฟเวอร์เสมอ — ไม่มี hidden amount ให้แก้ค่าอีกต่อไป #}
   <div style="background:#eef4ff; border:1px solid #cddffb; border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:14px;">
     ชำระเงินเพื่อ<b>ต่ออายุบัญชี 1 ปี</b> สำหรับ: <b>{{ acct_email }}</b>{% if acct_school %} · {{ acct_school }}{% endif %}
   </div>
@@ -231,26 +241,24 @@
     var saveEl = document.getElementById('coSave');
     var qr = document.getElementById('coQR');
     var qrHint = document.getElementById('coQRhint');
-    var fAmount = document.getElementById('fAmount');
-    var fPackages = document.getElementById('fPackages');
     var fmt = function(n){ return n.toLocaleString('en-US'); };
+    // ต้องตรงกับ price_for() ฝั่งเซิร์ฟเวอร์ (seller_config.py) — ที่นี่แค่แสดงผล
+    // ยอดจริงเซิร์ฟเวอร์คำนวณเองตอนบันทึกคำสั่งซื้อเสมอ
+    var TIERS = {{ tier_discount | default({2:100, 3:200, 4:300}) | tojson }};
+    var NMODS = {{ module_keys | length }};
     function calc(){
       var chosen = items.filter(function(it){ return it.querySelector('input').checked; });
       items.forEach(function(it){ it.classList.toggle('on', it.querySelector('input').checked); });
       var count = chosen.length;
       var listSum = chosen.reduce(function(s,it){ return s + (+it.dataset.price); }, 0);
-      // ส่วนลดขั้นบันได: 2 งาน −100, 3 งาน −200, ครบ 4 งาน = ราคาแพ็ก
-      var discount = count === 4 ? (FULL - BUNDLE) : count === 3 ? 200 : count === 2 ? 100 : 0;
-      var total = count === 4 ? BUNDLE : (count ? Math.max(0, listSum - discount) : 0);
-      var savings = count === 4 ? (FULL - BUNDLE) : discount;
-      var label = count === 4 ? 'ครบทุกงาน' : (count ? chosen.map(function(it){ return it.dataset.name; }).join(' + ') : '');
+      // ส่วนลดขั้นบันได: 2 งาน −100, 3 งาน −200, 4 งาน −300, ครบทุกงาน = ราคาแพ็ก
+      var total = count === NMODS ? BUNDLE : (count ? Math.max(0, listSum - (TIERS[count] || 0)) : 0);
+      var savings = listSum - total;
       if(amtEl) amtEl.textContent = fmt(total);
       if(saveEl){
         if(savings > 0){ saveEl.style.display = ''; saveEl.textContent = 'ประหยัด ' + fmt(savings) + ' บาท'; }
         else saveEl.style.display = 'none';
       }
-      if(fAmount) fAmount.value = total;
-      if(fPackages) fPackages.value = label || '';
       if(qr && total > 0) qr.src = '/checkout/promptpay.png?amount=' + total;
       if(qrHint) qrHint.textContent = fmt(total) + '.00';
       return total;

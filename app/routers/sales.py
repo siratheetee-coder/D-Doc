@@ -14,8 +14,9 @@ from fastapi import APIRouter, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.database import get_data_dir
+from app.modules import modules_from_label
 from app.accounts import add_lead, register_account
-from app.seller_config import SELLER
+from app.seller_config import SELLER, price_for
 from app.templating import templates
 
 router = APIRouter()
@@ -63,14 +64,17 @@ def quote_page(request: Request, packages: str = "", amount: str = ""):
 @router.post("/quote")
 def quote_submit(school_name: str = Form(""), address: str = Form(""), tax_id: str = Form(""),
                  contact_name: str = Form(""), email: str = Form(""), phone: str = Form(""),
-                 packages: str = Form(""), amount: str = Form(""), qty_school: str = Form(""),
-                 note: str = Form("")):
+                 mod: list[str] = Form([]), packages: str = Form(""), amount: str = Form(""),
+                 qty_school: str = Form(""), note: str = Form("")):
     extra = (note or "").strip()
     if (qty_school or "").strip():
         extra = (f"จำนวนโรงเรียน: {qty_school.strip()}\n" + extra).strip()
+    # ราคาคำนวณที่เซิร์ฟเวอร์เหมือนหน้าสั่งซื้อ · ถ้าไม่ได้ส่ง mod มา ลองแกะจากข้อความ packages เดิม
+    pf = price_for(set(mod or []) or modules_from_label(packages))
     lid = add_lead(kind="quote", school_name=school_name.strip(), address=address.strip(),
                    tax_id=tax_id.strip(), contact_name=contact_name.strip(), email=email.strip(),
-                   phone=phone.strip(), packages=packages.strip(), amount=_to_float(amount),
+                   phone=phone.strip(), packages=pf["label"] or packages.strip(),
+                   modules=pf["modules"], amount=float(pf["total"]),
                    note=extra)
     return RedirectResponse(f"/sale-thanks?type=quote&ref={lid}", status_code=303)
 
@@ -112,8 +116,8 @@ def _join_address(no, moo, tambon, amphoe, province, zipcode) -> str:
 
 @router.post("/checkout")
 async def checkout_submit(request: Request, school_name: str = Form(""), contact_name: str = Form(""),
-                          phone: str = Form(""), packages: str = Form(""),
-                          amount: str = Form(""), note: str = Form(""),
+                          phone: str = Form(""), mod: list[str] = Form([]),
+                          packages: str = Form(""), amount: str = Form(""), note: str = Form(""),
                           addr_no: str = Form(""), addr_moo: str = Form(""), addr_tambon: str = Form(""),
                           addr_amphoe: str = Form(""), addr_province: str = Form(""), addr_zip: str = Form(""),
                           slip: UploadFile = File(None)):
@@ -131,9 +135,15 @@ async def checkout_submit(request: Request, school_name: str = Form(""), contact
         slip_name = f"slip_{datetime.now():%Y%m%d%H%M%S}_{secrets.token_hex(4)}{ext}"
         (_LEADS_DIR / slip_name).write_bytes(await slip.read())
     address = _join_address(addr_no, addr_moo, addr_tambon, addr_amphoe, addr_province, addr_zip)
+    # ราคา/รายการงาน คำนวณที่เซิร์ฟเวอร์เสมอ — ห้ามเชื่อ amount/packages ที่ส่งมาจากหน้าเว็บ
+    # (ของเดิมรับ hidden field ตรง ๆ ทำให้โพสต์ "ครบทุกงาน ราคา 1 บาท" ได้)
+    pf = price_for(set(mod or []))
+    if not pf["count"]:                        # ไม่ได้เลือกงาน -> ถอยกลับไปหน้า checkout
+        return RedirectResponse("/checkout?err=nomod", status_code=303)
     lid = add_lead(kind="order", school_name=school_name.strip() or request.session.get("name", ""),
                    contact_name=contact_name.strip(), email=email, phone=phone.strip(),
-                   packages=packages.strip(), amount=_to_float(amount), address=address,
+                   packages=pf["label"], modules=pf["modules"], amount=float(pf["total"]),
+                   address=address,
                    slip_file=slip_name, tenant_id=tid, login_user=email, note=(note or "").strip())
     return RedirectResponse(f"/sale-thanks?type=order&ref={lid}", status_code=303)
 

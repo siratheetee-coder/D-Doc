@@ -622,9 +622,9 @@
 </section>
 
 <!-- ================= ราคา ================= -->
-{% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':190,'bundle':1990}) %}
-{% set full = full_sum | default(2360) %}
-{% set save = bundle_save | default(370) %}
+{% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':190,'p_hr':390,'bundle':2190}) %}
+{% set full = full_sum | default(2750) %}
+{% set save = bundle_save | default(560) %}
 <section class="pricing" id="pricing">
   <div class="wrap">
     <div class="sec-head">
@@ -669,10 +669,14 @@
         <svg class="ico"><use href="#ic-tag"/></svg>
         <div class="sl-txt"><b>3 งาน</b><span>ลด 200 บาท</span></div>
       </div>
+      <div class="sl-card">
+        <svg class="ico"><use href="#ic-tag"/></svg>
+        <div class="sl-txt"><b>4 งาน</b><span>ลด 300 บาท</span></div>
+      </div>
       <div class="sl-card sl-best">
         <span class="sl-ribbon">คุ้มสุด!</span>
         <svg class="ico"><use href="#ic-star"/></svg>
-        <div class="sl-txt"><b>4 งาน <i>(ครบทุกงาน)</i></b><span>เหลือ {{ "{:,}".format(px.bundle) }} บาท</span></div>
+        <div class="sl-txt"><b>5 งาน <i>(ครบทุกงาน)</i></b><span>เหลือ {{ "{:,}".format(px.bundle) }} บาท</span></div>
       </div>
     </div>
     <div class="mgrid" id="pickList">
@@ -714,6 +718,16 @@
         </div>
         <p>คำนวณงบต่อหัว + เอกสารจ้าง/ตรวจรับ + ภาวะโภชนาการ</p>
         <div class="mc-price">{{ px.p_lunch }} <small>บาท/ปี</small></div>
+        <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
+      </label>
+      <label class="mcard on" data-price="{{ px.p_hr }}" data-name="งานบุคคล">
+        <input type="checkbox" checked>
+        <div class="mc-head">
+          <svg class="ico" style="color:#0d9488;"><use href="#ic-users"/></svg>
+          <h4>งานบุคคล</h4>
+        </div>
+        <p>ทะเบียนบุคลากร/วันลา/ไปราชการ + ก.พ.7 + หนังสือรับรอง</p>
+        <div class="mc-price">{{ px.p_hr }} <small>บาท/ปี</small></div>
         <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
       </label>
     </div>
@@ -765,8 +779,10 @@
 <script>
   (function(){
     var BUNDLE = {{ px.bundle | tojson }};                 // แพ็กครบทุกงาน (ราคาโปรถ้ามี) — จาก pricing_context()
-    var FULL = {{ full_sum | default(2360) | tojson }};    // รวมงานแยกเต็ม (ราคาขีดฆ่า)
+    var FULL = {{ full_sum | default(2750) | tojson }};    // รวมงานแยกเต็ม (ราคาขีดฆ่า)
     var cards = [].slice.call(document.querySelectorAll('#pickList .mcard'));
+    var TIERS = {{ tier_discount | default({2:100, 3:200, 4:300}) | tojson }};
+    var NMODS = cards.length;
     var sumTotal = document.getElementById('sumTotal');
     var sbSel = document.getElementById('sbSel');
     var sbSave = document.getElementById('sbSave');
@@ -785,33 +801,31 @@
       cards.forEach(function(c){ c.classList.toggle('on', c.querySelector('input').checked); });
       var count = chosen.length;
       var listSum = chosen.reduce(function(s,c){ return s + (+c.dataset.price); }, 0);
-      var discount = count === 4 ? (FULL - BUNDLE) : count === 3 ? 200 : count === 2 ? 100 : 0;
-      var total = count === 4 ? BUNDLE : (count ? Math.max(0, listSum - discount) : 0);
-      var savings = Math.max(0, listSum - total);
-      var label = count === 4 ? 'ครบทุกงาน' : (count ? chosen.map(function(c){ return c.dataset.name; }).join(' + ') : 'ยังไม่ได้เลือกงาน');
+      // ต้องตรงกับ price_for() ฝั่งเซิร์ฟเวอร์ (seller_config.py) — ที่นี่แค่แสดงผล
+      var total = count === NMODS ? BUNDLE : (count ? Math.max(0, listSum - (TIERS[count] || 0)) : 0);
+      var discount = Math.max(0, listSum - total);
+      var savings = discount;
+      var label = count === NMODS ? 'ครบทุกงาน' : (count ? chosen.map(function(c){ return c.dataset.name; }).join(' + ') : 'ยังไม่ได้เลือกงาน');
 
       sbSel.textContent = count ? label : 'ยังไม่ได้เลือกงาน';
       sumTotal.textContent = fmt(total);
 
-      sbBeforeLabel.textContent = count === 4 ? 'ราคาปกติทั้งชุด' : 'ราคาสินค้า';
+      sbBeforeLabel.textContent = count === NMODS ? 'ราคาปกติทั้งชุด' : 'ราคาสินค้า';
       sbBefore.textContent = count ? fmt(listSum) + ' บาท' : '0 บาท';
-      sbDiscountLabel.textContent = count === 4 ? 'ส่วนลดแพ็กเกจ' : 'ส่วนลดที่ได้รับ';
+      sbDiscountLabel.textContent = count === NMODS ? 'ส่วนลดแพ็กเกจ' : 'ส่วนลดที่ได้รับ';
       sbDiscount.textContent = count ? '−' + fmt(discount) + ' บาท' : '0 บาท';
       sbNet.textContent = count ? fmt(total) + ' บาท' : '0 บาท';
       sbSaved.textContent = count ? fmt(savings) + ' บาท' : '0 บาท';
 
-      if(count === 4){
+      if(count === NMODS){
         sbSave.style.display = '';
         sbSave.textContent = 'ส่วนลดแพ็กเกจ: −' + fmt(FULL - BUNDLE) + ' บาท';
         sbUpsell.textContent = '';
-      } else if(count === 3){
+      } else if(count >= 2){
         sbSave.style.display = '';
-        sbSave.textContent = 'ส่วนลดซื้อครบ 3 รายการ: −' + fmt(discount) + ' บาท';
-        sbUpsell.textContent = 'เพิ่มอีกเพียง ' + fmt(BUNDLE - total) + ' บาท เพื่อรับครบทั้ง 4 งาน!';
-      } else if(count === 2){
-        sbSave.style.display = '';
-        sbSave.textContent = 'ลด 100 บาท สำหรับเลือก 2 รายการ';
-        sbUpsell.textContent = '';
+        sbSave.textContent = 'ส่วนลดซื้อครบ ' + count + ' รายการ: −' + fmt(discount) + ' บาท';
+        sbUpsell.textContent = (BUNDLE > total)
+          ? ('เพิ่มอีกเพียง ' + fmt(BUNDLE - total) + ' บาท เพื่อรับครบทั้ง ' + NMODS + ' งาน!') : '';
       } else if(count === 1){
         sbSave.style.display = '';
         sbSave.textContent = 'ราคาเต็ม (ไม่มีส่วนลด)';

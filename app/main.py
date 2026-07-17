@@ -19,8 +19,10 @@ from fastapi.responses import RedirectResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.accounts import bootstrap, get_secret_key, tenant_state
-from app.tenancy import current_school_id
+from app.accounts import bootstrap, get_secret_key, tenant_state, can_use_module, tenant_status
+from app.modules import MODULE_LABELS, MODULE_PRICE_KEY, module_for_path
+from app.seller_config import pricing_context
+from app.tenancy import current_school_id, current_module
 from app.templating import templates
 from app.routers import pages, admin, finance, lunch, auth, superadmin, account, textbooks, sales, hr
 
@@ -91,10 +93,22 @@ async def tenant_auth(request: Request, call_next):
             "school": st["name"] if st else "", "expiry": st["expiry_date"] if st else None,
         }, status_code=403)
 
+    # สิทธิ์รายงาน: เข้าได้ถ้า "ซื้อแล้ว" หรือ "โควตาทดลองยังเหลือ"
+    # กั้นที่นี่จุดเดียวจึงครอบทุกเส้นทางของงานนั้นอัตโนมัติ (รวมเส้นทางที่เพิ่มในอนาคต)
+    mod = module_for_path(path)
+    if mod and not can_use_module(tid, mod):
+        st = tenant_status(tid)
+        return templates.TemplateResponse("module_locked.html", {
+            "request": request, "module": mod, "module_label": MODULE_LABELS.get(mod, ""),
+            "price": pricing_context()["prices"].get(MODULE_PRICE_KEY[mod]), "st": st,
+        }, status_code=403)
+
     token = current_school_id.set(tid)
+    mtoken = current_module.set(mod)     # ให้ตอนออกเอกสารรู้ว่าอยู่งานไหน (หักโควตาเฉพาะงานที่ยังไม่ซื้อ)
     try:
         return await call_next(request)
     finally:
+        current_module.reset(mtoken)
         current_school_id.reset(token)
 
 

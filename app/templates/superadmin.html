@@ -157,9 +157,22 @@
               </form>
             </td>
             <td class="actcol" style="white-space:nowrap;">
+              {# สิทธิ์รายงาน: ติ๊กว่าโรงเรียนนี้ "ซื้อ" งานไหนไว้บ้าง #}
+              <form method="post" action="/admin-console/tenant/{{ r.t.id }}/modules"
+                    style="border:1px solid #e3e7ee; border-radius:8px; padding:6px 8px; margin-bottom:6px;">
+                <div style="font-size:11.5px; color:#6b7280; margin-bottom:3px;">สิทธิ์งาน</div>
+                {% set owned = (r.t.modules or '').split(',') %}
+                {% for k in module_keys %}
+                <label style="display:block; font-size:12px; white-space:nowrap;">
+                  <input type="checkbox" name="mod" value="{{ k }}" {{ 'checked' if k in owned }}>
+                  {{ module_labels[k] }}
+                </label>
+                {% endfor %}
+                <button class="btn sm" type="submit" style="margin-top:4px;">บันทึกสิทธิ์</button>
+              </form>
               <form method="post" action="/admin-console/tenant/{{ r.t.id }}/renew"
-                    onsubmit="return confirm('ต่ออายุ {{ r.t.name }} เป็นสมาชิก 1 ปี?');">
-                <button class="btn sm green" type="submit">✓ ต่อ 1 ปี (สมาชิก)</button>
+                    onsubmit="return confirm('ต่ออายุ {{ r.t.name }} เป็นสมาชิกครบทุกงาน 1 ปี?');">
+                <button class="btn sm green" type="submit">✓ ต่อ 1 ปี (ครบทุกงาน)</button>
               </form>
               {% if r.plan == 'trial' %}
               <form method="post" action="/admin-console/tenant/{{ r.t.id }}/quota">

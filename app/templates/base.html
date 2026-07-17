@@ -552,14 +552,19 @@
 
         {% else %}{# hub #}
         <div class="nav-sec">เลือกงาน</div>
-        {% if modules_live.admin %}<a href="/admin"><svg class="icon"><use href="#ic-file"/></svg> งานธุรการ</a>
-        {% else %}<span class="navdim"><svg class="icon"><use href="#ic-file"/></svg> งานธุรการ (เร็วๆ นี้)</span>{% endif %}
-        <a href="/procurement"><svg class="icon"><use href="#ic-package"/></svg> งานพัสดุ</a>
-        {% if modules_live.finance %}<a href="/finance"><svg class="icon"><use href="#ic-coins"/></svg> งานการเงิน</a>
-        {% else %}<span class="navdim"><svg class="icon"><use href="#ic-coins"/></svg> งานการเงิน (เร็วๆ นี้)</span>{% endif %}
-        {% if modules_live.lunch %}<a href="/lunch"><svg class="icon"><use href="#ic-food"/></svg> งานอาหารกลางวัน</a>
-        {% else %}<span class="navdim"><svg class="icon"><use href="#ic-food"/></svg> งานอาหารกลางวัน (เร็วๆ นี้)</span>{% endif %}
-        {% if modules_live.hr %}<a href="/hr"><svg class="icon"><use href="#ic-users"/></svg> งานบุคคล</a>{% endif %}
+        {# 3 สถานะ: ยังไม่ได้สร้าง (เร็วๆ นี้) · ยังไม่ได้ซื้อและโควตาหมด (ชวนซื้อ) · เข้าได้ #}
+        {% set _tid = request.session.get('tid') %}
+        {% set _mine = my_modules(_tid) %}
+        {% for k, ico in [('admin','#ic-file'), ('procurement','#ic-package'), ('finance','#ic-coins'),
+                          ('lunch','#ic-food'), ('hr','#ic-users')] %}
+          {% if not modules_live[k] %}
+        <span class="navdim"><svg class="icon"><use href="{{ ico }}"/></svg> {{ module_labels[k] }} (เร็วๆ นี้)</span>
+          {% elif can_use(_tid, k) %}
+        <a href="/{{ 'procurement' if k=='procurement' else k }}"><svg class="icon"><use href="{{ ico }}"/></svg> {{ module_labels[k] }}</a>
+          {% else %}
+        <a href="/checkout" class="navdim" style="text-decoration:none;"><svg class="icon"><use href="{{ ico }}"/></svg> {{ module_labels[k] }} (ซื้อเพิ่ม)</a>
+          {% endif %}
+        {% endfor %}
         {% endif %}
 
         <div class="nav-sec">ระบบ</div>
@@ -605,24 +610,57 @@
             {% endif %}
           </div>
         </div>
+        {# แถบสถานะ: 2 ป้ายอิสระ — โรงเรียนหนึ่งอาจเป็นสมาชิกบางงาน และยังทดลองงานที่เหลืออยู่พร้อมกันได้ #}
         {% set st = account_status(request.session.get('tid')) %}
         {% if st %}
-        {% if st.plan == 'trial' %}
-          {% set warn = st.docs_left <= 3 %}
-          {% set label = 'ทดลองใช้ · เหลือ ' ~ st.docs_left ~ ' ฉบับ' %}
-        {% else %}
-          {% set warn = (st.days_left is not none) and (st.days_left <= 30) %}
-          {% set label = 'สมาชิก' ~ (' · ไม่จำกัด' if st.unlimited else (' · เหลือ ' ~ st.days_left ~ ' วัน')) %}
-        {% endif %}
-        <a href="/checkout" title="สถานะการใช้งาน (กดเพื่อต่ออายุ/เป็นสมาชิก)"
-           style="display:inline-flex; align-items:center; gap:7px; text-decoration:none; margin-right:8px;
-                  font-size:13px; font-weight:600; padding:6px 13px; border-radius:999px; white-space:nowrap;
-                  {% if warn %}background:#fef2f2; color:#b91c1c; border:1px solid #fecaca;
-                  {% elif st.plan=='trial' %}background:#fff4e5; color:#b45309; border:1px solid #fed7aa;
-                  {% else %}background:#e8f9ef; color:#15803d; border:1px solid #bbf7d0;{% endif %}">
-          <span style="width:7px; height:7px; border-radius:50%; background:currentColor;"></span>
-          {{ label }}{% if warn %} · {{ 'เป็นสมาชิก' if st.plan=='trial' else 'ต่ออายุ' }}{% endif %}
-        </a>
+          {% set px = price_list() %}
+          {# ---- ป้าย 1: สมาชิก (กดดูว่าซื้องานอะไรไปแล้ว) ---- #}
+          {% if st.plan == 'member' %}
+          {% set mwarn = (st.days_left is not none) and (st.days_left <= 30) %}
+          <div class="bell-wrap" style="margin-right:8px;">
+            <button class="pill-btn" onclick="toggleBell(event)" title="งานที่ซื้อแล้ว / อายุการใช้งาน"
+               style="display:inline-flex; align-items:center; gap:7px; cursor:pointer; font-family:inherit;
+                      font-size:13px; font-weight:600; padding:6px 13px; border-radius:999px; white-space:nowrap;
+                      {% if mwarn %}background:#fef2f2; color:#b91c1c; border:1px solid #fecaca;
+                      {% else %}background:#e8f9ef; color:#15803d; border:1px solid #bbf7d0;{% endif %}">
+              <span style="width:7px; height:7px; border-radius:50%; background:currentColor;"></span>
+              สมาชิก · {{ st.modules_count }} งาน{% if mwarn %} · ต่ออายุ{% endif %}
+            </button>
+            <div class="bell-panel">
+              <div class="bell-head">
+                งานที่ซื้อแล้ว ({{ st.modules_count }}/{{ module_keys|length }})
+                {% if st.unlimited %}· ไม่จำกัดเวลา{% elif st.days_left is not none %}· เหลือ {{ st.days_left }} วัน{% endif %}
+              </div>
+              <div class="bell-list">
+                {% for k in module_keys %}
+                  {% if k in st.modules %}
+                  <div class="bell-item" style="cursor:default;">
+                    <span style="color:#15803d; font-weight:700;">✔</span>
+                    <span><span class="bell-title">{{ module_labels[k] }}</span><span class="bell-reason">ใช้งานได้ไม่จำกัด</span></span>
+                  </div>
+                  {% else %}
+                  <a class="bell-item" href="/checkout">
+                    <span style="color:#94a3b8;">＋</span>
+                    <span><span class="bell-title">{{ module_labels[k] }}</span><span class="bell-reason">ยังไม่ได้ซื้อ · {{ "{:,}".format(px[module_price_key[k]]) }} บาท/ปี — ซื้อเพิ่ม</span></span>
+                  </a>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+          {# ---- ป้าย 2: โควตาทดลอง (แสดงคู่กันได้ ถ้ายังมีโควตาเหลือกับงานที่ยังไม่ได้ซื้อ) ---- #}
+          {% if st.docs_left is not none and (st.plan == 'trial' or st.docs_left > 0) %}
+          {% set twarn = st.docs_left <= 3 %}
+          <a href="/checkout" title="โควตาเอกสารสำหรับงานที่ยังไม่ได้ซื้อ"
+             style="display:inline-flex; align-items:center; gap:7px; text-decoration:none; margin-right:8px;
+                    font-size:13px; font-weight:600; padding:6px 13px; border-radius:999px; white-space:nowrap;
+                    {% if twarn %}background:#fef2f2; color:#b91c1c; border:1px solid #fecaca;
+                    {% else %}background:#fff4e5; color:#b45309; border:1px solid #fed7aa;{% endif %}">
+            <span style="width:7px; height:7px; border-radius:50%; background:currentColor;"></span>
+            ทดลองใช้ · เหลือ {{ st.docs_left }} เอกสาร{% if twarn %} · เป็นสมาชิก{% endif %}
+          </a>
+          {% endif %}
         {% endif %}
         <div class="brandchip">
           <span class="avatar">D</span>
@@ -732,10 +770,20 @@
 
     function openSidebar(){ document.getElementById('sidebar').classList.add('open'); document.getElementById('sbOverlay').classList.add('show'); }
     function closeSidebar(){ document.getElementById('sidebar').classList.remove('open'); document.getElementById('sbOverlay').classList.remove('show'); }
-    function toggleBell(e){ e.stopPropagation(); document.getElementById('bellPanel').classList.toggle('open'); }
+    // เปิด/ปิดแผงที่อยู่ใน .bell-wrap เดียวกับปุ่มที่กด (รองรับหลายแผง: กระดิ่ง + ป้ายสมาชิก)
+    function toggleBell(e){
+      e.stopPropagation();
+      var wrap = e.target.closest('.bell-wrap');
+      var panel = wrap && wrap.querySelector('.bell-panel');
+      if (!panel) return;
+      document.querySelectorAll('.bell-panel.open').forEach(function(p){   // ปิดแผงอื่นก่อน
+        if (p !== panel) p.classList.remove('open');
+      });
+      panel.classList.toggle('open');
+    }
     document.addEventListener('click', function(e){
-      var p = document.getElementById('bellPanel');
-      if (p && p.classList.contains('open') && !e.target.closest('.bell-wrap')) p.classList.remove('open');
+      if (e.target.closest('.bell-wrap')) return;
+      document.querySelectorAll('.bell-panel.open').forEach(function(p){ p.classList.remove('open'); });
     });
 
     // ===== คงตำแหน่งสกรอลล์เมื่อกดบันทึกแล้วหน้ารีโหลด (ไม่เด้งขึ้นบนสุด) =====

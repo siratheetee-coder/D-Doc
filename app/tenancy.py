@@ -18,6 +18,10 @@ from app.database import get_data_dir, init_school_db
 # id โรงเรียนของคำขอปัจจุบัน (None = ยังไม่ได้เลือก/ยังไม่ล็อกอิน)
 current_school_id = contextvars.ContextVar("current_school_id", default=None)
 
+# งาน (โมดูล) ของคำขอปัจจุบัน (None = ไม่ใช่ของงานไหน เช่น หน้าเลือกงาน/ตั้งค่า)
+# ตั้งโดย middleware · ใช้ตอนออกเอกสารเพื่อรู้ว่าควรหักโควตาทดลองหรือไม่
+current_module = contextvars.ContextVar("current_module", default=None)
+
 # แคช engine/session ต่อโรงเรียน: {school_id: (engine, SessionLocal)}
 _engines: dict = {}
 

@@ -677,11 +677,12 @@ def serve_generated(path, media_type: str | None = None, *,
                     count: bool = True) -> Response:
     """อ่านไฟล์ที่สร้างไว้เข้าหน่วยความจำแล้วส่งกลับ พร้อม Content-Disposition แบบ RFC 5987
     (filename*=utf-8'') — เลี่ยงปัญหา FileResponse กับชื่อไฟล์ภาษาไทยบนเซิร์ฟเวอร์
-    count=True: นับโควตาเอกสาร (ทดลองใช้) — ครบแล้วพาไปหน้าต่ออายุ"""
+    count=True: นับโควตาเอกสาร (ทดลองใช้) — ครบแล้วพาไปหน้าต่ออายุ
+    หักโควตาเฉพาะงานที่ยังไม่ได้ซื้อ (งานที่จ่ายเงินแล้วออกเอกสารได้ไม่จำกัด)"""
     if count:
-        from app.tenancy import current_school_id
+        from app.tenancy import current_school_id, current_module
         from app.accounts import consume_doc_quota
-        ok, _info = consume_doc_quota(current_school_id.get())
+        ok, _info = consume_doc_quota(current_school_id.get(), current_module.get())
         if not ok:
             return RedirectResponse("/trial-limit", status_code=303)
     from urllib.parse import quote
