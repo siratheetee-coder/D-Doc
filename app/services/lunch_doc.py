@@ -445,7 +445,7 @@ def render_committee_order_doc(rnd, school, doc=None) -> str:
 def _committee_lines(doc, members, fallback_n=3):
     """รายชื่อกรรมการเป็นตารางไร้เส้นขอบ ให้ ชื่อ/ตำแหน่ง/บทบาท ตรงคอลัมน์กัน"""
     data = list(members) if members else [None] * fallback_n
-    widths = [Cm(1.0), Cm(6.6), Cm(4.8), Cm(4.2)]
+    widths = [Cm(1.0), Cm(6.25), Cm(4.8), Cm(4.2)]   # รวม 16.25 = พื้นที่พิมพ์ A4
     t = doc.add_table(rows=len(data), cols=4)
     _no_borders(t)
     for i, (row, m) in enumerate(zip(t.rows, data), 1):
@@ -609,7 +609,7 @@ def render_result_doc(rnd, school, doc=None) -> str:
                   [[f"ดำเนินการจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) {dr}",
                     vname, _money(total), _money(total)],
                    ["รวม", "", _money(total), _money(total)]],
-                  [Cm(7), Cm(4.2), Cm(3), Cm(3)])
+                  [Cm(6.05), Cm(4.2), Cm(3), Cm(3)])   # รวม 16.25 = พื้นที่พิมพ์ A4
     _p(doc, f"จึงเห็นสมควรรับราคาจาก {vname} การจัดจ้างคราวนี้ไม่เกินวงเงินที่ประมาณไว้และไม่สูงกว่า"
             "ราคากลาง เจ้าหน้าที่ได้ต่อรองราคาแล้ว ผู้เสนอราคาไม่สามารถลดราคาลงได้อีกตามใบเสนอราคาที่แนบ "
             f"กำหนดส่งมอบภายในระยะเวลาที่กำหนด สถานที่ส่งมอบ ณ โรงเรียน{sname}",
