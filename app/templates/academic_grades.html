@@ -35,6 +35,14 @@
   {% if c and not subjects %}
   <p class="muted" style="margin:10px 0 0;">ชั้น {{ c.level }} ปี {{ c.year }} ยังไม่มีรายวิชา —
     <a href="/academic/subjects?year={{ c.year }}&level={{ c.level }}">ไปสร้างรายวิชา</a></p>
+  {% elif not classes %}
+  <p class="muted" style="margin:10px 0 0;">ยังไม่มีห้องเรียนของปี {{ year }} —
+    <a href="/academic/classes?year={{ year }}">ไปสร้างห้องเรียนก่อน</a>
+    แล้วดึงนักเรียนเข้าห้อง จึงจะกรอกคะแนนได้</p>
+  {% elif not c %}
+  <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> แล้วเลือก <b>รายวิชา</b> ด้านบน เพื่อเริ่มกรอกคะแนนทั้งห้อง</p>
+  {% elif not subj %}
+  <p class="muted" style="margin:10px 0 0;">เลือก <b>รายวิชา</b> ด้านบน เพื่อกรอกคะแนนของห้อง {{ class_label(c) }}</p>
   {% endif %}
 </div>
 

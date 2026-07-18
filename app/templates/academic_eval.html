@@ -23,6 +23,12 @@
         {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id==c.id }}>{{ class_label(k) }}</option>{% endfor %}
       </select></div>
   </form>
+  {% if not classes %}
+  <p class="muted" style="margin:10px 0 0;">ยังไม่มีห้องเรียนของปี {{ year }} —
+    <a href="/academic/classes?year={{ year }}">ไปสร้างห้องเรียนก่อน</a></p>
+  {% elif not c %}
+  <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> ด้านบน เพื่อประเมินและออกสมุดพก ปพ.6</p>
+  {% endif %}
 </div>
 
 {% if c %}

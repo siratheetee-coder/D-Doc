@@ -20,6 +20,22 @@
   </div>
 </div>
 
+{% if not n_classes %}
+<div class="card" style="border:1px solid #ddd6fe; background:#faf8ff;">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-info"/></svg> เริ่มใช้งานงานวิชาการ</h2>
+  <p class="muted" style="margin:4px 0 10px;">ทำตามลำดับนี้ครั้งเดียวตอนต้นปีการศึกษา แล้วที่เหลือคือกรอกคะแนน</p>
+  <ol style="margin:0; padding-left:20px; line-height:2;">
+    <li><b>ตั้งชั้น/ห้องให้นักเรียน</b> ที่ <a href="/students">ทะเบียนนักเรียน</a>
+        (ติ๊กเลือกหลายคนแล้วตั้งทีเดียวได้)</li>
+    <li><b>สร้างห้องเรียน</b> + เลือกครูประจำชั้น ที่ <a href="/academic/classes">ห้องเรียน</a>
+        แล้วกด "ดึงนักเรียนจากทะเบียนกลาง"</li>
+    <li><b>สร้างรายวิชา</b> ที่ <a href="/academic/subjects">รายวิชา</a>
+        — เลือกชั้นแล้วกดปุ่มสร้าง 8 กลุ่มสาระได้เลย</li>
+    <li><b>กรอกคะแนน</b> → ออก ปพ.5 · <b>ประเมิน</b> → ออกสมุดพก ปพ.6</li>
+  </ol>
+</div>
+{% endif %}
+
 <div class="nav-grid">
   <a class="nav-card" href="/academic/classes">
     <div class="nc-head">

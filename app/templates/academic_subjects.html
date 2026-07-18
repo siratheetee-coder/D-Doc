@@ -25,6 +25,16 @@
   </form>
 </div>
 
+{% set pr = request.query_params.get('preset') %}
+{% if pr == 'none' %}
+<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
+  ชั้นอนุบาลไม่มีรหัสวิชามาตรฐานตามหลักสูตรแกนกลาง — เพิ่มรายวิชาเองได้ที่ฟอร์มด้านล่าง</div>
+{% elif pr == '0' %}
+<div class="alert">รายวิชาพื้นฐานของชั้นนี้มีครบอยู่แล้ว (ไม่ได้สร้างซ้ำ)</div>
+{% elif pr %}
+<div class="alert">✔ สร้างรายวิชาพื้นฐานให้ {{ pr }} วิชาแล้ว — ปรับเวลาเรียน/สัดส่วนคะแนนได้ในตารางด้านล่าง</div>
+{% endif %}
+
 {% if level %}
 <div class="card" style="border:1px solid #ddd6fe; background:#faf8ff;">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-star"/></svg> สร้างรายวิชาพื้นฐานสำเร็จรูป</h2>

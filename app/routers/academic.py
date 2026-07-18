@@ -221,11 +221,14 @@ def subject_add(db: Session = Depends(get_db), year: str = Form(""), level: str 
     nm = (name or "").strip()
     if nm:
         n = db.query(AcadSubject).filter_by(year=y, level=(level or "").strip()).count()
+        mm, fm = max(0, _to_int(mid_max, 70)), max(0, _to_int(final_max, 30))
+        if (mm + fm) <= 0:            # กันสัดส่วน 0:0 (เกรดจะคิดจากค่าปริยายเงียบ ๆ)
+            mm, fm = 70, 30
         db.add(AcadSubject(year=y, level=(level or "").strip(), code=(code or "").strip(),
                            name=nm, learn_group=(learn_group or "").strip(),
                            kind=(kind or "พื้นฐาน").strip(), hours=_to_int(hours, 0),
                            credit=_to_float(credit, 0.0), term=_to_int(term, 0), seq=n + 1,
-                           mid_max=_to_int(mid_max, 70), final_max=_to_int(final_max, 30)))
+                           mid_max=mm, final_max=fm))
         db.commit()
     return RedirectResponse(f"/academic/subjects?year={y}&level={level}", status_code=303)
 
@@ -244,8 +247,9 @@ def subject_update(sid: int, db: Session = Depends(get_db), code: str = Form("")
         s.hours = _to_int(hours, 0)
         s.credit = _to_float(credit, 0.0)
         s.term = _to_int(term, 0)
-        s.mid_max = _to_int(mid_max, 70)
-        s.final_max = _to_int(final_max, 30)
+        # กันสัดส่วน 0:0 (จะทำให้เกรดคิดจากค่าปริยายเงียบ ๆ จนครูงงว่าทำไมไม่ตรง)
+        mm, fm = max(0, _to_int(mid_max, 70)), max(0, _to_int(final_max, 30))
+        s.mid_max, s.final_max = (mm, fm) if (mm + fm) > 0 else (70, 30)
         db.commit()
     return RedirectResponse(f"/academic/subjects?year={s.year if s else ''}", status_code=303)
 
@@ -267,17 +271,23 @@ def subjects_preset(db: Session = Depends(get_db), year: str = Form(""), level: 
     have = {(s.code or "").strip() for s in db.query(AcadSubject).filter_by(year=y, level=lv).all()}
     n = db.query(AcadSubject).filter_by(year=y, level=lv).count()
     terms = term_choices(lv)
-    for p in subject_preset(lv):
+    preset = subject_preset(lv)
+    if not preset:
+        # อนุบาล/ชั้นนอกระบบ: ไม่มีรหัสวิชามาตรฐาน -> บอกครูว่าทำไมไม่มีอะไรเกิดขึ้น
+        return RedirectResponse(f"/academic/subjects?year={y}&level={lv}&preset=none", status_code=303)
+    added = 0
+    for p in preset:
         if p["code"] in have:
             continue
         n += 1
+        added += 1
         # มัธยมตัดสินรายภาค -> สร้างวิชาละ 2 ภาค · ประถมรายปี -> ภาคเดียว (term=0)
         for t in terms:
             db.add(AcadSubject(year=y, level=lv, code=p["code"], name=p["name"],
                                learn_group=p["learn_group"], kind=p["kind"],
                                hours=p["hours"] // len(terms), term=t, seq=n))
     db.commit()
-    return RedirectResponse(f"/academic/subjects?year={y}&level={lv}", status_code=303)
+    return RedirectResponse(f"/academic/subjects?year={y}&level={lv}&preset={added}", status_code=303)
 
 
 # ---------------- กรอกผลการเรียน ----------------
