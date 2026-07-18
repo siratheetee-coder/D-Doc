@@ -14,17 +14,17 @@
 <div class="card">
   <form method="get" action="/academic/grades" class="row" style="align-items:flex-end; margin:0;">
     <div><label>ปีการศึกษา</label>
-      <select name="year" onchange="this.form.submit()">
+      <select name="year" onchange="submitReplace(this.form)">
         {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
       </select></div>
     <div><label>ห้องเรียน</label>
-      <select name="cid" onchange="this.form.submit()">
+      <select name="cid" onchange="submitReplace(this.form)">
         <option value="">- เลือกห้อง -</option>
         {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id==c.id }}>{{ class_label(k) }}</option>{% endfor %}
       </select></div>
     {% if c %}
     <div style="flex:1;"><label>รายวิชา</label>
-      <select name="sid" onchange="this.form.submit()">
+      <select name="sid" onchange="submitReplace(this.form)">
         <option value="">- เลือกวิชา -</option>
         {% for s in subjects %}
         <option value="{{ s.id }}" {{ 'selected' if subj and s.id==subj.id }}>{{ s.code }} {{ s.name }} — {{ term_label(s.term) }}</option>
@@ -44,14 +44,15 @@
     <h2 style="margin:0;">{{ subj.code }} {{ subj.name }} · ห้อง {{ class_label(c) }} · {{ term_label(subj.term) }}</h2>
     <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5.docx?sid={{ subj.id }}"><svg class="icon"><use href="#ic-file"/></svg> ออก ปพ.5</a>
   </div>
-  <p class="muted" style="font-size:13px; margin:6px 0 8px;">กรอกคะแนนเก็บ + ปลายภาค แล้วระบบคิดเกรดจากคะแนนรวมให้
-    (80=4 · 75=3.5 · 70=3 · 65=2.5 · 60=2 · 55=1.5 · 50=1) · ถ้าเลือกเกรดเองจะใช้ค่าที่เลือกแทน (เช่น ร / มส)</p>
+  <p class="muted" style="font-size:13px; margin:6px 0 8px;">สัดส่วนวิชานี้: เก็บเต็ม <b>{{ subj.mid_max or 70 }}</b> + ปลายภาคเต็ม <b>{{ subj.final_max or 30 }}</b>
+    (ตั้งได้ที่หน้ารายวิชา) · เกรดคิดจากร้อยละของคะแนนรวม (80=4 · 75=3.5 · 70=3 · 65=2.5 · 60=2 · 55=1.5 · 50=1)
+    · ถ้าเลือกเกรดเองจะใช้ค่าที่เลือกแทน (เช่น ร / มส)</p>
   {% if students %}
   <form method="post" action="/academic/grades/save">
     <input type="hidden" name="cid" value="{{ c.id }}"><input type="hidden" name="sid" value="{{ subj.id }}">
     <div class="table-wrap">
     <table>
-      <thead><tr><th>เลขที่</th><th>ชื่อ-นามสกุล</th><th>คะแนนเก็บ</th><th>ปลายภาค</th><th>รวม</th><th>ผลการเรียน</th></tr></thead>
+      <thead><tr><th>เลขที่</th><th>ชื่อ-นามสกุล</th><th>คะแนนเก็บ (เต็ม {{ subj.mid_max or 70 }})</th><th>ปลายภาค (เต็ม {{ subj.final_max or 30 }})</th><th>รวม (เต็ม {{ (subj.mid_max or 70) + (subj.final_max or 30) }})</th><th>ผลการเรียน</th></tr></thead>
       <tbody>
       {% for s in students %}
         {% set sc = scores.get(s.id) %}
@@ -59,9 +60,11 @@
           <td>{{ s.seq or '' }}</td>
           <td>{{ s.name }}</td>
           <td><input name="mid_{{ s.id }}" value="{{ '%g'|format(sc.score_mid) if sc and sc.score_mid is not none else '' }}"
-                     inputmode="decimal" style="width:90px;" data-sum="{{ s.id }}"></td>
+                     inputmode="decimal" type="number" min="0" max="{{ subj.mid_max or 70 }}" step="0.5"
+                     style="width:90px;" data-sum="{{ s.id }}"></td>
           <td><input name="fin_{{ s.id }}" value="{{ '%g'|format(sc.score_final) if sc and sc.score_final is not none else '' }}"
-                     inputmode="decimal" style="width:90px;" data-sum="{{ s.id }}"></td>
+                     inputmode="decimal" type="number" min="0" max="{{ subj.final_max or 30 }}" step="0.5"
+                     style="width:90px;" data-sum="{{ s.id }}"></td>
           <td><b id="sum{{ s.id }}">{{ '%g'|format(sc.score) if sc and sc.score is not none else '-' }}</b></td>
           <td><select name="grade_{{ s.id }}" style="width:100px;">
             <option value="">(คิดอัตโนมัติ)</option>

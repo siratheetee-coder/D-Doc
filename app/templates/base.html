@@ -488,6 +488,12 @@
           window.SECTION_HOME = "{{ section_home }}";
           window.SECTION_PREFIXES = {{ section_prefixes|tojson }};
           window.IS_SECTION_HOME = {{ 'true' if is_section_home else 'false' }};
+          // ส่งฟอร์มตัวกรอง (GET) แบบแทนที่ประวัติ — เปลี่ยน dropdown กี่ครั้งก็ไม่กองใน history
+          // ปุ่มย้อนกลับจึงออกจากหน้านี้ทันที ไม่ต้องไล่ย้อนทีละค่าตัวกรองที่เคยเลือก
+          function submitReplace(form){
+            var q = new URLSearchParams(new FormData(form)).toString();
+            location.replace(form.getAttribute('action') + (q ? ('?' + q) : ''));
+          }
           function goBack(ev){
             ev.preventDefault();
             // หน้าหลักของงาน (section home) -> ไปหน้าเลือกงาน (hub)

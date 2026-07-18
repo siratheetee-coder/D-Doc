@@ -787,9 +787,27 @@ def students_remove_graduated(db: Session = Depends(get_db)):
     return RedirectResponse(f"/students?removed={n}", status_code=303)
 
 
+@router.post("/students/bulk-set")
+def students_bulk_set(db: Session = Depends(get_db), ids: str = Form(""),
+                      level: str = Form(""), room: str = Form("")):
+    """ตั้งชั้น/ห้องให้นักเรียนหลายคนที่ติ๊กเลือกไว้ (เว้นช่องไหนว่าง = ไม่แก้ช่องนั้น)"""
+    idl = [_to_int(x, 0) for x in (ids or "").split(",") if x.strip()]
+    lv, rm = (level or "").strip(), (room or "").strip()
+    n = 0
+    if idl and (lv or rm):
+        for s in db.query(Student).filter(Student.id.in_(idl)).all():
+            if lv:
+                s.level = lv
+            if rm:
+                s.room = rm
+            n += 1
+        db.commit()
+    return RedirectResponse(f"/students?bulkset={n}", status_code=303)
+
+
 @router.post("/students/bulk")
 def students_master_bulk(db: Session = Depends(get_db), bulk: str = Form("")):
-    """เพิ่มนักเรียนทีละหลายคน: 1 บรรทัด = ชื่อ, เพศ(ช/ญ), วันเกิด, ชั้น, เลขประจำตัว, ห้อง"""
+    """เพิ่มนักเรียนทีละหลายคน: 1 บรรทัด = ชื่อ, เพศ(ช/ญ), วันเกิด, ชั้น, ห้อง, เลขประจำตัว"""
     import re as _re
     n = 0
     for line in (bulk or "").splitlines():
@@ -800,8 +818,8 @@ def students_master_bulk(db: Session = Depends(get_db), bulk: str = Form("")):
             name=parts[0], sex=_norm_sex(parts[1] if len(parts) > 1 else ""),
             birthdate=parse_be_date(parts[2]) if len(parts) > 2 else None,
             level=parts[3] if len(parts) > 3 else "",
-            student_no=parts[4] if len(parts) > 4 else "",
-            room=parts[5] if len(parts) > 5 else ""))
+            room=parts[4] if len(parts) > 4 else "",
+            student_no=parts[5] if len(parts) > 5 else ""))
         n += 1
     db.commit()
     return RedirectResponse(f"/students?added={n}", status_code=303)
@@ -812,13 +830,34 @@ def students_template():
     from openpyxl import Workbook
     from openpyxl.styles import Font
     wb = Workbook(); ws = wb.active; ws.title = "นักเรียน"
-    headers = ["ชื่อ-นามสกุล", "เพศ (ช/ญ)", "วันเกิด (วว/ดด/ปปปป)", "ระดับชั้น", "เลขประจำตัว", "ห้อง"]
+    headers = ["ชื่อ-นามสกุล", "เพศ (ช/ญ)", "วันเกิด (วว/ดด/ปปปป)", "ระดับชั้น", "ห้อง", "เลขประจำตัว"]
     ws.append(headers)
     for c in range(1, len(headers) + 1):
         ws.cell(1, c).font = Font(name="TH Sarabun New", bold=True, size=14)
         ws.column_dimensions[chr(64 + c)].width = 24
-    ws.append(["เด็กชายสมชาย ใจดี", "ช", "15/05/2562", "ป.1", "10001", "1"])
+    ws.append(["เด็กชายสมชาย ใจดี", "ช", "15/05/2562", "ป.1", "1", "10001"])
     return _xlsx_download(wb, "แบบฟอร์มนำเข้านักเรียน.xlsx")
+
+
+def _student_col_map(header_row) -> dict:
+    """จับคู่หัวคอลัมน์ -> ฟิลด์ (นำเข้าไฟล์แม่แบบได้ทุกยุค ไม่ยึดตำแหน่งตายตัว)
+    คืน {} ถ้าไม่พบหัวคอลัมน์ "ชื่อ" -> ผู้เรียกใช้ลำดับตายตัวแทน"""
+    m = {}
+    for i, h in enumerate(header_row or ()):
+        s = str(h or "")
+        if "ชื่อ" in s:
+            m["name"] = i
+        elif "เพศ" in s:
+            m["sex"] = i
+        elif "เกิด" in s:
+            m["birthdate"] = i
+        elif "ชั้น" in s:
+            m["level"] = i
+        elif "ประจำตัว" in s:
+            m["student_no"] = i
+        elif "ห้อง" in s:
+            m["room"] = i
+    return m if "name" in m else {}
 
 
 @router.post("/students/import")
@@ -829,16 +868,25 @@ async def students_import(db: Session = Depends(get_db), file: UploadFile = File
     n = 0
     try:
         ws = load_workbook(_io.BytesIO(data), data_only=True).active
+        header = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), None)
+        cm = _student_col_map(header)
+        if not cm:   # ไม่มีหัวคอลัมน์ที่รู้จัก -> ลำดับแบบเดิม (ชื่อ เพศ เกิด ชั้น เลขประจำตัว ห้อง)
+            cm = {"name": 0, "sex": 1, "birthdate": 2, "level": 3, "student_no": 4, "room": 5}
+
+        def _cell(row, key):
+            i = cm.get(key)
+            return str(row[i]).strip() if (i is not None and len(row) > i and row[i] is not None) else ""
+
         for row in ws.iter_rows(min_row=2, values_only=True):
-            if not row or not row[0]:
+            if not row or not _cell(row, "name"):
                 continue
             db.add(Student(
-                name=str(row[0]).strip(),
-                sex=_norm_sex(str(row[1]).strip() if len(row) > 1 and row[1] else ""),
-                birthdate=parse_be_date(str(row[2])) if len(row) > 2 and row[2] else None,
-                level=str(row[3]).strip() if len(row) > 3 and row[3] else "",
-                student_no=str(row[4]).strip() if len(row) > 4 and row[4] else "",
-                room=str(row[5]).strip() if len(row) > 5 and row[5] else ""))
+                name=_cell(row, "name"),
+                sex=_norm_sex(_cell(row, "sex")),
+                birthdate=parse_be_date(_cell(row, "birthdate")) if _cell(row, "birthdate") else None,
+                level=_cell(row, "level"),
+                student_no=_cell(row, "student_no"),
+                room=_cell(row, "room")))
             n += 1
         db.commit()
     except Exception:

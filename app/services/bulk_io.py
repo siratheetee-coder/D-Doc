@@ -52,9 +52,9 @@ MASTER_SHEETS = {
         "widths": [30, 24, 22, 36, 16, 22],
     },
     "นักเรียน": {
-        "headers": ["ชื่อ-นามสกุล", "เพศ (ช/ญ)", "วันเกิด (วว/ดด/ปปปป)", "ระดับชั้น", "เลขประจำตัว", "ห้อง"],
-        "note": "กรอกรายชื่อนักเรียนตั้งแต่แถวที่ 3 ลงไป (จำเป็นเฉพาะชื่อ) เพศใส่ ช หรือ ญ  ห้องใส่เฉพาะเลข  เช่น  เด็กชายสมชาย ใจดี | ช | 15/05/2562 | ป.1 | 10001 | 1",
-        "widths": [30, 12, 22, 12, 14, 8],
+        "headers": ["ชื่อ-นามสกุล", "เพศ (ช/ญ)", "วันเกิด (วว/ดด/ปปปป)", "ระดับชั้น", "ห้อง", "เลขประจำตัว"],
+        "note": "กรอกรายชื่อนักเรียนตั้งแต่แถวที่ 3 ลงไป (จำเป็นเฉพาะชื่อ) เพศใส่ ช หรือ ญ  ห้องใส่เฉพาะเลข  เช่น  เด็กชายสมชาย ใจดี | ช | 15/05/2562 | ป.1 | 1 | 10001",
+        "widths": [30, 12, 22, 12, 8, 14],
     },
 }
 
@@ -280,12 +280,22 @@ def import_workbook(file_bytes: bytes, db) -> dict:
         if added or skipped:
             summary["ผู้ขาย"] = {"added": added, "skipped": skipped}
 
-    # ---- ชีตนักเรียน (ชื่อ | เพศ | วันเกิด | ชั้น | เลขประจำตัว | ห้อง) ----
+    # ---- ชีตนักเรียน (อ่านตามหัวคอลัมน์แถวแรก -> รองรับไฟล์เก่าทุกยุค) ----
     if "นักเรียน" in wb.sheetnames:
+        from app.routers.pages import _student_col_map
+        ws_st = wb["นักเรียน"]
+        header = next(ws_st.iter_rows(min_row=1, max_row=1, values_only=True), None)
+        cm = _student_col_map(header) or {"name": 0, "sex": 1, "birthdate": 2,
+                                          "level": 3, "student_no": 4, "room": 5}
+
+        def _sc(row, key):
+            i = cm.get(key)
+            return _cell_str(row[i]) if (i is not None and len(row) > i) else ""
+
         existing = {s.name for s in db.query(Student).all()}
         added = skipped = 0
-        for row in wb["นักเรียน"].iter_rows(min_row=3, values_only=True):
-            name = _cell_str(row[0]) if row else ""
+        for row in ws_st.iter_rows(min_row=3, values_only=True):
+            name = _sc(row, "name")
             if not name:
                 continue
             if name in existing:
@@ -293,11 +303,11 @@ def import_workbook(file_bytes: bytes, db) -> dict:
                 continue
             db.add(Student(
                 name=name,
-                sex=_SEX_MAP.get(_cell_str(row[1]) if len(row) > 1 else "", ""),
-                birthdate=parse_be_date(_cell_str(row[2])) if len(row) > 2 else None,
-                level=_cell_str(row[3]) if len(row) > 3 else "",
-                student_no=_cell_str(row[4]) if len(row) > 4 else "",
-                room=_cell_str(row[5]) if len(row) > 5 else "",
+                sex=_SEX_MAP.get(_sc(row, "sex"), ""),
+                birthdate=parse_be_date(_sc(row, "birthdate")) if _sc(row, "birthdate") else None,
+                level=_sc(row, "level"),
+                student_no=_sc(row, "student_no"),
+                room=_sc(row, "room"),
             ))
             existing.add(name)
             added += 1

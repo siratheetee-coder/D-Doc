@@ -12,12 +12,12 @@
 <div class="card">
   <form method="get" action="/academic/subjects" class="row" style="align-items:flex-end; margin:0;">
     <div><label>ปีการศึกษา</label>
-      <select name="year" onchange="this.form.submit()">
+      <select name="year" onchange="submitReplace(this.form)">
         {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
       </select>
     </div>
     <div><label>ระดับชั้น</label>
-      <select name="level" onchange="this.form.submit()">
+      <select name="level" onchange="submitReplace(this.form)">
         <option value="">ทุกชั้น</option>
         {% for lv in levels %}<option value="{{ lv }}" {{ 'selected' if lv==level }}>{{ lv }}</option>{% endfor %}
       </select>
@@ -52,6 +52,10 @@
     <div><label>ประเภท</label><select name="kind">{% for k in kinds %}<option>{{ k }}</option>{% endfor %}</select></div>
     <div><label>เวลาเรียน</label><input name="hours" style="width:80px;" placeholder="80"></div>
     <div><label>หน่วยกิต</label><input name="credit" style="width:80px;" placeholder="1.0"></div>
+    <div><label>เก็บ:ปลาย</label>
+      <span style="display:inline-flex; align-items:center; gap:4px;">
+        <input name="mid_max" value="70" style="width:56px;">:<input name="final_max" value="30" style="width:56px;">
+      </span></div>
     <div><label>ภาคเรียน</label>
       <select name="term"><option value="0">ทั้งปี</option><option value="1">ภาค 1</option><option value="2">ภาค 2</option></select></div>
     <div><button class="btn" type="submit">เพิ่ม</button></div>
@@ -59,14 +63,18 @@
 </div>
 
 <div class="card">
-  <h2 style="margin-top:0;">รายวิชา {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }})</span>{% endif %}</h2>
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;">รายวิชา {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }})</span>{% endif %}</h2>
+    {% if rows %}<button class="btn sm" type="button" onclick="saveAllRows(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึกทั้งหมด</button>{% endif %}
+  </div>
+  <p class="muted" style="font-size:13px; margin:4px 0 8px;">เก็บ:ปลาย = สัดส่วนคะแนนของวิชานั้น (ค่าเริ่มต้น 70:30) · แก้หลายแถวแล้วกด "บันทึกทั้งหมด" ครั้งเดียวได้</p>
   {% if rows %}
   <div class="table-wrap">
   <table>
-    <thead><tr><th>ชั้น</th><th>รหัส</th><th>ชื่อรายวิชา</th><th>กลุ่มสาระ</th><th>ประเภท</th><th>เวลา</th><th>หน่วยกิต</th><th>ภาค</th><th></th></tr></thead>
+    <thead><tr><th>ชั้น</th><th>รหัส</th><th>ชื่อรายวิชา</th><th>กลุ่มสาระ</th><th>ประเภท</th><th>เวลา</th><th>หน่วยกิต</th><th>เก็บ:ปลาย</th><th>ภาค</th><th></th></tr></thead>
     <tbody>
     {% for s in rows %}
-      <tr>
+      <tr data-sid="{{ s.id }}">
         <td>{{ s.level }}<form method="post" action="/academic/subjects/{{ s.id }}/update" id="sf{{ s.id }}"></form></td>
         <td><input form="sf{{ s.id }}" name="code" value="{{ s.code }}" style="width:90px;"></td>
         <td><input form="sf{{ s.id }}" name="name" value="{{ s.name }}"></td>
@@ -74,6 +82,7 @@
         <td><select form="sf{{ s.id }}" name="kind">{% for k in kinds %}<option {{ 'selected' if k==s.kind }}>{{ k }}</option>{% endfor %}</select></td>
         <td><input form="sf{{ s.id }}" name="hours" value="{{ s.hours or '' }}" style="width:60px;"></td>
         <td><input form="sf{{ s.id }}" name="credit" value="{{ ('%g'|format(s.credit)) if s.credit else '' }}" style="width:60px;"></td>
+        <td style="white-space:nowrap;"><input form="sf{{ s.id }}" name="mid_max" value="{{ s.mid_max if s.mid_max is not none else 70 }}" style="width:52px;">:<input form="sf{{ s.id }}" name="final_max" value="{{ s.final_max if s.final_max is not none else 30 }}" style="width:52px;"></td>
         <td><select form="sf{{ s.id }}" name="term">
           <option value="0" {{ 'selected' if s.term==0 }}>ทั้งปี</option>
           <option value="1" {{ 'selected' if s.term==1 }}>ภาค 1</option>
@@ -93,4 +102,21 @@
   <p class="muted">ยังไม่มีรายวิชา — เลือกชั้นด้านบนแล้วกดปุ่มสร้างสำเร็จรูปได้เลย</p>
   {% endif %}
 </div>
+<script>
+  // บันทึกทุกแถว: ยิงฟอร์มของแต่ละแถวด้วย fetch แล้วรีโหลดครั้งเดียว
+  async function saveAllRows(btn){
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+    var rows = Array.prototype.slice.call(document.querySelectorAll('tr[data-sid]'));
+    for (var i = 0; i < rows.length; i++){
+      var f = rows[i].querySelector('form[id^="sf"]');
+      if(!f) continue;
+      var d = new FormData();
+      document.querySelectorAll('[form="' + f.id + '"]').forEach(function(el){
+        if(el.name) d.append(el.name, el.value);
+      });
+      await fetch(f.action, {method:'POST', body:d});
+    }
+    location.reload();
+  }
+</script>
 {% endblock %}

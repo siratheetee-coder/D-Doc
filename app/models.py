@@ -1101,6 +1101,8 @@ class AcadSubject(Base):
     kind = Column(String, default="พื้นฐาน")        # พื้นฐาน / เพิ่มเติม
     hours = Column(Integer, default=0)              # เวลาเรียน (ชม./ปี หรือ ชม./ภาค)
     credit = Column(Float, default=0.0)             # หน่วยกิต (มัธยม)
+    mid_max = Column(Integer, default=70)           # คะแนนเก็บเต็ม (สัดส่วนต่างกันได้รายวิชา)
+    final_max = Column(Integer, default=30)         # คะแนนปลายภาคเต็ม
     term = Column(Integer, default=0)               # 0 = ทั้งปี (ประถม) · 1/2 = ภาคเรียน (มัธยม)
     seq = Column(Integer, default=0)                # ลำดับแสดงผล
     created_at = Column(DateTime, default=datetime.now)

@@ -42,9 +42,9 @@
   <datalist id="lvlist"><option value="อ.1"><option value="อ.2"><option value="อ.3"><option value="ป.1"><option value="ป.2"><option value="ป.3"><option value="ป.4"><option value="ป.5"><option value="ป.6"><option value="ม.1"><option value="ม.2"><option value="ม.3"></datalist>
   <div style="margin-top:14px; border-top:1px solid var(--border); padding-top:10px;">
     <b style="font-size:14px;">เพิ่มทีละหลายคน (วางจาก Excel)</b>
-    <p class="muted" style="font-size:13px; margin:4px 0;">1 คน/บรรทัด: <b>ชื่อ-นามสกุล , เพศ(ช/ญ) , วันเกิด , ชั้น , เลขประจำตัว , ห้อง</b> (คั่นจุลภาคหรือ Tab · เว้นช่องหลังได้)</p>
+    <p class="muted" style="font-size:13px; margin:4px 0;">1 คน/บรรทัด: <b>ชื่อ-นามสกุล , เพศ(ช/ญ) , วันเกิด , ชั้น , ห้อง , เลขประจำตัว</b> (คั่นจุลภาคหรือ Tab · เว้นช่องหลังได้)</p>
     <form method="post" action="/students/bulk">
-      <textarea name="bulk" rows="4" placeholder="เด็กชายสมชาย ใจดี, ช, 15/05/2562, ป.1, 10001, 1&#10;เด็กหญิงสมหญิง รักเรียน, ญ, 20/07/2562, ป.1, 10002, 1"></textarea>
+      <textarea name="bulk" rows="4" placeholder="เด็กชายสมชาย ใจดี, ช, 15/05/2562, ป.1, 1, 10001&#10;เด็กหญิงสมหญิง รักเรียน, ญ, 20/07/2562, ป.1, 1, 10002"></textarea>
       <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มทั้งหมด</button>
     </form>
   </div>
@@ -56,13 +56,24 @@
     {% if rows %}<button class="btn sm" type="button" onclick="saveAll(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึกทั้งหมด</button>{% endif %}
   </div>
   <p class="muted" style="font-size:13px; margin:4px 0 8px;">แก้ได้หลายแถวพร้อมกัน แล้วกด "บันทึกทั้งหมด" ครั้งเดียว (หรือกดบันทึกทีละแถว) — ข้อมูลแถวอื่นจะไม่หาย</p>
+  {% if request.query_params.get('bulkset') %}<div class="alert">✔ ตั้งชั้น/ห้องให้ {{ request.query_params.get('bulkset') }} คนแล้ว</div>{% endif %}
   {% if rows %}
+  <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; padding:10px 12px; margin:0 0 10px;
+              background:#f4f7ff; border:1px solid #dbe6ff; border-radius:10px;">
+    <div style="font-weight:600; align-self:center;">ติ๊กเลือกหลายคน แล้วตั้งพร้อมกัน:</div>
+    <div><label style="font-size:12.5px;">ระดับชั้น</label><br>
+      <input id="bsLevel" list="lvlist" placeholder="(ไม่แก้)" style="width:100px;"></div>
+    <div><label style="font-size:12.5px;">ห้อง</label><br>
+      <input id="bsRoom" placeholder="(ไม่แก้)" style="width:80px;"></div>
+    <button class="btn sm" type="button" onclick="bulkSet(this)">ตั้งให้ที่เลือก (<span id="bsCount">0</span> คน)</button>
+  </div>
   <div class="table-wrap">
   <table>
-    <thead><tr><th>เลขประจำตัว</th><th>ชื่อ-นามสกุล</th><th>เพศ</th><th>วันเกิด</th><th>ชั้น</th><th>ห้อง</th><th></th></tr></thead>
+    <thead><tr><th style="width:34px;"><input type="checkbox" id="bsAll" onclick="toggleAll(this)" title="เลือกทั้งหมด"></th><th>เลขประจำตัว</th><th>ชื่อ-นามสกุล</th><th>เพศ</th><th>วันเกิด</th><th>ชั้น</th><th>ห้อง</th><th></th></tr></thead>
     <tbody>
     {% for s in rows %}
       <tr data-sid="{{ s.id }}">
+        <td><input type="checkbox" class="bs-pick" value="{{ s.id }}" onchange="updateCount()"></td>
         <td><input name="student_no" value="{{ s.student_no }}" style="width:90px;"></td>
         <td><input name="name" value="{{ s.name }}"></td>
         <td><select name="sex" style="width:100px;"><option value="" {{ 'selected' if not s.sex }}>-</option><option value="ช" {{ 'selected' if s.sex=='M' }}>ชาย</option><option value="ญ" {{ 'selected' if s.sex=='F' }}>หญิง</option></select></td>
@@ -116,6 +127,29 @@
       rows.forEach(function(tr){ tr.style.background='#dcfce7'; });
       setTimeout(function(){ rows.forEach(function(tr){ tr.style.background=''; }); }, 900);
     }).catch(function(){ btn.disabled=false; alert('บันทึกบางรายการไม่สำเร็จ'); });
+  }
+  // ---- ติ๊กหลายคนแล้วตั้งชั้น/ห้องทีเดียว ----
+  function updateCount(){
+    var n = document.querySelectorAll('.bs-pick:checked').length;
+    var el = document.getElementById('bsCount'); if(el) el.textContent = n;
+  }
+  function toggleAll(box){
+    document.querySelectorAll('.bs-pick').forEach(function(c){ c.checked = box.checked; });
+    updateCount();
+  }
+  function bulkSet(btn){
+    var ids = Array.prototype.map.call(document.querySelectorAll('.bs-pick:checked'), function(c){ return c.value; });
+    var lv = document.getElementById('bsLevel').value.trim();
+    var rm = document.getElementById('bsRoom').value.trim();
+    if(!ids.length){ alert('ยังไม่ได้ติ๊กเลือกนักเรียน'); return; }
+    if(!lv && !rm){ alert('กรอกชั้นหรือห้องอย่างน้อย 1 ช่อง'); return; }
+    btn.disabled = true;
+    var d = new URLSearchParams();
+    d.append('ids', ids.join(',')); d.append('level', lv); d.append('room', rm);
+    fetch('/students/bulk-set', {
+      method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:d
+    }).then(function(){ location.href = '/students?bulkset=' + ids.length; })
+      .catch(function(){ btn.disabled=false; alert('ตั้งค่าไม่สำเร็จ ลองใหม่'); });
   }
 </script>
 {% endblock %}

@@ -109,8 +109,10 @@ def render_pp5(school, klass, subject, db) -> str:
     if meta:
         _p(doc, "  ·  ".join(meta), align="center", size=13, after=8)
 
-    heads = ["เลขที่", "เลขประจำตัว", "ชื่อ-นามสกุล", "คะแนนเก็บ", "คะแนนปลายภาค",
-             "รวม", "ผลการเรียน", "หมายเหตุ"]
+    mmax = subject.mid_max if (subject.mid_max or 0) > 0 else 70
+    fmax = subject.final_max if (subject.final_max or 0) > 0 else 30
+    heads = ["เลขที่", "เลขประจำตัว", "ชื่อ-นามสกุล", f"คะแนนเก็บ (เต็ม {mmax})",
+             f"คะแนนปลายภาค (เต็ม {fmax})", f"รวม (เต็ม {mmax + fmax})", "ผลการเรียน", "หมายเหตุ"]
     # รวม 26.7 = พื้นที่พิมพ์ A4 แนวนอน (29.7 - ขอบ 1.5x2)
     ws = [Cm(1.6), Cm(2.6), Cm(8.5), Cm(2.8), Cm(3.2), Cm(2.2), Cm(2.6), Cm(3.2)]
     t = doc.add_table(rows=1, cols=len(heads)); t.style = "Table Grid"

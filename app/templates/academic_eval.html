@@ -14,11 +14,11 @@
 <div class="card">
   <form method="get" action="/academic/eval" class="row" style="align-items:flex-end; margin:0;">
     <div><label>ปีการศึกษา</label>
-      <select name="year" onchange="this.form.submit()">
+      <select name="year" onchange="submitReplace(this.form)">
         {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
       </select></div>
     <div><label>ห้องเรียน</label>
-      <select name="cid" onchange="this.form.submit()">
+      <select name="cid" onchange="submitReplace(this.form)">
         <option value="">- เลือกห้อง -</option>
         {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id==c.id }}>{{ class_label(k) }}</option>{% endfor %}
       </select></div>

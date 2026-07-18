@@ -12,7 +12,7 @@
 <div class="card">
   <form method="get" action="/academic/classes" class="row" style="align-items:flex-end; margin:0;">
     <div><label>ปีการศึกษา</label>
-      <select name="year" onchange="this.form.submit()">
+      <select name="year" onchange="submitReplace(this.form)">
         {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
       </select>
     </div>

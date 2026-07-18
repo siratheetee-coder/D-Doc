@@ -216,7 +216,7 @@ def subjects_page(request: Request, db: Session = Depends(get_db),
 def subject_add(db: Session = Depends(get_db), year: str = Form(""), level: str = Form(""),
                 code: str = Form(""), name: str = Form(""), learn_group: str = Form(""),
                 kind: str = Form("พื้นฐาน"), hours: str = Form(""), credit: str = Form(""),
-                term: str = Form("0")):
+                term: str = Form("0"), mid_max: str = Form("70"), final_max: str = Form("30")):
     y = _to_int(year, 0) or current_academic_year()
     nm = (name or "").strip()
     if nm:
@@ -224,7 +224,8 @@ def subject_add(db: Session = Depends(get_db), year: str = Form(""), level: str 
         db.add(AcadSubject(year=y, level=(level or "").strip(), code=(code or "").strip(),
                            name=nm, learn_group=(learn_group or "").strip(),
                            kind=(kind or "พื้นฐาน").strip(), hours=_to_int(hours, 0),
-                           credit=_to_float(credit, 0.0), term=_to_int(term, 0), seq=n + 1))
+                           credit=_to_float(credit, 0.0), term=_to_int(term, 0), seq=n + 1,
+                           mid_max=_to_int(mid_max, 70), final_max=_to_int(final_max, 30)))
         db.commit()
     return RedirectResponse(f"/academic/subjects?year={y}&level={level}", status_code=303)
 
@@ -232,7 +233,8 @@ def subject_add(db: Session = Depends(get_db), year: str = Form(""), level: str 
 @router.post("/academic/subjects/{sid}/update")
 def subject_update(sid: int, db: Session = Depends(get_db), code: str = Form(""),
                    name: str = Form(""), learn_group: str = Form(""), kind: str = Form(""),
-                   hours: str = Form(""), credit: str = Form(""), term: str = Form("0")):
+                   hours: str = Form(""), credit: str = Form(""), term: str = Form("0"),
+                   mid_max: str = Form("70"), final_max: str = Form("30")):
     s = db.get(AcadSubject, sid)
     if s:
         s.code = (code or "").strip()
@@ -242,6 +244,8 @@ def subject_update(sid: int, db: Session = Depends(get_db), code: str = Form("")
         s.hours = _to_int(hours, 0)
         s.credit = _to_float(credit, 0.0)
         s.term = _to_int(term, 0)
+        s.mid_max = _to_int(mid_max, 70)
+        s.final_max = _to_int(final_max, 30)
         db.commit()
     return RedirectResponse(f"/academic/subjects?year={s.year if s else ''}", status_code=303)
 
@@ -310,6 +314,8 @@ async def grades_save(request: Request, db: Session = Depends(get_db),
     if not subj:
         return RedirectResponse("/academic/grades", status_code=303)
     t = subj.term if subj.term is not None else 0
+    mmax = subj.mid_max if (subj.mid_max or 0) > 0 else 70
+    fmax = subj.final_max if (subj.final_max or 0) > 0 else 30
     cur = {s.acad_student_id: s for s in
            db.query(AcadScore).filter_by(subject_id=subj.id, term=t).all()}
     for key in [k for k in form.keys() if k.startswith("mid_")]:
@@ -318,6 +324,10 @@ async def grades_save(request: Request, db: Session = Depends(get_db),
             continue
         mid = _to_float(form.get(f"mid_{aid}", ""), None)
         fin = _to_float(form.get(f"fin_{aid}", ""), None)
+        if mid is not None:
+            mid = max(0.0, min(mid, float(mmax)))    # กันกรอกเกินคะแนนเต็มของวิชานี้
+        if fin is not None:
+            fin = max(0.0, min(fin, float(fmax)))
         manual = (form.get(f"grade_{aid}", "") or "").strip()
         total = None
         if mid is not None or fin is not None:
@@ -327,7 +337,9 @@ async def grades_save(request: Request, db: Session = Depends(get_db),
             row = AcadScore(acad_student_id=aid, subject_id=subj.id, term=t)
             db.add(row)
         row.score_mid, row.score_final, row.score = mid, fin, total
-        row.grade = manual or grade_of(total)
+        # เกรดตัดจากร้อยละ — ถ้าสัดส่วนรวมไม่ใช่ 100 (เช่น 80:20 เต็ม 100 อยู่แล้วก็ค่าเดิม)
+        pct = None if total is None else (total * 100.0 / (mmax + fmax))
+        row.grade = manual or grade_of(pct)
     db.commit()
     return RedirectResponse(f"/academic/grades?cid={cid}&sid={sid}&saved=1", status_code=303)
 

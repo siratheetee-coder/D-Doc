@@ -101,6 +101,8 @@ MIGRATIONS = [
     ("person", "salary", "FLOAT DEFAULT 0"),
     ("school", "area_office", "VARCHAR DEFAULT ''"),   # สำนักงานเขตพื้นที่การศึกษาที่สังกัด
     ("student", "room", "VARCHAR DEFAULT ''"),         # ห้องเรียน (งานวิชาการ: ปพ.5 เป็นเอกสารรายห้อง)
+    ("acad_subject", "mid_max", "INTEGER DEFAULT 70"),   # สัดส่วนคะแนนเก็บ (ต่างกันได้รายวิชา)
+    ("acad_subject", "final_max", "INTEGER DEFAULT 30"), # สัดส่วนคะแนนปลายภาค
 ]
 
 

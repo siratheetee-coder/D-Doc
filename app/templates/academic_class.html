@@ -28,12 +28,13 @@
   <p class="muted" style="font-size:13px; margin:6px 0 8px;">ดึงจากทะเบียนกลางโดยจับคู่ <b>ชั้น {{ c.level }}{% if c.room %} ห้อง {{ c.room }}{% endif %}</b>
     — ถ้าไม่พบใคร ให้ไปตั้งชั้น/ห้องให้นักเรียนที่ <a href="/students">ทะเบียนนักเรียน</a> ก่อน</p>
   {% if students %}
+  <div style="margin:0 0 8px;"><button class="btn sm" type="button" onclick="saveAllRows(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึกทั้งหมด</button></div>
   <div class="table-wrap">
   <table>
     <thead><tr><th>เลขที่</th><th>เลขประจำตัว</th><th>ชื่อ-นามสกุล</th><th>เพศ</th><th></th></tr></thead>
     <tbody>
     {% for s in students %}
-      <tr>
+      <tr data-sid="{{ s.id }}">
         <td><form method="post" action="/academic/student/{{ s.id }}/update" id="stf{{ s.id }}"></form>
           <input form="stf{{ s.id }}" name="seq" value="{{ s.seq or '' }}" style="width:60px;"></td>
         <td><input form="stf{{ s.id }}" name="student_no" value="{{ s.student_no }}" style="width:100px;"></td>
@@ -91,4 +92,20 @@
   <p class="muted">ยังไม่มีรายวิชาของชั้น {{ c.level }} ปี {{ c.year }} — <a href="/academic/subjects?year={{ c.year }}&level={{ c.level }}">ไปสร้างรายวิชา</a></p>
   {% endif %}
 </div>
+<script>
+  async function saveAllRows(btn){
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+    var rows = Array.prototype.slice.call(document.querySelectorAll('tr[data-sid]'));
+    for (var i = 0; i < rows.length; i++){
+      var f = rows[i].querySelector('form[id^="stf"]');
+      if(!f) continue;
+      var d = new FormData();
+      document.querySelectorAll('[form="' + f.id + '"]').forEach(function(el){
+        if(el.name) d.append(el.name, el.value);
+      });
+      await fetch(f.action, {method:'POST', body:d});
+    }
+    location.reload();
+  }
+</script>
 {% endblock %}
