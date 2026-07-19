@@ -261,6 +261,10 @@
     .table-wrap.dense > table { min-width: 980px; }
     /* select ในตารางเผื่อที่ลูกศรน้อยลง ไม่งั้นข้อความสั้น ๆ ก็ยังโดนตัด */
     td select { padding-right: 28px; background-position: right 8px center; }
+    /* แถวคั่นกลุ่มในตาราง (เช่น คั่นตามระดับชั้น) */
+    tbody tr.lv-sep td { background: #f2f4f9; color: #1b2433; font-weight: 800;
+      font-size: 14.5px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    tbody tr.lv-sep:hover td { background: #f2f4f9; }
 
     /* ===== Pills / Badges ===== */
     .pill {
