@@ -12,7 +12,7 @@
   </div>
   <form method="get" action="/textbooks" style="margin-top:10px;">
     <label>ปีการศึกษา</label>
-    <select name="year" onchange="this.form.submit()" style="width:auto;">
+    <select name="year" onchange="submitReplace(this.form)" style="width:auto;">
       {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
     </select>
   </form>

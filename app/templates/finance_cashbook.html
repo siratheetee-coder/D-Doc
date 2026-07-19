@@ -17,12 +17,12 @@
 <div class="card">
   <form method="get" action="/finance/cashbook" class="row" style="align-items:flex-end;">
     <div><label>ปีงบประมาณ</label>
-      <select name="year" onchange="this.form.submit()">
+      <select name="year" onchange="submitReplace(this.form)">
         {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
       </select>
     </div>
     <div style="flex:1;"><label>ขอบเขต</label>
-      <select name="account" onchange="this.form.submit()">
+      <select name="account" onchange="submitReplace(this.form)">
         <option value="">ทุกบัญชี (รวม)</option>
         {% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if sel_account==a.id }}>{{ a.name }}</option>{% endfor %}
       </select>

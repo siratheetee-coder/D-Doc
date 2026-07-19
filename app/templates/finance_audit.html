@@ -8,7 +8,7 @@
     <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }}</div>
   </div>
   <form method="get" action="/finance/audit">
-    <select name="year" onchange="this.form.submit()">
+    <select name="year" onchange="submitReplace(this.form)">
       {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
     </select>
   </form>

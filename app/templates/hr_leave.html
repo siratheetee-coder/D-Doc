@@ -5,7 +5,7 @@
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h1 style="margin:0;">ทะเบียนวันลา <span class="muted" style="font-size:16px;">ปี พ.ศ. {{ year }}</span></h1>
     <form method="get" action="/hr/leave">
-      <select name="year" onchange="this.form.submit()">{% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>ปี {{ y }}</option>{% endfor %}</select>
+      <select name="year" onchange="submitReplace(this.form)">{% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>ปี {{ y }}</option>{% endfor %}</select>
     </form>
   </div>
 </div>

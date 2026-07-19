@@ -6,7 +6,7 @@
     <h1 style="margin:0;">ทะเบียนเลขหนังสือกลาง</h1>
     <form method="get" action="/docnos" style="display:inline-flex; gap:8px; align-items:center; margin:0;">
       <label style="margin:0;">ปีงบประมาณ</label>
-      <select name="year" onchange="this.form.submit()" style="width:auto;">
+      <select name="year" onchange="submitReplace(this.form)" style="width:auto;">
         {% for y in years %}<option value="{{ y }}" {{ "selected" if y==fiscal_year }}>{{ y }}</option>{% endfor %}
       </select>
     </form>

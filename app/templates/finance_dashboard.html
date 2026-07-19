@@ -9,7 +9,7 @@
   </div>
   <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
     <form method="get" action="/finance">
-      <select name="year" onchange="this.form.submit()" style="color:var(--text);">
+      <select name="year" onchange="submitReplace(this.form)" style="color:var(--text);">
         {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
       </select>
     </form>

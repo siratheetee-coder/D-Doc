@@ -6,7 +6,7 @@
     <h1 style="margin:0;">รายงานการเงิน <span class="muted" style="font-size:16px;">ปีงบ {{ fiscal_year }}</span></h1>
     <div style="display:flex; gap:8px; align-items:center;">
       <form method="get" action="/finance/report">
-        <select name="year" onchange="this.form.submit()">
+        <select name="year" onchange="submitReplace(this.form)">
           {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
         </select>
       </form>

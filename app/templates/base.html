@@ -482,18 +482,22 @@
         {% set section_home = '/admin' if module=='admin' else '/finance' if module=='finance' else '/lunch' if module=='lunch' else '/hr' if module=='hr' else '/academic' if module=='academic' else '/procurement' if module=='procurement' else '/' %}
         {% set section_prefixes = ['/admin'] if module=='admin' else ['/finance'] if module=='finance' else ['/lunch'] if module=='lunch' else ['/hr'] if module=='hr' else ['/academic'] if module=='academic' else ['/procurement','/assets','/materials','/requisitions','/register','/catalog','/textbooks'] if module=='procurement' else ['/'] %}
         {% set is_section_home = (path == section_home) %}
-        {% if module != 'hub' %}
-        <a href="{{ '/' if is_section_home else section_home }}" class="navback" onclick="return goBack(event)"><svg class="icon"><use href="#ic-arrow-left"/></svg> {{ 'หน้าเลือกงาน' if is_section_home else 'ย้อนกลับ' }}</a>
+        {# ตัวช่วยนี้ต้องอยู่นอกเงื่อนไขปุ่มย้อนกลับ เพราะหน้าอย่าง /projects /vendors
+           ถูกจัดเป็นโมดูล hub แต่ก็มี dropdown ตัวกรองที่เรียกใช้เหมือนกัน #}
         <script>
-          window.SECTION_HOME = "{{ section_home }}";
-          window.SECTION_PREFIXES = {{ section_prefixes|tojson }};
-          window.IS_SECTION_HOME = {{ 'true' if is_section_home else 'false' }};
           // ส่งฟอร์มตัวกรอง (GET) แบบแทนที่ประวัติ — เปลี่ยน dropdown กี่ครั้งก็ไม่กองใน history
           // ปุ่มย้อนกลับจึงออกจากหน้านี้ทันที ไม่ต้องไล่ย้อนทีละค่าตัวกรองที่เคยเลือก
           function submitReplace(form){
             var q = new URLSearchParams(new FormData(form)).toString();
             location.replace(form.getAttribute('action') + (q ? ('?' + q) : ''));
           }
+        </script>
+        {% if module != 'hub' %}
+        <a href="{{ '/' if is_section_home else section_home }}" class="navback" onclick="return goBack(event)"><svg class="icon"><use href="#ic-arrow-left"/></svg> {{ 'หน้าเลือกงาน' if is_section_home else 'ย้อนกลับ' }}</a>
+        <script>
+          window.SECTION_HOME = "{{ section_home }}";
+          window.SECTION_PREFIXES = {{ section_prefixes|tojson }};
+          window.IS_SECTION_HOME = {{ 'true' if is_section_home else 'false' }};
           function goBack(ev){
             ev.preventDefault();
             // หน้าหลักของงาน (section home) -> ไปหน้าเลือกงาน (hub)
