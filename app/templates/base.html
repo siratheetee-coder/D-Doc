@@ -181,6 +181,10 @@
     }
     .nav-card:hover .nc-go { gap: 11px; }
     .nav-card .nc-go .icon { width: 16px; height: 16px; }
+    /* รายละเอียดในการ์ดแบบ bullet บรรทัดละข้อ (อ่านง่ายกว่าคั่นด้วย ·) */
+    .nav-card .nc-list { margin: 0; padding-left: 18px; flex: 1;
+      color: var(--muted); font-size: 14.5px; line-height: 1.7; }
+    .nav-card .nc-list li { margin: 0 0 2px; }
     @media (prefers-reduced-motion: reduce) {
       .nav-card, .nav-card .nc-ic, .nav-card .nc-go { transition: none; }
       .nav-card:hover { transform: none; }
@@ -251,6 +255,12 @@
     tbody tr:hover td { background: #f7f9fe; }
     .right { text-align: right; }
     .center { text-align: center; }
+    /* ตารางคอลัมน์เยอะ: เลื่อนแนวนอนแทนที่จะบีบตัวอักษรจนอ่านไม่ออก
+       (ใส่ .dense เฉพาะตารางที่ต้องการ เพื่อไม่ให้ตารางแคบมีแถบเลื่อนโผล่มาเอง) */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-wrap.dense > table { min-width: 980px; }
+    /* select ในตารางเผื่อที่ลูกศรน้อยลง ไม่งั้นข้อความสั้น ๆ ก็ยังโดนตัด */
+    td select { padding-right: 28px; background-position: right 8px center; }
 
     /* ===== Pills / Badges ===== */
     .pill {
@@ -567,8 +577,8 @@
         <a href="/academic" class="{{ 'active' if path == '/academic' }}"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลักงานวิชาการ</a>
         <a href="/academic/classes" class="{{ 'active' if path.startswith('/academic/classes') }}"><svg class="icon"><use href="#ic-users"/></svg> ห้องเรียน</a>
         <a href="/academic/subjects" class="{{ 'active' if path.startswith('/academic/subjects') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> รายวิชา</a>
-        <a href="/academic/grades" class="{{ 'active' if path.startswith('/academic/grades') }}"><svg class="icon"><use href="#ic-edit"/></svg> กรอกผลการเรียน</a>
-        <a href="/academic/eval" class="{{ 'active' if path.startswith('/academic/eval') }}"><svg class="icon"><use href="#ic-check"/></svg> ประเมิน + สมุดพก</a>
+        <a href="/academic/grades" class="{{ 'active' if path.startswith('/academic/grades') }}"><svg class="icon"><use href="#ic-edit"/></svg> กรอกคะแนน ปพ.5</a>
+        <a href="/academic/eval" class="{{ 'active' if path.startswith('/academic/eval') }}"><svg class="icon"><use href="#ic-check"/></svg> ประเมิน ปพ.6</a>
 
         {% else %}{# hub #}
         <div class="nav-sec">เลือกงาน</div>
