@@ -87,13 +87,17 @@
   {% if promo_active %}
   <div class="promo-band" data-promo-end="{{ promo_end_iso }}">
     <div class="pb-top">
+      {# เทียบกับ "ราคารวมงานแยก" (full_sum) เพราะแคมเปญตอนนี้ใช้ราคาปกติเป็นราคาแคมเปญ
+         ถ้าเทียบกับ regular.bundle จะได้ 0 แล้วขึ้นว่า "ประหยัด 0 บาท" ซึ่งดูแปลก #}
+      {% set save_now = (regular.bundle - px.bundle) if (regular.bundle > px.bundle) else bundle_save %}
+      {% set was_now  = regular.bundle if (regular.bundle > px.bundle) else full_sum %}
       <div class="pb-lead">
-        <div class="pb-yellow">โปรเปิดตัว</div>
-        <div class="pb-lead-sub">ลดสูงสุด {{ "{:,}".format(regular.bundle - px.bundle) }} บาท</div>
+        <div class="pb-yellow">แพ็กสุดคุ้ม</div>
+        <div class="pb-lead-sub">ประหยัด {{ "{:,}".format(save_now) }} บาท</div>
       </div>
       <div class="pb-headline">
-        <div class="pb-h">เลือกแพ็กเกจเต็ม เพียง <b>{{ "{:,}".format(px.bundle) }} บาท/ปี</b></div>
-        <div class="pb-s">จากปกติ {{ "{:,}".format(regular.bundle) }} บาท ประหยัดทันที {{ "{:,}".format(regular.bundle - px.bundle) }} บาท</div>
+        <div class="pb-h">เลือกครบทุกงาน เพียง <b>{{ "{:,}".format(px.bundle) }} บาท/ปี</b></div>
+        <div class="pb-s">จากราคารวมแยกงาน {{ "{:,}".format(was_now) }} บาท ประหยัดทันที {{ "{:,}".format(save_now) }} บาท</div>
       </div>
       <div class="pb-cd" data-promo-cd></div>
     </div>
