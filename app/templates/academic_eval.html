@@ -41,12 +41,12 @@
   {% if students %}
   <form method="post" action="/academic/eval/save">
     <input type="hidden" name="cid" value="{{ c.id }}">
-    <div class="table-wrap">
+    <div class="table-wrap dense">
     <table>
       <thead><tr>
         <th>เลขที่</th><th>ชื่อ-นามสกุล</th><th>อ่านคิดวิเคราะห์</th><th>คุณลักษณะฯ</th>
         <th>แนะแนว</th><th>ลูกเสือ</th><th>ชุมนุม</th><th>เพื่อสังคม</th>
-        <th>มาเรียน</th><th>วันเปิด</th><th></th>
+        <th>วันเปิด</th><th>มาเรียน</th><th>ป่วย</th><th>ลา</th><th>ขาด</th><th></th>
       </tr></thead>
       <tbody>
       {% for s in students %}
@@ -66,13 +66,16 @@
             {% for q in passfail %}<option value="{{ q }}" {{ 'selected' if e and e.act_club==q }}>{{ q }}</option>{% endfor %}</select></td>
           <td><select name="social_{{ s.id }}" style="width:70px;"><option value="">-</option>
             {% for q in passfail %}<option value="{{ q }}" {{ 'selected' if e and e.act_social==q }}>{{ q }}</option>{% endfor %}</select></td>
-          <td><input name="dpres_{{ s.id }}" value="{{ e.days_present if e and e.days_present is not none else '' }}" style="width:60px;"></td>
-          <td><input name="dopen_{{ s.id }}" value="{{ e.days_open if e and e.days_open is not none else '' }}" style="width:60px;"></td>
+          <td><input name="dopen_{{ s.id }}" value="{{ e.days_open if e and e.days_open is not none else '' }}" style="width:56px;"></td>
+          <td><input name="dpres_{{ s.id }}" value="{{ e.days_present if e and e.days_present is not none else '' }}" style="width:56px;"></td>
+          <td><input name="dsick_{{ s.id }}" value="{{ e.days_sick if e and e.days_sick is not none else '' }}" style="width:50px;"></td>
+          <td><input name="dleave_{{ s.id }}" value="{{ e.days_leave if e and e.days_leave is not none else '' }}" style="width:50px;"></td>
+          <td><input name="dabs_{{ s.id }}" value="{{ e.days_absent if e and e.days_absent is not none else '' }}" style="width:50px;"></td>
           <td><a class="btn sm soft" href="/academic/student/{{ s.id }}/pp6.docx">สมุดพก</a></td>
         </tr>
         <tr>
           <td></td>
-          <td colspan="10"><input name="cmt_{{ s.id }}" value="{{ e.comment if e else '' }}"
+          <td colspan="13"><input name="cmt_{{ s.id }}" value="{{ e.comment if e else '' }}"
                                   placeholder="ความเห็นครูประจำชั้น (แสดงในสมุดพก)" style="width:100%;"></td>
         </tr>
       {% endfor %}

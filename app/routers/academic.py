@@ -390,6 +390,9 @@ async def eval_save(request: Request, db: Session = Depends(get_db), cid: str = 
         e.act_social = (form.get(f"social_{s.id}", "") or "").strip()
         e.days_open = _to_int(form.get(f"dopen_{s.id}", ""), None)
         e.days_present = _to_int(form.get(f"dpres_{s.id}", ""), None)
+        e.days_sick = _to_int(form.get(f"dsick_{s.id}", ""), None)
+        e.days_leave = _to_int(form.get(f"dleave_{s.id}", ""), None)
+        e.days_absent = _to_int(form.get(f"dabs_{s.id}", ""), None)
         e.comment = (form.get(f"cmt_{s.id}", "") or "").strip()
     db.commit()
     return RedirectResponse(f"/academic/eval?cid={c.id}&saved=1", status_code=303)
@@ -403,6 +406,16 @@ def pp5_docx(cid: int, sid: int, db: Session = Depends(get_db)):
     if not c or not subj:
         return RedirectResponse("/academic/grades", status_code=303)
     return serve_generated(render_pp5(get_school(db), c, subj, db), _DOCX)
+
+
+@router.get("/academic/classes/{cid}/pp5-book.docx")
+def pp5_book_docx(cid: int, term: int = 0, db: Session = Depends(get_db)):
+    """ปพ.5 ทั้งเล่ม · มัธยมส่ง ?term=1/2 (เล่มรายภาค) · ประถมไม่ต้องส่ง"""
+    from app.services.acad_doc import render_pp5_book
+    c = db.get(AcadClass, cid)
+    if not c:
+        return RedirectResponse("/academic/classes", status_code=303)
+    return serve_generated(render_pp5_book(get_school(db), c, db, term=term), _DOCX)
 
 
 @router.get("/academic/student/{aid}/pp6.docx")

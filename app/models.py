@@ -40,6 +40,7 @@ class School(Base):
     finance_officer_name = Column(String, default="")  # เจ้าหน้าที่การเงิน
     finance_head_name = Column(String, default="")     # หัวหน้าเจ้าหน้าที่การเงิน
     admin_officer_name = Column(String, default="")    # เจ้าหน้าที่ธุรการ
+    academic_head_name = Column(String, default="")    # หัวหน้าฝ่ายวิชาการ (ผู้ลงนามคนที่ 2 บนปก ปพ.5)
 
     # ปีของโครงการ/แผน: "budget" = ปีงบประมาณ (ต.ค.) / "academic" = ปีการศึกษา (พ.ค.)
     project_year_mode = Column(String, default="budget")
@@ -1158,6 +1159,9 @@ class AcadEval(Base):
     act_social = Column(String, default="")         # กิจกรรมเพื่อสังคมและสาธารณประโยชน์
     days_open = Column(Integer, nullable=True)      # จำนวนวันเปิดเรียน
     days_present = Column(Integer, nullable=True)   # จำนวนวันมาเรียน
+    days_sick = Column(Integer, nullable=True)      # ป่วย (วัน) — สรุปเวลาเรียนใน ปพ.5
+    days_leave = Column(Integer, nullable=True)     # ลา (วัน)
+    days_absent = Column(Integer, nullable=True)    # ขาด (วัน)
     weight = Column(Float, nullable=True)           # น้ำหนัก (กก.)
     height = Column(Float, nullable=True)           # ส่วนสูง (ซม.)
     comment = Column(Text, default="")              # ความเห็นครูประจำชั้น

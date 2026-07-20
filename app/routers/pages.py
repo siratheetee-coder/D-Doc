@@ -353,7 +353,7 @@ def settings_save(
     director_name: str = Form(""), director_position: str = Form("ผู้อำนวยการโรงเรียน"),
     officer_name: str = Form(""), head_officer_name: str = Form(""),
     finance_officer_name: str = Form(""), finance_head_name: str = Form(""),
-    admin_officer_name: str = Form(""),
+    admin_officer_name: str = Form(""), academic_head_name: str = Form(""),
     doc_prefix: str = Form("ศธ"), doc_set_threshold: float = Form(5000.0),
     project_year_mode: str = Form("budget"),
 ):
@@ -365,6 +365,7 @@ def settings_save(
     s.finance_officer_name = finance_officer_name.strip()
     s.finance_head_name = finance_head_name.strip()
     s.admin_officer_name = admin_officer_name.strip()
+    s.academic_head_name = academic_head_name.strip()
     s.project_year_mode = "academic" if project_year_mode == "academic" else "budget"
     s.doc_prefix, s.doc_set_threshold = doc_prefix, doc_set_threshold
     db.commit()

@@ -35,6 +35,39 @@ def grade_of(score) -> str:
     return "0"
 
 
+def grade_point(grade) -> float | None:
+    """ระดับผลการเรียน (str) -> ตัวเลขสำหรับคิดเฉลี่ย
+    "ร"/"มส"/"ผ"/"มผ" และช่องว่าง -> None (ห้ามนับเป็น 0 — จะกดเฉลี่ยเด็กโดยไม่เป็นธรรม)"""
+    g = (str(grade) if grade is not None else "").strip()
+    if not g or g in SPECIAL_GRADES:
+        return None
+    try:
+        return float(g)
+    except ValueError:
+        return None
+
+
+def weighted_avg(pairs) -> float | None:
+    """ผลการเรียนเฉลี่ยถ่วงน้ำหนัก · pairs = [(grade_str, weight), ...]
+    - เกรดที่แปลงเป็นตัวเลขไม่ได้ (ร/มส/ผ/มผ/ว่าง) ถูกข้าม
+    - weight <= 0 หรือไม่มี -> ใช้ 1 (เฉลี่ยตรง) เพื่อไม่ให้วิชาหายจากเฉลี่ยเงียบ ๆ
+    - ไม่มีเกรดนับได้เลย -> None (แสดงเป็นช่องว่าง ไม่ใช่ 0)"""
+    total_w, total = 0.0, 0.0
+    for grade, weight in pairs:
+        p = grade_point(grade)
+        if p is None:
+            continue
+        try:
+            w = float(weight) if weight else 0.0
+        except (TypeError, ValueError):
+            w = 0.0
+        if w <= 0:
+            w = 1.0
+        total += p * w
+        total_w += w
+    return (total / total_w) if total_w > 0 else None
+
+
 def term_choices(level: str) -> list:
     """ภาคเรียนที่ต้องกรอกของชั้นนี้
     ประถม/อนุบาล -> [0] (ตัดสินรายปี) · มัธยม -> [1, 2] (ตัดสินรายภาค)"""

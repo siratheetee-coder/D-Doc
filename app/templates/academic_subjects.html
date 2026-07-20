@@ -113,7 +113,7 @@
           {% endif %}</td>
         <td style="width:100%;"><input form="sf{{ s.id }}" name="name" value="{{ s.name }}" style="width:100%; min-width:150px;">
           <input form="sf{{ s.id }}" name="learn_group" value="{{ s.learn_group }}" placeholder="สาระการเรียนรู้"
-                 style="width:100%; min-width:150px; margin-top:3px; font-size:13px; padding:5px 8px; color:var(--muted);"></td>
+                 class="sub-group" style="width:100%; min-width:150px; margin-top:3px; font-size:13px; padding:5px 8px;"></td>
         <td><select form="sf{{ s.id }}" name="kind" style="width:114px;">{% for k in kinds %}<option {{ 'selected' if k==s.kind }}>{{ k }}</option>{% endfor %}</select></td>
         <td><input form="sf{{ s.id }}" name="hours" value="{{ s.hours or '' }}" style="width:60px;"></td>
         {% if show_credit %}<td><input form="sf{{ s.id }}" name="credit" value="{{ cr }}" style="width:60px;"></td>{% endif %}

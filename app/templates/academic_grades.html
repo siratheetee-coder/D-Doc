@@ -50,7 +50,10 @@
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
     <h2 style="margin:0;">{{ subj.code }} {{ subj.name }} · ห้อง {{ class_label(c) }} · {{ term_label(subj.term) }}</h2>
-    <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5.docx?sid={{ subj.id }}"><svg class="icon"><use href="#ic-file"/></svg> ออก ปพ.5</a>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5.docx?sid={{ subj.id }}"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 วิชานี้</a>
+      <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx{% if subj.term %}?term={{ subj.term }}{% endif %}"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม{% if subj.term %} ภาค {{ subj.term }}{% endif %}</a>
+    </div>
   </div>
   <p class="muted" style="font-size:13px; margin:6px 0 8px;">สัดส่วนวิชานี้: เก็บเต็ม <b>{{ subj.mid_max or 70 }}</b> + ปลายภาคเต็ม <b>{{ subj.final_max or 30 }}</b>
     (ตั้งได้ที่หน้ารายวิชา) · เกรดคิดจากร้อยละของคะแนนรวม (80=4 · 75=3.5 · 70=3 · 65=2.5 · 60=2 · 55=1.5 · 50=1)

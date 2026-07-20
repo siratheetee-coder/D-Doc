@@ -21,6 +21,12 @@
         <button class="btn" type="submit"><svg class="icon"><use href="#ic-download"/></svg> ดึงนักเรียนจากทะเบียนกลาง</button>
       </form>
       {% if students %}
+      {% if is_sec %}
+      <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx?term=1"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม ภาค 1</a>
+      <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx?term=2"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม ภาค 2</a>
+      {% else %}
+      <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม</a>
+      {% endif %}
       <a class="btn soft" href="/academic/classes/{{ c.id }}/pp6-all.docx"><svg class="icon"><use href="#ic-file"/></svg> สมุดพกทั้งห้อง (ปพ.6)</a>
       {% endif %}
     </div>

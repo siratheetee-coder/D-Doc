@@ -103,6 +103,10 @@ MIGRATIONS = [
     ("student", "room", "VARCHAR DEFAULT ''"),         # ห้องเรียน (งานวิชาการ: ปพ.5 เป็นเอกสารรายห้อง)
     ("acad_subject", "mid_max", "INTEGER DEFAULT 70"),   # สัดส่วนคะแนนเก็บ (ต่างกันได้รายวิชา)
     ("acad_subject", "final_max", "INTEGER DEFAULT 30"), # สัดส่วนคะแนนปลายภาค
+    ("school", "academic_head_name", "VARCHAR DEFAULT ''"),  # หัวหน้าฝ่ายวิชาการ (ปก ปพ.5)
+    ("acad_eval", "days_sick", "INTEGER"),               # สรุปเวลาเรียน ปพ.5: ป่วย/ลา/ขาด (วัน)
+    ("acad_eval", "days_leave", "INTEGER"),
+    ("acad_eval", "days_absent", "INTEGER"),
 ]
 
 
