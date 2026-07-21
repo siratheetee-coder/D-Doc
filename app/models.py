@@ -1206,7 +1206,21 @@ class AcadAttendance(Base):
     id = Column(Integer, primary_key=True)
     acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
     month = Column(Integer, nullable=False)     # 5..12, 1..3
-    present = Column(Integer, nullable=True)    # วันมาเรียนของเดือนนั้น
+    present = Column(Integer, nullable=True)    # วันมาเรียนของเดือนนั้น (= จำนวน "/" ใน marks)
+    # ผลเช็กชื่อรายวัน: สตริง 31 ตัว ตำแหน่ง = วันที่-1
+    # "." ไม่ใช่วันเรียน/ยังไม่กรอก · "/" มา · "ป" ป่วย · "ล" ลา · "ข" ขาด
+    marks = Column(String, default="")
+
+
+class AcadCalendar(Base):
+    """ปฏิทินการศึกษาของโรงเรียน — เดือนไหนเปิดเรียนวันไหนบ้าง (ระดับโรงเรียน ไม่แยกห้อง)
+    ใช้เป็นทั้งตัวหารร้อยละเวลาเรียน และคอลัมน์ของตารางเช็กชื่อรายวัน"""
+    __tablename__ = "acad_calendar"
+
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, nullable=False)      # ปีการศึกษา พ.ศ.
+    month = Column(Integer, nullable=False)     # 5..12, 1..3
+    days_csv = Column(String, default="")       # "3,4,5,6,7,10,11" = วันที่เปิดเรียน
 
 
 class AcadClassMonth(Base):

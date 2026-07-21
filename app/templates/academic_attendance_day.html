@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}เช็กชื่อ {{ month_name }}{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานวิชาการ · เวลาเรียน</div>
+    <span class="hero-title">เช็กชื่อ {{ month_name }}</span>
+    <div class="hero-meta">ห้อง {{ class_label(c) }} · ปีการศึกษา {{ year }}</div>
+  </div>
+</div>
+
+{% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกการเช็กชื่อแล้ว</div>{% endif %}
+
+{% if not open_days %}
+<div class="card">
+  <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
+    ยังไม่ได้ตั้งวันเปิดเรียนของเดือน {{ month_name }} ในปฏิทินการศึกษา —
+    <a href="/academic/calendar?year={{ year }}">ไปตั้งปฏิทินก่อน</a> แล้วค่อยกลับมาเช็กชื่อ</div>
+  <a class="btn soft" href="/academic/attendance?cid={{ c.id }}">← กลับหน้าสรุปเวลาเรียน</a>
+</div>
+{% else %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;">{{ month_name }} <span class="muted" style="font-size:15px;">เปิดเรียน {{ open_days|length }} วัน · {{ students|length }} คน</span></h2>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn soft" type="button" onclick="allPresent()">ทุกคนมาทุกวัน</button>
+      <a class="btn soft gray" href="/academic/attendance?cid={{ c.id }}">← สรุปทั้งปี</a>
+    </div>
+  </div>
+  <p class="muted" style="font-size:13px; margin:6px 0 8px;">
+    คลิกที่ช่องเพื่อเปลี่ยนสถานะ: <b>ว่าง → มา → ป่วย → ลา → ขาด</b> ·
+    คอลัมน์คือเฉพาะวันเปิดเรียนตาม<a href="/academic/calendar?year={{ year }}">ปฏิทินการศึกษา</a> ·
+    ยอด ป่วย/ลา/ขาด ทั้งปีระบบรวมให้เอง</p>
+  {% if students %}
+  <form method="post" action="/academic/attendance/day-save">
+    <input type="hidden" name="cid" value="{{ c.id }}">
+    <input type="hidden" name="month" value="{{ month }}">
+    <div class="table-wrap dense">
+    <table id="dayTable">
+      <thead><tr>
+        <th>เลขที่</th><th>ชื่อ-นามสกุล</th>
+        {% for d in open_days %}<th class="center" style="font-size:11px; padding:6px 2px;">
+          <i style="display:block; font-style:normal; font-size:9.5px; color:var(--muted);">{{ weekdays[d] }}</i>{{ d }}</th>{% endfor %}
+        <th class="center">มา</th><th class="center">ป่วย</th><th class="center">ลา</th>
+        <th class="center">ขาด</th><th class="center">ร้อยละ</th><th></th>
+      </tr></thead>
+      <tbody>
+      {% for s in students %}
+        {% set mk = marks.get(s.id, {}) %}
+        <tr data-row>
+          <td>{{ s.seq or '' }}</td>
+          <td style="white-space:nowrap;">{{ s.name }}</td>
+          {% for d in open_days %}
+          <td style="padding:3px 2px;">
+            <button type="button" class="mk" data-mk>{{ mk.get(d, '') }}</button>
+            <input type="hidden" name="d_{{ s.id }}_{{ d }}" value="{{ mk.get(d, '') }}">
+          </td>
+          {% endfor %}
+          <td class="center" data-n="/" style="font-weight:700;"></td>
+          <td class="center" data-n="ป"></td>
+          <td class="center" data-n="ล"></td>
+          <td class="center" data-n="ข"></td>
+          <td class="center" data-pct style="font-weight:700;"></td>
+          <td style="white-space:nowrap;"><button class="btn sm soft" type="button" onclick="rowPresent(this)">มาทุกวัน</button></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกการเช็กชื่อ</button>
+  </form>
+  {% else %}
+  <p class="muted">ห้องนี้ยังไม่มีนักเรียน — <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
+  {% endif %}
+</div>
+
+<style>
+  .mk { width:100%; min-width:26px; border:1px solid var(--border); background:#fff; border-radius:6px;
+        padding:4px 0; cursor:pointer; font-size:14px; font-weight:700; line-height:1.1; color:var(--text); }
+  .mk:hover { border-color:var(--brand); }
+  .mk[data-v="/"] { background:#e6f7ef; border-color:#7ddcae; color:#047857; }
+  .mk[data-v="ป"] { background:#fff4e6; border-color:#f7c07a; color:#b45309; }
+  .mk[data-v="ล"] { background:#eef2ff; border-color:#a5b4fc; color:#4338ca; }
+  .mk[data-v="ข"] { background:#fdecec; border-color:#f5a3a3; color:#b91c1c; }
+</style>
+<script>
+  // วนสถานะ: ว่าง -> มา -> ป่วย -> ลา -> ขาด -> ว่าง
+  // ค่าจริงอยู่ใน <input type="hidden"> ข้าง ๆ จึงเป็นฟอร์ม POST ธรรมดา ไม่ต้องใช้ fetch
+  var CYCLE = ['', '/', 'ป', 'ล', 'ข'];
+  var OPEN_DAYS = {{ open_days|length }};
+
+  function setCell(btn, val){
+    btn.textContent = val;
+    btn.setAttribute('data-v', val);
+    btn.parentNode.querySelector('input').value = val;
+  }
+  function recalcRow(tr){
+    var n = {'/':0, 'ป':0, 'ล':0, 'ข':0};
+    tr.querySelectorAll('[data-mk]').forEach(function(b){
+      var v = b.getAttribute('data-v') || '';
+      if (v in n) n[v]++;
+    });
+    tr.querySelectorAll('[data-n]').forEach(function(td){
+      var v = n[td.getAttribute('data-n')];
+      td.textContent = v || '';
+    });
+    var pct = OPEN_DAYS ? (n['/'] * 100 / OPEN_DAYS) : null;
+    tr.querySelector('[data-pct]').textContent =
+      pct === null ? '' : (Math.round(pct * 10) / 10).toFixed(1);
+  }
+  document.querySelectorAll('tr[data-row]').forEach(function(tr){
+    tr.querySelectorAll('[data-mk]').forEach(function(b){
+      setCell(b, b.textContent.trim());
+      b.addEventListener('click', function(){
+        var i = CYCLE.indexOf(b.getAttribute('data-v') || '');
+        setCell(b, CYCLE[(i + 1) % CYCLE.length]);
+        recalcRow(tr);
+      });
+    });
+    recalcRow(tr);
+  });
+  function rowPresent(btn){
+    var tr = btn.closest('tr');
+    tr.querySelectorAll('[data-mk]').forEach(function(b){ setCell(b, '/'); });
+    recalcRow(tr);
+  }
+  function allPresent(){
+    document.querySelectorAll('tr[data-row]').forEach(function(tr){
+      tr.querySelectorAll('[data-mk]').forEach(function(b){ setCell(b, '/'); });
+      recalcRow(tr);
+    });
+  }
+</script>
+{% endif %}
+{% endblock %}

@@ -107,6 +107,7 @@ MIGRATIONS = [
     ("acad_eval", "days_sick", "INTEGER"),               # สรุปเวลาเรียน ปพ.5: ป่วย/ลา/ขาด (วัน)
     ("acad_eval", "days_leave", "INTEGER"),
     ("acad_eval", "days_absent", "INTEGER"),
+    ("acad_attendance", "marks", "VARCHAR DEFAULT ''"),  # เช็กชื่อรายวัน (31 ตัวอักษร)
 ]
 
 

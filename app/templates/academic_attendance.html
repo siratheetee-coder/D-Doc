@@ -33,9 +33,14 @@
 <div class="card">
   <h2 style="margin:0 0 4px;">ห้อง {{ class_label(c) }} <span class="muted" style="font-size:15px;">({{ students|length }} คน)</span></h2>
   <p class="muted" style="font-size:13px; margin:4px 0 8px;">
-    แถวบนสุด = <b>วันเปิดเรียนของห้อง</b>รายเดือน · ช่องรายคน = วันมาเรียนของเดือนนั้น ·
-    ถ้าไม่แยกรายเดือน ให้เว้นช่องเดือนว่างแล้วกรอกเฉพาะ <b>เปิด(รวม)/มา(รวม)</b> ·
+    คลิก<b>ชื่อเดือน</b>เพื่อ<b>เช็กชื่อรายวัน</b> (แนะนำ — ระบบรวมยอดและ ป่วย/ลา/ขาด ให้เอง) ·
+    หรือพิมพ์ยอดรวมรายเดือนในตารางนี้ก็ได้ · เดือนที่เช็กรายวันแล้วจะแสดงเป็นตัวเลขทึบ แก้ที่หน้าเช็กชื่อ ·
     เกณฑ์ผ่าน: มาเรียนไม่น้อยกว่าร้อยละ 80</p>
+  {% if not has_cal %}
+  <div class="alert warn" style="margin:0 0 10px;"><svg class="icon"><use href="#ic-alert"/></svg>
+    ยังไม่ได้ตั้ง<b>ปฏิทินการศึกษา</b>ของปี {{ year }} —
+    <a href="/academic/calendar?year={{ year }}">ตั้งปฏิทิน</a> แล้วจะเช็กชื่อรายวันได้</div>
+  {% endif %}
   {% if students %}
   <form method="post" action="/academic/attendance/save">
     <input type="hidden" name="cid" value="{{ c.id }}">
@@ -43,7 +48,10 @@
     <table id="attTable">
       <thead><tr>
         <th>เลขที่</th><th>ชื่อ-นามสกุล</th>
-        {% for mnum, mname in months %}<th class="center">{{ mname }}</th>{% endfor %}
+        {% for mnum, mname in months %}<th class="center" style="white-space:nowrap;">
+          <a href="/academic/attendance?cid={{ c.id }}&month={{ mnum }}" title="เช็กชื่อรายวัน {{ mname }}">{{ mname }}</a>
+          {% if cal_days.get(mnum) %}<i style="display:block; font-style:normal; font-size:10px; font-weight:400; color:var(--muted);">{{ cal_days[mnum] }} วัน</i>{% endif %}
+        </th>{% endfor %}
         <th>เปิด(รวม)</th><th>มา(รวม)</th><th>ป่วย</th><th>ลา</th><th>ขาด</th><th>ร้อยละ</th><th>ผล</th>
       </tr></thead>
       <tbody>
@@ -51,7 +59,9 @@
           <td></td>
           <td style="font-weight:700;">วันเปิดเรียนของห้อง</td>
           {% for mnum, mname in months %}
-          <td><input name="open_{{ mnum }}" data-open value="{{ opens.get(mnum) if opens.get(mnum) is not none else '' }}"
+          {# ตั้งปฏิทินไว้แล้วใช้จำนวนวันจากปฏิทินเป็นค่าตั้งต้น ครูยังแก้ทับได้ #}
+          {% set ov = opens.get(mnum) if opens.get(mnum) is not none else cal_days.get(mnum) %}
+          <td><input name="open_{{ mnum }}" data-open value="{{ ov if ov is not none else '' }}"
                      inputmode="numeric" style="width:46px; text-align:center;"></td>
           {% endfor %}
           <td class="center" data-open-total style="font-weight:700;"></td>
@@ -64,8 +74,16 @@
           <td style="white-space:nowrap;">{{ s.name }}</td>
           {% for mnum, mname in months %}
           {% set v = att.get((s.id, mnum)) %}
+          {% if (s.id, mnum) in marked %}
+          {# เช็กรายวันไว้แล้ว: แสดงยอดที่นับจากการเช็ก แก้ที่หน้าเช็กชื่อเท่านั้น
+             (ถ้าให้พิมพ์ทับตรงนี้ ตัวเลขจะไม่ตรงกับที่เอกสารใช้จริง) #}
+          <td class="center" title="นับจากการเช็กชื่อรายวัน — แก้ที่หน้าเช็กชื่อ">
+            <a href="/academic/attendance?cid={{ c.id }}&month={{ mnum }}" style="font-weight:700;">{{ v if v is not none else 0 }}</a>
+            <span data-m data-fixed="{{ v if v is not none else 0 }}" style="display:none;"></span></td>
+          {% else %}
           <td><input name="p_{{ s.id }}_{{ mnum }}" data-m value="{{ v if v is not none else '' }}"
                      inputmode="numeric" style="width:46px; text-align:center;"></td>
+          {% endif %}
           {% endfor %}
           <td><input name="dopen_{{ s.id }}" data-dopen value="{{ e.days_open if e and e.days_open is not none else '' }}" inputmode="numeric" style="width:56px; text-align:center;"></td>
           <td><input name="dpres_{{ s.id }}" data-dpres value="{{ e.days_present if e and e.days_present is not none else '' }}" inputmode="numeric" style="width:56px; text-align:center;"></td>
@@ -87,7 +105,13 @@
 </div>
 <script>
   // รวม/ร้อยละ/ผล คิดสด — กติกาเดียวกับตอนออกเอกสาร (มีรายเดือน -> ใช้ผลรวมรายเดือน)
-  function intOf(el){ var v = el.value.trim(); return (v === '' || isNaN(v)) ? null : parseInt(v, 10); }
+  // ช่องเดือนมี 2 แบบ: input (พิมพ์เอง) กับ span[data-fixed] (นับจากการเช็กชื่อรายวัน)
+  function intOf(el){
+    if (!el) return null;
+    var v = (el.dataset && el.dataset.fixed !== undefined) ? el.dataset.fixed : el.value;
+    v = (v || '').trim();
+    return (v === '' || isNaN(v)) ? null : parseInt(v, 10);
+  }
   function openTotal(){
     var t = 0, any = false;
     document.querySelectorAll('[data-open]').forEach(function(i){

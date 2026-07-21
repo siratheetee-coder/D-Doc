@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}ปฏิทินการศึกษา{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานวิชาการ · ใช้เป็นฐานของการเช็กชื่อ</div>
+    <span class="hero-title">ปฏิทินการศึกษา</span>
+    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+  </div>
+</div>
+
+{% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกปฏิทินแล้ว</div>{% endif %}
+
+<div class="card">
+  <form method="get" action="/academic/calendar" class="row" style="align-items:flex-end; margin:0;">
+    <div><label>ปีการศึกษา</label>
+      <select name="year" onchange="submitReplace(this.form)">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
+      </select></div>
+  </form>
+  <p class="muted" style="font-size:13px; margin:10px 0 0;">
+    ตั้งว่าแต่ละเดือน<b>เปิดเรียนวันไหนบ้าง</b> — คลิกที่วันเพื่อสลับเปิด/ปิด ·
+    เสาร์-อาทิตย์ปิดไว้ให้แล้ว เหลือแค่คลิกปิด<b>วันหยุดราชการ</b> ·
+    ตั้งเสร็จแล้วครูจะเช็กชื่อรายวันได้ที่หน้า <a href="/academic/attendance">เวลาเรียน</a></p>
+</div>
+
+<form method="post" action="/academic/calendar/save">
+  <input type="hidden" name="year" value="{{ year }}">
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+      <h2 style="margin:0;">วันเปิดเรียน <span class="muted" style="font-size:15px;">รวมทั้งปี <b id="grand">0</b> วัน</span></h2>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn soft" type="button" onclick="fillWeekdays()">เติมวันจันทร์-ศุกร์ทุกเดือน</button>
+        <button class="btn soft gray" type="button" onclick="clearAll()">ล้างทั้งหมด</button>
+      </div>
+    </div>
+    <div class="cal-grid">
+      {% for m in months %}
+      <div class="cal-month" data-month="{{ m.num }}">
+        <div class="cal-head">
+          <b>{{ m.name }}</b>
+          <span class="muted"><b class="cal-count">0</b> วัน</span>
+        </div>
+        <div class="cal-days">
+          <i class="cal-wd">จ</i><i class="cal-wd">อ</i><i class="cal-wd">พ</i><i class="cal-wd">พฤ</i><i class="cal-wd">ศ</i><i class="cal-wd we">ส</i><i class="cal-wd we">อา</i>
+          {% for _ in range(m.lead) %}<span></span>{% endfor %}
+          {% for d in m.days %}
+          <button type="button" class="cal-day{{ ' on' if d.open }}{{ ' we' if d.wd in ('ส','อา') }}"
+                  data-day="{{ d.d }}" title="{{ d.wd }} {{ d.d }}">{{ d.d }}</button>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="m_{{ m.num }}" class="cal-val">
+      </div>
+      {% endfor %}
+    </div>
+    <button class="btn" type="submit" style="margin-top:14px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกปฏิทิน</button>
+  </div>
+</form>
+
+<style>
+  .cal-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px; margin-top:10px; }
+  .cal-month { border:1px solid var(--border); border-radius:12px; padding:10px 10px 12px; background:#fff; }
+  .cal-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; font-size:15px; }
+  .cal-days { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+  .cal-wd { font-style:normal; font-size:10px; color:var(--muted); text-align:center; padding-bottom:2px; }
+  .cal-wd.we { color:#c2410c; }
+  .cal-day { border:1px solid var(--border); background:#fff; border-radius:7px; padding:5px 0;
+             cursor:pointer; font-size:13px; font-weight:600; color:var(--text);
+             transition:background .1s, border-color .1s; }
+  .cal-day.we { background:#fafafa; color:#c2410c; }
+  .cal-day.on { background:var(--brand); border-color:var(--brand); color:#fff; }
+  .cal-day:hover { border-color:var(--brand); }
+</style>
+<script>
+  // ปุ่มวันเก็บสถานะไว้ที่คลาส .on แล้วรวมเป็น CSV ลง hidden input ตอนเปลี่ยนทุกครั้ง
+  // (ฟอร์ม POST ธรรมดา ไม่ใช้ fetch — JS พังก็ยังบันทึกค่าที่โหลดมาได้)
+  function syncMonth(box){
+    var days = [];
+    box.querySelectorAll('.cal-day.on').forEach(function(b){ days.push(b.dataset.day); });
+    box.querySelector('.cal-val').value = days.join(',');
+    box.querySelector('.cal-count').textContent = days.length;
+    syncGrand();
+  }
+  function syncGrand(){
+    var n = document.querySelectorAll('.cal-day.on').length;
+    document.getElementById('grand').textContent = n;
+  }
+  document.querySelectorAll('.cal-month').forEach(function(box){
+    box.addEventListener('click', function(e){
+      var b = e.target.closest('.cal-day');
+      if (!b) return;
+      b.classList.toggle('on');
+      syncMonth(box);
+    });
+    syncMonth(box);
+  });
+  function fillWeekdays(){
+    document.querySelectorAll('.cal-month').forEach(function(box){
+      box.querySelectorAll('.cal-day').forEach(function(b){
+        b.classList.toggle('on', !b.classList.contains('we'));
+      });
+      syncMonth(box);
+    });
+  }
+  function clearAll(){
+    document.querySelectorAll('.cal-day.on').forEach(function(b){ b.classList.remove('on'); });
+    document.querySelectorAll('.cal-month').forEach(syncMonth);
+  }
+</script>
+{% endblock %}

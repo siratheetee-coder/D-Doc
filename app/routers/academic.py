@@ -14,14 +14,18 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import (Student, Person, AcadClass, AcadStudent, AcadSubject,
                         AcadTeaching, AcadScore, AcadEval,
-                        AcadCharEval, AcadReadEval, AcadAttendance, AcadClassMonth)
+                        AcadCharEval, AcadReadEval, AcadAttendance, AcadClassMonth,
+                        AcadCalendar)
 from app.thai_utils import SCHOOL_LEVELS, GRADUATED, current_academic_year, is_secondary, level_rank
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
 from app.services.academic import (grade_of, subject_preset, term_choices, term_label,
                                    GRADE_CHOICES, QUALITY_LEVELS, PASS_FAIL, SUBJECT_KINDS,
                                    CHAR_ITEMS, CHAR_FIELDS, READ_DOMAINS, TH_MONTHS,
-                                   quality_of_avg, char_avg, read_avg, effective_eval)
+                                   TH_MONTH_FULL, quality_of_avg, char_avg, read_avg,
+                                   effective_eval, MARK_STATES, MARK_CHARS, MARK_BLANK,
+                                   TH_WEEKDAYS, month_weekdays, default_open_days,
+                                   parse_days_csv, parse_marks, build_marks, count_marks)
 
 router = APIRouter()
 
@@ -463,28 +467,130 @@ async def assess_save(request: Request, db: Session = Depends(get_db),
                             status_code=303)
 
 
-# ---------------- เวลาเรียนรายเดือน ----------------
+# ---------------- ปฏิทินการศึกษา ----------------
+@router.get("/academic/calendar", response_class=HTMLResponse)
+def calendar_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
+    y = year or current_academic_year()
+    saved = {r.month: parse_days_csv(r.days_csv)
+             for r in db.query(AcadCalendar).filter_by(year=y).all()}
+    months = []
+    for mnum, mshort in TH_MONTHS:
+        wd = month_weekdays(y, mnum)
+        # เดือนที่ยังไม่เคยตั้ง -> ตั้งต้นเป็นวันจันทร์-ศุกร์ (ครูค่อยคลิกปิดวันหยุด)
+        open_days = saved[mnum] if mnum in saved else default_open_days(y, mnum)
+        months.append({
+            "num": mnum, "short": mshort, "name": TH_MONTH_FULL[mnum],
+            "days": [{"d": d, "wd": wd[d], "open": d in open_days} for d in sorted(wd)],
+            # ช่องว่างนำหน้าให้วันที่ 1 ตกคอลัมน์วันที่ถูกต้อง (จันทร์=คอลัมน์แรก)
+            "lead": TH_WEEKDAYS.index(wd[1]),
+            "configured": mnum in saved,
+        })
+    return templates.TemplateResponse("academic_calendar.html", {
+        "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
+        "months": months, "any_set": bool(saved),
+    })
+
+
+@router.post("/academic/calendar/save")
+async def calendar_save(request: Request, db: Session = Depends(get_db), year: str = Form("")):
+    form = await request.form()
+    y = _to_int(year, 0) or current_academic_year()
+    cur = {r.month: r for r in db.query(AcadCalendar).filter_by(year=y).all()}
+    for mnum, _short in TH_MONTHS:
+        row = cur.get(mnum)
+        if not row:
+            row = AcadCalendar(year=y, month=mnum)
+            db.add(row)
+        days = parse_days_csv(form.get(f"m_{mnum}", ""))
+        row.days_csv = ",".join(str(d) for d in days)
+    db.commit()
+    return RedirectResponse(f"/academic/calendar?year={y}&saved=1", status_code=303)
+
+
+# ---------------- เวลาเรียน (สรุปรายเดือน + เช็กชื่อรายวัน) ----------------
 @router.get("/academic/attendance", response_class=HTMLResponse)
 def attendance_page(request: Request, db: Session = Depends(get_db),
-                    cid: int | None = None, year: int | None = None):
+                    cid: int | None = None, year: int | None = None,
+                    month: int | None = None):
     y = year or current_academic_year()
     classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
     c = db.get(AcadClass, cid) if cid else None
     students = sorted(c.students, key=lambda s: (s.seq or 999, s.name)) if c else []
-    opens, att = {}, {}
+    cal = {r.month: parse_days_csv(r.days_csv)
+           for r in db.query(AcadCalendar).filter_by(year=y).all()}
+    rows = []
+    if c and students:
+        rows = (db.query(AcadAttendance)
+                .filter(AcadAttendance.acad_student_id.in_([s.id for s in students])).all())
+
+    # ---- โหมดเช็กชื่อรายวัน ----
+    if c and month in dict(TH_MONTHS):
+        open_days = cal.get(month, [])
+        wd = month_weekdays(y, month)
+        marks = {a.acad_student_id: parse_marks(a.marks)
+                 for a in rows if a.month == month}
+        return templates.TemplateResponse("academic_attendance_day.html", {
+            "request": request, "school": get_school(db), "year": y, "c": c,
+            "students": students, "class_label": _class_label, "month": month,
+            "month_name": TH_MONTH_FULL[month], "open_days": open_days,
+            "weekdays": wd, "marks": marks, "states": MARK_STATES, "blank": MARK_BLANK,
+        })
+
+    # ---- โหมดสรุปรายเดือน ----
+    opens, att, marked = {}, {}, set()
     if c:
         opens = {m.month: m.days_open for m in
                  db.query(AcadClassMonth).filter_by(class_id=c.id).all()}
-        sids = [s.id for s in students]
-        if sids:
-            att = {(a.acad_student_id, a.month): a.present for a in
-                   db.query(AcadAttendance)
-                   .filter(AcadAttendance.acad_student_id.in_(sids)).all()}
+        for a in rows:
+            att[(a.acad_student_id, a.month)] = a.present
+            if (a.marks or "").strip(MARK_BLANK):
+                marked.add((a.acad_student_id, a.month))
     return templates.TemplateResponse("academic_attendance.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "classes": classes, "c": c, "students": students, "class_label": _class_label,
-        "months": TH_MONTHS, "opens": opens, "att": att,
+        "months": TH_MONTHS, "opens": opens, "att": att, "marked": marked,
+        "cal_days": {m: len(d) for m, d in cal.items()}, "has_cal": bool(cal),
     })
+
+
+@router.post("/academic/attendance/day-save")
+async def attendance_day_save(request: Request, db: Session = Depends(get_db),
+                              cid: str = Form(""), month: str = Form("")):
+    """บันทึกเช็กชื่อรายวันของเดือนเดียว — เขียน marks + present ให้ตรงกัน"""
+    form = await request.form()
+    c = db.get(AcadClass, _to_int(cid, 0))
+    m = _to_int(month, 0)
+    if not c or m not in dict(TH_MONTHS):
+        return RedirectResponse("/academic/attendance", status_code=303)
+    cal = db.query(AcadCalendar).filter_by(year=c.year, month=m).first()
+    open_days = parse_days_csv(cal.days_csv if cal else "")
+    cur = {}
+    sids = [s.id for s in c.students]
+    if sids:
+        cur = {a.acad_student_id: a for a in db.query(AcadAttendance)
+               .filter(AcadAttendance.acad_student_id.in_(sids),
+                       AcadAttendance.month == m).all()}
+    for s in c.students:
+        row = cur.get(s.id)
+        if not row:
+            row = AcadAttendance(acad_student_id=s.id, month=m)
+            db.add(row)
+        day_map = {}
+        for d in open_days:                      # เก็บเฉพาะวันเปิดเรียนตามปฏิทิน
+            ch = (form.get(f"d_{s.id}_{d}", "") or "").strip()
+            if ch in MARK_CHARS:
+                day_map[d] = ch
+        row.marks = build_marks(day_map)
+        row.present = count_marks(row.marks)["/"]
+    # วันเปิดเรียนของห้องเดือนนี้ = จำนวนวันในปฏิทิน (ให้สรุป/เอกสารใช้ตัวเลขเดียวกัน)
+    cm = db.query(AcadClassMonth).filter_by(class_id=c.id, month=m).first()
+    if not cm:
+        cm = AcadClassMonth(class_id=c.id, month=m)
+        db.add(cm)
+    cm.days_open = len(open_days) or None
+    db.commit()
+    return RedirectResponse(f"/academic/attendance?cid={c.id}&month={m}&saved=1",
+                            status_code=303)
 
 
 @router.post("/academic/attendance/save")
@@ -516,6 +622,10 @@ async def attendance_save(request: Request, db: Session = Depends(get_db), cid: 
             if not row:
                 row = AcadAttendance(acad_student_id=s.id, month=mnum)
                 db.add(row)
+            # เดือนที่เช็กชื่อรายวันไว้แล้ว ยอดมาจากการนับ marks — หน้าสรุปไม่ส่งช่องนั้นมา
+            # (ถ้าเผลอทับ ตัวเลขบนหน้าจอจะไม่ตรงกับที่เอกสารใช้จริง)
+            if row.id and (row.marks or "").strip(MARK_BLANK):
+                continue
             row.present = _to_int(form.get(f"p_{s.id}_{mnum}", ""), None)
         e = cure.get(s.id)
         if not e:
