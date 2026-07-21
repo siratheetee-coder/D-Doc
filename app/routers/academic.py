@@ -13,12 +13,15 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import (Student, Person, AcadClass, AcadStudent, AcadSubject,
-                        AcadTeaching, AcadScore, AcadEval)
+                        AcadTeaching, AcadScore, AcadEval,
+                        AcadCharEval, AcadReadEval, AcadAttendance, AcadClassMonth)
 from app.thai_utils import SCHOOL_LEVELS, GRADUATED, current_academic_year, is_secondary, level_rank
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
 from app.services.academic import (grade_of, subject_preset, term_choices, term_label,
-                                   GRADE_CHOICES, QUALITY_LEVELS, PASS_FAIL, SUBJECT_KINDS)
+                                   GRADE_CHOICES, QUALITY_LEVELS, PASS_FAIL, SUBJECT_KINDS,
+                                   CHAR_ITEMS, CHAR_FIELDS, READ_DOMAINS, TH_MONTHS,
+                                   quality_of_avg, char_avg, read_avg, effective_eval)
 
 router = APIRouter()
 
@@ -362,10 +365,11 @@ def eval_page(request: Request, db: Session = Depends(get_db),
     classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
     c = db.get(AcadClass, cid) if cid else None
     students = sorted(c.students, key=lambda s: (s.seq or 999, s.name)) if c else []
+    eff = {s.id: effective_eval(s, db) for s in students}
     return templates.TemplateResponse("academic_eval.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "classes": classes, "c": c, "students": students, "class_label": _class_label,
-        "quality": QUALITY_LEVELS, "passfail": PASS_FAIL,
+        "quality": QUALITY_LEVELS, "passfail": PASS_FAIL, "eff": eff,
     })
 
 
@@ -382,20 +386,148 @@ async def eval_save(request: Request, db: Session = Depends(get_db), cid: str = 
         if not e:
             e = AcadEval(acad_student_id=s.id)
             db.add(e)
-        e.read_think = (form.get(f"read_{s.id}", "") or "").strip()
-        e.desired_char = (form.get(f"char_{s.id}", "") or "").strip()
+        # ช่องที่ถูกแทนด้วยป้าย "คำนวณจากรายวิชา" จะไม่ถูกส่งมา — ห้ามเขียนทับค่า manual เดิม
+        # (เผื่อครูลบข้อมูลรายวิชาทีหลัง ค่าที่เคยเลือกไว้ต้องยังอยู่)
+        if f"read_{s.id}" in form:
+            e.read_think = (form.get(f"read_{s.id}", "") or "").strip()
+        if f"char_{s.id}" in form:
+            e.desired_char = (form.get(f"char_{s.id}", "") or "").strip()
         e.act_guidance = (form.get(f"guid_{s.id}", "") or "").strip()
         e.act_scout = (form.get(f"scout_{s.id}", "") or "").strip()
         e.act_club = (form.get(f"club_{s.id}", "") or "").strip()
         e.act_social = (form.get(f"social_{s.id}", "") or "").strip()
-        e.days_open = _to_int(form.get(f"dopen_{s.id}", ""), None)
-        e.days_present = _to_int(form.get(f"dpres_{s.id}", ""), None)
-        e.days_sick = _to_int(form.get(f"dsick_{s.id}", ""), None)
-        e.days_leave = _to_int(form.get(f"dleave_{s.id}", ""), None)
-        e.days_absent = _to_int(form.get(f"dabs_{s.id}", ""), None)
+        # ช่องวัน (เปิด/มา/ป่วย/ลา/ขาด) ย้ายไปหน้า "เวลาเรียน" — ห้ามอ่านที่นี่
+        # ไม่งั้นการบันทึกหน้านี้จะเขียนทับค่าที่กรอกไว้เป็นว่าง
         e.comment = (form.get(f"cmt_{s.id}", "") or "").strip()
     db.commit()
     return RedirectResponse(f"/academic/eval?cid={c.id}&saved=1", status_code=303)
+
+
+# ---------------- ประเมินละเอียดรายวิชา (คุณลักษณะฯ / อ่านคิดเขียน) ----------------
+@router.get("/academic/assess", response_class=HTMLResponse)
+def assess_page(request: Request, db: Session = Depends(get_db),
+                cid: int | None = None, sid: int | None = None,
+                kind: str = "char", year: int | None = None):
+    y = year or current_academic_year()
+    kind = "read" if kind == "read" else "char"
+    classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
+    c = db.get(AcadClass, cid) if cid else None
+    subjects = []
+    if c:
+        subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
+                    .order_by(AcadSubject.seq, AcadSubject.code).all())
+    subj = db.get(AcadSubject, sid) if sid else None
+    if subj and c and (subj.year != c.year or subj.level != c.level):
+        subj = None                        # กันเลือกวิชาข้ามชั้น
+    students = sorted(c.students, key=lambda s: (s.seq or 999, s.name)) if c else []
+    Model = AcadReadEval if kind == "read" else AcadCharEval
+    fields = [f for f, _ in READ_DOMAINS] if kind == "read" else CHAR_FIELDS
+    labels = [lb for _, lb in READ_DOMAINS] if kind == "read" else CHAR_ITEMS
+    rows = {}
+    if subj:
+        rows = {r.acad_student_id: r for r in
+                db.query(Model).filter_by(subject_id=subj.id).all()}
+    return templates.TemplateResponse("academic_assess.html", {
+        "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
+        "classes": classes, "c": c, "subjects": subjects, "subj": subj, "kind": kind,
+        "students": students, "rows": rows, "fields": fields, "labels": labels,
+        "class_label": _class_label, "term_label": term_label,
+    })
+
+
+@router.post("/academic/assess/save")
+async def assess_save(request: Request, db: Session = Depends(get_db),
+                      cid: str = Form(""), sid: str = Form(""), kind: str = Form("char")):
+    form = await request.form()
+    kind = "read" if kind == "read" else "char"
+    c = db.get(AcadClass, _to_int(cid, 0))
+    subj = db.get(AcadSubject, _to_int(sid, 0))
+    if not c or not subj:
+        return RedirectResponse("/academic/assess", status_code=303)
+    Model = AcadReadEval if kind == "read" else AcadCharEval
+    fields = [f for f, _ in READ_DOMAINS] if kind == "read" else CHAR_FIELDS
+    cur = {r.acad_student_id: r for r in
+           db.query(Model).filter_by(subject_id=subj.id).all()}
+    for s in c.students:
+        r = cur.get(s.id)
+        if not r:
+            r = Model(acad_student_id=s.id, subject_id=subj.id)
+            db.add(r)
+        for f in fields:
+            v = _to_int(form.get(f"{f}_{s.id}", ""), None)
+            if v is not None:
+                v = max(0, min(3, v))      # คะแนน 0-3 เท่านั้น
+            setattr(r, f, v)
+    db.commit()
+    return RedirectResponse(f"/academic/assess?cid={c.id}&sid={subj.id}&kind={kind}&saved=1",
+                            status_code=303)
+
+
+# ---------------- เวลาเรียนรายเดือน ----------------
+@router.get("/academic/attendance", response_class=HTMLResponse)
+def attendance_page(request: Request, db: Session = Depends(get_db),
+                    cid: int | None = None, year: int | None = None):
+    y = year or current_academic_year()
+    classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
+    c = db.get(AcadClass, cid) if cid else None
+    students = sorted(c.students, key=lambda s: (s.seq or 999, s.name)) if c else []
+    opens, att = {}, {}
+    if c:
+        opens = {m.month: m.days_open for m in
+                 db.query(AcadClassMonth).filter_by(class_id=c.id).all()}
+        sids = [s.id for s in students]
+        if sids:
+            att = {(a.acad_student_id, a.month): a.present for a in
+                   db.query(AcadAttendance)
+                   .filter(AcadAttendance.acad_student_id.in_(sids)).all()}
+    return templates.TemplateResponse("academic_attendance.html", {
+        "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
+        "classes": classes, "c": c, "students": students, "class_label": _class_label,
+        "months": TH_MONTHS, "opens": opens, "att": att,
+    })
+
+
+@router.post("/academic/attendance/save")
+async def attendance_save(request: Request, db: Session = Depends(get_db), cid: str = Form("")):
+    form = await request.form()
+    c = db.get(AcadClass, _to_int(cid, 0))
+    if not c:
+        return RedirectResponse("/academic/attendance", status_code=303)
+    # วันเปิดเรียนรายเดือนของห้อง
+    curm = {m.month: m for m in db.query(AcadClassMonth).filter_by(class_id=c.id).all()}
+    for mnum, _ in TH_MONTHS:
+        row = curm.get(mnum)
+        if not row:
+            row = AcadClassMonth(class_id=c.id, month=mnum)
+            db.add(row)
+        row.days_open = _to_int(form.get(f"open_{mnum}", ""), None)
+    # รายคน: รายเดือน + ยอดรวม + ป่วย/ลา/ขาด
+    sids = [s.id for s in c.students]
+    cura = {}
+    if sids:
+        for a in (db.query(AcadAttendance)
+                  .filter(AcadAttendance.acad_student_id.in_(sids)).all()):
+            cura[(a.acad_student_id, a.month)] = a
+    cure = {e.acad_student_id: e for e in db.query(AcadEval).join(AcadStudent)
+            .filter(AcadStudent.class_id == c.id).all()}
+    for s in c.students:
+        for mnum, _ in TH_MONTHS:
+            row = cura.get((s.id, mnum))
+            if not row:
+                row = AcadAttendance(acad_student_id=s.id, month=mnum)
+                db.add(row)
+            row.present = _to_int(form.get(f"p_{s.id}_{mnum}", ""), None)
+        e = cure.get(s.id)
+        if not e:
+            e = AcadEval(acad_student_id=s.id)
+            db.add(e)
+        e.days_open = _to_int(form.get(f"dopen_{s.id}", ""), None)
+        e.days_present = _to_int(form.get(f"dpres_{s.id}", ""), None)
+        e.days_sick = _to_int(form.get(f"sick_{s.id}", ""), None)
+        e.days_leave = _to_int(form.get(f"leave_{s.id}", ""), None)
+        e.days_absent = _to_int(form.get(f"abs_{s.id}", ""), None)
+    db.commit()
+    return RedirectResponse(f"/academic/attendance?cid={c.id}&saved=1", status_code=303)
 
 
 # ---------------- เอกสาร ----------------

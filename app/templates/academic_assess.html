@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}ประเมินรายวิชา{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานวิชาการ · ใช้ประกอบ ปพ.5</div>
+    <span class="hero-title">{{ 'อ่าน คิดวิเคราะห์ และเขียน' if kind == 'read' else 'คุณลักษณะอันพึงประสงค์' }} — รายวิชา</span>
+    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+  </div>
+</div>
+
+{% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกผลการประเมินแล้ว</div>{% endif %}
+
+<div class="card">
+  <form method="get" action="/academic/assess" class="row" style="align-items:flex-end; margin:0;">
+    {% if not c %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
+    <div><label>ปีการศึกษา</label>
+      <select name="year" onchange="submitReplace(this.form)">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
+      </select></div>
+    <div><label>ห้องเรียน</label>
+      <select name="cid" onchange="submitReplace(this.form)">
+        <option value="">- เลือกห้อง -</option>
+        {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id==c.id }}>{{ class_label(k) }}</option>{% endfor %}
+      </select></div>
+    {% if c %}
+    <div><label>รายวิชา</label>
+      <select name="sid" onchange="submitReplace(this.form)">
+        <option value="">- เลือกวิชา -</option>
+        {% for sb in subjects %}<option value="{{ sb.id }}" {{ 'selected' if subj and sb.id==subj.id }}>{{ sb.code }} {{ sb.name }}{% if sb.term %} ({{ term_label(sb.term) }}){% endif %}</option>{% endfor %}
+      </select></div>
+    <div><label>ประเมิน</label>
+      <select name="kind" onchange="submitReplace(this.form)">
+        <option value="char" {{ 'selected' if kind=='char' }}>คุณลักษณะฯ 8 ข้อ</option>
+        <option value="read" {{ 'selected' if kind=='read' }}>อ่านคิดเขียน 3 ด้าน</option>
+      </select></div>
+    {% endif %}
+  </form>
+  {% if not c %}
+  <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> แล้วเลือก <b>รายวิชา</b> เพื่อประเมินทั้งห้องในหน้าเดียว (แบบเดียวกับไฟล์ ปพ.5)</p>
+  {% elif not subj %}
+  <p class="muted" style="margin:10px 0 0;">เลือก <b>รายวิชา</b> ด้านบน — ครูผู้สอนวิชานั้นประเมินนักเรียนทั้งห้องในครั้งเดียว</p>
+  {% endif %}
+</div>
+
+{% if c and subj %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;">{{ subj.code }} {{ subj.name }} · ห้อง {{ class_label(c) }}
+      <span class="muted" style="font-size:15px;">({{ students|length }} คน)</span></h2>
+    <button class="btn soft" type="button" onclick="fillThrees()">เติม 3 ทุกช่องที่ว่าง</button>
+  </div>
+  <p class="muted" style="font-size:13px; margin:6px 0 8px;">คะแนน 0-3 ต่อข้อ · เฉลี่ย ≥2.5 = ดีเยี่ยม · 1.5-2.49 = ดี · 1-1.49 = ผ่าน · ต่ำกว่า 1 = ไม่ผ่าน · เว้นว่างได้ถ้ายังไม่ประเมิน</p>
+  {% if students %}
+  <form method="post" action="/academic/assess/save">
+    <input type="hidden" name="cid" value="{{ c.id }}">
+    <input type="hidden" name="sid" value="{{ subj.id }}">
+    <input type="hidden" name="kind" value="{{ kind }}">
+    <div class="table-wrap dense">
+    <table id="assessTable">
+      <thead><tr>
+        <th>เลขที่</th><th>ชื่อ-นามสกุล</th>
+        {% for lb in labels %}<th style="font-size:12.5px;">{{ loop.index }}. {{ lb }}</th>{% endfor %}
+        <th>เฉลี่ย</th><th>ผล</th>
+      </tr></thead>
+      <tbody>
+      {% for s in students %}
+        {% set r = rows.get(s.id) %}
+        <tr data-row>
+          <td>{{ s.seq or '' }}</td>
+          <td style="white-space:nowrap;">{{ s.name }}</td>
+          {% for f in fields %}
+          {% set v = (r|attr(f)) if r else none %}
+          <td><input name="{{ f }}_{{ s.id }}" data-score inputmode="numeric"
+                     value="{{ v if v is not none else '' }}"
+                     style="width:52px; text-align:center;"></td>
+          {% endfor %}
+          <td class="center" data-avg style="font-weight:700;"></td>
+          <td class="center" data-result style="font-weight:700; white-space:nowrap;"></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกทั้งห้อง</button>
+  </form>
+  {% else %}
+  <p class="muted">ห้องนี้ยังไม่มีนักเรียน — <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
+  {% endif %}
+</div>
+<script>
+  // เฉลี่ย + ผล คิดสดตามเกณฑ์เดียวกับฝั่งเซิร์ฟเวอร์ (quality_of_avg)
+  function labelOf(a){
+    if (a === null) return '';
+    if (a >= 2.5) return 'ดีเยี่ยม';
+    if (a >= 1.5) return 'ดี';
+    if (a >= 1.0) return 'ผ่าน';
+    return 'ไม่ผ่าน';
+  }
+  function recalcRow(tr){
+    var vals = [];
+    tr.querySelectorAll('[data-score]').forEach(function(i){
+      var v = i.value.trim();
+      if (v !== '' && !isNaN(v)) vals.push(Math.max(0, Math.min(3, parseFloat(v))));
+    });
+    var avg = vals.length ? vals.reduce(function(a,b){return a+b;}, 0) / vals.length : null;
+    tr.querySelector('[data-avg]').textContent = avg === null ? '' : (Math.round(avg*100)/100).toFixed(2);
+    tr.querySelector('[data-result]').textContent = labelOf(avg);
+  }
+  document.querySelectorAll('tr[data-row]').forEach(function(tr){
+    recalcRow(tr);
+    tr.addEventListener('input', function(){ recalcRow(tr); });
+  });
+  function fillThrees(){
+    document.querySelectorAll('tr[data-row]').forEach(function(tr){
+      tr.querySelectorAll('[data-score]').forEach(function(i){ if (!i.value.trim()) i.value = '3'; });
+      recalcRow(tr);
+    });
+  }
+</script>
+{% endif %}
+{% endblock %}

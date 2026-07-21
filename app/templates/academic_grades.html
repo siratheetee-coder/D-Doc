@@ -51,6 +51,7 @@
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
     <h2 style="margin:0;">{{ subj.code }} {{ subj.name }} · ห้อง {{ class_label(c) }} · {{ term_label(subj.term) }}</h2>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn soft" href="/academic/assess?cid={{ c.id }}&sid={{ subj.id }}&kind=char"><svg class="icon"><use href="#ic-check"/></svg> ประเมินคุณฯ/อ่านฯ วิชานี้</a>
       <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5.docx?sid={{ subj.id }}"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 วิชานี้</a>
       <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx{% if subj.term %}?term={{ subj.term }}{% endif %}"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม{% if subj.term %} ภาค {{ subj.term }}{% endif %}</a>
     </div>

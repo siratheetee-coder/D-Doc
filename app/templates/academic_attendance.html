@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}เวลาเรียน{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานวิชาการ · ใช้ประกอบ ปพ.5</div>
+    <span class="hero-title">เวลาเรียน</span>
+    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+  </div>
+</div>
+
+{% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกเวลาเรียนแล้ว</div>{% endif %}
+
+<div class="card">
+  <form method="get" action="/academic/attendance" class="row" style="align-items:flex-end; margin:0;">
+    <div><label>ปีการศึกษา</label>
+      <select name="year" onchange="submitReplace(this.form)">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
+      </select></div>
+    <div><label>ห้องเรียน</label>
+      <select name="cid" onchange="submitReplace(this.form)">
+        <option value="">- เลือกห้อง -</option>
+        {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id==c.id }}>{{ class_label(k) }}</option>{% endfor %}
+      </select></div>
+  </form>
+  {% if not c %}
+  <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> เพื่อกรอกเวลาเรียน —
+    กรอกเป็น<b>รายเดือน</b> (ระบบรวมและคิดร้อยละให้) หรือกรอกเฉพาะ<b>ยอดรวมทั้งปี</b> ก็ได้</p>
+  {% endif %}
+</div>
+
+{% if c %}
+<div class="card">
+  <h2 style="margin:0 0 4px;">ห้อง {{ class_label(c) }} <span class="muted" style="font-size:15px;">({{ students|length }} คน)</span></h2>
+  <p class="muted" style="font-size:13px; margin:4px 0 8px;">
+    แถวบนสุด = <b>วันเปิดเรียนของห้อง</b>รายเดือน · ช่องรายคน = วันมาเรียนของเดือนนั้น ·
+    ถ้าไม่แยกรายเดือน ให้เว้นช่องเดือนว่างแล้วกรอกเฉพาะ <b>เปิด(รวม)/มา(รวม)</b> ·
+    เกณฑ์ผ่าน: มาเรียนไม่น้อยกว่าร้อยละ 80</p>
+  {% if students %}
+  <form method="post" action="/academic/attendance/save">
+    <input type="hidden" name="cid" value="{{ c.id }}">
+    <div class="table-wrap dense">
+    <table id="attTable">
+      <thead><tr>
+        <th>เลขที่</th><th>ชื่อ-นามสกุล</th>
+        {% for mnum, mname in months %}<th class="center">{{ mname }}</th>{% endfor %}
+        <th>เปิด(รวม)</th><th>มา(รวม)</th><th>ป่วย</th><th>ลา</th><th>ขาด</th><th>ร้อยละ</th><th>ผล</th>
+      </tr></thead>
+      <tbody>
+        <tr style="background:#f8f7ff;">
+          <td></td>
+          <td style="font-weight:700;">วันเปิดเรียนของห้อง</td>
+          {% for mnum, mname in months %}
+          <td><input name="open_{{ mnum }}" data-open value="{{ opens.get(mnum) if opens.get(mnum) is not none else '' }}"
+                     inputmode="numeric" style="width:46px; text-align:center;"></td>
+          {% endfor %}
+          <td class="center" data-open-total style="font-weight:700;"></td>
+          <td colspan="6"></td>
+        </tr>
+      {% for s in students %}
+        {% set e = s.eval %}
+        <tr data-row>
+          <td>{{ s.seq or '' }}</td>
+          <td style="white-space:nowrap;">{{ s.name }}</td>
+          {% for mnum, mname in months %}
+          {% set v = att.get((s.id, mnum)) %}
+          <td><input name="p_{{ s.id }}_{{ mnum }}" data-m value="{{ v if v is not none else '' }}"
+                     inputmode="numeric" style="width:46px; text-align:center;"></td>
+          {% endfor %}
+          <td><input name="dopen_{{ s.id }}" data-dopen value="{{ e.days_open if e and e.days_open is not none else '' }}" inputmode="numeric" style="width:56px; text-align:center;"></td>
+          <td><input name="dpres_{{ s.id }}" data-dpres value="{{ e.days_present if e and e.days_present is not none else '' }}" inputmode="numeric" style="width:56px; text-align:center;"></td>
+          <td><input name="sick_{{ s.id }}" value="{{ e.days_sick if e and e.days_sick is not none else '' }}" inputmode="numeric" style="width:46px; text-align:center;"></td>
+          <td><input name="leave_{{ s.id }}" value="{{ e.days_leave if e and e.days_leave is not none else '' }}" inputmode="numeric" style="width:46px; text-align:center;"></td>
+          <td><input name="abs_{{ s.id }}" value="{{ e.days_absent if e and e.days_absent is not none else '' }}" inputmode="numeric" style="width:46px; text-align:center;"></td>
+          <td class="center" data-pct style="font-weight:700;"></td>
+          <td class="center" data-res style="font-weight:700; white-space:nowrap;"></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกเวลาเรียน</button>
+  </form>
+  {% else %}
+  <p class="muted">ห้องนี้ยังไม่มีนักเรียน — <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
+  {% endif %}
+</div>
+<script>
+  // รวม/ร้อยละ/ผล คิดสด — กติกาเดียวกับตอนออกเอกสาร (มีรายเดือน -> ใช้ผลรวมรายเดือน)
+  function intOf(el){ var v = el.value.trim(); return (v === '' || isNaN(v)) ? null : parseInt(v, 10); }
+  function openTotal(){
+    var t = 0, any = false;
+    document.querySelectorAll('[data-open]').forEach(function(i){
+      var v = intOf(i); if (v !== null){ t += v; any = true; }
+    });
+    return any ? t : null;
+  }
+  function recalc(){
+    var ot = openTotal();
+    document.querySelector('[data-open-total]').textContent = ot === null ? '' : ot;
+    document.querySelectorAll('tr[data-row]').forEach(function(tr){
+      var sum = 0, any = false;
+      tr.querySelectorAll('[data-m]').forEach(function(i){
+        var v = intOf(i); if (v !== null){ sum += v; any = true; }
+      });
+      var open = any ? ot : intOf(tr.querySelector('[data-dopen]'));
+      var pres = any ? sum : intOf(tr.querySelector('[data-dpres]'));
+      if (any){   // มีรายเดือน -> โชว์ผลรวมในช่องรวมให้เห็น (ยังแก้ยอดรวมเองได้ถ้าลบเดือนออก)
+        tr.querySelector('[data-dpres]').value = sum;
+        if (ot !== null) tr.querySelector('[data-dopen]').value = ot;
+      }
+      var pct = (open && pres !== null) ? (pres * 100 / open) : null;
+      tr.querySelector('[data-pct]').textContent = pct === null ? '' : (Math.round(pct*10)/10).toFixed(1);
+      tr.querySelector('[data-res]').textContent = pct === null ? '' : (pct >= 80 ? 'ผ่าน' : 'ไม่ผ่าน');
+    });
+  }
+  document.getElementById('attTable').addEventListener('input', recalc);
+  recalc();
+</script>
+{% endif %}
+{% endblock %}

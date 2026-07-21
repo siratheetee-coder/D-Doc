@@ -1167,3 +1167,53 @@ class AcadEval(Base):
     comment = Column(Text, default="")              # ความเห็นครูประจำชั้น
 
     student = relationship("AcadStudent", back_populates="eval")
+
+
+class AcadCharEval(Base):
+    """คุณลักษณะอันพึงประสงค์ 8 ข้อ รายวิชา (แถวละ นักเรียน x วิชา · คะแนน 0-3 ต่อข้อ)
+    เฉลี่ย -> ผล (ดีเยี่ยม/ดี/ผ่าน/ไม่ผ่าน) คำนวณตอนใช้ ไม่เก็บซ้ำ"""
+    __tablename__ = "acad_char_eval"
+
+    id = Column(Integer, primary_key=True)
+    acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
+    subject_id = Column(Integer, ForeignKey("acad_subject.id"), nullable=False)
+    c1 = Column(Integer, nullable=True)
+    c2 = Column(Integer, nullable=True)
+    c3 = Column(Integer, nullable=True)
+    c4 = Column(Integer, nullable=True)
+    c5 = Column(Integer, nullable=True)
+    c6 = Column(Integer, nullable=True)
+    c7 = Column(Integer, nullable=True)
+    c8 = Column(Integer, nullable=True)
+
+
+class AcadReadEval(Base):
+    """อ่าน คิดวิเคราะห์ เขียนสื่อความ รายวิชา (0-3 ต่อด้าน)"""
+    __tablename__ = "acad_read_eval"
+
+    id = Column(Integer, primary_key=True)
+    acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
+    subject_id = Column(Integer, ForeignKey("acad_subject.id"), nullable=False)
+    r_read = Column(Integer, nullable=True)     # การอ่าน
+    r_think = Column(Integer, nullable=True)    # การคิดวิเคราะห์
+    r_write = Column(Integer, nullable=True)    # การเขียนสื่อความ
+
+
+class AcadAttendance(Base):
+    """วันมาเรียนรายเดือน รายคน (เดือน 1-12 ปฏิทิน · ปีการศึกษาไทย พ.ค.->มี.ค.)"""
+    __tablename__ = "acad_attendance"
+
+    id = Column(Integer, primary_key=True)
+    acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
+    month = Column(Integer, nullable=False)     # 5..12, 1..3
+    present = Column(Integer, nullable=True)    # วันมาเรียนของเดือนนั้น
+
+
+class AcadClassMonth(Base):
+    """วันเปิดเรียนรายเดือนของห้อง (ตัวหารของร้อยละเวลาเรียน)"""
+    __tablename__ = "acad_class_month"
+
+    id = Column(Integer, primary_key=True)
+    class_id = Column(Integer, ForeignKey("acad_class.id"), nullable=False)
+    month = Column(Integer, nullable=False)
+    days_open = Column(Integer, nullable=True)
