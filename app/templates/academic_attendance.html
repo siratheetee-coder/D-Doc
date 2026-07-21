@@ -33,8 +33,8 @@
 <div class="card">
   <h2 style="margin:0 0 4px;">ห้อง {{ class_label(c) }} <span class="muted" style="font-size:15px;">({{ students|length }} คน)</span></h2>
   <p class="muted" style="font-size:13px; margin:4px 0 8px;">
-    คลิก<b>ชื่อเดือน</b>เพื่อ<b>เช็กชื่อรายวัน</b> (แนะนำ — ระบบรวมยอดและ ป่วย/ลา/ขาด ให้เอง) ·
-    หรือพิมพ์ยอดรวมรายเดือนในตารางนี้ก็ได้ · เดือนที่เช็กรายวันแล้วจะแสดงเป็นตัวเลขทึบ แก้ที่หน้าเช็กชื่อ ·
+    <b>กรอกแค่ ป่วย / ลา / ขาด</b> — ระบบหักออกจากวันเปิดเรียนแล้วคิด "มา(รวม)" กับร้อยละให้เอง ·
+    ถ้าอยากเช็กเป็นรายวันให้กด <b>แสดงรายเดือน</b> แล้วคลิกชื่อเดือน ·
     เกณฑ์ผ่าน: มาเรียนไม่น้อยกว่าร้อยละ 80</p>
   {% if not has_cal %}
   <div class="alert warn" style="margin:0 0 10px;"><svg class="icon"><use href="#ic-alert"/></svg>
@@ -42,26 +42,36 @@
     <a href="/academic/calendar?year={{ year }}">ตั้งปฏิทิน</a> แล้วจะเช็กชื่อรายวันได้</div>
   {% endif %}
   {% if students %}
+  <div id="attWarn" class="alert warn" style="display:none;"><svg class="icon"><use href="#ic-alert"/></svg>
+    <span><b>จำนวนวันมาเรียนไม่ครบ</b> <span id="attWarnN"></span> —
+      โปรดกรอกจำนวนวัน <b>ป่วย / ลา / ขาด</b> ให้ครบ แล้วระบบจะรวมเป็นจำนวนวันมาเรียนให้</span></div>
+
+  <label style="display:inline-flex; align-items:center; gap:7px; margin:0 0 10px; cursor:pointer; font-size:14px;">
+    <input type="checkbox" id="showMonths" style="width:17px; height:17px;"> แสดงรายเดือน (สำหรับเช็กชื่อรายวัน)
+  </label>
+
   <form method="post" action="/academic/attendance/save">
     <input type="hidden" name="cid" value="{{ c.id }}">
-    <div class="table-wrap dense">
-    <table id="attTable">
+    <div class="table-wrap">
+    <table id="attTable" class="hide-months">
       <thead><tr>
         <th>เลขที่</th><th>ชื่อ-นามสกุล</th>
-        {% for mnum, mname in months %}<th class="center" style="white-space:nowrap;">
+        {% for mnum, mname in months %}<th class="mcol center" style="white-space:nowrap;">
           <a href="/academic/attendance?cid={{ c.id }}&month={{ mnum }}" title="เช็กชื่อรายวัน {{ mname }}">{{ mname }}</a>
           {% if cal_days.get(mnum) %}<i style="display:block; font-style:normal; font-size:10px; font-weight:400; color:var(--muted);">{{ cal_days[mnum] }} วัน</i>{% endif %}
         </th>{% endfor %}
-        <th>เปิด(รวม)</th><th>มา(รวม)</th><th>ป่วย</th><th>ลา</th><th>ขาด</th><th>ร้อยละ</th><th>ผล</th>
+        <th class="center">เปิด(รวม)</th>
+        <th class="center">ป่วย</th><th class="center">ลา</th><th class="center">ขาด</th>
+        <th class="center">มา(รวม)</th><th class="center">ร้อยละ</th><th class="center">ผล</th>
       </tr></thead>
       <tbody>
         <tr style="background:#f8f7ff;">
           <td></td>
-          <td style="font-weight:700;">วันเปิดเรียนของห้อง</td>
+          <td style="font-weight:700; white-space:nowrap;">วันเปิดเรียนของห้อง</td>
           {% for mnum, mname in months %}
           {# ตั้งปฏิทินไว้แล้วใช้จำนวนวันจากปฏิทินเป็นค่าตั้งต้น ครูยังแก้ทับได้ #}
           {% set ov = opens.get(mnum) if opens.get(mnum) is not none else cal_days.get(mnum) %}
-          <td><input name="open_{{ mnum }}" data-open value="{{ ov if ov is not none else '' }}"
+          <td class="mcol"><input name="open_{{ mnum }}" data-open value="{{ ov if ov is not none else '' }}"
                      inputmode="numeric" style="width:46px; text-align:center;"></td>
           {% endfor %}
           <td class="center" data-open-total style="font-weight:700;"></td>
@@ -77,19 +87,23 @@
           {% if (s.id, mnum) in marked %}
           {# เช็กรายวันไว้แล้ว: แสดงยอดที่นับจากการเช็ก แก้ที่หน้าเช็กชื่อเท่านั้น
              (ถ้าให้พิมพ์ทับตรงนี้ ตัวเลขจะไม่ตรงกับที่เอกสารใช้จริง) #}
-          <td class="center" title="นับจากการเช็กชื่อรายวัน — แก้ที่หน้าเช็กชื่อ">
+          <td class="mcol center" title="นับจากการเช็กชื่อรายวัน — แก้ที่หน้าเช็กชื่อ">
             <a href="/academic/attendance?cid={{ c.id }}&month={{ mnum }}" style="font-weight:700;">{{ v if v is not none else 0 }}</a>
             <span data-m data-fixed="{{ v if v is not none else 0 }}" style="display:none;"></span></td>
           {% else %}
-          <td><input name="p_{{ s.id }}_{{ mnum }}" data-m value="{{ v if v is not none else '' }}"
+          <td class="mcol"><input name="p_{{ s.id }}_{{ mnum }}" data-m value="{{ v if v is not none else '' }}"
                      inputmode="numeric" style="width:46px; text-align:center;"></td>
           {% endif %}
           {% endfor %}
           <td><input name="dopen_{{ s.id }}" data-dopen value="{{ e.days_open if e and e.days_open is not none else '' }}" inputmode="numeric" style="width:56px; text-align:center;"></td>
-          <td><input name="dpres_{{ s.id }}" data-dpres value="{{ e.days_present if e and e.days_present is not none else '' }}" inputmode="numeric" style="width:56px; text-align:center;"></td>
-          <td><input name="sick_{{ s.id }}" value="{{ e.days_sick if e and e.days_sick is not none else '' }}" inputmode="numeric" style="width:46px; text-align:center;"></td>
-          <td><input name="leave_{{ s.id }}" value="{{ e.days_leave if e and e.days_leave is not none else '' }}" inputmode="numeric" style="width:46px; text-align:center;"></td>
-          <td><input name="abs_{{ s.id }}" value="{{ e.days_absent if e and e.days_absent is not none else '' }}" inputmode="numeric" style="width:46px; text-align:center;"></td>
+          <td><input name="sick_{{ s.id }}" data-gap value="{{ e.days_sick if e and e.days_sick is not none else '' }}" inputmode="numeric" style="width:52px; text-align:center;"></td>
+          <td><input name="leave_{{ s.id }}" data-gap value="{{ e.days_leave if e and e.days_leave is not none else '' }}" inputmode="numeric" style="width:52px; text-align:center;"></td>
+          <td><input name="abs_{{ s.id }}" data-gap value="{{ e.days_absent if e and e.days_absent is not none else '' }}" inputmode="numeric" style="width:52px; text-align:center;"></td>
+          {# มา(รวม) ระบบคิดให้ อ่านอย่างเดียว แต่ยังส่งค่าไปกับฟอร์ม #}
+          <td><input name="dpres_{{ s.id }}" data-dpres readonly tabindex="-1"
+                     value="{{ e.days_present if e and e.days_present is not none else '' }}"
+                     title="ระบบคิดให้จากวันเปิดเรียน ลบ ป่วย/ลา/ขาด"
+                     style="width:60px; text-align:center; background:#f3f4f6; font-weight:700; cursor:default;"></td>
           <td class="center" data-pct style="font-weight:700;"></td>
           <td class="center" data-res style="font-weight:700; white-space:nowrap;"></td>
         </tr>
@@ -103,8 +117,19 @@
   <p class="muted">ห้องนี้ยังไม่มีนักเรียน — <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
   {% endif %}
 </div>
+<style>
+  #attTable.hide-months .mcol { display: none; }
+  /* ช่องที่ยอดยังไม่ครบ: กระพริบแดงจนกว่าจะกรอกให้ครบ */
+  @keyframes attBlink {
+    0%, 100% { background: #fff; border-color: #dc2626; }
+    50%      { background: #fdecec; border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,.18); }
+  }
+  input.att-bad { animation: attBlink 1.1s ease-in-out infinite; color: #b91c1c; font-weight: 700; }
+  @media (prefers-reduced-motion: reduce) {
+    input.att-bad { animation: none; background: #fdecec; border-color: #dc2626; }
+  }
+</style>
 <script>
-  // รวม/ร้อยละ/ผล คิดสด — กติกาเดียวกับตอนออกเอกสาร (มีรายเดือน -> ใช้ผลรวมรายเดือน)
   // ช่องเดือนมี 2 แบบ: input (พิมพ์เอง) กับ span[data-fixed] (นับจากการเช็กชื่อรายวัน)
   function intOf(el){
     if (!el) return null;
@@ -122,23 +147,49 @@
   function recalc(){
     var ot = openTotal();
     document.querySelector('[data-open-total]').textContent = ot === null ? '' : ot;
+    var bad = 0;
     document.querySelectorAll('tr[data-row]').forEach(function(tr){
-      var sum = 0, any = false;
+      // วันเปิดเรียนของนักเรียนคนนี้ (ปกติ = ของห้อง แต่แก้เองได้ เช่น ย้ายเข้ากลางปี)
+      var openEl = tr.querySelector('[data-dopen]');
+      if (ot !== null && intOf(openEl) === null) openEl.value = ot;
+      var open = intOf(openEl);
+
+      // ผลรวมรายเดือน (มาจากการเช็กชื่อรายวัน หรือพิมพ์เอง)
+      var msum = 0, hasMonthly = false;
       tr.querySelectorAll('[data-m]').forEach(function(i){
-        var v = intOf(i); if (v !== null){ sum += v; any = true; }
+        var v = intOf(i); if (v !== null){ msum += v; hasMonthly = true; }
       });
-      var open = any ? ot : intOf(tr.querySelector('[data-dopen]'));
-      var pres = any ? sum : intOf(tr.querySelector('[data-dpres]'));
-      if (any){   // มีรายเดือน -> โชว์ผลรวมในช่องรวมให้เห็น (ยังแก้ยอดรวมเองได้ถ้าลบเดือนออก)
-        tr.querySelector('[data-dpres]').value = sum;
-        if (ot !== null) tr.querySelector('[data-dopen]').value = ot;
-      }
+
+      // ป่วย/ลา/ขาด
+      var gaps = tr.querySelectorAll('[data-gap]');
+      var miss = 0, hasGap = false;
+      gaps.forEach(function(i){
+        var v = intOf(i); if (v !== null){ miss += v; hasGap = true; }
+      });
+
+      // มา(รวม): มีรายเดือน -> ใช้ผลรวม · ไม่มี -> วันเปิดเรียน ลบ ป่วย/ลา/ขาด
+      var pres = null;
+      if (hasMonthly) pres = msum;
+      else if (open !== null) pres = Math.max(0, open - miss);
+      tr.querySelector('[data-dpres]').value = (pres === null ? '' : pres);
+
+      // เตือนเมื่อยอดไม่ลงตัว: มา + ป่วย + ลา + ขาด ต้องเท่ากับวันเปิดเรียน
+      var off = (open !== null && pres !== null) && (pres + miss !== open);
+      gaps.forEach(function(i){ i.classList.toggle('att-bad', off); });
+      if (off) bad++;
+
       var pct = (open && pres !== null) ? (pres * 100 / open) : null;
       tr.querySelector('[data-pct]').textContent = pct === null ? '' : (Math.round(pct*10)/10).toFixed(1);
       tr.querySelector('[data-res]').textContent = pct === null ? '' : (pct >= 80 ? 'ผ่าน' : 'ไม่ผ่าน');
     });
+    var warn = document.getElementById('attWarn');
+    warn.style.display = bad ? '' : 'none';
+    document.getElementById('attWarnN').textContent = bad ? ('(' + bad + ' คน)') : '';
   }
   document.getElementById('attTable').addEventListener('input', recalc);
+  document.getElementById('showMonths').addEventListener('change', function(){
+    document.getElementById('attTable').classList.toggle('hide-months', !this.checked);
+  });
   recalc();
 </script>
 {% endif %}

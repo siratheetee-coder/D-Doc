@@ -694,7 +694,11 @@ async def attendance_save(request: Request, db: Session = Depends(get_db), cid: 
             cura[(a.acad_student_id, a.month)] = a
     cure = {e.acad_student_id: e for e in db.query(AcadEval).join(AcadStudent)
             .filter(AcadStudent.class_id == c.id).all()}
+    open_total = sum(v for v in
+                     (_to_int(form.get(f"open_{m}", ""), None) for m, _ in TH_MONTHS)
+                     if v is not None)
     for s in c.students:
+        monthly = []
         for mnum, _ in TH_MONTHS:
             row = cura.get((s.id, mnum))
             if not row:
@@ -703,17 +707,29 @@ async def attendance_save(request: Request, db: Session = Depends(get_db), cid: 
             # เดือนที่เช็กชื่อรายวันไว้แล้ว ยอดมาจากการนับ marks — หน้าสรุปไม่ส่งช่องนั้นมา
             # (ถ้าเผลอทับ ตัวเลขบนหน้าจอจะไม่ตรงกับที่เอกสารใช้จริง)
             if row.id and (row.marks or "").strip(MARK_BLANK):
+                if row.present is not None:
+                    monthly.append(row.present)
                 continue
             row.present = _to_int(form.get(f"p_{s.id}_{mnum}", ""), None)
+            if row.present is not None:
+                monthly.append(row.present)
         e = cure.get(s.id)
         if not e:
             e = AcadEval(acad_student_id=s.id)
             db.add(e)
-        e.days_open = _to_int(form.get(f"dopen_{s.id}", ""), None)
-        e.days_present = _to_int(form.get(f"dpres_{s.id}", ""), None)
+        e.days_open = _to_int(form.get(f"dopen_{s.id}", ""), None) or (open_total or None)
         e.days_sick = _to_int(form.get(f"sick_{s.id}", ""), None)
         e.days_leave = _to_int(form.get(f"leave_{s.id}", ""), None)
         e.days_absent = _to_int(form.get(f"abs_{s.id}", ""), None)
+        # มา(รวม) คิดฝั่งเซิร์ฟเวอร์ด้วย เผื่อ JS ไม่ทำงาน จะได้ไม่บันทึกเลขเก่าค้างไว้
+        # ลำดับ: ผลรวมรายเดือน > วันเปิดเรียน ลบ ป่วย/ลา/ขาด > ค่าที่ส่งมา
+        miss = sum(v for v in (e.days_sick, e.days_leave, e.days_absent) if v is not None)
+        if monthly:
+            e.days_present = sum(monthly)
+        elif e.days_open:
+            e.days_present = max(0, e.days_open - miss)
+        else:
+            e.days_present = _to_int(form.get(f"dpres_{s.id}", ""), None)
     db.commit()
     return RedirectResponse(f"/academic/attendance?cid={c.id}&saved=1", status_code=303)
 
