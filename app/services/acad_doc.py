@@ -69,6 +69,32 @@ def _widths(table, widths):
     for row in table.rows:
         for c, w in zip(row.cells, widths):
             c.width = w
+    _center(table)
+
+
+def _center(table):
+    """จัดตารางให้อยู่กึ่งกลางหน้ากระดาษ (python-docx ชิดซ้ายเป็นค่าปริยาย)"""
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    table.autofit = False
+
+
+def _new_section(doc, *, landscape: bool):
+    """ขึ้น section ใหม่พร้อมตั้งแนวกระดาษเอง
+    (ห้ามเรียก set_a4 ซ้ำ เพราะมันบังคับ *ทุก* section ให้เป็นแนวเดียวกัน
+     — เอกสารนี้ต้องผสม ปกแนวตั้ง + เนื้อในแนวนอน)"""
+    from docx.enum.section import WD_SECTION
+    from app.services.doc_page import A4_W, A4_H
+    sec = doc.add_section(WD_SECTION.NEW_PAGE)
+    if landscape:
+        sec.orientation = WD_ORIENT.LANDSCAPE
+        sec.page_width, sec.page_height = A4_H, A4_W
+    else:
+        sec.orientation = WD_ORIENT.PORTRAIT
+        sec.page_width, sec.page_height = A4_W, A4_H
+    sec.left_margin = sec.right_margin = Cm(1.5)
+    sec.top_margin = Cm(1.5); sec.bottom_margin = Cm(1.2)
+    return sec
 
 
 def _class_label(c) -> str:
@@ -255,15 +281,16 @@ def _pp5_quality_summary(doc, klass, subjects, students, db, kind, title):
 
 
 def render_pp5_book(school, klass, db, term: int | None = None) -> str:
-    """ปพ.5 ทั้งเล่ม: ปก -> รายชื่อ -> สรุปเวลาเรียน -> คะแนนรายวิชา (วิชาละหน้า)
-    -> สรุปผลทุกวิชา -> สรุปผลการประเมินทั้งปี · แนวนอนล้วน
+    """ปพ.5 ทั้งเล่ม: ปก (แนวตั้ง · ลายเซ็นครบทุกคนอยู่หน้าแรก)
+    -> รายชื่อ -> สรุปเวลาเรียน -> คะแนนรายวิชา (วิชาละหน้า)
+    -> สรุปผลทุกวิชา -> สรุปผลการประเมินทั้งปี  (ส่วนนี้แนวนอน)
     มัธยม: เล่มรายภาค (term 1/2) · ประถม: ทั้งปี (term 0)"""
     from app.models import AcadScore, AcadSubject
     from app.services.academic import weighted_avg, QUALITY_LEVELS
 
     sec = is_secondary(klass.level)
     t = (term if term in (1, 2) else 1) if sec else 0
-    doc = _doc(landscape=True)
+    doc = _doc()                      # ปกเป็นแนวตั้ง แล้วค่อยสลับเป็นแนวนอนหลังปก
     students = sorted(klass.students, key=lambda s: (s.seq or 999, s.name))
     # ค่าที่ใช้จริงต่อคน (คำนวณจากรายวิชา/รายเดือนถ้ามี · ไม่มีก็ค่า manual) — จุดตัดสินใจเดียว
     effs = {s.id: effective_eval(s, db) for s in students}
@@ -278,23 +305,22 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
             sc_map[(row.acad_student_id, row.subject_id)] = row
     term_txt = f"ภาคเรียนที่ {t}" if sec else "ตลอดปีการศึกษา"
 
-    # ---------- หน้า 1: ปก ----------
-    _p(doc, "", after=6)
-    _p(doc, "สมุดบันทึกผลการพัฒนาคุณภาพผู้เรียน (ปพ.5)", align="center", bold=True, size=20, after=2)
+    # ---------- หน้า 1: ปก (แนวตั้ง · พื้นที่พิมพ์ 18.0 ซม.) ----------
+    _p(doc, "สมุดบันทึกผลการพัฒนาคุณภาพผู้เรียน (ปพ.5)", align="center", bold=True, size=19, after=2)
     _p(doc, f"ชั้น {_class_label(klass)}   ปีการศึกษา {klass.year}" + (f"   {term_txt}" if sec else ""),
-       align="center", bold=True, size=16, after=0)
+       align="center", bold=True, size=15, after=0)
     loc = [school.name or ""]
     if (school.district or "").strip():
         loc.append(f"อำเภอ{school.district.strip()}")
     if (school.province or "").strip():
         loc.append(f"จังหวัด{school.province.strip()}")
-    _p(doc, "  ".join(loc), align="center", size=15, after=0)
+    _p(doc, "  ".join(loc), align="center", size=14, after=0)
     if (school.area_office or "").strip():
-        _p(doc, f"สำนักงานเขตพื้นที่การศึกษา{school.area_office.strip()}", align="center", size=14, after=0)
+        _p(doc, f"สำนักงานเขตพื้นที่การศึกษา{school.area_office.strip()}", align="center", size=13, after=0)
     boys = sum(1 for s in students if s.sex == "M")
     girls = sum(1 for s in students if s.sex == "F")
     _p(doc, f"นักเรียนทั้งหมด {len(students)} คน  (ชาย {boys} · หญิง {girls})",
-       align="center", size=14, after=8)
+       align="center", size=13, after=6)
 
     # ตารางแจกแจงระดับผลการเรียนรายวิชา
     grade_cols = ["4", "3.5", "3", "2.5", "2", "1.5", "1", "0", "ร", "มส"]
@@ -306,62 +332,65 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     top = gt.rows[0].cells[2]
     for c in gt.rows[0].cells[3:]:
         top = top.merge(c)
-    _cell(top, "จำนวนนักเรียนแยกตามระดับผลการเรียน (คน)", bold=True, fill="EDE9FE")
+    _cell(top, "จำนวนนักเรียนแยกตามระดับผลการเรียน (คน)", bold=True, fill="EDE9FE", size=11)
     for i, g in enumerate(grade_cols):
-        _cell(gt.rows[1].cells[2 + i], g, bold=True, fill="EDE9FE", size=12)
+        _cell(gt.rows[1].cells[2 + i], g, bold=True, fill="EDE9FE", size=10)
     for i, sub in enumerate(subjects, start=1):
         cells = gt.add_row().cells
-        _cell(cells[0], i, size=12)
-        _cell(cells[1], f"{sub.code or ''} {sub.name}".strip(), align="left", size=12)
+        _cell(cells[0], i, size=11)
+        _cell(cells[1], f"{sub.code or ''} {sub.name}".strip(), align="left", size=11)
         cnt = _grade_counts((sc_map.get((s.id, sub.id)).grade
                              if sc_map.get((s.id, sub.id)) else "") for s in students)
         for j, g in enumerate(grade_cols):
-            _cell(cells[2 + j], cnt[g] or "", size=12)
-    _widths(gt, [Cm(1.2), Cm(8.1)] + [Cm(1.74)] * len(grade_cols))
+            _cell(cells[2 + j], cnt[g] or "", size=11)
+    # แนวตั้ง: 1.0 + 6.0 + 10x1.1 = 18.0 ซม. พอดีพื้นที่พิมพ์
+    _widths(gt, [Cm(1.0), Cm(6.0)] + [Cm(1.1)] * len(grade_cols))
 
     # ตารางเล็ก: คุณลักษณะฯ + อ่านคิดฯ (ค่าที่ใช้จริง — คำนวณจากรายวิชาถ้ามี)
-    _p(doc, "", after=6)
+    _p(doc, "", after=4)
     qt = doc.add_table(rows=1, cols=1 + len(QUALITY_LEVELS)); qt.style = "Table Grid"
-    _cell(qt.rows[0].cells[0], "ผลการประเมิน (คน)", bold=True, fill="EDE9FE")
+    _cell(qt.rows[0].cells[0], "ผลการประเมิน (คน)", bold=True, fill="EDE9FE", size=11)
     for i, q in enumerate(QUALITY_LEVELS):
-        _cell(qt.rows[0].cells[1 + i], q, bold=True, fill="EDE9FE")
+        _cell(qt.rows[0].cells[1 + i], q, bold=True, fill="EDE9FE", size=11)
     for lab, key in [("คุณลักษณะอันพึงประสงค์", "desired_char"),
                      ("การอ่าน คิดวิเคราะห์ และเขียน", "read_think")]:
         cells = qt.add_row().cells
-        _cell(cells[0], lab, align="left")
+        _cell(cells[0], lab, align="left", size=11)
         for i, q in enumerate(QUALITY_LEVELS):
             n = sum(1 for s in students if effs[s.id][key] == q)
-            _cell(cells[1 + i], n or "")
-    _widths(qt, [Cm(10.0)] + [Cm(4.175)] * len(QUALITY_LEVELS))
+            _cell(cells[1 + i], n or "", size=11)
+    _widths(qt, [Cm(7.2)] + [Cm(2.7)] * len(QUALITY_LEVELS))     # รวม 18.0
 
-    # ลงนาม: ครูประจำชั้น -> หัวหน้าฝ่ายวิชาการ -> ผอ. (อนุมัติ)
-    _p(doc, "", after=10)
-    homerooms = [p.name for p in (klass.homeroom, klass.co_homeroom) if p]
-    if homerooms:
-        st = doc.add_table(rows=1, cols=len(homerooms))
-        for cell, nm in zip(st.rows[0].cells, homerooms):
-            for i, txt in enumerate(["(ลงชื่อ).............................................",
-                                     f"( {nm} )", "ครูประจำชั้น"]):
-                p = cell.paragraphs[0] if i == 0 else cell.add_paragraph()
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.paragraph_format.space_after = Pt(0)
-                r = p.add_run(txt); r.font.size = Pt(13); r.font.name = THAI_FONT
-                r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
-                if i == 0:
-                    _float_signature(p, nm)
-        _widths(st, [Cm(26.0 / len(homerooms))] * len(homerooms))
-        _p(doc, "", after=6)
+    # ---------- ลายเซ็นทุกคนต้องอยู่หน้าปก ----------
+    # จัดเป็นตาราง 3 คอลัมน์ ครูประจำชั้น(1-2) + หัวหน้าฝ่ายวิชาการ ในแถวเดียว
+    # แล้ว ผอ. อยู่ตรงกลางด้านล่าง — กินพื้นที่แนวตั้งน้อยกว่าเรียงลงมาทีละบล็อก
+    _p(doc, "", after=8)
     head = (getattr(school, "academic_head_name", "") or "").strip()
-    _sign_block(doc, head, "หัวหน้าฝ่ายวิชาการ", after=6)
-    _p(doc, "ผลการตรวจสอบ    [   ] อนุมัติ        [   ] ไม่อนุมัติ", align="center", size=14, after=4)
+    signers = [(p.name, "ครูประจำชั้น") for p in (klass.homeroom, klass.co_homeroom) if p]
+    signers.append((head, "หัวหน้าฝ่ายวิชาการ"))
+    st = doc.add_table(rows=1, cols=len(signers))
+    for cell, (nm, role) in zip(st.rows[0].cells, signers):
+        for i, txt in enumerate(["(ลงชื่อ)......................................",
+                                 f"( {nm or '.....................................'} )", role]):
+            p = cell.paragraphs[0] if i == 0 else cell.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_after = Pt(0)
+            r = p.add_run(txt); r.font.size = Pt(12.5); r.font.name = THAI_FONT
+            r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
+            if i == 0 and nm:
+                _float_signature(p, nm)
+    _widths(st, [Cm(18.0 / len(signers))] * len(signers))
+
+    _p(doc, "", after=8)
+    _p(doc, "ผลการตรวจสอบ    [   ] อนุมัติ        [   ] ไม่อนุมัติ", align="center", size=13, after=6)
     director = (getattr(school, "director_name", "") or "").strip()
     dpos = ("ผู้อำนวยการ" + school.name) if (school.name or "").startswith("โรงเรียน") \
         else "ผู้อำนวยการโรงเรียน"
     _sign_block(doc, director, dpos)
-    _p(doc, "วันที่ ........ เดือน ......................... พ.ศ. ..........", align="center", size=13, after=0)
+    _p(doc, "วันที่ ........ เดือน ......................... พ.ศ. ..........", align="center", size=12.5, after=0)
 
-    # ---------- หน้า 2: รายชื่อนักเรียน ----------
-    doc.add_page_break()
+    # ---------- หน้า 2 เป็นต้นไป: สลับเป็นแนวนอน ----------
+    _new_section(doc, landscape=True)
     _p(doc, f"รายชื่อนักเรียน ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}",
        align="center", bold=True, size=16, after=6)
     rt = doc.add_table(rows=1, cols=5); rt.style = "Table Grid"

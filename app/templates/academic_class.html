@@ -21,7 +21,7 @@
         <button class="btn" type="submit"><svg class="icon"><use href="#ic-download"/></svg> ดึงนักเรียนจากทะเบียนกลาง</button>
       </form>
       {% if students %}
-      <a class="btn soft" href="/academic/attendance?cid={{ c.id }}"><svg class="icon"><use href="#ic-calendar"/></svg> เวลาเรียน</a>
+      <a class="btn soft" href="/academic/attendance?cid={{ c.id }}"><svg class="icon"><use href="#ic-clock"/></svg> เวลาเรียน</a>
       {% if is_sec %}
       <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx?term=1"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม ภาค 1</a>
       <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx?term=2"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม ภาค 2</a>
