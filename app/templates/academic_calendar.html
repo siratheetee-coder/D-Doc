@@ -3,16 +3,16 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">งานวิชาการ · ใช้เป็นฐานของการเช็กชื่อ</div>
+    <div class="hero-sub">งานวิชาการ</div>
     <span class="hero-title">ปฏิทินการศึกษา</span>
-    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+    <div class="hero-meta">{{ school.name or "" }} ปีการศึกษา {{ year }}</div>
   </div>
 </div>
 
 {% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกแล้ว</div>{% endif %}
-{% if request.query_params.get('filled') %}<div class="alert">✔ เติมวันเรียนทั้งปีให้แล้ว (ตัดวันหยุดและวันนอกภาคเรียนออก) — ตรวจแล้วกด "บันทึกปฏิทิน" ด้านล่าง</div>{% endif %}
+{% if request.query_params.get('filled') %}<div class="alert">✔ เติมวันเรียนทั้งปีให้แล้ว (ตัดวันหยุดและวันนอกภาคเรียนออก) ตรวจแล้วกด "บันทึกปฏิทิน" ด้านล่าง</div>{% endif %}
 {% set sd = request.query_params.get('seeded') %}
-{% if sd %}<div class="alert">{% if sd == '0' %}วันหยุดครบอยู่แล้ว ไม่ได้เพิ่มซ้ำ{% else %}✔ ใส่วันหยุดให้ {{ sd }} รายการ — <b>วันพระยังต้องกรอกวันที่เอง</b>{% endif %}</div>{% endif %}
+{% if sd %}<div class="alert">{% if sd == '0' %}วันหยุดครบอยู่แล้ว ไม่ได้เพิ่มซ้ำ{% else %}✔ ใส่วันหยุดให้ {{ sd }} รายการ <b>วันพระยังต้องกรอกวันที่เอง</b>{% endif %}</div>{% endif %}
 
 <div class="card">
   <form method="get" action="/academic/calendar" class="row" style="align-items:flex-end; margin:0;">
@@ -22,15 +22,14 @@
       </select></div>
   </form>
   <p class="muted" style="font-size:13px; margin:10px 0 0;">
-    ตั้งว่าแต่ละเดือน<b>เปิดเรียนวันไหนบ้าง</b> → ครูจะเช็กชื่อรายวันได้ที่หน้า
-    <a href="/academic/attendance">เวลาเรียน</a> ·
-    แนะนำให้ตั้ง <b>ภาคเรียน</b> และ <b>วันหยุด</b> ด้านล่างก่อน แล้วกด "เติมวันเรียนอัตโนมัติ"</p>
+    ตั้งค่าว่าแต่ละเดือน<b>เปิดเรียนวันไหนบ้าง</b> → ครูจะเช็กเวลาเรียนรายวันได้ที่หน้า
+    <a href="/academic/attendance">เวลาเรียน</a>
+    (แนะนำให้ตั้ง <b>ภาคเรียน</b> และ <b>วันหยุด</b> ด้านล่างก่อน แล้วกด "เติมวันเรียนอัตโนมัติ)"</p>
 </div>
 
 <div class="card">
   <h2 style="margin:0 0 6px;"><svg class="icon"><use href="#ic-calendar"/></svg> ภาคเรียน</h2>
-  <p class="muted" style="font-size:13px; margin:0 0 10px;">ใส่วันเปิด-ปิดของแต่ละภาค (วว/ดด/ปปปป พ.ศ.) —
-    ระบบจะตัดวันปิดภาคเรียนออกให้ตอนเติมอัตโนมัติ · เว้นว่างได้ถ้ายังไม่กำหนด</p>
+  <p class="muted" style="font-size:13px; margin:0 0 10px;">ใส่วันเปิด-ปิดของแต่ละภาค (วว/ดด/ปปปป พ.ศ.) ระบบจะตัดวันปิดภาคเรียนออกให้อัตโนมัติ</p>
   <form method="post" action="/academic/calendar/terms" class="row" style="align-items:flex-end;">
     <input type="hidden" name="year" value="{{ year }}">
     <div><label>ภาคเรียนที่ 1 เปิด</label><input name="t1_start" placeholder="16/05/{{ year }}" value="{{ be_date(setting.t1_start) if setting and setting.t1_start else '' }}"></div>
@@ -50,11 +49,14 @@
     </form>
   </div>
   <div class="alert warn" style="margin:10px 0;"><svg class="icon"><use href="#ic-alert"/></svg>
-    <b>วันพระต้องกรอกวันที่เอง</b> — มาฆบูชา/วิสาขบูชา/อาสาฬหบูชา/เข้าพรรษา เลื่อนทุกปีตามปฏิทินจันทรคติ
-    และวันหยุดชดเชยประกาศโดย ครม. ระบบจึงไม่เดาวันที่ให้ (ใส่ผิดไปวันเดียว ร้อยละเวลาเรียนจะเพี้ยนทั้งห้อง)
-    · ดูวันที่จากประกาศปฏิทินราชการของปีนั้น</div>
+    <b>วันพระต้องกรอกวันที่เอง</b> เนื่องจากเลื่อนทุกปีตามปฏิทินจันทรคติ โปรดกรอกวันพระเอง
+  </div>
   <form method="post" action="/academic/calendar/holidays">
     <input type="hidden" name="year" value="{{ year }}">
+    {# ปุ่มนี้ต้องเป็น submit ตัวแรกของฟอร์ม: กด Enter ในช่องกรอกจะได้ "บันทึก" ไม่ใช่ "ลบ"
+       (ถ้าไม่มี เบราว์เซอร์จะเลือกปุ่มลบแถวแรกเป็นปุ่มปริยาย = ลบทิ้งโดยไม่ตั้งใจ) #}
+    <button type="submit" aria-hidden="true" tabindex="-1"
+            style="position:absolute; width:0; height:0; padding:0; border:0; overflow:hidden;"></button>
     <div class="table-wrap">
     <table>
       <thead><tr><th>วันที่</th><th>เดือน</th><th>ชื่อวันหยุด</th><th>ประเภท</th><th>ลบ</th></tr></thead>
@@ -67,10 +69,12 @@
             {% for mn, ms in month_list %}<option value="{{ mn }}" {{ 'selected' if h.month==mn }}>{{ ms }}</option>{% endfor %}
           </select></td>
           <td><input name="n_{{ h.id }}" value="{{ h.name }}" style="width:100%; min-width:220px;"></td>
-          <td>{% if h.kind == 'lunar' %}<span class="pill">วันพระ · กรอกเอง</span>
+          <td>{% if h.kind == 'lunar' %}<span class="pill danger">วันพระ กรอกวันที่เอง</span>
               {% elif h.kind == 'fixed' %}<span class="muted" style="font-size:12.5px;">ราชการ</span>
               {% else %}<span class="muted" style="font-size:12.5px;">อื่น ๆ</span>{% endif %}</td>
-          <td class="center"><input type="checkbox" name="del_{{ h.id }}" title="ติ๊กแล้วกดบันทึกเพื่อลบ"></td>
+          {# ปุ่มลบเป็น submit ที่มี name -> เบราว์เซอร์ส่งเฉพาะปุ่มที่กด ฝั่งเซิร์ฟเวอร์อ่าน del_<id> เหมือนเดิม #}
+          <td class="center"><button class="btn sm red" type="submit" name="del_{{ h.id }}" value="1"
+                onclick="return confirm('ลบวันหยุด &quot;{{ h.name }}&quot; ?');">ลบ</button></td>
         </tr>
       {% endfor %}
         <tr style="background:#fafbfd;">
@@ -116,7 +120,7 @@
       <div class="cal-month" data-month="{{ m.num }}">
         <div class="cal-head">
           <b>{{ m.name }}</b>
-          <span class="muted"><b class="cal-count">0</b> วัน</span>
+          <span class="muted"><b class="cal-count">0</b> วันที่</span>
         </div>
         <div class="cal-days">
           <i class="cal-wd">จ</i><i class="cal-wd">อ</i><i class="cal-wd">พ</i><i class="cal-wd">พฤ</i><i class="cal-wd">ศ</i><i class="cal-wd we">ส</i><i class="cal-wd we">อา</i>
