@@ -15,7 +15,7 @@ from app.database import get_db
 from app.models import (Student, Person, AcadClass, AcadStudent, AcadSubject,
                         AcadTeaching, AcadScore, AcadEval,
                         AcadCharEval, AcadReadEval, AcadAttendance, AcadClassMonth,
-                        AcadCalendar)
+                        AcadCalendar, AcadHoliday, AcadYearSetting)
 from app.thai_utils import SCHOOL_LEVELS, GRADUATED, current_academic_year, is_secondary, level_rank
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
@@ -25,7 +25,10 @@ from app.services.academic import (grade_of, subject_preset, term_choices, term_
                                    TH_MONTH_FULL, quality_of_avg, char_avg, read_avg,
                                    effective_eval, MARK_STATES, MARK_CHARS, MARK_BLANK,
                                    TH_WEEKDAYS, month_weekdays, default_open_days,
-                                   parse_days_csv, parse_marks, build_marks, count_marks)
+                                   parse_days_csv, parse_marks, build_marks, count_marks,
+                                   seed_fixed_holidays, holiday_map, in_term, auto_open_days,
+                                   LUNAR_HOLIDAY_NAMES)
+from app.thai_utils import parse_be_date, be_date_input
 
 router = APIRouter()
 
@@ -46,6 +49,10 @@ def _class_label(c) -> str:
 
 def _sorted_classes(rows) -> list:
     return sorted(rows, key=lambda c: (level_rank(c.level), c.room or ""))
+
+
+# ลำดับเดือนตามปีการศึกษา (พ.ค. มาก่อน ม.ค.) — ใช้เรียงตารางวันหยุด
+TH_MONTH_ORDER = {m: i for i, (m, _) in enumerate(TH_MONTHS)}
 
 
 # ---------------- หน้าหลัก ----------------
@@ -473,22 +480,93 @@ def calendar_page(request: Request, db: Session = Depends(get_db), year: int | N
     y = year or current_academic_year()
     saved = {r.month: parse_days_csv(r.days_csv)
              for r in db.query(AcadCalendar).filter_by(year=y).all()}
+    hol = holiday_map(y, db)
+    setting = db.query(AcadYearSetting).filter_by(year=y).first()
     months = []
     for mnum, mshort in TH_MONTHS:
         wd = month_weekdays(y, mnum)
-        # เดือนที่ยังไม่เคยตั้ง -> ตั้งต้นเป็นวันจันทร์-ศุกร์ (ครูค่อยคลิกปิดวันหยุด)
-        open_days = saved[mnum] if mnum in saved else default_open_days(y, mnum)
+        # เดือนที่ยังไม่เคยตั้ง -> ใช้ที่ระบบแนะนำ (จ.-ศ. ลบวันหยุด ลบวันนอกเทอม)
+        open_days = saved[mnum] if mnum in saved else auto_open_days(y, mnum, db)
         months.append({
             "num": mnum, "short": mshort, "name": TH_MONTH_FULL[mnum],
-            "days": [{"d": d, "wd": wd[d], "open": d in open_days} for d in sorted(wd)],
+            "days": [{"d": d, "wd": wd[d], "open": d in open_days,
+                      "hol": hol.get((mnum, d), ""),
+                      "off": not in_term(y, mnum, d, setting)} for d in sorted(wd)],
             # ช่องว่างนำหน้าให้วันที่ 1 ตกคอลัมน์วันที่ถูกต้อง (จันทร์=คอลัมน์แรก)
             "lead": TH_WEEKDAYS.index(wd[1]),
             "configured": mnum in saved,
         })
+    holidays = sorted(db.query(AcadHoliday).filter_by(year=y).all(),
+                      key=lambda r: (r.month is None, TH_MONTH_ORDER.get(r.month or 0, 99),
+                                     r.day or 0))
     return templates.TemplateResponse("academic_calendar.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
-        "months": months, "any_set": bool(saved),
+        "months": months, "any_set": bool(saved), "holidays": holidays,
+        "setting": setting, "be_date": be_date_input, "month_list": TH_MONTHS,
+        "lunar_names": LUNAR_HOLIDAY_NAMES,
     })
+
+
+@router.post("/academic/calendar/terms")
+def calendar_terms(db: Session = Depends(get_db), year: str = Form(""),
+                   t1_start: str = Form(""), t1_end: str = Form(""),
+                   t2_start: str = Form(""), t2_end: str = Form("")):
+    y = _to_int(year, 0) or current_academic_year()
+    row = db.query(AcadYearSetting).filter_by(year=y).first()
+    if not row:
+        row = AcadYearSetting(year=y)
+        db.add(row)
+    row.t1_start = parse_be_date(t1_start)
+    row.t1_end = parse_be_date(t1_end)
+    row.t2_start = parse_be_date(t2_start)
+    row.t2_end = parse_be_date(t2_end)
+    db.commit()
+    return RedirectResponse(f"/academic/calendar?year={y}&saved=1", status_code=303)
+
+
+@router.post("/academic/calendar/holidays")
+async def calendar_holidays(request: Request, db: Session = Depends(get_db),
+                            year: str = Form("")):
+    """บันทึกตารางวันหยุดทั้งชุด (แก้/ลบแถวเดิม + เพิ่มแถวใหม่จากช่องท้ายตาราง)"""
+    form = await request.form()
+    y = _to_int(year, 0) or current_academic_year()
+    for r in db.query(AcadHoliday).filter_by(year=y).all():
+        if form.get(f"del_{r.id}"):
+            db.delete(r)
+            continue
+        r.month = _to_int(form.get(f"m_{r.id}", ""), None) or None
+        r.day = _to_int(form.get(f"d_{r.id}", ""), None) or None
+        r.name = (form.get(f"n_{r.id}", "") or "").strip()
+    nm = (form.get("new_name", "") or "").strip()
+    nmm = _to_int(form.get("new_month", ""), None)
+    nmd = _to_int(form.get("new_day", ""), None)
+    if nm and nmm and nmd:
+        db.add(AcadHoliday(year=y, month=nmm, day=nmd, name=nm, kind="other"))
+    db.commit()
+    return RedirectResponse(f"/academic/calendar?year={y}&saved=1", status_code=303)
+
+
+@router.post("/academic/calendar/seed-holidays")
+def calendar_seed_holidays(db: Session = Depends(get_db), year: str = Form("")):
+    y = _to_int(year, 0) or current_academic_year()
+    n = seed_fixed_holidays(y, db)
+    return RedirectResponse(f"/academic/calendar?year={y}&seeded={n}", status_code=303)
+
+
+@router.post("/academic/calendar/autofill")
+def calendar_autofill(db: Session = Depends(get_db), year: str = Form("")):
+    """เติมวันเรียนทั้งปีจาก จ.-ศ. ลบวันหยุด ลบวันนอกภาคเรียน
+    คำนวณฝั่งเซิร์ฟเวอร์เพราะต้องใช้ข้อมูลวันหยุด/ภาคเรียนจากฐานข้อมูล"""
+    y = _to_int(year, 0) or current_academic_year()
+    cur = {r.month: r for r in db.query(AcadCalendar).filter_by(year=y).all()}
+    for mnum, _short in TH_MONTHS:
+        row = cur.get(mnum)
+        if not row:
+            row = AcadCalendar(year=y, month=mnum)
+            db.add(row)
+        row.days_csv = ",".join(str(d) for d in auto_open_days(y, mnum, db))
+    db.commit()
+    return RedirectResponse(f"/academic/calendar?year={y}&filled=1", status_code=303)
 
 
 @router.post("/academic/calendar/save")

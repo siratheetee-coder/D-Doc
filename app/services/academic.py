@@ -60,6 +60,85 @@ def month_weekdays(be_year: int, month: int) -> dict:
     return {d: TH_WEEKDAYS[date(ce, int(month), d).weekday()] for d in range(1, ndays + 1)}
 
 
+# ---- วันหยุด ----
+# วันหยุดราชการที่ "วันที่ตายตัว" เฉพาะที่ตกอยู่ในปีการศึกษา (พ.ค.-มี.ค.) -> (เดือน, วัน, ชื่อ)
+# ไม่ใส่ 1 พ.ค. วันแรงงาน (ราชการ/โรงเรียนไม่หยุด) · จักรี 6 เม.ย. และสงกรานต์ อยู่นอกปีการศึกษา
+FIXED_HOLIDAYS = [
+    (5, 4, "วันฉัตรมงคล"),
+    (6, 3, "วันเฉลิมพระชนมพรรษาสมเด็จพระนางเจ้าฯ พระบรมราชินี"),
+    (7, 28, "วันเฉลิมพระชนมพรรษาพระบาทสมเด็จพระเจ้าอยู่หัว"),
+    (8, 12, "วันเฉลิมพระชนมพรรษาสมเด็จพระบรมราชชนนีพันปีหลวง (วันแม่)"),
+    (10, 13, "วันนวมินทรมหาราช"),
+    (10, 23, "วันปิยมหาราช"),
+    (12, 5, "วันคล้ายวันพระบรมราชสมภพ ร.9 (วันชาติ · วันพ่อ)"),
+    (12, 10, "วันรัฐธรรมนูญ"),
+    (12, 31, "วันสิ้นปี"),
+    (1, 1, "วันขึ้นปีใหม่"),
+]
+# วันพระ: เลื่อนทุกปีตามปฏิทินจันทรคติ + วันหยุดชดเชยประกาศโดย ครม.
+# ระบบ "ไม่เดาวันที่ให้" — สร้างเป็นแถวเปล่ารอให้โรงเรียนกรอก
+# (ใส่ผิดไป 1 วัน ร้อยละเวลาเรียนเพี้ยนทั้งห้องโดยไม่มีใครทัก)
+LUNAR_HOLIDAY_NAMES = ["วันมาฆบูชา", "วันวิสาขบูชา", "วันอาสาฬหบูชา", "วันเข้าพรรษา"]
+
+
+def seed_fixed_holidays(be_year: int, db) -> int:
+    """สร้างแถววันหยุดราชการ + แถวเปล่าของวันพระ · ข้ามที่มีอยู่แล้ว (กดซ้ำไม่เกิดแถวซ้ำ)
+    คืนจำนวนแถวที่เพิ่มจริง"""
+    from app.models import AcadHoliday
+    rows = db.query(AcadHoliday).filter_by(year=be_year).all()
+    have_fixed = {(r.month, r.day) for r in rows if r.kind == "fixed"}
+    have_lunar = {(r.name or "").strip() for r in rows if r.kind == "lunar"}
+    n = 0
+    for m, d, name in FIXED_HOLIDAYS:
+        if (m, d) not in have_fixed:
+            db.add(AcadHoliday(year=be_year, month=m, day=d, name=name, kind="fixed"))
+            n += 1
+    for name in LUNAR_HOLIDAY_NAMES:
+        if name not in have_lunar:
+            # เว้น month/day ไว้ให้ครูกรอก — ยังไม่มีผลกับปฏิทินจนกว่าจะกรอกวันที่
+            db.add(AcadHoliday(year=be_year, month=None, day=None, name=name, kind="lunar"))
+            n += 1
+    db.commit()
+    return n
+
+
+def holiday_map(be_year: int, db) -> dict:
+    """{(เดือน, วัน): ชื่อวันหยุด} ของปีการศึกษานั้น (ข้ามแถวที่ยังไม่กรอกวันที่)"""
+    from app.models import AcadHoliday
+    out = {}
+    for r in db.query(AcadHoliday).filter_by(year=be_year).all():
+        if r.month and r.day:
+            out[(int(r.month), int(r.day))] = (r.name or "").strip() or "วันหยุด"
+    return out
+
+
+def in_term(be_year: int, month: int, day: int, setting) -> bool:
+    """วันนั้นอยู่ในภาคเรียนไหม · ไม่ได้ตั้งเทอมไว้ = ถือว่าอยู่ (โรงเรียนที่ไม่กรอกไม่กระทบ)"""
+    from datetime import date
+    if not setting:
+        return True
+    spans = [(setting.t1_start, setting.t1_end), (setting.t2_start, setting.t2_end)]
+    spans = [(a, b) for a, b in spans if a or b]
+    if not spans:
+        return True
+    d = date(academic_ce_year(be_year, month), int(month), int(day))
+    for a, b in spans:
+        lo = a.date() if hasattr(a, "date") else a
+        hi = b.date() if hasattr(b, "date") else b
+        if (lo is None or d >= lo) and (hi is None or d <= hi):
+            return True
+    return False
+
+
+def auto_open_days(be_year: int, month: int, db) -> list:
+    """วันเปิดเรียนที่ระบบแนะนำ = จันทร์-ศุกร์ ลบวันหยุด ลบวันนอกภาคเรียน"""
+    from app.models import AcadYearSetting
+    hol = holiday_map(be_year, db)
+    setting = db.query(AcadYearSetting).filter_by(year=be_year).first()
+    return [d for d in default_open_days(be_year, month)
+            if (month, d) not in hol and in_term(be_year, month, d, setting)]
+
+
 def default_open_days(be_year: int, month: int) -> list:
     """วันจันทร์-ศุกร์ทั้งหมดของเดือนนั้น (ค่าตั้งต้นของปฏิทิน — วันหยุดราชการให้ครูคลิกปิดเอง)"""
     import calendar as _cal

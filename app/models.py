@@ -1223,6 +1223,33 @@ class AcadCalendar(Base):
     days_csv = Column(String, default="")       # "3,4,5,6,7,10,11" = วันที่เปิดเรียน
 
 
+class AcadHoliday(Base):
+    """วันหยุดของปีการศึกษานั้น — แก้/ลบได้ทุกแถว
+    kind: fixed = วันหยุดราชการที่วันที่ตายตัว (ระบบใส่ให้ได้)
+          lunar = วันพระ เลื่อนทุกปีตามจันทรคติ (โรงเรียนกรอกเอง ระบบไม่เดา)
+          other = วันหยุดชดเชย/วันหยุดพิเศษตามประกาศ"""
+    __tablename__ = "acad_holiday"
+
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, nullable=False)      # ปีการศึกษา พ.ศ.
+    month = Column(Integer, nullable=True)      # เว้นว่างได้ = ยังไม่กรอกวันที่
+    day = Column(Integer, nullable=True)
+    name = Column(String, default="")
+    kind = Column(String, default="other")
+
+
+class AcadYearSetting(Base):
+    """วันเปิด-ปิดภาคเรียนของปีการศึกษา (ใช้ตัดวันนอกเทอมออกตอนเติมปฏิทินอัตโนมัติ)"""
+    __tablename__ = "acad_year_setting"
+
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, nullable=False)
+    t1_start = Column(DateTime, nullable=True)
+    t1_end = Column(DateTime, nullable=True)
+    t2_start = Column(DateTime, nullable=True)
+    t2_end = Column(DateTime, nullable=True)
+
+
 class AcadClassMonth(Base):
     """วันเปิดเรียนรายเดือนของห้อง (ตัวหารของร้อยละเวลาเรียน)"""
     __tablename__ = "acad_class_month"
