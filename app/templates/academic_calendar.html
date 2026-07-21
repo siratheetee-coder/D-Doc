@@ -10,7 +10,7 @@
 </div>
 
 {% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกแล้ว</div>{% endif %}
-{% if request.query_params.get('filled') %}<div class="alert">✔ เติมวันเรียนทั้งปีให้แล้ว (ตัดวันหยุดและวันนอกภาคเรียนออก) ตรวจแล้วกด "บันทึกปฏิทิน" ด้านล่าง</div>{% endif %}
+{% if request.query_params.get('filled') %}<div class="alert">✔ กรอกปฏิทินทั้งปีให้แล้ว (ตัดวันหยุดและวันนอกภาคเรียนออก) ตรวจแล้วกด "บันทึกปฏิทิน" ด้านล่าง</div>{% endif %}
 {% set sd = request.query_params.get('seeded') %}
 {% if sd %}<div class="alert">{% if sd == '0' %}วันหยุดครบอยู่แล้ว ไม่ได้เพิ่มซ้ำ{% else %}✔ ใส่วันหยุดให้ {{ sd }} รายการ <b>วันพระยังต้องกรอกวันที่เอง</b>{% endif %}</div>{% endif %}
 
@@ -22,9 +22,9 @@
       </select></div>
   </form>
   <p class="muted" style="font-size:13px; margin:10px 0 0;">
-    ตั้งค่าว่าแต่ละเดือน<b>เปิดเรียนวันไหนบ้าง</b> → ครูจะเช็กเวลาเรียนรายวันได้ที่หน้า
-    <a href="/academic/attendance">เวลาเรียน</a>
-    (แนะนำให้ตั้ง <b>ภาคเรียน</b> และ <b>วันหยุด</b> ด้านล่างก่อน แล้วกด "เติมวันเรียนอัตโนมัติ)"</p>
+    ทำตามลำดับ: <b>1)</b> กรอกวันเปิด-ปิดภาคเรียน → <b>2)</b> ตรวจวันหยุด (กรอกวันพระเอง) →
+    <b>3)</b> กด <b>"กรอกปฏิทินการศึกษา"</b> ระบบจะกรอกให้ทั้งปี ·
+    ตั้งเสร็จแล้วครูจะเช็กเวลาเรียนรายวันได้ที่หน้า <a href="/academic/attendance">เวลาเรียน</a></p>
 </div>
 
 <div class="card">
@@ -91,30 +91,22 @@
   </form>
 </div>
 
-<div class="card" style="border:1px solid #ddd6fe; background:#faf8ff;">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-    <div>
-      <h2 style="margin:0 0 4px;"><svg class="icon"><use href="#ic-star"/></svg> เติมวันเรียนอัตโนมัติ</h2>
-      <p class="muted" style="font-size:13px; margin:0;">วันจันทร์-ศุกร์ <b>ลบวันหยุดที่ตั้งไว้</b> และ <b>ลบวันนอกภาคเรียน</b> ให้ทั้งปี
-        — เติมแล้วยังคลิกแก้รายวันได้ ก่อนกดบันทึก</p>
-    </div>
-    <form method="post" action="/academic/calendar/autofill" style="margin:0;">
-      <input type="hidden" name="year" value="{{ year }}">
-      <button class="btn" type="submit">เติมวันเรียนทั้งปี</button>
-    </form>
-  </div>
-</div>
-
 <form method="post" action="/academic/calendar/save">
   <input type="hidden" name="year" value="{{ year }}">
   <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
       <h2 style="margin:0;">วันเปิดเรียน <span class="muted" style="font-size:15px;">รวมทั้งปี <b id="grand">0</b> วัน</span></h2>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn soft" type="button" onclick="fillWeekdays()">เติม จ.-ศ. (ไม่สนวันหยุด)</button>
+        {# formaction เปลี่ยนปลายทางเฉพาะปุ่มนี้ ไม่ต้องซ้อนฟอร์ม #}
+        <button class="btn" type="submit" formaction="/academic/calendar/autofill"
+                onclick="return confirm('กรอกปฏิทินทั้งปีจากภาคเรียนและวันหยุดที่ตั้งไว้?\n(วันที่เคยแก้เองในปฏิทินจะถูกเขียนทับ)');">
+          <svg class="icon"><use href="#ic-star"/></svg> กรอกปฏิทินการศึกษา</button>
         <button class="btn soft gray" type="button" onclick="clearAll()">ล้างทั้งหมด</button>
       </div>
     </div>
+    <p class="muted" style="font-size:13px; margin:6px 0 0;">
+      "กรอกปฏิทินการศึกษา" = วันจันทร์-ศุกร์ <b>ลบวันหยุดที่ตั้งไว้</b> และ <b>ลบวันนอกภาคเรียน</b> ให้ทั้งปี ·
+      กรอกแล้วยังคลิกแก้รายวันได้ แล้วกด "บันทึกปฏิทิน"</p>
     <div class="cal-grid">
       {% for m in months %}
       <div class="cal-month" data-month="{{ m.num }}">
@@ -185,14 +177,6 @@
     });
     syncMonth(box);
   });
-  function fillWeekdays(){
-    document.querySelectorAll('.cal-month').forEach(function(box){
-      box.querySelectorAll('.cal-day').forEach(function(b){
-        b.classList.toggle('on', !b.classList.contains('we'));
-      });
-      syncMonth(box);
-    });
-  }
   function clearAll(){
     document.querySelectorAll('.cal-day.on').forEach(function(b){ b.classList.remove('on'); });
     document.querySelectorAll('.cal-month').forEach(syncMonth);
