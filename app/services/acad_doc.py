@@ -519,15 +519,23 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     doc.add_page_break()
     _p(doc, f"สรุปผลการประเมิน ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}"
        + (f" {term_txt}" if sec else ""), align="center", bold=True, size=16, after=6)
-    ft = doc.add_table(rows=1, cols=10); ft.style = "Table Grid"
-    for i, h in enumerate(["เลขที่", "ชื่อ-นามสกุล", "ผลการเรียนเฉลี่ย", "คุณลักษณะฯ",
-                           "อ่านคิดวิเคราะห์", "แนะแนว", "ลูกเสือ", "ชุมนุม", "เพื่อสังคม", "สรุป"]):
-        _cell(ft.rows[0].cells[i], h, bold=True, fill="EDE9FE", size=12)
+    from app.models import AcadActivityResult
+    from app.services.academic import activities_for, activity_summary
+    acts = activities_for(klass.year, klass.level, db)
+    ares = {}
+    if acts and students:
+        for r in (db.query(AcadActivityResult)
+                  .filter(AcadActivityResult.acad_student_id.in_([s.id for s in students])).all()):
+            ares[(r.acad_student_id, r.activity_id)] = (r.result or "").strip()
+    heads = ["เลขที่", "ชื่อ-นามสกุล", "ผลการเรียนเฉลี่ย", "คุณลักษณะฯ", "อ่านคิดวิเคราะห์"]
+    heads += [a.name for a in acts] + ["สรุป"]
+    ft = doc.add_table(rows=1, cols=len(heads)); ft.style = "Table Grid"
+    for i, h in enumerate(heads):
+        _cell(ft.rows[0].cells[i], h, bold=True, fill="EDE9FE", size=11)
     for s in students:
-        e = s.eval
         cells = ft.add_row().cells
-        _cell(cells[0], s.seq or "")
-        _cell(cells[1], s.name, align="left")
+        _cell(cells[0], s.seq or "", size=11)
+        _cell(cells[1], s.name, align="left", size=11)
         pairs, grades = [], []
         for sub in subjects:
             row = sc_map.get((s.id, sub.id))
@@ -536,27 +544,29 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
             pairs.append((g, sub.credit if sec else sub.hours))
         avg = weighted_avg(pairs)
         ef = effs[s.id]
-        _cell(cells[2], f"{avg:.2f}" if avg is not None else "", bold=True)
-        _cell(cells[3], ef["desired_char"])
-        _cell(cells[4], ef["read_think"])
-        acts = [e.act_guidance if e else "", e.act_scout if e else "",
-                e.act_club if e else "", e.act_social if e else ""]
-        for j, a in enumerate(acts):
-            _cell(cells[5 + j], a or "")
-        # สรุป ผ/มผ: ครบทุกวิชา + ไม่มี 0/ร/มส + กิจกรรมทุกตัว ผ + คุณฯ/อ่านฯ ไม่เป็น "ไม่ผ่าน"
-        # ข้อมูลไม่ครบ = เว้นว่าง (ไม่เดา)
+        _cell(cells[2], f"{avg:.2f}" if avg is not None else "", bold=True, size=11)
+        _cell(cells[3], ef["desired_char"], size=11)
+        _cell(cells[4], ef["read_think"], size=11)
+        act_vals = [ares.get((s.id, a.id), "") for a in acts]
+        for j, av in enumerate(act_vals):
+            _cell(cells[5 + j], av, size=11)
+        # สรุป ผ/มผ: ครบทุกวิชา + ไม่มี 0/ร/มส + กิจกรรมผ่านครบ + คุณฯ/อ่านฯ ไม่เป็น "ไม่ผ่าน"
+        # ข้อมูลไม่ครบ = เว้นว่าง (ไม่เดา) · ใช้ activity_summary เป็นตัวตัดสินฝั่งกิจกรรม
         overall = ""
-        if subjects and all((g or "").strip() for g in grades) and e:
+        asum = activity_summary(s, db) if acts else "ผ"    # ไม่มีกิจกรรม = ไม่กันด้วยกิจกรรม
+        if subjects and all((g or "").strip() for g in grades):
             bad_grade = any((g or "").strip() in ("0", "ร", "มส") for g in grades)
-            bad_act = any((a or "").strip() != "ผ" for a in acts)
             bad_qual = "ไม่ผ่าน" in (ef["desired_char"], ef["read_think"])
             no_qual = not ef["desired_char"].strip() or not ef["read_think"].strip()
-            if not no_qual and not any((a or "") == "" for a in acts):
-                overall = "มผ" if (bad_grade or bad_act or bad_qual) else "ผ"
-        _cell(cells[9], overall, bold=True)
-    _widths(ft, [Cm(1.4), Cm(5.6), Cm(2.7), Cm(2.9), Cm(2.9),
-                 Cm(2.2), Cm(2.2), Cm(2.2), Cm(2.4), Cm(2.2)])
-    _p(doc, "สรุป ผ = ผลการเรียนครบทุกวิชาไม่มี 0/ร/มส · กิจกรรมผ่านทุกกิจกรรม · "
+            act_ok = (asum != "")          # ประเมินกิจกรรมครบแล้ว
+            if not no_qual and act_ok:
+                overall = "มผ" if (bad_grade or bad_qual or asum == "มผ") else "ผ"
+        _cell(cells[-1], overall, bold=True, size=11)
+    # ความกว้าง: fixed 16.5 + กิจกรรม N ช่อง ต้องรวม ≤26.7 → per-act = min(2.6, 10.2/N)
+    per = min(2.6, 10.2 / len(acts)) if acts else 2.6
+    _widths(ft, [Cm(1.4), Cm(5.6), Cm(2.5), Cm(2.5), Cm(2.5)]
+            + [Cm(per)] * len(acts) + [Cm(2.0)])
+    _p(doc, "สรุป ผ = ผลการเรียนครบทุกวิชาไม่มี 0/ร/มส · กิจกรรมพัฒนาผู้เรียนผ่านครบ · "
             "คุณลักษณะฯ และอ่านคิดวิเคราะห์ฯ ไม่ต่ำกว่าระดับผ่าน (ข้อมูลไม่ครบ = เว้นว่าง)",
        size=12, after=0)
 
@@ -644,12 +654,16 @@ def _pp6_body(doc, school, s, db, *, page_break: bool = False):
     ef = effective_eval(s, db)     # ใช้ค่าคำนวณจากรายวิชา/รายเดือนถ้ามี
     _p(doc, "", after=4)
     _p(doc, "ผลการประเมิน", bold=True, size=14, after=2)
+    from app.models import AcadActivityResult
+    from app.services.academic import activities_for
     rows = [("การอ่าน คิดวิเคราะห์ และเขียน", ef["read_think"]),
-            ("คุณลักษณะอันพึงประสงค์", ef["desired_char"]),
-            ("กิจกรรมแนะแนว", ev.act_guidance if ev else ""),
-            ("กิจกรรมลูกเสือ/เนตรนารี", ev.act_scout if ev else ""),
-            ("กิจกรรมชุมนุม", ev.act_club if ev else ""),
-            ("กิจกรรมเพื่อสังคมและสาธารณประโยชน์", ev.act_social if ev else "")]
+            ("คุณลักษณะอันพึงประสงค์", ef["desired_char"])]
+    # กิจกรรมพัฒนาผู้เรียนตามที่โรงเรียนตั้งไว้ (ชื่อจริง ไม่ตายตัว)
+    acts = activities_for(klass.year, klass.level, db)
+    my_act = {r.activity_id: (r.result or "").strip() for r in
+              db.query(AcadActivityResult).filter_by(acad_student_id=s.id).all()}
+    for a in acts:
+        rows.append((f"กิจกรรม{a.name}", my_act.get(a.id, "")))
     t2 = doc.add_table(rows=0, cols=2); t2.style = "Table Grid"
     for lab, val in rows:
         cells = t2.add_row().cells

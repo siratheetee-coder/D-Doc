@@ -15,7 +15,8 @@ from app.database import get_db
 from app.models import (Student, Person, AcadClass, AcadStudent, AcadSubject,
                         AcadTeaching, AcadScore, AcadEval,
                         AcadCharEval, AcadReadEval, AcadAttendance, AcadClassMonth,
-                        AcadCalendar, AcadHoliday, AcadYearSetting)
+                        AcadCalendar, AcadHoliday, AcadYearSetting,
+                        AcadActivity, AcadActivityResult)
 from app.thai_utils import SCHOOL_LEVELS, GRADUATED, current_academic_year, is_secondary, level_rank
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
@@ -27,7 +28,8 @@ from app.services.academic import (grade_of, subject_preset, term_choices, term_
                                    TH_WEEKDAYS, month_weekdays, default_open_days,
                                    parse_days_csv, parse_marks, build_marks, count_marks,
                                    seed_fixed_holidays, holiday_map, in_term, auto_open_days,
-                                   LUNAR_HOLIDAY_NAMES)
+                                   LUNAR_HOLIDAY_NAMES, activity_preset, activities_for,
+                                   activity_summary)
 from app.thai_utils import parse_be_date, be_date_input
 
 router = APIRouter()
@@ -219,10 +221,12 @@ def subjects_page(request: Request, db: Session = Depends(get_db),
     if level:
         q = q.filter_by(level=level)
     rows = sorted(q.all(), key=lambda s: (level_rank(s.level), s.seq or 0, s.code or ""))
+    # กิจกรรมพัฒนาผู้เรียน (การ์ดที่ 2) — แสดงเมื่อเลือกชั้นแล้วเท่านั้น
+    activities = activities_for(y, level, db) if level else []
     return templates.TemplateResponse("academic_subjects.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "rows": rows, "level": level, "levels": SCHOOL_LEVELS, "kinds": SUBJECT_KINDS,
-        "term_label": term_label, "is_secondary": is_secondary,
+        "term_label": term_label, "is_secondary": is_secondary, "activities": activities,
     })
 
 
@@ -304,6 +308,49 @@ def subjects_preset(db: Session = Depends(get_db), year: str = Form(""), level: 
     return RedirectResponse(f"/academic/subjects?year={y}&level={lv}&preset={added}", status_code=303)
 
 
+# ---------------- กิจกรรมพัฒนาผู้เรียน (ตั้งค่า) ----------------
+@router.post("/academic/activities/save")
+async def activities_save(request: Request, db: Session = Depends(get_db),
+                          year: str = Form(""), level: str = Form("")):
+    """บันทึกทั้งชุด: แก้/ลบแถวเดิม (ปุ่มลบส่ง del_<id>) + เพิ่มแถวใหม่จากช่องท้าย"""
+    form = await request.form()
+    y = _to_int(year, 0) or current_academic_year()
+    lv = (level or "").strip()
+    for a in db.query(AcadActivity).filter_by(year=y, level=lv).all():
+        if form.get(f"del_{a.id}"):
+            db.delete(a)
+            continue
+        a.code = (form.get(f"code_{a.id}", "") or "").strip()
+        a.name = (form.get(f"name_{a.id}", "") or "").strip() or a.name
+        a.hours = _to_int(form.get(f"hours_{a.id}", ""), None)
+    nm = (form.get("new_name", "") or "").strip()
+    if nm:
+        n = db.query(AcadActivity).filter_by(year=y, level=lv).count()
+        db.add(AcadActivity(year=y, level=lv, name=nm,
+                            code=(form.get("new_code", "") or "").strip(),
+                            hours=_to_int(form.get("new_hours", ""), None), seq=n + 1))
+    db.commit()
+    return RedirectResponse(f"/academic/subjects?year={y}&level={lv}&asaved=1", status_code=303)
+
+
+@router.post("/academic/activities/preset")
+def activities_preset(db: Session = Depends(get_db), year: str = Form(""), level: str = Form("")):
+    """สร้างกิจกรรมมาตรฐาน 4 อย่างในคลิกเดียว (ข้ามชื่อที่มีอยู่แล้ว)"""
+    y = _to_int(year, 0) or current_academic_year()
+    lv = (level or "").strip()
+    have = {(a.name or "").strip() for a in db.query(AcadActivity).filter_by(year=y, level=lv).all()}
+    n = db.query(AcadActivity).filter_by(year=y, level=lv).count()
+    added = 0
+    for p in activity_preset(lv):
+        if p["name"] in have:
+            continue
+        n += 1; added += 1
+        db.add(AcadActivity(year=y, level=lv, code=p["code"], name=p["name"],
+                            hours=p["hours"], seq=n))
+    db.commit()
+    return RedirectResponse(f"/academic/subjects?year={y}&level={lv}&apreset={added}", status_code=303)
+
+
 # ---------------- กรอกผลการเรียน ----------------
 @router.get("/academic/grades", response_class=HTMLResponse)
 def grades_page(request: Request, db: Session = Depends(get_db), cid: int | None = None,
@@ -377,10 +424,20 @@ def eval_page(request: Request, db: Session = Depends(get_db),
     c = db.get(AcadClass, cid) if cid else None
     students = sorted(c.students, key=lambda s: (s.seq or 999, s.name)) if c else []
     eff = {s.id: effective_eval(s, db) for s in students}
+    # กิจกรรมพัฒนาผู้เรียนที่ตั้งไว้ + ผลรายคน + สรุปรวม
+    activities = activities_for(c.year, c.level, db) if c else []
+    act_res, act_sum = {}, {}
+    if activities and students:
+        sids = [s.id for s in students]
+        for r in (db.query(AcadActivityResult)
+                  .filter(AcadActivityResult.acad_student_id.in_(sids)).all()):
+            act_res[(r.acad_student_id, r.activity_id)] = (r.result or "").strip()
+        act_sum = {s.id: activity_summary(s, db) for s in students}
     return templates.TemplateResponse("academic_eval.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "classes": classes, "c": c, "students": students, "class_label": _class_label,
         "quality": QUALITY_LEVELS, "passfail": PASS_FAIL, "eff": eff,
+        "activities": activities, "act_res": act_res, "act_sum": act_sum,
     })
 
 
@@ -403,13 +460,26 @@ async def eval_save(request: Request, db: Session = Depends(get_db), cid: str = 
             e.read_think = (form.get(f"read_{s.id}", "") or "").strip()
         if f"char_{s.id}" in form:
             e.desired_char = (form.get(f"char_{s.id}", "") or "").strip()
-        e.act_guidance = (form.get(f"guid_{s.id}", "") or "").strip()
-        e.act_scout = (form.get(f"scout_{s.id}", "") or "").strip()
-        e.act_club = (form.get(f"club_{s.id}", "") or "").strip()
-        e.act_social = (form.get(f"social_{s.id}", "") or "").strip()
+        # กิจกรรมพัฒนาผู้เรียน (act_* เดิมเลิกใช้ ย้ายไป AcadActivityResult)
         # ช่องวัน (เปิด/มา/ป่วย/ลา/ขาด) ย้ายไปหน้า "เวลาเรียน" — ห้ามอ่านที่นี่
-        # ไม่งั้นการบันทึกหน้านี้จะเขียนทับค่าที่กรอกไว้เป็นว่าง
         e.comment = (form.get(f"cmt_{s.id}", "") or "").strip()
+    # ผลกิจกรรมรายคน x รายกิจกรรม (upsert)
+    acts = activities_for(c.year, c.level, db)
+    if acts:
+        sids = [s.id for s in c.students]
+        cur_res = {}
+        if sids:
+            for r in (db.query(AcadActivityResult)
+                      .filter(AcadActivityResult.acad_student_id.in_(sids)).all()):
+                cur_res[(r.acad_student_id, r.activity_id)] = r
+        for s in c.students:
+            for a in acts:
+                v = (form.get(f"act_{s.id}_{a.id}", "") or "").strip()
+                row = cur_res.get((s.id, a.id))
+                if row:
+                    row.result = v
+                elif v:
+                    db.add(AcadActivityResult(acad_student_id=s.id, activity_id=a.id, result=v))
     db.commit()
     return RedirectResponse(f"/academic/eval?cid={c.id}&saved=1", status_code=303)
 

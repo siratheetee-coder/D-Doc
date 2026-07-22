@@ -1153,10 +1153,12 @@ class AcadEval(Base):
     acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
     read_think = Column(String, default="")         # อ่าน คิดวิเคราะห์ และเขียน
     desired_char = Column(String, default="")       # คุณลักษณะอันพึงประสงค์
-    act_guidance = Column(String, default="")       # กิจกรรมแนะแนว (ผ/มผ)
-    act_scout = Column(String, default="")          # ลูกเสือ/เนตรนารี
-    act_club = Column(String, default="")           # ชุมนุม
-    act_social = Column(String, default="")         # กิจกรรมเพื่อสังคมและสาธารณประโยชน์
+    # DEPRECATED: กิจกรรมพัฒนาผู้เรียนย้ายไป AcadActivity/AcadActivityResult (ตั้งค่าเองได้)
+    # เก็บคอลัมน์ไว้เฉย ๆ ไม่ลบ (ลบใน SQLite ยุ่งยากและไม่ได้อะไรกลับมา) แต่เลิกใช้แล้ว
+    act_guidance = Column(String, default="")       # (เลิกใช้)
+    act_scout = Column(String, default="")          # (เลิกใช้)
+    act_club = Column(String, default="")           # (เลิกใช้)
+    act_social = Column(String, default="")         # (เลิกใช้)
     days_open = Column(Integer, nullable=True)      # จำนวนวันเปิดเรียน
     days_present = Column(Integer, nullable=True)   # จำนวนวันมาเรียน
     days_sick = Column(Integer, nullable=True)      # ป่วย (วัน) — สรุปเวลาเรียนใน ปพ.5
@@ -1258,3 +1260,27 @@ class AcadClassMonth(Base):
     class_id = Column(Integer, ForeignKey("acad_class.id"), nullable=False)
     month = Column(Integer, nullable=False)
     days_open = Column(Integer, nullable=True)
+
+
+class AcadActivity(Base):
+    """กิจกรรมพัฒนาผู้เรียนของชั้นนั้นในปีนั้น — ตั้งค่าเองได้ (ขนานกับ AcadSubject)
+    แต่ละโรงเรียนจัดกิจกรรมต่างกัน จึงไม่ฝังตายตัว"""
+    __tablename__ = "acad_activity"
+
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, nullable=False)
+    level = Column(String, default="")
+    code = Column(String, default="")       # ก16901
+    name = Column(String, nullable=False)   # แนะแนว / ลูกเสือ-เนตรนารี / ...
+    hours = Column(Integer, nullable=True)  # เวลาเรียน (ชม./ปี)
+    seq = Column(Integer, default=0)
+
+
+class AcadActivityResult(Base):
+    """ผลประเมินกิจกรรมพัฒนาผู้เรียน รายคน x รายกิจกรรม (ผ/มผ)"""
+    __tablename__ = "acad_activity_result"
+
+    id = Column(Integer, primary_key=True)
+    acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
+    activity_id = Column(Integer, ForeignKey("acad_activity.id"), nullable=False)
+    result = Column(String, default="")     # "ผ" / "มผ"

@@ -44,14 +44,21 @@
   </div>
   <p class="muted" style="font-size:13px; margin:6px 0 8px;">ผลการประเมินเหล่านี้จะไปแสดงในสมุดพก ปพ.6 · เว้นว่างได้ถ้ายังไม่ประเมิน ·
     ถ้าประเมิน<b>รายวิชา</b>ไว้ (ปุ่มด้านบน) ระบบจะใช้ค่าที่คำนวณจากรายวิชาแทนช่องในตารางนี้</p>
+  {% if not activities %}
+  <div class="alert warn" style="margin:0 0 10px;"><svg class="icon"><use href="#ic-alert"/></svg>
+    ยังไม่ได้ตั้ง<b>กิจกรรมพัฒนาผู้เรียน</b>ของ {{ c.level }} —
+    <a href="/academic/subjects?year={{ year }}&level={{ c.level }}">ไปตั้งกิจกรรม</a>
+    (แนะแนว/ลูกเสือ/ชุมนุม/เพื่อสังคม หรือกิจกรรมของโรงเรียนเอง) แล้วค่อยกลับมาประเมิน</div>
+  {% endif %}
   {% if students %}
   <form method="post" action="/academic/eval/save">
     <input type="hidden" name="cid" value="{{ c.id }}">
-    <div class="table-wrap">
+    <div class="table-wrap{{ ' dense' if activities|length > 3 }}">
     <table>
       <thead><tr>
         <th>เลขที่</th><th>ชื่อ-นามสกุล</th><th>อ่านคิดวิเคราะห์</th><th>คุณลักษณะฯ</th>
-        <th>แนะแนว</th><th>ลูกเสือ</th><th>ชุมนุม</th><th>เพื่อสังคม</th><th></th>
+        {% for a in activities %}<th style="font-size:13px; white-space:nowrap;">{{ a.name }}</th>{% endfor %}
+        {% if activities %}<th>สรุปกิจกรรม</th>{% endif %}<th></th>
       </tr></thead>
       <tbody>
       {% for s in students %}
@@ -68,19 +75,16 @@
             <span class="pill" title="คำนวณจากการประเมินรายวิชา — แก้ที่ปุ่ม คุณลักษณะฯ รายวิชา">{{ ef.desired_char }} · รายวิชา</span>
             {% else %}<select name="char_{{ s.id }}" style="width:100px;"><option value="">-</option>
             {% for q in quality %}<option value="{{ q }}" {{ 'selected' if e and e.desired_char==q }}>{{ q }}</option>{% endfor %}</select>{% endif %}</td>
-          <td><select name="guid_{{ s.id }}" style="width:70px;"><option value="">-</option>
-            {% for q in passfail %}<option value="{{ q }}" {{ 'selected' if e and e.act_guidance==q }}>{{ q }}</option>{% endfor %}</select></td>
-          <td><select name="scout_{{ s.id }}" style="width:70px;"><option value="">-</option>
-            {% for q in passfail %}<option value="{{ q }}" {{ 'selected' if e and e.act_scout==q }}>{{ q }}</option>{% endfor %}</select></td>
-          <td><select name="club_{{ s.id }}" style="width:70px;"><option value="">-</option>
-            {% for q in passfail %}<option value="{{ q }}" {{ 'selected' if e and e.act_club==q }}>{{ q }}</option>{% endfor %}</select></td>
-          <td><select name="social_{{ s.id }}" style="width:70px;"><option value="">-</option>
-            {% for q in passfail %}<option value="{{ q }}" {{ 'selected' if e and e.act_social==q }}>{{ q }}</option>{% endfor %}</select></td>
+          {% for a in activities %}
+          <td><select name="act_{{ s.id }}_{{ a.id }}" style="width:70px;"><option value="">-</option>
+            {% for q in passfail %}<option value="{{ q }}" {{ 'selected' if act_res.get((s.id, a.id))==q }}>{{ q }}</option>{% endfor %}</select></td>
+          {% endfor %}
+          {% if activities %}<td class="center" style="font-weight:700;">{{ act_sum.get(s.id) or '' }}</td>{% endif %}
           <td><a class="btn sm soft" href="/academic/student/{{ s.id }}/pp6.docx">สมุดพก</a></td>
         </tr>
         <tr>
           <td></td>
-          <td colspan="8"><input name="cmt_{{ s.id }}" value="{{ e.comment if e else '' }}"
+          <td colspan="{{ 4 + activities|length + (1 if activities else 0) }}"><input name="cmt_{{ s.id }}" value="{{ e.comment if e else '' }}"
                                  placeholder="ความเห็นครูประจำชั้น (แสดงในสมุดพก)" style="width:100%;"></td>
         </tr>
       {% endfor %}

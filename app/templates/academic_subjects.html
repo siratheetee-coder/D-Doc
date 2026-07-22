@@ -34,6 +34,9 @@
 {% elif pr %}
 <div class="alert">✔ สร้างรายวิชาพื้นฐานให้ {{ pr }} วิชาแล้ว — ปรับเวลาเรียน/สัดส่วนคะแนนได้ในตารางด้านล่าง</div>
 {% endif %}
+{% if request.query_params.get('asaved') %}<div class="alert">✔ บันทึกกิจกรรมพัฒนาผู้เรียนแล้ว</div>{% endif %}
+{% set ap = request.query_params.get('apreset') %}
+{% if ap %}<div class="alert">{% if ap == '0' %}กิจกรรมมาตรฐานมีครบแล้ว ไม่ได้เพิ่มซ้ำ{% else %}✔ สร้างกิจกรรมมาตรฐานให้ {{ ap }} รายการ{% endif %}</div>{% endif %}
 
 {% if level %}
 <div class="card" style="border:1px solid #ddd6fe; background:#faf8ff;">
@@ -139,6 +142,51 @@
   <p class="muted">ยังไม่มีรายวิชา — เลือกชั้นด้านบนแล้วกดปุ่มสร้างสำเร็จรูปได้เลย</p>
   {% endif %}
 </div>
+
+{% if level %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;">กิจกรรมพัฒนาผู้เรียน <span class="muted" style="font-size:15px;">ของ {{ level }}</span></h2>
+    <form method="post" action="/academic/activities/preset" style="margin:0;">
+      <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="level" value="{{ level }}">
+      <button class="btn soft" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> สร้างกิจกรรมมาตรฐาน</button>
+    </form>
+  </div>
+  <p class="muted" style="font-size:13px; margin:6px 0 8px;">แต่ละโรงเรียนจัดกิจกรรมต่างกันได้ (แนะแนว/ลูกเสือ-เนตรนารี/ชุมนุม/เพื่อสังคม เป็นค่าเริ่มต้น แก้/ลบ/เพิ่มได้) ·
+    กิจกรรมเหล่านี้จะไปเป็นคอลัมน์ในหน้าประเมิน ปพ.6 และพิมพ์ลงสมุดพก</p>
+  <form method="post" action="/academic/activities/save">
+    <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="level" value="{{ level }}">
+    {# submit ซ่อนเป็นตัวแรก: กด Enter ในช่องกรอกจะได้ "บันทึก" ไม่ใช่ "ลบ" แถวแรก #}
+    <button type="submit" aria-hidden="true" tabindex="-1"
+            style="position:absolute; width:0; height:0; padding:0; border:0; overflow:hidden;"></button>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>ลำดับ</th><th>รหัส</th><th>ชื่อกิจกรรม</th><th>เวลาเรียน (ชม./ปี)</th><th>ลบ</th></tr></thead>
+      <tbody>
+      {% for a in activities %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td><input name="code_{{ a.id }}" value="{{ a.code }}" style="width:90px;"></td>
+          <td><input name="name_{{ a.id }}" value="{{ a.name }}" style="width:100%; min-width:220px;"></td>
+          <td><input name="hours_{{ a.id }}" value="{{ a.hours if a.hours is not none else '' }}" inputmode="numeric" style="width:80px; text-align:center;"></td>
+          <td class="center"><button class="btn sm red" type="submit" name="del_{{ a.id }}" value="1"
+                onclick="return confirm('ลบกิจกรรม &quot;{{ a.name }}&quot; ? ผลประเมินของกิจกรรมนี้จะถูกลบด้วย');">ลบ</button></td>
+        </tr>
+      {% endfor %}
+        <tr style="background:#fafbfd;">
+          <td class="muted">ใหม่</td>
+          <td><input name="new_code" placeholder="ก16905" style="width:90px;"></td>
+          <td><input name="new_name" placeholder="เพิ่มกิจกรรม เช่น ยุวกาชาด / ชมรม" style="width:100%; min-width:220px;"></td>
+          <td><input name="new_hours" placeholder="40" inputmode="numeric" style="width:80px; text-align:center;"></td>
+          <td class="muted center" style="font-size:12.5px;">แถวเพิ่มใหม่</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+    <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกกิจกรรม</button>
+  </form>
+</div>
+{% endif %}
 <script>
   // บันทึกทุกแถว: ยิงฟอร์มของแต่ละแถวด้วย fetch แล้วรีโหลดครั้งเดียว
   // ถ้ามีแถวไหนพัง ต้อง "ไม่" รีโหลด — ไม่งั้นครูจะเห็นหน้าโหลดใหม่แล้วนึกว่าบันทึกครบ ทั้งที่งานหาย

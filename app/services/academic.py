@@ -404,3 +404,56 @@ def subject_preset(level: str) -> list:
             "seq": n,
         })
     return out
+
+
+# ---- กิจกรรมพัฒนาผู้เรียน (ตั้งค่าเองได้) ----
+# ค่าเริ่มต้น: 4 กิจกรรมมาตรฐาน (ชื่อ, เวลาเรียน ชม./ปี) — แก้/ลบ/เพิ่มได้
+_ACTIVITY_PRESET = [
+    ("แนะแนว", 40),
+    ("ลูกเสือ-เนตรนารี", 40),
+    ("ชุมนุม", 40),
+    ("กิจกรรมเพื่อสังคมและสาธารณประโยชน์", 10),
+]
+
+
+def activity_code(level: str, seq: int) -> str:
+    """รหัสกิจกรรม เช่น ป.6 -> ก16901 · ม.1 -> ก21901
+    รูปแบบ: ก + ระดับ + ปีในระดับ + 9 + ลำดับ 2 หลัก (9 = กลุ่มกิจกรรมพัฒนาผู้เรียน)"""
+    parts = _code_parts(level)
+    if not parts:
+        return ""
+    band, yr = parts
+    return f"ก{band}{yr}9{seq:02d}"
+
+
+def activity_preset(level: str) -> list:
+    """กิจกรรมมาตรฐานของชั้นนี้ (สำหรับปุ่มสร้างสำเร็จรูป) — คืน list ของ dict"""
+    out = []
+    for i, (name, hours) in enumerate(_ACTIVITY_PRESET, start=1):
+        out.append({"code": activity_code(level, i), "name": name, "hours": hours, "seq": i})
+    return out
+
+
+def activities_for(year: int, level: str, db) -> list:
+    """กิจกรรมของชั้นนั้นในปีนั้น เรียงตาม seq"""
+    from app.models import AcadActivity
+    return (db.query(AcadActivity).filter_by(year=year, level=level)
+            .order_by(AcadActivity.seq, AcadActivity.id).all())
+
+
+def activity_summary(student, db) -> str:
+    """สรุปผลกิจกรรมพัฒนาผู้เรียนรวมทุกกิจกรรมของนักเรียน 1 คน
+    "ผ" = ผ่านครบทุกกิจกรรม · "มผ" = มีกิจกรรมใดไม่ผ่าน · "" = ยังประเมินไม่ครบ (ไม่เดา)"""
+    from app.models import AcadActivity, AcadActivityResult
+    klass = student.klass
+    if not klass:
+        return ""
+    acts = activities_for(klass.year, klass.level, db)
+    if not acts:
+        return ""
+    res = {r.activity_id: (r.result or "").strip() for r in
+           db.query(AcadActivityResult).filter_by(acad_student_id=student.id).all()}
+    vals = [res.get(a.id, "") for a in acts]
+    if any(v == "" for v in vals):        # ยังประเมินไม่ครบทุกกิจกรรม
+        return ""
+    return "มผ" if any(v == "มผ" for v in vals) else "ผ"
