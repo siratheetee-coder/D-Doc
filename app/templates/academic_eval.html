@@ -42,8 +42,9 @@
       {% if students %}<a class="btn soft" href="/academic/classes/{{ c.id }}/pp6-all.docx"><svg class="icon"><use href="#ic-file"/></svg> สมุดพกทั้งห้อง (ปพ.6)</a>{% endif %}
     </div>
   </div>
-  <p class="muted" style="font-size:13px; margin:6px 0 8px;">ผลการประเมินเหล่านี้จะไปแสดงในสมุดพก ปพ.6 · เว้นว่างได้ถ้ายังไม่ประเมิน ·
-    ถ้าประเมิน<b>รายวิชา</b>ไว้ (ปุ่มด้านบน) ระบบจะใช้ค่าที่คำนวณจากรายวิชาแทนช่องในตารางนี้</p>
+  <p class="muted" style="font-size:13px; margin:6px 0 8px;">หน้านี้กรอกแค่ <b>กิจกรรมพัฒนาผู้เรียน</b> (ผ/มผ) ·
+    คุณลักษณะฯ และ อ่านคิดเขียน มาจาก<b>ประเมินรายวิชา</b> (ปุ่มด้านบน) ระบบคำนวณให้ ไม่ต้องติ๊กซ้ำ ·
+    ความเห็นครูและผู้ปกครองเว้นช่องไว้ให้เขียนมือในสมุดพก</p>
   {% if not activities %}
   <div class="alert warn" style="margin:0 0 10px;"><svg class="icon"><use href="#ic-alert"/></svg>
     ยังไม่ได้ตั้ง<b>กิจกรรมพัฒนาผู้เรียน</b>ของ {{ c.level }} —
@@ -67,25 +68,17 @@
           <td>{{ s.seq or '' }}</td>
           <td style="white-space:nowrap;">{{ s.name }}</td>
           {% set ef = eff.get(s.id) %}
-          <td>{% if ef and ef.read_src == 'detail' %}
-            <span class="pill" title="คำนวณจากการประเมินรายวิชา — แก้ที่ปุ่ม อ่านคิดเขียน รายวิชา">{{ ef.read_think }} · รายวิชา</span>
-            {% else %}<select name="read_{{ s.id }}" style="width:100px;"><option value="">-</option>
-            {% for q in quality %}<option value="{{ q }}" {{ 'selected' if e and e.read_think==q }}>{{ q }}</option>{% endfor %}</select>{% endif %}</td>
-          <td>{% if ef and ef.char_src == 'detail' %}
-            <span class="pill" title="คำนวณจากการประเมินรายวิชา — แก้ที่ปุ่ม คุณลักษณะฯ รายวิชา">{{ ef.desired_char }} · รายวิชา</span>
-            {% else %}<select name="char_{{ s.id }}" style="width:100px;"><option value="">-</option>
-            {% for q in quality %}<option value="{{ q }}" {{ 'selected' if e and e.desired_char==q }}>{{ q }}</option>{% endfor %}</select>{% endif %}</td>
+          {# คุณ/อ่าน มาจากประเมินรายวิชา 8 ข้อ เท่านั้น — แสดงผลอย่างเดียว ไม่ให้ติ๊กซ้ำ #}
+          <td class="center">{% if ef and ef.read_think %}<b>{{ ef.read_think }}</b>
+            {% else %}<a class="muted" href="/academic/assess?cid={{ c.id }}&kind=read" style="font-size:12.5px;">ประเมิน →</a>{% endif %}</td>
+          <td class="center">{% if ef and ef.desired_char %}<b>{{ ef.desired_char }}</b>
+            {% else %}<a class="muted" href="/academic/assess?cid={{ c.id }}&kind=char" style="font-size:12.5px;">ประเมิน →</a>{% endif %}</td>
           {% for a in activities %}
           <td><select name="act_{{ s.id }}_{{ a.id }}" style="width:70px;"><option value="">-</option>
             {% for q in passfail %}<option value="{{ q }}" {{ 'selected' if act_res.get((s.id, a.id))==q }}>{{ q }}</option>{% endfor %}</select></td>
           {% endfor %}
           {% if activities %}<td class="center" style="font-weight:700;">{{ act_sum.get(s.id) or '' }}</td>{% endif %}
           <td><a class="btn sm soft" href="/academic/student/{{ s.id }}/pp6.docx">สมุดพก</a></td>
-        </tr>
-        <tr>
-          <td></td>
-          <td colspan="{{ 4 + activities|length + (1 if activities else 0) }}"><input name="cmt_{{ s.id }}" value="{{ e.comment if e else '' }}"
-                                 placeholder="ความเห็นครูประจำชั้น (แสดงในสมุดพก)" style="width:100%;"></td>
         </tr>
       {% endfor %}
       </tbody>

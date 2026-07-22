@@ -447,22 +447,8 @@ async def eval_save(request: Request, db: Session = Depends(get_db), cid: str = 
     c = db.get(AcadClass, _to_int(cid, 0))
     if not c:
         return RedirectResponse("/academic/eval", status_code=303)
-    cur = {e.acad_student_id: e for e in db.query(AcadEval).join(AcadStudent)
-           .filter(AcadStudent.class_id == c.id).all()}
-    for s in c.students:
-        e = cur.get(s.id)
-        if not e:
-            e = AcadEval(acad_student_id=s.id)
-            db.add(e)
-        # ช่องที่ถูกแทนด้วยป้าย "คำนวณจากรายวิชา" จะไม่ถูกส่งมา — ห้ามเขียนทับค่า manual เดิม
-        # (เผื่อครูลบข้อมูลรายวิชาทีหลัง ค่าที่เคยเลือกไว้ต้องยังอยู่)
-        if f"read_{s.id}" in form:
-            e.read_think = (form.get(f"read_{s.id}", "") or "").strip()
-        if f"char_{s.id}" in form:
-            e.desired_char = (form.get(f"char_{s.id}", "") or "").strip()
-        # กิจกรรมพัฒนาผู้เรียน (act_* เดิมเลิกใช้ ย้ายไป AcadActivityResult)
-        # ช่องวัน (เปิด/มา/ป่วย/ลา/ขาด) ย้ายไปหน้า "เวลาเรียน" — ห้ามอ่านที่นี่
-        e.comment = (form.get(f"cmt_{s.id}", "") or "").strip()
+    # หน้านี้กรอกแค่กิจกรรมพัฒนาผู้เรียนแล้ว — คุณ/อ่าน มาจากประเมินรายวิชา (คำนวณ)
+    # · ความเห็นครู/ผู้ปกครองเขียนมือในสมุดพก · เวลาเรียนอยู่หน้าเวลาเรียน
     # ผลกิจกรรมรายคน x รายกิจกรรม (upsert)
     acts = activities_for(c.year, c.level, db)
     if acts:

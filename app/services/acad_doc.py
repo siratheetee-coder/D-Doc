@@ -650,7 +650,6 @@ def _pp6_body(doc, school, s, db, *, page_break: bool = False):
     _widths(t, ws)
 
     # ---- ผลการประเมินอื่น ----
-    ev = s.eval
     ef = effective_eval(s, db)     # ใช้ค่าคำนวณจากรายวิชา/รายเดือนถ้ามี
     _p(doc, "", after=4)
     _p(doc, "ผลการประเมิน", bold=True, size=14, after=2)
@@ -676,27 +675,37 @@ def _pp6_body(doc, school, s, db, *, page_break: bool = False):
         _p(doc, f"เวลาเรียน: มาเรียน {ef['days_present'] if ef['days_present'] is not None else '-'} วัน "
                 f"จากทั้งหมด {ef['days_open'] if ef['days_open'] is not None else '-'} วัน",
            size=13, after=2)
-    if ev and (ev.comment or "").strip():
-        _p(doc, f"ความเห็นครูประจำชั้น: {ev.comment.strip()}", size=13, after=2)
+    # ---- ความเห็นครูประจำชั้น + ผู้ปกครอง: เว้นบรรทัดว่างให้เขียนมือ ----
+    _dots = "................................................................................................"
+    _p(doc, "", after=4)
+    _p(doc, "ความเห็นครูประจำชั้น", bold=True, size=13, after=2)
+    _p(doc, _dots, size=13, after=2)
+    _p(doc, _dots, size=13, after=6)
+    # ลงนามครูประจำชั้นตามจำนวนที่มีจริง (1-2 คน)
+    homerooms = [p.name for p in (klass.homeroom, klass.co_homeroom) if p] or [""]
+    st = doc.add_table(rows=1, cols=len(homerooms))
+    for cell, nm in zip(st.rows[0].cells, homerooms):
+        cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        for i, txt in enumerate(["(ลงชื่อ).............................................",
+                                 f"( {nm or '.......................................'} )", "ครูประจำชั้น"]):
+            p = cell.paragraphs[0] if i == 0 else cell.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_after = Pt(0)
+            r = p.add_run(txt); r.font.size = Pt(13); r.font.name = THAI_FONT
+            r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
+            if i == 0 and nm:
+                _float_signature(p, nm)
+    _widths(st, [Cm(16.0 / len(homerooms))] * len(homerooms))
 
-    # ---- ลงนาม: ครูประจำชั้นตามจำนวนที่มีจริง + ผอ. ----
-    _p(doc, "", after=8)
-    homerooms = [p.name for p in (klass.homeroom, klass.co_homeroom) if p]
-    if homerooms:
-        st = doc.add_table(rows=1, cols=len(homerooms))
-        for cell, nm in zip(st.rows[0].cells, homerooms):
-            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-            for i, txt in enumerate(["(ลงชื่อ).............................................",
-                                     f"( {nm} )", "ครูประจำชั้น"]):
-                p = cell.paragraphs[0] if i == 0 else cell.add_paragraph()
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.paragraph_format.space_after = Pt(0)
-                r = p.add_run(txt); r.font.size = Pt(13); r.font.name = THAI_FONT
-                r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
-                if i == 0:
-                    _float_signature(p, nm)
-        _widths(st, [Cm(16.0 / len(homerooms))] * len(homerooms))
     _p(doc, "", after=6)
+    _p(doc, "ความเห็นผู้ปกครอง", bold=True, size=13, after=2)
+    _p(doc, _dots, size=13, after=2)
+    _p(doc, _dots, size=13, after=6)
+    _p(doc, "(ลงชื่อ).............................................", align="center", after=0)
+    _p(doc, "( ....................................... )", align="center", after=0)
+    _p(doc, "ผู้ปกครอง", align="center", after=6)
+
+    # ---- ลงนาม ผอ. ----
     director = (getattr(school, "director_name", "") or "").strip()
     dpos = ("ผู้อำนวยการ" + school.name) if (school.name or "").startswith("โรงเรียน") \
         else "ผู้อำนวยการโรงเรียน"
