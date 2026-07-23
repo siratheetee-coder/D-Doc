@@ -26,7 +26,7 @@
       <div style="flex:2;"><label>คู่สัญญา/ผู้รับเงิน</label><input name="party"></div>
       <div><label>บัญชี</label>
         <select name="account_id">
-          <option value="">— ไม่ระบุ —</option>
+          <option value="">- ไม่ระบุ -</option>
           {% for a in accounts %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
         </select>
       </div>

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-finance_report.py — ส่งออกรายงานการเงินเป็น Excel (.xlsx)
+finance_report.py - ส่งออกรายงานการเงินเป็น Excel (.xlsx)
 2 ชีต: สรุปแยกบัญชี (ยอดยกมา/รับ/จ่าย/คงเหลือ) + สรุปรายเดือน (ตามปีงบประมาณ)
 """
 from pathlib import Path

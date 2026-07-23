@@ -86,7 +86,7 @@
       document.getElementById('bgImg').src = d.url;
       document.getElementById('previewWrap').style.display = 'block';
       document.getElementById('optCard').style.display = 'block';
-      msg.textContent = 'อัปโหลดแล้ว — คลิกบนรูปเพื่อปักตำแหน่งชื่อ';
+      msg.textContent = 'อัปโหลดแล้ว - คลิกบนรูปเพื่อปักตำแหน่งชื่อ';
       setTimeout(preview, 200);
     }).catch(function(){ msg.textContent = 'อัปโหลดไม่สำเร็จ'; });
   }
@@ -145,7 +145,7 @@
     document.getElementById('name_color').value = b.name_color;
     if(document.getElementById('f_sub')) document.getElementById('f_sub').value = b.sub_text || '';
     if(!document.getElementById('f_title').value) document.getElementById('f_title').value = b.title || '';
-    document.getElementById('bgMsg').textContent = 'โหลดชุด "'+b.title+'" แล้ว — ใส่รายชื่อได้เลย';
+    document.getElementById('bgMsg').textContent = 'โหลดชุด "'+b.title+'" แล้ว - ใส่รายชื่อได้เลย';
     setTimeout(preview, 200);
   }
   window.addEventListener('resize', preview);

@@ -69,7 +69,7 @@
       {% if inspect %}
         {{ "คณะกรรมการ" if inspect.mode == "committee" else "ผู้ตรวจรับคนเดียว (โดยอนุโลม)" }}:
         {% for m in inspect.members %}{{ m.name }} ({{ m.role }}){{ ", " if not loop.last }}{% endfor %}
-      {% else %}—{% endif %}
+      {% else %}-{% endif %}
     </td></tr>
   </table>
 </div>
@@ -89,7 +89,7 @@
   </table>
 </div>
 
-{# รูปแบบพิเศษ (ว.804/ว.119/ข้อ 79) ไม่แสดงการ์ด "เลขที่เอกสาร & วันที่" — แก้เลขที่/ช่องต่างๆ ที่ปุ่ม "แก้ไขเรื่อง" #}
+{# รูปแบบพิเศษ (ว.804/ว.119/ข้อ 79) ไม่แสดงการ์ด "เลขที่เอกสาร & วันที่" - แก้เลขที่/ช่องต่างๆ ที่ปุ่ม "แก้ไขเรื่อง" #}
 {% set is_special = (p.proc_case or 'normal') != 'normal' %}
 {% if not is_special %}
 <div class="card">
@@ -259,7 +259,7 @@
 </div>
 {% else %}
 <div class="card" style="border:1px solid #c7d7fb; background:#f5f9ff;">
-  <h2><svg class="icon"><use href="#ic-file"/></svg> ออกเอกสาร — {{ case_info.label }}</h2>
+  <h2><svg class="icon"><use href="#ic-file"/></svg> ออกเอกสาร - {{ case_info.label }}</h2>
   <p class="muted" style="margin-top:0;">{{ case_info.desc }}</p>
   <a class="btn" href="/procurement/{{ p.id }}/altdoc/{{ case_info.altkind }}"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเอกสาร {{ case_info.label }}</a>
   {{ next_steps(p, modules_live) }}

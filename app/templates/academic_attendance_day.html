@@ -14,7 +14,7 @@
 {% if not open_days %}
 <div class="card">
   <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
-    ยังไม่ได้ตั้งวันเปิดเรียนของเดือน {{ month_name }} ในปฏิทินการศึกษา —
+    ยังไม่ได้ตั้งวันเปิดเรียนของเดือน {{ month_name }} ในปฏิทินการศึกษา -
     <a href="/academic/calendar?year={{ year }}">ไปตั้งปฏิทินก่อน</a> แล้วค่อยกลับมาเช็กชื่อ</div>
   <a class="btn soft" href="/academic/attendance?cid={{ c.id }}">← กลับหน้าสรุปเวลาเรียน</a>
 </div>
@@ -70,7 +70,7 @@
     <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกการเช็กชื่อ</button>
   </form>
   {% else %}
-  <p class="muted">ห้องนี้ยังไม่มีนักเรียน — <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
+  <p class="muted">ห้องนี้ยังไม่มีนักเรียน - <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
   {% endif %}
 </div>
 

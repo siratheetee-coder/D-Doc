@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-promptpay.py — สร้าง PromptPay QR แบบระบุยอดเงิน (Thai QR Payment / EMVCo)
+promptpay.py - สร้าง PromptPay QR แบบระบุยอดเงิน (Thai QR Payment / EMVCo)
 ใช้ target = เบอร์มือถือ (10 หลัก) หรือ เลขบัตรประชาชน (13 หลัก) ของผู้รับเงิน
 """
 import io

@@ -8,7 +8,7 @@
   {% if case_info is defined and proc_case and proc_case != 'normal' %}
   <div class="alert" style="background:#eef4ff; color:#3568e0; border-color:#c7d7fb; display:flex; align-items:center; gap:8px;">
     <svg class="icon"><use href="#ic-file"/></svg>
-    <span>รูปแบบ: <b>{{ case_info.label }}</b> — {{ case_info.desc }} <a href="/procurement/new" style="margin-left:6px;">เปลี่ยนรูปแบบ</a></span>
+    <span>รูปแบบ: <b>{{ case_info.label }}</b> - {{ case_info.desc }} <a href="/procurement/new" style="margin-left:6px;">เปลี่ยนรูปแบบ</a></span>
   </div>
   {% endif %}
 
@@ -171,7 +171,7 @@
       <div><label>{{ label }}</label>
         {% if typ == 'select' %}
         <select name="{{ key }}">
-          <option value="">— เลือก —</option>
+          <option value="">- เลือก -</option>
           {% for o in (case_select_options.get(key, []) if case_select_options is defined else []) %}
           <option value="{{ o }}" {{ 'selected' if case_extra and case_extra.get(key) == o }}>{{ o }}</option>
           {% endfor %}
@@ -202,7 +202,7 @@
         <span class="muted" id="modeHint"></span>
       </div>
     </div>
-    <p class="muted" style="margin:-4px 0 10px;">บทบาท: ระบบเลือกให้อัตโนมัติ (คนเดียว = ผู้ตรวจรับ · หลายคน = ประธาน/กรรมการ/กรรมการและเลขานุการ) — <b>เปลี่ยนเองได้</b></p>
+    <p class="muted" style="margin:-4px 0 10px;">บทบาท: ระบบเลือกให้อัตโนมัติ (คนเดียว = ผู้ตรวจรับ · หลายคน = ประธาน/กรรมการ/กรรมการและเลขานุการ) - <b>เปลี่ยนเองได้</b></p>
     {% set roles = ["ผู้ตรวจรับ", "ประธานกรรมการ", "กรรมการ", "กรรมการและเลขานุการ"] %}
     <table id="members">
       <thead><tr><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th style="width:190px;">บทบาท</th><th></th></tr></thead>
@@ -468,10 +468,10 @@
         input.value = '';
         if(d && d.error){ msg.textContent = d.error; return; }
         var items = (d && d.items) || [];
-        if(!items.length){ msg.textContent = 'อ่านรายการจากรูปไม่ได้ — ลองถ่ายให้ชัด/ตรงขึ้น หรือเพิ่มรายการเอง'; return; }
+        if(!items.length){ msg.textContent = 'อ่านรายการจากรูปไม่ได้ - ลองถ่ายให้ชัด/ตรงขึ้น หรือเพิ่มรายการเอง'; return; }
         items.forEach(function(it){ _addItemRow(it.name, it.qty, it.unit, it.unit_price); });
         if(typeof calcTotal === 'function') calcTotal();
-        msg.textContent = 'เพิ่ม '+items.length+' รายการแล้ว — โปรดตรวจ/แก้ให้ถูกต้องก่อนบันทึก';
+        msg.textContent = 'เพิ่ม '+items.length+' รายการแล้ว - โปรดตรวจ/แก้ให้ถูกต้องก่อนบันทึก';
       })
       .catch(function(){ input.value=''; msg.textContent = 'อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง'; });
   }

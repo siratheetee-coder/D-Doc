@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-acad_doc.py — เอกสารงานวิชาการ
-- ปพ.5 : แบบบันทึกผลการพัฒนาคุณภาพผู้เรียน (รายวิชา x ห้อง) — แนวนอน
-- ปพ.6 : แบบรายงานผลการพัฒนาคุณภาพผู้เรียนรายบุคคล (สมุดพก) — รายคน / ทั้งห้อง
+acad_doc.py - เอกสารงานวิชาการ
+- ปพ.5 : แบบบันทึกผลการพัฒนาคุณภาพผู้เรียน (รายวิชา x ห้อง) - แนวนอน
+- ปพ.6 : แบบรายงานผลการพัฒนาคุณภาพผู้เรียนรายบุคคล (สมุดพก) - รายคน / ทั้งห้อง
 
 ความกว้างตารางต้องไม่เกินพื้นที่พิมพ์ A4: แนวตั้ง 16.0 / แนวนอน 26.7 ซม.
-(บทเรียนจากรอบไล่แก้ A4 — python-docx ไม่บีบให้เอง)
+(บทเรียนจากรอบไล่แก้ A4 - python-docx ไม่บีบให้เอง)
 """
 from docx import Document
 from docx.shared import Cm, Pt
@@ -41,8 +41,12 @@ def _doc(landscape: bool = False):
     return doc
 
 
-def _p(doc, text="", *, align="left", bold=False, size=14, after=2):
+def _p(doc, text="", *, align="left", bold=False, size=14, after=2, page_break=False):
     p = doc.add_paragraph()
+    # ขึ้นหน้าใหม่โดยติดที่ย่อหน้านี้เอง (ไม่ใช่ add_page_break ที่สร้างย่อหน้าเปล่า
+    # ทับกับตารางที่เต็มหน้าพอดี -> เกิดหน้าว่างคั่น)
+    if page_break:
+        p.paragraph_format.page_break_before = True
     p.alignment = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER,
                    "right": WD_ALIGN_PARAGRAPH.RIGHT}[align]
     p.paragraph_format.space_after = Pt(after)
@@ -82,7 +86,7 @@ def _center(table):
 def _new_section(doc, *, landscape: bool):
     """ขึ้น section ใหม่พร้อมตั้งแนวกระดาษเอง
     (ห้ามเรียก set_a4 ซ้ำ เพราะมันบังคับ *ทุก* section ให้เป็นแนวเดียวกัน
-     — เอกสารนี้ต้องผสม ปกแนวตั้ง + เนื้อในแนวนอน)"""
+     - เอกสารนี้ต้องผสม ปกแนวตั้ง + เนื้อในแนวนอน)"""
     from docx.enum.section import WD_SECTION
     from app.services.doc_page import A4_W, A4_H
     sec = doc.add_section(WD_SECTION.NEW_PAGE)
@@ -121,9 +125,8 @@ def _pp5_score_page(doc, school, klass, subject, db, *, page_break: bool = False
     teach = db.query(AcadTeaching).filter_by(class_id=klass.id, subject_id=subject.id).first()
     teacher = teach.teacher.name if (teach and teach.teacher) else ""
 
-    if page_break:
-        doc.add_page_break()
-    _p(doc, "แบบบันทึกผลการพัฒนาคุณภาพผู้เรียน (ปพ.5)", align="center", bold=True, size=18, after=0)
+    _p(doc, "แบบบันทึกผลการพัฒนาคุณภาพผู้เรียน (ปพ.5)", align="center", bold=True, size=18, after=0,
+       page_break=page_break)
     _p(doc, school.name or "", align="center", bold=True, size=15, after=0)
     head = (f"รายวิชา {subject.code or ''} {subject.name}   ชั้น {_class_label(klass)}   "
             f"ปีการศึกษา {klass.year}   {term_label(term)}")
@@ -136,7 +139,7 @@ def _pp5_score_page(doc, school, klass, subject, db, *, page_break: bool = False
     if subject.credit:
         meta.append(f"{subject.credit:g} หน่วยกิต")
     if meta:
-        _p(doc, "  ·  ".join(meta), align="center", size=13, after=8)
+        _p(doc, "  |  ".join(meta), align="center", size=13, after=8)
 
     mmax = subject.mid_max if (subject.mid_max or 0) > 0 else 70
     fmax = subject.final_max if (subject.final_max or 0) > 0 else 30
@@ -165,7 +168,7 @@ def _pp5_score_page(doc, school, klass, subject, db, *, page_break: bool = False
 
 
 def render_pp5(school, klass, subject, db) -> str:
-    """แบบบันทึกผลการพัฒนาคุณภาพผู้เรียน — รายวิชา x ห้อง (แนวนอน แผ่นเดี่ยว)"""
+    """แบบบันทึกผลการพัฒนาคุณภาพผู้เรียน - รายวิชา x ห้อง (แนวนอน แผ่นเดี่ยว)"""
     doc = _doc(landscape=True)
     _pp5_score_page(doc, school, klass, subject, db)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
@@ -189,9 +192,8 @@ def _grade_counts(grades):
 def _pp5_assess_page(doc, klass, subject, db, students):
     """หน้า คุณลักษณะฯ 8 ข้อ + อ่านคิดเขียน 3 ด้าน ของ 1 รายวิชา (ต่อท้ายใบคะแนน)"""
     from app.models import AcadCharEval, AcadReadEval
-    doc.add_page_break()
     _p(doc, "ผลการประเมินคุณลักษณะอันพึงประสงค์ และการอ่าน คิดวิเคราะห์ และเขียน (รายวิชา)",
-       align="center", bold=True, size=16, after=0)
+       align="center", bold=True, size=16, after=0, page_break=True)
     _p(doc, f"รายวิชา {subject.code or ''} {subject.name}   ชั้น {_class_label(klass)}   "
             f"ปีการศึกษา {klass.year}", align="center", size=13, after=6)
 
@@ -213,8 +215,8 @@ def _pp5_assess_page(doc, klass, subject, db, students):
         _cell(cells[10], f"{avg:.2f}" if avg is not None else "", size=11, bold=True)
         _cell(cells[11], quality_of_avg(avg)[1], size=11, bold=True)
     _widths(t, [Cm(1.2), Cm(5.6)] + [Cm(1.55)] * 8 + [Cm(1.6), Cm(2.4)])   # รวม 23.2
-    _p(doc, "คุณลักษณะฯ: " + " · ".join(f"ข้อ {i} {nm}" for i, nm in enumerate(CHAR_ITEMS, 1)),
-       size=10, after=8)
+    _p(doc, "คุณลักษณะฯ: " + " | ".join(f"ข้อ {i} {nm}" for i, nm in enumerate(CHAR_ITEMS, 1)),
+       size=10, after=8, align="center")
 
     reads = {r.acad_student_id: r for r in
              db.query(AcadReadEval).filter_by(subject_id=subject.id).all()}
@@ -234,8 +236,8 @@ def _pp5_assess_page(doc, klass, subject, db, students):
         _cell(cells[5], f"{avg:.2f}" if avg is not None else "", size=11, bold=True)
         _cell(cells[6], quality_of_avg(avg)[1], size=11, bold=True)
     _widths(t2, [Cm(1.2), Cm(5.6), Cm(3.4), Cm(3.4), Cm(3.4), Cm(1.6), Cm(2.4)])   # รวม 21.0
-    _p(doc, "คะแนน 0-3 ต่อข้อ · เฉลี่ย ≥2.5 ดีเยี่ยม · 1.5-2.49 ดี · 1-1.49 ผ่าน · ต่ำกว่า 1 ไม่ผ่าน "
-            "· ช่องว่าง = ยังไม่ประเมิน", size=10, after=0)
+    _p(doc, "คะแนน 0-3 ต่อข้อ | เฉลี่ย ≥2.5 ดีเยี่ยม | 1.5-2.49 ดี | 1-1.49 ผ่าน | ต่ำกว่า 1 ไม่ผ่าน "
+            "| ช่องว่าง = ยังไม่ประเมิน", size=10, after=0, align="center")
 
 
 def _pp5_quality_summary(doc, klass, subjects, students, db, kind, title):
@@ -244,9 +246,8 @@ def _pp5_quality_summary(doc, klass, subjects, students, db, kind, title):
     from app.models import AcadCharEval, AcadReadEval
     Model = AcadCharEval if kind == "char" else AcadReadEval
     avg_fn = char_avg if kind == "char" else read_avg
-    doc.add_page_break()
     _p(doc, f"{title} ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}",
-       align="center", bold=True, size=16, after=6)
+       align="center", bold=True, size=16, after=6, page_break=True)
     if not subjects:
         return
     rows_by = {}
@@ -276,8 +277,8 @@ def _pp5_quality_summary(doc, klass, subjects, students, db, kind, title):
         _cell(cells[-2], f"{avg:.2f}" if avg is not None else "", size=11, bold=True)
         _cell(cells[-1], quality_of_avg(avg)[1], size=11, bold=True)
     _widths(t, [Cm(1.2), Cm(6.0)] + [Cm(sw)] * len(subjects) + [Cm(1.6), Cm(2.2)])
-    _p(doc, "ตัวเลขในตาราง = ผลรายวิชา (3 ดีเยี่ยม · 2 ดี · 1 ผ่าน · 0 ไม่ผ่าน) · "
-            "ผลสุดท้ายมาจากเฉลี่ยข้ามวิชาด้วยเกณฑ์เดียวกัน", size=10, after=0)
+    _p(doc, "ตัวเลขในตาราง = ผลรายวิชา (3 ดีเยี่ยม | 2 ดี | 1 ผ่าน | 0 ไม่ผ่าน) | "
+            "ผลสุดท้ายมาจากเฉลี่ยข้ามวิชาด้วยเกณฑ์เดียวกัน", size=10, after=0, align="center")
 
 
 def render_pp5_book(school, klass, db, term: int | None = None) -> str:
@@ -292,7 +293,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     t = (term if term in (1, 2) else 1) if sec else 0
     doc = _doc()                      # ปกเป็นแนวตั้ง แล้วค่อยสลับเป็นแนวนอนหลังปก
     students = sorted(klass.students, key=lambda s: (s.seq or 999, s.name))
-    # ค่าที่ใช้จริงต่อคน (คำนวณจากรายวิชา/รายเดือนถ้ามี · ไม่มีก็ค่า manual) — จุดตัดสินใจเดียว
+    # ค่าที่ใช้จริงต่อคน (คำนวณจากรายวิชา/รายเดือนถ้ามี · ไม่มีก็ค่า manual) - จุดตัดสินใจเดียว
     effs = {s.id: effective_eval(s, db) for s in students}
     subjects = (db.query(AcadSubject).filter_by(year=klass.year, level=klass.level, term=t)
                 .order_by(AcadSubject.seq, AcadSubject.code).all())
@@ -319,7 +320,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
         _p(doc, f"สำนักงานเขตพื้นที่การศึกษา{school.area_office.strip()}", align="center", size=13, after=0)
     boys = sum(1 for s in students if s.sex == "M")
     girls = sum(1 for s in students if s.sex == "F")
-    _p(doc, f"นักเรียนทั้งหมด {len(students)} คน  (ชาย {boys} · หญิง {girls})",
+    _p(doc, f"นักเรียนทั้งหมด {len(students)} คน  (ชาย {boys} | หญิง {girls})",
        align="center", size=13, after=6)
 
     # ตารางแจกแจงระดับผลการเรียนรายวิชา
@@ -346,7 +347,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     # แนวตั้ง: 1.0 + 6.0 + 10x1.1 = 18.0 ซม. พอดีพื้นที่พิมพ์
     _widths(gt, [Cm(1.0), Cm(6.0)] + [Cm(1.1)] * len(grade_cols))
 
-    # ตารางเล็ก: คุณลักษณะฯ + อ่านคิดฯ (ค่าที่ใช้จริง — คำนวณจากรายวิชาถ้ามี)
+    # ตารางเล็ก: คุณลักษณะฯ + อ่านคิดฯ (ค่าที่ใช้จริง - คำนวณจากรายวิชาถ้ามี)
     _p(doc, "", after=4)
     qt = doc.add_table(rows=1, cols=1 + len(QUALITY_LEVELS)); qt.style = "Table Grid"
     _cell(qt.rows[0].cells[0], "ผลการประเมิน (คน)", bold=True, fill="EDE9FE", size=11)
@@ -363,7 +364,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
 
     # ---------- ลายเซ็นทุกคนต้องอยู่หน้าปก ----------
     # จัดเป็นตาราง 3 คอลัมน์ ครูประจำชั้น(1-2) + หัวหน้าฝ่ายวิชาการ ในแถวเดียว
-    # แล้ว ผอ. อยู่ตรงกลางด้านล่าง — กินพื้นที่แนวตั้งน้อยกว่าเรียงลงมาทีละบล็อก
+    # แล้ว ผอ. อยู่ตรงกลางด้านล่าง - กินพื้นที่แนวตั้งน้อยกว่าเรียงลงมาทีละบล็อก
     _p(doc, "", after=8)
     head = (getattr(school, "academic_head_name", "") or "").strip()
     signers = [(p.name, "ครูประจำชั้น") for p in (klass.homeroom, klass.co_homeroom) if p]
@@ -406,9 +407,8 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     _widths(rt, [Cm(2.0), Cm(3.2), Cm(11.0), Cm(2.5), Cm(5.0)])
 
     # ---------- หน้า 3: สรุปเวลาเรียน ----------
-    doc.add_page_break()
     _p(doc, f"สรุปเวลาเรียน ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}",
-       align="center", bold=True, size=16, after=6)
+       align="center", bold=True, size=16, after=6, page_break=True)
     monthly = any(effs[s.id]["months"] for s in students)
     if monthly:
         # แบบรายเดือน (ตามไฟล์ ปพ.5 จริง): เดือน พ.ค.-มี.ค. + รวม + ป่วย/ลา/ขาด + ร้อยละ
@@ -482,9 +482,8 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
         _pp5_assess_page(doc, klass, sub, db, students)
 
     # ---------- สรุปผลการเรียนทุกวิชา ----------
-    doc.add_page_break()
     _p(doc, f"สรุปผลการเรียนทุกรายวิชา ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}"
-       + (f" {term_txt}" if sec else ""), align="center", bold=True, size=16, after=6)
+       + (f" {term_txt}" if sec else ""), align="center", bold=True, size=16, after=6, page_break=True)
     if subjects:
         sw = min(2.6, 17.5 / len(subjects))
         mt = doc.add_table(rows=1, cols=2 + len(subjects) + 1); mt.style = "Table Grid"
@@ -507,7 +506,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
             _cell(cells[-1], f"{avg:.2f}" if avg is not None else "", bold=True, size=11)
         _widths(mt, [Cm(1.2), Cm(6.0)] + [Cm(sw)] * len(subjects) + [Cm(1.8)])
         _p(doc, "เฉลี่ยถ่วงน้ำหนักด้วย" + ("หน่วยกิต" if sec else "เวลาเรียน")
-           + " · ร/มส/ผ/มผ ไม่นำมาคิดเฉลี่ย", size=12, after=0)
+           + " | ร/มส/ผ/มผ ไม่นำมาคิดเฉลี่ย", size=12, after=0, align="center")
 
     # ---------- สรุปคุณลักษณะฯ / อ่านคิดเขียน ทุกวิชา ----------
     _pp5_quality_summary(doc, klass, subjects, students, db, "char",
@@ -516,9 +515,8 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
                          "สรุปผลการประเมินการอ่าน คิดวิเคราะห์ และเขียนทุกรายวิชา")
 
     # ---------- สรุปผลการประเมินทั้งปี ----------
-    doc.add_page_break()
     _p(doc, f"สรุปผลการประเมิน ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}"
-       + (f" {term_txt}" if sec else ""), align="center", bold=True, size=16, after=6)
+       + (f" {term_txt}" if sec else ""), align="center", bold=True, size=16, after=6, page_break=True)
     from app.models import AcadActivityResult
     from app.services.academic import activities_for, activity_summary
     acts = activities_for(klass.year, klass.level, db)
@@ -566,9 +564,9 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     per = min(2.6, 10.2 / len(acts)) if acts else 2.6
     _widths(ft, [Cm(1.4), Cm(5.6), Cm(2.5), Cm(2.5), Cm(2.5)]
             + [Cm(per)] * len(acts) + [Cm(2.0)])
-    _p(doc, "สรุป ผ = ผลการเรียนครบทุกวิชาไม่มี 0/ร/มส · กิจกรรมพัฒนาผู้เรียนผ่านครบ · "
+    _p(doc, "สรุป ผ = ผลการเรียนครบทุกวิชาไม่มี 0/ร/มส | กิจกรรมพัฒนาผู้เรียนผ่านครบ | "
             "คุณลักษณะฯ และอ่านคิดวิเคราะห์ฯ ไม่ต่ำกว่าระดับผ่าน (ข้อมูลไม่ครบ = เว้นว่าง)",
-       size=12, after=0)
+       size=12, after=0, align="center")
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     suffix = f"_ภาค{t}" if sec else ""
@@ -585,10 +583,8 @@ def _pp6_body(doc, school, s, db, *, page_break: bool = False):
     sec = is_secondary(klass.level)
     terms = [1, 2] if sec else [0]
 
-    if page_break:
-        doc.add_page_break()
-
-    _p(doc, "แบบรายงานผลการพัฒนาคุณภาพผู้เรียนรายบุคคล (ปพ.6)", align="center", bold=True, size=17, after=0)
+    _p(doc, "แบบรายงานผลการพัฒนาคุณภาพผู้เรียนรายบุคคล (ปพ.6)", align="center", bold=True, size=17,
+       after=0, page_break=page_break)
     _p(doc, school.name or "", align="center", bold=True, size=14, after=0)
     _p(doc, f"ปีการศึกษา {klass.year}", align="center", size=13, after=6)
 

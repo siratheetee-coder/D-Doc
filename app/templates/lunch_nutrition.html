@@ -56,9 +56,9 @@
     {% for w in watch %}
       <tr>
         <td>{{ w.s.name }}</td>
-        <td>{{ w.s.level or '—' }}</td>
+        <td>{{ w.s.level or '-' }}</td>
         <td><span class="pill" style="{{ whcolor(w.wh) }} font-size:12px;">{{ w.wh }}</span></td>
-        <td>{% if w.trend=='up' %}<span style="color:#15803d;">↑ ดีขึ้น</span>{% elif w.trend=='down' %}<span style="color:#b91c1c;">↓ แย่ลง</span>{% elif w.trend=='same' %}<span class="muted">= คงที่</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td>{% if w.trend=='up' %}<span style="color:#15803d;">↑ ดีขึ้น</span>{% elif w.trend=='down' %}<span style="color:#b91c1c;">↓ แย่ลง</span>{% elif w.trend=='same' %}<span class="muted">= คงที่</span>{% else %}<span class="muted">-</span>{% endif %}</td>
         <td>{% if w.repeat %}<span class="pill" style="background:#fde8e8;color:#b91c1c;font-size:11px;">ซ้ำ 2 เทอม</span>{% endif %}</td>
       </tr>
     {% endfor %}
@@ -107,7 +107,7 @@
         <td style="min-width:170px;">
           <b>{{ r.s.name }}</b>
           <div class="muted" style="font-size:12px; line-height:1.3;">
-            {{ 'ชาย' if r.s.sex=='M' else 'หญิง' if r.s.sex=='F' else '—' }} · {{ r.s.level or '—' }}{% if r.s.birthdate %} · เกิด {{ be_date(r.s.birthdate) }}{% endif %}
+            {{ 'ชาย' if r.s.sex=='M' else 'หญิง' if r.s.sex=='F' else '-' }} · {{ r.s.level or '-' }}{% if r.s.birthdate %} · เกิด {{ be_date(r.s.birthdate) }}{% endif %}
           </div>
           {% if r.trend=='up' %}<span class="pill" style="background:#dcfce7;color:#15803d;font-size:11px;">↑ ดีขึ้น</span>{% elif r.trend=='down' %}<span class="pill" style="background:#fde8e8;color:#b91c1c;font-size:11px;">↓ แย่ลง</span>{% elif r.trend=='same' %}<span class="pill" style="background:#eef1f6;color:#5a6a85;font-size:11px;">= คงที่</span>{% endif %}
           {% if not r.s.sex or not r.s.birthdate %}<span class="pill" style="background:#fff4e5;color:#b45309; font-size:11px;">⚠ ใส่เพศ/วันเกิด</span>{% endif %}

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-auth.py — ล็อกอิน/ออกจากระบบ (ระบบคลาวด์หลายโรงเรียน)
+auth.py - ล็อกอิน/ออกจากระบบ (ระบบคลาวด์หลายโรงเรียน)
 """
 import time
 
@@ -34,7 +34,7 @@ def _record_fail(ip: str):
 
 @router.get("/landing", response_class=HTMLResponse)
 def landing_page(request: Request):
-    """หน้า landing สาธารณะ (สำหรับแนะนำระบบ/ขาย) — ยังไม่ผูกโดเมนจริง ดูผ่าน /landing"""
+    """หน้า landing สาธารณะ (สำหรับแนะนำระบบ/ขาย) - ยังไม่ผูกโดเมนจริง ดูผ่าน /landing"""
     from app.seller_config import pricing_context
     return templates.TemplateResponse("landing.html", {"request": request, **pricing_context()})
 
@@ -68,7 +68,7 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
             "error": "อีเมลนี้ยังไม่ได้ยืนยัน โปรดตรวจสอบลิงก์ยืนยันในอีเมลของท่านก่อน (ถ้าไม่พบ ลองดูในกล่อง Spam)",
             "unverified_email": user["username"],
         }, status_code=403)
-    # ล็อกอินสำเร็จ — เก็บข้อมูลใน session
+    # ล็อกอินสำเร็จ - เก็บข้อมูลใน session
     request.session.clear()
     request.session["uid"] = user["uid"]
     request.session["username"] = user["username"]

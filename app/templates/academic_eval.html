@@ -5,7 +5,7 @@
   <div>
     <div class="hero-sub">งานวิชาการ</div>
     <span class="hero-title">ประเมิน ปพ.6</span>
-    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+    <div class="hero-meta">{{ school.name or "" }} ปีการศึกษา {{ year }}</div>
   </div>
 </div>
 
@@ -24,8 +24,8 @@
       </select></div>
   </form>
   {% if not classes %}
-  <p class="muted" style="margin:10px 0 0;">ยังไม่มีห้องเรียนของปี {{ year }} —
-    <a href="/academic/classes?year={{ year }}">ไปสร้างห้องเรียนก่อน</a></p>
+  <p class="muted" style="margin:10px 0 0;">ยังไม่มีห้องเรียนของปี {{ year }}
+    <a href="/academic/classes?year={{ year }}">โปรดสร้างห้องเรียนก่อน</a></p>
   {% elif not c %}
   <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> ด้านบน เพื่อประเมินและออกสมุดพก ปพ.6</p>
   {% endif %}
@@ -47,9 +47,9 @@
     ความเห็นครูและผู้ปกครองเว้นช่องไว้ให้เขียนมือในสมุดพก</p>
   {% if not activities %}
   <div class="alert warn" style="margin:0 0 10px;"><svg class="icon"><use href="#ic-alert"/></svg>
-    ยังไม่ได้ตั้ง<b>กิจกรรมพัฒนาผู้เรียน</b>ของ {{ c.level }} —
+    ยังไม่ได้ตั้ง<b>กิจกรรมพัฒนาผู้เรียน</b>ของ {{ c.level }}
     <a href="/academic/subjects?year={{ year }}&level={{ c.level }}">ไปตั้งกิจกรรม</a>
-    (แนะแนว/ลูกเสือ/ชุมนุม/เพื่อสังคม หรือกิจกรรมของโรงเรียนเอง) แล้วค่อยกลับมาประเมิน</div>
+    (แนะแนว/ลูกเสือ/ชุมนุม/เพื่อสังคม หรือกิจกรรมของโรงเรียนเอง)</div>
   {% endif %}
   {% if students %}
   <form method="post" action="/academic/eval/save">
@@ -58,7 +58,7 @@
     <table>
       <thead><tr>
         <th>เลขที่</th><th>ชื่อ-นามสกุล</th><th>อ่านคิดวิเคราะห์</th><th>คุณลักษณะฯ</th>
-        {% for a in activities %}<th style="font-size:13px; white-space:nowrap;">{{ a.name }}</th>{% endfor %}
+        {% for a in activities %}<th style="font-size:13px; max-width:90px;" title="{{ a.name }}">{{ a.name | replace('และสาธารณประโยชน์', 'ฯ') }}</th>{% endfor %}
         {% if activities %}<th>สรุปกิจกรรม</th>{% endif %}<th></th>
       </tr></thead>
       <tbody>
@@ -68,7 +68,7 @@
           <td>{{ s.seq or '' }}</td>
           <td style="white-space:nowrap;">{{ s.name }}</td>
           {% set ef = eff.get(s.id) %}
-          {# คุณ/อ่าน มาจากประเมินรายวิชา 8 ข้อ เท่านั้น — แสดงผลอย่างเดียว ไม่ให้ติ๊กซ้ำ #}
+          {# คุณ/อ่าน มาจากประเมินรายวิชา 8 ข้อ เท่านั้น - แสดงผลอย่างเดียว ไม่ให้ติ๊กซ้ำ #}
           <td class="center">{% if ef and ef.read_think %}<b>{{ ef.read_think }}</b>
             {% else %}<a class="muted" href="/academic/assess?cid={{ c.id }}&kind=read" style="font-size:12.5px;">ประเมิน →</a>{% endif %}</td>
           <td class="center">{% if ef and ef.desired_char %}<b>{{ ef.desired_char }}</b>
@@ -87,7 +87,7 @@
     <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกผลการประเมิน</button>
   </form>
   {% else %}
-  <p class="muted">ห้องนี้ยังไม่มีนักเรียน — <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
+  <p class="muted">ห้องนี้ยังไม่มีนักเรียน - <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
   {% endif %}
 </div>
 {% endif %}

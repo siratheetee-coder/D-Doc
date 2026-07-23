@@ -11,7 +11,7 @@
   {% else %}
   <div class="alert warn" style="display:flex;align-items:center;gap:8px;">
     <svg class="icon"><use href="#ic-alert"/></svg>
-    <span>อ่านข้อความจาก PDF ไม่ได้ (อาจเป็นไฟล์สแกน) — กรุณากรอกข้อมูลเอง ไฟล์ยังแนบให้</span>
+    <span>อ่านข้อความจาก PDF ไม่ได้ (อาจเป็นไฟล์สแกน) - กรุณากรอกข้อมูลเอง ไฟล์ยังแนบให้</span>
   </div>
   {% endif %}
 </div>
@@ -84,7 +84,7 @@
     {% if is_pdf %}
     <iframe src="/admin/uploaded/{{ pending_file }}" style="width:100%; height:620px; border:1px solid var(--border); border-radius:10px;"></iframe>
     {% else %}
-    <p class="muted">ไฟล์ Word เปิดดูในเบราว์เซอร์โดยตรงไม่ได้ — กดเปิด/ดาวน์โหลดไฟล์ หรือดูข้อความที่ระบบอ่านได้ด้านล่าง</p>
+    <p class="muted">ไฟล์ Word เปิดดูในเบราว์เซอร์โดยตรงไม่ได้ - กดเปิด/ดาวน์โหลดไฟล์ หรือดูข้อความที่ระบบอ่านได้ด้านล่าง</p>
     <a class="btn sm" href="/admin/uploaded/{{ pending_file }}" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์ Word</a>
     <pre style="white-space:pre-wrap; max-height:520px; overflow:auto; margin-top:12px; padding:12px; background:#f8fafc; border:1px solid var(--border); border-radius:10px; font-family:inherit; font-size:14px;">{{ fields.raw_text or "(อ่านข้อความไม่ได้)" }}</pre>
     {% endif %}

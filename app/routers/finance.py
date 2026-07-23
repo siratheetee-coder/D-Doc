@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-finance.py — งานการเงิน
+finance.py - งานการเงิน
 หน้าหลักการเงิน + ทะเบียนคุมเงินแยกบัญชี (รับ-จ่าย-คงเหลือ)
 + บันทึกขออนุมัติเบิกจ่าย (ออก Word, เชื่อมเรื่องพัสดุ) + ทะเบียนใบเสร็จ/ใบสำคัญ
 + รายงานการเงิน (Excel) + นำเข้าข้อมูลจาก Excel
@@ -41,11 +41,11 @@ router = APIRouter()
 _DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 _XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-# ประเภทเงินตามงบ (คอลัมน์สมุดเงินสดราชการ) — เก็บเป็นข้อความไทยตรงๆ
+# ประเภทเงินตามงบ (คอลัมน์สมุดเงินสดราชการ) - เก็บเป็นข้อความไทยตรงๆ
 FUND_TYPES = ["เงินงบประมาณ", "เงินรายได้แผ่นดิน", "เงินนอกงบประมาณ"]
 _FUND_DEFAULT = "เงินนอกงบประมาณ"
 
-# ชุดหมวดสำเร็จรูป (กดปุ่มเดียวสร้างทั้งโครง) — (ชื่อหมวดแม่ | None, [รายการลูก])
+# ชุดหมวดสำเร็จรูป (กดปุ่มเดียวสร้างทั้งโครง) - (ชื่อหมวดแม่ | None, [รายการลูก])
 PRESET_SETS = {
     "subsidy_head": {
         "label": "เงินอุดหนุนรายหัว (5 รายการมาตรฐาน)",
@@ -93,7 +93,7 @@ def finance_dashboard(request: Request, db: Session = Depends(get_db), year: int
 @router.post("/finance/carry-forward")
 def carry_forward(db: Session = Depends(get_db), year: str = Form("")):
     """คัดลอกยอดคงเหลือสิ้นปีงบ {year} ไปตั้งเป็น 'ยอดยกมา' ของปีงบถัดไป
-    ไม่ลบรายการเดิม (ปีเก่ายังกดกลับไปดูได้) — upsert จึงกดซ้ำได้ ค่าจะอัปเดตให้ตรงเสมอ"""
+    ไม่ลบรายการเดิม (ปีเก่ายังกดกลับไปดูได้) - upsert จึงกดซ้ำได้ ค่าจะอัปเดตให้ตรงเสมอ"""
     src = _to_int(year, current_fiscal_year())
     nxt = src + 1
     for a in db.query(FinanceAccount).all():
@@ -113,7 +113,7 @@ def carry_forward(db: Session = Depends(get_db), year: str = Form("")):
 def accounts_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
     fy = year or current_fiscal_year()
     accounts = db.query(FinanceAccount).order_by(FinanceAccount.name).all()
-    # งบตามหมวด (รวมทุกหมวด/รายการย่อยของบัญชี ในปีงบนั้น) — โชว์ระดับบัญชี
+    # งบตามหมวด (รวมทุกหมวด/รายการย่อยของบัญชี ในปีงบนั้น) - โชว์ระดับบัญชี
     budget_by_acct = {}
     for it in db.query(AccountItem).filter_by(fiscal_year=fy).all():
         budget_by_acct[it.account_id] = budget_by_acct.get(it.account_id, 0.0) + (it.budget or 0.0)
@@ -182,7 +182,7 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
     for t in sorted(txns, key=lambda x: (x.date or datetime.min, x.id)):
         bal += (t.amount or 0) if t.kind == "in" else -(t.amount or 0)
         rows.append({"t": t, "balance": round(bal, 2)})
-    # สรุปงบรายหมวด (เฉพาะปีงบที่เลือก) — เป็นต้นไม้ซ้อน 2 ชั้น หมวดแม่รวมยอดลูก
+    # สรุปงบรายหมวด (เฉพาะปีงบที่เลือก) - เป็นต้นไม้ซ้อน 2 ชั้น หมวดแม่รวมยอดลูก
     items = (db.query(AccountItem).filter_by(account_id=a.id, fiscal_year=fy)
              .order_by(AccountItem.id).all())
 
@@ -251,7 +251,7 @@ def account_item_add(aid: int, db: Session = Depends(get_db), name: str = Form(.
 @router.post("/finance/accounts/{aid}/preset")
 def account_add_preset(aid: int, db: Session = Depends(get_db),
                        preset: str = Form(""), fiscal_year: str = Form("")):
-    """สร้างชุดหมวดสำเร็จรูป (หมวดแม่ + ลูก) ในคลิกเดียว — ข้ามชื่อที่มีอยู่แล้ว"""
+    """สร้างชุดหมวดสำเร็จรูป (หมวดแม่ + ลูก) ในคลิกเดียว - ข้ามชื่อที่มีอยู่แล้ว"""
     a = db.get(FinanceAccount, aid)
     fy = _to_int(fiscal_year, current_fiscal_year())
     spec = PRESET_SETS.get(preset)
@@ -300,7 +300,7 @@ def account_copy_items(aid: int, db: Session = Depends(get_db), year: str = Form
 def account_item_update(iid: int, db: Session = Depends(get_db), budget: str = Form(None),
                         name: str = Form(None), deposit_type: str = Form(None),
                         note: str = Form(None), year: str = Form("")):
-    """แก้ไขหมวดในตาราง (งบ/ชื่อ/เก็บที่/หมายเหตุ) — บันทึกอินไลน์"""
+    """แก้ไขหมวดในตาราง (งบ/ชื่อ/เก็บที่/หมายเหตุ) - บันทึกอินไลน์"""
     it = db.get(AccountItem, iid)
     if it:
         if budget is not None:

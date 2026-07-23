@@ -315,7 +315,7 @@ def _student_tiers(prog):
 
 
 def render_order_doc(rnd, school, doc=None) -> str:
-    """ใบสั่งจ้างเหมาประกอบอาหารกลางวัน (สัญญา 1 รอบ) — ใช้ข้อมูลงวดที่บันทึกไว้"""
+    """ใบสั่งจ้างเหมาประกอบอาหารกลางวัน (สัญญา 1 รอบ) - ใช้ข้อมูลงวดที่บันทึกไว้"""
     doc, own = _begin(doc)
     prog = rnd.program
     vendor = rnd.vendor
@@ -371,7 +371,7 @@ def render_order_doc(rnd, school, doc=None) -> str:
                     f"({bahttext(i.amount or 0)}) เมื่อได้ส่งมอบงานงวดที่ {i.seq} เรียบร้อยแล้ว",
                align="justify", indent=1.5, after=0)
     else:
-        _p(doc, "    (ยังไม่ได้แบ่งงวด — เพิ่มงวดในหน้าจัดการงวด)", indent=1.5, after=0)
+        _p(doc, "    (ยังไม่ได้แบ่งงวด - เพิ่มงวดในหน้าจัดการงวด)", indent=1.5, after=0)
     _p(doc, f"๗. กำหนดมูลค่าตามใบสั่งจ้างให้อยู่ภายในวงเงิน {_money(total)} บาท ({bahttext(total)}) "
             f"ระยะเวลาดำเนินการภายใน {days} วัน นับถัดจากวันลงนามในใบสั่งจ้าง",
        align="justify", indent=1.25, before=4)
@@ -660,7 +660,7 @@ def render_tor_request_doc(rnd, school, doc=None) -> str:
 
 
 def render_tor_doc(rnd, school, doc=None) -> str:
-    """ขอบเขตของงาน (TOR) การจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) — ตามแบบ สพฐ. คู่มืออาหารกลางวัน"""
+    """ขอบเขตของงาน (TOR) การจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) - ตามแบบ สพฐ. คู่มืออาหารกลางวัน"""
     doc, own = _begin(doc)
     prog = rnd.program
     sname = (school.name or "").strip() or "โรงเรียน"

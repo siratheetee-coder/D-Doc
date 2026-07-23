@@ -61,6 +61,6 @@ def _holidays_cached(years_tuple):
 
 
 def nav_holidays():
-    """ข้อมูลวันหยุดสำหรับปฏิทินลอย (ทุกหน้า) — ปีปัจจุบัน -1/+2 (cache ไว้)"""
+    """ข้อมูลวันหยุดสำหรับปฏิทินลอย (ทุกหน้า) - ปีปัจจุบัน -1/+2 (cache ไว้)"""
     y = datetime.now().year
     return _holidays_cached((y - 1, y, y + 1, y + 2))

@@ -84,7 +84,7 @@ def _p_runs(doc, segments, *, indent=None, align=None, tab_cm=None, size=16, aft
 
 
 def _hr(doc):
-    """เส้นขีดคั่นใต้หัวเรื่องบันทึกข้อความ — ยกเลิกแล้ว (เอาออกทุก template เพื่อประหยัดพื้นที่)
+    """เส้นขีดคั่นใต้หัวเรื่องบันทึกข้อความ - ยกเลิกแล้ว (เอาออกทุก template เพื่อประหยัดพื้นที่)
     คงฟังก์ชันไว้เพื่อให้จุดที่เรียกใช้เดิมยังทำงานได้ แต่ไม่วาดเส้น/ไม่เพิ่มย่อหน้า"""
     return
 
@@ -140,7 +140,7 @@ def _font(doc):
 
 
 def _set_szcs(rpr, pt):
-    """ตั้งค่า w:szCs (ขนาดฟอนต์ complex script) เป็น pt — แก้ปัญหาไทยกลายเป็น 11pt"""
+    """ตั้งค่า w:szCs (ขนาดฟอนต์ complex script) เป็น pt - แก้ปัญหาไทยกลายเป็น 11pt"""
     szcs = rpr.find(qn("w:szCs"))
     if szcs is None:
         szcs = OxmlElement("w:szCs")
@@ -405,7 +405,7 @@ def _member_table(doc, list_name, *, prefix="", member_var="m", indent=0.4):
     op = table.rows[0].cells
     _set_cell(op[0], "{%%tr for %s in %s %%}" % (member_var, list_name))
     setw(op)
-    # เลขลำดับกรรมการเป็น 1. 2. 3. (มีจุดท้าย) — ไม่ใช้รูปแบบ 2.1 2.2
+    # เลขลำดับกรรมการเป็น 1. 2. 3. (มีจุดท้าย) - ไม่ใช้รูปแบบ 2.1 2.2
     num_text = prefix + "{{ loop.index }}" + ("" if prefix else ".")
     d = table.add_row().cells
     _set_cell(d[0], num_text, align="left", size=16)
@@ -637,7 +637,7 @@ def build_purchase_order():
     doc = Document(); set_a4(doc)
     _font(doc)
 
-    # ตราครุฑกึ่งกลาง + ชื่อเอกสาร (ตามแบบฟอร์มจริง) — ครุฑใหญ่ขึ้นให้เด่น
+    # ตราครุฑกึ่งกลาง + ชื่อเอกสาร (ตามแบบฟอร์มจริง) - ครุฑใหญ่ขึ้นให้เด่น
     _krut_center(doc, height_cm=2.0)
     _p(doc, "{{ order_kind }}", align="center", bold=True, size=20, after=6)
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-sale_doc.py — ออกใบเสนอราคา / ใบเสร็จรับเงิน (Word) จากข้อมูลผู้ขาย (seller_config) + ลูกค้า (lead)
+sale_doc.py - ออกใบเสนอราคา / ใบเสร็จรับเงิน (Word) จากข้อมูลผู้ขาย (seller_config) + ลูกค้า (lead)
 ฟอนต์ TH Sarabun + โลโก้ + รวมเป็นตัวอักษร (บาทถ้วน)
 """
 from pathlib import Path
@@ -147,7 +147,7 @@ def _customer_box(doc, label, lead):
 
 def _items_table(doc, lead):
     amount = float(lead.get("amount") or 0)
-    desc = f"ค่าบริการระบบบริหารงานเอกสารโรงเรียน D-Doc — {lead.get('packages') or 'ครบทุกงาน'} (สมาชิกรายปี)"
+    desc = f"ค่าบริการระบบบริหารงานเอกสารโรงเรียน D-Doc - {lead.get('packages') or 'ครบทุกงาน'} (สมาชิกรายปี)"
     headers = ["ลำดับ", "รายการ", "จำนวน", "ราคาต่อหน่วย", "จำนวนเงิน (บาท)"]
     widths = [Cm(1.4), Cm(8.6), Cm(1.9), Cm(2.7), Cm(2.9)]
     table = doc.add_table(rows=1, cols=5)
@@ -374,7 +374,7 @@ def _render_sale_pdf(lead, seller, doc_no, doc_date, kind):
 
     # ---- ตารางรายการ ----
     amount = float(lead.get("amount") or 0)
-    desc = "ค่าบริการระบบบริหารงานเอกสารโรงเรียน D-Doc — " + (lead.get("packages") or "ครบทุกงาน") + " (สมาชิกรายปี)"
+    desc = "ค่าบริการระบบบริหารงานเอกสารโรงเรียน D-Doc - " + (lead.get("packages") or "ครบทุกงาน") + " (สมาชิกรายปี)"
     cols = [_ML, 180, 726, 858, 1000, _MR]
     heads = ["ลำดับ", "รายการ", "จำนวน", "ราคาต่อหน่วย", "จำนวนเงิน"]
     aligns = ["c", "l", "c", "r", "r"]

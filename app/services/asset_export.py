@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-asset_export.py — ส่งออกทะเบียนครุภัณฑ์ (+ค่าเสื่อมราคา) เป็น Excel (.xlsx)
+asset_export.py - ส่งออกทะเบียนครุภัณฑ์ (+ค่าเสื่อมราคา) เป็น Excel (.xlsx)
 """
 from datetime import date
 from pathlib import Path
@@ -103,7 +103,7 @@ def _safe_sheet(name: str, used: set) -> str:
 
 
 def export_asset_cards(assets, school) -> str:
-    """ออกไฟล์ Excel แบบ 'ทะเบียนคุมทรัพย์สิน' (แบบฟอร์มที่ 2) — 1 ชีตต่อ 1 ครุภัณฑ์"""
+    """ออกไฟล์ Excel แบบ 'ทะเบียนคุมทรัพย์สิน' (แบบฟอร์มที่ 2) - 1 ชีตต่อ 1 ครุภัณฑ์"""
     wb = Workbook(); wb.remove(wb.active)
 
     def F(**kw):

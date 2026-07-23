@@ -24,7 +24,7 @@
     <input type="hidden" name="year" value="{{ year }}">
     <div class="row">
       <div style="flex:2;"><label>บุคลากร *</label>
-        <select name="person_id" required><option value="">— เลือก —</option>{% for p in persons %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
+        <select name="person_id" required><option value="">- เลือก -</option>{% for p in persons %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
       </div>
       <div style="flex:2;"><label>เรื่อง/ภารกิจ</label><input name="subject" placeholder="เช่น อบรมหลักสูตร..."></div>
       <div style="flex:2;"><label>สถานที่/จังหวัด</label><input name="place"></div>

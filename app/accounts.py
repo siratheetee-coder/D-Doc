@@ -39,7 +39,7 @@ class Tenant(AccBase):
     plan = Column(String, default="member")        # trial = ทดลองใช้, member = สมาชิก(จ่ายแล้ว)
     docs_used = Column(Integer, default=0)         # จำนวนเอกสารที่ออกไปแล้ว (ใช้กับโควตาทดลอง)
     docs_limit = Column(Integer, default=0)        # โควตาเอกสารทดลองใช้ (0 = ไม่จำกัด/ซื้อครบแล้ว)
-    # งานที่ "ซื้อแล้ว" (CSV) — ไม่ใช่ "งานที่เข้าได้" · ว่าง = ยังไม่ซื้อ ใช้สิทธิ์ทดลองอยู่
+    # งานที่ "ซื้อแล้ว" (CSV) - ไม่ใช่ "งานที่เข้าได้" · ว่าง = ยังไม่ซื้อ ใช้สิทธิ์ทดลองอยู่
     # สิทธิ์เข้าใช้จริง = ซื้อแล้ว OR โควตาทดลองยังเหลือ (ดู can_use_module)
     modules = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)
@@ -49,7 +49,7 @@ class Tenant(AccBase):
 
 
 class Account(AccBase):
-    """ผู้ใช้ล็อกอิน — role=user ผูกกับโรงเรียน, role=superadmin คือผู้ขาย (ไม่มี tenant)"""
+    """ผู้ใช้ล็อกอิน - role=user ผูกกับโรงเรียน, role=superadmin คือผู้ขาย (ไม่มี tenant)"""
     __tablename__ = "account"
     id = Column(Integer, primary_key=True)
     tenant_id = Column(Integer, ForeignKey("tenant.id"), nullable=True)
@@ -70,7 +70,7 @@ class Account(AccBase):
 
 class Lead(AccBase):
     """คำขอจากหน้าเว็บสาธารณะ (landing): quote=ขอใบเสนอราคา, order=สั่งซื้อ/แจ้งชำระเงิน
-    เก็บในฐานข้อมูลกลาง (ยังไม่ผูกโรงเรียน) — ผู้ขายดูได้ในคอนโซลผู้ดูแลระบบ"""
+    เก็บในฐานข้อมูลกลาง (ยังไม่ผูกโรงเรียน) - ผู้ขายดูได้ในคอนโซลผู้ดูแลระบบ"""
     __tablename__ = "lead"
     id = Column(Integer, primary_key=True)
     kind = Column(String, default="quote")        # quote / order
@@ -80,8 +80,8 @@ class Lead(AccBase):
     contact_name = Column(String, default="")
     email = Column(String, default="")
     phone = Column(String, default="")
-    packages = Column(String, default="")         # งานที่เลือก (ข้อความ — ใช้แสดงผล/ใบเสนอราคา)
-    modules = Column(String, default="")          # งานที่เลือก (CSV — ค่าที่ระบบใช้จริงตอนอนุมัติ)
+    packages = Column(String, default="")         # งานที่เลือก (ข้อความ - ใช้แสดงผล/ใบเสนอราคา)
+    modules = Column(String, default="")          # งานที่เลือก (CSV - ค่าที่ระบบใช้จริงตอนอนุมัติ)
     amount = Column(Float, default=0.0)
     slip_file = Column(String, default="")        # ชื่อไฟล์สลิป (เฉพาะ order)
     note = Column(Text, default="")
@@ -92,7 +92,7 @@ class Lead(AccBase):
 
 
 class SaleDoc(AccBase):
-    """เลขที่เอกสารขาย: quotation=ใบเสนอราคา (QT), receipt=ใบเสร็จ (RC) — 1 lead/kind มีเลขเดียว (กันออกซ้ำ)"""
+    """เลขที่เอกสารขาย: quotation=ใบเสนอราคา (QT), receipt=ใบเสร็จ (RC) - 1 lead/kind มีเลขเดียว (กันออกซ้ำ)"""
     __tablename__ = "sale_doc"
     id = Column(Integer, primary_key=True)
     lead_id = Column(Integer, nullable=True)
@@ -228,7 +228,7 @@ def members_since(start) -> int:
 
 
 def tenant_status(tenant_id) -> dict | None:
-    """สถานะแพ็กเกจสำหรับแสดงในแอป — คืน "ทั้งสองด้าน" พร้อมกันเสมอ เพราะโรงเรียนหนึ่ง
+    """สถานะแพ็กเกจสำหรับแสดงในแอป - คืน "ทั้งสองด้าน" พร้อมกันเสมอ เพราะโรงเรียนหนึ่ง
     อาจเป็นสมาชิกของบางงาน และยังใช้สิทธิ์ทดลองกับงานที่เหลืออยู่ในเวลาเดียวกัน
 
     {plan, modules, modules_count,            # ด้านสมาชิก (งานที่ซื้อแล้ว)
@@ -264,7 +264,7 @@ def tenant_status(tenant_id) -> dict | None:
 
 def tenant_modules(tenant_id) -> set:
     """งานที่โรงเรียนนี้ "ซื้อแล้ว" · fail-open: อ่านไม่ได้ให้ถือว่าครบทุกงาน
-    (นี่คือการกั้นรายได้ ไม่ใช่การกั้นความปลอดภัย — DB สะดุดต้องไม่ล็อกคนที่จ่ายเงินแล้วออกจากระบบ)"""
+    (นี่คือการกั้นรายได้ ไม่ใช่การกั้นความปลอดภัย - DB สะดุดต้องไม่ล็อกคนที่จ่ายเงินแล้วออกจากระบบ)"""
     if not tenant_id:
         return set(MODULE_KEYS)
     try:
@@ -299,7 +299,7 @@ def can_use_module(tenant_id, module) -> bool:
                 return True
             if not mods:
                 # ยังไม่เคยซื้ออะไร = ทดลองใช้ล้วน -> เข้าดูได้ทุกงานเหมือนเดิม
-                # (โควตาคุมที่ "การออกเอกสาร" ไม่ใช่การเข้าหน้า — โควตาหมดยังเปิดดูข้อมูลตัวเองได้)
+                # (โควตาคุมที่ "การออกเอกสาร" ไม่ใช่การเข้าหน้า - โควตาหมดยังเปิดดูข้อมูลตัวเองได้)
                 return True
             limit = t.docs_limit or 0
             if not limit:                                # ซื้อบางงานแล้วและไม่มีโควตาเหลือ
@@ -313,7 +313,7 @@ def can_use_module(tenant_id, module) -> bool:
 
 def ai_key_for(tenant_id) -> str:
     """คืน AI key กลาง (หลังบ้าน) เฉพาะโรงเรียนที่เป็นสมาชิก (จ่ายแล้ว ไม่ใช่ trial)
-    มิฉะนั้นคืน '' (ปิด AI) — key ไม่เคยผูก per-tenant/ไม่ส่งถึง client"""
+    มิฉะนั้นคืน '' (ปิด AI) - key ไม่เคยผูก per-tenant/ไม่ส่งถึง client"""
     from app.seller_config import SELLER
     key = (SELLER.get("ai_api_key") or "").strip()
     if not key or not tenant_id:
@@ -329,7 +329,7 @@ def ai_key_for(tenant_id) -> str:
 
 
 def consume_doc_quota(tenant_id, module=None) -> tuple:
-    """เรียกก่อนออกเอกสาร — **กินโควตาเฉพาะงานที่ยังไม่ได้ซื้อ**
+    """เรียกก่อนออกเอกสาร - **กินโควตาเฉพาะงานที่ยังไม่ได้ซื้อ**
 
     - งานที่ซื้อแล้ว -> ผ่านฟรี ไม่แตะตัวนับ (จ่ายเงินแล้วต้องไม่โดนหักโควตา)
     - ไม่มีโควตา (ซื้อครบ/สมาชิกเดิม) -> ผ่านฟรี
@@ -438,7 +438,7 @@ def provision_tenant(name: str, slug: str, admin_user: str, admin_pw: str,
     """สร้างโรงเรียนใหม่ + ผู้ใช้แรก + สร้างไฟล์ฐานข้อมูลของโรงเรียน คืน tenant_id
 
     modules = งานที่ "ซื้อแล้ว" · ไม่ระบุ -> สมาชิก = ครบทุกงาน, ทดลองใช้ = ว่าง
-    (ทดลองใช้ต้องเป็นค่าว่าง ไม่งั้นจะกลายเป็น "ซื้อครบ" = ใช้ฟรีไม่จำกัด — สิทธิ์ทดลองมาจากโควตาเอกสารแทน)
+    (ทดลองใช้ต้องเป็นค่าว่าง ไม่งั้นจะกลายเป็น "ซื้อครบ" = ใช้ฟรีไม่จำกัด - สิทธิ์ทดลองมาจากโควตาเอกสารแทน)
     """
     from app.tenancy import ensure_school_db
     if modules is None:
@@ -662,7 +662,7 @@ def renew_lead(lead_id: int, days: int = 365) -> dict | None:
             a = db.query(Account).filter_by(username=email).first()
             tid = a.tenant_id if a else None
         if not tid:
-            return {"error": "คำสั่งซื้อนี้ไม่ได้ผูกกับบัญชี — ลูกค้าต้องลงทะเบียน/เข้าสู่ระบบก่อนสั่งซื้อ"}
+            return {"error": "คำสั่งซื้อนี้ไม่ได้ผูกกับบัญชี - ลูกค้าต้องลงทะเบียน/เข้าสู่ระบบก่อนสั่งซื้อ"}
         t = db.get(Tenant, tid)
         if not t:
             return {"error": "ไม่พบบัญชีโรงเรียน"}
@@ -678,7 +678,7 @@ def renew_lead(lead_id: int, days: int = 365) -> dict | None:
             t.modules = modules_csv(parse_modules(t.modules) | bought)
 
         # โควตาทดลอง: ล้างเฉพาะเมื่อซื้อครบทุกงานแล้ว
-        # ถ้าซื้อบางงาน ต้องคงโควตาที่เหลือไว้ให้ใช้กับงานที่ยังไม่ได้ซื้อ —
+        # ถ้าซื้อบางงาน ต้องคงโควตาที่เหลือไว้ให้ใช้กับงานที่ยังไม่ได้ซื้อ -
         # การซื้องานแรกต้องเป็นการอัปเกรดล้วน ๆ ห้ามริบสิทธิ์ทดลองของงานที่เหลือ
         if parse_modules(t.modules) == set(MODULE_KEYS):
             t.docs_limit = 0       # ซื้อครบ: ออกเอกสารไม่จำกัดทุกงาน
@@ -715,7 +715,7 @@ def bootstrap():
     _ensure_engine()
     db = acc_session()
     try:
-        # 1) superadmin เริ่มต้น (ผู้ขาย) — เปลี่ยนรหัสได้ภายหลัง
+        # 1) superadmin เริ่มต้น (ผู้ขาย) - เปลี่ยนรหัสได้ภายหลัง
         if not db.query(Account).filter_by(role="superadmin").first():
             su = os.environ.get("DDOC_SUPERADMIN", "admin")
             sp = os.environ.get("DDOC_SUPERADMIN_PW", "admin123")

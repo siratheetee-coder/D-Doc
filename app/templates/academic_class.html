@@ -33,7 +33,7 @@
     </div>
   </div>
   <p class="muted" style="font-size:13px; margin:6px 0 8px;">ดึงจากทะเบียนกลางโดยจับคู่ <b>ชั้น {{ c.level }}{% if c.room %} ห้อง {{ c.room }}{% endif %}</b>
-    — ถ้าไม่พบใคร ให้ไปตั้งชั้น/ห้องให้นักเรียนที่ <a href="/students">ทะเบียนนักเรียน</a> ก่อน</p>
+    - ถ้าไม่พบใคร ให้ไปตั้งชั้น/ห้องให้นักเรียนที่ <a href="/students">ทะเบียนนักเรียน</a> ก่อน</p>
   {% if students %}
   <div style="margin:0 0 8px;"><button class="btn sm" type="button" onclick="saveAllRows(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึกทั้งหมด</button></div>
   <div class="table-wrap">
@@ -63,13 +63,13 @@
   </table>
   </div>
   {% else %}
-  <p class="muted">ยังไม่มีนักเรียนในห้องนี้ — กดปุ่ม "ดึงนักเรียนจากทะเบียนกลาง" ด้านบน</p>
+  <p class="muted">ยังไม่มีนักเรียนในห้องนี้ - กดปุ่ม "ดึงนักเรียนจากทะเบียนกลาง" ด้านบน</p>
   {% endif %}
 </div>
 
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-users"/></svg> ครูผู้สอนรายวิชาของห้องนี้</h2>
-  <p class="muted" style="font-size:13px; margin:4px 0 8px;">กำหนดแยกรายห้องได้ — วิชาเดียวกันคนละห้องใช้คนละครูได้ · ชื่อนี้จะไปลงนามท้าย ปพ.5</p>
+  <p class="muted" style="font-size:13px; margin:4px 0 8px;">กำหนดแยกรายห้องได้ - วิชาเดียวกันคนละห้องใช้คนละครูได้ · ชื่อนี้จะไปลงนามท้าย ปพ.5</p>
   {% if subjects %}
   <form method="post" action="/academic/classes/{{ c.id }}/teaching">
     <div class="table-wrap">
@@ -96,7 +96,7 @@
     <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกครูผู้สอน</button>
   </form>
   {% else %}
-  <p class="muted">ยังไม่มีรายวิชาของชั้น {{ c.level }} ปี {{ c.year }} — <a href="/academic/subjects?year={{ c.year }}&level={{ c.level }}">ไปสร้างรายวิชา</a></p>
+  <p class="muted">ยังไม่มีรายวิชาของชั้น {{ c.level }} ปี {{ c.year }} - <a href="/academic/subjects?year={{ c.year }}&level={{ c.level }}">ไปสร้างรายวิชา</a></p>
   {% endif %}
 </div>
 <script>

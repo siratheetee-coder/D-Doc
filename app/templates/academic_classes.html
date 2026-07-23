@@ -22,7 +22,7 @@
 <div class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มห้องเรียน</h2>
   {% if not teachers %}
-  <div class="alert">ยังไม่มีรายชื่อครูในระบบ — <a href="/masters">เพิ่มบุคลากรที่ทะเบียนกลาง</a> ก่อน แล้วค่อยกลับมาเลือกครูประจำชั้น</div>
+  <div class="alert">ยังไม่มีรายชื่อครูในระบบ - <a href="/masters">เพิ่มบุคลากรที่ทะเบียนกลาง</a> ก่อน แล้วค่อยกลับมาเลือกครูประจำชั้น</div>
   {% endif %}
   <form method="post" action="/academic/classes/add" class="row" style="align-items:flex-end;">
     <input type="hidden" name="year" value="{{ year }}">
@@ -71,7 +71,7 @@
   </table>
   </div>
   {% else %}
-  <p class="muted">ยังไม่มีห้องเรียนของปีนี้ — เพิ่มด้านบนได้เลย</p>
+  <p class="muted">ยังไม่มีห้องเรียนของปีนี้ - เพิ่มด้านบนได้เลย</p>
   {% endif %}
 </div>
 {% endblock %}

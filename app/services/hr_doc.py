@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-hr_doc.py — เอกสารงานบุคคล (Word)
+hr_doc.py - เอกสารงานบุคคล (Word)
 - render_leave_form  : ใบลา (ป่วย/กิจ/พักผ่อน ฯลฯ)
 - render_certificate : หนังสือรับรอง (การเป็นบุคลากร / เงินเดือน)
 """
@@ -112,7 +112,7 @@ def _hdr_cell(cell, lines, *, align="left", size=15):
 
 
 def render_certificate(school, person) -> str:
-    """หนังสือรับรองบุคลากร — ฟอร์มราชการ (ครุฑ / ที่ / ที่อยู่โรงเรียน) + ลายเซ็น ผอ."""
+    """หนังสือรับรองบุคลากร - ฟอร์มราชการ (ครุฑ / ที่ / ที่อยู่โรงเรียน) + ลายเซ็น ผอ."""
     from app.services.build_templates import _krut_path
     from app.services.office_doc import _float_signature
     from app.thai_utils import _THAI_MONTHS

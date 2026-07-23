@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-lunch.py — งานอาหารกลางวัน
+lunch.py - งานอาหารกลางวัน
 โครงการอาหารกลางวันต่อปีการศึกษา: คำนวณงบ (นักเรียน x อัตรา/หัว/วัน x จำนวนวัน)
 + บัญชีรับ-จ่ายเงินอาหารกลางวัน + เชื่อมไปเรื่องจ้างเหมา (โมดูลจัดซื้อ)
 ตารางใหม่สร้างอัตโนมัติด้วย init_school_db (ไม่ต้อง ALTER)
@@ -45,7 +45,7 @@ FOOD_GROUPS = {
     "5": "ไขมัน",
 }
 
-# เมนูแนะนำมาตรฐาน (ครบ 5 หมู่) — กดเพิ่มเข้าตารางได้เลย ไว้หมุนเวียนรายสัปดาห์
+# เมนูแนะนำมาตรฐาน (ครบ 5 หมู่) - กดเพิ่มเข้าตารางได้เลย ไว้หมุนเวียนรายสัปดาห์
 STD_MENUS = [
     {"main": "ข้าว + ผัดกะเพราไก่ ไข่ดาว", "dessert": "กล้วยน้ำว้า"},
     {"main": "ข้าว + แกงจืดเต้าหู้หมูสับ", "dessert": "ส้ม"},
@@ -74,7 +74,7 @@ def lunch_rate(total: int) -> float:
 
 
 def _current_academic_year() -> int:
-    """ปีการศึกษาปัจจุบัน (พ.ศ.) — เปิดเทอม พ.ค. ถึง มี.ค."""
+    """ปีการศึกษาปัจจุบัน (พ.ศ.) - เปิดเทอม พ.ค. ถึง มี.ค."""
     now = datetime.now()
     y = now.year + 543
     return y if now.month >= 4 else y - 1
@@ -181,7 +181,7 @@ def lunch_delete(pid: int, db: Session = Depends(get_db)):
     return RedirectResponse("/lunch", status_code=303)
 
 
-# ---------------- ภาวะโภชนาการ (เมนูของตัวเอง — ต้องมาก่อน /lunch/{pid}) ----------------
+# ---------------- ภาวะโภชนาการ (เมนูของตัวเอง - ต้องมาก่อน /lunch/{pid}) ----------------
 @router.get("/lunch/nutrition", response_class=HTMLResponse)
 def nutrition_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("lunch_nutrition.html",
@@ -641,7 +641,7 @@ def _nutrition_ctx(request, db, prog):
 
 
 def _nutrition_pool(db) -> LunchProgram:
-    """โปรแกรมพิเศษ (ซ่อน) เก็บทะเบียนภาวะโภชนาการรวมของโรงเรียน — สร้างครั้งเดียว ใช้ตลอด
+    """โปรแกรมพิเศษ (ซ่อน) เก็บทะเบียนภาวะโภชนาการรวมของโรงเรียน - สร้างครั้งเดียว ใช้ตลอด
     ทำให้ภาวะโภชนาการเป็นเมนูของตัวเอง ไม่ผูกกับเรื่องจ้างเหมาแต่ละโครงการ"""
     pool = db.query(LunchProgram).filter(LunchProgram.pool == 1).first()
     if not pool:

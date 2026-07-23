@@ -34,7 +34,7 @@
   <form method="post" action="/hr/leave/add" class="row" style="align-items:flex-end;">
     <input type="hidden" name="year" value="{{ year }}">
     <div style="flex:2;"><label>บุคลากร *</label>
-      <select name="person_id" required><option value="">— เลือก —</option>{% for p in persons %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
+      <select name="person_id" required><option value="">- เลือก -</option>{% for p in persons %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
     </div>
     <div><label>ประเภทลา</label><select name="leave_type">{% for lt, label in leave_types.items() %}<option value="{{ lt }}">{{ label }}</option>{% endfor %}</select></div>
     <div><label>ตั้งแต่วันที่</label><input name="start_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:124px;"></div>

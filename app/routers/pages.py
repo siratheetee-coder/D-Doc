@@ -664,7 +664,7 @@ _SEX_MAP = {"ช": "M", "ชาย": "M", "m": "M", "M": "M",
 
 
 def _xlsx_download(wb, filename: str) -> Response:
-    """ส่งไฟล์ Excel จากหน่วยความจำ (ไม่เขียนดิสก์) — กันปัญหา path/permission บนเซิร์ฟเวอร์"""
+    """ส่งไฟล์ Excel จากหน่วยความจำ (ไม่เขียนดิสก์) - กันปัญหา path/permission บนเซิร์ฟเวอร์"""
     import io as _io
     from urllib.parse import quote
     buf = _io.BytesIO()
@@ -678,8 +678,8 @@ def serve_generated(path, media_type: str | None = None, *,
                     inline: bool = False, download_name: str | None = None,
                     count: bool = True) -> Response:
     """อ่านไฟล์ที่สร้างไว้เข้าหน่วยความจำแล้วส่งกลับ พร้อม Content-Disposition แบบ RFC 5987
-    (filename*=utf-8'') — เลี่ยงปัญหา FileResponse กับชื่อไฟล์ภาษาไทยบนเซิร์ฟเวอร์
-    count=True: นับโควตาเอกสาร (ทดลองใช้) — ครบแล้วพาไปหน้าต่ออายุ
+    (filename*=utf-8'') - เลี่ยงปัญหา FileResponse กับชื่อไฟล์ภาษาไทยบนเซิร์ฟเวอร์
+    count=True: นับโควตาเอกสาร (ทดลองใช้) - ครบแล้วพาไปหน้าต่ออายุ
     หักโควตาเฉพาะงานที่ยังไม่ได้ซื้อ (งานที่จ่ายเงินแล้วออกเอกสารได้ไม่จำกัด)"""
     if count:
         from app.tenancy import current_school_id, current_module
@@ -698,7 +698,7 @@ def serve_generated(path, media_type: str | None = None, *,
 
 
 def _ai_key() -> str:
-    """AI key กลาง (หลังบ้าน) ของโรงเรียนที่ล็อกอิน — คืน '' ถ้าไม่ใช่สมาชิก/ไม่ได้ตั้ง key"""
+    """AI key กลาง (หลังบ้าน) ของโรงเรียนที่ล็อกอิน - คืน '' ถ้าไม่ใช่สมาชิก/ไม่ได้ตั้ง key"""
     from app.tenancy import current_school_id
     from app.accounts import ai_key_for
     return ai_key_for(current_school_id.get())
@@ -764,7 +764,7 @@ _GRADUATED = GRADUATED
 
 @router.post("/students/promote")
 def students_promote(db: Session = Depends(get_db)):
-    """เลื่อนชั้นทุกคนขึ้น 1 ระดับ (ขึ้นปีการศึกษาใหม่) — ชั้นสูงสุดตั้งเป็น 'จบการศึกษา'"""
+    """เลื่อนชั้นทุกคนขึ้น 1 ระดับ (ขึ้นปีการศึกษาใหม่) - ชั้นสูงสุดตั้งเป็น 'จบการศึกษา'"""
     idx = {lv: i for i, lv in enumerate(_LEVEL_LADDER)}
     n = 0
     for s in db.query(Student).all():
@@ -1310,7 +1310,7 @@ def _build_committee(form, kind: str, mode: str, prefix: str) -> Committee:
 
 
 def _resolve_vendor(db: Session, form) -> int | None:
-    """หา vendor_id จากชื่อที่กรอก — ถ้ายังไม่มีในระบบให้สร้างผู้ขายใหม่ให้อัตโนมัติ
+    """หา vendor_id จากชื่อที่กรอก - ถ้ายังไม่มีในระบบให้สร้างผู้ขายใหม่ให้อัตโนมัติ
     (รองรับ vendor_id เดิมเพื่อความเข้ากันได้ย้อนหลัง)"""
     name = (form.get("vendor_name") or "").strip()
     if name:
@@ -1344,7 +1344,7 @@ PROC_CASES = {
 }
 
 
-# ฟิลด์เสริมเฉพาะรูปแบบ (key, ป้ายกำกับ, ชนิด) — ใช้สร้างช่องกรอกในฟอร์ม + เก็บลง case_extra (JSON)
+# ฟิลด์เสริมเฉพาะรูปแบบ (key, ป้ายกำกับ, ชนิด) - ใช้สร้างช่องกรอกในฟอร์ม + เก็บลง case_extra (JSON)
 CASE_EXTRA_FIELDS = {
     "w804": [
         ("report2_no", "เลขที่รายงานสรุปผล", "text"),
@@ -1496,7 +1496,7 @@ async def procurement_ai_items(file: UploadFile = File(...), db: Session = Depen
     from app.services.ai_extract import extract_items_from_image
     key = _ai_key()
     if not key:
-        return JSONResponse({"items": [], "error": "ฟีเจอร์ AI สำหรับสมาชิก — ต่ออายุ/เป็นสมาชิกเพื่อใช้งาน"})
+        return JSONResponse({"items": [], "error": "ฟีเจอร์ AI สำหรับสมาชิก - ต่ออายุ/เป็นสมาชิกเพื่อใช้งาน"})
     data = await file.read()
     ext = file_upload.detect_ext(data, file.filename or "")
     if ext not in ("png", "jpg", "webp"):
@@ -1630,10 +1630,10 @@ def _extract_proc(path: str, use_ai: bool, db):
     if use_ai:
         key = _ai_key()
         if not key:
-            return extract_procurement_fields(path), "ฟีเจอร์ AI สำหรับสมาชิก — ใช้การอ่านแบบปกติแทน (ต่ออายุเพื่อเปิด AI)"
+            return extract_procurement_fields(path), "ฟีเจอร์ AI สำหรับสมาชิก - ใช้การอ่านแบบปกติแทน (ต่ออายุเพื่อเปิด AI)"
         res = extract_with_ai(extract_text_any(path), key)
         if res.get("ok"):
-            return res, "อ่านด้วย AI สำเร็จ — โปรดตรวจสอบความถูกต้องก่อนบันทึก"
+            return res, "อ่านด้วย AI สำเร็จ - โปรดตรวจสอบความถูกต้องก่อนบันทึก"
         return extract_procurement_fields(path), "อ่านด้วย AI ไม่สำเร็จ ใช้การอ่านแบบปกติแทน (ตรวจ API key/อินเทอร์เน็ต)"
     return extract_procurement_fields(path), None
 
@@ -1730,10 +1730,10 @@ def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get
     fy = proc.fiscal_year
     order_type = "purchase_order" if proc.proc_type == "ซื้อ" else "hire_order"
     docs = sorted(proc.documents, key=lambda d: d.id, reverse=True)
-    # ปฏิทินวันหยุด (สำหรับเตือนเมื่อวันที่ลงนามตรงวันหยุด) — ครอบคลุมปีที่เกี่ยวข้อง
+    # ปฏิทินวันหยุด (สำหรับเตือนเมื่อวันที่ลงนามตรงวันหยุด) - ครอบคลุมปีที่เกี่ยวข้อง
     holiday_years = year_range_for(proc.request_date, proc.order_date,
                                    proc.delivery_due_date, proc.inspect_date)
-    # ข้อมูลเลขที่ใช้ไปแล้ว (สำหรับเตือนเลขซ้ำ/เลยเลข) แยกตามชนิด — ไม่รวมเลขของเรื่องนี้เอง
+    # ข้อมูลเลขที่ใช้ไปแล้ว (สำหรับเตือนเลขซ้ำ/เลยเลข) แยกตามชนิด - ไม่รวมเลขของเรื่องนี้เอง
     docno_used = {}
     for dt in ("memo", "command", order_type):
         rows = (db.query(IssuedDocNo)
@@ -1815,13 +1815,13 @@ async def procurement_update_refs(proc_id: int, request: Request, db: Session = 
     proc.order_date       = _parse_date(form.get("order_date"))
     proc.inspect_date     = _parse_date(form.get("inspect_date"))
 
-    # วันครบกำหนดส่งมอบ — ถ้าไม่ได้กรอกให้คำนวณอัตโนมัติจากวันที่ใบสั่ง + จำนวนวัน
+    # วันครบกำหนดส่งมอบ - ถ้าไม่ได้กรอกให้คำนวณอัตโนมัติจากวันที่ใบสั่ง + จำนวนวัน
     due = _parse_date(form.get("delivery_due_date"))
     if due:
         proc.delivery_due_date = due
     elif proc.order_date:
         proc.delivery_due_date = proc.order_date + timedelta(days=int(proc.delivery_days or 7))
-    # วันที่ส่งมอบจริง (ใบส่งมอบงาน) — ถ้าเว้นว่างใช้วันครบกำหนดในเอกสารแทน
+    # วันที่ส่งมอบจริง (ใบส่งมอบงาน) - ถ้าเว้นว่างใช้วันครบกำหนดในเอกสารแทน
     proc.delivery_date = _parse_date(form.get("delivery_date"))
 
     # ค่าปรับ + ใบส่งของ (ตรวจรับ)
@@ -1942,7 +1942,7 @@ def _split_name(full: str) -> dict:
 
 @router.get("/procurement/{proc_id}/egp", response_class=HTMLResponse)
 def procurement_egp(proc_id: int, request: Request, db: Session = Depends(get_db)):
-    """หน้า 'ช่วยกรอก e-GP' (copy-assist) — จัดข้อมูลเรื่องจัดซื้อให้คัดลอกไปวางลง e-GP ทีละช่อง/ทีละขั้นตอน
+    """หน้า 'ช่วยกรอก e-GP' (copy-assist) - จัดข้อมูลเรื่องจัดซื้อให้คัดลอกไปวางลง e-GP ทีละช่อง/ทีละขั้นตอน
     อิงโครงสร้างจริงของ e-GP (จัดทำโครงการ + รายงานขอซื้อขอจ้าง + ผู้ค้า/ราคา)
     ไม่ยุ่งกับบัญชี/รหัสผ่าน e-GP และไม่ทำ autofill อัตโนมัติ"""
     proc = db.get(Procurement, proc_id)
@@ -2030,7 +2030,7 @@ async def bundle_generate(proc_id: int, request: Request, db: Session = Depends(
 @router.get("/register.xlsx")
 def download_register(db: Session = Depends(get_db), year: int | None = None,
                       kind: str = "all"):
-    """ดาวน์โหลดทะเบียนคุม Excel — kind: all / buy (จัดซื้อ) / hire (จัดจ้าง)
+    """ดาวน์โหลดทะเบียนคุม Excel - kind: all / buy (จัดซื้อ) / hire (จัดจ้าง)
     แยกเล่มจัดซื้อ-จัดจ้างตามระเบียบพัสดุ"""
     fy = year or current_fiscal_year()
     query = db.query(Procurement).filter(Procurement.fiscal_year == fy)
@@ -2055,7 +2055,7 @@ def download_monthly_summary(db: Session = Depends(get_db), year: int | None = N
 
 
 # ============================================================
-# เฟส 3.1 — ทะเบียนครุภัณฑ์ + ค่าเสื่อมราคา
+# เฟส 3.1 - ทะเบียนครุภัณฑ์ + ค่าเสื่อมราคา
 # ============================================================
 _XLSX_MT = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
@@ -2331,7 +2331,7 @@ def assets_export(db: Session = Depends(get_db)):
 
 @router.get("/assets/form.xlsx")
 def assets_form_export(db: Session = Depends(get_db)):
-    """ออกแบบฟอร์มทะเบียนคุมทรัพย์สิน (แบบ 2) — การ์ดต่อ 1 ครุภัณฑ์"""
+    """ออกแบบฟอร์มทะเบียนคุมทรัพย์สิน (แบบ 2) - การ์ดต่อ 1 ครุภัณฑ์"""
     from app.services.asset_export import export_asset_cards
     assets = db.query(Asset).order_by(Asset.id).all()
     path = export_asset_cards(assets, get_school(db))
@@ -2501,7 +2501,7 @@ def asset_schedule(asset_id: int, request: Request, db: Session = Depends(get_db
 
 
 # ============================================================
-# เฟส 3.2 — บัญชีวัสดุ (รับ-จ่าย-คงเหลือ)
+# เฟส 3.2 - บัญชีวัสดุ (รับ-จ่าย-คงเหลือ)
 # ============================================================
 @router.get("/materials", response_class=HTMLResponse)
 def materials_page(request: Request, db: Session = Depends(get_db)):
@@ -2605,7 +2605,7 @@ def material_txn_delete(txn_id: int, db: Session = Depends(get_db)):
 
 
 # ============================================================
-# เฟส 3.3 — ใบเบิกวัสดุ
+# เฟส 3.3 - ใบเบิกวัสดุ
 # ============================================================
 @router.get("/requisitions", response_class=HTMLResponse)
 def requisitions_page(request: Request, db: Session = Depends(get_db)):
@@ -2709,7 +2709,7 @@ def requisition_print(req_id: int, db: Session = Depends(get_db)):
 
 
 # ============================================================
-# เฟส 3.4 — นำเข้าครุภัณฑ์/วัสดุ จากเรื่องจัดซื้อ (อัตโนมัติ)
+# เฟส 3.4 - นำเข้าครุภัณฑ์/วัสดุ จากเรื่องจัดซื้อ (อัตโนมัติ)
 # ============================================================
 @router.get("/procurement/{proc_id}/to-register", response_class=HTMLResponse)
 def to_register_page(proc_id: int, request: Request, db: Session = Depends(get_db)):

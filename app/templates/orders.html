@@ -6,7 +6,7 @@
   {% set err = request.query_params.get('err') %}
   {% if err %}
   <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
-    {{ {'notpdf':'ไฟล์/ลิงก์ไม่ใช่ PDF หรือ Word (.docx) หรือต้องล็อกอินก่อน — ลองอัปโหลดไฟล์ที่ดาวน์โหลดมาแทน',
+    {{ {'notpdf':'ไฟล์/ลิงก์ไม่ใช่ PDF หรือ Word (.docx) หรือต้องล็อกอินก่อน - ลองอัปโหลดไฟล์ที่ดาวน์โหลดมาแทน',
         'url':'ลิงก์ไม่ถูกต้อง','fetch':'ดึงไฟล์จากลิงก์ไม่สำเร็จ (เครื่องต้องต่อเน็ตและเข้าถึงลิงก์ได้)'}.get(err, 'นำเข้าไม่สำเร็จ') }}
   </div>
   {% endif %}
@@ -87,7 +87,7 @@
       if(d.error){ msg.textContent=d.error; return; }
       if(d.subject){ document.getElementById('o_subject').value=d.subject; }
       if(d.body){ document.getElementById('o_body').value=d.body; }
-      msg.textContent='AI เขียนให้แล้ว — ตรวจ/แก้ด้านล่างก่อนบันทึก';
+      msg.textContent='AI เขียนให้แล้ว - ตรวจ/แก้ด้านล่างก่อนบันทึก';
     }).catch(function(){ btn.disabled=false; msg.textContent='เชื่อมต่อ AI ไม่สำเร็จ'; });
   }
   document.querySelectorAll('input[data-date]').forEach(function(el){

@@ -24,7 +24,7 @@
       </select></div>
   </form>
   {% if not c %}
-  <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> เพื่อกรอกเวลาเรียน —
+  <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> เพื่อกรอกเวลาเรียน -
     กรอกเป็น<b>รายเดือน</b> (ระบบรวมและคิดร้อยละให้) หรือกรอกเฉพาะ<b>ยอดรวมทั้งปี</b> ก็ได้</p>
   {% endif %}
 </div>
@@ -33,17 +33,17 @@
 <div class="card">
   <h2 style="margin:0 0 4px;">ห้อง {{ class_label(c) }} <span class="muted" style="font-size:15px;">({{ students|length }} คน)</span></h2>
   <p class="muted" style="font-size:13px; margin:4px 0 8px;">
-    <b>กรอกแค่ ป่วย / ลา / ขาด</b> — ระบบหักออกจากวันเปิดเรียนแล้วคิด "มา(รวม)" กับร้อยละให้เอง ·
+    <b>กรอกแค่ ป่วย / ลา / ขาด</b> - ระบบหักออกจากวันเปิดเรียนแล้วคิด "มา(รวม)" กับร้อยละให้เอง ·
     ถ้าอยากเช็กเป็นรายวันให้กด <b>แสดงรายเดือน</b> แล้วคลิกชื่อเดือน ·
     เกณฑ์ผ่าน: มาเรียนไม่น้อยกว่าร้อยละ 80</p>
   {% if not has_cal %}
   <div class="alert warn" style="margin:0 0 10px;"><svg class="icon"><use href="#ic-alert"/></svg>
-    ยังไม่ได้ตั้ง<b>ปฏิทินการศึกษา</b>ของปี {{ year }} —
+    ยังไม่ได้ตั้ง<b>ปฏิทินการศึกษา</b>ของปี {{ year }} -
     <a href="/academic/calendar?year={{ year }}">ตั้งปฏิทิน</a> แล้วจะเช็กชื่อรายวันได้</div>
   {% endif %}
   {% if students %}
   <div id="attWarn" class="alert warn" style="display:none;"><svg class="icon"><use href="#ic-alert"/></svg>
-    <span><b>จำนวนวันมาเรียนไม่ครบ</b> <span id="attWarnN"></span> —
+    <span><b>จำนวนวันมาเรียนไม่ครบ</b> <span id="attWarnN"></span> -
       โปรดกรอกจำนวนวัน <b>ป่วย / ลา / ขาด</b> ให้ครบ แล้วระบบจะรวมเป็นจำนวนวันมาเรียนให้</span></div>
 
   <label style="display:inline-flex; align-items:center; gap:7px; margin:0 0 10px; cursor:pointer; font-size:14px;">
@@ -87,7 +87,7 @@
           {% if (s.id, mnum) in marked %}
           {# เช็กรายวันไว้แล้ว: แสดงยอดที่นับจากการเช็ก แก้ที่หน้าเช็กชื่อเท่านั้น
              (ถ้าให้พิมพ์ทับตรงนี้ ตัวเลขจะไม่ตรงกับที่เอกสารใช้จริง) #}
-          <td class="mcol center" title="นับจากการเช็กชื่อรายวัน — แก้ที่หน้าเช็กชื่อ">
+          <td class="mcol center" title="นับจากการเช็กชื่อรายวัน - แก้ที่หน้าเช็กชื่อ">
             <a href="/academic/attendance?cid={{ c.id }}&month={{ mnum }}" style="font-weight:700;">{{ v if v is not none else 0 }}</a>
             <span data-m data-fixed="{{ v if v is not none else 0 }}" style="display:none;"></span></td>
           {% else %}
@@ -114,7 +114,7 @@
     <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกเวลาเรียน</button>
   </form>
   {% else %}
-  <p class="muted">ห้องนี้ยังไม่มีนักเรียน — <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
+  <p class="muted">ห้องนี้ยังไม่มีนักเรียน - <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
   {% endif %}
 </div>
 <style>

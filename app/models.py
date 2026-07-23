@@ -48,7 +48,7 @@ class School(Base):
     doc_prefix = Column(String, default="ศธ")      # อักษรนำเลขที่หนังสือ
 
     # เกณฑ์วงเงิน (บาท) ที่ใช้แบ่ง "ชุดเอกสารแบบย่อ + ผู้ตรวจรับคนเดียว"
-    # ออกจาก "ชุดเต็ม + คณะกรรมการตรวจรับ" — ปรับได้ตามแต่ละโรงเรียน
+    # ออกจาก "ชุดเต็ม + คณะกรรมการตรวจรับ" - ปรับได้ตามแต่ละโรงเรียน
     doc_set_threshold = Column(Float, default=5000.0)
 
     ai_api_key = Column(String, default="")        # Anthropic API key (สำหรับอ่านไฟล์ด้วย AI ทางเลือก)
@@ -92,14 +92,14 @@ class Department(Base):
 
 
 class Project(Base):
-    """โครงการในแผนปฏิบัติการ (รายปี) — งบที่ตั้ง + ติดตามใช้จริง + ประวัติการปรับงบ"""
+    """โครงการในแผนปฏิบัติการ (รายปี) - งบที่ตั้ง + ติดตามใช้จริง + ประวัติการปรับงบ"""
     __tablename__ = "project"
 
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     budget = Column(Float, default=0.0)            # วงเงินงบประมาณตั้งต้น (ครั้งที่ 1)
     budget_note = Column(String, default="")       # รายละเอียด/แหล่งงบเพิ่มเติม
-    plan_year = Column(Integer, nullable=True)     # ปีของแผน (พ.ศ.) — ปีงบ หรือ ปีการศึกษา ตามตั้งค่าโรงเรียน
+    plan_year = Column(Integer, nullable=True)     # ปีของแผน (พ.ศ.) - ปีงบ หรือ ปีการศึกษา ตามตั้งค่าโรงเรียน
     responsible = Column(String, default="")       # ฝ่าย/ผู้รับผิดชอบโครงการ
     active = Column(Boolean, default=True)
 
@@ -145,7 +145,7 @@ class Procurement(Base):
     fiscal_year = Column(Integer, nullable=False)  # ปีงบประมาณ พ.ศ. เช่น 2569
 
     subject = Column(String, nullable=False)       # ชื่อเรื่อง/รายการที่จัดซื้อ
-    project_name = Column(String, default="")      # ชื่อโครงการ (ข้อความ — คงไว้เพื่อความเข้ากันได้)
+    project_name = Column(String, default="")      # ชื่อโครงการ (ข้อความ - คงไว้เพื่อความเข้ากันได้)
     project_id = Column(Integer, ForeignKey("project.id"), nullable=True)  # ผูกกับโครงการในแผน
     department = Column(String, default="")        # ฝ่าย/งานที่ขอ
     purpose = Column(Text, default="")             # เหตุผลความจำเป็น
@@ -173,7 +173,7 @@ class Procurement(Base):
     # โหมดตรวจรับ: "single" = ผู้ตรวจรับคนเดียว (โดยอนุโลม) / "committee" = คณะกรรมการ
     inspection_mode = Column(String, default="single")
 
-    # เลขเอกสารแต่ละชนิด (เสนออัตโนมัติ แก้เองได้) — เก็บเป็นข้อความ เช่น "68/2569"
+    # เลขเอกสารแต่ละชนิด (เสนออัตโนมัติ แก้เองได้) - เก็บเป็นข้อความ เช่น "68/2569"
     memo_no = Column(String, default="")           # รายงานขอซื้อ/จ้าง (เลขหลัก ใช้ในทะเบียน)
     spec_memo_no = Column(String, default="")      # บันทึกแต่งตั้ง กก.กำหนดคุณลักษณะ
     result_memo_no = Column(String, default="")    # รายงานผลพิจารณาและขออนุมัติสั่งซื้อ
@@ -231,7 +231,7 @@ class ProcurementItem(Base):
 
 
 class Contract(Base):
-    """ทะเบียนคุมสัญญา/ใบสั่งซื้อ-สั่งจ้าง/ข้อตกลง — ติดตามวันครบกำหนดและแจ้งเตือน"""
+    """ทะเบียนคุมสัญญา/ใบสั่งซื้อ-สั่งจ้าง/ข้อตกลง - ติดตามวันครบกำหนดและแจ้งเตือน"""
     __tablename__ = "contract"
 
     id = Column(Integer, primary_key=True)
@@ -270,7 +270,7 @@ class ProcurementPlan(Base):
 
 
 class Student(Base):
-    """ทะเบียนนักเรียนกลางของโรงเรียน (ใช้ซ้ำทุกปี) — ข้อมูลหลักเหมือนบุคลากร/ผู้ขาย
+    """ทะเบียนนักเรียนกลางของโรงเรียน (ใช้ซ้ำทุกปี) - ข้อมูลหลักเหมือนบุคลากร/ผู้ขาย
     งานภาวะโภชนาการดึงรายชื่อจากที่นี่เข้าโครงการรายปีเพื่อบันทึกน้ำหนัก/ส่วนสูง"""
     __tablename__ = "student"
 
@@ -286,7 +286,7 @@ class Student(Base):
 
 
 class ItemCatalog(Base):
-    """คลังรายการพัสดุมาตรฐาน (ใช้ซ้ำ) — พิมพ์ชื่อครั้งเดียว เลือกใช้ในเรื่องจัดซื้อทุกครั้ง
+    """คลังรายการพัสดุมาตรฐาน (ใช้ซ้ำ) - พิมพ์ชื่อครั้งเดียว เลือกใช้ในเรื่องจัดซื้อทุกครั้ง
     ระบบเติมให้อัตโนมัติจากรายการที่เคยกรอก (dedupe ตามชื่อ)"""
     __tablename__ = "item_catalog"
 
@@ -333,7 +333,7 @@ class CommitteeMember(Base):
 
 class DocNumberCounter(Base):
     """
-    ตัวรันเลขทะเบียน — แยกตาม (ชนิดเอกสาร + ปีงบประมาณ)
+    ตัวรันเลขทะเบียน - แยกตาม (ชนิดเอกสาร + ปีงบประมาณ)
     ชนิด: memo (บันทึกข้อความรวม), command (คำสั่ง),
           purchase_order (ใบสั่งซื้อ), hire_order (ใบสั่งจ้าง)
     """
@@ -349,7 +349,7 @@ class DocNumberCounter(Base):
 
 
 class IssuedDocNo(Base):
-    """ทะเบียนเลขหนังสือกลาง — บันทึกทุกเลขที่ถูกใช้จริง (ทุกงาน) ต่อชนิด/ปีงบ
+    """ทะเบียนเลขหนังสือกลาง - บันทึกทุกเลขที่ถูกใช้จริง (ทุกงาน) ต่อชนิด/ปีงบ
     ใช้ตรวจเลขซ้ำ/เลขเลยมาแล้ว และเป็นทะเบียนเลขรวมของโรงเรียน"""
     __tablename__ = "issued_doc_no"
     __table_args__ = (
@@ -1045,7 +1045,7 @@ class RankHistory(Base):
 # ===================== งานวิชาการ (ผลการเรียน · ปพ.5 / ปพ.6) =====================
 # หลักคิด: ทะเบียนนักเรียนกลาง (Student) คือมาสเตอร์ที่ "ใช้ซ้ำทุกปี" และเลื่อนชั้นได้
 # งานวิชาการจึง "คัดลอกตอนดึง" เข้ามาเก็บเป็นสำเนารายปี (AcadStudent) เหมือนที่งาน
-# ภาวะโภชนาการทำ — เพื่อให้ผลการเรียนปี 2567 ไม่ขยับตามเมื่อเด็กเลื่อนชั้นไป ป.2
+# ภาวะโภชนาการทำ - เพื่อให้ผลการเรียนปี 2567 ไม่ขยับตามเมื่อเด็กเลื่อนชั้นไป ป.2
 
 class AcadClass(Base):
     """ห้องเรียนของปีการศึกษาหนึ่ง (ปี × ชั้น × ห้อง)"""
@@ -1090,7 +1090,7 @@ class AcadStudent(Base):
 
 
 class AcadSubject(Base):
-    """รายวิชาของระดับชั้นในปีนั้น (ไม่ผูกห้อง — ครูผู้สอนอยู่ที่ AcadTeaching)"""
+    """รายวิชาของระดับชั้นในปีนั้น (ไม่ผูกห้อง - ครูผู้สอนอยู่ที่ AcadTeaching)"""
     __tablename__ = "acad_subject"
 
     id = Column(Integer, primary_key=True)
@@ -1161,7 +1161,7 @@ class AcadEval(Base):
     act_social = Column(String, default="")         # (เลิกใช้)
     days_open = Column(Integer, nullable=True)      # จำนวนวันเปิดเรียน
     days_present = Column(Integer, nullable=True)   # จำนวนวันมาเรียน
-    days_sick = Column(Integer, nullable=True)      # ป่วย (วัน) — สรุปเวลาเรียนใน ปพ.5
+    days_sick = Column(Integer, nullable=True)      # ป่วย (วัน) - สรุปเวลาเรียนใน ปพ.5
     days_leave = Column(Integer, nullable=True)     # ลา (วัน)
     days_absent = Column(Integer, nullable=True)    # ขาด (วัน)
     weight = Column(Float, nullable=True)           # น้ำหนัก (กก.)
@@ -1215,7 +1215,7 @@ class AcadAttendance(Base):
 
 
 class AcadCalendar(Base):
-    """ปฏิทินการศึกษาของโรงเรียน — เดือนไหนเปิดเรียนวันไหนบ้าง (ระดับโรงเรียน ไม่แยกห้อง)
+    """ปฏิทินการศึกษาของโรงเรียน - เดือนไหนเปิดเรียนวันไหนบ้าง (ระดับโรงเรียน ไม่แยกห้อง)
     ใช้เป็นทั้งตัวหารร้อยละเวลาเรียน และคอลัมน์ของตารางเช็กชื่อรายวัน"""
     __tablename__ = "acad_calendar"
 
@@ -1226,7 +1226,7 @@ class AcadCalendar(Base):
 
 
 class AcadHoliday(Base):
-    """วันหยุดของปีการศึกษานั้น — แก้/ลบได้ทุกแถว
+    """วันหยุดของปีการศึกษานั้น - แก้/ลบได้ทุกแถว
     kind: fixed = วันหยุดราชการที่วันที่ตายตัว (ระบบใส่ให้ได้)
           lunar = วันพระ เลื่อนทุกปีตามจันทรคติ (โรงเรียนกรอกเอง ระบบไม่เดา)
           other = วันหยุดชดเชย/วันหยุดพิเศษตามประกาศ"""
@@ -1263,7 +1263,7 @@ class AcadClassMonth(Base):
 
 
 class AcadActivity(Base):
-    """กิจกรรมพัฒนาผู้เรียนของชั้นนั้นในปีนั้น — ตั้งค่าเองได้ (ขนานกับ AcadSubject)
+    """กิจกรรมพัฒนาผู้เรียนของชั้นนั้นในปีนั้น - ตั้งค่าเองได้ (ขนานกับ AcadSubject)
     แต่ละโรงเรียนจัดกิจกรรมต่างกัน จึงไม่ฝังตายตัว"""
     __tablename__ = "acad_activity"
 

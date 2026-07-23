@@ -129,14 +129,14 @@ def healthz():
 
 
 def _start_auto_backup():
-    """ตัวจับเวลาสำรองข้อมูลอัตโนมัติทุกวัน (รันในโปรเซสแอป — เหมาะกับ Render)
+    """ตัวจับเวลาสำรองข้อมูลอัตโนมัติทุกวัน (รันในโปรเซสแอป - เหมาะกับ Render)
     เปิดด้วย env DDOC_AUTO_BACKUP=1 ; อัปขึ้นคลาวด์ถ้าตั้งค่า BACKUP_S3_* ไว้"""
     if os.environ.get("DDOC_AUTO_BACKUP") != "1":
         return
     import time
     from app.services.backup import run_backup
 
-    # ความถี่สำรอง (นาที) — ฟรีทีเออร์ควรตั้งถี่ เช่น 15 เพราะเครื่องอาจถูกล้างได้ตลอด
+    # ความถี่สำรอง (นาที) - ฟรีทีเออร์ควรตั้งถี่ เช่น 15 เพราะเครื่องอาจถูกล้างได้ตลอด
     try:
         interval = max(5, int(os.environ.get("DDOC_BACKUP_INTERVAL_MIN", "1440")))
     except ValueError:
@@ -176,7 +176,7 @@ def _open_browser():
 
 
 def run():
-    """ใช้ตอนรันในเครื่อง (double-click) — เปิดเซิร์ฟเวอร์ + เบราว์เซอร์"""
+    """ใช้ตอนรันในเครื่อง (double-click) - เปิดเซิร์ฟเวอร์ + เบราว์เซอร์"""
     import uvicorn
     threading.Timer(1.5, _open_browser).start()
     uvicorn.run(app, host="127.0.0.1", port=8000)

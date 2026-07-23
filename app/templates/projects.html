@@ -27,7 +27,7 @@
       <div><label>งบที่ตั้งไว้ (บาท)</label><input name="budget" type="number" step="0.01" min="0" value="0"></div>
       <div style="flex:1.5;"><label>ฝ่าย/ผู้รับผิดชอบ</label>
         <select name="responsible">
-          <option value="">— เลือกฝ่าย —</option>
+          <option value="">- เลือกฝ่าย -</option>
           {% for d in departments %}<option value="{{ d.name }}">{{ d.name }}</option>{% endfor %}
         </select>
       </div>
@@ -56,7 +56,7 @@
             {% if p.revisions %}<br><span class="muted" style="font-size:12px;">ปรับงบ {{ p.revisions|length }} ครั้ง</span>{% endif %}</td>
         <td>
           <select onchange="setResp({{ p.id }}, this)" style="width:auto; padding:4px 6px; font-size:13px;">
-            <option value="" {{ 'selected' if not p.responsible }}>— เลือกฝ่าย —</option>
+            <option value="" {{ 'selected' if not p.responsible }}>- เลือกฝ่าย -</option>
             {% for d in departments %}<option value="{{ d.name }}" {{ 'selected' if d.name==p.responsible }}>{{ d.name }}</option>{% endfor %}
             {% if p.responsible and p.responsible not in departments|map(attribute='name')|list %}<option value="{{ p.responsible }}" selected>{{ p.responsible }}</option>{% endif %}
           </select>
@@ -85,13 +85,13 @@
       </tr>
     </tfoot>
   </table>
-  {% else %}<p class="muted">ยังไม่มีโครงการในปีนี้ — เพิ่มด้านบน</p>{% endif %}
+  {% else %}<p class="muted">ยังไม่มีโครงการในปีนี้ - เพิ่มด้านบน</p>{% endif %}
 </div>
 
 {% if legacy %}
 <div class="card" style="border:1px solid #ffe2ad; background:#fff8ec;">
   <h2><svg class="icon"><use href="#ic-alert"/></svg> โครงการที่ยังไม่ได้ระบุปี ({{ legacy|length }})</h2>
-  <p class="muted" style="margin-top:0;">โครงการเดิมที่สร้างก่อนมีโมดูลนี้ — กำหนดปีให้พร้อมกันทั้งหมด หรือเปิดทีละโครงการเพื่อกำหนดปี</p>
+  <p class="muted" style="margin-top:0;">โครงการเดิมที่สร้างก่อนมีโมดูลนี้ - กำหนดปีให้พร้อมกันทั้งหมด หรือเปิดทีละโครงการเพื่อกำหนดปี</p>
   <form method="post" action="/projects/assign-year" style="margin:0 0 12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <input type="hidden" name="only_legacy" value="1">
     <span>ตั้งทุกโครงการที่ยังไม่ระบุปีเป็น:</span>

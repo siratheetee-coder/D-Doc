@@ -4,7 +4,7 @@
 <div class="hero">
   <div>
     <div class="hero-sub">งานวิชาการ · ใช้ประกอบ ปพ.5</div>
-    <span class="hero-title">{{ 'อ่าน คิดวิเคราะห์ และเขียน' if kind == 'read' else 'คุณลักษณะอันพึงประสงค์' }} — รายวิชา</span>
+    <span class="hero-title">{{ 'อ่าน คิดวิเคราะห์ และเขียน' if kind == 'read' else 'คุณลักษณะอันพึงประสงค์' }} - รายวิชา</span>
     <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
   </div>
 </div>
@@ -39,7 +39,7 @@
   {% if not c %}
   <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> แล้วเลือก <b>รายวิชา</b> เพื่อประเมินทั้งห้องในหน้าเดียว (แบบเดียวกับไฟล์ ปพ.5)</p>
   {% elif not subj %}
-  <p class="muted" style="margin:10px 0 0;">เลือก <b>รายวิชา</b> ด้านบน — ครูผู้สอนวิชานั้นประเมินนักเรียนทั้งห้องในครั้งเดียว</p>
+  <p class="muted" style="margin:10px 0 0;">เลือก <b>รายวิชา</b> ด้านบน - ครูผู้สอนวิชานั้นประเมินนักเรียนทั้งห้องในครั้งเดียว</p>
   {% endif %}
 </div>
 
@@ -85,7 +85,7 @@
     <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกทั้งห้อง</button>
   </form>
   {% else %}
-  <p class="muted">ห้องนี้ยังไม่มีนักเรียน — <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
+  <p class="muted">ห้องนี้ยังไม่มีนักเรียน - <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
   {% endif %}
 </div>
 <script>

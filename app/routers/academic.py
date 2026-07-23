@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-academic.py — งานวิชาการ
+academic.py - งานวิชาการ
 เฟส 1: ห้องเรียน/ครูประจำชั้น + รายวิชา + ผลการเรียน + ปพ.5 / ปพ.6 (สมุดพก)
 
 ความสัมพันธ์กับทะเบียนกลาง: ดึงรายชื่อจาก Student แล้วเก็บ "สำเนารายปี" (AcadStudent)
-เหมือนงานภาวะโภชนาการ — ผลการเรียนของปีเก่าจึงไม่ขยับเมื่อนักเรียนเลื่อนชั้น
+เหมือนงานภาวะโภชนาการ - ผลการเรียนของปีเก่าจึงไม่ขยับเมื่อนักเรียนเลื่อนชั้น
 ครูทั้งหมดมาจากทะเบียนบุคลากรกลาง (Person) ไม่มีการสร้างทะเบียนครูซ้ำ
 """
 from fastapi import APIRouter, Request, Depends, Form
@@ -53,7 +53,7 @@ def _sorted_classes(rows) -> list:
     return sorted(rows, key=lambda c: (level_rank(c.level), c.room or ""))
 
 
-# ลำดับเดือนตามปีการศึกษา (พ.ค. มาก่อน ม.ค.) — ใช้เรียงตารางวันหยุด
+# ลำดับเดือนตามปีการศึกษา (พ.ค. มาก่อน ม.ค.) - ใช้เรียงตารางวันหยุด
 TH_MONTH_ORDER = {m: i for i, (m, _) in enumerate(TH_MONTHS)}
 
 
@@ -221,7 +221,7 @@ def subjects_page(request: Request, db: Session = Depends(get_db),
     if level:
         q = q.filter_by(level=level)
     rows = sorted(q.all(), key=lambda s: (level_rank(s.level), s.seq or 0, s.code or ""))
-    # กิจกรรมพัฒนาผู้เรียน (การ์ดที่ 2) — แสดงเมื่อเลือกชั้นแล้วเท่านั้น
+    # กิจกรรมพัฒนาผู้เรียน (การ์ดที่ 2) - แสดงเมื่อเลือกชั้นแล้วเท่านั้น
     activities = activities_for(y, level, db) if level else []
     return templates.TemplateResponse("academic_subjects.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
@@ -408,7 +408,7 @@ async def grades_save(request: Request, db: Session = Depends(get_db),
             row = AcadScore(acad_student_id=aid, subject_id=subj.id, term=t)
             db.add(row)
         row.score_mid, row.score_final, row.score = mid, fin, total
-        # เกรดตัดจากร้อยละ — ถ้าสัดส่วนรวมไม่ใช่ 100 (เช่น 80:20 เต็ม 100 อยู่แล้วก็ค่าเดิม)
+        # เกรดตัดจากร้อยละ - ถ้าสัดส่วนรวมไม่ใช่ 100 (เช่น 80:20 เต็ม 100 อยู่แล้วก็ค่าเดิม)
         pct = None if total is None else (total * 100.0 / (mmax + fmax))
         row.grade = manual or grade_of(pct)
     db.commit()
@@ -447,7 +447,7 @@ async def eval_save(request: Request, db: Session = Depends(get_db), cid: str = 
     c = db.get(AcadClass, _to_int(cid, 0))
     if not c:
         return RedirectResponse("/academic/eval", status_code=303)
-    # หน้านี้กรอกแค่กิจกรรมพัฒนาผู้เรียนแล้ว — คุณ/อ่าน มาจากประเมินรายวิชา (คำนวณ)
+    # หน้านี้กรอกแค่กิจกรรมพัฒนาผู้เรียนแล้ว - คุณ/อ่าน มาจากประเมินรายวิชา (คำนวณ)
     # · ความเห็นครู/ผู้ปกครองเขียนมือในสมุดพก · เวลาเรียนอยู่หน้าเวลาเรียน
     # ผลกิจกรรมรายคน x รายกิจกรรม (upsert)
     acts = activities_for(c.year, c.level, db)
@@ -690,7 +690,7 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
 @router.post("/academic/attendance/day-save")
 async def attendance_day_save(request: Request, db: Session = Depends(get_db),
                               cid: str = Form(""), month: str = Form("")):
-    """บันทึกเช็กชื่อรายวันของเดือนเดียว — เขียน marks + present ให้ตรงกัน"""
+    """บันทึกเช็กชื่อรายวันของเดือนเดียว - เขียน marks + present ให้ตรงกัน"""
     form = await request.form()
     c = db.get(AcadClass, _to_int(cid, 0))
     m = _to_int(month, 0)
@@ -760,7 +760,7 @@ async def attendance_save(request: Request, db: Session = Depends(get_db), cid: 
             if not row:
                 row = AcadAttendance(acad_student_id=s.id, month=mnum)
                 db.add(row)
-            # เดือนที่เช็กชื่อรายวันไว้แล้ว ยอดมาจากการนับ marks — หน้าสรุปไม่ส่งช่องนั้นมา
+            # เดือนที่เช็กชื่อรายวันไว้แล้ว ยอดมาจากการนับ marks - หน้าสรุปไม่ส่งช่องนั้นมา
             # (ถ้าเผลอทับ ตัวเลขบนหน้าจอจะไม่ตรงกับที่เอกสารใช้จริง)
             if row.id and (row.marks or "").strip(MARK_BLANK):
                 if row.present is not None:

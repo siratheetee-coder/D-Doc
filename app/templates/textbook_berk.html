@@ -25,7 +25,7 @@
       <tbody>
         <tr>
           <td><select name="book_id">
-            <option value="">— เลือกหนังสือ —</option>
+            <option value="">- เลือกหนังสือ -</option>
             {% for b in books %}<option value="{{ b.id }}">{{ b.level }} {{ b.title }}{{ ' ('~b.subject~')' if b.subject }}</option>{% endfor %}
           </select></td>
           <td><input name="qty" type="number" min="0" value="1" style="width:110px;"></td>

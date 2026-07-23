@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-backup.py — สำรองข้อมูลทุกโรงเรียน + อัปขึ้นคลาวด์ (off-site) แบบ "ประหยัด bandwidth"
+backup.py - สำรองข้อมูลทุกโรงเรียน + อัปขึ้นคลาวด์ (off-site) แบบ "ประหยัด bandwidth"
 
 หลักการประหยัด egress (สำคัญบน Render ฟรีที่จำกัด bandwidth):
-- สำรองเฉพาะ "ข้อมูลจริง": ฐานข้อมูล (.db) + ไฟล์แนบ (uploads) — ไม่รวม documents/ (เอกสารที่ generate ใหม่ได้)
+- สำรองเฉพาะ "ข้อมูลจริง": ฐานข้อมูล (.db) + ไฟล์แนบ (uploads) - ไม่รวม documents/ (เอกสารที่ generate ใหม่ได้)
 - อัปขึ้นคลาวด์ "เฉพาะตอนข้อมูลเปลี่ยนจริง" (เทียบ fingerprint) ถ้าไม่เปลี่ยน -> ข้าม ไม่อัป
 - อัปทับ latest.zip ทุกครั้งที่เปลี่ยน (ไว้กู้คืน) + เก็บ snapshot ลงวันที่ "วันละ 1 ครั้ง" (ไว้ดูย้อนหลัง)
 
@@ -125,7 +125,7 @@ def mark_synced():
 
 
 def run_backup(force: bool = False) -> Path | None:
-    """สำรอง 1 รอบ — อัปขึ้นคลาวด์เฉพาะเมื่อข้อมูลเปลี่ยน (หรือ force=True)"""
+    """สำรอง 1 รอบ - อัปขึ้นคลาวด์เฉพาะเมื่อข้อมูลเปลี่ยน (หรือ force=True)"""
     global _last_fp, _last_snap_date
     data = get_data_dir()
     if not data.exists():
@@ -155,7 +155,7 @@ def run_backup(force: bool = False) -> Path | None:
 
 
 def manual_backup() -> str:
-    """สำรองทันที (บังคับอัป) + รายงานผลแบบอ่านได้ — ใช้กับปุ่มทดสอบในคอนโซล"""
+    """สำรองทันที (บังคับอัป) + รายงานผลแบบอ่านได้ - ใช้กับปุ่มทดสอบในคอนโซล"""
     client, bucket, reason = _s3()
     try:
         zip_path = _make_zip()

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-signature.py — จัดการลายเซ็นบุคลากร
+signature.py - จัดการลายเซ็นบุคลากร
 - process_signature(): รับรูปที่อัปโหลด -> ลบพื้นหลังขาวให้โปร่งใส + ตัดขอบ -> เซฟเป็น PNG
 - signature_path_for(): หา path ลายเซ็นจากชื่อผู้ลงนาม (ตรงกับบุคลากรที่มีลายเซ็น)
 
@@ -48,7 +48,7 @@ def process_signature(data: bytes, remove_white: bool = True) -> str | None:
             return int((_CLEAR - l) / (_CLEAR - _KEEP) * 255)
 
         alpha = lum.point(_alpha)
-        # ผสมกับ alpha เดิม (เผื่อภาพมีส่วนโปร่งใสอยู่แล้ว) — เลือกค่าที่โปร่งใสกว่า (min)
+        # ผสมกับ alpha เดิม (เผื่อภาพมีส่วนโปร่งใสอยู่แล้ว) - เลือกค่าที่โปร่งใสกว่า (min)
         img.putalpha(_min_channels(alpha, img.getchannel("A")))
 
     # ตัดขอบว่างรอบ ๆ (อิงพื้นที่ที่ไม่โปร่งใส)
@@ -95,7 +95,7 @@ def _norm(s: str) -> str:
 
 
 def signature_path_for(db, signer_name: str) -> str | None:
-    """หา path ลายเซ็นจากชื่อผู้ลงนาม — จับคู่กับบุคลากรที่มีลายเซ็น คืน path (str) หรือ None"""
+    """หา path ลายเซ็นจากชื่อผู้ลงนาม - จับคู่กับบุคลากรที่มีลายเซ็น คืน path (str) หรือ None"""
     from app.models import Person
     target = _norm(signer_name)
     if not target:

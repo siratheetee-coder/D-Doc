@@ -207,7 +207,7 @@ def build_context(proc, school) -> dict:
         "order_date_thai": _d(proc.order_date),
         "order_date_official": _do(proc.order_date),
         "delivery_due_thai": _d(proc.delivery_due_date),
-        # วันที่ส่งมอบจริง (ใบส่งมอบงาน) — ถ้าไม่ระบุใช้วันครบกำหนดส่งมอบแทน
+        # วันที่ส่งมอบจริง (ใบส่งมอบงาน) - ถ้าไม่ระบุใช้วันครบกำหนดส่งมอบแทน
         "delivery_date_thai": _d(getattr(proc, "delivery_date", None) or proc.delivery_due_date),
         "inspect_date_thai": _d(proc.inspect_date),
         "inspect_date_official": _do(proc.inspect_date),
@@ -245,7 +245,7 @@ def render_document(kind: str, proc, school) -> str:
     template_path = TEMPLATES_DIR / TEMPLATE_FILES[kind]
     if not template_path.exists():
         raise FileNotFoundError(
-            f"ไม่พบแม่แบบ {template_path} — รัน build_templates ก่อน"
+            f"ไม่พบแม่แบบ {template_path} - รัน build_templates ก่อน"
         )
 
     tpl = DocxTemplate(str(template_path))
@@ -290,7 +290,7 @@ def render_bundle(kinds, proc, school) -> str:
     return str(out_path)
 
 
-# ลำดับมาตรฐานของเอกสาร (ตามไทม์ไลน์การจัดซื้อจริง) — ใช้ทั้งปุ่มรายใบและการรวมไฟล์
+# ลำดับมาตรฐานของเอกสาร (ตามไทม์ไลน์การจัดซื้อจริง) - ใช้ทั้งปุ่มรายใบและการรวมไฟล์
 # เตรียมสเปก -> ขออนุมัติ -> เสนอราคา -> ตัดสิน -> สั่ง -> ส่งมอบ -> ตรวจรับ/เบิกจ่าย
 DOC_ORDER = [
     "แต่งตั้งกรรมการคุณลักษณะ",      # 1 ตั้ง กก.กำหนดคุณลักษณะ/ราคากลาง (ข้อ 21)

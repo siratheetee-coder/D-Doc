@@ -23,7 +23,7 @@ from app.seller_config import pricing_context
 
 
 def account_status(tenant_id=None):
-    """สถานะแพ็กเกจของโรงเรียน (ส่ง tenant_id จาก request.session — เชื่อถือได้ตอนเรนเดอร์)
+    """สถานะแพ็กเกจของโรงเรียน (ส่ง tenant_id จาก request.session - เชื่อถือได้ตอนเรนเดอร์)
     ถ้าไม่ส่ง จะลองอ่านจาก contextvar (อาจว่างตอน render lazy) หรือคืน None"""
     try:
         from app.accounts import tenant_status
@@ -35,7 +35,7 @@ def account_status(tenant_id=None):
         return None
 
 def my_modules(tenant_id=None) -> set:
-    """งานที่โรงเรียนนี้ "ซื้อแล้ว" (ไม่ใช่งานที่เข้าได้ — งานที่ยังไม่ซื้ออาจเข้าได้ด้วยโควตาทดลอง)"""
+    """งานที่โรงเรียนนี้ "ซื้อแล้ว" (ไม่ใช่งานที่เข้าได้ - งานที่ยังไม่ซื้ออาจเข้าได้ด้วยโควตาทดลอง)"""
     try:
         from app.accounts import tenant_modules
         if tenant_id is None:

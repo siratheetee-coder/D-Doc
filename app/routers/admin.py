@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-admin.py — งานธุรการ
+admin.py - งานธุรการ
 หน้าหลักธุรการ + ทะเบียนหนังสือรับ/ส่ง + บันทึกข้อความ + คำสั่งโรงเรียน (ออก Word) + นำเข้า Excel
 เลขบันทึกข้อความ/คำสั่ง ใช้ชุดเลขกลางร่วมกับทุกงาน (suggest_doc_no/commit_doc_no)
 """
@@ -40,7 +40,7 @@ _PDF = "application/pdf"
 
 
 def _ai_key() -> str:
-    """AI key กลาง (หลังบ้าน) เฉพาะสมาชิก — คืน '' ถ้าไม่ใช่สมาชิก/ไม่ได้ตั้ง key"""
+    """AI key กลาง (หลังบ้าน) เฉพาะสมาชิก - คืน '' ถ้าไม่ใช่สมาชิก/ไม่ได้ตั้ง key"""
     from app.tenancy import current_school_id
     from app.accounts import ai_key_for
     return ai_key_for(current_school_id.get())
@@ -53,7 +53,7 @@ from app.services.file_upload import (
 
 
 def _render_letter_confirm(request, db, kind: str, pending_file: str, fields: dict):
-    """หน้ายืนยันลงทะเบียน (เติมค่าจากการอ่านไฟล์ให้แล้ว) — รองรับ incoming/outgoing/memo"""
+    """หน้ายืนยันลงทะเบียน (เติมค่าจากการอ่านไฟล์ให้แล้ว) - รองรับ incoming/outgoing/memo"""
     fy = current_fiscal_year()
     ctx = {
         "request": request, "kind": kind, "fiscal_year": fy,
@@ -548,7 +548,7 @@ def letter_ai_write(db: Session = Depends(get_db), subject: str = Form(""),
     school = get_school(db)
     key = _ai_key()
     if not key:
-        return JSONResponse({"error": "ฟีเจอร์ AI สำหรับสมาชิกเท่านั้น — ต่ออายุ/เป็นสมาชิกเพื่อใช้งาน"}, status_code=400)
+        return JSONResponse({"error": "ฟีเจอร์ AI สำหรับสมาชิกเท่านั้น - ต่ออายุ/เป็นสมาชิกเพื่อใช้งาน"}, status_code=400)
     res = write_official_letter({
         "school": school.name or "", "subject": subject, "to": to,
         "points": points, "detail": detail,
@@ -567,7 +567,7 @@ def memo_ai_write(db: Session = Depends(get_db), subject: str = Form(""),
     school = get_school(db)
     key = _ai_key()
     if not key:
-        return JSONResponse({"error": "ฟีเจอร์ AI สำหรับสมาชิกเท่านั้น — ต่ออายุ/เป็นสมาชิกเพื่อใช้งาน"}, status_code=400)
+        return JSONResponse({"error": "ฟีเจอร์ AI สำหรับสมาชิกเท่านั้น - ต่ออายุ/เป็นสมาชิกเพื่อใช้งาน"}, status_code=400)
     res = write_memo({"school": school.name or "", "subject": subject,
                       "from_dept": from_dept, "to": to, "points": points}, key)
     if res.get("error"):
@@ -583,7 +583,7 @@ def order_ai_write(db: Session = Depends(get_db), subject: str = Form(""), point
     school = get_school(db)
     key = _ai_key()
     if not key:
-        return JSONResponse({"error": "ฟีเจอร์ AI สำหรับสมาชิกเท่านั้น — ต่ออายุ/เป็นสมาชิกเพื่อใช้งาน"}, status_code=400)
+        return JSONResponse({"error": "ฟีเจอร์ AI สำหรับสมาชิกเท่านั้น - ต่ออายุ/เป็นสมาชิกเพื่อใช้งาน"}, status_code=400)
     res = write_order({"school": school.name or "", "subject": subject, "points": points}, key)
     if res.get("error"):
         return JSONResponse({"error": "AI เขียนไม่สำเร็จ ลองใหม่อีกครั้ง"}, status_code=502)

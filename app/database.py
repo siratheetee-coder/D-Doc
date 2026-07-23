@@ -19,7 +19,7 @@ from sqlalchemy.orm import declarative_base
 
 
 def get_data_dir() -> Path:
-    """โฟลเดอร์เก็บข้อมูล (data/) — รากโปรเจกต์ หรือข้าง ๆ .exe เมื่อแพ็กแล้ว"""
+    """โฟลเดอร์เก็บข้อมูล (data/) - รากโปรเจกต์ หรือข้าง ๆ .exe เมื่อแพ็กแล้ว"""
     if getattr(sys, "frozen", False):
         base = Path(sys.executable).parent
     else:

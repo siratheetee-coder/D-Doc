@@ -89,7 +89,7 @@
       if(d.body){ document.getElementById('f_body').value=d.body; }
       var to=document.getElementById('ai_to').value.trim();
       if(to && !document.querySelector('input[name=to]').value){ document.querySelector('input[name=to]').value=to; }
-      msg.textContent='AI เขียนให้แล้ว — ตรวจ/แก้ด้านล่างก่อนบันทึก';
+      msg.textContent='AI เขียนให้แล้ว - ตรวจ/แก้ด้านล่างก่อนบันทึก';
     }).catch(function(){ btn.disabled=false; msg.textContent='เชื่อมต่อ AI ไม่สำเร็จ'; });
   }
   var PRESETS = {{ presets|tojson }};

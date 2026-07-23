@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>D-Doc — ระบบเอกสารโรงเรียน ลดงานธุรการ ให้ครูได้กลับไปสอน</title>
+<title>D-Doc - ระบบเอกสารโรงเรียน ลดงานธุรการ ให้ครูได้กลับไปสอน</title>
 <meta name="description" content="D-Doc รวมงานพัสดุ การเงิน ธุรการ และอาหารกลางวันไว้ในระบบเดียว กรอกข้อมูลครั้งเดียว ออกเอกสารราชการครบชุดกว่า 60 แบบ ถูกต้องตามระเบียบ พร้อมพิมพ์ทันที ออกแบบเพื่อครูโรงเรียนไทย">
 <meta property="og:type" content="website">
-<meta property="og:title" content="D-Doc — ลดงานเอกสาร ให้ครูได้กลับไปสอน">
+<meta property="og:title" content="D-Doc - ลดงานเอกสาร ให้ครูได้กลับไปสอน">
 <meta property="og:description" content="ระบบพัสดุ การเงิน ธุรการ อาหารกลางวัน ในที่เดียว ออกเอกสารราชการครบชุดใน 1 คลิก">
 <meta property="og:image" content="/static/landing/teacher-hero.png">
 <meta name="theme-color" content="#2563eb">
@@ -120,7 +120,7 @@
   .fc-1{ top:12%; left:-4%; animation-delay:.2s; }
   .fc-2{ bottom:14%; right:0; animation-delay:1.4s; }
   .fc-3{ bottom:8%; left:-8%; animation-delay:2.2s; }
-  /* การ์ดรอบรูปครูชี้นิ้ว (ส่วนฟีเจอร์) — วางเลี่ยงแนวมือที่ยื่นออกซ้ายช่วงกลางรูป */
+  /* การ์ดรอบรูปครูชี้นิ้ว (ส่วนฟีเจอร์) - วางเลี่ยงแนวมือที่ยื่นออกซ้ายช่วงกลางรูป */
   .fc-a{ top:2%; left:-12%; animation-delay:.6s; }
   .fc-b{ bottom:3%; left:-6%; animation-delay:1.8s; }
   .fc-c{ top:20%; right:-7%; animation-delay:2.6s; }
@@ -243,7 +243,7 @@
   .price-foot{ text-align:center; color:var(--muted); font-size:13.5px; margin-top:26px; }
   .pick-price s{ color:var(--muted); font-weight:500; margin-right:6px; opacity:.7; }
 
-  /* ===== การ์ดแพ็กเกจรวม (แนะนำ) — สไตล์ฟ้าอ่อน + เมฆ + รูปโรงเรียน 3D ===== */
+  /* ===== การ์ดแพ็กเกจรวม (แนะนำ) - สไตล์ฟ้าอ่อน + เมฆ + รูปโรงเรียน 3D ===== */
   .bundle-card{ position:relative; display:flex; align-items:center; justify-content:space-between;
     gap:20px; flex-wrap:wrap; max-width:930px; margin:24px auto 46px; padding:26px 36px 26px 28px; border-radius:28px;
     background:linear-gradient(150deg,#dcebff 0%,#c3ddff 55%,#aecdff 100%); border:none;
@@ -694,7 +694,7 @@
 
     <!-- การ์ดแพ็กเกจรวม (แนะนำ) -->
     <a class="bundle-card" href="/register?next=checkout&packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}"
-       aria-label="เลือกแพ็กเกจครบทุกงาน {{ "{:,}".format(px.bundle) }} บาทต่อปี — เริ่มใช้ฟรี 50 เอกสาร">
+       aria-label="เลือกแพ็กเกจครบทุกงาน {{ "{:,}".format(px.bundle) }} บาทต่อปี - เริ่มใช้ฟรี 50 เอกสาร">
       <span class="bc-shine"></span>
       <div class="bc-badge"><svg class="ico"><use href="#ic-star"/></svg> แนะนำ</div>
       <div class="bc-left">
@@ -888,7 +888,7 @@
 </section>
 
 <script>
-  // นับถอยหลังบนการ์ดแพ็กเกจ (วันสิ้นสุดมาจากค่าที่ตั้งไว้ใน seller_config — ไม่ใช่ตัวเลขหลอก)
+  // นับถอยหลังบนการ์ดแพ็กเกจ (วันสิ้นสุดมาจากค่าที่ตั้งไว้ใน seller_config - ไม่ใช่ตัวเลขหลอก)
   (function(){
     var box = document.querySelector('.bc-count[data-deadline]');
     if(!box) return;
@@ -905,7 +905,7 @@
   })();
 
   (function(){
-    var BUNDLE = {{ px.bundle | tojson }};                 // แพ็กครบทุกงาน (ราคาโปรถ้ามี) — จาก pricing_context()
+    var BUNDLE = {{ px.bundle | tojson }};                 // แพ็กครบทุกงาน (ราคาโปรถ้ามี) - จาก pricing_context()
     var FULL = {{ full_sum | default(3440) | tojson }};    // รวมงานแยกเต็ม (ราคาขีดฆ่า)
     var cards = [].slice.call(document.querySelectorAll('#pickList .mcard'));
     var TIERS = {{ tier_discount | default({2:100, 3:200, 4:300}) | tojson }};
@@ -928,7 +928,7 @@
       cards.forEach(function(c){ c.classList.toggle('on', c.querySelector('input').checked); });
       var count = chosen.length;
       var listSum = chosen.reduce(function(s,c){ return s + (+c.dataset.price); }, 0);
-      // ต้องตรงกับ price_for() ฝั่งเซิร์ฟเวอร์ (seller_config.py) — ที่นี่แค่แสดงผล
+      // ต้องตรงกับ price_for() ฝั่งเซิร์ฟเวอร์ (seller_config.py) - ที่นี่แค่แสดงผล
       var total = count === NMODS ? BUNDLE : (count ? Math.max(0, listSum - (TIERS[count] || 0)) : 0);
       var discount = Math.max(0, listSum - total);
       var savings = discount;

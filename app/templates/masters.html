@@ -28,7 +28,7 @@
 {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกเรียบร้อย</div>{% endif %}
 {% if request.query_params.get("added") or request.query_params.get("imported") %}<div class="alert">✔ นำเข้าข้อมูลจาก Excel แล้ว</div>{% endif %}
 <div class="card">
-  <p class="muted" style="margin:0;">เพิ่มรายชื่อแค่ครั้งเดียว แล้วเลือกใช้ตอนสร้างเรื่อง พอเลือกชื่อคน ระบบจะเติมตำแหน่งให้อัตโนมัติ — แก้ไขได้โดยพิมพ์ทับแล้วกดบันทึก</p>
+  <p class="muted" style="margin:0;">เพิ่มรายชื่อแค่ครั้งเดียว แล้วเลือกใช้ตอนสร้างเรื่อง พอเลือกชื่อคน ระบบจะเติมตำแหน่งให้อัตโนมัติ - แก้ไขได้โดยพิมพ์ทับแล้วกดบันทึก</p>
 </div>
 
 <!-- บุคลากร: การ์ดเต็มความกว้าง เพื่อให้ชื่อ/ตำแหน่งแสดงเต็ม -->
@@ -67,7 +67,7 @@
           {% if p.signature %}
             <img class="sig-thumb" src="/signatures/{{ p.signature }}" alt="ลายเซ็น {{ p.name }}">
           {% else %}
-            <span class="muted" style="font-size:12.5px;">— ยังไม่มี —</span>
+            <span class="muted" style="font-size:12.5px;">- ยังไม่มี -</span>
           {% endif %}
           <div style="margin-top:5px; white-space:nowrap;">
             <label class="btn sm ghost" style="cursor:pointer;">

@@ -2,7 +2,7 @@
 """
 file_upload.py
 --------------
-ฟังก์ชันกลางสำหรับรับไฟล์แนบ (PDF/Word) — ใช้ร่วมทั้งงานธุรการและพัสดุ
+ฟังก์ชันกลางสำหรับรับไฟล์แนบ (PDF/Word) - ใช้ร่วมทั้งงานธุรการและพัสดุ
 เซฟลง data/uploads/<uuid>.<ext> + ดึงจาก URL + ตรวจชนิดไฟล์
 """
 import re
@@ -13,7 +13,7 @@ from pathlib import Path
 
 from app.database import get_data_dir
 
-# ชื่อไฟล์ปลอดภัย (กัน path traversal) — uuid 32 ตัว + นามสกุลที่อนุญาต
+# ชื่อไฟล์ปลอดภัย (กัน path traversal) - uuid 32 ตัว + นามสกุลที่อนุญาต
 SAFE_FILE_NAME = re.compile(r"^[0-9a-fA-F]{32}\.(pdf|docx|png|jpg|webp)$")
 
 

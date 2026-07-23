@@ -157,7 +157,7 @@
 </style>
 <script>
   // ปุ่มวันเก็บสถานะไว้ที่คลาส .on แล้วรวมเป็น CSV ลง hidden input ตอนเปลี่ยนทุกครั้ง
-  // (ฟอร์ม POST ธรรมดา ไม่ใช้ fetch — JS พังก็ยังบันทึกค่าที่โหลดมาได้)
+  // (ฟอร์ม POST ธรรมดา ไม่ใช้ fetch - JS พังก็ยังบันทึกค่าที่โหลดมาได้)
   function syncMonth(box){
     var days = [];
     box.querySelectorAll('.acal-day.on').forEach(function(b){ days.push(b.dataset.day); });

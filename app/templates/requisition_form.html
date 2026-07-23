@@ -49,7 +49,7 @@
     {% endfor %}
   ];
   function matOptions() {
-    return '<option value="">— เลือกวัสดุ หรือพิมพ์ชื่อใหม่ —</option>' +
+    return '<option value="">- เลือกวัสดุ หรือพิมพ์ชื่อใหม่ -</option>' +
       MATS.map(function(m){return '<option value="'+m.id+'">'+m.name+' (คงเหลือ '+m.bal+' '+m.unit+')</option>';}).join('');
   }
   function addRow(name, qty, unit){
@@ -88,9 +88,9 @@
       input.value = '';
       if(d && d.error){ msg.textContent = d.error; return; }
       var items = (d && d.items) || [];
-      if(!items.length){ msg.textContent = 'อ่านรายการจากรูปไม่ได้ — ลองถ่ายให้ชัด/ตรงขึ้น หรือเพิ่มแถวเอง'; return; }
+      if(!items.length){ msg.textContent = 'อ่านรายการจากรูปไม่ได้ - ลองถ่ายให้ชัด/ตรงขึ้น หรือเพิ่มแถวเอง'; return; }
       items.forEach(function(it){ addRow(it.name, it.qty, it.unit); });
-      msg.textContent = 'เพิ่ม ' + items.length + ' รายการแล้ว — โปรดตรวจ/แก้ก่อนบันทึก';
+      msg.textContent = 'เพิ่ม ' + items.length + ' รายการแล้ว - โปรดตรวจ/แก้ก่อนบันทึก';
     }).catch(function(){ input.value=''; msg.textContent = 'อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง'; });
   }
   function pick(sel){

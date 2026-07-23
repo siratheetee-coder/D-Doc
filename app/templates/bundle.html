@@ -4,14 +4,14 @@
 <div class="card">
   <h1 style="display:flex; align-items:center; gap:10px;"><svg class="icon" style="width:26px;height:26px;color:var(--brand);"><use href="#ic-package"/></svg> ออกเอกสารทั้งชุด</h1>
   <p class="muted">
-    เรื่อง: <b>{{ p.proc_type }}{{ p.subject }}</b> — วงเงิน {{ "{:,.2f}".format(p.total_amount or 0) }} บาท
+    เรื่อง: <b>{{ p.proc_type }}{{ p.subject }}</b> - วงเงิน {{ "{:,.2f}".format(p.total_amount or 0) }} บาท
     {% if is_large %}
       <span class="pill done">วงเงินเกิน {{ "{:,.0f}".format(threshold) }} → ติ๊กครบชุดให้แล้ว</span>
     {% else %}
       <span class="pill">วงเงินไม่เกิน {{ "{:,.0f}".format(threshold) }} → ติ๊กชุดย่อให้แล้ว</span>
     {% endif %}
   </p>
-  <p class="muted">ติ๊กเลือกเอกสารที่ต้องการ — <b>คำสั่งแต่งตั้งผู้ตรวจรับ</b> และ <b>TOR</b> เป็นทางเลือก
+  <p class="muted">ติ๊กเลือกเอกสารที่ต้องการ - <b>คำสั่งแต่งตั้งผู้ตรวจรับ</b> และ <b>TOR</b> เป็นทางเลือก
     (วงเงินเล็ก/พัสดุทั่วไป มักไม่ต้องทำ ตาม ว.119 / ข้อ 79 วรรคสอง)</p>
 
   <form method="post" action="/procurement/{{ p.id }}/bundle">

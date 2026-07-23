@@ -15,7 +15,7 @@
   </div>
   {% if committed > p.budget %}
   <div style="margin-top:12px; padding:10px 14px; border-radius:9px; background:#fef2f2; border:1px solid #fca5a5; color:#b91c1c; font-weight:600;">
-    <svg class="icon"><use href="#ic-alert"/></svg> ผูกจ้างเกินงบทั้งปี {{ "{:,.2f}".format(committed - p.budget) }} บาท — ตรวจสอบวงเงินแต่ละรอบอีกครั้ง
+    <svg class="icon"><use href="#ic-alert"/></svg> ผูกจ้างเกินงบทั้งปี {{ "{:,.2f}".format(committed - p.budget) }} บาท - ตรวจสอบวงเงินแต่ละรอบอีกครั้ง
   </div>
   {% endif %}
 </div>
@@ -34,7 +34,7 @@
     </div>
     <div class="row">
       <div style="flex:2;"><label>ผู้รับจ้าง</label><select name="vendor_id" id="vsel">
-        <option value="">— ไม่ระบุ —</option>
+        <option value="">- ไม่ระบุ -</option>
         {% for v in vendors %}<option value="{{ v.id }}" {{ 'selected' if edit and edit.vendor_id==v.id }}>{{ v.name }}</option>{% endfor %}
       </select>
       <button type="button" onclick="toggleNV()" id="nvToggle" class="btn sm gray" style="margin-top:6px;"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มผู้รับจ้างใหม่</button></div>

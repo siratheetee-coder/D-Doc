@@ -45,7 +45,7 @@
     .layout[data-module="academic"] { --brand:#4f46e5; --brand-dark:#4338ca; --brand-soft:#e0e7ff; --brand-lite:#818cf8; }
     /* พัสดุ + hub ใช้สีน้ำเงินเริ่มต้นจาก :root */
     * { box-sizing: border-box; }
-    /* กันหน้าจอ "ขยับซ้าย-ขวา" เวลาสลับหน้า (หน้าสั้นไม่มีสกรอลล์ vs หน้ายาวมีสกรอลล์) — จองที่สกรอลล์ไว้เสมอ */
+    /* กันหน้าจอ "ขยับซ้าย-ขวา" เวลาสลับหน้า (หน้าสั้นไม่มีสกรอลล์ vs หน้ายาวมีสกรอลล์) - จองที่สกรอลล์ไว้เสมอ */
     html { overflow-y: scroll; scrollbar-gutter: stable; }
     /* สปินเนอร์หมุน (ใช้ตอนรอ AI/OCR) */
     .spin { display:inline-block; width:14px; height:14px; vertical-align:-2px;
@@ -149,7 +149,7 @@
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 22px 24px; box-shadow: var(--shadow); margin-bottom: 22px;
     }
-    /* การ์ดลิงก์บนหน้าหลักของแต่ละงาน — ใช้สีประจำโมดูลอัตโนมัติผ่าน var(--brand) */
+    /* การ์ดลิงก์บนหน้าหลักของแต่ละงาน - ใช้สีประจำโมดูลอัตโนมัติผ่าน var(--brand) */
     .nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
     .nav-card {
       display: flex; flex-direction: column; gap: 12px; padding: 22px 24px;
@@ -261,7 +261,7 @@
     .table-wrap.dense > table { min-width: 980px; }
     /* select ในตารางเผื่อที่ลูกศรน้อยลง ไม่งั้นข้อความสั้น ๆ ก็ยังโดนตัด */
     td select { padding-right: 28px; background-position: right 8px center; }
-    /* ช่องรอง (เช่น สาระการเรียนรู้ ใต้ชื่อรายวิชา) — ค่าที่กรอกจริงต้องเป็นสีปกติ
+    /* ช่องรอง (เช่น สาระการเรียนรู้ ใต้ชื่อรายวิชา) - ค่าที่กรอกจริงต้องเป็นสีปกติ
        ทำจางเฉพาะ placeholder ไม่งั้นครูนึกว่าช่องยังว่างอยู่ */
     input.sub-group { color: var(--text, #1b2433); }
     input.sub-group::placeholder { color: var(--muted); }
@@ -505,7 +505,7 @@
         {# ตัวช่วยนี้ต้องอยู่นอกเงื่อนไขปุ่มย้อนกลับ เพราะหน้าอย่าง /projects /vendors
            ถูกจัดเป็นโมดูล hub แต่ก็มี dropdown ตัวกรองที่เรียกใช้เหมือนกัน #}
         <script>
-          // ส่งฟอร์มตัวกรอง (GET) แบบแทนที่ประวัติ — เปลี่ยน dropdown กี่ครั้งก็ไม่กองใน history
+          // ส่งฟอร์มตัวกรอง (GET) แบบแทนที่ประวัติ - เปลี่ยน dropdown กี่ครั้งก็ไม่กองใน history
           // ปุ่มย้อนกลับจึงออกจากหน้านี้ทันที ไม่ต้องไล่ย้อนทีละค่าตัวกรองที่เคยเลือก
           function submitReplace(form){
             var q = new URLSearchParams(new FormData(form)).toString();
@@ -652,7 +652,7 @@
             {% endif %}
           </div>
         </div>
-        {# แถบสถานะ: 2 ป้ายอิสระ — โรงเรียนหนึ่งอาจเป็นสมาชิกบางงาน และยังทดลองงานที่เหลืออยู่พร้อมกันได้ #}
+        {# แถบสถานะ: 2 ป้ายอิสระ - โรงเรียนหนึ่งอาจเป็นสมาชิกบางงาน และยังทดลองงานที่เหลืออยู่พร้อมกันได้ #}
         {% set st = account_status(request.session.get('tid')) %}
         {% if st %}
           {% set px = price_list() %}
@@ -683,7 +683,7 @@
                   {% else %}
                   <a class="bell-item" href="/checkout">
                     <span style="color:#94a3b8;">＋</span>
-                    <span><span class="bell-title">{{ module_labels[k] }}</span><span class="bell-reason">ยังไม่ได้ซื้อ · {{ "{:,}".format(px[module_price_key[k]]) }} บาท/ปี — ซื้อเพิ่ม</span></span>
+                    <span><span class="bell-title">{{ module_labels[k] }}</span><span class="bell-reason">ยังไม่ได้ซื้อ · {{ "{:,}".format(px[module_price_key[k]]) }} บาท/ปี - ซื้อเพิ่ม</span></span>
                   </a>
                   {% endif %}
                 {% endfor %}
@@ -762,7 +762,7 @@
           <div style="background:#fff7ed; border:1px solid #fed7aa; color:#b45309; border-radius:12px;
                       padding:13px 18px; margin-bottom:16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
             <svg class="icon" style="flex:none;"><use href="#ic-bell"/></svg>
-            <span style="flex:1; min-width:200px;">เหลือให้ทดลองใช้อีกเพียง <b>{{ _st.docs_left }} ฉบับ</b> — ออกเอกสารแบบไม่จำกัดเมื่อเป็นสมาชิก</span>
+            <span style="flex:1; min-width:200px;">เหลือให้ทดลองใช้อีกเพียง <b>{{ _st.docs_left }} ฉบับ</b> - ออกเอกสารแบบไม่จำกัดเมื่อเป็นสมาชิก</span>
             <a href="/checkout" style="background:#2563eb; color:#fff; text-decoration:none; font-weight:700;
                padding:8px 18px; border-radius:9px; white-space:nowrap;">ออกเอกสารแบบไม่จำกัด คลิกที่นี่</a>
           </div>

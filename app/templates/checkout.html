@@ -206,7 +206,7 @@
 <form class="card" method="post" action="/checkout" enctype="multipart/form-data" id="orderForm">
   <h2>แจ้งชำระเงิน</h2>
   {# งานที่เลือก (name="mod") ส่งมาจาก checkbox ด้านบนผ่าน form="orderForm"
-     ราคาคำนวณใหม่ที่เซิร์ฟเวอร์เสมอ — ไม่มี hidden amount ให้แก้ค่าอีกต่อไป #}
+     ราคาคำนวณใหม่ที่เซิร์ฟเวอร์เสมอ - ไม่มี hidden amount ให้แก้ค่าอีกต่อไป #}
   <div style="background:#eef4ff; border:1px solid #cddffb; border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:14px;">
     ชำระเงินเพื่อ<b>ต่ออายุบัญชี 1 ปี</b> สำหรับ: <b>{{ acct_email }}</b>{% if acct_school %} · {{ acct_school }}{% endif %}
   </div>
@@ -256,7 +256,7 @@
     var qr = document.getElementById('coQR');
     var qrHint = document.getElementById('coQRhint');
     var fmt = function(n){ return n.toLocaleString('en-US'); };
-    // ต้องตรงกับ price_for() ฝั่งเซิร์ฟเวอร์ (seller_config.py) — ที่นี่แค่แสดงผล
+    // ต้องตรงกับ price_for() ฝั่งเซิร์ฟเวอร์ (seller_config.py) - ที่นี่แค่แสดงผล
     // ยอดจริงเซิร์ฟเวอร์คำนวณเองตอนบันทึกคำสั่งซื้อเสมอ
     var TIERS = {{ tier_discount | default({2:100, 3:200, 4:300}) | tojson }};
     var NMODS = {{ module_keys | length }};

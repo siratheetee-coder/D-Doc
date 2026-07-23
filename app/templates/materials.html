@@ -12,7 +12,7 @@
 
 <div class="card" style="border:1px solid #c7d7fb; background:#f5f9ff;">
   <h2><svg class="icon"><use href="#ic-ai"/></svg> เพิ่มหลายรายการจากรูป (สแกน)</h2>
-  <p class="muted" style="margin-top:0;">ถ่าย/อัปรูปรายการวัสดุ (บิล/ใบส่งของ) ระบบจะอ่านมาเติมตารางให้ — ตรวจ/แก้แล้วกดบันทึก</p>
+  <p class="muted" style="margin-top:0;">ถ่าย/อัปรูปรายการวัสดุ (บิล/ใบส่งของ) ระบบจะอ่านมาเติมตารางให้ - ตรวจ/แก้แล้วกดบันทึก</p>
   <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
     <label class="btn gray sm" style="cursor:pointer;">
       <svg class="icon"><use href="#ic-upload"/></svg> ถ่ายรูป (อ่านเร็ว)
@@ -73,7 +73,7 @@
     </tbody>
   </table>
   {% else %}
-  <p class="muted">ยังไม่มีวัสดุ — เพิ่มด้านบน หรือนำเข้าจากเรื่องจัดซื้อ (ปุ่ม "นำเข้าทะเบียน" ในหน้ารายละเอียดเรื่อง)</p>
+  <p class="muted">ยังไม่มีวัสดุ - เพิ่มด้านบน หรือนำเข้าจากเรื่องจัดซื้อ (ปุ่ม "นำเข้าทะเบียน" ในหน้ารายละเอียดเรื่อง)</p>
   {% endif %}
 </div>
 
@@ -99,9 +99,9 @@
       input.value = '';
       if(d && d.error){ msg.textContent = d.error; return; }
       var items = (d && d.items) || [];
-      if(!items.length){ msg.textContent = 'อ่านรายการจากรูปไม่ได้ — ลองถ่ายให้ชัด/ตรงขึ้น หรือเพิ่มแถวเอง'; return; }
+      if(!items.length){ msg.textContent = 'อ่านรายการจากรูปไม่ได้ - ลองถ่ายให้ชัด/ตรงขึ้น หรือเพิ่มแถวเอง'; return; }
       items.forEach(function(it){ mAddRow(it.name, it.unit, it.qty, 0); });
-      msg.textContent = 'เพิ่ม ' + items.length + ' รายการแล้ว — โปรดตรวจ/แก้ก่อนบันทึก';
+      msg.textContent = 'เพิ่ม ' + items.length + ' รายการแล้ว - โปรดตรวจ/แก้ก่อนบันทึก';
     }).catch(function(){ input.value=''; msg.textContent = 'อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง'; });
   }
 </script>

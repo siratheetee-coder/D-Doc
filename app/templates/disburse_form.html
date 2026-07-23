@@ -10,7 +10,7 @@
       <div><label>วันที่</label><input name="date" value="{{ be_date(prefill.date) if prefill and prefill.date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       <div style="flex:2;"><label>ดึงข้อมูลจากเรื่องจัดซื้อ/จัดจ้าง (ไม่บังคับ)</label>
         <select id="procSel" onchange="if(this.value)location.href='/finance/disburse?proc='+this.value;">
-          <option value="">— ไม่ผูกกับเรื่องพัสดุ —</option>
+          <option value="">- ไม่ผูกกับเรื่องพัสดุ -</option>
           {% for p in procs %}
           <option value="{{ p.id }}" {{ 'selected' if prefill and prefill.procurement_id==p.id }}>{{ p.order_no or p.memo_no or '-' }} · {{ p.proc_type }}{{ p.subject }}</option>
           {% endfor %}
@@ -32,16 +32,16 @@
       <div><label>แหล่งเงิน/หมวดงบ</label><input name="budget_source" value="{{ prefill.budget_source if prefill else '' }}" placeholder="เช่น เงินอุดหนุน"></div>
       <div><label>เบิกจากบัญชี</label>
         <select name="account_id" id="acctSel">
-          <option value="">— เลือกภายหลัง —</option>
+          <option value="">- เลือกภายหลัง -</option>
           {% for a in accounts %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
         </select>
       </div>
       <div><label>หมวด/รายการ</label>
-        <select name="item_id" id="itemSel"><option value="">— เลือกบัญชีก่อน —</option></select>
+        <select name="item_id" id="itemSel"><option value="">- เลือกบัญชีก่อน -</option></select>
       </div>
       <div><label>โครงการ</label>
         <select name="project_id">
-          <option value="">— ไม่ผูกโครงการ —</option>
+          <option value="">- ไม่ผูกโครงการ -</option>
           {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if prefill and prefill.project_id==pj.id }}>{{ pj.name }}</option>{% endfor %}
         </select>
       </div>
@@ -95,8 +95,8 @@
   function fillItems(sel){
     if(!itemSel) return;
     var list=ITEMS[acctSel.value]||[];
-    itemSel.innerHTML = list.length ? '<option value="">— ไม่ระบุหมวด —</option>'
-                                    : '<option value="">— บัญชีนี้ยังไม่มีหมวด —</option>';
+    itemSel.innerHTML = list.length ? '<option value="">- ไม่ระบุหมวด -</option>'
+                                    : '<option value="">- บัญชีนี้ยังไม่มีหมวด -</option>';
     list.forEach(function(it){
       var o=document.createElement('option'); o.value=it.id; o.textContent=it.name;
       if(String(it.id)===String(sel)) o.selected=true;

@@ -55,7 +55,7 @@
     <h2 style="margin:0;">รายชื่อนักเรียน {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }} คน)</span>{% endif %}</h2>
     {% if rows %}<button class="btn sm" type="button" onclick="saveAll(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึกทั้งหมด</button>{% endif %}
   </div>
-  <p class="muted" style="font-size:13px; margin:4px 0 8px;">แก้ได้หลายแถวพร้อมกัน แล้วกด "บันทึกทั้งหมด" ครั้งเดียว (หรือกดบันทึกทีละแถว) — ข้อมูลแถวอื่นจะไม่หาย</p>
+  <p class="muted" style="font-size:13px; margin:4px 0 8px;">แก้ได้หลายแถวพร้อมกัน แล้วกด "บันทึกทั้งหมด" ครั้งเดียว (หรือกดบันทึกทีละแถว) - ข้อมูลแถวอื่นจะไม่หาย</p>
   {% if request.query_params.get('bulkset') %}<div class="alert">✔ ตั้งชั้น/ห้องให้ {{ request.query_params.get('bulkset') }} คนแล้ว</div>{% endif %}
   {% if rows %}
   <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; padding:10px 12px; margin:0 0 10px;

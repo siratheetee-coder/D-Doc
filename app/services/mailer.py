@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-mailer.py — ส่งอีเมล (ยืนยันอีเมล ฯลฯ) ผ่าน SMTP ที่ตั้งค่าใน seller_local.py
+mailer.py - ส่งอีเมล (ยืนยันอีเมล ฯลฯ) ผ่าน SMTP ที่ตั้งค่าใน seller_local.py
 ถ้าไม่ได้ตั้งค่า SMTP -> ระบบข้ามการยืนยันอีเมล (auto-verify) เพื่อให้ใช้งาน local ได้
 """
 
@@ -11,7 +11,7 @@ def smtp_configured() -> bool:
 
 
 def send_email(to: str, subject: str, html: str) -> bool:
-    """ส่งอีเมล HTML ผ่าน SMTP (คืน True ถ้าสำเร็จ) — ต้องตั้ง smtp_* ใน seller_local.py"""
+    """ส่งอีเมล HTML ผ่าน SMTP (คืน True ถ้าสำเร็จ) - ต้องตั้ง smtp_* ใน seller_local.py"""
     from app.seller_config import SELLER
     import smtplib
     import ssl
@@ -56,9 +56,9 @@ def send_verify_email(to: str, link: str) -> bool:
            padding:12px 28px; border-radius:10px; font-weight:700;">ยืนยันอีเมล</a>
       </p>
       <p style="color:#64748b; font-size:13px;">ถ้ากดปุ่มไม่ได้ คัดลอกลิงก์นี้ไปเปิด:<br>{link}</p>
-      <p style="color:#94a3b8; font-size:12px;">อีเมลนี้ส่งจากระบบ {brand} — หากคุณไม่ได้ลงทะเบียน โปรดละเว้น</p>
+      <p style="color:#94a3b8; font-size:12px;">อีเมลนี้ส่งจากระบบ {brand} - หากคุณไม่ได้ลงทะเบียน โปรดละเว้น</p>
     </div>"""
-    return send_email(to, "ยืนยันอีเมล — D-Doc", html)
+    return send_email(to, "ยืนยันอีเมล - D-Doc", html)
 
 
 def send_reset_email(to: str, link: str) -> bool:
@@ -73,6 +73,6 @@ def send_reset_email(to: str, link: str) -> bool:
            padding:12px 28px; border-radius:10px; font-weight:700;">ตั้งรหัสผ่านใหม่</a>
       </p>
       <p style="color:#64748b; font-size:13px;">ถ้ากดปุ่มไม่ได้ คัดลอกลิงก์นี้ไปเปิด:<br>{link}</p>
-      <p style="color:#94a3b8; font-size:12px;">หากคุณไม่ได้ขอรีเซ็ตรหัสผ่าน โปรดละเว้นอีเมลนี้ รหัสผ่านเดิมยังใช้งานได้ตามปกติ — {brand}</p>
+      <p style="color:#94a3b8; font-size:12px;">หากคุณไม่ได้ขอรีเซ็ตรหัสผ่าน โปรดละเว้นอีเมลนี้ รหัสผ่านเดิมยังใช้งานได้ตามปกติ - {brand}</p>
     </div>"""
-    return send_email(to, "รีเซ็ตรหัสผ่าน — D-Doc", html)
+    return send_email(to, "รีเซ็ตรหัสผ่าน - D-Doc", html)

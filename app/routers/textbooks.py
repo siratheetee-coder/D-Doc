@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-textbooks.py — บัญชีหนังสือเรียน/แบบฝึกหัด (เงินอุดหนุนค่าหนังสือเรียน)
+textbooks.py - บัญชีหนังสือเรียน/แบบฝึกหัด (เงินอุดหนุนค่าหนังสือเรียน)
 ทะเบียนหนังสือ (รับเข้า) + ใบเบิก (จ่ายออกให้ชั้นเรียน) + นำเข้า/ส่งออก Excel
 ตารางใหม่สร้างอัตโนมัติด้วย init_school_db (ไม่ต้อง ALTER)
 """
@@ -211,7 +211,7 @@ _LEVEL_ORDER = SCHOOL_LEVELS           # ใช้ลิสต์ร่วมจ
 
 @router.get("/textbooks/receipt.docx")
 def book_receipt(db: Session = Depends(get_db), year: int | None = None):
-    """บัญชีรายชื่อนักเรียนรับหนังสือเรียน แยกตามชั้น (Word) — นักเรียนจากทะเบียนกลาง"""
+    """บัญชีรายชื่อนักเรียนรับหนังสือเรียน แยกตามชั้น (Word) - นักเรียนจากทะเบียนกลาง"""
     from app.models import Student
     from app.services.book_receipt_doc import render_book_receipt
     yr = year or current_academic_year()

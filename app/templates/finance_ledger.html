@@ -50,7 +50,7 @@
       </div>
       <div id="parentWrap" style="display:none;"><label>อยู่ใต้หมวด</label>
         <select name="parent_id" id="parentSel">
-          <option value="">— เลือกหมวดหลัก —</option>
+          <option value="">- เลือกหมวดหลัก -</option>
           {% for p in parents %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
         </select>
       </div>
@@ -149,7 +149,7 @@
       <div><label>วันที่</label><input name="date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       <div><label>หมวดงบ</label>
         <select name="item_id">
-          <option value="">— ไม่ระบุหมวด —</option>
+          <option value="">- ไม่ระบุหมวด -</option>
           {% for r in item_rows %}<option value="{{ r.it.id }}">{{ '　└ ' if r.level==1 }}{{ r.it.name }}</option>{% endfor %}
         </select>
       </div>

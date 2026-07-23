@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-superadmin.py — คอนโซลผู้ดูแลระบบ (ผู้ขาย)
+superadmin.py - คอนโซลผู้ดูแลระบบ (ผู้ขาย)
 จัดการโรงเรียน: สร้าง/ต่ออายุ/ระงับ/เพิ่มผู้ใช้/รีเซ็ตรหัสผ่าน
-(เข้าถึงได้เฉพาะ role superadmin — บังคับโดย middleware ใน main.py)
+(เข้าถึงได้เฉพาะ role superadmin - บังคับโดย middleware ใน main.py)
 """
 import re
 from pathlib import Path

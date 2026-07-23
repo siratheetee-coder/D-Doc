@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-sales.py — หน้าขายสาธารณะ (ไม่ต้องล็อกอิน)
+sales.py - หน้าขายสาธารณะ (ไม่ต้องล็อกอิน)
   /quote     ขอใบเสนอราคา (เก็บคำขอ -> แอดมินส่งใบเสนอราคาทางอีเมล)
   /checkout  สั่งซื้อ/ชำระเงิน PromptPay + แจ้งสลิป
 คำขอเก็บใน accounts.db (ตาราง lead) ผู้ขายดูได้ในคอนโซลผู้ดูแลระบบ
@@ -42,7 +42,7 @@ def _seller_ctx() -> dict:
 
 @router.get("/checkout/promptpay.png")
 def checkout_promptpay(amount: str = ""):
-    """สร้าง QR PromptPay ตามยอดเงิน (dynamic) — สแกนแล้วยอดขึ้นตามราคาที่เลือก"""
+    """สร้าง QR PromptPay ตามยอดเงิน (dynamic) - สแกนแล้วยอดขึ้นตามราคาที่เลือก"""
     from fastapi.responses import Response as _Resp
     from app.services.promptpay import promptpay_png
     pid = (SELLER.get("promptpay_id") or "").strip()
@@ -135,7 +135,7 @@ async def checkout_submit(request: Request, school_name: str = Form(""), contact
         slip_name = f"slip_{datetime.now():%Y%m%d%H%M%S}_{secrets.token_hex(4)}{ext}"
         (_LEADS_DIR / slip_name).write_bytes(await slip.read())
     address = _join_address(addr_no, addr_moo, addr_tambon, addr_amphoe, addr_province, addr_zip)
-    # ราคา/รายการงาน คำนวณที่เซิร์ฟเวอร์เสมอ — ห้ามเชื่อ amount/packages ที่ส่งมาจากหน้าเว็บ
+    # ราคา/รายการงาน คำนวณที่เซิร์ฟเวอร์เสมอ - ห้ามเชื่อ amount/packages ที่ส่งมาจากหน้าเว็บ
     # (ของเดิมรับ hidden field ตรง ๆ ทำให้โพสต์ "ครบทุกงาน ราคา 1 บาท" ได้)
     pf = price_for(set(mod or []))
     if not pf["count"]:                        # ไม่ได้เลือกงาน -> ถอยกลับไปหน้า checkout

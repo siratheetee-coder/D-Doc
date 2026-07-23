@@ -41,16 +41,16 @@
       <div><label>แหล่งเงิน/หมวดงบ</label><input name="budget_source" value="{{ m.budget_source }}"></div>
       <div><label>เบิกจากบัญชี</label>
         <select name="account_id" id="acctSel">
-          <option value="">— ไม่ระบุ —</option>
+          <option value="">- ไม่ระบุ -</option>
           {% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if m.account_id==a.id }}>{{ a.name }}</option>{% endfor %}
         </select>
       </div>
       <div><label>หมวด/รายการ (หักงบรายหมวด)</label>
-        <select name="item_id" id="itemSel"><option value="">— เลือกบัญชีก่อน —</option></select>
+        <select name="item_id" id="itemSel"><option value="">- เลือกบัญชีก่อน -</option></select>
       </div>
       <div><label>โครงการ (คุมงบ)</label>
         <select name="project_id">
-          <option value="">— ไม่ผูกโครงการ —</option>
+          <option value="">- ไม่ผูกโครงการ -</option>
           {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if m.project_id==pj.id }}>{{ pj.name }}</option>{% endfor %}
         </select>
       </div>
@@ -103,8 +103,8 @@
   function fillItems(sel){
     if(!itemSel) return;
     var list=ITEMS[acctSel.value]||[];
-    itemSel.innerHTML = list.length ? '<option value="">— ไม่ระบุหมวด —</option>'
-                                    : '<option value="">— บัญชีนี้ยังไม่มีหมวด —</option>';
+    itemSel.innerHTML = list.length ? '<option value="">- ไม่ระบุหมวด -</option>'
+                                    : '<option value="">- บัญชีนี้ยังไม่มีหมวด -</option>';
     list.forEach(function(it){
       var o=document.createElement('option'); o.value=it.id; o.textContent=it.name;
       if(String(it.id)===String(sel)) o.selected=true;
