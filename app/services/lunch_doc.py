@@ -12,7 +12,9 @@ lunch_doc.py
 from pathlib import Path
 
 from docx import Document
-from docx.shared import Cm
+from docx.shared import Cm, Pt
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 
 from app.services.doc_page import set_a4
 
@@ -71,26 +73,95 @@ def _menu_text(m) -> str:
     return "  ".join(p for p in parts if p)
 
 
-def _daily_table(doc, menus):
-    """ตารางควบคุมงานรายวัน (08): วัน เดือน ปี | รายการอาหารตาม TOR | ผลการดำเนินงาน | ผู้ควบคุมและคณะกรรมการ"""
-    widths = [Cm(2.6), Cm(6.2), Cm(3.2), Cm(4.2)]
+_CHECK = "☐"        # ☐ ช่องติ๊ก
+_RESULT_CRITERIA = ["ความสะอาด", "คุณภาพอาหาร", "ความทันเวลา", "ความเพียงพอ"]
+_RESULT_OPTIONS = ["ดีมาก", "ดี", "พอใช้", "ปรับปรุง"]
+_TH_NUM = ["๑", "๒", "๓", "๔", "๕", "๖", "๗", "๘", "๙", "๑๐"]
+
+
+def _result_cell_text() -> str:
+    """ข้อความคอลัมน์ 'ผลการดำเนินงาน' : 4 หัวข้อ x 4 ตัวเลือกให้ติ๊ก"""
+    opts = " ".join(f"{_CHECK}{o}" for o in _RESULT_OPTIONS)
+    return "\n".join(f"{c}\n{opts}" for c in _RESULT_CRITERIA)
+
+
+def _rule(doc):
+    """เส้นคั่นแนวนอนเต็มความกว้าง (ขอบล่างของย่อหน้าว่าง)"""
+    p = doc.add_paragraph()
+    p.paragraph_format.space_before = Pt(2)
+    p.paragraph_format.space_after = Pt(6)
+    pPr = p._p.get_or_add_pPr()
+    pbdr = OxmlElement("w:pBdr")
+    bottom = OxmlElement("w:bottom")
+    bottom.set(qn("w:val"), "single")
+    bottom.set(qn("w:sz"), "6")
+    bottom.set(qn("w:space"), "1")
+    bottom.set(qn("w:color"), "auto")
+    pbdr.append(bottom)
+    pPr.append(pbdr)
+    return p
+
+
+def _committee_cell_text(members, n=3) -> str:
+    """ข้อความช่องกรรมการ (จุดไข่ปลาให้เซ็น + ชื่อในวงเล็บ) เรียงเลขไทย ๑ ๒ ๓"""
+    count = max(n, len(members or []))
+    lines = []
+    for i in range(count):
+        num = _TH_NUM[i] if i < len(_TH_NUM) else str(i + 1)
+        lines.append(f"{num}...........................................")
+        nm = members[i].name if (members and i < len(members) and members[i].name) else ""
+        lines.append(f"( {nm} )" if nm else "( ........................................ )")
+    return "\n".join(lines)
+
+
+def _daily_table(doc, menus, committee=None):
+    """ตารางควบคุมงานรายวัน: วัน เดือน ปี | รายการอาหารตาม TOR | ผลการดำเนินงาน (ติ๊ก) | คณะกรรมการควบคุมงาน"""
+    widths = [Cm(2.2), Cm(4.4), Cm(5.4), Cm(4.5)]
     headers = ["วัน เดือน ปี", "รายการอาหาร\nตามขอบเขตงาน TOR", "ผลการดำเนินงาน",
-               "ผู้ควบคุมและคณะกรรมการ\nตรวจการประกอบอาหาร"]
+               "คณะกรรมการควบคุมงานจ้าง\nประกอบอาหาร"]
     t = doc.add_table(rows=1, cols=4)
     t.style = "Table Grid"
     t.autofit = False
     hdr = t.rows[0]
     _repeat_header_row(hdr)
     for c, h, w in zip(hdr.cells, headers, widths):
-        _set_cell(c, h, bold=True, align="center", size=14)
+        _set_cell(c, h, bold=True, align="center", size=13)
         c.width = w
-    rows_menus = menus if menus else [None] * 5
-    for m in rows_menus:
+    committee_txt = _committee_cell_text(committee)
+    for m in (menus if menus else [None] * 5):
         r = t.add_row()
         _no_split_row(r)
-        vals = [thai_date(m.date) if (m and m.date) else "", _menu_text(m) if m else "", "", ""]
-        for c, v, w in zip(r.cells, vals, widths):
-            _set_cell(c, v, size=14)
+        _set_cell(r.cells[0], thai_date(m.date) if (m and m.date) else "", align="center", size=13)
+        _set_cell(r.cells[1], _menu_text(m) if m else "", align="left", size=13)
+        _set_cell(r.cells[2], _result_cell_text(), align="left", size=12)
+        _set_cell(r.cells[3], committee_txt, align="left", size=12)
+        for c, w in zip(r.cells, widths):
+            c.width = w
+    return t
+
+
+def _inspect_table(doc, menus, committee=None):
+    """ตารางใบตรวจรับพัสดุ: วัน เดือน ปี | รายการอาหาร | ลายมือชื่อผู้ส่งมอบงาน | ผู้ตรวจรับพัสดุ/คณะกรรมการ"""
+    widths = [Cm(2.4), Cm(5.3), Cm(3.6), Cm(5.2)]
+    headers = ["วัน เดือน ปี", "รายการอาหาร", "ลายมือชื่อผู้\nส่งมอบงาน",
+               "ผู้ตรวจรับพัสดุหรือคณะกรรมการ\nตรวจรับพัสดุ"]
+    t = doc.add_table(rows=1, cols=4)
+    t.style = "Table Grid"
+    t.autofit = False
+    hdr = t.rows[0]
+    _repeat_header_row(hdr)
+    for c, h, w in zip(hdr.cells, headers, widths):
+        _set_cell(c, h, bold=True, align="center", size=13)
+        c.width = w
+    committee_txt = _committee_cell_text(committee)
+    for m in (menus if menus else [None] * 5):
+        r = t.add_row()
+        _no_split_row(r)
+        _set_cell(r.cells[0], thai_date(m.date) if (m and m.date) else "", align="center", size=13)
+        _set_cell(r.cells[1], _menu_text(m) if m else "", align="left", size=13)
+        _set_cell(r.cells[2], "", size=13)
+        _set_cell(r.cells[3], committee_txt, align="left", size=12)
+        for c, w in zip(r.cells, widths):
             c.width = w
     return t
 
@@ -125,6 +196,10 @@ def render_installment_doc(inst, school, menus) -> str:
     order_no = getattr(rnd, "order_no", None) or _BLANK
     sname = (school.name or "").strip() or "โรงเรียน"
     director = (school.director_name or "").strip()
+    officer = (getattr(school, "officer_name", "") or "").strip()
+    head_officer = (getattr(school, "head_officer_name", "") or "").strip()
+    control_members = [m for m in getattr(rnd, "committees", []) if m.kind == "control"]
+    inspect_members = [m for m in getattr(rnd, "committees", []) if m.kind == "inspect"]
     amount = _money(inst.amount or 0)
     amt_text = bahttext(inst.amount or 0)
     period = f"วันที่ {_dnum(inst.start_date)} ถึงวันที่ {_dnum(inst.end_date)} รวม {inst.days or ''} วัน"
@@ -139,7 +214,7 @@ def render_installment_doc(inst, school, menus) -> str:
        align="justify", indent=1.25)
     _p(doc, "คณะกรรมการควบคุมงานและคณะกรรมการตรวจการจ้าง ขอรายงานผลการดำเนินงาน "
             "การประกอบอาหารกลางวันเป็นรายวัน ดังนี้", align="justify", indent=1.25, after=4)
-    _daily_table(doc, menus)
+    _daily_table(doc, menus, control_members)
     _p(doc, "", after=4)
     _p(doc, "ความเห็นของผู้อำนวยการสถานศึกษา : ทราบผลการดำเนินการประกอบอาหารกลางวัน",
        indent=1.25, after=10)
@@ -172,30 +247,26 @@ def render_installment_doc(inst, school, menus) -> str:
             f"ให้นักเรียนรับประทาน ตามใบสั่งจ้าง เลขที่ {order_no} นั้น",
        align="justify", indent=1.25)
     _p(doc, f"บัดนี้ ผู้รับจ้างได้ส่งมอบพัสดุทุกวันตามข้อตกลง และคณะกรรมการตรวจรับพัสดุ "
-            f"ได้ตรวจรับไว้ถูกต้องครบถ้วนแล้ว เห็นควรเบิกจ่ายเงินให้ผู้รับจ้าง งวดที่ {inst.seq} "
-            f"ระหว่าง{period} เป็นเงิน {amount} บาท ({amt_text})", align="justify", indent=1.25, after=4)
-    _menu_table3(doc, menus, "ผู้ตรวจรับพัสดุหรือคณะกรรมการ\nตรวจรับพัสดุ")
-    _p(doc, "เรียน  ผู้อำนวยการ" + sname, indent=1.25, before=4)
-    _p(doc, "เพื่อโปรดทราบผลการตรวจรับพัสดุ และขออนุมัติจ่ายเงินให้ผู้รับจ้างต่อไป",
-       align="justify", indent=1.25, after=10)
-    inspectors = [m for m in getattr(rnd, "committees", []) if m.kind == "inspect"]
-    if inspectors:
-        rows = [[(f"(ลงชื่อ)...........................................{m.role}", "center"),
-                 (f"( {m.name} )", "center")] for m in inspectors]
-    else:
-        rows = [[("(ลงชื่อ)...........................................ประธานกรรมการตรวจรับ", "center"),
-                 ("(...........................................)", "center")],
-                [("(ลงชื่อ)...........................................กรรมการ", "center"),
-                 ("(...........................................)", "center")],
-                [("(ลงชื่อ)...........................................กรรมการ", "center"),
-                 ("(...........................................)", "center")]]
-    _sign_table(doc, rows)
+            f"ได้ตรวจรับไว้ถูกต้องครบถ้วนแล้ว งวดที่ {inst.seq} ตามบันทึกข้อตกลงจ้างแล้ว ดังนี้",
+       align="justify", indent=1.25, after=4)
+    _inspect_table(doc, menus, inspect_members)
     _p(doc, "", after=4)
+    _p(doc, "เรียน  ผู้อำนวยการ" + sname, indent=1.25, after=0)
+    _p(doc, f"เพื่อโปรดทราบผลการตรวจรับพัสดุ และขออนุมัติจ่ายเงินให้ผู้รับจ้าง งวดที่ {inst.seq} "
+            f"ระหว่าง{period} เป็นเงิน {amount} บาท ({amt_text})",
+       align="justify", indent=1.25, after=8)
+    _sign_table(doc, [
+        [("(ลงชื่อ)...........................................", "center"),
+         (f"( {officer or _BLANK} )", "center"), ("เจ้าหน้าที่", "center")],
+        [("(ลงชื่อ)...........................................", "center"),
+         (f"( {head_officer or _BLANK} )", "center"), ("หัวหน้าเจ้าหน้าที่", "center")],
+    ], gap=False)
+    _rule(doc)
     _p(doc, "ความเห็นของผู้บริหารสถานศึกษา", indent=1.25, after=0)
-    _p(doc, "(   ) ทราบผลการตรวจรับ          (   ) อนุมัติ", indent=1.5, after=10)
+    _p(doc, "(   ) ทราบผลการตรวจรับ          (   ) อนุมัติ", indent=1.5, after=12)
     _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
     _p(doc, f"( {director or _BLANK} )", align="center", after=0)
-    _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
+    _p(doc, f"ตำแหน่ง ผู้อำนวยการ{sname}", align="center", after=0)
 
     return _save(doc, f"งวดที่{inst.seq}_ปี{rnd.program.year}")
 
