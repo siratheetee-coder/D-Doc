@@ -23,7 +23,11 @@
 
 <div class="card" style="background:#f0f9ff; border:1px solid #bae6fd;">
   <h2 style="margin-top:0;">ขึ้นปีการศึกษาใหม่ (เลื่อนชั้น)</h2>
-  <p class="muted" style="margin-top:0;">ขั้นตอนเมื่อขึ้นปีการศึกษาใหม่: (1) เลื่อนชั้นทุกคนขึ้น 1 ระดับ (อ.1→อ.2→...→ป.6→ม.1→...→ม.3 · ม.3 → จบการศึกษา) (2) เพิ่มนักเรียนใหม่ (ป.1/อ.1) ด้านล่าง</p>
+  <p class="muted" style="margin:0 0 6px;">ขั้นตอนเมื่อขึ้นปีการศึกษาใหม่:</p>
+  <ol class="muted" style="margin:0 0 4px; padding-left:22px; line-height:1.9;">
+    <li>เลื่อนชั้นทุกคนขึ้น 1 ระดับ (อ.1 → อ.2 → ... → ป.6 → ม.1 → ... → ม.3 · ม.3 → จบการศึกษา)</li>
+    <li>เพิ่มนักเรียนใหม่ (ป.1 / อ.1) ด้านล่าง</li>
+  </ol>
   <form method="post" action="/students/promote" style="margin:0;" onsubmit="return confirm('เลื่อนชั้นนักเรียนทุกคนขึ้น 1 ระดับ? (ม.3 จะกลายเป็น จบการศึกษา)');">
     <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-check"/></svg> เลื่อนชั้น (ขึ้นปีการศึกษาใหม่)</button>
   </form>
@@ -59,13 +63,13 @@
   <p class="muted" style="font-size:13px; margin:4px 0 8px;">แก้ได้หลายแถวพร้อมกัน แล้วกด "บันทึกทั้งหมด" ครั้งเดียว (หรือกดบันทึกทีละแถว) - ข้อมูลแถวอื่นจะไม่หาย</p>
   {% if request.query_params.get('bulkset') %}<div class="alert">✔ ตั้งชั้น/ห้องให้ {{ request.query_params.get('bulkset') }} คนแล้ว</div>{% endif %}
   {% if rows %}
-  <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; padding:10px 12px; margin:0 0 10px;
+  <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:12px 14px; margin:0 0 10px;
               background:#f4f7ff; border:1px solid #dbe6ff; border-radius:10px;">
-    <div style="font-weight:600; align-self:center;">ติ๊กเลือกหลายคน แล้วตั้งพร้อมกัน:</div>
-    <div><label style="font-size:12.5px;">ระดับชั้น</label><br>
-      <input id="bsLevel" list="lvlist" placeholder="(ไม่แก้)" style="width:100px;"></div>
-    <div><label style="font-size:12.5px;">ห้อง</label><br>
-      <input id="bsRoom" placeholder="(ไม่แก้)" style="width:80px;"></div>
+    <span style="font-weight:600;">ติ๊กเลือกนักเรียนหลายคน แล้วตั้งระดับชั้น/ห้อง ตรงนี้ได้เลย</span>
+    <label style="display:flex; align-items:center; gap:6px; font-size:13.5px; margin:0;">ระดับชั้น
+      <input id="bsLevel" list="lvlist" placeholder="(ไม่แก้)" style="width:100px;"></label>
+    <label style="display:flex; align-items:center; gap:6px; font-size:13.5px; margin:0;">ห้อง
+      <input id="bsRoom" placeholder="(ไม่แก้)" style="width:80px;"></label>
     <button class="btn sm" type="button" onclick="bulkSet(this)">ตั้งให้ที่เลือก (<span id="bsCount">0</span> คน)</button>
   </div>
   <div class="table-wrap">

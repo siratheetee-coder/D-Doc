@@ -316,6 +316,8 @@
       color: #aab2c0; padding: 14px 14px 5px; user-select: none;
     }
     .sidebar nav .nav-sec:first-child { padding-top: 4px; }
+    .sidebar nav a.subnav { padding-left: 34px; font-size: 15px; margin-top: -2px; }
+    .sidebar nav a.subnav .icon { width: 15px; height: 15px; opacity: .75; }
     .sidebar nav a.navback { color: var(--muted); font-size: 13.5px; margin-bottom: 4px; }
     .sidebar nav a.navback:hover { color: var(--brand-dark); }
     .sidebar nav .navdim {
@@ -502,8 +504,16 @@
         {% set section_home = '/admin' if module=='admin' else '/finance' if module=='finance' else '/lunch' if module=='lunch' else '/hr' if module=='hr' else '/academic' if module=='academic' else '/procurement' if module=='procurement' else '/' %}
         {% set section_prefixes = ['/admin'] if module=='admin' else ['/finance'] if module=='finance' else ['/lunch'] if module=='lunch' else ['/hr'] if module=='hr' else ['/academic'] if module=='academic' else ['/procurement','/assets','/materials','/requisitions','/register','/catalog','/textbooks'] if module=='procurement' else ['/'] %}
         {% set is_section_home = (path == section_home) %}
-        {# ตัวช่วยนี้ต้องอยู่นอกเงื่อนไขปุ่มย้อนกลับ เพราะหน้าอย่าง /projects /vendors
-           ถูกจัดเป็นโมดูล hub แต่ก็มี dropdown ตัวกรองที่เรียกใช้เหมือนกัน #}
+        {# เมนูกลุ่ม "ระบบ" (ล่างสุด) ใช้ได้ทุกโมดูล และถูกจัดเป็น hub -> ต้องมีปุ่มย้อนกลับเองด้วย
+           หน้าหลักของแต่ละอัน (เช่น /students) ย้อนไป hub · หน้าย่อย (เช่น /students/1) ย้อนหน้าที่แล้ว #}
+        {% set system_roots = ['/docnos','/projects','/vendors','/masters','/students','/settings','/guide','/support','/checkout','/account'] %}
+        {% set sysns = namespace(root='') %}
+        {% for r in system_roots %}{% if path == r or path.startswith(r + '/') %}{% set sysns.root = r %}{% endif %}{% endfor %}
+        {% if module == 'hub' and sysns.root %}
+          {% set section_home = sysns.root %}
+          {% set is_section_home = (path == sysns.root) %}
+        {% endif %}
+        {% set show_back = (path != '/') and (module != 'hub' or sysns.root) %}
         <script>
           // ส่งฟอร์มตัวกรอง (GET) แบบแทนที่ประวัติ - เปลี่ยน dropdown กี่ครั้งก็ไม่กองใน history
           // ปุ่มย้อนกลับจึงออกจากหน้านี้ทันที ไม่ต้องไล่ย้อนทีละค่าตัวกรองที่เคยเลือก
@@ -512,7 +522,7 @@
             location.replace(form.getAttribute('action') + (q ? ('?' + q) : ''));
           }
         </script>
-        {% if module != 'hub' %}
+        {% if show_back %}
         <a href="{{ '/' if is_section_home else section_home }}" class="navback" onclick="return goBack(event)"><svg class="icon"><use href="#ic-arrow-left"/></svg> {{ 'หน้าเลือกงาน' if is_section_home else 'ย้อนกลับ' }}</a>
         <script>
           window.SECTION_HOME = "{{ section_home }}";
@@ -520,7 +530,7 @@
           window.IS_SECTION_HOME = {{ 'true' if is_section_home else 'false' }};
           function goBack(ev){
             ev.preventDefault();
-            // หน้าหลักของงาน (section home) -> ไปหน้าเลือกงาน (hub)
+            // หน้าหลักของงาน/ระบบ (section home) -> ไปหน้าเลือกงาน (hub)
             if(window.IS_SECTION_HOME){ location.href = "/"; return false; }
             // หน้าย่อย -> ย้อนไปหน้าที่แล้ว ; ถ้าไม่มีประวัติ ใช้หน้าหลักของงาน
             if(history.length > 1){ history.back(); return false; }
@@ -614,7 +624,8 @@
         <a href="/projects" class="{{ 'active' if path.startswith('/projects') }}"><svg class="icon"><use href="#ic-coins"/></svg> โครงการ/แผนงบ</a>
         <a href="/vendors" class="{{ 'active' if path.startswith('/vendors') }}"><svg class="icon"><use href="#ic-store"/></svg> ผู้ขาย/ผู้รับจ้าง</a>
         <a href="/masters" class="{{ 'active' if path.startswith('/masters') }}"><svg class="icon"><use href="#ic-users"/></svg> บุคลากร/ฝ่าย</a>
-        <a href="/students" class="{{ 'active' if path.startswith('/students') }}"><svg class="icon"><use href="#ic-users"/></svg> ข้อมูลนักเรียน</a>
+        <a href="/students" class="{{ 'active' if path.startswith('/students') and not path.startswith('/students/growth') }}"><svg class="icon"><use href="#ic-users"/></svg> ข้อมูลนักเรียน</a>
+        <a href="/students/growth" class="subnav {{ 'active' if path.startswith('/students/growth') }}"><svg class="icon"><use href="#ic-check"/></svg> น้ำหนัก/ส่วนสูง</a>
         <a href="/settings" class="{{ 'active' if path.startswith('/settings') }}"><svg class="icon"><use href="#ic-settings"/></svg> ตั้งค่าโรงเรียน</a>
         <a href="/guide" class="{{ 'active' if path.startswith('/guide') }}"><svg class="icon"><use href="#ic-info"/></svg> วิธีใช้งาน</a>
         <a href="/support" class="{{ 'active' if path.startswith('/support') }}"><svg class="icon"><use href="#ic-send"/></svg> ติดต่อเจ้าหน้าที่</a>
@@ -848,6 +859,20 @@
           sessionStorage.removeItem('dscroll');   // ใช้ครั้งเดียวแล้วลบทิ้ง
         }
       } catch(e){}
+    })();
+
+    // ===== คงตำแหน่งสกรอลล์ของเมนูซ้าย (sidebar) ข้ามการเปลี่ยนหน้า =====
+    // แก้ปัญหา: กลุ่ม "ระบบ" อยู่ล่างสุด พอเปลี่ยนหน้าเมนูเด้งขึ้นบน ต้องเลื่อนลงหาใหม่ทุกครั้ง
+    (function(){
+      var nav = document.querySelector('.sidebar nav');
+      if(!nav) return;
+      try {
+        var y = sessionStorage.getItem('navscroll');
+        if(y !== null) nav.scrollTop = parseInt(y, 10) || 0;
+      } catch(e){}
+      nav.addEventListener('scroll', function(){
+        try { sessionStorage.setItem('navscroll', nav.scrollTop); } catch(e){}
+      }, {passive:true});
     })();
 
     // ===== ปฏิทินลอย: แสดงวันหยุด/นักขัตฤกษ์ไทย =====
