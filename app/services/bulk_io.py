@@ -52,8 +52,12 @@ MASTER_SHEETS = {
         "widths": [30, 24, 22, 36, 16, 22],
     },
     "นักเรียน": {
-        "headers": ["ชื่อ-นามสกุล", "เพศ (ช/ญ)", "วันเกิด (วว/ดด/ปปปป)", "ระดับชั้น", "ห้อง", "เลขประจำตัว"],
-        "note": "กรอกรายชื่อนักเรียนตั้งแต่แถวที่ 3 ลงไป (จำเป็นเฉพาะชื่อ) เพศใส่ ช หรือ ญ  ห้องใส่เฉพาะเลข  เช่น  เด็กชายสมชาย ใจดี | ช | 15/05/2562 | ป.1 | 1 | 10001",
+        # 6 ช่องหลัก + ข้อมูลส่วนตัวสำหรับสมุดพก ปพ.6 (หัวคอลัมน์นี้ต้องตรงกับตัวจับคู่ _STUDENT_HEADER_MATCH ใน pages.py)
+        "headers": ["ชื่อ-นามสกุล", "เพศ (ช/ญ)", "วันเกิด (วว/ดด/ปปปป)", "ระดับชั้น", "ห้อง", "เลขประจำตัว",
+                    "เลขประจำตัวประชาชน", "ชื่อบิดา", "ชื่อมารดา", "เชื้อชาติ", "สัญชาติ", "ศาสนา",
+                    "หมู่เลือด", "โรคประจำตัว", "บ้านเลขที่", "หมู่ที่", "ซอย", "ถนน", "ตำบล", "อำเภอ",
+                    "จังหวัด", "รหัสไปรษณีย์", "โทรศัพท์", "วันเข้าเรียน (วว/ดด/ปปปป)", "โรงเรียนเดิม"],
+        "note": "กรอกรายชื่อนักเรียนตั้งแต่แถวที่ 3 ลงไป (จำเป็นเฉพาะชื่อ) เพศใส่ ช หรือ ญ  ห้องใส่เฉพาะเลข  ช่องข้อมูลส่วนตัวเว้นว่างได้",
         "widths": [30, 12, 22, 12, 8, 14],
     },
 }
@@ -280,11 +284,11 @@ def import_workbook(file_bytes: bytes, db) -> dict:
         if added or skipped:
             summary["ผู้ขาย"] = {"added": added, "skipped": skipped}
 
-    # ---- ชีตนักเรียน (อ่านตามหัวคอลัมน์แถวแรก -> รองรับไฟล์เก่าทุกยุค) ----
+    # ---- ชีตนักเรียน (หัวคอลัมน์อยู่แถว 2, ข้อมูลจากแถว 3 -> จับคู่ตามหัวคอลัมน์) ----
     if "นักเรียน" in wb.sheetnames:
-        from app.routers.pages import _student_col_map
+        from app.routers.pages import _student_col_map, _student_personal_kwargs
         ws_st = wb["นักเรียน"]
-        header = next(ws_st.iter_rows(min_row=1, max_row=1, values_only=True), None)
+        header = next(ws_st.iter_rows(min_row=2, max_row=2, values_only=True), None)
         cm = _student_col_map(header) or {"name": 0, "sex": 1, "birthdate": 2,
                                           "level": 3, "student_no": 4, "room": 5}
 
@@ -308,6 +312,7 @@ def import_workbook(file_bytes: bytes, db) -> dict:
                 level=_sc(row, "level"),
                 student_no=_sc(row, "student_no"),
                 room=_sc(row, "room"),
+                **_student_personal_kwargs(lambda k: _sc(row, k)),
             ))
             existing.add(name)
             added += 1

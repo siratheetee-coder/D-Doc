@@ -283,6 +283,26 @@ class Student(Base):
     room = Column(String, default="")               # ห้อง เช่น 1 (คู่กับ level -> "ป.1/1") ว่างได้ถ้าชั้นละห้อง
     note = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)
+    # ---- ข้อมูลส่วนตัว (สำหรับสมุดพก ปพ.6 หน้าข้อมูลส่วนตัว) ----
+    id_card = Column(String, default="")            # เลขประจำตัวประชาชน 13 หลัก
+    father_name = Column(String, default="")        # ชื่อบิดา
+    mother_name = Column(String, default="")        # ชื่อมารดา
+    race = Column(String, default="")               # เชื้อชาติ
+    nationality = Column(String, default="")        # สัญชาติ
+    religion = Column(String, default="")           # ศาสนา
+    blood_group = Column(String, default="")        # หมู่เลือด
+    congenital_disease = Column(String, default="") # โรคประจำตัว
+    addr_no = Column(String, default="")            # บ้านเลขที่
+    addr_moo = Column(String, default="")           # หมู่ที่
+    addr_soi = Column(String, default="")           # ซอย
+    addr_road = Column(String, default="")          # ถนน
+    addr_tambon = Column(String, default="")        # ตำบล
+    addr_amphoe = Column(String, default="")        # อำเภอ
+    addr_province = Column(String, default="")      # จังหวัด
+    addr_zip = Column(String, default="")           # รหัสไปรษณีย์
+    phone = Column(String, default="")              # โทรศัพท์
+    enroll_date = Column(DateTime, nullable=True)   # วันเข้าเรียน
+    prev_school = Column(String, default="")        # โรงเรียนเดิม
 
 
 class ItemCatalog(Base):

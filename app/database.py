@@ -108,6 +108,27 @@ MIGRATIONS = [
     ("acad_eval", "days_leave", "INTEGER"),
     ("acad_eval", "days_absent", "INTEGER"),
     ("acad_attendance", "marks", "VARCHAR DEFAULT ''"),  # เช็กชื่อรายวัน (31 ตัวอักษร)
+    # ---- ข้อมูลส่วนตัวนักเรียน (สมุดพก ปพ.6 หน้าข้อมูลส่วนตัว) ----
+    ("student", "id_card", "VARCHAR DEFAULT ''"),
+    ("student", "father_name", "VARCHAR DEFAULT ''"),
+    ("student", "mother_name", "VARCHAR DEFAULT ''"),
+    ("student", "race", "VARCHAR DEFAULT ''"),
+    ("student", "nationality", "VARCHAR DEFAULT ''"),
+    ("student", "religion", "VARCHAR DEFAULT ''"),
+    ("student", "blood_group", "VARCHAR DEFAULT ''"),
+    ("student", "congenital_disease", "VARCHAR DEFAULT ''"),
+    ("student", "addr_no", "VARCHAR DEFAULT ''"),
+    ("student", "addr_moo", "VARCHAR DEFAULT ''"),
+    ("student", "addr_soi", "VARCHAR DEFAULT ''"),
+    ("student", "addr_road", "VARCHAR DEFAULT ''"),
+    ("student", "addr_tambon", "VARCHAR DEFAULT ''"),
+    ("student", "addr_amphoe", "VARCHAR DEFAULT ''"),
+    ("student", "addr_province", "VARCHAR DEFAULT ''"),
+    ("student", "addr_zip", "VARCHAR DEFAULT ''"),
+    ("student", "phone", "VARCHAR DEFAULT ''"),
+    ("student", "enroll_date", "DATETIME"),
+    ("student", "prev_school", "VARCHAR DEFAULT ''"),
+    # ---- ตารางกลาง StudentMeasure สร้างอัตโนมัติผ่าน create_all (ไม่ต้อง migrate คอลัมน์) ----
 ]
 
 

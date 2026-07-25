@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}ข้อมูลนักเรียน - {{ s.name }}{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub"><a href="/students" style="color:inherit;">ทะเบียนนักเรียน</a> / ข้อมูลรายคน</div>
+    <span class="hero-title">{{ s.name }}</span>
+    <div class="hero-meta">{{ s.level or "ยังไม่ระบุชั้น" }}{% if s.room %}/{{ s.room }}{% endif %}{% if s.student_no %} · เลขประจำตัว {{ s.student_no }}{% endif %}</div>
+  </div>
+  <a class="btn sm gray" href="/students"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
+</div>
+
+{% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกข้อมูลเรียบร้อยแล้ว</div>{% endif %}
+
+<form method="post" action="/students/{{ s.id }}/update">
+  <input type="hidden" name="_from" value="detail">
+
+  <div class="card">
+    <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-users"/></svg> ข้อมูลพื้นฐาน</h2>
+    <div class="row" style="align-items:flex-end;">
+      <div><label>เลขประจำตัวนักเรียน</label><input name="student_no" value="{{ s.student_no }}" style="width:130px;"></div>
+      <div style="flex:2;"><label>ชื่อ-นามสกุล</label><input name="name" value="{{ s.name }}"></div>
+      <div><label>เพศ</label><select name="sex" style="width:110px;">
+        <option value="" {{ 'selected' if not s.sex }}>-</option>
+        <option value="ช" {{ 'selected' if s.sex=='M' }}>ชาย</option>
+        <option value="ญ" {{ 'selected' if s.sex=='F' }}>หญิง</option></select></div>
+      <div><label>วันเกิด</label><input name="birthdate" value="{{ birth_input }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:140px;"></div>
+      <div><label>ระดับชั้น</label><input name="level" value="{{ s.level }}" list="lvlist" style="width:100px;"></div>
+      <div><label>ห้อง</label><input name="room" value="{{ s.room or '' }}" style="width:70px;"></div>
+    </div>
+    <datalist id="lvlist"><option value="อ.1"><option value="อ.2"><option value="อ.3"><option value="ป.1"><option value="ป.2"><option value="ป.3"><option value="ป.4"><option value="ป.5"><option value="ป.6"><option value="ม.1"><option value="ม.2"><option value="ม.3"></datalist>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> ข้อมูลส่วนตัว (สมุดพก ปพ.6)</h2>
+    <p class="muted" style="margin-top:0; font-size:13px;">ใช้พิมพ์หน้า "ข้อมูลส่วนตัว" ในสมุดรายงานประจำตัวนักเรียน (ปพ.6) เว้นว่างช่องที่ยังไม่มีข้อมูลได้</p>
+    <div class="row">
+      <div><label>เลขประจำตัวประชาชน</label><input name="id_card" value="{{ s.id_card or '' }}" maxlength="17" style="width:170px;"></div>
+      <div><label>หมู่เลือด</label><input name="blood_group" value="{{ s.blood_group or '' }}" style="width:70px;"></div>
+      <div><label>เชื้อชาติ</label><input name="race" value="{{ s.race or '' }}" style="width:110px;"></div>
+      <div><label>สัญชาติ</label><input name="nationality" value="{{ s.nationality or '' }}" style="width:110px;"></div>
+      <div><label>ศาสนา</label><input name="religion" value="{{ s.religion or '' }}" style="width:120px;"></div>
+    </div>
+    <div class="row">
+      <div style="flex:1;"><label>โรคประจำตัว</label><input name="congenital_disease" value="{{ s.congenital_disease or '' }}"></div>
+    </div>
+    <div class="row">
+      <div style="flex:2;"><label>ชื่อบิดา</label><input name="father_name" value="{{ s.father_name or '' }}"></div>
+      <div style="flex:2;"><label>ชื่อมารดา</label><input name="mother_name" value="{{ s.mother_name or '' }}"></div>
+    </div>
+    <h3 style="margin:14px 0 4px; font-size:15px;">ที่อยู่</h3>
+    <div class="row">
+      <div><label>บ้านเลขที่</label><input name="addr_no" value="{{ s.addr_no or '' }}" style="width:100px;"></div>
+      <div><label>หมู่ที่</label><input name="addr_moo" value="{{ s.addr_moo or '' }}" style="width:70px;"></div>
+      <div><label>ซอย</label><input name="addr_soi" value="{{ s.addr_soi or '' }}" style="width:120px;"></div>
+      <div><label>ถนน</label><input name="addr_road" value="{{ s.addr_road or '' }}" style="width:120px;"></div>
+    </div>
+    <div class="row">
+      <div><label>ตำบล</label><input name="addr_tambon" value="{{ s.addr_tambon or '' }}" style="width:140px;"></div>
+      <div><label>อำเภอ</label><input name="addr_amphoe" value="{{ s.addr_amphoe or '' }}" style="width:140px;"></div>
+      <div><label>จังหวัด</label><input name="addr_province" value="{{ s.addr_province or '' }}" style="width:140px;"></div>
+      <div><label>รหัสไปรษณีย์</label><input name="addr_zip" value="{{ s.addr_zip or '' }}" style="width:100px;"></div>
+      <div><label>โทรศัพท์</label><input name="phone" value="{{ s.phone or '' }}" style="width:130px;"></div>
+    </div>
+    <h3 style="margin:14px 0 4px; font-size:15px;">การเข้าเรียน</h3>
+    <div class="row">
+      <div><label>วันเข้าเรียน</label><input name="enroll_date" value="{{ enroll_input }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:140px;"></div>
+      <div style="flex:2;"><label>โรงเรียนเดิม</label><input name="prev_school" value="{{ s.prev_school or '' }}"></div>
+    </div>
+  </div>
+
+  <div class="card" style="position:sticky; bottom:0;">
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกข้อมูล</button>
+    <a class="btn gray" href="/students">ยกเลิก</a>
+  </div>
+</form>
+
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

@@ -708,6 +708,43 @@ def _norm_sex(s: str) -> str:
     return _SEX_MAP.get((s or "").strip(), "")
 
 
+# ฟิลด์ข้อมูลส่วนตัวนักเรียน (สมุดพก ปพ.6) : (field, header ในเทมเพลต Excel, label ในฟอร์ม)
+# ใช้ร่วมกันทั้งฟอร์มแก้ไข, เทมเพลต/นำเข้า Excel เพื่อไม่ให้หลุดจากกัน
+STUDENT_PERSONAL_FIELDS = [
+    ("id_card", "เลขประจำตัวประชาชน", "เลขประจำตัวประชาชน"),
+    ("father_name", "ชื่อบิดา", "ชื่อบิดา"),
+    ("mother_name", "ชื่อมารดา", "ชื่อมารดา"),
+    ("race", "เชื้อชาติ", "เชื้อชาติ"),
+    ("nationality", "สัญชาติ", "สัญชาติ"),
+    ("religion", "ศาสนา", "ศาสนา"),
+    ("blood_group", "หมู่เลือด", "หมู่เลือด"),
+    ("congenital_disease", "โรคประจำตัว", "โรคประจำตัว"),
+    ("addr_no", "บ้านเลขที่", "บ้านเลขที่"),
+    ("addr_moo", "หมู่ที่", "หมู่ที่"),
+    ("addr_soi", "ซอย", "ซอย"),
+    ("addr_road", "ถนน", "ถนน"),
+    ("addr_tambon", "ตำบล", "ตำบล"),
+    ("addr_amphoe", "อำเภอ", "อำเภอ"),
+    ("addr_province", "จังหวัด", "จังหวัด"),
+    ("addr_zip", "รหัสไปรษณีย์", "รหัสไปรษณีย์"),
+    ("phone", "โทรศัพท์", "โทรศัพท์"),
+    ("enroll_date", "วันเข้าเรียน (วว/ดด/ปปปป)", "วันเข้าเรียน"),
+    ("prev_school", "โรงเรียนเดิม", "โรงเรียนเดิม"),
+]
+
+
+def _student_personal_kwargs(cell_get) -> dict:
+    """cell_get(field_key)->str ; คืน kwargs ข้อมูลส่วนตัวสำหรับสร้าง/อัปเดต Student"""
+    kw = {}
+    for field, *_ in STUDENT_PERSONAL_FIELDS:
+        v = (cell_get(field) or "").strip()
+        if field == "enroll_date":
+            kw["enroll_date"] = parse_be_date(v) if v else None
+        else:
+            kw[field] = v
+    return kw
+
+
 @router.get("/students", response_class=HTMLResponse)
 def students_page(request: Request, db: Session = Depends(get_db)):
     rows = db.query(Student).order_by(Student.level, Student.name).all()
@@ -731,21 +768,58 @@ def student_add(db: Session = Depends(get_db), name: str = Form(""), sex: str = 
     return RedirectResponse("/students", status_code=303)
 
 
+@router.get("/students/{sid:int}", response_class=HTMLResponse)
+def student_detail(sid: int, request: Request, db: Session = Depends(get_db)):
+    """หน้าแก้ไขข้อมูลนักเรียนรายคน (ข้อมูลพื้นฐาน + ข้อมูลส่วนตัวสำหรับสมุดพก ปพ.6)"""
+    s = db.get(Student, sid)
+    if not s:
+        return RedirectResponse("/students", status_code=303)
+    return templates.TemplateResponse("student_detail.html", {
+        "request": request, "school": get_school(db), "s": s,
+        "personal_fields": STUDENT_PERSONAL_FIELDS,
+        "birth_input": be_date_input(s.birthdate) if s.birthdate else "",
+        "enroll_input": be_date_input(s.enroll_date) if s.enroll_date else "",
+    })
+
+
 @router.post("/students/{sid}/update")
-def student_master_update(sid: int, request: Request, db: Session = Depends(get_db), name: str = Form(""),
-                          sex: str = Form(""), birthdate: str = Form(""),
-                          level: str = Form(""), room: str = Form(""), student_no: str = Form("")):
+async def student_master_update(sid: int, request: Request, db: Session = Depends(get_db)):
+    """อัปเดตนักเรียน - รับได้ทั้งจากตาราง inline (6 ช่องหลัก) และหน้ารายคน (ครบทุกช่อง)
+    อ่านฟอร์มดิบเพื่อรองรับจำนวนช่องที่ต่างกัน; เติมเฉพาะช่องที่ส่งมา"""
+    form = await request.form()
     s = db.get(Student, sid)
     if s:
-        s.name = (name or "").strip() or s.name
-        s.sex = _norm_sex(sex)
-        s.birthdate = parse_be_date(birthdate)
-        s.level = (level or "").strip()
-        s.room = (room or "").strip()
-        s.student_no = (student_no or "").strip()
+        def has(k):
+            return k in form
+
+        def val(k):
+            return (form.get(k) or "").strip()
+
+        if has("name"):
+            s.name = val("name") or s.name
+        if has("sex"):
+            s.sex = _norm_sex(val("sex"))
+        if has("birthdate"):
+            s.birthdate = parse_be_date(val("birthdate"))
+        if has("level"):
+            s.level = val("level")
+        if has("room"):
+            s.room = val("room")
+        if has("student_no"):
+            s.student_no = val("student_no")
+        # ข้อมูลส่วนตัว (มีเฉพาะหน้ารายคน)
+        for field, *_ in STUDENT_PERSONAL_FIELDS:
+            if not has(field):
+                continue
+            if field == "enroll_date":
+                s.enroll_date = parse_be_date(val(field)) if val(field) else None
+            else:
+                setattr(s, field, val(field))
         db.commit()
     if request.headers.get("x-requested-with") == "fetch":
         return JSONResponse({"ok": bool(s)})
+    if form.get("_from") == "detail":
+        return RedirectResponse(f"/students/{sid}?saved=1", status_code=303)
     return RedirectResponse("/students?saved=1", status_code=303)
 
 
@@ -830,34 +904,64 @@ def students_master_bulk(db: Session = Depends(get_db), bulk: str = Form("")):
 def students_template():
     from openpyxl import Workbook
     from openpyxl.styles import Font
+    from openpyxl.utils import get_column_letter
     wb = Workbook(); ws = wb.active; ws.title = "นักเรียน"
-    headers = ["ชื่อ-นามสกุล", "เพศ (ช/ญ)", "วันเกิด (วว/ดด/ปปปป)", "ระดับชั้น", "ห้อง", "เลขประจำตัว"]
+    headers = (["ชื่อ-นามสกุล", "เพศ (ช/ญ)", "วันเกิด (วว/ดด/ปปปป)", "ระดับชั้น", "ห้อง", "เลขประจำตัว"]
+               + [hdr for _, hdr, _ in STUDENT_PERSONAL_FIELDS])
     ws.append(headers)
     for c in range(1, len(headers) + 1):
         ws.cell(1, c).font = Font(name="TH Sarabun New", bold=True, size=14)
-        ws.column_dimensions[chr(64 + c)].width = 24
+        ws.column_dimensions[get_column_letter(c)].width = 22
     ws.append(["เด็กชายสมชาย ใจดี", "ช", "15/05/2562", "ป.1", "1", "10001"])
     return _xlsx_download(wb, "แบบฟอร์มนำเข้านักเรียน.xlsx")
 
 
+# จับคู่หัวคอลัมน์ -> ฟิลด์ เรียง "เจาะจงก่อนกว้าง" กันหัวคอลัมน์ชนกัน
+# (เช่น "ชื่อบิดา" ต้องไม่ไปเป็น name, "โรคประจำตัว"/"เลขประจำตัวประชาชน" ต้องไม่ไปเป็น student_no)
+_STUDENT_HEADER_MATCH = [
+    ("father_name", ["ชื่อบิดา", "บิดา"]),
+    ("mother_name", ["ชื่อมารดา", "มารดา"]),
+    ("congenital_disease", ["โรคประจำตัว", "โรค"]),
+    ("blood_group", ["หมู่เลือด"]),
+    ("id_card", ["ประชาชน", "บัตร"]),
+    ("prev_school", ["โรงเรียนเดิม"]),
+    ("enroll_date", ["เข้าเรียน"]),
+    ("addr_no", ["บ้านเลขที่"]),
+    ("addr_moo", ["หมู่"]),
+    ("addr_soi", ["ซอย"]),
+    ("addr_road", ["ถนน"]),
+    ("addr_tambon", ["ตำบล"]),
+    ("addr_amphoe", ["อำเภอ"]),
+    ("addr_province", ["จังหวัด"]),
+    ("addr_zip", ["ไปรษณีย์"]),
+    ("phone", ["โทรศัพท์", "โทร"]),
+    ("race", ["เชื้อชาติ"]),
+    ("nationality", ["สัญชาติ"]),
+    ("religion", ["ศาสนา"]),
+    ("student_no", ["ประจำตัว"]),
+    ("sex", ["เพศ"]),
+    ("birthdate", ["วันเกิด", "เกิด"]),
+    ("level", ["ระดับชั้น", "ชั้น"]),
+    ("room", ["ห้อง"]),
+    ("name", ["ชื่อ"]),
+]
+
+
 def _student_col_map(header_row) -> dict:
     """จับคู่หัวคอลัมน์ -> ฟิลด์ (นำเข้าไฟล์แม่แบบได้ทุกยุค ไม่ยึดตำแหน่งตายตัว)
+    เทียบทีละเซลล์ตามลำดับเจาะจงก่อนกว้าง 1 เซลล์ = 1 ฟิลด์
     คืน {} ถ้าไม่พบหัวคอลัมน์ "ชื่อ" -> ผู้เรียกใช้ลำดับตายตัวแทน"""
     m = {}
     for i, h in enumerate(header_row or ()):
-        s = str(h or "")
-        if "ชื่อ" in s:
-            m["name"] = i
-        elif "เพศ" in s:
-            m["sex"] = i
-        elif "เกิด" in s:
-            m["birthdate"] = i
-        elif "ชั้น" in s:
-            m["level"] = i
-        elif "ประจำตัว" in s:
-            m["student_no"] = i
-        elif "ห้อง" in s:
-            m["room"] = i
+        s = str(h or "").strip()
+        if not s:
+            continue
+        for field, aliases in _STUDENT_HEADER_MATCH:
+            if field in m:
+                continue
+            if any(a in s for a in aliases):
+                m[field] = i
+                break
     return m if "name" in m else {}
 
 
@@ -887,7 +991,8 @@ async def students_import(db: Session = Depends(get_db), file: UploadFile = File
                 birthdate=parse_be_date(_cell(row, "birthdate")) if _cell(row, "birthdate") else None,
                 level=_cell(row, "level"),
                 student_no=_cell(row, "student_no"),
-                room=_cell(row, "room")))
+                room=_cell(row, "room"),
+                **_student_personal_kwargs(lambda k: _cell(row, k))))
             n += 1
         db.commit()
     except Exception:
