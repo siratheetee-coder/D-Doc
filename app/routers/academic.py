@@ -363,6 +363,9 @@ def grades_page(request: Request, db: Session = Depends(get_db), cid: int | None
         subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
                     .order_by(AcadSubject.seq, AcadSubject.code).all())
         subj = db.get(AcadSubject, sid) if sid else None
+        # กันวิชาที่ค้างมาจากห้องก่อนหน้า (คนละระดับชั้น) -> ไม่แสดงวิชาที่ไม่ใช่ของห้องนี้
+        if subj and subj.id not in {x.id for x in subjects}:
+            subj = None
         if subj:
             t = subj.term if subj.term is not None else 0
             students = sorted(c.students, key=lambda s: (s.seq or 999, s.name))

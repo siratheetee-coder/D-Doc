@@ -18,7 +18,7 @@
         {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
       </select></div>
     <div><label>ห้องเรียน</label>
-      <select name="cid" onchange="submitReplace(this.form)">
+      <select name="cid" onchange="if(this.form.sid)this.form.sid.value=''; submitReplace(this.form)">
         <option value="">- เลือกห้อง -</option>
         {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id==c.id }}>{{ class_label(k) }}</option>{% endfor %}
       </select></div>

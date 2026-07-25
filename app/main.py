@@ -45,6 +45,16 @@ PUBLIC_PATHS = {"/login", "/logout", "/healthz", "/favicon.ico", "/landing",
 @app.middleware("http")
 async def tenant_auth(request: Request, call_next):
     """บังคับล็อกอิน + ตั้งฐานข้อมูลของโรงเรียนที่ล็อกอิน + ตรวจหมดอายุ/ระงับ"""
+    # ตัดพารามิเตอร์ query ที่ค่าว่าง (เช่น ?cid= จาก dropdown ที่เลือกตัวเลือกว่าง)
+    # กัน error 422 ของพารามิเตอร์ชนิด int | None ที่ไม่รับสตริงว่าง -> ให้ถือว่า "ไม่ส่งค่า"
+    qs = request.scope.get("query_string", b"")
+    if qs:
+        from urllib.parse import parse_qsl, urlencode
+        pairs = parse_qsl(qs.decode("utf-8"), keep_blank_values=True)
+        kept = [(k, v) for k, v in pairs if v != ""]
+        if len(kept) != len(pairs):
+            request.scope["query_string"] = urlencode(kept).encode("utf-8")
+
     # กัน CSRF: ปฏิเสธ POST/แก้ไข ที่มาจากโดเมนอื่น (เทียบ Origin กับ Host) + คุกกี้ SameSite=Lax อีกชั้น
     if request.method in ("POST", "PUT", "PATCH", "DELETE"):
         origin = request.headers.get("origin")
