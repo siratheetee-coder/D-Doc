@@ -673,11 +673,21 @@ def _pp6_personal(doc, school, s, db):
         _cell(cells[1], val or "", align="left")
     _widths(t, [Cm(5.0), Cm(11.0)])
 
-    # กล่องกรอบสำหรับติดรูปนักเรียน (เว้นว่างให้ติดรูปจริง)
+    # รูปนักเรียน: ฝังรูปจริงถ้ามี ไม่งั้นเว้นกล่องกรอบให้ติดรูป
     _p(doc, "", after=6)
     photo = doc.add_table(rows=1, cols=1); photo.style = "Table Grid"
     photo.rows[0].height = Cm(4.0)
-    _cell(photo.rows[0].cells[0], "รูปนักเรียน\n(ขนาด 1-2 นิ้ว)", align="center", size=12)
+    if st and getattr(st, "photo", None):
+        import io as _io
+        cell = photo.rows[0].cells[0]
+        cell.text = ""
+        pp = cell.paragraphs[0]; pp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        try:
+            pp.add_run().add_picture(_io.BytesIO(st.photo), height=Cm(3.8))
+        except Exception:
+            _cell(cell, "รูปนักเรียน", align="center", size=12)
+    else:
+        _cell(photo.rows[0].cells[0], "รูปนักเรียน\n(ขนาด 1-2 นิ้ว)", align="center", size=12)
     _widths(photo, [Cm(3.5)])
     if not st:
         _p(doc, "", after=2)

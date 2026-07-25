@@ -864,6 +864,62 @@ def student_measure(sid: int, request: Request, db: Session = Depends(get_db),
     return RedirectResponse(back, status_code=303)
 
 
+def _process_student_photo(data: bytes):
+    """ย่อ/บีบรูปนักเรียนเป็น JPEG (ด้านยาวสุด 480px) เก็บใน DB · คืน bytes หรือ None ถ้าไม่ใช่รูป"""
+    import io as _io
+    from PIL import Image, ImageOps
+    try:
+        img = ImageOps.exif_transpose(Image.open(_io.BytesIO(data))).convert("RGB")
+    except Exception:
+        return None
+    m = 480
+    if max(img.width, img.height) > m:
+        if img.width >= img.height:
+            img = img.resize((m, round(img.height * m / img.width)), Image.LANCZOS)
+        else:
+            img = img.resize((round(img.width * m / img.height), m), Image.LANCZOS)
+    buf = _io.BytesIO()
+    img.save(buf, "JPEG", quality=82, optimize=True)
+    return buf.getvalue()
+
+
+@router.post("/students/{sid:int}/photo")
+async def student_photo_upload(sid: int, db: Session = Depends(get_db), file: UploadFile = File(...)):
+    """อัปโหลดรูปนักเรียน (เก็บเป็น JPEG ย่อขนาดใน DB)"""
+    s = db.get(Student, sid)
+    if s:
+        data = await file.read()
+        jpg = _process_student_photo(data)
+        if jpg:
+            s.photo = jpg
+            s.photo_ext = "jpg"
+            db.commit()
+            return RedirectResponse(f"/students/{sid}?saved=1", status_code=303)
+    return RedirectResponse(f"/students/{sid}?photo_err=1", status_code=303)
+
+
+@router.post("/students/{sid:int}/photo/delete")
+def student_photo_delete(sid: int, db: Session = Depends(get_db)):
+    s = db.get(Student, sid)
+    if s and s.photo:
+        s.photo = None
+        s.photo_ext = ""
+        db.commit()
+    return RedirectResponse(f"/students/{sid}?saved=1", status_code=303)
+
+
+@router.get("/students/{sid:int}/photo")
+def student_photo(sid: int, db: Session = Depends(get_db)):
+    """ส่งรูปนักเรียน (คืน 404 ถ้ายังไม่มี)"""
+    from fastapi.responses import Response
+    s = db.get(Student, sid)
+    if not s or not s.photo:
+        return Response(status_code=404)
+    mime = "image/png" if (s.photo_ext == "png") else "image/jpeg"
+    return Response(content=s.photo, media_type=mime,
+                    headers={"Cache-Control": "no-cache"})
+
+
 # ลำดับชั้นเรียนสำหรับเลื่อนชั้นขึ้นปีใหม่
 _LEVEL_LADDER = SCHOOL_LEVELS          # ใช้ลิสต์ร่วมจาก thai_utils (แหล่งความจริงเดียว)
 _GRADUATED = GRADUATED

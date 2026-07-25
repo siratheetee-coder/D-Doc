@@ -13,7 +13,8 @@ models.py
 from datetime import datetime
 
 from sqlalchemy import (
-    Column, Integer, String, Float, Text, DateTime, ForeignKey, UniqueConstraint, Boolean
+    Column, Integer, String, Float, Text, DateTime, ForeignKey, UniqueConstraint, Boolean,
+    LargeBinary
 )
 from sqlalchemy.orm import relationship, backref
 
@@ -303,6 +304,8 @@ class Student(Base):
     phone = Column(String, default="")              # โทรศัพท์
     enroll_date = Column(DateTime, nullable=True)   # วันเข้าเรียน
     prev_school = Column(String, default="")        # โรงเรียนเดิม
+    photo = Column(LargeBinary, nullable=True)      # รูปนักเรียน (JPEG ย่อขนาดแล้ว) เก็บใน DB เพื่อรวมในไฟล์สำรอง
+    photo_ext = Column(String, default="")          # นามสกุลรูป (jpg/png)
 
     measures = relationship("StudentMeasure", back_populates="student",
                             cascade="all, delete-orphan", order_by="StudentMeasure.term")

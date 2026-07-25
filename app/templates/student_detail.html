@@ -33,6 +33,31 @@
 
   <div class="card">
     <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> ข้อมูลส่วนตัว (สมุดพก ปพ.6)</h2>
+    {% if request.query_params.get('photo_err') %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> อัปโหลดรูปไม่สำเร็จ (รองรับ JPG/PNG)</div>{% endif %}
+    <div style="display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; margin-bottom:6px;">
+      <div style="text-align:center;">
+        <div style="width:120px; height:150px; border:1px solid var(--border); border-radius:8px; overflow:hidden; background:#f8fafc; display:flex; align-items:center; justify-content:center;">
+          <img id="stphoto" src="/students/{{ s.id }}/photo?v={{ range(100000)|random }}" alt="รูปนักเรียน"
+               style="width:100%; height:100%; object-fit:cover;"
+               onerror="this.style.display='none';document.getElementById('stphoto_ph').style.display='block';">
+          <span id="stphoto_ph" class="muted" style="display:none; font-size:12px; padding:6px;">ยังไม่มีรูป</span>
+        </div>
+      </div>
+      <div style="flex:1; min-width:220px;">
+        <label>รูปนักเรียน</label>
+        <p class="muted" style="font-size:12.5px; margin:2px 0 6px;">อัปโหลด JPG/PNG · ระบบย่อขนาดให้อัตโนมัติ (ใช้ในหน้าข้อมูลส่วนตัวของสมุดพก ปพ.6)</p>
+        <form method="post" action="/students/{{ s.id }}/photo" enctype="multipart/form-data"
+              style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0;">
+          <input type="file" name="file" accept="image/*" required
+                 style="padding:5px; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
+          <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดรูป</button>
+        </form>
+        <form method="post" action="/students/{{ s.id }}/photo/delete" style="margin:6px 0 0;"
+              onsubmit="return confirm('ลบรูปนักเรียนคนนี้?');">
+          <button class="btn sm gray" type="submit">ลบรูป</button>
+        </form>
+      </div>
+    </div>
     <p class="muted" style="margin-top:0; font-size:13px;">ใช้พิมพ์หน้า "ข้อมูลส่วนตัว" ในสมุดรายงานประจำตัวนักเรียน (ปพ.6) เว้นว่างช่องที่ยังไม่มีข้อมูลได้</p>
     <div class="row">
       <div><label>เลขประจำตัวประชาชน</label><input name="id_card" value="{{ s.id_card or '' }}" maxlength="17" style="width:170px;"></div>
