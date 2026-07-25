@@ -29,9 +29,10 @@
         {% for k,v in periods.items() %}<option value="{{ k }}" {{ 'selected' if (edit.period_type if edit else default_period)==k }}>{{ v }}</option>{% endfor %}
       </select></div>
       <div><label>วันที่เริ่ม</label><input name="start_date" id="sd" value="{{ be_date(edit.start_date) if edit else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" oninput="onStart()"></div>
-      <div><label>วันที่สิ้นสุด <span class="muted">(คำนวณให้)</span></label><input name="end_date" id="ed" value="{{ be_date(edit.end_date) if edit else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" oninput="onEnd()"></div>
       <div><label>จำนวนวันทำการ <span class="muted">(ไม่นับวันหยุด)</span></label><input name="days" id="days" type="number" min="0" value="{{ edit.days if edit else 0 }}" oninput="fromDays()"></div>
+      <div><label>วันที่สิ้นสุด <span class="muted">(คำนวณให้)</span></label><input name="end_date" id="ed" value="{{ be_date(edit.end_date) if edit else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" oninput="onEnd()"></div>
     </div>
+    <div id="sdWarn" style="display:none; margin:6px 0 0; padding:7px 12px; border-radius:8px; background:#fff4e5; border:1px solid #fcd9a5; color:#b45309; font-size:13.5px;"></div>
     <div class="row">
       <div style="flex:2;"><label>ผู้รับจ้าง</label><select name="vendor_id" id="vsel">
         <option value="">- ไม่ระบุ -</option>
@@ -121,6 +122,10 @@
     return last;
   }
   var $=function(id){return document.getElementById(id);};
+  function _holLabel(dt){ if(!dt)return ''; if(dt.getDay()===0)return 'วันอาทิตย์'; if(dt.getDay()===6)return 'วันเสาร์'; return HOLIDAYS[_iso(dt)]||''; }
+  function sdWarn(){ var w=$('sdWarn'); if(!w)return; var s=_parseBE($('sd').value); var lab=s?_holLabel(s):'';
+    if(lab){ w.textContent='⚠ วันที่เริ่มตรงกับ'+lab+' ซึ่งเป็นวันหยุด (ปกติไม่นับเป็นวันปฏิบัติงาน)'; w.style.display='block'; }
+    else { w.style.display='none'; } }
   function toggleNV(){
     var box=$('nvBox'), show=(box.style.display==='none');
     box.style.display = show ? 'block' : 'none';
@@ -133,17 +138,17 @@
     var d=parseInt($('days').value||0)||0;
     if(s && d>0){ var e=addWork(s,d); if(e) $('ed').value=_toBE(e); }
     else { var e2=_parseBE($('ed').value); if(s&&e2) $('days').value=workdays(s,e2); }
-    calcAmt();
+    calcAmt(); sdWarn();
   }
   function onEnd(){  // เปลี่ยนวันสิ้นสุด -> คำนวณจำนวนวันทำการจากช่วง
     var s=_parseBE($('sd').value), e=_parseBE($('ed').value);
     if(s&&e){ $('days').value=workdays(s,e); }
-    calcAmt();
+    calcAmt(); sdWarn();
   }
   function fromDays(){  // เปลี่ยนจำนวนวัน -> คำนวณวันสิ้นสุดจากวันเริ่ม
     var s=_parseBE($('sd').value), d=parseInt($('days').value||0)||0;
     if(s && d>0){ var e=addWork(s,d); if(e) $('ed').value=_toBE(e); }
-    calcAmt();
+    calcAmt(); sdWarn();
   }
   var lastAuto = null;   // วงเงินที่ระบบเติมให้ล่าสุด (ใช้ดูว่าผู้ใช้แก้เองหรือยัง)
   function applySug(v){ $('amt').value=v.toFixed(2); lastAuto=v; calcAmt(); }

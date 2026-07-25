@@ -671,6 +671,35 @@ def installment_add(rid: int, db: Session = Depends(get_db),
     return RedirectResponse(f"/lunch/round/{rid}/plan", status_code=303)
 
 
+@router.post("/lunch/round/{rid}/installments/auto")
+def installments_auto(rid: int, db: Session = Depends(get_db),
+                      start_date: str = Form(""), n_inst: str = Form(""), days_each: str = Form("")):
+    """แบ่งงวดอัตโนมัติ: กรอกจำนวนงวด + จำนวนวันต่องวด -> สร้างงวดพร้อมช่วงวัน (ไม่นับวันหยุด)"""
+    from app.services.thai_holidays import generate_installment_ranges
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return RedirectResponse("/lunch", status_code=303)
+    start = parse_be_date(start_date) or rnd.start_date
+    n = _to_int(n_inst, 0)
+    de = _to_int(days_each, 0)
+    if start and n > 0 and de > 0:
+        hol = set(_lunch_holidays(rnd.program).keys())
+        ranges = generate_installment_ranges(start, n, de, hol)
+        seq0 = max([i.seq for i in rnd.installments], default=0)
+        prog = rnd.program
+        rate = float(prog.rate_per_head or 0)
+        students = int(prog.total_students or 0)
+        for k, (s, e) in enumerate(ranges):
+            inst = LunchInstallment(
+                round_id=rid, seq=seq0 + k + 1,
+                start_date=datetime(s.year, s.month, s.day),
+                end_date=datetime(e.year, e.month, e.day),
+                days=de, amount=round(de * students * rate, 2), status="ร่าง")
+            db.add(inst)
+        db.commit()
+    return RedirectResponse(f"/lunch/round/{rid}/plan", status_code=303)
+
+
 @router.post("/lunch/installment/{iid}/update")
 def installment_update(iid: int, db: Session = Depends(get_db),
                        start_date: str = Form(""), end_date: str = Form(""),

@@ -9,7 +9,7 @@ thai_holidays.py
 ใช้สำหรับเตือนผู้ใช้เมื่อกรอกวันที่ลงนามเอกสารตรงกับวันหยุด
 (วันราชการหยุด -> โดยทั่วไปไม่ลงนาม/ส่งมอบในวันนั้น)
 """
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 try:
     import holidays as _holidays_lib
@@ -46,6 +46,57 @@ def check_date(dt) -> dict | None:
         if dt in th:
             return {"type": "holiday", "label": th[dt]}
     return None
+
+
+def is_workday(dt, holiday_iso=None) -> bool:
+    """วันทำการหรือไม่ (จันทร์-ศุกร์ และไม่ใช่วันหยุดราชการ)
+    holiday_iso = set ของ ISO date (ค.ศ.) วันหยุด · None = ตรวจจากไลบรารีเอง"""
+    if isinstance(dt, datetime):
+        dt = dt.date()
+    if dt.weekday() >= 5:
+        return False
+    if holiday_iso is not None:
+        return dt.isoformat() not in holiday_iso
+    return check_date(dt) is None
+
+
+def next_workday(dt, holiday_iso=None):
+    """วันทำการแรกตั้งแต่ dt เป็นต้นไป (รวม dt ถ้าเป็นวันทำการ)"""
+    if isinstance(dt, datetime):
+        dt = dt.date()
+    while not is_workday(dt, holiday_iso):
+        dt += timedelta(days=1)
+    return dt
+
+
+def add_working_days(start, n, holiday_iso=None):
+    """คืนวันสุดท้าย (นับรวม) ที่ทำให้มีวันทำการครบ n วัน เริ่มจากวันทำการแรก >= start"""
+    if not start or n <= 0:
+        return None
+    d = next_workday(start, holiday_iso)
+    cnt, last = 1, d
+    while cnt < n:
+        d += timedelta(days=1)
+        if is_workday(d, holiday_iso):
+            cnt += 1
+            last = d
+    return last
+
+
+def generate_installment_ranges(start, n_inst, days_each, holiday_iso=None):
+    """แบ่งงวดอัตโนมัติ: คืน [(start_i, end_i), ...] ช่วงวันทำการต่อเนื่อง ไม่นับวันหยุด
+    งวดถัดไปเริ่มวันทำการถัดจากวันสิ้นสุดงวดก่อน"""
+    ranges = []
+    if not start or n_inst <= 0 or days_each <= 0:
+        return ranges
+    cur = next_workday(start, holiday_iso)
+    for _ in range(n_inst):
+        end = add_working_days(cur, days_each, holiday_iso)
+        if not end:
+            break
+        ranges.append((cur, end))
+        cur = next_workday(end + timedelta(days=1), holiday_iso)
+    return ranges
 
 
 def year_range_for(*dts) -> list:

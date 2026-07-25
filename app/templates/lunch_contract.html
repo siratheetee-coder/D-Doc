@@ -58,14 +58,27 @@
   <h2>เพิ่มงวดงาน</h2>
   <form method="post" action="/lunch/round/{{ r.id }}/installment/add" class="row" style="align-items:flex-end;">
     <div><label>วันที่เริ่ม</label><input name="start_date" id="isd" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;" oninput="iStart()"></div>
-    <div><label>วันที่สิ้นสุด <span class="muted">(คำนวณให้)</span></label><input name="end_date" id="ied" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;" oninput="iEnd()"></div>
     <div><label>จำนวนวัน <span class="muted">(หักวันหยุด)</span></label><input name="days" id="idays" type="number" min="0" style="width:90px;" oninput="iDays()"></div>
+    <div><label>วันที่สิ้นสุด <span class="muted">(คำนวณให้)</span></label><input name="end_date" id="ied" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;" oninput="iEnd()"></div>
     <div><label>วงเงินงวด <span class="muted">(คำนวณให้)</span></label><input name="amount" id="iamt" type="number" step="0.01" style="width:120px;" oninput="iamtManual=true"></div>
     <div><label>วันส่งมอบ</label><input name="deliver_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:150px;"></div>
     <div><label>วันตรวจรับ</label><input name="inspect_date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:150px;"></div>
     <div><label>สถานะ</label><select name="status">{% for s in ['ร่าง','ส่งมอบแล้ว','ตรวจรับแล้ว','จ่ายแล้ว'] %}<option>{{ s }}</option>{% endfor %}</select></div>
     <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มงวด</button></div>
   </form>
+  <div id="isdWarn" style="display:none; margin-top:8px; padding:7px 12px; border-radius:8px; background:#fff4e5; border:1px solid #fcd9a5; color:#b45309; font-size:13.5px;"></div>
+
+  <div style="margin-top:14px; border-top:1px dashed var(--border); padding-top:12px;">
+    <b style="font-size:14.5px;">แบ่งงวดอัตโนมัติ</b>
+    <p class="muted" style="font-size:13px; margin:4px 0 8px;">กรอกจำนวนงวดและจำนวนวันต่องวด ระบบจะคำนวณช่วงวันที่แต่ละงวดให้ (ไล่จากวันเริ่มด้านบน ไม่นับวันหยุด) แล้วสร้างงวดให้อัตโนมัติ</p>
+    <form method="post" action="/lunch/round/{{ r.id }}/installments/auto" class="row" style="align-items:flex-end;" onsubmit="return autoFill(this);">
+      <div><label>วันเริ่มงวดแรก</label><input name="start_date" id="ausd" value="{{ be_date(r.start_date) if r.start_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;"></div>
+      <div><label>จำนวนงวด</label><input name="n_inst" id="anin" type="number" min="1" max="20" style="width:80px;"></div>
+      <div><label>จำนวนวันต่องวด</label><input name="days_each" id="ade" type="number" min="1" style="width:110px;"></div>
+      <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-calendar"/></svg> คำนวณวันที่แต่ละงวด</button></div>
+    </form>
+    <div id="autoPreview" class="muted" style="margin-top:8px; font-size:13px;"></div>
+  </div>
 </div>
 
 <div class="card">
@@ -184,10 +197,27 @@
   function _addW(s,n){ if(!s||n<=0)return null; var c=new Date(s),cnt=0,last=null; while(cnt<n){ if(_work(c)){cnt++;last=new Date(c);} if(cnt>=n)break; c.setDate(c.getDate()+1);} return last; }
   var $=function(id){return document.getElementById(id);};
   function iCalcAmt(){ var d=parseInt($('idays').value||0)||0; if(d>0 && !iamtManual){ $('iamt').value=(d*STUDENTS*RATE).toFixed(2); } }
+  function _holLabel(dt){ if(!dt)return ''; if(dt.getDay()===0)return 'วันอาทิตย์'; if(dt.getDay()===6)return 'วันเสาร์'; return HOLIDAYS[_iso(dt)]||''; }
+  function iWarn(){ var w=$('isdWarn'); if(!w)return; var s=_pBE($('isd').value); var lab=s?_holLabel(s):'';
+    if(lab){ w.textContent='⚠ วันที่เริ่มตรงกับ'+lab+' ซึ่งเป็นวันหยุด (ปกติไม่นับเป็นวันปฏิบัติงาน)'; w.style.display='block'; }
+    else { w.style.display='none'; } }
   function iStart(){ var s=_pBE($('isd').value), d=parseInt($('idays').value||0)||0;
-    if(s&&d>0){ var e=_addW(s,d); if(e)$('ied').value=_bBE(e); } else { var e2=_pBE($('ied').value); if(s&&e2)$('idays').value=_wd(s,e2); } iCalcAmt(); }
-  function iEnd(){ var s=_pBE($('isd').value), e=_pBE($('ied').value); if(s&&e)$('idays').value=_wd(s,e); iCalcAmt(); }
-  function iDays(){ var s=_pBE($('isd').value), d=parseInt($('idays').value||0)||0; if(s&&d>0){ var e=_addW(s,d); if(e)$('ied').value=_bBE(e); } iCalcAmt(); }
+    if(s&&d>0){ var e=_addW(s,d); if(e)$('ied').value=_bBE(e); } else { var e2=_pBE($('ied').value); if(s&&e2)$('idays').value=_wd(s,e2); } iCalcAmt(); iWarn(); }
+  function iEnd(){ var s=_pBE($('isd').value), e=_pBE($('ied').value); if(s&&e)$('idays').value=_wd(s,e); iCalcAmt(); iWarn(); }
+  function iDays(){ var s=_pBE($('isd').value), d=parseInt($('idays').value||0)||0; if(s&&d>0){ var e=_addW(s,d); if(e)$('ied').value=_bBE(e); } iCalcAmt(); iWarn(); }
+  // แบ่งงวดอัตโนมัติ: พรีวิวช่วงวันแต่ละงวด (ไล่วันทำการต่อเนื่อง ไม่นับวันหยุด) + ยืนยันก่อนสร้าง
+  function _nextWork(dt){ var c=new Date(dt); while(!_work(c)){ c.setDate(c.getDate()+1);} return c; }
+  function autoRanges(){ var s=_pBE($('ausd').value), n=parseInt($('anin').value||0)||0, de=parseInt($('ade').value||0)||0;
+    if(!s||n<=0||de<=0) return null; var out=[], cur=_nextWork(s);
+    for(var i=0;i<n;i++){ var e=_addW(cur,de); if(!e)break; out.push([new Date(cur), new Date(e)]); var nx=new Date(e); nx.setDate(nx.getDate()+1); cur=_nextWork(nx); }
+    return out; }
+  function autoFill(form){ var r=autoRanges();
+    if(!r||!r.length){ alert('กรอกวันเริ่ม จำนวนงวด และจำนวนวันต่องวดให้ครบก่อน'); return false; }
+    var msg='จะสร้าง '+r.length+' งวด:\n'+r.map(function(x,i){return 'งวด '+(i+1)+': '+_bBE(x[0])+' ถึง '+_bBE(x[1]);}).join('\n');
+    return confirm(msg+'\n\nยืนยันสร้างงวดทั้งหมด?'); }
+  function autoPreview(){ var el=$('autoPreview'); if(!el)return; var r=autoRanges();
+    el.innerHTML = (r&&r.length) ? r.map(function(x,i){return 'งวด '+(i+1)+': <b>'+_bBE(x[0])+'</b> ถึง <b>'+_bBE(x[1])+'</b>';}).join(' &nbsp;·&nbsp; ') : ''; }
+  ['ausd','anin','ade'].forEach(function(id){ var e=$(id); if(e) e.addEventListener('input', autoPreview); });
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){
       var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
