@@ -183,9 +183,16 @@ def lunch_delete(pid: int, db: Session = Depends(get_db)):
 
 # ---------------- ภาวะโภชนาการ (เมนูของตัวเอง - ต้องมาก่อน /lunch/{pid}) ----------------
 @router.get("/lunch/nutrition", response_class=HTMLResponse)
-def nutrition_page(request: Request, db: Session = Depends(get_db)):
-    return templates.TemplateResponse("lunch_nutrition.html",
-                                      _nutrition_ctx(request, db, _nutrition_pool(db)))
+def nutrition_page(request: Request, db: Session = Depends(get_db), year: str = ""):
+    """หน้าภาวะโภชนาการ (อ่าน/เขียนทะเบียนกลางร่วมกับหน้าทะเบียนนักเรียนและสมุดพก ปพ.6)"""
+    from app.services import growth
+    yr = _to_int(year, 0) or growth.current_academic_year()
+    ctx = growth.build_ctx(db, yr)
+    ctx.update({"request": request, "school": get_school(db),
+                "years": growth.available_years(db), "today_be": be_date_input(datetime.now()),
+                "page_title": "ภาวะโภชนาการนักเรียน", "page_url": "/lunch/nutrition",
+                "report_url": "/lunch/nutrition/report.docx"})
+    return templates.TemplateResponse("growth.html", ctx)
 
 
 # ---------------- รายละเอียดโครงการ + บัญชีรับ-จ่าย ----------------
@@ -572,214 +579,23 @@ def menu_print(pid: int, request: Request, db: Session = Depends(get_db)):
 
 
 # ---------------- ภาวะโภชนาการ ----------------
-def _measure_result(stu, m):
-    """จัดกลุ่มภาวะโภชนาการของการชั่ง 1 ครั้ง (คืน dict ผล + อายุ)"""
-    if not m or not m.weight or not m.height:
-        return None
-    return classify_all(stu.sex, stu.birthdate, m.weight, m.height, m.date)
-
-
-# น้ำหนักตามเกณฑ์ส่วนสูง: สมส่วน (index 2) = ดีที่สุด · ยิ่งห่างยิ่งเสี่ยง
-_WH_ORDER = {lbl: i for i, lbl in enumerate(WH_LABELS)}
-_WH_RISK = {"ผอม", "ค่อนข้างผอม", "เริ่มอ้วน", "อ้วน"}   # กลุ่มเฝ้าระวัง
-
-
-def _wh_trend(res):
-    """เทียบน้ำหนัก/ส่วนสูง เทอม 1 -> เทอม 2 : up=ดีขึ้น / down=แย่ลง / same=คงที่ / None=ข้อมูลไม่พอ"""
-    r1, r2 = res.get(1), res.get(2)
-    if not (r1 and r2 and r1.get("wh") in _WH_ORDER and r2.get("wh") in _WH_ORDER):
-        return None
-    d1 = abs(_WH_ORDER[r1["wh"]] - 2)
-    d2 = abs(_WH_ORDER[r2["wh"]] - 2)
-    return "up" if d2 < d1 else "down" if d2 > d1 else "same"
-
-
-def _nutrition_ctx(request, db, prog):
-    students = prog.students
-    rows = []
-    wh_count = {k: 0 for k in WH_LABELS}
-    ha_count = {k: 0 for k in HA_LABELS}
-    wa_count = {k: 0 for k in WA_LABELS}
-    watch = []
-    for s in students:
-        ms = {m.term: m for m in s.measures}
-        res = {t: _measure_result(s, ms.get(t)) for t in (1, 2)}
-        trend = _wh_trend(res)
-        rows.append({"s": s, "m": ms, "res": res, "trend": trend})
-        latest = res.get(2) or res.get(1)
-        if latest:
-            if latest["wh"] in wh_count:
-                wh_count[latest["wh"]] += 1
-            if latest["ha"] in ha_count:
-                ha_count[latest["ha"]] += 1
-            if latest.get("wa") in wa_count:
-                wa_count[latest["wa"]] += 1
-            if latest.get("wh") in _WH_RISK:
-                r1w = (res.get(1) or {}).get("wh")
-                r2w = (res.get(2) or {}).get("wh")
-                watch.append({"s": s, "wh": latest["wh"], "trend": trend,
-                              "repeat": (r1w in _WH_RISK and r2w in _WH_RISK)})
-    n = sum(wh_count.values())
-    # จัดกลุ่มตามระดับชั้น (ตามลำดับมาตรฐาน)
-    order = {lv: i for i, lv in enumerate(DEFAULT_LEVELS)}
-    rows_sorted = sorted(rows, key=lambda r: (order.get((r["s"].level or "").strip(), 99),
-                                              (r["s"].level or ""), r["s"].name or ""))
-    by_class = []
-    for r in rows_sorted:
-        lv = (r["s"].level or "").strip() or "ไม่ระบุชั้น"
-        if not by_class or by_class[-1]["level"] != lv:
-            by_class.append({"level": lv, "rows": []})
-        by_class[-1]["rows"].append(r)
-    watch.sort(key=lambda w: (not w["repeat"], order.get((w["s"].level or "").strip(), 99)))
-    return {
-        "request": request, "school": get_school(db), "p": prog,
-        "rows": rows, "by_class": by_class, "watch": watch,
-        "wh_labels": WH_LABELS, "ha_labels": HA_LABELS, "wa_labels": WA_LABELS,
-        "wh_count": wh_count, "ha_count": ha_count, "wa_count": wa_count, "assessed": n,
-        "today_be": be_date_input(datetime.now()),
-    }
-
-
-def _nutrition_pool(db) -> LunchProgram:
-    """โปรแกรมพิเศษ (ซ่อน) เก็บทะเบียนภาวะโภชนาการรวมของโรงเรียน - สร้างครั้งเดียว ใช้ตลอด
-    ทำให้ภาวะโภชนาการเป็นเมนูของตัวเอง ไม่ผูกกับเรื่องจ้างเหมาแต่ละโครงการ"""
-    pool = db.query(LunchProgram).filter(LunchProgram.pool == 1).first()
-    if not pool:
-        pool = LunchProgram(year=_current_academic_year(), pool=1, note="ทะเบียนภาวะโภชนาการ")
-        db.add(pool); db.commit()
-    return pool
-
-
-def _nutrition_report_data(prog):
-    """นับภาวะโภชนาการ (น้ำหนักตามเกณฑ์ส่วนสูง) จากผลเทอมล่าสุด แยกตามชั้นและเพศ"""
-    cats = WH_LABELS
-    order = {lv: i for i, lv in enumerate(DEFAULT_LEVELS)}
-    students = sorted(prog.students, key=lambda s: (order.get((s.level or "").strip(), 99),
-                                                    (s.level or ""), s.name or ""))
-    totals = {c: 0 for c in cats}
-    sex_counts = {"ชาย": {c: 0 for c in cats}, "หญิง": {c: 0 for c in cats}}
-    class_counts, cur, assessed = [], None, 0
-    for s in students:
-        ms = {m.term: m for m in s.measures}
-        res = _measure_result(s, ms.get(2)) or _measure_result(s, ms.get(1))
-        if not res or res.get("wh") not in totals:
-            continue
-        cat = res["wh"]
-        lv = (s.level or "").strip() or "ไม่ระบุชั้น"
-        if cur is None or cur["level"] != lv:
-            cur = {"level": lv, "counts": {c: 0 for c in cats}, "total": 0}
-            class_counts.append(cur)
-        cur["counts"][cat] += 1; cur["total"] += 1
-        totals[cat] += 1; assessed += 1
-        sx = "ชาย" if s.sex == "M" else "หญิง" if s.sex == "F" else None
-        if sx:
-            sex_counts[sx][cat] += 1
-    return cats, class_counts, sex_counts, totals, assessed
+# ตรรกะภาวะโภชนาการย้ายไป app/services/growth.py (เก็บข้อมูลที่ทะเบียนนักเรียนกลาง
+# ใช้ร่วมกับหน้าทะเบียนนักเรียนและสมุดพก ปพ.6) · หน้านี้เป็นเพียงมุมมองของงานอาหารกลางวัน
 
 
 @router.get("/lunch/nutrition/report.docx")
-def nutrition_report_docx(db: Session = Depends(get_db)):
+def nutrition_report_docx(db: Session = Depends(get_db), year: str = ""):
     from app.services.nutrition_report import render_nutrition_report
-    cats, class_counts, sex_counts, totals, assessed = _nutrition_report_data(_nutrition_pool(db))
+    from app.services import growth
+    yr = _to_int(year, 0) or growth.current_academic_year()
+    cats, class_counts, sex_counts, totals, assessed = growth.report_data(db, yr)
     path = render_nutrition_report(get_school(db), cats, class_counts, sex_counts, totals, assessed,
                                    as_of=datetime.now())
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
-@router.post("/lunch/nutrition/student/add")
-def student_add(db: Session = Depends(get_db), name: str = Form(""), sex: str = Form(""),
-                birthdate: str = Form(""), level: str = Form("")):
-    if name.strip():
-        db.add(LunchStudent(program_id=_nutrition_pool(db).id, name=name.strip(), sex=sex,
-                            birthdate=parse_be_date(birthdate), level=level.strip()))
-        db.commit()
-    return RedirectResponse("/lunch/nutrition", status_code=303)
-
-
-@router.post("/lunch/nutrition/pull-roster")
-def nutrition_pull_roster(db: Session = Depends(get_db), level: str = Form("")):
-    """ดึงนักเรียนจากทะเบียนกลางเข้าทะเบียนภาวะโภชนาการ (ข้ามคนที่ดึงมาแล้ว/ชื่อซ้ำ)"""
-    from app.models import Student
-    pool = _nutrition_pool(db)
-    have_ids = {s.student_id for s in pool.students if s.student_id}
-    have_names = {(s.name or "").strip() for s in pool.students}
-    q = db.query(Student)
-    lv = (level or "").strip()
-    if lv:
-        q = q.filter(Student.level == lv)
-    for st in q.order_by(Student.level, Student.name).all():
-        if st.id in have_ids or (st.name or "").strip() in have_names:
-            continue
-        db.add(LunchStudent(program_id=pool.id, student_id=st.id, name=st.name,
-                            sex=st.sex, birthdate=st.birthdate, level=st.level))
-    db.commit()
-    return RedirectResponse("/lunch/nutrition", status_code=303)
-
-
-@router.post("/lunch/nutrition/students/bulk")
-def students_bulk_add(db: Session = Depends(get_db), bulk: str = Form("")):
-    """เพิ่มนักเรียนทีละหลายคน: 1 บรรทัด = ชื่อ, เพศ(ช/ญ), วันเกิด, ชั้น (คั่นจุลภาคหรือ Tab)"""
-    pool = _nutrition_pool(db)
-    for line in (bulk or "").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        parts = [p.strip() for p in re.split(r"[,\t]", line)]
-        name = parts[0] if parts else ""
-        if not name:
-            continue
-        sx = (parts[1] if len(parts) > 1 else "").strip()
-        sex = "M" if sx in ("ช", "ชาย", "M", "m") else "F" if sx in ("ญ", "หญิง", "F", "f") else ""
-        birth = parse_be_date(parts[2]) if len(parts) > 2 else None
-        level = parts[3] if len(parts) > 3 else ""
-        db.add(LunchStudent(program_id=pool.id, name=name, sex=sex, birthdate=birth, level=level))
-    db.commit()
-    return RedirectResponse("/lunch/nutrition", status_code=303)
-
-
-@router.post("/lunch/student/{sid}/update")
-def student_update(sid: int, db: Session = Depends(get_db),
-                   name: str = Form(""), sex: str = Form(""),
-                   birthdate: str = Form(""), level: str = Form("")):
-    s = db.get(LunchStudent, sid)
-    if not s:
-        return RedirectResponse("/lunch", status_code=303)
-    if name.strip():
-        s.name = name.strip()
-    s.sex = sex
-    s.birthdate = parse_be_date(birthdate)
-    s.level = level.strip()
-    db.commit()
-    return RedirectResponse("/lunch/nutrition", status_code=303)
-
-
-@router.post("/lunch/student/{sid}/measure")
-def student_measure(sid: int, db: Session = Depends(get_db),
-                    term: str = Form("1"), date: str = Form(""),
-                    weight: str = Form(""), height: str = Form("")):
-    s = db.get(LunchStudent, sid)
-    if not s:
-        return RedirectResponse("/lunch", status_code=303)
-    t = _to_int(term, 1)
-    m = next((x for x in s.measures if x.term == t), None)
-    if not m:
-        m = LunchMeasure(student_id=sid, term=t)
-        db.add(m)
-    m.date = parse_be_date(date)
-    m.weight = _to_float(weight, 0.0)
-    m.height = _to_float(height, 0.0)
-    db.commit()
-    return RedirectResponse("/lunch/nutrition", status_code=303)
-
-
-@router.post("/lunch/student/{sid}/delete")
-def student_delete(sid: int, db: Session = Depends(get_db)):
-    s = db.get(LunchStudent, sid)
-    pid = s.program_id if s else None
-    if s:
-        db.delete(s)
-        db.commit()
-    return RedirectResponse("/lunch/nutrition", status_code=303)
+# หมายเหตุ: การเพิ่ม/แก้ไข/ลบนักเรียน และบันทึกการชั่ง ย้ายไปหน้าทะเบียนนักเรียนกลาง
+# (/students, /students/{id}/measure) แล้ว · หน้าอาหารกลางวันแสดงข้อมูลชุดเดียวกัน
 
 
 # ---------------- งวดงานย่อยในสัญญา ----------------

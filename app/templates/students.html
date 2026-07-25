@@ -8,6 +8,7 @@
     <div class="hero-meta">{{ rows|length }} คน · ใช้ในงานภาวะโภชนาการและงานอื่น ๆ</div>
   </div>
   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <a class="btn sm" href="/students/growth"><svg class="icon"><use href="#ic-check"/></svg> น้ำหนัก/ส่วนสูง</a>
     <a class="btn sm gray" href="/students/template.xlsx"><svg class="icon"><use href="#ic-download"/></svg> แบบฟอร์ม Excel</a>
     <form method="post" action="/students/import" enctype="multipart/form-data" style="display:flex; gap:6px; align-items:center;">
       <input type="file" name="file" accept=".xlsx" required style="max-width:180px; padding:5px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:var(--text);">

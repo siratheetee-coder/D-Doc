@@ -831,6 +831,39 @@ def student_master_delete(sid: int, db: Session = Depends(get_db)):
     return RedirectResponse("/students", status_code=303)
 
 
+@router.get("/students/growth", response_class=HTMLResponse)
+def students_growth(request: Request, db: Session = Depends(get_db), year: str = ""):
+    """หน้ากรอกน้ำหนัก/ส่วนสูง (ภาวะโภชนาการ) ในทะเบียนนักเรียนกลาง - ใช้ร่วมกับสมุดพก ปพ.6"""
+    from app.services import growth
+    yr = _to_int(year, 0) or growth.current_academic_year()
+    ctx = growth.build_ctx(db, yr)
+    ctx.update({"request": request, "school": get_school(db),
+                "years": growth.available_years(db), "today_be": be_date_input(datetime.now()),
+                "page_title": "น้ำหนัก/ส่วนสูง (ภาวะโภชนาการ)", "page_url": "/students/growth",
+                "report_url": None})
+    return templates.TemplateResponse("growth.html", ctx)
+
+
+@router.post("/students/{sid:int}/measure")
+def student_measure(sid: int, request: Request, db: Session = Depends(get_db),
+                    year: str = Form(""), term: str = Form("1"),
+                    weight: str = Form(""), height: str = Form(""), date: str = Form("")):
+    """บันทึกการชั่งน้ำหนัก/ส่วนสูง 1 ครั้ง ลงทะเบียนกลาง (ใช้ทั้งหน้าทะเบียนและหน้าอาหารกลางวัน)"""
+    from app.services import growth
+
+    def _f(v):
+        try:
+            return float(str(v).replace(",", "").strip() or 0)
+        except ValueError:
+            return 0.0
+
+    if db.get(Student, sid):
+        yr = _to_int(year, 0) or growth.current_academic_year()
+        growth.set_measure(db, sid, yr, _to_int(term, 1), _f(weight), _f(height), parse_be_date(date))
+    back = request.headers.get("referer") or "/students/growth"
+    return RedirectResponse(back, status_code=303)
+
+
 # ลำดับชั้นเรียนสำหรับเลื่อนชั้นขึ้นปีใหม่
 _LEVEL_LADDER = SCHOOL_LEVELS          # ใช้ลิสต์ร่วมจาก thai_utils (แหล่งความจริงเดียว)
 _GRADUATED = GRADUATED

@@ -304,6 +304,28 @@ class Student(Base):
     enroll_date = Column(DateTime, nullable=True)   # วันเข้าเรียน
     prev_school = Column(String, default="")        # โรงเรียนเดิม
 
+    measures = relationship("StudentMeasure", back_populates="student",
+                            cascade="all, delete-orphan", order_by="StudentMeasure.term")
+
+
+class StudentMeasure(Base):
+    """การชั่งน้ำหนัก/วัดส่วนสูงของนักเรียน 1 ครั้ง (ผูกทะเบียนกลางโดยตรง มีปีการศึกษา)
+    เก็บที่ส่วนกลางเพื่อใช้ร่วมทั้งงานภาวะโภชนาการ (อาหารกลางวัน) และสมุดพก ปพ.6
+    คีย์ตรรกะ = (student_id, year, term) · term 1/2 = 2 ครั้งต่อปี"""
+    __tablename__ = "student_measure"
+    __table_args__ = (UniqueConstraint("student_id", "year", "term", name="uq_student_measure"),)
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey("student.id"), nullable=False)
+    year = Column(Integer, nullable=False)          # ปีการศึกษา (พ.ศ.)
+    term = Column(Integer, default=1)               # ภาคเรียน 1 / 2
+    date = Column(DateTime, nullable=True)          # วันที่ชั่ง
+    weight = Column(Float, default=0.0)             # กก.
+    height = Column(Float, default=0.0)             # ซม.
+    created_at = Column(DateTime, default=datetime.now)
+
+    student = relationship("Student", back_populates="measures")
+
 
 class ItemCatalog(Base):
     """คลังรายการพัสดุมาตรฐาน (ใช้ซ้ำ) - พิมพ์ชื่อครั้งเดียว เลือกใช้ในเรื่องจัดซื้อทุกครั้ง

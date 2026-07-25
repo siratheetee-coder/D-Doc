@@ -150,6 +150,42 @@ def init_school_db(engine) -> None:
     from app import models  # noqa: F401  (ลงทะเบียนตารางทั้งหมด)
     Base.metadata.create_all(bind=engine)
     run_migrations(engine)
+    _migrate_lunch_measures(engine)
+
+
+def _migrate_lunch_measures(engine) -> None:
+    """ย้ายข้อมูลชั่งน้ำหนัก/ส่วนสูงเดิม (LunchMeasure -> StudentMeasure ส่วนกลาง) ครั้งเดียว
+    เฉพาะแถวที่ผูกทะเบียนกลาง (LunchStudent.student_id) · idempotent (ข้ามถ้ามีอยู่แล้ว)"""
+    from sqlalchemy.orm import Session
+    from app.models import Student, StudentMeasure, LunchStudent, LunchMeasure, LunchProgram
+    now = __import__("datetime").datetime.now()
+    cur_year = (now.year + 543) if now.month >= 4 else (now.year + 543 - 1)
+    with Session(bind=engine) as db:
+        try:
+            valid_ids = {sid for (sid,) in db.query(Student.id).all()}
+            prog_year = {p.id: (p.year or cur_year) for p in db.query(LunchProgram).all()}
+            existing = {(sm.student_id, sm.year, sm.term)
+                        for sm in db.query(StudentMeasure).all()}
+            ls_map = {ls.id: ls for ls in db.query(LunchStudent).all()}
+            added = 0
+            for lm in db.query(LunchMeasure).all():
+                ls = ls_map.get(lm.student_id)
+                if not ls or not ls.student_id or ls.student_id not in valid_ids:
+                    continue
+                if not lm.weight and not lm.height:
+                    continue
+                year = prog_year.get(ls.program_id, cur_year)
+                key = (ls.student_id, year, lm.term or 1)
+                if key in existing:
+                    continue
+                db.add(StudentMeasure(student_id=ls.student_id, year=year, term=lm.term or 1,
+                                      date=lm.date, weight=lm.weight or 0.0, height=lm.height or 0.0))
+                existing.add(key)
+                added += 1
+            if added:
+                db.commit()
+        except Exception:
+            db.rollback()
 
 
 def get_db():
