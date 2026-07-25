@@ -457,3 +457,21 @@ def activity_summary(student, db) -> str:
     if any(v == "" for v in vals):        # ยังประเมินไม่ครบทุกกิจกรรม
         return ""
     return "มผ" if any(v == "มผ" for v in vals) else "ผ"
+
+
+# ---------------- O-NET (ผลทดสอบระดับชาติ ชั้นปลายทาง) ----------------
+# วิชา O-NET ป.6 (ตั้งแต่ปี 2559) = 4 วิชา · คะแนนเต็ม 100 ทุกวิชา
+ONET_SUBJECTS = ["ภาษาไทย", "คณิตศาสตร์", "วิทยาศาสตร์", "ภาษาอังกฤษ"]
+ONET_EXIT_LEVELS = {"ป.6", "ม.3", "ม.6"}
+
+
+def is_exit_level(level: str) -> bool:
+    """ชั้นปลายทางที่มีการสอบ O-NET (ป.6/ม.3/ม.6)"""
+    return (level or "").strip() in ONET_EXIT_LEVELS
+
+
+def onet_for(student, db) -> dict:
+    """คืน {subject: AcadOnet} ของนักเรียน 1 คน"""
+    from app.models import AcadOnet
+    return {r.subject: r for r in
+            db.query(AcadOnet).filter_by(acad_student_id=student.id).all()}

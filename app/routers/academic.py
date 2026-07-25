@@ -16,7 +16,7 @@ from app.models import (Student, Person, AcadClass, AcadStudent, AcadSubject,
                         AcadTeaching, AcadScore, AcadEval,
                         AcadCharEval, AcadReadEval, AcadAttendance, AcadClassMonth,
                         AcadCalendar, AcadHoliday, AcadYearSetting,
-                        AcadActivity, AcadActivityResult)
+                        AcadActivity, AcadActivityResult, AcadOnet)
 from app.thai_utils import SCHOOL_LEVELS, GRADUATED, current_academic_year, is_secondary, level_rank
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
@@ -29,7 +29,7 @@ from app.services.academic import (grade_of, subject_preset, term_choices, term_
                                    parse_days_csv, parse_marks, build_marks, count_marks,
                                    seed_fixed_holidays, holiday_map, in_term, auto_open_days,
                                    LUNAR_HOLIDAY_NAMES, activity_preset, activities_for,
-                                   activity_summary)
+                                   activity_summary, ONET_SUBJECTS, is_exit_level, onet_for)
 from app.thai_utils import parse_be_date, be_date_input
 
 router = APIRouter()
@@ -433,11 +433,15 @@ def eval_page(request: Request, db: Session = Depends(get_db),
                   .filter(AcadActivityResult.acad_student_id.in_(sids)).all()):
             act_res[(r.acad_student_id, r.activity_id)] = (r.result or "").strip()
         act_sum = {s.id: activity_summary(s, db) for s in students}
+    # O-NET เฉพาะชั้นปลายทาง (ป.6/ม.3/ม.6)
+    onet_exit = bool(c) and is_exit_level(c.level)
+    onet = {s.id: onet_for(s, db) for s in students} if onet_exit else {}
     return templates.TemplateResponse("academic_eval.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "classes": classes, "c": c, "students": students, "class_label": _class_label,
         "quality": QUALITY_LEVELS, "passfail": PASS_FAIL, "eff": eff,
         "activities": activities, "act_res": act_res, "act_sum": act_sum,
+        "onet_exit": onet_exit, "onet_subjects": ONET_SUBJECTS, "onet": onet,
     })
 
 
@@ -466,6 +470,25 @@ async def eval_save(request: Request, db: Session = Depends(get_db), cid: str = 
                     row.result = v
                 elif v:
                     db.add(AcadActivityResult(acad_student_id=s.id, activity_id=a.id, result=v))
+    # O-NET (เฉพาะชั้นปลายทาง) upsert ตาม นักเรียน x วิชา
+    if is_exit_level(c.level):
+        sids = [s.id for s in c.students]
+        cur_onet = {}
+        if sids:
+            for r in db.query(AcadOnet).filter(AcadOnet.acad_student_id.in_(sids)).all():
+                cur_onet[(r.acad_student_id, r.subject)] = r
+        for s in c.students:
+            for subj in ONET_SUBJECTS:
+                full = (form.get(f"onet_{s.id}_{subj}_full", "") or "").strip()
+                sc = (form.get(f"onet_{s.id}_{subj}_score", "") or "").strip()
+                row = cur_onet.get((s.id, subj))
+                if row:
+                    row.full_score = _to_float(full, None) if full else None
+                    row.score = _to_float(sc, None) if sc else None
+                elif full or sc:
+                    db.add(AcadOnet(acad_student_id=s.id, subject=subj,
+                                    full_score=_to_float(full, None) if full else None,
+                                    score=_to_float(sc, None) if sc else None))
     db.commit()
     return RedirectResponse(f"/academic/eval?cid={c.id}&saved=1", status_code=303)
 

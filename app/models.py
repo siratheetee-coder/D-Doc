@@ -1243,6 +1243,18 @@ class AcadReadEval(Base):
     r_write = Column(Integer, nullable=True)    # การเขียนสื่อความ
 
 
+class AcadOnet(Base):
+    """ผลการทดสอบระดับชาติ O-NET รายคน x รายวิชา (เฉพาะชั้นปลายทาง ป.6/ม.3/ม.6)
+    พิมพ์ในสมุดพก ปพ.6 หน้ากิจกรรม/ผลการทดสอบระดับชาติ"""
+    __tablename__ = "acad_onet"
+
+    id = Column(Integer, primary_key=True)
+    acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
+    subject = Column(String, nullable=False)        # ชื่อวิชา (ภาษาไทย/คณิตศาสตร์/วิทยาศาสตร์/ภาษาอังกฤษ)
+    full_score = Column(Float, nullable=True)       # คะแนนเต็ม
+    score = Column(Float, nullable=True)            # คะแนนที่ได้
+
+
 class AcadAttendance(Base):
     """วันมาเรียนรายเดือน รายคน (เดือน 1-12 ปฏิทิน · ปีการศึกษาไทย พ.ค.->มี.ค.)"""
     __tablename__ = "acad_attendance"
