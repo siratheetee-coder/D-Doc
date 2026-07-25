@@ -17,10 +17,12 @@ from app.services.doc_page import set_a4
 from app.services.office_doc import _float_signature
 
 from app.database import get_data_dir
-from app.thai_utils import thai_date, is_secondary
+from app.thai_utils import thai_date, is_secondary, be_date_input
 from app.services.academic import (term_label, CHAR_ITEMS, CHAR_FIELDS, READ_DOMAINS,
                                    TH_MONTHS, quality_of_avg, char_avg, read_avg,
-                                   effective_eval)
+                                   effective_eval, weighted_avg, activities_for,
+                                   activity_summary, onet_for, is_exit_level, ONET_SUBJECTS,
+                                   count_marks)
 
 THAI_FONT = "TH Sarabun New"
 
@@ -576,136 +578,394 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
 
 
 # ============================ ปพ.6 ============================
-def _pp6_body(doc, school, s, db, *, page_break: bool = False):
-    """เนื้อ ปพ.6 ของนักเรียน 1 คน (ใช้ทั้งแบบรายคนและแบบรวมทั้งห้อง)"""
+_DOTS = "................................................................................................"
+
+
+def _pp6_central(s, db):
+    """คืนทะเบียนกลาง (Student) ของ AcadStudent - None ถ้าเพิ่มมือ (ไม่ได้ดึงจากทะเบียน)"""
+    from app.models import Student
+    return db.get(Student, s.student_id) if s.student_id else None
+
+
+def _pp6_cover(doc, school, s, db, *, page_break):
+    """หน้า 1 : ปกสมุดรายงานประจำตัวนักเรียน"""
+    klass = s.klass
+    _p(doc, "", after=0, page_break=page_break)
+    _p(doc, "", after=0)
+    _p(doc, "สมุดรายงานประจำตัวนักเรียน", align="center", bold=True, size=26, after=6)
+    _p(doc, "แบบรายงานผลการพัฒนาคุณภาพผู้เรียนรายบุคคล (ปพ.6)", align="center", bold=True, size=16, after=2)
+    _p(doc, f"ปีการศึกษา {klass.year}", align="center", size=15, after=18)
+    _p(doc, school.name or "", align="center", bold=True, size=17, after=2)
+    loc = []
+    if getattr(school, "district", ""):
+        loc.append(f"อำเภอ{school.district}")
+    if getattr(school, "province", ""):
+        loc.append(f"จังหวัด{school.province}")
+    if loc:
+        _p(doc, "  ".join(loc), align="center", size=14, after=2)
+    if getattr(school, "area_office", ""):
+        _p(doc, school.area_office, align="center", size=14, after=24)
+    else:
+        _p(doc, "", after=24)
+    _p(doc, f"เลขที่ {s.seq or '.....'}", align="center", size=15, after=4)
+    _p(doc, f"ชื่อ  {s.name}", align="center", bold=True, size=18, after=4)
+    _p(doc, f"เลขประจำตัวนักเรียน  {s.student_no or '................'}", align="center", size=14, after=4)
+    _p(doc, f"ชั้น  {_class_label(klass)}", align="center", size=15, after=24)
+    homerooms = [p.name for p in (klass.homeroom, klass.co_homeroom) if p]
+    _p(doc, "ครูประจำชั้น", align="center", size=14, after=2)
+    if homerooms:
+        for nm in homerooms:
+            _p(doc, nm, align="center", bold=True, size=15, after=2)
+    else:
+        _p(doc, ".............................................", align="center", size=14, after=2)
+
+
+def _fmt_addr(st) -> str:
+    """เรียงที่อยู่จากฟิลด์แยกเป็นบรรทัดเดียว"""
+    parts = []
+    if st.addr_no:
+        parts.append(f"บ้านเลขที่ {st.addr_no}")
+    if st.addr_moo:
+        parts.append(f"หมู่ {st.addr_moo}")
+    if st.addr_soi:
+        parts.append(f"ซอย{st.addr_soi}")
+    if st.addr_road:
+        parts.append(f"ถนน{st.addr_road}")
+    if st.addr_tambon:
+        parts.append(f"ตำบล{st.addr_tambon}")
+    if st.addr_amphoe:
+        parts.append(f"อำเภอ{st.addr_amphoe}")
+    if st.addr_province:
+        parts.append(f"จังหวัด{st.addr_province}")
+    if st.addr_zip:
+        parts.append(st.addr_zip)
+    return " ".join(parts)
+
+
+def _pp6_personal(doc, school, s, db):
+    """หน้า 2 : ข้อมูลส่วนตัว (จากทะเบียนนักเรียนกลาง)"""
+    st = _pp6_central(s, db)
+    _p(doc, "ข้อมูลส่วนตัว", align="center", bold=True, size=17, after=6, page_break=True)
+
+    def g(attr):
+        return (getattr(st, attr, "") or "") if st else ""
+
+    rows = [
+        ("ชื่อ-นามสกุล", s.name),
+        ("เลขประจำตัวนักเรียน", s.student_no or ""),
+        ("เลขประจำตัวประชาชน", g("id_card")),
+        ("วันเกิด", thai_date(st.birthdate) if (st and st.birthdate) else ""),
+        ("เชื้อชาติ / สัญชาติ / ศาสนา",
+         " / ".join(x for x in [g("race"), g("nationality"), g("religion")] if x)),
+        ("หมู่เลือด", g("blood_group")),
+        ("โรคประจำตัว", g("congenital_disease")),
+        ("ที่อยู่", _fmt_addr(st) if st else ""),
+        ("โทรศัพท์", g("phone")),
+        ("ชื่อบิดา", g("father_name")),
+        ("ชื่อมารดา", g("mother_name")),
+        ("โรงเรียนเดิม", g("prev_school")),
+        ("วันเข้าเรียน", thai_date(st.enroll_date) if (st and st.enroll_date) else ""),
+    ]
+    t = doc.add_table(rows=0, cols=2); t.style = "Table Grid"
+    for lab, val in rows:
+        cells = t.add_row().cells
+        _cell(cells[0], lab, bold=True, align="left", fill="F1F5F9")
+        _cell(cells[1], val or "", align="left")
+    _widths(t, [Cm(5.0), Cm(11.0)])
+
+    # กล่องกรอบสำหรับติดรูปนักเรียน (เว้นว่างให้ติดรูปจริง)
+    _p(doc, "", after=6)
+    photo = doc.add_table(rows=1, cols=1); photo.style = "Table Grid"
+    photo.rows[0].height = Cm(4.0)
+    _cell(photo.rows[0].cells[0], "รูปนักเรียน\n(ขนาด 1-2 นิ้ว)", align="center", size=12)
+    _widths(photo, [Cm(3.5)])
+    if not st:
+        _p(doc, "", after=2)
+        _p(doc, "(นักเรียนคนนี้เพิ่มด้วยมือ ยังไม่ได้ผูกทะเบียนนักเรียนกลาง จึงยังไม่มีข้อมูลส่วนตัว)",
+           size=12, after=0)
+
+
+def _pp6_attendance_growth(doc, school, s, db, ef):
+    """หน้า 3 : เวลาเรียนรายเดือน + น้ำหนัก/ส่วนสูง (ภาวะโภชนาการ)"""
+    from app.models import AcadAttendance
+    from app.services import growth
+    klass = s.klass
+    _p(doc, "เวลาเรียน", align="center", bold=True, size=17, after=6, page_break=True)
+
+    att = {a.month: a for a in db.query(AcadAttendance).filter_by(acad_student_id=s.id).all()}
+    heads = ["เดือน", "มา", "ป่วย", "ลา", "ขาด"]
+    t = doc.add_table(rows=1, cols=5); t.style = "Table Grid"
+    for i, h in enumerate(heads):
+        _cell(t.rows[0].cells[i], h, bold=True, fill="EDE9FE")
+    tot = {"/": 0, "ป": 0, "ล": 0, "ข": 0}
+    for m, abbr in TH_MONTHS:
+        a = att.get(m)
+        cm = count_marks(a.marks) if (a and a.marks) else None
+        cells = t.add_row().cells
+        _cell(cells[0], abbr, align="left")
+        if cm:
+            _cell(cells[1], cm["/"] or "")
+            _cell(cells[2], cm["ป"] or "")
+            _cell(cells[3], cm["ล"] or "")
+            _cell(cells[4], cm["ข"] or "")
+            for k in tot:
+                tot[k] += cm[k]
+        elif a and a.present is not None:
+            _cell(cells[1], a.present)
+            for c in cells[2:]:
+                _cell(c, "")
+            tot["/"] += a.present
+        else:
+            for c in cells[1:]:
+                _cell(c, "")
+    rc = t.add_row().cells
+    _cell(rc[0], "รวม", bold=True, fill="F1F5F9")
+    _cell(rc[1], tot["/"] or "", bold=True); _cell(rc[2], tot["ป"] or "", bold=True)
+    _cell(rc[3], tot["ล"] or "", bold=True); _cell(rc[4], tot["ข"] or "", bold=True)
+    _widths(t, [Cm(4.0), Cm(3.0), Cm(3.0), Cm(3.0), Cm(3.0)])
+
+    days_open = ef.get("days_open")
+    present = ef.get("days_present")
+    if days_open and present is not None:
+        pct = 100.0 * present / days_open if days_open else 0
+        _p(doc, f"วันเปิดเรียนทั้งปี {days_open} วัน  มาเรียน {present} วัน  คิดเป็นร้อยละ {pct:.1f}",
+           size=13, after=6)
+    else:
+        _p(doc, "", after=4)
+
+    # ---- น้ำหนัก/ส่วนสูง (ภาวะโภชนาการ) ----
+    _p(doc, "น้ำหนัก / ส่วนสูง", bold=True, size=15, after=2)
+    st = _pp6_central(s, db)
+    who = st or s     # ใช้ทะเบียนกลาง (มีวันเกิด) ถ้ามี ไม่งั้น AcadStudent
+    ms = growth.measures_for(db, s.student_id, klass.year) if s.student_id else {}
+    gh = ["ภาคเรียน", "ครั้งที่", "วันที่", "น้ำหนัก (กก.)", "ส่วนสูง (ซม.)", "ภาวะโภชนาการ"]
+    gt = doc.add_table(rows=1, cols=6); gt.style = "Table Grid"
+    for i, h in enumerate(gh):
+        _cell(gt.rows[0].cells[i], h, bold=True, fill="EDE9FE")
+    for term in (1, 2):
+        m = ms.get(term)
+        cells = gt.add_row().cells
+        _cell(cells[0], term)
+        _cell(cells[1], 1)
+        _cell(cells[2], be_date_input(m.date) if (m and m.date) else "")
+        _cell(cells[3], f"{m.weight:g}" if (m and m.weight) else "")
+        _cell(cells[4], f"{m.height:g}" if (m and m.height) else "")
+        res = growth.measure_result(who, m) if m else None
+        _cell(cells[5], res["wh"] if (res and res.get("wh")) else "")
+    _widths(gt, [Cm(2.8), Cm(2.2), Cm(3.0), Cm(3.0), Cm(3.0), Cm(3.6)])
+    _p(doc, "เกณฑ์อ้างอิง: กราฟการเจริญเติบโตของกรมอนามัย", align="center", size=12, after=0)
+
+
+def _pp6_grades(doc, school, s, db, ef):
+    """หน้า 4 : ผลการเรียนรายวิชา (เว้นคอลัมน์ตัวชี้วัด) + GPA"""
     from app.models import AcadScore, AcadSubject
     klass = s.klass
     sec = is_secondary(klass.level)
-    terms = [1, 2] if sec else [0]
+    _p(doc, "ผลการเรียน", align="center", bold=True, size=17, after=6, page_break=True)
 
-    _p(doc, "แบบรายงานผลการพัฒนาคุณภาพผู้เรียนรายบุคคล (ปพ.6)", align="center", bold=True, size=17,
-       after=0, page_break=page_break)
-    _p(doc, school.name or "", align="center", bold=True, size=14, after=0)
-    _p(doc, f"ปีการศึกษา {klass.year}", align="center", size=13, after=6)
-
-    # ---- ประวัตินักเรียน ----
-    info = doc.add_table(rows=2, cols=4); info.style = "Table Grid"
-    iw = [Cm(3.0), Cm(6.0), Cm(3.0), Cm(4.0)]
-    _cell(info.rows[0].cells[0], "ชื่อ-นามสกุล", bold=True, align="left", fill="F1F5F9")
-    _cell(info.rows[0].cells[1], s.name, align="left")
-    _cell(info.rows[0].cells[2], "เลขประจำตัว", bold=True, align="left", fill="F1F5F9")
-    _cell(info.rows[0].cells[3], s.student_no or "-", align="left")
-    _cell(info.rows[1].cells[0], "ชั้น", bold=True, align="left", fill="F1F5F9")
-    _cell(info.rows[1].cells[1], _class_label(klass), align="left")
-    _cell(info.rows[1].cells[2], "เลขที่", bold=True, align="left", fill="F1F5F9")
-    _cell(info.rows[1].cells[3], s.seq or "-", align="left")
-    _widths(info, iw)
-
-    # ---- ผลการเรียนรายวิชา ----
-    _p(doc, "", after=4)
-    _p(doc, "ผลการเรียน", bold=True, size=14, after=2)
     subs = (db.query(AcadSubject).filter_by(year=klass.year, level=klass.level)
             .order_by(AcadSubject.seq, AcadSubject.code).all())
     my = {(x.subject_id, x.term): x for x in
           db.query(AcadScore).filter_by(acad_student_id=s.id).all()}
+    gpa_pairs = []
 
     if sec:
-        heads = ["รหัสวิชา", "รายวิชา", "หน่วยกิต", "ภาค 1", "ภาค 2"]
-        ws = [Cm(2.4), Cm(7.6), Cm(2.0), Cm(2.0), Cm(2.0)]
+        heads = ["ที่", "รหัสวิชา", "รายวิชา", "หน่วยกิต", "ตัวชี้วัด", "ภาค 1", "ภาค 2"]
+        ws = [Cm(1.0), Cm(2.2), Cm(6.0), Cm(1.8), Cm(2.0), Cm(2.0), Cm(2.0)]
     else:
-        heads = ["รหัสวิชา", "รายวิชา", "เวลาเรียน", "ผลการเรียน"]
-        ws = [Cm(2.6), Cm(8.2), Cm(2.6), Cm(2.6)]
+        heads = ["ที่", "รหัสวิชา", "รายวิชา", "เวลาเรียน", "ตัวชี้วัด", "คะแนน", "ผลการเรียน"]
+        ws = [Cm(1.0), Cm(2.4), Cm(6.2), Cm(2.0), Cm(2.0), Cm(2.0), Cm(2.4)]
     t = doc.add_table(rows=1, cols=len(heads)); t.style = "Table Grid"
     for i, h in enumerate(heads):
         _cell(t.rows[0].cells[i], h, bold=True, fill="EDE9FE")
 
-    # มัธยม: วิชาเดียวกันมี 2 แถว (ภาค 1/2) -> ยุบเป็นแถวเดียว 2 คอลัมน์
-    seen = set()
+    seen, no = set(), 0
     for sub in subs:
         key = (sub.code or "", sub.name)
         if sec and key in seen:
             continue
         seen.add(key)
+        no += 1
         cells = t.add_row().cells
-        _cell(cells[0], sub.code or "")
-        _cell(cells[1], sub.name, align="left")
+        _cell(cells[0], no)
+        _cell(cells[1], sub.code or "")
+        _cell(cells[2], sub.name, align="left")
         if sec:
-            _cell(cells[2], f"{sub.credit:g}" if sub.credit else "")
-            for i, tm in enumerate(terms):
-                sid_same = [x.id for x in subs if (x.code or "", x.name) == key and x.term == tm]
+            _cell(cells[3], f"{sub.credit:g}" if sub.credit else "")
+            _cell(cells[4], "")   # ตัวชี้วัด: เว้นว่าง (ยังไม่ติดตามรายตัวชี้วัด)
+            for i, tm in enumerate((1, 2)):
+                ids = [x.id for x in subs if (x.code or "", x.name) == key and x.term == tm]
                 g = ""
-                for sid2 in sid_same:
+                for sid2 in ids:
                     row = my.get((sid2, tm))
                     if row and row.grade:
                         g = row.grade
-                _cell(cells[3 + i], g, bold=True)
+                _cell(cells[5 + i], g, bold=True)
+                gpa_pairs.append((g, sub.credit or 1))
         else:
-            _cell(cells[2], sub.hours or "")
+            _cell(cells[3], sub.hours or "")
+            _cell(cells[4], "")   # ตัวชี้วัด: เว้นว่าง
             row = my.get((sub.id, 0))
-            _cell(cells[3], row.grade if row else "", bold=True)
+            _cell(cells[5], f"{row.score:g}" if (row and row.score is not None) else "")
+            _cell(cells[6], row.grade if row else "", bold=True)
+            gpa_pairs.append(((row.grade if row else ""), sub.credit or 1))
     _widths(t, ws)
 
-    # ---- ผลการประเมินอื่น ----
-    ef = effective_eval(s, db)     # ใช้ค่าคำนวณจากรายวิชา/รายเดือนถ้ามี
-    _p(doc, "", after=4)
-    _p(doc, "ผลการประเมิน", bold=True, size=14, after=2)
+    gpa = weighted_avg(gpa_pairs)
+    _p(doc, "", after=2)
+    _p(doc, f"ผลการเรียนเฉลี่ย (GPA): {gpa:.2f}" if gpa is not None else "ผลการเรียนเฉลี่ย (GPA): -",
+       bold=True, size=14, after=0)
+
+
+def _pp6_assess_table(doc, s, db, title, model, avg_fn, summary_val):
+    """หน้าประเมินรายวิชา (คุณลักษณะ / อ่านคิดเขียน) : รายวิชา -> ผลการประเมิน + สรุป"""
+    from app.models import AcadSubject
+    klass = s.klass
+    _p(doc, title, align="center", bold=True, size=17, after=6, page_break=True)
+    subj_name = {x.id: (x.code, x.name) for x in
+                 db.query(AcadSubject).filter_by(year=klass.year, level=klass.level).all()}
+    rows = db.query(model).filter_by(acad_student_id=s.id).all()
+    heads = ["รหัสวิชา", "รายวิชา", "ผลการประเมิน"]
+    t = doc.add_table(rows=1, cols=3); t.style = "Table Grid"
+    for i, h in enumerate(heads):
+        _cell(t.rows[0].cells[i], h, bold=True, fill="EDE9FE")
+    any_row = False
+    for r in rows:
+        code, name = subj_name.get(r.subject_id, ("", ""))
+        label = quality_of_avg(avg_fn(r))[1]
+        if not label:
+            continue
+        any_row = True
+        cells = t.add_row().cells
+        _cell(cells[0], code or "")
+        _cell(cells[1], name or "", align="left")
+        _cell(cells[2], label, bold=True)
+    if not any_row:
+        cells = t.add_row().cells
+        _cell(cells[0], "")
+        _cell(cells[1], "(ยังไม่ได้ประเมินรายวิชา)", align="left")
+        _cell(cells[2], "")
+    _widths(t, [Cm(2.6), Cm(9.4), Cm(4.0)])
+    _p(doc, "", after=2)
+    _p(doc, f"สรุปผลการประเมิน: {summary_val or '-'}", bold=True, size=14, after=0)
+
+
+def _pp6_activities_onet(doc, school, s, db):
+    """หน้า 7 : กิจกรรมพัฒนาผู้เรียน + ผลการทดสอบระดับชาติ (O-NET)"""
     from app.models import AcadActivityResult
-    from app.services.academic import activities_for
-    rows = [("การอ่าน คิดวิเคราะห์ และเขียน", ef["read_think"]),
-            ("คุณลักษณะอันพึงประสงค์", ef["desired_char"])]
-    # กิจกรรมพัฒนาผู้เรียนตามที่โรงเรียนตั้งไว้ (ชื่อจริง ไม่ตายตัว)
+    klass = s.klass
+    _p(doc, "กิจกรรมพัฒนาผู้เรียน", align="center", bold=True, size=17, after=6, page_break=True)
     acts = activities_for(klass.year, klass.level, db)
     my_act = {r.activity_id: (r.result or "").strip() for r in
               db.query(AcadActivityResult).filter_by(acad_student_id=s.id).all()}
-    for a in acts:
-        rows.append((f"กิจกรรม{a.name}", my_act.get(a.id, "")))
-    t2 = doc.add_table(rows=0, cols=2); t2.style = "Table Grid"
+    t = doc.add_table(rows=1, cols=2); t.style = "Table Grid"
+    _cell(t.rows[0].cells[0], "กิจกรรม", bold=True, fill="EDE9FE", align="left")
+    _cell(t.rows[0].cells[1], "ผลการประเมิน", bold=True, fill="EDE9FE")
+    if acts:
+        for a in acts:
+            cells = t.add_row().cells
+            _cell(cells[0], a.name, align="left")
+            _cell(cells[1], my_act.get(a.id, "") or "")
+    else:
+        cells = t.add_row().cells
+        _cell(cells[0], "(ยังไม่ได้ตั้งกิจกรรมพัฒนาผู้เรียน)", align="left")
+        _cell(cells[1], "")
+    _widths(t, [Cm(12.0), Cm(4.0)])
+    _p(doc, "", after=2)
+    _p(doc, f"สรุปผลกิจกรรมพัฒนาผู้เรียน: {activity_summary(s, db) or '-'}", bold=True, size=14, after=6)
+
+    # ---- O-NET เฉพาะชั้นปลายทาง ----
+    if is_exit_level(klass.level):
+        _p(doc, "ผลการทดสอบทางการศึกษาระดับชาติขั้นพื้นฐาน (O-NET)", bold=True, size=14, after=2)
+        o = onet_for(s, db)
+        oh = ["วิชา", "คะแนนเต็ม", "คะแนนที่ได้"]
+        ot = doc.add_table(rows=1, cols=3); ot.style = "Table Grid"
+        for i, h in enumerate(oh):
+            _cell(ot.rows[0].cells[i], h, bold=True, fill="EDE9FE")
+        for subj in ONET_SUBJECTS:
+            row = o.get(subj)
+            cells = ot.add_row().cells
+            _cell(cells[0], subj, align="left")
+            _cell(cells[1], f"{row.full_score:g}" if (row and row.full_score is not None) else "")
+            _cell(cells[2], f"{row.score:g}" if (row and row.score is not None) else "")
+        _widths(ot, [Cm(6.0), Cm(4.0), Cm(4.0)])
+
+
+def _pp6_comments(doc, school, s, db):
+    """หน้า 8 : ความเห็นครูประจำชั้น + ผู้ปกครอง (เว้นเขียนมือ แยกภาคเรียน 1/2)"""
+    klass = s.klass
+    _p(doc, "ความเห็นของครูประจำชั้นและผู้ปกครอง", align="center", bold=True, size=17, after=6,
+       page_break=True)
+    homerooms = [p.name for p in (klass.homeroom, klass.co_homeroom) if p]
+    hm = homerooms[0] if homerooms else ""
+    for who, nm, role in [("ครูประจำชั้น", hm, "ครูประจำชั้น"),
+                          ("ผู้ปกครอง", "", "ผู้ปกครอง")]:
+        for term in (1, 2):
+            _p(doc, f"ความเห็นของ{who} ภาคเรียนที่ {term}", bold=True, size=13, after=2)
+            _p(doc, _DOTS, size=13, after=2)
+            _p(doc, _DOTS, size=13, after=4)
+            _p(doc, "(ลงชื่อ).............................................", align="right", after=0)
+            _p(doc, f"( {nm or '.......................................'} )", align="right", after=0)
+            _p(doc, role, align="right", after=8)
+
+
+def _pp6_summary(doc, school, s, db, ef):
+    """หน้า 9 : สรุปผลการเรียน + ลงนามผู้อำนวยการ"""
+    from app.models import AcadScore, AcadSubject
+    klass = s.klass
+    sec = is_secondary(klass.level)
+    _p(doc, "สรุปผลการประเมิน", align="center", bold=True, size=17, after=6, page_break=True)
+
+    subs = (db.query(AcadSubject).filter_by(year=klass.year, level=klass.level).all())
+    my = {(x.subject_id, x.term): x for x in
+          db.query(AcadScore).filter_by(acad_student_id=s.id).all()}
+    pairs = []
+    for sub in subs:
+        row = my.get((sub.id, sub.term if sec else 0))
+        if row:
+            pairs.append((row.grade, sub.credit or 1))
+    gpa = weighted_avg(pairs)
+
+    present = ef.get("days_present")
+    days_open = ef.get("days_open")
+    pct = f"{100.0 * present / days_open:.1f}" if (days_open and present is not None) else "-"
+
+    rows = [
+        ("ผลการเรียนเฉลี่ยตลอดปี (GPA)", f"{gpa:.2f}" if gpa is not None else "-"),
+        ("การอ่าน คิดวิเคราะห์ และเขียน", ef.get("read_think") or "-"),
+        ("คุณลักษณะอันพึงประสงค์", ef.get("desired_char") or "-"),
+        ("กิจกรรมพัฒนาผู้เรียน", activity_summary(s, db) or "-"),
+        ("เวลาเรียน (ร้อยละ)", pct),
+    ]
+    t = doc.add_table(rows=0, cols=2); t.style = "Table Grid"
     for lab, val in rows:
-        cells = t2.add_row().cells
-        _cell(cells[0], lab, align="left")
-        _cell(cells[1], val or "-")
-    _widths(t2, [Cm(11.0), Cm(5.0)])
+        cells = t.add_row().cells
+        _cell(cells[0], lab, align="left", fill="F1F5F9")
+        _cell(cells[1], val, bold=True)
+    _widths(t, [Cm(10.0), Cm(6.0)])
 
-    if ef["days_open"] or ef["days_present"]:
-        _p(doc, "", after=2)
-        _p(doc, f"เวลาเรียน: มาเรียน {ef['days_present'] if ef['days_present'] is not None else '-'} วัน "
-                f"จากทั้งหมด {ef['days_open'] if ef['days_open'] is not None else '-'} วัน",
-           size=13, after=2)
-    # ---- ความเห็นครูประจำชั้น + ผู้ปกครอง: เว้นบรรทัดว่างให้เขียนมือ ----
-    _dots = "................................................................................................"
-    _p(doc, "", after=4)
-    _p(doc, "ความเห็นครูประจำชั้น", bold=True, size=13, after=2)
-    _p(doc, _dots, size=13, after=2)
-    _p(doc, _dots, size=13, after=6)
-    # ลงนามครูประจำชั้นตามจำนวนที่มีจริง (1-2 คน)
-    homerooms = [p.name for p in (klass.homeroom, klass.co_homeroom) if p] or [""]
-    st = doc.add_table(rows=1, cols=len(homerooms))
-    for cell, nm in zip(st.rows[0].cells, homerooms):
-        cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-        for i, txt in enumerate(["(ลงชื่อ).............................................",
-                                 f"( {nm or '.......................................'} )", "ครูประจำชั้น"]):
-            p = cell.paragraphs[0] if i == 0 else cell.add_paragraph()
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p.paragraph_format.space_after = Pt(0)
-            r = p.add_run(txt); r.font.size = Pt(13); r.font.name = THAI_FONT
-            r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
-            if i == 0 and nm:
-                _float_signature(p, nm)
-    _widths(st, [Cm(16.0 / len(homerooms))] * len(homerooms))
-
-    _p(doc, "", after=6)
-    _p(doc, "ความเห็นผู้ปกครอง", bold=True, size=13, after=2)
-    _p(doc, _dots, size=13, after=2)
-    _p(doc, _dots, size=13, after=6)
-    _p(doc, "(ลงชื่อ).............................................", align="center", after=0)
-    _p(doc, "( ....................................... )", align="center", after=0)
-    _p(doc, "ผู้ปกครอง", align="center", after=6)
-
-    # ---- ลงนาม ผอ. ----
+    _p(doc, "", after=18)
     director = (getattr(school, "director_name", "") or "").strip()
     dpos = ("ผู้อำนวยการ" + school.name) if (school.name or "").startswith("โรงเรียน") \
         else "ผู้อำนวยการโรงเรียน"
     _sign_block(doc, director, dpos)
+
+
+def _pp6_body(doc, school, s, db, *, page_break: bool = False):
+    """สมุดพก ปพ.6 ของนักเรียน 1 คน (9 หน้า) - แนวตั้ง"""
+    from app.models import AcadCharEval, AcadReadEval
+    ef = effective_eval(s, db)
+    _pp6_cover(doc, school, s, db, page_break=page_break)               # 1
+    _pp6_personal(doc, school, s, db)                                  # 2
+    _pp6_attendance_growth(doc, school, s, db, ef)                     # 3
+    _pp6_grades(doc, school, s, db, ef)                                # 4
+    _pp6_assess_table(doc, s, db, "คุณลักษณะอันพึงประสงค์",           # 5
+                      AcadCharEval, char_avg, ef.get("desired_char"))
+    _pp6_assess_table(doc, s, db, "การอ่าน คิดวิเคราะห์ และเขียน",     # 6
+                      AcadReadEval, read_avg, ef.get("read_think"))
+    _pp6_activities_onet(doc, school, s, db)                           # 7
+    _pp6_comments(doc, school, s, db)                                  # 8
+    _pp6_summary(doc, school, s, db, ef)                               # 9
 
 
 def render_pp6(school, s, db) -> str:
