@@ -828,27 +828,33 @@ def _pp6_grades(doc, school, s, db, ef):
 
 
 def _pp6_assess_table(doc, s, db, title, model, avg_fn, summary_val):
-    """หน้าประเมินรายวิชา (คุณลักษณะ / อ่านคิดเขียน) : รายวิชา -> ผลการประเมิน + สรุป"""
+    """หน้าประเมินรายวิชา (คุณลักษณะ / อ่านคิดเขียน) : รายวิชา -> ผลการประเมิน + สรุป
+    เรียงรายวิชาตามลำดับเดียวกับหน้าผลการเรียน (seq, รหัส) ให้ทุกหน้าตรงกัน"""
     from app.models import AcadSubject
     klass = s.klass
     _p(doc, title, align="center", bold=True, size=17, after=6, page_break=True)
-    subj_name = {x.id: (x.code, x.name) for x in
-                 db.query(AcadSubject).filter_by(year=klass.year, level=klass.level).all()}
-    rows = db.query(model).filter_by(acad_student_id=s.id).all()
+    subs = (db.query(AcadSubject).filter_by(year=klass.year, level=klass.level)
+            .order_by(AcadSubject.seq, AcadSubject.code).all())
+    by_subj = {r.subject_id: r for r in db.query(model).filter_by(acad_student_id=s.id).all()}
     heads = ["รหัสวิชา", "รายวิชา", "ผลการประเมิน"]
     t = doc.add_table(rows=1, cols=3); t.style = "Table Grid"
     for i, h in enumerate(heads):
         _cell(t.rows[0].cells[i], h, bold=True, fill="EDE9FE")
     any_row = False
-    for r in rows:
-        code, name = subj_name.get(r.subject_id, ("", ""))
-        label = quality_of_avg(avg_fn(r))[1]
+    seen = set()
+    for sub in subs:
+        key = (sub.code or "", sub.name)
+        if key in seen:
+            continue
+        seen.add(key)
+        r = by_subj.get(sub.id)
+        label = quality_of_avg(avg_fn(r))[1] if r else ""
         if not label:
             continue
         any_row = True
         cells = t.add_row().cells
-        _cell(cells[0], code or "")
-        _cell(cells[1], name or "", align="left")
+        _cell(cells[0], sub.code or "")
+        _cell(cells[1], sub.name or "", align="left")
         _cell(cells[2], label, bold=True)
     if not any_row:
         cells = t.add_row().cells
