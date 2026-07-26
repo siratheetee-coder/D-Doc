@@ -1754,7 +1754,7 @@ async def procurement_create(request: Request, db: Session = Depends(get_db)):
     db.add(proc)
     db.flush()
     commit_doc_no(db, "memo", proc.fiscal_year, proc.memo_no, source="procurement",
-                  ref_id=proc.id, subject=f"{proc.proc_type or ''}{proc.subject or ''}".strip())
+                  ref_id=proc.id, subject=f"รายงานขอ{proc.proc_type or ''}{proc.subject or ''}".strip())
     db.commit()
     db.refresh(proc)
     return RedirectResponse(f"/procurement/{proc.id}", status_code=303)
@@ -2026,8 +2026,16 @@ async def procurement_update_refs(proc_id: int, request: Request, db: Session = 
     # bump counters + บันทึกลงทะเบียนเลขกลาง (เลขรันรวมทั้งโรงเรียน)
     fy = proc.fiscal_year
     subj = f"{proc.proc_type or ''}{proc.subject or ''}".strip()
-    for no in (proc.memo_no, proc.result_memo_no, proc.spec_memo_no, proc.inspect_memo_no):
-        commit_doc_no(db, "memo", fy, no, source="procurement", ref_id=proc.id, subject=subj)
+    # แต่ละบันทึกมีชื่อรายงานนำหน้า (ในทะเบียนจะได้รู้ว่าเป็นบันทึกฉบับใด ไม่ใช่แค่ชื่อเรื่อง)
+    pt = proc.proc_type or ""
+    base = (proc.subject or "").strip()
+    for no, title in (
+        (proc.memo_no, f"รายงานขอ{pt}{base}"),
+        (proc.result_memo_no, f"รายงานผลการพิจารณาและขออนุมัติสั่ง{pt} {base}".strip()),
+        (proc.spec_memo_no, f"ขออนุมัติแต่งตั้งคณะกรรมการกำหนดคุณลักษณะเฉพาะและราคากลาง {base}".strip()),
+        (proc.inspect_memo_no, f"รายงานผลการตรวจรับพัสดุและอนุมัติเบิกจ่ายเงิน {base}".strip()),
+    ):
+        commit_doc_no(db, "memo", fy, no, source="procurement", ref_id=proc.id, subject=title)
     commit_doc_no(db, "command", fy, proc.command_no, source="procurement", ref_id=proc.id, subject=subj)
     commit_doc_no(db, "purchase_order" if proc.proc_type == "ซื้อ" else "hire_order", fy,
                   proc.order_no, source="procurement", ref_id=proc.id, subject=subj)
