@@ -26,6 +26,7 @@
   .g-purple { background:#ede9fe; color:#7c3aed; } .g-blue { background:#e8f0ff; color:#4880FF; }
   .g-green { background:#dcfce7; color:#16a34a; } .g-amber { background:#fff4e5; color:#d97706; }
   .g-gray { background:#eef0f4; color:#5a6a85; }
+  .g-teal { background:#e6f7f5; color:#0d9488; } .g-indigo { background:#eeecff; color:#4f46e5; }
   .price-row { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 6px; }
   .price-row .pc { flex:1 1 96px; background:#f3f6fc; border-radius:10px; padding:9px 12px; }
   .price-row .pc .n { font-size:12.5px; color:#33507a; }
@@ -37,7 +38,7 @@
   .gimg-box.on { display:flex; }
   .gimg-box img { max-width:100%; max-height:100%; border-radius:8px; }
 </style>
-{% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':190,'bundle':1990}) %}
+{% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':190,'p_hr':390,'p_acad':690,'bundle':2690}) %}
 {% macro simg(name) %}<img class="step-img" src="/static/guide/{{ name }}.png" alt="" loading="lazy" onerror="this.remove()">{% endmacro %}
 
 <div class="hero">
@@ -111,6 +112,33 @@
   </div>
 </details>
 
+<!-- งานบุคคล -->
+<details class="acc">
+  <summary><span class="sic g-teal"><svg class="icon"><use href="#ic-users"/></svg></span> งานบุคคล <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
+  <div class="acc-body">
+    <div class="steps">
+      <div class="step"><span class="num">1</span><div class="st-body"><h4>ทะเบียนบุคลากร</h4><p>บันทึกข้อมูลครูและบุคลากร (ตำแหน่ง วิทยฐานะ วันบรรจุ ฯลฯ) ใช้ร่วมกับผู้ลงนามและกรรมการทุกงาน · <a href="/hr/staff">ไปทะเบียนบุคลากร</a></p>{{ simg('hr-1') }}</div></div>
+      <div class="step"><span class="num">2</span><div class="st-body"><h4>บันทึกวันลา</h4><p>ลงวันลา (ป่วย/กิจ/พักผ่อน ฯลฯ) ระบบคำนวณวันลาคงเหลือให้อัตโนมัติ และออกใบลาได้</p>{{ simg('hr-2') }}</div></div>
+      <div class="step"><span class="num">3</span><div class="st-body"><h4>ไปราชการ + คำสั่ง</h4><p>บันทึกการไปราชการ/อบรม แล้วออกคำสั่งไปราชการได้ทันที</p>{{ simg('hr-3') }}</div></div>
+      <div class="step"><span class="num">4</span><div class="st-body"><h4>ก.พ.7 · หนังสือรับรอง</h4><p>พิมพ์ ก.พ.7 และหนังสือรับรองการเป็นข้าราชการ/เงินเดือน จากข้อมูลที่บันทึกไว้</p>{{ simg('hr-4') }}</div></div>
+    </div>
+  </div>
+</details>
+
+<!-- งานวิชาการ -->
+<details class="acc">
+  <summary><span class="sic g-indigo"><svg class="icon"><use href="#ic-cap"/></svg></span> งานวิชาการ (ปพ.5 · สมุดรายงาน ปพ.6) <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
+  <div class="acc-body">
+    <div class="steps">
+      <div class="step"><span class="num">1</span><div class="st-body"><h4>ตั้งห้องเรียน + ดึงนักเรียน</h4><p>ตั้งชั้น/ห้องให้นักเรียนที่ <a href="/students">ทะเบียนนักเรียน</a> แล้วสร้างห้องเรียน เลือกครูประจำชั้น และกด "ดึงนักเรียนจากทะเบียนกลาง" · <a href="/academic/classes">ไปห้องเรียน</a></p>{{ simg('acad-1') }}</div></div>
+      <div class="step"><span class="num">2</span><div class="st-body"><h4>สร้างรายวิชา</h4><p>สร้างรายวิชา 8 กลุ่มสาระในคลิกเดียว (รหัสวิชาตามหลักสูตรแกนกลาง) ตั้งสัดส่วนคะแนนได้ · <a href="/academic/subjects">ไปรายวิชา</a></p>{{ simg('acad-2') }}</div></div>
+      <div class="step"><span class="num">3</span><div class="st-body"><h4>กรอกคะแนน → ออก ปพ.5</h4><p>กรอกคะแนนทั้งห้องในตารางเดียว ระบบคิดเกรดให้อัตโนมัติ แล้วออก ปพ.5 รายวิชา/ทั้งเล่มได้</p>{{ simg('acad-3') }}</div></div>
+      <div class="step"><span class="num">4</span><div class="st-body"><h4>ปฏิทิน + เวลาเรียน</h4><p>ตั้งวันเปิดเรียนแต่ละเดือน เช็กชื่อรายวัน มา/ป่วย/ลา/ขาด ระบบรวมยอด + ร้อยละให้อัตโนมัติ</p>{{ simg('acad-4') }}</div></div>
+      <div class="step"><span class="num">5</span><div class="st-body"><h4>ประเมิน → ออกสมุดรายงาน ปพ.6</h4><p>ประเมินคุณลักษณะฯ/อ่านคิดเขียนรายวิชา + กิจกรรม/O-NET แล้วออกสมุดรายงานประจำตัว (ปพ.6) ครบ 9 หน้า พร้อมข้อมูลส่วนตัว น้ำหนัก/ส่วนสูง และรูปนักเรียน · <a href="/academic/eval">ไปหน้าประเมิน</a></p>{{ simg('acad-5') }}</div></div>
+    </div>
+  </div>
+</details>
+
 <!-- เคล็ดลับ -->
 <details class="acc">
   <summary><span class="sic g-amber"><svg class="icon"><use href="#ic-star"/></svg></span> เคล็ดลับให้ใช้งานคุ้มที่สุด <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
@@ -134,9 +162,11 @@
       <div class="pc"><div class="n">งานการเงิน</div><div class="v">{{ px.p_fin }}</div></div>
       <div class="pc"><div class="n">งานธุรการ</div><div class="v">{{ px.p_admin }}</div></div>
       <div class="pc"><div class="n">อาหารกลางวัน</div><div class="v">{{ px.p_lunch }}</div></div>
+      <div class="pc"><div class="n">งานบุคคล</div><div class="v">{{ px.p_hr }}</div></div>
+      <div class="pc"><div class="n">งานวิชาการ</div><div class="v">{{ px.p_acad }}</div></div>
       <div class="pc best"><div class="n">ครบทุกงาน</div><div class="v">{{ "{:,}".format(px.bundle) }}</div></div>
     </div>
-    <p class="price-note">ราคาต่อปี (บาท) · ยิ่งเลือกมากยิ่งลด: 2 งาน ลด 100 · 3 งาน ลด 200 · ครบ 4 งาน เหลือ {{ "{:,}".format(px.bundle) }}</p>
+    <p class="price-note">ราคาต่อปี (บาท) · ยิ่งเลือกมากยิ่งลด: 2 งาน ลด 100 · 3 งาน ลด 200 · 4 งาน ลด 300 · 5 งาน ลด 400 · ครบ 6 งาน เหลือ {{ "{:,}".format(px.bundle) }}</p>
     <div class="faq-q">ทดลองฟรีได้แค่ไหน?</div>
     <p class="faq-a">ออกเอกสารได้ฟรี <b>50 ฉบับ นับรวมทุกงาน ไม่จำกัดเวลา</b> - ดูจำนวนที่เหลือได้ที่มุมบนของระบบ</p>
     <div class="faq-q">โควตา 50 ฉบับหมดแล้วทำยังไง?</div>
