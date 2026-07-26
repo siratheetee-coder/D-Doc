@@ -87,7 +87,7 @@
         <td><input name="room" value="{{ s.room or '' }}" style="width:60px;"></td>
         <td style="white-space:nowrap;">
           <button class="btn sm" type="button" onclick="saveRow(this)">บันทึก</button>
-          <a class="btn sm gray" href="/students/{{ s.id }}" title="ข้อมูลส่วนตัว/สมุดพก ปพ.6"><svg class="icon"><use href="#ic-edit"/></svg> ข้อมูลส่วนตัว</a>
+          <a class="btn sm gray" href="/students/{{ s.id }}" title="ข้อมูลส่วนตัว/สมุดรายงาน ปพ.6"><svg class="icon"><use href="#ic-edit"/></svg> ข้อมูลส่วนตัว</a>
           <form method="post" action="/students/{{ s.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบนักเรียนคนนี้?');"><button class="btn sm gray" type="submit">ลบ</button></form>
         </td>
       </tr>

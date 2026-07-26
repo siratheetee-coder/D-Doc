@@ -19,16 +19,25 @@
         {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
       </select></div>
     <div><label>ห้องเรียน</label>
-      <select name="cid" onchange="submitReplace(this.form)">
+      <select name="cid" onchange="if(this.form.sid)this.form.sid.value=''; if(this.form.term)this.form.term.value=''; submitReplace(this.form)">
         <option value="">- เลือกห้อง -</option>
         {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id==c.id }}>{{ class_label(k) }}</option>{% endfor %}
       </select></div>
-    {% if c %}
+    {% if c and has_terms %}
+    <div><label>ภาคเรียน</label>
+      <select name="term" onchange="if(this.form.sid)this.form.sid.value=''; submitReplace(this.form)">
+        <option value="">- เลือกภาคเรียน -</option>
+        {% for t in [1,2] %}{% if t in terms %}<option value="{{ t }}" {{ 'selected' if term==t }}>{{ term_label(t) }}</option>{% endif %}{% endfor %}
+      </select></div>
+    {% endif %}
+    {% if c and (not has_terms or term in [1,2]) %}
     <div><label>รายวิชา</label>
       <select name="sid" onchange="submitReplace(this.form)">
         <option value="">- เลือกวิชา -</option>
-        {% for sb in subjects %}<option value="{{ sb.id }}" {{ 'selected' if subj and sb.id==subj.id }}>{{ sb.code }} {{ sb.name }}{% if sb.term %} ({{ term_label(sb.term) }}){% endif %}</option>{% endfor %}
+        {% for sb in subjects %}<option value="{{ sb.id }}" {{ 'selected' if subj and sb.id==subj.id }}>{{ sb.code }} {{ sb.name }}</option>{% endfor %}
       </select></div>
+    {% endif %}
+    {% if c %}
     <div><label>ประเมิน</label>
       <select name="kind" onchange="submitReplace(this.form)">
         <option value="char" {{ 'selected' if kind=='char' }}>คุณลักษณะฯ 8 ข้อ</option>
@@ -38,6 +47,8 @@
   </form>
   {% if not c %}
   <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> แล้วเลือก <b>รายวิชา</b> เพื่อประเมินทั้งห้องในหน้าเดียว (แบบเดียวกับไฟล์ ปพ.5)</p>
+  {% elif has_terms and term not in [1,2] %}
+  <p class="muted" style="margin:10px 0 0;">เลือก <b>ภาคเรียน</b> ก่อน แล้วจึงเลือก <b>รายวิชา</b> (ชั้นนี้มีรายวิชาทั้งภาคเรียนที่ 1 และ 2)</p>
   {% elif not subj %}
   <p class="muted" style="margin:10px 0 0;">เลือก <b>รายวิชา</b> ด้านบน - ครูผู้สอนวิชานั้นประเมินนักเรียนทั้งห้องในครั้งเดียว</p>
   {% endif %}

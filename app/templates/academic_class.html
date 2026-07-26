@@ -28,7 +28,7 @@
       {% else %}
       <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม</a>
       {% endif %}
-      <a class="btn soft" href="/academic/classes/{{ c.id }}/pp6-all.docx"><svg class="icon"><use href="#ic-file"/></svg> สมุดพกทั้งห้อง (ปพ.6)</a>
+      <a class="btn soft" href="/academic/classes/{{ c.id }}/pp6-all.docx"><svg class="icon"><use href="#ic-file"/></svg> สมุดรายงาน ปพ.6 (ทั้งห้อง)</a>
       {% endif %}
     </div>
   </div>
@@ -52,7 +52,7 @@
           <option value="F" {{ 'selected' if s.sex=='F' }}>หญิง</option></select></td>
         <td style="white-space:nowrap;">
           <button class="btn sm" form="stf{{ s.id }}" type="submit">บันทึก</button>
-          <a class="btn sm soft" href="/academic/student/{{ s.id }}/pp6.docx">สมุดพก</a>
+          <a class="btn sm soft" href="/academic/student/{{ s.id }}/pp6.docx">ปพ.6</a>
           <form method="post" action="/academic/student/{{ s.id }}/delete" style="display:inline; margin:0;"
                 onsubmit="return confirm('เอา {{ s.name }} ออกจากห้องนี้?');">
             <button class="btn sm gray" type="submit">ลบ</button></form>

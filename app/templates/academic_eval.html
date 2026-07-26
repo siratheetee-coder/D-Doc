@@ -27,7 +27,7 @@
   <p class="muted" style="margin:10px 0 0;">ยังไม่มีห้องเรียนของปี {{ year }}
     <a href="/academic/classes?year={{ year }}">โปรดสร้างห้องเรียนก่อน</a></p>
   {% elif not c %}
-  <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> ด้านบน เพื่อประเมินและออกสมุดพก ปพ.6</p>
+  <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> ด้านบน เพื่อประเมินและออกสมุดรายงาน ปพ.6</p>
   {% endif %}
 </div>
 
@@ -39,12 +39,12 @@
       <a class="btn soft" href="/academic/assess?cid={{ c.id }}&kind=char"><svg class="icon"><use href="#ic-check"/></svg> คุณลักษณะฯ รายวิชา</a>
       <a class="btn soft" href="/academic/assess?cid={{ c.id }}&kind=read"><svg class="icon"><use href="#ic-edit"/></svg> อ่านคิดเขียน รายวิชา</a>
       <a class="btn soft" href="/academic/attendance?cid={{ c.id }}"><svg class="icon"><use href="#ic-clock"/></svg> เวลาเรียน</a>
-      {% if students %}<a class="btn soft" href="/academic/classes/{{ c.id }}/pp6-all.docx"><svg class="icon"><use href="#ic-file"/></svg> สมุดพกทั้งห้อง (ปพ.6)</a>{% endif %}
+      {% if students %}<a class="btn soft" href="/academic/classes/{{ c.id }}/pp6-all.docx"><svg class="icon"><use href="#ic-file"/></svg> สมุดรายงาน ปพ.6 (ทั้งห้อง)</a>{% endif %}
     </div>
   </div>
   <p class="muted" style="font-size:13px; margin:6px 0 8px;">หน้านี้กรอกแค่ <b>กิจกรรมพัฒนาผู้เรียน</b> (ผ/มผ) ·
     คุณลักษณะฯ และ อ่านคิดเขียน มาจาก<b>ประเมินรายวิชา</b> (ปุ่มด้านบน) ระบบคำนวณให้ ไม่ต้องติ๊กซ้ำ ·
-    ความเห็นครูและผู้ปกครองเว้นช่องไว้ให้เขียนมือในสมุดพก</p>
+    ความเห็นครูและผู้ปกครองเว้นช่องไว้ให้เขียนมือในสมุดรายงาน</p>
   {% if not activities %}
   <div class="alert warn" style="margin:0 0 10px;"><svg class="icon"><use href="#ic-alert"/></svg>
     ยังไม่ได้ตั้ง<b>กิจกรรมพัฒนาผู้เรียน</b>ของ {{ c.level }}
@@ -78,7 +78,7 @@
             {% for q in passfail %}<option value="{{ q }}" {{ 'selected' if act_res.get((s.id, a.id))==q }}>{{ q }}</option>{% endfor %}</select></td>
           {% endfor %}
           {% if activities %}<td class="center" style="font-weight:700;">{{ act_sum.get(s.id) or '' }}</td>{% endif %}
-          <td><a class="btn sm soft" href="/academic/student/{{ s.id }}/pp6.docx">สมุดพก</a></td>
+          <td><a class="btn sm soft" href="/academic/student/{{ s.id }}/pp6.docx">ปพ.6</a></td>
         </tr>
       {% endfor %}
       </tbody>

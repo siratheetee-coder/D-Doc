@@ -500,18 +500,27 @@ async def eval_save(request: Request, db: Session = Depends(get_db), cid: str = 
 @router.get("/academic/assess", response_class=HTMLResponse)
 def assess_page(request: Request, db: Session = Depends(get_db),
                 cid: int | None = None, sid: int | None = None,
-                kind: str = "char", year: int | None = None):
+                kind: str = "char", year: int | None = None, term: int | None = None):
     y = year or current_academic_year()
     kind = "read" if kind == "read" else "char"
     classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
     c = db.get(AcadClass, cid) if cid else None
-    subjects = []
+    all_subjects, terms, has_terms, subjects = [], [], False, []
     if c:
-        subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
-                    .order_by(AcadSubject.seq, AcadSubject.code).all())
+        all_subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
+                        .order_by(AcadSubject.seq, AcadSubject.code).all())
+        terms = sorted({s.term or 0 for s in all_subjects})
+        # แยกเลือกภาคเรียนก่อน เมื่อรายวิชามีทั้งภาค 1 และ 2 (มัธยม) - ประถม (ทั้งปี) ไม่ต้องเลือก
+        has_terms = len([t for t in terms if t in (1, 2)]) > 1
+        if has_terms:
+            subjects = [s for s in all_subjects if (s.term or 0) == term] if term in (1, 2) else []
+        else:
+            subjects = all_subjects
     subj = db.get(AcadSubject, sid) if sid else None
     if subj and c and (subj.year != c.year or subj.level != c.level):
         subj = None                        # กันเลือกวิชาข้ามชั้น
+    if subj and has_terms and (subj.term or 0) != term:
+        subj = None                        # วิชาไม่ตรงภาคเรียนที่เลือก
     students = sorted(c.students, key=lambda s: (s.seq or 999, s.name)) if c else []
     Model = AcadReadEval if kind == "read" else AcadCharEval
     fields = [f for f, _ in READ_DOMAINS] if kind == "read" else CHAR_FIELDS
@@ -524,6 +533,7 @@ def assess_page(request: Request, db: Session = Depends(get_db),
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "classes": classes, "c": c, "subjects": subjects, "subj": subj, "kind": kind,
         "students": students, "rows": rows, "fields": fields, "labels": labels,
+        "terms": terms, "term": term, "has_terms": has_terms,
         "class_label": _class_label, "term_label": term_label,
     })
 

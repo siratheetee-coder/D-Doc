@@ -32,7 +32,7 @@
   </div>
 
   <div class="card">
-    <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> ข้อมูลส่วนตัว (สมุดพก ปพ.6)</h2>
+    <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> ข้อมูลส่วนตัว (สมุดรายงาน ปพ.6)</h2>
     {% if request.query_params.get('photo_err') %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> อัปโหลดรูปไม่สำเร็จ (รองรับ JPG/PNG)</div>{% endif %}
     <div style="display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; margin-bottom:6px;">
       <div style="text-align:center;">
@@ -45,7 +45,7 @@
       </div>
       <div style="flex:1; min-width:220px;">
         <label>รูปนักเรียน</label>
-        <p class="muted" style="font-size:12.5px; margin:2px 0 6px;">อัปโหลด JPG/PNG · ระบบย่อขนาดให้อัตโนมัติ (ใช้ในหน้าข้อมูลส่วนตัวของสมุดพก ปพ.6)</p>
+        <p class="muted" style="font-size:12.5px; margin:2px 0 6px;">อัปโหลด JPG/PNG · ระบบย่อขนาดให้อัตโนมัติ (ใช้ในหน้าข้อมูลส่วนตัวของสมุดรายงาน ปพ.6)</p>
         <form method="post" action="/students/{{ s.id }}/photo" enctype="multipart/form-data"
               style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0;">
           <input type="file" name="file" accept="image/*" required
