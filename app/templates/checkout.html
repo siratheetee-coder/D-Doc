@@ -258,7 +258,7 @@
     var fmt = function(n){ return n.toLocaleString('en-US'); };
     // ต้องตรงกับ price_for() ฝั่งเซิร์ฟเวอร์ (seller_config.py) - ที่นี่แค่แสดงผล
     // ยอดจริงเซิร์ฟเวอร์คำนวณเองตอนบันทึกคำสั่งซื้อเสมอ
-    var TIERS = {{ tier_discount | default({2:100, 3:200, 4:300}) | tojson }};
+    var TIERS = {{ tier_discount | default({2:100, 3:200, 4:300, 5:400}) | tojson }};
     var NMODS = {{ module_keys | length }};
     function calc(){
       var chosen = items.filter(function(it){ return it.querySelector('input').checked; });

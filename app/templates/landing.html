@@ -927,7 +927,7 @@
     var BUNDLE = {{ px.bundle | tojson }};                 // แพ็กครบทุกงาน (ราคาโปรถ้ามี) - จาก pricing_context()
     var FULL = {{ full_sum | default(3440) | tojson }};    // รวมงานแยกเต็ม (ราคาขีดฆ่า)
     var cards = [].slice.call(document.querySelectorAll('#pickList .mcard'));
-    var TIERS = {{ tier_discount | default({2:100, 3:200, 4:300}) | tojson }};
+    var TIERS = {{ tier_discount | default({2:100, 3:200, 4:300, 5:400}) | tojson }};
     var NMODS = cards.length;
     var sumTotal = document.getElementById('sumTotal');
     var sbSel = document.getElementById('sbSel');
