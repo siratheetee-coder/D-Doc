@@ -262,11 +262,16 @@ def render_installment_doc(inst, school, menus) -> str:
          (f"( {head_officer or _BLANK} )", "center"), ("หัวหน้าเจ้าหน้าที่", "center")],
     ], gap=False)
     _rule(doc)
-    _p(doc, "ความเห็นของผู้บริหารสถานศึกษา", indent=1.25, after=0)
-    _p(doc, "(   ) ทราบผลการตรวจรับ          (   ) อนุมัติ", indent=1.5, after=12)
-    _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
-    _p(doc, f"( {director or _BLANK} )", align="center", after=0)
-    _p(doc, f"ตำแหน่ง ผู้อำนวยการ{sname}", align="center", after=0)
+    # บล็อกความเห็น ผอ. + ลายเซ็น ให้อยู่หน้าเดียวกันเสมอ (กันชื่อ ผอ. หลุดไปหน้าใหม่ตอนงวดสั้น)
+    end_paras = [
+        _p(doc, "ความเห็นของผู้บริหารสถานศึกษา", indent=1.25, after=0),
+        _p(doc, "(   ) ทราบผลการตรวจรับ          (   ) อนุมัติ", indent=1.5, after=12),
+        _p(doc, "(ลงชื่อ)...........................................", align="center", after=0),
+        _p(doc, f"( {director or _BLANK} )", align="center", after=0),
+        _p(doc, f"ตำแหน่ง ผู้อำนวยการ{sname}", align="center", after=0),
+    ]
+    for p in end_paras[:-1]:
+        p.paragraph_format.keep_with_next = True
 
     return _save(doc, f"งวดที่{inst.seq}_ปี{rnd.program.year}")
 
