@@ -153,6 +153,50 @@ def init_school_db(engine) -> None:
     Base.metadata.create_all(bind=engine)
     run_migrations(engine)
     _migrate_lunch_measures(engine)
+    _backfill_memo_subjects(engine)
+
+
+def _backfill_memo_subjects(engine) -> None:
+    """เติมชื่อรายงานนำหน้าให้บันทึกข้อความเก่าในทะเบียนเลขหนังสือ (พัสดุ/การเงิน) ครั้งเดียว
+    idempotent: อัปเดตเฉพาะแถวที่ subject ยังไม่ตรงกับที่คำนวณได้ (รันซ้ำแล้วไม่เขียนเพิ่ม)"""
+    from sqlalchemy.orm import Session
+    from app.models import IssuedDocNo, Procurement, DisburseMemo
+    from app.services.doc_number import parse_seq
+
+    def _pt(p, base):
+        pt = p.proc_type or ""
+        return {
+            parse_seq(p.memo_no): f"รายงานขอ{pt}{base}",
+            parse_seq(p.result_memo_no): f"รายงานผลการพิจารณาและขออนุมัติสั่ง{pt} {base}".strip(),
+            parse_seq(p.spec_memo_no): f"ขออนุมัติแต่งตั้งคณะกรรมการกำหนดคุณลักษณะเฉพาะและราคากลาง {base}".strip(),
+            parse_seq(p.inspect_memo_no): f"รายงานผลการตรวจรับพัสดุและอนุมัติเบิกจ่ายเงิน {base}".strip(),
+        }
+
+    with Session(bind=engine) as db:
+        try:
+            rows = (db.query(IssuedDocNo)
+                    .filter(IssuedDocNo.doc_type == "memo",
+                            IssuedDocNo.ref_id.isnot(None),
+                            IssuedDocNo.source.in_(("procurement", "finance"))).all())
+            changed = 0
+            for r in rows:
+                new = None
+                if r.source == "procurement":
+                    p = db.get(Procurement, r.ref_id)
+                    if p:
+                        new = _pt(p, (p.subject or "").strip()).get(r.seq)
+                elif r.source == "finance":
+                    m = db.get(DisburseMemo, r.ref_id)
+                    if m:
+                        s = (m.subject or "").strip()
+                        new = s if s.startswith("ขออนุมัติเบิกจ่าย") else f"ขออนุมัติเบิกจ่าย {s}".strip()
+                if new and (r.subject or "") != new:
+                    r.subject = new
+                    changed += 1
+            if changed:
+                db.commit()
+        except Exception:
+            db.rollback()
 
 
 def _migrate_lunch_measures(engine) -> None:
