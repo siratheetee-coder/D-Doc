@@ -37,9 +37,17 @@
   .gimg-box { position:fixed; inset:0; z-index:3000; background:rgba(15,23,42,.82); display:none; align-items:center; justify-content:center; padding:24px; cursor:zoom-out; }
   .gimg-box.on { display:flex; }
   .gimg-box img { max-width:100%; max-height:100%; border-radius:8px; }
+  .gvid { position:relative; width:100%; max-width:640px; aspect-ratio:16/9; margin:6px 0 16px; border-radius:12px; overflow:hidden; border:1px solid var(--border); background:#000; }
+  .gvid iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .gvid-tag { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:#b91c1c; margin:2px 0 4px; }
+  .gvid-tag .icon { width:16px; height:16px; }
 </style>
 {% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':190,'p_hr':390,'p_acad':690,'bundle':2690}) %}
 {% macro simg(name) %}<img class="step-img" src="/static/guide/{{ name }}.png" alt="" loading="lazy" onerror="this.remove()">{% endmacro %}
+{% macro vid(key) %}{% if videos and videos.get(key) %}
+<div class="gvid-tag">▶ วิดีโอสอนการใช้งาน</div>
+<div class="gvid"><iframe src="https://www.youtube-nocookie.com/embed/{{ videos[key] }}?rel=0" title="วิดีโอสอนการใช้งาน" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe></div>
+{% endif %}{% endmacro %}
 
 <div class="hero">
   <div>
@@ -49,10 +57,18 @@
   </div>
 </div>
 
+{% if videos and videos.get('intro') %}
+<div class="card">
+  <h2 style="margin-top:0;">▶ วิดีโอแนะนำระบบ (ภาพรวม)</h2>
+  <div class="gvid"><iframe src="https://www.youtube-nocookie.com/embed/{{ videos['intro'] }}?rel=0" title="วิดีโอแนะนำ D-Doc" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe></div>
+</div>
+{% endif %}
+
 <!-- เริ่มต้นใช้งาน -->
 <details class="acc" open>
   <summary><span class="sic g-gray"><svg class="icon"><use href="#ic-check"/></svg></span> เริ่มต้นใช้งาน (แนะนำทำตามลำดับ) <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
   <div class="acc-body">
+    {{ vid('start') }}
     <div class="steps">
       <div class="step"><span class="num">1</span><div class="st-body"><h4>ตั้งค่าข้อมูลโรงเรียน</h4><p>กรอกชื่อโรงเรียน ผู้อำนวยการ เจ้าหน้าที่พัสดุ เพื่อให้เอกสารมีข้อมูลครบ · <a href="/settings">ไปตั้งค่าโรงเรียน</a></p>{{ simg('start-1') }}</div></div>
       <div class="step"><span class="num">2</span><div class="st-body"><h4>เพิ่มบุคลากร / ผู้ลงนาม</h4><p>บันทึกรายชื่อครู กรรมการ และผู้ลงนาม ใช้ซ้ำตอนสร้างเรื่องหรือแต่งตั้งกรรมการ · <a href="/masters">ไปหน้าบุคลากร</a></p>{{ simg('start-2') }}</div></div>
@@ -67,6 +83,7 @@
 <details class="acc">
   <summary><span class="sic g-blue"><svg class="icon"><use href="#ic-package"/></svg></span> งานพัสดุ (จัดซื้อจัดจ้าง) <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
   <div class="acc-body">
+    {{ vid('proc') }}
     <div class="steps">
       <div class="step"><span class="num">1</span><div class="st-body"><h4>สร้างเรื่องจัดซื้อ/จัดจ้าง</h4><p>บันทึกรายละเอียด เลือกผู้ขาย และรายการพัสดุ กรอกครั้งเดียว ระบบจำและนำไปใช้ทุกเอกสารที่เกี่ยวข้อง</p>{{ simg('proc-1') }}</div></div>
       <div class="step"><span class="num">2</span><div class="st-body"><h4>ระบบออกเอกสารให้ครบชุด</h4><p>บันทึกขอซื้อ ใบสั่งซื้อ ตรวจรับ ขอเบิกจ่าย ครบทุกใบตามระเบียบพัสดุฯ (รวม ว.804 / ว.119 วิธีเฉพาะเจาะจง) เลขที่เอกสารรันอัตโนมัติ ไม่ชนกัน</p>{{ simg('proc-2') }}</div></div>
@@ -80,6 +97,7 @@
 <details class="acc">
   <summary><span class="sic g-green"><svg class="icon"><use href="#ic-coins"/></svg></span> งานการเงิน <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
   <div class="acc-body">
+    {{ vid('fin') }}
     <div class="steps">
       <div class="step"><span class="num">1</span><div class="st-body"><h4>เปิดบัญชี / ทะเบียนคุมเงิน</h4><p>ตั้งค่าบัญชีเงินฝากและประเภทเงิน เพื่อคุมยอดรับ-จ่ายแต่ละบัญชี</p>{{ simg('fin-1') }}</div></div>
       <div class="step"><span class="num">2</span><div class="st-body"><h4>บันทึกรับ-จ่ายในสมุดเงินสด</h4><p>ลงรายการรับ-จ่ายในสมุดเงินสด (Cash Book) ระบบคุมยอดคงเหลือให้อัตโนมัติ</p>{{ simg('fin-2') }}</div></div>
@@ -92,6 +110,7 @@
 <details class="acc">
   <summary><span class="sic g-purple"><svg class="icon"><use href="#ic-file"/></svg></span> งานธุรการ (หนังสือราชการ) <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
   <div class="acc-body">
+    {{ vid('admin') }}
     <div class="steps">
       <div class="step"><span class="num">1</span><div class="st-body"><h4>ลงทะเบียนหนังสือรับ-ส่ง</h4><p>อัปโหลดไฟล์ PDF หรือ Word ระบบจะอ่านเลขที่/วันที่/เรื่อง/ผู้รับให้อัตโนมัติ (แนะนำ Word ดึงข้อมูลแม่นกว่า) ตรวจก่อนบันทึก</p>{{ simg('admin-1') }}</div></div>
       <div class="step"><span class="num">2</span><div class="st-body"><h4>ออกบันทึกข้อความ / คำสั่ง</h4><p>ร่างบันทึกข้อความและคำสั่งโรงเรียน มี AI ช่วยร่างเนื้อหาให้ เลขที่รันต่อเนื่องร่วมกันทุกงาน</p>{{ simg('admin-2') }}</div></div>
@@ -104,6 +123,7 @@
 <details class="acc">
   <summary><span class="sic g-amber"><svg class="icon"><use href="#ic-food"/></svg></span> งานอาหารกลางวัน <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
   <div class="acc-body">
+    {{ vid('lunch') }}
     <div class="steps">
       <div class="step"><span class="num">1</span><div class="st-body"><h4>ตั้งค่าโครงการ</h4><p>กรอกจำนวนนักเรียนและงบประมาณต่อหัว (ตามคู่มืออาหารกลางวัน สพฐ.)</p>{{ simg('lunch-1') }}</div></div>
       <div class="step"><span class="num">2</span><div class="st-body"><h4>คำนวณงบ + ออกเอกสารจ้าง</h4><p>ระบบคำนวณวงเงินให้ พร้อมออกเอกสารจ้าง 3 รูปแบบ</p>{{ simg('lunch-2') }}</div></div>
@@ -116,6 +136,7 @@
 <details class="acc">
   <summary><span class="sic g-teal"><svg class="icon"><use href="#ic-users"/></svg></span> งานบุคคล <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
   <div class="acc-body">
+    {{ vid('hr') }}
     <div class="steps">
       <div class="step"><span class="num">1</span><div class="st-body"><h4>ทะเบียนบุคลากร</h4><p>บันทึกข้อมูลครูและบุคลากร (ตำแหน่ง วิทยฐานะ วันบรรจุ ฯลฯ) ใช้ร่วมกับผู้ลงนามและกรรมการทุกงาน · <a href="/hr/staff">ไปทะเบียนบุคลากร</a></p>{{ simg('hr-1') }}</div></div>
       <div class="step"><span class="num">2</span><div class="st-body"><h4>บันทึกวันลา</h4><p>ลงวันลา (ป่วย/กิจ/พักผ่อน ฯลฯ) ระบบคำนวณวันลาคงเหลือให้อัตโนมัติ และออกใบลาได้</p>{{ simg('hr-2') }}</div></div>
@@ -129,6 +150,7 @@
 <details class="acc">
   <summary><span class="sic g-indigo"><svg class="icon"><use href="#ic-cap"/></svg></span> งานวิชาการ (ปพ.5 · สมุดรายงาน ปพ.6) <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
   <div class="acc-body">
+    {{ vid('acad') }}
     <div class="steps">
       <div class="step"><span class="num">1</span><div class="st-body"><h4>ตั้งห้องเรียน + ดึงนักเรียน</h4><p>ตั้งชั้น/ห้องให้นักเรียนที่ <a href="/students">ทะเบียนนักเรียน</a> แล้วสร้างห้องเรียน เลือกครูประจำชั้น และกด "ดึงนักเรียนจากทะเบียนกลาง" · <a href="/academic/classes">ไปห้องเรียน</a></p>{{ simg('acad-1') }}</div></div>
       <div class="step"><span class="num">2</span><div class="st-body"><h4>สร้างรายวิชา</h4><p>สร้างรายวิชา 8 กลุ่มสาระในคลิกเดียว (รหัสวิชาตามหลักสูตรแกนกลาง) ตั้งสัดส่วนคะแนนได้ · <a href="/academic/subjects">ไปรายวิชา</a></p>{{ simg('acad-2') }}</div></div>

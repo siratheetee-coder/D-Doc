@@ -373,10 +373,45 @@ def settings_save(
 
 
 # ---------------- วิธีใช้งาน (คู่มือในแอป) ----------------
+def _youtube_id(url: str) -> str:
+    """ดึงรหัสวิดีโอ YouTube จากลิงก์หลายรูปแบบ (watch?v= / youtu.be / embed / shorts) คืน '' ถ้าไม่พบ"""
+    import re
+    u = (url or "").strip()
+    if not u:
+        return ""
+    m = re.search(r"(?:youtu\.be/|youtube\.com/(?:watch\?v=|embed/|shorts/|live/|v/)|[?&]v=)([A-Za-z0-9_-]{8,})", u)
+    if m:
+        return m.group(1)
+    if re.fullmatch(r"[A-Za-z0-9_-]{8,}", u):   # วางเฉพาะรหัสวิดีโอมาก็ได้
+        return u
+    return ""
+
+
+def _guide_videos() -> dict:
+    """อ่านลิงก์วิดีโอสอนการใช้งานจาก app/static/guide/videos.json -> {section: youtube_id}
+    เจ้าของแค่วางลิงก์ YouTube ในไฟล์นั้น (เว้นว่าง = ไม่แสดงวิดีโอ) · อ่านสดทุกครั้ง แก้แล้วเห็นทันที"""
+    import json
+    from pathlib import Path
+    out = {}
+    try:
+        p = Path(__file__).resolve().parents[1] / "static" / "guide" / "videos.json"
+        raw = json.loads(p.read_text(encoding="utf-8"))
+        for k, v in raw.items():
+            if k.startswith("_"):
+                continue
+            vid = _youtube_id(v if isinstance(v, str) else "")
+            if vid:
+                out[k] = vid
+    except Exception:
+        pass
+    return out
+
+
 @router.get("/guide", response_class=HTMLResponse)
 def guide_page(request: Request):
     from app.seller_config import pricing_context
-    return templates.TemplateResponse("guide.html", {"request": request, **pricing_context()})
+    return templates.TemplateResponse("guide.html",
+                                      {"request": request, "videos": _guide_videos(), **pricing_context()})
 
 
 # ---------------- ติดต่อเจ้าหน้าที่ / รีวิว ----------------
