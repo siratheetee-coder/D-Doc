@@ -1155,7 +1155,7 @@ def proc_plan_add(db: Session = Depends(get_db), fiscal_year: str = Form(""), na
 
 
 @router.post("/procurement/plan/{pid}/update")
-def proc_plan_update(pid: int, db: Session = Depends(get_db), name: str = Form(""),
+def proc_plan_update(pid: int, request: Request, db: Session = Depends(get_db), name: str = Form(""),
                      budget: str = Form("0"), method: str = Form(""),
                      expected_period: str = Form(""), source: str = Form("")):
     p = db.get(ProcurementPlan, pid)
@@ -1165,8 +1165,11 @@ def proc_plan_update(pid: int, db: Session = Depends(get_db), name: str = Form("
         p.budget = _to_float(budget, 0.0)
         p.method = (method or "").strip()
         p.expected_period = (expected_period or "").strip()
-        p.source = (source or "").strip()
+        if source:
+            p.source = source.strip()
         db.commit()
+    if request.headers.get("x-requested-with") == "fetch":
+        return JSONResponse({"ok": bool(p)})
     return RedirectResponse(f"/procurement/plan?year={fy}&saved=1", status_code=303)
 
 

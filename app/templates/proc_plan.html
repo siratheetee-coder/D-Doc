@@ -25,7 +25,7 @@
     <div style="flex:2;"><label>รายการ/โครงการที่จะจัดซื้อจัดจ้าง *</label><input name="name" required placeholder="เช่น จัดซื้อวัสดุการศึกษา"></div>
     <div><label>งบประมาณ (บาท)</label><input name="budget" type="number" step="0.01" min="0" value="0" style="width:130px;"></div>
     <div><label>วิธี</label><input name="method" value="เฉพาะเจาะจง" style="width:120px;"></div>
-    <div><label>คาดว่าจะประกาศ (เดือน/ปี)</label><input name="expected_period" placeholder="เช่น ตุลาคม 2568" style="width:150px;"></div>
+    <div><label>ระยะเวลาที่คาดว่าจะประกาศ</label><input name="expected_period" placeholder="เช่น ตุลาคม 2568" style="width:160px;"></div>
     <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
   </form>
   <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
@@ -38,25 +38,27 @@
 </div>
 
 <div class="card">
-  <h2>รายการในแผน {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }} รายการ)</span>{% endif %}</h2>
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;">รายการในแผน {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }} รายการ)</span>{% endif %}</h2>
+    {% if rows %}<button class="btn sm" type="button" onclick="saveAll(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึกทั้งหมด</button>{% endif %}
+  </div>
   {% if rows %}
+  <p class="muted" style="font-size:13px; margin:4px 0 8px;">แก้ได้หลายรายการพร้อมกัน แล้วกด "บันทึกทั้งหมด" ครั้งเดียว (หรือกดบันทึกทีละรายการ) - แถวอื่นจะไม่รีเซ็ต</p>
   <div class="table-wrap">
   <table>
-    <thead><tr><th style="width:44px;">ที่</th><th>รายการ/โครงการ</th><th class="right">งบประมาณ</th><th>วิธี</th><th>คาดว่าจะประกาศ</th><th></th></tr></thead>
+    <thead><tr><th style="width:44px;">ที่</th><th>รายการ/โครงการ</th><th class="right">งบประมาณ</th><th>วิธี</th><th>ระยะเวลาที่คาดว่าจะประกาศ</th><th></th></tr></thead>
     <tbody>
     {% for r in rows %}
-      <tr>
+      <tr data-pid="{{ r.id }}">
         <td class="center">{{ loop.index }}</td>
-        <form method="post" action="/procurement/plan/{{ r.id }}/update" style="display:contents;">
-          <td><input name="name" value="{{ r.name }}"></td>
-          <td><input name="budget" type="number" step="0.01" value="{{ '%g'|format(r.budget) }}" style="width:110px; text-align:right;"></td>
-          <td><input name="method" value="{{ r.method }}" style="width:110px;"></td>
-          <td><input name="expected_period" value="{{ r.expected_period }}" style="width:130px;"></td>
-          <td style="white-space:nowrap;">
-            <button class="btn sm" type="submit">บันทึก</button>
-        </form>
-            <form method="post" action="/procurement/plan/{{ r.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบรายการนี้จากแผน?');"><button class="btn sm gray" type="submit">ลบ</button></form>
-          </td>
+        <td><input name="name" value="{{ r.name }}"></td>
+        <td><input name="budget" type="number" step="0.01" value="{{ '%g'|format(r.budget) }}" style="width:110px; text-align:right;"></td>
+        <td><input name="method" value="{{ r.method }}" style="width:110px;"></td>
+        <td><input name="expected_period" value="{{ r.expected_period }}" style="width:150px;" placeholder="เช่น ตุลาคม 2568"></td>
+        <td style="white-space:nowrap;">
+          <button class="btn sm" type="button" onclick="saveRow(this)">บันทึก</button>
+          <form method="post" action="/procurement/plan/{{ r.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบรายการนี้จากแผน?');"><button class="btn sm gray" type="submit">ลบ</button></form>
+        </td>
       </tr>
     {% endfor %}
     </tbody>
@@ -69,4 +71,34 @@
   </div>
   {% else %}<p class="muted">ยังไม่มีรายการในแผน โปรดเพิ่มรายการด้านบน หรือ ดึงจากโครงการ/แผนงบ</p>{% endif %}
 </div>
+<script>
+  function _rowData(tr){
+    var d = new URLSearchParams();
+    tr.querySelectorAll('input,select').forEach(function(el){ if(el.name) d.append(el.name, el.value); });
+    return d;
+  }
+  function saveRow(btn){
+    var tr = btn.closest('tr'), pid = tr.getAttribute('data-pid');
+    btn.disabled = true;
+    return fetch('/procurement/plan/'+pid+'/update', {
+      method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'fetch'},
+      body: _rowData(tr)
+    }).then(function(r){ btn.disabled=false; if(!r.ok) throw 0;
+      tr.style.background='#dcfce7'; setTimeout(function(){ tr.style.background=''; }, 700);
+    }).catch(function(){ btn.disabled=false; alert('บันทึกไม่สำเร็จ ลองใหม่'); });
+  }
+  function saveAll(btn){
+    btn.disabled = true;
+    var rows = Array.prototype.slice.call(document.querySelectorAll('tr[data-pid]'));
+    Promise.all(rows.map(function(tr){
+      return fetch('/procurement/plan/'+tr.getAttribute('data-pid')+'/update', {
+        method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'fetch'},
+        body: _rowData(tr)
+      });
+    })).then(function(){ btn.disabled=false;
+      rows.forEach(function(tr){ tr.style.background='#dcfce7'; });
+      setTimeout(function(){ rows.forEach(function(tr){ tr.style.background=''; }); }, 900);
+    }).catch(function(){ btn.disabled=false; alert('บันทึกบางรายการไม่สำเร็จ'); });
+  }
+</script>
 {% endblock %}
