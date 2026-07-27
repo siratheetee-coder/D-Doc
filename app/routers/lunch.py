@@ -529,16 +529,22 @@ def _clean_groups(groups) -> str:
     return ",".join(g for g in FOOD_GROUPS if g in (groups or []))
 
 
+def _safe_back(back: str, default: str) -> str:
+    """คืน path ภายในระบบเท่านั้น (กัน open-redirect)"""
+    b = (back or "").strip()
+    return b if b.startswith("/") and not b.startswith("//") else default
+
+
 @router.post("/lunch/{pid}/menu/add")
 def menu_add(pid: int, db: Session = Depends(get_db),
              date: str = Form(""), main: str = Form(""), dessert: str = Form(""),
-             note: str = Form(""), groups: list[str] = Form([])):
+             note: str = Form(""), groups: list[str] = Form([]), back: str = Form("")):
     if not db.get(LunchProgram, pid):
         return RedirectResponse("/lunch", status_code=303)
     db.add(LunchMenu(program_id=pid, date=parse_be_date(date), main=main.strip(),
                      dessert=dessert.strip(), note=note.strip(), groups=_clean_groups(groups)))
     db.commit()
-    return RedirectResponse(f"/lunch/{pid}/menu", status_code=303)
+    return RedirectResponse(_safe_back(back, f"/lunch/{pid}/menu"), status_code=303)
 
 
 @router.post("/lunch/menu/{mid}/update")
@@ -558,13 +564,13 @@ def menu_update(mid: int, db: Session = Depends(get_db),
 
 
 @router.post("/lunch/menu/{mid}/delete")
-def menu_delete(mid: int, db: Session = Depends(get_db)):
+def menu_delete(mid: int, db: Session = Depends(get_db), back: str = Form("")):
     m = db.get(LunchMenu, mid)
     pid = m.program_id if m else None
     if m:
         db.delete(m)
         db.commit()
-    return RedirectResponse(f"/lunch/{pid}/menu" if pid else "/lunch", status_code=303)
+    return RedirectResponse(_safe_back(back, f"/lunch/{pid}/menu" if pid else "/lunch"), status_code=303)
 
 
 @router.get("/lunch/{pid}/menu/print", response_class=HTMLResponse)
@@ -637,6 +643,28 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
     sel_kind = request.query_params.get("kind")
     if sel_kind not in COMMITTEE_KINDS:
         sel_kind = "tor"
+
+    # ---- เมนูอาหารในช่วงสัญญา (ให้สร้างเมนูต่อจากงวดในหน้าเดียว + เลือกวันจาก dropdown) ----
+    from datetime import timedelta
+    from app.services.thai_holidays import is_workday
+    prog = rnd.program
+    holset = set(_lunch_holidays(prog).keys())
+    have = {m.date.date().isoformat(): m for m in prog.menus if m.date}
+    menu_days = []
+    if rnd.start_date and rnd.end_date:
+        d, end = rnd.start_date.date(), rnd.end_date.date()
+        while d <= end:
+            if is_workday(d, holset):
+                menu_days.append({"be": be_date_input(datetime(d.year, d.month, d.day)),
+                                  "has": d.isoformat() in have})
+            d += timedelta(days=1)
+    round_menus = sorted(
+        [m for m in prog.menus if m.date and rnd.start_date and rnd.end_date
+         and rnd.start_date <= m.date <= rnd.end_date],
+        key=lambda m: (m.date or datetime.min))
+    past_mains = sorted({(m.main or "").strip() for m in prog.menus if (m.main or "").strip()})
+    past_desserts = sorted({(m.dessert or "").strip() for m in prog.menus if (m.dessert or "").strip()})
+
     return templates.TemplateResponse("lunch_contract.html", {
         "request": request, "school": get_school(db), "r": rnd, "p": rnd.program,
         "installments": rnd.installments, "paid": paid,
@@ -646,6 +674,8 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         "sel_kind": sel_kind,
         "holidays": _lunch_holidays(rnd.program),
         "today_be": be_date_input(datetime.now()),
+        "menu_days": menu_days, "round_menus": round_menus,
+        "past_mains": past_mains, "past_desserts": past_desserts,
     })
 
 

@@ -128,6 +128,58 @@
   {% endif %}
 </div>
 
+<!-- ============ เมนูอาหารในช่วงสัญญา (ต่อจากงวด เพื่อไม่ต้องข้ามหน้า) ============ -->
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;">เมนูอาหารในช่วงสัญญา</h2>
+    <a class="btn sm gray" href="/lunch/{{ p.id }}/menu"><svg class="icon"><use href="#ic-clipboard"/></svg> จัดการเมนูทั้งหมด / เมนูแนะนำ 5 หมู่</a>
+  </div>
+  <p class="muted" style="margin:4px 0 10px;">เมนูจะถูกดึงไปใส่ในเอกสารงวด (ควบคุม/ส่งมอบ/ตรวจรับ) ตามวันที่ · เลือกวันจากช่วงสัญญาได้เลย (เฉพาะวันทำการ)</p>
+  {% if menu_days %}
+  <form method="post" action="/lunch/{{ p.id }}/menu/add" class="row" style="align-items:flex-end;">
+    <input type="hidden" name="back" value="/lunch/round/{{ r.id }}/plan">
+    <div><label>วันที่ <span class="muted">(ในช่วงสัญญา)</span></label>
+      <select name="date" style="width:170px;">
+        {% for d in menu_days %}<option value="{{ d.be }}">{{ d.be }}{{ ' · มีเมนูแล้ว' if d.has }}</option>{% endfor %}
+      </select></div>
+    <div style="flex:2;"><label>อาหารคาว (จานหลัก)</label><input name="main" list="mains_dl" placeholder="เช่น ข้าวสวย แกงเขียวหวานไก่" required></div>
+    <div style="flex:2;"><label>ของหวาน / ผลไม้</label><input name="dessert" list="desserts_dl" placeholder="เช่น กล้วยน้ำว้า"></div>
+    <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มเมนู</button></div>
+  </form>
+  <datalist id="mains_dl">{% for mm in past_mains %}<option value="{{ mm }}">{% endfor %}</datalist>
+  <datalist id="desserts_dl">{% for dd in past_desserts %}<option value="{{ dd }}">{% endfor %}</datalist>
+  {% else %}
+  <p class="muted">กรอกวันที่เริ่ม-สิ้นสุดของสัญญา (ด้านบน) ก่อน ระบบจะให้เลือกวันสำหรับใส่เมนู</p>
+  {% endif %}
+
+  {% if round_menus %}
+  <div class="table-wrap" style="margin-top:12px;">
+  <table>
+    <thead><tr><th>วันที่</th><th>อาหารคาว</th><th>ของหวาน/ผลไม้</th><th></th></tr></thead>
+    <tbody>
+    {% for m in round_menus %}
+      <tr>
+        <td style="white-space:nowrap;">{{ be_date(m.date) if m.date else '-' }}</td>
+        <td>{{ m.main }}</td>
+        <td>{{ m.dessert }}</td>
+        <td style="white-space:nowrap;">
+          <a class="btn sm gray" href="/lunch/{{ p.id }}/menu?edit={{ m.id }}">แก้ไข</a>
+          <form method="post" action="/lunch/menu/{{ m.id }}/delete" onsubmit="return confirm('ลบเมนูวันนี้?');" style="display:inline; margin:0;">
+            <input type="hidden" name="back" value="/lunch/round/{{ r.id }}/plan">
+            <button class="btn sm gray" type="submit">ลบ</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="muted" style="font-size:13px; margin:8px 0 0;">{{ round_menus|length }} เมนูในช่วงสัญญานี้</p>
+  {% elif menu_days %}
+  <p class="muted" style="margin-top:10px;">ยังไม่มีเมนูในช่วงสัญญานี้ เพิ่มด้านบน</p>
+  {% endif %}
+</div>
+
 <!-- ============ ออกเอกสาร (หลังกรอกกรรมการ เพื่อให้ข้อมูลครบก่อน gen) ============ -->
 {% if p.operate_mode == 'ingredient' %}
 <div class="card">
