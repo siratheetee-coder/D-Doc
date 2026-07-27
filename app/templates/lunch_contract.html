@@ -86,28 +86,43 @@
   {% if installments %}
   <div class="table-wrap">
   <table>
-    <thead><tr><th>งวด</th><th>ช่วงวันที่</th><th class="right">วัน</th><th class="right">วงเงิน</th><th>ส่งมอบ</th><th>ตรวจรับ</th><th>สถานะ</th><th>บัญชี</th><th></th></tr></thead>
+    <thead><tr><th>งวด</th><th>ช่วงวันที่</th><th class="right">วัน</th><th class="right">วงเงิน</th><th>วันส่งมอบ</th><th>วันตรวจรับ</th><th>สถานะ</th><th>บัญชี</th><th></th></tr></thead>
     <tbody>
     {% for i in installments %}
-      <tr>
+      <tr data-iid="{{ i.id }}">
         <td>{{ i.seq }}</td>
         <td>{{ be_date(i.start_date) if i.start_date else '-' }} ถึง {{ be_date(i.end_date) if i.end_date else '-' }}</td>
         <td class="right">{{ i.days }}</td>
         <td class="right">{{ "{:,.2f}".format(i.amount or 0) }}</td>
-        <td>{{ be_date(i.deliver_date) if i.deliver_date else '-' }}</td>
-        <td>{{ be_date(i.inspect_date) if i.inspect_date else '-' }}</td>
-        <td><span class="pill {{ 'done' if i.status=='จ่ายแล้ว' else 'approve' if i.status in ['ตรวจรับแล้ว','ส่งมอบแล้ว'] else '' }}">{{ i.status }}</span></td>
+        <td><input name="deliver_date" value="{{ be_date(i.deliver_date) if i.deliver_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:118px;"></td>
+        <td><input name="inspect_date" value="{{ be_date(i.inspect_date) if i.inspect_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:118px;"></td>
+        <td><select name="status" style="width:110px;">{% for s in ['ร่าง','ส่งมอบแล้ว','ตรวจรับแล้ว','จ่ายแล้ว'] %}<option {{ 'selected' if i.status==s }}>{{ s }}</option>{% endfor %}</select></td>
         <td>{% if i.status=='จ่ายแล้ว' %}<span class="muted">✔ ลงแล้ว</span>{% else %}<span class="muted">-</span>{% endif %}</td>
         <td style="white-space:nowrap;">
-          <a class="btn sm" href="/lunch/installment/{{ i.id }}/doc"><svg class="icon"><use href="#ic-download"/></svg> เอกสารงวด</a>
-          <a class="btn sm" href="/lunch/installment/{{ i.id }}/disburse-doc"><svg class="icon"><use href="#ic-coins"/></svg> ขอเบิกจ่าย</a>
-          <form method="post" action="/lunch/installment/{{ i.id }}/delete" onsubmit="return confirm('ลบงวดนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
+          <button class="btn sm" type="button" onclick="saveInst(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
+          <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/doc"><svg class="icon"><use href="#ic-download"/></svg> เอกสารงวด</a>
+          <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/disburse-doc"><svg class="icon"><use href="#ic-coins"/></svg> ขอเบิกจ่าย</a>
+          <form method="post" action="/lunch/installment/{{ i.id }}/delete" onsubmit="return confirm('ลบงวดนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">✕</button></form>
         </td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
   </div>
+  <p class="muted" style="font-size:13px; margin:8px 0 0;">แก้สถานะ/วันส่งมอบ/วันตรวจรับ ในตารางแล้วกด "บันทึก" ได้เลย (งวดที่แบ่งอัตโนมัติ ระบบตั้งวันส่งมอบ/ตรวจรับเป็นวันสุดท้ายของงวดให้ · เปลี่ยนได้)</p>
+  <script>
+    function saveInst(btn){
+      var tr = btn.closest('tr'), iid = tr.getAttribute('data-iid');
+      var d = new URLSearchParams();
+      tr.querySelectorAll('input[name],select[name]').forEach(function(el){ d.append(el.name, el.value); });
+      btn.disabled = true;
+      fetch('/lunch/installment/'+iid+'/update', {
+        method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'fetch'}, body:d
+      }).then(function(r){ btn.disabled=false; if(!r.ok) throw 0;
+        tr.style.background='#dcfce7'; setTimeout(function(){ tr.style.background=''; }, 800);
+      }).catch(function(){ btn.disabled=false; alert('บันทึกไม่สำเร็จ ลองใหม่'); });
+    }
+  </script>
   {% else %}
   <p class="muted">ยังไม่มีงวดงาน เพิ่มด้านบน</p>
   {% endif %}

@@ -108,6 +108,7 @@ def _committee_cell_text(members, n=3) -> str:
     lines = []
     for i in range(count):
         num = _TH_NUM[i] if i < len(_TH_NUM) else str(i + 1)
+        lines.append("")   # เว้นบรรทัดว่างเหนือเส้นจุดไข่ปลา ให้มีที่เซ็นชื่อ (คนแรกไม่ติดหัวตาราง)
         lines.append(f"{num}...........................................")
         nm = members[i].name if (members and i < len(members) and members[i].name) else ""
         lines.append(f"( {nm} )" if nm else "( ........................................ )")
@@ -324,10 +325,19 @@ def render_disburse_lunch_doc(inst, school, wht_rate=0.01) -> str:
     _p(doc, "บัดนี้ ผู้รับจ้างได้ส่งมอบอาหาร (ตามรายการอาหาร) ถูกต้องครบถ้วนแล้ว ตามนัยข้อ ๑๗๕ (๔) "
             "แห่งระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. ๒๕๖๐ "
             "เห็นควรเบิกจ่ายให้แก่ผู้รับจ้าง โดยมีรายละเอียด ดังนี้", align="justify", indent=1.25, after=4)
-    for label, val in [("จำนวนเงินขอเบิก", A), ("ภาษีมูลค่าเพิ่ม (ถ้ามี)", "-"),
-                       ("มูลค่าสินค้า", "-"), ("หัก ภาษี ณ ที่จ่าย", W),
-                       ("ค่าปรับ (ถ้ามี)", "-"), ("คงเหลือจ่ายจริง", N)]:
-        _p(doc, f"        {label}        {val}  บาท", indent=1.5, after=0)
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+    mt = doc.add_table(rows=0, cols=2); mt.style = "Table Grid"; mt.autofit = False
+    _money_rows = [("จำนวนเงินขอเบิก", A), ("ภาษีมูลค่าเพิ่ม (ถ้ามี)", "-"),
+                   ("มูลค่าสินค้า", "-"), ("หักภาษี ณ ที่จ่าย", W),
+                   ("ค่าปรับ (ถ้ามี)", "-"), ("คงเหลือจ่ายจริง", N)]
+    for k, (label, v) in enumerate(_money_rows):
+        cells = mt.add_row().cells
+        bold = (k == len(_money_rows) - 1)
+        _set_cell(cells[0], label, align="left", size=14, bold=bold)
+        _set_cell(cells[1], (f"{v} บาท" if v != "-" else "-"), align="right", size=14, bold=bold)
+        cells[0].width = Cm(9.5); cells[1].width = Cm(5.0)
+    mt.alignment = WD_TABLE_ALIGNMENT.CENTER
+    _p(doc, "", after=4)
     _p(doc, f"จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติจ่ายเงิน (เงินอุดหนุนอาหารกลางวันรับจาก{fund}) "
             f"แก่ผู้รับจ้าง จำนวน {N} บาท ({bahttext(net)})", align="justify", indent=1.25, after=10)
     _sign_table(doc, [

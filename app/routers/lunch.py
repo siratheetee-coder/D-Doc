@@ -9,7 +9,7 @@ import re
 from datetime import datetime
 
 from fastapi import APIRouter, Request, Depends, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -690,34 +690,49 @@ def installments_auto(rid: int, db: Session = Depends(get_db),
         rate = float(prog.rate_per_head or 0)
         students = int(prog.total_students or 0)
         for k, (s, e) in enumerate(ranges):
+            end_dt = datetime(e.year, e.month, e.day)
             inst = LunchInstallment(
                 round_id=rid, seq=seq0 + k + 1,
-                start_date=datetime(s.year, s.month, s.day),
-                end_date=datetime(e.year, e.month, e.day),
-                days=de, amount=round(de * students * rate, 2), status="ร่าง")
+                start_date=datetime(s.year, s.month, s.day), end_date=end_dt,
+                days=de, amount=round(de * students * rate, 2), status="ร่าง",
+                deliver_date=end_dt, inspect_date=end_dt)   # ปกติส่งมอบ/ตรวจรับวันสุดท้ายของงวด (แก้ได้)
             db.add(inst)
         db.commit()
     return RedirectResponse(f"/lunch/round/{rid}/plan", status_code=303)
 
 
 @router.post("/lunch/installment/{iid}/update")
-def installment_update(iid: int, db: Session = Depends(get_db),
-                       start_date: str = Form(""), end_date: str = Form(""),
-                       days: str = Form(""), amount: str = Form(""),
-                       deliver_date: str = Form(""), inspect_date: str = Form(""),
-                       status: str = Form("ร่าง")):
+async def installment_update(iid: int, request: Request, db: Session = Depends(get_db)):
+    """อัปเดตงวด - เติมเฉพาะช่องที่ส่งมา (รองรับทั้งฟอร์มเต็มและแก้เฉพาะสถานะ/วันในตาราง)"""
+    form = await request.form()
     inst = db.get(LunchInstallment, iid)
     if not inst:
         return RedirectResponse("/lunch", status_code=303)
-    inst.start_date = parse_be_date(start_date)
-    inst.end_date = parse_be_date(end_date)
-    inst.days = _to_int(days, 0)
-    inst.amount = _to_float(amount, 0.0)
-    inst.deliver_date = parse_be_date(deliver_date)
-    inst.inspect_date = parse_be_date(inspect_date)
-    inst.status = status
+
+    def has(k):
+        return k in form
+
+    def val(k):
+        return (form.get(k) or "").strip()
+
+    if has("start_date"):
+        inst.start_date = parse_be_date(val("start_date"))
+    if has("end_date"):
+        inst.end_date = parse_be_date(val("end_date"))
+    if has("days"):
+        inst.days = _to_int(val("days"), 0)
+    if has("amount"):
+        inst.amount = _to_float(val("amount"), 0.0)
+    if has("deliver_date"):
+        inst.deliver_date = parse_be_date(val("deliver_date"))
+    if has("inspect_date"):
+        inst.inspect_date = parse_be_date(val("inspect_date"))
+    if has("status"):
+        inst.status = val("status")
     _sync_installment_ledger(db, inst)
     db.commit()
+    if request.headers.get("x-requested-with") == "fetch":
+        return JSONResponse({"ok": True})
     return RedirectResponse(f"/lunch/round/{inst.round_id}/plan", status_code=303)
 
 
