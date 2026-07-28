@@ -6,6 +6,8 @@ proc_plan_doc.py - ประกาศเผยแพร่แผนการจ�
 from docx import Document
 from docx.shared import Cm
 from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 
 from app.services.doc_page import set_a4
 
@@ -24,10 +26,34 @@ def _safe(text: str) -> str:
     return text.strip()[:80]
 
 
+def _fixed_layout(table, widths):
+    """บังคับตารางเป็น layout คงที่ + ตั้ง gridCol/tblW ตามความกว้างที่กำหนด
+    กัน Word ขยายคอลัมน์ตามเนื้อหาจนตารางเกินขอบกระดาษ"""
+    tbl = table._tbl
+    tblPr = tbl.tblPr
+    layout = tblPr.find(qn("w:tblLayout"))
+    if layout is None:
+        layout = OxmlElement("w:tblLayout"); tblPr.append(layout)
+    layout.set(qn("w:type"), "fixed")
+    total = sum(int(w.twips) for w in widths)
+    tblW = tblPr.find(qn("w:tblW"))
+    if tblW is None:
+        tblW = OxmlElement("w:tblW"); tblPr.append(tblW)
+    tblW.set(qn("w:w"), str(total)); tblW.set(qn("w:type"), "dxa")
+    grid = tbl.find(qn("w:tblGrid"))
+    if grid is not None:
+        for gc, w in zip(grid.findall(qn("w:gridCol")), widths):
+            gc.set(qn("w:w"), str(int(w.twips)))
+
+
 def render_plan_announcement(school, fiscal_year, rows, announce_date=None) -> str:
     """rows = list ของ ProcurementPlan (เรียงแล้ว)"""
     doc = Document(); set_a4(doc)
     _font(doc)
+    # ขอบกระดาษ: ซ้าย 2.0 / ขวา 1.5 / บน 1.5 / ล่าง 1.2 ซม. -> พื้นที่พิมพ์กว้าง 17.5 ซม.
+    sec = doc.sections[0]
+    sec.left_margin = Cm(2.0); sec.right_margin = Cm(1.5)
+    sec.top_margin = Cm(1.5); sec.bottom_margin = Cm(1.2)
     sname = (school.name or "โรงเรียน").strip()
     total = sum(float(r.budget or 0) for r in rows)
 
@@ -45,9 +71,11 @@ def render_plan_announcement(school, fiscal_year, rows, announce_date=None) -> s
 
     headers = ["ลำดับ", "รายการ/โครงการที่จะจัดซื้อจัดจ้าง", "งบประมาณโครงการ\n(บาท)",
                "ระยะเวลาที่คาดว่าจะ\nประกาศจัดซื้อจัดจ้าง"]
-    widths = [Cm(1.3), Cm(7.8), Cm(3.0), Cm(3.7)]   # รวม 15.8 = ไม่เกินพื้นที่พิมพ์ A4 (ขอบ 1 นิ้ว)
+    widths = [Cm(1.4), Cm(9.5), Cm(3.2), Cm(3.3)]   # รวม 17.4 <= พื้นที่พิมพ์ 17.5 ซม. (สัดส่วนตามไฟล์จริง)
     t = doc.add_table(rows=1, cols=len(headers))
-    t.style = "Table Grid"; t.autofit = False; t.alignment = WD_TABLE_ALIGNMENT.CENTER
+    t.style = "Table Grid"; t.autofit = False; t.allow_autofit = False
+    t.alignment = WD_TABLE_ALIGNMENT.CENTER
+    _fixed_layout(t, widths)   # บังคับ layout คงที่ + gridCol ตามที่กำหนด (กัน Word ขยายคอลัมน์เกินขอบ)
     _repeat_header_row(t.rows[0]); _no_split_row(t.rows[0])
     for c, h, w in zip(t.rows[0].cells, headers, widths):
         _set_cell(c, h, bold=True, align="center", size=14); c.width = w
