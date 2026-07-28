@@ -1,12 +1,30 @@
 {% extends "base.html" %}
 {% block title %}อาหารกลางวัน{% endblock %}
 {% block content %}
-<div class="card">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-    <h1 style="margin:0;">โครงการอาหารกลางวัน</h1>
-    <a class="btn" href="/lunch/setup"><svg class="icon"><use href="#ic-file-plus"/></svg> ตั้งโครงการใหม่</a>
+<div class="hero" style="background:linear-gradient(120deg,#b45309,#d97706 55%,#f59e0b); box-shadow:0 10px 26px rgba(217,119,6,.28);">
+  <div>
+    <div class="hero-sub">คำนวณงบต่อหัว · เอกสารจ้างเหมา · ภาวะโภชนาการ</div>
+    <span class="hero-title">โครงการอาหารกลางวัน</span>
+    <div class="hero-meta">{{ school.name or "" }}</div>
   </div>
-  <p class="muted" style="margin-bottom:0;">คำนวณงบตามจำนวนนักเรียน × อัตราต่อหัว/วัน × จำนวนวัน และคุมบัญชีรับ-จ่ายเงินอุดหนุน</p>
+</div>
+
+<div class="nav-grid">
+  <a class="nav-card" href="/lunch/setup">
+    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-file-plus"/></svg></span><h3>ตั้งโครงการใหม่</h3></div>
+    <p class="nc-desc">คำนวณงบ = นักเรียน × อัตราต่อหัว/วัน × จำนวนวัน · แบ่งงวด · ออกเอกสารจ้างเหมาครบชุด</p>
+    <span class="nc-go">เริ่มตั้งโครงการ <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  <a class="nav-card" href="/lunch/nutrition">
+    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-users"/></svg></span><h3>ภาวะโภชนาการ</h3></div>
+    <p class="nc-desc">บันทึกน้ำหนัก/ส่วนสูง จัดกลุ่มตามเกณฑ์กรมอนามัยอัตโนมัติ · ใช้ร่วมกับสมุดรายงาน ปพ.6</p>
+    <span class="nc-go">เปิดภาวะโภชนาการ <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;">โครงการที่มีอยู่</h2>
+  <p class="muted" style="margin-bottom:0;">เลือกปีการศึกษาเพื่อดูรายละเอียด แบ่งงวด และออกเอกสาร</p>
 </div>
 
 <div class="card">
