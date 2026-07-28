@@ -120,6 +120,7 @@
         method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'fetch'}, body:d
       }).then(function(r){ btn.disabled=false; if(!r.ok) throw 0;
         tr.style.background='#dcfce7'; setTimeout(function(){ tr.style.background=''; }, 800);
+        if(window.showToast) showToast('บันทึกแล้ว');
       }).catch(function(){ btn.disabled=false; alert('บันทึกไม่สำเร็จ ลองใหม่'); });
     }
   </script>

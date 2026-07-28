@@ -119,6 +119,7 @@
       body: _rowData(tr)
     }).then(function(r){ btn.disabled=false; if(!r.ok) throw 0;
       tr.style.background='#dcfce7'; setTimeout(function(){ tr.style.background=''; }, 700);
+      if(window.showToast) showToast('บันทึกแล้ว');
     }).catch(function(){ btn.disabled=false; alert('บันทึกไม่สำเร็จ ลองใหม่'); });
   }
   function saveAll(btn){
@@ -132,6 +133,7 @@
     })).then(function(){ btn.disabled=false;
       rows.forEach(function(tr){ tr.style.background='#dcfce7'; });
       setTimeout(function(){ rows.forEach(function(tr){ tr.style.background=''; }); }, 900);
+      if(window.showToast) showToast('บันทึกทั้งหมดแล้ว');
     }).catch(function(){ btn.disabled=false; alert('บันทึกบางรายการไม่สำเร็จ'); });
   }
   // ---- ติ๊กหลายคนแล้วตั้งชั้น/ห้องทีเดียว ----

@@ -290,6 +290,15 @@
     }
     .alert.warn > .icon { width: 22px; height: 22px; color: #f0a020; flex: none; margin-top: 1px; stroke-width: 2; }
     .alert.warn b { color: #7a4f06; }
+    /* ===== Toast แจ้งเตือนเด้งจากบน แล้วหายเอง ===== */
+    .toast-wrap { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 4000;
+      display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+    .toast { background: #0e7a44; color: #fff; padding: 11px 20px; border-radius: 999px; font-weight: 700;
+      font-size: 15px; box-shadow: 0 10px 28px rgba(14,122,68,.38); display: flex; align-items: center; gap: 8px;
+      opacity: 0; transform: translateY(-18px); transition: opacity .25s ease, transform .25s ease; max-width: 92vw; }
+    .toast.show { opacity: 1; transform: none; }
+    .toast.warn { background: #b45309; box-shadow: 0 10px 28px rgba(180,83,9,.38); }
+    @media (prefers-reduced-motion: reduce) { .toast { transition: opacity .2s ease; transform: none; } }
     .muted { color: var(--muted); font-size: 15.5px; }
 
     /* ===== Dashboard stat cards (DashStack style) ===== */
@@ -928,6 +937,36 @@
       if (p && p.classList.contains('open') && !e.target.closest('.cal-panel') && !e.target.closest('.fab-cal'))
         p.classList.remove('open');
     });
+  </script>
+
+  <script>
+    // ===== Toast กลาง: เด้งจากบน แล้วหายเอง =====
+    (function(){
+      var wrap;
+      function ensure(){ if(!wrap){ wrap=document.createElement('div'); wrap.className='toast-wrap'; document.body.appendChild(wrap);} return wrap; }
+      window.showToast = function(msg, opts){
+        opts = opts || {};
+        var t = document.createElement('div');
+        t.className = 'toast' + (opts.warn ? ' warn' : '');
+        if(!opts.warn){ var ck=document.createElement('span'); ck.textContent='✔'; t.appendChild(ck); }
+        var s=document.createElement('span'); s.textContent = msg || 'บันทึกแล้ว'; t.appendChild(s);
+        ensure().appendChild(t);
+        requestAnimationFrame(function(){ t.classList.add('show'); });
+        setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); }, 320); }, opts.ms || 2600);
+        return t;
+      };
+      // แปลงแบนเนอร์ "บันทึกแล้ว/สำเร็จ" (สีเขียว บรรทัดเดียว) ให้เด้งเป็น toast แล้วเอาแบนเนอร์ออก
+      // แบนเนอร์เตือน (.warn) และแบนเนอร์ที่มีลิงก์/รายการ คงไว้ในหน้าตามเดิม
+      document.addEventListener('DOMContentLoaded', function(){
+        document.querySelectorAll('.content .alert:not(.warn)').forEach(function(a){
+          if(a.querySelector('ul,ol,table,form,a,button')) return;
+          var txt = (a.textContent||'').trim().replace(/^[✔✓•\s]+/, '');
+          if(!txt) return;
+          showToast(txt);
+          a.remove();
+        });
+      });
+    })();
   </script>
 </body>
 </html>
