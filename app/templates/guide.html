@@ -11,6 +11,11 @@
   .acc > summary .sic { width:38px; height:38px; border-radius:11px; display:flex; align-items:center; justify-content:center; flex:none; }
   .acc > summary .sic .icon { width:20px; height:20px; }
   .acc .acc-body { padding:4px 20px 20px; }
+  .acc[open] > .acc-body { animation: accIn .28s ease; }
+  @keyframes accIn { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
+  .acc > summary { transition: background .18s ease; }
+  .acc > summary:hover { background: var(--brand-soft); }
+  @media (prefers-reduced-motion: reduce) { .acc[open] > .acc-body { animation:none; } }
   .steps { display:flex; flex-direction:column; gap:14px; }
   .step { display:flex; gap:14px; }
   .step .num { width:30px; height:30px; border-radius:50%; background:var(--brand); color:#fff; flex:none;
@@ -99,9 +104,12 @@
   <div class="acc-body">
     {{ vid('fin') }}
     <div class="steps">
-      <div class="step"><span class="num">1</span><div class="st-body"><h4>เปิดบัญชี / ทะเบียนคุมเงิน</h4><p>ตั้งค่าบัญชีเงินฝากและประเภทเงิน เพื่อคุมยอดรับ-จ่ายแต่ละบัญชี</p>{{ simg('fin-1') }}</div></div>
-      <div class="step"><span class="num">2</span><div class="st-body"><h4>บันทึกรับ-จ่ายในสมุดเงินสด</h4><p>ลงรายการรับ-จ่ายในสมุดเงินสด (Cash Book) ระบบคุมยอดคงเหลือให้อัตโนมัติ</p>{{ simg('fin-2') }}</div></div>
-      <div class="step"><span class="num">3</span><div class="st-body"><h4>ออกรายงานแบบ สตง.</h4><p>บัญชีแยกประเภทและรายงานการเงินตามรูปแบบที่ตรวจสอบได้ พร้อมดาวน์โหลด</p>{{ simg('fin-3') }}</div></div>
+      <div class="step"><span class="num">1</span><div class="st-body"><h4>เปิดบัญชี / ทะเบียนคุมเงิน</h4><p>ตั้งค่าบัญชีเงินฝากและประเภทเงิน (เงินอุดหนุน/รายได้สถานศึกษา/นอกงบประมาณ ฯลฯ) เพื่อคุมยอดรับ-จ่าย-คงเหลือแยกแต่ละบัญชี</p>{{ simg('fin-1') }}</div></div>
+      <div class="step"><span class="num">2</span><div class="st-body"><h4>บันทึกขอเบิกจ่าย</h4><p>ออกบันทึกขออนุมัติเบิกจ่าย ระบบลงบัญชี (ตัดยอด) ให้อัตโนมัติเมื่ออนุมัติ ไม่ต้องลงซ้ำ</p></div></div>
+      <div class="step"><span class="num">3</span><div class="st-body"><h4>ทะเบียนใบเสร็จ / ใบสำคัญรับเงิน</h4><p>บันทึกหลักฐานการรับ-จ่ายเงิน คุมใบเสร็จ/ใบสำคัญให้ครบถ้วน ตรวจสอบย้อนได้</p></div></div>
+      <div class="step"><span class="num">4</span><div class="st-body"><h4>สมุดเงินสด + บัญชีแยกประเภท</h4><p>ลงรายการรับ-จ่ายในสมุดเงินสด (Cash Book) ระบบยกยอด/คุมคงเหลือ และแยกประเภทให้อัตโนมัติ</p>{{ simg('fin-2') }}</div></div>
+      <div class="step"><span class="num">5</span><div class="st-body"><h4>เงินคงเหลือประจำวัน</h4><p>ออกรายงานเงินคงเหลือประจำวัน พร้อมช่องลงนามคณะกรรมการเก็บรักษาเงิน</p></div></div>
+      <div class="step"><span class="num">6</span><div class="st-body"><h4>รายงานการเงิน + แบบ สตง.</h4><p>สรุปรับ-จ่ายตามประเภทเงิน และรายงานรูปแบบที่ตรวจสอบได้ตามแนว สตง. · ดาวน์โหลด Word/Excel</p>{{ simg('fin-3') }}</div></div>
     </div>
   </div>
 </details>
