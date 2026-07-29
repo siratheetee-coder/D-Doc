@@ -257,6 +257,11 @@
     tbody tr.row-link { cursor: pointer; }
     tbody tr.row-link:hover td { background: #eef4ff; }
     tbody tr.row-link:hover td:first-child { box-shadow: inset 3px 0 0 var(--brand, #2f6fed); }
+    /* transition ระหว่างเปลี่ยนหน้า (เบราว์เซอร์ที่รองรับ) + เนื้อหาค่อย ๆ ปรากฏตอนโหลด (เช่น หลัง login เข้าหน้าหลัก) */
+    @view-transition { navigation: auto; }
+    @keyframes contentIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    .content main { animation: contentIn .32s cubic-bezier(.2,.7,.25,1) both; }
+    @media (prefers-reduced-motion: reduce) { .content main { animation: none; } }
     .right { text-align: right; }
     .center { text-align: center; }
     /* ตารางคอลัมน์เยอะ: เลื่อนแนวนอนแทนที่จะบีบตัวอักษรจนอ่านไม่ออก

@@ -50,6 +50,11 @@
     .muted{ color:var(--muted); }
     .hint{ font-size:13px; color:var(--muted); margin-top:4px; }
     @media (max-width:600px){ .grid2{ grid-template-columns:1fr; } }
+    /* transition ระหว่างสลับหน้า (เบราว์เซอร์ที่รองรับ) + เนื้อหาค่อย ๆ ปรากฏตอนโหลด */
+    @view-transition { navigation: auto; }
+    @keyframes wrapIn { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+    .wrap { animation: wrapIn .42s cubic-bezier(.2,.72,.25,1) both; }
+    @media (prefers-reduced-motion: reduce){ .wrap{ animation:none; } }
     {% block extra_css %}{% endblock %}
   </style>
 </head>

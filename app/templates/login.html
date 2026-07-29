@@ -39,6 +39,11 @@
     .forgot a:hover { color:#4880FF; text-decoration:underline; }
     .sep { display:flex; align-items:center; gap:12px; margin:22px 0 4px; color:#9aa3b2; font-size:13px; }
     .sep::before, .sep::after { content:""; flex:1; height:1px; background:#e6ebf3; }
+    /* transition ระหว่างสลับหน้า login/ลงทะเบียน/ลืมรหัส (เบราว์เซอร์ที่รองรับ) + การ์ดค่อย ๆ ปรากฏ */
+    @view-transition { navigation: auto; }
+    @keyframes authCardIn { from { opacity:0; transform:translateY(16px) scale(.985); } to { opacity:1; transform:none; } }
+    .card { animation: authCardIn .45s cubic-bezier(.2,.75,.25,1) both; }
+    @media (prefers-reduced-motion: reduce){ .card{ animation:none; } }
   </style>
 </head>
 <body>

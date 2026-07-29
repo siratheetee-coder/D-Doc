@@ -34,6 +34,10 @@
       border-radius:10px; font-size:13px; margin-top:12px; }
     .icon-ok { width:56px; height:56px; margin:0 auto 12px; border-radius:50%; background:#e9f7ef;
       display:flex; align-items:center; justify-content:center; font-size:28px; color:#16a34a; }
+    @view-transition { navigation: auto; }
+    @keyframes authCardIn { from { opacity:0; transform:translateY(16px) scale(.985); } to { opacity:1; transform:none; } }
+    .card { animation: authCardIn .45s cubic-bezier(.2,.75,.25,1) both; }
+    @media (prefers-reduced-motion: reduce){ .card{ animation:none; } }
   </style>
 </head>
 <body>
