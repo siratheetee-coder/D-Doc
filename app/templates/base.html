@@ -978,14 +978,21 @@
       function initRowLinks(root){
         (root || document).querySelectorAll('table tbody tr').forEach(function(tr){
           if(tr.dataset.rowlink) return;                       // ทำไปแล้ว
-          // ข้ามแถวแก้ไข inline (มีช่องกรอก) - ทั้งแถวมีไว้พิมพ์ ไม่ใช่คลิกเปิด
-          if(tr.querySelector('input,select,textarea')) return;
-          // เลือกลิงก์เป้าหมาย = ลิงก์แรกที่เปิดหน้าได้จริง (ข้าม #, javascript:) ปุ่มลบ/ดาวน์โหลดในแถวยังใช้ได้ปกติ
+          // ข้ามเฉพาะแถวแก้ไข inline (มีช่องพิมพ์ข้อความ/ตัวเลข/วันที่) - ทั้งแถวมีไว้กรอก ไม่ใช่คลิกเปิด
+          // แถวที่มีแค่ dropdown เปลี่ยนสถานะ/checkbox ยังคลิกทั้งแถวได้ (คลิกโดน control เองไม่ถูก override)
+          if(tr.querySelector('textarea, input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=button]):not([type=submit]):not([type=reset])')) return;
+          // เลือกลิงก์เป้าหมาย = ลิงก์ "เปิดหน้ารายละเอียด" ลิงก์แรก
+          // ข้าม #, javascript:, และลิงก์ที่เป็นการกระทำ (ดาวน์โหลดไฟล์/ส่งออก/ลบ/ออกจากระบบ)
+          // เพื่อไม่ให้คลิกพื้นที่ว่างในแถวไปเผลอดาวน์โหลด/ลบ - ถ้าแถวมีแต่ลิงก์การกระทำ จะไม่ทำให้ทั้งแถวคลิกได้
           var a = null;
           var links = tr.querySelectorAll('a[href]');
           for(var i=0;i<links.length;i++){
             var h = links[i].getAttribute('href') || '';
-            if(h && h.charAt(0) !== '#' && !/^javascript:/i.test(h)){ a = links[i]; break; }
+            if(!h || h.charAt(0) === '#' || /^javascript:/i.test(h)) continue;
+            if(links[i].hasAttribute('download')) continue;
+            if(/\.(docx|xlsx|xls|pdf|csv|zip|png|jpe?g)(\?|$)/i.test(h)) continue;   // ลิงก์ไฟล์
+            if(/\/(download|export|delete|remove|logout)(\/|\?|$)/i.test(h)) continue; // ลิงก์การกระทำ
+            a = links[i]; break;
           }
           if(!a) return;
           tr.dataset.rowlink = '1';
