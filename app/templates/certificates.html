@@ -79,6 +79,25 @@
 
       <div class="card">
         <h2>3) รายชื่อ <span class="muted" style="font-size:14px;">(1 ชื่อ/บรรทัด)</span></h2>
+        <!-- ดึงรายชื่อจากทะเบียนกลาง: เลือกชั้น/ห้อง แล้วติ๊กเลือกนักเรียน -->
+        <div style="border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:10px; background:#f8fafc;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <button type="button" class="btn sm gray" onclick="toggleRegPick()"><svg class="icon"><use href="#ic-users"/></svg> ดึงจากทะเบียนกลาง</button>
+            <span class="muted" style="font-size:13px;">เลือกชั้น/ห้อง แล้วติ๊กรายชื่อที่ต้องการ</span>
+          </div>
+          <div id="regPickBox" style="display:none; margin-top:10px;">
+            {% if class_list %}
+            <label style="margin-top:0;">ชั้น/ห้อง</label>
+            <select id="regClass" onchange="renderRegStudents()" style="max-width:280px;">
+              <option value="">- เลือกชั้น/ห้อง -</option>
+              {% for c in class_list %}<option value="{{ loop.index0 }}">{{ c.label }} ({{ c.names|length }} คน)</option>{% endfor %}
+            </select>
+            <div id="regStudents" style="margin-top:10px;"></div>
+            {% else %}
+            <p class="muted" style="margin:0;">ยังไม่มีนักเรียนในทะเบียนกลาง เพิ่มได้ที่เมนู "ทะเบียนนักเรียน"</p>
+            {% endif %}
+          </div>
+        </div>
         <div style="margin-bottom:8px;">
           <label class="btn gray sm" style="cursor:pointer;">
             <svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดรายชื่อจาก Excel
@@ -181,6 +200,43 @@
       ta.value = (cur ? cur + '\n' : '') + (d.names || []).join('\n');
       msg.textContent = 'เพิ่ม ' + (d.names||[]).length + ' ชื่อจาก Excel';
     }).catch(function(){ msg.textContent = 'อ่าน Excel ไม่สำเร็จ'; });
+  }
+  // ---- ดึงรายชื่อจากทะเบียนกลาง ----
+  var REG_CLASSES = {{ class_list|tojson if class_list is defined else '[]' }};
+  function toggleRegPick(){ var b=document.getElementById('regPickBox'); if(b) b.style.display = (b.style.display==='none'?'block':'none'); }
+  function renderRegStudents(){
+    var sel=document.getElementById('regClass'), box=document.getElementById('regStudents');
+    box.innerHTML='';
+    var idx=sel.value; if(idx==='') return;
+    var c=REG_CLASSES[+idx]; if(!c) return;
+    var head=document.createElement('div');
+    head.style.cssText='display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;';
+    var lbl=document.createElement('label');
+    lbl.style.cssText='margin:0; cursor:pointer; font-weight:600;';
+    var allc=document.createElement('input'); allc.type='checkbox'; allc.id='regAll'; allc.style.cssText='width:auto; margin-right:6px;';
+    allc.onchange=function(){ document.querySelectorAll('.regChk').forEach(function(x){ x.checked=allc.checked; }); };
+    lbl.appendChild(allc); lbl.appendChild(document.createTextNode('เลือกทั้งหมด ('+c.names.length+' คน)'));
+    var add=document.createElement('button'); add.type='button'; add.className='btn sm';
+    add.innerHTML='<svg class="icon"><use href="#ic-plus"/></svg> เพิ่มที่เลือก'; add.onclick=addSelected;
+    head.appendChild(lbl); head.appendChild(add); box.appendChild(head);
+    var list=document.createElement('div');
+    list.style.cssText='max-height:240px; overflow:auto; border:1px solid var(--border); border-radius:8px; padding:8px 10px; background:#fff;';
+    c.names.forEach(function(nm){
+      var row=document.createElement('label'); row.style.cssText='display:block; padding:3px 0; cursor:pointer; font-size:14.5px;';
+      var chk=document.createElement('input'); chk.type='checkbox'; chk.className='regChk'; chk.value=nm; chk.style.cssText='width:auto; margin-right:8px;';
+      row.appendChild(chk); row.appendChild(document.createTextNode(nm)); list.appendChild(row);
+    });
+    box.appendChild(list);
+  }
+  function addSelected(){
+    var picked=[]; document.querySelectorAll('.regChk:checked').forEach(function(x){ picked.push(x.value); });
+    if(!picked.length){ alert('ยังไม่ได้เลือกรายชื่อ'); return; }
+    var ta=document.getElementById('names');
+    var existing=ta.value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+    var seen={}; existing.forEach(function(n){ seen[n]=1; });
+    var added=0; picked.forEach(function(n){ if(!seen[n]){ existing.push(n); seen[n]=1; added++; } });
+    ta.value=existing.join('\n'); preview();
+    if(window.showToast) showToast('เพิ่ม '+added+' ชื่อ'+(added<picked.length?' (ข้ามชื่อซ้ำ)':''));
   }
   function onGen(form){
     if(!document.getElementById('bg_image').value){ alert('กรุณาอัปโหลดรูปพื้นหลังก่อน'); return false; }

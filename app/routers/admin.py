@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db, get_data_dir
 from app.models import (
     School, IncomingLetter, OutgoingLetter, OfficeMemo, SchoolOrder, Person, Department,
-    OfficialLetter, CertificateBatch,
+    OfficialLetter, CertificateBatch, Student,
 )
 from app.services import file_upload
 from app.services.doc_number import (
@@ -28,7 +28,7 @@ from app.services.doc_number import (
 from app.services.office_doc import render_memo, render_order, render_official_letter
 from app.services.admin_io import build_admin_template, import_admin_workbook, export_admin_register
 from app.services.pdf_extract import extract_letter_fields
-from app.thai_utils import current_fiscal_year, parse_be_date, be_date_input
+from app.thai_utils import current_fiscal_year, parse_be_date, be_date_input, SCHOOL_LEVELS
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
 
@@ -650,8 +650,27 @@ def certificates_page(request: Request, db: Session = Depends(get_db)):
         "name_x": b.name_x, "name_y": b.name_y, "name_size": b.name_size,
         "name_color": b.name_color or "#1a1a1a", "sub_text": b.sub_text or "",
     } for b in batches if b.bg_image]
+    # รายชื่อนักเรียนจากทะเบียนกลาง จัดกลุ่มตามชั้น/ห้อง (เรียงตามลำดับชั้นมาตรฐาน) ให้เลือกในหน้าเกียรติบัตร
+    def _lvl_key(s):
+        lv = (s.level or "").strip()
+        try:
+            i = SCHOOL_LEVELS.index(lv)
+        except ValueError:
+            i = len(SCHOOL_LEVELS) + 1
+        return (i, lv, (s.room or "").strip())
+    groups, order = {}, []
+    for s in sorted(db.query(Student).all(), key=_lvl_key):
+        if not (s.name or "").strip():
+            continue
+        lv, rm = (s.level or "").strip(), (s.room or "").strip()
+        label = (lv + ("/" + rm if rm else "")) if lv else "ไม่ระบุชั้น"
+        if label not in groups:
+            groups[label] = []; order.append(label)
+        groups[label].append(s.name.strip())
+    class_list = [{"label": lbl, "names": groups[lbl]} for lbl in order]
     return templates.TemplateResponse("certificates.html", {
         "request": request, "school": get_school(db), "saved": saved,
+        "class_list": class_list,
     })
 
 
