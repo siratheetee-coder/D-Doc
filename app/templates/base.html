@@ -253,6 +253,10 @@
                text-transform: none; border-bottom: 1px solid var(--border); }
     tbody tr { transition: background .12s; }
     tbody tr:hover td { background: #f7f9fe; }
+    /* แถวที่คลิกเปิดได้ทั้งแถว (auto จาก base.html) - บอกใบ้ว่าคลิกได้ */
+    tbody tr.row-link { cursor: pointer; }
+    tbody tr.row-link:hover td { background: #eef4ff; }
+    tbody tr.row-link:hover td:first-child { box-shadow: inset 3px 0 0 var(--brand, #2f6fed); }
     .right { text-align: right; }
     .center { text-align: center; }
     /* ตารางคอลัมน์เยอะ: เลื่อนแนวนอนแทนที่จะบีบตัวอักษรจนอ่านไม่ออก
@@ -966,6 +970,39 @@
           a.remove();
         });
       });
+    })();
+
+    // คลิกได้ทั้งแถว: แถวในตารางที่มีลิงก์เดียว และไม่มีช่องกรอก/ปุ่ม (ไม่ใช่แถวแก้ไข inline)
+    // จะทำให้คลิกที่ไหนในแถวก็เปิดลิงก์นั้น + มี hover/เคอร์เซอร์บอกว่าคลิกได้
+    (function(){
+      function initRowLinks(root){
+        (root || document).querySelectorAll('table tbody tr').forEach(function(tr){
+          if(tr.dataset.rowlink) return;                       // ทำไปแล้ว
+          // ข้ามแถวแก้ไข inline (มีช่องกรอก) - ทั้งแถวมีไว้พิมพ์ ไม่ใช่คลิกเปิด
+          if(tr.querySelector('input,select,textarea')) return;
+          // เลือกลิงก์เป้าหมาย = ลิงก์แรกที่เปิดหน้าได้จริง (ข้าม #, javascript:) ปุ่มลบ/ดาวน์โหลดในแถวยังใช้ได้ปกติ
+          var a = null;
+          var links = tr.querySelectorAll('a[href]');
+          for(var i=0;i<links.length;i++){
+            var h = links[i].getAttribute('href') || '';
+            if(h && h.charAt(0) !== '#' && !/^javascript:/i.test(h)){ a = links[i]; break; }
+          }
+          if(!a) return;
+          tr.dataset.rowlink = '1';
+          tr.classList.add('row-link');
+          tr.addEventListener('click', function(ev){
+            if(ev.target.closest('a,button,input,select,textarea,label')) return; // คลิกที่ลิงก์/ปุ่ม/คอนโทรลเอง ปล่อยตามปกติ
+            if(window.getSelection && String(window.getSelection())) return;       // กำลังลากเลือกข้อความ ไม่เปิด
+            if(ev.ctrlKey || ev.metaKey || ev.shiftKey || a.target === '_blank'){
+              window.open(a.href, '_blank');                                        // เปิดแท็บใหม่
+            } else {
+              window.location.href = a.href;
+            }
+          });
+        });
+      }
+      document.addEventListener('DOMContentLoaded', function(){ initRowLinks(document); });
+      window.initRowLinks = initRowLinks;   // เผื่อ content ที่โหลดมาทีหลังเรียกเองได้
     })();
   </script>
 </body>
