@@ -46,10 +46,10 @@ def send_email(to: str, subject: str, html: str) -> bool:
 
 def send_verify_email(to: str, link: str) -> bool:
     from app.seller_config import SELLER
-    brand = SELLER.get("name") or "D-Doc"
+    brand = SELLER.get("name") or "Easy Ekkasan"
     html = f"""
     <div style="font-family:sans-serif; max-width:520px; margin:0 auto;">
-      <h2 style="color:#2563eb;">ยืนยันอีเมลเพื่อเริ่มใช้งาน D-Doc</h2>
+      <h2 style="color:#2563eb;">ยืนยันอีเมลเพื่อเริ่มใช้งาน Easy Ekkasan</h2>
       <p>ขอบคุณที่ลงทะเบียน กรุณากดปุ่มด้านล่างเพื่อยืนยันอีเมลและเปิดใช้งานบัญชี (ทดลองใช้ฟรี)</p>
       <p style="text-align:center; margin:26px 0;">
         <a href="{link}" style="background:#2563eb; color:#fff; text-decoration:none;
@@ -58,15 +58,15 @@ def send_verify_email(to: str, link: str) -> bool:
       <p style="color:#64748b; font-size:13px;">ถ้ากดปุ่มไม่ได้ คัดลอกลิงก์นี้ไปเปิด:<br>{link}</p>
       <p style="color:#94a3b8; font-size:12px;">อีเมลนี้ส่งจากระบบ {brand} - หากคุณไม่ได้ลงทะเบียน โปรดละเว้น</p>
     </div>"""
-    return send_email(to, "ยืนยันอีเมล - D-Doc", html)
+    return send_email(to, "ยืนยันอีเมล - Easy Ekkasan", html)
 
 
 def send_reset_email(to: str, link: str) -> bool:
     from app.seller_config import SELLER
-    brand = SELLER.get("name") or "D-Doc"
+    brand = SELLER.get("name") or "Easy Ekkasan"
     html = f"""
     <div style="font-family:sans-serif; max-width:520px; margin:0 auto;">
-      <h2 style="color:#2563eb;">รีเซ็ตรหัสผ่าน D-Doc</h2>
+      <h2 style="color:#2563eb;">รีเซ็ตรหัสผ่าน Easy Ekkasan</h2>
       <p>เราได้รับคำขอรีเซ็ตรหัสผ่านสำหรับบัญชีนี้ กดปุ่มด้านล่างเพื่อตั้งรหัสผ่านใหม่ (ลิงก์มีอายุ 1 ชั่วโมง)</p>
       <p style="text-align:center; margin:26px 0;">
         <a href="{link}" style="background:#2563eb; color:#fff; text-decoration:none;
@@ -75,4 +75,4 @@ def send_reset_email(to: str, link: str) -> bool:
       <p style="color:#64748b; font-size:13px;">ถ้ากดปุ่มไม่ได้ คัดลอกลิงก์นี้ไปเปิด:<br>{link}</p>
       <p style="color:#94a3b8; font-size:12px;">หากคุณไม่ได้ขอรีเซ็ตรหัสผ่าน โปรดละเว้นอีเมลนี้ รหัสผ่านเดิมยังใช้งานได้ตามปกติ - {brand}</p>
     </div>"""
-    return send_email(to, "รีเซ็ตรหัสผ่าน - D-Doc", html)
+    return send_email(to, "รีเซ็ตรหัสผ่าน - Easy Ekkasan", html)

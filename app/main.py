@@ -27,7 +27,7 @@ from app.templating import templates
 from app.routers import (pages, admin, finance, lunch, auth, superadmin, account, textbooks,
                          sales, hr, academic)
 
-app = FastAPI(title="D-Doc : ระบบจัดการเอกสารและพัสดุโรงเรียน")
+app = FastAPI(title="Easy Ekkasan : ระบบจัดการเอกสารและพัสดุโรงเรียน")
 
 # เตรียมฐานข้อมูลกลาง + superadmin + ย้ายข้อมูลเดิม (ถ้ามี)
 bootstrap()
@@ -162,7 +162,7 @@ def _start_auto_backup():
             time.sleep(interval * 60)
 
     threading.Thread(target=loop, daemon=True).start()
-    print(f"[D-Doc] เปิดสำรองข้อมูลอัตโนมัติ (ทุก {interval} นาที)")
+    print(f"[Easy Ekkasan] เปิดสำรองข้อมูลอัตโนมัติ (ทุก {interval} นาที)")
 
 
 _start_auto_backup()

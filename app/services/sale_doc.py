@@ -86,7 +86,7 @@ def _header(doc, seller, title, doc_no, doc_date):
             lp.add_run().add_picture(str(logo), height=Cm(1.3))
         except Exception:
             pass
-    _run(lp, "  D-Doc", bold=True, size=20, color=BLUE)
+    _run(lp, "  Easy Ekkasan", bold=True, size=20, color=BLUE)
     _set_cell_lines(left, [
         (seller.get("name", ""), True, 15),
         (seller.get("address", ""), False, 13.5),
@@ -147,7 +147,7 @@ def _customer_box(doc, label, lead):
 
 def _items_table(doc, lead):
     amount = float(lead.get("amount") or 0)
-    desc = f"ค่าบริการระบบบริหารงานเอกสารโรงเรียน D-Doc - {lead.get('packages') or 'ครบทุกงาน'} (สมาชิกรายปี)"
+    desc = f"ค่าบริการระบบบริหารงานเอกสารโรงเรียน Easy Ekkasan - {lead.get('packages') or 'ครบทุกงาน'} (สมาชิกรายปี)"
     headers = ["ลำดับ", "รายการ", "จำนวน", "ราคาต่อหน่วย", "จำนวนเงิน (บาท)"]
     widths = [Cm(1.4), Cm(8.6), Cm(1.9), Cm(2.7), Cm(2.9)]
     table = doc.add_table(rows=1, cols=5)
@@ -323,7 +323,7 @@ def _render_sale_pdf(lead, seller, doc_no, doc_date, kind):
             dx = _ML + w + 12
         except Exception:
             dx = _ML
-    d.text((dx, y + 10), "D-Doc", font=_pf(54, "bold"), fill=_PBLUE, anchor="la")
+    d.text((dx, y + 10), "Easy Ekkasan", font=_pf(54, "bold"), fill=_PBLUE, anchor="la")
 
     # ---- ชื่อเอกสาร + เลขที่ + วันที่ (ขวา) ----
     d.text((_MR, y), "ใบเสนอราคา" if is_q else "ใบเสร็จรับเงิน", font=_pf(52, "bold"), fill=_PBLUE, anchor="ra")
@@ -374,7 +374,7 @@ def _render_sale_pdf(lead, seller, doc_no, doc_date, kind):
 
     # ---- ตารางรายการ ----
     amount = float(lead.get("amount") or 0)
-    desc = "ค่าบริการระบบบริหารงานเอกสารโรงเรียน D-Doc - " + (lead.get("packages") or "ครบทุกงาน") + " (สมาชิกรายปี)"
+    desc = "ค่าบริการระบบบริหารงานเอกสารโรงเรียน Easy Ekkasan - " + (lead.get("packages") or "ครบทุกงาน") + " (สมาชิกรายปี)"
     cols = [_ML, 180, 726, 858, 1000, _MR]
     heads = ["ลำดับ", "รายการ", "จำนวน", "ราคาต่อหน่วย", "จำนวนเงิน"]
     aligns = ["c", "l", "c", "r", "r"]

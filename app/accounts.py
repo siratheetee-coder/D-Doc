@@ -711,7 +711,7 @@ def bootstrap():
             from app.services.backup import restore_latest_from_s3
             restore_latest_from_s3()
         except Exception as e:
-            print("[D-Doc] กู้คืนจากคลาวด์ตอนเปิดไม่สำเร็จ:", e)
+            print("[Easy Ekkasan] กู้คืนจากคลาวด์ตอนเปิดไม่สำเร็จ:", e)
     _ensure_engine()
     db = acc_session()
     try:
@@ -723,7 +723,7 @@ def bootstrap():
                            role="superadmin", display_name="ผู้ดูแลระบบ",
                            must_change_password=True))
             db.commit()
-            print(f"[D-Doc] สร้าง superadmin เริ่มต้น: {su} / {sp}  (โปรดเปลี่ยนรหัสผ่าน)")
+            print(f"[Easy Ekkasan] สร้าง superadmin เริ่มต้น: {su} / {sp}  (โปรดเปลี่ยนรหัสผ่าน)")
 
         has_tenant = db.query(Tenant).first() is not None
     finally:
@@ -776,6 +776,6 @@ def _migrate_legacy_db():
     dest = school_db_path(tid)
     if legacy.exists() and not dest.exists():
         shutil.copy2(legacy, dest)              # คัดลอกข้อมูลเดิมเข้าโรงเรียนแรก
-        print(f"[D-Doc] ย้ายข้อมูลเดิมเป็นโรงเรียน '{name}' (id={tid})")
+        print(f"[Easy Ekkasan] ย้ายข้อมูลเดิมเป็นโรงเรียน '{name}' (id={tid})")
     ensure_school_db(tid)
-    print(f"[D-Doc] โรงเรียนแรก: ผู้ใช้ school / school123  (โปรดเปลี่ยนรหัสผ่าน)")
+    print(f"[Easy Ekkasan] โรงเรียนแรก: ผู้ใช้ school / school123  (โปรดเปลี่ยนรหัสผ่าน)")
