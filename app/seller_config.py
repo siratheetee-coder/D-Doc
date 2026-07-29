@@ -14,7 +14,7 @@ SELLER = {
     "phone": "",
     "email": "",
     "signer": "",                             # ผู้ลงนาม/ผู้รับเงิน
-    "logo": "/static/logo.png",
+    "logo": "/static/logo-ekkasan.png",
 
     # ---- ช่องทางรับเงิน (หน้า checkout) ----
     "promptpay_id": "",                       # เบอร์ (10 หลัก) หรือเลขบัตร ปชช. (13 หลัก) ที่ผูกพร้อมเพย์ -> ระบบสร้าง QR ตามยอดเงินให้เอง

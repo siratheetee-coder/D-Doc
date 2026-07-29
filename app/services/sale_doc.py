@@ -79,7 +79,7 @@ def _header(doc, seller, title, doc_no, doc_date):
     left.width = Cm(11.0); right.width = Cm(6.5)
 
     # ซ้าย: โลโก้ + ข้อมูลผู้ขาย
-    logo = _STATIC / "logo.png"
+    logo = _STATIC / "logo-ekkasan.png"
     lp = left.paragraphs[0]; lp.paragraph_format.space_after = Pt(2)
     if logo.exists():
         try:
@@ -313,7 +313,7 @@ def _render_sale_pdf(lead, seller, doc_no, doc_date, kind):
 
     # ---- โลโก้ + ชื่อแบรนด์ (ซ้าย) ----
     dx = _ML
-    logo = _STATIC / "logo.png"
+    logo = _STATIC / "logo-ekkasan.png"
     if logo.exists():
         try:
             lg = Image.open(logo).convert("RGBA")
