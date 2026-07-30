@@ -78,7 +78,8 @@
       </div>
 
       <div class="card">
-        <h2>3) รายชื่อ <span class="muted" style="font-size:14px;">(1 ชื่อ/บรรทัด)</span></h2>
+        <h2>3) รายชื่อ <span class="muted" style="font-size:14px;">(1 ชื่อ/บรรทัด)</span>
+          <span id="nameCount" style="font-size:14px; color:var(--brand,#2563eb); font-weight:600;">· 0 ชื่อ</span></h2>
         <!-- ดึงรายชื่อจากทะเบียนกลาง: เลือกชั้น/ห้อง แล้วติ๊กเลือกนักเรียน -->
         <div style="border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:10px; background:#f8fafc;">
           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -98,14 +99,15 @@
             {% endif %}
           </div>
         </div>
-        <div style="margin-bottom:8px;">
+        <div style="margin-bottom:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
           <label class="btn gray sm" style="cursor:pointer;">
             <svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดรายชื่อจาก Excel
             <input type="file" accept=".xlsx" style="display:none;" onchange="excelUpload(this)">
           </label>
-          <span id="xlMsg" class="muted" style="margin-left:8px; font-size:13px;"></span>
+          <span id="xlMsg" class="muted" style="font-size:13px;"></span>
+          <button type="button" class="btn sm gray" style="margin-left:auto; color:#dc2626;" onclick="clearNames()"><svg class="icon"><use href="#ic-trash"/></svg> ล้างรายชื่อทั้งหมด</button>
         </div>
-        <textarea name="names" id="names" rows="8" oninput="preview()" placeholder="นายสมชาย ใจดี&#10;นางสาวสมหญิง รักเรียน&#10;..."></textarea>
+        <textarea name="names" id="names" rows="8" oninput="onNamesInput()" placeholder="นายสมชาย ใจดี&#10;นางสาวสมหญิง รักเรียน&#10;..."></textarea>
         <br><br><button class="btn green" type="submit" id="genBtn"><svg class="icon"><use href="#ic-download"/></svg> ออกเกียรติบัตร (PDF)</button>
       </div>
     </div>
@@ -198,9 +200,25 @@
       var ta = document.getElementById('names');
       var cur = ta.value.trim();
       ta.value = (cur ? cur + '\n' : '') + (d.names || []).join('\n');
+      updateCount(); if(window.preview) preview();
       msg.textContent = 'เพิ่ม ' + (d.names||[]).length + ' ชื่อจาก Excel';
     }).catch(function(){ msg.textContent = 'อ่าน Excel ไม่สำเร็จ'; });
   }
+  // ---- นับจำนวนชื่อ + ล้างรายชื่อ ----
+  function updateCount(){
+    var n = document.getElementById('names').value.split('\n').map(function(s){return s.trim();}).filter(Boolean).length;
+    var el = document.getElementById('nameCount'); if(el) el.textContent = '· ' + n + ' ชื่อ';
+  }
+  function onNamesInput(){ preview(); updateCount(); }
+  function clearNames(){
+    var ta = document.getElementById('names');
+    if(!ta.value.trim()){ return; }
+    if(!confirm('ล้างรายชื่อทั้งหมด (' + ta.value.split('\n').map(function(s){return s.trim();}).filter(Boolean).length + ' ชื่อ) ?')) return;
+    ta.value = ''; preview(); updateCount();
+    if(window.showToast) showToast('ล้างรายชื่อแล้ว');
+  }
+  document.addEventListener('DOMContentLoaded', updateCount);
+
   // ---- ดึงรายชื่อจากทะเบียนกลาง ----
   var REG_CLASSES = {{ class_list|tojson if class_list is defined else '[]' }};
   function toggleRegPick(){ var b=document.getElementById('regPickBox'); if(b) b.style.display = (b.style.display==='none'?'block':'none'); }
@@ -235,7 +253,7 @@
     var existing=ta.value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
     var seen={}; existing.forEach(function(n){ seen[n]=1; });
     var added=0; picked.forEach(function(n){ if(!seen[n]){ existing.push(n); seen[n]=1; added++; } });
-    ta.value=existing.join('\n'); preview();
+    ta.value=existing.join('\n'); preview(); updateCount();
     if(window.showToast) showToast('เพิ่ม '+added+' ชื่อ'+(added<picked.length?' (ข้ามชื่อซ้ำ)':''));
   }
   function onGen(form){
