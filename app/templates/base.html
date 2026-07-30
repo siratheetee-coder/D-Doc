@@ -625,14 +625,18 @@
         {# 3 สถานะ: ยังไม่ได้สร้าง (เร็วๆ นี้) · ยังไม่ได้ซื้อและโควตาหมด (ชวนซื้อ) · เข้าได้ #}
         {% set _tid = request.session.get('tid') %}
         {% set _mine = my_modules(_tid) %}
+        {% set _owner = request.session.get('owner') %}
+        {% set _mymods = (request.session.get('mods') or '').split(',') %}
         {% for k, ico in [('admin','#ic-file'), ('procurement','#ic-package'), ('finance','#ic-coins'),
                           ('lunch','#ic-food'), ('hr','#ic-users'), ('academic','#ic-clipboard')] %}
           {% if not modules_live[k] %}
         <span class="navdim"><svg class="icon"><use href="{{ ico }}"/></svg> {{ module_labels[k] }} (เร็วๆ นี้)</span>
-          {% elif can_use(_tid, k) %}
-        <a href="/{{ 'procurement' if k=='procurement' else k }}"><svg class="icon"><use href="{{ ico }}"/></svg> {{ module_labels[k] }}</a>
-          {% else %}
+          {% elif not can_use(_tid, k) %}
         <a href="/checkout" class="navdim" style="text-decoration:none;"><svg class="icon"><use href="{{ ico }}"/></svg> {{ module_labels[k] }} (ซื้อเพิ่ม)</a>
+          {% elif _owner or k in _mymods %}
+        <a href="/{{ k }}"><svg class="icon"><use href="{{ ico }}"/></svg> {{ module_labels[k] }}</a>
+          {% else %}
+        <span class="navdim" title="บัญชีนี้ไม่ได้รับสิทธิ์งานนี้"><svg class="icon"><use href="{{ ico }}"/></svg> {{ module_labels[k] }} (ไม่มีสิทธิ์)</span>
           {% endif %}
         {% endfor %}
         {% endif %}
@@ -645,6 +649,7 @@
         <a href="/students" class="{{ 'active' if path.startswith('/students') and not path.startswith('/students/growth') }}"><svg class="icon"><use href="#ic-users"/></svg> ข้อมูลนักเรียน</a>
         <a href="/students/growth" class="subnav {{ 'active' if path.startswith('/students/growth') }}"><svg class="icon"><use href="#ic-check"/></svg> น้ำหนัก/ส่วนสูง</a>
         <a href="/settings" class="{{ 'active' if path.startswith('/settings') }}"><svg class="icon"><use href="#ic-settings"/></svg> ตั้งค่าโรงเรียน</a>
+        {% if request.session.get('owner') %}<a href="/users" class="{{ 'active' if path.startswith('/users') }}"><svg class="icon"><use href="#ic-users"/></svg> จัดการผู้ใช้</a>{% endif %}
         <a href="/guide" class="{{ 'active' if path.startswith('/guide') }}"><svg class="icon"><use href="#ic-info"/></svg> วิธีใช้งาน</a>
         <a href="/support" class="{{ 'active' if path.startswith('/support') }}"><svg class="icon"><use href="#ic-send"/></svg> ติดต่อเจ้าหน้าที่</a>
       </nav>

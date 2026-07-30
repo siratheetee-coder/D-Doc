@@ -58,6 +58,8 @@ class Account(AccBase):
     display_name = Column(String, default="")
     role = Column(String, default="user")          # user / superadmin
     active = Column(Boolean, default=True)
+    is_owner = Column(Boolean, default=False)       # ไอดีหลักของโรงเรียน: เห็นทุกงาน + จัดการผู้ใช้ได้
+    modules = Column(String, default="")            # งานที่ไอดีย่อยเข้าได้ (CSV) · owner ไม่ใช้ (เห็นทุกงาน)
     must_change_password = Column(Boolean, default=False)   # บังคับเปลี่ยนรหัสครั้งแรก
     verified = Column(Boolean, default=True)        # ยืนยันอีเมลแล้วหรือยัง (สมัครใหม่ = False ถ้าเปิด SMTP)
     verify_token = Column(String, default="")       # โทเคนยืนยันอีเมล (ล้างเมื่อยืนยันแล้ว)
@@ -123,6 +125,12 @@ def _ensure_engine():
                     "ALTER TABLE account ADD COLUMN reset_expires DATETIME",
                     "ALTER TABLE tenant ADD COLUMN modules VARCHAR DEFAULT ''",
                     "ALTER TABLE lead ADD COLUMN modules VARCHAR DEFAULT ''",
+                    # ระบบสิทธิ์รายบัญชี: ไอดีหลัก (เห็นทุกงาน+จัดการผู้ใช้) + งานที่ไอดีย่อยเข้าได้
+                    "ALTER TABLE account ADD COLUMN is_owner BOOLEAN DEFAULT 0",
+                    "ALTER TABLE account ADD COLUMN modules VARCHAR DEFAULT ''",
+                    # backfill: บัญชีแรก (id น้อยสุด) ของแต่ละโรงเรียน = ไอดีหลัก · รันซ้ำได้ (ตั้งค่าแถวเดิม)
+                    "UPDATE account SET is_owner=1 WHERE tenant_id IS NOT NULL "
+                    "AND id IN (SELECT MIN(id) FROM account WHERE tenant_id IS NOT NULL GROUP BY tenant_id)",
                     # โรงเรียนที่จ่ายเงินแล้วก่อนมีระบบสิทธิ์รายงาน -> ให้ครบทุกงาน (ไม่มีใครใช้งานสะดุด)
                     # ยิงเฉพาะแถวที่ยังว่าง จึงรันซ้ำได้ และไม่แตะโรงเรียนที่ยังทดลองอยู่ (ต้องเป็น '' ต่อไป
                     # ไม่งั้นจะกลายเป็น "ซื้อครบ" = ใช้ฟรีไม่จำกัด)
@@ -187,7 +195,9 @@ def authenticate(username: str, password: str) -> dict | None:
             return {"uid": u.id, "username": u.username, "role": u.role,
                     "tenant_id": u.tenant_id, "display_name": u.display_name,
                     "must_change": bool(u.must_change_password),
-                    "verified": bool(getattr(u, "verified", True))}
+                    "verified": bool(getattr(u, "verified", True)),
+                    "is_owner": bool(getattr(u, "is_owner", False)),
+                    "modules": getattr(u, "modules", "") or ""}
         return None
     finally:
         db.close()
@@ -451,13 +461,126 @@ def provision_tenant(name: str, slug: str, admin_user: str, admin_pw: str,
         db.add(t); db.flush()
         db.add(Account(tenant_id=t.id, username=admin_user.strip(),
                        password_hash=hash_password(admin_pw), role="user",
-                       display_name=name.strip(), must_change_password=must_change))
+                       display_name=name.strip(), must_change_password=must_change,
+                       is_owner=True))   # บัญชีแรกของโรงเรียน = ไอดีหลัก (เห็นทุกงาน + จัดการผู้ใช้)
         db.commit()
         tid = t.id
     finally:
         db.close()
     ensure_school_db(tid)   # สร้างไฟล์ DB + ตารางของโรงเรียน
     return tid
+
+
+# ===================== จัดการผู้ใช้ในโรงเรียน (ไอดีหลักทำเอง) =====================
+def list_tenant_users(tenant_id) -> list:
+    """รายชื่อบัญชีของโรงเรียนนี้ (ไอดีหลักก่อน) - ตัด ORM คืน dict"""
+    db = acc_session()
+    try:
+        us = (db.query(Account).filter_by(tenant_id=tenant_id)
+              .order_by(Account.is_owner.desc(), Account.id).all())
+        return [{"id": u.id, "username": u.username, "display_name": u.display_name or "",
+                 "is_owner": bool(u.is_owner), "active": bool(u.active),
+                 "modules": u.modules or ""} for u in us]
+    finally:
+        db.close()
+
+
+def tenant_max_users(tenant_id) -> int:
+    db = acc_session()
+    try:
+        t = db.query(Tenant).filter_by(id=tenant_id).first()
+        return (t.max_users or 3) if t else 3
+    finally:
+        db.close()
+
+
+def _own_user(db, tenant_id, uid):
+    """คืน Account ที่อยู่ในโรงเรียนนี้เท่านั้น (กันแก้/ลบข้ามโรงเรียน)"""
+    return db.query(Account).filter_by(id=uid, tenant_id=tenant_id).first()
+
+
+def add_tenant_user(tenant_id, username, password, modules="", display_name="") -> dict:
+    """ไอดีหลักเพิ่มไอดีย่อย (จำกัดตาม max_users) + กำหนดสิทธิ์งาน (CSV)"""
+    from app.modules import modules_csv, parse_modules
+    username = (username or "").strip()
+    if not username or len(password or "") < 6:
+        return {"error": "กรอกชื่อผู้ใช้ และรหัสผ่านอย่างน้อย 6 ตัว"}
+    db = acc_session()
+    try:
+        t = db.query(Tenant).filter_by(id=tenant_id).first()
+        if not t:
+            return {"error": "ไม่พบโรงเรียน"}
+        if db.query(Account).filter_by(tenant_id=tenant_id).count() >= (t.max_users or 3):
+            return {"error": f"เกินจำนวนผู้ใช้สูงสุดของโรงเรียน ({t.max_users or 3} คน)"}
+        if db.query(Account).filter_by(username=username).first():
+            return {"error": "ชื่อผู้ใช้นี้ถูกใช้แล้ว เลือกชื่ออื่น"}
+        db.add(Account(tenant_id=tenant_id, username=username,
+                       password_hash=hash_password(password), role="user",
+                       display_name=(display_name or "").strip(), is_owner=False,
+                       modules=modules_csv(parse_modules(modules)), verified=True))
+        db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
+def set_user_modules(tenant_id, uid, modules) -> dict:
+    """กำหนดงานที่ไอดีย่อยเข้าได้ (owner เห็นทุกงานอยู่แล้ว ไม่ต้องตั้ง)"""
+    from app.modules import modules_csv, parse_modules
+    db = acc_session()
+    try:
+        u = _own_user(db, tenant_id, uid)
+        if not u:
+            return {"error": "ไม่พบผู้ใช้"}
+        if u.is_owner:
+            return {"error": "ไอดีหลักเห็นทุกงานอยู่แล้ว"}
+        u.modules = modules_csv(parse_modules(modules)); db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
+def reset_user_password(tenant_id, uid, new_password) -> dict:
+    db = acc_session()
+    try:
+        u = _own_user(db, tenant_id, uid)
+        if not u:
+            return {"error": "ไม่พบผู้ใช้"}
+        if len(new_password or "") < 6:
+            return {"error": "รหัสผ่านอย่างน้อย 6 ตัว"}
+        u.password_hash = hash_password(new_password); u.must_change_password = False
+        db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
+def toggle_user_active(tenant_id, uid) -> dict:
+    db = acc_session()
+    try:
+        u = _own_user(db, tenant_id, uid)
+        if not u:
+            return {"error": "ไม่พบผู้ใช้"}
+        if u.is_owner:
+            return {"error": "ปิดใช้งานไอดีหลักไม่ได้"}
+        u.active = not u.active; db.commit()
+        return {"ok": True, "active": bool(u.active)}
+    finally:
+        db.close()
+
+
+def delete_tenant_user(tenant_id, uid) -> dict:
+    db = acc_session()
+    try:
+        u = _own_user(db, tenant_id, uid)
+        if not u:
+            return {"error": "ไม่พบผู้ใช้"}
+        if u.is_owner:
+            return {"error": "ลบไอดีหลักไม่ได้"}
+        db.delete(u); db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
 
 
 # ===================== สร้างบัญชีจากคำขอ (B) + ทดลองใช้ฟรี (A) =====================

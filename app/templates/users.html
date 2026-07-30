@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}จัดการผู้ใช้{% endblock %}
+{% block content %}
+{% set tid = request.session.get('tid') %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">จัดการบัญชีผู้ใช้ในโรงเรียน (ไอดีหลักเท่านั้น)</div>
+    <span class="hero-title">จัดการผู้ใช้</span>
+    <div class="hero-meta">ใช้ไปแล้ว {{ users|length }} / {{ max_users }} บัญชี · ไอดีหลักเห็นทุกงาน · ไอดีย่อยเลือกสิทธิ์งานได้</div>
+  </div>
+</div>
+{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+{% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
+
+<div class="card">
+  <h2>บัญชีทั้งหมด</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>ชื่อผู้ใช้</th><th>ประเภท</th><th>สิทธิ์งาน</th><th>สถานะ</th><th></th></tr></thead>
+    <tbody>
+    {% for u in users %}
+      <tr>
+        <td><b>{{ u.username }}</b>{% if u.display_name %}<br><span class="muted" style="font-size:13px;">{{ u.display_name }}</span>{% endif %}</td>
+        <td>
+          {% if u.is_owner %}<span class="pill" style="background:#e8f0ff; color:#2b58c9;">ไอดีหลัก</span>
+          {% else %}<span class="pill" style="background:#f1f5f9; color:#5a6a85;">ไอดีย่อย</span>{% endif %}
+        </td>
+        <td>
+          {% if u.is_owner %}
+            <span class="muted">ทุกงาน</span>
+          {% else %}
+            <form method="post" action="/users/{{ u.id }}/modules" style="margin:0; display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center;">
+              {% for k in module_keys %}{% if can_use(tid, k) %}
+              <label style="display:inline-flex; align-items:center; gap:4px; font-weight:500; font-size:14px; margin:0;">
+                <input type="checkbox" name="modules" value="{{ k }}" style="width:auto;" {{ 'checked' if k in u.modules.split(',') }}> {{ module_labels[k] }}
+              </label>
+              {% endif %}{% endfor %}
+              <button class="btn sm" type="submit" style="margin-left:4px;">บันทึกสิทธิ์</button>
+            </form>
+          {% endif %}
+        </td>
+        <td>{% if u.active %}<span class="pill" style="background:#e9f7ef; color:#0e7a44;">ใช้งาน</span>{% else %}<span class="pill" style="background:#fde8e8; color:#b91c1c;">ปิดอยู่</span>{% endif %}</td>
+        <td style="white-space:nowrap;">
+          {% if not u.is_owner %}
+          <button class="btn sm gray" type="button" onclick="resetPw({{ u.id }}, '{{ u.username }}')">รีเซ็ตรหัส</button>
+          <form method="post" action="/users/{{ u.id }}/toggle" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">{{ 'ปิด' if u.active else 'เปิด' }}</button></form>
+          <form method="post" action="/users/{{ u.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบผู้ใช้ {{ u.username }} ?');"><button class="btn sm gray" type="submit" style="color:#dc2626;">ลบ</button></form>
+          <form method="post" action="/users/{{ u.id }}/reset" id="rf{{ u.id }}" style="display:none;"><input type="hidden" name="new_password"></form>
+          {% else %}<span class="muted" style="font-size:13px;">-</span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+{% if users|length < max_users %}
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มผู้ใช้ใหม่</h2>
+  <form method="post" action="/users/add">
+    <div class="row" style="align-items:flex-end;">
+      <div><label>ชื่อผู้ใช้ (อีเมล/ชื่อ) *</label><input name="username" required placeholder="เช่น finance@school หรือ ครูสมชาย"></div>
+      <div><label>รหัสผ่าน (อย่างน้อย 6 ตัว) *</label><input name="password" type="text" required placeholder="ตั้งรหัสให้ผู้ใช้"></div>
+      <div style="flex:1;"><label>ชื่อที่แสดง (ไม่บังคับ)</label><input name="display_name" placeholder="เช่น ครูการเงิน"></div>
+    </div>
+    <label style="margin-top:12px; display:block;">งานที่ให้เข้าได้</label>
+    <div style="display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:4px;">
+      {% for k in module_keys %}{% if can_use(tid, k) %}
+      <label style="display:inline-flex; align-items:center; gap:5px; font-weight:500; margin:0;">
+        <input type="checkbox" name="modules" value="{{ k }}" style="width:auto;"> {{ module_labels[k] }}
+      </label>
+      {% endif %}{% endfor %}
+    </div>
+    <p class="muted" style="font-size:13px; margin:6px 0 0;">ติ๊กได้หลายงาน · ไม่ติ๊กเลย = ยังเข้างานไหนไม่ได้ (ค่อยมาเปิดสิทธิ์ทีหลังได้)</p>
+    <br><button class="btn green" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มผู้ใช้</button>
+  </form>
+</div>
+{% else %}
+<div class="card"><p class="muted" style="margin:0;">ใช้ครบจำนวนบัญชีสูงสุด ({{ max_users }}) แล้ว — หากต้องการเพิ่ม โปรดติดต่อผู้ให้บริการเพื่อขยายจำนวนผู้ใช้</p></div>
+{% endif %}
+
+<script>
+  function resetPw(id, name){
+    var p = prompt('ตั้งรหัสผ่านใหม่ให้ "' + name + '" (อย่างน้อย 6 ตัว)');
+    if(p === null) return;
+    if(p.length < 6){ alert('รหัสผ่านอย่างน้อย 6 ตัว'); return; }
+    var f = document.getElementById('rf' + id);
+    f.new_password.value = p; f.submit();
+  }
+</script>
+{% endblock %}

@@ -25,7 +25,7 @@ from app.seller_config import pricing_context
 from app.tenancy import current_school_id, current_module
 from app.templating import templates
 from app.routers import (pages, admin, finance, lunch, auth, superadmin, account, textbooks,
-                         sales, hr, academic)
+                         sales, hr, academic, users)
 
 app = FastAPI(title="Easy Ekkasan : ระบบจัดการเอกสารและพัสดุโรงเรียน")
 
@@ -114,6 +114,15 @@ async def tenant_auth(request: Request, call_next):
             "price": pricing_context()["prices"].get(MODULE_PRICE_KEY[mod]), "st": st,
         }, status_code=403)
 
+    # สิทธิ์รายบัญชี: ไอดีหลัก (owner) เห็นทุกงาน · ไอดีย่อยเข้าได้เฉพาะงานที่ได้รับสิทธิ์
+    # (โรงเรียน "ซื้อแล้ว" แต่บัญชีนี้อาจไม่ได้รับสิทธิ์งานนั้น -> กันที่นี่จุดเดียว ครอบทุก route)
+    if mod and not sess.get("owner"):
+        from app.modules import parse_modules
+        if mod not in parse_modules(sess.get("mods")):
+            return templates.TemplateResponse("module_denied.html", {
+                "request": request, "module_label": MODULE_LABELS.get(mod, ""),
+            }, status_code=403)
+
     token = current_school_id.set(tid)
     mtoken = current_module.set(mod)     # ให้ตอนออกเอกสารรู้ว่าอยู่งานไหน (หักโควตาเฉพาะงานที่ยังไม่ซื้อ)
     try:
@@ -170,6 +179,7 @@ _start_auto_backup()
 
 app.include_router(auth.router)
 app.include_router(account.router)
+app.include_router(users.router)
 app.include_router(superadmin.router)
 app.include_router(pages.router)
 app.include_router(admin.router)
