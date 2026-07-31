@@ -90,9 +90,10 @@ async def tenant_auth(request: Request, call_next):
         finally:
             current_school_id.reset(token)
 
-    # กันผู้ใช้โรงเรียน (ไม่ใช่ superadmin) แอบเข้าคอนโซลผู้ดูแลระบบ
+    # ผู้ใช้โรงเรียน (ไม่ใช่ superadmin) เข้าคอนโซลผู้ดูแลระบบไม่ได้
+    # แสดงหน้าอธิบาย + ปุ่มออกจากระบบเพื่อเข้าด้วยบัญชีผู้ดูแล (เช่น กดลิงก์อนุมัติในอีเมลตอนล็อกอินเป็นบัญชีโรงเรียน)
     if path.startswith("/admin-console"):
-        return RedirectResponse("/", status_code=303)
+        return templates.TemplateResponse("console_denied.html", {"request": request}, status_code=403)
 
     # อ่านสิทธิ์บัญชีสด ๆ จาก DB ทุก request (กัน session ค้าง: เปิด/ปิดสิทธิ์งาน หรือปิดบัญชี มีผลทันที)
     # หน้า /account (เปลี่ยนรหัส) ผ่านไปแล้วด้านบน จึงไม่ต้องกันบัญชีที่ถูกปิดออกจากหน้านั้น

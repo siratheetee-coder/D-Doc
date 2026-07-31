@@ -96,10 +96,11 @@
                   <div class="pill s-done">✓ ต่ออายุ 1 ปีแล้ว</div><br>
                 {% else %}
                   <form class="inline" method="post" action="/admin-console/leads/{{ l.id }}/approve"
-                        onsubmit="return confirm('ตรวจสลิปแล้ว? ระบบจะต่ออายุบัญชีลูกค้า 1 ปี (ใช้อีเมลเดิม)');">
+                        onsubmit="return confirm('ตรวจสลิปแล้ว? ระบบจะต่ออายุ 1 ปี และเปิดสิทธิ์งานที่ซื้อ ({{ l.packages or 'ตามคำสั่งซื้อ' }}) ให้อัตโนมัติ');">
                     <input type="hidden" name="kind" value="{{ kind or '' }}">
                     <button class="btn green" type="submit">✓ อนุมัติ + ต่ออายุ 1 ปี</button>
                   </form>
+                  <div class="sub" style="margin-top:3px;">เปิดสิทธิ์ <b>{{ l.packages or 'ตามคำสั่งซื้อ' }}</b> ให้อัตโนมัติ</div>
                 {% endif %}
               {% elif l.kind == 'trial' %}
                 <div class="pill k-trial">กำลังทดลองใช้</div><br>
