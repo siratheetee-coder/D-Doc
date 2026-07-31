@@ -76,3 +76,37 @@ def send_reset_email(to: str, link: str) -> bool:
       <p style="color:#94a3b8; font-size:12px;">หากคุณไม่ได้ขอรีเซ็ตรหัสผ่าน โปรดละเว้นอีเมลนี้ รหัสผ่านเดิมยังใช้งานได้ตามปกติ - {brand}</p>
     </div>"""
     return send_email(to, "รีเซ็ตรหัสผ่าน - Easy Ekkasan", html)
+
+
+def send_order_notice(kind: str, *, school: str, contact: str = "", email: str = "",
+                      phone: str = "", packages: str = "", amount: float = 0.0,
+                      ref="", note: str = "", has_slip: bool = False) -> bool:
+    """แจ้งผู้ขายทันทีเมื่อมีคำสั่งซื้อ/ขอใบเสนอราคาใหม่ (ส่งเข้าอีเมลผู้ขายใน seller_local)
+    ไม่ตั้งอีเมลผู้ขาย -> ข้าม (คืน False) โดยไม่ทำให้ flow ซื้อล้ม"""
+    from app.seller_config import SELLER
+    to = (SELLER.get("email") or "").strip()
+    if not to:
+        return False
+    base = (SELLER.get("base_url") or "").rstrip("/")
+    link = (base + "/admin-console/leads?kind=" + kind) if base else "/admin-console/leads"
+    label = {"order": "คำสั่งซื้อ (แจ้งชำระเงิน)", "quote": "ขอใบเสนอราคา",
+             "trial": "ทดลองใช้"}.get(kind, kind)
+    rows = [("โรงเรียน", school), ("ผู้ติดต่อ", contact), ("อีเมล", email),
+            ("โทร", phone), ("งานที่เลือก", packages),
+            ("ยอดเงิน", f"{amount:,.0f} บาท" if amount else "-"),
+            ("แนบสลิป", "มี" if has_slip else "-"), ("หมายเหตุ", note)]
+    tr = "".join(
+        f'<tr><td style="padding:4px 10px;color:#64748b;white-space:nowrap;vertical-align:top;">{k}</td>'
+        f'<td style="padding:4px 10px;font-weight:600;">{(v or "-")}</td></tr>'
+        for k, v in rows)
+    html = f"""
+    <div style="font-family:sans-serif; max-width:560px; margin:0 auto;">
+      <h2 style="color:#2563eb;">มี{label}ใหม่</h2>
+      <table style="border-collapse:collapse; font-size:15px; width:100%;">{tr}</table>
+      <p style="text-align:center; margin:24px 0;">
+        <a href="{link}" style="background:#2563eb; color:#fff; text-decoration:none;
+           padding:11px 26px; border-radius:10px; font-weight:700;">เปิดคอนโซลเพื่ออนุมัติ</a>
+      </p>
+      <p style="color:#94a3b8; font-size:12px;">อ้างอิงคำขอ #{ref} · อีเมลอัตโนมัติจากระบบ Easy Ekkasan</p>
+    </div>"""
+    return send_email(to, f"[Easy Ekkasan] {label}ใหม่ - {school or '-'}", html)

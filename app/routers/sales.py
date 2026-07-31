@@ -76,6 +76,14 @@ def quote_submit(school_name: str = Form(""), address: str = Form(""), tax_id: s
                    phone=phone.strip(), packages=pf["label"] or packages.strip(),
                    modules=pf["modules"], amount=float(pf["total"]),
                    note=extra)
+    try:
+        from app.services.mailer import send_order_notice
+        send_order_notice("quote", school=school_name.strip(), contact=contact_name.strip(),
+                          email=email.strip(), phone=phone.strip(),
+                          packages=pf["label"] or packages.strip(),
+                          amount=float(pf["total"]), ref=lid, note=extra)
+    except Exception:
+        pass
     return RedirectResponse(f"/sale-thanks?type=quote&ref={lid}", status_code=303)
 
 
@@ -145,6 +153,15 @@ async def checkout_submit(request: Request, school_name: str = Form(""), contact
                    packages=pf["label"], modules=pf["modules"], amount=float(pf["total"]),
                    address=address,
                    slip_file=slip_name, tenant_id=tid, login_user=email, note=(note or "").strip())
+    # แจ้งผู้ขายทันที (อีเมล) - ล้มเหลวก็ไม่กระทบการสั่งซื้อ
+    try:
+        from app.services.mailer import send_order_notice
+        send_order_notice("order", school=school_name.strip() or request.session.get("name", ""),
+                          contact=contact_name.strip(), email=email, phone=phone.strip(),
+                          packages=pf["label"], amount=float(pf["total"]), ref=lid,
+                          note=(note or "").strip(), has_slip=bool(slip_name))
+    except Exception:
+        pass
     return RedirectResponse(f"/sale-thanks?type=order&ref={lid}", status_code=303)
 
 
