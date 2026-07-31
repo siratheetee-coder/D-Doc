@@ -488,6 +488,19 @@ def list_tenant_users(tenant_id) -> list:
         db.close()
 
 
+def get_account_access(uid) -> dict | None:
+    """สิทธิ์บัญชีสด ๆ จาก DB (ใช้ใน middleware กัน session ค้าง)
+    คืน {is_owner, modules, active} หรือ None ถ้าไม่พบบัญชี"""
+    db = acc_session()
+    try:
+        u = db.query(Account).filter_by(id=uid).first()
+        if not u:
+            return None
+        return {"is_owner": bool(u.is_owner), "modules": u.modules or "", "active": bool(u.active)}
+    finally:
+        db.close()
+
+
 def mark_welcomed(uid) -> None:
     """บันทึกว่าผู้ใช้เห็นการ์ดต้อนรับแล้ว (ไม่ต้องเด้งอีก)"""
     db = acc_session()

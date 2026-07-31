@@ -19,7 +19,8 @@ from fastapi.responses import RedirectResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.accounts import bootstrap, get_secret_key, tenant_state, can_use_module, tenant_status
+from app.accounts import (bootstrap, get_secret_key, tenant_state, can_use_module,
+                          tenant_status, get_account_access)
 from app.modules import MODULE_LABELS, MODULE_PRICE_KEY, module_for_path
 from app.seller_config import pricing_context
 from app.tenancy import current_school_id, current_module
@@ -93,6 +94,18 @@ async def tenant_auth(request: Request, call_next):
     if path.startswith("/admin-console"):
         return RedirectResponse("/", status_code=303)
 
+    # อ่านสิทธิ์บัญชีสด ๆ จาก DB ทุก request (กัน session ค้าง: เปิด/ปิดสิทธิ์งาน หรือปิดบัญชี มีผลทันที)
+    # หน้า /account (เปลี่ยนรหัส) ผ่านไปแล้วด้านบน จึงไม่ต้องกันบัญชีที่ถูกปิดออกจากหน้านั้น
+    acc = get_account_access(sess.get("uid"))
+    if not acc or not acc["active"]:
+        request.session.clear()
+        return RedirectResponse("/login", status_code=303)
+    # sync ลง session ให้เทมเพลต (sidebar/hub) แสดงตรงกับสิทธิ์จริงโดยไม่ต้อง re-login
+    if sess.get("owner") != acc["is_owner"]:
+        sess["owner"] = acc["is_owner"]
+    if sess.get("mods") != acc["modules"]:
+        sess["mods"] = acc["modules"]
+
     # ผู้ใช้โรงเรียน: ตรวจสถานะโรงเรียนก่อน
     tid = sess.get("tid")
     st = tenant_state(tid)
@@ -116,9 +129,9 @@ async def tenant_auth(request: Request, call_next):
 
     # สิทธิ์รายบัญชี: ไอดีหลัก (owner) เห็นทุกงาน · ไอดีย่อยเข้าได้เฉพาะงานที่ได้รับสิทธิ์
     # (โรงเรียน "ซื้อแล้ว" แต่บัญชีนี้อาจไม่ได้รับสิทธิ์งานนั้น -> กันที่นี่จุดเดียว ครอบทุก route)
-    if mod and not sess.get("owner"):
+    if mod and not acc["is_owner"]:
         from app.modules import parse_modules
-        if mod not in parse_modules(sess.get("mods")):
+        if mod not in parse_modules(acc["modules"]):
             return templates.TemplateResponse("module_denied.html", {
                 "request": request, "module_label": MODULE_LABELS.get(mod, ""),
             }, status_code=403)
