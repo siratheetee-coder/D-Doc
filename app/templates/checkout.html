@@ -20,15 +20,27 @@
   @media (max-width:600px){ .pay-grid{ grid-template-columns:1fr; } }
   /* ตัวเลือกแพ็กเกจ */
   .co-list{ display:grid; gap:10px; }
-  .co-item{ display:flex; align-items:center; gap:12px; border:2px solid var(--line); border-radius:12px;
-            padding:12px 14px; cursor:pointer; transition:.15s; }
-  .co-item:hover{ border-color:#c7d6f5; }
-  .co-item.on{ border-color:var(--blue); background:#f5f8ff; }
+  .co-item{ display:flex; align-items:center; gap:13px; border:2px solid var(--line); border-radius:13px;
+            padding:13px 15px; cursor:pointer; background:#fff;
+            transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+  .co-item:hover{ border-color:#bcd0f7; transform:translateY(-2px); box-shadow:0 10px 22px rgba(37,99,235,.10); }
+  .co-item.on{ border-color:var(--blue); background:linear-gradient(180deg,#f7faff,#eef4ff);
+               box-shadow:0 8px 20px rgba(37,99,235,.14); }
   .co-item input{ position:absolute; opacity:0; pointer-events:none; }
-  .co-check{ flex:0 0 22px; height:22px; border-radius:6px; border:2px solid var(--line);
-             display:flex; align-items:center; justify-content:center; color:#fff; }
-  .co-item.on .co-check{ background:var(--blue); border-color:var(--blue); }
-  .co-item.on .co-check::after{ content:"✔"; font-size:12px; }
+  /* กล่องติ๊ก: กรอบมน เงานุ่ม ติ๊กแล้วเติมสีไล่เฉด + เครื่องหมายถูกเด้งเข้า */
+  .co-check{ flex:0 0 24px; height:24px; border-radius:8px; border:2px solid #cdd7e6; background:#fff;
+             display:flex; align-items:center; justify-content:center; position:relative;
+             box-shadow:inset 0 1px 2px rgba(16,24,40,.06);
+             transition:background .2s ease, border-color .2s ease, transform .2s ease, box-shadow .2s ease; }
+  .co-item:hover .co-check{ border-color:#93b4f5; }
+  .co-item.on .co-check{ background:linear-gradient(150deg,#4880FF,#1d4ed8); border-color:#1d4ed8;
+             box-shadow:0 4px 11px rgba(37,99,235,.38); transform:scale(1.06); }
+  .co-check::after{ content:""; width:11px; height:6px; margin-top:-2px;
+             border-left:2.6px solid #fff; border-bottom:2.6px solid #fff;
+             transform:rotate(-45deg) scale(0); transform-origin:center;
+             transition:transform .24s cubic-bezier(.25,1.7,.4,1); }
+  .co-item.on .co-check::after{ transform:rotate(-45deg) scale(1); }
+  @media (prefers-reduced-motion: reduce){ .co-item, .co-item:hover{ transform:none; } .co-check::after{ transition:none; } }
   .co-name{ flex:1; font-weight:600; font-size:15px; }
   .co-name small{ display:block; font-weight:400; color:var(--muted); font-size:12px; }
   .co-price{ font-weight:700; white-space:nowrap; }
@@ -46,11 +58,20 @@
     font-weight:700; vertical-align:middle; }
   .promo-band .pb-top{ display:flex; align-items:center; gap:18px; padding:18px 20px 14px; flex-wrap:wrap; }
   .promo-band .pb-lead{ flex:none; padding-right:16px; border-right:1px solid rgba(255,255,255,.22); }
-  .promo-band .pb-yellow{ color:#ffde3d; font-weight:800; font-size:26px; line-height:1.05; letter-spacing:-.3px; }
+  /* ตัวอักษรสีทองไล่เฉดพรีเมียม (ใช้ซ้ำได้) */
+  .gold-text{ background:linear-gradient(177deg,#fff7d6 0%,#ffe79a 26%,#f6c94f 55%,#dca62c 82%,#b8801d 100%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent;
+    filter:drop-shadow(0 1px 1px rgba(94,58,0,.35)); }
+  .promo-band .pb-yellow{ font-weight:800; font-size:26px; line-height:1.05; letter-spacing:-.3px;
+    background:linear-gradient(177deg,#fff7d6 0%,#ffe79a 26%,#f6c94f 55%,#dca62c 82%,#b8801d 100%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent;
+    filter:drop-shadow(0 1px 1px rgba(94,58,0,.4)); }
   .promo-band .pb-lead-sub{ font-size:12px; opacity:.85; margin-top:2px; }
   .promo-band .pb-headline{ flex:1; min-width:180px; }
   .promo-band .pb-h{ font-size:17px; font-weight:700; }
-  .promo-band .pb-h b{ color:#ffde3d; }
+  .promo-band .pb-h b{ background:linear-gradient(177deg,#fff7d6 0%,#ffe79a 26%,#f6c94f 55%,#dca62c 82%,#b8801d 100%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent;
+    filter:drop-shadow(0 1px 1px rgba(94,58,0,.35)); }
   .promo-band .pb-s{ font-size:12.5px; opacity:.85; }
   .promo-band .pb-cd{ display:flex; gap:6px; }
   .promo-band .pb-cd .box{ background:rgba(255,255,255,.14); border-radius:9px; padding:5px 0; width:46px; text-align:center; }
@@ -58,7 +79,7 @@
   .promo-band .pb-cd .box span{ font-size:9.5px; opacity:.8; }
   .promo-band .pb-meter{ background:rgba(0,0,0,.16); padding:11px 20px 14px; }
   .promo-band .pb-mrow{ display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px; }
-  .promo-band .pb-mrow b{ color:#ffde3d; }
+  .promo-band .pb-mrow b{ color:#f6c94f; }   /* ทองอ่อน อ่านง่ายบนพื้นเข้ม */
   .promo-band .pb-bar{ height:7px; border-radius:999px; background:rgba(255,255,255,.22); overflow:hidden; }
   .promo-band .pb-bar i{ display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#fde047,#fbbf24); }
   /* บันไดส่วนลด ยิ่งเลือกมากยิ่งลด (เหมือนหน้า pricing) */
@@ -117,14 +138,13 @@
   @media (prefers-reduced-motion: reduce){ .shine-host .shine::before{ animation:none; opacity:0; } }
 {% endblock %}
 {% block content %}
-<div class="co-hero shine-host">
-  <span class="shine"></span>
+<div class="co-hero">
   {% if addon %}<div class="badge"><svg class="icon" style="width:15px;height:15px;"><use href="#ic-plus"/></svg> ซื้อเพิ่มกลางรอบ ราคาตามสัดส่วน</div>
   <h1>เพิ่มงานให้โรงเรียน</h1>
-  <p>เลือกงานที่ต้องการเพิ่ม ระบบคิดราคา<b style="color:#ffde3d;">เฉพาะช่วงเวลาที่เหลือ</b> และให้หมดอายุพร้อมงานเดิม จ่ายผ่าน PromptPay แล้วแจ้งสลิปด้านล่าง</p>
-  {% else %}<div class="badge">⚡ เปิดใช้งานทันทีหลังตรวจสลิป</div>
+  <p>เลือกงานที่ต้องการเพิ่ม ระบบคิดราคาเฉพาะช่วงเวลาที่เหลือ และให้หมดอายุพร้อมงานเดิม จ่ายผ่าน PromptPay แล้วแจ้งสลิปด้านล่าง</p>
+  {% else %}
   <h1>สั่งซื้อ / ชำระเงิน</h1>
-  <p>โอนชำระผ่าน PromptPay หรือบัญชีธนาคาร แล้วแจ้งสลิปด้านล่าง ทีมงานจะเปิดใช้งานให้และติดต่อกลับ</p>
+  <p>โอนชำระผ่าน PromptPay หรือบัญชีธนาคาร แล้วแจ้งสลิปด้านล่าง <span style="white-space:nowrap;">ทีมงานจะเปิดใช้งานให้และติดต่อกลับ</span></p>
   {% endif %}
 </div>
 
