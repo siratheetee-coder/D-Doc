@@ -32,6 +32,14 @@ def _record_fail(ip: str):
     _fails[ip] = (n + 1, time.time())
 
 
+def _safe_next(nxt: str) -> str:
+    """อนุญาตเฉพาะ path ภายในเว็บ (กัน open-redirect) - ต้องขึ้นต้น / เดี่ยว ไม่ใช่ // หรือ URL เต็ม"""
+    nxt = (nxt or "").strip()
+    if nxt.startswith("/") and not nxt.startswith("//") and "\\" not in nxt:
+        return nxt
+    return ""
+
+
 @router.get("/landing", response_class=HTMLResponse)
 def landing_page(request: Request):
     """หน้า landing สาธารณะ (สำหรับแนะนำระบบ/ขาย) - ยังไม่ผูกโดเมนจริง ดูผ่าน /landing"""
@@ -40,33 +48,39 @@ def landing_page(request: Request):
 
 
 @router.get("/login", response_class=HTMLResponse)
-def login_page(request: Request, error: str | None = None, ok: str | None = None):
-    # ถ้าล็อกอินอยู่แล้ว ส่งไปหน้าที่เหมาะสม
+def login_page(request: Request, error: str | None = None, ok: str | None = None, next: str = ""):
+    nxt = _safe_next(next)
+    # ถ้าล็อกอินอยู่แล้ว ส่งไปหน้าที่เหมาะสม (หรือปลายทาง next ถ้ามี เช่นลิงก์อนุมัติในอีเมล)
     if request.session.get("uid"):
+        if nxt:
+            return RedirectResponse(nxt, status_code=303)
         dest = "/admin-console" if request.session.get("role") == "superadmin" else "/"
         return RedirectResponse(dest, status_code=303)
     msg = "ตั้งรหัสผ่านใหม่เรียบร้อยแล้ว เข้าสู่ระบบด้วยรหัสใหม่ได้เลย" if ok == "reset" else None
-    return templates.TemplateResponse("login.html", {"request": request, "error": error, "ok_msg": msg})
+    return templates.TemplateResponse("login.html", {"request": request, "error": error, "ok_msg": msg, "next": nxt})
 
 
 @router.post("/login")
-def login_submit(request: Request, username: str = Form(""), password: str = Form("")):
+def login_submit(request: Request, username: str = Form(""), password: str = Form(""),
+                 next: str = Form("")):
     ip = request.client.host if request.client else "?"
     if _too_many(ip):
         return templates.TemplateResponse("login.html", {
             "request": request, "error": "พยายามเข้าระบบบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่",
+            "next": _safe_next(next),
         }, status_code=429)
     user = authenticate(username, password)
     if not user:
         _record_fail(ip)
         return templates.TemplateResponse("login.html", {
             "request": request, "error": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
+            "next": _safe_next(next),
         }, status_code=401)
     if not user.get("verified", True):
         return templates.TemplateResponse("login.html", {
             "request": request,
             "error": "อีเมลนี้ยังไม่ได้ยืนยัน โปรดตรวจสอบลิงก์ยืนยันในอีเมลของท่านก่อน (ถ้าไม่พบ ลองดูในกล่อง Spam)",
-            "unverified_email": user["username"],
+            "unverified_email": user["username"], "next": _safe_next(next),
         }, status_code=403)
     # ล็อกอินสำเร็จ - เก็บข้อมูลใน session
     request.session.clear()
@@ -81,6 +95,9 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
     request.session["welcomed"] = user.get("welcomed", True)  # เห็นการ์ดต้อนรับแล้วหรือยัง
     if user.get("must_change"):
         return RedirectResponse("/account/password", status_code=303)
+    nxt = _safe_next(next)
+    if nxt:
+        return RedirectResponse(nxt, status_code=303)
     dest = "/admin-console" if user["role"] == "superadmin" else "/"
     return RedirectResponse(dest, status_code=303)
 

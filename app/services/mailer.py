@@ -87,8 +87,11 @@ def send_order_notice(kind: str, *, school: str, contact: str = "", email: str =
     to = (SELLER.get("email") or "").strip()
     if not to:
         return False
+    from urllib.parse import quote
     base = (SELLER.get("base_url") or "").rstrip("/")
-    link = (base + "/admin-console/leads?kind=" + kind) if base else "/admin-console/leads"
+    target = "/admin-console/leads?kind=" + kind
+    # ผ่าน /login?next= เพื่อพาเข้าคอนโซล leads อัตโนมัติ (ถ้ายังไม่ล็อกอิน/ล็อกอินผิดบัญชี ก็ให้ล็อกอินแล้วเด้งต่อ)
+    link = (base + "/login?next=" + quote(target, safe="")) if base else target
     label = {"order": "คำสั่งซื้อ (แจ้งชำระเงิน)", "quote": "ขอใบเสนอราคา",
              "trial": "ทดลองใช้"}.get(kind, kind)
     rows = [("โรงเรียน", school), ("ผู้ติดต่อ", contact), ("อีเมล", email),

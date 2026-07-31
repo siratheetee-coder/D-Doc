@@ -48,6 +48,7 @@
 </head>
 <body>
   <form class="card" method="post" action="/login">
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
     <div class="brand">
       <img src="/static/logo-ekkasan.png" alt="Easy Ekkasan">
       <span class="name">Easy Ekkasan</span>
