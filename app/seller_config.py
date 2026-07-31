@@ -144,7 +144,8 @@ def price_addon(modules, days_left: int) -> dict:
     คืน {modules, count, per(dict key->ราคา prorate), total, annual, frac, days_left, label}"""
     from app.modules import MODULE_KEYS, MODULE_PRICE_KEY, parse_modules, modules_csv, label_for
     px = pricing_context()["prices"]
-    mods = parse_modules(modules_csv(modules))
+    # รับได้ทั้ง CSV string และ set/list (string ส่งเข้า modules_csv ตรง ๆ จะถูกแตกเป็นตัวอักษร)
+    mods = parse_modules(modules) if isinstance(modules, str) else parse_modules(modules_csv(modules))
     frac = max(0.0, min(1.0, (days_left or 0) / 365.0))
     per = {k: int(round(px[MODULE_PRICE_KEY[k]] * frac)) for k in MODULE_KEYS if k in mods}
     annual = sum(px[MODULE_PRICE_KEY[k]] for k in MODULE_KEYS if k in mods)

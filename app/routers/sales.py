@@ -95,11 +95,27 @@ def checkout_page(request: Request, packages: str = "", amount: str = ""):
         from urllib.parse import quote as _q
         return RedirectResponse(f"/register?next=checkout&packages={_q(packages)}&amount={amount}", status_code=303)
     from app.seller_config import pricing_context
+    from app.accounts import tenant_billing
+    from app.modules import MODULE_KEYS, MODULE_PRICE_KEY, parse_modules
+    from app.thai_utils import thai_date
+
+    px = pricing_context()["prices"]
+    bill = tenant_billing(request.session.get("tid"))
+    owned = parse_modules(bill["modules"]) if bill else set()
+    days_left = (bill or {}).get("days_left") or 0
+    # โหมด "ซื้อเพิ่มกลางรอบ": เป็นสมาชิกที่ยังไม่หมดอายุ + เคยซื้อบางงานแล้ว (ยังไม่ครบทุกงาน)
+    addon = bool(bill and bill["plan"] == "member" and days_left > 0
+                 and owned and owned != set(MODULE_KEYS))
+    frac = max(0.0, min(1.0, days_left / 365.0)) if addon else 1.0
+    addon_price = {k: int(round(px[MODULE_PRICE_KEY[k]] * frac)) for k in MODULE_KEYS}
     return templates.TemplateResponse("checkout.html", {
         "request": request, "packages": packages,
         "amount": _to_float(amount, 0.0), "seller": _seller_ctx(),
         "acct_email": request.session.get("username", ""),
         "acct_school": request.session.get("name", ""),
+        "addon": addon, "owned_mods": sorted(owned), "days_left": days_left,
+        "addon_frac": round(frac, 4), "addon_price": addon_price,
+        "expiry_str": thai_date(bill["expiry_date"]) if (addon and bill.get("expiry_date")) else "",
         **pricing_context(),
     })
 
@@ -145,9 +161,25 @@ async def checkout_submit(request: Request, school_name: str = Form(""), contact
     address = _join_address(addr_no, addr_moo, addr_tambon, addr_amphoe, addr_province, addr_zip)
     # ราคา/รายการงาน คำนวณที่เซิร์ฟเวอร์เสมอ - ห้ามเชื่อ amount/packages ที่ส่งมาจากหน้าเว็บ
     # (ของเดิมรับ hidden field ตรง ๆ ทำให้โพสต์ "ครบทุกงาน ราคา 1 บาท" ได้)
-    pf = price_for(set(mod or []))
-    if not pf["count"]:                        # ไม่ได้เลือกงาน -> ถอยกลับไปหน้า checkout
-        return RedirectResponse("/checkout?err=nomod", status_code=303)
+    from app.accounts import tenant_billing
+    from app.modules import parse_modules, MODULE_KEYS
+    from app.seller_config import price_addon
+    sel = parse_modules(",".join(mod or []))
+    bill = tenant_billing(tid)
+    owned = parse_modules(bill["modules"]) if bill else set()
+    days_left = (bill or {}).get("days_left") or 0
+    addon = bool(bill and bill["plan"] == "member" and days_left > 0
+                 and owned and owned != set(MODULE_KEYS))
+    if addon:
+        new_mods = sel - owned                 # ซื้อเพิ่มเฉพาะงานใหม่ (งานที่มีอยู่แล้วไม่คิดซ้ำ)
+        if not new_mods:
+            return RedirectResponse("/checkout?err=nomod", status_code=303)
+        pf = price_addon(new_mods, days_left)   # prorate ตามวันที่เหลือ (co-term)
+        note = ("[ซื้อเพิ่มกลางรอบ prorate] " + (note or "")).strip()
+    else:
+        pf = price_for(sel)                     # ซื้อใหม่/ต่ออายุ = ราคาเต็ม
+        if not pf["count"]:
+            return RedirectResponse("/checkout?err=nomod", status_code=303)
     lid = add_lead(kind="order", school_name=school_name.strip() or request.session.get("name", ""),
                    contact_name=contact_name.strip(), email=email, phone=phone.strip(),
                    packages=pf["label"], modules=pf["modules"], amount=float(pf["total"]),

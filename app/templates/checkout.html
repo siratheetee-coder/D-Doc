@@ -71,19 +71,68 @@
               box-shadow:0 3px 8px rgba(22,163,74,.35); }
   .co-save{ display:inline-block; background:#dcfce7; color:#15803d; font-weight:700; font-size:12.5px;
             padding:3px 11px; border-radius:999px; }
+  /* ===== Hero แบบหน้า landing + แสงสาด ===== */
+  .co-hero{ position:relative; overflow:hidden; border-radius:22px; color:#fff; margin-bottom:20px;
+    padding:30px 30px 28px;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(255,255,255,.14) 0 2px, transparent 2.6px),
+      radial-gradient(circle at 72% 30%, rgba(255,255,255,.10) 0 2px, transparent 2.6px),
+      radial-gradient(circle at 46% 76%, rgba(255,255,255,.08) 0 2px, transparent 2.6px),
+      linear-gradient(135deg,#3b82f6 0%,#1d4ed8 58%,#0b2a6b 130%);
+    box-shadow:0 20px 46px rgba(29,78,216,.32); }
+  .co-hero h1{ font-size:27px; font-weight:800; margin:0 0 6px; letter-spacing:-.3px; color:#fff; }
+  .co-hero p{ margin:0; color:rgba(255,255,255,.9); font-size:15px; max-width:40em; }
+  .co-hero .badge{ display:inline-flex; align-items:center; gap:7px; background:rgba(255,255,255,.16);
+    border:1px solid rgba(255,255,255,.28); border-radius:999px; padding:5px 14px; font-size:13px;
+    font-weight:600; margin-bottom:12px; }
+  .co-hero .badge b{ color:#ffde3d; }
+  /* แสงสาดกวาดผ่าน (ใช้ซ้ำได้กับ .shine-host) */
+  .shine-host{ position:relative; overflow:hidden; }
+  .shine-host .shine{ position:absolute; inset:0; pointer-events:none; z-index:3; }
+  .shine-host .shine::before{ content:""; position:absolute; top:-60%; left:-70%; width:40%; height:220%;
+    background:linear-gradient(100deg, transparent 0%, rgba(255,255,255,.25) 38%,
+      rgba(255,255,255,.85) 50%, rgba(255,255,255,.25) 62%, transparent 100%);
+    transform:rotate(18deg); filter:blur(1px); animation:coSweep 5.5s cubic-bezier(.4,0,.2,1) infinite; }
+  @keyframes coSweep{ 0%{ left:-70%; opacity:0; } 12%{ opacity:1; } 55%{ left:120%; opacity:1; }
+    60%{ left:120%; opacity:0; } 100%{ left:120%; opacity:0; } }
+  /* การ์ด QR premium + ปุ่มหลักมีประกาย */
+  .qr-box img{ box-shadow:0 12px 30px rgba(29,78,216,.16); }
+  .btn-primary.shine-host .shine::before{ animation-duration:4s; }
+  /* โหมดซื้อเพิ่ม (co-term) */
+  .addon-note{ background:linear-gradient(120deg,#ecfdf5,#d1fae5); border:1px solid #a7f3d0;
+    color:#065f46; border-radius:14px; padding:13px 16px; margin-bottom:16px; font-size:14.5px;
+    display:flex; gap:10px; align-items:flex-start; }
+  .addon-note b{ color:#047857; }
+  .co-item.owned{ opacity:.75; cursor:default; border-color:#cbd5e1; background:#f8fafc; }
+  .co-item.owned .co-check{ background:#94a3b8; border-color:#94a3b8; }
+  .co-owned-tag{ font-weight:700; color:#0e7a44; font-size:13px; white-space:nowrap; }
+  @media (prefers-reduced-motion: reduce){ .shine-host .shine::before{ animation:none; opacity:0; } }
 {% endblock %}
 {% block content %}
-<div class="page-head">
+<div class="co-hero shine-host">
+  <span class="shine"></span>
+  {% if addon %}<div class="badge"><svg class="icon" style="width:15px;height:15px;"><use href="#ic-plus"/></svg> ซื้อเพิ่มกลางรอบ ราคาตามสัดส่วน</div>
+  <h1>เพิ่มงานให้โรงเรียน</h1>
+  <p>เลือกงานที่ต้องการเพิ่ม ระบบคิดราคา<b style="color:#ffde3d;">เฉพาะช่วงเวลาที่เหลือ</b> และให้หมดอายุพร้อมงานเดิม จ่ายผ่าน PromptPay แล้วแจ้งสลิปด้านล่าง</p>
+  {% else %}<div class="badge">⚡ เปิดใช้งานทันทีหลังตรวจสลิป</div>
   <h1>สั่งซื้อ / ชำระเงิน</h1>
   <p>โอนชำระผ่าน PromptPay หรือบัญชีธนาคาร แล้วแจ้งสลิปด้านล่าง ทีมงานจะเปิดใช้งานให้และติดต่อกลับ</p>
+  {% endif %}
 </div>
 
 {% set pk = packages or 'ครบทุกงาน' %}
 {% set is_all = ('ครบทุกงาน' in pk) or (not packages) %}
 {% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':190,'p_hr':390,'p_acad':690,'bundle':2690}) %}
 <div class="card">
-  <h2>เลือกแพ็กเกจที่ต้องการ</h2>
+  <h2>{{ 'เลือกงานที่ต้องการเพิ่ม' if addon else 'เลือกแพ็กเกจที่ต้องการ' }}</h2>
   <p class="hint" style="margin-top:0;">เลือกงานที่ต้องการ ระบบคิดราคาและอัปเดต QR ให้อัตโนมัติ</p>
+  {% if addon %}
+  <div class="addon-note">
+    <svg class="icon" style="width:20px;height:20px;flex:none;margin-top:1px;"><use href="#ic-info"/></svg>
+    <div>คุณเป็นสมาชิกอยู่แล้ว งานที่เพิ่มจะคิดราคา<b>เฉพาะ {{ days_left }} วันที่เหลือ</b> ({{ (addon_frac*100)|round|int }}% ของราคาปี) และ<b>หมดอายุพร้อมงานเดิม วันที่ {{ expiry_str }}</b><br>งานที่มีอยู่แล้วจะไม่ถูกคิดเงินซ้ำ</div>
+  </div>
+  {% endif %}
+  {% if not addon %}
   {% if promo_active %}
   <div class="promo-band" data-promo-end="{{ promo_end_iso }}">
     <div class="pb-top">
@@ -130,48 +179,31 @@
       <div class="sl-txt"><b>6 งาน <i>(ครบทุกงาน)</i></b><span>เหลือ {{ "{:,}".format(px.bundle) }} บาท</span></div>
     </div>
   </div>
+  {% endif %}{# not addon: promo + save ladder #}
   <div class="co-list" id="coList">
-    <label class="co-item" data-price="{{ px.p_proc }}" data-name="งานพัสดุ">
-      <input type="checkbox" name="mod" value="procurement" form="orderForm" {{ 'checked' if is_all or 'พัสดุ' in pk }}>
+    {% for it in [
+        ('procurement','p_proc','พัสดุ','งานพัสดุ','จัดซื้อจัดจ้าง · ทรัพย์สิน/ครุภัณฑ์ · ใบเบิกพัสดุ สัญญา · ตัวช่วยกรอก e-GP'),
+        ('finance','p_fin','การเงิน','งานการเงิน','สมุดเงินสด · บัญชีแยกประเภท · บัญชีเงินคงเหลือประจำวัน · บันทึกเบิกจ่าย'),
+        ('admin','p_admin','ธุรการ','งานธุรการ','หนังสือรับ-ส่ง · บันทึกข้อความ/คำสั่ง · เกียรติบัตร · AI ช่วยเขียนเอกสาร'),
+        ('lunch','p_lunch','อาหาร','งานอาหารกลางวัน','คำนวณงบ · เอกสารจ้าง · ภาวะโภชนาการ'),
+        ('hr','p_hr','บุคคล','งานบุคคล','ทะเบียนบุคลากร · วันลา · ไปราชการ · ก.พ.7 · หนังสือรับรอง'),
+        ('academic','p_acad','วิชาการ','งานวิชาการ','ห้องเรียน/ครูประจำชั้น · รายวิชา 8 กลุ่มสาระ · ผลการเรียน · ปพ.5 · สมุดรายงาน ปพ.6') ] %}
+    {% set k = it[0] %}{% set owned = addon and k in owned_mods %}
+    <label class="co-item{{ ' owned' if owned }}" data-key="{{ k }}" data-price="{{ px[it[1]] }}"
+           data-addon-price="{{ addon_price[k] }}" data-name="{{ it[3] }}">
+      <input type="checkbox" name="mod" value="{{ k }}" form="orderForm"
+        {% if addon %}{{ 'checked disabled' if owned }}{% else %}{{ 'checked' if is_all or it[2] in pk }}{% endif %}>
       <span class="co-check"></span>
-      <span class="co-name">งานพัสดุ<small>จัดซื้อจัดจ้าง · ทรัพย์สิน/ครุภัณฑ์ · ใบเบิกพัสดุ สัญญา · ตัวช่วยกรอก e-GP</small></span>
-      <span class="co-price">{{ px.p_proc }}</span>
+      <span class="co-name">{{ it[3] }}<small>{{ it[4] }}</small></span>
+      {% if owned %}<span class="co-owned-tag">มีอยู่แล้ว</span>
+      {% else %}<span class="co-price">{{ addon_price[k] if addon else px[it[1]] }}</span>{% endif %}
     </label>
-    <label class="co-item" data-price="{{ px.p_fin }}" data-name="งานการเงิน">
-      <input type="checkbox" name="mod" value="finance" form="orderForm" {{ 'checked' if is_all or 'การเงิน' in pk }}>
-      <span class="co-check"></span>
-      <span class="co-name">งานการเงิน<small>สมุดเงินสด · บัญชีแยกประเภท · บัญชีเงินคงเหลือประจำวัน · บันทึกเบิกจ่าย</small></span>
-      <span class="co-price">{{ px.p_fin }}</span>
-    </label>
-    <label class="co-item" data-price="{{ px.p_admin }}" data-name="งานธุรการ">
-      <input type="checkbox" name="mod" value="admin" form="orderForm" {{ 'checked' if is_all or 'ธุรการ' in pk }}>
-      <span class="co-check"></span>
-      <span class="co-name">งานธุรการ<small>หนังสือรับ-ส่ง · บันทึกข้อความ/คำสั่ง · เกียรติบัตร · AI ช่วยเขียนเอกสาร</small></span>
-      <span class="co-price">{{ px.p_admin }}</span>
-    </label>
-    <label class="co-item" data-price="{{ px.p_lunch }}" data-name="งานอาหารกลางวัน">
-      <input type="checkbox" name="mod" value="lunch" form="orderForm" {{ 'checked' if is_all or 'อาหาร' in pk }}>
-      <span class="co-check"></span>
-      <span class="co-name">งานอาหารกลางวัน<small>คำนวณงบ · เอกสารจ้าง · ภาวะโภชนาการ</small></span>
-      <span class="co-price">{{ px.p_lunch }}</span>
-    </label>
-    <label class="co-item" data-price="{{ px.p_hr }}" data-name="งานบุคคล">
-      <input type="checkbox" name="mod" value="hr" form="orderForm" {{ 'checked' if is_all or 'บุคคล' in pk }}>
-      <span class="co-check"></span>
-      <span class="co-name">งานบุคคล<small>ทะเบียนบุคลากร · วันลา · ไปราชการ · ก.พ.7 · หนังสือรับรอง</small></span>
-      <span class="co-price">{{ px.p_hr }}</span>
-    </label>
-    <label class="co-item" data-price="{{ px.p_acad }}" data-name="งานวิชาการ">
-      <input type="checkbox" name="mod" value="academic" form="orderForm" {{ 'checked' if is_all or 'วิชาการ' in pk }}>
-      <span class="co-check"></span>
-      <span class="co-name">งานวิชาการ<small>ห้องเรียน/ครูประจำชั้น · รายวิชา 8 กลุ่มสาระ · ผลการเรียน · ปพ.5 · สมุดรายงาน ปพ.6</small></span>
-      <span class="co-price">{{ px.p_acad }}</span>
-    </label>
+    {% endfor %}
   </div>
-  <button type="button" class="btn btn-ghost" id="coAll" style="margin-top:12px; width:100%;">เลือกครบทุกงาน (คุ้มสุด {{ "{:,}".format(px.bundle) }} บาท)</button>
+  {% if not addon %}<button type="button" class="btn btn-ghost" id="coAll" style="margin-top:12px; width:100%;">เลือกครบทุกงาน (คุ้มสุด {{ "{:,}".format(px.bundle) }} บาท)</button>{% endif %}
   <div class="bank-row" style="margin-top:14px; border-bottom:0;">
-    <span style="font-weight:600;">ยอดชำระ (ต่ออายุ 1 ปี) <span class="co-save" id="coSave" style="display:none; margin-left:8px;"></span></span>
-    <span class="amt"><span id="coAmount">{{ "{:,}".format(px.bundle) }}</span> <small style="font-size:14px; color:var(--muted); font-weight:500;">บาท/ปี</small></span>
+    <span style="font-weight:600;">{{ 'ยอดชำระ (ซื้อเพิ่ม)' if addon else 'ยอดชำระ (ต่ออายุ 1 ปี)' }} <span class="co-save" id="coSave" style="display:none; margin-left:8px;"></span></span>
+    <span class="amt"><span id="coAmount">{{ 0 if addon else "{:,}".format(px.bundle) }}</span> <small style="font-size:14px; color:var(--muted); font-weight:500;">{{ 'บาท' if addon else 'บาท/ปี' }}</small></span>
   </div>
 </div>
 
@@ -181,8 +213,8 @@
     <div class="qr-box">
       {% if seller.promptpay_dynamic %}
         <div style="font-size:12px; color:var(--green); font-weight:600; margin-bottom:6px;">✓ QR พร้อมเพย์ระบุยอดอัตโนมัติ</div>
-        <img id="coQR" src="/checkout/promptpay.png?amount={{ amount or px.bundle }}" alt="PromptPay QR">
-        <div class="hint">สแกน QR นี้ ยอด <b><span id="coQRhint">{{ "{:,.2f}".format(px.bundle) }}</span> บาท</b> จะขึ้นให้อัตโนมัติ</div>
+        <img id="coQR" src="/checkout/promptpay.png?amount={{ 0 if addon else (amount or px.bundle) }}" alt="PromptPay QR">
+        <div class="hint">สแกน QR นี้ ยอด <b><span id="coQRhint">{{ "0.00" if addon else "{:,.2f}".format(px.bundle) }}</span> บาท</b> จะขึ้นให้อัตโนมัติ</div>
       {% elif seller.promptpay_qr_exists %}
         <img src="{{ seller.promptpay_qr }}" alt="PromptPay QR">
         <div class="hint">สแกน QR แล้วกรอกยอด {{ "{:,.0f}".format(amount) if amount else "{:,}".format(px.bundle) }} บาท</div>
@@ -208,7 +240,8 @@
   {# งานที่เลือก (name="mod") ส่งมาจาก checkbox ด้านบนผ่าน form="orderForm"
      ราคาคำนวณใหม่ที่เซิร์ฟเวอร์เสมอ - ไม่มี hidden amount ให้แก้ค่าอีกต่อไป #}
   <div style="background:#eef4ff; border:1px solid #cddffb; border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:14px;">
-    ชำระเงินเพื่อ<b>ต่ออายุบัญชี 1 ปี</b> สำหรับ: <b>{{ acct_email }}</b>{% if acct_school %} · {{ acct_school }}{% endif %}
+    {% if addon %}ชำระเงินเพื่อ<b>เพิ่มงาน (หมดอายุพร้อมงานเดิม {{ expiry_str }})</b> สำหรับ: <b>{{ acct_email }}</b>{% if acct_school %} · {{ acct_school }}{% endif %}
+    {% else %}ชำระเงินเพื่อ<b>ต่ออายุบัญชี 1 ปี</b> สำหรับ: <b>{{ acct_email }}</b>{% if acct_school %} · {{ acct_school }}{% endif %}{% endif %}
   </div>
   <div class="grid2">
     <div>
@@ -242,7 +275,7 @@
   <input name="slip" type="file" accept="image/*" required>
   <label>หมายเหตุ</label>
   <textarea name="note" placeholder="วัน-เวลาที่โอน หรือรายละเอียดเพิ่มเติม"></textarea>
-  <button class="btn btn-primary btn-full" type="submit" style="margin-top:22px;">แจ้งชำระเงิน</button>
+  <button class="btn btn-primary btn-full shine-host" type="submit" style="margin-top:22px;"><span class="shine"></span>แจ้งชำระเงิน</button>
   <p class="hint" style="text-align:center;">ทีมงานจะตรวจสอบและเปิดใช้งานให้ พร้อมติดต่อกลับทางอีเมล/โทรศัพท์</p>
 </form>
 
@@ -260,14 +293,18 @@
     // ยอดจริงเซิร์ฟเวอร์คำนวณเองตอนบันทึกคำสั่งซื้อเสมอ
     var TIERS = {{ tier_discount | default({2:100, 3:200, 4:300, 5:400}) | tojson }};
     var NMODS = {{ module_keys | length }};
+    var ADDON = {{ addon | tojson }};
+    // โหมดซื้อเพิ่ม: ใช้ราคา prorate ต่องาน · งานที่มีอยู่แล้ว (disabled) ไม่นับ · ไม่มีส่วนลดขั้นบันได
+    function priceOf(it){ return ADDON ? (+it.dataset.addonPrice) : (+it.dataset.price); }
     function calc(){
-      var chosen = items.filter(function(it){ return it.querySelector('input').checked; });
+      var chosen = items.filter(function(it){ var i=it.querySelector('input'); return i.checked && !i.disabled; });
       items.forEach(function(it){ it.classList.toggle('on', it.querySelector('input').checked); });
       var count = chosen.length;
-      var listSum = chosen.reduce(function(s,it){ return s + (+it.dataset.price); }, 0);
-      // ส่วนลดขั้นบันได: 2 งาน −100, 3 งาน −200, 4 งาน −300, ครบทุกงาน = ราคาแพ็ก
-      var total = count === NMODS ? BUNDLE : (count ? Math.max(0, listSum - (TIERS[count] || 0)) : 0);
-      var savings = listSum - total;
+      var listSum = chosen.reduce(function(s,it){ return s + priceOf(it); }, 0);
+      // ส่วนลดขั้นบันได (เฉพาะซื้อปกติ): 2 งาน -100, 3 งาน -200, ... ครบทุกงาน = ราคาแพ็ก
+      var total = ADDON ? listSum
+                  : (count === NMODS ? BUNDLE : (count ? Math.max(0, listSum - (TIERS[count] || 0)) : 0));
+      var savings = ADDON ? 0 : (listSum - total);
       if(amtEl) amtEl.textContent = fmt(total);
       if(saveEl){
         if(savings > 0){ saveEl.style.display = ''; saveEl.textContent = 'ประหยัด ' + fmt(savings) + ' บาท'; }

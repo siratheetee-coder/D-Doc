@@ -546,6 +546,22 @@ def owner_new_modules(uid) -> list:
         db.close()
 
 
+def tenant_billing(tenant_id) -> dict | None:
+    """สถานะการเรียกเก็บเงินของโรงเรียน (ใช้หน้า checkout ตัดสินว่าซื้อเพิ่ม prorate ได้ไหม)
+    คืน {plan, expiry_date, days_left, modules(csv), active}"""
+    from datetime import date
+    db = acc_session()
+    try:
+        t = db.query(Tenant).filter_by(id=tenant_id).first()
+        if not t:
+            return None
+        days = (t.expiry_date - date.today()).days if t.expiry_date else None
+        return {"plan": t.plan, "expiry_date": t.expiry_date, "days_left": days,
+                "modules": t.modules or "", "active": bool(t.active)}
+    finally:
+        db.close()
+
+
 def tenant_max_users(tenant_id) -> int:
     db = acc_session()
     try:
@@ -850,16 +866,21 @@ def renew_lead(lead_id: int, days: int = 365) -> dict | None:
         t = db.get(Tenant, tid)
         if not t:
             return {"error": "ไม่พบบัญชีโรงเรียน"}
-        base = t.expiry_date if (t.expiry_date and t.expiry_date >= date.today()) else date.today()
-        t.expiry_date = base + timedelta(days=days)
+        # สิทธิ์งานที่ซื้อ (lead เก่าที่ยังไม่มีคอลัมน์ modules -> แกะจากข้อความ packages)
+        bought = parse_modules(lead.modules) or modules_from_label(lead.packages)
+        owned = parse_modules(t.modules)
+        # Model B: "ซื้อเพิ่มกลางรอบ" (co-term) = สมาชิกที่ยังไม่หมดอายุ + งานที่ซื้อเป็นงานใหม่ล้วน
+        #   -> เพิ่มงานให้หมดอายุพร้อมของเดิม ไม่ขยับวันหมดอายุ
+        # อื่น ๆ (ทดลอง/หมดอายุ/ต่ออายุงานเดิม) = ต่ออายุ +days ตามปกติ
+        is_addon = (t.plan == "member" and t.expiry_date and t.expiry_date >= date.today()
+                    and bought and bought.isdisjoint(owned))
+        if not is_addon:
+            base = t.expiry_date if (t.expiry_date and t.expiry_date >= date.today()) else date.today()
+            t.expiry_date = base + timedelta(days=days)
         t.active = True
         t.plan = "member"          # อัปเกรดจากทดลองใช้ -> สมาชิก
-
-        # สิทธิ์งาน: รวมกับของเดิม (union) เพื่อให้ "ซื้อเพิ่มภายหลัง" สะสมได้
-        # lead เก่าที่ยังไม่มีคอลัมน์ modules -> แกะจากข้อความ packages แทน
-        bought = parse_modules(lead.modules) or modules_from_label(lead.packages)
         if bought:
-            t.modules = modules_csv(parse_modules(t.modules) | bought)
+            t.modules = modules_csv(owned | bought)
 
         # โควตาทดลอง: ล้างเฉพาะเมื่อซื้อครบทุกงานแล้ว
         # ถ้าซื้อบางงาน ต้องคงโควตาที่เหลือไว้ให้ใช้กับงานที่ยังไม่ได้ซื้อ -
