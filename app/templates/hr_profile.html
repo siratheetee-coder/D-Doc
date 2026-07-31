@@ -77,7 +77,7 @@
   {% if leaves %}
   <div class="table-wrap"><table>
     <thead><tr><th>ประเภท</th><th>ช่วงวันที่</th><th class="right">วัน</th><th>เหตุผล</th></tr></thead>
-    <tbody>{% for l in leaves %}<tr><td>{{ leave_types.get(l.leave_type, l.leave_type) }}</td><td>{{ be_date(l.start_date) if l.start_date else '-' }}{% if l.end_date %} – {{ be_date(l.end_date) }}{% endif %}</td><td class="right">{{ "%g"|format(l.days) }}</td><td class="muted">{{ l.reason }}</td></tr>{% endfor %}</tbody>
+    <tbody>{% for l in leaves %}<tr><td>{{ leave_types.get(l.leave_type, l.leave_type) }}</td><td>{{ be_date(l.start_date) if l.start_date else '-' }}{% if l.end_date %} - {{ be_date(l.end_date) }}{% endif %}</td><td class="right">{{ "%g"|format(l.days) }}</td><td class="muted">{{ l.reason }}</td></tr>{% endfor %}</tbody>
   </table></div>
   {% else %}<p class="muted">ยังไม่มีรายการลา</p>{% endif %}
 </div>
@@ -87,7 +87,7 @@
   {% if travels %}
   <div class="table-wrap"><table>
     <thead><tr><th>เรื่อง</th><th>สถานที่</th><th>ช่วงวันที่</th><th class="right">วัน</th></tr></thead>
-    <tbody>{% for t in travels %}<tr><td>{{ t.subject }}</td><td>{{ t.place }}</td><td>{{ be_date(t.start_date) if t.start_date else '-' }}{% if t.end_date %} – {{ be_date(t.end_date) }}{% endif %}</td><td class="right">{{ "%g"|format(t.days) }}</td></tr>{% endfor %}</tbody>
+    <tbody>{% for t in travels %}<tr><td>{{ t.subject }}</td><td>{{ t.place }}</td><td>{{ be_date(t.start_date) if t.start_date else '-' }}{% if t.end_date %} - {{ be_date(t.end_date) }}{% endif %}</td><td class="right">{{ "%g"|format(t.days) }}</td></tr>{% endfor %}</tbody>
   </table></div>
   {% else %}<p class="muted">ยังไม่มีรายการไปราชการ</p>{% endif %}
 </div>

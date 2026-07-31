@@ -38,8 +38,8 @@
     <div class="row">
       <div><label>ปีของโครงการ/แผนปฏิบัติการ</label>
         <select name="project_year_mode">
-          <option value="budget" {{ 'selected' if (school.project_year_mode or 'budget')=='budget' }}>ปีงบประมาณ (ต.ค.–ก.ย.)</option>
-          <option value="academic" {{ 'selected' if school.project_year_mode=='academic' }}>ปีการศึกษา (พ.ค.–เม.ย.)</option>
+          <option value="budget" {{ 'selected' if (school.project_year_mode or 'budget')=='budget' }}>ปีงบประมาณ (ต.ค.-ก.ย.)</option>
+          <option value="academic" {{ 'selected' if school.project_year_mode=='academic' }}>ปีการศึกษา (พ.ค.-เม.ย.)</option>
         </select>
         <span class="muted" style="font-size:13px;">ใช้จัดกลุ่มโครงการในเมนู "โครงการ/แผนงบ"</span>
       </div>

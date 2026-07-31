@@ -498,7 +498,8 @@ def get_account_access(uid) -> dict | None:
         u = db.query(Account).filter_by(id=uid).first()
         if not u:
             return None
-        return {"is_owner": bool(u.is_owner), "modules": u.modules or "", "active": bool(u.active)}
+        return {"is_owner": bool(u.is_owner), "modules": u.modules or "", "active": bool(u.active),
+                "welcomed": bool(u.welcomed)}
     finally:
         db.close()
 

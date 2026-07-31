@@ -106,7 +106,7 @@
   {% if new_mod_labels %}
   <div class="alert" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:#eef4ff; border:1px solid #cfe0ff; color:#1e3a8a;">
     <svg class="icon"><use href="#ic-info"/></svg>
-    <span style="flex:1; min-width:200px;">โรงเรียนของคุณเปิดใช้งานเพิ่ม: <b>{{ new_mod_labels|join(' · ') }}</b> — ไปเปิดสิทธิ์ให้เจ้าหน้าที่ที่เมนู "จัดการผู้ใช้"</span>
+    <span style="flex:1; min-width:200px;">โรงเรียนของคุณเปิดใช้งานเพิ่ม: <b>{{ new_mod_labels|join(' · ') }}</b> · ไปเปิดสิทธิ์ให้เจ้าหน้าที่ที่เมนู "จัดการผู้ใช้"</span>
     <a class="btn sm" href="/users"><svg class="icon"><use href="#ic-users"/></svg> เปิดสิทธิ์ให้ทีม</a>
     <button class="btn sm gray" type="button" onclick="modulesSeen(this)">รับทราบ</button>
   </div>
@@ -254,7 +254,8 @@
   // ย้าย modal ไปเป็นลูกของ body: กัน position:fixed อิงกับ main ที่มี transform (มืดไม่เต็มจอ)
   (function(){ var m=document.getElementById('welcomeModal'); if(m && m.parentNode!==document.body) document.body.appendChild(m); })();
   function welcomeSeen(go){
-    fetch('/welcome/seen', {method:'POST', headers:{'X-Requested-With':'fetch'}}).catch(function(){});
+    // keepalive: ให้ POST ส่งจนเสร็จแม้หน้าจะ navigate ต่อทันที (กันบันทึกไม่ทันแล้วการ์ดเด้งซ้ำ)
+    fetch('/welcome/seen', {method:'POST', headers:{'X-Requested-With':'fetch'}, keepalive:true}).catch(function(){});
     var m=document.getElementById('welcomeModal'); if(m) m.remove();
     if(go) location.href='/users';
   }

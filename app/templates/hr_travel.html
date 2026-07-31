@@ -69,7 +69,7 @@
         <td>{{ r.person.name if r.person else '-' }}</td>
         <td>{{ r.subject }}</td>
         <td>{{ r.place }}</td>
-        <td>{{ be_date(r.start_date) if r.start_date else '-' }}{% if r.end_date %} – {{ be_date(r.end_date) }}{% endif %}</td>
+        <td>{{ be_date(r.start_date) if r.start_date else '-' }}{% if r.end_date %} - {{ be_date(r.end_date) }}{% endif %}</td>
         <td class="right">{{ "%g"|format(r.days) }}</td>
         <td class="right">{{ "{:,.2f}".format(r.budget) if r.budget else '-' }}</td>
         <td style="white-space:nowrap;">

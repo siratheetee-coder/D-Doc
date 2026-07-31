@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.accounts import (
     list_tenant_users, add_tenant_user, set_user_modules, reset_user_password,
-    toggle_user_active, delete_tenant_user, tenant_max_users,
+    toggle_user_active, delete_tenant_user, tenant_max_users, mark_welcomed, sync_seen_modules,
 )
 from app.templating import templates
 
@@ -26,6 +26,10 @@ def _is_owner(request: Request) -> bool:
 def users_page(request: Request, msg: str = "", err: str = ""):
     if not _is_owner(request):
         return RedirectResponse("/", status_code=303)
+    # เปิดหน้าจัดการผู้ใช้ = ผ่านการต้อนรับแล้ว (ไม่ต้องเด้งการ์ดต้อนรับอีก)
+    uid = request.session.get("uid")
+    if uid and not request.session.get("welcomed"):
+        mark_welcomed(uid); sync_seen_modules(uid); request.session["welcomed"] = True
     tid = request.session.get("tid")
     return templates.TemplateResponse("users.html", {
         "request": request, "users": list_tenant_users(tid),

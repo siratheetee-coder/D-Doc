@@ -136,3 +136,18 @@ def price_for(modules) -> dict:
         total = max(0, list_sum - TIER_DISCOUNT.get(n, 0))
     return {"modules": modules_csv(mods), "count": n, "list_sum": list_sum,
             "discount": max(0, list_sum - total), "total": total, "label": label_for(mods)}
+
+
+def price_addon(modules, days_left: int) -> dict:
+    """ราคา 'ซื้อเพิ่มกลางรอบ' (prorate ตามวันที่เหลือ) - งานใหม่จะหมดอายุพร้อมของเดิม
+    คิดราคาปีของแต่ละงาน × (วันที่เหลือ/365) แล้วรวม (ไม่ใช้ส่วนลดขั้นบันได/แพ็ก)
+    คืน {modules, count, per(dict key->ราคา prorate), total, annual, frac, days_left, label}"""
+    from app.modules import MODULE_KEYS, MODULE_PRICE_KEY, parse_modules, modules_csv, label_for
+    px = pricing_context()["prices"]
+    mods = parse_modules(modules_csv(modules))
+    frac = max(0.0, min(1.0, (days_left or 0) / 365.0))
+    per = {k: int(round(px[MODULE_PRICE_KEY[k]] * frac)) for k in MODULE_KEYS if k in mods}
+    annual = sum(px[MODULE_PRICE_KEY[k]] for k in MODULE_KEYS if k in mods)
+    return {"modules": modules_csv(mods), "count": len(mods), "per": per,
+            "total": sum(per.values()), "annual": annual, "frac": frac,
+            "days_left": int(days_left or 0), "label": label_for(mods)}
