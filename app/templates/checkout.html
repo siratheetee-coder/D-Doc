@@ -34,8 +34,16 @@
   .co-price{ font-weight:700; white-space:nowrap; }
   .co-price::after{ content:" บาท"; font-weight:400; color:var(--muted); font-size:12px; }
   /* แถบโปรโมชั่นเปิดตัว (แบบ 2) */
-  .promo-band{ border-radius:16px; overflow:hidden; margin-bottom:18px; color:#fff;
-    background:linear-gradient(120deg,#2563eb 0%,#1d4ed8 55%,#0b2a6b 120%); box-shadow:0 16px 40px rgba(29,78,216,.28); }
+  .promo-band{ border-radius:16px; overflow:hidden; margin-bottom:18px; color:#fff; cursor:pointer;
+    background:linear-gradient(120deg,#2563eb 0%,#1d4ed8 55%,#0b2a6b 120%); box-shadow:0 16px 40px rgba(29,78,216,.28);
+    transition:transform .2s ease, box-shadow .2s ease; }
+  .promo-band:hover{ transform:translateY(-3px); box-shadow:0 24px 52px rgba(29,78,216,.45); }
+  .promo-band:active{ transform:translateY(-1px); }
+  .promo-band:focus-visible{ outline:3px solid #93c5fd; outline-offset:3px; }
+  .promo-band:hover .shine::before{ animation-duration:2.2s; }   /* hover เร่งแสงสาด */
+  .promo-band .pb-pick{ display:inline-block; margin-left:10px; background:rgba(255,255,255,.2);
+    border:1px solid rgba(255,255,255,.35); border-radius:999px; padding:2px 12px; font-size:12px;
+    font-weight:700; vertical-align:middle; }
   .promo-band .pb-top{ display:flex; align-items:center; gap:18px; padding:18px 20px 14px; flex-wrap:wrap; }
   .promo-band .pb-lead{ flex:none; padding-right:16px; border-right:1px solid rgba(255,255,255,.22); }
   .promo-band .pb-yellow{ color:#ffde3d; font-weight:800; font-size:26px; line-height:1.05; letter-spacing:-.3px; }
@@ -134,7 +142,9 @@
   {% endif %}
   {% if not addon %}
   {% if promo_active %}
-  <div class="promo-band" data-promo-end="{{ promo_end_iso }}">
+  <div class="promo-band shine-host" id="promoBand" data-promo-end="{{ promo_end_iso }}"
+       role="button" tabindex="0" title="คลิกเพื่อเลือกครบทุกงาน" aria-label="เลือกครบทุกงาน">
+    <span class="shine"></span>
     <div class="pb-top">
       {# เทียบกับ "ราคารวมงานแยก" (full_sum) เพราะแคมเปญตอนนี้ใช้ราคาปกติเป็นราคาแคมเปญ
          ถ้าเทียบกับ regular.bundle จะได้ 0 แล้วขึ้นว่า "ประหยัด 0 บาท" ซึ่งดูแปลก #}
@@ -145,7 +155,7 @@
         <div class="pb-lead-sub">ประหยัด {{ "{:,}".format(save_now) }} บาท</div>
       </div>
       <div class="pb-headline">
-        <div class="pb-h">เลือกครบทุกงาน เพียง <b>{{ "{:,}".format(px.bundle) }} บาท/ปี</b></div>
+        <div class="pb-h">เลือกครบทุกงาน เพียง <b>{{ "{:,}".format(px.bundle) }} บาท/ปี</b><span class="pb-pick">คลิกเลือกเลย</span></div>
         <div class="pb-s">จากราคารวมแยกงาน {{ "{:,}".format(was_now) }} บาท ประหยัดทันที {{ "{:,}".format(save_now) }} บาท</div>
       </div>
       <div class="pb-cd" data-promo-cd></div>
@@ -315,10 +325,15 @@
       return total;
     }
     items.forEach(function(it){ it.querySelector('input').addEventListener('change', calc); });
+    function selectAll(){ items.forEach(function(it){ var i=it.querySelector('input'); if(!i.disabled) i.checked = true; }); calc(); }
     var allBtn = document.getElementById('coAll');
-    if(allBtn) allBtn.addEventListener('click', function(){
-      items.forEach(function(it){ it.querySelector('input').checked = true; }); calc();
-    });
+    if(allBtn) allBtn.addEventListener('click', selectAll);
+    // แถบ "แพ็กสุดคุ้ม" กดได้ = เลือกครบทุกงาน (+ คีย์บอร์ด Enter/Space)
+    var promoBand = document.getElementById('promoBand');
+    if(promoBand){
+      promoBand.addEventListener('click', selectAll);
+      promoBand.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); selectAll(); } });
+    }
     calc();
   })();
 
