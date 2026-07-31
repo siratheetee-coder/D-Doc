@@ -60,6 +60,7 @@ class Account(AccBase):
     active = Column(Boolean, default=True)
     is_owner = Column(Boolean, default=False)       # ไอดีหลักของโรงเรียน: เห็นทุกงาน + จัดการผู้ใช้ได้
     modules = Column(String, default="")            # งานที่ไอดีย่อยเข้าได้ (CSV) · owner ไม่ใช้ (เห็นทุกงาน)
+    welcomed = Column(Boolean, default=False)       # เห็นการ์ดต้อนรับ/แนะนำจัดการผู้ใช้ตอนล็อกอินครั้งแรกแล้ว
     must_change_password = Column(Boolean, default=False)   # บังคับเปลี่ยนรหัสครั้งแรก
     verified = Column(Boolean, default=True)        # ยืนยันอีเมลแล้วหรือยัง (สมัครใหม่ = False ถ้าเปิด SMTP)
     verify_token = Column(String, default="")       # โทเคนยืนยันอีเมล (ล้างเมื่อยืนยันแล้ว)
@@ -128,6 +129,7 @@ def _ensure_engine():
                     # ระบบสิทธิ์รายบัญชี: ไอดีหลัก (เห็นทุกงาน+จัดการผู้ใช้) + งานที่ไอดีย่อยเข้าได้
                     "ALTER TABLE account ADD COLUMN is_owner BOOLEAN DEFAULT 0",
                     "ALTER TABLE account ADD COLUMN modules VARCHAR DEFAULT ''",
+                    "ALTER TABLE account ADD COLUMN welcomed BOOLEAN DEFAULT 0",
                     # backfill: บัญชีแรก (id น้อยสุด) ของแต่ละโรงเรียน = ไอดีหลัก · รันซ้ำได้ (ตั้งค่าแถวเดิม)
                     "UPDATE account SET is_owner=1 WHERE tenant_id IS NOT NULL "
                     "AND id IN (SELECT MIN(id) FROM account WHERE tenant_id IS NOT NULL GROUP BY tenant_id)",
@@ -197,7 +199,8 @@ def authenticate(username: str, password: str) -> dict | None:
                     "must_change": bool(u.must_change_password),
                     "verified": bool(getattr(u, "verified", True)),
                     "is_owner": bool(getattr(u, "is_owner", False)),
-                    "modules": getattr(u, "modules", "") or ""}
+                    "modules": getattr(u, "modules", "") or "",
+                    "welcomed": bool(getattr(u, "welcomed", False))}
         return None
     finally:
         db.close()
@@ -481,6 +484,17 @@ def list_tenant_users(tenant_id) -> list:
         return [{"id": u.id, "username": u.username, "display_name": u.display_name or "",
                  "is_owner": bool(u.is_owner), "active": bool(u.active),
                  "modules": u.modules or ""} for u in us]
+    finally:
+        db.close()
+
+
+def mark_welcomed(uid) -> None:
+    """บันทึกว่าผู้ใช้เห็นการ์ดต้อนรับแล้ว (ไม่ต้องเด้งอีก)"""
+    db = acc_session()
+    try:
+        u = db.query(Account).filter_by(id=uid).first()
+        if u and not u.welcomed:
+            u.welcomed = True; db.commit()
     finally:
         db.close()
 

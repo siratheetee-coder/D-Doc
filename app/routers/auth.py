@@ -78,6 +78,7 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
     request.session["must_change"] = user.get("must_change", False)
     request.session["owner"] = user.get("is_owner", False)   # ไอดีหลัก = เห็นทุกงาน + จัดการผู้ใช้
     request.session["mods"] = user.get("modules", "")         # ไอดีย่อย: CSV งานที่เข้าได้
+    request.session["welcomed"] = user.get("welcomed", True)  # เห็นการ์ดต้อนรับแล้วหรือยัง
     if user.get("must_change"):
         return RedirectResponse("/account/password", status_code=303)
     dest = "/admin-console" if user["role"] == "superadmin" else "/"

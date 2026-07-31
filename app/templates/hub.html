@@ -202,4 +202,42 @@
     </div>
   </div>
 </div>
+
+{# การ์ดต้อนรับ: เด้งเฉพาะไอดีหลักที่เพิ่งล็อกอินครั้งแรก (ยังไม่เคยเห็น) #}
+{% if request.session.get('owner') and not request.session.get('welcomed') %}
+<div id="welcomeModal" class="wm-ov">
+  <div class="wm-card">
+    <span class="wm-ic"><svg class="icon"><use href="#ic-users"/></svg></span>
+    <h2>ยินดีต้อนรับสู่ Easy Ekkasan!</h2>
+    <p>เริ่มต้นด้วยการ<b>ตั้งค่าผู้ใช้</b>ก่อน — เพิ่มบัญชีให้เจ้าหน้าที่แต่ละงาน (การเงิน พัสดุ ธุรการ ฯลฯ)
+       แล้วกำหนดสิทธิ์ว่าใครเข้างานไหนได้บ้าง<br>
+       บัญชีนี้เป็น<b>ไอดีหลัก</b> เห็นทุกงานและจัดการผู้ใช้ได้</p>
+    <div class="wm-btns">
+      <button class="btn" type="button" onclick="welcomeSeen(true)"><svg class="icon"><use href="#ic-users"/></svg> ไปจัดการผู้ใช้</button>
+      <button class="btn gray" type="button" onclick="welcomeSeen(false)">ข้ามไปก่อน</button>
+    </div>
+  </div>
+</div>
+<style>
+  .wm-ov { position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:1000; display:flex;
+    align-items:center; justify-content:center; padding:20px; animation:wmFade .25s ease; }
+  .wm-card { background:#fff; max-width:460px; width:100%; border-radius:18px; padding:30px 28px;
+    text-align:center; box-shadow:0 24px 60px rgba(16,24,40,.35); animation:wmPop .3s cubic-bezier(.2,.75,.25,1); }
+  .wm-ic { width:64px; height:64px; border-radius:50%; background:#e8f0ff; color:#2b58c9; display:flex;
+    align-items:center; justify-content:center; margin:0 auto 14px; }
+  .wm-ic svg { width:32px; height:32px; }
+  .wm-card h2 { font-size:22px; margin:0 0 8px; background:none; border:none; padding:0; }
+  .wm-card p { color:#5a6a85; line-height:1.7; margin:0 0 20px; }
+  .wm-btns { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  @keyframes wmFade { from{opacity:0} to{opacity:1} }
+  @keyframes wmPop { from{opacity:0; transform:translateY(14px) scale(.97)} to{opacity:1; transform:none} }
+</style>
+<script>
+  function welcomeSeen(go){
+    fetch('/welcome/seen', {method:'POST', headers:{'X-Requested-With':'fetch'}}).catch(function(){});
+    var m=document.getElementById('welcomeModal'); if(m) m.remove();
+    if(go) location.href='/users';
+  }
+</script>
+{% endif %}
 {% endblock %}
