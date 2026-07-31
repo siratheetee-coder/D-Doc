@@ -61,6 +61,7 @@ class Account(AccBase):
     is_owner = Column(Boolean, default=False)       # ไอดีหลักของโรงเรียน: เห็นทุกงาน + จัดการผู้ใช้ได้
     modules = Column(String, default="")            # งานที่ไอดีย่อยเข้าได้ (CSV) · owner ไม่ใช้ (เห็นทุกงาน)
     welcomed = Column(Boolean, default=False)       # เห็นการ์ดต้อนรับ/แนะนำจัดการผู้ใช้ตอนล็อกอินครั้งแรกแล้ว
+    seen_modules = Column(String, default="")       # งานที่ไอดีหลักรับรู้แล้ว (เทียบกับที่ซื้อ -> แจ้งเตือนงานที่ซื้อเพิ่ม)
     must_change_password = Column(Boolean, default=False)   # บังคับเปลี่ยนรหัสครั้งแรก
     verified = Column(Boolean, default=True)        # ยืนยันอีเมลแล้วหรือยัง (สมัครใหม่ = False ถ้าเปิด SMTP)
     verify_token = Column(String, default="")       # โทเคนยืนยันอีเมล (ล้างเมื่อยืนยันแล้ว)
@@ -130,6 +131,7 @@ def _ensure_engine():
                     "ALTER TABLE account ADD COLUMN is_owner BOOLEAN DEFAULT 0",
                     "ALTER TABLE account ADD COLUMN modules VARCHAR DEFAULT ''",
                     "ALTER TABLE account ADD COLUMN welcomed BOOLEAN DEFAULT 0",
+                    "ALTER TABLE account ADD COLUMN seen_modules VARCHAR DEFAULT ''",
                     # backfill: บัญชีแรก (id น้อยสุด) ของแต่ละโรงเรียน = ไอดีหลัก · รันซ้ำได้ (ตั้งค่าแถวเดิม)
                     "UPDATE account SET is_owner=1 WHERE tenant_id IS NOT NULL "
                     "AND id IN (SELECT MIN(id) FROM account WHERE tenant_id IS NOT NULL GROUP BY tenant_id)",
@@ -508,6 +510,37 @@ def mark_welcomed(uid) -> None:
         u = db.query(Account).filter_by(id=uid).first()
         if u and not u.welcomed:
             u.welcomed = True; db.commit()
+    finally:
+        db.close()
+
+
+def sync_seen_modules(uid) -> None:
+    """ตั้ง 'งานที่รับรู้แล้ว' = งานที่โรงเรียนซื้อตอนนี้ (กดรับรู้แบนเนอร์ซื้อเพิ่ม/ปิดการ์ดต้อนรับ)"""
+    db = acc_session()
+    try:
+        u = db.query(Account).filter_by(id=uid).first()
+        if not u:
+            return
+        t = db.query(Tenant).filter_by(id=u.tenant_id).first()
+        u.seen_modules = (t.modules if t else "") or ""; db.commit()
+    finally:
+        db.close()
+
+
+def owner_new_modules(uid) -> list:
+    """งานที่โรงเรียนซื้อแล้วแต่ไอดีหลักยังไม่รับรู้ (ใช้แจ้งเตือน 'ซื้อเพิ่ม -> ไปเปิดสิทธิ์')
+    คืน [] ถ้าไม่ใช่ไอดีหลัก หรือยังไม่ผ่านการ์ดต้อนรับ (ครั้งแรกให้การ์ดต้อนรับจัดการแทน)"""
+    from app.modules import parse_modules, MODULE_KEYS
+    db = acc_session()
+    try:
+        u = db.query(Account).filter_by(id=uid).first()
+        if not u or not u.is_owner or not u.welcomed:
+            return []
+        t = db.query(Tenant).filter_by(id=u.tenant_id).first()
+        if not t:
+            return []
+        owned, seen = parse_modules(t.modules), parse_modules(u.seen_modules)
+        return [k for k in MODULE_KEYS if k in owned and k not in seen]
     finally:
         db.close()
 

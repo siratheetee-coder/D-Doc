@@ -103,88 +103,105 @@
   </script>
   {% endif %}
 
+  {% if new_mod_labels %}
+  <div class="alert" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:#eef4ff; border:1px solid #cfe0ff; color:#1e3a8a;">
+    <svg class="icon"><use href="#ic-info"/></svg>
+    <span style="flex:1; min-width:200px;">โรงเรียนของคุณเปิดใช้งานเพิ่ม: <b>{{ new_mod_labels|join(' · ') }}</b> — ไปเปิดสิทธิ์ให้เจ้าหน้าที่ที่เมนู "จัดการผู้ใช้"</span>
+    <a class="btn sm" href="/users"><svg class="icon"><use href="#ic-users"/></svg> เปิดสิทธิ์ให้ทีม</a>
+    <button class="btn sm gray" type="button" onclick="modulesSeen(this)">รับทราบ</button>
+  </div>
+  <script>
+    function modulesSeen(btn){ fetch('/modules/seen',{method:'POST',headers:{'X-Requested-With':'fetch'}}).catch(function(){}); var b=btn.closest('.alert'); if(b) b.remove(); }
+  </script>
+  {% endif %}
+
   <div class="hub-grid">
     <!-- งานธุรการ -->
     {% set _tid = request.session.get('tid') %}
     {% set _mine = my_modules(_tid) %}
-    {%- set live = modules_live['admin'] %}{% set owned = 'admin' in _mine %}{% set usable = can_use(_tid, 'admin') %}
-    <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not usable) else '' }}" style="--c:#7c3aed; --c2:#a78bfa;"
-       href="{{ '/admin' if (live and usable) else ('/checkout' if live else '#') }}" {{ '' if live else 'onclick=return false;'|safe }}>
-      {% if live and usable and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
+    {# สิทธิ์บัญชี: ไอดีหลักเห็นทุกงาน · ไอดีย่อยเห็นเฉพาะงานที่ได้รับสิทธิ์ (owned = โรงเรียนซื้อ, allowed = บัญชีมีสิทธิ์) #}
+    {% set _owner = request.session.get('owner') %}
+    {% set _acc = (request.session.get('mods') or '').split(',') %}
+    {%- set live = modules_live['admin'] %}{% set owned = 'admin' in _mine %}{% set usable = can_use(_tid, 'admin') %}{% set allowed = _owner or 'admin' in _acc %}
+    <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not (usable and allowed)) else '' }}" style="--c:#7c3aed; --c2:#a78bfa;"
+       href="{{ '/admin' if (live and usable and allowed) else ('/checkout' if (live and not usable) else '#') }}" {{ '' if (live and usable and allowed) else 'onclick=return false;'|safe }}>
+      {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
       <span class="hub-ic"><svg class="icon"><use href="#ic-file"/></svg></span>
       <h2>งานธุรการ</h2>
       <div class="desc">ทะเบียนหนังสือรับ-ส่ง · ออกบันทึกข้อความ · คำสั่งโรงเรียน</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
-      {% elif usable %}
+      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      {% elif not allowed %}<span class="hub-soon">ไม่มีสิทธิ์งานนี้</span>
+      {% else %}
       <div class="hub-stat"><b>{{ admin_total }}</b><span>เอกสารปีนี้</span></div>
-      <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-      {% else %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
+      <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
     </a>
 
-    {%- set live = modules_live['procurement'] %}{% set owned = 'procurement' in _mine %}{% set usable = can_use(_tid, 'procurement') %}
-    <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not usable) else '' }}" style="--c:#4880FF; --c2:#6f9bff;"
-       href="{{ '/procurement' if (live and usable) else ('/checkout' if live else '#') }}" {{ '' if live else 'onclick=return false;'|safe }}>
-      {% if live and usable and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
+    {%- set live = modules_live['procurement'] %}{% set owned = 'procurement' in _mine %}{% set usable = can_use(_tid, 'procurement') %}{% set allowed = _owner or 'procurement' in _acc %}
+    <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not (usable and allowed)) else '' }}" style="--c:#4880FF; --c2:#6f9bff;"
+       href="{{ '/procurement' if (live and usable and allowed) else ('/checkout' if (live and not usable) else '#') }}" {{ '' if (live and usable and allowed) else 'onclick=return false;'|safe }}>
+      {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
       <span class="hub-ic"><svg class="icon"><use href="#ic-package"/></svg></span>
       <h2>งานพัสดุ</h2>
       <div class="desc">จัดซื้อจัดจ้าง · ออกเอกสารครบชุด · ทะเบียนครุภัณฑ์ · บัญชีวัสดุ</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
-      {% elif usable %}
+      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      {% elif not allowed %}<span class="hub-soon">ไม่มีสิทธิ์งานนี้</span>
+      {% else %}
       <div class="hub-stat"><b>{{ stats.proc }}</b><span>เรื่องปีนี้ · {{ "{:,.0f}".format(stats.proc_amount) }} บาท</span></div>
-      <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-      {% else %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
+      <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
     </a>
 
-    {%- set live = modules_live['finance'] %}{% set owned = 'finance' in _mine %}{% set usable = can_use(_tid, 'finance') %}
-    <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not usable) else '' }}" style="--c:#16a34a; --c2:#4ade80;"
-       href="{{ '/finance' if (live and usable) else ('/checkout' if live else '#') }}" {{ '' if live else 'onclick=return false;'|safe }}>
-      {% if live and usable and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
+    {%- set live = modules_live['finance'] %}{% set owned = 'finance' in _mine %}{% set usable = can_use(_tid, 'finance') %}{% set allowed = _owner or 'finance' in _acc %}
+    <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not (usable and allowed)) else '' }}" style="--c:#16a34a; --c2:#4ade80;"
+       href="{{ '/finance' if (live and usable and allowed) else ('/checkout' if (live and not usable) else '#') }}" {{ '' if (live and usable and allowed) else 'onclick=return false;'|safe }}>
+      {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
       <span class="hub-ic"><svg class="icon"><use href="#ic-coins"/></svg></span>
       <h2>งานการเงิน</h2>
       <div class="desc">ทะเบียนคุมเงินแยกบัญชี · บันทึกขอเบิกจ่าย · รายงานการเงิน · ใบเสร็จ/ใบสำคัญ</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
-      {% elif usable %}
-      <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-      {% else %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
+      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      {% elif not allowed %}<span class="hub-soon">ไม่มีสิทธิ์งานนี้</span>
+      {% else %}<span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
     </a>
 
-    {%- set live = modules_live['lunch'] %}{% set owned = 'lunch' in _mine %}{% set usable = can_use(_tid, 'lunch') %}
-    <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not usable) else '' }}" style="--c:#ea580c; --c2:#fb923c;"
-       href="{{ '/lunch' if (live and usable) else ('/checkout' if live else '#') }}" {{ '' if live else 'onclick=return false;'|safe }}>
-      {% if live and usable and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
+    {%- set live = modules_live['lunch'] %}{% set owned = 'lunch' in _mine %}{% set usable = can_use(_tid, 'lunch') %}{% set allowed = _owner or 'lunch' in _acc %}
+    <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not (usable and allowed)) else '' }}" style="--c:#ea580c; --c2:#fb923c;"
+       href="{{ '/lunch' if (live and usable and allowed) else ('/checkout' if (live and not usable) else '#') }}" {{ '' if (live and usable and allowed) else 'onclick=return false;'|safe }}>
+      {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
       <span class="hub-ic"><svg class="icon"><use href="#ic-food"/></svg></span>
       <h2>งานอาหารกลางวัน</h2>
       <div class="desc">คำนวณงบตามจำนวนนักเรียน · บัญชีรับ-จ่ายเงินอุดหนุน · เชื่อมเรื่องจ้างเหมา</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
-      {% elif usable %}
-      <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-      {% else %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
+      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      {% elif not allowed %}<span class="hub-soon">ไม่มีสิทธิ์งานนี้</span>
+      {% else %}<span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
     </a>
 
-    {%- set live = modules_live['hr'] %}{% set owned = 'hr' in _mine %}{% set usable = can_use(_tid, 'hr') %}
-    <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not usable) else '' }}" style="--c:#0d9488; --c2:#2dd4bf;"
-       href="{{ '/hr' if (live and usable) else ('/checkout' if live else '#') }}" {{ '' if live else 'onclick=return false;'|safe }}>
-      {% if live and usable and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
+    {%- set live = modules_live['hr'] %}{% set owned = 'hr' in _mine %}{% set usable = can_use(_tid, 'hr') %}{% set allowed = _owner or 'hr' in _acc %}
+    <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not (usable and allowed)) else '' }}" style="--c:#0d9488; --c2:#2dd4bf;"
+       href="{{ '/hr' if (live and usable and allowed) else ('/checkout' if (live and not usable) else '#') }}" {{ '' if (live and usable and allowed) else 'onclick=return false;'|safe }}>
+      {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
       <span class="hub-ic"><svg class="icon"><use href="#ic-users"/></svg></span>
       <h2>งานบุคคล</h2>
       <div class="desc">ทะเบียนบุคลากร · ทะเบียนวันลา (คงเหลืออัตโนมัติ) · ใบลา · หนังสือรับรอง</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
-      {% elif usable %}
-      <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-      {% else %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
+      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      {% elif not allowed %}<span class="hub-soon">ไม่มีสิทธิ์งานนี้</span>
+      {% else %}<span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
     </a>
 
-    {%- set live = modules_live['academic'] %}{% set owned = 'academic' in _mine %}{% set usable = can_use(_tid, 'academic') %}
-    <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not usable) else '' }}" style="--c:#4f46e5; --c2:#818cf8;"
-       href="{{ '/academic' if (live and usable) else ('/checkout' if live else '#') }}" {{ '' if live else 'onclick=return false;'|safe }}>
-      {% if live and usable and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
+    {%- set live = modules_live['academic'] %}{% set owned = 'academic' in _mine %}{% set usable = can_use(_tid, 'academic') %}{% set allowed = _owner or 'academic' in _acc %}
+    <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not (usable and allowed)) else '' }}" style="--c:#4f46e5; --c2:#818cf8;"
+       href="{{ '/academic' if (live and usable and allowed) else ('/checkout' if (live and not usable) else '#') }}" {{ '' if (live and usable and allowed) else 'onclick=return false;'|safe }}>
+      {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
       <span class="hub-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span>
       <h2>งานวิชาการ</h2>
       <div class="desc">ห้องเรียน/ครูประจำชั้น · รายวิชา 8 กลุ่มสาระ · กรอกคะแนน ปพ.5 · ประเมิน ปพ.6 · สมุดรายงาน</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
-      {% elif usable %}
-      <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-      {% else %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
+      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      {% elif not allowed %}<span class="hub-soon">ไม่มีสิทธิ์งานนี้</span>
+      {% else %}<span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
     </a>
   </div>
 

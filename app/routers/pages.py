@@ -166,10 +166,17 @@ def hub(request: Request, db: Session = Depends(get_db)):
     ]
     onboard_done = sum(1 for s in onboard if s["done"])
 
+    # แจ้งเตือนไอดีหลัก: มีงานที่โรงเรียนซื้อเพิ่มแต่ยังไม่ได้มอบสิทธิ์ให้ทีม
+    from app.accounts import owner_new_modules
+    from app.modules import MODULE_LABELS
+    new_mods = owner_new_modules(request.session.get("uid")) if request.session.get("owner") else []
+    new_mod_labels = [MODULE_LABELS.get(k, k) for k in new_mods]
+
     return templates.TemplateResponse("hub.html", {
         "request": request, "school": school, "fiscal_year": fy,
         "stats": stats, "admin_total": admin_total,
         "onboard": onboard, "onboard_done": onboard_done, "onboard_total": len(onboard),
+        "new_mod_labels": new_mod_labels,
     })
 
 

@@ -6,7 +6,7 @@ account.py - จัดการบัญชีผู้ใช้ของตั�
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.accounts import change_password, mark_welcomed
+from app.accounts import change_password, mark_welcomed, sync_seen_modules
 from app.templating import templates
 
 router = APIRouter()
@@ -14,11 +14,21 @@ router = APIRouter()
 
 @router.post("/welcome/seen")
 def welcome_seen(request: Request):
-    """ปิดการ์ดต้อนรับ (ล็อกอินครั้งแรก) - ไม่เด้งอีก"""
+    """ปิดการ์ดต้อนรับ (ล็อกอินครั้งแรก) - ไม่เด้งอีก + ตั้ง baseline งานที่รับรู้ (กันแบนเนอร์ซื้อเพิ่มเด้งซ้ำงานเดิม)"""
     uid = request.session.get("uid")
     if uid:
         mark_welcomed(uid)
+        sync_seen_modules(uid)
         request.session["welcomed"] = True
+    return {"ok": True}
+
+
+@router.post("/modules/seen")
+def modules_seen(request: Request):
+    """ไอดีหลักกดรับรู้แบนเนอร์ 'มีงานที่ซื้อเพิ่ม' -> ไม่เด้งอีกจนกว่าจะซื้อเพิ่มอีก"""
+    uid = request.session.get("uid")
+    if uid:
+        sync_seen_modules(uid)
     return {"ok": True}
 
 
