@@ -282,8 +282,11 @@ def docnos_peek(request: Request, db: Session = Depends(get_db), year: int | Non
     """คืนเลขล่าสุด/ถัดไป + เรื่องล่าสุด ต่อประเภทเอกสาร (JSON) - ใช้กับป็อปอัป 'ดูเลขล่าสุด' ไม่ต้องเปลี่ยนหน้า"""
     fy = year or current_fiscal_year()
     counters = (db.query(DocNumberCounter)
-                .filter(DocNumberCounter.fiscal_year == fy, DocNumberCounter.last_number > 0)
-                .order_by(DocNumberCounter.doc_type).all())
+                .filter(DocNumberCounter.fiscal_year == fy, DocNumberCounter.last_number > 0).all())
+    # เรียงตามลำดับใน COUNTER_TYPES (บันทึกข้อความ/คำสั่ง/หนังสือส่ง/หนังสือรับ/ใบสั่งซื้อ/ใบสั่งจ้าง)
+    # เพื่อให้ใบสั่งซื้อกับใบสั่งจ้างอยู่ติดกัน
+    _order = list(COUNTER_TYPES.keys())
+    counters.sort(key=lambda c: _order.index(c.doc_type) if c.doc_type in _order else 99)
     items = []
     for c in counters:
         last_row = (db.query(IssuedDocNo)

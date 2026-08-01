@@ -2,6 +2,11 @@
 {% block title %}จัดการผู้ใช้{% endblock %}
 {% block content %}
 {% set tid = request.session.get('tid') %}
+<style>
+  /* กันตัวอักษรบีบ/ตัดบรรทัดในตารางบัญชี (หัวตาราง + ป้ายประเภท/สถานะ) */
+  .content table th { white-space:nowrap; }
+  .content table .pill { white-space:nowrap; }
+</style>
 <div class="hero">
   <div>
     <div class="hero-sub">จัดการบัญชีผู้ใช้ในโรงเรียน (ไอดีหลักเท่านั้น)</div>
