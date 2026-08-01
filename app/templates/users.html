@@ -20,7 +20,7 @@
     <tbody>
     {% for u in users %}
       <tr>
-        <td><b>{{ u.username }}</b>{% if u.display_name %}<br><span class="muted" style="font-size:13px;">{{ u.display_name }}</span>{% endif %}</td>
+        <td style="white-space:nowrap;"><b>{{ u.username }}</b>{% if u.display_name %}<br><span class="muted" style="font-size:13px;">{{ u.display_name }}</span>{% endif %}</td>
         <td>
           {% if u.is_owner %}<span class="pill" style="background:#e8f0ff; color:#2b58c9;">ไอดีหลัก</span>
           {% else %}<span class="pill" style="background:#f1f5f9; color:#5a6a85;">ไอดีย่อย</span>{% endif %}
@@ -31,7 +31,7 @@
           {% else %}
             <form method="post" action="/users/{{ u.id }}/modules" style="margin:0; display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center;">
               {% for k in module_keys %}{% if can_use(tid, k) %}
-              <label style="display:inline-flex; align-items:center; gap:4px; font-weight:500; font-size:14px; margin:0;">
+              <label style="display:inline-flex; align-items:center; gap:4px; font-weight:500; font-size:14px; margin:0; white-space:nowrap;">
                 <input type="checkbox" name="modules" value="{{ k }}" style="width:auto;" {{ 'checked' if k in u.modules.split(',') }}> {{ module_labels[k] }}
               </label>
               {% endif %}{% endfor %}
@@ -67,7 +67,7 @@
     <label style="margin-top:12px; display:block;">งานที่ให้เข้าได้</label>
     <div style="display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:4px;">
       {% for k in module_keys %}{% if can_use(tid, k) %}
-      <label style="display:inline-flex; align-items:center; gap:5px; font-weight:500; margin:0;">
+      <label style="display:inline-flex; align-items:center; gap:5px; font-weight:500; margin:0; white-space:nowrap;">
         <input type="checkbox" name="modules" value="{{ k }}" style="width:auto;"> {{ module_labels[k] }}
       </label>
       {% endif %}{% endfor %}

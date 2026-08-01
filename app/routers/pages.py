@@ -293,6 +293,7 @@ def docnos_peek(request: Request, db: Session = Depends(get_db), year: int | Non
             "label": COUNTER_TYPES.get(c.doc_type, c.doc_type),
             "last": f"{c.last_number}/{fy}", "next": f"{c.last_number + 1}/{fy}",
             "subject": (last_row.subject if last_row else "") or "",
+            "date": thai_date(last_row.date) if (last_row and last_row.date) else "",
         })
     return JSONResponse({"year": fy, "items": items})
 

@@ -53,10 +53,9 @@
         </select></div>
       {% endif %}
     </div>
-    {% if not is_edit %}<div class="alert" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    {% if not is_edit %}<div class="alert" style="display:flex;align-items:center;gap:8px;">
       <svg class="icon"><use href="#ic-info"/></svg>
       <span>เลขที่บันทึกถูกเติมให้อัตโนมัติ โดยรันต่อจากเลขล่าสุดในปีงบประมาณนี้ (แก้ไขได้ถ้าต้องการ)</span>
-      <button type="button" class="btn sm gray" onclick="showDocNos({{ fiscal_year }})" style="margin-left:auto;"><svg class="icon"><use href="#ic-clipboard"/></svg> ดูเลขล่าสุด</button>
     </div>{% endif %}
 
     <label>ชื่อเรื่อง/รายการที่จัดซื้อ *</label>
