@@ -550,9 +550,10 @@
             ev.preventDefault();
             // หน้าหลักของงาน/ระบบ (section home) -> ไปหน้าเลือกงาน (hub)
             if(window.IS_SECTION_HOME){ location.href = "/"; return false; }
-            // หน้าย่อย -> ย้อนไปหน้าที่แล้ว ; ถ้าไม่มีประวัติ ใช้หน้าหลักของงาน
-            if(history.length > 1){ history.back(); return false; }
-            location.href = window.SECTION_HOME;
+            // หน้าย่อย -> ขึ้นหนึ่งระดับตาม URL (แน่นอน ทุกงานเหมือนกัน ไม่พึ่ง history.back ที่อาจเด้งข้ามงาน)
+            var p = (location.pathname || "/").replace(/\/+$/, "");
+            var up = p.substring(0, p.lastIndexOf("/"));
+            location.href = up ? up : (window.SECTION_HOME || "/");
             return false;
           }
         </script>
