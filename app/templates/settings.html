@@ -8,7 +8,7 @@
   {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกข้อมูลเรียบร้อยแล้ว</div>{% endif %}
   <form method="post" action="/settings">
     <label>ชื่อโรงเรียน</label>
-    <input name="name" value="{{ school.name }}" placeholder="เช่น โรงเรียนบ้านหินลาด">
+    <input name="name" value="{{ school.name }}" placeholder="เช่น โรงเรียน...">
     <label>ที่อยู่ (สำหรับบรรทัด “ส่วนราชการ”)</label>
     <input name="address" value="{{ school.address }}" placeholder="ตำบล... อำเภอ... จังหวัด...">
     <div class="row">
@@ -17,7 +17,7 @@
     </div>
     <div class="row">
       <div style="flex:2;"><label>สำนักงานเขตพื้นที่การศึกษาที่สังกัด</label>
-        <input name="area_office" value="{{ school.area_office or '' }}" placeholder="เช่น สำนักงานเขตพื้นที่การศึกษาประถมศึกษามหาสารคาม เขต 1">
+        <input name="area_office" value="{{ school.area_office or '' }}" placeholder="เช่น สำนักงานเขตพื้นที่การศึกษา...">
         <div class="hint">ใช้ในหนังสือรับรองบุคลากร (สังกัด...) และเอกสารราชการอื่น</div>
       </div>
     </div>
