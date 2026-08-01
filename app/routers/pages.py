@@ -277,6 +277,26 @@ def docnos_page(request: Request, db: Session = Depends(get_db),
     })
 
 
+@router.get("/docnos/peek")
+def docnos_peek(request: Request, db: Session = Depends(get_db), year: int | None = None):
+    """คืนเลขล่าสุด/ถัดไป + เรื่องล่าสุด ต่อประเภทเอกสาร (JSON) - ใช้กับป็อปอัป 'ดูเลขล่าสุด' ไม่ต้องเปลี่ยนหน้า"""
+    fy = year or current_fiscal_year()
+    counters = (db.query(DocNumberCounter)
+                .filter(DocNumberCounter.fiscal_year == fy, DocNumberCounter.last_number > 0)
+                .order_by(DocNumberCounter.doc_type).all())
+    items = []
+    for c in counters:
+        last_row = (db.query(IssuedDocNo)
+                    .filter(IssuedDocNo.doc_type == c.doc_type, IssuedDocNo.fiscal_year == fy)
+                    .order_by(IssuedDocNo.seq.desc()).first())
+        items.append({
+            "label": COUNTER_TYPES.get(c.doc_type, c.doc_type),
+            "last": f"{c.last_number}/{fy}", "next": f"{c.last_number + 1}/{fy}",
+            "subject": (last_row.subject if last_row else "") or "",
+        })
+    return JSONResponse({"year": fy, "items": items})
+
+
 @router.post("/docnos/{did}/update")
 def docno_update(did: int, db: Session = Depends(get_db), subject: str = Form(""),
                  date: str = Form("")):
