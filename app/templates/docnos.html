@@ -15,6 +15,27 @@
   {% if request.query_params.get('saved') %}<div class="alert" style="margin-bottom:0;">✔ บันทึกแล้ว</div>{% endif %}
 </div>
 
+{% if summary %}
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-clipboard"/></svg> ตอนนี้ถึงเลขไหนแล้ว (ปีงบ {{ fiscal_year }})</h2>
+  <p class="muted" style="margin-top:0;">เลขล่าสุดที่ออกไปแล้ว และเลขถัดไปที่ระบบจะใช้ ของแต่ละประเภทเอกสาร</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>ประเภทเอกสาร</th><th class="center" style="width:150px;">เลขล่าสุดที่ออกไป</th><th class="center" style="width:150px;">เลขถัดไป</th></tr></thead>
+    <tbody>
+      {% for s in summary %}
+      <tr>
+        <td>{{ s.label }}</td>
+        <td class="center"><b>{{ s.last }}/{{ fiscal_year }}</b></td>
+        <td class="center"><span class="pill" style="background:#e8f0ff; color:#2b58c9;">{{ s.next }}/{{ fiscal_year }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
 {% if groups %}
 {% for dt, rows in groups.items() %}
 <div class="card">

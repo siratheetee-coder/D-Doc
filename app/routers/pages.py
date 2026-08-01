@@ -265,9 +265,15 @@ def docnos_page(request: Request, db: Session = Depends(get_db),
     groups = {}
     for r in rows:
         groups.setdefault(r.doc_type, []).append(r)
+    # สรุป "เลขล่าสุด/เลขถัดไป" ต่อประเภทเอกสาร (ทุกงานที่รันเลข) - ไว้ดูว่าตอนนี้ถึงเลขไหนแล้ว
+    counters = (db.query(DocNumberCounter)
+                .filter(DocNumberCounter.fiscal_year == fy, DocNumberCounter.last_number > 0)
+                .order_by(DocNumberCounter.doc_type).all())
+    summary = [{"label": COUNTER_TYPES.get(c.doc_type, c.doc_type),
+                "last": c.last_number, "next": c.last_number + 1} for c in counters]
     return templates.TemplateResponse("docnos.html", {
         "request": request, "groups": groups, "type_labels": COUNTER_TYPES,
-        "fiscal_year": fy, "years": years,
+        "fiscal_year": fy, "years": years, "summary": summary,
     })
 
 
