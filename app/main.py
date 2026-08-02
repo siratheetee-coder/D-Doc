@@ -65,7 +65,8 @@ async def tenant_auth(request: Request, call_next):
                 return PlainTextResponse("ปฏิเสธคำขอข้ามโดเมน (CSRF)", status_code=403)
 
     path = request.url.path
-    if path.startswith("/static") or path in PUBLIC_PATHS:
+    # /pay/<token> = ลิงก์ชำระเงินสาธารณะ (ลูกค้าไม่ต้องล็อกอิน) token เซ็นลายเซ็นกันปลอม
+    if path.startswith("/static") or path.startswith("/pay/") or path in PUBLIC_PATHS:
         return await call_next(request)
 
     sess = request.session

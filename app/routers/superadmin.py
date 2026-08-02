@@ -231,6 +231,18 @@ def lead_email_send(lid: int, request: Request, kind: str = Form("quotation"),
     import html as _html
     html_body = "<div style='font-family:sans-serif;font-size:15px;white-space:pre-wrap;'>" \
         + _html.escape(body) + "</div>"
+    # ใบเสนอราคา: แนบปุ่ม "ชำระเงิน" ไปหน้าเว็บชำระของใบนี้ (ลิงก์เฉพาะ ไม่ต้องล็อกอิน)
+    if kind == "quotation":
+        base = (SELLER.get("base_url") or "").rstrip("/")
+        if base:
+            from app.routers.sales import make_pay_token
+            pay_url = f"{base}/pay/{make_pay_token(lid)}"
+            html_body += (
+                "<div style='margin-top:22px; text-align:center;'>"
+                f"<a href='{pay_url}' style='background:#16b364; color:#fff; text-decoration:none;"
+                " padding:13px 30px; border-radius:11px; font-weight:700; font-size:16px; display:inline-block;'>"
+                "ชำระเงินออนไลน์</a>"
+                "<div style='color:#94a3b8; font-size:12px; margin-top:8px;'>สแกน PromptPay + อัปโหลดสลิปได้ในลิงก์เดียว</div></div>")
     from app.services.mailer import send_email
     ok = send_email(to, subject or "เอกสารจาก Easy Ekkasan", html_body, attachments=[pdf_path])
     doc_label = "ใบเสร็จ" if kind == "receipt" else "ใบเสนอราคา"

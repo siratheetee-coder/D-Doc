@@ -1,0 +1,68 @@
+{% extends "public_base.html" %}
+{% block title %}ชำระเงิน | Easy Ekkasan{% endblock %}
+{% block extra_css %}
+  .amt-row { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+  .amt-big { font-size:30px; font-weight:800; color:var(--blue); letter-spacing:-.5px; }
+  .qr-box { text-align:center; }
+  .qr-box img { width:220px; max-width:100%; border:1px solid var(--line); border-radius:14px; padding:10px; background:#fff; }
+  .qr-none { width:220px; height:220px; margin:0 auto; border:2px dashed var(--line); border-radius:14px;
+    display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:13px; text-align:center; padding:16px; }
+  .brow { display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px dashed var(--line); font-size:14.5px; }
+  .brow:last-child { border-bottom:0; }
+  .pay-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+  @media (max-width:600px){ .pay-grid { grid-template-columns:1fr; } }
+{% endblock %}
+{% block content %}
+{% if not lead %}
+  <div class="card" style="text-align:center;">
+    <div style="font-size:40px;">⚠️</div>
+    <h1>ลิงก์ไม่ถูกต้อง</h1>
+    <p class="muted">ลิงก์ชำระเงินนี้ไม่ถูกต้องหรือหมดอายุ กรุณาติดต่อผู้ขายเพื่อขอลิงก์ใหม่</p>
+  </div>
+{% elif done or paid %}
+  <div class="card" style="text-align:center;">
+    <div style="font-size:46px;">✅</div>
+    <h1>ได้รับสลิปแล้ว</h1>
+    <p class="muted">ขอบคุณครับ ทางเราได้รับหลักฐานการชำระเงินเรียบร้อยแล้ว<br>
+       กำลังตรวจสอบและจะเปิดใช้งาน/ติดต่อกลับโดยเร็วที่สุด</p>
+  </div>
+{% else %}
+  <div class="page-head">
+    <h1>ชำระเงิน</h1>
+    <p>โรงเรียน {{ lead.school_name or '-' }} · {{ lead.packages or 'ครบทุกงาน' }} (สิทธิ์ใช้งาน 1 ปี)</p>
+  </div>
+  {% if request.query_params.get('err') == 'noslip' %}<div class="card" style="border-color:#fecaca; background:#fef2f2; color:#b91c1c;">กรุณาแนบไฟล์สลิปก่อนกดส่ง</div>{% endif %}
+  <div class="card">
+    <div class="amt-row"><span style="font-weight:600;">ยอดที่ต้องชำระ</span><span class="amt-big">{{ "{:,.0f}".format(amount) }} บาท</span></div>
+  </div>
+  <div class="card">
+    <h2>ช่องทางชำระเงิน</h2>
+    <div class="pay-grid">
+      <div class="qr-box">
+        {% if seller.promptpay_dynamic %}
+          <div style="font-size:12px; color:var(--green); font-weight:600; margin-bottom:6px;">✓ QR พร้อมเพย์ระบุยอดอัตโนมัติ</div>
+          <img src="/checkout/promptpay.png?amount={{ amount }}" alt="PromptPay QR">
+          <div class="hint">สแกน QR นี้ ยอด <b>{{ "{:,.2f}".format(amount) }} บาท</b> จะขึ้นให้อัตโนมัติ</div>
+        {% elif seller.promptpay_qr_exists %}
+          <img src="{{ seller.promptpay_qr }}" alt="PromptPay QR">
+          <div class="hint">สแกน QR แล้วกรอกยอด {{ "{:,.0f}".format(amount) }} บาท</div>
+        {% else %}
+          <div class="qr-none">ชำระผ่านเลขบัญชีด้านขวา</div>
+        {% endif %}
+      </div>
+      <div>
+        <div class="brow"><span>ธนาคาร</span><b>{{ seller.bank_name }}</b></div>
+        <div class="brow"><span>เลขบัญชี</span><b>{{ seller.bank_account_no }}</b></div>
+        <div class="brow"><span>ชื่อบัญชี</span><b>{{ seller.bank_account_name }}</b></div>
+        <p class="hint" style="margin-top:12px;">โอนตามยอดด้านบน แล้วอัปโหลดสลิปด้านล่าง ทีมงานจะเปิดใช้งานให้และติดต่อกลับ</p>
+      </div>
+    </div>
+  </div>
+  <form class="card" method="post" action="/pay/{{ token }}/slip" enctype="multipart/form-data">
+    <h2>แจ้งชำระเงิน (อัปโหลดสลิป)</h2>
+    <label>แนบสลิปการโอน (รูปภาพ/PDF) <span class="req">*</span></label>
+    <input name="slip" type="file" accept="image/*,application/pdf" required>
+    <button class="btn btn-primary btn-full" type="submit" style="margin-top:18px;">ส่งสลิป</button>
+  </form>
+{% endif %}
+{% endblock %}

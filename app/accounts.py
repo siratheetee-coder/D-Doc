@@ -405,6 +405,25 @@ def set_lead_status(lead_id: int, status: str) -> None:
         db.close()
 
 
+def attach_lead_slip(lead_id: int, slip_file: str) -> dict | None:
+    """ลูกค้าอัปสลิปผ่านลิงก์ชำระเงิน -> แนบสลิป + เปลี่ยนเป็นออเดอร์รอตรวจ (เข้าแท็บสั่งซื้อในคอนโซล)
+    คืน dict ข้อมูล lead (ไว้ส่งแจ้งเตือนผู้ขาย) หรือ None"""
+    db = acc_session()
+    try:
+        l = db.get(Lead, lead_id)
+        if not l:
+            return None
+        l.slip_file = slip_file
+        l.kind = "order"
+        l.status = "ใหม่"
+        db.commit()
+        return {"id": l.id, "school_name": l.school_name, "contact_name": l.contact_name,
+                "email": l.email, "phone": l.phone, "packages": l.packages,
+                "amount": l.amount, "note": l.note}
+    finally:
+        db.close()
+
+
 def count_new_leads() -> int:
     db = acc_session()
     try:

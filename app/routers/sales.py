@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.database import get_data_dir
 from app.modules import modules_from_label
-from app.accounts import add_lead, register_account
+from app.accounts import add_lead, register_account, get_lead, attach_lead_slip, get_secret_key
 from app.seller_config import SELLER, price_for
 from app.templating import templates
 
@@ -38,6 +38,65 @@ def _seller_ctx() -> dict:
     return {**SELLER,
             "promptpay_dynamic": bool((SELLER.get("promptpay_id") or "").strip()),
             "promptpay_qr_exists": qr_path.exists()}
+
+
+# ---------------- ลิงก์ชำระเงินสาธารณะ (จากอีเมลใบเสนอราคา) ----------------
+def _pay_serializer():
+    from itsdangerous import URLSafeSerializer
+    return URLSafeSerializer(str(get_secret_key()), salt="pay-link")
+
+
+def make_pay_token(lead_id: int) -> str:
+    """โทเคนเซ็นลายเซ็นของ lead_id สำหรับลิงก์ /pay/<token> (กันเดา/ปลอม)"""
+    return _pay_serializer().dumps(int(lead_id))
+
+
+def _parse_pay_token(token: str):
+    from itsdangerous import BadSignature
+    try:
+        return int(_pay_serializer().loads(token))
+    except (BadSignature, ValueError, TypeError):
+        return None
+
+
+@router.get("/pay/{token}", response_class=HTMLResponse)
+def pay_page(token: str, request: Request):
+    lid = _parse_pay_token(token)
+    lead = get_lead(lid) if lid else None
+    return templates.TemplateResponse("pay.html", {
+        "request": request, "token": token, "lead": lead,
+        "seller": _seller_ctx() if lead else None,
+        "amount": float(lead.get("amount") or 0) if lead else 0,
+        "paid": bool(lead and lead.get("slip_file")),
+        "done": request.query_params.get("done") == "1",
+    })
+
+
+@router.post("/pay/{token}/slip")
+async def pay_slip(token: str, request: Request, slip: UploadFile = File(None)):
+    lid = _parse_pay_token(token)
+    lead = get_lead(lid) if lid else None
+    if not lead:
+        return RedirectResponse("/pay/" + token, status_code=303)
+    if not (slip and slip.filename):
+        return RedirectResponse(f"/pay/{token}?err=noslip", status_code=303)
+    ext = (Path(slip.filename).suffix or ".png").lower()
+    if ext not in (".png", ".jpg", ".jpeg", ".webp", ".pdf"):
+        ext = ".png"
+    _LEADS_DIR.mkdir(parents=True, exist_ok=True)
+    slip_name = f"slip_{datetime.now():%Y%m%d%H%M%S}_{secrets.token_hex(4)}{ext}"
+    (_LEADS_DIR / slip_name).write_bytes(await slip.read())
+    info = attach_lead_slip(lid, slip_name)
+    try:
+        from app.services.mailer import send_order_notice
+        send_order_notice("order", school=(info or {}).get("school_name", ""),
+                          contact=(info or {}).get("contact_name", ""), email=(info or {}).get("email", ""),
+                          phone=(info or {}).get("phone", ""), packages=(info or {}).get("packages", ""),
+                          amount=float((info or {}).get("amount") or 0), ref=lid, has_slip=True,
+                          note="ลูกค้าชำระผ่านลิงก์ใบเสนอราคา")
+    except Exception:
+        pass
+    return RedirectResponse(f"/pay/{token}?done=1", status_code=303)
 
 
 @router.get("/checkout/promptpay.png")
