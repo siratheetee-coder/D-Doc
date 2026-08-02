@@ -71,7 +71,9 @@ async def tenant_auth(request: Request, call_next):
 
     sess = request.session
     if not sess.get("uid"):
-        return RedirectResponse("/login", status_code=303)
+        # ผู้เยี่ยมชม (ยังไม่ล็อกอิน): เข้าหน้าแรก "/" -> หน้า landing (แนะนำระบบ/ขาย)
+        # ส่วนลิงก์งานภายในอื่น ๆ -> หน้า login (เพื่อกลับมาหน้าที่ต้องการหลังล็อกอิน)
+        return RedirectResponse("/landing" if path == "/" else "/login", status_code=303)
 
     # บังคับเปลี่ยนรหัสผ่านครั้งแรก (ก่อนใช้งานอื่นใด)
     if sess.get("must_change") and not path.startswith("/account"):

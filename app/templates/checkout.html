@@ -235,6 +235,13 @@
     <span style="font-weight:600;">{{ 'ยอดชำระ (ซื้อเพิ่ม)' if addon else 'ยอดชำระ (ต่ออายุ 1 ปี)' }} <span class="co-save" id="coSave" style="display:none; margin-left:8px;"></span></span>
     <span class="amt"><span id="coAmount">{{ 0 if addon else "{:,}".format(px.bundle) }}</span> <small style="font-size:14px; color:var(--muted); font-weight:500;">{{ 'บาท' if addon else 'บาท/ปี' }}</small></span>
   </div>
+  {% if not addon %}
+  <div style="margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); font-size:14px; color:var(--muted); display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <svg class="ico" style="width:18px;height:18px;color:var(--blue);" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    ต้องการใบเสนอราคาไปขออนุมัติงบก่อน?
+    <a href="/quote" class="btn btn-ghost" style="padding:7px 16px; font-size:14px;">ขอใบเสนอราคา</a>
+  </div>
+  {% endif %}
 </div>
 
 <div class="card">
