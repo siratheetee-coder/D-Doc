@@ -11,17 +11,35 @@
   .brow:last-child { border-bottom:0; }
   .pay-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
   @media (max-width:600px){ .pay-grid { grid-template-columns:1fr; } }
+  /* ไอคอนสถานะ (แทน emoji) */
+  .st-ic { width:78px; height:78px; margin:0 auto 15px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    animation:stPop .42s cubic-bezier(.2,1.5,.45,1); }
+  .st-ic svg { width:40px; height:40px; }
+  .st-ic.ok { background:linear-gradient(150deg,#34d399,#16a34a); box-shadow:0 12px 28px rgba(22,163,74,.34); }
+  .st-ic.warn { background:linear-gradient(150deg,#fbbf24,#f59e0b); box-shadow:0 12px 28px rgba(245,158,11,.32); }
+  .st-ic svg path, .st-ic svg line, .st-ic svg polyline { stroke:#fff; }
+  @keyframes stPop { from{opacity:0; transform:scale(.6)} to{opacity:1; transform:none} }
+  @media (prefers-reduced-motion: reduce){ .st-ic { animation:none; } }
 {% endblock %}
 {% block content %}
 {% if not lead %}
   <div class="card" style="text-align:center;">
-    <div style="font-size:40px;">⚠️</div>
+    <span class="st-ic warn">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    </span>
     <h1>ลิงก์ไม่ถูกต้อง</h1>
     <p class="muted">ลิงก์ชำระเงินนี้ไม่ถูกต้องหรือหมดอายุ กรุณาติดต่อผู้ขายเพื่อขอลิงก์ใหม่</p>
   </div>
 {% elif done or paid %}
   <div class="card" style="text-align:center;">
-    <div style="font-size:46px;">✅</div>
+    <span class="st-ic ok">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 6 9 17l-5-5"/>
+      </svg>
+    </span>
     <h1>ได้รับสลิปแล้ว</h1>
     <p class="muted">ขอบคุณครับ ทางเราได้รับหลักฐานการชำระเงินเรียบร้อยแล้ว<br>
        กำลังตรวจสอบและจะเปิดใช้งาน/ติดต่อกลับโดยเร็วที่สุด</p>
