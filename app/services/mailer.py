@@ -84,7 +84,8 @@ def send_order_notice(kind: str, *, school: str, contact: str = "", email: str =
     """แจ้งผู้ขายทันทีเมื่อมีคำสั่งซื้อ/ขอใบเสนอราคาใหม่ (ส่งเข้าอีเมลผู้ขายใน seller_local)
     ไม่ตั้งอีเมลผู้ขาย -> ข้าม (คืน False) โดยไม่ทำให้ flow ซื้อล้ม"""
     from app.seller_config import SELLER
-    to = (SELLER.get("email") or "").strip()
+    # แจ้งเตือนไปที่ notify_email ก่อน (ถ้าตั้งไว้) แยกจาก email ที่โชว์บนเอกสารให้ลูกค้า
+    to = (SELLER.get("notify_email") or SELLER.get("email") or "").strip()
     if not to:
         return False
     from urllib.parse import quote
