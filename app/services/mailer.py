@@ -10,11 +10,14 @@ def smtp_configured() -> bool:
     return bool((SELLER.get("smtp_host") or "").strip() and (SELLER.get("smtp_user") or "").strip())
 
 
-def send_email(to: str, subject: str, html: str) -> bool:
-    """ส่งอีเมล HTML ผ่าน SMTP (คืน True ถ้าสำเร็จ) - ต้องตั้ง smtp_* ใน seller_local.py"""
+def send_email(to: str, subject: str, html: str, attachments=None) -> bool:
+    """ส่งอีเมล HTML ผ่าน SMTP (คืน True ถ้าสำเร็จ) - ต้องตั้ง smtp_* ใน seller_local.py
+    attachments = list ของ path ไฟล์แนบ (เช่น PDF ใบเสนอราคา/ใบเสร็จ)"""
     from app.seller_config import SELLER
     import smtplib
     import ssl
+    import mimetypes
+    import os
     from email.message import EmailMessage
 
     host = (SELLER.get("smtp_host") or "").strip()
@@ -33,6 +36,16 @@ def send_email(to: str, subject: str, html: str) -> bool:
     msg["To"] = to
     msg.set_content("กรุณาเปิดด้วยอีเมลที่รองรับ HTML")
     msg.add_alternative(html, subtype="html")
+    for p in (attachments or []):
+        try:
+            with open(p, "rb") as f:
+                data = f.read()
+            ctype = mimetypes.guess_type(p)[0] or "application/octet-stream"
+            maintype, subtype = ctype.split("/", 1)
+            msg.add_attachment(data, maintype=maintype, subtype=subtype,
+                               filename=os.path.basename(p))
+        except Exception as e:   # noqa: BLE001
+            print("[mailer] แนบไฟล์ไม่สำเร็จ:", p, e)
     try:
         with smtplib.SMTP(host, port, timeout=20) as s:
             s.starttls(context=ssl.create_default_context())

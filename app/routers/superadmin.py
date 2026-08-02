@@ -171,6 +171,74 @@ def lead_receipt_pdf(lid: int):
     return serve_generated(path, "application/pdf", inline=True)
 
 
+def _doc_email_draft(kind: str, lead: dict) -> tuple:
+    """ร่างหัวข้อ + เนื้อความอีเมลส่งใบเสนอราคา/ใบเสร็จให้ลูกค้า (แก้ไขได้ก่อนส่ง)"""
+    school = (lead.get("school_name") or "").strip()
+    who = (lead.get("contact_name") or "").strip() or school or "ผู้ติดต่อ"
+    packages = lead.get("packages") or "ครบทุกงาน"
+    amount = f"{float(lead.get('amount') or 0):,.0f}"
+    sname = SELLER.get("name") or "Easy Ekkasan"
+    phone = SELLER.get("phone") or ""
+    email = SELLER.get("email") or ""
+    sign = f"ขอแสดงความนับถือ\n{sname}\nEasy Ekkasan\nโทร {phone}  อีเมล {email}"
+    if kind == "receipt":
+        subject = f"ใบเสร็จรับเงิน ระบบ Easy Ekkasan - {school}"
+        body = (f"เรียน {who}\n\n"
+                "ขอบคุณที่ใช้บริการระบบจัดการเอกสารและพัสดุโรงเรียน Easy Ekkasan "
+                "ทางเราได้รับชำระเงินเรียบร้อยแล้ว และขอส่งใบเสร็จรับเงินตามไฟล์แนบมาพร้อมนี้\n\n"
+                f"รายการ: {packages}\nยอดชำระ: {amount} บาท\n\n"
+                "บัญชีของท่านเปิดใช้งานเรียบร้อยแล้ว หากมีข้อสงสัยติดต่อกลับได้ตลอดครับ\n\n" + sign)
+    else:
+        subject = f"ใบเสนอราคา ระบบ Easy Ekkasan - {school}"
+        body = (f"เรียน {who}\n\n"
+                "ตามที่ท่านสนใจใช้บริการระบบจัดการเอกสารและพัสดุโรงเรียน Easy Ekkasan "
+                "ทางเราขอส่งใบเสนอราคาตามไฟล์แนบมาพร้อมนี้\n\n"
+                f"รายการ: {packages}\nยอดรวม: {amount} บาท (สิทธิ์ใช้งาน 1 ปี)\n\n"
+                "หากต้องการสั่งซื้อ สามารถชำระผ่าน PromptPay แล้วแจ้งสลิปกลับมาได้เลย "
+                "หรือสอบถามเพิ่มเติมได้ตลอดครับ\n\n" + sign)
+    return subject, body
+
+
+@router.get("/admin-console/leads/{lid}/email", response_class=HTMLResponse)
+def lead_email_compose(lid: int, request: Request, kind: str = "quotation"):
+    """หน้าเด้งร่างอีเมล (แก้ไขได้) ก่อนส่งใบเสนอราคา/ใบเสร็จให้ลูกค้า"""
+    kind = "receipt" if kind == "receipt" else "quotation"
+    lead = get_lead(lid)
+    if not lead:
+        return RedirectResponse("/admin-console/leads", status_code=303)
+    subject, body = _doc_email_draft(kind, lead)
+    doc_label = "ใบเสร็จรับเงิน" if kind == "receipt" else "ใบเสนอราคา"
+    return templates.TemplateResponse("email_compose.html", {
+        "request": request, "lid": lid, "kind": kind, "doc_label": doc_label,
+        "to": lead.get("email") or "", "subject": subject, "body": body,
+        "school": lead.get("school_name") or "", "smtp_ok": bool((SELLER.get("smtp_host") or "").strip()),
+    })
+
+
+@router.post("/admin-console/leads/{lid}/email")
+def lead_email_send(lid: int, request: Request, kind: str = Form("quotation"),
+                    to: str = Form(""), subject: str = Form(""), body: str = Form("")):
+    """ส่งอีเมลจริง + แนบ PDF ใบเสนอราคา/ใบเสร็จ"""
+    kind = "receipt" if kind == "receipt" else "quotation"
+    to = (to or "").strip()
+    if not to:
+        request.session["lead_msg"] = {"ok": False, "text": "ไม่ได้ระบุอีเมลผู้รับ"}
+        return RedirectResponse("/admin-console/leads", status_code=303)
+    pdf_path = _issue_doc(kind, lid, "pdf")
+    if not pdf_path:
+        request.session["lead_msg"] = {"ok": False, "text": "ออกไฟล์เอกสารไม่สำเร็จ"}
+        return RedirectResponse("/admin-console/leads", status_code=303)
+    import html as _html
+    html_body = "<div style='font-family:sans-serif;font-size:15px;white-space:pre-wrap;'>" \
+        + _html.escape(body) + "</div>"
+    from app.services.mailer import send_email
+    ok = send_email(to, subject or "เอกสารจาก Easy Ekkasan", html_body, attachments=[pdf_path])
+    doc_label = "ใบเสร็จ" if kind == "receipt" else "ใบเสนอราคา"
+    request.session["lead_msg"] = ({"ok": True, "text": f"ส่ง{doc_label}ไปที่ {to} แล้ว"}
+                                   if ok else {"ok": False, "text": "ส่งอีเมลไม่สำเร็จ (ตรวจ SMTP)"})
+    return RedirectResponse("/admin-console/leads", status_code=303)
+
+
 _SLIP_NAME = re.compile(r"^slip_\d{14}_[0-9a-f]{8}\.(png|jpg|jpeg|webp|pdf)$")
 
 

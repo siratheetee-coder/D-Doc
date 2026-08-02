@@ -83,10 +83,12 @@
             <td style="white-space:nowrap; line-height:2;">
               <span class="sub">ใบเสนอราคา:</span>
               <a class="btn gray" href="/admin-console/leads/{{ l.id }}/quotation.pdf" target="_blank">PDF</a>
-              <a class="btn gray" href="/admin-console/leads/{{ l.id }}/quotation.docx">Word</a><br>
+              <a class="btn gray" href="/admin-console/leads/{{ l.id }}/quotation.docx">Word</a>
+              <a class="btn" href="/admin-console/leads/{{ l.id }}/email?kind=quotation">✉ อีเมล</a><br>
               <span class="sub">ใบเสร็จ:</span>
               <a class="btn gray" href="/admin-console/leads/{{ l.id }}/receipt.pdf" target="_blank">PDF</a>
               <a class="btn gray" href="/admin-console/leads/{{ l.id }}/receipt.docx">Word</a>
+              <a class="btn" href="/admin-console/leads/{{ l.id }}/email?kind=receipt">✉ อีเมล</a>
             </td>
             <td><span class="pill {{ 's-done' if l.status=='ตอบแล้ว' else 's-close' if l.status=='ปิด' else 's-new' }}">{{ l.status }}</span></td>
             <td style="white-space:nowrap;">

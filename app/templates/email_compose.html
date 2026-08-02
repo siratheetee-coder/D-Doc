@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Easy Ekkasan | ส่งอีเมล{{ doc_label }}</title>
+  <link rel="icon" type="image/png" href="/static/favicon-ekkasan.png">
+  <style>
+    @font-face { font-family:"Prompt"; font-weight:400; src:url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:600; src:url("/static/fonts/Prompt-SemiBold.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:700; src:url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#f4f6fa; color:#202230;
+      font-family:"Prompt","Sarabun","Segoe UI",sans-serif; }
+    .top { background:#1b2433; color:#fff; padding:13px 24px; display:flex; justify-content:space-between; align-items:center; }
+    .top a { color:#c7d2e5; text-decoration:none; }
+    .wrap { max-width:680px; margin:26px auto; padding:0 18px; }
+    .card { background:#fff; border:1px solid #eceef3; border-radius:14px; padding:22px 24px; box-shadow:0 8px 26px rgba(16,24,40,.06); }
+    h1 { font-size:22px; margin:0 0 4px; }
+    .sub { color:#6b7280; font-size:14px; margin:0 0 18px; }
+    label { display:block; font-weight:600; font-size:14px; margin:14px 0 5px; }
+    input, textarea { width:100%; padding:10px 13px; border:1px solid #dfe3ea; border-radius:9px;
+      font-size:15px; font-family:inherit; color:#202230; }
+    input:focus, textarea:focus { outline:none; border-color:#4880FF; box-shadow:0 0 0 3px rgba(72,128,255,.16); }
+    textarea { min-height:230px; resize:vertical; line-height:1.6; }
+    .attach { display:flex; align-items:center; gap:9px; margin-top:14px; background:#eef4ff; border:1px solid #cddffb;
+      border-radius:10px; padding:11px 14px; font-size:14px; color:#1e3a8a; }
+    .attach b { font-weight:700; }
+    .warn { background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; border-radius:10px; padding:11px 14px; font-size:14px; margin-bottom:14px; }
+    .actions { display:flex; gap:10px; margin-top:20px; }
+    .btn { border:0; border-radius:10px; padding:12px 24px; font-weight:700; font-size:16px; cursor:pointer; font-family:inherit; text-decoration:none; display:inline-flex; align-items:center; gap:7px; }
+    .btn.send { background:#16b364; color:#fff; }
+    .btn.send:hover { background:#0e9152; }
+    .btn.gray { background:#eef0f4; color:#5a6a85; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <b>Easy Ekkasan · ส่งอีเมลให้ลูกค้า</b>
+    <a href="/admin-console/leads">← กลับคอนโซล</a>
+  </div>
+  <div class="wrap">
+    <div class="card">
+      <h1>ส่ง{{ doc_label }}ทางอีเมล</h1>
+      <p class="sub">ตรวจ/แก้ข้อความได้ตามต้องการ แล้วกด "ส่งอีเมล" ระบบจะแนบไฟล์ {{ doc_label }} (PDF) ไปให้อัตโนมัติ{% if school %} · โรงเรียน {{ school }}{% endif %}</p>
+      {% if not smtp_ok %}<div class="warn">⚠ ยังไม่ได้ตั้งค่า SMTP ใน seller_local.py — ส่งอีเมลไม่ได้จนกว่าจะตั้งค่า</div>{% endif %}
+      <form method="post" action="/admin-console/leads/{{ lid }}/email">
+        <input type="hidden" name="kind" value="{{ kind }}">
+        <label>ถึง (อีเมลลูกค้า)</label>
+        <input name="to" type="email" value="{{ to }}" required placeholder="customer@example.com">
+        <label>หัวข้อ</label>
+        <input name="subject" value="{{ subject }}" required>
+        <label>ข้อความ</label>
+        <textarea name="body">{{ body }}</textarea>
+        <div class="attach">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 0 1 4.24 4.24l-9.2 9.19a1 1 0 0 1-1.41-1.41l8.49-8.49"/></svg>
+          แนบไฟล์: <b>{{ doc_label }} (PDF)</b> — สร้างอัตโนมัติตอนกดส่ง
+        </div>
+        <div class="actions">
+          <button class="btn send" type="submit" {{ 'disabled' if not smtp_ok }}>✉ ส่งอีเมล</button>
+          <a class="btn gray" href="/admin-console/leads">ยกเลิก</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
