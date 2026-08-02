@@ -649,6 +649,9 @@ def certificates_page(request: Request, db: Session = Depends(get_db)):
         "url": f"/admin/uploaded/{b.bg_image}" if b.bg_image else "",
         "name_x": b.name_x, "name_y": b.name_y, "name_size": b.name_size,
         "name_color": b.name_color or "#1a1a1a", "sub_text": b.sub_text or "",
+        "cert_no_on": bool(getattr(b, "cert_no_on", 0)), "cert_no_prefix": getattr(b, "cert_no_prefix", "") or "",
+        "cert_no_x": getattr(b, "cert_no_x", 50.0), "cert_no_y": getattr(b, "cert_no_y", 85.0),
+        "cert_no_size": getattr(b, "cert_no_size", 26),
     } for b in batches if b.bg_image]
     # รายชื่อนักเรียนจากทะเบียนกลาง จัดกลุ่มตามชั้น/ห้อง (เรียงตามลำดับชั้นมาตรฐาน) ให้เลือกในหน้าเกียรติบัตร
     def _lvl_key(s):
@@ -727,16 +730,30 @@ def certificate_generate(db: Session = Depends(get_db), title: str = Form(""),
                          sub_text: str = Form(""), bg_image: str = Form(""),
                          name_x: str = Form("50"), name_y: str = Form("45"),
                          name_size: str = Form("48"), name_color: str = Form("#1a1a1a"),
-                         names: str = Form("")):
+                         cert_no_on: str = Form(""), cert_no_prefix: str = Form(""),
+                         cert_no_x: str = Form("50"), cert_no_y: str = Form("85"),
+                         cert_no_size: str = Form("26"), names: str = Form("")):
     from app.services.cert_doc import render_certificates
     name_list = [n.strip() for n in (names or "").splitlines() if n.strip()]
     if not bg_image.strip() or not name_list:
         return RedirectResponse("/admin/certificates?err=1", status_code=303)
+    use_no = cert_no_on in ("1", "on", "true")
     batch = CertificateBatch(
         title=title.strip(), sub_text=sub_text.strip(), bg_image=bg_image.strip(),
         name_x=_to_float(name_x, 50.0), name_y=_to_float(name_y, 45.0),
         name_size=_to_int(name_size, 48), name_color=name_color.strip() or "#1a1a1a",
+        cert_no_on=1 if use_no else 0, cert_no_prefix=(cert_no_prefix or "").strip(),
+        cert_no_x=_to_float(cert_no_x, 50.0), cert_no_y=_to_float(cert_no_y, 85.0),
+        cert_no_size=_to_int(cert_no_size, 26),
         names="\n".join(name_list))
     db.add(batch); db.commit(); db.refresh(batch)
-    path = render_certificates(batch, name_list, get_school(db))
+    # เลขที่เกียรติบัตร: รันต่อเนื่องต่อโรงเรียน/ปี (ใช้ตัวนับเดียวกับเลขหนังสือ doc_type=certificate)
+    numbers = None
+    if use_no:
+        be_year = datetime.now().year + 543
+        start = suggest_next(db, "certificate", be_year)
+        prefix = (cert_no_prefix or "").strip()
+        numbers = [f"{prefix}{start + i:04d}/{be_year}" for i in range(len(name_list))]
+        commit_number(db, "certificate", be_year, start + len(name_list) - 1)
+    path = render_certificates(batch, name_list, get_school(db), numbers=numbers)
     return serve_generated(path, _PDF)

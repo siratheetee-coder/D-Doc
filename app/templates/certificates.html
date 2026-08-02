@@ -23,6 +23,8 @@
   <input type="hidden" name="bg_image" id="bg_image">
   <input type="hidden" name="name_x" id="name_x" value="50">
   <input type="hidden" name="name_y" id="name_y" value="45">
+  <input type="hidden" name="cert_no_x" id="cert_no_x" value="50">
+  <input type="hidden" name="cert_no_y" id="cert_no_y" value="85">
 
   <div class="cert-layout">
     <!-- ซ้าย: ตัวอย่าง (ตรึงไว้เห็นตลอดขณะปรับค่าทางขวา) -->
@@ -31,12 +33,18 @@
         <h2><svg class="icon"><use href="#ic-file"/></svg> ตัวอย่างเกียรติบัตร</h2>
         <p class="muted" id="pvEmpty" style="margin:0;">อัปโหลดรูปพื้นหลังทางขวา แล้วตัวอย่างจะแสดงตรงนี้ ปรับขนาด/สีฟอนต์และพิมพ์รายชื่อได้โดยไม่ต้องเลื่อนขึ้นมาดู</p>
         <div id="previewWrap" style="display:none;">
-          <p class="muted" style="margin:0 0 6px;"><b>คลิกบนรูป</b> เพื่อปักตำแหน่งกึ่งกลางของชื่อ (จุดแดง)</p>
+          <div style="margin:0 0 6px; display:flex; gap:7px; align-items:center; flex-wrap:wrap; font-size:13px;">
+            <b>คลิกบนรูปเพื่อปัก:</b>
+            <button type="button" class="btn sm" id="modeName" onclick="setPlaceMode('name')">ตำแหน่งชื่อ (จุดแดง)</button>
+            <button type="button" class="btn sm gray" id="modeCert" onclick="setPlaceMode('cert')" style="display:none;">ตำแหน่งเลขที่ (จุดน้ำเงิน)</button>
+          </div>
           <div id="imgBox" style="position:relative; display:inline-block; max-width:100%; cursor:crosshair; border:1px solid var(--border);">
             <img id="bgImg" style="display:block; max-width:100%; height:auto;" onclick="placeName(event)">
             <div id="pvName" style="position:absolute; transform:translate(-50%,-50%); text-align:center; pointer-events:none; white-space:nowrap; line-height:1;"></div>
             <div id="pvSub" style="position:absolute; transform:translate(-50%,-50%); text-align:center; pointer-events:none; white-space:pre; line-height:1;"></div>
+            <div id="pvCertNo" style="position:absolute; transform:translate(-50%,-50%); text-align:center; pointer-events:none; white-space:nowrap; line-height:1; display:none;"></div>
             <div id="marker" style="position:absolute; width:10px; height:10px; margin:-5px 0 0 -5px; border-radius:50%; background:#e11; box-shadow:0 0 0 2px #fff; left:50%; top:45%; pointer-events:none;"></div>
+            <div id="markerCert" style="position:absolute; width:10px; height:10px; margin:-5px 0 0 -5px; border-radius:50%; background:#2563eb; box-shadow:0 0 0 2px #fff; left:50%; top:85%; pointer-events:none; display:none;"></div>
           </div>
           <p class="muted" style="margin:6px 0 0; font-size:13px;">ตัวอย่างแสดงชื่อแรกในรายการ (พิมพ์รายชื่อทางขวาเพื่อดูตัวอย่างสด)</p>
         </div>
@@ -74,6 +82,16 @@
           <div><label>ขนาดชื่อ</label><input name="name_size" id="name_size" type="number" min="10" max="120" value="48" oninput="preview()"></div>
           <div><label>สีชื่อ</label><input name="name_color" id="name_color" type="color" value="#1a1a1a" oninput="preview()" style="height:42px; padding:4px;"></div>
           <div style="flex:2;"><label>ข้อความเสริมใต้ชื่อ (ไม่บังคับ)</label><input name="sub_text" id="f_sub" placeholder="เช่น ได้รับรางวัลชนะเลิศ..." oninput="preview()"></div>
+        </div>
+        <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
+          <label style="display:inline-flex; align-items:center; gap:7px; font-weight:600; cursor:pointer; margin:0;">
+            <input type="checkbox" name="cert_no_on" id="cert_no_on" value="1" style="width:auto;" onchange="toggleCertNo()"> ใส่เลขที่เกียรติบัตร (รันอัตโนมัติ)
+          </label>
+          <div id="certNoOpts" style="display:none; margin-top:8px;" class="row">
+            <div><label>คำนำหน้าเลข</label><input name="cert_no_prefix" id="cert_no_prefix" placeholder="เช่น กช." oninput="preview()" style="width:120px;"></div>
+            <div><label>ขนาดเลข</label><input name="cert_no_size" id="cert_no_size" type="number" min="8" max="80" value="26" oninput="preview()" style="width:90px;"></div>
+            <div style="flex:2; display:flex; align-items:flex-end;"><span class="muted" style="font-size:13px;">รันต่อเนื่องทั้งโรงเรียนต่อปี เช่น <b>กช.0001/2569</b> · กดปุ่ม "ตำแหน่งเลขที่" ด้านซ้ายแล้วคลิกบนรูปเพื่อวาง</span></div>
+          </div>
         </div>
       </div>
 
@@ -130,13 +148,31 @@
       setTimeout(preview, 200);
     }).catch(function(){ msg.textContent = 'อัปโหลดไม่สำเร็จ'; });
   }
+  var placeMode = 'name';
+  function setPlaceMode(m){
+    placeMode = m;
+    document.getElementById('modeName').className = 'btn sm' + (m==='name' ? '' : ' gray');
+    document.getElementById('modeCert').className = 'btn sm' + (m==='cert' ? '' : ' gray');
+  }
+  function toggleCertNo(){
+    var on = document.getElementById('cert_no_on').checked;
+    document.getElementById('certNoOpts').style.display = on ? '' : 'none';
+    document.getElementById('modeCert').style.display = on ? '' : 'none';
+    if(!on && placeMode === 'cert') setPlaceMode('name');
+    preview();
+  }
   function placeName(ev){
     var img = document.getElementById('bgImg');
     var rect = img.getBoundingClientRect();
     var px = (ev.clientX - rect.left) / rect.width * 100;
     var py = (ev.clientY - rect.top) / rect.height * 100;
-    document.getElementById('name_x').value = px.toFixed(1);
-    document.getElementById('name_y').value = py.toFixed(1);
+    if(placeMode === 'cert'){
+      document.getElementById('cert_no_x').value = px.toFixed(1);
+      document.getElementById('cert_no_y').value = py.toFixed(1);
+    } else {
+      document.getElementById('name_x').value = px.toFixed(1);
+      document.getElementById('name_y').value = py.toFixed(1);
+    }
     preview();
   }
   function preview(){
@@ -165,6 +201,21 @@
       sv.style.fontSize = (px*0.5) + 'px'; sv.style.color = color;
       sv.textContent = sub;
     } else { sv.style.display = 'none'; }
+    // เลขที่เกียรติบัตร (ตัวอย่าง = เลขแรก)
+    var cOn = document.getElementById('cert_no_on') && document.getElementById('cert_no_on').checked;
+    var cpv = document.getElementById('pvCertNo'), cm = document.getElementById('markerCert');
+    if(cOn){
+      var cxp = parseFloat(document.getElementById('cert_no_x').value)||50;
+      var cyp = parseFloat(document.getElementById('cert_no_y').value)||85;
+      cm.style.left = cxp + '%'; cm.style.top = cyp + '%'; cm.style.display = 'block';
+      var csize = parseInt(document.getElementById('cert_no_size').value||26)||26;
+      var cpx = w * csize / 1000;
+      var prefix = (document.getElementById('cert_no_prefix')||{}).value || '';
+      var yr = (new Date().getFullYear() + 543);
+      cpv.style.display = 'block'; cpv.style.left = (w*cxp/100) + 'px'; cpv.style.top = (h*cyp/100) + 'px';
+      cpv.style.fontSize = cpx + 'px'; cpv.style.color = color;
+      cpv.textContent = prefix + '0001/' + yr;
+    } else { if(cpv) cpv.style.display = 'none'; if(cm) cm.style.display = 'none'; }
   }
   function _esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function deleteBatch(id, title){
@@ -185,6 +236,12 @@
     document.getElementById('name_size').value = b.name_size;
     document.getElementById('name_color').value = b.name_color;
     if(document.getElementById('f_sub')) document.getElementById('f_sub').value = b.sub_text || '';
+    document.getElementById('cert_no_on').checked = !!b.cert_no_on;
+    document.getElementById('cert_no_prefix').value = b.cert_no_prefix || '';
+    document.getElementById('cert_no_size').value = b.cert_no_size || 26;
+    document.getElementById('cert_no_x').value = (b.cert_no_x != null ? b.cert_no_x : 50);
+    document.getElementById('cert_no_y').value = (b.cert_no_y != null ? b.cert_no_y : 85);
+    toggleCertNo();
     if(!document.getElementById('f_title').value) document.getElementById('f_title').value = b.title || '';
     document.getElementById('bgMsg').textContent = 'โหลดชุด "'+b.title+'" แล้ว - ใส่รายชื่อได้เลย';
     setTimeout(preview, 200);

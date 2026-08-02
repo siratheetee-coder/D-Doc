@@ -533,6 +533,12 @@ class CertificateBatch(Base):
     name_size = Column(Integer, default=48)         # ขนาดฟอนต์ชื่อ (px เทียบความกว้างรูป)
     name_color = Column(String, default="#1a1a1a")
     names = Column(Text, default="")                # รายชื่อ (1 ชื่อ/บรรทัด)
+    # เลขที่เกียรติบัตร (รันต่อเนื่องต่อโรงเรียน/ปี · พิมพ์ตามตำแหน่งที่คลิกวาง)
+    cert_no_on = Column(Integer, default=0)         # 1 = ใส่เลขที่บนเกียรติบัตร
+    cert_no_prefix = Column(String, default="")     # คำนำหน้าเลข เช่น "กช." (ต่อท้ายด้วย 0001/ปี)
+    cert_no_x = Column(Float, default=50.0)         # ตำแหน่งเลขที่ (% กว้าง)
+    cert_no_y = Column(Float, default=85.0)         # ตำแหน่งเลขที่ (% สูง)
+    cert_no_size = Column(Integer, default=26)      # ขนาดฟอนต์เลขที่ (px เทียบความกว้างรูป)
     created_at = Column(DateTime, default=datetime.now)
 
 

@@ -35,6 +35,11 @@ Base = declarative_base()
 
 # รายการเพิ่มคอลัมน์ใหม่บน DB เก่า (ปลอดภัย: ข้ามถ้ามีอยู่แล้ว)
 MIGRATIONS = [
+    ("certificate_batch", "cert_no_on",     "INTEGER DEFAULT 0"),
+    ("certificate_batch", "cert_no_prefix", "VARCHAR DEFAULT ''"),
+    ("certificate_batch", "cert_no_x",      "FLOAT DEFAULT 50.0"),
+    ("certificate_batch", "cert_no_y",      "FLOAT DEFAULT 85.0"),
+    ("certificate_batch", "cert_no_size",   "INTEGER DEFAULT 26"),
     ("vendor",      "owner_name",       "VARCHAR DEFAULT ''"),
     ("procurement", "spec_memo_date",   "DATETIME"),
     ("procurement", "result_memo_date", "DATETIME"),

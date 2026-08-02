@@ -27,8 +27,9 @@ def _font(px: int, bold: bool = True):
     return ImageFont.truetype(str(_FONT_DIR / name), max(8, int(px)))
 
 
-def render_certificates(batch, names: list, school) -> str:
-    """วาดชื่อทับรูปพื้นหลังทีละคน -> คืน path ไฟล์ PDF หลายหน้า"""
+def render_certificates(batch, names: list, school, numbers: list = None) -> str:
+    """วาดชื่อทับรูปพื้นหลังทีละคน -> คืน path ไฟล์ PDF หลายหน้า
+    numbers = list เลขที่เกียรติบัตร (เรียงตรงกับ names) ถ้าเปิดใช้เลขที่"""
     from PIL import Image, ImageDraw, ImageOps
     bg_path = uploads_dir() / (batch.bg_image or "")
     if not bg_path.exists():
@@ -45,8 +46,15 @@ def render_certificates(batch, names: list, school) -> str:
     sub_font = _font(sub_px, bold=False)
     sub_text = (batch.sub_text or "").strip()
 
+    # เลขที่เกียรติบัตร
+    cert_on = bool(getattr(batch, "cert_no_on", 0)) and numbers
+    cno_px = max(8, int(W * float(getattr(batch, "cert_no_size", 26) or 26) / 1000))
+    cno_font = _font(cno_px, bold=False)
+    cnx = W * float(getattr(batch, "cert_no_x", 50) or 50) / 100.0
+    cny = H * float(getattr(batch, "cert_no_y", 85) or 85) / 100.0
+
     pages = []
-    for nm in names:
+    for i, nm in enumerate(names):
         nm = (nm or "").strip()
         if not nm:
             continue
@@ -55,6 +63,8 @@ def render_certificates(batch, names: list, school) -> str:
         d.text((nx, ny), nm, font=name_font, fill=color, anchor="mm")
         if sub_text:
             d.text((nx, ny + name_px * 0.95), sub_text, font=sub_font, fill=color, anchor="mm")
+        if cert_on and i < len(numbers) and numbers[i]:
+            d.text((cnx, cny), str(numbers[i]), font=cno_font, fill=color, anchor="mm")
         pages.append(img)
 
     if not pages:
