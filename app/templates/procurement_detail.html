@@ -259,7 +259,7 @@
   {{ next_steps(p, modules_live) }}
 </div>
 {% else %}
-<div class="card" style="border:1px solid #c7d7fb; background:#f5f9ff;">
+<div class="card hl">
   <h2><svg class="icon"><use href="#ic-file"/></svg> ออกเอกสาร - {{ case_info.label }}</h2>
   <p class="muted" style="margin-top:0;">{{ case_info.desc }}</p>
   <a class="btn" href="/procurement/{{ p.id }}/altdoc/{{ case_info.altkind }}"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเอกสาร {{ case_info.label }}</a>

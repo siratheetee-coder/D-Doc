@@ -14,8 +14,8 @@
     <div>คงเหลือจากงบ: <b {{ 'style="color:#dc2626;"' if (p.budget - committed) < 0 else '' }}>{{ "{:,.2f}".format(p.budget - committed) }}</b></div>
   </div>
   {% if committed > p.budget %}
-  <div style="margin-top:12px; padding:10px 14px; border-radius:9px; background:#fef2f2; border:1px solid #fca5a5; color:#b91c1c; font-weight:600;">
-    <svg class="icon"><use href="#ic-alert"/></svg> ผูกจ้างเกินงบทั้งปี {{ "{:,.2f}".format(committed - p.budget) }} บาท - ตรวจสอบวงเงินแต่ละรอบอีกครั้ง
+  <div class="alert danger" style="margin-top:12px;">
+    <svg class="icon"><use href="#ic-alert"/></svg><span>ผูกจ้างเกินงบทั้งปี {{ "{:,.2f}".format(committed - p.budget) }} บาท - ตรวจสอบวงเงินแต่ละรอบอีกครั้ง</span>
   </div>
   {% endif %}
 </div>

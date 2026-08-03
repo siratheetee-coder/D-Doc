@@ -10,7 +10,7 @@
 </div>
 {% if request.query_params.get('added') %}<div class="alert">✔ เพิ่มวัสดุแล้ว {{ request.query_params.get('added') }} รายการ</div>{% endif %}
 
-<div class="card" style="border:1px solid #c7d7fb; background:#f5f9ff;">
+<div class="card hl">
   <h2><svg class="icon"><use href="#ic-ai"/></svg> เพิ่มหลายรายการจากรูป (สแกน)</h2>
   <p class="muted" style="margin-top:0;">ถ่าย/อัปรูปรายการวัสดุ (บิล/ใบส่งของ) ระบบจะอ่านมาเติมตารางให้ - ตรวจ/แก้แล้วกดบันทึก</p>
   <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">

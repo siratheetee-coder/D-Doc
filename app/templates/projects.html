@@ -89,7 +89,7 @@
 </div>
 
 {% if legacy %}
-<div class="card" style="border:1px solid #ffe2ad; background:#fff8ec;">
+<div class="card hl warn">
   <h2><svg class="icon"><use href="#ic-alert"/></svg> โครงการที่ยังไม่ได้ระบุปี ({{ legacy|length }})</h2>
   <p class="muted" style="margin-top:0;">โครงการเดิมที่สร้างก่อนมีโมดูลนี้ - กำหนดปีให้พร้อมกันทั้งหมด หรือเปิดทีละโครงการเพื่อกำหนดปี</p>
   <form method="post" action="/projects/assign-year" style="margin:0 0 12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">

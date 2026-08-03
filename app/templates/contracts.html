@@ -19,8 +19,8 @@
 {% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกแล้ว</div>{% endif %}
 
 {% if alerts %}
-<div class="card" style="border:1px solid #fca5a5; background:#fef2f2;">
-  <h2 style="margin-top:0; color:#b91c1c;"><svg class="icon"><use href="#ic-alert"/></svg> แจ้งเตือนสัญญาใกล้/เกินกำหนด ({{ alerts|length }})</h2>
+<div class="card hl danger">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-alert"/></svg> แจ้งเตือนสัญญาใกล้/เกินกำหนด ({{ alerts|length }})</h2>
   <div class="table-wrap">
   <table>
     <thead><tr><th>เลขที่</th><th>คู่สัญญา</th><th>เรื่อง</th><th>ครบกำหนด</th><th>สถานะเวลา</th></tr></thead>

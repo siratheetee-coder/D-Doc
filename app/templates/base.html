@@ -149,6 +149,18 @@
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 22px 24px; box-shadow: var(--shadow); margin-bottom: 22px;
     }
+    /* การ์ด/กล่องเน้น: ไม่มีขอบ outline รอบ ใช้แถบสีซ้าย + พื้นสีอ่อน + เงานุ่ม (สไตล์เดียวกับการ์ดแจ้งเตือน) */
+    .card.hl { border: none; border-left: 4px solid #3b82f6; background: #f2f7ff; box-shadow: 0 4px 16px rgba(16,24,40,.07); }
+    .card.hl.warn { border-left-color: #f0a020; background: #fff8ec; }
+    .card.hl.danger { border-left-color: #ef4444; background: #fef1f1; }
+    .card.hl.danger h2 { color: #b91c1c; }
+    .tipbox { border: none; border-left: 4px solid #3b82f6; background: #f2f7ff;
+      border-radius: 4px 10px 10px 4px; padding: 12px 15px; margin-bottom: 14px;
+      box-shadow: 0 3px 12px rgba(16,24,40,.06); }
+    .tipbox.warn { border-left-color: #f0a020; background: #fff8ec; }
+    .tipbox.danger { border-left-color: #ef4444; background: #fef1f1; color: #b91c1c; }
+    .tipbox > .icon, .tipbox b > .icon { color: #2563eb; }
+    .tipbox.danger > .icon { color: #dc2626; }
     /* การ์ดลิงก์บนหน้าหลักของแต่ละงาน - ใช้สีประจำโมดูลอัตโนมัติผ่าน var(--brand) */
     .nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-bottom: 22px; }
     .nav-card {
@@ -318,31 +330,30 @@
        ตัวแปรสี: (ค่าเริ่มต้น = สำเร็จ/เขียว) .warn = เตือน/เหลือง  .info = ข้อมูล/น้ำเงิน */
     .alert {
       display: flex; align-items: center; gap: 13px; flex-wrap: wrap;
-      background: #edfaf1; color: #0e7a44; border: 1px solid #bfeacf;
-      border-left: 4px solid #16a34a;
-      padding: 13px 16px; border-radius: 12px; margin-bottom: 14px;
-      font-weight: 500; line-height: 1.5; box-shadow: 0 2px 10px rgba(16,24,40,.05);
+      background: #edfaf1; color: #0e7a44; border: none; border-left: 4px solid #16a34a;
+      padding: 13px 16px 13px 15px; border-radius: 4px 12px 12px 4px; margin-bottom: 14px;
+      font-weight: 500; line-height: 1.5; box-shadow: 0 4px 14px rgba(16,24,40,.08);
     }
     .alert > .icon {
       width: 34px; height: 34px; flex: none; padding: 6px; box-sizing: border-box;
-      border-radius: 10px; background: rgba(22,163,74,.13); color: #16a34a; stroke-width: 2;
+      border-radius: 10px; background: rgba(22,163,74,.14); color: #16a34a; stroke-width: 2;
     }
     .alert b { color: #0b5b34; font-weight: 700; }
     .alert > span { flex: 1; min-width: 200px; }
     .alert.warn {
-      background: #fff8ec; color: #92610a; border-color: #ffe2ad; border-left-color: #f0a020;
+      background: #fff8ec; color: #92610a; border-left-color: #f0a020;
     }
-    .alert.warn > .icon { background: rgba(240,160,32,.15); color: #d98016; }
+    .alert.warn > .icon { background: rgba(240,160,32,.16); color: #d98016; }
     .alert.warn b { color: #7a4f06; }
     .alert.info {
-      background: #eff5ff; color: #1e40af; border-color: #cfe0ff; border-left-color: #3b82f6;
+      background: #eef5ff; color: #1e40af; border-left-color: #3b82f6;
     }
-    .alert.info > .icon { background: rgba(59,130,246,.13); color: #2563eb; }
+    .alert.info > .icon { background: rgba(59,130,246,.14); color: #2563eb; }
     .alert.info b { color: #1e3a8a; }
     .alert.danger {
-      background: #fef2f2; color: #b91c1c; border-color: #fca5a5; border-left-color: #ef4444;
+      background: #fef1f1; color: #b91c1c; border-left-color: #ef4444;
     }
-    .alert.danger > .icon { background: rgba(239,68,68,.13); color: #dc2626; }
+    .alert.danger > .icon { background: rgba(239,68,68,.14); color: #dc2626; }
     .alert.danger b { color: #991b1b; }
     /* ===== Toast แจ้งเตือนเด้งจากบน แล้วหายเอง ===== */
     .toast-wrap { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 4000;
@@ -1018,7 +1029,7 @@
       // แปลงแบนเนอร์ "บันทึกแล้ว/สำเร็จ" (สีเขียว บรรทัดเดียว) ให้เด้งเป็น toast แล้วเอาแบนเนอร์ออก
       // แบนเนอร์เตือน (.warn) และแบนเนอร์ที่มีลิงก์/รายการ คงไว้ในหน้าตามเดิม
       document.addEventListener('DOMContentLoaded', function(){
-        document.querySelectorAll('.content .alert:not(.warn)').forEach(function(a){
+        document.querySelectorAll('.content .alert:not(.warn):not(.danger):not(.info)').forEach(function(a){
           if(a.querySelector('ul,ol,table,form,a,button')) return;
           var txt = (a.textContent||'').trim().replace(/^[✔✓•\s]+/, '');
           if(!txt) return;
