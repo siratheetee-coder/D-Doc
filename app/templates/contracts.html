@@ -63,14 +63,18 @@
 </div>
 
 <div class="card">
-  <h2>รายการสัญญา {% if items %}<span class="muted" style="font-size:15px;">({{ items|length }})</span>{% endif %}</h2>
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;">รายการสัญญา {% if items %}<span class="muted" style="font-size:15px;">({{ items|length }})</span>{% endif %}</h2>
+    {% if items %}<button class="btn sm" type="button" onclick="saveAllContracts(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึกทั้งหมด</button>{% endif %}
+  </div>
   {% if items %}
+  <p class="muted" style="font-size:13px; margin:4px 0 8px;">แก้ได้หลายรายการพร้อมกัน แล้วกด "บันทึกทั้งหมด" ครั้งเดียว (หรือกดบันทึกทีละรายการ) - แถวอื่นจะไม่รีเซ็ต</p>
   <div class="table-wrap">
   <table>
     <thead><tr><th>เลขที่</th><th>ประเภท</th><th>คู่สัญญา</th><th>เรื่อง</th><th class="right">วงเงิน</th><th>ครบกำหนด</th><th>สถานะ</th><th>เวลา</th><th></th></tr></thead>
     <tbody>
     {% for it in items %}
-      <tr>
+      <tr data-cid="{{ it.c.id }}">
         <form method="post" action="/procurement/contracts/{{ it.c.id }}/update" style="display:contents;">
           <td><input name="contract_no" value="{{ it.c.contract_no }}" style="width:85px;"></td>
           <td><select name="ctype" style="width:100px;">{% for t in types %}<option {{ 'selected' if t==it.c.ctype }}>{{ t }}</option>{% endfor %}</select></td>
@@ -85,7 +89,7 @@
             {% elif it.days_left is not none %}<span class="muted" style="font-size:11px;">{{ it.days_left }} ว.</span>{% endif %}
           </td>
           <td style="white-space:nowrap;">
-            <button class="btn sm" type="submit">บันทึก</button>
+            <button class="btn sm" type="button" onclick="saveContract(this)">บันทึก</button>
         </form>
             <form method="post" action="/procurement/contracts/{{ it.c.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบสัญญานี้?');"><button class="btn sm gray" type="submit">ลบ</button></form>
           </td>
@@ -97,6 +101,37 @@
   {% else %}<p class="muted">ยังไม่มีสัญญาในปีนี้ - เพิ่มด้านบน หรือ ดึงจากเรื่องจัดซื้อจัดจ้าง/อาหารกลางวัน</p>{% endif %}
 </div>
 <script>
+  // บันทึกแบบ AJAX ไม่รีเฟรชหน้า (แถวอื่นที่แก้ค้างไม่เด้งกลับ)
+  function _contractRowData(tr){
+    var d = new URLSearchParams();
+    tr.querySelectorAll('input[name],select[name]').forEach(function(el){ d.append(el.name, el.value); });
+    return d;
+  }
+  function saveContract(btn){
+    var tr = btn.closest('tr'), cid = tr.getAttribute('data-cid');
+    btn.disabled = true;
+    return fetch('/procurement/contracts/' + cid + '/update', {
+      method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'fetch'},
+      body:_contractRowData(tr)
+    }).then(function(r){ btn.disabled=false; if(!r.ok) throw 0;
+      tr.style.background='#dcfce7'; setTimeout(function(){ tr.style.background=''; }, 700);
+      if(window.showToast) showToast('บันทึกแล้ว');
+    }).catch(function(){ btn.disabled=false; alert('บันทึกไม่สำเร็จ ลองใหม่'); });
+  }
+  function saveAllContracts(btn){
+    btn.disabled = true;
+    var rows = Array.prototype.slice.call(document.querySelectorAll('tr[data-cid]'));
+    Promise.all(rows.map(function(tr){
+      return fetch('/procurement/contracts/' + tr.getAttribute('data-cid') + '/update', {
+        method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'fetch'},
+        body:_contractRowData(tr)
+      });
+    })).then(function(){ btn.disabled=false;
+      rows.forEach(function(tr){ tr.style.background='#dcfce7'; });
+      setTimeout(function(){ rows.forEach(function(tr){ tr.style.background=''; }); }, 900);
+      if(window.showToast) showToast('บันทึกทั้งหมดแล้ว');
+    }).catch(function(){ btn.disabled=false; alert('บันทึกบางรายการไม่สำเร็จ'); });
+  }
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){
       var v=this.value.replace(/\D/g,'').slice(0,8), o=v;

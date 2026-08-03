@@ -1303,7 +1303,7 @@ def contract_add(db: Session = Depends(get_db), fiscal_year: str = Form(""), con
 
 
 @router.post("/procurement/contracts/{cid}/update")
-def contract_update(cid: int, db: Session = Depends(get_db), contract_no: str = Form(""),
+def contract_update(cid: int, request: Request, db: Session = Depends(get_db), contract_no: str = Form(""),
                     ctype: str = Form(""), party: str = Form(""), subject: str = Form(""),
                     amount: str = Form("0"), sign_date: str = Form(""), end_date: str = Form(""),
                     status: str = Form("")):
@@ -1315,6 +1315,9 @@ def contract_update(cid: int, db: Session = Depends(get_db), contract_no: str = 
         c.sign_date = parse_be_date(sign_date); c.end_date = parse_be_date(end_date)
         c.status = status.strip() or c.status
         db.commit()
+    # บันทึกแบบ AJAX (ราย/ทั้งหมด) -> ตอบ JSON ไม่รีเฟรชหน้า (กันแถวอื่นที่แก้ค้างเด้งกลับ)
+    if request.headers.get("X-Requested-With") == "fetch":
+        return JSONResponse({"ok": bool(c)})
     return RedirectResponse(f"/procurement/contracts?year={fy}&saved=1", status_code=303)
 
 
