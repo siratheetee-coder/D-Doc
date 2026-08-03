@@ -104,9 +104,9 @@
   {% endif %}
 
   {% if new_mod_labels %}
-  <div class="alert" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:#eef4ff; border:1px solid #cfe0ff; color:#1e3a8a;">
+  <div class="alert info">
     <svg class="icon"><use href="#ic-info"/></svg>
-    <span style="flex:1; min-width:200px;">โรงเรียนของคุณเปิดใช้งานเพิ่ม: <b>{{ new_mod_labels|join(' · ') }}</b> · ไปเปิดสิทธิ์ให้เจ้าหน้าที่ที่เมนู "จัดการผู้ใช้"</span>
+    <span>โรงเรียนของคุณเปิดใช้งานเพิ่ม: <b>{{ new_mod_labels|join(' · ') }}</b> · ไปเปิดสิทธิ์ให้เจ้าหน้าที่ที่เมนู "จัดการผู้ใช้"</span>
     <a class="btn sm" href="/users"><svg class="icon"><use href="#ic-users"/></svg> เปิดสิทธิ์ให้ทีม</a>
     <button class="btn sm gray" type="button" onclick="modulesSeen(this)">รับทราบ</button>
   </div>

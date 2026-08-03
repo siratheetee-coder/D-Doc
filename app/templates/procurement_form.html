@@ -6,7 +6,7 @@
   <h1>{{ "แก้ไขเรื่องจัดซื้อ/จัดจ้าง" if is_edit else "สร้างเรื่องจัดซื้อ/จัดจ้างใหม่" }}</h1>
   {% if not is_edit %}<p class="muted">วันนี้: {{ today_thai }}</p>{% endif %}
   {% if case_info is defined and proc_case and proc_case != 'normal' %}
-  <div class="alert" style="background:#eef4ff; color:#3568e0; border-color:#c7d7fb; display:flex; align-items:center; gap:8px;">
+  <div class="alert info">
     <svg class="icon"><use href="#ic-file"/></svg>
     <span>รูปแบบ: <b>{{ case_info.label }}</b> - {{ case_info.desc }} <a href="/procurement/new" style="margin-left:6px;">เปลี่ยนรูปแบบ</a></span>
   </div>

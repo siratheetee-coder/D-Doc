@@ -313,17 +313,37 @@
     .pill.done { background: var(--brand-soft); color: var(--brand-dark); }
     .pill.danger { background: var(--danger); color: #fff; }
 
-    /* ===== Alert / Muted ===== */
+    /* ===== Notice / การ์ดแจ้งเตือน (สไตล์เดียวกันทั้งแอป) =====
+       โครง: [ไอคอนชิป] [ข้อความ flex:1] [ปุ่ม/ลิงก์]  มีแถบสีซ้าย + เงานุ่ม
+       ตัวแปรสี: (ค่าเริ่มต้น = สำเร็จ/เขียว) .warn = เตือน/เหลือง  .info = ข้อมูล/น้ำเงิน */
     .alert {
-      background: #e9f7ef; color: #0e7a44; border: 1px solid #b7ebcd;
-      padding: 11px 15px; border-radius: 10px; margin-bottom: 14px; font-weight: 600;
+      display: flex; align-items: center; gap: 13px; flex-wrap: wrap;
+      background: #edfaf1; color: #0e7a44; border: 1px solid #bfeacf;
+      border-left: 4px solid #16a34a;
+      padding: 13px 16px; border-radius: 12px; margin-bottom: 14px;
+      font-weight: 500; line-height: 1.5; box-shadow: 0 2px 10px rgba(16,24,40,.05);
     }
+    .alert > .icon {
+      width: 34px; height: 34px; flex: none; padding: 6px; box-sizing: border-box;
+      border-radius: 10px; background: rgba(22,163,74,.13); color: #16a34a; stroke-width: 2;
+    }
+    .alert b { color: #0b5b34; font-weight: 700; }
+    .alert > span { flex: 1; min-width: 200px; }
     .alert.warn {
-      background: #fff8ec; color: #92610a; border: 1px solid #ffe2ad;
-      display: flex; align-items: flex-start; gap: 12px;
+      background: #fff8ec; color: #92610a; border-color: #ffe2ad; border-left-color: #f0a020;
     }
-    .alert.warn > .icon { width: 22px; height: 22px; color: #f0a020; flex: none; margin-top: 1px; stroke-width: 2; }
+    .alert.warn > .icon { background: rgba(240,160,32,.15); color: #d98016; }
     .alert.warn b { color: #7a4f06; }
+    .alert.info {
+      background: #eff5ff; color: #1e40af; border-color: #cfe0ff; border-left-color: #3b82f6;
+    }
+    .alert.info > .icon { background: rgba(59,130,246,.13); color: #2563eb; }
+    .alert.info b { color: #1e3a8a; }
+    .alert.danger {
+      background: #fef2f2; color: #b91c1c; border-color: #fca5a5; border-left-color: #ef4444;
+    }
+    .alert.danger > .icon { background: rgba(239,68,68,.13); color: #dc2626; }
+    .alert.danger b { color: #991b1b; }
     /* ===== Toast แจ้งเตือนเด้งจากบน แล้วหายเอง ===== */
     .toast-wrap { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 4000;
       display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
