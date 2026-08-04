@@ -470,6 +470,24 @@ async def round_update(rid: int, request: Request, db: Session = Depends(get_db)
     return RedirectResponse(f"/lunch/{rnd.program_id}/rounds", status_code=303)
 
 
+@router.post("/lunch/round/{rid}/status")
+async def round_set_status(rid: int, request: Request, db: Session = Depends(get_db),
+                           status: str = Form("")):
+    """เปลี่ยนสถานะรอบตรงจากตาราง (ร่าง/จ้างแล้ว/จ่ายแล้ว) - เปลี่ยนกลับไปมาได้
+    ซิงก์เรื่องจัดจ้าง + บัญชีให้อัตโนมัติ (จ่ายแล้ว->ลงบัญชี, ถอย->ลบรายการบัญชี)"""
+    rnd = db.get(LunchHireRound, rid)
+    ok = False
+    if rnd and status.strip() in ("ร่าง", "จ้างแล้ว", "จ่ายแล้ว"):
+        rnd.status = status.strip()
+        _sync_round_procurement(db, rnd)
+        _sync_round_ledger(db, rnd)
+        db.commit()
+        ok = True
+    if request.headers.get("X-Requested-With") == "fetch":
+        return JSONResponse({"ok": ok})
+    return RedirectResponse(f"/lunch/{rnd.program_id}/rounds" if rnd else "/lunch", status_code=303)
+
+
 @router.post("/lunch/round/{rid}/delete")
 def round_delete(rid: int, db: Session = Depends(get_db)):
     rnd = db.get(LunchHireRound, rid)

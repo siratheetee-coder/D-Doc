@@ -85,7 +85,9 @@
         <td class="right">{{ r.days }}</td>
         <td>{{ r.vendor.name if r.vendor else '-' }}</td>
         <td class="right">{{ "{:,.2f}".format(r.amount or 0) }}</td>
-        <td><span class="pill {{ 'done' if r.status=='จ่ายแล้ว' else 'approve' if r.status=='จ้างแล้ว' else '' }}">{{ r.status }}</span></td>
+        <td><select class="rstatus" data-rid="{{ r.id }}" onchange="saveRoundStatus(this)" title="เปลี่ยนสถานะได้ที่นี่" style="width:120px;">
+          {% for s in ['ร่าง','จ้างแล้ว','จ่ายแล้ว'] %}<option {{ 'selected' if r.status==s }}>{{ s }}</option>{% endfor %}
+        </select></td>
         <td>{% if r.status=='จ่ายแล้ว' %}<span class="muted" title="ลงบัญชีจ่ายอัตโนมัติแล้ว">✔ ลงแล้ว</span>{% else %}<span class="muted">-</span>{% endif %}</td>
         <td style="white-space:nowrap;">
           <a class="btn sm" href="/lunch/round/{{ r.id }}/plan">จัดการงวด</a>
@@ -174,5 +176,18 @@
     });
   });
   calcAmt();
+  // เปลี่ยนสถานะรอบตรงจากตาราง (บันทึกทันที ไม่ต้องเข้าหน้าแก้ไข)
+  function saveRoundStatus(sel){
+    var rid = sel.getAttribute('data-rid');
+    sel.disabled = true;
+    var d = new URLSearchParams(); d.append('status', sel.value);
+    fetch('/lunch/round/' + rid + '/status', {
+      method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'fetch'}, body:d
+    }).then(function(r){ if(!r.ok) throw 0;
+      if(window.showToast) showToast('อัปเดตสถานะแล้ว');
+      // โหลดหน้าใหม่ให้คอลัมน์บัญชี + ยอดผูกจ้างอัปเดตตามสถานะใหม่
+      setTimeout(function(){ location.reload(); }, 500);
+    }).catch(function(){ sel.disabled=false; alert('อัปเดตสถานะไม่สำเร็จ ลองใหม่'); });
+  }
 </script>
 {% endblock %}
