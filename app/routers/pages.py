@@ -172,59 +172,12 @@ def hub(request: Request, db: Session = Depends(get_db)):
     new_mods = owner_new_modules(request.session.get("uid")) if request.session.get("owner") else []
     new_mod_labels = [MODULE_LABELS.get(k, k) for k in new_mods]
 
-    reminders = _hub_reminders(db, onboard_done, len(onboard), onboard)
-
     return templates.TemplateResponse("hub.html", {
         "request": request, "school": school, "fiscal_year": fy,
         "stats": stats, "admin_total": admin_total,
         "onboard": onboard, "onboard_done": onboard_done, "onboard_total": len(onboard),
-        "new_mod_labels": new_mod_labels, "reminders": reminders,
+        "new_mod_labels": new_mod_labels,
     })
-
-
-def _hub_reminders(db, onboard_done, onboard_total, onboard):
-    """สร้างฟีดแจ้งเตือนจากข้อมูลจริง (สัญญาใกล้/เกินกำหนด + ตั้งค่ายังไม่ครบ)
-    ห่อ try ทุกก้อน: ถ้าอะไรพัง ให้ข้ามรายการนั้น ไม่ให้หน้าแรกล่ม"""
-    out = []
-    today = datetime.now().date()
-    # 1) สัญญาใกล้/เกินกำหนด (จากตรรกะเดียวกับหน้าทะเบียนคุมสัญญา)
-    try:
-        rows = (db.query(Contract)
-                .filter(Contract.status != "สิ้นสุด", Contract.end_date.isnot(None)).all())
-        alerts = []
-        for c in rows:
-            dl, lvl = _contract_alert(c, today)
-            if lvl:
-                alerts.append((dl, lvl, c))
-        alerts.sort(key=lambda a: (a[0] if a[0] is not None else 9999))
-        for dl, lvl, c in alerts[:6]:
-            overdue = lvl == "overdue"
-            desc = " · ".join(x for x in [c.contract_no, c.party or c.subject] if x) or "สัญญา"
-            out.append({
-                "icon": "ic-alert" if overdue else "ic-file",
-                "chip": "red" if overdue else "amber",
-                "title": "สัญญาเกินกำหนด!" if overdue else "สัญญาใกล้ครบกำหนด!",
-                "sub": desc,
-                "time": ("เกิน %d วัน" % abs(dl)) if overdue else ("อีก %d วัน" % dl if dl else "วันนี้"),
-                "href": "/procurement/contracts?year=%s" % c.fiscal_year,
-            })
-    except Exception:
-        pass
-    # 2) ตั้งค่าเริ่มต้นยังไม่ครบ (มี progress bar)
-    try:
-        if onboard_done < onboard_total:
-            nxt = next((s for s in onboard if not s["done"]), None)
-            out.append({
-                "icon": "ic-settings", "chip": "blue",
-                "title": "ตั้งค่าเริ่มต้นใช้งาน",
-                "sub": "ทำต่อ: %s" % (nxt["label"] if nxt else "ขั้นตอนที่เหลือ"),
-                "time": "%d/%d" % (onboard_done, onboard_total),
-                "href": nxt["href"] if nxt else "/settings",
-                "pct": int(onboard_done * 100 / onboard_total) if onboard_total else 0,
-            })
-    except Exception:
-        pass
-    return out
 
 
 # ---------------- ค้นหากลาง (ข้ามทุกงาน) ----------------

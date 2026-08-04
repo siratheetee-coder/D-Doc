@@ -355,26 +355,6 @@
     }
     .alert.danger > .icon { background: #ef4444; color: #fff; }
     .alert.danger b { color: #991b1b; }
-    /* ===== ฟีดการแจ้งเตือน (การ์ดชิปไอคอนใหญ่ สไตล์ notification feed) ===== */
-    .noti-feed { display: flex; flex-direction: column; gap: 12px; margin-bottom: 22px; }
-    .noti { display: flex; align-items: center; gap: 15px; background: var(--surface);
-      border-radius: 16px; padding: 15px 17px; box-shadow: 0 5px 18px rgba(16,24,40,.08);
-      text-decoration: none; color: inherit; transition: transform .15s ease, box-shadow .15s ease; }
-    a.noti:hover { transform: translateY(-2px); box-shadow: 0 11px 28px rgba(16,24,40,.14); }
-    .noti-chip { width: 54px; height: 54px; flex: none; border-radius: 15px; display: flex;
-      align-items: center; justify-content: center; background: #2f9fe6; color: #fff; }
-    .noti-chip > .icon { width: 27px; height: 27px; stroke-width: 2; }
-    .noti-chip.blue { background: #2f9fe6; } .noti-chip.purple { background: #8b5cf6; }
-    .noti-chip.slate { background: #3f4a5a; } .noti-chip.red { background: #ef4757; }
-    .noti-chip.green { background: #16a34a; } .noti-chip.amber { background: #f0a020; }
-    .noti-body { flex: 1; min-width: 0; }
-    .noti-top { display: flex; align-items: baseline; gap: 8px; }
-    .noti-ttl { font-size: 16.5px; font-weight: 700; color: var(--text); }
-    .noti-time { margin-left: auto; font-size: 12.5px; color: var(--muted); white-space: nowrap; flex: none; }
-    .noti-sub { font-size: 14px; color: var(--muted); margin-top: 2px; overflow: hidden;
-      text-overflow: ellipsis; white-space: nowrap; }
-    .noti-bar { height: 8px; border-radius: 99px; background: #e6ebf3; margin-top: 9px; overflow: hidden; }
-    .noti-bar > i { display: block; height: 100%; border-radius: 99px; background: #2f9fe6; }
     /* ===== Toast แจ้งเตือนเด้งจากบน แล้วหายเอง ===== */
     .toast-wrap { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 4000;
       display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
@@ -752,7 +732,7 @@
             {% if bell_alerts %}
             <div class="bell-list">
               {% for a in bell_alerts %}
-              <a class="bell-item lv-{{ a.level }}" href="/procurement/{{ a.id }}">
+              <a class="bell-item lv-{{ a.level }}" href="{{ a.href or ('/procurement/' ~ a.id) }}">
                 <span class="bell-dot"></span>
                 <span><span class="bell-title">{{ a.title }}</span><span class="bell-reason">{{ a.reason }}</span></span>
               </a>

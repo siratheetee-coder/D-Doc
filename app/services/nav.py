@@ -11,8 +11,10 @@ nav.py
 from datetime import datetime
 from functools import lru_cache
 
-from app.models import Procurement
+from app.models import Procurement, Contract
 from app.services.thai_holidays import holiday_map
+
+_CONTRACT_ALERT_DAYS = 15   # เตือนล่วงหน้ากี่วันก่อนสัญญาครบกำหนด (ให้ตรงกับหน้าทะเบียนคุมสัญญา)
 
 
 def nav_alerts():
@@ -47,7 +49,27 @@ def nav_alerts():
             alerts.append({
                 "id": p.id, "level": level, "reason": reason,
                 "title": f"{p.memo_no or ''} {p.proc_type or ''}{p.subject or ''}".strip(),
+                "href": f"/procurement/{p.id}",
             })
+        # ---- สัญญาใกล้/เกินกำหนด (ตรรกะเดียวกับหน้าทะเบียนคุมสัญญา) ----
+        try:
+            crows = (db.query(Contract)
+                     .filter(Contract.status != "สิ้นสุด", Contract.end_date.isnot(None)).all())
+            for c in crows:
+                dl = (c.end_date.date() - today).days
+                if dl < 0:
+                    level, reason = "urgent", f"สัญญาเลยกำหนด {abs(dl)} วัน"
+                elif dl <= _CONTRACT_ALERT_DAYS:
+                    level, reason = "warn", f"สัญญาใกล้ครบกำหนด (อีก {dl} วัน)"
+                else:
+                    continue
+                alerts.append({
+                    "id": c.id, "level": level, "reason": reason,
+                    "title": " ".join(x for x in [c.contract_no, c.party or c.subject] if x) or "สัญญา",
+                    "href": f"/procurement/contracts?year={c.fiscal_year}",
+                })
+        except Exception:
+            pass
         rank = {"urgent": 0, "warn": 1, "info": 2}
         alerts.sort(key=lambda a: rank[a["level"]])
         return alerts
