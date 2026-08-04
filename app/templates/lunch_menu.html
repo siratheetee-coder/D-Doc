@@ -23,10 +23,10 @@
     <datalist id="desserts_dl">{% for d in desserts %}<option value="{{ d }}">{% endfor %}</datalist>
     <p class="muted" style="font-size:13px; margin:2px 0;">เลือกจานหลักที่เคยใช้ ระบบจะเติมของหวานที่เคยคู่กันให้อัตโนมัติ (แก้ได้)</p>
     <label>อาหารครบ 5 หมู่ <span class="muted" style="font-weight:400;">(ติ๊กหมู่ที่มีในเมนูวันนี้ ตามหลักโภชนาการ)</span></label>
-    <div style="display:flex; gap:16px; flex-wrap:wrap; margin:4px 0 10px;">
+    <div style="display:flex; gap:10px 22px; flex-wrap:wrap; margin:6px 0 12px;">
       {% for gid, gname in food_groups.items() %}
-      <label style="display:flex; align-items:center; gap:5px; font-weight:400; font-size:14px;">
-        <input type="checkbox" name="groups" value="{{ gid }}" {{ 'checked' if gid in edit_groups }}> {{ gid }}. {{ gname }}
+      <label style="display:inline-flex; align-items:center; gap:7px; font-weight:400; font-size:14.5px; white-space:nowrap; flex:0 0 auto;">
+        <input type="checkbox" name="groups" value="{{ gid }}" style="width:18px; height:18px; flex:none;" {{ 'checked' if gid in edit_groups }}> {{ gid }}. {{ gname }}
       </label>
       {% endfor %}
     </div>
