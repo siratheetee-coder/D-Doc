@@ -540,12 +540,25 @@ def menu_page(pid: int, request: Request, db: Session = Depends(get_db),
     latest_round = max(rounds_with_start, key=lambda r: r.start_date) if rounds_with_start else None
     term_start = latest_round.start_date if latest_round else None
     term_end = latest_round.end_date if latest_round else None
+    # วันที่ตั้งต้นในฟอร์มเพิ่มเมนู: วันเปิดเรียนถัดจากเมนูล่าสุด (กรอกไล่วันได้เลย ไม่ต้องแก้)
+    # ถ้ายังไม่มีเมนู -> วันเริ่มรอบล่าสุด · ถ้าไม่มีรอบ -> วันนี้
+    from app.services.thai_holidays import next_workday
+    from datetime import timedelta
+    menu_dates = [m.date for m in prog.menus if m.date]
+    if menu_dates:
+        base = (max(menu_dates) + timedelta(days=1)).date()
+    elif term_start:
+        base = term_start.date()
+    else:
+        base = datetime.now().date()
+    nd = next_workday(base, None)
+    default_menu_date = datetime(nd.year, nd.month, nd.day)
     return templates.TemplateResponse("lunch_menu.html", {
         "request": request, "school": get_school(db), "p": prog,
         "menu_rows": menu_rows, "edit": edit_row, "past_menus": past, "desserts": desserts,
         "food_groups": FOOD_GROUPS,
         "edit_groups": [g for g in (edit_row.groups or "").split(",")] if edit_row else [],
-        "today_be": be_date_input(datetime.now()),
+        "today_be": be_date_input(default_menu_date),
         "term_start_be": be_date_input(term_start) if term_start else "",
         "term_end_be": be_date_input(term_end) if term_end else "",
         "menu_count": len(menu_rows),
