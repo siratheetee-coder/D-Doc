@@ -569,9 +569,12 @@ def menu_fill_term(pid: int, db: Session = Depends(get_db),
     prog = db.get(LunchProgram, pid)
     if not prog:
         return RedirectResponse("/lunch", status_code=303)
-    menus = sorted(prog.menus, key=lambda m: (m.date or datetime.max, m.id))
     n = max(1, _to_int(cycle_size, 5))
-    cycle = [(m.main, m.dessert, m.groups) for m in menus[:n]]
+    # ชุดหมุนเวียน = เมนูตั้งต้นที่ยังไม่มีวันที่ (ที่ผู้ใช้เพิ่มไว้เป็นชุด) ถ้าไม่มีค่อยใช้เมนูที่มีวันที่
+    dateless = sorted((m for m in prog.menus if not m.date), key=lambda m: m.id)
+    dated = sorted((m for m in prog.menus if m.date), key=lambda m: (m.date, m.id))
+    source = dateless or dated
+    cycle = [(m.main, m.dessert, m.groups) for m in source[:n]]
     s = parse_be_date(start_date)
     e = parse_be_date(end_date)
     if not cycle or not s or not e or e < s:
@@ -592,6 +595,10 @@ def menu_fill_term(pid: int, db: Session = Depends(get_db),
                 created += 1
             ordinal += 1
         d += timedelta(days=1)
+    # เมนูตั้งต้นที่ไม่มีวันที่ = แค่ชุดตั้งต้นสำหรับหมุนเวียน เมื่อกระจายลงวันแล้วลบทิ้งให้อัตโนมัติ
+    if created:
+        db.query(LunchMenu).filter(LunchMenu.program_id == pid,
+                                   LunchMenu.date.is_(None)).delete(synchronize_session=False)
     db.commit()
     return RedirectResponse(f"/lunch/{pid}/menu?filled={created}", status_code=303)
 
