@@ -56,7 +56,7 @@
     <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มบุคลากร</button>
     <span class="muted" style="font-size:12.5px; margin-left:6px;">ข้อมูลนี้เชื่อมกับ <a href="/hr/staff">งานบุคคล › ทะเบียนบุคลากร</a> · แก้ไขข้อมูลเต็ม/วันลาได้ที่นั่น</span>
   </form>
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th style="width:38%;">ชื่อ-นามสกุล</th><th style="width:22%;">ตำแหน่ง</th><th style="width:22%;">ลายเซ็น</th><th></th></tr></thead>
     <tbody>
       {% for p in persons %}
@@ -92,7 +92,7 @@
       </tr>
       {% else %}<tr><td colspan="4" class="muted">ยังไม่มี</td></tr>{% endfor %}
     </tbody>
-  </table>
+  </table></div>
 </div>
 
 <div class="card">
@@ -102,7 +102,7 @@
     <input name="name" required placeholder="เช่น ฝ่ายบริหารงานวิชาการ">
     <br><br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button>
   </form>
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th style="width:85%;">ชื่อ</th><th></th></tr></thead>
     <tbody>
       {% for d in departments %}
@@ -115,7 +115,7 @@
       </tr>
       {% else %}<tr><td colspan="2" class="muted">ยังไม่มี</td></tr>{% endfor %}
     </tbody>
-  </table>
+  </table></div>
 </div>
 
 <!-- ตัวแก้ไขลายเซ็น: ลบพื้นหลัง (toggle) + ยางลบ (toggle) + ย้อนกลับ ก่อนบันทึก -->

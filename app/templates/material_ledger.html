@@ -36,7 +36,7 @@
 <div class="card">
   <h2>ประวัติรับ-จ่าย-คงเหลือ</h2>
   {% if rows %}
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th>วันที่</th><th>รายการ</th><th>อ้างอิง</th>
         <th class="right">รับ</th><th class="right">จ่าย</th><th class="right">คงเหลือ</th><th></th></tr></thead>
     <tbody>
@@ -52,7 +52,7 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% else %}
   <p class="muted">ยังไม่มีการเคลื่อนไหว</p>
   {% endif %}

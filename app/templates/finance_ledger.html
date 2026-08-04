@@ -90,7 +90,7 @@
     </form>
   </div>
   {% if item_rows %}
-  <table style="margin-top:14px;">
+  <div class="table-wrap"><table style="margin-top:14px;">
     <thead><tr><th>หมวด/รายการ</th><th>เก็บที่</th><th class="right">งบที่ตั้งไว้</th><th class="right">รับเพิ่ม</th><th class="right">จ่ายแล้ว</th><th class="right">คงเหลือ</th><th></th></tr></thead>
     <tbody>
       {% for r in item_rows %}
@@ -133,7 +133,7 @@
         <td class="right">{{ "{:,.2f}".format(item_remain_total) }}</td><td></td>
       </tr>
     </tfoot>
-  </table>
+  </table></div>
   {% else %}<p class="muted" style="margin-bottom:0;">ยังไม่มีหมวดในปีงบนี้ (จะลงรับ-จ่ายโดยไม่เลือกหมวดก็ได้)</p>{% endif %}
 </div>
 
@@ -170,7 +170,7 @@
 <div class="card">
   <h2>ประวัติรับ-จ่าย-คงเหลือ</h2>
   {% if rows %}
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th>วันที่</th><th>รายการ</th><th>หมวด</th><th>อ้างอิง</th>
         <th class="right">รับ</th><th class="right">จ่าย</th><th class="right">คงเหลือ</th><th></th></tr></thead>
     <tbody>
@@ -188,7 +188,7 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% else %}
   <p class="muted">ยังไม่มีการเคลื่อนไหว</p>
   {% endif %}

@@ -14,7 +14,7 @@
 
 <div class="card">
   <h2>ข้อมูลส่วนตัว</h2>
-  <table>
+  <div class="table-wrap"><table>
     <tr><th style="width:210px;">ประเภท/ตำแหน่ง</th><td>{{ p.person_type or '-' }} · {{ p.position or '-' }}</td></tr>
     <tr><th>วิทยฐานะ/ระดับ</th><td>{{ p.rank or '-' }}</td></tr>
     <tr><th>เลขประจำตัวประชาชน</th><td>{{ p.id_card or '-' }}</td></tr>
@@ -22,7 +22,7 @@
     <tr><th>วันบรรจุ/เริ่มงาน</th><td>{{ thai_date(p.start_date) if p.start_date else '-' }}</td></tr>
     <tr><th>เงินเดือน</th><td>{{ "{:,.2f}".format(p.salary) if p.salary else '-' }} บาท</td></tr>
     <tr><th>โทร / อีเมล</th><td>{{ p.phone or '-' }} / {{ p.email or '-' }}</td></tr>
-  </table>
+  </table></div>
   <div class="stat" style="margin-top:12px;">
     <div class="box"><div><div class="lab">รวมวันลา (ทั้งหมด)</div><div class="num">{{ "%g"|format(leave_days) }}</div></div><span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-calendar"/></svg></span></div>
     <div class="box"><div><div class="lab">รวมวันไปราชการ</div><div class="num">{{ "%g"|format(travel_days) }}</div></div><span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-send"/></svg></span></div>
@@ -39,7 +39,7 @@
     <div><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
   </form>
   {% if rank_history %}
-  <table style="margin-top:10px;">
+  <div class="table-wrap"><table style="margin-top:10px;">
     <thead><tr><th>วันที่</th><th>ตำแหน่ง</th><th>วิทยฐานะ/ระดับ</th><th>เลขที่คำสั่ง</th><th></th></tr></thead>
     <tbody>
     {% for r in rank_history %}
@@ -47,7 +47,7 @@
         <td><form method="post" action="/hr/rank/{{ r.id }}/delete" onsubmit="return confirm('ลบ?');" style="margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form></td></tr>
     {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% else %}<p class="muted" style="margin:8px 0 0;">ยังไม่มีข้อมูล</p>{% endif %}
 </div>
 
@@ -60,7 +60,7 @@
     <div><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
   </form>
   {% if decorations %}
-  <table style="margin-top:10px;">
+  <div class="table-wrap"><table style="margin-top:10px;">
     <thead><tr><th>ปี พ.ศ.</th><th>ชั้นตรา</th><th>เลขที่ประกาศ</th><th></th></tr></thead>
     <tbody>
     {% for d in decorations %}
@@ -68,7 +68,7 @@
         <td><form method="post" action="/hr/decoration/{{ d.id }}/delete" onsubmit="return confirm('ลบ?');" style="margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form></td></tr>
     {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% else %}<p class="muted" style="margin:8px 0 0;">ยังไม่มีข้อมูล</p>{% endif %}
 </div>
 

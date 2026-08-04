@@ -59,22 +59,22 @@
   <div class="card" style="flex:1; min-width:300px;">
     <h2>บันทึกข้อความล่าสุด</h2>
     {% if recent_memos %}
-    <table><tbody>
+    <div class="table-wrap"><table><tbody>
       {% for m in recent_memos %}
       <tr><td><a href="/admin/memos/{{ m.id }}">{{ m.memo_no or "-" }}</a></td><td>{{ m.subject or "-" }}</td><td>{{ thai_date(m.date) if m.date else "" }}</td></tr>
       {% endfor %}
-    </tbody></table>
+    </tbody></table></div>
     {% else %}<p class="muted">ยังไม่มี</p>{% endif %}
     <br><a class="btn sm" href="/admin/memos"><svg class="icon"><use href="#ic-plus"/></svg> ออกบันทึกข้อความ</a>
   </div>
   <div class="card" style="flex:1; min-width:300px;">
     <h2>คำสั่งล่าสุด</h2>
     {% if recent_orders %}
-    <table><tbody>
+    <div class="table-wrap"><table><tbody>
       {% for o in recent_orders %}
       <tr><td><a href="/admin/orders/{{ o.id }}">{{ o.order_no or "-" }}</a></td><td>{{ o.subject or "-" }}</td><td>{{ thai_date(o.date) if o.date else "" }}</td></tr>
       {% endfor %}
-    </tbody></table>
+    </tbody></table></div>
     {% else %}<p class="muted">ยังไม่มี</p>{% endif %}
     <br><a class="btn sm" href="/admin/orders"><svg class="icon"><use href="#ic-plus"/></svg> ออกคำสั่ง</a>
   </div>

@@ -20,7 +20,7 @@
       <div><label>วันที่</label><input name="date" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       <div style="flex:2;"><label>ผู้เบิก / ครูประจำชั้น</label><input name="recipient" list="persons_dl" placeholder="เลือก/พิมพ์ชื่อครู เช่น นางสาวสมหญิง รักเรียน"><datalist id="persons_dl">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist></div>
     </div>
-    <table id="bkTable">
+    <div class="table-wrap"><table id="bkTable">
       <thead><tr><th style="width:60%;">หนังสือ</th><th>จำนวน (เล่ม)</th><th></th></tr></thead>
       <tbody>
         <tr>
@@ -32,7 +32,7 @@
           <td><button type="button" class="btn red sm" onclick="this.closest('tr').remove()">✕</button></td>
         </tr>
       </tbody>
-    </table>
+    </table></div>
     <br><button type="button" class="btn soft sm" onclick="addRow()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มบรรทัด</button>
     <button class="btn" type="submit" style="margin-left:8px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกใบเบิก</button>
   </form>
@@ -42,7 +42,7 @@
 <div class="card">
   <h2>ใบเบิกที่ออกแล้ว</h2>
   {% if berks %}
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th>เลขที่</th><th>วันที่</th><th>ผู้รับ/ชั้น</th><th class="right">รายการ</th><th></th></tr></thead>
     <tbody>
     {% for b in berks %}
@@ -58,7 +58,7 @@
       </tr>
     {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% else %}
   <p class="muted">ยังไม่มีใบเบิก</p>
   {% endif %}

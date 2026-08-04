@@ -69,7 +69,7 @@
 <div class="card">
   <h2>บันทึกข้อความที่ออกแล้ว ({{ rows|length }})</h2>
   {% if rows %}
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th>เลขที่</th><th>วันที่</th><th>เรื่อง</th><th>เรียน</th><th></th></tr></thead>
     <tbody>
       {% for m in rows %}
@@ -85,7 +85,7 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% else %}<p class="muted">ยังไม่มีบันทึกข้อความ</p>{% endif %}
 </div>
 

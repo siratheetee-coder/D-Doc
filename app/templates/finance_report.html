@@ -26,7 +26,7 @@
 <div class="card">
   <h2>สรุปแยกบัญชี</h2>
   {% if summary %}
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th>บัญชี/ประเภทเงิน</th><th class="right">ยอดยกมา</th><th class="right">รวมรับ</th><th class="right">รวมจ่าย</th><th class="right">คงเหลือ</th></tr></thead>
     <tbody>
       {% for s in summary %}
@@ -47,7 +47,7 @@
         <td class="right">{{ "{:,.2f}".format(total_bal) }}</td>
       </tr>
     </tfoot>
-  </table>
+  </table></div>
   {% else %}<p class="muted">ยังไม่มีบัญชี/รายการในปีงบนี้ - <a href="/finance/accounts">เพิ่มบัญชี</a></p>{% endif %}
 </div>
 {% endblock %}

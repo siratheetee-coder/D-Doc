@@ -32,7 +32,7 @@
   </form>
 
   {% if p.revisions %}
-  <table style="margin-top:14px;">
+  <div class="table-wrap"><table style="margin-top:14px;">
     <thead><tr><th>ครั้งที่</th><th>วันที่</th><th class="right">งบรวมหลังปรับ</th><th>เหตุผล</th></tr></thead>
     <tbody>
       {% for rev in p.revisions %}
@@ -40,7 +40,7 @@
           <td class="right"><b>{{ "{:,.2f}".format(rev.amount or 0) }}</b></td><td>{{ rev.reason or "-" }}</td></tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% else %}
   <p class="muted" style="margin-bottom:0;">ยังไม่มีการปรับงบ - งบปัจจุบันใช้ค่าตั้งต้น {{ "{:,.2f}".format(p.budget or 0) }} บาท</p>
   {% endif %}
@@ -50,21 +50,21 @@
   <h2>รายการที่ผูกกับโครงการ (ใช้จริง)</h2>
   {% if procs %}
   <h3 style="font-size:15px; margin:6px 0;">เรื่องจัดซื้อ/จัดจ้าง</h3>
-  <table><thead><tr><th>เลขที่</th><th>เรื่อง</th><th class="right">วงเงิน</th><th>สถานะ</th></tr></thead>
+  <div class="table-wrap"><table><thead><tr><th>เลขที่</th><th>เรื่อง</th><th class="right">วงเงิน</th><th>สถานะ</th></tr></thead>
     <tbody>{% for pr in procs %}
       <tr><td><a href="/procurement/{{ pr.id }}">{{ pr.order_no or pr.memo_no or "-" }}</a></td>
           <td>{{ pr.proc_type }}{{ pr.subject }}</td>
           <td class="right">{{ "{:,.2f}".format(pr.total_amount or 0) }}</td>
           <td>{{ pr.status }}</td></tr>
-    {% endfor %}</tbody></table>
+    {% endfor %}</tbody></table></div>
   {% endif %}
   {% if disb %}
   <h3 style="font-size:15px; margin:14px 0 6px;">บันทึกขอเบิกจ่าย (ที่ไม่ผ่านเรื่องจัดซื้อ)</h3>
-  <table><thead><tr><th>เลขที่</th><th>เรื่อง</th><th class="right">จำนวนเงิน</th></tr></thead>
+  <div class="table-wrap"><table><thead><tr><th>เลขที่</th><th>เรื่อง</th><th class="right">จำนวนเงิน</th></tr></thead>
     <tbody>{% for d in disb %}
       <tr><td><a href="/finance/disburse/{{ d.id }}">{{ d.memo_no or "-" }}</a></td>
           <td>{{ d.subject }}</td><td class="right">{{ "{:,.2f}".format(d.amount or 0) }}</td></tr>
-    {% endfor %}</tbody></table>
+    {% endfor %}</tbody></table></div>
   {% endif %}
   {% if not procs and not disb %}<p class="muted">ยังไม่มีเรื่องจัดซื้อ/เบิกจ่ายผูกกับโครงการนี้ - เลือกโครงการนี้ตอนสร้างเรื่องจัดซื้อ/ขอเบิกจ่าย</p>{% endif %}
 </div>

@@ -17,7 +17,7 @@
 
 <div class="card">
   <form method="post" action="/procurement/{{ p.id }}/to-register">
-    <table>
+    <div class="table-wrap"><table>
       <thead><tr><th>รายการ</th><th class="right">จำนวน</th><th class="right">ราคา/หน่วย</th><th>นำเข้าเป็น</th><th>ประเภทครุภัณฑ์</th></tr></thead>
       <tbody>
         {% for r in rows %}
@@ -41,7 +41,7 @@
         </tr>
         {% endfor %}
       </tbody>
-    </table>
+    </table></div>
     <br>
     <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> นำเข้าทะเบียน</button>
     <a class="btn gray" href="/procurement/{{ p.id }}">ยกเลิก</a>

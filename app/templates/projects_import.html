@@ -33,7 +33,7 @@
   <h2>พรีวิว เข้า {{ year_label }} {{ fiscal_year }}</h2>
   {% if rows %}
   <p class="muted" style="margin-top:0;">สร้างใหม่ {{ n_new }} โครงการ{% if n_update %} · อัปเดตงบของที่ชื่อซ้ำในปีนี้ {{ n_update }} โครงการ (ไม่สร้างซ้ำ){% endif %}</p>
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th>#</th><th>ชื่อโครงการ</th><th>ฝ่าย/ผู้รับผิดชอบ</th><th class="right">งบประมาณ</th><th>สถานะ</th></tr></thead>
     <tbody>
       {% for r in rows %}
@@ -44,7 +44,7 @@
     </tbody>
     <tfoot><tr style="background:#f1f5f9; font-weight:700;"><td colspan="3">รวม</td>
         <td class="right">{{ "{:,.2f}".format(total_budget) }}</td><td></td></tr></tfoot>
-  </table>
+  </table></div>
   <form method="post" action="/projects/import/confirm" style="margin-top:14px;">
     <input type="hidden" name="plan_year" value="{{ fiscal_year }}">
     <textarea name="payload" style="display:none;">{{ payload }}</textarea>

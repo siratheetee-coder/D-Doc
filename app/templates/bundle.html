@@ -15,7 +15,7 @@
     (วงเงินเล็ก/พัสดุทั่วไป มักไม่ต้องทำ ตาม ว.119 / ข้อ 79 วรรคสอง)</p>
 
   <form method="post" action="/procurement/{{ p.id }}/bundle">
-    <table>
+    <div class="table-wrap"><table>
       <thead><tr><th style="width:60px;" class="center">เลือก</th><th>เอกสาร</th></tr></thead>
       <tbody>
         {% for k in kinds %}
@@ -28,7 +28,7 @@
         </tr>
         {% endfor %}
       </tbody>
-    </table>
+    </table></div>
     <p>
       <a href="#" class="btn gray sm" onclick="toggleAll(true);return false;">เลือกทั้งหมด</a>
       <a href="#" class="btn gray sm" onclick="toggleAll(false);return false;">ไม่เลือกเลย</a>

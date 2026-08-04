@@ -44,7 +44,7 @@
 <div class="card">
   <h2>บัญชีทั้งหมด</h2>
   {% if accounts %}
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th>บัญชี/ประเภทเงิน</th><th>เก็บเงินไว้ที่</th><th class="right">งบตามหมวด (ปีงบ {{ fiscal_year }})</th><th class="right">ยอดยกมา (ปีงบ {{ fiscal_year }})</th><th class="right">คงเหลือ (ปีงบ {{ fiscal_year }})</th><th></th></tr></thead>
     <tbody>
       {% for a in accounts %}
@@ -72,7 +72,7 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% else %}
   <p class="muted">ยังไม่มีบัญชี กรุณาเพิ่มด้านที่บน หรือนำเข้าจาก Excel</p>
   {% endif %}

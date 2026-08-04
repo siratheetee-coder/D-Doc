@@ -58,7 +58,7 @@
     <a href="/assets" style="margin-left:8px;">ดูครุภัณฑ์</a> · <a href="/materials">ดูวัสดุ</a>
   </div>
   {% endif %}
-  <table>
+  <div class="table-wrap"><table>
     <tr><th style="width:200px;">วันที่</th><td>{{ thai_date(p.request_date) }}</td></tr>
     <tr><th>โครงการ / ฝ่าย</th><td>{{ p.project_name or "-" }} / {{ p.department or "-" }}</td></tr>
     <tr><th>วิธี</th><td>{{ p.method }}</td></tr>
@@ -72,12 +72,12 @@
         {% for m in inspect.members %}{{ m.name }} ({{ m.role }}){{ ", " if not loop.last }}{% endfor %}
       {% else %}-{% endif %}
     </td></tr>
-  </table>
+  </table></div>
 </div>
 
 <div class="card">
   <h2>รายการพัสดุ</h2>
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th>ลำดับ</th><th>รายการ</th><th class="right">จำนวน</th><th class="right">ราคา/หน่วย</th><th class="right">จำนวนเงิน</th></tr></thead>
     <tbody>
       {% for it in p.items %}
@@ -87,7 +87,7 @@
         <td class="right">{{ "{:,.2f}".format(it.amount) }}</td></tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
 </div>
 
 {# รูปแบบพิเศษ (ว.804/ว.119/ข้อ 79) ไม่แสดงการ์ด "เลขที่เอกสาร & วันที่" - แก้เลขที่/ช่องต่างๆ ที่ปุ่ม "แก้ไขเรื่อง" #}
@@ -271,7 +271,7 @@
 <div class="card">
   <h2>ประวัติเอกสารที่ออก {% if documents %}<span class="muted" style="font-size:15px;">({{ documents|length }} ครั้ง)</span>{% endif %}</h2>
   {% if documents %}
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th>ชนิดเอกสาร</th><th>วันที่ออก</th><th></th></tr></thead>
     <tbody>
       {% for d in documents %}
@@ -282,7 +282,7 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   <p class="muted" style="margin-top:8px;">ถ้าแก้ไขข้อมูลแล้ว แนะนำให้กดออกเอกสารใหม่ (ไฟล์เก่าจะยังเป็นข้อมูลเดิม)</p>
   {% else %}
   <p class="muted">ยังไม่เคยออกเอกสารสำหรับเรื่องนี้</p>

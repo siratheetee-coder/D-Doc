@@ -25,7 +25,7 @@
     <svg class="icon"><use href="#ic-file-plus"/></svg> สร้างเรื่องซื้อวัตถุดิบ (ยืมเงิน)
   </a>
   {% endif %}
-  <table>
+  <div class="table-wrap"><table>
     <tr><th style="width:200px;">วิธีดำเนินการ</th><td>{{ modes.get(p.operate_mode, p.operate_mode) }}</td></tr>
     <tr><th>อปท.ผู้จัดสรร</th><td>{{ p.funding_org or '-' }}</td></tr>
     <tr><th>นักเรียนรวม</th><td>{{ p.total_students }} คน</td></tr>
@@ -35,18 +35,18 @@
     <tr><th>งบประมาณ</th><td><b style="font-size:18px; color:var(--brand-dark);">{{ "{:,.2f}".format(p.budget) }}</b> บาท
       <span class="muted">({{ p.total_students }} × {{ "%g"|format(p.rate_per_head or 0) }} × {{ p.days }})</span></td></tr>
     {% if p.note %}<tr><th>หมายเหตุ</th><td>{{ p.note }}</td></tr>{% endif %}
-  </table>
+  </table></div>
 </div>
 
 <div class="card">
   <h2>นักเรียนแยกระดับชั้น</h2>
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th>ระดับชั้น</th><th class="right">จำนวน</th></tr></thead>
     <tbody>
     {% for c in p.classes %}<tr><td>{{ c.level }}</td><td class="right">{{ c.num_students }}</td></tr>{% endfor %}
     <tr style="font-weight:700; background:#f1f5f9;"><td>รวม</td><td class="right">{{ p.total_students }}</td></tr>
     </tbody>
-  </table>
+  </table></div>
 </div>
 
 <div class="card">

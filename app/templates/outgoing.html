@@ -51,7 +51,7 @@
     </div>
   </div>
   {% if rows %}
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th>เลขที่ส่ง</th><th>ลงวันที่</th><th>ถึง</th><th>เรื่อง</th><th></th></tr></thead>
     <tbody>
       {% for r in rows %}
@@ -67,7 +67,7 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% else %}<p class="muted">ยังไม่มีหนังสือส่งในปีงบนี้ กรุณาเพิ่มที่ด้านบน หรือ <a href="/admin/import">นำเข้าจาก Excel</a></p>{% endif %}
 </div>
 

@@ -53,7 +53,7 @@
 <div class="card">
   <h2>หนังสือราชการที่ออกแล้ว</h2>
   {% if rows %}
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th>เลขที่</th><th>วันที่</th><th>เรื่อง</th><th>เรียน</th><th></th></tr></thead>
     <tbody>
       {% for lt in rows %}
@@ -66,7 +66,7 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% else %}<p class="muted">ยังไม่มีหนังสือราชการ</p>{% endif %}
 </div>
 

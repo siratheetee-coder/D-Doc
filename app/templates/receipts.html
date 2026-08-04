@@ -39,7 +39,7 @@
 <div class="card">
   <h2>รายการทั้งหมด</h2>
   {% if rows %}
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th>เลขที่</th><th>วันที่</th><th>ประเภท</th><th>คู่สัญญา/ผู้รับเงิน</th><th>บัญชี</th><th class="right">จำนวนเงิน</th><th></th></tr></thead>
     <tbody>
       {% for r in rows %}
@@ -54,7 +54,7 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% else %}<p class="muted">ยังไม่มีรายการ</p>{% endif %}
 </div>
 

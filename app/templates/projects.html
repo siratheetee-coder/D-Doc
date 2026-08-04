@@ -45,7 +45,7 @@
 <div class="card">
   <h2>โครงการ {{ year_label }} {{ fiscal_year }}</h2>
   {% if rows %}
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th>โครงการ</th><th>ฝ่าย/ผู้รับผิดชอบ</th><th class="right">งบปัจจุบัน</th>
         <th class="right">ใช้ไป</th><th class="right">คงเหลือ</th><th></th></tr></thead>
     <tbody>
@@ -84,7 +84,7 @@
         <td class="right">{{ "{:,.2f}".format(total_budget - total_spent) }}</td><td></td>
       </tr>
     </tfoot>
-  </table>
+  </table></div>
   {% else %}<p class="muted">ยังไม่มีโครงการในปีนี้ - เพิ่มด้านบน</p>{% endif %}
 </div>
 
@@ -100,11 +100,11 @@
     </select>
     <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-check"/></svg> กำหนดปีให้ทั้งหมด</button>
   </form>
-  <table><tbody>
+  <div class="table-wrap"><table><tbody>
     {% for p in legacy %}
     <tr><td><a href="/projects/{{ p.id }}">{{ p.name }}</a></td><td class="right">{{ "{:,.2f}".format(proj_budget(p)) }}</td></tr>
     {% endfor %}
-  </tbody></table>
+  </tbody></table></div>
 </div>
 {% endif %}
 

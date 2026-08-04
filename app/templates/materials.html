@@ -26,10 +26,10 @@
     <span id="mMsg" class="muted" style="font-size:13px;"></span>
   </div>
   <form method="post" action="/materials/bulk">
-    <table id="mbulk">
+    <div class="table-wrap"><table id="mbulk">
       <thead><tr><th style="width:42%;">ชื่อวัสดุ</th><th>หน่วย</th><th>จำนวน (ยอดยกมา)</th><th>แจ้งใกล้หมดที่</th><th></th></tr></thead>
       <tbody></tbody>
-    </table>
+    </table></div>
     <br><button class="btn green sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกทั้งหมด</button>
   </form>
 </div>
@@ -50,7 +50,7 @@
 <div class="card">
   <h2>รายการวัสดุในคลัง</h2>
   {% if items %}
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th>ชื่อวัสดุ</th><th>หน่วย</th><th class="right">คงเหลือ</th><th>สถานะ</th><th></th></tr></thead>
     <tbody>
       {% for it in items %}
@@ -71,7 +71,7 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% else %}
   <p class="muted">ยังไม่มีวัสดุ - เพิ่มด้านบน หรือนำเข้าจากเรื่องจัดซื้อ (ปุ่ม "นำเข้าทะเบียน" ในหน้ารายละเอียดเรื่อง)</p>
   {% endif %}

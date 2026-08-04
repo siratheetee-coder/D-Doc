@@ -6,12 +6,12 @@
     <h1 style="margin:0;">งวดงาน - สัญญาจ้างเหมา รอบที่ {{ r.seq }} (ปีการศึกษา {{ p.year }})</h1>
     <a class="btn sm gray" href="/lunch/{{ p.id }}/rounds"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับรายการสัญญา</a>
   </div>
-  <table>
+  <div class="table-wrap"><table>
     <tr><th style="width:200px;">ผู้รับจ้าง</th><td>{{ r.vendor.name if r.vendor else '-' }}</td></tr>
     <tr><th>ช่วงสัญญา</th><td>{{ be_date(r.start_date) if r.start_date else '-' }} ถึง {{ be_date(r.end_date) if r.end_date else '-' }} ({{ r.days }} วัน)</td></tr>
     <tr><th>วงเงินสัญญา</th><td><b>{{ "{:,.2f}".format(r.amount or 0) }}</b> บาท</td></tr>
     <tr><th>แบ่งงวดแล้ว</th><td><b {{ 'style="color:#dc2626;"' if committed > (r.amount or 0) else '' }}>{{ "{:,.2f}".format(committed) }}</b> บาท · จ่ายแล้ว <b style="color:var(--brand-dark);">{{ "{:,.2f}".format(paid) }}</b> บาท · เหลือแบ่งได้ <b {{ 'style="color:#dc2626;"' if ((r.amount or 0) - committed) < 0 else '' }}>{{ "{:,.2f}".format((r.amount or 0) - committed) }}</b> บาท</td></tr>
-  </table>
+  </table></div>
   {% if committed > (r.amount or 0) %}
   <div class="alert danger" style="margin-top:10px;">
     <svg class="icon"><use href="#ic-alert"/></svg><span>แบ่งงวดเกินวงเงินสัญญา {{ "{:,.2f}".format(committed - (r.amount or 0)) }} บาท - ปรับวงเงินงวดให้รวมไม่เกินวงเงินสัญญา</span>
@@ -41,7 +41,7 @@
   {% for k, label in com_kinds.items() %}
   <h3 style="margin:14px 0 4px; color:var(--brand-dark); font-size:15px;">กรรมการ{{ label }}</h3>
   {% if committees[k] %}
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th style="width:50px;">ที่</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>บทบาท</th><th></th></tr></thead>
     <tbody>
     {% for m in committees[k] %}
@@ -49,7 +49,7 @@
         <td><form method="post" action="/lunch/committee/{{ m.id }}/delete" style="margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form></td></tr>
     {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% else %}<p class="muted" style="margin:2px 0;">ยังไม่มีรายชื่อ</p>{% endif %}
   {% endfor %}
 </div>

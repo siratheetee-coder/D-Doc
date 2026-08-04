@@ -7,17 +7,17 @@
     <span class="pill {{ 'done' if req.status=='จ่ายแล้ว' else '' }}">{{ req.status }}</span>
   </div>
   {% if request.query_params.get("issued") %}<div class="alert" style="margin-top:10px;">✔ จ่ายวัสดุเรียบร้อย ระบบตัดยอดในบัญชีวัสดุให้แล้ว</div>{% endif %}
-  <table>
+  <div class="table-wrap"><table>
     <tr><th style="width:160px;">วันที่</th><td>{{ thai_date(req.date) }}</td></tr>
     <tr><th>ผู้ขอเบิก</th><td>{{ req.requester or "-" }}</td></tr>
     <tr><th>ฝ่าย/งาน</th><td>{{ req.department or "-" }}</td></tr>
     <tr><th>เพื่อใช้ในงาน</th><td>{{ req.purpose or "-" }}</td></tr>
-  </table>
+  </table></div>
 </div>
 
 <div class="card">
   <h2>รายการที่เบิก</h2>
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th>ลำดับ</th><th>วัสดุ</th><th class="right">จำนวน</th><th>หน่วย</th><th>คงเหลือในคลัง</th></tr></thead>
     <tbody>
       {% for it in req.items %}
@@ -37,7 +37,7 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
 </div>
 
 <div class="card">

@@ -21,7 +21,7 @@
 
     <h2 style="margin-top:20px;">จำนวนนักเรียนแยกระดับชั้น</h2>
     {% if from_roster %}<p class="muted" style="margin-top:0;">✓ ดึงจำนวนนักเรียนแต่ละชั้นจาก<a href="/students" target="_blank">ทะเบียนนักเรียนกลาง</a>ให้อัตโนมัติแล้ว - แก้ไขได้ตามต้องการ</p>{% endif %}
-    <table id="lvTable">
+    <div class="table-wrap"><table id="lvTable">
       <thead><tr><th>ระดับชั้น</th><th>จำนวนนักเรียน</th></tr></thead>
       <tbody>
       {% for lv in levels %}
@@ -31,7 +31,7 @@
         </tr>
       {% endfor %}
       </tbody>
-    </table>
+    </table></div>
     <button type="button" class="btn sm gray" onclick="addRow()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มระดับชั้น</button>
 
     <div class="card" style="background:var(--brand-soft); margin-top:16px;">

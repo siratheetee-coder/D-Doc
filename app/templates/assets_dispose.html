@@ -35,7 +35,7 @@
 <div class="card">
   <h2>เลือกครุภัณฑ์ที่ขอจำหน่าย</h2>
   {% if active %}
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr>
       <th style="width:38px;"><input type="checkbox" id="checkall" title="เลือกทั้งหมด"></th>
       <th>เลขครุภัณฑ์</th><th>ชื่อครุภัณฑ์</th><th class="right">ราคาทุน</th>
@@ -53,7 +53,7 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   <br><button class="btn red" type="submit" onclick="return confirm('ออกเอกสารและปรับสถานะครุภัณฑ์ที่เลือกเป็น จำหน่ายแล้ว?')"><svg class="icon"><use href="#ic-download"/></svg> ออกเอกสาร + ปรับสถานะ</button>
   {% else %}<p class="muted">ไม่มีครุภัณฑ์ที่ใช้งานอยู่ให้จำหน่าย</p>{% endif %}
 </div>
@@ -62,7 +62,7 @@
 {% if disposed %}
 <div class="card">
   <h2>ครุภัณฑ์ที่จำหน่ายแล้ว ({{ disposed|length }})</h2>
-  <table>
+  <div class="table-wrap"><table>
     <thead><tr><th>เลขครุภัณฑ์</th><th>ชื่อ</th><th>วันที่จำหน่าย</th><th>วิธี</th><th>เหตุผล</th><th>เลขที่อนุมัติ</th></tr></thead>
     <tbody>
       {% for a in disposed %}
@@ -74,7 +74,7 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
 </div>
 {% endif %}
 

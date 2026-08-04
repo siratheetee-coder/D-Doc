@@ -116,7 +116,7 @@
     {% endif %}
 
     <h2 style="margin-top:20px;">รายการพัสดุ</h2>
-    <table id="items">
+    <div class="table-wrap"><table id="items">
       <thead><tr><th style="width:40%;">รายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th><th class="right">จำนวนเงิน</th><th></th></tr></thead>
       <tbody>
         {% if prefill_items %}
@@ -148,7 +148,7 @@
           <td></td>
         </tr>
       </tfoot>
-    </table>
+    </table></div>
     <datalist id="catalog_dl">{% for c in catalog %}<option value="{{ c.name }}">{% endfor %}</datalist>
     <p class="muted" style="font-size:13px; margin:4px 0 0;">พิมพ์ชื่อรายการเพื่อเลือกจาก <a href="/catalog" target="_blank">คลังรายการพัสดุ</a> (เติมหน่วย+ราคาให้อัตโนมัติ) โดยรายการใหม่จะถูกเก็บเข้าคลังให้เอง</p>
     <br><button type="button" class="btn soft sm" onclick="addItem()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มรายการ</button>
@@ -204,7 +204,7 @@
     </div>
     <p class="muted" style="margin:-4px 0 10px;">บทบาท: ระบบเลือกให้อัตโนมัติ (คนเดียว = ผู้ตรวจรับ · หลายคน = ประธาน/กรรมการ/กรรมการและเลขานุการ) - <b>เปลี่ยนเองได้</b></p>
     {% set roles = ["ผู้ตรวจรับ", "ประธานกรรมการ", "กรรมการ", "กรรมการและเลขานุการ"] %}
-    <table id="members">
+    <div class="table-wrap"><table id="members">
       <thead><tr><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th style="width:190px;">บทบาท</th><th></th></tr></thead>
       <tbody>
         {% if prefill_members %}
@@ -229,7 +229,7 @@
           </tr>
         {% endif %}
       </tbody>
-    </table>
+    </table></div>
     <datalist id="persons">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist>
     <datalist id="positions">{% for ps in positions %}<option value="{{ ps }}">{% endfor %}</datalist>
     <br><button type="button" class="btn soft sm" onclick="addMember()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มกรรมการ</button>
@@ -237,7 +237,7 @@
     <h2 style="margin-top:24px;">คณะกรรมการกำหนดคุณลักษณะเฉพาะ/ราคากลาง</h2>
     <p class="muted" style="margin:-8px 0 12px;">ไม่บังคับ ใช้กรณีต้องจัดทำ TOR หรือแต่งตั้งคณะกรรมการกำหนดคุณลักษณะ</p>
     {% set sroles = ["ประธานกรรมการ", "กรรมการ", "กรรมการและเลขานุการ"] %}
-    <table id="specmembers">
+    <div class="table-wrap"><table id="specmembers">
       <thead><tr><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th style="width:190px;">บทบาท</th><th></th></tr></thead>
       <tbody>
         {% if prefill_spec_members %}
@@ -262,7 +262,7 @@
           </tr>
         {% endif %}
       </tbody>
-    </table>
+    </table></div>
     <br><button type="button" class="btn soft sm" onclick="addSpecMember()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มกรรมการคุณลักษณะ</button>
     {% endif %}
 
