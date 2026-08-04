@@ -43,47 +43,38 @@
   </form>
 </div>
 
-<div class="card">
-  <h2>เมนูแนะนำ (ครบ 5 หมู่)</h2>
-  <p class="muted" style="margin-top:0;">กด "เพิ่ม" เพื่อใส่ลงตารางเลย (ครบ 5 หมู่ให้อัตโนมัติ) แล้วค่อยกำหนดวันที่ · ไว้หมุนเวียนรายสัปดาห์</p>
-  <div style="display:flex; gap:10px; flex-wrap:wrap;">
-    {% for sm in std_menus %}
-    <form method="post" action="/lunch/{{ p.id }}/menu/add" style="margin:0; border:1px solid var(--border); border-radius:10px; padding:8px 10px; min-width:210px;">
-      <input type="hidden" name="main" value="{{ sm.main }}">
-      <input type="hidden" name="dessert" value="{{ sm.dessert }}">
-      {% for gid in food_groups %}<input type="hidden" name="groups" value="{{ gid }}">{% endfor %}
-      <div style="font-size:14px; font-weight:600;">{{ sm.main }}</div>
-      <div class="muted" style="font-size:12.5px;">ของหวาน: {{ sm.dessert }}</div>
-      <button class="btn sm soft" type="submit" style="margin-top:6px;"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มลงตาราง</button>
-    </form>
-    {% endfor %}
-  </div>
-</div>
-
 <div class="card hl">
-  <h2><svg class="icon"><use href="#ic-calendar"/></svg> สร้างเมนูทั้งสัญญา (หมุนเวียนรายสัปดาห์)</h2>
-  <p class="muted" style="margin-top:0;">เอาเมนูแรกๆ ในตารางเป็น "ชุดหมุนเวียน" แล้วระบบใส่ให้ทุกวันเปิดเรียนตลอดสัญญา (ข้ามเสาร์-อาทิตย์ และวันหยุด) วันจันทร์ทุกสัปดาห์จะได้เมนูเดียวกัน · วันที่มีเมนูอยู่แล้วจะไม่ถูกทับ</p>
+  <h2><svg class="icon"><use href="#ic-calendar"/></svg> สร้างเมนูยาวหลายวันทีเดียว (วนเมนูซ้ำให้อัตโนมัติ)</h2>
+  <p class="muted" style="margin:0 0 6px;">ไม่ต้องพิมพ์เมนูทีละวันทั้งเทอม แค่ทำ 3 ขั้น:</p>
+  <ol style="margin:0 0 12px; padding-left:22px; font-size:14px; line-height:2; color:var(--text);">
+    <li>พิมพ์เมนูไว้ก่อน <b>1 สัปดาห์ (จันทร์-ศุกร์ = 5 เมนู)</b> ที่ช่อง "เพิ่มเมนูรายวัน" ด้านบน</li>
+    <li>ตรวจ <b>ช่วงวันที่</b> ด้านล่าง (ระบบดึงวันเริ่ม-สิ้นสุดจากสัญญาให้แล้ว แก้ได้)</li>
+    <li>กดปุ่ม <b>"สร้างเมนู"</b> ระบบจะวนเมนู 5 อย่างนี้ซ้ำทุกสัปดาห์ ใส่ให้ครบทุกวันเปิดเรียน (ข้ามเสาร์-อาทิตย์ + วันหยุด) · วันเดียวกันของทุกสัปดาห์ได้เมนูเดิม · วันที่มีเมนูอยู่แล้วไม่ถูกทับ</li>
+  </ol>
   {% if menu_count < 1 %}
-  <p class="muted" style="margin-bottom:0;">เพิ่มเมนูอย่างน้อย 1 รายการก่อน (กด "เพิ่มลงตาราง" ที่เมนูแนะนำ หรือกรอกด้านบน) แล้วปุ่มนี้จะใช้ได้</p>
+  <p class="muted" style="margin-bottom:0;"><b>ยังไม่มีเมนู</b> - พิมพ์เมนูที่ช่อง "เพิ่มเมนูรายวัน" ด้านบนก่อน (อย่างน้อย 1 รายการ) แล้วปุ่มนี้จะใช้ได้</p>
   {% else %}
   <form method="post" action="/lunch/{{ p.id }}/menu/fill-term" class="row" style="align-items:flex-end;"
-        onsubmit="return confirm('สร้างเมนูหมุนเวียนทั้งสัญญา? (วันที่มีเมนูแล้วจะไม่ถูกแก้)');">
-    <div style="flex:0 0 auto;"><label>จำนวนเมนูต่อรอบ <span class="muted">(วน)</span></label>
-      <input name="cycle_size" type="number" min="1" max="{{ menu_count }}" value="{{ 5 if menu_count >= 5 else menu_count }}" style="width:130px;"></div>
-    <div style="flex:0 0 auto;"><label>วันเริ่ม</label>
+        onsubmit="return confirm('สร้างเมนูวนซ้ำตามช่วงวันที่นี้? (วันที่มีเมนูแล้วจะไม่ถูกแก้)');">
+    <div style="flex:0 0 auto;"><label>วนกี่เมนู <span class="muted">(ปกติ 5 = จ-ศ)</span></label>
+      <input name="cycle_size" type="number" min="1" max="{{ menu_count }}" value="{{ 5 if menu_count >= 5 else menu_count }}" style="width:150px;"></div>
+    <div style="flex:0 0 auto;"><label>ตั้งแต่วันที่</label>
       <input name="start_date" value="{{ term_start_be }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:150px;"></div>
-    <div style="flex:0 0 auto;"><label>วันสิ้นสุด</label>
+    <div style="flex:0 0 auto;"><label>ถึงวันที่</label>
       <input name="end_date" value="{{ term_end_be }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:150px;"></div>
     <div style="flex:0 0 auto;"><label style="display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-weight:400;">
       <input type="checkbox" name="skip_holiday" value="1" checked style="width:18px; height:18px; flex:none;"> ข้ามวันหยุดนักขัตฤกษ์</label></div>
-    <div style="flex:0 0 auto;"><button class="btn" type="submit"><svg class="icon"><use href="#ic-calendar"/></svg> สร้างเมนูทั้งสัญญา</button></div>
+    <div style="flex:0 0 auto;"><button class="btn" type="submit"><svg class="icon"><use href="#ic-calendar"/></svg> สร้างเมนู</button></div>
   </form>
-  {% if not term_start_be or not term_end_be %}<p class="muted" style="font-size:13px; margin:8px 0 0;">ยังไม่พบช่วงสัญญาจากรอบจ้าง - กรอกวันเริ่ม/สิ้นสุดเอง</p>{% endif %}
+  {% if not term_start_be or not term_end_be %}<p class="muted" style="font-size:13px; margin:8px 0 0;">ยังไม่พบช่วงสัญญาจากรอบจ้าง - กรอกวันตั้งแต่/ถึง เอง</p>{% endif %}
   {% endif %}
 </div>
 
 <div class="card">
-  <h2>เมนูทั้งหมด {% if menu_rows %}<span class="muted" style="font-size:15px;">({{ menu_rows|length }} วัน)</span>{% endif %}</h2>
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;">เมนูทั้งหมด {% if menu_rows %}<span class="muted" style="font-size:15px;">({{ menu_rows|length }} วัน)</span>{% endif %}</h2>
+    {% if menu_rows %}<form method="post" action="/lunch/{{ p.id }}/menu/delete-all" onsubmit="return confirm('ลบเมนูทั้งหมด {{ menu_rows|length }} วัน? ยกเลิกไม่ได้');" style="margin:0;"><button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-trash"/></svg> ลบทั้งหมด</button></form>{% endif %}
+  </div>
   {% if menu_rows %}
   <div class="table-wrap">
   <table>

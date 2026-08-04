@@ -542,7 +542,7 @@ def menu_page(pid: int, request: Request, db: Session = Depends(get_db),
     return templates.TemplateResponse("lunch_menu.html", {
         "request": request, "school": get_school(db), "p": prog,
         "menu_rows": menu_rows, "edit": edit_row, "past_menus": past, "desserts": desserts,
-        "food_groups": FOOD_GROUPS, "std_menus": STD_MENUS,
+        "food_groups": FOOD_GROUPS,
         "edit_groups": [g for g in (edit_row.groups or "").split(",")] if edit_row else [],
         "today_be": be_date_input(datetime.now()),
         "term_start_be": be_date_input(term_start) if term_start else "",
@@ -619,6 +619,15 @@ def menu_fill_term(pid: int, db: Session = Depends(get_db),
                                    LunchMenu.date.is_(None)).delete(synchronize_session=False)
     db.commit()
     return RedirectResponse(f"/lunch/{pid}/menu?filled={created}", status_code=303)
+
+
+@router.post("/lunch/{pid}/menu/delete-all")
+def menu_delete_all(pid: int, db: Session = Depends(get_db)):
+    """ลบเมนูทั้งหมดของโครงการทีเดียว (เช่น สร้างวนผิดช่วง อยากเริ่มใหม่)"""
+    if db.get(LunchProgram, pid):
+        db.query(LunchMenu).filter_by(program_id=pid).delete(synchronize_session=False)
+        db.commit()
+    return RedirectResponse(f"/lunch/{pid}/menu", status_code=303)
 
 
 @router.post("/lunch/menu/{mid}/update")
