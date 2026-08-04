@@ -71,14 +71,22 @@
     <label style="display:flex; align-items:center; gap:6px; font-size:13.5px; margin:0;">ห้อง
       <input id="bsRoom" style="width:80px;"></label>
     <button class="btn sm" type="button" onclick="bulkSet(this)">ตั้งให้ที่เลือก (<span id="bsCount">0</span> คน)</button>
+    <span class="muted" style="flex-basis:100%; font-size:12.5px; margin:0;">คลิกได้ทั้งช่องแรกของแถว (พื้นที่กดใหญ่ขึ้น) · กด Shift ค้างแล้วคลิกเพื่อเลือกทีละช่วง (เช่น เลือกทั้งห้อง)</span>
   </div>
+  <style>
+    /* ช่องติ๊กใหญ่ กดง่าย: ทั้งเซลล์เป็นพื้นที่กด + checkbox ใหญ่ขึ้น */
+    .pickcol { padding:0 !important; width:46px; text-align:center; }
+    .pickcol .pickbox { display:flex; align-items:center; justify-content:center; min-height:48px; margin:0; padding:0 6px; cursor:pointer; }
+    .pickcol input[type=checkbox] { width:22px; height:22px; cursor:pointer; flex:none; }
+    tbody tr:has(.bs-pick:checked) td { background:#eef4ff; }
+  </style>
   <div class="table-wrap">
   <table>
-    <thead><tr><th style="width:34px;"><input type="checkbox" id="bsAll" onclick="toggleAll(this)" title="เลือกทั้งหมด"></th><th>เลขประจำตัว</th><th>ชื่อ-นามสกุล</th><th>เพศ</th><th>วันเกิด</th><th>ชั้น</th><th>ห้อง</th><th></th></tr></thead>
+    <thead><tr><th class="pickcol"><label class="pickbox"><input type="checkbox" id="bsAll" onclick="toggleAll(this)" title="เลือกทั้งหมด"></label></th><th>เลขประจำตัว</th><th>ชื่อ-นามสกุล</th><th>เพศ</th><th>วันเกิด</th><th>ชั้น</th><th>ห้อง</th><th></th></tr></thead>
     <tbody>
     {% for s in rows %}
       <tr data-sid="{{ s.id }}">
-        <td><input type="checkbox" class="bs-pick" value="{{ s.id }}" onchange="updateCount()"></td>
+        <td class="pickcol"><label class="pickbox"><input type="checkbox" class="bs-pick" value="{{ s.id }}" onchange="updateCount()"></label></td>
         <td><input name="student_no" value="{{ s.student_no }}" style="width:90px;"></td>
         <td><input name="name" value="{{ s.name }}"></td>
         <td><select name="sex" style="width:100px;"><option value="" {{ 'selected' if not s.sex }}>-</option><option value="ช" {{ 'selected' if s.sex=='M' }}>ชาย</option><option value="ญ" {{ 'selected' if s.sex=='F' }}>หญิง</option></select></td>
@@ -145,6 +153,21 @@
     document.querySelectorAll('.bs-pick').forEach(function(c){ c.checked = box.checked; });
     updateCount();
   }
+  // เลือกทีละช่วงด้วย Shift+คลิก (เลือกทั้งห้องได้เร็ว)
+  (function(){
+    var picks = Array.prototype.slice.call(document.querySelectorAll('.bs-pick'));
+    var last = -1;
+    picks.forEach(function(cb, i){
+      cb.addEventListener('click', function(e){
+        if(e.shiftKey && last > -1){
+          var a = Math.min(last, i), b = Math.max(last, i);
+          for(var k = a; k <= b; k++){ picks[k].checked = cb.checked; }
+          updateCount();
+        }
+        last = i;
+      });
+    });
+  })();
   function bulkSet(btn){
     var ids = Array.prototype.map.call(document.querySelectorAll('.bs-pick:checked'), function(c){ return c.value; });
     var lv = document.getElementById('bsLevel').value.trim();
