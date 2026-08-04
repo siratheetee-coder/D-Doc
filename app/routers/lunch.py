@@ -534,11 +534,12 @@ def menu_page(pid: int, request: Request, db: Session = Depends(get_db),
         got = [g for g in (m.groups or "").split(",") if g in FOOD_GROUPS]
         missing = [FOOD_GROUPS[g] for g in FOOD_GROUPS if g not in got]
         menu_rows.append({"m": m, "got": got, "missing": missing})
-    # ช่วงสัญญา (จากรอบจ้าง) เพื่อ prefill ฟอร์ม "สร้างเมนูทั้งสัญญา"
-    starts = [r.start_date for r in prog.rounds if r.start_date]
-    ends = [r.end_date for r in prog.rounds if r.end_date]
-    term_start = min(starts) if starts else None
-    term_end = max(ends) if ends else None
+    # prefill ช่วงวันจาก "รอบจ้างล่าสุด" (รอบที่เริ่มช้าสุด = รอบที่กำลังทำอยู่)
+    # ไม่ใช้รอบแรกสุด เพราะจะย้อนไปสร้างเมนูรอบเก่าที่ผ่านไปแล้ว
+    rounds_with_start = [r for r in prog.rounds if r.start_date]
+    latest_round = max(rounds_with_start, key=lambda r: r.start_date) if rounds_with_start else None
+    term_start = latest_round.start_date if latest_round else None
+    term_end = latest_round.end_date if latest_round else None
     return templates.TemplateResponse("lunch_menu.html", {
         "request": request, "school": get_school(db), "p": prog,
         "menu_rows": menu_rows, "edit": edit_row, "past_menus": past, "desserts": desserts,
