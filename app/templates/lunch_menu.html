@@ -11,6 +11,11 @@
   </div>
 </div>
 
+{% if filled %}
+  {% if filled == '0' %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg><span>ยังไม่ได้สร้างเมนู - ตรวจว่ามีเมนูตั้งต้นอย่างน้อย 1 รายการ และวันเริ่ม/สิ้นสุดถูกต้อง</span></div>
+  {% else %}<div class="alert">สร้างเมนูหมุนเวียนทั้งสัญญาแล้ว {{ filled }} วัน</div>{% endif %}
+{% endif %}
+
 <div class="card">
   <h2>{{ 'แก้ไขเมนู' if edit else 'เพิ่มเมนูรายวัน' }}</h2>
   <form method="post" action="{{ ('/lunch/menu/' ~ edit.id ~ '/update') if edit else ('/lunch/' ~ p.id ~ '/menu/add') }}">
@@ -51,6 +56,28 @@
     </form>
     {% endfor %}
   </div>
+</div>
+
+<div class="card hl">
+  <h2><svg class="icon"><use href="#ic-calendar"/></svg> สร้างเมนูทั้งสัญญา (หมุนเวียนรายสัปดาห์)</h2>
+  <p class="muted" style="margin-top:0;">เอาเมนูแรกๆ ในตารางเป็น "ชุดหมุนเวียน" แล้วระบบใส่ให้ทุกวันเปิดเรียนตลอดสัญญา (ข้ามเสาร์-อาทิตย์ และวันหยุด) วันจันทร์ทุกสัปดาห์จะได้เมนูเดียวกัน · วันที่มีเมนูอยู่แล้วจะไม่ถูกทับ</p>
+  {% if menu_count < 1 %}
+  <p class="muted" style="margin-bottom:0;">เพิ่มเมนูอย่างน้อย 1 รายการก่อน (กด "เพิ่มลงตาราง" ที่เมนูแนะนำ หรือกรอกด้านบน) แล้วปุ่มนี้จะใช้ได้</p>
+  {% else %}
+  <form method="post" action="/lunch/{{ p.id }}/menu/fill-term" class="row" style="align-items:flex-end;"
+        onsubmit="return confirm('สร้างเมนูหมุนเวียนทั้งสัญญา? (วันที่มีเมนูแล้วจะไม่ถูกแก้)');">
+    <div style="flex:0 0 auto;"><label>จำนวนเมนูต่อรอบ <span class="muted">(วน)</span></label>
+      <input name="cycle_size" type="number" min="1" max="{{ menu_count }}" value="{{ 5 if menu_count >= 5 else menu_count }}" style="width:130px;"></div>
+    <div style="flex:0 0 auto;"><label>วันเริ่ม</label>
+      <input name="start_date" value="{{ term_start_be }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:150px;"></div>
+    <div style="flex:0 0 auto;"><label>วันสิ้นสุด</label>
+      <input name="end_date" value="{{ term_end_be }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:150px;"></div>
+    <div style="flex:0 0 auto;"><label style="display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-weight:400;">
+      <input type="checkbox" name="skip_holiday" value="1" checked style="width:18px; height:18px; flex:none;"> ข้ามวันหยุดนักขัตฤกษ์</label></div>
+    <div style="flex:0 0 auto;"><button class="btn" type="submit"><svg class="icon"><use href="#ic-calendar"/></svg> สร้างเมนูทั้งสัญญา</button></div>
+  </form>
+  {% if not term_start_be or not term_end_be %}<p class="muted" style="font-size:13px; margin:8px 0 0;">ยังไม่พบช่วงสัญญาจากรอบจ้าง - กรอกวันเริ่ม/สิ้นสุดเอง</p>{% endif %}
+  {% endif %}
 </div>
 
 <div class="card">

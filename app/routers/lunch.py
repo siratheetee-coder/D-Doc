@@ -516,12 +516,21 @@ def menu_page(pid: int, request: Request, db: Session = Depends(get_db),
         got = [g for g in (m.groups or "").split(",") if g in FOOD_GROUPS]
         missing = [FOOD_GROUPS[g] for g in FOOD_GROUPS if g not in got]
         menu_rows.append({"m": m, "got": got, "missing": missing})
+    # ช่วงสัญญา (จากรอบจ้าง) เพื่อ prefill ฟอร์ม "สร้างเมนูทั้งสัญญา"
+    starts = [r.start_date for r in prog.rounds if r.start_date]
+    ends = [r.end_date for r in prog.rounds if r.end_date]
+    term_start = min(starts) if starts else None
+    term_end = max(ends) if ends else None
     return templates.TemplateResponse("lunch_menu.html", {
         "request": request, "school": get_school(db), "p": prog,
         "menu_rows": menu_rows, "edit": edit_row, "past_menus": past, "desserts": desserts,
         "food_groups": FOOD_GROUPS, "std_menus": STD_MENUS,
         "edit_groups": [g for g in (edit_row.groups or "").split(",")] if edit_row else [],
         "today_be": be_date_input(datetime.now()),
+        "term_start_be": be_date_input(term_start) if term_start else "",
+        "term_end_be": be_date_input(term_end) if term_end else "",
+        "menu_count": len(menu_rows),
+        "filled": request.query_params.get("filled"),
     })
 
 
@@ -545,6 +554,46 @@ def menu_add(pid: int, db: Session = Depends(get_db),
                      dessert=dessert.strip(), note=note.strip(), groups=_clean_groups(groups)))
     db.commit()
     return RedirectResponse(_safe_back(back, f"/lunch/{pid}/menu"), status_code=303)
+
+
+@router.post("/lunch/{pid}/menu/fill-term")
+def menu_fill_term(pid: int, db: Session = Depends(get_db),
+                   cycle_size: str = Form("5"), start_date: str = Form(""),
+                   end_date: str = Form(""), skip_holiday: str = Form("")):
+    """สร้างเมนูทั้งสัญญาแบบหมุนเวียนรายสัปดาห์:
+    เอา N เมนูแรกเป็นชุดหมุนเวียน ไล่ใส่ทุกวันเปิดเรียน (ข้ามเสาร์-อาทิตย์ + วันหยุดถ้าเลือก)
+    ผูกเมนูกับ 'ลำดับวันเปิดเรียน' -> วันจันทร์ทุกสัปดาห์ได้เมนูเดียวกัน (เมื่อชุด=5)
+    ข้ามวันที่ที่มีเมนูอยู่แล้ว (ไม่ทับ)"""
+    from datetime import timedelta
+    from app.services.thai_holidays import is_workday
+    prog = db.get(LunchProgram, pid)
+    if not prog:
+        return RedirectResponse("/lunch", status_code=303)
+    menus = sorted(prog.menus, key=lambda m: (m.date or datetime.max, m.id))
+    n = max(1, _to_int(cycle_size, 5))
+    cycle = [(m.main, m.dessert, m.groups) for m in menus[:n]]
+    s = parse_be_date(start_date)
+    e = parse_be_date(end_date)
+    if not cycle or not s or not e or e < s:
+        return RedirectResponse(f"/lunch/{pid}/menu?filled=0", status_code=303)
+    hol = _lunch_holidays(prog) if skip_holiday else None
+    existing = {m.date.date() for m in prog.menus if m.date}
+    d, end = s.date(), e.date()
+    ordinal, created = 0, 0
+    while d <= end:
+        weekend = d.weekday() >= 5
+        holiday = bool(hol) and d.isoformat() in hol
+        if not weekend and not holiday:
+            if d not in existing:
+                main, dessert, groups = cycle[ordinal % len(cycle)]
+                db.add(LunchMenu(program_id=pid, date=datetime(d.year, d.month, d.day),
+                                 main=main, dessert=dessert, groups=groups))
+                existing.add(d)
+                created += 1
+            ordinal += 1
+        d += timedelta(days=1)
+    db.commit()
+    return RedirectResponse(f"/lunch/{pid}/menu?filled={created}", status_code=303)
 
 
 @router.post("/lunch/menu/{mid}/update")
