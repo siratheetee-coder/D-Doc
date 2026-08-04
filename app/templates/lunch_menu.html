@@ -27,9 +27,7 @@
     <datalist id="mains_dl">{% for pm in past_menus %}<option value="{{ pm.main }}">{% endfor %}</datalist>
     <datalist id="desserts_dl">{% for d in desserts %}<option value="{{ d }}">{% endfor %}</datalist>
     <p class="muted" style="font-size:13px; margin:2px 0;">เลือกจานหลักที่เคยใช้ ระบบจะเติมของหวานที่เคยคู่กันให้อัตโนมัติ (แก้ได้)</p>
-    <label>อาหารครบ 5 หมู่ <span class="muted" style="font-weight:400;">(ระบบเดาให้จากชื่อเมนู - ปรับเองได้)</span>
-      {% if not edit %}<button type="button" class="btn sm gray" onclick="detectGroups(true)" style="margin-left:8px; vertical-align:middle;"><svg class="icon"><use href="#ic-ai"/></svg> ตรวจจากชื่อเมนู</button>{% endif %}
-    </label>
+    <label>อาหารครบ 5 หมู่ <span class="muted" style="font-weight:400;">(ติ๊กครบให้แล้ว - เอาออกเฉพาะหมู่ที่เมนูวันนั้นขาด)</span></label>
     <div style="display:flex; gap:10px 22px; flex-wrap:wrap; margin:6px 0 12px;">
       {% for gid, gname in food_groups.items() %}
       <label style="display:inline-flex; align-items:center; gap:7px; font-weight:400; font-size:14.5px; white-space:nowrap; flex:0 0 auto;">
@@ -125,40 +123,4 @@
   });
 </script>
 
-{% if not edit %}
-<script>
-  // เดา "5 หมู่" จากชื่อเมนู (คาว+ของหวาน) แบบ keyword - ทำในเครื่อง ไม่ต้องต่อเน็ต
-  // ผู้ใช้แตะติ๊กเองเมื่อไหร่ ระบบหยุดเดา (ไม่แย่งแก้) · ปุ่ม "ตรวจจากชื่อเมนู" บังคับเดาใหม่
-  (function(){
-    var KW = {
-      '1': ['หมู','ไก่','เนื้อ','ปลา','กุ้ง','ปู','หมึก','ไข่','เต้าหู้','ถั่วลิสง','ถั่วเขียว','นม','ทะเล','ลูกชิ้น','ไส้กรอก','แฮม','เบคอน','ตับ','เลือด','ทูน่า','แหนม','กุนเชียง','หมูยอ','ไก่ทอด'],
-      '2': ['ข้าว','ก๋วยเตี๋ยว','เส้น','บะหมี่','ขนมจีน','ขนมปัง','มักกะโรนี','สปาเก','เผือก','มันฝรั่ง','มันเทศ','ข้าวโพด','วุ้นเส้น','โจ๊ก','หมี่','ราดหน้า','ผัดไทย'],
-      '3': ['ผัก','คะน้า','ผักบุ้ง','กะหล่ำ','แครอท','ฟักทอง','ตำลึง','บวบ','มะเขือ','ถั่วฝักยาว','ถั่วงอก','ผักกาด','กวางตุ้ง','แกงจืด','ต้มจืด','ส้มตำ','แกงเลียง','แกงส้ม','เห็ด','หัวไชเท้า','แตงกวา','มะระ','สายบัว','ผักรวม','บรอกโคลี'],
-      '4': ['ผลไม้','กล้วย','แตงโม','มะละกอ','สับปะรด','เงาะ','มะม่วง','ฝรั่ง','แอปเปิ','องุ่น','ชมพู่','แก้วมังกร','ลำไย','ลิ้นจี่','มังคุด','ทุเรียน','ขนุน','สาลี่','แคนตาลูป','น้อยหน่า','แตงไทย','ส้มเขียวหวาน'],
-      '5': ['ทอด','ผัด','กะทิ','น้ำมัน','เนย','มายองเนส','เจียว','ชุบแป้ง','กรอบ','นมข้น','บัวลอย','แกงกะทิ']
-    };
-    function boxes(){ return document.querySelectorAll('input[name="groups"]'); }
-    var touched = false;
-    function detectGroups(force){
-      if(touched && !force) return;
-      var t = ((document.getElementById('m_main')||{}).value||'') + ' ' +
-              ((document.getElementById('m_dessert')||{}).value||'');
-      var found = {};
-      if(t.trim()){
-        for(var g in KW){ for(var i=0;i<KW[g].length;i++){ if(t.indexOf(KW[g][i])>=0){ found[g]=true; break; } } }
-      }
-      if(Object.keys(found).length){ found['2'] = true; }  // จับเมนูได้ -> เติมแป้ง (ข้าว/เส้น) ที่มักเสิร์ฟคู่เสมอ
-      var hit = Object.keys(found).length > 0;
-      boxes().forEach(function(cb){ cb.checked = hit ? !!found[cb.value] : true; });  // เดาไม่ออก/ว่าง -> ครบ 5 (กันพลาด)
-    }
-    window.detectGroups = detectGroups;
-    ['m_main','m_dessert'].forEach(function(id){
-      var el = document.getElementById(id);
-      if(el) el.addEventListener('input', function(){ detectGroups(false); });
-    });
-    boxes().forEach(function(cb){ cb.addEventListener('change', function(){ touched = true; }); });
-    detectGroups(false);  // ตอนโหลด (ฟอร์มว่าง -> ครบ 5)
-  })();
-</script>
-{% endif %}
 {% endblock %}
