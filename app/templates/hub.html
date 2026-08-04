@@ -115,6 +115,29 @@
   </script>
   {% endif %}
 
+  {% if reminders %}
+  <div style="display:flex; align-items:center; gap:8px; margin:4px 0 10px;">
+    <svg class="icon" style="width:20px;height:20px;color:var(--muted);"><use href="#ic-bell"/></svg>
+    <b style="font-size:15px;">การแจ้งเตือน</b>
+    <span class="pill" style="background:#eef0f4;color:#5a6a85;">{{ reminders|length }}</span>
+  </div>
+  <div class="noti-feed">
+    {% for r in reminders %}
+    <a class="noti" href="{{ r.href }}">
+      <span class="noti-chip {{ r.chip }}"><svg class="icon"><use href="#{{ r.icon }}"/></svg></span>
+      <div class="noti-body">
+        <div class="noti-top">
+          <span class="noti-ttl">{{ r.title }}</span>
+          <span class="noti-time">{{ r.time }}</span>
+        </div>
+        <div class="noti-sub">{{ r.sub }}</div>
+        {% if r.pct is defined %}<div class="noti-bar"><i style="width:{{ r.pct }}%;"></i></div>{% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <div class="hub-grid">
     <!-- งานธุรการ -->
     {% set _tid = request.session.get('tid') %}
