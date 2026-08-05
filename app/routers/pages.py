@@ -817,12 +817,33 @@ def _student_personal_kwargs(cell_get) -> dict:
     return kw
 
 
+_LVL_PREFIX_ORDER = {"อ": 0, "ป": 1, "ม": 2}   # อนุบาล -> ประถม -> มัธยม
+
+
+def _student_sort_key(s):
+    """เรียงตามชั้นแบบธรรมชาติ: อ.<ป.<ม. แล้วเลขชั้น แล้วห้อง(เลข) แล้วชื่อ"""
+    import re
+    lvl = (s.level or "").strip()
+    room = (s.room or "").strip()
+    m = re.match(r"^\s*([ก-ฮA-Za-z]+)\.?\s*(\d+)?", lvl)
+    pfx = _LVL_PREFIX_ORDER.get(m.group(1)[:1], 5) if m else 9
+    num = int(m.group(2)) if (m and m.group(2)) else 0
+    room_num = int(room) if room.isdigit() else 999
+    return (pfx, num, lvl, room_num, room, (s.name or ""))
+
+
 @router.get("/students", response_class=HTMLResponse)
 def students_page(request: Request, db: Session = Depends(get_db)):
-    rows = db.query(Student).order_by(Student.level, Student.name).all()
+    rows = sorted(db.query(Student).all(), key=_student_sort_key)
     grad = sum(1 for s in rows if (s.level or "").strip() == "จบการศึกษา")
+    # จัดกลุ่มตาม (ชั้น, ห้อง) + นับจำนวน
+    from itertools import groupby
+    groups = []
+    for (lvl, room), members in groupby(rows, key=lambda s: ((s.level or "").strip(), (s.room or "").strip())):
+        members = list(members)
+        groups.append({"level": lvl, "room": room, "count": len(members), "students": members})
     return templates.TemplateResponse("students.html", {
-        "request": request, "school": get_school(db), "rows": rows,
+        "request": request, "school": get_school(db), "rows": rows, "groups": groups,
         "graduated": grad, "today_input": be_date_input(datetime.now()),
     })
 

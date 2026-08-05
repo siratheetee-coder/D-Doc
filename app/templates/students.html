@@ -79,14 +79,36 @@
     .pickcol .pickbox { display:flex; align-items:center; justify-content:center; min-height:48px; margin:0; padding:0 6px; cursor:pointer; }
     .pickcol input[type=checkbox] { width:22px; height:22px; cursor:pointer; flex:none; }
     tbody tr:has(.bs-pick:checked) td { background:#eef4ff; }
+    /* หัวกลุ่มชั้น/ห้อง */
+    tr.grouphdr td { background:#eef2fb; border-top:2px solid #cdd9f2; padding:8px 12px; }
+    tr.grouphdr .gh { display:flex; align-items:center; gap:10px; font-weight:700; color:#1e3a8a; }
+    tr.grouphdr .gh .cnt { font-weight:600; color:#5a6a85; font-size:13.5px; }
+    tr.grouphdr input[type=checkbox] { width:20px; height:20px; cursor:pointer; }
+    .clschips { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px; }
+    .clschip { background:#eef2fb; color:#1e3a8a; border-radius:999px; padding:5px 13px; font-size:13.5px; font-weight:600; }
+    .clschip b { color:#5a6a85; font-weight:600; }
   </style>
+  {% if groups %}
+  <div class="clschips">
+    {% for g in groups %}<span class="clschip">{{ (('ชั้น ' ~ g.level) if g.level else 'ไม่ระบุชั้น') ~ (('/' ~ g.room) if g.room else '') }} <b>{{ g.count }} คน</b></span>{% endfor %}
+  </div>
+  {% endif %}
   <div class="table-wrap">
   <table>
     <thead><tr><th class="pickcol"><label class="pickbox"><input type="checkbox" id="bsAll" onclick="toggleAll(this)" title="เลือกทั้งหมด"></label></th><th>เลขประจำตัว</th><th>ชื่อ-นามสกุล</th><th>เพศ</th><th>วันเกิด</th><th>ชั้น</th><th>ห้อง</th><th></th></tr></thead>
     <tbody>
-    {% for s in rows %}
+    {% for g in groups %}
+      {% set gi = loop.index0 %}
+      <tr class="grouphdr"><td colspan="8">
+        <div class="gh">
+          <input type="checkbox" onclick="toggleGroup(this, {{ gi }})" title="เลือกทั้งกลุ่มนี้">
+          <span>{{ ('ชั้น ' ~ g.level) if g.level else 'ไม่ระบุชั้น' }}{{ (' ห้อง ' ~ g.room) if g.room else '' }}</span>
+          <span class="cnt">{{ g.count }} คน</span>
+        </div>
+      </td></tr>
+      {% for s in g.students %}
       <tr data-sid="{{ s.id }}">
-        <td class="pickcol"><label class="pickbox"><input type="checkbox" class="bs-pick" value="{{ s.id }}" onchange="updateCount()"></label></td>
+        <td class="pickcol"><label class="pickbox"><input type="checkbox" class="bs-pick" data-g="{{ gi }}" value="{{ s.id }}" onchange="updateCount()"></label></td>
         <td><input name="student_no" value="{{ s.student_no }}" style="width:90px;"></td>
         <td><input name="name" value="{{ s.name }}"></td>
         <td><select name="sex" style="width:100px;"><option value="" {{ 'selected' if not s.sex }}>-</option><option value="ช" {{ 'selected' if s.sex=='M' }}>ชาย</option><option value="ญ" {{ 'selected' if s.sex=='F' }}>หญิง</option></select></td>
@@ -99,6 +121,7 @@
           <form method="post" action="/students/{{ s.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบนักเรียนคนนี้?');"><button class="btn sm gray" type="submit">ลบ</button></form>
         </td>
       </tr>
+      {% endfor %}
     {% endfor %}
     </tbody>
   </table>
@@ -151,6 +174,11 @@
   }
   function toggleAll(box){
     document.querySelectorAll('.bs-pick').forEach(function(c){ c.checked = box.checked; });
+    updateCount();
+  }
+  // เลือก/ยกเลิกทั้งกลุ่มชั้น/ห้อง จากหัวกลุ่ม
+  function toggleGroup(box, gi){
+    document.querySelectorAll('.bs-pick[data-g="' + gi + '"]').forEach(function(c){ c.checked = box.checked; });
     updateCount();
   }
   // เลือกทีละช่วงด้วย Shift+คลิก (เลือกทั้งห้องได้เร็ว)
