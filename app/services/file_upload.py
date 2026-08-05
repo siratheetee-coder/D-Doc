@@ -7,11 +7,32 @@ file_upload.py
 """
 import re
 import uuid
+import socket
+import ipaddress
 import urllib.request
 from urllib.parse import urlparse
 from pathlib import Path
 
 from app.database import get_data_dir
+
+
+def _is_public_host(host: str) -> bool:
+    """คืน True เฉพาะโฮสต์ที่ชี้ไปยัง IP สาธารณะ (กัน SSRF: ยิงเข้า localhost/วงใน/เมทาดาทาคลาวด์)"""
+    if not host:
+        return False
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except Exception:
+        return False
+    for info in infos:
+        try:
+            ip = ipaddress.ip_address(info[4][0])
+        except ValueError:
+            return False
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            return False
+    return True
 
 # ชื่อไฟล์ปลอดภัย (กัน path traversal) - uuid 32 ตัว + นามสกุลที่อนุญาต
 SAFE_FILE_NAME = re.compile(r"^[0-9a-fA-F]{32}\.(pdf|docx|png|jpg|webp)$")
@@ -59,6 +80,8 @@ def fetch_file(url: str):
     url = (url or "").strip()
     p = urlparse(url)
     if p.scheme not in ("http", "https"):
+        return None, None, "url"
+    if not _is_public_host(p.hostname):     # กัน SSRF: ห้ามยิงเข้า localhost/วงใน/เมทาดาทา
         return None, None, "url"
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})

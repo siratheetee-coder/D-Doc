@@ -36,6 +36,16 @@ bootstrap()
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+# จำกัดขนาด body ของคำขอ (กัน DoS หน่วยความจำจากอัปโหลดไฟล์ใหญ่)
+_MAX_REQUEST_BYTES = 30 * 1024 * 1024   # 30MB
+
+# กัน decompression bomb: จำกัดจำนวนพิกเซลรูปที่ PIL ยอมเปิด (~64 ล้านพิกเซล)
+try:
+    from PIL import Image as _PILImage
+    _PILImage.MAX_IMAGE_PIXELS = 64_000_000
+except Exception:
+    pass
+
 # เส้นทางที่เข้าได้โดยไม่ต้องล็อกอิน
 PUBLIC_PATHS = {"/login", "/logout", "/healthz", "/favicon.ico", "/landing",
                 "/quote", "/checkout", "/checkout/promptpay.png", "/sale-thanks",
@@ -55,6 +65,15 @@ async def tenant_auth(request: Request, call_next):
         kept = [(k, v) for k, v in pairs if v != ""]
         if len(kept) != len(pairs):
             request.scope["query_string"] = urlencode(kept).encode("utf-8")
+
+    # กันอัปโหลดใหญ่เกิน (DoS หน่วยความจำ): ปฏิเสธตั้งแต่ก่อนอ่าน body
+    if request.method in ("POST", "PUT", "PATCH"):
+        try:
+            clen = int(request.headers.get("content-length") or 0)
+        except ValueError:
+            clen = 0
+        if clen > _MAX_REQUEST_BYTES:
+            return PlainTextResponse("ไฟล์ใหญ่เกินไป (จำกัด 30MB)", status_code=413)
 
     # กัน CSRF: ปฏิเสธ POST/แก้ไข ที่มาจากโดเมนอื่น (เทียบ Origin กับ Host) + คุกกี้ SameSite=Lax อีกชั้น
     if request.method in ("POST", "PUT", "PATCH", "DELETE"):
