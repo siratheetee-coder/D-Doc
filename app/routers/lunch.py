@@ -736,6 +736,10 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
     from app.models import Person
     paid = sum(i.amount or 0 for i in rnd.installments if i.status == "จ่ายแล้ว")
     committees = {k: [m for m in rnd.committees if m.kind == k] for k in COMMITTEE_KINDS}
+    # รอบอื่นในโครงการเดียวกันที่มีกรรมการอยู่แล้ว (ไว้ดึงมาใช้ ไม่ต้องกรอกใหม่)
+    other_rounds = [{"id": r2.id, "seq": r2.seq, "count": len(r2.committees)}
+                    for r2 in sorted(rnd.program.rounds, key=lambda x: x.seq)
+                    if r2.id != rnd.id and r2.committees]
     persons = db.query(Person).order_by(Person.name).all()
     sel_kind = request.query_params.get("kind")
     if sel_kind not in COMMITTEE_KINDS:
@@ -767,6 +771,7 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         "installments": rnd.installments, "paid": paid,
         "committed": sum(i.amount or 0 for i in rnd.installments),
         "committees": committees, "com_kinds": COMMITTEE_KINDS, "com_roles": COMMITTEE_ROLES,
+        "other_rounds": other_rounds,
         "persons": persons, "persons_pos": {p.name: p.position for p in persons},
         "sel_kind": sel_kind,
         "holidays": _lunch_holidays(rnd.program),
@@ -945,6 +950,31 @@ def committee_add(rid: int, db: Session = Depends(get_db),
                           position=position.strip() or "ครู", role=role or "กรรมการ"))
     db.commit()
     return RedirectResponse(f"/lunch/round/{rid}/plan?kind={kind}#committee", status_code=303)
+
+
+@router.post("/lunch/round/{rid}/committee/pull")
+def committee_pull(rid: int, db: Session = Depends(get_db), src_round: str = Form("")):
+    """คัดลอกกรรมการทุกชุด (TOR/ควบคุมงาน/ตรวจรับ) จากรอบอื่นในโครงการเดียวกันมาใส่รอบนี้
+    ข้ามชื่อที่ซ้ำ (kind เดียวกัน) ไม่ให้เพิ่มซ้ำ"""
+    from app.models import LunchCommittee
+    rnd = db.get(LunchHireRound, rid)
+    src = db.get(LunchHireRound, _to_int(src_round, 0))
+    if not rnd or not src or src.id == rnd.id or src.program_id != rnd.program_id:
+        return RedirectResponse(f"/lunch/round/{rid}/plan#committee", status_code=303)
+    existing = {(m.kind, (m.name or "").strip()) for m in rnd.committees}
+    seq_by_kind = {}
+    for c in rnd.committees:
+        seq_by_kind[c.kind] = max(seq_by_kind.get(c.kind, 0), c.seq)
+    for m in sorted(src.committees, key=lambda x: (x.kind, x.seq)):
+        key = (m.kind, (m.name or "").strip())
+        if not key[1] or key in existing:
+            continue
+        seq_by_kind[m.kind] = seq_by_kind.get(m.kind, 0) + 1
+        db.add(LunchCommittee(round_id=rid, kind=m.kind, seq=seq_by_kind[m.kind],
+                              name=m.name, position=m.position, role=m.role))
+        existing.add(key)
+    db.commit()
+    return RedirectResponse(f"/lunch/round/{rid}/plan#committee", status_code=303)
 
 
 @router.post("/lunch/committee/{cid}/delete")

@@ -26,6 +26,19 @@
     <a class="btn sm" href="/lunch/round/{{ r.id }}/committee-doc"><svg class="icon"><use href="#ic-download"/></svg> คำสั่งแต่งตั้ง (3 ฉบับ)</a>
   </div>
   <p class="muted" style="margin:4px 0 0;">กรอกรายชื่อกรรมการให้ครบก่อนออกเอกสาร (ข้อมูลนี้จะถูกดึงไปใส่ในเอกสารทุกใบ)</p>
+  {% if other_rounds %}
+  <div class="tipbox" style="margin:10px 0 0;">
+    <form method="post" action="/lunch/round/{{ r.id }}/committee/pull" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0;"
+          onsubmit="return confirm('ดึงคณะกรรมการทุกชุดจากรอบที่เลือกมาใส่รอบนี้?');">
+      <span style="font-weight:600;"><svg class="icon"><use href="#ic-users"/></svg> ดึงคณะกรรมการจากรอบอื่น:</span>
+      <select name="src_round" style="width:auto;">
+        {% for o in other_rounds %}<option value="{{ o.id }}">รอบที่ {{ o.seq }} ({{ o.count }} คน)</option>{% endfor %}
+      </select>
+      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-download"/></svg> ดึงมาใช้</button>
+      <span class="muted" style="font-size:12.5px;">คัดลอกครบทุกชุด (TOR/ควบคุมงาน/ตรวจรับ) · ชื่อซ้ำจะไม่เพิ่มซ้ำ</span>
+    </form>
+  </div>
+  {% endif %}
   <form method="post" action="/lunch/round/{{ r.id }}/committee/add" class="row" style="align-items:flex-end; margin-top:10px;">
     <div><label>ชุดกรรมการ</label><select name="kind">
       {% for k,v in com_kinds.items() %}<option value="{{ k }}" {{ 'selected' if k==sel_kind }}>{{ v }}</option>{% endfor %}
