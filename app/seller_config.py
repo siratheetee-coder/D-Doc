@@ -64,6 +64,19 @@ try:
 except ImportError:
     pass
 
+# ทางเลือกสำหรับ VPS: ตั้ง secret ผ่าน env ได้ (seller_local.py ไม่ถูก deploy ผ่าน git)
+# ค่าใน env จะใช้ก็ต่อเมื่อยังไม่ได้ตั้งใน seller_local เท่านั้น (seller_local สำคัญกว่า)
+import os as _os
+for _k, _env in (("ai_api_key", "DDOC_AI_API_KEY"),
+                 ("smtp_pass", "DDOC_SMTP_PASS"),
+                 ("smtp_user", "DDOC_SMTP_USER"),
+                 ("smtp_host", "DDOC_SMTP_HOST"),
+                 ("base_url", "DDOC_BASE_URL")):
+    if not str(SELLER.get(_k) or "").strip():
+        _v = _os.environ.get(_env, "").strip()
+        if _v:
+            SELLER[_k] = _v
+
 
 # ---- ราคาปกติ (ยึดเป็นราคาตั้งต้น/ราคาขีดฆ่าตอนมีโปร) ----
 # รวมงานแยก = 890+690+590+190+390+690 = 3,440 · แพ็กครบทุกงาน (bundle) = 2,690 (ประหยัด 750)
