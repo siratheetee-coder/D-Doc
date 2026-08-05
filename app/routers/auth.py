@@ -47,6 +47,12 @@ def landing_page(request: Request):
     return templates.TemplateResponse("landing.html", {"request": request, **pricing_context()})
 
 
+@router.get("/privacy", response_class=HTMLResponse)
+def privacy_page(request: Request):
+    """นโยบายความเป็นส่วนตัว (PDPA) - หน้าสาธารณะ ผู้ให้บริการปรับรายละเอียดตามจริง"""
+    return templates.TemplateResponse("privacy.html", {"request": request})
+
+
 @router.get("/login", response_class=HTMLResponse)
 def login_page(request: Request, error: str | None = None, ok: str | None = None, next: str = ""):
     nxt = _safe_next(next)

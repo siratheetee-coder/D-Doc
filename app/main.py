@@ -47,7 +47,7 @@ except Exception:
     pass
 
 # เส้นทางที่เข้าได้โดยไม่ต้องล็อกอิน
-PUBLIC_PATHS = {"/login", "/logout", "/healthz", "/favicon.ico", "/landing",
+PUBLIC_PATHS = {"/login", "/logout", "/healthz", "/favicon.ico", "/landing", "/privacy",
                 "/quote", "/checkout", "/checkout/promptpay.png", "/sale-thanks",
                 "/trial", "/register", "/register/resend", "/verify",
                 "/forgot", "/reset"}
