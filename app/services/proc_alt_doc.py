@@ -374,7 +374,7 @@ _W119_REF = ("หนังสือด่วนที่สุด ที่ ก�
              "ค่าใช้จ่ายในการฝึกอบรม การจัดงาน และการประชุมของหน่วยงานของรัฐ")
 
 
-def _w119_box(doc, *, officer, director_line, total_txt, baht_txt, advance_payer, fin,
+def _w119_box(doc, *, responsible, director_line, total_txt, baht_txt, advance_payer, fin,
               budget_kind, budget_other, director, director_office):
     """กล่องความเห็น ว.119 - ตาราง 2×2 มีเส้นขอบ (ตาม template) · ฟอนต์ 14
     ใช้ร่วมกันทั้งตาราง 1 และตาราง 2
@@ -391,7 +391,7 @@ def _w119_box(doc, *, officer, director_line, total_txt, baht_txt, advance_payer
     _fill_cell(t.rows[0].cells[0], [
         ("ผู้รับผิดชอบกิจกรรม", "left", True), ("", "left", False),
         ("(ลงชื่อ).......................................", "center", False),
-        (f"( {officer} )", "center", False),
+        (f"( {responsible} )", "center", False),
         ("ตำแหน่ง.......................................", "center", False),
     ])
     _fill_cell(t.rows[0].cells[1], [
@@ -466,7 +466,7 @@ def render_w119_t1(proc, school) -> str:
     _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณาให้ความเห็นชอบ และให้ถือรายงานนี้เป็นหลักฐานการตรวจรับพัสดุ "
             "โดยอนุโลม", align="justify", indent=1.25, after=6)
     _w119_box(doc,
-              officer=officer or _BLANK,
+              responsible=_x(ex, "responsible", officer or _BLANK),
               director_line=_director_line(school),
               total_txt=_money(total), baht_txt=bahttext(total),
               advance_payer=_x(ex, "advance_payer", "........................."),
@@ -505,7 +505,7 @@ def render_w119_t2(proc, school) -> str:
     _p(doc, f"๒. อนุมัติให้จ่ายเงินจำนวน {_money(total)} บาท ({bahttext(total)}) ให้แก่ {vendor}",
        indent=1.25, after=10)
     _w119_box(doc,
-              officer=officer or _BLANK,
+              responsible=_x(ex, "responsible", officer or _BLANK),
               director_line=_director_line(school),
               total_txt=_money(total), baht_txt=bahttext(total),
               advance_payer=_x(ex, "advance_payer", "........................."),
