@@ -92,7 +92,7 @@
         <td style="white-space:nowrap;">
           <a class="btn sm" href="/lunch/round/{{ r.id }}/plan">จัดการงวด</a>
           <a class="btn sm gray" href="/lunch/round/{{ r.id }}/edit">แก้ไข</a>
-          {% if r.procurement_id %}<a class="btn sm gray" href="/procurement/{{ r.procurement_id }}">เรื่องจัดจ้าง</a>{% endif %}
+          {% if r.procurement_id %}<a class="btn sm gray" href="/procurement/{{ r.procurement_id }}?keep=1" title="ดู/พิมพ์เอกสารจัดจ้างในงานพัสดุ">เอกสารจัดจ้าง</a>{% endif %}
           <form method="post" action="/lunch/round/{{ r.id }}/delete" onsubmit="return confirm('ลบรอบนี้? (รวมรายการบัญชีที่ผูกไว้)');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
         </td>
       </tr>

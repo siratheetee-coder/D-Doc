@@ -2019,6 +2019,13 @@ def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get
     proc = db.get(Procurement, proc_id)
     if not proc:
         return RedirectResponse("/procurement", status_code=303)
+    # เรื่องนี้มาจากงานอาหารกลางวัน (ระบบผูกให้อัตโนมัติจากรอบจ้างเหมา)
+    # -> ไปจัดการที่งานอาหารกลางวัน ไม่ใช่แก้ในงานพัสดุ (กด ?keep=1 จากปุ่มในงานอาหารกลางวันเพื่อดูเอกสารจัดจ้าง)
+    if request.query_params.get("keep") != "1":
+        from app.models import LunchHireRound
+        lr = db.query(LunchHireRound).filter_by(procurement_id=proc_id).first()
+        if lr:
+            return RedirectResponse(f"/lunch/round/{lr.id}/plan#committee", status_code=303)
     inspect = next((c for c in proc.committees if c.kind == "inspect"), None)
     fy = proc.fiscal_year
     order_type = "purchase_order" if proc.proc_type == "ซื้อ" else "hire_order"
