@@ -62,6 +62,11 @@
         <div style="flex:3;"><label>ที่อยู่</label><input name="nv_address"></div>
         <div style="flex:2;"><label>เลขบัญชีธนาคาร</label><input name="nv_bank"></div>
       </div>
+      <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+        <button type="button" class="btn sm" onclick="saveNV(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึกผู้รับจ้าง</button>
+        <span id="nvMsg" class="muted" style="font-size:13px;"></span>
+      </div>
+      <p class="muted" style="margin:8px 0 0; font-size:12.5px;">บันทึกแล้วจะถูกเลือกในช่อง "ผู้รับจ้าง" ด้านบนให้เลย (หรือจะกรอกรอบต่อแล้วกด "เพิ่มรอบ" ทีเดียวก็ได้)</p>
     </div>
     <label>หมายเหตุ</label><input name="note" value="{{ edit.note if edit else '' }}">
     <p class="muted" id="sug" style="margin:8px 0;"></p>
@@ -134,6 +139,29 @@
     $('nvToggle').style.display = show ? 'none' : 'inline-block';
     $('vsel').disabled = show;                 // ซ่อน/ปิด dropdown เดิมเมื่อกรอกรายใหม่
     if(show){ $('nv_name').focus(); } else { $('nv_name').value=''; }
+  }
+  // บันทึกผู้รับจ้างใหม่ทันที (ไม่ต้องสร้างรอบก่อน) แล้วเลือกเข้า dropdown ให้เลย
+  function saveNV(btn){
+    var name=$('nv_name').value.trim(), msg=$('nvMsg');
+    if(!name){ $('nv_name').focus(); if(msg) msg.textContent='กรอกชื่อผู้รับจ้างก่อน'; return; }
+    var val=function(n){ var el=document.querySelector('[name='+n+']'); return el?el.value.trim():''; };
+    var d=new URLSearchParams();
+    d.append('name', name); d.append('owner_name', val('nv_owner')); d.append('tax_id', val('nv_tax'));
+    d.append('phone', val('nv_phone')); d.append('address', val('nv_address')); d.append('bank_account', val('nv_bank'));
+    btn.disabled=true; if(msg) msg.textContent='กำลังบันทึก...';
+    fetch('/vendors/quick-add', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'fetch'}, body:d})
+      .then(function(r){ return r.json(); }).then(function(res){
+        btn.disabled=false;
+        if(!res.ok){ if(msg) msg.textContent='บันทึกไม่สำเร็จ'; return; }
+        var sel=$('vsel');
+        if(!Array.prototype.some.call(sel.options, function(o){ return o.value==res.id; })){
+          var o=document.createElement('option'); o.value=res.id; o.textContent=res.name; sel.appendChild(o);
+        }
+        sel.value=res.id;
+        if(msg) msg.textContent='';
+        toggleNV();   // ปิดกล่อง + เปิด dropdown (เลือกรายใหม่ไว้แล้ว)
+        if(window.showToast) showToast('บันทึกผู้รับจ้างแล้ว');
+      }).catch(function(){ btn.disabled=false; if(msg) msg.textContent='บันทึกไม่สำเร็จ ลองใหม่'; });
   }
   function onStart(){  // เปลี่ยนวันเริ่ม -> ถ้ามีจำนวนวันคำนวณวันสิ้นสุด ไม่งั้นถ้ามีวันสิ้นสุดคำนวณจำนวนวัน
     var s=_parseBE($('sd').value);
