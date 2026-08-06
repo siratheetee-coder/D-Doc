@@ -1860,7 +1860,8 @@ async def procurement_create(request: Request, db: Session = Depends(get_db)):
     db.add(proc)
     db.flush()
     commit_doc_no(db, "memo", proc.fiscal_year, proc.memo_no, source="procurement",
-                  ref_id=proc.id, subject=f"รายงานขอ{proc.proc_type or ''}{proc.subject or ''}".strip())
+                  ref_id=proc.id, subject=f"รายงานขอ{proc.proc_type or ''}{proc.subject or ''}".strip(),
+                  date=proc.request_date)
     db.commit()
     db.refresh(proc)
     return RedirectResponse(f"/procurement/{proc.id}", status_code=303)
@@ -2148,10 +2149,13 @@ async def procurement_update_refs(proc_id: int, request: Request, db: Session = 
         (proc.spec_memo_no, f"ขออนุมัติแต่งตั้งคณะกรรมการกำหนดคุณลักษณะเฉพาะและราคากลาง {base}".strip()),
         (proc.inspect_memo_no, f"รายงานผลการตรวจรับพัสดุและอนุมัติเบิกจ่ายเงิน {base}".strip()),
     ):
-        commit_doc_no(db, "memo", fy, no, source="procurement", ref_id=proc.id, subject=title)
-    commit_doc_no(db, "command", fy, proc.command_no, source="procurement", ref_id=proc.id, subject=subj)
+        commit_doc_no(db, "memo", fy, no, source="procurement", ref_id=proc.id, subject=title,
+                      date=proc.request_date)
+    commit_doc_no(db, "command", fy, proc.command_no, source="procurement", ref_id=proc.id, subject=subj,
+                  date=proc.command_date)
     commit_doc_no(db, "purchase_order" if proc.proc_type == "ซื้อ" else "hire_order", fy,
-                  proc.order_no, source="procurement", ref_id=proc.id, subject=subj)
+                  proc.order_no, source="procurement", ref_id=proc.id, subject=subj,
+                  date=proc.order_date)
 
     db.commit()
     return RedirectResponse(f"/procurement/{proc_id}?saved=1", status_code=303)
@@ -2182,7 +2186,7 @@ def procurement_duplicate(proc_id: int, db: Session = Depends(get_db)):
             nc.members.append(CommitteeMember(name=m.name, position=m.position, role=m.role, seq=m.seq))
         new.committees.append(nc)
     db.add(new)
-    commit_doc_no(db, "memo", fy, new.memo_no)
+    commit_doc_no(db, "memo", fy, new.memo_no, date=new.request_date)
     db.commit()
     db.refresh(new)
     return RedirectResponse(f"/procurement/{new.id}/edit", status_code=303)
@@ -2797,7 +2801,7 @@ async def assets_dispose_submit(request: Request, db: Session = Depends(get_db))
                                  method=method, reason=reason, note=note)
     if doc_no:
         commit_doc_no(db, "memo", current_fiscal_year(), doc_no,
-                      source="asset", subject="ขออนุมัติจำหน่ายครุภัณฑ์")
+                      source="asset", subject="ขออนุมัติจำหน่ายครุภัณฑ์", date=doc_date)
     db.commit()
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 

@@ -262,7 +262,7 @@ def memo_create(db: Session = Depends(get_db), fiscal_year: str = Form(""), memo
                    subject=subject.strip(), body=body, signer_name=signer_name.strip(),
                    signer_position=signer_position.strip(), file_path=fp)
     db.add(m); db.flush()
-    commit_doc_no(db, "memo", fy, no, source="admin", ref_id=m.id, subject=m.subject)
+    commit_doc_no(db, "memo", fy, no, source="admin", ref_id=m.id, subject=m.subject, date=m.date)
     db.commit(); db.refresh(m)
     return RedirectResponse(f"/admin/memos/{m.id}", status_code=303)
 
@@ -312,7 +312,7 @@ def memo_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form("")
         m.date = parse_be_date(date); m.from_dept = from_dept.strip()
         m.to_person = to_person.strip(); m.subject = subject.strip(); m.body = body
         m.signer_name = signer_name.strip(); m.signer_position = signer_position.strip()
-        commit_doc_no(db, "memo", m.fiscal_year, m.memo_no, source="admin", ref_id=m.id, subject=m.subject)
+        commit_doc_no(db, "memo", m.fiscal_year, m.memo_no, source="admin", ref_id=m.id, subject=m.subject, date=m.date)
         db.commit()
     return RedirectResponse(f"/admin/memos/{mid}?saved=1", status_code=303)
 
@@ -356,7 +356,7 @@ def order_create(db: Session = Depends(get_db), fiscal_year: str = Form(""), ord
     o = SchoolOrder(fiscal_year=fy, order_no=no, seq=parse_seq(no), date=parse_be_date(date),
                     subject=subject.strip(), body=body, file_path=fp)
     db.add(o); db.flush()
-    commit_doc_no(db, "command", fy, no, source="admin", ref_id=o.id, subject=o.subject)
+    commit_doc_no(db, "command", fy, no, source="admin", ref_id=o.id, subject=o.subject, date=o.date)
     db.commit(); db.refresh(o)
     return RedirectResponse(f"/admin/orders/{o.id}", status_code=303)
 
@@ -400,7 +400,7 @@ def order_update(oid: int, db: Session = Depends(get_db), order_no: str = Form("
         from app.services.doc_number import parse_seq
         o.order_no = order_no.strip(); o.seq = parse_seq(order_no)
         o.date = parse_be_date(date); o.subject = subject.strip(); o.body = body
-        commit_doc_no(db, "command", o.fiscal_year, o.order_no, source="admin", ref_id=o.id, subject=o.subject)
+        commit_doc_no(db, "command", o.fiscal_year, o.order_no, source="admin", ref_id=o.id, subject=o.subject, date=o.date)
         db.commit()
     return RedirectResponse(f"/admin/orders/{oid}?saved=1", status_code=303)
 
@@ -534,7 +534,7 @@ def letter_create(db: Session = Depends(get_db), fiscal_year: str = Form(""), do
                         signer_name=signer_name.strip(), signer_position=signer_position.strip(),
                         preset=preset.strip())
     db.add(lt); db.flush()
-    commit_doc_no(db, "outgoing", fy, no, source="admin", ref_id=lt.id, subject=lt.subject)
+    commit_doc_no(db, "outgoing", fy, no, source="admin", ref_id=lt.id, subject=lt.subject, date=lt.date)
     db.commit(); db.refresh(lt)
     return RedirectResponse(f"/admin/letters/{lt.id}", status_code=303)
 
@@ -613,7 +613,7 @@ def letter_update(lid: int, db: Session = Depends(get_db), doc_no: str = Form(""
         lt.closing = closing.strip() or "ขอแสดงความนับถือ"
         lt.signer_name = signer_name.strip(); lt.signer_position = signer_position.strip()
         commit_doc_no(db, "outgoing", lt.fiscal_year, lt.doc_no, source="admin",
-                      ref_id=lt.id, subject=lt.subject)
+                      ref_id=lt.id, subject=lt.subject, date=lt.date)
         db.commit()
     return RedirectResponse(f"/admin/letters/{lid}?saved=1", status_code=303)
 

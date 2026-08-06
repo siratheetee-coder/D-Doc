@@ -89,8 +89,10 @@ def suggest_doc_no(db: Session, doc_type: str, fiscal_year: int) -> str:
 
 
 def log_issued(db: Session, doc_type: str, fiscal_year: int, seq: int,
-               full_no: str = "", source: str = "", ref_id=None, subject: str = "") -> None:
-    """บันทึก/อัปเดตเลขที่ใช้จริงลงทะเบียนเลขกลาง (upsert ตาม doc_type+ปีงบ+seq)"""
+               full_no: str = "", source: str = "", ref_id=None, subject: str = "",
+               date=None) -> None:
+    """บันทึก/อัปเดตเลขที่ใช้จริงลงทะเบียนเลขกลาง (upsert ตาม doc_type+ปีงบ+seq)
+    date = วันที่บนเอกสาร (ที่ผู้ใช้กรอก) · ถ้าไม่ส่งมาจึงใช้วันที่ปัจจุบัน"""
     if not seq:
         return
     row = (db.query(IssuedDocNo)
@@ -105,18 +107,19 @@ def log_issued(db: Session, doc_type: str, fiscal_year: int, seq: int,
         row.ref_id = ref_id
     if subject:
         row.subject = subject
-    row.date = datetime.now()
+    row.date = date or datetime.now()
     db.flush()
 
 
 def commit_doc_no(db: Session, doc_type: str, fiscal_year: int, doc_no: str,
-                  source: str = "", ref_id=None, subject: str = "") -> None:
-    """แยกเลขลำดับจากข้อความเลขที่ แล้ว bump counter + บันทึกลงทะเบียนเลขกลาง"""
+                  source: str = "", ref_id=None, subject: str = "", date=None) -> None:
+    """แยกเลขลำดับจากข้อความเลขที่ แล้ว bump counter + บันทึกลงทะเบียนเลขกลาง
+    date = วันที่บนเอกสาร (ที่ผู้ใช้กรอก) เพื่อให้ทะเบียนตรงกับเอกสารจริง"""
     seq = parse_seq(doc_no)
     commit_number(db, doc_type, fiscal_year, seq)
     if seq:
         log_issued(db, doc_type, fiscal_year, seq, full_no=(doc_no or "").strip(),
-                   source=source, ref_id=ref_id, subject=subject)
+                   source=source, ref_id=ref_id, subject=subject, date=date)
 
 
 def check_doc_no(db: Session, doc_type: str, fiscal_year: int, doc_no: str,

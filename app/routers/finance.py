@@ -437,7 +437,7 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
         project_id=_to_int(project_id, 0) or None,
     )
     db.add(m); db.flush()
-    commit_doc_no(db, "memo", fy, no, source="finance", ref_id=m.id,
+    commit_doc_no(db, "memo", fy, no, source="finance", ref_id=m.id, date=m.date,
                   subject=((m.subject or "").strip() if (m.subject or "").strip().startswith("ขออนุมัติเบิกจ่าย")
                            else f"ขออนุมัติเบิกจ่าย {(m.subject or '').strip()}".strip()))
     db.commit(); db.refresh(m)
@@ -489,7 +489,7 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
             txn.amount = m.amount or 0
             txn.date = m.date or txn.date
             txn.ref = m.memo_no or txn.ref
-        commit_doc_no(db, "memo", m.fiscal_year, m.memo_no, source="finance", ref_id=m.id,
+        commit_doc_no(db, "memo", m.fiscal_year, m.memo_no, source="finance", ref_id=m.id, date=m.date,
                   subject=((m.subject or "").strip() if (m.subject or "").strip().startswith("ขออนุมัติเบิกจ่าย")
                            else f"ขออนุมัติเบิกจ่าย {(m.subject or '').strip()}".strip()))
         db.commit()
