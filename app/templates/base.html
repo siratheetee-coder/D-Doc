@@ -149,6 +149,19 @@
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 22px 24px; box-shadow: var(--shadow); margin-bottom: 22px;
     }
+    /* การ์ดพับเก็บได้ (คลิกหัวเพื่อกาง/พับ) - ใช้ <details class="card"> + <summary> ประหยัดพื้นที่หน้ายาว */
+    details.card > summary {
+      list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px;
+      font-size: 20px; font-weight: 800; color: var(--text); outline: none;
+    }
+    details.card > summary::-webkit-details-marker { display: none; }
+    details.card > summary::after {
+      content: "\203A"; margin-left: auto; font-size: 24px; line-height: 1; color: var(--muted);
+      transition: transform .2s ease;
+    }
+    details.card[open] > summary::after { transform: rotate(90deg); }
+    details.card[open] > summary { margin-bottom: 14px; }
+    details.card > summary:hover { color: var(--brand-dark); }
     /* การ์ด/กล่องเน้น: ไม่มีขอบ outline รอบ ใช้แถบสีซ้าย + พื้นสีอ่อน + เงานุ่ม (สไตล์เดียวกับการ์ดแจ้งเตือน) */
     .card.hl { border: none; border-left: 4px solid #3b82f6; background: #f2f7ff; box-shadow: 0 4px 16px rgba(16,24,40,.07); }
     .card.hl.warn { border-left-color: #f0a020; background: #fff8ec; }

@@ -302,7 +302,7 @@ def docnos_peek(request: Request, db: Session = Depends(get_db), year: int | Non
 
 
 @router.post("/docnos/{did}/update")
-def docno_update(did: int, db: Session = Depends(get_db), subject: str = Form(""),
+def docno_update(did: int, request: Request, db: Session = Depends(get_db), subject: str = Form(""),
                  date: str = Form("")):
     """แก้ไขเรื่อง/วันที่ของเลขที่ในทะเบียนกลาง"""
     r = db.get(IssuedDocNo, did)
@@ -313,6 +313,8 @@ def docno_update(did: int, db: Session = Depends(get_db), subject: str = Form(""
         if d:
             r.date = d
         db.commit()
+    if request.headers.get("X-Requested-With") == "fetch":
+        return JSONResponse({"ok": bool(r)})
     return RedirectResponse(f"/docnos?year={fy}&saved=1", status_code=303)
 
 

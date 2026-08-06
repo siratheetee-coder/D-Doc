@@ -37,22 +37,23 @@
 {% endif %}
 
 {% if groups %}
+<p class="muted" style="margin:0 0 10px;">คลิกหัวข้อเพื่อกาง/พับรายการ · แก้ได้หลายรายการแล้วกดบันทึกทีละรายการ (แถวอื่นจะไม่รีเซ็ต)</p>
 {% for dt, rows in groups.items() %}
-<div class="card">
-  <h2>{{ type_labels.get(dt, dt) }} <span class="muted" style="font-size:15px;">({{ rows|length }} เลข)</span></h2>
+<details class="card">
+  <summary>{{ type_labels.get(dt, dt) }} <span class="muted" style="font-size:15px; font-weight:600;">({{ rows|length }} เลข)</span></summary>
   <div class="table-wrap">
   <table>
     <thead><tr><th style="width:110px;">เลขที่</th><th>เรื่อง</th><th style="width:110px;">งาน</th><th style="width:140px;">วันที่บันทึก</th><th style="width:120px;"></th></tr></thead>
     <tbody>
       {% for r in rows %}
-      <tr>
+      <tr data-did="{{ r.id }}">
         <td><b>{{ r.full_no }}</b></td>
         <form method="post" action="/docnos/{{ r.id }}/update" style="display:contents;">
           <td><input name="subject" value="{{ r.subject }}" placeholder="(ไม่ระบุ)"></td>
           <td>{{ {'procurement':'พัสดุ','admin':'ธุรการ','finance':'การเงิน'}.get(r.source, r.source or '-') }}</td>
           <td><input name="date" value="{{ be_date(r.date) if r.date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;"></td>
           <td style="white-space:nowrap;">
-            <button class="btn sm" type="submit">บันทึก</button>
+            <button class="btn sm" type="button" onclick="saveDocno(this)">บันทึก</button>
         </form>
             <form method="post" action="/docnos/{{ r.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบเลขที่ {{ r.full_no }} ออกจากทะเบียน? (ไม่ลบเอกสารต้นทาง)');"><button class="btn sm gray" type="submit">ลบ</button></form>
           </td>
@@ -61,12 +62,25 @@
     </tbody>
   </table>
   </div>
-</div>
+</details>
 {% endfor %}
 {% else %}
 <div class="card"><p class="muted">ยังไม่มีเลขที่ถูกใช้ในปีงบประมาณนี้</p></div>
 {% endif %}
 <script>
+  // บันทึกแบบ AJAX ไม่รีเฟรชหน้า (แถวอื่นที่แก้ค้างไม่เด้งกลับ)
+  function saveDocno(btn){
+    var tr = btn.closest('tr'), did = tr.getAttribute('data-did');
+    var d = new URLSearchParams();
+    tr.querySelectorAll('input[name]').forEach(function(el){ d.append(el.name, el.value); });
+    btn.disabled = true;
+    fetch('/docnos/' + did + '/update', {
+      method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'fetch'}, body:d
+    }).then(function(r){ btn.disabled=false; if(!r.ok) throw 0;
+      tr.style.background='#dcfce7'; setTimeout(function(){ tr.style.background=''; }, 700);
+      if(window.showToast) showToast('บันทึกแล้ว');
+    }).catch(function(){ btn.disabled=false; alert('บันทึกไม่สำเร็จ ลองใหม่'); });
+  }
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){
       var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
