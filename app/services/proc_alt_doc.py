@@ -293,7 +293,7 @@ def render_w804(proc, school) -> str:
     _sign_table(doc, [[
         ("ผู้รับผิดชอบจัดทำคุณลักษณะเฉพาะ", "center"),
         ("ลงชื่อ..................................................................", "center"),
-        (f"( {officer or _BLANK} )", "center"),
+        (f"( {_x(ex, 'spec_author', officer or _BLANK)} )", "center"),
     ]])
 
     # ---------- ส่วนที่ 3: รายงานสรุปผล + ขออนุมัติเบิกจ่าย ----------
@@ -329,7 +329,7 @@ def render_w804(proc, school) -> str:
        align="justify", indent=1.25, after=2)
     _sign_table(doc, [[
         ("ลงชื่อ…………………………………………ผู้ตรวจรับพัสดุ (ผู้ได้รับมอบหมาย)", "center"),
-        (f"( {officer or _BLANK} )", "center"),
+        (f"( {_x(ex, 'inspector', officer or _BLANK)} )", "center"),
     ]], gap=False)
     _p(doc, "จึงเรียนมาเพื่อโปรดทราบและขออนุมัติเบิกจ่ายต่อไป", align="justify", indent=1.25, after=2)
     _sign_table(doc, [[
