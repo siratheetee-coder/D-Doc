@@ -1809,7 +1809,10 @@ async def procurement_ai_items(file: UploadFile = File(...), db: Session = Depen
     if res.get("error"):
         msg = {"request": "เรียก AI ไม่สำเร็จ (ตรวจ API key/อินเทอร์เน็ต)",
                "no_json": "AI ตอบไม่เป็นรูปแบบที่อ่านได้", "bad_json": "AI ตอบไม่เป็นรูปแบบที่อ่านได้"}
-        return JSONResponse({"items": [], "error": msg.get(res["error"], res["error"])})
+        base = msg.get(res["error"], res["error"])
+        if res.get("detail"):
+            base += " · สาเหตุ: " + res["detail"]
+        return JSONResponse({"items": [], "error": base})
     return JSONResponse({"items": res.get("items", []), "ok": True})
 
 

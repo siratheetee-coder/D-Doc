@@ -554,7 +554,7 @@ def letter_ai_write(db: Session = Depends(get_db), subject: str = Form(""),
         "points": points, "detail": detail,
     }, key)
     if res.get("error"):
-        return JSONResponse({"error": "AI เขียนไม่สำเร็จ ลองใหม่อีกครั้ง"}, status_code=502)
+        return JSONResponse({"error": "AI เขียนไม่สำเร็จ" + (" · สาเหตุ: " + res["detail"] if res.get("detail") else " ลองใหม่อีกครั้ง")}, status_code=502)
     return JSONResponse({"subject": res.get("subject", ""), "body": res.get("body", "")})
 
 
@@ -571,7 +571,7 @@ def memo_ai_write(db: Session = Depends(get_db), subject: str = Form(""),
     res = write_memo({"school": school.name or "", "subject": subject,
                       "from_dept": from_dept, "to": to, "points": points}, key)
     if res.get("error"):
-        return JSONResponse({"error": "AI เขียนไม่สำเร็จ ลองใหม่อีกครั้ง"}, status_code=502)
+        return JSONResponse({"error": "AI เขียนไม่สำเร็จ" + (" · สาเหตุ: " + res["detail"] if res.get("detail") else " ลองใหม่อีกครั้ง")}, status_code=502)
     return JSONResponse({"subject": res.get("subject", ""), "body": res.get("body", "")})
 
 
@@ -586,7 +586,7 @@ def order_ai_write(db: Session = Depends(get_db), subject: str = Form(""), point
         return JSONResponse({"error": "ฟีเจอร์ AI สำหรับสมาชิกเท่านั้น - ต่ออายุ/เป็นสมาชิกเพื่อใช้งาน"}, status_code=400)
     res = write_order({"school": school.name or "", "subject": subject, "points": points}, key)
     if res.get("error"):
-        return JSONResponse({"error": "AI เขียนไม่สำเร็จ ลองใหม่อีกครั้ง"}, status_code=502)
+        return JSONResponse({"error": "AI เขียนไม่สำเร็จ" + (" · สาเหตุ: " + res["detail"] if res.get("detail") else " ลองใหม่อีกครั้ง")}, status_code=502)
     return JSONResponse({"subject": res.get("subject", ""), "body": res.get("body", "")})
 
 

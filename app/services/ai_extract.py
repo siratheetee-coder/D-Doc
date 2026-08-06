@@ -11,6 +11,7 @@ ai_extract.py
 import re
 import json
 import urllib.request
+import urllib.error
 
 _API_URL = "https://api.anthropic.com/v1/messages"
 _MODEL = "claude-haiku-4-5"   # สกัดจากข้อความ: โมเดลเล็ก เร็ว ประหยัด
@@ -78,8 +79,14 @@ def extract_items_from_image(image_bytes: bytes, media_type: str, api_key: str) 
     try:
         with urllib.request.urlopen(req, timeout=90) as resp:
             data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            _b = e.read().decode("utf-8", "ignore")[:300]
+        except Exception:
+            _b = ""
+        return {"error": "request", "detail": ("HTTP %s %s" % (e.code, _b)).strip()[:300]}
     except Exception as e:
-        return {"error": "request", "detail": str(e)[:200]}
+        return {"error": "request", "detail": str(e)[:250]}
     out = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
     m = re.search(r"\{.*\}", out, re.S)
     if not m:
@@ -110,8 +117,14 @@ def extract_with_ai(text: str, api_key: str) -> dict:
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
             data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            _b = e.read().decode("utf-8", "ignore")[:300]
+        except Exception:
+            _b = ""
+        return {"error": "request", "detail": ("HTTP %s %s" % (e.code, _b)).strip()[:300]}
     except Exception as e:
-        return {"error": "request", "detail": str(e)[:200]}
+        return {"error": "request", "detail": str(e)[:250]}
     out = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
     m = re.search(r"\{.*\}", out, re.S)
     if not m:
@@ -166,8 +179,14 @@ def write_official_letter(info: dict, api_key: str) -> dict:
     try:
         with urllib.request.urlopen(req, timeout=90) as resp:
             data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            _b = e.read().decode("utf-8", "ignore")[:300]
+        except Exception:
+            _b = ""
+        return {"error": "request", "detail": ("HTTP %s %s" % (e.code, _b)).strip()[:300]}
     except Exception as e:
-        return {"error": "request", "detail": str(e)[:200]}
+        return {"error": "request", "detail": str(e)[:250]}
     out = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
     m = re.search(r"\{.*\}", out, re.S)
     if not m:
@@ -196,8 +215,14 @@ def _ai_write_json(prompt: str, api_key: str) -> dict:
     try:
         with urllib.request.urlopen(req, timeout=90) as resp:
             data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            _b = e.read().decode("utf-8", "ignore")[:300]
+        except Exception:
+            _b = ""
+        return {"error": "request", "detail": ("HTTP %s %s" % (e.code, _b)).strip()[:300]}
     except Exception as e:
-        return {"error": "request", "detail": str(e)[:200]}
+        return {"error": "request", "detail": str(e)[:250]}
     out = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
     m = re.search(r"\{.*\}", out, re.S)
     if not m:
