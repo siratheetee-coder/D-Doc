@@ -10,6 +10,7 @@ lunch_ingredient_doc.py - เอกสารการจัดซื้อวั
   07 ใบเสร็จรับเงิน (ฟอร์ม)   08 ใบรับรองการจ่ายเงิน (ฟอร์ม)
   09 บันทึกรายงานผู้ควบคุมและคณะกรรมการตรวจการประกอบอาหาร   10 ขออนุมัติเบิกจ่ายส่งใช้เงินยืม
 """
+from datetime import datetime
 from docx import Document
 from docx.shared import Cm
 
@@ -36,10 +37,26 @@ def _fund(prog) -> str:
     return (prog.funding_org or "").strip() or "องค์กรปกครองส่วนท้องถิ่น"
 
 
-def _borrower(school):
-    """ผู้ยืมเงิน = เจ้าหน้าที่โครงการอาหารกลางวัน (ใช้เจ้าหน้าที่พัสดุเป็นค่าตั้งต้น)"""
-    name = (getattr(school, "officer_name", "") or "").strip() or _BLANK
+def _borrower(school, prog=None):
+    """ผู้ยืมเงิน/ผู้จ่ายเงิน = เจ้าหน้าที่โครงการอาหารกลางวัน (ถ้าตั้งไว้ในโครงการ)
+    ถ้าไม่ได้ตั้ง จึงใช้เจ้าหน้าที่พัสดุเป็นค่าตั้งต้น (อาจเป็นคนละคนกัน)"""
+    name = ((getattr(prog, "lunch_officer", "") or "").strip()
+            or (getattr(school, "officer_name", "") or "").strip() or _BLANK)
     return name, "เจ้าหน้าที่โครงการอาหารกลางวัน"
+
+
+def _round_ingredients(rnd):
+    """วัตถุดิบของโครงการที่อยู่ในช่วงวันของรอบนี้ (เรียงตามวัน/ลำดับ)"""
+    prog = rnd.program
+    s = rnd.start_date.date() if rnd.start_date else None
+    e = rnd.end_date.date() if rnd.end_date else None
+    out = []
+    for ig in sorted(prog.ingredients, key=lambda x: (x.date or datetime.max, x.seq, x.id)):
+        d = ig.date.date() if ig.date else None
+        if s and e and d and (d < s or d > e):
+            continue
+        out.append(ig)
+    return out
 
 
 def _begin(doc):
@@ -61,7 +78,7 @@ def render_borrow_memo(rnd, school, doc=None) -> str:
     sname = (school.name or "").strip() or "โรงเรียน"
     saddr = (school.address or "").strip()
     fund = _fund(prog)
-    bname, bpos = _borrower(school)
+    bname, bpos = _borrower(school, rnd.program)
     fin = (getattr(school, "finance_officer_name", "") or "").strip() or _BLANK
     director = (school.director_name or "").strip() or _BLANK
     students = prog.total_students
@@ -98,7 +115,7 @@ def render_estimate(rnd, school, doc=None) -> str:
     doc, own = _begin(doc)
     prog = rnd.program
     sname = (school.name or "").strip() or "โรงเรียน"
-    bname, bpos = _borrower(school)
+    bname, bpos = _borrower(school, rnd.program)
     students = prog.total_students
     days = rnd.days or 0
     rate = prog.rate_per_head or 0
@@ -127,7 +144,7 @@ def render_purchase_form(rnd, school, doc=None) -> str:
     doc, own = _begin(doc)
     prog = rnd.program
     sname = (school.name or "").strip() or "โรงเรียน"
-    bname, bpos = _borrower(school)
+    bname, bpos = _borrower(school, rnd.program)
     officer = (getattr(school, "officer_name", "") or "").strip() or _BLANK
     head = (getattr(school, "head_officer_name", "") or "").strip() or _BLANK
     director = (school.director_name or "").strip() or _BLANK
@@ -140,9 +157,23 @@ def render_purchase_form(rnd, school, doc=None) -> str:
             "นักเรียนรับประทาน การจัดซื้อครั้งนี้ดำเนินการโดยวิธีเฉพาะเจาะจงตามมาตรา 56 (2) (ข) ประกอบ"
             "หนังสือกระทรวงการคลัง ด่วนที่สุด ที่ กค (กวจ) 0405.2/ว 116 ลงวันที่ 12 มีนาคม 2562",
        align="justify", indent=1)
+    _ings = _round_ingredients(rnd)
+    _menus = {m.date.date(): (m.main or "") for m in prog.menus if m.date}
+    _body, _pd, _tot = [], None, 0.0
+    for ig in _ings:
+        d = ig.date.date() if ig.date else None
+        amt = (ig.quantity or 0) * (ig.unit_price or 0); _tot += amt
+        _body.append([_menus.get(d, "") if d != _pd else "", ig.name or "",
+                      f"{_money(ig.quantity)} {ig.unit or ''}".strip(),
+                      _money(ig.unit_price), _money(amt), ""])
+        _pd = d
+    if _body:
+        _body.append(["", "รวมเป็นเงินทั้งสิ้น", "", "", _money(_tot), ""])
+    else:
+        _body = [["", "", "", "", "", ""] for _ in range(3)]
     _simple_table(doc,
                   ["รายการอาหาร", "วัสดุเครื่องบริโภค", "จำนวนหน่วย", "ราคาต่อหน่วย", "จำนวนเงิน", "หมายเหตุ"],
-                  [["", "", "", "", "", ""], ["", "", "", "", "", ""], ["", "", "", "", "", ""]],
+                  _body,
                   [Cm(3.4), Cm(3.4), Cm(2.2), Cm(2.2), Cm(2.2), Cm(2.6)])
     _p(doc, "(ลงชื่อ)..................................ผู้จัดทำรายการ", align="center", before=2, after=8)
 
@@ -190,10 +221,29 @@ def render_material_report_form(rnd, school, doc=None) -> str:
     _p(doc, "(ตามโปรแกรม Thai School Lunch หรือปรับใช้ตามหลักโภชนาการ)", align="center", after=0)
     _p(doc, f"โรงเรียน{sname}", align="center", after=0)
     _p(doc, f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}", align="center", after=6)
+    # ดึงวัตถุดิบรายวันมาเติมให้ (แสดงวัน/เมนู เฉพาะแถวแรกของแต่ละวัน) - ถ้ายังไม่กรอกให้เป็นฟอร์มเปล่า
+    ings = _round_ingredients(rnd)
+    menus_by_date = {m.date.date(): (m.main or "") for m in prog.menus if m.date}
+    body, prev_d, total = [], None, 0.0
+    for ig in ings:
+        d = ig.date.date() if ig.date else None
+        amt = (ig.quantity or 0) * (ig.unit_price or 0)
+        total += amt
+        body.append([_dnum(ig.date) if (ig.date and d != prev_d) else "",
+                     menus_by_date.get(d, "") if d != prev_d else "",
+                     ig.name or "", _money(ig.quantity), ig.unit or "",
+                     _money(ig.unit_price), _money(amt)])
+        prev_d = d
+    if body:
+        body.append(["", "", "รวมเป็นเงินทั้งสิ้น", "", "", "", _money(total)])
+    else:
+        body = [["", "", "", "", "", "", ""] for _ in range(6)]
     _simple_table(doc,
                   ["วันที่", "เมนูอาหาร", "ส่วนประกอบ", "จำนวน", "หน่วย", "ราคาต่อหน่วย", "จำนวนเงิน"],
-                  [["", "", "", "", "", "", ""] for _ in range(6)],
+                  body,
                   [Cm(2), Cm(3), Cm(3), Cm(1.6), Cm(1.6), Cm(2.4), Cm(2.4)])
+    if body and total:
+        _p(doc, f"รวมเป็นเงินทั้งสิ้น (ตัวอักษร) {bahttext(total)}", align="right", before=2, after=2, size=13)
     _p(doc, "(ลงชื่อ)....................................ผู้จัดทำรายงาน", align="center", before=6, after=0)
     return _finish(doc, own, f"ใบรับรายงานวัตถุดิบ_รอบที่{rnd.seq}_ปี{prog.year}")
 
@@ -203,7 +253,7 @@ def render_receipt_form(rnd, school, doc=None) -> str:
     doc, own = _begin(doc)
     prog = rnd.program
     sname = (school.name or "").strip() or "โรงเรียน"
-    bname, bpos = _borrower(school)
+    bname, bpos = _borrower(school, rnd.program)
     # 07 ใบเสร็จรับเงิน
     _p(doc, "ใบเสร็จรับเงิน", align="center", bold=True, size=18, after=2)
     _p(doc, "เล่มที่................    เลขที่................", align="right", after=4)
@@ -218,7 +268,10 @@ def render_receipt_form(rnd, school, doc=None) -> str:
     _p(doc, "ใบรับรองการจ่ายเงิน", align="center", bold=True, size=18, after=2)
     _p(doc, f"โรงเรียน{sname}", align="center", after=0)
     _p(doc, "วันที่.............. เดือน ...................... พ.ศ. ..............", align="center", after=6)
-    _p(doc, "รวมทั้งสิ้น (ตัวอักษร)............................................................................................",
+    _rtotal = sum((ig.quantity or 0) * (ig.unit_price or 0) for ig in _round_ingredients(rnd))
+    _p(doc, "รวมทั้งสิ้น (ตัวอักษร) "
+            + (f"{bahttext(_rtotal)} ({_money(_rtotal)} บาท)" if _rtotal
+               else "............................................................................................"),
        indent=1, after=2)
     _p(doc, f"ข้าพเจ้า {bname} ตำแหน่ง {bpos} โรงเรียน{sname} ขอรับรองว่ารายจ่ายข้างต้นนี้ไม่อาจเรียก"
             "ใบเสร็จรับเงินจากผู้ขายได้ และข้าพเจ้าได้จ่ายไปในงานของราชการโดยแท้",
@@ -235,7 +288,7 @@ def render_control_report(rnd, school, doc=None) -> str:
     doc, own = _begin(doc)
     prog = rnd.program
     sname = (school.name or "").strip() or "โรงเรียน"
-    bname, _ = _borrower(school)
+    bname, _ = _borrower(school, rnd.program)
     director = (school.director_name or "").strip() or _BLANK
     _p(doc, "บันทึกรายงานผู้ควบคุมและคณะกรรมการตรวจการประกอบอาหารกลางวัน",
        align="center", bold=True, size=17, after=4)
@@ -263,7 +316,7 @@ def render_repay_memo(rnd, school, doc=None) -> str:
     sname = (school.name or "").strip() or "โรงเรียน"
     saddr = (school.address or "").strip()
     fund = _fund(prog)
-    bname, bpos = _borrower(school)
+    bname, bpos = _borrower(school, rnd.program)
     fin = (getattr(school, "finance_officer_name", "") or "").strip() or _BLANK
     director = (school.director_name or "").strip() or _BLANK
     total = round(float(rnd.amount or 0), 2)
