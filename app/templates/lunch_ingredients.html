@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}วัตถุดิบรายวัน{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h1 style="margin:0;">วัตถุดิบรายวัน (ปีการศึกษา {{ p.year }})</h1>
+    <a class="btn sm gray" href="/lunch/{{ p.id }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับหน้าโครงการ</a>
+  </div>
+  <p class="muted" style="margin:4px 0 0;">กรอกวัตถุดิบ/เครื่องปรุงที่ซื้อในแต่ละวัน แล้วเอกสาร "ใบรับรายงานวัตถุดิบ / ใบรับรองการจ่ายเงิน / สรุปรายการจัดซื้อ" จะดึงไปเติมให้อัตโนมัติ (ไม่ต้องเขียนมือ)</p>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มวัตถุดิบ</h2>
+  <form method="post" action="/lunch/{{ p.id }}/ingredients/add" class="row" style="align-items:flex-end;">
+    <div><label>วันที่</label><input name="date" list="menudays_dl" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:130px;"></div>
+    <div style="flex:2;"><label>ชื่อวัตถุดิบ/เครื่องปรุง *</label><input name="name" required placeholder="เช่น ไก่หั่น, น้ำมันพืช"></div>
+    <div><label>จำนวน</label><input name="quantity" type="number" step="0.01" value="1" style="width:90px;"></div>
+    <div><label>หน่วยนับ</label><input name="unit" list="units_dl" placeholder="กก./ขวด/ผล" style="width:100px;"></div>
+    <div><label>ราคาต่อหน่วย</label><input name="unit_price" type="number" step="0.01" value="0" style="width:110px;"></div>
+    <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
+  </form>
+  <datalist id="menudays_dl">{% for m in menu_days %}<option value="{{ m.be }}">{{ m.main }}</option>{% endfor %}</datalist>
+  <datalist id="units_dl"><option value="กก."><option value="ขวด"><option value="ผล"><option value="ถุง"><option value="กล่อง"><option value="ฟอง"><option value="มัด"><option value="ตัว"></datalist>
+  <p class="muted" style="font-size:13px; margin:6px 0 0;">เคล็ดลับ: พิมพ์/เลือกวันที่จากเมนูที่ตั้งไว้ (ช่องวันที่จะเดาวันจากเมนูให้)</p>
+</div>
+
+{% if groups %}
+<p class="muted" style="margin:0 0 10px;">คลิกวันที่เพื่อกาง/พับ · แก้ในตารางแล้วกดบันทึกทีละแถว (แถวอื่นไม่รีเซ็ต)</p>
+{% for g in groups %}
+<details class="card">
+  <summary>{{ ('วันที่ ' ~ g.be) if g.be else 'ไม่ระบุวันที่' }}
+    {% if g.menu %}<span class="muted" style="font-size:14px; font-weight:600;">· {{ g.menu }}</span>{% endif %}
+    <span class="muted" style="font-size:14px; font-weight:600;">· {{ g.rows|length }} รายการ · รวม {{ "{:,.2f}".format(g.total) }} บาท</span>
+  </summary>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>วัตถุดิบ/เครื่องปรุง</th><th class="right" style="width:90px;">จำนวน</th><th style="width:100px;">หน่วยนับ</th><th class="right" style="width:120px;">ราคา/หน่วย</th><th class="right" style="width:120px;">จำนวนเงิน</th><th style="width:130px;"></th></tr></thead>
+    <tbody>
+      {% for it in g.rows %}
+      <tr data-iid="{{ it.id }}">
+        <form method="post" action="/lunch/ingredient/{{ it.id }}/update" style="display:contents;">
+          <td><input name="name" value="{{ it.name }}"></td>
+          <td><input name="quantity" type="number" step="0.01" value="{{ '%g'|format(it.quantity or 0) }}" style="width:80px; text-align:right;" oninput="calcAmt(this)"></td>
+          <td><input name="unit" value="{{ it.unit }}" style="width:90px;"></td>
+          <td><input name="unit_price" type="number" step="0.01" value="{{ '%g'|format(it.unit_price or 0) }}" style="width:110px; text-align:right;" oninput="calcAmt(this)"></td>
+          <td class="right amt"><b>{{ "{:,.2f}".format((it.quantity or 0) * (it.unit_price or 0)) }}</b></td>
+          <td style="white-space:nowrap;">
+            <button class="btn sm" type="button" onclick="saveIng(this)">บันทึก</button>
+        </form>
+            <form method="post" action="/lunch/ingredient/{{ it.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบวัตถุดิบนี้?');"><button class="btn sm gray" type="submit">ลบ</button></form>
+          </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</details>
+{% endfor %}
+{% else %}
+<div class="card"><p class="muted">ยังไม่มีวัตถุดิบ - เพิ่มด้านบน (เลือกวันที่แล้วกรอกทีละรายการ)</p></div>
+{% endif %}
+
+<script>
+  function calcAmt(inp){
+    var tr=inp.closest('tr');
+    var q=parseFloat(tr.querySelector('input[name=quantity]').value)||0;
+    var p=parseFloat(tr.querySelector('input[name=unit_price]').value)||0;
+    var c=tr.querySelector('.amt'); if(c) c.innerHTML='<b>'+(q*p).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</b>';
+  }
+  function saveIng(btn){
+    var tr=btn.closest('tr'), iid=tr.getAttribute('data-iid');
+    var d=new URLSearchParams();
+    tr.querySelectorAll('input[name]').forEach(function(el){ d.append(el.name, el.value); });
+    btn.disabled=true;
+    fetch('/lunch/ingredient/'+iid+'/update', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'fetch'}, body:d})
+      .then(function(r){ btn.disabled=false; if(!r.ok) throw 0;
+        tr.style.background='#dcfce7'; setTimeout(function(){ tr.style.background=''; }, 700);
+        if(window.showToast) showToast('บันทึกแล้ว');
+      }).catch(function(){ btn.disabled=false; alert('บันทึกไม่สำเร็จ ลองใหม่'); });
+  }
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

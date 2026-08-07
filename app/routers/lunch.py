@@ -145,6 +145,7 @@ async def lunch_save(request: Request, db: Session = Depends(get_db)):
     prog.days = _to_int(form.get("days"), 200)
     prog.operate_mode = form.get("operate_mode") or "hire"
     prog.funding_org = (form.get("funding_org") or "").strip()
+    prog.lunch_officer = (form.get("lunch_officer") or "").strip()
     prog.note = (form.get("note") or "").strip()
 
     # ระดับชั้น (ล้างของเดิม สร้างใหม่ตามที่กรอก)
@@ -642,6 +643,70 @@ def menu_delete_all(pid: int, db: Session = Depends(get_db)):
         db.query(LunchMenu).filter_by(program_id=pid).delete(synchronize_session=False)
         db.commit()
     return RedirectResponse(f"/lunch/{pid}/menu", status_code=303)
+
+
+# ---------------- วัตถุดิบรายวัน (วิธีซื้อวัตถุดิบเอง) ----------------
+@router.get("/lunch/{pid}/ingredients", response_class=HTMLResponse)
+def ingredients_page(pid: int, request: Request, db: Session = Depends(get_db)):
+    from app.models import LunchIngredient, Person
+    prog = db.get(LunchProgram, pid)
+    if not prog:
+        return RedirectResponse("/lunch", status_code=303)
+    # จัดกลุ่มวัตถุดิบตามวัน + วันจากเมนู (ให้กรอกวัตถุดิบต่อวันได้ครบ)
+    from itertools import groupby
+    ings = sorted(prog.ingredients, key=lambda x: (x.date or datetime.max, x.seq, x.id))
+    groups = []
+    for d, rows in groupby(ings, key=lambda x: (x.date.date() if x.date else None)):
+        rows = list(rows)
+        groups.append({"date": d, "be": be_date_input(rows[0].date) if rows[0].date else "",
+                       "menu": next((m.main for m in prog.menus if m.date and m.date.date() == d), ""),
+                       "rows": rows, "total": sum((r.quantity or 0) * (r.unit_price or 0) for r in rows)})
+    menu_days = [{"be": be_date_input(m.date), "main": m.main} for m in prog.menus if m.date]
+    return templates.TemplateResponse("lunch_ingredients.html", {
+        "request": request, "school": get_school(db), "p": prog,
+        "groups": groups, "menu_days": menu_days, "today_be": be_date_input(datetime.now()),
+    })
+
+
+@router.post("/lunch/{pid}/ingredients/add")
+def ingredient_add(pid: int, db: Session = Depends(get_db), date: str = Form(""),
+                   name: str = Form(""), quantity: str = Form("0"), unit: str = Form(""),
+                   unit_price: str = Form("0")):
+    from app.models import LunchIngredient
+    prog = db.get(LunchProgram, pid)
+    d = parse_be_date(date)
+    if prog and name.strip():
+        seq = max([x.seq for x in prog.ingredients if x.date and d and x.date.date() == d.date()], default=0) + 1
+        db.add(LunchIngredient(program_id=pid, date=d, seq=seq, name=name.strip(),
+                               quantity=_to_float(quantity, 0.0), unit=unit.strip(),
+                               unit_price=_to_float(unit_price, 0.0)))
+        db.commit()
+    return RedirectResponse(f"/lunch/{pid}/ingredients", status_code=303)
+
+
+@router.post("/lunch/ingredient/{iid}/update")
+def ingredient_update(iid: int, request: Request, db: Session = Depends(get_db),
+                      name: str = Form(""), quantity: str = Form("0"), unit: str = Form(""),
+                      unit_price: str = Form("0")):
+    from app.models import LunchIngredient
+    it = db.get(LunchIngredient, iid)
+    if it:
+        it.name = name.strip(); it.quantity = _to_float(quantity, 0.0)
+        it.unit = unit.strip(); it.unit_price = _to_float(unit_price, 0.0)
+        db.commit()
+    if request.headers.get("X-Requested-With") == "fetch":
+        return JSONResponse({"ok": bool(it)})
+    return RedirectResponse(f"/lunch/{it.program_id if it else ''}/ingredients", status_code=303)
+
+
+@router.post("/lunch/ingredient/{iid}/delete")
+def ingredient_delete(iid: int, db: Session = Depends(get_db)):
+    from app.models import LunchIngredient
+    it = db.get(LunchIngredient, iid)
+    pid = it.program_id if it else None
+    if it:
+        db.delete(it); db.commit()
+    return RedirectResponse(f"/lunch/{pid}/ingredients" if pid else "/lunch", status_code=303)
 
 
 @router.post("/lunch/menu/{mid}/update")

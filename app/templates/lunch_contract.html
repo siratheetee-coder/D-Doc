@@ -199,6 +199,10 @@
 <div class="card">
   <h2>ออกเอกสารซื้อวัตถุดิบ (ยืมเงิน → ส่งใช้)</h2>
   <p class="muted" style="margin-top:0;">กรอกเลขที่/วันที่สัญญายืม จำนวนวัน และวงเงินให้ครบก่อน เอกสารจะดึงข้อมูลไปกรอกให้ (ตามคู่มืออาหารกลางวัน สพฐ.)</p>
+  <div class="tipbox" style="margin:0 0 12px;">
+    <a class="btn sm" href="/lunch/{{ p.id }}/ingredients"><svg class="icon"><use href="#ic-clipboard"/></svg> กรอกวัตถุดิบรายวัน</a>
+    <span class="muted" style="font-size:13px; margin-left:8px;">กรอกวัตถุดิบ/ราคาต่อวัน แล้วใบรับรายงานวัตถุดิบ · ใบรับรองจ่ายเงิน · สรุปตรวจรับ จะดึงไปเติมให้อัตโนมัติ</span>
+  </div>
   <a class="btn" href="/lunch/round/{{ r.id }}/ingredient-doc/bundle" style="font-size:16px; padding:11px 20px;">
     <svg class="icon"><use href="#ic-download"/></svg> ออกเอกสารทั้งชุด (ไฟล์เดียว)
   </a>
