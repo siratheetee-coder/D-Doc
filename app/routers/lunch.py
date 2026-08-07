@@ -1154,6 +1154,7 @@ _INGREDIENT_DOCS = {
     "borrow": "render_borrow_memo", "estimate": "render_estimate",
     "purchase": "render_purchase_form", "material": "render_material_report_form",
     "receipt": "render_receipt_form", "control": "render_control_report",
+    "summary": "render_purchase_summary", "inspect-note": "render_inspection_note",
     "repay": "render_repay_memo", "bundle": "render_ingredient_bundle",
 }
 

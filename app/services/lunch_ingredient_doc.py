@@ -375,6 +375,69 @@ def render_repay_memo(rnd, school, doc=None) -> str:
     return _finish(doc, own, f"ขออนุมัติเบิกจ่ายส่งใช้เงินยืม_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
+def _committee_signs(doc, members):
+    """ลายเซ็นคณะกรรมการตรวจรับ (ประธาน/กรรมการ) - ไม่มีชื่อ = เส้นจุด 3 คน"""
+    seq = members if members else [None, None, None]
+    for i, mem in enumerate(seq):
+        role = (mem.role if mem else "") or ("ประธานกรรมการ" if i == 0 else "กรรมการ")
+        _p(doc, f"(ลงชื่อ) ........................................... {role}", align="center", before=6, after=0)
+        _p(doc, (f"( {mem.name} )" if mem else "(...........................................)"),
+           align="center", after=0)
+
+
+def render_purchase_summary(rnd, school, doc=None) -> str:
+    """สรุปรายการจัดซื้อวัตถุดิบ (เพื่อประกอบการตรวจรับพัสดุ) - ดึงวัตถุดิบ+กรรมการตรวจรับมาเติม"""
+    doc, own = _begin(doc)
+    prog = rnd.program
+    sname = (school.name or "").strip() or "โรงเรียน"
+    ings = _round_ingredients(rnd)
+    total = sum((i.quantity or 0) * (i.unit_price or 0) for i in ings)
+    _p(doc, "สรุปรายการจัดซื้อวัตถุดิบเพื่อใช้ประกอบอาหาร", align="center", bold=True, size=17, after=0)
+    _p(doc, f"โรงเรียน{sname}  ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}",
+       align="center", after=4)
+    _p(doc, "เรียน  ประธานคณะกรรมการตรวจรับพัสดุ/ผู้ตรวจรับพัสดุ", indent=1, after=2)
+    _p(doc, "ขอรายงานรายการจัดซื้อวัตถุดิบเพื่อใช้ประกอบอาหาร เพื่อประกอบการตรวจรับพัสดุ ดังนี้",
+       indent=1.25, after=2)
+    body = [[i.name or "", _money(i.quantity), i.unit or "", _money(i.unit_price),
+             _money((i.quantity or 0) * (i.unit_price or 0)), ""] for i in ings]
+    if body:
+        body.append(["รวมเป็นเงินทั้งสิ้น", "", "", "", _money(total), ""])
+    else:
+        body = [["", "", "", "", "", ""] for _ in range(5)]
+    _simple_table(doc, ["วัตถุดิบ/เครื่องปรุง", "จำนวน", "หน่วยนับ", "ราคาต่อหน่วย", "จำนวนเงิน", "หมายเหตุ"],
+                  body, [Cm(5.0), Cm(1.8), Cm(1.8), Cm(2.6), Cm(2.6), Cm(2.45)])
+    _p(doc, "ได้ตรวจสอบรายการวัตถุดิบดังกล่าวแล้ว รายการ จำนวน ถูกต้องครบถ้วน",
+       indent=1.25, before=4, after=8)
+    _committee_signs(doc, _committee(rnd, "inspect"))
+    return _finish(doc, own, f"สรุปรายการจัดซื้อวัตถุดิบ_รอบที่{rnd.seq}_ปี{prog.year}")
+
+
+def render_inspection_note(rnd, school, doc=None) -> str:
+    """ใบตรวจรับพัสดุ (ตามข้อ 175 ระเบียบฯ พ.ศ. 2560) - ดึงกรรมการตรวจรับ + เจ้าหน้าที่พัสดุ"""
+    doc, own = _begin(doc)
+    prog = rnd.program
+    sname = (school.name or "").strip() or "โรงเรียน"
+    officer = (getattr(school, "officer_name", "") or "").strip() or _BLANK
+    days = len(_round_menu_days(rnd)) or (rnd.days or 0)
+    _p(doc, "ใบตรวจรับพัสดุ", align="center", bold=True, size=18, after=2)
+    _p(doc, f"เขียนที่ โรงเรียน{sname}", align="right", after=0)
+    _p(doc, f"วันที่ {_dnum(rnd.end_date)}", align="right", after=6)
+    _p(doc, f"ตามรายงานสรุปการตรวจรับวัตถุดิบเพื่อใช้ประกอบอาหารกลางวัน ในระหว่างวันที่ "
+            f"{_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} รวม {days} วัน รายละเอียดตามแนบ "
+            "คณะกรรมการตรวจรับพัสดุ ได้ตรวจรับและให้ถือว่าพัสดุ", align="justify", indent=1.25, after=2)
+    _p(doc, "( / )  ถูกต้อง          (   )  ไม่ถูกต้อง  จำนวน .............. รายการ", indent=1.5, after=2)
+    _p(doc, f"จึงรายงานต่อผู้อำนวยการโรงเรียน{sname} เพื่อโปรดทราบผลการตรวจรับ ตามนัยข้อ 175 "
+            "แห่งระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560",
+       align="justify", indent=1.25, after=8)
+    _committee_signs(doc, _committee(rnd, "inspect"))
+    _p(doc, f"เรียน  ผู้อำนวยการโรงเรียน{sname}", indent=1, before=10, after=0)
+    _p(doc, "     เพื่อโปรดทราบ คณะกรรมการตรวจรับพัสดุได้ดำเนินการตรวจรับพัสดุเรียบร้อยแล้ว",
+       indent=1.25, after=6)
+    _p(doc, "(ลงชื่อ) ........................................... เจ้าหน้าที่พัสดุ", align="center", after=0)
+    _p(doc, f"( {officer} )", align="center", after=0)
+    return _finish(doc, own, f"ใบตรวจรับพัสดุ_รอบที่{rnd.seq}_ปี{prog.year}")
+
+
 def render_ingredient_bundle(rnd, school) -> str:
     """ออกชุดเอกสารซื้อวัตถุดิบทั้งชุดเป็นไฟล์เดียว (เรียงตามลำดับงานจริง)"""
     doc = Document(); set_a4(doc); _font(doc)
@@ -383,6 +446,8 @@ def render_ingredient_bundle(rnd, school) -> str:
     render_purchase_form(rnd, school, doc)        # 05 ใบจัดซื้อวัสดุเครื่องบริโภค
     render_material_report_form(rnd, school, doc) # 06 ใบรับรายงานวัตถุดิบ
     render_receipt_form(rnd, school, doc)         # 07+08 ใบเสร็จ/ใบรับรองการจ่าย
+    render_purchase_summary(rnd, school, doc)     # สรุปรายการจัดซื้อ (เพื่อตรวจรับ)
     render_control_report(rnd, school, doc)       # 09 บันทึกตรวจการประกอบอาหาร
+    render_inspection_note(rnd, school, doc)      # ใบตรวจรับพัสดุ (ข้อ 175)
     render_repay_memo(rnd, school, doc)           # 10 ขออนุมัติเบิกจ่ายส่งใช้เงินยืม
     return _save(doc, f"ชุดเอกสารซื้อวัตถุดิบ_รอบที่{rnd.seq}_ปี{rnd.program.year}")
