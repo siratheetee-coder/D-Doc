@@ -800,15 +800,16 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/lunch", status_code=303)
     from app.models import Person
     paid = sum(i.amount or 0 for i in rnd.installments if i.status == "จ่ายแล้ว")
-    committees = {k: [m for m in rnd.committees if m.kind == k] for k in COMMITTEE_KINDS}
+    com_kinds = _committee_kinds(rnd.program)
+    committees = {k: [m for m in rnd.committees if m.kind == k] for k in com_kinds}
     # รอบอื่นในโครงการเดียวกันที่มีกรรมการอยู่แล้ว (ไว้ดึงมาใช้ ไม่ต้องกรอกใหม่)
     other_rounds = [{"id": r2.id, "seq": r2.seq, "count": len(r2.committees)}
                     for r2 in sorted(rnd.program.rounds, key=lambda x: x.seq)
                     if r2.id != rnd.id and r2.committees]
     persons = db.query(Person).order_by(Person.name).all()
     sel_kind = request.query_params.get("kind")
-    if sel_kind not in COMMITTEE_KINDS:
-        sel_kind = "tor"
+    if sel_kind not in com_kinds:
+        sel_kind = next(iter(com_kinds))
 
     # ---- เมนูอาหารในช่วงสัญญา (ให้สร้างเมนูต่อจากงวดในหน้าเดียว + เลือกวันจาก dropdown) ----
     from datetime import timedelta
@@ -835,7 +836,7 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         "request": request, "school": get_school(db), "r": rnd, "p": rnd.program,
         "installments": rnd.installments, "paid": paid,
         "committed": sum(i.amount or 0 for i in rnd.installments),
-        "committees": committees, "com_kinds": COMMITTEE_KINDS, "com_roles": COMMITTEE_ROLES,
+        "committees": committees, "com_kinds": com_kinds, "com_roles": COMMITTEE_ROLES,
         "other_rounds": other_rounds,
         "persons": persons, "persons_pos": {p.name: p.position for p in persons},
         "sel_kind": sel_kind,
@@ -998,8 +999,21 @@ def contract_order_doc(rid: int, db: Session = Depends(get_db)):
 
 
 # ---------------- คณะกรรมการในสัญญา ----------------
+# ชนิดกรรมการต่างกันตามวิธีดำเนินการ:
+#  - จ้างเหมา/จ้างบุคคล = TOR / ควบคุมงาน / ตรวจรับ
+#  - ซื้อวัตถุดิบเอง = ตรวจรับพัสดุ / ผู้ควบคุมการประกอบอาหาร / ตรวจการประกอบอาหาร
 COMMITTEE_KINDS = {"tor": "จัดทำขอบเขตของงาน (TOR)", "control": "ควบคุมงาน", "inspect": "ตรวจรับ"}
+COMMITTEE_KINDS_INGREDIENT = {"inspect": "ตรวจรับพัสดุ",
+                              "cook_control": "ผู้ควบคุมการประกอบอาหาร",
+                              "food_inspect": "ตรวจการประกอบอาหาร"}
 COMMITTEE_ROLES = ["ประธานกรรมการ", "กรรมการ", "กรรมการและเลขานุการ"]
+
+
+def _committee_kinds(prog):
+    """ชนิดกรรมการที่ใช้ตามวิธีดำเนินการของโครงการ"""
+    if prog and prog.operate_mode == "ingredient":
+        return COMMITTEE_KINDS_INGREDIENT
+    return COMMITTEE_KINDS
 
 
 @router.post("/lunch/round/{rid}/committee/add")

@@ -59,6 +59,26 @@ def _round_ingredients(rnd):
     return out
 
 
+def _committee(rnd, kind):
+    """รายชื่อกรรมการชนิดที่ระบุ (เรียงตามลำดับ)"""
+    return [m for m in sorted(rnd.committees, key=lambda x: x.seq) if m.kind == kind]
+
+
+def _crit_cell():
+    """เกณฑ์ประเมินการประกอบอาหาร (ให้ติ๊กในเอกสาร)"""
+    return ("ความสะอาด ☐ดีมาก ☐ดี ☐พอใช้ ☐ปรับปรุง\n"
+            "คุณภาพอาหาร ☐ดีมาก ☐ดี ☐พอใช้ ☐ปรับปรุง\n"
+            "ความทันเวลา ☐ดีมาก ☐ดี ☐พอใช้ ☐ปรับปรุง\n"
+            "ความเพียงพอ ☐ดีมาก ☐ดี ☐พอใช้ ☐ปรับปรุง")
+
+
+def _round_menu_days(rnd):
+    """เมนูรายวันในช่วงของรอบ (เรียงตามวัน)"""
+    prog = rnd.program
+    return [m for m in sorted(prog.menus, key=lambda x: (x.date or datetime.max))
+            if m.date and rnd.start_date and rnd.end_date and rnd.start_date <= m.date <= rnd.end_date]
+
+
 def _begin(doc):
     if doc is None:
         d = Document(); set_a4(d); _font(d); return d, True
@@ -298,10 +318,18 @@ def render_control_report(rnd, school, doc=None) -> str:
             f"รับประทาน ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} บัดนี้ "
             "ได้ดำเนินการประกอบอาหารทุกวันตามที่กำหนด ผู้ควบคุมและคณะกรรมการตรวจการประกอบอาหารกลางวัน "
             "ขอรายงานผลการดำเนินงาน ดังนี้", align="justify", indent=1.25, after=4)
+    # ผู้ควบคุม + คณะกรรมการตรวจการประกอบอาหาร (ดึงชื่อจากที่ตั้งไว้)
+    ctrl = _committee(rnd, "cook_control") + _committee(rnd, "food_inspect")
+    ctrl_names = "\n".join(f"{i + 1}. {m.name}" for i, m in enumerate(ctrl)) if ctrl else ""
+    days = _round_menu_days(rnd)
+    if days:
+        body = [[_dnum(m.date), (m.main or ""), _crit_cell(), ctrl_names] for m in days]
+    else:
+        body = [["", "", _crit_cell(), ctrl_names] for _ in range(5)]
     _simple_table(doc,
-                  ["วัน เดือน ปี", "รายการอาหาร", "ผลการดำเนินงาน", "ผู้ควบคุมและคณะกรรมการตรวจการ"],
-                  [["", "", "", ""] for _ in range(5)],
-                  [Cm(2.4), Cm(4.6), Cm(3.4), Cm(5.0)])
+                  ["วัน เดือน ปี", "รายการอาหาร", "ผลการตรวจสอบ", "ผู้ควบคุม/คณะกรรมการตรวจการ"],
+                  body,
+                  [Cm(2.1), Cm(3.4), Cm(6.2), Cm(4.55)])
     _p(doc, "(  ) ทราบผลการดำเนินการประกอบอาหารกลางวัน", indent=1.25, before=4, after=10)
     _p(doc, "ลงชื่อ......................................................", align="center", after=0)
     _p(doc, f"( {director} )", align="center", after=0)
