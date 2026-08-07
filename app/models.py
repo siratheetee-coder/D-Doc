@@ -791,6 +791,7 @@ class LunchProgram(Base):
     rate_per_head = Column(Float, default=0.0)      # อัตราต่อหัว/วัน (เลือกอัตโนมัติตามขนาด แก้ได้)
     operate_mode = Column(String, default="hire")   # hire=จ้างเหมาปรุงสำเร็จ / ingredient=ซื้อวัตถุดิบ+แม่ครัว / self=ทำเอง
     funding_org = Column(String, default="")        # อปท.ผู้จัดสรร (เทศบาล/อบต.)
+    lunch_officer = Column(String, default="")      # เจ้าหน้าที่โครงการอาหารกลางวัน/ผู้จ่ายเงิน (อาจคนละคนกับ จนท.พัสดุ)
     note = Column(Text, default="")
     pool = Column(Integer, default=0)               # 1 = โปรแกรมพิเศษเก็บทะเบียนภาวะโภชนาการรวมของโรงเรียน (ซ่อนจากรายการโครงการ)
     created_at = Column(DateTime, default=datetime.now)
@@ -803,6 +804,9 @@ class LunchProgram(Base):
                           cascade="all, delete-orphan", order_by="LunchHireRound.seq")
     menus = relationship("LunchMenu", back_populates="program",
                          cascade="all, delete-orphan", order_by="LunchMenu.date")
+    ingredients = relationship("LunchIngredient", back_populates="program",
+                               cascade="all, delete-orphan",
+                               order_by="(LunchIngredient.date, LunchIngredient.seq)")
     students = relationship("LunchStudent", back_populates="program",
                             cascade="all, delete-orphan", order_by="LunchStudent.name")
 
@@ -928,6 +932,24 @@ class LunchMenu(Base):
     created_at = Column(DateTime, default=datetime.now)
 
     program = relationship("LunchProgram", back_populates="menus")
+
+
+class LunchIngredient(Base):
+    """วัตถุดิบ/เครื่องปรุงที่ซื้อรายวัน (วิธีซื้อวัตถุดิบเอง)
+    ใบรับรายงานวัตถุดิบ / ใบรับรองการจ่ายเงิน / สรุปรายการจัดซื้อ (ตรวจรับ) ดึงข้อมูลไปเติมให้"""
+    __tablename__ = "lunch_ingredient"
+
+    id = Column(Integer, primary_key=True)
+    program_id = Column(Integer, ForeignKey("lunch_program.id"), nullable=False)
+    date = Column(DateTime, nullable=True)          # วันที่ซื้อ/ใช้ประกอบอาหาร
+    seq = Column(Integer, default=0)                # ลำดับในวันนั้น
+    name = Column(String, default="")               # ชื่อวัตถุดิบ/เครื่องปรุง
+    quantity = Column(Float, default=0.0)
+    unit = Column(String, default="")               # หน่วยนับ (กก./ขวด/ผล ฯลฯ)
+    unit_price = Column(Float, default=0.0)         # ราคาต่อหน่วย (บาท)
+    created_at = Column(DateTime, default=datetime.now)
+
+    program = relationship("LunchProgram", back_populates="ingredients")
 
 
 class LunchStudent(Base):
