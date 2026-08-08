@@ -118,8 +118,8 @@ def render_borrow_memo(rnd, school, doc=None) -> str:
     _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ", indent=1.25, after=12)
     _sign_table(doc, [
         [("(ลงชื่อ)....................................................ผู้ยืม", "center"),
-         (f"( {bname} )", "center")],
-        [(f"ตำแหน่ง {bpos}", "center"), ("", "center")]])
+         (f"( {bname} )", "center"),
+         (f"ตำแหน่ง {bpos}", "center")]])
     _p(doc, "", after=4)
     _simple_table(doc, ["ความคิดเห็นเจ้าหน้าที่การเงิน", "คำสั่ง/การสั่งการ"],
                   [[f"ได้ตรวจสอบสัญญาการยืมเงินและเอกสารประกอบแล้วถูกต้องตามระเบียบ เห็นควรอนุมัติ"
@@ -154,8 +154,8 @@ def render_estimate(rnd, school, doc=None) -> str:
     _p(doc, "", after=12)
     _sign_table(doc, [
         [("(ลงชื่อ)..................................................ผู้ประมาณการ/ผู้ยืม", "center"),
-         (f"( {bname} )", "center")],
-        [(f"ตำแหน่ง {bpos}", "center"), ("", "center")]])
+         (f"( {bname} )", "center"),
+         (f"ตำแหน่ง {bpos}", "center")]])
     return _finish(doc, own, f"แบบประมาณการค่าใช้จ่าย_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
@@ -264,7 +264,11 @@ def render_material_report_form(rnd, school, doc=None) -> str:
                   [Cm(2), Cm(3), Cm(3), Cm(1.6), Cm(1.6), Cm(2.4), Cm(2.4)])
     if body and total:
         _p(doc, f"รวมเป็นเงินทั้งสิ้น (ตัวอักษร) {bahttext(total)}", align="right", before=2, after=2, size=13)
-    _p(doc, "(ลงชื่อ)....................................ผู้จัดทำรายงาน", align="center", before=6, after=0)
+    bname, bpos = _borrower(school, rnd.program)
+    _sign_table(doc, [
+        [("(ลงชื่อ)....................................ผู้จัดทำรายงาน", "center"),
+         (f"( {bname} )", "center"),
+         (f"ตำแหน่ง {bpos}", "center")]])
     return _finish(doc, own, f"ใบรับรายงานวัตถุดิบ_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
@@ -364,8 +368,8 @@ def render_repay_memo(rnd, school, doc=None) -> str:
             f"จำนวน {_money(total)} บาท (ตัวอักษร {bahttext(total)})", align="justify", indent=1.25, after=12)
     _sign_table(doc, [
         [("(ลงชื่อ)....................................................ผู้ยืม", "center"),
-         (f"( {bname} )", "center")],
-        [(f"ตำแหน่ง {bpos}", "center"), ("", "center")]])
+         (f"( {bname} )", "center"),
+         (f"ตำแหน่ง {bpos}", "center")]])
     _p(doc, "", after=4)
     _simple_table(doc, ["ความคิดเห็นเจ้าหน้าที่การเงิน", "คำสั่ง/การสั่งการ"],
                   [[f"ได้ตรวจสอบหลักฐานและเอกสารประกอบการส่งใช้เงินยืมแล้วถูกต้องครบถ้วนตามระเบียบ "

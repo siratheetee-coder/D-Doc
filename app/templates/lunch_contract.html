@@ -146,14 +146,14 @@
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
     <h2 style="margin:0;">เมนูอาหารในช่วงสัญญา</h2>
-    <a class="btn sm gray" href="/lunch/{{ p.id }}/menu"><svg class="icon"><use href="#ic-clipboard"/></svg> จัดการเมนูทั้งหมด / เมนูแนะนำ 5 หมู่</a>
+    <a class="btn sm gray" href="/lunch/{{ p.id }}/menu?back=/lunch/round/{{ r.id }}/plan"><svg class="icon"><use href="#ic-clipboard"/></svg> จัดการเมนูทั้งหมด / เมนูแนะนำ 5 หมู่</a>
   </div>
   <p class="muted" style="margin:4px 0 10px;">เมนูจะถูกดึงไปใส่ในเอกสารงวด (ควบคุม/ส่งมอบ/ตรวจรับ) ตามวันที่ · เลือกวันจากช่วงสัญญาได้เลย (เฉพาะวันทำการ)</p>
   {% if menu_days %}
   <form method="post" action="/lunch/{{ p.id }}/menu/add" class="row" style="align-items:flex-end;">
     <input type="hidden" name="back" value="/lunch/round/{{ r.id }}/plan">
     <div><label>วันที่ <span class="muted">(ในช่วงสัญญา)</span></label>
-      <select name="date" style="width:170px;">
+      <select name="date" style="width:230px; min-width:230px;">
         {% for d in menu_days %}<option value="{{ d.be }}">{{ d.be }}{{ ' · มีเมนูแล้ว' if d.has }}</option>{% endfor %}
       </select></div>
     <div style="flex:2;"><label>อาหารคาว (จานหลัก)</label><input name="main" list="mains_dl" placeholder="เช่น ข้าวสวย แกงเขียวหวานไก่" required></div>

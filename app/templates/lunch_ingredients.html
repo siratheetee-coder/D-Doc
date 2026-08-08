@@ -12,22 +12,29 @@
 <div class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มวัตถุดิบ</h2>
   <form method="post" action="/lunch/{{ p.id }}/ingredients/add" class="row" style="align-items:flex-end;">
-    <div><label>วันที่</label><input name="date" list="menudays_dl" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:130px;"></div>
+    <div><label>วันที่ <span class="muted">(เลือกจากเมนู)</span></label>
+      {% if menu_days %}
+      <select name="date" style="width:250px; min-width:250px;">
+        {% for m in menu_days %}<option value="{{ m.be }}">{{ m.be }}{{ ' · ' ~ m.main if m.main }}</option>{% endfor %}
+      </select>
+      {% else %}
+      <input name="date" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:130px;">
+      {% endif %}
+    </div>
     <div style="flex:2;"><label>ชื่อวัตถุดิบ/เครื่องปรุง *</label><input name="name" required placeholder="เช่น ไก่หั่น, น้ำมันพืช"></div>
     <div><label>จำนวน</label><input name="quantity" type="number" step="0.01" value="1" style="width:90px;"></div>
     <div><label>หน่วยนับ</label><input name="unit" list="units_dl" placeholder="กก./ขวด/ผล" style="width:100px;"></div>
     <div><label>ราคาต่อหน่วย</label><input name="unit_price" type="number" step="0.01" value="0" style="width:110px;"></div>
     <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
   </form>
-  <datalist id="menudays_dl">{% for m in menu_days %}<option value="{{ m.be }}">{{ m.main }}</option>{% endfor %}</datalist>
   <datalist id="units_dl"><option value="กก."><option value="ขวด"><option value="ผล"><option value="ถุง"><option value="กล่อง"><option value="ฟอง"><option value="มัด"><option value="ตัว"></datalist>
-  <p class="muted" style="font-size:13px; margin:6px 0 0;">เคล็ดลับ: พิมพ์/เลือกวันที่จากเมนูที่ตั้งไว้ (ช่องวันที่จะเดาวันจากเมนูให้)</p>
+  <p class="muted" style="font-size:13px; margin:6px 0 0;">เคล็ดลับ: เลือกวันจากรายการเมนูที่ตั้งไว้ (มีชื่อเมนูของแต่ละวันให้เลือก) · ถ้ายังไม่มีเมนู ให้สร้างเมนูในช่วงสัญญาก่อน</p>
 </div>
 
 {% if groups %}
 <p class="muted" style="margin:0 0 10px;">คลิกวันที่เพื่อกาง/พับ · แก้ในตารางแล้วกดบันทึกทีละแถว (แถวอื่นไม่รีเซ็ต)</p>
 {% for g in groups %}
-<details class="card">
+<details class="card" data-be="{{ g.be }}">
   <summary>{{ ('วันที่ ' ~ g.be) if g.be else 'ไม่ระบุวันที่' }}
     {% if g.menu %}<span class="muted" style="font-size:14px; font-weight:600;">· {{ g.menu }}</span>{% endif %}
     <span class="muted" style="font-size:14px; font-weight:600;">· {{ g.rows|length }} รายการ · รวม {{ "{:,.2f}".format(g.total) }} บาท</span>
@@ -86,5 +93,18 @@
       if(this.value!==o)this.value=o;
     });
   });
+  // คงสถานะกาง/พับของแต่ละวันไว้ (ไม่หุบเองเมื่อรีเฟรชหลังเพิ่มวัตถุดิบ)
+  (function(){
+    var KEY='ingOpen_{{ p.id }}';
+    var open={}; try{ open=JSON.parse(localStorage.getItem(KEY)||'{}')||{}; }catch(e){ open={}; }
+    document.querySelectorAll('details[data-be]').forEach(function(d){
+      var be=d.getAttribute('data-be');
+      if(open[be]) d.open=true;
+      d.addEventListener('toggle', function(){
+        if(d.open) open[be]=1; else delete open[be];
+        try{ localStorage.setItem(KEY, JSON.stringify(open)); }catch(e){}
+      });
+    });
+  })();
 </script>
 {% endblock %}

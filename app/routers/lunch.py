@@ -514,7 +514,7 @@ def round_delete(rid: int, db: Session = Depends(get_db)):
 # ---------------- เมนู/สำรับ ----------------
 @router.get("/lunch/{pid}/menu", response_class=HTMLResponse)
 def menu_page(pid: int, request: Request, db: Session = Depends(get_db),
-              edit: int | None = None):
+              edit: int | None = None, back: str = ""):
     prog = db.get(LunchProgram, pid)
     if not prog:
         return RedirectResponse("/lunch", status_code=303)
@@ -564,6 +564,7 @@ def menu_page(pid: int, request: Request, db: Session = Depends(get_db),
         "term_end_be": be_date_input(term_end) if term_end else "",
         "menu_count": len(menu_rows),
         "filled": request.query_params.get("filled"),
+        "back": _safe_back(back, ""),
     })
 
 
@@ -712,7 +713,7 @@ def ingredient_delete(iid: int, db: Session = Depends(get_db)):
 @router.post("/lunch/menu/{mid}/update")
 def menu_update(mid: int, db: Session = Depends(get_db),
                 date: str = Form(""), main: str = Form(""), dessert: str = Form(""),
-                note: str = Form(""), groups: list[str] = Form([])):
+                note: str = Form(""), groups: list[str] = Form([]), back: str = Form("")):
     m = db.get(LunchMenu, mid)
     if not m:
         return RedirectResponse("/lunch", status_code=303)
@@ -722,7 +723,7 @@ def menu_update(mid: int, db: Session = Depends(get_db),
     m.note = note.strip()
     m.groups = _clean_groups(groups)
     db.commit()
-    return RedirectResponse(f"/lunch/{m.program_id}/menu", status_code=303)
+    return RedirectResponse(_safe_back(back, f"/lunch/{m.program_id}/menu"), status_code=303)
 
 
 @router.post("/lunch/menu/{mid}/delete")
