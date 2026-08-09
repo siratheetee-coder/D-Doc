@@ -126,10 +126,13 @@ def _setup_form(request, db, prog):
         ordered = list(DEFAULT_LEVELS) + [lv for lv in counts if lv not in DEFAULT_LEVELS]
         levels = [{"level": lv, "num": counts.get(lv, 0)} for lv in ordered]
         from_roster = bool(counts)
+    from app.models import Person
+    persons = db.query(Person).order_by(Person.name).all()
     return templates.TemplateResponse("lunch_setup.html", {
         "request": request, "school": get_school(db), "p": prog,
         "levels": levels, "modes": OPERATE_MODES, "from_roster": from_roster,
         "default_year": prog.year if prog else _current_academic_year(),
+        "persons": persons,
     })
 
 
@@ -578,6 +581,14 @@ def _safe_back(back: str, default: str) -> str:
     return b if b.startswith("/") and not b.startswith("//") else default
 
 
+def _stay_url(base: str, back: str) -> str:
+    """คงหน้าเดิม (base) หลังบันทึก แต่พา back ติดไปด้วย (ปุ่มกลับยังทำงาน)
+    ใช้แทนการเด้งไป back ทันที เพื่อให้ผู้ใช้ทำงานต่อหน้าเดิมได้"""
+    from urllib.parse import quote
+    b = _safe_back(back, "")
+    return f"{base}?back={quote(b, safe='/')}" if b else base
+
+
 @router.post("/lunch/{pid}/menu/add")
 def menu_add(pid: int, db: Session = Depends(get_db),
              date: str = Form(""), main: str = Form(""), dessert: str = Form(""),
@@ -587,13 +598,13 @@ def menu_add(pid: int, db: Session = Depends(get_db),
     db.add(LunchMenu(program_id=pid, date=parse_be_date(date), main=main.strip(),
                      dessert=dessert.strip(), note=note.strip(), groups=_clean_groups(groups)))
     db.commit()
-    return RedirectResponse(_safe_back(back, f"/lunch/{pid}/menu"), status_code=303)
+    return RedirectResponse(_stay_url(f"/lunch/{pid}/menu", back), status_code=303)
 
 
 @router.post("/lunch/{pid}/menu/fill-term")
 def menu_fill_term(pid: int, db: Session = Depends(get_db),
                    cycle_size: str = Form("5"), start_date: str = Form(""),
-                   end_date: str = Form(""), skip_holiday: str = Form("")):
+                   end_date: str = Form(""), skip_holiday: str = Form(""), back: str = Form("")):
     """สร้างเมนูทั้งสัญญาแบบหมุนเวียนรายสัปดาห์:
     เอา N เมนูแรกเป็นชุดหมุนเวียน ไล่ใส่ทุกวันเปิดเรียน (ข้ามเสาร์-อาทิตย์ + วันหยุดถ้าเลือก)
     ผูกเมนูกับ 'ลำดับวันเปิดเรียน' -> วันจันทร์ทุกสัปดาห์ได้เมนูเดียวกัน (เมื่อชุด=5)
@@ -612,7 +623,7 @@ def menu_fill_term(pid: int, db: Session = Depends(get_db),
     s = parse_be_date(start_date)
     e = parse_be_date(end_date)
     if not cycle or not s or not e or e < s:
-        return RedirectResponse(f"/lunch/{pid}/menu?filled=0", status_code=303)
+        return RedirectResponse(_stay_url(f"/lunch/{pid}/menu", back) + ("&" if back else "?") + "filled=0", status_code=303)
     hol = _lunch_holidays(prog) if skip_holiday else None
     existing = {m.date.date() for m in prog.menus if m.date}
     d, end = s.date(), e.date()
@@ -634,21 +645,21 @@ def menu_fill_term(pid: int, db: Session = Depends(get_db),
         db.query(LunchMenu).filter(LunchMenu.program_id == pid,
                                    LunchMenu.date.is_(None)).delete(synchronize_session=False)
     db.commit()
-    return RedirectResponse(f"/lunch/{pid}/menu?filled={created}", status_code=303)
+    return RedirectResponse(_stay_url(f"/lunch/{pid}/menu", back) + ("&" if back else "?") + f"filled={created}", status_code=303)
 
 
 @router.post("/lunch/{pid}/menu/delete-all")
-def menu_delete_all(pid: int, db: Session = Depends(get_db)):
+def menu_delete_all(pid: int, db: Session = Depends(get_db), back: str = Form("")):
     """ลบเมนูทั้งหมดของโครงการทีเดียว (เช่น สร้างวนผิดช่วง อยากเริ่มใหม่)"""
     if db.get(LunchProgram, pid):
         db.query(LunchMenu).filter_by(program_id=pid).delete(synchronize_session=False)
         db.commit()
-    return RedirectResponse(f"/lunch/{pid}/menu", status_code=303)
+    return RedirectResponse(_stay_url(f"/lunch/{pid}/menu", back), status_code=303)
 
 
 # ---------------- วัตถุดิบรายวัน (วิธีซื้อวัตถุดิบเอง) ----------------
 @router.get("/lunch/{pid}/ingredients", response_class=HTMLResponse)
-def ingredients_page(pid: int, request: Request, db: Session = Depends(get_db)):
+def ingredients_page(pid: int, request: Request, db: Session = Depends(get_db), back: str = ""):
     from app.models import LunchIngredient, Person
     prog = db.get(LunchProgram, pid)
     if not prog:
@@ -666,13 +677,14 @@ def ingredients_page(pid: int, request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("lunch_ingredients.html", {
         "request": request, "school": get_school(db), "p": prog,
         "groups": groups, "menu_days": menu_days, "today_be": be_date_input(datetime.now()),
+        "back": _safe_back(back, ""),
     })
 
 
 @router.post("/lunch/{pid}/ingredients/add")
 def ingredient_add(pid: int, db: Session = Depends(get_db), date: str = Form(""),
                    name: str = Form(""), quantity: str = Form("0"), unit: str = Form(""),
-                   unit_price: str = Form("0")):
+                   unit_price: str = Form("0"), back: str = Form("")):
     from app.models import LunchIngredient
     prog = db.get(LunchProgram, pid)
     d = parse_be_date(date)
@@ -682,7 +694,7 @@ def ingredient_add(pid: int, db: Session = Depends(get_db), date: str = Form("")
                                quantity=_to_float(quantity, 0.0), unit=unit.strip(),
                                unit_price=_to_float(unit_price, 0.0)))
         db.commit()
-    return RedirectResponse(f"/lunch/{pid}/ingredients", status_code=303)
+    return RedirectResponse(_stay_url(f"/lunch/{pid}/ingredients", back), status_code=303)
 
 
 @router.post("/lunch/ingredient/{iid}/update")
@@ -701,13 +713,13 @@ def ingredient_update(iid: int, request: Request, db: Session = Depends(get_db),
 
 
 @router.post("/lunch/ingredient/{iid}/delete")
-def ingredient_delete(iid: int, db: Session = Depends(get_db)):
+def ingredient_delete(iid: int, db: Session = Depends(get_db), back: str = Form("")):
     from app.models import LunchIngredient
     it = db.get(LunchIngredient, iid)
     pid = it.program_id if it else None
     if it:
         db.delete(it); db.commit()
-    return RedirectResponse(f"/lunch/{pid}/ingredients" if pid else "/lunch", status_code=303)
+    return RedirectResponse(_stay_url(f"/lunch/{pid}/ingredients", back) if pid else "/lunch", status_code=303)
 
 
 @router.post("/lunch/menu/{mid}/update")
@@ -723,7 +735,7 @@ def menu_update(mid: int, db: Session = Depends(get_db),
     m.note = note.strip()
     m.groups = _clean_groups(groups)
     db.commit()
-    return RedirectResponse(_safe_back(back, f"/lunch/{m.program_id}/menu"), status_code=303)
+    return RedirectResponse(_stay_url(f"/lunch/{m.program_id}/menu", back), status_code=303)
 
 
 @router.post("/lunch/menu/{mid}/delete")
@@ -733,7 +745,7 @@ def menu_delete(mid: int, db: Session = Depends(get_db), back: str = Form("")):
     if m:
         db.delete(m)
         db.commit()
-    return RedirectResponse(_safe_back(back, f"/lunch/{pid}/menu" if pid else "/lunch"), status_code=303)
+    return RedirectResponse(_stay_url(f"/lunch/{pid}/menu", back) if pid else "/lunch", status_code=303)
 
 
 @router.get("/lunch/{pid}/menu/print", response_class=HTMLResponse)

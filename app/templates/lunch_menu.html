@@ -55,6 +55,7 @@
   {% else %}
   <form method="post" action="/lunch/{{ p.id }}/menu/fill-term" class="row" style="align-items:flex-end;"
         onsubmit="return confirm('สร้างเมนูวนซ้ำตามช่วงวันที่นี้? (วันที่มีเมนูแล้วจะไม่ถูกแก้)');">
+    {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
     <div style="flex:0 0 auto;"><label>วนกี่เมนู <span class="muted">(ปกติ 5 = จ-ศ)</span></label>
       <input name="cycle_size" type="number" min="1" max="{{ menu_count }}" value="{{ 5 if menu_count >= 5 else menu_count }}" style="width:150px;"></div>
     <div style="flex:0 0 auto;"><label>ตั้งแต่วันที่</label>
@@ -72,7 +73,7 @@
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
     <h2 style="margin:0;">เมนูทั้งหมด {% if menu_rows %}<span class="muted" style="font-size:15px;">({{ menu_rows|length }} วัน)</span>{% endif %}</h2>
-    {% if menu_rows %}<form method="post" action="/lunch/{{ p.id }}/menu/delete-all" onsubmit="return confirm('ลบเมนูทั้งหมด {{ menu_rows|length }} วัน? ยกเลิกไม่ได้');" style="margin:0;"><button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-trash"/></svg> ลบทั้งหมด</button></form>{% endif %}
+    {% if menu_rows %}<form method="post" action="/lunch/{{ p.id }}/menu/delete-all" onsubmit="return confirm('ลบเมนูทั้งหมด {{ menu_rows|length }} วัน? ยกเลิกไม่ได้');" style="margin:0;">{% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}<button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-trash"/></svg> ลบทั้งหมด</button></form>{% endif %}
   </div>
   {% if menu_rows %}
   <div class="table-wrap">
@@ -95,7 +96,7 @@
         <td class="muted">{{ r.m.note }}</td>
         <td style="white-space:nowrap;">
           <a class="btn sm gray" href="/lunch/{{ p.id }}/menu?edit={{ r.m.id }}{{ ('&back=' ~ back) if back else '' }}">แก้ไข</a>
-          <form method="post" action="/lunch/menu/{{ r.m.id }}/delete" onsubmit="return confirm('ลบเมนูนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
+          <form method="post" action="/lunch/menu/{{ r.m.id }}/delete" onsubmit="return confirm('ลบเมนูนี้?');" style="display:inline; margin:0;">{% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}<button class="btn sm gray" type="submit">ลบ</button></form>
         </td>
       </tr>
     {% endfor %}

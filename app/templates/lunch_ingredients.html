@@ -4,7 +4,7 @@
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h1 style="margin:0;">วัตถุดิบรายวัน (ปีการศึกษา {{ p.year }})</h1>
-    <a class="btn sm gray" href="/lunch/{{ p.id }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับหน้าโครงการ</a>
+    <a class="btn sm gray" href="{{ back if back else '/lunch/' ~ p.id }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> {{ 'กลับหน้าจัดการงวด' if back else 'กลับหน้าโครงการ' }}</a>
   </div>
   <p class="muted" style="margin:4px 0 0;">กรอกวัตถุดิบ/เครื่องปรุงที่ซื้อในแต่ละวัน แล้วเอกสาร "ใบรับรายงานวัตถุดิบ / ใบรับรองการจ่ายเงิน / สรุปรายการจัดซื้อ" จะดึงไปเติมให้อัตโนมัติ (ไม่ต้องเขียนมือ)</p>
 </div>
@@ -12,9 +12,10 @@
 <div class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มวัตถุดิบ</h2>
   <form method="post" action="/lunch/{{ p.id }}/ingredients/add" class="row" style="align-items:flex-end;">
-    <div><label>วันที่ <span class="muted">(เลือกจากเมนู)</span></label>
+    {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
+    <div style="flex:0 0 250px; min-width:250px;"><label>วันที่ <span class="muted">(เลือกจากเมนู)</span></label>
       {% if menu_days %}
-      <select name="date" style="width:250px; min-width:250px;">
+      <select name="date" style="width:100%;">
         {% for m in menu_days %}<option value="{{ m.be }}">{{ m.be }}{{ ' · ' ~ m.main if m.main }}</option>{% endfor %}
       </select>
       {% else %}
@@ -54,7 +55,7 @@
           <td style="white-space:nowrap;">
             <button class="btn sm" type="button" onclick="saveIng(this)">บันทึก</button>
         </form>
-            <form method="post" action="/lunch/ingredient/{{ it.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบวัตถุดิบนี้?');"><button class="btn sm gray" type="submit">ลบ</button></form>
+            <form method="post" action="/lunch/ingredient/{{ it.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบวัตถุดิบนี้?');">{% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}<button class="btn sm gray" type="submit">ลบ</button></form>
           </td>
       </tr>
       {% endfor %}

@@ -15,7 +15,8 @@
     <div class="row">
       <div><label>อปท.ผู้จัดสรร (เทศบาล/อบต.)</label><input name="funding_org" value="{{ p.funding_org if p else '' }}"></div>
       <div><label>เจ้าหน้าที่โครงการอาหารกลางวัน <span class="muted">(ผู้จ่ายเงิน/ผู้ยืม อาจคนละคนกับ จนท.พัสดุ)</span></label>
-        <input name="lunch_officer" list="persons_dl" value="{{ p.lunch_officer if p else '' }}" placeholder="เว้นว่าง = ใช้ จนท.พัสดุ"></div>
+        <input name="lunch_officer" list="persons_dl" value="{{ p.lunch_officer if p else '' }}" placeholder="เลือกบุคลากร หรือพิมพ์ชื่อ (เว้นว่าง = ใช้ จนท.พัสดุ)">
+        <datalist id="persons_dl">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist></div>
       <div><label>อัตราต่อหัว/วัน <span class="muted">(เว้นว่าง = เลือกอัตโนมัติตามขนาด)</span></label>
         <input name="rate_per_head" id="rate" type="number" step="0.01" placeholder="อัตโนมัติ"
                value="{{ '%g'|format(p.rate_per_head) if p and p.rate_per_head else '' }}" oninput="calc()"></div>
