@@ -23,7 +23,7 @@ from app.models import (
 from app.services import file_upload
 from app.services.doc_number import (
     suggest_next, commit_number, suggest_doc_no, commit_doc_no, check_doc_no, format_doc_no,
-    parse_seq,
+    parse_seq, remove_issued,
 )
 from app.services.office_doc import render_memo, render_order, render_official_letter
 from app.services.admin_io import build_admin_template, import_admin_workbook, export_admin_register
@@ -321,6 +321,7 @@ def memo_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form("")
 def memo_delete(mid: int, db: Session = Depends(get_db)):
     m = db.get(OfficeMemo, mid)
     if m:
+        remove_issued(db, "admin", m.id, "memo")   # ลบเลขในทะเบียนกลางให้ตรงกัน
         db.delete(m); db.commit()
     return RedirectResponse("/admin/memos", status_code=303)
 
@@ -409,6 +410,7 @@ def order_update(oid: int, db: Session = Depends(get_db), order_no: str = Form("
 def order_delete(oid: int, db: Session = Depends(get_db)):
     o = db.get(SchoolOrder, oid)
     if o:
+        remove_issued(db, "admin", o.id, "command")   # ลบเลขคำสั่งในทะเบียนกลางให้ตรงกัน
         db.delete(o); db.commit()
     return RedirectResponse("/admin/orders", status_code=303)
 
@@ -622,6 +624,7 @@ def letter_update(lid: int, db: Session = Depends(get_db), doc_no: str = Form(""
 def letter_delete(lid: int, db: Session = Depends(get_db)):
     lt = db.get(OfficialLetter, lid)
     if lt:
+        remove_issued(db, "admin", lt.id, "outgoing")   # ลบเลขหนังสือส่งในทะเบียนกลางให้ตรงกัน
         db.delete(lt); db.commit()
     return RedirectResponse("/admin/letters", status_code=303)
 

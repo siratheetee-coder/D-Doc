@@ -4,14 +4,17 @@
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h1 style="margin:0;">ทะเบียนเลขหนังสือกลาง</h1>
-    <form method="get" action="/docnos" style="display:inline-flex; gap:8px; align-items:center; margin:0;">
-      <label style="margin:0;">ปีงบประมาณ</label>
-      <select name="year" onchange="submitReplace(this.form)" style="width:auto;">
-        {% for y in years %}<option value="{{ y }}" {{ "selected" if y==fiscal_year }}>{{ y }}</option>{% endfor %}
-      </select>
-    </form>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <a class="btn sm gray" href="/docnos/register.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> ออกไฟล์ทะเบียน (แนวนอน)</a>
+      <form method="get" action="/docnos" style="display:inline-flex; gap:8px; align-items:center; margin:0;">
+        <label style="margin:0;">ปีงบประมาณ</label>
+        <select name="year" onchange="submitReplace(this.form)" style="width:auto;">
+          {% for y in years %}<option value="{{ y }}" {{ "selected" if y==fiscal_year }}>{{ y }}</option>{% endfor %}
+        </select>
+      </form>
+    </div>
   </div>
-  <p class="muted">เลขที่ใช้จริงของทุกงาน (ธุรการ/พัสดุ/การเงิน) รวมศูนย์ที่นี่ - บันทึกข้อความและคำสั่งรันต่อเนื่องร่วมกัน · แก้เรื่อง/วันที่ได้ · ลบได้ (ลบเฉพาะรายการทะเบียน ไม่ลบเอกสารต้นทาง)</p>
+  <p class="muted">เลขที่ใช้จริงของทุกงาน (ธุรการ/พัสดุ/การเงิน) รวมศูนย์ที่นี่ - บันทึกข้อความและคำสั่งรันต่อเนื่องร่วมกัน · แก้เรื่อง/วันที่ได้ · ลบเลขที่มาจากงานธุรการจะลบเอกสารต้นทางให้ด้วย (เลขจากพัสดุ/การเงิน ลบเฉพาะรายการทะเบียน)</p>
   {% if request.query_params.get('saved') %}<div class="alert" style="margin-bottom:0;">✔ บันทึกแล้ว</div>{% endif %}
 </div>
 
@@ -46,7 +49,7 @@
     <thead><tr><th style="width:110px;">เลขที่</th><th>เรื่อง</th><th style="width:110px;">งาน</th><th style="width:140px;">วันที่บันทึก</th><th style="width:120px;"></th></tr></thead>
     <tbody>
       {% for r in rows %}
-      <tr data-did="{{ r.id }}">
+      <tr data-did="{{ r.id }}" data-no="{{ r.full_no }}" data-source="{{ r.source or '' }}">
         <td><b>{{ r.full_no }}</b></td>
         <form method="post" action="/docnos/{{ r.id }}/update" style="display:contents;">
           <td><input name="subject" value="{{ r.subject }}" placeholder="(ไม่ระบุ)"></td>
@@ -55,7 +58,7 @@
           <td style="white-space:nowrap;">
             <button class="btn sm" type="button" onclick="saveDocno(this)">บันทึก</button>
         </form>
-            <form method="post" action="/docnos/{{ r.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบเลขที่ {{ r.full_no }} ออกจากทะเบียน? (ไม่ลบเอกสารต้นทาง)');"><button class="btn sm gray" type="submit">ลบ</button></form>
+            <button class="btn sm gray" type="button" onclick="delDocno(this)">ลบ</button>
           </td>
       </tr>
       {% endfor %}
@@ -80,6 +83,30 @@
       tr.style.background='#dcfce7'; setTimeout(function(){ tr.style.background=''; }, 700);
       if(window.showToast) showToast('บันทึกแล้ว');
     }).catch(function(){ btn.disabled=false; alert('บันทึกไม่สำเร็จ ลองใหม่'); });
+  }
+  // ลบแบบ AJAX ไม่รีเฟรชหน้า + ถ้ามาจากธุรการจะลบเอกสารต้นทางให้ด้วย
+  function delDocno(btn){
+    var tr = btn.closest('tr'), did = tr.getAttribute('data-did');
+    var no = tr.getAttribute('data-no'), src = tr.getAttribute('data-source');
+    var msg = (src === 'admin')
+      ? ('ลบเลขที่ ' + no + '?\nเลขนี้มาจากงานธุรการ ระบบจะลบเอกสารต้นทางในงานธุรการให้ด้วย')
+      : ('ลบเลขที่ ' + no + ' ออกจากทะเบียน? (ไม่ลบเอกสารต้นทาง)');
+    if(!confirm(msg)) return;
+    btn.disabled = true;
+    fetch('/docnos/' + did + '/delete', {
+      method:'POST', headers:{'X-Requested-With':'fetch'}
+    }).then(function(r){ if(!r.ok) throw 0; return r.json(); }).then(function(j){
+      var det = tr.closest('details'), tbody = tr.parentNode;
+      tr.remove();
+      // อัปเดตจำนวนเลขใน summary + เก็บ/พับกลุ่มที่ว่าง
+      if(det){
+        var n = tbody.querySelectorAll('tr').length;
+        var cnt = det.querySelector('summary .muted');
+        if(cnt) cnt.textContent = '(' + n + ' เลข)';
+        if(n === 0){ det.remove(); }
+      }
+      if(window.showToast) showToast(j.removed_source ? 'ลบแล้ว (รวมเอกสารต้นทาง)' : 'ลบแล้ว');
+    }).catch(function(){ btn.disabled=false; alert('ลบไม่สำเร็จ ลองใหม่'); });
   }
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){

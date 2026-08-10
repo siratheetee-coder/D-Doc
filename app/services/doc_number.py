@@ -111,6 +111,19 @@ def log_issued(db: Session, doc_type: str, fiscal_year: int, seq: int,
     db.flush()
 
 
+def remove_issued(db: Session, source: str, ref_id, doc_type: str | None = None) -> int:
+    """ลบรายการเลขในทะเบียนกลางที่ผูกกับเอกสารต้นทาง (เรียกตอนลบเอกสารต้นทาง)
+    เพื่อให้ทะเบียนเลขหนังสือกับงานต้นทาง (ธุรการ/พัสดุ/การเงิน) ตรงกันเสมอ
+    ไม่รีเซ็ต counter (เลขที่เดินแล้วถือว่าใช้ไป กันเลขซ้ำ)"""
+    if ref_id is None:
+        return 0
+    q = db.query(IssuedDocNo).filter(IssuedDocNo.source == source, IssuedDocNo.ref_id == ref_id)
+    if doc_type:
+        q = q.filter(IssuedDocNo.doc_type == doc_type)
+    n = q.delete(synchronize_session=False)
+    return n
+
+
 def commit_doc_no(db: Session, doc_type: str, fiscal_year: int, doc_no: str,
                   source: str = "", ref_id=None, subject: str = "", date=None) -> None:
     """แยกเลขลำดับจากข้อความเลขที่ แล้ว bump counter + บันทึกลงทะเบียนเลขกลาง

@@ -319,13 +319,39 @@ def docno_update(did: int, request: Request, db: Session = Depends(get_db), subj
 
 
 @router.post("/docnos/{did}/delete")
-def docno_delete(did: int, db: Session = Depends(get_db)):
-    """ลบเลขที่ออกจากทะเบียนกลาง (ลบเฉพาะรายการทะเบียน ไม่ลบเอกสารต้นทาง)"""
+def docno_delete(did: int, request: Request, db: Session = Depends(get_db)):
+    """ลบเลขที่ออกจากทะเบียนกลาง - ถ้ามาจากงานธุรการ (บันทึกข้อความ/คำสั่ง/หนังสือส่ง)
+    ลบเอกสารต้นทางในงานธุรการให้ด้วย เพื่อให้ทะเบียนกับงานธุรการตรงกัน (AJAX ไม่รีเฟรชหน้า)"""
     r = db.get(IssuedDocNo, did)
     fy = r.fiscal_year if r else current_fiscal_year()
+    removed_source = False
     if r:
+        if r.source == "admin" and r.ref_id:
+            from app.models import OfficeMemo, SchoolOrder, OfficialLetter
+            model = {"memo": OfficeMemo, "command": SchoolOrder,
+                     "outgoing": OfficialLetter}.get(r.doc_type)
+            src = db.get(model, r.ref_id) if model else None
+            if src:
+                db.delete(src); removed_source = True
         db.delete(r); db.commit()
+    if request.headers.get("X-Requested-With") == "fetch":
+        return JSONResponse({"ok": bool(r), "removed_source": removed_source})
     return RedirectResponse(f"/docnos?year={fy}", status_code=303)
+
+
+@router.get("/docnos/register.docx")
+def docnos_register_doc(request: Request, db: Session = Depends(get_db), year: int | None = None):
+    """ออกไฟล์ทะเบียนหนังสือราชการ (Word แนวนอน) แยกตารางตามประเภทเอกสาร"""
+    from app.services.docno_register import render_docno_register
+    fy = year or current_fiscal_year()
+    rows = (db.query(IssuedDocNo)
+            .filter(IssuedDocNo.fiscal_year == fy)
+            .order_by(IssuedDocNo.doc_type, IssuedDocNo.seq).all())
+    groups = {}
+    for r in rows:
+        groups.setdefault(r.doc_type, []).append(r)
+    path = render_docno_register(groups, COUNTER_TYPES, fy, get_school(db))
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 # ---------------- งานพัสดุ: Dashboard / ทะเบียน ----------------
