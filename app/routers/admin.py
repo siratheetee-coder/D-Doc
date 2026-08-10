@@ -312,6 +312,7 @@ def memo_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form("")
         m.date = parse_be_date(date); m.from_dept = from_dept.strip()
         m.to_person = to_person.strip(); m.subject = subject.strip(); m.body = body
         m.signer_name = signer_name.strip(); m.signer_position = signer_position.strip()
+        remove_issued(db, "admin", m.id, "memo")   # ล้างเลขเก่า (กันค้างเมื่อเปลี่ยนเลข)
         commit_doc_no(db, "memo", m.fiscal_year, m.memo_no, source="admin", ref_id=m.id, subject=m.subject, date=m.date)
         db.commit()
     return RedirectResponse(f"/admin/memos/{mid}?saved=1", status_code=303)
@@ -401,6 +402,7 @@ def order_update(oid: int, db: Session = Depends(get_db), order_no: str = Form("
         from app.services.doc_number import parse_seq
         o.order_no = order_no.strip(); o.seq = parse_seq(order_no)
         o.date = parse_be_date(date); o.subject = subject.strip(); o.body = body
+        remove_issued(db, "admin", o.id, "command")   # ล้างเลขเก่า (กันค้างเมื่อเปลี่ยนเลข)
         commit_doc_no(db, "command", o.fiscal_year, o.order_no, source="admin", ref_id=o.id, subject=o.subject, date=o.date)
         db.commit()
     return RedirectResponse(f"/admin/orders/{oid}?saved=1", status_code=303)
@@ -614,6 +616,7 @@ def letter_update(lid: int, db: Session = Depends(get_db), doc_no: str = Form(""
         lt.ref = ref.strip(); lt.enclosure = enclosure.strip(); lt.body = body
         lt.closing = closing.strip() or "ขอแสดงความนับถือ"
         lt.signer_name = signer_name.strip(); lt.signer_position = signer_position.strip()
+        remove_issued(db, "admin", lt.id, "outgoing")   # ล้างเลขเก่า (กันค้างเมื่อเปลี่ยนเลข)
         commit_doc_no(db, "outgoing", lt.fiscal_year, lt.doc_no, source="admin",
                       ref_id=lt.id, subject=lt.subject, date=lt.date)
         db.commit()

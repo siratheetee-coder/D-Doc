@@ -28,7 +28,7 @@ from app.services.ledger_book_doc import (
     render_cash_book, render_cash_book_fund, build_cash_book_xlsx, build_cash_book_fund_xlsx,
     render_general_ledger, build_ledger_xlsx,
 )
-from app.services.doc_number import suggest_doc_no, commit_doc_no, check_doc_no, parse_seq
+from app.services.doc_number import suggest_doc_no, commit_doc_no, check_doc_no, parse_seq, remove_issued
 from app.services.finance_doc import render_disburse
 from app.services.finance_io import build_finance_template, import_finance_workbook
 from app.services.finance_report import export_finance_report
@@ -489,6 +489,7 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
             txn.amount = m.amount or 0
             txn.date = m.date or txn.date
             txn.ref = m.memo_no or txn.ref
+        remove_issued(db, "finance", m.id, "memo")   # ล้างเลขเก่า (กันค้างเมื่อเปลี่ยนเลข)
         commit_doc_no(db, "memo", m.fiscal_year, m.memo_no, source="finance", ref_id=m.id, date=m.date,
                   subject=((m.subject or "").strip() if (m.subject or "").strip().startswith("ขออนุมัติเบิกจ่าย")
                            else f"ขออนุมัติเบิกจ่าย {(m.subject or '').strip()}".strip()))
