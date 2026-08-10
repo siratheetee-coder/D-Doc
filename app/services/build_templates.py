@@ -1018,6 +1018,23 @@ def build_all():
     return built
 
 
+def ensure_templates(force: bool = False) -> bool:
+    """สร้างแม่แบบเอกสารพัสดุถ้ายังไม่มี หรือเก่ากว่าไฟล์โค้ดนี้ (build_templates.py)
+    แม่แบบ .docx ไม่ได้ track ใน git จึงต้องสร้างใหม่ทุกครั้งที่โค้ดแม่แบบ/ตัวแปรเปลี่ยน
+    (กัน 'stale template -> jinja UndefinedError -> 500' หลัง deploy). Idempotent + ปลอดภัย"""
+    try:
+        from app.services.render import TEMPLATE_FILES
+        src_mtime = Path(__file__).resolve().stat().st_mtime
+        outs = {TEMPLATES_DIR / fn for fn in TEMPLATE_FILES.values()}
+        need = force or any((not o.exists()) or o.stat().st_mtime < src_mtime for o in outs)
+        if need:
+            build_all()
+        return need
+    except Exception:
+        # อย่าให้ startup ล้มเพราะสร้างแม่แบบไม่ได้ (route จะแจ้ง error ตอนออกเอกสารแทน)
+        return False
+
+
 if __name__ == "__main__":
     for f in build_all():
         print("สร้างแม่แบบ:", f.name)
