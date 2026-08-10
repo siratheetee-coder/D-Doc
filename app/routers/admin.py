@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db, get_data_dir
 from app.models import (
     School, IncomingLetter, OutgoingLetter, OfficeMemo, SchoolOrder, Person, Department,
-    OfficialLetter, CertificateBatch, Student,
+    OfficialLetter, CertificateBatch, Student, IssuedDocNo,
 )
 from app.services import file_upload
 from app.services.doc_number import (
@@ -234,6 +234,28 @@ def outgoing_delete(rid: int, db: Session = Depends(get_db)):
 
 
 # ---------------- บันทึกข้อความ ----------------
+_SOURCE_LABEL = {"procurement": "พัสดุ", "finance": "การเงิน", "lunch": "อาหารกลางวัน"}
+
+
+def _external_issued(db: Session, doc_type: str):
+    """เลขในทะเบียนกลางที่ออกโดยงานอื่น (ไม่ใช่ธุรการ) - โชว์อ่านอย่างเดียว + ลิงก์ดูต้นทาง
+    เพื่อให้หน้าธุรการเห็นเลขทั้งหมดของประเภทนั้น ไม่ใช่แค่ที่ธุรการสร้างเอง"""
+    rows = (db.query(IssuedDocNo)
+            .filter(IssuedDocNo.doc_type == doc_type,
+                    IssuedDocNo.source.isnot(None), IssuedDocNo.source != "",
+                    IssuedDocNo.source != "admin")
+            .order_by(IssuedDocNo.fiscal_year.desc(), IssuedDocNo.seq.desc()).all())
+    def _href(r):
+        if r.ref_id and r.source == "procurement":
+            return f"/procurement/{r.ref_id}"
+        if r.ref_id and r.source == "finance":
+            return f"/finance/disburse/{r.ref_id}"
+        return ""
+    return [{"full_no": r.full_no, "subject": r.subject or "", "date": r.date,
+             "source": r.source, "source_label": _SOURCE_LABEL.get(r.source, r.source),
+             "href": _href(r)} for r in rows]
+
+
 @router.get("/admin/memos", response_class=HTMLResponse)
 def memos_page(request: Request, db: Session = Depends(get_db)):
     fy = current_fiscal_year()
@@ -242,6 +264,7 @@ def memos_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("memos.html", {
         "request": request, "rows": rows, "fiscal_year": fy, "school": school,
         "sug_memo": suggest_doc_no(db, "memo", fy),
+        "external": _external_issued(db, "memo"),
         "persons": db.query(Person).order_by(Person.name).all(),
         "departments": db.query(Department).order_by(Department.name).all(),
     })
@@ -344,6 +367,7 @@ def orders_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("orders.html", {
         "request": request, "rows": rows, "fiscal_year": fy, "school": get_school(db),
         "sug_order": suggest_doc_no(db, "command", fy),
+        "external": _external_issued(db, "command"),
     })
 
 

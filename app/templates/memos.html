@@ -89,6 +89,29 @@
   {% else %}<p class="muted">ยังไม่มีบันทึกข้อความ</p>{% endif %}
 </div>
 
+{% if external %}
+<div class="card">
+  <h2>เลขบันทึกข้อความจากงานอื่น ({{ external|length }})</h2>
+  <p class="muted" style="margin-top:0;">เลขที่งานพัสดุ/การเงินออกโดยใช้ชุดเลขบันทึกข้อความร่วมกัน (แก้/ออกไฟล์ที่งานต้นทาง)</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>เลขที่</th><th>วันที่</th><th>เรื่อง</th><th>งาน</th><th></th></tr></thead>
+    <tbody>
+      {% for e in external %}
+      <tr>
+        <td><b>{{ e.full_no or "-" }}</b></td>
+        <td>{{ thai_date(e.date) if e.date else "-" }}</td>
+        <td>{{ e.subject or "-" }}</td>
+        <td><span class="pill" style="background:#eef2ff; color:#4338ca; font-size:12px;">{{ e.source_label }}</span></td>
+        <td class="right" style="white-space:nowrap;">
+          {% if e.href %}<a class="btn sm gray" href="{{ e.href }}"><svg class="icon"><use href="#ic-arrow-right"/></svg> ดูต้นทาง</a>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
+
 <script>
   function aiWrite(btn){
     var msg=document.getElementById('aiMsg');
