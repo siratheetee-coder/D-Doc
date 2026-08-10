@@ -21,7 +21,8 @@ from app.services.build_templates import (
     _font, _p, _sign_table, _set_cell, _repeat_header_row, _no_split_row,
     _krut_and_title,
 )
-from app.services.lunch_doc import _money, _dnum, _save, _simple_table, _BLANK, _memo_head
+from app.services.lunch_doc import (_money, _dnum, _save, _simple_table, _BLANK,
+                                    _memo_head, _committee_lines)
 
 _THAI_MONTHS = ["", "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
                 "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"]
@@ -159,6 +160,66 @@ def render_estimate(rnd, school, doc=None) -> str:
     return _finish(doc, own, f"แบบประมาณการค่าใช้จ่าย_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
+def render_purchase_report(rnd, school, doc=None) -> str:
+    """03 บันทึกข้อความ รายงานขอซื้อวัตถุดิบ (7 ข้อ + ข้อ 8 แต่งตั้งกรรมการ 3 ชุด)
+    ตรงตามคู่มืออาหารกลางวัน สพฐ. (จัดซื้อวัตถุดิบ) - ดึงกรรมการ 3 ชุดที่ตั้งไว้มาแสดง"""
+    doc, own = _begin(doc)
+    prog = rnd.program
+    sname = (school.name or "").strip() or "โรงเรียน"
+    officer = (getattr(school, "officer_name", "") or "").strip() or _BLANK
+    head = (getattr(school, "head_officer_name", "") or "").strip() or _BLANK
+    director = (school.director_name or "").strip() or _BLANK
+    students = prog.total_students
+    days = rnd.days or 0
+    total = round(float(rnd.amount or 0), 2)
+    ds, de = _dnum(rnd.start_date), _dnum(rnd.end_date)
+    month = _month_year(rnd.start_date)
+    _memo_head(doc, school,
+               [f"รายงานขอซื้อวัตถุดิบเพื่อใช้ประกอบอาหารประจำเดือน {month}",
+                f"(ระหว่างวันที่ {ds} ถึงวันที่ {de})"],
+               _dnum(rnd.order_date), rnd.order_no)
+    _p(doc, f"ด้วยโรงเรียน{sname} จัดซื้อวัตถุดิบเพื่อใช้ในการประกอบอาหารให้นักเรียนรับประทาน ระหว่างวันที่ "
+            f"{ds} ถึงวันที่ {de} รวม {days} วัน การจัดซื้อครั้งนี้ดำเนินการโดยวิธีเฉพาะเจาะจง ตามพระราชบัญญัติ"
+            "การจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 มาตรา 56 (2) (ข) และหนังสือคณะกรรมการ"
+            "วินิจฉัยปัญหาการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ ด่วนที่สุด ที่ กค (กวจ) 0405.2/ว 116 "
+            "ลงวันที่ 12 มีนาคม พ.ศ. 2562 ซึ่งมีรายละเอียดดังต่อไปนี้", align="justify", indent=1.25, after=2)
+    _p(doc, "1. เหตุผลและความจำเป็นที่ต้องจัดซื้อ", bold=True, indent=1.25, after=0)
+    _p(doc, f"เพื่อใช้ในการประกอบอาหารให้นักเรียนรับประทานในมื้อกลางวัน สำหรับนักเรียน จำนวน {students} คน",
+       indent=1.5, after=2)
+    _p(doc, "2. รายละเอียดคุณลักษณะเฉพาะของพัสดุ", bold=True, indent=1.25, after=0)
+    _p(doc, "รายการวัตถุดิบและคุณลักษณะเฉพาะของวัตถุดิบ รายละเอียดตามเอกสารแนบท้าย", indent=1.5, after=2)
+    _p(doc, "3. ราคากลางของพัสดุที่จะซื้อ", bold=True, indent=1.25, after=0)
+    _p(doc, f"เป็นเงิน {_money(total)} บาท ({bahttext(total)})", indent=1.5, after=2)
+    _p(doc, "4. วงเงินที่จะซื้อ", bold=True, indent=1.25, after=0)
+    _p(doc, f"เป็นเงิน {_money(total)} บาท ({bahttext(total)})", indent=1.5, after=2)
+    _p(doc, "5. กำหนดเวลาที่ต้องการพัสดุ", bold=True, indent=1.25, after=0)
+    _p(doc, f"กำหนดส่งมอบระหว่างวันที่ {ds} ถึงวันที่ {de} ทุกวันทำการ เวลา 06.00 น.", indent=1.5, after=2)
+    _p(doc, "6. วิธีที่จะซื้อและเหตุผลที่ต้องซื้อโดยวิธีเฉพาะเจาะจง", bold=True, indent=1.25, after=0)
+    _p(doc, "ดำเนินการโดยวิธีเฉพาะเจาะจง เนื่องจากการจัดซื้อจัดจ้างพัสดุที่มีการผลิต จำหน่าย หรือให้บริการทั่วไป "
+            "และมีวงเงินในการจัดซื้อจัดจ้างครั้งหนึ่งไม่เกินวงเงินตามที่กำหนดในกฎกระทรวง", align="justify", indent=1.5, after=2)
+    _p(doc, "7. หลักเกณฑ์การพิจารณาคัดเลือกข้อเสนอ", bold=True, indent=1.25, after=0)
+    _p(doc, "การพิจารณาคัดเลือกข้อเสนอโดยใช้เกณฑ์ราคา", indent=1.5, after=2)
+    _p(doc, "8. การอนุมัติแต่งตั้งบุคคลหรือคณะกรรมการ ดังนี้", bold=True, indent=1.25, after=0)
+    _p(doc, "8.1 คณะกรรมการตรวจรับพัสดุ ประกอบด้วย", indent=1.5, after=0)
+    _committee_lines(doc, _committee(rnd, "inspect"))
+    _p(doc, "8.2 ผู้ควบคุมรับผิดชอบในการประกอบอาหาร ได้แก่", indent=1.5, before=2, after=0)
+    _committee_lines(doc, _committee(rnd, "cook_control"), fallback_n=1)
+    _p(doc, "8.3 คณะกรรมการตรวจการประกอบอาหาร ประกอบด้วย", indent=1.5, before=2, after=0)
+    _committee_lines(doc, _committee(rnd, "food_inspect"))
+    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณา หากเห็นชอบขอได้โปรดอนุมัติให้ดำเนินการตามรายละเอียดในรายงานขอซื้อ"
+            "ดังกล่าวข้างต้น", align="justify", indent=1.25, before=2, after=10)
+    _sign_table(doc, [
+        [("(ลงชื่อ)..............................................เจ้าหน้าที่พัสดุ", "center"),
+         (f"( {officer} )", "center")],
+        [("(ลงชื่อ)..............................................หัวหน้าเจ้าหน้าที่", "center"),
+         (f"( {head} )", "center")]])
+    _p(doc, "คำสั่ง   อนุมัติตามเสนอ", align="center", bold=True, before=4, after=8)
+    _sign_table(doc, [
+        [("(ลงชื่อ)..............................................ผู้อำนวยการโรงเรียน", "center"),
+         (f"( {director} )", "center")]])
+    return _finish(doc, own, f"รายงานขอซื้อวัตถุดิบ_รอบที่{rnd.seq}_ปี{prog.year}")
+
+
 def render_purchase_form(rnd, school, doc=None) -> str:
     """05 ใบจัดซื้อวัสดุเครื่องบริโภค วงเงินไม่เกิน 500,000 บาท (รวม 4 ส่วนในใบเดียว)"""
     doc, own = _begin(doc)
@@ -273,38 +334,42 @@ def render_material_report_form(rnd, school, doc=None) -> str:
 
 
 def render_receipt_form(rnd, school, doc=None) -> str:
-    """07 ใบเสร็จรับเงิน + 08 ใบรับรองการจ่ายเงิน (ฟอร์มเปล่าตามระเบียบฯ พ.ศ. 2562 ข้อ 48)"""
+    """08 ใบรับรองการจ่ายเงินค่าวัตถุดิบ (ตารางราคากลางที่จัดซื้อ) ตรงตามคู่มืออาหารกลางวัน สพฐ.
+    ดึงวัตถุดิบ+เมนูรายวันมาเติม + ลงชื่อ เจ้าหน้าที่โครงการอาหารกลางวัน/ผู้จ่ายเงิน"""
     doc, own = _begin(doc)
     prog = rnd.program
     sname = (school.name or "").strip() or "โรงเรียน"
     bname, bpos = _borrower(school, rnd.program)
-    # 07 ใบเสร็จรับเงิน
-    _p(doc, "ใบเสร็จรับเงิน", align="center", bold=True, size=18, after=2)
-    _p(doc, "เล่มที่................    เลขที่................", align="right", after=4)
-    for line in ["ชื่อบุคคล/ร้านค้า/ห้างหุ้นส่วนจำกัด/บริษัท ...........................................................",
-                 "ที่อยู่ ...................................................................................................................",
-                 "เลขที่ผู้เสียภาษีอากร ..................................    วันที่ ..............................................",
-                 f"ชื่อ (ผู้ซื้อ)  โรงเรียน{sname}"]:
-        _p(doc, line, indent=1, after=0)
-    _p(doc, "ลงชื่อ....................................................ผู้รับเงิน", align="center", before=8, after=0)
-    # 08 ใบรับรองการจ่ายเงิน
-    doc.add_page_break()
-    _p(doc, "ใบรับรองการจ่ายเงิน", align="center", bold=True, size=18, after=2)
-    _p(doc, f"โรงเรียน{sname}", align="center", after=0)
-    _p(doc, "วันที่.............. เดือน ...................... พ.ศ. ..............", align="center", after=6)
-    _rtotal = sum((ig.quantity or 0) * (ig.unit_price or 0) for ig in _round_ingredients(rnd))
-    _p(doc, "รวมทั้งสิ้น (ตัวอักษร) "
-            + (f"{bahttext(_rtotal)} ({_money(_rtotal)} บาท)" if _rtotal
-               else "............................................................................................"),
-       indent=1, after=2)
-    _p(doc, f"ข้าพเจ้า {bname} ตำแหน่ง {bpos} โรงเรียน{sname} ขอรับรองว่ารายจ่ายข้างต้นนี้ไม่อาจเรียก"
-            "ใบเสร็จรับเงินจากผู้ขายได้ และข้าพเจ้าได้จ่ายไปในงานของราชการโดยแท้",
-       align="justify", indent=1, after=10)
-    _p(doc, "ลงชื่อ..........................................................", align="center", after=0)
-    _p(doc, f"( {bname} )", align="center", after=0)
-    _p(doc, "หมายเหตุ กรณีไม่สามารถเรียกใบเสร็จรับเงินจากผู้ขายได้ ให้ใช้ใบรับรองการจ่ายเงินแทน "
+    _p(doc, "ใบรับรองการจ่ายเงินค่าวัตถุดิบ", align="center", bold=True, size=18, after=0)
+    _p(doc, f"โรงเรียน{sname}  ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}",
+       align="center", after=6)
+    ings = _round_ingredients(rnd)
+    menus_by_date = {m.date.date(): (m.main or "") for m in prog.menus if m.date}
+    body, prev_d, total = [], None, 0.0
+    for ig in ings:
+        d = ig.date.date() if ig.date else None
+        amt = (ig.quantity or 0) * (ig.unit_price or 0)
+        total += amt
+        body.append([menus_by_date.get(d, "") if d != prev_d else "",
+                     ig.name or "", _money(ig.quantity), ig.unit or "", _money(amt)])
+        prev_d = d
+    if body:
+        body.append(["", "รวมเงิน", "", "", _money(total)])
+    else:
+        body = [["", "", "", "", ""] for _ in range(6)]
+    _simple_table(doc,
+                  ["รายการอาหาร", "วัตถุดิบ/เครื่องปรุง", "จำนวน", "หน่วยนับ", "ราคากลางที่จัดซื้อ (บาท)"],
+                  body,
+                  [Cm(3.6), Cm(4.0), Cm(2.0), Cm(2.0), Cm(4.65)])
+    if body and total:
+        _p(doc, f"รวมเป็นเงินทั้งสิ้น (ตัวอักษร) {bahttext(total)}", align="right", before=2, after=2, size=13)
+    _sign_table(doc, [
+        [("(ลงชื่อ)............................................เจ้าหน้าที่โครงการอาหารกลางวัน/ผู้จ่ายเงิน", "center"),
+         (f"( {bname} )", "center"),
+         (f"ตำแหน่ง {bpos}", "center")]])
+    _p(doc, "หมายเหตุ กรณีไม่อาจเรียกใบเสร็จรับเงินจากผู้ขายได้ ให้ใช้ใบรับรองการจ่ายเงินแทน "
             "(อ้างอิงระเบียบกระทรวงการคลังฯ พ.ศ. 2562 ข้อ 48)", indent=0.5, before=8, size=13)
-    return _finish(doc, own, f"ใบเสร็จ_ใบรับรองการจ่าย_รอบที่{rnd.seq}_ปี{prog.year}")
+    return _finish(doc, own, f"ใบรับรองการจ่ายเงินค่าวัตถุดิบ_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
 def render_control_report(rnd, school, doc=None) -> str:
@@ -445,13 +510,14 @@ def render_inspection_note(rnd, school, doc=None) -> str:
 def render_ingredient_bundle(rnd, school) -> str:
     """ออกชุดเอกสารซื้อวัตถุดิบทั้งชุดเป็นไฟล์เดียว (เรียงตามลำดับงานจริง)"""
     doc = Document(); set_a4(doc); _font(doc)
-    render_borrow_memo(rnd, school, doc)          # 02 ขออนุมัติยืมเงิน
-    render_estimate(rnd, school, doc)             # 04 แบบประมาณการ
-    render_purchase_form(rnd, school, doc)        # 05 ใบจัดซื้อวัสดุเครื่องบริโภค
-    render_material_report_form(rnd, school, doc) # 06 ใบรับรายงานวัตถุดิบ
-    render_receipt_form(rnd, school, doc)         # 07+08 ใบเสร็จ/ใบรับรองการจ่าย
+    # เรียงตามลำดับคู่มืออาหารกลางวัน สพฐ. (จัดซื้อวัตถุดิบ)
+    render_purchase_report(rnd, school, doc)      # รายงานขอซื้อ + แต่งตั้งกรรมการ 3 ชุด
+    render_borrow_memo(rnd, school, doc)          # ขออนุมัติยืมเงิน
+    render_estimate(rnd, school, doc)             # แบบประมาณการ
+    render_repay_memo(rnd, school, doc)           # อนุมัติเบิกจ่ายส่งใช้เงินยืม
+    render_material_report_form(rnd, school, doc) # ใบรับรายงานวัตถุดิบ
+    render_receipt_form(rnd, school, doc)         # ใบรับรองการจ่ายเงินค่าวัตถุดิบ
     render_purchase_summary(rnd, school, doc)     # สรุปรายการจัดซื้อ (เพื่อตรวจรับ)
-    render_control_report(rnd, school, doc)       # 09 บันทึกตรวจการประกอบอาหาร
+    render_control_report(rnd, school, doc)       # รายงานการประกอบอาหาร
     render_inspection_note(rnd, school, doc)      # ใบตรวจรับพัสดุ (ข้อ 175)
-    render_repay_memo(rnd, school, doc)           # 10 ขออนุมัติเบิกจ่ายส่งใช้เงินยืม
     return _save(doc, f"ชุดเอกสารซื้อวัตถุดิบ_รอบที่{rnd.seq}_ปี{rnd.program.year}")
