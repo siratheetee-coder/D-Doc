@@ -19,7 +19,7 @@ from app.services.doc_page import set_a4
 from app.thai_utils import bahttext
 from app.services.build_templates import (
     _font, _p, _sign_table, _set_cell, _repeat_header_row, _no_split_row,
-    _krut_and_title,
+    _krut_and_title, _p_runs, _hr,
 )
 from app.services.lunch_doc import (_money, _dnum, _save, _simple_table, _BLANK,
                                     _memo_head, _committee_lines)
@@ -507,17 +507,131 @@ def render_inspection_note(rnd, school, doc=None) -> str:
     return _finish(doc, own, f"ใบตรวจรับพัสดุ_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
+def _memo_head_to(doc, school, subject_lines, date, doc_no, addressee):
+    """หัวบันทึกข้อความ (สารบรรณ) แบบระบุผู้รับเอง (เช่น เรียน ประธานกรรมการตรวจรับ)"""
+    sname = (school.name or "").strip() or "โรงเรียน"
+    office = (f"โรงเรียน{sname}  " + (school.address or "").strip()).strip()
+    _krut_and_title(doc)
+    _p_runs(doc, [("ส่วนราชการ  ", True), (office, False)], after=0)
+    _p_runs(doc, [("ที่  ", True), ((doc_no or "").strip() or _BLANK, False),
+                  ("\t", False), ("วันที่  ", True), (date, False)], tab_cm=8, after=0)
+    for i, s in enumerate(subject_lines):
+        _p_runs(doc, [("เรื่อง  ", True), (s, False)], after=0) if i == 0 else _p(doc, "        " + s, after=0)
+    _p_runs(doc, [("เรียน  ", True), (addressee, False)], after=0)
+    _hr(doc)
+
+
+def render_menu_list(rnd, school, doc=None) -> str:
+    """01 รายการอาหารกลางวัน (ตาม Thai School Lunch) - ตารางเมนูรายวันในช่วงรอบ"""
+    doc, own = _begin(doc)
+    prog = rnd.program
+    sname = (school.name or "").strip() or "โรงเรียน"
+    bname, _ = _borrower(school, rnd.program)
+    _p(doc, "รายการอาหารกลางวัน (ตาม Thai School Lunch)", align="center", bold=True, size=17, after=0)
+    _p(doc, f"โรงเรียน{sname}  ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}",
+       align="center", after=6)
+    days = _round_menu_days(rnd)
+    if days:
+        body = [[_dnum(m.date), " ".join(x for x in [(m.main or ""), (m.dessert or "")] if x), ""] for m in days]
+    else:
+        body = [["", "", ""] for _ in range(10)]
+    _simple_table(doc, ["วัน เดือน ปี", "รายการอาหาร", "หมายเหตุ"], body,
+                  [Cm(3.0), Cm(10.65), Cm(2.6)])
+    _sign_table(doc, [
+        [("(ลงชื่อ)............................................เจ้าหน้าที่โครงการอาหารกลางวัน/ผู้จัดทำ", "center"),
+         (f"( {bname} )", "center")]])
+    return _finish(doc, own, f"รายการอาหารกลางวัน_รอบที่{rnd.seq}_ปี{prog.year}")
+
+
+def render_inspect_notify(rnd, school, doc=None) -> str:
+    """บันทึกข้อความ การตรวจรับพัสดุ (แจ้งประธานกรรมการตรวจรับให้ปฏิบัติหน้าที่)
+    ตรงตามคู่มืออาหารกลางวัน สพฐ."""
+    doc, own = _begin(doc)
+    prog = rnd.program
+    sname = (school.name or "").strip() or "โรงเรียน"
+    officer = (getattr(school, "officer_name", "") or "").strip() or _BLANK
+    director = (school.director_name or "").strip() or _BLANK
+    insp = _committee(rnd, "inspect")
+    chair = insp[0].name if insp else _BLANK
+    others = " และ ".join(m.name for m in insp[1:]) if len(insp) > 1 else "....................................."
+    month = _month_year(rnd.start_date)
+    _memo_head_to(doc, school,
+                  [f"การตรวจรับพัสดุ รายการวัตถุดิบเพื่อใช้ในการประกอบอาหารกลางวันประจำเดือน {month}",
+                   f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}"],
+                  _dnum(rnd.order_date), rnd.order_no,
+                  "ประธานคณะกรรมการตรวจรับพัสดุ/ผู้ตรวจรับพัสดุ")
+    _p(doc, f"ด้วยผู้อำนวยการโรงเรียน{sname} ได้แต่งตั้ง {chair} ประธานกรรมการตรวจรับพัสดุ/ผู้ตรวจรับพัสดุ "
+            f"พร้อมด้วย {others} เป็นกรรมการตรวจรับพัสดุ เพื่อทำหน้าที่ตรวจรับวัตถุดิบเพื่อใช้ในการประกอบอาหาร"
+            "ในการส่งมอบทุกครั้ง โดยให้จัดทำรายงานผลการตรวจรับเสนอหัวหน้าหน่วยงานของรัฐ (ผู้อำนวยการโรงเรียน) "
+            "เป็นรายสัปดาห์หรือรายเดือน ตามความเหมาะสมแล้วแต่กรณี ทั้งนี้ ประธานคณะกรรมการตรวจรับพัสดุอาจ"
+            "มอบหมายให้กรรมการคนหนึ่งคนใดทำหน้าที่ตรวจรับพัสดุเบื้องต้นในแต่ละครั้งที่มีการส่งมอบก็ได้ และให้"
+            "กรรมการผู้มีหน้าที่จัดทำบันทึกสรุปรายการวัตถุดิบที่ตรวจรับในแต่ละครั้ง แล้วรวบรวมส่งมอบให้เจ้าหน้าที่"
+            "พัสดุเก็บรวบรวมเสนอต่อคณะกรรมการตรวจรับพัสดุเป็นรายสัปดาห์หรือรายเดือนต่อไป",
+       align="justify", indent=1.25, after=2)
+    _p(doc, "สำหรับรายการวัตถุดิบเพื่อใช้ในการประกอบอาหารในแต่ละวัน เจ้าหน้าที่จะได้ส่งให้คณะกรรมการตรวจรับ"
+            "พัสดุ/ผู้ตรวจรับพัสดุ ทราบต่อไป", align="justify", indent=1.25, after=2)
+    _p(doc, "จึงเรียนมาเพื่อโปรดทราบ", indent=1.25, after=14)
+    _sign_table(doc, [
+        [("(ลงชื่อ)............................................", "center"),
+         (f"( {officer} )", "center"),
+         ("เจ้าหน้าที่พัสดุ", "center")]])
+    return _finish(doc, own, f"บันทึกแจ้งตรวจรับพัสดุ_รอบที่{rnd.seq}_ปี{prog.year}")
+
+
+def render_inspect_report(rnd, school, doc=None) -> str:
+    """บันทึกข้อความ รายงานการตรวจรับพัสดุ (เจ้าหน้าที่พัสดุ เสนอ ผอ. แนบใบตรวจรับ)
+    ตรงตามคู่มืออาหารกลางวัน สพฐ."""
+    doc, own = _begin(doc)
+    prog = rnd.program
+    sname = (school.name or "").strip() or "โรงเรียน"
+    officer = (getattr(school, "officer_name", "") or "").strip() or _BLANK
+    head = (getattr(school, "head_officer_name", "") or "").strip() or _BLANK
+    director = (school.director_name or "").strip() or _BLANK
+    days = len(_round_menu_days(rnd)) or (rnd.days or 0)
+    month = _month_year(rnd.start_date)
+    _memo_head(doc, school,
+               [f"รายงานการตรวจรับพัสดุ รายการวัตถุดิบเพื่อใช้ในการประกอบอาหารกลางวันประจำเดือน {month}",
+                f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}"],
+               _dnum(rnd.end_date), rnd.order_no)
+    _p(doc, f"ตามคำสั่งโรงเรียน{sname} เรื่อง แต่งตั้งคณะกรรมการตรวจรับพัสดุ ผู้ควบคุมรับผิดชอบในการประกอบ"
+            "อาหาร และคณะกรรมการตรวจการประกอบอาหาร ในส่วนของคณะกรรมการตรวจรับพัสดุ มีหน้าที่ตรวจรับ"
+            "อาหารสด อาหารแห้งรายวัน ซึ่งเจ้าหน้าที่โครงการอาหารกลางวันจัดซื้อตามรายการอาหารที่กำหนดในแต่ละวัน "
+            "โดยให้จัดทำรายงานการตรวจรับเสนอผู้อำนวยการเป็นรายสัปดาห์ นั้น", align="justify", indent=1.25, after=2)
+    _p(doc, f"เจ้าหน้าที่โครงการอาหารกลางวันได้จัดซื้อวัตถุดิบและส่งมอบให้คณะกรรมการตรวจรับพัสดุ ในระหว่าง"
+            f"วันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} จำนวน {days} วัน ตามแบบตรวจรับ"
+            "ที่แนบมาพร้อมหนังสือนี้", align="justify", indent=1.25, after=2)
+    _p(doc, "จึงเรียนมาเพื่อโปรดทราบ", indent=1.25, after=12)
+    _sign_table(doc, [
+        [("(ลงชื่อ)............................................", "center"),
+         (f"( {officer} )", "center"),
+         ("เจ้าหน้าที่พัสดุ", "center")]])
+    _p(doc, "ความเห็นของหัวหน้าเจ้าหน้าที่พัสดุ   เรียน ผู้อำนวยการโรงเรียน เพื่อโปรดทราบ",
+       indent=1.25, before=4, after=8)
+    _sign_table(doc, [
+        [("(ลงชื่อ)............................................", "center"),
+         (f"( {head} )", "center"),
+         ("หัวหน้าเจ้าหน้าที่พัสดุ", "center")]])
+    _p(doc, "คำสั่ง   ทราบ", align="center", bold=True, before=4, after=8)
+    _sign_table(doc, [
+        [("(ลงชื่อ)............................................ผู้อำนวยการโรงเรียน", "center"),
+         (f"( {director} )", "center")]])
+    return _finish(doc, own, f"รายงานการตรวจรับพัสดุ_รอบที่{rnd.seq}_ปี{prog.year}")
+
+
 def render_ingredient_bundle(rnd, school) -> str:
     """ออกชุดเอกสารซื้อวัตถุดิบทั้งชุดเป็นไฟล์เดียว (เรียงตามลำดับงานจริง)"""
     doc = Document(); set_a4(doc); _font(doc)
-    # เรียงตามลำดับคู่มืออาหารกลางวัน สพฐ. (จัดซื้อวัตถุดิบ)
-    render_purchase_report(rnd, school, doc)      # รายงานขอซื้อ + แต่งตั้งกรรมการ 3 ชุด
-    render_borrow_memo(rnd, school, doc)          # ขออนุมัติยืมเงิน
-    render_estimate(rnd, school, doc)             # แบบประมาณการ
-    render_repay_memo(rnd, school, doc)           # อนุมัติเบิกจ่ายส่งใช้เงินยืม
-    render_material_report_form(rnd, school, doc) # ใบรับรายงานวัตถุดิบ
-    render_receipt_form(rnd, school, doc)         # ใบรับรองการจ่ายเงินค่าวัตถุดิบ
-    render_purchase_summary(rnd, school, doc)     # สรุปรายการจัดซื้อ (เพื่อตรวจรับ)
-    render_control_report(rnd, school, doc)       # รายงานการประกอบอาหาร
-    render_inspection_note(rnd, school, doc)      # ใบตรวจรับพัสดุ (ข้อ 175)
+    # เรียงตามลำดับคู่มืออาหารกลางวัน สพฐ. (จัดซื้อวัตถุดิบ) หน้า 12-27
+    render_menu_list(rnd, school, doc)            # 1  รายการอาหาร (Thai School Lunch)
+    render_purchase_report(rnd, school, doc)      # 2  รายงานขอซื้อ + แต่งตั้งกรรมการ 3 ชุด
+    render_borrow_memo(rnd, school, doc)          # 3  ขออนุมัติยืมเงิน
+    render_estimate(rnd, school, doc)             # 5  แบบประมาณการ
+    render_repay_memo(rnd, school, doc)           # 6  อนุมัติเบิกจ่ายส่งใช้เงินยืม
+    render_material_report_form(rnd, school, doc) # 7  ใบรับรายงานวัตถุดิบ
+    render_receipt_form(rnd, school, doc)         # 8  ใบรับรองการจ่ายเงินค่าวัตถุดิบ
+    render_purchase_summary(rnd, school, doc)     # 9  สรุปรายการจัดซื้อ (เพื่อตรวจรับ)
+    render_control_report(rnd, school, doc)       # 11 รายงานการประกอบอาหาร
+    render_inspect_report(rnd, school, doc)       # 12 รายงานการตรวจรับพัสดุ (เสนอ ผอ.)
+    render_inspect_notify(rnd, school, doc)       # 13 แจ้งประธานกรรมการตรวจรับ
+    render_inspection_note(rnd, school, doc)      # 14 ใบตรวจรับพัสดุ (ข้อ 175)
     return _save(doc, f"ชุดเอกสารซื้อวัตถุดิบ_รอบที่{rnd.seq}_ปี{rnd.program.year}")
