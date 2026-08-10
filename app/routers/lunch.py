@@ -1165,7 +1165,8 @@ def _round_ingredient_doc(rid, db, render_name):
 # kind -> ฟังก์ชัน สำหรับเอกสารซื้อวัตถุดิบ
 _INGREDIENT_DOCS = {
     "menu-list": "render_menu_list", "report": "render_purchase_report",
-    "borrow": "render_borrow_memo", "estimate": "render_estimate",
+    "borrow": "render_borrow_memo", "loan": "render_loan_contract",
+    "photos": "render_food_photos", "estimate": "render_estimate",
     "purchase": "render_purchase_form", "material": "render_material_report_form",
     "receipt": "render_receipt_form", "control": "render_control_report",
     "summary": "render_purchase_summary", "inspect-report": "render_inspect_report",
