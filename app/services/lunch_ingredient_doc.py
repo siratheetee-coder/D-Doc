@@ -19,7 +19,7 @@ from app.services.doc_page import set_a4
 from app.thai_utils import bahttext
 from app.services.build_templates import (
     _font, _p, _sign_table, _set_cell, _repeat_header_row, _no_split_row,
-    _krut_and_title, _p_runs, _hr,
+    _krut_and_title, _p_runs, _hr, _shrink_body_font,
 )
 from app.services.lunch_doc import (_money, _dnum, _save, _simple_table, _BLANK,
                                     _memo_head, _committee_lines)
@@ -693,6 +693,8 @@ def render_loan_contract(rnd, school, doc=None) -> str:
     _p(doc, "หมายเหตุ  (1) ยื่นต่อ ผู้อำนวยการโรงเรียน  (2) ระบุชื่อส่วนราชการที่จ่ายเงิน  "
             "(3) ระบุวัตถุประสงค์ที่จะนำเงินยืมไปใช้จ่าย  (4) เสนอต่อผู้มีอำนาจอนุมัติ",
        before=6, size=13)
+    if own:   # ออกเดี่ยว: ย่อเนื้อความเหลือ 14 ให้หน้า+หลังพอดี 2 หน้า (ตามแบบ 8500)
+        _shrink_body_font(doc, 14)
     return _finish(doc, own, f"สัญญาการยืมเงิน_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
