@@ -281,8 +281,9 @@ def _order_header_table(doc):
     table.autofit = False
     table.allow_autofit = False
     left, right = table.rows[0].cells
-    left.width = Cm(8.6)
-    right.width = Cm(7.65)
+    # ขยายฝั่งซ้าย (ผู้ขาย/ที่อยู่ยาว) + ดันฝั่งขวาไปทางขวาอีก (รวม 16.25 = พื้นที่พิมพ์ A4)
+    left.width = Cm(10.0)
+    right.width = Cm(6.25)
 
     # ===== ซ้าย: ผู้ขาย/ผู้รับจ้าง =====
     _cell_line(left, [("{{ vendor_label }} : ", True), ("{{ vendor_name }}", False)], first=True)
@@ -954,14 +955,16 @@ def _finance_table(doc):
     _no_borders(table)
     table.autofit = False
     table.allow_autofit = False
-    _table_indent(table, 1.6)
-    widths = [Cm(5.6), Cm(3.0), Cm(6.05)]   # รวม 14.65 + เยื้อง 1.6 = 16.25 = พื้นที่พิมพ์ A4
+    _table_indent(table, 0.8)
+    # คอลัมน์คำอ่านกว้างขึ้น (8.45) กัน "(...บาทถ้วน)" ตกบรรทัด · รวม 15.45 + เยื้อง 0.8 = 16.25
+    widths = [Cm(5.0), Cm(2.0), Cm(8.45)]
     for i, (label, amount, unit) in enumerate(lines):
         cells = table.rows[i].cells
-        bold = (i == len(lines) - 1)        # แถวสุดท้าย (คงเหลือจ่ายจริง) ตัวหนา
-        _set_cell(cells[0], label, bold=bold, align="left", size=16)
-        _set_cell(cells[1], amount, bold=bold, align="right", size=16)
-        _set_cell(cells[2], unit, bold=bold, align="left", size=16)
+        last = (i == len(lines) - 1)        # แถวสุดท้าย (คงเหลือจ่ายจริง) ตัวหนา + คำอ่านย่อลงกันตกบรรทัด
+        usize = 14 if last else 16
+        _set_cell(cells[0], label, bold=last, align="left", size=16)
+        _set_cell(cells[1], amount, bold=last, align="right", size=16)
+        _set_cell(cells[2], unit, bold=last, align="left", size=usize)
         for c, w in zip(cells, widths):
             c.width = w
     return table
@@ -996,12 +999,11 @@ def build_disbursement():
     _p(doc, "ขออนุมัติจ่ายเงินให้แก่ {{ vendor_name }} รายละเอียดดังนี้", indent=1.25, after=2)
     # ตารางไร้เส้น 3 คอลัมน์ (ป้ายกำกับ | จำนวนเงินชิดขวา | หน่วย/คำอ่าน) จัดแนวตรงกันทุกแถว
     _finance_table(doc)
-    _p(doc, "", after=2)
+    # ลายเซ็นเจ้าหน้าที่การเงิน (ไม่เว้นบรรทัดว่างก่อนบล็อกเห็นชอบ/อนุมัติ เพื่อให้พอดีหน้าเดียว)
     _sign_table(doc, [
         [("ลงชื่อ.....................................เจ้าหน้าที่การเงิน", "center"),
          ("( {{ finance_officer_name }} )", "center")],
-        [("", "center")],
-    ])
+    ], gap=False)
     _signoff_director(doc, with_approve=True)
     TEMPLATES_DIR.mkdir(exist_ok=True)
     out = TEMPLATES_DIR / "รายงานเบิกจ่าย.docx"
