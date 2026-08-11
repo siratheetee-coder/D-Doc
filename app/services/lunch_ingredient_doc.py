@@ -19,8 +19,29 @@ from app.services.doc_page import set_a4
 from app.thai_utils import bahttext
 from app.services.build_templates import (
     _font, _p, _sign_table, _set_cell, _repeat_header_row, _no_split_row,
-    _krut_and_title, _p_runs, _hr, _shrink_body_font,
+    _krut_and_title, _p_runs, _hr, _shrink_body_font, _csize, _bcs, THAI_FONT,
 )
+from docx.shared import Pt
+from docx.oxml.ns import qn
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+
+def _box_cell(cell, lines, *, size=14):
+    """เติมข้อความหลายบรรทัดในเซลล์ตาราง (แต่ละ tuple = (text, align, bold))
+    ใช้ทำฟอร์มแบบมีช่องกรอบ (เช่น สัญญายืมเงิน แบบ 8500)"""
+    amap = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER,
+            "right": WD_ALIGN_PARAGRAPH.RIGHT}
+    cell.text = ""
+    for i, (txt, al, bold) in enumerate(lines):
+        p = cell.paragraphs[0] if i == 0 else cell.add_paragraph()
+        p.alignment = amap[al]
+        p.paragraph_format.space_after = Pt(1)
+        p.paragraph_format.space_before = Pt(0)
+        r = p.add_run(txt)
+        r.font.name = THAI_FONT
+        _csize(r, size)
+        _bcs(r, bold)
+        r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
 from app.services.lunch_doc import (_money, _dnum, _save, _simple_table, _BLANK,
                                     _memo_head, _committee_lines, _school_disp)
 
@@ -626,58 +647,64 @@ def render_loan_contract(rnd, school, doc=None) -> str:
     doc, own = _begin(doc)
     prog = rnd.program
     sname = _school_disp(school)
-    samphoe = ""  # อำเภอ/จังหวัด อยู่ใน address อยู่แล้ว
     bname, bpos = _borrower(school, rnd.program)
+    director = (school.director_name or "").strip() or _BLANK
     fund = _fund(prog)
     students = prog.total_students
     days = rnd.days or 0
     rate = prog.rate_per_head or 0
     total = round(float(rnd.amount or 0), 2)
+    money, baht = _money(total), bahttext(total)
     month = _month_year(rnd.start_date)
+    oid = (rnd.order_no or "").strip() or _BLANK
+    od = _dnum(rnd.order_date)
+    DOT = "..............................................."
+    PROMISE = ("ข้าพเจ้าสัญญาว่าจะปฏิบัติตามระเบียบของทางราชการทุกประการ และจะนำใบสำคัญคู่จ่ายที่ถูกต้อง "
+               "พร้อมทั้งเงินเหลือจ่าย (ถ้ามี) ส่งใช้ภายในกำหนดไว้ในระเบียบการเบิกจ่ายเงินจากคลัง คือภายใน 30 วัน "
+               "นับแต่วันที่ได้รับเงินยืมนี้ ถ้าข้าพเจ้าไม่ส่งใช้ตามกำหนด ข้าพเจ้ายินยอมให้หักเงินเดือน ค่าจ้าง "
+               "หรือเงินอื่นใดที่ข้าพเจ้าพึงได้รับจากทางราชการ ชดใช้จำนวนเงินที่ยืมไปจนครบถ้วนได้ทันที")
 
-    # ---------- หน้า (front) ----------
+    # ---------- หน้า (front) : ฟอร์มแบบ 8500 (ตารางมีกรอบ = ช่องๆ) ----------
     _p(doc, "แบบ 8500", align="right", size=13, after=0)
-    _p(doc, "สัญญาการยืมเงิน", align="center", bold=True, size=18, after=0)
-    _p(doc, f"เลขที่ {(rnd.order_no or '').strip() or _BLANK}     วันครบกำหนด {_dnum(rnd.end_date)}",
-       align="right", after=4)
-    _p(doc, f"ยื่นต่อ ผู้อำนวยการ{sname}", after=0)
-    _p(doc, f"ข้าพเจ้า {bname}  ตำแหน่ง {bpos}", after=0)
-    _p(doc, f"สังกัด {sname}  {(school.address or '').strip()}", after=0)
-    _p(doc, f"มีความประสงค์ขอยืมเงินจาก เงินอุดหนุนอาหารกลางวันรับจาก{fund} เพื่อเป็นค่าใช้จ่ายในการ"
-            "ประกอบอาหารกลางวันให้นักเรียนรับประทาน ดังรายละเอียดต่อไปนี้", after=4)
-    _simple_table(doc, ["รายการ", "จำนวนเงิน"],
-                  [[f"ค่าอาหารกลางวันสำหรับนักเรียน ประจำเดือน {month} จำนวน {students} คน "
-                    f"x อัตราวันละ {_money(rate)} บาท x จำนวน {days} วัน", _money(total)],
-                   [f"รวมเงินทั้งสิ้น (ตัวอักษร {bahttext(total)})", _money(total)]],
-                  [Cm(11.65), Cm(4.6)])
-    _p(doc, "ข้าพเจ้าสัญญาว่าจะปฏิบัติตามระเบียบของทางราชการทุกประการ และจะนำใบสำคัญคู่จ่ายที่ถูกต้อง "
-            "พร้อมทั้งเงินเหลือจ่าย (ถ้ามี) ส่งใช้ภายในกำหนดไว้ในระเบียบการเบิกจ่ายเงินจากคลัง คือภายใน 30 วัน "
-            "นับแต่วันที่ได้รับเงินยืมนี้ ถ้าข้าพเจ้าไม่ส่งใช้ตามกำหนด ข้าพเจ้ายินยอมให้หักเงินเดือน ค่าจ้าง "
-            "หรือเงินอื่นใดที่ข้าพเจ้าพึงได้รับจากทางราชการ ชดใช้จำนวนเงินที่ยืมไปจนครบถ้วนได้ทันที",
-       align="justify", indent=1.25, before=2, after=4)
-    _sign_table(doc, [
-        [("ลายมือชื่อ ...........................................ผู้ยืม", "center"),
-         (f"( {bname} )", "center"),
-         (f"วันที่ {_dnum(rnd.order_date)}", "center")]], gap=False)
-    _p(doc, "เสนอ  ผู้อำนวยการโรงเรียน", before=2, after=0)
-    _p(doc, f"ได้ตรวจสอบแล้ว เห็นสมควรอนุมัติให้ยืมตามใบยืมฉบับนี้ จำนวน {_money(total)} บาท ({bahttext(total)})",
-       indent=1, after=4)
-    _sign_table(doc, [
-        [("(ลงชื่อ)...........................................เจ้าหน้าที่การเงิน", "center"),
-         (f"วันที่ {_dnum(rnd.order_date)}", "center")]], gap=False)
-    _p(doc, "คำอนุมัติ", bold=True, before=2, after=0)
-    _p(doc, f"อนุมัติให้ยืมตามเงื่อนไขข้างต้นได้ เป็นเงิน {_money(total)} บาท ({bahttext(total)})",
-       indent=1, after=4)
-    _sign_table(doc, [
-        [("(ลงชื่อ)...........................................ผู้อนุมัติ", "center"),
-         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
-         (f"วันที่ {_dnum(rnd.order_date)}", "center")]], gap=False)
-    _p(doc, "ใบรับเงิน", bold=True, before=2, after=0)
-    _p(doc, f"ได้รับเงินยืมจำนวน {_money(total)} บาท ({bahttext(total)}) ไปเป็นการถูกต้องแล้ว", indent=1, after=4)
-    _sign_table(doc, [
-        [("(ลงชื่อ)...........................................ผู้รับเงิน", "center"),
-         (f"( {bname} )", "center"),
-         (f"วันที่ {_dnum(rnd.order_date)}", "center")]], gap=False)
+    tbl = doc.add_table(rows=6, cols=2)
+    tbl.style = "Table Grid"
+    tbl.autofit = False
+    tbl.allow_autofit = False
+    LW, RW = Cm(11.0), Cm(5.25)
+    for row in tbl.rows:
+        row.cells[0].width = LW
+        row.cells[1].width = RW
+    # R0
+    _box_cell(tbl.cell(0, 0), [("สัญญาการยืมเงิน", "center", True),
+                               (f"ยื่นต่อ ผู้อำนวยการ{sname}", "left", False)])
+    _box_cell(tbl.cell(0, 1), [(f"เลขที่ {oid}", "left", False),
+                               (f"วันครบกำหนด {_dnum(rnd.end_date)}", "left", False)])
+    # R1 (เต็มความกว้าง)
+    c = tbl.cell(1, 0).merge(tbl.cell(1, 1))
+    _box_cell(c, [(f"ข้าพเจ้า {bname}  ตำแหน่ง {bpos}", "left", False),
+                  (f"สังกัด {sname}  {(school.address or '').strip()}", "left", False),
+                  (f"มีความประสงค์ขอยืมเงินจาก เงินอุดหนุนอาหารกลางวันรับจาก{fund}", "left", False),
+                  (f"เพื่อเป็นค่าใช้จ่ายในการประกอบอาหารกลางวันให้นักเรียนรับประทาน ประจำเดือน {month} "
+                   f"จำนวน {students} คน x วันละ {_money(rate)} บาท x {days} วัน  ดังรายละเอียดต่อไปนี้", "left", False)])
+    # R2: (ตัวอักษร) ... รวมเงิน (บาท) | ยอดเงิน
+    _box_cell(tbl.cell(2, 0), [(f"(ตัวอักษร) {baht}          รวมเงิน (บาท)", "left", False)])
+    _box_cell(tbl.cell(2, 1), [(money, "center", True)], size=15)
+    # R3: คำสัญญา + ลงชื่อผู้ยืม
+    c = tbl.cell(3, 0).merge(tbl.cell(3, 1))
+    _box_cell(c, [(PROMISE, "left", False),
+                  (f"ลงชื่อ {DOT}ผู้ยืม   ( {bname} )   วันที่ {od}", "left", False)])
+    # R4: เสนอ + คำอนุมัติ
+    c = tbl.cell(4, 0).merge(tbl.cell(4, 1))
+    _box_cell(c, [("เสนอ  ผู้อำนวยการโรงเรียน", "left", True),
+                  (f"ได้ตรวจสอบแล้วเห็นสมควรอนุมัติให้ยืมตามใบยืมฉบับนี้ได้ จำนวน {money} บาท ({baht})", "left", False),
+                  (f"ลงชื่อ {DOT}เจ้าหน้าที่การเงิน   วันที่ ..................", "left", False),
+                  ("คำอนุมัติ  อนุมัติให้ยืมตามเงื่อนไขข้างต้นได้", "left", True),
+                  (f"ลงชื่อ {DOT}ผู้อนุมัติ   ( {director} )   วันที่ {od}", "left", False)])
+    # R5: ใบรับเงิน
+    c = tbl.cell(5, 0).merge(tbl.cell(5, 1))
+    _box_cell(c, [("ใบรับเงิน", "left", True),
+                  (f"ได้รับเงินยืมจำนวน {money} บาท ({baht}) ไปเป็นการถูกต้องแล้ว", "left", False),
+                  (f"ลงชื่อ {DOT}ผู้รับเงิน   ( {bname} )   วันที่ {od}", "left", False)])
 
     # ---------- หลัง (back) : รายการส่งใช้เงินยืม ----------
     doc.add_page_break()
