@@ -343,7 +343,7 @@ def render_material_report_form(rnd, school, doc=None) -> str:
     _simple_table(doc,
                   ["วันที่", "เมนูอาหาร", "ส่วนประกอบ", "จำนวน", "หน่วย", "ราคา/หน่วย", "จำนวนเงิน"],
                   body,
-                  [Cm(2.9), Cm(3.5), Cm(3.0), Cm(1.4), Cm(1.4), Cm(1.7), Cm(2.1)])   # ขยายวันที่/เมนู ลดราคา/หน่วย
+                  [Cm(3.5), Cm(3.2), Cm(2.6), Cm(1.2), Cm(1.3), Cm(1.8), Cm(2.1)])   # วันที่กว้างพอ 1 บรรทัด
     if body and total:
         _p(doc, f"รวมเป็นเงินทั้งสิ้น (ตัวอักษร) {bahttext(total)}", align="right", before=2, after=2, size=13)
     bname, bpos = _borrower(school, rnd.program)
@@ -408,18 +408,31 @@ def render_control_report(rnd, school, doc=None) -> str:
             f"รับประทาน ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} บัดนี้ "
             "ได้ดำเนินการประกอบอาหารทุกวันตามที่กำหนด ผู้ควบคุมและคณะกรรมการตรวจการประกอบอาหารกลางวัน "
             "ขอรายงานผลการดำเนินงาน ดังนี้", align="justify", indent=1.25, after=4)
-    # ผู้ควบคุม + คณะกรรมการตรวจการประกอบอาหาร (ดึงชื่อจากที่ตั้งไว้)
+    # ช่องขวา = จุดไข่ปลาเว้นว่างให้ผู้ควบคุม/กรรมการเซ็น (แถวละคน) ไม่ใช่พิมพ์ชื่อ
     ctrl = _committee(rnd, "cook_control") + _committee(rnd, "food_inspect")
-    ctrl_names = "\n".join(f"{i + 1}. {m.name}" for i, m in enumerate(ctrl)) if ctrl else ""
+    n_sign = len(ctrl) or 1
     days = _round_menu_days(rnd)
-    if days:
-        body = [[_dnum(m.date), (m.main or ""), _crit_cell(), ctrl_names] for m in days]
-    else:
-        body = [["", "", _crit_cell(), ctrl_names] for _ in range(5)]
-    _simple_table(doc,
-                  ["วัน เดือน ปี", "รายการอาหาร", "ผลการตรวจสอบ", "ผู้ควบคุม/คณะกรรมการตรวจการ"],
-                  body,
-                  [Cm(2.1), Cm(3.4), Cm(6.2), Cm(4.55)])
+    # สร้างตารางเอง: ช่องผลตรวจฟอนต์ 12 ให้ทุกหัวข้ออยู่บรรทัดเดียว (ไม่ตก)
+    hdr = ["วัน เดือน ปี", "รายการอาหาร", "ผลการตรวจสอบ", "ผู้ควบคุม/กรรมการตรวจการ"]
+    W = [Cm(2.2), Cm(2.6), Cm(8.2), Cm(3.25)]
+    crit = [(f"{h}  ☐ดีมาก ☐ดี ☐พอใช้ ☐ปรับปรุง", "left", False)
+            for h in ("ความสะอาด", "คุณภาพอาหาร", "ความทันเวลา", "ความเพียงพอ")]
+    signs = [("(ลงชื่อ) ................................", "left", False) for _ in range(n_sign)]
+    tb = doc.add_table(rows=1, cols=4)
+    tb.style = "Table Grid"
+    tb.autofit = False
+    tb.allow_autofit = False
+    for c, h, w in zip(tb.rows[0].cells, hdr, W):
+        _set_cell(c, h, bold=True, align="center", size=14)
+        c.width = w
+    for m in (days or [None] * 5):
+        rc = tb.add_row().cells
+        _set_cell(rc[0], _dnum(m.date) if m else "", size=14)
+        _set_cell(rc[1], (m.main or "") if m else "", size=14)
+        _box_cell(rc[2], crit, size=12)
+        _box_cell(rc[3], signs, size=13)
+        for c, w in zip(rc, W):
+            c.width = w
     _p(doc, "(  ) ทราบผลการดำเนินการประกอบอาหารกลางวัน", indent=1.25, before=4, after=10)
     _p(doc, "ลงชื่อ......................................................", align="center", after=0)
     _p(doc, f"( {director} )", align="center", after=0)
