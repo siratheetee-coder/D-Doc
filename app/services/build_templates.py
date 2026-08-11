@@ -718,10 +718,12 @@ def _signoff_officers(doc):
     ])
 
 
-def _signoff_director(doc, *, with_approve=True):
-    """ช่องลงนามผู้อำนวยการ (กึ่งกลาง)"""
+def _signoff_director(doc, *, with_approve=True, sign_space=False):
+    """ช่องลงนามผู้อำนวยการ (กึ่งกลาง) · sign_space=True เว้นบรรทัดว่างให้เซ็นด้านบน"""
     if with_approve:
         _p(doc, "(   )  เห็นชอบ        (   )  อนุมัติ", align="center", before=4)
+    if sign_space:
+        _p(doc, "", after=10)
     _p(doc, "(ลงชื่อ).........................................", align="center")
     _p(doc, "( {{ director_name }} )", align="center")
     _p(doc, "{{ director_office }}", align="center")
@@ -970,6 +972,23 @@ def _finance_table(doc):
     return table
 
 
+def _shrink_body_font(doc, target=14, lo=15, hi=18):
+    """ลดขนาดฟอนต์เนื้อความจาก 16 -> target ทั้งเอกสาร (รวมในตาราง)
+    เว้นหัวเรื่องใหญ่ (>18 เช่น 'บันทึกข้อความ' 29pt) และหมายเหตุเล็ก (<15) ไว้"""
+    def _fix(par):
+        for r in par.runs:
+            sz = r.font.size
+            if sz is not None and Pt(lo) <= sz <= Pt(hi):
+                _csize(r, target)
+    for p in doc.paragraphs:
+        _fix(p)
+    for t in doc.tables:
+        for row in t.rows:
+            for c in row.cells:
+                for p in c.paragraphs:
+                    _fix(p)
+
+
 def build_disbursement():
     """แม่แบบ: บันทึกข้อความ รายงานผลการตรวจรับพัสดุและอนุมัติเบิกจ่ายเงิน
     (รวมความเห็นเจ้าหน้าที่การเงิน + รายละเอียดการคำนวณเงินที่จ่ายจริง)"""
@@ -999,12 +1018,14 @@ def build_disbursement():
     _p(doc, "ขออนุมัติจ่ายเงินให้แก่ {{ vendor_name }} รายละเอียดดังนี้", indent=1.25, after=2)
     # ตารางไร้เส้น 3 คอลัมน์ (ป้ายกำกับ | จำนวนเงินชิดขวา | หน่วย/คำอ่าน) จัดแนวตรงกันทุกแถว
     _finance_table(doc)
-    # ลายเซ็นเจ้าหน้าที่การเงิน (ไม่เว้นบรรทัดว่างก่อนบล็อกเห็นชอบ/อนุมัติ เพื่อให้พอดีหน้าเดียว)
+    _p(doc, "", after=10)   # เว้นที่ให้เจ้าหน้าที่การเงินเซ็น
     _sign_table(doc, [
         [("ลงชื่อ.....................................เจ้าหน้าที่การเงิน", "center"),
          ("( {{ finance_officer_name }} )", "center")],
-    ], gap=False)
-    _signoff_director(doc, with_approve=True)
+    ], gap=True)
+    _signoff_director(doc, with_approve=True, sign_space=True)   # เว้นที่ให้ ผอ. เซ็น
+    # ลดฟอนต์เนื้อความเหลือ 14 ทั้งเอกสาร (เว้น "บันทึกข้อความ") ให้ไม่แน่น + พอดีหน้าเดียว
+    _shrink_body_font(doc, 14)
     TEMPLATES_DIR.mkdir(exist_ok=True)
     out = TEMPLATES_DIR / "รายงานเบิกจ่าย.docx"
     doc.save(str(out))
