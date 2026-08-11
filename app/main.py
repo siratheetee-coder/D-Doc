@@ -33,9 +33,10 @@ app = FastAPI(title="Easy Ekkasan : ระบบจัดการเอกส�
 # เตรียมฐานข้อมูลกลาง + superadmin + ย้ายข้อมูลเดิม (ถ้ามี)
 bootstrap()
 
-# สร้างแม่แบบเอกสารพัสดุถ้าหาย/เก่า (ไม่ track git -> ต้อง rebuild หลัง deploy)
+# สร้างแม่แบบเอกสารพัสดุใหม่ทุกครั้งที่ start (ไม่ track git -> ต้องตรงกับโค้ดเสมอ)
+# บังคับ rebuild (force) กันเคส mtime หลอก (แม่แบบเก่าค้าง เช่น วันที่ลอยล้นหน้า)
 from app.services.build_templates import ensure_templates
-ensure_templates()
+ensure_templates(force=True)
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
