@@ -19,3 +19,6 @@ Thumbs.db
 # ผลลัพธ์การแพ็ก
 build/
 dist/
+
+# แม่แบบเอกสารพัสดุ .docx สร้างอัตโนมัติตอน startup (ensure_templates) - ไม่ track
+app/doc_templates/*.docx
