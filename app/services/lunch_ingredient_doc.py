@@ -22,7 +22,7 @@ from app.services.build_templates import (
     _krut_and_title, _p_runs, _hr, _shrink_body_font,
 )
 from app.services.lunch_doc import (_money, _dnum, _save, _simple_table, _BLANK,
-                                    _memo_head, _committee_lines)
+                                    _memo_head, _committee_lines, _school_disp)
 
 _THAI_MONTHS = ["", "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
                 "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"]
@@ -96,7 +96,7 @@ def render_borrow_memo(rnd, school, doc=None) -> str:
     """02 บันทึกขออนุมัติยืมเงินอุดหนุนอาหารกลางวัน"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     saddr = (school.address or "").strip()
     fund = _fund(prog)
     bname, bpos = _borrower(school, rnd.program)
@@ -135,7 +135,7 @@ def render_estimate(rnd, school, doc=None) -> str:
     """04 แบบประมาณการค่าใช้จ่าย (แนบท้ายสัญญายืมเงิน)"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     bname, bpos = _borrower(school, rnd.program)
     students = prog.total_students
     days = rnd.days or 0
@@ -143,7 +143,7 @@ def render_estimate(rnd, school, doc=None) -> str:
     total = round(float(rnd.amount or 0), 2)
 
     _p(doc, "แบบประมาณการค่าใช้จ่าย", align="center", bold=True, size=18, after=0)
-    _p(doc, f"โรงเรียน{sname}", align="center", after=0)
+    _p(doc, f"{sname}", align="center", after=0)
     _p(doc, f"แนบท้ายสัญญาเงินยืมเลขที่ {(rnd.order_no or '').strip() or '........./.........'} "
             f"ลงวันที่ {_dnum(rnd.order_date)}", align="center", after=6)
     _simple_table(doc, ["รายการ", "จำนวนเงิน"],
@@ -165,7 +165,7 @@ def render_purchase_report(rnd, school, doc=None) -> str:
     ตรงตามคู่มืออาหารกลางวัน สพฐ. (จัดซื้อวัตถุดิบ) - ดึงกรรมการ 3 ชุดที่ตั้งไว้มาแสดง"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     officer = (getattr(school, "officer_name", "") or "").strip() or _BLANK
     head = (getattr(school, "head_officer_name", "") or "").strip() or _BLANK
     director = (school.director_name or "").strip() or _BLANK
@@ -178,7 +178,7 @@ def render_purchase_report(rnd, school, doc=None) -> str:
                [f"รายงานขอซื้อวัตถุดิบเพื่อใช้ประกอบอาหารประจำเดือน {month}",
                 f"(ระหว่างวันที่ {ds} ถึงวันที่ {de})"],
                _dnum(rnd.order_date), rnd.order_no)
-    _p(doc, f"ด้วยโรงเรียน{sname} จัดซื้อวัตถุดิบเพื่อใช้ในการประกอบอาหารให้นักเรียนรับประทาน ระหว่างวันที่ "
+    _p(doc, f"ด้วย{sname} จัดซื้อวัตถุดิบเพื่อใช้ในการประกอบอาหารให้นักเรียนรับประทาน ระหว่างวันที่ "
             f"{ds} ถึงวันที่ {de} รวม {days} วัน การจัดซื้อครั้งนี้ดำเนินการโดยวิธีเฉพาะเจาะจง ตามพระราชบัญญัติ"
             "การจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 มาตรา 56 (2) (ข) และหนังสือคณะกรรมการ"
             "วินิจฉัยปัญหาการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ ด่วนที่สุด ที่ กค (กวจ) 0405.2/ว 116 "
@@ -224,17 +224,17 @@ def render_purchase_form(rnd, school, doc=None) -> str:
     """05 ใบจัดซื้อวัสดุเครื่องบริโภค วงเงินไม่เกิน 500,000 บาท (รวม 4 ส่วนในใบเดียว)"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     bname, bpos = _borrower(school, rnd.program)
     officer = (getattr(school, "officer_name", "") or "").strip() or _BLANK
     head = (getattr(school, "head_officer_name", "") or "").strip() or _BLANK
     director = (school.director_name or "").strip() or _BLANK
 
     _p(doc, "ใบจัดซื้อวัสดุเครื่องบริโภค วงเงินไม่เกิน 500,000 บาท", align="center", bold=True, size=17, after=0)
-    _p(doc, f"โรงเรียน{sname}", align="center", after=6)
+    _p(doc, f"{sname}", align="center", after=6)
 
     _p(doc, "ส่วนที่ 1 รายงานขอซื้อ", bold=True, indent=0.5, after=0)
-    _p(doc, f"ด้วยโรงเรียน{sname} ขอจัดซื้อวัสดุเครื่องบริโภคตามรายการต่อไปนี้ เพื่อประกอบอาหารให้แก่"
+    _p(doc, f"ด้วย{sname} ขอจัดซื้อวัสดุเครื่องบริโภคตามรายการต่อไปนี้ เพื่อประกอบอาหารให้แก่"
             "นักเรียนรับประทาน การจัดซื้อครั้งนี้ดำเนินการโดยวิธีเฉพาะเจาะจงตามมาตรา 56 (2) (ข) ประกอบ"
             "หนังสือกระทรวงการคลัง ด่วนที่สุด ที่ กค (กวจ) 0405.2/ว 116 ลงวันที่ 12 มีนาคม 2562",
        align="justify", indent=1)
@@ -259,7 +259,7 @@ def render_purchase_form(rnd, school, doc=None) -> str:
     _p(doc, "(ลงชื่อ)..................................ผู้จัดทำรายการ", align="center", before=2, after=8)
 
     _p(doc, "ส่วนที่ 2 การจัดซื้อ (เสนอเห็นชอบและแต่งตั้งกรรมการ)", bold=True, indent=0.5, after=0)
-    _p(doc, f"เรียน ผู้อำนวยการโรงเรียน{sname} เพื่อโปรดทราบและเห็นชอบตามรายงานขอซื้อ และแต่งตั้ง",
+    _p(doc, f"เรียน ผู้อำนวยการ{sname} เพื่อโปรดทราบและเห็นชอบตามรายงานขอซื้อ และแต่งตั้ง",
        align="justify", indent=1, after=0)
     _p(doc, "ผู้ควบคุมและคณะกรรมการตรวจการประกอบอาหาร และผู้ตรวจรับพัสดุ/คณะกรรมการตรวจรับพัสดุ",
        indent=1, after=6)
@@ -280,7 +280,7 @@ def render_purchase_form(rnd, school, doc=None) -> str:
     _p(doc, "(ลงชื่อ)..................................ผู้จ่ายเงิน", align="center", after=8)
 
     _p(doc, "ส่วนที่ 4 ผลการตรวจและอนุมัติการจ่ายเงิน", bold=True, indent=0.5, after=0)
-    _p(doc, f"เรียน ผู้อำนวยการโรงเรียน{sname} เพื่อโปรดทราบ พัสดุตามรายการข้างต้นได้ทำการตรวจรับไว้"
+    _p(doc, f"เรียน ผู้อำนวยการ{sname} เพื่อโปรดทราบ พัสดุตามรายการข้างต้นได้ทำการตรวจรับไว้"
             "เป็นการถูกต้องครบถ้วนแล้ว และได้ตรวจสอบหลักฐานแล้วถูกต้อง จึงขออนุมัติเบิกจ่ายเงิน",
        align="justify", indent=1, after=6)
     _sign_table(doc, [
@@ -297,10 +297,10 @@ def render_material_report_form(rnd, school, doc=None) -> str:
     """06 ใบรับรายงานวัตถุดิบและปริมาณการจัดซื้อ (ฟอร์มเปล่าตามโปรแกรม Thai School Lunch)"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     _p(doc, "ใบรับรายงานวัตถุดิบและปริมาณการจัดซื้อ", align="center", bold=True, size=17, after=0)
     _p(doc, "(ตามโปรแกรม Thai School Lunch หรือปรับใช้ตามหลักโภชนาการ)", align="center", after=0)
-    _p(doc, f"โรงเรียน{sname}", align="center", after=0)
+    _p(doc, f"{sname}", align="center", after=0)
     _p(doc, f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}", align="center", after=6)
     # ดึงวัตถุดิบรายวันมาเติมให้ (แสดงวัน/เมนู เฉพาะแถวแรกของแต่ละวัน) - ถ้ายังไม่กรอกให้เป็นฟอร์มเปล่า
     ings = _round_ingredients(rnd)
@@ -320,9 +320,9 @@ def render_material_report_form(rnd, school, doc=None) -> str:
     else:
         body = [["", "", "", "", "", "", ""] for _ in range(6)]
     _simple_table(doc,
-                  ["วันที่", "เมนูอาหาร", "ส่วนประกอบ", "จำนวน", "หน่วย", "ราคาต่อหน่วย", "จำนวนเงิน"],
+                  ["วันที่", "เมนูอาหาร", "ส่วนประกอบ", "จำนวน", "หน่วย", "ราคา/หน่วย", "จำนวนเงิน"],
                   body,
-                  [Cm(2), Cm(3), Cm(3), Cm(1.6), Cm(1.6), Cm(2.4), Cm(2.4)])
+                  [Cm(2.9), Cm(3.5), Cm(3.0), Cm(1.4), Cm(1.4), Cm(1.7), Cm(2.1)])   # ขยายวันที่/เมนู ลดราคา/หน่วย
     if body and total:
         _p(doc, f"รวมเป็นเงินทั้งสิ้น (ตัวอักษร) {bahttext(total)}", align="right", before=2, after=2, size=13)
     bname, bpos = _borrower(school, rnd.program)
@@ -338,10 +338,10 @@ def render_receipt_form(rnd, school, doc=None) -> str:
     ดึงวัตถุดิบ+เมนูรายวันมาเติม + ลงชื่อ เจ้าหน้าที่โครงการอาหารกลางวัน/ผู้จ่ายเงิน"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     bname, bpos = _borrower(school, rnd.program)
     _p(doc, "ใบรับรองการจ่ายเงินค่าวัตถุดิบ", align="center", bold=True, size=18, after=0)
-    _p(doc, f"โรงเรียน{sname}  ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}",
+    _p(doc, f"{sname}  ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}",
        align="center", after=6)
     ings = _round_ingredients(rnd)
     menus_by_date = {m.date.date(): (m.main or "") for m in prog.menus if m.date}
@@ -360,7 +360,7 @@ def render_receipt_form(rnd, school, doc=None) -> str:
     _simple_table(doc,
                   ["รายการอาหาร", "วัตถุดิบ/เครื่องปรุง", "จำนวน", "หน่วยนับ", "ราคากลางที่จัดซื้อ (บาท)"],
                   body,
-                  [Cm(3.6), Cm(4.0), Cm(2.0), Cm(2.0), Cm(4.65)])
+                  [Cm(4.6), Cm(5.0), Cm(1.6), Cm(1.7), Cm(3.35)])   # ขยายรายการอาหาร/วัตถุดิบ ลดราคา
     if body and total:
         _p(doc, f"รวมเป็นเงินทั้งสิ้น (ตัวอักษร) {bahttext(total)}", align="right", before=2, after=2, size=13)
     _sign_table(doc, [
@@ -376,14 +376,14 @@ def render_control_report(rnd, school, doc=None) -> str:
     """09 บันทึกรายงานผู้ควบคุมและคณะกรรมการตรวจการประกอบอาหารกลางวัน"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     bname, _ = _borrower(school, rnd.program)
     director = (school.director_name or "").strip() or _BLANK
     _p(doc, "บันทึกรายงานผู้ควบคุมและคณะกรรมการตรวจการประกอบอาหารกลางวัน",
        align="center", bold=True, size=17, after=4)
-    _p(doc, f"เขียนที่ โรงเรียน{sname}", align="right", after=0)
+    _p(doc, f"เขียนที่ {sname}", align="right", after=0)
     _p(doc, f"วันที่ {_dnum(rnd.end_date)}", align="right", after=6)
-    _p(doc, f"ตามที่โรงเรียน{sname} ได้มอบหมายให้ {bname} จัดซื้อวัตถุดิบและประกอบอาหารกลางวันให้นักเรียน"
+    _p(doc, f"ตามที่{sname} ได้มอบหมายให้ {bname} จัดซื้อวัตถุดิบและประกอบอาหารกลางวันให้นักเรียน"
             f"รับประทาน ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} บัดนี้ "
             "ได้ดำเนินการประกอบอาหารทุกวันตามที่กำหนด ผู้ควบคุมและคณะกรรมการตรวจการประกอบอาหารกลางวัน "
             "ขอรายงานผลการดำเนินงาน ดังนี้", align="justify", indent=1.25, after=4)
@@ -402,7 +402,7 @@ def render_control_report(rnd, school, doc=None) -> str:
     _p(doc, "(  ) ทราบผลการดำเนินการประกอบอาหารกลางวัน", indent=1.25, before=4, after=10)
     _p(doc, "ลงชื่อ......................................................", align="center", after=0)
     _p(doc, f"( {director} )", align="center", after=0)
-    _p(doc, f"ตำแหน่ง ผู้อำนวยการโรงเรียน{sname}", align="center", after=0)
+    _p(doc, f"ตำแหน่ง ผู้อำนวยการ{sname}", align="center", after=0)
     return _finish(doc, own, f"บันทึกรายงานตรวจการประกอบอาหาร_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
@@ -410,7 +410,7 @@ def render_repay_memo(rnd, school, doc=None) -> str:
     """10 บันทึกขออนุมัติเบิกจ่ายเงินเพื่อส่งใช้เงินยืม"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     saddr = (school.address or "").strip()
     fund = _fund(prog)
     bname, bpos = _borrower(school, rnd.program)
@@ -458,11 +458,11 @@ def render_purchase_summary(rnd, school, doc=None) -> str:
     """สรุปรายการจัดซื้อวัตถุดิบ (เพื่อประกอบการตรวจรับพัสดุ) - ดึงวัตถุดิบ+กรรมการตรวจรับมาเติม"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     ings = _round_ingredients(rnd)
     total = sum((i.quantity or 0) * (i.unit_price or 0) for i in ings)
     _p(doc, "สรุปรายการจัดซื้อวัตถุดิบเพื่อใช้ประกอบอาหาร", align="center", bold=True, size=17, after=0)
-    _p(doc, f"โรงเรียน{sname}  ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}",
+    _p(doc, f"{sname}  ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}",
        align="center", after=4)
     _p(doc, "เรียน  ประธานคณะกรรมการตรวจรับพัสดุ/ผู้ตรวจรับพัสดุ", indent=1, after=2)
     _p(doc, "ขอรายงานรายการจัดซื้อวัตถุดิบเพื่อใช้ประกอบอาหาร เพื่อประกอบการตรวจรับพัสดุ ดังนี้",
@@ -485,21 +485,21 @@ def render_inspection_note(rnd, school, doc=None) -> str:
     """ใบตรวจรับพัสดุ (ตามข้อ 175 ระเบียบฯ พ.ศ. 2560) - ดึงกรรมการตรวจรับ + เจ้าหน้าที่พัสดุ"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     officer = (getattr(school, "officer_name", "") or "").strip() or _BLANK
     days = len(_round_menu_days(rnd)) or (rnd.days or 0)
     _p(doc, "ใบตรวจรับพัสดุ", align="center", bold=True, size=18, after=2)
-    _p(doc, f"เขียนที่ โรงเรียน{sname}", align="right", after=0)
+    _p(doc, f"เขียนที่ {sname}", align="right", after=0)
     _p(doc, f"วันที่ {_dnum(rnd.end_date)}", align="right", after=6)
     _p(doc, f"ตามรายงานสรุปการตรวจรับวัตถุดิบเพื่อใช้ประกอบอาหารกลางวัน ในระหว่างวันที่ "
             f"{_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} รวม {days} วัน รายละเอียดตามแนบ "
             "คณะกรรมการตรวจรับพัสดุ ได้ตรวจรับและให้ถือว่าพัสดุ", align="justify", indent=1.25, after=2)
     _p(doc, "( / )  ถูกต้อง          (   )  ไม่ถูกต้อง  จำนวน .............. รายการ", indent=1.5, after=2)
-    _p(doc, f"จึงรายงานต่อผู้อำนวยการโรงเรียน{sname} เพื่อโปรดทราบผลการตรวจรับ ตามนัยข้อ 175 "
+    _p(doc, f"จึงรายงานต่อผู้อำนวยการ{sname} เพื่อโปรดทราบผลการตรวจรับ ตามนัยข้อ 175 "
             "แห่งระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560",
        align="justify", indent=1.25, after=8)
     _committee_signs(doc, _committee(rnd, "inspect"))
-    _p(doc, f"เรียน  ผู้อำนวยการโรงเรียน{sname}", indent=1, before=10, after=0)
+    _p(doc, f"เรียน  ผู้อำนวยการ{sname}", indent=1, before=10, after=0)
     _p(doc, "     เพื่อโปรดทราบ คณะกรรมการตรวจรับพัสดุได้ดำเนินการตรวจรับพัสดุเรียบร้อยแล้ว",
        indent=1.25, after=6)
     _p(doc, "(ลงชื่อ) ........................................... เจ้าหน้าที่พัสดุ", align="center", after=0)
@@ -509,8 +509,8 @@ def render_inspection_note(rnd, school, doc=None) -> str:
 
 def _memo_head_to(doc, school, subject_lines, date, doc_no, addressee):
     """หัวบันทึกข้อความ (สารบรรณ) แบบระบุผู้รับเอง (เช่น เรียน ประธานกรรมการตรวจรับ)"""
-    sname = (school.name or "").strip() or "โรงเรียน"
-    office = (f"โรงเรียน{sname}  " + (school.address or "").strip()).strip()
+    sname = _school_disp(school)
+    office = (f"{sname}  " + (school.address or "").strip()).strip()
     _krut_and_title(doc)
     _p_runs(doc, [("ส่วนราชการ  ", True), (office, False)], after=0)
     _p_runs(doc, [("ที่  ", True), ((doc_no or "").strip() or _BLANK, False),
@@ -525,10 +525,10 @@ def render_menu_list(rnd, school, doc=None) -> str:
     """01 รายการอาหารกลางวัน (ตาม Thai School Lunch) - ตารางเมนูรายวันในช่วงรอบ"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     bname, _ = _borrower(school, rnd.program)
     _p(doc, "รายการอาหารกลางวัน (ตาม Thai School Lunch)", align="center", bold=True, size=17, after=0)
-    _p(doc, f"โรงเรียน{sname}  ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}",
+    _p(doc, f"{sname}  ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}",
        align="center", after=6)
     days = _round_menu_days(rnd)
     if days:
@@ -536,7 +536,8 @@ def render_menu_list(rnd, school, doc=None) -> str:
     else:
         body = [["", "", ""] for _ in range(10)]
     _simple_table(doc, ["วัน เดือน ปี", "รายการอาหาร", "หมายเหตุ"], body,
-                  [Cm(3.0), Cm(10.65), Cm(2.6)])
+                  [Cm(4.0), Cm(9.65), Cm(2.6)])   # ขยายคอลัมน์วันที่ไม่ให้บีบ
+    _p(doc, "", after=14)   # เว้นที่ให้เจ้าหน้าที่เซ็น
     _sign_table(doc, [
         [("(ลงชื่อ)............................................เจ้าหน้าที่โครงการอาหารกลางวัน/ผู้จัดทำ", "center"),
          (f"( {bname} )", "center")]])
@@ -548,7 +549,7 @@ def render_inspect_notify(rnd, school, doc=None) -> str:
     ตรงตามคู่มืออาหารกลางวัน สพฐ."""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     officer = (getattr(school, "officer_name", "") or "").strip() or _BLANK
     director = (school.director_name or "").strip() or _BLANK
     insp = _committee(rnd, "inspect")
@@ -560,7 +561,7 @@ def render_inspect_notify(rnd, school, doc=None) -> str:
                    f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}"],
                   _dnum(rnd.order_date), rnd.order_no,
                   "ประธานคณะกรรมการตรวจรับพัสดุ/ผู้ตรวจรับพัสดุ")
-    _p(doc, f"ด้วยผู้อำนวยการโรงเรียน{sname} ได้แต่งตั้ง {chair} ประธานกรรมการตรวจรับพัสดุ/ผู้ตรวจรับพัสดุ "
+    _p(doc, f"ด้วยผู้อำนวยการ{sname} ได้แต่งตั้ง {chair} ประธานกรรมการตรวจรับพัสดุ/ผู้ตรวจรับพัสดุ "
             f"พร้อมด้วย {others} เป็นกรรมการตรวจรับพัสดุ เพื่อทำหน้าที่ตรวจรับวัตถุดิบเพื่อใช้ในการประกอบอาหาร"
             "ในการส่งมอบทุกครั้ง โดยให้จัดทำรายงานผลการตรวจรับเสนอหัวหน้าหน่วยงานของรัฐ (ผู้อำนวยการโรงเรียน) "
             "เป็นรายสัปดาห์หรือรายเดือน ตามความเหมาะสมแล้วแต่กรณี ทั้งนี้ ประธานคณะกรรมการตรวจรับพัสดุอาจ"
@@ -583,7 +584,7 @@ def render_inspect_report(rnd, school, doc=None) -> str:
     ตรงตามคู่มืออาหารกลางวัน สพฐ."""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     officer = (getattr(school, "officer_name", "") or "").strip() or _BLANK
     head = (getattr(school, "head_officer_name", "") or "").strip() or _BLANK
     director = (school.director_name or "").strip() or _BLANK
@@ -593,7 +594,7 @@ def render_inspect_report(rnd, school, doc=None) -> str:
                [f"รายงานการตรวจรับพัสดุ รายการวัตถุดิบเพื่อใช้ในการประกอบอาหารกลางวันประจำเดือน {month}",
                 f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}"],
                _dnum(rnd.end_date), rnd.order_no)
-    _p(doc, f"ตามคำสั่งโรงเรียน{sname} เรื่อง แต่งตั้งคณะกรรมการตรวจรับพัสดุ ผู้ควบคุมรับผิดชอบในการประกอบ"
+    _p(doc, f"ตามคำสั่ง{sname} เรื่อง แต่งตั้งคณะกรรมการตรวจรับพัสดุ ผู้ควบคุมรับผิดชอบในการประกอบ"
             "อาหาร และคณะกรรมการตรวจการประกอบอาหาร ในส่วนของคณะกรรมการตรวจรับพัสดุ มีหน้าที่ตรวจรับ"
             "อาหารสด อาหารแห้งรายวัน ซึ่งเจ้าหน้าที่โครงการอาหารกลางวันจัดซื้อตามรายการอาหารที่กำหนดในแต่ละวัน "
             "โดยให้จัดทำรายงานการตรวจรับเสนอผู้อำนวยการเป็นรายสัปดาห์ นั้น", align="justify", indent=1.25, after=2)
@@ -624,7 +625,7 @@ def render_loan_contract(rnd, school, doc=None) -> str:
     from docx.enum.table import WD_ROW_HEIGHT_RULE
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     samphoe = ""  # อำเภอ/จังหวัด อยู่ใน address อยู่แล้ว
     bname, bpos = _borrower(school, rnd.program)
     fund = _fund(prog)
@@ -635,12 +636,13 @@ def render_loan_contract(rnd, school, doc=None) -> str:
     month = _month_year(rnd.start_date)
 
     # ---------- หน้า (front) ----------
+    _p(doc, "แบบ 8500", align="right", size=13, after=0)
     _p(doc, "สัญญาการยืมเงิน", align="center", bold=True, size=18, after=0)
     _p(doc, f"เลขที่ {(rnd.order_no or '').strip() or _BLANK}     วันครบกำหนด {_dnum(rnd.end_date)}",
        align="right", after=4)
-    _p(doc, f"ยื่นต่อ ผู้อำนวยการโรงเรียน{sname}", after=0)
-    _p(doc, f"ข้าพเจ้า {bname} ตำแหน่ง {bpos}", after=0)
-    _p(doc, f"โรงเรียน{sname}  {(school.address or '').strip()}", after=0)
+    _p(doc, f"ยื่นต่อ ผู้อำนวยการ{sname}", after=0)
+    _p(doc, f"ข้าพเจ้า {bname}  ตำแหน่ง {bpos}", after=0)
+    _p(doc, f"สังกัด {sname}  {(school.address or '').strip()}", after=0)
     _p(doc, f"มีความประสงค์ขอยืมเงินจาก เงินอุดหนุนอาหารกลางวันรับจาก{fund} เพื่อเป็นค่าใช้จ่ายในการ"
             "ประกอบอาหารกลางวันให้นักเรียนรับประทาน ดังรายละเอียดต่อไปนี้", after=4)
     _simple_table(doc, ["รายการ", "จำนวนเงิน"],
@@ -652,28 +654,30 @@ def render_loan_contract(rnd, school, doc=None) -> str:
             "พร้อมทั้งเงินเหลือจ่าย (ถ้ามี) ส่งใช้ภายในกำหนดไว้ในระเบียบการเบิกจ่ายเงินจากคลัง คือภายใน 30 วัน "
             "นับแต่วันที่ได้รับเงินยืมนี้ ถ้าข้าพเจ้าไม่ส่งใช้ตามกำหนด ข้าพเจ้ายินยอมให้หักเงินเดือน ค่าจ้าง "
             "หรือเงินอื่นใดที่ข้าพเจ้าพึงได้รับจากทางราชการ ชดใช้จำนวนเงินที่ยืมไปจนครบถ้วนได้ทันที",
-       align="justify", indent=1.25, before=4, after=8)
+       align="justify", indent=1.25, before=2, after=4)
     _sign_table(doc, [
         [("ลายมือชื่อ ...........................................ผู้ยืม", "center"),
          (f"( {bname} )", "center"),
-         (f"วันที่ {_dnum(rnd.order_date)}", "center")]])
-    _p(doc, "เสนอ  ผู้อำนวยการโรงเรียน", before=6, after=0)
+         (f"วันที่ {_dnum(rnd.order_date)}", "center")]], gap=False)
+    _p(doc, "เสนอ  ผู้อำนวยการโรงเรียน", before=2, after=0)
     _p(doc, f"ได้ตรวจสอบแล้ว เห็นสมควรอนุมัติให้ยืมตามใบยืมฉบับนี้ จำนวน {_money(total)} บาท ({bahttext(total)})",
-       indent=1, after=6)
+       indent=1, after=4)
     _sign_table(doc, [
         [("(ลงชื่อ)...........................................เจ้าหน้าที่การเงิน", "center"),
-         (f"วันที่ {_dnum(rnd.order_date)}", "center")]])
-    _p(doc, "คำอนุมัติ  อนุมัติให้ยืมตามเงื่อนไขข้างต้น", align="center", bold=True, before=4, after=6)
+         (f"วันที่ {_dnum(rnd.order_date)}", "center")]], gap=False)
+    _p(doc, "คำอนุมัติ", bold=True, before=2, after=0)
+    _p(doc, f"อนุมัติให้ยืมตามเงื่อนไขข้างต้นได้ เป็นเงิน {_money(total)} บาท ({bahttext(total)})",
+       indent=1, after=4)
     _sign_table(doc, [
-        [("(ลงชื่อ)...........................................ผู้อำนวยการโรงเรียน", "center"),
+        [("(ลงชื่อ)...........................................ผู้อนุมัติ", "center"),
          (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
-         (f"วันที่ {_dnum(rnd.order_date)}", "center")]])
-    _p(doc, "ใบรับเงิน", bold=True, before=6, after=0)
-    _p(doc, f"ได้รับเงินยืมจำนวน {_money(total)} บาท ({bahttext(total)}) ไปเป็นการถูกต้องแล้ว", indent=1, after=8)
+         (f"วันที่ {_dnum(rnd.order_date)}", "center")]], gap=False)
+    _p(doc, "ใบรับเงิน", bold=True, before=2, after=0)
+    _p(doc, f"ได้รับเงินยืมจำนวน {_money(total)} บาท ({bahttext(total)}) ไปเป็นการถูกต้องแล้ว", indent=1, after=4)
     _sign_table(doc, [
         [("(ลงชื่อ)...........................................ผู้รับเงิน", "center"),
          (f"( {bname} )", "center"),
-         (f"วันที่ {_dnum(rnd.order_date)}", "center")]])
+         (f"วันที่ {_dnum(rnd.order_date)}", "center")]], gap=False)
 
     # ---------- หลัง (back) : รายการส่งใช้เงินยืม ----------
     doc.add_page_break()
@@ -703,9 +707,9 @@ def render_food_photos(rnd, school, doc=None) -> str:
     from docx.enum.table import WD_ROW_HEIGHT_RULE
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     _p(doc, "รูปภาพอาหารกลางวันในโรงเรียน", align="center", bold=True, size=18, after=0)
-    _p(doc, f"โรงเรียน{sname}  ประจำเดือน {_month_year(rnd.start_date)}", align="center", after=0)
+    _p(doc, f"{sname}  ประจำเดือน {_month_year(rnd.start_date)}", align="center", after=0)
     _p(doc, f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}", align="center", after=6)
     days = _round_menu_days(rnd)
     items = [(f"{_dnum(m.date)}\n{(m.main or '')}") for m in days] or ["" for _ in range(6)]

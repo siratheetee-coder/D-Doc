@@ -16,7 +16,7 @@ from app.services.build_templates import (
 )
 from app.services.lunch_doc import (
     _BLANK, _money, _dnum, _save, _begin, _finish, _memo_head,
-    _committee_lines, _menu_table3, _simple_table,
+    _committee_lines, _menu_table3, _simple_table, _school_disp,
 )
 # ชุดซื้อวัตถุดิบ (ยืมเงิน->ส่งใช้) ใช้ซ้ำจากรูปแบบ 1
 from app.services.lunch_ingredient_doc import (
@@ -36,20 +36,20 @@ def render_p_tor(rnd, school, doc=None) -> str:
     """02 ขอบเขตของงาน (TOR) การจ้างบุคคลประกอบอาหารกลางวัน"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     total = round(float(rnd.amount or 0), 2)
     days = rnd.days or 0
     students = prog.total_students
     fund = (prog.funding_org or "").strip() or "องค์กรปกครองส่วนท้องถิ่น"
     insts = list(rnd.installments or [])
     _p(doc, "ขอบเขตของงาน (TOR) การจ้างบุคคลประกอบอาหารกลางวัน", align="center", bold=True, size=18, after=0)
-    _p(doc, f"โรงเรียน{sname}  ประจำปีการศึกษา {prog.year}", align="center", after=6)
+    _p(doc, f"{sname}  ประจำปีการศึกษา {prog.year}", align="center", after=6)
     _p(doc, "1. ความเป็นมา", bold=True, indent=0.5, after=0)
-    _p(doc, f"โรงเรียน{sname} จัดบริการอาหารกลางวันให้นักเรียนระดับอนุบาลถึงชั้นประถมศึกษาปีที่ 6 "
+    _p(doc, f"{sname} จัดบริการอาหารกลางวันให้นักเรียนระดับอนุบาลถึงชั้นประถมศึกษาปีที่ 6 "
             "จึงจัดทำขอบเขตของงานจ้างบุคคลประกอบอาหารกลางวันฉบับนี้ เพื่อจ้างบุคคลมาประกอบอาหารกลางวัน "
             "ให้นักเรียนได้รับประทานอาหารที่มีคุณค่าทางโภชนาการ สะอาด และปลอดภัย", align="justify", indent=1)
     _p(doc, "2. วัตถุประสงค์", bold=True, indent=0.5, after=0)
-    _p(doc, f"เพื่อจัดหาบุคคลประกอบอาหารกลางวันให้นักเรียนของโรงเรียน{sname} จำนวน {students} คน "
+    _p(doc, f"เพื่อจัดหาบุคคลประกอบอาหารกลางวันให้นักเรียนของ{sname} จำนวน {students} คน "
             f"จำนวน {days} วัน (เว้นวันหยุดราชการ)", align="justify", indent=1)
     _p(doc, "3. คุณสมบัติของผู้เสนอราคา", bold=True, indent=0.5, after=0)
     _p(doc, "เป็นบุคคลธรรมดา มีความสามารถตามกฎหมาย ไม่เป็นผู้ทิ้งงานของทางราชการ และสามารถประกอบอาหาร "
@@ -73,7 +73,7 @@ def render_p_hire_report(rnd, school, doc=None) -> str:
     """03 รายงานขอจ้างบุคคลประกอบอาหารกลางวัน (ค่าตอบแทน/ค่าแรง)"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     officer = (school.officer_name or "").strip() or _BLANK
     head = (school.head_officer_name or "").strip() or _BLANK
     director = (school.director_name or "").strip() or _BLANK
@@ -83,7 +83,7 @@ def render_p_hire_report(rnd, school, doc=None) -> str:
     dr = _period(rnd)
     _memo_head(doc, school, [f"รายงานขอจ้างบุคคลประกอบอาหารกลางวัน (ค่าตอบแทน/ค่าแรง)"],
                _dnum(rnd.order_date), rnd.order_no)
-    _p(doc, f"ด้วยโรงเรียน{sname} มีความจำเป็นขอจ้างบุคคลประกอบอาหารกลางวันให้แก่นักเรียนรับประทาน "
+    _p(doc, f"ด้วย{sname} มีความจำเป็นขอจ้างบุคคลประกอบอาหารกลางวันให้แก่นักเรียนรับประทาน "
             f"{dr} จึงรายงานขอจ้างตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ "
             "พ.ศ. 2560 ข้อ 22 และขอดำเนินการจ้างโดยวิธีเฉพาะเจาะจง ตามพระราชบัญญัติการจัดซื้อจัดจ้างและ"
             f"การบริหารพัสดุภาครัฐ พ.ศ. 2560 มาตรา 56 (2) (ข) จากเงินนอกงบประมาณ ประเภทเงินอุดหนุน"
@@ -129,7 +129,7 @@ def render_p_quotation(rnd, school, doc=None) -> str:
     """04 ใบเสนอราคา (จ้างบุคคลประกอบอาหารกลางวัน)"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     officer = (school.officer_name or "").strip() or _BLANK
     v = rnd.vendor
     vname = v.name if v else _BLANK
@@ -140,9 +140,9 @@ def render_p_quotation(rnd, school, doc=None) -> str:
     dr = _period(rnd)
     _p(doc, "ใบเสนอราคา", align="center", bold=True, size=20, after=6)
     _p(doc, f"วันที่  {_dnum(rnd.order_date)}", align="right", after=4)
-    _p(doc, f"เรียน  ผู้อำนวยการโรงเรียน{sname}", after=4)
+    _p(doc, f"เรียน  ผู้อำนวยการ{sname}", after=4)
     _p(doc, f"1. ข้าพเจ้า {vowner or vname} บ้านเลขที่/ที่อยู่ {vaddr or _BLANK} เลขประจำตัวประชาชน/ผู้เสียภาษี "
-            f"{vtax or _BLANK} ได้ศึกษาขอบเขตของงานการจ้างบุคคลประกอบอาหารกลางวัน {dr} ของโรงเรียน{sname} "
+            f"{vtax or _BLANK} ได้ศึกษาขอบเขตของงานการจ้างบุคคลประกอบอาหารกลางวัน {dr} ของ{sname} "
             "โดยตลอดและยอมรับข้อกำหนดและเงื่อนไขแล้ว รวมทั้งรับรองว่าเป็นผู้มีคุณสมบัติครบถ้วนและไม่เป็น"
             "ผู้ทิ้งงานของทางราชการ", align="justify", indent=1.25, after=2)
     _p(doc, f"2. ข้าพเจ้าขอเสนอราคาจ้างบุคคลประกอบอาหารกลางวัน {dr} เป็นเงินทั้งสิ้น {_money(total)} บาท "
@@ -161,7 +161,7 @@ def render_p_result(rnd, school, doc=None) -> str:
     """05 รายงานผลการพิจารณาและขออนุมัติสั่งจ้างบุคคลประกอบอาหารกลางวัน"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     officer = (school.officer_name or "").strip() or _BLANK
     head = (school.head_officer_name or "").strip() or _BLANK
     director = (school.director_name or "").strip() or _BLANK
@@ -170,7 +170,7 @@ def render_p_result(rnd, school, doc=None) -> str:
     dr = f"{_period(rnd)} ({rnd.days or ''} วันทำการ)"
     _memo_head(doc, school, ["รายงานผลการพิจารณาและขออนุมัติสั่งจ้างบุคคลประกอบอาหารกลางวัน", dr],
                _dnum(rnd.order_date), rnd.order_no)
-    _p(doc, f"ตามที่ผู้อำนวยการโรงเรียน{sname} เห็นชอบให้ดำเนินการจ้างบุคคลประกอบอาหารกลางวัน {dr} "
+    _p(doc, f"ตามที่ผู้อำนวยการ{sname} เห็นชอบให้ดำเนินการจ้างบุคคลประกอบอาหารกลางวัน {dr} "
             f"โดยวิธีเฉพาะเจาะจง วงเงินงบประมาณ {_money(total)} บาท ({bahttext(total)}) นั้น เจ้าหน้าที่ได้"
             "เจรจาตกลงราคากับผู้ประกอบการโดยตรงตามระเบียบกระทรวงการคลังฯ พ.ศ. 2560 ข้อ 79 แล้ว "
             "ขอรายงานผลการพิจารณา ดังนี้", align="justify", indent=1.25, after=4)
@@ -180,7 +180,7 @@ def render_p_result(rnd, school, doc=None) -> str:
                    ["รวม", "", _money(total), _money(total)]],
                   [Cm(6.05), Cm(4.2), Cm(3), Cm(3)])   # รวม 16.25 = พื้นที่พิมพ์ A4
     _p(doc, f"จึงเห็นสมควรรับราคาจาก {vname} การจัดจ้างคราวนี้ไม่เกินวงเงินที่ประมาณไว้และไม่สูงกว่าราคากลาง "
-            f"สถานที่ส่งมอบ ณ โรงเรียน{sname}", align="justify", indent=1.25, before=4)
+            f"สถานที่ส่งมอบ ณ {sname}", align="justify", indent=1.25, before=4)
     _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติให้ดำเนินการจัดจ้างจากผู้ชนะการเสนอราคาดังกล่าว และลงนาม"
             "ในประกาศรายชื่อผู้ชนะการเสนอราคา และใบสั่งจ้าง ที่เสนอมาพร้อมนี้", align="justify", indent=1.25, after=12)
     _sign_table(doc, [
@@ -189,7 +189,7 @@ def render_p_result(rnd, school, doc=None) -> str:
     _p(doc, "อนุมัติ/ลงนามแล้ว", align="center", bold=True, before=4, after=8)
     _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
     _p(doc, f"( {director} )", align="center", after=0)
-    _p(doc, f"ผู้อำนวยการโรงเรียน{sname}", align="center", after=0)
+    _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
     return _finish(doc, own, f"รายงานผลพิจารณา_จ้างบุคคล_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
@@ -197,18 +197,18 @@ def render_p_winner(rnd, school, doc=None) -> str:
     """06 ประกาศผู้ชนะการเสนอราคา สำหรับการจ้างบุคคลประกอบอาหารกลางวัน"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     director = (school.director_name or "").strip() or _BLANK
     vname = rnd.vendor.name if rnd.vendor else _BLANK
     total = round(float(rnd.amount or 0), 2)
     dr = f"{_period(rnd)} ({rnd.days or ''} วันทำการ)"
     _krut_center(doc)
-    _p(doc, f"ประกาศโรงเรียน{sname}", align="center", bold=True, size=18, after=0)
+    _p(doc, f"ประกาศ{sname}", align="center", bold=True, size=18, after=0)
     _p(doc, "เรื่อง ประกาศผู้ชนะการเสนอราคา สำหรับการจ้างบุคคลประกอบอาหารกลางวัน", align="center", bold=True, after=0)
     _p(doc, f"{dr}", align="center", after=0)
     _p(doc, "โดยวิธีเฉพาะเจาะจง", align="center", after=0)
     _p(doc, "-------------------------------", align="center", after=6)
-    _p(doc, f"ตามที่โรงเรียน{sname} โดย{director} ได้มีโครงการจ้างบุคคลประกอบอาหารกลางวัน {dr} "
+    _p(doc, f"ตามที่{sname} โดย{director} ได้มีโครงการจ้างบุคคลประกอบอาหารกลางวัน {dr} "
             "โดยวิธีเฉพาะเจาะจง นั้น", align="justify", indent=1.25)
     _p(doc, f"โครงการจ้างบุคคลประกอบอาหารกลางวัน {dr} ผู้ได้รับการคัดเลือก ได้แก่ {vname} โดยเสนอราคา"
             f"เป็นเงินทั้งสิ้น {_money(total)} บาท ({bahttext(total)}) รวมภาษีมูลค่าเพิ่มและภาษีอื่น "
@@ -216,7 +216,7 @@ def render_p_winner(rnd, school, doc=None) -> str:
     _p(doc, f"ประกาศ ณ วันที่ {_dnum(rnd.order_date)}", align="center", after=14)
     _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
     _p(doc, f"( {director} )", align="center", after=0)
-    _p(doc, f"ผู้อำนวยการโรงเรียน{sname}", align="center", after=0)
+    _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
     return _finish(doc, own, f"ประกาศผู้ชนะ_จ้างบุคคล_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
@@ -225,7 +225,7 @@ def render_p_order(rnd, school, doc=None) -> str:
     รูปแบบตามคู่มือ สพฐ. : ผู้ว่าจ้างจัดหาวัตถุดิบเอง จ่ายค่าจ้างรายวัน ค่าปรับวันละ 100 บาท"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     director = (school.director_name or "").strip() or _BLANK
     v = rnd.vendor
     vname = v.name if v else _BLANK
@@ -237,9 +237,9 @@ def render_p_order(rnd, school, doc=None) -> str:
 
     _p(doc, order_no, indent=0.5, after=0)
     _p(doc, "บันทึกตกลงจ้าง", align="center", bold=True, size=20, before=2, after=8)
-    _p(doc, f"เขียนที่ โรงเรียน{sname}", align="right", after=0)
+    _p(doc, f"เขียนที่ {sname}", align="right", after=0)
     _p(doc, f"วันที่ {_dnum(rnd.order_date)}", align="right", after=6)
-    _p(doc, f"บันทึกตกลงจ้างฉบับนี้จัดทำขึ้นเพื่อแสดงว่า {director} ตำแหน่งผู้อำนวยการโรงเรียน{sname} "
+    _p(doc, f"บันทึกตกลงจ้างฉบับนี้จัดทำขึ้นเพื่อแสดงว่า {director} ตำแหน่งผู้อำนวยการ{sname} "
             "ผู้ได้รับมอบหมายอำนาจจากเลขาธิการคณะกรรมการการศึกษาขั้นพื้นฐาน ตามคำสั่งสำนักงานคณะกรรมการ"
             "การศึกษาขั้นพื้นฐาน ซึ่งเรียกว่า “ผู้ว่าจ้าง” ฝ่ายหนึ่ง กับ "
             f"{vname} อยู่บ้านเลขที่ {vaddr or _BLANK} ซึ่งเรียกว่า “ผู้รับจ้าง” อีกฝ่ายหนึ่ง "
@@ -278,7 +278,7 @@ def render_p_installment(inst, school, menus=None, doc=None) -> str:
     doc, own = _begin(doc)
     rnd = inst.round
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     director = (school.director_name or "").strip() or _BLANK
     vname = rnd.vendor.name if rnd.vendor else _BLANK
     order_no = (rnd.order_no or "").strip() or _BLANK
@@ -287,20 +287,20 @@ def render_p_installment(inst, school, menus=None, doc=None) -> str:
 
     _p(doc, "บันทึกรายงานผู้ควบคุมและคณะกรรมการตรวจการประกอบอาหารกลางวัน (การจ้างบุคคล)",
        align="center", bold=True, size=16, after=4)
-    _p(doc, f"เขียนที่ โรงเรียน{sname}", align="right", after=0)
+    _p(doc, f"เขียนที่ {sname}", align="right", after=0)
     _p(doc, f"วันที่ {_dnum(inst.inspect_date or inst.end_date)}", align="right", after=6)
-    _p(doc, f"ตามที่โรงเรียน{sname} ได้ตกลงจ้าง {vname} ประกอบอาหารกลางวันให้นักเรียนรับประทาน {period} นั้น "
+    _p(doc, f"ตามที่{sname} ได้ตกลงจ้าง {vname} ประกอบอาหารกลางวันให้นักเรียนรับประทาน {period} นั้น "
             "คณะกรรมการขอรายงานผลการดำเนินงานเป็นรายวัน ดังนี้", align="justify", indent=1.25, after=4)
     _menu_table3(doc, menus, "ผู้ควบคุมและคณะกรรมการ\nตรวจการประกอบอาหาร")
     _p(doc, "ความเห็นของผู้อำนวยการสถานศึกษา : ทราบผลการดำเนินการ", indent=1.25, before=4, after=8)
     _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
     _p(doc, f"( {director} )", align="center", after=0)
-    _p(doc, f"ผู้อำนวยการโรงเรียน{sname}", align="center", after=6)
+    _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=6)
 
     doc.add_page_break()
     _p(doc, "ใบส่งมอบงาน", align="center", bold=True, size=18, after=6)
     _p(doc, f"วันที่ {_dnum(inst.deliver_date or inst.end_date)}", align="right", after=6)
-    _p(doc, f"ตามที่โรงเรียน{sname} ได้ตกลงจ้างข้าพเจ้า {vname} ตามใบสั่งจ้าง เลขที่ {order_no} เพื่อประกอบ"
+    _p(doc, f"ตามที่{sname} ได้ตกลงจ้างข้าพเจ้า {vname} ตามใบสั่งจ้าง เลขที่ {order_no} เพื่อประกอบ"
             f"อาหารกลางวันสำหรับนักเรียน {period} บัดนี้ได้ดำเนินการเสร็จเรียบร้อยแล้ว จึงขอส่งมอบงาน",
        align="justify", indent=1.25, after=4)
     _menu_table3(doc, menus, "ผู้ส่งมอบงาน")
@@ -310,13 +310,13 @@ def render_p_installment(inst, school, menus=None, doc=None) -> str:
 
     doc.add_page_break()
     _p(doc, "ใบตรวจรับพัสดุการจ้างบุคคลประกอบอาหารกลางวัน", align="center", bold=True, size=17, after=4)
-    _p(doc, f"เขียนที่ โรงเรียน{sname}   วันที่ {_dnum(inst.inspect_date or inst.end_date)}", align="right", after=6)
-    _p(doc, f"ตามที่โรงเรียน{sname} ได้ตกลงจ้าง {vname} ประกอบอาหารกลางวันให้นักเรียนรับประทาน ตามใบสั่งจ้าง "
+    _p(doc, f"เขียนที่ {sname}   วันที่ {_dnum(inst.inspect_date or inst.end_date)}", align="right", after=6)
+    _p(doc, f"ตามที่{sname} ได้ตกลงจ้าง {vname} ประกอบอาหารกลางวันให้นักเรียนรับประทาน ตามใบสั่งจ้าง "
             f"เลขที่ {order_no} บัดนี้ผู้รับจ้างได้ส่งมอบพัสดุทุกวันตามข้อตกลง และคณะกรรมการตรวจรับพัสดุได้"
             f"ตรวจรับไว้ถูกต้องครบถ้วนแล้ว เห็นควรเบิกจ่ายให้ผู้รับจ้าง {period} เป็นเงิน {amount} บาท "
             f"({bahttext(inst.amount or 0)})", align="justify", indent=1.25, after=4)
     _menu_table3(doc, menus, "ผู้ตรวจรับพัสดุหรือคณะกรรมการ\nตรวจรับพัสดุ")
-    _p(doc, f"เรียน ผู้อำนวยการโรงเรียน{sname} เพื่อโปรดทราบผลการตรวจรับพัสดุ และขออนุมัติจ่ายเงินให้ผู้รับจ้าง",
+    _p(doc, f"เรียน ผู้อำนวยการ{sname} เพื่อโปรดทราบผลการตรวจรับพัสดุ และขออนุมัติจ่ายเงินให้ผู้รับจ้าง",
        align="justify", indent=1.25, before=4, after=10)
     inspectors = [m for m in rnd.committees if m.kind == "inspect"]
     rows = ([[(f"(ลงชื่อ)...........................................{m.role}", "center"),
@@ -327,7 +327,7 @@ def render_p_installment(inst, school, menus=None, doc=None) -> str:
     _p(doc, "ความเห็นของผู้บริหารสถานศึกษา   (   ) ทราบผลการตรวจรับ   (   ) อนุมัติ", indent=1.25, before=4, after=8)
     _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
     _p(doc, f"( {director} )", align="center", after=0)
-    _p(doc, f"ผู้อำนวยการโรงเรียน{sname}", align="center", after=0)
+    _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
     return _finish(doc, own, f"งวดจ้างบุคคล_งวดที่{inst.seq}_ปี{prog.year}")
 
 
@@ -336,7 +336,7 @@ def render_p_disburse(inst, school, wht_rate=0.01, doc=None) -> str:
     doc, own = _begin(doc)
     rnd = inst.round
     prog = rnd.program
-    sname = (school.name or "").strip() or "โรงเรียน"
+    sname = _school_disp(school)
     saddr = (school.address or "").strip()
     fund = (prog.funding_org or "").strip() or "องค์กรปกครองส่วนท้องถิ่น"
     vendor = rnd.vendor
@@ -370,13 +370,13 @@ def render_p_disburse(inst, school, wht_rate=0.01, doc=None) -> str:
     _p(doc, "ความเห็นของผู้อำนวยการสถานศึกษา   (   ) อนุมัติ", indent=1.25, before=4, after=10)
     _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
     _p(doc, f"( {director} )", align="center", after=0)
-    _p(doc, f"ผู้อำนวยการโรงเรียน{sname}", align="center", after=0)
+    _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
 
     doc.add_page_break()
     _p(doc, "ใบสำคัญรับเงิน", align="center", bold=True, size=18, after=4)
-    _p(doc, f"โรงเรียน{sname}  {saddr}", align="right", after=0)
+    _p(doc, f"{sname}  {saddr}", align="right", after=0)
     _p(doc, f"วันที่ {_dnum(inst.inspect_date or inst.end_date)}", align="right", after=6)
-    _p(doc, f"ข้าพเจ้า {vname} บ้านเลขที่ {vaddr} ได้รับเงินจากโรงเรียน{sname} ดังรายการต่อไปนี้",
+    _p(doc, f"ข้าพเจ้า {vname} บ้านเลขที่ {vaddr} ได้รับเงินจาก{sname} ดังรายการต่อไปนี้",
        align="justify", indent=1.25, after=4)
     _simple_table(doc, ["ลำดับที่", "รายการ", "จำนวนเงิน"],
                   [["1", f"ค่าจ้างบุคคลประกอบอาหารกลางวัน {period}", A], ["", "รวมเงิน", A]],
@@ -391,7 +391,7 @@ def render_p_disburse(inst, school, wht_rate=0.01, doc=None) -> str:
     _p(doc, "หนังสือรับรองการหักภาษี ณ ที่จ่าย", align="center", bold=True, size=18, after=2)
     _p(doc, "ตามมาตรา ๕๐ ทวิ แห่งประมวลรัษฎากร", align="center", after=8)
     _p(doc, "ผู้มีหน้าที่หักภาษี ณ ที่จ่าย :", bold=True, after=0)
-    _p(doc, f"ส่วนราชการ โรงเรียน{sname}   เลขประจำตัวผู้เสียภาษี {getattr(school,'tax_id','') or _BLANK}", after=0)
+    _p(doc, f"ส่วนราชการ {sname}   เลขประจำตัวผู้เสียภาษี {getattr(school,'tax_id','') or _BLANK}", after=0)
     _p(doc, f"ที่อยู่ {saddr or _BLANK}", after=6)
     _p(doc, "ผู้ถูกหักภาษี ณ ที่จ่าย :", bold=True, after=0)
     _p(doc, f"ชื่อ {vname}   เลขประจำตัวประชาชน/ผู้เสียภาษี {vtax}", after=0)
@@ -402,7 +402,7 @@ def render_p_disburse(inst, school, wht_rate=0.01, doc=None) -> str:
     _p(doc, f"รวมเงินภาษีที่หัก (ตัวอักษร) ({bahttext(wht)})", indent=1.25, before=2, after=12)
     _p(doc, "(ลงชื่อ)...........................................ผู้จ่ายเงิน", align="center", after=0)
     _p(doc, f"( {director} )", align="center", after=0)
-    _p(doc, f"ผู้อำนวยการโรงเรียน{sname}", align="center", after=0)
+    _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
     return _finish(doc, own, f"ขอเบิกจ่าย_จ้างบุคคล_งวดที่{inst.seq}_ปี{prog.year}")
 
 
