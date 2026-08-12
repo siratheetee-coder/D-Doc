@@ -53,7 +53,7 @@
         <td><b>{{ r.full_no }}</b></td>
         <form method="post" action="/docnos/{{ r.id }}/update" style="display:contents;">
           <td><input name="subject" value="{{ r.subject }}" placeholder="(ไม่ระบุ)"></td>
-          <td>{{ {'procurement':'พัสดุ','admin':'ธุรการ','finance':'การเงิน'}.get(r.source, r.source or '-') }}</td>
+          <td>{{ {'procurement':'พัสดุ','admin':'ธุรการ','finance':'การเงิน','lunch':'อาหารกลางวัน'}.get(r.source, r.source or '-') }}</td>
           <td><input name="date" value="{{ be_date(r.date) if r.date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;"></td>
           <td style="white-space:nowrap;">
             <button class="btn sm" type="button" onclick="saveDocno(this)">บันทึก</button>

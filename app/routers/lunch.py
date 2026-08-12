@@ -404,14 +404,18 @@ def _lunch_holidays(prog) -> dict:
 
 
 def _rounds_page(request, db, prog, edit=None):
+    from app.services.doc_number import suggest_doc_no
     vendors = db.query(Vendor).order_by(Vendor.name).all()
     paid = sum(r.amount or 0 for r in prog.rounds if r.status == "จ่ายแล้ว")
     committed = sum(r.amount or 0 for r in prog.rounds)
+    fy = prog.year or current_fiscal_year()
     return templates.TemplateResponse("lunch_rounds.html", {
         "request": request, "school": get_school(db), "p": prog,
         "rounds": prog.rounds, "vendors": vendors, "periods": PERIOD_TYPES,
         "edit": edit, "paid": paid, "committed": committed,
         "default_period": "month", "holidays": _lunch_holidays(prog),
+        "sug_memo": suggest_doc_no(db, "memo", fy),
+        "sug_command": suggest_doc_no(db, "command", fy),
     })
 
 
@@ -460,8 +464,30 @@ def _populate_round(rnd, form, db):
     rnd.procurement_id = _to_int(form.get("procurement_id"), 0) or None
     rnd.order_no = (form.get("order_no") or "").strip()
     rnd.order_date = parse_be_date(form.get("order_date") or "")
+    rnd.memo_no = (form.get("memo_no") or "").strip()
+    rnd.memo_date = parse_be_date(form.get("memo_date") or "")
+    rnd.command_no = (form.get("command_no") or "").strip()
+    rnd.command_date = parse_be_date(form.get("command_date") or "")
     rnd.status = form.get("status") or "ร่าง"
     rnd.note = (form.get("note") or "").strip()
+
+
+def _register_round_docnos(db, rnd):
+    """ผูกเลขบันทึกข้อความ/คำสั่งของรอบเข้าทะเบียนเลขกลาง (source=lunch) ให้ตรงกับทะเบียน
+    ล้างของเก่าก่อน (กันค้างเมื่อเปลี่ยนเลข)"""
+    from app.services.doc_number import commit_doc_no, remove_issued
+    prog = rnd.program
+    subj = f"อาหารกลางวัน รอบที่ {rnd.seq} ปีการศึกษา {prog.year}"
+    remove_issued(db, "lunch", rnd.id, "memo")
+    remove_issued(db, "lunch", rnd.id, "command")
+    if (rnd.memo_no or "").strip():
+        fy = current_fiscal_year(rnd.memo_date) if rnd.memo_date else (prog.year or current_fiscal_year())
+        commit_doc_no(db, "memo", fy, rnd.memo_no, source="lunch", ref_id=rnd.id,
+                      subject=f"รายงานขอซื้อ/ขอจ้างอาหารกลางวัน {subj}", date=rnd.memo_date)
+    if (rnd.command_no or "").strip():
+        fy = current_fiscal_year(rnd.command_date) if rnd.command_date else (prog.year or current_fiscal_year())
+        commit_doc_no(db, "command", fy, rnd.command_no, source="lunch", ref_id=rnd.id,
+                      subject=f"คำสั่งแต่งตั้งกรรมการ {subj}", date=rnd.command_date)
 
 
 @router.post("/lunch/{pid}/rounds/add")
@@ -477,6 +503,7 @@ async def round_add(pid: int, request: Request, db: Session = Depends(get_db)):
     db.flush()
     _sync_round_procurement(db, rnd)   # ผูกเรื่องจัดจ้าง (ถ้ามีเลขใบสั่งจ้าง)
     _sync_round_ledger(db, rnd)
+    _register_round_docnos(db, rnd)    # ผูกเลขบันทึก/คำสั่งเข้าทะเบียนกลาง
     db.commit()
     return RedirectResponse(f"/lunch/{pid}/rounds", status_code=303)
 
@@ -490,6 +517,7 @@ async def round_update(rid: int, request: Request, db: Session = Depends(get_db)
     _populate_round(rnd, form, db)
     _sync_round_procurement(db, rnd)   # ผูก/อัปเดตเรื่องจัดจ้าง (ถ้ามีเลขใบสั่งจ้าง)
     _sync_round_ledger(db, rnd)
+    _register_round_docnos(db, rnd)    # อัปเดตเลขบันทึก/คำสั่งในทะเบียนกลาง
     db.commit()
     return RedirectResponse(f"/lunch/{rnd.program_id}/rounds", status_code=303)
 
@@ -529,6 +557,9 @@ def round_delete(rid: int, db: Session = Depends(get_db)):
             proc = db.get(Procurement, rnd.procurement_id)
             if proc and proc.proc_case == "w119t2" and "อาหารกลางวัน" in (proc.subject or ""):
                 db.delete(proc)
+        from app.services.doc_number import remove_issued
+        remove_issued(db, "lunch", rnd.id, "memo")      # ล้างเลขในทะเบียนกลางให้ตรงกัน
+        remove_issued(db, "lunch", rnd.id, "command")
         db.delete(rnd)
         db.commit()
     return RedirectResponse(f"/lunch/{pid}/rounds" if pid else "/lunch", status_code=303)

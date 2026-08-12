@@ -60,6 +60,14 @@ def _fund(prog) -> str:
     return (prog.funding_org or "").strip() or "องค์กรปกครองส่วนท้องถิ่น"
 
 
+def _memo_ref(rnd):
+    """เลขที่/วันที่บันทึกข้อความ (จากทะเบียนกลาง) - คืน (วันที่str, เลขที่)
+    ถ้ายังไม่กรอกเลขบันทึก ใช้เลขตกลงจ้างเดิมแทน (backward compatible)"""
+    no = (getattr(rnd, "memo_no", "") or "").strip() or (rnd.order_no or "").strip()
+    dt = getattr(rnd, "memo_date", None) or rnd.order_date
+    return _dnum(dt), no
+
+
 def _borrower(school, prog=None):
     """ผู้ยืมเงิน/ผู้จ่ายเงิน = เจ้าหน้าที่โครงการอาหารกลางวัน (ถ้าตั้งไว้ในโครงการ)
     ถ้าไม่ได้ตั้ง จึงใช้เจ้าหน้าที่พัสดุเป็นค่าตั้งต้น (อาจเป็นคนละคนกัน)"""
@@ -130,7 +138,7 @@ def render_borrow_memo(rnd, school, doc=None) -> str:
     total = round(float(rnd.amount or 0), 2)
 
     _memo_head(doc, school, [f"ขออนุมัติยืมเงิน (เงินอุดหนุนอาหารกลางวันรับจาก{fund})"],
-               _dnum(rnd.order_date), rnd.order_no)
+               *_memo_ref(rnd))
     _p(doc, f"ด้วยข้าพเจ้า {bname} ตำแหน่ง {bpos} มีความประสงค์ขอยืมเงิน (เงินอุดหนุนอาหารกลางวัน"
             f"รับจาก{fund}) สำหรับเป็นค่าใช้จ่ายอาหารกลางวันให้นักเรียนระดับอนุบาลถึงประถมศึกษาปีที่ 6 "
             f"จำนวน {students} คน ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} "
@@ -199,7 +207,7 @@ def render_purchase_report(rnd, school, doc=None) -> str:
     _memo_head(doc, school,
                [f"รายงานขอซื้อวัตถุดิบเพื่อใช้ประกอบอาหารประจำเดือน {month}",
                 f"(ระหว่างวันที่ {ds} ถึงวันที่ {de})"],
-               _dnum(rnd.order_date), rnd.order_no)
+               *_memo_ref(rnd))
     _p(doc, f"ด้วย{sname} จัดซื้อวัตถุดิบเพื่อใช้ในการประกอบอาหารให้นักเรียนรับประทาน ระหว่างวันที่ "
             f"{ds} ถึงวันที่ {de} รวม {days} วัน การจัดซื้อครั้งนี้ดำเนินการโดยวิธีเฉพาะเจาะจง ตามพระราชบัญญัติ"
             "การจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 มาตรา 56 (2) (ข) และหนังสือคณะกรรมการ"
@@ -452,7 +460,7 @@ def render_repay_memo(rnd, school, doc=None) -> str:
     total = round(float(rnd.amount or 0), 2)
 
     _memo_head(doc, school, [f"ขออนุมัติเบิกจ่ายเงินเพื่อส่งใช้เงินยืม (เงินอุดหนุนอาหารกลางวันรับจาก{fund})"],
-               _dnum(rnd.end_date), rnd.order_no)
+               *_memo_ref(rnd))
     _p(doc, f"ตามที่อนุมัติให้ {bname} ผู้ยืมเงินโครงการอาหารกลางวัน ยืมเงิน (เงินอุดหนุนอาหารกลางวัน"
             f"รับจาก{fund}) เพื่อเป็นค่าใช้จ่ายอาหารกลางวันให้นักเรียนรับประทาน จำนวนเงิน {_money(total)} "
             f"บาท (ตัวอักษร {bahttext(total)}) ตามสัญญาการยืมเงินที่ {(rnd.order_no or '').strip() or _BLANK} "
@@ -592,7 +600,7 @@ def render_inspect_notify(rnd, school, doc=None) -> str:
     _memo_head_to(doc, school,
                   [f"การตรวจรับพัสดุ รายการวัตถุดิบเพื่อใช้ในการประกอบอาหารกลางวันประจำเดือน {month}",
                    f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}"],
-                  _dnum(rnd.order_date), rnd.order_no,
+                  *_memo_ref(rnd),
                   "ประธานคณะกรรมการตรวจรับพัสดุ/ผู้ตรวจรับพัสดุ")
     _p(doc, f"ด้วยผู้อำนวยการ{sname} ได้แต่งตั้ง {chair} ประธานกรรมการตรวจรับพัสดุ/ผู้ตรวจรับพัสดุ "
             f"พร้อมด้วย {others} เป็นกรรมการตรวจรับพัสดุ เพื่อทำหน้าที่ตรวจรับวัตถุดิบเพื่อใช้ในการประกอบอาหาร"
@@ -626,7 +634,7 @@ def render_inspect_report(rnd, school, doc=None) -> str:
     _memo_head(doc, school,
                [f"รายงานการตรวจรับพัสดุ รายการวัตถุดิบเพื่อใช้ในการประกอบอาหารกลางวันประจำเดือน {month}",
                 f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}"],
-               _dnum(rnd.end_date), rnd.order_no)
+               *_memo_ref(rnd))
     _p(doc, f"ตามคำสั่ง{sname} เรื่อง แต่งตั้งคณะกรรมการตรวจรับพัสดุ ผู้ควบคุมรับผิดชอบในการประกอบ"
             "อาหาร และคณะกรรมการตรวจการประกอบอาหาร ในส่วนของคณะกรรมการตรวจรับพัสดุ มีหน้าที่ตรวจรับ"
             "อาหารสด อาหารแห้งรายวัน ซึ่งเจ้าหน้าที่โครงการอาหารกลางวันจัดซื้อตามรายการอาหารที่กำหนดในแต่ละวัน "

@@ -510,7 +510,8 @@ def render_committee_order_doc(rnd, school, doc=None) -> str:
         first = False
         _krut_center(doc)
         _p(doc, f"คำสั่ง{sname}", align="center", bold=True, size=18, after=0)
-        _p(doc, f"ที่ ....../{prog.year}", align="center", bold=True, after=0)
+        _p(doc, f"ที่ {(getattr(rnd, 'command_no', '') or '').strip() or ('....../' + str(prog.year))}",
+           align="center", bold=True, after=0)
         _p(doc, f"เรื่อง {subject}", align="center", bold=True, after=0)
         _p(doc, period, align="center", after=0)
         _p(doc, "─────────────────────", align="center", after=6)
@@ -529,7 +530,7 @@ def render_committee_order_doc(rnd, school, doc=None) -> str:
         _p(doc, f"ให้คณะกรรมการที่ได้รับแต่งตั้ง {duty} และปฏิบัติหน้าที่ให้ถูกต้องตามระเบียบ"
                 "ของทางราชการอย่างเคร่งครัด", align="justify", indent=1.25, before=4)
         _p(doc, "ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป", bold=True, indent=1.25, after=6)
-        _p(doc, f"สั่ง ณ วันที่ {_dnum(rnd.order_date)}", align="center", after=14)
+        _p(doc, f"สั่ง ณ วันที่ {_dnum(getattr(rnd, 'command_date', None) or rnd.order_date)}", align="center", after=14)
         _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
         _p(doc, f"( {director} )", align="center", after=0)
         _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
