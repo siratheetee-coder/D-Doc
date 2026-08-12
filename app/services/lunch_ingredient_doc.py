@@ -26,10 +26,10 @@ from docx.oxml.ns import qn
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 
-def _box_cell(cell, lines, *, size=14, before=0, after=1):
+def _box_cell(cell, lines, *, size=14, before=0, after=1, line=None):
     """เติมข้อความหลายบรรทัดในเซลล์ตาราง (แต่ละ tuple = (text, align, bold))
     ใช้ทำฟอร์มแบบมีช่องกรอบ (เช่น สัญญายืมเงิน แบบ 8500)
-    before/after = ระยะห่างบน/ล่างแต่ละบรรทัด (Pt) - ใช้เว้นที่ให้เซ็น"""
+    before/after = ระยะห่างบน/ล่างแต่ละบรรทัด (Pt) · line = ระยะบรรทัด (เช่น 1.5)"""
     amap = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER,
             "right": WD_ALIGN_PARAGRAPH.RIGHT}
     cell.text = ""
@@ -38,6 +38,8 @@ def _box_cell(cell, lines, *, size=14, before=0, after=1):
         p.alignment = amap[al]
         p.paragraph_format.space_after = Pt(after)
         p.paragraph_format.space_before = Pt(before)
+        if line:
+            p.paragraph_format.line_spacing = line
         r = p.add_run(txt)
         r.font.name = THAI_FONT
         _csize(r, size)
@@ -356,6 +358,7 @@ def render_material_report_form(rnd, school, doc=None) -> str:
     if body and total:
         _p(doc, f"รวมเป็นเงินทั้งสิ้น (ตัวอักษร) {bahttext(total)}", align="right", before=2, after=2, size=13)
     bname, bpos = _borrower(school, rnd.program)
+    _p(doc, "", after=16)   # เว้นที่ให้เซ็น
     _sign_table(doc, [
         [("(ลงชื่อ)....................................ผู้จัดทำรายงาน", "center"),
          (f"( {bname} )", "center"),
@@ -393,6 +396,7 @@ def render_receipt_form(rnd, school, doc=None) -> str:
                   [Cm(4.6), Cm(5.0), Cm(1.6), Cm(1.7), Cm(3.35)])   # ขยายรายการอาหาร/วัตถุดิบ ลดราคา
     if body and total:
         _p(doc, f"รวมเป็นเงินทั้งสิ้น (ตัวอักษร) {bahttext(total)}", align="right", before=2, after=2, size=13)
+    _p(doc, "", after=16)   # เว้นที่ให้เซ็น
     _sign_table(doc, [
         [("(ลงชื่อ)............................................เจ้าหน้าที่โครงการอาหารกลางวัน/ผู้จ่ายเงิน", "center"),
          (f"( {bname} )", "center"),
@@ -696,35 +700,35 @@ def render_loan_contract(rnd, school, doc=None) -> str:
         row.cells[1].width = RW
     # R0
     _box_cell(tbl.cell(0, 0), [("สัญญาการยืมเงิน", "center", True),
-                               (f"ยื่นต่อ ผู้อำนวยการ{sname}", "left", False)])
+                               (f"ยื่นต่อ ผู้อำนวยการ{sname}", "left", False)], line=1.5)
     _box_cell(tbl.cell(0, 1), [(f"เลขที่ {oid}", "left", False),
-                               (f"วันครบกำหนด {_dnum(rnd.end_date)}", "left", False)])
+                               (f"วันครบกำหนด {_dnum(rnd.end_date)}", "left", False)], line=1.5)
     # R1 (เต็มความกว้าง)
     c = tbl.cell(1, 0).merge(tbl.cell(1, 1))
     _box_cell(c, [(f"ข้าพเจ้า {bname}  ตำแหน่ง {bpos}", "left", False),
                   (f"สังกัด {sname}  {(school.address or '').strip()}", "left", False),
                   (f"มีความประสงค์ขอยืมเงินจาก เงินอุดหนุนอาหารกลางวันรับจาก{fund}", "left", False),
                   (f"เพื่อเป็นค่าใช้จ่ายในการประกอบอาหารกลางวันให้นักเรียนรับประทาน ประจำเดือน {month} "
-                   f"จำนวน {students} คน x วันละ {_money(rate)} บาท x {days} วัน  ดังรายละเอียดต่อไปนี้", "left", False)])
+                   f"จำนวน {students} คน x วันละ {_money(rate)} บาท x {days} วัน  ดังรายละเอียดต่อไปนี้", "left", False)], line=1.5)
     # R2: (ตัวอักษร) ... รวมเงิน (บาท) | ยอดเงิน
-    _box_cell(tbl.cell(2, 0), [(f"(ตัวอักษร) {baht}          รวมเงิน (บาท)", "left", False)])
-    _box_cell(tbl.cell(2, 1), [(money, "center", True)], size=15)
+    _box_cell(tbl.cell(2, 0), [(f"(ตัวอักษร) {baht}          รวมเงิน (บาท)", "left", False)], line=1.5)
+    _box_cell(tbl.cell(2, 1), [(money, "center", True)], size=15, line=1.5)
     # R3: คำสัญญา + ลงชื่อผู้ยืม
     c = tbl.cell(3, 0).merge(tbl.cell(3, 1))
     _box_cell(c, [(PROMISE, "left", False),
-                  (f"ลงชื่อ {DOT}ผู้ยืม   ( {bname} )   วันที่ {od}", "left", False)])
+                  (f"ลงชื่อ {DOT}ผู้ยืม   ( {bname} )   วันที่ {od}", "left", False)], line=1.5)
     # R4: เสนอ + คำอนุมัติ
     c = tbl.cell(4, 0).merge(tbl.cell(4, 1))
     _box_cell(c, [("เสนอ  ผู้อำนวยการโรงเรียน", "left", True),
                   (f"ได้ตรวจสอบแล้วเห็นสมควรอนุมัติให้ยืมตามใบยืมฉบับนี้ได้ จำนวน {money} บาท ({baht})", "left", False),
                   (f"ลงชื่อ {DOT}เจ้าหน้าที่การเงิน   วันที่ ..................", "left", False),
                   ("คำอนุมัติ  อนุมัติให้ยืมตามเงื่อนไขข้างต้นได้", "left", True),
-                  (f"ลงชื่อ {DOT}ผู้อนุมัติ   ( {director} )   วันที่ {od}", "left", False)])
+                  (f"ลงชื่อ {DOT}ผู้อนุมัติ   ( {director} )   วันที่ {od}", "left", False)], line=1.5)
     # R5: ใบรับเงิน
     c = tbl.cell(5, 0).merge(tbl.cell(5, 1))
     _box_cell(c, [("ใบรับเงิน", "left", True),
                   (f"ได้รับเงินยืมจำนวน {money} บาท ({baht}) ไปเป็นการถูกต้องแล้ว", "left", False),
-                  (f"ลงชื่อ {DOT}ผู้รับเงิน   ( {bname} )   วันที่ {od}", "left", False)])
+                  (f"ลงชื่อ {DOT}ผู้รับเงิน   ( {bname} )   วันที่ {od}", "left", False)], line=1.5)
 
     # ---------- หลัง (back) : รายการส่งใช้เงินยืม ----------
     doc.add_page_break()
