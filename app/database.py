@@ -91,6 +91,7 @@ MIGRATIONS = [
     ("lunch_hire_round", "memo_date", "DATETIME"),
     ("lunch_hire_round", "command_no", "VARCHAR DEFAULT ''"),
     ("lunch_hire_round", "command_date", "DATETIME"),
+    ("lunch_hire_round", "doc_nos", "TEXT DEFAULT ''"),
     ("procurement", "quotation_date", "DATETIME"),
     ("lunch_ledger", "finance_txn_id", "INTEGER"),   # ผูกกับรายการในบัญชีการเงินหลัก
     ("lunch_student", "student_id", "INTEGER"),       # ดึงมาจากทะเบียนนักเรียนกลาง

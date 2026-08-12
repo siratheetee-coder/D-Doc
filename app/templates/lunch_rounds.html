@@ -47,16 +47,8 @@
       </select></div>
     </div>
     <div class="tipbox" style="margin:2px 0 10px;">
-      <b style="font-size:14px;"><svg class="icon"><use href="#ic-clipboard"/></svg> เลขที่หนังสือ (เชื่อมทะเบียนเลขหนังสือกลาง)</b>
-      <p class="muted" style="margin:4px 0 8px; font-size:13px;">กรอกเลขที่/วันที่ให้เอกสารดึงไปใส่ให้ · บันทึกแล้วเลขจะขึ้นในทะเบียนกลางอัตโนมัติ (เลขถัดไปที่ว่าง: บันทึกข้อความ {{ sug_memo }} · คำสั่ง {{ sug_command }})</p>
-      <div class="row">
-        <div><label>เลขที่บันทึกข้อความ <span class="muted">(รายงานขอซื้อ/ขอจ้าง ฯลฯ)</span></label>
-          <input name="memo_no" value="{{ edit.memo_no if edit else '' }}" placeholder="เช่น {{ sug_memo }}" style="min-width:150px;"></div>
-        <div><label>วันที่บันทึกข้อความ</label><input name="memo_date" value="{{ be_date(edit.memo_date) if edit and edit.memo_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="min-width:150px;"></div>
-        <div><label>เลขที่คำสั่งแต่งตั้งกรรมการ</label>
-          <input name="command_no" value="{{ edit.command_no if edit else '' }}" placeholder="เช่น {{ sug_command }}" style="min-width:150px;"></div>
-        <div><label>วันที่คำสั่ง</label><input name="command_date" value="{{ be_date(edit.command_date) if edit and edit.command_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="min-width:150px;"></div>
-      </div>
+      <b style="font-size:14px;"><svg class="icon"><use href="#ic-clipboard"/></svg> เลขที่หนังสือเอกสารแต่ละฉบับ</b>
+      <p class="muted" style="margin:4px 0 0; font-size:13px;">บันทึกข้อความมีหลายฉบับ · กรอกเลขที่/วันที่ของแต่ละฉบับได้ที่หน้า <b>จัดการงวด</b> ก่อนออกเอกสาร (เชื่อมทะเบียนเลขหนังสือกลางให้อัตโนมัติ)</p>
     </div>
     <div id="nvBox" style="display:none; border:1px dashed var(--border); border-radius:8px; padding:12px; margin:4px 0 10px; background:#fff7ed;">
       <div style="display:flex; justify-content:space-between; align-items:center;">

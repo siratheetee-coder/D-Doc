@@ -522,6 +522,19 @@ def render_committee_order_doc(rnd, school, doc=None) -> str:
               f"จำนวน {rnd.days or ''} วัน)")
     com_order, work = _com_order_for(prog)
     groups = {k: [m for m in rnd.committees if m.kind == k] for k, _, _ in com_order}
+    # เลขที่/วันที่คำสั่งจากทะเบียนเอกสารรายฉบับ (doc_nos["committee"]) กรอกที่หน้าจัดการงวด
+    cmd_no, cmd_date = "", None
+    try:
+        import json
+        from datetime import datetime as _dt
+        ent = (json.loads(rnd.doc_nos or "{}") or {}).get("committee") or {}
+        cmd_no = (ent.get("no") or "").strip()
+        if ent.get("date"):
+            cmd_date = _dt.fromisoformat(ent["date"])
+    except Exception:
+        pass
+    cmd_no = cmd_no or (getattr(rnd, "command_no", "") or "").strip()
+    cmd_date = cmd_date or getattr(rnd, "command_date", None) or rnd.order_date
 
     first = True
     for kind, subject, duty in com_order:
@@ -531,7 +544,7 @@ def render_committee_order_doc(rnd, school, doc=None) -> str:
         first = False
         _krut_center(doc)
         _p(doc, f"คำสั่ง{sname}", align="center", bold=True, size=18, after=0)
-        _p(doc, f"ที่ {(getattr(rnd, 'command_no', '') or '').strip() or ('....../' + str(prog.year))}",
+        _p(doc, f"ที่ {cmd_no or ('....../' + str(prog.year))}",
            align="center", bold=True, after=0)
         _p(doc, f"เรื่อง {subject}", align="center", bold=True, after=0)
         _p(doc, period, align="center", after=0)
@@ -551,7 +564,7 @@ def render_committee_order_doc(rnd, school, doc=None) -> str:
         _p(doc, f"ให้คณะกรรมการที่ได้รับแต่งตั้ง {duty} และปฏิบัติหน้าที่ให้ถูกต้องตามระเบียบ"
                 "ของทางราชการอย่างเคร่งครัด", align="justify", indent=1.25, before=4)
         _p(doc, "ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป", bold=True, indent=1.25, after=6)
-        _p(doc, f"สั่ง ณ วันที่ {_dnum(getattr(rnd, 'command_date', None) or rnd.order_date)}", align="center", after=14)
+        _p(doc, f"สั่ง ณ วันที่ {_dnum(cmd_date)}", align="center", after=14)
         _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
         _p(doc, f"( {director} )", align="center", after=0)
         _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)

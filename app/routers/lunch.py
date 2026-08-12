@@ -404,18 +404,14 @@ def _lunch_holidays(prog) -> dict:
 
 
 def _rounds_page(request, db, prog, edit=None):
-    from app.services.doc_number import suggest_doc_no
     vendors = db.query(Vendor).order_by(Vendor.name).all()
     paid = sum(r.amount or 0 for r in prog.rounds if r.status == "จ่ายแล้ว")
     committed = sum(r.amount or 0 for r in prog.rounds)
-    fy = prog.year or current_fiscal_year()
     return templates.TemplateResponse("lunch_rounds.html", {
         "request": request, "school": get_school(db), "p": prog,
         "rounds": prog.rounds, "vendors": vendors, "periods": PERIOD_TYPES,
         "edit": edit, "paid": paid, "committed": committed,
         "default_period": "month", "holidays": _lunch_holidays(prog),
-        "sug_memo": suggest_doc_no(db, "memo", fy),
-        "sug_command": suggest_doc_no(db, "command", fy),
     })
 
 
@@ -464,30 +460,68 @@ def _populate_round(rnd, form, db):
     rnd.procurement_id = _to_int(form.get("procurement_id"), 0) or None
     rnd.order_no = (form.get("order_no") or "").strip()
     rnd.order_date = parse_be_date(form.get("order_date") or "")
-    rnd.memo_no = (form.get("memo_no") or "").strip()
-    rnd.memo_date = parse_be_date(form.get("memo_date") or "")
-    rnd.command_no = (form.get("command_no") or "").strip()
-    rnd.command_date = parse_be_date(form.get("command_date") or "")
     rnd.status = form.get("status") or "ร่าง"
     rnd.note = (form.get("note") or "").strip()
+    # เลขที่บันทึกข้อความ/คำสั่งย้ายไปกรอกรายฉบับที่หน้าจัดการงวด (ก่อนออกเอกสาร)
+
+
+# เอกสารอาหารกลางวันที่ต้องออกเลขหนังสือ: kind -> (ป้ายชื่อ, ประเภททะเบียน, ดัชนี, โหมดที่ใช้)
+LUNCH_DOC_META = {
+    "report":         ("รายงานขอซื้อวัตถุดิบ",          "memo",    1, ("ingredient",)),
+    "borrow":         ("ขออนุมัติยืมเงิน",               "memo",    2, ("ingredient", "person")),
+    "repay":          ("ขออนุมัติส่งใช้เงินยืม",          "memo",    3, ("ingredient", "person")),
+    "inspect-report": ("รายงานการตรวจรับพัสดุ",         "memo",    4, ("ingredient",)),
+    "inspect-notify": ("แจ้งประธานกรรมการตรวจรับ",      "memo",    5, ("ingredient",)),
+    "hire-report":    ("รายงานขอจ้างเหมา (แม่ครัว)",     "memo",    6, ("person",)),
+    "result":         ("รายงานการพิจารณาจ้าง",          "memo",    7, ("person",)),
+    "committee":      ("คำสั่งแต่งตั้งกรรมการ",          "command", 8, ("ingredient", "person")),
+}
+
+
+def _lunch_doc_list(prog):
+    """รายการเอกสารที่ต้องออกเลข ของโหมดนี้ (เรียงตามดัชนี)"""
+    mode = getattr(prog, "operate_mode", "hire")
+    return [(k,) + v[:3] for k, v in sorted(LUNCH_DOC_META.items(), key=lambda x: x[1][2])
+            if mode in v[3]]
+
+
+def _round_doc_nos(rnd) -> dict:
+    import json
+    try:
+        return json.loads(rnd.doc_nos or "{}") or {}
+    except Exception:
+        return {}
+
+
+def _register_one_docno(db, rnd, kind, no, dt):
+    """ผูกเลขของเอกสารฉบับหนึ่งเข้าทะเบียนกลาง (ref_id แยกต่อฉบับ = rnd.id*100+idx)"""
+    from app.services.doc_number import commit_doc_no, remove_issued
+    meta = LUNCH_DOC_META.get(kind)
+    if not meta:
+        return
+    label, doc_type, idx, _modes = meta
+    ref = rnd.id * 100 + idx
+    remove_issued(db, "lunch", ref, doc_type)
+    if (no or "").strip():
+        prog = rnd.program
+        fy = current_fiscal_year(dt) if dt else (prog.year or current_fiscal_year())
+        commit_doc_no(db, doc_type, fy, no, source="lunch", ref_id=ref,
+                      subject=f"{label} (อาหารกลางวัน รอบที่ {rnd.seq} ปี {prog.year})", date=dt)
 
 
 def _register_round_docnos(db, rnd):
-    """ผูกเลขบันทึกข้อความ/คำสั่งของรอบเข้าทะเบียนเลขกลาง (source=lunch) ให้ตรงกับทะเบียน
-    ล้างของเก่าก่อน (กันค้างเมื่อเปลี่ยนเลข)"""
-    from app.services.doc_number import commit_doc_no, remove_issued
-    prog = rnd.program
-    subj = f"อาหารกลางวัน รอบที่ {rnd.seq} ปีการศึกษา {prog.year}"
-    remove_issued(db, "lunch", rnd.id, "memo")
+    """ผูกเลขทุกฉบับของรอบเข้าทะเบียนกลาง (source=lunch) ล้างของเก่ารวมแบบเดิมด้วย"""
+    from app.services.doc_number import remove_issued
+    remove_issued(db, "lunch", rnd.id, "memo")      # ล้างเลขรวมแบบเดิม (ก่อนแยกรายฉบับ)
     remove_issued(db, "lunch", rnd.id, "command")
-    if (rnd.memo_no or "").strip():
-        fy = current_fiscal_year(rnd.memo_date) if rnd.memo_date else (prog.year or current_fiscal_year())
-        commit_doc_no(db, "memo", fy, rnd.memo_no, source="lunch", ref_id=rnd.id,
-                      subject=f"รายงานขอซื้อ/ขอจ้างอาหารกลางวัน {subj}", date=rnd.memo_date)
-    if (rnd.command_no or "").strip():
-        fy = current_fiscal_year(rnd.command_date) if rnd.command_date else (prog.year or current_fiscal_year())
-        commit_doc_no(db, "command", fy, rnd.command_no, source="lunch", ref_id=rnd.id,
-                      subject=f"คำสั่งแต่งตั้งกรรมการ {subj}", date=rnd.command_date)
+    for kind, ent in _round_doc_nos(rnd).items():
+        dt = None
+        if ent.get("date"):
+            try:
+                dt = datetime.fromisoformat(ent["date"])
+            except Exception:
+                dt = None
+        _register_one_docno(db, rnd, kind, (ent.get("no") or "").strip(), dt)
 
 
 @router.post("/lunch/{pid}/rounds/add")
@@ -520,6 +554,31 @@ async def round_update(rid: int, request: Request, db: Session = Depends(get_db)
     _register_round_docnos(db, rnd)    # อัปเดตเลขบันทึก/คำสั่งในทะเบียนกลาง
     db.commit()
     return RedirectResponse(f"/lunch/{rnd.program_id}/rounds", status_code=303)
+
+
+@router.post("/lunch/round/{rid}/docno")
+async def round_set_docno(rid: int, request: Request, db: Session = Depends(get_db)):
+    """บันทึกเลขที่/วันที่เอกสารรายฉบับ (kind) ที่หน้าจัดการงวด ก่อนออกเอกสาร
+    เก็บลง rnd.doc_nos (JSON) + ผูกเข้าทะเบียนเลขหนังสือกลาง"""
+    import json
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return JSONResponse({"ok": False}, status_code=404)
+    form = await request.form()
+    kind = (form.get("kind") or "").strip()
+    if kind not in LUNCH_DOC_META:
+        return JSONResponse({"ok": False, "error": "kind"}, status_code=400)
+    no = (form.get("no") or "").strip()
+    dt = parse_be_date(form.get("date") or "")
+    data = _round_doc_nos(rnd)
+    if no or dt:
+        data[kind] = {"no": no, "date": dt.isoformat() if dt else ""}
+    else:
+        data.pop(kind, None)
+    rnd.doc_nos = json.dumps(data, ensure_ascii=False)
+    _register_one_docno(db, rnd, kind, no, dt)
+    db.commit()
+    return JSONResponse({"ok": True, "no": no, "date_be": be_date_input(dt) if dt else ""})
 
 
 @router.post("/lunch/round/{rid}/status")
@@ -558,8 +617,10 @@ def round_delete(rid: int, db: Session = Depends(get_db)):
             if proc and proc.proc_case == "w119t2" and "อาหารกลางวัน" in (proc.subject or ""):
                 db.delete(proc)
         from app.services.doc_number import remove_issued
-        remove_issued(db, "lunch", rnd.id, "memo")      # ล้างเลขในทะเบียนกลางให้ตรงกัน
+        remove_issued(db, "lunch", rnd.id, "memo")      # ล้างเลขรวมแบบเดิม (ก่อนแยกรายฉบับ)
         remove_issued(db, "lunch", rnd.id, "command")
+        for _k, meta in LUNCH_DOC_META.items():         # ล้างเลขรายฉบับ (ref = rnd.id*100+idx)
+            remove_issued(db, "lunch", rnd.id * 100 + meta[2], meta[1])
         db.delete(rnd)
         db.commit()
     return RedirectResponse(f"/lunch/{pid}/rounds" if pid else "/lunch", status_code=303)
@@ -923,6 +984,26 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
     past_mains = sorted({(m.main or "").strip() for m in prog.menus if (m.main or "").strip()})
     past_desserts = sorted({(m.dessert or "").strip() for m in prog.menus if (m.dessert or "").strip()})
 
+    # ---- เลขที่/วันที่เอกสารรายฉบับ (กรอกก่อนออกเอกสาร ผูกทะเบียนกลาง) ----
+    from app.services.doc_number import suggest_doc_no
+    saved_nos = _round_doc_nos(rnd)
+    fy = prog.year or current_fiscal_year()
+    doc_no_rows = []
+    for kind, label, doc_type, _idx in _lunch_doc_list(prog):
+        ent = saved_nos.get(kind) or {}
+        dt = None
+        if ent.get("date"):
+            try:
+                dt = datetime.fromisoformat(ent["date"])
+            except Exception:
+                dt = None
+        doc_no_rows.append({
+            "kind": kind, "label": label, "doc_type": doc_type,
+            "no": (ent.get("no") or "").strip(),
+            "date_be": be_date_input(dt) if dt else "",
+            "suggest": suggest_doc_no(db, doc_type, fy),
+        })
+
     return templates.TemplateResponse("lunch_contract.html", {
         "request": request, "school": get_school(db), "r": rnd, "p": rnd.program,
         "installments": rnd.installments, "paid": paid,
@@ -935,6 +1016,7 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         "today_be": be_date_input(datetime.now()),
         "menu_days": menu_days, "round_menus": round_menus,
         "past_mains": past_mains, "past_desserts": past_desserts,
+        "doc_no_rows": doc_no_rows,
     })
 
 

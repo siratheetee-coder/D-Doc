@@ -869,10 +869,11 @@ class LunchHireRound(Base):
     procurement_id = Column(Integer, ForeignKey("procurement.id"), nullable=True)  # เรื่องจัดจ้างที่ผูก
     order_no = Column(String, default="")            # เลขที่ตกลงจ้าง/ใบสั่งจ้าง เช่น 27/2568
     order_date = Column(DateTime, nullable=True)     # วันที่ตกลงจ้าง/ใบสั่งจ้าง
-    memo_no = Column(String, default="")             # เลขที่บันทึกข้อความ (รายงานขอซื้อ/ขอจ้าง ฯลฯ) -> ทะเบียนกลาง
-    memo_date = Column(DateTime, nullable=True)      # วันที่บันทึกข้อความ
-    command_no = Column(String, default="")          # เลขที่คำสั่งแต่งตั้งกรรมการ -> ทะเบียนกลาง
-    command_date = Column(DateTime, nullable=True)   # วันที่คำสั่ง
+    memo_no = Column(String, default="")             # (เดิม) เลขบันทึกข้อความรวม - ใช้เป็น fallback
+    memo_date = Column(DateTime, nullable=True)
+    command_no = Column(String, default="")          # (เดิม) เลขคำสั่งรวม - fallback
+    command_date = Column(DateTime, nullable=True)
+    doc_nos = Column(Text, default="")               # JSON เลขที่/วันที่ราย "ฉบับเอกสาร" {kind:{no,date}} -> ทะเบียนกลาง
     status = Column(String, default="ร่าง")          # ร่าง / จ้างแล้ว / จ่ายแล้ว
     note = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)
