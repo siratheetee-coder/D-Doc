@@ -75,6 +75,37 @@ def _dnum(dt) -> str:
     return thai_date(dt) if dt else _BLANK
 
 
+def _docnos(rnd) -> dict:
+    """เลขที่/วันที่รายฉบับของรอบ (JSON) {kind:{field:value}}"""
+    import json
+    try:
+        return json.loads(getattr(rnd, "doc_nos", "") or "{}") or {}
+    except Exception:
+        return {}
+
+
+def _doc_no(rnd, kind, fallback=""):
+    """เลขที่เอกสารรายฉบับ (doc_nos[kind]['no']) ไม่มีก็คืน fallback"""
+    return ((_docnos(rnd).get(kind) or {}).get("no") or "").strip() or fallback
+
+
+def _doc_dt(rnd, kind, field="date"):
+    """วันที่ในฟิลด์ field ของเอกสาร kind (คืน datetime หรือ None)"""
+    from datetime import datetime
+    s = (_docnos(rnd).get(kind) or {}).get(field) or ""
+    try:
+        return datetime.fromisoformat(s) if s else None
+    except Exception:
+        return None
+
+
+def _memo_ref2(rnd, kind):
+    """(วันที่str, เลขที่) ของบันทึก/คำสั่งชนิด kind - fallback เลขตกลงจ้างเดิม"""
+    dt = _doc_dt(rnd, kind, "date") or rnd.order_date
+    no = _doc_no(rnd, kind, (rnd.order_no or "").strip())
+    return _dnum(dt), no
+
+
 def _menu_text(m) -> str:
     parts = [(m.main or "").strip()]
     if (m.dessert or "").strip():
@@ -417,7 +448,8 @@ def render_order_doc(rnd, school, doc=None) -> str:
     vname = vendor.name if vendor else _BLANK
     sname = _school_disp(school)
     director = (school.director_name or "").strip() or _BLANK
-    order_no = (rnd.order_no or "").strip() or _BLANK
+    order_no = _doc_no(rnd, "hire-order", (rnd.order_no or "").strip() or _BLANK)
+    order_dt = _doc_dt(rnd, "hire-order", "date") or rnd.order_date
     total = round(float(rnd.amount or 0), 2)
     rate = prog.rate_per_head or 0
     days = rnd.days or 0
@@ -428,7 +460,7 @@ def render_order_doc(rnd, school, doc=None) -> str:
 
     _p(doc, "ใบสั่งจ้าง", align="center", bold=True, size=20, after=4)
     _simple_table(doc, ["ผู้รับจ้าง", "ใบสั่งจ้าง"],
-                  [[vname, f"เลขที่ {order_no}  ลงวันที่ {_dnum(rnd.order_date)}"]],
+                  [[vname, f"เลขที่ {order_no}  ลงวันที่ {_dnum(order_dt)}"]],
                   [Cm(8.0), Cm(8.0)])
     _p(doc, f"ตามที่ {vname} ได้เสนอราคาไว้ต่อ{sname} ซึ่งได้รับราคาและตกลงจ้าง "
             f"ตามรายการดังต่อไปนี้", align="justify", indent=1.25, after=4)
@@ -523,18 +555,8 @@ def render_committee_order_doc(rnd, school, doc=None) -> str:
     com_order, work = _com_order_for(prog)
     groups = {k: [m for m in rnd.committees if m.kind == k] for k, _, _ in com_order}
     # เลขที่/วันที่คำสั่งจากทะเบียนเอกสารรายฉบับ (doc_nos["committee"]) กรอกที่หน้าจัดการงวด
-    cmd_no, cmd_date = "", None
-    try:
-        import json
-        from datetime import datetime as _dt
-        ent = (json.loads(rnd.doc_nos or "{}") or {}).get("committee") or {}
-        cmd_no = (ent.get("no") or "").strip()
-        if ent.get("date"):
-            cmd_date = _dt.fromisoformat(ent["date"])
-    except Exception:
-        pass
-    cmd_no = cmd_no or (getattr(rnd, "command_no", "") or "").strip()
-    cmd_date = cmd_date or getattr(rnd, "command_date", None) or rnd.order_date
+    cmd_no = _doc_no(rnd, "committee", (getattr(rnd, "command_no", "") or "").strip())
+    cmd_date = _doc_dt(rnd, "committee", "date") or getattr(rnd, "command_date", None) or rnd.order_date
 
     first = True
     for kind, subject, duty in com_order:
@@ -611,7 +633,7 @@ def render_hire_report_doc(rnd, school, doc=None) -> str:
     _memo_head(doc, school,
                [f"รายงานขอจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ประจำปีการศึกษา {prog.year} "
                 f"({dr} จำนวน {days} วัน)"],
-               _dnum(rnd.order_date), rnd.order_no)
+               *_memo_ref2(rnd, "hire-report"))
     _p(doc, f"ด้วย{sname} จ้างเหมาประกอบอาหาร (ปรุงสำเร็จ) ให้แก่นักเรียนรับประทาน {dr} "
             f"ปีการศึกษา {prog.year} การจัดจ้างครั้งนี้ดำเนินการโดยวิธีเฉพาะเจาะจงตามมาตรา 56 (2) (ข) "
             "ประกอบหนังสือกระทรวงการคลัง ด่วนที่สุด ที่ กค (กวจ) 0405.2/ว 116 ลงวันที่ 12 มีนาคม 2562 "
@@ -707,7 +729,7 @@ def render_winner_doc(rnd, school, doc=None) -> str:
             f"โดยเสนอราคาเป็นเงินทั้งสิ้น {_money(total)} บาท ({bahttext(total)}) รวมภาษีมูลค่าเพิ่ม "
             "และภาษีอื่น ค่าขนส่ง ค่าจดทะเบียน และค่าใช้จ่ายอื่น ๆ ทั้งปวง",
        align="justify", indent=1.25, after=10)
-    _p(doc, f"ประกาศ ณ วันที่ {_dnum(rnd.order_date)}", align="center", after=14)
+    _p(doc, f"ประกาศ ณ วันที่ {_dnum(_doc_dt(rnd, 'winner', 'date') or rnd.order_date)}", align="center", after=14)
     _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
     _p(doc, f"( {director} )", align="center", after=0)
     _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
@@ -728,7 +750,7 @@ def render_result_doc(rnd, school, doc=None) -> str:
     dr = f"ประจำวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} ({rnd.days or ''} วันทำการ)"
     _hdr_memo(doc, school, prog,
               ["รายงานผลการพิจารณาและขออนุมัติสั่งจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)",
-               dr], _dnum(rnd.order_date), rnd.order_no)
+               dr], *_memo_ref2(rnd, "result"))
     _p(doc, f"ตามที่ผู้อำนวยการ{sname} เห็นชอบให้ดำเนินการจ้างเหมาประกอบอาหารกลางวัน {dr} "
             f"โดยวิธีเฉพาะเจาะจง วงเงินงบประมาณ {_money(total)} บาท ({bahttext(total)}) นั้น เจ้าหน้าที่ได้"
             "เจรจาตกลงราคากับผู้ประกอบการโดยตรงตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและ"
@@ -769,7 +791,7 @@ def render_tor_request_doc(rnd, school, doc=None) -> str:
     period = f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} จำนวน {rnd.days or ''} วัน"
     _hdr_memo(doc, school, prog,
               ["ขออนุมัติแต่งตั้งคณะกรรมการจัดทำขอบเขตของงาน (TOR) "
-               "งานจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)"], _dnum(rnd.order_date), rnd.order_no)
+               "งานจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)"], *_memo_ref2(rnd, "tor-request"))
     _p(doc, "ข้อเท็จจริง", bold=True, indent=1.25, after=0)
     _p(doc, f"{sname} ดำเนินการจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ประจำปีการศึกษา {prog.year} "
             f"({period}) โดยวิธีเฉพาะเจาะจง สำหรับนักเรียนระดับชั้นอนุบาลถึงระดับชั้นมัธยมศึกษาปีที่ ๓ "

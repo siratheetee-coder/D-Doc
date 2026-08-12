@@ -467,34 +467,45 @@ def _populate_round(rnd, form, db):
 
 # ชุดฟิลด์เลข/วันที่ต่อเอกสาร: (field_key, ป้ายชื่อ, ชนิด["no"|"date"])
 _F_MEMO = [("no", "เลขที่", "no"), ("date", "วันที่", "date")]
+_F_DATE = [("date", "วันที่ประกาศ", "date")]
 _F_LOAN = [("no", "เลขที่สัญญายืม", "no"),
            ("date", "วันที่ยืม (ผู้ยืมลงชื่อ)", "date"),
            ("present_date", "วันที่เสนอ จนท.การเงิน/ผอ.อนุมัติ", "date"),
            ("receive_date", "วันที่ได้รับเงิน", "date")]
 
-# เอกสารอาหารกลางวันที่ต้องกรอกเลข/วันที่ แยกตามวิธีดำเนินการ (อิงชุดเอกสารจริงของแต่ละแบบ)
-#   label=ป้ายชื่อ · doc_type=ประเภททะเบียนกลาง (None=ไม่ลงทะเบียนหนังสือ เช่น สัญญายืม)
-#   idx=ดัชนี (ref_id=rnd.id*100+idx, unique ทั้งชุด) · modes=โหมดที่ใช้ · fields=ช่องกรอก
+# เอกสารอาหารกลางวันที่ต้องกรอกเลข/วันที่ (อิงชุดเอกสารจริงของแต่ละแบบ)
+#   label=ป้ายชื่อ · doc_type=ประเภททะเบียนกลาง (None=ไม่ลงทะเบียนหนังสือ เช่น สัญญายืม/ประกาศ)
+#   idx=ดัชนีคงที่ (ref_id=rnd.id*100+idx, unique) · fields=ช่องกรอก
+#   ลำดับ+เลือกตามโหมด กำหนดใน _MODE_DOCS (แยกจาก idx เพื่อ reuse kind ข้ามโหมดได้)
 LUNCH_DOC_META = {
-    # --- ซื้อวัตถุดิบเอง (ingredient) ---
-    "report":         {"label": "รายงานขอซื้อวัตถุดิบ",                    "doc_type": "memo",       "idx": 1, "modes": ("ingredient",),            "fields": _F_MEMO},
-    "borrow":         {"label": "ขออนุมัติยืมเงิน",                         "doc_type": "memo",       "idx": 2, "modes": ("ingredient", "person"),  "fields": _F_MEMO},
-    "loan":           {"label": "สัญญาการยืมเงิน",                          "doc_type": None,         "idx": 3, "modes": ("ingredient", "person"),  "fields": _F_LOAN},
-    "repay":          {"label": "ขออนุมัติเบิกจ่ายเพื่อส่งใช้เงินยืม",        "doc_type": "memo",       "idx": 4, "modes": ("ingredient", "person"),  "fields": _F_MEMO},
-    "inspect-report": {"label": "รายงานการตรวจรับพัสดุ",                   "doc_type": "memo",       "idx": 5, "modes": ("ingredient",),            "fields": _F_MEMO},
-    "inspect-notify": {"label": "การตรวจรับพัสดุ (แจ้งประธานกรรมการ)",     "doc_type": "memo",       "idx": 6, "modes": ("ingredient",),            "fields": _F_MEMO},
-    # --- จ้างแม่ครัว (person) ---
-    "hire-report":    {"label": "รายงานขอจ้างเหมาประกอบอาหาร",            "doc_type": "memo",       "idx": 7, "modes": ("person",),                "fields": _F_MEMO},
-    "result":         {"label": "รายงานการพิจารณาจ้าง",                     "doc_type": "memo",       "idx": 8, "modes": ("person",),                "fields": _F_MEMO},
-    "order":          {"label": "บันทึกตกลงจ้าง",                           "doc_type": "hire_order", "idx": 9, "modes": ("person",),                "fields": _F_MEMO},
+    "report":         {"label": "รายงานขอซื้อวัตถุดิบ",                    "doc_type": "memo",       "idx": 1,  "fields": _F_MEMO},
+    "borrow":         {"label": "ขออนุมัติยืมเงิน",                         "doc_type": "memo",       "idx": 2,  "fields": _F_MEMO},
+    "loan":           {"label": "สัญญาการยืมเงิน",                          "doc_type": None,         "idx": 3,  "fields": _F_LOAN},
+    "repay":          {"label": "ขออนุมัติเบิกจ่ายเพื่อส่งใช้เงินยืม",        "doc_type": "memo",       "idx": 4,  "fields": _F_MEMO},
+    "inspect-report": {"label": "รายงานการตรวจรับพัสดุ",                   "doc_type": "memo",       "idx": 5,  "fields": _F_MEMO},
+    "inspect-notify": {"label": "การตรวจรับพัสดุ (แจ้งประธานกรรมการ)",     "doc_type": "memo",       "idx": 6,  "fields": _F_MEMO},
+    "hire-report":    {"label": "รายงานขอจ้างเหมาประกอบอาหาร",            "doc_type": "memo",       "idx": 7,  "fields": _F_MEMO},
+    "result":         {"label": "รายงานผลการพิจารณาจ้าง",                   "doc_type": "memo",       "idx": 8,  "fields": _F_MEMO},
+    "order":          {"label": "บันทึกตกลงจ้าง",                           "doc_type": "hire_order", "idx": 9,  "fields": _F_MEMO},
+    # --- เฉพาะจ้างเหมาปรุงสำเร็จ (hire) ---
+    "tor-request":    {"label": "รายงานขอจัดทำขอบเขตงาน (TOR)",           "doc_type": "memo",       "idx": 10, "fields": _F_MEMO},
+    "committee":      {"label": "คำสั่งแต่งตั้งคณะกรรมการ",                 "doc_type": "command",    "idx": 11, "fields": _F_MEMO},
+    "winner":         {"label": "ประกาศผู้ชนะการเสนอราคา",                 "doc_type": None,         "idx": 12, "fields": _F_DATE},
+    "hire-order":     {"label": "ใบสั่งจ้าง",                               "doc_type": "hire_order", "idx": 13, "fields": _F_MEMO},
+}
+
+# เอกสารที่ต้องกรอกเลข + ลำดับที่แสดง แยกตามวิธีดำเนินการ (ตามชุดเอกสารจริงของแต่ละแบบ)
+_MODE_DOCS = {
+    "ingredient": ["report", "borrow", "loan", "repay", "inspect-report", "inspect-notify"],
+    "person":     ["hire-report", "result", "order", "borrow", "loan", "repay"],
+    "hire":       ["tor-request", "committee", "hire-report", "result", "winner", "hire-order"],
 }
 
 
 def _lunch_doc_list(prog):
-    """รายการเอกสารที่ต้องออกเลข ของโหมดนี้ (เรียงตามดัชนี)"""
+    """รายการเอกสารที่ต้องออกเลข ของโหมดนี้ (ตามลำดับใน _MODE_DOCS)"""
     mode = getattr(prog, "operate_mode", "hire")
-    return [dict(m, kind=k) for k, m in sorted(LUNCH_DOC_META.items(), key=lambda x: x[1]["idx"])
-            if mode in m["modes"]]
+    return [dict(LUNCH_DOC_META[k], kind=k) for k in _MODE_DOCS.get(mode, [])]
 
 
 def _round_doc_nos(rnd) -> dict:
