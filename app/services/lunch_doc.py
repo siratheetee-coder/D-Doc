@@ -491,6 +491,26 @@ _COM_ORDER = [
      "ตรวจรับพัสดุงานจ้างเหมาประกอบอาหารกลางวัน ให้เป็นไปตามเงื่อนไขของสัญญาหรือข้อตกลง"),
 ]
 
+# ชุดคำสั่งสำหรับซื้อวัตถุดิบเอง / จ้างแม่ครัว = ตรวจรับพัสดุ / ผู้ควบคุมประกอบอาหาร / ตรวจการประกอบอาหาร
+_COM_ORDER_INGREDIENT = [
+    ("inspect", "แต่งตั้งคณะกรรมการตรวจรับพัสดุ (วัตถุดิบเพื่อใช้ประกอบอาหารกลางวัน)",
+     "ตรวจรับพัสดุ (วัตถุดิบ) ในการส่งมอบทุกครั้ง ให้ถูกต้องครบถ้วน ตามระเบียบฯ พ.ศ. 2560 ข้อ 175"),
+    ("cook_control", "แต่งตั้งผู้ควบคุมรับผิดชอบในการประกอบอาหารกลางวัน",
+     "ควบคุมรับผิดชอบการประกอบอาหารกลางวันให้ถูกสุขลักษณะ สะอาด และมีคุณค่าทางโภชนาการ"),
+    ("food_inspect", "แต่งตั้งคณะกรรมการตรวจการประกอบอาหารกลางวัน",
+     "ตรวจการประกอบอาหารกลางวันเป็นรายวัน ตรวจสอบความสะอาด คุณภาพ ปริมาณ และความทันเวลา"),
+]
+
+
+def _com_order_for(prog):
+    """ชุดคำสั่งแต่งตั้งกรรมการตามวิธีดำเนินการของโครงการ + ชื่องานสำหรับข้อความนำ"""
+    mode = getattr(prog, "operate_mode", "hire")
+    if mode in ("ingredient", "person"):
+        work = ("จัดซื้อวัตถุดิบเพื่อประกอบอาหารกลางวัน" if mode == "ingredient"
+                else "จ้างเหมาประกอบอาหารกลางวัน (จ้างแม่ครัว)")
+        return _COM_ORDER_INGREDIENT, work
+    return _COM_ORDER, "จ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)"
+
 
 def render_committee_order_doc(rnd, school, doc=None) -> str:
     """คำสั่งแต่งตั้งคณะกรรมการ 3 ฉบับในไฟล์เดียว (TOR / ควบคุมงาน / ตรวจรับ)"""
@@ -500,10 +520,11 @@ def render_committee_order_doc(rnd, school, doc=None) -> str:
     director = (school.director_name or "").strip() or _BLANK
     period = (f"(ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} "
               f"จำนวน {rnd.days or ''} วัน)")
-    groups = {k: [m for m in rnd.committees if m.kind == k] for k, _, _ in _COM_ORDER}
+    com_order, work = _com_order_for(prog)
+    groups = {k: [m for m in rnd.committees if m.kind == k] for k, _, _ in com_order}
 
     first = True
-    for kind, subject, duty in _COM_ORDER:
+    for kind, subject, duty in com_order:
         members = groups.get(kind) or []
         if not first:
             doc.add_page_break()
@@ -515,8 +536,8 @@ def render_committee_order_doc(rnd, school, doc=None) -> str:
         _p(doc, f"เรื่อง {subject}", align="center", bold=True, after=0)
         _p(doc, period, align="center", after=0)
         _p(doc, "─────────────────────", align="center", after=6)
-        _p(doc, f"ด้วย{sname} จะดำเนินการจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ให้บริการแก่นักเรียน "
-                "เพื่อให้การดำเนินการจ้างดังกล่าวเป็นไปด้วยความเรียบร้อย บังเกิดผลดีแก่ทางราชการ "
+        _p(doc, f"ด้วย{sname} จะดำเนินการ{work}ให้บริการแก่นักเรียน "
+                "เพื่อให้การดำเนินการดังกล่าวเป็นไปด้วยความเรียบร้อย บังเกิดผลดีแก่ทางราชการ "
                 "จึงอาศัยอำนาจตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ "
                 "พ.ศ. ๒๕๖๐ แต่งตั้งบุคคลต่อไปนี้เป็นคณะกรรมการ", align="justify", indent=1.25, after=4)
         if members:
