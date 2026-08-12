@@ -97,6 +97,7 @@
         <td style="white-space:nowrap;">
           <a class="btn sm" href="/lunch/round/{{ r.id }}/plan">จัดการงวด</a>
           <a class="btn sm gray" href="/lunch/round/{{ r.id }}/edit">แก้ไข</a>
+          <form method="post" action="/lunch/round/{{ r.id }}/duplicate" onsubmit="return confirm('คัดลอกรอบนี้เป็นรอบใหม่? (ก็อปกรรมการ+ผู้รับจ้าง+วงเงิน เลื่อนวันไปงวดถัดไป)');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-file-plus"/></svg> คัดลอก</button></form>
           {% if r.procurement_id %}<a class="btn sm gray" href="/procurement/{{ r.procurement_id }}?keep=1" title="ดู/พิมพ์เอกสารจัดจ้างในงานพัสดุ">เอกสารจัดจ้าง</a>{% endif %}
           <form method="post" action="/lunch/round/{{ r.id }}/delete" onsubmit="return confirm('ลบรอบนี้? (รวมรายการบัญชีที่ผูกไว้)');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
         </td>

@@ -185,6 +185,26 @@ def lunch_delete(pid: int, db: Session = Depends(get_db)):
     return RedirectResponse("/lunch", status_code=303)
 
 
+@router.post("/lunch/{pid}/duplicate")
+def lunch_duplicate(pid: int, db: Session = Depends(get_db)):
+    """คัดลอกโครงการ (ปีถัดไป): ก็อปตั้งค่า + ชั้นเรียน/จำนวนนักเรียน
+    ไม่ก็อปรอบ/เมนู/บัญชี (เป็นข้อมูลรายช่วง เริ่มใหม่)"""
+    from app.models import LunchClass
+    src = db.get(LunchProgram, pid)
+    if not src:
+        return RedirectResponse("/lunch", status_code=303)
+    new = LunchProgram(year=(src.year or _current_academic_year()) + 1,
+                       days=src.days, rate_per_head=src.rate_per_head,
+                       operate_mode=src.operate_mode, funding_org=src.funding_org,
+                       lunch_officer=src.lunch_officer, note=src.note, pool=0)
+    db.add(new); db.flush()
+    for c in sorted(src.classes, key=lambda x: (x.seq, x.id)):
+        db.add(LunchClass(program_id=new.id, seq=c.seq, level=c.level,
+                          num_students=c.num_students))
+    db.commit()
+    return RedirectResponse(f"/lunch/{new.id}", status_code=303)
+
+
 # ---------------- ภาวะโภชนาการ (เมนูของตัวเอง - ต้องมาก่อน /lunch/{pid}) ----------------
 @router.get("/lunch/nutrition", response_class=HTMLResponse)
 def nutrition_page(request: Request, db: Session = Depends(get_db), year: str = ""):
@@ -512,6 +532,33 @@ def round_delete(rid: int, db: Session = Depends(get_db)):
         db.delete(rnd)
         db.commit()
     return RedirectResponse(f"/lunch/{pid}/rounds" if pid else "/lunch", status_code=303)
+
+
+@router.post("/lunch/round/{rid}/duplicate")
+def round_duplicate(rid: int, db: Session = Depends(get_db)):
+    """คัดลอกรอบจ้างเหมา (งวดถัดไป): ก็อปผู้รับจ้าง/วงเงิน/ประเภทรอบ + กรรมการทุกชุด
+    เลื่อนวันไปงวดถัดไป (ระยะเวลาเท่าเดิม) · เลขที่สั่งจ้างเว้นว่าง (ออกเลขใหม่) · ไม่ก็อปงวดย่อย"""
+    from app.models import LunchCommittee
+    from datetime import timedelta
+    src = db.get(LunchHireRound, rid)
+    if not src:
+        return RedirectResponse("/lunch", status_code=303)
+    prog = src.program
+    seq = max([r.seq for r in prog.rounds], default=0) + 1
+    ns = ne = None
+    if src.start_date and src.end_date:
+        dur = (src.end_date - src.start_date).days
+        ns = src.end_date + timedelta(days=1)
+        ne = ns + timedelta(days=dur)
+    new = LunchHireRound(program_id=prog.id, seq=seq, period_type=src.period_type,
+                         start_date=ns, end_date=ne, days=src.days,
+                         vendor_id=src.vendor_id, amount=src.amount, order_no="")
+    db.add(new); db.flush()
+    for m in sorted(src.committees, key=lambda x: (x.kind, x.seq)):
+        db.add(LunchCommittee(round_id=new.id, kind=m.kind, seq=m.seq,
+                              name=m.name, position=m.position, role=m.role))
+    db.commit()
+    return RedirectResponse(f"/lunch/round/{new.id}/plan", status_code=303)
 
 
 # ---------------- เมนู/สำรับ ----------------
