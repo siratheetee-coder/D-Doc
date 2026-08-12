@@ -20,9 +20,11 @@ from app.services.lunch_doc import (
 )
 # ชุดซื้อวัตถุดิบ (ยืมเงิน->ส่งใช้) ใช้ซ้ำจากรูปแบบ 1
 from app.services.lunch_ingredient_doc import (
+    _month_year,
     render_borrow_memo, render_estimate, render_purchase_form,
     render_material_report_form, render_receipt_form, render_control_report,
-    render_repay_memo,
+    render_repay_memo, render_purchase_report, render_loan_contract,
+    render_inspection_note,
 )
 
 _WORK = "จ้างบุคคลประกอบอาหารกลางวัน"
@@ -70,59 +72,67 @@ def render_p_tor(rnd, school, doc=None) -> str:
 
 
 def render_p_hire_report(rnd, school, doc=None) -> str:
-    """03 รายงานขอจ้างบุคคลประกอบอาหารกลางวัน (ค่าตอบแทน/ค่าแรง)"""
+    """03 บันทึกข้อความ รายงานขอจ้างเหมาประกอบอาหารกลางวัน (จ้างแม่ครัว)
+    ตรงตามคู่มืออาหารกลางวัน สพฐ. หน้า 25-26 - 7 ข้อ + ข้อ 8 แต่งตั้งผู้ควบคุม+ตรวจการประกอบอาหาร"""
     doc, own = _begin(doc)
     prog = rnd.program
     sname = _school_disp(school)
     officer = (school.officer_name or "").strip() or _BLANK
     head = (school.head_officer_name or "").strip() or _BLANK
     director = (school.director_name or "").strip() or _BLANK
-    fund = (prog.funding_org or "").strip() or "องค์กรปกครองส่วนท้องถิ่น"
+    students = prog.total_students
     total = round(float(rnd.amount or 0), 2)
+    money, baht = _money(total), bahttext(total)
     days = rnd.days or 0
-    dr = _period(rnd)
-    _memo_head(doc, school, [f"รายงานขอจ้างบุคคลประกอบอาหารกลางวัน (ค่าตอบแทน/ค่าแรง)"],
+    month = _month_year(rnd.start_date)
+    ds, de = _dnum(rnd.start_date), _dnum(rnd.end_date)
+    _memo_head(doc, school,
+               [f"รายงานขอจ้างเหมาประกอบอาหารกลางวัน ประจำเดือน {month}",
+                f"ประจำปีการศึกษา {prog.year} (ระหว่างวันที่ {ds} ถึงวันที่ {de})"],
                _dnum(rnd.order_date), rnd.order_no)
-    _p(doc, f"ด้วย{sname} มีความจำเป็นขอจ้างบุคคลประกอบอาหารกลางวันให้แก่นักเรียนรับประทาน "
-            f"{dr} จึงรายงานขอจ้างตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ "
-            "พ.ศ. 2560 ข้อ 22 และขอดำเนินการจ้างโดยวิธีเฉพาะเจาะจง ตามพระราชบัญญัติการจัดซื้อจัดจ้างและ"
-            f"การบริหารพัสดุภาครัฐ พ.ศ. 2560 มาตรา 56 (2) (ข) จากเงินนอกงบประมาณ ประเภทเงินอุดหนุน"
-            f"อาหารกลางวันรับจาก{fund} เป็นเงิน {_money(total)} บาท ดังนี้", align="justify", indent=1.25)
+    _p(doc, f"ด้วย{sname} จ้างเหมาประกอบอาหารกลางวันให้แก่นักเรียนรับประทาน ประจำเดือน {month} "
+            f"(ระหว่างวันที่ {ds} ถึงวันที่ {de} ปีการศึกษา {prog.year}) การจัดจ้างครั้งนี้ดำเนินการ โดยวิธี"
+            "เฉพาะเจาะจง ตามมาตรา 56 (2) (ข) ประกอบหนังสือคณะกรรมการวินิจฉัยปัญหาการจัดซื้อจัดจ้างและ"
+            "การบริหารพัสดุภาครัฐ ด่วนที่สุด ที่ กค (กวจ) 0405.2/ ว 116 ลงวันที่ 12 มีนาคม พ.ศ. 2562 "
+            "ซึ่งมีรายละเอียดดังต่อไปนี้", align="justify", indent=1.25)
     _p(doc, "1. เหตุผลและความจำเป็นที่ต้องจ้าง", bold=True, indent=1.25, after=0)
-    _p(doc, "เพื่อประกอบอาหารกลางวันให้แก่นักเรียนระดับอนุบาลจนถึงชั้นประถมศึกษาปีที่ 6", indent=1.5)
+    _p(doc, f"เพื่อประกอบอาหารให้นักเรียนรับประทานในมื้อกลางวัน สำหรับนักเรียน จำนวน {students} คน", indent=1.5)
     _p(doc, "2. ขอบเขตของงานพัสดุที่จะจ้าง", bold=True, indent=1.25, after=0)
-    _p(doc, f"การจ้างประกอบอาหารกลางวัน {dr} (รายละเอียดตามเอกสารแนบ)", indent=1.5)
+    _p(doc, "การจ้างประกอบอาหารกลางวันประจำภาคเรียน (รายละเอียดตามเอกสารแนบ)", indent=1.5)
     _p(doc, "3. ราคากลางของพัสดุที่จะจ้าง", bold=True, indent=1.25, after=0)
-    _p(doc, f"เป็นเงิน {_money(total)} บาท ({bahttext(total)}) โดยมีแหล่งที่มาจาก{fund}", indent=1.5)
+    _p(doc, f"เป็นเงิน {money} บาท ({baht})", indent=1.5)
     _p(doc, "4. วงเงินที่จะจ้าง", bold=True, indent=1.25, after=0)
-    _p(doc, f"เป็นเงิน {_money(total)} บาท ({bahttext(total)})", indent=1.5)
-    _p(doc, "5. กำหนดเวลาที่ต้องการให้งานนั้นแล้วเสร็จ", bold=True, indent=1.25, after=0)
-    _p(doc, f"ระยะเวลาการจ้าง จำนวน {days} วัน ตั้งแต่วันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}",
-       indent=1.5)
-    _p(doc, "6. วิธีที่จะจ้าง และเหตุผลที่จะต้องจ้างโดยวิธีนั้น", bold=True, indent=1.25, after=0)
+    _p(doc, f"เป็นเงิน {money} บาท ({baht})", indent=1.5)
+    _p(doc, "5. กำหนดเวลาที่ต้องการพัสดุ", bold=True, indent=1.25, after=0)
+    _p(doc, f"ระยะเวลาการจ้าง จำนวน {days} วัน (ตั้งแต่วันที่ {ds} ถึงวันที่ {de})", indent=1.5)
+    _p(doc, "6. วิธีที่จะจ้างและเหตุผลที่ต้องจ้างโดยวิธีนั้น", bold=True, indent=1.25, after=0)
     _p(doc, "ดำเนินการด้วยวิธีเฉพาะเจาะจง เนื่องจากการจัดซื้อจัดจ้างพัสดุที่มีการผลิต จำหน่าย หรือให้บริการ"
             "ทั่วไป และมีวงเงินในการจัดซื้อจัดจ้างครั้งหนึ่งไม่เกินวงเงินตามที่กำหนดในกฎกระทรวง", align="justify", indent=1.5)
     _p(doc, "7. หลักเกณฑ์การพิจารณาคัดเลือกข้อเสนอ", bold=True, indent=1.25, after=0)
     _p(doc, "การพิจารณาคัดเลือกข้อเสนอโดยใช้เกณฑ์ราคา", indent=1.5)
-    _p(doc, "8. การขออนุมัติแต่งตั้งคณะกรรมการต่าง ๆ", bold=True, indent=1.25, after=0)
-    _p(doc, "8.1 แต่งตั้งผู้ควบคุมและคณะกรรมการผู้ตรวจการประกอบอาหาร", indent=1.5, after=0)
-    _committee_lines(doc, [m for m in rnd.committees if m.kind == "control"])
-    _p(doc, "8.2 คณะกรรมการตรวจรับพัสดุ/ผู้ตรวจรับพัสดุ", indent=1.5, before=2, after=0)
-    _committee_lines(doc, [m for m in rnd.committees if m.kind == "inspect"])
-    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณา หากเห็นชอบขอได้โปรด", indent=1.25, before=2, after=0)
-    _p(doc, f"1. อนุมัติให้ดำเนินการจ้างบุคคลประกอบอาหารกลางวัน (ค่าตอบแทน/ค่าแรง) {dr} ตามรายงานขอจ้างข้างต้น",
+    _p(doc, "8. การอนุมัติแต่งตั้งบุคคลหรือคณะกรรมการ ดังนี้", bold=True, indent=1.25, after=0)
+    _p(doc, "8.1 ผู้ควบคุมรับผิดชอบในการประกอบอาหาร ได้แก่", indent=1.5, after=0)
+    _committee_lines(doc, [m for m in rnd.committees if m.kind == "cook_control"], fallback_n=1)
+    _p(doc, "8.2 คณะกรรมการตรวจการประกอบอาหาร ประกอบด้วย", indent=1.5, before=2, after=0)
+    _committee_lines(doc, [m for m in rnd.committees if m.kind == "food_inspect"])
+    _p(doc, "ให้ (คณะกรรมการตรวจรับพัสดุ/ผู้ตรวจรับพัสดุ) ที่ได้รับการแต่งตั้ง ปฏิบัติหน้าที่ตามระเบียบ"
+            "กระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 ข้อ 175 อย่างเคร่งครัด",
+       align="justify", indent=1.25, before=2)
+    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณา หากเห็นชอบขอได้โปรด", indent=1.25, after=0)
+    _p(doc, f"1. อนุมัติให้ดำเนินการจ้างเหมาประกอบอาหารกลางวัน ประจำเดือน {month} ตามรายงานขอจ้างดังกล่าวข้างต้น",
        align="justify", indent=1.5, after=0)
-    _p(doc, "2. อนุมัติให้แต่งตั้งคณะกรรมการ ตามข้อ 8.1 และ 8.2", indent=1.5, after=10)
-    _sign_table(doc, [[("ลงชื่อ ..............................................เจ้าหน้าที่", "center"),
-                       (f"( {officer} )", "center")]])
+    _p(doc, "2. อนุมัติให้แต่งตั้ง (คณะกรรมการตรวจรับพัสดุ/ผู้ตรวจรับพัสดุ) ตามที่เสนอมา / ลงนามในคำสั่งแต่งตั้ง"
+            "ตามที่เสนอมาพร้อมนี้", align="justify", indent=1.5, after=10)
+    _sign_table(doc, [[("(ลงชื่อ) ..............................................", "center"),
+                       (f"( {officer} )", "center"), ("เจ้าหน้าที่", "center")]])
     _p(doc, "ความเห็นของหัวหน้าเจ้าหน้าที่ ......................................................................",
        indent=1.25, before=2, after=8)
-    _sign_table(doc, [[("ลงชื่อ ..............................................หัวหน้าเจ้าหน้าที่", "center"),
+    _sign_table(doc, [[("(ลงชื่อ) ..............................................หัวหน้าเจ้าหน้าที่", "center"),
                        (f"( {head} )", "center")]])
-    _p(doc, "คำสั่ง   เห็นชอบ / อนุมัติ / ลงนามแล้ว", align="center", bold=True, before=4, after=8)
-    _sign_table(doc, [[("ลงชื่อ ..............................................ผู้อำนวยการโรงเรียน", "center"),
+    _p(doc, "คำสั่ง   เห็นชอบ / อนุมัติ", align="center", bold=True, before=4, after=8)
+    _sign_table(doc, [[("(ลงชื่อ) ..............................................ผู้อำนวยการโรงเรียน", "center"),
                        (f"( {director} )", "center")]])
-    return _finish(doc, own, f"รายงานขอจ้างบุคคล_รอบที่{rnd.seq}_ปี{prog.year}")
+    return _finish(doc, own, f"รายงานขอจ้างเหมาแม่ครัว_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
 def render_p_quotation(rnd, school, doc=None) -> str:
@@ -158,7 +168,8 @@ def render_p_quotation(rnd, school, doc=None) -> str:
 
 
 def render_p_result(rnd, school, doc=None) -> str:
-    """05 รายงานผลการพิจารณาและขออนุมัติสั่งจ้างบุคคลประกอบอาหารกลางวัน"""
+    """05 บันทึกข้อความ รายงานการพิจารณาจ้างเหมาประกอบอาหารกลางวัน (จ้างแม่ครัว)
+    ตรงตามคู่มืออาหารกลางวัน สพฐ. หน้า 29 - เลือกผู้รับจ้าง (นาง...) วิธีเฉพาะเจาะจง (ไม่มีตารางประมูล)"""
     doc, own = _begin(doc)
     prog = rnd.program
     sname = _school_disp(school)
@@ -166,31 +177,29 @@ def render_p_result(rnd, school, doc=None) -> str:
     head = (school.head_officer_name or "").strip() or _BLANK
     director = (school.director_name or "").strip() or _BLANK
     vname = rnd.vendor.name if rnd.vendor else _BLANK
-    total = round(float(rnd.amount or 0), 2)
-    dr = f"{_period(rnd)} ({rnd.days or ''} วันทำการ)"
-    _memo_head(doc, school, ["รายงานผลการพิจารณาและขออนุมัติสั่งจ้างบุคคลประกอบอาหารกลางวัน", dr],
+    month = _month_year(rnd.start_date)
+    ds, de = _dnum(rnd.start_date), _dnum(rnd.end_date)
+    _memo_head(doc, school,
+               [f"รายงานการพิจารณาจ้างเหมาประกอบอาหารกลางวัน ประจำเดือน {month}",
+                f"ประจำปีการศึกษา {prog.year} (ระหว่างวันที่ {ds} ถึงวันที่ {de})"],
                _dnum(rnd.order_date), rnd.order_no)
-    _p(doc, f"ตามที่ผู้อำนวยการ{sname} เห็นชอบให้ดำเนินการจ้างบุคคลประกอบอาหารกลางวัน {dr} "
-            f"โดยวิธีเฉพาะเจาะจง วงเงินงบประมาณ {_money(total)} บาท ({bahttext(total)}) นั้น เจ้าหน้าที่ได้"
-            "เจรจาตกลงราคากับผู้ประกอบการโดยตรงตามระเบียบกระทรวงการคลังฯ พ.ศ. 2560 ข้อ 79 แล้ว "
-            "ขอรายงานผลการพิจารณา ดังนี้", align="justify", indent=1.25, after=4)
-    _simple_table(doc,
-                  ["รายการพิจารณา", "ผู้ชนะการเสนอราคา", "ราคาที่เสนอ\n(รวม VAT)", "ราคาที่ตกลงจ้าง\n(รวม VAT)"],
-                  [[f"ดำเนินการจ้างบุคคลประกอบอาหารกลางวัน {dr}", vname, _money(total), _money(total)],
-                   ["รวม", "", _money(total), _money(total)]],
-                  [Cm(6.05), Cm(4.2), Cm(3), Cm(3)])   # รวม 16.25 = พื้นที่พิมพ์ A4
-    _p(doc, f"จึงเห็นสมควรรับราคาจาก {vname} การจัดจ้างคราวนี้ไม่เกินวงเงินที่ประมาณไว้และไม่สูงกว่าราคากลาง "
-            f"สถานที่ส่งมอบ ณ {sname}", align="justify", indent=1.25, before=4)
-    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติให้ดำเนินการจัดจ้างจากผู้ชนะการเสนอราคาดังกล่าว และลงนาม"
-            "ในประกาศรายชื่อผู้ชนะการเสนอราคา และใบสั่งจ้าง ที่เสนอมาพร้อมนี้", align="justify", indent=1.25, after=12)
-    _sign_table(doc, [
-        [("ลงชื่อ ..........................................เจ้าหน้าที่", "center"), (f"( {officer} )", "center")],
-        [("ลงชื่อ ..........................................หัวหน้าเจ้าหน้าที่", "center"), (f"( {head} )", "center")]])
-    _p(doc, "อนุมัติ/ลงนามแล้ว", align="center", bold=True, before=4, after=8)
-    _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
-    _p(doc, f"( {director} )", align="center", after=0)
-    _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
-    return _finish(doc, own, f"รายงานผลพิจารณา_จ้างบุคคล_รอบที่{rnd.seq}_ปี{prog.year}")
+    _p(doc, f"ด้วย{sname} จ้างเหมาประกอบอาหารกลางวันให้แก่นักเรียนรับประทาน ประจำเดือน {month} "
+            f"(ระหว่างวันที่ {ds} ถึงวันที่ {de} ปีการศึกษา {prog.year}) การจัดจ้างครั้งนี้ดำเนินการ โดยวิธี"
+            "เฉพาะเจาะจง ตามมาตรา 56 (2) (ข) ประกอบหนังสือคณะกรรมการวินิจฉัยปัญหาการจัดซื้อจัดจ้างและ"
+            "การบริหารพัสดุภาครัฐ ด่วนที่สุด ที่ กค (กวจ) 0405.2/ ว 116 ลงวันที่ 12 มีนาคม พ.ศ. 2562 "
+            "ซึ่งมีรายละเอียดดังต่อไปนี้", align="justify", indent=1.25, after=4)
+    _p(doc, f"จึงเรียนมาเพื่อโปรดพิจารณา หากเห็นชอบโปรดอนุมัติให้ดำเนินการจ้างเหมา {vname} "
+            f"ประกอบอาหารกลางวัน ประจำเดือน {month}", align="justify", indent=1.25, after=12)
+    _sign_table(doc, [[("(ลงชื่อ) ...........................................", "center"),
+                       (f"( {officer} )", "center"), ("เจ้าหน้าที่", "center")]])
+    _p(doc, "ความเห็นของหัวหน้าเจ้าหน้าที่ ......................................................................",
+       indent=1.25, before=2, after=8)
+    _sign_table(doc, [[("(ลงชื่อ) ...........................................หัวหน้าเจ้าหน้าที่", "center"),
+                       (f"( {head} )", "center")]])
+    _p(doc, "คำสั่ง   เห็นชอบ / อนุมัติ", align="center", bold=True, before=4, after=8)
+    _sign_table(doc, [[("(ลงชื่อ) ...........................................ผู้อำนวยการโรงเรียน", "center"),
+                       (f"( {director} )", "center")]])
+    return _finish(doc, own, f"รายงานพิจารณาจ้างเหมาแม่ครัว_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
 def render_p_winner(rnd, school, doc=None) -> str:
@@ -407,21 +416,18 @@ def render_p_disburse(inst, school, wht_rate=0.01, doc=None) -> str:
 
 
 def render_person_bundle(rnd, school) -> str:
-    """ออกชุดเอกสารจ้างบุคคลทั้งชุดเป็นไฟล์เดียว (ยืมเงินซื้อวัตถุดิบ + จ้างบุคคล)"""
+    """ออกชุดเอกสารจ้างแม่ครัวทั้งชุดเป็นไฟล์เดียว ตรงตามคู่มืออาหารกลางวัน สพฐ.
+    (จ้างเหมาประกอบอาหาร วิธีเฉพาะเจาะจง + ชุดยืมเงินซื้อวัตถุดิบที่โรงเรียนจัดหาเอง)"""
     doc = Document(); set_a4(doc); _font(doc)
-    # ส่วนที่ 1: ขออนุมัติจ้างบุคคล
-    render_p_tor(rnd, school, doc)
-    render_p_hire_report(rnd, school, doc)
-    render_p_quotation(rnd, school, doc)
-    render_p_result(rnd, school, doc)
-    render_p_winner(rnd, school, doc)
-    render_p_order(rnd, school, doc)
-    # ส่วนที่ 2: ชุดยืมเงินซื้อวัตถุดิบ (เหมือนรูปแบบ 1)
+    # ส่วนที่ 1: จ้างเหมาประกอบอาหาร (จ้างแม่ครัว)
+    render_p_hire_report(rnd, school, doc)   # รายงานขอจ้างเหมา + แต่งตั้งผู้ควบคุม/ตรวจการประกอบอาหาร
+    render_p_result(rnd, school, doc)        # รายงานการพิจารณาจ้าง (เลือกผู้รับจ้าง)
+    render_p_order(rnd, school, doc)         # บันทึกตกลงจ้าง
+    # ส่วนที่ 2: ชุดยืมเงินซื้อวัตถุดิบ (โรงเรียนจัดหาวัตถุดิบเอง - เหมือนรูปแบบซื้อวัตถุดิบ)
     render_borrow_memo(rnd, school, doc)
+    render_loan_contract(rnd, school, doc)
     render_estimate(rnd, school, doc)
-    render_purchase_form(rnd, school, doc)
+    render_repay_memo(rnd, school, doc)
     render_material_report_form(rnd, school, doc)
     render_receipt_form(rnd, school, doc)
-    render_control_report(rnd, school, doc)
-    render_repay_memo(rnd, school, doc)
-    return _save(doc, f"ชุดเอกสารจ้างบุคคล_รอบที่{rnd.seq}_ปี{rnd.program.year}")
+    return _save(doc, f"ชุดเอกสารจ้างแม่ครัว_รอบที่{rnd.seq}_ปี{rnd.program.year}")

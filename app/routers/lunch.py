@@ -1070,8 +1070,9 @@ COMMITTEE_ROLES = ["ประธานกรรมการ", "กรรมก�
 
 
 def _committee_kinds(prog):
-    """ชนิดกรรมการที่ใช้ตามวิธีดำเนินการของโครงการ"""
-    if prog and prog.operate_mode == "ingredient":
+    """ชนิดกรรมการที่ใช้ตามวิธีดำเนินการของโครงการ
+    ซื้อวัตถุดิบ + จ้างแม่ครัว (person) = ตรวจรับพัสดุ / ผู้ควบคุมประกอบอาหาร / ตรวจการประกอบอาหาร"""
+    if prog and prog.operate_mode in ("ingredient", "person"):
         return COMMITTEE_KINDS_INGREDIENT
     return COMMITTEE_KINDS
 
@@ -1230,12 +1231,10 @@ def contract_ingredient_doc(rid: int, kind: str, db: Session = Depends(get_db)):
     return _round_ingredient_doc(rid, db, render_name)
 
 
-# ---------------- เอกสารรูปแบบ 2: จ้างบุคคล (แม่ครัว) ----------------
+# ---------------- เอกสารรูปแบบ 2: จ้างเหมาประกอบอาหาร (จ้างแม่ครัว) วิธีเฉพาะเจาะจง ----------------
 _PERSON_DOCS = {
-    "tor": "render_p_tor", "hire-report": "render_p_hire_report",
-    "quotation": "render_p_quotation", "result": "render_p_result",
-    "winner": "render_p_winner", "order": "render_p_order",
-    "bundle": "render_person_bundle",
+    "hire-report": "render_p_hire_report", "result": "render_p_result",
+    "order": "render_p_order", "bundle": "render_person_bundle",
 }
 
 
