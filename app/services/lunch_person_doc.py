@@ -20,7 +20,7 @@ from app.services.lunch_doc import (
 )
 # ชุดซื้อวัตถุดิบ (ยืมเงิน->ส่งใช้) ใช้ซ้ำจากรูปแบบ 1
 from app.services.lunch_ingredient_doc import (
-    _month_year, _memo_ref,
+    _month_year, _memo_ref, _doc_no, _doc_dt,
     render_borrow_memo, render_estimate, render_purchase_form,
     render_material_report_form, render_receipt_form, render_control_report,
     render_repay_memo, render_purchase_report, render_loan_contract,
@@ -239,7 +239,9 @@ def render_p_order(rnd, school, doc=None) -> str:
     v = rnd.vendor
     vname = v.name if v else _BLANK
     vaddr = (getattr(v, "address", "") or "").strip() if v else ""
-    order_no = (rnd.order_no or "").strip() or _BLANK
+    # เลขที่/วันที่บันทึกตกลงจ้าง กรอกที่หน้าจัดการงวด (doc_nos["order"]) fallback เลขตกลงจ้างเดิม
+    order_no = _doc_no(rnd, "order", (rnd.order_no or "").strip() or _BLANK)
+    order_dt = _doc_dt(rnd, "order", "date") or rnd.order_date
     total = round(float(rnd.amount or 0), 2)
     days = rnd.days or 0
     day_rate = round(total / days, 2) if days else 0.0
@@ -247,7 +249,7 @@ def render_p_order(rnd, school, doc=None) -> str:
     _p(doc, order_no, indent=0.5, after=0)
     _p(doc, "บันทึกตกลงจ้าง", align="center", bold=True, size=20, before=2, after=8)
     _p(doc, f"เขียนที่ {sname}", align="right", after=0)
-    _p(doc, f"วันที่ {_dnum(rnd.order_date)}", align="right", after=6)
+    _p(doc, f"วันที่ {_dnum(order_dt)}", align="right", after=6)
     _p(doc, f"บันทึกตกลงจ้างฉบับนี้จัดทำขึ้นเพื่อแสดงว่า {director} ตำแหน่งผู้อำนวยการ{sname} "
             "ผู้ได้รับมอบหมายอำนาจจากเลขาธิการคณะกรรมการการศึกษาขั้นพื้นฐาน ตามคำสั่งสำนักงานคณะกรรมการ"
             "การศึกษาขั้นพื้นฐาน ซึ่งเรียกว่า “ผู้ว่าจ้าง” ฝ่ายหนึ่ง กับ "

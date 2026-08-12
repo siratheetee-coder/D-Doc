@@ -465,24 +465,36 @@ def _populate_round(rnd, form, db):
     # เลขที่บันทึกข้อความ/คำสั่งย้ายไปกรอกรายฉบับที่หน้าจัดการงวด (ก่อนออกเอกสาร)
 
 
-# เอกสารอาหารกลางวันที่ต้องออกเลขหนังสือ: kind -> (ป้ายชื่อ, ประเภททะเบียน, ดัชนี, โหมดที่ใช้)
+# ชุดฟิลด์เลข/วันที่ต่อเอกสาร: (field_key, ป้ายชื่อ, ชนิด["no"|"date"])
+_F_MEMO = [("no", "เลขที่", "no"), ("date", "วันที่", "date")]
+_F_LOAN = [("no", "เลขที่สัญญายืม", "no"),
+           ("date", "วันที่ยืม (ผู้ยืมลงชื่อ)", "date"),
+           ("present_date", "วันที่เสนอ จนท.การเงิน/ผอ.อนุมัติ", "date"),
+           ("receive_date", "วันที่ได้รับเงิน", "date")]
+
+# เอกสารอาหารกลางวันที่ต้องกรอกเลข/วันที่ แยกตามวิธีดำเนินการ (อิงชุดเอกสารจริงของแต่ละแบบ)
+#   label=ป้ายชื่อ · doc_type=ประเภททะเบียนกลาง (None=ไม่ลงทะเบียนหนังสือ เช่น สัญญายืม)
+#   idx=ดัชนี (ref_id=rnd.id*100+idx, unique ทั้งชุด) · modes=โหมดที่ใช้ · fields=ช่องกรอก
 LUNCH_DOC_META = {
-    "report":         ("รายงานขอซื้อวัตถุดิบ",          "memo",    1, ("ingredient",)),
-    "borrow":         ("ขออนุมัติยืมเงิน",               "memo",    2, ("ingredient", "person")),
-    "repay":          ("ขออนุมัติส่งใช้เงินยืม",          "memo",    3, ("ingredient", "person")),
-    "inspect-report": ("รายงานการตรวจรับพัสดุ",         "memo",    4, ("ingredient",)),
-    "inspect-notify": ("แจ้งประธานกรรมการตรวจรับ",      "memo",    5, ("ingredient",)),
-    "hire-report":    ("รายงานขอจ้างเหมา (แม่ครัว)",     "memo",    6, ("person",)),
-    "result":         ("รายงานการพิจารณาจ้าง",          "memo",    7, ("person",)),
-    "committee":      ("คำสั่งแต่งตั้งกรรมการ",          "command", 8, ("ingredient", "person")),
+    # --- ซื้อวัตถุดิบเอง (ingredient) ---
+    "report":         {"label": "รายงานขอซื้อวัตถุดิบ",                    "doc_type": "memo",       "idx": 1, "modes": ("ingredient",),            "fields": _F_MEMO},
+    "borrow":         {"label": "ขออนุมัติยืมเงิน",                         "doc_type": "memo",       "idx": 2, "modes": ("ingredient", "person"),  "fields": _F_MEMO},
+    "loan":           {"label": "สัญญาการยืมเงิน",                          "doc_type": None,         "idx": 3, "modes": ("ingredient", "person"),  "fields": _F_LOAN},
+    "repay":          {"label": "ขออนุมัติเบิกจ่ายเพื่อส่งใช้เงินยืม",        "doc_type": "memo",       "idx": 4, "modes": ("ingredient", "person"),  "fields": _F_MEMO},
+    "inspect-report": {"label": "รายงานการตรวจรับพัสดุ",                   "doc_type": "memo",       "idx": 5, "modes": ("ingredient",),            "fields": _F_MEMO},
+    "inspect-notify": {"label": "การตรวจรับพัสดุ (แจ้งประธานกรรมการ)",     "doc_type": "memo",       "idx": 6, "modes": ("ingredient",),            "fields": _F_MEMO},
+    # --- จ้างแม่ครัว (person) ---
+    "hire-report":    {"label": "รายงานขอจ้างเหมาประกอบอาหาร",            "doc_type": "memo",       "idx": 7, "modes": ("person",),                "fields": _F_MEMO},
+    "result":         {"label": "รายงานการพิจารณาจ้าง",                     "doc_type": "memo",       "idx": 8, "modes": ("person",),                "fields": _F_MEMO},
+    "order":          {"label": "บันทึกตกลงจ้าง",                           "doc_type": "hire_order", "idx": 9, "modes": ("person",),                "fields": _F_MEMO},
 }
 
 
 def _lunch_doc_list(prog):
     """รายการเอกสารที่ต้องออกเลข ของโหมดนี้ (เรียงตามดัชนี)"""
     mode = getattr(prog, "operate_mode", "hire")
-    return [(k,) + v[:3] for k, v in sorted(LUNCH_DOC_META.items(), key=lambda x: x[1][2])
-            if mode in v[3]]
+    return [dict(m, kind=k) for k, m in sorted(LUNCH_DOC_META.items(), key=lambda x: x[1]["idx"])
+            if mode in m["modes"]]
 
 
 def _round_doc_nos(rnd) -> dict:
@@ -494,19 +506,20 @@ def _round_doc_nos(rnd) -> dict:
 
 
 def _register_one_docno(db, rnd, kind, no, dt):
-    """ผูกเลขของเอกสารฉบับหนึ่งเข้าทะเบียนกลาง (ref_id แยกต่อฉบับ = rnd.id*100+idx)"""
+    """ผูกเลขของเอกสารฉบับหนึ่งเข้าทะเบียนกลาง (ref_id แยกต่อฉบับ = rnd.id*100+idx)
+    เฉพาะเอกสารที่มี doc_type (สัญญายืม doc_type=None ไม่ลงทะเบียนหนังสือ)"""
     from app.services.doc_number import commit_doc_no, remove_issued
     meta = LUNCH_DOC_META.get(kind)
-    if not meta:
+    if not meta or not meta["doc_type"]:
         return
-    label, doc_type, idx, _modes = meta
-    ref = rnd.id * 100 + idx
+    doc_type = meta["doc_type"]
+    ref = rnd.id * 100 + meta["idx"]
     remove_issued(db, "lunch", ref, doc_type)
     if (no or "").strip():
         prog = rnd.program
         fy = current_fiscal_year(dt) if dt else (prog.year or current_fiscal_year())
         commit_doc_no(db, doc_type, fy, no, source="lunch", ref_id=ref,
-                      subject=f"{label} (อาหารกลางวัน รอบที่ {rnd.seq} ปี {prog.year})", date=dt)
+                      subject=f"{meta['label']} (อาหารกลางวัน รอบที่ {rnd.seq} ปี {prog.year})", date=dt)
 
 
 def _register_round_docnos(db, rnd):
@@ -559,26 +572,44 @@ async def round_update(rid: int, request: Request, db: Session = Depends(get_db)
 @router.post("/lunch/round/{rid}/docno")
 async def round_set_docno(rid: int, request: Request, db: Session = Depends(get_db)):
     """บันทึกเลขที่/วันที่เอกสารรายฉบับ (kind) ที่หน้าจัดการงวด ก่อนออกเอกสาร
-    เก็บลง rnd.doc_nos (JSON) + ผูกเข้าทะเบียนเลขหนังสือกลาง"""
+    รับได้หลายช่องต่อเอกสาร (ตาม meta['fields']) เก็บลง rnd.doc_nos (JSON)
+    + ผูกช่อง no/date เข้าทะเบียนเลขหนังสือกลาง (เฉพาะเอกสารที่มี doc_type)"""
     import json
     rnd = db.get(LunchHireRound, rid)
     if not rnd:
         return JSONResponse({"ok": False}, status_code=404)
     form = await request.form()
     kind = (form.get("kind") or "").strip()
-    if kind not in LUNCH_DOC_META:
+    meta = LUNCH_DOC_META.get(kind)
+    if not meta:
         return JSONResponse({"ok": False, "error": "kind"}, status_code=400)
-    no = (form.get("no") or "").strip()
-    dt = parse_be_date(form.get("date") or "")
+    ent, dates_be = {}, {}
+    for fkey, _label, ftype in meta["fields"]:
+        if ftype == "date":
+            dt = parse_be_date(form.get(fkey) or "")
+            if dt:
+                ent[fkey] = dt.isoformat()
+                dates_be[fkey] = be_date_input(dt)
+        else:
+            v = (form.get(fkey) or "").strip()
+            if v:
+                ent[fkey] = v
     data = _round_doc_nos(rnd)
-    if no or dt:
-        data[kind] = {"no": no, "date": dt.isoformat() if dt else ""}
+    if ent:
+        data[kind] = ent
     else:
         data.pop(kind, None)
     rnd.doc_nos = json.dumps(data, ensure_ascii=False)
-    _register_one_docno(db, rnd, kind, no, dt)
+    # ทะเบียนกลาง: ใช้ช่อง no + date เป็นหลัก
+    reg_dt = None
+    if ent.get("date"):
+        try:
+            reg_dt = datetime.fromisoformat(ent["date"])
+        except Exception:
+            reg_dt = None
+    _register_one_docno(db, rnd, kind, ent.get("no", ""), reg_dt)
     db.commit()
-    return JSONResponse({"ok": True, "no": no, "date_be": be_date_input(dt) if dt else ""})
+    return JSONResponse({"ok": True, "dates_be": dates_be})
 
 
 @router.post("/lunch/round/{rid}/status")
@@ -620,7 +651,8 @@ def round_delete(rid: int, db: Session = Depends(get_db)):
         remove_issued(db, "lunch", rnd.id, "memo")      # ล้างเลขรวมแบบเดิม (ก่อนแยกรายฉบับ)
         remove_issued(db, "lunch", rnd.id, "command")
         for _k, meta in LUNCH_DOC_META.items():         # ล้างเลขรายฉบับ (ref = rnd.id*100+idx)
-            remove_issued(db, "lunch", rnd.id * 100 + meta[2], meta[1])
+            if meta["doc_type"]:
+                remove_issued(db, "lunch", rnd.id * 100 + meta["idx"], meta["doc_type"])
         db.delete(rnd)
         db.commit()
     return RedirectResponse(f"/lunch/{pid}/rounds" if pid else "/lunch", status_code=303)
@@ -989,19 +1021,25 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
     saved_nos = _round_doc_nos(rnd)
     fy = prog.year or current_fiscal_year()
     doc_no_rows = []
-    for kind, label, doc_type, _idx in _lunch_doc_list(prog):
-        ent = saved_nos.get(kind) or {}
-        dt = None
-        if ent.get("date"):
-            try:
-                dt = datetime.fromisoformat(ent["date"])
-            except Exception:
+    for meta in _lunch_doc_list(prog):
+        ent = saved_nos.get(meta["kind"]) or {}
+        fields = []
+        for fkey, flabel, ftype in meta["fields"]:
+            raw = ent.get(fkey) or ""
+            if ftype == "date":
                 dt = None
+                try:
+                    dt = datetime.fromisoformat(raw) if raw else None
+                except Exception:
+                    dt = None
+                val = be_date_input(dt) if dt else ""
+            else:
+                val = (raw or "").strip()
+            fields.append({"key": fkey, "label": flabel, "type": ftype, "value": val})
         doc_no_rows.append({
-            "kind": kind, "label": label, "doc_type": doc_type,
-            "no": (ent.get("no") or "").strip(),
-            "date_be": be_date_input(dt) if dt else "",
-            "suggest": suggest_doc_no(db, doc_type, fy),
+            "kind": meta["kind"], "label": meta["label"], "doc_type": meta["doc_type"],
+            "fields": fields,
+            "suggest": suggest_doc_no(db, meta["doc_type"], fy) if meta["doc_type"] else "",
         })
 
     return templates.TemplateResponse("lunch_contract.html", {

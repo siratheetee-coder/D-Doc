@@ -86,6 +86,20 @@ def _memo_ref(rnd, kind=None):
     return _dnum(dt), no
 
 
+def _doc_no(rnd, kind, fallback=""):
+    """เลขที่เอกสารรายฉบับ (doc_nos[kind]['no']) - ไม่มีก็คืน fallback"""
+    return ((_docnos(rnd).get(kind) or {}).get("no") or "").strip() or fallback
+
+
+def _doc_dt(rnd, kind, field="date"):
+    """วันที่ในฟิลด์ field ของเอกสาร kind (คืน datetime หรือ None)"""
+    s = (_docnos(rnd).get(kind) or {}).get(field) or ""
+    try:
+        return datetime.fromisoformat(s) if s else None
+    except Exception:
+        return None
+
+
 def _borrower(school, prog=None):
     """ผู้ยืมเงิน/ผู้จ่ายเงิน = เจ้าหน้าที่โครงการอาหารกลางวัน (ถ้าตั้งไว้ในโครงการ)
     ถ้าไม่ได้ตั้ง จึงใช้เจ้าหน้าที่พัสดุเป็นค่าตั้งต้น (อาจเป็นคนละคนกัน)"""
@@ -192,8 +206,8 @@ def render_estimate(rnd, school, doc=None) -> str:
 
     _p(doc, "แบบประมาณการค่าใช้จ่าย", align="center", bold=True, size=18, after=0)
     _p(doc, f"{sname}", align="center", after=0)
-    _p(doc, f"แนบท้ายสัญญาเงินยืมเลขที่ {(rnd.order_no or '').strip() or '........./.........'} "
-            f"ลงวันที่ {_dnum(rnd.order_date)}", align="center", after=6)
+    _p(doc, f"แนบท้ายสัญญาเงินยืมเลขที่ {_doc_no(rnd, 'loan', (rnd.order_no or '').strip() or '........./.........')} "
+            f"ลงวันที่ {_dnum(_doc_dt(rnd, 'loan', 'date') or rnd.order_date)}", align="center", after=6)
     _simple_table(doc, ["รายการ", "จำนวนเงิน"],
                   [[f"ประมาณการค่าอาหารกลางวัน ประจำเดือน {_month_year(rnd.start_date)} "
                     f"จำนวน {students} คน x อัตราวันละ {_money(rate)} บาท x จำนวน {days} วัน",
@@ -483,8 +497,8 @@ def render_repay_memo(rnd, school, doc=None) -> str:
                *_memo_ref(rnd, "repay"))
     _p(doc, f"ตามที่อนุมัติให้ {bname} ผู้ยืมเงินโครงการอาหารกลางวัน ยืมเงิน (เงินอุดหนุนอาหารกลางวัน"
             f"รับจาก{fund}) เพื่อเป็นค่าใช้จ่ายอาหารกลางวันให้นักเรียนรับประทาน จำนวนเงิน {_money(total)} "
-            f"บาท (ตัวอักษร {bahttext(total)}) ตามสัญญาการยืมเงินที่ {(rnd.order_no or '').strip() or _BLANK} "
-            f"ลงวันที่ {_dnum(rnd.order_date)} นั้น", align="justify", indent=1.25, after=2)
+            f"บาท (ตัวอักษร {bahttext(total)}) ตามสัญญาการยืมเงินที่ {_doc_no(rnd, 'loan', (rnd.order_no or '').strip() or _BLANK)} "
+            f"ลงวันที่ {_dnum(_doc_dt(rnd, 'loan', 'date') or rnd.order_date)} นั้น", align="justify", indent=1.25, after=2)
     _p(doc, "บัดนี้ ได้ดำเนินการตามวัตถุประสงค์แล้ว ขอส่งใช้หลักฐาน และเงินสด (ถ้ามี) ดังนี้",
        align="justify", indent=1.25, after=0)
     _p(doc, f"1. หลักฐานค่าอาหารกลางวัน\t\tจำนวน {_money(total)} บาท", indent=1.5, after=0)
@@ -696,8 +710,14 @@ def render_loan_contract(rnd, school, doc=None) -> str:
     total = round(float(rnd.amount or 0), 2)
     money, baht = _money(total), bahttext(total)
     month = _month_year(rnd.start_date)
-    oid = (rnd.order_no or "").strip() or _BLANK
-    od = _dnum(rnd.order_date)
+    # เลขที่/วันที่ของสัญญายืมเงิน กรอกที่หน้าจัดการงวด (doc_nos["loan"]) - หลายช่อง
+    oid = _doc_no(rnd, "loan", (rnd.order_no or "").strip() or _BLANK)
+    borrow_dt = _doc_dt(rnd, "loan", "date") or rnd.order_date         # วันที่ยืม (ผู้ยืมลงชื่อ)
+    present_dt = _doc_dt(rnd, "loan", "present_date")                  # วันที่เสนอ จนท.การเงิน/ผอ.อนุมัติ
+    receive_dt = _doc_dt(rnd, "loan", "receive_date") or borrow_dt     # วันที่ได้รับเงิน
+    od = _dnum(borrow_dt)
+    present_s = _dnum(present_dt) if present_dt else ".................."
+    receive_s = _dnum(receive_dt)
     DOT = "..............................................."
     PROMISE = ("ข้าพเจ้าสัญญาว่าจะปฏิบัติตามระเบียบของทางราชการทุกประการ และจะนำใบสำคัญคู่จ่ายที่ถูกต้อง "
                "พร้อมทั้งเงินเหลือจ่าย (ถ้ามี) ส่งใช้ภายในกำหนดไว้ในระเบียบการเบิกจ่ายเงินจากคลัง คือภายใน 30 วัน "
@@ -737,14 +757,14 @@ def render_loan_contract(rnd, school, doc=None) -> str:
     c = tbl.cell(4, 0).merge(tbl.cell(4, 1))
     _box_cell(c, [("เสนอ  ผู้อำนวยการโรงเรียน", "left", True),
                   (f"ได้ตรวจสอบแล้วเห็นสมควรอนุมัติให้ยืมตามใบยืมฉบับนี้ได้ จำนวน {money} บาท ({baht})", "left", False),
-                  (f"ลงชื่อ {DOT}เจ้าหน้าที่การเงิน   วันที่ ..................", "left", False),
+                  (f"ลงชื่อ {DOT}เจ้าหน้าที่การเงิน   วันที่ {present_s}", "left", False),
                   ("คำอนุมัติ  อนุมัติให้ยืมตามเงื่อนไขข้างต้นได้", "left", True),
-                  (f"ลงชื่อ {DOT}ผู้อนุมัติ   ( {director} )   วันที่ {od}", "left", False)], line=1.5)
+                  (f"ลงชื่อ {DOT}ผู้อนุมัติ   ( {director} )   วันที่ {present_s}", "left", False)], line=1.5)
     # R5: ใบรับเงิน
     c = tbl.cell(5, 0).merge(tbl.cell(5, 1))
     _box_cell(c, [("ใบรับเงิน", "left", True),
                   (f"ได้รับเงินยืมจำนวน {money} บาท ({baht}) ไปเป็นการถูกต้องแล้ว", "left", False),
-                  (f"ลงชื่อ {DOT}ผู้รับเงิน   ( {bname} )   วันที่ {od}", "left", False)], line=1.5)
+                  (f"ลงชื่อ {DOT}ผู้รับเงิน   ( {bname} )   วันที่ {receive_s}", "left", False)], line=1.5)
 
     # ---------- หลัง (back) : รายการส่งใช้เงินยืม ----------
     doc.add_page_break()
