@@ -26,17 +26,18 @@ from docx.oxml.ns import qn
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 
-def _box_cell(cell, lines, *, size=14):
+def _box_cell(cell, lines, *, size=14, before=0, after=1):
     """เติมข้อความหลายบรรทัดในเซลล์ตาราง (แต่ละ tuple = (text, align, bold))
-    ใช้ทำฟอร์มแบบมีช่องกรอบ (เช่น สัญญายืมเงิน แบบ 8500)"""
+    ใช้ทำฟอร์มแบบมีช่องกรอบ (เช่น สัญญายืมเงิน แบบ 8500)
+    before/after = ระยะห่างบน/ล่างแต่ละบรรทัด (Pt) - ใช้เว้นที่ให้เซ็น"""
     amap = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER,
             "right": WD_ALIGN_PARAGRAPH.RIGHT}
     cell.text = ""
     for i, (txt, al, bold) in enumerate(lines):
         p = cell.paragraphs[0] if i == 0 else cell.add_paragraph()
         p.alignment = amap[al]
-        p.paragraph_format.space_after = Pt(1)
-        p.paragraph_format.space_before = Pt(0)
+        p.paragraph_format.space_after = Pt(after)
+        p.paragraph_format.space_before = Pt(before)
         r = p.add_run(txt)
         r.font.name = THAI_FONT
         _csize(r, size)
@@ -408,16 +409,14 @@ def render_control_report(rnd, school, doc=None) -> str:
             f"รับประทาน ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} บัดนี้ "
             "ได้ดำเนินการประกอบอาหารทุกวันตามที่กำหนด ผู้ควบคุมและคณะกรรมการตรวจการประกอบอาหารกลางวัน "
             "ขอรายงานผลการดำเนินงาน ดังนี้", align="justify", indent=1.25, after=4)
-    # ช่องขวา = จุดไข่ปลาเว้นว่างให้ผู้ควบคุม/กรรมการเซ็น (แถวละคน) ไม่ใช่พิมพ์ชื่อ
-    ctrl = _committee(rnd, "cook_control") + _committee(rnd, "food_inspect")
-    n_sign = len(ctrl) or 1
+    # ช่องขวา = จุดไข่ปลาเว้นว่างให้ผู้ควบคุม/กรรมการเซ็น 3 ช่อง (เว้นที่ให้เซ็นด้วย space before)
     days = _round_menu_days(rnd)
     # สร้างตารางเอง: ช่องผลตรวจฟอนต์ 12 ให้ทุกหัวข้ออยู่บรรทัดเดียว (ไม่ตก)
     hdr = ["วัน เดือน ปี", "รายการอาหาร", "ผลการตรวจสอบ", "ผู้ควบคุม/กรรมการตรวจการ"]
-    W = [Cm(2.2), Cm(2.6), Cm(8.2), Cm(3.25)]
+    W = [Cm(2.1), Cm(2.35), Cm(7.95), Cm(3.85)]   # ขยายช่องผู้ควบคุม
     crit = [(f"{h}  ☐ดีมาก ☐ดี ☐พอใช้ ☐ปรับปรุง", "left", False)
             for h in ("ความสะอาด", "คุณภาพอาหาร", "ความทันเวลา", "ความเพียงพอ")]
-    signs = [("(ลงชื่อ) ................................", "left", False) for _ in range(n_sign)]
+    signs = [("(ลงชื่อ) ...............................", "left", False) for _ in range(3)]   # 3 ช่อง
     tb = doc.add_table(rows=1, cols=4)
     tb.style = "Table Grid"
     tb.autofit = False
@@ -430,7 +429,7 @@ def render_control_report(rnd, school, doc=None) -> str:
         _set_cell(rc[0], _dnum(m.date) if m else "", size=14)
         _set_cell(rc[1], (m.main or "") if m else "", size=14)
         _box_cell(rc[2], crit, size=12)
-        _box_cell(rc[3], signs, size=13)
+        _box_cell(rc[3], signs, size=13, before=10, after=6)   # เว้นที่ให้เซ็นแต่ละช่อง
         for c, w in zip(rc, W):
             c.width = w
     _p(doc, "(  ) ทราบผลการดำเนินการประกอบอาหารกลางวัน", indent=1.25, before=4, after=10)
