@@ -159,10 +159,9 @@ def _committee_cell_text(members, n=3) -> str:
 
 
 def _sign_slots_h(n=3) -> str:
-    """ช่องลงชื่อแนวราบ เลขอารบิก "1) ..........  2) ..........  3) .........." (ไม่ใส่ชื่อ)
-    จุดไข่ปลายาวเกือบเต็มช่อง (ตารางตรวจรับ ใช้ฟอนต์เล็กให้ 3 ช่องอยู่บรรทัดเดียว)"""
-    dots = "................"
-    return "  ".join(f"{i + 1}) {dots}" for i in range(n))
+    """ช่องลงชื่อกรรมการตรวจรับ เลขอารบิก แยกบรรทัดละคน เส้นจุดไข่ปลายาวเต็มช่อง (มีที่เซ็นจริง)"""
+    dots = "." * 44
+    return "\n".join(f"{i + 1}) {dots}" for i in range(n))
 
 
 def _daily_table(doc, menus, committee=None):
@@ -211,7 +210,7 @@ def _inspect_table(doc, menus, committee=None):
         _set_cell(r.cells[0], thai_date(m.date) if (m and m.date) else "", align="center", size=12)
         _set_cell(r.cells[1], _menu_text(m) if m else "", align="center", size=12)
         _set_cell(r.cells[2], "", size=12)
-        _set_cell(r.cells[3], committee_txt, align="center", size=11)
+        _set_cell(r.cells[3], committee_txt, align="left", size=11)
         for c, w in zip(r.cells, widths):
             c.width = w
             c.vertical_alignment = WD_ALIGN_VERTICAL.BOTTOM      # ชิดล่าง
