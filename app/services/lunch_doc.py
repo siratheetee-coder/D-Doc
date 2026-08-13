@@ -144,24 +144,25 @@ def _rule(doc):
     return p
 
 
-def _committee_cell_text(members, n=3, names=True) -> str:
-    """ข้อความช่องกรรมการ (จุดไข่ปลาให้เซ็น + ชื่อในวงเล็บ) เรียงเลขไทย ๑ ๒ ๓
-    names=False : เว้นแค่เส้นจุดไข่ปลา ไม่ใส่ชื่อ/วงเล็บ (ลดความสูงตาราง)"""
+def _committee_cell_text(members, n=3, names=False) -> str:
+    """ช่องลงชื่อกรรมการแบบแนวราบ เลขอารบิก: "1) ...........  2) ...........  3) ..........."
+    names=True : แทรกชื่อในวงเล็บต่อท้ายแต่ละช่อง (ปกติ names=False เว้นจุดไข่ปลาให้เซ็น)"""
     count = max(n, len(members or [])) if names else n
-    lines = []
+    dots = "............................."
+    segs = []
     for i in range(count):
-        num = _TH_NUM[i] if i < len(_TH_NUM) else str(i + 1)
-        lines.append("")   # เว้นบรรทัดว่างเหนือเส้นจุดไข่ปลา ให้มีที่เซ็นชื่อ (คนแรกไม่ติดหัวตาราง)
-        lines.append(f"{num}...........................................")
+        seg = f"{i + 1}) {dots}"
         if names:
             nm = members[i].name if (members and i < len(members) and members[i].name) else ""
-            lines.append(f"( {nm} )" if nm else "( ........................................ )")
-    return "\n".join(lines)
+            if nm:
+                seg += f" ( {nm} )"
+        segs.append(seg)
+    return "    ".join(segs)
 
 
 def _daily_table(doc, menus, committee=None):
     """ตารางควบคุมงานรายวัน: วัน เดือน ปี | รายการอาหารตาม TOR | ผลการดำเนินงาน (ติ๊ก) | คณะกรรมการควบคุมงาน"""
-    widths = [Cm(2.2), Cm(4.4), Cm(5.4), Cm(4.5)]
+    widths = [Cm(3.0), Cm(4.0), Cm(4.2), Cm(5.5)]   # ขยายวันที่ให้อยู่บรรทัดเดียว + ช่องลงชื่อกว้าง
     headers = ["วัน เดือน ปี", "รายการอาหาร\nตามขอบเขตงาน TOR", "ผลการดำเนินงาน",
                "คณะกรรมการควบคุมงานจ้าง\nประกอบอาหาร"]
     t = doc.add_table(rows=1, cols=4)
@@ -187,7 +188,7 @@ def _daily_table(doc, menus, committee=None):
 
 def _inspect_table(doc, menus, committee=None):
     """ตารางใบตรวจรับพัสดุ: วัน เดือน ปี | รายการอาหาร | ลายมือชื่อผู้ส่งมอบงาน | ผู้ตรวจรับพัสดุ/คณะกรรมการ"""
-    widths = [Cm(2.4), Cm(5.3), Cm(3.6), Cm(5.2)]
+    widths = [Cm(3.0), Cm(4.6), Cm(1.9), Cm(6.8)]   # ขยายตาราง + วันที่บรรทัดเดียว + ช่องลงชื่อกว้าง (แนวราบ)
     headers = ["วัน เดือน ปี", "รายการอาหาร", "ลายมือชื่อผู้\nส่งมอบงาน",
                "ผู้ตรวจรับงานจ้างหรือคณะกรรมการ\nตรวจรับงานจ้าง"]
     t = doc.add_table(rows=1, cols=4)
