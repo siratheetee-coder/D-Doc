@@ -144,25 +144,28 @@ def _rule(doc):
     return p
 
 
-def _committee_cell_text(members, n=3, names=False) -> str:
-    """ช่องลงชื่อกรรมการแบบแนวราบ เลขอารบิก: "1) ...........  2) ...........  3) ..........."
-    names=True : แทรกชื่อในวงเล็บต่อท้ายแต่ละช่อง (ปกติ names=False เว้นจุดไข่ปลาให้เซ็น)"""
-    count = max(n, len(members or [])) if names else n
-    dots = "............................."
-    segs = []
+def _committee_cell_text(members, n=3) -> str:
+    """ช่องกรรมการแบบแนวตั้ง (จุดไข่ปลา + ชื่อในวงเล็บ) เรียงเลขไทย ๑ ๒ ๓ - ใช้กับตารางควบคุม"""
+    count = max(n, len(members or []))
+    lines = []
     for i in range(count):
-        seg = f"{i + 1}) {dots}"
-        if names:
-            nm = members[i].name if (members and i < len(members) and members[i].name) else ""
-            if nm:
-                seg += f" ( {nm} )"
-        segs.append(seg)
-    return "    ".join(segs)
+        num = _TH_NUM[i] if i < len(_TH_NUM) else str(i + 1)
+        lines.append("")   # เว้นบรรทัดว่างเหนือเส้นจุดไข่ปลา ให้มีที่เซ็นชื่อ
+        lines.append(f"{num}...........................................")
+        nm = members[i].name if (members and i < len(members) and members[i].name) else ""
+        lines.append(f"( {nm} )" if nm else "( ........................................ )")
+    return "\n".join(lines)
+
+
+def _sign_slots_h(n=3) -> str:
+    """ช่องลงชื่อแนวราบ เลขอารบิก "1) ......  2) ......  3) ......" (ไม่ใส่ชื่อ) - ตารางตรวจรับ"""
+    dots = "...................."
+    return "   ".join(f"{i + 1}) {dots}" for i in range(n))
 
 
 def _daily_table(doc, menus, committee=None):
     """ตารางควบคุมงานรายวัน: วัน เดือน ปี | รายการอาหารตาม TOR | ผลการดำเนินงาน (ติ๊ก) | คณะกรรมการควบคุมงาน"""
-    widths = [Cm(3.0), Cm(4.0), Cm(4.2), Cm(5.5)]   # ขยายวันที่ให้อยู่บรรทัดเดียว + ช่องลงชื่อกว้าง
+    widths = [Cm(2.2), Cm(4.4), Cm(5.4), Cm(4.5)]
     headers = ["วัน เดือน ปี", "รายการอาหาร\nตามขอบเขตงาน TOR", "ผลการดำเนินงาน",
                "คณะกรรมการควบคุมงานจ้าง\nประกอบอาหาร"]
     t = doc.add_table(rows=1, cols=4)
@@ -173,7 +176,7 @@ def _daily_table(doc, menus, committee=None):
     for c, h, w in zip(hdr.cells, headers, widths):
         _set_cell(c, h, bold=True, align="center", size=13)
         c.width = w
-    committee_txt = _committee_cell_text(committee, names=False)   # ไม่ใส่ชื่อ ลดความสูงตาราง
+    committee_txt = _committee_cell_text(committee)   # แนวตั้ง + ชื่อกรรมการ (ตามแบบเดิม)
     for m in (menus if menus else [None] * 5):
         r = t.add_row()
         _no_split_row(r)
@@ -188,7 +191,7 @@ def _daily_table(doc, menus, committee=None):
 
 def _inspect_table(doc, menus, committee=None):
     """ตารางใบตรวจรับพัสดุ: วัน เดือน ปี | รายการอาหาร | ลายมือชื่อผู้ส่งมอบงาน | ผู้ตรวจรับพัสดุ/คณะกรรมการ"""
-    widths = [Cm(3.0), Cm(4.6), Cm(1.9), Cm(6.8)]   # ขยายตาราง + วันที่บรรทัดเดียว + ช่องลงชื่อกว้าง (แนวราบ)
+    widths = [Cm(3.0), Cm(4.8), Cm(1.9), Cm(6.8)]   # ขยายตาราง + วันที่บรรทัดเดียว + ช่องลงชื่อกว้าง (แนวราบ)
     headers = ["วัน เดือน ปี", "รายการอาหาร", "ลายมือชื่อผู้\nส่งมอบงาน",
                "ผู้ตรวจรับงานจ้างหรือคณะกรรมการ\nตรวจรับงานจ้าง"]
     t = doc.add_table(rows=1, cols=4)
@@ -199,7 +202,7 @@ def _inspect_table(doc, menus, committee=None):
     for c, h, w in zip(hdr.cells, headers, widths):
         _set_cell(c, h, bold=True, align="center", size=13)
         c.width = w
-    committee_txt = _committee_cell_text(committee, names=False)   # ไม่ใส่ชื่อกรรมการตรวจรับ
+    committee_txt = _sign_slots_h()   # แนวราบ เลขอารบิก ไม่ใส่ชื่อ (ตามแบบ)
     for m in (menus if menus else [None] * 5):
         r = t.add_row()
         _no_split_row(r)
