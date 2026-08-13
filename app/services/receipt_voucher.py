@@ -86,7 +86,7 @@ def render_receipt_voucher(school, *, payee="", payee_address="", items=None, to
     tbl = doc.add_table(rows=1, cols=3)
     tbl.style = "Table Grid"
     tbl.autofit = False
-    widths = [Cm(11.0), Cm(3.75), Cm(1.5)]
+    widths = [Cm(10.5), Cm(3.5), Cm(1.5)]   # รวม 15.5 = พื้นที่พิมพ์ (ขอบ 3/2.5)
     hdr = tbl.rows[0].cells
     _set_cell(hdr[0], "รายการ", bold=True, align="center", size=15)
     _set_cell(hdr[1], "จำนวนเงิน", bold=True, align="center", size=15)

@@ -1136,5 +1136,21 @@
       });
     });
   </script>
+  <script>
+    // แจ้งเตือนครั้งแรกที่กดออกเอกสาร: เนื้อหาอาจล้นหน้า โปรดตรวจก่อนพิมพ์ (จำไว้ว่าเตือนแล้ว)
+    (function(){
+      var KEY = 'docOverflowNotice';
+      var RE = /(\.docx|-doc(\/|\b)|ingredient-doc|person-doc|committee-doc|receipt-voucher|\/generate\b|\/bundle\b|\/altdoc\/)/;
+      document.addEventListener('click', function(e){
+        var el = e.target.closest('a,button');
+        if(!el) return;
+        var href = el.getAttribute('href') || '';
+        if(!href){ var f = el.closest('form'); href = (f && f.getAttribute('action')) || ''; }
+        if(!href || /\.xlsx/.test(href) || !RE.test(href)) return;
+        try{ if(localStorage.getItem(KEY)) return; localStorage.setItem(KEY, '1'); }catch(_){}
+        alert('เอกสารอาจมีเนื้อหาล้นหน้าได้ โปรดตรวจสอบเนื้อหาก่อนพิมพ์');
+      }, true);
+    })();
+  </script>
 </body>
 </html>

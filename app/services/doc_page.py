@@ -10,9 +10,24 @@ from docx.enum.section import WD_ORIENT
 
 A4_W, A4_H = Cm(21.0), Cm(29.7)
 
+# ระยะขอบมาตรฐานเอกสารราชการ: บน 1.5 · ล่าง 2 · ซ้าย 3 · ขวา 2.5 ซม.
+MARGIN_TOP, MARGIN_BOTTOM, MARGIN_LEFT, MARGIN_RIGHT = Cm(1.5), Cm(2.0), Cm(3.0), Cm(2.5)
 
-def set_a4(doc, landscape: bool = False):
-    """ตั้งทุก section ของเอกสารเป็น A4 (แนวตั้ง หรือแนวนอน)"""
+
+def set_margins(doc, *, top=MARGIN_TOP, bottom=MARGIN_BOTTOM,
+                left=MARGIN_LEFT, right=MARGIN_RIGHT):
+    """ตั้งระยะขอบทุก section (ค่าปริยาย = มาตรฐานราชการ)"""
+    for sec in doc.sections:
+        sec.top_margin = top
+        sec.bottom_margin = bottom
+        sec.left_margin = left
+        sec.right_margin = right
+    return doc
+
+
+def set_a4(doc, landscape: bool = False, margins: bool = True):
+    """ตั้งทุก section ของเอกสารเป็น A4 (แนวตั้ง/แนวนอน) + ระยะขอบมาตรฐาน
+    margins=False : ไม่แตะระยะขอบ (ให้เอกสารที่ตั้งขอบเองจัดการต่อ)"""
     for sec in doc.sections:
         if landscape:
             sec.orientation = WD_ORIENT.LANDSCAPE
@@ -20,4 +35,6 @@ def set_a4(doc, landscape: bool = False):
         else:
             sec.orientation = WD_ORIENT.PORTRAIT
             sec.page_width, sec.page_height = A4_W, A4_H
+    if margins:
+        set_margins(doc)
     return doc

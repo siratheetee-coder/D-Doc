@@ -99,15 +99,15 @@ LEGAL_INTRO = (
 
 
 def _margins(doc):
-    """ตั้งระยะขอบกระดาษตามมาตรฐานหนังสือราชการไทย (ซ้ายกว้างสำหรับเย็บเล่ม)
-    ซ้าย 3.0 / ขวา 1.75 / บน 1.5 / ล่าง 0.5 ซม. (อิงแบบฟอร์มที่ใช้กันทั่วไป)"""
+    """ตั้งระยะขอบกระดาษตามมาตรฐานหนังสือราชการไทย
+    ซ้าย 3.0 / ขวา 2.5 / บน 1.5 / ล่าง 2.0 ซม."""
     for s in doc.sections:
         s.page_width = Cm(21.0)     # A4 (ไม่ใช่ Letter ที่เป็นค่าปริยาย)
         s.page_height = Cm(29.7)
         s.left_margin = Cm(3.0)
-        s.right_margin = Cm(1.75)
+        s.right_margin = Cm(2.5)
         s.top_margin = Cm(1.5)
-        s.bottom_margin = Cm(0.5)
+        s.bottom_margin = Cm(2.0)
 
 
 def _font(doc):
