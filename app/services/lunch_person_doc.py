@@ -17,6 +17,7 @@ from app.services.build_templates import (
 from app.services.lunch_doc import (
     _BLANK, _money, _dnum, _save, _begin, _finish, _memo_head,
     _committee_lines, _menu_table3, _simple_table, _school_disp,
+    _student_tiers, _tor_committee_signs,
 )
 # ชุดซื้อวัตถุดิบ (ยืมเงิน->ส่งใช้) ใช้ซ้ำจากรูปแบบ 1
 from app.services.lunch_ingredient_doc import (
@@ -35,39 +36,100 @@ def _period(rnd):
 
 
 def render_p_tor(rnd, school, doc=None) -> str:
-    """02 ขอบเขตของงาน (TOR) การจ้างบุคคลประกอบอาหารกลางวัน"""
+    """02 ขอบเขตของงาน (TOR) การจ้างบุคคลประกอบอาหารกลางวัน
+    รูปแบบเดียวกับแบบจ้างเหมา (9 หัวข้อ + ลงชื่อคณะกรรมการ) ปรับถ้อยคำเป็น "จ้างบุคคล" · เลขอารบิก"""
     doc, own = _begin(doc)
     prog = rnd.program
     sname = _school_disp(school)
     total = round(float(rnd.amount or 0), 2)
+    money, baht = _money(total), bahttext(total)
     days = rnd.days or 0
+    rate = prog.rate_per_head or 0
     students = prog.total_students
     fund = (prog.funding_org or "").strip() or "องค์กรปกครองส่วนท้องถิ่น"
-    insts = list(rnd.installments or [])
+    area = (getattr(school, "area_office", "") or "").strip() or \
+        "สำนักงานเขตพื้นที่การศึกษาประถมศึกษา............ เขต ...."
+    insts = sorted(rnd.installments or [], key=lambda i: i.seq)
+    t1, t2 = _student_tiers(prog)
+    ds, de = _dnum(rnd.start_date), _dnum(rnd.end_date)
+    term = 1 if (rnd.start_date and rnd.start_date.month in (5, 6, 7, 8, 9, 10)) else 2
+    lvl = ("ระดับชั้นอนุบาล ถึงระดับชั้นมัธยมศึกษาปีที่ 3 ในโรงเรียนขยายโอกาส"
+           if t2 else "ระดับชั้นอนุบาล ถึงระดับชั้นประถมศึกษาปีที่ 6")
+
     _p(doc, "ขอบเขตของงาน (TOR) การจ้างบุคคลประกอบอาหารกลางวัน", align="center", bold=True, size=18, after=0)
-    _p(doc, f"{sname}  ประจำปีการศึกษา {prog.year}", align="center", after=6)
+    _p(doc, f"{sname}  ภาคเรียนที่ {term} ประจำปีการศึกษา {prog.year} (รอบ {rnd.seq})", align="center", after=0)
+    _p(doc, f"ระหว่างวันที่ {ds} ถึง วันที่ {de}", align="center", after=0)
+    _p(doc, f"สังกัด{area}  กระทรวงศึกษาธิการ", align="center", after=6)
+
     _p(doc, "1. ความเป็นมา", bold=True, indent=0.5, after=0)
-    _p(doc, f"{sname} จัดบริการอาหารกลางวันให้นักเรียนระดับอนุบาลถึงชั้นประถมศึกษาปีที่ 6 "
-            "จึงจัดทำขอบเขตของงานจ้างบุคคลประกอบอาหารกลางวันฉบับนี้ เพื่อจ้างบุคคลมาประกอบอาหารกลางวัน "
-            "ให้นักเรียนได้รับประทานอาหารที่มีคุณค่าทางโภชนาการ สะอาด และปลอดภัย", align="justify", indent=1)
+    _p(doc, "โครงการอาหารกลางวันในโรงเรียนเป็นโครงการที่มีความสำคัญ ช่วยส่งเสริมให้นักเรียนซึ่งอยู่ในวัยที่"
+            "กำลังเจริญเติบโตมีสุขภาพพลานามัยดีขึ้น เป็นพื้นฐานสำคัญต่อคุณภาพการเรียนรู้ของนักเรียน",
+       align="justify", indent=1, after=0)
+    _p(doc, f"ดังนั้น{sname} จึงจัดทำร่างขอบเขตของงาน (Term of Reference : TOR) การจ้างบุคคลประกอบอาหาร"
+            "กลางวันฉบับนี้ขึ้น เพื่อจ้างบุคคลมาประกอบอาหารกลางวันให้นักเรียนได้รับประทานอาหารที่มีคุณค่า"
+            "ทางโภชนาการ สะอาด และปลอดภัย", align="justify", indent=1)
+
     _p(doc, "2. วัตถุประสงค์", bold=True, indent=0.5, after=0)
-    _p(doc, f"เพื่อจัดหาบุคคลประกอบอาหารกลางวันให้นักเรียนของ{sname} จำนวน {students} คน "
-            f"จำนวน {days} วัน (เว้นวันหยุดราชการ)", align="justify", indent=1)
+    for s in ["1. เพื่อให้นักเรียนได้รับประทานอาหารกลางวัน ที่มีคุณค่า และเพียงพอต่อความต้องการของร่างกาย",
+              "2. เพื่อช่วยเหลือนักเรียนที่ขาดแคลนและยากจน ให้ได้รับประทานอาหารกลางวันทุกคน",
+              "3. เพื่อให้นักเรียนมีสุขนิสัยที่ดีในการรับประทานอาหาร",
+              "4. เพื่อสนับสนุนกิจกรรมการเรียนการสอนกลุ่มการงานอาชีพ"]:
+        _p(doc, s, indent=1, after=0)
+
     _p(doc, "3. คุณสมบัติของผู้เสนอราคา", bold=True, indent=0.5, after=0)
-    _p(doc, "เป็นบุคคลธรรมดา มีความสามารถตามกฎหมาย ไม่เป็นผู้ทิ้งงานของทางราชการ และสามารถประกอบอาหาร "
-            "ที่สะอาดถูกสุขลักษณะได้ตามเวลาที่โรงเรียนกำหนดในทุกวันทำการ", align="justify", indent=1)
-    _p(doc, "4. ขอบเขตการดำเนินงาน", bold=True, indent=0.5, after=0)
-    _p(doc, f"ผู้รับจ้างต้องประกอบอาหารกลางวันให้แก่นักเรียน {_period(rnd)} ภายในวงเงินไม่เกิน "
-            f"{_money(total)} บาท ({bahttext(total)}) โดยจัดรายการอาหารตามหลักโภชนาการที่โรงเรียนกำหนด",
-       align="justify", indent=1)
-    _p(doc, "5. การส่งมอบและการจ่ายเงิน", bold=True, indent=0.5, after=0)
-    _p(doc, f"แบ่งงวดงานจำนวน {len(insts) or '.......'} งวด จ่ายเมื่อผู้รับจ้างสรุปรายการประกอบอาหาร "
-            "และคณะกรรมการตรวจรับงานจ้างตรวจรับเรียบร้อยแล้ว", align="justify", indent=1)
-    _p(doc, "6. วงเงินงบประมาณ", bold=True, indent=0.5, after=0)
-    _p(doc, f"เป็นเงิน {_money(total)} บาท ({bahttext(total)}) จาก{fund}", align="justify", indent=1)
-    _p(doc, "7. ค่าปรับ", bold=True, indent=0.5, after=0)
-    _p(doc, "กำหนดค่าปรับอัตราร้อยละ 0.10 ของค่าจ้างต่อวัน แต่ไม่ต่ำกว่าวันละ 100 บาท อ้างอิงหนังสือ "
-            "ที่ กค (กวจ) 0405.2/ว 116 ลงวันที่ 12 มีนาคม 2562", align="justify", indent=1)
+    for s in ["1. เป็นบุคคลธรรมดา มีความสามารถตามกฎหมาย ไม่เป็นบุคคลล้มละลาย",
+              "2. ไม่เป็นผู้ทิ้งงานของทางราชการ และไม่เป็นผู้ที่ถูกระบุชื่อในบัญชีรายชื่อผู้ทิ้งงาน",
+              "3. ไม่เป็นผู้มีผลประโยชน์ร่วมกันกับผู้ยื่นข้อเสนอรายอื่น",
+              "4. สามารถประกอบอาหารที่สะอาดถูกสุขลักษณะได้ตามเวลาที่โรงเรียนกำหนดในทุกวันทำการ"]:
+        _p(doc, s, indent=1, after=0)
+
+    _p(doc, "4. ขอบเขตการดำเนินงาน", bold=True, indent=0.5, before=2, after=0)
+    _p(doc, f"ผู้รับจ้างต้องเป็นผู้รับผิดชอบการประกอบอาหารกลางวันให้แก่นักเรียน{lvl} ประจำภาคเรียนที่ {term} "
+            f"ปีการศึกษา {prog.year} รอบ {rnd.seq} ระหว่างวันที่ {ds} ถึง วันที่ {de} จำนวน {days} วัน "
+            f"ภายในวงเงิน {money} บาท ({baht}) โดยจัดรายการอาหารตามหลักโภชนาการที่โรงเรียนกำหนด "
+            "ตามเมนู Thai School Lunch", align="justify", indent=1)
+
+    _p(doc, "5. การส่งมอบงาน", bold=True, indent=0.5, after=0)
+    _p(doc, f"โรงเรียนกำหนดการส่งมอบงานออกเป็นจำนวน {len(insts) or '.......'} งวด โดยมีรายละเอียด ดังนี้",
+       indent=1, after=0)
+    if insts:
+        for it in insts:
+            _p(doc, f"งวดที่ {it.seq} ผู้รับจ้างต้องประกอบอาหารกลางวันและสรุปรายการประกอบอาหาร "
+                    f"ระหว่างวันที่ {_dnum(it.start_date)} ถึงวันที่ {_dnum(it.end_date)} จำนวน {it.days or ''} วัน",
+               align="justify", indent=1.25, after=0)
+    _p(doc, "โดยผู้รับจ้างจะได้รับเงินเมื่อสรุปรายการประกอบอาหารในแต่ละงวด และคณะกรรมการตรวจรับได้ดำเนินการ"
+            "ตรวจรับไว้ถูกต้องครบถ้วนแล้ว", align="justify", indent=1, before=2)
+
+    _p(doc, "6. หลักเกณฑ์การพิจารณาคัดเลือกข้อเสนอ", bold=True, indent=0.5, after=0)
+    _p(doc, "เกณฑ์ราคา", indent=1)
+
+    _p(doc, "7. วงเงินงบประมาณ", bold=True, indent=0.5, after=0)
+    _p(doc, f"ได้รับจัดสรรงบประมาณจาก{fund} จำนวน {money} บาท ({baht}) รายละเอียด ดังนี้",
+       align="justify", indent=1, after=0)
+    if t1:
+        _p(doc, f"ระดับชั้นอนุบาล-ประถมศึกษา จำนวนนักเรียน {t1} คน ในอัตราคนละ {_money(rate)} บาท/ต่อวัน "
+                f"จำนวน {days} วัน เป็นเงิน {_money(t1 * rate * days)} บาท", indent=1.25, after=0)
+    if t2:
+        _p(doc, f"ระดับมัธยมศึกษา จำนวนนักเรียน {t2} คน ในอัตราคนละ {_money(rate)} บาท/ต่อวัน "
+                f"จำนวน {days} วัน เป็นเงิน {_money(t2 * rate * days)} บาท", indent=1.25, after=0)
+
+    _p(doc, "8. งวดงานและการจ่ายเงิน", bold=True, indent=0.5, before=2, after=0)
+    _p(doc, f"โรงเรียนกำหนดการจ่ายเงินออกเป็น จำนวน {len(insts) or '.......'} งวด โดยมีรายละเอียด ดังนี้",
+       indent=1, after=0)
+    if insts:
+        for it in insts:
+            amt = round(float(it.amount or 0), 2)
+            _p(doc, f"งวดที่ {it.seq} จ่ายเป็นเงิน {_money(amt)} บาท ({bahttext(amt)}) เมื่อผู้รับจ้างประกอบ"
+                    "อาหารและสรุปรายการประกอบอาหารให้แก่โรงเรียน และมีการตรวจรับเสร็จเรียบร้อย",
+               align="justify", indent=1.25, after=0)
+
+    _p(doc, "9. ค่าปรับ 0.10", bold=True, indent=0.5, before=2, after=0)
+    _p(doc, "กำหนดค่าปรับอัตราร้อยละ 0.10 ของค่าจ้างต่อวัน แต่ไม่ต่ำกว่าวันละ 100 บาท อ้างอิงตามหนังสือ"
+            "คณะกรรมการวินิจฉัยปัญหาการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ ที่ กค (กวจ) 0405.2/ว 116 "
+            "ลงวันที่ 12 มีนาคม 2562 ข้อ 4 การกำหนดค่าปรับในสัญญาหรือข้อตกลง",
+       align="justify", indent=1, after=10)
+
+    _tor_committee_signs(doc, [m for m in rnd.committees if m.kind == "food_inspect"])
     return _finish(doc, own, f"ขอบเขตของงาน_จ้างบุคคล_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
