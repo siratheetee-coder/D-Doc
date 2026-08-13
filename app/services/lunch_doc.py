@@ -26,6 +26,7 @@ from app.services.build_templates import (
     THAI_FONT, _csize, _bcs,
 )
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.table import WD_ALIGN_VERTICAL
 
 _BLANK = "............................"
 
@@ -207,11 +208,15 @@ def _inspect_table(doc, menus, committee=None):
         r = t.add_row()
         _no_split_row(r)
         _set_cell(r.cells[0], thai_date(m.date) if (m and m.date) else "", align="center", size=13)
-        _set_cell(r.cells[1], _menu_text(m) if m else "", align="left", size=13)
+        _set_cell(r.cells[1], _menu_text(m) if m else "", align="center", size=13)
         _set_cell(r.cells[2], "", size=13)
-        _set_cell(r.cells[3], committee_txt, align="left", size=12)
+        _set_cell(r.cells[3], committee_txt, align="center", size=12)
         for c, w in zip(r.cells, widths):
             c.width = w
+            c.vertical_alignment = WD_ALIGN_VERTICAL.BOTTOM      # ชิดล่าง
+            for pp in c.paragraphs:
+                pp.paragraph_format.line_spacing = 1.15
+                pp.paragraph_format.space_after = Pt(0)
     return t
 
 
