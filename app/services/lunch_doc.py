@@ -23,7 +23,9 @@ from app.thai_utils import thai_date, bahttext
 from app.services.build_templates import (
     _font, _p, _set_cell, _repeat_header_row, _no_split_row, _sign_table,
     _krut_and_title, _krut_center, _p_runs, _hr, _no_borders,
+    THAI_FONT, _csize, _bcs,
 )
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 _BLANK = "............................"
 
@@ -440,6 +442,67 @@ def _student_tiers(prog):
     return t1, t2
 
 
+def _cell_lines(cell, lines, *, align="left", size=13, bold=False):
+    """เติมข้อความหลายบรรทัดในเซลล์ (แต่ละ element = 1 บรรทัด)"""
+    amap = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER,
+            "right": WD_ALIGN_PARAGRAPH.RIGHT}
+    cell.text = ""
+    for i, ln in enumerate(lines):
+        p = cell.paragraphs[0] if i == 0 else cell.add_paragraph()
+        p.alignment = amap[align]
+        p.paragraph_format.space_after = Pt(0)
+        r = p.add_run(ln)
+        r.font.name = THAI_FONT
+        _csize(r, size)
+        _bcs(r, bold)
+        r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
+
+
+def _order_item_table(doc, desc_head, tiers, total, baht):
+    """ตารางรายการใบสั่งจ้าง (merge สวยตามแบบ):
+    หัว 6 คอลัมน์ · แถวรายการ 1 แถว (รายการมีหัวเรื่อง+รายการย่อยหลายบรรทัด, คอลัมน์ตัวเลขเรียงตามชั้น)
+    · แถวสรุป รวมเป็นเงิน/ภาษี/รวมทั้งสิ้น (merge คอลัมน์ซ้าย) · แถวตัวอักษร (merge ทั้งแถว)
+    tiers = [(ชื่อชั้น, 'x คน', 'y บาท/วัน', 'z', 'จำนวนเงิน'), ...]"""
+    widths = [Cm(1.2), Cm(6.3), Cm(1.8), Cm(2.4), Cm(1.6), Cm(2.2)]
+    headers = ["ลำดับ", "รายการ", "จำนวน", "ราคาต่อหน่วย", "จำนวนวัน", "จำนวนเงิน (บาท)"]
+    t = doc.add_table(rows=1, cols=6)
+    t.style = "Table Grid"
+    t.autofit = False
+    for c, h, w in zip(t.rows[0].cells, headers, widths):
+        _set_cell(c, h, bold=True, align="center", size=13)
+        c.width = w
+    # แถวรายการเดียว: รายการมีหัวเรื่อง + รายการย่อยตามชั้น, คอลัมน์ตัวเลขเรียงตามชั้น
+    row = t.add_row().cells
+    for c, w in zip(row, widths):
+        c.width = w
+    _set_cell(row[0], "1", align="center", size=13)
+    desc = [desc_head] + [f"{i}. {tt[0]}" for i, tt in enumerate(tiers, 1)]
+    _cell_lines(row[1], desc, align="left", size=13)
+    _cell_lines(row[2], [tt[1] for tt in tiers], align="center", size=13)
+    _cell_lines(row[3], [tt[2] for tt in tiers], align="center", size=13)
+    _cell_lines(row[4], [tt[3] for tt in tiers], align="center", size=13)
+    _cell_lines(row[5], [tt[4] for tt in tiers], align="right", size=13)
+
+    def summary(label, amount, bold=False):
+        r = t.add_row().cells
+        for c, w in zip(r, widths):
+            c.width = w
+        merged = r[0].merge(r[1]).merge(r[2]).merge(r[3]).merge(r[4])
+        _set_cell(merged, label, align="right", size=13, bold=bold)
+        _set_cell(r[5], amount, align="right", size=13, bold=bold)
+
+    summary("รวมเป็นเงิน", total)
+    summary("ภาษีมูลค่าเพิ่ม", "-")
+    summary("รวมเป็นเงินทั้งสิ้น", total, bold=True)
+    # แถวตัวอักษร (merge ทั้งแถว)
+    r = t.add_row().cells
+    merged = r[0]
+    for k in range(1, 6):
+        merged = merged.merge(r[k])
+    _set_cell(merged, f"(ตัวอักษร)  {baht}", align="center", size=13, bold=True)
+    return t
+
+
 def render_order_doc(rnd, school, doc=None) -> str:
     """ใบสั่งจ้างเหมาประกอบอาหารกลางวัน (สัญญา 1 รอบ) - รูปแบบตามแบบฟอร์มจริงของโรงเรียน (เลขอารบิก)"""
     doc, own = _begin(doc)
@@ -474,22 +537,18 @@ def render_order_doc(rnd, school, doc=None) -> str:
     _p(doc, f"ตามที่ {vname} ได้เสนอราคาไว้ต่อ{sname} ซึ่งได้รับราคาและตกลงจ้าง ตามรายการดังต่อไปนี้",
        align="justify", indent=1.25, before=4, after=4)
 
-    # ตารางรายการ + สรุป รวม/ภาษี/รวมทั้งสิ้น
-    rows = []
+    # ตารางรายการ (merge สวยตามแบบ) - หัวเรื่องงานจ้าง + รายการย่อยตามระดับชั้น
+    desc_head = (f"ดำเนินการจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) สำหรับนักเรียน{('ระดับอนุบาลถึงชั้นมัธยมศึกษาปีที่ 3' if t2 else 'ระดับอนุบาลถึงชั้นประถมศึกษาปีที่ 6')} "
+                 f"ประจำภาคเรียนที่ {term} ปีการศึกษา {prog.year} รอบ {rnd.seq} "
+                 f"ระหว่างวันที่ {ds} ถึงวันที่ {de} ดังนี้")
+    tiers = []
     if t1:
-        rows.append(["1", "จ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ระดับอนุบาล-ประถมศึกษา",
-                     f"{t1} คน", f"{_money(rate)} บาท/วัน", str(days), _money(t1 * rate * days)])
+        tiers.append(("ระดับอนุบาล-ระดับประถมศึกษา", f"{t1} คน", f"{_money(rate)} บาท/วัน", str(days), _money(t1 * rate * days)))
     if t2:
-        rows.append(["2", "จ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) ระดับมัธยมศึกษา",
-                     f"{t2} คน", f"{_money(rate)} บาท/วัน", str(days), _money(t2 * rate * days)])
-    if not rows:
-        rows.append(["1", "จ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ)",
-                     f"{prog.total_students} คน", f"{_money(rate)} บาท/วัน", str(days), money])
-    rows.append(["", "", "", "", "รวมเป็นเงิน", money])
-    rows.append(["", "", "", "", "ภาษีมูลค่าเพิ่ม", "-"])
-    rows.append(["", f"({baht})", "", "", "รวมเป็นเงินทั้งสิ้น", money])
-    _simple_table(doc, ["ลำดับ", "รายการ", "จำนวน", "ราคาต่อหน่วย", "จำนวนวัน", "จำนวนเงิน (บาท)"],
-                  rows, [Cm(1.2), Cm(6.0), Cm(2.0), Cm(2.6), Cm(1.8), Cm(2.6)])
+        tiers.append(("ระดับมัธยมศึกษา", f"{t2} คน", f"{_money(rate)} บาท/วัน", str(days), _money(t2 * rate * days)))
+    if not tiers:
+        tiers.append((f"นักเรียน {prog.total_students} คน", f"{prog.total_students} คน", f"{_money(rate)} บาท/วัน", str(days), money))
+    _order_item_table(doc, desc_head, tiers, money, baht)
 
     _p(doc, "การสั่งจ้าง อยู่ภายใต้เงื่อนไขต่อไปนี้", bold=True, indent=0.5, before=4, after=0)
     _p(doc, f"1. กำหนดส่งมอบภายใน ตามงวดงาน {n_inst or '-'} งวดงาน งวดงานละ {per_days or '-'} วัน "
