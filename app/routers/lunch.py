@@ -489,16 +489,25 @@ LUNCH_DOC_META = {
     "order":          {"label": "บันทึกตกลงจ้าง",                           "doc_type": "hire_order", "idx": 9,  "fields": _F_MEMO},
     # --- เฉพาะจ้างเหมาปรุงสำเร็จ (hire) ---
     "tor-request":    {"label": "รายงานขอจัดทำขอบเขตงาน (TOR)",           "doc_type": "memo",       "idx": 10, "fields": _F_MEMO},
-    "committee":      {"label": "คำสั่งแต่งตั้งคณะกรรมการ",                 "doc_type": "command",    "idx": 11, "fields": _F_MEMO},
     "winner":         {"label": "ประกาศผู้ชนะการเสนอราคา",                 "doc_type": None,         "idx": 12, "fields": _F_DATE},
     "hire-order":     {"label": "ใบสั่งจ้าง",                               "doc_type": "hire_order", "idx": 13, "fields": _F_MEMO},
+    # --- คำสั่งแต่งตั้งกรรมการ แยกรายฉบับ (แต่ละคำสั่งมีเลขของตัวเอง) ---
+    "cmd-tor":          {"label": "คำสั่งแต่งตั้งกรรมการจัดทำ TOR",           "doc_type": "command", "idx": 11, "fields": _F_MEMO},
+    "cmd-control":      {"label": "คำสั่งแต่งตั้งกรรมการควบคุมงาน",           "doc_type": "command", "idx": 14, "fields": _F_MEMO},
+    "cmd-inspect":      {"label": "คำสั่งแต่งตั้งกรรมการตรวจรับ",             "doc_type": "command", "idx": 15, "fields": _F_MEMO},
+    "cmd-cook_control": {"label": "คำสั่งแต่งตั้งผู้ควบคุมการประกอบอาหาร",    "doc_type": "command", "idx": 16, "fields": _F_MEMO},
+    "cmd-food_inspect": {"label": "คำสั่งแต่งตั้งกรรมการตรวจการประกอบอาหาร", "doc_type": "command", "idx": 17, "fields": _F_MEMO},
 }
 
 # เอกสารที่ต้องกรอกเลข + ลำดับที่แสดง แยกตามวิธีดำเนินการ (ตามชุดเอกสารจริงของแต่ละแบบ)
+#  จ้างเหมา/จ้างแม่ครัว: คำสั่งแต่งตั้งกรรมการ 3 ฉบับ กรอกเลขแยกกัน (cmd-*)
 _MODE_DOCS = {
     "ingredient": ["report", "borrow", "loan", "repay", "inspect-report", "inspect-notify"],
-    "person":     ["hire-report", "result", "order", "borrow", "loan", "repay"],
-    "hire":       ["tor-request", "committee", "hire-report", "result", "winner", "hire-order"],
+    "person":     ["hire-report", "result", "order",
+                   "cmd-inspect", "cmd-cook_control", "cmd-food_inspect",
+                   "borrow", "loan", "repay"],
+    "hire":       ["tor-request", "cmd-tor", "cmd-control", "cmd-inspect",
+                   "hire-report", "result", "winner", "hire-order"],
 }
 
 
