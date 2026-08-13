@@ -159,9 +159,10 @@ def _committee_cell_text(members, n=3) -> str:
 
 
 def _sign_slots_h(n=3) -> str:
-    """ช่องลงชื่อแนวราบ เลขอารบิก "1) ......  2) ......  3) ......" (ไม่ใส่ชื่อ) - ตารางตรวจรับ"""
-    dots = "...................."
-    return "   ".join(f"{i + 1}) {dots}" for i in range(n))
+    """ช่องลงชื่อแนวราบ เลขอารบิก "1) ....  2) ....  3) ...." (ไม่ใส่ชื่อ) - ตารางตรวจรับ
+    จุดไข่ปลาสั้นพอให้ 3 ช่องอยู่บรรทัดเดียว (แถวไม่สูง เอกสารพอดีหน้าเดียว)"""
+    dots = ".........."
+    return "  ".join(f"{i + 1}) {dots}" for i in range(n))
 
 
 def _daily_table(doc, menus, committee=None):
@@ -192,7 +193,7 @@ def _daily_table(doc, menus, committee=None):
 
 def _inspect_table(doc, menus, committee=None):
     """ตารางใบตรวจรับพัสดุ: วัน เดือน ปี | รายการอาหาร | ลายมือชื่อผู้ส่งมอบงาน | ผู้ตรวจรับพัสดุ/คณะกรรมการ"""
-    widths = [Cm(3.0), Cm(4.8), Cm(1.9), Cm(6.8)]   # ขยายตาราง + วันที่บรรทัดเดียว + ช่องลงชื่อกว้าง (แนวราบ)
+    widths = [Cm(2.8), Cm(5.4), Cm(1.3), Cm(7.0)]   # เมนู/ช่องลงชื่อกว้างพอให้แต่ละแถวอยู่บรรทัดเดียว
     headers = ["วัน เดือน ปี", "รายการอาหาร", "ลายมือชื่อผู้\nส่งมอบงาน",
                "ผู้ตรวจรับงานจ้างหรือคณะกรรมการ\nตรวจรับงานจ้าง"]
     t = doc.add_table(rows=1, cols=4)
@@ -207,9 +208,9 @@ def _inspect_table(doc, menus, committee=None):
     for m in (menus if menus else [None] * 5):
         r = t.add_row()
         _no_split_row(r)
-        _set_cell(r.cells[0], thai_date(m.date) if (m and m.date) else "", align="center", size=13)
-        _set_cell(r.cells[1], _menu_text(m) if m else "", align="center", size=13)
-        _set_cell(r.cells[2], "", size=13)
+        _set_cell(r.cells[0], thai_date(m.date) if (m and m.date) else "", align="center", size=12)
+        _set_cell(r.cells[1], _menu_text(m) if m else "", align="center", size=12)
+        _set_cell(r.cells[2], "", size=12)
         _set_cell(r.cells[3], committee_txt, align="center", size=12)
         for c, w in zip(r.cells, widths):
             c.width = w
@@ -294,34 +295,32 @@ def render_installment_doc(inst, school, menus) -> str:
 
     # ===== ส่วนที่ 3: ใบตรวจรับงานจ้าง =====
     doc.add_page_break()
-    _p(doc, "ใบตรวจรับงานจ้าง", align="center", bold=True, size=18, after=4)
-    _p(doc, f"เขียนที่ {sname}", align="right", after=0)
-    _p(doc, f"วันที่ {_dnum(inst.inspect_date or inst.end_date)}", align="right", after=6)
+    _p(doc, "ใบตรวจรับงานจ้าง", align="center", bold=True, size=18, after=2)
+    _p(doc, f"เขียนที่ {sname}    วันที่ {_dnum(inst.inspect_date or inst.end_date)}",
+       align="right", after=4)
     _p(doc, f"ตามที่{sname} ได้ตกลงจ้าง {vname} ประกอบอาหารกลางวัน (ปรุงสำเร็จ) "
             f"ให้นักเรียนรับประทาน ตามใบสั่งจ้าง เลขที่ {order_no} นั้น",
-       align="justify", indent=1.25)
+       align="justify", indent=1.25, after=0)
     _p(doc, f"บัดนี้ ผู้รับจ้างได้ส่งมอบงานทุกวันตามข้อตกลง และคณะกรรมการตรวจรับงานจ้าง "
             f"ได้ตรวจรับไว้ถูกต้องครบถ้วนแล้ว งวดที่ {inst.seq} ตามบันทึกข้อตกลงจ้างแล้ว ดังนี้",
-       align="justify", indent=1.25, after=4)
+       align="justify", indent=1.25, after=2)
     _inspect_table(doc, menus, inspect_members)
-    _p(doc, "", after=4)
-    _p(doc, "เรียน  ผู้อำนวยการ" + sname, indent=1.25, after=0)
+    _p(doc, "เรียน  ผู้อำนวยการ" + sname, indent=1.25, before=4, after=0)
     _p(doc, f"เพื่อโปรดทราบผลการตรวจรับงานจ้าง และขออนุมัติจ่ายเงินให้ผู้รับจ้าง งวดที่ {inst.seq} "
             f"ระหว่าง{period} เป็นเงิน {amount} บาท ({amt_text})",
-       align="justify", indent=1.25, after=8)
+       align="justify", indent=1.25, after=4)
+    # ลายเซ็น จนท./หัวหน้า จนท. บรรทัดเดียว เหลือแค่ตำแหน่งข้างจุดไข่ปลา (ไม่ใส่ชื่อ) + ไม่มีเส้นคั่น
+    # เพื่อดึงลายเซ็นผู้บริหารขึ้นมาอยู่หน้าเดียวกัน
     _sign_table(doc, [
-        [("(ลงชื่อ)...........................................", "center"),
-         (f"( {officer or _BLANK} )", "center"), ("เจ้าหน้าที่", "center")],
-        [("(ลงชื่อ)...........................................", "center"),
-         (f"( {head_officer or _BLANK} )", "center"), ("หัวหน้าเจ้าหน้าที่", "center")],
+        [("(ลงชื่อ)........................................... เจ้าหน้าที่", "center")],
+        [("(ลงชื่อ)........................................... หัวหน้าเจ้าหน้าที่", "center")],
     ], gap=False)
-    _rule(doc)
     # บล็อกความเห็น ผอ. + ลายเซ็น ให้อยู่หน้าเดียวกันเสมอ (กันชื่อ ผอ. หลุดไปหน้าใหม่ตอนงวดสั้น)
     end_paras = [
         _p(doc, "ความเห็นของผู้บริหารสถานศึกษา", indent=1.25, after=0),
-        _p(doc, "(   ) ทราบผลการตรวจรับ          (   ) อนุมัติ", indent=1.5, after=12),
-        _p(doc, "(ลงชื่อ)...........................................", align="center", after=3, line=1.15),
-        _p(doc, f"( {director or _BLANK} )", align="center", after=3, line=1.15),
+        _p(doc, "(   ) ทราบผลการตรวจรับ          (   ) อนุมัติ", indent=1.5, after=6),
+        _p(doc, "(ลงชื่อ)...........................................", align="center", after=2, line=1.15),
+        _p(doc, f"( {director or _BLANK} )", align="center", after=2, line=1.15),
         _p(doc, f"ตำแหน่ง ผู้อำนวยการ{sname}", align="center", after=0, line=1.15),
     ]
     for p in end_paras[:-1]:
