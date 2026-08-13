@@ -267,6 +267,12 @@
 </div>
 {% endif %}
 
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-file"/></svg> ใบสำคัญรับเงิน</h2>
+  <p class="muted" style="margin-top:0;">ฟอร์มใบสำคัญรับเงิน (ผู้ขาย/ผู้รับจ้าง ลงชื่อรับเงิน) ดึงชื่อผู้ขาย รายการ และวงเงินมาให้ · กรอกที่อยู่/สตางค์เพิ่มในไฟล์ได้</p>
+  <a class="btn gray" href="/procurement/{{ p.id }}/receipt-voucher"><svg class="icon"><use href="#ic-download"/></svg> ออกใบสำคัญรับเงิน</a>
+</div>
+
 {% if not case_info.altkind %}
 <div class="card">
   <h2>ประวัติเอกสารที่ออก {% if documents %}<span class="muted" style="font-size:15px;">({{ documents|length }} ครั้ง)</span>{% endif %}</h2>

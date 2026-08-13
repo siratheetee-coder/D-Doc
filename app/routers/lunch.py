@@ -18,7 +18,7 @@ from app.models import (LunchProgram, LunchClass, LunchLedger, LunchHireRound,
                         FinanceAccount, FinanceTxn, Procurement)
 from app.services.growth_ref import (classify_all, age_months,
                                      WH_LABELS, HA_LABELS, WA_LABELS)
-from app.thai_utils import parse_be_date, be_date_input, current_fiscal_year, SCHOOL_LEVELS
+from app.thai_utils import parse_be_date, be_date_input, current_fiscal_year, SCHOOL_LEVELS, thai_date
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
 
@@ -1204,6 +1204,34 @@ def installment_disburse_doc(iid: int, db: Session = Depends(get_db)):
         path = render_p_disburse(inst, get_school(db))
     else:
         path = render_disburse_lunch_doc(inst, get_school(db))
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.get("/lunch/round/{rid}/receipt-voucher")
+def contract_receipt_voucher(rid: int, db: Session = Depends(get_db)):
+    """ใบสำคัญรับเงิน (ผู้รับจ้าง/ผู้รับเงิน ลงชื่อรับเงินค่าจ้าง/ค่าวัตถุดิบ)"""
+    from app.services.receipt_voucher import render_receipt_voucher
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return RedirectResponse("/lunch", status_code=303)
+    school = get_school(db)
+    prog = rnd.program
+    v = rnd.vendor
+    payee = (v.name if v else "") or ""
+    payee_addr = (getattr(v, "address", "") or "").strip() if v else ""
+    mode = getattr(prog, "operate_mode", "hire")
+    what = "ค่าวัตถุดิบประกอบอาหารกลางวัน" if mode == "ingredient" else "ค่าจ้างเหมาประกอบอาหารกลางวัน"
+    period = ""
+    if rnd.start_date and rnd.end_date:
+        period = f" ระหว่างวันที่ {thai_date(rnd.start_date)} ถึงวันที่ {thai_date(rnd.end_date)}"
+    payer = (getattr(school, "finance_officer_name", "") or "").strip() \
+        or (getattr(school, "director_name", "") or "").strip()
+    path = render_receipt_voucher(
+        school, payee=payee, payee_address=payee_addr,
+        items=[(f"{what}{period}", round(float(rnd.amount or 0), 2))],
+        total=round(float(rnd.amount or 0), 2),
+        date=rnd.order_date or rnd.end_date, payer=payer,
+        subject=f"รอบที่{rnd.seq} ปี{prog.year}")
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 

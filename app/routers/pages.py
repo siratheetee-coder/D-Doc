@@ -2243,6 +2243,29 @@ def procurement_generate(proc_id: int, doc_kind: str = Form(...), db: Session = 
     return serve_generated(file_path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
+@router.get("/procurement/{proc_id}/receipt-voucher")
+def procurement_receipt_voucher(proc_id: int, db: Session = Depends(get_db)):
+    """ใบสำคัญรับเงิน (ผู้ขาย/ผู้รับจ้าง ลงชื่อรับเงิน) - ดึงผู้ขาย/รายการ/วงเงินมาให้"""
+    from app.services.receipt_voucher import render_receipt_voucher
+    proc = db.get(Procurement, proc_id)
+    if not proc:
+        return RedirectResponse("/procurement", status_code=303)
+    school = get_school(db)
+    v = proc.vendor
+    payee = (v.name if v else "") or ""
+    payee_addr = (getattr(v, "address", "") or "").strip() if v else ""
+    items = [(it.name, round((it.quantity or 0) * (it.unit_price or 0), 2)) for it in proc.items]
+    if not items:
+        items = [(proc.subject or "", round(float(proc.total_amount or 0), 2))]
+    payer = (getattr(school, "finance_officer_name", "") or "").strip() \
+        or (getattr(school, "director_name", "") or "").strip()
+    path = render_receipt_voucher(
+        school, payee=payee, payee_address=payee_addr, items=items,
+        total=round(float(proc.total_amount or 0), 2), payer=payer,
+        subject=(proc.order_no or proc.memo_no or str(proc.id)))
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
 @router.get("/procurement/{proc_id}/altdoc/{kind}")
 def procurement_altdoc(proc_id: int, kind: str, db: Session = Depends(get_db)):
     """ออกเอกสารจัดซื้อวิธีพิเศษ (ว.804 / ว.119 ตาราง 1 / ว.119 ตาราง 2)"""

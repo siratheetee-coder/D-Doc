@@ -242,6 +242,13 @@ function saveDocNo(btn){
 </script>
 {% endif %}
 
+<!-- ============ ใบสำคัญรับเงิน (ใช้ได้ทุกวิธีดำเนินการ) ============ -->
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-file"/></svg> ใบสำคัญรับเงิน</h2>
+  <p class="muted" style="margin-top:0;">ฟอร์มใบสำคัญรับเงิน (ผู้รับจ้าง/ผู้รับเงิน ลงชื่อรับเงิน) ดึงชื่อผู้รับจ้าง วงเงิน และรายการมาให้ · กรอกที่อยู่/สตางค์เพิ่มในไฟล์ได้</p>
+  <a class="btn gray" href="/lunch/round/{{ r.id }}/receipt-voucher"><svg class="icon"><use href="#ic-download"/></svg> ออกใบสำคัญรับเงิน</a>
+</div>
+
 <!-- ============ ออกเอกสาร (หลังกรอกกรรมการ เพื่อให้ข้อมูลครบก่อน gen) ============ -->
 {% if p.operate_mode == 'ingredient' %}
 <div class="card">
