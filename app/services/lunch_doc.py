@@ -159,9 +159,9 @@ def _committee_cell_text(members, n=3) -> str:
 
 
 def _sign_slots_h(n=3) -> str:
-    """ช่องลงชื่อแนวราบ เลขอารบิก "1) ....  2) ....  3) ...." (ไม่ใส่ชื่อ) - ตารางตรวจรับ
-    จุดไข่ปลาสั้นพอให้ 3 ช่องอยู่บรรทัดเดียว (แถวไม่สูง เอกสารพอดีหน้าเดียว)"""
-    dots = ".........."
+    """ช่องลงชื่อแนวราบ เลขอารบิก "1) ..........  2) ..........  3) .........." (ไม่ใส่ชื่อ)
+    จุดไข่ปลายาวเกือบเต็มช่อง (ตารางตรวจรับ ใช้ฟอนต์เล็กให้ 3 ช่องอยู่บรรทัดเดียว)"""
+    dots = "................"
     return "  ".join(f"{i + 1}) {dots}" for i in range(n))
 
 
@@ -193,7 +193,7 @@ def _daily_table(doc, menus, committee=None):
 
 def _inspect_table(doc, menus, committee=None):
     """ตารางใบตรวจรับพัสดุ: วัน เดือน ปี | รายการอาหาร | ลายมือชื่อผู้ส่งมอบงาน | ผู้ตรวจรับพัสดุ/คณะกรรมการ"""
-    widths = [Cm(2.8), Cm(5.4), Cm(1.3), Cm(7.0)]   # เมนู/ช่องลงชื่อกว้างพอให้แต่ละแถวอยู่บรรทัดเดียว
+    widths = [Cm(2.7), Cm(4.5), Cm(1.3), Cm(8.0)]   # ช่องลงชื่อกรรมการกว้าง จุดไข่ปลายาวเกือบเต็มช่อง
     headers = ["วัน เดือน ปี", "รายการอาหาร", "ลายมือชื่อผู้\nส่งมอบงาน",
                "ผู้ตรวจรับงานจ้างหรือคณะกรรมการ\nตรวจรับงานจ้าง"]
     t = doc.add_table(rows=1, cols=4)
@@ -211,7 +211,7 @@ def _inspect_table(doc, menus, committee=None):
         _set_cell(r.cells[0], thai_date(m.date) if (m and m.date) else "", align="center", size=12)
         _set_cell(r.cells[1], _menu_text(m) if m else "", align="center", size=12)
         _set_cell(r.cells[2], "", size=12)
-        _set_cell(r.cells[3], committee_txt, align="center", size=12)
+        _set_cell(r.cells[3], committee_txt, align="center", size=11)
         for c, w in zip(r.cells, widths):
             c.width = w
             c.vertical_alignment = WD_ALIGN_VERTICAL.BOTTOM      # ชิดล่าง
