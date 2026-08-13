@@ -198,7 +198,7 @@ def _inspect_table(doc, menus, committee=None):
     for c, h, w in zip(hdr.cells, headers, widths):
         _set_cell(c, h, bold=True, align="center", size=13)
         c.width = w
-    committee_txt = _committee_cell_text(committee)
+    committee_txt = _committee_cell_text(committee, names=False)   # ไม่ใส่ชื่อกรรมการตรวจรับ
     for m in (menus if menus else [None] * 5):
         r = t.add_row()
         _no_split_row(r)
