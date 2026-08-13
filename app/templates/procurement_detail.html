@@ -252,7 +252,7 @@
     {% for kind in doc_kinds %}
     <form method="post" action="/procurement/{{ p.id }}/generate">
       <input type="hidden" name="doc_kind" value="{{ kind }}">
-      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-file"/></svg> {{ kind }}</button>
+      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-file"/></svg> {{ kind.replace('พัสดุ','งานจ้าง') if p.proc_type == 'จ้าง' else kind }}</button>
     </form>
     {% endfor %}
   </div>

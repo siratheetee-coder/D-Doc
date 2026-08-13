@@ -446,15 +446,15 @@ def build_purchase_request():
 
     _p(doc, "1.  เหตุผลและความจำเป็นที่จะต้อง{{ proc_type }} คือ  {{ purpose }}", align="justify", indent=1.25, after=0)
     _p(doc, "2.  รายละเอียดงานที่จะ{{ proc_type }}คือ ... (รายละเอียดตามบันทึกที่แนบ)", indent=1.25, after=0)
-    _p(doc, "3.  ราคากลางของพัสดุที่จะ{{ proc_type }} เป็นเงิน  {{ total_amount }}  บาท", indent=1.25, after=0)
+    _p(doc, "3.  ราคากลางของ{{ obj_word }}ที่จะ{{ proc_type }} เป็นเงิน  {{ total_amount }}  บาท", indent=1.25, after=0)
     _p(doc, "4.  วงเงินที่จะ{{ proc_type }}ครั้งนี้ จำนวน {{ total_amount }} บาท ({{ total_baht }})", indent=1.25, after=0)
-    _p(doc, "5.  กำหนดส่งมอบพัสดุภายใน {{ delivery_days }} วัน (การนับวันนับถัดจากวันลงนาม)", indent=1.25, after=0)
+    _p(doc, "5.  กำหนดส่งมอบ{{ obj_word }}ภายใน {{ delivery_days }} วัน (การนับวันนับถัดจากวันลงนาม)", indent=1.25, after=0)
     _p(doc,
        "6.  {{ proc_type }}โดยวิธี{{ method }} เนื่องจากการจัดซื้อจัดจ้างพัสดุที่มีการผลิต จำหน่าย "
        "ก่อสร้าง หรือให้บริการทั่วไป และมีวงเงินการจัดซื้อจัดจ้างครั้งหนึ่งไม่เกิน 500,000 บาท "
        "ที่กำหนดในกฎกระทรวง", align="justify", indent=1.25, after=0)
     _p(doc, "7.  หลักเกณฑ์พิจารณาการคัดเลือกข้อเสนอ โดยใช้เกณฑ์ราคา", indent=1.25, after=0)
-    _p(doc, "8.  ข้อเสนออื่น ๆ เห็นควรแต่งตั้งผู้ตรวจรับพัสดุ ตามเสนอ", indent=1.25, after=0)
+    _p(doc, "8.  ข้อเสนออื่น ๆ เห็นควรแต่งตั้งผู้ตรวจรับ{{ obj_word }} ตามเสนอ", indent=1.25, after=0)
     _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณา", indent=1.25, bold=True, after=0)
 
     # ===== ผู้ตรวจรับ: คนเดียว (โดยอนุโลม) หรือ คณะกรรมการ =====
@@ -517,7 +517,7 @@ def build_inspection():
     doc = Document(); set_a4(doc)
     _font(doc)
 
-    _p(doc, "ใบตรวจรับพัสดุ", align="center", bold=True, size=20, after=2)
+    _p(doc, "ใบตรวจรับ{{ obj_word }}", align="center", bold=True, size=20, after=2)
     _p(doc, "ตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 ข้อ 175",
        align="center", bold=True, after=6)
     _p(doc, "เขียนที่ {{ school_name }}", align="right")
@@ -526,9 +526,9 @@ def build_inspection():
     _p(doc,
        "ตามที่{{ school_name }} ได้จัด{{ proc_type }}{{ subject }} จาก {{ vendor_name }} "
        "ตาม{{ order_kind }} เลขที่ {{ order_no }} ลงวันที่ {{ order_date_thai }} "
-       "ครบกำหนดส่งมอบวันที่ {{ delivery_due_thai }} บัดนี้ {{ vendor_label }}ได้ส่งมอบพัสดุ "
+       "ครบกำหนดส่งมอบวันที่ {{ delivery_due_thai }} บัดนี้ {{ vendor_label }}ได้ส่งมอบ{{ obj_word }} "
        "ตามใบส่งของ เล่มที่ {{ delivery_note_book }} เลขที่ {{ delivery_note_no }} ลงวันที่ {{ inspect_date_thai }} "
-       "{{ committee_word }}ได้ตรวจรับพัสดุแล้ว ปรากฏว่าถูกต้องครบถ้วนตาม{{ order_kind }}ทุกประการ "
+       "{{ committee_word }}ได้ตรวจรับ{{ obj_word }}แล้ว ปรากฏว่าถูกต้องครบถ้วนตาม{{ order_kind }}ทุกประการ "
        "โดยส่งมอบเกินกำหนดจำนวน {{ overdue_days }} วัน คิดค่าปรับในอัตราร้อยละ {{ penalty_rate }} ต่อวัน เป็นเงินทั้งสิ้น {{ fine_amount }} บาท "
        "จึงออกหนังสือสำคัญฉบับนี้ให้ไว้ {{ vendor_label }}ควรได้รับเงินเป็นจำนวนเงินทั้งสิ้น "
        "{{ total_amount }} บาท ({{ total_baht }}) ตาม{{ order_kind }}",
@@ -545,7 +545,7 @@ def build_inspection():
     _p(doc, "( {{ m.name }} )", align="center")
     _p(doc, "{%p endfor %}")
     _p(doc, "{%p else %}")
-    _p(doc, "(ลงชื่อ) ........................................... ผู้ตรวจรับพัสดุ", align="center")
+    _p(doc, "(ลงชื่อ) ........................................... ผู้ตรวจรับ{{ obj_word }}", align="center")
     _p(doc, "( {{ inspector_name }} )", align="center")
     _p(doc, "{%p endif %}")
 
@@ -553,8 +553,8 @@ def build_inspection():
     _p(doc, "", after=6)
     _p_runs(doc, [("เรียน  ", True), ("{{ director_office }}", True)])
     _p(doc,
-       "เพื่อโปรดทราบผลการตรวจรับพัสดุ ค่าจัด{{ proc_type }}{{ subject }} {{ committee_word }}"
-       "ได้ดำเนินการตรวจรับพัสดุดังกล่าวเรียบร้อยแล้ว รายละเอียดตามใบตรวจรับพัสดุที่รายงานเสนอ "
+       "เพื่อโปรดทราบผลการตรวจรับ{{ obj_word }} ค่าจัด{{ proc_type }}{{ subject }} {{ committee_word }}"
+       "ได้ดำเนินการตรวจรับ{{ obj_word }}ดังกล่าวเรียบร้อยแล้ว รายละเอียดตามใบตรวจรับ{{ obj_word }}ที่รายงานเสนอ "
        "และขออนุมัติเบิกจ่ายเงินให้{{ vendor_label }} เป็นเงิน {{ total_amount }} บาท ({{ total_baht }})",
        align="justify", indent=1.25, after=4)
     _p(doc, "ลงชื่อ..............................................เจ้าหน้าที่", align="center")
@@ -771,7 +771,7 @@ def build_inspect_command():
     _krut_center(doc)
     _p(doc, "คำสั่ง{{ school_name }}", align="center", bold=True, size=18, after=0)
     _p(doc, "ที่ {{ command_no }}", align="center", bold=True, after=0)
-    _p(doc, "เรื่อง แต่งตั้งผู้ตรวจรับพัสดุ {{ subject }} โดยวิธี{{ method }}",
+    _p(doc, "เรื่อง แต่งตั้งผู้ตรวจรับ{{ obj_word }} {{ subject }} โดยวิธี{{ method }}",
        align="center", bold=True, after=0)
     _p(doc, "─────────────────────", align="center", after=6)
 
@@ -779,11 +779,11 @@ def build_inspect_command():
        "ด้วย{{ school_name }} มีความประสงค์จัด{{ proc_type }}{{ subject }} โดยวิธี{{ method }} "
        "และเพื่อให้เป็นไปตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ "
        "พ.ศ. 2560", align="justify", indent=1.25)
-    _p(doc, "จึงขอแต่งตั้งรายชื่อต่อไปนี้ เป็นคณะกรรมการตรวจรับพัสดุ โดยวิธี{{ method }} ดังนี้",
+    _p(doc, "จึงขอแต่งตั้งรายชื่อต่อไปนี้ เป็นคณะกรรมการตรวจรับ{{ obj_word }} โดยวิธี{{ method }} ดังนี้",
        indent=1.25)
     _member_table(doc, "inspect_members")
     _p(doc, "อำนาจและหน้าที่", bold=True, indent=1.25)
-    _p(doc, "ทำการตรวจรับพัสดุให้เป็นไปตามเงื่อนไขของสัญญาหรือข้อตกลงนั้น",
+    _p(doc, "ทำการตรวจรับ{{ obj_word }}ให้เป็นไปตามเงื่อนไขของสัญญาหรือข้อตกลงนั้น",
        align="justify", indent=1.25)
     _p(doc, "ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป", bold=True, indent=2.5, after=6)
     _p(doc, "สั่ง ณ วันที่ {{ command_date_official }}", align="center", after=24)
@@ -816,7 +816,7 @@ def build_quotation():
     _p(doc, "(ราคาก่อนภาษี {{ price_ex_vat }} บาท + ภาษีมูลค่าเพิ่ม {{ vat_amount }} บาท)", indent=1.25)
     _p(doc, "{%p endif %}")
     _p(doc, "คำเสนอนี้จะยืนอยู่เป็นระยะเวลา 15 วัน นับตั้งแต่วันที่ยื่นใบเสนอราคา", indent=1.25)
-    _p(doc, "กำหนดส่งมอบพัสดุภายใน {{ delivery_days }} วันทำการ นับตั้งแต่วันที่ยื่นใบเสนอราคา", indent=1.25, after=8)
+    _p(doc, "กำหนดส่งมอบ{{ obj_word }}ภายใน {{ delivery_days }} วันทำการ นับตั้งแต่วันที่ยื่นใบเสนอราคา", indent=1.25, after=8)
     _sign_table(doc, [
         [("ลงชื่อ..........................ผู้ต่อรองราคา", "center"),
          ("( {{ officer_name }} )", "center")],
@@ -862,16 +862,16 @@ def build_spec_committee():
     """แม่แบบ: บันทึกขออนุมัติแต่งตั้งคณะกรรมการกำหนดคุณลักษณะเฉพาะ/ราคากลาง (ข้อ 21)"""
     doc = Document(); set_a4(doc)
     _font(doc)
-    _memo_head(doc, "ขออนุมัติแต่งตั้งคณะกรรมการกำหนดรายละเอียดคุณลักษณะเฉพาะพัสดุ และราคากลาง",
+    _memo_head(doc, "ขออนุมัติแต่งตั้งคณะกรรมการกำหนดรายละเอียดคุณลักษณะเฉพาะ{{ obj_word }} และราคากลาง",
                memo_no_expr="{{ spec_memo_no }}", date_expr="{{ spec_date_thai }}")
     _p(doc,
        "ด้วย{{ school_name }} จะดำเนินการ{{ proc_type }}{{ subject }} โดยใช้วงเงินงบประมาณ จำนวน "
-       "{{ total_amount }} บาท ({{ total_baht }}) เพื่อให้การกำหนดรายละเอียดคุณลักษณะเฉพาะพัสดุ"
+       "{{ total_amount }} บาท ({{ total_baht }}) เพื่อให้การกำหนดรายละเอียดคุณลักษณะเฉพาะ{{ obj_word }}"
        "เป็นไปตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 "
        "ข้อ 21 จึงขอแต่งตั้งคณะกรรมการ ประกอบด้วย", align="justify", indent=1.25)
     _member_table(doc, "spec_members")
     _p(doc, "โดยให้มีหน้าที่ (1) จัดทำรายละเอียดคุณลักษณะเฉพาะ และกำหนดหลักเกณฑ์การพิจารณา "
-            "(2) จัดทำราคากลางของพัสดุตามแนวทางที่เกี่ยวข้อง", align="justify", indent=1.25)
+            "(2) จัดทำราคากลางของ{{ obj_word }}ตามแนวทางที่เกี่ยวข้อง", align="justify", indent=1.25)
     _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ", indent=1.25)
     _signoff_officers(doc)
     _signoff_director(doc, with_approve=True)
@@ -885,7 +885,7 @@ def build_tor():
     """แม่แบบ: รายละเอียดคุณลักษณะเฉพาะของพัสดุ (TOR)"""
     doc = Document(); set_a4(doc)
     _font(doc)
-    _p(doc, "รายละเอียดคุณลักษณะเฉพาะของพัสดุที่จะ{{ proc_type }} (TOR)", align="center", bold=True, size=18)
+    _p(doc, "รายละเอียดคุณลักษณะเฉพาะของ{{ obj_word }}ที่จะ{{ proc_type }} (TOR)", align="center", bold=True, size=18)
     _p(doc, "ตามพระราชบัญญัติการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 (ข้อ 21)",
        align="center", after=6)
     _p(doc, "1. ความเป็นมา/เหตุผลความจำเป็น", bold=True)
@@ -893,7 +893,7 @@ def build_tor():
             "เนื่องจาก {{ purpose }}", align="justify", indent=1.25)
     _p(doc, "2. ลักษณะการจัดหา", bold=True)
     _p(doc, "งาน{{ proc_type }}", indent=1.25)
-    _p(doc, "3. รายละเอียดคุณลักษณะเฉพาะของพัสดุ", bold=True)
+    _p(doc, "3. รายละเอียดคุณลักษณะเฉพาะของ{{ obj_word }}", bold=True)
     _item_table(doc)
     _p(doc, "", after=4)
     _p(doc, "4. กำหนดเวลาส่งมอบ", bold=True)
@@ -994,7 +994,7 @@ def build_disbursement():
     (รวมความเห็นเจ้าหน้าที่การเงิน + รายละเอียดการคำนวณเงินที่จ่ายจริง)"""
     doc = Document(); set_a4(doc)
     _font(doc)
-    _memo_head(doc, "รายงานผลการตรวจรับพัสดุและอนุมัติเบิกจ่ายเงิน",
+    _memo_head(doc, "รายงานผลการตรวจรับ{{ obj_word }}และอนุมัติเบิกจ่ายเงิน",
                memo_no_expr="{{ inspect_memo_no }}",
                date_expr="{{ inspect_date_thai }}")
     _p(doc,
@@ -1003,13 +1003,13 @@ def build_disbursement():
        "{{ delivery_due_thai }} รวมเป็นเงิน {{ total_amount }} บาท ({{ total_baht }}) นั้น",
        align="justify", indent=1.25)
     _p(doc,
-       "บัดนี้ {{ vendor_label }}ได้ส่งมอบพัสดุเสร็จเรียบร้อยแล้ว ตามใบส่งของ/ใบกำกับภาษี/ใบเสร็จรับเงิน "
+       "บัดนี้ {{ vendor_label }}ได้ส่งมอบ{{ obj_word }}เสร็จเรียบร้อยแล้ว ตามใบส่งของ/ใบกำกับภาษี/ใบเสร็จรับเงิน "
        "เล่มที่ {{ delivery_note_book }} เลขที่ {{ delivery_note_no }} ลงวันที่ {{ inspect_date_thai }} "
-       "และ{{ committee_word }}ได้ทำการตรวจรับพัสดุเมื่อวันที่ {{ inspect_date_thai }} "
+       "และ{{ committee_word }}ได้ทำการตรวจรับ{{ obj_word }}เมื่อวันที่ {{ inspect_date_thai }} "
        "ไว้เป็นการถูกต้องครบถ้วนดังหลักฐานที่แนบ",
        align="justify", indent=1.25)
     _p(doc,
-       "จึงเรียนมาเพื่อทราบผลการตรวจรับพัสดุ ตามนัยข้อ 175 (4) แห่งระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อ"
+       "จึงเรียนมาเพื่อทราบผลการตรวจรับ{{ obj_word }} ตามนัยข้อ 175 (4) แห่งระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อ"
        "จัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560", align="justify", indent=1.25)
     _signoff_officers(doc)
 

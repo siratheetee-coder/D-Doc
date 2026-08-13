@@ -183,8 +183,12 @@ def build_context(proc, school) -> dict:
         "order_kind": ("ใบสั่งซื้อ" if proc.proc_type == "ซื้อ" else "ใบสั่งจ้าง"),
         "vendor_label": ("ผู้ขาย" if proc.proc_type == "ซื้อ" else "ผู้รับจ้าง"),
         "vendor_occupation": ("ขาย" if proc.proc_type == "ซื้อ" else "รับจ้าง"),
-        "committee_word": ("คณะกรรมการตรวจรับพัสดุ" if (proc.inspection_mode or "single") == "committee"
-                           else "ผู้ตรวจรับพัสดุ"),
+        # คำเรียกสิ่งที่จัดหา/ตรวจรับ/ส่งมอบ: งานซื้อ = "พัสดุ" · งานจ้าง = "งานจ้าง"
+        # (ไม่ใช้กับชื่อกฎหมาย "การบริหารพัสดุภาครัฐ" หรือ "งานพัสดุ/เจ้าหน้าที่พัสดุ")
+        "obj_word": ("พัสดุ" if proc.proc_type == "ซื้อ" else "งานจ้าง"),
+        "committee_word": (("คณะกรรมการตรวจรับพัสดุ" if proc.proc_type == "ซื้อ" else "คณะกรรมการตรวจรับงานจ้าง")
+                           if (proc.inspection_mode or "single") == "committee"
+                           else ("ผู้ตรวจรับพัสดุ" if proc.proc_type == "ซื้อ" else "ผู้ตรวจรับงานจ้าง")),
         "penalty_rate": f"{(proc.penalty_rate or 0.10):g}",
         # VAT
         "has_vat": (proc.vat_mode == "include"),
