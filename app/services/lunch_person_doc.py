@@ -354,7 +354,7 @@ def render_p_installment(inst, school, menus=None, doc=None) -> str:
     sname = _school_disp(school)
     director = (school.director_name or "").strip() or _BLANK
     vname = rnd.vendor.name if rnd.vendor else _BLANK
-    order_no = (rnd.order_no or "").strip() or _BLANK
+    order_no = _doc_no(rnd, "order", (rnd.order_no or "").strip() or _BLANK)
     amount = _money(inst.amount or 0)
     period = f"งวดที่ {inst.seq} ระหว่างวันที่ {_dnum(inst.start_date)} ถึงวันที่ {_dnum(inst.end_date)}"
 
@@ -416,7 +416,7 @@ def render_p_disburse(inst, school, wht_rate=0.01, doc=None) -> str:
     vname = vendor.name if vendor else _BLANK
     vaddr = (getattr(vendor, "address", "") or "").strip() if vendor else _BLANK
     vtax = (getattr(vendor, "tax_id", "") or "").strip() if vendor else _BLANK
-    order_no = (rnd.order_no or "").strip() or _BLANK
+    order_no = _doc_no(rnd, "order", (rnd.order_no or "").strip() or _BLANK)
     director = (school.director_name or "").strip() or _BLANK
     fin = (getattr(school, "finance_officer_name", "") or "").strip() or _BLANK
     amt = round(float(inst.amount or 0), 2)

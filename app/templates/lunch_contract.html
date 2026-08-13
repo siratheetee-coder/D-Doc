@@ -273,6 +273,22 @@
   <a class="btn gray" href="/lunch/round/{{ r.id }}/receipt-voucher"><svg class="icon"><use href="#ic-download"/></svg> ออกใบสำคัญรับเงิน</a>
 </div>
 
+<!-- ============ เอกสารรายงวด (ออกได้จากตรงนี้ ไม่ต้องเลื่อนขึ้นไปตารางงวด) ============ -->
+{% if installments %}
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-download"/></svg> เอกสารรายงวด</h2>
+  <p class="muted" style="margin-top:0;">ออกเอกสารของแต่ละงวด (บันทึกควบคุม+ส่งมอบ+ตรวจรับ / ขอเบิกจ่าย+หัก ณ ที่จ่าย) ได้จากตรงนี้เลย หลังกรอกเลขเอกสารด้านบน</p>
+  {% for i in installments %}
+  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:6px 0; border-bottom:1px solid var(--border);">
+    <b style="min-width:150px;">งวดที่ {{ i.seq }}</b>
+    <span class="muted" style="font-size:13px; min-width:170px;">{{ be_date(i.start_date) if i.start_date else '-' }} - {{ be_date(i.end_date) if i.end_date else '-' }}</span>
+    <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/doc"><svg class="icon"><use href="#ic-download"/></svg> เอกสารงวด</a>
+    <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/disburse-doc"><svg class="icon"><use href="#ic-coins"/></svg> ขอเบิกจ่าย</a>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <!-- ============ ออกเอกสาร (หลังกรอกกรรมการ เพื่อให้ข้อมูลครบก่อน gen) ============ -->
 {% if p.operate_mode == 'ingredient' %}
 <div class="card">

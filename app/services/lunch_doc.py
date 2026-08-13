@@ -144,16 +144,18 @@ def _rule(doc):
     return p
 
 
-def _committee_cell_text(members, n=3) -> str:
-    """ข้อความช่องกรรมการ (จุดไข่ปลาให้เซ็น + ชื่อในวงเล็บ) เรียงเลขไทย ๑ ๒ ๓"""
-    count = max(n, len(members or []))
+def _committee_cell_text(members, n=3, names=True) -> str:
+    """ข้อความช่องกรรมการ (จุดไข่ปลาให้เซ็น + ชื่อในวงเล็บ) เรียงเลขไทย ๑ ๒ ๓
+    names=False : เว้นแค่เส้นจุดไข่ปลา ไม่ใส่ชื่อ/วงเล็บ (ลดความสูงตาราง)"""
+    count = max(n, len(members or [])) if names else n
     lines = []
     for i in range(count):
         num = _TH_NUM[i] if i < len(_TH_NUM) else str(i + 1)
         lines.append("")   # เว้นบรรทัดว่างเหนือเส้นจุดไข่ปลา ให้มีที่เซ็นชื่อ (คนแรกไม่ติดหัวตาราง)
         lines.append(f"{num}...........................................")
-        nm = members[i].name if (members and i < len(members) and members[i].name) else ""
-        lines.append(f"( {nm} )" if nm else "( ........................................ )")
+        if names:
+            nm = members[i].name if (members and i < len(members) and members[i].name) else ""
+            lines.append(f"( {nm} )" if nm else "( ........................................ )")
     return "\n".join(lines)
 
 
@@ -170,7 +172,7 @@ def _daily_table(doc, menus, committee=None):
     for c, h, w in zip(hdr.cells, headers, widths):
         _set_cell(c, h, bold=True, align="center", size=13)
         c.width = w
-    committee_txt = _committee_cell_text(committee)
+    committee_txt = _committee_cell_text(committee, names=False)   # ไม่ใส่ชื่อ ลดความสูงตาราง
     for m in (menus if menus else [None] * 5):
         r = t.add_row()
         _no_split_row(r)
@@ -236,7 +238,7 @@ def render_installment_doc(inst, school, menus) -> str:
     rnd = inst.round
     vendor = rnd.vendor
     vname = vendor.name if vendor else _BLANK
-    order_no = getattr(rnd, "order_no", None) or _BLANK
+    order_no = _doc_no(rnd, "hire-order", (getattr(rnd, "order_no", "") or "").strip() or _BLANK)
     sname = _school_disp(school)
     director = (school.director_name or "").strip()
     officer = (getattr(school, "officer_name", "") or "").strip()
@@ -261,9 +263,9 @@ def render_installment_doc(inst, school, menus) -> str:
     _p(doc, "", after=4)
     _p(doc, "ความเห็นของผู้อำนวยการสถานศึกษา : ทราบผลการดำเนินการประกอบอาหารกลางวัน",
        indent=1.25, after=10)
-    _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
-    _p(doc, f"( {director or _BLANK} )", align="center", after=0)
-    _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=6)
+    _p(doc, "(ลงชื่อ)...........................................", align="center", after=3, line=1.15)
+    _p(doc, f"( {director or _BLANK} )", align="center", after=3, line=1.15)
+    _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=6, line=1.15)
 
     # ===== ส่วนที่ 2: ใบส่งมอบงาน =====
     doc.add_page_break()
@@ -309,9 +311,9 @@ def render_installment_doc(inst, school, menus) -> str:
     end_paras = [
         _p(doc, "ความเห็นของผู้บริหารสถานศึกษา", indent=1.25, after=0),
         _p(doc, "(   ) ทราบผลการตรวจรับ          (   ) อนุมัติ", indent=1.5, after=12),
-        _p(doc, "(ลงชื่อ)...........................................", align="center", after=0),
-        _p(doc, f"( {director or _BLANK} )", align="center", after=0),
-        _p(doc, f"ตำแหน่ง ผู้อำนวยการ{sname}", align="center", after=0),
+        _p(doc, "(ลงชื่อ)...........................................", align="center", after=3, line=1.15),
+        _p(doc, f"( {director or _BLANK} )", align="center", after=3, line=1.15),
+        _p(doc, f"ตำแหน่ง ผู้อำนวยการ{sname}", align="center", after=0, line=1.15),
     ]
     for p in end_paras[:-1]:
         p.paragraph_format.keep_with_next = True

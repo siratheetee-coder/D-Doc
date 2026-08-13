@@ -166,11 +166,13 @@ def _bcs(run, bold):
     el.set(qn("w:val"), "true" if bold else "false")
 
 
-def _p(doc, text="", *, align=None, bold=False, size=16, indent=None, before=0, after=2):
+def _p(doc, text="", *, align=None, bold=False, size=16, indent=None, before=0, after=2, line=None):
     p = doc.add_paragraph()
     pf = p.paragraph_format
     pf.space_before = Pt(before)
     pf.space_after = Pt(after)
+    if line is not None:
+        pf.line_spacing = line
     if indent is not None:
         pf.first_line_indent = Cm(indent)
     if align == "center":
