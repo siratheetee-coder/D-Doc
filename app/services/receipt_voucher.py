@@ -82,17 +82,24 @@ def render_receipt_voucher(school, *, payee="", payee_address="", items=None, to
     _p(doc, line, after=0, indent=0.5)
     _p(doc, f"ได้รับเงินจาก {received_from} ดังรายการต่อไปนี้", after=6, indent=0.5)
 
-    # ตารางรายการ / จำนวนเงิน (บาท | สตางค์)
-    tbl = doc.add_table(rows=1, cols=3)
+    # ตารางรายการ / จำนวนเงิน (หัว 2 แถว: รายการ | จำนวนเงิน[บาท|สตางค์])
+    from docx.enum.table import WD_ALIGN_VERTICAL
+    tbl = doc.add_table(rows=2, cols=3)
     tbl.style = "Table Grid"
     tbl.autofit = False
     widths = [Cm(10.5), Cm(3.5), Cm(1.5)]   # รวม 15.5 = พื้นที่พิมพ์ (ขอบ 3/2.5)
-    hdr = tbl.rows[0].cells
-    _set_cell(hdr[0], "รายการ", bold=True, align="center", size=15)
-    _set_cell(hdr[1], "จำนวนเงิน", bold=True, align="center", size=15)
-    _set_cell(hdr[2], "", bold=True, align="center", size=15)
-    for c, w in zip(hdr, widths):
-        c.width = w
+    h0 = tbl.rows[0].cells
+    h1 = tbl.rows[1].cells
+    cell_rai = h0[0].merge(h1[0])              # "รายการ" รวม 2 แถวแนวตั้ง
+    _set_cell(cell_rai, "รายการ", bold=True, align="center", size=15)
+    cell_rai.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    cell_amt = h0[1].merge(h0[2])              # "จำนวนเงิน" รวม 2 คอลัมน์
+    _set_cell(cell_amt, "จำนวนเงิน", bold=True, align="center", size=15)
+    _set_cell(h1[1], "บาท", bold=True, align="center", size=14)
+    _set_cell(h1[2], "ส.ต.", bold=True, align="center", size=14)
+    cell_rai.width = widths[0]
+    h1[1].width = widths[1]
+    h1[2].width = widths[2]
     body = list(items)
     while len(body) < 5:              # เว้นบรรทัดว่างให้กรอกมือได้
         body.append(("", None))
