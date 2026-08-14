@@ -483,6 +483,7 @@ LUNCH_DOC_META = {
     "loan":           {"label": "สัญญาการยืมเงิน",                          "doc_type": None,         "idx": 3,  "fields": _F_LOAN},
     "repay":          {"label": "ขออนุมัติเบิกจ่ายเพื่อส่งใช้เงินยืม",        "doc_type": "memo",       "idx": 4,  "fields": _F_MEMO},
     "inspect-notify": {"label": "การตรวจรับพัสดุ (แจ้งประธานกรรมการ)",     "doc_type": "memo",       "idx": 6,  "fields": _F_MEMO},
+    "inspect-assign": {"label": "มอบหมายการตรวจรับวัตถุดิบ",              "doc_type": "memo",       "idx": 5,  "fields": _F_MEMO},
     "hire-report":    {"label": "รายงานขอจ้างเหมาประกอบอาหาร",            "doc_type": "memo",       "idx": 7,  "fields": _F_MEMO},
     "result":         {"label": "รายงานผลการพิจารณาจ้าง",                   "doc_type": "memo",       "idx": 8,  "fields": _F_MEMO},
     "order":          {"label": "บันทึกตกลงจ้าง",                           "doc_type": "hire_order", "idx": 9,  "fields": _F_MEMO},
@@ -501,7 +502,7 @@ LUNCH_DOC_META = {
 # เอกสารที่ต้องกรอกเลข + ลำดับที่แสดง แยกตามวิธีดำเนินการ (ตามชุดเอกสารจริงของแต่ละแบบ)
 #  จ้างเหมา/จ้างแม่ครัว: คำสั่งแต่งตั้งกรรมการ 3 ฉบับ กรอกเลขแยกกัน (cmd-*)
 _MODE_DOCS = {
-    "ingredient": ["report", "borrow", "loan", "repay", "inspect-notify"],
+    "ingredient": ["report", "borrow", "loan", "repay", "inspect-notify", "inspect-assign"],
     "person":     ["hire-report", "result", "order",
                    "cmd-inspect", "cmd-cook_control", "cmd-food_inspect",
                    "borrow", "loan", "repay"],

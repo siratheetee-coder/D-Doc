@@ -20,6 +20,7 @@ from app.thai_utils import bahttext
 from app.services.build_templates import (
     _font, _p, _sign_table, _set_cell, _repeat_header_row, _no_split_row,
     _krut_and_title, _p_runs, _hr, _shrink_body_font, _csize, _bcs, THAI_FONT,
+    _no_borders,
 )
 from docx.shared import Pt
 from docx.oxml.ns import qn
@@ -534,8 +535,20 @@ def render_reimburse_summary(rnd, school, doc=None) -> str:
 
     _p(doc, "ใบสรุปเบิกเงินชดเชยเงินยืมโครงการอาหารกลางวัน", align="center", bold=True, size=18, after=0)
     _p(doc, f"{sname}", align="center", after=0)
-    _p(doc, f"วันที่ {_dnum(rnd.end_date)}", align="center", after=8)
-    _p(doc, "ข้าพเจ้าขอเบิกเงินเพื่อชดเชยเงินยืม", indent=1.25, after=2)
+    _p(doc, f"วันที่ {_dnum(rnd.end_date)}", align="center", after=6)
+    # ตารางรายการค่าอาหารแต่ละงวด + รวม
+    insts = sorted(rnd.installments or [], key=lambda i: i.seq)
+    rows = []
+    if insts:
+        for k, it in enumerate(insts, 1):
+            rows.append([str(k), f"ค่าอาหารประจำวันที่ {_dnum(it.end_date)}", _money(it.amount or 0), ""])
+    else:
+        for k in range(1, 6):
+            rows.append([str(k), "ค่าอาหารประจำวันที่ ...................................", "", ""])
+    rows.append(["", "รวม", _money(total), ""])
+    _simple_table(doc, ["ลำดับที่", "รายการ", "จำนวนเงิน", "หมายเหตุ"],
+                  rows, [Cm(1.6), Cm(7.4), Cm(3.0), Cm(3.5)])
+    _p(doc, "ข้าพเจ้าขอเบิกเงินเพื่อชดเชยเงินยืม", indent=1.25, before=6, after=2)
     _p(doc, f"( / )  เงินอุดหนุนโครงการอาหารกลางวัน\t\tเป็นเงิน {money} บาท", indent=1.5, after=0)
     _p(doc, "(   )  กองทุนเพื่อโครงการอาหารกลางวัน\t\tเป็นเงิน ............................ บาท", indent=1.5, after=0)
     _p(doc, "(   )  บำรุงการศึกษา-โครงการอาหารกลางวัน\t\tเป็นเงิน ............................ บาท", indent=1.5, after=2)
@@ -694,43 +707,48 @@ def render_inspect_notify(rnd, school, doc=None) -> str:
 
 
 def render_inspect_assign(rnd, school, doc=None) -> str:
-    """ตัวอย่าง 4 การมอบหมายการตรวจรับวัตถุดิบเพื่อใช้ในการประกอบอาหารกลางวัน
-    วันที่ตรวจรับ = วันสุดท้ายของแต่ละงวด (มีกี่งวด = กี่บรรทัด) · จัดให้อยู่ใน 1 หน้า"""
+    """ตัวอย่าง 4 บันทึกข้อความ การมอบหมายการตรวจรับวัตถุดิบเพื่อใช้ในการประกอบอาหารกลางวัน
+    วันที่ตรวจรับ = วันสุดท้ายของแต่ละงวด (ต่อกรรมการแต่ละคน) · ตารางไร้เส้น ซ้าย ชื่อ/ขวา บทบาท+วันที่"""
+    from docx.shared import Cm as _Cm
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = _school_disp(school)
     insp = _committee(rnd, "inspect")
     insts = sorted(rnd.installments or [], key=lambda i: i.seq)
-    dates = [_dnum(i.end_date) for i in insts] or ["................................" for _ in range(3)]
-    DN = "............................................"
+    dates = [_dnum(i.end_date) for i in insts] or ["............................." for _ in range(3)]
+    DN = "..........................................."
+    TH = ["๑", "๒", "๓", "๔", "๕", "๖", "๗", "๘"]
     members = insp if insp else [None, None, None]
 
-    _p(doc, "การมอบหมายการตรวจรับวัตถุดิบเพื่อใช้ในการประกอบอาหารกลางวัน",
-       align="center", bold=True, size=17, after=2)
-    _p(doc, f"{sname}", align="center", after=6)
-    _p(doc, "เรียน  คณะกรรมการตรวจรับพัสดุ", after=0)
+    _memo_head_to(doc, school,
+                  ["การมอบหมายการตรวจรับวัตถุดิบเพื่อใช้ในการประกอบอาหารกลางวัน"],
+                  *_memo_ref(rnd, "inspect-assign"),
+                  "คณะกรรมการตรวจรับพัสดุ")
     _p(doc, "ขอมอบหมายให้คณะกรรมการตรวจรับพัสดุ เพื่อทำหน้าที่ตรวจรับวัตถุดิบเพื่อใช้ในการประกอบอาหาร"
-            "กลางวันเบื้องต้นในแต่ละครั้งที่มีการส่งมอบ ดังนี้", align="justify", indent=1.25, after=2)
+            "กลางวันเบื้องต้นในแต่ละครั้งที่มีการส่งมอบ ดังนี้", align="justify", indent=1.25, after=4)
+    # ตารางไร้เส้น: ซ้าย = (ลำดับ) ชื่อ + ทำหน้าที่ตรวจรับพัสดุ | ขวา = บทบาท + วันที่ (วันสุดท้ายของแต่ละงวด)
+    t = doc.add_table(rows=len(members), cols=2)
+    t.autofit = False
     for i, m in enumerate(members):
         nm = (m.name if m else "") or ""
         role = "ประธานกรรมการตรวจรับพัสดุ" if i == 0 else "กรรมการตรวจรับพัสดุ"
-        _p(doc, f"นาย/นาง/นางสาว {nm or DN}        {role}", indent=0.5, after=0)
-    # วันที่ตรวจรับ = วันสุดท้ายของแต่ละงวด (งวดละ 1 บรรทัด)
-    _p(doc, "ทำหน้าที่ตรวจรับพัสดุในวันสุดท้ายของแต่ละงวด ดังนี้", indent=0.5, before=4, after=0)
-    for k, dt in enumerate(dates, 1):
-        label = f"งวดที่ {k}  " if insts else ""
-        _p(doc, f"{label}วันที่ {dt}", indent=1.25, after=0)
+        num = TH[i] if i < len(TH) else str(i + 1)
+        _box_cell(t.cell(i, 0),
+                  [(f"({num}) นาย/นาง/นางสาว {nm or DN}", "left", False),
+                   ("      ทำหน้าที่ตรวจรับพัสดุ", "left", False)], size=14, after=2)
+        _box_cell(t.cell(i, 1),
+                  [(role, "left", False)] + [(f"วันที่ {d}", "left", False) for d in dates],
+                  size=14, after=0)
+        t.cell(i, 0).width = _Cm(7.5)
+        t.cell(i, 1).width = _Cm(8.0)
+    _no_borders(t)
     _p(doc, "และให้กรรมการที่ได้รับมอบหมายจัดทำบันทึกสรุปรายการวัตถุดิบที่ตรวจรับในแต่ละครั้ง "
-            "ส่งมอบให้เจ้าหน้าที่เป็นรายสัปดาห์/รายเดือน ต่อไป", align="justify", indent=1.25, before=2, after=2)
-    _p(doc, "จึงเรียนมาเพื่อโปรดทราบ", indent=1.25, after=6)
-    _p(doc, f"(ลงชื่อ) {DN} ประธานคณะกรรมการตรวจรับพัสดุ", align="center", after=8)
-    _p(doc, "ทราบ", indent=0.5, after=2)
+            "ส่งมอบให้เจ้าหน้าที่เป็นรายสัปดาห์/รายเดือน ต่อไป", align="justify", indent=1.25, before=4, after=2)
+    _p(doc, "จึงเรียนมาเพื่อโปรดทราบ", indent=1.25, after=10)
+    _p(doc, f"(ลงชื่อ) {DN} ประธานคณะกรรมการตรวจรับพัสดุ", align="center", after=10)
+    _p(doc, "ทราบ", after=2)
     for i, m in enumerate(members):
         role = "ประธานกรรมการตรวจรับพัสดุ" if i == 0 else "กรรมการตรวจรับพัสดุ"
-        _p(doc, f"(ลงชื่อ) {DN} {role}", align="center", after=0)
-        nm = (m.name if m else "") or ""
-        _p(doc, f"( {nm} )" if nm else "( ........................................ )",
-           align="center", after=3)
+        _p(doc, f"(ลงชื่อ) {DN} {role}", after=2)
     return _finish(doc, own, f"มอบหมายการตรวจรับวัตถุดิบ_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
