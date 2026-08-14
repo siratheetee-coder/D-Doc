@@ -1419,6 +1419,7 @@ _INGREDIENT_DOCS = {
     "summary": "render_purchase_summary", "inspect-report": "render_inspect_report",
     "inspect-notify": "render_inspect_notify", "inspect-note": "render_inspection_note",
     "repay": "render_repay_memo", "bundle": "render_ingredient_bundle",
+    "reimburse": "render_reimburse_summary",
 }
 
 

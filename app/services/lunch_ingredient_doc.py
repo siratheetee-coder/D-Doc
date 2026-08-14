@@ -519,6 +519,45 @@ def render_repay_memo(rnd, school, doc=None) -> str:
     return _finish(doc, own, f"ขออนุมัติเบิกจ่ายส่งใช้เงินยืม_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
+def render_reimburse_summary(rnd, school, doc=None) -> str:
+    """ตัวอย่าง 14 ใบสรุปเบิกเงินชดเชยเงินยืมโครงการอาหารกลางวัน
+    (ใช้เฉพาะกรณีส่งใช้คืนเงินยืมเป็นภาคเรียน)"""
+    doc, own = _begin(doc)
+    prog = rnd.program
+    sname = _school_disp(school)
+    bname, bpos = _borrower(school, rnd.program)
+    fin = (getattr(school, "finance_officer_name", "") or "").strip() or _BLANK
+    director = (school.director_name or "").strip() or _BLANK
+    total = round(float(rnd.amount or 0), 2)
+    money = _money(total)
+    DOT = "..............................................."
+
+    _p(doc, "ใบสรุปเบิกเงินชดเชยเงินยืมโครงการอาหารกลางวัน", align="center", bold=True, size=18, after=0)
+    _p(doc, f"{sname}", align="center", after=0)
+    _p(doc, f"วันที่ {_dnum(rnd.end_date)}", align="center", after=8)
+    _p(doc, "ข้าพเจ้าขอเบิกเงินเพื่อชดเชยเงินยืม", indent=1.25, after=2)
+    _p(doc, f"( / )  เงินอุดหนุนโครงการอาหารกลางวัน\t\tเป็นเงิน {money} บาท", indent=1.5, after=0)
+    _p(doc, "(   )  กองทุนเพื่อโครงการอาหารกลางวัน\t\tเป็นเงิน ............................ บาท", indent=1.5, after=0)
+    _p(doc, "(   )  บำรุงการศึกษา-โครงการอาหารกลางวัน\t\tเป็นเงิน ............................ บาท", indent=1.5, after=2)
+    _p(doc, "ซึ่งจ่ายเป็นค่าอาหารตามใบสำคัญรับเงินที่แนบ", indent=1.25, after=12)
+    _sign_table(doc, [
+        [(f"ลงชื่อ {DOT} ผู้ขอเบิก", "center"),
+         (f"( {bname} )", "center")]])
+    _p(doc, "ได้ตรวจสอบรายการจ่ายตามใบสำคัญที่ขอเบิก จำนวน ................ ฉบับ ถูกต้องแล้ว",
+       indent=1.25, before=10, after=10)
+    _sign_table(doc, [
+        [(f"ลงชื่อ {DOT} เจ้าหน้าที่การเงิน", "center"),
+         (f"( {fin} )", "center"),
+         (f"วันที่ {DOT}", "center")]])
+    _p(doc, "ทราบและอนุมัติจ่ายเงิน", indent=1.25, before=10, after=10)
+    _sign_table(doc, [
+        [(f"ลงชื่อ {DOT} หัวหน้าสถานศึกษา", "center"),
+         (f"( {director} )", "center"),
+         (f"วันที่ {DOT}", "center")]])
+    _p(doc, "*** ใช้เอกสารนี้เฉพาะกรณีส่งใช้คืนเงินยืมเป็นภาคเรียน", size=13, before=12)
+    return _finish(doc, own, f"ใบสรุปเบิกเงินชดเชยเงินยืม_รอบที่{rnd.seq}_ปี{prog.year}")
+
+
 def _committee_signs(doc, members):
     """ลายเซ็นคณะกรรมการตรวจรับ (ประธาน/กรรมการ) - ไม่มีชื่อ = เส้นจุด 3 คน"""
     seq = members if members else [None, None, None]
@@ -837,4 +876,5 @@ def render_ingredient_bundle(rnd, school) -> str:
     render_inspect_report(rnd, school, doc)       # 12 รายงานการตรวจรับพัสดุ (เสนอ ผอ.)
     render_inspect_notify(rnd, school, doc)       # 13 แจ้งประธานกรรมการตรวจรับ
     render_inspection_note(rnd, school, doc)      # 14 ใบตรวจรับพัสดุ (ข้อ 175)
+    render_reimburse_summary(rnd, school, doc)    # 15 ใบสรุปเบิกเงินชดเชยเงินยืม (กรณีส่งใช้รายภาคเรียน)
     return _save(doc, f"ชุดเอกสารซื้อวัตถุดิบ_รอบที่{rnd.seq}_ปี{rnd.program.year}")
