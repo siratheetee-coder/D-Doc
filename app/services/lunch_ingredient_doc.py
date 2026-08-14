@@ -693,6 +693,47 @@ def render_inspect_notify(rnd, school, doc=None) -> str:
     return _finish(doc, own, f"บันทึกแจ้งตรวจรับพัสดุ_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
+def render_inspect_assign(rnd, school, doc=None) -> str:
+    """ตัวอย่าง 4 การมอบหมายการตรวจรับวัตถุดิบเพื่อใช้ในการประกอบอาหารกลางวัน
+    วันที่ตรวจรับ = วันสุดท้ายของแต่ละงวด (มีกี่งวด = กี่บรรทัด) · จัดให้อยู่ใน 1 หน้า"""
+    doc, own = _begin(doc)
+    prog = rnd.program
+    sname = _school_disp(school)
+    insp = _committee(rnd, "inspect")
+    insts = sorted(rnd.installments or [], key=lambda i: i.seq)
+    dates = [_dnum(i.end_date) for i in insts] or ["................................" for _ in range(3)]
+    DN = "............................................"
+    members = insp if insp else [None, None, None]
+
+    _p(doc, "การมอบหมายการตรวจรับวัตถุดิบเพื่อใช้ในการประกอบอาหารกลางวัน",
+       align="center", bold=True, size=17, after=2)
+    _p(doc, f"{sname}", align="center", after=6)
+    _p(doc, "เรียน  คณะกรรมการตรวจรับพัสดุ", after=0)
+    _p(doc, "ขอมอบหมายให้คณะกรรมการตรวจรับพัสดุ เพื่อทำหน้าที่ตรวจรับวัตถุดิบเพื่อใช้ในการประกอบอาหาร"
+            "กลางวันเบื้องต้นในแต่ละครั้งที่มีการส่งมอบ ดังนี้", align="justify", indent=1.25, after=2)
+    for i, m in enumerate(members):
+        nm = (m.name if m else "") or ""
+        role = "ประธานกรรมการตรวจรับพัสดุ" if i == 0 else "กรรมการตรวจรับพัสดุ"
+        _p(doc, f"นาย/นาง/นางสาว {nm or DN}        {role}", indent=0.5, after=0)
+    # วันที่ตรวจรับ = วันสุดท้ายของแต่ละงวด (งวดละ 1 บรรทัด)
+    _p(doc, "ทำหน้าที่ตรวจรับพัสดุในวันสุดท้ายของแต่ละงวด ดังนี้", indent=0.5, before=4, after=0)
+    for k, dt in enumerate(dates, 1):
+        label = f"งวดที่ {k}  " if insts else ""
+        _p(doc, f"{label}วันที่ {dt}", indent=1.25, after=0)
+    _p(doc, "และให้กรรมการที่ได้รับมอบหมายจัดทำบันทึกสรุปรายการวัตถุดิบที่ตรวจรับในแต่ละครั้ง "
+            "ส่งมอบให้เจ้าหน้าที่เป็นรายสัปดาห์/รายเดือน ต่อไป", align="justify", indent=1.25, before=2, after=2)
+    _p(doc, "จึงเรียนมาเพื่อโปรดทราบ", indent=1.25, after=6)
+    _p(doc, f"(ลงชื่อ) {DN} ประธานคณะกรรมการตรวจรับพัสดุ", align="center", after=8)
+    _p(doc, "ทราบ", indent=0.5, after=2)
+    for i, m in enumerate(members):
+        role = "ประธานกรรมการตรวจรับพัสดุ" if i == 0 else "กรรมการตรวจรับพัสดุ"
+        _p(doc, f"(ลงชื่อ) {DN} {role}", align="center", after=0)
+        nm = (m.name if m else "") or ""
+        _p(doc, f"( {nm} )" if nm else "( ........................................ )",
+           align="center", after=3)
+    return _finish(doc, own, f"มอบหมายการตรวจรับวัตถุดิบ_รอบที่{rnd.seq}_ปี{prog.year}")
+
+
 def render_inspect_report(rnd, school, doc=None) -> str:
     """บันทึกข้อความ รายงานการตรวจรับพัสดุ (เจ้าหน้าที่พัสดุ เสนอ ผอ. แนบใบตรวจรับ)
     ตรงตามคู่มืออาหารกลางวัน สพฐ."""
@@ -873,8 +914,8 @@ def render_ingredient_bundle(rnd, school) -> str:
     render_purchase_summary(rnd, school, doc)     # 9  สรุปรายการจัดซื้อ (เพื่อตรวจรับ)
     render_food_photos(rnd, school, doc)          # 10 รูปภาพอาหารกลางวัน
     render_control_report(rnd, school, doc)       # 11 รายงานการประกอบอาหาร
-    render_inspect_report(rnd, school, doc)       # 12 รายงานการตรวจรับพัสดุ (เสนอ ผอ.)
-    render_inspect_notify(rnd, school, doc)       # 13 แจ้งประธานกรรมการตรวจรับ
+    render_inspect_notify(rnd, school, doc)       # 12 แจ้งประธานกรรมการตรวจรับ (การตรวจรับพัสดุ)
+    render_inspect_assign(rnd, school, doc)       # 13 การมอบหมายการตรวจรับวัตถุดิบ (ตัวอย่าง 4)
     render_inspection_note(rnd, school, doc)      # 14 ใบตรวจรับพัสดุ (ข้อ 175)
     render_reimburse_summary(rnd, school, doc)    # 15 ใบสรุปเบิกเงินชดเชยเงินยืม (กรณีส่งใช้รายภาคเรียน)
     return _save(doc, f"ชุดเอกสารซื้อวัตถุดิบ_รอบที่{rnd.seq}_ปี{rnd.program.year}")

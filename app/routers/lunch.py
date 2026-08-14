@@ -482,7 +482,6 @@ LUNCH_DOC_META = {
     "borrow":         {"label": "ขออนุมัติยืมเงิน",                         "doc_type": "memo",       "idx": 2,  "fields": _F_MEMO},
     "loan":           {"label": "สัญญาการยืมเงิน",                          "doc_type": None,         "idx": 3,  "fields": _F_LOAN},
     "repay":          {"label": "ขออนุมัติเบิกจ่ายเพื่อส่งใช้เงินยืม",        "doc_type": "memo",       "idx": 4,  "fields": _F_MEMO},
-    "inspect-report": {"label": "รายงานการตรวจรับพัสดุ",                   "doc_type": "memo",       "idx": 5,  "fields": _F_MEMO},
     "inspect-notify": {"label": "การตรวจรับพัสดุ (แจ้งประธานกรรมการ)",     "doc_type": "memo",       "idx": 6,  "fields": _F_MEMO},
     "hire-report":    {"label": "รายงานขอจ้างเหมาประกอบอาหาร",            "doc_type": "memo",       "idx": 7,  "fields": _F_MEMO},
     "result":         {"label": "รายงานผลการพิจารณาจ้าง",                   "doc_type": "memo",       "idx": 8,  "fields": _F_MEMO},
@@ -502,7 +501,7 @@ LUNCH_DOC_META = {
 # เอกสารที่ต้องกรอกเลข + ลำดับที่แสดง แยกตามวิธีดำเนินการ (ตามชุดเอกสารจริงของแต่ละแบบ)
 #  จ้างเหมา/จ้างแม่ครัว: คำสั่งแต่งตั้งกรรมการ 3 ฉบับ กรอกเลขแยกกัน (cmd-*)
 _MODE_DOCS = {
-    "ingredient": ["report", "borrow", "loan", "repay", "inspect-report", "inspect-notify"],
+    "ingredient": ["report", "borrow", "loan", "repay", "inspect-notify"],
     "person":     ["hire-report", "result", "order",
                    "cmd-inspect", "cmd-cook_control", "cmd-food_inspect",
                    "borrow", "loan", "repay"],
@@ -1416,7 +1415,7 @@ _INGREDIENT_DOCS = {
     "photos": "render_food_photos", "estimate": "render_estimate",
     "purchase": "render_purchase_form", "material": "render_material_report_form",
     "receipt": "render_receipt_form", "control": "render_control_report",
-    "summary": "render_purchase_summary", "inspect-report": "render_inspect_report",
+    "summary": "render_purchase_summary", "inspect-assign": "render_inspect_assign",
     "inspect-notify": "render_inspect_notify", "inspect-note": "render_inspection_note",
     "repay": "render_repay_memo", "bundle": "render_ingredient_bundle",
     "reimburse": "render_reimburse_summary",
