@@ -45,11 +45,27 @@
     </select></div>
     <div style="flex:2;"><label>ชื่อ-นามสกุล</label><input name="name" list="persons_dl" oninput="fillPos(this)" required></div>
     <div><label>ตำแหน่ง</label><input name="position" value="ครู" style="width:150px;"></div>
-    <div><label>บทบาท</label><select name="role">
-      {% for rl in com_roles %}<option>{{ rl }}</option>{% endfor %}
+    <div><label>บทบาท</label><select name="role" id="roleSel">
+      {% set def_role = com_roles[0] if not committees[sel_kind] else com_roles[1] %}
+      {% for rl in com_roles %}<option {{ 'selected' if rl == def_role }}>{{ rl }}</option>{% endfor %}
     </select></div>
     <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
   </form>
+  <script>
+    // ตั้งบทบาทอัตโนมัติ: ชุดกรรมการที่ยังไม่มีคน -> ประธานกรรมการ, มีแล้ว -> กรรมการ (เปลี่ยนเองได้)
+    (function(){
+      var counts = { {% for k in com_kinds %}"{{ k }}": {{ committees[k]|length }}{{ "," if not loop.last }}{% endfor %} };
+      var form = document.querySelector('form[action$="/committee/add"]');
+      if(!form) return;
+      var kindSel = form.querySelector('select[name="kind"]');
+      var roleSel = document.getElementById('roleSel');
+      if(kindSel && roleSel){
+        kindSel.addEventListener('change', function(){
+          roleSel.value = (counts[this.value]||0) === 0 ? '{{ com_roles[0] }}' : '{{ com_roles[1] }}';
+        });
+      }
+    })();
+  </script>
   <datalist id="persons_dl">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist>
   {% for k, label in com_kinds.items() %}
   <h3 style="margin:14px 0 4px; color:var(--brand-dark); font-size:15px;">กรรมการ{{ label }}</h3>
