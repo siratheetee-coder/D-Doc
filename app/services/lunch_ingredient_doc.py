@@ -284,75 +284,101 @@ def render_purchase_report(rnd, school, doc=None) -> str:
 
 
 def render_purchase_form(rnd, school, doc=None) -> str:
-    """05 ใบจัดซื้อวัสดุเครื่องบริโภค วงเงินไม่เกิน 500,000 บาท (รวม 4 ส่วนในใบเดียว)"""
+    """05 ใบจัดซื้อวัสดุเครื่องบริโภค วงเงินไม่เกิน 500,000 บาท - ฟอร์ม 4 ส่วน (ตารางตามแบบ)
+    ตัดตารางรายการอาหาร/วัสดุออก (แนบเป็นหน้าแยกท้ายส่วน 1 และ 3) ตามที่ใช้จริง"""
+    from docx.shared import Cm as _Cm
     doc, own = _begin(doc)
     prog = rnd.program
     sname = _school_disp(school)
-    bname, bpos = _borrower(school, rnd.program)
     officer = (getattr(school, "officer_name", "") or "").strip() or _BLANK
     head = (getattr(school, "head_officer_name", "") or "").strip() or _BLANK
     director = (school.director_name or "").strip() or _BLANK
+    fin = (getattr(school, "finance_officer_name", "") or "").strip() or _BLANK
+    D = "..................................."
+
+    def nm_or(members, i):
+        return (members[i].name if (members and i < len(members) and members[i].name) else D)
+    ctrl = _committee(rnd, "cook_control") + _committee(rnd, "food_inspect")
+    insp = _committee(rnd, "inspect")
 
     _p(doc, "ใบจัดซื้อวัสดุเครื่องบริโภค วงเงินไม่เกิน 500,000 บาท", align="center", bold=True, size=17, after=0)
-    _p(doc, f"{sname}", align="center", after=6)
+    _p(doc, f"{sname}", align="center", after=4)
 
-    _p(doc, "ส่วนที่ 1 รายงานขอซื้อ", bold=True, indent=0.5, after=0)
-    _p(doc, f"ด้วย{sname} ขอจัดซื้อวัสดุเครื่องบริโภคตามรายการต่อไปนี้ เพื่อประกอบอาหารให้แก่"
-            "นักเรียนรับประทาน การจัดซื้อครั้งนี้ดำเนินการโดยวิธีเฉพาะเจาะจงตามมาตรา 56 (2) (ข) ประกอบ"
-            "หนังสือกระทรวงการคลัง ด่วนที่สุด ที่ กค (กวจ) 0405.2/ว 116 ลงวันที่ 12 มีนาคม 2562",
-       align="justify", indent=1)
-    _ings = _round_ingredients(rnd)
-    _menus = {m.date.date(): (m.main or "") for m in prog.menus if m.date}
-    _body, _pd, _tot = [], None, 0.0
-    for ig in _ings:
-        d = ig.date.date() if ig.date else None
-        amt = (ig.quantity or 0) * (ig.unit_price or 0); _tot += amt
-        _body.append([_menus.get(d, "") if d != _pd else "", ig.name or "",
-                      f"{_money(ig.quantity)} {ig.unit or ''}".strip(),
-                      _money(ig.unit_price), _money(amt), ""])
-        _pd = d
-    if _body:
-        _body.append(["", "รวมเป็นเงินทั้งสิ้น", "", "", _money(_tot), ""])
-    else:
-        _body = [["", "", "", "", "", ""] for _ in range(3)]
-    _simple_table(doc,
-                  ["รายการอาหาร", "วัสดุเครื่องบริโภค", "จำนวนหน่วย", "ราคาต่อหน่วย", "จำนวนเงิน", "หมายเหตุ"],
-                  _body,
-                  [Cm(3.4), Cm(3.4), Cm(2.2), Cm(2.2), Cm(2.2), Cm(2.6)])
-    _p(doc, "(ลงชื่อ)..................................ผู้จัดทำรายการ", align="center", before=2, after=8)
+    tbl = doc.add_table(rows=4, cols=2)
+    tbl.style = "Table Grid"
+    tbl.autofit = False
+    for row in tbl.rows:
+        row.cells[0].width = _Cm(7.75)
+        row.cells[1].width = _Cm(7.75)
 
-    _p(doc, "ส่วนที่ 2 การจัดซื้อ (เสนอเห็นชอบและแต่งตั้งกรรมการ)", bold=True, indent=0.5, after=0)
-    _p(doc, f"เรียน ผู้อำนวยการ{sname} เพื่อโปรดทราบและเห็นชอบตามรายงานขอซื้อ และแต่งตั้ง",
-       align="justify", indent=1, after=0)
-    _p(doc, "ผู้ควบคุมและคณะกรรมการตรวจการประกอบอาหาร และผู้ตรวจรับพัสดุ/คณะกรรมการตรวจรับพัสดุ",
-       indent=1, after=6)
-    _sign_table(doc, [
-        [("(ลงชื่อ)..............................เจ้าหน้าที่", "center"),
-         (f"( {officer} )", "center")],
-        [("(ลงชื่อ)..............................หัวหน้าเจ้าหน้าที่", "center"),
-         (f"( {head} )", "center")]])
-    _p(doc, "อนุมัติตามเสนอ ข้อ 1 และข้อ 2", align="center", bold=True, before=2, after=6)
-    _sign_table(doc, [
-        [("(ลงชื่อ)..............................ผู้อำนวยการโรงเรียน", "center"),
-         (f"( {director} )", "center")]])
+    # แถวหัว ส่วน 1 / ส่วน 3
+    _box_cell(tbl.cell(0, 0), [("ส่วนที่ 1 รายงานขอซื้อ", "left", True)], size=13)
+    _box_cell(tbl.cell(0, 1), [(f"ส่วนที่ 3 ใบรับรองแทนใบเสร็จ (บค. ........./..........)", "left", True)], size=13)
+    # ส่วน 1 body
+    _box_cell(tbl.cell(1, 0), [
+        (f"ด้วย {sname} ขอจัดซื้อวัสดุเครื่องบริโภคตามรายการต่อไปนี้ เพื่อประกอบอาหารให้แก่นักเรียน"
+         "รับประทาน ในวันที่ ................................ การจัดซื้อครั้งนี้ดำเนินการโดยวิธีเฉพาะเจาะจง"
+         "ตามมาตรา 56 (2) (ข) ประกอบหนังสือกระทรวงการคลัง ด่วนที่สุด ที่ กค (กวจ) 0405.2/ว 116 "
+         "ลงวันที่ 12 มีนาคม 2562", "left", False),
+        ("", "left", False),
+        (f"(ลงชื่อ) {D} ผู้จัดทำรายการ", "center", False),
+        (f"( {D} )", "center", False),
+        ("วันที่ ................................", "center", False),
+    ], size=12)
+    # ส่วน 3 body
+    _box_cell(tbl.cell(1, 1), [
+        (f"ข้าพเจ้า {D}", "left", False),
+        (f"ตำแหน่ง {D}", "left", False),
+        ("ได้จ่ายเงินจำนวน ..................... บาท", "left", False),
+        (f"ตัวอักษร ( {D} )", "left", False),
+        ("โดยไม่อาจเรียกใบเสร็จรับเงินจากผู้รับเงินได้ ตามรายการที่แนบ", "left", False),
+        ("", "left", False),
+        (f"(ลงชื่อ) {D} ผู้จ่ายเงิน", "center", False),
+        (f"( {D} )", "center", False),
+        ("วันที่ ................................", "center", False),
+    ], size=12)
 
-    _p(doc, "ส่วนที่ 3 ใบรับรองการจ่ายเงิน", bold=True, indent=0.5, before=4, after=0)
-    _p(doc, f"ข้าพเจ้า {bname} ตำแหน่ง {bpos} ได้จ่ายเงินค่าวัสดุเครื่องบริโภคตามรายการข้างต้น "
-            "โดยไม่อาจเรียกใบเสร็จรับเงินจากผู้รับเงินได้ ตามรายการที่ปรากฏในส่วนที่ 1",
-       align="justify", indent=1, after=8)
-    _p(doc, "(ลงชื่อ)..................................ผู้จ่ายเงิน", align="center", after=8)
-
-    _p(doc, "ส่วนที่ 4 ผลการตรวจและอนุมัติการจ่ายเงิน", bold=True, indent=0.5, after=0)
-    _p(doc, f"เรียน ผู้อำนวยการ{sname} เพื่อโปรดทราบ พัสดุตามรายการข้างต้นได้ทำการตรวจรับไว้"
-            "เป็นการถูกต้องครบถ้วนแล้ว และได้ตรวจสอบหลักฐานแล้วถูกต้อง จึงขออนุมัติเบิกจ่ายเงิน",
-       align="justify", indent=1, after=6)
-    _sign_table(doc, [
-        [("(ลงชื่อ)..............................เจ้าหน้าที่การเงิน", "center"),
-         ("(ลงชื่อ)..............................หัวหน้าเจ้าหน้าที่", "center")]])
-    _p(doc, "ทราบ/อนุมัติตามรายการที่ขอเบิกและจ่ายเงินได้", align="center", bold=True, before=2, after=6)
-    _sign_table(doc, [
-        [("(ลงชื่อ)..............................ผู้อำนวยการโรงเรียน", "center"),
-         (f"( {director} )", "center")]])
+    # แถวหัว ส่วน 2 / ส่วน 4
+    _box_cell(tbl.cell(2, 0), [("ส่วนที่ 2 การอนุมัติการจัดซื้อ", "left", True)], size=13)
+    _box_cell(tbl.cell(2, 1), [("ส่วนที่ 4 ผลการตรวจรับและอนุมัติการจ่ายเงิน", "left", True)], size=13)
+    # ส่วน 2 body
+    _box_cell(tbl.cell(3, 0), [
+        (f"เรียน  ผู้อำนวยการ{sname}", "left", False),
+        ("เพื่อโปรดทราบและ", "left", False),
+        ("1. เห็นชอบตามรายงานขอซื้อ", "left", False),
+        ("2. แต่งตั้งผู้ควบคุมและคณะกรรมการตรวจการประกอบอาหาร", "left", False),
+        (f"     2.1 {nm_or(ctrl, 0)}", "left", False),
+        (f"     2.2 {nm_or(ctrl, 1)}", "left", False),
+        (f"     2.3 {nm_or(ctrl, 2)}", "left", False),
+        ("3. แต่งตั้งผู้ตรวจรับหรือคณะกรรมการตรวจรับพัสดุ", "left", False),
+        (f"     3.1 {nm_or(insp, 0)}  ประธาน", "left", False),
+        (f"     3.2 {nm_or(insp, 1)}  กรรมการ", "left", False),
+        (f"     3.3 {nm_or(insp, 2)}  กรรมการ", "left", False),
+        (f"(ลงชื่อ) {D} เจ้าหน้าที่   ( {officer} )", "left", False),
+        (f"(ลงชื่อ) {D} หัวหน้าเจ้าหน้าที่   ( {head} )", "left", False),
+        ("วันที่ ................................", "left", False),
+        ("อนุมัติตามเสนอข้อ 1 และ 2", "left", True),
+        (f"(ลงชื่อ) {D} ผู้อำนวยการโรงเรียน", "left", False),
+        (f"( {director} )   วันที่ ....................", "left", False),
+    ], size=12)
+    # ส่วน 4 body
+    _box_cell(tbl.cell(3, 1), [
+        (f"เรียน  ผู้อำนวยการ{sname}", "left", False),
+        ("เพื่อโปรดทราบ พัสดุตามรายการข้างต้นได้ทำการตรวจรับไว้เป็นการถูกต้อง ครบถ้วนแล้ว", "left", False),
+        (f"(ลงชื่อ) {D} ลายมือชื่อ", "left", False),
+        (f"(ลงชื่อ) {D} คณะกรรมการ", "left", False),
+        (f"(ลงชื่อ) {D} ตรวจรับพัสดุ", "left", False),
+        (f"(ลงชื่อ) {D} เจ้าหน้าที่   ( {officer} )", "left", False),
+        ("ได้ตรวจสอบหลักฐานแล้วถูกต้อง จึงขออนุมัติเบิกจ่ายเงิน", "left", False),
+        ("ประเภท ............ จำนวนเงิน ................ บาท", "left", False),
+        (f"(ลงชื่อ) {D} เจ้าหน้าที่การเงิน   ( {fin} )", "left", False),
+        ("วันที่ ................................", "left", False),
+        ("ทราบ อนุมัติตามรายการที่ขอเบิก และจ่ายเงินได้", "left", True),
+        (f"(ลงชื่อ) {D} ผู้อำนวยการโรงเรียน   ( {director} )", "left", False),
+        ("วันที่ ................................", "left", False),
+        (f"(ลงชื่อ) {D} ผู้รับเงิน", "left", False),
+        (f"(ลงชื่อ) {D} ผู้จ่ายเงิน", "left", False),
+    ], size=12)
     return _finish(doc, own, f"ใบจัดซื้อวัสดุเครื่องบริโภค_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
