@@ -24,7 +24,7 @@
     <h2 style="margin:0;">{{ month_name }} <span class="muted" style="font-size:15px;">เปิดเรียน {{ open_days|length }} วัน · {{ students|length }} คน</span></h2>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <button class="btn soft" type="button" onclick="allPresent()">ทุกคนมาทุกวัน</button>
-      <a class="btn soft gray" href="/academic/attendance?cid={{ c.id }}">← สรุปทั้งปี</a>
+      <a class="btn soft gray" href="/academic/attendance?cid={{ c.id }}&show=months">← กลับหน้ารายเดือน</a>
     </div>
   </div>
   <p class="muted" style="font-size:13px; margin:6px 0 8px;">
@@ -75,13 +75,17 @@
 </div>
 
 <style>
-  .mk { width:100%; min-width:26px; border:1px solid var(--border); background:#fff; border-radius:6px;
-        padding:4px 0; cursor:pointer; font-size:14px; font-weight:700; line-height:1.1; color:var(--text); }
-  .mk:hover { border-color:var(--brand); }
-  .mk[data-v="/"] { background:#e6f7ef; border-color:#7ddcae; color:#047857; }
-  .mk[data-v="ป"] { background:#fff4e6; border-color:#f7c07a; color:#b45309; }
-  .mk[data-v="ล"] { background:#eef2ff; border-color:#a5b4fc; color:#4338ca; }
-  .mk[data-v="ข"] { background:#fdecec; border-color:#f5a3a3; color:#b91c1c; }
+  .mk { width:100%; min-width:34px; min-height:34px; border:1.5px solid #cbd5e1; background:#fff; border-radius:8px;
+        padding:5px 0; cursor:pointer; font-size:17px; font-weight:800; line-height:1.1; color:#64748b;
+        transition:transform .05s ease, box-shadow .12s ease; }
+  .mk:hover { border-color:var(--brand); box-shadow:0 0 0 3px rgba(124,92,246,.14); }
+  .mk:active { transform:scale(.94); }
+  .mk[data-v=""] { border-style:dashed; color:#cbd5e1; }
+  .mk[data-v=""]::before { content:"·"; }
+  .mk[data-v="/"] { background:#dcfce7; border-color:#34d399; color:#047857; }
+  .mk[data-v="ป"] { background:#ffedd5; border-color:#fb923c; color:#b45309; }
+  .mk[data-v="ล"] { background:#e0e7ff; border-color:#818cf8; color:#4338ca; }
+  .mk[data-v="ข"] { background:#fee2e2; border-color:#f87171; color:#b91c1c; }
 </style>
 <script>
   // วนสถานะ: ว่าง -> มา -> ป่วย -> ลา -> ขาด -> ว่าง

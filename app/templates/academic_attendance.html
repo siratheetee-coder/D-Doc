@@ -46,18 +46,20 @@
     <span><b>จำนวนวันมาเรียนไม่ครบ</b> <span id="attWarnN"></span> -
       โปรดกรอกจำนวนวัน <b>ป่วย / ลา / ขาด</b> ให้ครบ แล้วระบบจะรวมเป็นจำนวนวันมาเรียนให้</span></div>
 
-  <label style="display:inline-flex; align-items:center; gap:7px; margin:0 0 10px; cursor:pointer; font-size:14px;">
-    <input type="checkbox" id="showMonths" style="width:17px; height:17px;"> แสดงรายเดือน (สำหรับเช็กชื่อรายวัน)
+  {% set show_m = request.query_params.get('show') == 'months' %}
+  <label class="show-months-btn" style="cursor:pointer;">
+    <input type="checkbox" id="showMonths" style="width:17px; height:17px;" {% if show_m %}checked{% endif %}>
+    <svg class="icon"><use href="#ic-calendar"/></svg> แสดงรายเดือน (คลิกชื่อเดือนเพื่อเช็กชื่อรายวัน)
   </label>
 
   <form method="post" action="/academic/attendance/save">
     <input type="hidden" name="cid" value="{{ c.id }}">
     <div class="table-wrap">
-    <table id="attTable" class="hide-months">
+    <table id="attTable" class="{% if not show_m %}hide-months{% endif %}">
       <thead><tr>
         <th>เลขที่</th><th>ชื่อ-นามสกุล</th>
         {% for mnum, mname in months %}<th class="mcol center" style="white-space:nowrap;">
-          <a href="/academic/attendance?cid={{ c.id }}&month={{ mnum }}" title="เช็กชื่อรายวัน {{ mname }}">{{ mname }}</a>
+          <a class="month-hd" href="/academic/attendance?cid={{ c.id }}&month={{ mnum }}" title="เช็กชื่อรายวัน {{ mname }}">{{ mname }} ✎</a>
           {% if cal_days.get(mnum) %}<i style="display:block; font-style:normal; font-size:10px; font-weight:400; color:var(--muted);">{{ cal_days[mnum] }} วัน</i>{% endif %}
         </th>{% endfor %}
         <th class="center">เปิด(รวม)</th>
@@ -111,7 +113,10 @@
       </tbody>
     </table>
     </div>
-    <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกเวลาเรียน</button>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px;">
+      <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกเวลาเรียน</button>
+      <button class="btn soft" type="button" onclick="allFullYear()">✔ ทุกคนมาเรียนทุกวัน</button>
+    </div>
   </form>
   {% else %}
   <p class="muted">ห้องนี้ยังไม่มีนักเรียน - <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
@@ -119,6 +124,14 @@
 </div>
 <style>
   #attTable.hide-months .mcol { display: none; }
+  .show-months-btn { display:inline-flex; align-items:center; gap:7px; margin:0 0 10px; font-size:14px;
+    padding:8px 14px; border:1.5px solid var(--brand); border-radius:9px; background:var(--brand-50, #f5f3ff);
+    color:var(--brand-dark); font-weight:600; }
+  .show-months-btn:hover { background:var(--brand); color:#fff; }
+  .show-months-btn:hover .icon { color:#fff; }
+  .month-hd { display:inline-block; padding:3px 9px; border:1px solid var(--brand); border-radius:7px;
+    background:#fff; color:var(--brand-dark); font-weight:700; text-decoration:none; font-size:13px; }
+  .month-hd:hover { background:var(--brand); color:#fff; }
   /* ช่องที่ยอดยังไม่ครบ: กระพริบแดงจนกว่าจะกรอกให้ครบ */
   @keyframes attBlink {
     0%, 100% { background: #fff; border-color: #dc2626; }
@@ -190,6 +203,13 @@
   document.getElementById('showMonths').addEventListener('change', function(){
     document.getElementById('attTable').classList.toggle('hide-months', !this.checked);
   });
+  // ทุกคนมาเรียนทุกวัน = ป่วย/ลา/ขาด = 0 ทุกคน แล้วระบบคิด มา(รวม) = วันเปิดเรียนเต็ม
+  function allFullYear(){
+    document.querySelectorAll('tr[data-row] [data-gap]').forEach(function(i){
+      if (!i.readOnly) i.value = '0';
+    });
+    recalc();
+  }
   recalc();
 </script>
 {% endif %}
