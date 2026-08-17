@@ -25,7 +25,8 @@ from app.services.lunch_ingredient_doc import (
     render_borrow_memo, render_estimate, render_purchase_form,
     render_material_report_form, render_receipt_form, render_control_report,
     render_repay_memo, render_purchase_report, render_loan_contract,
-    render_inspection_note,
+    render_inspection_note, render_ingredient_deliver, render_inspect_detail,
+    render_reimburse_advance, render_wht_cook, render_inspect_assign,
 )
 
 _WORK = "จ้างบุคคลประกอบอาหารกลางวัน"
@@ -491,7 +492,14 @@ def render_person_bundle(rnd, school) -> str:
     render_borrow_memo(rnd, school, doc)
     render_loan_contract(rnd, school, doc)
     render_estimate(rnd, school, doc)
-    render_repay_memo(rnd, school, doc)
+    render_purchase_form(rnd, school, doc)           # ใบจัดซื้อวัสดุ 4 ส่วน + แนบท้าย
+    render_ingredient_deliver(rnd, school, doc)      # ใบส่งมอบวัตถุดิบ (รายวัน)
     render_material_report_form(rnd, school, doc)
+    render_inspect_assign(rnd, school, doc)          # มอบหมายการตรวจรับวัตถุดิบ
+    render_inspection_note(rnd, school, doc)         # ใบตรวจรับพัสดุ (วัตถุดิบ)
+    render_inspect_detail(rnd, school, doc)          # ใบแสดงรายละเอียดการตรวจรับ
     render_receipt_form(rnd, school, doc)
+    render_repay_memo(rnd, school, doc)
+    render_reimburse_advance(rnd, school, doc)       # ใบสรุปเบิกเงินทดรองจ่าย (วัตถุดิบ)
+    render_wht_cook(rnd, school, doc)                # หนังสือรับรองหักภาษี ณ ที่จ่าย (ค่าจ้าง)
     return _save(doc, f"ชุดเอกสารจ้างแม่ครัว_รอบที่{rnd.seq}_ปี{rnd.program.year}")

@@ -1419,7 +1419,9 @@ _INGREDIENT_DOCS = {
     "summary": "render_purchase_summary", "inspect-assign": "render_inspect_assign",
     "inspect-notify": "render_inspect_notify", "inspect-note": "render_inspection_note",
     "repay": "render_repay_memo", "bundle": "render_ingredient_bundle",
-    "reimburse": "render_reimburse_summary",
+    "reimburse": "render_reimburse_summary", "purchase-attach": "render_purchase_attach",
+    "ingredient-deliver": "render_ingredient_deliver", "inspect-detail": "render_inspect_detail",
+    "reimburse-advance": "render_reimburse_advance", "wht-cook": "render_wht_cook",
 }
 
 

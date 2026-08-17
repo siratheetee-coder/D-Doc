@@ -333,8 +333,11 @@
     <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/control"><svg class="icon"><use href="#ic-file"/></svg> รายงานการประกอบอาหาร</a>
     <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/inspect-notify"><svg class="icon"><use href="#ic-file"/></svg> แจ้งประธานกรรมการตรวจรับ</a>
     <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/inspect-assign"><svg class="icon"><use href="#ic-file"/></svg> มอบหมายการตรวจรับวัตถุดิบ</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/inspect-detail"><svg class="icon"><use href="#ic-file"/></svg> ใบแสดงรายละเอียดการตรวจรับ</a>
     <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/inspect-note"><svg class="icon"><use href="#ic-file"/></svg> ใบตรวจรับพัสดุ (ข้อ 175)</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/purchase"><svg class="icon"><use href="#ic-file"/></svg> <span class="muted">(ทางเลือก) ใบจัดซื้อวัสดุ 4 ส่วน</span></a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/ingredient-deliver"><svg class="icon"><use href="#ic-file"/></svg> ใบส่งมอบวัตถุดิบ (รายวัน)</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/reimburse-advance"><svg class="icon"><use href="#ic-file"/></svg> ใบสรุปเบิกเงินทดรองจ่าย</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/purchase"><svg class="icon"><use href="#ic-file"/></svg> ใบจัดซื้อวัสดุ 4 ส่วน + แนบท้าย</a>
   </div>
 </div>
 {% elif p.operate_mode == 'person' %}
@@ -359,8 +362,13 @@
     <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/material"><svg class="icon"><use href="#ic-file"/></svg> ใบรับรายงานวัตถุดิบ</a>
     <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/receipt"><svg class="icon"><use href="#ic-file"/></svg> ใบรับรองการจ่ายเงิน</a>
     <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/repay"><svg class="icon"><use href="#ic-file"/></svg> ขออนุมัติส่งใช้เงินยืม</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/purchase"><svg class="icon"><use href="#ic-file"/></svg> ใบจัดซื้อวัสดุ 4 ส่วน + แนบท้าย</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/ingredient-deliver"><svg class="icon"><use href="#ic-file"/></svg> ใบส่งมอบวัตถุดิบ (รายวัน)</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/inspect-detail"><svg class="icon"><use href="#ic-file"/></svg> ใบแสดงรายละเอียดการตรวจรับ</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/reimburse-advance"><svg class="icon"><use href="#ic-file"/></svg> ใบสรุปเบิกเงินทดรองจ่าย</a>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/wht-cook"><svg class="icon"><use href="#ic-file"/></svg> หนังสือรับรองหักภาษี ณ ที่จ่าย (ค่าจ้าง)</a>
   </div>
-  <p class="muted" style="margin:12px 0 0; font-size:13px;">งวดงาน (ควบคุม/ส่งมอบ/ตรวจรับ) และขอเบิกจ่าย+หัก ณ ที่จ่าย ออกได้จากปุ่มในแต่ละงวดด้านบน</p>
+  <p class="muted" style="margin:12px 0 0; font-size:13px;">งวดงาน (ควบคุม/ส่งมอบ/ตรวจรับ) และขอเบิกจ่าย ออกได้จากปุ่มในแต่ละงวดด้านบน</p>
 </div>
 {% else %}
 <div class="card">
