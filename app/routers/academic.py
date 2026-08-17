@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import (Student, Person, AcadClass, AcadStudent, AcadSubject,
                         AcadTeaching, AcadScore, AcadEval,
+                        AcadAssignment, AcadAssignmentScore,
                         AcadCharEval, AcadReadEval, AcadAttendance, AcadClassMonth,
                         AcadCalendar, AcadHoliday, AcadYearSetting,
                         AcadActivity, AcadActivityResult, AcadOnet)
@@ -352,6 +353,24 @@ def activities_preset(db: Session = Depends(get_db), year: str = Form(""), level
 
 
 # ---------------- กรอกผลการเรียน ----------------
+def _keep_max(subj, assignments) -> float:
+    """คะแนนเก็บเต็มที่ใช้จริง: ถ้ามีชิ้นงาน = ผลรวมคะแนนเต็มทุกชิ้น, ไม่งั้นใช้ mid_max ของวิชา"""
+    if assignments:
+        return round(sum((a.max_score or 0) for a in assignments), 2)
+    return float(subj.mid_max if (subj.mid_max or 0) > 0 else 70)
+
+
+def _recompute_score(row, subj, keep_max):
+    """คำนวณคะแนนรวม + เกรด จาก score_mid/score_final ที่มีอยู่ในแถว (เกรดที่แก้มือคงไว้)"""
+    fmax = subj.final_max if (subj.final_max or 0) > 0 else 30
+    mid, fin = row.score_mid, row.score_final
+    total = None
+    if mid is not None or fin is not None:
+        total = (mid or 0) + (fin or 0)
+    row.score = total
+    return total, (keep_max + fmax)
+
+
 @router.get("/academic/grades", response_class=HTMLResponse)
 def grades_page(request: Request, db: Session = Depends(get_db), cid: int | None = None,
                 sid: int | None = None, term: int | None = None, year: int | None = None):
@@ -359,6 +378,7 @@ def grades_page(request: Request, db: Session = Depends(get_db), cid: int | None
     classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
     c = db.get(AcadClass, cid) if cid else None
     subjects, students, scores, subj = [], [], {}, None
+    assignments, item_scores, keep_max = [], {}, 0
     if c:
         subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
                     .order_by(AcadSubject.seq, AcadSubject.code).all())
@@ -371,49 +391,147 @@ def grades_page(request: Request, db: Session = Depends(get_db), cid: int | None
             students = sorted(c.students, key=lambda s: (s.seq or 999, s.name))
             scores = {s.acad_student_id: s for s in
                       db.query(AcadScore).filter_by(subject_id=subj.id, term=t).all()}
+            # ชิ้นงานเก็บคะแนน (รวมสอบกลางภาค) ของวิชานี้ + คะแนนรายชิ้นของนักเรียน
+            assignments = (db.query(AcadAssignment)
+                           .filter_by(subject_id=subj.id, term=t)
+                           .order_by(AcadAssignment.seq, AcadAssignment.id).all())
+            keep_max = _keep_max(subj, assignments)
+            if assignments:
+                aids = [a.id for a in assignments]
+                for r in (db.query(AcadAssignmentScore)
+                          .filter(AcadAssignmentScore.assignment_id.in_(aids)).all()):
+                    item_scores[(r.acad_student_id, r.assignment_id)] = r.score
     return templates.TemplateResponse("academic_grades.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "classes": classes, "c": c, "subjects": subjects, "subj": subj,
         "students": students, "scores": scores, "class_label": _class_label,
         "term_label": term_label, "grades": GRADE_CHOICES,
+        "assignments": assignments, "item_scores": item_scores, "keep_max": keep_max,
     })
 
 
-@router.post("/academic/grades/save")
-async def grades_save(request: Request, db: Session = Depends(get_db),
-                      cid: str = Form(""), sid: str = Form("")):
-    """บันทึกคะแนนทั้งห้องในครั้งเดียว · เกรดคำนวณจากคะแนนรวม (กรอกเกรดเองทับได้)"""
+@router.post("/academic/assignments/save")
+async def assignments_save(request: Request, db: Session = Depends(get_db),
+                           cid: str = Form(""), sid: str = Form("")):
+    """จัดการชิ้นงานเก็บคะแนน (รวมสอบกลางภาค) ของรายวิชา · เพิ่ม/แก้ชื่อ+คะแนนเต็ม/ลบ"""
     form = await request.form()
     subj = db.get(AcadSubject, _to_int(sid, 0))
     if not subj:
         return RedirectResponse("/academic/grades", status_code=303)
     t = subj.term if subj.term is not None else 0
-    mmax = subj.mid_max if (subj.mid_max or 0) > 0 else 70
+    existing = {a.id: a for a in db.query(AcadAssignment).filter_by(subject_id=subj.id, term=t).all()}
+    # ลบชิ้นงานที่ติ๊กลบ
+    for did in form.getlist("del"):
+        a = existing.pop(_to_int(did, 0), None)
+        if a:
+            db.delete(a)
+    # แก้ชิ้นงานเดิม (a_name_<id>, a_max_<id>, a_mid_<id>)
+    for aid, a in list(existing.items()):
+        name = (form.get(f"a_name_{aid}", "") or "").strip()
+        if not name:                                 # เว้นชื่อว่าง = ลบชิ้นนั้น
+            db.delete(a)
+            continue
+        a.name = name
+        a.max_score = max(0.0, _to_float(form.get(f"a_max_{aid}", ""), 10.0) or 0.0)
+        a.is_midterm = form.get(f"a_mid_{aid}", "") == "1"
+        a.seq = _to_int(form.get(f"a_seq_{aid}", ""), a.seq or 0)
+    # เพิ่มชิ้นงานใหม่ (แถวว่างท้ายตาราง: new_name[], new_max[], new_mid[])
+    nnames = form.getlist("new_name")
+    nmaxs = form.getlist("new_max")
+    nmids = form.getlist("new_mid")
+    base_seq = max([a.seq or 0 for a in existing.values()], default=0)
+    for i, nm in enumerate(nnames):
+        nm = (nm or "").strip()
+        if not nm:
+            continue
+        base_seq += 1
+        db.add(AcadAssignment(
+            subject_id=subj.id, term=t, name=nm,
+            max_score=max(0.0, _to_float(nmaxs[i] if i < len(nmaxs) else "", 10.0) or 0.0),
+            is_midterm=(nmids[i] if i < len(nmids) else "") == "1", seq=base_seq))
+    db.commit()
+    return RedirectResponse(f"/academic/grades?cid={cid}&sid={sid}&saved=1#assign", status_code=303)
+
+
+@router.post("/academic/grades/save")
+async def grades_save(request: Request, db: Session = Depends(get_db),
+                      cid: str = Form(""), sid: str = Form("")):
+    """บันทึกคะแนนทั้งห้องในครั้งเดียว · เกรดคำนวณจากคะแนนรวม (กรอกเกรดเองทับได้)
+    ถ้าวิชานี้มีชิ้นงาน คะแนนเก็บ = ผลรวมคะแนนรายชิ้น (กรอกช่องชิ้นงาน ไม่กรอกช่องเก็บรวม)"""
+    form = await request.form()
+    subj = db.get(AcadSubject, _to_int(sid, 0))
+    if not subj:
+        return RedirectResponse("/academic/grades", status_code=303)
+    t = subj.term if subj.term is not None else 0
     fmax = subj.final_max if (subj.final_max or 0) > 0 else 30
+    assignments = (db.query(AcadAssignment).filter_by(subject_id=subj.id, term=t)
+                   .order_by(AcadAssignment.seq, AcadAssignment.id).all())
+    keep_max = _keep_max(subj, assignments)
+    amax = {a.id: (a.max_score or 0) for a in assignments}
     cur = {s.acad_student_id: s for s in
            db.query(AcadScore).filter_by(subject_id=subj.id, term=t).all()}
-    for key in [k for k in form.keys() if k.startswith("mid_")]:
-        aid = _to_int(key[4:], 0)
-        if not aid:
-            continue
-        mid = _to_float(form.get(f"mid_{aid}", ""), None)
-        fin = _to_float(form.get(f"fin_{aid}", ""), None)
-        if mid is not None:
-            mid = max(0.0, min(mid, float(mmax)))    # กันกรอกเกินคะแนนเต็มของวิชานี้
-        if fin is not None:
-            fin = max(0.0, min(fin, float(fmax)))
-        manual = (form.get(f"grade_{aid}", "") or "").strip()
-        total = None
-        if mid is not None or fin is not None:
-            total = (mid or 0) + (fin or 0)
-        row = cur.get(aid)
-        if not row:
-            row = AcadScore(acad_student_id=aid, subject_id=subj.id, term=t)
-            db.add(row)
-        row.score_mid, row.score_final, row.score = mid, fin, total
-        # เกรดตัดจากร้อยละ - ถ้าสัดส่วนรวมไม่ใช่ 100 (เช่น 80:20 เต็ม 100 อยู่แล้วก็ค่าเดิม)
-        pct = None if total is None else (total * 100.0 / (mmax + fmax))
-        row.grade = manual or grade_of(pct)
+    klass = db.get(AcadClass, _to_int(cid, 0))
+    sids = ([s.id for s in klass.students] if klass else
+            [_to_int(k[4:], 0) for k in form.keys() if k.startswith("fin_")])
+
+    if assignments:
+        # โหลด/อัปเดตคะแนนรายชิ้น แล้วรวมเป็นคะแนนเก็บ
+        aids = list(amax.keys())
+        item_rows = {(r.acad_student_id, r.assignment_id): r for r in
+                     db.query(AcadAssignmentScore)
+                     .filter(AcadAssignmentScore.assignment_id.in_(aids)).all()}
+        for aid_s in sids:
+            keep_sum, has_item = 0.0, False
+            for a_id in aids:
+                raw = form.get(f"item_{aid_s}_{a_id}", None)
+                if raw is None:
+                    continue
+                v = _to_float(raw, None)
+                if v is not None:
+                    v = max(0.0, min(v, float(amax[a_id])))    # กันเกินเต็มของชิ้น
+                    keep_sum += v
+                    has_item = True
+                r = item_rows.get((aid_s, a_id))
+                if r is None:
+                    r = AcadAssignmentScore(acad_student_id=aid_s, assignment_id=a_id)
+                    db.add(r)
+                r.score = v
+            fin = _to_float(form.get(f"fin_{aid_s}", ""), None)
+            if fin is not None:
+                fin = max(0.0, min(fin, float(fmax)))
+            manual = (form.get(f"grade_{aid_s}", "") or "").strip()
+            mid = round(keep_sum, 2) if has_item else None
+            row = cur.get(aid_s)
+            if not row:
+                row = AcadScore(acad_student_id=aid_s, subject_id=subj.id, term=t)
+                db.add(row)
+            row.score_mid, row.score_final = mid, fin
+            total, denom = _recompute_score(row, subj, keep_max)
+            pct = None if total is None else (total * 100.0 / denom if denom else None)
+            row.grade = manual or grade_of(pct)
+    else:
+        # โหมดเดิม: กรอกคะแนนเก็บรวมเป็นก้อนเดียว
+        mmax = subj.mid_max if (subj.mid_max or 0) > 0 else 70
+        for aid_s in sids:
+            if form.get(f"mid_{aid_s}", None) is None and form.get(f"fin_{aid_s}", None) is None:
+                continue
+            mid = _to_float(form.get(f"mid_{aid_s}", ""), None)
+            fin = _to_float(form.get(f"fin_{aid_s}", ""), None)
+            if mid is not None:
+                mid = max(0.0, min(mid, float(mmax)))
+            if fin is not None:
+                fin = max(0.0, min(fin, float(fmax)))
+            manual = (form.get(f"grade_{aid_s}", "") or "").strip()
+            total = None
+            if mid is not None or fin is not None:
+                total = (mid or 0) + (fin or 0)
+            row = cur.get(aid_s)
+            if not row:
+                row = AcadScore(acad_student_id=aid_s, subject_id=subj.id, term=t)
+                db.add(row)
+            row.score_mid, row.score_final, row.score = mid, fin, total
+            pct = None if total is None else (total * 100.0 / (mmax + fmax))
+            row.grade = manual or grade_of(pct)
     db.commit()
     return RedirectResponse(f"/academic/grades?cid={cid}&sid={sid}&saved=1", status_code=303)
 

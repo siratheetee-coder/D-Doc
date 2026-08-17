@@ -56,28 +56,87 @@
       <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx{% if subj.term %}?term={{ subj.term }}{% endif %}"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม{% if subj.term %} ภาค {{ subj.term }}{% endif %}</a>
     </div>
   </div>
-  <p class="muted" style="font-size:13px; margin:6px 0 8px;">สัดส่วนวิชานี้: เก็บเต็ม <b>{{ subj.mid_max or 70 }}</b> + ปลายภาคเต็ม <b>{{ subj.final_max or 30 }}</b>
-    (ตั้งได้ที่หน้ารายวิชา) · เกรดคิดจากร้อยละของคะแนนรวม (80=4 · 75=3.5 · 70=3 · 65=2.5 · 60=2 · 55=1.5 · 50=1)
-    · ถ้าเลือกเกรดเองจะใช้ค่าที่เลือกแทน (เช่น ร / มส)</p>
+  {% set fmax = subj.final_max or 30 %}
+  <p class="muted" style="font-size:13px; margin:6px 0 8px;">สัดส่วนวิชานี้: เก็บเต็ม <b>{{ keep_max|round(2)|int if keep_max == keep_max|int else keep_max }}</b>
+    {% if assignments %}<span style="color:var(--brand-dark);">(รวมจากชิ้นงาน {{ assignments|length }} ชิ้น)</span>{% endif %}
+    + ปลายภาคเต็ม <b>{{ fmax }}</b>
+    · เกรดคิดจากร้อยละของคะแนนรวม (80=4 · 75=3.5 · 70=3 · 65=2.5 · 60=2 · 55=1.5 · 50=1)
+    · เลือกเกรดเองจะใช้ค่าที่เลือกแทน (เช่น ร / มส)</p>
+
+  {# ---------- จัดการชิ้นงานเก็บคะแนน (รวมสอบกลางภาค) ---------- #}
+  <details id="assign" class="assign-box" {% if assignments %}open{% endif %}>
+    <summary><b>ชิ้นงานเก็บคะแนน</b> <span class="muted">({{ assignments|length }} ชิ้น · เก็บเต็มรวม {{ keep_max|round(2)|int if keep_max == keep_max|int else keep_max }} คะแนน)</span>
+      <span class="muted" style="font-weight:400; font-size:12.5px;"> — กำหนดใบงาน/การบ้าน/สอบเก็บย่อย และสอบกลางภาค แล้วระบบรวมเป็นคะแนนเก็บให้เอง</span></summary>
+    <form method="post" action="/academic/assignments/save" style="margin-top:8px;">
+      <input type="hidden" name="cid" value="{{ c.id }}"><input type="hidden" name="sid" value="{{ subj.id }}">
+      <div class="table-wrap">
+      <table class="assign-tbl">
+        <thead><tr><th style="width:40px;">ลำดับ</th><th>ชื่อชิ้นงาน / การสอบ</th><th style="width:110px;">คะแนนเต็ม</th><th style="width:90px;">สอบกลางภาค</th><th style="width:60px;">ลบ</th></tr></thead>
+        <tbody>
+        {% for a in assignments %}
+          <tr>
+            <td><input name="a_seq_{{ a.id }}" value="{{ a.seq or loop.index }}" type="number" style="width:52px;"></td>
+            <td><input name="a_name_{{ a.id }}" value="{{ a.name }}" style="width:100%;" placeholder="เช่น ใบงานที่ 1"></td>
+            <td><input name="a_max_{{ a.id }}" value="{{ '%g'|format(a.max_score or 0) }}" type="number" min="0" step="0.5" style="width:90px;"></td>
+            <td class="center"><input type="checkbox" name="a_mid_{{ a.id }}" value="1" {{ 'checked' if a.is_midterm }}></td>
+            <td class="center"><input type="checkbox" name="del" value="{{ a.id }}"></td>
+          </tr>
+        {% endfor %}
+        {% for i in range(3) %}
+          <tr>
+            <td class="muted center">ใหม่</td>
+            <td><input name="new_name" placeholder="+ เพิ่มชิ้นงานใหม่" style="width:100%;"></td>
+            <td><input name="new_max" value="10" type="number" min="0" step="0.5" style="width:90px;"></td>
+            <td class="center"><input type="checkbox" name="new_mid" value="1"></td>
+            <td></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      <button class="btn soft" type="submit" style="margin-top:8px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกรายการชิ้นงาน</button>
+      <span class="muted" style="font-size:12px;">· เว้นชื่อว่างในแถวเดิม = ลบชิ้นนั้น · บันทึกชิ้นงานก่อน แล้วค่อยกรอกคะแนนด้านล่าง</span>
+    </form>
+  </details>
+
   {% if students %}
   <form method="post" action="/academic/grades/save">
     <input type="hidden" name="cid" value="{{ c.id }}"><input type="hidden" name="sid" value="{{ subj.id }}">
     <div class="table-wrap">
     <table>
-      <thead><tr><th>เลขที่</th><th>ชื่อ-นามสกุล</th><th>คะแนนเก็บ (เต็ม {{ subj.mid_max or 70 }})</th><th>ปลายภาค (เต็ม {{ subj.final_max or 30 }})</th><th>รวม (เต็ม {{ (subj.mid_max or 70) + (subj.final_max or 30) }})</th><th>ผลการเรียน</th></tr></thead>
+      <thead><tr><th>เลขที่</th><th>ชื่อ-นามสกุล</th>
+        {% if assignments %}
+          {% for a in assignments %}<th style="min-width:64px; font-size:12px;" title="{{ a.name }}{% if a.is_midterm %} (สอบกลางภาค){% endif %}">
+            {{ a.name }}{% if a.is_midterm %} ★{% endif %}<br><span class="muted" style="font-weight:400;">/{{ '%g'|format(a.max_score or 0) }}</span></th>{% endfor %}
+          <th>เก็บรวม<br><span class="muted" style="font-weight:400;">/{{ '%g'|format(keep_max) }}</span></th>
+        {% else %}
+          <th>คะแนนเก็บ<br><span class="muted" style="font-weight:400;">(เต็ม {{ keep_max|round(2)|int if keep_max == keep_max|int else keep_max }})</span></th>
+        {% endif %}
+        <th>ปลายภาค<br><span class="muted" style="font-weight:400;">(เต็ม {{ fmax }})</span></th>
+        <th>รวม<br><span class="muted" style="font-weight:400;">/{{ '%g'|format(keep_max + fmax) }}</span></th><th>ผลการเรียน</th></tr></thead>
       <tbody>
       {% for s in students %}
         {% set sc = scores.get(s.id) %}
         <tr>
           <td>{{ s.seq or '' }}</td>
-          <td>{{ s.name }}</td>
-          <td><input name="mid_{{ s.id }}" value="{{ '%g'|format(sc.score_mid) if sc and sc.score_mid is not none else '' }}"
-                     inputmode="decimal" type="number" min="0" max="{{ subj.mid_max or 70 }}" step="0.5"
-                     style="width:90px;" data-sum="{{ s.id }}"></td>
+          <td style="white-space:nowrap;">{{ s.name }}</td>
+          {% if assignments %}
+            {% for a in assignments %}
+            {% set iv = item_scores.get((s.id, a.id)) %}
+            <td><input name="item_{{ s.id }}_{{ a.id }}" value="{{ '%g'|format(iv) if iv is not none else '' }}"
+                       inputmode="decimal" type="number" min="0" max="{{ '%g'|format(a.max_score or 0) }}" step="0.5"
+                       style="width:58px;" data-item="{{ s.id }}"></td>
+            {% endfor %}
+            <td class="center"><b id="keep{{ s.id }}">{{ '%g'|format(sc.score_mid) if sc and sc.score_mid is not none else '-' }}</b></td>
+          {% else %}
+            <td><input name="mid_{{ s.id }}" value="{{ '%g'|format(sc.score_mid) if sc and sc.score_mid is not none else '' }}"
+                       inputmode="decimal" type="number" min="0" max="{{ keep_max }}" step="0.5"
+                       style="width:90px;" data-sum="{{ s.id }}"></td>
+          {% endif %}
           <td><input name="fin_{{ s.id }}" value="{{ '%g'|format(sc.score_final) if sc and sc.score_final is not none else '' }}"
-                     inputmode="decimal" type="number" min="0" max="{{ subj.final_max or 30 }}" step="0.5"
-                     style="width:90px;" data-sum="{{ s.id }}"></td>
-          <td><b id="sum{{ s.id }}">{{ '%g'|format(sc.score) if sc and sc.score is not none else '-' }}</b></td>
+                     inputmode="decimal" type="number" min="0" max="{{ fmax }}" step="0.5"
+                     style="width:80px;" data-sum="{{ s.id }}"></td>
+          <td class="center"><b id="sum{{ s.id }}">{{ '%g'|format(sc.score) if sc and sc.score is not none else '-' }}</b></td>
           <td><select name="grade_{{ s.id }}" style="width:100px;">
             <option value="">(คิดอัตโนมัติ)</option>
             {% for g in grades %}<option value="{{ g }}" {{ 'selected' if sc and sc.grade==g }}>{{ g }}</option>{% endfor %}
@@ -90,15 +149,23 @@
     <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกคะแนนทั้งห้อง</button>
   </form>
   <script>
-    // แสดงคะแนนรวมสดขณะพิมพ์ (เกรดจริงคำนวณที่เซิร์ฟเวอร์ตอนบันทึก)
-    document.querySelectorAll('input[data-sum]').forEach(function(el){
-      el.addEventListener('input', function(){
-        var id = el.dataset.sum;
-        var mid = parseFloat(document.querySelector('input[name="mid_'+id+'"]').value) || 0;
-        var fin = parseFloat(document.querySelector('input[name="fin_'+id+'"]').value) || 0;
-        var box = document.getElementById('sum'+id);
-        if(box) box.textContent = (mid+fin) ? (mid+fin) : '-';
+    // แสดงคะแนนเก็บรวม + คะแนนรวมสดขณะพิมพ์ (เกรดจริงคำนวณที่เซิร์ฟเวอร์ตอนบันทึก)
+    function rowSum(id){
+      var keep = 0, hasItem = false;
+      document.querySelectorAll('input[data-item="'+id+'"]').forEach(function(el){
+        var v = parseFloat(el.value);
+        if(!isNaN(v)){ keep += v; hasItem = true; }
       });
+      var keepBox = document.getElementById('keep'+id);
+      if(keepBox) keepBox.textContent = hasItem ? (Math.round(keep*100)/100) : '-';
+      var midInput = document.querySelector('input[name="mid_'+id+'"]');
+      var mid = keepBox ? (hasItem ? keep : 0) : (parseFloat(midInput && midInput.value) || 0);
+      var fin = parseFloat(document.querySelector('input[name="fin_'+id+'"]').value) || 0;
+      var box = document.getElementById('sum'+id);
+      if(box) box.textContent = (mid+fin) ? (Math.round((mid+fin)*100)/100) : '-';
+    }
+    document.querySelectorAll('input[data-item],input[data-sum]').forEach(function(el){
+      el.addEventListener('input', function(){ rowSum(el.dataset.item || el.dataset.sum); });
     });
   </script>
   {% else %}
@@ -106,4 +173,9 @@
   {% endif %}
 </div>
 {% endif %}
+<style>
+  .assign-box { border:1px solid #e5e7eb; border-radius:10px; padding:10px 12px; margin:4px 0 14px; background:#fafafe; }
+  .assign-box > summary { cursor:pointer; font-size:14.5px; }
+  .assign-tbl input[type=number] { text-align:center; }
+</style>
 {% endblock %}

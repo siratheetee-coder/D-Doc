@@ -1223,6 +1223,39 @@ class AcadScore(Base):
     subject = relationship("AcadSubject", back_populates="scores")
 
 
+class AcadAssignment(Base):
+    """ชิ้นงาน/การสอบที่ใช้เก็บคะแนนระหว่างภาคของรายวิชา (รวมสอบกลางภาค)
+    คะแนนเก็บ (score_mid) = ผลรวมคะแนนทุกชิ้นงานของวิชานั้น ๆ ต่อภาคเรียน"""
+    __tablename__ = "acad_assignment"
+
+    id = Column(Integer, primary_key=True)
+    subject_id = Column(Integer, ForeignKey("acad_subject.id"), nullable=False)
+    term = Column(Integer, default=0)               # 0 = ทั้งปี · 1/2 = ภาคเรียน
+    name = Column(String, default="")               # เช่น ใบงานที่ 1 / สอบกลางภาค
+    max_score = Column(Float, default=10.0)         # คะแนนเต็มของชิ้นงานนี้
+    is_midterm = Column(Boolean, default=False)     # ทำเครื่องหมายว่าเป็นสอบกลางภาค
+    seq = Column(Integer, default=0)                # ลำดับแสดงผล
+
+    subject = relationship("AcadSubject")
+    item_scores = relationship("AcadAssignmentScore", back_populates="assignment",
+                               cascade="all, delete-orphan")
+
+
+class AcadAssignmentScore(Base):
+    """คะแนนของนักเรียน 1 คน ต่อชิ้นงาน 1 ชิ้น"""
+    __tablename__ = "acad_assignment_score"
+
+    id = Column(Integer, primary_key=True)
+    assignment_id = Column(Integer, ForeignKey("acad_assignment.id"), nullable=False)
+    acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
+    score = Column(Float, nullable=True)
+
+    assignment = relationship("AcadAssignment", back_populates="item_scores")
+
+    __table_args__ = (UniqueConstraint("assignment_id", "acad_student_id",
+                                       name="uq_assignment_student"),)
+
+
 class AcadEval(Base):
     """ผลการประเมินรายคน/ปี ที่ ปพ.6 (สมุดพก) ต้องใช้"""
     __tablename__ = "acad_eval"
