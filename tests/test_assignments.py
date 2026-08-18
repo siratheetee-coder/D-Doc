@@ -62,71 +62,66 @@ def test_assignments_flow():
                            name=MARK + "ภาษาไทย", term=0, mid_max=70, final_max=30)
         db.add(subj); db.commit()
 
-        # สร้างชิ้นงาน 3 ชิ้น (ใบงาน 20 / โครงงาน 20 / สอบกลางภาค 30) รวมเก็บ = 70
+        # เปิดหน้ากรอกคะแนน -> ระบบสร้าง "สอบกลางภาค" ให้อัตโนมัติ
+        html0 = c.get(f"/academic/grades?cid={cls.id}&sid={subj.id}").text
+        db.expire_all()
+        mid = db.query(AcadAssignment).filter_by(subject_id=subj.id, is_midterm=True).one()
+        assert "สอบกลางภาค" in html0 and mid.max_score == 30
+        print("[ok] เปิดหน้าคะแนน -> มีสอบกลางภาคอัตโนมัติ (เต็ม 30)")
+
+        # เพิ่มชิ้นงาน 2 ชิ้น (ใบงาน 20 / โครงงาน 20) + สอบกลางภาคเต็ม 30 -> เก็บรวม 70
         r = c.post("/academic/assignments/save", data={
             "cid": str(cls.id), "sid": str(subj.id),
-            "new_name": ["ใบงานที่ 1", "โครงงาน", "สอบกลางภาค"],
-            "new_max": ["20", "20", "30"],
-            "new_mid": ["", "", "1"],
+            "aid": ["", ""], "aname": ["ใบงานที่ 1", "โครงงาน"], "amax": ["20", "20"],
+            "mid_max": "30",
         }, follow_redirects=False)
         assert r.status_code in (302, 303)
         db.expire_all()
-        asgs = db.query(AcadAssignment).filter_by(subject_id=subj.id).order_by(AcadAssignment.seq).all()
-        assert len(asgs) == 3, [a.name for a in asgs]
-        assert asgs[2].is_midterm and asgs[2].max_score == 30
-        print("[ok] สร้างชิ้นงาน 3 ชิ้น (รวมสอบกลางภาค)")
+        pieces = db.query(AcadAssignment).filter_by(subject_id=subj.id, is_midterm=False).order_by(AcadAssignment.seq).all()
+        assert len(pieces) == 2 and pieces[0].name == "ใบงานที่ 1"
+        assert db.query(AcadAssignment).filter_by(subject_id=subj.id).count() == 3
+        print("[ok] เพิ่มชิ้นงาน 2 ชิ้น + สอบกลางภาค = 3 รายการ เก็บรวม 70")
 
-        # หน้ากรอกคะแนนต้องมีคอลัมน์รายชิ้น
         html = c.get(f"/academic/grades?cid={cls.id}&sid={subj.id}").text
-        assert f"item_{s.id}_{asgs[0].id}" in html and "เก็บเต็มรวม 70" in html
-        print("[ok] หน้าคะแนนแสดงคอลัมน์รายชิ้น + เก็บเต็มรวม 70")
+        assert f"item_{s.id}_{pieces[0].id}" in html and f"item_{s.id}_{mid.id}" in html
+        assert "เก็บเต็มรวม <b id=\"asgKeepMax\">70" in html
+        print("[ok] หน้าคะแนนแสดงคอลัมน์รายชิ้น + สอบกลางภาค + เก็บเต็มรวม 70")
 
-        # กรอกคะแนนรายชิ้น 18 + 15 + 25 = 58 (เก็บ) + ปลายภาค 24 = 82 -> เกรด 4
+        # กรอก 18 + 15 + สอบกลางภาค 25 = 58 (เก็บ) + ปลายภาค 24 = 82 -> เกรด 4
         c.post("/academic/grades/save", data={
             "cid": str(cls.id), "sid": str(subj.id),
-            f"item_{s.id}_{asgs[0].id}": "18",
-            f"item_{s.id}_{asgs[1].id}": "15",
-            f"item_{s.id}_{asgs[2].id}": "25",
+            f"item_{s.id}_{pieces[0].id}": "18",
+            f"item_{s.id}_{pieces[1].id}": "15",
+            f"item_{s.id}_{mid.id}": "25",
             f"fin_{s.id}": "24",
         })
         db.expire_all()
         sc = db.query(AcadScore).filter_by(subject_id=subj.id, acad_student_id=s.id).one()
         assert sc.score_mid == 58, sc.score_mid
-        assert sc.score_final == 24 and sc.score == 82, sc.score
-        assert sc.grade == "4", sc.grade
-        print("[ok] score_mid=58 (รวมรายชิ้น) score=82 grade=4")
+        assert sc.score_final == 24 and sc.score == 82 and sc.grade == "4", (sc.score, sc.grade)
+        print("[ok] score_mid=58 (ชิ้นงาน+กลางภาค) score=82 grade=4")
 
-        # กรอกเกินคะแนนเต็มของชิ้น -> ถูก clamp
+        # กรอกเกินคะแนนเต็มของชิ้น -> ถูก clamp เป็น 20
         c.post("/academic/grades/save", data={
             "cid": str(cls.id), "sid": str(subj.id),
-            f"item_{s.id}_{asgs[0].id}": "999",     # เต็ม 20
-            f"fin_{s.id}": "30",
-        })
+            f"item_{s.id}_{pieces[0].id}": "999", f"fin_{s.id}": "30"})
         db.expire_all()
         r2 = db.query(AcadAssignmentScore).filter_by(
-            assignment_id=asgs[0].id, acad_student_id=s.id).one()
+            assignment_id=pieces[0].id, acad_student_id=s.id).one()
         assert r2.score == 20, r2.score
         print("[ok] กรอกเกินเต็มชิ้น ถูก clamp เป็น 20")
 
-        # ลบชิ้นงาน (เว้นชื่อว่าง) -> โหมดเดิมกลับมา
+        # ลบชิ้นงาน 1 ชิ้น (ส่งกลับแค่ชิ้นเดียว) -> สอบกลางภาคต้องยังอยู่
         c.post("/academic/assignments/save", data={
             "cid": str(cls.id), "sid": str(subj.id),
-            f"del": [str(asgs[0].id), str(asgs[1].id), str(asgs[2].id)],
+            "aid": [str(pieces[0].id)], "aname": ["ใบงานที่ 1"], "amax": ["25"],
+            "mid_max": "35",
         })
         db.expire_all()
-        assert db.query(AcadAssignment).filter_by(subject_id=subj.id).count() == 0
-        html2 = c.get(f"/academic/grades?cid={cls.id}&sid={subj.id}").text
-        assert f"mid_{s.id}" in html2, "ควรกลับมาโหมดกรอกคะแนนเก็บก้อนเดียว"
-        print("[ok] ลบชิ้นงานหมด -> กลับโหมดเดิม (คะแนนเก็บก้อนเดียว)")
-
-        # โหมดเดิม: กรอกคะแนนเก็บก้อนเดียวยังทำงาน
-        c.post("/academic/grades/save", data={
-            "cid": str(cls.id), "sid": str(subj.id),
-            f"mid_{s.id}": "60", f"fin_{s.id}": "20"})
-        db.expire_all()
-        sc2 = db.query(AcadScore).filter_by(subject_id=subj.id, acad_student_id=s.id).one()
-        assert sc2.score_mid == 60 and sc2.score == 80 and sc2.grade == "4", (sc2.score_mid, sc2.score, sc2.grade)
-        print("[ok] โหมดเดิม (คะแนนเก็บก้อนเดียว) ยังทำงาน score=80 grade=4")
+        assert db.query(AcadAssignment).filter_by(subject_id=subj.id, is_midterm=False).count() == 1
+        mid2 = db.query(AcadAssignment).filter_by(subject_id=subj.id, is_midterm=True).one()
+        assert mid2.max_score == 35, "สอบกลางภาคต้องยังอยู่ + แก้เต็มได้"
+        print("[ok] ลบชิ้นงานที่ไม่ส่งกลับ + สอบกลางภาคยังอยู่ (แก้เต็ม=35)")
     finally:
         _cleanup(db)
         db.close()

@@ -212,10 +212,10 @@ def _grade_counts(grades):
     return n
 
 
-def _pp5_assess_page(doc, klass, subject, db, students):
-    """หน้า คุณลักษณะฯ 8 ข้อ + อ่านคิดเขียน 3 ด้าน ของ 1 รายวิชา (ต่อท้ายใบคะแนน)"""
-    from app.models import AcadCharEval, AcadReadEval
-    _p(doc, "ผลการประเมินคุณลักษณะอันพึงประสงค์ และการอ่าน คิดวิเคราะห์ และเขียน (รายวิชา)",
+def _pp5_char_page(doc, klass, subject, db, students):
+    """หน้าประเมินคุณลักษณะอันพึงประสงค์ 8 ข้อ ของ 1 รายวิชา"""
+    from app.models import AcadCharEval
+    _p(doc, "ผลการประเมินคุณลักษณะอันพึงประสงค์ (รายวิชา)",
        align="center", bold=True, size=16, after=0, page_break=True)
     _p(doc, f"รายวิชา {subject.code or ''} {subject.name}   ชั้น {_class_label(klass)}   "
             f"ปีการศึกษา {klass.year}", align="center", size=13, after=6)
@@ -239,7 +239,18 @@ def _pp5_assess_page(doc, klass, subject, db, students):
         _cell(cells[11], quality_of_avg(avg)[1], size=11, bold=True)
     _widths(t, [Cm(1.2), Cm(5.6)] + [Cm(1.55)] * 8 + [Cm(1.6), Cm(2.4)])   # รวม 23.2
     _p(doc, "คุณลักษณะฯ: " + " | ".join(f"ข้อ {i} {nm}" for i, nm in enumerate(CHAR_ITEMS, 1)),
-       size=10, after=8, align="center")
+       size=10, after=2, align="center")
+    _p(doc, "คะแนน 0-3 ต่อข้อ | เฉลี่ย ≥2.5 ดีเยี่ยม | 1.5-2.49 ดี | 1-1.49 ผ่าน | ต่ำกว่า 1 ไม่ผ่าน "
+            "| ช่องว่าง = ยังไม่ประเมิน", size=10, after=0, align="center")
+
+
+def _pp5_read_page(doc, klass, subject, db, students):
+    """หน้าประเมินการอ่าน คิดวิเคราะห์ และเขียน 3 ด้าน ของ 1 รายวิชา"""
+    from app.models import AcadReadEval
+    _p(doc, "ผลการประเมินการอ่าน คิดวิเคราะห์ และเขียน (รายวิชา)",
+       align="center", bold=True, size=16, after=0, page_break=True)
+    _p(doc, f"รายวิชา {subject.code or ''} {subject.name}   ชั้น {_class_label(klass)}   "
+            f"ปีการศึกษา {klass.year}", align="center", size=13, after=6)
 
     reads = {r.acad_student_id: r for r in
              db.query(AcadReadEval).filter_by(subject_id=subject.id).all()}
@@ -259,7 +270,9 @@ def _pp5_assess_page(doc, klass, subject, db, students):
         _cell(cells[5], f"{avg:.2f}" if avg is not None else "", size=11, bold=True)
         _cell(cells[6], quality_of_avg(avg)[1], size=11, bold=True)
     _widths(t2, [Cm(1.2), Cm(5.6), Cm(3.4), Cm(3.4), Cm(3.4), Cm(1.6), Cm(2.4)])   # รวม 21.0
-    _p(doc, "คะแนน 0-3 ต่อข้อ | เฉลี่ย ≥2.5 ดีเยี่ยม | 1.5-2.49 ดี | 1-1.49 ผ่าน | ต่ำกว่า 1 ไม่ผ่าน "
+    _p(doc, "การอ่าน คิดวิเคราะห์ และเขียน: " + " | ".join(lb for _, lb in READ_DOMAINS),
+       size=10, after=2, align="center")
+    _p(doc, "คะแนน 0-3 ต่อด้าน | เฉลี่ย ≥2.5 ดีเยี่ยม | 1.5-2.49 ดี | 1-1.49 ผ่าน | ต่ำกว่า 1 ไม่ผ่าน "
             "| ช่องว่าง = ยังไม่ประเมิน", size=10, after=0, align="center")
 
 
@@ -502,7 +515,8 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     # ---------- คะแนนรายวิชา + ประเมินรายวิชา (วิชาละ 2 หน้า) ----------
     for sub in subjects:
         _pp5_score_page(doc, school, klass, sub, db, page_break=True)
-        _pp5_assess_page(doc, klass, sub, db, students)
+        _pp5_char_page(doc, klass, sub, db, students)
+        _pp5_read_page(doc, klass, sub, db, students)
 
     # ---------- สรุปผลการเรียนทุกวิชา ----------
     _p(doc, f"สรุปผลการเรียนทุกรายวิชา ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}"

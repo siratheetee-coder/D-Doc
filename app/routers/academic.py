@@ -378,7 +378,7 @@ def grades_page(request: Request, db: Session = Depends(get_db), cid: int | None
     classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
     c = db.get(AcadClass, cid) if cid else None
     subjects, students, scores, subj = [], [], {}, None
-    assignments, item_scores, keep_max = [], {}, 0
+    assignments, pieces, midterm, item_scores, keep_max = [], [], None, {}, 0
     if c:
         subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
                     .order_by(AcadSubject.seq, AcadSubject.code).all())
@@ -391,66 +391,82 @@ def grades_page(request: Request, db: Session = Depends(get_db), cid: int | None
             students = sorted(c.students, key=lambda s: (s.seq or 999, s.name))
             scores = {s.acad_student_id: s for s in
                       db.query(AcadScore).filter_by(subject_id=subj.id, term=t).all()}
-            # ชิ้นงานเก็บคะแนน (รวมสอบกลางภาค) ของวิชานี้ + คะแนนรายชิ้นของนักเรียน
+            # ชิ้นงานเก็บคะแนน (ชิ้นงาน + สอบกลางภาค) ของวิชานี้
             assignments = (db.query(AcadAssignment)
                            .filter_by(subject_id=subj.id, term=t)
                            .order_by(AcadAssignment.seq, AcadAssignment.id).all())
-            keep_max = _keep_max(subj, assignments)
-            if assignments:
-                aids = [a.id for a in assignments]
-                for r in (db.query(AcadAssignmentScore)
-                          .filter(AcadAssignmentScore.assignment_id.in_(aids)).all()):
-                    item_scores[(r.acad_student_id, r.assignment_id)] = r.score
+            # สอบกลางภาคต้องมีเสมอ (สร้างอัตโนมัติถ้ายังไม่มี) - ไม่ต้องให้ครูติ๊กเพิ่มเอง
+            midterm = next((a for a in assignments if a.is_midterm), None)
+            if midterm is None:
+                midterm = AcadAssignment(subject_id=subj.id, term=t, name="สอบกลางภาค",
+                                         max_score=30, is_midterm=True, seq=999)
+                db.add(midterm); db.commit()
+                assignments.append(midterm)
+            # ชิ้นงาน (ไม่ใช่สอบกลางภาค) เรียงตาม seq · คอลัมน์คะแนน = ชิ้นงาน + สอบกลางภาค
+            pieces = [a for a in assignments if not a.is_midterm]
+            assignments = pieces + [midterm]
+            keep_max = round(sum((a.max_score or 0) for a in assignments), 2)
+            aids = [a.id for a in assignments]
+            for r in (db.query(AcadAssignmentScore)
+                      .filter(AcadAssignmentScore.assignment_id.in_(aids)).all()):
+                item_scores[(r.acad_student_id, r.assignment_id)] = r.score
     return templates.TemplateResponse("academic_grades.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "classes": classes, "c": c, "subjects": subjects, "subj": subj,
         "students": students, "scores": scores, "class_label": _class_label,
         "term_label": term_label, "grades": GRADE_CHOICES,
-        "assignments": assignments, "item_scores": item_scores, "keep_max": keep_max,
+        "assignments": assignments, "pieces": pieces, "midterm": midterm,
+        "item_scores": item_scores, "keep_max": keep_max,
     })
 
 
 @router.post("/academic/assignments/save")
 async def assignments_save(request: Request, db: Session = Depends(get_db),
                            cid: str = Form(""), sid: str = Form("")):
-    """จัดการชิ้นงานเก็บคะแนน (รวมสอบกลางภาค) ของรายวิชา · เพิ่ม/แก้ชื่อ+คะแนนเต็ม/ลบ"""
+    """จัดการชิ้นงานเก็บคะแนนของรายวิชา · ชิ้นงานส่งเป็น array (aid/aname/amax)
+    สอบกลางภาคมีเสมอ (mid_max) แก้ได้แต่ลบไม่ได้ · ชิ้นงานที่ไม่ถูกส่งมา = ถูกลบ"""
     form = await request.form()
     subj = db.get(AcadSubject, _to_int(sid, 0))
     if not subj:
         return RedirectResponse("/academic/grades", status_code=303)
     t = subj.term if subj.term is not None else 0
     existing = {a.id: a for a in db.query(AcadAssignment).filter_by(subject_id=subj.id, term=t).all()}
-    # ลบชิ้นงานที่ติ๊กลบ
-    for did in form.getlist("del"):
-        a = existing.pop(_to_int(did, 0), None)
+
+    # ----- สอบกลางภาค: มีเสมอ (สร้างถ้ายังไม่มี) แก้คะแนนเต็มได้ -----
+    midterm = next((a for a in existing.values() if a.is_midterm), None)
+    if midterm is None:
+        midterm = AcadAssignment(subject_id=subj.id, term=t, name="สอบกลางภาค",
+                                 is_midterm=True, seq=999)
+        db.add(midterm)
+    midterm.name = "สอบกลางภาค"
+    midterm.max_score = max(0.0, _to_float(form.get("mid_max", ""), 30.0) or 0.0)
+
+    # ----- ชิ้นงาน (array คู่ขนาน) -----
+    aids = form.getlist("aid")
+    anames = form.getlist("aname")
+    amaxs = form.getlist("amax")
+    kept = set()
+    for i, raw_id in enumerate(aids):
+        name = (anames[i] if i < len(anames) else "").strip()
+        mx = max(0.0, _to_float(amaxs[i] if i < len(amaxs) else "", 10.0) or 0.0)
+        aid = _to_int(raw_id, 0)
+        a = existing.get(aid) if aid else None
+        if a and a.is_midterm:                        # กันแก้สอบกลางภาคผ่านช่องชิ้นงาน
+            continue
+        if not name:                                  # แถวว่าง = ข้าม (ถือว่าลบถ้าเป็นของเดิม)
+            continue
         if a:
+            a.name, a.max_score, a.seq = name, mx, i
+            kept.add(a.id)
+        else:
+            db.add(AcadAssignment(subject_id=subj.id, term=t, name=name,
+                                  max_score=mx, is_midterm=False, seq=i))
+    # ลบชิ้นงานเดิมที่ไม่ได้ส่งกลับมา (ไม่แตะสอบกลางภาค)
+    for a in existing.values():
+        if (not a.is_midterm) and a.id not in kept:
             db.delete(a)
-    # แก้ชิ้นงานเดิม (a_name_<id>, a_max_<id>, a_mid_<id>)
-    for aid, a in list(existing.items()):
-        name = (form.get(f"a_name_{aid}", "") or "").strip()
-        if not name:                                 # เว้นชื่อว่าง = ลบชิ้นนั้น
-            db.delete(a)
-            continue
-        a.name = name
-        a.max_score = max(0.0, _to_float(form.get(f"a_max_{aid}", ""), 10.0) or 0.0)
-        a.is_midterm = form.get(f"a_mid_{aid}", "") == "1"
-        a.seq = _to_int(form.get(f"a_seq_{aid}", ""), a.seq or 0)
-    # เพิ่มชิ้นงานใหม่ (แถวว่างท้ายตาราง: new_name[], new_max[], new_mid[])
-    nnames = form.getlist("new_name")
-    nmaxs = form.getlist("new_max")
-    nmids = form.getlist("new_mid")
-    base_seq = max([a.seq or 0 for a in existing.values()], default=0)
-    for i, nm in enumerate(nnames):
-        nm = (nm or "").strip()
-        if not nm:
-            continue
-        base_seq += 1
-        db.add(AcadAssignment(
-            subject_id=subj.id, term=t, name=nm,
-            max_score=max(0.0, _to_float(nmaxs[i] if i < len(nmaxs) else "", 10.0) or 0.0),
-            is_midterm=(nmids[i] if i < len(nmids) else "") == "1", seq=base_seq))
     db.commit()
-    return RedirectResponse(f"/academic/grades?cid={cid}&sid={sid}&saved=1#assign", status_code=303)
+    return RedirectResponse(f"/academic/grades?cid={cid}&sid={sid}&saved=1", status_code=303)
 
 
 @router.post("/academic/grades/save")

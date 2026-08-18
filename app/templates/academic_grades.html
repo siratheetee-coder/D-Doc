@@ -57,47 +57,50 @@
     </div>
   </div>
   {% set fmax = subj.final_max or 30 %}
-  <p class="muted" style="font-size:13px; margin:6px 0 8px;">สัดส่วนวิชานี้: เก็บเต็ม <b>{{ keep_max|round(2)|int if keep_max == keep_max|int else keep_max }}</b>
-    {% if assignments %}<span style="color:var(--brand-dark);">(รวมจากชิ้นงาน {{ assignments|length }} ชิ้น)</span>{% endif %}
+  {% set keep_disp = keep_max|round(2)|int if keep_max == keep_max|int else keep_max %}
+  <p class="muted" style="font-size:13px; margin:6px 0 8px;">
+    <b>คะแนนเก็บ = ชิ้นงาน + สอบกลางภาค</b> (เก็บเต็มรวม <b style="color:var(--acad-dark);">{{ keep_disp }}</b>)
     + ปลายภาคเต็ม <b>{{ fmax }}</b>
     · เกรดคิดจากร้อยละของคะแนนรวม (80=4 · 75=3.5 · 70=3 · 65=2.5 · 60=2 · 55=1.5 · 50=1)
     · เลือกเกรดเองจะใช้ค่าที่เลือกแทน (เช่น ร / มส)</p>
 
-  {# ---------- จัดการชิ้นงานเก็บคะแนน (รวมสอบกลางภาค) ---------- #}
-  <details id="assign" class="assign-box" {% if assignments %}open{% endif %}>
-    <summary><b>ชิ้นงานเก็บคะแนน</b> <span class="muted">({{ assignments|length }} ชิ้น · เก็บเต็มรวม {{ keep_max|round(2)|int if keep_max == keep_max|int else keep_max }} คะแนน)</span>
-      <span class="muted" style="font-weight:400; font-size:12.5px;"> — กำหนดใบงาน/การบ้าน/สอบเก็บย่อย และสอบกลางภาค แล้วระบบรวมเป็นคะแนนเก็บให้เอง</span></summary>
-    <form method="post" action="/academic/assignments/save" style="margin-top:8px;">
+  {# ---------- จัดการชิ้นงานเก็บคะแนน (ชิ้นงาน + สอบกลางภาค) ---------- #}
+  <div class="asg-box">
+    <div class="asg-head">
+      <svg class="icon"><use href="#ic-edit"/></svg>
+      <b>ตั้งค่าชิ้นงานเก็บคะแนน</b>
+      <span class="asg-total">เก็บเต็มรวม <b id="asgKeepMax">{{ keep_disp }}</b> คะแนน</span>
+    </div>
+    <form method="post" action="/academic/assignments/save" id="asgForm">
       <input type="hidden" name="cid" value="{{ c.id }}"><input type="hidden" name="sid" value="{{ subj.id }}">
-      <div class="table-wrap">
-      <table class="assign-tbl">
-        <thead><tr><th style="width:40px;">ลำดับ</th><th>ชื่อชิ้นงาน / การสอบ</th><th style="width:110px;">คะแนนเต็ม</th><th style="width:90px;">สอบกลางภาค</th><th style="width:60px;">ลบ</th></tr></thead>
-        <tbody>
-        {% for a in assignments %}
-          <tr>
-            <td><input name="a_seq_{{ a.id }}" value="{{ a.seq or loop.index }}" type="number" style="width:52px;"></td>
-            <td><input name="a_name_{{ a.id }}" value="{{ a.name }}" style="width:100%;" placeholder="เช่น ใบงานที่ 1"></td>
-            <td><input name="a_max_{{ a.id }}" value="{{ '%g'|format(a.max_score or 0) }}" type="number" min="0" step="0.5" style="width:90px;"></td>
-            <td class="center"><input type="checkbox" name="a_mid_{{ a.id }}" value="1" {{ 'checked' if a.is_midterm }}></td>
-            <td class="center"><input type="checkbox" name="del" value="{{ a.id }}"></td>
-          </tr>
-        {% endfor %}
-        {% for i in range(3) %}
-          <tr>
-            <td class="muted center">ใหม่</td>
-            <td><input name="new_name" placeholder="+ เพิ่มชิ้นงานใหม่" style="width:100%;"></td>
-            <td><input name="new_max" value="10" type="number" min="0" step="0.5" style="width:90px;"></td>
-            <td class="center"><input type="checkbox" name="new_mid" value="1"></td>
-            <td></td>
+      <table class="asg-tbl">
+        <thead><tr><th>ชื่อชิ้นงาน / การบ้าน / สอบเก็บย่อย</th><th style="width:120px;">คะแนนเต็ม</th><th style="width:70px;"></th></tr></thead>
+        <tbody id="asgBody">
+        {% for a in pieces %}
+          <tr class="asg-row">
+            <td><input type="hidden" name="aid" value="{{ a.id }}">
+                <input name="aname" value="{{ a.name }}" placeholder="เช่น ใบงานที่ 1" autocomplete="off"></td>
+            <td><input name="amax" value="{{ '%g'|format(a.max_score or 0) }}" type="number" min="0" step="0.5" class="asg-max" data-amax></td>
+            <td class="center"><button type="button" class="asg-del" onclick="delAsg(this)" title="ลบชิ้นงานนี้">✕</button></td>
           </tr>
         {% endfor %}
         </tbody>
+        <tfoot>
+          <tr class="asg-mid">
+            <td><svg class="icon" style="width:15px;height:15px;vertical-align:-2px;"><use href="#ic-check"/></svg>
+                <b>สอบกลางภาค</b> <span class="muted" style="font-size:12px;">(มีอยู่แล้วเสมอ · แก้คะแนนเต็มได้)</span></td>
+            <td><input name="mid_max" value="{{ '%g'|format(midterm.max_score or 0) if midterm else '30' }}" type="number" min="0" step="0.5" class="asg-max" data-amax></td>
+            <td></td>
+          </tr>
+        </tfoot>
       </table>
+      <div class="asg-actions">
+        <button type="button" class="btn-acad ghost" onclick="addAsg()"><span style="font-size:17px;line-height:1;">+</span> เพิ่มชิ้นงาน</button>
+        <button type="submit" class="btn-acad"><svg class="icon"><use href="#ic-save"/></svg> บันทึกรายการชิ้นงาน</button>
+        <span class="muted" style="font-size:12px;">บันทึกรายการชิ้นงานก่อน แล้วค่อยกรอกคะแนนด้านล่าง</span>
       </div>
-      <button class="btn soft" type="submit" style="margin-top:8px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกรายการชิ้นงาน</button>
-      <span class="muted" style="font-size:12px;">· เว้นชื่อว่างในแถวเดิม = ลบชิ้นนั้น · บันทึกชิ้นงานก่อน แล้วค่อยกรอกคะแนนด้านล่าง</span>
     </form>
-  </details>
+  </div>
 
   {% if students %}
   <form method="post" action="/academic/grades/save">
@@ -105,13 +108,9 @@
     <div class="table-wrap">
     <table>
       <thead><tr><th>เลขที่</th><th>ชื่อ-นามสกุล</th>
-        {% if assignments %}
-          {% for a in assignments %}<th style="min-width:64px; font-size:12px;" title="{{ a.name }}{% if a.is_midterm %} (สอบกลางภาค){% endif %}">
-            {{ a.name }}{% if a.is_midterm %} ★{% endif %}<br><span class="muted" style="font-weight:400;">/{{ '%g'|format(a.max_score or 0) }}</span></th>{% endfor %}
-          <th>เก็บรวม<br><span class="muted" style="font-weight:400;">/{{ '%g'|format(keep_max) }}</span></th>
-        {% else %}
-          <th>คะแนนเก็บ<br><span class="muted" style="font-weight:400;">(เต็ม {{ keep_max|round(2)|int if keep_max == keep_max|int else keep_max }})</span></th>
-        {% endif %}
+        {% for a in assignments %}<th class="{{ 'col-mid' if a.is_midterm }}" style="min-width:62px; font-size:12px;" title="{{ a.name }}">
+          {{ a.name }}<br><span class="muted" style="font-weight:400;">/{{ '%g'|format(a.max_score or 0) }}</span></th>{% endfor %}
+        <th class="col-keep">เก็บรวม<br><span class="muted" style="font-weight:400;">/{{ '%g'|format(keep_max) }}</span></th>
         <th>ปลายภาค<br><span class="muted" style="font-weight:400;">(เต็ม {{ fmax }})</span></th>
         <th>รวม<br><span class="muted" style="font-weight:400;">/{{ '%g'|format(keep_max + fmax) }}</span></th><th>ผลการเรียน</th></tr></thead>
       <tbody>
@@ -120,19 +119,13 @@
         <tr>
           <td>{{ s.seq or '' }}</td>
           <td style="white-space:nowrap;">{{ s.name }}</td>
-          {% if assignments %}
-            {% for a in assignments %}
-            {% set iv = item_scores.get((s.id, a.id)) %}
-            <td><input name="item_{{ s.id }}_{{ a.id }}" value="{{ '%g'|format(iv) if iv is not none else '' }}"
-                       inputmode="decimal" type="number" min="0" max="{{ '%g'|format(a.max_score or 0) }}" step="0.5"
-                       style="width:58px;" data-item="{{ s.id }}"></td>
-            {% endfor %}
-            <td class="center"><b id="keep{{ s.id }}">{{ '%g'|format(sc.score_mid) if sc and sc.score_mid is not none else '-' }}</b></td>
-          {% else %}
-            <td><input name="mid_{{ s.id }}" value="{{ '%g'|format(sc.score_mid) if sc and sc.score_mid is not none else '' }}"
-                       inputmode="decimal" type="number" min="0" max="{{ keep_max }}" step="0.5"
-                       style="width:90px;" data-sum="{{ s.id }}"></td>
-          {% endif %}
+          {% for a in assignments %}
+          {% set iv = item_scores.get((s.id, a.id)) %}
+          <td class="{{ 'col-mid' if a.is_midterm }}"><input name="item_{{ s.id }}_{{ a.id }}" value="{{ '%g'|format(iv) if iv is not none else '' }}"
+                     inputmode="decimal" type="number" min="0" max="{{ '%g'|format(a.max_score or 0) }}" step="0.5"
+                     style="width:56px;" data-item="{{ s.id }}"></td>
+          {% endfor %}
+          <td class="center col-keep"><b id="keep{{ s.id }}">{{ '%g'|format(sc.score_mid) if sc and sc.score_mid is not none else '-' }}</b></td>
           <td><input name="fin_{{ s.id }}" value="{{ '%g'|format(sc.score_final) if sc and sc.score_final is not none else '' }}"
                      inputmode="decimal" type="number" min="0" max="{{ fmax }}" step="0.5"
                      style="width:80px;" data-sum="{{ s.id }}"></td>
@@ -146,7 +139,7 @@
       </tbody>
     </table>
     </div>
-    <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกคะแนนทั้งห้อง</button>
+    <button class="btn-acad" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกคะแนนทั้งห้อง</button>
   </form>
   <script>
     // แสดงคะแนนเก็บรวม + คะแนนรวมสดขณะพิมพ์ (เกรดจริงคำนวณที่เซิร์ฟเวอร์ตอนบันทึก)
@@ -158,11 +151,9 @@
       });
       var keepBox = document.getElementById('keep'+id);
       if(keepBox) keepBox.textContent = hasItem ? (Math.round(keep*100)/100) : '-';
-      var midInput = document.querySelector('input[name="mid_'+id+'"]');
-      var mid = keepBox ? (hasItem ? keep : 0) : (parseFloat(midInput && midInput.value) || 0);
       var fin = parseFloat(document.querySelector('input[name="fin_'+id+'"]').value) || 0;
       var box = document.getElementById('sum'+id);
-      if(box) box.textContent = (mid+fin) ? (Math.round((mid+fin)*100)/100) : '-';
+      if(box) box.textContent = (keep+fin) ? (Math.round((keep+fin)*100)/100) : '-';
     }
     document.querySelectorAll('input[data-item],input[data-sum]').forEach(function(el){
       el.addEventListener('input', function(){ rowSum(el.dataset.item || el.dataset.sum); });
@@ -173,9 +164,75 @@
   {% endif %}
 </div>
 {% endif %}
+<script>
+  // เพิ่ม/ลบ ชิ้นงาน (สอบกลางภาคลบไม่ได้) + อัปเดตเก็บเต็มรวมสด
+  function recalcKeepMax(){
+    var t = 0;
+    document.querySelectorAll('#asgForm [data-amax]').forEach(function(el){
+      var v = parseFloat(el.value); if(!isNaN(v)) t += v;
+    });
+    var box = document.getElementById('asgKeepMax');
+    if(box) box.textContent = Math.round(t*100)/100;
+  }
+  function addAsg(){
+    var body = document.getElementById('asgBody');
+    var tr = document.createElement('tr');
+    tr.className = 'asg-row asg-new';
+    tr.innerHTML =
+      '<td><input type="hidden" name="aid" value="">' +
+      '<input name="aname" placeholder="เช่น ใบงานที่ 1" autocomplete="off"></td>' +
+      '<td><input name="amax" value="10" type="number" min="0" step="0.5" class="asg-max" data-amax></td>' +
+      '<td class="center"><button type="button" class="asg-del" onclick="delAsg(this)" title="ลบชิ้นงานนี้">✕</button></td>';
+    body.appendChild(tr);
+    tr.querySelector('input[name="aname"]').focus();
+    tr.querySelector('[data-amax]').addEventListener('input', recalcKeepMax);
+    recalcKeepMax();
+  }
+  function delAsg(btn){
+    var tr = btn.closest('tr');
+    tr.style.transition = 'opacity .15s, transform .15s';
+    tr.style.opacity = '0'; tr.style.transform = 'translateX(-8px)';
+    setTimeout(function(){ tr.remove(); recalcKeepMax(); }, 150);
+  }
+  document.querySelectorAll('#asgForm [data-amax]').forEach(function(el){
+    el.addEventListener('input', recalcKeepMax);
+  });
+</script>
 <style>
-  .assign-box { border:1px solid #e5e7eb; border-radius:10px; padding:10px 12px; margin:4px 0 14px; background:#fafafe; }
-  .assign-box > summary { cursor:pointer; font-size:14.5px; }
-  .assign-tbl input[type=number] { text-align:center; }
+  :root { --acad:#2563eb; --acad-dark:#1d4ed8; --acad-50:#eff6ff; --acad-100:#dbeafe; }
+  .asg-box { border:1.5px solid var(--acad-100); border-radius:14px; margin:6px 0 16px; background:#fff;
+    box-shadow:0 1px 3px rgba(37,99,235,.06); overflow:hidden; }
+  .asg-head { display:flex; align-items:center; gap:9px; padding:11px 15px; font-size:15px; color:#fff;
+    background:linear-gradient(90deg, var(--acad), var(--acad-dark)); }
+  .asg-head .icon { color:#fff; }
+  .asg-head .asg-total { margin-left:auto; font-size:13px; background:rgba(255,255,255,.2); padding:3px 11px; border-radius:20px; }
+  .asg-tbl { width:100%; border-collapse:collapse; }
+  .asg-tbl th { text-align:left; font-size:12.5px; color:#64748b; font-weight:600; padding:8px 15px 4px; }
+  .asg-tbl th:nth-child(2) { text-align:center; }
+  .asg-tbl td { padding:5px 15px; }
+  .asg-tbl input[type=text], .asg-tbl input[name=aname] { width:100%; }
+  .asg-tbl input { padding:7px 10px; border:1.5px solid #e2e8f0; border-radius:8px; font-family:inherit; font-size:14px; transition:border-color .12s, box-shadow .12s; }
+  .asg-tbl input:focus { outline:none; border-color:var(--acad); box-shadow:0 0 0 3px rgba(37,99,235,.14); }
+  .asg-max { width:96px; text-align:center; }
+  .asg-mid td { background:var(--acad-50); border-top:1.5px solid var(--acad-100); padding-top:9px; padding-bottom:9px; }
+  .asg-mid b { color:var(--acad-dark); }
+  .asg-del { width:32px; height:32px; border:none; border-radius:8px; background:#fef2f2; color:#dc2626;
+    font-size:14px; cursor:pointer; transition:background .12s, transform .08s; }
+  .asg-del:hover { background:#fee2e2; }
+  .asg-del:active { transform:scale(.88); }
+  .asg-new { animation:asgIn .18s ease; }
+  @keyframes asgIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+  .asg-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 15px 14px; }
+  .btn-acad { display:inline-flex; align-items:center; gap:7px; padding:9px 18px; border:none; border-radius:9px;
+    background:linear-gradient(90deg, var(--acad), var(--acad-dark)); color:#fff; font-family:inherit; font-size:14px;
+    font-weight:600; cursor:pointer; box-shadow:0 2px 6px rgba(37,99,235,.28); transition:transform .1s, box-shadow .15s, filter .12s; }
+  .btn-acad .icon { color:#fff; }
+  .btn-acad:hover { filter:brightness(1.06); box-shadow:0 4px 12px rgba(37,99,235,.36); transform:translateY(-1px); }
+  .btn-acad:active { transform:translateY(0) scale(.97); box-shadow:0 1px 4px rgba(37,99,235,.3); }
+  .btn-acad.ghost { background:#fff; color:var(--acad-dark); border:1.5px solid var(--acad-100); box-shadow:none; }
+  .btn-acad.ghost:hover { background:var(--acad-50); border-color:var(--acad); filter:none; }
+  .col-mid { background:var(--acad-50); }
+  .col-keep { background:#f8fafc; }
+  th.col-mid, th.col-keep { background:var(--acad-100); }
 </style>
 {% endblock %}
