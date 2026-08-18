@@ -1264,6 +1264,21 @@ class AcadAssignmentScore(Base):
                                        name="uq_assignment_student"),)
 
 
+class AcadIndicatorResult(Base):
+    """ผลการประเมินตัวชี้วัดรายวิชาของนักเรียน 1 คน (ตามหลักสูตรแกนกลาง 2551)
+    ตัวชี้วัดผูกด้วยกลุ่มสาระ+ชั้น (ชุดข้อมูลกลาง) เก็บผลด้วย code เช่น 'ท 1.1 ป.6/1'"""
+    __tablename__ = "acad_indicator_result"
+
+    id = Column(Integer, primary_key=True)
+    acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
+    subject_id = Column(Integer, ForeignKey("acad_subject.id"), nullable=False)
+    code = Column(String, nullable=False)           # รหัสตัวชี้วัด เช่น ท 1.1 ป.6/1
+    passed = Column(Boolean, default=False)          # ผ่าน/ไม่ผ่าน
+
+    __table_args__ = (UniqueConstraint("acad_student_id", "subject_id", "code",
+                                       name="uq_indicator_student"),)
+
+
 class AcadEval(Base):
     """ผลการประเมินรายคน/ปี ที่ ปพ.6 (สมุดพก) ต้องใช้"""
     __tablename__ = "acad_eval"

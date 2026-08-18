@@ -1,0 +1,107 @@
+"""
+ทดสอบตัวชี้วัดรายวิชา (หลักสูตรแกนกลาง 2551) - กลุ่มสาระภาษาไทย
+- ชุดข้อมูลกลางโหลดได้ + ผูกด้วยกลุ่มสาระ+ชั้น
+- หน้าประเมิน /academic/indicators + บันทึกผล
+- ปพ.6 หน้าสรุป ข้อ "ผ่านตัวชี้วัดร้อยละ 100" คิดจากผลจริง
+- ปพ.5 มีหน้าผลการประเมินตัวชี้วัด
+รัน: .venv\\Scripts\\python.exe -m tests.test_indicators
+"""
+import zipfile
+
+import app.routers.auth as auth_mod
+import app.main as main_mod
+from fastapi.testclient import TestClient
+
+from app.tenancy import session_for
+from app.models import AcadClass, AcadStudent, AcadSubject, AcadIndicatorResult
+from app.main import app
+from app.services.acad_doc import render_pp5, render_pp6
+from app.routers.pages import get_school
+from app.services.curriculum import indicators_for
+
+TID = 1
+MARK = "ทดสอบตช_"
+
+
+def _login():
+    auth_mod.authenticate = lambda u, p: {
+        "uid": 1, "username": "t", "role": "owner", "tenant_id": TID,
+        "display_name": "x", "must_change": False}
+    main_mod.can_use_module = lambda tid, mod: True
+    main_mod.get_account_access = lambda uid: {
+        "is_owner": True, "modules": "", "active": True, "welcomed": True}
+    c = TestClient(app)
+    c.post("/login", data={"username": "t", "password": "x"})
+    return c
+
+
+def _cleanup(db):
+    for cls in db.query(AcadClass).filter(AcadClass.note.like(MARK + "%")).all():
+        for a in cls.students:
+            db.query(AcadIndicatorResult).filter_by(acad_student_id=a.id).delete()
+        db.query(AcadSubject).filter_by(year=2590, level=cls.level).delete()
+        db.delete(cls)
+    db.commit()
+
+
+def test_curriculum_data():
+    assert len(indicators_for("ภาษาไทย", "ป.6")) == 34, "ภาษาไทย ป.6 ต้องมี 34 ตัวชี้วัด"
+    assert len(indicators_for("ภาษาไทย", "ป.1")) == 22
+    assert indicators_for("ภาษาไทย", "ป.6")[0]["code"] == "ท 1.1 ป.6/1"
+    assert indicators_for("คณิตศาสตร์", "ป.6") == []   # ยังไม่ได้เพิ่ม
+    print("[ok] ชุดข้อมูลตัวชี้วัดภาษาไทยครบ (ป.6=34, ป.1=22)")
+
+
+def test_flow():
+    c = _login()
+    db = session_for(TID)
+    _cleanup(db)
+    try:
+        cls = AcadClass(year=2590, level="ป.6", room="9", note=MARK + "ป.6")
+        db.add(cls); db.commit()
+        db.add(AcadStudent(class_id=cls.id, seq=1, name=MARK + "เด็กหญิงตช", sex="F"))
+        db.commit()
+        s = cls.students[0]
+        sub = AcadSubject(year=2590, level="ป.6", code="ท16101", name="ภาษาไทย",
+                          learn_group="ภาษาไทย", term=0, seq=1)
+        db.add(sub); db.commit()
+        n = len(indicators_for("ภาษาไทย", "ป.6"))
+
+        html = c.get(f"/academic/indicators?cid={cls.id}&sid={sub.id}").text
+        assert html.count('name="chk"') == n and "ท 1.1" in html
+        print(f"[ok] หน้าประเมินแสดง {n} ตัวชี้วัด + หัวมาตรฐาน")
+
+        # ผ่านทุกข้อ
+        c.post("/academic/indicators/save", data={
+            "cid": str(cls.id), "sid": str(sub.id),
+            "chk": [f"{s.id}:{i}" for i in range(n)]})
+        db.expire_all()
+        assert db.query(AcadIndicatorResult).filter_by(
+            acad_student_id=s.id, passed=True).count() == n
+        x6 = zipfile.ZipFile(render_pp6(get_school(db), s, db)).read("word/document.xml").decode()
+        assert "100.00" in x6
+        print("[ok] ผ่านทุกข้อ -> ปพ.6 ข้อ 2 = 100.00 ผ่าน")
+
+        # ปลด 3 ข้อ -> 31/34 = 91.18
+        for r in db.query(AcadIndicatorResult).filter_by(
+                acad_student_id=s.id, passed=True).limit(3).all():
+            r.passed = False
+        db.commit()
+        x6b = zipfile.ZipFile(render_pp6(get_school(db), s, db)).read("word/document.xml").decode()
+        assert "91.18" in x6b
+        x5 = zipfile.ZipFile(render_pp5(get_school(db), cls, sub, db)).read("word/document.xml").decode()
+        assert "ผลการประเมินตัวชี้วัดรายวิชา" in x5 and "31/34" in x5
+        print("[ok] ปลด 3 ข้อ -> ปพ.6=91.18, ปพ.5 มีหน้าตัวชี้วัด (31/34)")
+    finally:
+        _cleanup(db)
+        db.close()
+
+
+def main():
+    test_curriculum_data()
+    test_flow()
+    print("\nตัวชี้วัดรายวิชา ผ่านทั้งหมด")
+
+
+if __name__ == "__main__":
+    main()

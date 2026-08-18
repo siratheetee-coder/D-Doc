@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import (Student, Person, AcadClass, AcadStudent, AcadSubject,
                         AcadTeaching, AcadScore, AcadEval,
-                        AcadAssignment, AcadAssignmentScore,
+                        AcadAssignment, AcadAssignmentScore, AcadIndicatorResult,
                         AcadCharEval, AcadReadEval, AcadAttendance, AcadClassMonth,
                         AcadCalendar, AcadHoliday, AcadYearSetting,
                         AcadActivity, AcadActivityResult, AcadOnet)
@@ -32,6 +32,7 @@ from app.services.academic import (grade_of, subject_preset, term_choices, term_
                                    LUNAR_HOLIDAY_NAMES, activity_preset, activities_for,
                                    activity_summary, ONET_SUBJECTS, is_exit_level, onet_for)
 from app.thai_utils import parse_be_date, be_date_input
+from app.services.curriculum import indicators_for, has_indicators
 
 router = APIRouter()
 
@@ -550,6 +551,74 @@ async def grades_save(request: Request, db: Session = Depends(get_db),
             row.grade = manual or grade_of(pct)
     db.commit()
     return RedirectResponse(f"/academic/grades?cid={cid}&sid={sid}&saved=1", status_code=303)
+
+
+# ---------------- ประเมินตัวชี้วัดรายวิชา (หลักสูตรแกนกลาง 2551) ----------------
+@router.get("/academic/indicators", response_class=HTMLResponse)
+def indicators_page(request: Request, db: Session = Depends(get_db),
+                    cid: int | None = None, sid: int | None = None, year: int | None = None):
+    y = year or current_academic_year()
+    classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
+    c = db.get(AcadClass, cid) if cid else None
+    subjects, students, subj, inds, results = [], [], None, [], {}
+    if c:
+        subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
+                    .order_by(AcadSubject.seq, AcadSubject.code).all())
+        subj = db.get(AcadSubject, sid) if sid else None
+        if subj and subj.id not in {x.id for x in subjects}:
+            subj = None
+        if subj:
+            students = sorted(c.students, key=lambda s: (s.seq or 999, s.name))
+            inds = indicators_for(subj.learn_group, subj.level)
+            if inds and students:
+                sids = [s.id for s in students]
+                for r in (db.query(AcadIndicatorResult)
+                          .filter(AcadIndicatorResult.subject_id == subj.id,
+                                  AcadIndicatorResult.acad_student_id.in_(sids)).all()):
+                    results[(r.acad_student_id, r.code)] = r.passed
+    return templates.TemplateResponse("academic_indicators.html", {
+        "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
+        "classes": classes, "c": c, "subjects": subjects, "subj": subj,
+        "students": students, "class_label": _class_label, "term_label": term_label,
+        "indicators": inds, "results": results,
+    })
+
+
+@router.post("/academic/indicators/save")
+async def indicators_save(request: Request, db: Session = Depends(get_db),
+                          cid: str = Form(""), sid: str = Form("")):
+    """บันทึกผลประเมินตัวชี้วัดทั้งห้อง · checkbox 'chk' = '<sid>:<idx>' ที่ติ๊ก = ผ่าน"""
+    form = await request.form()
+    subj = db.get(AcadSubject, _to_int(sid, 0))
+    c = db.get(AcadClass, _to_int(cid, 0))
+    if not subj or not c:
+        return RedirectResponse("/academic/indicators", status_code=303)
+    inds = indicators_for(subj.learn_group, subj.level)
+    codes = [it["code"] for it in inds]
+    checked = set()
+    for v in form.getlist("chk"):
+        try:
+            a, b = v.split(":")
+            checked.add((int(a), int(b)))
+        except (ValueError, TypeError):
+            continue
+    sids = [s.id for s in c.students]
+    cur = {}
+    if sids:
+        for r in (db.query(AcadIndicatorResult)
+                  .filter(AcadIndicatorResult.subject_id == subj.id,
+                          AcadIndicatorResult.acad_student_id.in_(sids)).all()):
+            cur[(r.acad_student_id, r.code)] = r
+    for s in c.students:
+        for i, code in enumerate(codes):
+            passed = (s.id, i) in checked
+            row = cur.get((s.id, code))
+            if not row:
+                row = AcadIndicatorResult(acad_student_id=s.id, subject_id=subj.id, code=code)
+                db.add(row)
+            row.passed = passed
+    db.commit()
+    return RedirectResponse(f"/academic/indicators?cid={cid}&sid={sid}&saved=1", status_code=303)
 
 
 # ---------------- ประเมิน (ที่ ปพ.6 ต้องใช้) ----------------

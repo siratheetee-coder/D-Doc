@@ -198,6 +198,7 @@ def render_pp5(school, klass, subject, db) -> str:
     _pp5_score_page(doc, school, klass, subject, db)
     _pp5_char_page(doc, klass, subject, db, students)
     _pp5_read_page(doc, klass, subject, db, students)
+    _pp5_indicator_page(doc, klass, subject, db, students)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ปพ.5_{subject.name}_{_class_label(klass)}_{klass.year}") + ".docx")
     doc.save(str(out))
@@ -264,6 +265,59 @@ def _pp5_roster(doc, klass, students, db):
                 Cm(3.0), Cm(1.8), Cm(2.6), Cm(1.5), Cm(1.6), Cm(3.0)])   # รวม 26.7
     _p(doc, "ข้อมูลบิดา/มารดา/ผู้ปกครอง และที่อยู่ ดึงจากทะเบียนนักเรียนกลาง (ช่องว่าง = ยังไม่ได้กรอก)",
        size=10, after=0, align="center")
+
+
+def _pp5_indicator_page(doc, klass, subject, db, students):
+    """หน้าผลการประเมินตัวชี้วัดรายวิชา (สรุปผ่าน/ทั้งหมด รายมาตรฐาน) + รายการตัวชี้วัด
+    ข้ามถ้ายังไม่มีชุดตัวชี้วัดของกลุ่มสาระ+ชั้นนั้น"""
+    from app.services.curriculum import indicators_for
+    from app.models import AcadIndicatorResult
+    inds = indicators_for(subject.learn_group, subject.level)
+    if not inds:
+        return
+    # จัดกลุ่มตามมาตรฐาน (คงลำดับ)
+    stds = []
+    for it in inds:
+        if not stds or stds[-1][0] != it["std"]:
+            stds.append((it["std"], []))
+        stds[-1][1].append(it)
+    passset = {}
+    sids = [s.id for s in students]
+    if sids:
+        for r in (db.query(AcadIndicatorResult)
+                  .filter(AcadIndicatorResult.subject_id == subject.id,
+                          AcadIndicatorResult.acad_student_id.in_(sids)).all()):
+            if r.passed:
+                passset[(r.acad_student_id, r.code)] = True
+
+    _p(doc, "ผลการประเมินตัวชี้วัดรายวิชา (ตามหลักสูตรแกนกลาง 2551)",
+       align="center", bold=True, size=16, after=0, page_break=True)
+    _p(doc, f"รายวิชา {subject.code or ''} {subject.name}   ชั้น {_class_label(klass)}   "
+            f"ปีการศึกษา {klass.year}   ({len(inds)} ตัวชี้วัด)", align="center", size=13, after=6)
+
+    heads = ["เลขที่", "ชื่อ-นามสกุล"] + [st for st, _ in stds] + ["รวมผ่าน", "ผล"]
+    t = doc.add_table(rows=1, cols=len(heads)); t.style = "Table Grid"
+    for i, h in enumerate(heads):
+        _cell(t.rows[0].cells[i], h, bold=True, fill="EDE9FE", size=11)
+    for s in students:
+        cells = t.add_row().cells
+        _cell(cells[0], s.seq or "", size=11)
+        _cell(cells[1], s.name, align="left", size=11)
+        tot_pass = 0
+        for j, (st, items) in enumerate(stds):
+            npass = sum(1 for it in items if passset.get((s.id, it["code"])))
+            tot_pass += npass
+            _cell(cells[2 + j], f"{npass}/{len(items)}", size=11)
+        _cell(cells[-2], f"{tot_pass}/{len(inds)}", size=11, bold=True)
+        _cell(cells[-1], "ผ่าน" if tot_pass == len(inds) else "ไม่ผ่าน", size=11, bold=True)
+    sw = min(2.6, 13.5 / max(1, len(stds)))
+    _widths(t, [Cm(1.2), Cm(6.0)] + [Cm(sw)] * len(stds) + [Cm(2.0), Cm(1.8)])
+    _p(doc, "เกณฑ์ผ่าน: ผ่านตัวชี้วัดครบทุกข้อ (ร้อยละ 100) | ตัวเลข = จำนวนที่ผ่าน/ทั้งหมด ในแต่ละมาตรฐาน",
+       size=10, after=6, align="center")
+    # รายการตัวชี้วัดอ้างอิง
+    _p(doc, "รายการตัวชี้วัด", bold=True, size=12, after=2)
+    for it in inds:
+        _p(doc, f"{it['code']}  {it['text']}", size=11, after=0)
 
 
 def _pp5_char_page(doc, klass, subject, db, students):
@@ -559,6 +613,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
         _pp5_score_page(doc, school, klass, sub, db, page_break=True)
         _pp5_char_page(doc, klass, sub, db, students)
         _pp5_read_page(doc, klass, sub, db, students)
+        _pp5_indicator_page(doc, klass, sub, db, students)
 
     # ---------- สรุปผลการเรียนทุกวิชา ----------
     _p(doc, f"สรุปผลการเรียนทุกรายวิชา ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}"
@@ -1068,6 +1123,26 @@ def _pp6_summary(doc, school, s, db, ef):
     act = (activity_summary(s, db) or "").strip()
     has_zero = any(g == "0" for g in grades)
 
+    # ตัวชี้วัดรายวิชา: ร้อยละที่ผ่าน (เฉพาะวิชาที่มีชุดตัวชี้วัดในระบบ)
+    from app.services.curriculum import indicators_for
+    from app.models import AcadIndicatorResult
+    inds_by_sub, total_ind = {}, 0
+    for sub in subs:
+        its = indicators_for(sub.learn_group, sub.level)
+        if its:
+            inds_by_sub[sub.id] = its
+            total_ind += len(its)
+    ind_pct = None
+    if inds_by_sub:
+        passset = {(r.subject_id, r.code) for r in
+                   db.query(AcadIndicatorResult)
+                   .filter(AcadIndicatorResult.acad_student_id == s.id,
+                           AcadIndicatorResult.subject_id.in_(inds_by_sub.keys())).all()
+                   if r.passed}
+        passed_ind = sum(1 for sid_, its in inds_by_sub.items()
+                         for it in its if (sid_, it["code"]) in passset)
+        ind_pct = (100.0 * passed_ind / total_ind) if total_ind else None
+
     def _pass(ok):
         return "ผ่าน" if ok else "ไม่ผ่าน"
 
@@ -1075,7 +1150,9 @@ def _pp6_summary(doc, school, s, db, ef):
     rows = [
         ("มีเวลาเรียนตลอดปีการศึกษาร้อยละ 80 ขึ้นไป", att_txt,
          _pass(att_pct is None or att_pct >= 80)),
-        ("ผ่านการประเมินตัวชี้วัดรายวิชา ร้อยละ 100", "100.00", "ผ่าน"),
+        ("ผ่านการประเมินตัวชี้วัดรายวิชา ร้อยละ 100",
+         f"{ind_pct:.2f}" if ind_pct is not None else "100.00",
+         _pass(ind_pct is None or ind_pct >= 100)),
         ("ผ่านการประเมินกิจกรรมพัฒนาผู้เรียนทุกกิจกรรม", act,
          _pass(act != "มผ")),
         ("การตัดสินคุณลักษณะอันพึงประสงค์", char or "-",
@@ -1103,7 +1180,8 @@ def _pp6_summary(doc, school, s, db, ef):
     _widths(t, [Cm(1.2), Cm(8.3), Cm(3.7), Cm(2.8)])
 
     all_pass = (att_pct is None or att_pct >= 80) and not has_zero and \
-        char not in ("", "ไม่ผ่าน") and read not in ("", "ไม่ผ่าน")
+        char not in ("", "ไม่ผ่าน") and read not in ("", "ไม่ผ่าน") and \
+        (ind_pct is None or ind_pct >= 100)
     grad = is_exit_level(klass.level)
     verb = "จบการศึกษา" if grad else "เลื่อนชั้น"
     _p(doc, "", after=2)

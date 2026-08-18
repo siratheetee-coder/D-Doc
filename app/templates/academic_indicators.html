@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}ประเมินตัวชี้วัดรายวิชา{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานวิชาการ · หลักสูตรแกนกลาง 2551</div>
+    <span class="hero-title">ประเมินตัวชี้วัดรายวิชา</span>
+    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+  </div>
+</div>
+
+{% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกผลประเมินตัวชี้วัดแล้ว</div>{% endif %}
+
+<div class="card">
+  <form method="get" action="/academic/indicators" class="row" style="align-items:flex-end; margin:0;">
+    <div><label>ปีการศึกษา</label>
+      <select name="year" onchange="submitReplace(this.form)">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
+      </select></div>
+    <div><label>ห้องเรียน</label>
+      <select name="cid" onchange="if(this.form.sid)this.form.sid.value=''; submitReplace(this.form)">
+        <option value="">- เลือกห้อง -</option>
+        {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id==c.id }}>{{ class_label(k) }}</option>{% endfor %}
+      </select></div>
+    {% if c %}
+    <div style="flex:1;"><label>รายวิชา</label>
+      <select name="sid" onchange="submitReplace(this.form)">
+        <option value="">- เลือกวิชา -</option>
+        {% for s in subjects %}<option value="{{ s.id }}" {{ 'selected' if subj and s.id==subj.id }}>{{ s.code }} {{ s.name }} - {{ term_label(s.term) }}</option>{% endfor %}
+      </select></div>
+    {% endif %}
+  </form>
+  {% if c and not subj %}
+  <p class="muted" style="margin:10px 0 0;">เลือก <b>รายวิชา</b> เพื่อประเมินตัวชี้วัด · ระบบดึงตัวชี้วัดตาม <b>กลุ่มสาระ + ชั้น</b> ให้อัตโนมัติ</p>
+  {% elif not c %}
+  <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> แล้วเลือก <b>รายวิชา</b> เพื่อเริ่มประเมินตัวชี้วัด</p>
+  {% endif %}
+</div>
+
+{% if c and subj %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;">{{ subj.code }} {{ subj.name }} · ห้อง {{ class_label(c) }}</h2>
+    <a class="btn soft" href="/academic/grades?cid={{ c.id }}&sid={{ subj.id }}"><svg class="icon"><use href="#ic-edit"/></svg> กรอกคะแนน ปพ.5 วิชานี้</a>
+  </div>
+
+  {% if not indicators %}
+  <div class="alert warn" style="margin:10px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg>
+    ยังไม่มีข้อมูลตัวชี้วัดของกลุ่มสาระ <b>{{ subj.learn_group or '-' }}</b> ชั้น <b>{{ subj.level }}</b>
+    (ขณะนี้พร้อมใช้เฉพาะบางกลุ่มสาระ ระบบจะทยอยเพิ่มให้ครบ)</div>
+  {% elif not students %}
+  <p class="muted" style="margin:10px 0 0;">ห้องนี้ยังไม่มีนักเรียน - <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
+  {% else %}
+  <p class="muted" style="font-size:13px; margin:6px 0 8px;">ติ๊กช่องที่นักเรียน<b>ผ่าน</b>ตัวชี้วัด (มี {{ indicators|length }} ตัวชี้วัด) ·
+    วางเมาส์ที่หัวคอลัมน์เพื่อดูข้อความเต็ม · เกณฑ์ ปพ.6 "ผ่านตัวชี้วัดร้อยละ 100" คิดจากหน้านี้</p>
+
+  <div style="margin-bottom:8px;">
+    <button type="button" class="btn-acad" onclick="allPass(true)"><svg class="icon"><use href="#ic-check"/></svg> ทุกคนผ่านทุกตัวชี้วัด</button>
+    <button type="button" class="btn-acad ghost" onclick="allPass(false)">ล้างทั้งหมด</button>
+  </div>
+
+  <form method="post" action="/academic/indicators/save" id="indForm">
+    <input type="hidden" name="cid" value="{{ c.id }}"><input type="hidden" name="sid" value="{{ subj.id }}">
+    <div class="table-wrap ind-wrap">
+    <table class="ind-tbl">
+      <thead>
+        <tr>
+          <th rowspan="2" class="stick">เลขที่</th>
+          <th rowspan="2" class="stick2">ชื่อ-นามสกุล</th>
+          {% for std, items in indicators|groupby('std') %}
+          <th colspan="{{ items|length }}" class="std-h">{{ std }}</th>
+          {% endfor %}
+          <th rowspan="2">ผ่าน<br>ทั้งหมด</th>
+        </tr>
+        <tr>
+          {% for it in indicators %}
+          <th class="ind-h" title="{{ it.code }} : {{ it.text }}">{{ it.seq }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+      {% for s in students %}
+        <tr data-row>
+          <td class="stick">{{ s.seq or '' }}</td>
+          <td class="stick2" style="white-space:nowrap;">{{ s.name }}</td>
+          {% for it in indicators %}
+          <td class="center"><input type="checkbox" name="chk" value="{{ s.id }}:{{ loop.index0 }}"
+                 class="ind-ck" {{ 'checked' if results.get((s.id, it.code)) }}></td>
+          {% endfor %}
+          <td class="center"><input type="checkbox" class="row-all" onchange="rowAll(this)" title="ผ่านทุกตัวชี้วัดของคนนี้"></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <button class="btn-acad" type="submit" style="margin-top:12px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกผลประเมินตัวชี้วัด</button>
+  </form>
+
+  <details style="margin-top:16px;">
+    <summary style="cursor:pointer; font-weight:600; color:var(--acad-dark);">ดูข้อความตัวชี้วัดทั้งหมด ({{ indicators|length }} ข้อ)</summary>
+    <ol style="margin:10px 0 0; padding-left:22px; font-size:14px; line-height:1.7;">
+      {% for it in indicators %}<li><b>{{ it.code }}</b> {{ it.text }}</li>{% endfor %}
+    </ol>
+  </details>
+  {% endif %}
+</div>
+{% endif %}
+
+<script>
+  function syncRowAll(tr){
+    var boxes = tr.querySelectorAll('.ind-ck');
+    var all = boxes.length>0 && Array.prototype.every.call(boxes, function(b){ return b.checked; });
+    var ra = tr.querySelector('.row-all'); if(ra) ra.checked = all;
+  }
+  function rowAll(cb){
+    var tr = cb.closest('tr');
+    tr.querySelectorAll('.ind-ck').forEach(function(b){ b.checked = cb.checked; });
+  }
+  function allPass(v){
+    document.querySelectorAll('tr[data-row]').forEach(function(tr){
+      tr.querySelectorAll('.ind-ck').forEach(function(b){ b.checked = v; });
+      var ra = tr.querySelector('.row-all'); if(ra) ra.checked = v;
+    });
+  }
+  document.querySelectorAll('tr[data-row]').forEach(function(tr){
+    syncRowAll(tr);
+    tr.addEventListener('change', function(e){ if(e.target.classList.contains('ind-ck')) syncRowAll(tr); });
+  });
+</script>
+<style>
+  :root { --acad:#2563eb; --acad-dark:#1d4ed8; --acad-50:#eff6ff; --acad-100:#dbeafe; }
+  .ind-wrap { overflow-x:auto; max-width:100%; }
+  .ind-tbl { border-collapse:collapse; }
+  .ind-tbl th, .ind-tbl td { border:1px solid #e2e8f0; padding:4px 6px; }
+  .ind-tbl thead th { background:var(--acad-50); font-size:12px; }
+  .ind-tbl .std-h { background:var(--acad-100); color:var(--acad-dark); font-weight:700; white-space:nowrap; }
+  .ind-tbl .ind-h { min-width:26px; font-weight:600; color:#475569; cursor:help; }
+  .ind-tbl .stick { position:sticky; left:0; background:#fff; z-index:2; }
+  .ind-tbl .stick2 { position:sticky; left:42px; background:#fff; z-index:2; }
+  .ind-tbl thead .stick, .ind-tbl thead .stick2 { background:var(--acad-50); z-index:3; }
+  .ind-tbl tbody tr:hover td { background:#f8fbff; }
+  .ind-ck, .row-all { width:17px; height:17px; cursor:pointer; accent-color:var(--acad); }
+  .row-all { width:19px; height:19px; }
+  .btn-acad { display:inline-flex; align-items:center; gap:7px; padding:9px 18px; border:none; border-radius:9px;
+    background:linear-gradient(90deg, var(--acad), var(--acad-dark)); color:#fff; font-family:inherit; font-size:14px;
+    font-weight:600; cursor:pointer; box-shadow:0 2px 6px rgba(37,99,235,.28); transition:transform .1s, box-shadow .15s, filter .12s; }
+  .btn-acad .icon { color:#fff; }
+  .btn-acad:hover { filter:brightness(1.06); box-shadow:0 4px 12px rgba(37,99,235,.36); transform:translateY(-1px); }
+  .btn-acad:active { transform:translateY(0) scale(.97); }
+  .btn-acad.ghost { background:#fff; color:var(--acad-dark); border:1.5px solid var(--acad-100); box-shadow:none; }
+  .btn-acad.ghost:hover { background:var(--acad-50); filter:none; }
+</style>
+{% endblock %}
