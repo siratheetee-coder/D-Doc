@@ -191,9 +191,13 @@ def _pp5_score_page(doc, school, klass, subject, db, *, page_break: bool = False
 
 
 def render_pp5(school, klass, subject, db) -> str:
-    """แบบบันทึกผลการพัฒนาคุณภาพผู้เรียน - รายวิชา x ห้อง (แนวนอน แผ่นเดี่ยว)"""
+    """แบบบันทึกผลการพัฒนาคุณภาพผู้เรียน - รายวิชา x ห้อง (แนวนอน แผ่นเดี่ยว)
+    ใบคะแนน + หน้าประเมินคุณลักษณะ + หน้าประเมินอ่านคิดวิเคราะห์เขียน"""
     doc = _doc(landscape=True)
+    students = sorted(klass.students, key=lambda s: (s.seq or 999, s.name))
     _pp5_score_page(doc, school, klass, subject, db)
+    _pp5_char_page(doc, klass, subject, db, students)
+    _pp5_read_page(doc, klass, subject, db, students)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ปพ.5_{subject.name}_{_class_label(klass)}_{klass.year}") + ".docx")
     doc.save(str(out))
@@ -210,6 +214,56 @@ def _grade_counts(grades):
         if g in n:
             n[g] += 1
     return n
+
+
+def _student_age(birth) -> str:
+    """อายุเต็มปี ณ วันนี้ จากวันเกิด (คืน '' ถ้าไม่มี)"""
+    if not birth:
+        return ""
+    from datetime import date
+    t = date.today()
+    y = t.year - birth.year - ((t.month, t.day) < (birth.month, birth.day))
+    return str(y) if y >= 0 else ""
+
+
+def _pp5_roster(doc, klass, students, db):
+    """หน้ารายชื่อนักเรียน + ข้อมูลบิดา/มารดา/ผู้ปกครอง/ที่อยู่ (ดึงจากทะเบียนกลาง)"""
+    from app.models import Student
+    _p(doc, f"รายชื่อและข้อมูลนักเรียน ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}",
+       align="center", bold=True, size=16, after=6)
+    ids = [s.student_id for s in students if s.student_id]
+    cmap = {}
+    if ids:
+        for st in db.query(Student).filter(Student.id.in_(ids)).all():
+            cmap[st.id] = st
+    heads = ["เลขที่", "ชื่อ-นามสกุล", "วัน/เดือน/ปี เกิด", "อายุ", "ชื่อบิดา", "อาชีพ",
+             "ชื่อมารดา", "อาชีพ", "ผู้ปกครอง", "เกี่ยวข้อง", "อาชีพ", "ที่อยู่ปัจจุบัน"]
+    t = doc.add_table(rows=1, cols=len(heads)); t.style = "Table Grid"
+    for i, h in enumerate(heads):
+        _cell(t.rows[0].cells[i], h, bold=True, fill="EDE9FE", size=10)
+    for s in students:
+        st = cmap.get(s.student_id)
+
+        def g(a):
+            return (getattr(st, a, "") or "") if st else ""
+
+        cells = t.add_row().cells
+        _cell(cells[0], s.seq or "", size=10)
+        _cell(cells[1], s.name, align="left", size=10)
+        _cell(cells[2], thai_date(st.birthdate) if (st and st.birthdate) else "", size=9)
+        _cell(cells[3], _student_age(st.birthdate) if st else "", size=10)
+        _cell(cells[4], g("father_name"), align="left", size=9)
+        _cell(cells[5], g("father_job"), size=9)
+        _cell(cells[6], g("mother_name"), align="left", size=9)
+        _cell(cells[7], g("mother_job"), size=9)
+        _cell(cells[8], g("guardian_name"), align="left", size=9)
+        _cell(cells[9], g("guardian_relation"), size=9)
+        _cell(cells[10], g("guardian_job"), size=9)
+        _cell(cells[11], _fmt_addr(st) if st else "", align="left", size=8)
+    _widths(t, [Cm(1.0), Cm(4.2), Cm(2.2), Cm(1.0), Cm(3.0), Cm(1.8),
+                Cm(3.0), Cm(1.8), Cm(2.6), Cm(1.5), Cm(1.6), Cm(3.0)])   # รวม 26.7
+    _p(doc, "ข้อมูลบิดา/มารดา/ผู้ปกครอง และที่อยู่ ดึงจากทะเบียนนักเรียนกลาง (ช่องว่าง = ยังไม่ได้กรอก)",
+       size=10, after=0, align="center")
 
 
 def _pp5_char_page(doc, klass, subject, db, students):
@@ -428,19 +482,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
 
     # ---------- หน้า 2 เป็นต้นไป: สลับเป็นแนวนอน ----------
     _new_section(doc, landscape=True)
-    _p(doc, f"รายชื่อนักเรียน ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}",
-       align="center", bold=True, size=16, after=6)
-    rt = doc.add_table(rows=1, cols=5); rt.style = "Table Grid"
-    for i, h in enumerate(["เลขที่", "เลขประจำตัว", "ชื่อ-นามสกุล", "เพศ", "หมายเหตุ"]):
-        _cell(rt.rows[0].cells[i], h, bold=True, fill="EDE9FE")
-    for s in students:
-        cells = rt.add_row().cells
-        _cell(cells[0], s.seq or "")
-        _cell(cells[1], s.student_no or "")
-        _cell(cells[2], s.name, align="left")
-        _cell(cells[3], {"M": "ชาย", "F": "หญิง"}.get(s.sex, ""))
-        _cell(cells[4], "")
-    _widths(rt, [Cm(2.0), Cm(3.2), Cm(11.0), Cm(2.5), Cm(5.0)])
+    _pp5_roster(doc, klass, students, db)
 
     # ---------- หน้า 3: สรุปเวลาเรียน ----------
     _p(doc, f"สรุปเวลาเรียน ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}",
@@ -644,6 +686,15 @@ def _pp6_cover(doc, school, s, db, *, page_break):
         _p(doc, school.area_office, align="center", size=14, after=24)
     else:
         _p(doc, "", after=24)
+    # รูปนักเรียนบนปก (ถ้าผูกทะเบียนกลาง + อัปโหลดรูปไว้)
+    st = _pp6_central(s, db)
+    if st and getattr(st, "photo", None):
+        import io as _io
+        pic = _p(doc, "", align="center", after=6)
+        try:
+            pic.add_run().add_picture(_io.BytesIO(st.photo), height=Cm(4.0))
+        except Exception:
+            pic._element.getparent().remove(pic._element)
     _p(doc, f"เลขที่ {s.seq or '.....'}", align="center", size=15, after=4)
     _p(doc, f"ชื่อ  {s.name}", align="center", bold=True, size=18, after=4)
     _p(doc, f"เลขประจำตัวนักเรียน  {s.student_no or '................'}", align="center", size=14, after=4)

@@ -290,7 +290,12 @@ class Student(Base):
     # ---- ข้อมูลส่วนตัว (สำหรับสมุดพก ปพ.6 หน้าข้อมูลส่วนตัว) ----
     id_card = Column(String, default="")            # เลขประจำตัวประชาชน 13 หลัก
     father_name = Column(String, default="")        # ชื่อบิดา
+    father_job = Column(String, default="")         # อาชีพบิดา
     mother_name = Column(String, default="")        # ชื่อมารดา
+    mother_job = Column(String, default="")         # อาชีพมารดา
+    guardian_name = Column(String, default="")      # ชื่อผู้ปกครอง
+    guardian_relation = Column(String, default="")  # ความสัมพันธ์กับนักเรียน
+    guardian_job = Column(String, default="")       # อาชีพผู้ปกครอง
     race = Column(String, default="")               # เชื้อชาติ
     nationality = Column(String, default="")        # สัญชาติ
     religion = Column(String, default="")           # ศาสนา

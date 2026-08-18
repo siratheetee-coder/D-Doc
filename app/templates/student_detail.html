@@ -69,9 +69,19 @@
     <div class="row">
       <div style="flex:1;"><label>โรคประจำตัว</label><input name="congenital_disease" value="{{ s.congenital_disease or '' }}"></div>
     </div>
+    <h3 style="margin:14px 0 4px; font-size:15px;">บิดา / มารดา / ผู้ปกครอง</h3>
     <div class="row">
       <div style="flex:2;"><label>ชื่อบิดา</label><input name="father_name" value="{{ s.father_name or '' }}"></div>
+      <div style="flex:1;"><label>อาชีพบิดา</label><input name="father_job" value="{{ s.father_job or '' }}"></div>
+    </div>
+    <div class="row">
       <div style="flex:2;"><label>ชื่อมารดา</label><input name="mother_name" value="{{ s.mother_name or '' }}"></div>
+      <div style="flex:1;"><label>อาชีพมารดา</label><input name="mother_job" value="{{ s.mother_job or '' }}"></div>
+    </div>
+    <div class="row">
+      <div style="flex:2;"><label>ชื่อผู้ปกครอง</label><input name="guardian_name" value="{{ s.guardian_name or '' }}" placeholder="ถ้าไม่ใช่บิดา/มารดา"></div>
+      <div><label>ความสัมพันธ์กับนักเรียน</label><input name="guardian_relation" value="{{ s.guardian_relation or '' }}" style="width:150px;" placeholder="เช่น ย่า, ลุง"></div>
+      <div style="flex:1;"><label>อาชีพผู้ปกครอง</label><input name="guardian_job" value="{{ s.guardian_job or '' }}"></div>
     </div>
     <h3 style="margin:14px 0 4px; font-size:15px;">ที่อยู่</h3>
     <div class="row">
