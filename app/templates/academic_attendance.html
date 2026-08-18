@@ -203,10 +203,22 @@
   document.getElementById('showMonths').addEventListener('change', function(){
     document.getElementById('attTable').classList.toggle('hide-months', !this.checked);
   });
-  // ทุกคนมาเรียนทุกวัน = ป่วย/ลา/ขาด = 0 ทุกคน แล้วระบบคิด มา(รวม) = วันเปิดเรียนเต็ม
+  // ทุกคนมาเรียนทุกวัน = เติม "มา" รายเดือน = วันเปิดเรียนของเดือนนั้นทุกคน + ป่วย/ลา/ขาด = 0
+  // (เดือนที่เช็กชื่อรายวันไว้แล้วเป็น span แก้ที่หน้าเช็กชื่อ - ข้ามไป)
   function allFullYear(){
-    document.querySelectorAll('tr[data-row] [data-gap]').forEach(function(i){
-      if (!i.readOnly) i.value = '0';
+    var opens = {};
+    document.querySelectorAll('[data-open]').forEach(function(i){
+      opens[i.name.replace('open_', '')] = intOf(i);
+    });
+    document.querySelectorAll('tr[data-row]').forEach(function(tr){
+      // เติมช่องมารายเดือน = จำนวนวันเปิดเรียนของเดือนนั้น (เฉพาะช่องที่พิมพ์ได้)
+      tr.querySelectorAll('input[data-m]').forEach(function(i){
+        var m = i.name.replace(/^p_\d+_/, '');
+        var ov = opens[m];
+        i.value = (ov === null || ov === undefined) ? '' : ov;
+      });
+      // ป่วย/ลา/ขาด = 0
+      tr.querySelectorAll('[data-gap]').forEach(function(i){ if (!i.readOnly) i.value = '0'; });
     });
     recalc();
   }
