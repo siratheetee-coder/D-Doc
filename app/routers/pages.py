@@ -1041,6 +1041,63 @@ def student_photo(sid: int, db: Session = Depends(get_db)):
                     headers={"Cache-Control": "no-cache"})
 
 
+def _process_logo(data: bytes):
+    """ย่อโลโก้โรงเรียน (ด้านยาวสุด 600px) · เก็บ PNG ถ้ามีพื้นโปร่งใส ไม่งั้น JPEG
+    คืน (bytes, ext) หรือ None ถ้าไม่ใช่รูป"""
+    import io as _io
+    from PIL import Image, ImageOps
+    try:
+        img = ImageOps.exif_transpose(Image.open(_io.BytesIO(data)))
+    except Exception:
+        return None
+    has_alpha = img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info)
+    m = 600
+    if max(img.width, img.height) > m:
+        scale = m / max(img.width, img.height)
+        img = img.resize((round(img.width * scale), round(img.height * scale)), Image.LANCZOS)
+    buf = _io.BytesIO()
+    if has_alpha:
+        img.convert("RGBA").save(buf, "PNG", optimize=True)
+        return buf.getvalue(), "png"
+    img.convert("RGB").save(buf, "JPEG", quality=85, optimize=True)
+    return buf.getvalue(), "jpg"
+
+
+@router.post("/settings/logo")
+async def school_logo_upload(db: Session = Depends(get_db), file: UploadFile = File(...)):
+    """อัปโหลดโลโก้/ตราโรงเรียน (ใช้บนหัว ปพ.5 / ปพ.6)"""
+    school = get_school(db)
+    data = await file.read()
+    out = _process_logo(data)
+    if out:
+        school.logo, school.logo_ext = out
+        db.commit()
+        return RedirectResponse("/settings?saved=1#logo", status_code=303)
+    return RedirectResponse("/settings?logo_err=1#logo", status_code=303)
+
+
+@router.post("/settings/logo/delete")
+def school_logo_delete(db: Session = Depends(get_db)):
+    school = get_school(db)
+    if school.logo:
+        school.logo = None
+        school.logo_ext = ""
+        db.commit()
+    return RedirectResponse("/settings?saved=1#logo", status_code=303)
+
+
+@router.get("/settings/logo")
+def school_logo(db: Session = Depends(get_db)):
+    """ส่งโลโก้โรงเรียน (คืน 404 ถ้ายังไม่มี)"""
+    from fastapi.responses import Response
+    school = get_school(db)
+    if not school or not school.logo:
+        return Response(status_code=404)
+    mime = "image/png" if (school.logo_ext == "png") else "image/jpeg"
+    return Response(content=school.logo, media_type=mime,
+                    headers={"Cache-Control": "no-cache"})
+
+
 # ลำดับชั้นเรียนสำหรับเลื่อนชั้นขึ้นปีใหม่
 _LEVEL_LADDER = SCHOOL_LEVELS          # ใช้ลิสต์ร่วมจาก thai_utils (แหล่งความจริงเดียว)
 _GRADUATED = GRADUATED

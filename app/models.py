@@ -54,6 +54,9 @@ class School(Base):
 
     ai_api_key = Column(String, default="")        # Anthropic API key (สำหรับอ่านไฟล์ด้วย AI ทางเลือก)
 
+    logo = Column(LargeBinary, nullable=True)      # โลโก้/ตราโรงเรียน (PNG/JPEG ย่อขนาด) เก็บใน DB
+    logo_ext = Column(String, default="")          # นามสกุล png/jpg
+
 
 class Person(Base):
     """รายชื่อครู/บุคลากร (มาสเตอร์ลิสต์) ใช้เลือกเป็นกรรมการหรือผู้ลงนาม + ข้อมูลงานบุคคล"""

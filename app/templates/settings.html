@@ -55,6 +55,31 @@
     <br>
     <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
   </form>
+
+  <hr style="border:none; border-top:1px solid #eee; margin:20px 0;">
+  <div id="logo">
+    <h2 style="margin:0 0 4px;">โลโก้ / ตราโรงเรียน</h2>
+    <p class="muted" style="font-size:13.5px; margin:0 0 10px;">ใช้แสดงบนหัวเอกสาร <b>ปพ.5</b> และ <b>ปพ.6 (สมุดพก)</b> · แนะนำไฟล์ .png พื้นโปร่งใส (ตราครุฑ/ตราโรงเรียน)</p>
+    {% if request.query_params.get("logo_err") %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> ไฟล์ไม่ใช่รูปภาพที่รองรับ (ใช้ .png / .jpg)</div>{% endif %}
+    <div style="display:flex; gap:18px; align-items:center; flex-wrap:wrap;">
+      <div style="width:110px; height:110px; border:1px dashed #cbd5e1; border-radius:12px; display:flex; align-items:center; justify-content:center; background:#fafafe; overflow:hidden;">
+        {% if school.logo %}<img src="/settings/logo?v={{ range(100000)|random }}" alt="โลโก้" style="max-width:100%; max-height:100%;">
+        {% else %}<span class="muted" style="font-size:13px;">ยังไม่มีโลโก้</span>{% endif %}
+      </div>
+      <div>
+        <form method="post" action="/settings/logo" enctype="multipart/form-data" style="margin:0 0 6px;">
+          <input type="file" name="file" accept="image/png,image/jpeg" required style="max-width:260px;">
+          <button class="btn soft" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดโลโก้</button>
+        </form>
+        {% if school.logo %}
+        <form method="post" action="/settings/logo/delete" style="margin:0;"
+              onsubmit="return confirm('ลบโลโก้โรงเรียน?');">
+          <button class="btn sm ghost danger" type="submit">ลบโลโก้</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="card hl">

@@ -141,6 +141,8 @@ MIGRATIONS = [
     ("student", "prev_school", "VARCHAR DEFAULT ''"),
     ("student", "photo", "BLOB"),
     ("student", "photo_ext", "VARCHAR DEFAULT ''"),
+    ("school", "logo", "BLOB"),
+    ("school", "logo_ext", "VARCHAR DEFAULT ''"),
     # ---- ตารางกลาง StudentMeasure สร้างอัตโนมัติผ่าน create_all (ไม่ต้อง migrate คอลัมน์) ----
 ]
 

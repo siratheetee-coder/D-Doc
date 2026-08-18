@@ -116,6 +116,26 @@ def _sign_block(doc, name, role, *, after=0):
     _p(doc, role, align="center", after=after)
 
 
+def _logo_header(doc, school, *, page_break=False, height_cm=2.0, after=2):
+    """แทรกโลโก้/ตราโรงเรียนกึ่งกลางหัวเอกสาร (ถ้าตั้งค่าไว้) · คืน True ถ้าใส่สำเร็จ
+    รับ page_break มาแปะที่ย่อหน้าโลโก้ เพื่อให้ตัวเรียกไม่ต้องขึ้นหน้าซ้ำ"""
+    import io
+    logo = getattr(school, "logo", None)
+    if not logo:
+        return False
+    p = doc.add_paragraph()
+    if page_break:
+        p.paragraph_format.page_break_before = True
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_after = Pt(after)
+    try:
+        p.add_run().add_picture(io.BytesIO(logo), height=Cm(height_cm))
+    except Exception:      # ไฟล์เสีย/ฟอร์แมตไม่รองรับ - ข้ามโลโก้ ไม่ให้ล้มทั้งเอกสาร
+        p._element.getparent().remove(p._element)
+        return False
+    return True
+
+
 # ============================ ปพ.5 ============================
 def _pp5_score_page(doc, school, klass, subject, db, *, page_break: bool = False):
     """หน้าใบคะแนนของ 1 รายวิชา (ใช้ทั้งแบบแผ่นเดี่ยวและในเล่มรวม)"""
@@ -127,8 +147,9 @@ def _pp5_score_page(doc, school, klass, subject, db, *, page_break: bool = False
     teach = db.query(AcadTeaching).filter_by(class_id=klass.id, subject_id=subject.id).first()
     teacher = teach.teacher.name if (teach and teach.teacher) else ""
 
+    added = _logo_header(doc, school, page_break=page_break, height_cm=1.7)
     _p(doc, "แบบบันทึกผลการพัฒนาคุณภาพผู้เรียน (ปพ.5)", align="center", bold=True, size=18, after=0,
-       page_break=page_break)
+       page_break=(page_break and not added))
     _p(doc, school.name or "", align="center", bold=True, size=15, after=0)
     head = (f"รายวิชา {subject.code or ''} {subject.name}   ชั้น {_class_label(klass)}   "
             f"ปีการศึกษา {klass.year}   {term_label(term)}")
@@ -590,8 +611,10 @@ def _pp6_central(s, db):
 def _pp6_cover(doc, school, s, db, *, page_break):
     """หน้า 1 : ปกสมุดรายงานประจำตัวนักเรียน"""
     klass = s.klass
-    _p(doc, "", after=0, page_break=page_break)
-    _p(doc, "", after=0)
+    added = _logo_header(doc, school, page_break=page_break, height_cm=3.0, after=6)
+    _p(doc, "", after=0, page_break=(page_break and not added))
+    if not added:
+        _p(doc, "", after=0)
     _p(doc, "สมุดรายงานประจำตัวนักเรียน", align="center", bold=True, size=26, after=6)
     _p(doc, "แบบรายงานผลการพัฒนาคุณภาพผู้เรียนรายบุคคล (ปพ.6)", align="center", bold=True, size=16, after=2)
     _p(doc, f"ปีการศึกษา {klass.year}", align="center", size=15, after=18)
@@ -907,64 +930,162 @@ def _pp6_activities_onet(doc, school, s, db):
         _widths(ot, [Cm(6.0), Cm(4.0), Cm(4.0)])
 
 
+_CDOTS = "..............................................................................................."
+
+
+def _comment_table(doc, title, *, lines_per_term=4):
+    """ตารางกรอบความคิดเห็น 1 ชุด: หัวรวม + [ภาคเรียน | ความคิดเห็น...] + แถวภาค 1/2 (เว้นเขียนมือ)"""
+    t = doc.add_table(rows=0, cols=2); t.style = "Table Grid"
+    # หัวรวม (ผสาน 2 ช่อง)
+    hr = t.add_row().cells
+    hr[0].merge(hr[1])
+    _cell(hr[0], title, bold=True, size=15, fill="F1F5F9")
+    # หัวคอลัมน์
+    sh = t.add_row().cells
+    _cell(sh[0], "ภาคเรียน", bold=True, size=13, fill="F8FAFC")
+    _cell(sh[1], title, bold=True, size=13, fill="F8FAFC")
+    for term in (1, 2):
+        cells = t.add_row().cells
+        _cell(cells[0], f"ภาคเรียนที่ {term}", size=13)
+        cells[1].text = ""
+        first = cells[1].paragraphs[0]
+        for i in range(lines_per_term):
+            p = first if i == 0 else cells[1].add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            p.paragraph_format.space_after = Pt(4)
+            r = p.add_run(_CDOTS); r.font.size = Pt(13); r.font.name = THAI_FONT
+            r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
+    _widths(t, [Cm(3.0), Cm(13.0)])
+    return t
+
+
 def _pp6_comments(doc, school, s, db):
-    """หน้า 8 : ความเห็นครูประจำชั้น + ผู้ปกครอง (เว้นเขียนมือ แยกภาคเรียน 1/2)"""
-    klass = s.klass
-    _p(doc, "ความเห็นของครูประจำชั้นและผู้ปกครอง", align="center", bold=True, size=17, after=6,
+    """หน้า 8 : ความคิดเห็นครูประจำชั้น + ผู้ปกครอง (ตารางกรอบ แยกภาคเรียน 1/2)"""
+    _p(doc, "ความคิดเห็นของครูประจำชั้นและผู้ปกครอง", align="center", bold=True, size=17, after=8,
        page_break=True)
-    homerooms = [p.name for p in (klass.homeroom, klass.co_homeroom) if p]
-    hm = homerooms[0] if homerooms else ""
-    for who, nm, role in [("ครูประจำชั้น", hm, "ครูประจำชั้น"),
-                          ("ผู้ปกครอง", "", "ผู้ปกครอง")]:
-        for term in (1, 2):
-            _p(doc, f"ความเห็นของ{who} ภาคเรียนที่ {term}", bold=True, size=13, after=2)
-            _p(doc, _DOTS, size=13, after=2)
-            _p(doc, _DOTS, size=13, after=4)
-            _p(doc, "(ลงชื่อ).............................................", align="right", after=0)
-            _p(doc, f"( {nm or '.......................................'} )", align="right", after=0)
-            _p(doc, role, align="right", after=8)
+    _comment_table(doc, "ความคิดเห็นของครูประจำชั้น")
+    _p(doc, "", after=8)
+    _comment_table(doc, "ความคิดเห็นของผู้ปกครอง")
 
 
 def _pp6_summary(doc, school, s, db, ef):
-    """หน้า 9 : สรุปผลการเรียน + ลงนามผู้อำนวยการ"""
+    """หน้า 9 : แบบสรุปผลการประเมินการเรียน (ตาม ปพ.6) + เกณฑ์ตัดสิน + ลงนาม"""
     from app.models import AcadScore, AcadSubject
     klass = s.klass
     sec = is_secondary(klass.level)
-    _p(doc, "สรุปผลการประเมิน", align="center", bold=True, size=17, after=6, page_break=True)
+    _p(doc, "ผลการประเมินการเรียนระดับชั้น", align="center", bold=True, size=17, after=8,
+       page_break=True)
+
+    # เลขที่ / ชื่อ-นามสกุล
+    _p(doc, f"เลขที่  {s.seq or '.......'}     ชื่อ-นามสกุล  {s.name}", size=14, after=4)
+    # ย้ายเข้าระหว่างปีการศึกษา (เว้นให้ติ๊ก/กรอกวันที่เอง)
+    _p(doc, "ย้ายเข้าระหว่างปีการศึกษา   ☐ ใช่   ☐ ไม่ใช่      วันที่ย้ายเข้า .............................",
+       size=14, after=6)
 
     subs = (db.query(AcadSubject).filter_by(year=klass.year, level=klass.level).all())
     my = {(x.subject_id, x.term): x for x in
           db.query(AcadScore).filter_by(acad_student_id=s.id).all()}
-    pairs = []
+    pairs, grades = [], []
     for sub in subs:
         row = my.get((sub.id, sub.term if sec else 0))
         if row:
             pairs.append((row.grade, sub.credit or 1))
+            grades.append((str(row.grade) if row.grade is not None else "").strip())
     gpa = weighted_avg(pairs)
 
     present = ef.get("days_present")
     days_open = ef.get("days_open")
-    pct = f"{100.0 * present / days_open:.1f}" if (days_open and present is not None) else "-"
+    att_pct = (100.0 * present / days_open) if (days_open and present is not None) else None
+    att_txt = f"{att_pct:.2f}" if att_pct is not None else ""
 
+    char = (ef.get("desired_char") or "").strip()
+    read = (ef.get("read_think") or "").strip()
+    act = (activity_summary(s, db) or "").strip()
+    has_zero = any(g == "0" for g in grades)
+
+    def _pass(ok):
+        return "ผ่าน" if ok else "ไม่ผ่าน"
+
+    # ที่ | การประเมิน | จำนวน/คะแนน/ร้อยละ | ผลการประเมิน
     rows = [
-        ("ผลการเรียนเฉลี่ยตลอดปี (GPA)", f"{gpa:.2f}" if gpa is not None else "-"),
-        ("การอ่าน คิดวิเคราะห์ และเขียน", ef.get("read_think") or "-"),
-        ("คุณลักษณะอันพึงประสงค์", ef.get("desired_char") or "-"),
-        ("กิจกรรมพัฒนาผู้เรียน", activity_summary(s, db) or "-"),
-        ("เวลาเรียน (ร้อยละ)", pct),
+        ("มีเวลาเรียนตลอดปีการศึกษาร้อยละ 80 ขึ้นไป", att_txt,
+         _pass(att_pct is None or att_pct >= 80)),
+        ("ผ่านการประเมินตัวชี้วัดรายวิชา ร้อยละ 100", "100.00", "ผ่าน"),
+        ("ผ่านการประเมินกิจกรรมพัฒนาผู้เรียนทุกกิจกรรม", act,
+         _pass(act != "มผ")),
+        ("การตัดสินคุณลักษณะอันพึงประสงค์", char or "-",
+         _pass(char not in ("", "ไม่ผ่าน"))),
+        ("การตัดสินการอ่าน คิดวิเคราะห์ เขียนสื่อความ", read or "-",
+         _pass(read not in ("", "ไม่ผ่าน"))),
+        ("ไม่มีรายวิชาที่มีผลการเรียน 0",
+         "มีรายวิชาได้ 0" if has_zero else "ผ่านทุกรายวิชา", _pass(not has_zero)),
     ]
-    t = doc.add_table(rows=0, cols=2); t.style = "Table Grid"
-    for lab, val in rows:
+    t = doc.add_table(rows=1, cols=4); t.style = "Table Grid"
+    for i, h in enumerate(["ที่", "การประเมิน", "จำนวน/คะแนน/ร้อยละ", "ผลการ\nประเมิน"]):
+        _cell(t.rows[0].cells[i], h.replace("\n", " "), bold=True, fill="EDE9FE")
+    for i, (lab, num, res) in enumerate(rows, 1):
         cells = t.add_row().cells
-        _cell(cells[0], lab, align="left", fill="F1F5F9")
-        _cell(cells[1], val, bold=True)
-    _widths(t, [Cm(10.0), Cm(6.0)])
+        _cell(cells[0], i)
+        _cell(cells[1], lab, align="left")
+        _cell(cells[2], num)
+        _cell(cells[3], res, bold=True)
+    # แถวสรุป GPA
+    fr = t.add_row().cells
+    fr[0].merge(fr[1])
+    _cell(fr[0], "ผลการเรียนเฉลี่ยตลอดหนึ่งปีการศึกษา", align="left", bold=True, fill="F1F5F9")
+    _cell(fr[2], f"{gpa:.2f}" if gpa is not None else "-", bold=True)
+    _cell(fr[3], f"ได้  {len(pairs)}", bold=True)
+    _widths(t, [Cm(1.2), Cm(8.3), Cm(3.7), Cm(2.8)])
 
-    _p(doc, "", after=18)
+    all_pass = (att_pct is None or att_pct >= 80) and not has_zero and \
+        char not in ("", "ไม่ผ่าน") and read not in ("", "ไม่ผ่าน")
+    grad = is_exit_level(klass.level)
+    verb = "จบการศึกษา" if grad else "เลื่อนชั้น"
+    _p(doc, "", after=2)
+    _p(doc, f"หมายเหตุ   นักเรียน{'ผ่าน' if all_pass else 'ยังไม่ผ่าน'}การประเมินทุกรายการ "
+            f"{'สามารถ ' + verb + 'ได้' if all_pass else 'ต้องปรับปรุงก่อน' + verb}",
+       size=13, after=6)
+    tick_pass = "☑" if all_pass else "☐"
+    tick_repeat = "☐" if all_pass else "☑"
+    _p(doc, f"สรุปผลการประเมิน   {tick_pass} ได้{verb}      {tick_repeat} ซ้ำชั้น",
+       size=14, after=4)
+    _p(doc, "วันที่อนุมัติการเรียน  ...............................................", size=14, after=16)
+
+    homerooms = [p.name for p in (klass.homeroom, klass.co_homeroom) if p]
+    # ลงนามครูประจำชั้น (สูงสุด 2 คน) วางเคียงกันในตารางไร้เส้น
+    st = doc.add_table(rows=1, cols=2)
+    _no_border_signs(st.rows[0].cells[0], homerooms[0] if len(homerooms) > 0 else "", "ครูประจำชั้น")
+    _no_border_signs(st.rows[0].cells[1], homerooms[1] if len(homerooms) > 1 else "", "ครูประจำชั้น")
+    _widths(st, [Cm(8.0), Cm(8.0)])
+
+    _p(doc, "", after=10)
     director = (getattr(school, "director_name", "") or "").strip()
     dpos = ("ผู้อำนวยการ" + school.name) if (school.name or "").startswith("โรงเรียน") \
         else "ผู้อำนวยการโรงเรียน"
     _sign_block(doc, director, dpos)
+
+
+def _no_border_signs(cell, name, role):
+    """ช่องลงนามไร้เส้นในตาราง (ลายเซ็นลอยถ้ามี)"""
+    from docx.oxml.ns import qn as _qn
+    tcpr = cell._tc.get_or_add_tcPr()
+    borders = tcpr.makeelement(_qn("w:tcBorders"), {})
+    for edge in ("top", "left", "bottom", "right"):
+        borders.append(borders.makeelement(_qn(f"w:{edge}"), {_qn("w:val"): "nil"}))
+    tcpr.append(borders)
+    cell.text = ""
+    p = cell.paragraphs[0]
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_after = Pt(0)
+    r = p.add_run("(ลงชื่อ)........................................."); r.font.size = Pt(14); r.font.name = THAI_FONT
+    r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
+    if name:
+        _float_signature(p, name)
+    for txt in (f"( {name or '.......................................'} )", role):
+        pp = cell.add_paragraph(); pp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        pp.paragraph_format.space_after = Pt(0)
+        rr = pp.add_run(txt); rr.font.size = Pt(14); rr.font.name = THAI_FONT
+        rr._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
 
 
 def _pp6_body(doc, school, s, db, *, page_break: bool = False):
