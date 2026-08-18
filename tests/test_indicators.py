@@ -48,8 +48,10 @@ def test_curriculum_data():
     assert len(indicators_for("ภาษาไทย", "ป.6")) == 34, "ภาษาไทย ป.6 ต้องมี 34 ตัวชี้วัด"
     assert len(indicators_for("ภาษาไทย", "ป.1")) == 22
     assert indicators_for("ภาษาไทย", "ป.6")[0]["code"] == "ท 1.1 ป.6/1"
-    assert indicators_for("คณิตศาสตร์", "ป.6") == []   # ยังไม่ได้เพิ่ม
-    print("[ok] ชุดข้อมูลตัวชี้วัดภาษาไทยครบ (ป.6=34, ป.1=22)")
+    assert len(indicators_for("คณิตศาสตร์", "ป.6")) == 28, "คณิตศาสตร์ ป.6 ต้องมี 28 ตัวชี้วัด"
+    assert indicators_for("คณิตศาสตร์", "ป.6")[0]["code"] == "ค 1.1 ป.6/1"
+    assert indicators_for("วิทยาศาสตร์และเทคโนโลยี", "ป.6") == []   # ยังไม่ได้เพิ่ม
+    print("[ok] ชุดข้อมูลตัวชี้วัด: ภาษาไทย (ป.6=34) + คณิตศาสตร์ (ป.6=28)")
 
 
 def test_flow():
