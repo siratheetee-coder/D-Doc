@@ -115,7 +115,9 @@
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px;">
       <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกเวลาเรียน</button>
-      <button class="btn soft" type="button" onclick="allFullYear()">✔ ทุกคนมาเรียนทุกวัน</button>
+      <button class="btn soft" type="submit" formaction="/academic/attendance/fill-year" formnovalidate
+              onclick="return confirm('ทำเครื่องหมายว่านักเรียนทุกคนมาเรียนครบทุกวันเปิดเรียนทั้งปี?\n(เดือนที่ตั้งปฏิทินไว้จะเช็กชื่อรายวันให้ครบ · ข้อมูลเช็กชื่อรายวันเดิมจะถูกแทนที่)');">
+        ✔ ทุกคนมาเรียนทุกวัน</button>
     </div>
   </form>
   {% else %}
@@ -203,25 +205,6 @@
   document.getElementById('showMonths').addEventListener('change', function(){
     document.getElementById('attTable').classList.toggle('hide-months', !this.checked);
   });
-  // ทุกคนมาเรียนทุกวัน = เติม "มา" รายเดือน = วันเปิดเรียนของเดือนนั้นทุกคน + ป่วย/ลา/ขาด = 0
-  // (เดือนที่เช็กชื่อรายวันไว้แล้วเป็น span แก้ที่หน้าเช็กชื่อ - ข้ามไป)
-  function allFullYear(){
-    var opens = {};
-    document.querySelectorAll('[data-open]').forEach(function(i){
-      opens[i.name.replace('open_', '')] = intOf(i);
-    });
-    document.querySelectorAll('tr[data-row]').forEach(function(tr){
-      // เติมช่องมารายเดือน = จำนวนวันเปิดเรียนของเดือนนั้น (เฉพาะช่องที่พิมพ์ได้)
-      tr.querySelectorAll('input[data-m]').forEach(function(i){
-        var m = i.name.replace(/^p_\d+_/, '');
-        var ov = opens[m];
-        i.value = (ov === null || ov === undefined) ? '' : ov;
-      });
-      // ป่วย/ลา/ขาด = 0
-      tr.querySelectorAll('[data-gap]').forEach(function(i){ if (!i.readOnly) i.value = '0'; });
-    });
-    recalc();
-  }
   recalc();
 </script>
 {% endif %}

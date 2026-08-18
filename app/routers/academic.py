@@ -944,6 +944,67 @@ async def attendance_save(request: Request, db: Session = Depends(get_db), cid: 
     return RedirectResponse(f"/academic/attendance?cid={c.id}&saved=1", status_code=303)
 
 
+@router.post("/academic/attendance/fill-year")
+async def attendance_fill_year(request: Request, db: Session = Depends(get_db),
+                               cid: str = Form("")):
+    """ทุกคนมาเรียนทุกวันทั้งปี: เขียนเครื่องหมาย "มา" รายวันให้ครบทุกวันเปิดเรียน
+    (เดือนที่มีปฏิทิน) + เติมยอดรายเดือน/รายปีให้ครบ · ป่วย/ลา/ขาด = 0
+    เดือนที่ยังไม่มีปฏิทินแต่ครูพิมพ์จำนวนวันเปิดเรียนไว้ ใช้จำนวนนั้นเป็นยอด "มา" """
+    form = await request.form()
+    c = db.get(AcadClass, _to_int(cid, 0))
+    if not c:
+        return RedirectResponse("/academic/attendance", status_code=303)
+    cal = {r.month: parse_days_csv(r.days_csv)
+           for r in db.query(AcadCalendar).filter_by(year=c.year).all()}
+    # จำนวนวันเปิดเรียนต่อเดือน: ใช้ปฏิทินก่อน ไม่มีก็ใช้ค่าที่ครูพิมพ์ในฟอร์ม
+    nday, marks_by_month = {}, {}
+    for mnum, _ in TH_MONTHS:
+        days = cal.get(mnum) or []
+        if days:
+            nday[mnum] = len(days)
+            marks_by_month[mnum] = build_marks({d: "/" for d in days})
+        else:
+            typed = _to_int(form.get(f"open_{mnum}", ""), None)
+            if typed:
+                nday[mnum] = typed
+    # วันเปิดเรียนรายเดือนของห้อง
+    curm = {m.month: m for m in db.query(AcadClassMonth).filter_by(class_id=c.id).all()}
+    for mnum, n in nday.items():
+        row = curm.get(mnum)
+        if not row:
+            row = AcadClassMonth(class_id=c.id, month=mnum)
+            db.add(row)
+        row.days_open = n
+    # รายคน
+    sids = [s.id for s in c.students]
+    cura = {}
+    if sids:
+        for a in (db.query(AcadAttendance)
+                  .filter(AcadAttendance.acad_student_id.in_(sids)).all()):
+            cura[(a.acad_student_id, a.month)] = a
+    cure = {e.acad_student_id: e for e in db.query(AcadEval).join(AcadStudent)
+            .filter(AcadStudent.class_id == c.id).all()}
+    total = sum(nday.values())
+    for s in c.students:
+        for mnum, n in nday.items():
+            row = cura.get((s.id, mnum))
+            if not row:
+                row = AcadAttendance(acad_student_id=s.id, month=mnum)
+                db.add(row)
+            if mnum in marks_by_month:               # เดือนมีปฏิทิน -> เขียนมาร์ครายวันครบ
+                row.marks = marks_by_month[mnum]
+            row.present = n
+        e = cure.get(s.id)
+        if not e:
+            e = AcadEval(acad_student_id=s.id)
+            db.add(e)
+        e.days_open = total or None
+        e.days_present = total or None
+        e.days_sick = e.days_leave = e.days_absent = 0
+    db.commit()
+    return RedirectResponse(f"/academic/attendance?cid={c.id}&saved=1", status_code=303)
+
+
 # ---------------- เอกสาร ----------------
 @router.get("/academic/classes/{cid}/pp5.docx")
 def pp5_docx(cid: int, sid: int, db: Session = Depends(get_db)):
