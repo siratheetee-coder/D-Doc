@@ -9,6 +9,16 @@
   </div>
 </div>
 
+<a href="javascript:void(0)" class="btn gray sm back-btn" style="margin-bottom:12px;"
+   onclick="acadBack('/academic/grades');return false;"><svg class="icon"><use href="#ic-arrow-left"/></svg> ย้อนกลับ</a>
+<script>
+  // จำหน้าที่มา (ปพ.5 กรอกคะแนน / ปพ.6 ประเมิน) ไว้ ให้ปุ่มย้อนกลับพากลับถูก แม้หลังกดบันทึกแล้ว redirect กลับหน้าเดิม
+  (function(){ var r=document.referrer;
+    if(r && r.indexOf(location.host)>-1 && /\/academic\/(grades|eval)/.test(r)) sessionStorage.setItem('acadBack', r); })();
+  function acadBack(fb){ var b=sessionStorage.getItem('acadBack');
+    if(b){ location.href=b; } else if(history.length>1){ history.back(); } else { location.href=fb; } }
+</script>
+
 {% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกผลการประเมินแล้ว</div>{% endif %}
 
 <div class="card">
