@@ -13,21 +13,26 @@ def pc(x): return re.sub(r'\s+',' ',x.replace('\x07',' ').replace('\a',' ')).str
 def clean_item(seg):
     parts=re.split(r'[\r\x0b]', seg)
     j=''.join(p.strip() for p in parts).replace('\x07','').replace('\a','')
-    return re.sub(r' +',' ',j).strip()
+    j=re.sub(r' +',' ',j).strip()
+    j=re.sub(r'^[๐-๙]+[.\s]\s*','',j)     # ตัด marker นำหน้าที่หลุดมา (ข้อแรกของ cell)
+    return th2ar(j)                       # แปลงเลขไทยในเนื้อหา -> อารบิก (หัวข้อถูกตัดออกแล้ว)
 def _thnum(n): return ''.join(TH[int(d)] for d in str(n))
 BREAK=set('\r\x0b\x07\a')
 def _find_marker(cell, n, start):
-    """ตำแหน่งเลขข้อ n (เลขไทย) ตามด้วย '.' หรือช่องว่าง และ *ขึ้นต้นบรรทัด*
-    (หน้าเลข-ข้ามช่องว่าง-ต้องเป็นตัวขึ้นบรรทัด/ต้น cell) กันเลขที่อยู่กลางประโยค
-    และกัน ๑๐ ไปชน ๑ · คืน (pos, marker_len) หรือ (-1,0)"""
+    """ตำแหน่งเลขข้อ n (เลขไทย) เป็นหัวข้อ · คืน (pos, marker_len) หรือ (-1,0)
+    กติกา: เลขไทย+'.' = หัวข้อเสมอ · เลขไทย+ช่องว่าง = หัวข้อเฉพาะเมื่อขึ้นต้นบรรทัด
+    (กันเลขในเนื้อหา เช่น 'ทีละ ๑', 'ช่วง ๕ นาที') · กัน ๑๐ ชน ๑ ด้วยเช็คหน้าเลข"""
     num=_thnum(n)
-    for m in re.finditer(re.escape(num)+r'[.\s]', cell):
+    for m in re.finditer(re.escape(num)+r'([.\s])', cell):
         i=m.start()
         if i<start: continue
         if i>0 and cell[i-1] in TH: continue          # เป็นส่วนของเลขหลายหลัก
+        # เลขตามด้วยเลขไทยอีก (เช่น ๑ ๐ แยกช่องว่าง) ไม่ใช่หัวข้อ - ข้าม
+        if m.group(1) == '.':
+            return i, (m.end()-i)                      # จุด = หัวข้อเสมอ
         j=i-1
         while j>=0 and cell[j] in ' \t': j-=1
-        if j<0 or cell[j] in BREAK:                    # ขึ้นต้นบรรทัด/ต้น cell เท่านั้น
+        if j<0 or cell[j] in BREAK:                    # ช่องว่าง -> ต้องขึ้นต้นบรรทัด
             return i, (m.end()-i)
     return -1,0
 def split_raw(cell):
