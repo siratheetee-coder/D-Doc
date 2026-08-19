@@ -640,11 +640,25 @@
           window.SECTION_HOME = "{{ section_home }}";
           window.SECTION_PREFIXES = {{ section_prefixes|tojson }};
           window.IS_SECTION_HOME = {{ 'true' if is_section_home else 'false' }};
+          function inSection(pathname){
+            return (window.SECTION_PREFIXES || []).some(function(pre){
+              return pre === '/' ? true : (pathname === pre || pathname.indexOf(pre + '/') === 0);
+            });
+          }
           function goBack(ev){
             ev.preventDefault();
             // หน้าหลักของงาน/ระบบ (section home) -> ไปหน้าเลือกงาน (hub)
             if(window.IS_SECTION_HOME){ location.href = "/"; return false; }
-            // หน้าย่อย -> ขึ้นหนึ่งระดับตาม URL (แน่นอน ทุกงานเหมือนกัน ไม่พึ่ง history.back ที่อาจเด้งข้ามงาน)
+            // ถ้าหน้าก่อนหน้า (ที่คลิกมา) อยู่ในงานเดียวกัน -> ย้อนกลับหน้านั้นจริง
+            // (เช่น กรอกคะแนน ปพ.5 -> ประเมินตัวชี้วัด -> ย้อนกลับ = กลับหน้ากรอกคะแนน ไม่ใช่หน้าแรกงาน)
+            try {
+              var ref = document.referrer;
+              if (ref) {
+                var u = new URL(ref);
+                if (u.host === location.host && inSection(u.pathname)) { history.back(); return false; }
+              }
+            } catch (e) {}
+            // ไม่มีหน้าก่อนในงานเดียวกัน (เปิดตรง/ข้ามงาน) -> ขึ้นหนึ่งระดับตาม URL
             var p = (location.pathname || "/").replace(/\/+$/, "");
             var up = p.substring(0, p.lastIndexOf("/"));
             location.href = up ? up : (window.SECTION_HOME || "/");
