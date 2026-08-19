@@ -57,7 +57,7 @@ def test_curriculum_data():
     assert len(indicators_for("สุขศึกษาและพลศึกษา", "ป.6")) == 14
     assert len(indicators_for("ศิลปะ", "ป.6")) == 19
     assert len(indicators_for("การงานอาชีพ", "ป.6")) == 13
-    assert indicators_for("ภาษาต่างประเทศ", "ป.6") == []   # ยังไม่ได้เพิ่ม
+    assert len(indicators_for("ภาษาต่างประเทศ", "ป.6")) == 19  # ครบ 8 กลุ่มสาระ
     print("[ok] ชุดข้อมูลตัวชี้วัด: ไทย(34)+คณิต(31)+วิทย์(27)+สังคม(ป.6=39)")
 
 
