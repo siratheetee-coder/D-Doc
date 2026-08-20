@@ -192,13 +192,13 @@ def _pp5_score_page(doc, school, klass, subject, db, *, page_break: bool = False
 
 def render_pp5(school, klass, subject, db) -> str:
     """แบบบันทึกผลการพัฒนาคุณภาพผู้เรียน - รายวิชา x ห้อง (แนวนอน แผ่นเดี่ยว)
-    ใบคะแนน + หน้าประเมินคุณลักษณะ + หน้าประเมินอ่านคิดวิเคราะห์เขียน"""
+    หน้าตัวชี้วัด (ถ้ามี) + ใบคะแนน · คุณลักษณะ/อ่านคิดเขียน พิมพ์เป็นสรุปทั้งปีในเล่มเท่านั้น"""
+    from app.services.curriculum import has_indicators
     doc = _doc(landscape=True)
     students = sorted(klass.students, key=lambda s: (s.seq or 999, s.name))
-    _pp5_score_page(doc, school, klass, subject, db)
-    _pp5_char_page(doc, klass, subject, db, students)
-    _pp5_read_page(doc, klass, subject, db, students)
     _pp5_indicator_page(doc, klass, subject, db, students)
+    _pp5_score_page(doc, school, klass, subject, db,
+                    page_break=has_indicators(subject.learn_group, subject.level))
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ปพ.5_{subject.name}_{_class_label(klass)}_{klass.year}") + ".docx")
     doc.save(str(out))
@@ -608,12 +608,13 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
                      Cm(2.0), Cm(2.0), Cm(2.0), Cm(2.0), Cm(1.7)])
     _p(doc, "เกณฑ์การผ่าน: มีเวลาเรียนไม่น้อยกว่าร้อยละ 80 ของเวลาเรียนทั้งหมด", size=12, after=0)
 
-    # ---------- คะแนนรายวิชา + ประเมินรายวิชา (วิชาละ 2 หน้า) ----------
+    # ---------- ตัวชี้วัดรายวิชา (ทุกวิชารวมเป็นชุด) - มาก่อนคะแนน ตามไฟล์จริง ----------
+    for sub in subjects:
+        _pp5_indicator_page(doc, klass, sub, db, students)
+    # ---------- คะแนนรายวิชา (ทุกวิชารวมเป็นชุด) ----------
+    # (คุณลักษณะ/อ่านคิดเขียน ไม่พิมพ์รายวิชา - พิมพ์เฉพาะสรุปทั้งปีด้านล่าง ตามไฟล์จริง)
     for sub in subjects:
         _pp5_score_page(doc, school, klass, sub, db, page_break=True)
-        _pp5_char_page(doc, klass, sub, db, students)
-        _pp5_read_page(doc, klass, sub, db, students)
-        _pp5_indicator_page(doc, klass, sub, db, students)
 
     # ---------- สรุปผลการเรียนทุกวิชา ----------
     _p(doc, f"สรุปผลการเรียนทุกรายวิชา ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}"
