@@ -171,8 +171,8 @@ def _pp5_score_page(doc, school, klass, subject, db, *, page_break: bool = False
     else:
         heads = ["เลขที่", "เลขประจำตัว", "ชื่อ-นามสกุล", f"คะแนนเก็บ (เต็ม {mmax})",
                  f"คะแนนปลายภาค (เต็ม {fmax})", f"รวม (เต็ม {mmax + fmax})", "ผลการเรียน", "หมายเหตุ"]
-        # รวม 26.7 = พื้นที่พิมพ์ A4 แนวนอน (29.7 - ขอบ 1.5x2)
-        ws = [Cm(1.6), Cm(2.6), Cm(8.5), Cm(2.8), Cm(3.2), Cm(2.2), Cm(2.6), Cm(3.2)]
+        # รวม 18.0 = พื้นที่พิมพ์ A4 แนวตั้ง (หน้าคะแนนเป็นแนวตั้ง)
+        ws = [Cm(1.2), Cm(2.0), Cm(5.5), Cm(1.9), Cm(2.1), Cm(1.6), Cm(1.7), Cm(2.0)]
         t = doc.add_table(rows=1, cols=len(heads)); t.style = "Table Grid"
         for i, h in enumerate(heads):
             _cell(t.rows[0].cells[i], h, bold=True, fill="EDE9FE")
@@ -254,7 +254,7 @@ def _pp5_score_2term(doc, subject, db, students):
         has = bool(ann and ann.grade)
         _cell(cells[12], "P" if (has and ok) else "", size=11, bold=True)
         _cell(cells[13], "P" if (has and not ok) else "", size=11, bold=True)
-    _widths(t, [Cm(1.0), Cm(4.6)] + [Cm(1.55)] * 8 + [Cm(1.7), Cm(1.7), Cm(1.2), Cm(1.2)])
+    _widths(t, [Cm(1.0), Cm(4.2)] + [Cm(1.1)] * 8 + [Cm(1.2), Cm(1.2), Cm(0.8), Cm(0.8)])  # แนวตั้ง 18
 
 
 def render_pp5(school, klass, subject, db) -> str:
@@ -332,14 +332,14 @@ def _pp5_roster(doc, klass, students, db):
                 Cm(3.0), Cm(1.8), Cm(2.6), Cm(1.5), Cm(1.6), Cm(3.0)])   # รวม 26.7
 
 
-def _pp5_indicator_page(doc, klass, subject, db, students):
+def _pp5_indicator_page(doc, klass, subject, db, students, *, page_break=True):
     """หน้าผลการประเมินตัวชี้วัดรายวิชา (สรุปผ่าน/ทั้งหมด รายมาตรฐาน) + รายการตัวชี้วัด
-    ข้ามถ้ายังไม่มีชุดตัวชี้วัดของกลุ่มสาระ+ชั้นนั้น"""
+    ข้ามถ้ายังไม่มีชุดตัวชี้วัดของกลุ่มสาระ+ชั้นนั้น · คืน True ถ้าออกหน้าจริง (ใช้จัดหน้าแรกของ section)"""
     from app.services.curriculum import selected_indicators
     from app.models import AcadIndicatorResult
     inds = selected_indicators(subject)
     if not inds:
-        return
+        return False
     # จัดกลุ่มตามมาตรฐาน (คงลำดับ)
     stds = []
     for it in inds:
@@ -359,7 +359,7 @@ def _pp5_indicator_page(doc, klass, subject, db, students):
 
     n = len(inds)
     _p(doc, "ผลการประเมินตัวชี้วัดรายวิชา (ตามหลักสูตรแกนกลาง 2551)",
-       align="center", bold=True, size=16, after=0, page_break=True)
+       align="center", bold=True, size=16, after=0, page_break=page_break)
     _p(doc, f"รายวิชา {subject.code or ''} {subject.name}   ชั้น {_class_label(klass)}   "
             f"ปีการศึกษา {klass.year}   ({n} ตัวชี้วัด)", align="center", size=13, after=4)
 
@@ -406,9 +406,10 @@ def _pp5_indicator_page(doc, klass, subject, db, students):
         _p(doc, f"มาตรฐาน {st}", bold=True, size=9.5, after=0)
         for it in items:
             _p(doc, f"   {it['seq']}. {it['text']}", size=9.5, after=0)
+    return True
 
 
-def _pp5_attendance_daily(doc, klass, students, db):
+def _pp5_attendance_daily(doc, klass, students, db, *, page_break=True):
     """หน้าบันทึกเวลาเรียน (รายวัน) - ตารางเช็กชื่อต่อเดือน (เฉพาะเดือนที่มีปฏิทิน)"""
     from app.models import AcadCalendar, AcadAttendance
     sids = [s.id for s in students]
@@ -423,7 +424,7 @@ def _pp5_attendance_daily(doc, klass, students, db):
     if not months:
         return
     _p(doc, f"บันทึกเวลาเรียน (รายวัน) ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}",
-       align="center", bold=True, size=16, after=2, page_break=True)
+       align="center", bold=True, size=16, after=2, page_break=page_break)
     _p(doc, "/ = มา · ป = ป่วย · ล = ลากิจ · ข = ขาด", size=11, after=6, align="center")
     for m, nm in months:
         days = cals[m]
@@ -446,9 +447,10 @@ def _pp5_attendance_daily(doc, klass, students, db):
                 if ch == "/":
                     npres += 1
             _cell(cells[-1], npres, size=9, bold=True)
-        dayw = max(0.4, min(0.62, (26.7 - 6.2) / max(1, len(days))))
-        _widths(t, [Cm(1.0), Cm(4.0)] + [Cm(dayw)] * len(days) + [Cm(1.2)])
+        dayw = max(0.4, min(0.55, (18.0 - 5.7) / max(1, len(days))))   # แนวตั้ง 18 ซม.
+        _widths(t, [Cm(1.0), Cm(3.5)] + [Cm(dayw)] * len(days) + [Cm(1.2)])
         _p(doc, "", after=4)
+    return True
 
 
 def _pp5_char_page(doc, klass, subject, db, students):
@@ -582,6 +584,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     term_txt = f"ภาคเรียนที่ {t}" if sec else "ตลอดปีการศึกษา"
 
     # ---------- หน้า 1: ปก (แนวตั้ง · พื้นที่พิมพ์ 18.0 ซม.) ----------
+    _logo_header(doc, school, height_cm=2.6, after=6)      # ตราโรงเรียนบนปก (ถ้าตั้งค่าไว้)
     _p(doc, "สมุดบันทึกผลการพัฒนาคุณภาพผู้เรียน (ปพ.5)", align="center", bold=True, size=19, after=2)
     _p(doc, f"ชั้น {_class_label(klass)}   ปีการศึกษา {klass.year}" + (f"   {term_txt}" if sec else ""),
        align="center", bold=True, size=15, after=0)
@@ -665,16 +668,15 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     _sign_block(doc, director, dpos)
     _p(doc, "วันที่ ........ เดือน ......................... พ.ศ. ..........", align="center", size=12.5, after=0)
 
-    # ---------- หน้า 2 เป็นต้นไป: สลับเป็นแนวนอน ----------
+    # ---------- รายชื่อนักเรียน (แนวนอน) ----------
     _new_section(doc, landscape=True)
     _pp5_roster(doc, klass, students, db)
 
-    # ---------- เวลาเรียน (รายวัน) - ก่อนสรุปเวลาเรียน ตามไฟล์จริง ----------
-    _pp5_attendance_daily(doc, klass, students, db)
-
-    # ---------- สรุปเวลาเรียน ----------
+    # ---------- เวลาเรียนรายวัน + สรุปเวลาเรียน (แนวตั้ง) ----------
+    _new_section(doc, landscape=False)
+    daily_shown = _pp5_attendance_daily(doc, klass, students, db, page_break=False)
     _p(doc, f"สรุปเวลาเรียน ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}",
-       align="center", bold=True, size=16, after=6, page_break=True)
+       align="center", bold=True, size=16, after=6, page_break=bool(daily_shown))
     monthly = any(effs[s.id]["months"] for s in students)
     if monthly:
         # แบบรายเดือน (ตามไฟล์ ปพ.5 จริง): เดือน พ.ค.-มี.ค. + รวม + ป่วย/ลา/ขาด + ร้อยละ
@@ -715,8 +717,8 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
             _cell(cells[17], f"{pct:.1f}" if pct is not None else "", size=10)
             _cell(cells[18], ("ผ่าน" if pct >= 80 else "ไม่ผ่าน") if pct is not None else "",
                   bold=True, size=10)
-        _widths(at, [Cm(1.0), Cm(4.65)] + [Cm(1.25)] * 11 +
-                [Cm(1.3), Cm(1.1), Cm(1.1), Cm(1.1), Cm(1.35), Cm(1.35)])   # รวม 26.7
+        _widths(at, [Cm(0.9), Cm(3.0)] + [Cm(0.8)] * 11 +
+                [Cm(0.95), Cm(0.7), Cm(0.7), Cm(0.7), Cm(0.9), Cm(0.85)])   # แนวตั้ง 18
     else:
         # แบบยอดรวมทั้งปี (โรงเรียนที่ไม่กรอกรายเดือน)
         at = doc.add_table(rows=1, cols=10); at.style = "Table Grid"
@@ -738,21 +740,28 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
                 pct = ef["days_present"] * 100.0 / ef["days_open"]
             _cell(cells[8], f"{pct:.1f}" if pct is not None else "")
             _cell(cells[9], ("ผ่าน" if pct >= 80 else "ไม่ผ่าน") if pct is not None else "", bold=True)
-        _widths(at, [Cm(1.6), Cm(2.6), Cm(8.0), Cm(2.4), Cm(2.4),
-                     Cm(2.0), Cm(2.0), Cm(2.0), Cm(2.0), Cm(1.7)])
+        _widths(at, [Cm(1.0), Cm(1.8), Cm(4.6), Cm(1.7), Cm(1.6),
+                     Cm(1.3), Cm(1.3), Cm(1.3), Cm(1.6), Cm(1.8)])   # แนวตั้ง 18
     _p(doc, "เกณฑ์การผ่าน: มีเวลาเรียนไม่น้อยกว่าร้อยละ 80 ของเวลาเรียนทั้งหมด", size=12, after=0)
 
-    # ---------- ตัวชี้วัดรายวิชา (ทุกวิชารวมเป็นชุด) - มาก่อนคะแนน ตามไฟล์จริง ----------
-    for sub in subjects:
-        _pp5_indicator_page(doc, klass, sub, db, students)
-    # ---------- คะแนนรายวิชา (ทุกวิชารวมเป็นชุด) ----------
+    # ---------- ตัวชี้วัดรายวิชา (ทุกวิชารวมเป็นชุด, แนวนอน) - มาก่อนคะแนน ตามไฟล์จริง ----------
+    from app.services.curriculum import selected_indicators as _sel_ind
+    if any(_sel_ind(sub) for sub in subjects):
+        _new_section(doc, landscape=True)
+        ind_done = False
+        for sub in subjects:
+            if _pp5_indicator_page(doc, klass, sub, db, students, page_break=ind_done):
+                ind_done = True
+    # ---------- คะแนนรายวิชา / แบบบันทึกผลการเรียน (ทุกวิชา, แนวตั้ง) ----------
     # (คุณลักษณะ/อ่านคิดเขียน ไม่พิมพ์รายวิชา - พิมพ์เฉพาะสรุปทั้งปีด้านล่าง ตามไฟล์จริง)
-    for sub in subjects:
-        _pp5_score_page(doc, school, klass, sub, db, page_break=True)
+    _new_section(doc, landscape=False)
+    for i, sub in enumerate(subjects):
+        _pp5_score_page(doc, school, klass, sub, db, page_break=(i > 0))
 
-    # ---------- สรุปผลการเรียนทุกวิชา ----------
+    # ---------- สรุปผลการเรียนทุกวิชา + คุณลักษณะ/อ่านเขียน/ผลประเมิน (แนวนอน) ----------
+    _new_section(doc, landscape=True)
     _p(doc, f"สรุปผลการเรียนทุกรายวิชา ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}"
-       + (f" {term_txt}" if sec else ""), align="center", bold=True, size=16, after=6, page_break=True)
+       + (f" {term_txt}" if sec else ""), align="center", bold=True, size=16, after=6, page_break=False)
     if subjects:
         sw = min(2.6, 17.5 / len(subjects))
         mt = doc.add_table(rows=1, cols=2 + len(subjects) + 1); mt.style = "Table Grid"
@@ -837,8 +846,9 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
             "คุณลักษณะฯ และอ่านคิดวิเคราะห์ฯ ไม่ต่ำกว่าระดับผ่าน (ข้อมูลไม่ครบ = เว้นว่าง)",
        size=12, after=0, align="center")
 
-    # ---------- หน้าสุดท้าย: เกณฑ์การประเมิน ----------
-    _pp5_criteria_page(doc)
+    # ---------- หน้าสุดท้าย: เกณฑ์การประเมิน (แนวตั้ง) ----------
+    _new_section(doc, landscape=False)
+    _pp5_criteria_page(doc, page_break=False)
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     suffix = f"_ภาค{t}" if sec else ""
@@ -847,9 +857,9 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     return str(out)
 
 
-def _pp5_criteria_page(doc):
+def _pp5_criteria_page(doc, *, page_break=True):
     """หน้าเกณฑ์การประเมิน (ปิดท้ายเล่ม ปพ.5) ตามไฟล์จริง"""
-    _p(doc, "เกณฑ์การประเมินผลการเรียน", align="center", bold=True, size=16, after=6, page_break=True)
+    _p(doc, "เกณฑ์การประเมินผลการเรียน", align="center", bold=True, size=16, after=6, page_break=page_break)
     # ระดับผลการเรียน
     t = doc.add_table(rows=1, cols=3); t.style = "Table Grid"
     for i, h in enumerate(["ระดับผลการเรียน", "ความหมาย", "ช่วงคะแนน"]):
