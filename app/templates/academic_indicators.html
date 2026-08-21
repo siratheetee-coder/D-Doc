@@ -194,9 +194,17 @@
 <style>
   :root { --acad:#2563eb; --acad-dark:#1d4ed8; --acad-50:#eff6ff; --acad-100:#dbeafe; }
   .ind-hint { font-size:14px; color:#475569; margin:6px 0 10px; line-height:1.6; }
-  .pick-box { border:1.5px solid var(--acad-100); border-radius:12px; padding:10px 14px; margin:0 0 14px; background:#fafcff; }
-  .pick-box > summary { cursor:pointer; font-size:15px; display:flex; align-items:center; gap:8px; color:var(--acad-dark); }
-  .pick-box > summary .icon { color:var(--acad); }
+  .pick-box { border:1.5px solid var(--acad-100); border-radius:12px; padding:4px 16px; margin:14px 0; background:#fafcff;
+    box-shadow:0 1px 3px rgba(37,99,235,.05); transition:box-shadow .15s, border-color .15s; }
+  .pick-box[open] { box-shadow:0 4px 16px rgba(37,99,235,.1); border-color:var(--acad); }
+  .pick-box > summary { list-style:none; cursor:pointer; font-size:15px; display:flex; align-items:center; gap:9px;
+    color:var(--acad-dark); padding:11px 0; outline:none; }
+  .pick-box > summary::-webkit-details-marker { display:none; }
+  .pick-box > summary::after { content:"\203A"; margin-left:auto; font-size:22px; line-height:1; color:var(--acad);
+    transition:transform .2s ease; }
+  .pick-box[open] > summary::after { transform:rotate(90deg); }
+  .pick-box > summary:hover { color:var(--acad); }
+  .pick-box > summary .icon { color:var(--acad); flex:none; }
   .pick-sec { margin:8px 0; }
   .pick-head { font-weight:700; color:var(--acad-dark); font-size:13.5px; margin:6px 0 2px; }
   .pick-item { display:block; font-size:14px; line-height:1.7; padding:2px 0 2px 8px; cursor:pointer; }

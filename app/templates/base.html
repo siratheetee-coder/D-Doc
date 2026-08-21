@@ -162,6 +162,11 @@
     details.card[open] > summary::after { transform: rotate(90deg); }
     details.card[open] > summary { margin-bottom: 14px; }
     details.card > summary:hover { color: var(--brand-dark); }
+    /* เผยเนื้อหาแบบเลื่อนลง (ทุกกล่องพับเก็บได้ <details>) */
+    @keyframes revealDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+    details[open] > summary ~ * { animation: revealDown .24s cubic-bezier(.22,.75,.3,1); }
+    details > summary { user-select: none; }
+    @media (prefers-reduced-motion: reduce) { details[open] > summary ~ * { animation: none; } }
     /* การ์ด/กล่องเน้น: ไม่มีขอบ outline รอบ ใช้แถบสีซ้าย + พื้นสีอ่อน + เงานุ่ม (สไตล์เดียวกับการ์ดแจ้งเตือน) */
     .card.hl { border: none; border-left: 4px solid #3b82f6; background: #f2f7ff; box-shadow: 0 4px 16px rgba(16,24,40,.07); }
     .card.hl.warn { border-left-color: #f0a020; background: #fff8ec; }
