@@ -107,13 +107,13 @@ def _class_label(c) -> str:
     return f"{c.level}/{c.room}" if (c.room or "").strip() else (c.level or "")
 
 
-def _sign_block(doc, name, role, *, after=0):
+def _sign_block(doc, name, role, *, after=0, size=10):
     """บล็อกลงนาม + วางลายเซ็นลอยทับถ้าผู้ลงนามอัปโหลดไว้"""
-    p = _p(doc, "(ลงชื่อ).............................................", align="center", after=0)
+    p = _p(doc, "(ลงชื่อ).............................................", align="center", after=0, size=size)
     if name:
         _float_signature(p, name)
-    _p(doc, f"( {name or '.......................................'} )", align="center", after=0)
-    _p(doc, role, align="center", after=after)
+    _p(doc, f"( {name or '.......................................'} )", align="center", after=0, size=size)
+    _p(doc, role, align="center", after=after, size=size)
 
 
 def _logo_header(doc, school, *, page_break=False, height_cm=2.0, after=2):
@@ -147,13 +147,11 @@ def _pp5_score_page(doc, school, klass, subject, db, *, page_break: bool = False
     teach = db.query(AcadTeaching).filter_by(class_id=klass.id, subject_id=subject.id).first()
     teacher = teach.teacher.name if (teach and teach.teacher) else ""
 
-    added = _logo_header(doc, school, page_break=page_break, height_cm=1.7)
-    _p(doc, "แบบบันทึกผลการพัฒนาคุณภาพผู้เรียน (ปพ.5)", align="center", bold=True, size=18, after=0,
-       page_break=(page_break and not added))
-    _p(doc, school.name or "", align="center", bold=True, size=15, after=0)
+    _p(doc, "แบบบันทึกผลการเรียน", align="center", bold=True, size=16, after=0, page_break=page_break)
+    _p(doc, school.name or "", align="center", bold=True, size=16, after=0)
     head = (f"รายวิชา {subject.code or ''} {subject.name}   ชั้น {_class_label(klass)}   "
             f"ปีการศึกษา {klass.year}   {term_label(term)}")
-    _p(doc, head, align="center", size=14, after=2)
+    _p(doc, head, align="center", size=12, after=2)
     meta = []
     if subject.learn_group:
         meta.append(f"กลุ่มสาระการเรียนรู้{subject.learn_group}")
@@ -162,7 +160,7 @@ def _pp5_score_page(doc, school, klass, subject, db, *, page_break: bool = False
     if subject.credit:
         meta.append(f"{subject.credit:g} หน่วยกิต")
     if meta:
-        _p(doc, "  |  ".join(meta), align="center", size=13, after=8)
+        _p(doc, "  |  ".join(meta), align="center", size=12, after=8)
 
     mmax = subject.mid_max if (subject.mid_max or 0) > 0 else 70
     fmax = subject.final_max if (subject.final_max or 0) > 0 else 30
@@ -171,22 +169,22 @@ def _pp5_score_page(doc, school, klass, subject, db, *, page_break: bool = False
     else:
         heads = ["เลขที่", "เลขประจำตัว", "ชื่อ-นามสกุล", f"คะแนนเก็บ (เต็ม {mmax})",
                  f"คะแนนปลายภาค (เต็ม {fmax})", f"รวม (เต็ม {mmax + fmax})", "ผลการเรียน", "หมายเหตุ"]
-        # รวม 18.0 = พื้นที่พิมพ์ A4 แนวตั้ง (หน้าคะแนนเป็นแนวตั้ง)
-        ws = [Cm(1.2), Cm(2.0), Cm(5.5), Cm(1.9), Cm(2.1), Cm(1.6), Cm(1.7), Cm(2.0)]
+        # ความกว้างตามไฟล์จริง (แนวตั้ง รวม 17.6 ซม.)
+        ws = [Cm(1.25), Cm(3.13), Cm(4.23), Cm(2.0), Cm(2.15), Cm(2.35), Cm(1.4), Cm(1.1)]
         t = doc.add_table(rows=1, cols=len(heads)); t.style = "Table Grid"
         for i, h in enumerate(heads):
-            _cell(t.rows[0].cells[i], h, bold=True, fill="EDE9FE")
+            _cell(t.rows[0].cells[i], h, bold=True, fill="EDE9FE", size=12)
         for s in students:
             sc = scores.get(s.id)
             cells = t.add_row().cells
-            _cell(cells[0], s.seq or "")
-            _cell(cells[1], s.student_no or "")
-            _cell(cells[2], s.name, align="left")
-            _cell(cells[3], f"{sc.score_mid:g}" if sc and sc.score_mid is not None else "")
-            _cell(cells[4], f"{sc.score_final:g}" if sc and sc.score_final is not None else "")
-            _cell(cells[5], f"{sc.score:g}" if sc and sc.score is not None else "")
-            _cell(cells[6], sc.grade if sc else "", bold=True)
-            _cell(cells[7], "")
+            _cell(cells[0], s.seq or "", size=12)
+            _cell(cells[1], s.student_no or "", size=12)
+            _cell(cells[2], s.name, align="left", size=12)
+            _cell(cells[3], f"{sc.score_mid:g}" if sc and sc.score_mid is not None else "", size=12)
+            _cell(cells[4], f"{sc.score_final:g}" if sc and sc.score_final is not None else "", size=12)
+            _cell(cells[5], f"{sc.score:g}" if sc and sc.score is not None else "", size=12)
+            _cell(cells[6], sc.grade if sc else "", bold=True, size=12)
+            _cell(cells[7], "", size=12)
         _widths(t, ws)
 
     _p(doc, "", after=10)
@@ -318,17 +316,17 @@ def _pp5_roster(doc, klass, students, db):
         cells = t.add_row().cells
         _cell(cells[0], s.seq or "", size=10)
         _cell(cells[1], s.name, align="left", size=10)
-        _cell(cells[2], thai_date(st.birthdate) if (st and st.birthdate) else "", size=9)
+        _cell(cells[2], thai_date(st.birthdate) if (st and st.birthdate) else "", size=10)
         _cell(cells[3], _student_age(st.birthdate) if st else "", size=10)
-        _cell(cells[4], g("father_name"), align="left", size=9)
-        _cell(cells[5], g("father_job"), size=9)
-        _cell(cells[6], g("mother_name"), align="left", size=9)
-        _cell(cells[7], g("mother_job"), size=9)
-        _cell(cells[8], g("guardian_name"), align="left", size=9)
-        _cell(cells[9], g("guardian_relation"), size=9)
-        _cell(cells[10], g("guardian_job"), size=9)
-        _cell(cells[11], _fmt_addr(st) if st else "", align="left", size=8)
-    _widths(t, [Cm(1.0), Cm(4.2), Cm(2.2), Cm(1.0), Cm(3.0), Cm(1.8),
+        _cell(cells[4], g("father_name"), align="left", size=10)
+        _cell(cells[5], g("father_job"), size=10)
+        _cell(cells[6], g("mother_name"), align="left", size=10)
+        _cell(cells[7], g("mother_job"), size=10)
+        _cell(cells[8], g("guardian_name"), align="left", size=10)
+        _cell(cells[9], g("guardian_relation"), size=10)
+        _cell(cells[10], g("guardian_job"), size=10)
+        _cell(cells[11], _fmt_addr(st) if st else "", align="left", size=10)
+    _widths(t, [Cm(1.0), Cm(3.5), Cm(2.9), Cm(1.0), Cm(3.0), Cm(1.8),
                 Cm(3.0), Cm(1.8), Cm(2.6), Cm(1.5), Cm(1.6), Cm(3.0)])   # รวม 26.7
 
 
@@ -358,16 +356,16 @@ def _pp5_indicator_page(doc, klass, subject, db, students, *, page_break=True):
                 scmap[(r.acad_student_id, r.code)] = sc
 
     n = len(inds)
-    _p(doc, "ผลการประเมินตัวชี้วัดรายวิชา (ตามหลักสูตรแกนกลาง 2551)",
+    _p(doc, "ผลการประเมินตัวชี้วัดรายวิชา",
        align="center", bold=True, size=16, after=0, page_break=page_break)
     _p(doc, f"รายวิชา {subject.code or ''} {subject.name}   ชั้น {_class_label(klass)}   "
-            f"ปีการศึกษา {klass.year}   ({n} ตัวชี้วัด)", align="center", size=13, after=4)
+            f"ปีการศึกษา {klass.year}   ({n} ตัวชี้วัด)", align="center", size=12, after=4)
 
     # หัว 2 แถว: มาตรฐาน (ผสานตามกลุ่ม) + เลขข้อ (1..n)
     t = doc.add_table(rows=2, cols=2 + n + 2); t.style = "Table Grid"
     h0, h1 = t.rows[0].cells, t.rows[1].cells
-    h0[0].merge(h1[0]); _cell(h0[0], "ที่", bold=True, fill="EDE9FE", size=9)
-    h0[1].merge(h1[1]); _cell(h0[1], "ชื่อ-นามสกุล", bold=True, fill="EDE9FE", size=9)
+    h0[0].merge(h1[0]); _cell(h0[0], "ที่", bold=True, fill="EDE9FE", size=10)
+    h0[1].merge(h1[1]); _cell(h0[1], "ชื่อ-นามสกุล", bold=True, fill="EDE9FE", size=10)
     col = 2
     for st, items in stds:
         first = col
@@ -376,36 +374,36 @@ def _pp5_indicator_page(doc, klass, subject, db, students, *, page_break=True):
         merged = h0[first]
         for c in range(first + 1, col):
             merged = merged.merge(h0[c])
-        _cell(merged, st, bold=True, fill="EDE9FE", size=8)
+        _cell(merged, st, bold=True, fill="EDE9FE", size=10)
     for j, it in enumerate(inds):
-        _cell(h1[2 + j], str(it["seq"]), bold=True, fill="F1F5F9", size=8)   # เลขข้อ = ลำดับภายในมาตรฐาน
-    h0[2 + n].merge(h1[2 + n]); _cell(h0[2 + n], f"ผ่าน/{n}", bold=True, fill="EDE9FE", size=9)
-    h0[3 + n].merge(h1[3 + n]); _cell(h0[3 + n], "ผล", bold=True, fill="EDE9FE", size=9)
+        _cell(h1[2 + j], str(it["seq"]), bold=True, fill="F1F5F9", size=10)   # เลขข้อ = ลำดับภายในมาตรฐาน
+    h0[2 + n].merge(h1[2 + n]); _cell(h0[2 + n], f"ผ่าน/{n}", bold=True, fill="EDE9FE", size=10)
+    h0[3 + n].merge(h1[3 + n]); _cell(h0[3 + n], "ผล", bold=True, fill="EDE9FE", size=10)
 
     for s in students:
         cells = t.add_row().cells
-        _cell(cells[0], s.seq or "", size=9)
-        _cell(cells[1], s.name, align="left", size=9)
+        _cell(cells[0], s.seq or "", size=10)
+        _cell(cells[1], s.name, align="left", size=10)
         npass, nfill = 0, 0
         for j, it in enumerate(inds):
             sc = scmap.get((s.id, it["code"]))
-            _cell(cells[2 + j], sc if sc is not None else "", size=9)
+            _cell(cells[2 + j], sc if sc is not None else "", size=10)
             if sc is not None:
                 nfill += 1
                 if sc >= 1:
                     npass += 1
-        _cell(cells[2 + n], str(npass), size=9, bold=True)
-        _cell(cells[3 + n], ("ผ่าน" if npass == n else "ไม่ผ่าน") if nfill else "", size=9, bold=True)
+        _cell(cells[2 + n], str(npass), size=10, bold=True)
+        _cell(cells[3 + n], ("ผ่าน" if npass == n else "ไม่ผ่าน") if nfill else "", size=10, bold=True)
     iw = min(0.62, 18.5 / max(1, n))
     _widths(t, [Cm(0.9), Cm(4.4)] + [Cm(iw)] * n + [Cm(1.4), Cm(1.5)])
     _p(doc, "คะแนน 0-3 ต่อตัวชี้วัด (3 ดีเยี่ยม · 2 ดี · 1 ผ่าน · 0 ไม่ผ่าน) | ผ่านตัวชี้วัด = ได้ตั้งแต่ 1 | "
-            "เกณฑ์: ต้องผ่านครบทุกตัวชี้วัด", size=9, after=4, align="center")
+            "เกณฑ์: ต้องผ่านครบทุกตัวชี้วัด", size=10, after=4, align="center")
     # รายการตัวชี้วัดอ้างอิง แยกตามมาตรฐาน (เลขข้อเริ่มใหม่ทุกมาตรฐาน)
     _p(doc, "ตัวชี้วัด:", bold=True, size=10, after=1)
     for st, items in stds:
-        _p(doc, f"มาตรฐาน {st}", bold=True, size=9.5, after=0)
+        _p(doc, f"มาตรฐาน {st}", bold=True, size=10, after=0)
         for it in items:
-            _p(doc, f"   {it['seq']}. {it['text']}", size=9.5, after=0)
+            _p(doc, f"   {it['seq']}. {it['text']}", size=10, after=0)
     return True
 
 
@@ -425,30 +423,31 @@ def _pp5_attendance_daily(doc, klass, students, db, *, page_break=True):
         return
     _p(doc, f"บันทึกเวลาเรียน (รายวัน) ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}",
        align="center", bold=True, size=16, after=2, page_break=page_break)
-    _p(doc, "/ = มา · ป = ป่วย · ล = ลากิจ · ข = ขาด", size=11, after=6, align="center")
+    _p(doc, "/ = มา · ป = ป่วย · ล = ลากิจ · ข = ขาด", size=10, after=6, align="center")
     for m, nm in months:
         days = cals[m]
-        _p(doc, f"เดือน{TH_MONTH_FULL.get(m, nm)}", bold=True, size=12, after=2)
+        _p(doc, f"เดือน{TH_MONTH_FULL.get(m, nm)}", bold=True, size=16, after=2)
         t = doc.add_table(rows=1, cols=2 + len(days) + 1); t.style = "Table Grid"
-        _cell(t.rows[0].cells[0], "เลขที่", bold=True, fill="EDE9FE", size=9)
-        _cell(t.rows[0].cells[1], "ชื่อ-นามสกุล", bold=True, fill="EDE9FE", size=9)
+        _cell(t.rows[0].cells[0], "เลขที่", bold=True, fill="EDE9FE", size=10)
+        _cell(t.rows[0].cells[1], "ชื่อ-นามสกุล", bold=True, fill="EDE9FE", size=10)
         for j, d in enumerate(days):
-            _cell(t.rows[0].cells[2 + j], str(d), bold=True, fill="EDE9FE", size=8)
-        _cell(t.rows[0].cells[-1], "มา", bold=True, fill="EDE9FE", size=9)
+            _cell(t.rows[0].cells[2 + j], str(d), bold=True, fill="EDE9FE", size=9)
+        _cell(t.rows[0].cells[-1], "มา", bold=True, fill="EDE9FE", size=10)
         for s in students:
             marks = att.get((s.id, m), {})
             cells = t.add_row().cells
-            _cell(cells[0], s.seq or "", size=9)
-            _cell(cells[1], s.name, align="left", size=9)
+            _cell(cells[0], s.seq or "", size=10)
+            _cell(cells[1], s.name, align="left", size=10)
             npres = 0
             for j, d in enumerate(days):
                 ch = marks.get(d, "")
                 _cell(cells[2 + j], ch, size=9)
                 if ch == "/":
                     npres += 1
-            _cell(cells[-1], npres, size=9, bold=True)
-        dayw = max(0.4, min(0.55, (18.0 - 5.7) / max(1, len(days))))   # แนวตั้ง 18 ซม.
-        _widths(t, [Cm(1.0), Cm(3.5)] + [Cm(dayw)] * len(days) + [Cm(1.2)])
+            _cell(cells[-1], npres, size=10, bold=True)
+        # ตามไฟล์จริง: เลขที่ 1.44 · ชื่อ 5.56 · มา 1.5 · วันที่เหลือกระจายพอดี (แนวตั้ง 18 ซม.)
+        dayw = max(0.42, min(1.0, (18.0 - 1.44 - 5.56 - 1.5) / max(1, len(days))))
+        _widths(t, [Cm(1.44), Cm(5.56)] + [Cm(dayw)] * len(days) + [Cm(1.5)])
         _p(doc, "", after=4)
     return True
 
@@ -555,7 +554,7 @@ def _pp5_quality_summary(doc, klass, subjects, students, db, kind, title):
         _cell(cells[-1], quality_of_avg(avg)[1], size=11, bold=True)
     _widths(t, [Cm(1.2), Cm(6.0)] + [Cm(sw)] * len(subjects) + [Cm(1.6), Cm(2.2)])
     _p(doc, "ตัวเลขในตาราง = ผลรายวิชา (3 ดีเยี่ยม | 2 ดี | 1 ผ่าน | 0 ไม่ผ่าน) | "
-            "ผลสุดท้ายมาจากเฉลี่ยข้ามวิชาด้วยเกณฑ์เดียวกัน", size=10, after=0, align="center")
+            "ผลสุดท้ายมาจากเฉลี่ยข้ามวิชาด้วยเกณฑ์เดียวกัน", size=11, after=0, align="center")
 
 
 def render_pp5_book(school, klass, db, term: int | None = None) -> str:
@@ -584,22 +583,22 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     term_txt = f"ภาคเรียนที่ {t}" if sec else "ตลอดปีการศึกษา"
 
     # ---------- หน้า 1: ปก (แนวตั้ง · พื้นที่พิมพ์ 18.0 ซม.) ----------
-    _logo_header(doc, school, height_cm=2.6, after=6)      # ตราโรงเรียนบนปก (ถ้าตั้งค่าไว้)
-    _p(doc, "สมุดบันทึกผลการพัฒนาคุณภาพผู้เรียน (ปพ.5)", align="center", bold=True, size=19, after=2)
+    _logo_header(doc, school, height_cm=2.2, after=4)      # ตราโรงเรียนบนปก (ถ้าตั้งค่าไว้)
+    _p(doc, "สมุดบันทึกผลการพัฒนาคุณภาพผู้เรียน (ปพ.5)", align="center", bold=True, size=10, after=1)
     _p(doc, f"ชั้น {_class_label(klass)}   ปีการศึกษา {klass.year}" + (f"   {term_txt}" if sec else ""),
-       align="center", bold=True, size=15, after=0)
+       align="center", bold=True, size=10, after=0)
     loc = [school.name or ""]
     if (school.district or "").strip():
         loc.append(f"อำเภอ{school.district.strip()}")
     if (school.province or "").strip():
         loc.append(f"จังหวัด{school.province.strip()}")
-    _p(doc, "  ".join(loc), align="center", size=14, after=0)
+    _p(doc, "  ".join(loc), align="center", size=10, after=0)
     if (school.area_office or "").strip():
-        _p(doc, f"สำนักงานเขตพื้นที่การศึกษา{school.area_office.strip()}", align="center", size=13, after=0)
+        _p(doc, f"สำนักงานเขตพื้นที่การศึกษา{school.area_office.strip()}", align="center", size=10, after=0)
     boys = sum(1 for s in students if s.sex == "M")
     girls = sum(1 for s in students if s.sex == "F")
     _p(doc, f"นักเรียนทั้งหมด {len(students)} คน  (ชาย {boys} | หญิง {girls})",
-       align="center", size=13, after=6)
+       align="center", size=10, after=6)
 
     # ตารางแจกแจงระดับผลการเรียนรายวิชา
     grade_cols = ["4", "3.5", "3", "2.5", "2", "1.5", "1", "0", "ร", "มส"]
@@ -611,33 +610,33 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     top = gt.rows[0].cells[2]
     for c in gt.rows[0].cells[3:]:
         top = top.merge(c)
-    _cell(top, "จำนวนนักเรียนแยกตามระดับผลการเรียน (คน)", bold=True, fill="EDE9FE", size=11)
+    _cell(top, "จำนวนนักเรียนแยกตามระดับผลการเรียน (คน)", bold=True, fill="EDE9FE", size=10)
     for i, g in enumerate(grade_cols):
         _cell(gt.rows[1].cells[2 + i], g, bold=True, fill="EDE9FE", size=10)
     for i, sub in enumerate(subjects, start=1):
         cells = gt.add_row().cells
-        _cell(cells[0], i, size=11)
-        _cell(cells[1], f"{sub.code or ''} {sub.name}".strip(), align="left", size=11)
+        _cell(cells[0], i, size=10)
+        _cell(cells[1], f"{sub.code or ''} {sub.name}".strip(), align="left", size=10)
         cnt = _grade_counts((sc_map.get((s.id, sub.id)).grade
                              if sc_map.get((s.id, sub.id)) else "") for s in students)
         for j, g in enumerate(grade_cols):
-            _cell(cells[2 + j], cnt[g] or "", size=11)
+            _cell(cells[2 + j], cnt[g] or "", size=10)
     # แนวตั้ง: 1.0 + 6.0 + 10x1.1 = 18.0 ซม. พอดีพื้นที่พิมพ์
     _widths(gt, [Cm(1.0), Cm(6.0)] + [Cm(1.1)] * len(grade_cols))
 
     # ตารางเล็ก: คุณลักษณะฯ + อ่านคิดฯ (ค่าที่ใช้จริง - คำนวณจากรายวิชาถ้ามี)
     _p(doc, "", after=4)
     qt = doc.add_table(rows=1, cols=1 + len(QUALITY_LEVELS)); qt.style = "Table Grid"
-    _cell(qt.rows[0].cells[0], "ผลการประเมิน (คน)", bold=True, fill="EDE9FE", size=11)
+    _cell(qt.rows[0].cells[0], "ผลการประเมิน (คน)", bold=True, fill="EDE9FE", size=10)
     for i, q in enumerate(QUALITY_LEVELS):
-        _cell(qt.rows[0].cells[1 + i], q, bold=True, fill="EDE9FE", size=11)
+        _cell(qt.rows[0].cells[1 + i], q, bold=True, fill="EDE9FE", size=10)
     for lab, key in [("คุณลักษณะอันพึงประสงค์", "desired_char"),
                      ("การอ่าน คิดวิเคราะห์ และเขียน", "read_think")]:
         cells = qt.add_row().cells
-        _cell(cells[0], lab, align="left", size=11)
+        _cell(cells[0], lab, align="left", size=10)
         for i, q in enumerate(QUALITY_LEVELS):
             n = sum(1 for s in students if effs[s.id][key] == q)
-            _cell(cells[1 + i], n or "", size=11)
+            _cell(cells[1 + i], n or "", size=10)
     _widths(qt, [Cm(7.2)] + [Cm(2.7)] * len(QUALITY_LEVELS))     # รวม 18.0
 
     # ---------- ลายเซ็นทุกคนต้องอยู่หน้าปก ----------
@@ -654,19 +653,19 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
             p = cell.paragraphs[0] if i == 0 else cell.add_paragraph()
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p.paragraph_format.space_after = Pt(0)
-            r = p.add_run(txt); r.font.size = Pt(12.5); r.font.name = THAI_FONT
+            r = p.add_run(txt); r.font.size = Pt(10); r.font.name = THAI_FONT
             r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
             if i == 0 and nm:
                 _float_signature(p, nm)
     _widths(st, [Cm(18.0 / len(signers))] * len(signers))
 
     _p(doc, "", after=8)
-    _p(doc, "ผลการตรวจสอบ    [   ] อนุมัติ        [   ] ไม่อนุมัติ", align="center", size=13, after=6)
+    _p(doc, "ผลการตรวจสอบ    [   ] อนุมัติ        [   ] ไม่อนุมัติ", align="center", size=10, after=6)
     director = (getattr(school, "director_name", "") or "").strip()
     dpos = ("ผู้อำนวยการ" + school.name) if (school.name or "").startswith("โรงเรียน") \
         else "ผู้อำนวยการโรงเรียน"
     _sign_block(doc, director, dpos)
-    _p(doc, "วันที่ ........ เดือน ......................... พ.ศ. ..........", align="center", size=12.5, after=0)
+    _p(doc, "วันที่ ........ เดือน ......................... พ.ศ. ..........", align="center", size=10, after=0)
 
     # ---------- รายชื่อนักเรียน (แนวนอน) ----------
     _new_section(doc, landscape=True)
@@ -717,8 +716,8 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
             _cell(cells[17], f"{pct:.1f}" if pct is not None else "", size=10)
             _cell(cells[18], ("ผ่าน" if pct >= 80 else "ไม่ผ่าน") if pct is not None else "",
                   bold=True, size=10)
-        _widths(at, [Cm(0.9), Cm(3.0)] + [Cm(0.8)] * 11 +
-                [Cm(0.95), Cm(0.7), Cm(0.7), Cm(0.7), Cm(0.9), Cm(0.85)])   # แนวตั้ง 18
+        _widths(at, [Cm(1.0), Cm(3.0)] + [Cm(0.72)] * 11 +
+                [Cm(0.9), Cm(0.72), Cm(0.72), Cm(0.72), Cm(1.15), Cm(1.75)])   # แนวตั้ง 18
     else:
         # แบบยอดรวมทั้งปี (โรงเรียนที่ไม่กรอกรายเดือน)
         at = doc.add_table(rows=1, cols=10); at.style = "Table Grid"
@@ -742,7 +741,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
             _cell(cells[9], ("ผ่าน" if pct >= 80 else "ไม่ผ่าน") if pct is not None else "", bold=True)
         _widths(at, [Cm(1.0), Cm(1.8), Cm(4.6), Cm(1.7), Cm(1.6),
                      Cm(1.3), Cm(1.3), Cm(1.3), Cm(1.6), Cm(1.8)])   # แนวตั้ง 18
-    _p(doc, "เกณฑ์การผ่าน: มีเวลาเรียนไม่น้อยกว่าร้อยละ 80 ของเวลาเรียนทั้งหมด", size=12, after=0)
+    _p(doc, "เกณฑ์การผ่าน: มีเวลาเรียนไม่น้อยกว่าร้อยละ 80 ของเวลาเรียนทั้งหมด", size=10, after=0)
 
     # ---------- ตัวชี้วัดรายวิชา (ทุกวิชารวมเป็นชุด, แนวนอน) - มาก่อนคะแนน ตามไฟล์จริง ----------
     from app.services.curriculum import selected_indicators as _sel_ind
@@ -784,7 +783,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
             _cell(cells[-1], f"{avg:.2f}" if avg is not None else "", bold=True, size=11)
         _widths(mt, [Cm(1.2), Cm(6.0)] + [Cm(sw)] * len(subjects) + [Cm(1.8)])
         _p(doc, "เฉลี่ยถ่วงน้ำหนักด้วย" + ("หน่วยกิต" if sec else "เวลาเรียน")
-           + " | ร/มส/ผ/มผ ไม่นำมาคิดเฉลี่ย", size=12, after=0, align="center")
+           + " | ร/มส/ผ/มผ ไม่นำมาคิดเฉลี่ย", size=11, after=0, align="center")
 
     # ---------- สรุปคุณลักษณะฯ / อ่านคิดเขียน ทุกวิชา ----------
     _pp5_quality_summary(doc, klass, subjects, students, db, "char",
@@ -874,11 +873,11 @@ def _pp5_criteria_page(doc, *, page_break=True):
 
     _p(doc, "", after=4)
     _p(doc, "บันทึกเวลาเรียน:  / หมายถึง มาเรียน · ป หมายถึง ป่วย · ล หมายถึง ลากิจ · ข หมายถึง ขาด",
-       size=13, after=2)
-    _p(doc, "กิจกรรมพัฒนาผู้เรียน:  มี 2 เกณฑ์ คือ ผ่าน (ผ) และ ไม่ผ่าน (มผ)", size=13, after=6)
+       size=12, after=2)
+    _p(doc, "กิจกรรมพัฒนาผู้เรียน:  มี 2 เกณฑ์ คือ ผ่าน (ผ) และ ไม่ผ่าน (มผ)", size=12, after=6)
 
     _p(doc, "เกณฑ์การตัดสินคุณลักษณะอันพึงประสงค์ และการอ่าน คิดวิเคราะห์ และเขียนสื่อความ",
-       bold=True, size=14, after=4)
+       bold=True, size=16, after=4)
     t2 = doc.add_table(rows=1, cols=3); t2.style = "Table Grid"
     for i, h in enumerate(["คะแนน", "ความหมาย", "ช่วงคะแนนเฉลี่ย"]):
         _cell(t2.rows[0].cells[i], h, bold=True, fill="EDE9FE")
@@ -889,11 +888,11 @@ def _pp5_criteria_page(doc, *, page_break=True):
     _widths(t2, [Cm(4.5), Cm(7.0), Cm(4.5)])
 
     _p(doc, "", after=4)
-    _p(doc, "เกณฑ์การตัดสินตัวชี้วัดรายวิชา:  ต้องผ่านทุกตัวชี้วัด (ร้อยละ 100)", bold=True, size=14, after=6)
-    _p(doc, "สูตรร้อยละของเวลาเรียน = (เวลามาเรียน × 100) ÷ เวลาเรียนทั้งหมด", size=13, after=2)
-    _p(doc, "สูตรร้อยละของตัวชี้วัด = (จำนวนตัวชี้วัดที่ผ่าน × 100) ÷ จำนวนตัวชี้วัดทั้งหมด", size=13, after=2)
+    _p(doc, "เกณฑ์การตัดสินตัวชี้วัดรายวิชา:  ต้องผ่านทุกตัวชี้วัด (ร้อยละ 100)", bold=True, size=12, after=6)
+    _p(doc, "สูตรร้อยละของเวลาเรียน = (เวลามาเรียน × 100) ÷ เวลาเรียนทั้งหมด", size=12, after=2)
+    _p(doc, "สูตรร้อยละของตัวชี้วัด = (จำนวนตัวชี้วัดที่ผ่าน × 100) ÷ จำนวนตัวชี้วัดทั้งหมด", size=12, after=2)
     _p(doc, "สูตรค่าเฉลี่ยของแบบประเมิน = ผลรวมของคะแนนประเมินทั้งหมด ÷ จำนวนข้อของแบบประเมิน",
-       size=13, after=0)
+       size=12, after=0)
 
 
 # ============================ ปพ.6 ============================
