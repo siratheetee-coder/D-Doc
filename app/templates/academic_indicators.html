@@ -116,7 +116,7 @@
           {% for it in indicators %}
           {% set v = results.get((s.id, it.code)) %}
           <td class="ck-cell"><input name="sc_{{ s.id }}_{{ loop.index0 }}" data-sc inputmode="numeric" maxlength="1"
-                 value="{{ v if v is not none else '' }}" class="ind-sc"></td>
+                 value="{{ v if v is not none else '' }}" class="ind-sc grid-adv"></td>
           {% endfor %}
           <td class="center allcol"><b data-passn>-</b>/{{ n }}</td>
           <td class="center allcol"><b data-passres></b></td>

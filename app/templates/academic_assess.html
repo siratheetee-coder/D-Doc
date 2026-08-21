@@ -82,7 +82,7 @@
           <td style="white-space:nowrap;">{{ s.name }}</td>
           {% for f in fields %}
           {% set v = (r|attr(f)) if r else none %}
-          <td><input name="{{ f }}_{{ s.id }}" data-score inputmode="numeric"
+          <td><input name="{{ f }}_{{ s.id }}" data-score inputmode="numeric" maxlength="1" class="grid-adv"
                      value="{{ v if v is not none else '' }}"
                      style="width:52px; text-align:center;"></td>
           {% endfor %}
