@@ -32,7 +32,7 @@ from app.services.academic import (grade_of, subject_preset, term_choices, term_
                                    LUNAR_HOLIDAY_NAMES, activity_preset, activities_for,
                                    activity_summary, ONET_SUBJECTS, is_exit_level, onet_for)
 from app.thai_utils import parse_be_date, be_date_input
-from app.services.curriculum import indicators_for, has_indicators
+from app.services.curriculum import indicators_for, has_indicators, selected_indicators
 
 router = APIRouter()
 
@@ -624,7 +624,7 @@ def indicators_page(request: Request, db: Session = Depends(get_db),
     y = year or current_academic_year()
     classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
     c = db.get(AcadClass, cid) if cid else None
-    subjects, students, subj, inds, results = [], [], None, [], {}
+    subjects, students, subj, inds, all_inds, picked, results = [], [], None, [], [], set(), {}
     if c:
         subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
                     .order_by(AcadSubject.seq, AcadSubject.code).all())
@@ -633,21 +633,37 @@ def indicators_page(request: Request, db: Session = Depends(get_db),
             subj = None
         if subj:
             students = sorted(c.students, key=lambda s: (s.seq or 999, s.name))
-            inds = indicators_for(subj.learn_group, subj.level)
+            all_inds = indicators_for(subj.learn_group, subj.level)   # ทั้งหมด (สำหรับกล่องเลือก)
+            inds = selected_indicators(subj)                          # เฉพาะที่ครูเลือกใช้ (กรอกคะแนน)
+            picked = {it["code"] for it in inds}
             if inds and students:
                 sids = [s.id for s in students]
                 for r in (db.query(AcadIndicatorResult)
                           .filter(AcadIndicatorResult.subject_id == subj.id,
                                   AcadIndicatorResult.acad_student_id.in_(sids)).all()):
-                    # ใช้คะแนน 0-3 · ถ้าเป็นข้อมูลเก่า (มีแต่ passed) แปลง True->3
                     results[(r.acad_student_id, r.code)] = (
                         r.score if r.score is not None else (3 if r.passed else None))
     return templates.TemplateResponse("academic_indicators.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "classes": classes, "c": c, "subjects": subjects, "subj": subj,
         "students": students, "class_label": _class_label, "term_label": term_label,
-        "indicators": inds, "results": results,
+        "indicators": inds, "all_indicators": all_inds, "picked": picked, "results": results,
     })
+
+
+@router.post("/academic/indicators/pick")
+async def indicators_pick(request: Request, db: Session = Depends(get_db),
+                          cid: str = Form(""), sid: str = Form("")):
+    """บันทึกรายการตัวชี้วัดที่ครูเลือกใช้ (checkbox 'pick' = code) · เก็บ CSV คั่นด้วย |"""
+    form = await request.form()
+    subj = db.get(AcadSubject, _to_int(sid, 0))
+    if not subj:
+        return RedirectResponse("/academic/indicators", status_code=303)
+    valid = {it["code"] for it in indicators_for(subj.learn_group, subj.level)}
+    chosen = [code for code in form.getlist("pick") if code in valid]
+    subj.indicator_codes = "|".join(chosen)
+    db.commit()
+    return RedirectResponse(f"/academic/indicators?cid={cid}&sid={sid}&saved=1", status_code=303)
 
 
 @router.post("/academic/indicators/save")
@@ -659,7 +675,7 @@ async def indicators_save(request: Request, db: Session = Depends(get_db),
     c = db.get(AcadClass, _to_int(cid, 0))
     if not subj or not c:
         return RedirectResponse("/academic/indicators", status_code=303)
-    inds = indicators_for(subj.learn_group, subj.level)
+    inds = selected_indicators(subj)          # กรอก/บันทึกเฉพาะตัวชี้วัดที่เลือกใช้
     codes = [it["code"] for it in inds]
     sids = [s.id for s in c.students]
     cur = {}

@@ -1192,6 +1192,7 @@ class AcadSubject(Base):
     final_max = Column(Integer, default=30)         # คะแนนปลายภาคเต็ม
     term = Column(Integer, default=0)               # 0 = ทั้งปี (ประถม) · 1/2 = ภาคเรียน (มัธยม)
     seq = Column(Integer, default=0)                # ลำดับแสดงผล
+    indicator_codes = Column(Text, default="")      # ตัวชี้วัดที่ครูเลือกใช้ (คั่นด้วย |) ว่าง = ใช้ทุกตัว
     created_at = Column(DateTime, default=datetime.now)
 
     teachings = relationship("AcadTeaching", back_populates="subject",

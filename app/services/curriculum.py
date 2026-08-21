@@ -59,6 +59,18 @@ def has_indicators(learn_group: str, level: str) -> bool:
     return bool(indicators_for(learn_group, level))
 
 
+def selected_indicators(subject):
+    """ตัวชี้วัดที่ใช้จริงของรายวิชา = ที่ครูติ๊กเลือก (subject.indicator_codes คั่นด้วย |)
+    ถ้ายังไม่เลือก (ว่าง) = ใช้ทุกตัวของกลุ่มสาระ+ชั้น"""
+    allx = indicators_for(subject.learn_group, subject.level)
+    csv = (getattr(subject, "indicator_codes", "") or "").strip()
+    if not csv:
+        return allx
+    picked = {c.strip() for c in csv.split("|") if c.strip()}
+    sel = [it for it in allx if it["code"] in picked]
+    return sel or allx        # ถ้า code ที่เลือกไม่ตรงเลย (เช่นเปลี่ยนชั้น) -> คืนทุกตัวกันหน้าว่าง
+
+
 def available_areas() -> set:
     """ชื่อกลุ่มสาระที่มีข้อมูลตัวชี้วัดแล้ว (ใช้โชว์สถานะ/หน้าเกี่ยวกับ)"""
     return {area for area, _ in _load().keys()}

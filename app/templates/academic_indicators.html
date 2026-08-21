@@ -51,6 +51,30 @@
   {% elif not students %}
   <p class="muted" style="margin:10px 0 0;">ห้องนี้ยังไม่มีนักเรียน - <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
   {% else %}
+  {# ---------- กล่องเลือกตัวชี้วัดที่ใช้ (ลดจำนวนให้เหลือเฉพาะที่วัดจริง) ---------- #}
+  <details class="pick-box" {% if all_indicators|length != indicators|length %}{% else %}open{% endif %}>
+    <summary><svg class="icon"><use href="#ic-check"/></svg>
+      <b>เลือกตัวชี้วัดที่ใช้</b> <span class="muted">(ใช้ {{ indicators|length }} จาก {{ all_indicators|length }} ตัวชี้วัด — ติ๊กเฉพาะที่วัดจริง)</span></summary>
+    <form method="post" action="/academic/indicators/pick" style="margin-top:8px;">
+      <input type="hidden" name="cid" value="{{ c.id }}"><input type="hidden" name="sid" value="{{ subj.id }}">
+      <div style="margin-bottom:8px;">
+        <button type="button" class="btn-acad ghost" onclick="pickAll(true)">เลือกทั้งหมด</button>
+        <button type="button" class="btn-acad ghost" onclick="pickAll(false)">ล้างการเลือก</button>
+      </div>
+      {% for std, items in all_indicators|groupby('std') %}
+      <div class="pick-sec">
+        <div class="pick-head">มาตรฐาน {{ std }}</div>
+        {% for it in items %}
+        <label class="pick-item"><input type="checkbox" name="pick" value="{{ it.code }}" class="pick-ck"
+               {{ 'checked' if it.code in picked }}> <b>{{ it.seq }}.</b> {{ it.text }}</label>
+        {% endfor %}
+      </div>
+      {% endfor %}
+      <button type="submit" class="btn-acad" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกตัวชี้วัดที่เลือก</button>
+      <span class="muted" style="font-size:12px;">บันทึกแล้ว ตารางกรอกคะแนน + ปพ.5 จะแสดงเฉพาะที่เลือก</span>
+    </form>
+  </details>
+
   <p class="ind-hint">กรอก<b>คะแนน 0-3</b> ต่อตัวชี้วัด (3=ดีเยี่ยม · 2=ดี · 1=ผ่าน · 0=ไม่ผ่าน) — มี {{ indicators|length }} ตัวชี้วัด ·
     <b>คลิกหมายเลขตัวชี้วัด</b>บนหัวตารางเพื่ออ่านว่าเป็นเรื่องอะไร · <b>ผ่าน</b> = ได้ตั้งแต่ 1 ขึ้นไป · เกณฑ์ ปพ.6 "ผ่านร้อยละ 100" คิดจากหน้านี้</p>
 
@@ -159,6 +183,7 @@
       recalcRow(tr);
     });
   }
+  function pickAll(v){ document.querySelectorAll('.pick-ck').forEach(function(b){ b.checked = v; }); }
   document.querySelectorAll('tr[data-row]').forEach(function(tr){
     recalcRow(tr);
     tr.addEventListener('input', function(e){
@@ -169,6 +194,14 @@
 <style>
   :root { --acad:#2563eb; --acad-dark:#1d4ed8; --acad-50:#eff6ff; --acad-100:#dbeafe; }
   .ind-hint { font-size:14px; color:#475569; margin:6px 0 10px; line-height:1.6; }
+  .pick-box { border:1.5px solid var(--acad-100); border-radius:12px; padding:10px 14px; margin:0 0 14px; background:#fafcff; }
+  .pick-box > summary { cursor:pointer; font-size:15px; display:flex; align-items:center; gap:8px; color:var(--acad-dark); }
+  .pick-box > summary .icon { color:var(--acad); }
+  .pick-sec { margin:8px 0; }
+  .pick-head { font-weight:700; color:var(--acad-dark); font-size:13.5px; margin:6px 0 2px; }
+  .pick-item { display:block; font-size:14px; line-height:1.7; padding:2px 0 2px 8px; cursor:pointer; }
+  .pick-item:hover { background:var(--acad-50); border-radius:6px; }
+  .pick-ck { width:17px; height:17px; vertical-align:-3px; accent-color:var(--acad); margin-right:4px; }
   .ind-info { display:flex; align-items:flex-start; gap:9px; background:var(--acad-50); border:1.5px solid var(--acad-100);
     border-radius:11px; padding:12px 15px; margin-bottom:12px; font-size:15.5px; line-height:1.55; color:#1e293b;
     min-height:26px; transition:background .15s, border-color .15s; }

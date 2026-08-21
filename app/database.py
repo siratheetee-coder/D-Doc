@@ -144,6 +144,7 @@ MIGRATIONS = [
     ("school", "logo", "BLOB"),
     ("school", "logo_ext", "VARCHAR DEFAULT ''"),
     ("acad_indicator_result", "score", "INTEGER"),
+    ("acad_subject", "indicator_codes", "TEXT DEFAULT ''"),
     ("student", "father_job", "VARCHAR DEFAULT ''"),
     ("student", "mother_job", "VARCHAR DEFAULT ''"),
     ("student", "guardian_name", "VARCHAR DEFAULT ''"),

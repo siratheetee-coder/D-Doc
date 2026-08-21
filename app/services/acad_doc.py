@@ -335,9 +335,9 @@ def _pp5_roster(doc, klass, students, db):
 def _pp5_indicator_page(doc, klass, subject, db, students):
     """หน้าผลการประเมินตัวชี้วัดรายวิชา (สรุปผ่าน/ทั้งหมด รายมาตรฐาน) + รายการตัวชี้วัด
     ข้ามถ้ายังไม่มีชุดตัวชี้วัดของกลุ่มสาระ+ชั้นนั้น"""
-    from app.services.curriculum import indicators_for
+    from app.services.curriculum import selected_indicators
     from app.models import AcadIndicatorResult
-    inds = indicators_for(subject.learn_group, subject.level)
+    inds = selected_indicators(subject)
     if not inds:
         return
     # จัดกลุ่มตามมาตรฐาน (คงลำดับ)
@@ -1300,12 +1300,12 @@ def _pp6_summary(doc, school, s, db, ef):
     act = (activity_summary(s, db) or "").strip()
     has_zero = any(g == "0" for g in grades)
 
-    # ตัวชี้วัดรายวิชา: ร้อยละที่ผ่าน (เฉพาะวิชาที่มีชุดตัวชี้วัดในระบบ)
-    from app.services.curriculum import indicators_for
+    # ตัวชี้วัดรายวิชา: ร้อยละที่ผ่าน (เฉพาะตัวชี้วัดที่ครูเลือกใช้)
+    from app.services.curriculum import selected_indicators
     from app.models import AcadIndicatorResult
     inds_by_sub, total_ind = {}, 0
     for sub in subs:
-        its = indicators_for(sub.learn_group, sub.level)
+        its = selected_indicators(sub)
         if its:
             inds_by_sub[sub.id] = its
             total_ind += len(its)
