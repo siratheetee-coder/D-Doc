@@ -19,10 +19,10 @@ from app.services.office_doc import _float_signature
 from app.database import get_data_dir
 from app.thai_utils import thai_date, is_secondary, be_date_input
 from app.services.academic import (term_label, CHAR_ITEMS, CHAR_FIELDS, READ_DOMAINS,
-                                   TH_MONTHS, quality_of_avg, char_avg, read_avg,
+                                   TH_MONTHS, TH_MONTH_FULL, quality_of_avg, char_avg, read_avg,
                                    effective_eval, weighted_avg, activities_for,
                                    activity_summary, onet_for, is_exit_level, ONET_SUBJECTS,
-                                   count_marks)
+                                   count_marks, parse_marks, parse_days_csv)
 
 THAI_FONT = "TH Sarabun New"
 
@@ -385,6 +385,49 @@ def _pp5_indicator_page(doc, klass, subject, db, students):
         _p(doc, f"{j + 1}. [{it['code']}] {it['text']}", size=9.5, after=0)
 
 
+def _pp5_attendance_daily(doc, klass, students, db):
+    """หน้าบันทึกเวลาเรียน (รายวัน) - ตารางเช็กชื่อต่อเดือน (เฉพาะเดือนที่มีปฏิทิน)"""
+    from app.models import AcadCalendar, AcadAttendance
+    sids = [s.id for s in students]
+    att = {}
+    if sids:
+        for a in (db.query(AcadAttendance)
+                  .filter(AcadAttendance.acad_student_id.in_(sids)).all()):
+            att[(a.acad_student_id, a.month)] = parse_marks(a.marks)
+    cals = {r.month: parse_days_csv(r.days_csv)
+            for r in db.query(AcadCalendar).filter_by(year=klass.year).all()}
+    months = [(m, nm) for m, nm in TH_MONTHS if cals.get(m)]
+    if not months:
+        return
+    _p(doc, f"บันทึกเวลาเรียน (รายวัน) ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}",
+       align="center", bold=True, size=16, after=2, page_break=True)
+    _p(doc, "/ = มา · ป = ป่วย · ล = ลากิจ · ข = ขาด", size=11, after=6, align="center")
+    for m, nm in months:
+        days = cals[m]
+        _p(doc, f"เดือน{TH_MONTH_FULL.get(m, nm)}", bold=True, size=12, after=2)
+        t = doc.add_table(rows=1, cols=2 + len(days) + 1); t.style = "Table Grid"
+        _cell(t.rows[0].cells[0], "เลขที่", bold=True, fill="EDE9FE", size=9)
+        _cell(t.rows[0].cells[1], "ชื่อ-นามสกุล", bold=True, fill="EDE9FE", size=9)
+        for j, d in enumerate(days):
+            _cell(t.rows[0].cells[2 + j], str(d), bold=True, fill="EDE9FE", size=8)
+        _cell(t.rows[0].cells[-1], "มา", bold=True, fill="EDE9FE", size=9)
+        for s in students:
+            marks = att.get((s.id, m), {})
+            cells = t.add_row().cells
+            _cell(cells[0], s.seq or "", size=9)
+            _cell(cells[1], s.name, align="left", size=9)
+            npres = 0
+            for j, d in enumerate(days):
+                ch = marks.get(d, "")
+                _cell(cells[2 + j], ch, size=9)
+                if ch == "/":
+                    npres += 1
+            _cell(cells[-1], npres, size=9, bold=True)
+        dayw = max(0.4, min(0.62, (26.7 - 6.2) / max(1, len(days))))
+        _widths(t, [Cm(1.0), Cm(4.0)] + [Cm(dayw)] * len(days) + [Cm(1.2)])
+        _p(doc, "", after=4)
+
+
 def _pp5_char_page(doc, klass, subject, db, students):
     """หน้าประเมินคุณลักษณะอันพึงประสงค์ 8 ข้อ ของ 1 รายวิชา"""
     from app.models import AcadCharEval
@@ -603,7 +646,10 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     _new_section(doc, landscape=True)
     _pp5_roster(doc, klass, students, db)
 
-    # ---------- หน้า 3: สรุปเวลาเรียน ----------
+    # ---------- เวลาเรียน (รายวัน) - ก่อนสรุปเวลาเรียน ตามไฟล์จริง ----------
+    _pp5_attendance_daily(doc, klass, students, db)
+
+    # ---------- สรุปเวลาเรียน ----------
     _p(doc, f"สรุปเวลาเรียน ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}",
        align="center", bold=True, size=16, after=6, page_break=True)
     monthly = any(effs[s.id]["months"] for s in students)
