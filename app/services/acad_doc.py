@@ -193,28 +193,49 @@ def _pp5_score_page(doc, school, klass, subject, db, *, page_break: bool = False
     _sign_block(doc, teacher, "ครูผู้สอน")
 
 
+def _vcell(cell, text, *, bold=False, size=11, fill=None):
+    """เซลล์ตัวหนังสือแนวตั้ง (อ่านจากล่างขึ้นบน) สำหรับหัวคอลัมน์แคบ"""
+    _cell(cell, text, bold=bold, align="center", size=size, fill=fill)
+    tcpr = cell._tc.get_or_add_tcPr()
+    tcpr.append(tcpr.makeelement(qn("w:textDirection"), {qn("w:val"): "btLr"}))
+
+
 def _pp5_score_2term(doc, subject, db, students):
-    """ตารางคะแนนแบบประถม: ภาคเรียนที่ 1 + 2 (ระหว่าง/ปลาย/รวม/ผล) + เฉลี่ย 2 ภาค + เกรดรายปี"""
+    """ตารางคะแนนแบบประถม 2 ภาคเรียน (ตามไฟล์ Excel จริง): แถวคะแนนเต็ม 70/30/100 +
+    หัวคอลัมน์แนวตั้ง + สรุปแยก ผ่าน/ไม่ผ่าน + เฉลี่ย 2 ภาค + ผลการเรียนตลอดปี"""
     from app.models import AcadScore
+    mmax = subject.mid_max if (subject.mid_max or 0) > 0 else 70
+    fmax = subject.final_max if (subject.final_max or 0) > 0 else 30
     sids = [s.id for s in students]
     rows = {}
     if sids:
         for x in (db.query(AcadScore).filter(AcadScore.subject_id == subject.id,
                                              AcadScore.acad_student_id.in_(sids)).all()):
             rows[(x.acad_student_id, x.term)] = x
-    t = doc.add_table(rows=2, cols=13); t.style = "Table Grid"
-    h0, h1 = t.rows[0].cells, t.rows[1].cells
-    for idx, lab in [(0, "เลขที่"), (1, "ชื่อ-นามสกุล")]:
-        h0[idx].merge(h1[idx]); _cell(h0[idx], lab, bold=True, fill="EDE9FE", size=11)
+    # 14 คอลัมน์: ที่ ชื่อ | ภาค1(ระหว่าง/ปลาย/รวม/ผล) | ภาค2(...) | เฉลี่ย ผลตลอดปี | ผ่าน ไม่ผ่าน
+    t = doc.add_table(rows=3, cols=14); t.style = "Table Grid"
+    r0, r1, r2 = t.rows[0].cells, t.rows[1].cells, t.rows[2].cells
+    # หัวคงที่ (ผสาน 3 แถว)
+    for idx, lab in [(0, "ที่"), (1, "ชื่อ-นามสกุล"), (10, "คะแนนเฉลี่ย\n2 ภาคเรียน"),
+                     (11, "ผลการเรียน\nตลอดปี")]:
+        m = r0[idx].merge(r1[idx]).merge(r2[idx])
+        (_vcell if idx in (10, 11) else _cell)(m, lab.replace("\n", " "),
+                                               bold=True, fill="EDE9FE", size=10)
+    # ภาคเรียนที่ 1 / 2 (หัวรวม + หัวย่อยแนวตั้ง + แถวคะแนนเต็ม)
     for base, lab in [(2, "ภาคเรียนที่ 1"), (6, "ภาคเรียนที่ 2")]:
-        m = h0[base]
+        m = r0[base]
         for c in range(base + 1, base + 4):
-            m = m.merge(h0[c])
+            m = m.merge(r0[c])
         _cell(m, lab, bold=True, fill="EDE9FE", size=11)
-        for j, sub in enumerate(["ระหว่างภาค", "ปลายภาค", "รวม", "ผล"]):
-            _cell(h1[base + j], sub, bold=True, fill="F1F5F9", size=10)
-    for idx, lab in [(10, "เฉลี่ย 2 ภาค (%)"), (11, "ผลการเรียนตลอดปี"), (12, "สรุป")]:
-        h0[idx].merge(h1[idx]); _cell(h0[idx], lab, bold=True, fill="EDE9FE", size=10)
+        for j, sub in enumerate(["ระหว่างภาค", "ปลายภาค", "รวม", "ผลการเรียน"]):
+            _vcell(r1[base + j], sub, bold=True, fill="F1F5F9", size=9)
+        for j, mx in enumerate([str(mmax), str(fmax), str(mmax + fmax), "-"]):
+            _cell(r2[base + j], mx, bold=True, fill="F8FAFC", size=9)
+    # สรุปผลการประเมิน (ผ่าน / ไม่ผ่าน)
+    mm = r0[12].merge(r0[13]); _cell(mm, "สรุปผลการประเมิน", bold=True, fill="EDE9FE", size=10)
+    r1[12].merge(r2[12]); _cell(r1[12], "ผ่าน", bold=True, fill="F1F5F9", size=9)
+    r1[13].merge(r2[13]); _cell(r1[13], "ไม่ผ่าน", bold=True, fill="F1F5F9", size=9)
+
     for s in students:
         cells = t.add_row().cells
         _cell(cells[0], s.seq or "", size=11)
@@ -229,9 +250,11 @@ def _pp5_score_2term(doc, subject, db, students):
         ann = rows.get((s.id, 0))
         _cell(cells[10], f"{ann.score:g}" if ann and ann.score is not None else "", size=11)
         _cell(cells[11], ann.grade if ann else "", size=11, bold=True)
-        ok = ann and (ann.grade or "").strip() not in ("", "0", "ร", "มส")
-        _cell(cells[12], ("ผ่าน" if ok else "") if ann and ann.grade else "", size=11, bold=True)
-    _widths(t, [Cm(1.2), Cm(5.0)] + [Cm(1.7)] * 8 + [Cm(2.1), Cm(2.0), Cm(1.5)])
+        ok = bool(ann and (ann.grade or "").strip() not in ("", "0", "ร", "มส"))
+        has = bool(ann and ann.grade)
+        _cell(cells[12], "P" if (has and ok) else "", size=11, bold=True)
+        _cell(cells[13], "P" if (has and not ok) else "", size=11, bold=True)
+    _widths(t, [Cm(1.0), Cm(4.6)] + [Cm(1.55)] * 8 + [Cm(1.7), Cm(1.7), Cm(1.2), Cm(1.2)])
 
 
 def render_pp5(school, klass, subject, db) -> str:
@@ -307,8 +330,6 @@ def _pp5_roster(doc, klass, students, db):
         _cell(cells[11], _fmt_addr(st) if st else "", align="left", size=8)
     _widths(t, [Cm(1.0), Cm(4.2), Cm(2.2), Cm(1.0), Cm(3.0), Cm(1.8),
                 Cm(3.0), Cm(1.8), Cm(2.6), Cm(1.5), Cm(1.6), Cm(3.0)])   # รวม 26.7
-    _p(doc, "ข้อมูลบิดา/มารดา/ผู้ปกครอง และที่อยู่ ดึงจากทะเบียนนักเรียนกลาง (ช่องว่าง = ยังไม่ได้กรอก)",
-       size=10, after=0, align="center")
 
 
 def _pp5_indicator_page(doc, klass, subject, db, students):
@@ -357,7 +378,7 @@ def _pp5_indicator_page(doc, klass, subject, db, students):
             merged = merged.merge(h0[c])
         _cell(merged, st, bold=True, fill="EDE9FE", size=8)
     for j, it in enumerate(inds):
-        _cell(h1[2 + j], str(j + 1), bold=True, fill="F1F5F9", size=8)
+        _cell(h1[2 + j], str(it["seq"]), bold=True, fill="F1F5F9", size=8)   # เลขข้อ = ลำดับภายในมาตรฐาน
     h0[2 + n].merge(h1[2 + n]); _cell(h0[2 + n], f"ผ่าน/{n}", bold=True, fill="EDE9FE", size=9)
     h0[3 + n].merge(h1[3 + n]); _cell(h0[3 + n], "ผล", bold=True, fill="EDE9FE", size=9)
 
@@ -379,10 +400,12 @@ def _pp5_indicator_page(doc, klass, subject, db, students):
     _widths(t, [Cm(0.9), Cm(4.4)] + [Cm(iw)] * n + [Cm(1.4), Cm(1.5)])
     _p(doc, "คะแนน 0-3 ต่อตัวชี้วัด (3 ดีเยี่ยม · 2 ดี · 1 ผ่าน · 0 ไม่ผ่าน) | ผ่านตัวชี้วัด = ได้ตั้งแต่ 1 | "
             "เกณฑ์: ต้องผ่านครบทุกตัวชี้วัด", size=9, after=4, align="center")
-    # รายการตัวชี้วัดอ้างอิง (เลขข้อ = ข้อความ)
+    # รายการตัวชี้วัดอ้างอิง แยกตามมาตรฐาน (เลขข้อเริ่มใหม่ทุกมาตรฐาน)
     _p(doc, "ตัวชี้วัด:", bold=True, size=10, after=1)
-    for j, it in enumerate(inds):
-        _p(doc, f"{j + 1}. [{it['code']}] {it['text']}", size=9.5, after=0)
+    for st, items in stds:
+        _p(doc, f"มาตรฐาน {st}", bold=True, size=9.5, after=0)
+        for it in items:
+            _p(doc, f"   {it['seq']}. {it['text']}", size=9.5, after=0)
 
 
 def _pp5_attendance_daily(doc, klass, students, db):
