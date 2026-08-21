@@ -51,12 +51,13 @@
   {% elif not students %}
   <p class="muted" style="margin:10px 0 0;">ห้องนี้ยังไม่มีนักเรียน - <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
   {% else %}
-  <p class="ind-hint">ติ๊กช่องที่นักเรียน<b>ผ่าน</b>ตัวชี้วัด (มี {{ indicators|length }} ตัวชี้วัด) ·
-    <b>คลิกหมายเลขตัวชี้วัด</b>บนหัวตารางเพื่ออ่านว่าเป็นเรื่องอะไร · เกณฑ์ ปพ.6 "ผ่านตัวชี้วัดร้อยละ 100" คิดจากหน้านี้</p>
+  <p class="ind-hint">กรอก<b>คะแนน 0-3</b> ต่อตัวชี้วัด (3=ดีเยี่ยม · 2=ดี · 1=ผ่าน · 0=ไม่ผ่าน) — มี {{ indicators|length }} ตัวชี้วัด ·
+    <b>คลิกหมายเลขตัวชี้วัด</b>บนหัวตารางเพื่ออ่านว่าเป็นเรื่องอะไร · <b>ผ่าน</b> = ได้ตั้งแต่ 1 ขึ้นไป · เกณฑ์ ปพ.6 "ผ่านร้อยละ 100" คิดจากหน้านี้</p>
 
   <div style="margin-bottom:10px; display:flex; gap:8px; flex-wrap:wrap;">
-    <button type="button" class="btn-acad" onclick="allPass(true)"><svg class="icon"><use href="#ic-check"/></svg> ทุกคนผ่านทุกตัวชี้วัด</button>
-    <button type="button" class="btn-acad ghost" onclick="allPass(false)">ล้างทั้งหมด</button>
+    <button type="button" class="btn-acad" onclick="allFill(3)"><svg class="icon"><use href="#ic-check"/></svg> ทุกคนได้ 3 ทุกตัวชี้วัด</button>
+    <button type="button" class="btn-acad ghost" onclick="fillBlank(3)">เติม 3 เฉพาะช่องว่าง</button>
+    <button type="button" class="btn-acad ghost" onclick="allFill('')">ล้างทั้งหมด</button>
   </div>
 
   <!-- แถบแสดงรายละเอียดตัวชี้วัดที่คลิก -->
@@ -73,7 +74,8 @@
           {% for std, items in indicators|groupby('std') %}
           <th colspan="{{ items|length }}" class="std-h">{{ std }}</th>
           {% endfor %}
-          <th rowspan="2" class="allcol">ผ่าน<br>ทั้งหมด</th>
+          <th rowspan="2" class="allcol">ผ่าน<br>(ข้อ)</th>
+          <th rowspan="2" class="allcol">ผล</th>
         </tr>
         <tr>
           {% for it in indicators %}
@@ -84,13 +86,16 @@
       </thead>
       <tbody>
       {% for s in students %}
-        <tr data-row>
+        {% set n = indicators|length %}
+        <tr data-row data-total="{{ n }}">
           <td class="stick"><span class="stu-no">{{ s.seq or '' }}</span> {{ s.name }}</td>
           {% for it in indicators %}
-          <td class="ck-cell"><label class="ck-wrap"><input type="checkbox" name="chk" value="{{ s.id }}:{{ loop.index0 }}"
-                 class="ind-ck" {{ 'checked' if results.get((s.id, it.code)) }}></label></td>
+          {% set v = results.get((s.id, it.code)) %}
+          <td class="ck-cell"><input name="sc_{{ s.id }}_{{ loop.index0 }}" data-sc inputmode="numeric" maxlength="1"
+                 value="{{ v if v is not none else '' }}" class="ind-sc"></td>
           {% endfor %}
-          <td class="ck-cell allcol"><label class="ck-wrap"><input type="checkbox" class="row-all" onchange="rowAll(this)" title="ผ่านทุกตัวชี้วัดของคนนี้"></label></td>
+          <td class="center allcol"><b data-passn>-</b>/{{ n }}</td>
+          <td class="center allcol"><b data-passres></b></td>
         </tr>
       {% endfor %}
       </tbody>
@@ -122,24 +127,43 @@
     document.querySelectorAll('.ind-btn.active').forEach(function(b){ b.classList.remove('active'); });
     btn.classList.add('active');
   }
-  function syncRowAll(tr){
-    var boxes = tr.querySelectorAll('.ind-ck');
-    var all = boxes.length>0 && Array.prototype.every.call(boxes, function(b){ return b.checked; });
-    var ra = tr.querySelector('.row-all'); if(ra) ra.checked = all;
+  // นับ "ผ่าน" (score>=1) + ผลรวมของแต่ละแถวสด
+  function recalcRow(tr){
+    var total = parseInt(tr.dataset.total || '0', 10), pass = 0, filled = 0;
+    tr.querySelectorAll('[data-sc]').forEach(function(i){
+      var v = i.value.trim();
+      if (v !== '' && !isNaN(v)) { filled++; if (parseInt(v,10) >= 1) pass++; }
+    });
+    var pn = tr.querySelector('[data-passn]'); if (pn) pn.textContent = pass;
+    var pr = tr.querySelector('[data-passres]');
+    if (pr) {
+      if (filled === 0) { pr.textContent = ''; pr.className=''; }
+      else if (pass === total) { pr.textContent = 'ผ่าน'; pr.style.color = '#047857'; }
+      else { pr.textContent = 'ไม่ผ่าน'; pr.style.color = '#b91c1c'; }
+    }
   }
-  function rowAll(cb){
-    var tr = cb.closest('tr');
-    tr.querySelectorAll('.ind-ck').forEach(function(b){ b.checked = cb.checked; });
+  function clampSc(i){
+    var v = i.value.replace(/[^0-9]/g,'');
+    if (v !== '' && parseInt(v,10) > 3) v = '3';
+    i.value = v;
   }
-  function allPass(v){
+  function allFill(v){
     document.querySelectorAll('tr[data-row]').forEach(function(tr){
-      tr.querySelectorAll('.ind-ck').forEach(function(b){ b.checked = v; });
-      var ra = tr.querySelector('.row-all'); if(ra) ra.checked = v;
+      tr.querySelectorAll('[data-sc]').forEach(function(i){ i.value = v; });
+      recalcRow(tr);
+    });
+  }
+  function fillBlank(v){
+    document.querySelectorAll('tr[data-row]').forEach(function(tr){
+      tr.querySelectorAll('[data-sc]').forEach(function(i){ if(!i.value.trim()) i.value = v; });
+      recalcRow(tr);
     });
   }
   document.querySelectorAll('tr[data-row]').forEach(function(tr){
-    syncRowAll(tr);
-    tr.addEventListener('change', function(e){ if(e.target.classList.contains('ind-ck')) syncRowAll(tr); });
+    recalcRow(tr);
+    tr.addEventListener('input', function(e){
+      if(e.target.hasAttribute('data-sc')){ clampSc(e.target); recalcRow(tr); }
+    });
   });
 </script>
 <style>
@@ -171,9 +195,10 @@
   .ind-tbl thead .stick { z-index:6; background:var(--acad-50); }
   .stu-no { display:inline-block; min-width:22px; color:#94a3b8; font-size:13px; font-weight:700; }
   .ind-tbl tbody tr:hover td { background:#f8fbff; }
-  .ck-cell { text-align:center; }
-  .ck-wrap { display:flex; align-items:center; justify-content:center; cursor:pointer; padding:2px; }
-  .ind-ck, .row-all { width:22px; height:22px; cursor:pointer; accent-color:var(--acad); }
+  .ck-cell { text-align:center; padding:2px; }
+  .ind-sc { width:32px; height:30px; text-align:center; font-size:15px; font-weight:700; color:var(--acad-dark);
+    border:1.5px solid #e2e8f0; border-radius:7px; padding:0; }
+  .ind-sc:focus { outline:none; border-color:var(--acad); box-shadow:0 0 0 3px rgba(37,99,235,.14); }
   .allcol { background:#f8fafc; }
   th.allcol { background:var(--acad-100); }
 

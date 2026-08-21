@@ -143,6 +143,7 @@ MIGRATIONS = [
     ("student", "photo_ext", "VARCHAR DEFAULT ''"),
     ("school", "logo", "BLOB"),
     ("school", "logo_ext", "VARCHAR DEFAULT ''"),
+    ("acad_indicator_result", "score", "INTEGER"),
     ("student", "father_job", "VARCHAR DEFAULT ''"),
     ("student", "mother_job", "VARCHAR DEFAULT ''"),
     ("student", "guardian_name", "VARCHAR DEFAULT ''"),

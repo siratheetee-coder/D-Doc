@@ -1273,7 +1273,8 @@ class AcadIndicatorResult(Base):
     acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
     subject_id = Column(Integer, ForeignKey("acad_subject.id"), nullable=False)
     code = Column(String, nullable=False)           # รหัสตัวชี้วัด เช่น ท 1.1 ป.6/1
-    passed = Column(Boolean, default=False)          # ผ่าน/ไม่ผ่าน
+    score = Column(Integer, nullable=True)           # คะแนน 0-3 ต่อตัวชี้วัด (ตามไฟล์จริง)
+    passed = Column(Boolean, default=False)          # ผ่าน (score>=1) - คงไว้ให้ ปพ.6 เดิมใช้
 
     __table_args__ = (UniqueConstraint("acad_student_id", "subject_id", "code",
                                        name="uq_indicator_student"),)

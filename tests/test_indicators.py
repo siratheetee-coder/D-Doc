@@ -77,30 +77,30 @@ def test_flow():
         n = len(indicators_for("ภาษาไทย", "ป.6"))
 
         html = c.get(f"/academic/indicators?cid={cls.id}&sid={sub.id}").text
-        assert html.count('name="chk"') == n and "ท 1.1" in html
-        print(f"[ok] หน้าประเมินแสดง {n} ตัวชี้วัด + หัวมาตรฐาน")
+        assert html.count('name="sc_') == n and "ท 1.1" in html
+        print(f"[ok] หน้าประเมินแสดง {n} ช่องคะแนน 0-3 + หัวมาตรฐาน")
 
-        # ผ่านทุกข้อ
+        # ให้คะแนน 3 ทุกข้อ -> ผ่านทุกข้อ
         c.post("/academic/indicators/save", data={
             "cid": str(cls.id), "sid": str(sub.id),
-            "chk": [f"{s.id}:{i}" for i in range(n)]})
+            **{f"sc_{s.id}_{i}": "3" for i in range(n)}})
         db.expire_all()
-        assert db.query(AcadIndicatorResult).filter_by(
-            acad_student_id=s.id, passed=True).count() == n
+        rows = db.query(AcadIndicatorResult).filter_by(acad_student_id=s.id).all()
+        assert all(r.score == 3 for r in rows) and sum(1 for r in rows if r.passed) == n
         x6 = zipfile.ZipFile(render_pp6(get_school(db), s, db)).read("word/document.xml").decode()
         assert "100.00" in x6
-        print("[ok] ผ่านทุกข้อ -> ปพ.6 ข้อ 2 = 100.00 ผ่าน")
+        print("[ok] คะแนน 3 ทุกข้อ -> ผ่านทุกข้อ, ปพ.6 ข้อ 2 = 100.00")
 
-        # ปลด 3 ข้อ -> 31/34 = 91.18
+        # ให้ 3 ข้อได้ 0 -> ไม่ผ่าน 3 ข้อ = 31/34 = 91.18
         for r in db.query(AcadIndicatorResult).filter_by(
-                acad_student_id=s.id, passed=True).limit(3).all():
-            r.passed = False
+                acad_student_id=s.id).limit(3).all():
+            r.score = 0; r.passed = False
         db.commit()
         x6b = zipfile.ZipFile(render_pp6(get_school(db), s, db)).read("word/document.xml").decode()
         assert "91.18" in x6b
         x5 = zipfile.ZipFile(render_pp5(get_school(db), cls, sub, db)).read("word/document.xml").decode()
-        assert "ผลการประเมินตัวชี้วัดรายวิชา" in x5 and "31/34" in x5
-        print("[ok] ปลด 3 ข้อ -> ปพ.6=91.18, ปพ.5 มีหน้าตัวชี้วัด (31/34)")
+        assert "ผลการประเมินตัวชี้วัดรายวิชา" in x5 and "คะแนน 0-3 ต่อตัวชี้วัด" in x5
+        print("[ok] 3 ข้อได้ 0 -> ปพ.6=91.18, ปพ.5 เมทริกซ์ 0-3")
     finally:
         _cleanup(db)
         db.close()

@@ -575,7 +575,9 @@ def indicators_page(request: Request, db: Session = Depends(get_db),
                 for r in (db.query(AcadIndicatorResult)
                           .filter(AcadIndicatorResult.subject_id == subj.id,
                                   AcadIndicatorResult.acad_student_id.in_(sids)).all()):
-                    results[(r.acad_student_id, r.code)] = r.passed
+                    # ใช้คะแนน 0-3 · ถ้าเป็นข้อมูลเก่า (มีแต่ passed) แปลง True->3
+                    results[(r.acad_student_id, r.code)] = (
+                        r.score if r.score is not None else (3 if r.passed else None))
     return templates.TemplateResponse("academic_indicators.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "classes": classes, "c": c, "subjects": subjects, "subj": subj,
@@ -587,7 +589,7 @@ def indicators_page(request: Request, db: Session = Depends(get_db),
 @router.post("/academic/indicators/save")
 async def indicators_save(request: Request, db: Session = Depends(get_db),
                           cid: str = Form(""), sid: str = Form("")):
-    """บันทึกผลประเมินตัวชี้วัดทั้งห้อง · checkbox 'chk' = '<sid>:<idx>' ที่ติ๊ก = ผ่าน"""
+    """บันทึกผลประเมินตัวชี้วัดทั้งห้อง · คะแนน 0-3 ต่อข้อ ช่อง 'sc_<sid>_<idx>' · ผ่าน = score>=1"""
     form = await request.form()
     subj = db.get(AcadSubject, _to_int(sid, 0))
     c = db.get(AcadClass, _to_int(cid, 0))
@@ -595,13 +597,6 @@ async def indicators_save(request: Request, db: Session = Depends(get_db),
         return RedirectResponse("/academic/indicators", status_code=303)
     inds = indicators_for(subj.learn_group, subj.level)
     codes = [it["code"] for it in inds]
-    checked = set()
-    for v in form.getlist("chk"):
-        try:
-            a, b = v.split(":")
-            checked.add((int(a), int(b)))
-        except (ValueError, TypeError):
-            continue
     sids = [s.id for s in c.students]
     cur = {}
     if sids:
@@ -611,12 +606,16 @@ async def indicators_save(request: Request, db: Session = Depends(get_db),
             cur[(r.acad_student_id, r.code)] = r
     for s in c.students:
         for i, code in enumerate(codes):
-            passed = (s.id, i) in checked
+            raw = form.get(f"sc_{s.id}_{i}", "")
+            sc = _to_int(raw, None)
+            if sc is not None:
+                sc = max(0, min(3, sc))
             row = cur.get((s.id, code))
             if not row:
                 row = AcadIndicatorResult(acad_student_id=s.id, subject_id=subj.id, code=code)
                 db.add(row)
-            row.passed = passed
+            row.score = sc
+            row.passed = (sc is not None and sc >= 1)
     db.commit()
     return RedirectResponse(f"/academic/indicators?cid={cid}&sid={sid}&saved=1", status_code=303)
 
