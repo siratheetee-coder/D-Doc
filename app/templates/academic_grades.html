@@ -49,7 +49,7 @@
 {% if c and subj %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-    <h2 style="margin:0;">{{ subj.code }} {{ subj.name }} · ห้อง {{ class_label(c) }} · {{ term_label(subj.term) }}</h2>
+    <h2 style="margin:0;">{{ subj.code }} {{ subj.name }} · ห้อง {{ class_label(c) }}{% if not is_sec %} · ภาคเรียนที่ {{ sel_term }}{% endif %}</h2>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <a class="btn soft" href="/academic/indicators?cid={{ c.id }}&sid={{ subj.id }}"><svg class="icon"><use href="#ic-check"/></svg> ประเมินตัวชี้วัด</a>
       <a class="btn soft" href="/academic/assess?cid={{ c.id }}&sid={{ subj.id }}&kind=char"><svg class="icon"><use href="#ic-check"/></svg> ประเมินคุณฯ/อ่านฯ วิชานี้</a>
@@ -65,6 +65,22 @@
     · เกรดคิดจากร้อยละของคะแนนรวม (80=4 · 75=3.5 · 70=3 · 65=2.5 · 60=2 · 55=1.5 · 50=1)
     · เลือกเกรดเองจะใช้ค่าที่เลือกแทน (เช่น ร / มส)</p>
 
+  {% if not is_sec %}
+  {# ประถม: กรอกคะแนนแยกภาคเรียน 1/2 -> ระบบเฉลี่ยเป็นเกรดรายปี #}
+  <div class="term-tabs">
+    <a class="tterm {{ 'on' if sel_term==1 }}" href="/academic/grades?cid={{ c.id }}&sid={{ subj.id }}&term=1">ภาคเรียนที่ 1</a>
+    <a class="tterm {{ 'on' if sel_term==2 }}" href="/academic/grades?cid={{ c.id }}&sid={{ subj.id }}&term=2">ภาคเรียนที่ 2</a>
+    <span class="muted" style="font-size:12.5px; margin-left:6px;">ประถมคิดเกรด<b>รายปี</b> = เฉลี่ยคะแนนรวม 2 ภาค (กรอกให้ครบทั้ง 2 ภาค แล้วเกรดรายปีจะขึ้นในตาราง)</span>
+  </div>
+  <style>
+    .term-tabs { display:flex; align-items:center; gap:8px; margin:0 0 12px; }
+    .tterm { padding:8px 18px; border:1.5px solid var(--acad-100,#dbeafe); border-radius:9px; background:#fff;
+      color:var(--acad-dark,#1d4ed8); font-weight:600; text-decoration:none; font-size:14px; transition:all .12s; }
+    .tterm:hover { background:var(--acad-50,#eff6ff); }
+    .tterm.on { background:linear-gradient(90deg,var(--acad,#2563eb),var(--acad-dark,#1d4ed8)); color:#fff; border-color:var(--acad-dark,#1d4ed8); }
+  </style>
+  {% endif %}
+
   {# ---------- จัดการชิ้นงานเก็บคะแนน (ชิ้นงาน + สอบกลางภาค) ---------- #}
   <div class="asg-box">
     <div class="asg-head">
@@ -73,7 +89,7 @@
       <span class="asg-total">เก็บเต็มรวม <b id="asgKeepMax">{{ keep_disp }}</b> คะแนน</span>
     </div>
     <form method="post" action="/academic/assignments/save" id="asgForm">
-      <input type="hidden" name="cid" value="{{ c.id }}"><input type="hidden" name="sid" value="{{ subj.id }}">
+      <input type="hidden" name="cid" value="{{ c.id }}"><input type="hidden" name="sid" value="{{ subj.id }}"><input type="hidden" name="term" value="{{ sel_term }}">
       <table class="asg-tbl">
         <thead><tr><th>ชื่อชิ้นงาน / การบ้าน / สอบเก็บย่อย</th><th style="width:120px;">คะแนนเต็ม</th><th style="width:70px;"></th></tr></thead>
         <tbody id="asgBody">
@@ -105,7 +121,7 @@
 
   {% if students %}
   <form method="post" action="/academic/grades/save">
-    <input type="hidden" name="cid" value="{{ c.id }}"><input type="hidden" name="sid" value="{{ subj.id }}">
+    <input type="hidden" name="cid" value="{{ c.id }}"><input type="hidden" name="sid" value="{{ subj.id }}"><input type="hidden" name="term" value="{{ sel_term }}">
     <div class="table-wrap">
     <table>
       <thead><tr><th>เลขที่</th><th>ชื่อ-นามสกุล</th>
@@ -113,7 +129,12 @@
           {{ a.name }}<br><span class="muted" style="font-weight:400;">/{{ '%g'|format(a.max_score or 0) }}</span></th>{% endfor %}
         <th class="col-keep">เก็บรวม<br><span class="muted" style="font-weight:400;">/{{ '%g'|format(keep_max) }}</span></th>
         <th>ปลายภาค<br><span class="muted" style="font-weight:400;">(เต็ม {{ fmax }})</span></th>
-        <th>รวม<br><span class="muted" style="font-weight:400;">/{{ '%g'|format(keep_max + fmax) }}</span></th><th>ผลการเรียน</th></tr></thead>
+        <th>รวม<br><span class="muted" style="font-weight:400;">/{{ '%g'|format(keep_max + fmax) }}</span></th><th>ผลการเรียน{% if not is_sec %}<br><span class="muted" style="font-weight:400;">ภาคนี้</span>{% endif %}</th>
+        {% if not is_sec %}
+        <th class="col-annual">ภาค {{ 2 if sel_term==1 else 1 }}<br><span class="muted" style="font-weight:400;">ร้อยละ</span></th>
+        <th class="col-annual">เฉลี่ย<br>2 ภาค (%)</th>
+        <th class="col-annual">เกรด<br>รายปี</th>
+        {% endif %}</tr></thead>
       <tbody>
       {% for s in students %}
         {% set sc = scores.get(s.id) %}
@@ -135,6 +156,13 @@
             <option value="">(คิดอัตโนมัติ)</option>
             {% for g in grades %}<option value="{{ g }}" {{ 'selected' if sc and sc.grade==g }}>{{ g }}</option>{% endfor %}
           </select></td>
+          {% if not is_sec %}
+          {% set an = annual.get(s.id, {}) %}
+          {% set other = an.get('t2') if sel_term==1 else an.get('t1') %}
+          <td class="center col-annual">{{ '%g'|format(other) if other is not none else '-' }}</td>
+          <td class="center col-annual">{{ '%g'|format(an.get('avg')) if an.get('avg') is not none else '-' }}</td>
+          <td class="center col-annual"><b style="color:var(--acad-dark);">{{ an.get('grade') or '-' }}</b></td>
+          {% endif %}
         </tr>
       {% endfor %}
       </tbody>
@@ -235,5 +263,7 @@
   .col-mid { background:var(--acad-50); }
   .col-keep { background:#f8fafc; }
   th.col-mid, th.col-keep { background:var(--acad-100); }
+  .col-annual { background:#eff6ff; }
+  th.col-annual { background:#c7d7fe; }
 </style>
 {% endblock %}

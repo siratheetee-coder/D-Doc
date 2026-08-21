@@ -166,28 +166,72 @@ def _pp5_score_page(doc, school, klass, subject, db, *, page_break: bool = False
 
     mmax = subject.mid_max if (subject.mid_max or 0) > 0 else 70
     fmax = subject.final_max if (subject.final_max or 0) > 0 else 30
-    heads = ["เลขที่", "เลขประจำตัว", "ชื่อ-นามสกุล", f"คะแนนเก็บ (เต็ม {mmax})",
-             f"คะแนนปลายภาค (เต็ม {fmax})", f"รวม (เต็ม {mmax + fmax})", "ผลการเรียน", "หมายเหตุ"]
-    # รวม 26.7 = พื้นที่พิมพ์ A4 แนวนอน (29.7 - ขอบ 1.5x2)
-    ws = [Cm(1.6), Cm(2.6), Cm(8.5), Cm(2.8), Cm(3.2), Cm(2.2), Cm(2.6), Cm(3.2)]
-    t = doc.add_table(rows=1, cols=len(heads)); t.style = "Table Grid"
-    for i, h in enumerate(heads):
-        _cell(t.rows[0].cells[i], h, bold=True, fill="EDE9FE")
-    for s in students:
-        sc = scores.get(s.id)
-        cells = t.add_row().cells
-        _cell(cells[0], s.seq or "")
-        _cell(cells[1], s.student_no or "")
-        _cell(cells[2], s.name, align="left")
-        _cell(cells[3], f"{sc.score_mid:g}" if sc and sc.score_mid is not None else "")
-        _cell(cells[4], f"{sc.score_final:g}" if sc and sc.score_final is not None else "")
-        _cell(cells[5], f"{sc.score:g}" if sc and sc.score is not None else "")
-        _cell(cells[6], sc.grade if sc else "", bold=True)
-        _cell(cells[7], "")
-    _widths(t, ws)
+    if not is_secondary(klass.level):
+        _pp5_score_2term(doc, subject, db, students)          # ประถม: 2 ภาคเรียน + เฉลี่ย + เกรดรายปี
+    else:
+        heads = ["เลขที่", "เลขประจำตัว", "ชื่อ-นามสกุล", f"คะแนนเก็บ (เต็ม {mmax})",
+                 f"คะแนนปลายภาค (เต็ม {fmax})", f"รวม (เต็ม {mmax + fmax})", "ผลการเรียน", "หมายเหตุ"]
+        # รวม 26.7 = พื้นที่พิมพ์ A4 แนวนอน (29.7 - ขอบ 1.5x2)
+        ws = [Cm(1.6), Cm(2.6), Cm(8.5), Cm(2.8), Cm(3.2), Cm(2.2), Cm(2.6), Cm(3.2)]
+        t = doc.add_table(rows=1, cols=len(heads)); t.style = "Table Grid"
+        for i, h in enumerate(heads):
+            _cell(t.rows[0].cells[i], h, bold=True, fill="EDE9FE")
+        for s in students:
+            sc = scores.get(s.id)
+            cells = t.add_row().cells
+            _cell(cells[0], s.seq or "")
+            _cell(cells[1], s.student_no or "")
+            _cell(cells[2], s.name, align="left")
+            _cell(cells[3], f"{sc.score_mid:g}" if sc and sc.score_mid is not None else "")
+            _cell(cells[4], f"{sc.score_final:g}" if sc and sc.score_final is not None else "")
+            _cell(cells[5], f"{sc.score:g}" if sc and sc.score is not None else "")
+            _cell(cells[6], sc.grade if sc else "", bold=True)
+            _cell(cells[7], "")
+        _widths(t, ws)
 
     _p(doc, "", after=10)
     _sign_block(doc, teacher, "ครูผู้สอน")
+
+
+def _pp5_score_2term(doc, subject, db, students):
+    """ตารางคะแนนแบบประถม: ภาคเรียนที่ 1 + 2 (ระหว่าง/ปลาย/รวม/ผล) + เฉลี่ย 2 ภาค + เกรดรายปี"""
+    from app.models import AcadScore
+    sids = [s.id for s in students]
+    rows = {}
+    if sids:
+        for x in (db.query(AcadScore).filter(AcadScore.subject_id == subject.id,
+                                             AcadScore.acad_student_id.in_(sids)).all()):
+            rows[(x.acad_student_id, x.term)] = x
+    t = doc.add_table(rows=2, cols=13); t.style = "Table Grid"
+    h0, h1 = t.rows[0].cells, t.rows[1].cells
+    for idx, lab in [(0, "เลขที่"), (1, "ชื่อ-นามสกุล")]:
+        h0[idx].merge(h1[idx]); _cell(h0[idx], lab, bold=True, fill="EDE9FE", size=11)
+    for base, lab in [(2, "ภาคเรียนที่ 1"), (6, "ภาคเรียนที่ 2")]:
+        m = h0[base]
+        for c in range(base + 1, base + 4):
+            m = m.merge(h0[c])
+        _cell(m, lab, bold=True, fill="EDE9FE", size=11)
+        for j, sub in enumerate(["ระหว่างภาค", "ปลายภาค", "รวม", "ผล"]):
+            _cell(h1[base + j], sub, bold=True, fill="F1F5F9", size=10)
+    for idx, lab in [(10, "เฉลี่ย 2 ภาค (%)"), (11, "ผลการเรียนตลอดปี"), (12, "สรุป")]:
+        h0[idx].merge(h1[idx]); _cell(h0[idx], lab, bold=True, fill="EDE9FE", size=10)
+    for s in students:
+        cells = t.add_row().cells
+        _cell(cells[0], s.seq or "", size=11)
+        _cell(cells[1], s.name, align="left", size=11)
+        for k, tno in enumerate((1, 2)):
+            r = rows.get((s.id, tno))
+            b = 2 + k * 4
+            _cell(cells[b], f"{r.score_mid:g}" if r and r.score_mid is not None else "", size=11)
+            _cell(cells[b + 1], f"{r.score_final:g}" if r and r.score_final is not None else "", size=11)
+            _cell(cells[b + 2], f"{r.score:g}" if r and r.score is not None else "", size=11)
+            _cell(cells[b + 3], r.grade if r else "", size=11, bold=True)
+        ann = rows.get((s.id, 0))
+        _cell(cells[10], f"{ann.score:g}" if ann and ann.score is not None else "", size=11)
+        _cell(cells[11], ann.grade if ann else "", size=11, bold=True)
+        ok = ann and (ann.grade or "").strip() not in ("", "0", "ร", "มส")
+        _cell(cells[12], ("ผ่าน" if ok else "") if ann and ann.grade else "", size=11, bold=True)
+    _widths(t, [Cm(1.2), Cm(5.0)] + [Cm(1.7)] * 8 + [Cm(2.1), Cm(2.0), Cm(1.5)])
 
 
 def render_pp5(school, klass, subject, db) -> str:

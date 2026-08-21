@@ -380,6 +380,7 @@ def grades_page(request: Request, db: Session = Depends(get_db), cid: int | None
     c = db.get(AcadClass, cid) if cid else None
     subjects, students, scores, subj = [], [], {}, None
     assignments, pieces, midterm, item_scores, keep_max = [], [], None, {}, 0
+    sec, sel_term, annual = False, (term if term in (1, 2) else 1), {}
     if c:
         subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
                     .order_by(AcadSubject.seq, AcadSubject.code).all())
@@ -388,7 +389,10 @@ def grades_page(request: Request, db: Session = Depends(get_db), cid: int | None
         if subj and subj.id not in {x.id for x in subjects}:
             subj = None
         if subj:
-            t = subj.term if subj.term is not None else 0
+            # มัธยม: ตัดเกรดต่อเทอม (subject.term = 1/2) · ประถม: กรอก 2 เทอม เฉลี่ยเป็นเกรดรายปี
+            sec = is_secondary(subj.level)
+            sel_term = term if term in (1, 2) else 1
+            t = (subj.term if subj.term in (1, 2) else 1) if sec else sel_term
             students = sorted(c.students, key=lambda s: (s.seq or 999, s.name))
             scores = {s.acad_student_id: s for s in
                       db.query(AcadScore).filter_by(subject_id=subj.id, term=t).all()}
@@ -411,11 +415,31 @@ def grades_page(request: Request, db: Session = Depends(get_db), cid: int | None
             for r in (db.query(AcadAssignmentScore)
                       .filter(AcadAssignmentScore.assignment_id.in_(aids)).all()):
                 item_scores[(r.acad_student_id, r.assignment_id)] = r.score
+            # ประถม: โหลดคะแนนทั้ง 2 ภาค เพื่อโชว์เฉลี่ยร้อยละ + เกรดรายปี (สด)
+            if not sec:
+                fmaxv = subj.final_max if (subj.final_max or 0) > 0 else 30
+                dnm = {}
+                for tno in (1, 2):
+                    km = _keep_max(subj, db.query(AcadAssignment)
+                                   .filter_by(subject_id=subj.id, term=tno).all())
+                    dnm[tno] = (km + fmaxv) or 100
+                both = {(x.acad_student_id, x.term): x for x in
+                        db.query(AcadScore).filter(AcadScore.subject_id == subj.id,
+                                                   AcadScore.term.in_([1, 2])).all()}
+                for s in students:
+                    def pc(tno):
+                        r = both.get((s.id, tno))
+                        return round(r.score * 100.0 / dnm[tno], 1) if (r and r.score is not None) else None
+                    p1, p2 = pc(1), pc(2)
+                    avg = round((p1 + p2) / 2.0, 2) if (p1 is not None and p2 is not None) else None
+                    annual[s.id] = {"t1": p1, "t2": p2, "avg": avg,
+                                    "grade": grade_of(avg) if avg is not None else ""}
     return templates.TemplateResponse("academic_grades.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "classes": classes, "c": c, "subjects": subjects, "subj": subj,
         "students": students, "scores": scores, "class_label": _class_label,
-        "term_label": term_label, "grades": GRADE_CHOICES,
+        "term_label": term_label, "grades": GRADE_CHOICES, "is_sec": sec,
+        "sel_term": sel_term, "annual": annual,
         "assignments": assignments, "pieces": pieces, "midterm": midterm,
         "item_scores": item_scores, "keep_max": keep_max,
     })
@@ -430,7 +454,10 @@ async def assignments_save(request: Request, db: Session = Depends(get_db),
     subj = db.get(AcadSubject, _to_int(sid, 0))
     if not subj:
         return RedirectResponse("/academic/grades", status_code=303)
-    t = subj.term if subj.term is not None else 0
+    sec = is_secondary(subj.level)
+    sel_term = _to_int(form.get("term", ""), 0)
+    sel_term = sel_term if sel_term in (1, 2) else 1
+    t = (subj.term if subj.term in (1, 2) else 1) if sec else sel_term
     existing = {a.id: a for a in db.query(AcadAssignment).filter_by(subject_id=subj.id, term=t).all()}
 
     # ----- สอบกลางภาค: มีเสมอ (สร้างถ้ายังไม่มี) แก้คะแนนเต็มได้ -----
@@ -467,7 +494,8 @@ async def assignments_save(request: Request, db: Session = Depends(get_db),
         if (not a.is_midterm) and a.id not in kept:
             db.delete(a)
     db.commit()
-    return RedirectResponse(f"/academic/grades?cid={cid}&sid={sid}&saved=1", status_code=303)
+    tq = f"&term={sel_term}" if not sec else ""
+    return RedirectResponse(f"/academic/grades?cid={cid}&sid={sid}{tq}&saved=1", status_code=303)
 
 
 @router.post("/academic/grades/save")
@@ -479,7 +507,10 @@ async def grades_save(request: Request, db: Session = Depends(get_db),
     subj = db.get(AcadSubject, _to_int(sid, 0))
     if not subj:
         return RedirectResponse("/academic/grades", status_code=303)
-    t = subj.term if subj.term is not None else 0
+    sec = is_secondary(subj.level)
+    sel_term = _to_int(form.get("term", ""), 0)
+    sel_term = sel_term if sel_term in (1, 2) else 1
+    t = (subj.term if subj.term in (1, 2) else 1) if sec else sel_term
     fmax = subj.final_max if (subj.final_max or 0) > 0 else 30
     assignments = (db.query(AcadAssignment).filter_by(subject_id=subj.id, term=t)
                    .order_by(AcadAssignment.seq, AcadAssignment.id).all())
@@ -550,7 +581,40 @@ async def grades_save(request: Request, db: Session = Depends(get_db),
             pct = None if total is None else (total * 100.0 / (mmax + fmax))
             row.grade = manual or grade_of(pct)
     db.commit()
-    return RedirectResponse(f"/academic/grades?cid={cid}&sid={sid}&saved=1", status_code=303)
+
+    # ประถม: คิดเกรด "รายปี" = เฉลี่ย "ร้อยละ" ของ 2 ภาค -> เก็บที่ term=0 (ที่ ปพ.5/ปพ.6 อ่าน)
+    if not sec and subj:
+        fmaxv = subj.final_max if (subj.final_max or 0) > 0 else 30
+        denom_t = {}
+        for tno in (1, 2):
+            km = _keep_max(subj, db.query(AcadAssignment)
+                           .filter_by(subject_id=subj.id, term=tno).all())
+            denom_t[tno] = (km + fmaxv) or 100
+        by_stu = {}
+        for x in (db.query(AcadScore).filter(AcadScore.subject_id == subj.id,
+                                             AcadScore.term.in_([1, 2])).all()):
+            by_stu.setdefault(x.acad_student_id, {})[x.term] = x
+        ann = {x.acad_student_id: x for x in
+               db.query(AcadScore).filter_by(subject_id=subj.id, term=0).all()}
+        for aid_s, terms in by_stu.items():
+            def pct(tno):
+                r = terms.get(tno)
+                return (r.score * 100.0 / denom_t[tno]) if (r and r.score is not None) else None
+            p1, p2 = pct(1), pct(2)
+            have = [p for p in (p1, p2) if p is not None]
+            row = ann.get(aid_s)
+            if len(have) == 2:
+                avg = round((p1 + p2) / 2.0, 2)      # เฉลี่ยร้อยละ 2 ภาค
+                if not row:
+                    row = AcadScore(acad_student_id=aid_s, subject_id=subj.id, term=0)
+                    db.add(row); ann[aid_s] = row
+                row.score = avg                       # เก็บเป็นร้อยละ (0-100)
+                row.grade = grade_of(avg)
+            elif row:                                # ยังไม่ครบ 2 ภาค -> ล้างเกรดรายปีกันค้าง
+                row.score = None; row.grade = ""
+        db.commit()
+    tq = f"&term={sel_term}" if not sec else ""
+    return RedirectResponse(f"/academic/grades?cid={cid}&sid={sid}{tq}&saved=1", status_code=303)
 
 
 # ---------------- ประเมินตัวชี้วัดรายวิชา (หลักสูตรแกนกลาง 2551) ----------------
