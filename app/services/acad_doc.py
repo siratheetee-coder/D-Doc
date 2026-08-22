@@ -299,8 +299,7 @@ def _pp5_subject_cover(doc, school, klass, subject, db, students):
     teacher = teach.teacher.name if (teach and teach.teacher) else ""
 
     _logo_header(doc, school, height_cm=2.2, after=4)
-    _p(doc, "สมุดบันทึกการพัฒนาคุณภาพผู้เรียน (ปพ.5)", align="center", bold=True, size=18, after=2)
-    _p(doc, "แบบบันทึกผลการเรียนรายวิชา", align="center", size=14, after=10)
+    _p(doc, "สมุดบันทึกการพัฒนาคุณภาพผู้เรียน (ปพ.5)", align="center", bold=True, size=18, after=10)
     snm = (school.name or "").strip()
     loc = [snm if snm.startswith("โรงเรียน") else f"โรงเรียน{snm}"]
     if (school.district or "").strip():
