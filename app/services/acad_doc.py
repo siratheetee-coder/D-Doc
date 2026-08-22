@@ -309,7 +309,9 @@ def _pp5_subject_cover(doc, school, klass, subject, db, students):
         loc.append(f"จังหวัด{school.province.strip()}")
     _p(doc, "   ".join(loc), align="center", size=14, after=0)
     if (school.area_office or "").strip():
-        _p(doc, f"สำนักงานเขตพื้นที่การศึกษา{school.area_office.strip()}", align="center", size=14, after=8)
+        _ao = school.area_office.strip()
+        _p(doc, _ao if _ao.startswith(("สำนักงาน", "สพ")) else f"สำนักงานเขตพื้นที่การศึกษา{_ao}",
+           align="center", size=14, after=8)
     _p(doc, f"ปีการศึกษา {klass.year}          ชั้น {_class_label(klass)}", align="center", bold=True, size=14, after=0)
     if subject.learn_group:
         _p(doc, f"กลุ่มสาระการเรียนรู้{subject.learn_group}", align="center", size=14, after=0)
@@ -750,7 +752,9 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
         loc.append(f"จังหวัด{school.province.strip()}")
     _p(doc, "  ".join(loc), align="center", size=14, after=0)
     if (school.area_office or "").strip():
-        _p(doc, f"สำนักงานเขตพื้นที่การศึกษา{school.area_office.strip()}", align="center", size=14, after=0)
+        _ao = school.area_office.strip()
+        _p(doc, _ao if _ao.startswith(("สำนักงาน", "สพ")) else f"สำนักงานเขตพื้นที่การศึกษา{_ao}",
+           align="center", size=14, after=0)
     boys = sum(1 for s in students if s.sex == "M")
     girls = sum(1 for s in students if s.sex == "F")
     _p(doc, f"นักเรียนทั้งหมด {len(students)} คน  (ชาย {boys} | หญิง {girls})",
