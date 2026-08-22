@@ -19,7 +19,7 @@ from app.services.office_doc import _float_signature
 from app.database import get_data_dir
 from app.thai_utils import thai_date, is_secondary, be_date_input
 from app.services.academic import (term_label, CHAR_ITEMS, CHAR_FIELDS, READ_DOMAINS,
-                                   TH_MONTHS, TH_MONTH_FULL, quality_of_avg, char_avg, read_avg,
+                                   TH_MONTHS, TH_MONTH_FULL, TERM_MONTHS, quality_of_avg, char_avg, read_avg,
                                    effective_eval, weighted_avg, activities_for,
                                    activity_summary, onet_for, is_exit_level, ONET_SUBJECTS,
                                    count_marks, parse_marks, parse_days_csv)
@@ -203,7 +203,7 @@ def _pp5_score_page(doc, school, klass, subject, db, *, page_break: bool = False
         _widths(t, ws)
 
     _p(doc, "", after=10)
-    _sign_block(doc, teacher, "ครูผู้สอน")
+    _sign_block(doc, teacher, "ครูผู้สอน", size=14)
 
 
 def _vcell(cell, text, *, bold=False, size=11, fill=None):
@@ -301,7 +301,8 @@ def _pp5_subject_cover(doc, school, klass, subject, db, students):
     _logo_header(doc, school, height_cm=2.2, after=4)
     _p(doc, "สมุดบันทึกการพัฒนาคุณภาพผู้เรียน (ปพ.5)", align="center", bold=True, size=18, after=2)
     _p(doc, "แบบบันทึกผลการเรียนรายวิชา", align="center", size=14, after=10)
-    loc = [f"โรงเรียน{school.name or ''}"]
+    snm = (school.name or "").strip()
+    loc = [snm if snm.startswith("โรงเรียน") else f"โรงเรียน{snm}"]
     if (school.district or "").strip():
         loc.append(f"อำเภอ{school.district.strip()}")
     if (school.province or "").strip():
@@ -399,7 +400,8 @@ def render_pp5(school, klass, subject, db) -> str:
     _new_section(doc, landscape=True)
     _pp5_roster(doc, klass, students, db)
     _new_section(doc, landscape=False)
-    _pp5_attendance_daily(doc, klass, students, db, page_break=False)
+    att_months = TERM_MONTHS.get(subject.term) if is_secondary(klass.level) else None
+    _pp5_attendance_daily(doc, klass, students, db, page_break=False, months_ok=att_months)
     if _sel(subject):
         _new_section(doc, landscape=True)
         _pp5_indicator_page(doc, klass, subject, db, students, page_break=False)
@@ -554,8 +556,9 @@ def _pp5_indicator_page(doc, klass, subject, db, students, *, page_break=True):
     return True
 
 
-def _pp5_attendance_daily(doc, klass, students, db, *, page_break=True):
-    """หน้าบันทึกเวลาเรียน (รายวัน) - ตารางเช็กชื่อต่อเดือน (เฉพาะเดือนที่มีปฏิทิน)"""
+def _pp5_attendance_daily(doc, klass, students, db, *, page_break=True, months_ok=None):
+    """หน้าบันทึกเวลาเรียน (รายวัน) - ตารางเช็กชื่อต่อเดือน (เฉพาะเดือนที่มีปฏิทิน)
+    months_ok = set เดือนที่อนุญาต (มัธยม = เฉพาะเดือนในภาคเรียนนั้น) · None = ทุกเดือน"""
     from app.models import AcadCalendar, AcadAttendance
     sids = [s.id for s in students]
     att = {}
@@ -565,7 +568,8 @@ def _pp5_attendance_daily(doc, klass, students, db, *, page_break=True):
             att[(a.acad_student_id, a.month)] = parse_marks(a.marks)
     cals = {r.month: parse_days_csv(r.days_csv)
             for r in db.query(AcadCalendar).filter_by(year=klass.year).all()}
-    months = [(m, nm) for m, nm in TH_MONTHS if cals.get(m)]
+    months = [(m, nm) for m, nm in TH_MONTHS
+              if cals.get(m) and (months_ok is None or m in months_ok)]
     if not months:
         return
     _p(doc, f"บันทึกเวลาเรียน (รายวัน) ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}",
@@ -824,73 +828,101 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     _pp5_roster(doc, klass, students, db)
 
     # ---------- เวลาเรียนรายวัน + สรุปเวลาเรียน (แนวตั้ง) ----------
+    # มัธยม = เอาเฉพาะเดือนในภาคเรียนนั้น · ประถม = ทั้งปี
+    att_months = TERM_MONTHS.get(t) if sec else None
     _new_section(doc, landscape=False)
-    _pp5_attendance_daily(doc, klass, students, db, page_break=False)
+    _pp5_attendance_daily(doc, klass, students, db, page_break=False, months_ok=att_months)
     # สรุปเวลาเรียน = แนวนอน เต็มหน้า (ตามที่เจ้าของขอ)
     _new_section(doc, landscape=True)
     _p(doc, f"สรุปเวลาเรียน ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}",
        align="center", bold=True, size=16, after=6, page_break=False)
     monthly = any(effs[s.id]["months"] for s in students)
     if monthly:
-        # แบบรายเดือน (ตามไฟล์ ปพ.5 จริง): เดือน พ.ค.-มี.ค. + รวม + ป่วย/ลา/ขาด + ร้อยละ
-        from app.models import AcadClassMonth
+        # แบบรายเดือน: เดือน + รวม + ป่วย/ลา/ขาด + ร้อยละ (มัธยม = เฉพาะเดือนในภาคเรียน)
+        from app.models import AcadClassMonth, AcadAttendance
         opens = {m.month: m.days_open for m in
                  db.query(AcadClassMonth).filter_by(class_id=klass.id).all()}
-        # หัวตาราง 3 แถว (ก็อปรูปแบบไฟล์ตัวอย่าง สรุปเวลาเรียน.docx):
-        # เลขที่ | ชื่อ | [เดือน: พ.ค.-มี.ค.] | [รวมเวลาเรียน (N วัน): มา/ป่วย/ลา/ขาด] | ร้อยละ | ผล
-        month_names = [nm for _, nm in TH_MONTHS]
-        nm_first, nm_last = 2, 2 + len(month_names) - 1
-        s_first = nm_last + 1                       # เริ่มคอลัมน์ มา/ป่วย/ลา/ขาด
-        ncol = s_first + 4 + 2
+        month_list = [(m, nm) for m, nm in TH_MONTHS if (att_months is None or m in att_months)]
+        nmon = len(month_list)
+        sids = [s.id for s in students]
+        marks_by = {}
+        if sids:
+            for a in db.query(AcadAttendance).filter(AcadAttendance.acad_student_id.in_(sids)).all():
+                if att_months is None or a.month in att_months:
+                    marks_by[(a.acad_student_id, a.month)] = count_marks(a.marks)
+
+        def _term_att(s):
+            """คืน (present ต่อเดือน, มา, ป่วย, ลา, ขาด) ของเทอมนี้ - คำนวณจาก marks ถ้ามี"""
+            ef = effs[s.id]
+            has_marks = any((s.id, m) in marks_by for m, _ in month_list)
+            if att_months is None and not has_marks:      # ทั้งปี + ไม่มี marks รายวัน -> ยอดรวมเดิม
+                return ({m: ef["months"].get(m) for m, _ in month_list},
+                        ef["days_present"], ef["days_sick"], ef["days_leave"], ef["days_absent"])
+            pm, pres, sick, leave, absent = {}, 0, 0, 0, 0
+            for m, _ in month_list:
+                cm = marks_by.get((s.id, m))
+                if cm:
+                    pm[m] = cm.get("/", 0)
+                    pres += cm.get("/", 0); sick += cm.get("ป", 0)
+                    leave += cm.get("ล", 0); absent += cm.get("ข", 0)
+                else:
+                    pm[m] = ef["months"].get(m)
+                    pres += ef["months"].get(m) or 0
+            return (pm, pres, sick if has_marks else None,
+                    leave if has_marks else None, absent if has_marks else None)
+
+        nm_first, nm_last = 2, 2 + nmon - 1
+        s_first = nm_last + 1                       # คอลัมน์ มา
+        pct_col, res_col = s_first + 4, s_first + 5
+        ncol = s_first + 6
         at = doc.add_table(rows=3, cols=ncol); at.style = "Table Grid"
         r0, r1, r2 = at.rows[0].cells, at.rows[1].cells, at.rows[2].cells
         c = r0[0].merge(r1[0]).merge(r2[0]); _cell(c, "เลขที่", bold=True, fill="EDE9FE", size=14)
         c = r0[1].merge(r1[1]).merge(r2[1]); _cell(c, "ชื่อ-นามสกุล", bold=True, fill="EDE9FE", size=14)
         c = r0[nm_first].merge(r1[nm_last]); _cell(c, "เดือน", bold=True, fill="EDE9FE", size=14)
-        for j, nm in enumerate(month_names):
+        for j, (m, nm) in enumerate(month_list):
             _cell(r2[nm_first + j], nm, bold=True, fill="EDE9FE", size=14)
-        tot_hdr = sum(v for v in opens.values() if v)
+        tot_hdr = sum(v for m, v in opens.items() if v and (att_months is None or m in att_months))
         c = r0[s_first].merge(r0[s_first + 3]); _cell(c, "รวมเวลาเรียน", bold=True, fill="EDE9FE", size=14)
         c = r1[s_first].merge(r1[s_first + 3])
         _cell(c, f"{tot_hdr} วัน" if tot_hdr else "จำนวนวัน", bold=True, fill="EDE9FE", size=14)
         for j, lab in enumerate(["มา", "ป่วย", "ลา", "ขาด"]):
             _cell(r2[s_first + j], lab, bold=True, fill="EDE9FE", size=14)
-        c = r0[s_first + 4].merge(r1[s_first + 4]).merge(r2[s_first + 4])
+        c = r0[pct_col].merge(r1[pct_col]).merge(r2[pct_col])
         _cell(c, "มาเรียน\nร้อยละ", bold=True, fill="EDE9FE", size=14)
-        c = r0[s_first + 5].merge(r1[s_first + 5]).merge(r2[s_first + 5])
+        c = r0[res_col].merge(r1[res_col]).merge(r2[res_col])
         _cell(c, "ผลการประเมิน", bold=True, fill="EDE9FE", size=14)
         cells = at.add_row().cells      # แถววันเปิดเรียนของห้อง (ตัวหารร้อยละ)
         _cell(cells[0], "", size=14)
         _cell(cells[1], "วันเปิดเรียน", align="left", bold=True, size=14)
-        tot_open = 0
-        for j, (mnum, _nm) in enumerate(TH_MONTHS):
-            v = opens.get(mnum)
-            _cell(cells[2 + j], v if v is not None else "", bold=True, size=14)
-            tot_open += v or 0
-        _cell(cells[13], tot_open or "", bold=True, size=14)
-        for k in range(14, 19):
+        for j, (m, nm) in enumerate(month_list):
+            v = opens.get(m)
+            _cell(cells[nm_first + j], v if v is not None else "", bold=True, size=14)
+        _cell(cells[s_first], tot_hdr or "", bold=True, size=14)
+        for k in range(s_first + 1, ncol):
             _cell(cells[k], "", size=14)
+        open_term = sum(opens.get(m) or 0 for m, _ in month_list)
         for s in students:
-            ef = effs[s.id]
+            pm, pres, sick, leave, absent = _term_att(s)
             cells = at.add_row().cells
             _cell(cells[0], s.seq or "", size=14)
             _cell(cells[1], s.name, align="left", size=14)
-            for j, (mnum, _nm) in enumerate(TH_MONTHS):
-                v = ef["months"].get(mnum)
-                _cell(cells[2 + j], v if v is not None else "", size=14)
-            _cell(cells[13], ef["days_present"] if ef["days_present"] is not None else "",
+            for j, (m, nm) in enumerate(month_list):
+                v = pm.get(m)
+                _cell(cells[nm_first + j], v if v is not None else "", size=14)
+            _cell(cells[s_first], pres if pres is not None else "", bold=True, size=14)
+            _cell(cells[s_first + 1], "" if sick is None else sick, size=14)
+            _cell(cells[s_first + 2], "" if leave is None else leave, size=14)
+            _cell(cells[s_first + 3], "" if absent is None else absent, size=14)
+            pct = (pres * 100.0 / open_term) if (open_term > 0 and pres is not None) else None
+            _cell(cells[pct_col], f"{pct:.1f}" if pct is not None else "", size=14)
+            _cell(cells[res_col], ("ผ่าน" if pct >= 80 else "ไม่ผ่าน") if pct is not None else "",
                   bold=True, size=14)
-            for k, key in ((14, "days_sick"), (15, "days_leave"), (16, "days_absent")):
-                _cell(cells[k], ef[key] if ef[key] is not None else "", size=14)
-            pct = None
-            if (ef["days_open"] or 0) > 0 and ef["days_present"] is not None:
-                pct = ef["days_present"] * 100.0 / ef["days_open"]
-            _cell(cells[17], f"{pct:.1f}" if pct is not None else "", size=14)
-            _cell(cells[18], ("ผ่าน" if pct >= 80 else "ไม่ผ่าน") if pct is not None else "",
-                  bold=True, size=14)
-        # แนวนอน เต็มหน้า ~26 ซม. (คงสัดส่วนช่องเดิมตามตัวอย่าง แค่ขยายให้เต็ม)
-        _widths(at, [Cm(1.4), Cm(4.4)] + [Cm(1.05)] * 11 +
-                [Cm(1.3), Cm(1.05), Cm(1.05), Cm(1.05), Cm(1.7), Cm(2.6)])   # รวม ~26.1
+        # แนวนอน: กระจายเดือนให้เต็ม (เดือนน้อย=กว้างขึ้น) รวม ≤26.7
+        fixed = 1.4 + 4.4 + (1.3 + 1.05 + 1.05 + 1.05 + 1.7 + 2.6)
+        mw = min(1.5, max(0.7, (26.0 - fixed) / max(1, nmon)))
+        _widths(at, [Cm(1.4), Cm(4.4)] + [Cm(mw)] * nmon +
+                [Cm(1.3), Cm(1.05), Cm(1.05), Cm(1.05), Cm(1.7), Cm(2.6)])
         _tight_cells(at)   # กันตัวเลขเดือนโดนบีบ
     else:
         # แบบยอดรวมทั้งปี (โรงเรียนที่ไม่กรอกรายเดือน)
