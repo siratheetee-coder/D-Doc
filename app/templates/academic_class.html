@@ -22,13 +22,7 @@
       </form>
       {% if students %}
       <a class="btn soft" href="/academic/attendance?cid={{ c.id }}"><svg class="icon"><use href="#ic-clock"/></svg> เวลาเรียน</a>
-      {% if is_sec %}
-      <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx?term=1"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม ภาค 1</a>
-      <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx?term=2"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม ภาค 2</a>
-      {% else %}
-      <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม</a>
-      {% endif %}
-      <a class="btn soft" href="/academic/classes/{{ c.id }}/pp6-all.docx"><svg class="icon"><use href="#ic-file"/></svg> สมุดรายงาน ปพ.6 (ทั้งห้อง)</a>
+      <a class="btn soft" href="#print-docs"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ ปพ.5 / ปพ.6</a>
       {% endif %}
     </div>
   </div>
@@ -52,7 +46,6 @@
           <option value="F" {{ 'selected' if s.sex=='F' }}>หญิง</option></select></td>
         <td style="white-space:nowrap;">
           <button class="btn sm" form="stf{{ s.id }}" type="submit">บันทึก</button>
-          <a class="btn sm soft" href="/academic/student/{{ s.id }}/pp6.docx">ปพ.6</a>
           <form method="post" action="/academic/student/{{ s.id }}/delete" style="display:inline; margin:0;"
                 onsubmit="return confirm('เอา {{ s.name }} ออกจากห้องนี้?');">
             <button class="btn sm gray" type="submit">ลบ</button></form>
@@ -74,7 +67,7 @@
   <form method="post" action="/academic/classes/{{ c.id }}/teaching">
     <div class="table-wrap">
     <table>
-      <thead><tr><th>รหัส</th><th>รายวิชา</th><th>ภาค</th><th>ครูผู้สอน</th><th>ปพ.5</th></tr></thead>
+      <thead><tr><th>รหัส</th><th>รายวิชา</th><th>ภาค</th><th>ครูผู้สอน</th></tr></thead>
       <tbody>
       {% for s in subjects %}
         <tr>
@@ -87,7 +80,6 @@
             <option value="{{ t.id }}" {{ 'selected' if teach.get(s.id) and teach[s.id].teacher_id==t.id }}>{{ t.name }}</option>
             {% endfor %}
           </select></td>
-          <td><a class="btn sm soft" href="/academic/classes/{{ c.id }}/pp5.docx?sid={{ s.id }}">ออก ปพ.5</a></td>
         </tr>
       {% endfor %}
       </tbody>
@@ -99,6 +91,63 @@
   <p class="muted">ยังไม่มีรายวิชาของชั้น {{ c.level }} ปี {{ c.year }} - <a href="/academic/subjects?year={{ c.year }}&level={{ c.level }}">ไปสร้างรายวิชา</a></p>
   {% endif %}
 </div>
+
+<div class="card" id="print-docs">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์เอกสาร ปพ.5 / ปพ.6</h2>
+  <p class="muted" style="font-size:13px; margin:4px 0 14px;">ดาวน์โหลดไฟล์ .docx สำหรับพิมพ์ - แยกออกจากส่วนกรอกคะแนน/ประเมินด้านบน กันสับสน</p>
+  {% if students %}
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    <div>
+      <div style="font-weight:600; margin-bottom:6px;">ทั้งห้อง</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        {% if is_sec %}
+        <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx?term=1"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม ภาค 1</a>
+        <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx?term=2"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม ภาค 2</a>
+        {% else %}
+        <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม</a>
+        {% endif %}
+        <a class="btn soft" href="/academic/classes/{{ c.id }}/pp6-all.docx"><svg class="icon"><use href="#ic-file"/></svg> สมุดรายงาน ปพ.6 (ทั้งห้อง)</a>
+      </div>
+    </div>
+    {% if subjects %}
+    <div>
+      <div style="font-weight:600; margin-bottom:6px;">ปพ.5 รายวิชา</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <select id="pp5sub" style="max-width:320px;">
+          {% for s in subjects %}<option value="{{ s.id }}">{{ s.code }} {{ s.name }} ({{ term_label(s.term) }})</option>{% endfor %}
+        </select>
+        <button class="btn soft" type="button" id="pp5subBtn"><svg class="icon"><use href="#ic-file"/></svg> ออก ปพ.5 รายวิชา</button>
+      </div>
+    </div>
+    {% endif %}
+    <div>
+      <div style="font-weight:600; margin-bottom:6px;">ปพ.6 รายคน</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <select id="pp6stu" style="max-width:320px;">
+          {% for s in students %}<option value="{{ s.id }}">{{ s.seq or '' }}. {{ s.name }}</option>{% endfor %}
+        </select>
+        <button class="btn soft" type="button" id="pp6stuBtn"><svg class="icon"><use href="#ic-file"/></svg> ออก ปพ.6 รายคน</button>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <p class="muted">ยังไม่มีนักเรียนในห้องนี้ - ดึงนักเรียนเข้าห้องก่อน</p>
+  {% endif %}
+</div>
+<script>
+  (function(){
+    var b5 = document.getElementById('pp5subBtn');
+    if (b5) b5.addEventListener('click', function(){
+      var sid = document.getElementById('pp5sub').value;
+      if (sid) window.location = '/academic/classes/{{ c.id }}/pp5.docx?sid=' + sid;
+    });
+    var b6 = document.getElementById('pp6stuBtn');
+    if (b6) b6.addEventListener('click', function(){
+      var sid = document.getElementById('pp6stu').value;
+      if (sid) window.location = '/academic/student/' + sid + '/pp6.docx';
+    });
+  })();
+</script>
 <script>
   async function saveAllRows(btn){
     btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
