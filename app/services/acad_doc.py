@@ -709,9 +709,11 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
 
     # ---------- เวลาเรียนรายวัน + สรุปเวลาเรียน (แนวตั้ง) ----------
     _new_section(doc, landscape=False)
-    daily_shown = _pp5_attendance_daily(doc, klass, students, db, page_break=False)
+    _pp5_attendance_daily(doc, klass, students, db, page_break=False)
+    # สรุปเวลาเรียน = แนวนอน เต็มหน้า (ตามที่เจ้าของขอ)
+    _new_section(doc, landscape=True)
     _p(doc, f"สรุปเวลาเรียน ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}",
-       align="center", bold=True, size=16, after=6, page_break=bool(daily_shown))
+       align="center", bold=True, size=16, after=6, page_break=False)
     monthly = any(effs[s.id]["months"] for s in students)
     if monthly:
         # แบบรายเดือน (ตามไฟล์ ปพ.5 จริง): เดือน พ.ค.-มี.ค. + รวม + ป่วย/ลา/ขาด + ร้อยละ
@@ -726,78 +728,79 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
         ncol = s_first + 4 + 2
         at = doc.add_table(rows=3, cols=ncol); at.style = "Table Grid"
         r0, r1, r2 = at.rows[0].cells, at.rows[1].cells, at.rows[2].cells
-        c = r0[0].merge(r1[0]).merge(r2[0]); _cell(c, "เลขที่", bold=True, fill="EDE9FE", size=10)
-        c = r0[1].merge(r1[1]).merge(r2[1]); _cell(c, "ชื่อ-นามสกุล", bold=True, fill="EDE9FE", size=10)
-        c = r0[nm_first].merge(r1[nm_last]); _cell(c, "เดือน", bold=True, fill="EDE9FE", size=10)
+        c = r0[0].merge(r1[0]).merge(r2[0]); _cell(c, "เลขที่", bold=True, fill="EDE9FE", size=14)
+        c = r0[1].merge(r1[1]).merge(r2[1]); _cell(c, "ชื่อ-นามสกุล", bold=True, fill="EDE9FE", size=14)
+        c = r0[nm_first].merge(r1[nm_last]); _cell(c, "เดือน", bold=True, fill="EDE9FE", size=14)
         for j, nm in enumerate(month_names):
-            _cell(r2[nm_first + j], nm, bold=True, fill="EDE9FE", size=10)
+            _cell(r2[nm_first + j], nm, bold=True, fill="EDE9FE", size=14)
         tot_hdr = sum(v for v in opens.values() if v)
-        c = r0[s_first].merge(r0[s_first + 3]); _cell(c, "รวมเวลาเรียน", bold=True, fill="EDE9FE", size=10)
+        c = r0[s_first].merge(r0[s_first + 3]); _cell(c, "รวมเวลาเรียน", bold=True, fill="EDE9FE", size=14)
         c = r1[s_first].merge(r1[s_first + 3])
-        _cell(c, f"{tot_hdr} วัน" if tot_hdr else "จำนวนวัน", bold=True, fill="EDE9FE", size=10)
+        _cell(c, f"{tot_hdr} วัน" if tot_hdr else "จำนวนวัน", bold=True, fill="EDE9FE", size=14)
         for j, lab in enumerate(["มา", "ป่วย", "ลา", "ขาด"]):
-            _cell(r2[s_first + j], lab, bold=True, fill="EDE9FE", size=10)
+            _cell(r2[s_first + j], lab, bold=True, fill="EDE9FE", size=14)
         c = r0[s_first + 4].merge(r1[s_first + 4]).merge(r2[s_first + 4])
-        _cell(c, "มาเรียน\nร้อยละ", bold=True, fill="EDE9FE", size=10)
+        _cell(c, "มาเรียน\nร้อยละ", bold=True, fill="EDE9FE", size=14)
         c = r0[s_first + 5].merge(r1[s_first + 5]).merge(r2[s_first + 5])
-        _cell(c, "ผลการประเมิน", bold=True, fill="EDE9FE", size=10)
+        _cell(c, "ผลการประเมิน", bold=True, fill="EDE9FE", size=14)
         cells = at.add_row().cells      # แถววันเปิดเรียนของห้อง (ตัวหารร้อยละ)
-        _cell(cells[0], "", size=10)
-        _cell(cells[1], "วันเปิดเรียน", align="left", bold=True, size=10)
+        _cell(cells[0], "", size=14)
+        _cell(cells[1], "วันเปิดเรียน", align="left", bold=True, size=14)
         tot_open = 0
         for j, (mnum, _nm) in enumerate(TH_MONTHS):
             v = opens.get(mnum)
-            _cell(cells[2 + j], v if v is not None else "", bold=True, size=10)
+            _cell(cells[2 + j], v if v is not None else "", bold=True, size=14)
             tot_open += v or 0
-        _cell(cells[13], tot_open or "", bold=True, size=10)
+        _cell(cells[13], tot_open or "", bold=True, size=14)
         for k in range(14, 19):
-            _cell(cells[k], "", size=10)
+            _cell(cells[k], "", size=14)
         for s in students:
             ef = effs[s.id]
             cells = at.add_row().cells
-            _cell(cells[0], s.seq or "", size=10)
-            _cell(cells[1], s.name, align="left", size=10)
+            _cell(cells[0], s.seq or "", size=14)
+            _cell(cells[1], s.name, align="left", size=14)
             for j, (mnum, _nm) in enumerate(TH_MONTHS):
                 v = ef["months"].get(mnum)
-                _cell(cells[2 + j], v if v is not None else "", size=10)
+                _cell(cells[2 + j], v if v is not None else "", size=14)
             _cell(cells[13], ef["days_present"] if ef["days_present"] is not None else "",
-                  bold=True, size=10)
+                  bold=True, size=14)
             for k, key in ((14, "days_sick"), (15, "days_leave"), (16, "days_absent")):
-                _cell(cells[k], ef[key] if ef[key] is not None else "", size=10)
+                _cell(cells[k], ef[key] if ef[key] is not None else "", size=14)
             pct = None
             if (ef["days_open"] or 0) > 0 and ef["days_present"] is not None:
                 pct = ef["days_present"] * 100.0 / ef["days_open"]
-            _cell(cells[17], f"{pct:.1f}" if pct is not None else "", size=10)
+            _cell(cells[17], f"{pct:.1f}" if pct is not None else "", size=14)
             _cell(cells[18], ("ผ่าน" if pct >= 80 else "ไม่ผ่าน") if pct is not None else "",
-                  bold=True, size=10)
-        # สัดส่วนตามตัวอย่าง สรุปเวลาเรียน.docx (ย่อพอดีแนวตั้ง 18 ซม.)
-        _widths(at, [Cm(1.0), Cm(3.05)] + [Cm(0.72)] * 11 +
-                [Cm(0.9), Cm(0.78), Cm(0.72), Cm(0.72), Cm(1.15), Cm(1.72)])   # รวม ~18.0
+                  bold=True, size=14)
+        # แนวนอน เต็มหน้า ~26 ซม. (คงสัดส่วนช่องเดิมตามตัวอย่าง แค่ขยายให้เต็ม)
+        _widths(at, [Cm(1.4), Cm(4.4)] + [Cm(1.05)] * 11 +
+                [Cm(1.3), Cm(1.05), Cm(1.05), Cm(1.05), Cm(1.7), Cm(2.6)])   # รวม ~26.1
         _tight_cells(at)   # กันตัวเลขเดือนโดนบีบ
     else:
         # แบบยอดรวมทั้งปี (โรงเรียนที่ไม่กรอกรายเดือน)
         at = doc.add_table(rows=1, cols=10); at.style = "Table Grid"
         for i, h in enumerate(["เลขที่", "เลขประจำตัว", "ชื่อ-นามสกุล", "วันเปิดเรียน", "มาเรียน",
                                "ป่วย", "ลา", "ขาด", "ร้อยละ", "ผล"]):
-            _cell(at.rows[0].cells[i], h, bold=True, fill="EDE9FE")
+            _cell(at.rows[0].cells[i], h, bold=True, fill="EDE9FE", size=14)
         for s in students:
             ef = effs[s.id]
             cells = at.add_row().cells
-            _cell(cells[0], s.seq or "")
-            _cell(cells[1], s.student_no or "")
-            _cell(cells[2], s.name, align="left")
+            _cell(cells[0], s.seq or "", size=14)
+            _cell(cells[1], s.student_no or "", size=14)
+            _cell(cells[2], s.name, align="left", size=14)
             vals = [ef["days_open"], ef["days_present"],
                     ef["days_sick"], ef["days_leave"], ef["days_absent"]]
             for j, v in enumerate(vals):
-                _cell(cells[3 + j], v if v is not None else "")
+                _cell(cells[3 + j], v if v is not None else "", size=14)
             pct = None
             if (ef["days_open"] or 0) > 0 and ef["days_present"] is not None:
                 pct = ef["days_present"] * 100.0 / ef["days_open"]
-            _cell(cells[8], f"{pct:.1f}" if pct is not None else "")
-            _cell(cells[9], ("ผ่าน" if pct >= 80 else "ไม่ผ่าน") if pct is not None else "", bold=True)
-        _widths(at, [Cm(1.0), Cm(1.8), Cm(4.6), Cm(1.7), Cm(1.6),
-                     Cm(1.3), Cm(1.3), Cm(1.3), Cm(1.6), Cm(1.8)])   # แนวตั้ง 18
-    _p(doc, "เกณฑ์การผ่าน: มีเวลาเรียนไม่น้อยกว่าร้อยละ 80 ของเวลาเรียนทั้งหมด", size=10, after=0)
+            _cell(cells[8], f"{pct:.1f}" if pct is not None else "", size=14)
+            _cell(cells[9], ("ผ่าน" if pct >= 80 else "ไม่ผ่าน") if pct is not None else "", bold=True, size=14)
+        # แนวนอน เต็มหน้า ~26 ซม.
+        _widths(at, [Cm(1.5), Cm(2.7), Cm(6.8), Cm(2.5), Cm(2.4),
+                     Cm(1.9), Cm(1.9), Cm(1.9), Cm(2.3), Cm(2.6)])   # รวม ~26.5
+    _p(doc, "เกณฑ์การผ่าน: มีเวลาเรียนไม่น้อยกว่าร้อยละ 80 ของเวลาเรียนทั้งหมด", size=12, after=0)
 
     # ---------- ตัวชี้วัดรายวิชา (ทุกวิชารวมเป็นชุด, แนวนอน) - มาก่อนคะแนน ตามไฟล์จริง ----------
     from app.services.curriculum import selected_indicators as _sel_ind
