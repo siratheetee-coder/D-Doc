@@ -214,8 +214,10 @@ def _vcell(cell, text, *, bold=False, size=11, fill=None):
 
 
 def _pp5_score_2term(doc, subject, db, students):
-    """ตารางคะแนนแบบประถม 2 ภาคเรียน (ตามไฟล์ Excel จริง): แถวคะแนนเต็ม 70/30/100 +
-    หัวคอลัมน์แนวตั้ง + สรุปแยก ผ่าน/ไม่ผ่าน + เฉลี่ย 2 ภาค + ผลการเรียนตลอดปี"""
+    """ตารางคะแนนแบบประถม 2 ภาคเรียน - ก็อปตามชีต 'พิมพ์วิชา' ของไฟล์ Excel จริง (ป.6):
+    หัว 5 แถว · มุมซ้ายบน 'วิชา/รหัส:ชื่อ' · ภาค 1/2 (ระหว่างภาค-ปลายภาค-รวม-ผล แนวตั้ง) +
+    แถวคะแนนเต็ม 70/30/100 · คะแนนเฉลี่ย2ภาค/ผลตลอดปี (แนวตั้ง) · กล่องคะแนนเฉลี่ยชั้น + สรุปผ่าน/ไม่ผ่าน
+    ฟอนต์ TH Sarabun New 14 ทั้งตาราง"""
     from app.models import AcadScore
     mmax = subject.mid_max if (subject.mid_max or 0) > 0 else 70
     fmax = subject.final_max if (subject.final_max or 0) > 0 else 30
@@ -225,49 +227,64 @@ def _pp5_score_2term(doc, subject, db, students):
         for x in (db.query(AcadScore).filter(AcadScore.subject_id == subject.id,
                                              AcadScore.acad_student_id.in_(sids)).all()):
             rows[(x.acad_student_id, x.term)] = x
-    # 14 คอลัมน์: ที่ ชื่อ | ภาค1(ระหว่าง/ปลาย/รวม/ผล) | ภาค2(...) | เฉลี่ย ผลตลอดปี | ผ่าน ไม่ผ่าน
-    t = doc.add_table(rows=3, cols=14); t.style = "Table Grid"
-    r0, r1, r2 = t.rows[0].cells, t.rows[1].cells, t.rows[2].cells
-    # หัวคงที่ (ผสาน 3 แถว)
-    for idx, lab in [(0, "ที่"), (1, "ชื่อ-นามสกุล"), (10, "คะแนนเฉลี่ย\n2 ภาคเรียน"),
-                     (11, "ผลการเรียน\nตลอดปี")]:
-        m = r0[idx].merge(r1[idx]).merge(r2[idx])
-        (_vcell if idx in (10, 11) else _cell)(m, lab.replace("\n", " "),
-                                               bold=True, fill="EDE9FE", size=10)
-    # ภาคเรียนที่ 1 / 2 (หัวรวม + หัวย่อยแนวตั้ง + แถวคะแนนเต็ม)
+    # 14 คอลัมน์ (A-N) · หัว 5 แถว
+    t = doc.add_table(rows=5, cols=14); t.style = "Table Grid"
+
+    def C(r, c):
+        return t.cell(r, c)
+
+    def mg(r1, c1, r2, c2):
+        return C(r1, c1).merge(C(r2, c2))
+
+    # มุมซ้ายบน: วิชา + รหัส:ชื่อวิชา (แถว 0-1) · ที่ + ชื่อ (แถว 2-4)
+    _cell(mg(0, 0, 1, 0), "วิชา", bold=True, fill="EDE9FE", size=14)
+    _cell(mg(0, 1, 1, 1), f"{subject.code or ''} : {subject.name}".strip(" :"),
+          bold=True, fill="EDE9FE", size=14, align="left")
+    _cell(mg(2, 0, 4, 0), "ที่", bold=True, fill="EDE9FE", size=14)
+    _cell(mg(2, 1, 4, 1), "ชื่อ - นามสกุล", bold=True, fill="EDE9FE", size=14)
+    # ภาคเรียนที่ 1 / 2 : หัวรวม + หัวย่อยแนวตั้ง + แถวคะแนนเต็ม
     for base, lab in [(2, "ภาคเรียนที่ 1"), (6, "ภาคเรียนที่ 2")]:
-        m = r0[base]
-        for c in range(base + 1, base + 4):
-            m = m.merge(r0[c])
-        _cell(m, lab, bold=True, fill="EDE9FE", size=11)
-        for j, sub in enumerate(["ระหว่างภาค", "ปลายภาค", "รวม", "ผลการเรียน"]):
-            _vcell(r1[base + j], sub, bold=True, fill="F1F5F9", size=9)
-        for j, mx in enumerate([str(mmax), str(fmax), str(mmax + fmax), "-"]):
-            _cell(r2[base + j], mx, bold=True, fill="F8FAFC", size=9)
-    # สรุปผลการประเมิน (ผ่าน / ไม่ผ่าน)
-    mm = r0[12].merge(r0[13]); _cell(mm, "สรุปผลการประเมิน", bold=True, fill="EDE9FE", size=10)
-    r1[12].merge(r2[12]); _cell(r1[12], "ผ่าน", bold=True, fill="F1F5F9", size=9)
-    r1[13].merge(r2[13]); _cell(r1[13], "ไม่ผ่าน", bold=True, fill="F1F5F9", size=9)
+        _cell(mg(0, base, 0, base + 3), lab, bold=True, fill="EDE9FE", size=14)
+        _vcell(mg(1, base, 3, base), "ระหว่างภาค", bold=True, fill="F1F5F9", size=14)
+        _vcell(mg(1, base + 1, 3, base + 1), "ปลายภาค", bold=True, fill="F1F5F9", size=14)
+        _vcell(mg(1, base + 2, 3, base + 2), "รวม", bold=True, fill="F1F5F9", size=14)
+        _vcell(mg(1, base + 3, 4, base + 3), "ผลการเรียน", bold=True, fill="F1F5F9", size=14)
+        _cell(C(4, base), str(mmax), bold=True, fill="F8FAFC", size=14)
+        _cell(C(4, base + 1), str(fmax), bold=True, fill="F8FAFC", size=14)
+        _cell(C(4, base + 2), str(mmax + fmax), bold=True, fill="F8FAFC", size=14)
+    # คะแนนเฉลี่ย 2 ภาค / ผลการเรียนตลอดปี (แนวตั้ง ผสาน 5 แถว)
+    _vcell(mg(0, 10, 4, 10), "คะแนนเฉลี่ย 2 ภาคเรียน", bold=True, fill="EDE9FE", size=14)
+    _vcell(mg(0, 11, 4, 11), "ผลการเรียนตลอดปี", bold=True, fill="EDE9FE", size=14)
+    # กล่องสรุป (คอลัมน์ M-N): คะแนนเฉลี่ยชั้น + สรุปผลการประเมิน (ผ่าน/ไม่ผ่าน)
+    _cell(mg(0, 12, 0, 13), "คะแนนเฉลี่ย", bold=True, fill="EDE9FE", size=14)
+    avals = [a.score for a in (rows.get((s.id, 0)) for s in students) if a and a.score is not None]
+    cavg = sum(avals) / len(avals) if avals else None
+    _cell(mg(1, 12, 1, 13), f"{cavg:.2f}" if cavg is not None else "", bold=True, fill="F8FAFC", size=14)
+    _cell(mg(2, 12, 3, 13), "สรุปผลการประเมิน", bold=True, fill="EDE9FE", size=14)
+    _cell(C(4, 12), "ผ่าน", bold=True, fill="F1F5F9", size=14)
+    _cell(C(4, 13), "ไม่ผ่าน", bold=True, fill="F1F5F9", size=14)
 
     for s in students:
         cells = t.add_row().cells
-        _cell(cells[0], s.seq or "", size=11)
-        _cell(cells[1], s.name, align="left", size=11)
+        _cell(cells[0], s.seq or "", size=14)
+        _cell(cells[1], s.name, align="left", size=14)
         for k, tno in enumerate((1, 2)):
             r = rows.get((s.id, tno))
             b = 2 + k * 4
-            _cell(cells[b], f"{r.score_mid:g}" if r and r.score_mid is not None else "", size=11)
-            _cell(cells[b + 1], f"{r.score_final:g}" if r and r.score_final is not None else "", size=11)
-            _cell(cells[b + 2], f"{r.score:g}" if r and r.score is not None else "", size=11)
-            _cell(cells[b + 3], r.grade if r else "", size=11, bold=True)
+            _cell(cells[b], f"{r.score_mid:g}" if r and r.score_mid is not None else "", size=14)
+            _cell(cells[b + 1], f"{r.score_final:g}" if r and r.score_final is not None else "", size=14)
+            _cell(cells[b + 2], f"{r.score:g}" if r and r.score is not None else "", size=14)
+            _cell(cells[b + 3], r.grade if r else "", size=14, bold=True)
         ann = rows.get((s.id, 0))
-        _cell(cells[10], f"{ann.score:g}" if ann and ann.score is not None else "", size=11)
-        _cell(cells[11], ann.grade if ann else "", size=11, bold=True)
+        _cell(cells[10], f"{ann.score:g}" if ann and ann.score is not None else "", size=14)
+        _cell(cells[11], ann.grade if ann else "", size=14, bold=True)
         ok = bool(ann and (ann.grade or "").strip() not in ("", "0", "ร", "มส"))
         has = bool(ann and ann.grade)
-        _cell(cells[12], "P" if (has and ok) else "", size=11, bold=True)
-        _cell(cells[13], "P" if (has and not ok) else "", size=11, bold=True)
-    _widths(t, [Cm(1.0), Cm(4.2)] + [Cm(1.1)] * 8 + [Cm(1.2), Cm(1.2), Cm(0.8), Cm(0.8)])  # แนวตั้ง 18
+        _cell(cells[12], "P" if (has and ok) else "", size=14, bold=True)
+        _cell(cells[13], "P" if (has and not ok) else "", size=14, bold=True)
+    # ความกว้างตามสัดส่วนชีตพิมพ์วิชา (ย่อพอดีแนวตั้ง ~18 ซม.)
+    _widths(t, [Cm(0.8), Cm(3.8), Cm(1.0)] + [Cm(1.13)] * 11)
+    _tight_cells(t)
 
 
 def render_pp5(school, klass, subject, db) -> str:
