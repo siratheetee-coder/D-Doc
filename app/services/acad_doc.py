@@ -287,15 +287,129 @@ def _pp5_score_2term(doc, subject, db, students):
     _tight_cells(t)
 
 
+def _pp5_subject_cover(doc, school, klass, subject, db, students):
+    """หน้าปก ปพ.5 รายวิชา (ตามชีต 'พิมพ์ปกปพ.5' ของไฟล์รายวิชาจริง) - แนวตั้ง ฟอนต์ 14"""
+    from app.models import AcadScore, AcadTeaching, AcadCharEval, AcadReadEval
+    from app.services.academic import char_avg, read_avg, quality_of_avg, QUALITY_LEVELS
+    term = subject.term if subject.term is not None else 0
+    sid_set = {s.id for s in students}
+    scores = [x for x in db.query(AcadScore).filter_by(subject_id=subject.id, term=term).all()
+              if x.acad_student_id in sid_set]
+    teach = db.query(AcadTeaching).filter_by(class_id=klass.id, subject_id=subject.id).first()
+    teacher = teach.teacher.name if (teach and teach.teacher) else ""
+
+    _logo_header(doc, school, height_cm=2.2, after=4)
+    _p(doc, "สมุดบันทึกการพัฒนาคุณภาพผู้เรียน (ปพ.5)", align="center", bold=True, size=18, after=2)
+    _p(doc, "แบบบันทึกผลการเรียนรายวิชา", align="center", size=14, after=10)
+    loc = [f"โรงเรียน{school.name or ''}"]
+    if (school.district or "").strip():
+        loc.append(f"อำเภอ{school.district.strip()}")
+    if (school.province or "").strip():
+        loc.append(f"จังหวัด{school.province.strip()}")
+    _p(doc, "   ".join(loc), align="center", size=14, after=0)
+    if (school.area_office or "").strip():
+        _p(doc, f"สำนักงานเขตพื้นที่การศึกษา{school.area_office.strip()}", align="center", size=14, after=8)
+    _p(doc, f"ปีการศึกษา {klass.year}          ชั้น {_class_label(klass)}", align="center", bold=True, size=14, after=0)
+    if subject.learn_group:
+        _p(doc, f"กลุ่มสาระการเรียนรู้{subject.learn_group}", align="center", size=14, after=0)
+    _p(doc, f"รหัสวิชา {subject.code or ''}          รายวิชา {subject.name}", align="center", size=14, after=0)
+    meta = []
+    if subject.hours:
+        meta.append(f"เวลาเรียน {subject.hours} ชั่วโมง")
+    if subject.credit:
+        meta.append(f"{subject.credit:g} หน่วยกิต")
+    if meta:
+        _p(doc, "          ".join(meta), align="center", size=14, after=0)
+    _p(doc, f"ครูผู้สอน {teacher}", align="center", size=14, after=0)
+    _p(doc, f"ครูประจำชั้น {klass.homeroom.name if klass.homeroom else ''}", align="center", size=14, after=10)
+
+    _p(doc, "การอนุมัติผลการเรียน", align="center", bold=True, size=14, after=4)
+    grade_cols = ["4", "3.5", "3", "2.5", "2", "1.5", "1", "0", "ร", "มส"]
+    gmap = {x.acad_student_id: (x.grade or "") for x in scores}
+    cnt = _grade_counts(gmap.get(s.id, "") for s in students)
+    svals = [x.score for x in scores if x.score is not None]
+    savg = sum(svals) / len(svals) if svals else None
+    gt = doc.add_table(rows=2, cols=1 + len(grade_cols)); gt.style = "Table Grid"
+    _cell(gt.rows[0].cells[0], "ระดับผลการเรียน", bold=True, fill="EDE9FE", size=14)
+    for i, g in enumerate(grade_cols):
+        _cell(gt.rows[0].cells[1 + i], g, bold=True, fill="EDE9FE", size=14)
+    _cell(gt.rows[1].cells[0], "จำนวน (คน)", bold=True, size=14)
+    for i, g in enumerate(grade_cols):
+        _cell(gt.rows[1].cells[1 + i], cnt[g] or "", size=14)
+    _widths(gt, [Cm(4.4)] + [Cm(1.36)] * len(grade_cols))
+    _p(doc, f"นักเรียนทั้งหมด {len(students)} คน"
+       + (f"          คะแนนเฉลี่ยรายวิชา {savg:.2f}" if savg is not None else ""),
+       align="center", size=14, after=8)
+
+    ce = {x.acad_student_id: x for x in db.query(AcadCharEval).filter_by(subject_id=subject.id).all()}
+    rd = {x.acad_student_id: x for x in db.query(AcadReadEval).filter_by(subject_id=subject.id).all()}
+    ccnt = {q: 0 for q in QUALITY_LEVELS}
+    rcnt = {q: 0 for q in QUALITY_LEVELS}
+    for s in students:
+        c = ce.get(s.id)
+        if c:
+            ccnt[quality_of_avg(char_avg(c))[1]] += 1
+        r = rd.get(s.id)
+        if r:
+            rcnt[quality_of_avg(read_avg(r))[1]] += 1
+    qt = doc.add_table(rows=3, cols=1 + len(QUALITY_LEVELS)); qt.style = "Table Grid"
+    _cell(qt.rows[0].cells[0], "ผลการประเมิน", bold=True, fill="EDE9FE", size=14)
+    for i, q in enumerate(QUALITY_LEVELS):
+        _cell(qt.rows[0].cells[1 + i], q, bold=True, fill="EDE9FE", size=14)
+    _cell(qt.rows[1].cells[0], "คุณลักษณะฯ (คน)", align="left", size=14)
+    _cell(qt.rows[2].cells[0], "อ่าน คิดวิเคราะห์ เขียน (คน)", align="left", size=14)
+    for i, q in enumerate(QUALITY_LEVELS):
+        _cell(qt.rows[1].cells[1 + i], ccnt[q] or "", size=14)
+        _cell(qt.rows[2].cells[1 + i], rcnt[q] or "", size=14)
+    _widths(qt, [Cm(6.0)] + [Cm(3.0)] * len(QUALITY_LEVELS))
+    _p(doc, "", after=8)
+
+    st = doc.add_table(rows=1, cols=2)
+    for cell, (nm, role) in zip(st.rows[0].cells,
+                                [(teacher, "ครูผู้สอน"), ("", "หัวหน้ากลุ่มสาระการเรียนรู้")]):
+        for i, txt in enumerate(["(ลงชื่อ)..........................................",
+                                 f"( {nm or '.....................................'} )", role]):
+            p = cell.paragraphs[0] if i == 0 else cell.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_after = Pt(0)
+            r = p.add_run(txt); r.font.size = Pt(14); r.font.name = THAI_FONT
+            r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
+            if i == 0 and nm:
+                _float_signature(p, nm)
+    _widths(st, [Cm(9.0), Cm(9.0)])
+    _p(doc, "", after=6)
+    _p(doc, "เรียนเสนอเพื่อพิจารณา", align="center", size=14, after=2)
+    _sign_block(doc, (getattr(school, "academic_head_name", "") or "").strip(),
+                "หัวหน้า/รองผู้อำนวยการ ฝ่ายวิชาการ", size=14, after=6)
+    _p(doc, "[   ] อนุมัติ          [   ] ไม่อนุมัติ", align="center", size=14, after=4)
+    director = (getattr(school, "director_name", "") or "").strip()
+    dpos = ("ผู้อำนวยการ" + school.name) if (school.name or "").startswith("โรงเรียน") \
+        else "ผู้อำนวยการโรงเรียน"
+    _sign_block(doc, director, dpos, size=14)
+    _p(doc, "วันที่ …........../…..................../…...........", align="center", size=14, after=0)
+
+
 def render_pp5(school, klass, subject, db) -> str:
-    """แบบบันทึกผลการพัฒนาคุณภาพผู้เรียน - รายวิชา x ห้อง (แนวนอน แผ่นเดี่ยว)
-    หน้าตัวชี้วัด (ถ้ามี) + ใบคะแนน · คุณลักษณะ/อ่านคิดเขียน พิมพ์เป็นสรุปทั้งปีในเล่มเท่านั้น"""
-    from app.services.curriculum import has_indicators
-    doc = _doc(landscape=True)
+    """ปพ.5 รายวิชา (เล่มของครูรายวิชา): ปก -> รายชื่อ -> เวลาเรียน -> ตัวชี้วัด
+    -> คะแนน -> คุณลักษณะ -> อ่านคิดเขียน -> เกณฑ์ (สลับแนวตามความกว้างตาราง)"""
+    from app.services.curriculum import selected_indicators as _sel
+    doc = _doc(landscape=False)          # ปกแนวตั้ง
     students = sorted(klass.students, key=lambda s: (s.seq or 999, s.name))
-    _pp5_indicator_page(doc, klass, subject, db, students)
-    _pp5_score_page(doc, school, klass, subject, db,
-                    page_break=has_indicators(subject.learn_group, subject.level))
+    _pp5_subject_cover(doc, school, klass, subject, db, students)
+    _new_section(doc, landscape=True)
+    _pp5_roster(doc, klass, students, db)
+    _new_section(doc, landscape=False)
+    _pp5_attendance_daily(doc, klass, students, db, page_break=False)
+    if _sel(subject):
+        _new_section(doc, landscape=True)
+        _pp5_indicator_page(doc, klass, subject, db, students, page_break=False)
+    _new_section(doc, landscape=False)
+    _pp5_score_page(doc, school, klass, subject, db, page_break=False)
+    _new_section(doc, landscape=True)
+    _pp5_char_page(doc, klass, subject, db, students, page_break=False)
+    _pp5_read_page(doc, klass, subject, db, students, page_break=True)
+    _new_section(doc, landscape=False)
+    _pp5_criteria_page(doc, page_break=False)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ปพ.5_{subject.name}_{_class_label(klass)}_{klass.year}") + ".docx")
     doc.save(str(out))
@@ -488,64 +602,66 @@ def _pp5_attendance_daily(doc, klass, students, db, *, page_break=True):
     return True
 
 
-def _pp5_char_page(doc, klass, subject, db, students):
+def _pp5_char_page(doc, klass, subject, db, students, *, page_break=True):
     """หน้าประเมินคุณลักษณะอันพึงประสงค์ 8 ข้อ ของ 1 รายวิชา"""
     from app.models import AcadCharEval
     _p(doc, "ผลการประเมินคุณลักษณะอันพึงประสงค์ (รายวิชา)",
-       align="center", bold=True, size=16, after=0, page_break=True)
+       align="center", bold=True, size=16, after=0, page_break=page_break)
     _p(doc, f"รายวิชา {subject.code or ''} {subject.name}   ชั้น {_class_label(klass)}   "
-            f"ปีการศึกษา {klass.year}", align="center", size=13, after=6)
+            f"ปีการศึกษา {klass.year}", align="center", size=14, after=6)
 
     chars = {r.acad_student_id: r for r in
              db.query(AcadCharEval).filter_by(subject_id=subject.id).all()}
     heads = ["เลขที่", "ชื่อ-นามสกุล"] + [f"ข้อ {i}" for i in range(1, 9)] + ["เฉลี่ย", "ผล"]
     t = doc.add_table(rows=1, cols=len(heads)); t.style = "Table Grid"
     for i, h in enumerate(heads):
-        _cell(t.rows[0].cells[i], h, bold=True, fill="EDE9FE", size=11)
+        _cell(t.rows[0].cells[i], h, bold=True, fill="EDE9FE", size=14)
     for s in students:
         r = chars.get(s.id)
         cells = t.add_row().cells
-        _cell(cells[0], s.seq or "", size=11)
-        _cell(cells[1], s.name, align="left", size=11)
+        _cell(cells[0], s.seq or "", size=14)
+        _cell(cells[1], s.name, align="left", size=14)
         for j, f in enumerate(CHAR_FIELDS):
             v = getattr(r, f) if r else None
-            _cell(cells[2 + j], v if v is not None else "", size=11)
+            _cell(cells[2 + j], v if v is not None else "", size=14)
         avg = char_avg(r) if r else None
-        _cell(cells[10], f"{avg:.2f}" if avg is not None else "", size=11, bold=True)
-        _cell(cells[11], quality_of_avg(avg)[1], size=11, bold=True)
+        _cell(cells[10], f"{avg:.2f}" if avg is not None else "", size=14, bold=True)
+        _cell(cells[11], quality_of_avg(avg)[1], size=14, bold=True)
     _widths(t, [Cm(1.2), Cm(5.6)] + [Cm(1.55)] * 8 + [Cm(1.6), Cm(2.4)])   # รวม 23.2
+    _tight_cells(t)
     _p(doc, "คุณลักษณะฯ: " + " | ".join(f"ข้อ {i} {nm}" for i, nm in enumerate(CHAR_ITEMS, 1)),
        size=10, after=2, align="center")
     _p(doc, "คะแนน 0-3 ต่อข้อ | เฉลี่ย ≥2.5 ดีเยี่ยม | 1.5-2.49 ดี | 1-1.49 ผ่าน | ต่ำกว่า 1 ไม่ผ่าน "
             "| ช่องว่าง = ยังไม่ประเมิน", size=10, after=0, align="center")
 
 
-def _pp5_read_page(doc, klass, subject, db, students):
+def _pp5_read_page(doc, klass, subject, db, students, *, page_break=True):
     """หน้าประเมินการอ่าน คิดวิเคราะห์ และเขียน 3 ด้าน ของ 1 รายวิชา"""
     from app.models import AcadReadEval
     _p(doc, "ผลการประเมินการอ่าน คิดวิเคราะห์ และเขียน (รายวิชา)",
-       align="center", bold=True, size=16, after=0, page_break=True)
+       align="center", bold=True, size=16, after=0, page_break=page_break)
     _p(doc, f"รายวิชา {subject.code or ''} {subject.name}   ชั้น {_class_label(klass)}   "
-            f"ปีการศึกษา {klass.year}", align="center", size=13, after=6)
+            f"ปีการศึกษา {klass.year}", align="center", size=14, after=6)
 
     reads = {r.acad_student_id: r for r in
              db.query(AcadReadEval).filter_by(subject_id=subject.id).all()}
     heads2 = ["เลขที่", "ชื่อ-นามสกุล"] + [lb for _, lb in READ_DOMAINS] + ["เฉลี่ย", "ผล"]
     t2 = doc.add_table(rows=1, cols=len(heads2)); t2.style = "Table Grid"
     for i, h in enumerate(heads2):
-        _cell(t2.rows[0].cells[i], h, bold=True, fill="EDE9FE", size=11)
+        _cell(t2.rows[0].cells[i], h, bold=True, fill="EDE9FE", size=14)
     for s in students:
         r = reads.get(s.id)
         cells = t2.add_row().cells
-        _cell(cells[0], s.seq or "", size=11)
-        _cell(cells[1], s.name, align="left", size=11)
+        _cell(cells[0], s.seq or "", size=14)
+        _cell(cells[1], s.name, align="left", size=14)
         for j, (f, _lb) in enumerate(READ_DOMAINS):
             v = getattr(r, f) if r else None
-            _cell(cells[2 + j], v if v is not None else "", size=11)
+            _cell(cells[2 + j], v if v is not None else "", size=14)
         avg = read_avg(r) if r else None
-        _cell(cells[5], f"{avg:.2f}" if avg is not None else "", size=11, bold=True)
-        _cell(cells[6], quality_of_avg(avg)[1], size=11, bold=True)
+        _cell(cells[5], f"{avg:.2f}" if avg is not None else "", size=14, bold=True)
+        _cell(cells[6], quality_of_avg(avg)[1], size=14, bold=True)
     _widths(t2, [Cm(1.2), Cm(5.6), Cm(3.4), Cm(3.4), Cm(3.4), Cm(1.6), Cm(2.4)])   # รวม 21.0
+    _tight_cells(t2)
     _p(doc, "การอ่าน คิดวิเคราะห์ และเขียน: " + " | ".join(lb for _, lb in READ_DOMAINS),
        size=10, after=2, align="center")
     _p(doc, "คะแนน 0-3 ต่อด้าน | เฉลี่ย ≥2.5 ดีเยี่ยม | 1.5-2.49 ดี | 1-1.49 ผ่าน | ต่ำกว่า 1 ไม่ผ่าน "
