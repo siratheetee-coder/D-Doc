@@ -53,8 +53,6 @@
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <a class="btn soft" href="/academic/indicators?cid={{ c.id }}&sid={{ subj.id }}"><svg class="icon"><use href="#ic-check"/></svg> ประเมินตัวชี้วัด</a>
       <a class="btn soft" href="/academic/assess?cid={{ c.id }}&sid={{ subj.id }}&kind=char"><svg class="icon"><use href="#ic-check"/></svg> ประเมินคุณฯ/อ่านฯ วิชานี้</a>
-      <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5.docx?sid={{ subj.id }}"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 วิชานี้</a>
-      <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx{% if subj.term %}?term={{ subj.term }}{% endif %}"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม{% if subj.term %} ภาค {{ subj.term }}{% endif %}</a>
     </div>
   </div>
   {% set fmax = subj.final_max or 30 %}
@@ -191,6 +189,15 @@
   {% else %}
   <p class="muted">ห้องนี้ยังไม่มีนักเรียน - <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
   {% endif %}
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์เอกสาร ปพ.5</h2>
+  <p class="muted" style="font-size:13px; margin:4px 0 12px;">แยกจากส่วนกรอกคะแนนด้านบน - กรอกเสร็จแล้วค่อยมาดาวน์โหลด</p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5.docx?sid={{ subj.id }}"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 รายวิชานี้</a>
+    <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx{% if subj.term %}?term={{ subj.term }}{% endif %}"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม{% if subj.term %} ภาค {{ subj.term }}{% endif %}</a>
+  </div>
 </div>
 {% endif %}
 <script>

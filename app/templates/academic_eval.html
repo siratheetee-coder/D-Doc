@@ -39,7 +39,7 @@
       <a class="btn soft" href="/academic/assess?cid={{ c.id }}&kind=char"><svg class="icon"><use href="#ic-check"/></svg> คุณลักษณะฯ รายวิชา</a>
       <a class="btn soft" href="/academic/assess?cid={{ c.id }}&kind=read"><svg class="icon"><use href="#ic-edit"/></svg> อ่านคิดเขียน รายวิชา</a>
       <a class="btn soft" href="/academic/attendance?cid={{ c.id }}"><svg class="icon"><use href="#ic-clock"/></svg> เวลาเรียน</a>
-      {% if students %}<a class="btn soft" href="/academic/classes/{{ c.id }}/pp6-all.docx"><svg class="icon"><use href="#ic-file"/></svg> สมุดรายงาน ปพ.6 (ทั้งห้อง)</a>{% endif %}
+      {% if students %}<a class="btn soft" href="#print-pp6"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ ปพ.6</a>{% endif %}
     </div>
   </div>
   <p class="muted" style="font-size:13px; margin:6px 0 8px;">หน้านี้กรอกแค่ <b>กิจกรรมพัฒนาผู้เรียน</b> (ผ/มผ) ·
@@ -59,7 +59,7 @@
       <thead><tr>
         <th>เลขที่</th><th>ชื่อ-นามสกุล</th><th>อ่านคิดวิเคราะห์</th><th>คุณลักษณะฯ</th>
         {% for a in activities %}<th style="font-size:13px; max-width:90px;" title="{{ a.name }}">{{ a.name | replace('และสาธารณประโยชน์', 'ฯ') }}</th>{% endfor %}
-        {% if activities %}<th>สรุปกิจกรรม</th>{% endif %}<th></th>
+        {% if activities %}<th>สรุปกิจกรรม</th>{% endif %}
       </tr></thead>
       <tbody>
       {% for s in students %}
@@ -78,7 +78,6 @@
             {% for q in passfail %}<option value="{{ q }}" {{ 'selected' if act_res.get((s.id, a.id))==q }}>{{ q }}</option>{% endfor %}</select></td>
           {% endfor %}
           {% if activities %}<td class="center" style="font-weight:700;">{{ act_sum.get(s.id) or '' }}</td>{% endif %}
-          <td><a class="btn sm soft" href="/academic/student/{{ s.id }}/pp6.docx">ปพ.6</a></td>
         </tr>
       {% endfor %}
       </tbody>
@@ -123,5 +122,36 @@
   <p class="muted">ห้องนี้ยังไม่มีนักเรียน - <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
   {% endif %}
 </div>
+
+{% if students %}
+<div class="card" id="print-pp6">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์เอกสาร ปพ.6</h2>
+  <p class="muted" style="font-size:13px; margin:4px 0 12px;">แยกจากส่วนประเมินด้านบน - ประเมินเสร็จแล้วค่อยมาดาวน์โหลด</p>
+  <div style="display:flex; flex-direction:column; gap:14px;">
+    <div>
+      <div style="font-weight:600; margin-bottom:6px;">ทั้งห้อง</div>
+      <a class="btn soft" href="/academic/classes/{{ c.id }}/pp6-all.docx"><svg class="icon"><use href="#ic-file"/></svg> สมุดรายงาน ปพ.6 (ทั้งห้อง)</a>
+    </div>
+    <div>
+      <div style="font-weight:600; margin-bottom:6px;">รายคน</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <select id="pp6stu" style="max-width:320px;">
+          {% for s in students %}<option value="{{ s.id }}">{{ s.seq or '' }}. {{ s.name }}</option>{% endfor %}
+        </select>
+        <button class="btn soft" type="button" id="pp6stuBtn"><svg class="icon"><use href="#ic-file"/></svg> ออก ปพ.6 รายคน</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  (function(){
+    var b6 = document.getElementById('pp6stuBtn');
+    if (b6) b6.addEventListener('click', function(){
+      var sid = document.getElementById('pp6stu').value;
+      if (sid) window.location = '/academic/student/' + sid + '/pp6.docx';
+    });
+  })();
+</script>
+{% endif %}
 {% endif %}
 {% endblock %}
