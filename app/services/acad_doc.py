@@ -850,58 +850,86 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     _pp5_quality_summary(doc, klass, subjects, students, db, "read",
                          "สรุปผลการประเมินการอ่าน คิดวิเคราะห์ และเขียนทุกรายวิชา")
 
-    # ---------- สรุปผลการประเมินทั้งปี ----------
-    _p(doc, f"สรุปผลการประเมิน ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}"
-       + (f" {term_txt}" if sec else ""), align="center", bold=True, size=16, after=6, page_break=True)
-    from app.models import AcadActivityResult
+    # ---------- สรุปการประเมินผลการเรียน (กริดรวม ก็อปตามชีต 'พิมพ์สรุปผลการประเมินทั้งปี') ----------
+    _p(doc, f"สรุปการประเมินผลการเรียน ชั้น{_class_label(klass)} โรงเรียน {school.name or ''} "
+       f"ปีการศึกษา {klass.year}" + (f" {term_txt}" if sec else ""),
+       align="center", bold=True, size=16, after=6, page_break=True)
+    from app.models import AcadIndicatorResult
+    from app.services.curriculum import selected_indicators as _sel_ind
     from app.services.academic import activities_for, activity_summary
-    acts = activities_for(klass.year, klass.level, db)
-    ares = {}
-    if acts and students:
-        for r in (db.query(AcadActivityResult)
-                  .filter(AcadActivityResult.acad_student_id.in_([s.id for s in students])).all()):
-            ares[(r.acad_student_id, r.activity_id)] = (r.result or "").strip()
-    heads = ["เลขที่", "ชื่อ-นามสกุล", "ผลการเรียนเฉลี่ย", "คุณลักษณะฯ", "อ่านคิดวิเคราะห์"]
-    heads += [a.name for a in acts] + ["สรุป"]
-    ft = doc.add_table(rows=1, cols=len(heads)); ft.style = "Table Grid"
-    for i, h in enumerate(heads):
-        _cell(ft.rows[0].cells[i], h, bold=True, fill="EDE9FE", size=11)
+    acts = activities_for(klass.year, klass.level, db)      # ใช้ตัดสิน ผ/มผ ภายใน (ไม่โชว์คอลัมน์)
+    ind_total = sum(len(_sel_ind(sub)) for sub in subjects)
+    ind_pass = {}
+    if subjects and students:
+        for r in db.query(AcadIndicatorResult).filter(
+                AcadIndicatorResult.subject_id.in_([sub.id for sub in subjects]),
+                AcadIndicatorResult.acad_student_id.in_([s.id for s in students])).all():
+            if r.passed:
+                ind_pass[r.acad_student_id] = ind_pass.get(r.acad_student_id, 0) + 1
+    _qnum = {"ดีเยี่ยม": "3", "ดี": "2", "ผ่าน": "1", "ไม่ผ่าน": "0"}
+    nsub = len(subjects)
+    ncol = 1 + nsub + 5
+    ft = doc.add_table(rows=4, cols=ncol); ft.style = "Table Grid"
+
+    def _fc(r, c):
+        return ft.cell(r, c)
+
+    def _fmg(r1, c1, r2, c2):
+        return _fc(r1, c1).merge(_fc(r2, c2))
+    # คอลัมน์แรก = ป้ายหัว 4 แถว (วิชาที่/ประเภท/วิชา/รหัสวิชา) แล้วเป็น เลขที่ ในแถวข้อมูล
+    for r, lab in enumerate(["วิชาที่", "ประเภท", "วิชา", "รหัสวิชา"]):
+        _cell(_fc(r, 0), lab, bold=True, fill="EDE9FE", size=14)
+    # คอลัมน์รายวิชา: เลขวิชา / ประเภท / ชื่อวิชา(แนวตั้ง) / รหัสวิชา
+    for i, sub in enumerate(subjects, start=1):
+        _cell(_fc(0, i), str(i), bold=True, fill="EDE9FE", size=14)
+        _cell(_fc(1, i), sub.kind or "พื้นฐาน", bold=True, fill="F1F5F9", size=14)
+        _vcell(_fc(2, i), sub.name, bold=True, fill="F8FAFC", size=14)
+        _cell(_fc(3, i), sub.code or "", bold=True, fill="F1F5F9", size=14)
+    # คอลัมน์ประเมิน (หัวแนวตั้ง) - ตัวชี้วัดเว้นแถวล่างใส่ยอดรวม (ตามชีต R2:R4 + R5=จำนวนรวม)
+    a0 = 1 + nsub
+    _vcell(_fmg(0, a0, 3, a0), "ผลการเรียนเฉลี่ย", bold=True, fill="EDE9FE", size=14)
+    _vcell(_fmg(0, a0 + 1, 2, a0 + 1), "ผลการประเมินตัวชี้วัดทุกรายวิชา", bold=True, fill="EDE9FE", size=14)
+    _cell(_fc(3, a0 + 1), str(ind_total) if ind_total else "", bold=True, fill="F8FAFC", size=14)
+    _vcell(_fmg(0, a0 + 2, 3, a0 + 2), "ผลการประเมินคุณลักษณะอันพึงประสงค์", bold=True, fill="EDE9FE", size=14)
+    _vcell(_fmg(0, a0 + 3, 3, a0 + 3), "ผลการประเมินการอ่าน คิดวิเคราะห์ และเขียนสื่อความ",
+           bold=True, fill="EDE9FE", size=14)
+    _vcell(_fmg(0, a0 + 4, 3, a0 + 4), "ผลการประเมินผลการเรียนตลอดปีการศึกษา", bold=True, fill="EDE9FE", size=14)
     for s in students:
         cells = ft.add_row().cells
-        _cell(cells[0], s.seq or "", size=11)
-        _cell(cells[1], s.name, align="left", size=11)
+        _cell(cells[0], s.seq or "", size=14)
         pairs, grades = [], []
-        for sub in subjects:
+        for i, sub in enumerate(subjects, start=1):
             row = sc_map.get((s.id, sub.id))
             g = row.grade if row else ""
             grades.append(g)
             pairs.append((g, sub.credit if sec else sub.hours))
+            _cell(cells[i], g or "", size=14, bold=True)
         avg = weighted_avg(pairs)
         ef = effs[s.id]
-        _cell(cells[2], f"{avg:.2f}" if avg is not None else "", bold=True, size=11)
-        _cell(cells[3], ef["desired_char"], size=11)
-        _cell(cells[4], ef["read_think"], size=11)
-        act_vals = [ares.get((s.id, a.id), "") for a in acts]
-        for j, av in enumerate(act_vals):
-            _cell(cells[5 + j], av, size=11)
-        # สรุป ผ/มผ: ครบทุกวิชา + ไม่มี 0/ร/มส + กิจกรรมผ่านครบ + คุณฯ/อ่านฯ ไม่เป็น "ไม่ผ่าน"
-        # ข้อมูลไม่ครบ = เว้นว่าง (ไม่เดา) · ใช้ activity_summary เป็นตัวตัดสินฝั่งกิจกรรม
+        _cell(cells[a0], f"{avg:.2f}" if avg is not None else "", bold=True, size=14)
+        _cell(cells[a0 + 1], str(ind_pass.get(s.id, "")) if ind_total else "", size=14)
+        _cell(cells[a0 + 2], _qnum.get(ef["desired_char"], ""), size=14)
+        _cell(cells[a0 + 3], _qnum.get(ef["read_think"], ""), size=14)
         overall = ""
         asum = activity_summary(s, db) if acts else "ผ"    # ไม่มีกิจกรรม = ไม่กันด้วยกิจกรรม
         if subjects and all((g or "").strip() for g in grades):
             bad_grade = any((g or "").strip() in ("0", "ร", "มส") for g in grades)
             bad_qual = "ไม่ผ่าน" in (ef["desired_char"], ef["read_think"])
             no_qual = not ef["desired_char"].strip() or not ef["read_think"].strip()
-            act_ok = (asum != "")          # ประเมินกิจกรรมครบแล้ว
-            if not no_qual and act_ok:
+            if not no_qual and asum != "":
                 overall = "มผ" if (bad_grade or bad_qual or asum == "มผ") else "ผ"
-        _cell(cells[-1], overall, bold=True, size=11)
-    # ความกว้าง: fixed 16.5 + กิจกรรม N ช่อง ต้องรวม ≤26.7 → per-act = min(2.6, 10.2/N)
-    per = min(2.6, 10.2 / len(acts)) if acts else 2.6
-    _widths(ft, [Cm(1.4), Cm(5.6), Cm(2.5), Cm(2.5), Cm(2.5)]
-            + [Cm(per)] * len(acts) + [Cm(2.0)])
-    _p(doc, "สรุป ผ = ผลการเรียนครบทุกวิชาไม่มี 0/ร/มส | กิจกรรมพัฒนาผู้เรียนผ่านครบ | "
-            "คุณลักษณะฯ และอ่านคิดวิเคราะห์ฯ ไม่ต่ำกว่าระดับผ่าน (ข้อมูลไม่ครบ = เว้นว่าง)",
+        _cell(cells[a0 + 4], overall, bold=True, size=14)
+    # ความกว้าง (แนวนอน): เลขที่ + วิชา (ย่อพอดี) + 5 คอลัมน์ประเมิน
+    sw = min(1.3, (26.0 - 1.0 - 8.0) / max(1, nsub))
+    _widths(ft, [Cm(1.0)] + [Cm(sw)] * nsub + [Cm(1.5), Cm(1.7), Cm(1.5), Cm(1.7), Cm(1.6)])
+    _tight_cells(ft)
+    # แถวชื่อวิชา (แนวตั้ง) ต้องสูงพอไม่ให้ชื่อยาวโดนตัด
+    from docx.enum.table import WD_ROW_HEIGHT_RULE
+    maxlen = max((len(sub.name or "") for sub in subjects), default=8)
+    ft.rows[2].height = Cm(min(9.0, maxlen * 0.35 + 0.6))
+    ft.rows[2].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
+    _p(doc, f"ตัวชี้วัด = จำนวนที่ผ่านจากทั้งหมด {ind_total} ตัว | คุณลักษณะ·อ่านคิดเขียน = 3 ดีเยี่ยม 2 ดี 1 ผ่าน 0 ไม่ผ่าน | "
+            "ผล ผ = ผ่านครบทุกวิชา คุณลักษณะ อ่านเขียน และกิจกรรม (ข้อมูลไม่ครบ = เว้นว่าง)",
        size=12, after=0, align="center")
 
     # ---------- หน้าสุดท้าย: เกณฑ์การประเมิน (แนวตั้ง) ----------
