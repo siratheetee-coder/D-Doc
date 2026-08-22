@@ -888,12 +888,11 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     # คอลัมน์ประเมิน (หัวแนวตั้ง) - ตัวชี้วัดเว้นแถวล่างใส่ยอดรวม (ตามชีต R2:R4 + R5=จำนวนรวม)
     a0 = 1 + nsub
     _vcell(_fmg(0, a0, 3, a0), "ผลการเรียนเฉลี่ย", bold=True, fill="EDE9FE", size=14)
-    _vcell(_fmg(0, a0 + 1, 2, a0 + 1), "ผลการประเมินตัวชี้วัดทุกรายวิชา", bold=True, fill="EDE9FE", size=14)
+    _vcell(_fmg(0, a0 + 1, 2, a0 + 1), "ผลประเมินตัวชี้วัด", bold=True, fill="EDE9FE", size=14)
     _cell(_fc(3, a0 + 1), str(ind_total) if ind_total else "", bold=True, fill="F8FAFC", size=14)
-    _vcell(_fmg(0, a0 + 2, 3, a0 + 2), "ผลการประเมินคุณลักษณะอันพึงประสงค์", bold=True, fill="EDE9FE", size=14)
-    _vcell(_fmg(0, a0 + 3, 3, a0 + 3), "ผลการประเมินการอ่าน คิดวิเคราะห์ และเขียนสื่อความ",
-           bold=True, fill="EDE9FE", size=14)
-    _vcell(_fmg(0, a0 + 4, 3, a0 + 4), "ผลการประเมินผลการเรียนตลอดปีการศึกษา", bold=True, fill="EDE9FE", size=14)
+    _vcell(_fmg(0, a0 + 2, 3, a0 + 2), "ผลประเมินคุณลักษณะฯ", bold=True, fill="EDE9FE", size=14)
+    _vcell(_fmg(0, a0 + 3, 3, a0 + 3), "ผลประเมินอ่านคิดเขียน", bold=True, fill="EDE9FE", size=14)
+    _vcell(_fmg(0, a0 + 4, 3, a0 + 4), "ผลการเรียนตลอดปี", bold=True, fill="EDE9FE", size=14)
     for s in students:
         cells = ft.add_row().cells
         _cell(cells[0], s.seq or "", size=14)
@@ -919,14 +918,15 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
             if not no_qual and asum != "":
                 overall = "มผ" if (bad_grade or bad_qual or asum == "มผ") else "ผ"
         _cell(cells[a0 + 4], overall, bold=True, size=14)
-    # ความกว้าง (แนวนอน): เลขที่ + วิชา (ย่อพอดี) + 5 คอลัมน์ประเมิน
-    sw = min(1.3, (26.0 - 1.0 - 8.0) / max(1, nsub))
-    _widths(ft, [Cm(1.0)] + [Cm(sw)] * nsub + [Cm(1.5), Cm(1.7), Cm(1.5), Cm(1.7), Cm(1.6)])
+    # ความกว้าง (แนวนอน): เลขที่ + วิชา (กว้างพอให้รหัสไม่ตกบรรทัด) + 5 คอลัมน์ประเมิน
+    assess = [1.5, 1.5, 1.5, 1.5, 1.5]
+    sw = min(1.6, (26.0 - 1.4 - sum(assess)) / max(1, nsub))
+    _widths(ft, [Cm(1.4)] + [Cm(sw)] * nsub + [Cm(x) for x in assess])
     _tight_cells(ft)
-    # แถวชื่อวิชา (แนวตั้ง) ต้องสูงพอไม่ให้ชื่อยาวโดนตัด
+    # แถวชื่อวิชา (แนวตั้ง) สูงพอให้ชื่อยาวไม่โดนตัด แต่ไม่สูงเกิน (ย่อหัวตาราง)
     from docx.enum.table import WD_ROW_HEIGHT_RULE
     maxlen = max((len(sub.name or "") for sub in subjects), default=8)
-    ft.rows[2].height = Cm(min(9.0, maxlen * 0.35 + 0.6))
+    ft.rows[2].height = Cm(min(7.5, maxlen * 0.28 + 0.4))
     ft.rows[2].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
     _p(doc, f"ตัวชี้วัด = จำนวนที่ผ่านจากทั้งหมด {ind_total} ตัว | คุณลักษณะ·อ่านคิดเขียน = 3 ดีเยี่ยม 2 ดี 1 ผ่าน 0 ไม่ผ่าน | "
             "ผล ผ = ผ่านครบทุกวิชา คุณลักษณะ อ่านเขียน และกิจกรรม (ข้อมูลไม่ครบ = เว้นว่าง)",
