@@ -29,6 +29,11 @@
         <option value="">- เลือกภาคเรียน -</option>
         {% for t in [1,2] %}{% if t in terms %}<option value="{{ t }}" {{ 'selected' if term==t }}>{{ term_label(t) }}</option>{% endif %}{% endfor %}
       </select></div>
+    {% elif c and not sec %}
+    <div><label>ภาคเรียน (ประเมินแยกภาค)</label>
+      <select name="term" onchange="submitReplace(this.form)">
+        {% for t in [1,2] %}<option value="{{ t }}" {{ 'selected' if prathom_term==t }}>{{ term_label(t) }}</option>{% endfor %}
+      </select></div>
     {% endif %}
     {% if c and (not has_terms or term in [1,2]) %}
     <div><label>รายวิชา</label>
@@ -67,6 +72,7 @@
     <input type="hidden" name="cid" value="{{ c.id }}">
     <input type="hidden" name="sid" value="{{ subj.id }}">
     <input type="hidden" name="kind" value="{{ kind }}">
+    <input type="hidden" name="eval_term" value="{{ eval_term }}">
     <div class="table-wrap dense">
     <table id="assessTable">
       <thead><tr>

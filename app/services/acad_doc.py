@@ -803,35 +803,74 @@ def _pp5_quality_summary(doc, klass, subjects, students, db, kind, title):
        align="center", bold=True, size=16, after=6, page_break=True)
     if not subjects:
         return
-    rows_by = {}
+    rows_by = {}      # (student, subject, term) -> row
     for r in (db.query(Model)
               .filter(Model.subject_id.in_([x.id for x in subjects])).all()):
-        rows_by[(r.acad_student_id, r.subject_id)] = r
-    sw = min(2.2, 15.5 / len(subjects))
-    t = doc.add_table(rows=1, cols=2 + len(subjects) + 2); t.style = "Table Grid"
-    _cell(t.rows[0].cells[0], "เลขที่", bold=True, fill="EDE9FE", size=11)
-    _cell(t.rows[0].cells[1], "ชื่อ-นามสกุล", bold=True, fill="EDE9FE", size=11)
-    for i, sub in enumerate(subjects):
-        _cell(t.rows[0].cells[2 + i], sub.code or sub.name[:6], bold=True, fill="EDE9FE", size=10)
-    _cell(t.rows[0].cells[-2], "เฉลี่ย", bold=True, fill="EDE9FE", size=11)
-    _cell(t.rows[0].cells[-1], "ผล", bold=True, fill="EDE9FE", size=11)
-    for s in students:
-        cells = t.add_row().cells
-        _cell(cells[0], s.seq or "", size=11)
-        _cell(cells[1], s.name, align="left", size=11)
-        nums = []
-        for j, sub in enumerate(subjects):
-            r = rows_by.get((s.id, sub.id))
-            n = quality_of_avg(avg_fn(r))[0] if r else ""
-            _cell(cells[2 + j], n if n != "" else "", size=11)
-            if n != "":
-                nums.append(n)
-        avg = (sum(nums) / len(nums)) if nums else None
-        _cell(cells[-2], f"{avg:.2f}" if avg is not None else "", size=11, bold=True)
-        _cell(cells[-1], quality_of_avg(avg)[1], size=11, bold=True)
-    _widths(t, [Cm(1.2), Cm(6.0)] + [Cm(sw)] * len(subjects) + [Cm(1.6), Cm(2.2)])
-    _p(doc, "ตัวเลขในตาราง = ผลรายวิชา (3 ดีเยี่ยม | 2 ดี | 1 ผ่าน | 0 ไม่ผ่าน) | "
-            "ผลสุดท้ายมาจากเฉลี่ยข้ามวิชาด้วยเกณฑ์เดียวกัน", size=11, after=0, align="center")
+        rows_by[(r.acad_student_id, r.subject_id, r.term or 0)] = r
+    nsub = len(subjects)
+    two_term = not is_secondary(klass.level)      # ประถม = ประเมินแยก 2 ภาคเรียน
+
+    if two_term:
+        ncol = 2 + nsub * 2 + 2
+        t = doc.add_table(rows=2, cols=ncol); t.style = "Table Grid"
+        r0, r1 = t.rows[0].cells, t.rows[1].cells
+        r0[0].merge(r1[0]); _cell(r0[0], "เลขที่", bold=True, fill="EDE9FE", size=11)
+        r0[1].merge(r1[1]); _cell(r0[1], "ชื่อ-นามสกุล", bold=True, fill="EDE9FE", size=11)
+        for i, sub in enumerate(subjects):
+            b = 2 + i * 2
+            r0[b].merge(r0[b + 1]); _cell(r0[b], sub.code or sub.name[:6], bold=True, fill="EDE9FE", size=10)
+            _cell(r1[b], "ภ.1", bold=True, fill="F1F5F9", size=9)
+            _cell(r1[b + 1], "ภ.2", bold=True, fill="F1F5F9", size=9)
+        avgc, resc = 2 + nsub * 2, 2 + nsub * 2 + 1
+        r0[avgc].merge(r1[avgc]); _cell(r0[avgc], "เฉลี่ย", bold=True, fill="EDE9FE", size=11)
+        r0[resc].merge(r1[resc]); _cell(r0[resc], "ผล", bold=True, fill="EDE9FE", size=11)
+        for s in students:
+            cells = t.add_row().cells
+            _cell(cells[0], s.seq or "", size=11)
+            _cell(cells[1], s.name, align="left", size=11)
+            nums = []
+            for i, sub in enumerate(subjects):
+                b = 2 + i * 2
+                for k, tno in enumerate((1, 2)):
+                    r = rows_by.get((s.id, sub.id, tno))
+                    n = quality_of_avg(avg_fn(r))[0] if r else ""
+                    _cell(cells[b + k], n if n != "" else "", size=11)
+                    if n != "":
+                        nums.append(n)
+            avg = (sum(nums) / len(nums)) if nums else None
+            _cell(cells[avgc], f"{avg:.2f}" if avg is not None else "", size=11, bold=True)
+            _cell(cells[resc], quality_of_avg(avg)[1], size=11, bold=True)
+        sw = min(1.5, max(0.6, (26.0 - 1.2 - 4.5 - 1.6 - 2.0) / max(1, nsub * 2)))
+        _widths(t, [Cm(1.2), Cm(4.5)] + [Cm(sw)] * (nsub * 2) + [Cm(1.6), Cm(2.0)])
+        _tight_cells(t)
+        _p(doc, "ตัวเลข = ผลรายวิชาต่อภาค (3 ดีเยี่ยม | 2 ดี | 1 ผ่าน | 0 ไม่ผ่าน) · ภ.1/ภ.2 = ภาคเรียนที่ 1/2 | "
+                "เฉลี่ยรวมทุกวิชาทุกภาค", size=11, after=0, align="center")
+    else:
+        sw = min(2.2, 15.5 / nsub)
+        t = doc.add_table(rows=1, cols=2 + nsub + 2); t.style = "Table Grid"
+        _cell(t.rows[0].cells[0], "เลขที่", bold=True, fill="EDE9FE", size=11)
+        _cell(t.rows[0].cells[1], "ชื่อ-นามสกุล", bold=True, fill="EDE9FE", size=11)
+        for i, sub in enumerate(subjects):
+            _cell(t.rows[0].cells[2 + i], sub.code or sub.name[:6], bold=True, fill="EDE9FE", size=10)
+        _cell(t.rows[0].cells[-2], "เฉลี่ย", bold=True, fill="EDE9FE", size=11)
+        _cell(t.rows[0].cells[-1], "ผล", bold=True, fill="EDE9FE", size=11)
+        for s in students:
+            cells = t.add_row().cells
+            _cell(cells[0], s.seq or "", size=11)
+            _cell(cells[1], s.name, align="left", size=11)
+            nums = []
+            for j, sub in enumerate(subjects):
+                r = rows_by.get((s.id, sub.id, 0))
+                n = quality_of_avg(avg_fn(r))[0] if r else ""
+                _cell(cells[2 + j], n if n != "" else "", size=11)
+                if n != "":
+                    nums.append(n)
+            avg = (sum(nums) / len(nums)) if nums else None
+            _cell(cells[-2], f"{avg:.2f}" if avg is not None else "", size=11, bold=True)
+            _cell(cells[-1], quality_of_avg(avg)[1], size=11, bold=True)
+        _widths(t, [Cm(1.2), Cm(6.0)] + [Cm(sw)] * nsub + [Cm(1.6), Cm(2.2)])
+        _p(doc, "ตัวเลขในตาราง = ผลรายวิชา (3 ดีเยี่ยม | 2 ดี | 1 ผ่าน | 0 ไม่ผ่าน) | "
+                "ผลสุดท้ายมาจากเฉลี่ยข้ามวิชาด้วยเกณฑ์เดียวกัน", size=11, after=0, align="center")
 
 
 def render_pp5_book(school, klass, db, term: int | None = None) -> str:

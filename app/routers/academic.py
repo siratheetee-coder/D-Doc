@@ -868,6 +868,10 @@ def assess_page(request: Request, db: Session = Depends(get_db),
         subj = None                        # กันเลือกวิชาข้ามชั้น
     if subj and has_terms and (subj.term or 0) != term:
         subj = None                        # วิชาไม่ตรงภาคเรียนที่เลือก
+    # ประถม: คุณลักษณะ/อ่านคิดเขียน ประเมินรายภาคเรียน (เลือกภาค 1/2) · มัธยม: ผูกกับวิชาที่แยกภาคอยู่แล้ว
+    sec = is_secondary(c.level) if c else False
+    prathom_term = (term if term in (1, 2) else 1) if (c and not sec) else None
+    eval_term = prathom_term if (c and not sec) else 0
     students = sorted(c.students, key=lambda s: (s.seq or 999, s.name)) if c else []
     Model = AcadReadEval if kind == "read" else AcadCharEval
     fields = [f for f, _ in READ_DOMAINS] if kind == "read" else CHAR_FIELDS
@@ -875,33 +879,37 @@ def assess_page(request: Request, db: Session = Depends(get_db),
     rows = {}
     if subj:
         rows = {r.acad_student_id: r for r in
-                db.query(Model).filter_by(subject_id=subj.id).all()}
+                db.query(Model).filter_by(subject_id=subj.id, term=eval_term).all()}
     return templates.TemplateResponse("academic_assess.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "classes": classes, "c": c, "subjects": subjects, "subj": subj, "kind": kind,
         "students": students, "rows": rows, "fields": fields, "labels": labels,
         "terms": terms, "term": term, "has_terms": has_terms,
+        "sec": sec, "prathom_term": prathom_term, "eval_term": eval_term,
         "class_label": _class_label, "term_label": term_label,
     })
 
 
 @router.post("/academic/assess/save")
 async def assess_save(request: Request, db: Session = Depends(get_db),
-                      cid: str = Form(""), sid: str = Form(""), kind: str = Form("char")):
+                      cid: str = Form(""), sid: str = Form(""), kind: str = Form("char"),
+                      eval_term: str = Form("0")):
     form = await request.form()
     kind = "read" if kind == "read" else "char"
     c = db.get(AcadClass, _to_int(cid, 0))
     subj = db.get(AcadSubject, _to_int(sid, 0))
     if not c or not subj:
         return RedirectResponse("/academic/assess", status_code=303)
+    et = _to_int(eval_term, 0)
+    et = et if et in (1, 2) else 0
     Model = AcadReadEval if kind == "read" else AcadCharEval
     fields = [f for f, _ in READ_DOMAINS] if kind == "read" else CHAR_FIELDS
     cur = {r.acad_student_id: r for r in
-           db.query(Model).filter_by(subject_id=subj.id).all()}
+           db.query(Model).filter_by(subject_id=subj.id, term=et).all()}
     for s in c.students:
         r = cur.get(s.id)
         if not r:
-            r = Model(acad_student_id=s.id, subject_id=subj.id)
+            r = Model(acad_student_id=s.id, subject_id=subj.id, term=et)
             db.add(r)
         for f in fields:
             v = _to_int(form.get(f"{f}_{s.id}", ""), None)
@@ -909,7 +917,8 @@ async def assess_save(request: Request, db: Session = Depends(get_db),
                 v = max(0, min(3, v))      # คะแนน 0-3 เท่านั้น
             setattr(r, f, v)
     db.commit()
-    return RedirectResponse(f"/academic/assess?cid={c.id}&sid={subj.id}&kind={kind}&saved=1",
+    tq = f"&term={et}" if et in (1, 2) else ""
+    return RedirectResponse(f"/academic/assess?cid={c.id}&sid={subj.id}&kind={kind}{tq}&saved=1",
                             status_code=303)
 
 

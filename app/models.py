@@ -1315,6 +1315,7 @@ class AcadCharEval(Base):
     id = Column(Integer, primary_key=True)
     acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
     subject_id = Column(Integer, ForeignKey("acad_subject.id"), nullable=False)
+    term = Column(Integer, default=0)               # 0 = ทั้งปี (มัธยม/เดิม) · 1/2 = ภาคเรียน (ประถม)
     c1 = Column(Integer, nullable=True)
     c2 = Column(Integer, nullable=True)
     c3 = Column(Integer, nullable=True)
@@ -1332,6 +1333,7 @@ class AcadReadEval(Base):
     id = Column(Integer, primary_key=True)
     acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
     subject_id = Column(Integer, ForeignKey("acad_subject.id"), nullable=False)
+    term = Column(Integer, default=0)               # 0 = ทั้งปี (มัธยม/เดิม) · 1/2 = ภาคเรียน (ประถม)
     r_read = Column(Integer, nullable=True)     # การอ่าน
     r_think = Column(Integer, nullable=True)    # การคิดวิเคราะห์
     r_write = Column(Integer, nullable=True)    # การเขียนสื่อความ
