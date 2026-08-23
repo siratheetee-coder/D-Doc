@@ -167,14 +167,22 @@ def _assignments_of(subject, db, term):
 
 
 def _pp5_score_secondary(doc, subject, db, students, mmax, fmax, term):
-    """ตารางคะแนนมัธยม (แนวนอน) - ที่/ชื่อ/[งานเก็บแต่ละชิ้น]/คะแนนเก็บ/ปลายภาค/รวม/ผล/หมายเหตุ
-    (ไม่มีเลขประจำตัว · จำนวนช่องงาน = เท่าที่มีจริง)"""
+    """ตารางคะแนนมัธยม (แนวนอน) - ที่/ชื่อ/[งานเก็บ]/คะแนนเก็บ/สอบกลางภาค/ปลายภาค/รวม/ผล/หมายเหตุ
+    (ไม่มีเลขประจำตัว · งานเก็บ = เท่าที่มีจริง · สอบกลางภาค แยกช่องต่างหาก ไม่รวมในคะแนนเก็บ)"""
     from app.models import AcadScore
     scores = {x.acad_student_id: x for x in
               db.query(AcadScore).filter_by(subject_id=subject.id, term=term).all()}
     assigns, ascore = _assignments_of(subject, db, term)
-    na = len(assigns)
-    ncol = 2 + na + 5      # ที่ ชื่อ | งาน... | คะแนนเก็บ ปลายภาค รวม ผล หมายเหตุ
+    work = [a for a in assigns if not a.is_midterm]
+    mids = [a for a in assigns if a.is_midterm]
+    nw, has_mid = len(work), bool(mids)
+    mm_full = sum(a.max_score or 0 for a in mids)
+    km_full = mmax - mm_full                       # คะแนนเก็บ (ไม่รวมกลางภาค)
+    keep_col = 2 + nw
+    mid_col = keep_col + 1 if has_mid else None
+    final_col = keep_col + 1 + (1 if has_mid else 0)
+    total_col, grade_col, note_col = final_col + 1, final_col + 2, final_col + 3
+    ncol = note_col + 1
     t = doc.add_table(rows=2, cols=ncol); t.style = "Table Grid"
     r0, r1 = t.rows[0].cells, t.rows[1].cells
 
@@ -182,38 +190,44 @@ def _pp5_score_secondary(doc, subject, db, students, mmax, fmax, term):
         c = r0[idx].merge(r1[idx]); _cell(c, text, bold=True, fill="EDE9FE", size=12)
 
     vm2(0, "ที่"); vm2(1, "ชื่อ-นามสกุล")
-    if na:
-        c = r0[2].merge(r0[2 + na - 1]); _cell(c, "การเก็บคะแนนระหว่างภาค", bold=True, fill="EDE9FE", size=12)
-        for j, a in enumerate(assigns):
+    if nw:
+        c = r0[2].merge(r0[2 + nw - 1]); _cell(c, "การเก็บคะแนนระหว่างภาค", bold=True, fill="EDE9FE", size=12)
+        for j, a in enumerate(work):
             _cell(r1[2 + j], f"{j + 1}\n({a.max_score:g})", bold=True, fill="F1F5F9", size=11)
-    base = 2 + na
-    vm2(base, f"คะแนนเก็บ\n(เต็ม {mmax:g})")
-    vm2(base + 1, f"คะแนนปลายภาค\n(เต็ม {fmax:g})")
-    vm2(base + 2, f"รวม\n(เต็ม {mmax + fmax:g})")
-    vm2(base + 3, "ผลการเรียน")
-    vm2(base + 4, "หมายเหตุ")
+    vm2(keep_col, f"คะแนนเก็บ\n(เต็ม {km_full:g})")
+    if has_mid:
+        vm2(mid_col, f"สอบกลางภาค\n(เต็ม {mm_full:g})")
+    vm2(final_col, f"คะแนนปลายภาค\n(เต็ม {fmax:g})")
+    vm2(total_col, f"รวม\n(เต็ม {mmax + fmax:g})")
+    vm2(grade_col, "ผลการเรียน")
+    vm2(note_col, "หมายเหตุ")
     for s in students:
         sc = scores.get(s.id)
         cells = t.add_row().cells
         _cell(cells[0], s.seq or "", size=12)
         _cell(cells[1], s.name, align="left", size=12)
-        for j, a in enumerate(assigns):
+        for j, a in enumerate(work):
             v = ascore.get((s.id, a.id))
             _cell(cells[2 + j], f"{v:g}" if v is not None else "", size=12)
-        _cell(cells[base], f"{sc.score_mid:g}" if sc and sc.score_mid is not None else "", size=12)
-        _cell(cells[base + 1], f"{sc.score_final:g}" if sc and sc.score_final is not None else "", size=12)
-        _cell(cells[base + 2], f"{sc.score:g}" if sc and sc.score is not None else "", size=12, bold=True)
-        _cell(cells[base + 3], sc.grade if sc else "", bold=True, size=12)
-        _cell(cells[base + 4], "", size=12)
+        mid_sum = sum(ascore[(s.id, a.id)] for a in mids if ascore.get((s.id, a.id)) is not None)
+        keep = (sc.score_mid - mid_sum) if (sc and sc.score_mid is not None) else None
+        _cell(cells[keep_col], f"{keep:g}" if keep is not None else "", size=12)
+        if has_mid:
+            _cell(cells[mid_col], f"{mid_sum:g}" if any(ascore.get((s.id, a.id)) is not None for a in mids) else "", size=12)
+        _cell(cells[final_col], f"{sc.score_final:g}" if sc and sc.score_final is not None else "", size=12)
+        _cell(cells[total_col], f"{sc.score:g}" if sc and sc.score is not None else "", size=12, bold=True)
+        _cell(cells[grade_col], sc.grade if sc else "", bold=True, size=12)
+        _cell(cells[note_col], "", size=12)
     # แนวนอนเกือบเต็มหน้า ~26 ซม.
-    fixed = 1.0 + 5.2 + (2.4 + 2.4 + 2.0 + 2.0 + 2.2)   # ที่ ชื่อ + 5 คอลัมน์สรุป
-    aw = min(1.6, max(0.7, (26.0 - fixed) / na)) if na else 0
-    _widths(t, [Cm(1.0), Cm(5.2)] + [Cm(aw)] * na
-            + [Cm(2.4), Cm(2.4), Cm(2.0), Cm(2.0), Cm(2.2)])
+    # คอลัมน์สรุป: คะแนนเก็บ [สอบกลางภาค] ปลายภาค รวม ผล หมายเหตุ
+    summary_w = [2.4] + ([2.4] if has_mid else []) + [2.4, 2.0, 2.0, 2.2]
+    fixed = 1.0 + 5.2 + sum(summary_w)
+    aw = min(1.6, max(0.7, (26.0 - fixed) / nw)) if nw else 0
+    _widths(t, [Cm(1.0), Cm(5.2)] + [Cm(aw)] * nw + [Cm(w) for w in summary_w])
     _tight_cells(t)
-    if assigns:
+    if work:
         legend = " | ".join(f"{j + 1}. {a.name or 'งานที่ ' + str(j + 1)} (เต็ม {a.max_score:g})"
-                            for j, a in enumerate(assigns))
+                            for j, a in enumerate(work))
         _p(doc, "งานเก็บคะแนน: " + legend, size=11, after=0, align="left")
 
 
@@ -274,13 +288,16 @@ def _pp5_score_2term(doc, subject, db, students):
         for x in (db.query(AcadScore).filter(AcadScore.subject_id == subject.id,
                                              AcadScore.acad_student_id.in_(sids)).all()):
             rows[(x.acad_student_id, x.term)] = x
-    # งานเก็บคะแนนต่อภาค (จำนวนช่อง = เท่าที่มีจริง)
+    # งานเก็บคะแนนต่อภาค (แยกสอบกลางภาคออกจากงานเก็บ · จำนวนช่อง = เท่าที่มีจริง)
     a1, as1 = _assignments_of(subject, db, 1)
     a2, as2 = _assignments_of(subject, db, 2)
-    n1, n2 = len(a1), len(a2)
+    w1 = [a for a in a1 if not a.is_midterm]; m1 = [a for a in a1 if a.is_midterm]
+    w2 = [a for a in a2 if not a.is_midterm]; m2 = [a for a in a2 if a.is_midterm]
+    blk1 = len(w1) + 4 + (1 if m1 else 0)     # งาน + ระหว่างภาค[+กลางภาค]ปลายภาค/รวม/ผล
+    blk2 = len(w2) + 4 + (1 if m2 else 0)
     b1 = 2                        # เริ่มบล็อกภาค 1
-    b2 = b1 + n1 + 4              # เริ่มบล็อกภาค 2
-    avg_col = b2 + n2 + 4         # คะแนนเฉลี่ย 2 ภาค
+    b2 = b1 + blk1                # เริ่มบล็อกภาค 2
+    avg_col = b2 + blk2           # คะแนนเฉลี่ย 2 ภาค
     tot_col = avg_col + 1         # ผลการเรียนตลอดปี
     box_l = tot_col + 1           # กล่องสรุป (ผ่าน)
     box_r = box_l + 1             # ไม่ผ่าน
@@ -299,23 +316,30 @@ def _pp5_score_2term(doc, subject, db, students):
           bold=True, fill="EDE9FE", size=14, align="left")
     _cell(mg(2, 0, 4, 0), "ที่", bold=True, fill="EDE9FE", size=14)
     _cell(mg(2, 1, 4, 1), "ชื่อ - นามสกุล", bold=True, fill="EDE9FE", size=14)
-    # ภาคเรียนที่ 1 / 2 : หัวรวม + งานเก็บ + ระหว่างภาค/ปลายภาค/รวม/ผล (แนวตั้ง) + แถวคะแนนเต็ม
-    for base, lab, assigns in [(b1, "ภาคเรียนที่ 1", a1), (b2, "ภาคเรียนที่ 2", a2)]:
-        na = len(assigns)
-        _cell(mg(0, base, 0, base + na + 3), lab, bold=True, fill="EDE9FE", size=14)
-        if na:
-            _cell(mg(1, base, 1, base + na - 1), "การเก็บคะแนนระหว่างภาค", bold=True, fill="F1F5F9", size=12)
-            for j, a in enumerate(assigns):
+    # ภาคเรียนที่ 1 / 2 : หัวรวม + งานเก็บ + ระหว่างภาค[+สอบกลางภาค]/ปลายภาค/รวม/ผล + แถวคะแนนเต็ม
+    for base, lab, work, mids in [(b1, "ภาคเรียนที่ 1", w1, m1), (b2, "ภาคเรียนที่ 2", w2, m2)]:
+        nw, hm = len(work), bool(mids)
+        mmf = sum(a.max_score or 0 for a in mids)
+        kmf = mmax - mmf                          # คะแนนเก็บ (ไม่รวมกลางภาค)
+        blk = nw + 4 + (1 if hm else 0)
+        _cell(mg(0, base, 0, base + blk - 1), lab, bold=True, fill="EDE9FE", size=14)
+        if nw:
+            _cell(mg(1, base, 1, base + nw - 1), "การเก็บคะแนนระหว่างภาค", bold=True, fill="F1F5F9", size=12)
+            for j, a in enumerate(work):
                 _cell(mg(2, base + j, 3, base + j), str(j + 1), bold=True, fill="F1F5F9", size=12)
                 _cell(C(4, base + j), f"{a.max_score:g}", bold=True, fill="F8FAFC", size=12)
-        sb = base + na               # เริ่มคอลัมน์สรุปของภาค
-        _vcell(mg(1, sb, 3, sb), "ระหว่างภาค", bold=True, fill="F1F5F9", size=13)
-        _vcell(mg(1, sb + 1, 3, sb + 1), "ปลายภาค", bold=True, fill="F1F5F9", size=13)
-        _vcell(mg(1, sb + 2, 3, sb + 2), "รวม", bold=True, fill="F1F5F9", size=13)
-        _vcell(mg(1, sb + 3, 4, sb + 3), "ผลการเรียน", bold=True, fill="F1F5F9", size=13)
-        _cell(C(4, sb), str(mmax), bold=True, fill="F8FAFC", size=13)
-        _cell(C(4, sb + 1), str(fmax), bold=True, fill="F8FAFC", size=13)
-        _cell(C(4, sb + 2), str(mmax + fmax), bold=True, fill="F8FAFC", size=13)
+        sb = base + nw
+        _vcell(mg(1, sb, 3, sb), "ระหว่างภาค", bold=True, fill="F1F5F9", size=12)
+        _cell(C(4, sb), f"{kmf:g}", bold=True, fill="F8FAFC", size=12)
+        col = sb + 1
+        if hm:
+            _vcell(mg(1, col, 3, col), "สอบกลางภาค", bold=True, fill="F1F5F9", size=12)
+            _cell(C(4, col), f"{mmf:g}", bold=True, fill="F8FAFC", size=12); col += 1
+        _vcell(mg(1, col, 3, col), "ปลายภาค", bold=True, fill="F1F5F9", size=12)
+        _cell(C(4, col), str(fmax), bold=True, fill="F8FAFC", size=12)
+        _vcell(mg(1, col + 1, 3, col + 1), "รวม", bold=True, fill="F1F5F9", size=12)
+        _cell(C(4, col + 1), str(mmax + fmax), bold=True, fill="F8FAFC", size=12)
+        _vcell(mg(1, col + 2, 4, col + 2), "ผลการเรียน", bold=True, fill="F1F5F9", size=12)
     # คะแนนเฉลี่ย 2 ภาค / ผลการเรียนตลอดปี (แนวตั้ง ผสาน 5 แถว)
     _vcell(mg(0, avg_col, 4, avg_col), "คะแนนเฉลี่ย 2 ภาคเรียน", bold=True, fill="EDE9FE", size=13)
     _vcell(mg(0, tot_col, 4, tot_col), "ผลการเรียนตลอดปี", bold=True, fill="EDE9FE", size=13)
@@ -332,17 +356,23 @@ def _pp5_score_2term(doc, subject, db, students):
         cells = t.add_row().cells
         _cell(cells[0], s.seq or "", size=13)
         _cell(cells[1], s.name, align="left", size=13)
-        for base, tno, assigns, ascore in [(b1, 1, a1, as1), (b2, 2, a2, as2)]:
-            na = len(assigns)
-            for j, a in enumerate(assigns):
+        for base, tno, work, mids, ascore in [(b1, 1, w1, m1, as1), (b2, 2, w2, m2, as2)]:
+            nw, hm = len(work), bool(mids)
+            for j, a in enumerate(work):
                 v = ascore.get((s.id, a.id))
                 _cell(cells[base + j], f"{v:g}" if v is not None else "", size=13)
             r = rows.get((s.id, tno))
-            sb = base + na
-            _cell(cells[sb], f"{r.score_mid:g}" if r and r.score_mid is not None else "", size=13)
-            _cell(cells[sb + 1], f"{r.score_final:g}" if r and r.score_final is not None else "", size=13)
-            _cell(cells[sb + 2], f"{r.score:g}" if r and r.score is not None else "", size=13)
-            _cell(cells[sb + 3], r.grade if r else "", size=13, bold=True)
+            mid_sum = sum(ascore[(s.id, a.id)] for a in mids if ascore.get((s.id, a.id)) is not None)
+            keep = (r.score_mid - mid_sum) if (r and r.score_mid is not None) else None
+            sb = base + nw
+            _cell(cells[sb], f"{keep:g}" if keep is not None else "", size=13)
+            col = sb + 1
+            if hm:
+                has = any(ascore.get((s.id, a.id)) is not None for a in mids)
+                _cell(cells[col], f"{mid_sum:g}" if has else "", size=13); col += 1
+            _cell(cells[col], f"{r.score_final:g}" if r and r.score_final is not None else "", size=13)
+            _cell(cells[col + 1], f"{r.score:g}" if r and r.score is not None else "", size=13)
+            _cell(cells[col + 2], r.grade if r else "", size=13, bold=True)
         ann = rows.get((s.id, 0))
         _cell(cells[avg_col], f"{ann.score:g}" if ann and ann.score is not None else "", size=13)
         _cell(cells[tot_col], ann.grade if ann else "", size=13, bold=True)
@@ -351,23 +381,25 @@ def _pp5_score_2term(doc, subject, db, students):
         _cell(cells[box_l], "P" if (has and ok) else "", size=13, bold=True)
         _cell(cells[box_r], "P" if (has and not ok) else "", size=13, bold=True)
     # แนวนอน เกือบเต็มหน้า ~26 ซม.
-    fixed = 0.9 + 3.5 + 2 * (1.1 * 4) + 1.1 + 1.1 + 0.9 + 0.9    # ที่ ชื่อ + สรุป 2 ภาค + เฉลี่ย/ตลอดปี/ผ่าน/ไม่ผ่าน
-    aw = min(1.1, max(0.7, (26.0 - fixed) / (n1 + n2))) if (n1 + n2) else 0
+    nsum = (4 + (1 if m1 else 0)) + (4 + (1 if m2 else 0))   # คอลัมน์สรุป 2 ภาค
+    nwk = len(w1) + len(w2)
+    fixed = 0.9 + 3.5 + 1.05 * nsum + 1.1 + 1.1 + 0.9 + 0.9
+    aw = min(1.1, max(0.7, (26.0 - fixed) / nwk)) if nwk else 0
     col_w = [0.9, 3.5]
-    for base, assigns in [(b1, a1), (b2, a2)]:
-        col_w += [aw] * len(assigns) + [1.1, 1.1, 1.1, 1.1]
+    for work, mids in [(w1, m1), (w2, m2)]:
+        col_w += [aw] * len(work) + [1.05] * (4 + (1 if mids else 0))
     col_w += [1.1, 1.1, 0.9, 0.9]
     _widths(t, [Cm(w) for w in col_w])
     _tight_cells(t)
-    if a1 or a2:
+    if w1 or w2:
         def _leg(assigns):
             return " | ".join(f"{j + 1}. {a.name or 'งานที่ ' + str(j + 1)} (เต็ม {a.max_score:g})"
                               for j, a in enumerate(assigns))
         parts = []
-        if a1:
-            parts.append("ภาค 1 - " + _leg(a1))
-        if a2:
-            parts.append("ภาค 2 - " + _leg(a2))
+        if w1:
+            parts.append("ภาค 1 - " + _leg(w1))
+        if w2:
+            parts.append("ภาค 2 - " + _leg(w2))
         _p(doc, "งานเก็บคะแนน: " + "   ||   ".join(parts), size=11, after=0, align="left")
 
 
@@ -382,8 +414,8 @@ def _pp5_subject_cover(doc, school, klass, subject, db, students):
     teach = db.query(AcadTeaching).filter_by(class_id=klass.id, subject_id=subject.id).first()
     teacher = teach.teacher.name if (teach and teach.teacher) else ""
 
-    _logo_header(doc, school, height_cm=2.2, after=4)
-    _p(doc, "สมุดบันทึกการพัฒนาคุณภาพผู้เรียน (ปพ.5)", align="center", bold=True, size=18, after=10)
+    _logo_header(doc, school, height_cm=1.6, after=2)
+    _p(doc, "สมุดบันทึกการพัฒนาคุณภาพผู้เรียน (ปพ.5)", align="center", bold=True, size=18, after=4)
     snm = (school.name or "").strip()
     loc = [snm if snm.startswith("โรงเรียน") else f"โรงเรียน{snm}"]
     if (school.district or "").strip():
@@ -394,7 +426,7 @@ def _pp5_subject_cover(doc, school, klass, subject, db, students):
     if (school.area_office or "").strip():
         _ao = school.area_office.strip()
         _p(doc, _ao if _ao.startswith(("สำนักงาน", "สพ")) else f"สำนักงานเขตพื้นที่การศึกษา{_ao}",
-           align="center", size=14, after=8)
+           align="center", size=14, after=4)
     _p(doc, f"ปีการศึกษา {klass.year}          ชั้น {_class_label(klass)}", align="center", bold=True, size=14, after=0)
     if subject.learn_group:
         _p(doc, f"กลุ่มสาระการเรียนรู้{subject.learn_group}", align="center", size=14, after=0)
@@ -407,9 +439,9 @@ def _pp5_subject_cover(doc, school, klass, subject, db, students):
     if meta:
         _p(doc, "          ".join(meta), align="center", size=14, after=0)
     _p(doc, f"ครูผู้สอน {teacher}", align="center", size=14, after=0)
-    _p(doc, f"ครูประจำชั้น {klass.homeroom.name if klass.homeroom else ''}", align="center", size=14, after=10)
+    _p(doc, f"ครูประจำชั้น {klass.homeroom.name if klass.homeroom else ''}", align="center", size=14, after=6)
 
-    _p(doc, "การอนุมัติผลการเรียน", align="center", bold=True, size=14, after=4)
+    _p(doc, "การอนุมัติผลการเรียน", align="center", bold=True, size=14, after=2)
     grade_cols = ["4", "3.5", "3", "2.5", "2", "1.5", "1", "0", "ร", "มส"]
     gmap = {x.acad_student_id: (x.grade or "") for x in scores}
     cnt = _grade_counts(gmap.get(s.id, "") for s in students)
@@ -425,7 +457,7 @@ def _pp5_subject_cover(doc, school, klass, subject, db, students):
     _widths(gt, [Cm(4.4)] + [Cm(1.36)] * len(grade_cols))
     _p(doc, f"นักเรียนทั้งหมด {len(students)} คน"
        + (f"          คะแนนเฉลี่ยรายวิชา {savg:.2f}" if savg is not None else ""),
-       align="center", size=14, after=8)
+       align="center", size=14, after=4)
 
     ce = {x.acad_student_id: x for x in db.query(AcadCharEval).filter_by(subject_id=subject.id).all()}
     rd = {x.acad_student_id: x for x in db.query(AcadReadEval).filter_by(subject_id=subject.id).all()}
@@ -448,7 +480,7 @@ def _pp5_subject_cover(doc, school, klass, subject, db, students):
         _cell(qt.rows[1].cells[1 + i], ccnt[q] or "", size=14)
         _cell(qt.rows[2].cells[1 + i], rcnt[q] or "", size=14)
     _widths(qt, [Cm(6.0)] + [Cm(3.0)] * len(QUALITY_LEVELS))
-    _p(doc, "", after=8)
+    _p(doc, "", after=4)
 
     st = doc.add_table(rows=1, cols=2)
     for cell, (nm, role) in zip(st.rows[0].cells,
@@ -463,7 +495,7 @@ def _pp5_subject_cover(doc, school, klass, subject, db, students):
             if i == 0 and nm:
                 _float_signature(p, nm)
     _widths(st, [Cm(9.0), Cm(9.0)])
-    _p(doc, "", after=6)
+    _p(doc, "", after=2)
     _p(doc, "เรียนเสนอเพื่อพิจารณา", align="center", size=14, after=2)
     _sign_block(doc, (getattr(school, "academic_head_name", "") or "").strip(),
                 "หัวหน้า/รองผู้อำนวยการ ฝ่ายวิชาการ", size=14, after=6)
