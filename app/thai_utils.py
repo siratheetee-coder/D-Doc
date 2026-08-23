@@ -175,3 +175,10 @@ def current_academic_year(dt: datetime | None = None) -> int:
     if dt.month <= 4:           # ม.ค.-เม.ย. = ยังเป็นปีการศึกษาก่อนหน้า
         return be_year - 1
     return be_year
+
+
+def current_term(dt: datetime | None = None) -> int:
+    """หาภาคเรียนปัจจุบันจากเดือน · ภาค 1 = พ.ค.-ต.ค. · ภาค 2 = พ.ย.-เม.ย."""
+    if dt is None:
+        dt = datetime.now()
+    return 1 if 5 <= dt.month <= 10 else 2

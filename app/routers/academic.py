@@ -18,7 +18,8 @@ from app.models import (Student, Person, AcadClass, AcadStudent, AcadSubject,
                         AcadCharEval, AcadReadEval, AcadAttendance, AcadClassMonth,
                         AcadCalendar, AcadHoliday, AcadYearSetting,
                         AcadActivity, AcadActivityResult, AcadOnet)
-from app.thai_utils import SCHOOL_LEVELS, GRADUATED, current_academic_year, is_secondary, level_rank
+from app.thai_utils import (SCHOOL_LEVELS, GRADUATED, current_academic_year, current_term,
+                            is_secondary, level_rank)
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
 from app.services.academic import (grade_of, subject_preset, term_choices, term_label,
@@ -61,44 +62,54 @@ TH_MONTH_ORDER = {m: i for i, (m, _) in enumerate(TH_MONTHS)}
 
 # ---------------- หน้าหลัก ----------------
 @router.get("/academic", response_class=HTMLResponse)
-def academic_home(request: Request, db: Session = Depends(get_db), year: int | None = None):
+def academic_home(request: Request, db: Session = Depends(get_db),
+                  year: int | None = None, term: int | None = None):
     y = year or current_academic_year()
+    t = term if term in (1, 2) else current_term()
     classes = db.query(AcadClass).filter_by(year=y).all()
     n_students = (db.query(AcadStudent).join(AcadClass)
                   .filter(AcadClass.year == y).count())
-    progress = [(_class_label(c), c, _class_progress(c, db)) for c in _sorted_classes(classes)]
+    progress = [(_class_label(c), c, _class_progress(c, db, t)) for c in _sorted_classes(classes)]
     return templates.TemplateResponse("academic_home.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "n_classes": len(classes), "n_students": n_students,
         "n_subjects": db.query(AcadSubject).filter_by(year=y).count(),
         "progress": progress, "is_exit_level": is_exit_level,
+        "term": t, "term_label": term_label,
     })
 
 
-def _class_progress(c, db):
-    """ความคืบหน้าการประเมินของห้อง 1 ห้อง - นับจำนวนวิชาที่กรอก/ประเมินแล้ว เทียบวิชาทั้งหมด"""
+def _class_progress(c, db, term):
+    """ความคืบหน้าการประเมินของห้อง 1 ห้อง (ภาคเรียน term) - นับวิชาที่กรอก/ประเมินแล้ว
+    มัธยม: วิชาของภาคนั้น (subject.term) · ประถม: ทุกวิชา แต่ char/read/คะแนน กรองตามภาคที่กรอก"""
     from app.models import (AcadScore, AcadCharEval, AcadReadEval, AcadIndicatorResult,
                             AcadActivityResult, AcadAttendance, AcadOnet)
     from app.services.curriculum import selected_indicators
+    sec = is_secondary(c.level)
     sids = [s.id for s in c.students]
     nst = len(sids)
     subs = db.query(AcadSubject).filter_by(year=c.year, level=c.level).all()
+    if sec:
+        subs = [x for x in subs if (x.term or 0) == term]     # มัธยม: เฉพาะวิชาภาคนี้
     sub_ids = [x.id for x in subs]
     nsub = len(subs)
+    eval_tf = 0 if sec else term      # ตัวกรอง term ของ char/read (มัธยม=0 · ประถม=ภาคที่เลือก)
 
-    def n_subj(model, cond=None):
+    def n_subj(model, cond=None, tf=None):
         if not (sub_ids and sids):
             return 0
         q = db.query(model.subject_id).filter(model.subject_id.in_(sub_ids),
                                               model.acad_student_id.in_(sids))
+        if tf is not None:
+            q = q.filter(model.term == tf)
         if cond is not None:
             q = q.filter(cond)
         return len({r[0] for r in q.distinct().all()})
 
-    grade = n_subj(AcadScore, (AcadScore.grade.isnot(None)) & (AcadScore.grade != ""))
-    char = n_subj(AcadCharEval)
-    read = n_subj(AcadReadEval)
-    ind = n_subj(AcadIndicatorResult)
+    grade = n_subj(AcadScore, AcadScore.score.isnot(None), tf=term)
+    char = n_subj(AcadCharEval, tf=eval_tf)
+    read = n_subj(AcadReadEval, tf=eval_tf)
+    ind = n_subj(AcadIndicatorResult)          # ตัวชี้วัดผูกกับวิชา (ไม่มี term ของตัวเอง)
     ind_total = sum(1 for x in subs if selected_indicators(x))
     acts = activities_for(c.year, c.level, db)
     act_done = 0
