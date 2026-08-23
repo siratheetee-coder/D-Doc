@@ -709,6 +709,24 @@ def eval_page(request: Request, db: Session = Depends(get_db),
     c = db.get(AcadClass, cid) if cid else None
     students = sorted(c.students, key=lambda s: (s.seq or 999, s.name)) if c else []
     eff = {s.id: effective_eval(s, db) for s in students}
+    # จำนวนวิชาที่ประเมินคุณลักษณะ/อ่านคิดเขียนแล้ว (เทียบกับวิชาทั้งหมด) - รายคน
+    # ผลรวมจะโชว์ต่อเมื่อประเมินครบทุกวิชา (กันโชว์ 'ดีเยี่ยม' ทั้งที่ประเมินวิชาเดียว)
+    from app.models import AcadCharEval, AcadReadEval
+    eval_subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level).all() if c else [])
+    n_eval_subj = len(eval_subjects)
+    char_done = {s.id: 0 for s in students}
+    read_done = {s.id: 0 for s in students}
+    if eval_subjects and students:
+        _subids = [x.id for x in eval_subjects]
+        _sids = [s.id for s in students]
+        for r in (db.query(AcadCharEval)
+                  .filter(AcadCharEval.subject_id.in_(_subids),
+                          AcadCharEval.acad_student_id.in_(_sids)).all()):
+            char_done[r.acad_student_id] = char_done.get(r.acad_student_id, 0) + 1
+        for r in (db.query(AcadReadEval)
+                  .filter(AcadReadEval.subject_id.in_(_subids),
+                          AcadReadEval.acad_student_id.in_(_sids)).all()):
+            read_done[r.acad_student_id] = read_done.get(r.acad_student_id, 0) + 1
     # กิจกรรมพัฒนาผู้เรียนที่ตั้งไว้ + ผลรายคน + สรุปรวม
     activities = activities_for(c.year, c.level, db) if c else []
     act_res, act_sum = {}, {}
@@ -725,6 +743,7 @@ def eval_page(request: Request, db: Session = Depends(get_db),
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "classes": classes, "c": c, "students": students, "class_label": _class_label,
         "quality": QUALITY_LEVELS, "passfail": PASS_FAIL, "eff": eff,
+        "n_eval_subj": n_eval_subj, "char_done": char_done, "read_done": read_done,
         "activities": activities, "act_res": act_res, "act_sum": act_sum,
         "onet_exit": onet_exit, "onet_subjects": ONET_SUBJECTS, "onet": onet,
     })
