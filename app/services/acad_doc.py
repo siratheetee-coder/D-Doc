@@ -176,8 +176,9 @@ def _pp5_score_secondary(doc, subject, db, students, mmax, fmax, term):
     work = [a for a in assigns if not a.is_midterm]
     mids = [a for a in assigns if a.is_midterm]
     nw, has_mid = len(work), bool(mids)
-    mm_full = sum(a.max_score or 0 for a in mids)
-    km_full = mmax - mm_full                       # คะแนนเก็บ (ไม่รวมกลางภาค)
+    km_full = sum(a.max_score or 0 for a in work)  # เต็มคะแนนเก็บ = ผลรวมเต็มงานเก็บจริง
+    mm_full = sum(a.max_score or 0 for a in mids)   # เต็มสอบกลางภาค = ผลรวมเต็มงานกลางภาคจริง
+    total_full = km_full + mm_full + fmax
     keep_col = 2 + nw
     mid_col = keep_col + 1 if has_mid else None
     final_col = keep_col + 1 + (1 if has_mid else 0)
@@ -198,7 +199,7 @@ def _pp5_score_secondary(doc, subject, db, students, mmax, fmax, term):
     if has_mid:
         vm2(mid_col, f"สอบกลางภาค\n(เต็ม {mm_full:g})")
     vm2(final_col, f"คะแนนปลายภาค\n(เต็ม {fmax:g})")
-    vm2(total_col, f"รวม\n(เต็ม {mmax + fmax:g})")
+    vm2(total_col, f"รวม\n(เต็ม {total_full:g})")
     vm2(grade_col, "ผลการเรียน")
     vm2(note_col, "หมายเหตุ")
     for s in students:
@@ -206,11 +207,13 @@ def _pp5_score_secondary(doc, subject, db, students, mmax, fmax, term):
         cells = t.add_row().cells
         _cell(cells[0], s.seq or "", size=12)
         _cell(cells[1], s.name, align="left", size=12)
-        for j, a in enumerate(work):
-            v = ascore.get((s.id, a.id))
+        work_vals = [ascore.get((s.id, a.id)) for a in work]
+        for j, v in enumerate(work_vals):
             _cell(cells[2 + j], f"{v:g}" if v is not None else "", size=12)
         mid_sum = sum(ascore[(s.id, a.id)] for a in mids if ascore.get((s.id, a.id)) is not None)
-        keep = (sc.score_mid - mid_sum) if (sc and sc.score_mid is not None) else None
+        has_work = any(v is not None for v in work_vals)
+        work_sum = sum(v for v in work_vals if v is not None)
+        keep = work_sum if has_work else ((sc.score_mid - mid_sum) if (sc and sc.score_mid is not None) else None)
         _cell(cells[keep_col], f"{keep:g}" if keep is not None else "", size=12)
         if has_mid:
             _cell(cells[mid_col], f"{mid_sum:g}" if any(ascore.get((s.id, a.id)) is not None for a in mids) else "", size=12)
@@ -319,8 +322,8 @@ def _pp5_score_2term(doc, subject, db, students):
     # ภาคเรียนที่ 1 / 2 : หัวรวม + งานเก็บ + ระหว่างภาค[+สอบกลางภาค]/ปลายภาค/รวม/ผล + แถวคะแนนเต็ม
     for base, lab, work, mids in [(b1, "ภาคเรียนที่ 1", w1, m1), (b2, "ภาคเรียนที่ 2", w2, m2)]:
         nw, hm = len(work), bool(mids)
-        mmf = sum(a.max_score or 0 for a in mids)
-        kmf = mmax - mmf                          # คะแนนเก็บ (ไม่รวมกลางภาค)
+        kmf = sum(a.max_score or 0 for a in work)   # เต็มระหว่างภาค = ผลรวมเต็มงานเก็บจริง
+        mmf = sum(a.max_score or 0 for a in mids)    # เต็มสอบกลางภาค = ผลรวมเต็มงานกลางภาคจริง
         blk = nw + 4 + (1 if hm else 0)
         _cell(mg(0, base, 0, base + blk - 1), lab, bold=True, fill="EDE9FE", size=14)
         if nw:
@@ -338,7 +341,7 @@ def _pp5_score_2term(doc, subject, db, students):
         _vcell(mg(1, col, 3, col), "ปลายภาค", bold=True, fill="F1F5F9", size=12)
         _cell(C(4, col), str(fmax), bold=True, fill="F8FAFC", size=12)
         _vcell(mg(1, col + 1, 3, col + 1), "รวม", bold=True, fill="F1F5F9", size=12)
-        _cell(C(4, col + 1), str(mmax + fmax), bold=True, fill="F8FAFC", size=12)
+        _cell(C(4, col + 1), f"{kmf + mmf + fmax:g}", bold=True, fill="F8FAFC", size=12)
         _vcell(mg(1, col + 2, 4, col + 2), "ผลการเรียน", bold=True, fill="F1F5F9", size=12)
     # คะแนนเฉลี่ย 2 ภาค / ผลการเรียนตลอดปี (แนวตั้ง ผสาน 5 แถว)
     _vcell(mg(0, avg_col, 4, avg_col), "คะแนนเฉลี่ย 2 ภาคเรียน", bold=True, fill="EDE9FE", size=13)
@@ -358,12 +361,14 @@ def _pp5_score_2term(doc, subject, db, students):
         _cell(cells[1], s.name, align="left", size=13)
         for base, tno, work, mids, ascore in [(b1, 1, w1, m1, as1), (b2, 2, w2, m2, as2)]:
             nw, hm = len(work), bool(mids)
-            for j, a in enumerate(work):
-                v = ascore.get((s.id, a.id))
+            work_vals = [ascore.get((s.id, a.id)) for a in work]
+            for j, v in enumerate(work_vals):
                 _cell(cells[base + j], f"{v:g}" if v is not None else "", size=13)
             r = rows.get((s.id, tno))
             mid_sum = sum(ascore[(s.id, a.id)] for a in mids if ascore.get((s.id, a.id)) is not None)
-            keep = (r.score_mid - mid_sum) if (r and r.score_mid is not None) else None
+            has_work = any(v is not None for v in work_vals)
+            work_sum = sum(v for v in work_vals if v is not None)
+            keep = work_sum if has_work else ((r.score_mid - mid_sum) if (r and r.score_mid is not None) else None)
             sb = base + nw
             _cell(cells[sb], f"{keep:g}" if keep is not None else "", size=13)
             col = sb + 1
