@@ -20,6 +20,66 @@
   </div>
 </div>
 
+{% macro dcell(done, total, href) %}
+  {% if total == 0 %}<td class="center muted">-</td>
+  {% else %}
+    {% set cls = 'dc-full' if done >= total else ('dc-part' if done > 0 else 'dc-none') %}
+    <td class="center {{ cls }}"><a href="{{ href }}">{{ done }}/{{ total }}</a></td>
+  {% endif %}
+{% endmacro %}
+
+{% if progress %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> ความคืบหน้าการประเมิน</h2>
+    <span class="muted" style="font-size:12.5px;">
+      <b class="dc-full" style="padding:1px 6px; border-radius:4px;">ครบ</b>
+      <b class="dc-part" style="padding:1px 6px; border-radius:4px;">บางส่วน</b>
+      <b class="dc-none" style="padding:1px 6px; border-radius:4px;">ยังไม่เริ่ม</b>
+    </span>
+  </div>
+  <p class="muted" style="font-size:13px; margin:4px 0 10px;">ตัวเลข = วิชาที่ทำแล้ว / ทั้งหมด · คลิกช่องเพื่อไปหน้านั้น</p>
+  <div class="table-wrap">
+  <table class="dash-table">
+    <thead><tr>
+      <th style="text-align:left;">ห้อง</th><th>คะแนน</th><th>ตัวชี้วัด</th><th>คุณลักษณะ</th>
+      <th>อ่านเขียน</th><th>กิจกรรม</th><th>เวลาเรียน</th><th>O-NET</th>
+    </tr></thead>
+    <tbody>
+    {% for label, c, p in progress %}
+      <tr>
+        <td style="white-space:nowrap;"><a href="/academic/classes/{{ c.id }}" style="font-weight:600;">{{ label }}</a>
+          <span class="muted" style="font-size:12px;">{{ p.nst }} คน</span></td>
+        {{ dcell(p.grade, p.nsub, '/academic/grades?cid=' ~ c.id) }}
+        {{ dcell(p.ind, p.ind_total, '/academic/indicators?cid=' ~ c.id) }}
+        {{ dcell(p.char, p.nsub, '/academic/assess?cid=' ~ c.id ~ '&kind=char') }}
+        {{ dcell(p.read, p.nsub, '/academic/assess?cid=' ~ c.id ~ '&kind=read') }}
+        {% if p.n_acts == 0 %}<td class="center muted">-</td>
+        {% else %}<td class="center {{ 'dc-full' if p.act_done >= p.nst and p.nst else ('dc-part' if p.act_done else 'dc-none') }}">
+          <a href="/academic/eval?cid={{ c.id }}">{{ p.act_done }}/{{ p.nst }}</a></td>{% endif %}
+        <td class="center {{ 'dc-full' if p.att else 'dc-none' }}">
+          <a href="/academic/attendance?cid={{ c.id }}">{{ '✓' if p.att else '✗' }}</a></td>
+        {% if not p.exit %}<td class="center muted">-</td>
+        {% else %}<td class="center {{ 'dc-full' if p.onet else 'dc-none' }}">
+          <a href="/academic/eval?cid={{ c.id }}">{{ '✓' if p.onet else '✗' }}</a></td>{% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+<style>
+  .dash-table{ width:100%; border-collapse:collapse; font-size:14px; }
+  .dash-table th,.dash-table td{ border:1px solid #eee; padding:6px 8px; text-align:center; }
+  .dash-table th{ background:#f5f3ff; }
+  .dash-table td.center{ text-align:center; }
+  .dash-table a{ text-decoration:none; color:inherit; display:block; }
+  .dc-full{ background:#dcfce7; color:#166534; }
+  .dc-part{ background:#fef9c3; color:#854d0e; }
+  .dc-none{ background:#fee2e2; color:#991b1b; }
+</style>
+{% endif %}
+
 {% if not n_classes %}
 <div class="card" style="border:1px solid #ddd6fe; background:#faf8ff;">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-info"/></svg> เริ่มใช้งานงานวิชาการ</h2>

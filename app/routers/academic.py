@@ -66,11 +66,57 @@ def academic_home(request: Request, db: Session = Depends(get_db), year: int | N
     classes = db.query(AcadClass).filter_by(year=y).all()
     n_students = (db.query(AcadStudent).join(AcadClass)
                   .filter(AcadClass.year == y).count())
+    progress = [(_class_label(c), c, _class_progress(c, db)) for c in _sorted_classes(classes)]
     return templates.TemplateResponse("academic_home.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "n_classes": len(classes), "n_students": n_students,
         "n_subjects": db.query(AcadSubject).filter_by(year=y).count(),
+        "progress": progress, "is_exit_level": is_exit_level,
     })
+
+
+def _class_progress(c, db):
+    """ความคืบหน้าการประเมินของห้อง 1 ห้อง - นับจำนวนวิชาที่กรอก/ประเมินแล้ว เทียบวิชาทั้งหมด"""
+    from app.models import (AcadScore, AcadCharEval, AcadReadEval, AcadIndicatorResult,
+                            AcadActivityResult, AcadAttendance, AcadOnet)
+    from app.services.curriculum import selected_indicators
+    sids = [s.id for s in c.students]
+    nst = len(sids)
+    subs = db.query(AcadSubject).filter_by(year=c.year, level=c.level).all()
+    sub_ids = [x.id for x in subs]
+    nsub = len(subs)
+
+    def n_subj(model, cond=None):
+        if not (sub_ids and sids):
+            return 0
+        q = db.query(model.subject_id).filter(model.subject_id.in_(sub_ids),
+                                              model.acad_student_id.in_(sids))
+        if cond is not None:
+            q = q.filter(cond)
+        return len({r[0] for r in q.distinct().all()})
+
+    grade = n_subj(AcadScore, (AcadScore.grade.isnot(None)) & (AcadScore.grade != ""))
+    char = n_subj(AcadCharEval)
+    read = n_subj(AcadReadEval)
+    ind = n_subj(AcadIndicatorResult)
+    ind_total = sum(1 for x in subs if selected_indicators(x))
+    acts = activities_for(c.year, c.level, db)
+    act_done = 0
+    if acts and sids:
+        act_done = len({r[0] for r in db.query(AcadActivityResult.acad_student_id)
+                        .filter(AcadActivityResult.acad_student_id.in_(sids)).distinct().all()})
+    att = bool(sids) and db.query(AcadAttendance).filter(
+        AcadAttendance.acad_student_id.in_(sids)).first() is not None
+    onet = 0
+    if is_exit_level(c.level) and sids:
+        onet = db.query(AcadOnet).filter(AcadOnet.acad_student_id.in_(sids)).count()
+    return {
+        "nst": nst, "nsub": nsub,
+        "grade": grade, "char": char, "read": read,
+        "ind": ind, "ind_total": ind_total,
+        "act_done": act_done, "n_acts": len(acts),
+        "att": att, "onet": onet, "exit": is_exit_level(c.level),
+    }
 
 
 # ---------------- ห้องเรียน ----------------
