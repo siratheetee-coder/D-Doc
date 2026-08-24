@@ -421,6 +421,7 @@ def settings_save(
     admin_officer_name: str = Form(""), academic_head_name: str = Form(""),
     doc_prefix: str = Form("ศธ"), doc_set_threshold: str = Form(""),
     project_year_mode: str = Form("budget"),
+    attendance_by_subject: str = Form(""),
 ):
     s = get_school(db)
     s.name, s.address, s.district, s.province = name, address, district, province
@@ -432,6 +433,7 @@ def settings_save(
     s.admin_officer_name = admin_officer_name.strip()
     s.academic_head_name = academic_head_name.strip()
     s.project_year_mode = "academic" if project_year_mode == "academic" else "budget"
+    s.attendance_by_subject = bool(attendance_by_subject)
     s.doc_prefix, s.doc_set_threshold = doc_prefix, _to_float(doc_set_threshold, 5000.0)
     db.commit()
     return RedirectResponse("/settings?saved=1", status_code=303)

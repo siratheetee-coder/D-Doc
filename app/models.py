@@ -45,6 +45,7 @@ class School(Base):
 
     # ปีของโครงการ/แผน: "budget" = ปีงบประมาณ (ต.ค.) / "academic" = ปีการศึกษา (พ.ค.)
     project_year_mode = Column(String, default="budget")
+    attendance_by_subject = Column(Boolean, default=False)  # เช็กเวลาเรียนแยกรายวิชา (ไม่ใช่รายห้อง)
 
     doc_prefix = Column(String, default="ศธ")      # อักษรนำเลขที่หนังสือ
 
@@ -1357,6 +1358,7 @@ class AcadAttendance(Base):
 
     id = Column(Integer, primary_key=True)
     acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
+    subject_id = Column(Integer, ForeignKey("acad_subject.id"), nullable=True)  # NULL = รายห้อง · มีค่า = แยกรายวิชา
     month = Column(Integer, nullable=False)     # 5..12, 1..3
     present = Column(Integer, nullable=True)    # วันมาเรียนของเดือนนั้น (= จำนวน "/" ใน marks)
     # ผลเช็กชื่อรายวัน: สตริง 31 ตัว ตำแหน่ง = วันที่-1

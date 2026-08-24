@@ -523,7 +523,9 @@ def render_pp5(school, klass, subject, db) -> str:
     _pp5_roster(doc, klass, students, db)
     _new_section(doc, landscape=False)
     att_months = TERM_MONTHS.get(subject.term) if is_secondary(klass.level) else None
-    _pp5_attendance_daily(doc, klass, students, db, page_break=False, months_ok=att_months)
+    att_sub = subject.id if getattr(school, "attendance_by_subject", False) else None
+    _pp5_attendance_daily(doc, klass, students, db, page_break=False, months_ok=att_months,
+                          subject_id=att_sub)
     if _sel(subject):
         _new_section(doc, landscape=True)
         _pp5_indicator_page(doc, klass, subject, db, students, page_break=False)
@@ -677,15 +679,19 @@ def _pp5_indicator_page(doc, klass, subject, db, students, *, page_break=True):
     return True
 
 
-def _pp5_attendance_daily(doc, klass, students, db, *, page_break=True, months_ok=None):
+def _pp5_attendance_daily(doc, klass, students, db, *, page_break=True, months_ok=None,
+                          subject_id=None):
     """หน้าบันทึกเวลาเรียน (รายวัน) - ตารางเช็กชื่อต่อเดือน (เฉพาะเดือนที่มีปฏิทิน)
-    months_ok = set เดือนที่อนุญาต (มัธยม = เฉพาะเดือนในภาคเรียนนั้น) · None = ทุกเดือน"""
+    months_ok = set เดือนที่อนุญาต (มัธยม = เฉพาะเดือนในภาคเรียนนั้น) · None = ทุกเดือน
+    subject_id = ค่า = เวลาเรียนแยกรายวิชานั้น · None = รายห้อง (subject_id IS NULL)"""
     from app.models import AcadCalendar, AcadAttendance
     sids = [s.id for s in students]
     att = {}
     if sids:
+        cond = (AcadAttendance.subject_id == subject_id) if subject_id \
+            else AcadAttendance.subject_id.is_(None)
         for a in (db.query(AcadAttendance)
-                  .filter(AcadAttendance.acad_student_id.in_(sids)).all()):
+                  .filter(AcadAttendance.acad_student_id.in_(sids), cond).all()):
             att[(a.acad_student_id, a.month)] = parse_marks(a.marks)
     cals = {r.month: parse_days_csv(r.days_csv)
             for r in db.query(AcadCalendar).filter_by(year=klass.year).all()}

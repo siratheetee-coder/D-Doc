@@ -1048,29 +1048,38 @@ async def calendar_save(request: Request, db: Session = Depends(get_db), year: s
 @router.get("/academic/attendance", response_class=HTMLResponse)
 def attendance_page(request: Request, db: Session = Depends(get_db),
                     cid: int | None = None, year: int | None = None,
-                    month: int | None = None):
+                    month: int | None = None, sid: int | None = None):
     y = year or current_academic_year()
+    school = get_school(db)
+    by_subj = bool(getattr(school, "attendance_by_subject", False))
     classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
     c = db.get(AcadClass, cid) if cid else None
     students = sorted(c.students, key=lambda s: (s.seq or 999, s.name)) if c else []
     cal = {r.month: parse_days_csv(r.days_csv)
            for r in db.query(AcadCalendar).filter_by(year=y).all()}
+    # โหมดแยกรายวิชา: เลือกวิชาก่อน แล้วเช็กเวลาเรียนของวิชานั้น (subject_id) · โหมดรายห้อง: subject_id = NULL
+    subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
+                .order_by(AcadSubject.seq, AcadSubject.code).all()) if (c and by_subj) else []
+    subj = db.get(AcadSubject, sid) if (by_subj and sid) else None
+    att_sid = subj.id if (by_subj and subj) else None
+    subj_cond = (AcadAttendance.subject_id == att_sid) if att_sid else AcadAttendance.subject_id.is_(None)
     rows = []
-    if c and students:
+    if c and students and (not by_subj or subj):
         rows = (db.query(AcadAttendance)
-                .filter(AcadAttendance.acad_student_id.in_([s.id for s in students])).all())
+                .filter(AcadAttendance.acad_student_id.in_([s.id for s in students]), subj_cond).all())
 
     # ---- โหมดเช็กชื่อรายวัน ----
-    if c and month in dict(TH_MONTHS):
+    if c and month in dict(TH_MONTHS) and (not by_subj or subj):
         open_days = cal.get(month, [])
         wd = month_weekdays(y, month)
         marks = {a.acad_student_id: parse_marks(a.marks)
                  for a in rows if a.month == month}
         return templates.TemplateResponse("academic_attendance_day.html", {
-            "request": request, "school": get_school(db), "year": y, "c": c,
+            "request": request, "school": school, "year": y, "c": c,
             "students": students, "class_label": _class_label, "month": month,
             "month_name": TH_MONTH_FULL[month], "open_days": open_days,
             "weekdays": wd, "marks": marks, "states": MARK_STATES, "blank": MARK_BLANK,
+            "by_subj": by_subj, "subj": subj,
         })
 
     # ---- โหมดสรุปรายเดือน ----
@@ -1083,22 +1092,26 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
             if (a.marks or "").strip(MARK_BLANK):
                 marked.add((a.acad_student_id, a.month))
     return templates.TemplateResponse("academic_attendance.html", {
-        "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
+        "request": request, "school": school, "year": y, "years": _years(db, y),
         "classes": classes, "c": c, "students": students, "class_label": _class_label,
         "months": TH_MONTHS, "opens": opens, "att": att, "marked": marked,
         "cal_days": {m: len(d) for m, d in cal.items()}, "has_cal": bool(cal),
+        "by_subj": by_subj, "subjects": subjects, "subj": subj,
     })
 
 
 @router.post("/academic/attendance/day-save")
 async def attendance_day_save(request: Request, db: Session = Depends(get_db),
-                              cid: str = Form(""), month: str = Form("")):
+                              cid: str = Form(""), month: str = Form(""), sid: str = Form("")):
     """บันทึกเช็กชื่อรายวันของเดือนเดียว - เขียน marks + present ให้ตรงกัน"""
     form = await request.form()
     c = db.get(AcadClass, _to_int(cid, 0))
     m = _to_int(month, 0)
     if not c or m not in dict(TH_MONTHS):
         return RedirectResponse("/academic/attendance", status_code=303)
+    by_subj = bool(getattr(get_school(db), "attendance_by_subject", False))
+    att_sid = (_to_int(sid, 0) or None) if by_subj else None
+    subj_cond = (AcadAttendance.subject_id == att_sid) if att_sid else AcadAttendance.subject_id.is_(None)
     cal = db.query(AcadCalendar).filter_by(year=c.year, month=m).first()
     open_days = parse_days_csv(cal.days_csv if cal else "")
     cur = {}
@@ -1106,11 +1119,11 @@ async def attendance_day_save(request: Request, db: Session = Depends(get_db),
     if sids:
         cur = {a.acad_student_id: a for a in db.query(AcadAttendance)
                .filter(AcadAttendance.acad_student_id.in_(sids),
-                       AcadAttendance.month == m).all()}
+                       AcadAttendance.month == m, subj_cond).all()}
     for s in c.students:
         row = cur.get(s.id)
         if not row:
-            row = AcadAttendance(acad_student_id=s.id, month=m)
+            row = AcadAttendance(acad_student_id=s.id, month=m, subject_id=att_sid)
             db.add(row)
         day_map = {}
         for d in open_days:                      # เก็บเฉพาะวันเปิดเรียนตามปฏิทิน
@@ -1126,16 +1139,21 @@ async def attendance_day_save(request: Request, db: Session = Depends(get_db),
         db.add(cm)
     cm.days_open = len(open_days) or None
     db.commit()
-    return RedirectResponse(f"/academic/attendance?cid={c.id}&month={m}&saved=1",
+    sq = f"&sid={att_sid}" if att_sid else ""
+    return RedirectResponse(f"/academic/attendance?cid={c.id}&month={m}{sq}&saved=1",
                             status_code=303)
 
 
 @router.post("/academic/attendance/save")
-async def attendance_save(request: Request, db: Session = Depends(get_db), cid: str = Form("")):
+async def attendance_save(request: Request, db: Session = Depends(get_db),
+                          cid: str = Form(""), sid: str = Form("")):
     form = await request.form()
     c = db.get(AcadClass, _to_int(cid, 0))
     if not c:
         return RedirectResponse("/academic/attendance", status_code=303)
+    by_subj = bool(getattr(get_school(db), "attendance_by_subject", False))
+    att_sid = (_to_int(sid, 0) or None) if by_subj else None
+    subj_cond = (AcadAttendance.subject_id == att_sid) if att_sid else AcadAttendance.subject_id.is_(None)
     # วันเปิดเรียนรายเดือนของห้อง
     curm = {m.month: m for m in db.query(AcadClassMonth).filter_by(class_id=c.id).all()}
     for mnum, _ in TH_MONTHS:
@@ -1149,7 +1167,7 @@ async def attendance_save(request: Request, db: Session = Depends(get_db), cid: 
     cura = {}
     if sids:
         for a in (db.query(AcadAttendance)
-                  .filter(AcadAttendance.acad_student_id.in_(sids)).all()):
+                  .filter(AcadAttendance.acad_student_id.in_(sids), subj_cond).all()):
             cura[(a.acad_student_id, a.month)] = a
     cure = {e.acad_student_id: e for e in db.query(AcadEval).join(AcadStudent)
             .filter(AcadStudent.class_id == c.id).all()}
@@ -1161,7 +1179,7 @@ async def attendance_save(request: Request, db: Session = Depends(get_db), cid: 
         for mnum, _ in TH_MONTHS:
             row = cura.get((s.id, mnum))
             if not row:
-                row = AcadAttendance(acad_student_id=s.id, month=mnum)
+                row = AcadAttendance(acad_student_id=s.id, month=mnum, subject_id=att_sid)
                 db.add(row)
             # เดือนที่เช็กชื่อรายวันไว้แล้ว ยอดมาจากการนับ marks - หน้าสรุปไม่ส่งช่องนั้นมา
             # (ถ้าเผลอทับ ตัวเลขบนหน้าจอจะไม่ตรงกับที่เอกสารใช้จริง)
@@ -1190,12 +1208,13 @@ async def attendance_save(request: Request, db: Session = Depends(get_db), cid: 
         else:
             e.days_present = _to_int(form.get(f"dpres_{s.id}", ""), None)
     db.commit()
-    return RedirectResponse(f"/academic/attendance?cid={c.id}&saved=1", status_code=303)
+    sq = f"&sid={att_sid}" if att_sid else ""
+    return RedirectResponse(f"/academic/attendance?cid={c.id}{sq}&saved=1", status_code=303)
 
 
 @router.post("/academic/attendance/fill-year")
 async def attendance_fill_year(request: Request, db: Session = Depends(get_db),
-                               cid: str = Form("")):
+                               cid: str = Form(""), sid: str = Form("")):
     """ทุกคนมาเรียนทุกวันทั้งปี: เขียนเครื่องหมาย "มา" รายวันให้ครบทุกวันเปิดเรียน
     (เดือนที่มีปฏิทิน) + เติมยอดรายเดือน/รายปีให้ครบ · ป่วย/ลา/ขาด = 0
     เดือนที่ยังไม่มีปฏิทินแต่ครูพิมพ์จำนวนวันเปิดเรียนไว้ ใช้จำนวนนั้นเป็นยอด "มา" """
@@ -1203,6 +1222,9 @@ async def attendance_fill_year(request: Request, db: Session = Depends(get_db),
     c = db.get(AcadClass, _to_int(cid, 0))
     if not c:
         return RedirectResponse("/academic/attendance", status_code=303)
+    by_subj = bool(getattr(get_school(db), "attendance_by_subject", False))
+    att_sid = (_to_int(sid, 0) or None) if by_subj else None
+    subj_cond = (AcadAttendance.subject_id == att_sid) if att_sid else AcadAttendance.subject_id.is_(None)
     cal = {r.month: parse_days_csv(r.days_csv)
            for r in db.query(AcadCalendar).filter_by(year=c.year).all()}
     # จำนวนวันเปิดเรียนต่อเดือน: ใช้ปฏิทินก่อน ไม่มีก็ใช้ค่าที่ครูพิมพ์ในฟอร์ม
@@ -1229,7 +1251,7 @@ async def attendance_fill_year(request: Request, db: Session = Depends(get_db),
     cura = {}
     if sids:
         for a in (db.query(AcadAttendance)
-                  .filter(AcadAttendance.acad_student_id.in_(sids)).all()):
+                  .filter(AcadAttendance.acad_student_id.in_(sids), subj_cond).all()):
             cura[(a.acad_student_id, a.month)] = a
     cure = {e.acad_student_id: e for e in db.query(AcadEval).join(AcadStudent)
             .filter(AcadStudent.class_id == c.id).all()}
@@ -1238,7 +1260,7 @@ async def attendance_fill_year(request: Request, db: Session = Depends(get_db),
         for mnum, n in nday.items():
             row = cura.get((s.id, mnum))
             if not row:
-                row = AcadAttendance(acad_student_id=s.id, month=mnum)
+                row = AcadAttendance(acad_student_id=s.id, month=mnum, subject_id=att_sid)
                 db.add(row)
             if mnum in marks_by_month:               # เดือนมีปฏิทิน -> เขียนมาร์ครายวันครบ
                 row.marks = marks_by_month[mnum]
@@ -1251,7 +1273,8 @@ async def attendance_fill_year(request: Request, db: Session = Depends(get_db),
         e.days_present = total or None
         e.days_sick = e.days_leave = e.days_absent = 0
     db.commit()
-    return RedirectResponse(f"/academic/attendance?cid={c.id}&saved=1", status_code=303)
+    sq = f"&sid={att_sid}" if att_sid else ""
+    return RedirectResponse(f"/academic/attendance?cid={c.id}{sq}&saved=1", status_code=303)
 
 
 # ---------------- เอกสาร ----------------

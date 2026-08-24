@@ -147,6 +147,8 @@ MIGRATIONS = [
     ("acad_subject", "indicator_codes", "TEXT DEFAULT ''"),
     ("acad_char_eval", "term", "INTEGER DEFAULT 0"),
     ("acad_read_eval", "term", "INTEGER DEFAULT 0"),
+    ("acad_attendance", "subject_id", "INTEGER"),
+    ("school", "attendance_by_subject", "BOOLEAN DEFAULT 0"),
     ("student", "father_job", "VARCHAR DEFAULT ''"),
     ("student", "mother_job", "VARCHAR DEFAULT ''"),
     ("student", "guardian_name", "VARCHAR DEFAULT ''"),
