@@ -23,10 +23,11 @@
         {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id==c.id }}>{{ class_label(k) }}</option>{% endfor %}
       </select></div>
     {% if c and by_subj %}
-    <div><label>รายวิชา (เช็กแยกวิชา)</label>
+    <div><label>เช็กเวลาของ</label>
       <select name="sid" onchange="submitReplace(this.form)">
-        <option value="">- เลือกวิชา -</option>
-        {% for sb in subjects %}<option value="{{ sb.id }}" {{ 'selected' if subj and sb.id==subj.id }}>{{ sb.code }} {{ sb.name }}</option>{% endfor %}
+        <option value="">- เลือก -</option>
+        <option value="0" {{ 'selected' if home_pick }}>รายห้อง (โฮมรูม — สำหรับ ปพ.6/เล่มรวม)</option>
+        {% for sb in subjects %}<option value="{{ sb.id }}" {{ 'selected' if subj and sb.id==subj.id }}>วิชา {{ sb.code }} {{ sb.name }}</option>{% endfor %}
       </select></div>
     {% endif %}
   </form>
@@ -42,13 +43,14 @@
   {% if not c %}
   <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> เพื่อกรอกเวลาเรียน -
     กรอกเป็น<b>รายเดือน</b> (ระบบรวมและคิดร้อยละให้) หรือกรอกเฉพาะ<b>ยอดรวมทั้งปี</b> ก็ได้</p>
-  {% elif by_subj and not subj %}
-  <p class="muted" style="margin:10px 0 0;">โรงเรียนนี้ตั้งค่า<b>เช็กเวลาเรียนแยกรายวิชา</b> - เลือก <b>รายวิชา</b> ด้านบนก่อน
-    (แต่ละวิชาเช็กเวลาเรียนของตัวเอง)</p>
+  {% elif by_subj and not picked %}
+  <p class="muted" style="margin:10px 0 0;">โหมด<b>แยกรายวิชา</b> - เลือกด้านบนว่าจะเช็กเวลาของ <b>รายห้อง</b> (ใช้ในสมุด ปพ.6/เล่มรวม)
+    หรือของ <b>รายวิชา</b> ใดวิชาหนึ่ง (ใช้ใน ปพ.5 รายวิชา)</p>
   {% endif %}
 </div>
 
-{% if c and (not by_subj or subj) %}
+{% set cur_sid = 0 if home_pick else (subj.id if subj else '') %}
+{% if c and picked %}
 <div class="card">
   <h2 style="margin:0 0 4px;">ห้อง {{ class_label(c) }} <span class="muted" style="font-size:15px;">({{ students|length }} คน)</span></h2>
   <p class="muted" style="font-size:13px; margin:4px 0 8px;">
@@ -73,14 +75,16 @@
 
   <form method="post" action="/academic/attendance/save">
     <input type="hidden" name="cid" value="{{ c.id }}">
-    {% if by_subj and subj %}<input type="hidden" name="sid" value="{{ subj.id }}">
-    <p class="muted" style="font-size:13px; margin:0 0 6px;"><b>วิชา {{ subj.code }} {{ subj.name }}</b> - เวลาเรียนของวิชานี้โดยเฉพาะ</p>{% endif %}
+    {% if by_subj %}<input type="hidden" name="sid" value="{{ cur_sid }}">
+    <p class="muted" style="font-size:13px; margin:0 0 6px;">
+      {% if subj %}<b>วิชา {{ subj.code }} {{ subj.name }}</b> - เวลาเรียนของวิชานี้ (ใช้ใน ปพ.5 รายวิชา)
+      {% else %}<b>รายห้อง (โฮมรูม)</b> - เวลาเรียนทางการของห้อง ใช้ในสมุด ปพ.6 และ ปพ.5 เล่มรวม{% endif %}</p>{% endif %}
     <div class="table-wrap">
     <table id="attTable" class="{% if not show_m %}hide-months{% endif %}">
       <thead><tr>
         <th>เลขที่</th><th>ชื่อ-นามสกุล</th>
         {% for mnum, mname in months %}<th class="mcol center" style="white-space:nowrap;">
-          <a class="month-hd" href="/academic/attendance?cid={{ c.id }}&month={{ mnum }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}" title="เช็กชื่อรายวัน {{ mname }}">{{ mname }} ✎</a>
+          <a class="month-hd" href="/academic/attendance?cid={{ c.id }}&month={{ mnum }}{% if by_subj and picked %}&sid={{ cur_sid }}{% endif %}" title="เช็กชื่อรายวัน {{ mname }}">{{ mname }} ✎</a>
           {% if cal_days.get(mnum) %}<i style="display:block; font-style:normal; font-size:10px; font-weight:400; color:var(--muted);">{{ cal_days[mnum] }} วัน</i>{% endif %}
         </th>{% endfor %}
         <th class="center">เปิด(รวม)</th>
@@ -111,7 +115,7 @@
           {# เช็กรายวันไว้แล้ว: แสดงยอดที่นับจากการเช็ก แก้ที่หน้าเช็กชื่อเท่านั้น
              (ถ้าให้พิมพ์ทับตรงนี้ ตัวเลขจะไม่ตรงกับที่เอกสารใช้จริง) #}
           <td class="mcol center" title="นับจากการเช็กชื่อรายวัน - แก้ที่หน้าเช็กชื่อ">
-            <a href="/academic/attendance?cid={{ c.id }}&month={{ mnum }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}" style="font-weight:700;">{{ v if v is not none else 0 }}</a>
+            <a href="/academic/attendance?cid={{ c.id }}&month={{ mnum }}{% if by_subj and picked %}&sid={{ cur_sid }}{% endif %}" style="font-weight:700;">{{ v if v is not none else 0 }}</a>
             <span data-m data-fixed="{{ v if v is not none else 0 }}" style="display:none;"></span></td>
           {% else %}
           <td class="mcol"><input name="p_{{ s.id }}_{{ mnum }}" data-m value="{{ v if v is not none else '' }}"

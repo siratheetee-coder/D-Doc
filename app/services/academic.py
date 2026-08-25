@@ -248,7 +248,11 @@ def effective_eval(student, db) -> dict:
         out["read_src"] = "detail"
 
     # เวลาเรียน: เช็กชื่อรายวัน > ยอดรายเดือน > ยอดทั้งปีที่กรอกมือ
-    att = db.query(AcadAttendance).filter_by(acad_student_id=student.id).all()
+    # เวลาเรียนของสมุดรายงาน (ปพ.6) = รายห้อง/โฮมรูม เสมอ (subject_id IS NULL)
+    # เวลาแยกรายวิชา (subject_id มีค่า) ใช้เฉพาะใน ปพ.5 รายวิชา - ไม่นำมารวมกันที่นี่
+    att = (db.query(AcadAttendance)
+           .filter(AcadAttendance.acad_student_id == student.id,
+                   AcadAttendance.subject_id.is_(None)).all())
     marked = [a for a in att if (a.marks or "").strip(MARK_BLANK)]
     if marked:
         # นับจาก marks: ได้ทั้งวันมาและยอด ป่วย/ลา/ขาด โดยครูไม่ต้องกรอกซ้ำ

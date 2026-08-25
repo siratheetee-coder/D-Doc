@@ -1060,16 +1060,19 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
     # โหมดแยกรายวิชา: เลือกวิชาก่อน แล้วเช็กเวลาเรียนของวิชานั้น (subject_id) · โหมดรายห้อง: subject_id = NULL
     subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
                 .order_by(AcadSubject.seq, AcadSubject.code).all()) if (c and by_subj) else []
-    subj = db.get(AcadSubject, sid) if (by_subj and sid) else None
+    # sid = 0 (หรือ 'รายห้อง') ในโหมดแยกวิชา = เวลารายห้อง/โฮมรูม (subject_id NULL สำหรับ ปพ.6/เล่มรวม)
+    subj = db.get(AcadSubject, sid) if (by_subj and sid and sid > 0) else None
+    home_pick = bool(by_subj and sid == 0)
     att_sid = subj.id if (by_subj and subj) else None
+    picked = (not by_subj) or home_pick or (subj is not None)
     subj_cond = (AcadAttendance.subject_id == att_sid) if att_sid else AcadAttendance.subject_id.is_(None)
     rows = []
-    if c and students and (not by_subj or subj):
+    if c and students and picked:
         rows = (db.query(AcadAttendance)
                 .filter(AcadAttendance.acad_student_id.in_([s.id for s in students]), subj_cond).all())
 
     # ---- โหมดเช็กชื่อรายวัน ----
-    if c and month in dict(TH_MONTHS) and (not by_subj or subj):
+    if c and month in dict(TH_MONTHS) and picked:
         open_days = cal.get(month, [])
         wd = month_weekdays(y, month)
         marks = {a.acad_student_id: parse_marks(a.marks)
@@ -1079,7 +1082,7 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
             "students": students, "class_label": _class_label, "month": month,
             "month_name": TH_MONTH_FULL[month], "open_days": open_days,
             "weekdays": wd, "marks": marks, "states": MARK_STATES, "blank": MARK_BLANK,
-            "by_subj": by_subj, "subj": subj,
+            "by_subj": by_subj, "subj": subj, "home_pick": home_pick,
         })
 
     # ---- โหมดสรุปรายเดือน ----
@@ -1097,6 +1100,7 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
         "months": TH_MONTHS, "opens": opens, "att": att, "marked": marked,
         "cal_days": {m: len(d) for m, d in cal.items()}, "has_cal": bool(cal),
         "by_subj": by_subj, "subjects": subjects, "subj": subj,
+        "picked": picked, "home_pick": home_pick,
     })
 
 
@@ -1150,7 +1154,7 @@ async def attendance_day_save(request: Request, db: Session = Depends(get_db),
         db.add(cm)
     cm.days_open = len(open_days) or None
     db.commit()
-    sq = f"&sid={att_sid}" if att_sid else ""
+    sq = f"&sid={_to_int(sid, 0)}" if by_subj else ""
     return RedirectResponse(f"/academic/attendance?cid={c.id}&month={m}{sq}&saved=1",
                             status_code=303)
 
@@ -1219,7 +1223,7 @@ async def attendance_save(request: Request, db: Session = Depends(get_db),
         else:
             e.days_present = _to_int(form.get(f"dpres_{s.id}", ""), None)
     db.commit()
-    sq = f"&sid={att_sid}" if att_sid else ""
+    sq = f"&sid={_to_int(sid, 0)}" if by_subj else ""
     return RedirectResponse(f"/academic/attendance?cid={c.id}{sq}&saved=1", status_code=303)
 
 
@@ -1284,7 +1288,7 @@ async def attendance_fill_year(request: Request, db: Session = Depends(get_db),
         e.days_present = total or None
         e.days_sick = e.days_leave = e.days_absent = 0
     db.commit()
-    sq = f"&sid={att_sid}" if att_sid else ""
+    sq = f"&sid={_to_int(sid, 0)}" if by_subj else ""
     return RedirectResponse(f"/academic/attendance?cid={c.id}{sq}&saved=1", status_code=303)
 
 

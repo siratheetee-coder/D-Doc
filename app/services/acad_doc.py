@@ -1100,7 +1100,9 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
         sids = [s.id for s in students]
         marks_by = {}
         if sids:
-            for a in db.query(AcadAttendance).filter(AcadAttendance.acad_student_id.in_(sids)).all():
+            for a in db.query(AcadAttendance).filter(
+                    AcadAttendance.acad_student_id.in_(sids),
+                    AcadAttendance.subject_id.is_(None)).all():   # เล่มรวมใช้เวลารายห้อง (โฮมรูม)
                 if att_months is None or a.month in att_months:
                     marks_by[(a.acad_student_id, a.month)] = count_marks(a.marks)
 
@@ -1519,7 +1521,9 @@ def _pp6_attendance_growth(doc, school, s, db, ef):
     klass = s.klass
     _p(doc, "เวลาเรียน", align="center", bold=True, size=17, after=6, page_break=True)
 
-    att = {a.month: a for a in db.query(AcadAttendance).filter_by(acad_student_id=s.id).all()}
+    att = {a.month: a for a in db.query(AcadAttendance)
+           .filter(AcadAttendance.acad_student_id == s.id,
+                   AcadAttendance.subject_id.is_(None)).all()}   # ปพ.6 ใช้เวลารายห้อง (โฮมรูม)
     heads = ["เดือน", "มา", "ป่วย", "ลา", "ขาด"]
     t = doc.add_table(rows=1, cols=5); t.style = "Table Grid"
     for i, h in enumerate(heads):
