@@ -464,17 +464,27 @@ def _pp5_subject_cover(doc, school, klass, subject, db, students):
        + (f"          คะแนนเฉลี่ยรายวิชา {savg:.2f}" if savg is not None else ""),
        align="center", size=14, after=4)
 
-    ce = {x.acad_student_id: x for x in db.query(AcadCharEval).filter_by(subject_id=subject.id).all()}
-    rd = {x.acad_student_id: x for x in db.query(AcadReadEval).filter_by(subject_id=subject.id).all()}
+    ce, rd = {}, {}      # รวมทุกภาคเรียน (ประถมประเมินแยกภาค) -> เฉลี่ยเป็นผลรวมทั้งปี
+    for r in db.query(AcadCharEval).filter_by(subject_id=subject.id).all():
+        ce.setdefault(r.acad_student_id, []).append(r)
+    for r in db.query(AcadReadEval).filter_by(subject_id=subject.id).all():
+        rd.setdefault(r.acad_student_id, []).append(r)
     ccnt = {q: 0 for q in QUALITY_LEVELS}
     rcnt = {q: 0 for q in QUALITY_LEVELS}
+
+    def _agg(rows, avg_fn):
+        if not rows:
+            return None
+        vals = [v for v in (avg_fn(r) for r in rows) if v is not None]
+        return (sum(vals) / len(vals)) if vals else None
+
     for s in students:
-        c = ce.get(s.id)
-        if c:
-            ccnt[quality_of_avg(char_avg(c))[1]] += 1
-        r = rd.get(s.id)
-        if r:
-            rcnt[quality_of_avg(read_avg(r))[1]] += 1
+        ca = _agg(ce.get(s.id), char_avg)
+        if ca is not None:
+            ccnt[quality_of_avg(ca)[1]] += 1
+        ra = _agg(rd.get(s.id), read_avg)
+        if ra is not None:
+            rcnt[quality_of_avg(ra)[1]] += 1
     qt = doc.add_table(rows=3, cols=1 + len(QUALITY_LEVELS)); qt.style = "Table Grid"
     _cell(qt.rows[0].cells[0], "ผลการประเมิน", bold=True, fill="EDE9FE", size=14)
     for i, q in enumerate(QUALITY_LEVELS):
@@ -598,8 +608,12 @@ def render_pp5(school, klass, subject, db) -> str:
         _pp5_indicator_page(doc, klass, subject, db, students, page_break=False)
     _new_section(doc, landscape=True)
     _pp5_score_page(doc, school, klass, subject, db, page_break=False)
-    _pp5_char_page(doc, klass, subject, db, students, page_break=True)
-    _pp5_read_page(doc, klass, subject, db, students, page_break=True)
+    # คุณลักษณะ/อ่านคิดเขียน · ประถมประเมินแยกภาคเรียน (พิมพ์ทั้ง 2 ภาค) · มัธยม = ภาคเดียว
+    eval_terms = (1, 2) if not is_secondary(klass.level) else (0,)
+    for et in eval_terms:
+        _pp5_char_page(doc, klass, subject, db, students, page_break=True, term=et)
+    for et in eval_terms:
+        _pp5_read_page(doc, klass, subject, db, students, page_break=True, term=et)
     # สรุปผลพัฒนาผู้เรียน (แนวตั้ง) -> เกณฑ์/ปกหลัง (แนวตั้ง)
     _new_section(doc, landscape=False)
     _pp5_subject_summary(doc, school, klass, subject, db, students, page_break=False)
@@ -802,16 +816,17 @@ def _pp5_attendance_daily(doc, klass, students, db, *, page_break=True, months_o
     return True
 
 
-def _pp5_char_page(doc, klass, subject, db, students, *, page_break=True):
-    """หน้าประเมินคุณลักษณะอันพึงประสงค์ 8 ข้อ ของ 1 รายวิชา"""
+def _pp5_char_page(doc, klass, subject, db, students, *, page_break=True, term=0):
+    """หน้าประเมินคุณลักษณะอันพึงประสงค์ 8 ข้อ ของ 1 รายวิชา (ประถมแยกภาคเรียน)"""
     from app.models import AcadCharEval
-    _p(doc, "ผลการประเมินคุณลักษณะอันพึงประสงค์ (รายวิชา)",
+    tsuf = f" (ภาคเรียนที่ {term})" if term in (1, 2) else ""
+    _p(doc, "ผลการประเมินคุณลักษณะอันพึงประสงค์ (รายวิชา)" + tsuf,
        align="center", bold=True, size=16, after=0, page_break=page_break)
     _p(doc, f"รายวิชา {subject.code or ''} {subject.name}   ชั้น {_class_label(klass)}   "
             f"ปีการศึกษา {klass.year}", align="center", size=14, after=6)
 
     chars = {r.acad_student_id: r for r in
-             db.query(AcadCharEval).filter_by(subject_id=subject.id).all()}
+             db.query(AcadCharEval).filter_by(subject_id=subject.id, term=term).all()}
     heads = ["เลขที่", "ชื่อ-นามสกุล"] + [f"ข้อ {i}" for i in range(1, 9)] + ["เฉลี่ย", "ผล"]
     t = doc.add_table(rows=1, cols=len(heads)); t.style = "Table Grid"
     for i, h in enumerate(heads):
@@ -835,16 +850,17 @@ def _pp5_char_page(doc, klass, subject, db, students, *, page_break=True):
             "| ช่องว่าง = ยังไม่ประเมิน", size=10, after=0, align="center")
 
 
-def _pp5_read_page(doc, klass, subject, db, students, *, page_break=True):
-    """หน้าประเมินการอ่าน คิดวิเคราะห์ และเขียน 3 ด้าน ของ 1 รายวิชา"""
+def _pp5_read_page(doc, klass, subject, db, students, *, page_break=True, term=0):
+    """หน้าประเมินการอ่าน คิดวิเคราะห์ และเขียน 3 ด้าน ของ 1 รายวิชา (ประถมแยกภาคเรียน)"""
     from app.models import AcadReadEval
-    _p(doc, "ผลการประเมินการอ่าน คิดวิเคราะห์ และเขียน (รายวิชา)",
+    tsuf = f" (ภาคเรียนที่ {term})" if term in (1, 2) else ""
+    _p(doc, "ผลการประเมินการอ่าน คิดวิเคราะห์ และเขียน (รายวิชา)" + tsuf,
        align="center", bold=True, size=16, after=0, page_break=page_break)
     _p(doc, f"รายวิชา {subject.code or ''} {subject.name}   ชั้น {_class_label(klass)}   "
             f"ปีการศึกษา {klass.year}", align="center", size=14, after=6)
 
     reads = {r.acad_student_id: r for r in
-             db.query(AcadReadEval).filter_by(subject_id=subject.id).all()}
+             db.query(AcadReadEval).filter_by(subject_id=subject.id, term=term).all()}
     heads2 = ["เลขที่", "ชื่อ-นามสกุล"] + [lb for _, lb in READ_DOMAINS] + ["เฉลี่ย", "ผล"]
     t2 = doc.add_table(rows=1, cols=len(heads2)); t2.style = "Table Grid"
     for i, h in enumerate(heads2):
