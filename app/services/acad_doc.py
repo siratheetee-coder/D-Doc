@@ -512,9 +512,76 @@ def _pp5_subject_cover(doc, school, klass, subject, db, students):
     _p(doc, "วันที่ …........../…..................../…...........", align="center", size=14, after=0)
 
 
+def _pp5_subject_summary(doc, school, klass, subject, db, students, *, page_break=True):
+    """หน้าสรุปการประเมินผลการพัฒนาคุณภาพผู้เรียน (รายวิชา) - ตามชีต 'พิมพ์สรุปผลพัฒนาผู้เรียน'
+    ที่/ชื่อ/คะแนนเก็บ/ปลายภาค/ประเมินผลรายปี(คะแนน+ผล)/ตัวชี้วัดที่ผ่าน/คุณลักษณะ/อ่านคิดเขียน · แนวตั้ง"""
+    from app.models import AcadScore, AcadIndicatorResult, AcadCharEval, AcadReadEval
+    from app.services.academic import char_avg, read_avg, quality_of_avg
+    from app.services.curriculum import selected_indicators
+    term = subject.term if subject.term is not None else 0
+    mmax = subject.mid_max if (subject.mid_max or 0) > 0 else 70
+    fmax = subject.final_max if (subject.final_max or 0) > 0 else 30
+    sids = [s.id for s in students]
+    scores = {x.acad_student_id: x for x in
+              db.query(AcadScore).filter_by(subject_id=subject.id, term=term).all()}
+    n_ind = len(selected_indicators(subject))
+    ind_pass = {}
+    if sids and n_ind:
+        for r in (db.query(AcadIndicatorResult)
+                  .filter(AcadIndicatorResult.subject_id == subject.id,
+                          AcadIndicatorResult.acad_student_id.in_(sids)).all()):
+            if r.passed:
+                ind_pass[r.acad_student_id] = ind_pass.get(r.acad_student_id, 0) + 1
+    ce, rd = {}, {}
+    for r in db.query(AcadCharEval).filter_by(subject_id=subject.id).all():
+        ce.setdefault(r.acad_student_id, []).append(r)
+    for r in db.query(AcadReadEval).filter_by(subject_id=subject.id).all():
+        rd.setdefault(r.acad_student_id, []).append(r)
+
+    def qnum(rows, avg_fn):
+        if not rows:
+            return ""
+        vals = [v for v in (avg_fn(r) for r in rows) if v is not None]
+        return str(quality_of_avg(sum(vals) / len(vals))[0]) if vals else ""
+
+    _p(doc, "สรุปการประเมินผลการพัฒนาคุณภาพผู้เรียน (รายวิชา)",
+       align="center", bold=True, size=16, after=0, page_break=page_break)
+    _p(doc, f"รายวิชา {subject.code or ''} {subject.name}   ชั้น {_class_label(klass)}   "
+            f"ปีการศึกษา {klass.year}", align="center", size=12, after=6)
+    t = doc.add_table(rows=2, cols=9); t.style = "Table Grid"
+    r0, r1 = t.rows[0].cells, t.rows[1].cells
+
+    def vm(idx, txt):
+        c = r0[idx].merge(r1[idx]); _cell(c, txt, bold=True, fill="EDE9FE", size=12)
+
+    vm(0, "ที่"); vm(1, "ชื่อ-นามสกุล")
+    vm(2, f"คะแนนเก็บ\n(เต็ม {mmax:g})"); vm(3, f"คะแนนปลายภาค\n(เต็ม {fmax:g})")
+    c = r0[4].merge(r0[5]); _cell(c, "ประเมินผลรายปี", bold=True, fill="EDE9FE", size=12)
+    _cell(r1[4], f"คะแนน\n(เต็ม {mmax + fmax:g})", bold=True, fill="F1F5F9", size=11)
+    _cell(r1[5], "ผลการเรียน", bold=True, fill="F1F5F9", size=11)
+    vm(6, f"ตัวชี้วัด\nที่ผ่าน/{n_ind}" if n_ind else "ตัวชี้วัด")
+    vm(7, "ผลประเมิน\nคุณลักษณะ"); vm(8, "ผลประเมิน\nอ่านคิดเขียน")
+    for s in students:
+        sc = scores.get(s.id)
+        cells = t.add_row().cells
+        _cell(cells[0], s.seq or "", size=14)
+        _cell(cells[1], s.name, align="left", size=14)
+        _cell(cells[2], f"{sc.score_mid:g}" if sc and sc.score_mid is not None else "", size=14)
+        _cell(cells[3], f"{sc.score_final:g}" if sc and sc.score_final is not None else "", size=14)
+        _cell(cells[4], f"{sc.score:g}" if sc and sc.score is not None else "", size=14)
+        _cell(cells[5], sc.grade if sc else "", bold=True, size=14)
+        _cell(cells[6], str(ind_pass.get(s.id, "")) if n_ind else "", size=14)
+        _cell(cells[7], qnum(ce.get(s.id), char_avg), size=14)
+        _cell(cells[8], qnum(rd.get(s.id), read_avg), size=14)
+    _widths(t, [Cm(1.0), Cm(4.2), Cm(2.1), Cm(2.3), Cm(1.7), Cm(1.5), Cm(1.7), Cm(1.7), Cm(1.7)])
+    _tight_cells(t)
+    _p(doc, "ตัวชี้วัด = จำนวนที่ผ่าน · คุณลักษณะ/อ่านคิดเขียน: 3 ดีเยี่ยม · 2 ดี · 1 ผ่าน · 0 ไม่ผ่าน",
+       size=11, after=0, align="center")
+
+
 def render_pp5(school, klass, subject, db) -> str:
     """ปพ.5 รายวิชา (เล่มของครูรายวิชา): ปก -> รายชื่อ -> เวลาเรียน -> ตัวชี้วัด
-    -> คะแนน -> คุณลักษณะ -> อ่านคิดเขียน -> เกณฑ์ (สลับแนวตามความกว้างตาราง)"""
+    -> คะแนน -> คุณลักษณะ -> อ่านคิดเขียน -> สรุปผลพัฒนา -> เกณฑ์ (สลับแนวตามความกว้างตาราง)"""
     from app.services.curriculum import selected_indicators as _sel
     doc = _doc(landscape=False)          # ปกแนวตั้ง
     students = sorted(klass.students, key=lambda s: (s.seq or 999, s.name))
@@ -533,8 +600,10 @@ def render_pp5(school, klass, subject, db) -> str:
     _pp5_score_page(doc, school, klass, subject, db, page_break=False)
     _pp5_char_page(doc, klass, subject, db, students, page_break=True)
     _pp5_read_page(doc, klass, subject, db, students, page_break=True)
+    # สรุปผลพัฒนาผู้เรียน (แนวตั้ง) -> เกณฑ์/ปกหลัง (แนวตั้ง)
     _new_section(doc, landscape=False)
-    _pp5_criteria_page(doc, page_break=False)
+    _pp5_subject_summary(doc, school, klass, subject, db, students, page_break=False)
+    _pp5_criteria_page(doc, page_break=True)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ปพ.5_{subject.name}_{_class_label(klass)}_{klass.year}") + ".docx")
     doc.save(str(out))
