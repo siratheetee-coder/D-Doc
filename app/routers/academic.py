@@ -1100,6 +1100,17 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
     })
 
 
+@router.post("/academic/attendance/mode")
+def attendance_mode(db: Session = Depends(get_db),
+                    by_subject: str = Form(""), cid: str = Form("")):
+    """สลับโหมดเช็กเวลาเรียน รายห้อง <-> รายวิชา (ตั้งค่าทั้งโรงเรียน) จากหน้าเวลาเรียน"""
+    s = get_school(db)
+    s.attendance_by_subject = bool(by_subject)
+    db.commit()
+    q = f"?cid={cid}" if _to_int(cid, 0) else ""
+    return RedirectResponse(f"/academic/attendance{q}", status_code=303)
+
+
 @router.post("/academic/attendance/day-save")
 async def attendance_day_save(request: Request, db: Session = Depends(get_db),
                               cid: str = Form(""), month: str = Form(""), sid: str = Form("")):

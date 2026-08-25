@@ -30,6 +30,15 @@
       </select></div>
     {% endif %}
   </form>
+  <div style="margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+    <span class="muted" style="font-size:13px;">โหมดเช็กเวลาเรียน <b>(ทั้งโรงเรียน)</b>:</span>
+    <form method="post" action="/academic/attendance/mode" style="display:inline-flex; gap:6px; margin:0;">
+      <input type="hidden" name="cid" value="{{ c.id if c else '' }}">
+      <button class="btn sm {{ 'soft' if by_subj }}" name="by_subject" value="" type="submit"><svg class="icon"><use href="#ic-users"/></svg> รายห้อง</button>
+      <button class="btn sm {{ 'soft' if not by_subj }}" name="by_subject" value="1" type="submit"><svg class="icon"><use href="#ic-clipboard"/></svg> แยกรายวิชา</button>
+    </form>
+    <span class="muted" style="font-size:12px;">{{ 'ครูแต่ละวิชาเช็กเวลาของตัวเอง' if by_subj else 'ครูประจำชั้นเช็กเวลารวมของห้อง' }}</span>
+  </div>
   {% if not c %}
   <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> เพื่อกรอกเวลาเรียน -
     กรอกเป็น<b>รายเดือน</b> (ระบบรวมและคิดร้อยละให้) หรือกรอกเฉพาะ<b>ยอดรวมทั้งปี</b> ก็ได้</p>
