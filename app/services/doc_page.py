@@ -11,7 +11,8 @@ from docx.enum.section import WD_ORIENT
 A4_W, A4_H = Cm(21.0), Cm(29.7)
 
 # ระยะขอบมาตรฐานเอกสารราชการ: บน 1.5 · ล่าง 2 · ซ้าย 3 · ขวา 2.5 ซม.
-MARGIN_TOP, MARGIN_BOTTOM, MARGIN_LEFT, MARGIN_RIGHT = Cm(1.5), Cm(2.0), Cm(3.0), Cm(2.5)
+# ซ้าย 3.0 (ขอบเย็บเล่มราชการ) · ขวา/ล่างแคบลงให้พื้นที่พิมพ์กว้างขึ้น กันตัวอักษร/ตารางล้น
+MARGIN_TOP, MARGIN_BOTTOM, MARGIN_LEFT, MARGIN_RIGHT = Cm(1.5), Cm(1.3), Cm(3.0), Cm(1.5)
 
 
 def set_margins(doc, *, top=MARGIN_TOP, bottom=MARGIN_BOTTOM,

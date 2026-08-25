@@ -105,9 +105,9 @@ def _margins(doc):
         s.page_width = Cm(21.0)     # A4 (ไม่ใช่ Letter ที่เป็นค่าปริยาย)
         s.page_height = Cm(29.7)
         s.left_margin = Cm(3.0)
-        s.right_margin = Cm(2.5)
+        s.right_margin = Cm(1.5)     # แคบลงจาก 2.5 ให้พื้นที่พิมพ์กว้างขึ้น กันตารางล้น
         s.top_margin = Cm(1.5)
-        s.bottom_margin = Cm(2.0)
+        s.bottom_margin = Cm(1.3)    # แคบลงจาก 2.0 ให้ตัวอักษรลงได้ในหน้าเดียว
 
 
 def _font(doc):
