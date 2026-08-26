@@ -107,6 +107,7 @@
 {% endif %}
 
 <div class="nav-grid">
+  {% if not is_teacher %}
   <a class="nav-card" href="/academic/classes">
     <div class="nc-head">
       <span class="nc-ic"><svg class="icon"><use href="#ic-users"/></svg></span>
@@ -146,6 +147,20 @@
     </ul>
     <span class="nc-go">ตั้งปฏิทิน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
+  {% else %}
+  <a class="nav-card" href="/academic/attendance">
+    <div class="nc-head">
+      <span class="nc-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
+      <h3>เช็กชื่อ / เวลาเรียน</h3>
+    </div>
+    <ul class="nc-list">
+      <li>เช็กชื่อรายวันวิชาที่ตัวเองสอน</li>
+      <li>มา / ป่วย / ลา / ขาด</li>
+      <li>ครูประจำชั้น: เช็กเวลาเรียนโดยรวม</li>
+    </ul>
+    <span class="nc-go">เช็กชื่อ <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  {% endif %}
   <a class="nav-card" href="/academic/grades">
     <div class="nc-head">
       <span class="nc-ic"><svg class="icon"><use href="#ic-edit"/></svg></span>
@@ -171,5 +186,19 @@
     </ul>
     <span class="nc-go">ประเมิน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
+  {% if request.session.get("owner") %}
+  <a class="nav-card" href="/academic/teacher-accounts">
+    <div class="nc-head">
+      <span class="nc-ic"><svg class="icon"><use href="#ic-users"/></svg></span>
+      <h3>บัญชีครู</h3>
+    </div>
+    <ul class="nc-list">
+      <li>สร้างไอดีให้ครูแต่ละคน</li>
+      <li>ครูเช็กชื่อ/กรอกคะแนน/ประเมิน</li>
+      <li>เฉพาะวิชา-ห้องที่ตัวเองสอน</li>
+    </ul>
+    <span class="nc-go">จัดการ <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  {% endif %}
 </div>
 {% endblock %}

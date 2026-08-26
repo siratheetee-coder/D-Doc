@@ -60,6 +60,7 @@ class Account(AccBase):
     active = Column(Boolean, default=True)
     is_owner = Column(Boolean, default=False)       # ไอดีหลักของโรงเรียน: เห็นทุกงาน + จัดการผู้ใช้ได้
     modules = Column(String, default="")            # งานที่ไอดีย่อยเข้าได้ (CSV) · owner ไม่ใช้ (เห็นทุกงาน)
+    person_id = Column(Integer, nullable=True)      # บัญชีครู: ผูกกับ Person.id ใน DB โรงเรียน -> สิทธิ์เฉพาะวิชา/ห้องตัวเอง
     welcomed = Column(Boolean, default=False)       # เห็นการ์ดต้อนรับ/แนะนำจัดการผู้ใช้ตอนล็อกอินครั้งแรกแล้ว
     seen_modules = Column(String, default="")       # งานที่ไอดีหลักรับรู้แล้ว (เทียบกับที่ซื้อ -> แจ้งเตือนงานที่ซื้อเพิ่ม)
     must_change_password = Column(Boolean, default=False)   # บังคับเปลี่ยนรหัสครั้งแรก
@@ -132,6 +133,7 @@ def _ensure_engine():
                     "ALTER TABLE account ADD COLUMN modules VARCHAR DEFAULT ''",
                     "ALTER TABLE account ADD COLUMN welcomed BOOLEAN DEFAULT 0",
                     "ALTER TABLE account ADD COLUMN seen_modules VARCHAR DEFAULT ''",
+                    "ALTER TABLE account ADD COLUMN person_id INTEGER",   # บัญชีครู -> ผูก Person.id
                     # backfill: บัญชีแรก (id น้อยสุด) ของแต่ละโรงเรียน = ไอดีหลัก · รันซ้ำได้ (ตั้งค่าแถวเดิม)
                     "UPDATE account SET is_owner=1 WHERE tenant_id IS NOT NULL "
                     "AND id IN (SELECT MIN(id) FROM account WHERE tenant_id IS NOT NULL GROUP BY tenant_id)",
@@ -518,7 +520,7 @@ def get_account_access(uid) -> dict | None:
         if not u:
             return None
         return {"is_owner": bool(u.is_owner), "modules": u.modules or "", "active": bool(u.active),
-                "welcomed": bool(u.welcomed)}
+                "welcomed": bool(u.welcomed), "person_id": u.person_id}
     finally:
         db.close()
 
@@ -616,6 +618,47 @@ def add_tenant_user(tenant_id, username, password, modules="", display_name="") 
                        modules=modules_csv(parse_modules(modules)), verified=True))
         db.commit()
         return {"ok": True}
+    finally:
+        db.close()
+
+
+def add_teacher_account(tenant_id, person_id, username, password, display_name="") -> dict:
+    """สร้างบัญชีครู (ผูกกับ Person.id ในโรงเรียน) - เข้าได้เฉพาะงานวิชาการ + สิทธิ์เฉพาะวิชา/ห้องตัวเอง"""
+    username = (username or "").strip()
+    if not username or len(password or "") < 6:
+        return {"error": "กรอกชื่อผู้ใช้ และรหัสผ่านอย่างน้อย 6 ตัว"}
+    if not person_id:
+        return {"error": "เลือกครูที่จะผูกกับบัญชีนี้"}
+    db = acc_session()
+    try:
+        t = db.query(Tenant).filter_by(id=tenant_id).first()
+        if not t:
+            return {"error": "ไม่พบโรงเรียน"}
+        if db.query(Account).filter_by(tenant_id=tenant_id).count() >= (t.max_users or 3):
+            return {"error": f"เกินจำนวนผู้ใช้สูงสุดของโรงเรียน ({t.max_users or 3} คน)"}
+        if db.query(Account).filter_by(username=username).first():
+            return {"error": "ชื่อผู้ใช้นี้ถูกใช้แล้ว เลือกชื่ออื่น"}
+        if db.query(Account).filter_by(tenant_id=tenant_id, person_id=person_id).first():
+            return {"error": "ครูคนนี้มีบัญชีอยู่แล้ว"}
+        db.add(Account(tenant_id=tenant_id, username=username,
+                       password_hash=hash_password(password), role="user",
+                       display_name=(display_name or "").strip(), is_owner=False,
+                       modules="academic", person_id=int(person_id), verified=True))
+        db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
+def list_teacher_accounts(tenant_id) -> list:
+    """บัญชีครู (person_id ไม่ว่าง) ของโรงเรียน -> [{id, username, display_name, person_id, active}]"""
+    db = acc_session()
+    try:
+        us = (db.query(Account)
+              .filter(Account.tenant_id == tenant_id, Account.person_id.isnot(None))
+              .order_by(Account.id).all())
+        return [{"id": u.id, "username": u.username, "display_name": u.display_name or "",
+                 "person_id": u.person_id, "active": bool(u.active)} for u in us]
     finally:
         db.close()
 

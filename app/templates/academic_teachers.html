@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}บัญชีครู{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานวิชาการ · จัดการผู้ใช้</div>
+    <span class="hero-title">บัญชีครู</span>
+    <div class="hero-meta">{{ school.name or "" }} · มีบัญชีครูแล้ว {{ n_accts }} คน</div>
+  </div>
+</div>
+
+{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+{% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
+
+<div class="card">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-users"/></svg> สร้างไอดีให้ครู</h2>
+  <p class="muted" style="font-size:13px; margin:4px 0 12px;">
+    ครูที่มีไอดีจะ<b>เข้าได้เฉพาะงานวิชาการ</b> และทำได้เฉพาะ <b>วิชา/ห้องที่ตัวเองสอนหรือประจำชั้น</b> —
+    เช็กชื่อ · กรอกคะแนน · ประเมิน · ออก ปพ.5/ปพ.6 ของตัวเอง (กันแก้ของครูคนอื่น)</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>ครู</th><th>ตำแหน่ง</th><th>สถานะบัญชี</th><th>สร้าง/ชื่อผู้ใช้</th></tr></thead>
+    <tbody>
+    {% for p in persons %}
+      <tr>
+        <td style="white-space:nowrap; font-weight:600;">{{ p.name }}</td>
+        <td class="muted">{{ p.position or p.person_type or '' }}</td>
+        {% if linked.get(p.id) %}
+        <td><span class="badge" style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:5px;">มีบัญชี: <b>{{ linked[p.id].username }}</b></span>
+          {% if not linked[p.id].active %}<span class="muted"> (ปิดใช้งาน)</span>{% endif %}</td>
+        <td class="muted" style="font-size:13px;">จัดการรหัส/ปิดบัญชี ที่หน้า <a href="/users">จัดการผู้ใช้</a></td>
+        {% else %}
+        <td class="muted">— ยังไม่มีบัญชี —</td>
+        <td>
+          <form method="post" action="/academic/teacher-accounts/add" style="display:flex; gap:6px; margin:0; flex-wrap:wrap;">
+            <input type="hidden" name="person_id" value="{{ p.id }}">
+            <input name="username" placeholder="ชื่อผู้ใช้" required style="width:130px;">
+            <input name="password" type="text" placeholder="รหัสผ่าน (6+ ตัว)" required minlength="6" style="width:130px;">
+            <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> สร้าง</button>
+          </form>
+        </td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if not persons %}
+  <p class="muted" style="margin-top:10px;">ยังไม่มีครูในทะเบียนบุคลากร - <a href="/hr">ไปเพิ่มบุคลากร</a> ก่อน</p>
+  {% endif %}
+</div>
+{% endblock %}

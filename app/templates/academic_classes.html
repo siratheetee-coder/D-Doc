@@ -19,6 +19,7 @@
   </form>
 </div>
 
+{% if not is_teacher %}
 <div class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มห้องเรียน</h2>
   {% if not teachers %}
@@ -45,9 +46,10 @@
     <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
   </form>
 </div>
+{% endif %}
 
 <div class="card">
-  <h2 style="margin-top:0;">ห้องเรียนปี {{ year }} {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }} ห้อง)</span>{% endif %}</h2>
+  <h2 style="margin-top:0;">{% if is_teacher %}ห้องของฉัน{% else %}ห้องเรียน{% endif %} ปี {{ year }} {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }} ห้อง)</span>{% endif %}</h2>
   {% if rows %}
   <div class="table-wrap">
   <table>
@@ -61,9 +63,11 @@
         <td>{{ c.students|length }} คน</td>
         <td style="white-space:nowrap;">
           <a class="btn sm" href="/academic/classes/{{ c.id }}">เปิด</a>
+          {% if not is_teacher %}
           <form method="post" action="/academic/classes/{{ c.id }}/delete" style="display:inline; margin:0;"
                 onsubmit="return confirm('ลบห้อง {{ class_label(c) }}? ผลการเรียนในห้องนี้จะถูกลบด้วย');">
             <button class="btn sm gray" type="submit">ลบ</button></form>
+          {% endif %}
         </td>
       </tr>
     {% endfor %}

@@ -135,6 +135,8 @@ async def tenant_auth(request: Request, call_next):
         sess["mods"] = acc["modules"]
     if sess.get("welcomed") != acc["welcomed"]:
         sess["welcomed"] = acc["welcomed"]   # อ่านสด กันการ์ดต้อนรับเด้งซ้ำถ้า session ค้าง
+    if sess.get("person_id") != acc.get("person_id"):
+        sess["person_id"] = acc.get("person_id")   # บัญชีครู: ผูกกับ Person ในโรงเรียน (สิทธิ์ row-level)
 
     # ผู้ใช้โรงเรียน: ตรวจสถานะโรงเรียนก่อน
     tid = sess.get("tid")

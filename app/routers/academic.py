@@ -60,22 +60,85 @@ def _sorted_classes(rows) -> list:
 TH_MONTH_ORDER = {m: i for i, (m, _) in enumerate(TH_MONTHS)}
 
 
+# ---------------- สิทธิ์ครู (row-level: เห็น/แก้ได้เฉพาะวิชา-ห้องตัวเอง) ----------------
+class _Scope:
+    """ขอบเขตสิทธิ์งานวิชาการของผู้ใช้ปัจจุบัน
+    - is_teacher=False -> เจ้าหน้าที่/เจ้าของ: เห็น/แก้ได้ทุกอย่าง (ทุก can_* คืน True)
+    - is_teacher=True  -> ครู (บัญชีผูกกับ Person): จำกัดตามที่สอน/ประจำชั้น
+        teach_pairs = {(class_id, subject_id)} วิชา×ห้องที่สอน
+        homeroom_ids = ห้องที่เป็นครูประจำชั้น/คู่ชั้น
+        class_ids    = ห้องที่แตะได้ (สอน + ประจำชั้น)"""
+    def __init__(self, pid, db):
+        self.pid = pid
+        self.is_teacher = pid is not None
+        if not self.is_teacher:
+            self.teach_pairs = self.subject_ids = None
+            self.teach_class_ids = self.homeroom_ids = self.class_ids = None
+            return
+        teach = db.query(AcadTeaching).filter_by(teacher_id=pid).all()
+        self.teach_pairs = {(t.class_id, t.subject_id) for t in teach}
+        self.subject_ids = {t.subject_id for t in teach}
+        self.teach_class_ids = {t.class_id for t in teach}
+        self.homeroom_ids = {c.id for c in db.query(AcadClass).filter(
+            (AcadClass.homeroom_id == pid) | (AcadClass.co_homeroom_id == pid)).all()}
+        self.class_ids = self.teach_class_ids | self.homeroom_ids
+
+    def can_class(self, cid) -> bool:
+        return (not self.is_teacher) or (cid in self.class_ids)
+
+    def can_homeroom(self, cid) -> bool:
+        return (not self.is_teacher) or (cid in self.homeroom_ids)
+
+    def can_teach(self, cid, sid) -> bool:
+        return (not self.is_teacher) or ((cid, sid) in self.teach_pairs)
+
+    def can_subject(self, sid) -> bool:
+        return (not self.is_teacher) or (sid in self.subject_ids)
+
+
+def _scope(request, db) -> _Scope:
+    sess = request.session
+    if sess.get("owner"):
+        return _Scope(None, db)
+    pid = sess.get("person_id")
+    return _Scope(int(pid) if pid else None, db)
+
+
+def _deny():
+    """ครูพยายามเข้าถึงของคนอื่น/ฟังก์ชันเจ้าหน้าที่ -> เด้งกลับหน้าหลัก"""
+    return RedirectResponse("/academic", status_code=303)
+
+
+def _att_ok(sc, cid, mode, sid) -> bool:
+    """สิทธิ์เช็กเวลาเรียน: โหมดรายวิชา = วิชาที่สอน · โหมดโดยรวม = ห้องที่ประจำชั้น"""
+    if not sc.is_teacher:
+        return True
+    if mode == "subject":
+        return sc.can_teach(cid, sid)
+    return sc.can_homeroom(cid)
+
+
 # ---------------- หน้าหลัก ----------------
 @router.get("/academic", response_class=HTMLResponse)
 def academic_home(request: Request, db: Session = Depends(get_db),
                   year: int | None = None, term: int | None = None):
     y = year or current_academic_year()
     t = term if term in (1, 2) else current_term()
+    sc = _scope(request, db)
     classes = db.query(AcadClass).filter_by(year=y).all()
-    n_students = (db.query(AcadStudent).join(AcadClass)
-                  .filter(AcadClass.year == y).count())
+    if sc.is_teacher:
+        classes = [c for c in classes if c.id in sc.class_ids]
+    n_students = sum(len(c.students) for c in classes)
     progress = [(_class_label(c), c, _class_progress(c, db, t)) for c in _sorted_classes(classes)]
+    n_subjects = db.query(AcadSubject).filter_by(year=y).count()
+    if sc.is_teacher:
+        n_subjects = len(sc.subject_ids)
     return templates.TemplateResponse("academic_home.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "n_classes": len(classes), "n_students": n_students,
-        "n_subjects": db.query(AcadSubject).filter_by(year=y).count(),
+        "n_subjects": n_subjects,
         "progress": progress, "is_exit_level": is_exit_level,
-        "term": t, "term_label": term_label,
+        "term": t, "term_label": term_label, "is_teacher": sc.is_teacher,
     })
 
 
@@ -130,21 +193,61 @@ def _class_progress(c, db, term):
     }
 
 
+# ---------------- บัญชีครู (owner สร้าง/ผูกกับ Person -> สิทธิ์เฉพาะวิชา/ห้องตัวเอง) ----------------
+@router.get("/academic/teacher-accounts", response_class=HTMLResponse)
+def teacher_accounts_page(request: Request, db: Session = Depends(get_db),
+                          msg: str = "", err: str = ""):
+    if not request.session.get("owner"):
+        return RedirectResponse("/academic", status_code=303)
+    from app.accounts import list_teacher_accounts
+    tid = request.session.get("tid")
+    persons = db.query(Person).filter_by(active=True).order_by(Person.name).all()
+    accts = list_teacher_accounts(tid)
+    linked = {a["person_id"]: a for a in accts}
+    return templates.TemplateResponse("academic_teachers.html", {
+        "request": request, "school": get_school(db), "persons": persons,
+        "linked": linked, "n_accts": len(accts), "msg": msg, "err": err,
+    })
+
+
+@router.post("/academic/teacher-accounts/add")
+def teacher_account_add(request: Request, db: Session = Depends(get_db),
+                        person_id: str = Form(""), username: str = Form(""),
+                        password: str = Form("")):
+    if not request.session.get("owner"):
+        return RedirectResponse("/academic", status_code=303)
+    from app.accounts import add_teacher_account
+    tid = request.session.get("tid")
+    p = db.get(Person, _to_int(person_id, 0))
+    r = add_teacher_account(tid, _to_int(person_id, 0), username, password,
+                            display_name=(p.name if p else ""))
+    if r.get("error"):
+        return RedirectResponse(f"/academic/teacher-accounts?err={r['error']}", status_code=303)
+    return RedirectResponse(f"/academic/teacher-accounts?msg=สร้างบัญชีครู {username} แล้ว", status_code=303)
+
+
 # ---------------- ห้องเรียน ----------------
 @router.get("/academic/classes", response_class=HTMLResponse)
 def classes_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
     y = year or current_academic_year()
+    sc = _scope(request, db)
     rows = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
+    if sc.is_teacher:
+        rows = [c for c in rows if c.id in sc.class_ids]
     return templates.TemplateResponse("academic_classes.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "rows": rows, "levels": SCHOOL_LEVELS, "class_label": _class_label,
         "teachers": db.query(Person).filter_by(active=True).order_by(Person.name).all(),
+        "is_teacher": sc.is_teacher,
+        "homeroom_ids": (sc.homeroom_ids or set()),
     })
 
 
 @router.post("/academic/classes/add")
-def class_add(db: Session = Depends(get_db), year: str = Form(""), level: str = Form(""),
+def class_add(request: Request, db: Session = Depends(get_db), year: str = Form(""), level: str = Form(""),
               room: str = Form(""), homeroom_id: str = Form(""), co_homeroom_id: str = Form("")):
+    if _scope(request, db).is_teacher:
+        return _deny()
     y = _to_int(year, 0) or current_academic_year()
     lv = (level or "").strip()
     rm = (room or "").strip()
@@ -157,9 +260,11 @@ def class_add(db: Session = Depends(get_db), year: str = Form(""), level: str = 
 
 
 @router.post("/academic/classes/{cid}/update")
-def class_update(cid: int, db: Session = Depends(get_db), level: str = Form(""),
+def class_update(cid: int, request: Request, db: Session = Depends(get_db), level: str = Form(""),
                  room: str = Form(""), homeroom_id: str = Form(""),
                  co_homeroom_id: str = Form(""), note: str = Form("")):
+    if _scope(request, db).is_teacher:
+        return _deny()
     c = db.get(AcadClass, cid)
     if not c:
         return RedirectResponse("/academic/classes", status_code=303)
@@ -173,7 +278,9 @@ def class_update(cid: int, db: Session = Depends(get_db), level: str = Form(""),
 
 
 @router.post("/academic/classes/{cid}/delete")
-def class_delete(cid: int, db: Session = Depends(get_db)):
+def class_delete(cid: int, request: Request, db: Session = Depends(get_db)):
+    if _scope(request, db).is_teacher:
+        return _deny()
     c = db.get(AcadClass, cid)
     y = c.year if c else None
     if c:
@@ -186,9 +293,14 @@ def class_detail(request: Request, cid: int, db: Session = Depends(get_db)):
     c = db.get(AcadClass, cid)
     if not c:
         return RedirectResponse("/academic/classes", status_code=303)
+    sc = _scope(request, db)
+    if not sc.can_class(cid):
+        return _deny()
     students = sorted(c.students, key=lambda s: (s.seq or 999, s.name))
     subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
                 .order_by(AcadSubject.seq, AcadSubject.code).all())
+    if sc.is_teacher:                      # ครู: เห็น/พิมพ์ ปพ.5 เฉพาะวิชาที่ตัวเองสอนในห้องนี้
+        subjects = [x for x in subjects if (cid, x.id) in sc.teach_pairs]
     teach = {t.subject_id: t for t in c.teachings}
     return templates.TemplateResponse("academic_class.html", {
         "request": request, "school": get_school(db), "c": c, "students": students,
@@ -196,15 +308,18 @@ def class_detail(request: Request, cid: int, db: Session = Depends(get_db)):
         "teachers": db.query(Person).filter_by(active=True).order_by(Person.name).all(),
         "terms": term_choices(c.level), "term_label": term_label,
         "is_sec": is_secondary(c.level),
+        "is_teacher": sc.is_teacher, "can_edit_roster": sc.can_homeroom(cid),
     })
 
 
 @router.post("/academic/classes/{cid}/pull-roster")
-def class_pull_roster(cid: int, db: Session = Depends(get_db)):
+def class_pull_roster(cid: int, request: Request, db: Session = Depends(get_db)):
     """ดึงนักเรียนจากทะเบียนกลางเข้าห้องนี้ (จับคู่ด้วยชั้น+ห้อง · ข้ามคนที่ดึงมาแล้ว)"""
     c = db.get(AcadClass, cid)
     if not c:
         return RedirectResponse("/academic/classes", status_code=303)
+    if not _scope(request, db).can_homeroom(cid):
+        return _deny()
     have_ids = {s.student_id for s in c.students if s.student_id}
     have_names = {(s.name or "").strip() for s in c.students}
     q = db.query(Student).filter(Student.level == c.level)
@@ -222,9 +337,11 @@ def class_pull_roster(cid: int, db: Session = Depends(get_db)):
 
 
 @router.post("/academic/student/{aid}/update")
-def acad_student_update(aid: int, db: Session = Depends(get_db), seq: str = Form(""),
+def acad_student_update(aid: int, request: Request, db: Session = Depends(get_db), seq: str = Form(""),
                         student_no: str = Form(""), name: str = Form(""), sex: str = Form("")):
     s = db.get(AcadStudent, aid)
+    if s and not _scope(request, db).can_homeroom(s.class_id):
+        return _deny()
     if s:
         s.seq = _to_int(seq, 0)
         s.student_no = (student_no or "").strip()
@@ -236,8 +353,10 @@ def acad_student_update(aid: int, db: Session = Depends(get_db), seq: str = Form
 
 
 @router.post("/academic/student/{aid}/delete")
-def acad_student_delete(aid: int, db: Session = Depends(get_db)):
+def acad_student_delete(aid: int, request: Request, db: Session = Depends(get_db)):
     s = db.get(AcadStudent, aid)
+    if s and not _scope(request, db).can_homeroom(s.class_id):
+        return _deny()
     cid = s.class_id if s else None
     if s:
         db.delete(s); db.commit()
@@ -248,6 +367,8 @@ def acad_student_delete(aid: int, db: Session = Depends(get_db)):
 @router.post("/academic/classes/{cid}/teaching")
 async def teaching_save(cid: int, request: Request, db: Session = Depends(get_db)):
     """กำหนดครูผู้สอนรายวิชาของห้องนี้ (วิชาเดียวกันคนละห้องคนละครูได้)"""
+    if _scope(request, db).is_teacher:
+        return _deny()
     form = await request.form()
     c = db.get(AcadClass, cid)
     if not c:
@@ -276,24 +397,30 @@ async def teaching_save(cid: int, request: Request, db: Session = Depends(get_db
 def subjects_page(request: Request, db: Session = Depends(get_db),
                   year: int | None = None, level: str = ""):
     y = year or current_academic_year()
+    sc = _scope(request, db)
     q = db.query(AcadSubject).filter_by(year=y)
     if level:
         q = q.filter_by(level=level)
     rows = sorted(q.all(), key=lambda s: (level_rank(s.level), s.seq or 0, s.code or ""))
+    if sc.is_teacher:
+        rows = [s for s in rows if s.id in sc.subject_ids]
     # กิจกรรมพัฒนาผู้เรียน (การ์ดที่ 2) - แสดงเมื่อเลือกชั้นแล้วเท่านั้น
-    activities = activities_for(y, level, db) if level else []
+    activities = activities_for(y, level, db) if (level and not sc.is_teacher) else []
     return templates.TemplateResponse("academic_subjects.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "rows": rows, "level": level, "levels": SCHOOL_LEVELS, "kinds": SUBJECT_KINDS,
         "term_label": term_label, "is_secondary": is_secondary, "activities": activities,
+        "is_teacher": sc.is_teacher,
     })
 
 
 @router.post("/academic/subjects/add")
-def subject_add(db: Session = Depends(get_db), year: str = Form(""), level: str = Form(""),
+def subject_add(request: Request, db: Session = Depends(get_db), year: str = Form(""), level: str = Form(""),
                 code: str = Form(""), name: str = Form(""), learn_group: str = Form(""),
                 kind: str = Form("พื้นฐาน"), hours: str = Form(""), credit: str = Form(""),
                 term: str = Form("0"), mid_max: str = Form("70"), final_max: str = Form("30")):
+    if _scope(request, db).is_teacher:
+        return _deny()
     y = _to_int(year, 0) or current_academic_year()
     nm = (name or "").strip()
     if nm:
@@ -311,10 +438,12 @@ def subject_add(db: Session = Depends(get_db), year: str = Form(""), level: str 
 
 
 @router.post("/academic/subjects/{sid}/update")
-def subject_update(sid: int, db: Session = Depends(get_db), code: str = Form(""),
+def subject_update(sid: int, request: Request, db: Session = Depends(get_db), code: str = Form(""),
                    name: str = Form(""), learn_group: str = Form(""), kind: str = Form(""),
                    hours: str = Form(""), credit: str = Form(""), term: str = Form("0"),
                    mid_max: str = Form("70"), final_max: str = Form("30")):
+    if _scope(request, db).is_teacher:
+        return _deny()
     s = db.get(AcadSubject, sid)
     if s:
         s.code = (code or "").strip()
@@ -332,7 +461,9 @@ def subject_update(sid: int, db: Session = Depends(get_db), code: str = Form("")
 
 
 @router.post("/academic/subjects/{sid}/delete")
-def subject_delete(sid: int, db: Session = Depends(get_db)):
+def subject_delete(sid: int, request: Request, db: Session = Depends(get_db)):
+    if _scope(request, db).is_teacher:
+        return _deny()
     s = db.get(AcadSubject, sid)
     y = s.year if s else ""
     if s:
@@ -341,8 +472,10 @@ def subject_delete(sid: int, db: Session = Depends(get_db)):
 
 
 @router.post("/academic/subjects/preset")
-def subjects_preset(db: Session = Depends(get_db), year: str = Form(""), level: str = Form("")):
+def subjects_preset(request: Request, db: Session = Depends(get_db), year: str = Form(""), level: str = Form("")):
     """สร้างรายวิชาพื้นฐาน 8 กลุ่มสาระของชั้นนี้ในคลิกเดียว (ข้ามวิชาที่มีรหัสซ้ำแล้ว)"""
+    if _scope(request, db).is_teacher:
+        return _deny()
     y = _to_int(year, 0) or current_academic_year()
     lv = (level or "").strip()
     have = {(s.code or "").strip() for s in db.query(AcadSubject).filter_by(year=y, level=lv).all()}
@@ -372,6 +505,8 @@ def subjects_preset(db: Session = Depends(get_db), year: str = Form(""), level: 
 async def activities_save(request: Request, db: Session = Depends(get_db),
                           year: str = Form(""), level: str = Form("")):
     """บันทึกทั้งชุด: แก้/ลบแถวเดิม (ปุ่มลบส่ง del_<id>) + เพิ่มแถวใหม่จากช่องท้าย"""
+    if _scope(request, db).is_teacher:
+        return _deny()
     form = await request.form()
     y = _to_int(year, 0) or current_academic_year()
     lv = (level or "").strip()
@@ -393,8 +528,10 @@ async def activities_save(request: Request, db: Session = Depends(get_db),
 
 
 @router.post("/academic/activities/preset")
-def activities_preset(db: Session = Depends(get_db), year: str = Form(""), level: str = Form("")):
+def activities_preset(request: Request, db: Session = Depends(get_db), year: str = Form(""), level: str = Form("")):
     """สร้างกิจกรรมมาตรฐาน 4 อย่างในคลิกเดียว (ข้ามชื่อที่มีอยู่แล้ว)"""
+    if _scope(request, db).is_teacher:
+        return _deny()
     y = _to_int(year, 0) or current_academic_year()
     lv = (level or "").strip()
     have = {(a.name or "").strip() for a in db.query(AcadActivity).filter_by(year=y, level=lv).all()}
@@ -433,14 +570,21 @@ def _recompute_score(row, subj, keep_max):
 def grades_page(request: Request, db: Session = Depends(get_db), cid: int | None = None,
                 sid: int | None = None, term: int | None = None, year: int | None = None):
     y = year or current_academic_year()
+    sc = _scope(request, db)
     classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
+    if sc.is_teacher:
+        classes = [c for c in classes if c.id in sc.teach_class_ids]
     c = db.get(AcadClass, cid) if cid else None
+    if c and sc.is_teacher and c.id not in sc.teach_class_ids:
+        return _deny()
     subjects, students, scores, subj = [], [], {}, None
     assignments, pieces, midterm, item_scores, keep_max = [], [], None, {}, 0
     sec, sel_term, annual = False, (term if term in (1, 2) else 1), {}
     if c:
         subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
                     .order_by(AcadSubject.seq, AcadSubject.code).all())
+        if sc.is_teacher:
+            subjects = [x for x in subjects if (c.id, x.id) in sc.teach_pairs]
         subj = db.get(AcadSubject, sid) if sid else None
         # กันวิชาที่ค้างมาจากห้องก่อนหน้า (คนละระดับชั้น) -> ไม่แสดงวิชาที่ไม่ใช่ของห้องนี้
         if subj and subj.id not in {x.id for x in subjects}:
@@ -507,6 +651,8 @@ async def assignments_save(request: Request, db: Session = Depends(get_db),
                            cid: str = Form(""), sid: str = Form(""), mode: str = Form("")):
     """จัดการชิ้นงานเก็บคะแนนของรายวิชา · ชิ้นงานส่งเป็น array (aid/aname/amax)
     สอบกลางภาคมีเสมอ (mid_max) แก้ได้แต่ลบไม่ได้ · ชิ้นงานที่ไม่ถูกส่งมา = ถูกลบ"""
+    if not _scope(request, db).can_teach(_to_int(cid, 0), _to_int(sid, 0)):
+        return _deny()
     form = await request.form()
     subj = db.get(AcadSubject, _to_int(sid, 0))
     if not subj:
@@ -560,6 +706,8 @@ async def grades_save(request: Request, db: Session = Depends(get_db),
                       cid: str = Form(""), sid: str = Form(""), mode: str = Form("")):
     """บันทึกคะแนนทั้งห้องในครั้งเดียว · เกรดคำนวณจากคะแนนรวม (กรอกเกรดเองทับได้)
     ถ้าวิชานี้มีชิ้นงาน คะแนนเก็บ = ผลรวมคะแนนรายชิ้น (กรอกช่องชิ้นงาน ไม่กรอกช่องเก็บรวม)"""
+    if not _scope(request, db).can_teach(_to_int(cid, 0), _to_int(sid, 0)):
+        return _deny()
     form = await request.form()
     subj = db.get(AcadSubject, _to_int(sid, 0))
     if not subj:
@@ -679,12 +827,19 @@ async def grades_save(request: Request, db: Session = Depends(get_db),
 def indicators_page(request: Request, db: Session = Depends(get_db),
                     cid: int | None = None, sid: int | None = None, year: int | None = None):
     y = year or current_academic_year()
+    sc = _scope(request, db)
     classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
+    if sc.is_teacher:
+        classes = [x for x in classes if x.id in sc.teach_class_ids]
     c = db.get(AcadClass, cid) if cid else None
+    if c and sc.is_teacher and c.id not in sc.teach_class_ids:
+        return _deny()
     subjects, students, subj, inds, all_inds, picked, results = [], [], None, [], [], set(), {}
     if c:
         subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
                     .order_by(AcadSubject.seq, AcadSubject.code).all())
+        if sc.is_teacher:
+            subjects = [x for x in subjects if (c.id, x.id) in sc.teach_pairs]
         subj = db.get(AcadSubject, sid) if sid else None
         if subj and subj.id not in {x.id for x in subjects}:
             subj = None
@@ -712,6 +867,8 @@ def indicators_page(request: Request, db: Session = Depends(get_db),
 async def indicators_pick(request: Request, db: Session = Depends(get_db),
                           cid: str = Form(""), sid: str = Form(""), mode: str = Form("")):
     """บันทึกรายการตัวชี้วัดที่ครูเลือกใช้ (checkbox 'pick' = code) · เก็บ CSV คั่นด้วย |"""
+    if not _scope(request, db).can_teach(_to_int(cid, 0), _to_int(sid, 0)):
+        return _deny()
     form = await request.form()
     subj = db.get(AcadSubject, _to_int(sid, 0))
     if not subj:
@@ -727,6 +884,8 @@ async def indicators_pick(request: Request, db: Session = Depends(get_db),
 async def indicators_save(request: Request, db: Session = Depends(get_db),
                           cid: str = Form(""), sid: str = Form(""), mode: str = Form("")):
     """บันทึกผลประเมินตัวชี้วัดทั้งห้อง · คะแนน 0-3 ต่อข้อ ช่อง 'sc_<sid>_<idx>' · ผ่าน = score>=1"""
+    if not _scope(request, db).can_teach(_to_int(cid, 0), _to_int(sid, 0)):
+        return _deny()
     form = await request.form()
     subj = db.get(AcadSubject, _to_int(sid, 0))
     c = db.get(AcadClass, _to_int(cid, 0))
@@ -762,8 +921,13 @@ async def indicators_save(request: Request, db: Session = Depends(get_db),
 def eval_page(request: Request, db: Session = Depends(get_db),
               cid: int | None = None, year: int | None = None):
     y = year or current_academic_year()
+    sc = _scope(request, db)
     classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
+    if sc.is_teacher:
+        classes = [x for x in classes if x.id in sc.homeroom_ids]
     c = db.get(AcadClass, cid) if cid else None
+    if c and not sc.can_homeroom(cid):
+        return _deny()
     students = sorted(c.students, key=lambda s: (s.seq or 999, s.name)) if c else []
     eff = {s.id: effective_eval(s, db) for s in students}
     # จำนวนวิชาที่ประเมินคุณลักษณะ/อ่านคิดเขียนแล้ว (เทียบกับวิชาทั้งหมด) - รายคน
@@ -808,6 +972,8 @@ def eval_page(request: Request, db: Session = Depends(get_db),
 
 @router.post("/academic/eval/save")
 async def eval_save(request: Request, db: Session = Depends(get_db), cid: str = Form("")):
+    if not _scope(request, db).can_homeroom(_to_int(cid, 0)):
+        return _deny()
     form = await request.form()
     c = db.get(AcadClass, _to_int(cid, 0))
     if not c:
@@ -861,12 +1027,19 @@ def assess_page(request: Request, db: Session = Depends(get_db),
                 kind: str = "char", year: int | None = None, term: int | None = None):
     y = year or current_academic_year()
     kind = "read" if kind == "read" else "char"
+    sc = _scope(request, db)
     classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
+    if sc.is_teacher:
+        classes = [x for x in classes if x.id in sc.teach_class_ids]
     c = db.get(AcadClass, cid) if cid else None
+    if c and sc.is_teacher and c.id not in sc.teach_class_ids:
+        return _deny()
     all_subjects, terms, has_terms, subjects = [], [], False, []
     if c:
         all_subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
                         .order_by(AcadSubject.seq, AcadSubject.code).all())
+        if sc.is_teacher:
+            all_subjects = [x for x in all_subjects if (c.id, x.id) in sc.teach_pairs]
         terms = sorted({s.term or 0 for s in all_subjects})
         # แยกเลือกภาคเรียนก่อน เมื่อรายวิชามีทั้งภาค 1 และ 2 (มัธยม) - ประถม (ทั้งปี) ไม่ต้องเลือก
         has_terms = len([t for t in terms if t in (1, 2)]) > 1
@@ -905,6 +1078,8 @@ def assess_page(request: Request, db: Session = Depends(get_db),
 async def assess_save(request: Request, db: Session = Depends(get_db),
                       cid: str = Form(""), sid: str = Form(""), kind: str = Form("char"),
                       eval_term: str = Form("0")):
+    if not _scope(request, db).can_teach(_to_int(cid, 0), _to_int(sid, 0)):
+        return _deny()
     form = await request.form()
     kind = "read" if kind == "read" else "char"
     c = db.get(AcadClass, _to_int(cid, 0))
@@ -967,9 +1142,11 @@ def calendar_page(request: Request, db: Session = Depends(get_db), year: int | N
 
 
 @router.post("/academic/calendar/terms")
-def calendar_terms(db: Session = Depends(get_db), year: str = Form(""),
+def calendar_terms(request: Request, db: Session = Depends(get_db), year: str = Form(""),
                    t1_start: str = Form(""), t1_end: str = Form(""),
                    t2_start: str = Form(""), t2_end: str = Form("")):
+    if _scope(request, db).is_teacher:
+        return _deny()
     y = _to_int(year, 0) or current_academic_year()
     row = db.query(AcadYearSetting).filter_by(year=y).first()
     if not row:
@@ -987,6 +1164,8 @@ def calendar_terms(db: Session = Depends(get_db), year: str = Form(""),
 async def calendar_holidays(request: Request, db: Session = Depends(get_db),
                             year: str = Form("")):
     """บันทึกตารางวันหยุดทั้งชุด (แก้/ลบแถวเดิม + เพิ่มแถวใหม่จากช่องท้ายตาราง)"""
+    if _scope(request, db).is_teacher:
+        return _deny()
     form = await request.form()
     y = _to_int(year, 0) or current_academic_year()
     for r in db.query(AcadHoliday).filter_by(year=y).all():
@@ -1006,16 +1185,20 @@ async def calendar_holidays(request: Request, db: Session = Depends(get_db),
 
 
 @router.post("/academic/calendar/seed-holidays")
-def calendar_seed_holidays(db: Session = Depends(get_db), year: str = Form("")):
+def calendar_seed_holidays(request: Request, db: Session = Depends(get_db), year: str = Form("")):
+    if _scope(request, db).is_teacher:
+        return _deny()
     y = _to_int(year, 0) or current_academic_year()
     n = seed_fixed_holidays(y, db)
     return RedirectResponse(f"/academic/calendar?year={y}&seeded={n}", status_code=303)
 
 
 @router.post("/academic/calendar/autofill")
-def calendar_autofill(db: Session = Depends(get_db), year: str = Form("")):
+def calendar_autofill(request: Request, db: Session = Depends(get_db), year: str = Form("")):
     """เติมวันเรียนทั้งปีจาก จ.-ศ. ลบวันหยุด ลบวันนอกภาคเรียน
     คำนวณฝั่งเซิร์ฟเวอร์เพราะต้องใช้ข้อมูลวันหยุด/ภาคเรียนจากฐานข้อมูล"""
+    if _scope(request, db).is_teacher:
+        return _deny()
     y = _to_int(year, 0) or current_academic_year()
     cur = {r.month: r for r in db.query(AcadCalendar).filter_by(year=y).all()}
     for mnum, _short in TH_MONTHS:
@@ -1030,6 +1213,8 @@ def calendar_autofill(db: Session = Depends(get_db), year: str = Form("")):
 
 @router.post("/academic/calendar/save")
 async def calendar_save(request: Request, db: Session = Depends(get_db), year: str = Form("")):
+    if _scope(request, db).is_teacher:
+        return _deny()
     form = await request.form()
     y = _to_int(year, 0) or current_academic_year()
     cur = {r.month: r for r in db.query(AcadCalendar).filter_by(year=y).all()}
@@ -1052,21 +1237,46 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
                     mode: str | None = None):
     y = year or current_academic_year()
     school = get_school(db)
+    sc = _scope(request, db)
     # หน้าเลือกโหมด (2 การ์ด): เช็กโดยรวม (รายห้อง/โฮมรูม) หรือ เช็กแยกรายวิชา
     if mode not in ("overall", "subject"):
         return templates.TemplateResponse("academic_attendance_home.html", {
             "request": request, "school": school, "year": y,
+            "is_teacher": sc.is_teacher,
+            "has_homeroom": (not sc.is_teacher) or bool(sc.homeroom_ids),
+            "has_subject": (not sc.is_teacher) or bool(sc.teach_pairs),
         })
     by_subj = (mode == "subject")
+    # ครู: เข้าตรงวิชา/ห้องเดียวที่ตัวเองมี (ตามที่เจ้าของสั่ง 'กดเข้ามาก็เจอวิชาตัวเองเลย')
+    if sc.is_teacher and cid is None:
+        if by_subj and len(sc.teach_pairs) == 1:
+            (acid, asid) = next(iter(sc.teach_pairs))
+            return RedirectResponse(f"/academic/attendance?mode=subject&cid={acid}&sid={asid}",
+                                    status_code=303)
+        if (not by_subj) and len(sc.homeroom_ids) == 1:
+            return RedirectResponse(
+                f"/academic/attendance?mode=overall&cid={next(iter(sc.homeroom_ids))}",
+                status_code=303)
     classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
+    if sc.is_teacher:
+        allowed = sc.teach_class_ids if by_subj else sc.homeroom_ids
+        classes = [x for x in classes if x.id in allowed]
     c = db.get(AcadClass, cid) if cid else None
+    if c and sc.is_teacher:
+        allowed = sc.teach_class_ids if by_subj else sc.homeroom_ids
+        if c.id not in allowed:
+            return _deny()
     students = sorted(c.students, key=lambda s: (s.seq or 999, s.name)) if c else []
     cal = {r.month: parse_days_csv(r.days_csv)
            for r in db.query(AcadCalendar).filter_by(year=y).all()}
     # โหมดแยกรายวิชา: เลือกวิชาก่อน เช็กเวลาของวิชานั้น (subject_id) · โหมดโดยรวม: รายห้อง (subject_id NULL)
     subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
                 .order_by(AcadSubject.seq, AcadSubject.code).all()) if (c and by_subj) else []
+    if sc.is_teacher and c and by_subj:
+        subjects = [x for x in subjects if (c.id, x.id) in sc.teach_pairs]
     subj = db.get(AcadSubject, sid) if (by_subj and sid) else None
+    if subj and sc.is_teacher and not sc.can_teach(c.id if c else 0, subj.id):
+        subj = None
     home_pick = not by_subj
     att_sid = subj.id if (by_subj and subj) else None
     picked = (not by_subj) or (subj is not None)
@@ -1110,9 +1320,11 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
 
 
 @router.post("/academic/attendance/mode")
-def attendance_mode(db: Session = Depends(get_db),
+def attendance_mode(request: Request, db: Session = Depends(get_db),
                     by_subject: str = Form(""), cid: str = Form("")):
     """สลับโหมดเช็กเวลาเรียน รายห้อง <-> รายวิชา (ตั้งค่าทั้งโรงเรียน) จากหน้าเวลาเรียน"""
+    if _scope(request, db).is_teacher:
+        return _deny()
     s = get_school(db)
     s.attendance_by_subject = bool(by_subject)
     db.commit()
@@ -1124,6 +1336,8 @@ def attendance_mode(db: Session = Depends(get_db),
 async def attendance_day_save(request: Request, db: Session = Depends(get_db),
                               cid: str = Form(""), month: str = Form(""), sid: str = Form(""), mode: str = Form("")):
     """บันทึกเช็กชื่อรายวันของเดือนเดียว - เขียน marks + present ให้ตรงกัน"""
+    if not _att_ok(_scope(request, db), _to_int(cid, 0), mode, _to_int(sid, 0)):
+        return _deny()
     form = await request.form()
     c = db.get(AcadClass, _to_int(cid, 0))
     m = _to_int(month, 0)
@@ -1167,6 +1381,8 @@ async def attendance_day_save(request: Request, db: Session = Depends(get_db),
 @router.post("/academic/attendance/save")
 async def attendance_save(request: Request, db: Session = Depends(get_db),
                           cid: str = Form(""), sid: str = Form(""), mode: str = Form("")):
+    if not _att_ok(_scope(request, db), _to_int(cid, 0), mode, _to_int(sid, 0)):
+        return _deny()
     form = await request.form()
     c = db.get(AcadClass, _to_int(cid, 0))
     if not c:
@@ -1238,6 +1454,8 @@ async def attendance_fill_year(request: Request, db: Session = Depends(get_db),
     """ทุกคนมาเรียนทุกวันทั้งปี: เขียนเครื่องหมาย "มา" รายวันให้ครบทุกวันเปิดเรียน
     (เดือนที่มีปฏิทิน) + เติมยอดรายเดือน/รายปีให้ครบ · ป่วย/ลา/ขาด = 0
     เดือนที่ยังไม่มีปฏิทินแต่ครูพิมพ์จำนวนวันเปิดเรียนไว้ ใช้จำนวนนั้นเป็นยอด "มา" """
+    if not _att_ok(_scope(request, db), _to_int(cid, 0), mode, _to_int(sid, 0)):
+        return _deny()
     form = await request.form()
     c = db.get(AcadClass, _to_int(cid, 0))
     if not c:
@@ -1299,37 +1517,45 @@ async def attendance_fill_year(request: Request, db: Session = Depends(get_db),
 
 # ---------------- เอกสาร ----------------
 @router.get("/academic/classes/{cid}/pp5.docx")
-def pp5_docx(cid: int, sid: int, db: Session = Depends(get_db)):
+def pp5_docx(cid: int, sid: int, request: Request, db: Session = Depends(get_db)):
     from app.services.acad_doc import render_pp5
     c, subj = db.get(AcadClass, cid), db.get(AcadSubject, sid)
     if not c or not subj:
         return RedirectResponse("/academic/grades", status_code=303)
+    if not _scope(request, db).can_teach(cid, sid):
+        return _deny()
     return serve_generated(render_pp5(get_school(db), c, subj, db), _DOCX)
 
 
 @router.get("/academic/classes/{cid}/pp5-book.docx")
-def pp5_book_docx(cid: int, term: int = 0, db: Session = Depends(get_db)):
+def pp5_book_docx(cid: int, request: Request, term: int = 0, db: Session = Depends(get_db)):
     """ปพ.5 ทั้งเล่ม · มัธยมส่ง ?term=1/2 (เล่มรายภาค) · ประถมไม่ต้องส่ง"""
     from app.services.acad_doc import render_pp5_book
     c = db.get(AcadClass, cid)
     if not c:
         return RedirectResponse("/academic/classes", status_code=303)
+    if not _scope(request, db).can_homeroom(cid):
+        return _deny()
     return serve_generated(render_pp5_book(get_school(db), c, db, term=term), _DOCX)
 
 
 @router.get("/academic/student/{aid}/pp6.docx")
-def pp6_docx(aid: int, db: Session = Depends(get_db)):
+def pp6_docx(aid: int, request: Request, db: Session = Depends(get_db)):
     from app.services.acad_doc import render_pp6
     s = db.get(AcadStudent, aid)
     if not s:
         return RedirectResponse("/academic/classes", status_code=303)
+    if not _scope(request, db).can_homeroom(s.class_id):
+        return _deny()
     return serve_generated(render_pp6(get_school(db), s, db), _DOCX)
 
 
 @router.get("/academic/classes/{cid}/pp6-all.docx")
-def pp6_all_docx(cid: int, db: Session = Depends(get_db)):
+def pp6_all_docx(cid: int, request: Request, db: Session = Depends(get_db)):
     from app.services.acad_doc import render_pp6_class
     c = db.get(AcadClass, cid)
     if not c:
         return RedirectResponse("/academic/classes", status_code=303)
+    if not _scope(request, db).can_homeroom(cid):
+        return _deny()
     return serve_generated(render_pp6_class(get_school(db), c, db), _DOCX)

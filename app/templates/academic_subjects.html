@@ -38,7 +38,7 @@
 {% set ap = request.query_params.get('apreset') %}
 {% if ap %}<div class="alert">{% if ap == '0' %}กิจกรรมมาตรฐานมีครบแล้ว ไม่ได้เพิ่มซ้ำ{% else %}✔ สร้างกิจกรรมมาตรฐานให้ {{ ap }} รายการ{% endif %}</div>{% endif %}
 
-{% if level %}
+{% if level and not is_teacher %}
 <div class="card" style="border:1px solid #ddd6fe; background:#faf8ff;">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-star"/></svg> สร้างรายวิชาพื้นฐานสำเร็จรูป</h2>
   <p class="muted" style="margin:4px 0 10px;">สร้างรายวิชาพื้นฐาน 8 กลุ่มสาระของ <b>{{ level }}</b> พร้อมรหัสวิชาตามหลักสูตรแกนกลาง
@@ -51,6 +51,7 @@
 </div>
 {% endif %}
 
+{% if not is_teacher %}
 <div class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มรายวิชา</h2>
   <form method="post" action="/academic/subjects/add" class="row" style="align-items:flex-end;">
@@ -74,14 +75,34 @@
     <div><button class="btn" type="submit">เพิ่ม</button></div>
   </form>
 </div>
+{% endif %}
 
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-    <h2 style="margin:0;">รายวิชา {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }})</span>{% endif %}</h2>
-    {% if rows %}<button class="btn sm" type="button" onclick="saveAllRows(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึกทั้งหมด</button>{% endif %}
+    <h2 style="margin:0;">{% if is_teacher %}วิชาที่ฉันสอน{% else %}รายวิชา{% endif %} {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }})</span>{% endif %}</h2>
+    {% if rows and not is_teacher %}<button class="btn sm" type="button" onclick="saveAllRows(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึกทั้งหมด</button>{% endif %}
   </div>
-  <p class="muted" style="font-size:13px; margin:4px 0 8px;">สัดส่วนคะแนน = คะแนนเก็บ : คะแนนปลายภาค (ค่าเริ่มต้น 70 : 30) · แก้หลายแถวแล้วกด "บันทึกทั้งหมด" ครั้งเดียวได้</p>
-  {% if rows %}
+  {% if not is_teacher %}<p class="muted" style="font-size:13px; margin:4px 0 8px;">สัดส่วนคะแนน = คะแนนเก็บ : คะแนนปลายภาค (ค่าเริ่มต้น 70 : 30) · แก้หลายแถวแล้วกด "บันทึกทั้งหมด" ครั้งเดียวได้</p>{% endif %}
+  {% if rows and is_teacher %}
+  {# ครู: อ่านอย่างเดียว (แก้รายวิชา/สัดส่วนคะแนน เป็นหน้าที่เจ้าหน้าที่) #}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>รหัส</th><th>ชื่อรายวิชา</th><th>ชั้น</th><th>ประเภท</th><th>สัดส่วนคะแนน</th><th>ภาคเรียน</th></tr></thead>
+    <tbody>
+    {% for s in rows %}
+      <tr>
+        <td>{{ s.code }}</td>
+        <td>{{ s.name }}{% if s.learn_group %}<div class="muted" style="font-size:12.5px;">{{ s.learn_group }}</div>{% endif %}</td>
+        <td>{{ s.level }}</td>
+        <td>{{ s.kind }}</td>
+        <td>{{ s.mid_max if s.mid_max is not none else 70 }} : {{ s.final_max if s.final_max is not none else 30 }}</td>
+        <td>{{ term_label(s.term) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% elif rows %}
   {# ซ่อนคอลัมน์ที่ไม่ให้ข้อมูล: ประถมไม่ใช้หน่วยกิต/ภาคเรียน · คอลัมน์ชั้นซ้ำทุกแถวเมื่อกรองชั้นแล้ว
      เลือก "ทุกชั้น" = แถวปนกัน ต้องโชว์ครบ #}
   {% set sec = level and is_secondary(level) %}
@@ -143,7 +164,7 @@
   {% endif %}
 </div>
 
-{% if level %}
+{% if level and not is_teacher %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
     <h2 style="margin:0;">กิจกรรมพัฒนาผู้เรียน <span class="muted" style="font-size:15px;">ของ {{ level }}</span></h2>
