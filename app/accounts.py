@@ -506,7 +506,7 @@ def list_tenant_users(tenant_id) -> list:
               .order_by(Account.is_owner.desc(), Account.id).all())
         return [{"id": u.id, "username": u.username, "display_name": u.display_name or "",
                  "is_owner": bool(u.is_owner), "active": bool(u.active),
-                 "modules": u.modules or ""} for u in us]
+                 "modules": u.modules or "", "person_id": u.person_id} for u in us]
     finally:
         db.close()
 
@@ -608,7 +608,10 @@ def add_tenant_user(tenant_id, username, password, modules="", display_name="") 
         t = db.query(Tenant).filter_by(id=tenant_id).first()
         if not t:
             return {"error": "ไม่พบโรงเรียน"}
-        if db.query(Account).filter_by(tenant_id=tenant_id).count() >= (t.max_users or 3):
+        # บัญชีครู (งานวิชาการ · ผูก Person) ไม่นับในโควตา -> นับเฉพาะไอดีเจ้าหน้าที่
+        billable = (db.query(Account)
+                    .filter(Account.tenant_id == tenant_id, Account.person_id.is_(None)).count())
+        if billable >= (t.max_users or 3):
             return {"error": f"เกินจำนวนผู้ใช้สูงสุดของโรงเรียน ({t.max_users or 3} คน)"}
         if db.query(Account).filter_by(username=username).first():
             return {"error": "ชื่อผู้ใช้นี้ถูกใช้แล้ว เลือกชื่ออื่น"}
@@ -634,8 +637,7 @@ def add_teacher_account(tenant_id, person_id, username, password, display_name="
         t = db.query(Tenant).filter_by(id=tenant_id).first()
         if not t:
             return {"error": "ไม่พบโรงเรียน"}
-        if db.query(Account).filter_by(tenant_id=tenant_id).count() >= (t.max_users or 3):
-            return {"error": f"เกินจำนวนผู้ใช้สูงสุดของโรงเรียน ({t.max_users or 3} คน)"}
+        # บัญชีครู (งานวิชาการ) ไม่จำกัดจำนวน - ยกเว้นจากโควตา max_users ของโรงเรียน
         if db.query(Account).filter_by(username=username).first():
             return {"error": "ชื่อผู้ใช้นี้ถูกใช้แล้ว เลือกชื่ออื่น"}
         if db.query(Account).filter_by(tenant_id=tenant_id, person_id=person_id).first():

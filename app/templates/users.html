@@ -2,6 +2,9 @@
 {% block title %}จัดการผู้ใช้{% endblock %}
 {% block content %}
 {% set tid = request.session.get('tid') %}
+{# บัญชีครู (งานวิชาการ · ผูก Person) ไม่นับในโควตา - นับเฉพาะไอดีเจ้าหน้าที่ #}
+{% set billable = users|rejectattr('person_id')|list|length %}
+{% set n_teachers = users|selectattr('person_id')|list|length %}
 <style>
   /* กันตัวอักษรบีบ/ตัดบรรทัดในตารางบัญชี (หัวตาราง + ป้ายประเภท/สถานะ) */
   .content table th { white-space:nowrap; }
@@ -11,7 +14,7 @@
   <div>
     <div class="hero-sub">จัดการบัญชีผู้ใช้ในโรงเรียน (ไอดีหลักเท่านั้น)</div>
     <span class="hero-title">จัดการผู้ใช้</span>
-    <div class="hero-meta">ใช้ไปแล้ว {{ users|length }} / {{ max_users }} บัญชี · ไอดีหลักเห็นทุกงาน · ไอดีย่อยเลือกสิทธิ์งานได้</div>
+    <div class="hero-meta">ใช้ไปแล้ว {{ billable }} / {{ max_users }} บัญชี{% if n_teachers %} · บัญชีครูงานวิชาการ {{ n_teachers }} (ไม่นับในโควตา){% endif %} · ไอดีหลักเห็นทุกงาน · ไอดีย่อยเลือกสิทธิ์งานได้</div>
   </div>
 </div>
 {% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
@@ -28,11 +31,14 @@
         <td style="white-space:nowrap;"><b>{{ u.username }}</b>{% if u.display_name %}<br><span class="muted" style="font-size:13px;">{{ u.display_name }}</span>{% endif %}</td>
         <td>
           {% if u.is_owner %}<span class="pill" style="background:#e8f0ff; color:#2b58c9;">ไอดีหลัก</span>
+          {% elif u.person_id %}<span class="pill" style="background:#ede9fe; color:#6d28d9;">ครู (งานวิชาการ)</span>
           {% else %}<span class="pill" style="background:#f1f5f9; color:#5a6a85;">ไอดีย่อย</span>{% endif %}
         </td>
         <td>
           {% if u.is_owner %}
             <span class="muted">ทุกงาน</span>
+          {% elif u.person_id %}
+            <span class="muted">งานวิชาการ · เฉพาะวิชา/ห้องที่ตัวเองสอน (<a href="/academic/teacher-accounts">จัดการ</a>)</span>
           {% else %}
             <form method="post" action="/users/{{ u.id }}/modules" style="margin:0; display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center;">
               {% for k in module_keys %}{% if can_use(tid, k) %}
@@ -60,7 +66,7 @@
   </div>
 </div>
 
-{% if users|length < max_users %}
+{% if billable < max_users %}
 <div class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มผู้ใช้ใหม่</h2>
   <form method="post" action="/users/add">
@@ -82,7 +88,8 @@
   </form>
 </div>
 {% else %}
-<div class="card"><p class="muted" style="margin:0;">ใช้ครบจำนวนบัญชีสูงสุด ({{ max_users }}) แล้ว หากต้องการเพิ่ม โปรดติดต่อผู้ให้บริการเพื่อขยายจำนวนผู้ใช้</p></div>
+<div class="card"><p class="muted" style="margin:0;">ใช้ครบจำนวนบัญชีเจ้าหน้าที่สูงสุด ({{ max_users }}) แล้ว หากต้องการเพิ่ม โปรดติดต่อผู้ให้บริการเพื่อขยายจำนวนผู้ใช้ ·
+  <b>บัญชีครูงานวิชาการสร้างได้ไม่จำกัด</b> ที่หน้า <a href="/academic/teacher-accounts">บัญชีครู</a></p></div>
 {% endif %}
 
 <script>
