@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block title %}รายวิชา{% endblock %}
 {% block content %}
+<style>
+  .sub-teacher{ background:#faf5ff; border-color:#e9d5ff !important; }
+  .sub-teacher::placeholder{ color:#9333ea; opacity:.75; }
+</style>
 <div class="hero">
   <div>
     <div class="hero-sub">งานวิชาการ</div>
@@ -63,6 +67,7 @@
     <div><label>รหัสวิชา</label><input name="code" style="width:100px;" placeholder="ท11101"></div>
     <div style="flex:1.4;"><label>ชื่อรายวิชา *</label><input name="name" required></div>
     <div style="flex:1.2;"><label>สาระการเรียนรู้</label><input name="learn_group"></div>
+    <div style="flex:1.2;"><label>ครูผู้สอน</label><input list="teachers-dl-sub" name="teacher_name" autocomplete="off" placeholder="พิมพ์หาชื่อครู"></div>
     <div><label>ประเภท</label><select name="kind">{% for k in kinds %}<option>{{ k }}</option>{% endfor %}</select></div>
     <div><label>เวลาเรียน</label><input name="hours" style="width:80px;" placeholder="80"></div>
     <div><label>หน่วยกิต</label><input name="credit" style="width:80px;" placeholder="1.0"></div>
@@ -82,7 +87,14 @@
     <h2 style="margin:0;">{% if is_teacher %}วิชาที่ฉันสอน{% else %}รายวิชา{% endif %} {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }})</span>{% endif %}</h2>
     {% if rows and not is_teacher %}<button class="btn sm" type="button" onclick="saveAllRows(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึกทั้งหมด</button>{% endif %}
   </div>
-  {% if not is_teacher %}<p class="muted" style="font-size:13px; margin:4px 0 8px;">สัดส่วนคะแนน = คะแนนเก็บ : คะแนนปลายภาค (ค่าเริ่มต้น 70 : 30) · แก้หลายแถวแล้วกด "บันทึกทั้งหมด" ครั้งเดียวได้</p>{% endif %}
+  {% if not is_teacher %}
+  <p class="muted" style="font-size:13px; margin:4px 0 8px;">สัดส่วนคะแนน = คะแนนเก็บ : คะแนนปลายภาค (ค่าเริ่มต้น 70 : 30) ·
+    ช่อง <b>ครูผู้สอน</b> (ใต้ชื่อวิชา) พิมพ์หาชื่อครูได้ ระบบผูกให้ทุกห้องของชั้นนั้นอัตโนมัติ (แก้รายห้องได้ที่หน้าห้องเรียน) ·
+    แก้หลายแถวแล้วกด "บันทึกทั้งหมด" ครั้งเดียวได้</p>
+  <datalist id="teachers-dl-sub">
+    {% for t in teachers %}<option value="{{ t.name }}"></option>{% endfor %}
+  </datalist>
+  {% endif %}
   {% if rows and is_teacher %}
   {# ครู: อ่านอย่างเดียว (แก้รายวิชา/สัดส่วนคะแนน เป็นหน้าที่เจ้าหน้าที่) #}
   <div class="table-wrap">
@@ -137,7 +149,10 @@
           {% endif %}</td>
         <td style="width:100%;"><input form="sf{{ s.id }}" name="name" value="{{ s.name }}" style="width:100%; min-width:150px;">
           <input form="sf{{ s.id }}" name="learn_group" value="{{ s.learn_group }}" placeholder="สาระการเรียนรู้"
-                 class="sub-group" style="width:100%; min-width:150px; margin-top:3px; font-size:13px; padding:5px 8px;"></td>
+                 class="sub-group" style="width:100%; min-width:150px; margin-top:3px; font-size:13px; padding:5px 8px;">
+          <input list="teachers-dl-sub" form="sf{{ s.id }}" name="teacher_name" autocomplete="off"
+                 value="{{ subj_teacher.get(s.id, '') }}" placeholder="ครูผู้สอน (พิมพ์หาชื่อ)"
+                 class="sub-group sub-teacher" style="width:100%; min-width:150px; margin-top:3px; font-size:13px; padding:5px 8px;"></td>
         <td><select form="sf{{ s.id }}" name="kind" style="width:114px;">{% for k in kinds %}<option {{ 'selected' if k==s.kind }}>{{ k }}</option>{% endfor %}</select></td>
         <td><input form="sf{{ s.id }}" name="hours" value="{{ s.hours or '' }}" style="width:60px;"></td>
         {% if show_credit %}<td><input form="sf{{ s.id }}" name="credit" value="{{ cr }}" style="width:60px;"></td>{% endif %}

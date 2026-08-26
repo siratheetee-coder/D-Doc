@@ -75,22 +75,23 @@
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-users"/></svg> ครูผู้สอนรายวิชาของห้องนี้</h2>
   <p class="muted" style="font-size:13px; margin:4px 0 8px;">กำหนดแยกรายห้องได้ - วิชาเดียวกันคนละห้องใช้คนละครูได้ · ชื่อนี้จะไปลงนามท้าย ปพ.5</p>
   {% if subjects %}
+  <p class="muted" style="font-size:13px; margin:0 0 8px;">พิมพ์ชื่อครูเพื่อค้นหา แล้วเลือกจากรายการ (หรือพิมพ์เต็มชื่อ) · เว้นว่าง = ไม่มีครู</p>
   <form method="post" action="/academic/classes/{{ c.id }}/teaching">
+    <datalist id="teachers-dl">
+      {% for t in teachers %}<option value="{{ t.name }}"></option>{% endfor %}
+    </datalist>
     <div class="table-wrap">
     <table>
-      <thead><tr><th>รหัส</th><th>รายวิชา</th><th>ภาค</th><th>ครูผู้สอน</th></tr></thead>
+      <thead><tr><th>รหัส</th><th style="min-width:160px;">รายวิชา</th><th>ภาค</th><th style="min-width:200px;">ครูผู้สอน</th></tr></thead>
       <tbody>
       {% for s in subjects %}
         <tr>
           <td>{{ s.code }}</td>
           <td>{{ s.name }}</td>
-          <td>{{ term_label(s.term) }}</td>
-          <td><select name="teacher_{{ s.id }}">
-            <option value="">-</option>
-            {% for t in teachers %}
-            <option value="{{ t.id }}" {{ 'selected' if teach.get(s.id) and teach[s.id].teacher_id==t.id }}>{{ t.name }}</option>
-            {% endfor %}
-          </select></td>
+          <td style="white-space:nowrap;">{{ term_label(s.term) }}</td>
+          <td><input list="teachers-dl" name="teacher_{{ s.id }}" autocomplete="off"
+                     value="{{ teach[s.id].teacher.name if teach.get(s.id) and teach[s.id].teacher else '' }}"
+                     placeholder="พิมพ์ชื่อครู" style="width:100%; min-width:190px;"></td>
         </tr>
       {% endfor %}
       </tbody>

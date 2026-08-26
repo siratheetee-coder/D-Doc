@@ -109,6 +109,43 @@ def _deny():
     return RedirectResponse("/academic", status_code=303)
 
 
+def _resolve_teacher(db, name):
+    """ชื่อครู (พิมพ์/เลือกจาก datalist) -> Person.id · ไม่พบ = None"""
+    name = (name or "").strip()
+    if not name:
+        return None
+    p = (db.query(Person).filter(Person.active == True, Person.name == name).first()
+         or db.query(Person).filter(Person.name == name).first())
+    return p.id if p else None
+
+
+def _assign_subject_teacher(db, subj, teacher_id):
+    """ตั้งครูผู้สอนของวิชานี้ให้ทุกห้องของชั้นเดียวกัน (เชื่อมกับหน้าห้องเรียน)
+    ใช้ตอนตั้งครูจากหน้ารายวิชา - แก้รายห้องได้ละเอียดกว่าที่หน้าห้องเรียน"""
+    classes = db.query(AcadClass).filter_by(year=subj.year, level=subj.level).all()
+    for c in classes:
+        row = db.query(AcadTeaching).filter_by(class_id=c.id, subject_id=subj.id).first()
+        if row:
+            row.teacher_id = teacher_id
+        elif teacher_id:
+            db.add(AcadTeaching(class_id=c.id, subject_id=subj.id, teacher_id=teacher_id))
+
+
+def _subject_teacher_names(db, subjects):
+    """map subject_id -> ชื่อครู (โชว์ในช่องรายวิชา) · ถ้าหลายห้องคนละครู = เว้นว่าง (ไปแก้รายห้อง)"""
+    ids = [s.id for s in subjects]
+    if not ids:
+        return {}
+    from collections import defaultdict
+    names = defaultdict(set)
+    q = (db.query(AcadTeaching.subject_id, Person.name)
+         .join(Person, AcadTeaching.teacher_id == Person.id)
+         .filter(AcadTeaching.subject_id.in_(ids)))
+    for sid, nm in q.all():
+        names[sid].add(nm)
+    return {sid: (next(iter(ns)) if len(ns) == 1 else "") for sid, ns in names.items()}
+
+
 def _att_ok(sc, cid, mode, sid) -> bool:
     """สิทธิ์เช็กเวลาเรียน: โหมดรายวิชา = วิชาที่สอน · โหมดโดยรวม = ห้องที่ประจำชั้น"""
     if not sc.is_teacher:
@@ -378,9 +415,15 @@ async def teaching_save(cid: int, request: Request, db: Session = Depends(get_db
         if not key.startswith("teacher_"):
             continue
         sid = _to_int(key[8:], 0)
-        tid = _to_int(val, 0) or None
         if not sid:
             continue
+        raw = (val or "").strip()
+        if raw == "":
+            tid = None                        # ล้างช่อง = เอาครูออก
+        else:
+            tid = _resolve_teacher(db, raw)
+            if tid is None:
+                continue                      # พิมพ์ชื่อไม่ตรงใคร = ไม่แตะ (กันลบพลาด)
         if sid in cur:
             if tid:
                 cur[sid].teacher_id = tid
@@ -406,11 +449,14 @@ def subjects_page(request: Request, db: Session = Depends(get_db),
         rows = [s for s in rows if s.id in sc.subject_ids]
     # กิจกรรมพัฒนาผู้เรียน (การ์ดที่ 2) - แสดงเมื่อเลือกชั้นแล้วเท่านั้น
     activities = activities_for(y, level, db) if (level and not sc.is_teacher) else []
+    teachers = (db.query(Person).filter_by(active=True).order_by(Person.name).all()
+                if not sc.is_teacher else [])
+    subj_teacher = _subject_teacher_names(db, rows) if not sc.is_teacher else {}
     return templates.TemplateResponse("academic_subjects.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "rows": rows, "level": level, "levels": SCHOOL_LEVELS, "kinds": SUBJECT_KINDS,
         "term_label": term_label, "is_secondary": is_secondary, "activities": activities,
-        "is_teacher": sc.is_teacher,
+        "is_teacher": sc.is_teacher, "teachers": teachers, "subj_teacher": subj_teacher,
     })
 
 
@@ -418,7 +464,8 @@ def subjects_page(request: Request, db: Session = Depends(get_db),
 def subject_add(request: Request, db: Session = Depends(get_db), year: str = Form(""), level: str = Form(""),
                 code: str = Form(""), name: str = Form(""), learn_group: str = Form(""),
                 kind: str = Form("พื้นฐาน"), hours: str = Form(""), credit: str = Form(""),
-                term: str = Form("0"), mid_max: str = Form("70"), final_max: str = Form("30")):
+                term: str = Form("0"), mid_max: str = Form("70"), final_max: str = Form("30"),
+                teacher_name: str = Form("")):
     if _scope(request, db).is_teacher:
         return _deny()
     y = _to_int(year, 0) or current_academic_year()
@@ -428,11 +475,16 @@ def subject_add(request: Request, db: Session = Depends(get_db), year: str = For
         mm, fm = max(0, _to_int(mid_max, 70)), max(0, _to_int(final_max, 30))
         if (mm + fm) <= 0:            # กันสัดส่วน 0:0 (เกรดจะคิดจากค่าปริยายเงียบ ๆ)
             mm, fm = 70, 30
-        db.add(AcadSubject(year=y, level=(level or "").strip(), code=(code or "").strip(),
+        subj = AcadSubject(year=y, level=(level or "").strip(), code=(code or "").strip(),
                            name=nm, learn_group=(learn_group or "").strip(),
                            kind=(kind or "พื้นฐาน").strip(), hours=_to_int(hours, 0),
                            credit=_to_float(credit, 0.0), term=_to_int(term, 0), seq=n + 1,
-                           mid_max=mm, final_max=fm))
+                           mid_max=mm, final_max=fm)
+        db.add(subj)
+        db.flush()
+        tid = _resolve_teacher(db, teacher_name)   # ตั้งครูให้ทุกห้องของชั้นนี้ (เชื่อมกับห้องเรียน)
+        if tid:
+            _assign_subject_teacher(db, subj, tid)
         db.commit()
     return RedirectResponse(f"/academic/subjects?year={y}&level={level}", status_code=303)
 
@@ -441,7 +493,8 @@ def subject_add(request: Request, db: Session = Depends(get_db), year: str = For
 def subject_update(sid: int, request: Request, db: Session = Depends(get_db), code: str = Form(""),
                    name: str = Form(""), learn_group: str = Form(""), kind: str = Form(""),
                    hours: str = Form(""), credit: str = Form(""), term: str = Form("0"),
-                   mid_max: str = Form("70"), final_max: str = Form("30")):
+                   mid_max: str = Form("70"), final_max: str = Form("30"),
+                   teacher_name: str = Form("")):
     if _scope(request, db).is_teacher:
         return _deny()
     s = db.get(AcadSubject, sid)
@@ -456,6 +509,10 @@ def subject_update(sid: int, request: Request, db: Session = Depends(get_db), co
         # กันสัดส่วน 0:0 (จะทำให้เกรดคิดจากค่าปริยายเงียบ ๆ จนครูงงว่าทำไมไม่ตรง)
         mm, fm = max(0, _to_int(mid_max, 70)), max(0, _to_int(final_max, 30))
         s.mid_max, s.final_max = (mm, fm) if (mm + fm) > 0 else (70, 30)
+        # ครูผู้สอน: กรอกชื่อ = ตั้งให้ทุกห้องของชั้น · เว้นว่าง = ไม่แตะ (ล้างครูทำที่หน้าห้องเรียน)
+        tid = _resolve_teacher(db, teacher_name)
+        if tid:
+            _assign_subject_teacher(db, s, tid)
         db.commit()
     return RedirectResponse(f"/academic/subjects?year={s.year if s else ''}", status_code=303)
 
