@@ -12,7 +12,13 @@
 {% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกเวลาเรียนแล้ว</div>{% endif %}
 
 <div class="card">
+  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+    <span class="badge" style="background:{{ '#ede9fe' if by_subj else '#dcfce7' }}; color:{{ '#6d28d9' if by_subj else '#166534' }}; padding:4px 10px; border-radius:6px; font-weight:600; font-size:13px;">
+      <svg class="icon"><use href="#ic-{{ 'clipboard' if by_subj else 'users' }}"/></svg> โหมด: {{ 'เช็คชื่อรายวิชา' if by_subj else 'เช็คเวลาเรียนโดยรวม (รายห้อง)' }}</span>
+    <a class="muted" href="/academic/attendance" style="font-size:13px;">← เปลี่ยนโหมด</a>
+  </div>
   <form method="get" action="/academic/attendance" class="row" style="align-items:flex-end; margin:0;">
+    <input type="hidden" name="mode" value="{{ mode }}">
     <div><label>ปีการศึกษา</label>
       <select name="year" onchange="submitReplace(this.form)">
         {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
@@ -23,29 +29,18 @@
         {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id==c.id }}>{{ class_label(k) }}</option>{% endfor %}
       </select></div>
     {% if c and by_subj %}
-    <div><label>เช็กเวลาของ</label>
+    <div><label>รายวิชา</label>
       <select name="sid" onchange="submitReplace(this.form)">
-        <option value="">- เลือก -</option>
-        <option value="0" {{ 'selected' if home_pick }}>รายห้อง (โฮมรูม — สำหรับ ปพ.6/เล่มรวม)</option>
-        {% for sb in subjects %}<option value="{{ sb.id }}" {{ 'selected' if subj and sb.id==subj.id }}>วิชา {{ sb.code }} {{ sb.name }}</option>{% endfor %}
+        <option value="">- เลือกวิชา -</option>
+        {% for sb in subjects %}<option value="{{ sb.id }}" {{ 'selected' if subj and sb.id==subj.id }}>{{ sb.code }} {{ sb.name }}</option>{% endfor %}
       </select></div>
     {% endif %}
   </form>
-  <div style="margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-    <span class="muted" style="font-size:13px;">โหมดเช็กเวลาเรียน <b>(ทั้งโรงเรียน)</b>:</span>
-    <form method="post" action="/academic/attendance/mode" style="display:inline-flex; gap:6px; margin:0;">
-      <input type="hidden" name="cid" value="{{ c.id if c else '' }}">
-      <button class="btn sm {{ 'soft' if by_subj }}" name="by_subject" value="" type="submit"><svg class="icon"><use href="#ic-users"/></svg> รายห้อง</button>
-      <button class="btn sm {{ 'soft' if not by_subj }}" name="by_subject" value="1" type="submit"><svg class="icon"><use href="#ic-clipboard"/></svg> แยกรายวิชา</button>
-    </form>
-    <span class="muted" style="font-size:12px;">{{ 'ครูแต่ละวิชาเช็กเวลาของตัวเอง' if by_subj else 'ครูประจำชั้นเช็กเวลารวมของห้อง' }}</span>
-  </div>
   {% if not c %}
   <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> เพื่อกรอกเวลาเรียน -
     กรอกเป็น<b>รายเดือน</b> (ระบบรวมและคิดร้อยละให้) หรือกรอกเฉพาะ<b>ยอดรวมทั้งปี</b> ก็ได้</p>
   {% elif by_subj and not picked %}
-  <p class="muted" style="margin:10px 0 0;">โหมด<b>แยกรายวิชา</b> - เลือกด้านบนว่าจะเช็กเวลาของ <b>รายห้อง</b> (ใช้ในสมุด ปพ.6/เล่มรวม)
-    หรือของ <b>รายวิชา</b> ใดวิชาหนึ่ง (ใช้ใน ปพ.5 รายวิชา)</p>
+  <p class="muted" style="margin:10px 0 0;">เลือก <b>รายวิชา</b> ด้านบนก่อน - แต่ละวิชาเช็กเวลาเรียนของตัวเอง (ใช้ใน ปพ.5 รายวิชา)</p>
   {% endif %}
 </div>
 
@@ -75,6 +70,7 @@
 
   <form method="post" action="/academic/attendance/save">
     <input type="hidden" name="cid" value="{{ c.id }}">
+    <input type="hidden" name="mode" value="{{ mode }}">
     {% if by_subj %}<input type="hidden" name="sid" value="{{ cur_sid }}">
     <p class="muted" style="font-size:13px; margin:0 0 6px;">
       {% if subj %}<b>วิชา {{ subj.code }} {{ subj.name }}</b> - เวลาเรียนของวิชานี้ (ใช้ใน ปพ.5 รายวิชา)
@@ -84,7 +80,7 @@
       <thead><tr>
         <th>เลขที่</th><th>ชื่อ-นามสกุล</th>
         {% for mnum, mname in months %}<th class="mcol center" style="white-space:nowrap;">
-          <a class="month-hd" href="/academic/attendance?cid={{ c.id }}&month={{ mnum }}{% if by_subj and picked %}&sid={{ cur_sid }}{% endif %}" title="เช็กชื่อรายวัน {{ mname }}">{{ mname }} ✎</a>
+          <a class="month-hd" href="/academic/attendance?cid={{ c.id }}&month={{ mnum }}&mode={{ mode }}{% if by_subj and picked %}&sid={{ cur_sid }}{% endif %}" title="เช็กชื่อรายวัน {{ mname }}">{{ mname }} ✎</a>
           {% if cal_days.get(mnum) %}<i style="display:block; font-style:normal; font-size:10px; font-weight:400; color:var(--muted);">{{ cal_days[mnum] }} วัน</i>{% endif %}
         </th>{% endfor %}
         <th class="center">เปิด(รวม)</th>
@@ -115,7 +111,7 @@
           {# เช็กรายวันไว้แล้ว: แสดงยอดที่นับจากการเช็ก แก้ที่หน้าเช็กชื่อเท่านั้น
              (ถ้าให้พิมพ์ทับตรงนี้ ตัวเลขจะไม่ตรงกับที่เอกสารใช้จริง) #}
           <td class="mcol center" title="นับจากการเช็กชื่อรายวัน - แก้ที่หน้าเช็กชื่อ">
-            <a href="/academic/attendance?cid={{ c.id }}&month={{ mnum }}{% if by_subj and picked %}&sid={{ cur_sid }}{% endif %}" style="font-weight:700;">{{ v if v is not none else 0 }}</a>
+            <a href="/academic/attendance?cid={{ c.id }}&month={{ mnum }}&mode={{ mode }}{% if by_subj and picked %}&sid={{ cur_sid }}{% endif %}" style="font-weight:700;">{{ v if v is not none else 0 }}</a>
             <span data-m data-fixed="{{ v if v is not none else 0 }}" style="display:none;"></span></td>
           {% else %}
           <td class="mcol"><input name="p_{{ s.id }}_{{ mnum }}" data-m value="{{ v if v is not none else '' }}"

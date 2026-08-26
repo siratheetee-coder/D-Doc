@@ -43,14 +43,6 @@
         </select>
         <span class="muted" style="font-size:13px;">ใช้จัดกลุ่มโครงการในเมนู "โครงการ/แผนงบ"</span>
       </div>
-      <div><label>งานวิชาการ · เวลาเรียน</label>
-        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding-top:6px;">
-          <input type="checkbox" name="attendance_by_subject" value="1" style="width:17px; height:17px;"
-                 {{ 'checked' if school.attendance_by_subject }}>
-          <span>เช็กเวลาเรียน<b>แยกรายวิชา</b> (ครูแต่ละวิชาเช็กเวลาของตัวเอง)</span>
-        </label>
-        <span class="muted" style="font-size:13px;">ปิดไว้ = เช็กรายห้อง (ครูประจำชั้น) · เปิด = หน้าเวลาเรียนจะให้เลือกวิชาก่อน</span>
-      </div>
     </div>
     <div class="row">
       <div><label>อักษรนำเลขหนังสือ</label><input name="doc_prefix" value="{{ school.doc_prefix }}"></div>

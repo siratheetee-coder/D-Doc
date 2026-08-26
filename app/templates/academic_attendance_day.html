@@ -16,7 +16,7 @@
   <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
     ยังไม่ได้ตั้งวันเปิดเรียนของเดือน {{ month_name }} ในปฏิทินการศึกษา -
     <a href="/academic/calendar?year={{ year }}">ไปตั้งปฏิทินก่อน</a> แล้วค่อยกลับมาเช็กชื่อ</div>
-  <a class="btn soft" href="/academic/attendance?cid={{ c.id }}{% if by_subj %}&sid={{ 0 if home_pick else (subj.id if subj else 0) }}{% endif %}">← กลับหน้าสรุปเวลาเรียน</a>
+  <a class="btn soft" href="/academic/attendance?cid={{ c.id }}&mode={{ mode }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}">← กลับหน้าสรุปเวลาเรียน</a>
 </div>
 {% else %}
 <div class="card">
@@ -24,7 +24,7 @@
     <h2 style="margin:0;">{{ month_name }} <span class="muted" style="font-size:15px;">เปิดเรียน {{ open_days|length }} วัน · {{ students|length }} คน</span></h2>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <button class="btn soft" type="button" onclick="allPresent()">ทุกคนมาทุกวัน</button>
-      <a class="btn soft gray" href="/academic/attendance?cid={{ c.id }}&show=months{% if by_subj %}&sid={{ 0 if home_pick else (subj.id if subj else 0) }}{% endif %}">← กลับหน้ารายเดือน</a>
+      <a class="btn soft gray" href="/academic/attendance?cid={{ c.id }}&show=months&mode={{ mode }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}">← กลับหน้ารายเดือน</a>
     </div>
   </div>
   <p class="muted" style="font-size:13px; margin:6px 0 8px;">
@@ -35,6 +35,7 @@
   <form method="post" action="/academic/attendance/day-save">
     <input type="hidden" name="cid" value="{{ c.id }}">
     <input type="hidden" name="month" value="{{ month }}">
+    <input type="hidden" name="mode" value="{{ mode }}">
     {% if by_subj %}<input type="hidden" name="sid" value="{{ 0 if home_pick else (subj.id if subj else '') }}">{% endif %}
     <div class="table-wrap dense">
     <table id="dayTable">

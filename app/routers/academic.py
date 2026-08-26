@@ -504,7 +504,7 @@ def grades_page(request: Request, db: Session = Depends(get_db), cid: int | None
 
 @router.post("/academic/assignments/save")
 async def assignments_save(request: Request, db: Session = Depends(get_db),
-                           cid: str = Form(""), sid: str = Form("")):
+                           cid: str = Form(""), sid: str = Form(""), mode: str = Form("")):
     """จัดการชิ้นงานเก็บคะแนนของรายวิชา · ชิ้นงานส่งเป็น array (aid/aname/amax)
     สอบกลางภาคมีเสมอ (mid_max) แก้ได้แต่ลบไม่ได้ · ชิ้นงานที่ไม่ถูกส่งมา = ถูกลบ"""
     form = await request.form()
@@ -557,7 +557,7 @@ async def assignments_save(request: Request, db: Session = Depends(get_db),
 
 @router.post("/academic/grades/save")
 async def grades_save(request: Request, db: Session = Depends(get_db),
-                      cid: str = Form(""), sid: str = Form("")):
+                      cid: str = Form(""), sid: str = Form(""), mode: str = Form("")):
     """บันทึกคะแนนทั้งห้องในครั้งเดียว · เกรดคำนวณจากคะแนนรวม (กรอกเกรดเองทับได้)
     ถ้าวิชานี้มีชิ้นงาน คะแนนเก็บ = ผลรวมคะแนนรายชิ้น (กรอกช่องชิ้นงาน ไม่กรอกช่องเก็บรวม)"""
     form = await request.form()
@@ -710,7 +710,7 @@ def indicators_page(request: Request, db: Session = Depends(get_db),
 
 @router.post("/academic/indicators/pick")
 async def indicators_pick(request: Request, db: Session = Depends(get_db),
-                          cid: str = Form(""), sid: str = Form("")):
+                          cid: str = Form(""), sid: str = Form(""), mode: str = Form("")):
     """บันทึกรายการตัวชี้วัดที่ครูเลือกใช้ (checkbox 'pick' = code) · เก็บ CSV คั่นด้วย |"""
     form = await request.form()
     subj = db.get(AcadSubject, _to_int(sid, 0))
@@ -725,7 +725,7 @@ async def indicators_pick(request: Request, db: Session = Depends(get_db),
 
 @router.post("/academic/indicators/save")
 async def indicators_save(request: Request, db: Session = Depends(get_db),
-                          cid: str = Form(""), sid: str = Form("")):
+                          cid: str = Form(""), sid: str = Form(""), mode: str = Form("")):
     """บันทึกผลประเมินตัวชี้วัดทั้งห้อง · คะแนน 0-3 ต่อข้อ ช่อง 'sc_<sid>_<idx>' · ผ่าน = score>=1"""
     form = await request.form()
     subj = db.get(AcadSubject, _to_int(sid, 0))
@@ -1048,23 +1048,28 @@ async def calendar_save(request: Request, db: Session = Depends(get_db), year: s
 @router.get("/academic/attendance", response_class=HTMLResponse)
 def attendance_page(request: Request, db: Session = Depends(get_db),
                     cid: int | None = None, year: int | None = None,
-                    month: int | None = None, sid: int | None = None):
+                    month: int | None = None, sid: int | None = None,
+                    mode: str | None = None):
     y = year or current_academic_year()
     school = get_school(db)
-    by_subj = bool(getattr(school, "attendance_by_subject", False))
+    # หน้าเลือกโหมด (2 การ์ด): เช็กโดยรวม (รายห้อง/โฮมรูม) หรือ เช็กแยกรายวิชา
+    if mode not in ("overall", "subject"):
+        return templates.TemplateResponse("academic_attendance_home.html", {
+            "request": request, "school": school, "year": y,
+        })
+    by_subj = (mode == "subject")
     classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
     c = db.get(AcadClass, cid) if cid else None
     students = sorted(c.students, key=lambda s: (s.seq or 999, s.name)) if c else []
     cal = {r.month: parse_days_csv(r.days_csv)
            for r in db.query(AcadCalendar).filter_by(year=y).all()}
-    # โหมดแยกรายวิชา: เลือกวิชาก่อน แล้วเช็กเวลาเรียนของวิชานั้น (subject_id) · โหมดรายห้อง: subject_id = NULL
+    # โหมดแยกรายวิชา: เลือกวิชาก่อน เช็กเวลาของวิชานั้น (subject_id) · โหมดโดยรวม: รายห้อง (subject_id NULL)
     subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
                 .order_by(AcadSubject.seq, AcadSubject.code).all()) if (c and by_subj) else []
-    # sid = 0 (หรือ 'รายห้อง') ในโหมดแยกวิชา = เวลารายห้อง/โฮมรูม (subject_id NULL สำหรับ ปพ.6/เล่มรวม)
-    subj = db.get(AcadSubject, sid) if (by_subj and sid and sid > 0) else None
-    home_pick = bool(by_subj and sid == 0)
+    subj = db.get(AcadSubject, sid) if (by_subj and sid) else None
+    home_pick = not by_subj
     att_sid = subj.id if (by_subj and subj) else None
-    picked = (not by_subj) or home_pick or (subj is not None)
+    picked = (not by_subj) or (subj is not None)
     subj_cond = (AcadAttendance.subject_id == att_sid) if att_sid else AcadAttendance.subject_id.is_(None)
     rows = []
     if c and students and picked:
@@ -1082,7 +1087,7 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
             "students": students, "class_label": _class_label, "month": month,
             "month_name": TH_MONTH_FULL[month], "open_days": open_days,
             "weekdays": wd, "marks": marks, "states": MARK_STATES, "blank": MARK_BLANK,
-            "by_subj": by_subj, "subj": subj, "home_pick": home_pick,
+            "by_subj": by_subj, "subj": subj, "home_pick": home_pick, "mode": mode,
         })
 
     # ---- โหมดสรุปรายเดือน ----
@@ -1100,7 +1105,7 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
         "months": TH_MONTHS, "opens": opens, "att": att, "marked": marked,
         "cal_days": {m: len(d) for m, d in cal.items()}, "has_cal": bool(cal),
         "by_subj": by_subj, "subjects": subjects, "subj": subj,
-        "picked": picked, "home_pick": home_pick,
+        "picked": picked, "home_pick": home_pick, "mode": mode,
     })
 
 
@@ -1117,14 +1122,14 @@ def attendance_mode(db: Session = Depends(get_db),
 
 @router.post("/academic/attendance/day-save")
 async def attendance_day_save(request: Request, db: Session = Depends(get_db),
-                              cid: str = Form(""), month: str = Form(""), sid: str = Form("")):
+                              cid: str = Form(""), month: str = Form(""), sid: str = Form(""), mode: str = Form("")):
     """บันทึกเช็กชื่อรายวันของเดือนเดียว - เขียน marks + present ให้ตรงกัน"""
     form = await request.form()
     c = db.get(AcadClass, _to_int(cid, 0))
     m = _to_int(month, 0)
     if not c or m not in dict(TH_MONTHS):
         return RedirectResponse("/academic/attendance", status_code=303)
-    by_subj = bool(getattr(get_school(db), "attendance_by_subject", False))
+    by_subj = (mode == "subject")
     att_sid = (_to_int(sid, 0) or None) if by_subj else None
     subj_cond = (AcadAttendance.subject_id == att_sid) if att_sid else AcadAttendance.subject_id.is_(None)
     cal = db.query(AcadCalendar).filter_by(year=c.year, month=m).first()
@@ -1154,19 +1159,19 @@ async def attendance_day_save(request: Request, db: Session = Depends(get_db),
         db.add(cm)
     cm.days_open = len(open_days) or None
     db.commit()
-    sq = f"&sid={_to_int(sid, 0)}" if by_subj else ""
+    sq = f"&mode={mode}" + (f"&sid={_to_int(sid, 0)}" if by_subj else "")
     return RedirectResponse(f"/academic/attendance?cid={c.id}&month={m}{sq}&saved=1",
                             status_code=303)
 
 
 @router.post("/academic/attendance/save")
 async def attendance_save(request: Request, db: Session = Depends(get_db),
-                          cid: str = Form(""), sid: str = Form("")):
+                          cid: str = Form(""), sid: str = Form(""), mode: str = Form("")):
     form = await request.form()
     c = db.get(AcadClass, _to_int(cid, 0))
     if not c:
         return RedirectResponse("/academic/attendance", status_code=303)
-    by_subj = bool(getattr(get_school(db), "attendance_by_subject", False))
+    by_subj = (mode == "subject")
     att_sid = (_to_int(sid, 0) or None) if by_subj else None
     subj_cond = (AcadAttendance.subject_id == att_sid) if att_sid else AcadAttendance.subject_id.is_(None)
     # วันเปิดเรียนรายเดือนของห้อง
@@ -1223,13 +1228,13 @@ async def attendance_save(request: Request, db: Session = Depends(get_db),
         else:
             e.days_present = _to_int(form.get(f"dpres_{s.id}", ""), None)
     db.commit()
-    sq = f"&sid={_to_int(sid, 0)}" if by_subj else ""
+    sq = f"&mode={mode}" + (f"&sid={_to_int(sid, 0)}" if by_subj else "")
     return RedirectResponse(f"/academic/attendance?cid={c.id}{sq}&saved=1", status_code=303)
 
 
 @router.post("/academic/attendance/fill-year")
 async def attendance_fill_year(request: Request, db: Session = Depends(get_db),
-                               cid: str = Form(""), sid: str = Form("")):
+                               cid: str = Form(""), sid: str = Form(""), mode: str = Form("")):
     """ทุกคนมาเรียนทุกวันทั้งปี: เขียนเครื่องหมาย "มา" รายวันให้ครบทุกวันเปิดเรียน
     (เดือนที่มีปฏิทิน) + เติมยอดรายเดือน/รายปีให้ครบ · ป่วย/ลา/ขาด = 0
     เดือนที่ยังไม่มีปฏิทินแต่ครูพิมพ์จำนวนวันเปิดเรียนไว้ ใช้จำนวนนั้นเป็นยอด "มา" """
@@ -1237,7 +1242,7 @@ async def attendance_fill_year(request: Request, db: Session = Depends(get_db),
     c = db.get(AcadClass, _to_int(cid, 0))
     if not c:
         return RedirectResponse("/academic/attendance", status_code=303)
-    by_subj = bool(getattr(get_school(db), "attendance_by_subject", False))
+    by_subj = (mode == "subject")
     att_sid = (_to_int(sid, 0) or None) if by_subj else None
     subj_cond = (AcadAttendance.subject_id == att_sid) if att_sid else AcadAttendance.subject_id.is_(None)
     cal = {r.month: parse_days_csv(r.days_csv)
@@ -1288,7 +1293,7 @@ async def attendance_fill_year(request: Request, db: Session = Depends(get_db),
         e.days_present = total or None
         e.days_sick = e.days_leave = e.days_absent = 0
     db.commit()
-    sq = f"&sid={_to_int(sid, 0)}" if by_subj else ""
+    sq = f"&mode={mode}" + (f"&sid={_to_int(sid, 0)}" if by_subj else "")
     return RedirectResponse(f"/academic/attendance?cid={c.id}{sq}&saved=1", status_code=303)
 
 
