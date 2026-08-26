@@ -138,9 +138,10 @@
       {% set ns.cur = s.level %}
       <tr class="lv-sep"><td colspan="{{ ncols }}">{{ s.level or "ไม่ระบุชั้น" }}</td></tr>
       {% endif %}
-      <tr data-sid="{{ s.id }}">
+      <tr data-sid="{{ s.id }}" id="sub-{{ s.id }}">
         {% set cr = ('%g'|format(s.credit)) if s.credit else '' %}
         <td><form method="post" action="/academic/subjects/{{ s.id }}/update" id="sf{{ s.id }}"></form>
+          <input type="hidden" form="sf{{ s.id }}" name="flt_level" value="{{ level }}">
           <input form="sf{{ s.id }}" name="code" value="{{ s.code }}" style="width:90px;">
           {# คอลัมน์ที่ซ่อน ต้องส่งค่าเดิมไปด้วย ไม่งั้น subject_update จะเขียนทับเป็นค่าว่าง #}
           {% if not show_credit %}
@@ -167,6 +168,7 @@
           <button class="btn sm" form="sf{{ s.id }}" type="submit">บันทึก</button>
           <form method="post" action="/academic/subjects/{{ s.id }}/delete" style="display:inline; margin:0;"
                 onsubmit="return confirm('ลบรายวิชานี้? ผลการเรียนของวิชานี้จะถูกลบด้วย');">
+            <input type="hidden" name="flt_level" value="{{ level }}">
             <button class="btn sm gray" type="submit">ลบ</button></form>
         </td>
       </tr>

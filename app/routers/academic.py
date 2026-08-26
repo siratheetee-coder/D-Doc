@@ -494,7 +494,7 @@ def subject_update(sid: int, request: Request, db: Session = Depends(get_db), co
                    name: str = Form(""), learn_group: str = Form(""), kind: str = Form(""),
                    hours: str = Form(""), credit: str = Form(""), term: str = Form("0"),
                    mid_max: str = Form("70"), final_max: str = Form("30"),
-                   teacher_name: str = Form("")):
+                   teacher_name: str = Form(""), flt_level: str = Form("")):
     if _scope(request, db).is_teacher:
         return _deny()
     s = db.get(AcadSubject, sid)
@@ -514,18 +514,23 @@ def subject_update(sid: int, request: Request, db: Session = Depends(get_db), co
         if tid:
             _assign_subject_teacher(db, s, tid)
         db.commit()
-    return RedirectResponse(f"/academic/subjects?year={s.year if s else ''}", status_code=303)
+    # กลับหน้าเดิม: คงชั้นที่กรองอยู่ + เลื่อนไปแถวที่เพิ่งบันทึก (ไม่เด้งขึ้นบนสุด)
+    lv = (flt_level or "").strip()
+    return RedirectResponse(f"/academic/subjects?year={s.year if s else ''}&level={lv}#sub-{sid}",
+                            status_code=303)
 
 
 @router.post("/academic/subjects/{sid}/delete")
-def subject_delete(sid: int, request: Request, db: Session = Depends(get_db)):
+def subject_delete(sid: int, request: Request, db: Session = Depends(get_db),
+                   flt_level: str = Form("")):
     if _scope(request, db).is_teacher:
         return _deny()
     s = db.get(AcadSubject, sid)
     y = s.year if s else ""
     if s:
         db.delete(s); db.commit()
-    return RedirectResponse(f"/academic/subjects?year={y}", status_code=303)
+    return RedirectResponse(f"/academic/subjects?year={y}&level={(flt_level or '').strip()}",
+                            status_code=303)
 
 
 @router.post("/academic/subjects/preset")
