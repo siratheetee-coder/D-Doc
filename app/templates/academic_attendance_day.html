@@ -24,6 +24,7 @@
     <h2 style="margin:0;">{{ month_name }} <span class="muted" style="font-size:15px;">เปิดเรียน {{ open_days|length }} วัน · {{ students|length }} คน</span></h2>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <button class="btn soft" type="button" onclick="allPresent()">ทุกคนมาทุกวัน</button>
+      <a class="btn soft" href="/academic/attendance/month.docx?cid={{ c.id }}&month={{ month }}&mode={{ mode }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์เวลาเรียนเดือนนี้</a>
       <a class="btn soft gray" href="/academic/attendance?cid={{ c.id }}&show=months&mode={{ mode }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}">← กลับหน้ารายเดือน</a>
     </div>
   </div>

@@ -1662,3 +1662,18 @@ def pp6_all_docx(cid: int, request: Request, db: Session = Depends(get_db)):
     if not _scope(request, db).can_homeroom(cid):
         return _deny()
     return serve_generated(render_pp6_class(get_school(db), c, db), _DOCX)
+
+
+@router.get("/academic/attendance/month.docx")
+def attendance_month_docx(request: Request, cid: int, month: int,
+                          db: Session = Depends(get_db), mode: str = "overall", sid: int = 0):
+    """พิมพ์เวลาเรียนรายวันของเดือนนั้น (แนวนอน + สรุปรวมท้าย)"""
+    from app.services.acad_doc import render_attendance_month
+    c = db.get(AcadClass, cid)
+    if not c or month not in dict(TH_MONTHS):
+        return RedirectResponse("/academic/attendance", status_code=303)
+    if not _att_ok(_scope(request, db), cid, mode, sid):
+        return _deny()
+    subject = db.get(AcadSubject, sid) if (mode == "subject" and sid) else None
+    return serve_generated(
+        render_attendance_month(get_school(db), c, db, month, subject=subject), _DOCX)
