@@ -289,8 +289,10 @@
     .btn.green:hover { box-shadow: 0 6px 16px rgba(22,179,100,.32); }
     .btn.gray { background: #fff; color: var(--sidebar-ink); border: 1px solid #dfe3ea; box-shadow: none; }
     .btn.gray:hover { background: #f3f5f9; color: var(--text); filter: none; transform: none; box-shadow: none; }
-    .btn.soft { background: var(--brand-soft); color: var(--brand-dark); box-shadow: none; }
-    .btn.soft:hover { background: #d8e6ff; color: var(--brand-dark); filter: none; transform: none; box-shadow: none; }
+    .btn.soft { background: #fff; color: var(--brand-dark); border: 1.5px solid var(--brand-lite);
+                box-shadow: 0 1px 3px rgba(16,24,40,.07); }
+    .btn.soft:hover { background: var(--brand-soft); border-color: var(--brand); color: var(--brand-dark);
+                      filter: none; box-shadow: 0 4px 12px rgba(72,128,255,.16); }
     .btn.red { background: linear-gradient(135deg, var(--danger), var(--danger-dark)); }
     .btn.red:hover { box-shadow: 0 6px 16px rgba(239,68,68,.3); }
     .btn.sm { padding: 6px 13px; font-size: 14.5px; border-radius: 9px; }
@@ -561,13 +563,13 @@
       }
       .sidebar.open { transform: translateX(0); }
       .sb-overlay.show { display: block; }
-      main { padding: 18px 14px; }
-      .card { padding: 16px 14px; }
+      main { padding: 16px 12px; }
+      .card { padding: 16px 12px; }
     }
     @media (max-width: 560px) {
-      main { padding: 12px 9px; }
-      .card { padding: 14px 11px; }
-      .hero { padding: 18px 16px; }
+      main { padding: 10px 7px; }
+      .card { padding: 14px 10px; margin-bottom: 14px; }
+      .hero { padding: 16px 14px; }
     }
   </style>
 </head>
