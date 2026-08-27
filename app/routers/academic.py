@@ -247,22 +247,29 @@ def teacher_accounts_page(request: Request, db: Session = Depends(get_db),
                           msg: str = "", err: str = ""):
     if not request.session.get("owner"):
         return RedirectResponse("/academic", status_code=303)
-    from app.accounts import list_teacher_accounts, acc_session, Tenant
+    from app.accounts import list_teacher_accounts, get_teacher_code
     tid = request.session.get("tid")
     persons = db.query(Person).filter_by(active=True).order_by(Person.name).all()
     accts = list_teacher_accounts(tid)
     linked = {a["person_id"]: a for a in accts}
-    adb = acc_session()
-    try:
-        tn = adb.query(Tenant).filter_by(id=tid).first()
-        school_code = ((tn.slug if tn else "") or f"t{tid}")
-    finally:
-        adb.close()
+    school_code, code_is_custom = get_teacher_code(tid)
     return templates.TemplateResponse("academic_teachers.html", {
         "request": request, "school": get_school(db), "persons": persons,
         "linked": linked, "n_accts": len(accts), "msg": msg, "err": err,
-        "school_code": school_code,
+        "school_code": school_code, "code_is_custom": code_is_custom,
     })
+
+
+@router.post("/academic/teacher-accounts/code")
+def teacher_code_set(request: Request, code: str = Form("")):
+    if not request.session.get("owner"):
+        return RedirectResponse("/academic", status_code=303)
+    from app.accounts import set_teacher_code
+    r = set_teacher_code(request.session.get("tid"), code)
+    if r.get("error"):
+        return RedirectResponse(f"/academic/teacher-accounts?err={r['error']}", status_code=303)
+    return RedirectResponse(
+        f"/academic/teacher-accounts?msg=ตั้งรหัสต่อท้ายไอดีครูเป็น .{r['code']} แล้ว", status_code=303)
 
 
 @router.post("/academic/teacher-accounts/add")

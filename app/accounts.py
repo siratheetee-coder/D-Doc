@@ -33,6 +33,7 @@ class Tenant(AccBase):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     slug = Column(String, unique=True)
+    teacher_code = Column(String, nullable=True)   # รหัสต่อท้ายไอดีครู (owner ตั้งเอง) เช่น 104 -> teacher1.104 · unique ทั้งระบบ
     active = Column(Boolean, default=True)         # ระงับการใช้งานได้
     expiry_date = Column(Date, nullable=True)      # วันหมดอายุ (None = ไม่จำกัด)
     max_users = Column(Integer, default=3)         # จำนวนผู้ใช้สูงสุดต่อโรงเรียน
@@ -134,6 +135,7 @@ def _ensure_engine():
                     "ALTER TABLE account ADD COLUMN welcomed BOOLEAN DEFAULT 0",
                     "ALTER TABLE account ADD COLUMN seen_modules VARCHAR DEFAULT ''",
                     "ALTER TABLE account ADD COLUMN person_id INTEGER",   # บัญชีครู -> ผูก Person.id
+                    "ALTER TABLE tenant ADD COLUMN teacher_code VARCHAR",  # รหัสต่อท้ายไอดีครู (owner ตั้ง)
                     # backfill: บัญชีแรก (id น้อยสุด) ของแต่ละโรงเรียน = ไอดีหลัก · รันซ้ำได้ (ตั้งค่าแถวเดิม)
                     "UPDATE account SET is_owner=1 WHERE tenant_id IS NOT NULL "
                     "AND id IN (SELECT MIN(id) FROM account WHERE tenant_id IS NOT NULL GROUP BY tenant_id)",
@@ -626,12 +628,65 @@ def add_tenant_user(tenant_id, username, password, modules="", display_name="") 
         db.close()
 
 
+import re as _re
+
+
+def _tenant_code(tenant) -> str:
+    """รหัสต่อท้ายไอดีครูของโรงเรียน: ใช้ที่ owner ตั้งไว้ (teacher_code) ก่อน ไม่งั้น fallback เป็น slug"""
+    if tenant is None:
+        return ""
+    return ((tenant.teacher_code or tenant.slug or f"t{getattr(tenant, 'id', '')}") or "").strip()
+
+
 def teacher_username(base, tenant) -> str:
-    """ไอดีเข้าระบบของครู = ชื่อที่ตั้ง + รหัสโรงเรียน (slug) กันซ้ำข้ามโรงเรียน
-    เช่น 'teacher1' ที่ รร. rongrian-1 -> 'teacher1.rongrian-1'"""
+    """ไอดีเข้าระบบของครู = ชื่อที่ตั้ง + รหัสต่อท้ายของโรงเรียน กันซ้ำข้ามโรงเรียน
+    เช่น 'teacher1' + รหัส '104' -> 'teacher1.104'"""
     base = (base or "").strip().replace(" ", "")
-    code = ((tenant.slug if tenant else "") or f"t{getattr(tenant, 'id', '')}").strip()
+    code = _tenant_code(tenant)
     return f"{base}.{code}" if base else ""
+
+
+def normalize_teacher_code(code) -> str:
+    """รหัสต่อท้าย: ตัวอักษร/ตัวเลข/ขีดกลางเท่านั้น ตัดช่องว่าง (ห้ามมีจุด = ตัวคั่น)"""
+    return (code or "").strip().replace(" ", "")
+
+
+def get_teacher_code(tenant_id):
+    """รหัสต่อท้ายปัจจุบันของโรงเรียน (ที่ตั้งเอง) + fallback slug ถ้ายังไม่ตั้ง · คืน (code, is_custom)"""
+    db = acc_session()
+    try:
+        t = db.query(Tenant).filter_by(id=tenant_id).first()
+        if not t:
+            return ("", False)
+        return (_tenant_code(t), bool(t.teacher_code))
+    finally:
+        db.close()
+
+
+def set_teacher_code(tenant_id, code) -> dict:
+    """owner ตั้ง/แก้รหัสต่อท้ายไอดีครู - บังคับไม่ซ้ำกับโรงเรียนอื่น
+    หมายเหตุ: ไอดีครูที่สร้างไปแล้วจะไม่เปลี่ยนตาม (คงใช้ของเดิมได้)"""
+    code = normalize_teacher_code(code)
+    if not code:
+        return {"error": "กรอกรหัสต่อท้าย"}
+    if not _re.fullmatch(r"[A-Za-z0-9-]{1,20}", code):
+        return {"error": "รหัสต่อท้ายใช้ได้เฉพาะ ตัวอักษร/ตัวเลข/ขีดกลาง (ไม่เกิน 20 ตัว ห้ามเว้นวรรค)"}
+    db = acc_session()
+    try:
+        # กันซ้ำกับโรงเรียนอื่น (ทั้ง teacher_code ที่ตั้งเอง และ slug ที่บางโรงเรียนใช้เป็น fallback)
+        dup = (db.query(Tenant)
+               .filter(Tenant.id != tenant_id,
+                       (Tenant.teacher_code == code) | (Tenant.slug == code)).first())
+        if dup:
+            return {"error": "รหัสต่อท้ายนี้มีโรงเรียนอื่นใช้แล้ว กรุณาตั้งรหัสอื่น"}
+        t = db.query(Tenant).filter_by(id=tenant_id).first()
+        if not t:
+            return {"error": "ไม่พบโรงเรียน"}
+        t.teacher_code = code
+        db.commit()
+        return {"ok": True, "code": code}
+    finally:
+        db.close()
 
 
 def add_teacher_account(tenant_id, person_id, username, password, display_name="") -> dict:

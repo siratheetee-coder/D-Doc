@@ -13,6 +13,24 @@
 {% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
 
 <div class="card">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> รหัสต่อท้ายไอดีครูของโรงเรียน</h2>
+  <p class="muted" style="font-size:13px; margin:4px 0 10px;">
+    ระบบจะเติมรหัสนี้ต่อท้ายไอดีครูทุกคน กันชื่อซ้ำกับครูโรงเรียนอื่น (เช่น รหัส <code>104</code> → ครูล็อกอินด้วย <code>teacher1.104</code>) ·
+    ตั้งเป็นเลขโรงเรียนหรืออะไรก็ได้ที่จำง่าย · <b>ระบบกันไม่ให้ซ้ำกับโรงเรียนอื่น</b></p>
+  <form method="post" action="/academic/teacher-accounts/code" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <span style="display:inline-flex; align-items:center;">
+      <span class="muted" style="font-size:13px; background:#f1f5f9; border:1px solid #e2e8f0; border-right:0; padding:7px 8px; border-radius:6px 0 0 6px;">teacher1.</span>
+      <input name="code" value="{{ school_code }}" placeholder="เช่น 104" required maxlength="20"
+             style="width:120px; border-radius:0 6px 6px 0; font-weight:600;">
+    </span>
+    <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกรหัส</button>
+    {% if not code_is_custom %}<span class="muted" style="font-size:12.5px;">(ตอนนี้ใช้รหัสอัตโนมัติ <b>{{ school_code }}</b> — ตั้งใหม่ให้จำง่ายได้)</span>{% endif %}
+  </form>
+  <p class="muted" style="font-size:12.5px; margin:10px 0 0;">
+    <svg class="icon"><use href="#ic-alert"/></svg> เปลี่ยนรหัสแล้ว <b>ไอดีครูที่สร้างไว้ก่อนหน้ายังใช้ของเดิม</b> ไม่เปลี่ยนตาม (เฉพาะไอดีที่สร้างใหม่หลังจากนี้จะใช้รหัสใหม่)</p>
+</div>
+
+<div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-users"/></svg> สร้างไอดีให้ครู</h2>
   <p class="muted" style="font-size:13px; margin:4px 0 10px;">
     ครูที่มีไอดีจะ<b>เข้าได้เฉพาะงานวิชาการ</b> และทำได้เฉพาะ <b>วิชา/ห้องที่ตัวเองสอนหรือประจำชั้น</b> —
@@ -29,9 +47,13 @@
         <td style="white-space:nowrap; font-weight:600;">{{ p.name }}</td>
         <td class="muted">{{ p.position or p.person_type or '' }}</td>
         {% if linked.get(p.id) %}
-        <td><span class="badge" style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:5px;">มีบัญชี: <b>{{ linked[p.id].username }}</b></span>
+        <td>
+          <span class="badge" style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:5px;">มีบัญชี</span>
           {% if not linked[p.id].active %}<span class="muted"> (ปิดใช้งาน)</span>{% endif %}</td>
-        <td class="muted" style="font-size:13px;">จัดการรหัส/ปิดบัญชี ที่หน้า <a href="/users">จัดการผู้ใช้</a></td>
+        <td style="white-space:nowrap;">
+          <code style="background:#f8fafc; border:1px solid #e2e8f0; padding:3px 7px; border-radius:5px; font-size:13px;">{{ linked[p.id].username }}</code>
+          <button type="button" class="btn sm gray" onclick="copyId(this, '{{ linked[p.id].username }}')">คัดลอก</button>
+          <div class="muted" style="font-size:12px; margin-top:2px;">รีเซ็ตรหัส/ปิดบัญชี ที่ <a href="/users">จัดการผู้ใช้</a></div></td>
         {% else %}
         <td class="muted">— ยังไม่มีบัญชี —</td>
         <td>
@@ -55,4 +77,19 @@
   <p class="muted" style="margin-top:10px;">ยังไม่มีครูในทะเบียนบุคลากร - <a href="/hr">ไปเพิ่มบุคลากร</a> ก่อน</p>
   {% endif %}
 </div>
+
+<script>
+  function copyId(btn, id){
+    var done = function(){ var t = btn.textContent; btn.textContent = '✔ คัดลอกแล้ว';
+      setTimeout(function(){ btn.textContent = t; }, 1400); };
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(id).then(done, function(){ fallback(id); done(); });
+    } else { fallback(id); done(); }
+  }
+  function fallback(id){
+    var ta = document.createElement('textarea'); ta.value = id;
+    ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta);
+    ta.select(); try { document.execCommand('copy'); } catch(e){} document.body.removeChild(ta);
+  }
+</script>
 {% endblock %}
