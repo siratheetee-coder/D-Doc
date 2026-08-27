@@ -63,10 +63,18 @@
       โปรดกรอกจำนวนวัน <b>ป่วย / ลา / ขาด</b> ให้ครบ แล้วระบบจะรวมเป็นจำนวนวันมาเรียนให้</span></div>
 
   {% set show_m = request.query_params.get('show') == 'months' %}
-  <label class="show-months-btn" style="cursor:pointer;">
-    <input type="checkbox" id="showMonths" style="width:17px; height:17px;" {% if show_m %}checked{% endif %}>
-    <svg class="icon"><use href="#ic-calendar"/></svg> แสดงรายเดือน (คลิกชื่อเดือนเพื่อเช็กชื่อรายวัน)
-  </label>
+  <div style="display:flex; gap:10px 14px; align-items:center; flex-wrap:wrap; margin:0 0 10px;">
+    <label class="show-months-btn" style="cursor:pointer; margin:0;">
+      <input type="checkbox" id="showMonths" style="width:17px; height:17px;" {% if show_m %}checked{% endif %}>
+      <svg class="icon"><use href="#ic-calendar"/></svg> แสดงรายเดือน (คลิกชื่อเดือนเพื่อเช็กชื่อรายวัน)
+    </label>
+    <div class="term-seg" id="termSeg" data-cur="{{ cur_term }}">
+      <button type="button" class="tseg-btn" data-term="1">ภาคเรียน 1</button>
+      <button type="button" class="tseg-btn" data-term="2">ภาคเรียน 2</button>
+      <button type="button" class="tseg-btn" data-term="0">ทั้งปี</button>
+    </div>
+    <a class="btn soft" id="printTermBtn" href="#" style="display:none;"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์เวลาเรียนทั้งภาคเรียน</a>
+  </div>
 
   <form method="post" action="/academic/attendance/save">
     <input type="hidden" name="cid" value="{{ c.id }}">
@@ -79,7 +87,7 @@
     <table id="attTable" class="{% if not show_m %}hide-months{% endif %}">
       <thead><tr>
         <th>เลขที่</th><th>ชื่อ-นามสกุล</th>
-        {% for mnum, mname in months %}<th class="mcol center" style="white-space:nowrap;">
+        {% for mnum, mname in months %}<th class="mcol center m-t{{ mterm[mnum] }}" style="white-space:nowrap;">
           <a class="month-hd" href="/academic/attendance?cid={{ c.id }}&month={{ mnum }}&mode={{ mode }}{% if by_subj and picked %}&sid={{ cur_sid }}{% endif %}" title="เช็กชื่อรายวัน {{ mname }}">{{ mname }} ✎</a>
           {% if cal_days.get(mnum) %}<i style="display:block; font-style:normal; font-size:10px; font-weight:400; color:var(--muted);">{{ cal_days[mnum] }} วัน</i>{% endif %}
         </th>{% endfor %}
@@ -94,7 +102,7 @@
           {% for mnum, mname in months %}
           {# ตั้งปฏิทินไว้แล้วใช้จำนวนวันจากปฏิทินเป็นค่าตั้งต้น ครูยังแก้ทับได้ #}
           {% set ov = opens.get(mnum) if opens.get(mnum) is not none else cal_days.get(mnum) %}
-          <td class="mcol"><input name="open_{{ mnum }}" data-open value="{{ ov if ov is not none else '' }}"
+          <td class="mcol m-t{{ mterm[mnum] }}"><input name="open_{{ mnum }}" data-open value="{{ ov if ov is not none else '' }}"
                      inputmode="numeric" style="width:46px; text-align:center;"></td>
           {% endfor %}
           <td class="center" data-open-total style="font-weight:700;"></td>
@@ -110,11 +118,11 @@
           {% if (s.id, mnum) in marked %}
           {# เช็กรายวันไว้แล้ว: แสดงยอดที่นับจากการเช็ก แก้ที่หน้าเช็กชื่อเท่านั้น
              (ถ้าให้พิมพ์ทับตรงนี้ ตัวเลขจะไม่ตรงกับที่เอกสารใช้จริง) #}
-          <td class="mcol center" title="นับจากการเช็กชื่อรายวัน - แก้ที่หน้าเช็กชื่อ">
+          <td class="mcol center m-t{{ mterm[mnum] }}" title="นับจากการเช็กชื่อรายวัน - แก้ที่หน้าเช็กชื่อ">
             <a href="/academic/attendance?cid={{ c.id }}&month={{ mnum }}&mode={{ mode }}{% if by_subj and picked %}&sid={{ cur_sid }}{% endif %}" style="font-weight:700;">{{ v if v is not none else 0 }}</a>
             <span data-m data-fixed="{{ v if v is not none else 0 }}" style="display:none;"></span></td>
           {% else %}
-          <td class="mcol"><input name="p_{{ s.id }}_{{ mnum }}" data-m value="{{ v if v is not none else '' }}"
+          <td class="mcol m-t{{ mterm[mnum] }}"><input name="p_{{ s.id }}_{{ mnum }}" data-m value="{{ v if v is not none else '' }}"
                      inputmode="numeric" style="width:46px; text-align:center;"></td>
           {% endif %}
           {% endfor %}
@@ -155,6 +163,14 @@
   .month-hd { display:inline-block; padding:3px 9px; border:1px solid var(--brand); border-radius:7px;
     background:#fff; color:var(--brand-dark); font-weight:700; text-decoration:none; font-size:13px; }
   .month-hd:hover { background:var(--brand); color:#fff; }
+  /* แยกภาคเรียน: ซ่อนคอลัมน์เดือนของอีกภาค (view-only - ฟอร์มยังส่งทุกเดือน) */
+  #attTable.show-t1 .m-t2 { display:none; }
+  #attTable.show-t2 .m-t1 { display:none; }
+  .term-seg { display:inline-flex; border:1.5px solid var(--brand); border-radius:9px; overflow:hidden; }
+  .tseg-btn { padding:8px 13px; font-size:13px; border:none; background:#fff; color:var(--brand-dark);
+    cursor:pointer; font-weight:600; }
+  .tseg-btn + .tseg-btn { border-left:1px solid var(--brand-lite); }
+  .tseg-btn.on { background:var(--brand); color:#fff; }
   /* ช่องที่ยอดยังไม่ครบ: กระพริบแดงจนกว่าจะกรอกให้ครบ */
   @keyframes attBlink {
     0%, 100% { background: #fff; border-color: #dc2626; }
@@ -227,6 +243,36 @@
     document.getElementById('attTable').classList.toggle('hide-months', !this.checked);
   });
   recalc();
+
+  // ----- แยกภาคเรียน + ปุ่มพิมพ์ทั้งภาคเรียน -----
+  (function(){
+    var table = document.getElementById('attTable');
+    var seg = document.getElementById('termSeg');
+    var showMonths = document.getElementById('showMonths');
+    var printBtn = document.getElementById('printTermBtn');
+    if (!seg) return;
+    var cur = parseInt(seg.getAttribute('data-cur'), 10) || 1;
+    function applyTerm(t){
+      table.classList.remove('show-t1','show-t2','show-all');
+      table.classList.add(t===1 ? 'show-t1' : (t===2 ? 'show-t2' : 'show-all'));
+      seg.querySelectorAll('.tseg-btn').forEach(function(b){
+        b.classList.toggle('on', parseInt(b.dataset.term,10)===t);
+      });
+      if (t===1 || t===2){
+        printBtn.style.display = '';
+        printBtn.href = '/academic/attendance/term.docx?cid={{ c.id }}&term=' + t +
+          '&mode={{ mode }}{% if by_subj and picked %}&sid={{ cur_sid }}{% endif %}';
+      } else { printBtn.style.display = 'none'; }
+    }
+    seg.querySelectorAll('.tseg-btn').forEach(function(b){
+      b.addEventListener('click', function(){
+        var t = parseInt(b.dataset.term, 10);
+        if (t!==0 && !showMonths.checked){ showMonths.checked = true; table.classList.remove('hide-months'); }
+        applyTerm(t);
+      });
+    });
+    applyTerm(cur);   // ค่าเริ่มต้น = ภาคเรียนปัจจุบัน
+  })();
 </script>
 {% endif %}
 {% endblock %}

@@ -1420,6 +1420,8 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
         "cal_days": {m: len(d) for m, d in cal.items()}, "has_cal": bool(cal),
         "by_subj": by_subj, "subjects": subjects, "subj": subj,
         "picked": picked, "home_pick": home_pick, "mode": mode,
+        "mterm": {m: (1 if m in TERM_MONTHS[1] else 2) for m, _ in TH_MONTHS},
+        "cur_term": current_term(),
     })
 
 
@@ -1980,3 +1982,18 @@ def attendance_month_docx(request: Request, cid: int, month: int,
     subject = db.get(AcadSubject, sid) if (mode == "subject" and sid) else None
     return serve_generated(
         render_attendance_month(get_school(db), c, db, month, subject=subject), _DOCX)
+
+
+@router.get("/academic/attendance/term.docx")
+def attendance_term_docx(request: Request, cid: int, term: int,
+                         db: Session = Depends(get_db), mode: str = "overall", sid: int = 0):
+    """พิมพ์เวลาเรียนทั้งภาคเรียน (รวมทุกเดือนของภาคนั้น คนละหน้า)"""
+    from app.services.acad_doc import render_attendance_term
+    c = db.get(AcadClass, cid)
+    if not c or term not in (1, 2):
+        return RedirectResponse("/academic/attendance", status_code=303)
+    if not _att_ok(_scope(request, db), cid, mode, sid):
+        return _deny()
+    subject = db.get(AcadSubject, sid) if (mode == "subject" and sid) else None
+    return serve_generated(
+        render_attendance_term(get_school(db), c, db, term, subject=subject), _DOCX)
