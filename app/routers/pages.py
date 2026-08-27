@@ -130,6 +130,9 @@ def _dashboard_charts(procurements):
 @router.get("/", response_class=HTMLResponse)
 def hub(request: Request, db: Session = Depends(get_db)):
     """หน้าหลัก: เลือกเข้าใช้งาน ธุรการ / พัสดุ / การเงิน + ภาพรวมปีงบ"""
+    # บัญชีครู = เข้าตรงงานวิชาการเลย ไม่ผ่านหน้าเลือกงาน
+    if request.session.get("person_id") and not request.session.get("owner"):
+        return RedirectResponse("/academic", status_code=303)
     fy = current_fiscal_year()
     stats = {
         "proc": db.query(Procurement).filter(Procurement.fiscal_year == fy).count(),

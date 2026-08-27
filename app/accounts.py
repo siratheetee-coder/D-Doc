@@ -204,6 +204,7 @@ def authenticate(username: str, password: str) -> dict | None:
                     "verified": bool(getattr(u, "verified", True)),
                     "is_owner": bool(getattr(u, "is_owner", False)),
                     "modules": getattr(u, "modules", "") or "",
+                    "person_id": getattr(u, "person_id", None),
                     "welcomed": bool(getattr(u, "welcomed", False))}
         return None
     finally:
@@ -625,10 +626,19 @@ def add_tenant_user(tenant_id, username, password, modules="", display_name="") 
         db.close()
 
 
+def teacher_username(base, tenant) -> str:
+    """ไอดีเข้าระบบของครู = ชื่อที่ตั้ง + รหัสโรงเรียน (slug) กันซ้ำข้ามโรงเรียน
+    เช่น 'teacher1' ที่ รร. rongrian-1 -> 'teacher1.rongrian-1'"""
+    base = (base or "").strip().replace(" ", "")
+    code = ((tenant.slug if tenant else "") or f"t{getattr(tenant, 'id', '')}").strip()
+    return f"{base}.{code}" if base else ""
+
+
 def add_teacher_account(tenant_id, person_id, username, password, display_name="") -> dict:
-    """สร้างบัญชีครู (ผูกกับ Person.id ในโรงเรียน) - เข้าได้เฉพาะงานวิชาการ + สิทธิ์เฉพาะวิชา/ห้องตัวเอง"""
-    username = (username or "").strip()
-    if not username or len(password or "") < 6:
+    """สร้างบัญชีครู (ผูกกับ Person.id ในโรงเรียน) - เข้าได้เฉพาะงานวิชาการ + สิทธิ์เฉพาะวิชา/ห้องตัวเอง
+    ไอดีเข้าระบบจะเติมรหัสโรงเรียนต่อท้ายให้อัตโนมัติ กันซ้ำกับครูโรงเรียนอื่น (เช่น teacher1.rongrian-1)"""
+    base = (username or "").strip().replace(" ", "")
+    if not base or len(password or "") < 6:
         return {"error": "กรอกชื่อผู้ใช้ และรหัสผ่านอย่างน้อย 6 ตัว"}
     if not person_id:
         return {"error": "เลือกครูที่จะผูกกับบัญชีนี้"}
@@ -638,16 +648,20 @@ def add_teacher_account(tenant_id, person_id, username, password, display_name="
         if not t:
             return {"error": "ไม่พบโรงเรียน"}
         # บัญชีครู (งานวิชาการ) ไม่จำกัดจำนวน - ยกเว้นจากโควตา max_users ของโรงเรียน
-        if db.query(Account).filter_by(username=username).first():
-            return {"error": "ชื่อผู้ใช้นี้ถูกใช้แล้ว เลือกชื่ออื่น"}
         if db.query(Account).filter_by(tenant_id=tenant_id, person_id=person_id).first():
             return {"error": "ครูคนนี้มีบัญชีอยู่แล้ว"}
-        db.add(Account(tenant_id=tenant_id, username=username,
+        # ไอดี = ชื่อที่ตั้ง + รหัสโรงเรียน · เติมเลขต่อท้ายถ้าซ้ำภายในโรงเรียน (ครู 2 คนตั้งชื่อเดียวกัน)
+        final = teacher_username(base, t)
+        uname, n = final, 1
+        while db.query(Account).filter_by(username=uname).first():
+            n += 1
+            uname = f"{final}-{n}"
+        db.add(Account(tenant_id=tenant_id, username=uname,
                        password_hash=hash_password(password), role="user",
                        display_name=(display_name or "").strip(), is_owner=False,
                        modules="academic", person_id=int(person_id), verified=True))
         db.commit()
-        return {"ok": True}
+        return {"ok": True, "username": uname}
     finally:
         db.close()
 

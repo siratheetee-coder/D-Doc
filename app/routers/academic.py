@@ -7,6 +7,7 @@ academic.py - งานวิชาการ
 เหมือนงานภาวะโภชนาการ - ผลการเรียนของปีเก่าจึงไม่ขยับเมื่อนักเรียนเลื่อนชั้น
 ครูทั้งหมดมาจากทะเบียนบุคลากรกลาง (Person) ไม่มีการสร้างทะเบียนครูซ้ำ
 """
+from datetime import datetime
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
@@ -31,7 +32,8 @@ from app.services.academic import (grade_of, subject_preset, term_choices, term_
                                    parse_days_csv, parse_marks, build_marks, count_marks,
                                    seed_fixed_holidays, holiday_map, in_term, auto_open_days,
                                    LUNAR_HOLIDAY_NAMES, activity_preset, activities_for,
-                                   activity_summary, ONET_SUBJECTS, is_exit_level, onet_for)
+                                   activity_summary, ONET_SUBJECTS, is_exit_level, onet_for,
+                                   TERM_MONTHS)
 from app.thai_utils import parse_be_date, be_date_input
 from app.services.curriculum import indicators_for, has_indicators, selected_indicators
 
@@ -146,6 +148,14 @@ def _subject_teacher_names(db, subjects):
     return {sid: (next(iter(ns)) if len(ns) == 1 else "") for sid, ns in names.items()}
 
 
+def _current_month() -> int:
+    """เดือนปัจจุบันสำหรับเช็กชื่อ - นอกเทอม (เม.ย.) ใช้เดือนแรกของภาคปัจจุบัน"""
+    m = datetime.now().month
+    if m in (TERM_MONTHS[1] | TERM_MONTHS[2]):
+        return m
+    return 5 if current_term() == 1 else 11
+
+
 def _att_ok(sc, cid, mode, sid) -> bool:
     """สิทธิ์เช็กเวลาเรียน: โหมดรายวิชา = วิชาที่สอน · โหมดโดยรวม = ห้องที่ประจำชั้น"""
     if not sc.is_teacher:
@@ -176,6 +186,7 @@ def academic_home(request: Request, db: Session = Depends(get_db),
         "n_subjects": n_subjects,
         "progress": progress, "is_exit_level": is_exit_level,
         "term": t, "term_label": term_label, "is_teacher": sc.is_teacher,
+        "att_mode": ("subject" if (sc.is_teacher and sc.teach_pairs) else "overall"),
     })
 
 
@@ -236,14 +247,21 @@ def teacher_accounts_page(request: Request, db: Session = Depends(get_db),
                           msg: str = "", err: str = ""):
     if not request.session.get("owner"):
         return RedirectResponse("/academic", status_code=303)
-    from app.accounts import list_teacher_accounts
+    from app.accounts import list_teacher_accounts, acc_session, Tenant
     tid = request.session.get("tid")
     persons = db.query(Person).filter_by(active=True).order_by(Person.name).all()
     accts = list_teacher_accounts(tid)
     linked = {a["person_id"]: a for a in accts}
+    adb = acc_session()
+    try:
+        tn = adb.query(Tenant).filter_by(id=tid).first()
+        school_code = ((tn.slug if tn else "") or f"t{tid}")
+    finally:
+        adb.close()
     return templates.TemplateResponse("academic_teachers.html", {
         "request": request, "school": get_school(db), "persons": persons,
         "linked": linked, "n_accts": len(accts), "msg": msg, "err": err,
+        "school_code": school_code,
     })
 
 
@@ -260,7 +278,9 @@ def teacher_account_add(request: Request, db: Session = Depends(get_db),
                             display_name=(p.name if p else ""))
     if r.get("error"):
         return RedirectResponse(f"/academic/teacher-accounts?err={r['error']}", status_code=303)
-    return RedirectResponse(f"/academic/teacher-accounts?msg=สร้างบัญชีครู {username} แล้ว", status_code=303)
+    return RedirectResponse(
+        f"/academic/teacher-accounts?msg=สร้างบัญชีครูแล้ว - ไอดีเข้าระบบคือ {r.get('username', username)}",
+        status_code=303)
 
 
 # ---------------- ห้องเรียน ----------------
@@ -1311,13 +1331,16 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
     by_subj = (mode == "subject")
     # ครู: เข้าตรงวิชา/ห้องเดียวที่ตัวเองมี (ตามที่เจ้าของสั่ง 'กดเข้ามาก็เจอวิชาตัวเองเลย')
     if sc.is_teacher and cid is None:
+        cm = _current_month()
         if by_subj and len(sc.teach_pairs) == 1:
+            # สอนวิชาเดียว -> เข้าหน้าเช็กชื่อรายวันเดือนปัจจุบันเลย (พร้อมติ๊กมา)
             (acid, asid) = next(iter(sc.teach_pairs))
-            return RedirectResponse(f"/academic/attendance?mode=subject&cid={acid}&sid={asid}",
-                                    status_code=303)
+            return RedirectResponse(
+                f"/academic/attendance?mode=subject&cid={acid}&sid={asid}&month={cm}",
+                status_code=303)
         if (not by_subj) and len(sc.homeroom_ids) == 1:
             return RedirectResponse(
-                f"/academic/attendance?mode=overall&cid={next(iter(sc.homeroom_ids))}",
+                f"/academic/attendance?mode=overall&cid={next(iter(sc.homeroom_ids))}&month={cm}",
                 status_code=303)
     classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
     if sc.is_teacher:

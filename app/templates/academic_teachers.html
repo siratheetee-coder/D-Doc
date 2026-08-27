@@ -14,9 +14,12 @@
 
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-users"/></svg> สร้างไอดีให้ครู</h2>
-  <p class="muted" style="font-size:13px; margin:4px 0 12px;">
+  <p class="muted" style="font-size:13px; margin:4px 0 10px;">
     ครูที่มีไอดีจะ<b>เข้าได้เฉพาะงานวิชาการ</b> และทำได้เฉพาะ <b>วิชา/ห้องที่ตัวเองสอนหรือประจำชั้น</b> —
     เช็กชื่อ · กรอกคะแนน · ประเมิน · ออก ปพ.5/ปพ.6 ของตัวเอง (กันแก้ของครูคนอื่น)</p>
+  <div class="alert" style="background:#f5f3ff; border:1px solid #ddd6fe; color:#5b21b6; font-size:13px; margin-bottom:12px;">
+    <svg class="icon"><use href="#ic-info"/></svg>
+    ไอดีเข้าระบบจะเติม <b>รหัสโรงเรียน (.{{ school_code }})</b> ต่อท้ายให้อัตโนมัติ กันซ้ำกับครูโรงเรียนอื่น เช่น พิมพ์ <code>teacher1</code> ครูจะล็อกอินด้วย <code>teacher1.{{ school_code }}</code></div>
   <div class="table-wrap">
   <table>
     <thead><tr><th>ครู</th><th>ตำแหน่ง</th><th>สถานะบัญชี</th><th>สร้าง/ชื่อผู้ใช้</th></tr></thead>
@@ -32,9 +35,12 @@
         {% else %}
         <td class="muted">— ยังไม่มีบัญชี —</td>
         <td>
-          <form method="post" action="/academic/teacher-accounts/add" style="display:flex; gap:6px; margin:0; flex-wrap:wrap;">
+          <form method="post" action="/academic/teacher-accounts/add" style="display:flex; gap:6px; margin:0; flex-wrap:wrap; align-items:center;">
             <input type="hidden" name="person_id" value="{{ p.id }}">
-            <input name="username" placeholder="ชื่อผู้ใช้" required style="width:130px;">
+            <span style="display:inline-flex; align-items:center;">
+              <input name="username" placeholder="ชื่อผู้ใช้" required style="width:110px; border-top-right-radius:0; border-bottom-right-radius:0;">
+              <span class="muted" style="font-size:12px; background:#f1f5f9; border:1px solid #e2e8f0; border-left:0; padding:6px 7px; border-radius:0 6px 6px 0; white-space:nowrap;">.{{ school_code }}</span>
+            </span>
             <input name="password" type="text" placeholder="รหัสผ่าน (6+ ตัว)" required minlength="6" style="width:130px;">
             <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> สร้าง</button>
           </form>
