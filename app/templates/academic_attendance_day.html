@@ -24,6 +24,7 @@
     <h2 style="margin:0;">{{ month_name }} <span class="muted" style="font-size:15px;">เปิดเรียน {{ open_days|length }} วัน · {{ students|length }} คน</span></h2>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <button class="btn soft" type="button" onclick="allPresent()">ทุกคนมาทุกวัน</button>
+      <button class="btn soft gray" type="button" onclick="clearAll()">ล้างข้อมูล</button>
       <a class="btn soft" href="/academic/attendance/month.docx?cid={{ c.id }}&month={{ month }}&mode={{ mode }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์เวลาเรียนเดือนนี้</a>
       <a class="btn soft gray" href="/academic/attendance?cid={{ c.id }}&show=months&mode={{ mode }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}">← กลับหน้ารายเดือน</a>
     </div>
@@ -42,8 +43,9 @@
     <table id="dayTable">
       <thead><tr>
         <th>เลขที่</th><th>ชื่อ-นามสกุล</th>
-        {% for d in open_days %}<th class="center" style="font-size:11px; padding:6px 2px;">
-          <i style="display:block; font-style:normal; font-size:9.5px; color:var(--muted);">{{ weekdays[d] }}</i>{{ d }}</th>{% endfor %}
+        {% for d in open_days %}<th class="center" style="font-size:11px; padding:5px 2px;">
+          <i style="display:block; font-style:normal; font-size:9.5px; color:var(--muted);">{{ weekdays[d] }}</i>{{ d }}
+          <button type="button" class="colmk" onclick="colPresent({{ d }})" title="ทุกคนมา วัน{{ weekdays[d] }}ที่ {{ d }}">มา</button></th>{% endfor %}
         <th class="center">มา</th><th class="center">ป่วย</th><th class="center">ลา</th>
         <th class="center">ขาด</th><th class="center">ร้อยละ</th><th></th>
       </tr></thead>
@@ -55,7 +57,7 @@
           <td style="white-space:nowrap;">{{ s.name }}</td>
           {% for d in open_days %}
           <td style="padding:3px 2px;">
-            <button type="button" class="mk" data-mk>{{ mk.get(d, '') }}</button>
+            <button type="button" class="mk" data-mk data-day="{{ d }}">{{ mk.get(d, '') }}</button>
             <input type="hidden" name="d_{{ s.id }}_{{ d }}" value="{{ mk.get(d, '') }}">
           </td>
           {% endfor %}
@@ -89,6 +91,9 @@
   .mk[data-v="ป"] { background:#ffedd5; border-color:#fb923c; color:#b45309; }
   .mk[data-v="ล"] { background:#e0e7ff; border-color:#818cf8; color:#4338ca; }
   .mk[data-v="ข"] { background:#fee2e2; border-color:#f87171; color:#b91c1c; }
+  .colmk { display:block; margin:3px auto 0; font-size:10px; line-height:1; padding:2px 5px;
+           border:1px solid #a7f3d0; background:#ecfdf5; color:#047857; border-radius:5px; cursor:pointer; }
+  .colmk:hover { background:#d1fae5; border-color:#34d399; }
 </style>
 <script>
   // วนสถานะ: ว่าง -> มา -> ป่วย -> ลา -> ขาด -> ว่าง
@@ -134,6 +139,19 @@
   function allPresent(){
     document.querySelectorAll('tr[data-row]').forEach(function(tr){
       tr.querySelectorAll('[data-mk]').forEach(function(b){ setCell(b, '/'); });
+      recalcRow(tr);
+    });
+  }
+  // ทุกคนมา เฉพาะวันนั้น (คลิกจากหัวคอลัมน์)
+  function colPresent(day){
+    document.querySelectorAll('[data-mk][data-day="' + day + '"]').forEach(function(b){ setCell(b, '/'); });
+    document.querySelectorAll('tr[data-row]').forEach(function(tr){ recalcRow(tr); });
+  }
+  // ล้างข้อมูลทั้งตาราง (กลับเป็นว่าง)
+  function clearAll(){
+    if(!confirm('ล้างการเช็กชื่อทั้งเดือนนี้? (ต้องกดบันทึกเพื่อยืนยัน)')) return;
+    document.querySelectorAll('tr[data-row]').forEach(function(tr){
+      tr.querySelectorAll('[data-mk]').forEach(function(b){ setCell(b, ''); });
       recalcRow(tr);
     });
   }
