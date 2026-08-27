@@ -55,8 +55,21 @@ def can_use(tenant_id, module) -> bool:
         return True
 
 
+_NAME_TITLES = ("เด็กชาย", "เด็กหญิง", "ด.ช.", "ด.ญ.", "นางสาว", "น.ส.", "นาย", "นาง")
+
+
+def strip_title(name) -> str:
+    """ตัดคำนำหน้าชื่อออก (เด็กชาย/เด็กหญิง/นาย/นางสาว/นาง/ด.ช./ด.ญ./น.ส.) - ใช้ย่อชื่อบนจอแคบ"""
+    s = (name or "").strip()
+    for t in _NAME_TITLES:
+        if s.startswith(t):
+            return s[len(t):].lstrip(". ").strip() or s
+    return s
+
+
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+templates.env.filters["notitle"] = strip_title
 
 # โมดูลที่ "สร้างเสร็จแล้ว" ในระบบ (คนละเรื่องกับ "โรงเรียนนี้ซื้อหรือยัง" -> my_modules)
 MODULES_LIVE = {"procurement": True, "admin": True, "finance": True, "lunch": True, "hr": True,

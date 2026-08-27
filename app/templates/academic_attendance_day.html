@@ -54,7 +54,7 @@
         {% set mk = marks.get(s.id, {}) %}
         <tr data-row>
           <td>{{ s.seq or '' }}</td>
-          <td>{{ s.name }}</td>
+          <td>{{ s.name | notitle }}</td>
           {% for d in open_days %}
           <td style="padding:3px 2px;">
             <button type="button" class="mk" data-mk data-day="{{ d }}">{{ mk.get(d, '') }}</button>
