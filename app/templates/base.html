@@ -275,24 +275,31 @@
 
     /* ===== Buttons ===== */
     .btn {
-      display: inline-flex; align-items: center; gap: 7px; background: var(--brand); color: #fff;
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      background: linear-gradient(135deg, var(--brand), var(--brand-dark)); color: #fff;
       border: none; padding: 10px 18px; border-radius: 11px; font-size: 16.5px; font-weight: 600;
       cursor: pointer; text-decoration: none; font-family: inherit;
-      transition: background .15s, transform .06s, box-shadow .15s; box-shadow: 0 1px 2px rgba(16,24,40,.1);
+      transition: filter .14s ease, box-shadow .16s ease, transform .08s ease;
+      box-shadow: 0 2px 6px rgba(16,24,40,.14);
     }
-    .btn:hover { background: var(--brand-dark); box-shadow: 0 7px 18px rgba(72,128,255,.34); transform: translateY(-1px); }
-    .btn:active { transform: translateY(1px) scale(.99); }
+    .btn:hover { filter: brightness(1.06); box-shadow: 0 7px 18px rgba(72,128,255,.3); transform: translateY(-1px); }
+    .btn:active { transform: translateY(1px) scale(.985); filter: brightness(.97); }
     .btn .icon { width: 18px; height: 18px; }
-    .btn.green { background: var(--success); }
-    .btn.green:hover { background: var(--success-dark); box-shadow: 0 5px 14px rgba(22,179,100,.3); }
+    .btn.green { background: linear-gradient(135deg, var(--success), var(--success-dark)); }
+    .btn.green:hover { box-shadow: 0 6px 16px rgba(22,179,100,.32); }
     .btn.gray { background: #fff; color: var(--sidebar-ink); border: 1px solid #dfe3ea; box-shadow: none; }
-    .btn.gray:hover { background: #f3f5f9; color: var(--text); }
+    .btn.gray:hover { background: #f3f5f9; color: var(--text); filter: none; transform: none; box-shadow: none; }
     .btn.soft { background: var(--brand-soft); color: var(--brand-dark); box-shadow: none; }
-    .btn.soft:hover { background: #d8e6ff; color: var(--brand-dark); box-shadow: none; }
-    .btn.red { background: var(--danger); }
-    .btn.red:hover { background: var(--danger-dark); box-shadow: 0 5px 14px rgba(239,68,68,.28); }
+    .btn.soft:hover { background: #d8e6ff; color: var(--brand-dark); filter: none; transform: none; box-shadow: none; }
+    .btn.red { background: linear-gradient(135deg, var(--danger), var(--danger-dark)); }
+    .btn.red:hover { box-shadow: 0 6px 16px rgba(239,68,68,.3); }
     .btn.sm { padding: 6px 13px; font-size: 14.5px; border-radius: 9px; }
     .btn.sm .icon { width: 16px; height: 16px; }
+    /* จอสัมผัส (มือถือ): :hover ค้างหลังแตะ -> ตัด lift/เงาที่ทำให้ปุ่มดูค้างแปลก ๆ */
+    @media (hover: none) {
+      .btn:hover { transform: none; filter: none; }
+      .btn:active { transform: scale(.97); filter: brightness(.95); }
+    }
 
     /* ===== Tables ===== */
     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 16px; }
@@ -554,7 +561,13 @@
       }
       .sidebar.open { transform: translateX(0); }
       .sb-overlay.show { display: block; }
-      main { padding: 18px 16px; }
+      main { padding: 18px 14px; }
+      .card { padding: 16px 14px; }
+    }
+    @media (max-width: 560px) {
+      main { padding: 12px 9px; }
+      .card { padding: 14px 11px; }
+      .hero { padding: 18px 16px; }
     }
   </style>
 </head>
