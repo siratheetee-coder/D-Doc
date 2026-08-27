@@ -1979,15 +1979,19 @@ def render_attendance_month(school, klass, db, month, subject=None) -> str:
         teacher = klass.homeroom.name if klass.homeroom else ""
 
     doc = _doc(landscape=True)
-    _logo_header(doc, school)
+    sec0 = doc.sections[0]
+    sec0.top_margin = Cm(1.0); sec0.bottom_margin = Cm(0.8)   # บีบให้พอดีหน้าเดียว
+    _logo_header(doc, school, height_cm=1.7)
     _p(doc, school.name or "", align="center", bold=True, size=16, after=0)
-    _p(doc, "แบบบันทึกเวลาเรียน (รายวัน)", align="center", bold=True, size=15, after=0)
-    head = f"ชั้น {_class_label(klass)}   เดือน {TH_MONTH_FULL[month]}   ปีการศึกษา {y}"
+    _p(doc, "แบบบันทึกเวลาเรียน (รายวัน)", align="center", bold=True, size=14, after=1)
+    # เน้นชื่อเดือนให้เด่น ครูดูออกทันทีว่าเดือนอะไร
+    _p(doc, f"ประจำเดือน{TH_MONTH_FULL[month]}  ปีการศึกษา {y}", align="center", bold=True, size=18, after=1)
+    sub = f"ชั้น {_class_label(klass)}"
     if subject:
-        head += f"   วิชา {subject.code or ''} {subject.name}"
-    _p(doc, head, align="center", size=13, after=1)
+        sub += f"    วิชา {subject.code or ''} {subject.name}"
     if teacher:
-        _p(doc, f"ครูผู้สอน/ครูประจำชั้น: {teacher}", align="center", size=12, after=3)
+        sub += f"    ครูผู้สอน/ประจำชั้น {teacher}"
+    _p(doc, sub, align="center", size=12.5, after=4)
 
     nday = len(open_days)
     ncol = 2 + nday + 5           # ที่ + ชื่อ + วัน + (มา/ป่วย/ลา/ขาด/ร้อยละ)
@@ -2046,15 +2050,13 @@ def render_attendance_month(school, klass, db, month, subject=None) -> str:
     _widths(t, widths)
     _tight_cells(t)
 
-    # สรุปข้อความท้ายเอกสาร
+    # สรุปข้อความท้ายเอกสาร (ตัดบรรทัดหมายเหตุ 'รหัส' ออกตามตัวอย่าง)
     total_pres = tot["/"]
-    _p(doc, "", after=2)
     _p(doc, f"สรุป: วันเปิดเรียนทั้งเดือน {nday} วัน · นักเรียน {len(students)} คน · "
             f"รวมวันมาเรียนทั้งห้อง {total_pres} คน-วัน · เฉลี่ยการมาเรียน {class_pct}%  "
             f"(ป่วย {tot['ป']} · ลา {tot['ล']} · ขาด {tot['ข']})",
-       align="left", size=12, after=10)
-    _p(doc, "รหัส:  / = มา   ป = ป่วย   ล = ลา   ข = ขาด", align="left", size=11, after=12)
-    _sign_block(doc, teacher, "ครูผู้บันทึกเวลาเรียน", size=12)
+       align="left", size=12, after=8)
+    _sign_block(doc, teacher, "ครูผู้บันทึกเวลาเรียน", size=11)
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     tag = f"_{subject.code or subject.name}" if subject else ""
