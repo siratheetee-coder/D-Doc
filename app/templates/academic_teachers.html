@@ -20,14 +20,12 @@
   <form method="post" action="/academic/teacher-accounts/code" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <span style="display:inline-flex; align-items:center;">
       <span class="muted" style="font-size:13px; background:#f1f5f9; border:1px solid #e2e8f0; border-right:0; padding:7px 8px; border-radius:6px 0 0 6px;">teacher1.</span>
-      <input name="code" value="{{ school_code }}" placeholder="เช่น 104" required maxlength="20"
+      <input name="code" value="{{ school_code if code_is_custom else '' }}" placeholder="เช่น 104" required maxlength="20"
              style="width:120px; border-radius:0 6px 6px 0; font-weight:600;">
     </span>
     <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกรหัส</button>
-    {% if not code_is_custom %}<span class="muted" style="font-size:12.5px;">(ตอนนี้ใช้รหัสอัตโนมัติ <b>{{ school_code }}</b> — ตั้งใหม่ให้จำง่ายได้)</span>{% endif %}
+    {% if not code_is_custom %}<span class="muted" style="font-size:12.5px;">(ยังไม่ได้ตั้ง — ตั้งรหัสให้จำง่ายได้เลย)</span>{% endif %}
   </form>
-  <p class="muted" style="font-size:12.5px; margin:10px 0 0;">
-    <svg class="icon"><use href="#ic-alert"/></svg> เปลี่ยนรหัสแล้ว <b>ไอดีครูที่สร้างไว้ก่อนหน้ายังใช้ของเดิม</b> ไม่เปลี่ยนตาม (เฉพาะไอดีที่สร้างใหม่หลังจากนี้จะใช้รหัสใหม่)</p>
 </div>
 
 <div class="card">
@@ -52,7 +50,7 @@
           {% if not linked[p.id].active %}<span class="muted"> (ปิดใช้งาน)</span>{% endif %}</td>
         <td style="white-space:nowrap;">
           <code style="background:#f8fafc; border:1px solid #e2e8f0; padding:3px 7px; border-radius:5px; font-size:13px;">{{ linked[p.id].username }}</code>
-          <button type="button" class="btn sm gray" onclick="copyId(this, '{{ linked[p.id].username }}')">คัดลอก</button>
+          <button type="button" class="btn sm gray" onclick="copyId(this, '{{ linked[p.id].username }}')">คัดลอกไอดี</button>
           <div class="muted" style="font-size:12px; margin-top:2px;">รีเซ็ตรหัส/ปิดบัญชี ที่ <a href="/users">จัดการผู้ใช้</a></div></td>
         {% else %}
         <td class="muted">— ยังไม่มีบัญชี —</td>
@@ -63,7 +61,7 @@
               <input name="username" placeholder="ชื่อผู้ใช้" required style="width:110px; border-top-right-radius:0; border-bottom-right-radius:0;">
               <span class="muted" style="font-size:12px; background:#f1f5f9; border:1px solid #e2e8f0; border-left:0; padding:6px 7px; border-radius:0 6px 6px 0; white-space:nowrap;">.{{ school_code }}</span>
             </span>
-            <input name="password" type="text" placeholder="รหัสผ่าน (6+ ตัว)" required minlength="6" style="width:130px;">
+            <input name="password" type="text" placeholder="รหัสผ่าน (อย่างน้อย 6 ตัว)" required minlength="6" style="width:190px;">
             <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> สร้าง</button>
           </form>
         </td>
