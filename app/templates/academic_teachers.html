@@ -18,8 +18,8 @@
     ระบบจะเติมรหัสนี้ต่อท้ายไอดีครูทุกคน กันชื่อซ้ำกับครูโรงเรียนอื่น (เช่น รหัส <code>104</code> → ครูล็อกอินด้วย <code>teacher1.104</code>) ·
     ตั้งเป็นเลขโรงเรียนหรืออะไรก็ได้ที่จำง่าย · <b>ระบบกันไม่ให้ซ้ำกับโรงเรียนอื่น</b></p>
   <form method="post" action="/academic/teacher-accounts/code" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-    <span style="display:inline-flex; align-items:center;">
-      <span class="muted" style="font-size:13px; background:#f1f5f9; border:1px solid #e2e8f0; border-right:0; padding:7px 8px; border-radius:6px 0 0 6px;">teacher1.</span>
+    <span style="display:inline-flex; align-items:stretch;">
+      <span class="muted" style="display:flex; align-items:center; font-size:13px; background:#f1f5f9; border:1px solid #e2e8f0; border-right:0; padding:0 9px; border-radius:6px 0 0 6px;">teacher1.</span>
       <input name="code" value="{{ school_code if code_is_custom else '' }}" placeholder="เช่น 104" required maxlength="20"
              style="width:120px; border-radius:0 6px 6px 0; font-weight:600;">
     </span>
@@ -57,9 +57,9 @@
         <td>
           <form method="post" action="/academic/teacher-accounts/add" style="display:flex; gap:6px; margin:0; flex-wrap:wrap; align-items:center;">
             <input type="hidden" name="person_id" value="{{ p.id }}">
-            <span style="display:inline-flex; align-items:center;">
+            <span style="display:inline-flex; align-items:stretch;">
               <input name="username" placeholder="ชื่อผู้ใช้" required style="width:110px; border-top-right-radius:0; border-bottom-right-radius:0;">
-              <span class="muted" style="font-size:12px; background:#f1f5f9; border:1px solid #e2e8f0; border-left:0; padding:6px 7px; border-radius:0 6px 6px 0; white-space:nowrap;">.{{ school_code }}</span>
+              <span class="muted" style="display:flex; align-items:center; font-size:13px; background:#f1f5f9; border:1px solid #e2e8f0; border-left:0; padding:0 9px; border-radius:0 6px 6px 0; white-space:nowrap;">.{{ school_code }}</span>
             </span>
             <input name="password" type="text" placeholder="รหัสผ่าน (อย่างน้อย 6 ตัว)" required minlength="6" style="width:190px;">
             <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> สร้าง</button>
