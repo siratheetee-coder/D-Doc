@@ -2109,27 +2109,53 @@ def render_attendance_term(school, klass, db, term, subject=None) -> str:
 _TT_DAYS = [(1, "จันทร์"), (2, "อังคาร"), (3, "พุธ"), (4, "พฤหัสบดี"), (5, "ศุกร์")]
 
 
+def _tt_cell_lines(cell, lines, *, fill=None):
+    """เขียนหลายบรรทัดในเซลล์เดียว - แต่ละบรรทัด (ข้อความ, ขนาด, หนา) กำหนดเองได้
+    ใช้ทำช่องตารางเรียน: บรรทัดแรก=ชื่อวิชา (ใหญ่) บรรทัดถัดไป=ชื่อครู (เล็กลง)"""
+    cell.text = ""
+    p = cell.paragraphs[0]
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_after = Pt(0); p.paragraph_format.space_before = Pt(0)
+    for idx, (text, size, bold) in enumerate(lines):
+        r = p.add_run(str(text)); r.font.size = Pt(size); r.font.name = THAI_FONT; r.bold = bold
+        r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
+        if idx < len(lines) - 1:
+            r.add_break()
+    if fill:
+        tcpr = cell._tc.get_or_add_tcPr()
+        tcpr.append(tcpr.makeelement(qn("w:shd"), {qn("w:val"): "clear",
+                                                   qn("w:color"): "auto", qn("w:fill"): fill}))
+
+
 def _tt_grid_doc(doc, periods, day_cells):
-    """วาดตารางเรียน (แถว=วัน · คอลัมน์=คาบ) · day_cells(dnum, period) -> ข้อความในช่อง"""
+    """วาดตารางเรียน (แถว=วัน · คอลัมน์=คาบ) ให้ใหญ่เต็มหน้า · day_cells -> list[(ข้อความ,ขนาด,หนา)]"""
+    from docx.enum.table import WD_ROW_HEIGHT_RULE, WD_CELL_VERTICAL_ALIGNMENT
     ncol = 1 + len(periods)
     t = doc.add_table(rows=1 + len(_TT_DAYS), cols=ncol); t.style = "Table Grid"
     hdr = t.rows[0].cells
-    _cell(hdr[0], "วัน / คาบ", bold=True, fill="EDE9FE", size=12)
+    _tt_cell_lines(hdr[0], [("วัน / คาบ", 14, True)], fill="EDE9FE")
     for j, p in enumerate(periods):
-        txt = p.name + (f"\n{p.time_label}" if p.time_label else "")
-        _cell(hdr[1 + j], txt, bold=True, fill=("F1F5F9" if p.is_break else "EDE9FE"), size=10)
+        lines = [(p.name, 14, True)]
+        if p.time_label:
+            lines.append((p.time_label, 12, False))
+        _tt_cell_lines(hdr[1 + j], lines, fill=("F1F5F9" if p.is_break else "EDE9FE"))
+    t.rows[0].height = Cm(1.2); t.rows[0].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
     for i, (dnum, dname) in enumerate(_TT_DAYS):
         cs = t.rows[1 + i].cells
-        _cell(cs[0], dname, bold=True, fill="FAF8FF", size=11)
+        _tt_cell_lines(cs[0], [(dname, 14, True)], fill="FAF8FF")
         for j, p in enumerate(periods):
             if p.is_break:
-                _cell(cs[1 + j], "พัก", size=10)
+                _tt_cell_lines(cs[1 + j], [("พัก", 13, False)], fill="F8FAFC")
             else:
-                _cell(cs[1 + j], day_cells(dnum, p), size=10)
-    fixed = 1.8
-    pw = min(2.9, (26.7 - fixed) / len(periods)) if periods else 2.9
-    _widths(t, [Cm(1.8)] + [Cm(pw)] * len(periods))
+                _tt_cell_lines(cs[1 + j], day_cells(dnum, p))
+        t.rows[1 + i].height = Cm(2.4); t.rows[1 + i].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
+    fixed = 2.2
+    pw = (26.7 - fixed) / len(periods) if periods else 2.9
+    _widths(t, [Cm(2.2)] + [Cm(pw)] * len(periods))
     _tight_cells(t)
+    for row in t.rows:                     # จัดกึ่งกลางแนวตั้งให้ดูเป็นระเบียบ
+        for c in row.cells:
+            c.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
     return t
 
 
@@ -2151,19 +2177,22 @@ def render_timetable_class(school, klass, db) -> str:
     def cell(dnum, p):
         r = cells.get((dnum, p.id))
         if not r:
-            return ""
+            return []
         if r.subject_id:
             nm = r.subject.name if r.subject else ""
             tn = tname(r.subject_id)
-            return nm + (f"\n{tn}" if tn else "")
-        return r.note or ""
+            lines = [(nm, 14, False)]
+            if tn:
+                lines.append((tn, 12, False))     # ชื่อครูผู้สอนใต้ชื่อวิชา
+            return lines
+        return [(r.note or "", 14, False)]
 
     doc = _doc(landscape=True)
     _logo_header(doc, school)
-    _p(doc, school.name or "", align="center", bold=True, size=16, after=0)
-    _p(doc, "ตารางเรียน", align="center", bold=True, size=15, after=0)
+    _p(doc, "ตารางเรียน", align="center", bold=True, size=18, after=0)
+    _p(doc, school.name or "", align="center", bold=True, size=18, after=1)
     hm = f"   ครูประจำชั้น {klass.homeroom.name}" if klass.homeroom else ""
-    _p(doc, f"ชั้น {_class_label(klass)}   ปีการศึกษา {y}{hm}", align="center", size=13, after=3)
+    _p(doc, f"ชั้น {_class_label(klass)}   ปีการศึกษา {y}{hm}", align="center", size=16, after=4)
     _tt_grid_doc(doc, periods, cell)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ตารางเรียน_{_class_label(klass)}_{y}") + ".docx")
@@ -2188,13 +2217,17 @@ def render_timetable_teacher(school, person, db, year) -> str:
 
     def cell(dnum, p):
         lst = grid.get((dnum, p.id), [])
-        return "\n".join(f"{nm} ({cl})" for nm, cl in lst)
+        lines = []
+        for nm, cl in lst:
+            lines.append((nm, 14, False))
+            lines.append((f"({cl})", 12, False))     # ห้องที่สอนใต้ชื่อวิชา
+        return lines
 
     doc = _doc(landscape=True)
     _logo_header(doc, school)
-    _p(doc, school.name or "", align="center", bold=True, size=16, after=0)
-    _p(doc, "ตารางสอน", align="center", bold=True, size=15, after=0)
-    _p(doc, f"ครู {person.name}   ปีการศึกษา {year}", align="center", size=13, after=3)
+    _p(doc, "ตารางสอน", align="center", bold=True, size=18, after=0)
+    _p(doc, school.name or "", align="center", bold=True, size=18, after=1)
+    _p(doc, f"ครู {person.name}   ปีการศึกษา {year}", align="center", size=16, after=4)
     _tt_grid_doc(doc, periods, cell)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ตารางสอน_{person.name}_{year}") + ".docx")
