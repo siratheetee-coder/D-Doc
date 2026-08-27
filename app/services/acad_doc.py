@@ -2061,3 +2061,100 @@ def render_attendance_month(school, klass, db, month, subject=None) -> str:
     out = out_dir / (_safe(f"เวลาเรียน_{_class_label(klass)}_{TH_MONTH_FULL[month]}{tag}_{y}") + ".docx")
     doc.save(str(out))
     return str(out)
+
+
+# ============================ ตารางเรียน ============================
+_TT_DAYS = [(1, "จันทร์"), (2, "อังคาร"), (3, "พุธ"), (4, "พฤหัสบดี"), (5, "ศุกร์")]
+
+
+def _tt_grid_doc(doc, periods, day_cells):
+    """วาดตารางเรียน (แถว=วัน · คอลัมน์=คาบ) · day_cells(dnum, period) -> ข้อความในช่อง"""
+    ncol = 1 + len(periods)
+    t = doc.add_table(rows=1 + len(_TT_DAYS), cols=ncol); t.style = "Table Grid"
+    hdr = t.rows[0].cells
+    _cell(hdr[0], "วัน / คาบ", bold=True, fill="EDE9FE", size=12)
+    for j, p in enumerate(periods):
+        txt = p.name + (f"\n{p.time_label}" if p.time_label else "")
+        _cell(hdr[1 + j], txt, bold=True, fill=("F1F5F9" if p.is_break else "EDE9FE"), size=10)
+    for i, (dnum, dname) in enumerate(_TT_DAYS):
+        cs = t.rows[1 + i].cells
+        _cell(cs[0], dname, bold=True, fill="FAF8FF", size=11)
+        for j, p in enumerate(periods):
+            if p.is_break:
+                _cell(cs[1 + j], "พัก", size=10)
+            else:
+                _cell(cs[1 + j], day_cells(dnum, p), size=10)
+    fixed = 1.8
+    pw = min(2.9, (26.7 - fixed) / len(periods)) if periods else 2.9
+    _widths(t, [Cm(1.8)] + [Cm(pw)] * len(periods))
+    _tight_cells(t)
+    return t
+
+
+def render_timetable_class(school, klass, db) -> str:
+    """ตารางเรียนของห้อง (แนวนอน) - วิชา + ครูผู้สอนในแต่ละคาบ"""
+    from app.models import AcadPeriod, AcadTimetable, AcadTeaching
+    y = klass.year
+    periods = (db.query(AcadPeriod).filter_by(year=y)
+               .order_by(AcadPeriod.seq, AcadPeriod.id).all())
+    cells = {(r.day, r.period_id): r for r in
+             db.query(AcadTimetable).filter_by(class_id=klass.id).all()}
+
+    def tname(sid):
+        if not sid:
+            return ""
+        tt = db.query(AcadTeaching).filter_by(class_id=klass.id, subject_id=sid).first()
+        return tt.teacher.name if (tt and tt.teacher) else ""
+
+    def cell(dnum, p):
+        r = cells.get((dnum, p.id))
+        if not r:
+            return ""
+        if r.subject_id:
+            nm = r.subject.name if r.subject else ""
+            tn = tname(r.subject_id)
+            return nm + (f"\n{tn}" if tn else "")
+        return r.note or ""
+
+    doc = _doc(landscape=True)
+    _logo_header(doc, school)
+    _p(doc, school.name or "", align="center", bold=True, size=16, after=0)
+    _p(doc, "ตารางเรียน", align="center", bold=True, size=15, after=0)
+    hm = f"   ครูประจำชั้น {klass.homeroom.name}" if klass.homeroom else ""
+    _p(doc, f"ชั้น {_class_label(klass)}   ปีการศึกษา {y}{hm}", align="center", size=13, after=3)
+    _tt_grid_doc(doc, periods, cell)
+    out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
+    out = out_dir / (_safe(f"ตารางเรียน_{_class_label(klass)}_{y}") + ".docx")
+    doc.save(str(out))
+    return str(out)
+
+
+def render_timetable_teacher(school, person, db, year) -> str:
+    """ตารางสอนของครู 1 คน (แนวนอน) - วิชา + ห้องในแต่ละคาบ (ทุกห้องที่สอน)"""
+    from app.models import AcadPeriod, AcadTimetable, AcadTeaching, AcadClass
+    periods = (db.query(AcadPeriod).filter_by(year=year)
+               .order_by(AcadPeriod.seq, AcadPeriod.id).all())
+    pairs = {(t.class_id, t.subject_id) for t in
+             db.query(AcadTeaching).filter_by(teacher_id=person.id).all()}
+    class_ids = {c.id for c in db.query(AcadClass).filter_by(year=year).all()}
+    grid = {}
+    for r in db.query(AcadTimetable).all():
+        if r.class_id in class_ids and (r.class_id, r.subject_id) in pairs:
+            c = db.get(AcadClass, r.class_id)
+            grid.setdefault((r.day, r.period_id), []).append(
+                (r.subject.name if r.subject else "", _class_label(c)))
+
+    def cell(dnum, p):
+        lst = grid.get((dnum, p.id), [])
+        return "\n".join(f"{nm} ({cl})" for nm, cl in lst)
+
+    doc = _doc(landscape=True)
+    _logo_header(doc, school)
+    _p(doc, school.name or "", align="center", bold=True, size=16, after=0)
+    _p(doc, "ตารางสอน", align="center", bold=True, size=15, after=0)
+    _p(doc, f"ครู {person.name}   ปีการศึกษา {year}", align="center", size=13, after=3)
+    _tt_grid_doc(doc, periods, cell)
+    out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
+    out = out_dir / (_safe(f"ตารางสอน_{person.name}_{year}") + ".docx")
+    doc.save(str(out))
+    return str(out)

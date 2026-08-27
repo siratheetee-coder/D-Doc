@@ -734,6 +734,7 @@
         <a href="/academic/calendar" class="{{ 'active' if path.startswith('/academic/calendar') }}"><svg class="icon"><use href="#ic-calendar"/></svg> ปฏิทินการศึกษา</a>
         {% endif %}
         <a href="/academic/attendance" class="{{ 'active' if path.startswith('/academic/attendance') }}"><svg class="icon"><use href="#ic-clock"/></svg> เวลาเรียน</a>
+        <a href="/academic/timetable" class="{{ 'active' if path.startswith('/academic/timetable') }}"><svg class="icon"><use href="#ic-calendar"/></svg> ตารางเรียน</a>
         <a href="/academic/grades" class="{{ 'active' if path.startswith('/academic/grades') }}"><svg class="icon"><use href="#ic-edit"/></svg> กรอกคะแนน ปพ.5</a>
         <a href="/academic/eval" class="{{ 'active' if path.startswith('/academic/eval') }}"><svg class="icon"><use href="#ic-check"/></svg> ประเมิน ปพ.6</a>
         {% if request.session.get('owner') %}

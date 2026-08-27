@@ -18,7 +18,8 @@ from app.models import (Student, Person, AcadClass, AcadStudent, AcadSubject,
                         AcadAssignment, AcadAssignmentScore, AcadIndicatorResult,
                         AcadCharEval, AcadReadEval, AcadAttendance, AcadClassMonth,
                         AcadCalendar, AcadHoliday, AcadYearSetting,
-                        AcadActivity, AcadActivityResult, AcadOnet)
+                        AcadActivity, AcadActivityResult, AcadOnet,
+                        AcadPeriod, AcadTimetable)
 from app.thai_utils import (SCHOOL_LEVELS, GRADUATED, current_academic_year, current_term,
                             is_secondary, level_rank)
 from app.templating import templates
@@ -1616,6 +1617,207 @@ async def attendance_fill_year(request: Request, db: Session = Depends(get_db),
     db.commit()
     sq = f"&mode={mode}" + (f"&sid={_to_int(sid, 0)}" if by_subj else "")
     return RedirectResponse(f"/academic/attendance?cid={c.id}{sq}&saved=1", status_code=303)
+
+
+# ---------------- ตารางเรียน (ตั้งคาบ + กรอกเอง + ดูรายห้อง/รายครู + พิมพ์) ----------------
+TT_DAYS = [(1, "จันทร์"), (2, "อังคาร"), (3, "พุธ"), (4, "พฤหัสบดี"), (5, "ศุกร์")]
+
+_PERIOD_PRESET = [
+    ("คาบ 1", "08:30-09:20", False), ("คาบ 2", "09:20-10:10", False),
+    ("คาบ 3", "10:10-11:00", False), ("คาบ 4", "11:00-11:50", False),
+    ("พักเที่ยง", "11:50-12:40", True),
+    ("คาบ 5", "12:40-13:30", False), ("คาบ 6", "13:30-14:20", False),
+    ("คาบ 7", "14:20-15:10", False), ("คาบ 8", "15:10-16:00", False),
+]
+
+
+def _tt_periods(db, year):
+    return (db.query(AcadPeriod).filter_by(year=year)
+            .order_by(AcadPeriod.seq, AcadPeriod.id).all())
+
+
+def _tt_teacher_name(db, class_id, subject_id):
+    if not subject_id:
+        return ""
+    t = db.query(AcadTeaching).filter_by(class_id=class_id, subject_id=subject_id).first()
+    return t.teacher.name if (t and t.teacher) else ""
+
+
+def _tt_options(db, klass):
+    """ตัวเลือกในช่องตาราง: วิชาของชั้นนี้ (s<id>) + กิจกรรม (n:ชื่อ) + โฮมรูม"""
+    opts = []
+    for s in (db.query(AcadSubject).filter_by(year=klass.year, level=klass.level)
+              .order_by(AcadSubject.seq, AcadSubject.code).all()):
+        opts.append((f"s{s.id}", f"{s.code + ' ' if s.code else ''}{s.name}"))
+    for a in activities_for(klass.year, klass.level, db):
+        opts.append((f"n:{a.name}", f"{a.name} (กิจกรรม)"))
+    opts.append(("n:โฮมรูม", "โฮมรูม"))
+    return opts
+
+
+def _tt_cells(db, klass):
+    """ตารางของห้องนี้ -> cells[day][period_id] = {sel, label, teacher}"""
+    cells = {}
+    for r in db.query(AcadTimetable).filter_by(class_id=klass.id).all():
+        if r.subject_id:
+            sel = f"s{r.subject_id}"
+            label = (r.subject.name if r.subject else "")
+            teacher = _tt_teacher_name(db, klass.id, r.subject_id)
+        else:
+            sel = f"n:{r.note}" if r.note else ""
+            label = r.note or ""
+            teacher = ""
+        cells.setdefault(r.day, {})[r.period_id] = {"sel": sel, "label": label, "teacher": teacher}
+    return cells
+
+
+@router.get("/academic/timetable", response_class=HTMLResponse)
+def timetable_page(request: Request, db: Session = Depends(get_db),
+                   cid: int | None = None, year: int | None = None):
+    y = year or current_academic_year()
+    sc = _scope(request, db)
+    periods = _tt_periods(db, y)
+    classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
+    if sc.is_teacher:
+        classes = [c for c in classes if c.id in sc.class_ids]
+    c = db.get(AcadClass, cid) if cid else None
+    if c and sc.is_teacher and c.id not in sc.class_ids:
+        return _deny()
+    options = _tt_options(db, c) if c else []
+    cells = _tt_cells(db, c) if c else {}
+    return templates.TemplateResponse("academic_timetable.html", {
+        "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
+        "days": TT_DAYS, "periods": periods, "classes": classes, "c": c,
+        "options": options, "cells": cells, "class_label": _class_label,
+        "can_edit": (not sc.is_teacher), "is_teacher": sc.is_teacher,
+    })
+
+
+@router.post("/academic/timetable/periods/preset")
+def timetable_periods_preset(request: Request, db: Session = Depends(get_db), year: str = Form("")):
+    if _scope(request, db).is_teacher:
+        return _deny()
+    y = _to_int(year, 0) or current_academic_year()
+    if not _tt_periods(db, y):
+        for i, (name, tlabel, brk) in enumerate(_PERIOD_PRESET):
+            db.add(AcadPeriod(year=y, seq=i + 1, name=name, time_label=tlabel, is_break=brk))
+        db.commit()
+    return RedirectResponse(f"/academic/timetable?year={y}", status_code=303)
+
+
+@router.post("/academic/timetable/periods/save")
+async def timetable_periods_save(request: Request, db: Session = Depends(get_db), year: str = Form("")):
+    if _scope(request, db).is_teacher:
+        return _deny()
+    form = await request.form()
+    y = _to_int(year, 0) or current_academic_year()
+    for p in _tt_periods(db, y):
+        if form.get(f"del_{p.id}"):
+            db.delete(p)
+            continue
+        p.name = (form.get(f"name_{p.id}", "") or "").strip() or p.name
+        p.time_label = (form.get(f"time_{p.id}", "") or "").strip()
+        p.is_break = bool(form.get(f"break_{p.id}"))
+        p.seq = _to_int(form.get(f"seq_{p.id}", ""), p.seq)
+    nm = (form.get("new_name", "") or "").strip()
+    if nm:
+        n = len(_tt_periods(db, y))
+        db.add(AcadPeriod(year=y, seq=n + 1, name=nm,
+                          time_label=(form.get("new_time", "") or "").strip(),
+                          is_break=bool(form.get("new_break"))))
+    db.commit()
+    return RedirectResponse(f"/academic/timetable?year={y}&psaved=1", status_code=303)
+
+
+@router.post("/academic/timetable/save")
+async def timetable_save(request: Request, db: Session = Depends(get_db), cid: str = Form("")):
+    if _scope(request, db).is_teacher:
+        return _deny()
+    form = await request.form()
+    c = db.get(AcadClass, _to_int(cid, 0))
+    if not c:
+        return RedirectResponse("/academic/timetable", status_code=303)
+    periods = _tt_periods(db, c.year)
+    cur = {(r.day, r.period_id): r for r in
+           db.query(AcadTimetable).filter_by(class_id=c.id).all()}
+    for d, _ in TT_DAYS:
+        for p in periods:
+            if p.is_break:
+                continue
+            val = (form.get(f"cell_{d}_{p.id}", "") or "").strip()
+            row = cur.get((d, p.id))
+            if not val:
+                if row:
+                    db.delete(row)
+                continue
+            if not row:
+                row = AcadTimetable(class_id=c.id, day=d, period_id=p.id)
+                db.add(row)
+            if val.startswith("s"):
+                row.subject_id = _to_int(val[1:], 0) or None
+                row.note = ""
+            elif val.startswith("n:"):
+                row.subject_id = None
+                row.note = val[2:]
+    db.commit()
+    return RedirectResponse(f"/academic/timetable?cid={c.id}&saved=1", status_code=303)
+
+
+@router.get("/academic/timetable/teacher", response_class=HTMLResponse)
+def timetable_teacher_page(request: Request, db: Session = Depends(get_db),
+                           pid: int | None = None, year: int | None = None):
+    y = year or current_academic_year()
+    sc = _scope(request, db)
+    teachers = db.query(Person).filter_by(active=True).order_by(Person.name).all()
+    if sc.is_teacher:                       # ครูดูได้แค่ตารางตัวเอง
+        pid = sc.pid
+    person = db.get(Person, pid) if pid else None
+    periods = _tt_periods(db, y)
+    class_ids = {x.id for x in db.query(AcadClass).filter_by(year=y).all()}
+    tgrid, clashes = {}, []
+    if person:
+        pairs = {(t.class_id, t.subject_id) for t in
+                 db.query(AcadTeaching).filter_by(teacher_id=person.id).all()}
+        for r in db.query(AcadTimetable).all():
+            if r.class_id in class_ids and (r.class_id, r.subject_id) in pairs:
+                c = db.get(AcadClass, r.class_id)
+                slot = tgrid.setdefault(r.day, {}).setdefault(r.period_id, [])
+                slot.append({"class": _class_label(c),
+                             "subject": (r.subject.name if r.subject else "")})
+        for d, byp in tgrid.items():
+            for p_id, lst in byp.items():
+                if len(lst) > 1:
+                    clashes.append({"day": dict(TT_DAYS).get(d, d), "n": len(lst)})
+    return templates.TemplateResponse("academic_timetable_teacher.html", {
+        "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
+        "days": TT_DAYS, "periods": periods, "teachers": teachers, "person": person,
+        "tgrid": tgrid, "clashes": clashes, "is_teacher": sc.is_teacher,
+    })
+
+
+@router.get("/academic/timetable/class.docx")
+def timetable_class_docx(cid: int, request: Request, db: Session = Depends(get_db)):
+    from app.services.acad_doc import render_timetable_class
+    c = db.get(AcadClass, cid)
+    if not c:
+        return RedirectResponse("/academic/timetable", status_code=303)
+    if not _scope(request, db).can_class(cid):
+        return _deny()
+    return serve_generated(render_timetable_class(get_school(db), c, db), _DOCX)
+
+
+@router.get("/academic/timetable/teacher.docx")
+def timetable_teacher_docx(pid: int, request: Request, db: Session = Depends(get_db),
+                           year: int | None = None):
+    from app.services.acad_doc import render_timetable_teacher
+    sc = _scope(request, db)
+    if sc.is_teacher and pid != sc.pid:
+        return _deny()
+    person = db.get(Person, pid)
+    if not person:
+        return RedirectResponse("/academic/timetable/teacher", status_code=303)
+    y = year or current_academic_year()
+    return serve_generated(render_timetable_teacher(get_school(db), person, db, y), _DOCX)
 
 
 # ---------------- เอกสาร ----------------

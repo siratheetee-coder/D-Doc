@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}ตารางสอนรายครู{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานวิชาการ · ตารางเรียน</div>
+    <span class="hero-title">ตารางสอนรายครู</span>
+    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+  </div>
+</div>
+
+<div class="card">
+  <form method="get" action="/academic/timetable/teacher" class="row" style="align-items:flex-end; margin:0; gap:12px;">
+    <div><label>ปีการศึกษา</label>
+      <select name="year" onchange="submitReplace(this.form)">
+        {% for yy in years %}<option value="{{ yy }}" {{ 'selected' if yy==year }}>{{ yy }}</option>{% endfor %}
+      </select>
+    </div>
+    {% if not is_teacher %}
+    <div style="flex:1;"><label>เลือกครู</label>
+      <select name="pid" onchange="submitReplace(this.form)">
+        <option value="">— เลือกครู —</option>
+        {% for t in teachers %}<option value="{{ t.id }}" {{ 'selected' if person and t.id==person.id }}>{{ t.name }}</option>{% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div><a class="btn soft gray" href="/academic/timetable">← ตารางรายห้อง</a></div>
+  </form>
+</div>
+
+{% if person %}
+{% if clashes %}
+<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
+  พบคาบซ้อน {{ clashes|length }} จุด — ครูถูกจัดสอนมากกว่า 1 ห้องในคาบเดียวกัน (ช่องสีแดง) ควรแก้ที่ตารางรายห้อง</div>
+{% endif %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;">ตารางสอน: {{ person.name }}</h2>
+    <a class="btn soft" href="/academic/timetable/teacher.docx?pid={{ person.id }}&year={{ year }}"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ตารางครูคนนี้</a>
+  </div>
+  {% if not periods %}
+  <p class="muted" style="margin:8px 0 0;">ยังไม่ได้ตั้งโครงคาบเรียน</p>
+  {% else %}
+  <div class="table-wrap">
+  <table class="tt">
+    <thead><tr>
+      <th style="min-width:70px;">วัน \ คาบ</th>
+      {% for p in periods %}
+      <th style="{{ 'background:#f1f5f9;' if p.is_break }} min-width:{{ '60px' if p.is_break else '120px' }};">
+        {{ p.name }}{% if p.time_label %}<div class="muted" style="font-size:11px; font-weight:400;">{{ p.time_label }}</div>{% endif %}</th>
+      {% endfor %}
+    </tr></thead>
+    <tbody>
+    {% for dnum, dname in days %}
+      <tr>
+        <td style="font-weight:600; white-space:nowrap; background:#faf8ff;">{{ dname }}</td>
+        {% for p in periods %}
+          {% set lst = tgrid.get(dnum, {}).get(p.id, []) %}
+          {% if p.is_break %}
+          <td class="center muted" style="background:#f8fafc; font-size:12px;">พัก</td>
+          {% else %}
+          <td class="center {{ 'clash' if lst|length > 1 }}" style="font-size:12.5px;">
+            {% for e in lst %}<div><b>{{ e.subject }}</b><div class="muted" style="font-size:11px;">{{ e.class }}</div></div>{% endfor %}
+            {% if not lst %}<span class="muted">—</span>{% endif %}
+          </td>
+          {% endif %}
+        {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+{% elif not is_teacher %}
+<div class="card"><p class="muted" style="margin:0;">เลือกครูด้านบนเพื่อดูตารางสอน</p></div>
+{% endif %}
+
+<style>
+  table.tt th, table.tt td { border:1px solid #e5e7eb; padding:6px 8px; text-align:center; vertical-align:middle; }
+  table.tt th { background:#f5f3ff; font-size:13px; }
+  table.tt td.clash { background:#fee2e2; }
+</style>
+{% endblock %}

@@ -1436,3 +1436,32 @@ class AcadActivityResult(Base):
     acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
     activity_id = Column(Integer, ForeignKey("acad_activity.id"), nullable=False)
     result = Column(String, default="")     # "ผ" / "มผ"
+
+
+class AcadPeriod(Base):
+    """โครงคาบเรียนของโรงเรียน (ตั้งเองได้) - ใช้เป็นคอลัมน์/แถวของตารางเรียน
+    is_break=True = คาบพัก (พักเที่ยง/พักเบรก) ไม่ใส่วิชา"""
+    __tablename__ = "acad_period"
+
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, nullable=False)
+    seq = Column(Integer, default=0)              # ลำดับคาบในวัน
+    name = Column(String, default="")             # "คาบ 1" / "พักเที่ยง"
+    time_label = Column(String, default="")       # "08:30-09:20"
+    is_break = Column(Boolean, default=False)
+
+
+class AcadTimetable(Base):
+    """ตารางเรียนรายห้อง 1 ช่อง = (ห้อง x วัน x คาบ) -> วิชา หรือ ข้อความอิสระ
+    day: 1=จันทร์ ... 7=อาทิตย์ · ครูดึงจาก AcadTeaching(ห้อง,วิชา) · note = กิจกรรม/โฮมรูม"""
+    __tablename__ = "acad_timetable"
+
+    id = Column(Integer, primary_key=True)
+    class_id = Column(Integer, ForeignKey("acad_class.id"), nullable=False)
+    day = Column(Integer, nullable=False)
+    period_id = Column(Integer, ForeignKey("acad_period.id"), nullable=False)
+    subject_id = Column(Integer, ForeignKey("acad_subject.id"), nullable=True)
+    note = Column(String, default="")             # ใช้เมื่อไม่ใช่รายวิชา (เช่น ลูกเสือ/โฮมรูม)
+
+    klass = relationship("AcadClass")
+    subject = relationship("AcadSubject")

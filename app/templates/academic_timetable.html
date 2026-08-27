@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}ตารางเรียน{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานวิชาการ</div>
+    <span class="hero-title">ตารางเรียน</span>
+    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+  </div>
+</div>
+
+{% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกตารางเรียนแล้ว</div>{% endif %}
+{% if request.query_params.get('psaved') %}<div class="alert">✔ บันทึกโครงคาบแล้ว</div>{% endif %}
+
+<div class="card">
+  <form method="get" action="/academic/timetable" class="row" style="align-items:flex-end; margin:0; gap:12px;">
+    <div><label>ปีการศึกษา</label>
+      <select name="year" onchange="submitReplace(this.form)">
+        {% for yy in years %}<option value="{{ yy }}" {{ 'selected' if yy==year }}>{{ yy }}</option>{% endfor %}
+      </select>
+    </div>
+    <div style="flex:1;"><label>เลือกห้องเรียน</label>
+      <select name="cid" onchange="submitReplace(this.form)">
+        <option value="">— เลือกห้อง —</option>
+        {% for cc in classes %}<option value="{{ cc.id }}" {{ 'selected' if c and cc.id==c.id }}>{{ class_label(cc) }}</option>{% endfor %}
+      </select>
+    </div>
+    <div><a class="btn soft" href="/academic/timetable/teacher"><svg class="icon"><use href="#ic-users"/></svg> ดูตารางรายครู</a></div>
+  </form>
+</div>
+
+{% if can_edit %}
+{# ---------- ตั้งโครงคาบเรียน (เจ้าหน้าที่) ---------- #}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;"><svg class="icon"><use href="#ic-clock"/></svg> โครงคาบเรียน <span class="muted" style="font-size:14px;">(ตั้งเองตามโรงเรียน)</span></h2>
+    {% if not periods %}
+    <form method="post" action="/academic/timetable/periods/preset" style="margin:0;">
+      <input type="hidden" name="year" value="{{ year }}">
+      <button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> สร้างคาบมาตรฐาน (8 คาบ + พักเที่ยง)</button>
+    </form>
+    {% endif %}
+  </div>
+  <p class="muted" style="font-size:13px; margin:6px 0 8px;">ติ๊ก "พัก" สำหรับคาบพักเที่ยง/พักเบรก (จะไม่ให้ใส่วิชา) · ลำดับ = การเรียงคาบในวัน</p>
+  <form method="post" action="/academic/timetable/periods/save">
+    <input type="hidden" name="year" value="{{ year }}">
+    <button type="submit" aria-hidden="true" tabindex="-1" style="position:absolute; width:0; height:0; padding:0; border:0; overflow:hidden;"></button>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>ลำดับ</th><th>ชื่อคาบ</th><th>เวลา</th><th>พัก</th><th>ลบ</th></tr></thead>
+      <tbody>
+      {% for p in periods %}
+        <tr>
+          <td><input name="seq_{{ p.id }}" value="{{ p.seq }}" style="width:56px;" inputmode="numeric"></td>
+          <td><input name="name_{{ p.id }}" value="{{ p.name }}" style="width:120px;"></td>
+          <td><input name="time_{{ p.id }}" value="{{ p.time_label }}" placeholder="08:30-09:20" style="width:130px;"></td>
+          <td class="center"><input type="checkbox" name="break_{{ p.id }}" style="width:auto;" {{ 'checked' if p.is_break }}></td>
+          <td class="center"><button class="btn sm red" type="submit" name="del_{{ p.id }}" value="1" onclick="return confirm('ลบคาบนี้?');">ลบ</button></td>
+        </tr>
+      {% endfor %}
+        <tr style="background:#fafbfd;">
+          <td class="muted">ใหม่</td>
+          <td><input name="new_name" placeholder="เช่น คาบ 9" style="width:120px;"></td>
+          <td><input name="new_time" placeholder="16:00-16:50" style="width:130px;"></td>
+          <td class="center"><input type="checkbox" name="new_break" style="width:auto;"></td>
+          <td class="muted center" style="font-size:12.5px;">แถวเพิ่มใหม่</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+    <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกโครงคาบ</button>
+  </form>
+</div>
+{% endif %}
+
+{# ---------- ตารางของห้องที่เลือก ---------- #}
+{% if c %}
+{% if not periods %}
+<div class="card"><p class="muted" style="margin:0;">ยังไม่ได้ตั้งโครงคาบเรียน — ตั้งด้านบนก่อน แล้วค่อยกรอกตาราง</p></div>
+{% else %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;">ตารางเรียน ห้อง {{ class_label(c) }}</h2>
+    <a class="btn soft" href="/academic/timetable/class.docx?cid={{ c.id }}"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ตารางห้องนี้</a>
+  </div>
+  {% if can_edit %}<p class="muted" style="font-size:13px; margin:6px 0 8px;">เลือกวิชา/กิจกรรมในแต่ละช่อง — ครูผู้สอนระบบดึงจากที่ตั้งไว้ในห้องเรียนให้อัตโนมัติ</p>{% endif %}
+  <form method="post" action="/academic/timetable/save">
+    <input type="hidden" name="cid" value="{{ c.id }}">
+    <div class="table-wrap">
+    <table class="tt">
+      <thead><tr>
+        <th style="min-width:70px;">วัน \ คาบ</th>
+        {% for p in periods %}
+        <th style="{{ 'background:#f1f5f9;' if p.is_break }} min-width:{{ '70px' if p.is_break else '135px' }};">
+          {{ p.name }}{% if p.time_label %}<div class="muted" style="font-size:11px; font-weight:400;">{{ p.time_label }}</div>{% endif %}</th>
+        {% endfor %}
+      </tr></thead>
+      <tbody>
+      {% for dnum, dname in days %}
+        <tr>
+          <td style="font-weight:600; white-space:nowrap; background:#faf8ff;">{{ dname }}</td>
+          {% for p in periods %}
+            {% set cell = cells.get(dnum, {}).get(p.id) %}
+            {% if p.is_break %}
+            <td class="center muted" style="background:#f8fafc; font-size:12px;">พัก</td>
+            {% elif can_edit %}
+            <td style="padding:3px;">
+              <select name="cell_{{ dnum }}_{{ p.id }}" style="width:100%; min-width:125px; font-size:13px; padding:5px;">
+                <option value="">—</option>
+                {% for val, label in options %}<option value="{{ val }}" {{ 'selected' if cell and cell.sel==val }}>{{ label }}</option>{% endfor %}
+              </select>
+              {% if cell and cell.teacher %}<div class="muted" style="font-size:11px; margin-top:2px; text-align:center;">{{ cell.teacher }}</div>{% endif %}
+            </td>
+            {% else %}
+            <td class="center" style="font-size:12.5px;">
+              {% if cell %}<b>{{ cell.label }}</b>{% if cell.teacher %}<div class="muted" style="font-size:11px;">{{ cell.teacher }}</div>{% endif %}{% else %}<span class="muted">—</span>{% endif %}
+            </td>
+            {% endif %}
+          {% endfor %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% if can_edit %}<button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกตารางเรียน</button>{% endif %}
+  </form>
+</div>
+{% endif %}
+{% elif classes %}
+<div class="card"><p class="muted" style="margin:0;">เลือกห้องด้านบนเพื่อกรอก/ดูตารางเรียน</p></div>
+{% else %}
+<div class="card"><p class="muted" style="margin:0;">ยังไม่มีห้องเรียนปีนี้ — <a href="/academic/classes">ไปสร้างห้องเรียน</a> ก่อน</p></div>
+{% endif %}
+
+<style>
+  table.tt th, table.tt td { border:1px solid #e5e7eb; padding:6px 8px; text-align:center; vertical-align:middle; }
+  table.tt th { background:#f5f3ff; font-size:13px; }
+</style>
+{% endblock %}
