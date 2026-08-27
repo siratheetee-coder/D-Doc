@@ -1685,6 +1685,8 @@ def timetable_page(request: Request, db: Session = Depends(get_db),
         return _deny()
     options = _tt_options(db, c) if c else []
     cells = _tt_cells(db, c) if c else {}
+    subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
+                .order_by(AcadSubject.seq, AcadSubject.code).all()) if c else []
     # ข้อมูลกันคาบซ้อน (เตือนสด ๆ ตอนกรอก): ครูของแต่ละวิชาในห้องนี้ + คาบที่ครูถูกจองในห้องอื่น
     subj_teacher, busy = {}, {}
     if c:
@@ -1710,7 +1712,8 @@ def timetable_page(request: Request, db: Session = Depends(get_db),
         "days": TT_DAYS, "periods": periods, "classes": classes, "c": c,
         "options": options, "cells": cells, "class_label": _class_label,
         "can_edit": (not sc.is_teacher), "is_teacher": sc.is_teacher,
-        "subj_teacher": subj_teacher, "busy": busy,
+        "subj_teacher": subj_teacher, "busy": busy, "subjects": subjects,
+        "term_label": term_label,
     })
 
 
@@ -1782,6 +1785,83 @@ async def timetable_save(request: Request, db: Session = Depends(get_db), cid: s
                 row.note = val[2:]
     db.commit()
     return RedirectResponse(f"/academic/timetable?cid={c.id}&saved=1", status_code=303)
+
+
+def _auto_schedule(db, klass, counts, clear):
+    """จัดตารางอัตโนมัติ (greedy): เติมวิชาตามจำนวนคาบ/สัปดาห์ ลงช่องว่าง
+    - ไม่ทับช่องที่กรอกมือไว้ (ถ้าไม่ติ๊กล้าง) · หลบครูซ้อนกับห้องอื่น + ในห้องเดียวกัน
+    - กระจายไม่ให้วิชาเดียวซ้ำวันเดียวกันถ้าเลี่ยงได้ · คืน (จัดได้, จัดไม่ได้)"""
+    from collections import Counter
+    periods = [p for p in _tt_periods(db, klass.year) if not p.is_break]
+    all_slots = [(d, p.id) for d, _ in TT_DAYS for p in periods]
+    existing = {(r.day, r.period_id): r for r in
+                db.query(AcadTimetable).filter_by(class_id=klass.id).all()}
+    if clear:
+        for r in list(existing.values()):
+            db.delete(r)
+        existing = {}
+    free = [s for s in all_slots if s not in existing]
+    # ครูของวิชาในห้องนี้
+    my_teacher = {t.subject_id: t.teacher_id for t in
+                  db.query(AcadTeaching).filter_by(class_id=klass.id).all() if t.teacher_id}
+    # ครูที่ถูกจอง (ห้องอื่นปีเดียวกัน + ช่องที่กรอกมือไว้ในห้องนี้)
+    others = [x for x in db.query(AcadClass).filter_by(year=klass.year).all() if x.id != klass.id]
+    oids = {x.id for x in others}
+    busy = set()
+    if oids:
+        tmap = {(t.class_id, t.subject_id): t.teacher_id for t in
+                db.query(AcadTeaching).filter(AcadTeaching.class_id.in_(oids)).all() if t.teacher_id}
+        for r in db.query(AcadTimetable).filter(AcadTimetable.class_id.in_(oids)).all():
+            tid = tmap.get((r.class_id, r.subject_id))
+            if tid:
+                busy.add((tid, r.day, r.period_id))
+    for (d, pid), r in existing.items():
+        tid = my_teacher.get(r.subject_id)
+        if tid:
+            busy.add((tid, d, pid))
+    # ความต้องการ + เรียงวิชาที่ครูงานแน่นก่อน (จัดยากก่อน)
+    demands = []
+    for sid, cnt in counts.items():
+        demands += [sid] * max(0, cnt)
+    tload = Counter(t for (t, _, _) in busy)
+    demands.sort(key=lambda sid: -tload.get(my_teacher.get(sid), 0))
+    placed = unplaced = 0
+    subj_day = set()
+    for sid in demands:
+        tid = my_teacher.get(sid)
+        cands = [s for s in free if (tid is None or (tid, s[0], s[1]) not in busy)]
+        if not cands:
+            unplaced += 1
+            continue
+        # เลี่ยงวันที่มีวิชานี้แล้ว -> เรียงคาบต้น ๆ ก่อน
+        cands.sort(key=lambda s: ((sid, s[0]) in subj_day, s[1], s[0]))
+        d, pid = cands[0]
+        db.add(AcadTimetable(class_id=klass.id, day=d, period_id=pid, subject_id=sid))
+        free.remove((d, pid))
+        if tid:
+            busy.add((tid, d, pid))
+        subj_day.add((sid, d))
+        placed += 1
+    db.commit()
+    return placed, unplaced
+
+
+@router.post("/academic/timetable/auto")
+async def timetable_auto(request: Request, db: Session = Depends(get_db), cid: str = Form("")):
+    if _scope(request, db).is_teacher:
+        return _deny()
+    form = await request.form()
+    c = db.get(AcadClass, _to_int(cid, 0))
+    if not c:
+        return RedirectResponse("/academic/timetable", status_code=303)
+    counts = {}
+    for s in db.query(AcadSubject).filter_by(year=c.year, level=c.level).all():
+        n = _to_int(form.get(f"n_{s.id}", ""), 0)
+        if n > 0:
+            counts[s.id] = n
+    placed, unplaced = _auto_schedule(db, c, counts, bool(form.get("clear")))
+    return RedirectResponse(
+        f"/academic/timetable?cid={c.id}&auto={placed}&un={unplaced}", status_code=303)
 
 
 @router.get("/academic/timetable/teacher", response_class=HTMLResponse)

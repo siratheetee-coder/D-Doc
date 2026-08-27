@@ -11,6 +11,9 @@
 
 {% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกตารางเรียนแล้ว</div>{% endif %}
 {% if request.query_params.get('psaved') %}<div class="alert">✔ บันทึกโครงคาบแล้ว</div>{% endif %}
+{% if request.query_params.get('auto') is not none %}
+<div class="alert">✔ จัดตารางอัตโนมัติแล้ว {{ request.query_params.get('auto') }} คาบ{% if request.query_params.get('un')|int > 0 %} · จัดไม่ได้ {{ request.query_params.get('un') }} คาบ (ช่องว่างไม่พอ หรือครูชนทุกช่อง — ลองลดจำนวนคาบ/เพิ่มคาบเรียน หรือกรอกเองส่วนที่เหลือ){% endif %}</div>
+{% endif %}
 
 <div class="card">
   <form method="get" action="/academic/timetable" class="row" style="align-items:flex-end; margin:0; gap:12px;">
@@ -78,6 +81,31 @@
 {% if not periods %}
 <div class="card"><p class="muted" style="margin:0;">ยังไม่ได้ตั้งโครงคาบเรียน — ตั้งด้านบนก่อน แล้วค่อยกรอกตาราง</p></div>
 {% else %}
+{% if can_edit and subjects %}
+<div class="card" style="border:1px solid #ddd6fe; background:#faf8ff;">
+  <details {{ 'open' if request.query_params.get('auto') is not none }}>
+    <summary style="cursor:pointer; font-weight:700; font-size:16px; color:#5b21b6;"><svg class="icon"><use href="#ic-star"/></svg> จัดตารางอัตโนมัติ</summary>
+    <p class="muted" style="font-size:13px; margin:8px 0 10px;">ใส่จำนวน<b>คาบ/สัปดาห์</b>ของแต่ละวิชา ระบบจะจัดลงช่องว่างให้ · หลบครูที่ซ้อนกับห้องอื่น · กระจายไม่ให้ซ้ำวันเดียวกัน · <b>ไม่ทับช่องที่กรอกมือไว้</b> (ถ้าไม่ติ๊กล้าง)</p>
+    <form method="post" action="/academic/timetable/auto">
+      <input type="hidden" name="cid" value="{{ c.id }}">
+      <div style="display:flex; flex-wrap:wrap; gap:10px 18px;">
+        {% for s in subjects %}
+        {% set dft = (s.hours // 40) if s.hours else 0 %}
+        <label style="display:inline-flex; align-items:center; gap:6px; font-size:14px; margin:0;">
+          <span style="min-width:120px;">{{ s.code + ' ' if s.code }}{{ s.name }}</span>
+          <input name="n_{{ s.id }}" type="number" min="0" max="20" value="{{ dft if dft > 0 else 1 }}" style="width:64px; text-align:center;">
+        </label>
+        {% endfor %}
+      </div>
+      <label style="display:inline-flex; align-items:center; gap:6px; margin:12px 0 0; font-size:14px;">
+        <input type="checkbox" name="clear" style="width:auto;"> ล้างตารางเดิมของห้องนี้ก่อนจัด (ไม่ติ๊ก = เติมเฉพาะช่องว่าง)
+      </label>
+      <div style="margin-top:12px;"><button class="btn" type="submit"><svg class="icon"><use href="#ic-star"/></svg> จัดตารางให้อัตโนมัติ</button></div>
+    </form>
+  </details>
+</div>
+{% endif %}
+
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
     <h2 style="margin:0;">ตารางเรียน ห้อง {{ class_label(c) }}</h2>
