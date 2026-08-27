@@ -12,6 +12,28 @@
 {% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
 {% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
 
+{% if created %}
+<div class="card" style="border:2px solid #16a34a; background:#f0fdf4;">
+  <h2 style="margin-top:0; color:#166534;"><svg class="icon"><use href="#ic-check"/></svg> สร้างบัญชีให้ {{ created.name }} แล้ว</h2>
+  <p style="margin:2px 0 12px; color:#166534; font-size:14px;"><b>ส่งข้อมูลนี้ให้ครูเก็บไว้เลย</b> — หน้านี้แสดงรหัสผ่านครั้งเดียว รีเฟรชแล้วจะไม่โชว์อีก (ถ้าลืมต้องรีเซ็ตใหม่)</p>
+  <div style="display:flex; flex-direction:column; gap:10px; max-width:520px;">
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <span style="width:80px; color:#166534; font-weight:600;">ไอดี</span>
+      <code id="cr-user" style="flex:1; min-width:180px; background:#fff; border:1px solid #bbf7d0; padding:8px 10px; border-radius:6px; font-size:15px; font-weight:700;">{{ created.username }}</code>
+      <button type="button" class="btn sm gray" onclick="copyId(this, {{ created.username|tojson }})">คัดลอก</button>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <span style="width:80px; color:#166534; font-weight:600;">รหัสผ่าน</span>
+      <code id="cr-pass" style="flex:1; min-width:180px; background:#fff; border:1px solid #bbf7d0; padding:8px 10px; border-radius:6px; font-size:15px; font-weight:700;">{{ created.password }}</code>
+      <button type="button" class="btn sm gray" onclick="copyId(this, {{ created.password|tojson }})">คัดลอก</button>
+    </div>
+    <div>
+      <button type="button" class="btn green" onclick="copyBoth(this, {{ created.username|tojson }}, {{ created.password|tojson }})"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอกทั้งไอดีและรหัสผ่าน</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> รหัสต่อท้ายไอดีครูของโรงเรียน</h2>
   <p class="muted" style="font-size:13px; margin:4px 0 10px;">
@@ -88,6 +110,9 @@
     var ta = document.createElement('textarea'); ta.value = id;
     ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta);
     ta.select(); try { document.execCommand('copy'); } catch(e){} document.body.removeChild(ta);
+  }
+  function copyBoth(btn, user, pass){
+    copyId(btn, 'ไอดี: ' + user + '\nรหัสผ่าน: ' + pass);
   }
 </script>
 {% endblock %}

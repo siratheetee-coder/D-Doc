@@ -242,22 +242,30 @@ def _class_progress(c, db, term):
 
 
 # ---------------- บัญชีครู (owner สร้าง/ผูกกับ Person -> สิทธิ์เฉพาะวิชา/ห้องตัวเอง) ----------------
-@router.get("/academic/teacher-accounts", response_class=HTMLResponse)
-def teacher_accounts_page(request: Request, db: Session = Depends(get_db),
-                          msg: str = "", err: str = ""):
-    if not request.session.get("owner"):
-        return RedirectResponse("/academic", status_code=303)
+def _teacher_accounts_ctx(request, db, **extra):
+    """context หน้าบัญชีครู - ใช้ร่วมกันทั้งหน้า GET และตอน POST สร้างเสร็จ (โชว์รหัสครั้งเดียว)"""
     from app.accounts import list_teacher_accounts, get_teacher_code
     tid = request.session.get("tid")
     persons = db.query(Person).filter_by(active=True).order_by(Person.name).all()
     accts = list_teacher_accounts(tid)
     linked = {a["person_id"]: a for a in accts}
     school_code, code_is_custom = get_teacher_code(tid)
-    return templates.TemplateResponse("academic_teachers.html", {
+    ctx = {
         "request": request, "school": get_school(db), "persons": persons,
-        "linked": linked, "n_accts": len(accts), "msg": msg, "err": err,
-        "school_code": school_code, "code_is_custom": code_is_custom,
-    })
+        "linked": linked, "n_accts": len(accts), "msg": "", "err": "",
+        "school_code": school_code, "code_is_custom": code_is_custom, "created": None,
+    }
+    ctx.update(extra)
+    return ctx
+
+
+@router.get("/academic/teacher-accounts", response_class=HTMLResponse)
+def teacher_accounts_page(request: Request, db: Session = Depends(get_db),
+                          msg: str = "", err: str = ""):
+    if not request.session.get("owner"):
+        return RedirectResponse("/academic", status_code=303)
+    return templates.TemplateResponse(
+        "academic_teachers.html", _teacher_accounts_ctx(request, db, msg=msg, err=err))
 
 
 @router.post("/academic/teacher-accounts/code")
@@ -285,9 +293,12 @@ def teacher_account_add(request: Request, db: Session = Depends(get_db),
                             display_name=(p.name if p else ""))
     if r.get("error"):
         return RedirectResponse(f"/academic/teacher-accounts?err={r['error']}", status_code=303)
-    return RedirectResponse(
-        f"/academic/teacher-accounts?msg=สร้างบัญชีครูแล้ว - ไอดีเข้าระบบคือ {r.get('username', username)}",
-        status_code=303)
+    # เรนเดอร์หน้าตรง ๆ (ไม่ redirect) เพื่อโชว์ ไอดี+รหัสผ่าน ครั้งเดียว ให้เจ้าหน้าที่ส่งครู
+    # ไม่ส่งรหัสผ่านผ่าน URL/session - อยู่ในหน้านี้ครั้งเดียว รีเฟรชแล้วหาย
+    created = {"username": r.get("username", username), "password": password,
+              "name": (p.name if p else "")}
+    return templates.TemplateResponse(
+        "academic_teachers.html", _teacher_accounts_ctx(request, db, created=created))
 
 
 # ---------------- ห้องเรียน ----------------
