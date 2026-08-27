@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}ใบลาของฉัน{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานบุคคล · ส่งใบลา</div>
+    <span class="hero-title">ใบลาของฉัน</span>
+    <div class="hero-meta">{{ school.name or "" }}</div>
+  </div>
+</div>
+
+{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+{% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
+
+{% if my_pid %}
+<div class="card">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-calendar"/></svg> ยื่นใบลา</h2>
+  <p class="muted" style="font-size:13px; margin:4px 0 12px;">เมื่อส่ง ระบบจะแจ้งหัวหน้าฝ่ายบุคคลทางอีเมลให้อัตโนมัติ</p>
+  <form method="post" action="/academic/my-leave/submit">
+    <div class="row" style="align-items:flex-end;">
+      <div><label>ประเภทการลา</label>
+        <select name="leave_type">
+          <option>ลากิจส่วนตัว</option><option>ลาป่วย</option><option>ลาพักผ่อน</option>
+          <option>ลาคลอดบุตร</option><option>ลาอุปสมบท</option><option>อื่นๆ</option>
+        </select></div>
+      <div><label>ตั้งแต่วันที่ *</label><input name="start_date" required placeholder="วว/ดด/ปปปป (พ.ศ.)"></div>
+      <div><label>ถึงวันที่</label><input name="end_date" placeholder="เว้นว่าง = วันเดียว"></div>
+    </div>
+    <label style="margin-top:10px; display:block;">เหตุผลการลา</label>
+    <textarea name="reason" rows="2" style="width:100%;" placeholder="เช่น มีธุระจำเป็นที่ต่างจังหวัด"></textarea>
+    <label style="margin-top:10px; display:block;">ที่อยู่/เบอร์ติดต่อระหว่างลา</label>
+    <input name="contact" style="width:100%;" placeholder="เบอร์โทร หรือที่อยู่ที่ติดต่อได้">
+    <br><button class="btn green" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-send"/></svg> ส่งใบลา</button>
+  </form>
+</div>
+{% else %}
+<div class="card"><p class="muted" style="margin:0;">บัญชีนี้ไม่ได้ผูกกับบุคลากร จึงส่งใบลาไม่ได้</p></div>
+{% endif %}
+
+<div class="card">
+  <h2 style="margin-top:0;">ใบลาที่ฉันส่ง {% if leaves %}<span class="muted" style="font-size:15px;">({{ leaves|length }})</span>{% endif %}</h2>
+  {% if leaves %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>ประเภท</th><th>ตั้งแต่</th><th>ถึง</th><th>วัน</th><th>เหตุผล</th><th>สถานะ</th><th>ความเห็น</th></tr></thead>
+    <tbody>
+    {% for lv in leaves %}
+      {% set st = {'pending':('รออนุมัติ','#fef9c3','#854d0e'), 'approved':('อนุมัติ','#dcfce7','#166534'), 'rejected':('ไม่อนุมัติ','#fee2e2','#b91c1c')}[lv.status] %}
+      <tr>
+        <td style="white-space:nowrap;">{{ lv.leave_type }}</td>
+        <td style="white-space:nowrap;">{{ be_date(lv.start_date) }}</td>
+        <td style="white-space:nowrap;">{{ be_date(lv.end_date) }}</td>
+        <td class="center">{{ lv.days|int }}</td>
+        <td>{{ lv.reason or '-' }}</td>
+        <td><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span></td>
+        <td>{{ lv.comment or '-' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">ยังไม่เคยส่งใบลา</p>
+  {% endif %}
+</div>
+{% endblock %}

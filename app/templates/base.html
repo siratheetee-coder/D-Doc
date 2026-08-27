@@ -736,7 +736,8 @@
         <div class="nav-sec">งานบุคคล</div>
         <a href="/hr" class="{{ 'active' if path == '/hr' }}"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลักงานบุคคล</a>
         <a href="/hr/staff" class="{{ 'active' if path.startswith('/hr/staff') }}"><svg class="icon"><use href="#ic-users"/></svg> ทะเบียนบุคลากร</a>
-        <a href="/hr/leave" class="{{ 'active' if path.startswith('/hr/leave') }}"><svg class="icon"><use href="#ic-calendar"/></svg> ทะเบียนวันลา</a>
+        <a href="/hr/leave-requests" class="{{ 'active' if path.startswith('/hr/leave-requests') }}"><svg class="icon"><use href="#ic-send"/></svg> ใบลาที่รออนุมัติ</a>
+        <a href="/hr/leave" class="{{ 'active' if path == '/hr/leave' }}"><svg class="icon"><use href="#ic-calendar"/></svg> ทะเบียนวันลา</a>
         <a href="/hr/travel" class="{{ 'active' if path.startswith('/hr/travel') }}"><svg class="icon"><use href="#ic-send"/></svg> ทะเบียนไปราชการ</a>
 
         {% elif module == 'academic' %}
@@ -752,6 +753,8 @@
         <a href="/academic/timetable" class="{{ 'active' if path.startswith('/academic/timetable') }}"><svg class="icon"><use href="#ic-calendar"/></svg> ตารางเรียน</a>
         <a href="/academic/grades" class="{{ 'active' if path.startswith('/academic/grades') }}"><svg class="icon"><use href="#ic-edit"/></svg> กรอกคะแนน ปพ.5</a>
         <a href="/academic/eval" class="{{ 'active' if path.startswith('/academic/eval') }}"><svg class="icon"><use href="#ic-check"/></svg> ประเมิน ปพ.6</a>
+        <a href="/academic/lesson-plans" class="{{ 'active' if path.startswith('/academic/lesson-plans') }}"><svg class="icon"><use href="#ic-file"/></svg> แผนการสอน</a>
+        <a href="/academic/my-leave" class="{{ 'active' if path.startswith('/academic/my-leave') }}"><svg class="icon"><use href="#ic-send"/></svg> ส่งใบลา</a>
         {% if request.session.get('owner') %}
         <a href="/academic/teacher-accounts" class="{{ 'active' if path.startswith('/academic/teacher-accounts') }}"><svg class="icon"><use href="#ic-users"/></svg> บัญชีครู</a>
         {% endif %}

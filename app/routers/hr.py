@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import (Person, LeaveRecord, LeaveEntitlement, TravelRecord,
-                        Decoration, RankHistory)
+                        Decoration, RankHistory, LeaveRequest)
 from app.thai_utils import parse_be_date, be_date_input, thai_date
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
@@ -340,3 +340,29 @@ def hr_certificate_docx(pid: int, db: Session = Depends(get_db)):
         return RedirectResponse("/hr/staff", status_code=303)
     path = render_certificate(get_school(db), p)
     return serve_generated(path, _DOCX)
+
+
+# ==================== ใบลาที่ครูส่งเข้าระบบ (อนุมัติ + แจ้งผล) ====================
+@router.get("/hr/leave-requests", response_class=HTMLResponse)
+def leave_requests_page(request: Request, db: Session = Depends(get_db), msg: str = "", err: str = ""):
+    reqs = db.query(LeaveRequest).all()
+    reqs.sort(key=lambda r: (r.status != "pending", r.submitted_at or datetime.min), reverse=False)
+    # pending ก่อน แล้วเรียงใหม่->เก่า
+    reqs.sort(key=lambda r: (r.status != "pending", -(r.submitted_at.timestamp() if r.submitted_at else 0)))
+    n_pending = sum(1 for r in reqs if r.status == "pending")
+    return templates.TemplateResponse("hr_leave_requests.html", {
+        "request": request, "school": get_school(db), "reqs": reqs,
+        "n_pending": n_pending, "be_date": be_date_input, "msg": msg, "err": err,
+    })
+
+
+@router.post("/hr/leave-requests/{lid}/decide")
+def leave_request_decide(lid: int, request: Request, db: Session = Depends(get_db),
+                         status: str = Form(""), comment: str = Form("")):
+    r = db.get(LeaveRequest, lid)
+    if r:
+        r.status = status if status in ("approved", "rejected") else r.status
+        r.comment = (comment or "").strip()
+        r.decided_at = datetime.now()
+        db.commit()
+    return RedirectResponse("/hr/leave-requests?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)

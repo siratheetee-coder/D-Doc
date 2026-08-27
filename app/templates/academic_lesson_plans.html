@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}แผนการสอน{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานวิชาการ · ส่งแผนการสอน</div>
+    <span class="hero-title">แผนการสอน</span>
+    <div class="hero-meta">{{ school.name or "" }}{% if is_reviewer %} · โหมดหัวหน้าฝ่ายวิชาการ (ตรวจแผน){% endif %}</div>
+  </div>
+</div>
+
+{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+{% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
+
+{% if my_pid %}
+<div class="card">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-file"/></svg> ส่งแผนการสอน</h2>
+  <p class="muted" style="font-size:13px; margin:4px 0 12px;">อัปโหลดแผนไว้ใน Google Drive แล้ววางลิงก์ที่นี่ · เมื่อส่ง ระบบจะแจ้งหัวหน้าฝ่ายวิชาการทางอีเมลให้อัตโนมัติ</p>
+  <form method="post" action="/academic/lesson-plans/submit">
+    <div class="row" style="align-items:flex-end;">
+      <div style="flex:1.4;"><label>ชื่อแผน / วิชา / ชั้น *</label><input name="title" required placeholder="เช่น แผนการสอนภาษาไทย ป.1 หน่วยที่ 3"></div>
+      <div><label>ภาคเรียน</label>
+        <select name="term"><option value="1" {{ 'selected' if term==1 }}>ภาคเรียนที่ 1</option><option value="2" {{ 'selected' if term==2 }}>ภาคเรียนที่ 2</option></select></div>
+    </div>
+    <label style="margin-top:10px; display:block;">ลิงก์แผนการสอน (Google Drive ฯลฯ) *</label>
+    <input name="link" type="url" required placeholder="https://drive.google.com/..." style="width:100%;">
+    <label style="margin-top:10px; display:block;">หมายเหตุถึงหัวหน้าฝ่าย (ไม่บังคับ)</label>
+    <textarea name="note" rows="2" style="width:100%;" placeholder="เช่น ปรับตามที่แนะนำครั้งก่อนแล้ว"></textarea>
+    <br><button class="btn green" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-send"/></svg> ส่งแผนการสอน</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2 style="margin-top:0;">{% if is_reviewer %}แผนที่ครูส่งเข้ามา{% else %}แผนที่ฉันส่ง{% endif %}
+    {% if plans %}<span class="muted" style="font-size:15px;">({{ plans|length }})</span>{% endif %}</h2>
+  {% if plans %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr>
+      {% if is_reviewer %}<th>ครู</th>{% endif %}
+      <th>เรื่อง</th><th>ภาค</th><th>ลิงก์</th><th>วันที่ส่ง</th><th>สถานะ</th><th>{{ 'ตรวจ' if is_reviewer else 'ความเห็น' }}</th>
+    </tr></thead>
+    <tbody>
+    {% for p in plans %}
+      {% set st = {'pending':('รอตรวจ','#fef9c3','#854d0e'), 'reviewed':('ตรวจแล้ว/ผ่าน','#dcfce7','#166534'), 'revise':('ให้แก้ไข','#fee2e2','#b91c1c')}[p.status] %}
+      <tr>
+        {% if is_reviewer %}<td style="white-space:nowrap;">{{ p.teacher.name if p.teacher else '-' }}</td>{% endif %}
+        <td>{{ p.title }}{% if p.note %}<div class="muted" style="font-size:12px;">{{ p.note }}</div>{% endif %}</td>
+        <td class="center">{{ p.term or '-' }}</td>
+        <td><a href="{{ p.link }}" target="_blank" rel="noopener">เปิดลิงก์ ↗</a></td>
+        <td style="white-space:nowrap; font-size:13px;">{{ be_date(p.submitted_at) }}</td>
+        <td><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span></td>
+        <td>
+          {% if is_reviewer %}
+          <form method="post" action="/academic/lesson-plans/{{ p.id }}/review" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:0;">
+            <input name="comment" value="{{ p.comment or '' }}" placeholder="ความเห็น" style="width:150px;">
+            <button class="btn sm green" type="submit" name="status" value="reviewed">ผ่าน</button>
+            <button class="btn sm" type="submit" name="status" value="revise" style="background:#f59e0b;">ให้แก้</button>
+          </form>
+          {% else %}{{ p.comment or '-' }}{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">{% if is_reviewer %}ยังไม่มีครูส่งแผนเข้ามา{% else %}ยังไม่เคยส่งแผน - กรอกด้านบนเพื่อส่ง{% endif %}</p>
+  {% endif %}
+</div>
+{% endblock %}

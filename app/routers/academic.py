@@ -302,6 +302,118 @@ def teacher_account_add(request: Request, db: Session = Depends(get_db),
         "academic_teachers.html", _teacher_accounts_ctx(request, db, created=created))
 
 
+# ---------------- ส่งแผนการสอน (ครูส่ง -> หัวหน้าฝ่ายวิชาการตรวจ + อีเมลแจ้ง) ----------------
+def _send_notice(to, subject, html):
+    """ส่งอีเมลแจ้ง (เงียบถ้าไม่ได้ตั้ง SMTP หรือส่งไม่ผ่าน) - ไม่ให้ล้มทั้ง request"""
+    to = (to or "").strip()
+    if not to:
+        return False
+    try:
+        from app.services.mailer import send_email
+        return send_email(to, subject, html)
+    except Exception:
+        return False
+
+
+@router.get("/academic/lesson-plans", response_class=HTMLResponse)
+def lesson_plans_page(request: Request, db: Session = Depends(get_db), msg: str = "", err: str = ""):
+    from app.models import LessonPlan
+    sc = _scope(request, db)
+    pid = request.session.get("person_id")
+    is_reviewer = not sc.is_teacher            # เจ้าหน้าที่/เจ้าของ = หัวหน้าฝ่ายตรวจแผน
+    q = db.query(LessonPlan).order_by(LessonPlan.submitted_at.desc())
+    if not is_reviewer:
+        q = q.filter(LessonPlan.person_id == (pid or 0))
+    return templates.TemplateResponse("academic_lesson_plans.html", {
+        "request": request, "school": get_school(db), "plans": q.all(),
+        "is_reviewer": is_reviewer, "my_pid": pid, "is_teacher": sc.is_teacher,
+        "year": current_academic_year(), "term": current_term(),
+        "term_label": term_label, "msg": msg, "err": err,
+    })
+
+
+@router.post("/academic/lesson-plans/submit")
+def lesson_plan_submit(request: Request, db: Session = Depends(get_db),
+                       title: str = Form(""), link: str = Form(""),
+                       note: str = Form(""), term: str = Form("")):
+    from app.models import LessonPlan
+    pid = request.session.get("person_id")
+    if not pid:
+        return RedirectResponse("/academic/lesson-plans?err=บัญชีนี้ไม่ได้ผูกกับครู ส่งแผนไม่ได้", status_code=303)
+    if not (title or "").strip() or not (link or "").strip():
+        return RedirectResponse("/academic/lesson-plans?err=กรอกชื่อแผนและวางลิงก์ให้ครบ", status_code=303)
+    p = LessonPlan(person_id=pid, year=current_academic_year(),
+                   term=_to_int(term, current_term()), title=title.strip(),
+                   link=link.strip(), note=(note or "").strip())
+    db.add(p); db.commit()
+    teacher = db.get(Person, pid)
+    s = get_school(db)
+    _send_notice(s.academic_head_email,
+                 f"[แผนการสอน] {teacher.name if teacher else ''} ส่งแผน: {p.title}",
+                 f"<p>ครู <b>{teacher.name if teacher else ''}</b> ส่งแผนการสอนเข้าระบบ</p>"
+                 f"<p>เรื่อง: {p.title}<br>ภาคเรียน: {p.term or '-'} ปีการศึกษา {p.year}</p>"
+                 f"<p>ลิงก์แผน: <a href='{p.link}'>{p.link}</a></p>"
+                 f"<p>หมายเหตุ: {p.note or '-'}</p>")
+    return RedirectResponse("/academic/lesson-plans?msg=ส่งแผนการสอนแล้ว แจ้งหัวหน้าฝ่ายวิชาการทางอีเมลเรียบร้อย", status_code=303)
+
+
+@router.post("/academic/lesson-plans/{plan_id}/review")
+def lesson_plan_review(request: Request, plan_id: int, db: Session = Depends(get_db),
+                       status: str = Form(""), comment: str = Form("")):
+    from app.models import LessonPlan
+    if _scope(request, db).is_teacher:
+        return _deny()
+    from datetime import datetime as _dt
+    p = db.get(LessonPlan, plan_id)
+    if p:
+        p.status = status if status in ("reviewed", "revise") else "reviewed"
+        p.comment = (comment or "").strip()
+        p.reviewed_at = _dt.now()
+        db.commit()
+    return RedirectResponse("/academic/lesson-plans?msg=บันทึกผลการตรวจแล้ว", status_code=303)
+
+
+# ---------------- ส่งใบลา (ครูส่ง -> หัวหน้าฝ่ายบุคคลอนุมัติ + อีเมลแจ้ง) ----------------
+@router.get("/academic/my-leave", response_class=HTMLResponse)
+def my_leave_page(request: Request, db: Session = Depends(get_db), msg: str = "", err: str = ""):
+    from app.models import LeaveRequest
+    pid = request.session.get("person_id")
+    plans = (db.query(LeaveRequest).filter(LeaveRequest.person_id == (pid or 0))
+             .order_by(LeaveRequest.submitted_at.desc()).all())
+    return templates.TemplateResponse("academic_my_leave.html", {
+        "request": request, "school": get_school(db), "leaves": plans,
+        "my_pid": pid, "be_date": be_date_input, "msg": msg, "err": err,
+    })
+
+
+@router.post("/academic/my-leave/submit")
+def my_leave_submit(request: Request, db: Session = Depends(get_db),
+                    leave_type: str = Form("ลากิจ"), start_date: str = Form(""),
+                    end_date: str = Form(""), reason: str = Form(""), contact: str = Form("")):
+    from app.models import LeaveRequest
+    pid = request.session.get("person_id")
+    if not pid:
+        return RedirectResponse("/academic/my-leave?err=บัญชีนี้ไม่ได้ผูกกับบุคลากร ส่งใบลาไม่ได้", status_code=303)
+    sd, ed = parse_be_date(start_date), parse_be_date(end_date)
+    if not sd:
+        return RedirectResponse("/academic/my-leave?err=กรอกวันที่เริ่มลา", status_code=303)
+    ed = ed or sd
+    days = (ed - sd).days + 1 if ed >= sd else 1
+    lv = LeaveRequest(person_id=pid, leave_type=(leave_type or "ลากิจ").strip(),
+                      start_date=sd, end_date=ed, days=days,
+                      reason=(reason or "").strip(), contact=(contact or "").strip())
+    db.add(lv); db.commit()
+    person = db.get(Person, pid)
+    s = get_school(db)
+    _send_notice(s.hr_head_email,
+                 f"[ใบลา] {person.name if person else ''} ขอ{lv.leave_type} {days} วัน",
+                 f"<p><b>{person.name if person else ''}</b> ยื่นใบลาในระบบ</p>"
+                 f"<p>ประเภท: {lv.leave_type}<br>ตั้งแต่ {be_date_input(sd)} ถึง {be_date_input(ed)} "
+                 f"รวม {days} วัน</p><p>เหตุผล: {lv.reason or '-'}</p>"
+                 f"<p>ติดต่อระหว่างลา: {lv.contact or '-'}</p>")
+    return RedirectResponse("/academic/my-leave?msg=ส่งใบลาแล้ว แจ้งหัวหน้าฝ่ายบุคคลทางอีเมลเรียบร้อย", status_code=303)
+
+
 # ---------------- ห้องเรียน ----------------
 @router.get("/academic/classes", response_class=HTMLResponse)
 def classes_page(request: Request, db: Session = Depends(get_db), year: int | None = None):

@@ -13,7 +13,7 @@ models.py
 from datetime import datetime
 
 from sqlalchemy import (
-    Column, Integer, String, Float, Text, DateTime, ForeignKey, UniqueConstraint, Boolean,
+    Column, Integer, String, Float, Text, DateTime, Date, ForeignKey, UniqueConstraint, Boolean,
     LargeBinary
 )
 from sqlalchemy.orm import relationship, backref
@@ -42,6 +42,8 @@ class School(Base):
     finance_head_name = Column(String, default="")     # หัวหน้าเจ้าหน้าที่การเงิน
     admin_officer_name = Column(String, default="")    # เจ้าหน้าที่ธุรการ
     academic_head_name = Column(String, default="")    # หัวหน้าฝ่ายวิชาการ (ผู้ลงนามคนที่ 2 บนปก ปพ.5)
+    academic_head_email = Column(String, default="")   # อีเมลหัวหน้าฝ่ายวิชาการ (รับแจ้งส่งแผนการสอน)
+    hr_head_email = Column(String, default="")          # อีเมลหัวหน้าฝ่ายบุคคล (รับแจ้งใบลา)
 
     # ปีของโครงการ/แผน: "budget" = ปีงบประมาณ (ต.ค.) / "academic" = ปีการศึกษา (พ.ค.)
     project_year_mode = Column(String, default="budget")
@@ -1465,3 +1467,42 @@ class AcadTimetable(Base):
 
     klass = relationship("AcadClass")
     subject = relationship("AcadSubject")
+
+
+class LessonPlan(Base):
+    """ครูส่งแผนการสอน (ลิงก์ + หมายเหตุ) ให้หัวหน้าฝ่ายวิชาการตรวจ"""
+    __tablename__ = "lesson_plan"
+
+    id = Column(Integer, primary_key=True)
+    person_id = Column(Integer, ForeignKey("person.id"), nullable=False)  # ครูผู้ส่ง
+    year = Column(Integer, default=0)
+    term = Column(Integer, default=0)
+    title = Column(String, default="")          # ชื่อ/วิชา/ชั้น ของแผน
+    link = Column(Text, default="")             # ลิงก์ Google Drive ฯลฯ
+    note = Column(Text, default="")             # หมายเหตุจากครู
+    status = Column(String, default="pending")  # pending / reviewed / revise
+    comment = Column(Text, default="")          # ความเห็นหัวหน้าฝ่าย
+    submitted_at = Column(DateTime, default=datetime.now)
+    reviewed_at = Column(DateTime, nullable=True)
+
+    teacher = relationship("Person")
+
+
+class LeaveRequest(Base):
+    """ครู/บุคลากรส่งใบลาในระบบ ให้หัวหน้าฝ่ายบุคคลอนุมัติ"""
+    __tablename__ = "leave_request"
+
+    id = Column(Integer, primary_key=True)
+    person_id = Column(Integer, ForeignKey("person.id"), nullable=False)  # ผู้ลา
+    leave_type = Column(String, default="ลากิจ")   # ลากิจ / ลาป่วย / ลาคลอด / อื่นๆ
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
+    days = Column(Float, default=0)
+    reason = Column(Text, default="")
+    contact = Column(String, default="")           # ที่อยู่/เบอร์ติดต่อระหว่างลา
+    status = Column(String, default="pending")     # pending / approved / rejected
+    comment = Column(Text, default="")             # ความเห็นผู้อนุมัติ
+    submitted_at = Column(DateTime, default=datetime.now)
+    decided_at = Column(DateTime, nullable=True)
+
+    person = relationship("Person")
