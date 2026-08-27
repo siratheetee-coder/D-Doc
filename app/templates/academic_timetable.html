@@ -83,7 +83,8 @@
     <h2 style="margin:0;">ตารางเรียน ห้อง {{ class_label(c) }}</h2>
     <a class="btn soft" href="/academic/timetable/class.docx?cid={{ c.id }}"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ตารางห้องนี้</a>
   </div>
-  {% if can_edit %}<p class="muted" style="font-size:13px; margin:6px 0 8px;">เลือกวิชา/กิจกรรมในแต่ละช่อง — ครูผู้สอนระบบดึงจากที่ตั้งไว้ในห้องเรียนให้อัตโนมัติ</p>{% endif %}
+  {% if can_edit %}<p class="muted" style="font-size:13px; margin:6px 0 8px;">เลือกวิชา/กิจกรรมในแต่ละช่อง — ครูผู้สอนระบบดึงจากที่ตั้งไว้ในห้องเรียนให้อัตโนมัติ · ถ้าครูซ้อนกับห้องอื่นในคาบเดียวกัน ช่องจะขึ้นแดงทันที</p>{% endif %}
+  {% if can_edit %}<div id="tt-clash" class="alert warn" style="display:none; margin-bottom:10px;"></div>{% endif %}
   <form method="post" action="/academic/timetable/save">
     <input type="hidden" name="cid" value="{{ c.id }}">
     <div class="table-wrap">
@@ -105,11 +106,12 @@
             <td class="center muted" style="background:#f8fafc; font-size:12px;">พัก</td>
             {% elif can_edit %}
             <td style="padding:3px;">
-              <select name="cell_{{ dnum }}_{{ p.id }}" style="width:100%; min-width:125px; font-size:13px; padding:5px;">
+              <select name="cell_{{ dnum }}_{{ p.id }}" onchange="ttCheck()" style="width:100%; min-width:125px; font-size:13px; padding:5px;">
                 <option value="">—</option>
                 {% for val, label in options %}<option value="{{ val }}" {{ 'selected' if cell and cell.sel==val }}>{{ label }}</option>{% endfor %}
               </select>
-              {% if cell and cell.teacher %}<div class="muted" style="font-size:11px; margin-top:2px; text-align:center;">{{ cell.teacher }}</div>{% endif %}
+              <div class="cell-teacher muted" style="font-size:11px; margin-top:2px; text-align:center;">{{ cell.teacher if cell else '' }}</div>
+              <div class="cell-clash" style="font-size:10.5px; color:#b91c1c; text-align:center; display:none;"></div>
             </td>
             {% else %}
             <td class="center" style="font-size:12.5px;">
@@ -135,5 +137,37 @@
 <style>
   table.tt th, table.tt td { border:1px solid #e5e7eb; padding:6px 8px; text-align:center; vertical-align:middle; }
   table.tt th { background:#f5f3ff; font-size:13px; }
+  table.tt td.clash { background:#fee2e2; }
 </style>
+{% if can_edit and c %}
+<script>
+  var TT_BUSY = {{ busy|tojson }};             // {teacherId: {"day_pid": "ห้อง (วิชา)"}}
+  var TT_SUBJ_TEACHER = {{ subj_teacher|tojson }};  // {subjectId: {tid, name}}
+  function ttCheck(){
+    var clashes = 0;
+    document.querySelectorAll('select[name^="cell_"]').forEach(function(sel){
+      var m = sel.name.match(/cell_(\d+)_(\d+)/);
+      var td = sel.closest('td');
+      var tdiv = td.querySelector('.cell-teacher');
+      var cdiv = td.querySelector('.cell-clash');
+      var val = sel.value, tname = '', clash = null;
+      if (val.indexOf('s') === 0){
+        var st = TT_SUBJ_TEACHER[val.slice(1)];
+        if (st){ tname = st.name || '';
+          if (st.tid && TT_BUSY[st.tid]) clash = TT_BUSY[st.tid][m[1] + '_' + m[2]] || null;
+        }
+      }
+      if (tdiv) tdiv.textContent = tname;
+      if (clash){ td.classList.add('clash'); cdiv.textContent = 'ซ้อน: ' + clash; cdiv.style.display = 'block'; clashes++; }
+      else { td.classList.remove('clash'); if(cdiv){ cdiv.textContent=''; cdiv.style.display='none'; } }
+    });
+    var b = document.getElementById('tt-clash');
+    if (b){
+      if (clashes){ b.style.display='block'; b.innerHTML = '⚠ พบครูสอนซ้อนกับห้องอื่น ' + clashes + ' ช่อง (ช่องสีแดง) — แก้คาบให้ไม่ชนก่อนบันทึก'; }
+      else b.style.display='none';
+    }
+  }
+  document.addEventListener('DOMContentLoaded', ttCheck);
+</script>
+{% endif %}
 {% endblock %}

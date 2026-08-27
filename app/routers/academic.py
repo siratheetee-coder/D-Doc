@@ -1685,11 +1685,32 @@ def timetable_page(request: Request, db: Session = Depends(get_db),
         return _deny()
     options = _tt_options(db, c) if c else []
     cells = _tt_cells(db, c) if c else {}
+    # ข้อมูลกันคาบซ้อน (เตือนสด ๆ ตอนกรอก): ครูของแต่ละวิชาในห้องนี้ + คาบที่ครูถูกจองในห้องอื่น
+    subj_teacher, busy = {}, {}
+    if c:
+        for tt in db.query(AcadTeaching).filter_by(class_id=c.id).all():
+            if tt.teacher_id and tt.teacher:
+                subj_teacher[str(tt.subject_id)] = {"tid": str(tt.teacher_id), "name": tt.teacher.name}
+        others = [x for x in db.query(AcadClass).filter_by(year=y).all() if x.id != c.id]
+        oids = {x.id for x in others}
+        labels = {x.id: _class_label(x) for x in others}
+        tmap = {(t.class_id, t.subject_id): t.teacher_id for t in
+                db.query(AcadTeaching).filter(AcadTeaching.class_id.in_(oids)).all() if t.teacher_id}
+        if oids:
+            for r in db.query(AcadTimetable).filter(AcadTimetable.class_id.in_(oids)).all():
+                tid = tmap.get((r.class_id, r.subject_id))
+                if not tid:
+                    continue
+                lbl = labels.get(r.class_id, "")
+                if r.subject:
+                    lbl += f" ({r.subject.name})"
+                busy.setdefault(str(tid), {})[f"{r.day}_{r.period_id}"] = lbl
     return templates.TemplateResponse("academic_timetable.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "days": TT_DAYS, "periods": periods, "classes": classes, "c": c,
         "options": options, "cells": cells, "class_label": _class_label,
         "can_edit": (not sc.is_teacher), "is_teacher": sc.is_teacher,
+        "subj_teacher": subj_teacher, "busy": busy,
     })
 
 
