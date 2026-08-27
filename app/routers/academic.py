@@ -1687,8 +1687,15 @@ def timetable_page(request: Request, db: Session = Depends(get_db),
         return _deny()
     options = _tt_options(db, c) if c else []
     cells = _tt_cells(db, c) if c else {}
-    subjects = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
-                .order_by(AcadSubject.seq, AcadSubject.code).all()) if c else []
+    subjects_all = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
+                    .order_by(AcadSubject.seq, AcadSubject.code).all()) if c else []
+    # จัดตารางอัตโนมัติ: แสดงวิชาละครั้ง (มัธยมมีวิชาเดียวกัน 2 ภาค -> ตัดซ้ำด้วยรหัส/ชื่อ)
+    _seen, subjects = set(), []
+    for s in subjects_all:
+        key = (s.code or "").strip() or s.name
+        if key in _seen:
+            continue
+        _seen.add(key); subjects.append(s)
     # ข้อมูลกันคาบซ้อน (เตือนสด ๆ ตอนกรอก): ครูของแต่ละวิชาในห้องนี้ + คาบที่ครูถูกจองในห้องอื่น
     subj_teacher, busy = {}, {}
     if c:

@@ -88,12 +88,12 @@
     <p class="muted" style="font-size:13px; margin:8px 0 10px;">ใส่จำนวน<b>คาบ/สัปดาห์</b>ของแต่ละวิชา ระบบจะจัดลงช่องว่างให้ · หลบครูที่ซ้อนกับห้องอื่น · กระจายไม่ให้ซ้ำวันเดียวกัน · <b>ไม่ทับช่องที่กรอกมือไว้</b> (ถ้าไม่ติ๊กล้าง)</p>
     <form method="post" action="/academic/timetable/auto">
       <input type="hidden" name="cid" value="{{ c.id }}">
-      <div style="display:flex; flex-wrap:wrap; gap:10px 18px;">
+      <div class="sched-grid">
         {% for s in subjects %}
         {% set dft = (s.hours // 40) if s.hours else 0 %}
-        <label style="display:inline-flex; align-items:center; gap:6px; font-size:14px; margin:0;">
-          <span style="min-width:120px;">{{ s.code + ' ' if s.code }}{{ s.name }}</span>
-          <input name="n_{{ s.id }}" type="number" min="0" max="20" value="{{ dft if dft > 0 else 1 }}" style="width:64px; text-align:center;">
+        <label class="sched-item">
+          <span class="sched-name">{% if s.code %}<b>{{ s.code }}</b> {% endif %}{{ s.name }}</span>
+          <input class="sched-n" name="n_{{ s.id }}" type="number" min="0" max="20" value="{{ dft if dft > 0 else 1 }}">
         </label>
         {% endfor %}
       </div>
@@ -166,6 +166,13 @@
   table.tt th, table.tt td { border:1px solid #e5e7eb; padding:6px 8px; text-align:center; vertical-align:middle; }
   table.tt th { background:#f5f3ff; font-size:13px; }
   table.tt td.clash { background:#fee2e2; }
+  /* ฟอร์มจัดตารางอัตโนมัติ: กริดวิชา + ช่องคาบชิดขวาเท่ากันทุกช่อง */
+  .sched-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:8px 12px; }
+  .sched-item { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0;
+    padding:8px 10px 8px 12px; background:#fff; border:1px solid #e9d5ff; border-radius:9px; font-size:13.5px; }
+  .sched-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#334155; }
+  .sched-n { flex:0 0 54px; width:54px; text-align:center; font-weight:700; }
+  @media (max-width:560px){ .sched-grid { grid-template-columns:1fr 1fr; } }
 </style>
 {% if can_edit and c %}
 <script>
