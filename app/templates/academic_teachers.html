@@ -72,7 +72,7 @@
           {% if not linked[p.id].active %}<span class="muted"> (ปิดใช้งาน)</span>{% endif %}</td>
         <td style="white-space:nowrap;">
           <code style="background:#f8fafc; border:1px solid #e2e8f0; padding:3px 7px; border-radius:5px; font-size:13px;">{{ linked[p.id].username }}</code>
-          <button type="button" class="btn sm gray" onclick="copyId(this, '{{ linked[p.id].username }}')">คัดลอกไอดี</button>
+          <button type="button" class="btn sm gray" onclick="copyNameId(this, {{ p.name|tojson }}, {{ linked[p.id].username|tojson }})">คัดลอกไอดี</button>
           <div class="muted" style="font-size:12px; margin-top:2px;">รีเซ็ตรหัส/ปิดบัญชี ที่ <a href="/users">จัดการผู้ใช้</a></div></td>
         {% else %}
         <td class="muted">— ยังไม่มีบัญชี —</td>
@@ -130,6 +130,9 @@
     }
   }
   function copyId(btn, id){ copyText(btn, id); }
+  function copyNameId(btn, name, user){
+    copyText(btn, (name ? 'ครู' + name + '\n' : '') + 'ไอดี: ' + user);
+  }
   function copyBoth(btn, name, user, pass){
     var lines = [];
     if (name) lines.push('ครู' + name);
