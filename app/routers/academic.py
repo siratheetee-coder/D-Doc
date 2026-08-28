@@ -426,6 +426,48 @@ def my_leave_submit(request: Request, db: Session = Depends(get_db),
     return RedirectResponse("/academic/my-leave?msg=ส่งใบลาแล้ว แจ้งหัวหน้าฝ่ายบุคคลทางอีเมลเรียบร้อย", status_code=303)
 
 
+# ---------------- ขอไปราชการ/อบรม (ครูส่ง -> หัวหน้าฝ่ายบุคคลอนุมัติ + อีเมล) ----------------
+@router.get("/academic/my-travel", response_class=HTMLResponse)
+def my_travel_page(request: Request, db: Session = Depends(get_db), msg: str = "", err: str = ""):
+    from app.models import TravelRequest
+    pid = request.session.get("person_id")
+    trips = (db.query(TravelRequest).filter(TravelRequest.person_id == (pid or 0))
+             .order_by(TravelRequest.submitted_at.desc()).all())
+    return templates.TemplateResponse("academic_my_travel.html", {
+        "request": request, "school": get_school(db), "trips": trips,
+        "my_pid": pid, "msg": msg, "err": err,
+    })
+
+
+@router.post("/academic/my-travel/submit")
+def my_travel_submit(request: Request, db: Session = Depends(get_db),
+                     subject: str = Form(""), place: str = Form(""),
+                     start_date: str = Form(""), end_date: str = Form(""),
+                     budget: str = Form(""), note: str = Form("")):
+    from app.models import TravelRequest
+    pid = request.session.get("person_id")
+    if not pid:
+        return RedirectResponse("/academic/my-travel?err=บัญชีนี้ไม่ได้ผูกกับบุคลากร", status_code=303)
+    sd, ed = parse_be_date(start_date), parse_be_date(end_date)
+    if not (subject or "").strip() or not sd:
+        return RedirectResponse("/academic/my-travel?err=กรอกเรื่องและวันที่เริ่มให้ครบ", status_code=303)
+    ed = ed or sd
+    days = (ed - sd).days + 1 if ed >= sd else 1
+    tr = TravelRequest(person_id=pid, subject=subject.strip(), place=(place or "").strip(),
+                       start_date=sd, end_date=ed, days=days,
+                       budget=_to_float(budget, 0.0), note=(note or "").strip())
+    db.add(tr); db.commit()
+    person = db.get(Person, pid)
+    s = get_school(db)
+    _send_notice(s.hr_head_email,
+                 f"[ขอไปราชการ] {person.name if person else ''}: {tr.subject}",
+                 f"<p><b>{person.name if person else ''}</b> ขอไปราชการ/อบรมในระบบ</p>"
+                 f"<p>เรื่อง: {tr.subject}<br>สถานที่: {tr.place or '-'}<br>"
+                 f"ระหว่าง {be_date_input(sd)} ถึง {be_date_input(ed)} รวม {days} วัน</p>"
+                 f"<p>งบประมาณโดยประมาณ: {tr.budget:,.0f} บาท</p><p>หมายเหตุ: {tr.note or '-'}</p>")
+    return RedirectResponse("/academic/my-travel?msg=ส่งคำขอไปราชการแล้ว แจ้งหัวหน้าฝ่ายบุคคลทางอีเมลเรียบร้อย", status_code=303)
+
+
 # ---------------- ห้องเรียน ----------------
 @router.get("/academic/classes", response_class=HTMLResponse)
 def classes_page(request: Request, db: Session = Depends(get_db), year: int | None = None):

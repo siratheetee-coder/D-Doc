@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import (Person, LeaveRecord, LeaveEntitlement, TravelRecord,
-                        Decoration, RankHistory, LeaveRequest)
+                        Decoration, RankHistory, LeaveRequest, TravelRequest)
 from app.thai_utils import parse_be_date, be_date_input, thai_date
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
@@ -405,3 +405,49 @@ def leave_request_decide(lid: int, request: Request, db: Session = Depends(get_d
                     f"ได้รับการพิจารณาแล้ว: <b>{res}</b></p>"
                     f"<p>ความเห็น: {r.comment or '-'}</p>")
     return RedirectResponse("/hr/leave-requests?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
+
+
+# ==================== ขอไปราชการที่ครูส่งเข้าระบบ (อนุมัติ + ลงทะเบียน + แจ้ง) ====================
+@router.get("/hr/travel-requests", response_class=HTMLResponse)
+def travel_requests_page(request: Request, db: Session = Depends(get_db), msg: str = "", err: str = ""):
+    reqs = db.query(TravelRequest).all()
+    reqs.sort(key=lambda r: (r.status != "pending",
+                             -(r.submitted_at.timestamp() if r.submitted_at else 0)))
+    n_pending = sum(1 for r in reqs if r.status == "pending")
+    return templates.TemplateResponse("hr_travel_requests.html", {
+        "request": request, "school": get_school(db), "reqs": reqs,
+        "n_pending": n_pending, "be_date": be_date_input, "msg": msg, "err": err,
+    })
+
+
+@router.post("/hr/travel-requests/{tid}/decide")
+def travel_request_decide(tid: int, request: Request, db: Session = Depends(get_db),
+                          status: str = Form(""), comment: str = Form("")):
+    from datetime import datetime as _dt
+    r = db.get(TravelRequest, tid)
+    if r and status in ("approved", "rejected"):
+        r.status = status
+        r.comment = (comment or "").strip()
+        r.decided_at = _dt.now()
+        # อนุมัติแล้วลงทะเบียนไปราชการอัตโนมัติ (ครั้งเดียว)
+        if status == "approved" and not r.record_id:
+            yr = (r.start_date.year + 543) if r.start_date else _cur_year()
+            sd = _dt(r.start_date.year, r.start_date.month, r.start_date.day) if r.start_date else None
+            ed = _dt(r.end_date.year, r.end_date.month, r.end_date.day) if r.end_date else None
+            rec = TravelRecord(person_id=r.person_id, year=yr, subject=r.subject or "",
+                               place=r.place or "", start_date=sd, end_date=ed,
+                               days=r.days or 0, budget=r.budget or 0, note=r.note or "")
+            db.add(rec); db.flush(); r.record_id = rec.id
+        res = "อนุมัติ" if status == "approved" else "ไม่อนุมัติ"
+        from app.services.nav import create_notice
+        create_notice(db, r.person_id, f"ผลขอไปราชการ: {res}",
+                      reason=(r.subject or "") + (f" · {r.comment}" if r.comment else ""),
+                      link="/academic/my-travel",
+                      level=("info" if status == "approved" else "warn"))
+        db.commit()
+        person = db.get(Person, r.person_id)
+        if person and (person.email or "").strip():
+            _notify(person.email, f"[ผลขอไปราชการ] {r.subject} - {res}",
+                    f"<p>คำขอไปราชการ ({r.subject}) ได้รับการพิจารณาแล้ว: <b>{res}</b></p>"
+                    f"<p>ความเห็น: {r.comment or '-'}</p>")
+    return RedirectResponse("/hr/travel-requests?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)

@@ -1521,3 +1521,25 @@ class LeaveRequest(Base):
     decided_at = Column(DateTime, nullable=True)
 
     person = relationship("Person")
+
+
+class TravelRequest(Base):
+    """ครู/บุคลากรขอไปราชการ/อบรมในระบบ ให้หัวหน้าฝ่ายบุคคลอนุมัติ"""
+    __tablename__ = "travel_request"
+
+    id = Column(Integer, primary_key=True)
+    person_id = Column(Integer, ForeignKey("person.id"), nullable=False)
+    subject = Column(String, default="")           # เรื่อง/ภารกิจ (เช่น อบรมหลักสูตร...)
+    place = Column(String, default="")             # สถานที่/จังหวัด
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
+    days = Column(Float, default=0)
+    budget = Column(Float, default=0)              # ค่าใช้จ่ายโดยประมาณ
+    note = Column(Text, default="")
+    status = Column(String, default="pending")     # pending / approved / rejected
+    comment = Column(Text, default="")
+    record_id = Column(Integer, nullable=True)     # ผูกกับ TravelRecord (กันลงซ้ำ)
+    submitted_at = Column(DateTime, default=datetime.now)
+    decided_at = Column(DateTime, nullable=True)
+
+    person = relationship("Person")
