@@ -73,7 +73,11 @@
         <td class="right">{{ "%g"|format(r.days) }}</td>
         <td class="right">{{ "{:,.2f}".format(r.budget) if r.budget else '-' }}</td>
         <td style="white-space:nowrap;">
+          {% if req_atts.get(r.id) %}
+          <a class="btn sm" href="/hr/travel/{{ r.id }}/request.docx" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> บันทึกที่ครูแนบ</a>
+          {% else %}
           <a class="btn sm soft" href="/hr/travel/{{ r.id }}/request.docx"><svg class="icon"><use href="#ic-download"/></svg> บันทึกขออนุญาต</a>
+          {% endif %}
           <form method="post" action="/hr/travel/{{ r.id }}/delete" onsubmit="return confirm('ลบรายการนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
         </td>
       </tr>

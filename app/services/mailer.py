@@ -12,7 +12,9 @@ def smtp_configured() -> bool:
 
 def send_email(to: str, subject: str, html: str, attachments=None) -> bool:
     """ส่งอีเมล HTML ผ่าน SMTP (คืน True ถ้าสำเร็จ) - ต้องตั้ง smtp_* ใน seller_local.py
-    attachments = list ของ path ไฟล์แนบ (เช่น PDF ใบเสนอราคา/ใบเสร็จ)"""
+    attachments = list ของไฟล์แนบ - แต่ละตัวเป็นได้ทั้ง:
+      · path (str) ของไฟล์บนดิสก์ (เช่น PDF ใบเสนอราคา/ใบเสร็จ)
+      · tuple (filename, data_bytes) หรือ (filename, data_bytes, content_type) สำหรับไฟล์ในหน่วยความจำ"""
     from app.seller_config import SELLER
     import smtplib
     import ssl
@@ -38,12 +40,18 @@ def send_email(to: str, subject: str, html: str, attachments=None) -> bool:
     msg.add_alternative(html, subtype="html")
     for p in (attachments or []):
         try:
-            with open(p, "rb") as f:
-                data = f.read()
-            ctype = mimetypes.guess_type(p)[0] or "application/octet-stream"
+            if isinstance(p, (tuple, list)):     # ไฟล์ในหน่วยความจำ (filename, data[, ctype])
+                fname = p[0] or "attachment"
+                data = p[1]
+                ctype = (p[2] if len(p) > 2 and p[2] else
+                         mimetypes.guess_type(fname)[0] or "application/octet-stream")
+            else:                                # path ไฟล์บนดิสก์
+                with open(p, "rb") as f:
+                    data = f.read()
+                fname = os.path.basename(p)
+                ctype = mimetypes.guess_type(p)[0] or "application/octet-stream"
             maintype, subtype = ctype.split("/", 1)
-            msg.add_attachment(data, maintype=maintype, subtype=subtype,
-                               filename=os.path.basename(p))
+            msg.add_attachment(data, maintype=maintype, subtype=subtype, filename=fname)
         except Exception as e:   # noqa: BLE001
             print("[mailer] แนบไฟล์ไม่สำเร็จ:", p, e)
     try:

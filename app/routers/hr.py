@@ -276,9 +276,17 @@ def hr_travel(request: Request, db: Session = Depends(get_db), year: int | None 
         by_person[r.person_id]["budget"] += r.budget or 0
     summary = [{"p": p, **by_person[p.id]} for p in persons if p.id in by_person]
     years = sorted({year} | {r[0] for r in db.query(TravelRecord.year).distinct()}, reverse=True)
+    # record_id ที่มีไฟล์บันทึกซึ่งครูแนบมาตอนยื่นคำขอ (โชว์ปุ่มเปิดไฟล์จริงแทนบันทึกที่ระบบสร้าง)
+    rids = [r.id for r in records]
+    req_atts = {}
+    if rids:
+        req_atts = {q.record_id: q.attachment_name for q in
+                    db.query(TravelRequest).filter(TravelRequest.record_id.in_(rids),
+                                                   TravelRequest.attachment_name != "").all()}
     return templates.TemplateResponse("hr_travel.html", {
         "request": request, "school": get_school(db), "year": year, "years": years,
         "records": records, "persons": persons, "summary": summary,
+        "req_atts": req_atts,
         "total_days": sum(r.days or 0 for r in records),
         "total_budget": sum(r.budget or 0 for r in records),
     })
@@ -310,13 +318,28 @@ def hr_travel_delete(tid: int, db: Session = Depends(get_db)):
     return RedirectResponse(f"/hr/travel?year={yr}", status_code=303)
 
 
+def _serve_blob(data: bytes, name: str):
+    """ส่งไฟล์ BLOB (ครูแนบ) ให้เปิด/ดาวน์โหลด - RFC5987 กันชื่อไฟล์ไทย 500"""
+    import mimetypes
+    from urllib.parse import quote
+    from fastapi.responses import Response
+    ctype = mimetypes.guess_type(name or "")[0] or "application/octet-stream"
+    fn = quote(name or "attachment")
+    return Response(content=data, media_type=ctype,
+                    headers={"Content-Disposition": f"inline; filename*=UTF-8''{fn}"})
+
+
 @router.get("/hr/travel/{tid}/request.docx")
 def hr_travel_request_docx(tid: int, db: Session = Depends(get_db)):
-    """บันทึกขออนุญาตไปราชการ (แบบที่ครูยื่น) - ใช้พิมพ์จากทะเบียนไปราชการ"""
+    """บันทึกขออนุญาตไปราชการ - ถ้าครูแนบไฟล์ตอนยื่นคำขอ ให้เปิดไฟล์นั้น
+    (ไฟล์ที่เซ็นสมบูรณ์) มิฉะนั้น fallback เป็นบันทึกที่ระบบสร้างให้"""
     from app.services.hr_doc import render_travel_request
     r = db.get(TravelRecord, tid)
     if not r:
         return RedirectResponse("/hr/travel", status_code=303)
+    q = db.query(TravelRequest).filter_by(record_id=tid).first()
+    if q and q.attachment:
+        return _serve_blob(q.attachment, q.attachment_name)
     return serve_generated(render_travel_request(get_school(db), r.person, r), _DOCX)
 
 

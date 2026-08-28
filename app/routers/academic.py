@@ -345,16 +345,28 @@ def teacher_account_add(request: Request, db: Session = Depends(get_db),
 
 
 # ---------------- ส่งแผนการสอน (ครูส่ง -> หัวหน้าฝ่ายวิชาการตรวจ + อีเมลแจ้ง) ----------------
-def _send_notice(to, subject, html):
-    """ส่งอีเมลแจ้ง (เงียบถ้าไม่ได้ตั้ง SMTP หรือส่งไม่ผ่าน) - ไม่ให้ล้มทั้ง request"""
+def _send_notice(to, subject, html, attachments=None):
+    """ส่งอีเมลแจ้ง (เงียบถ้าไม่ได้ตั้ง SMTP หรือส่งไม่ผ่าน) - ไม่ให้ล้มทั้ง request
+    attachments = list ของ (filename, data_bytes) ไฟล์แนบในหน่วยความจำ (เช่น ใบลา/บันทึกที่เซ็นแล้ว)"""
     to = (to or "").strip()
     if not to:
         return False
     try:
         from app.services.mailer import send_email
-        return send_email(to, subject, html)
+        return send_email(to, subject, html, attachments=attachments)
     except Exception:
         return False
+
+
+def _review_button(path, label="เปิดหน้าเพื่อพิจารณาอนุมัติ"):
+    """ปุ่มลิงก์เข้าหน้าอนุมัติในอีเมล (ผ่าน /login?next= เผื่อยังไม่ล็อกอิน)"""
+    from app.seller_config import SELLER
+    from urllib.parse import quote
+    base = (SELLER.get("base_url") or "").rstrip("/")
+    link = (base + "/login?next=" + quote(path, safe="")) if base else path
+    return (f'<p style="margin:20px 0;"><a href="{link}" style="background:#4f46e5;'
+            f'color:#fff;text-decoration:none;padding:11px 24px;border-radius:9px;'
+            f'font-weight:700;display:inline-block;">{label}</a></p>')
 
 
 @router.get("/academic/lesson-plans", response_class=HTMLResponse)
@@ -395,7 +407,8 @@ def lesson_plan_submit(request: Request, db: Session = Depends(get_db),
                  f"<p>ครู <b>{teacher.name if teacher else ''}</b> ส่งแผนการสอนเข้าระบบ</p>"
                  f"<p>เรื่อง: {p.title}<br>ภาคเรียน: {p.term or '-'} ปีการศึกษา {p.year}</p>"
                  f"<p>ลิงก์แผน: <a href='{p.link}'>{p.link}</a></p>"
-                 f"<p>หมายเหตุ: {p.note or '-'}</p>")
+                 f"<p>หมายเหตุ: {p.note or '-'}</p>"
+                 + _review_button("/academic/lesson-plans", "เปิดหน้าเพื่อตรวจแผนการสอน"))
     return RedirectResponse("/academic/lesson-plans?msg=ส่งแผนการสอนแล้ว แจ้งหัวหน้าฝ่ายวิชาการทางอีเมลเรียบร้อย", status_code=303)
 
 
@@ -472,12 +485,16 @@ async def my_leave_submit(request: Request, db: Session = Depends(get_db),
     db.add(lv); db.commit()
     person = db.get(Person, pid)
     s = get_school(db)
+    _atts = [(fname, fdata)] if fdata else None    # แนบใบลาที่เซ็นแล้ว (ถ้าครูแนบมา)
     _send_notice(s.hr_head_email,
                  f"[ใบลา] {person.name if person else ''} ขอ{lv.leave_type} {days} วัน",
                  f"<p><b>{person.name if person else ''}</b> ยื่นใบลาในระบบ</p>"
                  f"<p>ประเภท: {lv.leave_type}<br>ตั้งแต่ {be_date_input(sd)} ถึง {be_date_input(ed)} "
                  f"รวม {days} วัน</p><p>เหตุผล: {lv.reason or '-'}</p>"
-                 f"<p>ติดต่อระหว่างลา: {lv.contact or '-'}</p>")
+                 f"<p>ติดต่อระหว่างลา: {lv.contact or '-'}</p>"
+                 + ("<p>📎 แนบไฟล์ใบลาที่เซ็นแล้วมาด้วย</p>" if fdata else "")
+                 + _review_button("/hr/leave-requests"),
+                 attachments=_atts)
     return RedirectResponse("/me/leave?msg=ส่งใบลาแล้ว แจ้งหัวหน้าฝ่ายบุคคลทางอีเมลเรียบร้อย", status_code=303)
 
 
@@ -517,12 +534,16 @@ async def my_travel_submit(request: Request, db: Session = Depends(get_db),
     db.add(tr); db.commit()
     person = db.get(Person, pid)
     s = get_school(db)
+    _atts = [(fname, fdata)] if fdata else None    # แนบบันทึกขออนุญาตที่เซ็นแล้ว (ถ้าครูแนบมา)
     _send_notice(s.hr_head_email,
                  f"[ขอไปราชการ] {person.name if person else ''}: {tr.subject}",
                  f"<p><b>{person.name if person else ''}</b> ขอไปราชการ/อบรมในระบบ</p>"
                  f"<p>เรื่อง: {tr.subject}<br>สถานที่: {tr.place or '-'}<br>"
                  f"ระหว่าง {be_date_input(sd)} ถึง {be_date_input(ed)} รวม {days} วัน</p>"
-                 f"<p>งบประมาณโดยประมาณ: {tr.budget:,.0f} บาท</p><p>หมายเหตุ: {tr.note or '-'}</p>")
+                 f"<p>งบประมาณโดยประมาณ: {tr.budget:,.0f} บาท</p><p>หมายเหตุ: {tr.note or '-'}</p>"
+                 + ("<p>📎 แนบไฟล์บันทึกที่เซ็นแล้วมาด้วย</p>" if fdata else "")
+                 + _review_button("/hr/travel-requests"),
+                 attachments=_atts)
     return RedirectResponse("/me/travel?msg=ส่งคำขอไปราชการแล้ว แจ้งหัวหน้าฝ่ายบุคคลทางอีเมลเรียบร้อย", status_code=303)
 
 
