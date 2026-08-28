@@ -428,7 +428,7 @@ def lesson_plan_review(request: Request, plan_id: int, db: Session = Depends(get
 
 
 # ---------------- ส่งใบลา (ครูส่ง -> หัวหน้าฝ่ายบุคคลอนุมัติ + อีเมลแจ้ง) ----------------
-@router.get("/academic/my-leave", response_class=HTMLResponse)
+@router.get("/me/leave", response_class=HTMLResponse)
 def my_leave_page(request: Request, db: Session = Depends(get_db), msg: str = "", err: str = ""):
     from app.models import LeaveRequest
     pid = request.session.get("person_id")
@@ -440,17 +440,17 @@ def my_leave_page(request: Request, db: Session = Depends(get_db), msg: str = ""
     })
 
 
-@router.post("/academic/my-leave/submit")
+@router.post("/me/leave/submit")
 def my_leave_submit(request: Request, db: Session = Depends(get_db),
                     leave_type: str = Form("ลากิจ"), start_date: str = Form(""),
                     end_date: str = Form(""), reason: str = Form(""), contact: str = Form("")):
     from app.models import LeaveRequest
     pid = request.session.get("person_id")
     if not pid:
-        return RedirectResponse("/academic/my-leave?err=บัญชีนี้ไม่ได้ผูกกับบุคลากร ส่งใบลาไม่ได้", status_code=303)
+        return RedirectResponse("/me/leave?err=บัญชีนี้ไม่ได้ผูกกับบุคลากร ส่งใบลาไม่ได้", status_code=303)
     sd, ed = parse_be_date(start_date), parse_be_date(end_date)
     if not sd:
-        return RedirectResponse("/academic/my-leave?err=กรอกวันที่เริ่มลา", status_code=303)
+        return RedirectResponse("/me/leave?err=กรอกวันที่เริ่มลา", status_code=303)
     ed = ed or sd
     days = (ed - sd).days + 1 if ed >= sd else 1
     lv = LeaveRequest(person_id=pid, leave_type=(leave_type or "ลากิจ").strip(),
@@ -465,11 +465,11 @@ def my_leave_submit(request: Request, db: Session = Depends(get_db),
                  f"<p>ประเภท: {lv.leave_type}<br>ตั้งแต่ {be_date_input(sd)} ถึง {be_date_input(ed)} "
                  f"รวม {days} วัน</p><p>เหตุผล: {lv.reason or '-'}</p>"
                  f"<p>ติดต่อระหว่างลา: {lv.contact or '-'}</p>")
-    return RedirectResponse("/academic/my-leave?msg=ส่งใบลาแล้ว แจ้งหัวหน้าฝ่ายบุคคลทางอีเมลเรียบร้อย", status_code=303)
+    return RedirectResponse("/me/leave?msg=ส่งใบลาแล้ว แจ้งหัวหน้าฝ่ายบุคคลทางอีเมลเรียบร้อย", status_code=303)
 
 
 # ---------------- ขอไปราชการ/อบรม (ครูส่ง -> หัวหน้าฝ่ายบุคคลอนุมัติ + อีเมล) ----------------
-@router.get("/academic/my-travel", response_class=HTMLResponse)
+@router.get("/me/travel", response_class=HTMLResponse)
 def my_travel_page(request: Request, db: Session = Depends(get_db), msg: str = "", err: str = ""):
     from app.models import TravelRequest
     pid = request.session.get("person_id")
@@ -481,7 +481,7 @@ def my_travel_page(request: Request, db: Session = Depends(get_db), msg: str = "
     })
 
 
-@router.post("/academic/my-travel/submit")
+@router.post("/me/travel/submit")
 def my_travel_submit(request: Request, db: Session = Depends(get_db),
                      subject: str = Form(""), place: str = Form(""),
                      start_date: str = Form(""), end_date: str = Form(""),
@@ -489,10 +489,10 @@ def my_travel_submit(request: Request, db: Session = Depends(get_db),
     from app.models import TravelRequest
     pid = request.session.get("person_id")
     if not pid:
-        return RedirectResponse("/academic/my-travel?err=บัญชีนี้ไม่ได้ผูกกับบุคลากร", status_code=303)
+        return RedirectResponse("/me/travel?err=บัญชีนี้ไม่ได้ผูกกับบุคลากร", status_code=303)
     sd, ed = parse_be_date(start_date), parse_be_date(end_date)
     if not (subject or "").strip() or not sd:
-        return RedirectResponse("/academic/my-travel?err=กรอกเรื่องและวันที่เริ่มให้ครบ", status_code=303)
+        return RedirectResponse("/me/travel?err=กรอกเรื่องและวันที่เริ่มให้ครบ", status_code=303)
     ed = ed or sd
     days = (ed - sd).days + 1 if ed >= sd else 1
     tr = TravelRequest(person_id=pid, subject=subject.strip(), place=(place or "").strip(),
@@ -507,7 +507,7 @@ def my_travel_submit(request: Request, db: Session = Depends(get_db),
                  f"<p>เรื่อง: {tr.subject}<br>สถานที่: {tr.place or '-'}<br>"
                  f"ระหว่าง {be_date_input(sd)} ถึง {be_date_input(ed)} รวม {days} วัน</p>"
                  f"<p>งบประมาณโดยประมาณ: {tr.budget:,.0f} บาท</p><p>หมายเหตุ: {tr.note or '-'}</p>")
-    return RedirectResponse("/academic/my-travel?msg=ส่งคำขอไปราชการแล้ว แจ้งหัวหน้าฝ่ายบุคคลทางอีเมลเรียบร้อย", status_code=303)
+    return RedirectResponse("/me/travel?msg=ส่งคำขอไปราชการแล้ว แจ้งหัวหน้าฝ่ายบุคคลทางอีเมลเรียบร้อย", status_code=303)
 
 
 # ---------------- ห้องเรียน ----------------

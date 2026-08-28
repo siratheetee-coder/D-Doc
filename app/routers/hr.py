@@ -394,7 +394,7 @@ def leave_request_decide(lid: int, request: Request, db: Session = Depends(get_d
         create_notice(db, r.person_id, f"ผลใบลา: {res}",
                       reason=f"{r.leave_type} {be_date_input(r.start_date)}-{be_date_input(r.end_date)}"
                              + (f" · {r.comment}" if r.comment else ""),
-                      link="/academic/my-leave",
+                      link="/me/leave",
                       level=("info" if status == "approved" else "warn"))
         db.commit()
         # แจ้งผลกลับครูทางอีเมล (ถ้ามีอีเมลในทะเบียนบุคลากร)
@@ -442,7 +442,7 @@ def travel_request_decide(tid: int, request: Request, db: Session = Depends(get_
         from app.services.nav import create_notice
         create_notice(db, r.person_id, f"ผลขอไปราชการ: {res}",
                       reason=(r.subject or "") + (f" · {r.comment}" if r.comment else ""),
-                      link="/academic/my-travel",
+                      link="/me/travel",
                       level=("info" if status == "approved" else "warn"))
         db.commit()
         person = db.get(Person, r.person_id)

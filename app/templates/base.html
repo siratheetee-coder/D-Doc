@@ -621,7 +621,8 @@
   </svg>
 
   {% set path = request.url.path %}
-  {% set module = 'admin' if path.startswith('/admin')
+  {% set module = 'academic' if (path.startswith('/me/') and request.session.get('person_id'))
+        else 'admin' if path.startswith('/admin')
         else 'finance' if path.startswith('/finance')
         else 'lunch' if path.startswith('/lunch')
         else 'hr' if path.startswith('/hr')
@@ -765,10 +766,13 @@
         <a href="/academic/grades" class="{{ 'active' if path.startswith('/academic/grades') }}"><svg class="icon"><use href="#ic-edit"/></svg> กรอกคะแนน ปพ.5</a>
         <a href="/academic/eval" class="{{ 'active' if path.startswith('/academic/eval') }}"><svg class="icon"><use href="#ic-check"/></svg> ประเมิน ปพ.6</a>
         <a href="/academic/lesson-plans" class="{{ 'active' if path.startswith('/academic/lesson-plans') }}"><svg class="icon"><use href="#ic-file"/></svg> แผนการสอน</a>
-        <a href="/academic/my-leave" class="{{ 'active' if path.startswith('/academic/my-leave') }}"><svg class="icon"><use href="#ic-send"/></svg> ส่งใบลา</a>
-        <a href="/academic/my-travel" class="{{ 'active' if path.startswith('/academic/my-travel') }}"><svg class="icon"><use href="#ic-send"/></svg> ขอไปราชการ</a>
         {% if request.session.get('owner') %}
         <a href="/academic/teacher-accounts" class="{{ 'active' if path.startswith('/academic/teacher-accounts') }}"><svg class="icon"><use href="#ic-users"/></svg> บัญชีครู</a>
+        {% endif %}
+        {% if acad_teacher %}
+        <div class="nav-sec">งานบุคคล · ของฉัน</div>
+        <a href="/me/leave" class="{{ 'active' if path.startswith('/me/leave') }}"><svg class="icon"><use href="#ic-calendar"/></svg> ส่งใบลา</a>
+        <a href="/me/travel" class="{{ 'active' if path.startswith('/me/travel') }}"><svg class="icon"><use href="#ic-send"/></svg> ขอไปราชการ</a>
         {% endif %}
 
         {% else %}{# hub #}
