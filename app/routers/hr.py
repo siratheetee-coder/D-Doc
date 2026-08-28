@@ -310,6 +310,16 @@ def hr_travel_delete(tid: int, db: Session = Depends(get_db)):
     return RedirectResponse(f"/hr/travel?year={yr}", status_code=303)
 
 
+@router.get("/hr/travel/{tid}/request.docx")
+def hr_travel_request_docx(tid: int, db: Session = Depends(get_db)):
+    """บันทึกขออนุญาตไปราชการ (แบบที่ครูยื่น) - ใช้พิมพ์จากทะเบียนไปราชการ"""
+    from app.services.hr_doc import render_travel_request
+    r = db.get(TravelRecord, tid)
+    if not r:
+        return RedirectResponse("/hr/travel", status_code=303)
+    return serve_generated(render_travel_request(get_school(db), r.person, r), _DOCX)
+
+
 @router.get("/hr/travel/{tid}/order.docx")
 def hr_travel_order_docx(tid: int, db: Session = Depends(get_db)):
     from app.services.hr_doc import render_travel_order

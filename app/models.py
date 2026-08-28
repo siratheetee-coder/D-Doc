@@ -1517,6 +1517,8 @@ class LeaveRequest(Base):
     status = Column(String, default="pending")     # pending / approved / rejected
     comment = Column(Text, default="")             # ความเห็นผู้อนุมัติ
     record_id = Column(Integer, nullable=True)     # ผูกกับ LeaveRecord ในทะเบียนวันลา (กันลงซ้ำ)
+    attachment = Column(LargeBinary, nullable=True)   # ไฟล์ใบลาที่เซ็นแล้ว (แนบ)
+    attachment_name = Column(String, default="")
     submitted_at = Column(DateTime, default=datetime.now)
     decided_at = Column(DateTime, nullable=True)
 
@@ -1539,6 +1541,8 @@ class TravelRequest(Base):
     status = Column(String, default="pending")     # pending / approved / rejected
     comment = Column(Text, default="")
     record_id = Column(Integer, nullable=True)     # ผูกกับ TravelRecord (กันลงซ้ำ)
+    attachment = Column(LargeBinary, nullable=True)   # ไฟล์ใบขอไปราชการที่เซ็นแล้ว (แนบ)
+    attachment_name = Column(String, default="")
     submitted_at = Column(DateTime, default=datetime.now)
     decided_at = Column(DateTime, nullable=True)
 

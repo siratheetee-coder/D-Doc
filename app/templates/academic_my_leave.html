@@ -16,7 +16,7 @@
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-calendar"/></svg> ยื่นใบลา</h2>
   <p class="muted" style="font-size:13px; margin:4px 0 12px;">เมื่อส่ง ระบบจะแจ้งหัวหน้าฝ่ายบุคคลทางอีเมลให้อัตโนมัติ</p>
-  <form method="post" action="/me/leave/submit">
+  <form method="post" action="/me/leave/submit" enctype="multipart/form-data">
     <div class="row" style="align-items:flex-end;">
       <div><label>ประเภทการลา</label>
         <select name="leave_type">
@@ -30,7 +30,10 @@
     <textarea name="reason" rows="2" style="width:100%;" placeholder="เช่น มีธุระจำเป็นที่ต่างจังหวัด"></textarea>
     <label style="margin-top:10px; display:block;">ที่อยู่/เบอร์ติดต่อระหว่างลา</label>
     <input name="contact" style="width:100%;" placeholder="เบอร์โทร หรือที่อยู่ที่ติดต่อได้">
-    <br><button class="btn green" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-send"/></svg> ส่งใบลา</button>
+    <label style="margin-top:10px; display:block;">แนบไฟล์ใบลาที่เซ็นแล้ว (ไม่บังคับ · PDF/รูป)</label>
+    <input type="file" name="attachment" accept=".pdf,image/*" style="font-size:14px;">
+    <p class="muted" style="font-size:12.5px; margin:6px 0 0;">พิมพ์ใบลาจากปุ่ม "พิมพ์ใบลา" ในตารางด้านล่าง เซ็นแล้วสแกนกลับมาแนบได้</p>
+    <br><button class="btn green" type="submit" style="margin-top:6px;"><svg class="icon"><use href="#ic-send"/></svg> ส่งใบลา</button>
   </form>
 </div>
 {% else %}
@@ -42,7 +45,7 @@
   {% if leaves %}
   <div class="table-wrap">
   <table>
-    <thead><tr><th>ประเภท</th><th>ตั้งแต่</th><th>ถึง</th><th>วัน</th><th>เหตุผล</th><th>สถานะ</th><th>ความเห็น</th></tr></thead>
+    <thead><tr><th>ประเภท</th><th>ตั้งแต่</th><th>ถึง</th><th>วัน</th><th>เหตุผล</th><th>สถานะ</th><th>ความเห็น</th><th>เอกสาร</th></tr></thead>
     <tbody>
     {% for lv in leaves %}
       {% set st = {'pending':('รออนุมัติ','#fef9c3','#854d0e'), 'approved':('อนุมัติ','#dcfce7','#166534'), 'rejected':('ไม่อนุมัติ','#fee2e2','#b91c1c')}[lv.status] %}
@@ -54,6 +57,10 @@
         <td>{{ lv.reason or '-' }}</td>
         <td><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span></td>
         <td>{{ lv.comment or '-' }}</td>
+        <td style="white-space:nowrap;">
+          <a class="btn sm soft" href="/me/leave/{{ lv.id }}/form.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ใบลา</a>
+          {% if lv.attachment_name %}<a class="btn sm gray" href="/me/leave/{{ lv.id }}/file" target="_blank" rel="noopener">📎 ไฟล์แนบ</a>{% endif %}
+        </td>
       </tr>
     {% endfor %}
     </tbody>

@@ -66,8 +66,9 @@ def render_leave_form(school, person, record, type_label) -> str:
     doc = _doc()
     _p(doc, "ใบลา" + type_label.replace("ลา", "", 1), align="center", bold=True, size=20, after=10)
 
+    _wdate = getattr(record, "created_at", None) or getattr(record, "submitted_at", None)
     _p(doc, f"เขียนที่ {school.name or ''}", align="right", after=0)
-    _p(doc, f"วันที่ {_dt(record.created_at)}", align="right", after=8)
+    _p(doc, f"วันที่ {_dt(_wdate)}", align="right", after=8)
 
     _p(doc, f"เรื่อง  ขอ{type_label}", after=2)
     _p(doc, f"เรียน  {_director_pos(school)}", after=6)
@@ -194,6 +195,43 @@ def render_certificate(school, person) -> str:
 
 
 # ---------------- คำสั่งไปราชการ ----------------
+def render_travel_request(school, person, record) -> str:
+    """บันทึกข้อความขออนุญาตไปราชการ (ครูเป็นผู้ยื่น) - สำหรับพิมพ์เสนอผู้อำนวยการ"""
+    doc = _doc()
+    _p(doc, "บันทึกข้อความ", align="center", bold=True, size=20, after=6)
+    _p(doc, f"ส่วนราชการ  {school.name or ''}", after=0)
+    _wdate = getattr(record, "created_at", None) or getattr(record, "submitted_at", None)
+    _p(doc, f"วันที่  {_dt(_wdate)}", after=0)
+    _p(doc, "เรื่อง  ขออนุญาตไปราชการ", after=6)
+    _p(doc, f"เรียน  {_director_pos(school)}", after=8)
+
+    name = person.name or _BLANK
+    pos = person.position or "ครู"
+    subject = (record.subject or "").strip() or "ปฏิบัติราชการ"
+    place = (record.place or "").strip() or _BLANK
+    _p(doc, f"ด้วยข้าพเจ้า {name} ตำแหน่ง {pos} มีความประสงค์ขออนุญาตไปราชการเพื่อ {subject} "
+            f"ณ {place} ตั้งแต่วันที่ {_dt(record.start_date)} ถึงวันที่ {_dt(record.end_date)} "
+            f"รวม {(record.days or 0):g} วัน"
+            + (f" โดยประมาณค่าใช้จ่าย {record.budget:,.0f} บาท" if (record.budget or 0) else "")
+            + ((f"  {record.note}" ) if (getattr(record, 'note', '') or '').strip() else ""),
+       align="justify", size=15, after=8, indent=1.25)
+    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณาอนุญาต", align="justify", after=22, indent=1.25)
+
+    _p(doc, "(ลงชื่อ)...................................ผู้ขออนุญาต", align="center", after=0)
+    _p(doc, f"( {name} )", align="center", after=16)
+
+    _p(doc, "ความเห็นผู้อำนวยการ", bold=True, after=2)
+    _p(doc, "☐ อนุญาต            ☐ ไม่อนุญาต", indent=1.25, after=14)
+    _p(doc, "(ลงชื่อ)...................................", align="center", after=0)
+    _p(doc, f"( {(getattr(school, 'director_name', '') or '').strip() or _BLANK} )", align="center", after=0)
+    _p(doc, _director_pos(school), align="center", after=2)
+
+    out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
+    out = out_dir / (_safe(f"ขออนุญาตไปราชการ_{name}_{record.id}") + ".docx")
+    doc.save(str(out))
+    return str(out)
+
+
 def render_travel_order(school, person, record) -> str:
     doc = _doc()
     _p(doc, "คำสั่ง" + (school.name or "โรงเรียน"), align="center", bold=True, size=17, after=0)

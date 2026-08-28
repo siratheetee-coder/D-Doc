@@ -31,6 +31,10 @@
         <td><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span>
           {% if r.comment %}<div class="muted" style="font-size:12px;">{{ r.comment }}</div>{% endif %}</td>
         <td>
+          <div style="display:flex; gap:6px; margin-bottom:6px;">
+            <a class="btn sm soft" href="/me/leave/{{ r.id }}/form.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ใบลา</a>
+            {% if r.attachment_name %}<a class="btn sm gray" href="/me/leave/{{ r.id }}/file" target="_blank" rel="noopener">📎 ไฟล์แนบ</a>{% endif %}
+          </div>
           <form method="post" action="/hr/leave-requests/{{ r.id }}/decide" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:0;">
             <input name="comment" value="{{ r.comment or '' }}" placeholder="ความเห็น" style="width:130px;">
             <button class="btn sm green" type="submit" name="status" value="approved">อนุมัติ</button>

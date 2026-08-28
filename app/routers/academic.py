@@ -8,7 +8,7 @@ academic.py - งานวิชาการ
 ครูทั้งหมดมาจากทะเบียนบุคลากรกลาง (Person) ไม่มีการสร้างทะเบียนครูซ้ำ
 """
 from datetime import datetime
-from fastapi import APIRouter, Request, Depends, Form
+from fastapi import APIRouter, Request, Depends, Form, File, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -440,10 +440,21 @@ def my_leave_page(request: Request, db: Session = Depends(get_db), msg: str = ""
     })
 
 
+async def _read_upload(f):
+    """อ่านไฟล์แนบ (จำกัด ~8MB) - คืน (bytes, ชื่อไฟล์) หรือ (None, '')"""
+    if not f or not getattr(f, "filename", ""):
+        return None, ""
+    data = await f.read()
+    if not data or len(data) > 8 * 1024 * 1024:
+        return None, ""
+    return data, f.filename
+
+
 @router.post("/me/leave/submit")
-def my_leave_submit(request: Request, db: Session = Depends(get_db),
-                    leave_type: str = Form("ลากิจ"), start_date: str = Form(""),
-                    end_date: str = Form(""), reason: str = Form(""), contact: str = Form("")):
+async def my_leave_submit(request: Request, db: Session = Depends(get_db),
+                          leave_type: str = Form("ลากิจ"), start_date: str = Form(""),
+                          end_date: str = Form(""), reason: str = Form(""), contact: str = Form(""),
+                          attachment: UploadFile = File(None)):
     from app.models import LeaveRequest
     pid = request.session.get("person_id")
     if not pid:
@@ -453,9 +464,11 @@ def my_leave_submit(request: Request, db: Session = Depends(get_db),
         return RedirectResponse("/me/leave?err=กรอกวันที่เริ่มลา", status_code=303)
     ed = ed or sd
     days = (ed - sd).days + 1 if ed >= sd else 1
+    fdata, fname = await _read_upload(attachment)
     lv = LeaveRequest(person_id=pid, leave_type=(leave_type or "ลากิจ").strip(),
                       start_date=sd, end_date=ed, days=days,
-                      reason=(reason or "").strip(), contact=(contact or "").strip())
+                      reason=(reason or "").strip(), contact=(contact or "").strip(),
+                      attachment=fdata, attachment_name=fname)
     db.add(lv); db.commit()
     person = db.get(Person, pid)
     s = get_school(db)
@@ -482,10 +495,11 @@ def my_travel_page(request: Request, db: Session = Depends(get_db), msg: str = "
 
 
 @router.post("/me/travel/submit")
-def my_travel_submit(request: Request, db: Session = Depends(get_db),
-                     subject: str = Form(""), place: str = Form(""),
-                     start_date: str = Form(""), end_date: str = Form(""),
-                     budget: str = Form(""), note: str = Form("")):
+async def my_travel_submit(request: Request, db: Session = Depends(get_db),
+                           subject: str = Form(""), place: str = Form(""),
+                           start_date: str = Form(""), end_date: str = Form(""),
+                           budget: str = Form(""), note: str = Form(""),
+                           attachment: UploadFile = File(None)):
     from app.models import TravelRequest
     pid = request.session.get("person_id")
     if not pid:
@@ -495,9 +509,11 @@ def my_travel_submit(request: Request, db: Session = Depends(get_db),
         return RedirectResponse("/me/travel?err=กรอกเรื่องและวันที่เริ่มให้ครบ", status_code=303)
     ed = ed or sd
     days = (ed - sd).days + 1 if ed >= sd else 1
+    fdata, fname = await _read_upload(attachment)
     tr = TravelRequest(person_id=pid, subject=subject.strip(), place=(place or "").strip(),
                        start_date=sd, end_date=ed, days=days,
-                       budget=_to_float(budget, 0.0), note=(note or "").strip())
+                       budget=_to_float(budget, 0.0), note=(note or "").strip(),
+                       attachment=fdata, attachment_name=fname)
     db.add(tr); db.commit()
     person = db.get(Person, pid)
     s = get_school(db)
@@ -508,6 +524,67 @@ def my_travel_submit(request: Request, db: Session = Depends(get_db),
                  f"ระหว่าง {be_date_input(sd)} ถึง {be_date_input(ed)} รวม {days} วัน</p>"
                  f"<p>งบประมาณโดยประมาณ: {tr.budget:,.0f} บาท</p><p>หมายเหตุ: {tr.note or '-'}</p>")
     return RedirectResponse("/me/travel?msg=ส่งคำขอไปราชการแล้ว แจ้งหัวหน้าฝ่ายบุคคลทางอีเมลเรียบร้อย", status_code=303)
+
+
+def _self_or_hr(request, owner_pid) -> bool:
+    """เข้าถึงได้ = เจ้าของคำขอ (ครู) หรือ เจ้าของระบบ หรือ มีสิทธิ์งานบุคคล"""
+    s = request.session
+    if s.get("person_id") and s.get("person_id") == owner_pid:
+        return True
+    if s.get("owner"):
+        return True
+    from app.modules import parse_modules
+    return "hr" in parse_modules(s.get("mods") or "")
+
+
+def _serve_attachment(data, name):
+    from fastapi import Response
+    from urllib.parse import quote
+    import mimetypes
+    ctype = mimetypes.guess_type(name or "")[0] or "application/octet-stream"
+    fn = quote(name or "attachment")
+    return Response(content=data, media_type=ctype,
+                    headers={"Content-Disposition": f"inline; filename*=UTF-8''{fn}"})
+
+
+@router.get("/me/leave/{lid}/form.docx")
+def my_leave_form_docx(lid: int, request: Request, db: Session = Depends(get_db)):
+    from app.models import LeaveRequest
+    lv = db.get(LeaveRequest, lid)
+    if not lv or not _self_or_hr(request, lv.person_id):
+        return RedirectResponse("/me/leave", status_code=303)
+    from app.services.hr_doc import render_leave_form
+    return serve_generated(
+        render_leave_form(get_school(db), db.get(Person, lv.person_id), lv, lv.leave_type), _DOCX)
+
+
+@router.get("/me/leave/{lid}/file")
+def my_leave_file(lid: int, request: Request, db: Session = Depends(get_db)):
+    from app.models import LeaveRequest
+    lv = db.get(LeaveRequest, lid)
+    if not lv or not lv.attachment or not _self_or_hr(request, lv.person_id):
+        return RedirectResponse("/me/leave", status_code=303)
+    return _serve_attachment(lv.attachment, lv.attachment_name)
+
+
+@router.get("/me/travel/{tid}/form.docx")
+def my_travel_form_docx(tid: int, request: Request, db: Session = Depends(get_db)):
+    from app.models import TravelRequest
+    tr = db.get(TravelRequest, tid)
+    if not tr or not _self_or_hr(request, tr.person_id):
+        return RedirectResponse("/me/travel", status_code=303)
+    from app.services.hr_doc import render_travel_request
+    return serve_generated(
+        render_travel_request(get_school(db), db.get(Person, tr.person_id), tr), _DOCX)
+
+
+@router.get("/me/travel/{tid}/file")
+def my_travel_file(tid: int, request: Request, db: Session = Depends(get_db)):
+    from app.models import TravelRequest
+    tr = db.get(TravelRequest, tid)
+    if not tr or not tr.attachment or not _self_or_hr(request, tr.person_id):
+        return RedirectResponse("/me/travel", status_code=303)
+    return _serve_attachment(tr.attachment, tr.attachment_name)
 
 
 # ---------------- ห้องเรียน ----------------

@@ -16,7 +16,7 @@
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-send"/></svg> ยื่นคำขอไปราชการ/อบรม</h2>
   <p class="muted" style="font-size:13px; margin:4px 0 12px;">เมื่อส่ง ระบบจะแจ้งหัวหน้าฝ่ายบุคคลทางอีเมล · อนุมัติแล้วจะลงทะเบียนไปราชการให้อัตโนมัติ</p>
-  <form method="post" action="/me/travel/submit">
+  <form method="post" action="/me/travel/submit" enctype="multipart/form-data">
     <div class="row" style="align-items:flex-end;">
       <div style="flex:1.6;"><label>เรื่อง/ภารกิจ *</label><input name="subject" required placeholder="เช่น อบรมหลักสูตรการสอนเชิงรุก"></div>
       <div style="flex:1;"><label>สถานที่/จังหวัด</label><input name="place" placeholder="เช่น สพป. / โรงแรม..."></div>
@@ -28,7 +28,10 @@
     </div>
     <label style="margin-top:10px; display:block;">หมายเหตุ</label>
     <textarea name="note" rows="2" style="width:100%;" placeholder="รายละเอียดเพิ่มเติม"></textarea>
-    <br><button class="btn green" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-send"/></svg> ส่งคำขอไปราชการ</button>
+    <label style="margin-top:10px; display:block;">แนบไฟล์บันทึกที่เซ็นแล้ว (ไม่บังคับ · PDF/รูป)</label>
+    <input type="file" name="attachment" accept=".pdf,image/*" style="font-size:14px;">
+    <p class="muted" style="font-size:12.5px; margin:6px 0 0;">พิมพ์บันทึกจากปุ่ม "พิมพ์บันทึก" ในตารางด้านล่าง เซ็นแล้วสแกนกลับมาแนบได้</p>
+    <br><button class="btn green" type="submit" style="margin-top:6px;"><svg class="icon"><use href="#ic-send"/></svg> ส่งคำขอไปราชการ</button>
   </form>
 </div>
 {% else %}
@@ -40,7 +43,7 @@
   {% if trips %}
   <div class="table-wrap">
   <table>
-    <thead><tr><th>เรื่อง</th><th>สถานที่</th><th>ตั้งแต่</th><th>ถึง</th><th>วัน</th><th>งบ</th><th>สถานะ</th><th>ความเห็น</th></tr></thead>
+    <thead><tr><th>เรื่อง</th><th>สถานที่</th><th>ตั้งแต่</th><th>ถึง</th><th>วัน</th><th>งบ</th><th>สถานะ</th><th>ความเห็น</th><th>เอกสาร</th></tr></thead>
     <tbody>
     {% for tr in trips %}
       {% set st = {'pending':('รออนุมัติ','#fef9c3','#854d0e'), 'approved':('อนุมัติ','#dcfce7','#166534'), 'rejected':('ไม่อนุมัติ','#fee2e2','#b91c1c')}[tr.status] %}
@@ -53,6 +56,10 @@
         <td class="center">{{ '{:,.0f}'.format(tr.budget or 0) }}</td>
         <td><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span></td>
         <td>{{ tr.comment or '-' }}</td>
+        <td style="white-space:nowrap;">
+          <a class="btn sm soft" href="/me/travel/{{ tr.id }}/form.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์บันทึก</a>
+          {% if tr.attachment_name %}<a class="btn sm gray" href="/me/travel/{{ tr.id }}/file" target="_blank" rel="noopener">📎 ไฟล์แนบ</a>{% endif %}
+        </td>
       </tr>
     {% endfor %}
     </tbody>
