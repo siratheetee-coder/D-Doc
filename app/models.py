@@ -1502,6 +1502,7 @@ class LeaveRequest(Base):
     contact = Column(String, default="")           # ที่อยู่/เบอร์ติดต่อระหว่างลา
     status = Column(String, default="pending")     # pending / approved / rejected
     comment = Column(Text, default="")             # ความเห็นผู้อนุมัติ
+    record_id = Column(Integer, nullable=True)     # ผูกกับ LeaveRecord ในทะเบียนวันลา (กันลงซ้ำ)
     submitted_at = Column(DateTime, default=datetime.now)
     decided_at = Column(DateTime, nullable=True)
 

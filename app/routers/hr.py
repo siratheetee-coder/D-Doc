@@ -356,13 +356,46 @@ def leave_requests_page(request: Request, db: Session = Depends(get_db), msg: st
     })
 
 
+# แปลงประเภทลา (ป้ายไทยจากใบลา) -> คีย์ในทะเบียนวันลา
+_LEAVE_KEY = {"ลาป่วย": "sick", "ลากิจส่วนตัว": "personal", "ลากิจ": "personal",
+              "ลาพักผ่อน": "vacation", "ลาคลอดบุตร": "maternity",
+              "ลาอุปสมบท": "ordain", "ลาอุปสมบท/ประกอบพิธีทางศาสนา": "ordain"}
+
+
+def _notify(to, subject, html):
+    to = (to or "").strip()
+    if not to:
+        return
+    try:
+        from app.services.mailer import send_email
+        send_email(to, subject, html)
+    except Exception:
+        pass
+
+
 @router.post("/hr/leave-requests/{lid}/decide")
 def leave_request_decide(lid: int, request: Request, db: Session = Depends(get_db),
                          status: str = Form(""), comment: str = Form("")):
     r = db.get(LeaveRequest, lid)
-    if r:
-        r.status = status if status in ("approved", "rejected") else r.status
+    if r and status in ("approved", "rejected"):
+        r.status = status
         r.comment = (comment or "").strip()
         r.decided_at = datetime.now()
+        # อนุมัติแล้วลงทะเบียนวันลาอัตโนมัติ (ครั้งเดียว - กันลงซ้ำด้วย record_id)
+        if status == "approved" and not r.record_id:
+            yr = (r.start_date.year + 543) if r.start_date else _cur_year()
+            rec = LeaveRecord(person_id=r.person_id, year=yr,
+                              leave_type=_LEAVE_KEY.get((r.leave_type or "").strip(), "personal"),
+                              start_date=r.start_date, end_date=r.end_date,
+                              days=r.days or 0, reason=r.reason or "", contact=r.contact or "")
+            db.add(rec); db.flush(); r.record_id = rec.id
         db.commit()
+        # แจ้งผลกลับครูทางอีเมล (ถ้ามีอีเมลในทะเบียนบุคลากร)
+        person = db.get(Person, r.person_id)
+        if person and (person.email or "").strip():
+            res = "อนุมัติ" if status == "approved" else "ไม่อนุมัติ"
+            _notify(person.email, f"[ผลใบลา] {r.leave_type} - {res}",
+                    f"<p>ใบลา ({r.leave_type} {be_date_input(r.start_date)} ถึง {be_date_input(r.end_date)}) "
+                    f"ได้รับการพิจารณาแล้ว: <b>{res}</b></p>"
+                    f"<p>ความเห็น: {r.comment or '-'}</p>")
     return RedirectResponse("/hr/leave-requests?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)

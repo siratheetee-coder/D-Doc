@@ -151,6 +151,7 @@ MIGRATIONS = [
     ("school", "attendance_by_subject", "BOOLEAN DEFAULT 0"),
     ("school", "academic_head_email", "VARCHAR DEFAULT ''"),
     ("school", "hr_head_email", "VARCHAR DEFAULT ''"),
+    ("leave_request", "record_id", "INTEGER"),
     ("student", "father_job", "VARCHAR DEFAULT ''"),
     ("student", "mother_job", "VARCHAR DEFAULT ''"),
     ("student", "guardian_name", "VARCHAR DEFAULT ''"),
