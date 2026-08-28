@@ -19,16 +19,16 @@
   <div style="display:flex; flex-direction:column; gap:10px; max-width:520px;">
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
       <span style="width:80px; color:#166534; font-weight:600;">ไอดี</span>
-      <code id="cr-user" style="flex:1; min-width:180px; background:#fff; border:1px solid #bbf7d0; padding:8px 10px; border-radius:6px; font-size:15px; font-weight:700;">{{ created.username }}</code>
+      <code id="cr-user" onclick="selectText(this)" title="แตะเพื่อเลือกข้อความ" style="flex:1; min-width:180px; background:#fff; border:1px solid #bbf7d0; padding:8px 10px; border-radius:6px; font-size:15px; font-weight:700; cursor:pointer;">{{ created.username }}</code>
       <button type="button" class="btn sm gray" onclick="copyId(this, {{ created.username|tojson }})">คัดลอก</button>
     </div>
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
       <span style="width:80px; color:#166534; font-weight:600;">รหัสผ่าน</span>
-      <code id="cr-pass" style="flex:1; min-width:180px; background:#fff; border:1px solid #bbf7d0; padding:8px 10px; border-radius:6px; font-size:15px; font-weight:700;">{{ created.password }}</code>
+      <code id="cr-pass" onclick="selectText(this)" title="แตะเพื่อเลือกข้อความ" style="flex:1; min-width:180px; background:#fff; border:1px solid #bbf7d0; padding:8px 10px; border-radius:6px; font-size:15px; font-weight:700; cursor:pointer;">{{ created.password }}</code>
       <button type="button" class="btn sm gray" onclick="copyId(this, {{ created.password|tojson }})">คัดลอก</button>
     </div>
     <div>
-      <button type="button" class="btn green" onclick="copyBoth(this, {{ created.username|tojson }}, {{ created.password|tojson }})"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอกทั้งไอดีและรหัสผ่าน</button>
+      <button type="button" class="btn green" onclick="copyBoth(this, {{ created.name|tojson }}, {{ created.username|tojson }}, {{ created.password|tojson }})"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอกทั้งชื่อ ไอดี และรหัสผ่าน</button>
     </div>
   </div>
 </div>
@@ -99,20 +99,47 @@
 </div>
 
 <script>
-  function copyId(btn, id){
-    var done = function(){ var t = btn.textContent; btn.textContent = '✔ คัดลอกแล้ว';
-      setTimeout(function(){ btn.textContent = t; }, 1400); };
-    if (navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(id).then(done, function(){ fallback(id); done(); });
-    } else { fallback(id); done(); }
+  function flash(btn, ok){
+    var t = btn.getAttribute('data-label') || btn.textContent;
+    btn.setAttribute('data-label', t);
+    btn.textContent = ok ? '✔ คัดลอกแล้ว' : '⚠ คัดลอกไม่ได้ - เลือกข้อความแล้วกด Ctrl+C';
+    setTimeout(function(){ btn.textContent = t; }, ok ? 1400 : 3200);
   }
-  function fallback(id){
-    var ta = document.createElement('textarea'); ta.value = id;
-    ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta);
-    ta.select(); try { document.execCommand('copy'); } catch(e){} document.body.removeChild(ta);
+  // คัดลอกให้ได้ทั้งบน HTTPS และ HTTP (execCommand ต้องใช้ textarea ที่ 'มองเห็น' จริง)
+  function legacyCopy(text){
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', '');
+    ta.style.position='fixed'; ta.style.top='0'; ta.style.left='0';
+    ta.style.width='1px'; ta.style.height='1px'; ta.style.padding='0';
+    ta.style.border='none'; ta.style.fontSize='16px';   // กัน iOS zoom
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { ta.setSelectionRange(0, text.length); } catch(e){}
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch(e){ ok = false; }
+    document.body.removeChild(ta);
+    return ok;
   }
-  function copyBoth(btn, user, pass){
-    copyId(btn, 'ไอดี: ' + user + '\nรหัสผ่าน: ' + pass);
+  function copyText(btn, text){
+    if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext){
+      navigator.clipboard.writeText(text).then(
+        function(){ flash(btn, true); },
+        function(){ flash(btn, legacyCopy(text)); });
+    } else {
+      flash(btn, legacyCopy(text));
+    }
+  }
+  function copyId(btn, id){ copyText(btn, id); }
+  function copyBoth(btn, name, user, pass){
+    var lines = [];
+    if (name) lines.push('ครู' + name);
+    lines.push('ไอดี: ' + user);
+    lines.push('รหัสผ่าน: ' + pass);
+    copyText(btn, lines.join('\n'));
+  }
+  function selectText(el){
+    var r = document.createRange(); r.selectNodeContents(el);
+    var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
   }
 </script>
 {% endblock %}
