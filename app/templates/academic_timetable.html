@@ -157,7 +157,7 @@
               <div class="cell-clash" style="font-size:10.5px; color:#b91c1c; text-align:center; display:none;"></div>
             </td>
             {% else %}
-            <td class="center" style="font-size:12.5px;">
+            <td class="center tt-ro" data-sel="{{ cell.sel if cell else '' }}" style="font-size:12.5px;">
               {% if cell %}<b>{{ cell.label }}</b>{% if cell.teacher %}<div class="muted" style="font-size:11px;">{{ cell.teacher }}</div>{% endif %}{% else %}<span class="muted">—</span>{% endif %}
             </td>
             {% endif %}
@@ -257,6 +257,24 @@
   })();
 </script>
 {% endif %}
+{% if c %}
+<script>
+  // แยกสีตามวิชา - ต้องตรงกับ _TT_PALETTE ใน acad_doc.py
+  var TT_PALETTE = ["#E0F2FE","#DCFCE7","#FEF3C7","#FCE7F3","#EDE9FE","#FFE4E6",
+                    "#D1FAE5","#FEF9C3","#E0E7FF","#FFEDD5","#CCFBF1","#F3E8FF"];
+  function ttColor(key){
+    if(!key) return "";
+    var h=0; for(var i=0;i<key.length;i++) h+=key.charCodeAt(i);
+    return TT_PALETTE[h % TT_PALETTE.length];
+  }
+  function ttPaintReadonly(){
+    document.querySelectorAll("td.tt-ro").forEach(function(td){
+      td.style.background = ttColor(td.dataset.sel || "");
+    });
+  }
+  document.addEventListener('DOMContentLoaded', ttPaintReadonly);
+</script>
+{% endif %}
 {% if can_edit and c %}
 <script>
   var TT_BUSY = {{ busy|tojson }};             // {teacherId: {"day_pid": "ห้อง (วิชา)"}}
@@ -276,8 +294,8 @@
         }
       }
       if (tdiv) tdiv.textContent = tname;
-      if (clash){ td.classList.add('clash'); cdiv.textContent = 'ซ้อน: ' + clash; cdiv.style.display = 'block'; clashes++; }
-      else { td.classList.remove('clash'); if(cdiv){ cdiv.textContent=''; cdiv.style.display='none'; } }
+      if (clash){ td.classList.add('clash'); td.style.background=''; cdiv.textContent = 'ซ้อน: ' + clash; cdiv.style.display = 'block'; clashes++; }
+      else { td.classList.remove('clash'); td.style.background = ttColor(val); if(cdiv){ cdiv.textContent=''; cdiv.style.display='none'; } }
     });
     var b = document.getElementById('tt-clash');
     if (b){

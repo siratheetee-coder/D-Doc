@@ -2108,6 +2108,17 @@ def render_attendance_term(school, klass, db, term, subject=None) -> str:
 # ============================ ตารางเรียน ============================
 _TT_DAYS = [(1, "จันทร์"), (2, "อังคาร"), (3, "พุธ"), (4, "พฤหัสบดี"), (5, "ศุกร์")]
 
+# สีอ่อนแยกวิชา (ต้องตรงกับ JS ในหน้าจัดตาราง _TT_PALETTE)
+_TT_PALETTE = ["E0F2FE", "DCFCE7", "FEF3C7", "FCE7F3", "EDE9FE", "FFE4E6",
+               "D1FAE5", "FEF9C3", "E0E7FF", "FFEDD5", "CCFBF1", "F3E8FF"]
+
+
+def _tt_fill(key: str):
+    """เลือกสีอ่อนคงที่ต่อวิชา จาก key (เช่น 's5' / 'n:โฮมรูม') - hash ตรงกับฝั่ง JS"""
+    if not key:
+        return None
+    return _TT_PALETTE[sum(ord(ch) for ch in key) % len(_TT_PALETTE)]
+
 
 def _tt_cell_lines(cell, lines, *, fill=None):
     """เขียนหลายบรรทัดในเซลล์เดียว - แต่ละบรรทัด (ข้อความ, ขนาด, หนา) กำหนดเองได้
@@ -2147,8 +2158,10 @@ def _tt_grid_doc(doc, periods, day_cells):
             if p.is_break:
                 _tt_cell_lines(cs[1 + j], [("พัก", 13, False)], fill="F8FAFC")
             else:
-                _tt_cell_lines(cs[1 + j], day_cells(dnum, p))
-        t.rows[1 + i].height = Cm(2.4); t.rows[1 + i].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
+                res = day_cells(dnum, p)
+                lines, fill = res if (isinstance(res, tuple) and len(res) == 2) else (res, None)
+                _tt_cell_lines(cs[1 + j], lines, fill=fill)
+        t.rows[1 + i].height = Cm(1.5); t.rows[1 + i].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
     fixed = 2.2
     pw = (26.7 - fixed) / len(periods) if periods else 2.9
     _widths(t, [Cm(2.2)] + [Cm(pw)] * len(periods))
@@ -2184,8 +2197,9 @@ def render_timetable_class(school, klass, db) -> str:
             lines = [(nm, 14, False)]
             if tn:
                 lines.append((tn, 12, False))     # ชื่อครูผู้สอนใต้ชื่อวิชา
-            return lines
-        return [(r.note or "", 14, False)]
+            return lines, _tt_fill(f"s{r.subject_id}")
+        note = r.note or ""
+        return [(note, 14, False)], (_tt_fill(f"n:{note}") if note else None)
 
     doc = _doc(landscape=True)
     _logo_header(doc, school)
@@ -2213,15 +2227,16 @@ def render_timetable_teacher(school, person, db, year) -> str:
         if r.class_id in class_ids and (r.class_id, r.subject_id) in pairs:
             c = db.get(AcadClass, r.class_id)
             grid.setdefault((r.day, r.period_id), []).append(
-                (r.subject.name if r.subject else "", _class_label(c)))
+                (r.subject.name if r.subject else "", _class_label(c), r.subject_id))
 
     def cell(dnum, p):
         lst = grid.get((dnum, p.id), [])
         lines = []
-        for nm, cl in lst:
+        for nm, cl, _sid in lst:
             lines.append((nm, 14, False))
             lines.append((f"({cl})", 12, False))     # ห้องที่สอนใต้ชื่อวิชา
-        return lines
+        fill = _tt_fill(f"s{lst[0][2]}") if lst else None    # แยกสีตามวิชาแรกในคาบ
+        return lines, fill
 
     doc = _doc(landscape=True)
     _logo_header(doc, school)
