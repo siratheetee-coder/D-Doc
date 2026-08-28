@@ -110,7 +110,8 @@
       </div>
       <div class="ac-foot">
         <label class="ac-clear">
-          <input type="checkbox" name="clear"> <span>ล้างตารางเดิมก่อนจัด <em>(ไม่ติ๊ก = เติมเฉพาะช่องว่าง)</em></span>
+          <input type="checkbox" name="clear">
+          <span class="ac-clear-txt"><b>ล้างตารางเดิมก่อนจัด</b><em>ไม่ติ๊ก = เติมเฉพาะช่องว่าง</em></span>
         </label>
         <span class="ac-total muted">รวม <b id="acTotal">0</b> คาบ/สัปดาห์</span>
       </div>
@@ -196,6 +197,9 @@
   .ac-chev { width:18px; height:18px; color:#818cf8; transform:rotate(90deg); transition:transform .2s ease; }
   .ac-card[open] .ac-chev { transform:rotate(-90deg); }
   .ac-body { padding:16px 18px 18px; }
+  .ac-card[open] .ac-body { animation:acReveal .28s cubic-bezier(.2,.7,.25,1) both; }
+  @keyframes acReveal { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: reduce) { .ac-card[open] .ac-body { animation:none; } }
   .ac-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:10px; }
   .ac-item { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:11px;
     background:#faf9ff; border:1px solid #eceafe; }
@@ -211,11 +215,22 @@
   .ac-n { width:40px; height:32px; border:none; text-align:center; font-weight:700; font-size:15px;
     color:#3730a3; -moz-appearance:textfield; }
   .ac-n::-webkit-outer-spin-button, .ac-n::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
-  .ac-foot { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-top:14px; }
-  .ac-clear { display:inline-flex; align-items:center; gap:8px; font-size:14px; margin:0; cursor:pointer; }
-  .ac-clear em { color:#94a3b8; font-style:normal; font-size:12.5px; }
-  .ac-total { font-size:14px; } .ac-total b { color:var(--brand-dark); font-size:16px; }
-  @media (max-width:560px){ .ac-grid { grid-template-columns:1fr; } }
+  .ac-foot { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-top:16px; }
+  .ac-clear { display:inline-flex; align-items:center; gap:11px; margin:0; cursor:pointer;
+    padding:9px 14px; border:1px solid #eceafe; border-radius:11px; background:#faf9ff;
+    transition:border-color .15s, background .15s; }
+  .ac-clear:hover { border-color:#ddd6fe; background:#f5f3ff; }
+  .ac-clear input { flex:0 0 auto; width:19px; height:19px; margin:0; accent-color:var(--brand); cursor:pointer; }
+  .ac-clear-txt { display:flex; flex-direction:column; line-height:1.2; }
+  .ac-clear-txt b { font-size:13.5px; color:#334155; }
+  .ac-clear-txt em { font-size:12px; color:#9aa3b2; font-style:normal; }
+  .ac-total { font-size:14px; white-space:nowrap; } .ac-total b { color:var(--brand-dark); font-size:16px; }
+  @media (max-width:560px){
+    .ac-grid { grid-template-columns:1fr; }
+    .ac-foot { flex-direction:column; align-items:stretch; }
+    .ac-clear { justify-content:flex-start; }
+    .ac-total { text-align:right; }
+  }
 </style>
 {% if can_edit and subjects %}
 <script>
