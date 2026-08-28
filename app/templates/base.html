@@ -566,6 +566,16 @@
       main { padding: 16px 12px; }
       .card { padding: 16px 12px; }
     }
+    /* ===== มือถือ: topbar กระชับ ไม่ล้นแนวนอน ===== */
+    @media (max-width: 820px) {
+      .topbar-hide-sm { display: none !important; }   /* ซ่อน ค้นหา + ป้ายสมาชิก/ทดลอง */
+      .brandchip .avatar { display: none; }
+      .topbar { padding: 11px 12px; gap: 8px; }
+      .topbar .ttl { font-size: 16px; overflow: hidden; text-overflow: ellipsis;
+        white-space: nowrap; min-width: 0; flex: 1 1 auto; }
+      .topbar .grow { display: none; }
+      .bell-panel { right: 0; left: auto; width: 320px; max-width: calc(100vw - 20px); }
+    }
     @media (max-width: 560px) {
       main { padding: 10px 7px; }
       .card { padding: 14px 10px; margin-bottom: 14px; }
@@ -800,7 +810,7 @@
       <div class="topbar">
         <button class="hamb" onclick="openSidebar()" aria-label="เปิดเมนู"><svg class="icon"><use href="#ic-menu"/></svg></button>
         <span class="ttl">{{ self.title() }}</span>
-        <form class="topsearch" method="get" action="/search" role="search">
+        <form class="topsearch topbar-hide-sm" method="get" action="/search" role="search">
           <svg class="icon"><use href="#ic-search"/></svg>
           <input type="search" name="q" placeholder="ค้นหาทุกงาน: เรื่อง / เลขที่ / ผู้ขาย / วัสดุ" value="{{ request.query_params.get('q','') }}">
         </form>
@@ -836,7 +846,7 @@
           {# ---- ป้าย 1: สมาชิก (กดดูว่าซื้องานอะไรไปแล้ว) ---- #}
           {% if st.plan == 'member' %}
           {% set mwarn = (st.days_left is not none) and (st.days_left <= 30) %}
-          <div class="bell-wrap" style="margin-right:8px;">
+          <div class="bell-wrap topbar-hide-sm" style="margin-right:8px;">
             <button class="pill-btn" onclick="toggleBell(event)" title="งานที่ซื้อแล้ว / อายุการใช้งาน"
                style="display:inline-flex; align-items:center; gap:7px; cursor:pointer; font-family:inherit;
                       font-size:13px; font-weight:600; padding:6px 13px; border-radius:999px; white-space:nowrap;
@@ -871,7 +881,7 @@
           {# ---- ป้าย 2: โควตาทดลอง (แสดงคู่กันได้ ถ้ายังมีโควตาเหลือกับงานที่ยังไม่ได้ซื้อ) ---- #}
           {% if st.docs_left is not none and (st.plan == 'trial' or st.docs_left > 0) %}
           {% set twarn = st.docs_left <= 3 %}
-          <a href="/checkout" title="โควตาเอกสารสำหรับงานที่ยังไม่ได้ซื้อ"
+          <a href="/checkout" title="โควตาเอกสารสำหรับงานที่ยังไม่ได้ซื้อ" class="topbar-hide-sm"
              style="display:inline-flex; align-items:center; gap:7px; text-decoration:none; margin-right:8px;
                     font-size:13px; font-weight:600; padding:6px 13px; border-radius:999px; white-space:nowrap;
                     {% if twarn %}background:#fef2f2; color:#b91c1c; border:1px solid #fecaca;
