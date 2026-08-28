@@ -82,28 +82,42 @@
 <div class="card"><p class="muted" style="margin:0;">ยังไม่ได้ตั้งโครงคาบเรียน — ตั้งด้านบนก่อน แล้วค่อยกรอกตาราง</p></div>
 {% else %}
 {% if can_edit and subjects %}
-<div class="card" style="border:1px solid #ddd6fe; background:#faf8ff;">
-  <details {{ 'open' if request.query_params.get('auto') is not none }}>
-    <summary style="cursor:pointer; font-weight:700; font-size:16px; color:#5b21b6;"><svg class="icon"><use href="#ic-star"/></svg> จัดตารางอัตโนมัติ</summary>
-    <p class="muted" style="font-size:13px; margin:8px 0 10px;">ใส่จำนวน<b>คาบ/สัปดาห์</b>ของแต่ละวิชา ระบบจะจัดลงช่องว่างให้ · หลบครูที่ซ้อนกับห้องอื่น · กระจายไม่ให้ซ้ำวันเดียวกัน · <b>ไม่ทับช่องที่กรอกมือไว้</b> (ถ้าไม่ติ๊กล้าง)</p>
-    <form method="post" action="/academic/timetable/auto">
+<details class="ac-card" {{ 'open' if request.query_params.get('auto') is not none }}>
+  <summary class="ac-summary">
+    <span class="ac-badge"><svg class="icon"><use href="#ic-calendar"/></svg></span>
+    <span class="ac-titles">
+      <b>จัดตารางอัตโนมัติ</b>
+      <small>ใส่จำนวนคาบ/สัปดาห์ ระบบจัดลงช่องว่างให้ หลบครูซ้อน กระจายไม่ซ้ำวัน</small>
+    </span>
+    <svg class="icon ac-chev"><use href="#ic-arrow-right"/></svg>
+  </summary>
+  <div class="ac-body">
+    <form method="post" action="/academic/timetable/auto" id="acForm">
       <input type="hidden" name="cid" value="{{ c.id }}">
-      <div class="sched-grid">
+      <div class="ac-grid">
         {% for s in subjects %}
         {% set dft = (s.hours // 40) if s.hours else 0 %}
-        <label class="sched-item">
-          <span class="sched-name">{% if s.code %}<b>{{ s.code }}</b> {% endif %}{{ s.name }}</span>
-          <input class="sched-n" name="n_{{ s.id }}" type="number" min="0" max="20" value="{{ dft if dft > 0 else 1 }}">
-        </label>
+        <div class="ac-item">
+          <span class="ac-code">{{ s.code or '—' }}</span>
+          <span class="ac-name">{{ s.name }}</span>
+          <span class="ac-stepper">
+            <button type="button" class="ac-pm" data-step="-1" tabindex="-1">−</button>
+            <input class="ac-n" name="n_{{ s.id }}" type="number" min="0" max="20" value="{{ dft if dft > 0 else 1 }}" inputmode="numeric">
+            <button type="button" class="ac-pm" data-step="1" tabindex="-1">+</button>
+          </span>
+        </div>
         {% endfor %}
       </div>
-      <label style="display:inline-flex; align-items:center; gap:6px; margin:12px 0 0; font-size:14px;">
-        <input type="checkbox" name="clear" style="width:auto;"> ล้างตารางเดิมของห้องนี้ก่อนจัด (ไม่ติ๊ก = เติมเฉพาะช่องว่าง)
-      </label>
-      <div style="margin-top:12px;"><button class="btn" type="submit"><svg class="icon"><use href="#ic-star"/></svg> จัดตารางให้อัตโนมัติ</button></div>
+      <div class="ac-foot">
+        <label class="ac-clear">
+          <input type="checkbox" name="clear"> <span>ล้างตารางเดิมก่อนจัด <em>(ไม่ติ๊ก = เติมเฉพาะช่องว่าง)</em></span>
+        </label>
+        <span class="ac-total muted">รวม <b id="acTotal">0</b> คาบ/สัปดาห์</span>
+      </div>
+      <button class="btn" type="submit" style="margin-top:14px;"><svg class="icon"><use href="#ic-check"/></svg> จัดตารางให้อัตโนมัติ</button>
     </form>
-  </details>
-</div>
+  </div>
+</details>
 {% endif %}
 
 <div class="card">
@@ -166,14 +180,68 @@
   table.tt th, table.tt td { border:1px solid #e5e7eb; padding:6px 8px; text-align:center; vertical-align:middle; }
   table.tt th { background:#f5f3ff; font-size:13px; }
   table.tt td.clash { background:#fee2e2; }
-  /* ฟอร์มจัดตารางอัตโนมัติ: กริดวิชา + ช่องคาบชิดขวาเท่ากันทุกช่อง */
-  .sched-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:8px 12px; }
-  .sched-item { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0;
-    padding:8px 10px 8px 12px; background:#fff; border:1px solid #e9d5ff; border-radius:9px; font-size:13.5px; }
-  .sched-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#334155; }
-  .sched-n { flex:0 0 54px; width:54px; text-align:center; font-weight:700; }
-  @media (max-width:560px){ .sched-grid { grid-template-columns:1fr 1fr; } }
+  /* ===== การ์ดจัดตารางอัตโนมัติ (ดีไซน์ใหม่) ===== */
+  .ac-card { border:1px solid #e5e0fb; border-radius:16px; background:#fff; margin-bottom:22px;
+    box-shadow:0 4px 16px rgba(79,70,229,.06); overflow:hidden; }
+  .ac-card[open] { box-shadow:0 8px 26px rgba(79,70,229,.1); }
+  .ac-summary { list-style:none; cursor:pointer; display:flex; align-items:center; gap:14px;
+    padding:16px 18px; background:linear-gradient(135deg,#f5f3ff,#eef2ff); }
+  .ac-summary::-webkit-details-marker { display:none; }
+  .ac-badge { flex:0 0 auto; width:42px; height:42px; border-radius:12px; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--brand),var(--brand-dark)); color:#fff; box-shadow:0 3px 8px rgba(79,70,229,.35); }
+  .ac-badge .icon { width:22px; height:22px; }
+  .ac-titles { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .ac-titles b { font-size:16.5px; color:#3730a3; }
+  .ac-titles small { font-size:12.5px; color:#6b7280; }
+  .ac-chev { width:18px; height:18px; color:#818cf8; transform:rotate(90deg); transition:transform .2s ease; }
+  .ac-card[open] .ac-chev { transform:rotate(-90deg); }
+  .ac-body { padding:16px 18px 18px; }
+  .ac-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:10px; }
+  .ac-item { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:11px;
+    background:#faf9ff; border:1px solid #eceafe; }
+  .ac-code { flex:0 0 auto; font-size:11px; font-weight:700; color:#6d28d9; background:#ede9fe;
+    padding:3px 7px; border-radius:6px; white-space:nowrap; }
+  .ac-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    font-size:13.5px; color:#334155; }
+  .ac-stepper { flex:0 0 auto; display:inline-flex; align-items:center; border:1.5px solid #ddd6fe;
+    border-radius:9px; overflow:hidden; background:#fff; }
+  .ac-pm { border:none; background:#f5f3ff; color:#6d28d9; width:26px; height:32px; font-size:17px;
+    font-weight:700; cursor:pointer; line-height:1; }
+  .ac-pm:hover { background:#ede9fe; }
+  .ac-n { width:40px; height:32px; border:none; text-align:center; font-weight:700; font-size:15px;
+    color:#3730a3; -moz-appearance:textfield; }
+  .ac-n::-webkit-outer-spin-button, .ac-n::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  .ac-foot { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-top:14px; }
+  .ac-clear { display:inline-flex; align-items:center; gap:8px; font-size:14px; margin:0; cursor:pointer; }
+  .ac-clear em { color:#94a3b8; font-style:normal; font-size:12.5px; }
+  .ac-total { font-size:14px; } .ac-total b { color:var(--brand-dark); font-size:16px; }
+  @media (max-width:560px){ .ac-grid { grid-template-columns:1fr; } }
 </style>
+{% if can_edit and subjects %}
+<script>
+  // จัดตารางอัตโนมัติ: ปุ่ม +/- และรวมคาบสด ๆ
+  (function(){
+    var form = document.getElementById('acForm');
+    if (!form) return;
+    var totalEl = document.getElementById('acTotal');
+    function clamp(n){ return Math.max(0, Math.min(20, n)); }
+    function recalc(){
+      var t = 0;
+      form.querySelectorAll('.ac-n').forEach(function(i){ t += (parseInt(i.value,10) || 0); });
+      totalEl.textContent = t;
+    }
+    form.querySelectorAll('.ac-pm').forEach(function(b){
+      b.addEventListener('click', function(){
+        var inp = b.parentNode.querySelector('.ac-n');
+        inp.value = clamp((parseInt(inp.value,10) || 0) + parseInt(b.dataset.step,10));
+        recalc();
+      });
+    });
+    form.addEventListener('input', recalc);
+    recalc();
+  })();
+</script>
+{% endif %}
 {% if can_edit and c %}
 <script>
   var TT_BUSY = {{ busy|tojson }};             // {teacherId: {"day_pid": "ห้อง (วิชา)"}}
