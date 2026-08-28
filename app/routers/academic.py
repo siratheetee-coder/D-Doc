@@ -167,6 +167,46 @@ def _att_ok(sc, cid, mode, sid) -> bool:
 
 
 # ---------------- หน้าหลัก ----------------
+def _teacher_todo(sc, db, y, term):
+    """งานค้างของครู: แต่ละวิชา×ห้องที่สอน -> คะแนน/เช็กชื่อเดือนนี้/คุณลักษณะ/อ่านเขียน ทำแล้วยัง"""
+    from app.models import (AcadScore, AcadCharEval, AcadReadEval, AcadAttendance)
+    cm = _current_month()
+    items = []
+    for (cid, sid) in sc.teach_pairs:
+        c, subj = db.get(AcadClass, cid), db.get(AcadSubject, sid)
+        if not c or not subj:
+            continue
+        sids = [s.id for s in c.students]
+        sec = is_secondary(c.level)
+        tt = (subj.term if (sec and subj.term in (1, 2)) else term)
+        etf = 0 if sec else term
+        def has(model, **kw):
+            if not sids:
+                return False
+            q = db.query(model).filter(model.subject_id == sid,
+                                       model.acad_student_id.in_(sids))
+            for k, v in kw.items():
+                q = q.filter(getattr(model, k) == v)
+            return q.first() is not None
+        grade = bool(sids) and db.query(AcadScore).filter(
+            AcadScore.subject_id == sid, AcadScore.term == tt,
+            AcadScore.acad_student_id.in_(sids), AcadScore.score.isnot(None)).first() is not None
+        att = bool(sids) and db.query(AcadAttendance).filter(
+            AcadAttendance.subject_id == sid, AcadAttendance.month == cm,
+            AcadAttendance.acad_student_id.in_(sids)).first() is not None
+        items.append({
+            "cid": cid, "sid": sid, "term": tt,
+            "class": _class_label(c), "subject": (subj.code + " " if subj.code else "") + subj.name,
+            "grade": grade, "att": att,
+            "char": has(AcadCharEval, term=etf), "read": has(AcadReadEval, term=etf),
+        })
+    items.sort(key=lambda x: (x["class"], x["subject"]))
+    homerooms = [(_class_label(c), c.id) for c in
+                 db.query(AcadClass).filter(AcadClass.id.in_(sc.homeroom_ids or [])).all()]
+    return {"items": items, "month": cm, "month_name": TH_MONTH_FULL.get(cm, ""),
+            "homerooms": sorted(homerooms)}
+
+
 @router.get("/academic", response_class=HTMLResponse)
 def academic_home(request: Request, db: Session = Depends(get_db),
                   year: int | None = None, term: int | None = None):
@@ -181,6 +221,7 @@ def academic_home(request: Request, db: Session = Depends(get_db),
     n_subjects = db.query(AcadSubject).filter_by(year=y).count()
     if sc.is_teacher:
         n_subjects = len(sc.subject_ids)
+    todo = _teacher_todo(sc, db, y, t) if sc.is_teacher else None
     return templates.TemplateResponse("academic_home.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "n_classes": len(classes), "n_students": n_students,
@@ -188,6 +229,7 @@ def academic_home(request: Request, db: Session = Depends(get_db),
         "progress": progress, "is_exit_level": is_exit_level,
         "term": t, "term_label": term_label, "is_teacher": sc.is_teacher,
         "att_mode": ("subject" if (sc.is_teacher and sc.teach_pairs) else "overall"),
+        "todo": todo,
     })
 
 

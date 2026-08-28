@@ -28,7 +28,62 @@
   {% endif %}
 {% endmacro %}
 
-{% if progress %}
+{% if is_teacher and todo %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> งานของฉัน</h2>
+    <div class="seg">
+      <a class="seg-btn {{ 'on' if term==1 }}" href="/academic?term=1">ภาคเรียนที่ 1</a>
+      <a class="seg-btn {{ 'on' if term==2 }}" href="/academic?term=2">ภาคเรียนที่ 2</a>
+    </div>
+  </div>
+  <p class="muted" style="font-size:13px; margin:4px 0 10px;">สรุปงานของ<b>{{ term_label(term) }}</b> · <span class="ok">✓ = ทำแล้ว</span> · <span class="no">● = ยัง</span> · คลิกเพื่อไปทำ</p>
+  {% if todo['items'] %}
+  <div class="table-wrap">
+  <table class="todo-table">
+    <thead><tr><th style="text-align:left;">วิชา (ห้อง)</th><th>คะแนน ปพ.5</th><th>เช็กชื่อ {{ todo['month_name'] }}</th><th>คุณลักษณะ</th><th>อ่านเขียน</th></tr></thead>
+    <tbody>
+    {% macro tcell(done, href) %}<td class="center {{ 'td-ok' if done else 'td-no' }}"><a href="{{ href }}">{{ '✓' if done else '●' }}</a></td>{% endmacro %}
+    {% for it in todo['items'] %}
+      <tr>
+        <td style="text-align:left; white-space:nowrap;"><b>{{ it.subject }}</b> <span class="muted" style="font-size:12px;">({{ it.class }})</span></td>
+        {{ tcell(it.grade, '/academic/grades?cid=' ~ it.cid ~ '&sid=' ~ it.sid ~ '&term=' ~ it.term) }}
+        {{ tcell(it.att, '/academic/attendance?mode=subject&cid=' ~ it.cid ~ '&sid=' ~ it.sid ~ '&month=' ~ todo['month']) }}
+        {{ tcell(it.char, '/academic/assess?cid=' ~ it.cid ~ '&sid=' ~ it.sid ~ '&kind=char') }}
+        {{ tcell(it.read, '/academic/assess?cid=' ~ it.cid ~ '&sid=' ~ it.sid ~ '&kind=read') }}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted" style="margin:0;">ยังไม่มีวิชาที่สอน — ให้เจ้าหน้าที่กำหนดครูผู้สอนในหน้าห้องเรียนก่อน</p>
+  {% endif %}
+  {% if todo['homerooms'] %}
+  <p style="font-size:13.5px; margin:12px 0 0;"><b>ห้องที่ประจำชั้น (ปพ.6):</b>
+    {% for hl, hid in todo['homerooms'] %}<a class="hr-chip" href="/academic/eval?cid={{ hid }}">{{ hl }}</a>{% endfor %}
+  </p>
+  {% endif %}
+</div>
+<style>
+  .todo-table{ width:100%; border-collapse:collapse; font-size:14.5px; }
+  .todo-table th,.todo-table td{ border:1px solid #eee; padding:9px 10px; text-align:center; }
+  .todo-table th{ background:#f5f3ff; font-size:13.5px; }
+  .todo-table a{ text-decoration:none; display:block; font-size:17px; font-weight:800; }
+  .td-ok{ background:#dcfce7; } .td-ok a{ color:#166534; }
+  .td-no{ background:#fef2f2; } .td-no a{ color:#dc2626; }
+  .seg{ display:inline-flex; border:1px solid #ddd6fe; border-radius:8px; overflow:hidden; }
+  .seg-btn{ padding:5px 12px; font-size:13px; text-decoration:none; color:#6d28d9; background:#fff; }
+  .seg-btn.on{ background:#6d28d9; color:#fff; font-weight:600; }
+  .seg-btn + .seg-btn{ border-left:1px solid #ddd6fe; }
+  .ok{ color:#166534; font-weight:600; } .no{ color:#dc2626; font-weight:600; }
+  .hr-chip{ display:inline-block; margin:0 6px 4px 0; padding:4px 12px; border:1px solid #ddd6fe;
+    border-radius:20px; background:#f5f3ff; color:#6d28d9; text-decoration:none; font-weight:600; font-size:13px; }
+  .hr-chip:hover{ background:#6d28d9; color:#fff; }
+</style>
+{% endif %}
+
+{% if progress and not is_teacher %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
     <h2 style="margin:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> ความคืบหน้าการประเมิน</h2>
