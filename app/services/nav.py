@@ -86,3 +86,32 @@ def nav_holidays():
     """ข้อมูลวันหยุดสำหรับปฏิทินลอย (ทุกหน้า) - ปีปัจจุบัน -1/+2 (cache ไว้)"""
     y = datetime.now().year
     return _holidays_cached((y - 1, y, y + 1, y + 2))
+
+
+# ==================== แจ้งเตือนรายบุคคล (กระดิ่ง) ====================
+def create_notice(db, person_id, title, reason="", link="", level="info"):
+    """สร้างแจ้งเตือนให้บุคคล (ผู้เรียกเป็นคน commit เอง) - ข้ามถ้าไม่มี person_id"""
+    if not person_id:
+        return
+    from app.models import Notification
+    db.add(Notification(person_id=person_id, title=title, reason=reason, link=link, level=level))
+
+
+def my_notices(person_id):
+    """แจ้งเตือนที่ยังไม่อ่านของบุคคลนี้ (สำหรับกระดิ่ง) - รูปแบบเดียวกับ nav_alerts"""
+    if not person_id:
+        return []
+    from app.tenancy import current_school_id, session_for
+    from app.models import Notification
+    sid = current_school_id.get()
+    if sid is None:
+        return []
+    db = session_for(sid)
+    try:
+        rows = (db.query(Notification)
+                .filter(Notification.person_id == person_id, Notification.read_at.is_(None))
+                .order_by(Notification.created_at.desc()).limit(30).all())
+        return [{"id": n.id, "title": n.title, "reason": n.reason,
+                 "level": n.level or "info", "href": f"/notices/{n.id}"} for n in rows]
+    finally:
+        db.close()

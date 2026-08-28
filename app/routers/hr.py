@@ -389,11 +389,17 @@ def leave_request_decide(lid: int, request: Request, db: Session = Depends(get_d
                               start_date=r.start_date, end_date=r.end_date,
                               days=r.days or 0, reason=r.reason or "", contact=r.contact or "")
             db.add(rec); db.flush(); r.record_id = rec.id
+        res = "อนุมัติ" if status == "approved" else "ไม่อนุมัติ"
+        from app.services.nav import create_notice
+        create_notice(db, r.person_id, f"ผลใบลา: {res}",
+                      reason=f"{r.leave_type} {be_date_input(r.start_date)}-{be_date_input(r.end_date)}"
+                             + (f" · {r.comment}" if r.comment else ""),
+                      link="/academic/my-leave",
+                      level=("info" if status == "approved" else "warn"))
         db.commit()
         # แจ้งผลกลับครูทางอีเมล (ถ้ามีอีเมลในทะเบียนบุคลากร)
         person = db.get(Person, r.person_id)
         if person and (person.email or "").strip():
-            res = "อนุมัติ" if status == "approved" else "ไม่อนุมัติ"
             _notify(person.email, f"[ผลใบลา] {r.leave_type} - {res}",
                     f"<p>ใบลา ({r.leave_type} {be_date_input(r.start_date)} ถึง {be_date_input(r.end_date)}) "
                     f"ได้รับการพิจารณาแล้ว: <b>{res}</b></p>"

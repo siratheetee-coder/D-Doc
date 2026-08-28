@@ -803,7 +803,9 @@
           <input type="search" name="q" placeholder="ค้นหาทุกงาน: เรื่อง / เลขที่ / ผู้ขาย / วัสดุ" value="{{ request.query_params.get('q','') }}">
         </form>
         <span class="grow"></span>
-        {% set bell_alerts = nav_alerts() %}   {# ชื่อเฉพาะ กัน {% block content %} ของหน้าลูกที่ส่ง alerts มาเองโดนทับ #}
+        {# แจ้งเตือนส่วนตัว (ครู) + งานพัสดุ (เจ้าหน้าที่/เจ้าของ ไม่ใช่ครู) #}
+        {% set _is_teacher = request.session.get('person_id') and not request.session.get('owner') %}
+        {% set bell_alerts = my_notices(request.session.get('person_id')) + ([] if _is_teacher else nav_alerts()) %}
         <div class="bell-wrap">
           <button class="bell" onclick="toggleBell(event)" aria-label="การแจ้งเตือน">
             <svg class="icon"><use href="#ic-bell"/></svg>

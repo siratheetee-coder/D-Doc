@@ -16,7 +16,7 @@ from app.services.asset_utils import (
     accumulated_depreciation, net_book_value, annual_depreciation, material_balance,
     account_balance, account_balance_year, opening_for,
 )
-from app.services.nav import nav_alerts, nav_holidays
+from app.services.nav import nav_alerts, nav_holidays, my_notices
 from app.services.budget import project_budget, project_spent, project_remaining
 from app.modules import MODULE_KEYS, MODULE_LABELS, MODULE_PRICE_KEY, module_for_path
 from app.seller_config import pricing_context
@@ -78,7 +78,7 @@ MODULES_LIVE = {"procurement": True, "admin": True, "finance": True, "lunch": Tr
 # global helper ใช้ได้ทุกเทมเพลต
 templates.env.globals.update(
     thai_date=thai_date, bahttext=bahttext, be_date=be_date_input,
-    nav_alerts=nav_alerts, nav_holidays=nav_holidays,
+    nav_alerts=nav_alerts, nav_holidays=nav_holidays, my_notices=my_notices,
     accum_dep=accumulated_depreciation, nbv=net_book_value,
     annual_dep=annual_depreciation, mat_balance=material_balance,
     acct_balance=account_balance, acct_balance_year=account_balance_year,

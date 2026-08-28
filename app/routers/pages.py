@@ -445,6 +445,20 @@ def settings_save(
     return RedirectResponse("/settings?saved=1", status_code=303)
 
 
+@router.get("/notices/{nid}")
+def notice_open(nid: int, request: Request, db: Session = Depends(get_db)):
+    """เปิดแจ้งเตือน -> ทำเครื่องหมายอ่านแล้ว + ไปหน้าเป้าหมาย"""
+    from app.models import Notification
+    from datetime import datetime as _dt
+    n = db.get(Notification, nid)
+    dest = "/"
+    if n and n.person_id == request.session.get("person_id"):
+        if not n.read_at:
+            n.read_at = _dt.now(); db.commit()
+        dest = n.link or "/"
+    return RedirectResponse(dest, status_code=303)
+
+
 # ---------------- วิธีใช้งาน (คู่มือในแอป) ----------------
 def _youtube_id(url: str) -> str:
     """ดึงรหัสวิดีโอ YouTube จากลิงก์หลายรูปแบบ (watch?v= / youtu.be / embed / shorts) คืน '' ถ้าไม่พบ"""

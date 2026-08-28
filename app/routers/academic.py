@@ -369,11 +369,16 @@ def lesson_plan_review(request: Request, plan_id: int, db: Session = Depends(get
         p.status = status if status in ("reviewed", "revise") else "reviewed"
         p.comment = (comment or "").strip()
         p.reviewed_at = _dt.now()
+        res = "ผ่าน" if p.status == "reviewed" else "ให้แก้ไข"
+        from app.services.nav import create_notice
+        create_notice(db, p.person_id, f"ผลตรวจแผนการสอน: {res}",
+                      reason=f"{p.title}" + (f" · {p.comment}" if p.comment else ""),
+                      link="/academic/lesson-plans",
+                      level=("info" if p.status == "reviewed" else "warn"))
         db.commit()
         # แจ้งผลกลับครูทางอีเมล (ถ้ามีอีเมลในทะเบียนบุคลากร)
         teacher = db.get(Person, p.person_id)
         if teacher and (teacher.email or "").strip():
-            res = "ผ่าน" if p.status == "reviewed" else "ให้แก้ไข"
             _send_notice(teacher.email, f"[ผลตรวจแผน] {p.title} - {res}",
                          f"<p>แผนการสอน <b>{p.title}</b> ได้รับการตรวจแล้ว: <b>{res}</b></p>"
                          f"<p>ความเห็นหัวหน้าฝ่าย: {p.comment or '-'}</p>")

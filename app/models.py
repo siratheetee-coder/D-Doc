@@ -1488,6 +1488,20 @@ class LessonPlan(Base):
     teacher = relationship("Person")
 
 
+class Notification(Base):
+    """แจ้งเตือนรายบุคคล (กระดิ่ง) - ผลตรวจแผน/อนุมัติใบลา-ไปราชการ ฯลฯ"""
+    __tablename__ = "notification"
+
+    id = Column(Integer, primary_key=True)
+    person_id = Column(Integer, ForeignKey("person.id"), nullable=False)  # ผู้รับแจ้ง
+    title = Column(String, default="")
+    reason = Column(String, default="")
+    level = Column(String, default="info")   # info / warn / urgent
+    link = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+    read_at = Column(DateTime, nullable=True)
+
+
 class LeaveRequest(Base):
     """ครู/บุคลากรส่งใบลาในระบบ ให้หัวหน้าฝ่ายบุคคลอนุมัติ"""
     __tablename__ = "leave_request"
