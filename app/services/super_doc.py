@@ -127,15 +127,31 @@ def _legend(doc, rows, ncol, size=15):
     return t
 
 
-def _doc(top=1.5):
+def _doc(top=1.5, bottom=1.5):
     doc = Document()
     sec = doc.sections[0]
     sec.page_width, sec.page_height = Cm(21.59), Cm(27.94)     # Letter (ตามต้นฉบับ)
     sec.left_margin = sec.right_margin = Cm(2.54)
-    sec.top_margin = Cm(top); sec.bottom_margin = Cm(1.5)
+    sec.top_margin = Cm(top); sec.bottom_margin = Cm(bottom)
     base = doc.styles["Normal"]; base.font.name = FONT; base.font.size = Pt(16)
     base._element.rPr.rFonts.set(qn("w:cs"), FONT)
     return doc
+
+
+def _no_split(table):
+    """กันไม่ให้แถวตารางถูกตัดแบ่งข้ามหน้า (ทั้งแถวไปอยู่หน้าเดียว)"""
+    from docx.oxml import OxmlElement
+    for row in table.rows:
+        row._tr.get_or_add_trPr().append(OxmlElement("w:cantSplit"))
+
+
+def _compact(table, line_pt=16):
+    """บีบระยะบรรทัดในเซลล์ให้ตารางเตี้ยลง (พอดีหน้าเดียว)"""
+    for row in table.rows:
+        for c in row.cells:
+            for pp in c.paragraphs:
+                pf = pp.paragraph_format
+                pf.space_before = Pt(0); pf.space_after = Pt(0); pf.line_spacing = Pt(line_pt)
 
 
 def _logo(doc, school, *, height_cm=1.9, after=2):
@@ -195,8 +211,8 @@ def render_classroom_visit(school, record) -> str:
     from app.thai_utils import thai_date
     person = record.person
     scores = _parse_scores(record.scores, 10)
-    doc = _doc(top=1.5)
-    _logo(doc, school)
+    doc = _doc(top=1.4, bottom=1.6)
+    _logo(doc, school, height_cm=1.4, after=4)
 
     _p(doc, "แบบการเยี่ยมชั้นเรียน", align="center", bold=True, after=0)
     _p(doc, f"ภาคเรียนที่ {_dots(record.term, 8)} ปีการศึกษา {_dots(record.year, 14)}",
@@ -216,7 +232,7 @@ def render_classroom_visit(school, record) -> str:
             f"( {CHK} ) ในแบบประเมินทุกข้อ", align="justify")
     _legend(doc, [["5 = ปฏิบัติได้ระดับดีมาก", "4 = ปฏิบัติได้ระดับดี", "3 = ปฏิบัติได้ระดับปานกลาง"],
                   ["2 = ปฏิบัติได้ระดับพอใช้", "1 = ควรปรับปรุงแก้ไข", ""]], 3)
-    _p(doc, "", after=2)
+    _p(doc, "", after=6)                       # เว้นช่องเหนือตาราง
 
     # ตาราง 14 แถว x 8 คอลัมน์
     t = doc.add_table(rows=2 + 10 + 2, cols=8); t.style = "Table Grid"
@@ -234,13 +250,17 @@ def render_classroom_visit(school, record) -> str:
         _cell(mv, ("%.2f" % avg) if avg is not None else "", bold=True)
         _cell(cs[7], "")
     _widths_visit(t)
+    _compact(t)                                # บีบแถวให้ครบทั้งตารางอยู่หน้าเดียว
+    _no_split(t)                               # กันแถวตารางแตกข้ามหน้า
 
-    _p(doc, "ตอนที่ 3 ข้อเสนอแนะ", bold=True, before=6)
-    _suggest_lines(doc, record.suggestion, 6, indent=1.0)
+    _p(doc, "ตอนที่ 3 ข้อเสนอแนะ", bold=True, before=10)
+    _suggest_lines(doc, record.suggestion, 6)
 
-    _p(doc, f"\t\t\t\t(ลงชื่อ) {'.' * 40} ผู้เยี่ยมชั้นเรียน", before=6)
+    # เว้นพื้นที่ให้เซ็น
+    _p(doc, "", after=0)
+    _p(doc, f"\t\t\t\t(ลงชื่อ) {'.' * 40} ผู้เยี่ยมชั้นเรียน", before=10)
     _p(doc, f"\t\t\t\t         {_paren(record.visitor_name, 40)}")
-    _p(doc, f"\t\t\t\t         ตำแหน่ง {'.' * 35}", after=8)
+    _p(doc, f"\t\t\t\t         ตำแหน่ง {'.' * 35}", after=10)
 
     _p(doc, "เกณฑ์การแปลความหมาย")
     for rng, mean in (("4.51 – 5.00", "ปฏิบัติได้ระดับดีมาก"), ("3.51 – 4.50", "ปฏิบัติได้ระดับดี"),
@@ -335,6 +355,7 @@ def render_supervision(school, record) -> str:
         mv = mv.merge(cs[j])
     _cell(mv, ("%.2f" % allv) if allv is not None else "", bold=True)
     _widths_sup(t)
+    _no_split(t)                               # กันแถวตารางแตกข้ามหน้า
 
     # ตอนที่ 3 ขึ้นหน้าใหม่
     _p(doc, "ตอนที่ 3 ผู้นิเทศบันทึกเพิ่มเติมการนิเทศการจัดการเรียนรู้", bold=True, after=4, page_break=True)
