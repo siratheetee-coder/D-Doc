@@ -73,7 +73,7 @@
       <button type="button" class="tseg-btn" data-term="2">ภาคเรียน 2</button>
       <button type="button" class="tseg-btn" data-term="0">ทั้งปี</button>
     </div>
-    <a class="btn soft" id="printTermBtn" href="#" style="display:none;"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์เวลาเรียนทั้งภาคเรียน</a>
+    <a class="btn" id="printTermBtn" href="#" style="display:none;"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์เวลาเรียนทั้งภาคเรียน</a>
   </div>
 
   <form method="post" action="/academic/attendance/save">
@@ -144,7 +144,7 @@
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px;">
       <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกเวลาเรียน</button>
-      <button class="btn soft" type="submit" formaction="/academic/attendance/fill-year" formnovalidate
+      <button class="btn green" type="submit" formaction="/academic/attendance/fill-year" formnovalidate
               onclick="return confirm('ทำเครื่องหมายว่านักเรียนทุกคนมาเรียนครบทุกวันเปิดเรียนทั้งปี?\n(เดือนที่ตั้งปฏิทินไว้จะเช็กชื่อรายวันให้ครบ · ข้อมูลเช็กชื่อรายวันเดิมจะถูกแทนที่)');">
         ✔ ทุกคนมาเรียนทุกวัน</button>
     </div>
@@ -156,10 +156,12 @@
 <style>
   #attTable.hide-months .mcol { display: none; }
   .show-months-btn { display:inline-flex; align-items:center; gap:7px; margin:0 0 10px; font-size:14px;
-    padding:8px 14px; border:1.5px solid var(--brand); border-radius:9px; background:var(--brand-50, #f5f3ff);
-    color:var(--brand-dark); font-weight:600; }
-  .show-months-btn:hover { background:var(--brand); color:#fff; }
-  .show-months-btn:hover .icon { color:#fff; }
+    padding:9px 15px; border:none; border-radius:9px;
+    background:linear-gradient(135deg, var(--brand), var(--brand-dark)); color:#fff; font-weight:600;
+    box-shadow:0 3px 10px rgba(79,70,229,.28); transition:box-shadow .16s ease, transform .1s ease; }
+  .show-months-btn:hover { box-shadow:0 6px 16px rgba(79,70,229,.36); transform:translateY(-1px); }
+  .show-months-btn .icon { color:#fff; }
+  .show-months-btn input { accent-color:#fff; }
   .month-hd { display:inline-block; padding:3px 9px; border:1px solid var(--brand); border-radius:7px;
     background:#fff; color:var(--brand-dark); font-weight:700; text-decoration:none; font-size:13px; }
   .month-hd:hover { background:var(--brand); color:#fff; }
@@ -167,8 +169,8 @@
   #attTable.show-t1 .m-t2 { display:none; }
   #attTable.show-t2 .m-t1 { display:none; }
   .term-seg { display:inline-flex; border:1.5px solid var(--brand); border-radius:9px; overflow:hidden; }
-  .tseg-btn { padding:8px 13px; font-size:13px; border:none; background:#fff; color:var(--brand-dark);
-    cursor:pointer; font-weight:600; }
+  .tseg-btn { padding:9px 14px; font-size:14px; border:none; background:#fff; color:var(--brand-dark);
+    cursor:pointer; font-weight:600; font-family:inherit; }
   .tseg-btn + .tseg-btn { border-left:1px solid var(--brand-lite); }
   .tseg-btn.on { background:var(--brand); color:#fff; }
   /* ช่องที่ยอดยังไม่ครบ: กระพริบแดงจนกว่าจะกรอกให้ครบ */
