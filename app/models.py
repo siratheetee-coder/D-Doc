@@ -1547,3 +1547,48 @@ class TravelRequest(Base):
     decided_at = Column(DateTime, nullable=True)
 
     person = relationship("Person")
+
+
+class ClassroomVisit(Base):
+    """แบบการเยี่ยมชั้นเรียน (ผอ. เยี่ยม -> ประเมิน 10 ข้อ + ข้อเสนอแนะ) - งานนิเทศภายใน"""
+    __tablename__ = "classroom_visit"
+
+    id = Column(Integer, primary_key=True)
+    person_id = Column(Integer, ForeignKey("person.id"), nullable=True)  # ผู้รับผิดชอบชั้นเรียน
+    term = Column(Integer, default=1)
+    year = Column(Integer)
+    subject_group = Column(String, default="")     # กลุ่มสาระการเรียนรู้/วิชา
+    topic = Column(String, default="")             # เรื่องที่สอน
+    grade_level = Column(String, default="")       # ระดับชั้น (เช่น ป.3)
+    period = Column(String, default="")            # คาบที่
+    visit_time = Column(String, default="")        # เวลา
+    visit_date = Column(Date, nullable=True)
+    visitor_name = Column(String, default="")      # ผู้เยี่ยมชั้นเรียน (ปริยาย = ผอ.)
+    scores = Column(String, default="")            # คะแนน 10 ข้อ (1-5) คั่นจุลภาค
+    suggestion = Column(Text, default="")          # ตอนที่ 3 ข้อเสนอแนะ
+    created_at = Column(DateTime, default=datetime.now)
+
+    person = relationship("Person")
+
+
+class Supervision(Base):
+    """แบบบันทึกการนิเทศการจัดการเรียนรู้ (25 ข้อ 4 ด้าน + บันทึก 4 หัวข้อ) - งานนิเทศภายใน"""
+    __tablename__ = "supervision"
+
+    id = Column(Integer, primary_key=True)
+    person_id = Column(Integer, ForeignKey("person.id"), nullable=True)  # ผู้รับการนิเทศ
+    subject_group = Column(String, default="")     # กลุ่มสาระการเรียนรู้
+    subject_taught = Column(String, default="")    # รายวิชาที่สอน
+    subject_code = Column(String, default="")      # รหัสวิชา
+    grade_class = Column(String, default="")       # ชั้น
+    round_no = Column(Integer, default=1)          # นิเทศครั้งที่
+    sup_date = Column(Date, nullable=True)         # วัน เดือน ปี ที่รับการนิเทศ
+    scores = Column(String, default="")            # คะแนน 25 ข้อ (1-5) คั่นจุลภาค
+    note_found = Column(Text, default="")          # สิ่งที่พบจากการสังเกต
+    note_reflect = Column(Text, default="")        # การสะท้อนความคิด
+    note_impress = Column(Text, default="")        # ความประทับใจ/จุดเด่น
+    note_improve = Column(Text, default="")        # สิ่งที่ควรปรับปรุง
+    supervisor_name = Column(String, default="")   # ผู้นิเทศ (ปริยาย = ผอ.)
+    created_at = Column(DateTime, default=datetime.now)
+
+    person = relationship("Person")

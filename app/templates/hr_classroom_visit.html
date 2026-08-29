@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}แบบการเยี่ยมชั้นเรียน{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานบุคคล · การนิเทศภายใน</div>
+    <span class="hero-title">แบบการเยี่ยมชั้นเรียน</span>
+    <div class="hero-meta">{{ school.name or "" }}</div>
+  </div>
+</div>
+{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+
+<div class="card">
+  <h2 style="margin-top:0;">{{ 'แก้ไขแบบการเยี่ยมชั้นเรียน' if rec else 'บันทึกการเยี่ยมชั้นเรียน (ใหม่)' }}</h2>
+  <form method="post" action="/hr/classroom-visit/save">
+    {% if rec %}<input type="hidden" name="id" value="{{ rec.id }}">{% endif %}
+    <div class="row" style="align-items:flex-end;">
+      <div style="flex:2;"><label>ครูผู้รับผิดชอบชั้นเรียน *</label>
+        <select name="person_id" required>
+          <option value="">— เลือกครู —</option>
+          {% for p in persons %}<option value="{{ p.id }}" {{ 'selected' if rec and rec.person_id==p.id }}>{{ p.name }}</option>{% endfor %}
+        </select></div>
+      <div><label>ภาคเรียน</label><input name="term" value="{{ rec.term if rec else 1 }}" style="width:70px;"></div>
+      <div><label>ปีการศึกษา</label><input name="year" value="{{ rec.year if rec and rec.year else '' }}" placeholder="2569" style="width:90px;"></div>
+    </div>
+    <div class="row" style="align-items:flex-end; margin-top:10px;">
+      <div style="flex:1.5;"><label>กลุ่มสาระการเรียนรู้/วิชา</label><input name="subject_group" value="{{ rec.subject_group if rec else '' }}"></div>
+      <div style="flex:1.5;"><label>เรื่องที่สอน</label><input name="topic" value="{{ rec.topic if rec else '' }}"></div>
+      <div><label>ระดับชั้น</label><input name="grade_level" value="{{ rec.grade_level if rec else '' }}" placeholder="ป.3" style="width:90px;"></div>
+    </div>
+    <div class="row" style="align-items:flex-end; margin-top:10px;">
+      <div><label>วันที่เยี่ยม</label><input name="visit_date" value="{{ be_date(rec.visit_date) if rec and rec.visit_date else '' }}" placeholder="วว/ดด/ปปปป (พ.ศ.)"></div>
+      <div><label>คาบที่</label><input name="period" value="{{ rec.period if rec else '' }}" style="width:80px;"></div>
+      <div><label>เวลา</label><input name="visit_time" value="{{ rec.visit_time if rec else '' }}" placeholder="09.30-10.30" style="width:140px;"></div>
+      <div style="flex:1.5;"><label>ผู้เยี่ยมชั้นเรียน</label><input name="visitor_name" value="{{ rec.visitor_name if rec else director }}" placeholder="ชื่อ ผอ. / ผู้เยี่ยม"></div>
+    </div>
+
+    <h3 style="margin:16px 0 4px;">ตอนที่ 2 การประเมิน (10 ข้อ)</h3>
+    <p class="muted" style="font-size:13px; margin:0 0 8px;">5 = ดีมาก · 4 = ดี · 3 = ปานกลาง · 2 = พอใช้ · 1 = ควรปรับปรุง</p>
+    <div class="table-wrap">
+    <table class="rate-tbl">
+      <thead><tr><th>ที่</th><th style="text-align:left;">รายการ</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th></tr></thead>
+      <tbody>
+      {% for it in items %}
+        {% set i = loop.index %}
+        <tr>
+          <td class="center">{{ i }}</td>
+          <td>{{ it }}</td>
+          {% for v in [5,4,3,2,1] %}
+          <td class="center"><input type="radio" name="score_{{ i }}" value="{{ v }}" {{ 'checked' if scores and scores|length>=i and scores[i-1]==v|string }}></td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+
+    <h3 style="margin:16px 0 4px;">ตอนที่ 3 ข้อเสนอแนะ</h3>
+    <textarea name="suggestion" rows="4" style="width:100%;" placeholder="ข้อเสนอแนะจากการเยี่ยมชั้นเรียน">{{ rec.suggestion if rec else '' }}</textarea>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+      <button class="btn green" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
+      {% if rec %}<a class="btn" href="/hr/classroom-visit/{{ rec.id }}/print.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์เอกสาร</a>
+      <a class="btn soft" href="/hr/classroom-visit">+ ทำรายการใหม่</a>{% endif %}
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;">รายการที่บันทึกไว้ {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }})</span>{% endif %}</h2>
+  {% if rows %}
+  <div class="table-wrap">
+  <table class="stack-sm">
+    <thead><tr><th>ครู</th><th>วิชา</th><th>เรื่องที่สอน</th><th>วันที่</th><th>เอกสาร</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td data-label="ครู" style="font-weight:600;">{{ r.person.name if r.person else '-' }}</td>
+        <td data-label="วิชา">{{ r.subject_group or '-' }}</td>
+        <td data-label="เรื่องที่สอน">{{ r.topic or '-' }}</td>
+        <td data-label="วันที่" style="white-space:nowrap;">{{ be_date(r.visit_date) if r.visit_date else '-' }}</td>
+        <td data-label="เอกสาร" class="stack-full" style="white-space:nowrap;">
+          <a class="btn sm soft" href="/hr/classroom-visit?edit={{ r.id }}">แก้ไข</a>
+          <a class="btn sm" href="/hr/classroom-visit/{{ r.id }}/print.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์</a>
+          <form method="post" action="/hr/classroom-visit/{{ r.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบรายการนี้?');"><button class="btn sm gray" type="submit">ลบ</button></form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted" style="margin:0;">ยังไม่มีรายการ</p>{% endif %}
+</div>
+
+<style>
+  table.rate-tbl th, table.rate-tbl td { border:1px solid #e5e7eb; padding:6px 8px; vertical-align:middle; }
+  table.rate-tbl th { background:#f5f3ff; font-size:13px; }
+  table.rate-tbl th:nth-child(n+3), table.rate-tbl td.center { width:42px; text-align:center; }
+  table.rate-tbl input[type=radio] { width:18px; height:18px; accent-color:var(--brand); cursor:pointer; }
+</style>
+{% endblock %}

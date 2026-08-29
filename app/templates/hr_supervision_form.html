@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}แบบบันทึกการนิเทศ{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานบุคคล · การนิเทศภายใน</div>
+    <span class="hero-title">แบบบันทึกการนิเทศการจัดการเรียนรู้</span>
+    <div class="hero-meta">{{ school.name or "" }}</div>
+  </div>
+</div>
+{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+
+<div class="card">
+  <h2 style="margin-top:0;">{{ 'แก้ไขแบบบันทึกการนิเทศ' if rec else 'บันทึกการนิเทศ (ใหม่)' }}</h2>
+  <form method="post" action="/hr/supervision-form/save">
+    {% if rec %}<input type="hidden" name="id" value="{{ rec.id }}">{% endif %}
+    <div class="row" style="align-items:flex-end;">
+      <div style="flex:2;"><label>ครูผู้รับการนิเทศ *</label>
+        <select name="person_id" required>
+          <option value="">— เลือกครู —</option>
+          {% for p in persons %}<option value="{{ p.id }}" {{ 'selected' if rec and rec.person_id==p.id }}>{{ p.name }}</option>{% endfor %}
+        </select></div>
+      <div><label>นิเทศครั้งที่</label><input name="round_no" value="{{ rec.round_no if rec else 1 }}" style="width:80px;"></div>
+      <div><label>วันที่นิเทศ</label><input name="sup_date" value="{{ be_date(rec.sup_date) if rec and rec.sup_date else '' }}" placeholder="วว/ดด/ปปปป (พ.ศ.)"></div>
+    </div>
+    <div class="row" style="align-items:flex-end; margin-top:10px;">
+      <div style="flex:1.5;"><label>กลุ่มสาระการเรียนรู้</label><input name="subject_group" value="{{ rec.subject_group if rec else '' }}"></div>
+      <div style="flex:1.5;"><label>รายวิชาที่สอน</label><input name="subject_taught" value="{{ rec.subject_taught if rec else '' }}"></div>
+      <div><label>รหัสวิชา</label><input name="subject_code" value="{{ rec.subject_code if rec else '' }}" style="width:110px;"></div>
+      <div><label>ชั้น</label><input name="grade_class" value="{{ rec.grade_class if rec else '' }}" placeholder="ป.3" style="width:90px;"></div>
+    </div>
+
+    <h3 style="margin:16px 0 4px;">ตอนที่ 2 ประเมินสมรรถนะ (25 ข้อ · 4 ด้าน)</h3>
+    <p class="muted" style="font-size:13px; margin:0 0 8px;">5 = มากที่สุด · 4 = มาก · 3 = ปานกลาง · 2 = น้อย · 1 = น้อยที่สุด</p>
+    <div class="table-wrap">
+    <table class="rate-tbl">
+      <thead><tr><th>ที่</th><th style="text-align:left;">รายการ</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th></tr></thead>
+      <tbody>
+      {% set ns = namespace(i=0) %}
+      {% for dom in domains %}
+        <tr class="dom"><td colspan="7">{{ dom[0] }}</td></tr>
+        {% for it in dom[1] %}
+          {% set ns.i = ns.i + 1 %}
+          <tr>
+            <td class="center">{{ ns.i }}</td>
+            <td>{{ it }}</td>
+            {% for v in [5,4,3,2,1] %}
+            <td class="center"><input type="radio" name="score_{{ ns.i }}" value="{{ v }}" {{ 'checked' if scores and scores|length>=ns.i and scores[ns.i-1]==v|string }}></td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+
+    <h3 style="margin:16px 0 4px;">ตอนที่ 3 บันทึกเพิ่มเติม</h3>
+    <label>1. สิ่งที่พบจากการสังเกตการจัดการเรียนรู้</label>
+    <textarea name="note_found" rows="2" style="width:100%; margin-bottom:8px;">{{ rec.note_found if rec else '' }}</textarea>
+    <label>2. การสะท้อนความคิดจากการจัดการเรียนรู้</label>
+    <textarea name="note_reflect" rows="2" style="width:100%; margin-bottom:8px;">{{ rec.note_reflect if rec else '' }}</textarea>
+    <label>3. ความประทับใจหรือจุดเด่นในการจัดการเรียนรู้ครั้งนี้</label>
+    <textarea name="note_impress" rows="2" style="width:100%; margin-bottom:8px;">{{ rec.note_impress if rec else '' }}</textarea>
+    <label>4. สิ่งที่ควรปรับปรุงหรือพัฒนา</label>
+    <textarea name="note_improve" rows="2" style="width:100%;">{{ rec.note_improve if rec else '' }}</textarea>
+
+    <div class="row" style="align-items:flex-end; margin-top:10px;">
+      <div style="flex:1;"><label>ผู้นิเทศ</label><input name="supervisor_name" value="{{ rec.supervisor_name if rec else director }}" placeholder="ชื่อ ผอ. / ผู้นิเทศ"></div>
+    </div>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+      <button class="btn green" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
+      {% if rec %}<a class="btn" href="/hr/supervision-form/{{ rec.id }}/print.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์เอกสาร</a>
+      <a class="btn soft" href="/hr/supervision-form">+ ทำรายการใหม่</a>{% endif %}
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;">รายการที่บันทึกไว้ {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }})</span>{% endif %}</h2>
+  {% if rows %}
+  <div class="table-wrap">
+  <table class="stack-sm">
+    <thead><tr><th>ครู</th><th>รายวิชา</th><th>ครั้งที่</th><th>วันที่</th><th>เอกสาร</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td data-label="ครู" style="font-weight:600;">{{ r.person.name if r.person else '-' }}</td>
+        <td data-label="รายวิชา">{{ r.subject_taught or '-' }}</td>
+        <td data-label="ครั้งที่" class="center">{{ r.round_no }}</td>
+        <td data-label="วันที่" style="white-space:nowrap;">{{ be_date(r.sup_date) if r.sup_date else '-' }}</td>
+        <td data-label="เอกสาร" class="stack-full" style="white-space:nowrap;">
+          <a class="btn sm soft" href="/hr/supervision-form?edit={{ r.id }}">แก้ไข</a>
+          <a class="btn sm" href="/hr/supervision-form/{{ r.id }}/print.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์</a>
+          <form method="post" action="/hr/supervision-form/{{ r.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบรายการนี้?');"><button class="btn sm gray" type="submit">ลบ</button></form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted" style="margin:0;">ยังไม่มีรายการ</p>{% endif %}
+</div>
+
+<style>
+  table.rate-tbl th, table.rate-tbl td { border:1px solid #e5e7eb; padding:6px 8px; vertical-align:middle; }
+  table.rate-tbl th { background:#f5f3ff; font-size:13px; }
+  table.rate-tbl th:nth-child(n+3), table.rate-tbl td.center { width:42px; text-align:center; }
+  table.rate-tbl input[type=radio] { width:18px; height:18px; accent-color:var(--brand); cursor:pointer; }
+  table.rate-tbl tr.dom td { background:#ede9fe; font-weight:700; color:var(--brand-dark); }
+</style>
+{% endblock %}
