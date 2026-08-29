@@ -9,24 +9,50 @@
   </div>
 </div>
 
-<div class="cards2" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px;">
-  <a class="card sup-card" href="/hr/supervision-form" style="text-decoration:none; color:inherit;">
-    <div class="sup-ic ic-blue"><svg class="icon"><use href="#ic-clipboard"/></svg></div>
-    <h2 style="margin:10px 0 4px;">นิเทศการจัดการเรียนรู้</h2>
-    <p class="muted" style="margin:0;">ประเมินสมรรถนะการจัดการเรียนรู้ 25 ข้อ (4 ด้าน) + บันทึกการนิเทศ</p>
-    <div class="muted" style="margin-top:10px; font-size:13px;">มีแล้ว {{ n_sup }} รายการ</div>
+<div class="sup-grid">
+  <a class="sup-card sc-teal" href="/hr/supervision-form" style="--d:.05s;">
+    <span class="sc-glow"></span>
+    <span class="sc-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span>
+    <span class="sc-title">นิเทศการจัดการเรียนรู้</span>
+    <span class="sc-desc">ประเมินสมรรถนะการจัดการเรียนรู้ 25 ข้อ (4 ด้าน) + บันทึกการนิเทศ</span>
+    <span class="sc-foot"><span class="sc-count">{{ n_sup }}</span> รายการ <svg class="icon sc-arw"><use href="#ic-arrow-right"/></svg></span>
   </a>
-  <a class="card sup-card" href="/hr/classroom-visit" style="text-decoration:none; color:inherit;">
-    <div class="sup-ic ic-green"><svg class="icon"><use href="#ic-users"/></svg></div>
-    <h2 style="margin:10px 0 4px;">การเยี่ยมชั้นเรียน</h2>
-    <p class="muted" style="margin:0;">แบบการเยี่ยมชั้นเรียน 10 ข้อ + ข้อเสนอแนะ + เกณฑ์แปลผล</p>
-    <div class="muted" style="margin-top:10px; font-size:13px;">มีแล้ว {{ n_visit }} รายการ</div>
+  <a class="sup-card sc-indigo" href="/hr/classroom-visit" style="--d:.16s;">
+    <span class="sc-glow"></span>
+    <span class="sc-ic"><svg class="icon"><use href="#ic-users"/></svg></span>
+    <span class="sc-title">การเยี่ยมชั้นเรียน</span>
+    <span class="sc-desc">แบบการเยี่ยมชั้นเรียน 10 ข้อ + ข้อเสนอแนะ + เกณฑ์แปลผล</span>
+    <span class="sc-foot"><span class="sc-count">{{ n_visit }}</span> รายการ <svg class="icon sc-arw"><use href="#ic-arrow-right"/></svg></span>
   </a>
 </div>
 <style>
-  .sup-card { transition:box-shadow .16s, transform .1s; }
-  .sup-card:hover { box-shadow:0 10px 26px rgba(16,24,40,.12); transform:translateY(-2px); }
-  .sup-ic { width:52px; height:52px; border-radius:14px; display:grid; place-items:center; color:#fff; }
-  .sup-ic .icon { width:26px; height:26px; }
+  .sup-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:20px; }
+  .sup-card { position:relative; overflow:hidden; display:flex; flex-direction:column;
+    padding:26px 24px 22px; border-radius:20px; color:#fff; text-decoration:none;
+    box-shadow:0 10px 30px rgba(16,24,40,.16); isolation:isolate;
+    animation:scIn .5s cubic-bezier(.2,.75,.25,1) both; animation-delay:var(--d,0s);
+    transition:transform .25s cubic-bezier(.2,.75,.25,1), box-shadow .25s; }
+  .sc-teal   { background:linear-gradient(135deg,#0ea5a5 0%,#0d9488 45%,#0f766e 100%); }
+  .sc-indigo { background:linear-gradient(135deg,#6366f1 0%,#4f46e5 45%,#4338ca 100%); }
+  .sup-card:hover { transform:translateY(-6px) scale(1.015); box-shadow:0 20px 44px rgba(16,24,40,.28); }
+  .sup-card:active { transform:translateY(-2px) scale(1.0); }
+  /* แสงวิ่งตอน hover */
+  .sc-glow { position:absolute; inset:0; z-index:-1; opacity:0; transition:opacity .35s;
+    background:radial-gradient(320px 160px at 85% 0%, rgba(255,255,255,.35), transparent 60%); }
+  .sup-card:hover .sc-glow { opacity:1; }
+  .sc-ic { width:56px; height:56px; border-radius:16px; display:grid; place-items:center;
+    background:rgba(255,255,255,.2); backdrop-filter:blur(2px); margin-bottom:14px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.25); transition:transform .3s; }
+  .sup-card:hover .sc-ic { transform:rotate(-6deg) scale(1.06); }
+  .sc-ic .icon { width:28px; height:28px; color:#fff; }
+  .sc-title { font-size:21px; font-weight:800; letter-spacing:.2px; margin-bottom:6px; }
+  .sc-desc { font-size:14px; line-height:1.55; color:rgba(255,255,255,.9); flex:1; }
+  .sc-foot { display:flex; align-items:center; gap:6px; margin-top:16px; font-size:14px;
+    font-weight:600; color:rgba(255,255,255,.95); }
+  .sc-count { font-size:22px; font-weight:800; margin-right:2px; }
+  .sc-arw { width:18px; height:18px; margin-left:auto; transition:transform .25s; }
+  .sup-card:hover .sc-arw { transform:translateX(5px); }
+  @keyframes scIn { from { opacity:0; transform:translateY(22px) scale(.97); } to { opacity:1; transform:none; } }
+  @media (prefers-reduced-motion:reduce){ .sup-card{ animation:none; } .sup-card:hover{ transform:none; } }
 </style>
 {% endblock %}
