@@ -21,7 +21,7 @@
           {% for p in persons %}<option value="{{ p.id }}" {{ 'selected' if rec and rec.person_id==p.id }}>{{ p.name }}</option>{% endfor %}
         </select></div>
       <div><label>นิเทศครั้งที่</label><input name="round_no" value="{{ rec.round_no if rec else 1 }}" style="width:80px;"></div>
-      <div><label>วันที่นิเทศ</label><input name="sup_date" value="{{ be_date(rec.sup_date) if rec and rec.sup_date else '' }}" placeholder="วว/ดด/ปปปป (พ.ศ.)"></div>
+      <div><label>วันที่นิเทศ</label><input name="sup_date" data-date value="{{ be_date(rec.sup_date) if rec and rec.sup_date else '' }}" placeholder="วว/ดด/ปปปป (พ.ศ.)"></div>
     </div>
     <div class="row" style="align-items:flex-end; margin-top:10px;">
       <div style="flex:1.5;"><label>กลุ่มสาระการเรียนรู้</label><input name="subject_group" value="{{ rec.subject_group if rec else '' }}"></div>
@@ -102,6 +102,15 @@
   {% else %}<p class="muted" style="margin:0;">ยังไม่มีรายการ</p>{% endif %}
 </div>
 
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8);
+      this.value = v.length>4 ? v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4)
+                 : v.length>2 ? v.slice(0,2)+'/'+v.slice(2) : v;
+    });
+  });
+</script>
 <style>
   table.rate-tbl th, table.rate-tbl td { border:1px solid #e5e7eb; padding:6px 8px; vertical-align:middle; }
   table.rate-tbl th { background:#f5f3ff; font-size:13px; }

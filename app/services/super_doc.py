@@ -104,9 +104,27 @@ def _cell(cell, text, *, size=16, bold=False, align="center", valign=True):
 
 
 def _dots(value, n):
-    """ค่า + จุดไข่ปลาต่อท้ายให้ดูเป็นเส้นกรอก (เว้นว่าง = จุดล้วน)"""
+    """ค่า + จุดไข่ปลาให้ความยาวคงที่ (เว้นว่าง = จุดเต็มความกว้าง) กันจุดเกินข้อมูล"""
     v = ("" if value is None else str(value)).strip()
-    return (v + " " + ("." * n)) if v else ("." * n)
+    if not v:
+        return "." * n
+    return v + " " + ("." * max(4, n - int(len(v) * 1.7)))
+
+
+def _paren(value, n):
+    """ชื่อในวงเล็บ: กรอกแล้ว = ( ชื่อ ) ไม่มีจุดต่อท้าย · ว่าง = ( ....... )"""
+    v = ("" if value is None else str(value)).strip()
+    return f"( {v} )" if v else f"( {'.' * n} )"
+
+
+def _legend(doc, rows, ncol, size=15):
+    """เกณฑ์คะแนน 1-5 จัดด้วยตารางล่องหน (ไม่มีเส้น) ให้คอลัมน์ตรงกัน"""
+    t = doc.add_table(rows=len(rows), cols=ncol)
+    for ri, cells in enumerate(rows):
+        for ci in range(ncol):
+            _cell(t.rows[ri].cells[ci], cells[ci] if ci < len(cells) else "",
+                  align="left", size=size, valign=False)
+    return t
 
 
 def _doc(top=1.5):
@@ -181,8 +199,9 @@ def render_classroom_visit(school, record) -> str:
     _p(doc, "คำชี้แจง  แบบการเยี่ยมชั้นเรียนนี้ เป็นแบบเยี่ยมการจัดการเรียนการสอนของครูในแต่ละรายวิชาที่สอน "
             "โดยผู้บริหารหรือผู้เยี่ยมชั้นเรียน และบันทึกข้อมูลจากการเยี่ยมชั้นเรียนโดยทำเครื่องหมายถูก "
             f"( {CHK} ) ในแบบประเมินทุกข้อ", align="justify")
-    _p(doc, "5 = ปฏิบัติได้ระดับดีมาก      4 = ปฏิบัติได้ระดับดี      3 = ปฏิบัติได้ระดับปานกลาง")
-    _p(doc, "2 = ปฏิบัติได้ระดับพอใช้      1 = ควรปรับปรุงแก้ไข", after=4)
+    _legend(doc, [["5 = ปฏิบัติได้ระดับดีมาก", "4 = ปฏิบัติได้ระดับดี", "3 = ปฏิบัติได้ระดับปานกลาง"],
+                  ["2 = ปฏิบัติได้ระดับพอใช้", "1 = ควรปรับปรุงแก้ไข", ""]], 3)
+    _p(doc, "", after=2)
 
     # ตาราง 14 แถว x 8 คอลัมน์
     t = doc.add_table(rows=2 + 10 + 2, cols=8); t.style = "Table Grid"
@@ -204,9 +223,9 @@ def render_classroom_visit(school, record) -> str:
     _p(doc, "ตอนที่ 3 ข้อเสนอแนะ", bold=True, before=6)
     _suggest_lines(doc, record.suggestion, 6)
 
-    _p(doc, f"\t\t\t\t(ลงชื่อ) {'.' * 45} ผู้เยี่ยมชั้นเรียน", before=6)
-    _p(doc, f"\t\t\t\t         ( {_dots(record.visitor_name, 40)} )")
-    _p(doc, f"\t\t\t\t         ตำแหน่ง {'.' * 40}", after=8)
+    _p(doc, f"\t\t\t\t(ลงชื่อ) {'.' * 40} ผู้เยี่ยมชั้นเรียน", before=6)
+    _p(doc, f"\t\t\t\t         {_paren(record.visitor_name, 40)}")
+    _p(doc, f"\t\t\t\t         ตำแหน่ง {'.' * 35}", after=8)
 
     _p(doc, "เกณฑ์การแปลความหมาย")
     for rng, mean in (("4.51 – 5.00", "ปฏิบัติได้ระดับดีมาก"), ("3.51 – 4.50", "ปฏิบัติได้ระดับดี"),
@@ -225,11 +244,14 @@ def _widths_visit(t):
 
 
 def _suggest_lines(doc, text, min_lines):
+    """กรอกแล้ว = แสดงข้อความล้วน (ไม่มีเส้นจุดเกิน) · ว่าง = เส้นจุดว่างให้เขียน"""
     text = (text or "").strip()
-    lines = [ln for ln in text.splitlines() if ln.strip()] if text else []
-    dot = "." * 118
-    for i in range(max(min_lines, len(lines))):
-        _p(doc, lines[i] if i < len(lines) else dot)
+    if text:
+        for ln in text.splitlines() or [text]:
+            _p(doc, ln)
+    else:
+        for _ in range(min_lines):
+            _p(doc, "." * 118)
 
 
 # ============================ แบบบันทึกการนิเทศการจัดการเรียนรู้ ============================
@@ -256,8 +278,9 @@ def render_supervision(school, record) -> str:
     _p(doc, "ตอนที่ 2  แบบประเมินสมรรถนะการจัดการเรียนรู้ของผู้รับการนิเทศ", bold=True)
     _p(doc, "คำชี้แจง  ให้ผู้นิเทศสังเกตกระบวนการจัดการเรียนรู้ของผู้รับการนิเทศทั้ง 4 ด้าน")
     _p(doc, f"\t  แล้วทำเครื่องหมาย {CHK} ในช่องที่มีการปฏิบัติมากที่สุดถึงน้อยที่สุด โดยใช้เกณฑ์ดังนี้")
-    _p(doc, "\t\t5  หมายถึง  มากที่สุด\t4  หมายถึง  มาก\t3  หมายถึง  ปานกลาง\t"
-            "2  หมายถึง  น้อย\t1  หมายถึง  น้อยที่สุด", after=4)
+    _legend(doc, [["5 หมายถึง มากที่สุด", "4 หมายถึง มาก", "3 หมายถึง ปานกลาง",
+                   "2 หมายถึง น้อย", "1 หมายถึง น้อยที่สุด"]], 5, size=14)
+    _p(doc, "", after=2)
 
     # จำนวนแถว: หัว 2 + (ต่อด้าน: 1 หัวข้อด้าน + N ข้อ + 1 เฉลี่ย) + 1 รวมเฉลี่ยทุกด้าน
     nrows = 2 + sum(2 + len(items) for _, items in SUP_DOMAINS) + 1
@@ -306,9 +329,9 @@ def render_supervision(school, record) -> str:
         _suggest_lines(doc, val, 2)
 
     _p(doc, f"(ลงชื่อ) {'.' * 40} ผู้รับการนิเทศ", align="center", before=8)
-    _p(doc, f"( {_dots(person.name if person else '', 35)} )", align="center")
+    _p(doc, _paren(person.name if person else '', 35), align="center")
     _p(doc, f"(ลงชื่อ) {'.' * 40} ผู้นิเทศ", align="center", before=6)
-    _p(doc, f"( {_dots(record.supervisor_name, 35)} )", align="center")
+    _p(doc, _paren(record.supervisor_name, 35), align="center")
 
     return _save(doc, f"แบบบันทึกการนิเทศ_{person.name if person else ''}")
 

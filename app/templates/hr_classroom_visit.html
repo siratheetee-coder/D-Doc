@@ -29,7 +29,7 @@
       <div><label>ระดับชั้น</label><input name="grade_level" value="{{ rec.grade_level if rec else '' }}" placeholder="ป.3" style="width:90px;"></div>
     </div>
     <div class="row" style="align-items:flex-end; margin-top:10px;">
-      <div><label>วันที่เยี่ยม</label><input name="visit_date" value="{{ be_date(rec.visit_date) if rec and rec.visit_date else '' }}" placeholder="วว/ดด/ปปปป (พ.ศ.)"></div>
+      <div><label>วันที่เยี่ยม</label><input name="visit_date" data-date value="{{ be_date(rec.visit_date) if rec and rec.visit_date else '' }}" placeholder="วว/ดด/ปปปป (พ.ศ.)"></div>
       <div><label>คาบที่</label><input name="period" value="{{ rec.period if rec else '' }}" style="width:80px;"></div>
       <div><label>เวลา</label><input name="visit_time" value="{{ rec.visit_time if rec else '' }}" placeholder="09.30-10.30" style="width:140px;"></div>
       <div style="flex:1.5;"><label>ผู้เยี่ยมชั้นเรียน</label><input name="visitor_name" value="{{ rec.visitor_name if rec else director }}" placeholder="ชื่อ ผอ. / ผู้เยี่ยม"></div>
@@ -92,6 +92,15 @@
   {% else %}<p class="muted" style="margin:0;">ยังไม่มีรายการ</p>{% endif %}
 </div>
 
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8);
+      this.value = v.length>4 ? v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4)
+                 : v.length>2 ? v.slice(0,2)+'/'+v.slice(2) : v;
+    });
+  });
+</script>
 <style>
   table.rate-tbl th, table.rate-tbl td { border:1px solid #e5e7eb; padding:6px 8px; vertical-align:middle; }
   table.rate-tbl th { background:#f5f3ff; font-size:13px; }
