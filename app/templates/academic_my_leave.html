@@ -44,20 +44,20 @@
   <h2 style="margin-top:0;">ใบลาที่ฉันส่ง {% if leaves %}<span class="muted" style="font-size:15px;">({{ leaves|length }})</span>{% endif %}</h2>
   {% if leaves %}
   <div class="table-wrap">
-  <table>
+  <table class="stack-sm">
     <thead><tr><th>ประเภท</th><th>ตั้งแต่</th><th>ถึง</th><th>วัน</th><th>เหตุผล</th><th>สถานะ</th><th>ความเห็น</th><th>เอกสาร</th></tr></thead>
     <tbody>
     {% for lv in leaves %}
       {% set st = {'pending':('รออนุมัติ','#fef9c3','#854d0e'), 'approved':('อนุมัติ','#dcfce7','#166534'), 'rejected':('ไม่อนุมัติ','#fee2e2','#b91c1c')}[lv.status] %}
       <tr>
-        <td style="white-space:nowrap;">{{ lv.leave_type }}</td>
-        <td style="white-space:nowrap;">{{ be_date(lv.start_date) }}</td>
-        <td style="white-space:nowrap;">{{ be_date(lv.end_date) }}</td>
-        <td class="center">{{ lv.days|int }}</td>
-        <td>{{ lv.reason or '-' }}</td>
-        <td><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span></td>
-        <td>{{ lv.comment or '-' }}</td>
-        <td style="white-space:nowrap;">
+        <td data-label="ประเภท" style="white-space:nowrap;">{{ lv.leave_type }}</td>
+        <td data-label="ตั้งแต่" style="white-space:nowrap;">{{ be_date(lv.start_date) }}</td>
+        <td data-label="ถึง" style="white-space:nowrap;">{{ be_date(lv.end_date) }}</td>
+        <td data-label="วัน" class="center">{{ lv.days|int }}</td>
+        <td data-label="เหตุผล">{{ lv.reason or '-' }}</td>
+        <td data-label="สถานะ"><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span></td>
+        <td data-label="ความเห็น">{{ lv.comment or '-' }}</td>
+        <td data-label="เอกสาร" style="white-space:nowrap;">
           <a class="btn sm soft" href="/me/leave/{{ lv.id }}/form.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ใบลา</a>
           {% if lv.attachment_name %}<a class="btn sm gray" href="/me/leave/{{ lv.id }}/file" target="_blank" rel="noopener">📎 ไฟล์แนบ</a>{% endif %}
         </td>

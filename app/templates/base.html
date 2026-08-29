@@ -584,6 +584,19 @@
       .fab-cal { width: 46px; height: 46px; right: 14px;
         bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
       .fab-cal .icon { width: 21px; height: 21px; }
+      /* ===== ตารางแบบ stack-sm: บนมือถือแปลงแต่ละแถวเป็นการ์ด label:value อ่านง่าย ไม่ต้องเลื่อนซ้ายขวา ===== */
+      table.stack-sm { border: 0; }
+      table.stack-sm thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      table.stack-sm, table.stack-sm tbody, table.stack-sm tr, table.stack-sm td { display: block; width: 100%; }
+      table.stack-sm tr { border: 1px solid #e6e8ef; border-radius: 12px; margin-bottom: 12px;
+        padding: 4px 12px; background: #fff; box-shadow: 0 1px 3px rgba(16,24,40,.05); }
+      table.stack-sm td { border: none; border-bottom: 1px solid #f1f3f8; padding: 8px 0;
+        display: flex; align-items: center; justify-content: space-between; gap: 14px; text-align: right; }
+      table.stack-sm tr td:last-child { border-bottom: 0; }
+      table.stack-sm td::before { content: attr(data-label); font-weight: 600; color: #64748b;
+        font-size: 13px; text-align: left; white-space: nowrap; flex: 0 0 auto; }
+      table.stack-sm td:empty, table.stack-sm td[data-empty="1"] { display: none; }
+      table.stack-sm td.center { justify-content: space-between; }
     }
   </style>
 </head>

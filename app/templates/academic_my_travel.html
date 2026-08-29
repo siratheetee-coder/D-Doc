@@ -42,21 +42,21 @@
   <h2 style="margin-top:0;">คำขอที่ฉันส่ง {% if trips %}<span class="muted" style="font-size:15px;">({{ trips|length }})</span>{% endif %}</h2>
   {% if trips %}
   <div class="table-wrap">
-  <table>
+  <table class="stack-sm">
     <thead><tr><th>เรื่อง</th><th>สถานที่</th><th>ตั้งแต่</th><th>ถึง</th><th>วัน</th><th>งบ</th><th>สถานะ</th><th>ความเห็น</th><th>เอกสาร</th></tr></thead>
     <tbody>
     {% for tr in trips %}
       {% set st = {'pending':('รออนุมัติ','#fef9c3','#854d0e'), 'approved':('อนุมัติ','#dcfce7','#166534'), 'rejected':('ไม่อนุมัติ','#fee2e2','#b91c1c')}[tr.status] %}
       <tr>
-        <td>{{ tr.subject }}</td>
-        <td>{{ tr.place or '-' }}</td>
-        <td style="white-space:nowrap;">{{ be_date(tr.start_date) }}</td>
-        <td style="white-space:nowrap;">{{ be_date(tr.end_date) }}</td>
-        <td class="center">{{ tr.days|int }}</td>
-        <td class="center">{{ '{:,.0f}'.format(tr.budget or 0) }}</td>
-        <td><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span></td>
-        <td>{{ tr.comment or '-' }}</td>
-        <td style="white-space:nowrap;">
+        <td data-label="เรื่อง">{{ tr.subject }}</td>
+        <td data-label="สถานที่">{{ tr.place or '-' }}</td>
+        <td data-label="ตั้งแต่" style="white-space:nowrap;">{{ be_date(tr.start_date) }}</td>
+        <td data-label="ถึง" style="white-space:nowrap;">{{ be_date(tr.end_date) }}</td>
+        <td data-label="วัน" class="center">{{ tr.days|int }}</td>
+        <td data-label="งบ" class="center">{{ '{:,.0f}'.format(tr.budget or 0) }}</td>
+        <td data-label="สถานะ"><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span></td>
+        <td data-label="ความเห็น">{{ tr.comment or '-' }}</td>
+        <td data-label="เอกสาร" style="white-space:nowrap;">
           <a class="btn sm soft" href="/me/travel/{{ tr.id }}/form.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์บันทึก</a>
           {% if tr.attachment_name %}<a class="btn sm gray" href="/me/travel/{{ tr.id }}/file" target="_blank" rel="noopener">📎 ไฟล์แนบ</a>{% endif %}
         </td>
