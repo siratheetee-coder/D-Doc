@@ -82,12 +82,14 @@ def _font(run, size, bold=False):
     run._element.rPr.rFonts.set(qn("w:cs"), FONT)
 
 
-def _p(doc, text="", *, align="left", bold=False, size=16, after=0, before=0):
+def _p(doc, text="", *, align="left", bold=False, size=16, after=0, before=0, page_break=False):
     p = doc.add_paragraph()
     p.alignment = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER,
                    "right": WD_ALIGN_PARAGRAPH.RIGHT, "justify": WD_ALIGN_PARAGRAPH.JUSTIFY}[align]
     pf = p.paragraph_format
     pf.space_after = Pt(after); pf.space_before = Pt(before)
+    if page_break:
+        pf.page_break_before = True
     _font(p.add_run(text), size, bold)
     return p
 
@@ -136,6 +138,20 @@ def _doc(top=1.5):
     return doc
 
 
+def _logo(doc, school, *, height_cm=1.9, after=2):
+    """ตราโรงเรียนกึ่งกลางหัวเอกสาร (ถ้าตั้งค่าไว้ใน school.logo)"""
+    import io
+    data = getattr(school, "logo", None)
+    if not data:
+        return
+    p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_after = Pt(after)
+    try:
+        p.add_run().add_picture(io.BytesIO(data), height=Cm(height_cm))
+    except Exception:
+        p._element.getparent().remove(p._element)
+
+
 def _parse_scores(csv, n):
     out = []
     for x in (csv or "").split(","):
@@ -180,8 +196,9 @@ def render_classroom_visit(school, record) -> str:
     person = record.person
     scores = _parse_scores(record.scores, 10)
     doc = _doc(top=1.5)
+    _logo(doc, school)
 
-    _p(doc, "แบบการเยี่ยมชั้นเรียน (CLASSROOM VISTATION)", align="center", bold=True, after=0)
+    _p(doc, "แบบการเยี่ยมชั้นเรียน", align="center", bold=True, after=0)
     _p(doc, f"ภาคเรียนที่ {_dots(record.term, 8)} ปีการศึกษา {_dots(record.year, 14)}",
        align="center", bold=True, after=6)
 
@@ -262,6 +279,7 @@ def render_supervision(school, record) -> str:
     rank = getattr(person, "rank", "") or "" if person else ""
     scores = _parse_scores(record.scores, 25)
     doc = _doc(top=1.75)
+    _logo(doc, school)
 
     _p(doc, "แบบบันทึกการนิเทศการจัดการเรียนรู้", align="center", bold=True, size=18, after=4)
 
@@ -318,18 +336,22 @@ def render_supervision(school, record) -> str:
     _cell(mv, ("%.2f" % allv) if allv is not None else "", bold=True)
     _widths_sup(t)
 
-    _p(doc, "ตอนที่ 3 ผู้นิเทศบันทึกเพิ่มเติมการนิเทศการจัดการเรียนรู้", bold=True, before=6)
+    # ตอนที่ 3 ขึ้นหน้าใหม่
+    _p(doc, "ตอนที่ 3 ผู้นิเทศบันทึกเพิ่มเติมการนิเทศการจัดการเรียนรู้", bold=True, after=4, page_break=True)
     for n, (label, val) in enumerate([
         ("1.  สิ่งที่พบจากการสังเกตการจัดการเรียนรู้ในชั้นเรียนของผู้รับการนิเทศ", record.note_found),
         ("2.  การสะท้อนความคิดจากการจัดการเรียนรู้ในชั้นเรียนของผู้รับการนิเทศ", record.note_reflect),
         ("3.  ความประทับใจหรือจุดเด่นในการจัดการเรียนรู้ครั้งนี้", record.note_impress),
         ("4.  สิ่งที่ควรปรับปรุงหรือพัฒนา", record.note_improve),
     ]):
-        _p(doc, label)
+        _p(doc, label, after=2)
         _suggest_lines(doc, val, 2, indent=1.0)
 
-    _p(doc, f"(ลงชื่อ) {'.' * 40} ผู้รับการนิเทศ", align="center", before=8)
+    # เว้นพื้นที่ให้เซ็น 1 บรรทัดก่อนแต่ละช่องลงนาม
+    _p(doc, "", after=0)
+    _p(doc, f"(ลงชื่อ) {'.' * 40} ผู้รับการนิเทศ", align="center", before=6)
     _p(doc, _paren(person.name if person else '', 35), align="center")
+    _p(doc, "", after=0)
     _p(doc, f"(ลงชื่อ) {'.' * 40} ผู้นิเทศ", align="center", before=6)
     _p(doc, _paren(record.supervisor_name, 35), align="center")
 
