@@ -73,17 +73,17 @@
   <h2>รายการลา ปี {{ year }} {% if records %}<span class="muted" style="font-size:15px;">({{ records|length }} รายการ)</span>{% endif %}</h2>
   {% if records %}
   <div class="table-wrap">
-  <table>
+  <table class="stack-sm">
     <thead><tr><th>บุคลากร</th><th>ประเภท</th><th>ช่วงวันที่</th><th class="right">วัน</th><th>เหตุผล</th><th></th></tr></thead>
     <tbody>
     {% for r in records %}
       <tr>
-        <td>{{ r.person.name if r.person else '-' }}</td>
-        <td>{{ leave_types.get(r.leave_type, r.leave_type) }}</td>
-        <td>{{ be_date(r.start_date) if r.start_date else '-' }}{% if r.end_date %} - {{ be_date(r.end_date) }}{% endif %}</td>
-        <td class="right">{{ '%g'|format(r.days) }}</td>
-        <td class="muted">{{ r.reason }}</td>
-        <td style="white-space:nowrap;">
+        <td data-label="บุคลากร">{{ r.person.name if r.person else '-' }}</td>
+        <td data-label="ประเภท">{{ leave_types.get(r.leave_type, r.leave_type) }}</td>
+        <td data-label="ช่วงวันที่">{{ be_date(r.start_date) if r.start_date else '-' }}{% if r.end_date %} - {{ be_date(r.end_date) }}{% endif %}</td>
+        <td data-label="วัน" class="right">{{ '%g'|format(r.days) }}</td>
+        <td data-label="เหตุผล" class="muted">{{ r.reason }}</td>
+        <td data-label="เอกสาร" class="stack-full" style="white-space:nowrap;">
           <a class="btn sm gray" href="/hr/leave/{{ r.id }}/form.docx"><svg class="icon"><use href="#ic-download"/></svg> ใบลา</a>
           <form method="post" action="/hr/leave/{{ r.id }}/delete" onsubmit="return confirm('ลบรายการลานี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
         </td>

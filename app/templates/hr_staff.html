@@ -37,20 +37,20 @@
   <h2>บุคลากรทั้งหมด {% if persons %}<span class="muted" style="font-size:15px;">({{ persons|length }} คน)</span>{% endif %}</h2>
   {% if persons %}
   <div class="table-wrap">
-  <table>
+  <table class="stack-sm">
     <thead><tr><th>ชื่อ-นามสกุล</th><th>ประเภท</th><th>ตำแหน่ง/วิทยฐานะ</th><th>วันบรรจุ</th><th>สถานะ</th><th>หนังสือรับรอง</th><th></th></tr></thead>
     <tbody>
     {% for p in persons %}
       <tr{% if not p.active %} style="opacity:.55;"{% endif %}>
-        <td><b>{{ p.name }}</b>{% if p.phone %} <span class="muted" style="font-size:12px;">· {{ p.phone }}</span>{% endif %}</td>
-        <td>{{ p.person_type or '-' }}</td>
-        <td>{{ p.position or '-' }}{% if p.rank %} <span class="muted">· {{ p.rank }}</span>{% endif %}</td>
-        <td>{{ be_date(p.start_date) if p.start_date else '-' }}</td>
-        <td>{% if p.active %}<span class="pill" style="background:var(--brand-soft);color:var(--brand-dark);">ปฏิบัติงาน</span>{% else %}<span class="muted">พ้น/ย้าย</span>{% endif %}</td>
-        <td style="white-space:nowrap;">
+        <td data-label="ชื่อ-นามสกุล"><b>{{ p.name }}</b>{% if p.phone %} <span class="muted" style="font-size:12px;">· {{ p.phone }}</span>{% endif %}</td>
+        <td data-label="ประเภท">{{ p.person_type or '-' }}</td>
+        <td data-label="ตำแหน่ง/วิทยฐานะ">{{ p.position or '-' }}{% if p.rank %} <span class="muted">· {{ p.rank }}</span>{% endif %}</td>
+        <td data-label="วันบรรจุ">{{ be_date(p.start_date) if p.start_date else '-' }}</td>
+        <td data-label="สถานะ">{% if p.active %}<span class="pill" style="background:var(--brand-soft);color:var(--brand-dark);">ปฏิบัติงาน</span>{% else %}<span class="muted">พ้น/ย้าย</span>{% endif %}</td>
+        <td data-label="หนังสือรับรอง" class="stack-full" style="white-space:nowrap;">
           <a class="btn sm gray" href="/hr/staff/{{ p.id }}/certificate.docx" title="หนังสือรับรองบุคลากร (ฟอร์มราชการ)"><svg class="icon"><use href="#ic-download"/></svg> หนังสือรับรอง</a>
         </td>
-        <td style="white-space:nowrap;">
+        <td data-label="จัดการ" class="stack-full" style="white-space:nowrap;">
           <a class="btn sm" href="/hr/staff/{{ p.id }}">ประวัติ (ก.พ.7)</a>
           <a class="btn sm gray" href="/hr/staff?edit={{ p.id }}">แก้ไข</a>
           <form method="post" action="/hr/staff/{{ p.id }}/delete" onsubmit="return confirm('ลบบุคลากรคนนี้? (รายการลา/ไปราชการ/ประวัติที่ผูกจะถูกลบด้วย)');" style="display:inline; margin:0;"><button class="btn red sm" type="submit"><svg class="icon"><use href="#ic-trash"/></svg></button></form>

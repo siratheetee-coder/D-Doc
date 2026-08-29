@@ -45,11 +45,11 @@
 <div class="card">
   <h2>สรุปวันไปราชการรายคน</h2>
   <div class="table-wrap">
-  <table>
+  <table class="stack-sm">
     <thead><tr><th>บุคลากร</th><th class="right">จำนวนครั้ง</th><th class="right">รวมวัน</th><th class="right">รวมค่าใช้จ่าย</th></tr></thead>
     <tbody>
     {% for s in summary %}
-      <tr><td>{{ s.p.name }}</td><td class="right">{{ s.n }}</td><td class="right">{{ "%g"|format(s.days) }}</td><td class="right">{{ "{:,.2f}".format(s.budget) }}</td></tr>
+      <tr><td data-label="บุคลากร">{{ s.p.name }}</td><td data-label="จำนวนครั้ง" class="right">{{ s.n }}</td><td data-label="รวมวัน" class="right">{{ "%g"|format(s.days) }}</td><td data-label="รวมค่าใช้จ่าย" class="right">{{ "{:,.2f}".format(s.budget) }}</td></tr>
     {% endfor %}
     </tbody>
   </table>
@@ -61,18 +61,18 @@
   <h2>รายการไปราชการ ปี {{ year }} {% if records %}<span class="muted" style="font-size:15px;">({{ records|length }} รายการ)</span>{% endif %}</h2>
   {% if records %}
   <div class="table-wrap">
-  <table>
+  <table class="stack-sm">
     <thead><tr><th>บุคลากร</th><th>เรื่อง</th><th>สถานที่</th><th>ช่วงวันที่</th><th class="right">วัน</th><th class="right">ค่าใช้จ่าย</th><th></th></tr></thead>
     <tbody>
     {% for r in records %}
       <tr>
-        <td>{{ r.person.name if r.person else '-' }}</td>
-        <td>{{ r.subject }}</td>
-        <td>{{ r.place }}</td>
-        <td>{{ be_date(r.start_date) if r.start_date else '-' }}{% if r.end_date %} - {{ be_date(r.end_date) }}{% endif %}</td>
-        <td class="right">{{ "%g"|format(r.days) }}</td>
-        <td class="right">{{ "{:,.2f}".format(r.budget) if r.budget else '-' }}</td>
-        <td style="white-space:nowrap;">
+        <td data-label="บุคลากร">{{ r.person.name if r.person else '-' }}</td>
+        <td data-label="เรื่อง">{{ r.subject }}</td>
+        <td data-label="สถานที่">{{ r.place }}</td>
+        <td data-label="ช่วงวันที่">{{ be_date(r.start_date) if r.start_date else '-' }}{% if r.end_date %} - {{ be_date(r.end_date) }}{% endif %}</td>
+        <td data-label="วัน" class="right">{{ "%g"|format(r.days) }}</td>
+        <td data-label="ค่าใช้จ่าย" class="right">{{ "{:,.2f}".format(r.budget) if r.budget else '-' }}</td>
+        <td data-label="เอกสาร" class="stack-full" style="white-space:nowrap;">
           {% if req_atts.get(r.id) %}
           <a class="btn sm" href="/hr/travel/{{ r.id }}/request.docx" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> บันทึกที่ครูแนบ</a>
           {% else %}
