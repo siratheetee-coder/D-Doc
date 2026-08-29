@@ -23,7 +23,7 @@
         {% for t in teachers %}<option value="{{ t.id }}" {{ 'selected' if t.id==pid }}>{{ t.name }}</option>{% endfor %}
       </select></div>
   </form>
-  <p class="muted" style="font-size:13px; margin:10px 0 0;">เลือกครู แล้วติ๊กว่าสอนวิชาอะไรในห้องไหนบ้าง · ติ๊กหัวแถว = ทุกห้องของวิชานั้น · ติ๊กหัวคอลัมน์ = ทุกวิชาของห้องนั้น</p>
+  <p class="muted" style="font-size:13px; margin:10px 0 0;">เลือกครู แล้วติ๊กว่าสอนวิชาอะไรในห้องไหนบ้าง · ติ๊กหัวคอลัมน์ = ทุกวิชาของห้องนั้น · วิชาที่มีครูอยู่แล้วจะล็อก 🔒 (เอาครูออกที่หน้าของครูคนนั้นก่อน จึงจะจัดใหม่ได้)</p>
 </div>
 
 {% if teacher %}
@@ -48,18 +48,26 @@
           </tr>
         </thead>
         <tbody>
+        {% set ns = namespace(term=-1) %}
         {% for s in b.subs %}
+          {% if (s.term or 0) != ns.term %}
+          {% set ns.term = (s.term or 0) %}
+          <tr class="term-sep"><td colspan="{{ b.rooms|length + 1 }}">{{ 'ภาคเรียนที่ ' ~ s.term if s.term in (1, 2) else 'ทั้งปี (ทุกภาคเรียน)' }}</td></tr>
+          {% endif %}
           <tr>
-            <td class="subj">
-              <label class="tick-all"><input type="checkbox" class="rowall" data-row="{{ s.id }}"> <b>{{ s.code }}</b> {{ s.name }}</label>
-            </td>
+            <td class="subj"><b>{{ s.code }}</b> {{ s.name }}</td>
             {% for r in b.rooms %}
               {% set t = cur.get((r.id, s.id)) %}
-              <td class="cell {{ 'has-other' if t and t.id != pid }}">
-                <input type="checkbox" name="cell_{{ r.id }}_{{ s.id }}" class="cellchk"
-                       data-row="{{ s.id }}" data-col="{{ r.id }}" {{ 'checked' if t and t.id == pid }}>
-                {% if t and t.id != pid %}<div class="other" title="ปัจจุบันเป็นครูคนนี้ · ติ๊กเพื่อย้ายมาเป็น {{ teacher.name }}">{{ t.name }}</div>{% endif %}
+              {% if t and t.id != pid %}
+              <td class="cell has-other" title="วิชานี้มีครูอยู่แล้ว · เอาครูออกที่หน้าของ {{ t.name }} ก่อน">
+                <div class="other">🔒 {{ t.name }}</div>
               </td>
+              {% else %}
+              <td class="cell">
+                <input type="checkbox" name="cell_{{ r.id }}_{{ s.id }}" class="cellchk"
+                       data-col="{{ r.id }}" {{ 'checked' if t and t.id == pid }}>
+              </td>
+              {% endif %}
             {% endfor %}
           </tr>
         {% endfor %}
@@ -88,7 +96,9 @@
   table.assign-tbl td.subj b { color:var(--brand-dark); }
   table.assign-tbl .cellchk { width:20px; height:20px; accent-color:var(--brand); cursor:pointer; margin:0; }
   table.assign-tbl td.cell.has-other { background:#fff7ed; }
-  table.assign-tbl td.cell .other { font-size:11px; color:#c2410c; margin-top:2px; line-height:1.1; }
+  table.assign-tbl td.cell .other { font-size:11px; color:#c2410c; line-height:1.1; }
+  table.assign-tbl tr.term-sep td { background:#f5f3ff; color:var(--brand-dark); font-weight:700;
+    text-align:left; font-size:13px; padding:6px 10px; }
   .tick-all { display:inline-flex; align-items:center; gap:5px; margin:0; cursor:pointer; font-weight:500; }
   .tick-all input { width:15px; height:15px; accent-color:var(--brand); margin:0; cursor:pointer; }
   thead .tick-all { display:flex; justify-content:center; font-size:11px; font-weight:400; color:#64748b; margin-top:3px; }
@@ -96,17 +106,14 @@
 {% if teacher and blocks %}
 <script>
   (function(){
-    function sync(sel, attr){
-      document.querySelectorAll(sel).forEach(function(master){
-        master.addEventListener('change', function(){
-          document.querySelectorAll('.cellchk[data-'+attr+'="'+master.dataset[attr]+'"]').forEach(function(c){
-            c.checked = master.checked;
-          });
+    // ติ๊กหัวคอลัมน์ = ทุกวิชาของห้องนั้น (เฉพาะช่องที่ยังจัดได้ · ช่องที่ล็อกไม่มี checkbox อยู่แล้ว)
+    document.querySelectorAll('.colall').forEach(function(master){
+      master.addEventListener('change', function(){
+        document.querySelectorAll('.cellchk[data-col="'+master.dataset.col+'"]').forEach(function(c){
+          c.checked = master.checked;
         });
       });
-    }
-    sync('.rowall', 'row');
-    sync('.colall', 'col');
+    });
   })();
 </script>
 {% endif %}

@@ -176,6 +176,8 @@ def _teacher_todo(sc, db, y, term):
         c, subj = db.get(AcadClass, cid), db.get(AcadSubject, sid)
         if not c or not subj:
             continue
+        if subj.term in (1, 2) and subj.term != term:   # วิชาระบุภาคเรียน -> โชว์เฉพาะภาคนั้น (ทั้งปี=โชว์ทั้งคู่)
+            continue
         sids = [s.id for s in c.students]
         sec = is_secondary(c.level)
         tt = (subj.term if (sec and subj.term in (1, 2)) else term)
@@ -243,8 +245,7 @@ def _class_progress(c, db, term):
     sids = [s.id for s in c.students]
     nst = len(sids)
     subs = db.query(AcadSubject).filter_by(year=c.year, level=c.level).all()
-    if sec:
-        subs = [x for x in subs if (x.term or 0) == term]     # มัธยม: เฉพาะวิชาภาคนี้
+    subs = [x for x in subs if (x.term or 0) in (0, term)]     # เฉพาะวิชาภาคนี้ + ทั้งปี (แยกคนละภาค)
     sub_ids = [x.id for x in subs]
     nsub = len(subs)
     eval_tf = 0 if sec else term      # ตัวกรอง term ของ char/read (มัธยม=0 · ประถม=ภาคที่เลือก)
@@ -801,17 +802,19 @@ def assign_teachers_page(request: Request, db: Session = Depends(get_db),
                   .filter(AcadTeaching.class_id.in_([c.id for c in classes])).all()):
             cur[(t.class_id, t.subject_id)] = t.teacher
     # จัดกลุ่มตามระดับชั้น (เฉพาะชั้นที่มีทั้งห้องและวิชา)
+    _torder = {1: 0, 2: 1, 0: 2}                 # เรียง ภาค1 -> ภาค2 -> ทั้งปี
     blocks = []
     for lv in sorted({c.level for c in classes}, key=level_rank):
         rooms = [c for c in classes if c.level == lv]
-        subs = [s for s in subjects if s.level == lv]
+        subs = sorted([s for s in subjects if s.level == lv],
+                      key=lambda s: (_torder.get(s.term or 0, 3), s.seq or 0, s.code or ""))
         if not subs:
             continue
         blocks.append({"level": lv, "rooms": rooms, "subs": subs})
     return templates.TemplateResponse("academic_assign_teachers.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "teachers": teachers, "teacher": teacher, "pid": tid, "blocks": blocks,
-        "cur": cur, "class_label": _class_label, "saved": saved,
+        "cur": cur, "class_label": _class_label, "saved": saved, "term_label": term_label,
     })
 
 
@@ -1095,6 +1098,7 @@ def grades_page(request: Request, db: Session = Depends(get_db), cid: int | None
                     .order_by(AcadSubject.seq, AcadSubject.code).all())
         if sc.is_teacher:
             subjects = [x for x in subjects if (c.id, x.id) in sc.teach_pairs]
+        subjects = [x for x in subjects if (x.term or 0) in (0, sel_term)]   # เฉพาะวิชาภาคนี้ + ทั้งปี
         subj = db.get(AcadSubject, sid) if sid else None
         # กันวิชาที่ค้างมาจากห้องก่อนหน้า (คนละระดับชั้น) -> ไม่แสดงวิชาที่ไม่ใช่ของห้องนี้
         if subj and subj.id not in {x.id for x in subjects}:
@@ -1554,7 +1558,7 @@ def assess_page(request: Request, db: Session = Depends(get_db),
         # แยกเลือกภาคเรียนก่อน เมื่อรายวิชามีทั้งภาค 1 และ 2 (มัธยม) - ประถม (ทั้งปี) ไม่ต้องเลือก
         has_terms = len([t for t in terms if t in (1, 2)]) > 1
         if has_terms:
-            subjects = [s for s in all_subjects if (s.term or 0) == term] if term in (1, 2) else []
+            subjects = [s for s in all_subjects if (s.term or 0) in (0, term)] if term in (1, 2) else []
         else:
             subjects = all_subjects
     subj = db.get(AcadSubject, sid) if sid else None
