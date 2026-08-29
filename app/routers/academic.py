@@ -850,7 +850,7 @@ async def assign_teachers_save(request: Request, db: Session = Depends(get_db)):
 # ---------------- รายวิชา ----------------
 @router.get("/academic/subjects", response_class=HTMLResponse)
 def subjects_page(request: Request, db: Session = Depends(get_db),
-                  year: int | None = None, level: str = ""):
+                  year: int | None = None, level: str = "", msg: str = ""):
     y = year or current_academic_year()
     sc = _scope(request, db)
     q = db.query(AcadSubject).filter_by(year=y)
@@ -864,11 +864,17 @@ def subjects_page(request: Request, db: Session = Depends(get_db),
     teachers = (db.query(Person).filter_by(active=True).order_by(Person.name).all()
                 if not sc.is_teacher else [])
     subj_teacher = _subject_teacher_names(db, rows) if not sc.is_teacher else {}
+    # ชั้นอื่น (ปีเดียวกัน) ที่มีรายวิชาแล้ว - ใช้เป็นต้นทางปุ่มคัดลอก
+    src_levels = []
+    if level and not sc.is_teacher:
+        src_levels = sorted({s.level for s in db.query(AcadSubject).filter_by(year=y).all()
+                             if s.level and s.level != level}, key=level_rank)
     return templates.TemplateResponse("academic_subjects.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "rows": rows, "level": level, "levels": SCHOOL_LEVELS, "kinds": SUBJECT_KINDS,
         "term_label": term_label, "is_secondary": is_secondary, "activities": activities,
         "is_teacher": sc.is_teacher, "teachers": teachers, "subj_teacher": subj_teacher,
+        "src_levels": src_levels, "msg": msg,
     })
 
 
@@ -899,6 +905,36 @@ def subject_add(request: Request, db: Session = Depends(get_db), year: str = For
             _assign_subject_teacher(db, subj, tid)
         db.commit()
     return RedirectResponse(f"/academic/subjects?year={y}&level={level}", status_code=303)
+
+
+@router.post("/academic/subjects/copy")
+def subjects_copy(request: Request, db: Session = Depends(get_db),
+                  year: str = Form(""), level: str = Form(""), src_level: str = Form("")):
+    """คัดลอกรายวิชาจากชั้นอื่น (ปีเดียวกัน) มาที่ชั้นนี้ - ข้ามรหัสที่มีอยู่แล้ว กันซ้ำ"""
+    if _scope(request, db).is_teacher:
+        return _deny()
+    y = _to_int(year, 0) or current_academic_year()
+    dst = (level or "").strip(); src = (src_level or "").strip()
+    if dst and src and dst != src:
+        have = {(s.code or "").strip() for s in
+                db.query(AcadSubject).filter_by(year=y, level=dst).all() if (s.code or "").strip()}
+        n = db.query(AcadSubject).filter_by(year=y, level=dst).count()
+        added = 0
+        for s in sorted(db.query(AcadSubject).filter_by(year=y, level=src).all(),
+                        key=lambda x: (x.seq or 0, x.code or "")):
+            code = (s.code or "").strip()
+            if code and code in have:          # มีรหัสนี้แล้วในชั้นปลายทาง = ข้าม
+                continue
+            n += 1; added += 1
+            db.add(AcadSubject(year=y, level=dst, code=code, name=s.name,
+                               learn_group=s.learn_group, kind=s.kind, hours=s.hours,
+                               credit=s.credit, term=s.term, seq=n,
+                               mid_max=s.mid_max, final_max=s.final_max))
+        db.commit()
+        return RedirectResponse(
+            f"/academic/subjects?year={y}&level={dst}&msg=คัดลอก {added} รายวิชาจาก {src} มาที่ {dst} แล้ว",
+            status_code=303)
+    return RedirectResponse(f"/academic/subjects?year={y}&level={dst}", status_code=303)
 
 
 @router.post("/academic/subjects/{sid}/update")

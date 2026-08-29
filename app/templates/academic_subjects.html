@@ -27,8 +27,21 @@
       </select>
     </div>
   </form>
+  {% if level and src_levels %}
+  <form method="post" action="/academic/subjects/copy" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:12px 0 0; padding-top:12px; border-top:1px solid #eef0f5;"
+        onsubmit="return confirm('คัดลอกรายวิชาจากชั้นที่เลือกมาที่ {{ level }} ? (รหัสที่มีอยู่แล้วจะข้าม ไม่สร้างซ้ำ)');">
+    <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="level" value="{{ level }}">
+    <span class="muted" style="font-size:13px;">คัดลอกรายวิชาจากชั้น</span>
+    <select name="src_level" required style="width:auto;">
+      <option value="">— เลือกชั้นต้นทาง —</option>
+      {% for lv in src_levels %}<option value="{{ lv }}">{{ lv }}</option>{% endfor %}
+    </select>
+    <button class="btn sm soft" type="submit"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอกมาที่ {{ level }}</button>
+  </form>
+  {% endif %}
 </div>
 
+{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
 {% set pr = request.query_params.get('preset') %}
 {% if pr == 'none' %}
 <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
