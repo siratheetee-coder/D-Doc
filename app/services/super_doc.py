@@ -104,11 +104,9 @@ def _cell(cell, text, *, size=16, bold=False, align="center", valign=True):
 
 
 def _dots(value, n):
-    """ค่า + จุดไข่ปลาให้ความยาวคงที่ (เว้นว่าง = จุดเต็มความกว้าง) กันจุดเกินข้อมูล"""
+    """กรอกแล้ว = แสดงค่าล้วน (ไม่มีจุดต่อท้าย) · เว้นว่าง = จุดไข่ปลาให้เขียน"""
     v = ("" if value is None else str(value)).strip()
-    if not v:
-        return "." * n
-    return v + " " + ("." * max(4, n - int(len(v) * 1.7)))
+    return v if v else ("." * n)
 
 
 def _paren(value, n):
@@ -221,7 +219,7 @@ def render_classroom_visit(school, record) -> str:
     _widths_visit(t)
 
     _p(doc, "ตอนที่ 3 ข้อเสนอแนะ", bold=True, before=6)
-    _suggest_lines(doc, record.suggestion, 6)
+    _suggest_lines(doc, record.suggestion, 6, indent=1.0)
 
     _p(doc, f"\t\t\t\t(ลงชื่อ) {'.' * 40} ผู้เยี่ยมชั้นเรียน", before=6)
     _p(doc, f"\t\t\t\t         {_paren(record.visitor_name, 40)}")
@@ -243,12 +241,14 @@ def _widths_visit(t):
             c.width = cw
 
 
-def _suggest_lines(doc, text, min_lines):
-    """กรอกแล้ว = แสดงข้อความล้วน (ไม่มีเส้นจุดเกิน) · ว่าง = เส้นจุดว่างให้เขียน"""
+def _suggest_lines(doc, text, min_lines, indent=0.0):
+    """กรอกแล้ว = แสดงข้อความล้วน (ย่อหน้าเข้า) · ว่าง = เส้นจุดว่างให้เขียน"""
     text = (text or "").strip()
     if text:
         for ln in text.splitlines() or [text]:
-            _p(doc, ln)
+            p = _p(doc, ln)
+            if indent:
+                p.paragraph_format.left_indent = Cm(indent)
     else:
         for _ in range(min_lines):
             _p(doc, "." * 118)
@@ -326,7 +326,7 @@ def render_supervision(school, record) -> str:
         ("4.  สิ่งที่ควรปรับปรุงหรือพัฒนา", record.note_improve),
     ]):
         _p(doc, label)
-        _suggest_lines(doc, val, 2)
+        _suggest_lines(doc, val, 2, indent=1.0)
 
     _p(doc, f"(ลงชื่อ) {'.' * 40} ผู้รับการนิเทศ", align="center", before=8)
     _p(doc, _paren(person.name if person else '', 35), align="center")
