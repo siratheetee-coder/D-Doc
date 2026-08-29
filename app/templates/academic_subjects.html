@@ -98,17 +98,17 @@
   {% if rows and is_teacher %}
   {# ครู: อ่านอย่างเดียว (แก้รายวิชา/สัดส่วนคะแนน เป็นหน้าที่เจ้าหน้าที่) #}
   <div class="table-wrap">
-  <table>
+  <table class="stack-sm">
     <thead><tr><th>รหัส</th><th>ชื่อรายวิชา</th><th>ชั้น</th><th>ประเภท</th><th>สัดส่วนคะแนน</th><th>ภาคเรียน</th></tr></thead>
     <tbody>
     {% for s in rows %}
       <tr>
-        <td>{{ s.code }}</td>
-        <td>{{ s.name }}{% if s.learn_group %}<div class="muted" style="font-size:12.5px;">{{ s.learn_group }}</div>{% endif %}</td>
-        <td>{{ s.level }}</td>
-        <td>{{ s.kind }}</td>
-        <td>{{ s.mid_max if s.mid_max is not none else 70 }} : {{ s.final_max if s.final_max is not none else 30 }}</td>
-        <td>{{ term_label(s.term) }}</td>
+        <td data-label="รหัส">{{ s.code }}</td>
+        <td data-label="ชื่อรายวิชา">{{ s.name }}{% if s.learn_group %}<div class="muted" style="font-size:12.5px;">{{ s.learn_group }}</div>{% endif %}</td>
+        <td data-label="ชั้น">{{ s.level }}</td>
+        <td data-label="ประเภท">{{ s.kind }}</td>
+        <td data-label="สัดส่วนคะแนน">{{ s.mid_max if s.mid_max is not none else 70 }} : {{ s.final_max if s.final_max is not none else 30 }}</td>
+        <td data-label="ภาคเรียน">{{ term_label(s.term) }}</td>
       </tr>
     {% endfor %}
     </tbody>
@@ -121,7 +121,7 @@
   {% set show_level = not level %}
   {% set show_credit = (not level) or sec %}
   <div class="table-wrap{{ ' dense' if show_credit }}">
-  <table>
+  <table class="stack-sm">
     {# จำนวนคอลัมน์จริง ใช้กับแถวคั่นชั้น #}
     {% set ncols = 8 if show_credit else 6 %}
     <thead><tr>
@@ -140,7 +140,7 @@
       {% endif %}
       <tr data-sid="{{ s.id }}" id="sub-{{ s.id }}">
         {% set cr = ('%g'|format(s.credit)) if s.credit else '' %}
-        <td><form method="post" action="/academic/subjects/{{ s.id }}/update" id="sf{{ s.id }}"></form>
+        <td data-label="รหัส" class="stack-full"><form method="post" action="/academic/subjects/{{ s.id }}/update" id="sf{{ s.id }}"></form>
           <input type="hidden" form="sf{{ s.id }}" name="flt_level" value="{{ level }}">
           <input form="sf{{ s.id }}" name="code" value="{{ s.code }}" style="width:90px;">
           {# คอลัมน์ที่ซ่อน ต้องส่งค่าเดิมไปด้วย ไม่งั้น subject_update จะเขียนทับเป็นค่าว่าง #}
@@ -148,23 +148,23 @@
           <input type="hidden" form="sf{{ s.id }}" name="credit" value="{{ cr }}">
           <input type="hidden" form="sf{{ s.id }}" name="term" value="{{ s.term or 0 }}">
           {% endif %}</td>
-        <td style="width:100%;"><input form="sf{{ s.id }}" name="name" value="{{ s.name }}" style="width:100%; min-width:150px;">
+        <td data-label="ชื่อรายวิชา" class="stack-full" style="width:100%;"><input form="sf{{ s.id }}" name="name" value="{{ s.name }}" style="width:100%; min-width:150px;">
           <input form="sf{{ s.id }}" name="learn_group" value="{{ s.learn_group }}" placeholder="สาระการเรียนรู้"
                  class="sub-group" style="width:100%; min-width:150px; margin-top:3px; font-size:13px; padding:5px 8px;">
           <input list="teachers-dl-sub" form="sf{{ s.id }}" name="teacher_name" autocomplete="off"
                  value="{{ subj_teacher.get(s.id, '') }}" placeholder="ครูผู้สอน (พิมพ์หาชื่อ)"
                  class="sub-group sub-teacher" style="width:100%; min-width:150px; margin-top:3px; font-size:13px; padding:5px 8px;"></td>
-        <td><select form="sf{{ s.id }}" name="kind" style="width:114px;">{% for k in kinds %}<option {{ 'selected' if k==s.kind }}>{{ k }}</option>{% endfor %}</select></td>
-        <td><input form="sf{{ s.id }}" name="hours" value="{{ s.hours or '' }}" style="width:60px;"></td>
-        {% if show_credit %}<td><input form="sf{{ s.id }}" name="credit" value="{{ cr }}" style="width:60px;"></td>{% endif %}
-        <td style="white-space:nowrap;"><input form="sf{{ s.id }}" name="mid_max" value="{{ s.mid_max if s.mid_max is not none else 70 }}" style="width:52px;"> : <input form="sf{{ s.id }}" name="final_max" value="{{ s.final_max if s.final_max is not none else 30 }}" style="width:52px;"></td>
+        <td data-label="ประเภท"><select form="sf{{ s.id }}" name="kind" style="width:114px;">{% for k in kinds %}<option {{ 'selected' if k==s.kind }}>{{ k }}</option>{% endfor %}</select></td>
+        <td data-label="เวลา (ชม./ปี)"><input form="sf{{ s.id }}" name="hours" value="{{ s.hours or '' }}" style="width:60px;"></td>
+        {% if show_credit %}<td data-label="หน่วยกิต"><input form="sf{{ s.id }}" name="credit" value="{{ cr }}" style="width:60px;"></td>{% endif %}
+        <td data-label="สัดส่วนคะแนน (เก็บ:ปลาย)" style="white-space:nowrap;"><input form="sf{{ s.id }}" name="mid_max" value="{{ s.mid_max if s.mid_max is not none else 70 }}" style="width:52px;"> : <input form="sf{{ s.id }}" name="final_max" value="{{ s.final_max if s.final_max is not none else 30 }}" style="width:52px;"></td>
         {% if show_credit %}
-        <td><select form="sf{{ s.id }}" name="term" style="width:106px;">
+        <td data-label="ภาคเรียน"><select form="sf{{ s.id }}" name="term" style="width:106px;">
           <option value="0" {{ 'selected' if s.term==0 }}>ทั้งปี</option>
           <option value="1" {{ 'selected' if s.term==1 }}>ภาค 1</option>
           <option value="2" {{ 'selected' if s.term==2 }}>ภาค 2</option></select></td>
         {% endif %}
-        <td style="white-space:nowrap;">
+        <td data-label="จัดการ" class="stack-full" style="white-space:nowrap;">
           <button class="btn sm" form="sf{{ s.id }}" type="submit">บันทึก</button>
           <form method="post" action="/academic/subjects/{{ s.id }}/delete" style="display:inline; margin:0;"
                 onsubmit="return confirm('ลบรายวิชานี้? ผลการเรียนของวิชานี้จะถูกลบด้วย');">
@@ -198,16 +198,16 @@
     <button type="submit" aria-hidden="true" tabindex="-1"
             style="position:absolute; width:0; height:0; padding:0; border:0; overflow:hidden;"></button>
     <div class="table-wrap">
-    <table>
+    <table class="stack-sm">
       <thead><tr><th>ลำดับ</th><th>รหัส</th><th>ชื่อกิจกรรม</th><th>เวลาเรียน (ชม./ปี)</th><th>ลบ</th></tr></thead>
       <tbody>
       {% for a in activities %}
         <tr>
-          <td>{{ loop.index }}</td>
-          <td><input name="code_{{ a.id }}" value="{{ a.code }}" style="width:90px;"></td>
-          <td><input name="name_{{ a.id }}" value="{{ a.name }}" style="width:100%; min-width:220px;"></td>
-          <td><input name="hours_{{ a.id }}" value="{{ a.hours if a.hours is not none else '' }}" inputmode="numeric" style="width:80px; text-align:center;"></td>
-          <td class="center"><button class="btn sm red" type="submit" name="del_{{ a.id }}" value="1"
+          <td data-label="ลำดับ">{{ loop.index }}</td>
+          <td data-label="รหัส"><input name="code_{{ a.id }}" value="{{ a.code }}" style="width:90px;"></td>
+          <td data-label="ชื่อกิจกรรม" class="stack-full"><input name="name_{{ a.id }}" value="{{ a.name }}" style="width:100%; min-width:220px;"></td>
+          <td data-label="เวลาเรียน (ชม./ปี)"><input name="hours_{{ a.id }}" value="{{ a.hours if a.hours is not none else '' }}" inputmode="numeric" style="width:80px; text-align:center;"></td>
+          <td data-label="ลบ" class="center"><button class="btn sm red" type="submit" name="del_{{ a.id }}" value="1"
                 onclick="return confirm('ลบกิจกรรม &quot;{{ a.name }}&quot; ? ผลประเมินของกิจกรรมนี้จะถูกลบด้วย');">ลบ</button></td>
         </tr>
       {% endfor %}

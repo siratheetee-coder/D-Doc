@@ -81,15 +81,15 @@
       {% for t in teachers %}<option value="{{ t.name }}"></option>{% endfor %}
     </datalist>
     <div class="table-wrap">
-    <table>
+    <table class="stack-sm">
       <thead><tr><th>รหัส</th><th style="min-width:160px;">รายวิชา</th><th>ภาค</th><th style="min-width:200px;">ครูผู้สอน</th></tr></thead>
       <tbody>
       {% for s in subjects %}
         <tr>
-          <td>{{ s.code }}</td>
-          <td>{{ s.name }}</td>
-          <td style="white-space:nowrap;">{{ term_label(s.term) }}</td>
-          <td><input list="teachers-dl" name="teacher_{{ s.id }}" autocomplete="off"
+          <td data-label="รหัส">{{ s.code }}</td>
+          <td data-label="รายวิชา">{{ s.name }}</td>
+          <td data-label="ภาค" style="white-space:nowrap;">{{ term_label(s.term) }}</td>
+          <td data-label="ครูผู้สอน" class="stack-full"><input list="teachers-dl" name="teacher_{{ s.id }}" autocomplete="off"
                      value="{{ teach[s.id].teacher.name if teach.get(s.id) and teach[s.id].teacher else '' }}"
                      placeholder="พิมพ์ชื่อครู" style="width:100%; min-width:190px;"></td>
         </tr>
