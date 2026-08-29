@@ -36,7 +36,7 @@
     {% if plans %}<span class="muted" style="font-size:15px;">({{ plans|length }})</span>{% endif %}</h2>
   {% if plans %}
   <div class="table-wrap">
-  <table>
+  <table class="stack-sm">
     <thead><tr>
       {% if is_reviewer %}<th>ครู</th>{% endif %}
       <th>เรื่อง</th><th>ภาค</th><th>ลิงก์</th><th>วันที่ส่ง</th><th>สถานะ</th><th>{{ 'ตรวจ' if is_reviewer else 'ความเห็น' }}</th>
@@ -45,13 +45,13 @@
     {% for p in plans %}
       {% set st = {'pending':('รอตรวจ','#fef9c3','#854d0e'), 'reviewed':('ตรวจแล้ว/ผ่าน','#dcfce7','#166534'), 'revise':('ให้แก้ไข','#fee2e2','#b91c1c')}[p.status] %}
       <tr>
-        {% if is_reviewer %}<td style="white-space:nowrap;">{{ p.teacher.name if p.teacher else '-' }}</td>{% endif %}
-        <td>{{ p.title }}{% if p.note %}<div class="muted" style="font-size:12px;">{{ p.note }}</div>{% endif %}</td>
-        <td class="center">{{ p.term or '-' }}</td>
-        <td><a href="{{ p.link }}" target="_blank" rel="noopener">เปิดลิงก์ ↗</a></td>
-        <td style="white-space:nowrap; font-size:13px;">{{ be_date(p.submitted_at) }}</td>
-        <td><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span></td>
-        <td>
+        {% if is_reviewer %}<td data-label="ครู" style="white-space:nowrap;">{{ p.teacher.name if p.teacher else '-' }}</td>{% endif %}
+        <td data-label="เรื่อง">{{ p.title }}{% if p.note %}<div class="muted" style="font-size:12px;">{{ p.note }}</div>{% endif %}</td>
+        <td data-label="ภาค" class="center">{{ p.term or '-' }}</td>
+        <td data-label="ลิงก์"><a href="{{ p.link }}" target="_blank" rel="noopener">เปิดลิงก์ ↗</a></td>
+        <td data-label="วันที่ส่ง" style="white-space:nowrap; font-size:13px;">{{ be_date(p.submitted_at) }}</td>
+        <td data-label="สถานะ"><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span></td>
+        <td data-label="{{ 'ตรวจ' if is_reviewer else 'ความเห็น' }}">
           {% if is_reviewer %}
           <form method="post" action="/academic/lesson-plans/{{ p.id }}/review" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:0;">
             <input name="comment" value="{{ p.comment or '' }}" placeholder="ความเห็น" style="width:150px;">

@@ -15,22 +15,22 @@
 <div class="card">
   {% if reqs %}
   <div class="table-wrap">
-  <table>
+  <table class="stack-sm">
     <thead><tr><th>ผู้ลา</th><th>ประเภท</th><th>ตั้งแต่</th><th>ถึง</th><th>วัน</th><th>เหตุผล</th><th>ติดต่อ</th><th>สถานะ</th><th>พิจารณา</th></tr></thead>
     <tbody>
     {% for r in reqs %}
       {% set st = {'pending':('รออนุมัติ','#fef9c3','#854d0e'), 'approved':('อนุมัติ','#dcfce7','#166534'), 'rejected':('ไม่อนุมัติ','#fee2e2','#b91c1c')}[r.status] %}
       <tr>
-        <td style="white-space:nowrap; font-weight:600;">{{ r.person.name if r.person else '-' }}</td>
-        <td style="white-space:nowrap;">{{ r.leave_type }}</td>
-        <td style="white-space:nowrap;">{{ be_date(r.start_date) }}</td>
-        <td style="white-space:nowrap;">{{ be_date(r.end_date) }}</td>
-        <td class="center">{{ r.days|int }}</td>
-        <td>{{ r.reason or '-' }}</td>
-        <td style="font-size:13px;">{{ r.contact or '-' }}</td>
-        <td><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span>
+        <td data-label="ผู้ลา" style="white-space:nowrap; font-weight:600;">{{ r.person.name if r.person else '-' }}</td>
+        <td data-label="ประเภท" style="white-space:nowrap;">{{ r.leave_type }}</td>
+        <td data-label="ตั้งแต่" style="white-space:nowrap;">{{ be_date(r.start_date) }}</td>
+        <td data-label="ถึง" style="white-space:nowrap;">{{ be_date(r.end_date) }}</td>
+        <td data-label="วัน" class="center">{{ r.days|int }}</td>
+        <td data-label="เหตุผล">{{ r.reason or '-' }}</td>
+        <td data-label="ติดต่อ" style="font-size:13px;">{{ r.contact or '-' }}</td>
+        <td data-label="สถานะ"><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span>
           {% if r.comment %}<div class="muted" style="font-size:12px;">{{ r.comment }}</div>{% endif %}</td>
-        <td>
+        <td data-label="พิจารณา" class="stack-full">
           <div style="display:flex; gap:6px; margin-bottom:6px;">
             {% if r.attachment_name %}
             <a class="btn sm" href="/me/leave/{{ r.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> ดูใบลาที่แนบ</a>

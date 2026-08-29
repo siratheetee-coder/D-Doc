@@ -597,6 +597,9 @@
         font-size: 13px; text-align: left; white-space: nowrap; flex: 0 0 auto; }
       table.stack-sm td:empty, table.stack-sm td[data-empty="1"] { display: none; }
       table.stack-sm td.center { justify-content: space-between; }
+      /* เซลล์ที่มีฟอร์ม/ปุ่มหลายอัน: ป้ายอยู่บน เนื้อหาเต็มความกว้างด้านล่าง */
+      table.stack-sm td.stack-full { flex-direction: column; align-items: stretch; text-align: left; gap: 6px; }
+      table.stack-sm td.stack-full::before { text-align: left; }
     }
   </style>
 </head>
