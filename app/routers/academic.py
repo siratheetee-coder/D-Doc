@@ -780,6 +780,73 @@ async def teaching_save(cid: int, request: Request, db: Session = Depends(get_db
     return RedirectResponse(f"/academic/classes/{cid}?saved=1", status_code=303)
 
 
+# ---------------- จัดครูเข้าสอน (รายครู · ตารางติ๊กวิชา×ห้อง) ----------------
+@router.get("/academic/assign-teachers", response_class=HTMLResponse)
+def assign_teachers_page(request: Request, db: Session = Depends(get_db),
+                         year: int | None = None, pid: str = "", saved: str = ""):
+    """เลือกครู 1 คน แล้วติ๊กว่าสอนวิชาอะไรในห้องไหนบ้าง (เร็วกว่าการไล่ตั้งทีละห้อง)"""
+    if _scope(request, db).is_teacher:
+        return _deny()
+    y = year or current_academic_year()
+    teachers = db.query(Person).filter_by(active=True).order_by(Person.name).all()
+    tid = _to_int(pid, 0)
+    teacher = db.get(Person, tid) if tid else None
+    classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
+    subjects = sorted(db.query(AcadSubject).filter_by(year=y).all(),
+                      key=lambda s: (s.seq or 0, s.code or ""))
+    # ครูปัจจุบันของแต่ละ (ห้อง, วิชา)
+    cur = {}
+    if classes:
+        for t in (db.query(AcadTeaching)
+                  .filter(AcadTeaching.class_id.in_([c.id for c in classes])).all()):
+            cur[(t.class_id, t.subject_id)] = t.teacher
+    # จัดกลุ่มตามระดับชั้น (เฉพาะชั้นที่มีทั้งห้องและวิชา)
+    blocks = []
+    for lv in sorted({c.level for c in classes}, key=level_rank):
+        rooms = [c for c in classes if c.level == lv]
+        subs = [s for s in subjects if s.level == lv]
+        if not subs:
+            continue
+        blocks.append({"level": lv, "rooms": rooms, "subs": subs})
+    return templates.TemplateResponse("academic_assign_teachers.html", {
+        "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
+        "teachers": teachers, "teacher": teacher, "pid": tid, "blocks": blocks,
+        "cur": cur, "class_label": _class_label, "saved": saved,
+    })
+
+
+@router.post("/academic/assign-teachers/save")
+async def assign_teachers_save(request: Request, db: Session = Depends(get_db)):
+    if _scope(request, db).is_teacher:
+        return _deny()
+    form = await request.form()
+    y = _to_int(form.get("year"), 0) or current_academic_year()
+    tid = _to_int(form.get("pid"), 0)
+    if not tid:
+        return RedirectResponse(f"/academic/assign-teachers?year={y}", status_code=303)
+    classes = db.query(AcadClass).filter_by(year=y).all()
+    cls_level = {c.id: c.level for c in classes}
+    subs_by_level = {}
+    for s in db.query(AcadSubject).filter_by(year=y).all():
+        subs_by_level.setdefault(s.level, []).append(s.id)
+    existing = {(t.class_id, t.subject_id): t for t in
+                (db.query(AcadTeaching).filter(AcadTeaching.class_id.in_(list(cls_level))).all()
+                 if cls_level else [])}
+    for cid, lv in cls_level.items():
+        for sid in subs_by_level.get(lv, []):
+            ticked = form.get(f"cell_{cid}_{sid}") is not None
+            row = existing.get((cid, sid))
+            if ticked:
+                if row:
+                    row.teacher_id = tid          # ตั้ง/ย้ายมาเป็นครูคนนี้
+                else:
+                    db.add(AcadTeaching(class_id=cid, subject_id=sid, teacher_id=tid))
+            elif row and row.teacher_id == tid:
+                db.delete(row)                    # เอาครูคนนี้ออก (ไม่แตะครูคนอื่น)
+    db.commit()
+    return RedirectResponse(f"/academic/assign-teachers?year={y}&pid={tid}&saved=1", status_code=303)
+
+
 # ---------------- รายวิชา ----------------
 @router.get("/academic/subjects", response_class=HTMLResponse)
 def subjects_page(request: Request, db: Session = Depends(get_db),

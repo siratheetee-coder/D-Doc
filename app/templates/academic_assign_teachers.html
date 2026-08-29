@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}จัดครูเข้าสอน{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานวิชาการ · จัดครูผู้สอน</div>
+    <span class="hero-title">จัดครูเข้าสอน (รายครู)</span>
+    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+  </div>
+</div>
+
+{% if saved %}<div class="alert">✔ บันทึกการจัดครูผู้สอนแล้ว</div>{% endif %}
+
+<div class="card">
+  <form method="get" action="/academic/assign-teachers" style="display:flex; gap:14px 18px; flex-wrap:wrap; align-items:flex-end;">
+    <div><label>ปีการศึกษา</label>
+      <select name="year" onchange="this.form.submit()">
+        {% for yy in years %}<option value="{{ yy }}" {{ 'selected' if yy==year }}>{{ yy }}</option>{% endfor %}
+      </select></div>
+    <div style="flex:1; min-width:220px;"><label>เลือกครู</label>
+      <select name="pid" onchange="this.form.submit()">
+        <option value="">— เลือกครูที่ต้องการจัดวิชา —</option>
+        {% for t in teachers %}<option value="{{ t.id }}" {{ 'selected' if t.id==pid }}>{{ t.name }}</option>{% endfor %}
+      </select></div>
+  </form>
+  <p class="muted" style="font-size:13px; margin:10px 0 0;">เลือกครู แล้วติ๊กว่าสอนวิชาอะไรในห้องไหนบ้าง · ติ๊กหัวแถว = ทุกห้องของวิชานั้น · ติ๊กหัวคอลัมน์ = ทุกวิชาของห้องนั้น</p>
+</div>
+
+{% if teacher %}
+  {% if blocks %}
+  <form method="post" action="/academic/assign-teachers/save">
+    <input type="hidden" name="year" value="{{ year }}">
+    <input type="hidden" name="pid" value="{{ pid }}">
+    {% for b in blocks %}
+    <div class="card">
+      <h2 style="margin-top:0;">ชั้น {{ b.level }} <span class="muted" style="font-size:14px;">({{ b.rooms|length }} ห้อง · {{ b.subs|length }} วิชา)</span></h2>
+      <div class="table-wrap">
+      <table class="assign-tbl">
+        <thead>
+          <tr>
+            <th class="cnr">วิชา \ ห้อง</th>
+            {% for r in b.rooms %}
+            <th title="ติ๊กทุกวิชาของห้องนี้">
+              {{ class_label(r) }}
+              <label class="tick-all"><input type="checkbox" class="colall" data-col="{{ r.id }}"> ทั้งห้อง</label>
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+        {% for s in b.subs %}
+          <tr>
+            <td class="subj">
+              <label class="tick-all"><input type="checkbox" class="rowall" data-row="{{ s.id }}"> <b>{{ s.code }}</b> {{ s.name }}</label>
+            </td>
+            {% for r in b.rooms %}
+              {% set t = cur.get((r.id, s.id)) %}
+              <td class="cell {{ 'has-other' if t and t.id != pid }}">
+                <input type="checkbox" name="cell_{{ r.id }}_{{ s.id }}" class="cellchk"
+                       data-row="{{ s.id }}" data-col="{{ r.id }}" {{ 'checked' if t and t.id == pid }}>
+                {% if t and t.id != pid %}<div class="other" title="ปัจจุบันเป็นครูคนนี้ · ติ๊กเพื่อย้ายมาเป็น {{ teacher.name }}">{{ t.name }}</div>{% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    </div>
+    {% endfor %}
+    <div style="position:sticky; bottom:0; padding:12px 0; background:linear-gradient(to top, var(--bg,#f6f7fb) 70%, transparent);">
+      <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกการจัดครู {{ teacher.name }}</button>
+    </div>
+  </form>
+  {% else %}
+  <div class="card"><p class="muted" style="margin:0;">ปีนี้ยังไม่มีห้องเรียนหรือรายวิชา — <a href="/academic/classes">สร้างห้องเรียน</a> และ <a href="/academic/subjects">สร้างรายวิชา</a> ก่อน</p></div>
+  {% endif %}
+{% else %}
+<div class="card"><p class="muted" style="margin:0;">เลือกครูด้านบนเพื่อเริ่มจัดวิชาที่สอน</p></div>
+{% endif %}
+
+<style>
+  table.assign-tbl { border-collapse:collapse; }
+  table.assign-tbl th, table.assign-tbl td { border:1px solid #e5e7eb; padding:7px 9px; text-align:center; vertical-align:middle; }
+  table.assign-tbl thead th { background:#eef2ff; font-size:13px; white-space:nowrap; color:var(--brand-dark); }
+  table.assign-tbl th.cnr { background:#e0e7ff; }
+  table.assign-tbl td.subj { text-align:left; white-space:nowrap; background:#faf9ff; font-size:14px; }
+  table.assign-tbl td.subj b { color:var(--brand-dark); }
+  table.assign-tbl .cellchk { width:20px; height:20px; accent-color:var(--brand); cursor:pointer; margin:0; }
+  table.assign-tbl td.cell.has-other { background:#fff7ed; }
+  table.assign-tbl td.cell .other { font-size:11px; color:#c2410c; margin-top:2px; line-height:1.1; }
+  .tick-all { display:inline-flex; align-items:center; gap:5px; margin:0; cursor:pointer; font-weight:500; }
+  .tick-all input { width:15px; height:15px; accent-color:var(--brand); margin:0; cursor:pointer; }
+  thead .tick-all { display:flex; justify-content:center; font-size:11px; font-weight:400; color:#64748b; margin-top:3px; }
+</style>
+{% if teacher and blocks %}
+<script>
+  (function(){
+    function sync(sel, attr){
+      document.querySelectorAll(sel).forEach(function(master){
+        master.addEventListener('change', function(){
+          document.querySelectorAll('.cellchk[data-'+attr+'="'+master.dataset[attr]+'"]').forEach(function(c){
+            c.checked = master.checked;
+          });
+        });
+      });
+    }
+    sync('.rowall', 'row');
+    sync('.colall', 'col');
+  })();
+</script>
+{% endif %}
+{% endblock %}

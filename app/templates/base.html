@@ -784,6 +784,7 @@
         {% if not acad_teacher %}
         <a href="/academic/classes" class="{{ 'active' if path.startswith('/academic/classes') }}"><svg class="icon"><use href="#ic-users"/></svg> ห้องเรียน</a>
         <a href="/academic/subjects" class="{{ 'active' if path.startswith('/academic/subjects') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> รายวิชา</a>
+        <a href="/academic/assign-teachers" class="{{ 'active' if path.startswith('/academic/assign-teachers') }}"><svg class="icon"><use href="#ic-users"/></svg> จัดครูเข้าสอน</a>
         <a href="/academic/calendar" class="{{ 'active' if path.startswith('/academic/calendar') }}"><svg class="icon"><use href="#ic-calendar"/></svg> ปฏิทินการศึกษา</a>
         {% endif %}
         <a href="/academic/attendance" class="{{ 'active' if path.startswith('/academic/attendance') }}"><svg class="icon"><use href="#ic-clock"/></svg> เวลาเรียน</a>
