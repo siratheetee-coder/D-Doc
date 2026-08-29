@@ -577,9 +577,13 @@
       .bell-panel { right: 0; left: auto; width: 320px; max-width: calc(100vw - 20px); }
     }
     @media (max-width: 560px) {
-      main { padding: 10px 7px; }
+      main { padding: 10px 7px 78px; }   /* padding ล่าง กันเนื้อหาท้ายหน้าถูกปุ่มลอยปฏิทินบัง */
       .card { padding: 14px 10px; margin-bottom: 14px; }
       .hero { padding: 16px 14px; }
+      /* ปุ่มลอยปฏิทิน เล็กลงบนมือถือ + เผื่อ safe-area (iPhone) ไม่ให้ทับเนื้อห */
+      .fab-cal { width: 46px; height: 46px; right: 14px;
+        bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+      .fab-cal .icon { width: 21px; height: 21px; }
     }
   </style>
 </head>
