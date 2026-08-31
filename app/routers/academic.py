@@ -2345,7 +2345,7 @@ def timetable_teacher_docx(pid: int, request: Request, db: Session = Depends(get
 
 # ---------------- เอกสาร ----------------
 @router.get("/academic/classes/{cid}/pp5.docx")
-def pp5_docx(cid: int, sid: int, request: Request, db: Session = Depends(get_db)):
+def pp5_docx(cid: int, request: Request, sid: int = 0, db: Session = Depends(get_db)):
     from app.services.acad_doc import render_pp5
     c, subj = db.get(AcadClass, cid), db.get(AcadSubject, sid)
     if not c or not subj:
