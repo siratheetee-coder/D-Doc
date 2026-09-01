@@ -64,7 +64,10 @@
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
     <h2 style="margin:0;">{{ subj.code }} {{ subj.name }} · ห้อง {{ class_label(c) }}
       <span class="muted" style="font-size:15px;">({{ students|length }} คน)</span></h2>
-    <button class="btn soft" type="button" onclick="fillThrees()">เติม 3 ทุกช่องที่ว่าง</button>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn soft" type="button" onclick="fillThrees()">เติม 3 ทุกช่องที่ว่าง</button>
+      <button class="btn gray" type="button" onclick="clearAll()">ล้างทุกช่อง</button>
+    </div>
   </div>
   <p class="muted" style="font-size:13px; margin:6px 0 8px;">คะแนน 0-3 ต่อข้อ · เฉลี่ย ≥2.5 = ดีเยี่ยม · 1.5-2.49 = ดี · 1-1.49 = ผ่าน · ต่ำกว่า 1 = ไม่ผ่าน · เว้นว่างได้ถ้ายังไม่ประเมิน</p>
   {% if students %}
@@ -131,6 +134,13 @@
   function fillThrees(){
     document.querySelectorAll('tr[data-row]').forEach(function(tr){
       tr.querySelectorAll('[data-score]').forEach(function(i){ if (!i.value.trim()) i.value = '3'; });
+      recalcRow(tr);
+    });
+  }
+  function clearAll(){
+    if (!confirm('ล้างคะแนนทุกช่องในหน้านี้? (ยังไม่บันทึกจนกว่าจะกดบันทึก)')) return;
+    document.querySelectorAll('tr[data-row]').forEach(function(tr){
+      tr.querySelectorAll('[data-score]').forEach(function(i){ i.value = ''; });
       recalcRow(tr);
     });
   }
