@@ -740,6 +740,14 @@ def _serve_attachment(data, name):
                     headers={"Content-Disposition": f"inline; filename*=UTF-8''{fn}"})
 
 
+@router.get("/me/leave/blank.docx")
+def my_leave_blank():
+    """ดาวน์โหลดแบบฟอร์มใบลาเปล่า (จุดไข่ปลาให้กรอกเอง) - ไฟล์ต้นฉบับ ไม่หักโควตา"""
+    from pathlib import Path
+    p = Path(__file__).resolve().parent.parent / "data" / "forms" / "leave_form.docx"
+    return serve_generated(str(p), _DOCX, count=False, download_name="แบบฟอร์มใบลา.docx")
+
+
 @router.get("/me/leave/{lid}/form.docx")
 def my_leave_form_docx(lid: int, request: Request, db: Session = Depends(get_db)):
     from app.models import LeaveRequest

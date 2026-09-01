@@ -12,6 +12,13 @@
 {% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
 {% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
 
+<div class="card" style="background:linear-gradient(135deg,#f5f3ff,#eef2ff); border:1px solid #ddd6fe;">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <div><b>แบบฟอร์มใบลา (เปล่า)</b><div class="muted" style="font-size:13px;">พิมพ์แล้วเขียนมือ — จุดไข่ปลาครบตามต้นฉบับ</div></div>
+    <a class="btn" href="/me/leave/blank.docx" style="background:linear-gradient(135deg,#7c3aed,#4f46e5); border:none;"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดใบลา</a>
+  </div>
+</div>
+
 {% if my_pid %}
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-calendar"/></svg> ยื่นใบลา</h2>

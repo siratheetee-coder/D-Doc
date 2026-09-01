@@ -343,6 +343,11 @@ def render_leave_official(school, person, record, db=None, approver=None,
     _fill(P[2], [(2, "  " + sch)])                              # เขียนที่
     try:
         P[2].runs[1].text = ""                                 # ตัดช่องว่างนำ ให้ตรงกับบรรทัด 'วันที่'
+        i2 = _find_run(P[2], "เขียนที่")                        # ตัดแท็บท้าย (กันล้นเป็นบรรทัดว่าง = ช่องว่างก่อน 'วันที่')
+        if i2 is not None:
+            for r in P[2].runs[i2 + 1:]:
+                if r.text == "\t":
+                    r.text = ""
     except Exception:
         pass
     _fill(P[3], [(1, " " + wdd), (4, " " + wmon), (9, " " + wyy)])  # วันที่ เดือน พ.ศ.
