@@ -775,7 +775,7 @@
         <a href="/hr/leave-requests" class="{{ 'active' if path.startswith('/hr/leave-requests') }}"><svg class="icon"><use href="#ic-send"/></svg> ใบลาที่รออนุมัติ</a>
         <a href="/hr/travel-requests" class="{{ 'active' if path.startswith('/hr/travel-requests') }}"><svg class="icon"><use href="#ic-send"/></svg> ขอไปราชการรออนุมัติ</a>
         <a href="/hr/leave" class="{{ 'active' if path == '/hr/leave' }}"><svg class="icon"><use href="#ic-calendar"/></svg> ทะเบียนวันลา</a>
-        <a href="/hr/travel" class="{{ 'active' if path.startswith('/hr/travel') }}"><svg class="icon"><use href="#ic-send"/></svg> ทะเบียนไปราชการ</a>
+        <a href="/hr/travel" class="{{ 'active' if path == '/hr/travel' or path.startswith('/hr/travel/') }}"><svg class="icon"><use href="#ic-send"/></svg> ทะเบียนไปราชการ</a>
         <a href="/hr/supervision" class="{{ 'active' if path.startswith('/hr/supervision') or path.startswith('/hr/classroom-visit') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> การนิเทศภายใน</a>
 
         {% elif module == 'academic' %}

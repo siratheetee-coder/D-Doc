@@ -43,6 +43,10 @@
             <button class="btn sm green" type="submit" name="status" value="approved">อนุมัติ</button>
             <button class="btn sm red" type="submit" name="status" value="rejected">ไม่อนุมัติ</button>
           </form>
+          <form method="post" action="/hr/leave-requests/{{ r.id }}/delete" style="margin:6px 0 0;"
+                onsubmit="return confirm('ลบคำขอนี้? (ถ้าอนุมัติแล้ว จะลบรายการในทะเบียนวันลาที่ผูกกันด้วย)');">
+            <button class="btn sm gray" type="submit" style="color:#dc2626;"><svg class="icon"><use href="#ic-trash"/></svg> ลบคำขอ</button>
+          </form>
         </td>
       </tr>
     {% endfor %}

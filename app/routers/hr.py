@@ -441,6 +441,19 @@ def leave_request_decide(lid: int, request: Request, db: Session = Depends(get_d
     return RedirectResponse("/hr/leave-requests?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
 
 
+@router.post("/hr/leave-requests/{lid}/delete")
+def leave_request_delete(lid: int, db: Session = Depends(get_db)):
+    """ลบคำขอใบลา · ถ้าเคยอนุมัติแล้ว (มี record_id) ลบรายการในทะเบียนวันลาที่ผูกกันด้วย"""
+    r = db.get(LeaveRequest, lid)
+    if r:
+        if r.record_id:
+            rec = db.get(LeaveRecord, r.record_id)
+            if rec:
+                db.delete(rec)
+        db.delete(r); db.commit()
+    return RedirectResponse("/hr/leave-requests?msg=ลบคำขอใบลาแล้ว", status_code=303)
+
+
 # ==================== ขอไปราชการที่ครูส่งเข้าระบบ (อนุมัติ + ลงทะเบียน + แจ้ง) ====================
 @router.get("/hr/travel-requests", response_class=HTMLResponse)
 def travel_requests_page(request: Request, db: Session = Depends(get_db), msg: str = "", err: str = ""):
@@ -485,6 +498,19 @@ def travel_request_decide(tid: int, request: Request, db: Session = Depends(get_
                     f"<p>คำขอไปราชการ ({r.subject}) ได้รับการพิจารณาแล้ว: <b>{res}</b></p>"
                     f"<p>ความเห็น: {r.comment or '-'}</p>")
     return RedirectResponse("/hr/travel-requests?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
+
+
+@router.post("/hr/travel-requests/{tid}/delete")
+def travel_request_delete(tid: int, db: Session = Depends(get_db)):
+    """ลบคำขอไปราชการ · ถ้าเคยอนุมัติแล้ว (มี record_id) ลบรายการในทะเบียนไปราชการที่ผูกกันด้วย"""
+    r = db.get(TravelRequest, tid)
+    if r:
+        if r.record_id:
+            rec = db.get(TravelRecord, r.record_id)
+            if rec:
+                db.delete(rec)
+        db.delete(r); db.commit()
+    return RedirectResponse("/hr/travel-requests?msg=ลบคำขอไปราชการแล้ว", status_code=303)
 
 
 # ==================== การนิเทศภายในสถานศึกษา ====================
