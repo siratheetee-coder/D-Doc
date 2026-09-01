@@ -907,16 +907,16 @@
             </div>
           </div>
           {% endif %}
-          {# ---- ป้าย 2: โควตาทดลอง (แสดงคู่กันได้ ถ้ายังมีโควตาเหลือกับงานที่ยังไม่ได้ซื้อ) ---- #}
-          {% if st.docs_left is not none and (st.plan == 'trial' or st.docs_left > 0) %}
-          {% set twarn = st.docs_left <= 3 %}
-          <a href="/checkout" title="โควตาเอกสารสำหรับงานที่ยังไม่ได้ซื้อ" class="topbar-hide-sm"
+          {# ---- ป้าย 2: ทดลองใช้ฟรี 30 วัน (นับถอยหลังตามเวลา) ---- #}
+          {% if st.plan == 'trial' and st.days_left is not none %}
+          {% set twarn = st.days_left <= 5 %}
+          <a href="/checkout" title="ทดลองใช้ฟรี 30 วัน · สมัครสมาชิกเพื่อใช้ต่อ" class="topbar-hide-sm"
              style="display:inline-flex; align-items:center; gap:7px; text-decoration:none; margin-right:8px;
                     font-size:13px; font-weight:600; padding:6px 13px; border-radius:999px; white-space:nowrap;
                     {% if twarn %}background:#fef2f2; color:#b91c1c; border:1px solid #fecaca;
                     {% else %}background:#fff4e5; color:#b45309; border:1px solid #fed7aa;{% endif %}">
             <span style="width:7px; height:7px; border-radius:50%; background:currentColor;"></span>
-            ทดลองใช้ · เหลือ {{ st.docs_left }} เอกสาร{% if twarn %} · เป็นสมาชิก{% endif %}
+            ทดลองใช้ · เหลือ {{ st.days_left if st.days_left > 0 else 0 }} วัน{% if twarn %} · เป็นสมาชิก{% endif %}
           </a>
           {% endif %}
         {% endif %}
@@ -933,13 +933,13 @@
       </div>
       <main>
         {% set _st = account_status(request.session.get('tid')) %}
-        {% if _st and _st.plan == 'trial' and _st.docs_left is not none and _st.docs_left <= 10 %}
-          {% if _st.docs_left <= 0 %}
+        {% if _st and _st.plan == 'trial' and _st.days_left is not none and _st.days_left <= 7 %}
+          {% if _st.days_left <= 0 %}
           <div class="trial-modal" id="trialEndModal" role="dialog" aria-modal="true" aria-labelledby="tmTitle">
             <div class="trial-card">
               <div class="tm-ic"><svg class="icon"><use href="#ic-alert"/></svg></div>
-              <h3 id="tmTitle">โควตาทดลองใช้หมดแล้ว</h3>
-              <p>โควต้าทดลองใช้ของคุณหมดแล้ว<br>แต่ระบบยังจำข้อมูลของคุณไว้อยู่ครบ<br>โปรดต่ออายุเพื่อใช้งานต่อ</p>
+              <h3 id="tmTitle">ทดลองใช้ครบ 30 วันแล้ว</h3>
+              <p>ช่วงทดลองใช้ฟรี 30 วันของคุณสิ้นสุดแล้ว<br>แต่ระบบยังจำข้อมูลของคุณไว้อยู่ครบ<br>สมัครสมาชิกเพื่อใช้งานและออกเอกสารต่อ</p>
               <a class="tm-go" href="/checkout"><svg class="icon"><use href="#ic-star"/></svg> ต่ออายุ / สมัครสมาชิก</a>
               <button type="button" class="tm-later" onclick="dismissTrialModal()">ไว้ภายหลัง</button>
             </div>
@@ -978,9 +978,9 @@
           <div style="background:#fff7ed; border:1px solid #fed7aa; color:#b45309; border-radius:12px;
                       padding:13px 18px; margin-bottom:16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
             <svg class="icon" style="flex:none;"><use href="#ic-bell"/></svg>
-            <span style="flex:1; min-width:200px;">เหลือให้ทดลองใช้อีกเพียง <b>{{ _st.docs_left }} ฉบับ</b> - ออกเอกสารแบบไม่จำกัดเมื่อเป็นสมาชิก</span>
+            <span style="flex:1; min-width:200px;">เหลือเวลาทดลองใช้ฟรีอีกเพียง <b>{{ _st.days_left }} วัน</b> - สมัครสมาชิกเพื่อใช้งานต่อแบบไม่มีสะดุด</span>
             <a href="/checkout" style="background:#2563eb; color:#fff; text-decoration:none; font-weight:700;
-               padding:8px 18px; border-radius:9px; white-space:nowrap;">ออกเอกสารแบบไม่จำกัด คลิกที่นี่</a>
+               padding:8px 18px; border-radius:9px; white-space:nowrap;">สมัครสมาชิก คลิกที่นี่</a>
           </div>
           {% endif %}
         {% endif %}

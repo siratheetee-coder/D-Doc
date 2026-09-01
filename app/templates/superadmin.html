@@ -132,10 +132,8 @@
           <div>
             <div class="t-lbl">โควตา / อายุการใช้งาน</div>
             {% if r.plan == 'trial' %}
-              <div>ออกเอกสารแล้ว <b>{{ r.docs_used }}/{{ r.docs_limit }}</b> ฉบับ</div>
-              <div class="muted2">เหลือให้ทดลองอีก <b style="color:{{ '#b91c1c' if r.docs_left==0 else '#d97706' if r.docs_left<=10 else '#0e9152' }};">{{ r.docs_left }}</b> ฉบับ</div>
-              <div class="qbar"><i class="{{ 'out' if r.docs_left==0 else 'low' if r.docs_left<=10 else '' }}"
-                   style="width:{{ ((r.docs_used/r.docs_limit*100)|round(0,'floor')) if r.docs_limit else 0 }}%"></i></div>
+              <div>ทดลองใช้ฟรี 30 วัน{% if r.t.expiry_date %} · หมด <b>{{ r.t.expiry_date }}</b>{% endif %}</div>
+              <div class="muted2">{% if r.days_left is none %}—{% elif r.days_left < 0 %}<b style="color:#b91c1c;">หมดอายุแล้ว</b> ({{ -r.days_left }} วันก่อน){% else %}เหลือ <b style="color:{{ '#b91c1c' if r.days_left<=3 else '#d97706' if r.days_left<=7 else '#0e9152' }};">{{ r.days_left }}</b> วัน{% endif %}</div>
             {% else %}
               {% if r.t.expiry_date %}
                 <div>หมดอายุ <b>{{ r.t.expiry_date }}</b></div>

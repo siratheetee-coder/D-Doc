@@ -317,14 +317,12 @@ def can_use_module(tenant_id, module) -> bool:
             mods = parse_modules(t.modules)
             if module in mods:                           # ซื้องานนี้แล้ว
                 return True
-            if not mods:
-                # ยังไม่เคยซื้ออะไร = ทดลองใช้ล้วน -> เข้าดูได้ทุกงานเหมือนเดิม
-                # (โควตาคุมที่ "การออกเอกสาร" ไม่ใช่การเข้าหน้า - โควตาหมดยังเปิดดูข้อมูลตัวเองได้)
+            if (t.plan or "member") == "trial":
+                # ทดลองใช้ -> เข้าดูได้ทุกงาน (คุมที่ "การออกเอกสาร" ไม่ใช่การเข้าหน้า)
                 return True
-            limit = t.docs_limit or 0
-            if not limit:                                # ซื้อบางงานแล้วและไม่มีโควตาเหลือ
-                return False
-            return (t.docs_used or 0) < limit            # ยังมีโควตาทดลองเหลือ
+            if not mods:                                 # กันเคสข้อมูลผิดปกติ (สมาชิกแต่ modules ว่าง)
+                return True
+            return False                                 # สมาชิกที่ไม่ได้ซื้องานนี้
         finally:
             db.close()
     except Exception:
@@ -348,12 +346,25 @@ def ai_key_for(tenant_id) -> str:
         db.close()
 
 
-def consume_doc_quota(tenant_id, module=None) -> tuple:
-    """เรียกก่อนออกเอกสาร - **กินโควตาเฉพาะงานที่ยังไม่ได้ซื้อ**
+TRIAL_DAYS = 30   # ทดลองใช้: เต็มระบบ 30 วัน (นับจากวันสมัคร)
 
-    - งานที่ซื้อแล้ว -> ผ่านฟรี ไม่แตะตัวนับ (จ่ายเงินแล้วต้องไม่โดนหักโควตา)
-    - ไม่มีโควตา (ซื้อครบ/สมาชิกเดิม) -> ผ่านฟรี
-    - งานที่ยังไม่ซื้อ + ยังมีโควตา -> +1 คืน (True, info) · ครบโควตา -> (False, info)
+
+def _trial_ok(t) -> bool:
+    """ทดลองใช้ยังไม่หมดอายุ (ภายใน TRIAL_DAYS วัน) · ถ้าไม่ใช่ trial คืน True (ไปเช็คที่อื่น)"""
+    from datetime import timedelta
+    if (getattr(t, "plan", "member") or "member") != "trial":
+        return True
+    exp = t.expiry_date or (((t.created_at.date() if t.created_at else date.today()))
+                            + timedelta(days=TRIAL_DAYS))
+    return date.today() <= exp
+
+
+def consume_doc_quota(tenant_id, module=None) -> tuple:
+    """เรียกก่อนออกเอกสาร - ทดลองใช้ = เต็มระบบ 30 วัน (ไม่จำกัดจำนวนเอกสาร)
+
+    - งานที่ซื้อแล้ว -> ผ่านฟรี
+    - ทดลองใช้ยังไม่หมดอายุ -> ผ่านฟรี (ออกเอกสารไม่จำกัด) · หมดอายุ -> (False, info)
+    - สมาชิก -> ผ่าน (อายุคุมที่ล็อกอิน/มิดเดิลแวร์)
     """
     if not tenant_id:
         return True, None
@@ -364,14 +375,9 @@ def consume_doc_quota(tenant_id, module=None) -> tuple:
             return True, None
         if module and module in parse_modules(t.modules):   # ซื้องานนี้แล้ว
             return True, None
-        if not (t.docs_limit or 0):                          # ซื้อครบ / ไม่จำกัด
-            return True, None
-        used = t.docs_used or 0
-        if used >= t.docs_limit:
-            return False, {"used": used, "limit": t.docs_limit}
-        t.docs_used = used + 1
-        db.commit()
-        return True, {"used": t.docs_used, "limit": t.docs_limit}
+        if (t.plan or "member") == "trial":                 # ทดลองใช้ -> คุมด้วยเวลา 30 วัน
+            return (True, None) if _trial_ok(t) else (False, {"expired": True, "trial": True})
+        return True, None                                   # สมาชิก
     finally:
         db.close()
 
@@ -870,10 +876,10 @@ def register_account(email: str, password: str, school_name: str,
         slug = _uniq_slug(db, _slugify_acc(email.split("@")[0]))
     finally:
         db.close()
-    # ทดลองใช้: ไม่จำกัดเวลา (expiry=None) แต่จำกัดจำนวนเอกสารที่ออก
-    tid = provision_tenant(school_name, slug, email, password, expiry_date=None,
-                           max_users=3, must_change=False, plan="trial",
-                           docs_limit=TRIAL_DOC_LIMIT)
+    # ทดลองใช้: เต็มระบบ 30 วัน (นับจากวันสมัคร) · ไม่จำกัดจำนวนเอกสาร
+    tid = provision_tenant(school_name, slug, email, password,
+                           expiry_date=date.today() + timedelta(days=TRIAL_DAYS),
+                           max_users=3, must_change=False, plan="trial", docs_limit=0)
     import secrets
     # บังคับยืนยันอีเมลเสมอ (fail-closed): บัญชีใหม่ต้องยืนยันอีเมลก่อนเข้าใช้งาน
     token = secrets.token_urlsafe(24)
