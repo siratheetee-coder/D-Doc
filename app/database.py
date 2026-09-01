@@ -112,6 +112,21 @@ MIGRATIONS = [
     ("person", "salary", "FLOAT DEFAULT 0"),
     ("person", "kp7_file", "BLOB"),
     ("person", "kp7_name", "VARCHAR DEFAULT ''"),
+    # ---- สายอนุมัติเอกสาร (แผนการสอน/ลา/ไปราชการ) ผ่าน ผอ. ----
+    ("lesson_plan", "file_blob", "BLOB"),                 # ไฟล์แผนที่ครูอัปโหลด (แทนลิงก์ Drive)
+    ("lesson_plan", "file_name", "VARCHAR DEFAULT ''"),
+    ("lesson_plan", "academic_by", "INTEGER"),            # ผู้ตรวจวิชาการ (person_id) ไว้แปะลายเซ็น
+    ("lesson_plan", "director_by", "INTEGER"),            # ผอ.ที่อนุมัติ
+    ("lesson_plan", "director_at", "DATETIME"),
+    ("lesson_plan", "director_comment", "TEXT DEFAULT ''"),
+    ("leave_request", "personnel_by", "INTEGER"),
+    ("leave_request", "personnel_at", "DATETIME"),
+    ("leave_request", "personnel_comment", "TEXT DEFAULT ''"),
+    ("leave_request", "director_by", "INTEGER"),
+    ("travel_request", "personnel_by", "INTEGER"),
+    ("travel_request", "personnel_at", "DATETIME"),
+    ("travel_request", "personnel_comment", "TEXT DEFAULT ''"),
+    ("travel_request", "director_by", "INTEGER"),
     ("school", "academic_year", "INTEGER"),
     ("school", "area_office", "VARCHAR DEFAULT ''"),   # สำนักงานเขตพื้นที่การศึกษาที่สังกัด
     ("student", "room", "VARCHAR DEFAULT ''"),         # ห้องเรียน (งานวิชาการ: ปพ.5 เป็นเอกสารรายห้อง)

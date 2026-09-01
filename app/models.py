@@ -1481,12 +1481,19 @@ class LessonPlan(Base):
     year = Column(Integer, default=0)
     term = Column(Integer, default=0)
     title = Column(String, default="")          # ชื่อ/วิชา/ชั้น ของแผน
-    link = Column(Text, default="")             # ลิงก์ Google Drive ฯลฯ
+    link = Column(Text, default="")             # (เดิม) ลิงก์ Google Drive - เลิกใช้ เปลี่ยนเป็นอัปโหลดไฟล์
+    file_blob = Column(LargeBinary, nullable=True)   # ไฟล์แผนที่ครูอัปโหลด (PDF/Word)
+    file_name = Column(String, default="")           # ชื่อไฟล์แผน
     note = Column(Text, default="")             # หมายเหตุจากครู
-    status = Column(String, default="pending")  # pending / reviewed / revise
-    comment = Column(Text, default="")          # ความเห็นหัวหน้าฝ่าย
+    # สเตจ: pending(รอวิชาการ) / revise(ให้แก้) / director(วิชาการผ่าน รอ ผอ.) / approved(ผอ.อนุมัติ)
+    status = Column(String, default="pending")
+    comment = Column(Text, default="")          # ความเห็นหัวหน้าฝ่ายวิชาการ
     submitted_at = Column(DateTime, default=datetime.now)
-    reviewed_at = Column(DateTime, nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)    # เวลาที่วิชาการตรวจ
+    academic_by = Column(Integer, nullable=True)     # person_id หัวหน้าวิชาการที่ตรวจ (ไว้แปะลายเซ็น)
+    director_by = Column(Integer, nullable=True)     # person_id ผอ./รองผอ. ที่อนุมัติ
+    director_at = Column(DateTime, nullable=True)
+    director_comment = Column(Text, default="")      # ความเห็น ผอ.
 
     teacher = relationship("Person")
 
@@ -1517,13 +1524,18 @@ class LeaveRequest(Base):
     days = Column(Float, default=0)
     reason = Column(Text, default="")
     contact = Column(String, default="")           # ที่อยู่/เบอร์ติดต่อระหว่างลา
-    status = Column(String, default="pending")     # pending / approved / rejected
-    comment = Column(Text, default="")             # ความเห็นผู้อนุมัติ
+    # สเตจ: pending(รอบุคคล) / personnel(บุคคลผ่าน รอ ผอ.) / approved / rejected
+    status = Column(String, default="pending")
+    comment = Column(Text, default="")             # ความเห็น ผอ. (ผู้อนุญาต)
+    personnel_by = Column(Integer, nullable=True)  # person_id หัวหน้าบุคคลที่ให้ความเห็น
+    personnel_at = Column(DateTime, nullable=True)
+    personnel_comment = Column(Text, default="")   # ความเห็น/ตรวจสอบของบุคคล
+    director_by = Column(Integer, nullable=True)   # person_id ผอ./รองผอ. ที่อนุญาต
     record_id = Column(Integer, nullable=True)     # ผูกกับ LeaveRecord ในทะเบียนวันลา (กันลงซ้ำ)
     attachment = Column(LargeBinary, nullable=True)   # ไฟล์ใบลาที่เซ็นแล้ว (แนบ)
     attachment_name = Column(String, default="")
     submitted_at = Column(DateTime, default=datetime.now)
-    decided_at = Column(DateTime, nullable=True)
+    decided_at = Column(DateTime, nullable=True)   # เวลาที่ ผอ. ตัดสิน
 
     person = relationship("Person")
 
@@ -1541,8 +1553,13 @@ class TravelRequest(Base):
     days = Column(Float, default=0)
     budget = Column(Float, default=0)              # ค่าใช้จ่ายโดยประมาณ
     note = Column(Text, default="")
-    status = Column(String, default="pending")     # pending / approved / rejected
-    comment = Column(Text, default="")
+    # สเตจ: pending(รอบุคคล) / personnel(บุคคลผ่าน รอ ผอ.) / approved / rejected
+    status = Column(String, default="pending")
+    comment = Column(Text, default="")             # ความเห็น ผอ.
+    personnel_by = Column(Integer, nullable=True)  # person_id หัวหน้าบุคคลที่ให้ความเห็น
+    personnel_at = Column(DateTime, nullable=True)
+    personnel_comment = Column(Text, default="")
+    director_by = Column(Integer, nullable=True)   # person_id ผอ./รองผอ. ที่อนุมัติ
     record_id = Column(Integer, nullable=True)     # ผูกกับ TravelRecord (กันลงซ้ำ)
     attachment = Column(LargeBinary, nullable=True)   # ไฟล์ใบขอไปราชการที่เซ็นแล้ว (แนบ)
     attachment_name = Column(String, default="")

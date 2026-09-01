@@ -60,6 +60,7 @@ class Account(AccBase):
     role = Column(String, default="user")          # user / superadmin
     active = Column(Boolean, default=True)
     is_owner = Column(Boolean, default=False)       # ไอดีหลักของโรงเรียน: เห็นทุกงาน + จัดการผู้ใช้ได้
+    is_director = Column(Boolean, default=False)    # ผอ./รองผอ.: อนุมัติแผนการสอน/ลา/ไปราชการ (ลงนามขั้นสุดท้าย)
     modules = Column(String, default="")            # งานที่ไอดีย่อยเข้าได้ (CSV) · owner ไม่ใช้ (เห็นทุกงาน)
     person_id = Column(Integer, nullable=True)      # บัญชีครู: ผูกกับ Person.id ใน DB โรงเรียน -> สิทธิ์เฉพาะวิชา/ห้องตัวเอง
     welcomed = Column(Boolean, default=False)       # เห็นการ์ดต้อนรับ/แนะนำจัดการผู้ใช้ตอนล็อกอินครั้งแรกแล้ว
@@ -135,6 +136,7 @@ def _ensure_engine():
                     "ALTER TABLE account ADD COLUMN welcomed BOOLEAN DEFAULT 0",
                     "ALTER TABLE account ADD COLUMN seen_modules VARCHAR DEFAULT ''",
                     "ALTER TABLE account ADD COLUMN person_id INTEGER",   # บัญชีครู -> ผูก Person.id
+                    "ALTER TABLE account ADD COLUMN is_director BOOLEAN DEFAULT 0",   # ผอ./รองผอ. อนุมัติเอกสาร
                     "ALTER TABLE tenant ADD COLUMN teacher_code VARCHAR",  # รหัสต่อท้ายไอดีครู (owner ตั้ง)
                     # backfill: บัญชีแรก (id น้อยสุด) ของแต่ละโรงเรียน = ไอดีหลัก · รันซ้ำได้ (ตั้งค่าแถวเดิม)
                     "UPDATE account SET is_owner=1 WHERE tenant_id IS NOT NULL "
@@ -205,6 +207,7 @@ def authenticate(username: str, password: str) -> dict | None:
                     "must_change": bool(u.must_change_password),
                     "verified": bool(getattr(u, "verified", True)),
                     "is_owner": bool(getattr(u, "is_owner", False)),
+                    "is_director": bool(getattr(u, "is_director", False)),
                     "modules": getattr(u, "modules", "") or "",
                     "person_id": getattr(u, "person_id", None),
                     "welcomed": bool(getattr(u, "welcomed", False))}
@@ -515,6 +518,7 @@ def list_tenant_users(tenant_id) -> list:
               .order_by(Account.is_owner.desc(), Account.id).all())
         return [{"id": u.id, "username": u.username, "display_name": u.display_name or "",
                  "is_owner": bool(u.is_owner), "active": bool(u.active),
+                 "is_director": bool(getattr(u, "is_director", False)),
                  "modules": u.modules or "", "person_id": u.person_id} for u in us]
     finally:
         db.close()
@@ -529,6 +533,7 @@ def get_account_access(uid) -> dict | None:
         if not u:
             return None
         return {"is_owner": bool(u.is_owner), "modules": u.modules or "", "active": bool(u.active),
+                "is_director": bool(getattr(u, "is_director", False)),
                 "welcomed": bool(u.welcomed), "person_id": u.person_id}
     finally:
         db.close()
@@ -781,6 +786,19 @@ def toggle_user_active(tenant_id, uid) -> dict:
             return {"error": "ปิดใช้งานไอดีหลักไม่ได้"}
         u.active = not u.active; db.commit()
         return {"ok": True, "active": bool(u.active)}
+    finally:
+        db.close()
+
+
+def toggle_user_director(tenant_id, uid) -> dict:
+    """สลับสิทธิ์ ผอ./รองผอ. (อนุมัติแผนการสอน/ลา/ไปราชการ ขั้นสุดท้าย)"""
+    db = acc_session()
+    try:
+        u = _own_user(db, tenant_id, uid)
+        if not u:
+            return {"error": "ไม่พบผู้ใช้"}
+        u.is_director = not bool(getattr(u, "is_director", False)); db.commit()
+        return {"ok": True, "is_director": bool(u.is_director)}
     finally:
         db.close()
 
