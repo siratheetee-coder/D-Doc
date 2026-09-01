@@ -382,15 +382,14 @@ def hr_travel_order_docx(tid: int, db: Session = Depends(get_db)):
 # ==================== เอกสาร (Word) ====================
 @router.get("/hr/leave/{lid}/form.docx")
 def hr_leave_form_docx(lid: int, db: Session = Depends(get_db)):
-    from app.services.hr_doc import render_leave_form
+    from app.services.gov_forms import render_leave_official
     r = db.get(LeaveRecord, lid)
     if not r:
         return RedirectResponse("/hr/leave", status_code=303)
-    # ถ้าใบลานี้มาจากคำขอในระบบที่ ผอ. อนุมัติแล้ว -> แปะลายเซ็น ผอ. บนแบบใบลา
+    # ถ้าใบลานี้มาจากคำขอในระบบที่ ผอ. อนุมัติแล้ว -> ติ๊ก 'อนุญาต' + ใส่ชื่อ ผอ.
     q = db.query(LeaveRequest).filter_by(record_id=lid).first()
-    approver = _leave_approver(db, q) if q else None
-    path = render_leave_form(get_school(db), r.person, r,
-                             LEAVE_TYPES.get(r.leave_type, r.leave_type), approver=approver)
+    approver = _approver_for(db, q) if q else None
+    path = render_leave_official(get_school(db), r.person, r, approver=approver)
     return serve_generated(path, _DOCX)
 
 
