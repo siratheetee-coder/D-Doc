@@ -524,6 +524,20 @@ def list_tenant_users(tenant_id) -> list:
         db.close()
 
 
+def director_person_ids(tenant_id) -> list:
+    """person_id ของบัญชี ผอ./รองผอ. ในโรงเรียนนี้ (ที่ผูก Person) - ไว้แจ้งเตือน/แปะลายเซ็น"""
+    if not tenant_id:
+        return []
+    db = acc_session()
+    try:
+        us = (db.query(Account)
+              .filter(Account.tenant_id == tenant_id, Account.is_director == True,  # noqa: E712
+                      Account.person_id.isnot(None)).all())
+        return [u.person_id for u in us]
+    finally:
+        db.close()
+
+
 def get_account_access(uid) -> dict | None:
     """สิทธิ์บัญชีสด ๆ จาก DB (ใช้ใน middleware กัน session ค้าง)
     คืน {is_owner, modules, active} หรือ None ถ้าไม่พบบัญชี"""

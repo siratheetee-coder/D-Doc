@@ -15,15 +15,15 @@
 {% if my_pid %}
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-file"/></svg> ส่งแผนการสอน</h2>
-  <p class="muted" style="font-size:13px; margin:4px 0 12px;">อัปโหลดแผนไว้ใน Google Drive แล้ววางลิงก์ที่นี่ · เมื่อส่ง ระบบจะแจ้งหัวหน้าฝ่ายวิชาการทางอีเมลให้อัตโนมัติ</p>
-  <form method="post" action="/academic/lesson-plans/submit">
+  <p class="muted" style="font-size:13px; margin:4px 0 12px;">แนบไฟล์แผน (PDF / Word / รูป) เข้าระบบ · เมื่อส่ง หัวหน้าฝ่ายวิชาการตรวจก่อน แล้วเสนอ ผอ. ลงนาม · ระบบแจ้งทางอีเมลให้อัตโนมัติ</p>
+  <form method="post" action="/academic/lesson-plans/submit" enctype="multipart/form-data">
     <div class="row" style="align-items:flex-end;">
       <div style="flex:1.4;"><label>ชื่อแผน / วิชา / ชั้น *</label><input name="title" required placeholder="เช่น แผนการสอนภาษาไทย ป.1 หน่วยที่ 3"></div>
       <div><label>ภาคเรียน</label>
         <select name="term"><option value="1" {{ 'selected' if term==1 }}>ภาคเรียนที่ 1</option><option value="2" {{ 'selected' if term==2 }}>ภาคเรียนที่ 2</option></select></div>
     </div>
-    <label style="margin-top:10px; display:block;">ลิงก์แผนการสอน (Google Drive ฯลฯ) *</label>
-    <input name="link" type="url" required placeholder="https://drive.google.com/..." style="width:100%;">
+    <label style="margin-top:10px; display:block;">ไฟล์แผนการสอน (PDF / Word / รูป) *</label>
+    <input name="file" type="file" accept=".pdf,.docx,.jpg,.jpeg,.png,.webp" required style="padding:8px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; width:100%;">
     <label style="margin-top:10px; display:block;">หมายเหตุถึงหัวหน้าฝ่าย (ไม่บังคับ)</label>
     <textarea name="note" rows="2" style="width:100%;" placeholder="เช่น ปรับตามที่แนะนำครั้งก่อนแล้ว"></textarea>
     <br><button class="btn green" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-send"/></svg> ส่งแผนการสอน</button>
@@ -51,7 +51,7 @@
   <table class="stack-sm">
     <thead><tr>
       {% if is_reviewer %}<th>ครู</th>{% endif %}
-      <th>เรื่อง</th><th>ภาค</th><th>ลิงก์</th><th>วันที่ส่ง</th><th>สถานะ</th><th>{{ 'ตรวจ' if is_reviewer else 'ความเห็น' }}</th><th></th>
+      <th>เรื่อง</th><th>ภาค</th><th>ไฟล์</th><th>วันที่ส่ง</th><th>สถานะ</th><th>{{ 'ตรวจ' if is_reviewer else 'ความเห็น' }}</th><th></th>
     </tr></thead>
     <tbody>
     {% set ns = namespace(term=-1) %}
@@ -60,25 +60,27 @@
       {% set ns.term = (p.term or 0) %}
       <tr class="term-sep"><td colspan="{{ 8 if is_reviewer else 7 }}">{{ 'ภาคเรียนที่ ' ~ p.term if p.term in (1,2) else 'ไม่ระบุภาคเรียน' }}</td></tr>
       {% endif %}
-      {% set st = {'pending':('รอตรวจ','#fef9c3','#854d0e'), 'reviewed':('ตรวจแล้ว/ผ่าน','#dcfce7','#166534'), 'revise':('ให้แก้ไข','#fee2e2','#b91c1c')}[p.status] %}
+      {% set st = {'pending':('รอวิชาการตรวจ','#fef9c3','#854d0e'), 'revise':('ให้แก้ไข','#fee2e2','#b91c1c'), 'director':('ผ่านวิชาการ · รอ ผอ.','#dbeafe','#1e40af'), 'approved':('อนุมัติแล้ว','#dcfce7','#166534'), 'reviewed':('ตรวจแล้ว (เดิม)','#dcfce7','#166534')}.get(p.status, ('รอวิชาการตรวจ','#fef9c3','#854d0e')) %}
       <tr>
         {% if is_reviewer %}<td data-label="ครู" style="white-space:nowrap;">{{ p.teacher.name if p.teacher else '-' }}</td>{% endif %}
         <td data-label="เรื่อง">{{ p.title }}{% if p.note %}<div class="muted" style="font-size:12px;">{{ p.note }}</div>{% endif %}</td>
         <td data-label="ภาค" class="center">{{ p.term or '-' }}</td>
-        <td data-label="ลิงก์"><a href="{{ p.link }}" target="_blank" rel="noopener">เปิดลิงก์ ↗</a></td>
+        <td data-label="ไฟล์">{% if p.file_blob %}<a href="/academic/lesson-plans/{{ p.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์</a>{% elif p.link %}<a href="{{ p.link }}" target="_blank" rel="noopener">เปิดลิงก์ ↗</a>{% else %}-{% endif %}</td>
         <td data-label="วันที่ส่ง" style="white-space:nowrap; font-size:13px;">{{ be_date(p.submitted_at) }}</td>
         <td data-label="สถานะ"><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span></td>
         <td data-label="{{ 'ตรวจ' if is_reviewer else 'ความเห็น' }}" class="stack-full">
-          {% if is_reviewer %}
+          {% if is_reviewer and p.status in ('pending','revise') %}
           <form method="post" action="/academic/lesson-plans/{{ p.id }}/review" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:0;">
             <input name="comment" value="{{ p.comment or '' }}" placeholder="ความเห็น" style="width:150px;">
-            <button class="btn sm green" type="submit" name="status" value="reviewed">ผ่าน</button>
+            <button class="btn sm green" type="submit" name="status" value="reviewed">ผ่าน → ผอ.</button>
             <button class="btn sm" type="submit" name="status" value="revise" style="background:#f59e0b;">ให้แก้</button>
           </form>
-          {% else %}{{ p.comment or '-' }}{% endif %}
+          {% else %}{{ p.comment or '-' }}{% if p.director_comment %}<div class="muted" style="font-size:12px;">ผอ.: {{ p.director_comment }}</div>{% endif %}{% endif %}
         </td>
         <td data-label="จัดการ" class="stack-full" style="white-space:nowrap;">
-          <form method="post" action="/academic/lesson-plans/{{ p.id }}/delete" style="margin:0;"
+          {% if p.status == 'approved' %}<a class="btn sm green" href="/academic/lesson-plans/{{ p.id }}/cert"><svg class="icon"><use href="#ic-download"/></svg> ใบรับรอง</a>{% endif %}
+          <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}">ดู</a>
+          <form method="post" action="/academic/lesson-plans/{{ p.id }}/delete" style="margin:0; display:inline;"
                 onsubmit="return confirm('ลบ/ยกเลิกแผน &quot;{{ p.title }}&quot; ?');">
             <button class="btn sm gray" type="submit" style="color:#dc2626;"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button>
           </form>

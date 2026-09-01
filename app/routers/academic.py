@@ -366,6 +366,24 @@ def _send_notice(to, subject, html, attachments=None):
         return False
 
 
+def _notify_directors(db, title, reason, link="/approvals"):
+    """แจ้งเตือน (กระดิ่ง) ผอ./รองผอ. ทุกบัญชีของโรงเรียนที่ผูก Person ไว้"""
+    from app.services.nav import create_notice
+    try:
+        from app.accounts import director_person_ids
+        for pid in director_person_ids(db_bind_tenant(db)):
+            if pid:
+                create_notice(db, pid, title, reason=reason, link=link, level="info")
+    except Exception:
+        pass
+
+
+def db_bind_tenant(db):
+    """คืน tenant_id ของ session DB โรงเรียนปัจจุบัน (จาก context)"""
+    from app.tenancy import current_school_id
+    return current_school_id.get()
+
+
 def _review_button(path, label="เปิดหน้าเพื่อพิจารณาอนุมัติ"):
     """ปุ่มลิงก์เข้าหน้าอนุมัติในอีเมล (ผ่าน /login?next= เผื่อยังไม่ล็อกอิน)"""
     from app.seller_config import SELLER
@@ -416,58 +434,171 @@ def lesson_plan_delete(request: Request, plan_id: int, db: Session = Depends(get
     return RedirectResponse("/academic/lesson-plans?err=ลบไม่ได้ (ไม่ใช่แผนของคุณ)", status_code=303)
 
 
+_PLAN_EXT = {"pdf", "docx", "png", "jpg", "webp"}
+
+
+def _serve_blob(data: bytes, name: str):
+    """ส่งไฟล์ BLOB (ครูแนบ) - RFC5987 กันชื่อไฟล์ไทย 500"""
+    import mimetypes
+    from urllib.parse import quote
+    from fastapi.responses import Response
+    ctype = mimetypes.guess_type(name or "")[0] or "application/octet-stream"
+    fn = quote(name or "attachment")
+    return Response(content=data, media_type=ctype,
+                    headers={"Content-Disposition": f"inline; filename*=UTF-8''{fn}"})
+
+
 @router.post("/academic/lesson-plans/submit")
-def lesson_plan_submit(request: Request, db: Session = Depends(get_db),
-                       title: str = Form(""), link: str = Form(""),
-                       note: str = Form(""), term: str = Form("")):
+async def lesson_plan_submit(request: Request, db: Session = Depends(get_db),
+                             title: str = Form(""), note: str = Form(""),
+                             term: str = Form(""), file: UploadFile = File(None)):
     from app.models import LessonPlan
+    from app.services.file_upload import detect_ext
     pid = request.session.get("person_id")
     if not pid:
         return RedirectResponse("/academic/lesson-plans?err=บัญชีนี้ไม่ได้ผูกกับครู ส่งแผนไม่ได้", status_code=303)
-    if not (title or "").strip() or not (link or "").strip():
-        return RedirectResponse("/academic/lesson-plans?err=กรอกชื่อแผนและวางลิงก์ให้ครบ", status_code=303)
+    data = await file.read() if file is not None else b""
+    if not (title or "").strip() or not data:
+        return RedirectResponse("/academic/lesson-plans?err=กรอกชื่อแผนและแนบไฟล์แผนให้ครบ", status_code=303)
+    ext = detect_ext(data, file.filename or "")
+    if ext not in _PLAN_EXT:
+        return RedirectResponse("/academic/lesson-plans?err=ไฟล์ต้องเป็น PDF / Word / รูปภาพ", status_code=303)
+    fname = (file.filename or f"lesson.{ext}").strip()[:120]
     p = LessonPlan(person_id=pid, year=_acad_year(db),
                    term=_to_int(term, current_term()), title=title.strip(),
-                   link=link.strip(), note=(note or "").strip())
+                   note=(note or "").strip(), file_blob=data, file_name=fname, status="pending")
     db.add(p); db.commit()
     teacher = db.get(Person, pid)
     s = get_school(db)
     _send_notice(s.academic_head_email,
                  f"[แผนการสอน] {teacher.name if teacher else ''} ส่งแผน: {p.title}",
-                 f"<p>ครู <b>{teacher.name if teacher else ''}</b> ส่งแผนการสอนเข้าระบบ</p>"
+                 f"<p>ครู <b>{teacher.name if teacher else ''}</b> ส่งแผนการสอนเข้าระบบ (แนบไฟล์)</p>"
                  f"<p>เรื่อง: {p.title}<br>ภาคเรียน: {p.term or '-'} ปีการศึกษา {p.year}</p>"
-                 f"<p>ลิงก์แผน: <a href='{p.link}'>{p.link}</a></p>"
                  f"<p>หมายเหตุ: {p.note or '-'}</p>"
                  + _review_button("/academic/lesson-plans", "เปิดหน้าเพื่อตรวจแผนการสอน"))
     return RedirectResponse("/academic/lesson-plans?msg=ส่งแผนการสอนแล้ว แจ้งหัวหน้าฝ่ายวิชาการทางอีเมลเรียบร้อย", status_code=303)
 
 
+@router.get("/academic/lesson-plans/{plan_id}/file")
+def lesson_plan_file(request: Request, plan_id: int, db: Session = Depends(get_db)):
+    """เปิด/ดาวน์โหลดไฟล์แผนที่ครูอัปโหลด (ครูเจ้าของ หรือผู้ตรวจ/ผอ.)"""
+    from app.models import LessonPlan
+    p = db.get(LessonPlan, plan_id)
+    if not p or not p.file_blob:
+        return RedirectResponse("/academic/lesson-plans", status_code=303)
+    sc = _scope(request, db)
+    if sc.is_teacher and p.person_id != request.session.get("person_id"):
+        return _deny()
+    return _serve_blob(p.file_blob, p.file_name or "lesson-plan")
+
+
 @router.post("/academic/lesson-plans/{plan_id}/review")
 def lesson_plan_review(request: Request, plan_id: int, db: Session = Depends(get_db),
                        status: str = Form(""), comment: str = Form("")):
+    """หัวหน้าฝ่ายวิชาการตรวจ: ผ่าน -> ส่งต่อ ผอ. (แปะลายเซ็นวิชาการ) / ให้แก้ -> ส่งกลับครู"""
     from app.models import LessonPlan
     if _scope(request, db).is_teacher:
         return _deny()
     from datetime import datetime as _dt
     p = db.get(LessonPlan, plan_id)
     if p:
-        p.status = status if status in ("reviewed", "revise") else "reviewed"
         p.comment = (comment or "").strip()
         p.reviewed_at = _dt.now()
-        res = "ผ่าน" if p.status == "reviewed" else "ให้แก้ไข"
+        if status == "revise":
+            p.status = "revise"
+            res = "ให้แก้ไข"
+        else:
+            p.status = "director"       # ผ่านวิชาการ -> รอ ผอ. อนุมัติ
+            p.academic_by = request.session.get("person_id")   # ผู้ตรวจ (ไว้แปะลายเซ็น)
+            res = "ผ่าน (ส่งต่อ ผอ.)"
         from app.services.nav import create_notice
         create_notice(db, p.person_id, f"ผลตรวจแผนการสอน: {res}",
                       reason=f"{p.title}" + (f" · {p.comment}" if p.comment else ""),
                       link="/academic/lesson-plans",
-                      level=("info" if p.status == "reviewed" else "warn"))
+                      level=("info" if p.status != "revise" else "warn"))
+        # แจ้ง ผอ./รองผอ. เมื่อผ่านวิชาการ (กระดิ่ง)
+        if p.status == "director":
+            _notify_directors(db, "แผนการสอนรอลงนาม",
+                              f"{(p.teacher.name if p.teacher else '')} · {p.title}",
+                              "/approvals")
         db.commit()
-        # แจ้งผลกลับครูทางอีเมล (ถ้ามีอีเมลในทะเบียนบุคลากร)
         teacher = db.get(Person, p.person_id)
         if teacher and (teacher.email or "").strip():
             _send_notice(teacher.email, f"[ผลตรวจแผน] {p.title} - {res}",
                          f"<p>แผนการสอน <b>{p.title}</b> ได้รับการตรวจแล้ว: <b>{res}</b></p>"
-                         f"<p>ความเห็นหัวหน้าฝ่าย: {p.comment or '-'}</p>")
+                         f"<p>ความเห็นหัวหน้าฝ่ายวิชาการ: {p.comment or '-'}</p>")
     return RedirectResponse("/academic/lesson-plans?msg=บันทึกผลการตรวจแล้ว", status_code=303)
+
+
+@router.get("/academic/lesson-plans/{plan_id}", response_class=HTMLResponse)
+def lesson_plan_detail(request: Request, plan_id: int, db: Session = Depends(get_db),
+                       msg: str = "", err: str = ""):
+    """หน้ารายละเอียดแผน - ผอ. ดูไฟล์ + ผลวิชาการ แล้วลงนามอนุมัติ"""
+    from app.models import LessonPlan
+    p = db.get(LessonPlan, plan_id)
+    if not p:
+        return RedirectResponse("/academic/lesson-plans", status_code=303)
+    sc = _scope(request, db)
+    is_director = bool(request.session.get("director"))
+    # ครูเจ้าของ/ผู้ตรวจ/ผอ. เท่านั้น
+    if sc.is_teacher and p.person_id != request.session.get("person_id"):
+        return _deny()
+    academic = db.get(Person, p.academic_by) if p.academic_by else None
+    director = db.get(Person, p.director_by) if p.director_by else None
+    return templates.TemplateResponse("lesson_plan_detail.html", {
+        "request": request, "school": get_school(db), "p": p,
+        "teacher": p.teacher, "academic": academic, "director": director,
+        "is_director": is_director, "term_label": term_label, "msg": msg, "err": err,
+    })
+
+
+@router.post("/academic/lesson-plans/{plan_id}/approve")
+def lesson_plan_approve(request: Request, plan_id: int, db: Session = Depends(get_db),
+                        decision: str = Form(""), comment: str = Form("")):
+    """ผอ./รองผอ. ลงนามอนุมัติ (หรือส่งกลับให้แก้)"""
+    from app.models import LessonPlan
+    if not request.session.get("director"):
+        return _deny()
+    from datetime import datetime as _dt
+    p = db.get(LessonPlan, plan_id)
+    if not p or p.status != "director":
+        return RedirectResponse("/approvals?err=รายการนี้ไม่รอ ผอ. อนุมัติแล้ว", status_code=303)
+    p.director_comment = (comment or "").strip()
+    p.director_at = _dt.now()
+    if decision == "revise":
+        p.status = "revise"
+        res = "ส่งกลับให้แก้ไข"
+    else:
+        p.status = "approved"
+        p.director_by = request.session.get("person_id")   # ผอ. ที่ลงนาม (ไว้แปะลายเซ็น)
+        res = "อนุมัติแล้ว (ลงนาม)"
+    from app.services.nav import create_notice
+    create_notice(db, p.person_id, f"แผนการสอน: {res}",
+                  reason=f"{p.title}" + (f" · {p.director_comment}" if p.director_comment else ""),
+                  link="/academic/lesson-plans",
+                  level=("info" if p.status == "approved" else "warn"))
+    db.commit()
+    teacher = db.get(Person, p.person_id)
+    if teacher and (teacher.email or "").strip():
+        _send_notice(teacher.email, f"[แผนการสอน] {p.title} - {res}",
+                     f"<p>แผนการสอน <b>{p.title}</b>: <b>{res}</b></p>"
+                     f"<p>ความเห็น ผอ.: {p.director_comment or '-'}</p>")
+    return RedirectResponse("/approvals?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
+
+
+@router.get("/academic/lesson-plans/{plan_id}/cert")
+def lesson_plan_cert(request: Request, plan_id: int, db: Session = Depends(get_db)):
+    """ดาวน์โหลดแบบรับรองการตรวจแผน (แปะลายเซ็นวิชาการ + ผอ.)"""
+    from app.models import LessonPlan
+    p = db.get(LessonPlan, plan_id)
+    if not p or p.status != "approved":
+        return RedirectResponse("/academic/lesson-plans?err=แผนนี้ยังไม่ได้รับอนุมัติ", status_code=303)
+    sc = _scope(request, db)
+    if sc.is_teacher and p.person_id != request.session.get("person_id"):
+        return _deny()
+    from app.services.lesson_doc import render_lesson_plan_cert
+    path = render_lesson_plan_cert(db, p, get_school(db))
+    return serve_generated(path, _DOCX)
 
 
 # ---------------- ส่งใบลา (ครูส่ง -> หัวหน้าฝ่ายบุคคลอนุมัติ + อีเมลแจ้ง) ----------------

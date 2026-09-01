@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}แผนการสอน · {{ p.title }}{% endblock %}
+{% block content %}
+{% set st = {'pending':('รอวิชาการตรวจ','#fef9c3','#854d0e'), 'revise':('ให้แก้ไข','#fee2e2','#b91c1c'), 'director':('ผ่านวิชาการ · รอ ผอ. ลงนาม','#dbeafe','#1e40af'), 'approved':('อนุมัติแล้ว','#dcfce7','#166534'), 'reviewed':('ตรวจแล้ว (เดิม)','#dcfce7','#166534')}.get(p.status, ('รอวิชาการตรวจ','#fef9c3','#854d0e')) %}
+{% set is_pdf = (p.file_name or '').lower().endswith('.pdf') %}
+{% set is_img = (p.file_name or '').lower().endswith(('.png','.jpg','.jpeg','.webp')) %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">แผนการสอน</div>
+    <span class="hero-title">{{ p.title }}</span>
+    <div class="hero-meta">{{ teacher.name if teacher else '-' }} · ภาคเรียนที่ {{ p.term or '-' }} ปีการศึกษา {{ p.year }} · <span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }};">{{ st[0] }}</span></div>
+  </div>
+</div>
+{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+{% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
+
+<div class="row" style="align-items:flex-start;">
+  <div class="card" style="flex:1.3; min-width:320px;">
+    <h2 style="margin-top:0;">ไฟล์แผนการสอน</h2>
+    {% if p.file_blob %}
+      {% if is_pdf %}
+      <iframe src="/academic/lesson-plans/{{ p.id }}/file" style="width:100%; height:560px; border:1px solid var(--border); border-radius:10px;"></iframe>
+      {% elif is_img %}
+      <img src="/academic/lesson-plans/{{ p.id }}/file" style="width:100%; border:1px solid var(--border); border-radius:10px;" alt="แผนการสอน">
+      {% else %}
+      <p class="muted">ไฟล์ Word เปิดในเบราว์เซอร์ไม่ได้ - กดเปิด/ดาวน์โหลด</p>
+      <a class="btn" href="/academic/lesson-plans/{{ p.id }}/file" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์แผน</a>
+      {% endif %}
+    {% elif p.link %}<a class="btn" href="{{ p.link }}" target="_blank" rel="noopener">เปิดลิงก์แผน ↗</a>
+    {% else %}<p class="muted">ไม่มีไฟล์แนบ</p>{% endif %}
+    {% if p.note %}<p style="margin-top:10px;"><b>หมายเหตุจากครู:</b> {{ p.note }}</p>{% endif %}
+  </div>
+
+  <div class="card" style="flex:1; min-width:300px;">
+    <h2 style="margin-top:0;">สายการตรวจ / ลงนาม</h2>
+    <div style="border-left:3px solid #93c5fd; padding:4px 0 4px 12px; margin-bottom:14px;">
+      <b>1. หัวหน้าฝ่ายวิชาการ</b><br>
+      {% if p.status in ('director','approved') or p.reviewed_at %}
+        <span class="muted">{{ academic.name if academic else (school.academic_head_name or '-') }} · {{ thai_date(p.reviewed_at) if p.reviewed_at else '-' }}</span><br>
+        {% if p.status == 'revise' %}<span class="pill" style="background:#fee2e2; color:#b91c1c;">ให้แก้ไข</span>
+        {% else %}<span class="pill" style="background:#dcfce7; color:#166534;">ผ่าน</span>{% endif %}
+        {% if p.comment %}<div style="margin-top:4px;">ความเห็น: {{ p.comment }}</div>{% endif %}
+      {% else %}<span class="muted">รอตรวจ</span>{% endif %}
+    </div>
+    <div style="border-left:3px solid #c4b5fd; padding:4px 0 4px 12px;">
+      <b>2. ผู้อำนวยการ</b><br>
+      {% if p.status == 'approved' %}
+        <span class="muted">{{ director.name if director else (school.director_name or '-') }} · {{ thai_date(p.director_at) if p.director_at else '-' }}</span><br>
+        <span class="pill" style="background:#dcfce7; color:#166534;">อนุมัติ/ลงนามแล้ว</span>
+        {% if p.director_comment %}<div style="margin-top:4px;">ความเห็น: {{ p.director_comment }}</div>{% endif %}
+        <div style="margin-top:10px;"><a class="btn sm green" href="/academic/lesson-plans/{{ p.id }}/cert"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดใบรับรอง</a></div>
+      {% elif p.status == 'director' %}<span class="muted">รอ ผอ. ลงนาม</span>{% else %}<span class="muted">-</span>{% endif %}
+    </div>
+
+    {% if is_director and p.status == 'director' %}
+    <hr style="margin:16px 0; border:none; border-top:1px solid var(--border);">
+    <form method="post" action="/academic/lesson-plans/{{ p.id }}/approve">
+      <label>ความเห็นผู้อำนวยการ (ไม่บังคับ)</label>
+      <textarea name="comment" rows="2" style="width:100%;" placeholder="เช่น อนุมัติ / เห็นชอบ"></textarea>
+      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+        <button class="btn green" type="submit" name="decision" value="approve"><svg class="icon"><use href="#ic-check"/></svg> อนุมัติ + ลงนาม</button>
+        <button class="btn" type="submit" name="decision" value="revise" style="background:#f59e0b;">ส่งกลับให้แก้</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+<a class="btn gray" href="{{ '/approvals' if is_director else '/academic/lesson-plans' }}">← กลับ</a>
+{% endblock %}
