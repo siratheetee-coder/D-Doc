@@ -11,7 +11,7 @@ from pathlib import Path
 from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Cm
+from docx.shared import Cm, Pt
 from docx.text.run import Run
 
 from app.database import get_data_dir
@@ -34,12 +34,37 @@ def _ins_after(run, text):
     for tag in ("w:t", "w:tab", "w:sym", "w:br", "w:cr"):
         for el in new_r.findall(qn(tag)):
             new_r.remove(el)
+    rpr = new_r.find(qn("w:rPr"))       # ค่าที่กรอกต้องไม่มีเส้นใต้ (กันจุดไข่ปลาติดมากับ anchor)
+    if rpr is not None:
+        for u in rpr.findall(qn("w:u")):
+            rpr.remove(u)
     t = OxmlElement("w:t")
     t.set(qn("xml:space"), "preserve")
     t.text = text
     new_r.append(t)
     run._element.addnext(new_r)
     return new_r
+
+
+def _strip_u(run):
+    """ลบเส้นใต้ (w:u) ของ run เดียว"""
+    rpr = run._element.rPr
+    if rpr is not None:
+        for u in rpr.findall(qn("w:u")):
+            rpr.remove(u)
+
+
+def _first_tab(p, cm_pos):
+    """ย้ายตำแหน่ง tab stop แรกของย่อหน้า (cm) เพื่อจัดแนวให้ตรงกับบรรทัดอื่น"""
+    pPr = p._element.find(qn("w:pPr"))
+    if pPr is None:
+        return
+    tabs = pPr.find(qn("w:tabs"))
+    if tabs is None:
+        return
+    tab = tabs.find(qn("w:tab"))
+    if tab is not None:
+        tab.set(qn("w:pos"), str(int(cm_pos * 567)))   # 1cm = 567 twips
 
 
 def _strip_following(p, idx):
@@ -64,6 +89,7 @@ def _fill(p, pairs):
         if not (text or "").strip():
             continue
         try:
+            _strip_u(p.runs[idx])          # ลบจุดของ run สมอ (ช่องว่างก่อนค่า)
             _strip_following(p, idx)
             _ins_after(p.runs[idx], text)
         except Exception:
@@ -72,6 +98,7 @@ def _fill(p, pairs):
 
 def _insstrip(p, idx, text):
     """แทรกค่าเดี่ยว + ลบเส้นไข่ปลาที่ตามหลัง (สำหรับจุดที่ไม่ได้ใช้ _fill)"""
+    _strip_u(p.runs[idx])
     _strip_following(p, idx)
     _ins_after(p.runs[idx], text)
 
@@ -83,11 +110,26 @@ def _full_date(dt):
     return f"{dt.day} {_THAI_MONTHS[dt.month]} {dt.year + 543}"
 
 
-def _set_para(p, text):
+def _set_para(p, text, size=16):
     """แทนที่ทั้งย่อหน้าด้วยข้อความไหลปกติ (ไม่มีแท็บ) - กันข้อความยาวดันขอบ/ล้น"""
     for r in list(p.runs):
         r._element.getparent().remove(r._element)
-    p.add_run(text)
+    run = p.add_run(text)
+    run.font.size = Pt(size)
+    return run
+
+
+def _fill_paren(p, name):
+    """ใส่ชื่อในวงเล็บให้ ')' ชิดชื่อ (ไม่เว้นช่องยาว) : '( ชื่อ )'"""
+    i = _find_run(p, "(")
+    if i is None:
+        return
+    for r in p.runs[i + 1:]:            # ยุบแท็บ/ช่องว่างระหว่าง ( ) ให้ ') ' ชิดชื่อ
+        if r.text == ")":
+            break
+        if r.text != "" and r.text.strip() == "":
+            r.text = ""
+    _ins_after(p.runs[i], " " + (name or "").strip() + " ")
 
 
 def _dparts(dt):
@@ -306,9 +348,12 @@ def render_leave_official(school, person, record, db=None, approver=None,
     _fill(P[3], [(1, " " + wdd), (4, " " + wmon), (9, " " + wyy)])  # วันที่ เดือน พ.ศ.
     _fill(P[4], [(1, "ขอลา" + typ_label)])                     # เรื่อง
     _fill(P[5], [(1, addressee)])                              # เรียน
-    _fill(P[7], [(2, name), (5, position)])                    # ข้าพเจ้า/ตำแหน่ง
-    # กลุ่มงาน(+รร.)/สังกัด(เขต) เป็นข้อความไหลปกติ กันข้อความยาวดันขอบ (ตัดคำขึ้นบรรทัดเองได้)
-    _set_para(P[8], "กลุ่มงาน  " + group_val + ("      สังกัด  " + area if area else ""))
+    # ข้าพเจ้า + ตำแหน่ง + กลุ่มงาน(+รร.) + สังกัด(เขต) รวมเป็นข้อความไหลต่อเนื่อง
+    # (ต่อบรรทัดล่างขึ้นมา กันเหลือที่ว่างเยอะ + กันข้อความยาวดันขอบ) · P8 จะลบทิ้งท้าย
+    body_line = ("ข้าพเจ้า " + name + "   ตำแหน่ง " + position
+                 + "   กลุ่มงาน " + group_val + ("   สังกัด " + area if area else ""))
+    _set_para(P[7], body_line, size=16)
+    P[7].paragraph_format.first_line_indent = Cm(1.25)
 
     # ---- ชนิดการลา (ติ๊กในกล่อง run2) + เหตุผล (run5, เฉพาะป่วย/กิจ) ----
     # ติ๊กโดย "แทนที่อักขระกล่องเดิม" ด้วยเครื่องหมายถูก ไม่แทรก run ใหม่
@@ -333,7 +378,8 @@ def render_leave_official(school, person, record, db=None, approver=None,
         _strip_dots(P[15])
 
     # ---- ลงชื่อผู้ลา ----
-    _fill(P[19], [(1, " " + name + " ")])                      # ( ชื่อ )
+    _first_tab(P[19], 9.5)                                     # จัดชื่อให้ตรงกับ ตำแหน่ง/วันที่
+    _fill_paren(P[19], name)                                   # ( ชื่อ ) ให้ ) ชิดชื่อ
     _fill(P[20], [(3, " " + position)])                        # ตำแหน่ง
     if wd:                                                     # วันที่ = '1 กันยายน 2569'
         for k in (4, 5, 6, 7, 8):
@@ -398,10 +444,8 @@ def render_leave_official(school, person, record, db=None, approver=None,
         i = _find_run(P[28], "(ลงชื่อ)")
         if i is not None:
             _stamp_sig(P[28].runs[i], db, dname)
-        # ชื่อ ผอ. ในวงเล็บ (p29 คอลัมน์ขวา)
-        i = _find_run(P[29], "(")
-        if i is not None:
-            _ins_after(P[29].runs[i], " " + dname + " ")
+        # ชื่อ ผอ. ในวงเล็บ (p29 คอลัมน์ขวา) - ) ชิดชื่อ
+        _fill_paren(P[29], dname)
         # ตำแหน่ง ผอ. (p30)
         i = _find_run(P[30], "ตำแหน่ง")
         if i is not None:
@@ -435,6 +479,11 @@ def render_leave_official(school, person, record, db=None, approver=None,
         pf = p.paragraph_format
         pf.line_spacing = 0.92
         pf.space_before = _Pt(0); pf.space_after = _Pt(0)
+    # ลบบรรทัดกลุ่มงาน/สังกัดเดิม (P8) - ถูกรวมเข้าบรรทัด 'ข้าพเจ้า' (P7) แล้ว
+    try:
+        P[8]._element.getparent().remove(P[8]._element)
+    except Exception:
+        pass
     # ตัดย่อหน้าเว้นว่างส่วนหัว (คงบรรทัดว่างระหว่าง เรียน<->ข้าพเจ้า ไว้ = P[6])
     for idx in (16, 1):
         try:
