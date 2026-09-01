@@ -371,20 +371,42 @@ def _review_button(path, label="เปิดหน้าเพื่อพิจ
 
 
 @router.get("/academic/lesson-plans", response_class=HTMLResponse)
-def lesson_plans_page(request: Request, db: Session = Depends(get_db), msg: str = "", err: str = ""):
+def lesson_plans_page(request: Request, db: Session = Depends(get_db), msg: str = "", err: str = "",
+                      year: int | None = None, fterm: int = 0):
     from app.models import LessonPlan
     sc = _scope(request, db)
     pid = request.session.get("person_id")
     is_reviewer = not sc.is_teacher            # เจ้าหน้าที่/เจ้าของ = หัวหน้าฝ่ายตรวจแผน
-    q = db.query(LessonPlan).order_by(LessonPlan.submitted_at.desc())
+    base = db.query(LessonPlan)
     if not is_reviewer:
-        q = q.filter(LessonPlan.person_id == (pid or 0))
+        base = base.filter(LessonPlan.person_id == (pid or 0))
+    # ปีที่มีแผน (ให้เลือกกรอง) + ปีปัจจุบัน
+    years = sorted({y for (y,) in base.with_entities(LessonPlan.year).distinct() if y}
+                   | {current_academic_year()}, reverse=True)
+    y = year or current_academic_year()
+    q = base.filter(LessonPlan.year == y)
+    if fterm in (1, 2):
+        q = q.filter(LessonPlan.term == fterm)
+    plans = q.order_by(LessonPlan.term, LessonPlan.submitted_at.desc()).all()
     return templates.TemplateResponse("academic_lesson_plans.html", {
-        "request": request, "school": get_school(db), "plans": q.all(),
+        "request": request, "school": get_school(db), "plans": plans,
         "is_reviewer": is_reviewer, "my_pid": pid, "is_teacher": sc.is_teacher,
         "year": current_academic_year(), "term": current_term(),
+        "sel_year": y, "years": years, "fterm": fterm,
         "term_label": term_label, "msg": msg, "err": err,
     })
+
+
+@router.post("/academic/lesson-plans/{plan_id}/delete")
+def lesson_plan_delete(request: Request, plan_id: int, db: Session = Depends(get_db)):
+    """ลบ/ยกเลิกแผน - ครูลบของตัวเองได้ · หัวหน้าฝ่าย (ไม่ใช่ครู) ลบได้ทุกแผน"""
+    from app.models import LessonPlan
+    sc = _scope(request, db)
+    p = db.get(LessonPlan, plan_id)
+    if p and (not sc.is_teacher or p.person_id == request.session.get("person_id")):
+        db.delete(p); db.commit()
+        return RedirectResponse("/academic/lesson-plans?msg=ลบแผนแล้ว", status_code=303)
+    return RedirectResponse("/academic/lesson-plans?err=ลบไม่ได้ (ไม่ใช่แผนของคุณ)", status_code=303)
 
 
 @router.post("/academic/lesson-plans/submit")

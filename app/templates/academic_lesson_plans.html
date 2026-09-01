@@ -32,17 +32,34 @@
 {% endif %}
 
 <div class="card">
-  <h2 style="margin-top:0;">{% if is_reviewer %}แผนที่ครูส่งเข้ามา{% else %}แผนที่ฉันส่ง{% endif %}
-    {% if plans %}<span class="muted" style="font-size:15px;">({{ plans|length }})</span>{% endif %}</h2>
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+    <h2 style="margin:0;">{% if is_reviewer %}แผนที่ครูส่งเข้ามา{% else %}แผนที่ฉันส่ง{% endif %}
+      {% if plans %}<span class="muted" style="font-size:15px;">({{ plans|length }})</span>{% endif %}</h2>
+    <form method="get" action="/academic/lesson-plans" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0;">
+      <select name="year" onchange="this.form.submit()">
+        {% for yy in years %}<option value="{{ yy }}" {{ 'selected' if yy==sel_year }}>ปี {{ yy }}</option>{% endfor %}
+      </select>
+      <select name="fterm" onchange="this.form.submit()">
+        <option value="0" {{ 'selected' if fterm==0 }}>ทุกภาคเรียน</option>
+        <option value="1" {{ 'selected' if fterm==1 }}>ภาคเรียนที่ 1</option>
+        <option value="2" {{ 'selected' if fterm==2 }}>ภาคเรียนที่ 2</option>
+      </select>
+    </form>
+  </div>
   {% if plans %}
-  <div class="table-wrap">
+  <div class="table-wrap" style="margin-top:10px;">
   <table class="stack-sm">
     <thead><tr>
       {% if is_reviewer %}<th>ครู</th>{% endif %}
-      <th>เรื่อง</th><th>ภาค</th><th>ลิงก์</th><th>วันที่ส่ง</th><th>สถานะ</th><th>{{ 'ตรวจ' if is_reviewer else 'ความเห็น' }}</th>
+      <th>เรื่อง</th><th>ภาค</th><th>ลิงก์</th><th>วันที่ส่ง</th><th>สถานะ</th><th>{{ 'ตรวจ' if is_reviewer else 'ความเห็น' }}</th><th></th>
     </tr></thead>
     <tbody>
+    {% set ns = namespace(term=-1) %}
     {% for p in plans %}
+      {% if fterm==0 and (p.term or 0) != ns.term %}
+      {% set ns.term = (p.term or 0) %}
+      <tr class="term-sep"><td colspan="{{ 8 if is_reviewer else 7 }}">{{ 'ภาคเรียนที่ ' ~ p.term if p.term in (1,2) else 'ไม่ระบุภาคเรียน' }}</td></tr>
+      {% endif %}
       {% set st = {'pending':('รอตรวจ','#fef9c3','#854d0e'), 'reviewed':('ตรวจแล้ว/ผ่าน','#dcfce7','#166534'), 'revise':('ให้แก้ไข','#fee2e2','#b91c1c')}[p.status] %}
       <tr>
         {% if is_reviewer %}<td data-label="ครู" style="white-space:nowrap;">{{ p.teacher.name if p.teacher else '-' }}</td>{% endif %}
@@ -51,7 +68,7 @@
         <td data-label="ลิงก์"><a href="{{ p.link }}" target="_blank" rel="noopener">เปิดลิงก์ ↗</a></td>
         <td data-label="วันที่ส่ง" style="white-space:nowrap; font-size:13px;">{{ be_date(p.submitted_at) }}</td>
         <td data-label="สถานะ"><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span></td>
-        <td data-label="{{ 'ตรวจ' if is_reviewer else 'ความเห็น' }}">
+        <td data-label="{{ 'ตรวจ' if is_reviewer else 'ความเห็น' }}" class="stack-full">
           {% if is_reviewer %}
           <form method="post" action="/academic/lesson-plans/{{ p.id }}/review" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:0;">
             <input name="comment" value="{{ p.comment or '' }}" placeholder="ความเห็น" style="width:150px;">
@@ -60,13 +77,22 @@
           </form>
           {% else %}{{ p.comment or '-' }}{% endif %}
         </td>
+        <td data-label="จัดการ" class="stack-full" style="white-space:nowrap;">
+          <form method="post" action="/academic/lesson-plans/{{ p.id }}/delete" style="margin:0;"
+                onsubmit="return confirm('ลบ/ยกเลิกแผน &quot;{{ p.title }}&quot; ?');">
+            <button class="btn sm gray" type="submit" style="color:#dc2626;"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button>
+          </form>
+        </td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
   </div>
   {% else %}
-  <p class="muted">{% if is_reviewer %}ยังไม่มีครูส่งแผนเข้ามา{% else %}ยังไม่เคยส่งแผน - กรอกด้านบนเพื่อส่ง{% endif %}</p>
+  <p class="muted" style="margin-top:10px;">{% if is_reviewer %}ยังไม่มีแผนในปี/ภาคที่เลือก{% else %}ยังไม่มีแผนในปี/ภาคที่เลือก - กรอกด้านบนเพื่อส่ง{% endif %}</p>
   {% endif %}
 </div>
+<style>
+  table.stack-sm tr.term-sep td { background:#f5f3ff; font-weight:700; color:var(--brand-dark); text-align:left; font-size:13px; padding:6px 10px; }
+</style>
 {% endblock %}
