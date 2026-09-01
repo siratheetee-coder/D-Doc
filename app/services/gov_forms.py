@@ -104,15 +104,18 @@ def render_leave_official(school, person, record, approver=None, write_date=None
     _fill(P[8], [(5, sch)])                                    # สังกัด
 
     # ---- ชนิดการลา (ติ๊กในกล่อง run2) + เหตุผล (run5, เฉพาะป่วย/กิจ) ----
+    # ติ๊กโดย "แทนที่อักขระกล่องเดิม" ด้วยเครื่องหมายถูก ไม่แทรก run ใหม่
+    # (การแทรกจะเพิ่มความกว้าง ดันคำว่า 'เนื่องจาก' ไปชิดขอบ เหตุผลเลยล้นหน้า)
     sel_para = _LEAVE_PARA[typ_norm]
-    for pidx in (9, 10, 11):
-        pairs = []
-        if pidx == sel_para:
-            pairs.append((2, CHK + " "))
-            if reason and pidx in (9, 10):
-                pairs.append((5, " " + reason))
-        if pairs:
-            _fill(P[pidx], pairs)
+    try:
+        box_run = P[sel_para].runs[2]
+        for sym in box_run._element.findall(qn("w:sym")):   # ล้างกล่อง Wingdings เดิม
+            box_run._element.remove(sym)
+        box_run.text = CHK
+    except Exception:
+        pass
+    if reason and sel_para in (9, 10):
+        _fill(P[sel_para], [(5, " " + reason)])
 
     # ---- ช่วงวันลา + จำนวนวัน ----
     _fill(P[12], [(1, " " + sd_d), (3, " " + sd_m), (5, " " + sd_y),
