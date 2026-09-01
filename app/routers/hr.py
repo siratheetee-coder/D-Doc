@@ -14,7 +14,7 @@ from app.database import get_db
 from app.models import (Person, LeaveRecord, LeaveEntitlement, TravelRecord,
                         Decoration, RankHistory, LeaveRequest, TravelRequest,
                         ClassroomVisit, Supervision)
-from app.thai_utils import parse_be_date, be_date_input, thai_date
+from app.thai_utils import parse_be_date, be_date_input, thai_date, current_academic_year
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
 
@@ -512,7 +512,7 @@ def cv_page(request: Request, db: Session = Depends(get_db), edit: int | None = 
     from app.services.super_doc import VISIT_ITEMS
     rec = db.get(ClassroomVisit, edit) if edit else None
     years = sorted({y for (y,) in db.query(ClassroomVisit.year).distinct() if y}
-                   | {_cur_year()}, reverse=True)         # ปีการศึกษา (พ.ศ.)
+                   | {current_academic_year()}, reverse=True)   # ปีการศึกษา (พ.ศ.) รอยต่อ พ.ค.
     q = db.query(ClassroomVisit)
     if year:
         q = q.filter(ClassroomVisit.year == year)
@@ -520,7 +520,7 @@ def cv_page(request: Request, db: Session = Depends(get_db), edit: int | None = 
         "request": request, "school": get_school(db), "msg": msg,
         "rows": q.order_by(ClassroomVisit.id.desc()).all(),
         "persons": _active_persons(db), "rec": rec, "items": VISIT_ITEMS,
-        "years": years, "sel_year": year or 0,
+        "years": years, "sel_year": year or 0, "default_year": current_academic_year(),
         "scores": (rec.scores.split(",") if rec and rec.scores else []),
         "be_date": be_date_input, "director": _director_name(get_school(db)),
     })

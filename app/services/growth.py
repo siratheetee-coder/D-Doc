@@ -17,10 +17,10 @@ _WH_RISK = {"ผอม", "ค่อนข้างผอม", "เริ่ม�
 
 
 def current_academic_year() -> int:
-    """ปีการศึกษาปัจจุบัน (พ.ศ.) - เปิดเทอม พ.ค. ถึง มี.ค."""
+    """ปีการศึกษาปัจจุบัน (พ.ศ.) - เปิดเทอม พ.ค. · ม.ค.-เม.ย. ยังนับเป็นปีก่อนหน้า"""
     now = datetime.now()
     y = now.year + 543
-    return y if now.month >= 4 else y - 1
+    return y - 1 if now.month <= 4 else y
 
 
 def measure_result(student, m):

@@ -21,7 +21,7 @@
           {% for p in persons %}<option value="{{ p.id }}" {{ 'selected' if rec and rec.person_id==p.id }}>{{ p.name }}</option>{% endfor %}
         </select></div>
       <div><label>ภาคเรียน</label><input name="term" value="{{ rec.term if rec else 1 }}" style="width:70px;"></div>
-      <div><label>ปีการศึกษา</label><input name="year" value="{{ rec.year if rec and rec.year else '' }}" placeholder="2569" style="width:90px;"></div>
+      <div><label>ปีการศึกษา</label><input name="year" value="{{ rec.year if rec and rec.year else default_year }}" placeholder="2569" style="width:90px;"></div>
     </div>
     <div class="row" style="align-items:flex-end; margin-top:10px;">
       <div style="flex:1.5;"><label>กลุ่มสาระการเรียนรู้/วิชา</label><input name="subject_group" value="{{ rec.subject_group if rec else '' }}"></div>
