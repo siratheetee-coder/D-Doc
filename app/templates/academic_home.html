@@ -133,8 +133,10 @@
   .dash-wrap{ border:1px solid #ece9fb; border-radius:14px; overflow:hidden;
     box-shadow:0 6px 18px -12px rgba(79,70,229,.35); }
   .dash-table{ width:100%; border-collapse:separate; border-spacing:0; font-size:14px; }
-  .dash-table thead th{ background:linear-gradient(135deg,#7c3aed,#4f46e5); color:#fff;
-    padding:12px 8px; font-weight:700; font-size:13px; border:none; white-space:nowrap; }
+  /* gradient แนวตั้ง = ทุก cell เฉดเดียวกัน ดูเป็นแถบเดียวต่อเนื่อง (ไม่ลายเป็นบล็อค) */
+  .dash-table thead th{ background:linear-gradient(180deg,#7c3aed,#5b21b6); color:#fff;
+    padding:12px 8px; font-weight:700; font-size:13px; border:none; white-space:nowrap;
+    text-align:center; }
   .dash-table thead th:first-child{ text-align:left; padding-left:16px; }
   .dash-table tbody td{ padding:8px; text-align:center; border-bottom:1px solid #f3f0fc; }
   .dash-table tbody tr:last-child td{ border-bottom:none; }
