@@ -462,6 +462,22 @@ def render_leave_official(school, person, record, db=None, approver=None,
                         break
                 _insstrip(P[31], i, " " + _full_date(approve_date))
 
+    # ---- เอา '/' ออกจากช่องวันที่ผู้ตรวจสอบ/ผอ ที่ยังว่าง (เหลือจุดไข่ปลาไว้เขียน) ----
+    try:
+        r = P[29].runs[2]
+        if "/" in r.text:
+            r.text = r.text.replace("/", " ")
+    except Exception:
+        pass
+    try:
+        i = _find_run(P[31], "วันที่")
+        if i is not None:
+            for k in range(i + 1, len(P[31].runs)):
+                if "/" in P[31].runs[k].text:
+                    P[31].runs[k].text = P[31].runs[k].text.replace("/", " ")
+    except Exception:
+        pass
+
     # ---- จัดบรรทัดหัวเอกสาร ----
     from docx.enum.text import WD_ALIGN_PARAGRAPH as _AL
     from docx.shared import Cm as _Cm, Pt as _Pt
@@ -474,18 +490,18 @@ def render_leave_official(school, person, record, db=None, approver=None,
     # ---- เปลี่ยนฟอนต์ทั้งไฟล์เป็น TH Sarabun New (รวมตัวเลขในตารางสถิติ) ----
     _set_font_all(doc, "TH Sarabun New")
 
-    # TH Sarabun New สูงกว่าเดิม -> บีบระยะบรรทัด + ตัดเว้นวรรคย่อหน้า ให้พอ 1 หน้า
+    # ระยะห่างบรรทัด 1.0 (single) ตามต้นฉบับ · ตัดเว้นวรรคย่อหน้า
     for p in doc.paragraphs:
         pf = p.paragraph_format
-        pf.line_spacing = 0.92
+        pf.line_spacing = 1.0
         pf.space_before = _Pt(0); pf.space_after = _Pt(0)
     # ลบบรรทัดกลุ่มงาน/สังกัดเดิม (P8) - ถูกรวมเข้าบรรทัด 'ข้าพเจ้า' (P7) แล้ว
     try:
         P[8]._element.getparent().remove(P[8]._element)
     except Exception:
         pass
-    # ตัดย่อหน้าเว้นว่างส่วนหัว (คงบรรทัดว่างระหว่าง เรียน<->ข้าพเจ้า ไว้ = P[6])
-    for idx in (16, 1):
+    # ตัดเฉพาะย่อหน้าเว้นว่างตรงกลาง (P16) · คงบรรทัดว่างใต้หัวเรื่อง (P1) และก่อน 'ข้าพเจ้า' (P6)
+    for idx in (16,):
         try:
             if not P[idx].text.strip():
                 P[idx]._element.getparent().remove(P[idx]._element)
