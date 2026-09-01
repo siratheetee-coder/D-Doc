@@ -62,7 +62,7 @@ def _dt(d):
 
 
 # ---------------- ใบลา ----------------
-def render_leave_form(school, person, record, type_label) -> str:
+def render_leave_form(school, person, record, type_label, approver=None) -> str:
     doc = _doc()
     _p(doc, "ใบลา" + type_label.replace("ลา", "", 1), align="center", bold=True, size=20, after=10)
 
@@ -88,11 +88,17 @@ def render_leave_form(school, person, record, type_label) -> str:
     _p(doc, "(ลงชื่อ)...................................ผู้ลา", align="center", after=0)
     _p(doc, f"( {name} )", align="center", after=14)
 
-    # ความเห็น/คำสั่งผู้บังคับบัญชา
+    # ความเห็น/คำสั่งผู้บังคับบัญชา - ถ้าอนุมัติแล้ว (มี approver) ติ๊ก "อนุญาต" + แปะลายเซ็น ผอ.
     _p(doc, "คำสั่ง", bold=True, after=2)
-    _p(doc, "☐ อนุญาต            ☐ ไม่อนุญาต", indent=1.25, after=14)
-    _p(doc, "(ลงชื่อ)...................................", align="center", after=0)
-    _p(doc, f"( {(getattr(school, 'director_name', '') or '').strip() or _BLANK} )", align="center", after=0)
+    _p(doc, ("☑ อนุญาต            ☐ ไม่อนุญาต" if approver is not None
+             else "☐ อนุญาต            ☐ ไม่อนุญาต"), indent=1.25, after=14)
+    sign_p = _p(doc, "(ลงชื่อ)...................................", align="center", after=0)
+    dname = ((approver.name if approver is not None else "")
+             or (getattr(school, "director_name", "") or "")).strip()
+    if approver is not None and dname:
+        from app.services.office_doc import _float_signature
+        _float_signature(sign_p, dname)
+    _p(doc, f"( {dname or _BLANK} )", align="center", after=0)
     _p(doc, _director_pos(school), align="center", after=2)
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
@@ -195,8 +201,9 @@ def render_certificate(school, person) -> str:
 
 
 # ---------------- คำสั่งไปราชการ ----------------
-def render_travel_request(school, person, record) -> str:
-    """บันทึกข้อความขออนุญาตไปราชการ (ครูเป็นผู้ยื่น) - สำหรับพิมพ์เสนอผู้อำนวยการ"""
+def render_travel_request(school, person, record, approver=None) -> str:
+    """บันทึกข้อความขออนุญาตไปราชการ (ครูเป็นผู้ยื่น) - สำหรับพิมพ์เสนอผู้อำนวยการ
+    approver: ถ้าอนุมัติแล้ว ส่ง Person ผอ. เข้ามา -> ติ๊ก 'อนุญาต' + แปะลายเซ็น"""
     doc = _doc()
     _p(doc, "บันทึกข้อความ", align="center", bold=True, size=20, after=6)
     _p(doc, f"ส่วนราชการ  {school.name or ''}", after=0)
@@ -221,9 +228,15 @@ def render_travel_request(school, person, record) -> str:
     _p(doc, f"( {name} )", align="center", after=16)
 
     _p(doc, "ความเห็นผู้อำนวยการ", bold=True, after=2)
-    _p(doc, "☐ อนุญาต            ☐ ไม่อนุญาต", indent=1.25, after=14)
-    _p(doc, "(ลงชื่อ)...................................", align="center", after=0)
-    _p(doc, f"( {(getattr(school, 'director_name', '') or '').strip() or _BLANK} )", align="center", after=0)
+    _p(doc, ("☑ อนุญาต            ☐ ไม่อนุญาต" if approver is not None
+             else "☐ อนุญาต            ☐ ไม่อนุญาต"), indent=1.25, after=14)
+    sign_p = _p(doc, "(ลงชื่อ)...................................", align="center", after=0)
+    dname = ((approver.name if approver is not None else "")
+             or (getattr(school, "director_name", "") or "")).strip()
+    if approver is not None and dname:
+        from app.services.office_doc import _float_signature
+        _float_signature(sign_p, dname)
+    _p(doc, f"( {dname or _BLANK} )", align="center", after=0)
     _p(doc, _director_pos(school), align="center", after=2)
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)

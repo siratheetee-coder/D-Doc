@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}ไปราชการ · {{ person.name if person else '' }}{% endblock %}
+{% block content %}
+{% set st = {'pending':('รอบุคคลตรวจ','#fef9c3','#854d0e'), 'personnel':('ผ่านบุคคล · รอ ผอ. อนุมัติ','#dbeafe','#1e40af'), 'approved':('อนุมัติ','#dcfce7','#166534'), 'rejected':('ไม่อนุมัติ','#fee2e2','#b91c1c')}.get(r.status, ('รอบุคคลตรวจ','#fef9c3','#854d0e')) %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">ขอไปราชการ</div>
+    <span class="hero-title">{{ person.name if person else '-' }}</span>
+    <div class="hero-meta">{{ r.subject }} · {{ be_date(r.start_date) }} ถึง {{ be_date(r.end_date) }} · <span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }};">{{ st[0] }}</span></div>
+  </div>
+</div>
+{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+{% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
+
+<div class="row" style="align-items:flex-start;">
+  <div class="card" style="flex:1.2; min-width:300px;">
+    <h2 style="margin-top:0;">รายละเอียดคำขอ</h2>
+    <p><b>เรื่อง/ภารกิจ:</b> {{ r.subject or '-' }}</p>
+    <p><b>สถานที่:</b> {{ r.place or '-' }}</p>
+    <p><b>ช่วง:</b> {{ be_date(r.start_date) }} ถึง {{ be_date(r.end_date) }} ({{ r.days|int }} วัน)</p>
+    <p><b>งบประมาณ:</b> {{ '{:,.0f}'.format(r.budget or 0) }} บาท</p>
+    {% if r.note %}<p><b>หมายเหตุ:</b> {{ r.note }}</p>{% endif %}
+    {% if r.attachment_name %}
+    <a class="btn sm" href="/me/travel/{{ r.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> ดูบันทึกที่ครูแนบ</a>
+    {% endif %}
+    {% if r.record_id %}
+    <a class="btn sm soft" href="/hr/travel/{{ r.record_id }}/request.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์บันทึก{% if r.status == 'approved' %} (ลงนามแล้ว){% endif %}</a>
+    {% endif %}
+  </div>
+
+  <div class="card" style="flex:1; min-width:300px;">
+    <h2 style="margin-top:0;">สายการพิจารณา</h2>
+    <div style="border-left:3px solid #93c5fd; padding:4px 0 4px 12px; margin-bottom:14px;">
+      <b>1. งานบุคคล</b><br>
+      {% if r.personnel_at %}
+        <span class="muted">{{ personnel.name if personnel else '-' }} · {{ thai_date(r.personnel_at) if r.personnel_at else '-' }}</span><br>
+        <span class="pill" style="background:#dcfce7; color:#166534;">ตรวจแล้ว ส่งต่อ ผอ.</span>
+        {% if r.personnel_comment %}<div style="margin-top:4px;">ความเห็น: {{ r.personnel_comment }}</div>{% endif %}
+      {% else %}<span class="muted">รอบุคคลตรวจ</span>{% endif %}
+    </div>
+    <div style="border-left:3px solid #c4b5fd; padding:4px 0 4px 12px;">
+      <b>2. ผู้อำนวยการ</b><br>
+      {% if r.status in ('approved','rejected') and r.decided_at %}
+        <span class="muted">{{ director.name if director else (school.director_name or '-') }} · {{ thai_date(r.decided_at) }}</span><br>
+        <span class="pill" style="background:{{ '#dcfce7' if r.status=='approved' else '#fee2e2' }}; color:{{ '#166534' if r.status=='approved' else '#b91c1c' }};">{{ 'อนุมัติ/ลงนามแล้ว' if r.status=='approved' else 'ไม่อนุมัติ' }}</span>
+        {% if r.comment %}<div style="margin-top:4px;">ความเห็น: {{ r.comment }}</div>{% endif %}
+      {% elif r.status == 'personnel' %}<span class="muted">รอ ผอ. อนุมัติ</span>{% else %}<span class="muted">-</span>{% endif %}
+    </div>
+
+    {% if is_director and r.status == 'personnel' %}
+    <hr style="margin:16px 0; border:none; border-top:1px solid var(--border);">
+    <form method="post" action="/hr/travel-requests/{{ r.id }}/approve">
+      <label>ความเห็นผู้อำนวยการ (ไม่บังคับ)</label>
+      <textarea name="comment" rows="2" style="width:100%;" placeholder="เช่น อนุญาต"></textarea>
+      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+        <button class="btn green" type="submit" name="decision" value="approve"><svg class="icon"><use href="#ic-check"/></svg> อนุมัติ + ลงนาม</button>
+        <button class="btn red" type="submit" name="decision" value="reject">ไม่อนุมัติ</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+<a class="btn gray" href="{{ '/approvals' if is_director else '/hr/travel-requests' }}">← กลับ</a>
+{% endblock %}

@@ -364,7 +364,9 @@ def hr_travel_request_docx(tid: int, db: Session = Depends(get_db)):
     q = db.query(TravelRequest).filter_by(record_id=tid).first()
     if q and q.attachment:
         return _serve_blob(q.attachment, q.attachment_name)
-    return serve_generated(render_travel_request(get_school(db), r.person, r), _DOCX)
+    # ผอ. อนุมัติแล้ว -> ติ๊ก 'อนุญาต' + แปะลายเซ็น ผอ. บนบันทึก
+    approver = _approver_for(db, q) if q else None
+    return serve_generated(render_travel_request(get_school(db), r.person, r, approver=approver), _DOCX)
 
 
 @router.get("/hr/travel/{tid}/order.docx")
@@ -384,7 +386,11 @@ def hr_leave_form_docx(lid: int, db: Session = Depends(get_db)):
     r = db.get(LeaveRecord, lid)
     if not r:
         return RedirectResponse("/hr/leave", status_code=303)
-    path = render_leave_form(get_school(db), r.person, r, LEAVE_TYPES.get(r.leave_type, r.leave_type))
+    # ถ้าใบลานี้มาจากคำขอในระบบที่ ผอ. อนุมัติแล้ว -> แปะลายเซ็น ผอ. บนแบบใบลา
+    q = db.query(LeaveRequest).filter_by(record_id=lid).first()
+    approver = _leave_approver(db, q) if q else None
+    path = render_leave_form(get_school(db), r.person, r,
+                             LEAVE_TYPES.get(r.leave_type, r.leave_type), approver=approver)
     return serve_generated(path, _DOCX)
 
 
@@ -430,38 +436,124 @@ def _notify(to, subject, html):
         pass
 
 
+def _notify_directors(db, title, reason, link="/approvals"):
+    """แจ้งเตือน (กระดิ่ง) ผอ./รองผอ. ทุกบัญชีของโรงเรียนที่ผูก Person ไว้"""
+    from app.services.nav import create_notice
+    try:
+        from app.tenancy import current_school_id
+        from app.accounts import director_person_ids
+        for pid in director_person_ids(current_school_id.get()):
+            if pid:
+                create_notice(db, pid, title, reason=reason, link=link, level="info")
+    except Exception:
+        pass
+
+
+def _approver_for(db, r):
+    """ผู้อนุมัติ (ผอ.) ของคำขอที่อนุมัติแล้ว - ไว้ติ๊ก 'อนุญาต' + แปะลายเซ็นบนแบบฟอร์ม
+    คืน Person ถ้าบัญชี ผอ. ผูก Person ไว้ · มิฉะนั้น stub ใช้ชื่อ ผอ. จากตั้งค่าโรงเรียน
+    (ยังติ๊กอนุญาตให้ · แปะลายเซ็นถ้าชื่อนั้นมีในทะเบียน) · None ถ้ายังไม่อนุมัติ"""
+    if not r or r.status != "approved":
+        return None
+    if r.director_by:
+        p = db.get(Person, r.director_by)
+        if p:
+            return p
+    from types import SimpleNamespace
+    return SimpleNamespace(name=(getattr(get_school(db), "director_name", "") or ""))
+
+
+# ชื่อเดิม (เผื่อมีที่อื่นเรียก)
+_leave_approver = _approver_for
+
+
 @router.post("/hr/leave-requests/{lid}/decide")
 def leave_request_decide(lid: int, request: Request, db: Session = Depends(get_db),
                          status: str = Form(""), comment: str = Form("")):
+    """ขั้นบุคคล: 'forward' = ตรวจแล้วส่งต่อ ผอ. · 'rejected' = ไม่อนุมัติ (จบ)"""
     r = db.get(LeaveRequest, lid)
-    if r and status in ("approved", "rejected"):
-        r.status = status
-        r.comment = (comment or "").strip()
-        r.decided_at = datetime.now()
-        # อนุมัติแล้วลงทะเบียนวันลาอัตโนมัติ (ครั้งเดียว - กันลงซ้ำด้วย record_id)
-        if status == "approved" and not r.record_id:
+    if not r or r.status not in ("pending",):
+        return RedirectResponse("/hr/leave-requests?err=รายการนี้ผ่านขั้นบุคคลแล้ว", status_code=303)
+    from app.services.nav import create_notice
+    if status == "forward":
+        r.status = "personnel"
+        r.personnel_by = request.session.get("person_id")
+        r.personnel_at = datetime.now()
+        r.personnel_comment = (comment or "").strip()
+        _notify_directors(db, "ใบลารออนุมัติ",
+                          f"{(r.person.name if r.person else '')} · {r.leave_type}")
+        db.commit()
+        return RedirectResponse("/hr/leave-requests?msg=ส่งต่อ ผอ. เพื่ออนุมัติแล้ว", status_code=303)
+    # ไม่อนุมัติตั้งแต่ขั้นบุคคล
+    r.status = "rejected"
+    r.comment = (comment or "").strip()
+    r.decided_at = datetime.now()
+    create_notice(db, r.person_id, "ผลใบลา: ไม่อนุมัติ",
+                  reason=f"{r.leave_type} {be_date_input(r.start_date)}-{be_date_input(r.end_date)}"
+                         + (f" · {r.comment}" if r.comment else ""),
+                  link="/me/leave", level="warn")
+    db.commit()
+    person = db.get(Person, r.person_id)
+    if person and (person.email or "").strip():
+        _notify(person.email, f"[ผลใบลา] {r.leave_type} - ไม่อนุมัติ",
+                f"<p>ใบลา ({r.leave_type}) ไม่อนุมัติ</p><p>ความเห็น: {r.comment or '-'}</p>")
+    return RedirectResponse("/hr/leave-requests?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
+
+
+@router.get("/hr/leave-requests/{lid}", response_class=HTMLResponse)
+def leave_request_detail(lid: int, request: Request, db: Session = Depends(get_db),
+                         msg: str = "", err: str = ""):
+    """หน้ารายละเอียดใบลา - ผอ. ดู + อนุมัติ/ลงนาม"""
+    r = db.get(LeaveRequest, lid)
+    if not r:
+        return RedirectResponse("/hr/leave-requests", status_code=303)
+    personnel = db.get(Person, r.personnel_by) if r.personnel_by else None
+    director = db.get(Person, r.director_by) if r.director_by else None
+    return templates.TemplateResponse("leave_request_detail.html", {
+        "request": request, "school": get_school(db), "r": r,
+        "person": r.person, "personnel": personnel, "director": director,
+        "is_director": bool(request.session.get("director")),
+        "be_date": be_date_input, "msg": msg, "err": err,
+    })
+
+
+@router.post("/hr/leave-requests/{lid}/approve")
+def leave_request_approve(lid: int, request: Request, db: Session = Depends(get_db),
+                          decision: str = Form(""), comment: str = Form("")):
+    """ขั้น ผอ.: อนุมัติ (ลงทะเบียนวันลา + ลงนาม) หรือไม่อนุมัติ"""
+    if not request.session.get("director"):
+        return RedirectResponse("/", status_code=303)
+    r = db.get(LeaveRequest, lid)
+    if not r or r.status != "personnel":
+        return RedirectResponse("/approvals?err=รายการนี้ไม่รอ ผอ. อนุมัติแล้ว", status_code=303)
+    r.comment = (comment or "").strip()
+    r.decided_at = datetime.now()
+    from app.services.nav import create_notice
+    if decision == "approve":
+        r.status = "approved"
+        r.director_by = request.session.get("person_id")
+        if not r.record_id:
             yr = (r.start_date.year + 543) if r.start_date else _cur_year()
             rec = LeaveRecord(person_id=r.person_id, year=yr,
                               leave_type=_LEAVE_KEY.get((r.leave_type or "").strip(), "personal"),
                               start_date=r.start_date, end_date=r.end_date,
                               days=r.days or 0, reason=r.reason or "", contact=r.contact or "")
             db.add(rec); db.flush(); r.record_id = rec.id
-        res = "อนุมัติ" if status == "approved" else "ไม่อนุมัติ"
-        from app.services.nav import create_notice
-        create_notice(db, r.person_id, f"ผลใบลา: {res}",
-                      reason=f"{r.leave_type} {be_date_input(r.start_date)}-{be_date_input(r.end_date)}"
-                             + (f" · {r.comment}" if r.comment else ""),
-                      link="/me/leave",
-                      level=("info" if status == "approved" else "warn"))
-        db.commit()
-        # แจ้งผลกลับครูทางอีเมล (ถ้ามีอีเมลในทะเบียนบุคลากร)
-        person = db.get(Person, r.person_id)
-        if person and (person.email or "").strip():
-            _notify(person.email, f"[ผลใบลา] {r.leave_type} - {res}",
-                    f"<p>ใบลา ({r.leave_type} {be_date_input(r.start_date)} ถึง {be_date_input(r.end_date)}) "
-                    f"ได้รับการพิจารณาแล้ว: <b>{res}</b></p>"
-                    f"<p>ความเห็น: {r.comment or '-'}</p>")
-    return RedirectResponse("/hr/leave-requests?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
+        res = "อนุมัติ"
+    else:
+        r.status = "rejected"
+        res = "ไม่อนุมัติ"
+    create_notice(db, r.person_id, f"ผลใบลา: {res}",
+                  reason=f"{r.leave_type} {be_date_input(r.start_date)}-{be_date_input(r.end_date)}"
+                         + (f" · {r.comment}" if r.comment else ""),
+                  link="/me/leave", level=("info" if res == "อนุมัติ" else "warn"))
+    db.commit()
+    person = db.get(Person, r.person_id)
+    if person and (person.email or "").strip():
+        _notify(person.email, f"[ผลใบลา] {r.leave_type} - {res}",
+                f"<p>ใบลา ({r.leave_type} {be_date_input(r.start_date)} ถึง {be_date_input(r.end_date)}): "
+                f"<b>{res}</b></p><p>ความเห็น ผอ.: {r.comment or '-'}</p>")
+    return RedirectResponse("/approvals?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
 
 
 @router.post("/hr/leave-requests/{lid}/delete")
@@ -493,14 +585,68 @@ def travel_requests_page(request: Request, db: Session = Depends(get_db), msg: s
 @router.post("/hr/travel-requests/{tid}/decide")
 def travel_request_decide(tid: int, request: Request, db: Session = Depends(get_db),
                           status: str = Form(""), comment: str = Form("")):
+    """ขั้นบุคคล: 'forward' = ส่งต่อ ผอ. · 'rejected' = ไม่อนุมัติ (จบ)"""
+    r = db.get(TravelRequest, tid)
+    if not r or r.status not in ("pending",):
+        return RedirectResponse("/hr/travel-requests?err=รายการนี้ผ่านขั้นบุคคลแล้ว", status_code=303)
+    from app.services.nav import create_notice
+    if status == "forward":
+        r.status = "personnel"
+        r.personnel_by = request.session.get("person_id")
+        r.personnel_at = datetime.now()
+        r.personnel_comment = (comment or "").strip()
+        _notify_directors(db, "คำขอไปราชการรออนุมัติ",
+                          f"{(r.person.name if r.person else '')} · {r.subject}")
+        db.commit()
+        return RedirectResponse("/hr/travel-requests?msg=ส่งต่อ ผอ. เพื่ออนุมัติแล้ว", status_code=303)
+    r.status = "rejected"
+    r.comment = (comment or "").strip()
+    r.decided_at = datetime.now()
+    create_notice(db, r.person_id, "ผลขอไปราชการ: ไม่อนุมัติ",
+                  reason=(r.subject or "") + (f" · {r.comment}" if r.comment else ""),
+                  link="/me/travel", level="warn")
+    db.commit()
+    person = db.get(Person, r.person_id)
+    if person and (person.email or "").strip():
+        _notify(person.email, f"[ผลขอไปราชการ] {r.subject} - ไม่อนุมัติ",
+                f"<p>คำขอไปราชการ ({r.subject}) ไม่อนุมัติ</p><p>ความเห็น: {r.comment or '-'}</p>")
+    return RedirectResponse("/hr/travel-requests?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
+
+
+@router.get("/hr/travel-requests/{tid}", response_class=HTMLResponse)
+def travel_request_detail(tid: int, request: Request, db: Session = Depends(get_db),
+                          msg: str = "", err: str = ""):
+    """หน้ารายละเอียดคำขอไปราชการ - ผอ. ดู + อนุมัติ/ลงนาม"""
+    r = db.get(TravelRequest, tid)
+    if not r:
+        return RedirectResponse("/hr/travel-requests", status_code=303)
+    personnel = db.get(Person, r.personnel_by) if r.personnel_by else None
+    director = db.get(Person, r.director_by) if r.director_by else None
+    return templates.TemplateResponse("travel_request_detail.html", {
+        "request": request, "school": get_school(db), "r": r,
+        "person": r.person, "personnel": personnel, "director": director,
+        "is_director": bool(request.session.get("director")),
+        "be_date": be_date_input, "msg": msg, "err": err,
+    })
+
+
+@router.post("/hr/travel-requests/{tid}/approve")
+def travel_request_approve(tid: int, request: Request, db: Session = Depends(get_db),
+                           decision: str = Form(""), comment: str = Form("")):
+    """ขั้น ผอ.: อนุมัติ (ลงทะเบียนไปราชการ + ลงนาม) หรือไม่อนุมัติ"""
+    if not request.session.get("director"):
+        return RedirectResponse("/", status_code=303)
     from datetime import datetime as _dt
     r = db.get(TravelRequest, tid)
-    if r and status in ("approved", "rejected"):
-        r.status = status
-        r.comment = (comment or "").strip()
-        r.decided_at = _dt.now()
-        # อนุมัติแล้วลงทะเบียนไปราชการอัตโนมัติ (ครั้งเดียว)
-        if status == "approved" and not r.record_id:
+    if not r or r.status != "personnel":
+        return RedirectResponse("/approvals?err=รายการนี้ไม่รอ ผอ. อนุมัติแล้ว", status_code=303)
+    r.comment = (comment or "").strip()
+    r.decided_at = _dt.now()
+    from app.services.nav import create_notice
+    if decision == "approve":
+        r.status = "approved"
+        r.director_by = request.session.get("person_id")
+        if not r.record_id:
             yr = (r.start_date.year + 543) if r.start_date else _cur_year()
             sd = _dt(r.start_date.year, r.start_date.month, r.start_date.day) if r.start_date else None
             ed = _dt(r.end_date.year, r.end_date.month, r.end_date.day) if r.end_date else None
@@ -508,19 +654,20 @@ def travel_request_decide(tid: int, request: Request, db: Session = Depends(get_
                                place=r.place or "", start_date=sd, end_date=ed,
                                days=r.days or 0, budget=r.budget or 0, note=r.note or "")
             db.add(rec); db.flush(); r.record_id = rec.id
-        res = "อนุมัติ" if status == "approved" else "ไม่อนุมัติ"
-        from app.services.nav import create_notice
-        create_notice(db, r.person_id, f"ผลขอไปราชการ: {res}",
-                      reason=(r.subject or "") + (f" · {r.comment}" if r.comment else ""),
-                      link="/me/travel",
-                      level=("info" if status == "approved" else "warn"))
-        db.commit()
-        person = db.get(Person, r.person_id)
-        if person and (person.email or "").strip():
-            _notify(person.email, f"[ผลขอไปราชการ] {r.subject} - {res}",
-                    f"<p>คำขอไปราชการ ({r.subject}) ได้รับการพิจารณาแล้ว: <b>{res}</b></p>"
-                    f"<p>ความเห็น: {r.comment or '-'}</p>")
-    return RedirectResponse("/hr/travel-requests?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
+        res = "อนุมัติ"
+    else:
+        r.status = "rejected"
+        res = "ไม่อนุมัติ"
+    create_notice(db, r.person_id, f"ผลขอไปราชการ: {res}",
+                  reason=(r.subject or "") + (f" · {r.comment}" if r.comment else ""),
+                  link="/me/travel", level=("info" if res == "อนุมัติ" else "warn"))
+    db.commit()
+    person = db.get(Person, r.person_id)
+    if person and (person.email or "").strip():
+        _notify(person.email, f"[ผลขอไปราชการ] {r.subject} - {res}",
+                f"<p>คำขอไปราชการ ({r.subject}): <b>{res}</b></p>"
+                f"<p>ความเห็น ผอ.: {r.comment or '-'}</p>")
+    return RedirectResponse("/approvals?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
 
 
 @router.post("/hr/travel-requests/{tid}/delete")
