@@ -268,21 +268,31 @@ def _class_progress(c, db, term):
             q = q.filter(cond)
         return len({r[0] for r in q.distinct().all()})
 
+    from sqlalchemy import or_
+    # นับ "ทำแล้ว" จากข้อมูลจริง (มีค่าอย่างน้อย 1 ช่อง) ไม่ใช่แค่มีแถวในตาราง
+    # กันเคสกดบันทึกช่องว่าง/ล้างค่าแล้วยังนับว่าทำแล้ว
+    _read_fields = [f for f, _ in READ_DOMAINS]
+    char_cond = or_(*[getattr(AcadCharEval, f).isnot(None) for f in CHAR_FIELDS])
+    read_cond = or_(*[getattr(AcadReadEval, f).isnot(None) for f in _read_fields])
     grade = n_subj(AcadScore, AcadScore.score.isnot(None), tf=term)
-    char = n_subj(AcadCharEval, tf=eval_tf)
-    read = n_subj(AcadReadEval, tf=eval_tf)
+    char = n_subj(AcadCharEval, char_cond, tf=eval_tf)
+    read = n_subj(AcadReadEval, read_cond, tf=eval_tf)
     ind = n_subj(AcadIndicatorResult)          # ตัวชี้วัดผูกกับวิชา (ไม่มี term ของตัวเอง)
     ind_total = sum(1 for x in subs if selected_indicators(x))
     acts = activities_for(c.year, c.level, db)
     act_done = 0
     if acts and sids:
         act_done = len({r[0] for r in db.query(AcadActivityResult.acad_student_id)
-                        .filter(AcadActivityResult.acad_student_id.in_(sids)).distinct().all()})
+                        .filter(AcadActivityResult.acad_student_id.in_(sids),
+                                AcadActivityResult.result.isnot(None),
+                                AcadActivityResult.result != "").distinct().all()})
     att = bool(sids) and db.query(AcadAttendance).filter(
         AcadAttendance.acad_student_id.in_(sids)).first() is not None
     onet = 0
     if is_exit_level(c.level) and sids:
-        onet = db.query(AcadOnet).filter(AcadOnet.acad_student_id.in_(sids)).count()
+        onet = db.query(AcadOnet).filter(
+            AcadOnet.acad_student_id.in_(sids),
+            or_(AcadOnet.score.isnot(None), AcadOnet.full_score.isnot(None))).count()
     return {
         "nst": nst, "nsub": nsub,
         "grade": grade, "char": char, "read": read,
@@ -1674,7 +1684,10 @@ async def eval_save(request: Request, db: Session = Depends(get_db), cid: str = 
                 v = (form.get(f"act_{s.id}_{a.id}", "") or "").strip()
                 row = cur_res.get((s.id, a.id))
                 if row:
-                    row.result = v
+                    if v:
+                        row.result = v
+                    else:
+                        db.delete(row)     # ล้างค่า -> ลบแถว (กันค้างเป็น "ทำแล้ว")
                 elif v:
                     db.add(AcadActivityResult(acad_student_id=s.id, activity_id=a.id, result=v))
     # O-NET (เฉพาะชั้นปลายทาง) upsert ตาม นักเรียน x วิชา
@@ -1690,8 +1703,11 @@ async def eval_save(request: Request, db: Session = Depends(get_db), cid: str = 
                 sc = (form.get(f"onet_{s.id}_{subj}_score", "") or "").strip()
                 row = cur_onet.get((s.id, subj))
                 if row:
-                    row.full_score = _to_float(full, None) if full else None
-                    row.score = _to_float(sc, None) if sc else None
+                    if full or sc:
+                        row.full_score = _to_float(full, None) if full else None
+                        row.score = _to_float(sc, None) if sc else None
+                    else:
+                        db.delete(row)     # ล้างค่า -> ลบแถว
                 elif full or sc:
                     db.add(AcadOnet(acad_student_id=s.id, subject=subj,
                                     full_score=_to_float(full, None) if full else None,
@@ -1773,15 +1789,24 @@ async def assess_save(request: Request, db: Session = Depends(get_db),
     cur = {r.acad_student_id: r for r in
            db.query(Model).filter_by(subject_id=subj.id, term=et).all()}
     for s in c.students:
-        r = cur.get(s.id)
-        if not r:
-            r = Model(acad_student_id=s.id, subject_id=subj.id, term=et)
-            db.add(r)
+        vals = {}
         for f in fields:
             v = _to_int(form.get(f"{f}_{s.id}", ""), None)
             if v is not None:
                 v = max(0, min(3, v))      # คะแนน 0-3 เท่านั้น
-            setattr(r, f, v)
+            vals[f] = v
+        has_any = any(v is not None for v in vals.values())
+        r = cur.get(s.id)
+        if not r:
+            if not has_any:
+                continue                    # ไม่กรอกอะไรเลย -> ไม่สร้างแถวว่าง (กันนับว่า "ทำแล้ว")
+            r = Model(acad_student_id=s.id, subject_id=subj.id, term=et)
+            db.add(r)
+        elif not has_any:
+            db.delete(r)                    # ล้างทุกช่อง -> ลบแถว
+            continue
+        for f in fields:
+            setattr(r, f, vals[f])
     db.commit()
     tq = f"&term={et}" if et in (1, 2) else ""
     return RedirectResponse(f"/academic/assess?cid={c.id}&sid={subj.id}&kind={kind}{tq}&saved=1",

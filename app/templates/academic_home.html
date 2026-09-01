@@ -21,10 +21,10 @@
 </div>
 
 {% macro dcell(done, total, href) %}
-  {% if total == 0 %}<td class="center muted">-</td>
+  {% if total == 0 %}<td><span class="p-dash">–</span></td>
   {% else %}
-    {% set cls = 'dc-full' if done >= total else ('dc-part' if done > 0 else 'dc-none') %}
-    <td class="center {{ cls }}"><a href="{{ href }}">{{ done }}/{{ total }}</a></td>
+    {% set cls = 'p-full' if done >= total else ('p-part' if done > 0 else 'p-none') %}
+    <td><a class="pill-cell {{ cls }}" href="{{ href }}">{{ done }}/{{ total }}</a></td>
   {% endif %}
 {% endmacro %}
 
@@ -92,37 +92,37 @@
         <a class="seg-btn {{ 'on' if term==1 }}" href="/academic?year={{ year }}&term=1">ภาคเรียนที่ 1</a>
         <a class="seg-btn {{ 'on' if term==2 }}" href="/academic?year={{ year }}&term=2">ภาคเรียนที่ 2</a>
       </div>
-      <span class="muted" style="font-size:12.5px;">
-        <b class="dc-full" style="padding:1px 6px; border-radius:4px;">ครบ</b>
-        <b class="dc-part" style="padding:1px 6px; border-radius:4px;">บางส่วน</b>
-        <b class="dc-none" style="padding:1px 6px; border-radius:4px;">ยังไม่เริ่ม</b>
+      <span style="font-size:12px; display:inline-flex; gap:6px;">
+        <b class="pill-cell p-full" style="min-width:0;">ครบ</b>
+        <b class="pill-cell p-part" style="min-width:0;">บางส่วน</b>
+        <b class="pill-cell p-none" style="min-width:0;">ยังไม่เริ่ม</b>
       </span>
     </div>
   </div>
   <p class="muted" style="font-size:13px; margin:4px 0 10px;">ตัวเลข = วิชาที่ทำแล้ว / ทั้งหมด (ของ<b>{{ term_label(term) }}</b>) · คลิกช่องเพื่อไปหน้านั้น</p>
-  <div class="table-wrap">
+  <div class="table-wrap dash-wrap">
   <table class="dash-table">
     <thead><tr>
-      <th style="text-align:left;">ห้อง</th><th>คะแนน</th><th>ตัวชี้วัด</th><th>คุณลักษณะ</th>
+      <th>ห้อง</th><th>คะแนน</th><th>ตัวชี้วัด</th><th>คุณลักษณะ</th>
       <th>อ่านเขียน</th><th>กิจกรรม</th><th>เวลาเรียน</th><th>O-NET</th>
     </tr></thead>
     <tbody>
     {% for label, c, p in progress %}
       <tr>
-        <td style="white-space:nowrap;"><a href="/academic/classes/{{ c.id }}" style="font-weight:600;">{{ label }}</a>
-          <span class="muted" style="font-size:12px;">{{ p.nst }} คน</span></td>
+        <td class="rm"><a href="/academic/classes/{{ c.id }}">{{ label }}</a>
+          <span class="rm-n">{{ p.nst }} คน</span></td>
         {{ dcell(p.grade, p.nsub, '/academic/grades?cid=' ~ c.id) }}
         {{ dcell(p.ind, p.ind_total, '/academic/indicators?cid=' ~ c.id) }}
         {{ dcell(p.char, p.nsub, '/academic/assess?cid=' ~ c.id ~ '&kind=char') }}
         {{ dcell(p.read, p.nsub, '/academic/assess?cid=' ~ c.id ~ '&kind=read') }}
-        {% if p.n_acts == 0 %}<td class="center muted">-</td>
-        {% else %}<td class="center {{ 'dc-full' if p.act_done >= p.nst and p.nst else ('dc-part' if p.act_done else 'dc-none') }}">
-          <a href="/academic/eval?cid={{ c.id }}">{{ p.act_done }}/{{ p.nst }}</a></td>{% endif %}
-        <td class="center {{ 'dc-full' if p.att else 'dc-none' }}">
-          <a href="/academic/attendance?cid={{ c.id }}">{{ '✓' if p.att else '✗' }}</a></td>
-        {% if not p.exit %}<td class="center muted">-</td>
-        {% else %}<td class="center {{ 'dc-full' if p.onet else 'dc-none' }}">
-          <a href="/academic/eval?cid={{ c.id }}">{{ '✓' if p.onet else '✗' }}</a></td>{% endif %}
+        {% if p.n_acts == 0 %}<td><span class="p-dash">–</span></td>
+        {% else %}<td><a class="pill-cell {{ 'p-full' if p.act_done >= p.nst and p.nst else ('p-part' if p.act_done else 'p-none') }}"
+          href="/academic/eval?cid={{ c.id }}">{{ p.act_done }}/{{ p.nst }}</a></td>{% endif %}
+        <td><a class="pill-cell {{ 'p-full' if p.att else 'p-none' }}"
+          href="/academic/attendance?cid={{ c.id }}">{{ '✓' if p.att else '✗' }}</a></td>
+        {% if not p.exit %}<td><span class="p-dash">–</span></td>
+        {% else %}<td><a class="pill-cell {{ 'p-full' if p.onet else 'p-none' }}"
+          href="/academic/eval?cid={{ c.id }}">{{ '✓' if p.onet else '✗' }}</a></td>{% endif %}
       </tr>
     {% endfor %}
     </tbody>
@@ -130,18 +130,33 @@
   </div>
 </div>
 <style>
-  .dash-table{ width:100%; border-collapse:collapse; font-size:14px; }
-  .dash-table th,.dash-table td{ border:1px solid #eee; padding:6px 8px; text-align:center; }
-  .dash-table th{ background:#f5f3ff; }
-  .dash-table td.center{ text-align:center; }
-  .dash-table a{ text-decoration:none; color:inherit; display:block; }
-  .dc-full{ background:#dcfce7; color:#166534; }
-  .dc-part{ background:#fef9c3; color:#854d0e; }
-  .dc-none{ background:#fee2e2; color:#991b1b; }
+  .dash-wrap{ border:1px solid #ece9fb; border-radius:14px; overflow:hidden;
+    box-shadow:0 6px 18px -12px rgba(79,70,229,.35); }
+  .dash-table{ width:100%; border-collapse:separate; border-spacing:0; font-size:14px; }
+  .dash-table thead th{ background:linear-gradient(135deg,#7c3aed,#4f46e5); color:#fff;
+    padding:12px 8px; font-weight:700; font-size:13px; border:none; white-space:nowrap; }
+  .dash-table thead th:first-child{ text-align:left; padding-left:16px; }
+  .dash-table tbody td{ padding:8px; text-align:center; border-bottom:1px solid #f3f0fc; }
+  .dash-table tbody tr:last-child td{ border-bottom:none; }
+  .dash-table tbody tr:nth-child(even){ background:#fbfaff; }
+  .dash-table tbody tr:hover{ background:#f5f2ff; }
+  .dash-table .rm{ text-align:left; white-space:nowrap; padding-left:16px; }
+  .dash-table .rm a{ font-weight:800; color:#4c1d95; text-decoration:none; }
+  .dash-table .rm a:hover{ text-decoration:underline; }
+  .dash-table .rm-n{ display:block; color:#9488b5; font-size:11.5px; font-weight:600; }
+  .pill-cell{ display:inline-block; min-width:48px; padding:4px 11px; border-radius:999px;
+    font-weight:800; font-size:13px; text-decoration:none; line-height:1.5;
+    box-shadow:0 1px 2px rgba(0,0,0,.08); transition:transform .12s, filter .12s; }
+  .pill-cell:hover{ transform:translateY(-1px); filter:brightness(1.07); }
+  .p-full{ background:linear-gradient(135deg,#34d399,#059669); color:#fff; }
+  .p-part{ background:linear-gradient(135deg,#fbbf24,#f59e0b); color:#4a2e00; }
+  .p-none{ background:linear-gradient(135deg,#fda4af,#f43f5e); color:#fff; }
+  .p-dash{ color:#cbb8dd; font-weight:700; font-size:15px; }
   .seg{ display:inline-flex; border:1px solid #ddd6fe; border-radius:8px; overflow:hidden; }
   .seg-btn{ padding:5px 12px; font-size:13px; text-decoration:none; color:#6d28d9; background:#fff; }
-  .seg-btn.on{ background:#6d28d9; color:#fff; font-weight:600; }
+  .seg-btn.on{ background:linear-gradient(135deg,#7c3aed,#4f46e5); color:#fff; font-weight:600; }
   .seg-btn + .seg-btn{ border-left:1px solid #ddd6fe; }
+  @media (prefers-reduced-motion: reduce){ .pill-cell{ transition:none; } .pill-cell:hover{ transform:none; } }
 </style>
 {% endif %}
 
