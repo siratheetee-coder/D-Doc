@@ -123,6 +123,35 @@ def _set_tc_text(tc, text):
     r.append(t); p.append(r)
 
 
+def _strip_dots(p):
+    """ลบเส้นไข่ปลา (underline dotted บน run แท็บ) ในย่อหน้า - ใช้กับบรรทัดที่กรอกค่าแล้ว"""
+    for r in p.runs:
+        rpr = r._element.rPr
+        if rpr is not None:
+            for u in rpr.findall(qn("w:u")):
+                rpr.remove(u)
+
+
+def _set_font_all(doc, font):
+    """ตั้งฟอนต์ทั้งเอกสาร (รวม run ในกล่องข้อความ/ตาราง) + สไตล์ Normal
+    ไม่กระทบสัญลักษณ์ (w:sym) เพราะ sym ใช้ฟอนต์ของตัวเอง"""
+    for r in doc.element.body.iter(qn("w:r")):
+        rpr = r.find(qn("w:rPr"))
+        if rpr is None:
+            rpr = OxmlElement("w:rPr"); r.insert(0, rpr)
+        rf = rpr.find(qn("w:rFonts"))
+        if rf is None:
+            rf = OxmlElement("w:rFonts"); rpr.insert(0, rf)
+        for a in ("w:ascii", "w:hAnsi", "w:cs"):
+            rf.set(qn(a), font)
+    try:
+        st = doc.styles["Normal"]
+        st.font.name = font
+        st._element.rPr.rFonts.set(qn("w:cs"), font)
+    except Exception:
+        pass
+
+
 def _fill_stats_tables(doc, stats):
     """เติมตารางสถิติการลา (ทุกตารางในกล่องข้อความ) · stats={'sick':(ก่อน,ครั้งนี้,รวม),...}"""
     order = ["sick", "personal", "maternity"]     # แถว 1,2,3
@@ -204,7 +233,8 @@ def render_leave_official(school, person, record, db=None, approver=None,
     checker: Person ผู้ตรวจสอบ (หัวหน้าบุคคล) · checker_date: วันที่ตรวจสอบ
     approver: Person ผอ. · approve_date: วันที่อนุมัติ (ติ๊ก 'อนุญาต' + ชื่อ/ตำแหน่ง/วันที่/ลายเซ็น)"""
     doc = Document(str(_FORM_DIR / "leave_form.docx"))
-    doc.sections[0].bottom_margin = Cm(1.0)     # เผื่อพื้นที่บล็อกลงนามให้พอ 1 หน้า
+    sec = doc.sections[0]
+    sec.top_margin = Cm(1.0); sec.bottom_margin = Cm(1.0)   # TH Sarabun New สูงกว่าเดิม เผื่อ 1 หน้า
     P = doc.paragraphs
 
     name = (person.name if person else "") or ""
@@ -323,6 +353,34 @@ def render_leave_official(school, person, record, db=None, approver=None,
         ad, _am, ay = _dparts(approve_date)
         if ad:
             _fill(P[31], [(3, " " + ad), (7, " " + str(approve_date.month)), (9, " " + ay)])
+
+    # ---- ลบเส้นไข่ปลาเฉพาะบรรทัดที่กรอกค่าแล้ว (ให้ดูสะอาด) ----
+    filled = {2, 3, 4, 5, 7, 8, 12, 14, 19, 20, 21, sel_para}
+    if last is not None:
+        filled.add(13)
+    if checker is not None:
+        filled |= {27, 28, 29}
+    if approver is not None:
+        filled |= {27, 28, 29, 30, 31}
+    for idx in filled:
+        if 0 <= idx < len(P):
+            _strip_dots(P[idx])
+
+    # ---- เปลี่ยนฟอนต์ทั้งไฟล์เป็น TH Sarabun New (รวมตัวเลขในตารางสถิติ) ----
+    _set_font_all(doc, "TH Sarabun New")
+
+    # TH Sarabun New สูงกว่าเดิม -> บีบระยะบรรทัด + ตัดเว้นวรรคย่อหน้า ให้พอ 1 หน้า
+    from docx.shared import Pt as _Pt
+    for p in doc.paragraphs:
+        pf = p.paragraph_format
+        pf.line_spacing = 0.92
+        pf.space_before = _Pt(0); pf.space_after = _Pt(0)
+    for idx in (6, 1):     # ตัดย่อหน้าเว้นว่างส่วนหัว
+        try:
+            if not P[idx].text.strip():
+                P[idx]._element.getparent().remove(P[idx]._element)
+        except Exception:
+            pass
 
     # ตัดย่อหน้าว่างท้ายเอกสาร (แม่แบบเว้นไว้เต็มหน้าพอดี) กันข้อความที่เติมดันตกหน้า 2
     for p in reversed(doc.paragraphs):
