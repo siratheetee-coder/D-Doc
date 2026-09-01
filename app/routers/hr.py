@@ -507,13 +507,20 @@ def supervision_home(request: Request, db: Session = Depends(get_db)):
 
 # ---------------- แบบการเยี่ยมชั้นเรียน ----------------
 @router.get("/hr/classroom-visit", response_class=HTMLResponse)
-def cv_page(request: Request, db: Session = Depends(get_db), edit: int | None = None, msg: str = ""):
+def cv_page(request: Request, db: Session = Depends(get_db), edit: int | None = None, msg: str = "",
+            year: int | None = None):
     from app.services.super_doc import VISIT_ITEMS
     rec = db.get(ClassroomVisit, edit) if edit else None
+    years = sorted({y for (y,) in db.query(ClassroomVisit.year).distinct() if y}
+                   | {_cur_year()}, reverse=True)         # ปีการศึกษา (พ.ศ.)
+    q = db.query(ClassroomVisit)
+    if year:
+        q = q.filter(ClassroomVisit.year == year)
     return templates.TemplateResponse("hr_classroom_visit.html", {
         "request": request, "school": get_school(db), "msg": msg,
-        "rows": db.query(ClassroomVisit).order_by(ClassroomVisit.id.desc()).all(),
+        "rows": q.order_by(ClassroomVisit.id.desc()).all(),
         "persons": _active_persons(db), "rec": rec, "items": VISIT_ITEMS,
+        "years": years, "sel_year": year or 0,
         "scores": (rec.scores.split(",") if rec and rec.scores else []),
         "be_date": be_date_input, "director": _director_name(get_school(db)),
     })

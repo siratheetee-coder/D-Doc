@@ -67,7 +67,17 @@
 </div>
 
 <div class="card">
-  <h2 style="margin-top:0;">รายการที่บันทึกไว้ {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }})</span>{% endif %}</h2>
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+    <h2 style="margin:0;">รายการที่บันทึกไว้ {% if rows %}<span class="muted" style="font-size:15px;">({{ rows|length }})</span>{% endif %}</h2>
+    {% if years %}
+    <form method="get" action="/hr/classroom-visit" style="margin:0;">
+      <select name="year" onchange="this.form.submit()">
+        <option value="" {{ 'selected' if not sel_year }}>ทุกปีการศึกษา</option>
+        {% for yy in years %}<option value="{{ yy }}" {{ 'selected' if yy==sel_year }}>ปี {{ yy }}</option>{% endfor %}
+      </select>
+    </form>
+    {% endif %}
+  </div>
   {% if rows %}
   <div class="table-wrap">
   <table class="stack-sm">
