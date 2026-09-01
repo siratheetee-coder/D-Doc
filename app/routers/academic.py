@@ -746,14 +746,19 @@ def my_leave_form_docx(lid: int, request: Request, db: Session = Depends(get_db)
     if not lv or not _self_or_hr(request, lv.person_id):
         return RedirectResponse("/me/leave", status_code=303)
     from app.services.gov_forms import render_leave_official
-    # อนุมัติแล้ว -> ติ๊ก 'อนุญาต' + ใส่ชื่อ ผอ. (director_by หรือชื่อ ผอ.จากตั้งค่า)
+    from types import SimpleNamespace
+    school = get_school(db)
+    # ผู้ตรวจสอบ = หัวหน้าบุคคลที่ส่งต่อ (personnel_by)
+    checker = db.get(Person, lv.personnel_by) if lv.personnel_by else None
+    # อนุมัติแล้ว -> ผอ. (director_by หรือชื่อ ผอ.จากตั้งค่า) + ติ๊กอนุญาต
     approver = None
     if lv.status == "approved":
-        from types import SimpleNamespace
         d = db.get(Person, lv.director_by) if lv.director_by else None
-        approver = d or SimpleNamespace(name=(get_school(db).director_name or ""))
-    return serve_generated(
-        render_leave_official(get_school(db), db.get(Person, lv.person_id), lv, approver=approver), _DOCX)
+        approver = d or SimpleNamespace(name=(school.director_name or ""))
+    return serve_generated(render_leave_official(
+        school, db.get(Person, lv.person_id), lv, db=db,
+        checker=checker, checker_date=lv.personnel_at,
+        approver=approver, approve_date=lv.decided_at), _DOCX)
 
 
 @router.get("/me/leave/{lid}/file")

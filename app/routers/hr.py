@@ -386,10 +386,14 @@ def hr_leave_form_docx(lid: int, db: Session = Depends(get_db)):
     r = db.get(LeaveRecord, lid)
     if not r:
         return RedirectResponse("/hr/leave", status_code=303)
-    # ถ้าใบลานี้มาจากคำขอในระบบที่ ผอ. อนุมัติแล้ว -> ติ๊ก 'อนุญาต' + ใส่ชื่อ ผอ.
+    # ถ้าใบลานี้มาจากคำขอในระบบ -> ดึงผู้ตรวจสอบ/ผอ + วันที่ + ลายเซ็น
     q = db.query(LeaveRequest).filter_by(record_id=lid).first()
+    checker = db.get(Person, q.personnel_by) if (q and q.personnel_by) else None
     approver = _approver_for(db, q) if q else None
-    path = render_leave_official(get_school(db), r.person, r, approver=approver)
+    path = render_leave_official(
+        get_school(db), r.person, r, db=db,
+        checker=checker, checker_date=(q.personnel_at if q else None),
+        approver=approver, approve_date=(q.decided_at if q else None))
     return serve_generated(path, _DOCX)
 
 

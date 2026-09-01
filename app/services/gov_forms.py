@@ -11,6 +11,8 @@ from pathlib import Path
 from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
+from docx.shared import Cm
+from docx.text.run import Run
 
 from app.database import get_data_dir
 from app.thai_utils import _THAI_MONTHS
@@ -57,6 +59,130 @@ def _dparts(dt):
     return str(dt.day), _THAI_MONTHS[dt.month], str(dt.year + 543)
 
 
+def _find_run(p, text):
+    """คืน index ของ run แรกที่ข้อความตรง (หรือ None)"""
+    for i, r in enumerate(p.runs):
+        if r.text == text:
+            return i
+    return None
+
+
+def _stamp_sig(run, db, name, height_cm=1.0):
+    """แปะรูปลายเซ็นของ name (ถ้ามีในทะเบียน) ต่อท้าย run · คืน True ถ้าแปะได้"""
+    if db is None or not (name or "").strip():
+        return False
+    try:
+        from app.services.signature import signature_path_for
+        path = signature_path_for(db, name)
+    except Exception:
+        path = None
+    if not path:
+        return False
+    new_r = OxmlElement("w:r")
+    run._element.addnext(new_r)
+    try:
+        Run(new_r, run._parent).add_picture(path, height=Cm(height_cm))
+        return True
+    except Exception:
+        new_r.getparent().remove(new_r)
+        return False
+
+
+def _fill_date_slashes(run, d, m, y):
+    """เติมวันที่ลงรูปแบบ 'วันที่ __/__/__' ที่อยู่ใน run เดียว โดยคงความยาวเดิม (กันเลย์เอาต์เลื่อน)"""
+    t = run.text
+    if t.count("/") < 2:
+        return
+    i1 = t.index("/"); i2 = t.index("/", i1 + 1)
+    seg0, seg1, seg2 = t[:i1], t[i1 + 1:i2], t[i2 + 1:]
+
+    def center(seg, val):
+        val = str(val or "")
+        w = len(seg)
+        if not val or w <= 0:
+            return seg
+        if len(val) >= w:
+            return val[:w]
+        left = (w - len(val)) // 2
+        return " " * left + val + " " * (w - len(val) - left)
+
+    core = seg0.rstrip()
+    trail = seg0[len(core):]
+    run.text = core + center(trail, d) + "/" + center(seg1, m) + "/" + center(seg2, y)
+
+
+def _set_tc_text(tc, text):
+    """ตั้งข้อความในเซลล์ตาราง (กึ่งกลาง) - ล้าง run เดิมในย่อหน้าแรกแล้วใส่ค่าใหม่"""
+    p = tc.find(qn("w:p"))
+    if p is None:
+        return
+    for r in p.findall(qn("w:r")):
+        p.remove(r)
+    r = OxmlElement("w:r")
+    t = OxmlElement("w:t"); t.set(qn("xml:space"), "preserve"); t.text = str(text)
+    r.append(t); p.append(r)
+
+
+def _fill_stats_tables(doc, stats):
+    """เติมตารางสถิติการลา (ทุกตารางในกล่องข้อความ) · stats={'sick':(ก่อน,ครั้งนี้,รวม),...}"""
+    order = ["sick", "personal", "maternity"]     # แถว 1,2,3
+    def fmt(v):
+        return f"{v:g}" if v else ""
+    for tbl in doc.element.body.iter(qn("w:tbl")):
+        rows = tbl.findall(qn("w:tr"))
+        for ri, key in zip((1, 2, 3), order):
+            if ri >= len(rows):
+                continue
+            cells = rows[ri].findall(qn("w:tc"))
+            vals = [fmt(v) for v in stats.get(key, (0, 0, 0))]
+            for ci, val in zip((1, 2, 3), vals):
+                if val and ci < len(cells):
+                    _set_tc_text(cells[ci], val)
+
+
+def _leave_stats(db, person_id, year, cur_type, cur_days, exclude_id=None):
+    """รวมวันลาแต่ละประเภทในปี (พ.ศ.) จากทะเบียนวันลา · คืน {type:(ก่อนหน้า,ครั้งนี้,รวม)}"""
+    from collections import defaultdict
+    before = defaultdict(float)
+    if db is not None and person_id and year:
+        from app.models import LeaveRecord
+        q = db.query(LeaveRecord).filter_by(person_id=person_id, year=year)
+        for r in q.all():
+            if exclude_id and r.id == exclude_id:
+                continue
+            before[_LEAVE_NORM.get((r.leave_type or "").strip(), "personal")] += (r.days or 0)
+    out = {}
+    for t in ("sick", "personal", "maternity"):
+        b = before.get(t, 0)
+        this = (cur_days or 0) if t == cur_type else 0
+        out[t] = (b, this, b + this)
+    return out
+
+
+def _last_leave(db, person_id, cur_type, before_date, exclude_id=None):
+    """รายการลาประเภทเดียวกันครั้งก่อนหน้า (ล่าสุดก่อน before_date) หรือ None"""
+    if db is None or not person_id:
+        return None
+    from app.models import LeaveRecord
+    q = db.query(LeaveRecord).filter_by(person_id=person_id)
+    if exclude_id:
+        q = q.filter(LeaveRecord.id != exclude_id)
+    rows = [r for r in q.all()
+            if _LEAVE_NORM.get((r.leave_type or "").strip(), "personal") == cur_type]
+    if before_date:
+        rows = [r for r in rows if r.start_date and r.start_date.date() < _as_date(before_date)]
+    rows.sort(key=lambda r: (r.start_date or _MIN), reverse=True)
+    return rows[0] if rows else None
+
+
+import datetime as _dtmod
+_MIN = _dtmod.datetime.min
+
+
+def _as_date(dt):
+    return dt.date() if hasattr(dt, "date") else dt
+
+
 # normalize ชนิดลา รับได้ทั้งคีย์ทะเบียน (sick/personal/maternity) และป้ายไทย (ลาป่วย/ลากิจ...)
 _LEAVE_NORM = {
     "sick": "sick", "ป่วย": "sick", "ลาป่วย": "sick",
@@ -70,10 +196,15 @@ _LEAVE_PARA = {"sick": 9, "personal": 10, "maternity": 11}
 _LEAVE_LABEL = {"sick": "ป่วย", "personal": "กิจส่วนตัว", "maternity": "คลอดบุตร"}
 
 
-def render_leave_official(school, person, record, approver=None, write_date=None) -> str:
+def render_leave_official(school, person, record, db=None, approver=None,
+                          checker=None, checker_date=None, approve_date=None,
+                          write_date=None) -> str:
     """กรอกใบลา (แบบ ก.พ.) จากไฟล์แม่แบบ คืน path .docx
-    approver: Person ผอ. (มี .name) ถ้าอนุมัติแล้ว -> ติ๊ก 'อนุญาต' + ใส่ชื่อ/ตำแหน่ง/วันที่ ผอ."""
+    db: session โรงเรียน (ใช้คำนวณสถิติการลา/ลาครั้งสุดท้าย + หาลายเซ็น)
+    checker: Person ผู้ตรวจสอบ (หัวหน้าบุคคล) · checker_date: วันที่ตรวจสอบ
+    approver: Person ผอ. · approve_date: วันที่อนุมัติ (ติ๊ก 'อนุญาต' + ชื่อ/ตำแหน่ง/วันที่/ลายเซ็น)"""
     doc = Document(str(_FORM_DIR / "leave_form.docx"))
+    doc.sections[0].bottom_margin = Cm(1.0)     # เผื่อพื้นที่บล็อกลงนามให้พอ 1 หน้า
     P = doc.paragraphs
 
     name = (person.name if person else "") or ""
@@ -128,36 +259,70 @@ def render_leave_official(school, person, record, approver=None, write_date=None
     _fill(P[20], [(3, " " + position)])                        # ตำแหน่ง
     _fill(P[21], [(3, " " + wdd), (5, " " + wmon_num), (7, " " + wyy)])  # วันที่ __/__/__
 
+    # ---- ตารางสถิติการลา + การลาครั้งสุดท้าย (ดึงจากทะเบียนวันลา) ----
+    year = getattr(record, "year", None)
+    if not year and record.start_date:
+        year = record.start_date.year + 543
+    exclude_id = record.id if getattr(record, "year", None) is not None else None
+    _fill_stats_tables(doc, _leave_stats(db, getattr(person, "id", None), year,
+                                         typ_norm, (record.days or 0), exclude_id))
+    last = _last_leave(db, getattr(person, "id", None), typ_norm, record.start_date, exclude_id)
+    if last is not None:
+        l_sd, l_sm, l_sy = _dparts(last.start_date)
+        l_ed, l_em, l_ey = _dparts(last.end_date)
+        _fill(P[13], [(13, " " + l_sd), (15, " " + l_sm), (20, " " + l_sy)])
+        _fill(P[14], [(11, f"{(last.days or 0):g}"), (8, " " + l_ey),
+                      (2, " " + l_em), (0, " " + l_ed)])
+
+    # ---- ผู้ตรวจสอบ (หัวหน้าบุคคล) ----
+    if checker is not None:
+        cname = (getattr(checker, "name", "") or "").strip()
+        cpos = (getattr(checker, "position", "") or "").strip()
+        i = _find_run(P[27], "(ลงชื่อ)")
+        if i is not None:
+            if cname:
+                _ins_after(P[27].runs[i], " " + cname + " ")
+            _stamp_sig(P[27].runs[i], db, cname)
+        i = _find_run(P[28], "ง")            # ตำแหน่ง (แยก run เป็น 'ตำแหน่'+'ง')
+        if i is not None and cpos:
+            _ins_after(P[28].runs[i], " " + cpos)
+        cd, _cm, cy = _dparts(checker_date)
+        if cd:
+            try:   # วันที่คอลัมน์ซ้าย (ผู้ตรวจสอบ) - ใช้เลขเดือนกันบรรทัดล้น
+                _fill_date_slashes(P[29].runs[2], cd, checker_date.month, cy)
+            except Exception:
+                pass
+
     # ---- คำสั่งอนุญาต + ลงนาม ผอ. (เมื่ออนุมัติแล้ว) ----
     if approver is not None:
         dname = (getattr(approver, "name", "") or "").strip()
-        # ติ๊ก 'อนุญาต' (p27: box run ก่อนคำว่า 'อนุญาต') - หา run 'อนุญาต' ตัวแรก
-        try:
-            rr = P[27].runs
-            for k, r in enumerate(rr):
-                if r.text == "อนุญาต":
-                    _ins_after(rr[k - 1], CHK) if k >= 1 else None
-                    break
-        except Exception:
-            pass
-        # ชื่อ ผอ. ในวงเล็บ (คอลัมน์ขวาล่าง p29)
-        try:
-            rr = P[29].runs
-            for k, r in enumerate(rr):
-                if r.text == "(":
-                    _ins_after(rr[k], " " + dname + " ")
-                    break
-        except Exception:
-            pass
+        dpos = (getattr(school, "director_position", "") or "ผู้อำนวยการโรงเรียน")
+        # ติ๊ก 'อนุญาต' - แทนที่กล่องก่อนคำว่า 'อนุญาต' ในตำแหน่งเดิม (ไม่ดันเลย์เอาต์)
+        i = _find_run(P[27], "อนุญาต")
+        if i is not None and i >= 1:
+            try:
+                bx = P[27].runs[i - 1]
+                for sym in bx._element.findall(qn("w:sym")):
+                    bx._element.remove(sym)
+                bx.text = CHK
+            except Exception:
+                pass
+        # ลายเซ็น ผอ. หลัง '(ลงชื่อ)' คอลัมน์ขวา (p28)
+        i = _find_run(P[28], "(ลงชื่อ)")
+        if i is not None:
+            _stamp_sig(P[28].runs[i], db, dname)
+        # ชื่อ ผอ. ในวงเล็บ (p29 คอลัมน์ขวา)
+        i = _find_run(P[29], "(")
+        if i is not None:
+            _ins_after(P[29].runs[i], " " + dname + " ")
         # ตำแหน่ง ผอ. (p30)
-        try:
-            rr = P[30].runs
-            for k, r in enumerate(rr):
-                if r.text == "ตำแหน่ง":
-                    _ins_after(rr[k], " " + (getattr(school, "director_position", "") or "ผู้อำนวยการโรงเรียน"))
-                    break
-        except Exception:
-            pass
+        i = _find_run(P[30], "ตำแหน่ง")
+        if i is not None:
+            _ins_after(P[30].runs[i], " " + dpos)
+        # วันที่อนุมัติ ผอ. (p31) - เลขเดือนกันบรรทัดล้น
+        ad, _am, ay = _dparts(approve_date)
+        if ad:
+            _fill(P[31], [(3, " " + ad), (7, " " + str(approve_date.month)), (9, " " + ay)])
 
     # ตัดย่อหน้าว่างท้ายเอกสาร (แม่แบบเว้นไว้เต็มหน้าพอดี) กันข้อความที่เติมดันตกหน้า 2
     for p in reversed(doc.paragraphs):
