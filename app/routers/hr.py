@@ -560,8 +560,8 @@ def cv_page(request: Request, db: Session = Depends(get_db), edit: int | None = 
             year: int | None = None):
     from app.services.super_doc import VISIT_ITEMS
     rec = db.get(ClassroomVisit, edit) if edit else None
-    years = sorted({y for (y,) in db.query(ClassroomVisit.year).distinct() if y}
-                   | {current_academic_year()}, reverse=True)   # ปีการศึกษา (พ.ศ.) รอยต่อ พ.ค.
+    _ay = get_school(db).academic_year or current_academic_year()   # ปีการศึกษาที่โรงเรียนตั้ง/คำนวณ
+    years = sorted({y for (y,) in db.query(ClassroomVisit.year).distinct() if y} | {_ay}, reverse=True)
     q = db.query(ClassroomVisit)
     if year:
         q = q.filter(ClassroomVisit.year == year)
@@ -569,7 +569,7 @@ def cv_page(request: Request, db: Session = Depends(get_db), edit: int | None = 
         "request": request, "school": get_school(db), "msg": msg,
         "rows": q.order_by(ClassroomVisit.id.desc()).all(),
         "persons": _active_persons(db), "rec": rec, "items": VISIT_ITEMS,
-        "years": years, "sel_year": year or 0, "default_year": current_academic_year(),
+        "years": years, "sel_year": year or 0, "default_year": _ay,
         "scores": (rec.scores.split(",") if rec and rec.scores else []),
         "be_date": be_date_input, "director": _director_name(get_school(db)),
     })

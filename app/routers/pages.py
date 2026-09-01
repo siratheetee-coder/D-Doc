@@ -43,7 +43,7 @@ from app.services import file_upload
 from app.services.pdf_extract import extract_letter_fields, extract_procurement_fields, extract_text_any
 from app.services.ai_extract import extract_with_ai
 from app.thai_utils import (current_fiscal_year, thai_date, bahttext, be_date_input, parse_be_date,
-                            SCHOOL_LEVELS, GRADUATED)
+                            SCHOOL_LEVELS, GRADUATED, current_academic_year)
 from app.templating import templates
 
 router = APIRouter()
@@ -128,7 +128,7 @@ def _dashboard_charts(procurements):
 
 # ---------------- หน้าเลือกงาน (Hub) ----------------
 @router.get("/", response_class=HTMLResponse)
-def hub(request: Request, db: Session = Depends(get_db)):
+def hub(request: Request, db: Session = Depends(get_db), msg: str = ""):
     """หน้าหลัก: เลือกเข้าใช้งาน ธุรการ / พัสดุ / การเงิน + ภาพรวมปีงบ"""
     # บัญชีครู = เข้าตรงงานวิชาการเลย ไม่ผ่านหน้าเลือกงาน
     if request.session.get("person_id") and not request.session.get("owner"):
@@ -175,12 +175,40 @@ def hub(request: Request, db: Session = Depends(get_db)):
     new_mods = owner_new_modules(request.session.get("uid")) if request.session.get("owner") else []
     new_mod_labels = [MODULE_LABELS.get(k, k) for k in new_mods]
 
+    acad_year = school.academic_year or current_academic_year()
     return templates.TemplateResponse("hub.html", {
         "request": request, "school": school, "fiscal_year": fy,
         "stats": stats, "admin_total": admin_total,
         "onboard": onboard, "onboard_done": onboard_done, "onboard_total": len(onboard),
         "new_mod_labels": new_mod_labels,
+        "acad_year": acad_year, "acad_year_auto": not school.academic_year,
+        "acad_year_calc": current_academic_year(), "msg": msg,
     })
+
+
+@router.post("/academic-year/advance")
+def academic_year_advance(request: Request, db: Session = Depends(get_db)):
+    """ครูแอดมิน (เจ้าของ) กดขึ้นปีการศึกษาใหม่ (+1) · กระทบค่าปริยายทุกงานวิชาการ"""
+    from urllib.parse import quote
+    if not request.session.get("owner"):
+        return RedirectResponse("/", status_code=303)
+    school = get_school(db)
+    cur = school.academic_year or current_academic_year()
+    school.academic_year = cur + 1
+    db.commit()
+    return RedirectResponse("/?msg=" + quote(f"ขึ้นปีการศึกษา {cur + 1} แล้ว"), status_code=303)
+
+
+@router.post("/academic-year/reset")
+def academic_year_reset(request: Request, db: Session = Depends(get_db)):
+    """คืนค่าให้ระบบคำนวณปีการศึกษาตามปฏิทินเอง (ล้างค่าที่ตั้งไว้)"""
+    from urllib.parse import quote
+    if not request.session.get("owner"):
+        return RedirectResponse("/", status_code=303)
+    school = get_school(db)
+    school.academic_year = None
+    db.commit()
+    return RedirectResponse("/?msg=" + quote("คืนค่าคำนวณปีการศึกษาอัตโนมัติแล้ว"), status_code=303)
 
 
 # ---------------- ค้นหากลาง (ข้ามทุกงาน) ----------------

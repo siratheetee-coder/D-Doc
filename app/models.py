@@ -27,6 +27,7 @@ class School(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String, default="")              # ชื่อโรงเรียน
+    academic_year = Column(Integer, nullable=True) # ปีการศึกษาปัจจุบันที่โรงเรียนตั้งเอง (ครูแอดมินกดขึ้นปีใหม่) · ว่าง=คำนวณตามปฏิทิน
     address = Column(Text, default="")             # ที่อยู่ (บรรทัดเดียวสำหรับส่วนราชการ)
     district = Column(String, default="")          # อำเภอ
     province = Column(String, default="")          # จังหวัด
