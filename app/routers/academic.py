@@ -638,7 +638,7 @@ async def _read_upload(f):
 async def my_leave_submit(request: Request, db: Session = Depends(get_db),
                           leave_type: str = Form("ลากิจ"), start_date: str = Form(""),
                           end_date: str = Form(""), reason: str = Form(""), contact: str = Form(""),
-                          attachment: UploadFile = File(None)):
+                          work_group: str = Form(""), attachment: UploadFile = File(None)):
     from app.models import LeaveRequest
     pid = request.session.get("person_id")
     if not pid:
@@ -652,6 +652,7 @@ async def my_leave_submit(request: Request, db: Session = Depends(get_db),
     lv = LeaveRequest(person_id=pid, leave_type=(leave_type or "ลากิจ").strip(),
                       start_date=sd, end_date=ed, days=days,
                       reason=(reason or "").strip(), contact=(contact or "").strip(),
+                      work_group=(work_group or "").strip(),
                       attachment=fdata, attachment_name=fname)
     db.add(lv); db.commit()
     person = db.get(Person, pid)
@@ -758,7 +759,8 @@ def my_leave_form_docx(lid: int, request: Request, db: Session = Depends(get_db)
     return serve_generated(render_leave_official(
         school, db.get(Person, lv.person_id), lv, db=db,
         checker=checker, checker_date=lv.personnel_at,
-        approver=approver, approve_date=lv.decided_at), _DOCX)
+        approver=approver, approve_date=lv.decided_at,
+        work_group=getattr(lv, "work_group", "")), _DOCX)
 
 
 @router.get("/me/leave/{lid}/file")

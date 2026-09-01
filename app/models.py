@@ -1524,6 +1524,7 @@ class LeaveRequest(Base):
     days = Column(Float, default=0)
     reason = Column(Text, default="")
     contact = Column(String, default="")           # ที่อยู่/เบอร์ติดต่อระหว่างลา
+    work_group = Column(String, default="")        # กลุ่มงาน/กลุ่มสาระ (กรอกในใบลา)
     # สเตจ: pending(รอบุคคล) / personnel(บุคคลผ่าน รอ ผอ.) / approved / rejected
     status = Column(String, default="pending")
     comment = Column(Text, default="")             # ความเห็น ผอ. (ผู้อนุญาต)

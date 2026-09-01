@@ -393,7 +393,8 @@ def hr_leave_form_docx(lid: int, db: Session = Depends(get_db)):
     path = render_leave_official(
         get_school(db), r.person, r, db=db,
         checker=checker, checker_date=(q.personnel_at if q else None),
-        approver=approver, approve_date=(q.decided_at if q else None))
+        approver=approver, approve_date=(q.decided_at if q else None),
+        work_group=(getattr(q, "work_group", "") if q else ""))
     return serve_generated(path, _DOCX)
 
 

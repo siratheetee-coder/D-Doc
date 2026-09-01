@@ -119,6 +119,7 @@ MIGRATIONS = [
     ("lesson_plan", "director_by", "INTEGER"),            # ผอ.ที่อนุมัติ
     ("lesson_plan", "director_at", "DATETIME"),
     ("lesson_plan", "director_comment", "TEXT DEFAULT ''"),
+    ("leave_request", "work_group", "VARCHAR DEFAULT ''"),
     ("leave_request", "personnel_by", "INTEGER"),
     ("leave_request", "personnel_at", "DATETIME"),
     ("leave_request", "personnel_comment", "TEXT DEFAULT ''"),

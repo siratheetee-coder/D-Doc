@@ -26,6 +26,15 @@
       <div><label>ตั้งแต่วันที่ *</label><input name="start_date" required placeholder="วว/ดด/ปปปป (พ.ศ.)"></div>
       <div><label>ถึงวันที่</label><input name="end_date" placeholder="เว้นว่าง = วันเดียว"></div>
     </div>
+    <label style="margin-top:10px; display:block;">กลุ่มงาน/กลุ่มสาระ (ใช้ในใบลา)</label>
+    <input name="work_group" list="wg-list" style="width:100%;" placeholder="เช่น กลุ่มสาระการเรียนรู้ภาษาไทย / ฝ่ายบริหาร">
+    <datalist id="wg-list">
+      <option value="กลุ่มสาระการเรียนรู้ภาษาไทย"><option value="กลุ่มสาระการเรียนรู้คณิตศาสตร์">
+      <option value="กลุ่มสาระการเรียนรู้วิทยาศาสตร์และเทคโนโลยี"><option value="กลุ่มสาระการเรียนรู้สังคมศึกษา ศาสนาและวัฒนธรรม">
+      <option value="กลุ่มสาระการเรียนรู้สุขศึกษาและพลศึกษา"><option value="กลุ่มสาระการเรียนรู้ศิลปะ">
+      <option value="กลุ่มสาระการเรียนรู้การงานอาชีพ"><option value="กลุ่มสาระการเรียนรู้ภาษาต่างประเทศ">
+      <option value="ปฐมวัย"><option value="ฝ่ายบริหาร"><option value="ธุรการ">
+    </datalist>
     <label style="margin-top:10px; display:block;">เหตุผลการลา</label>
     <textarea name="reason" rows="2" style="width:100%;" placeholder="เช่น มีธุระจำเป็นที่ต่างจังหวัด"></textarea>
     <label style="margin-top:10px; display:block;">ที่อยู่/เบอร์ติดต่อระหว่างลา</label>

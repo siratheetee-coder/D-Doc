@@ -42,14 +42,52 @@ def _ins_after(run, text):
     return new_r
 
 
+def _strip_following(p, idx):
+    """ลบเส้นไข่ปลา (underline dotted) เฉพาะ 'ช่องว่างที่ตามหลัง' run idx (จนเจอข้อความจริง)
+    -> เอาจุดออกเฉพาะฟิลด์ที่กรอกค่าแล้ว โดยไม่แตะฟิลด์อื่นบนบรรทัดเดียวกัน"""
+    for r in p.runs[idx + 1:]:
+        t = r.text
+        if t == "" or t.strip() != "":     # เจอกล่อง/สัญลักษณ์ หรือข้อความจริง -> หยุด
+            break
+        rpr = r._element.rPr
+        if rpr is not None:
+            for u in rpr.findall(qn("w:u")):
+                rpr.remove(u)
+
+
 def _fill(p, pairs):
     """แทรกหลายค่าในย่อหน้าเดียว: pairs = [(run_index, text), ...]
-    ต้องแทรกจาก index มาก -> น้อย เพื่อไม่ให้การแทรกก่อนหน้าเลื่อน index ที่เหลือ"""
+    - ข้ามค่าว่าง (ปล่อยเส้นไข่ปลาไว้ให้เขียนมือ)
+    - ค่าที่กรอก -> ลบเส้นไข่ปลาที่ตามหลังฟิลด์นั้น
+    - แทรกจาก index มาก -> น้อย กันการเลื่อน index"""
     for idx, text in sorted(pairs, key=lambda x: -x[0]):
+        if not (text or "").strip():
+            continue
         try:
+            _strip_following(p, idx)
             _ins_after(p.runs[idx], text)
         except Exception:
             pass
+
+
+def _insstrip(p, idx, text):
+    """แทรกค่าเดี่ยว + ลบเส้นไข่ปลาที่ตามหลัง (สำหรับจุดที่ไม่ได้ใช้ _fill)"""
+    _strip_following(p, idx)
+    _ins_after(p.runs[idx], text)
+
+
+def _full_date(dt):
+    """วันที่แบบเต็ม '1 กันยายน 2569' (ว่างถ้าไม่มี)"""
+    if not dt:
+        return ""
+    return f"{dt.day} {_THAI_MONTHS[dt.month]} {dt.year + 543}"
+
+
+def _set_para(p, text):
+    """แทนที่ทั้งย่อหน้าด้วยข้อความไหลปกติ (ไม่มีแท็บ) - กันข้อความยาวดันขอบ/ล้น"""
+    for r in list(p.runs):
+        r._element.getparent().remove(r._element)
+    p.add_run(text)
 
 
 def _dparts(dt):
@@ -227,7 +265,7 @@ _LEAVE_LABEL = {"sick": "ป่วย", "personal": "กิจส่วนตั
 
 def render_leave_official(school, person, record, db=None, approver=None,
                           checker=None, checker_date=None, approve_date=None,
-                          write_date=None) -> str:
+                          write_date=None, work_group="") -> str:
     """กรอกใบลา (แบบ ก.พ.) จากไฟล์แม่แบบ คืน path .docx
     db: session โรงเรียน (ใช้คำนวณสถิติการลา/ลาครั้งสุดท้าย + หาลายเซ็น)
     checker: Person ผู้ตรวจสอบ (หัวหน้าบุคคล) · checker_date: วันที่ตรวจสอบ
@@ -240,6 +278,9 @@ def render_leave_official(school, person, record, db=None, approver=None,
     name = (person.name if person else "") or ""
     position = (getattr(person, "position", "") or "ครู")
     sch = school.name or ""
+    area = (getattr(school, "area_office", "") or "").strip()   # สำนักงานเขต -> ช่องสังกัด
+    wg = (work_group or "").strip()
+    group_val = (wg + " " + sch).strip() if wg else sch          # กลุ่มงาน + ชื่อโรงเรียน
     addressee = ("ผู้อำนวยการ" + sch) if sch else (
         getattr(school, "director_position", "") or "ผู้อำนวยการโรงเรียน")
 
@@ -258,11 +299,16 @@ def render_leave_official(school, person, record, db=None, approver=None,
 
     # ---- หัวเอกสาร ----
     _fill(P[2], [(2, "  " + sch)])                              # เขียนที่
+    try:
+        P[2].runs[1].text = ""                                 # ตัดช่องว่างนำ ให้ตรงกับบรรทัด 'วันที่'
+    except Exception:
+        pass
     _fill(P[3], [(1, " " + wdd), (4, " " + wmon), (9, " " + wyy)])  # วันที่ เดือน พ.ศ.
     _fill(P[4], [(1, "ขอลา" + typ_label)])                     # เรื่อง
     _fill(P[5], [(1, addressee)])                              # เรียน
     _fill(P[7], [(2, name), (5, position)])                    # ข้าพเจ้า/ตำแหน่ง
-    _fill(P[8], [(5, sch)])                                    # สังกัด
+    # กลุ่มงาน(+รร.)/สังกัด(เขต) เป็นข้อความไหลปกติ กันข้อความยาวดันขอบ (ตัดคำขึ้นบรรทัดเองได้)
+    _set_para(P[8], "กลุ่มงาน  " + group_val + ("      สังกัด  " + area if area else ""))
 
     # ---- ชนิดการลา (ติ๊กในกล่อง run2) + เหตุผล (run5, เฉพาะป่วย/กิจ) ----
     # ติ๊กโดย "แทนที่อักขระกล่องเดิม" ด้วยเครื่องหมายถูก ไม่แทรก run ใหม่
@@ -283,11 +329,19 @@ def render_leave_official(school, person, record, db=None, approver=None,
                   (8, " " + ed_d), (10, " " + ed_m), (12, " " + ed_y), (16, days)])
     # ---- ที่อยู่ติดต่อระหว่างลา ----
     _fill(P[14], [(15, " " + contact)])
+    if contact:                       # ลบเส้นไข่ปลาบรรทัดต่อจากที่อยู่ติดต่อ (P15) เมื่อกรอกแล้ว
+        _strip_dots(P[15])
 
     # ---- ลงชื่อผู้ลา ----
     _fill(P[19], [(1, " " + name + " ")])                      # ( ชื่อ )
     _fill(P[20], [(3, " " + position)])                        # ตำแหน่ง
-    _fill(P[21], [(3, " " + wdd), (5, " " + wmon_num), (7, " " + wyy)])  # วันที่ __/__/__
+    if wd:                                                     # วันที่ = '1 กันยายน 2569'
+        for k in (4, 5, 6, 7, 8):
+            try:
+                P[21].runs[k].text = ""
+            except Exception:
+                pass
+        _insstrip(P[21], 3, " " + _full_date(wd))
 
     # ---- ตารางสถิติการลา + การลาครั้งสุดท้าย (ดึงจากทะเบียนวันลา) ----
     year = getattr(record, "year", None)
@@ -311,15 +365,18 @@ def render_leave_official(school, person, record, db=None, approver=None,
         i = _find_run(P[27], "(ลงชื่อ)")
         if i is not None:
             if cname:
-                _ins_after(P[27].runs[i], " " + cname + " ")
+                _insstrip(P[27], i, " " + cname + " ")
             _stamp_sig(P[27].runs[i], db, cname)
         i = _find_run(P[28], "ง")            # ตำแหน่ง (แยก run เป็น 'ตำแหน่'+'ง')
         if i is not None and cpos:
-            _ins_after(P[28].runs[i], " " + cpos)
-        cd, _cm, cy = _dparts(checker_date)
-        if cd:
-            try:   # วันที่คอลัมน์ซ้าย (ผู้ตรวจสอบ) - ใช้เลขเดือนกันบรรทัดล้น
-                _fill_date_slashes(P[29].runs[2], cd, checker_date.month, cy)
+            _insstrip(P[28], i, " " + cpos)
+        if checker_date:                     # วันที่ผู้ตรวจสอบ = '2 กันยายน 2569'
+            try:
+                r2 = P[29].runs[2]
+                r2.text = "่  " + _full_date(checker_date)
+                if r2._element.rPr is not None:
+                    for u in r2._element.rPr.findall(qn("w:u")):
+                        r2._element.rPr.remove(u)
             except Exception:
                 pass
 
@@ -348,34 +405,38 @@ def render_leave_official(school, person, record, db=None, approver=None,
         # ตำแหน่ง ผอ. (p30)
         i = _find_run(P[30], "ตำแหน่ง")
         if i is not None:
-            _ins_after(P[30].runs[i], " " + dpos)
-        # วันที่อนุมัติ ผอ. (p31) - เลขเดือนกันบรรทัดล้น
-        ad, _am, ay = _dparts(approve_date)
-        if ad:
-            _fill(P[31], [(3, " " + ad), (7, " " + str(approve_date.month)), (9, " " + ay)])
+            _insstrip(P[30], i, " " + dpos)
+        # วันที่อนุมัติ ผอ. (p31) = '3 กันยายน 2569'
+        if approve_date:
+            i = _find_run(P[31], "วันที่")
+            if i is not None:
+                for k in range(i + 1, i + 8):
+                    try:
+                        if P[31].runs[k].text.strip() in ("", "/"):
+                            P[31].runs[k].text = ""
+                    except Exception:
+                        break
+                _insstrip(P[31], i, " " + _full_date(approve_date))
 
-    # ---- ลบเส้นไข่ปลาเฉพาะบรรทัดที่กรอกค่าแล้ว (ให้ดูสะอาด) ----
-    filled = {2, 3, 4, 5, 7, 8, 12, 14, 19, 20, 21, sel_para}
-    if last is not None:
-        filled.add(13)
-    if checker is not None:
-        filled |= {27, 28, 29}
-    if approver is not None:
-        filled |= {27, 28, 29, 30, 31}
-    for idx in filled:
-        if 0 <= idx < len(P):
-            _strip_dots(P[idx])
+    # ---- จัดบรรทัดหัวเอกสาร ----
+    from docx.enum.text import WD_ALIGN_PARAGRAPH as _AL
+    from docx.shared import Cm as _Cm, Pt as _Pt
+    P[2].alignment = _AL.LEFT                       # เขียนที่ ให้ตรงกับ วันที่ (บรรทัดถัดไป)
+    try:
+        P[7].paragraph_format.first_line_indent = _Cm(1.25)   # ย่อหน้า 'ข้าพเจ้า'
+    except Exception:
+        pass
 
     # ---- เปลี่ยนฟอนต์ทั้งไฟล์เป็น TH Sarabun New (รวมตัวเลขในตารางสถิติ) ----
     _set_font_all(doc, "TH Sarabun New")
 
     # TH Sarabun New สูงกว่าเดิม -> บีบระยะบรรทัด + ตัดเว้นวรรคย่อหน้า ให้พอ 1 หน้า
-    from docx.shared import Pt as _Pt
     for p in doc.paragraphs:
         pf = p.paragraph_format
         pf.line_spacing = 0.92
         pf.space_before = _Pt(0); pf.space_after = _Pt(0)
-    for idx in (6, 1):     # ตัดย่อหน้าเว้นว่างส่วนหัว
+    # ตัดย่อหน้าเว้นว่างส่วนหัว (คงบรรทัดว่างระหว่าง เรียน<->ข้าพเจ้า ไว้ = P[6])
+    for idx in (16, 1):
         try:
             if not P[idx].text.strip():
                 P[idx]._element.getparent().remove(P[idx]._element)
