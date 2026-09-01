@@ -98,6 +98,88 @@ def extract_items_from_image(image_bytes: bytes, media_type: str, api_key: str) 
         return {"error": "bad_json"}
 
 
+_LETTER_READ_PROMPT = """คุณคือผู้ช่วยอ่าน "หนังสือราชการไทย" จากรูปถ่าย/สแกน/ไฟล์ PDF
+(หนังสือรับ หนังสือส่ง บันทึกข้อความ หรือคำสั่งโรงเรียน)
+อ่านหัวเอกสารแล้วตอบกลับเป็น JSON เท่านั้น (ไม่มีคำอธิบายอื่น) ตามคีย์นี้:
+{
+ "letter_no": "เลขที่หนังสือ/บันทึก/คำสั่ง เช่น 'ศธ 04112/1234' หรือ '45/2568' (ไม่พบใส่ '')",
+ "letter_date": "วันที่ลงในหนังสือ รูปแบบ DD/MM/YYYY เป็น พ.ศ. (ไม่พบใส่ '')",
+ "subject": "เรื่อง (ข้อความหลังคำว่า 'เรื่อง')",
+ "addressee": "ผู้รับ (ข้อความหลังคำว่า 'เรียน' หรือ 'ถึง')",
+ "from_org": "ส่วนราชการ/หน่วยงานต้นทางที่ออกหนังสือ (เช่น โรงเรียน... สำนักงาน...)"
+}
+- ใช้เลขอารบิก คงข้อความไทยตามต้นฉบับ สะกดคำไทยให้ถูกต้อง
+  ถ้าตัวอักษรเลือนให้เดาคำที่สมเหตุสมผลที่สุดตามบริบทหนังสือราชการ
+- letter_date ให้เป็นปี พ.ศ. เสมอ (ถ้าเอกสารระบุเป็น ค.ศ. ให้บวก 543)
+- ถ้าฟิลด์ใดไม่พบให้ใส่ค่าว่าง ""
+ตอบเป็น JSON เท่านั้น:"""
+
+_READ_MEDIA = {"jpg": "image/jpeg", "jpeg": "image/jpeg",
+               "png": "image/png", "webp": "image/webp", "pdf": "application/pdf"}
+
+
+def read_letter_fields_ai(file_bytes: bytes, ext: str, api_key: str) -> dict:
+    """อ่านฟิลด์หนังสือราชการจากไฟล์รูป/สแกน/PDF ด้วย AI (vision)
+    คืน dict คีย์เดียวกับ pdf_extract.extract_letter_fields
+    (letter_no, letter_date(str 'วว/ดด/ปปปป'), subject, addressee, from_org, ok, raw_text)
+    ถ้าพลาดคืน {'error': ...} ให้ผู้เรียกสำรองด้วยการอ่านแบบข้อความ"""
+    empty = {"letter_no": "", "letter_date": "", "subject": "",
+             "addressee": "", "from_org": "", "ok": False, "raw_text": ""}
+    if not (api_key or "").strip():
+        return {**empty, "error": "no_key"}
+    if not file_bytes:
+        return {**empty, "error": "no_file"}
+    media = _READ_MEDIA.get((ext or "").lower().lstrip("."))
+    if not media:
+        return {**empty, "error": "bad_ext"}    # docx อ่านด้วยข้อความแทน
+    import base64
+    b64 = base64.b64encode(file_bytes).decode("ascii")
+    if media == "application/pdf":
+        doc_block = {"type": "document", "source": {"type": "base64",
+                                                    "media_type": media, "data": b64}}
+    else:
+        doc_block = {"type": "image", "source": {"type": "base64",
+                                                 "media_type": media, "data": b64}}
+    body = json.dumps({
+        "model": _VISION_MODEL, "max_tokens": 1500,
+        "messages": [{"role": "user", "content": [
+            doc_block, {"type": "text", "text": _LETTER_READ_PROMPT},
+        ]}],
+    }).encode("utf-8")
+    req = urllib.request.Request(_API_URL, data=body, headers={
+        "x-api-key": api_key.strip(),
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            _b = e.read().decode("utf-8", "ignore")[:300]
+        except Exception:
+            _b = ""
+        return {**empty, "error": "request", "detail": ("HTTP %s %s" % (e.code, _b)).strip()[:300]}
+    except Exception as e:
+        return {**empty, "error": "request", "detail": str(e)[:250]}
+    out = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
+    m = re.search(r"\{.*\}", out, re.S)
+    if not m:
+        return {**empty, "error": "no_json"}
+    try:
+        r = json.loads(m.group(0))
+    except Exception:
+        return {**empty, "error": "bad_json"}
+    return {
+        "letter_no": (r.get("letter_no") or "").strip(),
+        "letter_date": (r.get("letter_date") or "").strip(),
+        "subject": (r.get("subject") or "").strip(),
+        "addressee": (r.get("addressee") or "").strip(),
+        "from_org": (r.get("from_org") or "").strip(),
+        "ok": True, "raw_text": "",
+    }
+
+
 def extract_with_ai(text: str, api_key: str) -> dict:
     """ส่งข้อความให้ AI สกัดข้อมูล คืน dict (หรือ {'error': ...} ถ้าพลาด)"""
     if not (api_key or "").strip():

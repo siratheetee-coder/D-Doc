@@ -52,6 +52,30 @@ from app.services.file_upload import (
 )
 
 
+def _ai_read_fields(data: bytes, ext: str) -> dict:
+    """อ่านฟิลด์หนังสือด้วย AI (vision) สำหรับ PDF/รูป; docx หรือไม่มี key -> อ่านแบบข้อความ
+    คืน dict คีย์เดียวกับ extract_letter_fields เสมอ (มี fallback ให้ใช้งานได้เสมอ)"""
+    key = _ai_key()
+    if key and ext in ("pdf", "png", "jpg", "webp"):
+        from app.services.ai_extract import read_letter_fields_ai
+        r = read_letter_fields_ai(data, ext, key)
+        if r.get("ok"):
+            return r
+    # สำรอง: docx / ไม่มี key / AI พลาด -> อ่านจากข้อความตามเดิม
+    return None
+
+
+def _read_and_confirm(request, db, kind: str, data: bytes, ext: str, use_ai: bool):
+    """เซฟไฟล์ + อ่านฟิลด์ (AI ถ้า use_ai ไม่งั้นข้อความ) + แสดงหน้าตรวจก่อนบันทึก"""
+    name = _save_upload(data, ext)
+    fields = None
+    if use_ai:
+        fields = _ai_read_fields(data, ext)
+    if fields is None:
+        fields = extract_letter_fields(str(_uploads_dir() / name))
+    return _render_letter_confirm(request, db, kind, name, fields)
+
+
 def _render_letter_confirm(request, db, kind: str, pending_file: str, fields: dict):
     """หน้ายืนยันลงทะเบียน (เติมค่าจากการอ่านไฟล์ให้แล้ว) - รองรับ incoming/outgoing/memo"""
     fy = current_fiscal_year()
@@ -60,6 +84,7 @@ def _render_letter_confirm(request, db, kind: str, pending_file: str, fields: di
         "pending_file": pending_file, "fields": fields,
         "letter_date_be": be_date_input(fields.get("letter_date")),
         "is_pdf": pending_file.lower().endswith(".pdf"),
+        "is_img": pending_file.lower().endswith((".png", ".jpg", ".jpeg", ".webp")),
     }
     if kind == "incoming":
         ctx["sug_recv"] = suggest_next(db, "incoming", fy)
@@ -124,14 +149,13 @@ def incoming_add(db: Session = Depends(get_db), fiscal_year: int = Form(...),
 
 
 @router.post("/admin/incoming/upload")
-async def incoming_upload(request: Request, db: Session = Depends(get_db), file: UploadFile = File(...)):
+async def incoming_upload(request: Request, db: Session = Depends(get_db),
+                          file: UploadFile = File(...), ai: str = Form("")):
     data = await file.read()
     ext = _detect_ext(data, file.filename or "")
     if not ext:
         return RedirectResponse("/admin/incoming?err=notpdf", status_code=303)
-    name = _save_upload(data, ext)
-    fields = extract_letter_fields(str(_uploads_dir() / name))
-    return _render_letter_confirm(request, db, "incoming", name, fields)
+    return _read_and_confirm(request, db, "incoming", data, ext, use_ai=bool(ai))
 
 
 @router.post("/admin/incoming/fetch")
@@ -185,14 +209,13 @@ def outgoing_add(db: Session = Depends(get_db), fiscal_year: int = Form(...),
 
 
 @router.post("/admin/outgoing/upload")
-async def outgoing_upload(request: Request, db: Session = Depends(get_db), file: UploadFile = File(...)):
+async def outgoing_upload(request: Request, db: Session = Depends(get_db),
+                          file: UploadFile = File(...), ai: str = Form("")):
     data = await file.read()
     ext = _detect_ext(data, file.filename or "")
     if not ext:
         return RedirectResponse("/admin/outgoing?err=notpdf", status_code=303)
-    name = _save_upload(data, ext)
-    fields = extract_letter_fields(str(_uploads_dir() / name))
-    return _render_letter_confirm(request, db, "outgoing", name, fields)
+    return _read_and_confirm(request, db, "outgoing", data, ext, use_ai=bool(ai))
 
 
 @router.post("/admin/outgoing/fetch")
@@ -291,14 +314,13 @@ def memo_create(db: Session = Depends(get_db), fiscal_year: str = Form(""), memo
 
 
 @router.post("/admin/memos/upload")
-async def memo_upload(request: Request, db: Session = Depends(get_db), file: UploadFile = File(...)):
+async def memo_upload(request: Request, db: Session = Depends(get_db),
+                      file: UploadFile = File(...), ai: str = Form("")):
     data = await file.read()
     ext = _detect_ext(data, file.filename or "")
     if not ext:
         return RedirectResponse("/admin/memos?err=notpdf", status_code=303)
-    name = _save_upload(data, ext)
-    fields = extract_letter_fields(str(_uploads_dir() / name))
-    return _render_letter_confirm(request, db, "memo", name, fields)
+    return _read_and_confirm(request, db, "memo", data, ext, use_ai=bool(ai))
 
 
 @router.post("/admin/memos/fetch")
@@ -388,14 +410,13 @@ def order_create(db: Session = Depends(get_db), fiscal_year: str = Form(""), ord
 
 
 @router.post("/admin/orders/upload")
-async def order_upload(request: Request, db: Session = Depends(get_db), file: UploadFile = File(...)):
+async def order_upload(request: Request, db: Session = Depends(get_db),
+                       file: UploadFile = File(...), ai: str = Form("")):
     data = await file.read()
     ext = _detect_ext(data, file.filename or "")
     if not ext:
         return RedirectResponse("/admin/orders?err=notpdf", status_code=303)
-    name = _save_upload(data, ext)
-    fields = extract_letter_fields(str(_uploads_dir() / name))
-    return _render_letter_confirm(request, db, "order", name, fields)
+    return _read_and_confirm(request, db, "order", data, ext, use_ai=bool(ai))
 
 
 @router.post("/admin/orders/fetch")
