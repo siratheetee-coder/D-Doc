@@ -6,7 +6,7 @@ hr.py - งานบุคคล (บริหารงานบุคคล)
 """
 from datetime import datetime
 
-from fastapi import APIRouter, Request, Depends, Form
+from fastapi import APIRouter, Request, Depends, Form, File, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -98,6 +98,29 @@ async def hr_staff_update(pid: int, request: Request, db: Session = Depends(get_
             _apply_person_form(p, f)
             db.commit()
     return RedirectResponse("/hr/staff", status_code=303)
+
+
+@router.post("/hr/staff/{pid}/kp7")
+async def hr_staff_kp7_upload(pid: int, request: Request, db: Session = Depends(get_db),
+                             kp7: UploadFile = File(None)):
+    """อัปโหลดไฟล์ ก.พ.7 (จากเขต) เก็บกับบุคลากร"""
+    p = db.get(Person, pid)
+    if p and kp7 and kp7.filename:
+        data = await kp7.read()
+        if data and len(data) <= 15 * 1024 * 1024:      # จำกัด ~15MB
+            p.kp7_file = data
+            p.kp7_name = (kp7.filename or "kp7").strip()
+            db.commit()
+    return RedirectResponse("/hr/staff", status_code=303)
+
+
+@router.get("/hr/staff/{pid}/kp7")
+def hr_staff_kp7_download(pid: int, db: Session = Depends(get_db)):
+    """ดาวน์โหลด/เปิดไฟล์ ก.พ.7 ที่อัปโหลดไว้"""
+    p = db.get(Person, pid)
+    if not p or not p.kp7_file:
+        return RedirectResponse("/hr/staff", status_code=303)
+    return _serve_blob(p.kp7_file, p.kp7_name or f"kp7_{pid}")
 
 
 @router.post("/hr/staff/{pid}/delete")

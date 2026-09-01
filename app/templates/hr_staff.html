@@ -38,7 +38,7 @@
   {% if persons %}
   <div class="table-wrap">
   <table class="stack-sm">
-    <thead><tr><th>ชื่อ-นามสกุล</th><th>ประเภท</th><th>ตำแหน่ง/วิทยฐานะ</th><th>วันบรรจุ</th><th>สถานะ</th><th>หนังสือรับรอง</th><th></th></tr></thead>
+    <thead><tr><th>ชื่อ-นามสกุล</th><th>ประเภท</th><th>ตำแหน่ง/วิทยฐานะ</th><th>วันบรรจุ</th><th>สถานะ</th><th>หนังสือรับรอง</th><th>ก.พ.7</th><th></th></tr></thead>
     <tbody>
     {% for p in persons %}
       <tr{% if not p.active %} style="opacity:.55;"{% endif %}>
@@ -50,8 +50,17 @@
         <td data-label="หนังสือรับรอง" class="stack-full" style="white-space:nowrap;">
           <a class="btn sm gray" href="/hr/staff/{{ p.id }}/certificate.docx" title="หนังสือรับรองบุคลากร (ฟอร์มราชการ)"><svg class="icon"><use href="#ic-download"/></svg> หนังสือรับรอง</a>
         </td>
+        <td data-label="ก.พ.7" class="stack-full" style="white-space:nowrap;">
+          {% if p.kp7_name %}
+          <a class="btn sm" href="/hr/staff/{{ p.id }}/kp7" target="_blank" rel="noopener" title="{{ p.kp7_name }}"><svg class="icon"><use href="#ic-download"/></svg> ก.พ.7</a>
+          {% endif %}
+          <form method="post" action="/hr/staff/{{ p.id }}/kp7" enctype="multipart/form-data" style="display:inline; margin:0;">
+            <label class="btn sm gray" style="cursor:pointer;" title="รองรับ PDF / รูป / Word">
+              {{ 'เปลี่ยนไฟล์' if p.kp7_name else 'อัปโหลด ก.พ.7' }}
+              <input type="file" name="kp7" accept=".pdf,.doc,.docx,image/*" hidden onchange="this.form.submit()"></label>
+          </form>
+        </td>
         <td data-label="จัดการ" class="stack-full" style="white-space:nowrap;">
-          <a class="btn sm" href="/hr/staff/{{ p.id }}">ประวัติ (ก.พ.7)</a>
           <a class="btn sm gray" href="/hr/staff?edit={{ p.id }}">แก้ไข</a>
           <form method="post" action="/hr/staff/{{ p.id }}/delete" onsubmit="return confirm('ลบบุคลากรคนนี้? (รายการลา/ไปราชการ/ประวัติที่ผูกจะถูกลบด้วย)');" style="display:inline; margin:0;"><button class="btn red sm" type="submit"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
         </td>

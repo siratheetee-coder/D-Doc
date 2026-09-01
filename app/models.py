@@ -79,6 +79,8 @@ class Person(Base):
     phone = Column(String, default="")
     email = Column(String, default="")
     salary = Column(Float, default=0.0)            # เงินเดือน (สำหรับหนังสือรับรอง)
+    kp7_file = Column(LargeBinary, nullable=True)  # ไฟล์ ก.พ.7 ที่อัปโหลด (จากเขต) - PDF/รูป/Word
+    kp7_name = Column(String, default="")          # ชื่อไฟล์ ก.พ.7
 
     leaves = relationship("LeaveRecord", back_populates="person",
                           cascade="all, delete-orphan", order_by="LeaveRecord.start_date")

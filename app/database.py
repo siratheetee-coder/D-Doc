@@ -110,6 +110,8 @@ MIGRATIONS = [
     ("person", "phone", "VARCHAR DEFAULT ''"),
     ("person", "email", "VARCHAR DEFAULT ''"),
     ("person", "salary", "FLOAT DEFAULT 0"),
+    ("person", "kp7_file", "BLOB"),
+    ("person", "kp7_name", "VARCHAR DEFAULT ''"),
     ("school", "area_office", "VARCHAR DEFAULT ''"),   # สำนักงานเขตพื้นที่การศึกษาที่สังกัด
     ("student", "room", "VARCHAR DEFAULT ''"),         # ห้องเรียน (งานวิชาการ: ปพ.5 เป็นเอกสารรายห้อง)
     ("acad_subject", "mid_max", "INTEGER DEFAULT 70"),   # สัดส่วนคะแนนเก็บ (ต่างกันได้รายวิชา)
