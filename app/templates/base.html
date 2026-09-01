@@ -821,6 +821,7 @@
         {% endif %}
 
         <div class="nav-sec">ระบบ</div>
+        {% if request.session.get('director') %}<a href="/approvals" class="{{ 'active' if path.startswith('/approvals') }}" style="font-weight:700;"><svg class="icon"><use href="#ic-check"/></svg> กล่องรออนุมัติ ผอ.</a>{% endif %}
         <a href="/docnos" class="{{ 'active' if path.startswith('/docnos') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ทะเบียนเลขหนังสือ</a>
         <a href="/projects" class="{{ 'active' if path.startswith('/projects') }}"><svg class="icon"><use href="#ic-coins"/></svg> โครงการ/แผนงบ</a>
         <a href="/vendors" class="{{ 'active' if path.startswith('/vendors') }}"><svg class="icon"><use href="#ic-store"/></svg> ผู้ขาย/ผู้รับจ้าง</a>

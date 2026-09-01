@@ -9,7 +9,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.accounts import (
     list_tenant_users, add_tenant_user, set_user_modules, reset_user_password,
-    toggle_user_active, delete_tenant_user, tenant_max_users, mark_welcomed, sync_seen_modules,
+    toggle_user_active, toggle_user_director, delete_tenant_user, tenant_max_users,
+    mark_welcomed, sync_seen_modules,
 )
 from app.templating import templates
 
@@ -77,6 +78,16 @@ def users_toggle(request: Request, uid: int):
     if r.get("error"):
         return _back(err=r["error"])
     return _back(msg="เปิดใช้งานผู้ใช้แล้ว" if r.get("active") else "ปิดใช้งานผู้ใช้แล้ว")
+
+
+@router.post("/users/{uid}/director")
+def users_director(request: Request, uid: int):
+    if not _is_owner(request):
+        return RedirectResponse("/", status_code=303)
+    r = toggle_user_director(request.session.get("tid"), uid)
+    if r.get("error"):
+        return _back(err=r["error"])
+    return _back(msg="ตั้งเป็น ผอ./รองผอ. แล้ว" if r.get("is_director") else "ยกเลิกสิทธิ์ ผอ. แล้ว")
 
 
 @router.post("/users/{uid}/delete")

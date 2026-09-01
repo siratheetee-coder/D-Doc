@@ -127,6 +127,41 @@ def _dashboard_charts(procurements):
 
 
 # ---------------- หน้าเลือกงาน (Hub) ----------------
+def _is_director(request: Request) -> bool:
+    """ผอ./รองผอ. ของโรงเรียน (อนุมัติเอกสารขั้นสุดท้าย)"""
+    return bool(request.session.get("uid") and request.session.get("director")
+                and request.session.get("role") != "superadmin")
+
+
+def director_pending_counts(db: Session) -> dict:
+    """จำนวนเอกสารที่รอ ผอ. อนุมัติ (ใช้ทั้งกล่องรออนุมัติและ badge บนเมนู)"""
+    from app.models import LessonPlan, LeaveRequest, TravelRequest
+    plans = db.query(LessonPlan).filter(LessonPlan.status == "director").count()
+    leaves = db.query(LeaveRequest).filter(LeaveRequest.status == "personnel").count()
+    travels = db.query(TravelRequest).filter(TravelRequest.status == "personnel").count()
+    return {"plans": plans, "leaves": leaves, "travels": travels,
+            "total": plans + leaves + travels}
+
+
+@router.get("/approvals", response_class=HTMLResponse)
+def director_inbox(request: Request, db: Session = Depends(get_db), msg: str = "", err: str = ""):
+    """กล่องรออนุมัติของ ผอ./รองผอ. - รวมแผนการสอน(ผ่านวิชาการ) + ลา/ไปราชการ(ผ่านบุคคล)"""
+    if not _is_director(request):
+        return RedirectResponse("/", status_code=303)
+    from app.models import LessonPlan, LeaveRequest, TravelRequest
+    plans = (db.query(LessonPlan).filter(LessonPlan.status == "director")
+             .order_by(LessonPlan.reviewed_at.desc()).all())
+    leaves = (db.query(LeaveRequest).filter(LeaveRequest.status == "personnel")
+              .order_by(LeaveRequest.personnel_at.desc()).all())
+    travels = (db.query(TravelRequest).filter(TravelRequest.status == "personnel")
+               .order_by(TravelRequest.personnel_at.desc()).all())
+    return templates.TemplateResponse("director_inbox.html", {
+        "request": request, "school": get_school(db),
+        "plans": plans, "leaves": leaves, "travels": travels,
+        "counts": director_pending_counts(db), "msg": msg, "err": err,
+    })
+
+
 @router.get("/", response_class=HTMLResponse)
 def hub(request: Request, db: Session = Depends(get_db), msg: str = ""):
     """หน้าหลัก: เลือกเข้าใช้งาน ธุรการ / พัสดุ / การเงิน + ภาพรวมปีงบ"""

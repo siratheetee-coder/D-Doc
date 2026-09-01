@@ -33,6 +33,7 @@
           {% if u.is_owner %}<span class="pill" style="background:#e8f0ff; color:#2b58c9;">ไอดีหลัก</span>
           {% elif u.person_id %}<span class="pill" style="background:#ede9fe; color:#6d28d9;">ครู (งานวิชาการ)</span>
           {% else %}<span class="pill" style="background:#f1f5f9; color:#5a6a85;">ไอดีย่อย</span>{% endif %}
+          {% if u.is_director %}<br><span class="pill" style="background:#fef3c7; color:#b45309; margin-top:4px; display:inline-block;">ผอ./รองผอ.</span>{% endif %}
         </td>
         <td>
           {% if u.is_owner %}
@@ -52,12 +53,13 @@
         </td>
         <td>{% if u.active %}<span class="pill" style="background:#e9f7ef; color:#0e7a44;">ใช้งาน</span>{% else %}<span class="pill" style="background:#fde8e8; color:#b91c1c;">ปิดอยู่</span>{% endif %}</td>
         <td style="white-space:nowrap;">
+          <form method="post" action="/users/{{ u.id }}/director" style="display:inline; margin:0;" title="ให้บัญชีนี้อนุมัติแผนการสอน/ลา/ไปราชการ ขั้นสุดท้าย (ต้องผูกลายเซ็นในทะเบียนบุคลากร)"><button class="btn sm {{ 'gray' if u.is_director else '' }}" type="submit">{{ 'ยกเลิก ผอ.' if u.is_director else 'ตั้งเป็น ผอ.' }}</button></form>
           {% if not u.is_owner %}
           <button class="btn sm gray" type="button" onclick="resetPw({{ u.id }}, '{{ u.username }}')">รีเซ็ตรหัส</button>
           <form method="post" action="/users/{{ u.id }}/toggle" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">{{ 'ปิด' if u.active else 'เปิด' }}</button></form>
           <form method="post" action="/users/{{ u.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบผู้ใช้ {{ u.username }} ?');"><button class="btn sm gray" type="submit" style="color:#dc2626;">ลบ</button></form>
           <form method="post" action="/users/{{ u.id }}/reset" id="rf{{ u.id }}" style="display:none;"><input type="hidden" name="new_password"></form>
-          {% else %}<span class="muted" style="font-size:13px;">-</span>{% endif %}
+          {% endif %}
         </td>
       </tr>
     {% endfor %}

@@ -131,6 +131,8 @@ async def tenant_auth(request: Request, call_next):
     # sync ลง session ให้เทมเพลต (sidebar/hub) แสดงตรงกับสิทธิ์จริงโดยไม่ต้อง re-login
     if sess.get("owner") != acc["is_owner"]:
         sess["owner"] = acc["is_owner"]
+    if sess.get("director") != acc.get("is_director", False):
+        sess["director"] = acc.get("is_director", False)
     if sess.get("mods") != acc["modules"]:
         sess["mods"] = acc["modules"]
     if sess.get("welcomed") != acc["welcomed"]:

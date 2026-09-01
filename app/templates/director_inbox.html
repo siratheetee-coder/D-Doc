@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}กล่องรออนุมัติ ผอ.{% endblock %}
+{% block content %}
+<div class="hero" style="background:linear-gradient(135deg,#7c3aed,#2563eb); color:#fff;">
+  <div>
+    <div class="hero-sub" style="color:#e9d5ff;">ผู้อำนวยการ / รองผู้อำนวยการ</div>
+    <span class="hero-title">กล่องรออนุมัติ</span>
+    <div class="hero-meta" style="color:#e0e7ff;">เอกสารที่ผ่านการตรวจเบื้องต้นแล้ว รอ ผอ. ลงนามอนุมัติ · รวม {{ counts.total }} รายการ</div>
+  </div>
+</div>
+{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+{% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
+
+{# ---------------- แผนการสอน (ผ่านวิชาการแล้ว) ---------------- #}
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-clipboard"/></svg> แผนการสอน รอลงนาม ({{ plans|length }})</h2>
+  {% if plans %}
+  <div class="table-wrap">
+  <table class="stack-sm">
+    <thead><tr><th>ครูผู้สอน</th><th>เรื่อง / แผน</th><th>ภาคเรียน/ปี</th><th>วิชาการตรวจเมื่อ</th><th></th></tr></thead>
+    <tbody>
+      {% for p in plans %}
+      <tr>
+        <td data-label="ครู">{{ p.teacher.name if p.teacher else '-' }}</td>
+        <td data-label="เรื่อง">{{ p.title or '-' }}</td>
+        <td data-label="ภาคเรียน">{{ p.term or '-' }}/{{ p.year }}</td>
+        <td data-label="ตรวจเมื่อ">{{ thai_date(p.reviewed_at) if p.reviewed_at else '-' }}</td>
+        <td class="right"><a class="btn sm" href="/academic/lesson-plans/{{ p.id }}">ดูและลงนาม</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted" style="margin:0;">ไม่มีแผนการสอนรอลงนาม</p>{% endif %}
+</div>
+
+{# ---------------- ใบลา (ผ่านบุคคลแล้ว) ---------------- #}
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-calendar"/></svg> ใบลา รออนุมัติ ({{ leaves|length }})</h2>
+  {% if leaves %}
+  <div class="table-wrap">
+  <table class="stack-sm">
+    <thead><tr><th>ผู้ลา</th><th>ประเภท</th><th>ช่วงวันลา</th><th>วัน</th><th>บุคคลตรวจเมื่อ</th><th></th></tr></thead>
+    <tbody>
+      {% for l in leaves %}
+      <tr>
+        <td data-label="ผู้ลา">{{ l.person.name if l.person else '-' }}</td>
+        <td data-label="ประเภท">{{ l.leave_type }}</td>
+        <td data-label="ช่วง">{{ thai_date(l.start_date) if l.start_date else '-' }} - {{ thai_date(l.end_date) if l.end_date else '-' }}</td>
+        <td data-label="วัน">{{ l.days }}</td>
+        <td data-label="ตรวจเมื่อ">{{ thai_date(l.personnel_at) if l.personnel_at else '-' }}</td>
+        <td class="right"><a class="btn sm" href="/hr/leave-requests/{{ l.id }}">ดูและอนุมัติ</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted" style="margin:0;">ไม่มีใบลารออนุมัติ</p>{% endif %}
+</div>
+
+{# ---------------- ไปราชการ (ผ่านบุคคลแล้ว) ---------------- #}
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-file"/></svg> ขอไปราชการ รออนุมัติ ({{ travels|length }})</h2>
+  {% if travels %}
+  <div class="table-wrap">
+  <table class="stack-sm">
+    <thead><tr><th>ผู้ขอ</th><th>เรื่อง</th><th>สถานที่</th><th>ช่วง</th><th>บุคคลตรวจเมื่อ</th><th></th></tr></thead>
+    <tbody>
+      {% for t in travels %}
+      <tr>
+        <td data-label="ผู้ขอ">{{ t.person.name if t.person else '-' }}</td>
+        <td data-label="เรื่อง">{{ t.subject or '-' }}</td>
+        <td data-label="สถานที่">{{ t.place or '-' }}</td>
+        <td data-label="ช่วง">{{ thai_date(t.start_date) if t.start_date else '-' }} - {{ thai_date(t.end_date) if t.end_date else '-' }}</td>
+        <td data-label="ตรวจเมื่อ">{{ thai_date(t.personnel_at) if t.personnel_at else '-' }}</td>
+        <td class="right"><a class="btn sm" href="/hr/travel-requests/{{ t.id }}">ดูและอนุมัติ</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted" style="margin:0;">ไม่มีคำขอไปราชการรออนุมัติ</p>{% endif %}
+</div>
+{% endblock %}

@@ -97,6 +97,7 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
     request.session["name"] = user["display_name"] or user["username"]
     request.session["must_change"] = user.get("must_change", False)
     request.session["owner"] = user.get("is_owner", False)   # ไอดีหลัก = เห็นทุกงาน + จัดการผู้ใช้
+    request.session["director"] = user.get("is_director", False)  # ผอ./รองผอ. = อนุมัติเอกสารขั้นสุดท้าย
     request.session["mods"] = user.get("modules", "")         # ไอดีย่อย: CSV งานที่เข้าได้
     request.session["person_id"] = user.get("person_id")      # บัญชีครู = ผูก Person (สิทธิ์เฉพาะวิชา/ห้อง)
     request.session["welcomed"] = user.get("welcomed", True)  # เห็นการ์ดต้อนรับแล้วหรือยัง
