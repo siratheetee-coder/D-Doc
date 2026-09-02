@@ -524,3 +524,59 @@ def render_leave_official(school, person, record, db=None, approver=None,
     path = out / (_safe(f"ใบลา_{name}_{getattr(record,'id','')}") + ".docx")
     doc.save(str(path))
     return str(path)
+
+
+def render_travel_official(school, person, record, db=None, approver=None, approve_date=None) -> str:
+    """กรอกบันทึกข้อความขออนุญาตไปราชการ จากไฟล์แม่แบบต้นฉบับ คืน path .docx
+    เติมเฉพาะฟิลด์ที่ระบบมี (ส่วนราชการ/วันที่/เรื่อง/ข้าพเจ้า/ช่วงวัน/สถานที่/ครูสอนแทน/ลงนาม)
+    ช่องที่ระบบไม่มี (เพื่อ-ประเภท/ค่าใช้จ่าย/ที่หนังสือ) เว้นจุดไข่ปลาไว้กรอกมือ"""
+    doc = Document(str(_FORM_DIR / "travel_form.docx"))
+    P = doc.paragraphs
+
+    def sr(pi, idx, text):
+        try:
+            P[pi].runs[idx].text = text
+        except Exception:
+            pass
+
+    name = (person.name if person else "") or ""
+    position = (getattr(person, "position", "") or "ครู")
+    rank = (getattr(person, "rank", "") or "-")
+    sch = school.name or ""
+    area = (getattr(school, "area_office", "") or "").strip()
+    subject = (record.subject or "").strip()
+    place = (record.place or "").strip()
+    days = f"{(record.days or 0):g}"
+    wd = getattr(record, "created_at", None) or getattr(record, "submitted_at", None)
+    sd = _full_date(record.start_date)
+    ed = _full_date(record.end_date)
+    daterange = sd if (not record.end_date or record.start_date == record.end_date) else f"{sd} ถึง {ed}"
+    substitute = (getattr(record, "substitute", "") or getattr(record, "note", "") or "").strip()
+
+    sr(1, 2, "  " + sch + ("   " + area if area else ""))       # ส่วนราชการ
+    if wd:
+        sr(2, 10, "  " + _full_date(wd))                        # วันที่
+    sr(3, 2, "  ขออนุญาตไปราชการ" + subject)                    # เรื่อง
+    sr(8, 4, " " + name)                                        # ข้าพเจ้า
+    sr(8, 8, "  " + position + "  วิทยฐานะ  ")                  # ตำแหน่ง + label วิทยฐานะ
+    sr(8, 9, " " + rank + " ")                                  # วิทยฐานะ (ค่า)
+    sr(9, 1, " " + subject)                                     # เรื่อง (รายละเอียด)
+    sr(9, 5, " " + daterange + " ")                             # ในวันที่
+    sr(9, 10, " " + days)                                       # รวม..วัน
+    sr(9, 14, " " + place)                                      # ณ สถานที่
+    if substitute:
+        sr(17, 4, " " + substitute)                            # ครูสอนแทน
+    sr(22, 9, name)                                             # (ชื่อผู้ขอ)
+
+    if approver is not None:
+        dname = (getattr(approver, "name", "") or "").strip()
+        sr(30, 6, dname)                                        # (ชื่อ ผอ.)
+        try:                                                    # ติ๊ก 'อนุญาต' (p27)
+            P[27].runs[2].text = "  ✓  อนุญาต"
+        except Exception:
+            pass
+
+    out = get_data_dir() / "documents"; out.mkdir(exist_ok=True)
+    path = out / (_safe(f"ขออนุญาตไปราชการ_{name}_{getattr(record,'id','')}") + ".docx")
+    doc.save(str(path))
+    return str(path)

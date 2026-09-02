@@ -780,15 +780,29 @@ def my_leave_file(lid: int, request: Request, db: Session = Depends(get_db)):
     return _serve_attachment(lv.attachment, lv.attachment_name)
 
 
+@router.get("/me/travel/blank.docx")
+def my_travel_blank():
+    """ดาวน์โหลดแบบฟอร์มขอไปราชการเปล่า (จุดไข่ปลา) - ไฟล์ต้นฉบับ ไม่หักโควตา"""
+    from pathlib import Path
+    p = Path(__file__).resolve().parent.parent / "data" / "forms" / "travel_form.docx"
+    return serve_generated(str(p), _DOCX, count=False, download_name="แบบฟอร์มขออนุญาตไปราชการ.docx")
+
+
 @router.get("/me/travel/{tid}/form.docx")
 def my_travel_form_docx(tid: int, request: Request, db: Session = Depends(get_db)):
     from app.models import TravelRequest
     tr = db.get(TravelRequest, tid)
     if not tr or not _self_or_hr(request, tr.person_id):
         return RedirectResponse("/me/travel", status_code=303)
-    from app.services.hr_doc import render_travel_request
+    from app.services.gov_forms import render_travel_official
+    from types import SimpleNamespace
+    approver = None
+    if tr.status == "approved":
+        d = db.get(Person, tr.director_by) if tr.director_by else None
+        approver = d or SimpleNamespace(name=(get_school(db).director_name or ""))
     return serve_generated(
-        render_travel_request(get_school(db), db.get(Person, tr.person_id), tr), _DOCX)
+        render_travel_official(get_school(db), db.get(Person, tr.person_id), tr, db=db,
+                               approver=approver, approve_date=tr.decided_at), _DOCX)
 
 
 @router.get("/me/travel/{tid}/file")

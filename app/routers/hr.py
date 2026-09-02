@@ -357,16 +357,16 @@ def _serve_blob(data: bytes, name: str):
 def hr_travel_request_docx(tid: int, db: Session = Depends(get_db)):
     """บันทึกขออนุญาตไปราชการ - ถ้าครูแนบไฟล์ตอนยื่นคำขอ ให้เปิดไฟล์นั้น
     (ไฟล์ที่เซ็นสมบูรณ์) มิฉะนั้น fallback เป็นบันทึกที่ระบบสร้างให้"""
-    from app.services.hr_doc import render_travel_request
+    from app.services.gov_forms import render_travel_official
     r = db.get(TravelRecord, tid)
     if not r:
         return RedirectResponse("/hr/travel", status_code=303)
     q = db.query(TravelRequest).filter_by(record_id=tid).first()
     if q and q.attachment:
         return _serve_blob(q.attachment, q.attachment_name)
-    # ผอ. อนุมัติแล้ว -> ติ๊ก 'อนุญาต' + แปะลายเซ็น ผอ. บนบันทึก
+    # ผอ. อนุมัติแล้ว -> ติ๊ก 'อนุญาต' + ใส่ชื่อ ผอ. บนบันทึก
     approver = _approver_for(db, q) if q else None
-    return serve_generated(render_travel_request(get_school(db), r.person, r, approver=approver), _DOCX)
+    return serve_generated(render_travel_official(get_school(db), r.person, r, db=db, approver=approver), _DOCX)
 
 
 @router.get("/hr/travel/{tid}/order.docx")
