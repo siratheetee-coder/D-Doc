@@ -147,6 +147,7 @@ async def lunch_save(request: Request, db: Session = Depends(get_db)):
     prog.year = _to_int(form.get("year"), _current_academic_year())
     prog.days = _to_int(form.get("days"), 200)
     prog.operate_mode = form.get("operate_mode") or "hire"
+    prog.fuel_cost = _to_float(form.get("fuel_cost"), 0.0)   # ค่าเชื้อเพลิงประกอบอาหาร (รวมในงบ)
     prog.funding_org = (form.get("funding_org") or "").strip()
     prog.lunch_officer = (form.get("lunch_officer") or "").strip()
     prog.note = (form.get("note") or "").strip()

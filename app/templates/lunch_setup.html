@@ -20,6 +20,9 @@
       <div><label>อัตราต่อหัว/วัน <span class="muted">(เว้นว่าง = เลือกอัตโนมัติตามขนาด)</span></label>
         <input name="rate_per_head" id="rate" type="number" step="0.01" placeholder="อัตโนมัติ"
                value="{{ '%g'|format(p.rate_per_head) if p and p.rate_per_head else '' }}" oninput="calc()"></div>
+      <div><label>ค่าเชื้อเพลิงประกอบอาหาร <span class="muted">(แก๊ส/ถ่าน · ทั้งปี)</span></label>
+        <input name="fuel_cost" id="fuel" type="number" step="0.01" placeholder="เช่น 5000"
+               value="{{ '%g'|format(p.fuel_cost) if p and p.fuel_cost else '' }}" oninput="calc()"></div>
     </div>
 
     <h2 style="margin-top:20px;">จำนวนนักเรียนแยกระดับชั้น</h2>
@@ -42,7 +45,8 @@
         <div>นักเรียนรวม: <b id="sTotal">0</b> คน</div>
         <div>อัตราที่ใช้: <b id="sRate">0</b> บาท/หัว/วัน</div>
         <div>จำนวนวัน: <b id="sDays">200</b></div>
-        <div style="font-size:19px;">งบประมาณ: <b id="sBudget" style="color:var(--brand-dark);">0.00</b> บาท</div>
+        <div>ค่าอาหาร: <b id="sFood" style="color:var(--brand-dark);">0.00</b> + ค่าเชื้อเพลิง: <b id="sFuel" style="color:var(--brand-dark);">0.00</b></div>
+        <div style="font-size:19px;">งบประมาณรวม: <b id="sBudget" style="color:var(--brand-dark);">0.00</b> บาท</div>
       </div>
       <p class="muted" style="margin:8px 0 0;">อัตราตามขนาด: 1-40 คน = 36 · 41-100 = 27 · 101-120 = 24 · 121 คนขึ้นไป = 22 บาท</p>
     </div>
@@ -58,10 +62,15 @@
     var days=parseInt(document.getElementById('days').value||0)||0;
     var rateIn=parseFloat(document.getElementById('rate').value||0)||0;
     var rate = rateIn>0 ? rateIn : autoRate(t);
+    var fuel=parseFloat(document.getElementById('fuel').value||0)||0;
+    var food=t*rate*days;
+    var fmt=function(n){ return n.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); };
     document.getElementById('sTotal').innerText=t;
     document.getElementById('sRate').innerText=rate;
     document.getElementById('sDays').innerText=days;
-    document.getElementById('sBudget').innerText=(t*rate*days).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
+    document.getElementById('sFood').innerText=fmt(food);
+    document.getElementById('sFuel').innerText=fmt(fuel);
+    document.getElementById('sBudget').innerText=fmt(food+fuel);
   }
   function addRow(){
     var tb=document.querySelector('#lvTable tbody');

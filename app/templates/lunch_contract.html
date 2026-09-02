@@ -210,6 +210,18 @@
   {% endif %}
 </div>
 
+{% if p.operate_mode in ['person','ingredient'] %}
+<!-- ============ กรอกวัตถุดิบรายวัน (ต่อจากเมนู - สำหรับชุดซื้อวัตถุดิบ) ============ -->
+<div class="card" style="background:linear-gradient(135deg,#fff7ed,#ffedd5); border:1px solid #fed7aa;">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <div><b>🥬 วัตถุดิบรายวัน (ชุดซื้อวัตถุดิบ)</b>
+      <div class="muted" style="font-size:13px;">กรอกวัตถุดิบ/เครื่องปรุงที่ซื้อแต่ละวัน แล้วเอกสาร "ใบรับรายงานวัตถุดิบ / ใบจัดซื้อวัสดุ / ใบรับรองการจ่ายเงิน" จะดึงไปเติมให้อัตโนมัติ</div>
+    </div>
+    <a class="btn" href="/lunch/{{ p.id }}/ingredients?back=/lunch/round/{{ r.id }}/plan" style="background:linear-gradient(135deg,#ea580c,#f59e0b); border:none; white-space:nowrap;"><svg class="icon"><use href="#ic-clipboard"/></svg> กรอกวัตถุดิบรายวัน</a>
+  </div>
+</div>
+{% endif %}
+
 <!-- ============ เลขที่/วันที่เอกสารรายฉบับ (กรอกก่อนออกเอกสาร → เชื่อมทะเบียนกลาง) ============ -->
 {% if doc_no_rows %}
 <style>

@@ -803,6 +803,7 @@ class LunchProgram(Base):
     year = Column(Integer, nullable=False)          # ปีการศึกษา พ.ศ. เช่น 2568
     days = Column(Integer, default=200)             # จำนวนวันทำการ
     rate_per_head = Column(Float, default=0.0)      # อัตราต่อหัว/วัน (เลือกอัตโนมัติตามขนาด แก้ได้)
+    fuel_cost = Column(Float, default=0.0)          # ค่าเชื้อเพลิงประกอบอาหาร (แก๊ส/ถ่าน) รวมในงบตั้งแต่แรก
     operate_mode = Column(String, default="hire")   # hire=จ้างเหมาปรุงสำเร็จ / ingredient=ซื้อวัตถุดิบ+แม่ครัว / self=ทำเอง
     funding_org = Column(String, default="")        # อปท.ผู้จัดสรร (เทศบาล/อบต.)
     lunch_officer = Column(String, default="")      # เจ้าหน้าที่โครงการอาหารกลางวัน/ผู้จ่ายเงิน (อาจคนละคนกับ จนท.พัสดุ)
