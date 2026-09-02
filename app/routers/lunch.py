@@ -503,9 +503,10 @@ LUNCH_DOC_META = {
 #  จ้างเหมา/จ้างแม่ครัว: คำสั่งแต่งตั้งกรรมการ 3 ฉบับ กรอกเลขแยกกัน (cmd-*)
 _MODE_DOCS = {
     "ingredient": ["report", "borrow", "loan", "repay", "inspect-notify", "inspect-assign"],
-    "person":     ["hire-report", "result", "order",
-                   "cmd-inspect", "cmd-cook_control", "cmd-food_inspect",
-                   "borrow", "loan", "repay"],
+    # ช่วงที่ 1 ซื้อวัตถุดิบ (ยืมเงิน/ส่งใช้) -> ช่วงที่ 2 จ้างแม่ครัว (รายงานขอจ้าง->ตกลงจ้าง + คำสั่งกรรมการ)
+    "person":     ["borrow", "loan", "repay",
+                   "hire-report", "result", "order",
+                   "cmd-inspect", "cmd-cook_control", "cmd-food_inspect"],
     "hire":       ["tor-request", "cmd-tor", "cmd-control", "cmd-inspect",
                    "hire-report", "result", "winner", "hire-order"],
 }

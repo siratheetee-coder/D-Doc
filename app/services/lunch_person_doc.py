@@ -5,6 +5,7 @@ lunch_person_doc.py - เอกสารการจ้างบุคคลเ�
 + ชุดจ้างบุคคล (ค่าตอบแทน/ค่าแรง) ที่คล้ายรูปแบบ 3 แต่เป็น "จ้างบุคคล" อ้างข้อ 22 ค่าปรับ 0.1
 อ้างถ้อยคำจากไฟล์ตัวอย่างจริง (Lunch examples/2 ...) ใช้ helper ร่วมกับ lunch_doc/lunch_ingredient_doc
 """
+from datetime import datetime as _dt
 from docx import Document
 from docx.shared import Cm
 
@@ -482,24 +483,42 @@ def render_p_disburse(inst, school, wht_rate=0.01, doc=None) -> str:
 
 def render_person_bundle(rnd, school) -> str:
     """ออกชุดเอกสารจ้างแม่ครัวทั้งชุดเป็นไฟล์เดียว ตรงตามคู่มืออาหารกลางวัน สพฐ.
-    (จ้างเหมาประกอบอาหาร วิธีเฉพาะเจาะจง + ชุดยืมเงินซื้อวัตถุดิบที่โรงเรียนจัดหาเอง)"""
+    จัด 2 ช่วงตามลำดับการทำงานจริง:
+      ช่วงที่ 1 ซื้อวัตถุดิบ (ยืมเงิน -> จัดหา -> ตรวจรับ -> ส่งใช้เงินยืม) โรงเรียนจัดหาวัตถุดิบเอง
+      ช่วงที่ 2 จ้างแม่ครัว (จ้างบุคคลประกอบอาหาร) 9 ขั้น: รายงานขอจ้าง -> TOR -> ใบเสนอราคา ->
+               รายงานผลพิจารณา -> ประกาศชนะ -> บันทึกตกลงจ้าง -> ใบสั่งจ้าง -> ใบส่งมอบ -> ใบตรวจรับ"""
     doc = Document(); set_a4(doc); _font(doc)
-    # ส่วนที่ 1: จ้างเหมาประกอบอาหาร (จ้างแม่ครัว)
-    render_p_hire_report(rnd, school, doc)   # รายงานขอจ้างเหมา + แต่งตั้งผู้ควบคุม/ตรวจการประกอบอาหาร
-    render_p_result(rnd, school, doc)        # รายงานการพิจารณาจ้าง (เลือกผู้รับจ้าง)
-    render_p_order(rnd, school, doc)         # บันทึกตกลงจ้าง
-    # ส่วนที่ 2: ชุดยืมเงินซื้อวัตถุดิบ (โรงเรียนจัดหาวัตถุดิบเอง - เหมือนรูปแบบซื้อวัตถุดิบ)
-    render_borrow_memo(rnd, school, doc)
-    render_loan_contract(rnd, school, doc)
-    render_estimate(rnd, school, doc)
-    render_purchase_form(rnd, school, doc)           # ใบจัดซื้อวัสดุ 4 ส่วน + แนบท้าย
+    prog = rnd.program
+
+    # ===== ช่วงที่ 1: ซื้อวัตถุดิบ (โรงเรียนจัดหาวัตถุดิบเอง) =====
+    render_borrow_memo(rnd, school, doc)             # ขออนุมัติยืมเงิน
+    render_loan_contract(rnd, school, doc)           # สัญญาการยืมเงิน
+    render_estimate(rnd, school, doc)                # แบบประมาณการค่าใช้จ่าย
+    render_purchase_form(rnd, school, doc)           # ใบจัดซื้อวัสดุเครื่องบริโภค + แนบท้าย
     render_ingredient_deliver(rnd, school, doc)      # ใบส่งมอบวัตถุดิบ (รายวัน)
-    render_material_report_form(rnd, school, doc)
+    render_material_report_form(rnd, school, doc)    # ใบรับรายงานวัตถุดิบและปริมาณการจัดซื้อ
     render_inspect_assign(rnd, school, doc)          # มอบหมายการตรวจรับวัตถุดิบ
     render_inspection_note(rnd, school, doc)         # ใบตรวจรับพัสดุ (วัตถุดิบ)
     render_inspect_detail(rnd, school, doc)          # ใบแสดงรายละเอียดการตรวจรับ
-    render_receipt_form(rnd, school, doc)
-    render_repay_memo(rnd, school, doc)
-    render_reimburse_advance(rnd, school, doc)       # ใบสรุปเบิกเงินทดรองจ่าย (วัตถุดิบ)
-    render_wht_cook(rnd, school, doc)                # หนังสือรับรองหักภาษี ณ ที่จ่าย (ค่าจ้าง)
-    return _save(doc, f"ชุดเอกสารจ้างแม่ครัว_รอบที่{rnd.seq}_ปี{rnd.program.year}")
+    render_receipt_form(rnd, school, doc)            # ใบเสร็จ/ใบสำคัญรับเงิน (วัตถุดิบ)
+    render_reimburse_advance(rnd, school, doc)       # ใบสรุปเบิกเงินทดรองจ่าย
+    render_repay_memo(rnd, school, doc)              # ขออนุมัติเบิกจ่ายส่งใช้เงินยืม
+
+    # ===== ช่วงที่ 2: จ้างแม่ครัว (จ้างบุคคลประกอบอาหาร) ตามลำดับ 9 ขั้น =====
+    render_p_hire_report(rnd, school, doc)   # 1 รายงานขอจ้าง + แต่งตั้งผู้ควบคุม/ตรวจการประกอบอาหาร
+    render_p_tor(rnd, school, doc)           # 2 ขอบเขตของงาน (TOR)
+    render_p_quotation(rnd, school, doc)     # 3 ใบเสนอราคา
+    render_p_result(rnd, school, doc)        # 4 รายงานผลการพิจารณา
+    render_p_winner(rnd, school, doc)        # 5 ประกาศผู้ชนะการเสนอราคา
+    render_p_order(rnd, school, doc)         # 6 บันทึกตกลงจ้าง (+ ใบสั่งจ้าง)
+    # 7-9 ใบสั่งจ้าง/ใบส่งมอบงาน/ใบตรวจรับงานจ้าง + ขอเบิกจ่าย (รายงวด)
+    for inst in sorted(rnd.installments, key=lambda i: i.start_date or _dt.min):
+        menus = sorted([m for m in prog.menus
+                        if m.date and inst.start_date and inst.end_date
+                        and inst.start_date <= m.date <= inst.end_date],
+                       key=lambda m: m.date)
+        render_p_installment(inst, school, menus, doc)  # บันทึกควบคุม + ใบส่งมอบงาน + ใบตรวจรับงานจ้าง
+        render_p_disburse(inst, school, doc=doc)        # ขอเบิกจ่าย + ใบสำคัญรับเงิน
+    render_wht_cook(rnd, school, doc)        # หนังสือรับรองการหักภาษี ณ ที่จ่าย (ค่าจ้าง)
+
+    return _save(doc, f"ชุดเอกสารจ้างแม่ครัว_รอบที่{rnd.seq}_ปี{prog.year}")
