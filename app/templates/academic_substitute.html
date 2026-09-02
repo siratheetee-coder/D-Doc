@@ -38,6 +38,19 @@
   {% else %}<p class="muted" style="margin:0;">ยังไม่มีครูลา/ไปราชการที่อนุมัติแล้วในช่วงนี้</p>{% endif %}
 </div>
 
+{# ---- พิมพ์แบบการจัดตารางสอนแทน (รวมทุกครูตามวันที่) ---- #}
+<div class="card" style="background:linear-gradient(135deg,#f5f3ff,#eef2ff); border:1px solid #ddd6fe;">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์แบบการจัดตารางสอนแทน</h2>
+  <p class="muted" style="font-size:13px; margin:2px 0 10px;">รวมครูทุกคนที่จัดสอนแทนไว้ในช่วงวันที่ที่เลือก (ตามแบบฟอร์มโรงเรียน)</p>
+  <form method="get" action="/academic/substitute/schedule.docx">
+    <div class="row" style="align-items:flex-end;">
+      <div><label>ตั้งแต่วันที่ *</label><input name="start" required placeholder="วว/ดด/ปปปป (พ.ศ.)" data-date="1"></div>
+      <div><label>ถึงวันที่</label><input name="end" placeholder="เว้นว่าง = วันเดียว" data-date="1"></div>
+      <button class="btn" type="submit" style="background:linear-gradient(135deg,#7c3aed,#4f46e5); border:none;"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์เอกสาร</button>
+    </div>
+  </form>
+</div>
+
 {# ---- เลือกครู + ช่วงวันเอง ---- #}
 <div class="card">
   <h2 style="margin-top:0;">หรือเลือกครู + ช่วงวันเอง</h2>

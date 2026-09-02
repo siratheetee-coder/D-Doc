@@ -47,10 +47,12 @@
     </div>
   </div>
   {% endfor %}
-  <div style="display:flex; gap:10px; margin:4px 0 20px;">
+  <div style="display:flex; gap:10px; margin:4px 0 20px; flex-wrap:wrap;">
     <button class="btn" type="submit" style="background:linear-gradient(135deg,#7c3aed,#4f46e5); border:none;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกครูสอนแทน</button>
+    <a class="btn soft" href="/academic/substitute/schedule.docx?person_id={{ person.id }}&start={{ start }}&end={{ end or start }}"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์แบบการจัดตารางสอนแทน</a>
     <a class="btn gray" href="/academic/substitute">← กลับ</a>
   </div>
+  <p class="muted" style="font-size:12.5px; margin:-12px 0 20px;">บันทึกก่อนพิมพ์ เพื่อให้เอกสารมีข้อมูลครบ</p>
 </form>
 {% else %}
 <div class="card">

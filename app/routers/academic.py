@@ -549,6 +549,40 @@ async def substitute_save(request: Request, db: Session = Depends(get_db),
         f"&end={_be(form.get('end',''))}&msg=บันทึกครูสอนแทนแล้ว", status_code=303)
 
 
+@router.get("/academic/substitute/schedule.docx")
+def substitute_schedule_docx(request: Request, db: Session = Depends(get_db),
+                             person_id: int = 0, start: str = "", end: str = ""):
+    """พิมพ์แบบการจัดตารางสอนแทน (รวมทุกครูในช่วงวันที่ หรือเฉพาะครูที่เลือก)"""
+    from app.models import SubstituteAssignment
+    if _scope(request, db).is_teacher:
+        return _deny()
+    q = db.query(SubstituteAssignment)
+    if person_id:
+        q = q.filter(SubstituteAssignment.absent_person_id == person_id)
+    sd = parse_be_date(start); ed = parse_be_date(end) or sd
+    if sd:
+        q = q.filter(SubstituteAssignment.date >= sd)
+    if ed:
+        q = q.filter(SubstituteAssignment.date <= ed)
+    assigns = q.all()
+    s = get_school(db)
+    term = _term_of_dates(sd, assigns)
+    from app.services.substitute_doc import render_substitute_schedule
+    from datetime import date as _date
+    path = render_substitute_schedule(
+        s, db, assigns, term=term, year=str(_acad_year(db)),
+        director_name=(s.director_name or ""), director_position=(s.director_position or ""),
+        print_date=_date.today())
+    return serve_generated(path, _DOCX)
+
+
+def _term_of_dates(sd, assigns):
+    d = sd or (assigns[0].date if assigns and assigns[0].date else None)
+    if not d:
+        return ""
+    return "1" if 5 <= d.month <= 10 else "2"
+
+
 def _be(s):
     from urllib.parse import quote
     return quote(s or "")
