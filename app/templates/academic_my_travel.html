@@ -25,21 +25,68 @@
   <p class="muted" style="font-size:13px; margin:4px 0 12px;">เมื่อส่ง ระบบจะแจ้งหัวหน้าฝ่ายบุคคลทางอีเมล · อนุมัติแล้วจะลงทะเบียนไปราชการให้อัตโนมัติ</p>
   <form method="post" action="/me/travel/submit" enctype="multipart/form-data">
     <div class="row" style="align-items:flex-end;">
+      <div><label>ไปเพื่อ *</label>
+        <select name="purpose_type" onchange="document.getElementById('po').style.display=(this.value=='อื่นๆ'?'block':'none')">
+          <option value="ประชุม">เข้าประชุม</option><option value="อบรม">อบรม</option>
+          <option value="สัมมนา">สัมมนา</option><option value="อื่นๆ">อื่น ๆ</option>
+        </select></div>
+      <div id="po" style="display:none; flex:1;"><label>ระบุ (อื่น ๆ)</label><input name="purpose_other" placeholder="ระบุประเภท"></div>
+    </div>
+    <div class="row" style="align-items:flex-end; margin-top:10px;">
       <div style="flex:1.6;"><label>เรื่อง/ภารกิจ *</label><input name="subject" required placeholder="เช่น อบรมหลักสูตรการสอนเชิงรุก"></div>
       <div style="flex:1;"><label>สถานที่/จังหวัด</label><input name="place" placeholder="เช่น สพป. / โรงแรม..."></div>
     </div>
     <div class="row" style="align-items:flex-end; margin-top:10px;">
-      <div><label>ตั้งแต่วันที่ *</label><input name="start_date" required placeholder="วว/ดด/ปปปป (พ.ศ.)"></div>
-      <div><label>ถึงวันที่</label><input name="end_date" placeholder="เว้นว่าง = วันเดียว"></div>
-      <div><label>งบประมาณโดยประมาณ (บาท)</label><input name="budget" inputmode="numeric" placeholder="0"></div>
+      <div><label>ตั้งแต่วันที่ *</label><input name="start_date" required placeholder="วว/ดด/ปปปป (พ.ศ.)" data-date="1"></div>
+      <div><label>ถึงวันที่</label><input name="end_date" placeholder="เว้นว่าง = วันเดียว" data-date="1"></div>
     </div>
-    <label style="margin-top:10px; display:block;">หมายเหตุ</label>
-    <textarea name="note" rows="2" style="width:100%;" placeholder="รายละเอียดเพิ่มเติม"></textarea>
-    <label style="margin-top:10px; display:block;">แนบไฟล์บันทึกที่เซ็นแล้ว (ไม่บังคับ · PDF/รูป)</label>
-    <input type="file" name="attachment" accept=".pdf,image/*" style="font-size:14px;">
-    <p class="muted" style="font-size:12.5px; margin:6px 0 0;">พิมพ์บันทึกจากปุ่ม "พิมพ์บันทึก" ในตารางด้านล่าง เซ็นแล้วสแกนกลับมาแนบได้</p>
-    <br><button class="btn green" type="submit" style="margin-top:6px;"><svg class="icon"><use href="#ic-send"/></svg> ส่งคำขอไปราชการ</button>
+    <div class="row" style="align-items:flex-end; margin-top:10px;">
+      <div><label>ตามหนังสือที่</label><input name="doc_ref" placeholder="เช่น ศธ 04xxx/123"></div>
+      <div><label>ลงวันที่ (ของหนังสือ)</label><input name="doc_date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+    </div>
+
+    <label style="margin-top:12px; display:block;"><b>ค่าใช้จ่าย</b></label>
+    <div style="display:flex; gap:16px; flex-wrap:wrap; margin:4px 0;">
+      <label style="font-weight:500; margin:0;"><input type="radio" name="reimburse" value="no" checked style="width:auto;" onclick="document.getElementById('cost').style.display='none'"> ไม่ขอเบิกค่าใช้จ่าย</label>
+      <label style="font-weight:500; margin:0;"><input type="radio" name="reimburse" value="yes" style="width:auto;" onclick="document.getElementById('cost').style.display='block'"> ขอเบิกค่าใช้จ่าย</label>
+    </div>
+    <div id="cost" style="display:none; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; background:#fafafa;">
+      <div style="display:flex; gap:14px 22px; flex-wrap:wrap;">
+        {% for c in ['ค่าพาหนะเดินทาง','ค่าน้ำมัน','ค่าเบี้ยเลี้ยง','ค่าที่พัก','รถยนต์ส่วนตัว'] %}
+        <label style="font-weight:500; margin:0; white-space:nowrap;"><input type="checkbox" name="cost_types" value="{{ c }}" style="width:auto;"> {{ c }}</label>
+        {% endfor %}
+      </div>
+      <div class="row" style="align-items:flex-end; margin-top:8px;">
+        <div><label>ทะเบียนรถ (ถ้าใช้รถส่วนตัว)</label><input name="car_plate" placeholder="เลขทะเบียน"></div>
+        <div style="flex:1;"><label>อื่น ๆ (ระบุ)</label><input name="cost_other" placeholder="ค่าใช้จ่ายอื่น"></div>
+      </div>
+      <div class="row" style="align-items:flex-end; margin-top:8px;">
+        <div><label>งบประมาณ (บาท)</label><input name="budget" inputmode="numeric" placeholder="เช่น 2000"></div>
+        <div style="flex:1;"><label>ตัวอักษร</label><input name="budget_words" placeholder="เช่น สองพันบาทถ้วน"></div>
+      </div>
+    </div>
+
+    <label style="margin-top:12px; display:block;">มอบหมายครูสอนแทน</label>
+    <select name="substitute_person_id">
+      <option value="">— เลือกครูสอนแทน —</option>
+      {% for t in teachers %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+    </select>
+    <p class="muted" style="font-size:12.5px; margin:6px 0 0;">หรือให้ฝ่ายวิชาการจัดคาบสอนแทนภายหลัง (เมนู "จัดคาบสอนแทน")</p>
+
+    <label style="margin-top:12px; display:block;">แนบเอกสารประกอบ (หนังสือเชิญ/คำสั่ง · PDF/รูป) — จะแนบไปในอีเมลด้วย</label>
+    <input type="file" name="doc_attachment" accept=".pdf,image/*" style="font-size:14px;">
+    <br><button class="btn green" type="submit" style="margin-top:12px;"><svg class="icon"><use href="#ic-send"/></svg> ส่งคำขอไปราชการ</button>
   </form>
+  <script>
+    document.querySelectorAll('#travelForm input[data-date], form input[data-date]').forEach(function(el){
+      el.addEventListener('input', function(){
+        var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+        if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+        if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+        if(this.value!==o)this.value=o;
+      });
+    });
+  </script>
 </div>
 {% else %}
 <div class="card"><p class="muted" style="margin:0;">บัญชีนี้ไม่ได้ผูกกับบุคลากร จึงส่งคำขอไม่ได้</p></div>
@@ -66,6 +113,7 @@
         <td data-label="เอกสาร" style="white-space:nowrap;">
           <a class="btn sm soft" href="/me/travel/{{ tr.id }}/form.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์บันทึก</a>
           {% if tr.attachment_name %}<a class="btn sm gray" href="/me/travel/{{ tr.id }}/file" target="_blank" rel="noopener">📎 ไฟล์แนบ</a>{% endif %}
+          <form method="post" action="/me/travel/{{ tr.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบคำขอไปราชการนี้?');"><button class="btn sm gray" type="submit" style="color:#dc2626;"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
         </td>
       </tr>
     {% endfor %}

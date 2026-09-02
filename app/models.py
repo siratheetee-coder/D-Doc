@@ -1571,8 +1571,21 @@ class TravelRequest(Base):
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
     days = Column(Float, default=0)
-    budget = Column(Float, default=0)              # ค่าใช้จ่ายโดยประมาณ
+    budget = Column(Float, default=0)              # ค่าใช้จ่ายโดยประมาณ (ตัวเลข)
+    budget_words = Column(String, default="")      # งบประมาณเป็นตัวอักษร (เช่น สองพันบาทถ้วน)
     note = Column(Text, default="")
+    # ---- รายละเอียดแบบไปราชการ (กรอกในระบบ -> ลงในบันทึกข้อความ) ----
+    purpose_type = Column(String, default="")      # เพื่อ: ประชุม/อบรม/สัมมนา/อื่นๆ
+    purpose_other = Column(String, default="")     # ระบุ (เมื่อเลือกอื่นๆ)
+    doc_ref = Column(String, default="")           # ตามหนังสือที่
+    doc_date = Column(Date, nullable=True)         # ลงวันที่ (ของหนังสือ)
+    reimburse = Column(String, default="")         # no=ไม่ขอเบิก / yes=ขอเบิก
+    cost_types = Column(String, default="")        # CSV: พาหนะ,น้ำมัน,เบี้ยเลี้ยง,ที่พัก,รถส่วนตัว,อื่นๆ
+    car_plate = Column(String, default="")         # ทะเบียนรถ (เมื่อเลือกรถส่วนตัว)
+    cost_other = Column(String, default="")        # อื่นๆ ระบุ
+    substitute_person_id = Column(Integer, ForeignKey("person.id"), nullable=True)  # ครูที่มอบหมายสอนแทน
+    doc_attachment = Column(LargeBinary, nullable=True)   # เอกสารประกอบ (หนังสือเชิญ/คำสั่ง)
+    doc_attachment_name = Column(String, default="")
     # สเตจ: pending(รอบุคคล) / personnel(บุคคลผ่าน รอ ผอ.) / approved / rejected
     status = Column(String, default="pending")
     comment = Column(Text, default="")             # ความเห็น ผอ.
@@ -1586,7 +1599,7 @@ class TravelRequest(Base):
     submitted_at = Column(DateTime, default=datetime.now)
     decided_at = Column(DateTime, nullable=True)
 
-    person = relationship("Person")
+    person = relationship("Person", foreign_keys=[person_id])
 
 
 class ClassroomVisit(Base):

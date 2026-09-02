@@ -843,9 +843,11 @@ def my_travel_page(request: Request, db: Session = Depends(get_db), msg: str = "
     pid = request.session.get("person_id")
     trips = (db.query(TravelRequest).filter(TravelRequest.person_id == (pid or 0))
              .order_by(TravelRequest.submitted_at.desc()).all())
+    teachers = (db.query(Person).filter(Person.active == True, Person.id != (pid or 0))  # noqa: E712
+                .order_by(Person.name).all())
     return templates.TemplateResponse("academic_my_travel.html", {
         "request": request, "school": get_school(db), "trips": trips,
-        "my_pid": pid, "msg": msg, "err": err,
+        "teachers": teachers, "my_pid": pid, "msg": msg, "err": err,
     })
 
 
@@ -853,8 +855,13 @@ def my_travel_page(request: Request, db: Session = Depends(get_db), msg: str = "
 async def my_travel_submit(request: Request, db: Session = Depends(get_db),
                            subject: str = Form(""), place: str = Form(""),
                            start_date: str = Form(""), end_date: str = Form(""),
-                           budget: str = Form(""), note: str = Form(""),
-                           attachment: UploadFile = File(None)):
+                           purpose_type: str = Form(""), purpose_other: str = Form(""),
+                           doc_ref: str = Form(""), doc_date: str = Form(""),
+                           reimburse: str = Form("no"), cost_types: list[str] = Form(default=[]),
+                           car_plate: str = Form(""), cost_other: str = Form(""),
+                           budget: str = Form(""), budget_words: str = Form(""),
+                           substitute_person_id: str = Form(""),
+                           doc_attachment: UploadFile = File(None)):
     from app.models import TravelRequest
     pid = request.session.get("person_id")
     if not pid:
@@ -864,25 +871,63 @@ async def my_travel_submit(request: Request, db: Session = Depends(get_db),
         return RedirectResponse("/me/travel?err=กรอกเรื่องและวันที่เริ่มให้ครบ", status_code=303)
     ed = ed or sd
     days = (ed - sd).days + 1 if ed >= sd else 1
-    fdata, fname = await _read_upload(attachment)
-    tr = TravelRequest(person_id=pid, subject=subject.strip(), place=(place or "").strip(),
-                       start_date=sd, end_date=ed, days=days,
-                       budget=_to_float(budget, 0.0), note=(note or "").strip(),
-                       attachment=fdata, attachment_name=fname)
+    fdata, fname = await _read_upload(doc_attachment)
+    tr = TravelRequest(
+        person_id=pid, subject=subject.strip(), place=(place or "").strip(),
+        start_date=sd, end_date=ed, days=days,
+        purpose_type=(purpose_type or "").strip(), purpose_other=(purpose_other or "").strip(),
+        doc_ref=(doc_ref or "").strip(), doc_date=parse_be_date(doc_date),
+        reimburse=(reimburse or "no"), cost_types=",".join(cost_types),
+        car_plate=(car_plate or "").strip(), cost_other=(cost_other or "").strip(),
+        budget=_to_float(budget, 0.0), budget_words=(budget_words or "").strip(),
+        substitute_person_id=_to_int(substitute_person_id, 0) or None,
+        doc_attachment=fdata, doc_attachment_name=fname)
     db.add(tr); db.commit()
     person = db.get(Person, pid)
     s = get_school(db)
-    _atts = [(fname, fdata)] if fdata else None    # แนบบันทึกขออนุญาตที่เซ็นแล้ว (ถ้าครูแนบมา)
+    _atts = [(fname, fdata)] if fdata else None    # แนบเอกสารประกอบ (หนังสือเชิญ/คำสั่ง) ไปในอีเมล
+    sub = db.get(Person, tr.substitute_person_id) if tr.substitute_person_id else None
     _send_notice(s.hr_head_email,
                  f"[ขอไปราชการ] {person.name if person else ''}: {tr.subject}",
                  f"<p><b>{person.name if person else ''}</b> ขอไปราชการ/อบรมในระบบ</p>"
-                 f"<p>เรื่อง: {tr.subject}<br>สถานที่: {tr.place or '-'}<br>"
+                 f"<p>เพื่อ: {tr.purpose_type or '-'}<br>เรื่อง: {tr.subject}<br>สถานที่: {tr.place or '-'}<br>"
                  f"ระหว่าง {be_date_input(sd)} ถึง {be_date_input(ed)} รวม {days} วัน</p>"
-                 f"<p>งบประมาณโดยประมาณ: {tr.budget:,.0f} บาท</p><p>หมายเหตุ: {tr.note or '-'}</p>"
-                 + ("<p>📎 แนบไฟล์บันทึกที่เซ็นแล้วมาด้วย</p>" if fdata else "")
+                 f"<p>งบประมาณ: {tr.budget:,.0f} บาท {('('+tr.budget_words+')') if tr.budget_words else ''}</p>"
+                 f"<p>ครูสอนแทน: {sub.name if sub else '-'}</p>"
+                 + ("<p>📎 แนบเอกสารประกอบมาด้วย</p>" if fdata else "")
                  + _review_button("/hr/travel-requests"),
                  attachments=_atts)
     return RedirectResponse("/me/travel?msg=ส่งคำขอไปราชการแล้ว แจ้งหัวหน้าฝ่ายบุคคลทางอีเมลเรียบร้อย", status_code=303)
+
+
+@router.post("/me/leave/{lid}/delete")
+def my_leave_delete(lid: int, request: Request, db: Session = Depends(get_db)):
+    """ครูลบคำขอลาของตัวเอง (ลบ record ในทะเบียนวันลาที่ผูกไว้ด้วย)"""
+    from app.models import LeaveRequest, LeaveRecord
+    lv = db.get(LeaveRequest, lid)
+    if lv and lv.person_id == request.session.get("person_id"):
+        if lv.record_id:
+            rec = db.get(LeaveRecord, lv.record_id)
+            if rec:
+                db.delete(rec)
+        db.delete(lv); db.commit()
+        return RedirectResponse("/me/leave?msg=ลบคำขอลาแล้ว", status_code=303)
+    return RedirectResponse("/me/leave?err=ลบไม่ได้ (ไม่ใช่คำขอของคุณ)", status_code=303)
+
+
+@router.post("/me/travel/{tid}/delete")
+def my_travel_delete(tid: int, request: Request, db: Session = Depends(get_db)):
+    """ครูลบคำขอไปราชการของตัวเอง"""
+    from app.models import TravelRequest, TravelRecord
+    tr = db.get(TravelRequest, tid)
+    if tr and tr.person_id == request.session.get("person_id"):
+        if tr.record_id:
+            rec = db.get(TravelRecord, tr.record_id)
+            if rec:
+                db.delete(rec)
+        db.delete(tr); db.commit()
+        return RedirectResponse("/me/travel?msg=ลบคำขอไปราชการแล้ว", status_code=303)
+    return RedirectResponse("/me/travel?err=ลบไม่ได้ (ไม่ใช่คำขอของคุณ)", status_code=303)
 
 
 def _self_or_hr(request, owner_pid) -> bool:

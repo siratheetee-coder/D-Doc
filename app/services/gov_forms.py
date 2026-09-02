@@ -551,7 +551,15 @@ def render_travel_official(school, person, record, db=None, approver=None, appro
     sd = _full_date(record.start_date)
     ed = _full_date(record.end_date)
     daterange = sd if (not record.end_date or record.start_date == record.end_date) else f"{sd} ถึง {ed}"
-    substitute = (getattr(record, "substitute", "") or getattr(record, "note", "") or "").strip()
+    doc_ref = (getattr(record, "doc_ref", "") or "").strip()
+    doc_date = _full_date(getattr(record, "doc_date", None))
+    # ครูสอนแทน จากฟิลด์ substitute_person_id (ไม่ใช่หมายเหตุ)
+    substitute = ""
+    sub_id = getattr(record, "substitute_person_id", None)
+    if sub_id and db is not None:
+        from app.models import Person as _Pn
+        sp = db.get(_Pn, sub_id)
+        substitute = sp.name if sp else ""
 
     sr(1, 2, "  " + sch + ("   " + area if area else ""))       # ส่วนราชการ
     if wd:
@@ -560,12 +568,68 @@ def render_travel_official(school, person, record, db=None, approver=None, appro
     sr(8, 4, " " + name)                                        # ข้าพเจ้า
     sr(8, 8, "  " + position + "  วิทยฐานะ  ")                  # ตำแหน่ง + label วิทยฐานะ
     sr(8, 9, " " + rank + " ")                                  # วิทยฐานะ (ค่า)
+
+    # ---- เพื่อ (ติ๊ก ☑ ประเภทที่เลือก) ----
+    ptype = (getattr(record, "purpose_type", "") or "").strip()
+    plabel = {"ประชุม": "เข้าประชุม", "อบรม": "อบรม", "สัมมนา": "สัมมนา", "อื่นๆ": "อื่น ๆ"}.get(ptype)
+    if plabel:
+        try:
+            r12 = P[8].runs[12]
+            r12.text = r12.text.replace("☐ " + plabel, "☑ " + plabel)
+            po = (getattr(record, "purpose_other", "") or "").strip()
+            if ptype == "อื่นๆ" and po:
+                r12.text = r12.text.replace("(ระบุ) ....................", "(ระบุ) " + po)
+        except Exception:
+            pass
+
     sr(9, 1, " " + subject)                                     # เรื่อง (รายละเอียด)
     sr(9, 5, " " + daterange + " ")                             # ในวันที่
     sr(9, 10, " " + days)                                       # รวม..วัน
-    sr(9, 14, " " + place)                                      # ณ สถานที่
+    sr(9, 14, " " + place + "  ")                               # ณ สถานที่ (+เว้นวรรคก่อน 'ตามหนังสือที่')
+    if doc_ref:
+        sr(9, 19, " " + doc_ref)                                # ตามหนังสือที่
+    if doc_date:
+        sr(9, 23, " " + doc_date)                               # ลงวันที่
+
+    # ---- ค่าใช้จ่าย (ติ๊ก) ----
+    reimburse = (getattr(record, "reimburse", "") or "").strip()
+    costs = [c for c in (getattr(record, "cost_types", "") or "").split(",") if c]
+    if reimburse == "yes":
+        sr(11, 3, " ✓ ")                                       # [✓] ขอเบิก
+        if "ค่าพาหนะเดินทาง" in costs: sr(13, 5, " ✓ ")
+        if "ค่าน้ำมัน" in costs: sr(13, 12, "✓")
+        if "ค่าเบี้ยเลี้ยง" in costs: sr(14, 5, "✓")
+        if "ค่าที่พัก" in costs:
+            try: P[14].runs[12].text = "[✓]  "
+            except Exception: pass
+        if "รถยนต์ส่วนตัว" in costs:
+            sr(15, 5, " ✓ ")
+            cp = (getattr(record, "car_plate", "") or "").strip()
+            if cp: sr(15, 8, "หมายเลขทะเบียน " + cp)
+        co = (getattr(record, "cost_other", "") or "").strip()
+        if co:
+            sr(16, 5, "✓"); sr(16, 8, " " + co)
+    else:
+        sr(10, 1, "  [ ✓ ]  ")                                 # [✓] ไม่ขอเบิก
+    # งบประมาณ (ต่อท้ายบรรทัด 'ในการเดินทางไปราชการ' P12)
+    bud = getattr(record, "budget", 0) or 0
+    if reimburse == "yes" and bud:
+        bw = (getattr(record, "budget_words", "") or "").strip()
+        try:
+            _ins_after(P[12].runs[-1], f"  งบประมาณ {bud:,.0f} บาท" + (f" ({bw})" if bw else ""))
+        except Exception:
+            pass
+
     if substitute:
         sr(17, 4, " " + substitute)                            # ครูสอนแทน
+    # รวมบรรทัด 'ช่วยปฏิบัติหน้าที่...' (P18) เข้ากับ P17 (กันขึ้นบรรทัดใหม่)
+    try:
+        t18 = P[18].text
+        if t18.strip():
+            _ins_after(P[17].runs[-1], " " + t18.strip())
+            P[18]._element.getparent().remove(P[18]._element)
+    except Exception:
+        pass
     sr(22, 9, name)                                             # (ชื่อผู้ขอ)
 
     if approver is not None:
