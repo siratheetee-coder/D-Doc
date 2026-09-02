@@ -37,6 +37,15 @@ def _period(rnd):
     return f"ประจำวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}"
 
 
+def _round_period(rnd):
+    """สังเคราะห์ 'ช่วงจ่าย' = ทั้งรอบ (โหมดแม่ครัวไม่แบ่งงวด: จ่ายค่าจ้างครั้งเดียวต่อรอบ)
+    ใช้แทน installment ป้อนให้ render_p_installment/render_p_disburse (seq=None -> ไม่ขึ้นคำว่า 'งวดที่')"""
+    from types import SimpleNamespace
+    return SimpleNamespace(round=rnd, amount=(rnd.amount or 0), seq=None,
+                           start_date=rnd.start_date, end_date=rnd.end_date,
+                           inspect_date=rnd.end_date, deliver_date=rnd.end_date)
+
+
 def render_p_tor(rnd, school, doc=None) -> str:
     """02 ขอบเขตของงาน (TOR) การจ้างบุคคลประกอบอาหารกลางวัน
     รูปแบบเดียวกับแบบจ้างเหมา (9 หัวข้อ + ลงชื่อคณะกรรมการ) ปรับถ้อยคำเป็น "จ้างบุคคล" · เลขอารบิก"""
@@ -358,7 +367,8 @@ def render_p_installment(inst, school, menus=None, doc=None) -> str:
     vname = rnd.vendor.name if rnd.vendor else _BLANK
     order_no = _doc_no(rnd, "order", (rnd.order_no or "").strip() or _BLANK)
     amount = _money(inst.amount or 0)
-    period = f"งวดที่ {inst.seq} ระหว่างวันที่ {_dnum(inst.start_date)} ถึงวันที่ {_dnum(inst.end_date)}"
+    _seq = getattr(inst, "seq", None)
+    period = (f"งวดที่ {_seq} " if _seq else "") + f"ระหว่างวันที่ {_dnum(inst.start_date)} ถึงวันที่ {_dnum(inst.end_date)}"
 
     _p(doc, "บันทึกรายงานผู้ควบคุมและคณะกรรมการตรวจการประกอบอาหารกลางวัน (การจ้างบุคคล)",
        align="center", bold=True, size=16, after=4)
@@ -403,7 +413,8 @@ def render_p_installment(inst, school, menus=None, doc=None) -> str:
     _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
     _p(doc, f"( {director} )", align="center", after=0)
     _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
-    return _finish(doc, own, f"งวดจ้างบุคคล_งวดที่{inst.seq}_ปี{prog.year}")
+    _tag = f"งวดที่{_seq}" if _seq else f"รอบที่{rnd.seq}"
+    return _finish(doc, own, f"งวดจ้างบุคคล_{_tag}_ปี{prog.year}")
 
 
 def render_p_disburse(inst, school, wht_rate=0.01, doc=None) -> str:
@@ -425,7 +436,8 @@ def render_p_disburse(inst, school, wht_rate=0.01, doc=None) -> str:
     wht = round(amt * float(wht_rate or 0), 2)
     net = round(amt - wht, 2)
     A, W, N = _money(amt), _money(wht), _money(net)
-    period = f"งวดที่ {inst.seq} ({_dnum(inst.start_date)}-{_dnum(inst.end_date)})"
+    _seq = getattr(inst, "seq", None)
+    period = (f"งวดที่ {_seq} " if _seq else "") + f"({_dnum(inst.start_date)}-{_dnum(inst.end_date)})"
 
     _memo_head(doc, school, [f"ขออนุมัติเบิกจ่ายเงินอุดหนุนอาหารกลางวันรับจาก{fund}"],
                *_memo_ref(rnd, "p-disburse"))
@@ -478,7 +490,8 @@ def render_p_disburse(inst, school, wht_rate=0.01, doc=None) -> str:
     _p(doc, "(ลงชื่อ)...........................................ผู้จ่ายเงิน", align="center", after=0)
     _p(doc, f"( {director} )", align="center", after=0)
     _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
-    return _finish(doc, own, f"ขอเบิกจ่าย_จ้างบุคคล_งวดที่{inst.seq}_ปี{prog.year}")
+    _tag = f"งวดที่{_seq}" if _seq else f"รอบที่{rnd.seq}"
+    return _finish(doc, own, f"ขอเบิกจ่าย_จ้างบุคคล_{_tag}_ปี{prog.year}")
 
 
 def render_person_bundle(rnd, school) -> str:
@@ -511,8 +524,10 @@ def render_person_bundle(rnd, school) -> str:
     render_p_result(rnd, school, doc)        # 4 รายงานผลการพิจารณา
     render_p_winner(rnd, school, doc)        # 5 ประกาศผู้ชนะการเสนอราคา
     render_p_order(rnd, school, doc)         # 6 บันทึกตกลงจ้าง (+ ใบสั่งจ้าง)
-    # 7-9 ใบสั่งจ้าง/ใบส่งมอบงาน/ใบตรวจรับงานจ้าง + ขอเบิกจ่าย (รายงวด)
-    for inst in sorted(rnd.installments, key=lambda i: i.start_date or _dt.min):
+    # 7-9 ใบสั่งจ้าง/ใบส่งมอบงาน/ใบตรวจรับงานจ้าง + ขอเบิกจ่าย
+    # ถ้ามีงวด (ข้อมูลเก่า) -> รายงวด · ไม่มีงวด -> คิดที่ระดับรอบ (จ่ายครั้งเดียวต่อรอบ)
+    periods = sorted(rnd.installments, key=lambda i: i.start_date or _dt.min) or [_round_period(rnd)]
+    for inst in periods:
         menus = sorted([m for m in prog.menus
                         if m.date and inst.start_date and inst.end_date
                         and inst.start_date <= m.date <= inst.end_date],

@@ -1461,12 +1461,25 @@ _PERSON_DOCS = {
 
 @router.get("/lunch/round/{rid}/person-doc/{kind}")
 def contract_person_doc(rid: int, kind: str, db: Session = Depends(get_db)):
-    from pathlib import Path
-    from fastapi.responses import FileResponse
     import app.services.lunch_person_doc as pd
-    render_name = _PERSON_DOCS.get(kind)
     rnd = db.get(LunchHireRound, rid)
-    if not render_name or not rnd:
+    if not rnd:
+        return RedirectResponse(f"/lunch/round/{rid}/plan", status_code=303)
+    _mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    # เอกสารค่าจ้างระดับรอบ (แม่ครัวไม่แบ่งงวด: ส่งมอบ/ตรวจรับ/เบิกจ่าย = ทั้งรอบ 1 ครั้ง)
+    if kind in ("deliver", "disburse"):
+        prog = rnd.program
+        menus = sorted([m for m in prog.menus
+                        if m.date and rnd.start_date and rnd.end_date
+                        and rnd.start_date <= m.date <= rnd.end_date], key=lambda m: m.date)
+        period = pd._round_period(rnd)
+        if kind == "deliver":
+            path = pd.render_p_installment(period, get_school(db), menus)
+        else:
+            path = pd.render_p_disburse(period, get_school(db))
+        return serve_generated(path, _mime)
+    render_name = _PERSON_DOCS.get(kind)
+    if not render_name:
         return RedirectResponse(f"/lunch/round/{rid}/plan", status_code=303)
     path = getattr(pd, render_name)(rnd, get_school(db))
-    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    return serve_generated(path, _mime)

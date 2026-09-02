@@ -94,7 +94,7 @@
   {% endfor %}
 </div>
 
-{% if p.operate_mode != 'ingredient' %}
+{% if p.operate_mode not in ['ingredient','person'] %}
 <div class="card">
   <h2>เพิ่มงวดงาน</h2>
   <form method="post" action="/lunch/round/{{ r.id }}/installment/add" class="row" style="align-items:flex-end;">
@@ -426,6 +426,8 @@
       <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/result"><svg class="icon"><use href="#ic-file"/></svg> 4. รายงานผลการพิจารณา</a>
       <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/winner"><svg class="icon"><use href="#ic-file"/></svg> 5. ประกาศผู้ชนะ</a>
       <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/order"><svg class="icon"><use href="#ic-file"/></svg> 6. บันทึกตกลงจ้าง</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/deliver"><svg class="icon"><use href="#ic-file"/></svg> 7. ควบคุม/ส่งมอบ/ตรวจรับงานจ้าง</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/disburse"><svg class="icon"><use href="#ic-file"/></svg> 8. ขอเบิกจ่ายค่าจ้าง + ใบสำคัญรับเงิน</a>
       <a class="btn sm gray" href="/lunch/round/{{ r.id }}/committee-doc"><svg class="icon"><use href="#ic-file"/></svg> คำสั่งแต่งตั้งกรรมการ</a>
       <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/wht-cook"><svg class="icon"><use href="#ic-file"/></svg> หนังสือรับรองหักภาษี ณ ที่จ่าย</a>
     </div>
