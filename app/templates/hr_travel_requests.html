@@ -32,11 +32,9 @@
           {% if r.comment %}<div class="muted" style="font-size:12px;">{{ r.comment }}</div>{% endif %}</td>
         <td data-label="พิจารณา" class="stack-full">
           <div style="display:flex; gap:6px; margin-bottom:6px;">
-            {% if r.attachment_name %}
-            <a class="btn sm" href="/me/travel/{{ r.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> ดูบันทึกที่แนบ</a>
-            {% else %}
             <a class="btn sm soft" href="/me/travel/{{ r.id }}/form.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์บันทึก</a>
-            {% endif %}
+            {% if r.attachment_name %}<a class="btn sm" href="/me/travel/{{ r.id }}/file" target="_blank" rel="noopener">📎 ใบไปราชการ</a>{% endif %}
+            {% if r.doc_attachment_name %}<a class="btn sm" href="/me/travel/{{ r.id }}/doc" target="_blank" rel="noopener">📎 เอกสารประกอบ</a>{% endif %}
           </div>
           {% if r.status == 'pending' %}
           <form method="post" action="/hr/travel-requests/{{ r.id }}/decide" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:0;">

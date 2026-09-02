@@ -73,8 +73,13 @@
     </select>
     <p class="muted" style="font-size:12.5px; margin:6px 0 0;">หรือให้ฝ่ายวิชาการจัดคาบสอนแทนภายหลัง (เมนู "จัดคาบสอนแทน")</p>
 
-    <label style="margin-top:12px; display:block;">แนบเอกสารประกอบ (หนังสือเชิญ/คำสั่ง · PDF/รูป) — จะแนบไปในอีเมลด้วย</label>
+    <label style="margin-top:12px; display:block;">แนบใบไปราชการที่กรอกแล้ว (ถ้ามี · PDF/รูป)</label>
+    <input type="file" name="travel_form" accept=".pdf,image/*" style="font-size:14px;">
+    <p class="muted" style="font-size:12.5px; margin:6px 0 0;">ถ้าครูมีใบไปราชการอยู่แล้ว แนบส่งให้ ผอ. ได้เลย</p>
+
+    <label style="margin-top:12px; display:block;">แนบเอกสารประกอบ (หนังสือเชิญ/คำสั่ง · PDF/รูป)</label>
     <input type="file" name="doc_attachment" accept=".pdf,image/*" style="font-size:14px;">
+    <p class="muted" style="font-size:12.5px; margin:6px 0 0;">ไฟล์ที่แนบทั้งหมดจะถูกส่งไปในอีเมลด้วย</p>
     <br><button class="btn green" type="submit" style="margin-top:12px;"><svg class="icon"><use href="#ic-send"/></svg> ส่งคำขอไปราชการ</button>
   </form>
   <script>
@@ -112,7 +117,8 @@
         <td data-label="ความเห็น">{{ tr.comment or '-' }}</td>
         <td data-label="เอกสาร" style="white-space:nowrap;">
           <a class="btn sm soft" href="/me/travel/{{ tr.id }}/form.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์บันทึก</a>
-          {% if tr.attachment_name %}<a class="btn sm gray" href="/me/travel/{{ tr.id }}/file" target="_blank" rel="noopener">📎 ไฟล์แนบ</a>{% endif %}
+          {% if tr.attachment_name %}<a class="btn sm gray" href="/me/travel/{{ tr.id }}/file" target="_blank" rel="noopener">📎 ใบไปราชการ</a>{% endif %}
+          {% if tr.doc_attachment_name %}<a class="btn sm gray" href="/me/travel/{{ tr.id }}/doc" target="_blank" rel="noopener">📎 เอกสารประกอบ</a>{% endif %}
           <form method="post" action="/me/travel/{{ tr.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบคำขอไปราชการนี้?');"><button class="btn sm gray" type="submit" style="color:#dc2626;"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
         </td>
       </tr>

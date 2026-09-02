@@ -861,6 +861,7 @@ async def my_travel_submit(request: Request, db: Session = Depends(get_db),
                            car_plate: str = Form(""), cost_other: str = Form(""),
                            budget: str = Form(""), budget_words: str = Form(""),
                            substitute_person_id: str = Form(""),
+                           travel_form: UploadFile = File(None),
                            doc_attachment: UploadFile = File(None)):
     from app.models import TravelRequest
     pid = request.session.get("person_id")
@@ -871,7 +872,8 @@ async def my_travel_submit(request: Request, db: Session = Depends(get_db),
         return RedirectResponse("/me/travel?err=กรอกเรื่องและวันที่เริ่มให้ครบ", status_code=303)
     ed = ed or sd
     days = (ed - sd).days + 1 if ed >= sd else 1
-    fdata, fname = await _read_upload(doc_attachment)
+    tf_data, tf_name = await _read_upload(travel_form)    # ใบไปราชการที่กรอกแล้ว
+    fdata, fname = await _read_upload(doc_attachment)      # เอกสารประกอบ (หนังสือเชิญ/คำสั่ง)
     tr = TravelRequest(
         person_id=pid, subject=subject.strip(), place=(place or "").strip(),
         start_date=sd, end_date=ed, days=days,
@@ -881,11 +883,12 @@ async def my_travel_submit(request: Request, db: Session = Depends(get_db),
         car_plate=(car_plate or "").strip(), cost_other=(cost_other or "").strip(),
         budget=_to_float(budget, 0.0), budget_words=(budget_words or "").strip(),
         substitute_person_id=_to_int(substitute_person_id, 0) or None,
+        attachment=tf_data, attachment_name=tf_name,
         doc_attachment=fdata, doc_attachment_name=fname)
     db.add(tr); db.commit()
     person = db.get(Person, pid)
     s = get_school(db)
-    _atts = [(fname, fdata)] if fdata else None    # แนบเอกสารประกอบ (หนังสือเชิญ/คำสั่ง) ไปในอีเมล
+    _atts = [a for a in [(tf_name, tf_data), (fname, fdata)] if a[1]] or None
     sub = db.get(Person, tr.substitute_person_id) if tr.substitute_person_id else None
     _send_notice(s.hr_head_email,
                  f"[ขอไปราชการ] {person.name if person else ''}: {tr.subject}",
@@ -894,6 +897,7 @@ async def my_travel_submit(request: Request, db: Session = Depends(get_db),
                  f"ระหว่าง {be_date_input(sd)} ถึง {be_date_input(ed)} รวม {days} วัน</p>"
                  f"<p>งบประมาณ: {tr.budget:,.0f} บาท {('('+tr.budget_words+')') if tr.budget_words else ''}</p>"
                  f"<p>ครูสอนแทน: {sub.name if sub else '-'}</p>"
+                 + ("<p>📎 แนบใบไปราชการมาด้วย</p>" if tf_data else "")
                  + ("<p>📎 แนบเอกสารประกอบมาด้วย</p>" if fdata else "")
                  + _review_button("/hr/travel-requests"),
                  attachments=_atts)
@@ -1023,6 +1027,15 @@ def my_travel_file(tid: int, request: Request, db: Session = Depends(get_db)):
     if not tr or not tr.attachment or not _self_or_hr(request, tr.person_id):
         return RedirectResponse("/me/travel", status_code=303)
     return _serve_attachment(tr.attachment, tr.attachment_name)
+
+
+@router.get("/me/travel/{tid}/doc")
+def my_travel_doc(tid: int, request: Request, db: Session = Depends(get_db)):
+    from app.models import TravelRequest
+    tr = db.get(TravelRequest, tid)
+    if not tr or not tr.doc_attachment or not _self_or_hr(request, tr.person_id):
+        return RedirectResponse("/me/travel", status_code=303)
+    return _serve_attachment(tr.doc_attachment, tr.doc_attachment_name)
 
 
 # ---------------- ห้องเรียน ----------------
