@@ -46,7 +46,7 @@ def _box_cell(cell, lines, *, size=14, before=0, after=1, line=None):
         _csize(r, size)
         _bcs(r, bold)
         r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
-from app.services.lunch_doc import (_money, _dnum, _save, _simple_table, _BLANK,
+from app.services.lunch_doc import (_money, _dnum, _save, _simple_table, _daygroup_table, _BLANK,
                                     _memo_head, _committee_lines, _school_disp)
 
 _THAI_MONTHS = ["", "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
@@ -421,29 +421,23 @@ def render_material_report_form(rnd, school, doc=None) -> str:
     _p(doc, "(ตามโปรแกรม Thai School Lunch หรือปรับใช้ตามหลักโภชนาการ)", align="center", after=0)
     _p(doc, f"{sname}", align="center", after=0)
     _p(doc, f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}", align="center", after=6)
-    # ดึงวัตถุดิบรายวันมาเติมให้ (แสดงวัน/เมนู เฉพาะแถวแรกของแต่ละวัน) - ถ้ายังไม่กรอกให้เป็นฟอร์มเปล่า
-    ings = _round_ingredients(rnd)
+    # ดึงวัตถุดิบรายวันมาเติมให้ (merge วัน/เมนู ต่อวัน ให้ดูสวย) - ถ้ายังไม่กรอกให้เป็นฟอร์มเปล่า
     menus_by_date = {m.date.date(): (m.main or "") for m in prog.menus if m.date}
-    body, prev_d, total = [], None, 0.0
-    for ig in ings:
-        d = ig.date.date() if ig.date else None
-        amt = (ig.quantity or 0) * (ig.unit_price or 0)
-        total += amt
-        body.append([_dnum(ig.date) if (ig.date and d != prev_d) else "",
-                     menus_by_date.get(d, "") if d != prev_d else "",
-                     ig.name or "", _money(ig.quantity), ig.unit or "",
-                     _money(ig.unit_price), _money(amt)])
-        prev_d = d
-    if body:
-        body.append(["", "", "รวมเป็นเงินทั้งสิ้น", "", "", "", _money(total)])
-    else:
-        body = [["", "", "", "", "", "", ""] for _ in range(6)]
-    _simple_table(doc,
-                  ["วันที่", "เมนูอาหาร", "ส่วนประกอบ", "จำนวน", "หน่วย", "ราคา/หน่วย", "จำนวนเงิน"],
-                  body,
-                  [Cm(3.5), Cm(3.2), Cm(2.6), Cm(1.2), Cm(1.3), Cm(1.8), Cm(2.1)])   # วันที่กว้างพอ 1 บรรทัด
-    if body and total:
+    groups, total = [], 0.0
+    for d, rows in _ings_by_day(rnd):
+        items = []
+        for ig in rows:
+            amt = (ig.quantity or 0) * (ig.unit_price or 0); total += amt
+            items.append([ig.name or "", _money(ig.quantity), ig.unit or "",
+                          _money(ig.unit_price), _money(amt)])
+        groups.append((_dnum(rows[0].date) if rows else "", menus_by_date.get(d, ""), items))
+    headers = ["วันที่", "เมนูอาหาร", "ส่วนประกอบ", "จำนวน", "หน่วย", "ราคา/หน่วย", "จำนวนเงิน"]
+    widths = [Cm(3.5), Cm(3.2), Cm(2.6), Cm(1.2), Cm(1.3), Cm(1.8), Cm(2.1)]
+    if groups:
+        _daygroup_table(doc, headers, widths, groups, total=total)
         _p(doc, f"รวมเป็นเงินทั้งสิ้น (ตัวอักษร) {bahttext(total)}", align="right", before=2, after=2, size=13)
+    else:
+        _daygroup_table(doc, headers, widths, [("", "", [["", "", "", "", ""]]) for _ in range(6)])
     bname, bpos = _borrower(school, rnd.program)
     _p(doc, "", after=16)   # เว้นที่ให้เซ็น
     _sign_table(doc, [
@@ -646,19 +640,20 @@ def render_purchase_attach(rnd, school, doc=None) -> str:
     _p(doc, "รายการอาหารและวัสดุเครื่องบริโภค (แนบท้ายใบจัดซื้อ)", align="center", bold=True, size=16, after=0)
     _p(doc, f"{sname}  ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)}",
        align="center", after=6)
-    body, tot = [], 0.0
+    groups, tot = [], 0.0
     for d, rows in _ings_by_day(rnd):
-        for j, ig in enumerate(rows):
+        items = []
+        for ig in rows:
             amt = (ig.quantity or 0) * (ig.unit_price or 0); tot += amt
-            body.append([_dnum(ig.date) if j == 0 else "", menus.get(d, "") if j == 0 else "",
-                         ig.name or "", f"{_money(ig.quantity)} {ig.unit or ''}".strip(),
-                         _money(ig.unit_price), _money(amt)])
-    if body:
-        body.append(["", "", "", "", "รวมเป็นเงินทั้งสิ้น", _money(tot)])
+            items.append([ig.name or "", f"{_money(ig.quantity)} {ig.unit or ''}".strip(),
+                          _money(ig.unit_price), _money(amt)])
+        groups.append((_dnum(rows[0].date) if rows else "", menus.get(d, ""), items))
+    headers = ["วัน เดือน ปี", "รายการอาหาร", "วัสดุเครื่องบริโภค", "จำนวนหน่วย", "ราคา/หน่วย", "จำนวนเงิน"]
+    widths = [Cm(2.6), Cm(3.0), Cm(3.4), Cm(2.2), Cm(2.1), Cm(2.2)]
+    if groups:
+        _daygroup_table(doc, headers, widths, groups, total=tot)
     else:
-        body = [["", "", "", "", "", ""] for _ in range(8)]
-    _simple_table(doc, ["วัน เดือน ปี", "รายการอาหาร", "วัสดุเครื่องบริโภค", "จำนวนหน่วย", "ราคา/หน่วย", "จำนวนเงิน"],
-                  body, [Cm(2.6), Cm(3.0), Cm(3.4), Cm(2.2), Cm(2.1), Cm(2.2)])
+        _daygroup_table(doc, headers, widths, [("", "", [["", "", "", ""]]) for _ in range(6)])
     _p(doc, "", after=10)
     _sign_table(doc, [
         [("(ลงชื่อ)...........................................ผู้จัดทำรายการ", "center")]])

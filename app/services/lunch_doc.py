@@ -345,6 +345,50 @@ def _simple_table(doc, headers, rows, widths):
     return t
 
 
+def _daygroup_table(doc, headers, widths, groups, total=None,
+                    total_label="รวมเป็นเงินทั้งสิ้น"):
+    """ตารางวัตถุดิบรายวัน + merge คอลัมน์ 0 (วันเดือนปี) และ 1 (รายการอาหาร) ต่อวัน ให้ดูสวย
+    groups: [(date_str, menu_str, [ [ค่าคอลัมน์ 2..n-1 ต่อแถว], ... ]), ...]
+    total != None -> เพิ่มแถวสรุป (merge คอลัมน์ 0..n-2 ป้ายชิดขวา, ยอดที่คอลัมน์สุดท้าย)"""
+    ncol = len(headers)
+    t = doc.add_table(rows=1, cols=ncol)
+    t.style = "Table Grid"
+    t.autofit = False
+    for c, h, w in zip(t.rows[0].cells, headers, widths):
+        _set_cell(c, h, bold=True, align="center", size=14)
+        c.width = w
+    spans = []
+    for date_str, menu_str, items in groups:
+        if not items:
+            items = [[""] * (ncol - 2)]
+        start = len(t.rows)
+        for k, rest in enumerate(items):
+            rc = t.add_row().cells
+            _set_cell(rc[0], date_str if k == 0 else "", size=14)
+            _set_cell(rc[1], menu_str if k == 0 else "", size=14)
+            for ci, val in enumerate(rest):
+                if 2 + ci < ncol:
+                    _set_cell(rc[2 + ci], val, size=14)
+            for c, w in zip(rc, widths):
+                c.width = w
+        spans.append((start, len(t.rows) - 1))
+    if total is not None:
+        rc = t.add_row().cells
+        m = rc[0]
+        for ci in range(1, ncol - 1):
+            m = m.merge(rc[ci])
+        _set_cell(m, total_label, align="right", size=14, bold=True)
+        _set_cell(rc[-1], _money(total), align="right", size=14, bold=True)
+    for (s, e) in spans:                       # merge แนวตั้ง วันเดือนปี + รายการอาหาร ต่อวัน
+        if e > s:
+            for col in (0, 1):
+                cell = t.rows[s].cells[col]
+                for r in range(s + 1, e + 1):
+                    cell = cell.merge(t.rows[r].cells[col])
+                cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    return t
+
+
 def render_disburse_lunch_doc(inst, school, wht_rate=0.01) -> str:
     """เอกสารขอเบิกจ่ายรายงวด: บันทึกขออนุมัติ + ใบสำคัญรับเงิน + หนังสือรับรองหักภาษี ณ ที่จ่าย"""
     doc = Document(); set_a4(doc)
