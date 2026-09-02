@@ -330,11 +330,19 @@ def render_installment_doc(inst, school, menus) -> str:
     return _save(doc, f"งวดที่{inst.seq}_ปี{rnd.program.year}")
 
 
-def _simple_table(doc, headers, rows, widths):
-    t = doc.add_table(rows=1, cols=len(headers))
+def _simple_table(doc, headers, rows, widths, title_row=None):
+    ncol = len(headers)
+    t = doc.add_table(rows=0, cols=ncol)
     t.style = "Table Grid"
     t.autofit = False
-    for c, h, w in zip(t.rows[0].cells, headers, widths):
+    if title_row:                              # แถวหัวรวม (merge ทั้งแถว จัดกึ่งกลาง) เช่น ชื่อรายการอาหาร
+        rc = t.add_row().cells
+        m = rc[0]
+        for ci in range(1, ncol):
+            m = m.merge(rc[ci])
+        _set_cell(m, title_row, bold=True, align="center", size=14)
+    hc = t.add_row().cells
+    for c, h, w in zip(hc, headers, widths):
         _set_cell(c, h, bold=True, align="center", size=14)
         c.width = w
     for row in rows:
