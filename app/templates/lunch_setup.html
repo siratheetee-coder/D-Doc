@@ -8,9 +8,17 @@
     <div class="row">
       <div><label>ปีการศึกษา (พ.ศ.)</label><input name="year" type="number" value="{{ default_year }}"></div>
       <div><label>จำนวนวันทำการ</label><input name="days" type="number" id="days" value="{{ p.days if p else 200 }}" oninput="calc()"></div>
-      <div><label>วิธีดำเนินการ</label><select name="operate_mode">
+      <div style="flex:1.5;"><label>วิธีดำเนินการ</label><select name="operate_mode">
         {% for k,v in modes.items() %}<option value="{{ k }}" {{ 'selected' if p and p.operate_mode==k }}>{{ v }}</option>{% endfor %}
       </select></div>
+    </div>
+    <div class="tipbox" style="margin:2px 0 4px; font-size:13px;">
+      <b><svg class="icon"><use href="#ic-info"/></svg> เลือกอันไหนดี?</b>
+      <ul style="margin:6px 0 0; padding-left:20px; line-height:1.7;">
+        <li><b>มีแม่ครัว/คนมาทำอาหาร</b> → เลือก <b>จ้างบุคคลประกอบอาหาร (แม่ครัว)</b> · ระบบออกให้ครบทั้งชุดซื้อวัตถุดิบ + ชุดจ้างแม่ครัว (ไม่ต้องเลือกซื้อวัตถุดิบซ้ำ)</li>
+        <li><b>ครู/เจ้าหน้าที่โรงเรียนทำเอง</b> (ไม่จ้างใคร) → เลือก <b>ซื้อวัตถุดิบมาทำเอง (ยืมเงิน)</b></li>
+        <li><b>สั่งอาหารปรุงสำเร็จมาส่ง</b> → เลือก <b>จ้างเหมาประกอบอาหาร (ปรุงสำเร็จ)</b></li>
+      </ul>
     </div>
     <div class="row">
       <div><label>อปท.ผู้จัดสรร (เทศบาล/อบต.)</label><input name="funding_org" value="{{ p.funding_org if p else '' }}"></div>
