@@ -6,8 +6,30 @@ receipt_voucher.py - ใบสำคัญรับเงิน (ฟอร์ม
 """
 from docx import Document
 from docx.shared import Cm, Pt
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 
 from app.services.doc_page import set_a4
+
+
+def _fixed_grid(tbl, widths_cm):
+    """บังคับตารางเป็น fixed layout + กำหนดความกว้างคอลัมน์เป๊ะ (กันตารางล้นขอบ/autofit เพี้ยน)"""
+    tblPr = tbl._tbl.tblPr
+    layout = tblPr.find(qn("w:tblLayout"))
+    if layout is None:
+        layout = OxmlElement("w:tblLayout"); tblPr.append(layout)
+    layout.set(qn("w:type"), "fixed")
+    tblW = tblPr.find(qn("w:tblW"))
+    if tblW is None:
+        tblW = OxmlElement("w:tblW"); tblPr.append(tblW)
+    tblW.set(qn("w:type"), "dxa"); tblW.set(qn("w:w"), str(int(sum(widths_cm) * 567)))
+    old = tbl._tbl.find(qn("w:tblGrid"))
+    if old is not None:
+        tbl._tbl.remove(old)
+    grid = OxmlElement("w:tblGrid")
+    for w in widths_cm:
+        gc = OxmlElement("w:gridCol"); gc.set(qn("w:w"), str(int(w * 567))); grid.append(gc)
+    tbl._tbl.insert(list(tbl._tbl).index(tblPr) + 1, grid)
 from app.services.build_templates import (
     _font, _p, _set_cell, _sign_table, THAI_FONT, _csize, _bcs,
 )
@@ -87,7 +109,9 @@ def render_receipt_voucher(school, *, payee="", payee_address="", items=None, to
     tbl = doc.add_table(rows=2, cols=3)
     tbl.style = "Table Grid"
     tbl.autofit = False
-    widths = [Cm(10.5), Cm(3.5), Cm(1.5)]   # รวม 15.5 = พื้นที่พิมพ์ (ขอบ 3/2.5)
+    _wcm = [10.0, 3.5, 1.5]                  # รวม 15.0 <= พื้นที่พิมพ์ 16.5 (ขอบ 3/1.5) กันล้น
+    _fixed_grid(tbl, _wcm)                   # fixed layout กันตารางล้นขอบ
+    widths = [Cm(w) for w in _wcm]
     h0 = tbl.rows[0].cells
     h1 = tbl.rows[1].cells
     cell_rai = h0[0].merge(h1[0])              # "รายการ" รวม 2 แถวแนวตั้ง
