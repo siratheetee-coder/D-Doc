@@ -341,35 +341,80 @@
   </div>
 </div>
 {% elif p.operate_mode == 'person' %}
+<style>
+  .ph-tabs{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;}
+  .ph-tab{flex:1; min-width:200px; text-align:left; cursor:pointer; border:1.5px solid var(--border);
+    border-radius:12px; padding:12px 16px; background:var(--surface); transition:.15s; font-family:inherit;}
+  .ph-tab:hover{border-color:#c7b8f5;}
+  .ph-tab.active{border-color:#7c3aed; background:linear-gradient(135deg,#f5f3ff,#eef2ff); box-shadow:0 4px 14px -6px rgba(124,58,237,.5);}
+  .ph-tab .ph-step{font-size:12px; font-weight:700; color:#7c3aed;}
+  .ph-tab .ph-name{font-size:16px; font-weight:800; color:#1b2433; margin-top:2px;}
+  .ph-tab .ph-sub{font-size:12.5px; color:var(--muted); margin-top:1px;}
+  .ph-panel{display:none;}
+  .ph-panel.active{display:block; animation:fadeIn .2s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+</style>
 <div class="card">
-  <h2>ออกเอกสารจ้างแม่ครัว (จ้างเหมาประกอบอาหาร วิธีเฉพาะเจาะจง)</h2>
-  <p class="muted" style="margin-top:0;">ชุดจ้างแม่ครัว + ยืมเงินซื้อวัตถุดิบ (โรงเรียนจัดหาวัตถุดิบเอง) · กรอกผู้รับจ้าง เลขที่/วันที่ตกลงจ้าง งวดงาน และกรรมการ (ผู้ควบคุม/ตรวจการประกอบอาหาร/ตรวจรับ) ให้ครบก่อน (ตามคู่มืออาหารกลางวัน สพฐ.)</p>
-  <a class="btn" href="/lunch/round/{{ r.id }}/person-doc/bundle" style="font-size:16px; padding:11px 20px;">
-    <svg class="icon"><use href="#ic-download"/></svg> ออกเอกสารทั้งชุด (ไฟล์เดียว)
+  <h2 style="margin-top:0;">ออกเอกสารจ้างแม่ครัว</h2>
+  <p class="muted" style="margin-top:0;">ทำ 2 ช่วงตามลำดับ · กรอกผู้รับจ้าง เลขที่/วันที่ตกลงจ้าง งวดงาน และกรรมการให้ครบก่อน (ตามคู่มืออาหารกลางวัน สพฐ.)</p>
+
+  <div class="ph-tabs">
+    <button type="button" class="ph-tab active" data-ph="1" onclick="showPhase(1)">
+      <div class="ph-step">ช่วงที่ 1</div><div class="ph-name">🛒 ซื้อวัตถุดิบ</div>
+      <div class="ph-sub">ยืมเงิน → จัดหา → ตรวจรับ → ส่งใช้เงินยืม (โรงเรียนจัดหาวัตถุดิบเอง)</div>
+    </button>
+    <button type="button" class="ph-tab" data-ph="2" onclick="showPhase(2)">
+      <div class="ph-step">ช่วงที่ 2</div><div class="ph-name">👩‍🍳 จ้างแม่ครัว</div>
+      <div class="ph-sub">รายงานขอจ้าง → TOR → ใบเสนอราคา → ตกลงจ้าง → ส่งมอบ/ตรวจรับ</div>
+    </button>
+  </div>
+
+  <a class="btn" href="/lunch/round/{{ r.id }}/person-doc/bundle" style="font-size:15px; padding:10px 18px;">
+    <svg class="icon"><use href="#ic-download"/></svg> ออกเอกสารทั้งชุด (2 ช่วง ไฟล์เดียว)
   </a>
-  <p class="muted" style="margin:14px 0 6px;">หรือออกทีละใบ (จ้างแม่ครัว):</p>
-  <div style="display:flex; gap:8px; flex-wrap:wrap;">
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/hire-report"><svg class="icon"><use href="#ic-file"/></svg> รายงานขอจ้างเหมา + แต่งตั้งกรรมการ</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/result"><svg class="icon"><use href="#ic-file"/></svg> รายงานการพิจารณาจ้าง</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/order"><svg class="icon"><use href="#ic-file"/></svg> บันทึกตกลงจ้าง</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/committee-doc"><svg class="icon"><use href="#ic-file"/></svg> คำสั่งแต่งตั้งกรรมการ</a>
+
+  <!-- ช่วงที่ 1: ซื้อวัตถุดิบ -->
+  <div class="ph-panel active" data-ph="1">
+    <p class="muted" style="margin:16px 0 6px;"><b>ช่วงที่ 1 · ซื้อวัตถุดิบ</b> — ออกทีละใบ:</p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/borrow"><svg class="icon"><use href="#ic-file"/></svg> ขออนุมัติยืมเงิน</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/loan"><svg class="icon"><use href="#ic-file"/></svg> สัญญาการยืมเงิน (แบบ 8500)</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/estimate"><svg class="icon"><use href="#ic-file"/></svg> แบบประมาณการ</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/purchase"><svg class="icon"><use href="#ic-file"/></svg> ใบจัดซื้อวัสดุ 4 ส่วน + แนบท้าย</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/ingredient-deliver"><svg class="icon"><use href="#ic-file"/></svg> ใบส่งมอบวัตถุดิบ (รายวัน)</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/material"><svg class="icon"><use href="#ic-file"/></svg> ใบรับรายงานวัตถุดิบ</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/inspect-detail"><svg class="icon"><use href="#ic-file"/></svg> ใบแสดงรายละเอียดการตรวจรับ</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/receipt"><svg class="icon"><use href="#ic-file"/></svg> ใบรับรองการจ่ายเงิน</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/reimburse-advance"><svg class="icon"><use href="#ic-file"/></svg> ใบสรุปเบิกเงินทดรองจ่าย (มีค่าเชื้อเพลิง)</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/repay"><svg class="icon"><use href="#ic-file"/></svg> ขออนุมัติส่งใช้เงินยืม</a>
+    </div>
+    <p class="muted" style="margin:12px 0 0; font-size:13px;">💡 กรอกรายการวัตถุดิบรายวัน + ค่าเชื้อเพลิงให้ครบก่อน แล้วค่อยไปช่วงที่ 2</p>
   </div>
-  <p class="muted" style="margin:12px 0 6px;">ชุดยืมเงินซื้อวัตถุดิบ (โรงเรียนจัดหาเอง):</p>
-  <div style="display:flex; gap:8px; flex-wrap:wrap;">
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/borrow"><svg class="icon"><use href="#ic-file"/></svg> ขออนุมัติยืมเงิน</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/loan"><svg class="icon"><use href="#ic-file"/></svg> สัญญาการยืมเงิน (แบบ 8500)</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/estimate"><svg class="icon"><use href="#ic-file"/></svg> แบบประมาณการ</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/material"><svg class="icon"><use href="#ic-file"/></svg> ใบรับรายงานวัตถุดิบ</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/receipt"><svg class="icon"><use href="#ic-file"/></svg> ใบรับรองการจ่ายเงิน</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/repay"><svg class="icon"><use href="#ic-file"/></svg> ขออนุมัติส่งใช้เงินยืม</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/purchase"><svg class="icon"><use href="#ic-file"/></svg> ใบจัดซื้อวัสดุ 4 ส่วน + แนบท้าย</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/ingredient-deliver"><svg class="icon"><use href="#ic-file"/></svg> ใบส่งมอบวัตถุดิบ (รายวัน)</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/inspect-detail"><svg class="icon"><use href="#ic-file"/></svg> ใบแสดงรายละเอียดการตรวจรับ</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/reimburse-advance"><svg class="icon"><use href="#ic-file"/></svg> ใบสรุปเบิกเงินทดรองจ่าย</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/wht-cook"><svg class="icon"><use href="#ic-file"/></svg> หนังสือรับรองหักภาษี ณ ที่จ่าย (ค่าจ้าง)</a>
+
+  <!-- ช่วงที่ 2: จ้างแม่ครัว -->
+  <div class="ph-panel" data-ph="2">
+    <p class="muted" style="margin:16px 0 6px;"><b>ช่วงที่ 2 · จ้างแม่ครัว</b> (9 ขั้นตามลำดับ) — ออกทีละใบ:</p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/hire-report"><svg class="icon"><use href="#ic-file"/></svg> 1. รายงานขอจ้าง + แต่งตั้งกรรมการ</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/tor"><svg class="icon"><use href="#ic-file"/></svg> 2. ขอบเขตของงาน (TOR)</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/quotation"><svg class="icon"><use href="#ic-file"/></svg> 3. ใบเสนอราคา</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/result"><svg class="icon"><use href="#ic-file"/></svg> 4. รายงานผลการพิจารณา</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/winner"><svg class="icon"><use href="#ic-file"/></svg> 5. ประกาศผู้ชนะ</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/order"><svg class="icon"><use href="#ic-file"/></svg> 6. บันทึกตกลงจ้าง</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/committee-doc"><svg class="icon"><use href="#ic-file"/></svg> คำสั่งแต่งตั้งกรรมการ</a>
+      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/wht-cook"><svg class="icon"><use href="#ic-file"/></svg> หนังสือรับรองหักภาษี ณ ที่จ่าย</a>
+    </div>
+    <p class="muted" style="margin:12px 0 0; font-size:13px;">💡 ขั้น 7-9 (ใบสั่งจ้าง/ส่งมอบ/ตรวจรับ) + ขอเบิกจ่าย ออกได้จากปุ่มในแต่ละงวดด้านบน</p>
   </div>
-  <p class="muted" style="margin:12px 0 0; font-size:13px;">งวดงาน (ควบคุม/ส่งมอบ/ตรวจรับ) และขอเบิกจ่าย ออกได้จากปุ่มในแต่ละงวดด้านบน</p>
 </div>
+<script>
+  function showPhase(n){
+    document.querySelectorAll('.ph-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.ph==String(n)); });
+    document.querySelectorAll('.ph-panel').forEach(function(pn){ pn.classList.toggle('active', pn.dataset.ph==String(n)); });
+    try{ localStorage.setItem('lunchPhase_{{ r.id }}', n); }catch(e){}
+  }
+  (function(){ try{ var s=localStorage.getItem('lunchPhase_{{ r.id }}'); if(s) showPhase(s); }catch(e){} })();
+</script>
 {% else %}
 <div class="card">
   <h2>ออกเอกสาร (ต่อรอบ/สัญญา)</h2>
