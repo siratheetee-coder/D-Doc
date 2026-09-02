@@ -534,6 +534,7 @@ def render_travel_official(school, person, record, db=None, approver=None, appro
     เติมเฉพาะฟิลด์ที่ระบบมี (ส่วนราชการ/วันที่/เรื่อง/ข้าพเจ้า/ช่วงวัน/สถานที่/ครูสอนแทน/ลงนาม)
     ช่องที่ระบบไม่มี (เพื่อ-ประเภท/ค่าใช้จ่าย/ที่หนังสือ) เว้นจุดไข่ปลาไว้กรอกมือ"""
     doc = Document(str(_FORM_DIR / "travel_form.docx"))
+    doc.sections[0].top_margin = Cm(1.2)                         # กันล้น 2 หน้าเมื่อมีบรรทัดวันที่อนุมัติ
     P = doc.paragraphs
 
     def sr(pi, idx, text):
@@ -665,6 +666,23 @@ def render_travel_official(school, person, record, db=None, approver=None, appro
                 r29.text = " ลงชื่อ  "                          # ตัดจุดไข่ปลาในรันเดียวกันออก
         except Exception:
             pass
+        if approve_date:                                        # วันที่อนุมัติ (บรรทัดใต้ตำแหน่ง ผอ. P31)
+            try:
+                anchor = P[31].runs[1]._element                 # รัน 'ผู้อำนวยการ...' (คัดลอกฟอนต์)
+                br_r = OxmlElement("w:r")
+                if anchor.rPr is not None:
+                    br_r.append(copy.deepcopy(anchor.rPr))
+                br_r.append(OxmlElement("w:br"))
+                anchor.addnext(br_r)
+                dt_r = OxmlElement("w:r")
+                if anchor.rPr is not None:
+                    dt_r.append(copy.deepcopy(anchor.rPr))
+                t = OxmlElement("w:t"); t.set(qn("xml:space"), "preserve")
+                t.text = "                                            วันที่ " + _full_date(approve_date)
+                dt_r.append(t)
+                br_r.addnext(dt_r)
+            except Exception:
+                pass
 
     out = get_data_dir() / "documents"; out.mkdir(exist_ok=True)
     path = out / (_safe(f"ขออนุญาตไปราชการ_{name}_{getattr(record,'id','')}") + ".docx")

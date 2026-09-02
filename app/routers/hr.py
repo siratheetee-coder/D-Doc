@@ -366,7 +366,8 @@ def hr_travel_request_docx(tid: int, db: Session = Depends(get_db)):
         return _serve_blob(q.attachment, q.attachment_name)
     # ผอ. อนุมัติแล้ว -> ติ๊ก 'อนุญาต' + ใส่ชื่อ ผอ. บนบันทึก
     approver = _approver_for(db, q) if q else None
-    return serve_generated(render_travel_official(get_school(db), r.person, r, db=db, approver=approver), _DOCX)
+    return serve_generated(render_travel_official(get_school(db), r.person, r, db=db, approver=approver,
+                                                  approve_date=(q.decided_at if q else None)), _DOCX)
 
 
 @router.get("/hr/travel/{tid}/order.docx")
