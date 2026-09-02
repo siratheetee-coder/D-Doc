@@ -793,6 +793,7 @@
         <a href="/academic/grades" class="{{ 'active' if path.startswith('/academic/grades') }}"><svg class="icon"><use href="#ic-edit"/></svg> กรอกคะแนน ปพ.5</a>
         <a href="/academic/eval" class="{{ 'active' if path.startswith('/academic/eval') }}"><svg class="icon"><use href="#ic-check"/></svg> ประเมิน ปพ.6</a>
         <a href="/academic/lesson-plans" class="{{ 'active' if path.startswith('/academic/lesson-plans') }}"><svg class="icon"><use href="#ic-file"/></svg> แผนการสอน</a>
+        {% if not acad_teacher %}<a href="/academic/substitute" class="{{ 'active' if path.startswith('/academic/substitute') }}"><svg class="icon"><use href="#ic-users"/></svg> จัดคาบสอนแทน</a>{% endif %}
         {% if acad_teacher %}
         <div class="nav-sec">งานบุคคล · ของฉัน</div>
         <a href="/me/leave" class="{{ 'active' if path.startswith('/me/leave') }}"><svg class="icon"><use href="#ic-calendar"/></svg> ส่งใบลา</a>

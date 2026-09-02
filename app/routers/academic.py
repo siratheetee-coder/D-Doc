@@ -388,6 +388,172 @@ def _notify_directors(db, title, reason, link="/approvals"):
         pass
 
 
+# ==================== จัดคาบสอนแทน (ครูลา/ไปราชการ) ====================
+_TH_DAYS = {1: "จันทร์", 2: "อังคาร", 3: "พุธ", 4: "พฤหัสบดี", 5: "ศุกร์", 6: "เสาร์", 7: "อาทิตย์"}
+
+
+def _teach_map(db):
+    """(class_id, subject_id) -> teacher_id"""
+    return {(t.class_id, t.subject_id): t.teacher_id for t in db.query(AcadTeaching).all()}
+
+
+def _teacher_cells(db, person_id, year):
+    """คาบที่ครูคนนี้สอน: {(day, period_id): AcadTimetable}"""
+    tm = _teach_map(db)
+    out = {}
+    cls_ids = [c.id for c in db.query(AcadClass).filter_by(year=year).all()]
+    if not cls_ids:
+        return out
+    for tt in db.query(AcadTimetable).filter(AcadTimetable.class_id.in_(cls_ids)).all():
+        if tt.subject_id and tm.get((tt.class_id, tt.subject_id)) == person_id:
+            out[(tt.day, tt.period_id)] = tt
+    return out
+
+
+def _busy_at(db, year, day, period_id, tm):
+    """set person_id ที่สอนอยู่แล้วในคาบ (day, period) -> ไม่ว่าง"""
+    busy = set()
+    cls_ids = [c.id for c in db.query(AcadClass).filter_by(year=year).all()]
+    if not cls_ids:
+        return busy
+    for tt in (db.query(AcadTimetable)
+               .filter(AcadTimetable.class_id.in_(cls_ids),
+                       AcadTimetable.day == day, AcadTimetable.period_id == period_id).all()):
+        pid = tm.get((tt.class_id, tt.subject_id))
+        if pid:
+            busy.add(pid)
+    return busy
+
+
+@router.get("/academic/substitute", response_class=HTMLResponse)
+def substitute_home(request: Request, db: Session = Depends(get_db), msg: str = "", err: str = ""):
+    """หน้าจัดคาบสอนแทน: รายชื่อครูที่ลา/ไปราชการ (อนุมัติแล้ว) + เลือกครูเอง"""
+    from app.models import LeaveRequest, TravelRequest
+    if _scope(request, db).is_teacher:
+        return _deny()
+    y = _acad_year(db)
+    # ครูที่มีคาบสอน (สำหรับเลือกเอง)
+    teachers = db.query(Person).filter(Person.active == True).order_by(Person.name).all()  # noqa: E712
+    # การลา/ไปราชการที่อนุมัติแล้ว (ช่วงที่ยังไม่ผ่าน)
+    from datetime import date as _date
+    today = _date.today()
+    leaves = (db.query(LeaveRequest).filter(LeaveRequest.status == "approved",
+              LeaveRequest.end_date >= today).order_by(LeaveRequest.start_date).all())
+    travels = (db.query(TravelRequest).filter(TravelRequest.status == "approved",
+               TravelRequest.end_date >= today).order_by(TravelRequest.start_date).all())
+    return templates.TemplateResponse("academic_substitute.html", {
+        "request": request, "school": get_school(db), "teachers": teachers,
+        "leaves": leaves, "travels": travels, "year": y,
+        "msg": msg, "err": err,
+    })
+
+
+@router.get("/academic/substitute/plan", response_class=HTMLResponse)
+def substitute_plan(request: Request, db: Session = Depends(get_db),
+                    person_id: int = 0, start: str = "", end: str = "",
+                    source: str = "manual", source_id: int = 0):
+    """แสดงตารางสอนของครูที่ไม่อยู่ ในช่วงวันที่ + เลือกครูว่างมาสอนแทนรายคาบ"""
+    from app.models import SubstituteAssignment
+    from datetime import timedelta
+    if _scope(request, db).is_teacher:
+        return _deny()
+    y = _acad_year(db)
+    person = db.get(Person, person_id)
+    sd = parse_be_date(start); ed = parse_be_date(end) or sd
+    if not person or not sd:
+        return RedirectResponse("/academic/substitute?err=เลือกครูและวันที่ให้ครบ", status_code=303)
+    if ed < sd:
+        ed = sd
+    cells = _teacher_cells(db, person_id, y)
+    periods = {p.id: p for p in db.query(AcadPeriod).filter_by(year=y).all()}
+    tm = _teach_map(db)
+    persons = db.query(Person).filter(Person.active == True).order_by(Person.name).all()  # noqa: E712
+    # assignment ที่บันทึกไว้แล้ว: {(date, period_id, class_id): sub_id}
+    existing = {}
+    for a in (db.query(SubstituteAssignment)
+              .filter(SubstituteAssignment.absent_person_id == person_id).all()):
+        existing[(a.date, a.period_id, a.class_id)] = a.substitute_person_id
+    # สร้างรายการ: แต่ละวันในช่วง -> คาบที่ครูสอน -> ครูว่าง
+    plan = []
+    d = sd
+    while d <= ed:
+        day = d.isoweekday()   # 1=Mon..7
+        day_cells = []
+        for (cd, pid_), tt in sorted(cells.items(), key=lambda kv: (kv[0][0], periods.get(kv[0][1]).seq if periods.get(kv[0][1]) else 0)):
+            if cd != day:
+                continue
+            per = periods.get(pid_)
+            if per is None or per.is_break:
+                continue
+            busy = _busy_at(db, y, day, pid_, tm)
+            avail = [p for p in persons if p.id != person_id and p.id not in busy]
+            klass = db.get(AcadClass, tt.class_id)
+            subj = db.get(AcadSubject, tt.subject_id) if tt.subject_id else None
+            day_cells.append({
+                "period": per, "klass": klass, "subject": subj,
+                "avail": avail, "class_id": tt.class_id, "period_id": pid_,
+                "cur": existing.get((d, pid_, tt.class_id)),
+            })
+        if day_cells:
+            plan.append({"date": d, "day": day, "day_name": _TH_DAYS.get(day, ""), "cells": day_cells})
+        d += timedelta(days=1)
+    return templates.TemplateResponse("academic_substitute_plan.html", {
+        "request": request, "school": get_school(db), "person": person,
+        "plan": plan, "start": start, "end": end,
+        "source": source, "source_id": source_id, "year": y,
+    })
+
+
+@router.post("/academic/substitute/save")
+async def substitute_save(request: Request, db: Session = Depends(get_db),
+                          person_id: int = Form(0), source: str = Form("manual"),
+                          source_id: int = Form(0)):
+    """บันทึกการจัดครูสอนแทน (upsert รายคาบ)"""
+    from app.models import SubstituteAssignment
+    if _scope(request, db).is_teacher:
+        return _deny()
+    y = _acad_year(db)
+    form = await request.form()
+    # key รูปแบบ sub_<isodate>_<period_id>_<class_id> = substitute_person_id
+    for k, v in form.items():
+        if not k.startswith("sub_"):
+            continue
+        try:
+            _, ds, pid_, cid = k.split("_")
+            from datetime import date as _date
+            d = _date.fromisoformat(ds)
+            pid_ = int(pid_); cid = int(cid)
+        except Exception:
+            continue
+        sub_id = _to_int(v, 0) or None
+        day = d.isoweekday()
+        # หา subject ของคาบนั้น
+        tt = (db.query(AcadTimetable)
+              .filter_by(class_id=cid, day=day, period_id=pid_).first())
+        subj_id = tt.subject_id if tt else None
+        row = (db.query(SubstituteAssignment)
+               .filter_by(absent_person_id=person_id, date=d, period_id=pid_, class_id=cid).first())
+        if row:
+            if sub_id:
+                row.substitute_person_id = sub_id
+            else:
+                db.delete(row)
+        elif sub_id:
+            db.add(SubstituteAssignment(
+                year=y, absent_person_id=person_id, date=d, day=day, period_id=pid_,
+                class_id=cid, subject_id=subj_id, substitute_person_id=sub_id,
+                source=source, source_id=source_id or None))
+    db.commit()
+    return RedirectResponse(
+        f"/academic/substitute/plan?person_id={person_id}&start={_be(form.get('start',''))}"
+        f"&end={_be(form.get('end',''))}&msg=บันทึกครูสอนแทนแล้ว", status_code=303)
+
+
+def _be(s):
+    from urllib.parse import quote
+    return quote(s or "")
+
+
 def db_bind_tenant(db):
     """คืน tenant_id ของ session DB โรงเรียนปัจจุบัน (จาก context)"""
     from app.tenancy import current_school_id

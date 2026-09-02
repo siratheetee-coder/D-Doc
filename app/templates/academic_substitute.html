@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}จัดคาบสอนแทน{% endblock %}
+{% block content %}
+<div class="hero" style="background:linear-gradient(135deg,#7c3aed,#2563eb); color:#fff;">
+  <div>
+    <div class="hero-sub" style="color:#e9d5ff;">งานวิชาการ</div>
+    <span class="hero-title">จัดคาบสอนแทน</span>
+    <div class="hero-meta" style="color:#e0e7ff;">ครูลา/ไปราชการ → เลือกครูที่ว่างมาสอนแทนรายคาบ · ปีการศึกษา {{ year }}</div>
+  </div>
+</div>
+{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+{% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
+
+{# ---- ครูที่ลา/ไปราชการ (อนุมัติแล้ว) ---- #}
+<div class="card">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-calendar"/></svg> ครูที่ต้องจัดสอนแทน</h2>
+  {% set items = [] %}
+  {% if leaves or travels %}
+  <div class="sub-grid">
+    {% for l in leaves %}
+    <a class="sub-card lv" href="/academic/substitute/plan?person_id={{ l.person_id }}&start={{ be_date_input(l.start_date) }}&end={{ be_date_input(l.end_date) }}&source=leave&source_id={{ l.id }}">
+      <div class="sc-tag">ลา · {{ l.leave_type }}</div>
+      <div class="sc-name">{{ l.person.name if l.person else '-' }}</div>
+      <div class="sc-date">{{ thai_date(l.start_date) }} - {{ thai_date(l.end_date) }} ({{ l.days }} วัน)</div>
+      <div class="sc-go">จัดสอนแทน →</div>
+    </a>
+    {% endfor %}
+    {% for t in travels %}
+    <a class="sub-card tv" href="/academic/substitute/plan?person_id={{ t.person_id }}&start={{ be_date_input(t.start_date) }}&end={{ be_date_input(t.end_date) }}&source=travel&source_id={{ t.id }}">
+      <div class="sc-tag">ไปราชการ</div>
+      <div class="sc-name">{{ t.person.name if t.person else '-' }}</div>
+      <div class="sc-date">{{ thai_date(t.start_date) }} - {{ thai_date(t.end_date) }} ({{ t.days }} วัน)</div>
+      <div class="sc-sub">{{ t.subject }}</div>
+      <div class="sc-go">จัดสอนแทน →</div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}<p class="muted" style="margin:0;">ยังไม่มีครูลา/ไปราชการที่อนุมัติแล้วในช่วงนี้</p>{% endif %}
+</div>
+
+{# ---- เลือกครู + ช่วงวันเอง ---- #}
+<div class="card">
+  <h2 style="margin-top:0;">หรือเลือกครู + ช่วงวันเอง</h2>
+  <form method="get" action="/academic/substitute/plan">
+    <div class="row" style="align-items:flex-end;">
+      <div style="flex:1.4;"><label>ครูที่ไม่อยู่</label>
+        <select name="person_id" required>
+          <option value="">— เลือกครู —</option>
+          {% for p in teachers %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        </select></div>
+      <div><label>ตั้งแต่วันที่ *</label><input name="start" required placeholder="วว/ดด/ปปปป (พ.ศ.)" data-date="1"></div>
+      <div><label>ถึงวันที่</label><input name="end" placeholder="เว้นว่าง = วันเดียว" data-date="1"></div>
+      <button class="btn" type="submit" style="background:linear-gradient(135deg,#7c3aed,#4f46e5); border:none;">ดูตารางสอน</button>
+    </div>
+  </form>
+</div>
+
+<style>
+  .sub-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; margin-top:8px; }
+  .sub-card{ display:block; text-decoration:none; border-radius:14px; padding:14px 16px; color:#fff;
+    box-shadow:0 6px 18px -10px rgba(79,70,229,.5); transition:transform .12s; }
+  .sub-card:hover{ transform:translateY(-2px); }
+  .sub-card.lv{ background:linear-gradient(135deg,#f59e0b,#ef4444); }
+  .sub-card.tv{ background:linear-gradient(135deg,#8b5cf6,#2563eb); }
+  .sc-tag{ font-size:12px; opacity:.9; font-weight:700; }
+  .sc-name{ font-size:18px; font-weight:800; margin:2px 0; }
+  .sc-date{ font-size:13px; opacity:.95; }
+  .sc-sub{ font-size:12.5px; opacity:.9; margin-top:2px; }
+  .sc-go{ margin-top:8px; font-weight:700; font-size:13.5px; }
+</style>
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

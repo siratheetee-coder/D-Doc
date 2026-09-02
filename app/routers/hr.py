@@ -440,6 +440,24 @@ def _notify(to, subject, html):
         pass
 
 
+def _notify_academic_substitute(db, person, kind, sd, ed, days):
+    """แจ้งฝ่ายวิชาการ (อีเมล + กระดิ่ง) ให้จัดครูสอนแทน เมื่อ ผอ. อนุมัติลา/ไปราชการ"""
+    name = person.name if person else ""
+    school = get_school(db)
+    from app.seller_config import SELLER
+    from urllib.parse import quote
+    base = (SELLER.get("base_url") or "").rstrip("/")
+    link = (base + "/login?next=" + quote("/academic/substitute")) if base else "/academic/substitute"
+    _notify((school.academic_head_email or "").strip(),
+            f"[จัดสอนแทน] {name} {kind} {be_date_input(sd)}-{be_date_input(ed)}",
+            f"<p>ครู <b>{name}</b> ได้รับอนุมัติ<b>{kind}</b> ระหว่างวันที่ "
+            f"{be_date_input(sd)} ถึง {be_date_input(ed)} ({days:g} วัน)</p>"
+            f"<p>กรุณาจัดครูสอนแทนในคาบที่ครูท่านนี้สอน</p>"
+            f"<p style='margin:16px 0;'><a href='{link}' style='background:#7c3aed;color:#fff;"
+            f"text-decoration:none;padding:11px 24px;border-radius:9px;font-weight:700;"
+            f"display:inline-block;'>จัดคาบสอนแทน</a></p>")
+
+
 def _notify_directors(db, title, reason, link="/approvals"):
     """แจ้งเตือน (กระดิ่ง) ผอ./รองผอ. ทุกบัญชีของโรงเรียนที่ผูก Person ไว้"""
     from app.services.nav import create_notice
@@ -557,6 +575,9 @@ def leave_request_approve(lid: int, request: Request, db: Session = Depends(get_
         _notify(person.email, f"[ผลใบลา] {r.leave_type} - {res}",
                 f"<p>ใบลา ({r.leave_type} {be_date_input(r.start_date)} ถึง {be_date_input(r.end_date)}): "
                 f"<b>{res}</b></p><p>ความเห็น ผอ.: {r.comment or '-'}</p>")
+    if res == "อนุมัติ":       # แจ้งวิชาการให้จัดครูสอนแทน
+        _notify_academic_substitute(db, person, "ลา" + (r.leave_type or ""),
+                                    r.start_date, r.end_date, r.days or 0)
     return RedirectResponse("/approvals?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
 
 
@@ -671,6 +692,8 @@ def travel_request_approve(tid: int, request: Request, db: Session = Depends(get
         _notify(person.email, f"[ผลขอไปราชการ] {r.subject} - {res}",
                 f"<p>คำขอไปราชการ ({r.subject}): <b>{res}</b></p>"
                 f"<p>ความเห็น ผอ.: {r.comment or '-'}</p>")
+    if res == "อนุมัติ":       # แจ้งวิชาการให้จัดครูสอนแทน
+        _notify_academic_substitute(db, person, "ไปราชการ", r.start_date, r.end_date, r.days or 0)
     return RedirectResponse("/approvals?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
 
 

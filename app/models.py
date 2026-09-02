@@ -1472,6 +1472,25 @@ class AcadTimetable(Base):
     subject = relationship("AcadSubject")
 
 
+class SubstituteAssignment(Base):
+    """จัดคาบสอนแทน: ครูลา/ไปราชการ 1 คาบ -> มอบครูที่ว่างสอนแทน
+    1 แถว = (ครูที่ลา × วันที่ × คาบ × ห้อง) -> ครูสอนแทน"""
+    __tablename__ = "substitute_assignment"
+
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, default=0)                 # ปีการศึกษา
+    absent_person_id = Column(Integer, ForeignKey("person.id"), nullable=False)  # ครูที่ไม่อยู่
+    date = Column(Date, nullable=True)                # วันที่สอนแทน
+    day = Column(Integer, default=0)                  # 1=จันทร์..7
+    period_id = Column(Integer, ForeignKey("acad_period.id"), nullable=True)
+    class_id = Column(Integer, ForeignKey("acad_class.id"), nullable=True)
+    subject_id = Column(Integer, ForeignKey("acad_subject.id"), nullable=True)
+    substitute_person_id = Column(Integer, ForeignKey("person.id"), nullable=True)  # ครูสอนแทน
+    source = Column(String, default="manual")         # leave / travel / manual
+    source_id = Column(Integer, nullable=True)        # id ของ LeaveRequest/TravelRequest
+    created_at = Column(DateTime, default=datetime.now)
+
+
 class LessonPlan(Base):
     """ครูส่งแผนการสอน (ลิงก์ + หมายเหตุ) ให้หัวหน้าฝ่ายวิชาการตรวจ"""
     __tablename__ = "lesson_plan"
