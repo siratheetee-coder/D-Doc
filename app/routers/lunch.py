@@ -752,8 +752,20 @@ def menu_page(pid: int, request: Request, db: Session = Depends(get_db),
         base = datetime.now().date()
     nd = next_workday(base, None)
     default_menu_date = datetime(nd.year, nd.month, nd.day)
+    # วันที่เลือกได้ = วันทำการภายในรอบล่าสุด (กันเลือกวันเลยวันสิ้นสุดรอบ)
+    from app.services.thai_holidays import is_workday
+    menu_days = []
+    if term_start and term_end:
+        have_dates = {m.date.date().isoformat() for m in prog.menus if m.date}
+        holset = set(_lunch_holidays(prog).keys())
+        dd, ee = term_start.date(), term_end.date()
+        while dd <= ee:
+            if is_workday(dd, holset):
+                menu_days.append({"be": be_date_input(datetime(dd.year, dd.month, dd.day)),
+                                  "has": dd.isoformat() in have_dates})
+            dd += timedelta(days=1)
     return templates.TemplateResponse("lunch_menu.html", {
-        "request": request, "school": get_school(db), "p": prog,
+        "request": request, "school": get_school(db), "p": prog, "menu_days": menu_days,
         "menu_rows": menu_rows, "edit": edit_row, "past_menus": past, "desserts": desserts,
         "food_groups": FOOD_GROUPS,
         "edit_groups": [g for g in (edit_row.groups or "").split(",")] if edit_row else [],

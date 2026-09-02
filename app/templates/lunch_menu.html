@@ -21,7 +21,14 @@
   <form method="post" action="{{ ('/lunch/menu/' ~ edit.id ~ '/update') if edit else ('/lunch/' ~ p.id ~ '/menu/add') }}">
     {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
     <div class="row">
-      <div><label>วันที่</label><input name="date" value="{{ be_date(edit.date) if edit and edit.date else today_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>วันที่ {% if menu_days %}<span class="muted">(ในรอบ)</span>{% endif %}</label>
+        {% if menu_days and not edit %}
+        <select name="date" style="min-width:200px;">
+          {% for d in menu_days %}<option value="{{ d.be }}" {{ 'selected' if d.be == today_be }}>{{ d.be }}{{ ' · มีเมนูแล้ว' if d.has }}</option>{% endfor %}
+        </select>
+        {% else %}
+        <input name="date" value="{{ be_date(edit.date) if edit and edit.date else today_be }}" placeholder="วว/ดด/ปปปป" data-date="1">
+        {% endif %}</div>
       <div style="flex:2;"><label>อาหารคาว (จานหลัก)</label><input name="main" id="m_main" list="mains_dl" oninput="fillDessert(this)" value="{{ edit.main if edit else '' }}" placeholder="พิมพ์/เลือกเมนูที่เคยใช้"></div>
       <div style="flex:2;"><label>ของหวาน / ผลไม้</label><input name="dessert" id="m_dessert" list="desserts_dl" value="{{ edit.dessert if edit else '' }}" placeholder="เช่น กล้วยน้ำว้า"></div>
     </div>
