@@ -30,7 +30,7 @@ def _class_label(klass):
         return ""
     lvl = (klass.level or "").strip()
     room = (klass.room or "").strip()
-    return lvl + ("/" + room if room and room not in ("", "0") else "")
+    return f"{lvl}/{room}" if room else lvl
 
 
 def _period_no(per):
