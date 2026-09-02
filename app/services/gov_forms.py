@@ -383,6 +383,9 @@ def render_leave_official(school, person, record, db=None, approver=None,
         _strip_dots(P[15])
 
     # ---- ลงชื่อผู้ลา ----
+    i18 = _find_run(P[18], "(ลงชื่อ)")                          # แปะลายเซ็นผู้ลา (ถ้ามีในทะเบียน)
+    if i18 is not None:
+        _stamp_sig(P[18].runs[i18], db, name)
     _first_tab(P[19], 9.5)                                     # จัดชื่อให้ตรงกับ ตำแหน่ง/วันที่
     _fill_paren(P[19], name)                                   # ( ชื่อ ) ให้ ) ชิดชื่อ
     _fill(P[20], [(3, " " + position)])                        # ตำแหน่ง
@@ -631,12 +634,35 @@ def render_travel_official(school, person, record, db=None, approver=None, appro
     except Exception:
         pass
     sr(22, 9, name)                                             # (ชื่อผู้ขอ)
+    try:                                                        # แปะลายเซ็นผู้ขอ (ถ้ามีในทะเบียน)
+        if _stamp_sig(P[21].runs[6], db, name, height_cm=0.9):
+            P[21].runs[7].text = ""                             # ล้างจุดไข่ปลาเมื่อมีลายเซ็น
+    except Exception:
+        pass
 
+    # ---- ลงนาม ผอ. (ชื่อ/ตำแหน่งเสมอ · ติ๊กอนุญาต+ลายเซ็นเมื่ออนุมัติ) ----
+    dname = (getattr(approver, "name", "") if approver is not None else "") or ""
+    dname = dname.strip() or (getattr(school, "director_name", "") or "").strip()
+    if dname:
+        sr(30, 6, " " + dname + " ")                            # (ชื่อ ผอ.)
+    dpos = (getattr(school, "director_position", "") or "ผู้อำนวยการโรงเรียน").strip()
+    sch_short = sch[len("โรงเรียน"):] if sch.startswith("โรงเรียน") else sch
+    pos_line = (dpos + sch_short) if dpos.endswith("โรงเรียน") else (dpos + (" " + sch if sch else ""))
+    try:                                                        # แทนที่ชื่อ ร.ร.ตัวอย่างในแม่แบบด้วยของจริง
+        P[31].runs[1].text = "  " + pos_line
+        for r in P[31].runs[2:]:
+            r.text = ""
+    except Exception:
+        pass
     if approver is not None:
-        dname = (getattr(approver, "name", "") or "").strip()
-        sr(30, 6, dname)                                        # (ชื่อ ผอ.)
         try:                                                    # ติ๊ก 'อนุญาต' (p27)
             P[27].runs[2].text = "  ✓  อนุญาต"
+        except Exception:
+            pass
+        try:                                                    # แปะลายเซ็น ผอ. หลัง 'ลงชื่อ' (p29)
+            r29 = P[29].runs[5]
+            if _stamp_sig(r29, db, dname, height_cm=0.9):
+                r29.text = " ลงชื่อ  "                          # ตัดจุดไข่ปลาในรันเดียวกันออก
         except Exception:
             pass
 
