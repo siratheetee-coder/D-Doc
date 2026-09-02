@@ -750,8 +750,8 @@ def lesson_plan_detail(request: Request, plan_id: int, db: Session = Depends(get
         return RedirectResponse("/academic/lesson-plans", status_code=303)
     sc = _scope(request, db)
     is_director = bool(request.session.get("director"))
-    # ครูเจ้าของ/ผู้ตรวจ/ผอ. เท่านั้น
-    if sc.is_teacher and p.person_id != request.session.get("person_id"):
+    # ครูเจ้าของ/ผู้ตรวจ/ผอ. เท่านั้น (ผอ.ดูได้ทุกแผนเพื่อพิจารณา)
+    if sc.is_teacher and not is_director and p.person_id != request.session.get("person_id"):
         return _deny()
     academic = db.get(Person, p.academic_by) if p.academic_by else None
     director = db.get(Person, p.director_by) if p.director_by else None
@@ -804,7 +804,7 @@ def lesson_plan_cert(request: Request, plan_id: int, db: Session = Depends(get_d
     if not p or p.status != "approved":
         return RedirectResponse("/academic/lesson-plans?err=แผนนี้ยังไม่ได้รับอนุมัติ", status_code=303)
     sc = _scope(request, db)
-    if sc.is_teacher and p.person_id != request.session.get("person_id"):
+    if sc.is_teacher and not request.session.get("director") and p.person_id != request.session.get("person_id"):
         return _deny()
     from app.services.lesson_doc import render_lesson_plan_cert
     path = render_lesson_plan_cert(db, p, get_school(db))

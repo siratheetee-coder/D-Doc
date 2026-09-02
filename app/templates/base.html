@@ -779,7 +779,7 @@
         <a href="/hr/supervision" class="{{ 'active' if path.startswith('/hr/supervision') or path.startswith('/hr/classroom-visit') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> การนิเทศภายใน</a>
 
         {% elif module == 'academic' %}
-        {% set acad_teacher = request.session.get('person_id') and not request.session.get('owner') %}
+        {% set acad_teacher = request.session.get('person_id') and not request.session.get('owner') and not request.session.get('director') %}
         <div class="nav-sec">งานวิชาการ</div>
         <a href="/academic" class="{{ 'active' if path == '/academic' }}"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลักงานวิชาการ</a>
         {% if not acad_teacher %}
@@ -806,6 +806,7 @@
         {% set _tid = request.session.get('tid') %}
         {% set _mine = my_modules(_tid) %}
         {% set _owner = request.session.get('owner') %}
+        {% set _director = request.session.get('director') %}
         {% set _mymods = (request.session.get('mods') or '').split(',') %}
         {% for k, ico in [('admin','#ic-file'), ('procurement','#ic-package'), ('finance','#ic-coins'),
                           ('lunch','#ic-food'), ('hr','#ic-users'), ('academic','#ic-clipboard')] %}
@@ -813,7 +814,7 @@
         <span class="navdim"><svg class="icon"><use href="{{ ico }}"/></svg> {{ module_labels[k] }} (เร็วๆ นี้)</span>
           {% elif not can_use(_tid, k) %}
         <a href="/checkout" class="navdim" style="text-decoration:none;"><svg class="icon"><use href="{{ ico }}"/></svg> {{ module_labels[k] }} (ซื้อเพิ่ม)</a>
-          {% elif _owner or k in _mymods %}
+          {% elif _owner or _director or k in _mymods %}
         <a href="/{{ k }}"><svg class="icon"><use href="{{ ico }}"/></svg> {{ module_labels[k] }}</a>
           {% else %}
         <span class="navdim" title="บัญชีนี้ไม่ได้รับสิทธิ์งานนี้"><svg class="icon"><use href="{{ ico }}"/></svg> {{ module_labels[k] }} (ไม่มีสิทธิ์)</span>
@@ -985,6 +986,13 @@
                padding:8px 18px; border-radius:9px; white-space:nowrap;">สมัครสมาชิก คลิกที่นี่</a>
           </div>
           {% endif %}
+        {% endif %}
+        {% if request.session.get('director') and not request.session.get('owner') and path != '/' %}
+        <div style="display:flex; align-items:center; gap:9px; margin-bottom:16px; padding:9px 15px; border-radius:11px;
+             background:#eef2ff; border:1px solid #ddd6fe; color:#4338ca; font-size:13.5px; font-weight:600;">
+          <svg class="icon" style="width:17px;height:17px;flex:none;"><use href="#ic-info"/></svg>
+          <span>โหมดผู้อำนวยการ · เข้าดูได้อย่างเดียว (แก้ไข/สร้าง/ลบไม่ได้) — หน้าที่แก้ไขได้คือ กล่องรออนุมัติ และ งานนิเทศ</span>
+        </div>
         {% endif %}
         {% block content %}{% endblock %}
       </main>

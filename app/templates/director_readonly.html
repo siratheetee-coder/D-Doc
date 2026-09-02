@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Easy Ekkasan | โหมด ผอ. (อ่านอย่างเดียว)</title>
+  <link rel="icon" type="image/png" href="/static/favicon-ekkasan.png">
+  <style>
+    @font-face { font-family:"Prompt"; font-weight:400; src:url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:700; src:url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+      font-family:"Prompt","Sarabun","Segoe UI",sans-serif; background:#F5F6FA; color:#202224; padding:20px; }
+    .card { background:#fff; max-width:480px; border-radius:18px; padding:34px 30px; text-align:center;
+      box-shadow:0 12px 34px rgba(16,24,40,.12); border:1px solid #eceef3; }
+    .ic { width:64px; height:64px; border-radius:50%; background:#eef2ff; color:#4f46e5; display:flex;
+      align-items:center; justify-content:center; margin:0 auto 16px; }
+    .ic svg { width:32px; height:32px; }
+    h1 { font-size:22px; margin:0 0 8px; }
+    p { color:#5a6a85; line-height:1.7; margin:0; }
+    .btns { margin-top:22px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+    .btn { display:inline-block; background:#4f46e5; color:#fff; text-decoration:none;
+      padding:11px 22px; border-radius:11px; font-weight:700; border:none; cursor:pointer; }
+    .btn.gray { background:#e2e8f0; color:#334155; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="ic">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </div>
+    <h1>โหมดผู้อำนวยการ · อ่านอย่างเดียว</h1>
+    <p>บัญชี ผอ./รองผอ. เข้า<b>ดูข้อมูลได้ทุกงาน</b> แต่ไม่สามารถสร้าง แก้ไข หรือลบได้<br>
+       สิ่งที่ทำได้คือ <b>อนุมัติเอกสาร</b> (กล่องรออนุมัติ) และ<b>งานนิเทศภายใน</b><br>
+       หากต้องการแก้ไขข้อมูล โปรดให้เจ้าหน้าที่ที่รับผิดชอบงานนั้นดำเนินการ</p>
+    <div class="btns">
+      <a class="btn" href="/approvals">ไปกล่องรออนุมัติ</a>
+      <a class="btn gray" href="javascript:history.back()">ย้อนกลับ</a>
+    </div>
+  </div>
+</body>
+</html>

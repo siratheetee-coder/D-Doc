@@ -165,6 +165,15 @@ def director_inbox(request: Request, db: Session = Depends(get_db), msg: str = "
 @router.get("/", response_class=HTMLResponse)
 def hub(request: Request, db: Session = Depends(get_db), msg: str = ""):
     """หน้าหลัก: เลือกเข้าใช้งาน ธุรการ / พัสดุ / การเงิน + ภาพรวมปีงบ"""
+    # ผอ./รองผอ. = หน้าหลักเฉพาะ (งานต่างๆ อ่านอย่างเดียว + นิเทศ + กล่องรออนุมัติ)
+    if request.session.get("director") and not request.session.get("owner"):
+        school = get_school(db)
+        return templates.TemplateResponse("director_hub.html", {
+            "request": request, "school": school,
+            "counts": director_pending_counts(db),
+            "fiscal_year": current_fiscal_year(),
+            "acad_year": school.academic_year or current_academic_year(),
+        })
     # บัญชีครู = เข้าตรงงานวิชาการเลย ไม่ผ่านหน้าเลือกงาน
     if request.session.get("person_id") and not request.session.get("owner"):
         return RedirectResponse("/academic", status_code=303)

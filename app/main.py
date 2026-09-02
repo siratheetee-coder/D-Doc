@@ -9,6 +9,7 @@ main.py
 รันบนคลาวด์:  uvicorn app.main:app --host 0.0.0.0 --port $PORT
 """
 import os
+import re
 import threading
 import webbrowser
 from pathlib import Path
@@ -56,6 +57,21 @@ PUBLIC_PATHS = {"/login", "/logout", "/healthz", "/favicon.ico", "/landing", "/p
                 "/quote", "/checkout", "/checkout/promptpay.png", "/sale-thanks",
                 "/trial", "/register", "/register/resend", "/verify",
                 "/forgot", "/reset"}
+
+# บัญชี ผอ./รองผอ. (director ที่ไม่ใช่ไอดีหลัก) = อ่านได้ทุกงาน แก้ไขไม่ได้
+# ยกเว้นการกระทำที่เป็นหน้าที่ ผอ. โดยตรง: อนุมัติเอกสาร + งานนิเทศภายใน + เปลี่ยนรหัสตัวเอง
+_DIRECTOR_WRITE_ALLOW = [
+    re.compile(r"^/academic/lesson-plans/\d+/approve$"),   # อนุมัติแผนการสอน
+    re.compile(r"^/hr/leave-requests/\d+/approve$"),        # อนุมัติใบลา
+    re.compile(r"^/hr/travel-requests/\d+/approve$"),       # อนุมัติไปราชการ
+    re.compile(r"^/hr/classroom-visit/(save|\d+/delete)$"), # นิเทศ: เยี่ยมชั้นเรียน
+    re.compile(r"^/hr/supervision-form/(save|\d+/delete)$"),# นิเทศ: นิเทศการสอน
+    re.compile(r"^/support$"),                              # ติดต่อเจ้าหน้าที่
+]
+
+
+def _director_write_ok(path: str) -> bool:
+    return any(rx.match(path) for rx in _DIRECTOR_WRITE_ALLOW)
 
 
 @app.middleware("http")
@@ -161,14 +177,24 @@ async def tenant_auth(request: Request, call_next):
             "price": pricing_context()["prices"].get(MODULE_PRICE_KEY[mod]), "st": st,
         }, status_code=403)
 
+    # ผอ./รองผอ. (ไม่ใช่ไอดีหลัก): เข้าดูได้ทุกงาน (อ่านอย่างเดียว) จึงข้ามการกันสิทธิ์รายบัญชี
+    is_director_view = bool(acc.get("is_director")) and not acc["is_owner"]
+
     # สิทธิ์รายบัญชี: ไอดีหลัก (owner) เห็นทุกงาน · ไอดีย่อยเข้าได้เฉพาะงานที่ได้รับสิทธิ์
     # (โรงเรียน "ซื้อแล้ว" แต่บัญชีนี้อาจไม่ได้รับสิทธิ์งานนั้น -> กันที่นี่จุดเดียว ครอบทุก route)
-    if mod and not acc["is_owner"]:
+    if mod and not acc["is_owner"] and not is_director_view:
         from app.modules import parse_modules
         if mod not in parse_modules(acc["modules"]):
             return templates.TemplateResponse("module_denied.html", {
                 "request": request, "module_label": MODULE_LABELS.get(mod, ""),
             }, status_code=403)
+
+    # ผอ. = อ่านอย่างเดียว: ปฏิเสธการแก้ไข (POST/PUT/PATCH/DELETE) ยกเว้นงานอนุมัติ/นิเทศ
+    if is_director_view and request.method in ("POST", "PUT", "PATCH", "DELETE") \
+            and not _director_write_ok(path):
+        return templates.TemplateResponse("director_readonly.html", {
+            "request": request, "school": st["name"] if st else "",
+        }, status_code=403)
 
     token = current_school_id.set(tid)
     mtoken = current_module.set(mod)     # ให้ตอนออกเอกสารรู้ว่าอยู่งานไหน (หักโควตาเฉพาะงานที่ยังไม่ซื้อ)

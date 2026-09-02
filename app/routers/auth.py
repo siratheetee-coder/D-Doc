@@ -109,6 +109,8 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
     # บัญชีครู = เข้าตรงงานวิชาการเลย (ไม่ต้องผ่านหน้าเลือกงาน) · superadmin = คอนโซล
     if user["role"] == "superadmin":
         dest = "/admin-console"
+    elif user.get("is_director") and not user.get("is_owner"):
+        dest = "/"                     # ผอ./รองผอ. = หน้าหลักแบบ ผอ. (งาน+นิเทศ+รออนุมัติ)
     elif user.get("person_id"):
         dest = "/academic"
     else:
