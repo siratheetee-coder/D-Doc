@@ -1066,9 +1066,22 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
             "suggest": suggest_doc_no(db, meta["doc_type"], fy) if meta["doc_type"] else "",
         })
 
+    # งบจากวัตถุดิบจริง (โหมดซื้อวัตถุดิบ/แม่ครัว = ไม่หารงวด คิดจากวัตถุดิบที่กรอก)
+    ing_total = 0.0
+    _sd = rnd.start_date.date() if rnd.start_date else None
+    _ed = rnd.end_date.date() if rnd.end_date else None
+    for ig in rnd.program.ingredients:
+        d = ig.date.date() if ig.date else None
+        if d and _sd and _ed and _sd <= d <= _ed:
+            ing_total += (ig.quantity or 0) * (ig.unit_price or 0)
+    fuel_cost = float(getattr(rnd.program, "fuel_cost", 0) or 0)
+    wage = float(rnd.amount or 0) if rnd.program.operate_mode == "person" else 0.0
+    round_budget = ing_total + fuel_cost + wage
+
     return templates.TemplateResponse("lunch_contract.html", {
         "request": request, "school": get_school(db), "r": rnd, "p": rnd.program,
         "installments": rnd.installments, "paid": paid,
+        "ing_total": ing_total, "fuel_cost": fuel_cost, "wage": wage, "round_budget": round_budget,
         "committed": sum(i.amount or 0 for i in rnd.installments),
         "committees": committees, "com_kinds": com_kinds, "com_roles": COMMITTEE_ROLES,
         "other_rounds": other_rounds,

@@ -9,15 +9,26 @@
   <div class="table-wrap"><table>
     <tr><th style="width:200px;">ผู้รับจ้าง</th><td>{{ r.vendor.name if r.vendor else '-' }}</td></tr>
     <tr><th>ช่วงสัญญา</th><td>{{ be_date(r.start_date) if r.start_date else '-' }} ถึง {{ be_date(r.end_date) if r.end_date else '-' }} ({{ r.days }} วัน)</td></tr>
+    {% if p.operate_mode in ['person','ingredient'] %}
+    {% if p.operate_mode == 'person' %}<tr><th>ค่าจ้างแม่ครัว (ทั้งรอบ)</th><td><b>{{ "{:,.2f}".format(wage) }}</b> บาท</td></tr>{% endif %}
+    <tr><th>ค่าวัตถุดิบ (จากที่กรอก)</th><td><b style="color:var(--brand-dark);">{{ "{:,.2f}".format(ing_total) }}</b> บาท <span class="muted">· คิดจากวัตถุดิบรายวันจริง</span></td></tr>
+    <tr><th>ค่าเชื้อเพลิง</th><td>{{ "{:,.2f}".format(fuel_cost) }} บาท</td></tr>
+    <tr style="font-weight:700; background:#f1f5f9;"><th>งบรอบนี้ (รวม)</th><td><b style="font-size:17px; color:var(--brand-dark);">{{ "{:,.2f}".format(round_budget) }}</b> บาท</td></tr>
+    {% else %}
     <tr><th>วงเงินสัญญา</th><td><b>{{ "{:,.2f}".format(r.amount or 0) }}</b> บาท</td></tr>
     <tr><th>แบ่งงวดแล้ว</th><td><b {{ 'style="color:#dc2626;"' if committed > (r.amount or 0) else '' }}>{{ "{:,.2f}".format(committed) }}</b> บาท · จ่ายแล้ว <b style="color:var(--brand-dark);">{{ "{:,.2f}".format(paid) }}</b> บาท · เหลือแบ่งได้ <b {{ 'style="color:#dc2626;"' if ((r.amount or 0) - committed) < 0 else '' }}>{{ "{:,.2f}".format((r.amount or 0) - committed) }}</b> บาท</td></tr>
+    {% endif %}
   </table></div>
+  {% if p.operate_mode not in ['person','ingredient'] %}
   {% if committed > (r.amount or 0) %}
   <div class="alert danger" style="margin-top:10px;">
     <svg class="icon"><use href="#ic-alert"/></svg><span>แบ่งงวดเกินวงเงินสัญญา {{ "{:,.2f}".format(committed - (r.amount or 0)) }} บาท - ปรับวงเงินงวดให้รวมไม่เกินวงเงินสัญญา</span>
   </div>
   {% endif %}
   <p class="muted" style="margin-bottom:0;">แบ่งสัญญาเป็นงวดย่อย (เช่น 5 งวด งวดละ 10 วัน) แต่ละงวด: ส่งมอบ → ตรวจรับ → เมื่อ "จ่ายแล้ว" ระบบลงบัญชีให้อัตโนมัติ</p>
+  {% else %}
+  <p class="muted" style="margin-bottom:0;">โหมดนี้ไม่แบ่งงวด · งบคิดจากค่าวัตถุดิบที่กรอกรายวัน (+ ค่าจ้าง/ค่าเชื้อเพลิง) · ใส่เมนูและวัตถุดิบด้านล่าง</p>
+  {% endif %}
 </div>
 
 <div class="card" id="committee">
@@ -83,6 +94,7 @@
   {% endfor %}
 </div>
 
+{% if p.operate_mode != 'ingredient' %}
 <div class="card">
   <h2>เพิ่มงวดงาน</h2>
   <form method="post" action="/lunch/round/{{ r.id }}/installment/add" class="row" style="align-items:flex-end;">
@@ -157,6 +169,7 @@
   <p class="muted">ยังไม่มีงวดงาน เพิ่มด้านบน</p>
   {% endif %}
 </div>
+{% endif %}{# ซ่อนส่วนแบ่งงวดในโหมดซื้อวัตถุดิบ (คิดงบจากวัตถุดิบ ไม่แบ่งงวด) #}
 
 <!-- ============ เมนูอาหารในช่วงสัญญา (ต่อจากงวด เพื่อไม่ต้องข้ามหน้า) ============ -->
 <div class="card">
