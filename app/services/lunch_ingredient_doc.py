@@ -283,26 +283,43 @@ def render_purchase_report(rnd, school, doc=None) -> str:
     return _finish(doc, own, f"รายงานขอซื้อวัตถุดิบ_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
-def render_purchase_form(rnd, school, doc=None) -> str:
-    """05 ใบจัดซื้อวัสดุเครื่องบริโภค วงเงินไม่เกิน 500,000 บาท - ฟอร์ม 4 ส่วน (ตารางตามแบบ)
-    ตัดตารางรายการอาหาร/วัสดุออก (แนบเป็นหน้าแยกท้ายส่วน 1 และ 3) ตามที่ใช้จริง"""
+def _purchase_day_block(doc, rnd, school, day_dt, day_ings):
+    """ใบจัดซื้อวัสดุเครื่องบริโภค 1 วัน (ฟอร์ม 4 ส่วน + ตารางวัสดุของวันนั้น)
+    เติมให้ครบ: วันที่=วันนั้น · ผู้จัดทำ=เจ้าหน้าที่อาหารกลางวัน · ประเภทเงิน+จำนวนเงินจากวัตถุดิบวันนั้น"""
     from docx.shared import Cm as _Cm
-    doc, own = _begin(doc)
     prog = rnd.program
     sname = _school_disp(school)
     officer = (getattr(school, "officer_name", "") or "").strip() or _BLANK
     head = (getattr(school, "head_officer_name", "") or "").strip() or _BLANK
     director = (school.director_name or "").strip() or _BLANK
     fin = (getattr(school, "finance_officer_name", "") or "").strip() or _BLANK
+    bname, bpos = _borrower(school, prog)            # เจ้าหน้าที่โครงการอาหารกลางวัน
+    fund = (getattr(prog, "funding_org", "") or "").strip()
+    fund_txt = f"เงินอุดหนุนอาหารกลางวัน จาก อบต. {fund}" if fund else "เงินอุดหนุนอาหารกลางวัน"
     D = "..................................."
+    daystr = _dnum(day_dt) if day_dt else "................................"
+    total = sum((ig.quantity or 0) * (ig.unit_price or 0) for ig in day_ings)
+    total_txt = _money(total) if day_ings else "....................."
+    total_words = bahttext(total) if day_ings else D
+    dkey = (day_dt.date() if day_dt else None)
+    menu_main = next((m.main or "" for m in prog.menus if m.date and m.date.date() == dkey), "") if dkey else ""
 
     def nm_or(members, i):
         return (members[i].name if (members and i < len(members) and members[i].name) else D)
     ctrl = _committee(rnd, "cook_control") + _committee(rnd, "food_inspect")
     insp = _committee(rnd, "inspect")
 
+    def sign(role, name=None, date_val=None):
+        b = [(f"(ลงชื่อ) {D}", "center", False),
+             (f"( {name} )" if name else f"( {D} )", "center", False),
+             (role, "center", False)]
+        if date_val is not None:
+            b.append((f"วันที่ {date_val}", "center", False))
+        return b
+
     _p(doc, "ใบจัดซื้อวัสดุเครื่องบริโภค วงเงินไม่เกิน 500,000 บาท", align="center", bold=True, size=17, after=0)
-    _p(doc, f"{sname}", align="center", after=4)
+    _p(doc, f"{sname}", align="center", after=0)
+    _p(doc, f"ประจำวันที่ {daystr}", align="center", after=4)
 
     tbl = doc.add_table(rows=4, cols=2)
     tbl.style = "Table Grid"
@@ -311,40 +328,26 @@ def render_purchase_form(rnd, school, doc=None) -> str:
         row.cells[0].width = _Cm(7.75)
         row.cells[1].width = _Cm(7.75)
 
-    # แถวหัว ส่วน 1 / ส่วน 3
     _box_cell(tbl.cell(0, 0), [("ส่วนที่ 1 รายงานขอซื้อ", "left", True)], size=13)
-    _box_cell(tbl.cell(0, 1), [(f"ส่วนที่ 3 ใบรับรองแทนใบเสร็จ (บค. ........./..........)", "left", True)], size=13)
-    # บล็อกลายเซ็นจัดกึ่งกลาง: (ลงชื่อ) เส้น -> (ชื่อ) -> ตำแหน่ง -> (วันที่)  ใต้เส้นทั้งหมด
-    def sign(role, name=None, date=False):
-        b = [(f"(ลงชื่อ) {D}", "center", False),
-             (f"( {name} )" if name else f"( {D} )", "center", False),
-             (role, "center", False)]
-        if date:
-            b.append(("วันที่ ................................", "center", False))
-        return b
-
-    # ส่วน 1 body
+    _box_cell(tbl.cell(0, 1), [("ส่วนที่ 3 ใบรับรองแทนใบเสร็จ (บค. ........./..........)", "left", True)], size=13)
     _box_cell(tbl.cell(1, 0), [
         (f"ด้วย {sname} ขอจัดซื้อวัสดุเครื่องบริโภคตามรายการต่อไปนี้ เพื่อประกอบอาหารให้แก่นักเรียน"
-         "รับประทาน ในวันที่ ................................ การจัดซื้อครั้งนี้ดำเนินการโดยวิธีเฉพาะเจาะจง"
+         f"รับประทาน ในวันที่ {daystr} การจัดซื้อครั้งนี้ดำเนินการโดยวิธีเฉพาะเจาะจง"
          "ตามมาตรา 56 (2) (ข) ประกอบหนังสือกระทรวงการคลัง ด่วนที่สุด ที่ กค (กวจ) 0405.2/ว 116 "
          "ลงวันที่ 12 มีนาคม 2562", "left", False),
         ("", "left", False),
-    ] + sign("ผู้จัดทำรายการ", date=True), size=12)
-    # ส่วน 3 body
+    ] + sign("ผู้จัดทำรายการ", bname, date_val=daystr), size=12)
     _box_cell(tbl.cell(1, 1), [
-        (f"ข้าพเจ้า {D}", "left", False),
-        (f"ตำแหน่ง {D}", "left", False),
-        ("ได้จ่ายเงินจำนวน ..................... บาท", "left", False),
-        (f"ตัวอักษร ( {D} )", "left", False),
+        (f"ข้าพเจ้า {bname}", "left", False),
+        (f"ตำแหน่ง {bpos}", "left", False),
+        (f"ได้จ่ายเงินจำนวน {total_txt} บาท", "left", False),
+        (f"ตัวอักษร ( {total_words} )", "left", False),
         ("โดยไม่อาจเรียกใบเสร็จรับเงินจากผู้รับเงินได้ ตามรายการที่แนบ", "left", False),
         ("", "left", False),
-    ] + sign("ผู้จ่ายเงิน", date=True), size=12)
+    ] + sign("ผู้จ่ายเงิน", bname, date_val=daystr), size=12)
 
-    # แถวหัว ส่วน 2 / ส่วน 4
     _box_cell(tbl.cell(2, 0), [("ส่วนที่ 2 การอนุมัติการจัดซื้อ", "left", True)], size=13)
     _box_cell(tbl.cell(2, 1), [("ส่วนที่ 4 ผลการตรวจรับและอนุมัติการจ่ายเงิน", "left", True)], size=13)
-    # ส่วน 2 body
     _box_cell(tbl.cell(3, 0), [
         (f"เรียน  ผู้อำนวยการ{sname}", "left", False),
         ("เพื่อโปรดทราบและ", "left", False),
@@ -357,12 +360,11 @@ def render_purchase_form(rnd, school, doc=None) -> str:
         (f"     3.1 {nm_or(insp, 0)}  ประธาน", "left", False),
         (f"     3.2 {nm_or(insp, 1)}  กรรมการ", "left", False),
         (f"     3.3 {nm_or(insp, 2)}  กรรมการ", "left", False),
-    ] + sign("เจ้าหน้าที่", officer) + sign("หัวหน้าเจ้าหน้าที่", head, date=True) + [
+    ] + sign("เจ้าหน้าที่", officer) + sign("หัวหน้าเจ้าหน้าที่", head, date_val=daystr) + [
         ("", "left", False),
         ("อนุมัติตามเสนอข้อ 1 และ 2", "center", True),
         ("", "left", False),
-    ] + sign("ผู้อำนวยการโรงเรียน", director, date=True), size=12)
-    # ส่วน 4 body - คณะกรรมการตรวจรับ 3 บรรทัด ไม่ใส่ชื่อ ป้ายต่อท้ายเส้น ชิดซ้าย
+    ] + sign("ผู้อำนวยการโรงเรียน", director, date_val=daystr), size=12)
     _box_cell(tbl.cell(3, 1), [
         (f"เรียน  ผู้อำนวยการ{sname}", "left", False),
         ("เพื่อโปรดทราบ พัสดุตามรายการข้างต้นได้ทำการตรวจรับไว้เป็นการถูกต้อง ครบถ้วนแล้ว", "left", False),
@@ -371,13 +373,42 @@ def render_purchase_form(rnd, school, doc=None) -> str:
         (f"(ลงชื่อ) {D} กรรมการ", "left", False),
     ] + sign("เจ้าหน้าที่", officer) + [
         ("ได้ตรวจสอบหลักฐานแล้วถูกต้อง จึงขออนุมัติเบิกจ่ายเงิน", "left", False),
-        ("ประเภท ............ จำนวนเงิน ................ บาท", "left", False),
-    ] + sign("เจ้าหน้าที่การเงิน", fin, date=True) + [
+        (f"ประเภท {fund_txt} จำนวนเงิน {total_txt} บาท", "left", False),
+    ] + sign("เจ้าหน้าที่การเงิน", fin, date_val=daystr) + [
         ("ทราบ อนุมัติตามรายการที่ขอเบิก และจ่ายเงินได้", "center", True),
-    ] + sign("ผู้อำนวยการโรงเรียน", director, date=True)
-      + sign("ผู้รับเงิน") + sign("ผู้จ่ายเงิน"), size=12)
-    # หน้าแนบท้าย: รายการอาหาร + วัสดุเครื่องบริโภครายวัน (ขึ้นหน้าใหม่)
-    render_purchase_attach(rnd, school, doc)
+    ] + sign("ผู้อำนวยการโรงเรียน", director, date_val=daystr)
+      + sign("ผู้รับเงิน", bname) + sign("ผู้จ่ายเงิน", bname), size=12)
+
+    # ตารางวัสดุเครื่องบริโภคของวันนี้
+    _p(doc, ("รายการอาหาร: " + menu_main) if menu_main else "รายการวัสดุเครื่องบริโภค",
+       bold=True, before=6, after=2, size=13)
+    body = []
+    for ig in day_ings:
+        amt = (ig.quantity or 0) * (ig.unit_price or 0)
+        body.append([ig.name or "", f"{_money(ig.quantity)} {ig.unit or ''}".strip(),
+                     _money(ig.unit_price), _money(amt)])
+    if body:
+        body.append(["", "", "รวมเป็นเงินทั้งสิ้น", _money(total)])
+    else:
+        body = [["", "", "", ""] for _ in range(6)]
+    _simple_table(doc, ["วัสดุเครื่องบริโภค", "จำนวนหน่วย", "ราคา/หน่วย", "จำนวนเงิน"],
+                  body, [Cm(6.2), Cm(3.0), Cm(3.0), Cm(3.0)])
+
+
+def render_purchase_form(rnd, school, doc=None) -> str:
+    """05 ใบจัดซื้อวัสดุเครื่องบริโภค วงเงินไม่เกิน 500,000 บาท - ออกแยกรายวัน (1 วัน 1 ใบ)
+    เติมวันที่/ผู้จัดทำ/ประเภทเงิน/จำนวนเงิน จากวัตถุดิบที่กรอกในแต่ละวัน"""
+    doc, own = _begin(doc)
+    prog = rnd.program
+    days = _ings_by_day(rnd)
+    if not days:                                # ยังไม่กรอกวัตถุดิบ -> ใบเปล่า 1 ใบ
+        _purchase_day_block(doc, rnd, school, None, [])
+    else:
+        for i, (d, igs) in enumerate(days):
+            if i > 0:
+                doc.add_page_break()
+            day_dt = igs[0].date if igs else None
+            _purchase_day_block(doc, rnd, school, day_dt, igs)
     return _finish(doc, own, f"ใบจัดซื้อวัสดุเครื่องบริโภค_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
