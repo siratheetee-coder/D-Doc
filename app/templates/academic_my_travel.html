@@ -44,6 +44,8 @@
       <div><label>ตามหนังสือที่</label><input name="doc_ref" placeholder="เช่น ศธ 04xxx/123"></div>
       <div><label>ลงวันที่ (ของหนังสือ)</label><input name="doc_date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
     </div>
+    <label style="margin-top:10px; display:block;">แนบเอกสารประกอบ (หนังสือเชิญ/คำสั่ง · PDF/รูป)</label>
+    <input type="file" name="doc_attachment" accept=".pdf,image/*" style="font-size:14px;">
 
     <label style="margin-top:12px; display:block;"><b>ค่าใช้จ่าย</b></label>
     <div style="display:flex; gap:16px; flex-wrap:wrap; margin:4px 0;">
@@ -75,11 +77,7 @@
 
     <label style="margin-top:12px; display:block;">แนบใบไปราชการที่กรอกแล้ว (ถ้ามี · PDF/รูป)</label>
     <input type="file" name="travel_form" accept=".pdf,image/*" style="font-size:14px;">
-    <p class="muted" style="font-size:12.5px; margin:6px 0 0;">ถ้าครูมีใบไปราชการอยู่แล้ว แนบส่งให้ ผอ. ได้เลย</p>
-
-    <label style="margin-top:12px; display:block;">แนบเอกสารประกอบ (หนังสือเชิญ/คำสั่ง · PDF/รูป)</label>
-    <input type="file" name="doc_attachment" accept=".pdf,image/*" style="font-size:14px;">
-    <p class="muted" style="font-size:12.5px; margin:6px 0 0;">ไฟล์ที่แนบทั้งหมดจะถูกส่งไปในอีเมลด้วย</p>
+    <p class="muted" style="font-size:12.5px; margin:6px 0 0;">ถ้าครูมีใบไปราชการอยู่แล้ว แนบส่งให้ ผอ. ได้เลย · ไฟล์ที่แนบทั้งหมดจะถูกส่งไปในอีเมลด้วย</p>
     <br><button class="btn green" type="submit" style="margin-top:12px;"><svg class="icon"><use href="#ic-send"/></svg> ส่งคำขอไปราชการ</button>
   </form>
   <script>
