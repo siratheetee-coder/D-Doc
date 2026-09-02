@@ -705,6 +705,10 @@ def render_reimburse_advance(rnd, school, doc=None) -> str:
     if not rows:
         rows = [[str(k), "ค่าอาหารประจำวันที่ ...................................", "", ""] for k in range(1, 6)]
     total = round(float(rnd.amount or 0), 2) if not tot else round(tot, 2)
+    fuel = round(float(getattr(rnd, "fuel_cost", 0) or 0), 2)   # ค่าเชื้อเพลิงประกอบอาหาร (แก๊ส/ถ่าน)
+    if fuel:
+        rows.append([str(len(rows) + 1), "ค่าเชื้อเพลิงประกอบอาหาร (แก๊ส/ถ่าน)", _money(fuel), ""])
+        total = round(total + fuel, 2)
     rows.append(["", "รวม", _money(total), ""])
     _simple_table(doc, ["ที่", "รายการ", "จำนวนเงิน", "หมายเหตุ"],
                   rows, [Cm(1.6), Cm(7.4), Cm(3.0), Cm(3.5)])

@@ -457,6 +457,8 @@ def _populate_round(rnd, form, db):
     new_vid = _maybe_new_vendor(db, form)
     rnd.vendor_id = new_vid or (_to_int(form.get("vendor_id"), 0) or None)
     rnd.amount = _to_float(form.get("amount"), 0.0)
+    if "fuel_cost" in form:                                 # ค่าเชื้อเพลิงประกอบอาหาร (ถ้าฟอร์มส่งมา)
+        rnd.fuel_cost = _to_float(form.get("fuel_cost"), 0.0)
     rnd.procurement_id = _to_int(form.get("procurement_id"), 0) or None
     rnd.order_no = (form.get("order_no") or "").strip()
     rnd.order_date = parse_be_date(form.get("order_date") or "")

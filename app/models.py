@@ -879,7 +879,8 @@ class LunchHireRound(Base):
     end_date = Column(DateTime, nullable=True)
     days = Column(Integer, default=0)                # จำนวนวันทำการในรอบ (หักวันหยุดแล้ว)
     vendor_id = Column(Integer, ForeignKey("vendor.id"), nullable=True)  # ผู้รับจ้าง
-    amount = Column(Float, default=0.0)              # วงเงินรอบนี้
+    amount = Column(Float, default=0.0)              # วงเงินรอบนี้ (ค่าจ้างบุคคล/จ้างเหมา)
+    fuel_cost = Column(Float, default=0.0)           # ค่าเชื้อเพลิงประกอบอาหาร (แก๊ส/ถ่าน) ต่อรอบ
     procurement_id = Column(Integer, ForeignKey("procurement.id"), nullable=True)  # เรื่องจัดจ้างที่ผูก
     order_no = Column(String, default="")            # เลขที่ตกลงจ้าง/ใบสั่งจ้าง เช่น 27/2568
     order_date = Column(DateTime, nullable=True)     # วันที่ตกลงจ้าง/ใบสั่งจ้าง

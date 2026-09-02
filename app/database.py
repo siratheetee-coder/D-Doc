@@ -85,6 +85,7 @@ MIGRATIONS = [
     ("asset", "dispose_doc_ref", "VARCHAR DEFAULT ''"),
     ("lunch_ledger", "round_id", "INTEGER"),
     ("lunch_ledger", "installment_id", "INTEGER"),
+    ("lunch_hire_round", "fuel_cost", "FLOAT DEFAULT 0"),
     ("lunch_hire_round", "order_no", "VARCHAR DEFAULT ''"),
     ("lunch_hire_round", "order_date", "DATETIME"),
     ("lunch_hire_round", "memo_no", "VARCHAR DEFAULT ''"),
