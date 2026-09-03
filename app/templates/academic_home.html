@@ -178,8 +178,111 @@
 </div>
 {% endif %}
 
+{% if is_teacher %}
+<div class="tgrid">
+  <a class="tcard" style="--c:#4880FF; --c2:#6f9bff;" href="/academic/attendance?mode={{ att_mode }}">
+    <span class="tc-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
+    <h3>เช็กชื่อ / เวลาเรียน</h3>
+    <ul class="tc-list">
+      <li>กดแล้วเข้าหน้าติ๊กเช็กชื่อของเดือนนี้เลย</li>
+      <li>มา / ป่วย / ลา / ขาด</li>
+      <li>ครูประจำชั้น: เช็กเวลาเรียนโดยรวม</li>
+    </ul>
+    <span class="tc-go">เช็กชื่อเลย <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  <a class="tcard" style="--c:#7c3aed; --c2:#a78bfa;" href="/academic/grades">
+    <span class="tc-ic"><svg class="icon"><use href="#ic-edit"/></svg></span>
+    <h3>กรอกคะแนน ปพ.5</h3>
+    <ul class="tc-list">
+      <li>กรอกคะแนนทั้งห้องในตารางเดียว</li>
+      <li>คิดเกรดให้อัตโนมัติ</li>
+      <li>ออก ปพ.5</li>
+    </ul>
+    <span class="tc-go">กรอกคะแนน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  <a class="tcard" style="--c:#16a34a; --c2:#4ade80;" href="/academic/eval">
+    <span class="tc-ic"><svg class="icon"><use href="#ic-check"/></svg></span>
+    <h3>ประเมิน ปพ.6</h3>
+    <ul class="tc-list">
+      <li>อ่านคิดวิเคราะห์</li>
+      <li>คุณลักษณะอันพึงประสงค์</li>
+      <li>กิจกรรมพัฒนาผู้เรียน</li>
+      <li>ออกสมุดรายงาน ปพ.6</li>
+    </ul>
+    <span class="tc-go">ประเมิน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  <a class="tcard" style="--c:#4f46e5; --c2:#818cf8;" href="/academic/timetable">
+    <span class="tc-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
+    <h3>ตารางเรียน</h3>
+    <ul class="tc-list">
+      <li>ตั้งโครงคาบเรียนเอง</li>
+      <li>กรอกตารางรายห้อง (ครูดึงอัตโนมัติ)</li>
+      <li>ดูตารางรายครู + เตือนคาบซ้อน</li>
+      <li>พิมพ์ตารางห้อง/ครู</li>
+    </ul>
+    <span class="tc-go">เปิดตารางเรียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  <a class="tcard" style="--c:#0d9488; --c2:#2dd4bf;" href="/academic/lesson-plans">
+    <span class="tc-ic"><svg class="icon"><use href="#ic-file"/></svg></span>
+    <h3>แผนการสอน</h3>
+    <ul class="tc-list">
+      <li>ครูส่งแผน (ลิงก์ Drive) เข้าระบบ</li>
+      <li>แจ้งหัวหน้าฝ่ายวิชาการทางอีเมล</li>
+      <li>หัวหน้าฝ่ายตรวจ/ให้แก้ได้</li>
+    </ul>
+    <span class="tc-go">ส่ง/ตรวจแผน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  <a class="tcard" style="--c:#ea580c; --c2:#fb923c;" href="/me/leave">
+    <span class="tc-ic"><svg class="icon"><use href="#ic-file"/></svg></span>
+    <h3>ส่งใบลา</h3>
+    <ul class="tc-list">
+      <li>ลาป่วย / ลากิจ / ลาคลอด</li>
+      <li>ระบบแจ้งหัวหน้าฝ่ายบุคคลทางอีเมล</li>
+      <li>ผอ. อนุมัติ + ลงนามให้ในระบบ</li>
+    </ul>
+    <span class="tc-go">ส่งใบลา <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  <a class="tcard" style="--c:#db2777; --c2:#f472b6;" href="/me/travel">
+    <span class="tc-ic"><svg class="icon"><use href="#ic-send"/></svg></span>
+    <h3>ขอไปราชการ</h3>
+    <ul class="tc-list">
+      <li>แจ้งเรื่อง/สถานที่/ช่วงวันไปราชการ</li>
+      <li>แนบใบไปราชการ + เอกสารประกอบ</li>
+      <li>ผอ. อนุมัติ + ลงนามให้ในระบบ</li>
+    </ul>
+    <span class="tc-go">ขอไปราชการ <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+</div>
+<style>
+  .tgrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); gap:20px; margin-bottom:22px; }
+  .tcard{ display:flex; flex-direction:column; gap:12px; padding:26px 24px; border-radius:20px;
+    min-height:236px; background:linear-gradient(140deg,var(--c),var(--c2)); color:#fff;
+    text-decoration:none; box-shadow:0 12px 30px rgba(16,24,40,.20);
+    transition:transform .15s ease, box-shadow .15s ease; position:relative; overflow:hidden; }
+  .tcard::after{ content:""; position:absolute; right:-40px; top:-40px; width:150px; height:150px;
+    background:rgba(255,255,255,.10); border-radius:50%; }
+  .tcard:hover{ transform:translateY(-6px); box-shadow:0 20px 40px rgba(16,24,40,.30); }
+  .tc-ic{ width:58px; height:58px; border-radius:16px; display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,.22); color:#fff; position:relative; z-index:1; }
+  .tc-ic .icon{ width:30px; height:30px; }
+  .tcard h3{ margin:0; font-size:21px; font-weight:800; color:#fff; }
+  .tc-list{ margin:0; padding-left:18px; flex:1; color:rgba(255,255,255,.94);
+    font-size:14px; line-height:1.7; }
+  .tc-list li{ margin:0 0 2px; }
+  .tc-go{ display:inline-flex; align-items:center; gap:6px; font-weight:700; color:#fff; font-size:15.5px;
+    transition:gap .15s ease; }
+  .tcard:hover .tc-go{ gap:11px; }
+  .tc-go .icon{ width:16px; height:16px; }
+  .tgrid > .tcard{ animation:riseIn .42s cubic-bezier(.22,.75,.3,1) backwards; }
+  .tgrid > .tcard:nth-child(1){ animation-delay:.05s; } .tgrid > .tcard:nth-child(2){ animation-delay:.10s; }
+  .tgrid > .tcard:nth-child(3){ animation-delay:.15s; } .tgrid > .tcard:nth-child(4){ animation-delay:.20s; }
+  .tgrid > .tcard:nth-child(5){ animation-delay:.25s; } .tgrid > .tcard:nth-child(6){ animation-delay:.30s; }
+  .tgrid > .tcard:nth-child(7){ animation-delay:.35s; }
+  @media (prefers-reduced-motion: reduce){
+    .tcard, .tc-go{ transition:none; } .tcard:hover{ transform:none; } .tgrid > .tcard{ animation:none; } }
+</style>
+{% else %}
 <div class="nav-grid">
-  {% if not is_teacher %}
   <a class="nav-card" href="/academic/classes">
     <div class="nc-head">
       <span class="nc-ic"><svg class="icon"><use href="#ic-users"/></svg></span>
@@ -219,20 +322,6 @@
     </ul>
     <span class="nc-go">ตั้งปฏิทิน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
-  {% else %}
-  <a class="nav-card" href="/academic/attendance?mode={{ att_mode }}">
-    <div class="nc-head">
-      <span class="nc-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
-      <h3>เช็กชื่อ / เวลาเรียน</h3>
-    </div>
-    <ul class="nc-list">
-      <li>กดแล้วเข้าหน้าติ๊กเช็กชื่อของเดือนนี้เลย</li>
-      <li>มา / ป่วย / ลา / ขาด</li>
-      <li>ครูประจำชั้น: เช็กเวลาเรียนโดยรวม</li>
-    </ul>
-    <span class="nc-go">เช็กชื่อเลย <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  {% endif %}
   <a class="nav-card" href="/academic/grades">
     <div class="nc-head">
       <span class="nc-ic"><svg class="icon"><use href="#ic-edit"/></svg></span>
@@ -298,4 +387,5 @@
   </a>
   {% endif %}
 </div>
+{% endif %}
 {% endblock %}
