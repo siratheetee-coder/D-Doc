@@ -23,8 +23,9 @@
     <div class="row">
       <div><label>วันที่ {% if menu_days %}<span class="muted">(ในรอบ)</span>{% endif %}</label>
         {% if menu_days and not edit %}
+        {% set seld = request.query_params.get('d') or today_be %}
         <select name="date" style="min-width:200px;">
-          {% for d in menu_days %}<option value="{{ d.be }}" {{ 'selected' if d.be == today_be }}>{{ d.be }}{{ ' · มีเมนูแล้ว' if d.has }}</option>{% endfor %}
+          {% for d in menu_days %}<option value="{{ d.be }}" {{ 'selected' if d.be == seld }}>{{ d.be }}{{ ' · มีเมนูแล้ว' if d.has }}</option>{% endfor %}
         </select>
         {% else %}
         <input name="date" value="{{ be_date(edit.date) if edit and edit.date else today_be }}" placeholder="วว/ดด/ปปปป" data-date="1">

@@ -806,7 +806,11 @@ def menu_add(pid: int, db: Session = Depends(get_db),
     db.add(LunchMenu(program_id=pid, date=parse_be_date(date), main=main.strip(),
                      dessert=dessert.strip(), note=note.strip(), groups=_clean_groups(groups)))
     db.commit()
-    return RedirectResponse(_stay_url(f"/lunch/{pid}/menu", back), status_code=303)
+    from urllib.parse import quote
+    url = _stay_url(f"/lunch/{pid}/menu", back)          # คงวันที่ที่เลือกไว้ (กันเด้งกลับวันแรก)
+    if (date or "").strip():
+        url += ("&" if "?" in url else "?") + "d=" + quote(date.strip())
+    return RedirectResponse(url, status_code=303)
 
 
 @router.post("/lunch/{pid}/menu/fill-term")
@@ -882,9 +886,27 @@ def ingredients_page(pid: int, request: Request, db: Session = Depends(get_db), 
                        "menu": next((m.main for m in prog.menus if m.date and m.date.date() == d), ""),
                        "rows": rows, "total": sum((r.quantity or 0) * (r.unit_price or 0) for r in rows)})
     menu_days = [{"be": be_date_input(m.date), "main": m.main} for m in prog.menus if m.date]
+    # งบคงเหลือสำหรับวัตถุดิบ ของรอบที่กำลังจัดการ (จาก back) หรือรอบล่าสุด
+    import re as _re
+    mrid = _re.search(r"/lunch/round/(\d+)/", back or "")
+    cur = db.get(LunchHireRound, int(mrid.group(1))) if mrid else None
+    if not cur:
+        rws = [r for r in prog.rounds if r.start_date]
+        cur = max(rws, key=lambda r: r.start_date) if rws else None
+    ing_budget = ing_remaining = None
+    if cur and cur.start_date and cur.end_date:
+        sd, ed = cur.start_date.date(), cur.end_date.date()
+        rt = sum((ig.quantity or 0) * (ig.unit_price or 0) for ig in prog.ingredients
+                 if ig.date and sd <= ig.date.date() <= ed)
+        wage = float(getattr(cur, "cook_wage", 0) or 0) if prog.operate_mode == "person" else 0.0
+        fuel = float(getattr(cur, "fuel_cost", 0) or 0)
+        allocated = float(prog.total_students or 0) * float(prog.rate_per_head or 0) * float(cur.days or 0)
+        ing_budget = allocated - wage - fuel
+        ing_remaining = ing_budget - rt
     return templates.TemplateResponse("lunch_ingredients.html", {
         "request": request, "school": get_school(db), "p": prog,
         "groups": groups, "menu_days": menu_days, "today_be": be_date_input(datetime.now()),
+        "ing_budget": ing_budget, "ing_remaining": ing_remaining,
         "back": _safe_back(back, ""),
     })
 
@@ -902,7 +924,11 @@ def ingredient_add(pid: int, db: Session = Depends(get_db), date: str = Form("")
                                quantity=_to_float(quantity, 0.0), unit=unit.strip(),
                                unit_price=_to_float(unit_price, 0.0)))
         db.commit()
-    return RedirectResponse(_stay_url(f"/lunch/{pid}/ingredients", back), status_code=303)
+    from urllib.parse import quote
+    url = _stay_url(f"/lunch/{pid}/ingredients", back)   # คงวันที่ที่เลือกไว้ (กันเด้งกลับวันแรก)
+    if (date or "").strip():
+        url += ("&" if "?" in url else "?") + "d=" + quote(date.strip())
+    return RedirectResponse(url, status_code=303)
 
 
 @router.post("/lunch/ingredient/{iid}/update")
@@ -1090,11 +1116,17 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
     fuel_cost = float(getattr(rnd, "fuel_cost", 0) or 0)
     wage = float(getattr(rnd, "cook_wage", 0) or 0) if rnd.program.operate_mode == "person" else 0.0
     round_budget = ing_total + fuel_cost + wage
+    # งบที่จัดสรรให้รอบนี้ (รายหัว × วันในรอบ) แล้วหักค่าจ้าง+เชื้อเพลิง = งบสำหรับวัตถุดิบ
+    _rate = float(rnd.program.rate_per_head or 0)
+    allocated = float(rnd.program.total_students or 0) * _rate * float(rnd.days or 0)
+    ing_budget = allocated - wage - fuel_cost
+    ing_remaining = ing_budget - ing_total
 
     return templates.TemplateResponse("lunch_contract.html", {
         "request": request, "school": get_school(db), "r": rnd, "p": rnd.program,
         "installments": rnd.installments, "paid": paid,
         "ing_total": ing_total, "fuel_cost": fuel_cost, "wage": wage, "round_budget": round_budget,
+        "ing_budget": ing_budget, "ing_remaining": ing_remaining,
         "committed": sum(i.amount or 0 for i in rnd.installments),
         "committees": committees, "com_kinds": com_kinds, "com_roles": COMMITTEE_ROLES,
         "other_rounds": other_rounds,
