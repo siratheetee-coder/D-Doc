@@ -379,9 +379,10 @@ def _purchase_day_block(doc, rnd, school, day_dt, day_ings):
     ] + sign("ผู้อำนวยการโรงเรียน", director, date_val=daystr)
       + sign("ผู้รับเงิน", bname) + sign("ผู้จ่ายเงิน", bname), size=12)
 
-    # ตารางวัสดุเครื่องบริโภคของวันนี้ (หัวเรื่อง center + ชื่อรายการอาหารเป็นแถวหัวตาราง center)
+    # ตารางวัสดุเครื่องบริโภคของวันนี้ (หัวเรื่อง center + วันที่ + ชื่อรายการอาหารเป็นแถวหัวตาราง center)
     _p(doc, "รายละเอียดแนบท้ายใบจัดซื้อเครื่องบริโภค วงเงินไม่เกิน 500,000 บาท",
        align="center", bold=True, before=6, after=2, size=14)
+    _p(doc, f"ประจำวันที่ {daystr}", align="center", after=2, size=13)
     body = []
     for ig in day_ings:
         amt = (ig.quantity or 0) * (ig.unit_price or 0)
@@ -394,6 +395,13 @@ def _purchase_day_block(doc, rnd, school, day_dt, day_ings):
     _simple_table(doc, ["วัสดุเครื่องบริโภค", "จำนวนหน่วย", "ราคา/หน่วย", "จำนวนเงิน"],
                   body, [Cm(6.2), Cm(3.0), Cm(3.0), Cm(3.0)],
                   title_row=("รายการอาหาร: " + menu_main) if menu_main else None)
+
+    # ช่องลงชื่อเจ้าหน้าที่อาหารกลางวัน (ผู้จัดทำรายการ) ท้ายใบแนบ - เหมือนต้นฉบับ excel
+    _p(doc, "", after=14)
+    _sign_table(doc, [
+        [("ลงชื่อ.................................. ผู้จัดทำรายการ", "center"),
+         (f"( {bname} )", "center"),
+         (f"วันที่ {daystr}", "center")]])
 
 
 def render_purchase_form(rnd, school, doc=None) -> str:
