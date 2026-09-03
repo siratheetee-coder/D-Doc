@@ -1400,8 +1400,13 @@ def committee_inspect_days(mid: int, db: Session = Depends(get_db),
     if not m:
         return RedirectResponse("/lunch", status_code=303)
     rid = m.round_id
-    clean = [d.strip() for d in days if d and d.strip()]
-    m.inspect_days = ",".join(clean)
+    # 1 วัน 1 คน: ตัดวันที่กรรมการคนอื่นเลือกไว้แล้วออก (กันชนกัน คนอื่นได้สิทธิ์ก่อน)
+    others = set()
+    for mm in (m.round.committees if m.round else []):
+        if mm.kind == "inspect" and mm.id != m.id:
+            others |= {d.strip() for d in (mm.inspect_days or "").split(",") if d.strip()}
+    clean = [d.strip() for d in days if d and d.strip() and d.strip() not in others]
+    m.inspect_days = ",".join(dict.fromkeys(clean))   # ไม่ซ้ำ + คงลำดับ
     db.commit()
     return RedirectResponse(f"/lunch/round/{rid}/plan?kind=inspect#committee", status_code=303)
 

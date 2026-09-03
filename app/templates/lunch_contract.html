@@ -87,6 +87,11 @@
     <tbody>
     {% for m in committees[k] %}
       {% set chosen = (m.inspect_days or '').split(',') %}
+      {# วันที่กรรมการคนอื่นเลือกไปแล้ว -> คนนี้เลือกซ้ำไม่ได้ (1 วัน 1 คน) #}
+      {% set taken_others = [] %}
+      {% if k == 'inspect' %}{% for mm in committees['inspect'] if mm.id != m.id %}
+        {% for dd in (mm.inspect_days or '').split(',') if dd %}{{ taken_others.append(dd) or '' }}{% endfor %}
+      {% endfor %}{% endif %}
       <tr><td>{{ loop.index }}</td><td>{{ m.name }}</td><td>{{ m.position }}</td><td>{{ m.role }}</td>
         {% if k == 'inspect' %}
         <td>
@@ -96,12 +101,13 @@
             <form method="post" action="/lunch/committee/{{ m.id }}/inspect-days" style="margin:6px 0 0;">
               <div class="insp-grid">
                 {% for wd in insp_workdays %}
-                <label class="insp-day"><input type="checkbox" name="days" value="{{ wd.iso }}" {{ 'checked' if wd.iso in chosen }}> {{ wd.label }}</label>
+                {% set taken = wd.iso in taken_others and wd.iso not in chosen %}
+                <label class="insp-day{{ ' taken' if taken }}"><input type="checkbox" name="days" value="{{ wd.iso }}" {{ 'checked' if wd.iso in chosen }} {{ 'disabled' if taken }}> {{ wd.label }}{% if taken %} <span class="mini">(มีคนเลือกแล้ว)</span>{% endif %}</label>
                 {% endfor %}
               </div>
               <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
                 <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-check"/></svg> บันทึกวัน</button>
-                <button class="btn sm gray" type="button" onclick="this.closest('form').querySelectorAll('input[type=checkbox]').forEach(function(c){c.checked=true;});">เลือกทุกวัน</button>
+                <button class="btn sm gray" type="button" onclick="this.closest('form').querySelectorAll('input[type=checkbox]:not(:disabled)').forEach(function(c){c.checked=true;});">เลือกทุกวันที่ว่าง</button>
                 <button class="btn sm gray" type="button" onclick="this.closest('form').querySelectorAll('input[type=checkbox]').forEach(function(c){c.checked=false;});">ล้าง</button>
               </div>
             </form>
@@ -120,6 +126,8 @@
     .insp-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(112px,1fr)); gap:4px 10px;
       max-height:220px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:8px; background:#fafafe; }
     .insp-day{ display:flex; align-items:center; gap:5px; font-size:13px; white-space:nowrap; }
+    .insp-day.taken{ color:#b0b0b8; }
+    .insp-day.taken .mini{ font-size:10.5px; color:#c05353; }
   </style>
 </div>
 
