@@ -147,8 +147,6 @@ async def lunch_save(request: Request, db: Session = Depends(get_db)):
     prog.year = _to_int(form.get("year"), _current_academic_year())
     prog.days = _to_int(form.get("days"), 200)
     prog.operate_mode = form.get("operate_mode") or "hire"
-    prog.fuel_cost = _to_float(form.get("fuel_cost"), 0.0)   # ค่าเชื้อเพลิงประกอบอาหาร (รวมในงบ)
-    prog.cook_wage = _to_float(form.get("cook_wage"), 0.0)   # ค่าจ้างแม่ครัว (หักจากงบรายหัว)
     prog.funding_org = (form.get("funding_org") or "").strip()
     prog.lunch_officer = (form.get("lunch_officer") or "").strip()
     prog.note = (form.get("note") or "").strip()
@@ -459,7 +457,9 @@ def _populate_round(rnd, form, db):
     new_vid = _maybe_new_vendor(db, form)
     rnd.vendor_id = new_vid or (_to_int(form.get("vendor_id"), 0) or None)
     rnd.amount = _to_float(form.get("amount"), 0.0)
-    if "fuel_cost" in form:                                 # ค่าเชื้อเพลิงประกอบอาหาร (ถ้าฟอร์มส่งมา)
+    if "cook_wage" in form:                                 # ค่าจ้างแม่ครัวต่อรอบ
+        rnd.cook_wage = _to_float(form.get("cook_wage"), 0.0)
+    if "fuel_cost" in form:                                 # ค่าเชื้อเพลิงประกอบอาหารต่อรอบ
         rnd.fuel_cost = _to_float(form.get("fuel_cost"), 0.0)
     rnd.procurement_id = _to_int(form.get("procurement_id"), 0) or None
     rnd.order_no = (form.get("order_no") or "").strip()
@@ -1087,8 +1087,8 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         d = ig.date.date() if ig.date else None
         if d and _sd and _ed and _sd <= d <= _ed:
             ing_total += (ig.quantity or 0) * (ig.unit_price or 0)
-    fuel_cost = float(getattr(rnd.program, "fuel_cost", 0) or 0)
-    wage = float(getattr(rnd.program, "cook_wage", 0) or 0) if rnd.program.operate_mode == "person" else 0.0
+    fuel_cost = float(getattr(rnd, "fuel_cost", 0) or 0)
+    wage = float(getattr(rnd, "cook_wage", 0) or 0) if rnd.program.operate_mode == "person" else 0.0
     round_budget = ing_total + fuel_cost + wage
 
     return templates.TemplateResponse("lunch_contract.html", {

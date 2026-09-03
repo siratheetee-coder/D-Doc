@@ -39,7 +39,11 @@
         {% for v in vendors %}<option value="{{ v.id }}" {{ 'selected' if edit and edit.vendor_id==v.id }}>{{ v.name }}</option>{% endfor %}
       </select>
       <button type="button" onclick="toggleNV()" id="nvToggle" class="btn sm gray" style="margin-top:6px;"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มผู้รับจ้างใหม่</button></div>
-      <div><label>วงเงินรอบนี้ (บาท) <span class="muted">ค่าจ้าง</span></label><input name="amount" id="amt" type="number" step="0.01" value="{{ '%g'|format(edit.amount) if edit and edit.amount else '' }}"></div>
+      <div><label>วงเงินรอบนี้ (บาท) <span class="muted">รวม</span></label><input name="amount" id="amt" type="number" step="0.01" value="{{ '%g'|format(edit.amount) if edit and edit.amount else '' }}"></div>
+      {% if p.operate_mode in ['person','ingredient'] %}
+      {% if p.operate_mode == 'person' %}<div><label>ค่าจ้างแม่ครัว (รอบนี้)</label><input name="cook_wage" type="number" step="0.01" value="{{ '%g'|format(edit.cook_wage) if edit and edit.cook_wage else '' }}" placeholder="เช่น 5000"></div>{% endif %}
+      <div><label>ค่าเชื้อเพลิง (รอบนี้) <span class="muted">แก๊ส/ถ่าน</span></label><input name="fuel_cost" type="number" step="0.01" value="{{ '%g'|format(edit.fuel_cost) if edit and edit.fuel_cost else '' }}" placeholder="เช่น 500"></div>
+      {% endif %}
       <div><label>เลขที่ตกลงจ้าง/สั่งจ้าง</label><input name="order_no" value="{{ edit.order_no if edit else '' }}" placeholder="เช่น 27/2568" style="min-width:150px;"></div>
       <div><label>วันที่ตกลงจ้าง/สั่งจ้าง</label><input name="order_date" value="{{ be_date(edit.order_date) if edit and edit.order_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="min-width:150px;"></div>
       <div><label>สถานะ</label><select name="status">

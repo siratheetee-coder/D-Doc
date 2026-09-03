@@ -580,8 +580,8 @@ def render_order_doc(rnd, school, doc=None) -> str:
     director = (school.director_name or "").strip() or _BLANK
     order_no = _doc_no(rnd, "hire-order", (rnd.order_no or "").strip() or _BLANK)
     order_dt = _doc_dt(rnd, "hire-order", "date") or rnd.order_date
-    is_person = getattr(prog, "operate_mode", "") == "person"   # จ้างแม่ครัว = ใช้ค่าจ้าง ไม่ใช่งบรายหัว
-    total = round((float(getattr(prog, "cook_wage", 0) or 0) or float(rnd.amount or 0)) if is_person
+    is_person = getattr(prog, "operate_mode", "") == "person"   # จ้างแม่ครัว = ใช้ค่าจ้างต่อรอบ ไม่ใช่งบรายหัว
+    total = round((float(getattr(rnd, "cook_wage", 0) or 0) or float(rnd.amount or 0)) if is_person
                   else float(rnd.amount or 0), 2)
     money, baht = _money(total), bahttext(total)
     rate = prog.rate_per_head or 0

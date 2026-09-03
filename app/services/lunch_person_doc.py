@@ -42,7 +42,7 @@ def _round_period(rnd):
     """สังเคราะห์ 'ช่วงจ่าย' = ทั้งรอบ (โหมดแม่ครัวไม่แบ่งงวด: จ่ายค่าจ้างครั้งเดียวต่อรอบ)
     ใช้แทน installment ป้อนให้ render_p_installment/render_p_disburse (seq=None -> ไม่ขึ้นคำว่า 'งวดที่')"""
     from types import SimpleNamespace
-    wage = float(getattr(rnd.program, "cook_wage", 0) or 0) or float(rnd.amount or 0)  # ค่าจ้างแม่ครัว
+    wage = float(getattr(rnd, "cook_wage", 0) or 0) or float(rnd.amount or 0)  # ค่าจ้างแม่ครัว (ต่อรอบ)
     return SimpleNamespace(round=rnd, amount=wage, seq=None,
                            start_date=rnd.start_date, end_date=rnd.end_date,
                            inspect_date=rnd.end_date, deliver_date=rnd.end_date)
@@ -318,7 +318,7 @@ def render_p_order(rnd, school, doc=None) -> str:
     # เลขที่/วันที่บันทึกตกลงจ้าง กรอกที่หน้าจัดการงวด (doc_nos["order"]) fallback เลขตกลงจ้างเดิม
     order_no = _doc_no(rnd, "order", (rnd.order_no or "").strip() or _BLANK)
     order_dt = _doc_dt(rnd, "order", "date") or rnd.order_date
-    total = round(float(getattr(prog, "cook_wage", 0) or 0) or float(rnd.amount or 0), 2)  # ค่าจ้างแม่ครัว
+    total = round(float(getattr(rnd, "cook_wage", 0) or 0) or float(rnd.amount or 0), 2)  # ค่าจ้างแม่ครัว (ต่อรอบ)
     days = rnd.days or 0
     day_rate = round(total / days, 2) if days else 0.0
 

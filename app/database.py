@@ -88,6 +88,7 @@ MIGRATIONS = [
     ("lunch_program", "fuel_cost", "FLOAT DEFAULT 0"),
     ("lunch_program", "cook_wage", "FLOAT DEFAULT 0"),
     ("lunch_hire_round", "fuel_cost", "FLOAT DEFAULT 0"),
+    ("lunch_hire_round", "cook_wage", "FLOAT DEFAULT 0"),
     ("lunch_hire_round", "order_no", "VARCHAR DEFAULT ''"),
     ("lunch_hire_round", "order_date", "DATETIME"),
     ("lunch_hire_round", "memo_no", "VARCHAR DEFAULT ''"),
