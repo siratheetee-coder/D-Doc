@@ -223,9 +223,11 @@ def _inspect_table(doc, menus, committee=None):
 def _menu_table3(doc, menus, third_header, sign_col=False):
     """ตาราง 3 คอลัมน์ (09 ใบส่งมอบ / 10 ใบตรวจรับ): วัน เดือน ปี | รายการอาหาร | <third_header>
     sign_col=True : เติมช่องที่ 3 เป็นจุดไข่ปลาให้ลงชื่อ 3 คน (ผู้ควบคุม/กรรมการตรวจรับ) + ขยายช่อง"""
-    widths = ([Cm(3.0), Cm(5.2), Cm(8.0)] if sign_col
+    widths = ([Cm(3.5), Cm(4.7), Cm(8.0)] if sign_col
               else [Cm(3.44), Cm(6.56), Cm(6.2)])   # ช่องวันที่กว้างพอให้วันที่อยู่บรรทัดเดียว (ตามไฟล์)
-    sign3 = "1) ..............  2) ..............  3) .............."
+    # จุดไข่ปลา 3 จุด (30 จุด/ช่อง) font 12 เต็มช่องพอดี + เว้นบนให้พื้นที่เซ็น
+    sign3 = ("1) ..............................  2) .............................."
+             "  3) ..............................")
     t = doc.add_table(rows=1, cols=3)
     t.style = "Table Grid"
     t.autofit = False
@@ -240,7 +242,8 @@ def _menu_table3(doc, menus, third_header, sign_col=False):
         vals = [thai_date(m.date) if (m and m.date) else "", _menu_text(m) if m else "",
                 sign3 if sign_col else ""]
         for c, v, w in zip(r.cells, vals, widths):
-            _set_cell(c, v, size=(12 if sign_col and v == sign3 else 14))
+            is_sign = sign_col and v == sign3
+            _set_cell(c, v, size=(12 if is_sign else 14), before=(14 if is_sign else 0))
             c.width = w
     return t
 

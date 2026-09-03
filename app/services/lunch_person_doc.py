@@ -239,7 +239,7 @@ def render_p_quotation(rnd, school, doc=None) -> str:
             "ผู้ทิ้งงานของทางราชการ", align="justify", indent=1.25, after=2)
     _p(doc, f"2. ข้าพเจ้าขอเสนอราคาจ้างบุคคลประกอบอาหารกลางวัน {dr} เป็นเงินทั้งสิ้น {_money(total)} บาท "
             f"(ตัวอักษร {bahttext(total)}) ซึ่งรวมค่าใช้จ่ายทั้งปวงไว้ด้วยแล้ว", align="justify", indent=1.25, after=2)
-    _p(doc, "3. คำเสนอนี้จะยืนอยู่เป็นระยะเวลา ๓๐ วัน นับตั้งแต่วันที่ได้ยื่นใบเสนอราคา", indent=1.25, after=2)
+    _p(doc, "3. คำเสนอนี้จะยืนอยู่เป็นระยะเวลา 30 วัน นับตั้งแต่วันที่ได้ยื่นใบเสนอราคา", indent=1.25, after=2)
     _p(doc, f"4. กำหนดส่งมอบ {dr} นับถัดจากวันลงนามใบสั่งจ้าง/ข้อตกลงจ้าง", indent=1.25, after=14)
     _sign_table(doc, [
         [("ลงชื่อ ....................................ผู้เจรจาตกลงราคา", "center"),
@@ -400,7 +400,7 @@ def render_p_installment(inst, school, menus=None, doc=None) -> str:
             f"อาหารกลางวันสำหรับนักเรียน {period} บัดนี้ได้ดำเนินการเสร็จเรียบร้อยแล้ว จึงขอส่งมอบงาน",
        align="justify", indent=1.25, after=4)
     _menu_table3(doc, menus, "ผู้ส่งมอบงาน")
-    _p(doc, f"ขอเบิกเงิน จำนวน {amount} บาท ({bahttext(inst.amount or 0)})", indent=1.25, before=4, after=14)
+    _p(doc, f"ขอเบิกเงิน จำนวน {amount} บาท ({bahttext(inst.amount or 0)})", indent=1.25, before=4, after=30)
     _sign_table(doc, [[("(ลงชื่อ)...........................................ผู้ส่งมอบงาน", "center"),
                        (f"( {vname} )", "center")]])
 
@@ -414,15 +414,16 @@ def render_p_installment(inst, school, menus=None, doc=None) -> str:
             f"({bahttext(inst.amount or 0)})", align="justify", indent=1.25, after=4)
     _menu_table3(doc, menus, "ผู้ตรวจรับงานจ้างหรือคณะกรรมการ\nตรวจรับงานจ้าง", sign_col=True)
     _p(doc, f"เรียน ผู้อำนวยการ{sname} เพื่อโปรดทราบผลการตรวจรับงานจ้าง และขออนุมัติจ่ายเงินให้ผู้รับจ้าง",
-       align="justify", indent=1.25, before=4, after=10)
+       align="justify", indent=1.25, before=4, after=6)
     # ลงนาม: เจ้าหน้าที่ + หัวหน้าเจ้าหน้าที่ (ตามต้นฉบับ) - กรรมการตรวจรับลงชื่อรายวันในตารางด้านบนแล้ว
+    # จัดกระชับ (gap=False) ให้ความเห็น ผอ. อยู่หน้าเดียวกัน
     officer = (getattr(school, "officer_name", "") or "").strip() or _BLANK
     head = (getattr(school, "head_officer_name", "") or "").strip() or _BLANK
     _sign_table(doc, [[("(ลงชื่อ)...........................................เจ้าหน้าที่", "center"),
-                       (f"( {officer} )", "center")]])
+                       (f"( {officer} )", "center")]], after=2, gap=False)
     _sign_table(doc, [[("(ลงชื่อ)...........................................หัวหน้าเจ้าหน้าที่", "center"),
-                       (f"( {head} )", "center")]])
-    _p(doc, "ความเห็นของผู้บริหารสถานศึกษา   (   ) ทราบผลการตรวจรับ   (   ) อนุมัติ", indent=1.25, before=4, after=8)
+                       (f"( {head} )", "center")]], after=2, gap=False)
+    _p(doc, "ความเห็นของผู้บริหารสถานศึกษา   (   ) ทราบผลการตรวจรับ   (   ) อนุมัติ", indent=1.25, before=4, after=6)
     _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
     _p(doc, f"( {director} )", align="center", after=0)
     _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)

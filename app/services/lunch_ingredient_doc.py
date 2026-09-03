@@ -757,7 +757,7 @@ def render_inspect_detail(rnd, school, doc=None) -> str:
     _p(doc, "ใบแสดงรายละเอียดการตรวจรับพัสดุ", align="center", bold=True, size=17, before=12, after=0)
     _p(doc, f"แนบท้ายใบตรวจรับพัสดุ ลงวันที่ {_dnum(rnd.end_date)}", align="center", after=0)
     _p(doc, f"{sname}", align="center", after=8)
-    sign3 = "1) ............  2) ............  3) ............"
+    sign3 = "1) ...................  2) ...................  3) ..................."
     body = []
     for m in days:
         body.append([_dnum(m.date), (m.main or ""), sign3, ""])

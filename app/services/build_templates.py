@@ -191,11 +191,13 @@ def _p(doc, text="", *, align=None, bold=False, size=16, indent=None, before=0, 
     return p
 
 
-def _set_cell(cell, text, *, bold=False, align="left", size=14):
+def _set_cell(cell, text, *, bold=False, align="left", size=14, before=0):
     cell.text = ""
     p = cell.paragraphs[0]
     p.alignment = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER,
                    "right": WD_ALIGN_PARAGRAPH.RIGHT}[align]
+    if before:
+        p.paragraph_format.space_before = Pt(before)
     r = p.add_run(text)
     r.font.name = THAI_FONT
     _csize(r, size)
