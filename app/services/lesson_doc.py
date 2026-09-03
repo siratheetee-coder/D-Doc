@@ -57,7 +57,11 @@ def render_lesson_plan_cert(db, plan, school) -> str:
     _p(doc, f"ชื่อครูผู้สอน  {(teacher.name if teacher else '') or '.....'}", size=16, after=4)
     _p(doc, f"เรื่อง/หน่วยการจัดการเรียนรู้  {plan.title or '.....'}", size=16, after=4)
     _p(doc, f"ภาคเรียนที่ {term}  ปีการศึกษา {plan.year or '.....'}", size=16, after=4)
-    _p(doc, f"วันที่ส่งแผน  {_thai_date(plan.submitted_at) or '.....'}", size=16, after=10)
+    _p(doc, f"วันที่ส่งแผน  {_thai_date(plan.submitted_at) or '.....'}", size=16, after=6)
+
+    # ---- ลายเซ็นครูผู้จัดทำ/เสนอแผน (แปะให้ถ้ามีในทะเบียน) ----
+    _sign_block(doc, db, (teacher.name if teacher else ""),
+                "ครูผู้สอน (ผู้เสนอแผน)", _thai_date(plan.submitted_at))
 
     # ---- ผลการตรวจของหัวหน้าฝ่ายวิชาการ ----
     _p(doc, "ความเห็นหัวหน้ากลุ่มบริหารงานวิชาการ", bold=True, size=16, after=2)
