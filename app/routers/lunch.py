@@ -148,6 +148,7 @@ async def lunch_save(request: Request, db: Session = Depends(get_db)):
     prog.days = _to_int(form.get("days"), 200)
     prog.operate_mode = form.get("operate_mode") or "hire"
     prog.fuel_cost = _to_float(form.get("fuel_cost"), 0.0)   # ค่าเชื้อเพลิงประกอบอาหาร (รวมในงบ)
+    prog.cook_wage = _to_float(form.get("cook_wage"), 0.0)   # ค่าจ้างแม่ครัว (หักจากงบรายหัว)
     prog.funding_org = (form.get("funding_org") or "").strip()
     prog.lunch_officer = (form.get("lunch_officer") or "").strip()
     prog.note = (form.get("note") or "").strip()
@@ -1087,7 +1088,7 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         if d and _sd and _ed and _sd <= d <= _ed:
             ing_total += (ig.quantity or 0) * (ig.unit_price or 0)
     fuel_cost = float(getattr(rnd.program, "fuel_cost", 0) or 0)
-    wage = float(rnd.amount or 0) if rnd.program.operate_mode == "person" else 0.0
+    wage = float(getattr(rnd.program, "cook_wage", 0) or 0) if rnd.program.operate_mode == "person" else 0.0
     round_budget = ing_total + fuel_cost + wage
 
     return templates.TemplateResponse("lunch_contract.html", {

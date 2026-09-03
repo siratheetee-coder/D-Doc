@@ -580,7 +580,9 @@ def render_order_doc(rnd, school, doc=None) -> str:
     director = (school.director_name or "").strip() or _BLANK
     order_no = _doc_no(rnd, "hire-order", (rnd.order_no or "").strip() or _BLANK)
     order_dt = _doc_dt(rnd, "hire-order", "date") or rnd.order_date
-    total = round(float(rnd.amount or 0), 2)
+    is_person = getattr(prog, "operate_mode", "") == "person"   # จ้างแม่ครัว = ใช้ค่าจ้าง ไม่ใช่งบรายหัว
+    total = round((float(getattr(prog, "cook_wage", 0) or 0) or float(rnd.amount or 0)) if is_person
+                  else float(rnd.amount or 0), 2)
     money, baht = _money(total), bahttext(total)
     rate = prog.rate_per_head or 0
     days = rnd.days or 0
@@ -591,6 +593,7 @@ def render_order_doc(rnd, school, doc=None) -> str:
     ds, de = _dnum(rnd.start_date), _dnum(rnd.end_date)
     term = 1 if (rnd.start_date and rnd.start_date.month in (5, 6, 7, 8, 9, 10)) else 2
 
+    _krut_center(doc)                                          # ตราครุฑกึ่งกลางด้านบน
     _p(doc, "ใบสั่งจ้าง", align="center", bold=True, size=20, after=4)
     # หัว: ผู้รับจ้าง (ซ้าย) | ใบสั่งจ้าง เลขที่/วันที่ + โรงเรียน (ขวา)
     left = (f"ผู้รับจ้าง  {vname}\nที่อยู่ {vaddr or _BLANK}\n"
@@ -600,18 +603,27 @@ def render_order_doc(rnd, school, doc=None) -> str:
     _p(doc, f"ตามที่ {vname} ได้เสนอราคาไว้ต่อ{sname} ซึ่งได้รับราคาและตกลงจ้าง ตามรายการดังต่อไปนี้",
        align="justify", indent=1.25, before=4, after=4)
 
-    # ตารางรายการ (merge สวยตามแบบ) - หัวเรื่องงานจ้าง + รายการย่อยตามระดับชั้น
-    desc_head = (f"ดำเนินการจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) สำหรับนักเรียน{('ระดับอนุบาลถึงชั้นมัธยมศึกษาปีที่ 3' if t2 else 'ระดับอนุบาลถึงชั้นประถมศึกษาปีที่ 6')} "
-                 f"ประจำภาคเรียนที่ {term} ปีการศึกษา {prog.year} รอบ {rnd.seq} "
-                 f"ระหว่างวันที่ {ds} ถึงวันที่ {de} ดังนี้")
-    tiers = []
-    if t1:
-        tiers.append(("ระดับอนุบาล-ระดับประถมศึกษา", f"{t1} คน", f"{_money(rate)} บาท/วัน", str(days), _money(t1 * rate * days)))
-    if t2:
-        tiers.append(("ระดับมัธยมศึกษา", f"{t2} คน", f"{_money(rate)} บาท/วัน", str(days), _money(t2 * rate * days)))
-    if not tiers:
-        tiers.append((f"นักเรียน {prog.total_students} คน", f"{prog.total_students} คน", f"{_money(rate)} บาท/วัน", str(days), money))
-    _order_item_table(doc, desc_head, tiers, money, baht)
+    if is_person:
+        # จ้างแม่ครัว: รายการเดียว = ค่าจ้างบุคคลประกอบอาหารกลางวัน (wording สั้น ตามที่ใช้จริง)
+        _simple_table(doc, ["ลำดับ", "รายการ", "จำนวนเงิน (บาท)"],
+                      [["1", f"ค่าจ้างบุคคลประกอบอาหารกลางวัน ประจำภาคเรียนที่ {term} ปีการศึกษา {prog.year} "
+                             f"ระหว่างวันที่ {ds} ถึงวันที่ {de}", money],
+                       ["", "รวมเป็นเงินทั้งสิ้น", money]],
+                      [Cm(1.4), Cm(10.6), Cm(3.5)])
+        _p(doc, f"(ตัวอักษร {baht})", align="right", before=2, after=2, size=13)
+    else:
+        # ตารางรายการ (merge สวยตามแบบ) - หัวเรื่องงานจ้าง + รายการย่อยตามระดับชั้น
+        desc_head = (f"ดำเนินการจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) สำหรับนักเรียน{('ระดับอนุบาลถึงชั้นมัธยมศึกษาปีที่ 3' if t2 else 'ระดับอนุบาลถึงชั้นประถมศึกษาปีที่ 6')} "
+                     f"ประจำภาคเรียนที่ {term} ปีการศึกษา {prog.year} รอบ {rnd.seq} "
+                     f"ระหว่างวันที่ {ds} ถึงวันที่ {de} ดังนี้")
+        tiers = []
+        if t1:
+            tiers.append(("ระดับอนุบาล-ระดับประถมศึกษา", f"{t1} คน", f"{_money(rate)} บาท/วัน", str(days), _money(t1 * rate * days)))
+        if t2:
+            tiers.append(("ระดับมัธยมศึกษา", f"{t2} คน", f"{_money(rate)} บาท/วัน", str(days), _money(t2 * rate * days)))
+        if not tiers:
+            tiers.append((f"นักเรียน {prog.total_students} คน", f"{prog.total_students} คน", f"{_money(rate)} บาท/วัน", str(days), money))
+        _order_item_table(doc, desc_head, tiers, money, baht)
 
     _p(doc, "การสั่งจ้าง อยู่ภายใต้เงื่อนไขต่อไปนี้", bold=True, indent=0.5, before=4, after=0)
     _p(doc, f"1. กำหนดส่งมอบภายใน ตามงวดงาน {n_inst or '-'} งวดงาน งวดงานละ {per_days or '-'} วัน "
@@ -659,8 +671,8 @@ def render_order_doc(rnd, school, doc=None) -> str:
          (f"วันที่ {_dnum(order_dt)}", "center")],
         [("(ลงชื่อ)...........................................ผู้รับใบสั่งจ้าง", "center"),
          (f"( {vname} )", "center"),
-         (f"วันที่ {_dnum(order_dt)}", "center"),
-         ("", "center")],
+         ("ผู้รับจ้าง", "center"),
+         (f"วันที่ {_dnum(order_dt)}", "center")],
     ])
     return _finish(doc, own, f"ใบสั่งจ้าง_รอบที่{rnd.seq}_ปี{prog.year}")
 
