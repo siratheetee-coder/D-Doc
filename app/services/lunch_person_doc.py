@@ -18,7 +18,7 @@ from app.services.build_templates import (
 from app.services.lunch_doc import (
     _BLANK, _money, _dnum, _save, _begin, _finish, _memo_head,
     _committee_lines, _menu_table3, _simple_table, _school_disp,
-    _student_tiers, _tor_committee_signs,
+    _student_tiers, _tor_committee_signs, render_order_doc,
 )
 # ชุดซื้อวัตถุดิบ (ยืมเงิน->ส่งใช้) ใช้ซ้ำจากรูปแบบ 1
 from app.services.lunch_ingredient_doc import (
@@ -28,6 +28,7 @@ from app.services.lunch_ingredient_doc import (
     render_repay_memo, render_purchase_report, render_loan_contract,
     render_inspection_note, render_ingredient_deliver, render_inspect_detail,
     render_reimburse_advance, render_wht_cook, render_inspect_assign,
+    render_ingredient_receipt,
 )
 
 _WORK = "จ้างบุคคลประกอบอาหารกลางวัน"
@@ -234,9 +235,10 @@ def render_p_quotation(rnd, school, doc=None) -> str:
     _p(doc, f"4. กำหนดส่งมอบ {dr} นับถัดจากวันลงนามใบสั่งจ้าง/ข้อตกลงจ้าง", indent=1.25, after=14)
     _sign_table(doc, [
         [("ลงชื่อ ....................................ผู้เจรจาตกลงราคา", "center"),
-         ("ลงชื่อ ....................................ผู้เสนอราคา", "center")],
-        [(f"( {officer} )", "center"), (f"( {vowner or vname} )", "center")],
-        [("เจ้าหน้าที่", "center"), ("", "center")]])
+         (f"( {officer} )", "center"),
+         ("เจ้าหน้าที่", "center")],
+        [("ลงชื่อ ....................................ผู้เสนอราคา", "center"),
+         (f"( {vowner or vname} )", "center")]])
     return _finish(doc, own, f"ใบเสนอราคา_จ้างบุคคล_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
@@ -319,7 +321,8 @@ def render_p_order(rnd, school, doc=None) -> str:
     days = rnd.days or 0
     day_rate = round(total / days, 2) if days else 0.0
 
-    _p(doc, order_no, indent=0.5, after=0)
+    if order_no and order_no != _BLANK:               # แสดงเลขที่เฉพาะเมื่อมีจริง (กันจุดไข่ปลาลอยด้านบน)
+        _p(doc, order_no, indent=0.5, after=0)
     _p(doc, "บันทึกตกลงจ้าง", align="center", bold=True, size=20, before=2, after=8)
     _p(doc, f"เขียนที่ {sname}", align="right", after=0)
     _p(doc, f"วันที่ {_dnum(order_dt)}", align="right", after=6)
@@ -513,7 +516,8 @@ def render_person_bundle(rnd, school) -> str:
     render_inspect_assign(rnd, school, doc)          # มอบหมายการตรวจรับวัตถุดิบ
     render_inspection_note(rnd, school, doc)         # ใบตรวจรับพัสดุ (วัตถุดิบ)
     render_inspect_detail(rnd, school, doc)          # ใบแสดงรายละเอียดการตรวจรับ
-    render_receipt_form(rnd, school, doc)            # ใบเสร็จ/ใบสำคัญรับเงิน (วัตถุดิบ)
+    render_receipt_form(rnd, school, doc)            # ใบรับรองการจ่ายเงินค่าวัตถุดิบ
+    render_ingredient_receipt(rnd, school, doc)      # บสค1 ใบสำคัญรับเงิน (ค่าวัตถุดิบ)
     render_reimburse_advance(rnd, school, doc)       # ใบสรุปเบิกเงินทดรองจ่าย
     render_repay_memo(rnd, school, doc)              # ขออนุมัติเบิกจ่ายส่งใช้เงินยืม
 
@@ -523,7 +527,8 @@ def render_person_bundle(rnd, school) -> str:
     render_p_quotation(rnd, school, doc)     # 3 ใบเสนอราคา
     render_p_result(rnd, school, doc)        # 4 รายงานผลการพิจารณา
     render_p_winner(rnd, school, doc)        # 5 ประกาศผู้ชนะการเสนอราคา
-    render_p_order(rnd, school, doc)         # 6 บันทึกตกลงจ้าง (+ ใบสั่งจ้าง)
+    render_p_order(rnd, school, doc)         # 6 บันทึกตกลงจ้าง
+    render_order_doc(rnd, school, doc)       # 7 ใบสั่งจ้าง
     # 7-9 ใบสั่งจ้าง/ใบส่งมอบงาน/ใบตรวจรับงานจ้าง + ขอเบิกจ่าย
     # ถ้ามีงวด (ข้อมูลเก่า) -> รายงวด · ไม่มีงวด -> คิดที่ระดับรอบ (จ่ายครั้งเดียวต่อรอบ)
     periods = sorted(rnd.installments, key=lambda i: i.start_date or _dt.min) or [_round_period(rnd)]

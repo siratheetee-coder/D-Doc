@@ -1451,6 +1451,7 @@ _INGREDIENT_DOCS = {
     "reimburse": "render_reimburse_summary", "purchase-attach": "render_purchase_attach",
     "ingredient-deliver": "render_ingredient_deliver", "inspect-detail": "render_inspect_detail",
     "reimburse-advance": "render_reimburse_advance", "wht-cook": "render_wht_cook",
+    "ingredient-receipt": "render_ingredient_receipt",
 }
 
 
@@ -1467,7 +1468,7 @@ _PERSON_DOCS = {
     "hire-report": "render_p_hire_report", "tor": "render_p_tor",
     "quotation": "render_p_quotation", "result": "render_p_result",
     "winner": "render_p_winner", "order": "render_p_order",
-    "bundle": "render_person_bundle",
+    "hire-order": "render_order_doc", "bundle": "render_person_bundle",
 }
 
 

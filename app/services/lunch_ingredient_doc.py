@@ -488,6 +488,22 @@ def render_receipt_form(rnd, school, doc=None) -> str:
     return _finish(doc, own, f"ใบรับรองการจ่ายเงินค่าวัตถุดิบ_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
+def render_ingredient_receipt(rnd, school, doc=None) -> str:
+    """บสค1 ใบสำคัญรับเงิน (ค่าวัตถุดิบ) - ผู้รับเงิน = เจ้าหน้าที่โครงการอาหารกลางวัน
+    (คู่กับ บคส2 = ใบสำคัญรับเงินค่าจ้างบุคคล ที่อยู่ในเอกสารขอเบิกจ่ายค่าจ้าง)"""
+    from app.services.receipt_voucher import render_receipt_voucher
+    prog = rnd.program
+    bname, _bpos = _borrower(school, prog)
+    total = sum((ig.quantity or 0) * (ig.unit_price or 0) for ig in _round_ingredients(rnd))
+    fin = (getattr(school, "finance_officer_name", "") or "").strip()
+    item = (f"ค่าวัตถุดิบประกอบอาหารกลางวัน ระหว่างวันที่ {_dnum(rnd.start_date)} "
+            f"ถึงวันที่ {_dnum(rnd.end_date)}")
+    return render_receipt_voucher(
+        school, payee=bname, payee_address="", items=[(item, total)], total=total,
+        date=rnd.end_date, payer=fin, subject=f"ใบสำคัญรับเงินซื้อวัตถุดิบ_รอบที่{rnd.seq}_ปี{prog.year}",
+        doc=doc)
+
+
 def render_control_report(rnd, school, doc=None) -> str:
     """09 บันทึกรายงานผู้ควบคุมและคณะกรรมการตรวจการประกอบอาหารกลางวัน"""
     doc, own = _begin(doc)
