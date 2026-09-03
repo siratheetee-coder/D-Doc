@@ -468,22 +468,36 @@ def render_receipt_form(rnd, school, doc=None) -> str:
        align="center", after=6)
     ings = _round_ingredients(rnd)
     menus_by_date = {m.date.date(): (m.main or "") for m in prog.menus if m.date}
-    body, prev_d, total = [], None, 0.0
-    for ig in ings:
+    body, spans, total = [], [], 0.0
+    prev_d, cur_start = object(), None
+    for idx, ig in enumerate(ings):
         d = ig.date.date() if ig.date else None
         amt = (ig.quantity or 0) * (ig.unit_price or 0)
         total += amt
-        body.append([menus_by_date.get(d, "") if d != prev_d else "",
+        new_group = d != prev_d
+        body.append([menus_by_date.get(d, "") if new_group else "",
                      ig.name or "", _money(ig.quantity), ig.unit or "", _money(amt)])
+        if new_group:
+            if cur_start is not None:
+                spans.append((cur_start, idx - 1))
+            cur_start = idx
         prev_d = d
+    if cur_start is not None:
+        spans.append((cur_start, len(body) - 1))
     if body:
         body.append(["", "รวมเงิน", "", "", _money(total)])
     else:
         body = [["", "", "", "", ""] for _ in range(6)]
-    _simple_table(doc,
-                  ["รายการอาหาร", "วัตถุดิบ/เครื่องปรุง", "จำนวน", "หน่วยนับ", "ราคากลางที่จัดซื้อ (บาท)"],
-                  body,
-                  [Cm(4.6), Cm(5.0), Cm(1.6), Cm(1.7), Cm(3.35)])   # ขยายรายการอาหาร/วัตถุดิบ ลดราคา
+    t = _simple_table(doc,
+                      ["รายการอาหาร", "วัตถุดิบ/เครื่องปรุง", "จำนวน", "หน่วยนับ", "ราคากลางที่จัดซื้อ (บาท)"],
+                      body,
+                      [Cm(4.6), Cm(5.0), Cm(1.6), Cm(1.7), Cm(3.35)])   # ขยายรายการอาหาร/วัตถุดิบ ลดราคา
+    # merge ช่อง "รายการอาหาร" (คอลัมน์ 0) ให้สูงเท่าจำนวนวัตถุดิบของเมนูนั้น (แถวข้อมูลเริ่มที่ index 1)
+    for s, e in spans:
+        if e > s:
+            m = t.cell(1 + s, 0)
+            for r in range(s + 1, e + 1):
+                m = m.merge(t.cell(1 + r, 0))
     if body and total:
         _p(doc, f"รวมเป็นเงินทั้งสิ้น (ตัวอักษร) {bahttext(total)}", align="right", before=2, after=2, size=13)
     _p(doc, "", after=16)   # เว้นที่ให้เซ็น
@@ -740,17 +754,18 @@ def render_inspect_detail(rnd, school, doc=None) -> str:
     students = prog.total_students or ""
     menus = {m.date.date(): (m.main or "") for m in prog.menus if m.date}
     days = _round_menu_days(rnd)
-    _p(doc, "ใบแสดงรายละเอียดการตรวจรับพัสดุ", align="center", bold=True, size=17, after=0)
+    _p(doc, "ใบแสดงรายละเอียดการตรวจรับพัสดุ", align="center", bold=True, size=17, before=12, after=0)
     _p(doc, f"แนบท้ายใบตรวจรับพัสดุ ลงวันที่ {_dnum(rnd.end_date)}", align="center", after=0)
-    _p(doc, f"{sname}", align="center", after=6)
-    sign3 = "1) .....................  2) .....................  3) ....................."
+    _p(doc, f"{sname}", align="center", after=8)
+    sign3 = "1) ............  2) ............  3) ............"
     body = []
     for m in days:
-        body.append([_dnum(m.date), (m.main or ""), f"{students} ชุด", sign3, ""])
+        body.append([_dnum(m.date), (m.main or ""), sign3, ""])
     if not body:
-        body = [["", "", f"{students} ชุด", sign3, ""] for _ in range(6)]
-    _simple_table(doc, ["วัน เดือน ปี", "รายการอาหาร", "จำนวน", "ลายมือชื่อกรรมการตรวจรับ", "หมายเหตุ"],
-                  body, [Cm(2.6), Cm(3.4), Cm(1.6), Cm(5.9), Cm(2.0)])
+        body = [["", "", sign3, ""] for _ in range(6)]
+    # ตัดคอลัมน์ "จำนวน" ออก · ขยายช่องวันที่+ลายมือชื่อให้ข้อความอยู่บรรทัดเดียว
+    _simple_table(doc, ["วัน เดือน ปี", "รายการอาหาร", "ลายมือชื่อกรรมการตรวจรับ", "หมายเหตุ"],
+                  body, [Cm(3.4), Cm(4.0), Cm(6.6), Cm(2.0)])
     return _finish(doc, own, f"ใบแสดงรายละเอียดการตรวจรับ_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
@@ -807,7 +822,8 @@ def render_wht_cook(rnd, school, doc=None) -> str:
     fin = (getattr(school, "finance_officer_name", "") or "").strip() or _BLANK
     order_no = _doc_no(rnd, "order", (rnd.order_no or "").strip() or _BLANK)
     order_dt = _doc_dt(rnd, "order", "date") or rnd.order_date
-    total = round(float(rnd.amount or 0), 2)
+    # ค่าจ้างแม่ครัว (cook_wage) เท่านั้น - ไม่ใช่งบรวมทั้งรอบ
+    total = round(float(getattr(rnd, "cook_wage", 0) or 0) or float(rnd.amount or 0), 2)
     tax = round(total * 0.01, 2)
     tb, ts = int(total), int(round((total - int(total)) * 100))
     xb, xs = int(tax), int(round((tax - int(tax)) * 100))
@@ -828,7 +844,7 @@ def render_wht_cook(rnd, school, doc=None) -> str:
     _sign_table(doc, [
         [(f"(ลงชื่อ) ...........................................", "center"),
          (f"( {fin} )", "center"), ("เจ้าหน้าที่การเงิน", "center")]])
-    return _finish(doc, own, f"หนังสือรับรองหักภาษี_รอบที่{rnd.seq}_ปี{prog.year}")
+    return _finish(doc, own, f"ใบรับรองหักภาษี_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
 def _dnum2(d):
