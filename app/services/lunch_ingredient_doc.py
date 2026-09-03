@@ -488,20 +488,37 @@ def render_receipt_form(rnd, school, doc=None) -> str:
     return _finish(doc, own, f"ใบรับรองการจ่ายเงินค่าวัตถุดิบ_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
+def render_lunch_receipt(doc, school, *, payee, payee_addr, desc, amount, date, payer):
+    """ใบสำคัญรับเงิน (แบบอาหารกลางวัน) - ตาราง รายการ/จำนวนเงิน/หมายเหตุ ตามต้นฉบับ สพฐ.
+    ใช้ทั้ง บสค1 (ซื้อวัตถุดิบ) และ บสค2 (จ้างบุคคล)"""
+    sname = _school_disp(school)
+    _p(doc, "ใบสำคัญรับเงิน", align="center", bold=True, size=18, after=4)
+    _p(doc, f"เขียนที่ {sname}", align="right", after=0)
+    _p(doc, f"วันที่ {_dnum(date)}", align="right", after=6)
+    _p(doc, f"ข้าพเจ้า {payee} อยู่บ้านเลขที่ {payee_addr or _BLANK} ได้รับเงินจาก{sname} ตามรายการดังนี้",
+       align="justify", indent=1.25, after=4)
+    _simple_table(doc, ["รายการ", "จำนวนเงิน", "หมายเหตุ"],
+                  [[desc, _money(amount), ""], ["จำนวนเงินทั้งสิ้น", _money(amount), ""]],
+                  [Cm(9.6), Cm(3.4), Cm(2.5)])
+    _p(doc, f"จำนวนเงินตัวอักษร ({bahttext(amount)})", indent=1.25, before=2, after=14)
+    _sign_table(doc, [[("ลงชื่อ ................................................ผู้รับเงิน", "center"),
+                       (f"( {payee} )", "center")]])
+    _sign_table(doc, [[("ลงชื่อ ................................................ผู้จ่ายเงิน", "center"),
+                       (f"( {payer} )", "center")]])
+
+
 def render_ingredient_receipt(rnd, school, doc=None) -> str:
-    """บสค1 ใบสำคัญรับเงิน (ค่าวัตถุดิบ) - ผู้รับเงิน = เจ้าหน้าที่โครงการอาหารกลางวัน
-    (คู่กับ บคส2 = ใบสำคัญรับเงินค่าจ้างบุคคล ที่อยู่ในเอกสารขอเบิกจ่ายค่าจ้าง)"""
-    from app.services.receipt_voucher import render_receipt_voucher
+    """บสค1 ใบสำคัญรับเงิน (ค่าวัตถุดิบ) - ผู้รับเงิน = เจ้าหน้าที่โครงการอาหารกลางวัน"""
+    doc, own = _begin(doc)
     prog = rnd.program
     bname, _bpos = _borrower(school, prog)
     total = sum((ig.quantity or 0) * (ig.unit_price or 0) for ig in _round_ingredients(rnd))
-    fin = (getattr(school, "finance_officer_name", "") or "").strip()
-    item = (f"ค่าวัตถุดิบประกอบอาหารกลางวัน ระหว่างวันที่ {_dnum(rnd.start_date)} "
-            f"ถึงวันที่ {_dnum(rnd.end_date)}")
-    return render_receipt_voucher(
-        school, payee=bname, payee_address="", items=[(item, total)], total=total,
-        date=rnd.end_date, payer=fin, subject=f"ใบสำคัญรับเงินซื้อวัตถุดิบ_รอบที่{rnd.seq}_ปี{prog.year}",
-        doc=doc)
+    fin = (getattr(school, "finance_officer_name", "") or "").strip() or _BLANK
+    desc = (f"เงินสำหรับการดำเนินการซื้อวัตถุดิบประกอบอาหารกลางวันปีการศึกษา {prog.year} "
+            f"(ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)})")
+    render_lunch_receipt(doc, school, payee=bname, payee_addr="", desc=desc, amount=total,
+                         date=rnd.end_date, payer=fin)
+    return _finish(doc, own, f"ใบสำคัญรับเงินซื้อวัตถุดิบ_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
 def render_control_report(rnd, school, doc=None) -> str:

@@ -28,7 +28,7 @@ from app.services.lunch_ingredient_doc import (
     render_repay_memo, render_purchase_report, render_loan_contract,
     render_inspection_note, render_ingredient_deliver, render_inspect_detail,
     render_reimburse_advance, render_wht_cook, render_inspect_assign,
-    render_ingredient_receipt,
+    render_ingredient_receipt, render_lunch_receipt,
 )
 
 _WORK = "จ้างบุคคลประกอบอาหารกลางวัน"
@@ -344,7 +344,7 @@ def render_p_order(rnd, school, doc=None) -> str:
     _p(doc, f"4.  ผู้ว่าจ้างตกลงจ่ายค่าจ้างให้แก่ผู้รับจ้างในอัตราวันละ {_money(day_rate)} บาท "
             f"({bahttext(day_rate)}) รวมเป็นเงินทั้งสิ้น {_money(total)} บาท ({bahttext(total)})",
        align="justify", indent=1.25)
-    _p(doc, "5.  การชำระเงินผู้ว่าจ้างจะชำระเงินให้แก่ผู้รับจ้างเป็นรายเดือน เมื่อผู้รับจ้างได้ปฏิบัติงาน"
+    _p(doc, "5.  การชำระเงินผู้ว่าจ้างจะชำระเงินให้แก่ผู้รับจ้าง เมื่อผู้รับจ้างได้ปฏิบัติงาน"
             "แล้วเสร็จ ตามบันทึกตกลงจ้าง", align="justify", indent=1.25, after=4)
     _p(doc, "ข้อตกลงนี้จัดทำขึ้น 2 ฉบับ มีข้อความถูกต้องตรงกัน เก็บไว้ที่ผู้ว่าจ้าง และผู้รับจ้าง ฝ่ายละ 1 ฉบับ",
        align="justify", indent=1.25, after=16)
@@ -463,20 +463,11 @@ def render_p_disburse(inst, school, wht_rate=0.01, doc=None) -> str:
     _p(doc, f"( {director} )", align="center", after=0)
     _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
 
-    doc.add_page_break()
-    _p(doc, "ใบสำคัญรับเงิน", align="center", bold=True, size=18, after=4)
-    _p(doc, f"{sname}  {saddr}", align="right", after=0)
-    _p(doc, f"วันที่ {_dnum(inst.inspect_date or inst.end_date)}", align="right", after=6)
-    _p(doc, f"ข้าพเจ้า {vname} บ้านเลขที่ {vaddr} ได้รับเงินจาก{sname} ดังรายการต่อไปนี้",
-       align="justify", indent=1.25, after=4)
-    _simple_table(doc, ["ลำดับที่", "รายการ", "จำนวนเงิน"],
-                  [["1", f"ค่าจ้างบุคคลประกอบอาหารกลางวัน {period}", A], ["", "รวมเงิน", A]],
-                  [Cm(1.6), Cm(10.4), Cm(4.0)])
-    _p(doc, f"(ตัวอักษร) ({bahttext(amt)})", indent=1.25, before=2, after=12)
-    _sign_table(doc, [[("(ลงชื่อ)...........................................ผู้รับเงิน", "center"),
-                       (f"( {vname} )", "center")],
-                      [("(ลงชื่อ)...........................................ผู้จ่ายเงิน", "center"),
-                       (f"( {fin} )", "center")]])
+    doc.add_page_break()                              # บคส2 ใบสำคัญรับเงิน (ค่าจ้างบุคคล)
+    desc2 = (f"เงินสำหรับการดำเนินการจ้างบุคคลประกอบอาหารกลางวันปีการศึกษา {prog.year} "
+             f"(ระหว่างวันที่ {_dnum(inst.start_date)} ถึงวันที่ {_dnum(inst.end_date)})")
+    render_lunch_receipt(doc, school, payee=vname, payee_addr=vaddr, desc=desc2, amount=amt,
+                         date=(inst.inspect_date or inst.end_date), payer=fin)
 
     doc.add_page_break()
     _p(doc, "หนังสือรับรองการหักภาษี ณ ที่จ่าย", align="center", bold=True, size=18, after=2)
