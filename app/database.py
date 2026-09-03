@@ -91,6 +91,7 @@ MIGRATIONS = [
     ("lunch_hire_round", "cook_wage", "FLOAT DEFAULT 0"),
     ("lunch_hire_round", "order_no", "VARCHAR DEFAULT ''"),
     ("lunch_hire_round", "order_date", "DATETIME"),
+    ("lunch_committee", "inspect_days", "VARCHAR DEFAULT ''"),
     ("lunch_hire_round", "memo_no", "VARCHAR DEFAULT ''"),
     ("lunch_hire_round", "memo_date", "DATETIME"),
     ("lunch_hire_round", "command_no", "VARCHAR DEFAULT ''"),

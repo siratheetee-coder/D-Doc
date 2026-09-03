@@ -83,16 +83,44 @@
   <h3 style="margin:14px 0 4px; color:var(--brand-dark); font-size:15px;">กรรมการ{{ label }}</h3>
   {% if committees[k] %}
   <div class="table-wrap"><table>
-    <thead><tr><th style="width:50px;">ที่</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>บทบาท</th><th></th></tr></thead>
+    <thead><tr><th style="width:50px;">ที่</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>บทบาท</th>{% if k == 'inspect' %}<th>วันตรวจรับ</th>{% endif %}<th></th></tr></thead>
     <tbody>
     {% for m in committees[k] %}
+      {% set chosen = (m.inspect_days or '').split(',') %}
       <tr><td>{{ loop.index }}</td><td>{{ m.name }}</td><td>{{ m.position }}</td><td>{{ m.role }}</td>
+        {% if k == 'inspect' %}
+        <td>
+          {% if insp_workdays %}
+          <details class="insp-days">
+            <summary>เลือกวัน <span class="muted">({{ chosen|select|list|length }} วัน)</span></summary>
+            <form method="post" action="/lunch/committee/{{ m.id }}/inspect-days" style="margin:6px 0 0;">
+              <div class="insp-grid">
+                {% for wd in insp_workdays %}
+                <label class="insp-day"><input type="checkbox" name="days" value="{{ wd.iso }}" {{ 'checked' if wd.iso in chosen }}> {{ wd.label }}</label>
+                {% endfor %}
+              </div>
+              <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+                <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-check"/></svg> บันทึกวัน</button>
+                <button class="btn sm gray" type="button" onclick="this.closest('form').querySelectorAll('input[type=checkbox]').forEach(function(c){c.checked=true;});">เลือกทุกวัน</button>
+                <button class="btn sm gray" type="button" onclick="this.closest('form').querySelectorAll('input[type=checkbox]').forEach(function(c){c.checked=false;});">ล้าง</button>
+              </div>
+            </form>
+          </details>
+          {% else %}<span class="muted">ตั้งช่วงวันของรอบก่อน</span>{% endif %}
+        </td>
+        {% endif %}
         <td><form method="post" action="/lunch/committee/{{ m.id }}/delete" style="margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form></td></tr>
     {% endfor %}
     </tbody>
   </table></div>
   {% else %}<p class="muted" style="margin:2px 0;">ยังไม่มีรายชื่อ</p>{% endif %}
   {% endfor %}
+  <style>
+    .insp-days > summary{ cursor:pointer; color:var(--brand); font-weight:600; font-size:13.5px; }
+    .insp-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(112px,1fr)); gap:4px 10px;
+      max-height:220px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:8px; background:#fafafe; }
+    .insp-day{ display:flex; align-items:center; gap:5px; font-size:13px; white-space:nowrap; }
+  </style>
 </div>
 
 {% if p.operate_mode not in ['ingredient','person'] %}

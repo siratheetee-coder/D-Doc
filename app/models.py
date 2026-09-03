@@ -916,6 +916,7 @@ class LunchCommittee(Base):
     name = Column(String, default="")
     position = Column(String, default="ครู")        # ตำแหน่ง
     role = Column(String, default="กรรมการ")        # ประธานกรรมการ / กรรมการ / กรรมการและเลขานุการ
+    inspect_days = Column(String, default="")        # วันตรวจรับของกรรมการคนนี้ (ISO date คั่นด้วย ,) - เฉพาะชุดตรวจรับ
 
     round = relationship("LunchHireRound", back_populates="committees")
 

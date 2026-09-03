@@ -982,10 +982,28 @@ def render_inspect_assign(rnd, school, doc=None) -> str:
     prog = rnd.program
     insp = _committee(rnd, "inspect")
     insts = sorted(rnd.installments or [], key=lambda i: i.seq)
-    dates = [_dnum(i.end_date) for i in insts] or ["............................." for _ in range(3)]
+    # วันที่เริ่มต้น (ถ้ากรรมการยังไม่เลือกวันเอง) = วันสุดท้ายของแต่ละงวด
+    fallback_dates = [_dnum(i.end_date) for i in insts] or ["............................." for _ in range(3)]
     DN = "..........................................."
     TH = ["๑", "๒", "๓", "๔", "๕", "๖", "๗", "๘"]
     members = insp if insp else [None, None, None]
+
+    def _member_dates(m):
+        """วันตรวจรับที่กรรมการคนนี้เลือกไว้ (จากวันในรอบ) - ถ้าไม่ได้เลือก ใช้วันสุดท้ายของแต่ละงวด"""
+        raw = ((getattr(m, "inspect_days", "") or "").strip()) if m else ""
+        if raw:
+            out = []
+            for s in raw.split(","):
+                s = s.strip()
+                if not s:
+                    continue
+                try:
+                    out.append(_dnum(datetime.fromisoformat(s)))
+                except Exception:
+                    pass
+            if out:
+                return out
+        return fallback_dates
 
     _memo_head_to(doc, school,
                   ["การมอบหมายการตรวจรับวัตถุดิบเพื่อใช้ในการประกอบอาหารกลางวัน"],
@@ -1004,7 +1022,7 @@ def render_inspect_assign(rnd, school, doc=None) -> str:
                   [(f"({num}) นาย/นาง/นางสาว {nm or DN}", "left", False),
                    ("      ทำหน้าที่ตรวจรับพัสดุ", "left", False)], size=14, after=2)
         _box_cell(t.cell(i, 1),
-                  [(role, "left", False)] + [(f"วันที่ {d}", "left", False) for d in dates],
+                  [(role, "left", False)] + [(f"วันที่ {d}", "left", False) for d in _member_dates(m)],
                   size=14, after=0)
         t.cell(i, 0).width = _Cm(7.5)
         t.cell(i, 1).width = _Cm(8.0)

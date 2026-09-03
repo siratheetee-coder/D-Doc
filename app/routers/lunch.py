@@ -1139,6 +1139,9 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         "ing_budget": ing_budget, "ing_remaining": ing_remaining,
         "committed": sum(i.amount or 0 for i in rnd.installments),
         "committees": committees, "com_kinds": com_kinds, "com_roles": COMMITTEE_ROLES,
+        "insp_workdays": [{"iso": d.isoformat(),
+                           "label": be_date_input(datetime(d.year, d.month, d.day))}
+                          for d in _round_workdays(rnd)],
         "other_rounds": other_rounds, "rounds_with_plan": rounds_with_plan,
         "persons": persons, "persons_pos": {p.name: p.position for p in persons},
         "sel_kind": sel_kind,
@@ -1386,6 +1389,21 @@ def committee_pull(rid: int, db: Session = Depends(get_db), src_round: str = For
         existing.add(key)
     db.commit()
     return RedirectResponse(f"/lunch/round/{rid}/plan#committee", status_code=303)
+
+
+@router.post("/lunch/committee/{mid}/inspect-days")
+def committee_inspect_days(mid: int, db: Session = Depends(get_db),
+                           days: list[str] = Form(default=[])):
+    """บันทึกวันตรวจรับของกรรมการตรวจรับคนหนึ่ง (เลือกจากวันทำการในรอบ) เก็บเป็น ISO คั่นด้วย ,"""
+    from app.models import LunchCommittee
+    m = db.get(LunchCommittee, mid)
+    if not m:
+        return RedirectResponse("/lunch", status_code=303)
+    rid = m.round_id
+    clean = [d.strip() for d in days if d and d.strip()]
+    m.inspect_days = ",".join(clean)
+    db.commit()
+    return RedirectResponse(f"/lunch/round/{rid}/plan?kind=inspect#committee", status_code=303)
 
 
 def _round_workdays(rnd):
