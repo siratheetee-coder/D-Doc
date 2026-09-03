@@ -172,6 +172,29 @@
 </div>
 {% endif %}{# ซ่อนส่วนแบ่งงวดในโหมดซื้อวัตถุดิบ (คิดงบจากวัตถุดิบ ไม่แบ่งงวด) #}
 
+{% if request.query_params.get('msg') %}<div class="alert" style="margin-bottom:14px;">✔ {{ request.query_params.get('msg') }}</div>{% endif %}
+
+{% if rounds_with_plan %}
+<!-- ============ คัดลอกเมนู/วัตถุดิบจากรอบอื่น ============ -->
+<div class="card" style="background:linear-gradient(135deg,#eff6ff,#eef2ff); border:1px solid #bfdbfe;">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอกเมนู/วัตถุดิบจากรอบอื่น</h2>
+  <p class="muted" style="margin:2px 0 10px;">ดึงเมนู (และวัตถุดิบ) จากรอบก่อนมาใส่รอบนี้ · จับคู่ "วันทำการที่ 1, 2, 3..." ให้อัตโนมัติ · ข้ามวันที่มีข้อมูลอยู่แล้ว</p>
+  <form method="post" action="/lunch/round/{{ r.id }}/copy-plan" class="row" style="align-items:flex-end;"
+        onsubmit="return confirm('คัดลอกมาที่รอบนี้?');">
+    <div style="flex:1.6; min-width:220px;"><label>คัดลอกจากรอบ</label>
+      <select name="src_round" required style="width:100%;">
+        <option value="">— เลือกรอบต้นทาง —</option>
+        {% for o in rounds_with_plan %}<option value="{{ o.id }}">{{ o.label }}</option>{% endfor %}
+      </select></div>
+    <div style="flex:0 0 auto;"><label style="display:block;">คัดลอกอะไร</label>
+      <label style="font-weight:500; margin-right:14px;"><input type="checkbox" name="copy_menu" value="1" checked style="width:auto;"> เมนู</label>
+      <label style="font-weight:500;"><input type="checkbox" name="copy_ing" value="1" checked style="width:auto;"> วัตถุดิบ</label>
+    </div>
+    <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-download"/></svg> คัดลอกมาที่รอบนี้</button></div>
+  </form>
+</div>
+{% endif %}
+
 <!-- ============ เมนูอาหารในช่วงสัญญา (ต่อจากงวด เพื่อไม่ต้องข้ามหน้า) ============ -->
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">

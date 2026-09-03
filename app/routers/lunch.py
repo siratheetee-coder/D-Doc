@@ -1053,6 +1053,16 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
     other_rounds = [{"id": r2.id, "seq": r2.seq, "count": len(r2.committees)}
                     for r2 in sorted(rnd.program.rounds, key=lambda x: x.seq)
                     if r2.id != rnd.id and r2.committees]
+    # รอบอื่น (ทุกโครงการของโรงเรียน) ที่มีเมนูอยู่ในช่วง - ให้เลือกคัดลอกเมนู/วัตถุดิบ
+    rounds_with_plan = []
+    for r2 in db.query(LunchHireRound).all():
+        if r2.id == rnd.id or not r2.start_date or not r2.end_date:
+            continue
+        sd2, ed2 = r2.start_date.date(), r2.end_date.date()
+        nm = sum(1 for m in r2.program.menus if m.date and sd2 <= m.date.date() <= ed2)
+        if nm:
+            rounds_with_plan.append({"id": r2.id,
+                                     "label": f"ปี {r2.program.year} รอบ {r2.seq} ({nm} เมนู)"})
     persons = db.query(Person).order_by(Person.name).all()
     sel_kind = request.query_params.get("kind")
     if sel_kind not in com_kinds:
@@ -1129,7 +1139,7 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         "ing_budget": ing_budget, "ing_remaining": ing_remaining,
         "committed": sum(i.amount or 0 for i in rnd.installments),
         "committees": committees, "com_kinds": com_kinds, "com_roles": COMMITTEE_ROLES,
-        "other_rounds": other_rounds,
+        "other_rounds": other_rounds, "rounds_with_plan": rounds_with_plan,
         "persons": persons, "persons_pos": {p.name: p.position for p in persons},
         "sel_kind": sel_kind,
         "holidays": _lunch_holidays(rnd.program),
@@ -1376,6 +1386,64 @@ def committee_pull(rid: int, db: Session = Depends(get_db), src_round: str = For
         existing.add(key)
     db.commit()
     return RedirectResponse(f"/lunch/round/{rid}/plan#committee", status_code=303)
+
+
+def _round_workdays(rnd):
+    """รายวันทำการในรอบ (หักวันหยุด) เรียงจากต้นรอบ"""
+    from app.services.thai_holidays import is_workday
+    from datetime import timedelta
+    if not rnd.start_date or not rnd.end_date:
+        return []
+    hs = set(_lunch_holidays(rnd.program).keys())
+    out, d, e = [], rnd.start_date.date(), rnd.end_date.date()
+    while d <= e:
+        if is_workday(d, hs):
+            out.append(d)
+        d += timedelta(days=1)
+    return out
+
+
+@router.post("/lunch/round/{rid}/copy-plan")
+def copy_plan(rid: int, db: Session = Depends(get_db), src_round: str = Form(""),
+              copy_menu: str = Form(""), copy_ing: str = Form("")):
+    """คัดลอกเมนู(+วัตถุดิบ) จากรอบอื่นมาใส่รอบนี้ โดยจับคู่ 'วันทำการที่ N' ของต้นทาง->ปลายทาง
+    (ข้ามวันที่ปลายทางมีข้อมูลอยู่แล้ว กันซ้ำ)"""
+    from app.models import LunchMenu, LunchIngredient
+    rnd = db.get(LunchHireRound, rid)
+    src = db.get(LunchHireRound, _to_int(src_round, 0))
+    if not rnd or not src or src.id == rnd.id:
+        return RedirectResponse(f"/lunch/round/{rid}/plan", status_code=303)
+    want_menu = bool(copy_menu)
+    want_ing = bool(copy_ing)
+    prog, sprog = rnd.program, src.program
+    src_days, tgt_days = _round_workdays(src), _round_workdays(rnd)
+    src_menu = {m.date.date(): m for m in sprog.menus if m.date}
+    src_ing = {}
+    for ig in sprog.ingredients:
+        if ig.date:
+            src_ing.setdefault(ig.date.date(), []).append(ig)
+    have_menu = {m.date.date() for m in prog.menus if m.date}
+    have_ing = {ig.date.date() for ig in prog.ingredients if ig.date}
+    n_menu = n_ing = 0
+    for i, sd in enumerate(src_days):
+        if i >= len(tgt_days):
+            break
+        td = tgt_days[i]
+        tdt = datetime(td.year, td.month, td.day)
+        if want_menu and sd in src_menu and td not in have_menu:
+            m = src_menu[sd]
+            db.add(LunchMenu(program_id=prog.id, date=tdt, main=m.main, dessert=m.dessert,
+                             note=m.note, groups=m.groups))
+            have_menu.add(td); n_menu += 1
+        if want_ing and sd in src_ing and td not in have_ing:
+            for k, ig in enumerate(sorted(src_ing[sd], key=lambda x: x.seq), 1):
+                db.add(LunchIngredient(program_id=prog.id, date=tdt, seq=k, name=ig.name,
+                                       quantity=ig.quantity, unit=ig.unit, unit_price=ig.unit_price))
+            have_ing.add(td); n_ing += 1
+    db.commit()
+    from urllib.parse import quote
+    msg = f"คัดลอกแล้ว: เมนู {n_menu} วัน · วัตถุดิบ {n_ing} วัน"
+    return RedirectResponse(f"/lunch/round/{rid}/plan?msg={quote(msg)}", status_code=303)
 
 
 @router.post("/lunch/committee/{cid}/delete")
