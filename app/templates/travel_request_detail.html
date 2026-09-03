@@ -21,7 +21,10 @@
     <p><b>งบประมาณ:</b> {{ '{:,.0f}'.format(r.budget or 0) }} บาท</p>
     {% if r.note %}<p><b>หมายเหตุ:</b> {{ r.note }}</p>{% endif %}
     {% if r.attachment_name %}
-    <a class="btn sm" href="/me/travel/{{ r.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> ดูบันทึกที่ครูแนบ</a>
+    <a class="btn sm" href="/me/travel/{{ r.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> 📎 ใบไปราชการที่ครูแนบ</a>
+    {% endif %}
+    {% if r.doc_attachment_name %}
+    <a class="btn sm" href="/me/travel/{{ r.id }}/doc" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> 📎 เอกสารประกอบ</a>
     {% endif %}
     {% if r.record_id %}
     <a class="btn sm soft" href="/hr/travel/{{ r.record_id }}/request.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์บันทึก{% if r.status == 'approved' %} (ลงนามแล้ว){% endif %}</a>

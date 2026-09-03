@@ -37,6 +37,15 @@ def process_signature(data: bytes, remove_white: bool = True) -> str | None:
     except Exception:
         return None
 
+    # เซฟตี้เน็ต: ถ้าไม่ได้สั่งลบขาว แต่ภาพทึบทั้งหมด (ไม่มีพิกเซลโปร่งใสเลย) แปลว่า
+    # ฝั่ง client ไม่ได้ลบพื้นหลังมาจริง -> ลบพื้นหลังขาวให้เอง (กันลายเซ็นมีกล่องพื้นหลัง)
+    if not remove_white:
+        try:
+            if img.getchannel("A").getextrema() == (255, 255):
+                remove_white = True
+        except Exception:
+            remove_white = True
+
     if remove_white:
         lum = img.convert("L")
 

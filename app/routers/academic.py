@@ -434,13 +434,11 @@ def substitute_home(request: Request, db: Session = Depends(get_db), msg: str = 
     y = _acad_year(db)
     # ครูที่มีคาบสอน (สำหรับเลือกเอง)
     teachers = db.query(Person).filter(Person.active == True).order_by(Person.name).all()  # noqa: E712
-    # การลา/ไปราชการที่อนุมัติแล้ว (ช่วงที่ยังไม่ผ่าน)
-    from datetime import date as _date
-    today = _date.today()
-    leaves = (db.query(LeaveRequest).filter(LeaveRequest.status == "approved",
-              LeaveRequest.end_date >= today).order_by(LeaveRequest.start_date).all())
-    travels = (db.query(TravelRequest).filter(TravelRequest.status == "approved",
-               TravelRequest.end_date >= today).order_by(TravelRequest.start_date).all())
+    # การลา/ไปราชการที่อนุมัติแล้ว (ล่าสุดก่อน · รวมที่เพิ่งผ่านไปด้วย เผื่อยังไม่ได้จัดสอนแทน)
+    leaves = (db.query(LeaveRequest).filter(LeaveRequest.status == "approved")
+              .order_by(LeaveRequest.start_date.desc()).limit(60).all())
+    travels = (db.query(TravelRequest).filter(TravelRequest.status == "approved")
+               .order_by(TravelRequest.start_date.desc()).limit(60).all())
     return templates.TemplateResponse("academic_substitute.html", {
         "request": request, "school": get_school(db), "teachers": teachers,
         "leaves": leaves, "travels": travels, "year": y,
@@ -969,11 +967,11 @@ def my_travel_delete(tid: int, request: Request, db: Session = Depends(get_db)):
 
 
 def _self_or_hr(request, owner_pid) -> bool:
-    """เข้าถึงได้ = เจ้าของคำขอ (ครู) หรือ เจ้าของระบบ หรือ มีสิทธิ์งานบุคคล"""
+    """เข้าถึงได้ = เจ้าของคำขอ (ครู) หรือ เจ้าของระบบ หรือ ผอ. หรือ มีสิทธิ์งานบุคคล"""
     s = request.session
     if s.get("person_id") and s.get("person_id") == owner_pid:
         return True
-    if s.get("owner"):
+    if s.get("owner") or s.get("director"):        # ผอ.เปิดดูไฟล์ต้นฉบับได้เพื่อพิจารณา
         return True
     from app.modules import parse_modules
     return "hr" in parse_modules(s.get("mods") or "")
