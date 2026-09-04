@@ -19,16 +19,26 @@
       <a class="btn sm" href="/general/arrival/stats"><svg class="icon"><use href="#ic-clipboard"/></svg> ดูสถิติการมาเรียน</a>
     </form>
 
-    <label>ค้นหา/พิมพ์ชื่อนักเรียน แล้วคลิกเพื่อลงเวลา</label>
+    <label>1. ค้นหา/เลือกชื่อนักเรียน</label>
     <div style="position:relative;">
       <input id="q" type="text" autocomplete="off" placeholder="พิมพ์ชื่อ หรือ รหัสนักเรียน..."
              oninput="filterStu()" onkeydown="qKey(event)" style="width:100%;">
       <div id="dd" class="dd" hidden></div>
     </div>
-    <p class="muted" style="font-size:12.5px; margin:8px 0 0;">เวลาที่ลง = เวลาที่กด · ต้องการกรอกเวลาเอง (แบบ 24 ชม.) ให้ใส่ในช่องนี้ก่อนคลิกชื่อ:
-      <input id="manual" type="text" inputmode="numeric" maxlength="5" placeholder="เช่น 08:05"
-             pattern="([01][0-9]|2[0-3]):[0-5][0-9]" oninput="fmtTime(this)"
-             style="width:130px; display:inline-block; padding:8px 12px; font-size:16px;"></p>
+    <div id="sel" class="sel-chip" hidden>
+      เลือก: <b id="selName"></b> <span class="muted" id="selSub"></span>
+      <button type="button" class="lnk" onclick="clearSel()">เปลี่ยน</button>
+    </div>
+
+    <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-top:12px;">
+      <div><label style="margin-top:0;">2. เวลามา (24 ชม.)</label>
+        <input id="manual" type="text" inputmode="numeric" maxlength="5" placeholder="เช่น 08:05"
+               pattern="([01][0-9]|2[0-3]):[0-5][0-9]" oninput="fmtTime(this)"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();save();}"
+               style="width:130px; padding:9px 12px; font-size:16px;"></div>
+      <div><button class="btn" type="button" id="saveBtn" onclick="save()"><svg class="icon"><use href="#ic-check"/></svg> 3. บันทึกการมาเรียน</button></div>
+    </div>
+    <p class="muted" style="font-size:12px; margin:8px 0 0;">เว้นช่องเวลาว่างไว้ = ใช้เวลาปัจจุบันตอนกดบันทึก</p>
 
     <div style="margin-top:16px; border-top:1px dashed var(--border); padding-top:12px;">
       <b style="font-size:14px;">ตั้งช่วงเวลา</b>
@@ -89,6 +99,11 @@
   .dd .it .sub{ font-size:12px; color:var(--muted); white-space:nowrap; }
   .dd .it.done{ opacity:.55; }
   .dd .none{ padding:11px 13px; color:var(--muted); font-size:13.5px; }
+  .sel-chip{ margin-top:10px; padding:9px 13px; border-radius:10px; background:var(--brand-soft);
+    border:1px solid #dbeafe; font-size:14px; }
+  .sel-chip .muted{ font-size:12.5px; }
+  .lnk{ background:none; border:none; color:var(--brand); font-weight:700; cursor:pointer;
+    font-size:13px; padding:0 4px; text-decoration:underline; }
   .badge{ display:inline-block; padding:3px 12px; border-radius:999px; font-weight:700; font-size:12.5px; }
   .badge.ontime{ background:#dcfce7; color:#166534; }
   .badge.late{ background:#fee2e2; color:#b91c1c; }
@@ -107,6 +122,9 @@
   }
   function norm(s){ return (s||'').toString().toLowerCase(); }
   function filterStu(){
+    // เริ่มพิมพ์ใหม่ = ยกเลิกการเลือกเดิม (ต้องเลือกชื่อจากรายการอีกครั้ง)
+    selectedId = null;
+    var selEl = document.getElementById('sel'); if(selEl) selEl.hidden = true;
     var q = norm(qEl.value).trim();
     if(!q){ ddEl.hidden = true; matches = []; return; }
     matches = STUDENTS.filter(function(s){
@@ -141,16 +159,39 @@
       if(i === curIdx) el.scrollIntoView({block:'nearest'});
     });
   }
+  var selectedId = null;
   function pick(i){
     var s = matches[i]; if(!s) return;
+    selectedId = s.id;
+    qEl.value = s.name;
+    document.getElementById('selName').textContent = s.name;
+    document.getElementById('selSub').textContent =
+      s.cls + (s.no ? (' · ' + s.no) : '') + (DONE.has(s.id) ? ' · ลงเวลาแล้ว (บันทึกซ้ำ = แก้เวลา)' : '');
+    document.getElementById('sel').hidden = false;
+    ddEl.hidden = true;
+    document.getElementById('manual').focus();
+  }
+  function clearSel(){
+    selectedId = null; qEl.value = '';
+    document.getElementById('sel').hidden = true;
+    document.getElementById('manual').value = '';
+    qEl.focus();
+  }
+  function save(){
+    if(!selectedId){ alert('กรุณาเลือกชื่อนักเรียนก่อน'); qEl.focus(); return; }
+    var t = document.getElementById('manual').value.trim();
+    if(t && !/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(t)){
+      alert('รูปแบบเวลาไม่ถูกต้อง ใช้ HH:MM แบบ 24 ชม. เช่น 08:05'); return; }
     var body = new URLSearchParams();
-    body.set('student_id', s.id); body.set('date', DAY);
-    var t = document.getElementById('manual').value; if(t) body.set('time', t);
+    body.set('student_id', selectedId); body.set('date', DAY);
+    if(t) body.set('time', t);
+    var btn = document.getElementById('saveBtn'); btn.disabled = true;
     fetch('/general/arrival/record', {method:'POST', headers:{'X-Requested-With':'fetch'}, body: body})
       .then(function(r){ return r.json(); })
-      .then(function(d){ if(d && d.ok){ upsertRow(d); qEl.value=''; ddEl.hidden=true; qEl.focus(); }
+      .then(function(d){ btn.disabled = false;
+        if(d && d.ok){ upsertRow(d); clearSel(); qEl.focus(); }
         else { alert((d && d.error) || 'บันทึกไม่สำเร็จ'); } })
-      .catch(function(){ alert('เชื่อมต่อไม่สำเร็จ'); });
+      .catch(function(){ btn.disabled = false; alert('เชื่อมต่อไม่สำเร็จ'); });
   }
   function upsertRow(d){
     DONE.add(d.sid);
