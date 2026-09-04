@@ -5,7 +5,9 @@ After=network.target
 [Service]
 WorkingDirectory=/opt/ddoc
 EnvironmentFile=/etc/ddoc.env
-ExecStart=/opt/ddoc/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+# --proxy-headers + --forwarded-allow-ips: เชื่อ X-Forwarded-For จาก nginx (127.0.0.1)
+# เพื่อให้ request.client.host เป็น IP จริงของผู้ใช้ (rate-limit login นับต่อ IP ได้ถูก ไม่รวมเป็น 127.0.0.1)
+ExecStart=/opt/ddoc/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips=127.0.0.1
 Restart=always
 RestartSec=3
 User=ddoc
