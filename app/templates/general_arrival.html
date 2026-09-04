@@ -14,7 +14,7 @@
   <!-- ซ้าย: เลือกวัน + ค้นหาชื่อ -->
   <div class="card" style="flex:1.1; min-width:320px;">
     <form method="get" action="/general/arrival" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin:0 0 12px;">
-      <div><label>วันที่</label><input type="date" name="date" value="{{ day }}" onchange="this.form.submit()" style="width:180px;"></div>
+      <div><label>วันที่</label><input type="text" name="date" data-date="1" value="{{ day_input }}" placeholder="วว/ดด/ปปปป" onchange="this.form.submit()" style="width:150px;"></div>
       <a class="btn sm soft" href="/general/arrival/print?date={{ day }}" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ตารางวันนี้</a>
       <a class="btn sm" href="/general/arrival/stats"><svg class="icon"><use href="#ic-clipboard"/></svg> ดูสถิติการมาเรียน</a>
     </form>
@@ -46,7 +46,6 @@
         <input type="hidden" name="date" value="{{ day }}">
         <div><label>เริ่มเข้าแถว</label><input type="text" inputmode="numeric" maxlength="5" name="ontime_start" value="{{ setting.ontime_start }}" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" oninput="fmtTime(this)" placeholder="07:00" style="width:130px;"></div>
         <div><label>มาทันแถวถึง</label><input type="text" inputmode="numeric" maxlength="5" name="ontime_end" value="{{ setting.ontime_end }}" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" oninput="fmtTime(this)" placeholder="08:00" style="width:130px;"></div>
-        <div><label>สิ้นสุดช่วงสาย</label><input type="text" inputmode="numeric" maxlength="5" name="late_end" value="{{ setting.late_end }}" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" oninput="fmtTime(this)" placeholder="09:00" style="width:130px;"></div>
         <div><button class="btn sm" type="submit">บันทึกเวลา</button></div>
       </form>
       <p class="muted" style="font-size:12px; margin:6px 0 0;">มาถึง <b>ไม่เกิน {{ setting.ontime_end }}</b> = มาทันแถว · หลังจากนั้น = สาย</p>
@@ -115,6 +114,15 @@
   var qEl = document.getElementById('q'), ddEl = document.getElementById('dd');
   var curIdx = -1, matches = [];
 
+  // ช่องวันที่แบบไทย วว/ดด/ปปปป (แทรก '/' อัตโนมัติ)
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
   // จัดรูปแบบเวลา 24 ชม.: เก็บเฉพาะตัวเลข แล้วแทรก ':' อัตโนมัติ (HH:MM)
   function fmtTime(el){
     var d = (el.value || '').replace(/\D/g, '').slice(0, 4);

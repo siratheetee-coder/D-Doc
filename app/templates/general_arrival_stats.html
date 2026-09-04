@@ -11,8 +11,8 @@
 
 <div class="card">
   <form method="get" action="/general/arrival/stats" style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin:0;">
-    <div><label>ตั้งแต่วันที่</label><input type="date" name="date_from" value="{{ df }}" style="width:170px;"></div>
-    <div><label>ถึงวันที่</label><input type="date" name="date_to" value="{{ dt }}" style="width:170px;"></div>
+    <div><label>ตั้งแต่วันที่</label><input type="text" name="date_from" data-date="1" value="{{ df_input }}" placeholder="วว/ดด/ปปปป" style="width:150px;"></div>
+    <div><label>ถึงวันที่</label><input type="text" name="date_to" data-date="1" value="{{ dt_input }}" placeholder="วว/ดด/ปปปป" style="width:150px;"></div>
     <div><label>ห้อง</label>
       <select name="room" style="width:150px;">
         <option value="">ทุกห้อง</option>
@@ -114,4 +114,14 @@
   .mbar{ background:#fde8e8; border-radius:999px; height:15px; overflow:hidden; min-width:60px; }
   .mbar > i{ display:block; height:100%; background:linear-gradient(90deg,#f87171,#dc2626); border-radius:999px; }
 </style>
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
 {% endblock %}

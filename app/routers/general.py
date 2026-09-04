@@ -33,11 +33,19 @@ def _today_iso() -> str:
 
 
 def _valid_date(s: str) -> str:
+    """คืนวันที่เป็น ISO 'YYYY-MM-DD' · รับได้ทั้งไทย (วว/ดด/ปปปป) และ ISO · ว่าง/ผิด = วันนี้"""
+    from app.thai_utils import parse_be_date
+    dt = parse_be_date(s)
+    return dt.date().isoformat() if dt else _today_iso()
+
+
+def _be_input(iso: str) -> str:
+    """ISO -> ค่าช่องกรอกแบบไทย 'วว/ดด/ปปปป' (พ.ศ.)"""
+    from app.thai_utils import be_date_input
     try:
-        datetime.strptime(s, "%Y-%m-%d")
-        return s
+        return be_date_input(datetime.strptime(iso, "%Y-%m-%d"))
     except (ValueError, TypeError):
-        return _today_iso()
+        return ""
 
 
 def _norm_hm(s: str) -> str:
@@ -120,6 +128,7 @@ def arrival_page(request: Request, db: Session = Depends(get_db),
     n_late = sum(1 for r in recs if r.status == "late")
     return templates.TemplateResponse("general_arrival.html", {
         "request": request, "school": get_school(db), "day": day, "day_be": _be(day),
+        "day_input": _be_input(day),
         "setting": st, "students": _student_rows(db), "done_ids": list(done_ids),
         "rows": rows, "n_total": len(recs), "n_late": n_late,
         "n_ontime": len(recs) - n_late, "msg": msg,
@@ -263,6 +272,7 @@ def arrival_stats(request: Request, db: Session = Depends(get_db),
     return templates.TemplateResponse("general_arrival_stats.html", {
         "request": request, "school": get_school(db),
         "df": df, "dt": dt, "df_be": _be(df), "dt_be": _be(dt),
+        "df_input": _be_input(df), "dt_input": _be_input(dt),
         "room": room, "rooms": rooms,
         "day_rows": day_rows, "day_max": day_max,
         "room_rows": room_rows, "room_late_max": room_late_max,
