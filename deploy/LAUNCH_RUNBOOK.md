@@ -27,6 +27,24 @@ sudo chmod 600 /etc/ddoc.env    # กันคนอื่นอ่านรห�
 sudo systemctl restart ddoc
 ```
 
+**ตรวจว่ามี superadmin อยู่แล้วหรือยัง** (สำคัญ: `DDOC_SUPERADMIN_PW` มีผลเฉพาะตอน "สร้างครั้งแรก")
+ใช้ Python ของแอป (ไม่ต้องติดตั้ง sqlite3 CLI):
+```bash
+sudo -u ddoc /opt/ddoc/.venv/bin/python - <<'PY'
+import sqlite3
+c = sqlite3.connect('/opt/ddoc/data/accounts.db')
+print(c.execute("SELECT username, role FROM account WHERE role='superadmin'").fetchall() or "ยังไม่มี superadmin")
+PY
+```
+- **ยังไม่มี** → ตั้ง `DDOC_SUPERADMIN_PW` ใน env แล้ว restart จะสร้างให้ด้วยรหัสใหม่ (บังคับเปลี่ยนตอนล็อกอินครั้งแรก)
+- **มีแล้ว** (เคย start ด้วย default) → env ไม่ช่วย ให้ล็อกอินเปลี่ยนรหัสที่ `/account/password` ทันที
+- อยากรีเซ็ตด้วย env (ขั้นสูง): `stop` → ลบแถว superadmin → `start` (สร้างใหม่จาก env; ไม่กระทบบัญชีโรงเรียน)
+  ```bash
+  sudo systemctl stop ddoc
+  sudo -u ddoc /opt/ddoc/.venv/bin/python -c "import sqlite3;d=sqlite3.connect('/opt/ddoc/data/accounts.db');d.execute(\"DELETE FROM account WHERE role='superadmin'\");d.commit()"
+  sudo systemctl start ddoc
+  ```
+
 ## 2) อัปเดต systemd ให้ rate-limit เห็น IP จริง  ★ ทำครั้งเดียว
 
 ไฟล์ `deploy/ddoc.service` เพิ่ม `--proxy-headers --forwarded-allow-ips=127.0.0.1` แล้ว (มากับ git pull)
@@ -40,6 +58,11 @@ sudo systemctl restart ddoc
 **ทดสอบ:** ลองใส่รหัสผิดจากเครื่องนอก 8 ครั้งเร็ว ๆ ต้องโดนบล็อก 429 "พยายามเข้าระบบบ่อยเกินไป" (ถ้ายังไม่บล็อก แปลว่ายังนับรวมเป็น 127.0.0.1 — ตรวจ proxy-headers/nginx)
 
 ## 3) Backup อัตโนมัติ + ซ้อมกู้คืน  ★★ สำคัญสุด
+
+**ติดตั้ง sqlite3 CLI ก่อน** (backup.sh ใช้ `sqlite3 .backup` ทำ snapshot ปลอดภัยขณะแอปเขียนอยู่ · ถ้าไม่มีจะ fallback เป็น cp ที่อาจได้ไฟล์ไม่สมบูรณ์):
+```bash
+sudo apt update && sudo apt install -y sqlite3
+```
 
 **ตั้ง cron สำรองรายคืน** (เก็บนอก `data/`):
 ```bash
