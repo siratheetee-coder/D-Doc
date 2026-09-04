@@ -16,6 +16,7 @@
     <form method="get" action="/general/arrival" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin:0 0 12px;">
       <div><label>วันที่</label><input type="date" name="date" value="{{ day }}" onchange="this.form.submit()" style="width:180px;"></div>
       <a class="btn sm soft" href="/general/arrival/print?date={{ day }}" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ตารางวันนี้</a>
+      <a class="btn sm" href="/general/arrival/stats"><svg class="icon"><use href="#ic-clipboard"/></svg> ดูสถิติการมาเรียน</a>
     </form>
 
     <label>ค้นหา/พิมพ์ชื่อนักเรียน แล้วคลิกเพื่อลงเวลา</label>
@@ -24,16 +25,18 @@
              oninput="filterStu()" onkeydown="qKey(event)" style="width:100%;">
       <div id="dd" class="dd" hidden></div>
     </div>
-    <p class="muted" style="font-size:12.5px; margin:8px 0 0;">เวลาที่ลง = เวลาที่กด · ต้องการกรอกเวลาเอง ให้ใส่ในช่องนี้ก่อนคลิกชื่อ:
-      <input id="manual" type="time" style="width:170px; display:inline-block; padding:8px 12px; font-size:16px;"></p>
+    <p class="muted" style="font-size:12.5px; margin:8px 0 0;">เวลาที่ลง = เวลาที่กด · ต้องการกรอกเวลาเอง (แบบ 24 ชม.) ให้ใส่ในช่องนี้ก่อนคลิกชื่อ:
+      <input id="manual" type="text" inputmode="numeric" maxlength="5" placeholder="เช่น 08:05"
+             pattern="([01][0-9]|2[0-3]):[0-5][0-9]" oninput="fmtTime(this)"
+             style="width:130px; display:inline-block; padding:8px 12px; font-size:16px;"></p>
 
     <div style="margin-top:16px; border-top:1px dashed var(--border); padding-top:12px;">
       <b style="font-size:14px;">ตั้งช่วงเวลา</b>
       <form method="post" action="/general/arrival/settings" class="row" style="align-items:flex-end; gap:10px; margin-top:6px;">
         <input type="hidden" name="date" value="{{ day }}">
-        <div><label>เริ่มเข้าแถว</label><input type="time" name="ontime_start" value="{{ setting.ontime_start }}" style="width:160px;"></div>
-        <div><label>มาทันแถวถึง</label><input type="time" name="ontime_end" value="{{ setting.ontime_end }}" style="width:160px;"></div>
-        <div><label>สิ้นสุดช่วงสาย</label><input type="time" name="late_end" value="{{ setting.late_end }}" style="width:160px;"></div>
+        <div><label>เริ่มเข้าแถว</label><input type="text" inputmode="numeric" maxlength="5" name="ontime_start" value="{{ setting.ontime_start }}" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" oninput="fmtTime(this)" placeholder="07:00" style="width:130px;"></div>
+        <div><label>มาทันแถวถึง</label><input type="text" inputmode="numeric" maxlength="5" name="ontime_end" value="{{ setting.ontime_end }}" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" oninput="fmtTime(this)" placeholder="08:00" style="width:130px;"></div>
+        <div><label>สิ้นสุดช่วงสาย</label><input type="text" inputmode="numeric" maxlength="5" name="late_end" value="{{ setting.late_end }}" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" oninput="fmtTime(this)" placeholder="09:00" style="width:130px;"></div>
         <div><button class="btn sm" type="submit">บันทึกเวลา</button></div>
       </form>
       <p class="muted" style="font-size:12px; margin:6px 0 0;">มาถึง <b>ไม่เกิน {{ setting.ontime_end }}</b> = มาทันแถว · หลังจากนั้น = สาย</p>
@@ -97,6 +100,11 @@
   var qEl = document.getElementById('q'), ddEl = document.getElementById('dd');
   var curIdx = -1, matches = [];
 
+  // จัดรูปแบบเวลา 24 ชม.: เก็บเฉพาะตัวเลข แล้วแทรก ':' อัตโนมัติ (HH:MM)
+  function fmtTime(el){
+    var d = (el.value || '').replace(/\D/g, '').slice(0, 4);
+    el.value = d.length >= 3 ? (d.slice(0, 2) + ':' + d.slice(2)) : d;
+  }
   function norm(s){ return (s||'').toString().toLowerCase(); }
   function filterStu(){
     var q = norm(qEl.value).trim();

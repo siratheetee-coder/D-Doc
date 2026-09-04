@@ -40,6 +40,31 @@ def _valid_date(s: str) -> str:
         return _today_iso()
 
 
+def _norm_hm(s: str) -> str:
+    """ปรับเวลาให้เป็น 24 ชม. 'HH:MM' (เติมศูนย์นำ) · คืน '' ถ้าไม่ถูกต้อง
+    รับได้ทั้ง '8:00', '0800', '08:00'"""
+    s = (s or "").strip()
+    if not s:
+        return ""
+    if ":" in s:
+        parts = s.split(":")
+        try:
+            h, m = int(parts[0]), int((parts[1] or "0")[:2])
+        except ValueError:
+            return ""
+    else:
+        digits = "".join(c for c in s if c.isdigit())
+        if not digits:
+            return ""
+        if len(digits) <= 2:
+            h, m = int(digits), 0
+        else:
+            h, m = int(digits[:-2]), int(digits[-2:])
+    if 0 <= h <= 23 and 0 <= m <= 59:
+        return f"{h:02d}:{m:02d}"
+    return ""
+
+
 def _status_for(time_hm: str, st: ArrivalSetting) -> str:
     """มาทัน ถ้าเวลามา <= ontime_end · หลังจากนั้น = สาย (เทียบสตริง HH:MM ได้ตรง)"""
     return "ontime" if (time_hm or "") <= (st.ontime_end or "08:00") else "late"
@@ -110,7 +135,7 @@ def arrival_record(request: Request, db: Session = Depends(get_db),
     stu = db.get(Student, student_id)
     if not stu:
         return JSONResponse({"ok": False, "error": "ไม่พบนักเรียน"}, status_code=404)
-    hm = (time or "").strip() or datetime.now().strftime("%H:%M")
+    hm = _norm_hm(time) or datetime.now().strftime("%H:%M")
     st = _setting(db)
     status = _status_for(hm, st)
     rec = (db.query(Arrival)
@@ -146,9 +171,9 @@ def arrival_settings(request: Request, db: Session = Depends(get_db),
                      ontime_start: str = Form("07:00"), ontime_end: str = Form("08:00"),
                      late_end: str = Form("09:00"), date: str = Form("")):
     st = _setting(db)
-    st.ontime_start = (ontime_start or "07:00").strip()
-    st.ontime_end = (ontime_end or "08:00").strip()
-    st.late_end = (late_end or "09:00").strip()
+    st.ontime_start = _norm_hm(ontime_start) or "07:00"
+    st.ontime_end = _norm_hm(ontime_end) or "08:00"
+    st.late_end = _norm_hm(late_end) or "09:00"
     db.commit()
     day = _valid_date(date)
     return RedirectResponse(f"/general/arrival?date={day}&msg=" +
@@ -171,4 +196,77 @@ def arrival_print(request: Request, db: Session = Depends(get_db), date: str = "
         "request": request, "school": get_school(db), "day_be": _be(day),
         "rows": rows, "n_total": len(recs), "n_late": n_late,
         "n_ontime": len(recs) - n_late,
+    })
+
+
+@router.get("/general/arrival/stats", response_class=HTMLResponse)
+def arrival_stats(request: Request, db: Session = Depends(get_db),
+                  date_from: str = "", date_to: str = "", room: str = ""):
+    """สถิติการมาเรียน: สรุปรายห้อง + รายชื่อนักเรียนมาสาย + กราฟ (ช่วงวันที่/กรองตามห้องได้)"""
+    from collections import defaultdict
+    today = _date.today()
+    df = _valid_date(date_from) if date_from else today.replace(day=1).isoformat()
+    dt = _valid_date(date_to) if date_to else today.isoformat()
+    if df > dt:
+        df, dt = dt, df
+    recs = (db.query(Arrival)
+            .filter(Arrival.date >= df, Arrival.date <= dt).all())
+    studs = {s.id: s for s in db.query(Student).all()}
+
+    def rlabel(sid):
+        s = studs.get(sid)
+        return _class_label(s) if s else "-"
+
+    # รายชื่อห้องที่มีบันทึก (สำหรับ dropdown กรอง)
+    rooms = sorted({rlabel(r.student_id) for r in recs})
+    room = room if room in rooms else ""
+    frecs = [r for r in recs if (not room or rlabel(r.student_id) == room)]
+
+    # รายวัน (ในช่วง/ตามห้องที่กรอง)
+    per_day = defaultdict(lambda: [0, 0])   # date -> [total, late]
+    for r in frecs:
+        per_day[r.date][0] += 1
+        per_day[r.date][1] += (r.status == "late")
+    day_rows = [{"date": k, "be": _be(k), "total": v[0], "late": v[1]}
+                for k, v in sorted(per_day.items())]
+    day_max = max([d["total"] for d in day_rows], default=0)
+
+    # รายห้อง (ทุกห้องเสมอ เพื่อเทียบกัน)
+    per_room = defaultdict(lambda: [0, 0])
+    for r in recs:
+        rl = rlabel(r.student_id)
+        per_room[rl][0] += 1
+        per_room[rl][1] += (r.status == "late")
+    room_rows = [{"room": k, "total": v[0], "late": v[1], "ontime": v[0] - v[1],
+                  "pct": round(v[1] / v[0] * 100) if v[0] else 0}
+                 for k, v in sorted(per_room.items())]
+    room_late_max = max([r["late"] for r in room_rows], default=0)
+
+    # รายชื่อนักเรียนที่มาสาย (ในช่วง/ตามห้องที่กรอง)
+    per_stu = defaultdict(lambda: [0, 0])   # sid -> [total, late]
+    for r in frecs:
+        per_stu[r.student_id][0] += 1
+        per_stu[r.student_id][1] += (r.status == "late")
+    late_students = []
+    for sid, (tot, lt) in per_stu.items():
+        if lt > 0:
+            s = studs.get(sid)
+            late_students.append({
+                "name": s.name if s else "-", "no": (s.student_no if s else "") or "",
+                "room": rlabel(sid), "late": lt, "total": tot,
+                "pct": round(lt / tot * 100) if tot else 0})
+    late_students.sort(key=lambda x: (-x["late"], -x["pct"], x["name"]))
+    late_max = max([x["late"] for x in late_students], default=0)
+
+    n_total = len(frecs)
+    n_late = sum(1 for r in frecs if r.status == "late")
+    return templates.TemplateResponse("general_arrival_stats.html", {
+        "request": request, "school": get_school(db),
+        "df": df, "dt": dt, "df_be": _be(df), "dt_be": _be(dt),
+        "room": room, "rooms": rooms,
+        "day_rows": day_rows, "day_max": day_max,
+        "room_rows": room_rows, "room_late_max": room_late_max,
+        "late_students": late_students, "late_max": late_max,
+        "n_total": n_total, "n_late": n_late, "n_ontime": n_total - n_late,
+        "pct_late": round(n_late / n_total * 100) if n_total else 0,
     })
