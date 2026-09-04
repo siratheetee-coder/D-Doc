@@ -25,15 +25,15 @@
       <div id="dd" class="dd" hidden></div>
     </div>
     <p class="muted" style="font-size:12.5px; margin:8px 0 0;">เวลาที่ลง = เวลาที่กด · ต้องการกรอกเวลาเอง ให้ใส่ในช่องนี้ก่อนคลิกชื่อ:
-      <input id="manual" type="time" style="width:120px; display:inline-block; padding:4px 8px;"></p>
+      <input id="manual" type="time" style="width:170px; display:inline-block; padding:8px 12px; font-size:16px;"></p>
 
     <div style="margin-top:16px; border-top:1px dashed var(--border); padding-top:12px;">
       <b style="font-size:14px;">ตั้งช่วงเวลา</b>
       <form method="post" action="/general/arrival/settings" class="row" style="align-items:flex-end; gap:10px; margin-top:6px;">
         <input type="hidden" name="date" value="{{ day }}">
-        <div><label>เริ่มเข้าแถว</label><input type="time" name="ontime_start" value="{{ setting.ontime_start }}" style="width:120px;"></div>
-        <div><label>มาทันแถวถึง</label><input type="time" name="ontime_end" value="{{ setting.ontime_end }}" style="width:120px;"></div>
-        <div><label>สิ้นสุดช่วงสาย</label><input type="time" name="late_end" value="{{ setting.late_end }}" style="width:120px;"></div>
+        <div><label>เริ่มเข้าแถว</label><input type="time" name="ontime_start" value="{{ setting.ontime_start }}" style="width:160px;"></div>
+        <div><label>มาทันแถวถึง</label><input type="time" name="ontime_end" value="{{ setting.ontime_end }}" style="width:160px;"></div>
+        <div><label>สิ้นสุดช่วงสาย</label><input type="time" name="late_end" value="{{ setting.late_end }}" style="width:160px;"></div>
         <div><button class="btn sm" type="submit">บันทึกเวลา</button></div>
       </form>
       <p class="muted" style="font-size:12px; margin:6px 0 0;">มาถึง <b>ไม่เกิน {{ setting.ontime_end }}</b> = มาทันแถว · หลังจากนั้น = สาย</p>
