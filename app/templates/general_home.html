@@ -23,5 +23,25 @@
     </ul>
     <span class="nc-go">เปิดบันทึกการมาเรียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
+
+  <div class="nav-card soon" style="cursor:default;">
+    <div class="nc-head">
+      <span class="nc-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span>
+      <h3>ฟังก์ชันอื่นๆ</h3>
+    </div>
+    <p class="nc-desc" style="flex:1;">กำลังพัฒนาฟังก์ชันอื่นๆ ของงานบริหารทั่วไป เร็วๆ นี้</p>
+    <span class="nc-go" style="color:var(--muted);">กำลังพัฒนา</span>
+  </div>
 </div>
+
+<div class="card" style="border:1px solid #cffafe; background:#f0fdff;">
+  <p class="muted" style="margin:0;"><svg class="icon" style="color:#0891b2;"><use href="#ic-info"/></svg>
+    งานบริหารทั่วไป <b>เปิดให้ใช้ฟรีทุกโรงเรียน</b> ไม่ว่าจะซื้อแพ็กเกจใด · ฟังก์ชันอื่นๆ กำลังทยอยพัฒนาเพิ่ม</p>
+</div>
+
+<style>
+  .nav-card.soon{ opacity:.75; }
+  .nav-card.soon:hover{ transform:none; border-color:var(--border); box-shadow:var(--shadow); }
+  .nav-card.soon .nc-ic{ background:#eef1f6; color:#94a3b8; }
+</style>
 {% endblock %}
