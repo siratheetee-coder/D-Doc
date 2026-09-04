@@ -150,7 +150,7 @@
 
 {% set pk = packages or 'ครบทุกงาน' %}
 {% set is_all = ('ครบทุกงาน' in pk) or (not packages) %}
-{% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':190,'p_hr':390,'p_acad':690,'bundle':2690}) %}
+{% set px = prices | default({'p_proc':890,'p_fin':190,'p_admin':390,'p_lunch':690,'p_hr':390,'p_acad':890,'bundle':2690}) %}
 <div class="card">
   <h2>{{ 'เลือกงานที่ต้องการเพิ่ม' if addon else 'เลือกแพ็กเกจที่ต้องการ' }}</h2>
   <p class="hint" style="margin-top:0;">เลือกงานที่ต้องการ ระบบคิดราคาและอัปเดต QR ให้อัตโนมัติ</p>

@@ -47,7 +47,7 @@
   .gvid-tag { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:#b91c1c; margin:2px 0 4px; }
   .gvid-tag .icon { width:16px; height:16px; }
 </style>
-{% set px = prices | default({'p_proc':890,'p_fin':690,'p_admin':590,'p_lunch':190,'p_hr':390,'p_acad':690,'bundle':2690}) %}
+{% set px = prices | default({'p_proc':890,'p_fin':190,'p_admin':390,'p_lunch':690,'p_hr':390,'p_acad':890,'bundle':2690}) %}
 {% macro simg(name) %}<img class="step-img" src="/static/guide/{{ name }}.png" alt="" loading="lazy" onerror="this.remove()">{% endmacro %}
 {% macro vid(key) %}{% if videos and videos.get(key) %}
 <div class="gvid-tag">▶ วิดีโอสอนการใช้งาน</div>
