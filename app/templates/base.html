@@ -1021,6 +1021,7 @@
   <style>
     .cf-ov{ position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:1200; display:flex;
       align-items:center; justify-content:center; padding:20px; }
+    .cf-ov[hidden]{ display:none; }   /* กัน display:flex ทับ attribute hidden (ไม่งั้นซ่อนไม่ได้) */
     .cf-card{ background:#fff; max-width:420px; width:100%; border-radius:16px; padding:26px 24px;
       text-align:center; box-shadow:0 24px 60px rgba(16,24,40,.35); }
     .cf-ic{ width:56px; height:56px; border-radius:50%; background:#fff7ed; color:#ea580c;
