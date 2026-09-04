@@ -29,6 +29,17 @@
     {% elif p.link %}<a class="btn" href="{{ p.link }}" target="_blank" rel="noopener">เปิดลิงก์แผน ↗</a>
     {% else %}<p class="muted">ไม่มีไฟล์แนบ</p>{% endif %}
     {% if p.note %}<p style="margin-top:10px;"><b>หมายเหตุจากครู:</b> {{ p.note }}</p>{% endif %}
+    {% if (is_reviewer or is_director) and p.status != 'approved' %}
+    <hr style="margin:14px 0; border:none; border-top:1px dashed var(--border);">
+    <b style="font-size:14px;">อัปโหลดไฟล์ที่เซ็นแล้ว</b>
+    <p class="muted" style="font-size:12.5px; margin:4px 0 8px;">ดาวน์โหลดไฟล์ไปเซ็นในโปรแกรมของคุณ (Word/PDF) แล้วอัปโหลดกลับมาทับไฟล์เดิม จากนั้นจึงกด{{ 'อนุมัติ' if is_director and p.status=='director' else 'ผ่าน/ตรวจ' }}</p>
+    <form method="post" action="/academic/lesson-plans/{{ p.id }}/reupload" enctype="multipart/form-data"
+          style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <input name="file" type="file" accept=".pdf,.docx,.jpg,.jpeg,.png,.webp" required
+             style="padding:7px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; flex:1; min-width:180px;">
+      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดไฟล์ที่เซ็นแล้ว</button>
+    </form>
+    {% endif %}
   </div>
 
   <div class="card" style="flex:1; min-width:300px;">
@@ -48,12 +59,45 @@
         <span class="muted">{{ director.name if director else (school.director_name or '-') }} · {{ thai_date(p.director_at) if p.director_at else '-' }}</span><br>
         <span class="pill" style="background:#dcfce7; color:#166534;">อนุมัติ/ลงนามแล้ว</span>
         {% if p.director_comment %}<div style="margin-top:4px;">ความเห็น: {{ p.director_comment }}</div>{% endif %}
-        <div style="margin-top:10px;"><a class="btn sm green" href="/academic/lesson-plans/{{ p.id }}/cert"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดใบรับรอง</a></div>
       {% elif p.status == 'director' %}<span class="muted">รอ ผอ. ลงนาม</span>{% else %}<span class="muted">-</span>{% endif %}
     </div>
 
+    {% if is_reviewer and not is_director and p.status in ('pending','revise') %}
+    <hr style="margin:16px 0; border:none; border-top:1px solid var(--border);">
+    <div class="sign-hint" id="hintReviewer" hidden>
+      <div class="sh-body">
+        <svg class="icon"><use href="#ic-alert"/></svg>
+        <div><b>โปรดใส่ลายเซ็นของคุณก่อนส่งให้ผู้อำนวยการ</b>
+          <div class="muted" style="font-size:12.5px;">ดาวน์โหลดไฟล์ไปเซ็นแล้วอัปโหลดกลับ (ช่องด้านซ้าย) ก่อนกด "ผ่าน → ผอ."</div></div>
+      </div>
+      <div class="sh-act">
+        <label class="sh-chk"><input type="checkbox" id="hintReviewerNo"> ไม่ต้องแจ้งฉันอีก</label>
+        <button type="button" class="btn sm" onclick="dismissHint('ddoc_planhint_reviewer','hintReviewer')">รับทราบ</button>
+      </div>
+    </div>
+    <form method="post" action="/academic/lesson-plans/{{ p.id }}/review">
+      <label>ความเห็นหัวหน้าฝ่ายวิชาการ (ไม่บังคับ)</label>
+      <textarea name="comment" rows="2" style="width:100%;" placeholder="เช่น ตรวจแล้ว เห็นควรเสนอ ผอ.">{{ p.comment or '' }}</textarea>
+      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+        <button class="btn green" type="submit" name="status" value="reviewed"><svg class="icon"><use href="#ic-check"/></svg> ผ่าน → ผอ.</button>
+        <button class="btn" type="submit" name="status" value="revise" style="background:#f59e0b;">ให้แก้</button>
+      </div>
+    </form>
+    {% endif %}
+
     {% if is_director and p.status == 'director' %}
     <hr style="margin:16px 0; border:none; border-top:1px solid var(--border);">
+    <div class="sign-hint" id="hintDirector" hidden>
+      <div class="sh-body">
+        <svg class="icon"><use href="#ic-alert"/></svg>
+        <div><b>โปรดใส่ลายเซ็นของคุณก่อนอนุมัติ</b>
+          <div class="muted" style="font-size:12.5px;">ดาวน์โหลดไฟล์ไปเซ็นแล้วอัปโหลดกลับ (ช่องด้านซ้าย) ก่อนกด "อนุมัติ + ลงนาม"</div></div>
+      </div>
+      <div class="sh-act">
+        <label class="sh-chk"><input type="checkbox" id="hintDirectorNo"> ไม่ต้องแจ้งฉันอีก</label>
+        <button type="button" class="btn sm" onclick="dismissHint('ddoc_planhint_director','hintDirector')">รับทราบ</button>
+      </div>
+    </div>
     <form method="post" action="/academic/lesson-plans/{{ p.id }}/approve">
       <label>ความเห็นผู้อำนวยการ (ไม่บังคับ)</label>
       <textarea name="comment" rows="2" style="width:100%;" placeholder="เช่น อนุมัติ / เห็นชอบ"></textarea>
@@ -66,4 +110,24 @@
   </div>
 </div>
 <a class="btn gray" href="{{ '/approvals' if is_director else '/academic/lesson-plans' }}">← กลับ</a>
+<style>
+  .sign-hint{ display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center;
+    background:#fff7ed; border:1px solid #fed7aa; border-radius:12px; padding:12px 16px; margin-bottom:14px; }
+  .sign-hint .sh-body{ display:flex; gap:10px; align-items:flex-start; }
+  .sign-hint .sh-body > .icon{ color:#ea580c; flex:none; margin-top:2px; }
+  .sign-hint .sh-act{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  .sign-hint .sh-chk{ font-size:13px; display:flex; gap:6px; align-items:center; margin:0; font-weight:400; }
+  .sign-hint .sh-chk input{ width:16px; height:16px; padding:0; margin:0; }
+</style>
+<script>
+  function initHint(key, id){ try{ if(localStorage.getItem(key)==='1') return; }catch(e){}
+    var el=document.getElementById(id); if(el) el.hidden=false; }
+  function dismissHint(key, id){
+    var no=document.getElementById(id+'No');
+    if(no && no.checked){ try{ localStorage.setItem(key,'1'); }catch(e){} }
+    var el=document.getElementById(id); if(el) el.hidden=true;
+  }
+  initHint('ddoc_planhint_reviewer','hintReviewer');
+  initHint('ddoc_planhint_director','hintDirector');
+</script>
 {% endblock %}

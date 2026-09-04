@@ -13,9 +13,22 @@
 {% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
 
 {% if my_pid %}
+<div class="sign-hint" id="hintTeacher" hidden>
+  <div class="sh-body">
+    <svg class="icon"><use href="#ic-alert"/></svg>
+    <div>
+      <b>โปรดใส่ลายเซ็นของคุณในไฟล์แผนก่อนส่งให้ฝ่ายวิชาการ</b>
+      <div class="muted" style="font-size:12.5px;">เซ็นชื่อลงในไฟล์ (Word/PDF) ของคุณเองก่อน แล้วจึงอัปโหลดส่ง — ระบบไม่ได้เซ็นให้อัตโนมัติ</div>
+    </div>
+  </div>
+  <div class="sh-act">
+    <label class="sh-chk"><input type="checkbox" id="hintTeacherNo"> ไม่ต้องแจ้งฉันอีก</label>
+    <button type="button" class="btn sm" onclick="dismissHint('ddoc_planhint_teacher','hintTeacher')">รับทราบ</button>
+  </div>
+</div>
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-file"/></svg> ส่งแผนการสอน</h2>
-  <p class="muted" style="font-size:13px; margin:4px 0 12px;">แนบไฟล์แผน (PDF / Word / รูป) เข้าระบบ · เมื่อส่ง หัวหน้าฝ่ายวิชาการตรวจก่อน แล้วเสนอ ผอ. ลงนาม · ระบบแจ้งทางอีเมลให้อัตโนมัติ</p>
+  <p class="muted" style="font-size:13px; margin:4px 0 12px;">แนบไฟล์แผน (PDF / Word / รูป) ที่<b>เซ็นชื่อครูผู้สอนแล้ว</b> · เมื่อส่ง หัวหน้าฝ่ายวิชาการตรวจ+ลงนามก่อน แล้วเสนอ ผอ. ลงนาม · ระบบแจ้งทางอีเมลให้อัตโนมัติ</p>
   <form method="post" action="/academic/lesson-plans/submit" enctype="multipart/form-data">
     <div class="row" style="align-items:flex-end;">
       <div style="flex:1.4;"><label>ชื่อแผน / วิชา / ชั้น *</label><input name="title" required placeholder="เช่น แผนการสอนภาษาไทย ป.1 หน่วยที่ 3"></div>
@@ -78,7 +91,6 @@
           {% else %}{{ p.comment or '-' }}{% if p.director_comment %}<div class="muted" style="font-size:12px;">ผอ.: {{ p.director_comment }}</div>{% endif %}{% endif %}
         </td>
         <td data-label="จัดการ" class="stack-full" style="white-space:nowrap;">
-          {% if p.status == 'approved' %}<a class="btn sm green" href="/academic/lesson-plans/{{ p.id }}/cert"><svg class="icon"><use href="#ic-download"/></svg> ใบรับรอง</a>{% endif %}
           <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}">ดู</a>
           <form method="post" action="/academic/lesson-plans/{{ p.id }}/delete" style="margin:0; display:inline;"
                 onsubmit="return confirm('ลบ/ยกเลิกแผน &quot;{{ p.title }}&quot; ?');">
@@ -96,5 +108,22 @@
 </div>
 <style>
   table.stack-sm tr.term-sep td { background:#f5f3ff; font-weight:700; color:var(--brand-dark); text-align:left; font-size:13px; padding:6px 10px; }
+  .sign-hint{ display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center;
+    background:#fff7ed; border:1px solid #fed7aa; border-radius:12px; padding:12px 16px; margin-bottom:14px; }
+  .sign-hint .sh-body{ display:flex; gap:10px; align-items:flex-start; }
+  .sign-hint .sh-body > .icon{ color:#ea580c; flex:none; margin-top:2px; }
+  .sign-hint .sh-act{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  .sign-hint .sh-chk{ font-size:13px; display:flex; gap:6px; align-items:center; margin:0; font-weight:400; }
+  .sign-hint .sh-chk input{ width:16px; height:16px; padding:0; margin:0; }
 </style>
+<script>
+  function initHint(key, id){ try{ if(localStorage.getItem(key)==='1') return; }catch(e){}
+    var el=document.getElementById(id); if(el) el.hidden=false; }
+  function dismissHint(key, id){
+    var no=document.getElementById(id+'No');
+    if(no && no.checked){ try{ localStorage.setItem(key,'1'); }catch(e){} }
+    var el=document.getElementById(id); if(el) el.hidden=true;
+  }
+  initHint('ddoc_planhint_teacher','hintTeacher');
+</script>
 {% endblock %}

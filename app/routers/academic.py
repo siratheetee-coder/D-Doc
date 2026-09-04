@@ -756,7 +756,8 @@ def lesson_plan_detail(request: Request, plan_id: int, db: Session = Depends(get
     return templates.TemplateResponse("lesson_plan_detail.html", {
         "request": request, "school": get_school(db), "p": p,
         "teacher": p.teacher, "academic": academic, "director": director,
-        "is_director": is_director, "term_label": term_label, "msg": msg, "err": err,
+        "is_director": is_director, "is_reviewer": not sc.is_teacher,
+        "term_label": term_label, "msg": msg, "err": err,
     })
 
 
@@ -794,19 +795,31 @@ def lesson_plan_approve(request: Request, plan_id: int, db: Session = Depends(ge
     return RedirectResponse("/approvals?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
 
 
-@router.get("/academic/lesson-plans/{plan_id}/cert")
-def lesson_plan_cert(request: Request, plan_id: int, db: Session = Depends(get_db)):
-    """ดาวน์โหลดแบบรับรองการตรวจแผน (แปะลายเซ็นวิชาการ + ผอ.)"""
+@router.post("/academic/lesson-plans/{plan_id}/reupload")
+async def lesson_plan_reupload(request: Request, plan_id: int, db: Session = Depends(get_db),
+                              file: UploadFile = File(None)):
+    """หัวหน้าวิชาการ/ผอ. อัปโหลดไฟล์แผนที่ 'เซ็นแล้ว' ทับของเดิม (ไม่เปลี่ยนสถานะ)
+    ใช้เมื่อดาวน์โหลดไฟล์ไปเซ็นในโปรแกรมของตัวเองแล้วนำกลับเข้าระบบ"""
     from app.models import LessonPlan
-    p = db.get(LessonPlan, plan_id)
-    if not p or p.status != "approved":
-        return RedirectResponse("/academic/lesson-plans?err=แผนนี้ยังไม่ได้รับอนุมัติ", status_code=303)
-    sc = _scope(request, db)
-    if sc.is_teacher and not request.session.get("director") and p.person_id != request.session.get("person_id"):
+    from app.services.file_upload import detect_ext
+    # อนุญาตเฉพาะผู้ตรวจ (ไม่ใช่ครู) หรือ ผอ. เท่านั้น
+    if _scope(request, db).is_teacher and not request.session.get("director"):
         return _deny()
-    from app.services.lesson_doc import render_lesson_plan_cert
-    path = render_lesson_plan_cert(db, p, get_school(db))
-    return serve_generated(path, _DOCX)
+    p = db.get(LessonPlan, plan_id)
+    if not p:
+        return RedirectResponse("/academic/lesson-plans", status_code=303)
+    data = await file.read() if file is not None else b""
+    if not data:
+        return RedirectResponse(f"/academic/lesson-plans/{plan_id}?err=ยังไม่ได้แนบไฟล์", status_code=303)
+    ext = detect_ext(data, file.filename or "")
+    if ext not in _PLAN_EXT:
+        return RedirectResponse(f"/academic/lesson-plans/{plan_id}?err=ไฟล์ต้องเป็น PDF / Word / รูปภาพ",
+                                status_code=303)
+    p.file_blob = data
+    p.file_name = (file.filename or f"lesson.{ext}").strip()[:120]
+    db.commit()
+    return RedirectResponse(f"/academic/lesson-plans/{plan_id}?msg=อัปโหลดไฟล์ที่เซ็นแล้วเรียบร้อย",
+                            status_code=303)
 
 
 # ---------------- ส่งใบลา (ครูส่ง -> หัวหน้าฝ่ายบุคคลอนุมัติ + อีเมลแจ้ง) ----------------
