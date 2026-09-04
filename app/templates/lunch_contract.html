@@ -126,7 +126,10 @@
     .insp-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px 12px;
       max-height:240px; overflow-y:auto; overflow-x:hidden; padding:10px;
       border:1px solid var(--border); border-radius:8px; background:#fafafe; }
-    .insp-day{ display:flex; flex-wrap:wrap; align-items:center; gap:2px 6px; font-size:13px; min-width:0; }
+    .insp-day{ display:flex; flex-wrap:wrap; align-items:center; gap:2px 6px; font-size:13px; min-width:0; cursor:pointer; }
+    /* กัน input{width:100%;padding:9px} ทั่วระบบมาทำให้ checkbox กินเต็มแถวจนวันที่ตกบรรทัด */
+    .insp-day input[type=checkbox]{ width:16px; height:16px; min-width:0; flex:none;
+      padding:0; margin:0; border-radius:3px; }
     .insp-day .dlbl{ white-space:nowrap; }
     .insp-day .mini{ flex-basis:100%; margin-left:22px; font-size:10.5px; line-height:1.1; }
     .insp-day.taken{ color:#a7a7b0; }
