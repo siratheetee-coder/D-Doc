@@ -344,6 +344,32 @@ class StudentMeasure(Base):
     student = relationship("Student", back_populates="measures")
 
 
+class ArrivalSetting(Base):
+    """ตั้งค่าช่วงเวลามาเรียน (งานบริหารทั่วไป) - มีแถวเดียวต่อโรงเรียน
+    มาทันแถว = เวลามา <= ontime_end · สาย = หลัง ontime_end (ถึง late_end)"""
+    __tablename__ = "arrival_setting"
+
+    id = Column(Integer, primary_key=True)
+    ontime_start = Column(String, default="07:00")   # เริ่มรับเข้าแถว
+    ontime_end = Column(String, default="08:00")     # มาทันแถวถึงเวลานี้ (<= = ทัน)
+    late_end = Column(String, default="09:00")       # สิ้นสุดช่วงสาย
+
+
+class Arrival(Base):
+    """บันทึกการมาเรียนของนักเรียน 1 คน 1 วัน (คลิกชื่อ = ลงเวลาที่กดทันที)"""
+    __tablename__ = "arrival"
+    __table_args__ = (UniqueConstraint("student_id", "date", name="uq_arrival_student_date"),)
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey("student.id"), nullable=False)
+    date = Column(String, nullable=False)            # ISO 'YYYY-MM-DD'
+    time = Column(String, default="")                # 'HH:MM'
+    status = Column(String, default="ontime")        # ontime / late
+    created_at = Column(DateTime, default=datetime.now)
+
+    student = relationship("Student")
+
+
 class ItemCatalog(Base):
     """คลังรายการพัสดุมาตรฐาน (ใช้ซ้ำ) - พิมพ์ชื่อครั้งเดียว เลือกใช้ในเรื่องจัดซื้อทุกครั้ง
     ระบบเติมให้อัตโนมัติจากรายการที่เคยกรอก (dedupe ตามชื่อ)"""

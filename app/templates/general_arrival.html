@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}บันทึกการมาเรียน{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานบริหารทั่วไป</div>
+    <span class="hero-title">บันทึกการมาเรียน</span>
+    <div class="hero-meta">{{ school.name or "" }} · {{ day_be }}</div>
+  </div>
+</div>
+{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+
+<div class="row" style="align-items:flex-start; gap:16px;">
+  <!-- ซ้าย: เลือกวัน + ค้นหาชื่อ -->
+  <div class="card" style="flex:1.1; min-width:320px;">
+    <form method="get" action="/general/arrival" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin:0 0 12px;">
+      <div><label>วันที่</label><input type="date" name="date" value="{{ day }}" onchange="this.form.submit()" style="width:180px;"></div>
+      <a class="btn sm soft" href="/general/arrival/print?date={{ day }}" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ตารางวันนี้</a>
+    </form>
+
+    <label>ค้นหา/พิมพ์ชื่อนักเรียน แล้วคลิกเพื่อลงเวลา</label>
+    <div style="position:relative;">
+      <input id="q" type="text" autocomplete="off" placeholder="พิมพ์ชื่อ หรือ รหัสนักเรียน..."
+             oninput="filterStu()" onkeydown="qKey(event)" style="width:100%;">
+      <div id="dd" class="dd" hidden></div>
+    </div>
+    <p class="muted" style="font-size:12.5px; margin:8px 0 0;">เวลาที่ลง = เวลาที่กด · ต้องการกรอกเวลาเอง ให้ใส่ในช่องนี้ก่อนคลิกชื่อ:
+      <input id="manual" type="time" style="width:120px; display:inline-block; padding:4px 8px;"></p>
+
+    <div style="margin-top:16px; border-top:1px dashed var(--border); padding-top:12px;">
+      <b style="font-size:14px;">ตั้งช่วงเวลา</b>
+      <form method="post" action="/general/arrival/settings" class="row" style="align-items:flex-end; gap:10px; margin-top:6px;">
+        <input type="hidden" name="date" value="{{ day }}">
+        <div><label>เริ่มเข้าแถว</label><input type="time" name="ontime_start" value="{{ setting.ontime_start }}" style="width:120px;"></div>
+        <div><label>มาทันแถวถึง</label><input type="time" name="ontime_end" value="{{ setting.ontime_end }}" style="width:120px;"></div>
+        <div><label>สิ้นสุดช่วงสาย</label><input type="time" name="late_end" value="{{ setting.late_end }}" style="width:120px;"></div>
+        <div><button class="btn sm" type="submit">บันทึกเวลา</button></div>
+      </form>
+      <p class="muted" style="font-size:12px; margin:6px 0 0;">มาถึง <b>ไม่เกิน {{ setting.ontime_end }}</b> = มาทันแถว · หลังจากนั้น = สาย</p>
+    </div>
+  </div>
+
+  <!-- ขวา: สรุป -->
+  <div class="card" style="flex:.7; min-width:220px;">
+    <h2 style="margin-top:0;">สรุปวันนี้</h2>
+    <div class="stat">
+      <div class="box"><div><div class="lab">มาทั้งหมด</div><div class="num" id="cTotal">{{ n_total }}</div></div>
+        <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-users"/></svg></span></div>
+      <div class="box"><div><div class="lab">มาทันแถว</div><div class="num" id="cOntime">{{ n_ontime }}</div></div>
+        <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-check"/></svg></span></div>
+      <div class="box"><div><div class="lab">สาย</div><div class="num" id="cLate">{{ n_late }}</div></div>
+        <span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-alert"/></svg></span></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;">รายชื่อที่ลงเวลาแล้ว ({{ day_be }})</h2>
+  <div class="table-wrap"><table id="arrTable">
+    <thead><tr><th style="width:52px;">ลำดับ</th><th>ชื่อ-นามสกุล</th><th>รหัสนักเรียน</th><th>ชั้น</th><th>เวลา</th><th>สถานะ</th><th></th></tr></thead>
+    <tbody id="arrBody">
+      {% for r in rows %}
+      <tr data-sid="{{ r.sid }}">
+        <td class="seq">{{ r.seq }}</td>
+        <td>{{ r.name }}</td>
+        <td>{{ r.no or '-' }}</td>
+        <td>{{ r.cls }}</td>
+        <td>{{ r.time }}</td>
+        <td>{% if r.status == 'late' %}<span class="badge late">สาย</span>{% else %}<span class="badge ontime">มาทัน</span>{% endif %}</td>
+        <td><form method="post" action="/general/arrival/{{ r.id }}/delete" style="margin:0;"><input type="hidden" name="date" value="{{ day }}"><button class="btn sm gray" type="submit">ลบ</button></form></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <p id="emptyMsg" class="muted" style="margin:6px 0 0; {{ 'display:none;' if rows }}">ยังไม่มีการลงเวลาในวันนี้ - พิมพ์ชื่อนักเรียนด้านบนแล้วคลิกเพื่อลงเวลา</p>
+</div>
+
+<style>
+  .dd{ position:absolute; z-index:30; left:0; right:0; top:calc(100% + 2px); background:#fff;
+    border:1px solid var(--border); border-radius:10px; box-shadow:0 12px 30px rgba(16,24,40,.16);
+    max-height:320px; overflow:auto; }
+  .dd .it{ display:flex; justify-content:space-between; gap:10px; align-items:center;
+    padding:9px 13px; cursor:pointer; font-size:14.5px; border-bottom:1px solid #f3f4f8; }
+  .dd .it:last-child{ border-bottom:none; }
+  .dd .it:hover, .dd .it.on{ background:var(--brand-soft); }
+  .dd .it .sub{ font-size:12px; color:var(--muted); white-space:nowrap; }
+  .dd .it.done{ opacity:.55; }
+  .dd .none{ padding:11px 13px; color:var(--muted); font-size:13.5px; }
+  .badge{ display:inline-block; padding:3px 12px; border-radius:999px; font-weight:700; font-size:12.5px; }
+  .badge.ontime{ background:#dcfce7; color:#166534; }
+  .badge.late{ background:#fee2e2; color:#b91c1c; }
+</style>
+<script>
+  var STUDENTS = {{ students|tojson }};
+  var DONE = new Set({{ done_ids|tojson }});
+  var DAY = "{{ day }}";
+  var qEl = document.getElementById('q'), ddEl = document.getElementById('dd');
+  var curIdx = -1, matches = [];
+
+  function norm(s){ return (s||'').toString().toLowerCase(); }
+  function filterStu(){
+    var q = norm(qEl.value).trim();
+    if(!q){ ddEl.hidden = true; matches = []; return; }
+    matches = STUDENTS.filter(function(s){
+      return norm(s.name).indexOf(q) >= 0 || norm(s.no).indexOf(q) >= 0;
+    }).slice(0, 15);
+    renderDD();
+  }
+  function renderDD(){
+    curIdx = -1;
+    if(!matches.length){ ddEl.innerHTML = '<div class="none">ไม่พบชื่อนักเรียน</div>'; ddEl.hidden = false; return; }
+    ddEl.innerHTML = matches.map(function(s, i){
+      var done = DONE.has(s.id) ? ' done' : '';
+      var tag = DONE.has(s.id) ? ' · ลงเวลาแล้ว' : '';
+      return '<div class="it'+done+'" data-i="'+i+'" onclick="pick('+i+')">'+
+             '<span>'+esc(s.name)+'</span>'+
+             '<span class="sub">'+esc(s.cls)+(s.no?(' · '+esc(s.no)):'')+tag+'</span></div>';
+    }).join('');
+    ddEl.hidden = false;
+  }
+  function esc(s){ return (s||'').replace(/[&<>"]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function qKey(e){
+    if(ddEl.hidden) return;
+    if(e.key === 'ArrowDown'){ e.preventDefault(); curIdx = Math.min(curIdx+1, matches.length-1); hi(); }
+    else if(e.key === 'ArrowUp'){ e.preventDefault(); curIdx = Math.max(curIdx-1, 0); hi(); }
+    else if(e.key === 'Enter'){ e.preventDefault(); if(matches.length) pick(curIdx < 0 ? 0 : curIdx); }
+    else if(e.key === 'Escape'){ ddEl.hidden = true; }
+  }
+  function hi(){
+    [].forEach.call(ddEl.querySelectorAll('.it'), function(el, i){
+      el.classList.toggle('on', i === curIdx);
+      if(i === curIdx) el.scrollIntoView({block:'nearest'});
+    });
+  }
+  function pick(i){
+    var s = matches[i]; if(!s) return;
+    var body = new URLSearchParams();
+    body.set('student_id', s.id); body.set('date', DAY);
+    var t = document.getElementById('manual').value; if(t) body.set('time', t);
+    fetch('/general/arrival/record', {method:'POST', headers:{'X-Requested-With':'fetch'}, body: body})
+      .then(function(r){ return r.json(); })
+      .then(function(d){ if(d && d.ok){ upsertRow(d); qEl.value=''; ddEl.hidden=true; qEl.focus(); }
+        else { alert((d && d.error) || 'บันทึกไม่สำเร็จ'); } })
+      .catch(function(){ alert('เชื่อมต่อไม่สำเร็จ'); });
+  }
+  function upsertRow(d){
+    DONE.add(d.sid);
+    var body = document.getElementById('arrBody');
+    var row = body.querySelector('tr[data-sid="'+d.sid+'"]');
+    var badge = d.status === 'late' ? '<span class="badge late">สาย</span>' : '<span class="badge ontime">มาทัน</span>';
+    if(row){
+      row.children[4].textContent = d.time;
+      row.children[5].innerHTML = badge;
+    } else {
+      row = document.createElement('tr');
+      row.setAttribute('data-sid', d.sid);
+      row.innerHTML = '<td class="seq"></td><td>'+esc(d.name)+'</td><td>'+esc(d.no||'-')+'</td>'+
+        '<td>'+esc(d.cls)+'</td><td>'+d.time+'</td><td>'+badge+'</td>'+
+        '<td><form method="post" action="/general/arrival/'+d.id+'/delete" style="margin:0;">'+
+        '<input type="hidden" name="date" value="'+DAY+'"><button class="btn sm gray" type="submit">ลบ</button></form></td>';
+      body.appendChild(row);
+    }
+    resort(); renumber(); recount();
+    document.getElementById('emptyMsg').style.display = 'none';
+  }
+  function resort(){
+    var body = document.getElementById('arrBody');
+    var rows = [].slice.call(body.querySelectorAll('tr'));
+    rows.sort(function(a,b){ return a.children[4].textContent.localeCompare(b.children[4].textContent); });
+    rows.forEach(function(r){ body.appendChild(r); });
+  }
+  function renumber(){
+    [].forEach.call(document.querySelectorAll('#arrBody tr .seq'), function(c, i){ c.textContent = i+1; });
+  }
+  function recount(){
+    var rows = document.querySelectorAll('#arrBody tr');
+    var late = document.querySelectorAll('#arrBody .badge.late').length;
+    document.getElementById('cTotal').textContent = rows.length;
+    document.getElementById('cLate').textContent = late;
+    document.getElementById('cOntime').textContent = rows.length - late;
+  }
+  document.addEventListener('click', function(e){
+    if(!ddEl.contains(e.target) && e.target !== qEl) ddEl.hidden = true;
+  });
+</script>
+{% endblock %}

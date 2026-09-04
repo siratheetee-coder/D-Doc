@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}งานบริหารทั่วไป{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานบริหารทั่วไป</div>
+    <span class="hero-title">งานบริหารทั่วไป</span>
+    <div class="hero-meta">{{ school.name or "" }}</div>
+  </div>
+</div>
+
+<div class="nav-grid">
+  <a class="nav-card" href="/general/arrival">
+    <div class="nc-head">
+      <span class="nc-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
+      <h3>บันทึกการมาเรียน</h3>
+    </div>
+    <ul class="nc-list">
+      <li>พิมพ์ชื่อนักเรียน แล้วคลิกเลือก</li>
+      <li>ระบบลงเวลามาให้อัตโนมัติ + บอกสาย/มาทัน</li>
+      <li>ตั้งช่วงเวลามาทันแถว / สายได้เอง</li>
+      <li>พิมพ์ตารางรายวัน (ลำดับ ชื่อ รหัส เวลา สถานะ)</li>
+    </ul>
+    <span class="nc-go">เปิดบันทึกการมาเรียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+</div>
+{% endblock %}

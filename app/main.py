@@ -27,7 +27,7 @@ from app.seller_config import pricing_context
 from app.tenancy import current_school_id, current_module
 from app.templating import templates
 from app.routers import (pages, admin, finance, lunch, auth, superadmin, account, textbooks,
-                         sales, hr, academic, users)
+                         sales, hr, academic, users, general)
 
 app = FastAPI(title="Easy Ekkasan : ระบบจัดการเอกสารและพัสดุโรงเรียน")
 
@@ -261,6 +261,7 @@ app.include_router(lunch.router)
 app.include_router(hr.router)
 app.include_router(academic.router)
 app.include_router(textbooks.router)
+app.include_router(general.router)
 app.include_router(sales.router)
 
 

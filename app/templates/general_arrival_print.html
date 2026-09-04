@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <title>บันทึกการมาเรียน {{ day_be }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    @page { size: A4; margin: 1.5cm; }
+    body { font-family: "TH Sarabun New", "Sarabun", sans-serif; color:#111; font-size:18px; }
+    h1 { text-align:center; font-size:22px; margin:0 0 2px; }
+    .sub { text-align:center; color:#444; margin:0 0 6px; font-size:17px; }
+    .sum { text-align:center; margin:0 0 14px; font-size:16px; color:#333; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { border:1px solid #333; padding:6px 9px; }
+    th { background:#f0f0f0; }
+    td.c, th.c { text-align:center; white-space:nowrap; }
+    td.late { color:#b91c1c; font-weight:700; }
+    .noprint { text-align:center; margin:16px 0; }
+    .btn { padding:8px 18px; font-size:16px; cursor:pointer; }
+    @media print { .noprint { display:none; } }
+  </style>
+</head>
+<body>
+  <h1>บันทึกการมาเรียน</h1>
+  <p class="sub">{{ school.name }} &middot; {{ day_be }}</p>
+  <p class="sum">มาทั้งหมด {{ n_total }} คน &middot; มาทันแถว {{ n_ontime }} คน &middot; สาย {{ n_late }} คน</p>
+  <table>
+    <thead><tr>
+      <th class="c" style="width:56px;">ลำดับ</th>
+      <th>ชื่อ-นามสกุล</th>
+      <th class="c">รหัสนักเรียน</th>
+      <th class="c">ชั้น</th>
+      <th class="c">เวลา</th>
+      <th class="c">สถานะ</th>
+    </tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td class="c">{{ r.seq }}</td>
+        <td>{{ r.name }}</td>
+        <td class="c">{{ r.no or '-' }}</td>
+        <td class="c">{{ r.cls }}</td>
+        <td class="c">{{ r.time }}</td>
+        <td class="c {{ 'late' if r.status == 'late' }}">{{ 'สาย' if r.status == 'late' else 'มาทัน' }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" style="text-align:center; color:#888;">ยังไม่มีการลงเวลาในวันนี้</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div class="noprint">
+    <button class="btn" onclick="window.print()">พิมพ์ / บันทึก PDF</button>
+  </div>
+</body>
+</html>

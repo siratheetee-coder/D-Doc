@@ -656,8 +656,9 @@
              or path.startswith('/materials') or path.startswith('/requisitions')
              or path.startswith('/register') or path.startswith('/catalog')
              or path.startswith('/textbooks'))
+        else 'general' if path.startswith('/general')
         else 'hub' %}
-  {% set mod_label = {'admin':'งานธุรการ','procurement':'งานพัสดุ','finance':'งานการเงิน','lunch':'งานอาหารกลางวัน','hr':'งานบุคคล','academic':'งานวิชาการ','hub':'เลือกงาน'}[module] %}
+  {% set mod_label = {'admin':'งานธุรการ','procurement':'งานพัสดุ','finance':'งานการเงิน','lunch':'งานอาหารกลางวัน','hr':'งานบุคคล','academic':'งานวิชาการ','general':'งานบริหารทั่วไป','hub':'เลือกงาน'}[module] %}
   <div class="layout" data-module="{{ module }}">
     <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
     <aside class="sidebar" id="sidebar">
@@ -669,8 +670,8 @@
         </span>
       </a>
       <nav>
-        {% set section_home = '/admin' if module=='admin' else '/finance' if module=='finance' else '/lunch' if module=='lunch' else '/hr' if module=='hr' else '/academic' if module=='academic' else '/procurement' if module=='procurement' else '/' %}
-        {% set section_prefixes = ['/admin'] if module=='admin' else ['/finance'] if module=='finance' else ['/lunch'] if module=='lunch' else ['/hr'] if module=='hr' else ['/academic'] if module=='academic' else ['/procurement','/assets','/materials','/requisitions','/register','/catalog','/textbooks'] if module=='procurement' else ['/'] %}
+        {% set section_home = '/admin' if module=='admin' else '/finance' if module=='finance' else '/lunch' if module=='lunch' else '/hr' if module=='hr' else '/academic' if module=='academic' else '/general' if module=='general' else '/procurement' if module=='procurement' else '/' %}
+        {% set section_prefixes = ['/admin'] if module=='admin' else ['/finance'] if module=='finance' else ['/lunch'] if module=='lunch' else ['/hr'] if module=='hr' else ['/academic'] if module=='academic' else ['/general'] if module=='general' else ['/procurement','/assets','/materials','/requisitions','/register','/catalog','/textbooks'] if module=='procurement' else ['/'] %}
         {% set is_section_home = (path == section_home) %}
         {# เมนูกลุ่ม "ระบบ" (ล่างสุด) ใช้ได้ทุกโมดูล และถูกจัดเป็น hub -> ต้องมีปุ่มย้อนกลับเองด้วย
            หน้าหลักของแต่ละอัน (เช่น /students) ย้อนไป hub · หน้าย่อย (เช่น /students/1) ย้อนหน้าที่แล้ว #}
@@ -799,6 +800,11 @@
         <a href="/me/leave" class="{{ 'active' if path.startswith('/me/leave') }}"><svg class="icon"><use href="#ic-calendar"/></svg> ส่งใบลา</a>
         <a href="/me/travel" class="{{ 'active' if path.startswith('/me/travel') }}"><svg class="icon"><use href="#ic-send"/></svg> ขอไปราชการ</a>
         {% endif %}
+
+        {% elif module == 'general' %}
+        <div class="nav-sec">งานบริหารทั่วไป</div>
+        <a href="/general" class="{{ 'active' if path == '/general' }}"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลัก</a>
+        <a href="/general/arrival" class="{{ 'active' if path.startswith('/general/arrival') }}"><svg class="icon"><use href="#ic-calendar"/></svg> บันทึกการมาเรียน</a>
 
         {% else %}{# hub #}
         <div class="nav-sec">เลือกงาน</div>
