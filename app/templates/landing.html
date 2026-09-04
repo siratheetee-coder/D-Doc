@@ -187,6 +187,8 @@
   .mod:hover{ transform:translateY(-5px); box-shadow:0 18px 40px rgba(37,99,235,.12); }
   .mod .mic{ width:42px; height:42px; display:block; margin-bottom:16px; }
   .mod h3{ font-size:17px; margin-bottom:8px; }
+  .free-tag{ display:inline-block; margin-left:6px; vertical-align:middle; font-size:11px; font-weight:800;
+    color:#0e7490; background:#cffafe; border:1px solid #a5f3fc; border-radius:999px; padding:1px 8px; }
   .mod ul{ list-style:none; display:grid; gap:6px; }
   .mod li{ color:var(--muted); font-size:13.5px; padding-left:16px; position:relative; }
   .mod li::before{ content:"•"; color:var(--blue); position:absolute; left:2px; }
@@ -354,7 +356,9 @@
   .sl-txt b{ font-size:15.5px; color:#fff; font-weight:700; }
   .sl-txt b i{ font-style:normal; font-weight:600; font-size:12.5px; color:rgba(255,255,255,.82); }
   .sl-txt span{ font-size:14px; color:#fff; font-weight:700; }
-  .sl-best{ background:linear-gradient(135deg,#2fd36f,#16a34a); box-shadow:0 10px 26px rgba(22,163,74,.3); }
+  .sl-best{ background:linear-gradient(135deg,#2fd36f,#16a34a); box-shadow:0 10px 26px rgba(22,163,74,.3);
+            overflow:visible; }   /* ให้ริบบิ้น "คุ้มสุด" โผล่พ้นขอบการ์ด ไม่ถูกตัด */
+  .save-ladder{ padding-top:8px; }   /* กันริบบิ้นชนขอบบน */
   .sl-best:hover{ box-shadow:0 16px 36px rgba(22,163,74,.4); }
   .sl-best .ico, .sl-best .sl-txt b, .sl-best .sl-txt span{ color:#fff; }
   .sl-ribbon{ position:absolute; top:-10px; right:-8px; background:linear-gradient(135deg,#fbbf24,#f59e0b);
@@ -695,6 +699,15 @@
           <li>ผลการเรียน ปพ.5 / ปพ.6 + ประเมินคุณลักษณะ/อ่านคิดวิเคราะห์</li>
           <li>ห้องเรียน · รายวิชา 8 กลุ่มสาระ · จัดครูเข้าสอน · ตารางเรียน</li>
           <li>เช็คชื่อรายวัน · ส่ง-ตรวจแผนการสอน · บัญชีครูรายคน</li>
+        </ul>
+      </div>
+      <div class="mod">
+        <svg class="ico mic" style="color:#0891b2;"><use href="#ic-grid"/></svg>
+        <h3>งานบริหารทั่วไป <span class="free-tag">ฟรี</span></h3>
+        <ul>
+          <li>บันทึกการมาเรียน (คลิกชื่อ ลงเวลา สาย/มาทัน)</li>
+          <li>สถิติการมาเรียนรายห้อง + รายชื่อมาสาย + กราฟ</li>
+          <li>เปิดให้ทุกโรงเรียนใช้ฟรี · ทยอยเพิ่มฟังก์ชันเรื่อยๆ</li>
         </ul>
       </div>
     </div>
