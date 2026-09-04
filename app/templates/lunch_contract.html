@@ -102,7 +102,7 @@
               <div class="insp-grid">
                 {% for wd in insp_workdays %}
                 {% set taken = wd.iso in taken_others and wd.iso not in chosen %}
-                <label class="insp-day{{ ' taken' if taken }}"><input type="checkbox" name="days" value="{{ wd.iso }}" {{ 'checked' if wd.iso in chosen }} {{ 'disabled' if taken }}> {{ wd.label }}{% if taken %} <span class="mini">(มีคนเลือกแล้ว)</span>{% endif %}</label>
+                <label class="insp-day{{ ' taken' if taken }}"><input type="checkbox" name="days" value="{{ wd.iso }}" {{ 'checked' if wd.iso in chosen }} {{ 'disabled' if taken }}><span class="dlbl">{{ wd.label }}</span>{% if taken %}<span class="mini">มีคนเลือกแล้ว</span>{% endif %}</label>
                 {% endfor %}
               </div>
               <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
@@ -123,11 +123,14 @@
   {% endfor %}
   <style>
     .insp-days > summary{ cursor:pointer; color:var(--brand); font-weight:600; font-size:13.5px; }
-    .insp-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(112px,1fr)); gap:4px 10px;
-      max-height:220px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:8px; background:#fafafe; }
-    .insp-day{ display:flex; align-items:center; gap:5px; font-size:13px; white-space:nowrap; }
-    .insp-day.taken{ color:#b0b0b8; }
-    .insp-day.taken .mini{ font-size:10.5px; color:#c05353; }
+    .insp-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px 12px;
+      max-height:240px; overflow-y:auto; overflow-x:hidden; padding:10px;
+      border:1px solid var(--border); border-radius:8px; background:#fafafe; }
+    .insp-day{ display:flex; flex-wrap:wrap; align-items:center; gap:2px 6px; font-size:13px; min-width:0; }
+    .insp-day .dlbl{ white-space:nowrap; }
+    .insp-day .mini{ flex-basis:100%; margin-left:22px; font-size:10.5px; line-height:1.1; }
+    .insp-day.taken{ color:#a7a7b0; }
+    .insp-day.taken .mini{ color:#c05353; }
   </style>
 </div>
 
