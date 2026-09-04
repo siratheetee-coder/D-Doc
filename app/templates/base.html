@@ -1006,6 +1006,57 @@
     </div>
   </div>
 
+  <!-- กล่องยืนยันก่อนส่ง (ใช้ร่วมทุกหน้า) เช่น เตือนให้เซ็นลายเซ็นก่อนส่งแผน -->
+  <div class="cf-ov" id="cfOverlay" hidden>
+    <div class="cf-card">
+      <span class="cf-ic"><svg class="icon"><use href="#ic-alert"/></svg></span>
+      <p id="cfMsg" class="cf-msg"></p>
+      <label class="cf-chk"><input type="checkbox" id="cfNo"> ไม่ต้องเตือนฉันอีก</label>
+      <div class="cf-btns">
+        <button type="button" class="btn gray" onclick="cfClose()">ยกเลิก</button>
+        <button type="button" class="btn green" id="cfOk">รับทราบและส่ง</button>
+      </div>
+    </div>
+  </div>
+  <style>
+    .cf-ov{ position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:1200; display:flex;
+      align-items:center; justify-content:center; padding:20px; }
+    .cf-card{ background:#fff; max-width:420px; width:100%; border-radius:16px; padding:26px 24px;
+      text-align:center; box-shadow:0 24px 60px rgba(16,24,40,.35); }
+    .cf-ic{ width:56px; height:56px; border-radius:50%; background:#fff7ed; color:#ea580c;
+      display:flex; align-items:center; justify-content:center; margin:0 auto 12px; }
+    .cf-ic .icon{ width:28px; height:28px; }
+    .cf-msg{ font-size:16px; color:#1f2937; line-height:1.6; margin:0 0 14px; }
+    .cf-chk{ display:inline-flex; gap:7px; align-items:center; font-size:13.5px; color:var(--muted);
+      margin:0 0 18px; font-weight:400; cursor:pointer; }
+    .cf-chk input{ width:16px; height:16px; padding:0; margin:0; }
+    .cf-btns{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  </style>
+  <script>
+    // ย้าย overlay ไปเป็นลูกของ body: กัน position:fixed อิงกับ main ที่มี transform (มืดไม่เต็มจอ)
+    (function(){ var m=document.getElementById('cfOverlay');
+      if(m && m.parentNode!==document.body) document.body.appendChild(m); })();
+    var _cfCb=null;
+    function cfClose(){ var o=document.getElementById('cfOverlay'); if(o) o.hidden=true; _cfCb=null; }
+    (function(){ var ok=document.getElementById('cfOk'); if(!ok) return;
+      ok.onclick=function(){ var d=document.getElementById('cfNo').checked; var cb=_cfCb; cfClose();
+        if(cb) cb(d); }; })();
+    // เรียกจาก onclick ของปุ่ม submit: ถ้ายังไม่ปิดเตือน จะเด้งกล่องก่อน แล้วค่อยส่งเมื่อกด "รับทราบและส่ง"
+    function confirmSend(ev, btn, key, msg){
+      if(btn._bypass){ btn._bypass=false; return true; }        // ยืนยันแล้ว -> ปล่อยส่งจริง
+      var f=btn.form;
+      if(f && !f.checkValidity()){ return true; }               // ให้เบราว์เซอร์เด้ง required เอง
+      try{ if(localStorage.getItem(key)==='1') return true; }catch(e){}
+      ev.preventDefault();
+      document.getElementById('cfMsg').textContent=msg;
+      document.getElementById('cfNo').checked=false;
+      _cfCb=function(dontRemind){ if(dontRemind){ try{ localStorage.setItem(key,'1'); }catch(e){} }
+        btn._bypass=true; btn.click(); };
+      document.getElementById('cfOverlay').hidden=false;
+      return false;
+    }
+  </script>
+
   <!-- ปฏิทินลอย: เปิดดูวันหยุด/นักขัตฤกษ์ได้ทุกหน้า -->
   <button class="fab-cal" onclick="toggleCal(event)" aria-label="ปฏิทินวันหยุด"><svg class="icon"><use href="#ic-calendar"/></svg></button>
   <div class="cal-panel" id="calPanel">

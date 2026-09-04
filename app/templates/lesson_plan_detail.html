@@ -79,7 +79,8 @@
       <label>ความเห็นหัวหน้าฝ่ายวิชาการ (ไม่บังคับ)</label>
       <textarea name="comment" rows="2" style="width:100%;" placeholder="เช่น ตรวจแล้ว เห็นควรเสนอ ผอ.">{{ p.comment or '' }}</textarea>
       <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
-        <button class="btn green" type="submit" name="status" value="reviewed"><svg class="icon"><use href="#ic-check"/></svg> ผ่าน → ผอ.</button>
+        <button class="btn green" type="submit" name="status" value="reviewed"
+          onclick="return confirmSend(event, this, 'ddoc_plansend_reviewer', 'โปรดตรวจสอบว่าท่านใส่ลายเซ็น (อัปโหลดไฟล์ที่เซ็นแล้ว) ก่อนส่งให้ผู้อำนวยการ')"><svg class="icon"><use href="#ic-check"/></svg> ผ่าน → ผอ.</button>
         <button class="btn" type="submit" name="status" value="revise" style="background:#f59e0b;">ให้แก้</button>
       </div>
     </form>
@@ -102,7 +103,8 @@
       <label>ความเห็นผู้อำนวยการ (ไม่บังคับ)</label>
       <textarea name="comment" rows="2" style="width:100%;" placeholder="เช่น อนุมัติ / เห็นชอบ"></textarea>
       <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
-        <button class="btn green" type="submit" name="decision" value="approve"><svg class="icon"><use href="#ic-check"/></svg> อนุมัติ + ลงนาม</button>
+        <button class="btn green" type="submit" name="decision" value="approve"
+          onclick="return confirmSend(event, this, 'ddoc_plansend_director', 'โปรดตรวจสอบว่าท่านใส่ลายเซ็น (อัปโหลดไฟล์ที่เซ็นแล้ว) ก่อนอนุมัติ')"><svg class="icon"><use href="#ic-check"/></svg> อนุมัติ + ลงนาม</button>
         <button class="btn" type="submit" name="decision" value="revise" style="background:#f59e0b;">ส่งกลับให้แก้</button>
       </div>
     </form>
