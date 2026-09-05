@@ -15,11 +15,32 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.database import get_data_dir
 from app.modules import modules_from_label
-from app.accounts import add_lead, register_account, get_lead, attach_lead_slip, get_secret_key
+from app.accounts import TRIAL_DAYS, add_lead, register_account, get_lead, attach_lead_slip, get_secret_key
 from app.seller_config import SELLER, price_for
 from app.templating import templates
+from app.services.slip_upload import read_slip, SlipError
 
 router = APIRouter()
+
+def _registration_flow(email: str, next: str, packages: str) -> str:
+    from itsdangerous import URLSafeTimedSerializer
+    if next != "checkout":
+        return ""
+    return URLSafeTimedSerializer(get_secret_key(), salt="registration-flow").dumps(
+        {"email": email.strip().lower(), "packages": packages})
+
+def _registration_destination(flow: str, email: str) -> str:
+    from itsdangerous import URLSafeTimedSerializer, BadData
+    from urllib.parse import urlencode
+    try:
+        data = URLSafeTimedSerializer(get_secret_key(), salt="registration-flow").loads(
+            flow, max_age=7 * 24 * 60 * 60)
+        if isinstance(data, dict) and data.get("email") == email.strip().lower():
+            return "/checkout?" + urlencode({"packages": data.get("packages", "")})
+    except (BadData, TypeError, ValueError):
+        pass
+    return "/"
+
 
 _LEADS_DIR = get_data_dir() / "leads"
 
@@ -80,12 +101,13 @@ async def pay_slip(token: str, request: Request, slip: UploadFile = File(None)):
         return RedirectResponse("/pay/" + token, status_code=303)
     if not (slip and slip.filename):
         return RedirectResponse(f"/pay/{token}?err=noslip", status_code=303)
-    ext = (Path(slip.filename).suffix or ".png").lower()
-    if ext not in (".png", ".jpg", ".jpeg", ".webp", ".pdf"):
-        ext = ".png"
+    try:
+        data, ext = await read_slip(slip)
+    except SlipError as exc:
+        return RedirectResponse(f"/pay/{token}?err={exc.code}", status_code=303)
     _LEADS_DIR.mkdir(parents=True, exist_ok=True)
     slip_name = f"slip_{datetime.now():%Y%m%d%H%M%S}_{secrets.token_hex(4)}{ext}"
-    (_LEADS_DIR / slip_name).write_bytes(await slip.read())
+    (_LEADS_DIR / slip_name).write_bytes(data)
     info = attach_lead_slip(lid, slip_name)
     try:
         from app.services.mailer import send_order_notice
@@ -211,12 +233,13 @@ async def checkout_submit(request: Request, school_name: str = Form(""), contact
     tid = request.session.get("tid")
     slip_name = ""
     if slip and slip.filename:
-        ext = (Path(slip.filename).suffix or ".png").lower()
-        if ext not in (".png", ".jpg", ".jpeg", ".webp", ".pdf"):
-            ext = ".png"
+        try:
+            data, ext = await read_slip(slip)
+        except SlipError as exc:
+            return RedirectResponse(f"/checkout?err={exc.code}", status_code=303)
         _LEADS_DIR.mkdir(parents=True, exist_ok=True)
         slip_name = f"slip_{datetime.now():%Y%m%d%H%M%S}_{secrets.token_hex(4)}{ext}"
-        (_LEADS_DIR / slip_name).write_bytes(await slip.read())
+        (_LEADS_DIR / slip_name).write_bytes(data)
     address = _join_address(addr_no, addr_moo, addr_tambon, addr_amphoe, addr_province, addr_zip)
     # ราคา/รายการงาน คำนวณที่เซิร์ฟเวอร์เสมอ - ห้ามเชื่อ amount/packages ที่ส่งมาจากหน้าเว็บ
     # (ของเดิมรับ hidden field ตรง ๆ ทำให้โพสต์ "ครบทุกงาน ราคา 1 บาท" ได้)
@@ -270,7 +293,7 @@ def register_page(request: Request, next: str = "", packages: str = "", amount: 
 def register_submit(request: Request, email: str = Form(""), password: str = Form(""),
                     school_name: str = Form(""), contact_name: str = Form(""), phone: str = Form(""),
                     next: str = Form(""), packages: str = Form(""), amount: str = Form("")):
-    res = register_account(email, password, school_name, contact_name, phone, trial_days=14)
+    res = register_account(email, password, school_name, contact_name, phone, trial_days=TRIAL_DAYS)
     if res.get("error"):
         return templates.TemplateResponse("register.html", {
             "request": request, "error": res["error"],
@@ -280,9 +303,10 @@ def register_submit(request: Request, email: str = Form(""), password: str = For
     # เปิด SMTP -> ต้องยืนยันอีเมลก่อน (ยังไม่ล็อกอิน)
     if res.get("needs_verify"):
         from app.services.mailer import send_verify_email
-        send_verify_email(res["email"], _verify_link(request, res["verify_token"]))
+        flow = _registration_flow(res["email"], next, packages)
+        send_verify_email(res["email"], _verify_link(request, res["verify_token"], flow))
         return templates.TemplateResponse("register_sent.html", {
-            "request": request, "email": res["email"]})
+            "request": request, "email": res["email"], "flow": flow})
     # ไม่เปิด SMTP -> ล็อกอินอัตโนมัติ เข้าใช้งานทันที
     request.session.clear()
     request.session["uid"] = res["uid"]
@@ -303,13 +327,14 @@ def trial_redirect():
     return RedirectResponse("/register", status_code=307)
 
 
-def _verify_link(request: Request, token: str) -> str:
+def _verify_link(request: Request, token: str, flow: str = "") -> str:
     base = (SELLER.get("base_url") or "").strip().rstrip("/") or str(request.base_url).rstrip("/")
-    return f"{base}/verify?token={token}"
+    from urllib.parse import urlencode
+    return base + "/verify?" + urlencode({"token": token, "flow": flow})
 
 
 @router.get("/verify", response_class=HTMLResponse)
-def verify_email_route(request: Request, token: str = ""):
+def verify_email_route(request: Request, token: str = "", flow: str = ""):
     from app.accounts import verify_email
     res = verify_email(token)
     if not res:
@@ -323,18 +348,18 @@ def verify_email_route(request: Request, token: str = ""):
     request.session["tid"] = res["tenant_id"]
     request.session["name"] = res["display_name"]
     request.session["must_change"] = False
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse(_registration_destination(flow, res["username"]), status_code=303)
 
 
 @router.post("/register/resend")
-def register_resend(request: Request, email: str = Form("")):
+def register_resend(request: Request, email: str = Form(""), flow: str = Form("")):
     from app.accounts import new_verify_token
     from app.services.mailer import send_verify_email
     token = new_verify_token(email)
     if token:
-        send_verify_email(email.strip().lower(), _verify_link(request, token))
+        send_verify_email(email.strip().lower(), _verify_link(request, token, flow))
     return templates.TemplateResponse("register_sent.html", {
-        "request": request, "email": email.strip().lower(), "resent": True})
+        "request": request, "email": email.strip().lower(), "resent": True, "flow": flow})
 
 
 @router.get("/trial-limit", response_class=HTMLResponse)

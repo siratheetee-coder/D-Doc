@@ -18,6 +18,7 @@
     <p class="muted">เราส่งลิงก์ยืนยันไปที่ <b>{{ email }}</b><br>
        กดลิงก์ในอีเมลเพื่อเปิดใช้งานบัญชี แล้วเริ่มทดลองใช้ได้ทันที (ถ้าไม่พบ ลองดูในอีเมลขยะ หรือ Spam)</p>
     <form method="post" action="/register/resend" style="margin-top:22px;">
+      <input type="hidden" name="flow" value="{{ flow or '' }}">
       <input type="hidden" name="email" value="{{ email }}">
       <button class="btn btn-ghost" type="submit">ส่งลิงก์ยืนยันอีกครั้ง</button>
       <a class="btn btn-primary" href="/login" style="margin-left:6px;">เข้าสู่ระบบ</a>

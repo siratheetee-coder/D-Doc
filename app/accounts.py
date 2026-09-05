@@ -889,8 +889,8 @@ TRIAL_DOC_LIMIT = 50   # ทดลองใช้: ออกเอกสาร�
 
 
 def register_account(email: str, password: str, school_name: str,
-                     contact_name: str = "", phone: str = "", trial_days: int = 14) -> dict:
-    """ลงทะเบียน: อีเมล = ชื่อผู้ใช้, ตั้งรหัสเอง -> ทดลองใช้ (ออกเอกสารฟรี TRIAL_DOC_LIMIT ฉบับ ไม่จำกัดเวลา) + auto-login
+                     contact_name: str = "", phone: str = "", trial_days: int = TRIAL_DAYS) -> dict:
+    """ลงทะเบียน: อีเมล = ชื่อผู้ใช้, ตั้งรหัสเอง -> ทดลองใช้ TRIAL_DAYS วัน ไม่จำกัดจำนวนเอกสาร + auto-login
     อีเมลเดิมใช้เป็น username ตลอด (ต่ออายุก็อีเมลนี้) · คืน {uid, tenant_id, username, display_name} หรือ {error}"""
     from datetime import date, timedelta
     email = (email or "").strip().lower()

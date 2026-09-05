@@ -8,6 +8,7 @@ templating.py
 แยกออกมาเพื่อเลี่ยง circular import (router หลายตัว import templates ตัวเดียวกันได้)
 """
 from pathlib import Path
+from app.accounts import TRIAL_DAYS
 
 from fastapi.templating import Jinja2Templates
 
@@ -77,6 +78,7 @@ MODULES_LIVE = {"procurement": True, "admin": True, "finance": True, "lunch": Tr
 
 # global helper ใช้ได้ทุกเทมเพลต
 templates.env.globals.update(
+    trial_days=TRIAL_DAYS,
     thai_date=thai_date, bahttext=bahttext, be_date=be_date_input,
     nav_alerts=nav_alerts, nav_holidays=nav_holidays, my_notices=my_notices,
     accum_dep=accumulated_depreciation, nbv=net_book_value,

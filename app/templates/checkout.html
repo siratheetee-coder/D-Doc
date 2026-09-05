@@ -138,6 +138,12 @@
   @media (prefers-reduced-motion: reduce){ .shine-host .shine::before{ animation:none; opacity:0; } }
 {% endblock %}
 {% block content %}
+{% if request.query_params.get('err') in ['sliptype', 'slipsize'] %}
+<div role="alert" style="padding:16px;color:#b91c1c;background:#fef2f2;">
+{% if request.query_params.get('err') == 'slipsize' %}ไฟล์สลิปต้องมีขนาดไม่เกิน 10 MB{% else %}กรุณาเลือกไฟล์สลิป PNG, JPEG, WebP หรือ PDF ที่เปิดอ่านได้{% endif %}
+</div>
+{% endif %}
+
 <div class="co-hero">
   {% if addon %}<div class="badge"><svg class="icon" style="width:15px;height:15px;"><use href="#ic-plus"/></svg> ซื้อเพิ่มกลางรอบ ราคาตามสัดส่วน</div>
   <h1>เพิ่มงานให้โรงเรียน</h1>
@@ -309,7 +315,7 @@
   </div>
 
   <label style="margin-top:16px;">แนบสลิปการโอน (รูปภาพ) <span class="req">*</span></label>
-  <input name="slip" type="file" accept="image/*" required>
+  <input name="slip" type="file" aria-label="ไฟล์สลิป PNG JPEG WebP หรือ PDF ขนาดไม่เกิน 10 MB" accept="image/png,image/jpeg,image/webp,application/pdf" required>
   <label>หมายเหตุ</label>
   <textarea name="note" placeholder="วัน-เวลาที่โอน หรือรายละเอียดเพิ่มเติม"></textarea>
   <button class="btn btn-primary btn-full shine-host" type="submit" style="margin-top:22px;"><span class="shine"></span>แจ้งชำระเงิน</button>
