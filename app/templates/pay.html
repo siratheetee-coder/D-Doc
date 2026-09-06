@@ -43,9 +43,18 @@
   <div class="card" style="text-align:center;">
     <h1>ดำเนินการสั่งซื้อตามใบเสนอราคา</h1>
     <p>รายการ #{{ lead.id }} · {{ lead.school_name }} · {{ lead.packages }}</p>
+    {% if change_password %}
+    <p>กรุณาเปลี่ยนรหัสผ่านครั้งแรก แล้วระบบจะกลับมาที่ใบเสนอราคานี้</p>
+    <a class="btn btn-primary" href="/account/password">ตั้งรหัสผ่านและดำเนินการต่อ</a>
+    {% elif switch_account %}
+    <p>{{ 'ขณะนี้คุณใช้บัญชีแอดมิน กรุณาใช้บัญชีโรงเรียนสำหรับชำระเงิน' if request.session.get('role') == 'superadmin' else 'บัญชีปัจจุบันยังไม่พร้อมสั่งซื้อ กรุณาเข้าสู่ระบบด้วยบัญชีโรงเรียนที่ยืนยันอีเมลแล้ว' }}</p>
+    <a class="btn btn-primary" href="{{ login_url }}">ออกจากบัญชีนี้และเข้าสู่บัญชีโรงเรียน</a>
+    {% if request.session.get('role') == 'superadmin' %}<a class="btn btn-ghost" href="/admin-console/leads">กลับคอนโซลแอดมิน</a>{% endif %}
+    {% else %}
     <p>เข้าสู่ระบบหรือสมัครบัญชี เพื่อระบุโรงเรียนที่จะได้รับสิทธิ์ก่อนชำระเงิน</p>
     <a class="btn btn-primary" href="{{ login_url }}">เข้าสู่ระบบเพื่อดำเนินการต่อ</a>
     <a class="btn btn-ghost" href="{{ register_url }}">สมัครบัญชีใหม่</a>
+    {% endif %}
   </div>
 {% elif conflict %}
   <div class="card" role="alert"><h1>รายการนี้ผูกกับบัญชีโรงเรียนอื่นแล้ว</h1>

@@ -103,13 +103,18 @@ def pay_page(token: str, request: Request):
     lid = _parse_pay_token(token)
     lead = get_lead(lid) if lid else None
     account = purchase_account(request.session.get("uid"))
+    switch_account = bool(request.session.get("uid") and not account)
+    change_password = bool(switch_account and request.session.get("must_change"))
+    if change_password:
+        request.session["purchase_next"] = f"/pay/{token}"
     bound = bool(lead and account and lead.get("tenant_id") == account["tenant_id"])
     conflict = bool(lead and lead.get("tenant_id") and not bound)
     return templates.TemplateResponse("pay.html", {
         "request": request, "token": token, "lead": lead,
         "seller": _seller_ctx() if bound else None,
         "account": account, "bound": bound, "conflict": conflict,
-        "login_url": "/login?" + urlencode({"next": f"/pay/{token}"}),
+        "switch_account": switch_account, "change_password": change_password,
+        "login_url": ("/logout?" if switch_account else "/login?") + urlencode({"next": f"/pay/{token}"}),
         "register_url": "/register?" + urlencode({"next": f"/pay/{token}"}),
         "amount": float(lead.get("amount") or 0) if lead else 0,
         "valid_amount": bool(lead and math.isfinite(float(lead.get("amount") or 0)) and float(lead.get("amount") or 0) > 0),

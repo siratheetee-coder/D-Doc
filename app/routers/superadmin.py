@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 from datetime import date
 
-from fastapi import APIRouter, Request, Form, Depends, HTTPException
+from fastapi import APIRouter, Request, Form, Depends, HTTPException, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 
 from datetime import datetime
@@ -18,6 +18,7 @@ from app.accounts import (acc_session, Tenant, Account, hash_password, provision
                           renew_lead)
 from app.database import get_data_dir
 from app.seller_config import SELLER
+from app.services.seller_signature import seller_profile, save_signature
 from app.templating import templates
 
 _DOCX_MT = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -31,6 +32,35 @@ def require_superadmin(request: Request):
 
 # dependencies ระดับ router -> บังคับกับทุก endpoint ใต้ /admin-console โดยอัตโนมัติ
 router = APIRouter(dependencies=[Depends(require_superadmin)])
+
+
+@router.get('/admin-console/signature', response_class=HTMLResponse)
+def signature_page(request: Request):
+    return templates.TemplateResponse('seller_signature.html', {
+        'request': request, 'seller': seller_profile(SELLER),
+        'message': request.session.pop('signature_message', '')})
+
+
+@router.post('/admin-console/signature')
+async def signature_save(request: Request, signer: str = Form(''), image: UploadFile = File(None), remove: bool = Form(False)):
+    try:
+        if not signer.strip() or len(signer) > 150:
+            raise ValueError('กรุณาระบุชื่อผู้ลงนามไม่เกิน 150 ตัวอักษร')
+        data = await image.read(5 * 1024 * 1024 + 1) if image and image.filename else None
+        save_signature(signer, data, remove)
+    except ValueError as exc:
+        return templates.TemplateResponse('seller_signature.html', {
+            'request': request, 'seller': seller_profile(SELLER), 'error': str(exc)}, status_code=400)
+    request.session['signature_message'] = 'บันทึกแล้ว เอกสารและอีเมลที่ส่งครั้งถัดไปจะใช้ลายเซ็นนี้อัตโนมัติ'
+    return RedirectResponse('/admin-console/signature', status_code=303)
+
+
+@router.get('/admin-console/signature/image')
+def signature_image():
+    path = seller_profile(SELLER).get('signature_path')
+    if not path:
+        raise HTTPException(404)
+    return FileResponse(path, media_type='image/png', headers={'Cache-Control': 'no-store'})
 
 
 def _slugify(s: str) -> str:
@@ -132,7 +162,7 @@ def _issue_doc(kind: str, lid: int, fmt: str = "docx"):
         ("quotation", "docx"): sale_doc.render_quotation, ("receipt", "docx"): sale_doc.render_receipt,
         ("quotation", "pdf"): sale_doc.render_quotation_pdf, ("receipt", "pdf"): sale_doc.render_receipt_pdf,
     }
-    return renderers[(kind, fmt)](lead, SELLER, info["doc_no"], doc_date)
+    return renderers[(kind, fmt)](lead, seller_profile(SELLER), info["doc_no"], doc_date)
 
 
 @router.get("/admin-console/leads/{lid}/quotation.docx")
@@ -177,7 +207,7 @@ def _doc_email_draft(kind: str, lead: dict) -> tuple:
     who = (lead.get("contact_name") or "").strip() or school or "ผู้ติดต่อ"
     packages = lead.get("packages") or "ครบทุกงาน"
     amount = f"{float(lead.get('amount') or 0):,.0f}"
-    sname = SELLER.get("name") or "Easy Ekkasan"
+    sname = seller_profile(SELLER).get("signer") or SELLER.get("name") or "Easy Ekkasan"
     phone = SELLER.get("phone") or ""
     email = SELLER.get("email") or ""
     sign = f"ขอแสดงความนับถือ\n{sname}\nEasy Ekkasan\nโทร {phone}  อีเมล {email}"
@@ -244,7 +274,8 @@ def lead_email_send(lid: int, request: Request, kind: str = Form("quotation"),
                 "ชำระเงินออนไลน์</a>"
                 "<div style='color:#94a3b8; font-size:12px; margin-top:8px;'>สแกน PromptPay + อัปโหลดสลิปได้ในลิงก์เดียว</div></div>")
     from app.services.mailer import send_email
-    ok = send_email(to, subject or "เอกสารจาก Easy Ekkasan", html_body, attachments=[pdf_path])
+    ok = send_email(to, subject or "เอกสารจาก Easy Ekkasan", html_body, attachments=[pdf_path],
+                    signature_path=seller_profile(SELLER).get('signature_path'))
     doc_label = "ใบเสร็จ" if kind == "receipt" else "ใบเสนอราคา"
     request.session["lead_msg"] = ({"ok": True, "text": f"ส่ง{doc_label}ไปที่ {to} แล้ว"}
                                    if ok else {"ok": False, "text": "ส่งอีเมลไม่สำเร็จ (ตรวจ SMTP)"})

@@ -40,7 +40,7 @@
 </head>
 <body>
   <div class="top"><b>📥 คำขอจากเว็บ</b>
-    <span><a href="/admin-console">← คอนโซล</a> · {{ admin_name }} · <a href="/logout">ออกจากระบบ</a></span></div>
+    <span><a href="/admin-console">← คอนโซล</a> · <a href="/admin-console/signature">ลายเซ็นผู้ขาย</a> · {{ admin_name }} · <a href="/logout">ออกจากระบบ</a></span></div>
   <div class="wrap">
     {% if lead_msg %}
     <div class="card" style="background:{{ '#e9f7ef' if lead_msg.ok else '#fde8e8' }}; border:1px solid {{ '#b7ebcd' if lead_msg.ok else '#f7caca' }};">

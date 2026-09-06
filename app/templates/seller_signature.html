@@ -1,0 +1,21 @@
+{% extends 'public_base.html' %}
+{% block title %}ลายเซ็นผู้ขาย | Easy Ekkasan{% endblock %}
+{% block content %}
+<a href="/admin-console/leads">← กลับคอนโซลแอดมิน</a>
+<form class="card" method="post" enctype="multipart/form-data" action="/admin-console/signature">
+  <h1>ลายเซ็นผู้ขาย</h1>
+  <p>ตั้งครั้งเดียว ใช้ในใบเสนอราคา ใบเสร็จ PDF/Word และอีเมลส่งเอกสารจากคอนโซล</p>
+  {% if error %}<p role="alert" style="color:#b91c1c">{{ error }}</p>{% endif %}
+  {% if message %}<p role="status" style="color:#15803d">{{ message }}</p>{% endif %}
+  <label for="signer">ชื่อผู้ลงนาม / ผู้รับเงิน</label>
+  <input id="signer" name="signer" value="{{ seller.signer }}" required maxlength="150">
+  {% if seller.signature_path %}
+  <p>ลายเซ็นที่ใช้อยู่</p><img src="/admin-console/signature/image" alt="ลายเซ็นผู้ขาย" style="max-width:100%;width:250px">
+  <label><input type="checkbox" name="remove" value="true" style="width:auto"> นำรูปลายเซ็นออก</label>
+  {% endif %}
+  <label for="image">รูปลายเซ็น PNG, JPEG หรือ WebP ไม่เกิน 5 MB</label>
+  <input id="image" type="file" name="image" accept="image/png,image/jpeg,image/webp">
+  <p class="hint">ใช้ลายเซ็นเส้นเข้มบนพื้นขาวหรือโปร่งใส ระบบจะตัดพื้นขาวให้อัตโนมัติ เว้นไฟล์ว่างเพื่อใช้รูปเดิม</p>
+  <button class="btn btn-primary" style="margin-top:18px">บันทึกลายเซ็น</button>
+</form>
+{% endblock %}
