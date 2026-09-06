@@ -36,6 +36,7 @@ class Tenant(AccBase):
     teacher_code = Column(String, nullable=True)   # รหัสต่อท้ายไอดีครู (owner ตั้งเอง) เช่น 104 -> teacher1.104 · unique ทั้งระบบ
     active = Column(Boolean, default=True)         # ระงับการใช้งานได้
     expiry_date = Column(Date, nullable=True)      # วันหมดอายุ (None = ไม่จำกัด)
+    trial_expiry_date = Column(Date, nullable=True)  # วันสิ้นสุดทดลองเดิม ไม่เปลี่ยนเมื่อซื้อ/ต่ออายุ
     max_users = Column(Integer, default=3)         # จำนวนผู้ใช้สูงสุดต่อโรงเรียน
     plan = Column(String, default="member")        # trial = ทดลองใช้, member = สมาชิก(จ่ายแล้ว)
     docs_used = Column(Integer, default=0)         # จำนวนเอกสารที่ออกไปแล้ว (ใช้กับโควตาทดลอง)
@@ -124,6 +125,13 @@ def _ensure_engine():
                     "ALTER TABLE tenant ADD COLUMN plan VARCHAR DEFAULT 'member'",
                     "ALTER TABLE tenant ADD COLUMN docs_used INTEGER DEFAULT 0",
                     "ALTER TABLE tenant ADD COLUMN docs_limit INTEGER DEFAULT 0",
+                    "ALTER TABLE tenant ADD COLUMN trial_expiry_date DATE",
+                    "UPDATE tenant SET trial_expiry_date=COALESCE(expiry_date, DATE(created_at, '+30 days')) "
+                    "WHERE plan='trial' AND trial_expiry_date IS NULL",
+                    "UPDATE tenant SET trial_expiry_date=DATE(created_at, '+30 days') "
+                    "WHERE plan='member' AND trial_expiry_date IS NULL AND EXISTS "
+                    "(SELECT 1 FROM lead WHERE lead.tenant_id=tenant.id AND lead.kind='trial' "
+                    "AND lead.created_at >= tenant.created_at)",
                     "ALTER TABLE account ADD COLUMN verified BOOLEAN DEFAULT 1",
                     "ALTER TABLE account ADD COLUMN verify_token VARCHAR DEFAULT ''",
                     "ALTER TABLE account ADD COLUMN reset_token VARCHAR DEFAULT ''",
@@ -276,6 +284,8 @@ def tenant_status(tenant_id) -> dict | None:
             "docs_used": used,
             "docs_left": max(0, limit - used) if limit else None,
             "days_left": None, "expiry_date": None, "unlimited": True,
+            "trial_expiry_date": t.trial_expiry_date,
+            "trial_days_left": ((t.trial_expiry_date - date.today()).days if t.trial_expiry_date else None),
         }
         if t.expiry_date:
             out.update({"days_left": (t.expiry_date - date.today()).days,
@@ -323,6 +333,8 @@ def can_use_module(tenant_id, module) -> bool:
             if (t.plan or "member") == "trial":
                 # ทดลองใช้ -> เข้าดูได้ทุกงาน (คุมที่ "การออกเอกสาร" ไม่ใช่การเข้าหน้า)
                 return True
+            if t.trial_expiry_date and date.today() <= t.trial_expiry_date:
+                return True
             if not mods:                                 # กันเคสข้อมูลผิดปกติ (สมาชิกแต่ modules ว่าง)
                 return True
             return False                                 # สมาชิกที่ไม่ได้ซื้องานนี้
@@ -357,7 +369,7 @@ def _trial_ok(t) -> bool:
     from datetime import timedelta
     if (getattr(t, "plan", "member") or "member") != "trial":
         return True
-    exp = t.expiry_date or (((t.created_at.date() if t.created_at else date.today()))
+    exp = t.trial_expiry_date or t.expiry_date or (((t.created_at.date() if t.created_at else date.today()))
                             + timedelta(days=TRIAL_DAYS))
     return date.today() <= exp
 
@@ -380,6 +392,10 @@ def consume_doc_quota(tenant_id, module=None) -> tuple:
             return True, None
         if (t.plan or "member") == "trial":                 # ทดลองใช้ -> คุมด้วยเวลา 30 วัน
             return (True, None) if _trial_ok(t) else (False, {"expired": True, "trial": True})
+        if module and parse_modules(t.modules):
+            if t.trial_expiry_date and date.today() <= t.trial_expiry_date:
+                return True, None
+            return False, {"expired": True, "trial": True}
         return True, None                                   # สมาชิก
     finally:
         db.close()
@@ -546,6 +562,7 @@ def provision_tenant(name: str, slug: str, admin_user: str, admin_pw: str,
     db = acc_session()
     try:
         t = Tenant(name=name.strip(), slug=slug.strip(), expiry_date=expiry_date,
+                   trial_expiry_date=expiry_date if plan == 'trial' else None,
                    max_users=max_users, plan=plan, docs_limit=docs_limit,
                    modules=modules_csv(parse_modules(modules)))
         db.add(t); db.flush()
@@ -1111,6 +1128,8 @@ def renew_lead(lead_id: int, days: int = 365) -> dict | None:
         # สิทธิ์งานที่ซื้อ (lead เก่าที่ยังไม่มีคอลัมน์ modules -> แกะจากข้อความ packages)
         bought = parse_modules(lead.modules) or modules_from_label(lead.packages)
         owned = parse_modules(t.modules)
+        if t.plan == 'trial' and not t.trial_expiry_date:
+            t.trial_expiry_date = t.expiry_date or (t.created_at.date() + timedelta(days=TRIAL_DAYS))
         # Model B: "ซื้อเพิ่มกลางรอบ" (co-term) = สมาชิกที่ยังไม่หมดอายุ + งานที่ซื้อเป็นงานใหม่ล้วน
         #   -> เพิ่มงานให้หมดอายุพร้อมของเดิม ไม่ขยับวันหมดอายุ
         # อื่น ๆ (ทดลอง/หมดอายุ/ต่ออายุงานเดิม) = ต่ออายุ +days ตามปกติ

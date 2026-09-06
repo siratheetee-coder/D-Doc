@@ -918,15 +918,16 @@
           </div>
           {% endif %}
           {# ---- ป้าย 2: ทดลองใช้ฟรี 30 วัน (นับถอยหลังตามเวลา) ---- #}
-          {% if st.plan == 'trial' and st.days_left is not none %}
-          {% set twarn = st.days_left <= 5 %}
+          {% set trial_days = st.trial_days_left if st.trial_days_left is not none else (st.days_left if st.plan == 'trial' else none) %}
+          {% if trial_days is not none and (st.plan == 'trial' or (trial_days >= 0 and st.modules_count < module_keys|length)) %}
+          {% set twarn = trial_days <= 5 %}
           <a href="/checkout" title="ทดลองใช้ฟรี 30 วัน · สมัครสมาชิกเพื่อใช้ต่อ" class="topbar-hide-sm"
              style="display:inline-flex; align-items:center; gap:7px; text-decoration:none; margin-right:8px;
                     font-size:13px; font-weight:600; padding:6px 13px; border-radius:999px; white-space:nowrap;
                     {% if twarn %}background:#fef2f2; color:#b91c1c; border:1px solid #fecaca;
                     {% else %}background:#fff4e5; color:#b45309; border:1px solid #fed7aa;{% endif %}">
             <span style="width:7px; height:7px; border-radius:50%; background:currentColor;"></span>
-            ทดลองใช้ · เหลือ {{ st.days_left if st.days_left > 0 else 0 }} วัน{% if twarn %} · เป็นสมาชิก{% endif %}
+            {{ 'งานที่เหลือทดลองใช้' if st.plan == 'member' else 'ทดลองใช้' }} · เหลือ {{ trial_days if trial_days > 0 else 0 }} วัน{% if twarn %} · เป็นสมาชิก{% endif %}
           </a>
           {% endif %}
         {% endif %}
