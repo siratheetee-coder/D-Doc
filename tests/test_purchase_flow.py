@@ -117,6 +117,35 @@ class PurchaseFlowTests(unittest.TestCase):
         self.assertEqual(page.status_code, 303)
         self.assertTrue(page.headers['location'].startswith('/register?'))
 
+    def test_duplicate_pending_registration_does_not_change_account(self):
+        with self.Session() as db:
+            account = db.get(accounts.Account, 1)
+            account.verified = False; account.verify_token = 'existing-token'
+            password_hash = account.password_hash
+            db.commit()
+        page = self.client.post('/register', data={'email':'owner1@example.test',
+            'password':'another-password', 'school_name':'Different school', 'next':'checkout',
+            'packages':MODULE_LABELS[self.key]})
+        self.assertEqual(page.status_code, 200)
+        self.assertTrue(page.context['pending'])
+        with self.Session() as db:
+            account = db.get(accounts.Account, 1)
+            self.assertEqual(account.password_hash, password_hash)
+            self.assertEqual(account.verify_token, 'existing-token')
+            self.assertEqual(db.query(accounts.Tenant).count(), 2)
+
+    def test_deleted_school_email_can_register_again(self):
+        from app.routers import superadmin
+        with patch.object(superadmin, 'acc_session', self.Session), patch.object(superadmin, 'get_data_dir', return_value=Path(self.temp.name)), patch('app.tenancy.dispose_engine'):
+            superadmin.delete_tenant(1)
+        with self.Session() as db:
+            self.assertIsNone(db.query(accounts.Account).filter_by(username='owner1@example.test').first())
+        with patch('app.tenancy.ensure_school_db'):
+            result = accounts.register_account('owner1@example.test', 'new-password', 'New school')
+        self.assertNotIn('error', result)
+        self.assertTrue(result['needs_verify'])
+        self.assertTrue(result['verify_token'])
+
     def test_quote_requires_explicit_binding_and_preserves_amount(self):
         lid = self.quote(); path = '/pay/' + sales.make_pay_token(lid)
         page = self.client.get(path)

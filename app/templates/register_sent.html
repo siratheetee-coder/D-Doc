@@ -14,9 +14,13 @@
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
            stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
     </div>
-    <h1 style="font-size:23px; margin-bottom:8px;">{% if resent %}ส่งลิงก์ยืนยันอีกครั้งแล้ว{% else %}ตรวจสอบอีเมลของคุณ{% endif %}</h1>
+    <h1 style="font-size:23px; margin-bottom:8px;">{% if pending %}สมัครแล้ว รอยืนยันอีเมล{% elif resent %}ส่งลิงก์ยืนยันอีกครั้งแล้ว{% else %}ตรวจสอบอีเมลของคุณ{% endif %}</h1>
+    {% if pending %}
+    <p class="muted">บัญชี <b>{{ email }}</b> ถูกสร้างแล้ว ไม่ต้องสมัครซ้ำ<br>กรุณาตรวจอีเมลยืนยันและกล่อง Spam หากยังไม่พบ สามารถกดส่งลิงก์อีกครั้งด้านล่าง</p>
+    {% else %}
     <p class="muted">เราส่งลิงก์ยืนยันไปที่ <b>{{ email }}</b><br>
        กดลิงก์ในอีเมลเพื่อเปิดใช้งานบัญชี แล้วเริ่มทดลองใช้ได้ทันที (ถ้าไม่พบ ลองดูในอีเมลขยะ หรือ Spam)</p>
+    {% endif %}
     <form method="post" action="/register/resend" style="margin-top:22px;">
       <input type="hidden" name="flow" value="{{ flow or '' }}">
       <input type="hidden" name="email" value="{{ email }}">

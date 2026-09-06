@@ -7,7 +7,7 @@
      {% if next %}<br>หลังยืนยันอีเมล ระบบจะพากลับไปดำเนินการสั่งซื้อรายการเดิม{% endif %}</p>
 </div>
 
-<form class="card" method="post" action="/register" autocomplete="on" style="max-width:600px;">
+<form id="registrationForm" class="card" method="post" action="/register" autocomplete="on" style="max-width:600px;">
   {% if error %}<div style="background:#fde8e8; color:#b91c1c; border:1px solid #f7caca; padding:11px 14px; border-radius:10px; margin-bottom:14px;">{{ error }}
     {% if 'ลงทะเบียนแล้ว' in error %}<a href="/login?next={{ next|urlencode }}" style="color:#b91c1c; font-weight:700;">เข้าสู่ระบบ</a>{% endif %}</div>{% endif %}
   <input type="hidden" name="next" value="{{ next }}">
@@ -41,4 +41,17 @@
      ทดลองใช้ {{ trial_days }} วัน หากหมดอายุแล้วต่ออายุด้วยอีเมลเดิมได้เลย</p>
 <p class="hint">อ่าน <a href="/privacy" style="color:var(--blue); font-weight:600; text-decoration:underline; text-underline-offset:3px;">นโยบายความเป็นส่วนตัว</a> ก่อนลงทะเบียน</p>
 </form>
+<script>
+  (function(){
+    var form = document.getElementById('registrationForm');
+    var button = form.querySelector('button[type="submit"]');
+    var original = button.innerHTML;
+    form.addEventListener('submit', function(event){
+      if(button.disabled){ event.preventDefault(); return; }
+      button.disabled = true;
+      button.textContent = 'กำลังสมัครและส่งอีเมลยืนยัน…';
+    });
+    window.addEventListener('pageshow', function(){ button.disabled = false; button.innerHTML = original; });
+  })();
+</script>
 {% endblock %}

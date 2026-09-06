@@ -940,6 +940,12 @@ def account_by_email(email: str):
 TRIAL_DOC_LIMIT = 50   # ทดลองใช้: ออกเอกสารฟรีได้กี่ฉบับ (นับรวมทุกงาน)
 
 
+def _registration_existing(account):
+    if not account.verified and account.active and account.role != 'superadmin':
+        return {'error': 'บัญชีนี้สมัครแล้วและกำลังรอยืนยันอีเมล', 'exists': True, 'pending_verify': True}
+    return {'error': 'อีเมลนี้มีบัญชีอยู่แล้ว กรุณาเข้าสู่ระบบ หรือกดลืมรหัสผ่าน', 'exists': True}
+
+
 def register_account(email: str, password: str, school_name: str,
                      contact_name: str = "", phone: str = "", trial_days: int = TRIAL_DAYS) -> dict:
     """ลงทะเบียน: อีเมล = ชื่อผู้ใช้, ตั้งรหัสเอง -> ทดลองใช้ TRIAL_DAYS วัน ไม่จำกัดจำนวนเอกสาร + auto-login
@@ -955,15 +961,28 @@ def register_account(email: str, password: str, school_name: str,
         return {"error": "กรุณากรอกชื่อโรงเรียน"}
     db = acc_session()
     try:
-        if db.query(Account).filter_by(username=email).first():
-            return {"error": "อีเมลนี้ลงทะเบียนแล้ว กรุณาเข้าสู่ระบบ", "exists": True}
+        existing = db.query(Account).filter_by(username=email).first()
+        if existing:
+            return _registration_existing(existing)
         slug = _uniq_slug(db, _slugify_acc(email.split("@")[0]))
     finally:
         db.close()
     # ทดลองใช้: เต็มระบบ 30 วัน (นับจากวันสมัคร) · ไม่จำกัดจำนวนเอกสาร
-    tid = provision_tenant(school_name, slug, email, password,
-                           expiry_date=date.today() + timedelta(days=TRIAL_DAYS),
-                           max_users=3, must_change=False, plan="trial", docs_limit=0)
+    from sqlalchemy.exc import IntegrityError
+    try:
+        tid = provision_tenant(school_name, slug, email, password,
+                               expiry_date=date.today() + timedelta(days=TRIAL_DAYS),
+                               max_users=3, must_change=False, plan="trial", docs_limit=0)
+    except IntegrityError:
+        # Another request may have created the account after our initial check.
+        db = acc_session()
+        try:
+            existing = db.query(Account).filter_by(username=email).first()
+            if existing:
+                return _registration_existing(existing)
+        finally:
+            db.close()
+        raise
     import secrets
     # บังคับยืนยันอีเมลเสมอ (fail-closed): บัญชีใหม่ต้องยืนยันอีเมลก่อนเข้าใช้งาน
     token = secrets.token_urlsafe(24)

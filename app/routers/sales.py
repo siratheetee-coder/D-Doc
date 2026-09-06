@@ -440,6 +440,11 @@ def register_submit(request: Request, email: str = Form(""), password: str = For
                     next: str = Form(""), packages: str = Form(""), amount: str = Form("")):
     next = _purchase_target(next, packages)
     res = register_account(email, password, school_name, contact_name, phone, trial_days=TRIAL_DAYS)
+    if res.get('pending_verify'):
+        email = email.strip().lower()
+        return templates.TemplateResponse('register_sent.html', {
+            'request': request, 'email': email, 'pending': True,
+            'flow': _registration_flow(email, next, packages)})
     if res.get("error"):
         return templates.TemplateResponse("register.html", {
             "request": request, "error": res["error"],
