@@ -65,17 +65,34 @@ except ImportError:
     pass
 
 # ทางเลือกสำหรับ VPS: ตั้ง secret ผ่าน env ได้ (seller_local.py ไม่ถูก deploy ผ่าน git)
-# ค่าใน env จะใช้ก็ต่อเมื่อยังไม่ได้ตั้งใน seller_local เท่านั้น (seller_local สำคัญกว่า)
+# ค่า secret ใน env ใช้เมื่อ seller_local ไม่ได้ตั้งไว้; base_url ใช้ env ก่อน
 import os as _os
 for _k, _env in (("ai_api_key", "DDOC_AI_API_KEY"),
                  ("smtp_pass", "DDOC_SMTP_PASS"),
                  ("smtp_user", "DDOC_SMTP_USER"),
-                 ("smtp_host", "DDOC_SMTP_HOST"),
-                 ("base_url", "DDOC_BASE_URL")):
+                 ("smtp_host", "DDOC_SMTP_HOST")):
     if not str(SELLER.get(_k) or "").strip():
         _v = _os.environ.get(_env, "").strip()
         if _v:
             SELLER[_k] = _v
+
+
+def _resolve_base_url(local_url: str, env_url: str) -> str:
+    """Use the configured public URL, migrating the retired server address."""
+    from urllib.parse import urlsplit
+    public_url = "https://www.easy-ekkasan.com"
+    value = (env_url or "").strip() or (local_url or "").strip()
+    if not value:
+        return public_url
+    parsed = urlsplit(value if "://" in value else "//" + value)
+    if parsed.hostname in {"165.101.65.175", "easy-ekkasan.com", "www.easy-ekkasan.com"}:
+        return public_url
+    return value.rstrip("/")
+
+
+# Shared by verification, password reset, approval and payment emails.
+SELLER["base_url"] = _resolve_base_url(
+    SELLER.get("base_url", ""), _os.environ.get("DDOC_BASE_URL", ""))
 
 
 # ---- ราคาปกติ (ยึดเป็นราคาตั้งต้น/ราคาขีดฆ่าตอนมีโปร) ----
