@@ -34,6 +34,28 @@ def require_superadmin(request: Request):
 router = APIRouter(dependencies=[Depends(require_superadmin)])
 
 
+@router.get('/admin-console/notifications', response_class=HTMLResponse)
+def notification_settings(request: Request):
+    from app.services.notifications import notification_email
+    from app.services.mailer import smtp_configured
+    return templates.TemplateResponse('notification_settings.html', {
+        'request': request, 'email': notification_email(), 'smtp_ok': smtp_configured(),
+        'message': request.session.pop('notification_message', '')})
+
+
+@router.post('/admin-console/notifications')
+def notification_save(request: Request, email: str = Form('')):
+    from app.services.notifications import save_notification_email
+    from app.services.mailer import smtp_configured
+    try:
+        save_notification_email(email)
+    except ValueError as exc:
+        return templates.TemplateResponse('notification_settings.html', {
+            'request': request, 'email': email, 'smtp_ok': smtp_configured(), 'error': str(exc)}, status_code=400)
+    request.session['notification_message'] = 'บันทึกแล้ว คำขอใหม่จะแจ้งไปยังอีเมลนี้'
+    return RedirectResponse('/admin-console/notifications', status_code=303)
+
+
 @router.get('/admin-console/signature', response_class=HTMLResponse)
 def signature_page(request: Request):
     return templates.TemplateResponse('seller_signature.html', {

@@ -106,23 +106,25 @@ def send_order_notice(kind: str, *, school: str, contact: str = "", email: str =
     ไม่ตั้งอีเมลผู้ขาย -> ข้าม (คืน False) โดยไม่ทำให้ flow ซื้อล้ม"""
     from app.seller_config import SELLER
     # แจ้งเตือนไปที่ notify_email ก่อน (ถ้าตั้งไว้) แยกจาก email ที่โชว์บนเอกสารให้ลูกค้า
-    to = (SELLER.get("notify_email") or SELLER.get("email") or "").strip()
+    from app.services.notifications import notification_email
+    from html import escape
+    to = notification_email()
     if not to:
         return False
     from urllib.parse import quote
     base = (SELLER.get("base_url") or "").rstrip("/")
+    kind = kind if kind in ('order', 'quote', 'trial') else 'order'
     target = "/admin-console/leads?kind=" + kind
+    if str(ref).isdigit():
+        target += '#lead-' + str(ref)
     # ผ่าน /login?next= เพื่อพาเข้าคอนโซล leads อัตโนมัติ (ถ้ายังไม่ล็อกอิน/ล็อกอินผิดบัญชี ก็ให้ล็อกอินแล้วเด้งต่อ)
     link = (base + "/login?next=" + quote(target, safe="")) if base else target
     label = {"order": "คำสั่งซื้อ (แจ้งชำระเงิน)", "quote": "ขอใบเสนอราคา",
              "trial": "ทดลองใช้"}.get(kind, kind)
-    rows = [("โรงเรียน", school), ("ผู้ติดต่อ", contact), ("อีเมล", email),
-            ("โทร", phone), ("งานที่เลือก", packages),
-            ("ยอดเงิน", f"{amount:,.0f} บาท" if amount else "-"),
-            ("แนบสลิป", "มี" if has_slip else "-"), ("หมายเหตุ", note)]
+    rows = [("ประเภท", label), ("เลขรายการ", str(ref))]
     tr = "".join(
         f'<tr><td style="padding:4px 10px;color:#64748b;white-space:nowrap;vertical-align:top;">{k}</td>'
-        f'<td style="padding:4px 10px;font-weight:600;">{(v or "-")}</td></tr>'
+        f'<td style="padding:4px 10px;font-weight:600;">{escape(str(v or "-"))}</td></tr>'
         for k, v in rows)
     html = f"""
     <div style="font-family:sans-serif; max-width:560px; margin:0 auto;">
@@ -130,8 +132,8 @@ def send_order_notice(kind: str, *, school: str, contact: str = "", email: str =
       <table style="border-collapse:collapse; font-size:15px; width:100%;">{tr}</table>
       <p style="text-align:center; margin:24px 0;">
         <a href="{link}" style="background:#2563eb; color:#fff; text-decoration:none;
-           padding:11px 26px; border-radius:10px; font-weight:700;">เปิดคอนโซลเพื่ออนุมัติ</a>
+           padding:11px 26px; border-radius:10px; font-weight:700;">เปิดดูรายการในคอนโซล</a>
       </p>
-      <p style="color:#94a3b8; font-size:12px;">อ้างอิงคำขอ #{ref} · อีเมลอัตโนมัติจากระบบ Easy Ekkasan</p>
+      <p style="color:#94a3b8; font-size:12px;">อ้างอิงคำขอ #{escape(str(ref))} · เข้าสู่ระบบด้วยบัญชีแอดมินเพื่อดูรายละเอียด</p>
     </div>"""
-    return send_email(to, f"[Easy Ekkasan] {label}ใหม่ - {school or '-'}", html)
+    return send_email(to, f"[Easy Ekkasan] {label}ใหม่ #{ref}", html)

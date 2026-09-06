@@ -1,0 +1,17 @@
+{% extends 'public_base.html' %}
+{% block title %}อีเมลแจ้งเตือน | Easy Ekkasan{% endblock %}
+{% block content %}
+<a href="/admin-console/leads">← กลับคอนโซลแอดมิน</a>
+<form class="card" method="post" action="/admin-console/notifications">
+  <h1>อีเมลแจ้งเตือนผู้ดูแล</h1>
+  <p>แจ้งเมื่อมีคำขอใบเสนอราคา หรือส่งสลิปสั่งซื้อ รวมถึงชำระผ่านลิงก์ใบเสนอราคา</p>
+  <p>อีเมลจะแสดงเฉพาะประเภทคำขอ เลขรายการ และปุ่มเปิดคอนโซลเพื่อดูรายละเอียด</p>
+  {% if error %}<p role="alert" style="color:#b91c1c">{{ error }}</p>{% endif %}
+  {% if message %}<p role="status" style="color:#15803d">{{ message }}</p>{% endif %}
+  <label for="email">อีเมลรับแจ้งเตือนของคุณ</label>
+  <input id="email" name="email" type="email" value="{{ email }}" required maxlength="254">
+  <p class="hint">ไม่เปลี่ยนอีเมลติดต่อที่แสดงให้ลูกค้าเห็น</p>
+  {% if not smtp_ok %}<p role="alert" style="color:#b91c1c">ยังไม่ได้ตั้งค่า SMTP บนเซิร์ฟเวอร์ จึงยังส่งอีเมลไม่ได้</p>{% else %}<p class="hint">พบการตั้งค่า SMTP แล้ว โปรดตรวจกล่องจดหมายและสแปมเมื่อมีคำขอใหม่</p>{% endif %}
+  <button class="btn btn-primary" style="margin-top:16px">บันทึกอีเมลรับแจ้งเตือน</button>
+</form>
+{% endblock %}

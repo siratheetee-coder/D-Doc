@@ -51,6 +51,7 @@
 
     <div class="card">
       <h1>คำขอจากหน้าเว็บ ({{ leads|length }})</h1>
+      <a href="/admin-console/notifications">ตั้งค่าอีเมลแจ้งเตือน</a>
       <div class="tabs">
         <a class="tab {{ 'on' if not kind }}" href="/admin-console/leads">ทั้งหมด</a>
         <a class="tab {{ 'on' if kind=='order' }}" href="/admin-console/leads?kind=order">สั่งซื้อ/ชำระเงิน</a>
@@ -69,7 +70,7 @@
         </tr></thead>
         <tbody>
         {% for l in leads %}
-          <tr>
+          <tr id="lead-{{ l.id }}" style="scroll-margin-top:90px;">
             <td class="sub">{{ l.created_at.strftime('%d/%m/%y %H:%M') if l.created_at else '-' }}<br>#{{ l.id }}</td>
             <td><span class="pill {{ 'k-order' if l.kind=='order' else 'k-trial' if l.kind=='trial' else 'k-quote' }}">{{ {'order':'สั่งซื้อ','trial':'ทดลองใช้','support':'แจ้งปัญหา','review':'รีวิว ' ~ ('★'*(l.amount|int)) }.get(l.kind, 'ใบเสนอราคา') }}</span></td>
             <td><b>{{ l.school_name or '-' }}</b>{% if l.contact_name %}<br><span class="sub">{{ l.contact_name }}</span>{% endif %}
