@@ -87,6 +87,36 @@ class PurchaseFlowTests(unittest.TestCase):
         self.assertEqual(page.context['selected_mods'], [self.key])
         self.assertEqual(page.context['mode'], 'สั่งซื้อ')
 
+    def test_checkout_blocked_account_has_html_and_preserves_destination(self):
+        cases = [('role', 'superadmin', 'admin'), ('verified', False, 'unverified'),
+                 ('must_change_password', True, 'password'), ('active', False, 'unavailable')]
+        for field, value, reason in cases:
+            with self.subTest(reason=reason):
+                with self.Session() as db:
+                    account = db.get(accounts.Account, 1)
+                    account.role = 'user'; account.verified = account.active = True
+                    account.must_change_password = False
+                    setattr(account, field, value); db.commit()
+                self.login()
+                for method in ['get', 'post']:
+                    page = (self.client.get('/checkout', params={'packages': MODULE_LABELS[self.key]}) if method == 'get'
+                            else self.client.post('/checkout', data=self.order(), files={'slip':self.png()}))
+                    self.assertEqual(page.status_code, 403)
+                    self.assertIn('text/html', page.headers['content-type'])
+                    self.assertEqual(page.context['reason'], reason)
+                    target = parse_qs(urlparse(page.context['switch_url']).query)['next'][0]
+                    self.assertEqual(parse_qs(urlparse(target).query)['packages'], [MODULE_LABELS[self.key]])
+                    if reason == 'unverified':
+                        self.assertEqual(sales._registration_destination(page.context['flow'], 'owner1@example.test'), target)
+        with self.Session() as db:
+            self.assertEqual(db.query(accounts.Lead).count(), 0)
+
+    def test_deleted_session_account_returns_to_registration(self):
+        self.login(999)
+        page = self.client.get('/checkout', params={'packages': MODULE_LABELS[self.key]})
+        self.assertEqual(page.status_code, 303)
+        self.assertTrue(page.headers['location'].startswith('/register?'))
+
     def test_quote_requires_explicit_binding_and_preserves_amount(self):
         lid = self.quote(); path = '/pay/' + sales.make_pay_token(lid)
         page = self.client.get(path)

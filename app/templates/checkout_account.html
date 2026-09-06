@@ -1,0 +1,31 @@
+{% extends 'public_base.html' %}
+{% block title %}บัญชีสำหรับสั่งซื้อ | Easy Ekkasan{% endblock %}
+{% block content %}
+<div class="card">
+  {% if reason == 'admin' %}
+    <h1>ขณะนี้คุณใช้บัญชีแอดมิน</h1>
+    <p>การสั่งซื้อต้องใช้บัญชีโรงเรียน เพื่อระบุโรงเรียนที่จะได้รับสิทธิ์</p>
+  {% elif reason == 'unverified' %}
+    <h1>ยืนยันอีเมลก่อนสั่งซื้อ</h1>
+    <p>กรุณาเปิดลิงก์ยืนยันที่ส่งไปยัง {{ email }} แล้วย้อนกลับมาสั่งซื้อต่อได้</p>
+    <form method="post" action="/register/resend" style="margin:16px 0">
+      <input type="hidden" name="email" value="{{ email }}">
+      <input type="hidden" name="flow" value="{{ flow }}">
+      <button class="btn btn-primary">ส่งอีเมลยืนยันอีกครั้ง</button>
+    </form>
+  {% elif reason == 'password' %}
+    <h1>ตั้งรหัสผ่านก่อนดำเนินการต่อ</h1>
+    <p>บัญชีนี้ต้องเปลี่ยนรหัสผ่านครั้งแรก เมื่อเสร็จแล้วระบบจะกลับมารายการที่เลือกไว้</p>
+    <a class="btn btn-primary" href="/account/password" style="margin:16px 0">ตั้งรหัสผ่านและสั่งซื้อต่อ</a>
+  {% else %}
+    <h1>บัญชีนี้ยังไม่พร้อมสำหรับสั่งซื้อ</h1>
+    <p>บัญชีหรือโรงเรียนอาจถูกระงับ กรุณาติดต่อผู้ดูแลระบบ หรือเข้าสู่ระบบด้วยบัญชีโรงเรียนอื่น</p>
+  {% endif %}
+  {% if packages %}<p class="hint">รายการที่เลือก: {{ packages }}</p>{% endif %}
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:20px">
+    <a class="btn {{ 'btn-primary' if reason == 'admin' else 'btn-ghost' }}" href="{{ switch_url }}">เปลี่ยนเป็นบัญชีโรงเรียนอื่น</a>
+    {% if reason == 'admin' %}<a class="btn btn-ghost" href="/admin-console">กลับคอนโซลแอดมิน</a>{% endif %}
+    <a class="btn btn-ghost" href="/landing">กลับหน้ารายละเอียดแพ็กเกจ</a>
+  </div>
+</div>
+{% endblock %}

@@ -259,6 +259,37 @@ def checkout_page(request: Request, packages: str = "", amount: str = ""):
     return _render_checkout(request, packages)
 
 
+def _checkout_account_required(request, packages=""):
+    from app.accounts import acc_session, Account, Tenant
+    target = '/checkout?' + urlencode({'packages': packages})
+    db = acc_session()
+    try:
+        account = db.get(Account, request.session.get('uid')) if request.session.get('uid') else None
+        if not account:
+            request.session.clear()
+            return RedirectResponse('/register?' + urlencode({'next': target}), status_code=303)
+        tenant = db.get(Tenant, account.tenant_id) if account.tenant_id else None
+        reason = 'unavailable'
+        if account.role == 'superadmin':
+            reason = 'admin'
+        elif account.active and tenant and tenant.active:
+            if not account.verified:
+                reason = 'unverified'
+            elif account.must_change_password:
+                reason = 'password'
+                request.session['purchase_next'] = target
+                request.session['must_change'] = True
+        email = account.username if reason == 'unverified' else ''
+        return templates.TemplateResponse('checkout_account.html', {
+            'request': request, 'reason': reason, 'email': email,
+            'flow': _registration_flow(email, target, '') if email else '',
+            'switch_url': '/logout?' + urlencode({'next': target}),
+            'packages': packages,
+        }, status_code=403)
+    finally:
+        db.close()
+
+
 def _render_checkout(request, packages="", *, selected=None, form_data=None, error=""):
     from app.seller_config import pricing_context
     from app.accounts import tenant_billing, purchase_account
@@ -267,7 +298,7 @@ def _render_checkout(request, packages="", *, selected=None, form_data=None, err
     from app.seller_config import price_addon
     account = purchase_account(request.session.get("uid"))
     if not account:
-        raise HTTPException(403, "กรุณาใช้บัญชีโรงเรียนที่ยืนยันอีเมลแล้วเพื่อสั่งซื้อ")
+        return _checkout_account_required(request, packages)
     px = pricing_context()["prices"]
     bill = tenant_billing(account["tenant_id"])
     owned = parse_modules(bill["modules"]) if bill else set()
@@ -327,7 +358,8 @@ async def checkout_submit(request: Request, school_name: str = Form(""), contact
     from app.accounts import purchase_account
     account = purchase_account(request.session.get("uid"))
     if not account:
-        raise HTTPException(403, "กรุณาใช้บัญชีโรงเรียนที่ยืนยันอีเมลแล้วเพื่อสั่งซื้อ")
+        from app.modules import label_for, parse_modules
+        return _checkout_account_required(request, label_for(parse_modules(','.join(mod or []))))
     email, tid = account["username"], account["tenant_id"]
     form_data = {"school_name": school_name, "contact_name": contact_name, "phone": phone,
                  "addr_no": addr_no, "addr_moo": addr_moo, "addr_tambon": addr_tambon,
