@@ -412,6 +412,15 @@
   .sb-right{ text-align:center; }
   .sb-right .btn{ padding:13px 24px; }
   .sb-note{ font-size:11.5px; color:var(--muted); margin-top:8px; }
+  .purchase-actions{ display:flex; flex-direction:column; gap:10px; width:100%; }
+  .purchase-actions .btn{ min-height:46px; justify-content:center; }
+  .btn-quote{ background:#fff; color:var(--blue-deep); border:2px solid var(--blue); }
+  .btn-quote:hover{ background:#eff6ff; }
+  .trial-link{ display:inline-block; color:var(--blue-deep); font-weight:600;
+    text-decoration:underline; text-underline-offset:3px; padding:10px 4px; }
+  .purchase-actions a:focus-visible{ outline:3px solid var(--blue-deep); outline-offset:4px; }
+  .purchase-actions a[aria-disabled="true"]{ opacity:.45; cursor:not-allowed; }
+  .sb-right{ width:280px; max-width:100%; }
   .sb-breakdown{ width:100%; display:grid; gap:8px; margin-top:14px; padding-top:14px; border-top:1px solid rgba(29,78,216,.14); }
   .sb-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:13px; color:var(--muted); }
   .sb-row strong{ font-size:14px; color:var(--ink); }
@@ -726,8 +735,7 @@
     </div>
 
     <!-- การ์ดแพ็กเกจรวม (แนะนำ) -->
-    <a class="bundle-card" href="/register?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}"
-       aria-label="เลือกแพ็กเกจครบทุกงาน {{ "{:,}".format(px.bundle) }} บาทต่อปี - เริ่มใช้ฟรี {{ trial_days }} วัน">
+    <div class="bundle-card" aria-label="แพ็กเกจครบทุกงาน">
       <span class="bc-shine"></span>
       <div class="bc-badge"><svg class="ico"><use href="#ic-star"/></svg> แนะนำ</div>
       <div class="bc-left">
@@ -760,9 +768,13 @@
         <div class="bc-was">จากปกติ <s>{{ "{:,}".format(full) }}</s> บาท</div>
         <div class="bc-save">ประหยัด {{ "{:,}".format(save) }} บาท</div>
         <div class="bc-price"><b>{{ "{:,}".format(px.bundle) }}</b><span>บาท / ปี</span></div>
-        <span class="btn btn-primary bc-btn">เริ่มใช้ฟรี {{ trial_days }} วัน <svg class="ico"><use href="#ic-arrow-right"/></svg></span>
+        <div class="purchase-actions">
+          <a class="btn btn-primary bc-btn" href="/checkout?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}">สั่งซื้อแพ็กเกจ <svg class="ico"><use href="#ic-arrow-right"/></svg></a>
+          <a class="btn btn-quote" href="/quote?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}">ขอใบเสนอราคา</a>
+        </div>
+        <a class="trial-link" href="/register">ทดลองใช้ฟรี {{ trial_days }} วัน</a>
       </div>
-    </a>
+    </div>
 
     <!-- หรือเลือกเฉพาะงาน -->
     <div class="or-head">หรือเลือกเฉพาะงานที่ต้องใช้</div>
@@ -888,8 +900,12 @@
         <div class="sb-total"><b id="sumTotal">{{ "{:,}".format(px.bundle) }}</b> <small>บาท/ปี</small></div>
       </div>
       <div class="sb-right">
-        <a class="btn btn-primary" href="/register" id="btnBuy"><svg class="ico"><use href="#ic-arrow-right"/></svg> เริ่มทดลองใช้ฟรี {{ trial_days }} วัน</a>
-        <div class="sb-note">🔒 ทดลองใช้ก่อน ไม่ต้องจ่าย · <a href="/quote" id="btnQuote" style="color:var(--blue); font-weight:600;">ขอใบเสนอราคา</a></div>
+        <div class="purchase-actions">
+          <a class="btn btn-primary" href="/checkout?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}" id="btnBuy"><svg class="ico"><use href="#ic-arrow-right"/></svg> สั่งซื้อแพ็กเกจที่เลือก</a>
+          <a class="btn btn-quote" href="/quote?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}" id="btnQuote">ขอใบเสนอราคา</a>
+        </div>
+        <a class="trial-link" href="/register" id="btnTrial">ทดลองใช้ฟรี {{ trial_days }} วัน</a>
+        <div class="sb-note">ทดลองใช้ก่อน ไม่ต้องจ่าย</div>
       </div>
       <div class="sb-breakdown">
         <div class="sb-row"><span id="sbBeforeLabel">ราคาสินค้า</span><strong id="sbBefore">{{ "{:,}".format(px.bundle) }} บาท</strong></div>
@@ -996,8 +1012,19 @@
       }
 
       var q = '?packages=' + encodeURIComponent(label || '') + '&amount=' + total;
-      if(btnBuy) btnBuy.href = '/register?packages=' + encodeURIComponent(label || '') + '&amount=' + total;
-      if(btnQuote) btnQuote.href = '/quote' + q;
+      [[btnBuy, '/checkout'], [btnQuote, '/quote']].forEach(function(item){
+        var button = item[0];
+        if(!button) return;
+        if(count){
+          button.href = item[1] + q;
+          button.removeAttribute('aria-disabled');
+          button.removeAttribute('tabindex');
+        } else {
+          button.removeAttribute('href');
+          button.setAttribute('aria-disabled', 'true');
+          button.setAttribute('tabindex', '-1');
+        }
+      });
     }
     cards.forEach(function(c){ c.querySelector('input').addEventListener('change', render); });
     render();
