@@ -64,12 +64,11 @@
     {% if ok_msg %}<div class="ok">{{ ok_msg }}</div>{% endif %}
     {% if error %}<div class="err">{{ error }}</div>{% endif %}
     {% if unverified_email %}
-    <form method="post" action="/register/resend" style="margin:-2px 0 6px;">
-      <input type="hidden" name="email" value="{{ unverified_email }}">
-      <button type="submit" style="width:100%; background:#fff7e6; color:#a15c07; border:1px solid #ffe0a8;
+    <div style="margin:-2px 0 6px;">
+      <button type="submit" form="resendVerification" style="width:100%; background:#fff7e6; color:#a15c07; border:1px solid #ffe0a8;
         padding:9px; border-radius:10px; font-weight:600; font-size:14px; cursor:pointer; font-family:inherit;">
         ส่งอีเมลยืนยันอีกครั้ง</button>
-    </form>
+    </div>
     {% endif %}
     <label>ชื่อผู้ใช้ (อีเมล)</label>
     <input name="username" autocomplete="username" required autofocus>
@@ -78,8 +77,14 @@
     <div class="forgot"><a href="/forgot">ลืมรหัสผ่าน?</a></div>
     <button class="btn" type="submit">เข้าสู่ระบบ</button>
     <div class="sep">ยังไม่มีบัญชี?</div>
-    <a class="btn-outline" href="/register">ลงทะเบียน / ทดลองใช้ฟรี</a>
+    <a class="btn-outline" href="/register?next={{ next|urlencode }}">ลงทะเบียน / ทดลองใช้ฟรี</a>
   </form>
+  {% if unverified_email %}
+  <form id="resendVerification" method="post" action="/register/resend">
+    <input type="hidden" name="email" value="{{ unverified_email }}">
+    <input type="hidden" name="flow" value="{{ flow or '' }}">
+  </form>
+  {% endif %}
   <a class="pdpa" href="/privacy">
     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
          stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>

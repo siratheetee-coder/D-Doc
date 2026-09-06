@@ -419,7 +419,46 @@ def set_lead_status(lead_id: int, status: str) -> None:
         db.close()
 
 
-def attach_lead_slip(lead_id: int, slip_file: str) -> dict | None:
+def purchase_account(uid) -> dict | None:
+    """Read the verified school account for public purchase routes (fresh from DB)."""
+    if not uid:
+        return None
+    db = acc_session()
+    try:
+        a = db.get(Account, uid)
+        if not a or not a.active or not a.verified or a.role == "superadmin" or a.must_change_password:
+            return None
+        t = db.get(Tenant, a.tenant_id) if a.tenant_id else None
+        if not t or not t.active:
+            return None
+        return {"uid": a.id, "username": a.username, "tenant_id": t.id, "school_name": t.name}
+    finally:
+        db.close()
+
+
+def bind_payment_account(lead_id: int, uid) -> bool:
+    """Explicit bearer-link confirmation; never transfer an already bound quote."""
+    account = purchase_account(uid)
+    if not account:
+        return False
+    db = acc_session()
+    try:
+        lead = db.get(Lead, lead_id)
+        if not lead:
+            return False
+        if lead.tenant_id:
+            return lead.tenant_id == account["tenant_id"]
+        if lead.slip_file or lead.status == "ต่ออายุแล้ว":
+            return False
+        changed = db.query(Lead).filter(Lead.id == lead_id, Lead.tenant_id.is_(None)).update(
+            {"tenant_id": account["tenant_id"], "login_user": account["username"]}, synchronize_session=False)
+        db.commit()
+        return changed == 1
+    finally:
+        db.close()
+
+
+def attach_lead_slip(lead_id: int, slip_file: str, tenant_id=None) -> dict | None:
     """ลูกค้าอัปสลิปผ่านลิงก์ชำระเงิน -> แนบสลิป + เปลี่ยนเป็นออเดอร์รอตรวจ (เข้าแท็บสั่งซื้อในคอนโซล)
     คืน dict ข้อมูล lead (ไว้ส่งแจ้งเตือนผู้ขาย) หรือ None"""
     db = acc_session()
@@ -427,6 +466,19 @@ def attach_lead_slip(lead_id: int, slip_file: str) -> dict | None:
         l = db.get(Lead, lead_id)
         if not l:
             return None
+        if tenant_id is not None:
+            if l.tenant_id != tenant_id or l.slip_file or l.status == "ต่ออายุแล้ว":
+                return None
+            changed = db.query(Lead).filter(
+                Lead.id == lead_id, Lead.tenant_id == tenant_id,
+                (Lead.slip_file == "") | Lead.slip_file.is_(None),
+                Lead.status != "ต่ออายุแล้ว").update(
+                    {"slip_file": slip_file, "kind": "order", "status": "ใหม่"}, synchronize_session=False)
+            if not changed:
+                return None
+            db.commit()
+            db.refresh(l)
+            return {c.name: getattr(l, c.name) for c in Lead.__table__.columns}
         l.slip_file = slip_file
         l.kind = "order"
         l.status = "ใหม่"

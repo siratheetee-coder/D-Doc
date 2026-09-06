@@ -26,7 +26,10 @@
   .co-item:hover{ border-color:#bcd0f7; transform:translateY(-2px); box-shadow:0 10px 22px rgba(37,99,235,.10); }
   .co-item.on{ border-color:var(--blue); background:linear-gradient(180deg,#f7faff,#eef4ff);
                box-shadow:0 8px 20px rgba(37,99,235,.14); }
-  .co-item input{ position:absolute; opacity:0; pointer-events:none; }
+  .co-item{ position:relative; }
+  .co-item input{ position:absolute; width:1px; height:1px; padding:0; border:0; opacity:0; pointer-events:none; }
+  .co-item:focus-within{ outline:2px solid var(--blue); outline-offset:3px; }
+  .btn:disabled, .btn[aria-disabled="true"]{ opacity:.5; cursor:not-allowed; box-shadow:none; }
   /* กล่องติ๊ก: กรอบมน เงานุ่ม ติ๊กแล้วเติมสีไล่เฉด + เครื่องหมายถูกเด้งเข้า */
   .co-check{ flex:0 0 24px; height:24px; border-radius:8px; border:2px solid #cdd7e6; background:#fff;
              display:flex; align-items:center; justify-content:center; position:relative;
@@ -138,6 +141,8 @@
   @media (prefers-reduced-motion: reduce){ .shine-host .shine::before{ animation:none; opacity:0; } }
 {% endblock %}
 {% block content %}
+{% if error %}<div class="card" role="alert" style="color:#b91c1c;background:#fef2f2;">{{ error }}<br>ข้อมูลเดิมยังอยู่ กรุณาตรวจสอบและเลือกไฟล์สลิปอีกครั้ง</div>{% endif %}
+<p style="text-align:center;">เลือกแพ็กเกจ → ตรวจข้อมูลใบเสร็จ → ชำระเงินและแนบสลิป → รอตรวจสอบ</p>
 {% if request.query_params.get('err') in ['sliptype', 'slipsize'] %}
 <div role="alert" style="padding:16px;color:#b91c1c;background:#fef2f2;">
 {% if request.query_params.get('err') == 'slipsize' %}ไฟล์สลิปต้องมีขนาดไม่เกิน 10 MB{% else %}กรุณาเลือกไฟล์สลิป PNG, JPEG, WebP หรือ PDF ที่เปิดอ่านได้{% endif %}
@@ -228,7 +233,7 @@
     <label class="co-item{{ ' owned' if owned }}" data-key="{{ k }}" data-price="{{ px[it[1]] }}"
            data-addon-price="{{ addon_price[k] }}" data-name="{{ it[3] }}">
       <input type="checkbox" name="mod" value="{{ k }}" form="orderForm"
-        {% if addon %}{{ 'checked disabled' if owned }}{% else %}{{ 'checked' if is_all or it[2] in pk }}{% endif %}>
+        {{ 'checked' if owned or k in selected_mods }} {{ 'disabled' if owned }}>
       <span class="co-check"></span>
       <span class="co-name">{{ it[3] }}<small>{{ it[4] }}</small></span>
       {% if owned %}<span class="co-owned-tag">มีอยู่แล้ว</span>
@@ -238,31 +243,31 @@
   </div>
   {% if not addon %}<button type="button" class="btn btn-ghost" id="coAll" style="margin-top:12px; width:100%;">เลือกครบทุกงาน (คุ้มสุด {{ "{:,}".format(px.bundle) }} บาท)</button>{% endif %}
   <div class="bank-row" style="margin-top:14px; border-bottom:0;">
-    <span style="font-weight:600;">{{ 'ยอดชำระ (ซื้อเพิ่ม)' if addon else 'ยอดชำระ (ต่ออายุ 1 ปี)' }} <span class="co-save" id="coSave" style="display:none; margin-left:8px;"></span></span>
-    <span class="amt"><span id="coAmount">{{ 0 if addon else "{:,}".format(px.bundle) }}</span> <small style="font-size:14px; color:var(--muted); font-weight:500;">{{ 'บาท' if addon else 'บาท/ปี' }}</small></span>
+    <span style="font-weight:600;">ยอดชำระ ({{ mode }}{{ '' if addon else ' 1 ปี' }}) <span class="co-save" id="coSave" style="display:none; margin-left:8px;"></span></span>
+    <span class="amt"><span id="coAmount">{{ "{:,}".format(amount) }}</span> <small style="font-size:14px; color:var(--muted); font-weight:500;">{{ 'บาท' if addon else 'บาท/ปี' }}</small></span>
   </div>
   {% if not addon %}
   <div style="margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); font-size:14px; color:var(--muted); display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <svg class="ico" style="width:18px;height:18px;color:var(--blue);" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
     ต้องการใบเสนอราคาไปขออนุมัติงบก่อน?
-    <a href="/quote" class="btn btn-ghost" style="padding:7px 16px; font-size:14px;">ขอใบเสนอราคา</a>
+    <a href="{{ quote_url }}" id="checkoutQuote" class="btn btn-ghost" style="padding:7px 16px; font-size:14px;">ขอใบเสนอราคา</a>
   </div>
   {% endif %}
 </div>
 
-<div class="card">
+<div class="card" id="paymentDetails" hidden>
   <h2>ช่องทางชำระเงิน</h2>
   <div class="pay-grid">
     <div class="qr-box">
       {% if seller.promptpay_dynamic %}
         <div style="font-size:12px; color:var(--green); font-weight:600; margin-bottom:6px;">✓ QR พร้อมเพย์ระบุยอดอัตโนมัติ</div>
-        <img id="coQR" src="/checkout/promptpay.png?amount={{ 0 if addon else (amount or px.bundle) }}" alt="PromptPay QR">
-        <div class="hint">สแกน QR นี้ ยอด <b><span id="coQRhint">{{ "0.00" if addon else "{:,.2f}".format(px.bundle) }}</span> บาท</b> จะขึ้นให้อัตโนมัติ</div>
+        <img id="coQR" hidden alt="PromptPay QR">
+        <div class="hint">สแกน QR นี้ ยอด <b><span id="coQRhint">{{ "{:,.2f}".format(amount) }}</span> บาท</b> จะขึ้นให้อัตโนมัติ</div>
       {% elif seller.promptpay_qr_exists %}
-        <img src="{{ seller.promptpay_qr }}" alt="PromptPay QR">
-        <div class="hint">สแกน QR แล้วกรอกยอด {{ "{:,.0f}".format(amount) if amount else "{:,}".format(px.bundle) }} บาท</div>
+        <img id="coStaticQR" src="{{ seller.promptpay_qr }}" alt="PromptPay QR">
+        <div class="hint">สแกน QR แล้วกรอกยอด <span id="coStaticAmount">{{ "{:,.2f}".format(amount) }}</span> บาท</div>
       {% else %}
-        <div class="qr-none">ตั้งค่า promptpay_id ใน seller_local.py<br>หรือวางรูป QR ที่ app/static/landing/promptpay.png</div>
+        <div class="qr-none">ชำระผ่านบัญชีธนาคารที่แสดง หรือสอบถามเจ้าหน้าที่</div>
       {% endif %}
     </div>
     <div>
@@ -279,47 +284,55 @@
 </div>
 
 <form class="card" method="post" action="/checkout" enctype="multipart/form-data" id="orderForm">
-  <h2>แจ้งชำระเงิน</h2>
+  <h2>ตรวจข้อมูลสำหรับออกใบเสร็จ</h2>
+  <div id="receiptDetails">
   {# งานที่เลือก (name="mod") ส่งมาจาก checkbox ด้านบนผ่าน form="orderForm"
      ราคาคำนวณใหม่ที่เซิร์ฟเวอร์เสมอ - ไม่มี hidden amount ให้แก้ค่าอีกต่อไป #}
   <div style="background:#eef4ff; border:1px solid #cddffb; border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:14px;">
     {% if addon %}ชำระเงินเพื่อ<b>เพิ่มงาน (หมดอายุพร้อมงานเดิม {{ expiry_str }})</b> สำหรับ: <b>{{ acct_email }}</b>{% if acct_school %} · {{ acct_school }}{% endif %}
-    {% else %}ชำระเงินเพื่อ<b>ต่ออายุบัญชี 1 ปี</b> สำหรับ: <b>{{ acct_email }}</b>{% if acct_school %} · {{ acct_school }}{% endif %}{% endif %}
+    {% else %}ชำระเงินเพื่อ<b>{{ mode }}แพ็กเกจ 1 ปี</b> สำหรับ: <b>{{ acct_email }}</b>{% if acct_school %} · {{ acct_school }}{% endif %}{% endif %}
   </div>
   <div class="grid2">
     <div>
       <label>ชื่อโรงเรียน/หน่วยงาน (สำหรับออกใบเสร็จ) <span class="req">*</span></label>
-      <input name="school_name" required placeholder="เช่น โรงเรียนบ้านหินลาด" value="{{ acct_school or '' }}">
+      <input name="school_name" required placeholder="เช่น โรงเรียนบ้านหินลาด" value="{{ form.get('school_name', acct_school) }}">
     </div>
     <div>
       <label>ชื่อผู้ติดต่อ <span class="req">*</span></label>
-      <input name="contact_name" required placeholder="ชื่อ-นามสกุล">
+      <input name="contact_name" required placeholder="ชื่อ-นามสกุล" value="{{ form.get('contact_name', '') }}">
     </div>
   </div>
   <label>เบอร์โทร <span class="req">*</span></label>
-  <input name="phone" inputmode="tel" required placeholder="0xx-xxx-xxxx">
+  <input name="phone" inputmode="tel" required placeholder="0xx-xxx-xxxx" value="{{ form.get('phone', '') }}">
 
   <label style="margin-top:16px;">ที่อยู่สำหรับออกใบเสร็จ <span class="req">*</span></label>
   <p class="hint" style="margin-top:0;">ระบบจะนำที่อยู่นี้ไปออกใบเสร็จรับเงินให้</p>
   <div class="grid2">
-    <div><label style="font-weight:500; font-size:13.5px;">เลขที่</label><input name="addr_no" required placeholder="เช่น 99"></div>
-    <div><label style="font-weight:500; font-size:13.5px;">หมู่</label><input name="addr_moo" placeholder="เช่น 5"></div>
+    <div><label style="font-weight:500; font-size:13.5px;">เลขที่</label><input name="addr_no" required placeholder="เช่น 99" value="{{ form.get('addr_no', '') }}"></div>
+    <div><label style="font-weight:500; font-size:13.5px;">หมู่</label><input name="addr_moo" placeholder="เช่น 5" value="{{ form.get('addr_moo', '') }}"></div>
   </div>
   <div class="grid2">
-    <div><label style="font-weight:500; font-size:13.5px;">ตำบล/แขวง <span class="req">*</span></label><input name="addr_tambon" required placeholder="ตำบล/แขวง"></div>
-    <div><label style="font-weight:500; font-size:13.5px;">อำเภอ/เขต <span class="req">*</span></label><input name="addr_amphoe" required placeholder="อำเภอ/เขต"></div>
+    <div><label style="font-weight:500; font-size:13.5px;">ตำบล/แขวง <span class="req">*</span></label><input name="addr_tambon" required placeholder="ตำบล/แขวง" value="{{ form.get('addr_tambon', '') }}"></div>
+    <div><label style="font-weight:500; font-size:13.5px;">อำเภอ/เขต <span class="req">*</span></label><input name="addr_amphoe" required placeholder="อำเภอ/เขต" value="{{ form.get('addr_amphoe', '') }}"></div>
   </div>
   <div class="grid2">
-    <div><label style="font-weight:500; font-size:13.5px;">จังหวัด <span class="req">*</span></label><input name="addr_province" required placeholder="จังหวัด"></div>
-    <div><label style="font-weight:500; font-size:13.5px;">รหัสไปรษณีย์ <span class="req">*</span></label><input name="addr_zip" required inputmode="numeric" maxlength="5" placeholder="5 หลัก"></div>
+    <div><label style="font-weight:500; font-size:13.5px;">จังหวัด <span class="req">*</span></label><input name="addr_province" required placeholder="จังหวัด" value="{{ form.get('addr_province', '') }}"></div>
+    <div><label style="font-weight:500; font-size:13.5px;">รหัสไปรษณีย์ <span class="req">*</span></label><input name="addr_zip" required inputmode="numeric" maxlength="5" placeholder="5 หลัก" value="{{ form.get('addr_zip', '') }}"></div>
   </div>
 
-  <label style="margin-top:16px;">แนบสลิปการโอน (รูปภาพ) <span class="req">*</span></label>
+  </div>
+  <p id="paymentSelectionHint" role="status">ตรวจสอบแพ็กเกจและข้อมูลก่อนแสดงช่องทางชำระเงิน</p>
+  <button type="button" class="btn btn-primary btn-full" id="reviewPayment">ยืนยันข้อมูลและดูช่องทางชำระเงิน</button>
+  <noscript>กรุณาเปิด JavaScript เพื่อเลือกแพ็กเกจและแสดงยอดชำระที่ถูกต้อง</noscript>
+  <fieldset id="slipDetails" hidden disabled style="border:0;padding:0;margin:0;">
+  <input name="quoted_total" id="quotedTotal" type="hidden" value="{{ amount }}">
+  <label style="margin-top:16px;">แนบสลิปการโอน (รูปภาพ/PDF ไม่เกิน 10 MB) <span class="req">*</span></label>
   <input name="slip" type="file" aria-label="ไฟล์สลิป PNG JPEG WebP หรือ PDF ขนาดไม่เกิน 10 MB" accept="image/png,image/jpeg,image/webp,application/pdf" required>
   <label>หมายเหตุ</label>
-  <textarea name="note" placeholder="วัน-เวลาที่โอน หรือรายละเอียดเพิ่มเติม"></textarea>
-  <button class="btn btn-primary btn-full shine-host" type="submit" style="margin-top:22px;"><span class="shine"></span>แจ้งชำระเงิน</button>
+  <textarea name="note" placeholder="วัน-เวลาที่โอน หรือรายละเอียดเพิ่มเติม">{{ form.get('note', '') }}</textarea>
+  <button id="submitPayment" class="btn btn-primary btn-full shine-host" type="submit" style="margin-top:22px;"><span class="shine"></span>ส่งสลิปให้เจ้าหน้าที่ตรวจสอบ</button>
   <p class="hint" style="text-align:center;">ทีมงานจะตรวจสอบและเปิดใช้งานให้ พร้อมติดต่อกลับทางอีเมล/โทรศัพท์</p>
+  </fieldset>
 </form>
 
 <script>
@@ -331,6 +344,14 @@
     var saveEl = document.getElementById('coSave');
     var qr = document.getElementById('coQR');
     var qrHint = document.getElementById('coQRhint');
+    var ready = false;
+    var form = document.getElementById('orderForm');
+    var payment = document.getElementById('paymentDetails');
+    var slipFields = document.getElementById('slipDetails');
+    var review = document.getElementById('reviewPayment');
+    var quote = document.getElementById('checkoutQuote');
+    var selectionHint = document.getElementById('paymentSelectionHint');
+    form.insertBefore(payment, slipFields);
     var fmt = function(n){ return n.toLocaleString('en-US'); };
     // ต้องตรงกับ price_for() ฝั่งเซิร์ฟเวอร์ (seller_config.py) - ที่นี่แค่แสดงผล
     // ยอดจริงเซิร์ฟเวอร์คำนวณเองตอนบันทึกคำสั่งซื้อเสมอ
@@ -353,12 +374,45 @@
         if(savings > 0){ saveEl.style.display = ''; saveEl.textContent = 'ประหยัด ' + fmt(savings) + ' บาท'; }
         else saveEl.style.display = 'none';
       }
-      if(qr && total > 0) qr.src = '/checkout/promptpay.png?amount=' + total;
+      var valid = total > 0 && count > 0;
+      review.disabled = !valid;
+      selectionHint.textContent = valid ? 'ตรวจสอบแพ็กเกจและข้อมูลก่อนแสดงช่องทางชำระเงิน' : 'กรุณาเลือกงานที่ต้องการชำระเงิน';
+      payment.hidden = !(ready && valid);
+      slipFields.hidden = !(ready && valid);
+      slipFields.disabled = !(ready && valid);
+      if(qr){
+        qr.hidden = !(ready && valid);
+        if(ready && valid) qr.src = '/checkout/promptpay.png?amount=' + total;
+        else qr.removeAttribute('src');
+      }
+      var staticAmount = document.getElementById('coStaticAmount');
+      if(staticAmount) staticAmount.textContent = fmt(total) + '.00';
+      document.getElementById('quotedTotal').value = total;
+      if(quote){
+        if(valid){
+          var label = count === NMODS ? 'ครบทุกงาน' : chosen.map(function(it){ return it.dataset.name; }).join(' + ');
+          quote.href = '/quote?packages=' + encodeURIComponent(label) + '&amount=' + total;
+          quote.removeAttribute('aria-disabled');
+        } else { quote.removeAttribute('href'); quote.setAttribute('aria-disabled', 'true'); }
+      }
       if(qrHint) qrHint.textContent = fmt(total) + '.00';
       return total;
     }
-    items.forEach(function(it){ it.querySelector('input').addEventListener('change', calc); });
-    function selectAll(){ items.forEach(function(it){ var i=it.querySelector('input'); if(!i.disabled) i.checked = true; }); calc(); }
+    function invalidate(){ ready = false; calc(); }
+    items.forEach(function(it){ it.querySelector('input').addEventListener('change', invalidate); });
+    document.getElementById('receiptDetails').addEventListener('input', invalidate);
+    review.addEventListener('click', function(){
+      var fields = [].slice.call(document.querySelectorAll('#receiptDetails input'));
+      var bad = fields.find(function(input){ return !input.checkValidity(); });
+      if(bad){ bad.reportValidity(); return; }
+      if(calc() <= 0) return;
+      ready = true; calc(); payment.scrollIntoView({behavior:'smooth', block:'start'});
+    });
+    form.addEventListener('submit', function(e){
+      if(!ready || calc() <= 0){ e.preventDefault(); review.focus(); return; }
+      document.getElementById('submitPayment').disabled = true;
+    });
+    function selectAll(){ items.forEach(function(it){ var i=it.querySelector('input'); if(!i.disabled) i.checked = true; }); invalidate(); }
     var allBtn = document.getElementById('coAll');
     if(allBtn) allBtn.addEventListener('click', selectAll);
     // แถบ "แพ็กสุดคุ้ม" กดได้ = เลือกครบทุกงาน (+ คีย์บอร์ด Enter/Space)

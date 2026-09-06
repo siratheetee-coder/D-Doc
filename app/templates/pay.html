@@ -39,7 +39,36 @@
     <h1>ลิงก์ไม่ถูกต้อง</h1>
     <p class="muted">ลิงก์ชำระเงินนี้ไม่ถูกต้องหรือหมดอายุ กรุณาติดต่อผู้ขายเพื่อขอลิงก์ใหม่</p>
   </div>
-{% elif done or paid %}
+{% elif not account %}
+  <div class="card" style="text-align:center;">
+    <h1>ดำเนินการสั่งซื้อตามใบเสนอราคา</h1>
+    <p>รายการ #{{ lead.id }} · {{ lead.school_name }} · {{ lead.packages }}</p>
+    <p>เข้าสู่ระบบหรือสมัครบัญชี เพื่อระบุโรงเรียนที่จะได้รับสิทธิ์ก่อนชำระเงิน</p>
+    <a class="btn btn-primary" href="{{ login_url }}">เข้าสู่ระบบเพื่อดำเนินการต่อ</a>
+    <a class="btn btn-ghost" href="{{ register_url }}">สมัครบัญชีใหม่</a>
+  </div>
+{% elif conflict %}
+  <div class="card" role="alert"><h1>รายการนี้ผูกกับบัญชีโรงเรียนอื่นแล้ว</h1>
+    <p>กรุณาใช้บัญชีของโรงเรียนที่ผูกไว้ หรือติดต่อเจ้าหน้าที่เพื่อตรวจสอบ</p>
+    <a class="btn btn-ghost" href="/logout?next={{ ('/pay/' ~ token)|urlencode }}">ออกจากระบบเพื่อเปลี่ยนบัญชี</a>
+  </div>
+{% elif not bound %}
+  <div class="card">
+    <h1>ยืนยันโรงเรียนที่จะได้รับสิทธิ์</h1>
+    <p>รายการ #{{ lead.id }} · ใบเสนอราคา: {{ lead.school_name }} · {{ lead.packages }}</p>
+    <p>ยอดตามใบเสนอราคา {{ "{:,.2f}".format(amount) }} บาท</p>
+    <p>เปิดสิทธิ์ให้: <b>{{ account.school_name }}</b><br>บัญชี {{ account.username }}</p>
+    <p>อีเมลผู้ขอใบเสนอราคาอาจต่างจากบัญชีใช้งาน โปรดตรวจสอบโรงเรียนก่อนยืนยัน</p>
+    <form method="post" action="/pay/{{ token }}/bind">
+      <button class="btn btn-primary" type="submit">ยืนยันบัญชีและไปชำระเงิน</button>
+    </form>
+    <a class="btn btn-ghost" href="/logout?next={{ ('/pay/' ~ token)|urlencode }}">เปลี่ยนบัญชี</a>
+  </div>
+{% elif approved %}
+  <div class="card"><h1>ตรวจสอบและเปิดสิทธิ์แล้ว</h1>
+    <p>รายการ #{{ lead.id }} · {{ lead.packages }}</p><a class="btn btn-primary" href="/">เข้าใช้งานระบบ</a>
+  </div>
+{% elif paid %}
   <div class="card" style="text-align:center;">
     <span class="st-ic ok">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
@@ -50,14 +79,18 @@
     <p class="muted">ขอบคุณครับ ทางเราได้รับหลักฐานการชำระเงินเรียบร้อยแล้ว<br>
        กำลังตรวจสอบและจะเปิดใช้งาน/ติดต่อกลับโดยเร็วที่สุด</p>
   </div>
+{% elif not valid_amount %}
+  <div class="card" role="alert">กรุณาติดต่อเจ้าหน้าที่เพื่อตรวจสอบยอดใบเสนอราคาก่อนชำระเงิน</div>
 {% else %}
   <div class="page-head">
     <h1>ชำระเงิน</h1>
-    <p>โรงเรียน {{ lead.school_name or '-' }} · {{ lead.packages or 'ครบทุกงาน' }} (สิทธิ์ใช้งาน 1 ปี)</p>
+    <p>รายการ #{{ lead.id }} · เปิดสิทธิ์ให้ {{ account.school_name }} ({{ account.username }})</p>
+    <p>โอนเงิน → แนบสลิป → รอทีมงานตรวจสอบและเปิดสิทธิ์</p>
+    <p>โรงเรียน {{ lead.school_name or '-' }} · {{ lead.packages or 'ครบทุกงาน' }} ({{ 'ซื้อเพิ่ม หมดอายุพร้อมงานเดิม' if '[ซื้อเพิ่มกลางรอบ prorate]' in (lead.note or '') else 'สิทธิ์ใช้งาน 1 ปี' }})</p>
   </div>
   {% if request.query_params.get('err') == 'noslip' %}<div class="card" style="border-color:#fecaca; background:#fef2f2; color:#b91c1c;">กรุณาแนบไฟล์สลิปก่อนกดส่ง</div>{% endif %}
   <div class="card">
-    <div class="amt-row"><span style="font-weight:600;">ยอดที่ต้องชำระ</span><span class="amt-big">{{ "{:,.0f}".format(amount) }} บาท</span></div>
+    <div class="amt-row"><span style="font-weight:600;">ยอดที่ต้องชำระ</span><span class="amt-big">{{ "{:,.2f}".format(amount) }} บาท</span></div>
   </div>
   <div class="card">
     <h2>ช่องทางชำระเงิน</h2>

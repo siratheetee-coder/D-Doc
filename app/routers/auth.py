@@ -83,10 +83,12 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
             "next": _safe_next(next),
         }, status_code=401)
     if not user.get("verified", True):
+        from app.routers.sales import _registration_flow
         return templates.TemplateResponse("login.html", {
             "request": request,
             "error": "อีเมลนี้ยังไม่ได้ยืนยัน โปรดตรวจสอบลิงก์ยืนยันในอีเมลของท่านก่อน (ถ้าไม่พบ ลองดูในกล่อง Spam)",
             "unverified_email": user["username"], "next": _safe_next(next),
+            "flow": _registration_flow(user["username"], next, ""),
         }, status_code=403)
     # ล็อกอินสำเร็จ - เก็บข้อมูลใน session
     request.session.clear()
@@ -102,6 +104,7 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
     request.session["person_id"] = user.get("person_id")      # บัญชีครู = ผูก Person (สิทธิ์เฉพาะวิชา/ห้อง)
     request.session["welcomed"] = user.get("welcomed", True)  # เห็นการ์ดต้อนรับแล้วหรือยัง
     if user.get("must_change"):
+        request.session["purchase_next"] = _safe_next(next)
         return RedirectResponse("/account/password", status_code=303)
     nxt = _safe_next(next)
     if nxt:
@@ -120,8 +123,11 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
 
 @router.get("/logout")
 @router.post("/logout")
-def logout(request: Request):
+def logout(request: Request, next: str = ""):
     request.session.clear()
+    from urllib.parse import urlencode
+    if _safe_next(next):
+        return RedirectResponse("/login?" + urlencode({"next": _safe_next(next)}), status_code=303)
     return RedirectResponse("/login", status_code=303)
 
 

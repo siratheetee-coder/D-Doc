@@ -2,14 +2,14 @@
 {% block title %}ลงทะเบียน / ทดลองใช้ฟรี | Easy Ekkasan{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>{% if next == 'checkout' %}ลงทะเบียนก่อนสั่งซื้อ{% else %}ลงทะเบียน (ทดลองใช้ฟรี {{ trial_days }} วัน){% endif %}</h1>
+  <h1>{% if next %}ลงทะเบียนก่อนสั่งซื้อ{% else %}ลงทะเบียน (ทดลองใช้ฟรี {{ trial_days }} วัน){% endif %}</h1>
   <p>ใช้อีเมลเป็นชื่อผู้ใช้ได้เลย หลังลงทะเบียน กรุณากดลิงก์ยืนยันในอีเมลเพื่อเริ่มใช้งาน
-     {% if next == 'checkout' %}<br>หลังยืนยันอีเมล ระบบจะพาไปหน้าชำระเงินพร้อมแพ็กเกจที่เลือก{% endif %}</p>
+     {% if next %}<br>หลังยืนยันอีเมล ระบบจะพากลับไปดำเนินการสั่งซื้อรายการเดิม{% endif %}</p>
 </div>
 
 <form class="card" method="post" action="/register" autocomplete="on" style="max-width:600px;">
   {% if error %}<div style="background:#fde8e8; color:#b91c1c; border:1px solid #f7caca; padding:11px 14px; border-radius:10px; margin-bottom:14px;">{{ error }}
-    {% if 'ลงทะเบียนแล้ว' in error %}<a href="/login" style="color:#b91c1c; font-weight:700;">เข้าสู่ระบบ</a>{% endif %}</div>{% endif %}
+    {% if 'ลงทะเบียนแล้ว' in error %}<a href="/login?next={{ next|urlencode }}" style="color:#b91c1c; font-weight:700;">เข้าสู่ระบบ</a>{% endif %}</div>{% endif %}
   <input type="hidden" name="next" value="{{ next }}">
   <input type="hidden" name="packages" value="{{ packages }}">
   <input type="hidden" name="amount" value="{{ amount }}">
@@ -35,9 +35,9 @@
   </div>
 
   <button class="btn btn-primary btn-full" type="submit" style="margin-top:22px;">
-    {% if next == 'checkout' %}ลงทะเบียนแล้วไปชำระเงิน{% else %}ลงทะเบียน เริ่มใช้งานฟรี{% endif %}
+    {% if next %}ลงทะเบียนและรับอีเมลยืนยัน{% else %}ลงทะเบียน เริ่มใช้งานฟรี{% endif %}
   </button>
-  <p class="hint" style="text-align:center;">มีบัญชีอยู่แล้ว? <a href="/login" style="color:var(--blue); font-weight:600;">เข้าสู่ระบบ</a>
+  <p class="hint" style="text-align:center;">มีบัญชีอยู่แล้ว? <a href="/login?next={{ next|urlencode }}" style="color:var(--blue); font-weight:600;">เข้าสู่ระบบ</a>
      ทดลองใช้ {{ trial_days }} วัน หากหมดอายุแล้วต่ออายุด้วยอีเมลเดิมได้เลย</p>
 <p class="hint">อ่าน <a href="/privacy" style="color:var(--blue); font-weight:600; text-decoration:underline; text-underline-offset:3px;">นโยบายความเป็นส่วนตัว</a> ก่อนลงทะเบียน</p>
 </form>

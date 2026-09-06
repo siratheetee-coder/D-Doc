@@ -9,8 +9,10 @@ import re
 import secrets
 from pathlib import Path
 from datetime import datetime
+from urllib.parse import urlencode
+import math
 
-from fastapi import APIRouter, Request, Form, UploadFile, File
+from fastapi import APIRouter, Request, Form, UploadFile, File, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.database import get_data_dir
@@ -22,12 +24,25 @@ from app.services.slip_upload import read_slip, SlipError
 
 router = APIRouter()
 
+def _purchase_target(next: str, packages: str = "") -> str:
+    if not isinstance(next, str):
+        return ""
+    if next == "checkout":
+        return "/checkout?" + urlencode({"packages": packages})
+    target = next if next.startswith("/") and not next.startswith("//") and not any(c in next for c in "\\\r\n") else ""
+    if target == "/checkout" or target.startswith("/checkout?"):
+        return target
+    if re.fullmatch(r"/pay/[A-Za-z0-9_.-]+", target):
+        return target
+    return ""
+
 def _registration_flow(email: str, next: str, packages: str) -> str:
     from itsdangerous import URLSafeTimedSerializer
-    if next != "checkout":
+    destination = _purchase_target(next, packages)
+    if not destination:
         return ""
     return URLSafeTimedSerializer(get_secret_key(), salt="registration-flow").dumps(
-        {"email": email.strip().lower(), "packages": packages})
+        {"email": email.strip().lower(), "packages": packages, "destination": destination})
 
 def _registration_destination(flow: str, email: str) -> str:
     from itsdangerous import URLSafeTimedSerializer, BadData
@@ -36,6 +51,8 @@ def _registration_destination(flow: str, email: str) -> str:
         data = URLSafeTimedSerializer(get_secret_key(), salt="registration-flow").loads(
             flow, max_age=7 * 24 * 60 * 60)
         if isinstance(data, dict) and data.get("email") == email.strip().lower():
+            if "destination" in data:
+                return _purchase_target(data["destination"]) or "/"
             return "/checkout?" + urlencode({"packages": data.get("packages", "")})
     except (BadData, TypeError, ValueError):
         pass
@@ -82,23 +99,52 @@ def _parse_pay_token(token: str):
 
 @router.get("/pay/{token}", response_class=HTMLResponse)
 def pay_page(token: str, request: Request):
+    from app.accounts import purchase_account
     lid = _parse_pay_token(token)
     lead = get_lead(lid) if lid else None
+    account = purchase_account(request.session.get("uid"))
+    bound = bool(lead and account and lead.get("tenant_id") == account["tenant_id"])
+    conflict = bool(lead and lead.get("tenant_id") and not bound)
     return templates.TemplateResponse("pay.html", {
         "request": request, "token": token, "lead": lead,
-        "seller": _seller_ctx() if lead else None,
+        "seller": _seller_ctx() if bound else None,
+        "account": account, "bound": bound, "conflict": conflict,
+        "login_url": "/login?" + urlencode({"next": f"/pay/{token}"}),
+        "register_url": "/register?" + urlencode({"next": f"/pay/{token}"}),
         "amount": float(lead.get("amount") or 0) if lead else 0,
+        "valid_amount": bool(lead and math.isfinite(float(lead.get("amount") or 0)) and float(lead.get("amount") or 0) > 0),
         "paid": bool(lead and lead.get("slip_file")),
-        "done": request.query_params.get("done") == "1",
+        "approved": bool(lead and lead.get("status") == "ต่ออายุแล้ว"),
     })
+
+
+@router.post("/pay/{token}/bind")
+def pay_bind(token: str, request: Request):
+    from app.accounts import bind_payment_account
+    lid = _parse_pay_token(token)
+    if not lid:
+        raise HTTPException(404, "ไม่พบใบเสนอราคา")
+    if not request.session.get("uid"):
+        return RedirectResponse("/login?" + urlencode({"next": f"/pay/{token}"}), status_code=303)
+    if not bind_payment_account(lid, request.session["uid"]):
+        raise HTTPException(403, "ไม่สามารถผูกใบเสนอราคากับบัญชีนี้ กรุณาตรวจสอบบัญชีหรือติดต่อเจ้าหน้าที่")
+    return RedirectResponse(f"/pay/{token}", status_code=303)
 
 
 @router.post("/pay/{token}/slip")
 async def pay_slip(token: str, request: Request, slip: UploadFile = File(None)):
+    from app.accounts import purchase_account
     lid = _parse_pay_token(token)
     lead = get_lead(lid) if lid else None
     if not lead:
         return RedirectResponse("/pay/" + token, status_code=303)
+    account = purchase_account(request.session.get("uid"))
+    if not account or lead.get("tenant_id") != account["tenant_id"]:
+        return RedirectResponse(f"/pay/{token}", status_code=303)
+    if lead.get("slip_file") or lead.get("status") == "ต่ออายุแล้ว":
+        return RedirectResponse(f"/pay/{token}", status_code=303)
+    if not math.isfinite(float(lead.get("amount") or 0)) or float(lead.get("amount") or 0) <= 0:
+        raise HTTPException(400, "กรุณาติดต่อเจ้าหน้าที่เพื่อตรวจสอบยอดใบเสนอราคา")
     if not (slip and slip.filename):
         return RedirectResponse(f"/pay/{token}?err=noslip", status_code=303)
     try:
@@ -108,7 +154,10 @@ async def pay_slip(token: str, request: Request, slip: UploadFile = File(None)):
     _LEADS_DIR.mkdir(parents=True, exist_ok=True)
     slip_name = f"slip_{datetime.now():%Y%m%d%H%M%S}_{secrets.token_hex(4)}{ext}"
     (_LEADS_DIR / slip_name).write_bytes(data)
-    info = attach_lead_slip(lid, slip_name)
+    info = attach_lead_slip(lid, slip_name, tenant_id=account["tenant_id"])
+    if not info:
+        (_LEADS_DIR / slip_name).unlink(missing_ok=True)
+        return RedirectResponse(f"/pay/{token}", status_code=303)
     try:
         from app.services.mailer import send_order_notice
         send_order_notice("order", school=(info or {}).get("school_name", ""),
@@ -130,20 +179,37 @@ def checkout_promptpay(amount: str = ""):
     if not pid:
         return _Resp(status_code=404)
     amt = _to_float(amount, 0.0)
-    png = promptpay_png(pid, amt if amt > 0 else None)
+    if not math.isfinite(amt) or amt <= 0:
+        return _Resp(status_code=400)
+    png = promptpay_png(pid, amt)
     return _Resp(content=png, media_type="image/png",
                  headers={"Cache-Control": "no-store"})
 
 
 # ---------------- ขอใบเสนอราคา ----------------
+def _quote_price(request, selected):
+    from app.accounts import purchase_account, tenant_billing
+    from app.modules import parse_modules, MODULE_KEYS
+    from app.seller_config import price_addon
+    account = purchase_account(request.session.get("uid"))
+    bill = tenant_billing(account["tenant_id"]) if account else None
+    owned = parse_modules((bill or {}).get("modules"))
+    days = (bill or {}).get("days_left") or 0
+    addon = bool(bill and bill["plan"] == "member" and days > 0 and owned and owned != set(MODULE_KEYS))
+    pf = price_addon(set(selected) - owned, days) if addon else price_for(selected)
+    return pf, account, addon
+
+
 @router.get("/quote", response_class=HTMLResponse)
 def quote_page(request: Request, packages: str = "", amount: str = ""):
-    prefill = {"packages": packages, "amount": (amount or "").replace(",", "")}
-    return templates.TemplateResponse("quote.html", {"request": request, "prefill": prefill})
+    pf, account, addon = _quote_price(request, modules_from_label(packages))
+    prefill = {"packages": pf["label"] or packages, "amount": pf["total"] if pf["count"] else ""}
+    return templates.TemplateResponse("quote.html", {"request": request, "prefill": prefill,
+                                                     "account": account, "addon": addon})
 
 
 @router.post("/quote")
-def quote_submit(school_name: str = Form(""), address: str = Form(""), tax_id: str = Form(""),
+def quote_submit(request: Request, school_name: str = Form(""), address: str = Form(""), tax_id: str = Form(""),
                  contact_name: str = Form(""), email: str = Form(""), phone: str = Form(""),
                  mod: list[str] = Form([]), packages: str = Form(""), amount: str = Form(""),
                  qty_school: str = Form(""), note: str = Form("")):
@@ -151,12 +217,22 @@ def quote_submit(school_name: str = Form(""), address: str = Form(""), tax_id: s
     if (qty_school or "").strip():
         extra = (f"จำนวนโรงเรียน: {qty_school.strip()}\n" + extra).strip()
     # ราคาคำนวณที่เซิร์ฟเวอร์เหมือนหน้าสั่งซื้อ · ถ้าไม่ได้ส่ง mod มา ลองแกะจากข้อความ packages เดิม
-    pf = price_for(set(mod or []) or modules_from_label(packages))
+    pf, account, addon = _quote_price(request, set(mod or []) or modules_from_label(packages))
+    if addon:
+        extra = ("[ซื้อเพิ่มกลางรอบ prorate] " + extra).strip()
+    if not pf["count"] or not school_name.strip() or not contact_name.strip() or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email.strip()):
+        return templates.TemplateResponse("quote.html", {"request": request,
+            "error": "กรุณาระบุแพ็กเกจ ชื่อโรงเรียน ผู้ติดต่อ และอีเมลให้ครบถ้วน",
+            "account": account, "addon": addon,
+            "prefill": {"school_name": school_name, "address": address, "tax_id": tax_id,
+                        "contact_name": contact_name, "email": email, "phone": phone,
+                        "packages": packages, "amount": pf["total"], "qty_school": qty_school, "note": note}}, status_code=400)
     lid = add_lead(kind="quote", school_name=school_name.strip(), address=address.strip(),
                    tax_id=tax_id.strip(), contact_name=contact_name.strip(), email=email.strip(),
                    phone=phone.strip(), packages=pf["label"] or packages.strip(),
                    modules=pf["modules"], amount=float(pf["total"]),
-                   note=extra)
+                   note=extra, tenant_id=account["tenant_id"] if account else None,
+                   login_user=account["username"] if account else "")
     try:
         from app.services.mailer import send_order_notice
         send_order_notice("quote", school=school_name.strip(), contact=contact_name.strip(),
@@ -175,13 +251,20 @@ def checkout_page(request: Request, packages: str = "", amount: str = ""):
     if not request.session.get("uid"):
         from urllib.parse import quote as _q
         return RedirectResponse(f"/register?next=checkout&packages={_q(packages)}&amount={amount}", status_code=303)
+    return _render_checkout(request, packages)
+
+
+def _render_checkout(request, packages="", *, selected=None, form_data=None, error=""):
     from app.seller_config import pricing_context
-    from app.accounts import tenant_billing
+    from app.accounts import tenant_billing, purchase_account
     from app.modules import MODULE_KEYS, MODULE_PRICE_KEY, parse_modules
     from app.thai_utils import thai_date
-
+    from app.seller_config import price_addon
+    account = purchase_account(request.session.get("uid"))
+    if not account:
+        raise HTTPException(403, "กรุณาใช้บัญชีโรงเรียนที่ยืนยันอีเมลแล้วเพื่อสั่งซื้อ")
     px = pricing_context()["prices"]
-    bill = tenant_billing(request.session.get("tid"))
+    bill = tenant_billing(account["tenant_id"])
     owned = parse_modules(bill["modules"]) if bill else set()
     days_left = (bill or {}).get("days_left") or 0
     # โหมด "ซื้อเพิ่มกลางรอบ": เป็นสมาชิกที่ยังไม่หมดอายุ + เคยซื้อบางงานแล้ว (ยังไม่ครบทุกงาน)
@@ -189,16 +272,23 @@ def checkout_page(request: Request, packages: str = "", amount: str = ""):
                  and owned and owned != set(MODULE_KEYS))
     frac = max(0.0, min(1.0, days_left / 365.0)) if addon else 1.0
     addon_price = {k: int(round(px[MODULE_PRICE_KEY[k]] * frac)) for k in MODULE_KEYS}
+    if selected is None:
+        selected = modules_from_label(packages) if packages else (set() if addon else set(MODULE_KEYS))
+    selected = set(selected) - owned if addon else set(selected)
+    pf = price_addon(selected, days_left) if addon else price_for(selected)
+    mode = "ซื้อเพิ่ม" if addon else ("ต่ออายุ" if bill and bill["plan"] == "member" else "สั่งซื้อ")
     return templates.TemplateResponse("checkout.html", {
         "request": request, "packages": packages,
-        "amount": _to_float(amount, 0.0), "seller": _seller_ctx(),
-        "acct_email": request.session.get("username", ""),
-        "acct_school": request.session.get("name", ""),
+        "amount": pf["total"], "seller": _seller_ctx(),
+        "selected_mods": sorted(selected), "form": form_data or {}, "error": error,
+        "mode": mode, "quote_url": "/quote?" + urlencode({"packages": pf["label"], "amount": pf["total"]}),
+        "acct_email": account["username"],
+        "acct_school": account["school_name"],
         "addon": addon, "owned_mods": sorted(owned), "days_left": days_left,
         "addon_frac": round(frac, 4), "addon_price": addon_price,
         "expiry_str": thai_date(bill["expiry_date"]) if (addon and bill.get("expiry_date")) else "",
         **pricing_context(),
-    })
+    }, status_code=400 if error else 200)
 
 
 def _join_address(no, moo, tambon, amphoe, province, zipcode) -> str:
@@ -225,21 +315,20 @@ async def checkout_submit(request: Request, school_name: str = Form(""), contact
                           packages: str = Form(""), amount: str = Form(""), note: str = Form(""),
                           addr_no: str = Form(""), addr_moo: str = Form(""), addr_tambon: str = Form(""),
                           addr_amphoe: str = Form(""), addr_province: str = Form(""), addr_zip: str = Form(""),
-                          slip: UploadFile = File(None)):
+                          slip: UploadFile = File(None), quoted_total: str = Form("")):
     # ผูกคำสั่งซื้อกับบัญชีที่ล็อกอิน (อีเมล = username, tenant) เพื่อให้ "อนุมัติ" ต่ออายุบัญชีเดิม
     if not request.session.get("uid"):
         return RedirectResponse("/register?next=checkout", status_code=303)
-    email = request.session.get("username", "")
-    tid = request.session.get("tid")
-    slip_name = ""
-    if slip and slip.filename:
-        try:
-            data, ext = await read_slip(slip)
-        except SlipError as exc:
-            return RedirectResponse(f"/checkout?err={exc.code}", status_code=303)
-        _LEADS_DIR.mkdir(parents=True, exist_ok=True)
-        slip_name = f"slip_{datetime.now():%Y%m%d%H%M%S}_{secrets.token_hex(4)}{ext}"
-        (_LEADS_DIR / slip_name).write_bytes(data)
+    from app.accounts import purchase_account
+    account = purchase_account(request.session.get("uid"))
+    if not account:
+        raise HTTPException(403, "กรุณาใช้บัญชีโรงเรียนที่ยืนยันอีเมลแล้วเพื่อสั่งซื้อ")
+    email, tid = account["username"], account["tenant_id"]
+    form_data = {"school_name": school_name, "contact_name": contact_name, "phone": phone,
+                 "addr_no": addr_no, "addr_moo": addr_moo, "addr_tambon": addr_tambon,
+                 "addr_amphoe": addr_amphoe, "addr_province": addr_province, "addr_zip": addr_zip, "note": note}
+    def invalid(message):
+        return _render_checkout(request, selected=mod, form_data=form_data, error=message)
     address = _join_address(addr_no, addr_moo, addr_tambon, addr_amphoe, addr_province, addr_zip)
     # ราคา/รายการงาน คำนวณที่เซิร์ฟเวอร์เสมอ - ห้ามเชื่อ amount/packages ที่ส่งมาจากหน้าเว็บ
     # (ของเดิมรับ hidden field ตรง ๆ ทำให้โพสต์ "ครบทุกงาน ราคา 1 บาท" ได้)
@@ -255,13 +344,31 @@ async def checkout_submit(request: Request, school_name: str = Form(""), contact
     if addon:
         new_mods = sel - owned                 # ซื้อเพิ่มเฉพาะงานใหม่ (งานที่มีอยู่แล้วไม่คิดซ้ำ)
         if not new_mods:
-            return RedirectResponse("/checkout?err=nomod", status_code=303)
+            return invalid("กรุณาเลือกงานที่ต้องการซื้อเพิ่ม")
         pf = price_addon(new_mods, days_left)   # prorate ตามวันที่เหลือ (co-term)
         note = ("[ซื้อเพิ่มกลางรอบ prorate] " + (note or "")).strip()
     else:
         pf = price_for(sel)                     # ซื้อใหม่/ต่ออายุ = ราคาเต็ม
         if not pf["count"]:
-            return RedirectResponse("/checkout?err=nomod", status_code=303)
+            return invalid("กรุณาเลือกแพ็กเกจก่อนชำระเงิน")
+    if pf["total"] <= 0:
+        return invalid("กรุณาตรวจสอบรายการและยอดชำระ")
+    shown_total = _to_float(quoted_total, -1)
+    if not math.isfinite(shown_total) or abs(shown_total - pf["total"]) > 0.005:
+        return invalid("ยอดชำระมีการเปลี่ยนแปลง กรุณาตรวจสอบยอดใหม่ หากโอนแล้วโปรดติดต่อเจ้าหน้าที่ก่อนโอนเพิ่ม")
+    required = (school_name, contact_name, phone, addr_no, addr_tambon, addr_amphoe, addr_province, addr_zip)
+    if not all(v.strip() for v in required):
+        return invalid("กรุณากรอกข้อมูลติดต่อและที่อยู่สำหรับออกใบเสร็จให้ครบ")
+    if not (slip and slip.filename):
+        return invalid("กรุณาแนบสลิปการโอน")
+    try:
+        data, ext = await read_slip(slip)
+    except SlipError as exc:
+        return invalid("ไฟล์สลิปต้องมีขนาดไม่เกิน 10 MB" if exc.code == "slipsize" else
+                       "กรุณาเลือกไฟล์ PNG, JPEG, WebP หรือ PDF ที่เปิดอ่านได้ แล้วแนบสลิปอีกครั้ง")
+    _LEADS_DIR.mkdir(parents=True, exist_ok=True)
+    slip_name = f"slip_{datetime.now():%Y%m%d%H%M%S}_{secrets.token_hex(4)}{ext}"
+    (_LEADS_DIR / slip_name).write_bytes(data)
     lid = add_lead(kind="order", school_name=school_name.strip() or request.session.get("name", ""),
                    contact_name=contact_name.strip(), email=email, phone=phone.strip(),
                    packages=pf["label"], modules=pf["modules"], amount=float(pf["total"]),
@@ -282,8 +389,9 @@ async def checkout_submit(request: Request, school_name: str = Form(""), contact
 # ---------------- ลงทะเบียน (อีเมล+รหัส) -> ทดลองใช้ทันที ----------------
 @router.get("/register", response_class=HTMLResponse)
 def register_page(request: Request, next: str = "", packages: str = "", amount: str = ""):
+    next = _purchase_target(next, packages)
     if request.session.get("uid"):   # ล็อกอินอยู่แล้ว
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse(next or "/", status_code=303)
     return templates.TemplateResponse("register.html", {
         "request": request, "form": {}, "error": None,
         "next": next, "packages": packages, "amount": amount})
@@ -293,6 +401,7 @@ def register_page(request: Request, next: str = "", packages: str = "", amount: 
 def register_submit(request: Request, email: str = Form(""), password: str = Form(""),
                     school_name: str = Form(""), contact_name: str = Form(""), phone: str = Form(""),
                     next: str = Form(""), packages: str = Form(""), amount: str = Form("")):
+    next = _purchase_target(next, packages)
     res = register_account(email, password, school_name, contact_name, phone, trial_days=TRIAL_DAYS)
     if res.get("error"):
         return templates.TemplateResponse("register.html", {
@@ -316,9 +425,8 @@ def register_submit(request: Request, email: str = Form(""), password: str = For
     request.session["name"] = res["display_name"]
     request.session["must_change"] = False
     # ถ้ามาจากปุ่มสั่งซื้อ -> พาไปหน้า checkout ต่อ
-    if next == "checkout":
-        from urllib.parse import quote as _q
-        return RedirectResponse(f"/checkout?packages={_q(packages)}&amount={amount}", status_code=303)
+    if next:
+        return RedirectResponse(next, status_code=303)
     return RedirectResponse("/", status_code=303)
 
 

@@ -67,5 +67,9 @@ def password_submit(request: Request, current: str = Form(""),
         }, status_code=400)
     # สำเร็จ -> ปลดธงบังคับเปลี่ยน แล้วพาไปหน้าหลักตามบทบาท
     request.session["must_change"] = False
+    from app.routers.auth import _safe_next
+    purchase_next = _safe_next(request.session.pop("purchase_next", ""))
+    if purchase_next:
+        return RedirectResponse(purchase_next, status_code=303)
     dest = "/admin-console" if request.session.get("role") == "superadmin" else "/"
     return RedirectResponse(dest, status_code=303)
