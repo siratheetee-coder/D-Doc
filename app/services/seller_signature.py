@@ -6,6 +6,17 @@ from PIL import Image, ImageOps, ImageChops
 from app.database import get_data_dir
 
 
+def clean_signature(source):
+    """Remove pale paper, including old uploads, and crop to visible ink."""
+    image = ImageOps.exif_transpose(source).convert('RGBA')
+    alpha = image.convert('L').point(lambda v: max(0, min(255, int((220-v)*255/40))))
+    image.putalpha(ImageChops.darker(alpha, image.getchannel('A')))
+    box = image.getchannel('A').point(lambda v: 255 if v >= 32 else 0).getbbox()
+    if not box:
+        raise ValueError('ไม่พบเส้นลายเซ็น')
+    return image.crop(box)
+
+
 def seller_profile(defaults):
     profile = dict(defaults)
     directory = get_data_dir() / 'seller-signature'
@@ -33,13 +44,7 @@ def save_signature(signer, data=None, remove=False):
             with Image.open(io.BytesIO(data)) as source:
                 if source.format not in ('PNG', 'JPEG', 'WEBP') or source.width * source.height > 16000000:
                     raise ValueError()
-                image = ImageOps.exif_transpose(source).convert('RGBA')
-            alpha = image.convert('L').point(lambda v: max(0, min(255, int((240-v)*255/35))))
-            image.putalpha(ImageChops.darker(alpha, image.getchannel('A')))
-            box = image.getbbox()
-            if not box:
-                raise ValueError()
-            image = image.crop(box)
+                image = clean_signature(source)
             image.thumbnail((900, 360))
         except Exception as exc:
             raise ValueError('กรุณาใช้รูป PNG, JPEG หรือ WebP ที่มีเส้นลายเซ็นชัดเจน') from exc

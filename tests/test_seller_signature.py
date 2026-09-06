@@ -58,16 +58,23 @@ class SellerSignatureTests(unittest.TestCase):
             with self.assertRaises(ValueError): seller_signature.save_signature('Bad', data)
         self.assertEqual(seller_signature.seller_profile({}), before)
 
-    def test_email_embeds_signature_inline_without_real_smtp(self):
+    def test_email_only_attaches_document_without_signature_image(self):
         seller_signature.save_signature('Seller', self.sample())
         with patch.dict('app.seller_config.SELLER', {'smtp_host':'example.test','smtp_user':'test'}), patch('smtplib.SMTP') as smtp:
             self.assertTrue(mailer.send_email('recipient@example.test', 'Test', '<p>Body</p>',
-                attachments=[('test.pdf', b'pdf', 'application/pdf')],
-                signature_path=seller_signature.seller_profile({})['signature_path']))
+                attachments=[('test.pdf', b'pdf', 'application/pdf')]))
             message = smtp.return_value.__enter__.return_value.send_message.call_args.args[0]
-            self.assertIn('cid:seller-signature', message.get_body(preferencelist=('html',)).get_content())
-            self.assertEqual(len([p for p in message.walk() if p.get('Content-ID') == '<seller-signature>']), 1)
+            self.assertNotIn('cid:', message.get_body(preferencelist=('html',)).get_content())
+            self.assertEqual(len([p for p in message.walk() if p.get_content_maintype() == 'image']), 0)
             self.assertEqual(len(list(message.iter_attachments())), 1)
+
+    def test_cleanup_removes_pale_background_and_preserves_dark_ink(self):
+        image = Image.new('RGB', (200, 100), (235, 235, 235))
+        ImageDraw.Draw(image).line([(40, 60), (160, 30)], fill='navy', width=5)
+        cleaned = seller_signature.clean_signature(image)
+        self.assertLess(cleaned.width, 150)
+        self.assertLess(cleaned.height, 60)
+        self.assertEqual(cleaned.getchannel('A').getextrema(), (0, 255))
 
     def test_both_document_formats_include_signature(self):
         from docx import Document

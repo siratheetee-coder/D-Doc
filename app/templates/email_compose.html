@@ -42,7 +42,7 @@
   <div class="wrap">
     <div class="card">
       <h1>ส่ง{{ doc_label }}ทางอีเมล</h1>
-      <p>อีเมลและเอกสารแนบจะใช้ <a href="/admin-console/signature">ลายเซ็นผู้ขายที่ตั้งไว้</a> อัตโนมัติ</p>
+      <p>เอกสารแนบจะใช้ <a href="/admin-console/signature">ลายเซ็นผู้ขายที่ตั้งไว้</a> อัตโนมัติ</p>
       <p class="sub">ตรวจ/แก้ข้อความได้ตามต้องการ แล้วกด "ส่งอีเมล" ระบบจะแนบไฟล์ {{ doc_label }} (PDF) ไปให้อัตโนมัติ{% if school %} · โรงเรียน {{ school }}{% endif %}</p>
       {% if not smtp_ok %}<div class="warn">⚠ ยังไม่ได้ตั้งค่า SMTP ใน seller_local.py — ส่งอีเมลไม่ได้จนกว่าจะตั้งค่า</div>{% endif %}
       <form method="post" action="/admin-console/leads/{{ lid }}/email">

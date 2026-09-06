@@ -51,7 +51,7 @@ async def signature_save(request: Request, signer: str = Form(''), image: Upload
     except ValueError as exc:
         return templates.TemplateResponse('seller_signature.html', {
             'request': request, 'seller': seller_profile(SELLER), 'error': str(exc)}, status_code=400)
-    request.session['signature_message'] = 'บันทึกแล้ว เอกสารและอีเมลที่ส่งครั้งถัดไปจะใช้ลายเซ็นนี้อัตโนมัติ'
+    request.session['signature_message'] = 'บันทึกแล้ว เอกสารที่ออกครั้งถัดไปจะใช้ลายเซ็นนี้อัตโนมัติ'
     return RedirectResponse('/admin-console/signature', status_code=303)
 
 
@@ -274,8 +274,7 @@ def lead_email_send(lid: int, request: Request, kind: str = Form("quotation"),
                 "ชำระเงินออนไลน์</a>"
                 "<div style='color:#94a3b8; font-size:12px; margin-top:8px;'>สแกน PromptPay + อัปโหลดสลิปได้ในลิงก์เดียว</div></div>")
     from app.services.mailer import send_email
-    ok = send_email(to, subject or "เอกสารจาก Easy Ekkasan", html_body, attachments=[pdf_path],
-                    signature_path=seller_profile(SELLER).get('signature_path'))
+    ok = send_email(to, subject or "เอกสารจาก Easy Ekkasan", html_body, attachments=[pdf_path])
     doc_label = "ใบเสร็จ" if kind == "receipt" else "ใบเสนอราคา"
     request.session["lead_msg"] = ({"ok": True, "text": f"ส่ง{doc_label}ไปที่ {to} แล้ว"}
                                    if ok else {"ok": False, "text": "ส่งอีเมลไม่สำเร็จ (ตรวจ SMTP)"})

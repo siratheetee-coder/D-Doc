@@ -197,11 +197,19 @@ def _sign2(doc, seller, left_role, right_role, left_name=""):
         if role == right_role and seller.get('signature_path'):
             p = cell.add_paragraph()
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_before = Pt(0)
+            p.paragraph_format.space_after = Pt(0)
+            p.paragraph_format.line_spacing = 1
             from PIL import Image
-            with Image.open(seller['signature_path']) as signature:
+            from app.services.seller_signature import clean_signature
+            import io
+            with Image.open(seller['signature_path']) as source:
+                signature = clean_signature(source)
                 scale = min(3.5 / signature.width, 1.2 / signature.height)
                 width, height = signature.width * scale, signature.height * scale
-            p.add_run().add_picture(seller['signature_path'], width=Cm(width), height=Cm(height))
+            buffer = io.BytesIO()
+            signature.save(buffer, 'PNG'); buffer.seek(0)
+            p.add_run().add_picture(buffer, width=Cm(width), height=Cm(height))
         _set_cell_lines(cell, [
             ("ลงชื่อ ...........................................", False, 14),
             (name, False, 14),
@@ -437,10 +445,13 @@ def _render_sale_pdf(lead, seller, doc_no, doc_date, kind):
     for cx, nm, role in zip(cxs, names, roles):
         if role == right_role and seller.get('signature_path'):
             from PIL import Image
+            from app.services.seller_signature import clean_signature
             with Image.open(seller['signature_path']) as source:
-                signature = source.convert('RGBA')
+                signature = clean_signature(source)
             signature.thumbnail((240, 80))
-            img.paste(signature, (cx - signature.width // 2, y - signature.height - 5), signature)
+            # Pillow's ascender anchor places the dotted baseline below y.
+            baseline = d.textbbox((cx, y), "ลงชื่อ ...........................................", font=_pf(26), anchor="ma")[3]
+            img.paste(signature, (cx + 18 - signature.width // 2, baseline - signature.height - 2), signature)
         d.text((cx, y), "ลงชื่อ ...........................................", font=_pf(26), fill=_INK, anchor="ma")
         d.text((cx, y + 46), nm, font=_pf(26), fill=_INK, anchor="ma")
         d.text((cx, y + 90), role, font=_pf(26), fill=_INK, anchor="ma")

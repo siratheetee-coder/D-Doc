@@ -4,7 +4,7 @@
 <a href="/admin-console/leads">← กลับคอนโซลแอดมิน</a>
 <form class="card" method="post" enctype="multipart/form-data" action="/admin-console/signature">
   <h1>ลายเซ็นผู้ขาย</h1>
-  <p>ตั้งครั้งเดียว ใช้ในใบเสนอราคา ใบเสร็จ PDF/Word และอีเมลส่งเอกสารจากคอนโซล</p>
+  <p>ตั้งครั้งเดียว ใช้ในใบเสนอราคาและใบเสร็จ PDF/Word รวมถึงเอกสารที่แนบส่งทางอีเมล</p>
   {% if error %}<p role="alert" style="color:#b91c1c">{{ error }}</p>{% endif %}
   {% if message %}<p role="status" style="color:#15803d">{{ message }}</p>{% endif %}
   <label for="signer">ชื่อผู้ลงนาม / ผู้รับเงิน</label>

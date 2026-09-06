@@ -10,7 +10,7 @@ def smtp_configured() -> bool:
     return bool((SELLER.get("smtp_host") or "").strip() and (SELLER.get("smtp_user") or "").strip())
 
 
-def send_email(to: str, subject: str, html: str, attachments=None, *, signature_path=None) -> bool:
+def send_email(to: str, subject: str, html: str, attachments=None) -> bool:
     """ส่งอีเมล HTML ผ่าน SMTP (คืน True ถ้าสำเร็จ) - ต้องตั้ง smtp_* ใน seller_local.py
     attachments = list ของไฟล์แนบ - แต่ละตัวเป็นได้ทั้ง:
       · path (str) ของไฟล์บนดิสก์ (เช่น PDF ใบเสนอราคา/ใบเสร็จ)
@@ -37,18 +37,7 @@ def send_email(to: str, subject: str, html: str, attachments=None, *, signature_
     msg["From"] = frm
     msg["To"] = to
     msg.set_content("กรุณาเปิดด้วยอีเมลที่รองรับ HTML")
-    signature = None
-    if signature_path:
-        try:
-            from pathlib import Path
-            signature = Path(signature_path).read_bytes()
-        except OSError:
-            return False
-        html += '<p><img src="cid:seller-signature" alt="ลายเซ็นผู้ขาย" width="220" style="max-width:100%;height:auto"></p>'
     msg.add_alternative(html, subtype="html")
-    if signature:
-        msg.get_payload()[-1].add_related(signature, maintype='image', subtype='png',
-                                        cid='<seller-signature>', disposition='inline')
     for p in (attachments or []):
         try:
             if isinstance(p, (tuple, list)):     # ไฟล์ในหน่วยความจำ (filename, data[, ctype])
