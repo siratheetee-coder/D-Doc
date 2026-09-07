@@ -15,7 +15,7 @@ import shutil
 from datetime import datetime, date
 
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Boolean, DateTime, Date, ForeignKey, Float, Text
+    create_engine, event, Column, Integer, String, Boolean, DateTime, Date, ForeignKey, Float, Text
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
@@ -111,12 +111,32 @@ class SaleDoc(AccBase):
     created_at = Column(DateTime, default=datetime.now)
 
 
+class LoginFail(AccBase):
+    """นับล็อกอินผิดต่อ IP - เก็บใน DB เพื่อให้ใช้ร่วมกันได้ทุก worker
+    (ถ้าเก็บในหน่วยความจำ พอรันหลายโปรเซส ผู้โจมตีจะได้โควตาคูณจำนวน worker)"""
+    __tablename__ = "login_fail"
+    ip = Column(String, primary_key=True)
+    count = Column(Integer, default=0)
+    first_at = Column(Float, default=0.0)          # epoch seconds ของครั้งแรกในหน้าต่างเวลานี้
+
+
 # ===================== engine / session =====================
 def _ensure_engine():
     global _engine, _Session
     if _engine is None:
         path = get_data_dir() / "accounts.db"
         _engine = create_engine(f"sqlite:///{path}", connect_args={"check_same_thread": False})
+
+        # accounts.db ถูกอ่านทุก request (ตรวจสิทธิ์) และถูกเขียนบ่อย (ล็อกอิน/หักโควตาเอกสาร)
+        # WAL = คนอ่านไม่ถูกบล็อกตอนมีคนเขียน · busy_timeout = รอแทนที่จะ error ทันที
+        # จำเป็นมากถ้ารันหลาย worker (หลายโปรเซสใช้ไฟล์เดียวกัน)
+        @event.listens_for(_engine, "connect")
+        def _acc_pragma(dbapi_con, _):
+            cur = dbapi_con.cursor()
+            cur.execute("PRAGMA journal_mode=WAL")
+            cur.execute("PRAGMA busy_timeout=5000")
+            cur.close()
+
         AccBase.metadata.create_all(bind=_engine)
         # เพิ่มคอลัมน์ใหม่บน accounts.db เก่า (ปลอดภัย: ข้ามถ้ามีแล้ว)
         for sql in ("ALTER TABLE account ADD COLUMN must_change_password BOOLEAN DEFAULT 0",
@@ -224,6 +244,50 @@ def password_problem(pw: str, username: str = "") -> str | None:
     if local and len(local) >= 4 and local in low:
         return "รหัสผ่านต้องไม่มีชื่อผู้ใช้/อีเมลของคุณอยู่ในนั้น"
     return None
+
+
+def login_fail_count(ip: str, window: int) -> int:
+    """จำนวนครั้งที่ล็อกอินผิดของ IP นี้ในหน้าต่างเวลา (นับข้าม worker ได้)"""
+    import time as _t
+    db = acc_session()
+    try:
+        r = db.get(LoginFail, ip)
+        if not r or (_t.time() - (r.first_at or 0)) > window:
+            return 0
+        return r.count or 0
+    finally:
+        db.close()
+
+
+def login_fail_record(ip: str, window: int) -> int:
+    """บันทึกล็อกอินผิด 1 ครั้ง (รีเซ็ตถ้าเลยหน้าต่างเวลาแล้ว) คืนจำนวนสะสม"""
+    import time as _t
+    now = _t.time()
+    db = acc_session()
+    try:
+        r = db.get(LoginFail, ip)
+        if not r:
+            r = LoginFail(ip=ip, count=0, first_at=now)
+            db.add(r)
+        if (now - (r.first_at or 0)) > window:
+            r.count, r.first_at = 0, now
+        r.count = (r.count or 0) + 1
+        db.commit()
+        return r.count
+    finally:
+        db.close()
+
+
+def login_fail_clear(ip: str) -> None:
+    """ล็อกอินสำเร็จ -> ล้างประวัติผิดของ IP นั้น"""
+    db = acc_session()
+    try:
+        r = db.get(LoginFail, ip)
+        if r:
+            db.delete(r)
+            db.commit()
+    finally:
+        db.close()
 
 
 def change_password(uid: int, current_pw: str, new_pw: str) -> tuple[bool, str]:

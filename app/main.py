@@ -221,13 +221,33 @@ def healthz():
     return {"ok": True, "disk": disk_status()}
 
 
+_BACKUP_LOCK_FD = None      # ถือ file lock ไว้ตลอดอายุโปรเซสที่ได้สิทธิ์สำรองข้อมูล
+
+
 def _start_auto_backup():
     """ตัวจับเวลาสำรองข้อมูลอัตโนมัติทุกวัน (รันในโปรเซสแอป - เหมาะกับ Render)
     เปิดด้วย env DDOC_AUTO_BACKUP=1 ; อัปขึ้นคลาวด์ถ้าตั้งค่า BACKUP_S3_* ไว้"""
     if os.environ.get("DDOC_AUTO_BACKUP") != "1":
         return
     import time
+    from app.database import get_data_dir
     from app.services.backup import run_backup
+
+    # รันหลาย worker: ต้องให้ "โปรเซสเดียว" ทำสำรองข้อมูล ไม่งั้นจะสำรองซ้อนกัน N ชุด
+    # ใช้ file lock ที่ถือไว้ตลอดอายุโปรเซส (ตัวที่จับล็อกไม่ได้ = ข้ามไป)
+    global _BACKUP_LOCK_FD
+    try:
+        import fcntl
+        _BACKUP_LOCK_FD = os.open(str(get_data_dir() / ".backup.lock"),
+                                  os.O_CREAT | os.O_RDWR, 0o644)
+        try:
+            fcntl.flock(_BACKUP_LOCK_FD, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            os.close(_BACKUP_LOCK_FD)
+            _BACKUP_LOCK_FD = None
+            return          # worker อื่นถือล็อกอยู่แล้ว
+    except ImportError:
+        pass                # Windows (dev) ไม่มี fcntl - รันโปรเซสเดียวอยู่แล้ว
 
     # ความถี่สำรอง (นาที) - ฟรีทีเออร์ควรตั้งถี่ เช่น 15 เพราะเครื่องอาจถูกล้างได้ตลอด
     try:

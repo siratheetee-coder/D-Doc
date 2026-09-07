@@ -7,29 +7,38 @@ import time
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.accounts import authenticate
+from app.accounts import (authenticate, login_fail_count, login_fail_record,
+                          login_fail_clear)
 from app.templating import templates
 
 router = APIRouter()
 
-# กันเดารหัสผ่าน: เก็บเวลา+จำนวนครั้งที่ล้มเหลวต่อ IP (ในหน่วยความจำ)
-_fails: dict = {}
+# กันเดารหัสผ่าน: นับครั้งที่ล้มเหลวต่อ IP เก็บใน accounts.db
+# (เก็บใน DB ไม่ใช่หน่วยความจำ เพราะถ้ารันหลาย worker แต่ละโปรเซสจะนับแยกกัน
+#  ทำให้ผู้โจมตีได้โควตาคูณจำนวน worker)
 _MAX_FAILS = 8
 _WINDOW = 300   # 5 นาที
 
 
 def _too_many(ip: str) -> bool:
-    n, ts = _fails.get(ip, (0, 0))
-    if time.time() - ts > _WINDOW:
-        return False
-    return n >= _MAX_FAILS
+    try:
+        return login_fail_count(ip, _WINDOW) >= _MAX_FAILS
+    except Exception:
+        return False          # ระบบนับพังต้องไม่ทำให้ล็อกอินไม่ได้
 
 
 def _record_fail(ip: str):
-    n, ts = _fails.get(ip, (0, 0))
-    if time.time() - ts > _WINDOW:
-        n = 0
-    _fails[ip] = (n + 1, time.time())
+    try:
+        login_fail_record(ip, _WINDOW)
+    except Exception:
+        pass
+
+
+def _clear_fails(ip: str):
+    try:
+        login_fail_clear(ip)
+    except Exception:
+        pass
 
 
 def _safe_next(nxt: str) -> str:
@@ -90,7 +99,8 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
             "unverified_email": user["username"], "next": _safe_next(next),
             "flow": _registration_flow(user["username"], next, ""),
         }, status_code=403)
-    # ล็อกอินสำเร็จ - เก็บข้อมูลใน session
+    # ล็อกอินสำเร็จ - ล้างตัวนับล็อกอินผิดของ IP นี้ แล้วเก็บข้อมูลใน session
+    _clear_fails(ip)
     request.session.clear()
     request.session["uid"] = user["uid"]
     request.session["username"] = user["username"]

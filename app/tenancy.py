@@ -9,6 +9,8 @@ tenancy.py
 - ไฟล์ DB อยู่ที่ data/schools/<id>/school.db พร้อมเปิด WAL ให้หลายผู้ใช้พร้อมกันได้
 """
 import contextvars
+import os
+from collections import OrderedDict
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
@@ -23,7 +25,26 @@ current_school_id = contextvars.ContextVar("current_school_id", default=None)
 current_module = contextvars.ContextVar("current_module", default=None)
 
 # แคช engine/session ต่อโรงเรียน: {school_id: (engine, SessionLocal)}
-_engines: dict = {}
+# ใช้ LRU มีเพดาน: ถ้าโรงเรียนเยอะ (หลักร้อย-พัน) การเก็บ engine ไว้ทุกโรงเรียนตลอด
+# จะกิน RAM + file descriptor ไม่จำกัด (ยิ่งคูณจำนวน worker) จึงคืนตัวที่ไม่ได้ใช้นานสุด
+_engines: "OrderedDict[object, tuple]" = OrderedDict()
+
+# ปรับได้ด้วย env · 0 = ไม่จำกัด (พฤติกรรมเดิม)
+try:
+    _MAX_ENGINES = max(0, int(os.environ.get("DDOC_MAX_DB_ENGINES", "120")))
+except ValueError:
+    _MAX_ENGINES = 120
+
+
+def _evict_if_needed():
+    """คืน engine ที่ไม่ได้ใช้นานสุดเมื่อเกินเพดาน (การเชื่อมต่อที่กำลังใช้งานอยู่ไม่ถูกตัด
+    - SQLAlchemy จะปิดให้ตอนคืนเข้า pool)"""
+    while _MAX_ENGINES and len(_engines) > _MAX_ENGINES:
+        _sid, (eng, _sl) = _engines.popitem(last=False)
+        try:
+            eng.dispose()
+        except Exception:
+            pass
 
 
 def school_db_path(school_id):
@@ -48,13 +69,18 @@ def _build(school_id):
     init_school_db(engine)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     _engines[school_id] = (engine, SessionLocal)
+    _evict_if_needed()
     return _engines[school_id]
 
 
 def _get(school_id):
     if school_id is None:
         raise RuntimeError("ยังไม่ได้เลือกโรงเรียน (ต้องล็อกอินก่อน)")
-    return _engines.get(school_id) or _build(school_id)
+    pair = _engines.get(school_id)
+    if pair is None:
+        return _build(school_id)
+    _engines.move_to_end(school_id)        # ใช้ล่าสุด -> ท้ายคิว (โดนคืนทีหลังสุด)
+    return pair
 
 
 def engine_for(school_id):

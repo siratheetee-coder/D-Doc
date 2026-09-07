@@ -121,6 +121,29 @@ sudo systemctl restart ddoc
 ```
 ตรวจ: เข้า `https://your-domain.com` ได้ + ล็อกอินได้ (คุกกี้ Secure ทำงาน)
 
+## 4.5) เพิ่มจำนวน worker (เมื่อโรงเรียนเริ่มเยอะ)
+
+ปัญหาที่แก้: หลายโรงเรียนกดออกเอกสารพร้อมกัน (ช่วงสิ้นเทอม) แล้วคนอื่นต้องรอคิว
+เพราะรันโปรเซสเดียว · เพิ่ม worker = รับงานพร้อมกันได้หลายคำขอ
+
+**พร้อมแล้วในโค้ด** (ตรวจด้วยการรันจริง 3 worker: ไม่มี database locked, rate-limit ยังนับรวมถูก):
+- `accounts.db` + DB โรงเรียน เปิด WAL + busy_timeout (หลายโปรเซสใช้ไฟล์เดียวกันได้)
+- ตัวนับล็อกอินผิดย้ายไปเก็บใน DB (ไม่งั้นแต่ละ worker นับแยก โควตาจะคูณจำนวน worker)
+- สำรองข้อมูลอัตโนมัติใช้ file lock ให้ทำงานแค่ worker เดียว (ไม่สำรองซ้อน)
+- แคช DB engine เป็น LRU มีเพดาน (`DDOC_MAX_DB_ENGINES` ค่าเริ่มต้น 120) กัน RAM/ไฟล์เปิดบานปลาย
+
+**วิธีเปิด:**
+```bash
+nproc                                  # ดูจำนวน CPU core ก่อน
+sudo nano /etc/ddoc.env                # ตั้ง DDOC_WORKERS=2 (หรือเท่าจำนวน core, ไม่เกิน 4)
+sudo cp /opt/ddoc/deploy/ddoc.service /etc/systemd/system/ddoc.service
+sudo systemctl daemon-reload && sudo systemctl restart ddoc
+ps aux | grep uvicorn | grep -v grep | wc -l    # ควรเห็นจำนวนโปรเซสเพิ่มขึ้น
+```
+- **RAM ~150-250 MB ต่อ worker** — VPS 1 GB ควรใช้ 1-2, 2 GB ใช้ 2-3
+- ค่าเริ่มต้นยังเป็น 1 (พฤติกรรมเดิม) จะเพิ่มเมื่อพร้อมเท่านั้น
+- ถ้าเพิ่มแล้วช้าลง/RAM เต็ม ให้ลดกลับเป็น 1 แล้ว restart
+
 ## 5) PDPA / นโยบายความเป็นส่วนตัว
 
 หน้า `/privacy` เติมข้อมูลจริงแล้ว (ผู้ควบคุมข้อมูล ชื่อ/อีเมล/โทร, สิทธิเจ้าของข้อมูล, ระยะเก็บ 60 วัน ฯลฯ)
@@ -145,3 +168,5 @@ sudo journalctl -u ddoc -n 50 --no-pager      # ไม่มี error แดง
 - proxy-headers ในไฟล์ service (ข้อ 2) — เพิ่มแล้ว รอ deploy
 - backup.sh + restore ทดสอบ round-trip แล้ว
 - /privacy เติมเนื้อหาจริงแล้ว (รอทนายตรวจ)
+- health check อัตโนมัติ + เตือนดิสก์ใกล้เต็ม (ข้อ 3.5)
+- พร้อมรันหลาย worker แล้ว (ข้อ 4.5) - ค่าเริ่มต้นยังเป็น 1
