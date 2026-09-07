@@ -96,16 +96,16 @@ sudo systemctl start ddoc
 
 ตรวจให้ครบ 4 อย่างที่ทำให้ระบบ "พังเงียบ": service ล่ม · เว็บค้าง · ดิสก์ใกล้เต็ม · สำรองข้อมูลค้างเก่า/ไฟล์ว่าง
 
+**ติดตั้งทั้งสำรองข้อมูลและ health check ในคำสั่งเดียว** (รันซ้ำได้ ไม่เพิ่มรายการซ้ำ):
 ```bash
-sudo chmod +x /opt/ddoc/deploy/healthcheck.sh
-sudo /opt/ddoc/deploy/healthcheck.sh            # ลองรันดูผลก่อน
-sudo /opt/ddoc/deploy/healthcheck.sh --always   # บังคับส่งอีเมล เพื่อทดสอบว่าอีเมลถึงจริง
+sudo /opt/ddoc/deploy/setup-cron.sh
 ```
-ตั้ง cron ให้เช็กทุก 15 นาที:
+ทดสอบเลยไม่ต้องรอ cron:
 ```bash
-sudo crontab -e
-*/15 * * * * /opt/ddoc/deploy/healthcheck.sh >> /var/log/ddoc-health.log 2>&1
+sudo /opt/ddoc/deploy/healthcheck.sh            # ดูผลตรวจ
+sudo /opt/ddoc/deploy/healthcheck.sh --always   # บังคับส่งอีเมล เช็กว่าอีเมลถึงจริง
 ```
+(ถอนออก: `sudo /opt/ddoc/deploy/setup-cron.sh --remove`)
 - ส่งอีเมลเฉพาะตอน **สถานะเปลี่ยน** (ไม่สแปมทุก 15 นาที)
 - ดูย้อนหลัง: `tail -50 /var/log/ddoc-health.log`
 - แอปเองก็เตือนดิสก์ใกล้เต็มทางอีเมล + แบนเนอร์ในคอนโซลผู้ขายอยู่แล้ว
