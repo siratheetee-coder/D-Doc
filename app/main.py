@@ -217,7 +217,8 @@ app.add_middleware(
 
 @app.api_route("/healthz", methods=["GET", "HEAD"])
 def healthz():
-    return {"ok": True}
+    from app.services.diskspace import disk_status
+    return {"ok": True, "disk": disk_status()}
 
 
 def _start_auto_backup():
@@ -241,6 +242,11 @@ def _start_auto_backup():
                 run_backup()
             except Exception as e:
                 print("[auto-backup] ผิดพลาด:", e)
+            try:
+                from app.services.diskspace import check_and_alert
+                check_and_alert()          # เตือนทางอีเมลถ้าดิสก์ใกล้เต็ม (วันละครั้ง)
+            except Exception as e:
+                print("[diskspace] ผิดพลาด:", e)
             time.sleep(interval * 60)
 
     threading.Thread(target=loop, daemon=True).start()

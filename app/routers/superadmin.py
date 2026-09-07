@@ -21,6 +21,16 @@ from app.seller_config import SELLER
 from app.services.seller_signature import seller_profile, save_signature
 from app.templating import templates
 
+
+def _disk_status():
+    """สถานะพื้นที่ดิสก์ (โชว์เตือนในคอนโซล) - พังไม่ได้ ต้องไม่ทำให้หน้าคอนโซลล่ม"""
+    try:
+        from app.services.diskspace import disk_status
+        return disk_status()
+    except Exception:
+        return {"ok": False, "level": "unknown"}
+
+
 _DOCX_MT = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
@@ -134,6 +144,7 @@ def console(request: Request, msg: str | None = None):
             "request": request, "rows": rows, "today": today, "summ": summ,
             "msg": msg, "admin_name": request.session.get("name", "ผู้ดูแลระบบ"),
             "lead_counts": lead_counts(),
+            "disk": _disk_status(),
         })
     finally:
         db.close()
