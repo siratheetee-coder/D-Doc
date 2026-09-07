@@ -31,6 +31,11 @@
     .btn { background:#4880FF; color:#fff; border:none; padding:5px 11px; border-radius:8px; font-weight:600;
       cursor:pointer; font-family:inherit; font-size:12.5px; text-decoration:none; display:inline-block; }
     .btn.gray { background:#eef0f4; color:#5a6a85; } .btn.green { background:#16b364; }
+    .btn.red { background:#fee2e2; color:#b91c1c; } .btn.red:hover { background:#dc2626; color:#fff; }
+    .cnt { display:inline-block; background:#eef0f4; color:#5a6a85; font-size:13px; font-weight:600;
+      padding:2px 11px; border-radius:999px; margin-left:6px; vertical-align:middle; }
+    .cnt.new { background:#fff4e5; color:#d97706; }
+    td.seq { text-align:center; color:#5a6a85; font-weight:600; }
     .sub { color:#5a6a85; font-size:12.5px; }
     a.slip { color:#2563eb; font-weight:600; text-decoration:none; }
     form.inline { display:inline; margin:0; }
@@ -50,28 +55,42 @@
     {% endif %}
 
     <div class="card">
-      <h1>คำขอจากหน้าเว็บ ({{ leads|length }})</h1>
-      <a href="/admin-console/notifications">ตั้งค่าอีเมลแจ้งเตือน</a>
+      <h1>คำขอจากหน้าเว็บ
+        <span class="cnt">{{ leads|length }} รายการ</span>
+        {% if counts and counts.new %}<span class="cnt new">ใหม่ {{ counts.new }}</span>{% endif %}
+      </h1>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+        <a href="/admin-console/notifications">ตั้งค่าอีเมลแจ้งเตือน</a>
+        {% if counts and counts.closed %}
+        <form class="inline" method="post" action="/admin-console/leads/delete-closed"
+              onsubmit="return confirm('ลบคำขอที่สถานะ ปิด ทั้งหมด {{ counts.closed }} รายการถาวร?\nรายการที่ยังใหม่/ต่ออายุแล้วจะไม่ถูกลบ');">
+          <input type="hidden" name="kind" value="{{ kind or '' }}">
+          <button class="btn red" type="submit">🗑 ล้างที่ปิดแล้ว ({{ counts.closed }})</button>
+        </form>
+        {% endif %}
+      </div>
       <div class="tabs">
-        <a class="tab {{ 'on' if not kind }}" href="/admin-console/leads">ทั้งหมด</a>
-        <a class="tab {{ 'on' if kind=='order' }}" href="/admin-console/leads?kind=order">สั่งซื้อ/ชำระเงิน</a>
-        <a class="tab {{ 'on' if kind=='quote' }}" href="/admin-console/leads?kind=quote">ขอใบเสนอราคา</a>
-        <a class="tab {{ 'on' if kind=='trial' }}" href="/admin-console/leads?kind=trial">ทดลองใช้ฟรี</a>
-        <a class="tab {{ 'on' if kind=='support' }}" href="/admin-console/leads?kind=support">แจ้งปัญหา</a>
-        <a class="tab {{ 'on' if kind=='review' }}" href="/admin-console/leads?kind=review">รีวิว</a>
+        <a class="tab {{ 'on' if not kind }}" href="/admin-console/leads">ทั้งหมด ({{ counts.all if counts else 0 }})</a>
+        <a class="tab {{ 'on' if kind=='order' }}" href="/admin-console/leads?kind=order">สั่งซื้อ/ชำระเงิน ({{ counts.get('order', 0) if counts else 0 }})</a>
+        <a class="tab {{ 'on' if kind=='quote' }}" href="/admin-console/leads?kind=quote">ขอใบเสนอราคา ({{ counts.get('quote', 0) if counts else 0 }})</a>
+        <a class="tab {{ 'on' if kind=='trial' }}" href="/admin-console/leads?kind=trial">ทดลองใช้ฟรี ({{ counts.get('trial', 0) if counts else 0 }})</a>
+        <a class="tab {{ 'on' if kind=='support' }}" href="/admin-console/leads?kind=support">แจ้งปัญหา ({{ counts.get('support', 0) if counts else 0 }})</a>
+        <a class="tab {{ 'on' if kind=='review' }}" href="/admin-console/leads?kind=review">รีวิว ({{ counts.get('review', 0) if counts else 0 }})</a>
       </div>
 
       {% if leads %}
       <div style="overflow-x:auto;">
       <table>
         <thead><tr>
+          <th style="width:42px;">ลำดับ</th>
           <th>วันที่</th><th>ประเภท</th><th>หน่วยงาน / ผู้ติดต่อ</th><th>ติดต่อ</th>
           <th>รายการ</th><th class="amt">ยอด</th><th>สลิป</th><th>เอกสาร</th><th>สถานะ</th><th></th>
         </tr></thead>
         <tbody>
         {% for l in leads %}
           <tr id="lead-{{ l.id }}" style="scroll-margin-top:90px;">
-            <td class="sub">{{ l.created_at.strftime('%d/%m/%y %H:%M') if l.created_at else '-' }}<br>#{{ l.id }}</td>
+            <td class="seq">{{ loop.index }}</td>
+            <td class="sub">{{ be_date(l.created_at) ~ ' ' ~ l.created_at.strftime('%H:%M') if l.created_at else '-' }}<br>#{{ l.id }}</td>
             <td><span class="pill {{ 'k-order' if l.kind=='order' else 'k-trial' if l.kind=='trial' else 'k-quote' }}">{{ {'order':'สั่งซื้อ','trial':'ทดลองใช้','support':'แจ้งปัญหา','review':'รีวิว ' ~ ('★'*(l.amount|int)) }.get(l.kind, 'ใบเสนอราคา') }}</span></td>
             <td><b>{{ l.school_name or '-' }}</b>{% if l.contact_name %}<br><span class="sub">{{ l.contact_name }}</span>{% endif %}
                 {% if l.tax_id %}<br><span class="sub">เลขภาษี {{ l.tax_id }}</span>{% endif %}
@@ -108,10 +127,19 @@
               {% elif l.kind == 'trial' %}
                 <div class="pill k-trial">กำลังทดลองใช้</div><br>
               {% endif %}
-              <form class="inline" method="post" action="/admin-console/leads/{{ l.id }}/status" style="margin-top:5px;">
-                <input type="hidden" name="kind" value="{{ kind or '' }}">
-                {% if l.status != 'ปิด' %}<button class="btn gray" name="status" value="ปิด">ปิด</button>{% endif %}
-              </form>
+              <div style="margin-top:5px; display:flex; gap:5px; flex-wrap:wrap;">
+                {% if l.status != 'ปิด' %}
+                <form class="inline" method="post" action="/admin-console/leads/{{ l.id }}/status">
+                  <input type="hidden" name="kind" value="{{ kind or '' }}">
+                  <button class="btn gray" name="status" value="ปิด">ปิด</button>
+                </form>
+                {% endif %}
+                <form class="inline" method="post" action="/admin-console/leads/{{ l.id }}/delete"
+                      onsubmit="return confirm('ลบคำขอ #{{ l.id }} ({{ l.school_name or 'ไม่ระบุหน่วยงาน' }}) ถาวร?\nลบแล้วกู้คืนไม่ได้');">
+                  <input type="hidden" name="kind" value="{{ kind or '' }}">
+                  <button class="btn red" type="submit">🗑 ลบ</button>
+                </form>
+              </div>
             </td>
           </tr>
         {% endfor %}

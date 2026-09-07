@@ -14,6 +14,9 @@
     .top { background:#1b2433; color:#fff; padding:14px 26px; display:flex; justify-content:space-between; align-items:center; }
     .top b { font-size:18px; }
     .top a { color:#cbd5e1; text-decoration:none; font-size:15px; }
+    .lead-cnt { display:inline-block; background:rgba(255,255,255,.22); color:#fff; font-size:12.5px;
+      font-weight:700; padding:1px 9px; border-radius:999px; margin-left:5px; }
+    .lead-cnt.new { background:#f59e0b; }
     .wrap { max-width:1100px; margin:24px auto; padding:0 20px; }
     .card { background:#fff; border:1px solid #eceef3; border-radius:14px; padding:20px 22px; margin-bottom:20px;
       box-shadow:0 2px 8px rgba(16,24,40,.05); }
@@ -67,7 +70,9 @@
 </head>
 <body>
   <div class="top"><b>Easy Ekkasan · คอนโซลผู้ดูแลระบบ</b>
-    <span><a href="/admin-console/leads" style="color:#fff; font-weight:600;">📥 คำขอจากเว็บ</a> · {{ admin_name }} · <a href="/account/password">เปลี่ยนรหัสผ่าน</a> · <a href="/logout">ออกจากระบบ</a></span></div>
+    <span><a href="/admin-console/leads" style="color:#fff; font-weight:600;">📥 คำขอจากเว็บ
+        <span class="lead-cnt">{{ lead_counts.all if lead_counts else 0 }}</span>{% if lead_counts and lead_counts.new %}<span class="lead-cnt new">ใหม่ {{ lead_counts.new }}</span>{% endif %}</a>
+      · {{ admin_name }} · <a href="/account/password">เปลี่ยนรหัสผ่าน</a> · <a href="/logout">ออกจากระบบ</a></span></div>
   <div class="wrap">
     {% if msg %}<div class="msg">{{ msg }}</div>{% endif %}
 
@@ -134,11 +139,11 @@
           <div>
             <div class="t-lbl">โควตา / อายุการใช้งาน</div>
             {% if r.plan == 'trial' %}
-              <div>ทดลองใช้ฟรี 30 วัน{% if r.t.expiry_date %} · หมด <b>{{ r.t.expiry_date }}</b>{% endif %}</div>
+              <div>ทดลองใช้ฟรี 30 วัน{% if r.t.expiry_date %} · หมด <b>{{ be_date(r.t.expiry_date) }}</b>{% endif %}</div>
               <div class="muted2">{% if r.days_left is none %}—{% elif r.days_left < 0 %}<b style="color:#b91c1c;">หมดอายุแล้ว</b> ({{ -r.days_left }} วันก่อน){% else %}เหลือ <b style="color:{{ '#b91c1c' if r.days_left<=3 else '#d97706' if r.days_left<=7 else '#0e9152' }};">{{ r.days_left }}</b> วัน{% endif %}</div>
             {% else %}
               {% if r.t.expiry_date %}
-                <div>หมดอายุ <b>{{ r.t.expiry_date }}</b></div>
+                <div>หมดอายุ <b>{{ be_date(r.t.expiry_date) }}</b></div>
                 <div class="muted2">{% if r.days_left >= 0 %}เหลือ {{ r.days_left }} วัน{% else %}เกินมา {{ -r.days_left }} วัน{% endif %}</div>
               {% else %}<div class="muted2">สมาชิก · ไม่จำกัดเวลา</div>{% endif %}
             {% endif %}

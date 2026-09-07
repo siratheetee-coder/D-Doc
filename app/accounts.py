@@ -435,6 +435,53 @@ def set_lead_status(lead_id: int, status: str) -> None:
         db.close()
 
 
+def delete_lead(lead_id: int) -> bool:
+    """ลบคำขอ 1 รายการ (ผู้ขายกดลบในคอนโซล) คืน True ถ้าลบจริง"""
+    db = acc_session()
+    try:
+        l = db.get(Lead, lead_id)
+        if not l:
+            return False
+        db.delete(l); db.commit()
+        return True
+    finally:
+        db.close()
+
+
+def delete_leads(kind: str | None = None, status: str | None = None) -> int:
+    """ลบคำขอเป็นชุด (เช่น ล้างที่ปิดแล้ว) คืนจำนวนที่ลบ
+    ต้องระบุอย่างน้อย 1 เงื่อนไข กันเผลอลบทั้งตาราง"""
+    if not kind and not status:
+        return 0
+    db = acc_session()
+    try:
+        q = db.query(Lead)
+        if kind:
+            q = q.filter_by(kind=kind)
+        if status:
+            q = q.filter_by(status=status)
+        n = q.delete(synchronize_session=False)
+        db.commit()
+        return n
+    finally:
+        db.close()
+
+
+def lead_counts() -> dict:
+    """จำนวนคำขอแยกตามประเภท + รวม + ที่ยังใหม่ (ไว้โชว์ตัวเลขบนแท็บ/ลิงก์คอนโซล)"""
+    from sqlalchemy import func as _func
+    db = acc_session()
+    try:
+        out = {"all": db.query(Lead).count(),
+               "new": db.query(Lead).filter_by(status="ใหม่").count(),
+               "closed": db.query(Lead).filter_by(status="ปิด").count()}
+        for k, n in db.query(Lead.kind, _func.count(Lead.id)).group_by(Lead.kind).all():
+            out[k or "quote"] = n
+        return out
+    finally:
+        db.close()
+
+
 def purchase_account(uid) -> dict | None:
     """Read the verified school account for public purchase routes (fresh from DB)."""
     if not uid:

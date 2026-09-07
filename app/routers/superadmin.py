@@ -15,7 +15,7 @@ from datetime import datetime
 
 from app.accounts import (acc_session, Tenant, Account, hash_password, provision_tenant,
                           list_leads, set_lead_status, get_lead, issue_sale_doc,
-                          renew_lead)
+                          renew_lead, delete_lead, delete_leads, lead_counts)
 from app.database import get_data_dir
 from app.seller_config import SELLER
 from app.services.seller_signature import seller_profile, save_signature
@@ -133,6 +133,7 @@ def console(request: Request, msg: str | None = None):
         return templates.TemplateResponse("superadmin.html", {
             "request": request, "rows": rows, "today": today, "summ": summ,
             "msg": msg, "admin_name": request.session.get("name", "ผู้ดูแลระบบ"),
+            "lead_counts": lead_counts(),
         })
     finally:
         db.close()
@@ -142,11 +143,30 @@ def console(request: Request, msg: str | None = None):
 @router.get("/admin-console/leads", response_class=HTMLResponse)
 def leads_page(request: Request, kind: str | None = None):
     k = kind if kind in ("quote", "order", "trial", "support", "review") else None
-    msg = request.session.pop("lead_msg", None)   # ผลการอนุมัติ/ต่ออายุ (แสดงครั้งเดียว)
+    msg = request.session.pop("lead_msg", None)   # ผลการอนุมัติ/ต่ออายุ/ลบ (แสดงครั้งเดียว)
     return templates.TemplateResponse("superadmin_leads.html", {
         "request": request, "leads": list_leads(k), "kind": k, "lead_msg": msg,
+        "counts": lead_counts(),
         "admin_name": request.session.get("name", "ผู้ดูแลระบบ"),
     })
+
+
+@router.post("/admin-console/leads/{lid}/delete")
+def lead_delete(lid: int, request: Request, kind: str = Form("")):
+    """ลบคำขอทิ้ง (ลบถาวร) - ใช้เคลียร์รายการที่ไม่ต้องเก็บแล้ว"""
+    request.session["lead_msg"] = ({"ok": True, "text": f"ลบคำขอ #{lid} แล้ว"} if delete_lead(lid)
+                                   else {"ok": False, "text": f"ไม่พบคำขอ #{lid}"})
+    q = f"?kind={kind}" if kind in ("quote", "order", "trial", "support", "review") else ""
+    return RedirectResponse(f"/admin-console/leads{q}", status_code=303)
+
+
+@router.post("/admin-console/leads/delete-closed")
+def leads_delete_closed(request: Request, kind: str = Form("")):
+    """ล้างคำขอที่ปิดแล้วทั้งหมด (เฉพาะสถานะ 'ปิด' - ของที่ยังใหม่/ต่ออายุแล้วไม่ถูกลบ)"""
+    n = delete_leads(status="ปิด")
+    request.session["lead_msg"] = {"ok": True, "text": f"ลบคำขอที่ปิดแล้ว {n} รายการ"}
+    q = f"?kind={kind}" if kind in ("quote", "order", "trial", "support", "review") else ""
+    return RedirectResponse(f"/admin-console/leads{q}", status_code=303)
 
 
 @router.post("/admin-console/leads/{lid}/approve")
