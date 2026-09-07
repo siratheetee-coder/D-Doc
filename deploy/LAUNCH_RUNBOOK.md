@@ -92,6 +92,24 @@ sudo systemctl start ddoc
 ```
 > กลไกกู้คืนระดับแอป (อัปโหลดไฟล์ .db ในหน้าตั้งค่า) ทดสอบ round-trip แล้วทำงานถูกต้อง — แต่ **การกู้จาก tar.gz บน VPS ต้องซ้อมเองอย่างน้อย 1 ครั้ง** ให้มั่นใจก่อนเปิดจริง
 
+## 3.5) ตรวจสุขภาพระบบอัตโนมัติ (health check)  ★ แนะนำ
+
+ตรวจให้ครบ 4 อย่างที่ทำให้ระบบ "พังเงียบ": service ล่ม · เว็บค้าง · ดิสก์ใกล้เต็ม · สำรองข้อมูลค้างเก่า/ไฟล์ว่าง
+
+```bash
+sudo chmod +x /opt/ddoc/deploy/healthcheck.sh
+sudo /opt/ddoc/deploy/healthcheck.sh            # ลองรันดูผลก่อน
+sudo /opt/ddoc/deploy/healthcheck.sh --always   # บังคับส่งอีเมล เพื่อทดสอบว่าอีเมลถึงจริง
+```
+ตั้ง cron ให้เช็กทุก 15 นาที:
+```bash
+sudo crontab -e
+*/15 * * * * /opt/ddoc/deploy/healthcheck.sh >> /var/log/ddoc-health.log 2>&1
+```
+- ส่งอีเมลเฉพาะตอน **สถานะเปลี่ยน** (ไม่สแปมทุก 15 นาที)
+- ดูย้อนหลัง: `tail -50 /var/log/ddoc-health.log`
+- แอปเองก็เตือนดิสก์ใกล้เต็มทางอีเมล + แบนเนอร์ในคอนโซลผู้ขายอยู่แล้ว
+
 ## 4) HTTPS (โดเมน + certbot) แล้วเปิด `DDOC_HTTPS=1`
 
 ```bash
