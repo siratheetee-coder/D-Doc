@@ -74,7 +74,7 @@
   <form method="post" action="/users/add">
     <div class="row" style="align-items:flex-end;">
       <div><label>ชื่อผู้ใช้ (อีเมล/ชื่อ) *</label><input name="username" required placeholder="เช่น finance@school หรือ ครูสมชาย"></div>
-      <div><label>รหัสผ่าน (อย่างน้อย 6 ตัว) *</label><input name="password" type="text" required placeholder="ตั้งรหัสให้ผู้ใช้"></div>
+      <div><label>รหัสผ่าน (อย่างน้อย 8 ตัว + ตัวเลข) *</label><input name="password" type="text" required placeholder="ตั้งรหัสให้ผู้ใช้"></div>
       <div style="flex:1;"><label>ชื่อที่แสดง (ไม่บังคับ)</label><input name="display_name" placeholder="เช่น ครูการเงิน"></div>
     </div>
     <label style="margin-top:12px; display:block;">งานที่ให้เข้าได้</label>
@@ -96,9 +96,9 @@
 
 <script>
   function resetPw(id, name){
-    var p = prompt('ตั้งรหัสผ่านใหม่ให้ "' + name + '" (อย่างน้อย 6 ตัว)');
+    var p = prompt('ตั้งรหัสผ่านใหม่ให้ "' + name + '" (อย่างน้อย 8 ตัว มีทั้งตัวอักษรและตัวเลข)');
     if(p === null) return;
-    if(p.length < 6){ alert('รหัสผ่านอย่างน้อย 6 ตัว'); return; }
+    if(p.length < 8 || !/[^\W\d_]/u.test(p) || !/\d/.test(p)){ alert('รหัสผ่านต้องยาวอย่างน้อย 8 ตัว และมีทั้งตัวอักษรและตัวเลข'); return; }
     var f = document.getElementById('rf' + id);
     f.new_password.value = p; f.submit();
   }

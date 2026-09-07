@@ -18,7 +18,14 @@
   <input name="email" type="email" required placeholder="name@example.com" value="{{ form.email or '' }}">
 
   <label>ตั้งรหัสผ่าน <span class="req">*</span></label>
-  <input name="password" type="password" required minlength="6" placeholder="อย่างน้อย 6 ตัวอักษร">
+  <input id="pw" name="password" type="password" required minlength="8"
+         placeholder="อย่างน้อย 8 ตัว มีทั้งตัวอักษรและตัวเลข" oninput="pwCheck()">
+  <div class="pw-meter"><i id="pwBar"></i></div>
+  <ul class="pw-rules">
+    <li id="r-len">ยาวอย่างน้อย 8 ตัวอักษร</li>
+    <li id="r-mix">มีทั้งตัวอักษรและตัวเลข</li>
+    <li id="r-easy">ไม่ใช่รหัสที่เดาง่าย (เช่น teacher2569, admin1234)</li>
+  </ul>
 
   <label>ชื่อโรงเรียน/หน่วยงาน <span class="req">*</span></label>
   <input name="school_name" required placeholder="เช่น โรงเรียนบ้านหินลาด" value="{{ form.school_name or '' }}">
@@ -53,5 +60,41 @@
     });
     window.addEventListener('pageshow', function(){ button.disabled = false; button.innerHTML = original; });
   })();
+
+  // ตรวจความแข็งแรงรหัสผ่านสดๆ (เกณฑ์เดียวกับฝั่งเซิร์ฟเวอร์)
+  var PW_EASY = ['password','passw0rd','qwerty','iloveyou','sunshine','letmein','monkey','dragon',
+    'football','baseball','computer','internet','admin','administrator','welcome','login','user',
+    'test','changeme','school','teacher','student','kru','kroo','ekkasan','easyekkasan',
+    'thailand','bangkok','abc','abcd','abcde','abcdef'];
+  function pwCheck(){
+    var v = document.getElementById('pw').value || '';
+    var okLen = v.length >= 8;
+    var okMix = /[^\W\d_]/u.test(v) && /\d/.test(v);
+    var base = v.toLowerCase().replace(/\d+$/, '');
+    var okEasy = v.length > 0 && PW_EASY.indexOf(v.toLowerCase()) < 0 && PW_EASY.indexOf(base) < 0
+                 && new Set(v).size > 3 && v.trim() === v;
+    mark('r-len', okLen); mark('r-mix', okMix); mark('r-easy', okEasy);
+    var score = (okLen?1:0) + (okMix?1:0) + (okEasy?1:0) + (v.length >= 12 ? 1 : 0);
+    var bar = document.getElementById('pwBar');
+    var cls = ['', 'w1', 'w2', 'w3', 'w4'][v ? score : 0];
+    bar.className = cls;
+  }
+  function mark(id, ok){
+    var el = document.getElementById(id);
+    if(el) el.className = ok ? 'ok' : '';
+  }
 </script>
+<style>
+  .pw-meter { height:6px; border-radius:999px; background:#e9edf4; overflow:hidden; margin:8px 0 6px; }
+  .pw-meter > i { display:block; height:100%; width:0; border-radius:999px; transition:width .2s, background .2s; }
+  .pw-meter > i.w1 { width:25%;  background:#ef4444; }
+  .pw-meter > i.w2 { width:50%;  background:#f59e0b; }
+  .pw-meter > i.w3 { width:78%;  background:#3b82f6; }
+  .pw-meter > i.w4 { width:100%; background:#16b364; }
+  .pw-rules { list-style:none; padding:0; margin:0 0 4px; font-size:12.5px; color:#7b8190; }
+  .pw-rules li { padding-left:19px; position:relative; margin:2px 0; }
+  .pw-rules li::before { content:"○"; position:absolute; left:3px; }
+  .pw-rules li.ok { color:#0e9152; }
+  .pw-rules li.ok::before { content:"✓"; font-weight:700; }
+</style>
 {% endblock %}

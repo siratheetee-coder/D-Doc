@@ -184,10 +184,53 @@ def verify_password(pw: str, stored: str) -> bool:
         return False
 
 
+# ---- เกณฑ์ความแข็งแรงของรหัสผ่าน (ใช้ร่วมกันทุกจุดที่ตั้ง/เปลี่ยนรหัส) ----
+PW_MIN_LEN = 8
+
+# รหัสที่คนไทยตั้งบ่อยและเดาง่าย (เทียบแบบตัดตัวเลขท้ายออกด้วย)
+_PW_COMMON = {
+    # รหัสยอดฮิตทั่วไป
+    "password", "passw0rd", "12345678", "123456789", "1234567890", "11111111",
+    "qwerty", "qwertyui", "abc", "abcd", "abcde", "abcdef", "iloveyou", "sunshine",
+    "letmein", "monkey", "dragon", "football", "baseball", "computer", "internet",
+    # คำฐานที่มักตั้งแล้วต่อท้ายด้วยปี/ตัวเลข (เทียบหลังตัดตัวเลขท้ายออก)
+    "admin", "administrator", "welcome", "login", "user", "test", "changeme",
+    "school", "teacher", "student", "kru", "kroo", "ekkasan", "easyekkasan",
+    "thailand", "bangkok",
+}
+
+
+def password_problem(pw: str, username: str = "") -> str | None:
+    """ตรวจความแข็งแรงของรหัสผ่าน · คืนข้อความปัญหา (ภาษาไทย) หรือ None ถ้าผ่าน
+
+    เกณฑ์: ยาว >= 8 · มีทั้งตัวอักษรและตัวเลข · ไม่ใช่รหัสยอดฮิต · ไม่ซ้ำกับอีเมล/ชื่อผู้ใช้
+    (เน้นความยาว + ไม่เดาง่าย ตามแนวทาง NIST มากกว่าบังคับอักขระพิเศษจนจำไม่ได้)
+    """
+    pw = pw or ""
+    if len(pw) < PW_MIN_LEN:
+        return f"รหัสผ่านต้องยาวอย่างน้อย {PW_MIN_LEN} ตัวอักษร"
+    if pw.strip() != pw:
+        return "รหัสผ่านต้องไม่ขึ้นต้นหรือลงท้ายด้วยช่องว่าง"
+    has_alpha = any(c.isalpha() for c in pw)
+    has_digit = any(c.isdigit() for c in pw)
+    if not (has_alpha and has_digit):
+        return "รหัสผ่านต้องมีทั้งตัวอักษรและตัวเลข"
+    low = pw.lower()
+    if low in _PW_COMMON or low.rstrip("0123456789") in _PW_COMMON:
+        return "รหัสผ่านนี้เดาง่ายเกินไป กรุณาตั้งรหัสอื่น"
+    if len(set(pw)) <= 3:
+        return "รหัสผ่านซ้ำตัวเดิมมากเกินไป กรุณาตั้งรหัสอื่น"
+    local = (username or "").strip().lower().split("@")[0]
+    if local and len(local) >= 4 and local in low:
+        return "รหัสผ่านต้องไม่มีชื่อผู้ใช้/อีเมลของคุณอยู่ในนั้น"
+    return None
+
+
 def change_password(uid: int, current_pw: str, new_pw: str) -> tuple[bool, str]:
     """เปลี่ยนรหัสผ่านของผู้ใช้เอง (ตรวจรหัสเดิมก่อน) คืน (สำเร็จ, ข้อความ)"""
-    if len(new_pw or "") < 6:
-        return False, "รหัสผ่านใหม่ต้องยาวอย่างน้อย 6 ตัวอักษร"
+    _bad = password_problem(new_pw)
+    if _bad:
+        return False, _bad
     db = acc_session()
     try:
         u = db.get(Account, uid)
@@ -745,8 +788,11 @@ def add_tenant_user(tenant_id, username, password, modules="", display_name="") 
     """ไอดีหลักเพิ่มไอดีย่อย (จำกัดตาม max_users) + กำหนดสิทธิ์งาน (CSV)"""
     from app.modules import modules_csv, parse_modules
     username = (username or "").strip()
-    if not username or len(password or "") < 6:
-        return {"error": "กรอกชื่อผู้ใช้ และรหัสผ่านอย่างน้อย 6 ตัว"}
+    if not username:
+        return {"error": "กรอกชื่อผู้ใช้"}
+    _bad = password_problem(password, username)
+    if _bad:
+        return {"error": _bad}
     db = acc_session()
     try:
         t = db.query(Tenant).filter_by(id=tenant_id).first()
@@ -834,8 +880,11 @@ def add_teacher_account(tenant_id, person_id, username, password, display_name="
     """สร้างบัญชีครู (ผูกกับ Person.id ในโรงเรียน) - เข้าได้เฉพาะงานวิชาการ + สิทธิ์เฉพาะวิชา/ห้องตัวเอง
     ไอดีเข้าระบบจะเติมรหัสโรงเรียนต่อท้ายให้อัตโนมัติ กันซ้ำกับครูโรงเรียนอื่น (เช่น teacher1.rongrian-1)"""
     base = (username or "").strip().replace(" ", "")
-    if not base or len(password or "") < 6:
-        return {"error": "กรอกชื่อผู้ใช้ และรหัสผ่านอย่างน้อย 6 ตัว"}
+    if not base:
+        return {"error": "กรอกชื่อผู้ใช้"}
+    _bad = password_problem(password, base)
+    if _bad:
+        return {"error": _bad}
     if not person_id:
         return {"error": "เลือกครูที่จะผูกกับบัญชีนี้"}
     db = acc_session()
@@ -897,8 +946,9 @@ def reset_user_password(tenant_id, uid, new_password) -> dict:
         u = _own_user(db, tenant_id, uid)
         if not u:
             return {"error": "ไม่พบผู้ใช้"}
-        if len(new_password or "") < 6:
-            return {"error": "รหัสผ่านอย่างน้อย 6 ตัว"}
+        _bad = password_problem(new_password, getattr(u, "username", ""))
+        if _bad:
+            return {"error": _bad}
         u.password_hash = hash_password(new_password); u.must_change_password = False
         db.commit()
         return {"ok": True}
@@ -1019,8 +1069,9 @@ def register_account(email: str, password: str, school_name: str,
     school_name = (school_name or "").strip()
     if not _EMAIL_RE.match(email):
         return {"error": "อีเมลไม่ถูกต้อง"}
-    if len(password or "") < 6:
-        return {"error": "รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร"}
+    _bad = password_problem(password, email)
+    if _bad:
+        return {"error": _bad}
     if not school_name:
         return {"error": "กรุณากรอกชื่อโรงเรียน"}
     db = acc_session()
@@ -1135,8 +1186,9 @@ def reset_password_with_token(token: str, new_password: str) -> dict:
     """ตั้งรหัสผ่านใหม่จากโทเคนรีเซ็ต -> {ok, username} หรือ {error}
     ผู้ที่รีเซ็ตได้ = เข้าถึงอีเมลจริง จึงถือว่ายืนยันอีเมลแล้วด้วย"""
     token = (token or "").strip()
-    if len(new_password or "") < 6:
-        return {"error": "รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร"}
+    _bad = password_problem(new_password)
+    if _bad:
+        return {"error": _bad}
     db = acc_session()
     try:
         a = db.query(Account).filter_by(reset_token=token).first()

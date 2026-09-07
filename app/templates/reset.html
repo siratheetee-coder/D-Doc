@@ -52,10 +52,10 @@
       <form method="post" action="/reset">
         <input type="hidden" name="token" value="{{ token }}">
         <label>รหัสผ่านใหม่</label>
-        <input name="password" type="password" autocomplete="new-password" required autofocus minlength="6">
-        <div class="hint">อย่างน้อย 6 ตัวอักษร</div>
+        <input name="password" type="password" autocomplete="new-password" required autofocus minlength="8">
+        <div class="hint">อย่างน้อย 8 ตัว มีทั้งตัวอักษรและตัวเลข</div>
         <label>ยืนยันรหัสผ่านใหม่</label>
-        <input name="password2" type="password" autocomplete="new-password" required minlength="6">
+        <input name="password2" type="password" autocomplete="new-password" required minlength="8">
         <button class="btn" type="submit">บันทึกรหัสผ่านใหม่</button>
       </form>
       <a class="back" href="/login">← กลับไปหน้าเข้าสู่ระบบ</a>
