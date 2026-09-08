@@ -199,20 +199,6 @@ async def report_save(rid: int, request: Request, db: Session = Depends(get_db))
     return RedirectResponse(f"/project-reports/{rid}?saved=1", status_code=303)
 
 
-@router.post("/project-reports/{rid}/sync-objectives")
-def sync_objectives(rid: int, db: Session = Depends(get_db)):
-    """คัดวัตถุประสงค์มาตั้งเป็นตาราง "สรุปผลตามวัตถุประสงค์" ให้เลย
-    (เก็บค่าติ๊กบรรลุของข้อที่ข้อความตรงกันไว้ ไม่ต้องติ๊กใหม่ทั้งหมด)"""
-    rep = _get(db, rid)
-    if not rep:
-        return RedirectResponse("/projects", status_code=303)
-    was = {r.get("obj"): bool(r.get("ok")) for r in load_list(rep.obj_results)}
-    rep.obj_results = _dump([{"obj": o, "ok": was.get(o, True)}
-                             for o in load_list(rep.objectives)])
-    db.commit()
-    return RedirectResponse(f"/project-reports/{rid}?saved=1#sec-summary", status_code=303)
-
-
 # ---------------- ภาพกิจกรรม ----------------
 @router.post("/project-reports/{rid}/photos")
 async def photos_add(rid: int, db: Session = Depends(get_db),

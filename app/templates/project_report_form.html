@@ -75,9 +75,8 @@
 <form id="phDn{{ ph.id }}" method="post" action="/project-reports/{{ rep.id }}/photos/{{ ph.id }}/move" hidden>
   <input type="hidden" name="dir" value="down"></form>
 {% endfor %}
-<form id="syncObj" method="post" action="/project-reports/{{ rep.id }}/sync-objectives" hidden></form>
 
-<form method="post" action="/project-reports/{{ rep.id }}/save">
+<form id="mainForm" method="post" action="/project-reports/{{ rep.id }}/save">
 
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> ข้อมูลทั่วไป</h2>
@@ -248,8 +247,8 @@
 
   <h3 style="margin:22px 0 0; font-size:15px;">สรุปผลตามวัตถุประสงค์</h3>
   <p class="rp-hint" style="margin-top:2px;">ติ๊กว่าแต่ละวัตถุประสงค์บรรลุหรือไม่ ·
-    <button type="submit" form="syncObj" class="btn sm gray" style="padding:2px 10px;">ดึงวัตถุประสงค์จากข้อ 2 มาใส่</button>
-    <span style="color:#b45309;">(บันทึกรายงานก่อนกด ไม่งั้นจะได้ข้อความชุดเดิม)</span></p>
+    <button type="button" class="btn sm gray" style="padding:2px 10px;" onclick="pullObjectives()">ดึงวัตถุประสงค์จากข้อ 2 มาใส่</button>
+    <span>(ใช้ข้อความที่กรอกไว้บนหน้านี้ ไม่ต้องบันทึกก่อน)</span></p>
   <div class="rowset" data-set="obj_results">
     {% for r in load_list(rep.obj_results) %}
     <div class="rw"><span class="no"></span>
@@ -279,7 +278,7 @@
     <span class="muted" style="font-weight:400; font-size:14px;">({{ rep.photos|length }}/{{ max_photos }})</span></h2>
   <div class="up-box">
     <input type="file" name="files" accept="image/*" multiple form="upPhotos" required>
-    <button class="btn sm" type="submit" form="upPhotos"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดภาพ</button>
+    <button class="btn sm" type="button" onclick="saveThen('upPhotos')"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดภาพ</button>
   </div>
   <p class="rp-hint">เลือกหลายไฟล์พร้อมกันได้ · ระบบย่อรูปให้อัตโนมัติ ไฟล์ใหญ่จากมือถืออัปได้เลย ·
     ภาพจะอยู่ในภาคผนวกท้ายเล่ม เรียง 2 ภาพต่อแถว</p>
@@ -292,10 +291,10 @@
         <span class="ph-num">ภาพที่ {{ loop.index }}</span>
         <input type="text" name="cap_{{ ph.id }}" value="{{ ph.caption or '' }}" placeholder="คำบรรยายใต้ภาพ">
         <div class="ph-act">
-          <button type="submit" form="phUp{{ ph.id }}" title="เลื่อนขึ้น" {{ 'disabled' if loop.first }}>▲</button>
-          <button type="submit" form="phDn{{ ph.id }}" title="เลื่อนลง" {{ 'disabled' if loop.last }}>▼</button>
-          <button type="submit" form="phDel{{ ph.id }}" class="del" title="ลบภาพนี้"
-                  onclick="return confirm('ลบภาพนี้?')">✕</button>
+          <button type="button" onclick="saveThen('phUp{{ ph.id }}')" title="เลื่อนขึ้น" {{ 'disabled' if loop.first }}>▲</button>
+          <button type="button" onclick="saveThen('phDn{{ ph.id }}')" title="เลื่อนลง" {{ 'disabled' if loop.last }}>▼</button>
+          <button type="button" class="del" title="ลบภาพนี้"
+                  onclick="if(confirm('ลบภาพนี้?')) saveThen('phDel{{ ph.id }}')">✕</button>
         </div>
       </div>
     </div>
@@ -357,7 +356,7 @@
     var i = 1;
     set.querySelectorAll(':scope > .rw > .no').forEach(function(el){ el.textContent = (i++) + '.'; });
   }
-  function addRow(field){
+  function addRow(field, noFocus){
     var set = document.querySelector('[data-set="' + field + '"]');
     if(!set) return;
     var rw = document.createElement('div');
@@ -367,8 +366,7 @@
       '<button type="button" class="x" onclick="delRow(this)" title="ลบแถวนี้">✕</button>';
     set.appendChild(rw);
     renumber(set);
-    var first = rw.querySelector('input');
-    if(first) first.focus();
+    if(!noFocus){ var first = rw.querySelector('input'); if(first) first.focus(); }
     if(field === 'survey_items') bindSurvey();
   }
   function delRow(btn){
@@ -403,6 +401,57 @@
       el.addEventListener('input', calcSurvey);
     });
   }
+  // ---- ดึงวัตถุประสงค์จากข้อ 2 มาตั้งเป็นตารางบรรลุ (ทำในหน้าเลย ข้อมูลที่พิมพ์ค้างไว้ไม่หาย) ----
+  function pullObjectives(){
+    var objs = [];
+    document.querySelectorAll('[data-set="objectives"] input[name="objectives"]').forEach(function(el){
+      var v = el.value.trim(); if(v) objs.push(v);
+    });
+    if(!objs.length){ alert('ยังไม่ได้กรอกวัตถุประสงค์ในข้อ 2'); return; }
+    var set = document.querySelector('[data-set="obj_results"]');
+    var was = {};                                  // เก็บค่าติ๊กเดิมของข้อความที่ตรงกัน
+    set.querySelectorAll(':scope > .rw').forEach(function(rw){
+      var t = rw.querySelector('[name="obj_results_obj"]');
+      var cb = rw.querySelector('input[type=checkbox]');
+      if(t && cb) was[t.value.trim()] = cb.checked;
+    });
+    set.innerHTML = '';
+    objs.forEach(function(o){
+      addRow('obj_results', true);
+      var rw = set.lastElementChild;
+      rw.querySelector('[name="obj_results_obj"]').value = o;
+      var cb = rw.querySelector('input[type=checkbox]');
+      cb.checked = (o in was) ? was[o] : true;
+      okBox(cb);
+    });
+    renumber(set);
+  }
+
+  // ---- ปุ่มที่ต้องโหลดหน้าใหม่ (อัปโหลด/เลื่อน/ลบภาพ) ให้บันทึกฟอร์มหลักก่อน ----
+  // ไม่งั้นทุกอย่างที่พิมพ์ค้างไว้แต่ยังไม่กดบันทึกจะหายหมด
+  var leaving = false;
+  function saveThen(formId){
+    var f = document.getElementById(formId);
+    var main = document.getElementById('mainForm');
+    if(!f || !main){ return; }
+    // f.submit() ข้ามการตรวจ required ของเบราว์เซอร์ จึงต้องตรวจเองก่อน
+    // (ไม่งั้นกด "อัปโหลดภาพ" โดยยังไม่เลือกไฟล์ จะส่งไฟล์ว่างไปแล้วขึ้นว่าไม่ใช่รูป)
+    if(f.reportValidity && !f.reportValidity()){ return; }
+    fetch(main.action, { method: 'POST', body: new FormData(main), credentials: 'same-origin' })
+      .then(function(){ leaving = true; f.submit(); })
+      .catch(function(){
+        alert('บันทึกอัตโนมัติไม่สำเร็จ (เน็ตอาจหลุด) — กรุณากด "บันทึกรายงาน" เองก่อน');
+      });
+  }
+
+  // กันปิดหน้า/กดลิงก์ทิ้งโดยยังไม่บันทึก
+  var dirty = false;
+  document.getElementById('mainForm').addEventListener('input', function(){ dirty = true; });
+  document.getElementById('mainForm').addEventListener('submit', function(){ leaving = true; });
+  window.addEventListener('beforeunload', function(e){
+    if(dirty && !leaving){ e.preventDefault(); e.returnValue = ''; }
+  });
+
   document.querySelectorAll('.rowset').forEach(renumber);
   bindSurvey();
 </script>
