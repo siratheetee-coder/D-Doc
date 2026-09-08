@@ -32,73 +32,17 @@
   </div>
 
   <div class="card">
-    <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> ข้อมูลส่วนตัว (สมุดรายงาน ปพ.6)</h2>
-    {% if request.query_params.get('photo_err') %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> อัปโหลดรูปไม่สำเร็จ (รองรับ JPG/PNG)</div>{% endif %}
-    <div style="display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; margin-bottom:6px;">
-      <div style="text-align:center;">
-        <div style="width:120px; height:150px; border:1px solid var(--border); border-radius:8px; overflow:hidden; background:#f8fafc; display:flex; align-items:center; justify-content:center;">
-          <img id="stphoto" src="/students/{{ s.id }}/photo?v={{ range(100000)|random }}" alt="รูปนักเรียน"
-               style="width:100%; height:100%; object-fit:cover;"
-               onerror="this.style.display='none';document.getElementById('stphoto_ph').style.display='block';">
-          <span id="stphoto_ph" class="muted" style="display:none; font-size:12px; padding:6px;">ยังไม่มีรูป</span>
-        </div>
-      </div>
-      <div style="flex:1; min-width:220px;">
-        <label>รูปนักเรียน</label>
-        <p class="muted" style="font-size:12.5px; margin:2px 0 6px;">อัปโหลด JPG/PNG · ระบบย่อขนาดให้อัตโนมัติ (ใช้ในหน้าข้อมูลส่วนตัวของสมุดรายงาน ปพ.6)</p>
-        <form method="post" action="/students/{{ s.id }}/photo" enctype="multipart/form-data"
-              style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0;">
-          <input type="file" name="file" accept="image/*" required
-                 style="padding:5px; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
-          <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดรูป</button>
-        </form>
-        <form method="post" action="/students/{{ s.id }}/photo/delete" style="margin:6px 0 0;"
-              onsubmit="return confirm('ลบรูปนักเรียนคนนี้?');">
-          <button class="btn sm gray" type="submit">ลบรูป</button>
-        </form>
-      </div>
-    </div>
-    <p class="muted" style="margin-top:0; font-size:13px;">ใช้พิมพ์หน้า "ข้อมูลส่วนตัว" ในสมุดรายงานประจำตัวนักเรียน (ปพ.6) เว้นว่างช่องที่ยังไม่มีข้อมูลได้</p>
-    <div class="row">
-      <div><label>เลขประจำตัวประชาชน</label><input name="id_card" value="{{ s.id_card or '' }}" maxlength="17" style="width:170px;"></div>
-      <div><label>หมู่เลือด</label><input name="blood_group" value="{{ s.blood_group or '' }}" style="width:70px;"></div>
-      <div><label>เชื้อชาติ</label><input name="race" value="{{ s.race or '' }}" style="width:110px;"></div>
-      <div><label>สัญชาติ</label><input name="nationality" value="{{ s.nationality or '' }}" style="width:110px;"></div>
-      <div><label>ศาสนา</label><input name="religion" value="{{ s.religion or '' }}" style="width:120px;"></div>
+    <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> ข้อมูลทะเบียนเพิ่มเติม</h2>
+    <div class="alert" style="background:#f5f8ff; border:1px solid #d7e3fb; color:#33507a;
+         font-size:13.5px; line-height:1.7; margin:4px 0 14px;">
+      <b>ระบบไม่เก็บข้อมูลอ่อนไหวของนักเรียนแล้ว</b><br>
+      เลขประจำตัวประชาชน · ที่อยู่ · เบอร์โทร · ชื่อ-อาชีพบิดามารดา/ผู้ปกครอง ·
+      เชื้อชาติ · ศาสนา · หมู่เลือด · โรคประจำตัว · รูปถ่ายนักเรียน
+      <b>ถูกนำออกจากระบบทั้งหมด</b> เพื่อลดความเสี่ยงตาม พ.ร.บ.คุ้มครองข้อมูลส่วนบุคคล (PDPA)<br>
+      สมุดรายงาน ปพ.6 ที่ดาวน์โหลดไปจะ<b>เว้นช่องว่างและกรอบติดรูปไว้ให้</b> ครูเขียนและติดรูปเองในเล่ม
     </div>
     <div class="row">
-      <div style="flex:1;"><label>โรคประจำตัว</label><input name="congenital_disease" value="{{ s.congenital_disease or '' }}"></div>
-    </div>
-    <h3 style="margin:14px 0 4px; font-size:15px;">บิดา / มารดา / ผู้ปกครอง</h3>
-    <div class="row">
-      <div style="flex:2;"><label>ชื่อบิดา</label><input name="father_name" value="{{ s.father_name or '' }}"></div>
-      <div style="flex:1;"><label>อาชีพบิดา</label><input name="father_job" value="{{ s.father_job or '' }}"></div>
-    </div>
-    <div class="row">
-      <div style="flex:2;"><label>ชื่อมารดา</label><input name="mother_name" value="{{ s.mother_name or '' }}"></div>
-      <div style="flex:1;"><label>อาชีพมารดา</label><input name="mother_job" value="{{ s.mother_job or '' }}"></div>
-    </div>
-    <div class="row">
-      <div style="flex:2;"><label>ชื่อผู้ปกครอง</label><input name="guardian_name" value="{{ s.guardian_name or '' }}" placeholder="ถ้าไม่ใช่บิดา/มารดา"></div>
-      <div><label>ความสัมพันธ์กับนักเรียน</label><input name="guardian_relation" value="{{ s.guardian_relation or '' }}" style="width:150px;" placeholder="เช่น ย่า, ลุง"></div>
-      <div style="flex:1;"><label>อาชีพผู้ปกครอง</label><input name="guardian_job" value="{{ s.guardian_job or '' }}"></div>
-    </div>
-    <h3 style="margin:14px 0 4px; font-size:15px;">ที่อยู่</h3>
-    <div class="row">
-      <div><label>บ้านเลขที่</label><input name="addr_no" value="{{ s.addr_no or '' }}" style="width:100px;"></div>
-      <div><label>หมู่ที่</label><input name="addr_moo" value="{{ s.addr_moo or '' }}" style="width:70px;"></div>
-      <div><label>ซอย</label><input name="addr_soi" value="{{ s.addr_soi or '' }}" style="width:120px;"></div>
-      <div><label>ถนน</label><input name="addr_road" value="{{ s.addr_road or '' }}" style="width:120px;"></div>
-    </div>
-    <div class="row">
-      <div><label>ตำบล</label><input name="addr_tambon" value="{{ s.addr_tambon or '' }}" style="width:140px;"></div>
-      <div><label>อำเภอ</label><input name="addr_amphoe" value="{{ s.addr_amphoe or '' }}" style="width:140px;"></div>
-      <div><label>จังหวัด</label><input name="addr_province" value="{{ s.addr_province or '' }}" style="width:140px;"></div>
-      <div><label>รหัสไปรษณีย์</label><input name="addr_zip" value="{{ s.addr_zip or '' }}" style="width:100px;"></div>
-      <div><label>โทรศัพท์</label><input name="phone" value="{{ s.phone or '' }}" style="width:130px;"></div>
-    </div>
-    <h3 style="margin:14px 0 4px; font-size:15px;">การเข้าเรียน</h3>
-    <div class="row">
+      <div><label>สัญชาติ</label><input name="nationality" value="{{ s.nationality or '' }}" style="width:120px;"></div>
       <div><label>วันเข้าเรียน</label><input name="enroll_date" value="{{ enroll_input }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:140px;"></div>
       <div style="flex:2;"><label>โรงเรียนเดิม</label><input name="prev_school" value="{{ s.prev_school or '' }}"></div>
     </div>

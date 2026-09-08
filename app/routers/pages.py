@@ -904,29 +904,13 @@ def _norm_sex(s: str) -> str:
 
 # ฟิลด์ข้อมูลส่วนตัวนักเรียน (สมุดพก ปพ.6) : (field, header ในเทมเพลต Excel, label ในฟอร์ม)
 # ใช้ร่วมกันทั้งฟอร์มแก้ไข, เทมเพลต/นำเข้า Excel เพื่อไม่ให้หลุดจากกัน
+# ข้อมูลนักเรียนที่ระบบ "เก็บ" ได้ - เหลือเฉพาะข้อมูลทางทะเบียนที่ไม่ใช่ข้อมูลอ่อนไหว
+# ตั้งใจไม่เก็บ: เลขบัตรประชาชน · ที่อยู่ · เบอร์โทร · ชื่อ/อาชีพบิดามารดา-ผู้ปกครอง ·
+# เชื้อชาติ · ศาสนา · หมู่เลือด · โรคประจำตัว · รูปถ่าย
+# เหตุผล: เป็นข้อมูลอ่อนไหวตาม PDPA ม.26 และเป็นข้อมูลของผู้เยาว์/บุคคลที่สาม
+# ถ้าโรงเรียนต้องใช้ในเอกสาร ให้เขียนลงในไฟล์ Word ที่ดาวน์โหลดไปเอง (ระบบเว้นช่องไว้ให้)
 STUDENT_PERSONAL_FIELDS = [
-    ("id_card", "เลขประจำตัวประชาชน", "เลขประจำตัวประชาชน"),
-    ("father_name", "ชื่อบิดา", "ชื่อบิดา"),
-    ("father_job", "อาชีพบิดา", "อาชีพบิดา"),
-    ("mother_name", "ชื่อมารดา", "ชื่อมารดา"),
-    ("mother_job", "อาชีพมารดา", "อาชีพมารดา"),
-    ("guardian_name", "ชื่อผู้ปกครอง", "ชื่อผู้ปกครอง"),
-    ("guardian_relation", "ความสัมพันธ์กับนักเรียน", "ความสัมพันธ์กับนักเรียน"),
-    ("guardian_job", "อาชีพผู้ปกครอง", "อาชีพผู้ปกครอง"),
-    ("race", "เชื้อชาติ", "เชื้อชาติ"),
     ("nationality", "สัญชาติ", "สัญชาติ"),
-    ("religion", "ศาสนา", "ศาสนา"),
-    ("blood_group", "หมู่เลือด", "หมู่เลือด"),
-    ("congenital_disease", "โรคประจำตัว", "โรคประจำตัว"),
-    ("addr_no", "บ้านเลขที่", "บ้านเลขที่"),
-    ("addr_moo", "หมู่ที่", "หมู่ที่"),
-    ("addr_soi", "ซอย", "ซอย"),
-    ("addr_road", "ถนน", "ถนน"),
-    ("addr_tambon", "ตำบล", "ตำบล"),
-    ("addr_amphoe", "อำเภอ", "อำเภอ"),
-    ("addr_province", "จังหวัด", "จังหวัด"),
-    ("addr_zip", "รหัสไปรษณีย์", "รหัสไปรษณีย์"),
-    ("phone", "โทรศัพท์", "โทรศัพท์"),
     ("enroll_date", "วันเข้าเรียน (วว/ดด/ปปปป)", "วันเข้าเรียน"),
     ("prev_school", "โรงเรียนเดิม", "โรงเรียนเดิม"),
 ]
@@ -1082,62 +1066,6 @@ def student_measure(sid: int, request: Request, db: Session = Depends(get_db),
         growth.set_measure(db, sid, yr, _to_int(term, 1), _f(weight), _f(height), parse_be_date(date))
     back = request.headers.get("referer") or "/students/growth"
     return RedirectResponse(back, status_code=303)
-
-
-def _process_student_photo(data: bytes):
-    """ย่อ/บีบรูปนักเรียนเป็น JPEG (ด้านยาวสุด 480px) เก็บใน DB · คืน bytes หรือ None ถ้าไม่ใช่รูป"""
-    import io as _io
-    from PIL import Image, ImageOps
-    try:
-        img = ImageOps.exif_transpose(Image.open(_io.BytesIO(data))).convert("RGB")
-    except Exception:
-        return None
-    m = 480
-    if max(img.width, img.height) > m:
-        if img.width >= img.height:
-            img = img.resize((m, round(img.height * m / img.width)), Image.LANCZOS)
-        else:
-            img = img.resize((round(img.width * m / img.height), m), Image.LANCZOS)
-    buf = _io.BytesIO()
-    img.save(buf, "JPEG", quality=82, optimize=True)
-    return buf.getvalue()
-
-
-@router.post("/students/{sid:int}/photo")
-async def student_photo_upload(sid: int, db: Session = Depends(get_db), file: UploadFile = File(...)):
-    """อัปโหลดรูปนักเรียน (เก็บเป็น JPEG ย่อขนาดใน DB)"""
-    s = db.get(Student, sid)
-    if s:
-        data = await file.read()
-        jpg = _process_student_photo(data)
-        if jpg:
-            s.photo = jpg
-            s.photo_ext = "jpg"
-            db.commit()
-            return RedirectResponse(f"/students/{sid}?saved=1", status_code=303)
-    return RedirectResponse(f"/students/{sid}?photo_err=1", status_code=303)
-
-
-@router.post("/students/{sid:int}/photo/delete")
-def student_photo_delete(sid: int, db: Session = Depends(get_db)):
-    s = db.get(Student, sid)
-    if s and s.photo:
-        s.photo = None
-        s.photo_ext = ""
-        db.commit()
-    return RedirectResponse(f"/students/{sid}?saved=1", status_code=303)
-
-
-@router.get("/students/{sid:int}/photo")
-def student_photo(sid: int, db: Session = Depends(get_db)):
-    """ส่งรูปนักเรียน (คืน 404 ถ้ายังไม่มี)"""
-    from fastapi.responses import Response
-    s = db.get(Student, sid)
-    if not s or not s.photo:
-        return Response(status_code=404)
-    mime = "image/png" if (s.photo_ext == "png") else "image/jpeg"
-    return Response(content=s.photo, media_type=mime,
-                    headers={"Cache-Control": "no-cache"})
 
 
 def _process_logo(data: bytes):

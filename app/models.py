@@ -361,33 +361,13 @@ class Student(Base):
     room = Column(String, default="")               # ห้อง เช่น 1 (คู่กับ level -> "ป.1/1") ว่างได้ถ้าชั้นละห้อง
     note = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)
-    # ---- ข้อมูลส่วนตัว (สำหรับสมุดพก ปพ.6 หน้าข้อมูลส่วนตัว) ----
-    id_card = Column(String, default="")            # เลขประจำตัวประชาชน 13 หลัก
-    father_name = Column(String, default="")        # ชื่อบิดา
-    father_job = Column(String, default="")         # อาชีพบิดา
-    mother_name = Column(String, default="")        # ชื่อมารดา
-    mother_job = Column(String, default="")         # อาชีพมารดา
-    guardian_name = Column(String, default="")      # ชื่อผู้ปกครอง
-    guardian_relation = Column(String, default="")  # ความสัมพันธ์กับนักเรียน
-    guardian_job = Column(String, default="")       # อาชีพผู้ปกครอง
-    race = Column(String, default="")               # เชื้อชาติ
+    # ---- ข้อมูลทะเบียนเพิ่มเติม (ปพ.6) ----
+    # ตั้งใจไม่เก็บข้อมูลอ่อนไหวของนักเรียน (เลขบัตรประชาชน · ที่อยู่ · เบอร์โทร ·
+    # บิดามารดา/ผู้ปกครอง · เชื้อชาติ · ศาสนา · หมู่เลือด · โรคประจำตัว · รูปถ่าย)
+    # เอกสาร ปพ.6 จะเว้นช่องว่างไว้ให้ครูเขียน/ติดรูปเอง - ดู STUDENT_PERSONAL_FIELDS
     nationality = Column(String, default="")        # สัญชาติ
-    religion = Column(String, default="")           # ศาสนา
-    blood_group = Column(String, default="")        # หมู่เลือด
-    congenital_disease = Column(String, default="") # โรคประจำตัว
-    addr_no = Column(String, default="")            # บ้านเลขที่
-    addr_moo = Column(String, default="")           # หมู่ที่
-    addr_soi = Column(String, default="")           # ซอย
-    addr_road = Column(String, default="")          # ถนน
-    addr_tambon = Column(String, default="")        # ตำบล
-    addr_amphoe = Column(String, default="")        # อำเภอ
-    addr_province = Column(String, default="")      # จังหวัด
-    addr_zip = Column(String, default="")           # รหัสไปรษณีย์
-    phone = Column(String, default="")              # โทรศัพท์
     enroll_date = Column(DateTime, nullable=True)   # วันเข้าเรียน
     prev_school = Column(String, default="")        # โรงเรียนเดิม
-    photo = Column(LargeBinary, nullable=True)      # รูปนักเรียน (JPEG ย่อขนาดแล้ว) เก็บใน DB เพื่อรวมในไฟล์สำรอง
-    photo_ext = Column(String, default="")          # นามสกุลรูป (jpg/png)
 
     measures = relationship("StudentMeasure", back_populates="student",
                             cascade="all, delete-orphan", order_by="StudentMeasure.term")

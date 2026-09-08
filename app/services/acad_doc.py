@@ -672,14 +672,9 @@ def _pp5_roster(doc, klass, students, db):
         _cell(cells[1], s.name, align="left", size=10)
         _cell(cells[2], thai_date(st.birthdate) if (st and st.birthdate) else "", size=10)
         _cell(cells[3], _student_age(st.birthdate) if st else "", size=10)
-        _cell(cells[4], g("father_name"), align="left", size=10)
-        _cell(cells[5], g("father_job"), size=10)
-        _cell(cells[6], g("mother_name"), align="left", size=10)
-        _cell(cells[7], g("mother_job"), size=10)
-        _cell(cells[8], g("guardian_name"), align="left", size=10)
-        _cell(cells[9], g("guardian_relation"), size=10)
-        _cell(cells[10], g("guardian_job"), size=10)
-        _cell(cells[11], _fmt_addr(st) if st else "", align="left", size=10)
+        # บิดามารดา/ผู้ปกครอง/ที่อยู่ = ข้อมูลอ่อนไหว ระบบไม่เก็บ -> เว้นช่องว่างให้ครูเขียนเอง
+        for i in range(4, 12):
+            _cell(cells[i], "", size=10)
     _widths(t, [Cm(1.0), Cm(3.5), Cm(2.9), Cm(1.0), Cm(3.0), Cm(1.8),
                 Cm(3.0), Cm(1.8), Cm(2.6), Cm(1.5), Cm(1.6), Cm(3.0)])   # รวม 26.7
 
@@ -1417,15 +1412,9 @@ def _pp6_cover(doc, school, s, db, *, page_break):
         _p(doc, school.area_office, align="center", size=14, after=24)
     else:
         _p(doc, "", after=24)
-    # รูปนักเรียนบนปก (ถ้าผูกทะเบียนกลาง + อัปโหลดรูปไว้)
+    # กรอบติดรูปบนปก (ระบบไม่เก็บรูปนักเรียนแล้ว - ครูติดรูปเองในเล่ม)
     st = _pp6_central(s, db)
-    if st and getattr(st, "photo", None):
-        import io as _io
-        pic = _p(doc, "", align="center", after=6)
-        try:
-            pic.add_run().add_picture(_io.BytesIO(st.photo), height=Cm(4.0))
-        except Exception:
-            pic._element.getparent().remove(pic._element)
+    _pp6_photo_box(doc, height=4.0, width=3.5)
     _p(doc, f"เลขที่ {s.seq or '.....'}", align="center", size=15, after=4)
     _p(doc, f"ชื่อ  {s.name}", align="center", bold=True, size=18, after=4)
     _p(doc, f"เลขประจำตัวนักเรียน  {s.student_no or '................'}", align="center", size=14, after=4)
@@ -1439,26 +1428,14 @@ def _pp6_cover(doc, school, s, db, *, page_break):
         _p(doc, ".............................................", align="center", size=14, after=2)
 
 
-def _fmt_addr(st) -> str:
-    """เรียงที่อยู่จากฟิลด์แยกเป็นบรรทัดเดียว"""
-    parts = []
-    if st.addr_no:
-        parts.append(f"บ้านเลขที่ {st.addr_no}")
-    if st.addr_moo:
-        parts.append(f"หมู่ {st.addr_moo}")
-    if st.addr_soi:
-        parts.append(f"ซอย{st.addr_soi}")
-    if st.addr_road:
-        parts.append(f"ถนน{st.addr_road}")
-    if st.addr_tambon:
-        parts.append(f"ตำบล{st.addr_tambon}")
-    if st.addr_amphoe:
-        parts.append(f"อำเภอ{st.addr_amphoe}")
-    if st.addr_province:
-        parts.append(f"จังหวัด{st.addr_province}")
-    if st.addr_zip:
-        parts.append(st.addr_zip)
-    return " ".join(parts)
+def _pp6_photo_box(doc, *, height=4.0, width=3.5):
+    """กรอบว่างสำหรับติดรูปนักเรียน - ระบบไม่เก็บรูปนักเรียนแล้ว (ข้อมูลอ่อนไหวของผู้เยาว์)
+    ครูติดรูปลงในเล่มที่พิมพ์ออกมาเอง"""
+    t = doc.add_table(rows=1, cols=1); t.style = "Table Grid"
+    t.rows[0].height = Cm(height)
+    _cell(t.rows[0].cells[0], "ติดรูปนักเรียน\n(ขนาด 1-2 นิ้ว)", align="center", size=12)
+    _widths(t, [Cm(width)])
+    return t
 
 
 def _pp6_personal(doc, school, s, db):
@@ -1469,19 +1446,19 @@ def _pp6_personal(doc, school, s, db):
     def g(attr):
         return (getattr(st, attr, "") or "") if st else ""
 
+    # ช่องที่เป็นข้อมูลอ่อนไหว ระบบไม่เก็บแล้ว -> พิมพ์หัวข้อไว้แต่เว้นค่าว่าง ให้ครูเขียนเอง
     rows = [
         ("ชื่อ-นามสกุล", s.name),
         ("เลขประจำตัวนักเรียน", s.student_no or ""),
-        ("เลขประจำตัวประชาชน", g("id_card")),
+        ("เลขประจำตัวประชาชน", ""),
         ("วันเกิด", thai_date(st.birthdate) if (st and st.birthdate) else ""),
-        ("เชื้อชาติ / สัญชาติ / ศาสนา",
-         " / ".join(x for x in [g("race"), g("nationality"), g("religion")] if x)),
-        ("หมู่เลือด", g("blood_group")),
-        ("โรคประจำตัว", g("congenital_disease")),
-        ("ที่อยู่", _fmt_addr(st) if st else ""),
-        ("โทรศัพท์", g("phone")),
-        ("ชื่อบิดา", g("father_name")),
-        ("ชื่อมารดา", g("mother_name")),
+        ("เชื้อชาติ / สัญชาติ / ศาสนา", g("nationality")),
+        ("หมู่เลือด", ""),
+        ("โรคประจำตัว", ""),
+        ("ที่อยู่", ""),
+        ("โทรศัพท์", ""),
+        ("ชื่อบิดา", ""),
+        ("ชื่อมารดา", ""),
         ("โรงเรียนเดิม", g("prev_school")),
         ("วันเข้าเรียน", thai_date(st.enroll_date) if (st and st.enroll_date) else ""),
     ]
@@ -1494,20 +1471,7 @@ def _pp6_personal(doc, school, s, db):
 
     # รูปนักเรียน: ฝังรูปจริงถ้ามี ไม่งั้นเว้นกล่องกรอบให้ติดรูป
     _p(doc, "", after=6)
-    photo = doc.add_table(rows=1, cols=1); photo.style = "Table Grid"
-    photo.rows[0].height = Cm(4.0)
-    if st and getattr(st, "photo", None):
-        import io as _io
-        cell = photo.rows[0].cells[0]
-        cell.text = ""
-        pp = cell.paragraphs[0]; pp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        try:
-            pp.add_run().add_picture(_io.BytesIO(st.photo), height=Cm(3.8))
-        except Exception:
-            _cell(cell, "รูปนักเรียน", align="center", size=12)
-    else:
-        _cell(photo.rows[0].cells[0], "รูปนักเรียน\n(ขนาด 1-2 นิ้ว)", align="center", size=12)
-    _widths(photo, [Cm(3.5)])
+    _pp6_photo_box(doc)
     if not st:
         _p(doc, "", after=2)
         _p(doc, "(นักเรียนคนนี้เพิ่มด้วยมือ ยังไม่ได้ผูกทะเบียนนักเรียนกลาง จึงยังไม่มีข้อมูลส่วนตัว)",

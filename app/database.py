@@ -223,11 +223,48 @@ def run_migrations(engine) -> None:
     conn.close()
 
 
+# ข้อมูลอ่อนไหวของนักเรียนที่เลิกเก็บแล้ว - ล้างค่าที่เคยกรอกไว้ทิ้งตอนอัปเดตระบบ
+# (คอลัมน์ยังอยู่ใน SQLite เพื่อไม่ให้ต้อง rebuild ตาราง แต่จะไม่มีข้อมูลและไม่มีที่กรอกแล้ว)
+_STUDENT_DROPPED = [
+    "id_card", "father_name", "father_job", "mother_name", "mother_job",
+    "guardian_name", "guardian_relation", "guardian_job", "race", "religion",
+    "blood_group", "congenital_disease", "addr_no", "addr_moo", "addr_soi",
+    "addr_road", "addr_tambon", "addr_amphoe", "addr_province", "addr_zip",
+    "phone", "photo", "photo_ext",
+]
+
+
+def _purge_student_sensitive(engine) -> None:
+    """ล้างข้อมูลอ่อนไหวของนักเรียนที่ระบบเลิกเก็บแล้ว · idempotent (แถวที่ว่างอยู่แล้วไม่ถูกแตะ)"""
+    conn = engine.raw_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='student'")
+        if not cur.fetchone():
+            return
+        have = {r[1] for r in cur.execute("PRAGMA table_info(student)").fetchall()}
+        cols = [c for c in _STUDENT_DROPPED if c in have]
+        if not cols:
+            return
+        sets = ", ".join(f"{c}=NULL" if c == "photo" else f"{c}=''" for c in cols)
+        where = " OR ".join(f"({c} IS NOT NULL AND {c} != '')" for c in cols)
+        cur.execute(f"UPDATE student SET {sets} WHERE {where}")
+        conn.commit()
+    except Exception:
+        pass
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
 def init_school_db(engine) -> None:
     """สร้างตารางทั้งหมด + เพิ่มคอลัมน์ใหม่ บน DB ของโรงเรียนที่ระบุ"""
     from app import models  # noqa: F401  (ลงทะเบียนตารางทั้งหมด)
     Base.metadata.create_all(bind=engine)
     run_migrations(engine)
+    _purge_student_sensitive(engine)
     _migrate_lunch_measures(engine)
     _backfill_memo_subjects(engine)
 
