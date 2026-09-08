@@ -149,15 +149,30 @@ class ProjectReport(Base):
     responsible_pos = Column(String, default="")   # ตำแหน่งผู้รายงาน
     std_ref = Column(Text, default="")             # สนองมาตรฐาน/กลยุทธ์/นโยบาย
 
-    principles = Column(Text, default="")          # หลักการและเหตุผล
-    objectives = Column(Text, default="")          # วัตถุประสงค์
-    target_qty = Column(Text, default="")          # เป้าหมายเชิงปริมาณ
-    target_qual = Column(Text, default="")         # เป้าหมายเชิงคุณภาพ
-    methods = Column(Text, default="")             # วิธีดำเนินการ (ขั้นตอน)
-    results = Column(Text, default="")             # ผลการดำเนินงาน
-    satisfaction = Column(Text, default="")        # ผลการประเมิน/ความพึงพอใจ
-    problems = Column(Text, default="")            # ปัญหาและอุปสรรค
-    suggestions = Column(Text, default="")         # ข้อเสนอแนะ
+    # ---- ข้อความยาว (ย่อหน้า) ----
+    memo_body = Column(Text, default="")           # เนื้อความในบันทึกข้อความนำส่ง
+    preface = Column(Text, default="")             # คำนำ
+    principles = Column(Text, default="")          # ๑ ความเป็นมา
+    suggestions = Column(Text, default="")         # ๙ ข้อเสนอแนะ
+    summary_note = Column(Text, default="")        # สรุปผลเพิ่มเติม (นอกเหนือจากที่คิดให้)
+
+    # ---- รายการเป็นข้อ ๆ / ตาราง (เก็บเป็น JSON ในคอลัมน์ข้อความ) ----
+    # เก็บเป็น JSON เพื่อไม่ต้องเพิ่มตารางย่อยอีก 6 ตาราง · อ่าน/เขียนผ่าน helper ใน router
+    objectives = Column(Text, default="")          # ๒ วัตถุประสงค์      [str, ...]
+    target_qty = Column(Text, default="")          # ๓.๑ เชิงปริมาณ      [str, ...]
+    target_qual = Column(Text, default="")         # ๓.๒ เชิงคุณภาพ      [str, ...]
+    expected = Column(Text, default="")            # ๗ ผลที่คาดว่าจะได้รับ [str, ...]
+    steps_items = Column(Text, default="")         # ๔ ขั้นตอน   [{act, period, who}, ...]
+    budget_items = Column(Text, default="")        # ๕ งบประมาณ [{item, pay, use, mat}, ...]
+    eval_items = Column(Text, default="")          # ๖ ประเมินผล [{indicator, method, tool}, ...]
+    survey_items = Column(Text, default="")        # ๘ แบบสอบถาม [{item, n4, n3, n2, n1}, ...]
+    obj_results = Column(Text, default="")         # ๘ บรรลุวัตถุประสงค์ [{obj, ok}, ...]
+
+    # ---- คงไว้เพื่อความเข้ากันได้กับข้อมูลเดิม (ไม่ได้ใช้ในฟอร์ม/เอกสารแล้ว) ----
+    methods = Column(Text, default="")
+    results = Column(Text, default="")
+    satisfaction = Column(Text, default="")
+    problems = Column(Text, default="")
 
     budget_planned = Column(Float, default=0.0)    # งบที่ตั้งไว้สำหรับกิจกรรมนี้
     budget_used = Column(Float, default=0.0)       # ใช้จริง

@@ -35,6 +35,15 @@ Base = declarative_base()
 
 # รายการเพิ่มคอลัมน์ใหม่บน DB เก่า (ปลอดภัย: ข้ามถ้ามีอยู่แล้ว)
 MIGRATIONS = [
+    ("project_report", "memo_body", "TEXT DEFAULT ''"),
+    ("project_report", "preface", "TEXT DEFAULT ''"),
+    ("project_report", "summary_note", "TEXT DEFAULT ''"),
+    ("project_report", "expected", "TEXT DEFAULT ''"),
+    ("project_report", "steps_items", "TEXT DEFAULT ''"),
+    ("project_report", "budget_items", "TEXT DEFAULT ''"),
+    ("project_report", "eval_items", "TEXT DEFAULT ''"),
+    ("project_report", "survey_items", "TEXT DEFAULT ''"),
+    ("project_report", "obj_results", "TEXT DEFAULT ''"),
     ("certificate_batch", "cert_no_on",     "INTEGER DEFAULT 0"),
     ("certificate_batch", "cert_no_prefix", "VARCHAR DEFAULT ''"),
     ("certificate_batch", "cert_no_x",      "FLOAT DEFAULT 50.0"),

@@ -2,16 +2,34 @@
 {% block title %}รายงานผลการดำเนินงาน{% endblock %}
 {% block content %}
 <style>
-  .rp-hint { color:var(--muted); font-size:12.5px; margin:2px 0 6px; }
+  .rp-hint { color:var(--muted); font-size:12.5px; margin:2px 0 6px; line-height:1.55; }
   .rp-grid { display:flex; flex-wrap:wrap; gap:14px; }
-  .rp-grid > div { flex:1 1 220px; }
-  .rp-sec { border-top:1px solid var(--border); margin-top:18px; padding-top:14px; }
-  .rp-sec:first-of-type { border-top:none; margin-top:0; padding-top:0; }
-  .rp-sec h3 { margin:0 0 2px; font-size:15.5px; }
+  .rp-grid > div { flex:1 1 220px; min-width:0; }
   textarea { width:100%; font-family:inherit; font-size:14.5px; padding:9px 12px;
     border:1px solid var(--border); border-radius:9px; line-height:1.65; resize:vertical; }
   textarea:focus { outline:none; border-color:var(--brand); box-shadow:0 0 0 3px rgba(72,128,255,.16); }
-  .ph-grid { display:flex; flex-wrap:wrap; gap:12px; margin-top:12px; }
+
+  /* ---- รายการเป็นข้อ ๆ / ตารางกรอก ---- */
+  .rowset { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+  .rw { display:flex; gap:8px; align-items:center; }
+  .rw .no { width:34px; flex:none; text-align:center; font-weight:700; font-size:13px; color:var(--muted); }
+  .rw .fields { flex:1; display:flex; gap:8px; min-width:0; }
+  .rw .fields > * { min-width:0; }
+  .rw input[type=text], .rw input[type=number] { width:100%; }
+  .rw .x { width:32px; height:32px; flex:none; border:1px solid var(--border); background:#fff;
+    border-radius:8px; color:var(--muted); cursor:pointer; font-size:13px; font-family:inherit; }
+  .rw .x:hover { background:#fee2e2; color:#b91c1c; border-color:#fecaca; }
+  .add-row { align-self:flex-start; margin-top:2px; }
+  .rw-head { display:flex; gap:8px; align-items:center; padding:0 42px 0 34px;
+    font-size:12px; font-weight:700; color:var(--muted); }
+  .rw-head > span { flex:1; min-width:0; }
+  .empty-note { color:var(--muted); font-size:13px; padding:8px 0; }
+
+  /* ---- ภาพกิจกรรม ---- */
+  .up-box { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:12px 14px;
+    border:1.5px dashed var(--border); border-radius:12px; background:var(--bg,#f8fafc); margin:10px 0 4px; }
+  .up-box input[type=file] { flex:1 1 240px; min-width:0; }
+  .ph-grid { display:flex; flex-wrap:wrap; gap:12px; margin-top:14px; }
   .ph { width:172px; border:1px solid var(--border); border-radius:11px; overflow:hidden; background:var(--surface); }
   .ph img { display:block; width:100%; height:118px; object-fit:cover; background:#f1f5f9; }
   .ph .ph-b { padding:7px 8px; display:flex; flex-direction:column; gap:6px; }
@@ -22,8 +40,12 @@
   .ph .ph-act button:hover { background:#f1f5f9; color:#0f172a; }
   .ph .ph-act button.del:hover { background:#fee2e2; color:#b91c1c; border-color:#fecaca; }
   .ph-num { font-size:12px; color:var(--muted); font-weight:700; }
-  .sticky-save { position:sticky; bottom:0; background:var(--surface); border-top:1px solid var(--border);
-    padding:12px 0 4px; margin-top:18px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+  /* ---- แถบบันทึกล่างสุด (ปุ่มต้องไม่ล้นกรอบการ์ดบนจอแคบ) ---- */
+  .savebar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .savebar .btn { flex:0 1 auto; max-width:100%; }
+  .savebar .note { flex:1 1 100%; color:var(--muted); font-size:13px; }
+  @media (min-width:720px) { .savebar .note { flex:1 1 auto; } }
 </style>
 
 <div class="card">
@@ -41,15 +63,27 @@
   {% if err == 'notimg' %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
     มีบางไฟล์ที่ไม่ใช่รูปภาพ ระบบข้ามให้แล้ว (รองรับ JPG · PNG · HEIC จากมือถือ)</div>{% endif %}
   <p class="rp-hint" style="margin-top:8px;">กรอกเท่าที่มี — <b>หัวข้อที่เว้นว่างจะไม่ขึ้นในเอกสาร</b>
-    ไม่ต้องมานั่งลบทีหลัง · กด Enter ขึ้นบรรทัดใหม่เพื่อทำเป็นข้อ ๆ ได้</p>
+    และเลขข้อจะไล่ใหม่ให้เอง ไม่ต้องมานั่งลบทีหลัง</p>
 </div>
 
+{# ---------- ฟอร์มอัปโหลด/ลบ/เลื่อนภาพ วางไว้ต้นไฟล์ ปุ่มในการ์ดอ้างด้วย form="..." ---------- #}
+<form id="upPhotos" method="post" action="/project-reports/{{ rep.id }}/photos" enctype="multipart/form-data" hidden></form>
+{% for ph in rep.photos %}
+<form id="phDel{{ ph.id }}" method="post" action="/project-reports/{{ rep.id }}/photos/{{ ph.id }}/delete" hidden></form>
+<form id="phUp{{ ph.id }}" method="post" action="/project-reports/{{ rep.id }}/photos/{{ ph.id }}/move" hidden>
+  <input type="hidden" name="dir" value="up"></form>
+<form id="phDn{{ ph.id }}" method="post" action="/project-reports/{{ rep.id }}/photos/{{ ph.id }}/move" hidden>
+  <input type="hidden" name="dir" value="down"></form>
+{% endfor %}
+<form id="syncObj" method="post" action="/project-reports/{{ rep.id }}/sync-objectives" hidden></form>
+
 <form method="post" action="/project-reports/{{ rep.id }}/save">
+
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> ข้อมูลทั่วไป</h2>
   <div class="rp-grid">
     <div style="flex:2 1 320px;"><label>ชื่อกิจกรรม</label>
-      <input name="title" value="{{ rep.title or '' }}" placeholder="เช่น กิจกรรมวันวิทยาศาสตร์">
+      <input name="title" value="{{ rep.title or '' }}" placeholder="เช่น กิจกรรมวันคริสต์มาส">
       <div class="rp-hint">ถ้าเว้นว่าง จะใช้ชื่อโครงการเป็นชื่อรายงาน</div></div>
     <div><label>สถานที่ดำเนินการ</label>
       <input name="location" value="{{ rep.location or '' }}" placeholder="เช่น หอประชุมโรงเรียน"></div>
@@ -64,52 +98,200 @@
       <input name="responsible" value="{{ rep.responsible or '' }}" list="personList" placeholder="ชื่อ-นามสกุล">
       <datalist id="personList">{% for ps in persons %}<option value="{{ ps.name }}">{% endfor %}</datalist></div>
     <div><label>ตำแหน่ง</label>
-      <input name="responsible_pos" value="{{ rep.responsible_pos or '' }}" placeholder="เช่น ครู คศ.1"></div>
+      <input name="responsible_pos" value="{{ rep.responsible_pos or '' }}" placeholder="เช่น ครู"></div>
   </div>
-  <div style="margin-top:12px;"><label>สนองมาตรฐาน / กลยุทธ์ / นโยบาย</label>
-    <textarea name="std_ref" rows="2" placeholder="เช่น มาตรฐานที่ 1 คุณภาพของผู้เรียน · กลยุทธ์ที่ 2 ...">{{ rep.std_ref or '' }}</textarea></div>
+  <div style="margin-top:12px;"><label>สนองมาตรฐาน / กลยุทธ์ (ถ้ามี)</label>
+    <input name="std_ref" value="{{ rep.std_ref or '' }}" placeholder="เช่น มาตรฐานที่ 1 คุณภาพของผู้เรียน"></div>
 </div>
 
 <div class="card">
-  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-coins"/></svg> งบประมาณ</h2>
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-file"/></svg> บันทึกข้อความนำส่ง · คำนำ</h2>
+  <p class="rp-hint" style="margin-top:0;">หน้าแรกของรายงานคือบันทึกข้อความเสนอหัวหน้าฝ่ายวิชาการและผู้อำนวยการ</p>
+  <label>เนื้อความในบันทึกข้อความ</label>
+  <textarea name="memo_body" rows="3" placeholder="เว้นว่างได้ — ระบบจะเขียนให้อัตโนมัติจากชื่อโครงการ ผู้รับผิดชอบ และช่วงวันที่">{{ rep.memo_body or '' }}</textarea>
+  <label style="margin-top:12px; display:block;">คำนำ</label>
+  <textarea name="preface" rows="4" placeholder="เว้นว่าง = ไม่มีหน้าคำนำในเอกสาร">{{ rep.preface or '' }}</textarea>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;">1. ความเป็นมา</h2>
+  <p class="rp-hint" style="margin-top:0;">ที่มาและความสำคัญของกิจกรรม · กด Enter ขึ้นย่อหน้าใหม่ได้</p>
+  <textarea name="principles" rows="6">{{ rep.principles or '' }}</textarea>
+</div>
+
+{% macro listbox(field, title, hint, ph) %}
+<div class="card">
+  <h2 style="margin-top:0;">{{ title }}</h2>
+  <p class="rp-hint" style="margin-top:0;">{{ hint }}</p>
+  <div class="rowset" data-set="{{ field }}">
+    {% for v in load_list(rep[field]) %}
+    <div class="rw"><span class="no"></span>
+      <div class="fields"><input type="text" name="{{ field }}" value="{{ v }}" placeholder="{{ ph }}"></div>
+      <button type="button" class="x" onclick="delRow(this)" title="ลบข้อนี้">✕</button></div>
+    {% endfor %}
+  </div>
+  <button type="button" class="btn sm gray add-row" onclick="addRow('{{ field }}')" style="margin-top:10px;">＋ เพิ่มข้อ</button>
+</div>
+{% endmacro %}
+
+{{ listbox('objectives', '2. วัตถุประสงค์', 'กด "เพิ่มข้อ" ทีละข้อ ระบบใส่เลข 2.1 2.2 ให้เองในเอกสาร', 'เช่น เพื่อให้นักเรียนเรียนรู้วัฒนธรรมตะวันตก') }}
+
+<div class="card">
+  <h2 style="margin-top:0;">3. เป้าหมาย</h2>
+  <h3 style="margin:12px 0 0; font-size:15px;">3.1 เป้าหมายเชิงปริมาณ</h3>
+  <p class="rp-hint" style="margin-top:2px;">วัดเป็นตัวเลขได้ เช่น จำนวนคน ร้อยละ</p>
+  <div class="rowset" data-set="target_qty">
+    {% for v in load_list(rep.target_qty) %}
+    <div class="rw"><span class="no"></span>
+      <div class="fields"><input type="text" name="target_qty" value="{{ v }}" placeholder="เช่น นักเรียนเข้าร่วมกิจกรรมร้อยละ 100"></div>
+      <button type="button" class="x" onclick="delRow(this)" title="ลบข้อนี้">✕</button></div>
+    {% endfor %}
+  </div>
+  <button type="button" class="btn sm gray" onclick="addRow('target_qty')" style="margin-top:10px;">＋ เพิ่มข้อ</button>
+
+  <h3 style="margin:20px 0 0; font-size:15px;">3.2 เป้าหมายเชิงคุณภาพ</h3>
+  <p class="rp-hint" style="margin-top:2px;">คุณลักษณะ/ทักษะที่เกิดกับผู้เรียน</p>
+  <div class="rowset" data-set="target_qual">
+    {% for v in load_list(rep.target_qual) %}
+    <div class="rw"><span class="no"></span>
+      <div class="fields"><input type="text" name="target_qual" value="{{ v }}" placeholder="เช่น นักเรียนมีความสามัคคีและการแบ่งปัน"></div>
+      <button type="button" class="x" onclick="delRow(this)" title="ลบข้อนี้">✕</button></div>
+    {% endfor %}
+  </div>
+  <button type="button" class="btn sm gray" onclick="addRow('target_qual')" style="margin-top:10px;">＋ เพิ่มข้อ</button>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;">4. ขั้นตอนการดำเนินงาน</h2>
+  <p class="rp-hint" style="margin-top:0;">กรอกเป็นช่อง ๆ ระบบจัดเป็นตารางในเอกสารให้</p>
+  <div class="rw-head"><span style="flex:3;">กิจกรรม</span><span style="flex:2;">ระยะเวลา</span><span style="flex:2;">ผู้รับผิดชอบ</span></div>
+  <div class="rowset" data-set="steps_items">
+    {% for r in load_list(rep.steps_items) %}
+    <div class="rw"><span class="no"></span>
+      <div class="fields">
+        <input type="text" name="steps_items_act" value="{{ r.act or '' }}" placeholder="เช่น ประชุมเตรียมการ วางแผน" style="flex:3;">
+        <input type="text" name="steps_items_period" value="{{ r.period or '' }}" placeholder="เช่น พฤศจิกายน 2568" style="flex:2;">
+        <input type="text" name="steps_items_who" value="{{ r.who or '' }}" placeholder="เช่น คณะครู" style="flex:2;">
+      </div>
+      <button type="button" class="x" onclick="delRow(this)" title="ลบแถวนี้">✕</button></div>
+    {% endfor %}
+  </div>
+  <button type="button" class="btn sm gray" onclick="addRow('steps_items')" style="margin-top:10px;">＋ เพิ่มขั้นตอน</button>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;">5. งบประมาณ</h2>
   <div class="rp-grid">
     <div><label>งบที่ตั้งไว้ (บาท)</label>
       <input name="budget_planned" type="number" step="0.01" min="0" value="{{ '%.2f'|format(rep.budget_planned or 0) }}"></div>
-    <div><label>ใช้จริง (บาท)</label>
-      <input name="budget_used" type="number" step="0.01" min="0" value="{{ '%.2f'|format(rep.budget_used or 0) }}"></div>
-    <div style="flex:2 1 280px;"><label>หมายเหตุ / แหล่งงบ</label>
+    <div><label>ใช้จริงรวม (บาท)</label>
+      <input name="budget_used" type="number" step="0.01" min="0" value="{{ '%.2f'|format(rep.budget_used or 0) }}">
+      <div class="rp-hint">ถ้ากรอกตารางด้านล่าง ระบบจะรวมยอดจากตารางแทน</div></div>
+    <div style="flex:2 1 260px;"><label>แหล่งงบ / หมายเหตุ</label>
       <input name="budget_note" value="{{ rep.budget_note or '' }}" placeholder="เช่น เงินอุดหนุนรายหัว"></div>
   </div>
-  <div class="rp-hint" style="margin-top:8px;">เว้นเป็น 0 ทั้งคู่ = ไม่ต้องแสดงหัวข้องบประมาณในเอกสาร</div>
-</div>
-
-<div class="card">
-  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-file"/></svg> เนื้อหารายงาน</h2>
-  {% set secs = [
-      ('principles',   'หลักการและเหตุผล', 4, 'ที่มาของกิจกรรม ทำไมต้องจัด'),
-      ('objectives',   'วัตถุประสงค์', 3, 'พิมพ์เป็นข้อ ๆ เช่น 1. เพื่อ... (ขึ้นบรรทัดใหม่ = ข้อใหม่)'),
-      ('target_qty',   'เป้าหมายเชิงปริมาณ', 2, 'เช่น นักเรียนชั้น ป.1-ป.6 จำนวน 120 คน เข้าร่วมกิจกรรม'),
-      ('target_qual',  'เป้าหมายเชิงคุณภาพ', 2, 'เช่น นักเรียนมีเจตคติที่ดีต่อ...'),
-      ('methods',      'วิธีดำเนินการ', 5, 'ขั้นวางแผน / ดำเนินการ / ตรวจสอบ / ปรับปรุง (PDCA)'),
-      ('results',      'ผลการดำเนินงาน', 5, 'ผลที่เกิดขึ้นจริง เทียบกับเป้าหมายที่ตั้งไว้'),
-      ('satisfaction', 'ผลการประเมิน / ความพึงพอใจ', 3, 'เช่น ผู้เข้าร่วมพึงพอใจระดับมากที่สุด ร้อยละ 92.5'),
-      ('problems',     'ปัญหาและอุปสรรค', 3, 'มีก็เขียน ไม่มีเว้นว่างได้'),
-      ('suggestions',  'ข้อเสนอแนะ', 3, 'แนวทางพัฒนาครั้งต่อไป'),
-  ] %}
-  {% for key, head, rows, hint in secs %}
-  <div class="rp-sec">
-    <h3>{{ loop.index }}. {{ head }}</h3>
-    <div class="rp-hint">{{ hint }}</div>
-    <textarea name="{{ key }}" rows="{{ rows }}">{{ rep[key] or '' }}</textarea>
+  <h3 style="margin:18px 0 0; font-size:15px;">จำแนกตามหมวดรายจ่าย</h3>
+  <div class="rw-head" style="margin-top:6px;"><span style="flex:3;">รายการ</span>
+    <span style="flex:1;">ค่าตอบแทน</span><span style="flex:1;">ค่าใช้สอย</span><span style="flex:1;">ค่าวัสดุ</span></div>
+  <div class="rowset" data-set="budget_items">
+    {% for r in load_list(rep.budget_items) %}
+    <div class="rw"><span class="no"></span>
+      <div class="fields">
+        <input type="text" name="budget_items_item" value="{{ r.item or '' }}" placeholder="เช่น ดำเนินการตามแผน" style="flex:3;">
+        <input type="number" step="0.01" min="0" name="budget_items_pay" value="{{ r.pay or '' }}" style="flex:1;">
+        <input type="number" step="0.01" min="0" name="budget_items_use" value="{{ r.use or '' }}" style="flex:1;">
+        <input type="number" step="0.01" min="0" name="budget_items_mat" value="{{ r.mat or '' }}" style="flex:1;">
+      </div>
+      <button type="button" class="x" onclick="delRow(this)" title="ลบแถวนี้">✕</button></div>
+    {% endfor %}
   </div>
-  {% endfor %}
+  <button type="button" class="btn sm gray" onclick="addRow('budget_items')" style="margin-top:10px;">＋ เพิ่มรายการ</button>
+  <p class="rp-hint" style="margin-top:10px;">เอกสารจะรวมยอดแต่ละแถว + แถว "รวม" เป็นตัวอักษร (…บาทถ้วน) ให้อัตโนมัติ</p>
 </div>
 
 <div class="card">
+  <h2 style="margin-top:0;">6. การประเมินผล</h2>
+  <div class="rw-head"><span style="flex:3;">ตัวบ่งชี้ความสำเร็จ</span><span style="flex:2;">วิธีการประเมิน</span><span style="flex:2;">เครื่องมือ</span></div>
+  <div class="rowset" data-set="eval_items">
+    {% for r in load_list(rep.eval_items) %}
+    <div class="rw"><span class="no"></span>
+      <div class="fields">
+        <input type="text" name="eval_items_indicator" value="{{ r.indicator or '' }}" placeholder="เช่น จำนวนนักเรียนเข้าร่วมกิจกรรม" style="flex:3;">
+        <input type="text" name="eval_items_method" value="{{ r.method or '' }}" placeholder="เช่น สังเกต, สำรวจ" style="flex:2;">
+        <input type="text" name="eval_items_tool" value="{{ r.tool or '' }}" placeholder="เช่น แบบสำรวจ" style="flex:2;">
+      </div>
+      <button type="button" class="x" onclick="delRow(this)" title="ลบแถวนี้">✕</button></div>
+    {% endfor %}
+  </div>
+  <button type="button" class="btn sm gray" onclick="addRow('eval_items')" style="margin-top:10px;">＋ เพิ่มตัวบ่งชี้</button>
+</div>
+
+{{ listbox('expected', '7. ผลที่คาดว่าจะได้รับ', 'กด "เพิ่มข้อ" ทีละข้อ', 'เช่น นักเรียนร้อยละ 100 เข้าร่วมกิจกรรม') }}
+
+<div class="card" id="sec-summary">
+  <h2 style="margin-top:0;">8. สรุปผลการประเมิน</h2>
+  <h3 style="margin:12px 0 0; font-size:15px;">ผลแบบประเมินความพึงพอใจ</h3>
+  <p class="rp-hint" style="margin-top:2px;">กรอก<b>จำนวนคนที่ตอบ</b>แต่ละระดับ ระบบคิดร้อยละและระดับคุณภาพให้เอง
+    (ระดับ 4 = ดีเยี่ยม · 3 = ดี · 2 = พอใช้ · 1 = ปรับปรุง)</p>
+  <div class="rw-head"><span style="flex:4;">รายการประเมิน</span>
+    <span style="flex:1;">ระดับ 4</span><span style="flex:1;">ระดับ 3</span>
+    <span style="flex:1;">ระดับ 2</span><span style="flex:1;">ระดับ 1</span></div>
+  <div class="rowset" data-set="survey_items">
+    {% for r in survey %}
+    <div class="rw"><span class="no"></span>
+      <div class="fields">
+        <input type="text" name="survey_items_item" value="{{ r.item or '' }}" placeholder="เช่น การจัดกิจกรรมมีความเหมาะสม" style="flex:4;">
+        <input type="number" min="0" step="1" name="survey_items_n4" value="{{ r.n4 or '' }}" style="flex:1;" data-sv>
+        <input type="number" min="0" step="1" name="survey_items_n3" value="{{ r.n3 or '' }}" style="flex:1;" data-sv>
+        <input type="number" min="0" step="1" name="survey_items_n2" value="{{ r.n2 or '' }}" style="flex:1;" data-sv>
+        <input type="number" min="0" step="1" name="survey_items_n1" value="{{ r.n1 or '' }}" style="flex:1;" data-sv>
+      </div>
+      <button type="button" class="x" onclick="delRow(this)" title="ลบแถวนี้">✕</button></div>
+    {% endfor %}
+  </div>
+  <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px;">
+    <button type="button" class="btn sm gray" onclick="addRow('survey_items')">＋ เพิ่มรายการประเมิน</button>
+    <span id="svOut" class="muted" style="font-size:13.5px;">
+      {% if pct is not none %}ผลรวมเฉลี่ย <b>ร้อยละ {{ '%.2f'|format(pct) }}</b> · ระดับ <b>{{ level }}</b>{% endif %}</span>
+  </div>
+
+  <h3 style="margin:22px 0 0; font-size:15px;">สรุปผลตามวัตถุประสงค์</h3>
+  <p class="rp-hint" style="margin-top:2px;">ติ๊กว่าแต่ละวัตถุประสงค์บรรลุหรือไม่ ·
+    <button type="submit" form="syncObj" class="btn sm gray" style="padding:2px 10px;">ดึงวัตถุประสงค์จากข้อ 2 มาใส่</button>
+    <span style="color:#b45309;">(บันทึกรายงานก่อนกด ไม่งั้นจะได้ข้อความชุดเดิม)</span></p>
+  <div class="rowset" data-set="obj_results">
+    {% for r in load_list(rep.obj_results) %}
+    <div class="rw"><span class="no"></span>
+      <div class="fields" style="align-items:center;">
+        <input type="text" name="obj_results_obj" value="{{ r.obj or '' }}" style="flex:1;">
+        <label style="flex:none; display:inline-flex; align-items:center; gap:6px; margin:0; font-size:13.5px; white-space:nowrap;">
+          <input type="checkbox" {{ 'checked' if r.ok }} onchange="okBox(this)"
+                 style="width:16px; height:16px; padding:0; margin:0;">
+          <input type="hidden" name="obj_results_ok" value="{{ '1' if r.ok else '0' }}"> บรรลุ</label>
+      </div>
+      <button type="button" class="x" onclick="delRow(this)" title="ลบแถวนี้">✕</button></div>
+    {% endfor %}
+  </div>
+  <p class="rp-hint" style="margin-top:10px;">แถวที่เว้นข้อความว่างจะถูกตัดทิ้งตอนบันทึก</p>
+  <label style="margin-top:14px; display:block;">สรุปเพิ่มเติม (ถ้ามี)</label>
+  <textarea name="summary_note" rows="3" placeholder="ข้อความสรุปเพิ่มนอกเหนือจากตารางด้านบน">{{ rep.summary_note or '' }}</textarea>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;">9. ข้อเสนอแนะ</h2>
+  <textarea name="suggestions" rows="4" placeholder="แนวทางพัฒนาครั้งต่อไป">{{ rep.suggestions or '' }}</textarea>
+</div>
+
+{# ---------------- ภาพกิจกรรม: ช่องอัปโหลดอยู่ติดกับหัวข้อเลย ---------------- #}
+<div class="card" id="sec-photos">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-upload"/></svg> ภาพกิจกรรม
     <span class="muted" style="font-weight:400; font-size:14px;">({{ rep.photos|length }}/{{ max_photos }})</span></h2>
-  <p class="rp-hint" style="margin-top:0;">ภาพจะอยู่ในภาคผนวกท้ายเล่ม เรียง 2 ภาพต่อแถว พร้อมคำบรรยายใต้ภาพ ·
-    คำบรรยายบันทึกพร้อมปุ่ม "บันทึกรายงาน" ด้านล่าง</p>
+  <div class="up-box">
+    <input type="file" name="files" accept="image/*" multiple form="upPhotos" required>
+    <button class="btn sm" type="submit" form="upPhotos"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดภาพ</button>
+  </div>
+  <p class="rp-hint">เลือกหลายไฟล์พร้อมกันได้ · ระบบย่อรูปให้อัตโนมัติ ไฟล์ใหญ่จากมือถืออัปได้เลย ·
+    ภาพจะอยู่ในภาคผนวกท้ายเล่ม เรียง 2 ภาพต่อแถว</p>
   {% if rep.photos %}
   <div class="ph-grid">
     {% for ph in rep.photos %}
@@ -119,8 +301,8 @@
         <span class="ph-num">ภาพที่ {{ loop.index }}</span>
         <input type="text" name="cap_{{ ph.id }}" value="{{ ph.caption or '' }}" placeholder="คำบรรยายใต้ภาพ">
         <div class="ph-act">
-          <button type="submit" form="phMove{{ ph.id }}Up" title="เลื่อนขึ้น" {{ 'disabled' if loop.first }}>▲</button>
-          <button type="submit" form="phMove{{ ph.id }}Dn" title="เลื่อนลง" {{ 'disabled' if loop.last }}>▼</button>
+          <button type="submit" form="phUp{{ ph.id }}" title="เลื่อนขึ้น" {{ 'disabled' if loop.first }}>▲</button>
+          <button type="submit" form="phDn{{ ph.id }}" title="เลื่อนลง" {{ 'disabled' if loop.last }}>▼</button>
           <button type="submit" form="phDel{{ ph.id }}" class="del" title="ลบภาพนี้"
                   onclick="return confirm('ลบภาพนี้?')">✕</button>
         </div>
@@ -128,28 +310,19 @@
     </div>
     {% endfor %}
   </div>
-  {% else %}
-  <p class="muted" style="margin:6px 0 0;">ยังไม่มีภาพ — เลือกไฟล์ด้านล่างเพื่อเพิ่ม (เลือกหลายไฟล์พร้อมกันได้)</p>
+  <p class="rp-hint" style="margin-top:10px;">คำบรรยายใต้ภาพจะบันทึกพร้อมปุ่ม "บันทึกรายงาน" ด้านล่าง</p>
   {% endif %}
 </div>
 
-<div class="card sticky-save" style="position:sticky; bottom:12px; z-index:5;">
-  <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกรายงาน</button>
-  <a class="btn green" href="/project-reports/{{ rep.id }}/doc.docx"><svg class="icon"><use href="#ic-file"/></svg> ดาวน์โหลด Word พร้อมพิมพ์</a>
-  <span class="muted" style="font-size:13px;">กดบันทึกก่อนดาวน์โหลด เพื่อให้เอกสารได้ข้อมูลล่าสุด</span>
+{# ---------------- แถบบันทึก + ดาวน์โหลด (ล่างสุด) ---------------- #}
+<div class="card">
+  <div class="savebar">
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกรายงาน</button>
+    <a class="btn green" href="/project-reports/{{ rep.id }}/doc.docx"><svg class="icon"><use href="#ic-file"/></svg> ดาวน์โหลด Word</a>
+    <span class="note">กดบันทึกก่อนดาวน์โหลด เพื่อให้เอกสารได้ข้อมูลล่าสุด</span>
+  </div>
 </div>
 </form>
-
-{# ---- ฟอร์มย่อยอยู่นอกฟอร์มหลัก (HTML ซ้อนฟอร์มไม่ได้) ปุ่มข้างบนอ้างด้วย form="..." ---- #}
-<div class="card">
-  <h3 style="margin-top:0;">เพิ่มภาพกิจกรรม</h3>
-  <form method="post" action="/project-reports/{{ rep.id }}/photos" enctype="multipart/form-data"
-        style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-    <input type="file" name="files" accept="image/*" multiple required style="flex:1 1 260px;">
-    <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดภาพ</button>
-  </form>
-  <p class="rp-hint" style="margin-bottom:0;">ระบบย่อรูปให้อัตโนมัติ ไฟล์ใหญ่จากมือถืออัปได้เลย</p>
-</div>
 
 <div class="card">
   <form method="post" action="/project-reports/{{ rep.id }}/delete"
@@ -158,11 +331,88 @@
   </form>
 </div>
 
-{% for ph in rep.photos %}
-<form id="phDel{{ ph.id }}" method="post" action="/project-reports/{{ rep.id }}/photos/{{ ph.id }}/delete" hidden></form>
-<form id="phMove{{ ph.id }}Up" method="post" action="/project-reports/{{ rep.id }}/photos/{{ ph.id }}/move" hidden>
-  <input type="hidden" name="dir" value="up"></form>
-<form id="phMove{{ ph.id }}Dn" method="post" action="/project-reports/{{ rep.id }}/photos/{{ ph.id }}/move" hidden>
-  <input type="hidden" name="dir" value="down"></form>
-{% endfor %}
+<script>
+  // เพิ่ม/ลบแถว: โคลนจากแถวสุดท้ายของชุดนั้น (ล้างค่าให้ว่าง) ถ้ายังไม่มีแถวใช้แม่แบบสำรอง
+  var TPL = {
+    objectives:  '<input type="text" name="objectives" placeholder="เช่น เพื่อให้นักเรียนเรียนรู้วัฒนธรรมตะวันตก">',
+    target_qty:  '<input type="text" name="target_qty" placeholder="เช่น นักเรียนเข้าร่วมกิจกรรมร้อยละ 100">',
+    target_qual: '<input type="text" name="target_qual" placeholder="เช่น นักเรียนมีความสามัคคีและการแบ่งปัน">',
+    expected:    '<input type="text" name="expected" placeholder="เช่น นักเรียนร้อยละ 100 เข้าร่วมกิจกรรม">',
+    steps_items: '<input type="text" name="steps_items_act" placeholder="เช่น ประชุมเตรียมการ วางแผน" style="flex:3;">' +
+                 '<input type="text" name="steps_items_period" placeholder="เช่น พฤศจิกายน 2568" style="flex:2;">' +
+                 '<input type="text" name="steps_items_who" placeholder="เช่น คณะครู" style="flex:2;">',
+    budget_items:'<input type="text" name="budget_items_item" placeholder="เช่น ดำเนินการตามแผน" style="flex:3;">' +
+                 '<input type="number" step="0.01" min="0" name="budget_items_pay" style="flex:1;">' +
+                 '<input type="number" step="0.01" min="0" name="budget_items_use" style="flex:1;">' +
+                 '<input type="number" step="0.01" min="0" name="budget_items_mat" style="flex:1;">',
+    eval_items:  '<input type="text" name="eval_items_indicator" placeholder="เช่น จำนวนนักเรียนเข้าร่วมกิจกรรม" style="flex:3;">' +
+                 '<input type="text" name="eval_items_method" placeholder="เช่น สังเกต, สำรวจ" style="flex:2;">' +
+                 '<input type="text" name="eval_items_tool" placeholder="เช่น แบบสำรวจ" style="flex:2;">',
+    survey_items:'<input type="text" name="survey_items_item" placeholder="เช่น การจัดกิจกรรมมีความเหมาะสม" style="flex:4;">' +
+                 '<input type="number" min="0" step="1" name="survey_items_n4" style="flex:1;" data-sv>' +
+                 '<input type="number" min="0" step="1" name="survey_items_n3" style="flex:1;" data-sv>' +
+                 '<input type="number" min="0" step="1" name="survey_items_n2" style="flex:1;" data-sv>' +
+                 '<input type="number" min="0" step="1" name="survey_items_n1" style="flex:1;" data-sv>',
+    obj_results: '<input type="text" name="obj_results_obj" style="flex:1;">' +
+                 '<label style="flex:none; display:inline-flex; align-items:center; gap:6px; margin:0; font-size:13.5px; white-space:nowrap;">' +
+                 '<input type="checkbox" checked onchange="okBox(this)" style="width:16px;height:16px;padding:0;margin:0;">' +
+                 '<input type="hidden" name="obj_results_ok" value="1"> บรรลุ</label>'
+  };
+
+  // ค่าจริงที่ส่งไปอยู่ใน hidden ข้าง ๆ (checkbox ที่ไม่ติ๊กจะไม่ถูกส่ง แถวจะเลื่อนไม่ตรงกัน)
+  function okBox(cb){ cb.nextElementSibling.value = cb.checked ? '1' : '0'; }
+
+  function renumber(set){
+    var i = 1;
+    set.querySelectorAll(':scope > .rw > .no').forEach(function(el){ el.textContent = (i++) + '.'; });
+  }
+  function addRow(field){
+    var set = document.querySelector('[data-set="' + field + '"]');
+    if(!set) return;
+    var rw = document.createElement('div');
+    rw.className = 'rw';
+    rw.innerHTML = '<span class="no"></span><div class="fields"' +
+      (field === 'obj_results' ? ' style="align-items:center;"' : '') + '>' + TPL[field] + '</div>' +
+      '<button type="button" class="x" onclick="delRow(this)" title="ลบแถวนี้">✕</button>';
+    set.appendChild(rw);
+    renumber(set);
+    var first = rw.querySelector('input');
+    if(first) first.focus();
+    if(field === 'survey_items') bindSurvey();
+  }
+  function delRow(btn){
+    var rw = btn.closest('.rw'), set = rw.parentElement;
+    rw.remove(); renumber(set);
+    if(set.dataset.set === 'survey_items') calcSurvey();
+  }
+
+  // คิดร้อยละความพึงพอใจสด ๆ (สูตรเดียวกับฝั่งเซิร์ฟเวอร์: คะแนนที่ได้ / (4 x ผู้ตอบทั้งหมด))
+  function calcSurvey(){
+    var got = 0, full = 0;
+    document.querySelectorAll('[data-set="survey_items"] > .rw').forEach(function(rw){
+      var v = {};
+      [4,3,2,1].forEach(function(k){
+        var el = rw.querySelector('[name="survey_items_n' + k + '"]');
+        v[k] = el ? (parseFloat(el.value) || 0) : 0;
+      });
+      got  += v[4]*4 + v[3]*3 + v[2]*2 + v[1];
+      full += (v[4] + v[3] + v[2] + v[1]) * 4;
+    });
+    var out = document.getElementById('svOut');
+    if(!out) return;
+    if(!full){ out.innerHTML = ''; return; }
+    var pct = got * 100 / full;
+    var lv = pct > 80 ? 'ดีเยี่ยม' : pct > 60 ? 'ดี' : pct > 40 ? 'พอใช้' : 'ปรับปรุง';
+    out.innerHTML = 'ผลรวมเฉลี่ย <b>ร้อยละ ' + pct.toFixed(2) + '</b> · ระดับ <b>' + lv + '</b>';
+  }
+  function bindSurvey(){
+    document.querySelectorAll('[data-set="survey_items"] [data-sv]').forEach(function(el){
+      if(el.dataset.bound) return;
+      el.dataset.bound = '1';
+      el.addEventListener('input', calcSurvey);
+    });
+  }
+  document.querySelectorAll('.rowset').forEach(renumber);
+  bindSurvey();
+</script>
 {% endblock %}
