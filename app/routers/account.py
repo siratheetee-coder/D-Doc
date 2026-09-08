@@ -6,8 +6,9 @@ account.py - จัดการบัญชีผู้ใช้ของตั�
 from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from app.accounts import (change_password, clear_avatar, get_avatar, has_avatar,
-                          mark_welcomed, set_avatar, set_display_name, sync_seen_modules)
+from app.accounts import (audit, change_password, clear_avatar, get_avatar, has_avatar,
+                          mark_welcomed, set_avatar, set_display_name, sync_seen_modules,
+                          totp_begin, totp_confirm, totp_disable, totp_status)
 from app.templating import templates
 
 router = APIRouter()
@@ -87,6 +88,10 @@ def _profile_ctx(request, **extra):
         "is_owner": request.session.get("owner", False),
         "is_teacher": bool(request.session.get("person_id")),
         "has_avatar": has_avatar(request.session.get("uid")),
+        # ยืนยัน 2 ชั้น: เปิดให้เฉพาะบัญชีผู้ดูแลระบบก่อน (บัญชีเดียวที่เข้าถึงได้ทุกโรงเรียน)
+        "can_2fa": request.session.get("role") == "superadmin",
+        "tfa": totp_status(request.session.get("uid")),
+        "tfa_secret": None, "tfa_codes": None,
         "error": None, "saved": False,
     }
     ctx.update(extra)
@@ -149,3 +154,76 @@ def avatar_delete(request: Request):
         clear_avatar(uid)
     request.session["pic"] = False
     return RedirectResponse("/account/profile?saved=pic", status_code=303)
+
+
+# ---------------- ยืนยันตัวตน 2 ชั้น (TOTP) · สมัครใจ ----------------
+def _can_2fa(request) -> bool:
+    return bool(request.session.get("uid")) and request.session.get("role") == "superadmin"
+
+
+@router.post("/account/2fa/start", response_class=HTMLResponse)
+def tfa_start(request: Request):
+    """สร้างคีย์ลับ + แสดง QR ให้สแกน (ยังไม่เปิดใช้จนกว่าจะยืนยันรหัสสำเร็จ)"""
+    if not _can_2fa(request):
+        return RedirectResponse("/account/profile", status_code=303)
+    secret = totp_begin(request.session.get("uid"))
+    if not secret:
+        return RedirectResponse("/account/profile", status_code=303)
+    return templates.TemplateResponse("account_profile.html",
+                                      _profile_ctx(request, tfa_secret=secret))
+
+
+@router.get("/account/2fa/qr.png")
+def tfa_qr(request: Request):
+    """QR ของคีย์ที่กำลังตั้งค่า - เสิร์ฟเฉพาะเจ้าของ session และเฉพาะตอนที่ยังไม่เปิดใช้"""
+    from app.accounts import acc_session, Account
+    from app.services import totp as _t
+    if not _can_2fa(request):
+        return Response(status_code=404)
+    db = acc_session()
+    try:
+        a = db.get(Account, request.session.get("uid"))
+        if not a or not a.totp_secret or a.totp_enabled:
+            return Response(status_code=404)
+        png = _t.qr_png(_t.uri(a.totp_secret, a.username))
+    finally:
+        db.close()
+    if not png:
+        return Response(status_code=404)
+    return Response(content=png, media_type="image/png",
+                    headers={"Cache-Control": "no-store"})
+
+
+@router.post("/account/2fa/enable", response_class=HTMLResponse)
+def tfa_enable(request: Request, code: str = Form("")):
+    if not _can_2fa(request):
+        return RedirectResponse("/account/profile", status_code=303)
+    r = totp_confirm(request.session.get("uid"), code)
+    if r.get("error"):
+        from app.accounts import acc_session, Account
+        db = acc_session()
+        try:
+            a = db.get(Account, request.session.get("uid"))
+            secret = a.totp_secret if a else None
+        finally:
+            db.close()
+        return templates.TemplateResponse(
+            "account_profile.html",
+            _profile_ctx(request, error=r["error"], tfa_secret=secret), status_code=400)
+    audit("2fa.enable", request=request)
+    # โชว์รหัสสำรองครั้งเดียวตรงนี้ (เก็บใน DB เป็น sha256 ย้อนดูไม่ได้อีก)
+    return templates.TemplateResponse("account_profile.html",
+                                      _profile_ctx(request, tfa_codes=r["codes"]))
+
+
+@router.post("/account/2fa/disable", response_class=HTMLResponse)
+def tfa_disable(request: Request, password: str = Form("")):
+    if not _can_2fa(request):
+        return RedirectResponse("/account/profile", status_code=303)
+    r = totp_disable(request.session.get("uid"), password)
+    if r.get("error"):
+        return templates.TemplateResponse("account_profile.html",
+                                          _profile_ctx(request, error=r["error"]),
+                                          status_code=400)
+    audit("2fa.disable", request=request)
+    return RedirectResponse("/account/profile?saved=2fa-off", status_code=303)

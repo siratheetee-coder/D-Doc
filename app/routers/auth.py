@@ -8,7 +8,8 @@ from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.accounts import (audit, authenticate, login_fail_count, login_fail_record,
-                          login_fail_clear)
+                          login_fail_clear, totp_check, totp_required)
+from app.accounts import account_for_login
 from app.templating import templates
 
 router = APIRouter()
@@ -83,7 +84,9 @@ def login_page(request: Request, error: str | None = None, ok: str | None = None
         return RedirectResponse(dest, status_code=303)
     msg = ("ตั้งรหัสผ่านใหม่เรียบร้อยแล้ว เข้าสู่ระบบด้วยรหัสใหม่ได้เลย" if ok == "reset"
            else "ไม่ได้ใช้งานนาน ระบบออกให้อัตโนมัติเพื่อความปลอดภัย — เข้าสู่ระบบอีกครั้งได้เลย"
-           if ok == "expired" else None)
+           if ok == "expired"
+           else "ใส่รหัสยืนยัน 2 ชั้นไม่ทันเวลา กรุณาเข้าสู่ระบบใหม่อีกครั้ง"
+           if ok == "expired2fa" else None)
     return templates.TemplateResponse("login.html", {"request": request, "error": error, "ok_msg": msg, "next": nxt})
 
 
@@ -115,6 +118,24 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
             "unverified_email": user["username"], "next": _safe_next(next),
             "flow": _registration_flow(user["username"], next, ""),
         }, status_code=403)
+    # ผ่านรหัสผ่านแล้ว - ถ้าเปิดยืนยัน 2 ชั้นไว้ ยังไม่ให้เข้า ต้องใส่รหัสจากแอปก่อน
+    # สำคัญ: ยังไม่ตั้ง session["uid"] (มิดเดิลแวร์ใช้ค่านี้ตัดสินว่าล็อกอินแล้ว)
+    if totp_required(user["uid"]):
+        request.session.clear()
+        request.session["pending_uid"] = user["uid"]
+        request.session["pending_at"] = int(time.time())
+        request.session["pending_remember"] = bool(remember)
+        request.session["pending_next"] = _safe_next(next)
+        request.session["pending_user"] = user["username"]
+        return templates.TemplateResponse("login_2fa.html", {
+            "request": request, "error": None,
+            "username": user["username"],
+        })
+    return _finish_login(request, user, remember, next, ip)
+
+
+def _finish_login(request: Request, user: dict, remember, next: str, ip: str):
+    """สร้าง session + พาไปหน้าที่เหมาะสม (ใช้ร่วมกันทั้งล็อกอินปกติและหลังผ่าน 2FA)"""
     # ล็อกอินสำเร็จ - ล้างตัวนับล็อกอินผิดของ IP นี้ แล้วเก็บข้อมูลใน session
     _clear_fails(ip)
     request.session.clear()
@@ -153,6 +174,49 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
     else:
         dest = "/"
     return RedirectResponse(dest, status_code=303)
+
+
+# เวลาที่ให้ค้างอยู่ในขั้นตอนใส่รหัส 2 ชั้น (วินาที) - เกินนี้ต้องล็อกอินใหม่
+_PENDING_TTL = 300
+
+
+@router.post("/login/2fa", response_class=HTMLResponse)
+def login_2fa(request: Request, code: str = Form("")):
+    """ขั้นที่ 2 ของการล็อกอิน: ตรวจรหัสจากแอป (หรือรหัสสำรอง)"""
+    ip = request.client.host if request.client else "?"
+    uid = request.session.get("pending_uid")
+    started = request.session.get("pending_at", 0)
+    if not uid or (int(time.time()) - int(started or 0)) > _PENDING_TTL:
+        request.session.clear()
+        return RedirectResponse("/login?ok=expired2fa", status_code=303)
+    if _too_many(ip):
+        request.session.clear()
+        return templates.TemplateResponse("login.html", {
+            "request": request, "error": "พยายามเข้าระบบบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่",
+        }, status_code=429)
+
+    r = totp_check(uid, code)
+    if r.get("error"):
+        _record_fail(ip)          # นับรวมกับล็อกอินผิด - เดารหัส 6 หลักมั่วไม่ได้ไม่จำกัด
+        audit("2fa.fail", request=request, tenant_id=None, uid=uid,
+              username=request.session.get("pending_user", ""), ip=ip)
+        return templates.TemplateResponse("login_2fa.html", {
+            "request": request, "error": r["error"],
+            "username": request.session.get("pending_user", ""),
+        }, status_code=401)
+
+    user = account_for_login(uid)
+    if not user:
+        request.session.clear()
+        return RedirectResponse("/login", status_code=303)
+    remember = request.session.get("pending_remember", False)
+    nxt = request.session.get("pending_next", "")
+    if r.get("recovery"):
+        audit("2fa.recovery", request=request, tenant_id=user.get("tenant_id"), uid=uid,
+              username=user.get("username", ""), ip=ip,
+              detail=f"เหลือรหัสสำรองอีก {r.get('left', 0)} รหัส")
+    _clear_fails(ip)
+    return _finish_login(request, user, remember, nxt, ip)
 
 
 @router.get("/logout")

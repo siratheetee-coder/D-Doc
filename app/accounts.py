@@ -70,6 +70,11 @@ class Account(AccBase):
     must_change_password = Column(Boolean, default=False)   # บังคับเปลี่ยนรหัสครั้งแรก
     verified = Column(Boolean, default=True)        # ยืนยันอีเมลแล้วหรือยัง (สมัครใหม่ = False ถ้าเปิด SMTP)
     avatar = Column(LargeBinary, nullable=True)     # รูปโปรไฟล์ (JPEG ย่อ 256px) - ว่าง = ใช้อักษรย่อแทน
+    # ---- ยืนยันตัวตน 2 ชั้น (TOTP) · สมัครใจ ไม่บังคับ ----
+    totp_secret = Column(String, default="")        # คีย์ลับ (มีตั้งแต่ตอนเริ่มตั้งค่า แต่ยังไม่เปิดใช้)
+    totp_enabled = Column(Boolean, default=False)   # เปิดใช้จริงแล้ว (ยืนยันรหัสจากแอปสำเร็จ)
+    totp_last_step = Column(Integer, default=0)     # step ล่าสุดที่ใช้ - กันใช้รหัสเดิมซ้ำ
+    totp_recovery = Column(String, default="")      # รหัสสำรอง (เก็บเป็น sha256 ไม่ใช่ตัวรหัส)
     verify_token = Column(String, default="")       # โทเคนยืนยันอีเมล (ล้างเมื่อยืนยันแล้ว)
     reset_token = Column(String, default="")        # โทเคนรีเซ็ตรหัสผ่าน (ล้างเมื่อใช้แล้ว)
     reset_expires = Column(DateTime, nullable=True)  # วันหมดอายุของลิงก์รีเซ็ต
@@ -191,6 +196,10 @@ def _ensure_engine():
                     "ALTER TABLE account ADD COLUMN is_director BOOLEAN DEFAULT 0",   # ผอ./รองผอ. อนุมัติเอกสาร
                     "ALTER TABLE tenant ADD COLUMN teacher_code VARCHAR",  # รหัสต่อท้ายไอดีครู (owner ตั้ง)
                     "ALTER TABLE account ADD COLUMN avatar BLOB",          # รูปโปรไฟล์
+                    "ALTER TABLE account ADD COLUMN totp_secret VARCHAR DEFAULT ''",
+                    "ALTER TABLE account ADD COLUMN totp_enabled BOOLEAN DEFAULT 0",
+                    "ALTER TABLE account ADD COLUMN totp_last_step INTEGER DEFAULT 0",
+                    "ALTER TABLE account ADD COLUMN totp_recovery VARCHAR DEFAULT ''",
                     # backfill: บัญชีแรก (id น้อยสุด) ของแต่ละโรงเรียน = ไอดีหลัก · รันซ้ำได้ (ตั้งค่าแถวเดิม)
                     "UPDATE account SET is_owner=1 WHERE tenant_id IS NOT NULL "
                     "AND id IN (SELECT MIN(id) FROM account WHERE tenant_id IS NOT NULL GROUP BY tenant_id)",
@@ -352,6 +361,27 @@ def authenticate(username: str, password: str) -> dict | None:
                     "person_id": getattr(u, "person_id", None),
                     "welcomed": bool(getattr(u, "welcomed", False))}
         return None
+    finally:
+        db.close()
+
+
+def account_for_login(uid) -> dict | None:
+    """ข้อมูลผู้ใช้รูปแบบเดียวกับ authenticate() แต่ค้นด้วย uid
+    ใช้ตอนผ่านขั้นยืนยัน 2 ชั้นแล้ว (ตรวจรหัสผ่านไปก่อนหน้าแล้ว)"""
+    db = acc_session()
+    try:
+        u = db.query(Account).filter_by(id=uid, active=True).first()
+        if not u:
+            return None
+        return {"uid": u.id, "username": u.username, "role": u.role,
+                "tenant_id": u.tenant_id, "display_name": u.display_name,
+                "must_change": bool(u.must_change_password),
+                "verified": bool(getattr(u, "verified", True)),
+                "is_owner": bool(getattr(u, "is_owner", False)),
+                "is_director": bool(getattr(u, "is_director", False)),
+                "modules": getattr(u, "modules", "") or "",
+                "person_id": getattr(u, "person_id", None),
+                "welcomed": bool(getattr(u, "welcomed", False))}
     finally:
         db.close()
 
@@ -933,6 +963,115 @@ def has_avatar(uid) -> bool:
         db.close()
 
 
+def totp_status(uid) -> dict:
+    """สถานะ 2FA ของบัญชี -> {enabled, has_secret, recovery_left}"""
+    from app.services import totp as _t
+    db = acc_session()
+    try:
+        a = db.get(Account, uid)
+        if not a:
+            return {"enabled": False, "has_secret": False, "recovery_left": 0}
+        return {"enabled": bool(a.totp_enabled), "has_secret": bool(a.totp_secret),
+                "recovery_left": _t.recovery_left(a.totp_recovery or "")}
+    finally:
+        db.close()
+
+
+def totp_begin(uid) -> str | None:
+    """เริ่มตั้งค่า 2FA - สร้างคีย์ใหม่ (ยังไม่เปิดใช้จนกว่าจะยืนยันรหัสสำเร็จ)
+    ถ้าเปิดใช้อยู่แล้วจะไม่สร้างทับ (กันเผลอทำให้แอปเดิมใช้ไม่ได้)"""
+    from app.services import totp as _t
+    db = acc_session()
+    try:
+        a = db.get(Account, uid)
+        if not a or a.totp_enabled:
+            return None
+        a.totp_secret = _t.new_secret()
+        db.commit()
+        return a.totp_secret
+    finally:
+        db.close()
+
+
+def totp_confirm(uid, code) -> dict:
+    """ยืนยันรหัสจากแอปเพื่อเปิดใช้จริง · สำเร็จ -> คืนรหัสสำรอง (โชว์ครั้งเดียว)"""
+    from app.services import totp as _t
+    db = acc_session()
+    try:
+        a = db.get(Account, uid)
+        if not a or not a.totp_secret:
+            return {"error": "ยังไม่ได้เริ่มตั้งค่า กรุณากดเริ่มใหม่อีกครั้ง"}
+        if a.totp_enabled:
+            return {"error": "เปิดใช้อยู่แล้ว"}
+        st, step = _t.verify(a.totp_secret, code, last_step=a.totp_last_step or 0)
+        if st == "used":
+            return {"error": "รหัสนี้ถูกใช้ไปแล้ว รอให้แอปเปลี่ยนรหัสใหม่แล้วลองอีกครั้ง"}
+        if st != "ok":
+            return {"error": "รหัสไม่ถูกต้อง ลองใหม่อีกครั้ง (รหัสเปลี่ยนทุก 30 วินาที)"}
+        codes = _t.new_recovery_codes()
+        a.totp_enabled = True
+        a.totp_last_step = step
+        a.totp_recovery = _t.hash_recovery(codes)
+        db.commit()
+        return {"codes": codes}
+    finally:
+        db.close()
+
+
+def totp_disable(uid, password) -> dict:
+    """ปิด 2FA - ต้องกรอกรหัสผ่านซ้ำ (กันคนที่แอบใช้เครื่องที่ล็อกอินค้างไว้ปิดทิ้ง)"""
+    db = acc_session()
+    try:
+        a = db.get(Account, uid)
+        if not a:
+            return {"error": "ไม่พบบัญชีผู้ใช้"}
+        if not verify_password(password or "", a.password_hash):
+            return {"error": "รหัสผ่านไม่ถูกต้อง"}
+        a.totp_enabled = False
+        a.totp_secret = ""
+        a.totp_recovery = ""
+        a.totp_last_step = 0
+        db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
+def totp_check(uid, code) -> dict:
+    """ตรวจรหัสตอนล็อกอิน · รับได้ทั้งรหัส 6 หลักจากแอป และรหัสสำรอง
+    คืน {ok: True, recovery: bool, left: int} หรือ {error}"""
+    from app.services import totp as _t
+    db = acc_session()
+    try:
+        a = db.get(Account, uid)
+        if not a or not a.totp_enabled:
+            return {"error": "บัญชีนี้ไม่ได้เปิดยืนยัน 2 ชั้น"}
+        st, step = _t.verify(a.totp_secret, code, last_step=a.totp_last_step or 0)
+        if st == "ok":
+            a.totp_last_step = step
+            db.commit()
+            return {"ok": True, "recovery": False}
+        if st == "used":
+            return {"error": "รหัสนี้ถูกใช้ไปแล้ว รอให้แอปเปลี่ยนรหัสใหม่ (ประมาณ 30 วินาที)"}
+        used, left = _t.use_recovery(a.totp_recovery or "", code)
+        if used:
+            a.totp_recovery = left
+            db.commit()
+            return {"ok": True, "recovery": True, "left": _t.recovery_left(left)}
+        return {"error": "รหัสไม่ถูกต้อง"}
+    finally:
+        db.close()
+
+
+def totp_required(uid) -> bool:
+    db = acc_session()
+    try:
+        a = db.get(Account, uid)
+        return bool(a and a.totp_enabled and a.totp_secret)
+    finally:
+        db.close()
+
+
 AUDIT_KEEP_DAYS = 365      # เก็บ log ย้อนหลังกี่วัน (เกินนั้นลบ - ไม่เก็บนานเกินจำเป็นตาม PDPA)
 
 # คำอธิบายภาษาไทยของแต่ละเหตุการณ์ (ใช้ทั้งหน้าแสดงผลและกันพิมพ์ action มั่ว)
@@ -956,6 +1095,10 @@ AUDIT_LABELS = {
     "data.restore": "กู้คืนข้อมูลจากไฟล์สำรอง",
     "data.import": "นำเข้าข้อมูลจากไฟล์",
     "admin.tenant_delete": "ผู้ดูแลระบบลบโรงเรียน",
+    "2fa.enable": "เปิดยืนยันตัวตน 2 ชั้น",
+    "2fa.disable": "ปิดยืนยันตัวตน 2 ชั้น",
+    "2fa.fail": "ใส่รหัสยืนยัน 2 ชั้นผิด",
+    "2fa.recovery": "เข้าระบบด้วยรหัสสำรอง",
     "admin.tenant_edit": "ผู้ดูแลระบบแก้ข้อมูลโรงเรียน",
 }
 

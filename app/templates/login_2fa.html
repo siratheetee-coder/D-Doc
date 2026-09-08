@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Easy Ekkasan | ยืนยันตัวตน</title>
+  <link rel="icon" type="image/png" href="/static/favicon-ekkasan.png">
+  <style>
+    @font-face { font-family:"Prompt"; font-weight:400; src:url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:600; src:url("/static/fonts/Prompt-SemiBold.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:700; src:url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      font-family:"Prompt","Sarabun","Leelawadee UI","Segoe UI",sans-serif;
+      background:linear-gradient(135deg,#3568e0,#4880FF 55%,#6f9bff); color:#202224; padding:20px; }
+    .card { background:#fff; width:100%; max-width:390px; border-radius:18px; padding:32px 30px;
+      box-shadow:0 20px 50px rgba(16,24,40,.30); }
+    .brand { display:flex; flex-direction:column; align-items:center; gap:6px; margin-bottom:18px; }
+    .brand img { width:56px; height:56px; object-fit:contain; }
+    h1 { font-size:20px; margin:0 0 4px; text-align:center; }
+    .lead { color:#5b6b84; font-size:14px; text-align:center; margin:0 0 6px; line-height:1.6; }
+    .who { text-align:center; font-size:13.5px; color:#33507a; background:#f5f8ff;
+      border:1px solid #d7e3fb; border-radius:9px; padding:7px 10px; margin:0 0 16px; }
+    label { display:block; margin:12px 0 5px; font-weight:600; font-size:15px; }
+    input { width:100%; padding:12px 13px; border:1px solid #dfe3ea; border-radius:10px;
+      font-size:24px; font-family:inherit; text-align:center; letter-spacing:8px; font-weight:700; }
+    input:focus { outline:none; border-color:#4880FF; box-shadow:0 0 0 3px rgba(72,128,255,.18); }
+    input.recovery { font-size:17px; letter-spacing:2px; font-weight:600; }
+    .btn { width:100%; margin-top:18px; background:#4880FF; color:#fff; border:none; padding:12px;
+      border-radius:11px; font-size:17px; font-weight:700; cursor:pointer; font-family:inherit; }
+    .btn:hover { background:#3568e0; }
+    .err { background:#fde8e8; color:#b91c1c; border:1px solid #f7caca; padding:10px 13px;
+      border-radius:10px; font-size:14.5px; margin-bottom:10px; }
+    .alt { display:block; text-align:center; margin-top:14px; color:#5b6b84; font-size:13.5px;
+      background:none; border:none; font-family:inherit; cursor:pointer; text-decoration:underline; width:100%; }
+    .alt:hover { color:#4880FF; }
+    .back { display:block; text-align:center; margin-top:10px; color:#5b6b84; font-size:13.5px; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <form class="card" method="post" action="/login/2fa">
+    <div class="brand">
+      <img src="/static/logo-ekkasan.png" alt="Easy Ekkasan">
+      <h1>ยืนยันตัวตน 2 ชั้น</h1>
+    </div>
+    <p class="lead" id="hint">เปิดแอป Authenticator แล้วกรอกรหัส 6 หลักที่แสดงอยู่</p>
+    {% if username %}<div class="who">{{ username }}</div>{% endif %}
+    {% if error %}<div class="err">{{ error }}</div>{% endif %}
+
+    <label for="code" id="lbl">รหัส 6 หลัก</label>
+    <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code"
+           maxlength="6" required autofocus placeholder="000000">
+    <button class="btn" type="submit">ยืนยัน</button>
+
+    <button type="button" class="alt" id="toggle" onclick="useRecovery()">ใช้รหัสสำรองแทน (กรณีมือถือหาย)</button>
+    <a class="back" href="/logout">← เข้าด้วยบัญชีอื่น</a>
+  </form>
+  <script>
+    var rec = false;
+    function useRecovery(){
+      rec = !rec;
+      var el = document.getElementById('code');
+      el.value = '';
+      el.classList.toggle('recovery', rec);
+      el.maxLength = rec ? 9 : 6;
+      el.placeholder = rec ? 'XXXX-XXXX' : '000000';
+      el.inputMode = rec ? 'text' : 'numeric';
+      el.autocomplete = rec ? 'off' : 'one-time-code';
+      document.getElementById('lbl').textContent = rec ? 'รหัสสำรอง' : 'รหัส 6 หลัก';
+      document.getElementById('hint').textContent = rec
+        ? 'กรอกรหัสสำรองที่เก็บไว้ตอนเปิดใช้งาน (1 รหัสใช้ได้ครั้งเดียว)'
+        : 'เปิดแอป Authenticator แล้วกรอกรหัส 6 หลักที่แสดงอยู่';
+      document.getElementById('toggle').textContent = rec
+        ? '← กลับไปใช้รหัสจากแอป' : 'ใช้รหัสสำรองแทน (กรณีมือถือหาย)';
+      el.focus();
+    }
+    // ครบ 6 หลักแล้วส่งเลย ไม่ต้องกดปุ่ม (รหัสมีอายุ 30 วินาที)
+    document.getElementById('code').addEventListener('input', function(){
+      if(!rec && this.value.replace(/\D/g, '').length === 6) this.form.submit();
+    });
+  </script>
+</body>
+</html>

@@ -1,5 +1,16 @@
 {% extends "base.html" %}
-{% block title %}โปรไฟล์ของฉัน{% endblock %}
+{% block title %}โปรไฟล์ของฉัน<script>
+  function copyCodes(btn){
+    var txt = [].map.call(document.querySelectorAll('.tfa-codes code'),
+                          function(c){ return c.textContent.trim(); }).join('
+');
+    navigator.clipboard.writeText(txt).then(function(){
+      var old = btn.textContent; btn.textContent = 'คัดลอกแล้ว ✓';
+      setTimeout(function(){ btn.textContent = old; }, 1800);
+    });
+  }
+</script>
+{% endblock %}
 {% block content %}
 <style>
   .pf-head { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
@@ -14,6 +25,21 @@
     border-radius:6px; font-size:13px; }
   .pf-note { background:#f5f8ff; border:1px solid #d7e3fb; color:#33507a;
     border-radius:11px; padding:12px 15px; font-size:13.5px; line-height:1.65; }
+  .tfa-on { display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:700;
+    background:#dcfce7; color:#166534; padding:4px 12px; border-radius:20px; }
+  .tfa-off { display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:700;
+    background:#f1f5f9; color:#475569; padding:4px 12px; border-radius:20px; }
+  .tfa-setup { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start;
+    background:#f8fafc; border:1.5px solid var(--border); border-radius:13px; padding:16px; margin-top:12px; }
+  .tfa-setup img { width:190px; height:190px; background:#fff; border:1px solid var(--border);
+    border-radius:10px; padding:8px; flex:none; }
+  .tfa-key { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:15px; font-weight:700;
+    letter-spacing:1.5px; background:#fff; border:1px solid var(--border); border-radius:8px;
+    padding:9px 12px; word-break:break-all; user-select:all; }
+  .tfa-steps { margin:0 0 12px 0; padding-left:20px; font-size:13.5px; line-height:1.85; color:var(--muted); }
+  .tfa-codes { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:8px; margin:12px 0; }
+  .tfa-codes code { background:#fff; border:1px solid #bbf7d0; border-radius:8px; padding:8px 4px;
+    text-align:center; font-size:15px; font-weight:700; letter-spacing:1px; user-select:all; }
 </style>
 
 <div class="card">
@@ -28,7 +54,9 @@
     </div>
   </div>
   {% if saved %}<div class="alert" style="margin-top:14px;">✔
-    {{ 'อัปเดตรูปโปรไฟล์แล้ว' if saved == 'pic' else 'บันทึกชื่อใหม่แล้ว' }}</div>{% endif %}
+    {{ 'อัปเดตรูปโปรไฟล์แล้ว' if saved == 'pic'
+       else 'ปิดการยืนยันตัวตน 2 ชั้นแล้ว' if saved == '2fa-off'
+       else 'บันทึกชื่อใหม่แล้ว' }}</div>{% endif %}
   {% if error %}<div class="alert warn" style="margin-top:14px;">
     <svg class="icon"><use href="#ic-alert"/></svg> {{ error }}</div>{% endif %}
 </div>
@@ -77,6 +105,79 @@
   {% endif %}
 </div>
 
+{% if can_2fa %}
+<div class="card" id="sec-2fa">
+  <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+    <h2 style="margin:0;"><svg class="icon"><use href="#ic-check"/></svg> ยืนยันตัวตน 2 ชั้น</h2>
+    {% if tfa.enabled %}<span class="tfa-on">● เปิดใช้งานอยู่</span>
+    {% else %}<span class="tfa-off">● ยังไม่ได้เปิด</span>{% endif %}
+  </div>
+  <p class="muted" style="font-size:13.5px; margin:8px 0 0; line-height:1.7;">
+    เมื่อเปิดใช้ การเข้าสู่ระบบจะต้องใส่<b>รหัส 6 หลักจากแอปในมือถือ</b>เพิ่มจากรหัสผ่าน
+    ต่อให้รหัสผ่านหลุด คนอื่นก็เข้าบัญชีนี้ไม่ได้ ·
+    ใช้ได้กับ Google Authenticator, Microsoft Authenticator หรือ Authy</p>
+
+  {% if tfa_codes %}
+  {# เพิ่งเปิดใช้สำเร็จ - โชว์รหัสสำรองครั้งเดียว #}
+  <div class="pf-note" style="background:#f0fdf4; border-color:#bbf7d0; color:#166534; margin-top:14px;">
+    <b>เปิดใช้งานเรียบร้อยแล้ว · นี่คือรหัสสำรอง {{ tfa_codes|length }} รหัส</b><br>
+    ใช้ตอน<b>มือถือหาย</b>หรือเปิดแอปไม่ได้ · <b>1 รหัสใช้ได้ครั้งเดียว</b><br>
+    <b style="color:#b91c1c;">หน้านี้แสดงรหัสครั้งเดียว รีเฟรชแล้วจะไม่โชว์อีก — คัดลอกเก็บไว้เดี๋ยวนี้</b>
+    <div class="tfa-codes">
+      {% for c in tfa_codes %}<code>{{ c }}</code>{% endfor %}
+    </div>
+    <button type="button" class="btn sm gray" onclick="copyCodes(this)">คัดลอกรหัสสำรองทั้งหมด</button>
+  </div>
+
+  {% elif tfa_secret %}
+  {# กำลังตั้งค่า - สแกน QR แล้วยืนยันรหัส #}
+  <div class="tfa-setup">
+    <img src="/account/2fa/qr.png" alt="QR สำหรับสแกน"
+         onerror="this.style.display='none'">
+    <div style="flex:1; min-width:250px;">
+      <ol class="tfa-steps">
+        <li>เปิดแอป Authenticator ในมือถือ กด <b>+ เพิ่มบัญชี</b></li>
+        <li>เลือก <b>สแกน QR</b> แล้วสแกนรูปด้านซ้าย<br>
+            (สแกนไม่ได้ ให้เลือก "ป้อนคีย์ตั้งค่า" แล้วพิมพ์คีย์ข้างล่างนี้)</li>
+        <li>กรอกรหัส 6 หลักที่แอปแสดง เพื่อยืนยันว่าตั้งค่าถูกต้อง</li>
+      </ol>
+      <div class="tfa-key">{{ tfa_secret }}</div>
+      <form method="post" action="/account/2fa/enable"
+            style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-top:14px;">
+        <div><label>รหัส 6 หลักจากแอป</label>
+          <input name="code" inputmode="numeric" maxlength="6" required autofocus
+                 placeholder="000000" style="width:140px; text-align:center;
+                 font-size:19px; letter-spacing:5px; font-weight:700;"></div>
+        <button class="btn" type="submit"><svg class="icon"><use href="#ic-check"/></svg> เปิดใช้งาน</button>
+        <a class="btn gray" href="/account/profile">ยกเลิก</a>
+      </form>
+    </div>
+  </div>
+
+  {% elif tfa.enabled %}
+  <div class="pf-note" style="margin-top:14px;">
+    เหลือรหัสสำรองอีก <b>{{ tfa.recovery_left }}</b> รหัส
+    {% if tfa.recovery_left == 0 %}<br><b style="color:#b91c1c;">ใช้รหัสสำรองหมดแล้ว —
+      ถ้ามือถือหายจะเข้าระบบไม่ได้ ควรปิดแล้วเปิดใหม่เพื่อรับรหัสสำรองชุดใหม่</b>
+    {% elif tfa.recovery_left <= 2 %}<br><b style="color:#b45309;">รหัสสำรองใกล้หมด</b>{% endif %}
+  </div>
+  <form method="post" action="/account/2fa/disable"
+        style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-top:14px;"
+        onsubmit="return confirm('ปิดการยืนยัน 2 ชั้น? บัญชีจะป้องกันด้วยรหัสผ่านอย่างเดียว')">
+    <div><label>ยืนยันด้วยรหัสผ่านของคุณ</label>
+      <input name="password" type="password" required autocomplete="current-password"
+             style="width:220px;"></div>
+    <button class="btn red" type="submit">ปิดการยืนยัน 2 ชั้น</button>
+  </form>
+
+  {% else %}
+  <form method="post" action="/account/2fa/start" style="margin-top:14px;">
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-check"/></svg> เปิดใช้งานยืนยัน 2 ชั้น</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-check"/></svg> ความปลอดภัย</h2>
   <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -92,4 +193,15 @@
     ให้แจ้งไอดีหลักของโรงเรียนรีเซ็ตรหัสให้</p>
   {% endif %}
 </div>
+<script>
+  function copyCodes(btn){
+    var txt = [].map.call(document.querySelectorAll('.tfa-codes code'),
+                          function(c){ return c.textContent.trim(); }).join('
+');
+    navigator.clipboard.writeText(txt).then(function(){
+      var old = btn.textContent; btn.textContent = 'คัดลอกแล้ว ✓';
+      setTimeout(function(){ btn.textContent = old; }, 1800);
+    });
+  }
+</script>
 {% endblock %}
