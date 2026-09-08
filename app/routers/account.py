@@ -3,11 +3,11 @@
 account.py - จัดการบัญชีผู้ใช้ของตัวเอง (โปรไฟล์ + เปลี่ยนรหัสผ่าน)
 ใช้ได้ทั้งผู้ใช้โรงเรียนและ superadmin (ไม่พึ่งฐานข้อมูลโรงเรียน -> ทำงานได้แม้ยังไม่เลือกโรงเรียน)
 """
-from fastapi import APIRouter, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, File, Form, Request, UploadFile
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from app.accounts import (change_password, mark_welcomed, set_display_name,
-                          sync_seen_modules)
+from app.accounts import (change_password, clear_avatar, get_avatar, has_avatar,
+                          mark_welcomed, set_avatar, set_display_name, sync_seen_modules)
 from app.templating import templates
 
 router = APIRouter()
@@ -84,6 +84,7 @@ def _profile_ctx(request, **extra):
         "is_super": request.session.get("role") == "superadmin",
         "is_owner": request.session.get("owner", False),
         "is_teacher": bool(request.session.get("person_id")),
+        "has_avatar": has_avatar(request.session.get("uid")),
         "error": None, "saved": False,
     }
     ctx.update(extra)
@@ -110,3 +111,39 @@ def profile_submit(request: Request, name: str = Form("")):
             _profile_ctx(request, error=r["error"], name=name), status_code=400)
     request.session["name"] = r["name"]      # แถบบนเปลี่ยนทันที ไม่ต้องล็อกอินใหม่
     return RedirectResponse("/account/profile?saved=1", status_code=303)
+
+
+# ---------------- รูปโปรไฟล์ ----------------
+@router.get("/account/avatar")
+def avatar_me(request: Request):
+    """รูปโปรไฟล์ของคนที่ล็อกอินอยู่ (ไม่เปิดให้ดูของคนอื่น)"""
+    uid = request.session.get("uid")
+    data = get_avatar(uid) if uid else None
+    if not data:
+        return Response(status_code=404)
+    # no-cache: เปลี่ยนรูปแล้วต้องเห็นทันที ไม่ติดรูปเก่าในแคช
+    return Response(content=data, media_type="image/jpeg",
+                    headers={"Cache-Control": "no-cache, must-revalidate"})
+
+
+@router.post("/account/avatar", response_class=HTMLResponse)
+async def avatar_upload(request: Request, file: UploadFile = File(...)):
+    uid = request.session.get("uid")
+    if not uid:
+        return RedirectResponse("/login", status_code=303)
+    r = set_avatar(uid, await file.read())
+    if r.get("error"):
+        return templates.TemplateResponse("account_profile.html",
+                                          _profile_ctx(request, error=r["error"]),
+                                          status_code=400)
+    request.session["pic"] = True          # แถบบนสลับไปใช้รูปทันที
+    return RedirectResponse("/account/profile?saved=pic", status_code=303)
+
+
+@router.post("/account/avatar/delete")
+def avatar_delete(request: Request):
+    uid = request.session.get("uid")
+    if uid:
+        clear_avatar(uid)
+    request.session["pic"] = False
+    return RedirectResponse("/account/profile?saved=pic", status_code=303)

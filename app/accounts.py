@@ -15,7 +15,8 @@ import shutil
 from datetime import datetime, date
 
 from sqlalchemy import (
-    create_engine, event, Column, Integer, String, Boolean, DateTime, Date, ForeignKey, Float, Text
+    create_engine, event, Column, Integer, String, Boolean, DateTime, Date, ForeignKey,
+    Float, LargeBinary, Text
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
@@ -68,6 +69,7 @@ class Account(AccBase):
     seen_modules = Column(String, default="")       # งานที่ไอดีหลักรับรู้แล้ว (เทียบกับที่ซื้อ -> แจ้งเตือนงานที่ซื้อเพิ่ม)
     must_change_password = Column(Boolean, default=False)   # บังคับเปลี่ยนรหัสครั้งแรก
     verified = Column(Boolean, default=True)        # ยืนยันอีเมลแล้วหรือยัง (สมัครใหม่ = False ถ้าเปิด SMTP)
+    avatar = Column(LargeBinary, nullable=True)     # รูปโปรไฟล์ (JPEG ย่อ 256px) - ว่าง = ใช้อักษรย่อแทน
     verify_token = Column(String, default="")       # โทเคนยืนยันอีเมล (ล้างเมื่อยืนยันแล้ว)
     reset_token = Column(String, default="")        # โทเคนรีเซ็ตรหัสผ่าน (ล้างเมื่อใช้แล้ว)
     reset_expires = Column(DateTime, nullable=True)  # วันหมดอายุของลิงก์รีเซ็ต
@@ -166,6 +168,7 @@ def _ensure_engine():
                     "ALTER TABLE account ADD COLUMN person_id INTEGER",   # บัญชีครู -> ผูก Person.id
                     "ALTER TABLE account ADD COLUMN is_director BOOLEAN DEFAULT 0",   # ผอ./รองผอ. อนุมัติเอกสาร
                     "ALTER TABLE tenant ADD COLUMN teacher_code VARCHAR",  # รหัสต่อท้ายไอดีครู (owner ตั้ง)
+                    "ALTER TABLE account ADD COLUMN avatar BLOB",          # รูปโปรไฟล์
                     # backfill: บัญชีแรก (id น้อยสุด) ของแต่ละโรงเรียน = ไอดีหลัก · รันซ้ำได้ (ตั้งค่าแถวเดิม)
                     "UPDATE account SET is_owner=1 WHERE tenant_id IS NOT NULL "
                     "AND id IN (SELECT MIN(id) FROM account WHERE tenant_id IS NOT NULL GROUP BY tenant_id)",
@@ -846,6 +849,66 @@ def tenant_max_users(tenant_id) -> int:
 def _own_user(db, tenant_id, uid):
     """คืน Account ที่อยู่ในโรงเรียนนี้เท่านั้น (กันแก้/ลบข้ามโรงเรียน)"""
     return db.query(Account).filter_by(id=uid, tenant_id=tenant_id).first()
+
+
+AVATAR_PX = 256          # รูปโปรไฟล์ใช้แค่วงกลมเล็ก ๆ ย่อให้เล็กเพื่อไม่ให้ accounts.db บวม
+
+
+def set_avatar(uid, data: bytes) -> dict:
+    """ตั้งรูปโปรไฟล์ (ย่อ+ครอบเป็นสี่เหลี่ยมจัตุรัสกลางภาพเป็น JPEG) · คืน {"ok"} หรือ {"error"}"""
+    import io as _io
+    from PIL import Image, ImageOps
+    try:
+        img = ImageOps.exif_transpose(Image.open(_io.BytesIO(data))).convert("RGB")
+    except Exception:
+        return {"error": "ไฟล์นี้ไม่ใช่รูปภาพ (รองรับ JPG · PNG · HEIC จากมือถือ)"}
+    # ครอบกลางภาพให้เป็นจัตุรัสก่อน วงกลมจะได้ไม่บีบเบี้ยว
+    side = min(img.width, img.height)
+    left, top = (img.width - side) // 2, (img.height - side) // 2
+    img = img.crop((left, top, left + side, top + side)).resize(
+        (AVATAR_PX, AVATAR_PX), Image.LANCZOS)
+    buf = _io.BytesIO()
+    img.save(buf, "JPEG", quality=85, optimize=True)
+    db = acc_session()
+    try:
+        a = db.get(Account, uid)
+        if not a:
+            return {"error": "ไม่พบบัญชีผู้ใช้"}
+        a.avatar = buf.getvalue()
+        db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
+def clear_avatar(uid):
+    db = acc_session()
+    try:
+        a = db.get(Account, uid)
+        if a:
+            a.avatar = None
+            db.commit()
+    finally:
+        db.close()
+
+
+def get_avatar(uid):
+    """คืน bytes รูปโปรไฟล์ หรือ None (ใช้ตอนส่งรูปให้เบราว์เซอร์)"""
+    db = acc_session()
+    try:
+        a = db.get(Account, uid)
+        return a.avatar if a else None
+    finally:
+        db.close()
+
+
+def has_avatar(uid) -> bool:
+    db = acc_session()
+    try:
+        a = db.get(Account, uid)
+        return bool(a and a.avatar)
+    finally:
+        db.close()
 
 
 def set_display_name(uid, name: str) -> dict:

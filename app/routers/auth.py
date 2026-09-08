@@ -125,6 +125,8 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
     request.session["mods"] = user.get("modules", "")         # ไอดีย่อย: CSV งานที่เข้าได้
     request.session["person_id"] = user.get("person_id")      # บัญชีครู = ผูก Person (สิทธิ์เฉพาะวิชา/ห้อง)
     request.session["welcomed"] = user.get("welcomed", True)  # เห็นการ์ดต้อนรับแล้วหรือยัง
+    from app.accounts import has_avatar
+    request.session["pic"] = has_avatar(user["uid"])   # มีรูปโปรไฟล์ไหม (กันเรียก DB ทุกหน้า)
     # "จดจำฉันไว้" = อยู่ในระบบได้ 30 วัน (นับจากครั้งสุดท้ายที่ใช้งาน) · ไม่ติ๊ก = 12 ชม. เท่าเดิม
     from app.main import SESSION_TTL_DEFAULT, SESSION_TTL_REMEMBER
     request.session["ttl"] = SESSION_TTL_REMEMBER if remember else SESSION_TTL_DEFAULT
