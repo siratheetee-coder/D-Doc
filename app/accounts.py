@@ -848,6 +848,25 @@ def _own_user(db, tenant_id, uid):
     return db.query(Account).filter_by(id=uid, tenant_id=tenant_id).first()
 
 
+def set_display_name(uid, name: str) -> dict:
+    """ผู้ใช้แก้ "ชื่อที่แสดง" ของบัญชีตัวเอง (ไม่ใช่ชื่อโรงเรียนบนเอกสาร - อันนั้นอยู่หน้าตั้งค่าโรงเรียน)"""
+    name = (name or "").strip()
+    if not name:
+        return {"error": "กรุณากรอกชื่อที่ต้องการแสดง"}
+    if len(name) > 80:
+        return {"error": "ชื่อยาวเกินไป (ไม่เกิน 80 ตัวอักษร)"}
+    db = acc_session()
+    try:
+        a = db.get(Account, uid)
+        if not a:
+            return {"error": "ไม่พบบัญชีผู้ใช้"}
+        a.display_name = name
+        db.commit()
+        return {"name": name}
+    finally:
+        db.close()
+
+
 def add_tenant_user(tenant_id, username, password, modules="", display_name="") -> dict:
     """ไอดีหลักเพิ่มไอดีย่อย (จำกัดตาม max_users) + กำหนดสิทธิ์งาน (CSV)"""
     from app.modules import modules_csv, parse_modules

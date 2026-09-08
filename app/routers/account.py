@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-account.py - จัดการบัญชีผู้ใช้ของตัวเอง (เปลี่ยนรหัสผ่าน)
+account.py - จัดการบัญชีผู้ใช้ของตัวเอง (โปรไฟล์ + เปลี่ยนรหัสผ่าน)
 ใช้ได้ทั้งผู้ใช้โรงเรียนและ superadmin (ไม่พึ่งฐานข้อมูลโรงเรียน -> ทำงานได้แม้ยังไม่เลือกโรงเรียน)
 """
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.accounts import change_password, mark_welcomed, sync_seen_modules
+from app.accounts import (change_password, mark_welcomed, set_display_name,
+                          sync_seen_modules)
 from app.templating import templates
 
 router = APIRouter()
@@ -73,3 +74,39 @@ def password_submit(request: Request, current: str = Form(""),
         return RedirectResponse(purchase_next, status_code=303)
     dest = "/admin-console" if request.session.get("role") == "superadmin" else "/"
     return RedirectResponse(dest, status_code=303)
+
+
+def _profile_ctx(request, **extra):
+    ctx = {
+        "request": request,
+        "name": request.session.get("name", ""),
+        "username": request.session.get("username", ""),
+        "is_super": request.session.get("role") == "superadmin",
+        "is_owner": request.session.get("owner", False),
+        "is_teacher": bool(request.session.get("person_id")),
+        "error": None, "saved": False,
+    }
+    ctx.update(extra)
+    return ctx
+
+
+@router.get("/account/profile", response_class=HTMLResponse)
+def profile_page(request: Request, saved: str = ""):
+    if not request.session.get("uid"):
+        return RedirectResponse("/login", status_code=303)
+    return templates.TemplateResponse("account_profile.html",
+                                      _profile_ctx(request, saved=bool(saved)))
+
+
+@router.post("/account/profile", response_class=HTMLResponse)
+def profile_submit(request: Request, name: str = Form("")):
+    uid = request.session.get("uid")
+    if not uid:
+        return RedirectResponse("/login", status_code=303)
+    r = set_display_name(uid, name)
+    if r.get("error"):
+        return templates.TemplateResponse(
+            "account_profile.html",
+            _profile_ctx(request, error=r["error"], name=name), status_code=400)
+    request.session["name"] = r["name"]      # แถบบนเปลี่ยนทันที ไม่ต้องล็อกอินใหม่
+    return RedirectResponse("/account/profile?saved=1", status_code=303)

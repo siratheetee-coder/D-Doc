@@ -26,7 +26,8 @@ MAX_PHOTOS = 24                      # กันเอกสารบวมจ�
 PHOTO_MAX_PX = 1100                  # ด้านยาวสุดหลังย่อ (พิมพ์ A4 ครึ่งหน้ากว้างพอ)
 
 # ช่องข้อความยาว (textarea เดี่ยว)
-TEXT_FIELDS = ["memo_body", "preface", "principles", "suggestions", "summary_note", "std_ref"]
+# memo_body / preface ไม่มีช่องกรอกในฟอร์มแล้ว - เอกสารเขียนให้อัตโนมัติ
+TEXT_FIELDS = ["principles", "suggestions", "summary_note", "std_ref"]
 
 # รายการเป็นข้อ ๆ : ชื่อคอลัมน์ -> ชื่อ input ในฟอร์ม (ส่งมาหลายค่าชื่อเดียวกัน)
 LIST_FIELDS = ["objectives", "target_qty", "target_qual", "expected"]

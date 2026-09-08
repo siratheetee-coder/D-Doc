@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}โปรไฟล์ของฉัน{% endblock %}
+{% block content %}
+<style>
+  .pf-head { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .pf-av { width:66px; height:66px; border-radius:50%; flex:none; display:flex;
+    align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:27px;
+    background:linear-gradient(135deg,#4880FF,#6f9bff); }
+  .pf-id { font-size:13.5px; color:var(--muted); margin-top:3px; }
+  .pf-id code { background:#f1f5f9; border:1px solid #e2e8f0; padding:2px 8px;
+    border-radius:6px; font-size:13px; }
+  .pf-note { background:#f5f8ff; border:1px solid #d7e3fb; color:#33507a;
+    border-radius:11px; padding:12px 15px; font-size:13.5px; line-height:1.65; }
+</style>
+
+<div class="card">
+  <div class="pf-head">
+    <span class="pf-av">{{ (name or username or 'ผ')[:1]|upper }}</span>
+    <div>
+      <h1 style="margin:0;">โปรไฟล์ของฉัน</h1>
+      <div class="pf-id">เข้าระบบด้วยไอดี <code>{{ username }}</code></div>
+    </div>
+  </div>
+  {% if saved %}<div class="alert" style="margin-top:14px;">✔ บันทึกชื่อใหม่แล้ว</div>{% endif %}
+  {% if error %}<div class="alert warn" style="margin-top:14px;">
+    <svg class="icon"><use href="#ic-alert"/></svg> {{ error }}</div>{% endif %}
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-edit"/></svg> ชื่อที่แสดงในระบบ</h2>
+  <p class="muted" style="font-size:13.5px; margin:4px 0 12px;">
+    ชื่อนี้แสดงที่มุมขวาบนของหน้าจอ เพื่อให้รู้ว่ากำลังใช้งานด้วยบัญชีไหน</p>
+  <form method="post" action="/account/profile" style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+    <div style="flex:1 1 280px;">
+      <label>ชื่อที่แสดง</label>
+      <input name="name" value="{{ name }}" maxlength="80" required autofocus
+             placeholder="เช่น ชื่อโรงเรียน หรือ ชื่อ-นามสกุลของคุณ">
+    </div>
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกชื่อ</button>
+  </form>
+
+  {% if not is_super %}
+  <div class="pf-note" style="margin-top:16px;">
+    <b>ชื่อนี้ไม่ใช่ชื่อที่ขึ้นบนเอกสาร</b><br>
+    ชื่อโรงเรียน ผู้อำนวยการ และที่อยู่ที่พิมพ์ลงในเอกสารราชการทุกใบ
+    {% if is_owner %}แก้ที่หน้า <a href="/settings"><b>ตั้งค่าโรงเรียน</b></a>
+    {% else %}ต้องให้ <b>ไอดีหลักของโรงเรียน</b> แก้ที่หน้าตั้งค่าโรงเรียน{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-check"/></svg> ความปลอดภัย</h2>
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    <a class="btn soft" href="/account/password">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+           stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> เปลี่ยนรหัสผ่าน</a>
+    <a class="btn gray" href="/logout"><svg class="icon"><use href="#ic-arrow-right"/></svg> ออกจากระบบ</a>
+  </div>
+  {% if is_teacher %}
+  <p class="muted" style="font-size:13px; margin:12px 0 0;">
+    ลืมรหัสผ่าน? บัญชีครูกดลิงก์ "ลืมรหัสผ่าน" เองไม่ได้ (ไม่ได้ผูกอีเมล) —
+    ให้แจ้งไอดีหลักของโรงเรียนรีเซ็ตรหัสให้</p>
+  {% endif %}
+</div>
+{% endblock %}

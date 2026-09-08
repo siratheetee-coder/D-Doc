@@ -210,11 +210,33 @@ def _cover(doc, rep, school, year_label):
         _p(doc, school.area_office, align="center", size=16, after=1)
 
 
+def _auto_preface(rep) -> str:
+    """คำนำมาตรฐาน - เขียนจากข้อมูลที่กรอกไว้ (ไม่มีช่องให้กรอกเองแล้ว)
+    ถ้าอยากได้ถ้อยคำอื่น แก้ได้ในไฟล์ Word ที่ดาวน์โหลดไป"""
+    act, prj = _act_name(rep), rep.project
+    objs = _lst(rep.objectives)
+    lines = []
+    first = f"รายงานฉบับนี้จัดทำขึ้นเพื่อรายงานผลการดำเนินงาน{act}"
+    if act != _txt(prj.name):
+        first += f" ภายใต้{prj.name}"
+    if _period(rep):
+        first += f" ซึ่งดำเนินการ{_period(rep)}"
+    if objs:
+        lead = objs[0] if objs[0].startswith("เพื่อ") else "เพื่อ" + objs[0]
+        first += f" โดยมีวัตถุประสงค์{lead}"
+        if len(objs) > 1:
+            first += " และวัตถุประสงค์อื่นตามที่ระบุไว้ในรายงาน"
+    lines.append(first)
+    lines.append("รายงานฉบับนี้ประกอบด้วยความเป็นมา วัตถุประสงค์ เป้าหมาย ขั้นตอนการดำเนินงาน "
+                 "งบประมาณ การประเมินผล สรุปผลการประเมิน และข้อเสนอแนะ "
+                 "เพื่อใช้เป็นข้อมูลในการพัฒนาการจัดกิจกรรมในครั้งต่อไป")
+    lines.append("ผู้จัดทำหวังเป็นอย่างยิ่งว่ารายงานฉบับนี้จะเป็นประโยชน์ต่อผู้ที่เกี่ยวข้องต่อไป")
+    return "\n".join(lines)
+
+
 def _preface(doc, rep):
-    if not _txt(rep.preface):
-        return
     _p(doc, "คำนำ", align="center", bold=True, size=20, after=8)
-    _para_block(doc, rep.preface)
+    _para_block(doc, _txt(rep.preface) or _auto_preface(rep))
     _p(doc, "", size=14, after=0)
     _p(doc, _txt(rep.responsible), align="right", after=1)
     if _txt(rep.responsible_pos):
@@ -258,13 +280,12 @@ def render_project_report(rep, school, doc=None) -> str:
     _memo(doc, rep, school)
     doc.add_page_break()
     _cover(doc, rep, school, year_label)
-    if _txt(rep.preface):
-        doc.add_page_break()
-        _preface(doc, rep)
+    doc.add_page_break()
+    _preface(doc, rep)
 
     # ---- ประกอบสารบัญจากหัวข้อที่มีจริง แล้วค่อยพิมพ์เนื้อหาด้วยเลขชุดเดียวกัน ----
     # สารบัญต้องตรงกับหัวข้อที่พิมพ์จริง จึงประกอบรายชื่อจากเงื่อนไขชุดเดียวกับด้านล่าง
-    plan = [t for cond, t in [
+    plan = ["คำนำ"] + [t for cond, t in [
         (_txt(rep.principles), "ความเป็นมา"),
         (objectives, "วัตถุประสงค์"),
         (t_qty or t_qual, "เป้าหมาย"),
