@@ -26,9 +26,76 @@ from app.services.build_templates import (
 )
 from app.services.doc_page import set_a4
 from app.services.lunch_doc import _money, _save
+from docx.enum.section import WD_SECTION
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
+
 from app.thai_utils import bahttext, thai_date
 
 _DOT = "." * 110
+
+# ขนาดฟอนต์หน้าปก (ผู้ใช้ขอ 20-22 pt)
+_COVER_BIG, _COVER_SUB = 22, 20
+
+
+def _bookmark(paragraph, name: str, bid: int):
+    """คั่นย่อหน้าด้วย bookmark เพื่อให้สารบัญอ้างเลขหน้าได้ด้วยฟิลด์ PAGEREF"""
+    st = OxmlElement("w:bookmarkStart")
+    st.set(qn("w:id"), str(bid)); st.set(qn("w:name"), name)
+    en = OxmlElement("w:bookmarkEnd"); en.set(qn("w:id"), str(bid))
+    paragraph._p.insert(0, st)
+    paragraph._p.append(en)
+
+
+def _pageref(paragraph, name: str, size=16):
+    """ใส่ฟิลด์ PAGEREF (Word คำนวณเลขหน้าจริงให้เอง) · ก่อนอัปเดตจะโชว์ '-' ไว้ก่อน"""
+    def _r():
+        r = OxmlElement("w:r")
+        rpr = OxmlElement("w:rPr")
+        for tag in ("w:rFonts",):
+            f = OxmlElement(tag)
+            f.set(qn("w:ascii"), THAI_FONT); f.set(qn("w:hAnsi"), THAI_FONT)
+            f.set(qn("w:cs"), THAI_FONT)
+            rpr.append(f)
+        for tag in ("w:sz", "w:szCs"):
+            e = OxmlElement(tag); e.set(qn("w:val"), str(int(size * 2))); rpr.append(e)
+        r.append(rpr)
+        return r
+    begin = _r(); fc = OxmlElement("w:fldChar"); fc.set(qn("w:fldCharType"), "begin"); begin.append(fc)
+    instr = _r(); it = OxmlElement("w:instrText"); it.set(qn("xml:space"), "preserve")
+    it.text = " PAGEREF " + name + " " + chr(92) + "h "
+    instr.append(it)
+    sep = _r(); fc2 = OxmlElement("w:fldChar"); fc2.set(qn("w:fldCharType"), "separate"); sep.append(fc2)
+    val = _r(); t = OxmlElement("w:t"); t.text = "-"; val.append(t)
+    end = _r(); fc3 = OxmlElement("w:fldChar"); fc3.set(qn("w:fldCharType"), "end"); end.append(fc3)
+    for e in (begin, instr, sep, val, end):
+        paragraph._p.append(e)
+
+
+def _update_fields_on_open(doc):
+    """สั่งให้ Word คำนวณฟิลด์ (เลขหน้าในสารบัญ) ใหม่ทันทีที่เปิดไฟล์"""
+    try:
+        st = doc.settings.element
+        if st.find(qn("w:updateFields")) is None:
+            e = OxmlElement("w:updateFields"); e.set(qn("w:val"), "true")
+            st.append(e)
+    except Exception:
+        pass
+
+
+def _vcenter(section, on: bool = True):
+    """จัดเนื้อหาของ section นี้ให้อยู่กึ่งกลางหน้าในแนวตั้ง (ใช้กับหน้าคั่นภาคผนวก)
+    on=False : ปลดออก - จำเป็นเพราะ add_section คัดลอกค่าเดิมของ section ก่อนหน้ามาให้"""
+    sectPr = section._sectPr
+    v = sectPr.find(qn("w:vAlign"))
+    if not on:
+        if v is not None:
+            sectPr.remove(v)
+        return
+    if v is None:
+        v = OxmlElement("w:vAlign"); sectPr.append(v)
+    v.set(qn("w:val"), "center")
 
 
 def _txt(v) -> str:
@@ -191,23 +258,26 @@ def _cover(doc, rep, school, year_label):
                 pass
     else:
         _p(doc, "", size=28, after=0)
-    _p(doc, "รายงานผลการดำเนินงาน", align="center", bold=True, size=26, before=12, after=4)
-    _p(doc, _act_name(rep), align="center", bold=True, size=22, after=2)
+    _p(doc, "รายงานผลการดำเนินงาน", align="center", bold=True, size=_COVER_BIG, before=12, after=6)
+    _p(doc, _act_name(rep), align="center", bold=True, size=_COVER_BIG, after=4)
     if _txt(rep.title) and _txt(rep.title) != _txt(prj.name):
-        _p(doc, f"ภายใต้{prj.name}", align="center", size=18, after=2)
+        _p(doc, f"ภายใต้{prj.name}", align="center", size=_COVER_SUB, after=4)
     if prj.plan_year:
-        _p(doc, f"{year_label} {prj.plan_year}", align="center", size=18, after=2)
-    _p(doc, "", size=20, after=0)
+        _p(doc, f"{year_label} {prj.plan_year}", align="center", size=_COVER_SUB, after=4)
+    for _ in range(3):
+        _p(doc, "", size=_COVER_SUB, after=0)
     if _txt(rep.responsible):
-        _p(doc, "ผู้รับผิดชอบ", align="center", size=17, after=2)
-        _p(doc, rep.responsible, align="center", bold=True, size=18, after=1)
+        _p(doc, "ผู้รับผิดชอบ", align="center", size=_COVER_SUB, after=4)
+        _p(doc, rep.responsible, align="center", bold=True, size=_COVER_SUB, after=2)
         if _txt(rep.responsible_pos):
-            _p(doc, rep.responsible_pos, align="center", size=16, after=2)
-    _p(doc, "", size=20, after=0)
+            _p(doc, rep.responsible_pos, align="center", size=_COVER_SUB, after=4)
+    # ดันชื่อโรงเรียนไปอยู่ช่วงล่างของหน้า (แบบหน้าปกรายงานราชการ)
+    for _ in range(6):
+        _p(doc, "", size=_COVER_SUB, after=0)
     if _txt(school.name):
-        _p(doc, _school_disp(school), align="center", bold=True, size=18, after=2)
+        _p(doc, _school_disp(school), align="center", bold=True, size=_COVER_SUB, after=4)
     if _txt(getattr(school, "area_office", "")):
-        _p(doc, school.area_office, align="center", size=16, after=1)
+        _p(doc, school.area_office, align="center", size=_COVER_SUB, after=2)
 
 
 def _auto_preface(rep) -> str:
@@ -234,8 +304,10 @@ def _auto_preface(rep) -> str:
     return "\n".join(lines)
 
 
-def _preface(doc, rep):
-    _p(doc, "คำนำ", align="center", bold=True, size=20, after=8)
+def _preface(doc, rep, mark_fn=None):
+    par = _p(doc, "คำนำ", align="center", bold=True, size=20, after=8)
+    if mark_fn:
+        mark_fn(par)
     _para_block(doc, _txt(rep.preface) or _auto_preface(rep))
     _p(doc, "", size=14, after=0)
     _p(doc, _txt(rep.responsible), align="right", after=1)
@@ -244,17 +316,24 @@ def _preface(doc, rep):
 
 
 def _contents(doc, heads):
-    """สารบัญ - ไม่ใส่เลขหน้า (Word คำนวณให้ไม่ได้ตอนสร้าง) เว้นจุดไข่ปลาให้เขียนเอง"""
-    _p(doc, "สารบัญ", align="center", bold=True, size=20, after=8)
+    """สารบัญ - ตารางไม่มีเส้น + เลขหน้าจริง (ฟิลด์ PAGEREF ชี้ไป bookmark ของแต่ละหัวข้อ
+    Word คำนวณเลขหน้าให้เองตอนเปิดไฟล์ เพราะตั้ง updateFields ไว้แล้ว)"""
+    _p(doc, "สารบัญ", align="center", bold=True, size=20, after=10)
     t = doc.add_table(rows=1, cols=2)
-    t.style = "Table Grid"
-    for cell, h, w in zip(t.rows[0].cells, ["เรื่อง", "หน้า"], [13.0, 3.0]):
-        _set_cell(cell, h, size=16, align="center", bold=True)
+    _no_borders(t)
+    for cell, h, w, al in zip(t.rows[0].cells, ["เรื่อง", "หน้า"], [13.0, 3.0],
+                              ["center", "center"]):
+        _set_cell(cell, h, size=16, align=al, bold=True)
         cell.width = Cm(w)
-    for h in heads:
+    for name, h in heads:
         c = t.add_row().cells
         _set_cell(c[0], h, size=16); c[0].width = Cm(13.0)
-        _set_cell(c[1], "", size=16, align="center"); c[1].width = Cm(3.0)
+        c[1].width = Cm(3.0)
+        c[1].text = ""
+        pp = c[1].paragraphs[0]
+        pp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        pp.paragraph_format.space_after = Pt(2)
+        _pageref(pp, name, size=16)
 
 
 # ---------------- เอกสารหลัก ----------------
@@ -281,11 +360,11 @@ def render_project_report(rep, school, doc=None) -> str:
     doc.add_page_break()
     _cover(doc, rep, school, year_label)
     doc.add_page_break()
-    _preface(doc, rep)
+    _preface(doc, rep, mark_fn=lambda par: _bookmark(par, "_rpt1", 99))
 
     # ---- ประกอบสารบัญจากหัวข้อที่มีจริง แล้วค่อยพิมพ์เนื้อหาด้วยเลขชุดเดียวกัน ----
     # สารบัญต้องตรงกับหัวข้อที่พิมพ์จริง จึงประกอบรายชื่อจากเงื่อนไขชุดเดียวกับด้านล่าง
-    plan = ["คำนำ"] + [t for cond, t in [
+    plan_raw = ["คำนำ"] + [t for cond, t in [
         (_txt(rep.principles), "ความเป็นมา"),
         (objectives, "วัตถุประสงค์"),
         (t_qty or t_qual, "เป้าหมาย"),
@@ -297,6 +376,16 @@ def render_project_report(rep, school, doc=None) -> str:
         (_txt(rep.suggestions), "ข้อเสนอแนะ"),
         ([ph for ph in (rep.photos or []) if ph.image], "ภาคผนวก (ภาพกิจกรรม)"),
     ] if cond]
+    # ชื่อ bookmark ต้องคงที่ตลอดไฟล์ (สารบัญกับหัวข้อจริงใช้ชุดเดียวกัน)
+    plan = [(f"_rpt{i}", t) for i, t in enumerate(plan_raw, 1)]
+    marks = {t: n for n, t in plan}
+    bid = [100]
+
+    def mark(par, title):
+        """ผูก bookmark ให้หัวข้อ เพื่อให้สารบัญอ้างเลขหน้าได้"""
+        if title in marks:
+            bid[0] += 1
+            _bookmark(par, marks[title], bid[0])
 
     doc.add_page_break()
     _contents(doc, plan)
@@ -308,7 +397,7 @@ def render_project_report(rep, school, doc=None) -> str:
     def head(title):
         nonlocal n
         n += 1
-        _p(doc, f"{n}. {title}", bold=True, size=17, before=8, after=4)
+        mark(_p(doc, f"{n}. {title}", bold=True, size=17, before=8, after=4), title)
         return n
 
     if _txt(rep.principles):
@@ -440,12 +529,18 @@ def render_project_report(rep, school, doc=None) -> str:
     # ---------------- ภาคผนวก ----------------
     photos = [ph for ph in (rep.photos or []) if ph.image]
     if photos:
-        doc.add_page_break()
-        _p(doc, "ภาคผนวก", align="center", bold=True, size=22, before=90, after=4)
-        _p(doc, "ภาพกิจกรรม", align="center", bold=True, size=18, after=0)
-        doc.add_page_break()
+        # หน้าคั่น "ภาคผนวก" = section ใหม่ที่จัดกลางหน้าในแนวตั้ง (vAlign=center)
+        sec = doc.add_section(WD_SECTION.NEW_PAGE)
+        _vcenter(sec)
+        par = _p(doc, "ภาคผนวก", align="center", bold=True, size=40, after=8)
+        mark(par, "ภาคผนวก (ภาพกิจกรรม)")
+        _p(doc, "ภาพกิจกรรม", align="center", size=24, after=0)
+        # หน้าถัดไปกลับมาชิดบนตามปกติ
+        _vcenter(doc.add_section(WD_SECTION.NEW_PAGE), on=False)
         _p(doc, f"ภาพกิจกรรม{_act_name(rep)}", align="center", bold=True, size=18, after=10)
         _photo_grid(doc, photos)
+
+    _update_fields_on_open(doc)
 
     return _save(doc, f"รายงานผลการดำเนินงาน_{_act_name(rep)}") if own else doc
 
