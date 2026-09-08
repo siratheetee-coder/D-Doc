@@ -32,6 +32,13 @@
   .g-green { background:#dcfce7; color:#16a34a; } .g-amber { background:#fff4e5; color:#d97706; }
   .g-gray { background:#eef0f4; color:#5a6a85; }
   .g-teal { background:#e6f7f5; color:#0d9488; } .g-indigo { background:#eeecff; color:#4f46e5; }
+  .acct-cmp { display:flex; flex-wrap:wrap; gap:12px; }
+  .acct-cmp .ac { flex:1 1 260px; border:1px solid var(--border); border-radius:12px; padding:14px 16px; background:var(--surface); }
+  .acct-cmp .ac.hi { border-color:#0d9488; background:#f0fdfa; }
+  .acct-cmp .ac-h { font-weight:800; font-size:15px; margin-bottom:8px; }
+  .acct-cmp .ac.hi .ac-h { color:#0f766e; }
+  .acct-cmp .ac ul { margin:0; padding-left:18px; display:flex; flex-direction:column; gap:6px; }
+  .acct-cmp .ac li { font-size:14px; line-height:1.55; color:var(--muted); }
   .price-row { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 6px; }
   .price-row .pc { flex:1 1 96px; background:#f3f6fc; border-radius:10px; padding:9px 12px; }
   .price-row .pc .n { font-size:12.5px; color:#33507a; }
@@ -79,8 +86,60 @@
       <div class="step"><span class="num">2</span><div class="st-body"><h4>เพิ่มบุคลากร / ผู้ลงนาม</h4><p>บันทึกรายชื่อครู กรรมการ และผู้ลงนาม ใช้ซ้ำตอนสร้างเรื่องหรือแต่งตั้งกรรมการ · <a href="/masters">ไปหน้าบุคลากร</a></p>{{ simg('start-2') }}</div></div>
       <div class="step"><span class="num">3</span><div class="st-body"><h4>อัปโหลดลายเซ็นผู้ลงนาม</h4><p>อัปโหลดลายเซ็นของแต่ละคน (ระบบลบพื้นหลังขาวให้อัตโนมัติ) แล้วระบบจะใส่ลายเซ็นในเอกสารให้เองเมื่อบุคคลนั้นเป็นผู้ลงนาม · <a href="/masters">อัปโหลดที่หน้าบุคลากร</a></p>{{ simg('start-3') }}</div></div>
       <div class="step"><span class="num">4</span><div class="st-body"><h4>เพิ่มทะเบียนข้อมูล (กรอกครั้งเดียวใช้ซ้ำ)</h4><p>เพิ่มผู้ขาย/ผู้รับจ้าง (<a href="/vendors">ผู้ขาย</a>) หรือรายชื่อนักเรียน (<a href="/students">นักเรียน</a>) ระบบจะดึงไปใช้ทุกเอกสารที่เกี่ยวข้อง ไม่ต้องกรอกซ้ำ</p>{{ simg('start-4') }}</div></div>
-      <div class="step"><span class="num">5</span><div class="st-body"><h4>สร้างเอกสารฉบับแรก</h4><p>เลือกงานที่ต้องการจากหน้าแรก แล้วเริ่มสร้างเรื่อง ระบบจะออกเอกสารให้ครบชุดตามระเบียบ</p></div></div>
+      <div class="step"><span class="num">5</span><div class="st-body"><h4>สร้างบัญชีให้คนอื่นเข้าใช้ (ถ้าต้องการ)</h4><p>อยากให้ครูเข้ามาเช็กชื่อ/กรอกคะแนนเอง หรือให้เจ้าหน้าที่คนอื่นช่วยทำงาน ต้องสร้างไอดีให้เขาก่อน — มี <b>2 แบบ ใช้คนละหน้ากัน</b> ดูวิธีละเอียดที่หัวข้อ <a href="#g-accounts">เพิ่มบัญชีผู้ใช้ / บัญชีครู</a> ด้านล่าง</p></div></div>
+      <div class="step"><span class="num">6</span><div class="st-body"><h4>สร้างเอกสารฉบับแรก</h4><p>เลือกงานที่ต้องการจากหน้าแรก แล้วเริ่มสร้างเรื่อง ระบบจะออกเอกสารให้ครบชุดตามระเบียบ</p></div></div>
     </div>
+  </div>
+</details>
+
+<!-- เพิ่มบัญชีผู้ใช้ / บัญชีครู -->
+<details class="acc" id="g-accounts">
+  <summary><span class="sic g-teal"><svg class="icon"><use href="#ic-users"/></svg></span> เพิ่มบัญชีผู้ใช้ · บัญชีครู <svg class="icon chev"><use href="#ic-arrow-right"/></svg></summary>
+  <div class="acc-body">
+    {{ vid('accounts') }}
+    <p class="faq-a" style="margin-bottom:12px;">ระบบมีไอดี <b>2 แบบ</b> คนละหน้า คนละสิทธิ์ — เลือกให้ถูกก่อน แล้วค่อยสร้าง</p>
+
+    <div class="acct-cmp">
+      <div class="ac">
+        <div class="ac-h">ไอดีเจ้าหน้าที่</div>
+        <ul>
+          <li>ให้ <b>ธุรการ · การเงิน · พัสดุ</b> เข้ามาช่วยทำงาน</li>
+          <li>เลือกได้ว่าให้เข้างานไหนบ้าง (ไอดีย่อย) หรือเห็นทุกงาน (ไอดีหลัก)</li>
+          <li><b>นับในโควตาแพ็กเกจ</b> ที่ซื้อไว้</li>
+          <li>สร้างที่หน้า <a href="/users">จัดการผู้ใช้</a></li>
+        </ul>
+      </div>
+      <div class="ac hi">
+        <div class="ac-h">บัญชีครู</div>
+        <ul>
+          <li>ให้ <b>ครูผู้สอน</b> เช็กชื่อ · กรอกคะแนน · ส่งแผน · ส่งใบลา</li>
+          <li>เข้าได้<b>เฉพาะงานวิชาการ</b> และเฉพาะ<b>วิชา/ห้องของตัวเอง</b> (แก้ของครูคนอื่นไม่ได้)</li>
+          <li><b>ไม่นับโควตา — สร้างได้ไม่จำกัด</b></li>
+          <li>สร้างที่หน้า <a href="/academic/teacher-accounts">บัญชีครู</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <h4 style="margin:20px 0 10px; font-size:15.5px;">วิธีสร้างบัญชีครู (ทำตามลำดับ)</h4>
+    <div class="steps">
+      <div class="step"><span class="num">1</span><div class="st-body"><h4>มีชื่อครูในทะเบียนบุคลากรก่อน</h4><p>บัญชีครูต้อง<b>ผูกกับชื่อครู</b>ที่มีอยู่แล้ว ถ้ายังไม่มีให้ไปเพิ่มที่ <a href="/masters">หน้าบุคลากร</a> ก่อน (ครูที่มีบัญชีแล้วระบบจะไม่ให้สร้างซ้ำ)</p>{{ simg('acct-1') }}</div></div>
+      <div class="step"><span class="num">2</span><div class="st-body"><h4>ตั้ง "รหัสต่อท้ายไอดีครู" ของโรงเรียน (ทำครั้งเดียว)</h4><p>ที่หน้า <a href="/academic/teacher-accounts">บัญชีครู</a> ตั้งรหัสสั้น ๆ ที่จำง่าย เช่น <code>104</code> ระบบจะเติมต่อท้ายไอดีครูทุกคนให้เอง กันชื่อซ้ำกับครูโรงเรียนอื่นทั้งประเทศ · พิมพ์ <code>teacher1</code> ครูจะล็อกอินด้วย <code>teacher1.104</code></p>{{ simg('acct-2') }}</div></div>
+      <div class="step"><span class="num">3</span><div class="st-body"><h4>สร้างไอดีให้ครูทีละคน</h4><p>เลือกชื่อครู → ตั้งไอดี → ตั้งรหัสผ่าน → กดสร้าง · ตั้งไอดีให้จำง่าย เช่น ชื่อเล่นครู หรือ <code>t01 t02</code> ไปเรื่อย ๆ</p>{{ simg('acct-3') }}</div></div>
+      <div class="step"><span class="num">4</span><div class="st-body"><h4>คัดลอกไอดี+รหัสผ่านส่งให้ครู <b style="color:#b91c1c;">ทันที</b></h4><p>หลังกดสร้าง ระบบจะโชว์ไอดีกับรหัสผ่านให้<b>ครั้งเดียว</b> (มีปุ่มคัดลอกทั้งชุด) — <b>รีเฟรชหน้าแล้วรหัสผ่านจะหายไป</b> ถ้าลืมต้องกดรีเซ็ตรหัสใหม่ให้ครูคนนั้น</p>{{ simg('acct-4') }}</div></div>
+      <div class="step"><span class="num">5</span><div class="st-body"><h4>กำหนดว่าครูสอนวิชาอะไร / ประจำชั้นห้องไหน</h4><p><b>ข้อนี้สำคัญมาก</b> — ถ้าไม่ทำ ครูล็อกอินเข้ามาแล้วจะ<b>ไม่เห็นห้องหรือวิชาอะไรเลย</b> · ตั้งครูผู้สอนรายวิชาที่ <a href="/academic/assign-teachers">กำหนดครูผู้สอน</a> และตั้งครูประจำชั้นที่ <a href="/academic/classes">ห้องเรียน</a></p>{{ simg('acct-5') }}</div></div>
+    </div>
+
+    <h4 style="margin:20px 0 8px; font-size:15.5px;">ปัญหาที่เจอบ่อย</h4>
+    <p class="faq-q">ครูล็อกอินไม่ได้ บอกว่าไอดีผิด</p>
+    <p class="faq-a">ครูต้องพิมพ์ไอดี<b>เต็ม พร้อมรหัสต่อท้าย</b> เช่น <code>teacher1.104</code> ไม่ใช่แค่ <code>teacher1</code> · เปิดหน้าบัญชีครูดูไอดีเต็มของแต่ละคนได้</p>
+    <p class="faq-q">ครูเข้าได้แล้ว แต่ไม่เห็นห้อง/วิชาของตัวเอง</p>
+    <p class="faq-a">ยังไม่ได้กำหนดให้ครูคนนั้นสอนวิชาไหน/ประจำชั้นห้องไหน (ข้อ 5 ด้านบน) · ตรวจด้วยว่ากำหนดไว้ใน<b>ปีการศึกษาปัจจุบัน</b>แล้วหรือยัง</p>
+    <p class="faq-q">ครูลืมรหัสผ่าน</p>
+    <p class="faq-a">ไอดีหลักเข้าหน้า <a href="/academic/teacher-accounts">บัญชีครู</a> กดรีเซ็ตรหัสผ่านให้ครูคนนั้นได้เลย ระบบจะโชว์รหัสใหม่ให้ครั้งเดียวเหมือนตอนสร้าง</p>
+    <p class="faq-q">สร้างบัญชีครูแล้วโควตาจะเต็มไหม</p>
+    <p class="faq-a">ไม่เต็มครับ <b>บัญชีครูสร้างได้ไม่จำกัด ไม่นับในโควตา</b> · ที่นับคือไอดีเจ้าหน้าที่ในหน้า <a href="/users">จัดการผู้ใช้</a> เท่านั้น</p>
+    <p class="faq-q">ครูออกจากโรงเรียนแล้ว</p>
+    <p class="faq-a">ลบบัญชีครูคนนั้นที่หน้าบัญชีครู ข้อมูลคะแนน/เช็กชื่อที่ครูกรอกไว้ยังอยู่ครบ ไม่หายไปด้วย</p>
   </div>
 </details>
 
