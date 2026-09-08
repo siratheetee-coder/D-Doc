@@ -150,16 +150,18 @@
                      inputmode="decimal" type="number" min="0" max="{{ fmax }}" step="0.5"
                      style="width:80px;" data-sum="{{ s.id }}"></td>
           <td class="center"><b id="sum{{ s.id }}">{{ '%g'|format(sc.score) if sc and sc.score is not none else '-' }}</b></td>
-          <td><select name="grade_{{ s.id }}" style="width:100px;">
-            <option value="">(คิดอัตโนมัติ)</option>
-            {% for g in grades %}<option value="{{ g }}" {{ 'selected' if sc and sc.grade==g }}>{{ g }}</option>{% endfor %}
-          </select></td>
+          <td><div class="gcell">
+            <select name="grade_{{ s.id }}" style="width:100px;" data-grade="{{ s.id }}">
+              <option value="">(คิดอัตโนมัติ)</option>
+              {% for g in grades %}<option value="{{ g }}" {{ 'selected' if sc and sc.grade==g }}>{{ g }}</option>{% endfor %}
+            </select><span class="gpv" id="gp{{ s.id }}"></span>
+          </div></td>
           {% if not is_sec %}
           {% set an = annual.get(s.id, {}) %}
           {% set other = an.get('t2') if sel_term==1 else an.get('t1') %}
-          <td class="center col-annual">{{ '%g'|format(other) if other is not none else '-' }}</td>
-          <td class="center col-annual">{{ '%g'|format(an.get('avg')) if an.get('avg') is not none else '-' }}</td>
-          <td class="center col-annual"><b style="color:var(--acad-dark);">{{ an.get('grade') or '-' }}</b></td>
+          <td class="center col-annual" id="oth{{ s.id }}" data-oth="{{ '%g'|format(other) if other is not none else '' }}">{{ '%g'|format(other) if other is not none else '-' }}</td>
+          <td class="center col-annual" id="avg{{ s.id }}">{{ '%g'|format(an.get('avg')) if an.get('avg') is not none else '-' }}</td>
+          <td class="center col-annual"><b style="color:var(--acad-dark);" id="ag{{ s.id }}">{{ an.get('grade') or '-' }}</b></td>
           {% endif %}
         </tr>
       {% endfor %}
@@ -169,22 +171,72 @@
     <button class="btn-acad" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกคะแนนทั้งห้อง</button>
   </form>
   <script>
-    // แสดงคะแนนเก็บรวม + คะแนนรวมสดขณะพิมพ์ (เกรดจริงคำนวณที่เซิร์ฟเวอร์ตอนบันทึก)
+    // คำนวณสดขณะพิมพ์: เก็บรวม -> รวม -> ร้อยละ -> ผลการเรียน (+ เกรดรายปีของประถม)
+    // ใช้เกณฑ์ชุดเดียวกับเซิร์ฟเวอร์ (GRADE_CUTS ใน app/services/academic.py)
+    // เป็นแค่ตัวอย่างให้เห็นทันที · ค่าที่บันทึกจริงยังคิดที่เซิร์ฟเวอร์ตอนกดบันทึก
+    var DENOM  = {{ (keep_max + fmax)|float }};
+    var IS_SEC = {{ 'true' if is_sec else 'false' }};
+    var CUTS = [[80,'4'],[75,'3.5'],[70,'3'],[65,'2.5'],[60,'2'],[55,'1.5'],[50,'1'],[0,'0']];
+    function gradeOf(p){
+      if(p === null || isNaN(p)) return '';
+      for(var i=0; i<CUTS.length; i++){ if(p >= CUTS[i][0]) return CUTS[i][1]; }
+      return '0';
+    }
+    function clamped(el){                       // อ่านค่า + ตัดไม่ให้เกินคะแนนเต็ม (เหมือนฝั่งเซิร์ฟเวอร์)
+      var v = parseFloat(el.value);
+      if(isNaN(v)) return null;
+      var mx = parseFloat(el.max);
+      return isNaN(mx) ? Math.max(0, v) : Math.max(0, Math.min(v, mx));
+    }
     function rowSum(id){
       var keep = 0, hasItem = false;
       document.querySelectorAll('input[data-item="'+id+'"]').forEach(function(el){
-        var v = parseFloat(el.value);
-        if(!isNaN(v)){ keep += v; hasItem = true; }
+        var v = clamped(el);
+        if(v !== null){ keep += v; hasItem = true; }
       });
       var keepBox = document.getElementById('keep'+id);
       if(keepBox) keepBox.textContent = hasItem ? (Math.round(keep*100)/100) : '-';
-      var fin = parseFloat(document.querySelector('input[name="fin_'+id+'"]').value) || 0;
+      var finEl = document.querySelector('input[name="fin_'+id+'"]');
+      var fin = finEl ? clamped(finEl) : null;
+      var total = (hasItem || fin !== null) ? (keep + (fin || 0)) : null;
       var box = document.getElementById('sum'+id);
-      if(box) box.textContent = (keep+fin) ? (Math.round((keep+fin)*100)/100) : '-';
+      if(box) box.textContent = (total === null) ? '-' : (Math.round(total*100)/100);
+      showGrade(id, (total === null || !DENOM) ? null : total*100/DENOM);
+    }
+    function showGrade(id, pct){
+      var sel = document.querySelector('select[data-grade="'+id+'"]');
+      var box = document.getElementById('gp'+id);
+      if(box){
+        if(sel && sel.value){                   // ครูเลือกเกรดเอง (ร/มส) -> ใช้ค่าที่เลือกแทน
+          box.textContent = 'ใช้ค่าที่เลือก'; box.className = 'gpv manual';
+        }else if(pct === null){
+          box.textContent = ''; box.className = 'gpv';
+        }else{
+          box.textContent = gradeOf(pct) + ' · ' + (Math.round(pct*10)/10) + '%';
+          box.className = 'gpv on';
+        }
+      }
+      if(IS_SEC) return;
+      // ประถม: เกรดรายปี = เฉลี่ยร้อยละ 2 ภาค (ภาคอีกด้านมาจากที่บันทึกไว้แล้ว)
+      var othEl = document.getElementById('oth'+id),
+          avgEl = document.getElementById('avg'+id),
+          agEl  = document.getElementById('ag'+id);
+      if(!othEl || !avgEl || !agEl) return;
+      var oth = parseFloat(othEl.dataset.oth);
+      var p1  = (pct === null) ? null : Math.round(pct*10)/10;
+      if(p1 === null || isNaN(oth)){ avgEl.textContent = '-'; agEl.textContent = '-'; return; }
+      var avg = Math.round(((p1 + oth) / 2) * 100) / 100;
+      avgEl.textContent = avg;
+      agEl.textContent  = gradeOf(avg);
     }
     document.querySelectorAll('input[data-item],input[data-sum]').forEach(function(el){
       el.addEventListener('input', function(){ rowSum(el.dataset.item || el.dataset.sum); });
     });
+    document.querySelectorAll('select[data-grade]').forEach(function(el){
+      el.addEventListener('change', function(){ rowSum(el.dataset.grade); });
+    });
+    // คิดครั้งแรกตอนเปิดหน้า เพื่อให้เห็นเกรดของคะแนนที่บันทึกไว้แล้ว
+    document.querySelectorAll('input[data-sum]').forEach(function(el){ rowSum(el.dataset.sum); });
   </script>
   {% else %}
   <p class="muted">ห้องนี้ยังไม่มีนักเรียน - <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
@@ -267,6 +319,12 @@
   .btn-acad:active { transform:translateY(0) scale(.97); box-shadow:0 1px 4px rgba(37,99,235,.3); }
   .btn-acad.ghost { background:#fff; color:var(--acad-dark); border:1.5px solid var(--acad-100); box-shadow:none; }
   .btn-acad.ghost:hover { background:var(--acad-50); border-color:var(--acad); filter:none; }
+  .gcell { display:flex; align-items:center; gap:7px; }
+  .gpv { font-size:12.5px; color:#94a3b8; white-space:nowrap; }
+  .gpv.on { color:var(--acad-dark); font-weight:700; background:var(--acad-50);
+    padding:3px 10px; border-radius:20px; border:1px solid var(--acad-100); }
+  .gpv.manual { color:#b45309; background:#fffbeb; border:1px solid #fde68a;
+    padding:3px 10px; border-radius:20px; font-size:12px; }
   .col-mid { background:var(--acad-50); }
   .col-keep { background:#f8fafc; }
   th.col-mid, th.col-keep { background:var(--acad-100); }
