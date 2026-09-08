@@ -30,6 +30,9 @@
     .back:hover { color:#4880FF; }
     .ok { background:#e9f7ef; color:#0e7a44; border:1px solid #b7ebcd; padding:14px 15px;
       border-radius:12px; font-size:14.5px; line-height:1.6; }
+    .note { background:#f5f8ff; color:#33507a; border:1px solid #d7e3fb; padding:11px 14px;
+      border-radius:10px; font-size:13.5px; line-height:1.6; margin:0 0 16px; }
+    .note code { background:#fff; border:1px solid #dfe6f5; padding:1px 5px; border-radius:4px; font-size:13px; }
     .warn { background:#fff7e6; color:#a15c07; border:1px solid #ffe0a8; padding:10px 13px;
       border-radius:10px; font-size:13px; margin-top:12px; }
     .icon-ok { width:56px; height:56px; margin:0 auto 12px; border-radius:50%; background:#e9f7ef;
@@ -56,6 +59,9 @@
     {% else %}
       <h1>ลืมรหัสผ่าน?</h1>
       <p class="lead">กรอกอีเมลที่ใช้ลงทะเบียนเพื่อส่งลิงก์ตั้งรหัสผ่านใหม่</p>
+      <div class="note"><b>ใช้ได้เฉพาะบัญชีที่ลงทะเบียนด้วยอีเมล</b><br>
+        ถ้าเป็น<b>บัญชีครู</b> (ไอดีมีจุดต่อท้าย เช่น <code>teacher1.104</code>) จะไม่มีอีเมลผูกไว้ —
+        ให้แจ้ง<b>ไอดีหลักของโรงเรียน</b> เข้าหน้า "จัดการผู้ใช้" กดรีเซ็ตรหัสให้ได้ทันที</div>
       <form method="post" action="/forgot">
         <label>อีเมล</label>
         <input name="email" type="email" autocomplete="email" required autofocus placeholder="you@example.com">
