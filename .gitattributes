@@ -1,0 +1,3 @@
+# สคริปต์ที่รันบน VPS (Linux) ต้องเป็น LF เสมอ
+# ถ้าเป็น CRLF จะขึ้น "bad interpreter: /usr/bin/env bash^M: no such file or directory"
+*.sh text eol=lf

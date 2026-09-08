@@ -57,40 +57,63 @@ sudo systemctl restart ddoc
 ตรวจว่า nginx ส่ง header ครบ (มีอยู่แล้วใน `deploy/nginx-ddoc.conf`: `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto`).
 **ทดสอบ:** ลองใส่รหัสผิดจากเครื่องนอก 8 ครั้งเร็ว ๆ ต้องโดนบล็อก 429 "พยายามเข้าระบบบ่อยเกินไป" (ถ้ายังไม่บล็อก แปลว่ายังนับรวมเป็น 127.0.0.1 — ตรวจ proxy-headers/nginx)
 
-## 3) Backup อัตโนมัติ + ซ้อมกู้คืน  ★★ สำคัญสุด
+## 3) Backup อัตโนมัติ (เข้ารหัส + ออกนอกเครื่อง) + ซ้อมกู้คืน  ★★ สำคัญสุด
 
-**ติดตั้ง sqlite3 CLI ก่อน** (backup.sh ใช้ `sqlite3 .backup` ทำ snapshot ปลอดภัยขณะแอปเขียนอยู่ · ถ้าไม่มีจะ fallback เป็น cp ที่อาจได้ไฟล์ไม่สมบูรณ์):
+**ติดตั้ง sqlite3 CLI ก่อน** (ใช้ `sqlite3 .backup` ทำ snapshot ปลอดภัยขณะแอปเขียนอยู่ · ถ้าไม่มีจะ fallback เป็น cp ที่อาจได้ไฟล์ไม่สมบูรณ์):
 ```bash
 sudo apt update && sudo apt install -y sqlite3
 ```
 
-**ตั้ง cron สำรองรายคืน** (เก็บนอก `data/`):
+### 3.1 สร้างรหัสลับสำหรับเข้ารหัสไฟล์สำรอง  ★ ทำครั้งเดียว
 ```bash
-sudo crontab -e
-# เพิ่มบรรทัด (ตี 2 ทุกคืน):
-0 2 * * * /opt/ddoc/deploy/backup.sh >> /var/log/ddoc-backup.log 2>&1
+sudo /opt/ddoc/deploy/backup.sh --init
 ```
-รันมือ 1 ครั้งเพื่อทดสอบ + ดูผล:
-```bash
-sudo /opt/ddoc/deploy/backup.sh
-ls -lh /var/backups/ddoc/          # ต้องเห็นไฟล์ ddoc-backup-*.tar.gz
-```
+> ⚠️ **ก๊อปข้อความที่พิมพ์ออกมาเก็บไว้นอกเครื่องทันที** (โปรแกรมจัดการรหัสผ่าน / กระดาษในตู้เซฟ)
+> ไฟล์ `/etc/ddoc-backup.key` คือกุญแจเดียวที่เปิดไฟล์สำรองได้ — **ทำหาย = กู้ข้อมูลไม่ได้ตลอดกาล**
+> (รันซ้ำจะไม่สร้างทับกุญแจเดิม ไฟล์สำรองเก่าจึงยังเปิดได้)
 
-**ซ้อมกู้คืนจริง (drill) — ทำบนเครื่องทดสอบ/สำเนา ห้ามทำทับ production ครั้งแรก:**
-```bash
-# 1) หยุดแอป
-sudo systemctl stop ddoc
-# 2) สำรอง data ปัจจุบันไว้ก่อน (กันพลาด)
-sudo mv /opt/ddoc/data /opt/ddoc/data.pre-drill
-sudo mkdir /opt/ddoc/data
-# 3) แตกไฟล์สำรองลง data
-sudo tar -xzf /var/backups/ddoc/ddoc-backup-YYYYmmdd-HHMMSS.tar.gz -C /opt/ddoc/data
-sudo chown -R ddoc:ddoc /opt/ddoc/data
-# 4) เปิดแอป แล้วล็อกอินตรวจว่าข้อมูลครบ (โรงเรียน/นักเรียน/เอกสาร)
-sudo systemctl start ddoc
-# 5) ถ้าครบดี ลบสำเนาเดิม; ถ้าผิดให้สลับกลับ data.pre-drill
+### 3.2 ตั้งค่าส่งไฟล์สำรองออกนอกเครื่อง  ★★ สำคัญ
+สำรองไว้ในเครื่องเดียวไม่ช่วยอะไรถ้าเครื่องหาย (ดิสก์พัง / โดนลบ / ผู้ให้บริการปิด)
+แนะนำ **Cloudflare R2** (ไม่คิดค่าดาวน์โหลด ราคาถูกมากสำหรับข้อมูลระดับนี้)
+
+เพิ่มใน `/etc/ddoc.env`:
 ```
-> กลไกกู้คืนระดับแอป (อัปโหลดไฟล์ .db ในหน้าตั้งค่า) ทดสอบ round-trip แล้วทำงานถูกต้อง — แต่ **การกู้จาก tar.gz บน VPS ต้องซ้อมเองอย่างน้อย 1 ครั้ง** ให้มั่นใจก่อนเปิดจริง
+BACKUP_S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+BACKUP_S3_BUCKET=ddoc-backup
+BACKUP_S3_KEY_ID=<key id>
+BACKUP_S3_SECRET=<secret>
+BACKUP_S3_REGION=auto
+```
+> ไฟล์ถูก**เข้ารหัสก่อนอัป** ดังนั้นต่อให้บัญชีคลาวด์หลุด คนอื่นก็เปิดอ่านไม่ได้
+
+### 3.3 ตั้งให้ทำอัตโนมัติทุกคืน
+```bash
+sudo /opt/ddoc/deploy/setup-cron.sh
+```
+ทดสอบรันมือ 1 ครั้ง:
+```bash
+sudo /opt/ddoc/deploy/backup.sh && ls -lh /var/backups/ddoc/
+```
+ต้องเห็นไฟล์ `ddoc-backup-*.tar.gz.enc` และบรรทัด `อัปขึ้นคลาวด์แล้ว`
+(ถ้าขึ้น `เตือน: ยังไม่ได้ตั้ง BACKUP_S3_*` = ยังไม่ได้ทำข้อ 3.2)
+
+### 3.4 ซ้อมกู้คืน  ★★ ทำอย่างน้อยทุก 3 เดือน
+ดูรายการที่กู้ได้ (ทั้งในเครื่องและบนคลาวด์):
+```bash
+sudo /opt/ddoc/deploy/restore.sh --list
+```
+กู้คืนจากชุดล่าสุดในเครื่อง:
+```bash
+sudo /opt/ddoc/deploy/restore.sh
+```
+กู้คืนจากคลาวด์ (กรณีเครื่องเดิมหายทั้งเครื่อง — ติดตั้งระบบใหม่ + วางไฟล์กุญแจกลับ แล้วสั่ง):
+```bash
+sudo /opt/ddoc/deploy/restore.sh --from-cloud
+```
+สคริปต์จะ **ย้าย data เดิมไปเก็บเป็น `data.before-restore-<เวลา>` ก่อนเสมอ** ถ้ากู้แล้วข้อมูลไม่ถูก สลับกลับได้
+(และจะหยุดก่อนแตะข้อมูลจริง ถ้าไฟล์สำรองเสีย/กุญแจไม่ตรง)
+
+> **ซ้อมกู้คืน = เอาไฟล์มากู้จริงแล้วล็อกอินตรวจว่าข้อมูลครบ** ไฟล์สำรองที่ไม่เคยลองกู้ ไม่ถือว่าใช้ได้
 
 ## 3.5) ตรวจสุขภาพระบบอัตโนมัติ (health check)  ★ แนะนำ
 

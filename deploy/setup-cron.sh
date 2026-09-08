@@ -27,6 +27,16 @@ for f in "$BACKUP_SH" "$HEALTH_SH"; do
 done
 
 chmod +x "$BACKUP_SH" "$HEALTH_SH"
+[ -f "$APP_DIR/deploy/restore.sh" ] && chmod +x "$APP_DIR/deploy/restore.sh"
+
+# backup.sh เข้ารหัสไฟล์สำรองเสมอ ถ้ายังไม่มีกุญแจจะล้มเหลวทุกคืนแบบเงียบ ๆ
+KEYFILE="${DDOC_BACKUP_KEYFILE:-/etc/ddoc-backup.key}"
+if [ ! -f "$KEYFILE" ]; then
+  echo "!! ยังไม่มีรหัสลับสำหรับเข้ารหัสไฟล์สำรอง ($KEYFILE)" >&2
+  echo "   สร้างก่อนด้วย: sudo $BACKUP_SH --init" >&2
+  echo "   (ติดตั้ง cron ต่อได้ แต่การสำรองจะยังไม่ทำงานจนกว่าจะสร้างกุญแจ)" >&2
+  echo >&2
+fi
 
 # เก็บ cron เดิมไว้ แล้วตัดเฉพาะบรรทัดที่เราเคยใส่ (กันซ้ำ)
 CURRENT="$(crontab -l 2>/dev/null | grep -v "$MARK" || true)"
@@ -56,3 +66,5 @@ echo ""
 echo "ทดสอบเลยตอนนี้ (ไม่ต้องรอ cron):"
 echo "  sudo $HEALTH_SH"
 echo "  sudo $BACKUP_SH"
+echo ""
+echo "ดูไฟล์สำรองที่กู้ได้:  sudo $APP_DIR/deploy/restore.sh --list"
