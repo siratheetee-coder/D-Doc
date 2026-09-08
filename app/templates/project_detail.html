@@ -95,6 +95,42 @@
   <form id="delp" method="post" action="/projects/{{ p.id }}/delete" style="display:none;"></form>
 </div>
 
+{# ---------- รายงานผลการดำเนินงาน (กรอกในระบบ -> ออก Word พร้อมพิมพ์) ---------- #}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h2 style="margin:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> รายงานผลการดำเนินงาน</h2>
+    <form method="post" action="/projects/{{ p.id }}/report/new" style="margin:0;">
+      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-file-plus"/></svg> สร้างรายงานใหม่</button>
+    </form>
+  </div>
+  <p class="muted" style="margin:6px 0 0; font-size:13.5px;">
+    กรอกหัวข้อตามแบบรายงานมาตรฐาน (หลักการ/วัตถุประสงค์/ผลการดำเนินงาน/ปัญหา/ข้อเสนอแนะ) แนบภาพกิจกรรมได้
+    แล้วดาวน์โหลดเป็น Word พร้อมพิมพ์ · 1 โครงการทำได้หลายฉบับ (แยกรายกิจกรรม)</p>
+  {% if reports %}
+  <div class="table-wrap"><table style="margin-top:12px;">
+    <thead><tr><th>ชื่อกิจกรรม</th><th>ระยะเวลา</th><th>ผู้รับผิดชอบ</th>
+      <th class="right">ใช้จริง</th><th class="center">ภาพ</th><th></th></tr></thead>
+    <tbody>
+      {% for r in reports %}
+      <tr>
+        <td><a href="/project-reports/{{ r.id }}"><b>{{ r.title or p.name }}</b></a></td>
+        <td class="muted">{{ thai_date(r.date_start) if r.date_start else "-" }}{% if r.date_end and r.date_start and r.date_end.date() != r.date_start.date() %} - {{ thai_date(r.date_end) }}{% endif %}</td>
+        <td class="muted">{{ r.responsible or "-" }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.budget_used or 0) }}</td>
+        <td class="center muted">{{ r.photos|length or "-" }}</td>
+        <td style="white-space:nowrap;">
+          <a class="btn sm gray" href="/project-reports/{{ r.id }}">แก้ไข</a>
+          <a class="btn sm green" href="/project-reports/{{ r.id }}/doc.docx">Word</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="muted" style="margin-top:12px;">ยังไม่มีรายงาน - กด "สร้างรายงานใหม่" ระบบจะเปิดหน้ากรอกให้ทันที
+    (ดึงชื่อโครงการ ผู้รับผิดชอบ และงบที่ตั้งไว้มาให้อัตโนมัติ)</p>
+  {% endif %}
+</div>
+
 <script>
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){

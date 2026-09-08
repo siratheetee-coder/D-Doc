@@ -24,7 +24,7 @@ from sqlalchemy import or_, func
 from app.database import get_db
 from app.models import (
     School, Vendor, Procurement, ProcurementItem, Document,
-    Person, Department, Project, ProjectBudgetRevision, Committee, CommitteeMember,
+    Person, Department, Project, ProjectBudgetRevision, ProjectReport, Committee, CommitteeMember,
     Asset, MaterialItem, MaterialTxn, Requisition, RequisitionItem, IssuedDocNo,
     DocNumberCounter, OfficeMemo, SchoolOrder, IncomingLetter, OutgoingLetter,
     DisburseMemo, ItemCatalog, Student, ProcurementPlan, Contract,
@@ -2773,8 +2773,11 @@ def project_detail(pid: int, request: Request, db: Session = Depends(get_db)):
     disb = (db.query(DisburseMemo).filter(DisburseMemo.project_id == pid)
             .order_by(DisburseMemo.id.desc()).all())
     next_seq = max([r.seq or 0 for r in p.revisions], default=0) + 1
+    reports = (db.query(ProjectReport).filter_by(project_id=pid)
+               .order_by(ProjectReport.date_start.is_(None), ProjectReport.date_start,
+                         ProjectReport.id).all())
     return templates.TemplateResponse("project_detail.html", {
-        "request": request, "school": get_school(db), "p": p,
+        "request": request, "school": get_school(db), "p": p, "reports": reports,
         "procs": procs, "disb": disb, "next_seq": next_seq,
         "year_label": plan_year_label(get_school(db)),
         "departments": db.query(Department).order_by(Department.name).all(),

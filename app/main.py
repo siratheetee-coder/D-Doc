@@ -29,11 +29,12 @@ from app.seller_config import pricing_context
 from app.tenancy import current_school_id, current_module
 from app.templating import templates
 
+from app.routers import (pages, admin, finance, lunch, auth, superadmin, account, textbooks,
+                         sales, hr, academic, users, general, project_report)
+
 # อายุการล็อกอิน (วินาที) · ค่าจริงต่อคนเก็บใน session["ttl"] ตอนล็อกอิน
 SESSION_TTL_DEFAULT = 60 * 60 * 12          # ไม่ติ๊ก "จดจำฉันไว้" = 12 ชั่วโมง (เท่าเดิม)
 SESSION_TTL_REMEMBER = 60 * 60 * 24 * 30    # ติ๊กแล้ว = 30 วัน
-from app.routers import (pages, admin, finance, lunch, auth, superadmin, account, textbooks,
-                         sales, hr, academic, users, general)
 
 app = FastAPI(title="Easy Ekkasan : ระบบจัดการเอกสารและพัสดุโรงเรียน")
 
@@ -302,6 +303,7 @@ app.include_router(account.router)
 app.include_router(users.router)
 app.include_router(superadmin.router)
 app.include_router(pages.router)
+app.include_router(project_report.router)
 app.include_router(admin.router)
 app.include_router(finance.router)
 app.include_router(lunch.router)

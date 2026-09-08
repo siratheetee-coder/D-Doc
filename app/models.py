@@ -132,6 +132,59 @@ class ProjectBudgetRevision(Base):
     project = relationship("Project", back_populates="revisions")
 
 
+class ProjectReport(Base):
+    """รายงานผลการดำเนินงานโครงการ/กิจกรรม (1 โครงการรายงานได้หลายครั้ง เช่น แยกรายกิจกรรม)
+
+    หัวข้อตายตัวตามรูปแบบรายงานที่โรงเรียนใช้กันทั่วไป (แนว PDCA / สนองมาตรฐานการศึกษา)
+    ทุกช่องเป็นข้อความอิสระ ครูกรอกเท่าที่มี ช่องว่างจะไม่ขึ้นในเอกสาร"""
+    __tablename__ = "project_report"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("project.id"), nullable=False)
+    title = Column(String, default="")             # ชื่อกิจกรรม (ว่าง = ใช้ชื่อโครงการ)
+    date_start = Column(DateTime, nullable=True)   # ระยะเวลาดำเนินการ
+    date_end = Column(DateTime, nullable=True)
+    location = Column(String, default="")          # สถานที่ดำเนินการ
+    responsible = Column(String, default="")       # ผู้รับผิดชอบ/ผู้รายงาน
+    responsible_pos = Column(String, default="")   # ตำแหน่งผู้รายงาน
+    std_ref = Column(Text, default="")             # สนองมาตรฐาน/กลยุทธ์/นโยบาย
+
+    principles = Column(Text, default="")          # หลักการและเหตุผล
+    objectives = Column(Text, default="")          # วัตถุประสงค์
+    target_qty = Column(Text, default="")          # เป้าหมายเชิงปริมาณ
+    target_qual = Column(Text, default="")         # เป้าหมายเชิงคุณภาพ
+    methods = Column(Text, default="")             # วิธีดำเนินการ (ขั้นตอน)
+    results = Column(Text, default="")             # ผลการดำเนินงาน
+    satisfaction = Column(Text, default="")        # ผลการประเมิน/ความพึงพอใจ
+    problems = Column(Text, default="")            # ปัญหาและอุปสรรค
+    suggestions = Column(Text, default="")         # ข้อเสนอแนะ
+
+    budget_planned = Column(Float, default=0.0)    # งบที่ตั้งไว้สำหรับกิจกรรมนี้
+    budget_used = Column(Float, default=0.0)       # ใช้จริง
+    budget_note = Column(String, default="")       # หมายเหตุงบ (แหล่งงบ ฯลฯ)
+
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    project = relationship("Project")
+    photos = relationship("ProjectReportPhoto", back_populates="report",
+                          cascade="all, delete-orphan",
+                          order_by="ProjectReportPhoto.seq, ProjectReportPhoto.id")
+
+
+class ProjectReportPhoto(Base):
+    """ภาพกิจกรรมประกอบรายงาน (เก็บใน DB เพื่อให้รวมอยู่ในไฟล์สำรองข้อมูลด้วย)"""
+    __tablename__ = "project_report_photo"
+
+    id = Column(Integer, primary_key=True)
+    report_id = Column(Integer, ForeignKey("project_report.id"), nullable=False)
+    seq = Column(Integer, default=0)               # ลำดับที่แสดงในเอกสาร
+    caption = Column(String, default="")           # คำบรรยายใต้ภาพ
+    image = Column(LargeBinary, nullable=True)     # JPEG ย่อแล้ว
+
+    report = relationship("ProjectReport", back_populates="photos")
+
+
 class Vendor(Base):
     """ผู้ขาย / ผู้รับจ้าง"""
     __tablename__ = "vendor"
