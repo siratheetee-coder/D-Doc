@@ -298,6 +298,21 @@ def _start_auto_backup():
 _start_auto_backup()
 
 
+def _prune_audit_log():
+    """ตัดบันทึกการใช้งานที่เก่าเกินกำหนดทิ้ง (ทำตอนสตาร์ท - ไม่ต้องตั้ง cron เพิ่ม)
+    PDPA: log เป็นข้อมูลส่วนบุคคลด้วย จึงไม่ควรเก็บไว้นานเกินจำเป็น"""
+    try:
+        from app.accounts import audit_prune
+        n = audit_prune()
+        if n:
+            print(f"[audit] ลบบันทึกเก่าทิ้ง {n} รายการ")
+    except Exception:
+        pass
+
+
+_prune_audit_log()
+
+
 app.include_router(auth.router)
 app.include_router(account.router)
 app.include_router(users.router)

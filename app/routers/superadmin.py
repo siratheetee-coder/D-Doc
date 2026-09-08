@@ -456,7 +456,7 @@ def delete_user(aid: int):
 
 
 @router.post("/admin-console/tenant/{tid}/delete")
-def delete_tenant(tid: int):
+def delete_tenant(tid: int, request: Request):
     """ลบโรงเรียนออกจากระบบทั้งหมด: บัญชีผู้ใช้ + ข้อมูลกลาง + ไฟล์ฐานข้อมูลของโรงเรียน
     (ลบถาวร ใช้เมื่อโรงเรียนเลิกใช้/สร้างผิด)"""
     import shutil
@@ -467,6 +467,9 @@ def delete_tenant(tid: int):
         if not t:
             return RedirectResponse("/admin-console?msg=ไม่พบโรงเรียน", status_code=303)
         name = t.name
+        from app.accounts import audit
+        audit("admin.tenant_delete", request=request, tenant_id=None,
+              target=f"#{tid} {name}", detail="ลบบัญชีผู้ใช้ + ฐานข้อมูลของโรงเรียนถาวร")
         db.query(Account).filter_by(tenant_id=tid).delete()
         db.delete(t)
         db.commit()

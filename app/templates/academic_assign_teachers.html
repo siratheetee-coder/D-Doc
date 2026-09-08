@@ -23,7 +23,7 @@
         {% for t in teachers %}<option value="{{ t.id }}" {{ 'selected' if t.id==pid }}>{{ t.name }}</option>{% endfor %}
       </select></div>
   </form>
-  <p class="muted" style="font-size:13px; margin:10px 0 0;">เลือกครู แล้วติ๊กว่าสอนวิชาอะไรในห้องไหนบ้าง · ติ๊กหัวคอลัมน์ = ทุกวิชาของห้องนั้น · วิชาที่มีครูอยู่แล้วจะล็อก 🔒 (เอาครูออกที่หน้าของครูคนนั้นก่อน จึงจะจัดใหม่ได้)</p>
+  <p class="muted" style="font-size:13px; margin:10px 0 0;">เลือกครู แล้วติ๊กว่าสอนวิชาอะไรในห้องไหนบ้าง โดยวิชาที่มีครูสอนอยู่แล้วจะล็อก 🔒</p>
 </div>
 
 {% if teacher %}

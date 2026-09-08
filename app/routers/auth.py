@@ -7,7 +7,7 @@ import time
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.accounts import (authenticate, login_fail_count, login_fail_record,
+from app.accounts import (audit, authenticate, login_fail_count, login_fail_record,
                           login_fail_clear)
 from app.templating import templates
 
@@ -92,6 +92,8 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
                  next: str = Form(""), remember: str = Form("")):
     ip = request.client.host if request.client else "?"
     if _too_many(ip):
+        audit("login.blocked", request=request, tenant_id=None, uid=None,
+              username=username.strip()[:120], ip=ip)
         return templates.TemplateResponse("login.html", {
             "request": request, "error": "พยายามเข้าระบบบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่",
             "next": _safe_next(next),
@@ -99,6 +101,8 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
     user = authenticate(username, password)
     if not user:
         _record_fail(ip)
+        audit("login.fail", request=request, tenant_id=None, uid=None,
+              username=username.strip()[:120], ip=ip)
         return templates.TemplateResponse("login.html", {
             "request": request, "error": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
             "next": _safe_next(next),
@@ -131,6 +135,8 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
     from app.main import SESSION_TTL_DEFAULT, SESSION_TTL_REMEMBER
     request.session["ttl"] = SESSION_TTL_REMEMBER if remember else SESSION_TTL_DEFAULT
     request.session["exp"] = int(time.time()) + request.session["ttl"]
+    audit("login.ok", request=request, ip=ip,
+          detail=("จดจำฉันไว้ 30 วัน" if remember else "เซสชัน 12 ชั่วโมง"))
     if user.get("must_change"):
         request.session["purchase_next"] = _safe_next(next)
         return RedirectResponse("/account/password", status_code=303)
@@ -152,6 +158,7 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
 @router.get("/logout")
 @router.post("/logout")
 def logout(request: Request, next: str = ""):
+    audit("logout", request=request)
     request.session.clear()
     from urllib.parse import urlencode
     if _safe_next(next):
@@ -176,6 +183,9 @@ def forgot_submit(request: Request, email: str = Form("")):
     from app.accounts import create_reset_token
     from app.services.mailer import send_reset_email, smtp_configured
     token = create_reset_token(email)
+    audit("password.forgot", request=request, tenant_id=None, uid=None,
+          username=email.strip().lower()[:120],
+          detail=("พบบัญชี ส่งลิงก์แล้ว" if token else "ไม่พบบัญชีนี้"))
     if token:
         send_reset_email(email.strip().lower(), _abs_link(request, f"/reset?token={token}"))
     # แสดงข้อความเดียวกันเสมอ (ไม่บอกว่าอีเมลมีอยู่จริงไหม เพื่อกันการสแกนอีเมล)
@@ -206,4 +216,6 @@ def reset_submit(request: Request, token: str = Form(""),
         expired = "หมดอายุ" in res["error"]
         return templates.TemplateResponse("reset.html", {
             "request": request, "token": token, "valid": not expired, "error": res["error"]})
+    audit("password.reset", request=request, tenant_id=None, uid=None,
+          detail="ตั้งรหัสผ่านใหม่ผ่านลิงก์ในอีเมล")
     return RedirectResponse("/login?ok=reset", status_code=303)

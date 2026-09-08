@@ -335,6 +335,9 @@ def teacher_code_set(request: Request, code: str = Form("")):
         return RedirectResponse("/academic", status_code=303)
     from app.accounts import set_teacher_code
     r = set_teacher_code(request.session.get("tid"), code)
+    from app.accounts import audit
+    if not r.get("error"):
+        audit("teacher.code", request=request, target=r.get("code", code))
     if r.get("error"):
         return RedirectResponse(f"/academic/teacher-accounts?err={r['error']}", status_code=303)
     return RedirectResponse(
@@ -352,6 +355,10 @@ def teacher_account_add(request: Request, db: Session = Depends(get_db),
     p = db.get(Person, _to_int(person_id, 0))
     r = add_teacher_account(tid, _to_int(person_id, 0), username, password,
                             display_name=(p.name if p else ""))
+    from app.accounts import audit
+    if not r.get("error"):
+        audit("teacher.add", request=request, target=r.get("username", username),
+              detail=f"ผูกกับบุคลากร: {p.name if p else ''}")
     if r.get("error"):
         return RedirectResponse(f"/academic/teacher-accounts?err={r['error']}", status_code=303)
     # เรนเดอร์หน้าตรง ๆ (ไม่ redirect) เพื่อโชว์ ไอดี+รหัสผ่าน ครั้งเดียว ให้เจ้าหน้าที่ส่งครู

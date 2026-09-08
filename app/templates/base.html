@@ -889,6 +889,7 @@
         <a href="/students/growth" class="subnav {{ 'active' if path.startswith('/students/growth') }}"><svg class="icon"><use href="#ic-check"/></svg> น้ำหนัก/ส่วนสูง</a>
         <a href="/settings" class="{{ 'active' if path.startswith('/settings') }}"><svg class="icon"><use href="#ic-settings"/></svg> ตั้งค่าโรงเรียน</a>
         {% if request.session.get('owner') %}<a href="/users" class="{{ 'active' if path.startswith('/users') }}"><svg class="icon"><use href="#ic-users"/></svg> จัดการผู้ใช้</a>
+        <a href="/audit" class="subnav {{ 'active' if path.startswith('/audit') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> บันทึกการใช้งาน</a>
         <a href="/academic/teacher-accounts" class="subnav {{ 'active' if path.startswith('/academic/teacher-accounts') }}"><svg class="icon"><use href="#ic-users"/></svg> บัญชีครู</a>{% endif %}
         <a href="/guide" class="{{ 'active' if path.startswith('/guide') }}"><svg class="icon"><use href="#ic-info"/></svg> วิธีใช้งาน</a>
         <a href="/support" class="{{ 'active' if path.startswith('/support') }}"><svg class="icon"><use href="#ic-send"/></svg> ติดต่อเจ้าหน้าที่</a>

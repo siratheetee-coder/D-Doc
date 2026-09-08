@@ -605,17 +605,20 @@ def support_review(request: Request, stars: str = Form("5"), comment: str = Form
 
 # ---------------- สำรอง / กู้คืนข้อมูล ----------------
 @router.get("/backup")
-def backup_download():
+def backup_download(request: Request):
     """ดาวน์โหลดไฟล์สำรองฐานข้อมูลทั้งหมด (.db)"""
+    from app.accounts import audit
     from app.database import current_db_path, _checkpoint
     _checkpoint()
+    audit("data.download", request=request, detail="ดาวน์โหลดฐานข้อมูลของโรงเรียนทั้งไฟล์")
     fname = f"school-backup-{datetime.now():%Y%m%d-%H%M}.db"
     return serve_generated(str(current_db_path()), "application/octet-stream", count=False)
 
 
 @router.post("/restore")
-async def restore_upload(file: UploadFile = File(...)):
+async def restore_upload(request: Request, file: UploadFile = File(...)):
     """กู้คืนฐานข้อมูลจากไฟล์สำรอง (.db) ที่อัปโหลด"""
+    from app.accounts import audit
     from app.database import restore_db
     data = await file.read()
     if data[:16] != b"SQLite format 3\x00":
@@ -623,7 +626,10 @@ async def restore_upload(file: UploadFile = File(...)):
     try:
         restore_db(data)
     except Exception:
+        audit("data.restore", request=request, detail="กู้คืนไม่สำเร็จ (ไฟล์เสีย)")
         return RedirectResponse("/settings?restore_err=fail", status_code=303)
+    audit("data.restore", request=request,
+          detail=f"เขียนทับข้อมูลทั้งโรงเรียนจากไฟล์ {file.filename} ({len(data)//1024} KB)")
     return RedirectResponse("/settings?restored=1", status_code=303)
 
 

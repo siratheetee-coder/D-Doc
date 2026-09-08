@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}บันทึกการใช้งาน{% endblock %}
+{% block content %}
+<style>
+  .au-f { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin:0; }
+  .au-tbl td, .au-tbl th { vertical-align:top; }
+  .au-when { white-space:nowrap; font-size:13px; color:var(--muted); }
+  .au-who { white-space:nowrap; font-weight:600; }
+  .au-act { white-space:nowrap; }
+  .au-ip { white-space:nowrap; font-size:12.5px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .au-detail { font-size:13px; color:var(--muted); }
+  .pill-ok { background:#dcfce7; color:#166534; }
+  .pill-warn { background:#fef3c7; color:#92400e; }
+  .pill-bad { background:#fee2e2; color:#b91c1c; }
+  .pill-mute { background:#f1f5f9; color:#475569; }
+  .au-pg { display:flex; gap:8px; align-items:center; justify-content:center; margin-top:14px; flex-wrap:wrap; }
+</style>
+
+<div class="hero">
+  <div>
+    <div class="hero-sub">ความปลอดภัย</div>
+    <span class="hero-title">บันทึกการใช้งาน</span>
+    <div class="hero-meta">{{ school.name or "" }} · ทั้งหมด {{ total }} รายการ · เก็บย้อนหลัง {{ keep_days }} วัน</div>
+  </div>
+</div>
+
+<div class="card">
+  <p class="muted" style="font-size:13.5px; margin:0 0 12px; line-height:1.7;">
+    บันทึกเหตุการณ์สำคัญเพื่อให้ตรวจสอบย้อนหลังได้ว่า <b>ใคร ทำอะไร เมื่อไหร่ จากไอพีไหน</b> —
+    เช่น การเข้าสู่ระบบ การเพิ่ม/ลบผู้ใช้ การแก้สิทธิ์ และการดาวน์โหลด/กู้คืนข้อมูล
+    <br>ระบบ<b>ไม่ได้บันทึกทุกการเปิดหน้า</b> และไม่บันทึกรหัสผ่านหรือเนื้อหาเอกสาร</p>
+
+  <form class="au-f" method="get" action="/audit">
+    <div><label>ประเภทเหตุการณ์</label>
+      <select name="action" onchange="this.form.submit()" style="min-width:220px;">
+        <option value="">- ทั้งหมด -</option>
+        {% for key, label in labels %}
+        <option value="{{ key }}" {{ 'selected' if key == action }}>{{ label }}</option>
+        {% endfor %}
+      </select></div>
+    <div style="flex:1; min-width:200px;"><label>ค้นหา (ชื่อผู้ใช้ / รายละเอียด / ไอพี)</label>
+      <input name="q" value="{{ q }}" placeholder="เช่น teacher1 หรือ 203.0."></div>
+    <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-search"/></svg> ค้นหา</button>
+    {% if action or q %}<a class="btn sm gray" href="/audit">ล้างตัวกรอง</a>{% endif %}
+  </form>
+</div>
+
+<div class="card">
+  {% if rows %}
+  <div class="table-wrap">
+  <table class="au-tbl">
+    <thead><tr>
+      <th style="width:170px;">เวลา</th>
+      <th style="width:150px;">ผู้ใช้</th>
+      <th>เหตุการณ์</th>
+      <th style="width:130px;">ไอพี</th>
+    </tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td class="au-when">{{ thai_dt(r.at) }}</td>
+        <td class="au-who">{{ r.username or '-' }}</td>
+        <td>
+          <span class="pill {{ pill(r.action) }}">{{ r.label }}</span>
+          {% if r.target %}<span class="au-detail"> · {{ r.target }}</span>{% endif %}
+          {% if r.detail %}<div class="au-detail">{{ r.detail }}</div>{% endif %}
+        </td>
+        <td class="au-ip">{{ r.ip or '-' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  {% if total > limit %}
+  <div class="au-pg">
+    {% set qs = '&action=' ~ action ~ '&q=' ~ q %}
+    {% if offset > 0 %}
+    <a class="btn sm gray" href="/audit?offset={{ [offset - limit, 0]|max }}{{ qs }}">← ใหม่กว่า</a>
+    {% endif %}
+    <span class="muted" style="font-size:13px;">
+      {{ offset + 1 }}-{{ [offset + limit, total]|min }} จาก {{ total }}</span>
+    {% if offset + limit < total %}
+    <a class="btn sm gray" href="/audit?offset={{ offset + limit }}{{ qs }}">เก่ากว่า →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <p class="muted" style="margin:0;">
+    {% if action or q %}ไม่พบรายการที่ตรงกับตัวกรอง — <a href="/audit">ดูทั้งหมด</a>
+    {% else %}ยังไม่มีบันทึกเหตุการณ์ (จะเริ่มบันทึกตั้งแต่การเข้าสู่ระบบครั้งถัดไป){% endif %}</p>
+  {% endif %}
+</div>
+{% endblock %}

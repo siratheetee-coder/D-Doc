@@ -122,6 +122,28 @@ class LoginFail(AccBase):
     first_at = Column(Float, default=0.0)          # epoch seconds ของครั้งแรกในหน้าต่างเวลานี้
 
 
+class AuditLog(AccBase):
+    """บันทึกเหตุการณ์สำคัญ - ตอบให้ได้ว่า "ใคร ทำอะไร เมื่อไหร่ จากที่ไหน"
+
+    เก็บใน accounts.db (ไม่ใช่ DB โรงเรียน) เพื่อให้
+    - ครอบคลุมเหตุการณ์ที่ยังไม่รู้ว่าโรงเรียนไหน (ล็อกอินผิด) และเหตุการณ์ของผู้ดูแลระบบ
+    - ไม่ถูกเขียนทับตอนโรงเรียนกู้คืนฐานข้อมูลตัวเอง (หลักฐานต้องไม่หายไปพร้อมข้อมูล)
+
+    ตั้งใจบันทึกเฉพาะ "เหตุการณ์สำคัญ" ไม่ใช่ทุกการเปิดหน้า
+    เพราะ log ที่มีแต่ noise = อ่านไม่ออก และตัวมันเองก็เป็นข้อมูลส่วนบุคคล
+    """
+    __tablename__ = "audit_log"
+    id = Column(Integer, primary_key=True)
+    at = Column(DateTime, default=datetime.now, index=True)
+    tenant_id = Column(Integer, nullable=True, index=True)   # None = เหตุการณ์ระดับระบบ
+    uid = Column(Integer, nullable=True)
+    username = Column(String, default="")       # เก็บชื่อไว้ด้วย เผื่อบัญชีถูกลบทีหลัง
+    action = Column(String, default="", index=True)
+    target = Column(String, default="")         # สิ่งที่ถูกกระทำ (ชื่อผู้ใช้/ไฟล์/โรงเรียน)
+    detail = Column(String, default="")
+    ip = Column(String, default="")
+
+
 # ===================== engine / session =====================
 def _ensure_engine():
     global _engine, _Session
@@ -907,6 +929,103 @@ def has_avatar(uid) -> bool:
     try:
         a = db.get(Account, uid)
         return bool(a and a.avatar)
+    finally:
+        db.close()
+
+
+AUDIT_KEEP_DAYS = 365      # เก็บ log ย้อนหลังกี่วัน (เกินนั้นลบ - ไม่เก็บนานเกินจำเป็นตาม PDPA)
+
+# คำอธิบายภาษาไทยของแต่ละเหตุการณ์ (ใช้ทั้งหน้าแสดงผลและกันพิมพ์ action มั่ว)
+AUDIT_LABELS = {
+    "login.ok": "เข้าสู่ระบบสำเร็จ",
+    "login.fail": "เข้าสู่ระบบไม่สำเร็จ",
+    "login.blocked": "ถูกบล็อกชั่วคราว (ลองเข้าระบบถี่เกินไป)",
+    "logout": "ออกจากระบบ",
+    "password.change": "เปลี่ยนรหัสผ่านตัวเอง",
+    "password.forgot": "ขอลิงก์ตั้งรหัสผ่านใหม่",
+    "password.reset": "ตั้งรหัสผ่านใหม่ผ่านลิงก์อีเมล",
+    "user.add": "เพิ่มผู้ใช้",
+    "user.delete": "ลบผู้ใช้",
+    "user.reset_password": "รีเซ็ตรหัสผ่านให้ผู้ใช้",
+    "user.modules": "แก้สิทธิ์การเข้าถึงงาน",
+    "user.active": "เปิด/ปิดการใช้งานบัญชี",
+    "user.director": "ตั้ง/ยกเลิกสิทธิ์ผู้อำนวยการ",
+    "teacher.add": "สร้างบัญชีครู",
+    "teacher.code": "ตั้งรหัสต่อท้ายไอดีครู",
+    "data.download": "ดาวน์โหลดไฟล์สำรองข้อมูล",
+    "data.restore": "กู้คืนข้อมูลจากไฟล์สำรอง",
+    "data.import": "นำเข้าข้อมูลจากไฟล์",
+    "admin.tenant_delete": "ผู้ดูแลระบบลบโรงเรียน",
+    "admin.tenant_edit": "ผู้ดูแลระบบแก้ข้อมูลโรงเรียน",
+}
+
+
+def client_ip(request) -> str:
+    """IP ผู้ใช้ (หลัง nginx ต้องเปิด --proxy-headers ไม่งั้นจะได้ 127.0.0.1 หมด)"""
+    try:
+        return request.client.host if request and request.client else ""
+    except Exception:
+        return ""
+
+
+def audit(action, *, request=None, tenant_id=None, uid=None, username="",
+          target="", detail="", ip="") -> None:
+    """บันทึกเหตุการณ์ · ห้าม raise เด็ดขาด - log พังต้องไม่ทำให้ผู้ใช้ทำงานไม่ได้"""
+    try:
+        sess = getattr(request, "session", {}) if request is not None else {}
+        row = AuditLog(
+            tenant_id=tenant_id if tenant_id is not None else sess.get("tid"),
+            uid=uid if uid is not None else sess.get("uid"),
+            username=(username or sess.get("username") or "")[:120],
+            action=str(action)[:60],
+            target=str(target)[:200],
+            detail=str(detail)[:400],
+            ip=(ip or client_ip(request))[:60],
+        )
+        db = acc_session()
+        try:
+            db.add(row)
+            db.commit()
+        finally:
+            db.close()
+    except Exception:
+        pass
+
+
+def audit_list(tenant_id=None, *, limit=200, offset=0, action="", q=""):
+    """อ่านรายการเหตุการณ์ · tenant_id=None = ทุกโรงเรียน (เฉพาะผู้ดูแลระบบ)"""
+    db = acc_session()
+    try:
+        qs = db.query(AuditLog)
+        if tenant_id is not None:
+            qs = qs.filter(AuditLog.tenant_id == tenant_id)
+        if action:
+            qs = qs.filter(AuditLog.action == action)
+        if q:
+            like = f"%{q.strip()}%"
+            qs = qs.filter((AuditLog.username.like(like)) | (AuditLog.target.like(like))
+                           | (AuditLog.detail.like(like)) | (AuditLog.ip.like(like)))
+        total = qs.count()
+        rows = (qs.order_by(AuditLog.at.desc(), AuditLog.id.desc())
+                .offset(offset).limit(limit).all())
+        return [{"at": r.at, "username": r.username, "action": r.action,
+                 "label": AUDIT_LABELS.get(r.action, r.action), "target": r.target,
+                 "detail": r.detail, "ip": r.ip, "tenant_id": r.tenant_id} for r in rows], total
+    finally:
+        db.close()
+
+
+def audit_prune(days: int = AUDIT_KEEP_DAYS) -> int:
+    """ลบ log ที่เก่ากว่ากำหนด · คืนจำนวนแถวที่ลบ"""
+    from datetime import timedelta
+    db = acc_session()
+    try:
+        cut = datetime.now() - timedelta(days=days)
+        n = db.query(AuditLog).filter(AuditLog.at < cut).delete(synchronize_session=False)
+        db.commit()
+        return n
+    except Exception:
+        return 0
     finally:
         db.close()
 
