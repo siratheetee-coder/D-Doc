@@ -42,9 +42,13 @@
       border-radius:10px; font-size:14.5px; margin-bottom:6px; }
     .ok { background:#e9f7ef; color:#0e7a44; border:1px solid #b7ebcd; padding:10px 13px;
       border-radius:10px; font-size:14.5px; margin-bottom:6px; }
-    .forgot { text-align:right; margin-top:9px; }
-    .forgot a { color:#5b6b84; font-size:13.5px; text-decoration:none; }
-    .forgot a:hover { color:#4880FF; text-decoration:underline; }
+    .row-opt { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:11px; }
+    .row-opt a { color:#5b6b84; font-size:13.5px; text-decoration:none; }
+    .row-opt a:hover { color:#4880FF; text-decoration:underline; }
+    .remember { display:inline-flex; align-items:center; gap:7px; margin:0;
+      font-size:13.5px; font-weight:500; color:#5b6b84; cursor:pointer; user-select:none; }
+    .remember input[type=checkbox] { width:16px; height:16px; padding:0; margin:0;
+      accent-color:#4880FF; cursor:pointer; flex:none; }
     .sep { display:flex; align-items:center; gap:12px; margin:22px 0 4px; color:#9aa3b2; font-size:13px; }
     .sep::before, .sep::after { content:""; flex:1; height:1px; background:#e6ebf3; }
     .pdpa { display:inline-flex; align-items:center; gap:7px; margin:18px auto 0; padding:8px 16px;
@@ -78,11 +82,15 @@
         ส่งอีเมลยืนยันอีกครั้ง</button>
     </div>
     {% endif %}
-    <label>ชื่อผู้ใช้ (อีเมล)</label>
-    <input name="username" autocomplete="username" required autofocus>
+    <label>ชื่อผู้ใช้ หรือ อีเมล</label>
+    <input name="username" autocomplete="username" required autofocus
+           placeholder="อีเมล หรือ ไอดีครู เช่น teacher1.104">
     <label>รหัสผ่าน</label>
     <input name="password" type="password" autocomplete="current-password" required>
-    <div class="forgot"><a href="/forgot">ลืมรหัสผ่าน?</a></div>
+    <div class="row-opt">
+      <label class="remember"><input type="checkbox" name="remember" value="1"> จดจำฉันไว้</label>
+      <a href="/forgot">ลืมรหัสผ่าน?</a>
+    </div>
     <button class="btn" type="submit">เข้าสู่ระบบ</button>
     <div class="sep">ยังไม่มีบัญชี?</div>
     <a class="btn-outline" href="/register?next={{ next|urlencode }}">ลงทะเบียน / ทดลองใช้ฟรี</a>

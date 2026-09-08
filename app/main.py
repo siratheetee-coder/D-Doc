@@ -11,6 +11,7 @@ main.py
 import os
 import re
 import threading
+import time
 import webbrowser
 from pathlib import Path
 from urllib.parse import urlparse
@@ -19,6 +20,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
+from urllib.parse import quote
 
 from app.accounts import (bootstrap, get_secret_key, tenant_state, can_use_module,
                           tenant_status, get_account_access)
@@ -26,6 +28,10 @@ from app.modules import MODULE_LABELS, MODULE_PRICE_KEY, module_for_path
 from app.seller_config import pricing_context
 from app.tenancy import current_school_id, current_module
 from app.templating import templates
+
+# อายุการล็อกอิน (วินาที) · ค่าจริงต่อคนเก็บใน session["ttl"] ตอนล็อกอิน
+SESSION_TTL_DEFAULT = 60 * 60 * 12          # ไม่ติ๊ก "จดจำฉันไว้" = 12 ชั่วโมง (เท่าเดิม)
+SESSION_TTL_REMEMBER = 60 * 60 * 24 * 30    # ติ๊กแล้ว = 30 วัน
 from app.routers import (pages, admin, finance, lunch, auth, superadmin, account, textbooks,
                          sales, hr, academic, users, general)
 
@@ -114,6 +120,19 @@ async def tenant_auth(request: Request, call_next):
         # ผู้เยี่ยมชม (ยังไม่ล็อกอิน): เข้าหน้าแรก "/" -> หน้า landing (แนะนำระบบ/ขาย)
         # ส่วนลิงก์งานภายในอื่น ๆ -> หน้า login (เพื่อกลับมาหน้าที่ต้องการหลังล็อกอิน)
         return RedirectResponse("/landing" if path == "/" else "/login", status_code=303)
+
+    # อายุการล็อกอิน: นับจาก "ครั้งสุดท้ายที่ใช้งาน" (ไม่ติ๊กจดจำ = 12 ชม. · ติ๊ก = 30 วัน)
+    # session เก่าที่ยังไม่มี exp ปล่อยผ่าน แล้วเริ่มนับด้วยค่าเริ่มต้นจากรอบนี้
+    now = int(time.time())
+    exp = sess.get("exp")
+    if exp and now > int(exp):
+        request.session.clear()
+        nxt = f"?next={quote(path, safe='/')}" if path != "/" else ""
+        return RedirectResponse(f"/login{'?ok=expired' if not nxt else nxt + '&ok=expired'}",
+                                status_code=303)
+    ttl = int(sess.get("ttl") or SESSION_TTL_DEFAULT)
+    if not exp or now + ttl - int(exp) > 60:      # เขียนทุก 60 วิพอ ไม่ต้องทุก request
+        sess["exp"] = now + ttl
 
     # บังคับเปลี่ยนรหัสผ่านครั้งแรก (ก่อนใช้งานอื่นใด)
     if sess.get("must_change") and not path.startswith("/account"):
@@ -207,11 +226,13 @@ async def tenant_auth(request: Request, call_next):
 
 # SessionMiddleware เพิ่มทีหลัง -> เป็นชั้นนอกสุด (request.session พร้อมใช้ใน tenant_auth)
 # บนคลาวด์ที่เป็น HTTPS ตั้ง env DDOC_HTTPS=1 เพื่อบังคับคุกกี้ Secure
+# อายุคุกกี้ = เพดานยาวสุด (30 วัน) ส่วนอายุจริงบังคับที่ session["exp"] ในมิดเดิลแวร์ด้านบน
+# เพราะ SessionMiddleware ตั้ง max_age ได้ค่าเดียวทั้งระบบ แยกรายคน (จดจำฉันไว้) ไม่ได้
 app.add_middleware(
     SessionMiddleware, secret_key=get_secret_key(),
     session_cookie="ddoc_session", same_site="lax",
     https_only=(os.environ.get("DDOC_HTTPS") == "1"),
-    max_age=60 * 60 * 12,   # session 12 ชั่วโมง
+    max_age=SESSION_TTL_REMEMBER,
 )
 
 

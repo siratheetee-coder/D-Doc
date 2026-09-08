@@ -41,6 +41,16 @@ def _clear_fails(ip: str):
         pass
 
 
+def _expired(sess) -> bool:
+    """session หมดอายุแล้วหรือยัง (มิดเดิลแวร์เช็กให้ทุกหน้า แต่ /login เป็นหน้าสาธารณะ
+    จึงต้องเช็กเองด้วย - ไม่งั้นถ้าเบราว์เซอร์ยังส่งคุกกี้เก่ามาจะเด้งวนไปมา)"""
+    exp = sess.get("exp")
+    try:
+        return bool(exp) and time.time() > float(exp)
+    except (TypeError, ValueError):
+        return False
+
+
 def _safe_next(nxt: str) -> str:
     """อนุญาตเฉพาะ path ภายในเว็บ (กัน open-redirect) - ต้องขึ้นต้น / เดี่ยว ไม่ใช่ // หรือ URL เต็ม"""
     nxt = (nxt or "").strip()
@@ -66,18 +76,20 @@ def privacy_page(request: Request):
 def login_page(request: Request, error: str | None = None, ok: str | None = None, next: str = ""):
     nxt = _safe_next(next)
     # ถ้าล็อกอินอยู่แล้ว ส่งไปหน้าที่เหมาะสม (หรือปลายทาง next ถ้ามี เช่นลิงก์อนุมัติในอีเมล)
-    if request.session.get("uid"):
+    if request.session.get("uid") and not _expired(request.session):
         if nxt:
             return RedirectResponse(nxt, status_code=303)
         dest = "/admin-console" if request.session.get("role") == "superadmin" else "/"
         return RedirectResponse(dest, status_code=303)
-    msg = "ตั้งรหัสผ่านใหม่เรียบร้อยแล้ว เข้าสู่ระบบด้วยรหัสใหม่ได้เลย" if ok == "reset" else None
+    msg = ("ตั้งรหัสผ่านใหม่เรียบร้อยแล้ว เข้าสู่ระบบด้วยรหัสใหม่ได้เลย" if ok == "reset"
+           else "ไม่ได้ใช้งานนาน ระบบออกให้อัตโนมัติเพื่อความปลอดภัย — เข้าสู่ระบบอีกครั้งได้เลย"
+           if ok == "expired" else None)
     return templates.TemplateResponse("login.html", {"request": request, "error": error, "ok_msg": msg, "next": nxt})
 
 
 @router.post("/login")
 def login_submit(request: Request, username: str = Form(""), password: str = Form(""),
-                 next: str = Form("")):
+                 next: str = Form(""), remember: str = Form("")):
     ip = request.client.host if request.client else "?"
     if _too_many(ip):
         return templates.TemplateResponse("login.html", {
@@ -113,6 +125,10 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
     request.session["mods"] = user.get("modules", "")         # ไอดีย่อย: CSV งานที่เข้าได้
     request.session["person_id"] = user.get("person_id")      # บัญชีครู = ผูก Person (สิทธิ์เฉพาะวิชา/ห้อง)
     request.session["welcomed"] = user.get("welcomed", True)  # เห็นการ์ดต้อนรับแล้วหรือยัง
+    # "จดจำฉันไว้" = อยู่ในระบบได้ 30 วัน (นับจากครั้งสุดท้ายที่ใช้งาน) · ไม่ติ๊ก = 12 ชม. เท่าเดิม
+    from app.main import SESSION_TTL_DEFAULT, SESSION_TTL_REMEMBER
+    request.session["ttl"] = SESSION_TTL_REMEMBER if remember else SESSION_TTL_DEFAULT
+    request.session["exp"] = int(time.time()) + request.session["ttl"]
     if user.get("must_change"):
         request.session["purchase_next"] = _safe_next(next)
         return RedirectResponse("/account/password", status_code=303)
