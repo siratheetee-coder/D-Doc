@@ -173,6 +173,16 @@
                 <div class="muted2">{% if r.days_left >= 0 %}เหลือ {{ r.days_left }} วัน{% else %}เกินมา {{ -r.days_left }} วัน{% endif %}</div>
               {% else %}<div class="muted2">สมาชิก · ไม่จำกัดเวลา</div>{% endif %}
             {% endif %}
+            {% if r.idle %}
+            <div class="muted2" style="margin-top:6px; padding:5px 9px; border-radius:7px;
+                 background:{{ '#fee2e2' if r.idle.stage >= 3 else '#fff7ed' }};
+                 color:{{ '#b91c1c' if r.idle.stage >= 3 else '#b45309' }};">
+              ไม่ใช้งาน <b>{{ r.idle.days }}</b> วัน ·
+              {% if r.idle.left <= 0 %}<b>ถึงกำหนดลบแล้ว</b>
+              {% else %}จะลบอัตโนมัติในอีก <b>{{ r.idle.left }}</b> วัน{% endif %}
+              {% if r.idle.stage %} · เตือนแล้ว {{ r.idle.stage }}/3 ครั้ง{% endif %}
+            </div>
+            {% endif %}
             <form method="post" action="/admin-console/tenant/{{ r.t.id }}/expiry" style="display:flex;gap:4px;margin-top:7px;">
               <input name="expiry" type="date" value="{{ r.t.expiry_date or '' }}" style="width:135px;">
               <button class="btn sm gray" type="submit">ตั้ง</button>

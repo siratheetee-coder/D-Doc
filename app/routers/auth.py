@@ -156,6 +156,8 @@ def _finish_login(request: Request, user: dict, remember, next: str, ip: str):
     from app.main import SESSION_TTL_DEFAULT, SESSION_TTL_REMEMBER
     request.session["ttl"] = SESSION_TTL_REMEMBER if remember else SESSION_TTL_DEFAULT
     request.session["exp"] = int(time.time()) + request.session["ttl"]
+    from app.accounts import touch_tenant_active
+    touch_tenant_active(user.get("tenant_id"))   # นับว่าโรงเรียนนี้ยังใช้งานอยู่
     audit("login.ok", request=request, ip=ip,
           detail=("จดจำฉันไว้ 30 วัน" if remember else "เซสชัน 12 ชั่วโมง"))
     if user.get("must_change"):

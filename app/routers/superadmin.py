@@ -125,6 +125,7 @@ def console(request: Request, msg: str | None = None):
             docs_used = t.docs_used or 0
             rows.append({
                 "t": t, "users": users, "expired": expired, "plan": plan,
+                "idle": _retention_status(t),
                 "days_left": days_left, "docs_used": docs_used, "docs_limit": docs_limit,
                 "docs_left": max(0, docs_limit - docs_used),
                 "unverified": sum(1 for u in users if not getattr(u, "verified", True)),
@@ -455,35 +456,32 @@ def delete_user(aid: int):
     return RedirectResponse("/admin-console?msg=ลบผู้ใช้แล้ว", status_code=303)
 
 
+def _retention_status(t):
+    """สถานะ "ไม่ใช้งานนาน/ใกล้ถูกลบ" ของโรงเรียน (ดู app/services/retention.py)"""
+    try:
+        from app.services.retention import tenant_status
+        return tenant_status(t)
+    except Exception:
+        return None
+
+
 @router.post("/admin-console/tenant/{tid}/delete")
 def delete_tenant(tid: int, request: Request):
     """ลบโรงเรียนออกจากระบบทั้งหมด: บัญชีผู้ใช้ + ข้อมูลกลาง + ไฟล์ฐานข้อมูลของโรงเรียน
     (ลบถาวร ใช้เมื่อโรงเรียนเลิกใช้/สร้างผิด)"""
-    import shutil
     from urllib.parse import quote
+    from app.accounts import audit, purge_tenant, acc_session
     db = acc_session()
     try:
         t = db.get(Tenant, tid)
-        if not t:
-            return RedirectResponse("/admin-console?msg=ไม่พบโรงเรียน", status_code=303)
-        name = t.name
-        from app.accounts import audit
-        audit("admin.tenant_delete", request=request, tenant_id=None,
-              target=f"#{tid} {name}", detail="ลบบัญชีผู้ใช้ + ฐานข้อมูลของโรงเรียนถาวร")
-        db.query(Account).filter_by(tenant_id=tid).delete()
-        db.delete(t)
-        db.commit()
+        name = t.name if t else ""
     finally:
         db.close()
-    # ลบไฟล์ฐานข้อมูลของโรงเรียน (ปิด engine ก่อน)
-    try:
-        from app.tenancy import dispose_engine
-        dispose_engine(tid)
-        folder = get_data_dir() / "schools" / str(tid)
-        if folder.exists():
-            shutil.rmtree(folder, ignore_errors=True)
-    except Exception:
-        pass
+    if not name:
+        return RedirectResponse("/admin-console?msg=ไม่พบโรงเรียน", status_code=303)
+    audit("admin.tenant_delete", request=request, tenant_id=None,
+          target=f"#{tid} {name}", detail="ลบบัญชีผู้ใช้ + ฐานข้อมูลของโรงเรียนถาวร")
+    purge_tenant(tid)
     return RedirectResponse(f"/admin-console?msg={quote('ลบโรงเรียน ' + name + ' ออกจากระบบแล้ว')}", status_code=303)
 
 

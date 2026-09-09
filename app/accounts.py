@@ -46,6 +46,10 @@ class Tenant(AccBase):
     # สิทธิ์เข้าใช้จริง = ซื้อแล้ว OR โควตาทดลองยังเหลือ (ดู can_use_module)
     modules = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)
+    # ---- นโยบายลบข้อมูลเมื่อไม่มีการใช้งาน (ดู app/services/retention.py) ----
+    last_active_at = Column(DateTime, nullable=True)   # ล็อกอินล่าสุดของคนใดคนหนึ่งในโรงเรียน
+    inactive_stage = Column(Integer, default=0)        # เตือนไปแล้วกี่ครั้ง (0-3) · ใช้งานอีกครั้ง = รีเซ็ต
+    inactive_notified_at = Column(DateTime, nullable=True)  # เตือนครั้งล่าสุดเมื่อไหร่
 
     accounts = relationship("Account", back_populates="tenant",
                             cascade="all, delete-orphan")
@@ -200,6 +204,12 @@ def _ensure_engine():
                     "ALTER TABLE account ADD COLUMN totp_enabled BOOLEAN DEFAULT 0",
                     "ALTER TABLE account ADD COLUMN totp_last_step INTEGER DEFAULT 0",
                     "ALTER TABLE account ADD COLUMN totp_recovery VARCHAR DEFAULT ''",
+                    "ALTER TABLE tenant ADD COLUMN last_active_at DATETIME",
+                    "ALTER TABLE tenant ADD COLUMN inactive_stage INTEGER DEFAULT 0",
+                    "ALTER TABLE tenant ADD COLUMN inactive_notified_at DATETIME",
+                    # โรงเรียนเดิมยังไม่มีค่า -> ถือว่าใช้งานล่าสุด ณ วันที่สร้างบัญชี
+                    # (ไม่ใช่ NULL ไม่งั้นจะถูกนับว่าไม่ใช้งานมานานทันทีตั้งแต่วันอัปเดต)
+                    "UPDATE tenant SET last_active_at = created_at WHERE last_active_at IS NULL",
                     # backfill: บัญชีแรก (id น้อยสุด) ของแต่ละโรงเรียน = ไอดีหลัก · รันซ้ำได้ (ตั้งค่าแถวเดิม)
                     "UPDATE account SET is_owner=1 WHERE tenant_id IS NOT NULL "
                     "AND id IN (SELECT MIN(id) FROM account WHERE tenant_id IS NOT NULL GROUP BY tenant_id)",
@@ -363,6 +373,55 @@ def authenticate(username: str, password: str) -> dict | None:
         return None
     finally:
         db.close()
+
+
+def touch_tenant_active(tenant_id) -> None:
+    """บันทึกว่าโรงเรียนนี้มีการใช้งาน (เรียกตอนล็อกอินสำเร็จ)
+    เขียนแค่วันละครั้งพอ - ล็อกอินวันละหลายรอบไม่ต้องเขียน DB ทุกครั้ง"""
+    if not tenant_id:
+        return
+    db = acc_session()
+    try:
+        t = db.get(Tenant, tenant_id)
+        if not t:
+            return
+        now = datetime.now()
+        if t.last_active_at and (now - t.last_active_at).total_seconds() < 43200                 and not t.inactive_stage:
+            return                      # ใช้งานอยู่แล้วภายใน 12 ชม. และไม่ได้ค้างสถานะเตือน
+        t.last_active_at = now
+        t.inactive_stage = 0            # กลับมาใช้งาน = ล้างสถานะเตือนทิ้ง
+        t.inactive_notified_at = None
+        db.commit()
+    except Exception:
+        pass
+    finally:
+        db.close()
+
+
+def purge_tenant(tenant_id) -> dict:
+    """ลบโรงเรียนออกจากระบบถาวร: บัญชีผู้ใช้ + ข้อมูลกลาง + ไฟล์ฐานข้อมูลของโรงเรียน
+    ใช้ร่วมกันระหว่างคอนโซลผู้ดูแลระบบและงานลบอัตโนมัติเมื่อไม่มีการใช้งาน"""
+    import shutil
+    db = acc_session()
+    try:
+        t = db.get(Tenant, tenant_id)
+        if not t:
+            return {"error": "ไม่พบโรงเรียน"}
+        name = t.name
+        n = db.query(Account).filter_by(tenant_id=tenant_id).delete()
+        db.delete(t)
+        db.commit()
+    finally:
+        db.close()
+    try:
+        from app.tenancy import dispose_engine
+        dispose_engine(tenant_id)
+        folder = get_data_dir() / "schools" / str(tenant_id)
+        if folder.exists():
+            shutil.rmtree(folder, ignore_errors=True)
+    except Exception:
+        pass
+    return {"name": name, "users": n}
 
 
 def account_for_login(uid) -> dict | None:
@@ -1099,6 +1158,8 @@ AUDIT_LABELS = {
     "2fa.disable": "ปิดยืนยันตัวตน 2 ชั้น",
     "2fa.fail": "ใส่รหัสยืนยัน 2 ชั้นผิด",
     "2fa.recovery": "เข้าระบบด้วยรหัสสำรอง",
+    "retention.warn": "แจ้งเตือนบัญชีไม่มีการใช้งาน",
+    "retention.delete": "ลบข้อมูลอัตโนมัติ (ไม่มีการใช้งานนาน)",
     "admin.tenant_edit": "ผู้ดูแลระบบแก้ข้อมูลโรงเรียน",
 }
 

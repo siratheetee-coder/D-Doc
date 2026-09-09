@@ -52,6 +52,7 @@ NEW="$(cat <<EOF
 $CURRENT
 0 2 * * * $BACKUP_SH >> /var/log/ddoc-backup.log 2>&1 $MARK
 */15 * * * * $HEALTH_SH >> /var/log/ddoc-health.log 2>&1 $MARK
+30 3 * * * cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.retention >> /var/log/ddoc-retention.log 2>&1 $MARK
 EOF
 )"
 
@@ -60,6 +61,7 @@ printf '%s\n' "$NEW" | sed '/^$/d' | crontab -
 echo "ติดตั้ง cron เรียบร้อย:"
 echo "  - สำรองข้อมูล      ทุกวันตี 2      -> /var/log/ddoc-backup.log"
 echo "  - ตรวจสุขภาพระบบ  ทุก 15 นาที    -> /var/log/ddoc-health.log"
+echo "  - ลบข้อมูลที่ไม่ใช้งาน ทุกวัน ตี 3:30 -> /var/log/ddoc-retention.log"
 echo ""
 crontab -l | grep "$MARK"
 echo ""
@@ -68,3 +70,5 @@ echo "  sudo $HEALTH_SH"
 echo "  sudo $BACKUP_SH"
 echo ""
 echo "ดูไฟล์สำรองที่กู้ได้:  sudo $APP_DIR/deploy/restore.sh --list"
+echo "ดูว่าจะลบโรงเรียนไหนบ้าง (ไม่แตะข้อมูลจริง):"
+echo "  cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.retention --dry-run"
