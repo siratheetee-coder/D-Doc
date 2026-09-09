@@ -437,9 +437,21 @@ def register_page(request: Request, next: str = "", packages: str = "", amount: 
 @router.post("/register")
 def register_submit(request: Request, email: str = Form(""), password: str = Form(""),
                     school_name: str = Form(""), contact_name: str = Form(""), phone: str = Form(""),
-                    next: str = Form(""), packages: str = Form(""), amount: str = Form("")):
+                    next: str = Form(""), packages: str = Form(""), amount: str = Form(""),
+                    accept_policy: str = Form("")):
     next = _purchase_target(next, packages)
+    # ต้องยอมรับนโยบายก่อนเสมอ - ตรวจฝั่งเซิร์ฟเวอร์ด้วย ไม่ใช่เชื่อป๊อปอัปฝั่งหน้าเว็บอย่างเดียว
+    if not accept_policy:
+        return templates.TemplateResponse("register.html", {
+            "request": request,
+            "error": "กรุณาอ่านและกดยอมรับนโยบายความเป็นส่วนตัวก่อนลงทะเบียน",
+            "form": {"email": email, "school_name": school_name,
+                     "contact_name": contact_name, "phone": phone},
+            "next": next, "packages": packages, "amount": amount}, status_code=400)
     res = register_account(email, password, school_name, contact_name, phone, trial_days=TRIAL_DAYS)
+    if res.get("tenant_id"):
+        from app.accounts import record_policy_accept, client_ip
+        record_policy_accept(res["tenant_id"], client_ip(request))
     if res.get('pending_verify'):
         email = email.strip().lower()
         return templates.TemplateResponse('register_sent.html', {

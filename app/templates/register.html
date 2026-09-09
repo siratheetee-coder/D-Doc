@@ -46,14 +46,74 @@
   </button>
   <p class="hint" style="text-align:center;">มีบัญชีอยู่แล้ว? <a href="/login?next={{ next|urlencode }}" style="color:var(--blue); font-weight:600;">เข้าสู่ระบบ</a>
      ทดลองใช้ {{ trial_days }} วัน หากหมดอายุแล้วต่ออายุด้วยอีเมลเดิมได้เลย</p>
-<p class="hint">อ่าน <a href="/privacy" style="color:var(--blue); font-weight:600; text-decoration:underline; text-underline-offset:3px;">นโยบายความเป็นส่วนตัว</a> ก่อนลงทะเบียน</p>
+  <input type="hidden" name="accept_policy" id="acceptPolicy" value="">
+<p class="hint">เมื่อกดลงทะเบียน ระบบจะแสดง
+  <a href="/privacy" target="_blank" style="color:var(--blue); font-weight:600; text-decoration:underline; text-underline-offset:3px;">นโยบายความเป็นส่วนตัว</a>
+  ให้อ่านและกดยอมรับก่อน</p>
 </form>
+
+{# ---------- ป๊อปอัปนโยบาย: ต้องอ่านและกดยอมรับก่อนจึงจะลงทะเบียนได้ ---------- #}
+<div class="pol-ov" id="polOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="polTitle">
+  <div class="pol-box">
+    <div class="pol-head">
+      <h2 id="polTitle">นโยบายความเป็นส่วนตัว</h2>
+      <p>โปรดอ่านก่อนลงทะเบียน · ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA)</p>
+    </div>
+    <div class="pol-body" id="polBody" tabindex="0">
+      {% include "_privacy_body.html" %}
+    </div>
+    <div class="pol-foot">
+      <label class="pol-check">
+        <input type="checkbox" id="polAgree" onchange="polSync()">
+        <span>ข้าพเจ้าได้อ่านและ<b>ยอมรับนโยบายความเป็นส่วนตัว</b>ข้างต้น
+          และยินยอมให้เก็บรวบรวมและประมวลผลข้อมูลตามที่ระบุไว้</span>
+      </label>
+      <div class="pol-btns">
+        <button type="button" class="btn btn-primary" id="polOk" disabled onclick="polAccept()">
+          ยอมรับและลงทะเบียน</button>
+        <button type="button" class="btn" onclick="polClose()">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .pol-ov { position:fixed; inset:0; z-index:3000; background:rgba(15,23,42,.6);
+    display:flex; align-items:center; justify-content:center; padding:16px; }
+  .pol-ov[hidden] { display:none; }
+  .pol-box { background:#fff; width:100%; max-width:760px; max-height:92vh; border-radius:16px;
+    display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 60px rgba(15,23,42,.35); }
+  .pol-head { padding:18px 24px 12px; border-bottom:1px solid #e6ebf3; }
+  .pol-head h2 { margin:0 0 4px; font-size:20px; }
+  .pol-head p { margin:0; font-size:13px; color:#5b6b84; }
+  .pol-body { padding:18px 24px; overflow-y:auto; flex:1; font-size:14.5px; line-height:1.75; color:#334155; }
+  .pol-body h2 { font-size:16px; margin:18px 0 6px; color:#0f172a; }
+  .pol-body h2:first-child { margin-top:0; }
+  .pol-body p, .pol-body li { font-size:14.5px; }
+  .pol-body ul { padding-left:20px; margin:6px 0; }
+  .pol-body .fill { background:#eef4ff; padding:1px 5px; border-radius:4px; }
+  .pol-foot { padding:14px 24px 18px; border-top:1px solid #e6ebf3; background:#f8fafc; }
+  .pol-check { display:flex; gap:10px; align-items:flex-start; font-size:14px; line-height:1.6;
+    cursor:pointer; margin-bottom:12px; }
+  .pol-check input { width:18px; height:18px; flex:none; margin-top:2px; cursor:pointer; }
+  .pol-btns { display:flex; gap:10px; flex-wrap:wrap; }
+  .pol-btns .btn { flex:1 1 auto; }
+  .pol-btns .btn[disabled] { opacity:.5; cursor:not-allowed; }
+  .pol-scrolled { font-size:12.5px; color:#b45309; margin:0 0 10px; }
+</style>
 <script>
   (function(){
     var form = document.getElementById('registrationForm');
     var button = form.querySelector('button[type="submit"]');
     var original = button.innerHTML;
     form.addEventListener('submit', function(event){
+      // ยังไม่ยอมรับนโยบาย -> เปิดป๊อปอัปให้อ่านก่อน (ตรวจฝั่งเซิร์ฟเวอร์อีกชั้นด้วย)
+      if(!document.getElementById('acceptPolicy').value){
+        event.preventDefault();
+        if(form.reportValidity && !form.reportValidity()) return;   // ให้กรอกช่องที่จำเป็นครบก่อน
+        polOpen();
+        return;
+      }
       if(button.disabled){ event.preventDefault(); return; }
       button.disabled = true;
       button.textContent = 'กำลังสมัครและส่งอีเมลยืนยัน…';
@@ -97,4 +157,39 @@
   .pw-rules li.ok { color:#0e9152; }
   .pw-rules li.ok::before { content:"✓"; font-weight:700; }
 </style>
+<script>
+  function polOpen(){
+    var ov = document.getElementById('polOverlay');
+    // .wrap ใน public_base มี transform (แอนิเมชัน) -> กลายเป็นกรอบอ้างอิงของ position:fixed
+    // ทำให้ป๊อปอัปสูงตามกล่องนั้นแทนหน้าจอ ปุ่มยอมรับเลยหลุดออกนอกจอบนมือถือ
+    // ย้ายไปแขวนกับ body ตอนเปิด จึงอิงหน้าจอจริงเสมอ
+    if (ov.parentElement !== document.body) document.body.appendChild(ov);
+    ov.hidden = false;
+    document.body.style.overflow = 'hidden';
+    var body = document.getElementById('polBody');
+    body.scrollTop = 0;
+    body.focus();
+    document.getElementById('polAgree').checked = false;
+    polSync();
+  }
+  function polClose(){
+    document.getElementById('polOverlay').hidden = true;
+    document.body.style.overflow = '';
+  }
+  function polSync(){
+    document.getElementById('polOk').disabled = !document.getElementById('polAgree').checked;
+  }
+  function polAccept(){
+    if(!document.getElementById('polAgree').checked) return;
+    document.getElementById('acceptPolicy').value = '1';
+    polClose();
+    document.getElementById('registrationForm').requestSubmit();
+  }
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && !document.getElementById('polOverlay').hidden) polClose();
+  });
+  document.getElementById('polOverlay').addEventListener('click', function(e){
+    if(e.target === this) polClose();
+  });
+</script>
 {% endblock %}

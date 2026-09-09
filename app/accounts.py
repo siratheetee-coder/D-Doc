@@ -47,6 +47,9 @@ class Tenant(AccBase):
     modules = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)
     # ---- นโยบายลบข้อมูลเมื่อไม่มีการใช้งาน (ดู app/services/retention.py) ----
+    policy_accepted_at = Column(DateTime, nullable=True)   # ยอมรับนโยบายความเป็นส่วนตัวเมื่อไหร่
+    policy_version = Column(String, default="")            # ฉบับที่ยอมรับ (วันที่ปรับปรุงนโยบาย)
+    policy_accept_ip = Column(String, default="")          # ยอมรับจากไอพีไหน
     last_active_at = Column(DateTime, nullable=True)   # ล็อกอินล่าสุดของคนใดคนหนึ่งในโรงเรียน
     inactive_stage = Column(Integer, default=0)        # เตือนไปแล้วกี่ครั้ง (0-3) · ใช้งานอีกครั้ง = รีเซ็ต
     inactive_notified_at = Column(DateTime, nullable=True)  # เตือนครั้งล่าสุดเมื่อไหร่
@@ -204,6 +207,9 @@ def _ensure_engine():
                     "ALTER TABLE account ADD COLUMN totp_enabled BOOLEAN DEFAULT 0",
                     "ALTER TABLE account ADD COLUMN totp_last_step INTEGER DEFAULT 0",
                     "ALTER TABLE account ADD COLUMN totp_recovery VARCHAR DEFAULT ''",
+                    "ALTER TABLE tenant ADD COLUMN policy_accepted_at DATETIME",
+                    "ALTER TABLE tenant ADD COLUMN policy_version VARCHAR DEFAULT ''",
+                    "ALTER TABLE tenant ADD COLUMN policy_accept_ip VARCHAR DEFAULT ''",
                     "ALTER TABLE tenant ADD COLUMN last_active_at DATETIME",
                     "ALTER TABLE tenant ADD COLUMN inactive_stage INTEGER DEFAULT 0",
                     "ALTER TABLE tenant ADD COLUMN inactive_notified_at DATETIME",
@@ -1572,6 +1578,28 @@ def _registration_existing(account):
     if not account.verified and account.active and account.role != 'superadmin':
         return {'error': 'บัญชีนี้สมัครแล้วและกำลังรอยืนยันอีเมล', 'exists': True, 'pending_verify': True}
     return {'error': 'อีเมลนี้มีบัญชีอยู่แล้ว กรุณาเข้าสู่ระบบ หรือกดลืมรหัสผ่าน', 'exists': True}
+
+
+POLICY_VERSION = "2569-09-01"      # ต้องตรงกับวันที่ปรับปรุงในหน้า /privacy
+
+
+def record_policy_accept(tenant_id, ip: str = "") -> None:
+    """บันทึกว่าโรงเรียนนี้ยอมรับนโยบายฉบับไหน เมื่อไหร่ จากไอพีใด
+    (PDPA: ต้องพิสูจน์ได้ว่ามีการให้ความยินยอมจริง แค่มีป๊อปอัปให้กดไม่พอ)"""
+    if not tenant_id:
+        return
+    db = acc_session()
+    try:
+        t = db.get(Tenant, tenant_id)
+        if t:
+            t.policy_accepted_at = datetime.now()
+            t.policy_version = POLICY_VERSION
+            t.policy_accept_ip = (ip or "")[:60]
+            db.commit()
+    except Exception:
+        pass
+    finally:
+        db.close()
 
 
 def register_account(email: str, password: str, school_name: str,
