@@ -58,6 +58,16 @@
   <div class="alert" style="background:#f5f3ff; border:1px solid #ddd6fe; color:#5b21b6; font-size:13px; margin-bottom:12px;">
     <svg class="icon"><use href="#ic-info"/></svg>
     ไอดีเข้าระบบจะเติม <b>รหัสโรงเรียน (.{{ school_code }})</b> ต่อท้ายให้อัตโนมัติ กันซ้ำกับครูโรงเรียนอื่น เช่น พิมพ์ <code>teacher1</code> ครูจะล็อกอินด้วย <code>teacher1.{{ school_code }}</code></div>
+  <div class="alert" style="background:#fffbeb; border:1px solid #fde68a; color:#92400e; font-size:13px; margin-bottom:12px;">
+    <svg class="icon"><use href="#ic-alert"/></svg>
+    <b>รหัสผ่านต้องผ่านเกณฑ์เหล่านี้</b> (ระบบตรวจก่อนสร้าง ถ้าไม่ผ่านจะบอกทันทีโดยไม่ล้างสิ่งที่กรอกไว้)
+    <ul style="margin:6px 0 0 18px; padding:0; line-height:1.75;">
+      <li>ยาวอย่างน้อย <b>8 ตัวอักษร</b></li>
+      <li>มีทั้ง<b>ตัวอักษรและตัวเลข</b></li>
+      <li>ไม่ใช่รหัสที่เดาง่าย เช่น <code>12345678</code> <code>password</code> <code>teacher2569</code></li>
+      <li>ไม่มีชื่อผู้ใช้อยู่ในรหัสผ่าน</li>
+    </ul>
+    <div style="margin-top:6px;">คิดไม่ออกให้กดปุ่ม <b>สุ่ม</b> ข้างช่องรหัสผ่าน ระบบตั้งให้เลย</div></div>
   <div class="table-wrap">
   <table>
     <thead><tr><th>ครู</th><th>ตำแหน่ง</th><th>สถานะบัญชี</th><th>สร้าง/ชื่อผู้ใช้</th></tr></thead>
@@ -83,8 +93,10 @@
               <input name="username" placeholder="ชื่อผู้ใช้" required style="width:110px; border-top-right-radius:0; border-bottom-right-radius:0;">
               <span class="muted" style="display:flex; align-items:center; font-size:13px; background:#f1f5f9; border:1px solid #e2e8f0; border-left:0; padding:0 9px; border-radius:0 6px 6px 0; white-space:nowrap;">.{{ school_code }}</span>
             </span>
-            <input name="password" type="text" placeholder="รหัสผ่าน (อย่างน้อย 8 ตัว + ตัวเลข)" required minlength="8" style="width:190px;">
+            <input name="password" type="text" placeholder="รหัสผ่าน" required minlength="8" style="width:170px;">
+            <button type="button" class="btn sm gray" onclick="genPw(this)" title="สุ่มรหัสผ่านที่ผ่านเกณฑ์ให้">สุ่ม</button>
             <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> สร้าง</button>
+            <div class="pw-err" hidden></div>
           </form>
         </td>
         {% endif %}
@@ -144,5 +156,69 @@
     var r = document.createRange(); r.selectNodeContents(el);
     var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
   }
+</script>
+<style>
+  .pw-err { flex-basis:100%; color:#b91c1c; font-size:12.5px; margin-top:4px; }
+  .pw-err[hidden] { display:none; }
+  input.pw-bad { border-color:#fca5a5 !important; background:#fff5f5; }
+</style>
+<script>
+  // เกณฑ์เดียวกับฝั่งเซิร์ฟเวอร์ (app/accounts.py: password_problem)
+  // ตรวจตรงนี้เพื่อบอกทันทีโดยไม่ต้องโหลดหน้าใหม่ · เซิร์ฟเวอร์ยังตรวจซ้ำอยู่ดี
+  var PW_COMMON = ['password','passw0rd','12345678','123456789','1234567890','11111111',
+    'qwerty','qwertyui','abc','abcd','abcde','abcdef','iloveyou','sunshine','letmein',
+    'monkey','dragon','football','baseball','computer','internet','admin','administrator',
+    'welcome','login','user','test','changeme','school','teacher','student','kru','kroo',
+    'ekkasan','easyekkasan','thailand','bangkok'];
+
+  function pwProblem(pw, username){
+    pw = pw || '';
+    if(pw.length < 8) return 'รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร';
+    if(pw.trim() !== pw) return 'รหัสผ่านต้องไม่ขึ้นต้นหรือลงท้ายด้วยช่องว่าง';
+    if(!(/[a-zA-Zก-๙]/.test(pw) && /[0-9]/.test(pw))) return 'รหัสผ่านต้องมีทั้งตัวอักษรและตัวเลข';
+    var low = pw.toLowerCase();
+    var base = low.replace(/[0-9]+$/, '');
+    if(PW_COMMON.indexOf(low) >= 0 || PW_COMMON.indexOf(base) >= 0)
+      return 'รหัสผ่านนี้เดาง่ายเกินไป กรุณาตั้งรหัสอื่น';
+    if(new Set(pw.split('')).size <= 3) return 'รหัสผ่านซ้ำตัวเดิมมากเกินไป กรุณาตั้งรหัสอื่น';
+    var local = (username || '').trim().toLowerCase().split('@')[0];
+    if(local && local.length >= 4 && low.indexOf(local) >= 0)
+      return 'รหัสผ่านต้องไม่มีชื่อผู้ใช้อยู่ในนั้น';
+    return null;
+  }
+
+  function genPw(btn){
+    // สุ่มรหัสที่ผ่านเกณฑ์แน่นอน: พยัญชนะ+สระสลับกันให้อ่านออก + ตัวเลข 3 หลัก
+    var c = 'bcdfghjkmnpqrstvwxz', v = 'aeiou', out = '';
+    for(var i = 0; i < 3; i++){
+      out += c[Math.floor(Math.random()*c.length)] + v[Math.floor(Math.random()*v.length)];
+    }
+    out = out.charAt(0).toUpperCase() + out.slice(1);
+    for(var j = 0; j < 3; j++) out += Math.floor(Math.random()*10);
+    var f = btn.closest('form');
+    var pw = f.querySelector('[name=password]');
+    pw.value = out;
+    pw.classList.remove('pw-bad');
+    var box = f.querySelector('.pw-err');
+    if(box) box.hidden = true;
+  }
+
+  document.querySelectorAll('form[action$="/teacher-accounts/add"]').forEach(function(f){
+    f.addEventListener('submit', function(e){
+      var pw = f.querySelector('[name=password]');
+      var user = (f.querySelector('[name=username]') || {}).value || '';
+      var box = f.querySelector('.pw-err');
+      var problem = pwProblem(pw.value, user);
+      if(problem){
+        e.preventDefault();
+        pw.classList.add('pw-bad');
+        if(box){ box.textContent = problem + ' — หรือกดปุ่ม "สุ่ม" ให้ระบบตั้งให้'; box.hidden = false; }
+        pw.focus();
+      }else{
+        pw.classList.remove('pw-bad');
+        if(box) box.hidden = true;
+      }
+    });
+  });
 </script>
 {% endblock %}

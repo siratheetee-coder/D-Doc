@@ -45,6 +45,7 @@ class School(Base):
     academic_head_name = Column(String, default="")    # หัวหน้าฝ่ายวิชาการ (ผู้ลงนามคนที่ 2 บนปก ปพ.5)
     academic_head_email = Column(String, default="")   # อีเมลหัวหน้าฝ่ายวิชาการ (รับแจ้งส่งแผนการสอน)
     hr_head_email = Column(String, default="")          # อีเมลหัวหน้าฝ่ายบุคคล (รับแจ้งใบลา)
+    director_email = Column(String, default="")         # อีเมล ผอ./รองผอ. (รับแจ้งเรื่องที่รอลงนาม)
 
     # ปีของโครงการ/แผน: "budget" = ปีงบประมาณ (ต.ค.) / "academic" = ปีการศึกษา (พ.ค.)
     project_year_mode = Column(String, default="budget")

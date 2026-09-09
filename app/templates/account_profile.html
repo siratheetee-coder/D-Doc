@@ -1,16 +1,5 @@
 {% extends "base.html" %}
-{% block title %}โปรไฟล์ของฉัน<script>
-  function copyCodes(btn){
-    var txt = [].map.call(document.querySelectorAll('.tfa-codes code'),
-                          function(c){ return c.textContent.trim(); }).join('
-');
-    navigator.clipboard.writeText(txt).then(function(){
-      var old = btn.textContent; btn.textContent = 'คัดลอกแล้ว ✓';
-      setTimeout(function(){ btn.textContent = old; }, 1800);
-    });
-  }
-</script>
-{% endblock %}
+{% block title %}โปรไฟล์ของฉัน{% endblock %}
 {% block content %}
 <style>
   .pf-head { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }

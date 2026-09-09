@@ -460,7 +460,7 @@ def _notify_academic_substitute(db, person, kind, sd, ed, days):
 
 
 def _notify_directors(db, title, reason, link="/approvals"):
-    """แจ้งเตือน (กระดิ่ง) ผอ./รองผอ. ทุกบัญชีของโรงเรียนที่ผูก Person ไว้"""
+    """แจ้ง ผอ./รองผอ. ว่ามีเรื่องรอลงนาม - ทั้งกระดิ่งในระบบ และอีเมล (ถ้าตั้งไว้)"""
     from app.services.nav import create_notice
     try:
         from app.tenancy import current_school_id
@@ -468,6 +468,25 @@ def _notify_directors(db, title, reason, link="/approvals"):
         for pid in director_person_ids(current_school_id.get()):
             if pid:
                 create_notice(db, pid, title, reason=reason, link=link, level="info")
+    except Exception:
+        pass
+
+    # อีเมลแจ้ง ผอ. (ถ้าตั้งอีเมลไว้ในหน้าตั้งค่าโรงเรียน)
+    try:
+        school = get_school(db)
+        to = (getattr(school, "director_email", "") or "").strip()
+        if to:
+            from app.seller_config import SELLER
+            from urllib.parse import quote
+            base = (SELLER.get("base_url") or "").rstrip("/")
+            url = (base + "/login?next=" + quote(link)) if base else link
+            _notify(to, f"[รอลงนาม] {title}",
+                    f"<p>มีเรื่องรอการพิจารณาของท่าน</p>"
+                    f"<p><b>{title}</b><br>{reason}</p>"
+                    f"<p style='margin:16px 0;'><a href='{url}' style='background:#2563eb;color:#fff;"
+                    f"text-decoration:none;padding:11px 24px;border-radius:9px;font-weight:700;"
+                    f"display:inline-block;'>เปิดกล่องรออนุมัติ</a></p>"
+                    f"<p style='color:#64748b;font-size:13px'>อีเมลนี้ส่งอัตโนมัติจากระบบ Easy Ekkasan</p>")
     except Exception:
         pass
 

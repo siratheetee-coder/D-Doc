@@ -495,6 +495,7 @@ def settings_save(
     finance_officer_name: str = Form(""), finance_head_name: str = Form(""),
     admin_officer_name: str = Form(""), academic_head_name: str = Form(""),
     academic_head_email: str = Form(""), hr_head_email: str = Form(""),
+    director_email: str = Form(""),
     doc_prefix: str = Form("ศธ"), doc_set_threshold: str = Form(""),
     project_year_mode: str = Form("budget"),
     attendance_by_subject: str = Form(""),
@@ -510,6 +511,7 @@ def settings_save(
     s.academic_head_name = academic_head_name.strip()
     s.academic_head_email = academic_head_email.strip()
     s.hr_head_email = hr_head_email.strip()
+    s.director_email = director_email.strip()
     s.project_year_mode = "academic" if project_year_mode == "academic" else "budget"
     s.attendance_by_subject = bool(attendance_by_subject)
     s.doc_prefix, s.doc_set_threshold = doc_prefix, _to_float(doc_set_threshold, 5000.0)
