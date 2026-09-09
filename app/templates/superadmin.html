@@ -83,7 +83,8 @@
   <div class="top"><b>Easy Ekkasan · คอนโซลผู้ดูแลระบบ</b>
     <span><a href="/admin-console/leads" style="color:#fff; font-weight:600;">📥 คำขอจากเว็บ
         <span class="lead-cnt">{{ lead_counts.all if lead_counts else 0 }}</span>{% if lead_counts and lead_counts.new %}<span class="lead-cnt new">ใหม่ {{ lead_counts.new }}</span>{% endif %}</a>
-      · {{ admin_name }} · <a href="/account/password">เปลี่ยนรหัสผ่าน</a> · <a href="/logout">ออกจากระบบ</a></span></div>
+      · {{ admin_name }} · <a href="/account/profile">โปรไฟล์ / ยืนยัน 2 ชั้น</a>
+      · <a href="/account/password">เปลี่ยนรหัสผ่าน</a> · <a href="/logout">ออกจากระบบ</a></span></div>
   <div class="wrap">
     {% if msg %}<div class="msg">{{ msg }}</div>{% endif %}
 
@@ -182,6 +183,15 @@
               {% else %}จะลบอัตโนมัติในอีก <b>{{ r.idle.left }}</b> วัน{% endif %}
               {% if r.idle.stage %} · เตือนแล้ว {{ r.idle.stage }}/3 ครั้ง{% endif %}
             </div>
+            {% endif %}
+            {% if r.n_2fa %}
+            <form method="post" action="/admin-console/tenant/{{ r.t.id }}/2fa-reset" style="margin-top:7px;"
+                  onsubmit="return confirm('ปลดล็อกยืนยัน 2 ชั้นของทุกบัญชีในโรงเรียนนี้?
+
+ใช้เมื่อโรงเรียนล็อกตัวเองออกทั้งหมด (มือถือหาย + รหัสสำรองหมด)');">
+              <span class="muted2">🔒 เปิดยืนยัน 2 ชั้น {{ r.n_2fa }} บัญชี</span>
+              <button class="btn sm gray" type="submit" style="color:#b45309;">ปลดล็อกให้</button>
+            </form>
             {% endif %}
             <form method="post" action="/admin-console/tenant/{{ r.t.id }}/expiry" style="display:flex;gap:4px;margin-top:7px;">
               <input name="expiry" type="date" value="{{ r.t.expiry_date or '' }}" style="width:135px;">

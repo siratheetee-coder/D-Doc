@@ -51,9 +51,18 @@
             </form>
           {% endif %}
         </td>
-        <td>{% if u.active %}<span class="pill" style="background:#e9f7ef; color:#0e7a44;">ใช้งาน</span>{% else %}<span class="pill" style="background:#fde8e8; color:#b91c1c;">ปิดอยู่</span>{% endif %}</td>
+        <td>{% if u.active %}<span class="pill" style="background:#e9f7ef; color:#0e7a44;">ใช้งาน</span>{% else %}<span class="pill" style="background:#fde8e8; color:#b91c1c;">ปิดอยู่</span>{% endif %}
+          {% if u.totp %}<br><span class="pill" style="background:#eef2ff; color:#4338ca; margin-top:3px; display:inline-block;">🔒 2 ชั้น</span>{% endif %}</td>
         <td style="white-space:nowrap;">
           <form method="post" action="/users/{{ u.id }}/director" style="display:inline; margin:0;" title="ให้บัญชีนี้อนุมัติแผนการสอน/ลา/ไปราชการ ขั้นสุดท้าย (ต้องผูกลายเซ็นในทะเบียนบุคลากร)"><button class="btn sm {{ 'gray' if u.is_director else '' }}" type="submit">{{ 'ยกเลิก ผอ.' if u.is_director else 'ตั้งเป็น ผอ.' }}</button></form>
+          {% if u.totp %}
+          <form method="post" action="/users/{{ u.id }}/2fa-reset" style="display:inline; margin:0;"
+                title="ใช้เมื่อผู้ใช้ทำมือถือหายและรหัสสำรองหมด - ปลดแล้วเขาต้องตั้งค่าใหม่เอง"
+                onsubmit="return confirm('ปลดล็อกยืนยัน 2 ชั้นของ {{ u.username }}?
+
+หลังปลดแล้ว บัญชีนี้จะเข้าระบบด้วยรหัสผ่านอย่างเดียว จนกว่าเจ้าตัวจะตั้งค่าใหม่');">
+            <button class="btn sm gray" type="submit" style="color:#b45309;">ปลดล็อก 2FA</button></form>
+          {% endif %}
           {% if not u.is_owner %}
           <button class="btn sm gray" type="button" onclick="resetPw({{ u.id }}, '{{ u.username }}')">รีเซ็ตรหัส</button>
           <form method="post" action="/users/{{ u.id }}/toggle" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">{{ 'ปิด' if u.active else 'เปิด' }}</button></form>

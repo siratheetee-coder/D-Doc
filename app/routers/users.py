@@ -11,6 +11,7 @@ from app.accounts import (
     audit, audit_list, AUDIT_KEEP_DAYS, AUDIT_LABELS,
     list_tenant_users, add_tenant_user, set_user_modules, reset_user_password,
     toggle_user_active, toggle_user_director, delete_tenant_user, tenant_max_users,
+    totp_reset_for,
     mark_welcomed, sync_seen_modules,
 )
 from app.database import get_db
@@ -145,6 +146,20 @@ _AUDIT_PILL = {
     "user.active": "pill-warn", "user.director": "pill-warn",
     "login.ok": "pill-ok", "user.add": "pill-ok", "teacher.add": "pill-ok",
 }
+
+
+@router.post("/users/{uid}/2fa-reset")
+def users_2fa_reset(request: Request, uid: int):
+    """ไอดีหลักปลดล็อกยืนยัน 2 ชั้นให้ผู้ใช้ในโรงเรียนตัวเอง (กรณีมือถือหาย/รหัสสำรองหมด)"""
+    if not _is_owner(request):
+        return RedirectResponse("/", status_code=303)
+    who = _uname(request, uid)
+    r = totp_reset_for(uid, tenant_id=request.session.get("tid"))
+    if r.get("error"):
+        return _back(err=r["error"])
+    audit("2fa.reset", request=request, target=who,
+          detail="ปลดล็อกให้ตั้งค่าใหม่ได้ (เจ้าตัวควรเปิดใช้ใหม่ทันที)")
+    return _back(msg=f"ปลดล็อกยืนยัน 2 ชั้นของ {who} แล้ว")
 
 
 @router.get("/audit", response_class=HTMLResponse)

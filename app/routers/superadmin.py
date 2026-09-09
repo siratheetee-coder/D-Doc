@@ -126,6 +126,7 @@ def console(request: Request, msg: str | None = None):
             rows.append({
                 "t": t, "users": users, "expired": expired, "plan": plan,
                 "idle": _retention_status(t),
+                "n_2fa": sum(1 for u in users if getattr(u, "totp_enabled", False)),
                 "days_left": days_left, "docs_used": docs_used, "docs_limit": docs_limit,
                 "docs_left": max(0, docs_limit - docs_used),
                 "unverified": sum(1 for u in users if not getattr(u, "verified", True)),
@@ -454,6 +455,26 @@ def delete_user(aid: int):
     finally:
         db.close()
     return RedirectResponse("/admin-console?msg=ลบผู้ใช้แล้ว", status_code=303)
+
+
+@router.post("/admin-console/tenant/{tid}/2fa-reset")
+def tenant_2fa_reset(tid: int, request: Request):
+    """ปิดยืนยัน 2 ชั้นของทุกบัญชีในโรงเรียน - ใช้ตอนโรงเรียนล็อกตัวเองออกทั้งหมด
+    (ไอดีหลักทำมือถือหายและรหัสสำรองหมด จึงไม่มีใครปลดให้ได้)"""
+    from urllib.parse import quote
+    from app.accounts import audit, totp_reset_tenant, acc_session
+    db = acc_session()
+    try:
+        t = db.get(Tenant, tid)
+        name = t.name if t else ""
+    finally:
+        db.close()
+    n = totp_reset_tenant(tid)
+    audit("2fa.reset", request=request, tenant_id=None, target=f"#{tid} {name}",
+          detail=f"ผู้ดูแลระบบปลดล็อกให้ทั้งโรงเรียน {n} บัญชี")
+    return RedirectResponse(
+        f"/admin-console?msg={quote(f'ปลดล็อกยืนยัน 2 ชั้นของ {name} แล้ว {n} บัญชี')}",
+        status_code=303)
 
 
 def _retention_status(t):

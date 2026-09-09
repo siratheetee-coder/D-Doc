@@ -856,7 +856,8 @@ def list_tenant_users(tenant_id) -> list:
         return [{"id": u.id, "username": u.username, "display_name": u.display_name or "",
                  "is_owner": bool(u.is_owner), "active": bool(u.active),
                  "is_director": bool(getattr(u, "is_director", False)),
-                 "modules": u.modules or "", "person_id": u.person_id} for u in us]
+                 "modules": u.modules or "", "person_id": u.person_id,
+                 "totp": bool(getattr(u, "totp_enabled", False))} for u in us]
     finally:
         db.close()
 
@@ -1096,6 +1097,49 @@ def totp_disable(uid, password) -> dict:
         db.close()
 
 
+def totp_reset_for(uid, tenant_id=None) -> dict:
+    """ปิด 2FA ให้ผู้ใช้คนอื่น - ใช้ตอนเจ้าตัวทำมือถือหายและรหัสสำรองหมด
+
+    ต่างจาก totp_disable() ตรงที่ไม่ต้องใช้รหัสผ่านของเจ้าตัว
+    จึงต้องเรียกจาก route ที่ตรวจสิทธิ์ผู้ดูแลมาแล้วเท่านั้น
+    tenant_id: ถ้าส่งมา จะยอมปลดเฉพาะบัญชีในโรงเรียนนั้น (กันไอดีหลักข้ามโรงเรียน)
+    """
+    db = acc_session()
+    try:
+        a = db.get(Account, uid)
+        if not a:
+            return {"error": "ไม่พบบัญชีผู้ใช้"}
+        if tenant_id is not None and a.tenant_id != tenant_id:
+            return {"error": "บัญชีนี้ไม่ได้อยู่ในโรงเรียนของท่าน"}
+        if not a.totp_enabled and not a.totp_secret:
+            return {"error": "บัญชีนี้ไม่ได้เปิดยืนยัน 2 ชั้นไว้"}
+        a.totp_enabled = False
+        a.totp_secret = ""
+        a.totp_recovery = ""
+        a.totp_last_step = 0
+        db.commit()
+        return {"username": a.username}
+    finally:
+        db.close()
+
+
+def totp_reset_tenant(tenant_id) -> int:
+    """ปิด 2FA ของทุกบัญชีในโรงเรียน (ผู้ดูแลระบบใช้ช่วยโรงเรียนที่ล็อกตัวเองออก)"""
+    db = acc_session()
+    try:
+        rows = (db.query(Account).filter_by(tenant_id=tenant_id)
+                .filter(Account.totp_enabled == True).all())      # noqa: E712
+        for a in rows:
+            a.totp_enabled = False
+            a.totp_secret = ""
+            a.totp_recovery = ""
+            a.totp_last_step = 0
+        db.commit()
+        return len(rows)
+    finally:
+        db.close()
+
+
 def totp_check(uid, code) -> dict:
     """ตรวจรหัสตอนล็อกอิน · รับได้ทั้งรหัส 6 หลักจากแอป และรหัสสำรอง
     คืน {ok: True, recovery: bool, left: int} หรือ {error}"""
@@ -1158,6 +1202,7 @@ AUDIT_LABELS = {
     "2fa.disable": "ปิดยืนยันตัวตน 2 ชั้น",
     "2fa.fail": "ใส่รหัสยืนยัน 2 ชั้นผิด",
     "2fa.recovery": "เข้าระบบด้วยรหัสสำรอง",
+    "2fa.reset": "ปลดล็อกยืนยัน 2 ชั้นให้ผู้ใช้",
     "retention.warn": "แจ้งเตือนบัญชีไม่มีการใช้งาน",
     "retention.delete": "ลบข้อมูลอัตโนมัติ (ไม่มีการใช้งานนาน)",
     "admin.tenant_edit": "ผู้ดูแลระบบแก้ข้อมูลโรงเรียน",

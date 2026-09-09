@@ -88,8 +88,8 @@ def _profile_ctx(request, **extra):
         "is_owner": request.session.get("owner", False),
         "is_teacher": bool(request.session.get("person_id")),
         "has_avatar": has_avatar(request.session.get("uid")),
-        # ยืนยัน 2 ชั้น: เปิดให้เฉพาะบัญชีผู้ดูแลระบบก่อน (บัญชีเดียวที่เข้าถึงได้ทุกโรงเรียน)
-        "can_2fa": request.session.get("role") == "superadmin",
+        # ยืนยัน 2 ชั้น: ใช้ได้ทุกบัญชี (ผู้ดูแลระบบ · ไอดีหลัก · ไอดีย่อย · บัญชีครู)
+        "can_2fa": True,
         "tfa": totp_status(request.session.get("uid")),
         "tfa_secret": None, "tfa_codes": None,
         "error": None, "saved": False,
@@ -158,7 +158,7 @@ def avatar_delete(request: Request):
 
 # ---------------- ยืนยันตัวตน 2 ชั้น (TOTP) · สมัครใจ ----------------
 def _can_2fa(request) -> bool:
-    return bool(request.session.get("uid")) and request.session.get("role") == "superadmin"
+    return bool(request.session.get("uid"))
 
 
 @router.post("/account/2fa/start", response_class=HTMLResponse)
