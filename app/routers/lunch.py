@@ -370,24 +370,92 @@ def _sync_round_procurement(db: Session, rnd: LunchHireRound) -> None:
                    else "อนุมัติ" if rnd.status == "จ้างแล้ว" else "ร่าง")
 
 
+def round_ingredient_total(rnd) -> float:
+    """ค่าวัตถุดิบจริงที่ครูกรอกไว้ในช่วงวันของรอบนี้ (โหมดซื้อวัตถุดิบ/แม่ครัว)"""
+    sd = rnd.start_date.date() if rnd.start_date else None
+    ed = rnd.end_date.date() if rnd.end_date else None
+    if not (sd and ed):
+        return 0.0
+    total = 0.0
+    for ig in rnd.program.ingredients:
+        d = ig.date.date() if ig.date else None
+        if d and sd <= d <= ed:
+            total += (ig.quantity or 0) * (ig.unit_price or 0)
+    return round(total, 2)
+
+
+def round_spend(rnd) -> float:
+    """ยอดเงินที่จ่ายจริงของรอบนี้ - ใช้ลงบัญชี (คิดคนละแบบตามโหมดดำเนินการ)
+
+    hire (จ้างเหมา)     = วงเงินตามสัญญาที่กรอกไว้ (rnd.amount)
+    person (จ้างแม่ครัว) = ค่าจ้างแม่ครัว + ค่าเชื้อเพลิง + ค่าวัตถุดิบจริง
+    ingredient (ซื้อเอง) = ค่าเชื้อเพลิง + ค่าวัตถุดิบจริง
+
+    สองโหมดหลังไม่ใช้ rnd.amount เพราะเลิกแบ่งงวด/ไม่มีวงเงินเหมาตายตัวแล้ว
+    ยอดจริงมาจากวัตถุดิบที่ครูกรอกรายวัน (ถ้าใช้ rnd.amount จะลงบัญชีเป็น 0 ทั้งที่จ่ายเงินไปแล้ว)
+    """
+    mode = getattr(rnd.program, "operate_mode", "hire")
+    if mode in ("person", "ingredient"):
+        wage = float(getattr(rnd, "cook_wage", 0) or 0) if mode == "person" else 0.0
+        fuel = float(getattr(rnd, "fuel_cost", 0) or 0)
+        return round(round_ingredient_total(rnd) + fuel + wage, 2)
+    return round(float(rnd.amount or 0), 2)
+
+
+def _round_ledger_detail(rnd) -> str:
+    """ข้อความในบัญชี - ต้องบอกให้ตรงว่าเป็นค่าอะไร (เดิมเขียน "จ้างเหมา" ทุกโหมด)"""
+    mode = getattr(rnd.program, "operate_mode", "hire")
+    if mode == "person":
+        parts = []
+        if float(getattr(rnd, "cook_wage", 0) or 0):
+            parts.append("ค่าจ้างบุคคลประกอบอาหารกลางวัน")
+        if round_ingredient_total(rnd):
+            parts.append("ค่าวัตถุดิบ")
+        if float(getattr(rnd, "fuel_cost", 0) or 0):
+            parts.append("ค่าเชื้อเพลิง")
+        base = " + ".join(parts) or "ค่าจ้างบุคคลประกอบอาหารกลางวัน"
+    elif mode == "ingredient":
+        base = "ค่าวัตถุดิบประกอบอาหารกลางวัน"
+        if float(getattr(rnd, "fuel_cost", 0) or 0):
+            base += " + ค่าเชื้อเพลิง"
+    else:
+        base = "ค่าจ้างเหมาอาหารกลางวัน"
+    detail = f"{base} รอบที่ {rnd.seq}"
+    if rnd.start_date and rnd.end_date:
+        detail += f" ({be_date_input(rnd.start_date)}-{be_date_input(rnd.end_date)})"
+    return detail
+
+
+def resync_program_ledger(db: Session, prog) -> None:
+    """คิดยอดในบัญชีใหม่ทุกรอบที่ 'จ่ายแล้ว' ของโครงการนี้
+
+    ต้องเรียกทุกครั้งที่วัตถุดิบเปลี่ยน (เพิ่ม/แก้/ลบ/คัดลอก) เพราะโหมดซื้อวัตถุดิบ
+    และโหมดแม่ครัวคิดยอดลงบัญชีจากวัตถุดิบจริง ถ้าไม่คิดใหม่ ยอดในบัญชีจะค้างของเก่า
+    """
+    if not prog or getattr(prog, "operate_mode", "hire") not in ("person", "ingredient"):
+        return
+    for rnd in prog.rounds:
+        if rnd.status == "จ่ายแล้ว":
+            _sync_round_ledger(db, rnd)
+
+
 def _sync_round_ledger(db: Session, rnd: LunchHireRound) -> None:
     """ผูกบัญชีอัตโนมัติ: รอบที่ 'จ่ายแล้ว' -> มีรายการจ่ายในบัญชี (1 รอบ = 1 รายการ)
-    ถ้ายังไม่จ่าย/ลบรอบ -> ลบรายการบัญชีที่ผูกไว้"""
+    ถ้ายังไม่จ่าย/ลบรอบ/ยอดเป็น 0 -> ลบรายการบัญชีที่ผูกไว้"""
     existing = db.query(LunchLedger).filter_by(round_id=rnd.id).first()
-    if rnd.status == "จ่ายแล้ว" and (rnd.amount or 0) > 0:
-        detail = f"ค่าจ้างเหมาอาหารกลางวัน รอบที่ {rnd.seq}"
-        if rnd.start_date and rnd.end_date:
-            detail += f" ({be_date_input(rnd.start_date)}-{be_date_input(rnd.end_date)})"
+    amount = round_spend(rnd)
+    if rnd.status == "จ่ายแล้ว" and amount > 0:
+        detail = _round_ledger_detail(rnd)
         d = rnd.end_date or rnd.start_date or datetime.now()
         if existing:
-            existing.amount = rnd.amount
+            existing.amount = amount
             existing.detail = detail
             existing.date = d
             existing.procurement_id = rnd.procurement_id
             led = existing
         else:
             led = LunchLedger(program_id=rnd.program_id, round_id=rnd.id, kind="out",
-                              detail=detail, amount=rnd.amount, date=d,
+                              detail=detail, amount=amount, date=d,
                               procurement_id=rnd.procurement_id)
             db.add(led)
         db.flush()
@@ -924,6 +992,7 @@ def ingredient_add(pid: int, db: Session = Depends(get_db), date: str = Form("")
                                quantity=_to_float(quantity, 0.0), unit=unit.strip(),
                                unit_price=_to_float(unit_price, 0.0)))
         db.commit()
+        resync_program_ledger(db, prog); db.commit()
     from urllib.parse import quote
     url = _stay_url(f"/lunch/{pid}/ingredients", back)   # คงวันที่ที่เลือกไว้ (กันเด้งกลับวันแรก)
     if (date or "").strip():
@@ -941,6 +1010,7 @@ def ingredient_update(iid: int, request: Request, db: Session = Depends(get_db),
         it.name = name.strip(); it.quantity = _to_float(quantity, 0.0)
         it.unit = unit.strip(); it.unit_price = _to_float(unit_price, 0.0)
         db.commit()
+        resync_program_ledger(db, db.get(LunchProgram, it.program_id)); db.commit()
     if request.headers.get("X-Requested-With") == "fetch":
         return JSONResponse({"ok": bool(it)})
     return RedirectResponse(f"/lunch/{it.program_id if it else ''}/ingredients", status_code=303)
@@ -953,6 +1023,7 @@ def ingredient_delete(iid: int, db: Session = Depends(get_db), back: str = Form(
     pid = it.program_id if it else None
     if it:
         db.delete(it); db.commit()
+        resync_program_ledger(db, db.get(LunchProgram, pid)); db.commit()
     return RedirectResponse(_stay_url(f"/lunch/{pid}/ingredients", back) if pid else "/lunch", status_code=303)
 
 
@@ -1116,13 +1187,7 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         })
 
     # งบจากวัตถุดิบจริง (โหมดซื้อวัตถุดิบ/แม่ครัว = ไม่หารงวด คิดจากวัตถุดิบที่กรอก)
-    ing_total = 0.0
-    _sd = rnd.start_date.date() if rnd.start_date else None
-    _ed = rnd.end_date.date() if rnd.end_date else None
-    for ig in rnd.program.ingredients:
-        d = ig.date.date() if ig.date else None
-        if d and _sd and _ed and _sd <= d <= _ed:
-            ing_total += (ig.quantity or 0) * (ig.unit_price or 0)
+    ing_total = round_ingredient_total(rnd)
     fuel_cost = float(getattr(rnd, "fuel_cost", 0) or 0)
     wage = float(getattr(rnd, "cook_wage", 0) or 0) if rnd.program.operate_mode == "person" else 0.0
     round_budget = ing_total + fuel_cost + wage
@@ -1464,6 +1529,7 @@ def copy_plan(rid: int, db: Session = Depends(get_db), src_round: str = Form("")
                                        quantity=ig.quantity, unit=ig.unit, unit_price=ig.unit_price))
             have_ing.add(td); n_ing += 1
     db.commit()
+    resync_program_ledger(db, prog); db.commit()
     from urllib.parse import quote
     msg = f"คัดลอกแล้ว: เมนู {n_menu} วัน · วัตถุดิบ {n_ing} วัน"
     return RedirectResponse(f"/lunch/round/{rid}/plan?msg={quote(msg)}", status_code=303)

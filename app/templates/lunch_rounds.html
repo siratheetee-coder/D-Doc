@@ -39,7 +39,11 @@
         {% for v in vendors %}<option value="{{ v.id }}" {{ 'selected' if edit and edit.vendor_id==v.id }}>{{ v.name }}</option>{% endfor %}
       </select>
       <button type="button" onclick="toggleNV()" id="nvToggle" class="btn sm gray" style="margin-top:6px;"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มผู้รับจ้างใหม่</button></div>
-      <div><label>วงเงินรอบนี้ (บาท)</label><input name="amount" id="amt" type="number" step="0.01" value="{{ '%g'|format(edit.amount) if edit and edit.amount else '' }}"></div>
+      <div><label>วงเงินรอบนี้ (บาท)</label><input name="amount" id="amt" type="number" step="0.01" value="{{ '%g'|format(edit.amount) if edit and edit.amount else '' }}">
+        {% if p.operate_mode in ['person','ingredient'] %}
+        <div class="muted" style="font-size:12px; margin-top:3px; max-width:210px; line-height:1.5;">
+          ใช้อ้างอิงเฉยๆ · <b>บัญชีคิดจากยอดจ่ายจริง</b> (ค่าจ้าง + เชื้อเพลิง + วัตถุดิบที่กรอก)</div>
+        {% endif %}</div>
       {% if p.operate_mode in ['person','ingredient'] %}
       {% if p.operate_mode == 'person' %}<div><label>ค่าจ้างแม่ครัว (รอบนี้)</label><input name="cook_wage" type="number" step="0.01" value="{{ '%g'|format(edit.cook_wage) if edit and edit.cook_wage else '' }}" placeholder="เช่น 5000"></div>{% endif %}
       <div><label>ค่าเชื้อเพลิง (รอบนี้)</label><input name="fuel_cost" type="number" step="0.01" value="{{ '%g'|format(edit.fuel_cost) if edit and edit.fuel_cost else '' }}" placeholder="เช่น 500"></div>
