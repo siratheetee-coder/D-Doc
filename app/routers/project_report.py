@@ -11,19 +11,16 @@ project_report.py - รายงานผลการดำเนินงาน
 """
 import json
 
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi import APIRouter, Depends, Form, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Person, Project, ProjectReport, ProjectReportPhoto
+from app.models import Person, Project, ProjectReport
 from app.templating import templates
 from app.thai_utils import parse_be_date
 
 router = APIRouter()
-
-MAX_PHOTOS = 24                      # กันเอกสารบวมจนดาวน์โหลดช้า
-PHOTO_MAX_PX = 1100                  # ด้านยาวสุดหลังย่อ (พิมพ์ A4 ครึ่งหน้ากว้างพอ)
 
 # ช่องข้อความยาว (textarea เดี่ยว)
 # memo_body / preface ไม่มีช่องกรอกในฟอร์มแล้ว - เอกสารเขียนให้อัตโนมัติ
@@ -84,25 +81,6 @@ def survey_level(pct) -> str:
     return ("ดีเยี่ยม" if pct > 80 else "ดี" if pct > 60 else "พอใช้" if pct > 40 else "ปรับปรุง")
 
 
-def _shrink(data: bytes):
-    """ย่อรูปเป็น JPEG · คืน None ถ้าไม่ใช่ไฟล์รูป (ผู้ใช้เผลอเลือกไฟล์อื่น)"""
-    import io as _io
-    from PIL import Image, ImageOps
-    try:
-        img = ImageOps.exif_transpose(Image.open(_io.BytesIO(data))).convert("RGB")
-    except Exception:
-        return None
-    m = PHOTO_MAX_PX
-    if max(img.width, img.height) > m:
-        if img.width >= img.height:
-            img = img.resize((m, round(img.height * m / img.width)), Image.LANCZOS)
-        else:
-            img = img.resize((round(img.width * m / img.height), m), Image.LANCZOS)
-    buf = _io.BytesIO()
-    img.save(buf, "JPEG", quality=80, optimize=True)
-    return buf.getvalue()
-
-
 def _get(db, rid):
     return db.get(ProjectReport, rid)
 
@@ -146,7 +124,7 @@ def report_form(rid: int, request: Request, db: Session = Depends(get_db),
         "request": request, "school": school, "rep": rep, "p": rep.project,
         "year_label": plan_year_label(school), "saved": saved, "err": err,
         "persons": db.query(Person).filter_by(active=True).order_by(Person.name).all(),
-        "max_photos": MAX_PHOTOS, "load_list": load_list,
+        "load_list": load_list,
         "survey": survey, "pct": pct, "level": survey_level(pct),
     })
 
@@ -190,72 +168,8 @@ async def report_save(rid: int, request: Request, db: Session = Depends(get_db))
             rows.append(row)
         setattr(rep, field, _dump(rows))
 
-    # คำบรรยายภาพ (ส่งมาพร้อมฟอร์มเดียวกัน จะได้ไม่ต้องกดบันทึกสองที)
-    for ph in rep.photos:
-        cap = f.get(f"cap_{ph.id}", None)
-        if cap is not None:
-            ph.caption = cap.strip()
     db.commit()
     return RedirectResponse(f"/project-reports/{rid}?saved=1", status_code=303)
-
-
-# ---------------- ภาพกิจกรรม ----------------
-@router.post("/project-reports/{rid}/photos")
-async def photos_add(rid: int, db: Session = Depends(get_db),
-                     files: list[UploadFile] = File(default=[])):
-    rep = _get(db, rid)
-    if not rep:
-        return RedirectResponse("/projects", status_code=303)
-    room = MAX_PHOTOS - len(rep.photos)
-    if room <= 0:
-        return RedirectResponse(f"/project-reports/{rid}?err=full#sec-photos", status_code=303)
-    seq = max([p.seq or 0 for p in rep.photos], default=0)
-    added = bad = 0
-    for uf in (files or [])[:room]:
-        img = _shrink(await uf.read())
-        if not img:
-            bad += 1
-            continue
-        seq += 1
-        db.add(ProjectReportPhoto(report_id=rid, seq=seq, image=img, caption=""))
-        added += 1
-    db.commit()
-    q = "?added=%d" % added + ("&err=notimg" if bad else "")
-    return RedirectResponse(f"/project-reports/{rid}{q}#sec-photos", status_code=303)
-
-
-@router.post("/project-reports/{rid}/photos/{phid}/delete")
-def photo_delete(rid: int, phid: int, db: Session = Depends(get_db)):
-    ph = db.get(ProjectReportPhoto, phid)
-    if ph and ph.report_id == rid:
-        db.delete(ph); db.commit()
-    return RedirectResponse(f"/project-reports/{rid}#sec-photos", status_code=303)
-
-
-@router.post("/project-reports/{rid}/photos/{phid}/move")
-def photo_move(rid: int, phid: int, db: Session = Depends(get_db), dir: str = Form("up")):
-    """สลับลำดับกับภาพข้างเคียง (ลำดับนี้คือลำดับที่ขึ้นในเอกสาร)"""
-    rep = _get(db, rid)
-    if not rep:
-        return RedirectResponse("/projects", status_code=303)
-    items = list(rep.photos)
-    for i, ph in enumerate(items):      # เขียนลำดับให้ต่อเนื่องก่อน กันข้อมูลเก่าที่ seq ซ้ำ/ว่าง
-        ph.seq = i + 1
-    idx = next((i for i, ph in enumerate(items) if ph.id == phid), None)
-    j = None if idx is None else (idx - 1 if dir == "up" else idx + 1)
-    if idx is not None and j is not None and 0 <= j < len(items):
-        items[idx].seq, items[j].seq = items[j].seq, items[idx].seq
-    db.commit()
-    return RedirectResponse(f"/project-reports/{rid}#sec-photos", status_code=303)
-
-
-@router.get("/project-reports/{rid}/photo/{phid}")
-def photo_view(rid: int, phid: int, db: Session = Depends(get_db)):
-    ph = db.get(ProjectReportPhoto, phid)
-    if not ph or ph.report_id != rid or not ph.image:
-        return Response(status_code=404)
-    return Response(content=ph.image, media_type="image/jpeg",
-                    headers={"Cache-Control": "private, max-age=86400"})
 
 
 # ---------------- ออกเอกสาร ----------------

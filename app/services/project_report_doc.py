@@ -12,12 +12,10 @@ project_report_doc.py - รายงานผลการดำเนินง�
 
 หัวข้อไหนไม่ได้กรอก จะไม่ขึ้นในเอกสาร และเลขข้อไล่ใหม่ให้เอง
 """
-import io
 import os
 import tempfile
 
 from docx import Document
-from docx.enum.table import WD_ROW_HEIGHT_RULE
 from docx.shared import Cm, Pt
 
 from app.services.build_templates import (
@@ -33,7 +31,21 @@ from docx.oxml import OxmlElement
 
 from app.thai_utils import bahttext, thai_date
 
-_DOT = "." * 110
+def _dotline(doc, *, after=2, size=16):
+    """บรรทัดจุดไข่ปลายาว "เต็มบรรทัดพอดี" - ใช้ tab stop ชิดขวาแบบ dot leader
+    ไม่ใช่การพิมพ์จุดตายตัว (จำนวนจุดตายตัวจะสั้น/ยาวเกินเมื่อฟอนต์หรือขอบกระดาษต่างไป)"""
+    from docx.enum.text import WD_TAB_ALIGNMENT, WD_TAB_LEADER
+    par = doc.add_paragraph()
+    pf = par.paragraph_format
+    pf.space_after = Pt(after)
+    pf.space_before = Pt(0)
+    sec = doc.sections[-1]
+    width = sec.page_width - sec.left_margin - sec.right_margin
+    pf.tab_stops.add_tab_stop(width, WD_TAB_ALIGNMENT.RIGHT, WD_TAB_LEADER.DOTS)
+    r = par.add_run("	")
+    r.font.name = THAI_FONT
+    _csize(r, size)
+    return par
 
 # ขนาดฟอนต์หน้าปก (ผู้ใช้ขอ 20-22 pt)
 _COVER_BIG, _COVER_SUB = 22, 20
@@ -62,7 +74,11 @@ def _pageref(paragraph, name: str, size=16):
             e = OxmlElement(tag); e.set(qn("w:val"), str(int(size * 2))); rpr.append(e)
         r.append(rpr)
         return r
-    begin = _r(); fc = OxmlElement("w:fldChar"); fc.set(qn("w:fldCharType"), "begin"); begin.append(fc)
+    begin = _r(); fc = OxmlElement("w:fldChar"); fc.set(qn("w:fldCharType"), "begin")
+    # dirty=true บังคับให้ Word คำนวณฟิลด์นี้ใหม่ทันทีที่เปิดไฟล์
+    # (บางเครื่องปิดการอัปเดตฟิลด์อัตโนมัติไว้ ตั้ง updateFields อย่างเดียวจึงไม่พอ)
+    fc.set(qn("w:dirty"), "true")
+    begin.append(fc)
     instr = _r(); it = OxmlElement("w:instrText"); it.set(qn("xml:space"), "preserve")
     it.text = " PAGEREF " + name + " " + chr(92) + "h "
     instr.append(it)
@@ -212,7 +228,7 @@ def _memo(doc, rep, school):
 
     head = _txt(getattr(school, "academic_head_name", ""))
     _p(doc, "เสนอ  หัวหน้าฝ่ายบริหารงานวิชาการ", bold=True, before=6, after=4)
-    _p(doc, _DOT, after=2); _p(doc, _DOT, after=8)
+    _dotline(doc); _dotline(doc, after=8)
     _sign_table(doc, [[
         ("ลงชื่อ ...............................................", "center"),
         (f"( {head or '............................................'} )", "center"),
@@ -220,7 +236,7 @@ def _memo(doc, rep, school):
     ]], after=6)
 
     _p(doc, f"เสนอ  {_director(school)}", bold=True, before=6, after=4)
-    _p(doc, _DOT, after=2); _p(doc, _DOT, after=8)
+    _dotline(doc); _dotline(doc, after=8)
     _sign_table(doc, [[
         ("ลงชื่อ ...............................................", "center"),
         (f"( {_txt(school.director_name) or '............................................'} )", "center"),
@@ -242,12 +258,18 @@ def _logo_path(school):
 
 
 def _cover(doc, rep, school, year_label):
+    """หน้าปกรายงาน - จัดเป็น 3 กลุ่มตามแบบปกรายงานราชการ
+    บน = ตราโรงเรียน + ชื่อรายงาน · กลาง = ผู้รับผิดชอบ · ล่าง = ชื่อโรงเรียน/เขตพื้นที่
+
+    ใช้ระยะห่างก่อนย่อหน้า (space_before) กำหนดตำแหน่งแทนการใส่บรรทัดว่างนับเอา
+    เพราะจำนวนบรรทัดว่างที่พอดีจะเปลี่ยนไปเมื่อชื่อโครงการยาว/สั้นไม่เท่ากัน
+    """
     prj = rep.project
     logo = _logo_path(school)
     if logo:
         try:
             p = doc.add_paragraph(); p.alignment = 1
-            p.paragraph_format.space_after = Pt(6)
+            p.paragraph_format.space_after = Pt(10)
             p.add_run().add_picture(logo, height=Cm(3.0))
         except Exception:
             pass
@@ -258,26 +280,33 @@ def _cover(doc, rep, school, year_label):
                 pass
     else:
         _p(doc, "", size=28, after=0)
-    _p(doc, "รายงานผลการดำเนินงาน", align="center", bold=True, size=_COVER_BIG, before=12, after=6)
-    _p(doc, _act_name(rep), align="center", bold=True, size=_COVER_BIG, after=4)
+
+    # ---- กลุ่มบน: ชื่อรายงาน ----
+    _p(doc, "รายงานผลการดำเนินงาน", align="center", bold=True, size=_COVER_BIG, before=6, after=8)
+    _p(doc, _act_name(rep), align="center", bold=True, size=_COVER_BIG, after=6)
     if _txt(rep.title) and _txt(rep.title) != _txt(prj.name):
-        _p(doc, f"ภายใต้{prj.name}", align="center", size=_COVER_SUB, after=4)
+        _p(doc, f"ภายใต้{prj.name}", align="center", size=_COVER_SUB, after=6)
     if prj.plan_year:
-        _p(doc, f"{year_label} {prj.plan_year}", align="center", size=_COVER_SUB, after=4)
-    for _ in range(3):
-        _p(doc, "", size=_COVER_SUB, after=0)
+        _p(doc, f"{year_label} {prj.plan_year}", align="center", size=_COVER_SUB, after=0)
+
+    # ---- กลุ่มกลาง: ผู้รับผิดชอบ (ดันลงมาราวกึ่งกลางหน้า) ----
     if _txt(rep.responsible):
-        _p(doc, "ผู้รับผิดชอบ", align="center", size=_COVER_SUB, after=4)
-        _p(doc, rep.responsible, align="center", bold=True, size=_COVER_SUB, after=2)
+        _p(doc, "ผู้รับผิดชอบ", align="center", size=_COVER_SUB, before=120, after=6)
+        _p(doc, rep.responsible, align="center", bold=True, size=_COVER_SUB, after=4)
         if _txt(rep.responsible_pos):
-            _p(doc, rep.responsible_pos, align="center", size=_COVER_SUB, after=4)
-    # ดันชื่อโรงเรียนไปอยู่ช่วงล่างของหน้า (แบบหน้าปกรายงานราชการ)
-    for _ in range(6):
-        _p(doc, "", size=_COVER_SUB, after=0)
+            _p(doc, rep.responsible_pos, align="center", size=_COVER_SUB, after=0)
+        bottom_gap = 130
+    else:
+        bottom_gap = 250
+
+    # ---- กลุ่มล่าง: ชื่อโรงเรียน / เขตพื้นที่ ----
     if _txt(school.name):
-        _p(doc, _school_disp(school), align="center", bold=True, size=_COVER_SUB, after=4)
-    if _txt(getattr(school, "area_office", "")):
-        _p(doc, school.area_office, align="center", size=_COVER_SUB, after=2)
+        _p(doc, _school_disp(school), align="center", bold=True, size=_COVER_SUB,
+           before=bottom_gap, after=6)
+        if _txt(getattr(school, "area_office", "")):
+            _p(doc, school.area_office, align="center", size=_COVER_SUB, after=0)
+    elif _txt(getattr(school, "area_office", "")):
+        _p(doc, school.area_office, align="center", size=_COVER_SUB, before=bottom_gap, after=0)
 
 
 def _auto_preface(rep) -> str:
@@ -374,7 +403,7 @@ def render_project_report(rep, school, doc=None) -> str:
         (expected, "ผลที่คาดว่าจะได้รับ"),
         (survey_rows or obj_rows, "สรุปผลการประเมิน"),
         (_txt(rep.suggestions), "ข้อเสนอแนะ"),
-        ([ph for ph in (rep.photos or []) if ph.image], "ภาคผนวก (ภาพกิจกรรม)"),
+        (True, "ภาคผนวก (ภาพกิจกรรม)"),
     ] if cond]
     # ชื่อ bookmark ต้องคงที่ตลอดไฟล์ (สารบัญกับหัวข้อจริงใช้ชุดเดียวกัน)
     plan = [(f"_rpt{i}", t) for i, t in enumerate(plan_raw, 1)]
@@ -527,18 +556,16 @@ def render_project_report(rep, school, doc=None) -> str:
     ], after=2)
 
     # ---------------- ภาคผนวก ----------------
-    photos = [ph for ph in (rep.photos or []) if ph.image]
-    if photos:
-        # หน้าคั่น "ภาคผนวก" = section ใหม่ที่จัดกลางหน้าในแนวตั้ง (vAlign=center)
-        sec = doc.add_section(WD_SECTION.NEW_PAGE)
-        _vcenter(sec)
-        par = _p(doc, "ภาคผนวก", align="center", bold=True, size=40, after=8)
-        mark(par, "ภาคผนวก (ภาพกิจกรรม)")
-        _p(doc, "ภาพกิจกรรม", align="center", size=24, after=0)
-        # หน้าถัดไปกลับมาชิดบนตามปกติ
-        _vcenter(doc.add_section(WD_SECTION.NEW_PAGE), on=False)
-        _p(doc, f"ภาพกิจกรรม{_act_name(rep)}", align="center", bold=True, size=18, after=10)
-        _photo_grid(doc, photos)
+    # ระบบไม่ฝังรูปให้แล้ว - รูปที่ครูถ่ายมามีสัดส่วนไม่เท่ากัน จัดหน้าอัตโนมัติแล้วไม่สวย
+    # ออกเป็นหน้าคั่น + หน้าว่างให้ครูวางรูปเองใน Word จะได้จัดได้ตามต้องการ
+    sec = doc.add_section(WD_SECTION.NEW_PAGE)
+    _vcenter(sec)
+    mark(_p(doc, "ภาคผนวก", align="center", bold=True, size=40, after=8),
+     "ภาคผนวก (ภาพกิจกรรม)")
+    _p(doc, "ภาพกิจกรรม", align="center", size=24, after=0)
+    _vcenter(doc.add_section(WD_SECTION.NEW_PAGE), on=False)
+    _p(doc, f"ภาพกิจกรรม{_act_name(rep)}", align="center", bold=True, size=18, after=10)
+    _p(doc, "(วางรูปกิจกรรมในหน้านี้)", align="center", size=14, after=0)
 
     _update_fields_on_open(doc)
 
@@ -559,35 +586,3 @@ def _cell_money(v) -> str:
 def _cell_int(v) -> str:
     n = _num(v)
     return str(int(n)) if n else "-"
-
-
-def _photo_grid(doc, photos):
-    """ตารางภาพ 2 คอลัมน์ · แต่ละภาพมีคำบรรยายใต้ภาพ (ภาพเสียข้ามไป ไม่ทำเอกสารพัง)"""
-    t = doc.add_table(rows=0, cols=2)
-    _no_borders(t)
-    for i in range(0, len(photos), 2):
-        pair = photos[i:i + 2]
-        row = t.add_row()
-        row.height = Cm(6.4)
-        row.height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
-        for j, cell in enumerate(row.cells):
-            cell.width = Cm(8.0)
-            cell.text = ""
-            if j >= len(pair):
-                continue
-            ph = pair[j]
-            p = cell.paragraphs[0]
-            p.alignment = 1
-            p.paragraph_format.space_after = Pt(2)
-            try:
-                p.add_run().add_picture(io.BytesIO(ph.image), width=Cm(7.4))
-            except Exception:
-                continue
-            cap = _txt(ph.caption)
-            if cap:
-                cp = cell.add_paragraph()
-                cp.alignment = 1
-                cp.paragraph_format.space_after = Pt(10)
-                r = cp.add_run(cap)
-                _csize(r, 14)
-                r.font.name = THAI_FONT

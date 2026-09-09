@@ -234,6 +234,27 @@ _STUDENT_DROPPED = [
 ]
 
 
+def _purge_report_photos(engine) -> None:
+    """ลบรูปภาพกิจกรรมในรายงานโครงการที่เคยอัปโหลดไว้ (เลิกใช้ฟีเจอร์นี้แล้ว)
+    ครูวางรูปเองในไฟล์ Word แทน · รูปกิจกรรมมักมีหน้านักเรียน ไม่ควรเก็บค้างโดยไม่มีที่ใช้"""
+    conn = engine.raw_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' "
+                    "AND name='project_report_photo'")
+        if not cur.fetchone():
+            return
+        cur.execute("DELETE FROM project_report_photo")
+        conn.commit()
+    except Exception:
+        pass
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
 def _purge_student_sensitive(engine) -> None:
     """ล้างข้อมูลอ่อนไหวของนักเรียนที่ระบบเลิกเก็บแล้ว · idempotent (แถวที่ว่างอยู่แล้วไม่ถูกแตะ)"""
     conn = engine.raw_connection()
@@ -265,6 +286,7 @@ def init_school_db(engine) -> None:
     Base.metadata.create_all(bind=engine)
     run_migrations(engine)
     _purge_student_sensitive(engine)
+    _purge_report_photos(engine)
     _migrate_lunch_measures(engine)
     _backfill_memo_subjects(engine)
 

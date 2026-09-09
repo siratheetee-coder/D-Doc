@@ -56,25 +56,9 @@
   <div class="hero-meta" style="color:var(--muted); margin-top:4px;">
     โครงการ {{ p.name }}{% if p.plan_year %} · {{ year_label }} {{ p.plan_year }}{% endif %}</div>
   {% if saved %}<div class="alert">✔ บันทึกเรียบร้อยแล้ว</div>{% endif %}
-  {% if request.query_params.get('added') and request.query_params.get('added') != '0' %}
-    <div class="alert">✔ เพิ่มภาพแล้ว {{ request.query_params.get('added') }} ภาพ</div>{% endif %}
-  {% if err == 'full' %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
-    ใส่ภาพได้สูงสุด {{ max_photos }} ภาพต่อรายงาน · ลบภาพเดิมออกก่อนถ้าต้องการเพิ่ม</div>{% endif %}
-  {% if err == 'notimg' %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
-    มีบางไฟล์ที่ไม่ใช่รูปภาพ ระบบข้ามให้แล้ว (รองรับ JPG · PNG · HEIC จากมือถือ)</div>{% endif %}
   <p class="rp-hint" style="margin-top:8px;">กรอกเท่าที่มี — <b>หัวข้อที่เว้นว่างจะไม่ขึ้นในเอกสาร</b>
     และเลขข้อจะไล่ใหม่ให้เอง ไม่ต้องมานั่งลบทีหลัง</p>
 </div>
-
-{# ---------- ฟอร์มอัปโหลด/ลบ/เลื่อนภาพ วางไว้ต้นไฟล์ ปุ่มในการ์ดอ้างด้วย form="..." ---------- #}
-<form id="upPhotos" method="post" action="/project-reports/{{ rep.id }}/photos" enctype="multipart/form-data" hidden></form>
-{% for ph in rep.photos %}
-<form id="phDel{{ ph.id }}" method="post" action="/project-reports/{{ rep.id }}/photos/{{ ph.id }}/delete" hidden></form>
-<form id="phUp{{ ph.id }}" method="post" action="/project-reports/{{ rep.id }}/photos/{{ ph.id }}/move" hidden>
-  <input type="hidden" name="dir" value="up"></form>
-<form id="phDn{{ ph.id }}" method="post" action="/project-reports/{{ rep.id }}/photos/{{ ph.id }}/move" hidden>
-  <input type="hidden" name="dir" value="down"></form>
-{% endfor %}
 
 <form id="mainForm" method="post" action="/project-reports/{{ rep.id }}/save">
 
@@ -272,36 +256,12 @@
   <textarea name="suggestions" rows="4" placeholder="แนวทางพัฒนาครั้งต่อไป">{{ rep.suggestions or '' }}</textarea>
 </div>
 
-{# ---------------- ภาพกิจกรรม: ช่องอัปโหลดอยู่ติดกับหัวข้อเลย ---------------- #}
-<div class="card" id="sec-photos">
-  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-upload"/></svg> ภาพกิจกรรม
-    <span class="muted" style="font-weight:400; font-size:14px;">({{ rep.photos|length }}/{{ max_photos }})</span></h2>
-  <div class="up-box">
-    <input type="file" name="files" accept="image/*" multiple form="upPhotos" required>
-    <button class="btn sm" type="button" onclick="saveThen('upPhotos')"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดภาพ</button>
-  </div>
-  <p class="rp-hint">เลือกหลายไฟล์พร้อมกันได้ · ระบบย่อรูปให้อัตโนมัติ ไฟล์ใหญ่จากมือถืออัปได้เลย ·
-    ภาพจะอยู่ในภาคผนวกท้ายเล่ม เรียง 2 ภาพต่อแถว</p>
-  {% if rep.photos %}
-  <div class="ph-grid">
-    {% for ph in rep.photos %}
-    <div class="ph">
-      <img src="/project-reports/{{ rep.id }}/photo/{{ ph.id }}" alt="ภาพที่ {{ loop.index }}" loading="lazy">
-      <div class="ph-b">
-        <span class="ph-num">ภาพที่ {{ loop.index }}</span>
-        <input type="text" name="cap_{{ ph.id }}" value="{{ ph.caption or '' }}" placeholder="คำบรรยายใต้ภาพ">
-        <div class="ph-act">
-          <button type="button" onclick="saveThen('phUp{{ ph.id }}')" title="เลื่อนขึ้น" {{ 'disabled' if loop.first }}>▲</button>
-          <button type="button" onclick="saveThen('phDn{{ ph.id }}')" title="เลื่อนลง" {{ 'disabled' if loop.last }}>▼</button>
-          <button type="button" class="del" title="ลบภาพนี้"
-                  onclick="if(confirm('ลบภาพนี้?')) saveThen('phDel{{ ph.id }}')">✕</button>
-        </div>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-  <p class="rp-hint" style="margin-top:10px;">คำบรรยายใต้ภาพจะบันทึกพร้อมปุ่ม "บันทึกรายงาน" ด้านล่าง</p>
-  {% endif %}
+<div class="card">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-file"/></svg> ภาพกิจกรรม</h2>
+  <p class="rp-hint" style="margin-top:0;">
+    ระบบ<b>ไม่แนบรูปให้</b> เพราะรูปที่ถ่ายมามีขนาดและสัดส่วนต่างกัน จัดหน้าอัตโนมัติแล้วไม่สวย ·
+    เอกสารที่ดาวน์โหลดจะมี<b>หน้า "ภาคผนวก · ภาพกิจกรรม" เว้นว่างไว้ให้</b>
+    ท่านวางรูปเองใน Word ได้ตามต้องการ</p>
 </div>
 
 {# ---------------- แถบบันทึก + ดาวน์โหลด (ล่างสุด) ---------------- #}
@@ -427,24 +387,8 @@
     renumber(set);
   }
 
-  // ---- ปุ่มที่ต้องโหลดหน้าใหม่ (อัปโหลด/เลื่อน/ลบภาพ) ให้บันทึกฟอร์มหลักก่อน ----
-  // ไม่งั้นทุกอย่างที่พิมพ์ค้างไว้แต่ยังไม่กดบันทึกจะหายหมด
-  var leaving = false;
-  function saveThen(formId){
-    var f = document.getElementById(formId);
-    var main = document.getElementById('mainForm');
-    if(!f || !main){ return; }
-    // f.submit() ข้ามการตรวจ required ของเบราว์เซอร์ จึงต้องตรวจเองก่อน
-    // (ไม่งั้นกด "อัปโหลดภาพ" โดยยังไม่เลือกไฟล์ จะส่งไฟล์ว่างไปแล้วขึ้นว่าไม่ใช่รูป)
-    if(f.reportValidity && !f.reportValidity()){ return; }
-    fetch(main.action, { method: 'POST', body: new FormData(main), credentials: 'same-origin' })
-      .then(function(){ leaving = true; f.submit(); })
-      .catch(function(){
-        alert('บันทึกอัตโนมัติไม่สำเร็จ (เน็ตอาจหลุด) — กรุณากด "บันทึกรายงาน" เองก่อน');
-      });
-  }
-
   // กันปิดหน้า/กดลิงก์ทิ้งโดยยังไม่บันทึก
+  var leaving = false;
   var dirty = false;
   document.getElementById('mainForm').addEventListener('input', function(){ dirty = true; });
   document.getElementById('mainForm').addEventListener('submit', function(){ leaving = true; });
