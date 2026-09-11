@@ -147,6 +147,7 @@ def console(request: Request, msg: str | None = None):
             "msg": msg, "admin_name": request.session.get("name", "ผู้ดูแลระบบ"),
             "lead_counts": lead_counts(),
             "disk": _disk_status(),
+            "online": _online_now(),
         })
     finally:
         db.close()
@@ -475,6 +476,23 @@ def tenant_2fa_reset(tid: int, request: Request):
     return RedirectResponse(
         f"/admin-console?msg={quote(f'ปลดล็อกยืนยัน 2 ชั้นของ {name} แล้ว {n} บัญชี')}",
         status_code=303)
+
+
+def _online_now():
+    """ผู้ใช้ที่กำลังใช้งาน - ดูก่อนรีสตาร์ทเซิร์ฟเวอร์ว่าจะกระทบใคร"""
+    try:
+        from app.accounts import online_accounts
+        from app.modules import MODULE_LABELS, module_for_path
+        now5 = online_accounts(5)
+        for u in now5:
+            p = u["path"] or ""
+            mod = module_for_path(p) if p else None
+            u["where"] = (MODULE_LABELS.get(mod) if mod else
+                          "คอนโซล/ตั้งค่า" if p.startswith(("/settings", "/users", "/account"))
+                          else "หน้าหลัก" if p in ("", "/") else p.split("/")[1] or "หน้าหลัก")
+        return {"now": now5, "n30": len(online_accounts(30))}
+    except Exception:
+        return {"now": [], "n30": 0}
 
 
 def _retention_status(t):

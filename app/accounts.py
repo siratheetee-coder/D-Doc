@@ -77,6 +77,8 @@ class Account(AccBase):
     must_change_password = Column(Boolean, default=False)   # บังคับเปลี่ยนรหัสครั้งแรก
     verified = Column(Boolean, default=True)        # ยืนยันอีเมลแล้วหรือยัง (สมัครใหม่ = False ถ้าเปิด SMTP)
     avatar = Column(LargeBinary, nullable=True)     # รูปโปรไฟล์ (JPEG ย่อ 256px) - ว่าง = ใช้อักษรย่อแทน
+    last_seen_at = Column(DateTime, nullable=True)  # ใช้งานล่าสุด (ดูว่าใครออนไลน์ก่อนรีสตาร์ท)
+    last_path = Column(String, default="")          # หน้าล่าสุดที่เปิด (บอกว่ากำลังทำงานอะไร)
     # ---- ยืนยันตัวตน 2 ชั้น (TOTP) · สมัครใจ ไม่บังคับ ----
     totp_secret = Column(String, default="")        # คีย์ลับ (มีตั้งแต่ตอนเริ่มตั้งค่า แต่ยังไม่เปิดใช้)
     totp_enabled = Column(Boolean, default=False)   # เปิดใช้จริงแล้ว (ยืนยันรหัสจากแอปสำเร็จ)
@@ -203,6 +205,8 @@ def _ensure_engine():
                     "ALTER TABLE account ADD COLUMN is_director BOOLEAN DEFAULT 0",   # ผอ./รองผอ. อนุมัติเอกสาร
                     "ALTER TABLE tenant ADD COLUMN teacher_code VARCHAR",  # รหัสต่อท้ายไอดีครู (owner ตั้ง)
                     "ALTER TABLE account ADD COLUMN avatar BLOB",          # รูปโปรไฟล์
+                    "ALTER TABLE account ADD COLUMN last_seen_at DATETIME",
+                    "ALTER TABLE account ADD COLUMN last_path VARCHAR DEFAULT ''",
                     "ALTER TABLE account ADD COLUMN totp_secret VARCHAR DEFAULT ''",
                     "ALTER TABLE account ADD COLUMN totp_enabled BOOLEAN DEFAULT 0",
                     "ALTER TABLE account ADD COLUMN totp_last_step INTEGER DEFAULT 0",
@@ -428,6 +432,52 @@ def purge_tenant(tenant_id) -> dict:
     except Exception:
         pass
     return {"name": name, "users": n}
+
+
+# ---------------- ใครกำลังใช้งานอยู่ (ดูในคอนโซลก่อนรีสตาร์ทเซิร์ฟเวอร์) ----------------
+_SEEN_EVERY = 60        # เขียน DB ไม่เกินนาทีละครั้งต่อคน (ไม่งั้นทุกคลิกจะเขียน accounts.db)
+_seen_cache: dict = {}  # uid -> เวลาที่เขียนล่าสุด (ต่อโปรเซส)
+
+
+def touch_last_seen(uid, path: str = "") -> None:
+    """บันทึกว่าบัญชีนี้เพิ่งใช้งาน · เรียกจากมิดเดิลแวร์ทุก request แต่เขียนจริงนาทีละครั้ง"""
+    import time as _t
+    if not uid:
+        return
+    now = _t.time()
+    if now - _seen_cache.get(uid, 0) < _SEEN_EVERY:
+        return
+    _seen_cache[uid] = now
+    db = acc_session()
+    try:
+        a = db.get(Account, uid)
+        if a:
+            a.last_seen_at = datetime.now()
+            a.last_path = (path or "")[:120]
+            db.commit()
+    except Exception:
+        pass
+    finally:
+        db.close()
+
+
+def online_accounts(minutes: int = 5) -> list:
+    """บัญชีโรงเรียนที่ใช้งานภายใน N นาทีล่าสุด (ไม่รวมผู้ดูแลระบบ) - ใหม่สุดก่อน"""
+    from datetime import timedelta
+    db = acc_session()
+    try:
+        cut = datetime.now() - timedelta(minutes=minutes)
+        rows = (db.query(Account, Tenant)
+                .outerjoin(Tenant, Account.tenant_id == Tenant.id)
+                .filter(Account.last_seen_at >= cut, Account.role != "superadmin")
+                .order_by(Account.last_seen_at.desc()).all())
+        now = datetime.now()
+        return [{"username": a.username, "name": a.display_name or a.username,
+                 "school": t.name if t else "-",
+                 "ago": max(0, int((now - a.last_seen_at).total_seconds() // 60)),
+                 "path": a.last_path or ""} for a, t in rows]
+    finally:
+        db.close()
 
 
 def account_for_login(uid) -> dict | None:

@@ -164,6 +164,12 @@ async def tenant_auth(request: Request, call_next):
     if not acc or not acc["active"]:
         request.session.clear()
         return RedirectResponse("/login", status_code=303)
+    # ใครกำลังใช้งานอยู่ -> โชว์ในคอนโซล (เขียน DB นาทีละครั้งต่อคน ไม่ใช่ทุกคลิก)
+    try:
+        from app.accounts import touch_last_seen
+        touch_last_seen(sess.get("uid"), path)
+    except Exception:
+        pass
     # sync ลง session ให้เทมเพลต (sidebar/hub) แสดงตรงกับสิทธิ์จริงโดยไม่ต้อง re-login
     if sess.get("owner") != acc["is_owner"]:
         sess["owner"] = acc["is_owner"]

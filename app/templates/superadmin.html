@@ -103,6 +103,37 @@
     </div>
     {% endif %}
 
+    {# ---------- ใครกำลังใช้งานอยู่ (ดูก่อนรีสตาร์ท) ---------- #}
+    <div class="card" style="border-left:5px solid {{ '#f59e0b' if online.now else '#10b981' }};">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <b style="font-size:16px;">
+          {% if online.now %}🟠 กำลังมีคนใช้งาน <span style="font-size:20px;">{{ online.now|length }}</span> คน
+          {% else %}🟢 ตอนนี้ไม่มีใครใช้งาน — รีสตาร์ทได้เลย{% endif %}</b>
+        <span class="muted2">ใช้งานใน 5 นาทีล่าสุด · ใน 30 นาทีล่าสุด {{ online.n30 }} คน</span>
+        <a href="/admin-console" class="muted2" style="margin-left:auto;">↻ รีเฟรช</a>
+      </div>
+      {% if online.now %}
+      <div class="table-wrap" style="margin-top:10px;">
+      <table>
+        <thead><tr><th>โรงเรียน</th><th>ผู้ใช้</th><th>กำลังทำ</th><th style="text-align:right;">ล่าสุด</th></tr></thead>
+        <tbody>
+        {% for u in online.now %}
+          <tr>
+            <td>{{ u.school }}</td>
+            <td>{{ u.name }}<div class="muted2" style="font-size:12px;">{{ u.username }}</div></td>
+            <td>{{ u.where }}</td>
+            <td style="text-align:right; white-space:nowrap;">{{ 'เมื่อกี้' if u.ago == 0 else u.ago ~ ' นาทีที่แล้ว' }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      <p class="muted2" style="margin:8px 0 0; font-size:12.5px; line-height:1.6;">
+        รีสตาร์ทใช้เวลาไม่กี่วินาที ผู้ใช้<b>ไม่หลุดจากระบบ</b> (ยังล็อกอินอยู่) ·
+        ที่อาจกระทบคือคนที่<b>กำลังกดบันทึก/อัปโหลดพอดีในวินาทีนั้น</b> — ถ้าไม่ด่วน รอให้ป้ายเป็นสีเขียวก่อน</p>
+      {% endif %}
+    </div>
+
     <div class="card">
       <h1>ภาพรวมระบบ</h1>
       <a href="/admin-console/notifications">ตั้งค่าอีเมลแจ้งเตือน</a> ·
