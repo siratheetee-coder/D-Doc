@@ -748,7 +748,7 @@ def build_result_report():
        "และการบริหารพัสดุภาครัฐ พ.ศ. 2560 ข้อ 24 รายละเอียดดังแนบ",
        align="justify", indent=1.25)
     _p(doc,
-       "ในการนี้เจ้าหน้าที่ได้เจรจาตกลงราคากับ {{ vendor_by }} ซึ่งมีอาชีพ{{ vendor_occupation }}แล้ว "
+       "ในการนี้{{ negotiator }}ได้เจรจาตกลงราคากับ {{ vendor_by }} ซึ่งมีอาชีพ{{ vendor_occupation }}แล้ว "
        "ปรากฏว่าเสนอราคาเป็นเงิน {{ total_amount }} บาท ({{ total_baht }}) ดังนั้นเพื่อให้เป็นไปตาม"
        "ระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 ข้อ 79 "
        "จึงเห็นควร{{ proc_type }}จากผู้เสนอราคาดังกล่าว",
@@ -764,6 +764,37 @@ def build_result_report():
 
     TEMPLATES_DIR.mkdir(exist_ok=True)
     out = TEMPLATES_DIR / "รายงานผลพิจารณา.docx"
+    doc.save(str(out))
+    return out
+
+
+def build_purchase_command():
+    """แม่แบบ: คำสั่งแต่งตั้งคณะกรรมการซื้อหรือจ้าง (ครุฑกึ่งกลาง) - ใช้เมื่อกรอกรายชื่อ กก.ไว้เท่านั้น"""
+    doc = Document(); set_a4(doc)
+    _font(doc)
+    _krut_center(doc)
+    _p(doc, "คำสั่ง{{ school_name }}", align="center", bold=True, size=18, after=0)
+    _p(doc, "ที่ {{ purchase_cmd_no }}", align="center", bold=True, after=0)
+    _p(doc, "เรื่อง แต่งตั้งคณะกรรมการ{{ proc_type }}{{ subject }} โดยวิธี{{ method }}",
+       align="center", bold=True, after=0)
+    _p(doc, "─────────────────────", align="center", after=6)
+    _p(doc,
+       "ด้วย{{ school_name }} มีความประสงค์จะ{{ proc_type }}{{ subject }} โดยวิธี{{ method }} "
+       "วงเงิน {{ total_amount }} บาท ({{ total_baht }}) และเพื่อให้เป็นไปตามระเบียบกระทรวงการคลัง"
+       "ว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560", align="justify", indent=1.25)
+    _p(doc, "จึงขอแต่งตั้งรายชื่อต่อไปนี้ เป็นคณะกรรมการ{{ proc_type }} โดยวิธี{{ method }} ดังนี้",
+       indent=1.25)
+    _member_table(doc, "purchase_members")
+    _p(doc, "อำนาจและหน้าที่", bold=True, indent=1.25)
+    _p(doc, "เจรจาตกลงราคากับผู้ประกอบการ พิจารณาคัดเลือกข้อเสนอ และรายงานผลการพิจารณา"
+            "ต่อหัวหน้าหน่วยงานของรัฐ ตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้าง"
+            "และการบริหารพัสดุภาครัฐ พ.ศ. 2560 ข้อ 79", align="justify", indent=1.25)
+    _p(doc, "ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป", bold=True, indent=2.5, after=6)
+    _p(doc, "สั่ง ณ วันที่ {{ purchase_cmd_date_official }}", align="center", after=24)
+    _p(doc, "( {{ director_name }} )", align="center")
+    _p(doc, "{{ director_office }}", align="center")
+    TEMPLATES_DIR.mkdir(exist_ok=True)
+    out = TEMPLATES_DIR / "คำสั่งแต่งตั้งกรรมการซื้อจ้าง.docx"
     doc.save(str(out))
     return out
 
@@ -852,7 +883,7 @@ def build_winner_announcement():
        "({{ total_baht }})", align="justify", indent=1.25)
     _p(doc, "รวมภาษีมูลค่าเพิ่มและภาษีอื่น ค่าขนส่ง ค่าจดทะเบียน และค่าใช้จ่ายอื่น ๆ ทั้งปวง",
        align="justify", indent=1.25, after=8)
-    _p(doc, "ประกาศ ณ วันที่ {{ order_date_thai }}", align="center", after=12)
+    _p(doc, "ประกาศ ณ วันที่ {{ winner_date_thai }}", align="center", after=12)
     _p(doc, "(ลงชื่อ).........................................", align="center")
     _p(doc, "( {{ director_name }} )", align="center")
     _p(doc, "{{ director_office }}", align="center")
@@ -1041,6 +1072,7 @@ def build_all():
     built = [build_purchase_request(), build_inspection(), build_purchase_order(),
              build_result_report(), build_inspect_command(),
              build_quotation(), build_winner_announcement(), build_spec_committee(),
+             build_purchase_command(),
              build_tor(), build_delivery_note(), build_disbursement()]
     return built
 

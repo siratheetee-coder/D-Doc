@@ -35,6 +35,9 @@ Base = declarative_base()
 
 # รายการเพิ่มคอลัมน์ใหม่บน DB เก่า (ปลอดภัย: ข้ามถ้ามีอยู่แล้ว)
 MIGRATIONS = [
+    ("procurement", "winner_date", "DATETIME"),
+    ("procurement", "purchase_cmd_no", "VARCHAR DEFAULT ''"),
+    ("procurement", "purchase_cmd_date", "DATETIME"),
     ("school", "director_email", "VARCHAR DEFAULT ''"),
     ("project_report", "memo_body", "TEXT DEFAULT ''"),
     ("project_report", "preface", "TEXT DEFAULT ''"),

@@ -35,7 +35,7 @@ from app.services.asset_utils import (
 )
 from app.services.doc_number import suggest_doc_no, commit_doc_no, check_doc_no, COUNTER_TYPES, parse_seq
 from app.services.budget import current_plan_year, plan_year_label, project_budget, project_spent
-from app.services.render import render_document, render_bundle, AVAILABLE_KINDS
+from app.services.render import render_document, render_bundle, AVAILABLE_KINDS, kinds_for
 from app.services.register_export import export_register
 from app.services.thai_holidays import holiday_map, year_range_for
 from app.services.bulk_io import build_import_template, import_workbook
@@ -1890,6 +1890,9 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
     spec = _build_committee(form, "spec", "committee", "spec_")
     if spec.members:
         proc.committees.append(spec)
+    purchase = _build_committee(form, "purchase", "committee", "purchase_")
+    if purchase.members:
+        proc.committees.append(purchase)
 
 
 @router.post("/procurement/ocr-items")
@@ -2122,6 +2125,7 @@ def procurement_edit_form(proc_id: int, request: Request, db: Session = Depends(
     school = get_school(db)
     inspect = next((c for c in proc.committees if c.kind == "inspect"), None)
     spec = next((c for c in proc.committees if c.kind == "spec"), None)
+    purchase = next((c for c in proc.committees if c.kind == "purchase"), None)
     import json
     try:
         extra_vals = json.loads(proc.case_extra) if proc.case_extra else {}
@@ -2132,6 +2136,7 @@ def procurement_edit_form(proc_id: int, request: Request, db: Session = Depends(
         "prefill_items": list(proc.items),
         "prefill_members": list(inspect.members) if inspect else [],
         "prefill_spec_members": list(spec.members) if spec else [],
+        "prefill_purchase_members": list(purchase.members) if purchase else [],
         "fiscal_year": proc.fiscal_year, "today_thai": thai_date(),
         "threshold": school.doc_set_threshold or 5000, "positions": POSITION_CHOICES,
         "case_extra_fields": CASE_EXTRA_FIELDS.get(proc.proc_case or "normal", []),
@@ -2186,7 +2191,7 @@ def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get
         }
     return templates.TemplateResponse("procurement_detail.html", {
         "request": request, "p": proc, "school": get_school(db),
-        "doc_kinds": AVAILABLE_KINDS, "inspect": inspect, "documents": docs,
+        "doc_kinds": kinds_for(proc), "inspect": inspect, "documents": docs,
         "statuses": ["ร่าง", "อนุมัติ", "ตรวจรับแล้ว", "เบิกจ่ายแล้ว"],
         # เลขที่ที่ระบบเสนอ (ไว้เติมช่องว่างในฟอร์มแก้ไข)
         "sug_order": suggest_doc_no(db, order_type, fy),
@@ -2241,6 +2246,8 @@ async def procurement_update_refs(proc_id: int, request: Request, db: Session = 
     proc.inspect_memo_no = (form.get("inspect_memo_no") or "").strip()
     proc.command_no = (form.get("command_no") or "").strip()
     proc.order_no = (form.get("order_no") or "").strip()
+    if "purchase_cmd_no" in form:            # ช่องนี้โชว์เฉพาะเรื่องที่มี กก.ซื้อ/จ้าง
+        proc.purchase_cmd_no = (form.get("purchase_cmd_no") or "").strip()
 
     # วันที่หลักของแต่ละเอกสาร
     rd = _parse_date(form.get("request_date"))
@@ -2250,6 +2257,9 @@ async def procurement_update_refs(proc_id: int, request: Request, db: Session = 
     proc.command_date     = _parse_date(form.get("command_date"))
     proc.result_memo_date = _parse_date(form.get("result_memo_date"))
     proc.quotation_date   = _parse_date(form.get("quotation_date"))
+    proc.winner_date      = _parse_date(form.get("winner_date"))
+    if "purchase_cmd_date" in form:
+        proc.purchase_cmd_date = _parse_date(form.get("purchase_cmd_date"))
     proc.order_date       = _parse_date(form.get("order_date"))
     proc.inspect_date     = _parse_date(form.get("inspect_date"))
 
@@ -2469,7 +2479,7 @@ def bundle_page(proc_id: int, request: Request, db: Session = Depends(get_db)):
     is_large = (proc.total_amount or 0) > threshold
     # ติ๊กให้อัตโนมัติ = ทุกใบ ยกเว้นรายการที่ไม่จำเป็นตามวงเงิน (ยังเลือกเองได้)
     exclude = EXCLUDE_LARGE if is_large else EXCLUDE_SMALL
-    kinds = [{"name": k, "checked": k not in exclude} for k in AVAILABLE_KINDS]
+    kinds = [{"name": k, "checked": k not in exclude} for k in kinds_for(proc)]
     return templates.TemplateResponse("bundle.html", {
         "request": request, "p": proc, "kinds": kinds,
         "is_large": is_large, "threshold": threshold,
@@ -2485,7 +2495,7 @@ async def bundle_generate(proc_id: int, request: Request, db: Session = Depends(
     form = await request.form()
     # คงลำดับตาม AVAILABLE_KINDS (ขั้นตอนเอกสาร) ไม่ใช่ลำดับที่ติ๊ก
     chosen = set(form.getlist("kinds"))
-    selected = [k for k in AVAILABLE_KINDS if k in chosen]
+    selected = [k for k in kinds_for(proc) if k in chosen]
     if not selected:
         return RedirectResponse(f"/procurement/{proc_id}/bundle", status_code=303)
 

@@ -29,6 +29,7 @@ TEMPLATE_FILES = {
     "ใบเสนอราคา": "ใบเสนอราคา.docx",
     "ประกาศผู้ชนะ": "ประกาศผู้ชนะ.docx",
     "แต่งตั้งกรรมการคุณลักษณะ": "แต่งตั้งคุณลักษณะ.docx",
+    "คำสั่งแต่งตั้งกรรมการซื้อ/จ้าง": "คำสั่งแต่งตั้งกรรมการซื้อจ้าง.docx",
     "รายละเอียดคุณลักษณะ(TOR)": "TOR.docx",
     "ใบส่งมอบงาน": "ใบส่งมอบงาน.docx",
     "รายงานผลตรวจรับและเบิกจ่าย": "รายงานเบิกจ่าย.docx",
@@ -110,6 +111,11 @@ def build_context(proc, school) -> dict:
     spec_members = ([{"name": m.name, "position": m.position, "role": m.role}
                      for m in spec.members] if spec and spec.members else inspect_members)
 
+    # คณะกรรมการซื้อ/จ้าง (ไม่บังคับ) - ถ้าไม่มี = เจ้าหน้าที่ดำเนินการเอง
+    purchase = _find_committee(proc, "purchase")
+    purchase_members = ([{"name": m.name, "position": m.position, "role": m.role}
+                         for m in purchase.members] if purchase and purchase.members else [])
+
     # ===== รายละเอียดการเงิน (สำหรับใบเบิกจ่าย) =====
     total = float(proc.total_amount or 0)
     if proc.vat_mode == "include":
@@ -155,6 +161,9 @@ def build_context(proc, school) -> dict:
         "inspector_position": inspector_position or "ครู",
         "inspect_members": inspect_members,
         "spec_members": spec_members,
+        "purchase_members": purchase_members,
+        # ผู้เจรจาตกลงราคาในรายงานผลการพิจารณา (มี กก.ซื้อ/จ้าง = คณะกรรมการ, ไม่มี = เจ้าหน้าที่)
+        "negotiator": ("คณะกรรมการซื้อหรือจ้าง" if purchase_members else "เจ้าหน้าที่"),
 
         # สำหรับใบตรวจรับ / ใบสั่งซื้อ-จ้าง / เบิกจ่าย
         "vendor_name": (proc.vendor.name if proc.vendor else _BLANK),
@@ -220,6 +229,10 @@ def build_context(proc, school) -> dict:
         "result_date_thai": _d(proc.result_memo_date),
         "command_date_thai": _d(proc.command_date),
         "command_date_official": _do(proc.command_date),
+        # ประกาศผู้ชนะ: ถ้าไม่ได้ระบุวันที่ประกาศ ใช้วันที่ใบสั่งแทน (พฤติกรรมเดิม)
+        "winner_date_thai": _d(getattr(proc, "winner_date", None) or proc.order_date),
+        "purchase_cmd_no": getattr(proc, "purchase_cmd_no", "") or _BLANK,
+        "purchase_cmd_date_official": _do(getattr(proc, "purchase_cmd_date", None)),
         # รายละเอียดการเงิน (ใบเบิกจ่าย)
         "goods_value": _money(goods),
         "vat_value": _money(vat),
@@ -300,6 +313,7 @@ DOC_ORDER = [
     "แต่งตั้งกรรมการคุณลักษณะ",      # 1 ตั้ง กก.กำหนดคุณลักษณะ/ราคากลาง (ข้อ 21)
     "รายละเอียดคุณลักษณะ(TOR)",       # 2 TOR
     "รายงานขอซื้อ",                   # 3 รายงานขอซื้อ/จ้าง (+ แนบท้าย)
+    "คำสั่งแต่งตั้งกรรมการซื้อ/จ้าง",   # 3.5 ตั้ง กก.ซื้อ/จ้าง (เฉพาะเรื่องที่กรอกรายชื่อไว้)
     "คำสั่งแต่งตั้งผู้ตรวจรับ",        # 4 ตั้งกรรมการตรวจรับ
     "ใบเสนอราคา",                     # 5 ผู้ขายเสนอราคา
     "รายงานผลการพิจารณา",            # 6 ตัดสินผู้ชนะ (ข้อ 79)
@@ -314,3 +328,19 @@ assert set(DOC_ORDER) == set(TEMPLATE_FILES), "DOC_ORDER ไม่ตรงก�
 
 # ชนิดเอกสารที่สร้างได้ (เรียงตามลำดับมาตรฐาน) ใช้แสดงปุ่ม/รวมไฟล์
 AVAILABLE_KINDS = DOC_ORDER
+
+# เอกสารที่มีความหมายเฉพาะเมื่อกรอกข้อมูลนั้นไว้ -> ไม่มีข้อมูล = ไม่โชว์ปุ่ม/ไม่รวมในชุด
+_NEEDS_COMMITTEE = {"คำสั่งแต่งตั้งกรรมการซื้อ/จ้าง": "purchase"}
+
+
+def kinds_for(proc):
+    """ชนิดเอกสารที่ออกได้สำหรับเรื่องนี้ (ตัดเอกสารที่ไม่มีข้อมูลรองรับออก)"""
+    out = []
+    for k in DOC_ORDER:
+        need = _NEEDS_COMMITTEE.get(k)
+        if need:
+            c = _find_committee(proc, need)
+            if not (c and c.members):
+                continue
+        out.append(k)
+    return out

@@ -271,6 +271,9 @@ class Procurement(Base):
     delivery_date = Column(DateTime, nullable=True)         # วันที่ส่งมอบจริง (ใบส่งมอบงาน)
     inspect_date = Column(DateTime, nullable=True)          # วันที่ตรวจรับพัสดุ
     spec_memo_date = Column(DateTime, nullable=True)        # วันที่แต่งตั้ง กก.กำหนดคุณลักษณะ
+    winner_date = Column(DateTime, nullable=True)           # วันที่ประกาศผู้ชนะการเสนอราคา
+    purchase_cmd_no = Column(String, default="")            # เลขที่คำสั่งแต่งตั้ง กก.ซื้อ/จ้าง
+    purchase_cmd_date = Column(DateTime, nullable=True)     # วันที่คำสั่งแต่งตั้ง กก.ซื้อ/จ้าง
     result_memo_date = Column(DateTime, nullable=True)      # วันที่รายงานผลพิจารณา
     command_date = Column(DateTime, nullable=True)          # วันที่คำสั่งแต่งตั้งผู้ตรวจรับ
     file_path = Column(String, default="")                 # ไฟล์ต้นฉบับที่อัปโหลด (สร้างเรื่องจากไฟล์)
@@ -435,7 +438,8 @@ class ItemCatalog(Base):
 class Committee(Base):
     """
     คณะกรรมการ/ผู้ตรวจรับในแต่ละเรื่อง
-    kind: "spec" = กำหนดคุณลักษณะ/ราคากลาง, "inspect" = ตรวจรับพัสดุ
+    kind: "spec" = กำหนดคุณลักษณะ/ราคากลาง, "inspect" = ตรวจรับพัสดุ,
+          "purchase" = คณะกรรมการซื้อหรือจ้าง (ไม่บังคับ)
     mode: "single" = คนเดียว, "committee" = คณะกรรมการ
     """
     __tablename__ = "committee"

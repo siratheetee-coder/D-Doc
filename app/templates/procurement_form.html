@@ -264,6 +264,26 @@
       </tbody>
     </table></div>
     <br><button type="button" class="btn soft sm" onclick="addSpecMember()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มกรรมการคุณลักษณะ</button>
+
+    <h2 style="margin-top:24px;">คณะกรรมการซื้อ/จ้าง</h2>
+    <p class="muted" style="margin:-8px 0 12px;">ไม่บังคับ · ถ้าไม่กรอก ถือว่าเจ้าหน้าที่พัสดุดำเนินการเอง (ปกติของวิธีเฉพาะเจาะจง) ·
+      ถ้ากรอก ระบบจะออก <b>คำสั่งแต่งตั้งคณะกรรมการซื้อ/จ้าง</b> ให้ และในรายงานผลการพิจารณาจะระบุว่าคณะกรรมการเป็นผู้เจรจาตกลงราคา</p>
+    <div class="table-wrap"><table id="purchasemembers">
+      <thead><tr><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th style="width:190px;">บทบาท</th><th></th></tr></thead>
+      <tbody>
+        {% for m in prefill_purchase_members|default([]) %}
+        <tr>
+          <td><input name="purchase_member_name" list="persons" value="{{ m.name }}"></td>
+          <td><input name="purchase_member_position" list="positions" value="{{ m.position }}"></td>
+          <td><select name="purchase_member_role" class="role-sel" data-touched="1" onchange="this.dataset.touched='1'">
+            {% for rl in sroles %}<option value="{{ rl }}" {{ "selected" if m.role==rl }}>{{ rl }}</option>{% endfor %}
+          </select></td>
+          <td class="center"><button type="button" class="btn red sm" onclick="this.closest('tr').remove(); refreshAllRoles()">✕</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    <br><button type="button" class="btn soft sm" onclick="addPurchaseMember()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มกรรมการซื้อ/จ้าง</button>
     {% endif %}
 
     <br><br>
@@ -376,6 +396,7 @@
   function refreshAllRoles() {
     _refresh('#members tbody', 'inspect');
     _refresh('#specmembers tbody', 'spec');
+    _refresh('#purchasemembers tbody', 'purchase');
   }
   var INSPECT_OPTS = '<option value="ผู้ตรวจรับ">ผู้ตรวจรับ</option><option value="ประธานกรรมการ">ประธานกรรมการ</option><option value="กรรมการ">กรรมการ</option><option value="กรรมการและเลขานุการ">กรรมการและเลขานุการ</option>';
   var SPEC_OPTS = '<option value="ประธานกรรมการ">ประธานกรรมการ</option><option value="กรรมการ">กรรมการ</option><option value="กรรมการและเลขานุการ">กรรมการและเลขานุการ</option>';
@@ -400,6 +421,19 @@
       '<td class="center"><button type="button" class="btn red sm" onclick="this.closest(\'tr\').remove(); refreshAllRoles()">✕</button></td>';
     tb.appendChild(tr);
     refreshAllRoles();
+  }
+  function addPurchaseMember() {
+    var tb = document.querySelector('#purchasemembers tbody');
+    if (!tb) return;
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input name="purchase_member_name" list="persons"></td>' +
+      '<td><input name="purchase_member_position" list="positions" value="ครู"></td>' +
+      '<td><select name="purchase_member_role" class="role-sel" onchange="this.dataset.touched=\'1\'">' + SPEC_OPTS + '</select></td>' +
+      '<td class="center"><button type="button" class="btn red sm" onclick="this.closest(\'tr\').remove(); refreshAllRoles()">✕</button></td>';
+    tb.appendChild(tr);
+    refreshAllRoles();
+    tr.querySelector('input').focus();
   }
   function calcTotal() {
     var t = 0;

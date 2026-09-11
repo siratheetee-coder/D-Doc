@@ -121,6 +121,17 @@
       {% endif %}
     </div>
 
+    {% set has_purchase = (p.committees | selectattr('kind', 'equalto', 'purchase') | list | length) > 0 %}
+    {% if has_purchase %}
+    <div class="docgrp">
+      <div class="docgrp-h">คำสั่งแต่งตั้งคณะกรรมการซื้อ/จ้าง</div>
+      <div class="row">
+        <div><label>เลขที่คำสั่ง</label><input name="purchase_cmd_no" value="{{ p.purchase_cmd_no or '' }}"></div>
+        <div><label>ลงวันที่</label><input name="purchase_cmd_date" value="{{ be_date(p.purchase_cmd_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      </div>
+    </div>
+    {% endif %}
+
     <div class="docgrp">
       <div class="docgrp-h">คำสั่งแต่งตั้งผู้ตรวจรับ</div>
       {% if not is_committee %}
@@ -133,6 +144,14 @@
     </div>
 
     <div class="docgrp">
+      <div class="docgrp-h">ใบเสนอราคา</div>
+      <div class="row">
+        <div><label>วันที่ใบเสนอราคา <span class="muted" style="font-size:13px;">(ถ้าว่างใช้วันที่ใบสั่ง)</span></label>
+          <input name="quotation_date" value="{{ be_date(p.quotation_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      </div>
+    </div>
+
+    <div class="docgrp">
       <div class="docgrp-h">รายงานผลการพิจารณา</div>
       <div class="row">
         <div><label>เลขที่บันทึก</label><input name="result_memo_no" value="{{ p.result_memo_no }}"></div>
@@ -141,10 +160,10 @@
     </div>
 
     <div class="docgrp">
-      <div class="docgrp-h">ใบเสนอราคา</div>
+      <div class="docgrp-h">ประกาศผู้ชนะการเสนอราคา</div>
       <div class="row">
-        <div><label>วันที่ใบเสนอราคา <span class="muted" style="font-size:13px;">(ถ้าว่างใช้วันที่ใบสั่ง)</span></label>
-          <input name="quotation_date" value="{{ be_date(p.quotation_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+        <div><label>วันที่ประกาศ <span class="muted" style="font-size:13px;">(ถ้าว่างใช้วันที่ใบสั่ง)</span></label>
+          <input name="winner_date" value="{{ be_date(p.winner_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       </div>
     </div>
 
@@ -430,8 +449,8 @@
   function sameAllDates() {
     var src = document.querySelector('input[name="request_date"]');
     if (!src || !src.value) { alert('กรุณากรอก "วันที่รายงานขอซื้อ/จ้าง" (ลงวันที่) ก่อน'); return; }
-    var names = ['spec_memo_date','command_date','result_memo_date',
-                 'order_date','delivery_due_date','delivery_date','inspect_date'];
+    var names = ['spec_memo_date','purchase_cmd_date','command_date','result_memo_date',
+                 'winner_date','order_date','delivery_due_date','delivery_date','inspect_date'];
     names.forEach(function(n){
       var el = document.querySelector('input[name="' + n + '"]');
       if (el) { el.value = src.value; _checkHoliday(el); }
