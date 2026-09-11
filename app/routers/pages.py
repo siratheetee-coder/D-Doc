@@ -2248,6 +2248,8 @@ async def procurement_update_refs(proc_id: int, request: Request, db: Session = 
     proc.order_no = (form.get("order_no") or "").strip()
     if "purchase_cmd_no" in form:            # ช่องนี้โชว์เฉพาะเรื่องที่มี กก.ซื้อ/จ้าง
         proc.purchase_cmd_no = (form.get("purchase_cmd_no") or "").strip()
+    if "spec_cmd_no" in form:                # ช่องนี้โชว์เฉพาะเรื่องที่มี กก.กำหนดคุณลักษณะ
+        proc.spec_cmd_no = (form.get("spec_cmd_no") or "").strip()
 
     # วันที่หลักของแต่ละเอกสาร
     rd = _parse_date(form.get("request_date"))
@@ -2260,6 +2262,8 @@ async def procurement_update_refs(proc_id: int, request: Request, db: Session = 
     proc.winner_date      = _parse_date(form.get("winner_date"))
     if "purchase_cmd_date" in form:
         proc.purchase_cmd_date = _parse_date(form.get("purchase_cmd_date"))
+    if "spec_cmd_date" in form:
+        proc.spec_cmd_date = _parse_date(form.get("spec_cmd_date"))
     proc.order_date       = _parse_date(form.get("order_date"))
     proc.inspect_date     = _parse_date(form.get("inspect_date"))
 
@@ -2291,8 +2295,14 @@ async def procurement_update_refs(proc_id: int, request: Request, db: Session = 
     ):
         commit_doc_no(db, "memo", fy, no, source="procurement", ref_id=proc.id, subject=title,
                       date=proc.request_date)
-    commit_doc_no(db, "command", fy, proc.command_no, source="procurement", ref_id=proc.id, subject=subj,
-                  date=proc.command_date)
+    commit_doc_no(db, "command", fy, proc.command_no, source="procurement", ref_id=proc.id,
+                  subject=f"แต่งตั้งผู้ตรวจรับ {subj}".strip(), date=proc.command_date)
+    # คำสั่งแต่งตั้งกรรมการอื่น ๆ ใช้เลขรันคำสั่งชุดเดียวกัน (ลงทะเบียนกันเลขซ้ำ)
+    commit_doc_no(db, "command", fy, proc.spec_cmd_no, source="procurement", ref_id=proc.id,
+                  subject=f"แต่งตั้งคณะกรรมการกำหนดคุณลักษณะเฉพาะ (TOR) และราคากลาง {subj}".strip(),
+                  date=proc.spec_cmd_date)
+    commit_doc_no(db, "command", fy, proc.purchase_cmd_no, source="procurement", ref_id=proc.id,
+                  subject=f"แต่งตั้งคณะกรรมการ{subj}".strip(), date=proc.purchase_cmd_date)
     commit_doc_no(db, "purchase_order" if proc.proc_type == "ซื้อ" else "hire_order", fy,
                   proc.order_no, source="procurement", ref_id=proc.id, subject=subj,
                   date=proc.order_date)
@@ -2388,13 +2398,14 @@ def procurement_altdoc(proc_id: int, kind: str, db: Session = Depends(get_db)):
 
 # ---------------- ทะเบียน Excel ----------------
 # เอกสารที่ "ไม่ติ๊กอัตโนมัติ" (ยังเลือกเองได้) แยกตามวงเงิน
-EXCLUDE_SMALL = {  # วงเงิน ≤ เกณฑ์: ไม่ต้องประกาศ/ตั้ง กก.คุณลักษณะ/TOR/คำสั่งแต่งตั้ง
-    "ประกาศผู้ชนะ", "แต่งตั้งกรรมการคุณลักษณะ",
-    "รายละเอียดคุณลักษณะ(TOR)", "คำสั่งแต่งตั้งผู้ตรวจรับ",
-}
-EXCLUDE_LARGE = {  # วงเงิน > เกณฑ์: ไม่ต้องตั้ง กก.คุณลักษณะ/TOR
-    "แต่งตั้งกรรมการคุณลักษณะ", "รายละเอียดคุณลักษณะ(TOR)",
-}
+# คำสั่งแต่งตั้งผู้ตรวจรับ ติ๊กเสมอ (ใช้บ่อยที่สุด)
+EXCLUDE_SMALL = {"ประกาศผู้ชนะ"}   # วงเงิน ≤ เกณฑ์: ไม่ต้องประกาศผู้ชนะ
+EXCLUDE_LARGE = set()
+# ชุดเอกสาร กก.กำหนดคุณลักษณะ/TOR -> ติ๊กเฉพาะเรื่องที่กรอกรายชื่อ กก.คุณลักษณะไว้
+SPEC_KINDS = {"แต่งตั้งกรรมการคุณลักษณะ", "คำสั่งแต่งตั้งกรรมการคุณลักษณะ",
+              "รายละเอียดคุณลักษณะ(TOR)"}
+# (คำสั่งแต่งตั้ง กก.ซื้อ/จ้าง ไม่ต้องจัดการที่นี่ - kinds_for ตัดทิ้งอยู่แล้วถ้าไม่มีรายชื่อ
+#  ถ้ามีรายชื่อ = โผล่มาและติ๊กให้เลย)
 
 
 # แผนที่ "การเบิกจ่าย" -> งบใน/นอก พรบ.รายจ่าย (e-GP)
@@ -2478,7 +2489,10 @@ def bundle_page(proc_id: int, request: Request, db: Session = Depends(get_db)):
     threshold = school.doc_set_threshold or 5000
     is_large = (proc.total_amount or 0) > threshold
     # ติ๊กให้อัตโนมัติ = ทุกใบ ยกเว้นรายการที่ไม่จำเป็นตามวงเงิน (ยังเลือกเองได้)
-    exclude = EXCLUDE_LARGE if is_large else EXCLUDE_SMALL
+    exclude = set(EXCLUDE_LARGE if is_large else EXCLUDE_SMALL)
+    spec = next((c for c in proc.committees if c.kind == "spec"), None)
+    if not (spec and spec.members):
+        exclude |= SPEC_KINDS
     kinds = [{"name": k, "checked": k not in exclude} for k in kinds_for(proc)]
     return templates.TemplateResponse("bundle.html", {
         "request": request, "p": proc, "kinds": kinds,

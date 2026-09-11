@@ -271,6 +271,8 @@ class Procurement(Base):
     delivery_date = Column(DateTime, nullable=True)         # วันที่ส่งมอบจริง (ใบส่งมอบงาน)
     inspect_date = Column(DateTime, nullable=True)          # วันที่ตรวจรับพัสดุ
     spec_memo_date = Column(DateTime, nullable=True)        # วันที่แต่งตั้ง กก.กำหนดคุณลักษณะ
+    spec_cmd_no = Column(String, default="")                # เลขที่คำสั่งแต่งตั้ง กก.กำหนดคุณลักษณะ (TOR)
+    spec_cmd_date = Column(DateTime, nullable=True)         # วันที่คำสั่งแต่งตั้ง กก.กำหนดคุณลักษณะ
     winner_date = Column(DateTime, nullable=True)           # วันที่ประกาศผู้ชนะการเสนอราคา
     purchase_cmd_no = Column(String, default="")            # เลขที่คำสั่งแต่งตั้ง กก.ซื้อ/จ้าง
     purchase_cmd_date = Column(DateTime, nullable=True)     # วันที่คำสั่งแต่งตั้ง กก.ซื้อ/จ้าง

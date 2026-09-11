@@ -29,6 +29,7 @@ TEMPLATE_FILES = {
     "ใบเสนอราคา": "ใบเสนอราคา.docx",
     "ประกาศผู้ชนะ": "ประกาศผู้ชนะ.docx",
     "แต่งตั้งกรรมการคุณลักษณะ": "แต่งตั้งคุณลักษณะ.docx",
+    "คำสั่งแต่งตั้งกรรมการคุณลักษณะ": "คำสั่งแต่งตั้งกรรมการคุณลักษณะ.docx",
     "คำสั่งแต่งตั้งกรรมการซื้อ/จ้าง": "คำสั่งแต่งตั้งกรรมการซื้อจ้าง.docx",
     "รายละเอียดคุณลักษณะ(TOR)": "TOR.docx",
     "ใบส่งมอบงาน": "ใบส่งมอบงาน.docx",
@@ -106,10 +107,11 @@ def build_context(proc, school) -> dict:
             inspector_name = members[0].name
             inspector_position = members[0].position
 
-    # คณะกรรมการกำหนดคุณลักษณะ/ราคากลาง (ถ้ายังไม่มี ใช้รายชื่อผู้ตรวจรับแทนชั่วคราว)
+    # คณะกรรมการกำหนดคุณลักษณะ/ราคากลาง - ไม่กรอก = ตารางว่าง
+    # (ไม่เอารายชื่อผู้ตรวจรับมาใส่แทน เพราะผู้ใช้จะไม่รู้ว่ามีชื่อคนอื่นโผล่ในเอกสาร)
     spec = _find_committee(proc, "spec")
     spec_members = ([{"name": m.name, "position": m.position, "role": m.role}
-                     for m in spec.members] if spec and spec.members else inspect_members)
+                     for m in spec.members] if spec and spec.members else [])
 
     # คณะกรรมการซื้อ/จ้าง (ไม่บังคับ) - ถ้าไม่มี = เจ้าหน้าที่ดำเนินการเอง
     purchase = _find_committee(proc, "purchase")
@@ -231,6 +233,8 @@ def build_context(proc, school) -> dict:
         "command_date_official": _do(proc.command_date),
         # ประกาศผู้ชนะ: ถ้าไม่ได้ระบุวันที่ประกาศ ใช้วันที่ใบสั่งแทน (พฤติกรรมเดิม)
         "winner_date_thai": _d(getattr(proc, "winner_date", None) or proc.order_date),
+        "spec_cmd_no": getattr(proc, "spec_cmd_no", "") or _BLANK,
+        "spec_cmd_date_official": _do(getattr(proc, "spec_cmd_date", None)),
         "purchase_cmd_no": getattr(proc, "purchase_cmd_no", "") or _BLANK,
         "purchase_cmd_date_official": _do(getattr(proc, "purchase_cmd_date", None)),
         # รายละเอียดการเงิน (ใบเบิกจ่าย)
@@ -311,6 +315,7 @@ def render_bundle(kinds, proc, school) -> str:
 # เตรียมสเปก -> ขออนุมัติ -> เสนอราคา -> ตัดสิน -> สั่ง -> ส่งมอบ -> ตรวจรับ/เบิกจ่าย
 DOC_ORDER = [
     "แต่งตั้งกรรมการคุณลักษณะ",      # 1 ตั้ง กก.กำหนดคุณลักษณะ/ราคากลาง (ข้อ 21)
+    "คำสั่งแต่งตั้งกรรมการคุณลักษณะ",  # 1.5 คำสั่งแต่งตั้ง กก.กำหนดคุณลักษณะ (เฉพาะเรื่องที่กรอกรายชื่อไว้)
     "รายละเอียดคุณลักษณะ(TOR)",       # 2 TOR
     "รายงานขอซื้อ",                   # 3 รายงานขอซื้อ/จ้าง (+ แนบท้าย)
     "คำสั่งแต่งตั้งกรรมการซื้อ/จ้าง",   # 3.5 ตั้ง กก.ซื้อ/จ้าง (เฉพาะเรื่องที่กรอกรายชื่อไว้)
@@ -330,7 +335,8 @@ assert set(DOC_ORDER) == set(TEMPLATE_FILES), "DOC_ORDER ไม่ตรงก�
 AVAILABLE_KINDS = DOC_ORDER
 
 # เอกสารที่มีความหมายเฉพาะเมื่อกรอกข้อมูลนั้นไว้ -> ไม่มีข้อมูล = ไม่โชว์ปุ่ม/ไม่รวมในชุด
-_NEEDS_COMMITTEE = {"คำสั่งแต่งตั้งกรรมการซื้อ/จ้าง": "purchase"}
+_NEEDS_COMMITTEE = {"คำสั่งแต่งตั้งกรรมการซื้อ/จ้าง": "purchase",
+                    "คำสั่งแต่งตั้งกรรมการคุณลักษณะ": "spec"}
 
 
 def kinds_for(proc):

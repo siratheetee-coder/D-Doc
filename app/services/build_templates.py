@@ -799,6 +799,39 @@ def build_purchase_command():
     return out
 
 
+def build_spec_command():
+    """แม่แบบ: คำสั่งแต่งตั้งคณะกรรมการกำหนดรายละเอียดคุณลักษณะเฉพาะ/ขอบเขตของงาน (TOR) และราคากลาง
+    (ครุฑกึ่งกลาง) - ใช้เมื่อกรอกรายชื่อ กก.กำหนดคุณลักษณะไว้เท่านั้น"""
+    doc = Document(); set_a4(doc)
+    _font(doc)
+    _krut_center(doc)
+    _p(doc, "คำสั่ง{{ school_name }}", align="center", bold=True, size=18, after=0)
+    _p(doc, "ที่ {{ spec_cmd_no }}", align="center", bold=True, after=0)
+    _p(doc, "เรื่อง แต่งตั้งคณะกรรมการกำหนดรายละเอียดคุณลักษณะเฉพาะและขอบเขตของงาน (TOR) "
+            "และราคากลาง {{ proc_type }}{{ subject }}", align="center", bold=True, after=0)
+    _p(doc, "─────────────────────", align="center", after=6)
+    _p(doc,
+       "ด้วย{{ school_name }} มีความประสงค์จะ{{ proc_type }}{{ subject }} โดยวิธี{{ method }} "
+       "วงเงิน {{ total_amount }} บาท ({{ total_baht }}) และเพื่อให้เป็นไปตามระเบียบกระทรวงการคลัง"
+       "ว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 ข้อ 21", align="justify", indent=1.25)
+    _p(doc, "จึงขอแต่งตั้งรายชื่อต่อไปนี้ เป็นคณะกรรมการกำหนดรายละเอียดคุณลักษณะเฉพาะ"
+            "และขอบเขตของงาน (TOR) และราคากลาง ดังนี้", align="justify", indent=1.25)
+    _member_table(doc, "spec_members")
+    _p(doc, "อำนาจและหน้าที่", bold=True, indent=1.25)
+    _p(doc, "(1) จัดทำร่างขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะของ{{ obj_word }} "
+            "รวมทั้งกำหนดหลักเกณฑ์การพิจารณาคัดเลือกข้อเสนอ", align="justify", indent=1.25)
+    _p(doc, "(2) จัดทำราคากลางของ{{ obj_word }}ตามแนวทางที่คณะกรรมการราคากลางกำหนด "
+            "และเสนอต่อหัวหน้าหน่วยงานของรัฐเพื่อให้ความเห็นชอบ", align="justify", indent=1.25)
+    _p(doc, "ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป", bold=True, indent=2.5, after=6)
+    _p(doc, "สั่ง ณ วันที่ {{ spec_cmd_date_official }}", align="center", after=24)
+    _p(doc, "( {{ director_name }} )", align="center")
+    _p(doc, "{{ director_office }}", align="center")
+    TEMPLATES_DIR.mkdir(exist_ok=True)
+    out = TEMPLATES_DIR / "คำสั่งแต่งตั้งกรรมการคุณลักษณะ.docx"
+    doc.save(str(out))
+    return out
+
+
 def build_inspect_command():
     """แม่แบบ: คำสั่งแต่งตั้งผู้ตรวจรับ (ครุฑกึ่งกลาง)"""
     doc = Document(); set_a4(doc)
@@ -1072,7 +1105,7 @@ def build_all():
     built = [build_purchase_request(), build_inspection(), build_purchase_order(),
              build_result_report(), build_inspect_command(),
              build_quotation(), build_winner_announcement(), build_spec_committee(),
-             build_purchase_command(),
+             build_purchase_command(), build_spec_command(),
              build_tor(), build_delivery_note(), build_disbursement()]
     return built
 

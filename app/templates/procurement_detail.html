@@ -116,6 +116,11 @@
         <div><label>เลขที่บันทึก</label><input name="spec_memo_no" value="{{ p.spec_memo_no }}" placeholder="ไม่บังคับ"></div>
         <div><label>ลงวันที่</label><input name="spec_memo_date" value="{{ be_date(p.spec_memo_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       </div>
+      <div class="docgrp-sub">คำสั่งแต่งตั้ง กก.กำหนดคุณลักษณะ (TOR) <span class="muted">(ถ้าโรงเรียนออกเป็นคำสั่ง)</span></div>
+      <div class="row">
+        <div><label>เลขที่คำสั่ง</label><input name="spec_cmd_no" value="{{ p.spec_cmd_no or '' }}"></div>
+        <div><label>ลงวันที่</label><input name="spec_cmd_date" value="{{ be_date(p.spec_cmd_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      </div>
       {% else %}
       <div class="docnote"><svg class="icon"><use href="#ic-info"/></svg> ท่านไม่มีข้อมูลของเอกสารนี้ ไม่จำเป็นต้องกรอก</div>
       {% endif %}
@@ -231,6 +236,7 @@
   .doc-onebyone .btn:hover { background: #e0e7ff; }
   .docgrp { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px 4px; margin-bottom: 12px; }
   .docgrp-h { font-weight: 700; color: #1d4ed8; margin-bottom: 4px; }
+  .docgrp-sub { font-weight: 600; margin: 8px 0 2px; padding-top: 8px; border-top: 1px dashed #e2e8f0; }
   .docnote { display: flex; align-items: center; gap: 8px; background: #f1f4f9; color: #6b7280;
              border-radius: 8px; padding: 9px 13px; font-size: 15px; margin: 4px 0 10px; }
   .docnote .icon { width: 18px; height: 18px; color: #94a3b8; flex: none; }
@@ -391,7 +397,8 @@
   var DOCNO_USED = {{ docno_used | tojson }};
   var ORDER_TYPE = {{ order_type | tojson }};
   var NAME2TYPE = {memo_no:'memo', result_memo_no:'memo', spec_memo_no:'memo',
-                   inspect_memo_no:'memo', command_no:'command', order_no: ORDER_TYPE};
+                   inspect_memo_no:'memo', command_no:'command', spec_cmd_no:'command',
+                   purchase_cmd_no:'command', order_no: ORDER_TYPE};
   function _seq(v){ var m=(v||'').match(/^\s*(\d+)/); return m? parseInt(m[1],10):0; }
   function _checkNo(el){
     var old = el.parentNode.querySelector('.no-warn'); if(old) old.remove();
@@ -413,7 +420,7 @@
       el.parentNode.appendChild(d);
     }
   }
-  document.querySelectorAll('input[name="memo_no"],input[name="result_memo_no"],input[name="spec_memo_no"],input[name="inspect_memo_no"],input[name="command_no"],input[name="order_no"]').forEach(function(el){
+  document.querySelectorAll('input[name="memo_no"],input[name="result_memo_no"],input[name="spec_memo_no"],input[name="inspect_memo_no"],input[name="command_no"],input[name="spec_cmd_no"],input[name="purchase_cmd_no"],input[name="order_no"]').forEach(function(el){
     el.dataset.initial = el.value;   // จำค่าเดิมไว้ (จะไม่เตือนถ้ายังเป็นค่านี้)
     el.addEventListener('input', function(){ _checkNo(el); });
   });
@@ -449,7 +456,7 @@
   function sameAllDates() {
     var src = document.querySelector('input[name="request_date"]');
     if (!src || !src.value) { alert('กรุณากรอก "วันที่รายงานขอซื้อ/จ้าง" (ลงวันที่) ก่อน'); return; }
-    var names = ['spec_memo_date','purchase_cmd_date','command_date','result_memo_date',
+    var names = ['spec_memo_date','spec_cmd_date','purchase_cmd_date','command_date','result_memo_date',
                  'winner_date','order_date','delivery_due_date','delivery_date','inspect_date'];
     names.forEach(function(n){
       var el = document.querySelector('input[name="' + n + '"]');
