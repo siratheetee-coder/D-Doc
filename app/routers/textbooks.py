@@ -65,10 +65,11 @@ def textbooks_page(request: Request, db: Session = Depends(get_db), year: int | 
 @router.post("/textbooks/add")
 def textbook_add(db: Session = Depends(get_db), year: str = Form(""), level: str = Form(""),
                  subject: str = Form(""), title: str = Form(""), publisher: str = Form(""),
-                 unit_price: str = Form("0"), qty_received: str = Form("0"), note: str = Form("")):
+                 unit_price: str = Form("0"), qty_received: str = Form("0"), note: str = Form(""),
+                 room: str = Form("")):
     yr = _to_int(year, current_academic_year())
     if (title or "").strip():
-        db.add(TextBook(year=yr, level=level.strip(), subject=subject.strip(),
+        db.add(TextBook(year=yr, level=level.strip(), room=room.strip(), subject=subject.strip(),
                         title=title.strip(), publisher=publisher.strip(),
                         unit_price=_to_float(unit_price, 0.0),
                         qty_received=_to_int(qty_received, 0), note=note.strip()))
@@ -79,10 +80,11 @@ def textbook_add(db: Session = Depends(get_db), year: str = Form(""), level: str
 @router.post("/textbooks/{bid}/update")
 def textbook_update(bid: int, db: Session = Depends(get_db), level: str = Form(""),
                     subject: str = Form(""), title: str = Form(""), publisher: str = Form(""),
-                    unit_price: str = Form("0"), qty_received: str = Form("0"), note: str = Form("")):
+                    unit_price: str = Form("0"), qty_received: str = Form("0"), note: str = Form(""),
+                    room: str = Form("")):
     b = db.get(TextBook, bid)
     if b:
-        b.level = level.strip(); b.subject = subject.strip()
+        b.level = level.strip(); b.room = room.strip(); b.subject = subject.strip()
         b.title = title.strip() or b.title; b.publisher = publisher.strip()
         b.unit_price = _to_float(unit_price, 0.0); b.qty_received = _to_int(qty_received, 0)
         b.note = note.strip()
@@ -121,7 +123,10 @@ def textbooks_to_materials(db: Session = Depends(get_db), year: int = Form(0)):
             title = (b.title or "").strip()
             if not title:
                 continue
-            name = f"{title} ({b.level})" if (b.level or "").strip() else title
+            where = (b.level or "").strip()
+            if where and (b.room or "").strip():
+                where = f"{where}/{b.room.strip()}"
+            name = f"{title} ({where})" if where else title
             item = MaterialItem(name=name, unit="เล่ม", category=BOOK_CATEGORY, book_id=b.id)
             db.add(item); db.flush()
             added += 1
@@ -170,7 +175,8 @@ def berk_page(request: Request, db: Session = Depends(get_db), year: int | None 
     room_list = [{"level": lv, "room": rm, "n": n,
                   "label": f"{lv}/{rm}" if rm else lv,
                   "advisor": advisors.get((lv, rm), ""),
-                  "books": len([b for b in books if (b.level or "").strip() == lv])}
+                  "books": len([b for b in books if (b.level or "").strip() == lv
+                                 and (b.room or "").strip() in ("", rm)])}
                  for (lv, rm), n in sorted(
                      rooms.items(),
                      key=lambda kv: (SCHOOL_LEVELS.index(kv[0][0]) if kv[0][0] in SCHOOL_LEVELS else 99,
@@ -202,8 +208,10 @@ async def berk_room_create(request: Request, db: Session = Depends(get_db)):
 
     n_students = (db.query(Student)
                   .filter(Student.level == lv, Student.room == rm).count())
-    books = (db.query(TextBook).filter_by(year=yr, level=lv)
-             .order_by(TextBook.title).all())
+    # หนังสือของชั้นนี้: เล่มที่ไม่ระบุห้อง (ใช้ทุกห้อง) + เล่มที่ระบุห้องนี้โดยเฉพาะ
+    books = [b for b in db.query(TextBook).filter_by(year=yr, level=lv)
+             .order_by(TextBook.title).all()
+             if (b.room or "").strip() in ("", rm)]
     items = []
     for b in books:
         item = db.query(MaterialItem).filter_by(book_id=b.id).first()
@@ -275,12 +283,12 @@ def berk_template():
     from openpyxl.styles import Font
     wb = Workbook(); ws = wb.active; ws.title = "หนังสือเรียน"
     headers = ["ระดับชั้น", "กลุ่มสาระ/วิชา", "ชื่อหนังสือ", "สำนักพิมพ์",
-               "ราคาต่อเล่ม", "จำนวนรับเข้า(เล่ม)", "หมายเหตุ"]
+               "ราคาต่อเล่ม", "จำนวนรับเข้า(เล่ม)", "หมายเหตุ", "ห้อง (เว้นว่าง = ทุกห้อง)"]
     ws.append(headers)
     for c in range(1, len(headers) + 1):
         ws.cell(1, c).font = Font(name=THAI_FONT, bold=True, size=14)
         ws.column_dimensions[chr(64 + c)].width = 20
-    ws.append(["ป.1", "ภาษาไทย", "ภาษาพาที ป.1", "สสวท.", 85, 40, ""])
+    ws.append(["ป.1", "ภาษาไทย", "ภาษาพาที ป.1", "สสวท.", 85, 40, "", ""])
     out = get_data_dir() / "documents"; out.mkdir(exist_ok=True)
     path = out / "แบบฟอร์มนำเข้าหนังสือเรียน.xlsx"
     wb.save(str(path))
@@ -309,7 +317,8 @@ async def textbook_import(db: Session = Depends(get_db), year: str = Form(""),
                 title=title, publisher=str(row[3] or "").strip() if len(row) > 3 else "",
                 unit_price=_to_float(row[4] if len(row) > 4 else 0, 0.0),
                 qty_received=_to_int(row[5] if len(row) > 5 else 0, 0),
-                note=str(row[6] or "").strip() if len(row) > 6 else ""))
+                note=str(row[6] or "").strip() if len(row) > 6 else "",
+                room=str(row[7] or "").strip() if len(row) > 7 else ""))
             n += 1
         db.commit()
     except Exception:
@@ -372,7 +381,7 @@ def textbook_export(db: Session = Depends(get_db), year: int | None = None):
     ws.append([f"ทะเบียนคุมหนังสือเรียน/แบบฝึกหัด  ปีการศึกษา {yr}"])
     ws.append([(school.name if school else "")])
     ws.append([])
-    headers = ["ลำดับ", "ระดับชั้น", "กลุ่มสาระ/วิชา", "ชื่อหนังสือ", "สำนักพิมพ์",
+    headers = ["ลำดับ", "ระดับชั้น", "ห้อง", "กลุ่มสาระ/วิชา", "ชื่อหนังสือ", "สำนักพิมพ์",
                "ราคา/เล่ม", "รับเข้า", "เบิกออก", "คงเหลือ", "มูลค่ารับเข้า (บาท)"]
     ws.append(headers)
     n_col = len(headers)
@@ -390,9 +399,9 @@ def textbook_export(db: Session = Depends(get_db), year: int | None = None):
     ws.cell(2, 1).alignment = Alignment(horizontal="center")
     for i, b in enumerate(books, start=1):
         iss = issued.get(b.id, 0)
-        ws.append([i, b.level, b.subject, b.title, b.publisher, b.unit_price or 0,
+        ws.append([i, b.level, (b.room or "ทุกห้อง"), b.subject, b.title, b.publisher, b.unit_price or 0,
                    b.qty_received or 0, iss, (b.qty_received or 0) - iss, b.amount])
-    widths = [7, 12, 18, 30, 18, 11, 10, 10, 10, 16]
+    widths = [7, 12, 9, 18, 30, 18, 11, 10, 10, 10, 16]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[chr(64 + i)].width = w
     for row in ws.iter_rows(min_row=5):

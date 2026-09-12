@@ -35,6 +35,7 @@ Base = declarative_base()
 
 # รายการเพิ่มคอลัมน์ใหม่บน DB เก่า (ปลอดภัย: ข้ามถ้ามีอยู่แล้ว)
 MIGRATIONS = [
+    ("textbook", "room", "VARCHAR DEFAULT ''"),
     ("requisition", "for_level", "VARCHAR DEFAULT ''"),
     ("requisition", "for_room", "VARCHAR DEFAULT ''"),
     ("requisition", "year", "INTEGER"),

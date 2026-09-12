@@ -1107,6 +1107,7 @@ class TextBook(Base):
     id = Column(Integer, primary_key=True)
     year = Column(Integer, nullable=False)          # ปีการศึกษา พ.ศ.
     level = Column(String, default="")              # ระดับชั้น เช่น ป.1
+    room = Column(String, default="")               # ห้อง เช่น 2 (ว่าง = ใช้ทุกห้องในชั้นนี้)
     subject = Column(String, default="")            # กลุ่มสาระ/วิชา
     title = Column(String, nullable=False)          # ชื่อหนังสือ
     publisher = Column(String, default="")          # สำนักพิมพ์
