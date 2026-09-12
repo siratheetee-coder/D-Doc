@@ -31,7 +31,7 @@ from app.models import (
 )
 from app.services.asset_utils import (
     CATEGORIES, CATEGORY_LIFE, annual_depreciation, accumulated_depreciation,
-    net_book_value, depreciation_schedule, material_balance,
+    net_book_value, depreciation_schedule, material_balance, ASSET_STATUSES,
 )
 from app.services.doc_number import suggest_doc_no, commit_doc_no, check_doc_no, COUNTER_TYPES, parse_seq
 from app.services.budget import current_plan_year, plan_year_label, project_budget, project_spent
@@ -2916,6 +2916,7 @@ def assets_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("assets.html", {
         "request": request, "assets": assets, "categories": CATEGORIES,
         "category_life": CATEGORY_LIFE, "total_cost": total_cost, "total_nbv": total_nbv,
+        "asset_statuses": ASSET_STATUSES,
     })
 
 
@@ -2924,7 +2925,7 @@ def asset_audit_page(request: Request, db: Session = Depends(get_db)):
     school = get_school(db)
     live = db.query(Asset).filter(Asset.status != "จำหน่ายแล้ว").count()
     fy = current_fiscal_year()
-    broken = db.query(Asset).filter(Asset.status == "ชำรุด").count()
+    broken = db.query(Asset).filter(Asset.status.in_(["ชำรุด", "เสื่อมสภาพ"])).count()
     mats = db.query(MaterialItem).order_by(MaterialItem.name).all()
     mat_count = sum(1 for m in mats if material_balance(m))
     # วันที่รายงานผล: ระเบียบให้เริ่มตรวจวันเปิดทำการวันแรกของเดือนตุลาคม
@@ -2959,7 +2960,7 @@ async def asset_audit_generate(request: Request, db: Session = Depends(get_db)):
     # จำนวนครุภัณฑ์ชำรุด: ถ้าไม่กรอกมา ให้นับจากทะเบียน (สถานะ "ชำรุด")
     damaged = (form.get("damaged_count") or "").strip()
     if not damaged:
-        n = sum(1 for a in assets if (a.status or "") == "ชำรุด")
+        n = sum(1 for a in assets if (a.status or "") in ("ชำรุด", "เสื่อมสภาพ"))
         damaged = str(n) if n else "-"
     memo_no = (form.get("memo_no") or "").strip()
     order_no = (form.get("order_no") or "").strip()

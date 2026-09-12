@@ -78,7 +78,7 @@
         <td class="right"><b>{{ "{:,.2f}".format(nbv(a.cost, a.salvage_value, a.useful_life, a.acquired_date)) }}</b></td>
         <td class="right" style="white-space:nowrap;">
           <a class="btn sm gray" href="/assets/{{ a.id }}/schedule"><svg class="icon"><use href="#ic-clipboard"/></svg> ตารางค่าเสื่อม</a>
-          <button class="btn sm" type="button" onclick="document.getElementById('edit{{ a.id }}').style.display='block'"><svg class="icon"><use href="#ic-edit"/></svg></button>
+          <button class="btn sm" type="button" onclick="toggleEdit('edit{{ a.id }}')"><svg class="icon"><use href="#ic-edit"/></svg></button>
         </td>
       </tr>
       <tr id="edit{{ a.id }}" style="display:none;">
@@ -113,14 +113,15 @@
                 <select name="acquire_method">{% for mt in ["วิธีตลาดอิเล็กทรอนิกส์","วิธีประกวดราคาอิเล็กทรอนิกส์","วิธีคัดเลือก","วิธีเฉพาะเจาะจง","รับบริจาค"] %}<option {{ "selected" if a.acquire_method==mt }}>{{ mt }}</option>{% endfor %}</select></div>
               <div><label>แหล่งเงิน (เพิ่มเติม)</label><input name="funding_source" value="{{ a.funding_source }}"></div>
               <div><label>สถานะ</label>
-                <select name="status"><option {{ "selected" if a.status=="ใช้งาน" }}>ใช้งาน</option><option {{ "selected" if a.status=="ชำรุด" }}>ชำรุด</option><option {{ "selected" if a.status=="จำหน่ายแล้ว" }}>จำหน่ายแล้ว</option></select>
+                <select name="status">{% for st in asset_statuses %}<option {{ "selected" if (a.status or "ใช้งาน")==st }}>{{ st }}</option>{% endfor %}</select>
               </div>
             </div>
             <br>
             <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
-            <button class="btn sm red" type="button" onclick="if(confirm('ลบครุภัณฑ์นี้?')){this.nextElementSibling.submit()}"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button>
-            <form method="post" action="/assets/{{ a.id }}/delete" style="display:none;"></form>
+            <button class="btn sm red" type="button" form="del{{ a.id }}"
+                    onclick="if(confirm('ลบครุภัณฑ์นี้?')){document.getElementById('del{{ a.id }}').submit()}"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button>
           </form>
+          <form id="del{{ a.id }}" method="post" action="/assets/{{ a.id }}/delete" style="display:none;"></form>
         </td>
       </tr>
       {% endfor %}
@@ -133,6 +134,15 @@
 </div>
 
 <script>
+  // แถวแก้ไขเป็น <tr> ถ้าตั้ง display:block จะหลุดจากตารางกลายเป็นคอลัมน์แคบ
+  // ต้องล้างค่า display ให้กลับไปเป็น table-row ตามเดิม
+  function toggleEdit(id) {
+    var tr = document.getElementById(id);
+    if (!tr) return;
+    var open = tr.style.display !== 'none';
+    tr.style.display = open ? 'none' : '';
+    if (!open) tr.querySelector('input, select').focus();
+  }
   var CAT_LIFE = {{ category_life | tojson }};
   function syncLife(el) {
     var life = CAT_LIFE[el.value];

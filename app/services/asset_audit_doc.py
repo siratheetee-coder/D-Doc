@@ -303,7 +303,7 @@ def render_inventory(school, ctx, assets, doc=None):
     if not live:
         r = t.add_row()
         _set_cell(r.cells[0], "-", align="center", size=13)
-    n_broken = sum(1 for a in live if (a.status or "") == "ชำรุด")
+    n_broken = sum(1 for a in live if (a.status or "") in ("ชำรุด", "เสื่อมสภาพ"))
     summary = f"รวมครุภัณฑ์คงเหลือ {len(live)} รายการ เป็นเงิน {total:,.2f} บาท"
     if n_broken:
         summary += f" (ในจำนวนนี้ชำรุด/เสื่อมสภาพ {n_broken} รายการ)"
@@ -330,16 +330,16 @@ def _landscape_section(doc):
     return sec
 
 
-# คอลัมน์ตามแบบฟอร์มบัญชีพัสดุชำรุดที่โรงเรียนใช้จริง (หัวตาราง 2 ชั้น รวม 13 คอลัมน์)
+# คอลัมน์ตามแบบฟอร์มบัญชีพัสดุชำรุดที่โรงเรียนใช้จริง (หัวตาราง 2 ชั้น รวม 14 คอลัมน์)
 #   0 ที่ · 1 รายการครุภัณฑ์ · 2 รหัสครุภัณฑ์ · 3 ยี่ห้อ
-#   4-8 ชำรุด/เสื่อม/สูญไป/ไม่ใช้/ใช้อยู่  (อยู่ใต้หัวรวม "รายการเสียหาย ใช้อยู่หรือไม่ใช้")
-#   9 วันที่ได้มา · 10 ราคาตามทะเบียน · 11 ผู้ใช้งาน · 12 ชำรุดอย่างไร
+#   4-9 ชำรุด/เสื่อม/สูญไป/ไม่ใช้/จำหน่าย/ใช้อยู่ (ใต้หัวรวม "รายการเสียหาย ใช้อยู่หรือไม่ใช้")
+#   10 วันที่ได้มา · 11 ราคาตามทะเบียน · 12 ผู้ใช้งาน · 13 ชำรุดอย่างไร
 _DMG_SPAN = "รายการเสียหาย ใช้อยู่หรือไม่ใช้"
-_DMG_SUB = ["ชำรุด", "เสื่อม", "สูญไป", "ไม่ใช้", "ใช้อยู่"]
+_DMG_SUB = ["ชำรุด", "เสื่อม", "สูญไป", "ไม่ใช้", "จำหน่าย", "ใช้อยู่"]
 _DMG_TALL = {0: "ที่", 1: "รายการครุภัณฑ์", 2: "รหัสครุภัณฑ์", 3: "ยี่ห้อ",
-             9: "วัน/เดือน/ปี ที่ได้มา", 10: "ราคาตามทะเบียน", 11: "ผู้ใช้งาน",
-             12: "ชำรุดอย่างไร"}
-_DMG_W = [Cm(0.9), Cm(4.4), Cm(3.0), Cm(2.0)] + [Cm(1.2)] * 5 + [Cm(2.2), Cm(2.2), Cm(2.2), Cm(2.7)]
+             10: "วัน/เดือน/ปี ที่ได้มา", 11: "ราคาตามทะเบียน", 12: "ผู้ใช้งาน",
+             13: "ชำรุดอย่างไร"}
+_DMG_W = [Cm(0.9), Cm(4.2), Cm(2.9), Cm(2.0)] + [Cm(1.2)] * 6 + [Cm(2.1), Cm(2.1), Cm(2.1), Cm(2.6)]
 _DMG_MIN_ROWS = 12          # เว้นบรรทัดว่างให้เขียนมือเพิ่มได้ (เหมือนแบบฟอร์มกระดาษ)
 
 
@@ -347,6 +347,7 @@ def render_damaged_list(school, ctx, assets, doc=None):
     """บัญชีรายการพัสดุชำรุด เสื่อมสภาพ สูญไป และไม่จำเป็นต้องใช้ในหน่วยงานของรัฐ
     หน้าแนวนอน ตารางกึ่งกลาง · เติมครุภัณฑ์ที่สถานะ "ชำรุด" ให้อัตโนมัติ แล้วเว้นบรรทัดว่างไว้กรอกเพิ่ม"""
     from docx.enum.table import WD_TABLE_ALIGNMENT
+    from app.services.asset_utils import ASSET_BAD_STATUSES, ASSET_STATUS_COL
     own = doc is None
     if own:
         doc = Document(); set_a4(doc, landscape=True); _font(doc)
@@ -357,7 +358,7 @@ def render_damaged_list(school, ctx, assets, doc=None):
             f"ปีงบประมาณ {year}", align="center", bold=True, size=16, after=0)
     _p(doc, (school.name or "").strip(), align="center", bold=True, size=16, after=6)
 
-    broken = [a for a in (assets or []) if (a.status or "") == "ชำรุด"]
+    broken = [a for a in (assets or []) if (a.status or "ใช้งาน") in ASSET_BAD_STATUSES]
     n_rows = max(_DMG_MIN_ROWS, len(broken))
     t = doc.add_table(rows=2 + n_rows, cols=len(_DMG_W))
     t.style = "Table Grid"; t.autofit = False
@@ -367,7 +368,7 @@ def render_damaged_list(school, ctx, assets, doc=None):
     r0, r1 = t.rows[0], t.rows[1]
     for i, label in _DMG_TALL.items():                # คอลัมน์ปกติ: รวมสองแถวเป็นช่องเดียว
         _set_cell(r0.cells[i].merge(r1.cells[i]), label, bold=True, align="center", size=13)
-    _set_cell(r0.cells[4].merge(r0.cells[8]), _DMG_SPAN, bold=True, align="center", size=13)
+    _set_cell(r0.cells[4].merge(r0.cells[9]), _DMG_SPAN, bold=True, align="center", size=13)
     for i, lab in enumerate(_DMG_SUB, start=4):       # ช่องย่อย 5 ช่องในแถวที่สอง
         _set_cell(r1.cells[i], lab, bold=True, align="center", size=12)
     _repeat_header_row(r0); _repeat_header_row(r1)
@@ -380,11 +381,15 @@ def render_damaged_list(school, ctx, assets, doc=None):
         a = broken[n] if n < len(broken) else None
         if a:
             got = thai_date(a.acquired_date) if a.acquired_date else ""
-            vals = [str(n + 1), a.name or "", a.asset_code or "", a.brand_model or "",
-                    "✓", "", "", "", "", got, f"{a.cost or 0:,.2f}", a.location or "", ""]
+            mark = ASSET_STATUS_COL.get(a.status or "", "")      # ติ๊กช่องให้ตรงกับสถานะ
+            ticks = ["✓" if lab == mark else "" for lab in _DMG_SUB]
+            vals = ([str(n + 1), a.name or "", a.asset_code or "", a.brand_model or ""]
+                    + ticks
+                    + [got, f"{a.cost or 0:,.2f}", a.location or "", ""])
         else:
             vals = [""] * len(_DMG_W)
-        aligns = ["center", "left", "left", "left"] + ["center"] * 5 + ["center", "right", "left", "left"]
+        aligns = (["center", "left", "left", "left"] + ["center"] * 6
+                  + ["center", "right", "left", "left"])
         for c, v, w, al in zip(row.cells, vals, _DMG_W, aligns):
             _set_cell(c, v, align=al, size=13)
             c.width = w
