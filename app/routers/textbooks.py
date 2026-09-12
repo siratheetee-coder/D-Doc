@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db, get_data_dir
 from app.models import (TextBook, TextbookBerk, TextbookBerkItem,
-                        MaterialItem, MaterialTxn)
+                        MaterialItem, MaterialTxn, TextbookPurchase)
 from app.thai_utils import (current_academic_year, parse_be_date, be_date_input,
                             thai_date, SCHOOL_LEVELS)
 from app.templating import templates
@@ -100,6 +100,102 @@ def textbook_delete(bid: int, db: Session = Depends(get_db)):
     if b:
         db.delete(b); db.commit()
     return RedirectResponse(f"/textbooks?year={yr}", status_code=303)
+
+
+# ---------------- จัดซื้อหนังสือเรียน (TOR + ชุดเอกสารคัดเลือก) ----------------
+def _purchase_for(db, yr) -> TextbookPurchase:
+    """ข้อมูลการจัดซื้อของปีนั้น (สร้างให้อัตโนมัติถ้ายังไม่มี)"""
+    tp = db.query(TextbookPurchase).filter_by(year=yr).first()
+    if tp is None:
+        tp = TextbookPurchase(year=yr, fiscal_year=yr)
+        db.add(tp); db.commit(); db.refresh(tp)
+    return tp
+
+
+def _book_groups(db, yr) -> list:
+    """รายการหนังสือแยกตามชั้น สำหรับตารางใน TOR
+    จำนวน = จำนวนนักเรียนในชั้นนั้น (ถ้ายังไม่มีนักเรียน ใช้จำนวนที่รับเข้าในทะเบียน)"""
+    from app.models import Student
+    counts = {}
+    for st in db.query(Student).all():
+        lv = (st.level or "").strip()
+        if lv:
+            counts[lv] = counts.get(lv, 0) + 1
+    books = (db.query(TextBook).filter_by(year=yr)
+             .order_by(TextBook.level, TextBook.title).all())
+    by_level = {}
+    for b in books:
+        lv = (b.level or "").strip()
+        by_level.setdefault(lv, []).append({
+            "title": b.title or "", "price": float(b.unit_price or 0),
+            "qty": counts.get(lv, 0) or int(b.qty_received or 0)})
+    return [(lv, by_level[lv]) for lv in sorted(
+        by_level, key=lambda l: SCHOOL_LEVELS.index(l) if l in SCHOOL_LEVELS else 99)]
+
+
+@router.get("/textbooks/purchase", response_class=HTMLResponse)
+def book_purchase_page(request: Request, db: Session = Depends(get_db),
+                       year: int | None = None, saved: str = ""):
+    import json
+    from app.models import Person
+    yr = year or current_academic_year()
+    tp = _purchase_for(db, yr)
+    groups = _book_groups(db, yr)
+    total = sum(it["price"] * it["qty"] for _, items in groups for it in items)
+    try:
+        members = json.loads(tp.members or "[]")
+    except Exception:
+        members = []
+    while len(members) < 3:
+        members.append({"name": "", "position": "ครู", "role":
+                        ["ประธานกรรมการ", "กรรมการ", "กรรมการและเลขานุการ"][len(members)]})
+    from app.routers.pages import POSITION_CHOICES
+    return templates.TemplateResponse("textbook_purchase.html", {
+        "request": request, "school": get_school(db), "tp": tp, "year": yr,
+        "years": _years(db), "groups": groups, "total": total,
+        "n_items": sum(len(i) for _, i in groups), "members": members,
+        "persons": db.query(Person).filter_by(active=True).order_by(Person.name).all(),
+        "positions": POSITION_CHOICES, "saved": saved,
+        "be_date_input": be_date_input,
+    })
+
+
+@router.post("/textbooks/purchase/save")
+async def book_purchase_save(request: Request, db: Session = Depends(get_db)):
+    import json
+    form = await request.form()
+    yr = _to_int(form.get("year"), current_academic_year())
+    tp = _purchase_for(db, yr)
+    tp.fiscal_year = _to_int(form.get("fiscal_year"), yr)
+    tp.method = (form.get("method") or "เฉพาะเจาะจง").strip()
+    tp.budget_source = (form.get("budget_source") or "").strip()
+    tp.total_budget = _to_float(form.get("total_budget"), 0.0)
+    tp.price_ref = _to_float(form.get("price_ref"), 0.0)
+    tp.period_text = (form.get("period_text") or "").strip()
+    tp.delivery_days = _to_int(form.get("delivery_days"), 15)
+    tp.delivery_place = (form.get("delivery_place") or "").strip()
+    tp.purpose = (form.get("purpose") or "").strip()
+    tp.conditions = (form.get("conditions") or "").strip()
+    tp.contact = (form.get("contact") or "").strip()
+    members = []
+    for i in range(1, 6):
+        nm = (form.get(f"m{i}_name") or "").strip()
+        if nm:
+            members.append({"name": nm,
+                            "position": (form.get(f"m{i}_pos") or "ครู").strip(),
+                            "role": (form.get(f"m{i}_role") or "กรรมการ").strip()})
+    tp.members = json.dumps(members, ensure_ascii=False)
+    db.commit()
+    return RedirectResponse(f"/textbooks/purchase?year={yr}&saved=1", status_code=303)
+
+
+@router.get("/textbooks/purchase/tor.docx")
+def book_purchase_tor(db: Session = Depends(get_db), year: int | None = None):
+    from app.services.book_tor_doc import render_book_tor
+    yr = year or current_academic_year()
+    tp = _purchase_for(db, yr)
+    path = render_book_tor(get_school(db), tp, _book_groups(db, yr))
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 # ---------------- ลงบัญชีวัสดุ (หนังสือเรียนเป็น "วัสดุ" ตามระเบียบ) ----------------

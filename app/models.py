@@ -1121,6 +1121,32 @@ class TextBook(Base):
         return (self.qty_received or 0) * (self.unit_price or 0)
 
 
+class TextbookPurchase(Base):
+    """ข้อมูลการจัดซื้อหนังสือเรียน 1 ปีการศึกษา (ใช้ออก TOR และเอกสารชุดคัดเลือก/จัดซื้อ)
+    รายการหนังสือดึงจากทะเบียนหนังสือเรียน (TextBook) ของปีนั้น ไม่เก็บซ้ำ"""
+    __tablename__ = "textbook_purchase"
+
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, nullable=False)             # ปีการศึกษา พ.ศ.
+    fiscal_year = Column(Integer, nullable=True)       # ปีงบประมาณ พ.ศ.
+    method = Column(String, default="เฉพาะเจาะจง")     # วิธีซื้อ
+    budget_source = Column(String, default="เงินอุดหนุนรัฐบาล")
+    total_budget = Column(Float, default=0.0)          # วงเงินงบประมาณที่ได้รับ
+    price_ref = Column(Float, default=0.0)             # ราคากลาง (0 = ใช้ยอดรวมรายการ)
+    period_text = Column(String, default="")           # ระยะเวลาดำเนินการ เช่น เมษายน - พฤษภาคม 2569
+    delivery_days = Column(Integer, default=15)        # ส่งมอบภายใน (วันทำการ)
+    delivery_place = Column(String, default="")        # สถานที่ส่งมอบ
+    purpose = Column(Text, default="")                 # วัตถุประสงค์
+    conditions = Column(Text, default="")              # เงื่อนไขเพิ่มเติม (บรรทัดละข้อ)
+    contact = Column(Text, default="")                 # ช่องทางติดต่อ/เสนอแนะ
+    members = Column(Text, default="")                 # กก.จัดทำร่าง TOR/ตรวจรับ (JSON list)
+    tor_memo_no = Column(String, default="")           # เลขที่บันทึกขอความเห็นชอบ TOR
+    tor_memo_date = Column(DateTime, nullable=True)
+    cmd_no = Column(String, default="")                # เลขที่คำสั่งแต่งตั้งผู้จัดทำร่าง TOR/ผู้ตรวจรับ
+    cmd_date = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+
+
 class TextbookBerk(Base):
     """ใบเบิกหนังสือเรียน/แบบฝึกหัด (จ่ายหนังสือให้ชั้นเรียน/ครูผู้รับ)"""
     __tablename__ = "textbook_berk"
