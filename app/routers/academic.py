@@ -524,7 +524,7 @@ def substitute_plan(request: Request, db: Session = Depends(get_db),
         d += timedelta(days=1)
     return templates.TemplateResponse("academic_substitute_plan.html", {
         "request": request, "school": get_school(db), "person": person,
-        "plan": plan, "start": start, "end": end,
+        "plan": plan, "start": start, "end": end, "class_label": _class_label,
         "source": source, "source_id": source_id, "year": y,
     })
 
