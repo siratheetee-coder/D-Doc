@@ -3339,9 +3339,18 @@ def requisition_print(req_id: int, db: Session = Depends(get_db)):
             names = [db.get(Person, pid).name for pid in (k.homeroom_id, k.co_homeroom_id)
                      if pid and db.get(Person, pid)]
             advisor = " และ".join(n for n in names if n)
+        books = []
+        for it in req.items:
+            price = 0.0
+            if it.material_id:
+                mi = db.get(MaterialItem, it.material_id)
+                ins = [t.unit_price for t in (mi.txns if mi else []) 
+                       if t.kind == "in" and (t.unit_price or 0) > 0]
+                price = ins[-1] if ins else 0.0
+            books.append({"name": it.name, "qty": it.qty or 0,
+                          "unit": it.unit or "เล่ม", "price": price})
         receipt = {"year": req.year or "", "level": lv, "room": rm, "advisor": advisor,
-                   "students": students,
-                   "books": [f"{it.name} ({it.qty:g} {it.unit})" for it in req.items]}
+                   "students": students, "books": books}
     path = render_requisition(req, get_school(db), receipt=receipt)
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 

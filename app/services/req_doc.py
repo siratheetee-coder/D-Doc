@@ -85,11 +85,15 @@ def render_requisition(req, school, receipt=None) -> str:
 
     # ---- ใบรับหนังสือเรียน (แนบท้ายใบเบิก ให้ผู้เรียนลงลายมือชื่อเป็นหลักฐาน) ----
     if receipt:
-        from app.services.book_receipt_doc import add_receipt_page
+        from app.services.book_receipt_doc import add_book_list_page, add_receipt_page
+        books = receipt.get("books") or []
+        doc.add_page_break()
+        add_book_list_page(doc, receipt.get("year"), receipt.get("level"),
+                           receipt.get("room"), books)
         doc.add_page_break()
         add_receipt_page(doc, receipt.get("year"), receipt.get("level"), receipt.get("room"),
                          receipt.get("advisor", ""), receipt.get("students") or [],
-                         books=receipt.get("books"))
+                         books=len(books))
 
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)

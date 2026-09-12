@@ -228,7 +228,8 @@ async def berk_room_create(request: Request, db: Session = Depends(get_db)):
         date=parse_be_date(form.get("date") or "") or datetime.now(),
         requester=(form.get("requester") or "").strip(),
         department="งานวิชาการ",
-        purpose=f"หนังสือเรียน ปีการศึกษา {yr} ชั้น {label} (นักเรียน {n_students} คน)",
+        purpose=(f"จ่ายหนังสือเรียนให้นักเรียน ชั้น {label} ปีการศึกษา {yr} "
+                 f"(นักเรียน {n_students} คน)"),
         for_level=lv, for_room=rm, year=yr)
     req.items.extend(items)
     db.add(req); db.commit(); db.refresh(req)
@@ -359,10 +360,19 @@ def book_receipt(db: Session = Depends(get_db), year: int | None = None):
         lv, rm = k
         return (_LEVEL_ORDER.index(lv) if lv in _LEVEL_ORDER else 99, lv, rm)
 
-    groups = [(lv, rm, advisors.get((lv, rm), ""), groups_map[(lv, rm)])
+    # หนังสือของแต่ละห้อง (เล่มกลางของชั้น + เล่มเฉพาะห้องนั้น)
+    all_books = db.query(TextBook).filter_by(year=yr).order_by(TextBook.title).all()
+
+    def _books_for(lv, rm):
+        return [{"name": b.title, "qty": len(groups_map.get((lv, rm), [])),
+                 "unit": "เล่ม", "price": float(b.unit_price or 0)}
+                for b in all_books
+                if (b.level or "").strip() == lv and (b.room or "").strip() in ("", rm)]
+
+    groups = [(lv, rm, advisors.get((lv, rm), ""), groups_map[(lv, rm)], _books_for(lv, rm))
               for lv, rm in sorted(groups_map, key=_key)]
     if not groups:
-        groups = [("", "", "", [])]        # ยังไม่มีนักเรียน -> ออกแบบฟอร์มเปล่า
+        groups = [("", "", "", [], [])]    # ยังไม่มีนักเรียน -> ออกแบบฟอร์มเปล่า
     path = render_book_receipt(yr, groups, get_school(db))
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
