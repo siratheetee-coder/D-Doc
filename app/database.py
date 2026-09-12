@@ -35,6 +35,8 @@ Base = declarative_base()
 
 # รายการเพิ่มคอลัมน์ใหม่บน DB เก่า (ปลอดภัย: ข้ามถ้ามีอยู่แล้ว)
 MIGRATIONS = [
+    ("material_item", "category", "VARCHAR DEFAULT ''"),
+    ("material_item", "book_id", "INTEGER"),
     ("procurement", "spec_cmd_no", "VARCHAR DEFAULT ''"),
     ("procurement", "spec_cmd_date", "DATETIME"),
     ("procurement", "winner_date", "DATETIME"),

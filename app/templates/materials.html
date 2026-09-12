@@ -42,7 +42,9 @@
       <div><label>หน่วยนับ</label><input name="unit" value="หน่วย" placeholder="เช่น รีม, กล่อง"></div>
       <div><label>จำนวน (ยอดยกมา)</label><input name="opening" type="number" step="0.01" min="0" value="0"></div>
       <div><label>แจ้งว่าใกล้หมดที่จำนวน</label><input name="min_stock" type="number" step="0.01" min="0" value="0"></div>
+      <div><label>หมวด</label><input name="category" list="matcats" placeholder="เว้นว่าง = วัสดุทั่วไป"></div>
     </div>
+    <datalist id="matcats">{% for cname in categories %}<option value="{{ cname }}">{% endfor %}</datalist>
     <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button>
   </form>
 </div>
@@ -50,10 +52,12 @@
 <div class="card">
   <h2>รายการวัสดุในคลัง</h2>
   {% if items %}
+  {% for cname, rows in groups %}
+  <h3 style="margin:14px 0 6px; color:#1d4ed8;">{{ cname }} <span class="muted" style="font-weight:400; font-size:14px;">({{ rows|length }} รายการ)</span></h3>
   <div class="table-wrap"><table>
     <thead><tr><th>ชื่อวัสดุ</th><th>หน่วย</th><th class="right">คงเหลือ</th><th>สถานะ</th><th></th></tr></thead>
     <tbody>
-      {% for it in items %}
+      {% for it in rows %}
       {% set bal = mat_balance(it) %}
       <tr>
         <td><a href="/materials/{{ it.id }}"><b>{{ it.name }}</b></a></td>
@@ -72,6 +76,8 @@
       {% endfor %}
     </tbody>
   </table></div>
+  {% endfor %}
+  <p class="muted" style="font-size:13px; margin-top:10px;">แยกหมวดเพื่อให้ดูง่ายเท่านั้น · รายงานและบัญชีวัสดุคงเหลือยังรวมทุกหมวดเหมือนเดิม</p>
   {% else %}
   <p class="muted">ยังไม่มีวัสดุ - เพิ่มด้านบน หรือนำเข้าจากเรื่องจัดซื้อ (ปุ่ม "นำเข้าทะเบียน" ในหน้ารายละเอียดเรื่อง)</p>
   {% endif %}

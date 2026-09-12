@@ -817,6 +817,8 @@ class MaterialItem(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)          # ชื่อวัสดุ
     unit = Column(String, default="หน่วย")         # หน่วยนับ
+    category = Column(String, default="")          # หมวด (เช่น หนังสือเรียน) - ว่าง = วัสดุทั่วไป
+    book_id = Column(Integer, ForeignKey("textbook.id"), nullable=True)  # ผูกกับทะเบียนหนังสือเรียน (กันลงบัญชีซ้ำ)
     min_stock = Column(Float, default=0.0)         # จุดเตือนสั่งซื้อ (0 = ไม่เตือน)
     note = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)

@@ -8,8 +8,19 @@
       <a class="btn sm gray" href="/textbooks/berk?year={{ year }}"><svg class="icon"><use href="#ic-file"/></svg> ใบเบิกหนังสือ</a>
       <a class="btn sm" href="/textbooks/receipt.docx?year={{ year }}"><svg class="icon"><use href="#ic-download"/></svg> แบบรับหนังสือเรียน (Word)</a>
       <a class="btn sm green" href="/textbooks/export.xlsx?year={{ year }}"><svg class="icon"><use href="#ic-download"/></svg> ส่งออก Excel</a>
+      <form method="post" action="/textbooks/to-materials" style="display:inline; margin:0;"
+            onsubmit="return confirm('ลงหนังสือเรียนปี {{ year }} เข้าบัญชีวัสดุ (หมวดหนังสือเรียน)? กดซ้ำจะไม่ลงยอดซ้ำ');">
+        <input type="hidden" name="year" value="{{ year }}">
+        <button class="btn sm soft" type="submit"><svg class="icon"><use href="#ic-clipboard"/></svg> ลงบัญชีวัสดุ</button>
+      </form>
     </div>
   </div>
+  {% if request.query_params.get('mat') %}
+  {% set m = request.query_params.get('mat').split('-') %}
+  <div class="alert">✔ ลงบัญชีวัสดุแล้ว · สร้างรายการใหม่ {{ m[0] }} รายการ · ลงรับเข้า {{ m[1] }} รายการ
+    {% if m[2] != '0' %}· ข้าม {{ m[2] }} รายการ (ลงบัญชีของปีนี้ไว้แล้ว){% endif %}
+    <a href="/materials">ดูบัญชีวัสดุ →</a></div>
+  {% endif %}
   <form method="get" action="/textbooks" style="margin-top:10px;">
     <label>ปีการศึกษา</label>
     <select name="year" onchange="submitReplace(this.form)" style="width:auto;">

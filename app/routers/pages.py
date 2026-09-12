@@ -3113,18 +3113,24 @@ def asset_schedule(asset_id: int, request: Request, db: Session = Depends(get_db
 @router.get("/materials", response_class=HTMLResponse)
 def materials_page(request: Request, db: Session = Depends(get_db)):
     items = db.query(MaterialItem).order_by(MaterialItem.name).all()
+    # จัดกลุ่มตามหมวดให้ดูง่าย (วัสดุทั่วไปขึ้นก่อน แล้วหมวดอื่นเรียงตามชื่อ)
+    buckets = {}
+    for it in items:
+        buckets.setdefault((it.category or "").strip() or "วัสดุทั่วไป", []).append(it)
+    groups = sorted(buckets.items(), key=lambda kv: (kv[0] != "วัสดุทั่วไป", kv[0]))
     return templates.TemplateResponse("materials.html", {
-        "request": request, "items": items,
+        "request": request, "items": items, "groups": groups,
+        "categories": [g[0] for g in groups],
     })
 
 
 @router.post("/materials")
 def material_add(db: Session = Depends(get_db), name: str = Form(...),
                  unit: str = Form("หน่วย"), min_stock: str = Form("0"),
-                 opening: str = Form("0")):
+                 opening: str = Form("0"), category: str = Form("")):
     if name.strip():
         it = MaterialItem(name=name.strip(), unit=unit.strip() or "หน่วย",
-                          min_stock=_to_float(min_stock, 0.0))
+                          category=category.strip(), min_stock=_to_float(min_stock, 0.0))
         db.add(it); db.flush()
         op = _to_float(opening, 0.0)
         if op > 0:                       # มียอดเริ่มต้น -> ลงรับเป็น "ยอดยกมา"

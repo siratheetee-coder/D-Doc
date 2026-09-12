@@ -13,7 +13,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db, get_data_dir
-from app.models import TextBook, TextbookBerk, TextbookBerkItem
+from app.models import (TextBook, TextbookBerk, TextbookBerkItem,
+                        MaterialItem, MaterialTxn)
 from app.thai_utils import (current_academic_year, parse_be_date, be_date_input,
                             thai_date, SCHOOL_LEVELS)
 from app.templating import templates
@@ -97,6 +98,48 @@ def textbook_delete(bid: int, db: Session = Depends(get_db)):
     if b:
         db.delete(b); db.commit()
     return RedirectResponse(f"/textbooks?year={yr}", status_code=303)
+
+
+# ---------------- ลงบัญชีวัสดุ (หนังสือเรียนเป็น "วัสดุ" ตามระเบียบ) ----------------
+BOOK_CATEGORY = "หนังสือเรียน"
+
+
+@router.post("/textbooks/to-materials")
+def textbooks_to_materials(db: Session = Depends(get_db), year: int = Form(0)):
+    """ลงหนังสือเรียนของปีนี้เข้าบัญชีวัสดุ (รับเข้าตามจำนวนในทะเบียน)
+
+    กดซ้ำได้ไม่เพิ่มซ้ำ: รายการวัสดุผูกกับหนังสือด้วย book_id และการรับเข้า
+    ผูกด้วยข้อความอ้างอิงของปีนั้น ถ้ามีแล้วจะข้าม (แต่ยังสร้างรายการวัสดุที่ยังไม่มีให้)
+    """
+    yr = year or current_academic_year()
+    books = db.query(TextBook).filter_by(year=yr).all()
+    ref = f"ทะเบียนหนังสือเรียน ปีการศึกษา {yr}"
+    added = posted = skipped = 0
+    for b in books:
+        item = db.query(MaterialItem).filter_by(book_id=b.id).first()
+        if item is None:
+            title = (b.title or "").strip()
+            if not title:
+                continue
+            name = f"{title} ({b.level})" if (b.level or "").strip() else title
+            item = MaterialItem(name=name, unit="เล่ม", category=BOOK_CATEGORY, book_id=b.id)
+            db.add(item); db.flush()
+            added += 1
+        qty = int(b.qty_received or 0)
+        if qty <= 0:
+            continue
+        dup = (db.query(MaterialTxn)
+               .filter_by(material_id=item.id, kind="in", ref=ref).first())
+        if dup:
+            skipped += 1
+            continue
+        db.add(MaterialTxn(material_id=item.id, kind="in", qty=qty,
+                           unit_price=float(b.unit_price or 0), date=datetime.now(),
+                           ref=ref, note="รับเข้าจากทะเบียนหนังสือเรียน"))
+        posted += 1
+    db.commit()
+    return RedirectResponse(
+        f"/textbooks?year={yr}&mat={added}-{posted}-{skipped}", status_code=303)
 
 
 # ---------------- ใบเบิกหนังสือเรียน ----------------
