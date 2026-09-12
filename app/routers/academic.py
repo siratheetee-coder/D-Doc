@@ -419,6 +419,12 @@ def _notify_directors(db, title, reason, link="/approvals"):
 _TH_DAYS = {1: "จันทร์", 2: "อังคาร", 3: "พุธ", 4: "พฤหัสบดี", 5: "ศุกร์", 6: "เสาร์", 7: "อาทิตย์"}
 
 
+def _as_date(x):
+    """parse_be_date คืน datetime - คอลัมน์ในตารางเป็น Date จึงต้องตัดเวลาออกก่อนใช้
+    (ถ้าไม่ตัด ชื่อช่องในฟอร์มจะกลายเป็น 2569-05-18T00:00:00 และบันทึกไม่ลง)"""
+    return x.date() if hasattr(x, "date") else x
+
+
 def _teach_map(db):
     """(class_id, subject_id) -> teacher_id"""
     return {(t.class_id, t.subject_id): t.teacher_id for t in db.query(AcadTeaching).all()}
@@ -484,7 +490,7 @@ def substitute_plan(request: Request, db: Session = Depends(get_db),
         return _deny()
     y = _acad_year(db)
     person = db.get(Person, person_id)
-    sd = parse_be_date(start); ed = parse_be_date(end) or sd
+    sd = _as_date(parse_be_date(start)); ed = _as_date(parse_be_date(end)) or sd
     if not person or not sd:
         return RedirectResponse("/academic/substitute?err=เลือกครูและวันที่ให้ครบ", status_code=303)
     if ed < sd:
@@ -546,7 +552,7 @@ async def substitute_save(request: Request, db: Session = Depends(get_db),
         try:
             _, ds, pid_, cid = k.split("_")
             from datetime import date as _date
-            d = _date.fromisoformat(ds)
+            d = _date.fromisoformat(ds[:10])   # ตัดเวลาออก เผื่อคีย์เป็น ...T00:00:00
             pid_ = int(pid_); cid = int(cid)
         except Exception:
             continue
@@ -584,7 +590,7 @@ def substitute_schedule_docx(request: Request, db: Session = Depends(get_db),
     q = db.query(SubstituteAssignment)
     if person_id:
         q = q.filter(SubstituteAssignment.absent_person_id == person_id)
-    sd = parse_be_date(start); ed = parse_be_date(end) or sd
+    sd = _as_date(parse_be_date(start)); ed = _as_date(parse_be_date(end)) or sd
     if sd:
         q = q.filter(SubstituteAssignment.date >= sd)
     if ed:
