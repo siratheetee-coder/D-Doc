@@ -606,33 +606,103 @@ def support_review(request: Request, stars: str = Form("5"), comment: str = Form
 
 
 # ---------------- สำรอง / กู้คืนข้อมูล ----------------
+# ไฟล์สำรองของโรงเรียน = .zip (ข้อมูลทุกงาน + บัญชีผู้ใช้) · ของเดิมเป็น .db เดี่ยว ๆ ยังกู้คืนได้
+BACKUP_FORMAT = "easy-ekkasan-school-backup"
+BACKUP_VERSION = 1
+_SQLITE_MAGIC = b"SQLite format 3" + bytes([0])
+
+
+def _backup_zip_bytes(request: Request) -> tuple:
+    """สร้างไฟล์สำรอง .zip ในหน่วยความจำ -> (bytes, จำนวนบัญชีที่ใส่ไป)"""
+    import io as _io
+    import json
+    import zipfile
+    from app.accounts import export_accounts
+    from app.database import current_db_path, _checkpoint
+    _checkpoint()                       # เขียนข้อมูลที่ยังค้างใน WAL ลงไฟล์ก่อน
+    tid = request.session.get("tid")
+    users = export_accounts(tid)
+    meta = {
+        "format": BACKUP_FORMAT, "version": BACKUP_VERSION,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "school_name": request.session.get("name", ""),
+        "tenant_id": tid, "accounts": len(users),
+    }
+    buf = _io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("meta.json", json.dumps(meta, ensure_ascii=False, indent=2))
+        z.write(str(current_db_path()), "school.db")
+        z.writestr("users.json", json.dumps(users, ensure_ascii=False))
+    return buf.getvalue(), len(users)
+
+
 @router.get("/backup")
 def backup_download(request: Request):
-    """ดาวน์โหลดไฟล์สำรองฐานข้อมูลทั้งหมด (.db)"""
+    """ดาวน์โหลดไฟล์สำรองของโรงเรียน (.zip = ข้อมูลทุกงาน + บัญชีผู้ใช้)"""
+    from urllib.parse import quote
     from app.accounts import audit
-    from app.database import current_db_path, _checkpoint
-    _checkpoint()
-    audit("data.download", request=request, detail="ดาวน์โหลดฐานข้อมูลของโรงเรียนทั้งไฟล์")
-    fname = f"school-backup-{datetime.now():%Y%m%d-%H%M}.db"
-    return serve_generated(str(current_db_path()), "application/octet-stream", count=False)
+    data, n_users = _backup_zip_bytes(request)
+    audit("data.download", request=request,
+          detail=f"ดาวน์โหลดไฟล์สำรองของโรงเรียน (ข้อมูลทั้งหมด + บัญชีผู้ใช้ {n_users} บัญชี)")
+    fname = f"school-backup-{datetime.now():%Y%m%d-%H%M}.zip"
+    return Response(
+        content=data, media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename*=utf-8''" + quote(fname)})
+
+
+def _read_backup_file(data: bytes) -> tuple:
+    """แยกไฟล์สำรองที่อัปโหลด -> (db_bytes, users หรือ None)
+    รองรับทั้ง .zip แบบใหม่ และ .db เดี่ยว ๆ แบบเดิม · คืน (None, None) ถ้าไม่ใช่ไฟล์สำรอง"""
+    import io as _io
+    import json
+    import zipfile
+    if data[:16] == _SQLITE_MAGIC:
+        return data, None                      # ไฟล์เก่า: ข้อมูลอย่างเดียว ไม่มีบัญชีผู้ใช้
+    if data[:2] != b"PK":
+        return None, None
+    try:
+        with zipfile.ZipFile(_io.BytesIO(data)) as z:
+            names = set(z.namelist())
+            if "school.db" not in names:
+                return None, None
+            db_bytes = z.read("school.db")
+            if db_bytes[:16] != _SQLITE_MAGIC:
+                return None, None
+            users = None
+            if "users.json" in names:
+                try:
+                    v = json.loads(z.read("users.json").decode("utf-8"))
+                    users = v if isinstance(v, list) else None
+                except Exception:
+                    users = None
+            return db_bytes, users
+    except Exception:
+        return None, None
 
 
 @router.post("/restore")
 async def restore_upload(request: Request, file: UploadFile = File(...)):
-    """กู้คืนฐานข้อมูลจากไฟล์สำรอง (.db) ที่อัปโหลด"""
-    from app.accounts import audit
+    """กู้คืนจากไฟล์สำรอง (.zip แบบใหม่ = ข้อมูล + บัญชีผู้ใช้ · .db แบบเดิม = ข้อมูลอย่างเดียว)"""
+    from app.accounts import audit, import_accounts
     from app.database import restore_db
     data = await file.read()
-    if data[:16] != b"SQLite format 3\x00":
+    db_bytes, users = _read_backup_file(data)
+    if db_bytes is None:
         return RedirectResponse("/settings?restore_err=type", status_code=303)
     try:
-        restore_db(data)
+        restore_db(db_bytes)
     except Exception:
         audit("data.restore", request=request, detail="กู้คืนไม่สำเร็จ (ไฟล์เสีย)")
         return RedirectResponse("/settings?restore_err=fail", status_code=303)
-    audit("data.restore", request=request,
-          detail=f"เขียนทับข้อมูลทั้งโรงเรียนจากไฟล์ {file.filename} ({len(data)//1024} KB)")
-    return RedirectResponse("/settings?restored=1", status_code=303)
+    detail = f"เขียนทับข้อมูลทั้งโรงเรียนจากไฟล์ {file.filename} ({len(data)//1024} KB)"
+    q = "restored=1"
+    if users:
+        res = import_accounts(request.session.get("tid"), users,
+                              keep_username=request.session.get("username", ""))
+        detail += (f" · บัญชีผู้ใช้: เพิ่ม {res['added']} แก้ไข {res['updated']} ข้าม {res['skipped']}")
+        q += f"&users={res['added'] + res['updated']}"
+    audit("data.restore", request=request, detail=detail)
+    return RedirectResponse(f"/settings?{q}", status_code=303)
 
 
 # ---------------- มาสเตอร์ลิสต์ (บุคลากร/ฝ่าย/โครงการ) ----------------

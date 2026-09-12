@@ -135,20 +135,22 @@
 
 <div class="card">
   <h2><svg class="icon"><use href="#ic-save"/></svg> สำรอง / กู้คืนข้อมูล</h2>
-  <p class="muted">ข้อมูลทั้งหมดเก็บในไฟล์เดียว แนะนำให้ดาวน์โหลดไฟล์สำรองเก็บไว้สม่ำเสมอ (เช่น ลงไดรฟ์/แฟลชไดรฟ์) เผื่อเครื่องเสียหรือต้องย้ายเครื่อง</p>
-  {% if request.query_params.get("restored") %}<div class="alert">✔ กู้คืนข้อมูลจากไฟล์สำรองเรียบร้อยแล้ว</div>{% endif %}
-  {% if request.query_params.get("restore_err") == "type" %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> ไฟล์ที่อัปโหลดไม่ใช่ไฟล์สำรองที่ถูกต้อง (.db)</div>{% endif %}
+  <p class="muted">ไฟล์สำรอง 1 ไฟล์ (.zip) มีทั้ง<b>ข้อมูลทุกงาน</b>และ<b>บัญชีผู้ใช้ของโรงเรียน</b> (ชื่อผู้ใช้ รหัสผ่าน สิทธิ์ บัญชีครู)
+    แนะนำให้ดาวน์โหลดเก็บไว้สม่ำเสมอ (เช่น ลงไดรฟ์/แฟลชไดรฟ์) เผื่อเครื่องเสียหรือต้องย้ายเครื่อง</p>
+  {% if request.query_params.get("restored") %}<div class="alert">✔ กู้คืนข้อมูลจากไฟล์สำรองเรียบร้อยแล้ว{% if request.query_params.get("users") %} · กู้คืนบัญชีผู้ใช้ {{ request.query_params.get("users") }} บัญชี (ใช้รหัสผ่านเดิมตอนที่สำรองไว้){% endif %}</div>{% endif %}
+  {% if request.query_params.get("restore_err") == "type" %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> ไฟล์ที่อัปโหลดไม่ใช่ไฟล์สำรองที่ถูกต้อง (.zip หรือ .db)</div>{% endif %}
   {% if request.query_params.get("restore_err") == "fail" %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> กู้คืนไม่สำเร็จ กรุณาลองใหม่</div>{% endif %}
   <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; margin-top:10px;">
     <a class="btn green" href="/backup"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดไฟล์สำรอง</a>
     <form method="post" action="/restore" enctype="multipart/form-data"
           style="display:flex; gap:8px; align-items:center; margin:0; flex-wrap:wrap;"
           onsubmit="return confirm('กู้คืนข้อมูลจากไฟล์นี้? ข้อมูลปัจจุบันทั้งหมดจะถูกแทนที่ (ระบบจะสำรองไฟล์ปัจจุบันไว้ให้ก่อนอัตโนมัติ)');">
-      <input type="file" name="file" accept=".db" required
+      <input type="file" name="file" accept=".zip,.db" required
              style="padding:6px; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
       <button class="btn gray" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> กู้คืนจากไฟล์สำรอง</button>
     </form>
   </div>
-  <p class="muted" style="font-size:13px; margin-bottom:0;">เมื่อกู้คืนหรือนำเข้า ระบบจะเก็บสำเนาไฟล์ปัจจุบันไว้ในโฟลเดอร์ data/backups ให้อัตโนมัติ</p>
+  <p class="muted" style="font-size:13px; margin-bottom:0;">เมื่อกู้คืนหรือนำเข้า ระบบจะเก็บสำเนาไฟล์ปัจจุบันไว้ในโฟลเดอร์ data/backups ให้อัตโนมัติ ·
+    กู้คืนบัญชีผู้ใช้เฉพาะของโรงเรียนนี้เท่านั้น และจะไม่ลบบัญชีที่มีอยู่ตอนนี้</p>
 </div>
 {% endblock %}

@@ -1568,6 +1568,100 @@ def delete_tenant_user(tenant_id, uid) -> dict:
 
 
 # ===================== สร้างบัญชีจากคำขอ (B) + ทดลองใช้ฟรี (A) =====================
+# ---------- สำรอง/กู้คืน "บัญชีผู้ใช้ของโรงเรียน" (ไปกับไฟล์สำรองของโรงเรียน) ----------
+# ฟิลด์ที่เก็บลงไฟล์สำรอง · ตั้งใจไม่เก็บ role (กันไฟล์สำรองสร้างสิทธิ์ผู้ดูแลระบบ)
+# และไม่เก็บอะไรที่เป็นของ Tenant (แพ็กเกจ/วันหมดอายุ/งานที่ซื้อ) เพราะกู้คืนไม่ได้ตามใจ
+_ACC_BACKUP_FIELDS = [
+    "username", "password_hash", "display_name", "active", "is_owner", "is_director",
+    "modules", "person_id", "welcomed", "seen_modules", "must_change_password", "verified",
+    "totp_secret", "totp_enabled", "totp_recovery",
+]
+
+
+def export_accounts(tenant_id) -> list:
+    """รายชื่อบัญชีของโรงเรียนนี้ (สำหรับใส่ในไฟล์สำรอง) · รูปโปรไฟล์เก็บเป็น base64"""
+    import base64
+    db = acc_session()
+    try:
+        out = []
+        for a in db.query(Account).filter_by(tenant_id=tenant_id).order_by(Account.id).all():
+            row = {f: getattr(a, f, None) for f in _ACC_BACKUP_FIELDS}
+            row["avatar_b64"] = base64.b64encode(a.avatar).decode() if a.avatar else ""
+            out.append(row)
+        return out
+    finally:
+        db.close()
+
+
+def import_accounts(tenant_id, rows, keep_username: str = "") -> dict:
+    """กู้คืนบัญชีผู้ใช้ของโรงเรียนนี้จากไฟล์สำรอง
+
+    กติกาความปลอดภัย (ไฟล์สำรองเป็นไฟล์ที่ผู้ใช้อัปโหลดเอง จึงต้องกันไว้ทุกทาง):
+      1) ทุกบัญชีถูกบังคับให้อยู่กับโรงเรียนที่กำลังล็อกอินเท่านั้น (tenant_id ปัจจุบัน)
+      2) role เป็น "user" เสมอ -> ไฟล์สำรองสร้างผู้ดูแลระบบ (superadmin) ไม่ได้
+      3) ชื่อผู้ใช้ที่เป็นของโรงเรียนอื่นอยู่แล้ว -> ข้าม (กันแย่งบัญชีคนอื่น)
+      4) ไม่ลบบัญชีที่มีอยู่ตอนนี้แต่ไม่มีในไฟล์ (กันล็อกตัวเองออกจากระบบ)
+      5) บัญชีที่กำลังใช้งานอยู่ (keep_username) จะไม่ถูกปิดใช้งาน/ถอดสิทธิ์เจ้าของ
+      6) ไม่แตะข้อมูลแพ็กเกจ/วันหมดอายุ/งานที่ซื้อของโรงเรียน
+      7) บัญชี "ใหม่" ที่ไม่ใช่บัญชีครู ต้องอยู่ในโควตา max_users เหมือนการเพิ่มผู้ใช้ปกติ
+    """
+    import base64
+    added = updated = skipped = 0
+    db = acc_session()
+    try:
+        t = db.query(Tenant).filter_by(id=tenant_id).first()
+        quota = (t.max_users if t else 3) or 3
+        billable = (db.query(Account)
+                    .filter(Account.tenant_id == tenant_id, Account.person_id.is_(None)).count())
+        for r in (rows or []):
+            if not isinstance(r, dict):
+                skipped += 1
+                continue
+            uname = (r.get("username") or "").strip()
+            pwh = (r.get("password_hash") or "").strip()
+            if not uname or not pwh:
+                skipped += 1
+                continue
+            acc = db.query(Account).filter_by(username=uname).first()
+            if acc and acc.tenant_id != tenant_id:
+                skipped += 1          # ชื่อผู้ใช้นี้เป็นของโรงเรียนอื่น - ห้ามเขียนทับ
+                continue
+            is_me = (uname == keep_username)
+            if acc is None:
+                # บัญชีใหม่ที่ไม่ใช่บัญชีครู -> ต้องไม่เกินโควตาผู้ใช้ของโรงเรียน
+                if not r.get("person_id"):
+                    if billable >= quota:
+                        skipped += 1
+                        continue
+                    billable += 1
+                acc = Account(username=uname, password_hash=pwh)
+                db.add(acc)
+                added += 1
+            else:
+                updated += 1
+            acc.tenant_id = tenant_id
+            acc.role = "user"
+            acc.password_hash = pwh
+            for f in _ACC_BACKUP_FIELDS:
+                if f in ("username", "password_hash"):
+                    continue
+                if f in r:
+                    setattr(acc, f, r.get(f))
+            if is_me:                 # กันล็อกตัวเองออก
+                acc.active = True
+                acc.is_owner = True
+            b64 = r.get("avatar_b64") or ""
+            if b64:
+                try:
+                    acc.avatar = base64.b64decode(b64)
+                except Exception:
+                    pass
+        db.commit()
+    finally:
+        db.close()
+    return {"added": added, "updated": updated, "skipped": skipped}
+
+
 def _slugify_acc(s: str) -> str:
     import re
     s = re.sub(r"[^a-z0-9]+", "-", (s or "").lower()).strip("-")
