@@ -5,8 +5,7 @@
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h1 style="margin:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> ทะเบียนหนังสือเรียน/แบบฝึกหัด</h1>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <a class="btn sm gray" href="/textbooks/berk?year={{ year }}"><svg class="icon"><use href="#ic-file"/></svg> ใบเบิกหนังสือ</a>
-      <a class="btn sm" href="/textbooks/receipt.docx?year={{ year }}"><svg class="icon"><use href="#ic-download"/></svg> แบบรับหนังสือเรียน (Word)</a>
+      <a class="btn sm" href="/textbooks/berk?year={{ year }}"><svg class="icon"><use href="#ic-file"/></svg> ใบเบิก + แบบรับหนังสือ</a>
       <a class="btn sm green" href="/textbooks/export.xlsx?year={{ year }}"><svg class="icon"><use href="#ic-download"/></svg> ส่งออก Excel</a>
       <form method="post" action="/textbooks/to-materials" style="display:inline; margin:0;"
             onsubmit="return confirm('ลงหนังสือเรียนปี {{ year }} เข้าบัญชีวัสดุ (หมวดหนังสือเรียน)? กดซ้ำจะไม่ลงยอดซ้ำ');">

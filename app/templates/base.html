@@ -662,6 +662,8 @@
     <symbol id="ic-coins" viewBox="0 0 24 24"><ellipse cx="9" cy="6" rx="6" ry="3"/><path d="M3 6v6c0 1.7 2.7 3 6 3s6-1.3 6-3V6"/><path d="M3 12v6c0 1.7 2.7 3 6 3 1.3 0 2.5-.2 3.5-.6"/><circle cx="17" cy="15" r="4"/></symbol>
     <symbol id="ic-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
     <symbol id="ic-food" viewBox="0 0 24 24"><path d="M3 2v7a3 3 0 0 0 3 3v10M6 2v6M9 2v6M9 2v7a3 3 0 0 1-3 3"/><path d="M18 2c-1.7 0-3 2-3 5s1.3 5 3 5v10"/></symbol>
+    <symbol id="ic-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 1 2-2h13"/><path d="M9 3v12"/></symbol>
+    <symbol id="ic-outbox" viewBox="0 0 24 24"><path d="M3 14h5l1.5 3h5L16 14h5"/><path d="M5 14 6.5 5h11L19 14v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z"/><path d="M12 4v6M9.5 7.5 12 10l2.5-2.5"/></symbol>
     <symbol id="ic-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h3.5l2 2.5H19a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
     <symbol id="ic-building" viewBox="0 0 24 24"><path d="M5 21V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v17"/><path d="M15 9h3a1 1 0 0 1 1 1v11"/><path d="M2 21h20"/><path d="M8 7h2M8 11h2M8 15h2"/></symbol>
     <symbol id="ic-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5M11 18l-6-6 6-6"/></symbol>
@@ -780,13 +782,13 @@
         <a href="/procurement/new" class="{{ 'active' if path.startswith('/procurement/new') }}"><svg class="icon"><use href="#ic-file-plus"/></svg> สร้างเรื่องใหม่</a>
         <a href="/procurement/from-file" class="{{ 'active' if path.startswith('/procurement/from-file') }}"><svg class="icon"><use href="#ic-download"/></svg> อัพโหลดเรื่องซื้อ/จ้าง</a>
         <a href="/procurement/plan" class="{{ 'active' if path.startswith('/procurement/plan') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> แผนจัดซื้อจัดจ้าง</a>
-        <a href="/procurement/contracts" class="{{ 'active' if path.startswith('/procurement/contracts') }}"><svg class="icon"><use href="#ic-file"/></svg> ทะเบียนคุมสัญญา</a>
+        <a href="/procurement/contracts" class="{{ 'active' if path.startswith('/procurement/contracts') }}"><svg class="icon"><use href="#ic-building"/></svg> ทะเบียนคุมสัญญา</a>
         <div class="nav-sec">พัสดุ/ทรัพย์สิน</div>
         <a href="/assets" class="{{ 'active' if path.startswith('/assets') }}"><svg class="icon"><use href="#ic-package"/></svg> ทะเบียนครุภัณฑ์</a>
-        <a href="/materials" class="{{ 'active' if path.startswith('/materials') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> บัญชีวัสดุ</a>
-        <a href="/requisitions" class="{{ 'active' if path.startswith('/requisitions') }}"><svg class="icon"><use href="#ic-file"/></svg> ใบเบิกวัสดุ</a>
-        <a href="/catalog" class="{{ 'active' if path.startswith('/catalog') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> คลังรายการพัสดุ</a>
-        <a href="/textbooks" class="{{ 'active' if path.startswith('/textbooks') }}"><svg class="icon"><use href="#ic-file"/></svg> บัญชีหนังสือเรียน</a>
+        <a href="/materials" class="{{ 'active' if path.startswith('/materials') }}"><svg class="icon"><use href="#ic-folder"/></svg> บัญชีวัสดุ</a>
+        <a href="/requisitions" class="{{ 'active' if path.startswith('/requisitions') }}"><svg class="icon"><use href="#ic-outbox"/></svg> ใบเบิกวัสดุ</a>
+        <a href="/catalog" class="{{ 'active' if path.startswith('/catalog') }}"><svg class="icon"><use href="#ic-search"/></svg> คลังรายการพัสดุ</a>
+        <a href="/textbooks" class="{{ 'active' if path.startswith('/textbooks') }}"><svg class="icon"><use href="#ic-book"/></svg> บัญชีหนังสือเรียน</a>
 
         {% elif module == 'admin' %}
         <div class="nav-sec">งานธุรการ</div>
