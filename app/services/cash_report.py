@@ -95,6 +95,8 @@ def render_cash_report(school, rows, totals, as_of) -> str:
     for c, (h, w) in enumerate(zip(headers, widths)):
         _set_cell(table.rows[0].cells[c], h, bold=True, align="center")
         table.rows[0].cells[c].width = w
+    from app.services.build_templates import _repeat_header_row, _no_split_row
+    _repeat_header_row(table.rows[0])          # หัวตารางซ้ำทุกหน้าเมื่อรายการยาว
 
     for row in rows:
         cells = table.add_row().cells
@@ -141,6 +143,10 @@ def render_cash_report(school, rows, totals, as_of) -> str:
     director_pos = ("ผู้อำนวยการ" + school.name) if (school.name or "").startswith("โรงเรียน") \
         else (school.director_position or "ผู้อำนวยการโรงเรียน")
     _p(doc, director_pos, align="center", after=2)
+
+    for _row in table.rows:                     # ไม่ให้แถวใดถูกตัดคนละหน้า
+        _no_split_row(_row)
+
 
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)

@@ -86,6 +86,22 @@ def _set_cell(cell, text, *, bold=False, align="left", size=13, fill=None):
         cell._tc.get_or_add_tcPr().append(shd)
 
 
+def _head_repeat(table):
+    """ตั้งแถวแรกเป็นหัวตารางที่พิมพ์ซ้ำทุกหน้า และไม่ให้แถวใดถูกตัดคนละหน้า
+    (สมุดเงินสด/บัญชีแยกประเภทยาวหลายหน้า ถ้าไม่ตั้ง หน้า 2 เป็นต้นไปจะไม่มีหัวตาราง)"""
+    from app.services.build_templates import _repeat_header_row, _no_split_row
+    _repeat_header_row(table.rows[0])
+    for row in table.rows:
+        _no_split_row(row)
+
+
+def _no_split_all(table):
+    """กันแถวที่เพิ่มทีหลังถูกตัดคนละหน้า (เรียกหลังเติมแถวครบ)"""
+    from app.services.build_templates import _no_split_row
+    for row in table.rows:
+        _no_split_row(row)
+
+
 def _landscape(doc):
     sec = doc.sections[0]
     sec.orientation = WD_ORIENT.LANDSCAPE
@@ -127,6 +143,7 @@ def render_cash_book(school, fiscal_year, rows, opening, totals, scope_name="ท
     for c, (h, w) in enumerate(zip(headers, widths)):
         _set_cell(table.rows[0].cells[c], h, bold=True, align="center", fill="DCFCE7")
         table.rows[0].cells[c].width = w
+    _head_repeat(table)
 
     # แถวยอดยกมา
     op = table.add_row().cells
@@ -163,6 +180,7 @@ def render_cash_book(school, fiscal_year, rows, opening, totals, scope_name="ท
     for c, w in enumerate(widths):
         tr[c].width = w
 
+    _no_split_all(table)
     _sign_block(doc, school)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"สมุดเงินสด_ปีงบ{fiscal_year}_{scope_name}") + ".docx")
@@ -184,6 +202,7 @@ def _cb_section(doc, title, total_label, rows, *, open_by_fund=None):
     for c, (h, w) in enumerate(zip(headers, widths)):
         _set_cell(table.rows[0].cells[c], h, bold=True, align="center", fill="DCFCE7")
         table.rows[0].cells[c].width = w
+    _head_repeat(table)
     tot = {"เงินสด": 0.0}
     for f in _FUND_COLS:
         tot[f] = 0.0
@@ -219,6 +238,7 @@ def _cb_section(doc, title, total_label, rows, *, open_by_fund=None):
         _set_cell(cells[4 + i], _fmt(tot[f]), bold=True, align="right", fill="F1F5F9")
     for c, w in enumerate(widths):
         cells[c].width = w
+    _no_split_all(table)          # กันแถวแตกคนละหน้า (ตารางนี้ยาวหลายหน้า)
     return tot
 
 
@@ -267,6 +287,7 @@ def render_general_ledger(school, account, fiscal_year, rows, opening) -> str:
     for c, (h, w) in enumerate(zip(headers, widths)):
         _set_cell(table.rows[0].cells[c], h, bold=True, align="center", fill="DCFCE7")
         table.rows[0].cells[c].width = w
+    _head_repeat(table)
 
     op = table.add_row().cells
     _set_cell(op[0], "", align="center")
@@ -292,6 +313,7 @@ def render_general_ledger(school, account, fiscal_year, rows, opening) -> str:
         for c, w in enumerate(widths):
             cells[c].width = w
 
+    _no_split_all(table)
     _sign_block(doc, school)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"บัญชีแยกประเภท_{account.name}_ปีงบ{fiscal_year}") + ".docx")
