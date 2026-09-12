@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import (
     FinanceAccount, FinanceTxn, DisburseMemo, Receipt, Procurement, AccountOpening,
-    AccountItem, Project,
+    AccountItem, Project, MoneyLoan, LoanReturn, CheckPayment, BankRecon,
 )
 from app.services.budget import current_plan_year
 from app.services.asset_utils import (
@@ -939,3 +939,325 @@ async def finance_import(db: Session = Depends(get_db), file: UploadFile = File(
         return RedirectResponse("/finance/import?import_err=read", status_code=303)
     q = ",".join(f"{k}:{v}" for k, v in summary.items()) or "none"
     return RedirectResponse(f"/finance/import?imported={q}", status_code=303)
+
+
+# ==================== เงินยืม · เช็ค · กระทบยอด · 50 ทวิ · ไตรมาส ====================
+def _fin_accounts(db):
+    return db.query(FinanceAccount).order_by(FinanceAccount.name).all()
+
+
+def _fin_persons(db):
+    """รายชื่อบุคลากร (ใช้เลือกผู้ยืมในหน้าเงินยืม)"""
+    from app.models import Person
+    return db.query(Person).filter_by(active=True).order_by(Person.name).all()
+
+
+# ---------------- ใบสำคัญรับเงิน (พิมพ์จากทะเบียนใบเสร็จ) ----------------
+@router.get("/finance/receipts/{rid}/voucher")
+def receipt_voucher_doc(rid: int, db: Session = Depends(get_db)):
+    """พิมพ์ใบสำคัญรับเงินจากรายการในทะเบียนใบเสร็จ"""
+    from app.services.receipt_voucher import render_receipt_voucher
+    r = db.get(Receipt, rid)
+    if not r:
+        return RedirectResponse("/finance/receipts", status_code=303)
+    path = render_receipt_voucher(
+        get_school(db), payee=r.party or "", payee_address="",
+        items=[((r.note or "").strip() or f"รับเงินตามใบเสร็จเลขที่ {r.receipt_no or '-'}",
+                 float(r.amount or 0))],
+        total=float(r.amount or 0), date=r.date,
+        subject=f"ใบสำคัญรับเงิน_{r.receipt_no or r.id}")
+    return serve_generated(path, _DOCX)
+
+
+# ---------------- เงินยืม (สัญญาแบบ 8500 + ทะเบียนคุมลูกหนี้) ----------------
+@router.get("/finance/loans", response_class=HTMLResponse)
+def loans_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
+    fy = year or current_fiscal_year()
+    loans = (db.query(MoneyLoan).filter_by(fiscal_year=fy)
+             .order_by(MoneyLoan.date, MoneyLoan.id).all())
+    rows = []
+    for ln in loans:
+        paid = sum(float(r.amount or 0) for r in (ln.returns or []))
+        rows.append({"o": ln, "paid": paid, "left": float(ln.amount or 0) - paid})
+    return templates.TemplateResponse("finance_loans.html", {
+        "request": request, "school": get_school(db), "fiscal_year": fy,
+        "years": _finance_years(db, fy), "rows": rows,
+        "accounts": _fin_accounts(db), "today_be": be_date_input(datetime.now()),
+        "persons": _fin_persons(db),
+    })
+
+
+@router.post("/finance/loans")
+async def loan_add(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    fy = _to_int(form.get("fiscal_year"), current_fiscal_year())
+    ln = MoneyLoan(
+        fiscal_year=fy, contract_no=(form.get("contract_no") or "").strip(),
+        date=parse_be_date(form.get("date")), receive_date=parse_be_date(form.get("receive_date")),
+        due_date=parse_be_date(form.get("due_date")),
+        borrower=(form.get("borrower") or "").strip(),
+        position=(form.get("position") or "").strip(),
+        submit_to=(form.get("submit_to") or "").strip(),
+        fund_from=(form.get("fund_from") or "").strip(),
+        purpose=(form.get("purpose") or "").strip(),
+        amount=_to_float(form.get("amount"), 0.0),
+        within_days=_to_int(form.get("within_days"), 15),
+        account_id=_to_int(form.get("account_id"), 0) or None,
+        note=(form.get("note") or "").strip())
+    db.add(ln); db.commit()
+    return RedirectResponse(f"/finance/loans?year={fy}", status_code=303)
+
+
+@router.post("/finance/loans/{lid}/return")
+async def loan_return_add(lid: int, request: Request, db: Session = Depends(get_db)):
+    """บันทึกการส่งใช้เงินยืม (เงินสดหรือใบสำคัญ)"""
+    form = await request.form()
+    ln = db.get(MoneyLoan, lid)
+    if ln:
+        db.add(LoanReturn(loan_id=lid, date=parse_be_date(form.get("date")),
+                          kind=(form.get("kind") or "เงินสด").strip(),
+                          amount=_to_float(form.get("amount"), 0.0),
+                          receipt_no=(form.get("receipt_no") or "").strip(),
+                          note=(form.get("note") or "").strip()))
+        db.commit()
+    return RedirectResponse(f"/finance/loans?year={ln.fiscal_year if ln else ''}", status_code=303)
+
+
+@router.post("/finance/loans/{lid}/delete")
+def loan_delete(lid: int, db: Session = Depends(get_db)):
+    ln = db.get(MoneyLoan, lid)
+    fy = ln.fiscal_year if ln else current_fiscal_year()
+    if ln:
+        db.delete(ln); db.commit()
+    return RedirectResponse(f"/finance/loans?year={fy}", status_code=303)
+
+
+@router.get("/finance/loans/{lid}/contract.docx")
+def loan_contract_doc(lid: int, db: Session = Depends(get_db)):
+    from app.services.finance_forms_doc import render_loan_contract
+    ln = db.get(MoneyLoan, lid)
+    if not ln:
+        return RedirectResponse("/finance/loans", status_code=303)
+    return serve_generated(render_loan_contract(get_school(db), ln), _DOCX)
+
+
+@router.get("/finance/loans/register.docx")
+def loan_register_doc(db: Session = Depends(get_db), year: int | None = None):
+    from app.services.finance_forms_doc import render_loan_register
+    fy = year or current_fiscal_year()
+    loans = (db.query(MoneyLoan).filter_by(fiscal_year=fy)
+             .order_by(MoneyLoan.date, MoneyLoan.id).all())
+    return serve_generated(render_loan_register(get_school(db), fy, loans), _DOCX)
+
+
+# ---------------- ทะเบียนคุมการจ่ายเช็ค ----------------
+@router.get("/finance/checks", response_class=HTMLResponse)
+def checks_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
+    fy = year or current_fiscal_year()
+    rows = (db.query(CheckPayment).filter_by(fiscal_year=fy)
+            .order_by(CheckPayment.date, CheckPayment.id).all())
+    return templates.TemplateResponse("finance_checks.html", {
+        "request": request, "school": get_school(db), "fiscal_year": fy,
+        "years": _finance_years(db, fy), "rows": rows, "accounts": _fin_accounts(db),
+        "today_be": be_date_input(datetime.now()),
+    })
+
+
+@router.post("/finance/checks")
+async def check_add(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    fy = _to_int(form.get("fiscal_year"), current_fiscal_year())
+    db.add(CheckPayment(
+        fiscal_year=fy, date=parse_be_date(form.get("date")),
+        check_no=(form.get("check_no") or "").strip(), bank=(form.get("bank") or "").strip(),
+        payee=(form.get("payee") or "").strip(), amount=_to_float(form.get("amount"), 0.0),
+        purpose=(form.get("purpose") or "").strip(),
+        account_id=_to_int(form.get("account_id"), 0) or None,
+        note=(form.get("note") or "").strip()))
+    db.commit()
+    return RedirectResponse(f"/finance/checks?year={fy}", status_code=303)
+
+
+@router.post("/finance/checks/{cid}/toggle")
+def check_toggle(cid: int, db: Session = Depends(get_db)):
+    """สลับสถานะ 'ผู้รับนำไปขึ้นเงินแล้ว' (ใช้คำนวณเช็คคงค้างในงบกระทบยอด)"""
+    ck = db.get(CheckPayment, cid)
+    fy = ck.fiscal_year if ck else current_fiscal_year()
+    if ck:
+        ck.cleared = not bool(ck.cleared); db.commit()
+    return RedirectResponse(f"/finance/checks?year={fy}", status_code=303)
+
+
+@router.post("/finance/checks/{cid}/delete")
+def check_delete(cid: int, db: Session = Depends(get_db)):
+    ck = db.get(CheckPayment, cid)
+    fy = ck.fiscal_year if ck else current_fiscal_year()
+    if ck:
+        db.delete(ck); db.commit()
+    return RedirectResponse(f"/finance/checks?year={fy}", status_code=303)
+
+
+@router.get("/finance/checks/register.docx")
+def check_register_doc(db: Session = Depends(get_db), year: int | None = None):
+    from app.services.finance_forms_doc import render_check_register
+    fy = year or current_fiscal_year()
+    rows = (db.query(CheckPayment).filter_by(fiscal_year=fy)
+            .order_by(CheckPayment.date, CheckPayment.id).all())
+    return serve_generated(render_check_register(get_school(db), fy, rows), _DOCX)
+
+
+# ---------------- งบกระทบยอดเงินฝากธนาคาร ----------------
+def _book_balance(db, fy, account_id):
+    """ยอดคงเหลือตามบัญชีของโรงเรียน = ยอดยกมา + รับ - จ่าย"""
+    acc = db.get(FinanceAccount, account_id) if account_id else None
+    if not acc:
+        return 0.0
+    bal = float(acc.opening_balance or 0)
+    for t in db.query(FinanceTxn).filter_by(account_id=acc.id, fiscal_year=fy).all():
+        bal += float(t.amount or 0) if t.kind == "in" else -float(t.amount or 0)
+    return bal
+
+
+@router.get("/finance/bank-recon", response_class=HTMLResponse)
+def bank_recon_page(request: Request, db: Session = Depends(get_db),
+                    year: int | None = None, account_id: int = 0):
+    fy = year or current_fiscal_year()
+    accounts = _fin_accounts(db)
+    aid = account_id or (accounts[0].id if accounts else 0)
+    rows = (db.query(BankRecon).filter_by(fiscal_year=fy)
+            .order_by(BankRecon.as_of.desc(), BankRecon.id.desc()).all())
+    outstanding = (db.query(CheckPayment)
+                   .filter_by(fiscal_year=fy, cleared=False)
+                   .order_by(CheckPayment.date).all())
+    if aid:
+        outstanding = [c for c in outstanding if (c.account_id or aid) == aid]
+    return templates.TemplateResponse("finance_bank_recon.html", {
+        "request": request, "school": get_school(db), "fiscal_year": fy,
+        "years": _finance_years(db, fy), "rows": rows, "accounts": accounts,
+        "account_id": aid, "today_be": be_date_input(datetime.now()),
+        "book_balance": _book_balance(db, fy, aid),
+        "outstanding": outstanding,
+        "outstanding_sum": sum(float(c.amount or 0) for c in outstanding),
+    })
+
+
+@router.post("/finance/bank-recon")
+async def bank_recon_add(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    fy = _to_int(form.get("fiscal_year"), current_fiscal_year())
+    aid = _to_int(form.get("account_id"), 0) or None
+    rec = BankRecon(
+        fiscal_year=fy, account_id=aid, as_of=parse_be_date(form.get("as_of")),
+        stmt_balance=_to_float(form.get("stmt_balance"), 0.0),
+        in_transit=_to_float(form.get("in_transit"), 0.0),
+        outstanding=_to_float(form.get("outstanding"), 0.0),
+        bank_fee=_to_float(form.get("bank_fee"), 0.0),
+        interest=_to_float(form.get("interest"), 0.0),
+        other=_to_float(form.get("other"), 0.0),
+        other_note=(form.get("other_note") or "").strip(),
+        book_balance=_to_float(form.get("book_balance"), 0.0),
+        note=(form.get("note") or "").strip())
+    db.add(rec); db.commit()
+    return RedirectResponse(f"/finance/bank-recon?year={fy}&account_id={aid or 0}",
+                            status_code=303)
+
+
+@router.post("/finance/bank-recon/{rid}/delete")
+def bank_recon_delete(rid: int, db: Session = Depends(get_db)):
+    rec = db.get(BankRecon, rid)
+    fy = rec.fiscal_year if rec else current_fiscal_year()
+    if rec:
+        db.delete(rec); db.commit()
+    return RedirectResponse(f"/finance/bank-recon?year={fy}", status_code=303)
+
+
+@router.get("/finance/bank-recon/{rid}.docx")
+def bank_recon_doc(rid: int, db: Session = Depends(get_db)):
+    from app.services.finance_forms_doc import render_bank_recon
+    rec = db.get(BankRecon, rid)
+    if not rec:
+        return RedirectResponse("/finance/bank-recon", status_code=303)
+    acc = db.get(FinanceAccount, rec.account_id) if rec.account_id else None
+    checks = (db.query(CheckPayment)
+              .filter_by(fiscal_year=rec.fiscal_year, cleared=False)
+              .order_by(CheckPayment.date).all())
+    if rec.account_id:
+        checks = [c for c in checks if (c.account_id or rec.account_id) == rec.account_id]
+    return serve_generated(
+        render_bank_recon(get_school(db), rec, acc.name if acc else "", checks), _DOCX)
+
+
+# ---------------- หนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) ----------------
+@router.get("/finance/disburse/{mid}/wht.docx")
+def wht_certificate_doc(mid: int, db: Session = Depends(get_db),
+                        tax_id: str = "", address: str = "",
+                        pay_type: str = "ค่าจ้างทำของ/ค่าบริการ"):
+    from app.services.finance_forms_doc import render_wht_certificate
+    memo = db.get(DisburseMemo, mid)
+    if not memo:
+        return RedirectResponse("/finance/disburse", status_code=303)
+    path = render_wht_certificate(get_school(db), memo, payee_tax_id=tax_id.strip(),
+                                  payee_address=address.strip(), pay_type=pay_type)
+    return serve_generated(path, _DOCX)
+
+
+# ---------------- รายงานผลการใช้จ่ายงบประมาณรายไตรมาส ----------------
+_Q_MONTHS = {1: (10, 11, 12), 2: (1, 2, 3), 3: (4, 5, 6), 4: (7, 8, 9)}
+
+
+def _quarter_rows(db, fy, quarter):
+    """ยอดยกมา (ก่อนไตรมาส) · รับ/จ่ายในไตรมาส · คงเหลือ แยกตามบัญชี"""
+    months = _Q_MONTHS.get(quarter, ())
+    rows = []
+    tot = {"opening": 0.0, "income": 0.0, "expense": 0.0, "balance": 0.0}
+    for acc in _fin_accounts(db):
+        opening = float(acc.opening_balance or 0)
+        inc = exp = 0.0
+        for t in db.query(FinanceTxn).filter_by(account_id=acc.id, fiscal_year=fy).all():
+            mth = t.date.month if t.date else 0
+            amt = float(t.amount or 0)
+            if mth in months:
+                if t.kind == "in":
+                    inc += amt
+                else:
+                    exp += amt
+            elif _before_quarter(mth, quarter):
+                opening += amt if t.kind == "in" else -amt
+        bal = opening + inc - exp
+        rows.append({"account": acc.name, "opening": opening, "income": inc,
+                     "expense": exp, "balance": bal})
+        tot["opening"] += opening; tot["income"] += inc
+        tot["expense"] += exp; tot["balance"] += bal
+    return rows, tot
+
+
+def _before_quarter(month, quarter) -> bool:
+    """เดือนนี้อยู่ก่อนไตรมาสที่เลือกไหม (ปีงบเริ่ม ต.ค.)"""
+    order = [10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    if month not in order:
+        return False
+    start = (quarter - 1) * 3
+    return order.index(month) < start
+
+
+@router.get("/finance/quarter", response_class=HTMLResponse)
+def quarter_page(request: Request, db: Session = Depends(get_db),
+                 year: int | None = None, q: int = 1):
+    fy = year or current_fiscal_year()
+    q = q if q in (1, 2, 3, 4) else 1
+    rows, tot = _quarter_rows(db, fy, q)
+    from app.services.finance_forms_doc import QUARTERS
+    return templates.TemplateResponse("finance_quarter.html", {
+        "request": request, "school": get_school(db), "fiscal_year": fy,
+        "years": _finance_years(db, fy), "rows": rows, "totals": tot,
+        "quarter": q, "quarters": QUARTERS,
+    })
+
+
+@router.get("/finance/quarter.docx")
+def quarter_doc(db: Session = Depends(get_db), year: int | None = None, q: int = 1):
+    from app.services.finance_forms_doc import render_quarter_report
+    fy = year or current_fiscal_year()
+    q = q if q in (1, 2, 3, 4) else 1
+    rows, tot = _quarter_rows(db, fy, q)
+    return serve_generated(render_quarter_report(get_school(db), fy, q, rows, tot), _DOCX)

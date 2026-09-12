@@ -751,6 +751,86 @@ class DisburseMemo(Base):
     account = relationship("FinanceAccount")
 
 
+class MoneyLoan(Base):
+    """สัญญาการยืมเงิน (แบบ 8500) + ทะเบียนคุมลูกหนี้เงินยืม
+    โครงสร้างช่องตามแบบ 8500 ของกรมบัญชีกลาง (ยื่นต่อ/เลขที่/วันครบกำหนด/ผู้ยืม/สังกัด/วัตถุประสงค์)"""
+    __tablename__ = "money_loan"
+
+    id = Column(Integer, primary_key=True)
+    fiscal_year = Column(Integer, nullable=False)
+    contract_no = Column(String, default="")         # เลขที่สัญญายืม
+    date = Column(DateTime, nullable=True)           # วันที่ยืม (ผู้ยืมลงชื่อ)
+    receive_date = Column(DateTime, nullable=True)   # วันที่ได้รับเงิน (เริ่มนับกำหนดส่งใช้)
+    due_date = Column(DateTime, nullable=True)       # วันครบกำหนดส่งใช้
+    borrower = Column(String, default="")            # ข้าพเจ้า (ผู้ยืม)
+    position = Column(String, default="")            # ตำแหน่ง
+    submit_to = Column(String, default="")           # ยื่นต่อ
+    fund_from = Column(String, default="")           # ขอยืมเงินจาก (ประเภทเงิน)
+    purpose = Column(Text, default="")               # เพื่อเป็นค่าใช้จ่ายในการ
+    items = Column(Text, default="")                 # รายละเอียดรายการที่ยืม (JSON [{name, amount}])
+    amount = Column(Float, default=0.0)              # รวมเงินที่ยืม
+    within_days = Column(Integer, default=15)        # ส่งใช้ภายใน ... วัน นับแต่วันที่ได้รับเงิน
+    account_id = Column(Integer, ForeignKey("finance_account.id"), nullable=True)
+    note = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+    returns = relationship("LoanReturn", back_populates="loan",
+                           cascade="all, delete-orphan", order_by="LoanReturn.id")
+
+
+class LoanReturn(Base):
+    """รายการส่งใช้เงินยืม (ด้านหลังแบบ 8500) - ส่งใช้เป็นเงินสดหรือใบสำคัญ"""
+    __tablename__ = "loan_return"
+
+    id = Column(Integer, primary_key=True)
+    loan_id = Column(Integer, ForeignKey("money_loan.id"), nullable=False)
+    date = Column(DateTime, nullable=True)
+    kind = Column(String, default="เงินสด")          # เงินสด / ใบสำคัญ
+    amount = Column(Float, default=0.0)
+    receipt_no = Column(String, default="")          # ใบรับเลขที่
+    note = Column(String, default="")
+
+    loan = relationship("MoneyLoan", back_populates="returns")
+
+
+class CheckPayment(Base):
+    """ทะเบียนคุมการจ่ายเช็ค (ตามแบบฟอร์มทะเบียนคุมของสถานศึกษา)"""
+    __tablename__ = "check_payment"
+
+    id = Column(Integer, primary_key=True)
+    fiscal_year = Column(Integer, nullable=False)
+    date = Column(DateTime, nullable=True)           # วัน เดือน ปี ที่สั่งจ่าย
+    check_no = Column(String, default="")            # เลขที่เช็ค
+    bank = Column(String, default="")                # ธนาคาร/สาขา
+    payee = Column(String, default="")               # จ่ายให้
+    amount = Column(Float, default=0.0)
+    purpose = Column(String, default="")             # รายการ/ค่าใช้จ่าย
+    account_id = Column(Integer, ForeignKey("finance_account.id"), nullable=True)
+    cleared = Column(Boolean, default=False)         # ผู้รับนำไปขึ้นเงินแล้ว (ใช้ในงบกระทบยอด)
+    note = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class BankRecon(Base):
+    """งบกระทบยอดเงินฝากธนาคาร (เทียบยอดสมุดบัญชีกับ statement ธนาคาร)"""
+    __tablename__ = "bank_recon"
+
+    id = Column(Integer, primary_key=True)
+    fiscal_year = Column(Integer, nullable=False)
+    account_id = Column(Integer, ForeignKey("finance_account.id"), nullable=True)
+    as_of = Column(DateTime, nullable=True)          # ณ วันที่
+    stmt_balance = Column(Float, default=0.0)        # ยอดคงเหลือตาม statement ธนาคาร
+    in_transit = Column(Float, default=0.0)          # บวก เงินฝากระหว่างทาง
+    outstanding = Column(Float, default=0.0)         # หัก เช็คที่ผู้รับยังไม่นำไปขึ้นเงิน
+    bank_fee = Column(Float, default=0.0)            # หัก ค่าธรรมเนียมธนาคารที่ยังไม่ได้บันทึก
+    interest = Column(Float, default=0.0)            # บวก ดอกเบี้ยรับที่ยังไม่ได้บันทึก
+    other = Column(Float, default=0.0)               # รายการอื่น (+/-)
+    other_note = Column(String, default="")
+    book_balance = Column(Float, default=0.0)        # ยอดคงเหลือตามบัญชีของโรงเรียน
+    note = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+
 class Receipt(Base):
     """ทะเบียนคุมใบเสร็จ/ใบสำคัญรับเงิน-จ่ายเงิน"""
     __tablename__ = "receipt"

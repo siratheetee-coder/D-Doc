@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}เงินยืม{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">สัญญาการยืมเงิน (แบบ 8500) · ทะเบียนคุมลูกหนี้เงินยืม</div>
+    <span class="hero-title">เงินยืม</span>
+    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} · {{ rows|length }} สัญญา</div>
+  </div>
+  <form method="get" action="/finance/loans">
+    <select name="year" onchange="submitReplace(this.form)">
+      {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> ทำสัญญายืมเงินใหม่</h2>
+  <form method="post" action="/finance/loans">
+    <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+    <div class="row">
+      <div><label>เลขที่สัญญา</label><input name="contract_no" placeholder="เช่น 1/{{ fiscal_year }}"></div>
+      <div><label>วันที่ยืม</label><input name="date" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>วันที่ได้รับเงิน</label><input name="receive_date" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>วันครบกำหนดส่งใช้</label><input name="due_date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+    </div>
+    <div class="row">
+      <div style="flex:1.6;"><label>ผู้ยืม *</label><input name="borrower" list="persons" required></div>
+      <div><label>ตำแหน่ง</label><input name="position" value="ครู"></div>
+      <div><label>จำนวนเงินที่ยืม (บาท) *</label><input name="amount" type="number" step="0.01" min="0" required></div>
+      <div><label>ส่งใช้ภายใน (วัน)</label><input name="within_days" type="number" min="1" value="15"></div>
+    </div>
+    <div class="row">
+      <div style="flex:1.4;"><label>ยื่นต่อ</label><input name="submit_to" placeholder="เช่น ผู้อำนวยการโรงเรียน"></div>
+      <div style="flex:1.4;"><label>ขอยืมเงินจาก (ประเภทเงิน)</label><input name="fund_from" placeholder="เช่น เงินรายได้สถานศึกษา"></div>
+      <div><label>บัญชีที่จ่ายเงินยืม</label>
+        <select name="account_id"><option value="">— ไม่ระบุ —</option>
+          {% for a in accounts %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
+        </select></div>
+    </div>
+    <label>เพื่อเป็นค่าใช้จ่ายในการ</label>
+    <input name="purpose" placeholder="เช่น ไปราชการอบรมครูผู้สอน ระหว่างวันที่ ...">
+    <br><br><button class="btn green" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกสัญญายืมเงิน</button>
+  </form>
+  <datalist id="persons">{% for p in persons %}<option value="{{ p.name }}">{{ p.position }}</option>{% endfor %}</datalist>
+</div>
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h2 style="margin:0;">ทะเบียนคุมลูกหนี้เงินยืม</h2>
+    <a class="btn sm gray" href="/finance/loans/register.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์ทะเบียนคุม (Word)</a>
+  </div>
+  {% if rows %}
+  <div class="table-wrap"><table class="stack-sm">
+    <thead><tr><th>เลขที่</th><th>วันที่ยืม</th><th>ผู้ยืม</th><th>วัตถุประสงค์</th>
+      <th class="right">ยืม</th><th>ครบกำหนด</th><th class="right">ส่งใช้แล้ว</th><th class="right">คงค้าง</th><th></th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr {% if r.left > 0.005 %}style="background:#fff7ed;"{% endif %}>
+        <td data-label="เลขที่"><b>{{ r.o.contract_no or '-' }}</b></td>
+        <td data-label="วันที่ยืม">{{ thai_date(r.o.date) if r.o.date else '-' }}</td>
+        <td data-label="ผู้ยืม">{{ r.o.borrower }}</td>
+        <td data-label="วัตถุประสงค์">{{ r.o.purpose }}</td>
+        <td data-label="ยืม" class="right">{{ "{:,.2f}".format(r.o.amount or 0) }}</td>
+        <td data-label="ครบกำหนด">{{ thai_date(r.o.due_date) if r.o.due_date else '-' }}</td>
+        <td data-label="ส่งใช้แล้ว" class="right">{{ "{:,.2f}".format(r.paid) }}</td>
+        <td data-label="คงค้าง" class="right">
+          {% if r.left > 0.005 %}<b style="color:#b91c1c;">{{ "{:,.2f}".format(r.left) }}</b>
+          {% else %}<span class="pill done">ส่งใช้ครบแล้ว</span>{% endif %}</td>
+        <td class="right" style="white-space:nowrap;">
+          <a class="btn sm" href="/finance/loans/{{ r.o.id }}/contract.docx"><svg class="icon"><use href="#ic-download"/></svg> สัญญา 8500</a>
+          <button class="btn sm gray" type="button" onclick="document.getElementById('ret{{ r.o.id }}').hidden = !document.getElementById('ret{{ r.o.id }}').hidden">ส่งใช้</button>
+          <form method="post" action="/finance/loans/{{ r.o.id }}/delete" style="display:inline" onsubmit="return confirm('ลบสัญญายืมนี้และประวัติการส่งใช้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
+        </td>
+      </tr>
+      <tr id="ret{{ r.o.id }}" hidden>
+        <td colspan="9" style="background:#f8fafc;">
+          {% if r.o.returns %}
+          <div class="table-wrap"><table>
+            <thead><tr><th>ครั้งที่</th><th>วันที่</th><th>ส่งใช้เป็น</th><th class="right">จำนวนเงิน</th><th>ใบรับเลขที่</th></tr></thead>
+            <tbody>
+              {% for rt in r.o.returns %}
+              <tr><td>{{ loop.index }}</td><td>{{ thai_date(rt.date) if rt.date else '-' }}</td>
+                <td>{{ rt.kind }}</td><td class="right">{{ "{:,.2f}".format(rt.amount or 0) }}</td>
+                <td>{{ rt.receipt_no or '-' }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table></div>
+          {% endif %}
+          <form method="post" action="/finance/loans/{{ r.o.id }}/return" class="row" style="align-items:flex-end; margin-top:8px;">
+            <div><label>วันที่ส่งใช้</label><input name="date" value="{{ today_be }}" data-date="1"></div>
+            <div><label>ส่งใช้เป็น</label><select name="kind"><option>เงินสด</option><option>ใบสำคัญ</option></select></div>
+            <div><label>จำนวนเงิน</label><input name="amount" type="number" step="0.01" min="0" required></div>
+            <div><label>ใบรับเลขที่</label><input name="receipt_no"></div>
+            <div><button class="btn sm green" type="submit">บันทึกส่งใช้</button></div>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="muted">ยังไม่มีสัญญายืมเงินในปีงบนี้</p>
+  {% endif %}
+</div>
+
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/[^0-9]/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}

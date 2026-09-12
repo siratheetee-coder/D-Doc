@@ -7,6 +7,9 @@
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <a class="btn gray sm" href="/finance/disburse"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
       <a class="btn sm" href="/finance/disburse/{{ m.id }}/generate"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลด Word</a>
+      {% if (m.wht or 0) > 0 %}
+      <a class="btn sm gray" href="/finance/disburse/{{ m.id }}/wht.docx"><svg class="icon"><use href="#ic-file"/></svg> หนังสือรับรองหักภาษี ณ ที่จ่าย (50 ทวิ)</a>
+      {% endif %}
     </div>
   </div>
   {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกข้อมูลเรียบร้อยแล้ว</div>{% endif %}

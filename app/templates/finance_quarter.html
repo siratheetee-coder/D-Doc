@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}รายงานรายไตรมาส{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">รายงานผลการใช้จ่ายงบประมาณ (ส่งเขตพื้นที่ฯ)</div>
+    <span class="hero-title">รายงานรายไตรมาส</span>
+    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} · {{ quarters[quarter][0] }} ({{ quarters[quarter][1] }})</div>
+  </div>
+  <form method="get" action="/finance/quarter">
+    <select name="year" onchange="this.form.submit()">
+      {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
+    </select>
+    <select name="q" onchange="this.form.submit()">
+      {% for i, qq in quarters.items() %}<option value="{{ i }}" {{ 'selected' if i==quarter }}>{{ qq[0] }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h2 style="margin:0;">{{ quarters[quarter][0] }} · {{ quarters[quarter][1] }}</h2>
+    <a class="btn sm green" href="/finance/quarter.docx?year={{ fiscal_year }}&q={{ quarter }}"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์รายงาน (Word)</a>
+  </div>
+  {% if rows %}
+  <div class="table-wrap"><table class="stack-sm">
+    <thead><tr><th>บัญชี/ประเภทเงิน</th><th class="right">ยอดยกมา</th><th class="right">รับในไตรมาส</th>
+      <th class="right">จ่ายในไตรมาส</th><th class="right">คงเหลือ</th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td data-label="บัญชี">{{ r.account }}</td>
+        <td data-label="ยอดยกมา" class="right">{{ "{:,.2f}".format(r.opening) }}</td>
+        <td data-label="รับ" class="right">{{ "{:,.2f}".format(r.income) }}</td>
+        <td data-label="จ่าย" class="right">{{ "{:,.2f}".format(r.expense) }}</td>
+        <td data-label="คงเหลือ" class="right"><b>{{ "{:,.2f}".format(r.balance) }}</b></td>
+      </tr>
+      {% endfor %}
+      <tr style="background:#f1f5f9;">
+        <td><b>รวมทั้งสิ้น</b></td>
+        <td class="right"><b>{{ "{:,.2f}".format(totals.opening) }}</b></td>
+        <td class="right"><b>{{ "{:,.2f}".format(totals.income) }}</b></td>
+        <td class="right"><b>{{ "{:,.2f}".format(totals.expense) }}</b></td>
+        <td class="right"><b>{{ "{:,.2f}".format(totals.balance) }}</b></td>
+      </tr>
+    </tbody>
+  </table></div>
+  <p class="muted" style="margin-top:10px;">ยอดยกมา = ยอดตั้งต้นของบัญชี + รับ-จ่ายทุกรายการก่อนไตรมาสนี้ (ปีงบเริ่มเดือนตุลาคม)</p>
+  {% else %}
+  <p class="muted">ยังไม่มีบัญชีในระบบ - เพิ่มได้ที่ <a href="/finance/accounts">บัญชี/ประเภทเงิน</a></p>
+  {% endif %}
+</div>
+{% endblock %}

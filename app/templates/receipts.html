@@ -50,7 +50,9 @@
         <td>{{ r.party or "-" }}</td>
         <td>{% if r.account %}{% if r.txn_id %}<a href="/finance/accounts/{{ r.account_id }}?year={{ r.fiscal_year }}">{{ r.account.name }}</a> <span class="muted" style="font-size:12px;">(จากรายการเงิน)</span>{% else %}{{ r.account.name }}{% endif %}{% else %}-{% endif %}</td>
         <td class="right">{{ "{:,.2f}".format(r.amount or 0) }}</td>
-        <td class="right"><form method="post" action="/finance/receipts/{{ r.id }}/delete" style="display:inline" onsubmit="return confirm('ลบรายการนี้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form></td>
+        <td class="right" style="white-space:nowrap;">
+          <a class="btn sm" href="/finance/receipts/{{ r.id }}/voucher"><svg class="icon"><use href="#ic-download"/></svg> ใบสำคัญรับเงิน</a>
+          <form method="post" action="/finance/receipts/{{ r.id }}/delete" style="display:inline" onsubmit="return confirm('ลบรายการนี้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form></td>
       </tr>
       {% endfor %}
     </tbody>

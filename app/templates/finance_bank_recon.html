@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}งบกระทบยอดเงินฝากธนาคาร{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">เทียบยอดสมุดบัญชีของโรงเรียนกับใบแจ้งยอดธนาคาร</div>
+    <span class="hero-title">งบกระทบยอดเงินฝากธนาคาร</span>
+    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }}</div>
+  </div>
+  <form method="get" action="/finance/bank-recon">
+    <select name="year" onchange="submitReplace(this.form)">
+      {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-plus"/></svg> ทำงบกระทบยอด</h2>
+  <form method="get" action="/finance/bank-recon" style="margin-bottom:12px;">
+    <input type="hidden" name="year" value="{{ fiscal_year }}">
+    <label>บัญชีธนาคาร</label>
+    <select name="account_id" onchange="this.form.submit()" style="max-width:420px;">
+      {% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if a.id==account_id }}>{{ a.name }}</option>{% endfor %}
+    </select>
+  </form>
+
+  <div class="alert" style="background:#eff6ff; color:#1e3a8a;">
+    ระบบดึงให้อัตโนมัติ — ยอดตามบัญชีของโรงเรียน <b>{{ "{:,.2f}".format(book_balance) }}</b> บาท ·
+    เช็คที่ยังไม่ขึ้นเงิน <b>{{ outstanding|length }}</b> ฉบับ รวม <b>{{ "{:,.2f}".format(outstanding_sum) }}</b> บาท
+    (<a href="/finance/checks?year={{ fiscal_year }}">ดูทะเบียนคุมเช็ค</a>)
+  </div>
+
+  <form method="post" action="/finance/bank-recon">
+    <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+    <input type="hidden" name="account_id" value="{{ account_id }}">
+    <div class="row">
+      <div><label>ณ วันที่</label><input name="as_of" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>ยอดตาม statement ธนาคาร *</label><input name="stmt_balance" type="number" step="0.01" required></div>
+      <div><label>ยอดตามบัญชีของโรงเรียน</label><input name="book_balance" type="number" step="0.01" value="{{ '%g'|format(book_balance) }}"></div>
+    </div>
+    <div class="row">
+      <div><label>บวก เงินฝากระหว่างทาง</label><input name="in_transit" type="number" step="0.01" value="0"></div>
+      <div><label>บวก ดอกเบี้ยที่ยังไม่ลงบัญชี</label><input name="interest" type="number" step="0.01" value="0"></div>
+      <div><label>หัก เช็คที่ยังไม่ขึ้นเงิน</label><input name="outstanding" type="number" step="0.01" value="{{ '%g'|format(outstanding_sum) }}"></div>
+      <div><label>หัก ค่าธรรมเนียมธนาคาร</label><input name="bank_fee" type="number" step="0.01" value="0"></div>
+    </div>
+    <div class="row">
+      <div><label>รายการอื่น (+/-)</label><input name="other" type="number" step="0.01" value="0"></div>
+      <div style="flex:2;"><label>คำอธิบายรายการอื่น</label><input name="other_note"></div>
+    </div>
+    <label>หมายเหตุ</label><textarea name="note" rows="2"></textarea>
+    <br><br><button class="btn green" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกงบกระทบยอด</button>
+  </form>
+</div>
+
+{% if outstanding %}
+<div class="card">
+  <h2>เช็คที่ยังไม่ขึ้นเงิน ({{ outstanding|length }} ฉบับ)</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>วันที่</th><th>เลขที่เช็ค</th><th>จ่ายให้</th><th class="right">จำนวนเงิน</th></tr></thead>
+    <tbody>
+      {% for c in outstanding %}
+      <tr><td>{{ thai_date(c.date) if c.date else '-' }}</td><td>{{ c.check_no }}</td>
+        <td>{{ c.payee }}</td><td class="right">{{ "{:,.2f}".format(c.amount or 0) }}</td></tr>
+      {% endfor %}
+      <tr><td colspan="3" class="right"><b>รวม</b></td><td class="right"><b>{{ "{:,.2f}".format(outstanding_sum) }}</b></td></tr>
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>งบกระทบยอดที่ทำไว้</h2>
+  {% if rows %}
+  <div class="table-wrap"><table class="stack-sm">
+    <thead><tr><th>ณ วันที่</th><th>บัญชี</th><th class="right">ยอดธนาคาร</th><th class="right">ยอดตามบัญชี</th><th>ผลต่าง</th><th></th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      {% set calc = (r.stmt_balance or 0) + (r.in_transit or 0) + (r.interest or 0) - (r.outstanding or 0) - (r.bank_fee or 0) + (r.other or 0) %}
+      {% set diff = calc - (r.book_balance or 0) %}
+      <tr>
+        <td data-label="ณ วันที่">{{ thai_date(r.as_of) if r.as_of else '-' }}</td>
+        <td data-label="บัญชี">{% for a in accounts %}{{ a.name if a.id == r.account_id }}{% endfor %}</td>
+        <td data-label="ยอดธนาคาร" class="right">{{ "{:,.2f}".format(r.stmt_balance or 0) }}</td>
+        <td data-label="ยอดตามบัญชี" class="right">{{ "{:,.2f}".format(r.book_balance or 0) }}</td>
+        <td data-label="ผลต่าง">
+          {% if diff|abs < 0.005 %}<span class="pill done">ตรงกัน</span>
+          {% else %}<b style="color:#b91c1c;">{{ "{:,.2f}".format(diff) }}</b>{% endif %}</td>
+        <td class="right" style="white-space:nowrap;">
+          <a class="btn sm" href="/finance/bank-recon/{{ r.id }}.docx"><svg class="icon"><use href="#ic-download"/></svg> Word</a>
+          <form method="post" action="/finance/bank-recon/{{ r.id }}/delete" style="display:inline" onsubmit="return confirm('ลบงบกระทบยอดนี้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="muted">ยังไม่มีงบกระทบยอดในปีงบนี้</p>{% endif %}
+</div>
+
+<script>
+  document.querySelectorAll('input[data-date]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var v=this.value.replace(/[^0-9]/g,'').slice(0,8), o=v;
+      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
+      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+      if(this.value!==o)this.value=o;
+    });
+  });
+</script>
+{% endblock %}
