@@ -211,28 +211,38 @@ _LEVEL_ORDER = SCHOOL_LEVELS           # ใช้ลิสต์ร่วมจ
 
 @router.get("/textbooks/receipt.docx")
 def book_receipt(db: Session = Depends(get_db), year: int | None = None):
-    """บัญชีรายชื่อนักเรียนรับหนังสือเรียน แยกตามชั้น (Word) - นักเรียนจากทะเบียนกลาง"""
-    from app.models import Student
+    """แบบรับหนังสือเรียน แยกตามห้อง (Word) - นักเรียนจากทะเบียนกลาง 1 ห้อง = 1 แผ่น"""
+    from app.models import Student, AcadClass, Person
     from app.services.book_receipt_doc import render_book_receipt
     yr = year or current_academic_year()
-    books = db.query(TextBook).filter_by(year=yr).order_by(TextBook.subject, TextBook.title).all()
-    students = db.query(Student).order_by(Student.name).all()
-    # จัดกลุ่มตามชั้น
-    levels = []
-    seen = set()
-    for lst in (books, students):
-        for x in lst:
-            lv = (x.level or "").strip()
-            if lv and lv not in seen:
-                seen.add(lv); levels.append(lv)
-    levels.sort(key=lambda l: _LEVEL_ORDER.index(l) if l in _LEVEL_ORDER else 99)
-    groups = []
-    for lv in levels:
-        lv_books = [b for b in books if (b.level or "").strip() == lv]
-        lv_students = [s for s in students if (s.level or "").strip() == lv]
-        groups.append((lv, lv_books, lv_students))
+    students = db.query(Student).order_by(Student.student_no, Student.name).all()
+
+    # ครูที่ปรึกษาของแต่ละห้อง (จากห้องเรียนในงานวิชาการ ถ้ามี)
+    advisors = {}
+    for k in db.query(AcadClass).filter_by(year=yr).all():
+        names = []
+        for pid in (k.homeroom_id, k.co_homeroom_id):
+            if pid:
+                pp = db.get(Person, pid)
+                if pp and pp.name:
+                    names.append(pp.name)
+        if names:
+            advisors[((k.level or "").strip(), (k.room or "").strip())] = " และ".join(names)
+
+    # จัดกลุ่มตามชั้น+ห้อง (เรียงตามลำดับชั้นจริง แล้วตามเลขห้อง)
+    groups_map = {}
+    for s in students:
+        key = ((s.level or "").strip(), (s.room or "").strip())
+        groups_map.setdefault(key, []).append(s)
+
+    def _key(k):
+        lv, rm = k
+        return (_LEVEL_ORDER.index(lv) if lv in _LEVEL_ORDER else 99, lv, rm)
+
+    groups = [(lv, rm, advisors.get((lv, rm), ""), groups_map[(lv, rm)])
+              for lv, rm in sorted(groups_map, key=_key)]
     if not groups:
-        groups = [("", [], [])]
+        groups = [("", "", "", [])]        # ยังไม่มีนักเรียน -> ออกแบบฟอร์มเปล่า
     path = render_book_receipt(yr, groups, get_school(db))
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
