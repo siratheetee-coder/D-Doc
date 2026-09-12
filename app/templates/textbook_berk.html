@@ -8,39 +8,65 @@
   </div>
 </div>
 
+{% if err == 'nomat' %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> ห้องนี้ยังเบิกไม่ได้ เพราะหนังสือของชั้นนี้ยังไม่ได้ลงบัญชีวัสดุ · กลับไปที่ทะเบียนหนังสือแล้วกดปุ่ม <b>ลงบัญชีวัสดุ</b> ก่อน</div>{% endif %}
+{% if err == 'room' %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> กรุณาเลือกห้องเรียน</div>{% endif %}
+{% if need_material %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> ยังมีหนังสือ {{ need_material }} รายการที่ยังไม่ได้ลงบัญชีวัสดุ · <a href="/textbooks?year={{ year }}">ไปกดปุ่ม "ลงบัญชีวัสดุ"</a> ก่อนออกใบเบิก</div>{% endif %}
+
 <div class="card">
-  <h2>สร้างใบเบิก</h2>
-  {% if not books %}
-  <p class="muted">ยังไม่มีหนังสือในปีการศึกษานี้ กรุณาเพิ่มในทะเบียนหนังสือก่อน</p>
-  {% else %}
-  <form method="post" action="/textbooks/berk/add">
+  <h2>ออกใบเบิกรายห้อง</h2>
+  <p class="muted" style="margin-top:0;">เลือกห้อง ระบบจะใส่หนังสือของชั้นนั้นให้ทุกเล่ม จำนวนเท่ากับจำนวนนักเรียนในห้อง
+    · เมื่อกด "จ่ายแล้ว" ในใบเบิก ระบบจะตัดยอดบัญชีวัสดุให้อัตโนมัติ
+    · พิมพ์ใบเบิกจะได้<b>ใบรับให้นักเรียนลงลายมือชื่อ</b>แนบท้ายมาด้วย (ชั้นอนุบาลให้ครูประจำชั้นรับแทน)</p>
+  {% if rooms %}
+  <form method="post" action="/textbooks/berk/room">
     <input type="hidden" name="year" value="{{ year }}">
     <div class="row">
-      <div><label>เลขที่ใบเบิก</label><input name="berk_no" placeholder="เช่น 1/2569"></div>
+      <div style="flex:2;"><label>ห้องเรียน *</label>
+        <select name="room" id="roomSel" required onchange="fillAdvisor()">
+          <option value="">- เลือกห้อง -</option>
+          {% for r in rooms %}
+          <option value="{{ r.level }}|{{ r.room }}" data-adv="{{ r.advisor }}">
+            ชั้น {{ r.label }} · นักเรียน {{ r.n }} คน · หนังสือ {{ r.books }} รายการ</option>
+          {% endfor %}
+        </select></div>
+      <div><label>เลขที่ใบเบิก</label><input name="req_no" placeholder="เช่น 1/{{ year }}"></div>
       <div><label>วันที่</label><input name="date" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
-      <div style="flex:2;"><label>ผู้เบิก / ครูประจำชั้น</label><input name="recipient" list="persons_dl" placeholder="เลือก/พิมพ์ชื่อครู เช่น นางสาวสมหญิง รักเรียน"><datalist id="persons_dl">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist></div>
+      <div style="flex:2;"><label>ผู้ขอเบิก (ครูประจำชั้น)</label><input name="requester" id="reqName" placeholder="ระบบเติมให้ถ้ามีครูประจำชั้น"></div>
     </div>
-    <div class="table-wrap"><table id="bkTable">
-      <thead><tr><th style="width:60%;">หนังสือ</th><th>จำนวน (เล่ม)</th><th></th></tr></thead>
-      <tbody>
-        <tr>
-          <td><select name="book_id">
-            <option value="">- เลือกหนังสือ -</option>
-            {% for b in books %}<option value="{{ b.id }}">{{ b.level }} {{ b.title }}{{ ' ('~b.subject~')' if b.subject }}</option>{% endfor %}
-          </select></td>
-          <td><input name="qty" type="number" min="0" value="1" style="width:110px;"></td>
-          <td><button type="button" class="btn red sm" onclick="this.closest('tr').remove()">✕</button></td>
-        </tr>
-      </tbody>
-    </table></div>
-    <br><button type="button" class="btn soft sm" onclick="addRow()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มบรรทัด</button>
-    <button class="btn" type="submit" style="margin-left:8px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกใบเบิก</button>
+    <br><button class="btn green" type="submit"><svg class="icon"><use href="#ic-file"/></svg> สร้างใบเบิก</button>
   </form>
+  {% else %}
+  <p class="muted">ยังไม่มีนักเรียนในทะเบียน - เพิ่มนักเรียนก่อนจึงจะออกใบเบิกรายห้องได้</p>
   {% endif %}
 </div>
 
 <div class="card">
-  <h2>ใบเบิกที่ออกแล้ว</h2>
+  <h2>ใบเบิกหนังสือเรียนปีนี้ ({{ reqs|length }})</h2>
+  {% if reqs %}
+  <div class="table-wrap"><table class="stack-sm">
+    <thead><tr><th>เลขที่</th><th>วันที่</th><th>ชั้น</th><th>ผู้ขอเบิก</th><th class="right">รายการ</th><th>สถานะ</th><th></th></tr></thead>
+    <tbody>
+      {% for r in reqs %}
+      <tr>
+        <td data-label="เลขที่"><b>{{ r.req_no or '-' }}</b></td>
+        <td data-label="วันที่">{{ thai_date(r.date) if r.date else '-' }}</td>
+        <td data-label="ชั้น">{{ r.for_level }}{{ '/' ~ r.for_room if r.for_room }}</td>
+        <td data-label="ผู้ขอเบิก">{{ r.requester or '-' }}</td>
+        <td data-label="รายการ" class="right">{{ r.items|length }}</td>
+        <td data-label="สถานะ">{% if r.status == 'จ่ายแล้ว' %}<span class="pill done">จ่ายแล้ว</span>{% else %}<span class="pill">ร่าง</span>{% endif %}</td>
+        <td class="right" style="white-space:nowrap;">
+          <a class="btn sm" href="/requisitions/{{ r.id }}">เปิด</a>
+          <a class="btn sm gray" href="/requisitions/{{ r.id }}/print"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="muted">ยังไม่มีใบเบิกหนังสือเรียนในปีการศึกษานี้</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>ใบเบิกแบบเก่า (ก่อนเชื่อมบัญชีวัสดุ)</h2>
   {% if berks %}
   <div class="table-wrap"><table>
     <thead><tr><th>เลขที่</th><th>วันที่</th><th>ผู้รับ/ชั้น</th><th class="right">รายการ</th><th></th></tr></thead>
@@ -60,19 +86,21 @@
     </tbody>
   </table></div>
   {% else %}
-  <p class="muted">ยังไม่มีใบเบิก</p>
+  <p class="muted">ไม่มีใบเบิกแบบเก่า</p>
   {% endif %}
 </div>
 
 <script>
-  function addRow(){
-    var tb = document.querySelector('#bkTable tbody');
-    var first = tb.querySelector('tr');
-    var tr = first.cloneNode(true);
-    tr.querySelector('select').value = '';
-    tr.querySelector('input[name="qty"]').value = 1;
-    tb.appendChild(tr);
+  // เลือกห้อง -> เติมชื่อครูประจำชั้นเป็นผู้ขอเบิกให้ (ถ้ายังไม่ได้พิมพ์เอง)
+  function fillAdvisor() {
+    var sel = document.getElementById('roomSel');
+    var box = document.getElementById('reqName');
+    if (!sel || !box) return;
+    var adv = sel.options[sel.selectedIndex].dataset.adv || '';
+    if (adv && !box.dataset.touched) box.value = adv;
   }
+  var rn = document.getElementById('reqName');
+  if (rn) rn.addEventListener('input', function(){ this.dataset.touched = '1'; });
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){
       var v=this.value.replace(/\D/g,'').slice(0,8), o=v;

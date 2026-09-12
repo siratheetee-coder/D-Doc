@@ -3220,6 +3220,13 @@ def material_txn_delete(txn_id: int, db: Session = Depends(get_db)):
 # ============================================================
 # เฟส 3.3 - ใบเบิกวัสดุ
 # ============================================================
+def _acad_year_for_req(db) -> int:
+    """ปีการศึกษาปัจจุบันของโรงเรียน (ใช้หาครูประจำชั้นของใบเบิกที่ไม่ได้ระบุปี)"""
+    from app.thai_utils import current_academic_year
+    sc = get_school(db)
+    return getattr(sc, "academic_year", None) or current_academic_year()
+
+
 @router.get("/requisitions", response_class=HTMLResponse)
 def requisitions_page(request: Request, db: Session = Depends(get_db)):
     reqs = db.query(Requisition).order_by(Requisition.id.desc()).all()
@@ -3317,7 +3324,25 @@ def requisition_print(req_id: int, db: Session = Depends(get_db)):
     req = db.get(Requisition, req_id)
     if not req:
         return RedirectResponse("/requisitions", status_code=303)
-    path = render_requisition(req, get_school(db))
+    # ใบเบิกหนังสือเรียนรายห้อง -> แนบใบรับให้นักเรียนลงลายมือชื่อท้ายใบเบิก
+    receipt = None
+    if (req.for_level or "").strip():
+        from app.models import Student, AcadClass, Person
+        lv, rm = (req.for_level or "").strip(), (req.for_room or "").strip()
+        students = (db.query(Student)
+                    .filter(Student.level == lv, Student.room == rm)
+                    .order_by(Student.student_no, Student.name).all())
+        advisor = ""
+        k = (db.query(AcadClass)
+             .filter_by(year=req.year or _acad_year_for_req(db), level=lv, room=rm).first())
+        if k:
+            names = [db.get(Person, pid).name for pid in (k.homeroom_id, k.co_homeroom_id)
+                     if pid and db.get(Person, pid)]
+            advisor = " และ".join(n for n in names if n)
+        receipt = {"year": req.year or "", "level": lv, "room": rm, "advisor": advisor,
+                   "students": students,
+                   "books": [f"{it.name} ({it.qty:g} {it.unit})" for it in req.items]}
+    path = render_requisition(req, get_school(db), receipt=receipt)
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 

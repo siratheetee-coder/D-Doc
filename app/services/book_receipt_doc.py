@@ -41,12 +41,76 @@ def _class_name(level: str, room: str) -> str:
     return f"{lv}/{rm}" if rm else lv
 
 
+def is_kindergarten(level: str) -> bool:
+    """ก่อนประถมศึกษา (อนุบาล) -> ให้ครูประจำชั้นลงลายมือชื่อรับแทนนักเรียน"""
+    lv = (level or "").strip()
+    return lv.startswith("อ.") or lv.startswith("อนุบาล")
+
+
+def add_receipt_page(doc, year, level, room, advisor, students, *, books=None,
+                     title_prefix="แบบรับหนังสือเรียน"):
+    """เขียน 1 แผ่นใบรับหนังสือเรียนลงในเอกสารที่ส่งมา (ไม่ขึ้นหน้าใหม่ให้ - ผู้เรียกจัดการเอง)
+    อนุบาล: ไม่มีช่องลายมือชื่อรายคน แต่ครูประจำชั้นเซ็นรับแทนทั้งห้อง"""
+    kg = is_kindergarten(level)
+    _p(doc, f"{title_prefix} ชั้น{_class_name(level, room)} ปีการศึกษา {year}",
+       align="center", bold=True, size=17, after=4)
+    if books:
+        _p(doc, "รายการหนังสือ: " + " · ".join(books), size=14, after=2)
+    else:
+        _p(doc, "รายวิชา............................................รหัสวิชา................................"
+                "ครูผู้สอน............................................", size=14, after=2)
+        _p(doc, "ชื่อหนังสือ...................................................................................."
+                "..............................................................", size=14, after=2)
+    _p(doc, f"ครูที่ปรึกษา  {advisor if advisor else _DOT}", size=14, after=6)
+
+    cols = [c for c in _COLS if not (kg and c == "ลายมือชื่อ")]
+    widths = list(_W) if not kg else [Cm(1.2), Cm(2.4), Cm(6.9), Cm(3.0), Cm(3.0)]
+    t = doc.add_table(rows=1, cols=len(cols))
+    t.style = "Table Grid"
+    _fixed_cols(t, widths)
+    t.alignment = WD_TABLE_ALIGNMENT.CENTER
+    hdr = t.rows[0]
+    _repeat_header_row(hdr); _no_split_row(hdr)
+    for c, h, w in zip(hdr.cells, cols, widths):
+        _set_cell(c, h, bold=True, align="center", size=14)
+        c.width = w
+
+    rows = list(students or [])
+    n_rows = len(rows) if kg and rows else max(len(rows), _MIN_ROWS)
+    for idx in range(n_rows):
+        r = t.add_row(); _no_split_row(r)
+        r.height = Cm(0.75); r.height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
+        st = rows[idx] if idx < len(rows) else None
+        base = [str(idx + 1) if st else "",
+                (st.student_no or "") if st else "",
+                (st.name or "") if st else ""]
+        vals = base + (["", ""] if kg else ["", "", ""])
+        aligns = ["center", "center", "left"] + (["center"] * (len(cols) - 3))
+        for c, v, w, al in zip(r.cells, vals, widths, aligns):
+            _set_cell(c, v, align=al, size=14)
+            c.width = w
+
+    _p(doc, "", after=6)
+    if kg:
+        _p(doc, f"ข้าพเจ้า........................................................... "
+                f"ครูประจำชั้น{_class_name(level, room)} ได้รับหนังสือเรียนตามรายการข้างต้น "
+                f"แทนนักเรียนจำนวน {len(rows) if rows else '.......'} คน "
+                "เนื่องจากนักเรียนอยู่ในระดับก่อนประถมศึกษา", align="justify", indent=1.25, after=10)
+        _p(doc, "ลงชื่อ........................................................ครูประจำชั้นผู้รับแทน",
+           align="right", size=14, after=0)
+    else:
+        _p(doc, "ลงชื่อ........................................................ครูประจำวิชา",
+           align="right", size=14, after=0)
+    _p(doc, "(...............................................................)",
+       align="right", size=14, after=0)
+    return doc
+
+
 def render_book_receipt(year, groups, school) -> str:
     """groups = [(level, room, advisor, [students]), ...] เรียงตามชั้น/ห้อง
     (รองรับรูปแบบเดิม [(level, books, students), ...] ด้วย - ไม่ใช้คอลัมน์ชื่อหนังสือแล้ว)"""
     doc = Document(); set_a4(doc)          # แนวตั้ง ตามแบบฟอร์มจริง
     _font(doc)
-
     first = True
     for g in groups:
         if len(g) == 4:
@@ -57,43 +121,7 @@ def render_book_receipt(year, groups, school) -> str:
         if not first:
             doc.add_page_break()
         first = False
-
-        _p(doc, f"แบบรับหนังสือเรียน ชั้น{_class_name(level, room)} ปีการศึกษา {year}",
-           align="center", bold=True, size=17, after=4)
-        _p(doc, "รายวิชา............................................รหัสวิชา................................"
-                "ครูผู้สอน............................................", size=14, after=2)
-        _p(doc, "ชื่อหนังสือ...................................................................................."
-                "..............................................................", size=14, after=2)
-        _p(doc, f"ครูที่ปรึกษา  {advisor if advisor else _DOT}", size=14, after=6)
-
-        t = doc.add_table(rows=1, cols=len(_COLS))
-        t.style = "Table Grid"
-        _fixed_cols(t, _W)
-        t.alignment = WD_TABLE_ALIGNMENT.CENTER
-        hdr = t.rows[0]
-        _repeat_header_row(hdr); _no_split_row(hdr)
-        for c, h, w in zip(hdr.cells, _COLS, _W):
-            _set_cell(c, h, bold=True, align="center", size=14)
-            c.width = w
-
-        rows = list(students or [])
-        for idx in range(max(len(rows), _MIN_ROWS)):
-            r = t.add_row(); _no_split_row(r)
-            r.height = Cm(0.75); r.height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
-            s = rows[idx] if idx < len(rows) else None
-            vals = [str(idx + 1) if s else "",
-                    (s.student_no or "") if s else "",
-                    (s.name or "") if s else "", "", "", ""]
-            aligns = ["center", "center", "left", "center", "center", "center"]
-            for c, v, w, al in zip(r.cells, vals, _W, aligns):
-                _set_cell(c, v, align=al, size=14)
-                c.width = w
-
-        _p(doc, "", after=8)
-        _p(doc, "ลงชื่อ........................................................ครูประจำวิชา",
-           align="right", size=14, after=0)
-        _p(doc, "(...............................................................)",
-           align="right", size=14, after=0)
+        add_receipt_page(doc, year, level, room, advisor, students)
 
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)

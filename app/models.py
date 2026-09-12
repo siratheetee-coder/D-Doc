@@ -855,6 +855,10 @@ class Requisition(Base):
     department = Column(String, default="")         # ฝ่าย/งาน
     purpose = Column(String, default="")           # เพื่อใช้ในงาน
     status = Column(String, default="ร่าง")        # ร่าง / จ่ายแล้ว
+    # ใบเบิกหนังสือเรียนรายห้อง (ว่าง = ใบเบิกวัสดุทั่วไป) -> ใช้พิมพ์ใบรับลายมือชื่อนักเรียนแนบท้าย
+    for_level = Column(String, default="")         # ระดับชั้นที่เบิกให้ เช่น ป.1
+    for_room = Column(String, default="")          # ห้อง เช่น 1
+    year = Column(Integer, nullable=True)          # ปีการศึกษา (พ.ศ.)
     created_at = Column(DateTime, default=datetime.now)
 
     items = relationship("RequisitionItem", back_populates="requisition",

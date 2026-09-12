@@ -142,21 +142,89 @@ def textbooks_to_materials(db: Session = Depends(get_db), year: int = Form(0)):
         f"/textbooks?year={yr}&mat={added}-{posted}-{skipped}", status_code=303)
 
 
-# ---------------- ใบเบิกหนังสือเรียน ----------------
+# ---------------- ใบเบิกหนังสือเรียน (รายห้อง -> ใบเบิกวัสดุจริง) ----------------
 @router.get("/textbooks/berk", response_class=HTMLResponse)
-def berk_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
+def berk_page(request: Request, db: Session = Depends(get_db), year: int | None = None,
+              err: str = ""):
+    """หน้าออกใบเบิกหนังสือเรียนรายห้อง · ใช้ระบบใบเบิกวัสดุตัวเดียวกับงานพัสดุ
+    (ใบเบิกแบบเก่ายังเปิดดูได้ในตารางด้านล่าง แต่ไม่สร้างใหม่แล้ว)"""
+    from app.models import Person, Student, AcadClass, Requisition
     yr = year or current_academic_year()
     books = (db.query(TextBook).filter_by(year=yr)
              .order_by(TextBook.level, TextBook.title).all())
+    mat_ready = {b.id for b in books
+                 if db.query(MaterialItem).filter_by(book_id=b.id).first()}
+
+    # ห้องเรียนที่มีนักเรียน + ครูประจำชั้น
+    rooms = {}
+    for st in db.query(Student).all():
+        key = ((st.level or "").strip(), (st.room or "").strip())
+        if key[0]:
+            rooms[key] = rooms.get(key, 0) + 1
+    advisors = {}
+    for k in db.query(AcadClass).filter_by(year=yr).all():
+        names = [db.get(Person, pid).name for pid in (k.homeroom_id, k.co_homeroom_id)
+                 if pid and db.get(Person, pid)]
+        if names:
+            advisors[((k.level or "").strip(), (k.room or "").strip())] = " และ".join(names)
+    room_list = [{"level": lv, "room": rm, "n": n,
+                  "label": f"{lv}/{rm}" if rm else lv,
+                  "advisor": advisors.get((lv, rm), ""),
+                  "books": len([b for b in books if (b.level or "").strip() == lv])}
+                 for (lv, rm), n in sorted(
+                     rooms.items(),
+                     key=lambda kv: (SCHOOL_LEVELS.index(kv[0][0]) if kv[0][0] in SCHOOL_LEVELS else 99,
+                                     kv[0][1]))]
+
+    reqs = (db.query(Requisition).filter(Requisition.year == yr,
+                                         Requisition.for_level != "")
+            .order_by(Requisition.id.desc()).all())
     berks = (db.query(TextbookBerk).filter_by(year=yr)
              .order_by(TextbookBerk.date, TextbookBerk.id).all())
-    from app.models import Person
-    persons = db.query(Person).order_by(Person.name).all()
     return templates.TemplateResponse("textbook_berk.html", {
         "request": request, "school": get_school(db), "books": books, "berks": berks,
         "year": yr, "years": _years(db), "today_be": be_date_input(datetime.now()),
-        "persons": persons,
+        "rooms": room_list, "reqs": reqs, "err": err,
+        "need_material": len(books) - len(mat_ready),
     })
+
+
+@router.post("/textbooks/berk/room")
+async def berk_room_create(request: Request, db: Session = Depends(get_db)):
+    """สร้างใบเบิกหนังสือเรียน 1 ห้อง = 1 ใบ (เป็นใบเบิกวัสดุจริง ตัดยอดตอนกด 'จ่ายแล้ว')"""
+    from app.models import Student, Requisition, RequisitionItem
+    form = await request.form()
+    yr = _to_int(form.get("year"), current_academic_year())
+    lv, _, rm = (form.get("room") or "").partition("|")
+    lv, rm = lv.strip(), rm.strip()
+    if not lv:
+        return RedirectResponse(f"/textbooks/berk?year={yr}&err=room", status_code=303)
+
+    n_students = (db.query(Student)
+                  .filter(Student.level == lv, Student.room == rm).count())
+    books = (db.query(TextBook).filter_by(year=yr, level=lv)
+             .order_by(TextBook.title).all())
+    items = []
+    for b in books:
+        item = db.query(MaterialItem).filter_by(book_id=b.id).first()
+        if item is None:          # ยังไม่ได้ลงบัญชีวัสดุ -> เบิกไม่ได้
+            continue
+        items.append(RequisitionItem(name=item.name, unit=item.unit or "เล่ม",
+                                     qty=float(n_students or 0), material_id=item.id))
+    if not items:
+        return RedirectResponse(f"/textbooks/berk?year={yr}&err=nomat", status_code=303)
+
+    label = f"{lv}/{rm}" if rm else lv
+    req = Requisition(
+        req_no=(form.get("req_no") or "").strip(),
+        date=parse_be_date(form.get("date") or "") or datetime.now(),
+        requester=(form.get("requester") or "").strip(),
+        department="งานวิชาการ",
+        purpose=f"หนังสือเรียน ปีการศึกษา {yr} ชั้น {label} (นักเรียน {n_students} คน)",
+        for_level=lv, for_room=rm, year=yr)
+    req.items.extend(items)
+    db.add(req); db.commit(); db.refresh(req)
+    return RedirectResponse(f"/requisitions/{req.id}", status_code=303)
 
 
 @router.post("/textbooks/berk/add")

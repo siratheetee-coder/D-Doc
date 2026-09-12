@@ -22,8 +22,10 @@ def _safe(text: str) -> str:
     return text.strip()
 
 
-def render_requisition(req, school) -> str:
-    """สร้างไฟล์ .docx ใบเบิกวัสดุ คืนค่าที่อยู่ไฟล์"""
+def render_requisition(req, school, receipt=None) -> str:
+    """สร้างไฟล์ .docx ใบเบิกวัสดุ คืนค่าที่อยู่ไฟล์
+    receipt = dict(year, level, room, advisor, students, books)
+    -> ต่อท้ายด้วยใบรับหนังสือเรียน (นักเรียนลงลายมือชื่อ · อนุบาลให้ครูประจำชั้นรับแทน)"""
     doc = Document(); set_a4(doc)
     _font(doc)
 
@@ -80,6 +82,14 @@ def render_requisition(req, school) -> str:
             from docx.oxml.ns import qn
             r.font.size = Pt(15)
             r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
+
+    # ---- ใบรับหนังสือเรียน (แนบท้ายใบเบิก ให้ผู้เรียนลงลายมือชื่อเป็นหลักฐาน) ----
+    if receipt:
+        from app.services.book_receipt_doc import add_receipt_page
+        doc.add_page_break()
+        add_receipt_page(doc, receipt.get("year"), receipt.get("level"), receipt.get("room"),
+                         receipt.get("advisor", ""), receipt.get("students") or [],
+                         books=receipt.get("books"))
 
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)
