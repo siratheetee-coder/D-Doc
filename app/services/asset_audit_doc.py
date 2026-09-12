@@ -14,7 +14,7 @@ from app.services.doc_page import set_a4
 from app.database import get_data_dir
 from app.thai_utils import thai_date
 from app.services.build_templates import (
-    _font, _krut_and_title, _p, _p_runs, _sign_table, _set_cell, _hr,
+    _font, _krut_and_title, _krut_center, _p, _p_runs, _sign_table, _set_cell, _hr,
     _repeat_header_row, _no_split_row, _no_borders,
 )
 
@@ -130,7 +130,7 @@ def render_appoint_order(school, ctx, doc=None):
     year = ctx.get("year")
     sname = (school.name or "โรงเรียน").strip()
     director = (school.director_name or "").strip() or _BLANK
-    _krut_and_title(doc)
+    _krut_center(doc)                 # คำสั่ง = ครุฑกึ่งกลาง ไม่มีคำว่า "บันทึกข้อความ"
     _p(doc, f"คำสั่ง{sname}", align="center", bold=True, size=18, after=0)
     _p(doc, f"ที่ {ctx.get('order_no') or _BLANK}", align="center", after=0)
     _p(doc, f"เรื่อง แต่งตั้งคณะกรรมการตรวจสอบพัสดุประจำปี ประจำปีงบประมาณ พ.ศ. {year}",

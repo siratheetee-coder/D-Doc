@@ -29,15 +29,18 @@
     <div class="table-wrap"><table>
       <thead><tr><th style="width:45%;">ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>บทบาท</th></tr></thead>
       <tbody>
-        {% for i in range(1,4) %}
+        {% for i in range(1,6) %}
         <tr>
-          <td><input name="m{{ i }}_name" placeholder="{{ 'ประธาน' if i==1 else 'กรรมการ' }}"></td>
-          <td><input name="m{{ i }}_pos" value="ครู"></td>
+          <td><input name="m{{ i }}_name" list="persons" autocomplete="off"
+                     placeholder="{{ 'ประธาน' if i==1 else 'กรรมการ' }}{{ ' (ไม่บังคับ)' if i>3 else '' }}"></td>
+          <td><input name="m{{ i }}_pos" list="positions" value="{{ '' if i>3 else 'ครู' }}"></td>
           <td><input name="m{{ i }}_role" value="{{ 'ประธานกรรมการ' if i==1 else ('กรรมการและเลขานุการ' if i==3 else 'กรรมการ') }}"></td>
         </tr>
         {% endfor %}
       </tbody>
     </table></div>
+    <datalist id="persons">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist>
+    <datalist id="positions">{% for ps in positions %}<option value="{{ ps }}">{% endfor %}</datalist>
     <p class="muted" style="font-size:13px; margin:6px 0 0;">เว้นว่างได้ ระบบจะเว้นจุดไข่ปลาให้เซ็น</p>
   </div>
 
@@ -47,6 +50,19 @@
 </form>
 
 <script>
+  // เลือกชื่อจากทะเบียนบุคลากร -> เติมตำแหน่งให้อัตโนมัติ
+  var POS = {};
+  document.querySelectorAll('#persons option').forEach(function(o){ POS[o.value] = o.textContent.trim(); });
+  document.querySelectorAll('input[list="persons"]').forEach(function(el){
+    el.addEventListener('change', function(){
+      var pos = POS[this.value];
+      var box = this.closest('tr').querySelector('input[list="positions"]');
+      if (pos && box && !box.dataset.touched) box.value = pos;
+    });
+  });
+  document.querySelectorAll('input[list="positions"]').forEach(function(el){
+    el.addEventListener('input', function(){ this.dataset.touched = '1'; });
+  });
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){
       var v=this.value.replace(/\D/g,'').slice(0,8), o=v;

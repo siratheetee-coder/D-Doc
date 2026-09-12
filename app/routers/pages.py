@@ -2927,6 +2927,8 @@ def asset_audit_page(request: Request, db: Session = Depends(get_db)):
         "request": request, "school": school,
         "year": current_fiscal_year(), "live_count": live,
         "today_input": be_date_input(datetime.now()),
+        "persons": db.query(Person).filter_by(active=True).order_by(Person.name).all(),
+        "positions": POSITION_CHOICES,
     })
 
 
