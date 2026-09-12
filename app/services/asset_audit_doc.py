@@ -317,6 +317,91 @@ def render_inventory(school, ctx, assets, doc=None):
     return _save(doc, f"บัญชีครุภัณฑ์คงเหลือ_ปีงบ{year}") if own else doc
 
 
+def _landscape_section(doc):
+    """ขึ้นหน้าใหม่แบบแนวนอน (ตารางพัสดุชำรุดมี 12 คอลัมน์ แนวตั้งไม่พอ)
+    ห้ามเรียก set_a4 ซ้ำ เพราะจะบังคับทุกหน้าให้เป็นแนวเดียวกัน"""
+    from docx.enum.section import WD_SECTION, WD_ORIENT
+    from app.services.doc_page import A4_W, A4_H
+    sec = doc.add_section(WD_SECTION.NEW_PAGE)
+    sec.orientation = WD_ORIENT.LANDSCAPE
+    sec.page_width, sec.page_height = A4_H, A4_W
+    sec.left_margin = sec.right_margin = Cm(1.5)
+    sec.top_margin = Cm(1.5); sec.bottom_margin = Cm(1.2)
+    return sec
+
+
+# คอลัมน์ตามแบบฟอร์มบัญชีพัสดุชำรุดที่โรงเรียนใช้จริง (หัวตาราง 2 ชั้น รวม 13 คอลัมน์)
+#   0 ที่ · 1 รายการครุภัณฑ์ · 2 รหัสครุภัณฑ์ · 3 ยี่ห้อ
+#   4-8 ชำรุด/เสื่อม/สูญไป/ไม่ใช้/ใช้อยู่  (อยู่ใต้หัวรวม "รายการเสียหาย ใช้อยู่หรือไม่ใช้")
+#   9 วันที่ได้มา · 10 ราคาตามทะเบียน · 11 ผู้ใช้งาน · 12 ชำรุดอย่างไร
+_DMG_SPAN = "รายการเสียหาย ใช้อยู่หรือไม่ใช้"
+_DMG_SUB = ["ชำรุด", "เสื่อม", "สูญไป", "ไม่ใช้", "ใช้อยู่"]
+_DMG_TALL = {0: "ที่", 1: "รายการครุภัณฑ์", 2: "รหัสครุภัณฑ์", 3: "ยี่ห้อ",
+             9: "วัน/เดือน/ปี ที่ได้มา", 10: "ราคาตามทะเบียน", 11: "ผู้ใช้งาน",
+             12: "ชำรุดอย่างไร"}
+_DMG_W = [Cm(0.9), Cm(4.4), Cm(3.0), Cm(2.0)] + [Cm(1.2)] * 5 + [Cm(2.2), Cm(2.2), Cm(2.2), Cm(2.7)]
+_DMG_MIN_ROWS = 12          # เว้นบรรทัดว่างให้เขียนมือเพิ่มได้ (เหมือนแบบฟอร์มกระดาษ)
+
+
+def render_damaged_list(school, ctx, assets, doc=None):
+    """บัญชีรายการพัสดุชำรุด เสื่อมสภาพ สูญไป และไม่จำเป็นต้องใช้ในหน่วยงานของรัฐ
+    หน้าแนวนอน ตารางกึ่งกลาง · เติมครุภัณฑ์ที่สถานะ "ชำรุด" ให้อัตโนมัติ แล้วเว้นบรรทัดว่างไว้กรอกเพิ่ม"""
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+    own = doc is None
+    if own:
+        doc = Document(); set_a4(doc, landscape=True); _font(doc)
+    else:
+        _landscape_section(doc)
+    year = ctx.get("year")
+    _p(doc, "บัญชี รายการพัสดุชำรุด  เสื่อมสภาพ  สูญไป  และไม่จำเป็นต้องใช้ในหน่วยงานของรัฐ  "
+            f"ปีงบประมาณ {year}", align="center", bold=True, size=16, after=0)
+    _p(doc, (school.name or "").strip(), align="center", bold=True, size=16, after=6)
+
+    broken = [a for a in (assets or []) if (a.status or "") == "ชำรุด"]
+    n_rows = max(_DMG_MIN_ROWS, len(broken))
+    t = doc.add_table(rows=2 + n_rows, cols=len(_DMG_W))
+    t.style = "Table Grid"; t.autofit = False
+    t.alignment = WD_TABLE_ALIGNMENT.CENTER          # ตารางอยู่กึ่งกลางหน้า
+
+    # ---- หัวตาราง 2 ชั้น ----
+    r0, r1 = t.rows[0], t.rows[1]
+    for i, label in _DMG_TALL.items():                # คอลัมน์ปกติ: รวมสองแถวเป็นช่องเดียว
+        _set_cell(r0.cells[i].merge(r1.cells[i]), label, bold=True, align="center", size=13)
+    _set_cell(r0.cells[4].merge(r0.cells[8]), _DMG_SPAN, bold=True, align="center", size=13)
+    for i, lab in enumerate(_DMG_SUB, start=4):       # ช่องย่อย 5 ช่องในแถวที่สอง
+        _set_cell(r1.cells[i], lab, bold=True, align="center", size=12)
+    _repeat_header_row(r0); _repeat_header_row(r1)
+    _no_split_row(r0); _no_split_row(r1)
+
+    # ---- เนื้อตาราง ----
+    for n in range(n_rows):
+        row = t.rows[2 + n]
+        _no_split_row(row)
+        a = broken[n] if n < len(broken) else None
+        if a:
+            got = thai_date(a.acquired_date) if a.acquired_date else ""
+            vals = [str(n + 1), a.name or "", a.asset_code or "", a.brand_model or "",
+                    "✓", "", "", "", "", got, f"{a.cost or 0:,.2f}", a.location or "", ""]
+        else:
+            vals = [""] * len(_DMG_W)
+        aligns = ["center", "left", "left", "left"] + ["center"] * 5 + ["center", "right", "left", "left"]
+        for c, v, w, al in zip(row.cells, vals, _DMG_W, aligns):
+            _set_cell(c, v, align=al, size=13)
+            c.width = w
+    for row in t.rows:                                # ย้ำความกว้างทุกแถว (Word ชอบรีเซ็ต)
+        for c, w in zip(row.cells, _DMG_W):
+            c.width = w
+
+    _p(doc, "", after=10)
+    _sign_table(doc, [
+        [("ลงชื่อ.................................... พัสดุ/ฝ่าย/กลุ่มสาระ..................", "left"),
+         ("(....................................)", "left")],
+        [("ลงชื่อ.................................... หัวหน้างาน/ฝ่าย/กลุ่มสาระ..........", "left"),
+         ("(....................................)", "left")],
+    ])
+    return _save(doc, f"บัญชีพัสดุชำรุด_ปีงบ{year}") if own else doc
+
+
 def render_audit_bundle(school, ctx, assets, materials=None) -> str:
     """ออกชุดเอกสารตรวจสอบพัสดุประจำปีทั้งชุดเป็นไฟล์เดียว
     (บันทึกขอแต่งตั้ง -> คำสั่งแต่งตั้ง -> รายงานผล -> บัญชีวัสดุคงเหลือ -> บัญชีครุภัณฑ์คงเหลือ)"""
@@ -326,4 +411,5 @@ def render_audit_bundle(school, ctx, assets, materials=None) -> str:
     render_result_memo(school, ctx, assets, doc)
     render_material_inventory(school, ctx, materials or [], doc)
     render_inventory(school, ctx, assets, doc)
+    render_damaged_list(school, ctx, assets, doc)
     return _save(doc, f"ชุดตรวจสอบพัสดุประจำปี_ปีงบ{ctx.get('year')}")
