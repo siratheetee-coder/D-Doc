@@ -18,7 +18,7 @@
   {% if leaves or travels %}
   <div class="sub-grid">
     {% for l in leaves %}
-    <a class="sub-card lv" href="/academic/substitute/plan?person_id={{ l.person_id }}&start={{ be_date_input(l.start_date) }}&end={{ be_date_input(l.end_date) }}&source=leave&source_id={{ l.id }}">
+    <a class="sub-card lv" href="/academic/substitute/plan?person_id={{ l.person_id }}&start={{ be_date(l.start_date) }}&end={{ be_date(l.end_date) }}&source=leave&source_id={{ l.id }}">
       <div class="sc-tag">ลา · {{ l.leave_type }}</div>
       <div class="sc-name">{{ l.person.name if l.person else '-' }}</div>
       <div class="sc-date">{{ thai_date(l.start_date) }} - {{ thai_date(l.end_date) }} ({{ l.days }} วัน)</div>
@@ -26,7 +26,7 @@
     </a>
     {% endfor %}
     {% for t in travels %}
-    <a class="sub-card tv" href="/academic/substitute/plan?person_id={{ t.person_id }}&start={{ be_date_input(t.start_date) }}&end={{ be_date_input(t.end_date) }}&source=travel&source_id={{ t.id }}">
+    <a class="sub-card tv" href="/academic/substitute/plan?person_id={{ t.person_id }}&start={{ be_date(t.start_date) }}&end={{ be_date(t.end_date) }}&source=travel&source_id={{ t.id }}">
       <div class="sc-tag">ไปราชการ</div>
       <div class="sc-name">{{ t.person.name if t.person else '-' }}</div>
       <div class="sc-date">{{ thai_date(t.start_date) }} - {{ thai_date(t.end_date) }} ({{ t.days }} วัน)</div>
