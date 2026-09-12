@@ -113,7 +113,7 @@
                 <select name="acquire_method">{% for mt in ["วิธีตลาดอิเล็กทรอนิกส์","วิธีประกวดราคาอิเล็กทรอนิกส์","วิธีคัดเลือก","วิธีเฉพาะเจาะจง","รับบริจาค"] %}<option {{ "selected" if a.acquire_method==mt }}>{{ mt }}</option>{% endfor %}</select></div>
               <div><label>แหล่งเงิน (เพิ่มเติม)</label><input name="funding_source" value="{{ a.funding_source }}"></div>
               <div><label>สถานะ</label>
-                <select name="status"><option {{ "selected" if a.status=="ใช้งาน" }}>ใช้งาน</option><option {{ "selected" if a.status=="จำหน่ายแล้ว" }}>จำหน่ายแล้ว</option></select>
+                <select name="status"><option {{ "selected" if a.status=="ใช้งาน" }}>ใช้งาน</option><option {{ "selected" if a.status=="ชำรุด" }}>ชำรุด</option><option {{ "selected" if a.status=="จำหน่ายแล้ว" }}>จำหน่ายแล้ว</option></select>
               </div>
             </div>
             <br>

@@ -2923,10 +2923,21 @@ def assets_page(request: Request, db: Session = Depends(get_db)):
 def asset_audit_page(request: Request, db: Session = Depends(get_db)):
     school = get_school(db)
     live = db.query(Asset).filter(Asset.status != "จำหน่ายแล้ว").count()
+    fy = current_fiscal_year()
+    broken = db.query(Asset).filter(Asset.status == "ชำรุด").count()
+    mats = db.query(MaterialItem).order_by(MaterialItem.name).all()
+    mat_count = sum(1 for m in mats if material_balance(m))
+    # วันที่รายงานผล: ระเบียบให้เริ่มตรวจวันเปิดทำการวันแรกของเดือนตุลาคม
+    # -> เสนอวันที่ 1 ตุลาคมของปีงบนั้น (ถ้าวันนี้เลยไปแล้วใช้วันนี้)
+    oct1 = datetime(fy - 543, 10, 1)
+    result_default = datetime.now() if datetime.now() > oct1 else oct1
     return templates.TemplateResponse("asset_audit.html", {
         "request": request, "school": school,
-        "year": current_fiscal_year(), "live_count": live,
+        "year": fy, "live_count": live, "broken_count": broken, "mat_count": mat_count,
         "today_input": be_date_input(datetime.now()),
+        "result_input": be_date_input(result_default),
+        "sug_memo": suggest_doc_no(db, "memo", fy),
+        "sug_command": suggest_doc_no(db, "command", fy),
         "persons": db.query(Person).filter_by(active=True).order_by(Person.name).all(),
         "positions": POSITION_CHOICES,
     })
@@ -2943,17 +2954,41 @@ async def asset_audit_generate(request: Request, db: Session = Depends(get_db)):
             members.append({"name": nm,
                             "position": (form.get(f"m{i}_pos") or "ครู").strip(),
                             "role": (form.get(f"m{i}_role") or "กรรมการ").strip()})
+    year = _to_int(form.get("year"), current_fiscal_year())
+    assets = db.query(Asset).filter(Asset.status != "จำหน่ายแล้ว").order_by(Asset.asset_code, Asset.id).all()
+    # จำนวนครุภัณฑ์ชำรุด: ถ้าไม่กรอกมา ให้นับจากทะเบียน (สถานะ "ชำรุด")
+    damaged = (form.get("damaged_count") or "").strip()
+    if not damaged:
+        n = sum(1 for a in assets if (a.status or "") == "ชำรุด")
+        damaged = str(n) if n else "-"
+    memo_no = (form.get("memo_no") or "").strip()
+    order_no = (form.get("order_no") or "").strip()
+    result_memo_no = (form.get("result_memo_no") or "").strip()
     ctx = {
-        "year": _to_int(form.get("year"), current_fiscal_year()),
+        "year": year,
         "date": parse_be_date(form.get("date") or ""),
-        "memo_no": (form.get("memo_no") or "").strip(),
-        "order_no": (form.get("order_no") or "").strip(),
-        "result_memo_no": (form.get("result_memo_no") or "").strip(),
-        "damaged_count": (form.get("damaged_count") or "").strip(),
+        "result_date": parse_be_date(form.get("result_date") or ""),
+        "memo_no": memo_no,
+        "order_no": order_no,
+        "result_memo_no": result_memo_no,
+        "damaged_count": damaged,
+        "recv_ok": (form.get("recv_ok") or "1") == "1",
+        "recv_note": (form.get("recv_note") or "").strip(),
+        "count_ok": (form.get("count_ok") or "1") == "1",
+        "count_note": (form.get("count_note") or "").strip(),
         "members": members,
     }
-    assets = db.query(Asset).filter(Asset.status != "จำหน่ายแล้ว").order_by(Asset.asset_code, Asset.id).all()
-    path = render_audit_bundle(get_school(db), ctx, assets)
+    materials = db.query(MaterialItem).order_by(MaterialItem.name).all()
+    path = render_audit_bundle(get_school(db), ctx, assets, materials)
+    # ลงทะเบียนเลขหนังสือกลาง (กันเลขซ้ำกับงานอื่น เหมือนพัสดุ/ธุรการ)
+    subj = f"ตรวจสอบพัสดุประจำปี ประจำปีงบประมาณ พ.ศ. {year}"
+    commit_doc_no(db, "memo", year, memo_no, source="asset_audit", ref_id=year,
+                  subject=f"ขออนุมัติแต่งตั้งคณะกรรมการ{subj}", date=ctx["date"])
+    commit_doc_no(db, "command", year, order_no, source="asset_audit", ref_id=year,
+                  subject=f"แต่งตั้งคณะกรรมการ{subj}", date=ctx["date"])
+    commit_doc_no(db, "memo", year, result_memo_no, source="asset_audit", ref_id=year,
+                  subject=f"รายงานผลการ{subj}", date=ctx["result_date"] or ctx["date"])
+    db.commit()
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 

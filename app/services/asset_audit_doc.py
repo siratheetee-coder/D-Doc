@@ -2,7 +2,7 @@
 """
 asset_audit_doc.py - เอกสารตรวจสอบพัสดุประจำปี (ระเบียบกระทรวงการคลังฯ พ.ศ. 2560 ข้อ 213)
 ชุดเดียวได้ 4 ส่วน: (1) บันทึกขอแต่งตั้งคณะกรรมการ (2) คำสั่งแต่งตั้ง
-(3) บันทึกรายงานผลการตรวจสอบ (4) บัญชีครุภัณฑ์คงเหลือ (ดึงจากทะเบียนครุภัณฑ์)
+(3) บันทึกรายงานผลการตรวจสอบ (4) บัญชีวัสดุคงเหลือ (5) บัญชีครุภัณฑ์คงเหลือ
 สร้าง docx ตอนรันไทม์ ใช้ helper ร่วมกับ build_templates (ฟอนต์ TH Sarabun, ครุฑ)
 ถ้อยคำอ้างระเบียบเป็นข้อความราชการสาธารณะ อิงไฟล์ตัวอย่างที่โรงเรียนใช้จริง
 """
@@ -80,12 +80,14 @@ def _memo_header(doc, school, subject, doc_no, date_txt):
 
 
 _LEGAL = ("อาศัยอำนาจตามความในข้อ 213 แห่งระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและ"
-          "การบริหารพัสดุภาครัฐ พ.ศ. 2560 กำหนดให้ก่อนสิ้นเดือนกันยายนของทุกปี ให้หัวหน้า"
-          "หน่วยงานของรัฐแต่งตั้งผู้รับผิดชอบในการตรวจสอบพัสดุซึ่งมิใช่เจ้าหน้าที่พัสดุ ทำการ"
-          "ตรวจสอบการรับจ่ายพัสดุงวดตั้งแต่วันที่ 1 ตุลาคมปีก่อน จนถึงวันที่ 30 กันยายนปีปัจจุบัน "
-          "และตรวจนับพัสดุคงเหลือ ณ วันสิ้นงวด ว่าการรับจ่ายถูกต้องหรือไม่ พัสดุคงเหลือมีอยู่ตรง"
-          "ตามบัญชีหรือทะเบียนหรือไม่ มีพัสดุใดชำรุด เสื่อมสภาพ หรือสูญไปเพราะเหตุใด หรือพัสดุใด"
-          "ไม่จำเป็นต้องใช้ในราชการต่อไป แล้วรายงานผลต่อผู้แต่งตั้งภายใน 30 วันทำการ")
+          "การบริหารพัสดุภาครัฐ พ.ศ. 2560 กำหนดให้ภายในเดือนสุดท้ายก่อนสิ้นปีงบประมาณของทุกปี "
+          "ให้หัวหน้าหน่วยงานของรัฐแต่งตั้งผู้รับผิดชอบในการตรวจสอบพัสดุซึ่งมิใช่เจ้าหน้าที่พัสดุ "
+          "ทำการตรวจสอบการรับจ่ายพัสดุงวดตั้งแต่วันที่ 1 ตุลาคมปีก่อน จนถึงวันที่ 30 กันยายน"
+          "ปีปัจจุบัน และตรวจนับพัสดุคงเหลือ ณ วันสิ้นงวด ว่าการรับจ่ายถูกต้องหรือไม่ พัสดุคงเหลือ"
+          "มีอยู่ตรงตามบัญชีหรือทะเบียนหรือไม่ มีพัสดุใดชำรุด เสื่อมสภาพ หรือสูญไปเพราะเหตุใด "
+          "หรือพัสดุใดไม่จำเป็นต้องใช้ในราชการต่อไป โดยให้เริ่มดำเนินการตรวจสอบพัสดุในวันเปิดทำการ"
+          "วันแรกของเดือนตุลาคม และให้รายงานผลการตรวจสอบต่อผู้แต่งตั้งภายใน 30 วันทำการ "
+          "นับแต่วันเริ่มดำเนินการตรวจสอบพัสดุ")
 
 
 def render_appoint_memo(school, ctx, doc=None):
@@ -152,7 +154,12 @@ def render_appoint_order(school, ctx, doc=None):
 
 
 def render_result_memo(school, ctx, assets=None, doc=None):
-    """(3) บันทึกข้อความ รายงานผลการตรวจสอบพัสดุประจำปี"""
+    """(3) บันทึกข้อความ รายงานผลการตรวจสอบพัสดุประจำปี
+
+    วันที่ของฉบับนี้แยกจากวันที่คำสั่ง (ctx["result_date"]) เพราะการตรวจเริ่ม
+    วันเปิดทำการวันแรกของเดือนตุลาคม รายงานผลจึงต้องลงวันที่หลังจากนั้น
+    ผลการตรวจไม่เขียนสำเร็จรูปว่า "ถูกต้อง" - ใช้สิ่งที่คณะกรรมการกรอกมาจริง
+    """
     own = doc is None
     if own:
         doc = Document(); set_a4(doc); _font(doc)
@@ -162,17 +169,38 @@ def render_result_memo(school, ctx, assets=None, doc=None):
     director = (school.director_name or "").strip() or _BLANK
     damaged = (ctx.get("damaged_count") or "").strip() or "-"
     _memo_header(doc, school, f"รายงานผลการตรวจสอบพัสดุประจำปี ประจำปีงบประมาณ พ.ศ. {year}",
-                 ctx.get("result_memo_no") or "", thai_date(ctx.get("date")))
+                 ctx.get("result_memo_no") or "",
+                 thai_date(ctx.get("result_date") or ctx.get("date")))
     _p(doc, f"ตามคำสั่ง{(school.name or 'โรงเรียน').strip()} ที่ {ctx.get('order_no') or _BLANK} "
             f"เรื่อง แต่งตั้งคณะกรรมการตรวจสอบพัสดุประจำปี ประจำปีงบประมาณ พ.ศ. {year} "
             "ให้ดำเนินการตรวจสอบและตรวจนับวัสดุ/ครุภัณฑ์ที่คงเหลืออยู่ ณ วันสิ้นงวด นั้น",
        align="justify", indent=1.25, after=2)
     _p(doc, "บัดนี้ คณะกรรมการตามคำสั่งดังกล่าว ได้ดำเนินการตรวจสอบการรับ - จ่ายพัสดุเรียบร้อยแล้ว "
             "ผลการตรวจสอบสรุปได้ ดังนี้", align="justify", indent=1.25, after=2)
+
+    recv_note = (ctx.get("recv_note") or "").strip()
+    if ctx.get("recv_ok", True):
+        recv = "ปรากฏว่าถูกต้องครบถ้วนตรงกัน"
+    else:
+        recv = "ปรากฏว่าไม่ถูกต้องตรงกัน " + (recv_note or _BLANK)
+        recv_note = ""
     _p(doc, "1. การตรวจสอบการรับ - จ่าย ได้ตรวจสอบเอกสารฝ่ายรับและเอกสารฝ่ายจ่าย บัญชีวัสดุ "
-            "และทะเบียนครุภัณฑ์ ปรากฏว่าถูกต้องครบถ้วนตรงกัน", indent=1.25, after=1)
-    _p(doc, f"2. การตรวจนับพัสดุคงเหลือ ณ วันที่ 30 กันยายน {year} ปรากฏว่ามีพัสดุคงเหลือ"
-            "ตรงตามบัญชีและทะเบียน", indent=1.25, after=1)
+            f"และทะเบียนครุภัณฑ์ {recv}", align="justify", indent=1.25, after=1)
+    if recv_note:
+        _p(doc, f"({recv_note})", indent=2.5, after=1)
+
+    count_note = (ctx.get("count_note") or "").strip()
+    if ctx.get("count_ok", True):
+        cnt = "ปรากฏว่ามีพัสดุคงเหลือตรงตามบัญชีและทะเบียน"
+    else:
+        cnt = "ปรากฏว่ามีพัสดุคงเหลือไม่ตรงตามบัญชีและทะเบียน " + (count_note or _BLANK)
+        count_note = ""
+    _p(doc, f"2. การตรวจนับพัสดุคงเหลือ ณ วันที่ 30 กันยายน {year} {cnt} "
+            "(รายละเอียดตามบัญชีวัสดุคงเหลือและบัญชีครุภัณฑ์คงเหลือที่แนบ)",
+       align="justify", indent=1.25, after=1)
+    if count_note:
+        _p(doc, f"({count_note})", indent=2.5, after=1)
+
     _p(doc, f"3. การตรวจสอบสภาพครุภัณฑ์ ปรากฏว่ามีครุภัณฑ์ชำรุด เสื่อมสภาพ จำนวน {damaged} รายการ",
        indent=1.25, after=2)
     _p(doc, "จึงเรียนมาเพื่อโปรดทราบและพิจารณาดำเนินการต่อไป", indent=1.25, after=12)
@@ -191,6 +219,57 @@ def render_result_memo(school, ctx, assets=None, doc=None):
         (_director_line(school), "center"),
     ]])
     return _save(doc, f"รายงานผลตรวจสอบพัสดุ_ปีงบ{year}") if own else doc
+
+
+def render_material_inventory(school, ctx, materials, doc=None):
+    """(4) บัญชีวัสดุคงเหลือ - ระเบียบข้อ 213 ให้ตรวจ "พัสดุ" ซึ่งรวมวัสดุ ไม่ใช่ครุภัณฑ์อย่างเดียว
+    ยอดคงเหลือคำนวณจากการเคลื่อนไหวรับเข้า-จ่ายออกในบัญชีวัสดุ"""
+    from app.services.asset_utils import material_balance
+    own = doc is None
+    if own:
+        doc = Document(); set_a4(doc); _font(doc)
+    else:
+        doc.add_page_break()
+    year = ctx.get("year")
+    _p(doc, f"บัญชีวัสดุคงเหลือประจำปีงบประมาณ พ.ศ. {year}",
+       align="center", bold=True, size=17, after=0)
+    _p(doc, f"ณ วันที่ 30 กันยายน {year}", align="center", after=0)
+    _p(doc, (school.name or "").strip(), align="center", after=6)
+    headers = ["ที่", "รายการวัสดุ", "หน่วยนับ", "คงเหลือ", "มูลค่าคงเหลือ (บาท)"]
+    widths = [Cm(1.2), Cm(8.0), Cm(2.6), Cm(2.6), Cm(4.0)]
+    t = doc.add_table(rows=1, cols=len(headers)); t.style = "Table Grid"; t.autofit = False
+    _repeat_header_row(t.rows[0]); _no_split_row(t.rows[0])
+    for c, h, w in zip(t.rows[0].cells, headers, widths):
+        _set_cell(c, h, bold=True, align="center", size=14); c.width = w
+    rows = 0
+    total = 0.0
+    for m in (materials or []):
+        bal = material_balance(m)
+        if not bal:
+            continue                      # วัสดุที่ใช้หมดแล้ว ไม่ต้องขึ้นบัญชีคงเหลือ
+        prices = [x.unit_price for x in m.txns if x.kind == "in" and (x.unit_price or 0) > 0]
+        price = prices[-1] if prices else 0.0      # ราคาที่รับเข้าครั้งล่าสุด
+        value = bal * price
+        total += value
+        rows += 1
+        vals = [str(rows), m.name, m.unit or "หน่วย", f"{bal:,.2f}".rstrip("0").rstrip("."),
+                f"{value:,.2f}" if price else "-"]
+        aligns = ["center", "left", "center", "right", "right"]
+        r = t.add_row(); _no_split_row(r)
+        for c, v, w, al in zip(r.cells, vals, widths, aligns):
+            _set_cell(c, v, align=al, size=13); c.width = w
+    if not rows:
+        r = t.add_row(); _no_split_row(r)
+        _set_cell(r.cells[1], "- ไม่มีวัสดุคงเหลือในบัญชี -", align="center", size=13)
+    _p(doc, f"รวมวัสดุคงเหลือ {rows} รายการ เป็นเงิน {total:,.2f} บาท "
+            "(ตีราคาตามราคาที่รับเข้าครั้งล่าสุด)", bold=True, before=4, after=12)
+    members = _members(ctx)
+    for m in (members or [{"name": _BLANK, "role": "ประธานกรรมการ"}]):
+        _sign_table(doc, [[
+            (f"ลงชื่อ ...................................... {m.get('role','กรรมการ')}", "center"),
+            (f"( {m.get('name', _BLANK)} )", "center"),
+        ]])
+    return _save(doc, f"บัญชีวัสดุคงเหลือ_ปีงบ{year}") if own else doc
 
 
 def render_inventory(school, ctx, assets, doc=None):
@@ -224,8 +303,11 @@ def render_inventory(school, ctx, assets, doc=None):
     if not live:
         r = t.add_row()
         _set_cell(r.cells[0], "-", align="center", size=13)
-    _p(doc, f"รวมครุภัณฑ์คงเหลือ {len(live)} รายการ เป็นเงิน {total:,.2f} บาท",
-       bold=True, before=4, after=12)
+    n_broken = sum(1 for a in live if (a.status or "") == "ชำรุด")
+    summary = f"รวมครุภัณฑ์คงเหลือ {len(live)} รายการ เป็นเงิน {total:,.2f} บาท"
+    if n_broken:
+        summary += f" (ในจำนวนนี้ชำรุด/เสื่อมสภาพ {n_broken} รายการ)"
+    _p(doc, summary, bold=True, before=4, after=12)
     members = _members(ctx)
     for m in (members or [{"name": _BLANK, "role": "ประธานกรรมการ"}]):
         _sign_table(doc, [[
@@ -235,11 +317,13 @@ def render_inventory(school, ctx, assets, doc=None):
     return _save(doc, f"บัญชีครุภัณฑ์คงเหลือ_ปีงบ{year}") if own else doc
 
 
-def render_audit_bundle(school, ctx, assets) -> str:
-    """ออกชุดเอกสารตรวจสอบพัสดุประจำปีทั้งชุดเป็นไฟล์เดียว"""
+def render_audit_bundle(school, ctx, assets, materials=None) -> str:
+    """ออกชุดเอกสารตรวจสอบพัสดุประจำปีทั้งชุดเป็นไฟล์เดียว
+    (บันทึกขอแต่งตั้ง -> คำสั่งแต่งตั้ง -> รายงานผล -> บัญชีวัสดุคงเหลือ -> บัญชีครุภัณฑ์คงเหลือ)"""
     doc = Document(); set_a4(doc); _font(doc)
     render_appoint_memo(school, ctx, doc)
     render_appoint_order(school, ctx, doc)
     render_result_memo(school, ctx, assets, doc)
+    render_material_inventory(school, ctx, materials or [], doc)
     render_inventory(school, ctx, assets, doc)
     return _save(doc, f"ชุดตรวจสอบพัสดุประจำปี_ปีงบ{ctx.get('year')}")

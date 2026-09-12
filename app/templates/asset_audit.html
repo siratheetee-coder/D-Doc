@@ -6,7 +6,7 @@
     <h1 style="margin:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> ตรวจสอบพัสดุประจำปี</h1>
     <a class="btn sm gray" href="/assets"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับทะเบียนครุภัณฑ์</a>
   </div>
-  <p class="muted" style="margin-top:0;">ออกชุดเอกสารตรวจสอบพัสดุประจำปี (ระเบียบฯ พ.ศ. 2560 ข้อ 213) เป็นไฟล์เดียว: ขอแต่งตั้งคณะกรรมการ + คำสั่งแต่งตั้ง + รายงานผลการตรวจสอบ + บัญชีครุภัณฑ์คงเหลือ (ดึงจากทะเบียน {{ live_count }} รายการอัตโนมัติ)</p>
+  <p class="muted" style="margin-top:0;">ออกชุดเอกสารตรวจสอบพัสดุประจำปี (ระเบียบฯ พ.ศ. 2560 ข้อ 213) เป็นไฟล์เดียว: ขอแต่งตั้งคณะกรรมการ + คำสั่งแต่งตั้ง + รายงานผลการตรวจสอบ + บัญชีวัสดุคงเหลือ ({{ mat_count }} รายการ) + บัญชีครุภัณฑ์คงเหลือ ({{ live_count }} รายการ) ดึงจากทะเบียนอัตโนมัติ</p>
 </div>
 
 <form method="post" action="/assets/audit">
@@ -14,13 +14,39 @@
     <h2>ข้อมูลการตรวจสอบ</h2>
     <div class="row">
       <div><label>ปีงบประมาณ (พ.ศ.)</label><input name="year" type="number" value="{{ year }}"></div>
-      <div><label>วันที่ (สั่ง/ตรวจ)</label><input name="date" value="{{ today_input }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
-      <div><label>ครุภัณฑ์ชำรุด (รายการ)</label><input name="damaged_count" placeholder="- (ถ้าไม่มี)"></div>
+      <div><label>วันที่บันทึก/คำสั่งแต่งตั้ง</label><input name="date" value="{{ today_input }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>วันที่รายงานผลการตรวจสอบ</label><input name="result_date" value="{{ result_input }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+    </div>
+    <p class="muted" style="font-size:13px; margin:-4px 0 10px;">ระเบียบให้เริ่มตรวจ<b>วันเปิดทำการวันแรกของเดือนตุลาคม</b> รายงานผลจึงต้องลงวันที่หลังจากนั้น (ห้ามใช้วันเดียวกับคำสั่ง)</p>
+    <div class="row">
+      <div><label>เลขที่บันทึกขอแต่งตั้ง</label><input name="memo_no" value="{{ sug_memo }}"></div>
+      <div><label>เลขที่คำสั่งแต่งตั้ง</label><input name="order_no" value="{{ sug_command }}"></div>
+      <div><label>เลขที่บันทึกรายงานผล</label><input name="result_memo_no" placeholder="เว้นว่าง = ไม่ระบุ"></div>
+    </div>
+    <p class="muted" style="font-size:13px; margin:-4px 0 0;">เลขที่เสนอให้เป็นเลขถัดไปจากทะเบียนเลขหนังสือของโรงเรียน · เลขที่กรอกจะถูกบันทึกลงทะเบียนกลางให้ (กันเลขซ้ำ)</p>
+  </div>
+
+  <div class="card">
+    <h2>ผลการตรวจสอบ <span class="muted" style="font-size:14px;">(กรอกตามที่ตรวจพบจริง)</span></h2>
+    <div class="row">
+      <div style="flex:1.2;"><label>1. การตรวจสอบการรับ - จ่าย</label>
+        <select name="recv_ok">
+          <option value="1">ถูกต้องครบถ้วนตรงกัน</option>
+          <option value="0">ไม่ถูกต้องตรงกัน (ระบุด้านขวา)</option>
+        </select></div>
+      <div style="flex:2;"><label>หมายเหตุ/สิ่งที่พบ</label><input name="recv_note" placeholder="เว้นว่างได้"></div>
     </div>
     <div class="row">
-      <div><label>เลขที่บันทึกขอแต่งตั้ง</label><input name="memo_no" placeholder="เช่น 1/2568"></div>
-      <div><label>เลขที่คำสั่งแต่งตั้ง</label><input name="order_no" placeholder="เช่น 100/2568"></div>
-      <div><label>เลขที่บันทึกรายงานผล</label><input name="result_memo_no" placeholder="เช่น 2/2568"></div>
+      <div style="flex:1.2;"><label>2. การตรวจนับพัสดุคงเหลือ</label>
+        <select name="count_ok">
+          <option value="1">ตรงตามบัญชีและทะเบียน</option>
+          <option value="0">ไม่ตรงตามบัญชีและทะเบียน (ระบุด้านขวา)</option>
+        </select></div>
+      <div style="flex:2;"><label>หมายเหตุ/สิ่งที่พบ</label><input name="count_note" placeholder="เว้นว่างได้"></div>
+    </div>
+    <div class="row">
+      <div><label>3. ครุภัณฑ์ชำรุด/เสื่อมสภาพ (รายการ)</label>
+        <input name="damaged_count" placeholder="เว้นว่าง = นับจากทะเบียนให้ ({{ broken_count }} รายการ)"></div>
     </div>
   </div>
 
