@@ -13,9 +13,14 @@ from app.services.doc_page import set_a4
 
 from app.database import get_data_dir
 from app.thai_utils import thai_date
+
+
+def _thai_be(dt) -> str:
+    """วันที่แบบมี พ.ศ. เช่น 12 กันยายน พ.ศ. 2569 (เอกสารชุดนี้ใช้รูปแบบนี้ทั้งหมด)"""
+    return thai_date(dt).replace(" 25", " พ.ศ. 25", 1) if dt else ""
 from app.services.build_templates import (
     _font, _krut_and_title, _krut_center, _p, _p_runs, _sign_table, _set_cell, _hr,
-    _repeat_header_row, _no_split_row, _no_borders,
+    _repeat_header_row, _no_split_row, _no_borders, _fixed_cols,
 )
 
 _BLANK = "............................"
@@ -33,6 +38,19 @@ def _save(doc, name: str) -> str:
     out_path = out_dir / (_safe(name) + ".docx")
     doc.save(str(out_path))
     return str(out_path)
+
+
+def _center_table(table) -> None:
+    """จัดตารางให้อยู่กึ่งกลางหน้า (ใช้คู่กับ _fixed_cols ที่ล็อกความกว้างไว้แล้ว)"""
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+
+def _blank_doc_or_break(doc) -> None:
+    """ขึ้นหน้าใหม่ก่อนเริ่มฉบับถัดไป - แต่ถ้ายังไม่มีเนื้อหาเลย (ฉบับแรกของชุด)
+    ห้ามขึ้นหน้าใหม่ ไม่งั้นจะได้หน้าแรกว่างเปล่าติดมาทุกครั้ง"""
+    if doc.paragraphs or doc.tables:
+        doc.add_page_break()
 
 
 def _office(school) -> str:
@@ -96,12 +114,12 @@ def render_appoint_memo(school, ctx, doc=None):
     if own:
         doc = Document(); set_a4(doc); _font(doc)
     else:
-        doc.add_page_break()
+        _blank_doc_or_break(doc)
     year = ctx.get("year")
     head = (getattr(school, "head_officer_name", "") or "").strip() or _BLANK
     director = (school.director_name or "").strip() or _BLANK
     _memo_header(doc, school, f"การตรวจสอบพัสดุประจำปี ประจำปีงบประมาณ พ.ศ. {year}",
-                 ctx.get("memo_no") or "", thai_date(ctx.get("date")))
+                 ctx.get("memo_no") or "", _thai_be(ctx.get("date")))
     _p(doc, _LEGAL, align="justify", indent=1.25, after=2)
     _p(doc, f"ดังนั้น เพื่อให้การตรวจสอบการรับจ่ายพัสดุประจำปีงบประมาณ พ.ศ. {year} เป็นไปด้วย"
             "ความเรียบร้อยถูกต้องตามระเบียบดังกล่าวข้างต้น จึงขอแต่งตั้งบุคคลผู้มีรายนามต่อไปนี้"
@@ -128,13 +146,13 @@ def render_appoint_order(school, ctx, doc=None):
     if own:
         doc = Document(); set_a4(doc); _font(doc)
     else:
-        doc.add_page_break()
+        _blank_doc_or_break(doc)
     year = ctx.get("year")
     sname = (school.name or "โรงเรียน").strip()
     director = (school.director_name or "").strip() or _BLANK
     _krut_center(doc)                 # คำสั่ง = ครุฑกึ่งกลาง ไม่มีคำว่า "บันทึกข้อความ"
     _p(doc, f"คำสั่ง{sname}", align="center", bold=True, size=18, after=0)
-    _p(doc, f"ที่ {ctx.get('order_no') or _BLANK}", align="center", after=0)
+    _p(doc, f"ที่ {ctx.get('order_no') or _BLANK}", align="center", bold=True, after=0)
     _p(doc, f"เรื่อง แต่งตั้งคณะกรรมการตรวจสอบพัสดุประจำปี ประจำปีงบประมาณ พ.ศ. {year}",
        align="center", bold=True, after=0)
     _p(doc, "-----------------------------------", align="center", after=6)
@@ -144,7 +162,7 @@ def render_appoint_order(school, ctx, doc=None):
     _p(doc, "ให้คณะกรรมการที่ได้รับการแต่งตั้งตามคำสั่งนี้ ปฏิบัติหน้าที่ที่ได้รับมอบหมายให้บังเกิด"
             "ผลดีต่อทางราชการโดยเคร่งครัด", align="justify", indent=1.25, before=2, after=2)
     _p(doc, f"ทั้งนี้ ตั้งแต่วันที่ 1 ตุลาคม พ.ศ. {year} เป็นต้นไป", indent=1.25, after=1)
-    _p(doc, f"สั่ง ณ วันที่ {thai_date(ctx.get('date'))}", indent=1.25, after=12)
+    _p(doc, f"สั่ง ณ วันที่ {_thai_be(ctx.get('date'))}", indent=1.25, after=12)
     _sign_table(doc, [[
         ("ลงชื่อ ......................................", "center"),
         (f"( {director} )", "center"),
@@ -164,13 +182,13 @@ def render_result_memo(school, ctx, assets=None, doc=None):
     if own:
         doc = Document(); set_a4(doc); _font(doc)
     else:
-        doc.add_page_break()
+        _blank_doc_or_break(doc)
     year = ctx.get("year")
     director = (school.director_name or "").strip() or _BLANK
     damaged = (ctx.get("damaged_count") or "").strip() or "-"
     _memo_header(doc, school, f"รายงานผลการตรวจสอบพัสดุประจำปี ประจำปีงบประมาณ พ.ศ. {year}",
                  ctx.get("result_memo_no") or "",
-                 thai_date(ctx.get("result_date") or ctx.get("date")))
+                 _thai_be(ctx.get("result_date") or ctx.get("date")))
     _p(doc, f"ตามคำสั่ง{(school.name or 'โรงเรียน').strip()} ที่ {ctx.get('order_no') or _BLANK} "
             f"เรื่อง แต่งตั้งคณะกรรมการตรวจสอบพัสดุประจำปี ประจำปีงบประมาณ พ.ศ. {year} "
             "ให้ดำเนินการตรวจสอบและตรวจนับวัสดุ/ครุภัณฑ์ที่คงเหลืออยู่ ณ วันสิ้นงวด นั้น",
@@ -229,15 +247,16 @@ def render_material_inventory(school, ctx, materials, doc=None):
     if own:
         doc = Document(); set_a4(doc); _font(doc)
     else:
-        doc.add_page_break()
+        _blank_doc_or_break(doc)
     year = ctx.get("year")
     _p(doc, f"บัญชีวัสดุคงเหลือประจำปีงบประมาณ พ.ศ. {year}",
        align="center", bold=True, size=17, after=0)
     _p(doc, f"ณ วันที่ 30 กันยายน {year}", align="center", after=0)
     _p(doc, (school.name or "").strip(), align="center", after=6)
     headers = ["ที่", "รายการวัสดุ", "หน่วยนับ", "คงเหลือ", "มูลค่าคงเหลือ (บาท)"]
-    widths = [Cm(1.2), Cm(8.0), Cm(2.6), Cm(2.6), Cm(4.0)]
-    t = doc.add_table(rows=1, cols=len(headers)); t.style = "Table Grid"; t.autofit = False
+    widths = [Cm(1.0), Cm(7.0), Cm(2.0), Cm(2.2), Cm(3.4)]        # รวม 15.6 ซม. < พื้นที่พิมพ์ 16.5
+    t = doc.add_table(rows=1, cols=len(headers)); t.style = "Table Grid"
+    _fixed_cols(t, widths); _center_table(t)
     _repeat_header_row(t.rows[0]); _no_split_row(t.rows[0])
     for c, h, w in zip(t.rows[0].cells, headers, widths):
         _set_cell(c, h, bold=True, align="center", size=14); c.width = w
@@ -278,15 +297,16 @@ def render_inventory(school, ctx, assets, doc=None):
     if own:
         doc = Document(); set_a4(doc); _font(doc)
     else:
-        doc.add_page_break()
+        _blank_doc_or_break(doc)
     year = ctx.get("year")
     _p(doc, f"บัญชีรายการครุภัณฑ์คงเหลือประจำปีงบประมาณ พ.ศ. {year}",
        align="center", bold=True, size=17, after=0)
     _p(doc, f"ณ วันที่ 30 กันยายน {year}", align="center", after=0)
     _p(doc, (school.name or "").strip(), align="center", after=6)
     headers = ["ที่", "เลขครุภัณฑ์", "รายการ", "จำนวน", "ราคาทุน (บาท)", "สภาพ"]
-    widths = [Cm(1.2), Cm(3.6), Cm(6.5), Cm(1.8), Cm(3), Cm(2.4)]
-    t = doc.add_table(rows=1, cols=len(headers)); t.style = "Table Grid"; t.autofit = False
+    widths = [Cm(1.0), Cm(3.2), Cm(6.2), Cm(1.7), Cm(2.5), Cm(1.8)]   # รวม 16.4 ซม.
+    t = doc.add_table(rows=1, cols=len(headers)); t.style = "Table Grid"
+    _fixed_cols(t, widths); _center_table(t)
     _repeat_header_row(t.rows[0]); _no_split_row(t.rows[0])
     for c, h, w in zip(t.rows[0].cells, headers, widths):
         _set_cell(c, h, bold=True, align="center", size=14); c.width = w
@@ -346,7 +366,6 @@ _DMG_MIN_ROWS = 12          # เว้นบรรทัดว่างให�
 def render_damaged_list(school, ctx, assets, doc=None):
     """บัญชีรายการพัสดุชำรุด เสื่อมสภาพ สูญไป และไม่จำเป็นต้องใช้ในหน่วยงานของรัฐ
     หน้าแนวนอน ตารางกึ่งกลาง · เติมครุภัณฑ์ที่สถานะ "ชำรุด" ให้อัตโนมัติ แล้วเว้นบรรทัดว่างไว้กรอกเพิ่ม"""
-    from docx.enum.table import WD_TABLE_ALIGNMENT
     from app.services.asset_utils import ASSET_BAD_STATUSES, ASSET_STATUS_COL
     own = doc is None
     if own:
@@ -361,8 +380,8 @@ def render_damaged_list(school, ctx, assets, doc=None):
     broken = [a for a in (assets or []) if (a.status or "ใช้งาน") in ASSET_BAD_STATUSES]
     n_rows = max(_DMG_MIN_ROWS, len(broken))
     t = doc.add_table(rows=2 + n_rows, cols=len(_DMG_W))
-    t.style = "Table Grid"; t.autofit = False
-    t.alignment = WD_TABLE_ALIGNMENT.CENTER          # ตารางอยู่กึ่งกลางหน้า
+    t.style = "Table Grid"
+    _fixed_cols(t, _DMG_W); _center_table(t)
 
     # ---- หัวตาราง 2 ชั้น ----
     r0, r1 = t.rows[0], t.rows[1]
@@ -380,7 +399,7 @@ def render_damaged_list(school, ctx, assets, doc=None):
         _no_split_row(row)
         a = broken[n] if n < len(broken) else None
         if a:
-            got = thai_date(a.acquired_date) if a.acquired_date else ""
+            got = _thai_be(a.acquired_date) if a.acquired_date else ""
             mark = ASSET_STATUS_COL.get(a.status or "", "")      # ติ๊กช่องให้ตรงกับสถานะ
             ticks = ["✓" if lab == mark else "" for lab in _DMG_SUB]
             vals = ([str(n + 1), a.name or "", a.asset_code or "", a.brand_model or ""]
@@ -397,13 +416,24 @@ def render_damaged_list(school, ctx, assets, doc=None):
         for c, w in zip(row.cells, _DMG_W):
             c.width = w
 
-    _p(doc, "", after=10)
-    _sign_table(doc, [
-        [("ลงชื่อ.................................... พัสดุ/ฝ่าย/กลุ่มสาระ..................", "left"),
-         ("(....................................)", "left")],
-        [("ลงชื่อ.................................... หัวหน้างาน/ฝ่าย/กลุ่มสาระ..........", "left"),
-         ("(....................................)", "left")],
-    ])
+    # ---- ลงชื่อกรรมการ 3 คน เรียงกันด้วยตารางไร้เส้นขอบ (บรรทัดตรงกันทุกช่อง) ----
+    _p(doc, "", after=8)
+    default_roles = ["ประธานกรรมการ", "กรรมการ", "กรรมการและเลขานุการ"]
+    signers = _members(ctx)[:3]
+    while len(signers) < 3:
+        signers.append({"name": "", "role": default_roles[len(signers)]})
+    st = doc.add_table(rows=3, cols=3)
+    _no_borders(st)
+    _fixed_cols(st, [Cm(8.5)] * 3)
+    _center_table(st)
+    for col, mem in enumerate(signers):
+        name = (mem.get("name") or "").strip()
+        role = (mem.get("role") or default_roles[col]).strip()
+        _set_cell(st.cell(0, col), "ลงชื่อ.............................................",
+                  align="center", size=14)
+        _set_cell(st.cell(1, col), f"( {name} )" if name else "(.............................................)",
+                  align="center", size=14)
+        _set_cell(st.cell(2, col), role, align="center", size=14)
     return _save(doc, f"บัญชีพัสดุชำรุด_ปีงบ{year}") if own else doc
 
 
