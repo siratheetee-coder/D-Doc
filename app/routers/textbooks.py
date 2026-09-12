@@ -133,6 +133,57 @@ def _book_groups(db, yr) -> list:
         by_level, key=lambda l: SCHOOL_LEVELS.index(l) if l in SCHOOL_LEVELS else 99)]
 
 
+def _jload_safe(raw, default):
+    import json
+    try:
+        v = json.loads(raw or "")
+        return v if v else default
+    except Exception:
+        return default
+
+
+def _student_counts(db) -> dict:
+    from app.models import Student
+    out = {}
+    for st in db.query(Student).all():
+        lv = (st.level or "").strip()
+        if lv:
+            out[lv] = out.get(lv, 0) + 1
+    return out
+
+
+def _estimate_rows(db, tp, groups) -> list:
+    """ตารางประมาณการค่าหนังสือ: อัตราต่อคนใช้ที่กรอกไว้ ถ้าไม่กรอกใช้ยอดหนังสือรวมของชั้นนั้น"""
+    import json
+    try:
+        rates = json.loads(tp.rates or "{}")
+    except Exception:
+        rates = {}
+    counts = _student_counts(db)
+    rows = []
+    for lv, items in groups:
+        per_head = sum(float(it["price"]) for it in items)      # ค่าหนังสือ 1 คนของชั้นนี้
+        rate = float(rates.get(lv) or 0) or per_head
+        rows.append({"level": lv, "students": counts.get(lv, 0), "rate": rate})
+    return rows
+
+
+def _survey_groups(db, yr) -> list:
+    """รายการหนังสือรายชั้นสำหรับแบบสำรวจ (มีสำนักพิมพ์ด้วย)"""
+    counts = _student_counts(db)
+    books = (db.query(TextBook).filter_by(year=yr)
+             .order_by(TextBook.level, TextBook.title).all())
+    by = {}
+    for b in books:
+        lv = (b.level or "").strip()
+        by.setdefault(lv, []).append({
+            "title": b.title or "", "publisher": b.publisher or "",
+            "price": float(b.unit_price or 0),
+            "qty": counts.get(lv, 0) or int(b.qty_received or 0)})
+    return [(lv, by[lv]) for lv in sorted(
+        by, key=lambda l: SCHOOL_LEVELS.index(l) if l in SCHOOL_LEVELS else 99)]
+
+
 @router.get("/textbooks/purchase", response_class=HTMLResponse)
 def book_purchase_page(request: Request, db: Session = Depends(get_db),
                        year: int | None = None, saved: str = ""):
@@ -157,6 +208,9 @@ def book_purchase_page(request: Request, db: Session = Depends(get_db),
         "persons": db.query(Person).filter_by(active=True).order_by(Person.name).all(),
         "positions": POSITION_CHOICES, "saved": saved,
         "be_date_input": be_date_input,
+        "boards": _jload_safe(tp.boards, {}), "parties": _jload_safe(tp.parties, {}),
+        "est_rows": _estimate_rows(db, tp, groups),
+        "levels": [lv for lv, _ in groups],
     })
 
 
@@ -185,8 +239,67 @@ async def book_purchase_save(request: Request, db: Session = Depends(get_db)):
                             "position": (form.get(f"m{i}_pos") or "ครู").strip(),
                             "role": (form.get(f"m{i}_role") or "กรรมการ").strip()})
     tp.members = json.dumps(members, ensure_ascii=False)
+
+    # ---- ชุดคัดเลือกหนังสือ ----
+    tp.academic_head = (form.get("academic_head") or "").strip()
+    tp.recorder = (form.get("recorder") or "").strip()
+    for f in ("memo_no", "order_no", "announce_no", "invite_no"):
+        setattr(tp, f, (form.get(f) or "").strip())
+    for f in ("memo_date", "order_date", "announce_date", "invite_date", "meet_date"):
+        setattr(tp, f, parse_be_date(form.get(f) or ""))
+    tp.meet_time = (form.get("meet_time") or "").strip()
+    tp.meet_place = (form.get("meet_place") or "").strip()
+
+    def _people(prefix, n=8):
+        out = []
+        for i in range(1, n + 1):
+            nm = (form.get(f"{prefix}{i}_name") or "").strip()
+            if nm:
+                out.append({"name": nm,
+                            "position": (form.get(f"{prefix}{i}_pos") or "ครู").strip(),
+                            "role": (form.get(f"{prefix}{i}_role") or "กรรมการ").strip(),
+                            "level": (form.get(f"{prefix}{i}_level") or "").strip()})
+        return out
+
+    tp.boards = json.dumps({"exec": _people("ex"), "select": _people("sel", 15),
+                            "meeting": _people("mt")}, ensure_ascii=False)
+    tp.parties = json.dumps({"teacher": _people("pt"), "parent": _people("pp"),
+                             "community": _people("pc"), "student": _people("ps")},
+                            ensure_ascii=False)
+    rates = {}
+    for lv, rt in zip(form.getlist("rate_level"), form.getlist("rate_value")):
+        lv = (lv or "").strip()
+        if lv and _to_float(rt, 0) > 0:
+            rates[lv] = _to_float(rt, 0)
+    tp.rates = json.dumps(rates, ensure_ascii=False)
     db.commit()
     return RedirectResponse(f"/textbooks/purchase?year={yr}&saved=1", status_code=303)
+
+
+@router.get("/textbooks/purchase/doc/{kind}")
+def book_select_doc(kind: str, db: Session = Depends(get_db), year: int | None = None):
+    """ออกเอกสารชุดคัดเลือกหนังสือ ทีละฉบับหรือทั้งชุด"""
+    from app.services import book_select_doc as bs
+    yr = year or current_academic_year()
+    tp = _purchase_for(db, yr)
+    school = get_school(db)
+    groups = _book_groups(db, yr)
+    est = _estimate_rows(db, tp, groups)
+    survey = _survey_groups(db, yr)
+    makers = {
+        "memo": lambda: bs.render_select_memo(school, tp),
+        "estimate": lambda: bs.render_estimate(school, tp, est),
+        "order": lambda: bs.render_select_order(school, tp),
+        "parties": lambda: bs.render_parties_announce(school, tp),
+        "invite": lambda: bs.render_invite(school, tp),
+        "survey": lambda: bs.render_survey(school, tp, survey),
+        "report": lambda: bs.render_meeting_report(school, tp, groups),
+        "all": lambda: bs.render_select_bundle(school, tp, groups, est, survey),
+    }
+    if kind not in makers:
+        return RedirectResponse(f"/textbooks/purchase?year={yr}", status_code=303)
+    return serve_generated(makers[kind](),
+                           "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 @router.get("/textbooks/purchase/tor.docx")

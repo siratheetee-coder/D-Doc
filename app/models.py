@@ -1144,6 +1144,23 @@ class TextbookPurchase(Base):
     tor_memo_date = Column(DateTime, nullable=True)
     cmd_no = Column(String, default="")                # เลขที่คำสั่งแต่งตั้งผู้จัดทำร่าง TOR/ผู้ตรวจรับ
     cmd_date = Column(DateTime, nullable=True)
+    # ---- ชุดเอกสารคัดเลือกหนังสือ (ก่อนถึงขั้นจัดซื้อ) ----
+    memo_no = Column(String, default="")               # บันทึกขออนุญาตดำเนินการคัดเลือก
+    memo_date = Column(DateTime, nullable=True)
+    order_no = Column(String, default="")              # คำสั่งแต่งตั้งคณะกรรมการคัดเลือกหนังสือ
+    order_date = Column(DateTime, nullable=True)
+    announce_no = Column(String, default="")           # ประกาศแต่งตั้งคณะกรรมการภาคี 4 ฝ่าย
+    announce_date = Column(DateTime, nullable=True)
+    invite_no = Column(String, default="")             # หนังสือเชิญประชุม
+    invite_date = Column(DateTime, nullable=True)
+    meet_date = Column(DateTime, nullable=True)        # วันประชุมคัดเลือกหนังสือ
+    meet_time = Column(String, default="")             # เวลา เช่น 09.00 - 12.00 น.
+    meet_place = Column(String, default="")            # สถานที่ประชุม
+    rates = Column(Text, default="")                   # อัตราค่าหนังสือรายหัว {ชั้น: บาท} (JSON)
+    boards = Column(Text, default="")                  # กรรมการ 3 ชุด (JSON)
+    parties = Column(Text, default="")                 # ภาคี 4 ฝ่าย (JSON)
+    academic_head = Column(String, default="")         # หัวหน้างานวิชาการ (ผู้เสนอบันทึก)
+    recorder = Column(String, default="")              # ผู้จดรายงานการประชุม
     created_at = Column(DateTime, default=datetime.now)
 
 

@@ -20,20 +20,55 @@
     </form>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <a class="btn sm gray" href="/textbooks?year={{ year }}"><svg class="icon"><use href="#ic-book"/></svg> ทะเบียนหนังสือ</a>
+      <a class="btn sm" href="/textbooks/purchase/doc/all?year={{ year }}" style="background:linear-gradient(135deg,#7c3aed,#4f46e5); border:none;"><svg class="icon"><use href="#ic-package"/></svg> ชุดคัดเลือกหนังสือ 7 ฉบับ</a>
       <a class="btn sm green" href="/textbooks/purchase/tor.docx?year={{ year }}"><svg class="icon"><use href="#ic-download"/></svg> ออก TOR (Word)</a>
     </div>
   </div>
   {% if not n_items %}
   <div class="alert warn" style="margin:10px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg>
-    ยังไม่มีหนังสือในทะเบียนปีการศึกษานี้ · <a href="/textbooks?year={{ year }}">ไปเพิ่มหนังสือก่อน</a> แล้วค่อยออก TOR</div>
+    ยังไม่มีหนังสือในทะเบียนปีการศึกษานี้ · <a href="/textbooks?year={{ year }}">ไปเพิ่มหนังสือก่อน</a> แล้วค่อยออกเอกสาร</div>
   {% endif %}
 </div>
+
+<div class="card">
+  <h2>ชุดเอกสารคัดเลือกหนังสือ <span class="muted" style="font-size:14px;">(ขั้นก่อนจัดซื้อ · ออกทีละฉบับได้)</span></h2>
+  <p class="muted" style="margin-top:0;">กรอกเลขที่/วันที่และรายชื่อกรรมการในฟอร์มด้านล่างก่อน แล้วกดปุ่มเพื่อออกเอกสาร</p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a class="btn sm gray" href="/textbooks/purchase/doc/memo?year={{ year }}">1. บันทึกขออนุญาต</a>
+    <a class="btn sm gray" href="/textbooks/purchase/doc/estimate?year={{ year }}">2. ประมาณการค่าหนังสือ</a>
+    <a class="btn sm gray" href="/textbooks/purchase/doc/order?year={{ year }}">3. คำสั่งแต่งตั้ง กก.คัดเลือก</a>
+    <a class="btn sm gray" href="/textbooks/purchase/doc/parties?year={{ year }}">4. ประกาศภาคี 4 ฝ่าย</a>
+    <a class="btn sm gray" href="/textbooks/purchase/doc/invite?year={{ year }}">5. หนังสือเชิญประชุม</a>
+    <a class="btn sm gray" href="/textbooks/purchase/doc/survey?year={{ year }}">6. แบบสำรวจความต้องการ</a>
+    <a class="btn sm gray" href="/textbooks/purchase/doc/report?year={{ year }}">7. รายงานการประชุม</a>
+  </div>
+</div>
+
+{% macro people(prefix, rows, n, title, hint, with_level=False) %}
+<div class="card">
+  <h2>{{ title }} <span class="muted" style="font-size:14px;">{{ hint }}</span></h2>
+  <div class="table-wrap"><table>
+    <thead><tr>{% if with_level %}<th style="width:90px;">ชั้น</th>{% endif %}<th style="width:40%;">ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>บทบาท</th></tr></thead>
+    <tbody>
+      {% for i in range(1, n+1) %}
+      {% set m = rows[i-1] if rows|length >= i else {} %}
+      <tr>
+        {% if with_level %}<td><input name="{{ prefix }}{{ i }}_level" value="{{ m.level or '' }}" placeholder="ป.1" style="width:80px;"></td>{% endif %}
+        <td><input name="{{ prefix }}{{ i }}_name" list="persons" autocomplete="off" value="{{ m.name or '' }}"></td>
+        <td><input name="{{ prefix }}{{ i }}_pos" list="positions" value="{{ m.position or '' }}"></td>
+        <td><input name="{{ prefix }}{{ i }}_role" value="{{ m.role or 'กรรมการ' }}"></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endmacro %}
 
 <form method="post" action="/textbooks/purchase/save">
   <input type="hidden" name="year" value="{{ year }}">
 
   <div class="card">
-    <h2>ข้อมูลการจัดซื้อ</h2>
+    <h2>ข้อมูลการจัดซื้อ (ใช้ใน TOR)</h2>
     <div class="row">
       <div><label>ปีงบประมาณ (พ.ศ.)</label><input name="fiscal_year" type="number" value="{{ tp.fiscal_year or year }}"></div>
       <div><label>วิธีซื้อ</label>
@@ -44,8 +79,8 @@
       <div style="flex:1.4;"><label>แหล่งงบประมาณ</label><input name="budget_source" value="{{ tp.budget_source or 'เงินอุดหนุนรัฐบาล' }}"></div>
     </div>
     <div class="row">
-      <div><label>วงเงินงบประมาณที่ได้รับ (บาท)</label><input name="total_budget" type="number" step="0.01" value="{{ '%g'|format(tp.total_budget or 0) }}" placeholder="0 = ใช้ยอดรวมรายการ"></div>
-      <div><label>ราคากลาง (บาท)</label><input name="price_ref" type="number" step="0.01" value="{{ '%g'|format(tp.price_ref or 0) }}" placeholder="0 = ใช้ยอดรวมรายการ"></div>
+      <div><label>วงเงินงบประมาณที่ได้รับ (บาท)</label><input name="total_budget" type="number" step="0.01" value="{{ '%g'|format(tp.total_budget or 0) }}"></div>
+      <div><label>ราคากลาง (บาท)</label><input name="price_ref" type="number" step="0.01" value="{{ '%g'|format(tp.price_ref or 0) }}"></div>
       <div style="flex:1.4;"><label>ระยะเวลาดำเนินการ</label><input name="period_text" value="{{ tp.period_text }}" placeholder="เช่น เมษายน - พฤษภาคม 2569"></div>
     </div>
     <div class="row">
@@ -56,24 +91,60 @@
   </div>
 
   <div class="card">
-    <h2>คณะกรรมการจัดทำร่างขอบเขตของงาน / ผู้ตรวจรับพัสดุ</h2>
+    <h2>เลขที่และวันที่ (ชุดคัดเลือกหนังสือ)</h2>
+    <div class="row">
+      <div><label>เลขที่บันทึกขออนุญาต</label><input name="memo_no" value="{{ tp.memo_no }}"></div>
+      <div><label>ลงวันที่</label><input name="memo_date" value="{{ be_date_input(tp.memo_date) if tp.memo_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>เลขที่คำสั่งแต่งตั้ง กก.คัดเลือก</label><input name="order_no" value="{{ tp.order_no }}"></div>
+      <div><label>ลงวันที่</label><input name="order_date" value="{{ be_date_input(tp.order_date) if tp.order_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+    </div>
+    <div class="row">
+      <div><label>เลขที่ประกาศภาคี 4 ฝ่าย</label><input name="announce_no" value="{{ tp.announce_no }}"></div>
+      <div><label>ลงวันที่</label><input name="announce_date" value="{{ be_date_input(tp.announce_date) if tp.announce_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>เลขที่หนังสือเชิญประชุม</label><input name="invite_no" value="{{ tp.invite_no }}"></div>
+      <div><label>ลงวันที่</label><input name="invite_date" value="{{ be_date_input(tp.invite_date) if tp.invite_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+    </div>
+    <div class="row">
+      <div><label>วันประชุมคัดเลือกหนังสือ</label><input name="meet_date" value="{{ be_date_input(tp.meet_date) if tp.meet_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>เวลา</label><input name="meet_time" value="{{ tp.meet_time }}" placeholder="เช่น 09.00 - 12.00 น."></div>
+      <div style="flex:1.6;"><label>สถานที่ประชุม</label><input name="meet_place" value="{{ tp.meet_place }}" placeholder="เช่น ห้องประชุมโรงเรียน"></div>
+    </div>
+    <div class="row">
+      <div style="flex:1.4;"><label>หัวหน้างานวิชาการ (ผู้เสนอบันทึก)</label><input name="academic_head" list="persons" value="{{ tp.academic_head }}"></div>
+      <div style="flex:1.4;"><label>ผู้จดรายงานการประชุม</label><input name="recorder" list="persons" value="{{ tp.recorder }}"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>อัตราค่าหนังสือต่อคน <span class="muted" style="font-size:14px;">(ใช้ในประมาณการค่าหนังสือ)</span></h2>
+    <p class="muted" style="margin-top:0;">ค่าเริ่มต้น = ยอดค่าหนังสือจริงของชั้นนั้นจากทะเบียน แก้เป็นอัตราที่ได้รับจัดสรรได้</p>
+    {% if est_rows %}
     <div class="table-wrap"><table>
-      <thead><tr><th style="width:45%;">ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>บทบาท</th></tr></thead>
+      <thead><tr><th>ระดับชั้น</th><th class="right">จำนวนนักเรียน</th><th>อัตราค่าหนังสือ/คน (บาท)</th></tr></thead>
       <tbody>
-        {% for i in range(1,6) %}
-        {% set m = members[i-1] if members|length >= i else {} %}
+        {% for r in est_rows %}
         <tr>
-          <td><input name="m{{ i }}_name" list="persons" autocomplete="off" value="{{ m.name or '' }}"
-                     placeholder="{{ 'ประธาน' if i==1 else 'กรรมการ' }}{{ ' (ไม่บังคับ)' if i>3 else '' }}"></td>
-          <td><input name="m{{ i }}_pos" list="positions" value="{{ m.position or ('ครู' if i<=3 else '') }}"></td>
-          <td><input name="m{{ i }}_role" value="{{ m.role or (['ประธานกรรมการ','กรรมการ','กรรมการและเลขานุการ'][i-1] if i<=3 else 'กรรมการ') }}"></td>
+          <td>{{ r.level }}<input type="hidden" name="rate_level" value="{{ r.level }}"></td>
+          <td class="right">{{ r.students }}</td>
+          <td><input name="rate_value" type="number" step="0.01" min="0" value="{{ '%g'|format(r.rate) }}" style="width:140px;"></td>
         </tr>
         {% endfor %}
       </tbody>
     </table></div>
-    <datalist id="persons">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist>
-    <datalist id="positions">{% for ps in positions %}<option value="{{ ps }}">{% endfor %}</datalist>
+    {% else %}<p class="muted">ยังไม่มีรายการหนังสือ</p>{% endif %}
   </div>
+
+  {{ people('m', members, 5, 'คณะกรรมการจัดทำร่างขอบเขตของงาน / ผู้ตรวจรับพัสดุ', '(ใช้ใน TOR)') }}
+  {{ people('ex', boards.get('exec') or [], 5, 'คณะกรรมการอำนวยการ', '(ผอ. + หัวหน้าฝ่าย)') }}
+  {{ people('sel', boards.get('select') or [], 12, 'คณะกรรมการคัดเลือกหนังสือ (รายชั้น)', '(ครูผู้สอนแต่ละชั้น)', True) }}
+  {{ people('mt', boards.get('meeting') or [], 6, 'คณะกรรมการดำเนินการจัดประชุม', '') }}
+  {{ people('pt', parties.get('teacher') or [], 3, 'ภาคี 4 ฝ่าย · ผู้แทนครู', '') }}
+  {{ people('pp', parties.get('parent') or [], 3, 'ภาคี 4 ฝ่าย · ผู้แทนผู้ปกครอง', '') }}
+  {{ people('pc', parties.get('community') or [], 3, 'ภาคี 4 ฝ่าย · ผู้แทนชุมชน', '') }}
+  {{ people('ps', parties.get('student') or [], 3, 'ภาคี 4 ฝ่าย · ผู้แทนกรรมการนักเรียน', '') }}
+
+  <datalist id="persons">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist>
+  <datalist id="positions">{% for ps in positions %}<option value="{{ ps }}">{% endfor %}</datalist>
 
   <div class="card">
     <h2>ข้อความใน TOR <span class="muted" style="font-size:14px;">(เว้นว่างได้ ระบบมีข้อความมาตรฐานให้)</span></h2>
@@ -84,12 +155,12 @@
     <label style="margin-top:10px;">ช่องทางติดต่อ/เสนอแนะ วิจารณ์ TOR</label>
     <textarea name="contact" rows="2" placeholder="เว้นว่าง = ชื่อโรงเรียน ที่อยู่ และเบอร์โทร">{{ tp.contact }}</textarea>
     <br><br>
-    <button class="btn green" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกข้อมูล</button>
+    <button class="btn green" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกข้อมูลทั้งหมด</button>
   </div>
 </form>
 
 <div class="card">
-  <h2>รายการหนังสือที่จะเข้า TOR <span class="muted" style="font-size:15px;">(ดึงจากทะเบียนหนังสือเรียน)</span></h2>
+  <h2>รายการหนังสือที่จะเข้าเอกสาร <span class="muted" style="font-size:15px;">(ดึงจากทะเบียนหนังสือเรียน)</span></h2>
   <p class="muted" style="margin-top:0;">จำนวน = จำนวนนักเรียนในชั้นนั้น (ถ้ายังไม่มีนักเรียนในทะเบียน จะใช้จำนวนที่รับเข้า) · แก้ชื่อ/ราคาได้ที่ทะเบียนหนังสือ</p>
   {% for level, items in groups %}
   <h3 style="margin:12px 0 6px; color:#1d4ed8;">ชั้น {{ level or '-' }}</h3>

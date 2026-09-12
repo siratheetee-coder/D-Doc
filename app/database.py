@@ -35,6 +35,22 @@ Base = declarative_base()
 
 # รายการเพิ่มคอลัมน์ใหม่บน DB เก่า (ปลอดภัย: ข้ามถ้ามีอยู่แล้ว)
 MIGRATIONS = [
+    ("textbook_purchase", "memo_no", "VARCHAR DEFAULT ''"),
+    ("textbook_purchase", "memo_date", "DATETIME"),
+    ("textbook_purchase", "order_no", "VARCHAR DEFAULT ''"),
+    ("textbook_purchase", "order_date", "DATETIME"),
+    ("textbook_purchase", "announce_no", "VARCHAR DEFAULT ''"),
+    ("textbook_purchase", "announce_date", "DATETIME"),
+    ("textbook_purchase", "invite_no", "VARCHAR DEFAULT ''"),
+    ("textbook_purchase", "invite_date", "DATETIME"),
+    ("textbook_purchase", "meet_date", "DATETIME"),
+    ("textbook_purchase", "meet_time", "VARCHAR DEFAULT ''"),
+    ("textbook_purchase", "meet_place", "VARCHAR DEFAULT ''"),
+    ("textbook_purchase", "rates", "TEXT DEFAULT ''"),
+    ("textbook_purchase", "boards", "TEXT DEFAULT ''"),
+    ("textbook_purchase", "parties", "TEXT DEFAULT ''"),
+    ("textbook_purchase", "academic_head", "VARCHAR DEFAULT ''"),
+    ("textbook_purchase", "recorder", "VARCHAR DEFAULT ''"),
     ("textbook", "room", "VARCHAR DEFAULT ''"),
     ("requisition", "for_level", "VARCHAR DEFAULT ''"),
     ("requisition", "for_room", "VARCHAR DEFAULT ''"),
