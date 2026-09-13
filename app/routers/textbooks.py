@@ -161,7 +161,16 @@ def _estimate_rows(db, tp, groups) -> list:
         rates = {}
     counts = _student_counts(db)
     rows = []
-    for lv, items in groups:
+    from app.models import AcadClass
+    items_by_level = dict(groups)
+    levels = set(counts) | set(items_by_level) | {
+        (row.level or "").strip()
+        for row in db.query(AcadClass).filter_by(year=tp.year).all()
+        if (row.level or "").strip()
+    }
+    for lv in sorted(levels, key=lambda value: (
+            SCHOOL_LEVELS.index(value) if value in SCHOOL_LEVELS else 99, value)):
+        items = items_by_level.get(lv, [])
         per_head = sum(float(it["price"]) for it in items)      # ค่าหนังสือ 1 คนของชั้นนี้
         rate = float(rates.get(lv) or 0) or per_head
         rows.append({"level": lv, "students": counts.get(lv, 0), "rate": rate})

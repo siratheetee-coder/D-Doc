@@ -20,8 +20,6 @@
     </form>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <a class="btn sm gray" href="/textbooks?year={{ year }}"><svg class="icon"><use href="#ic-book"/></svg> ทะเบียนหนังสือ</a>
-      <a class="btn sm" href="/textbooks/purchase/doc/all?year={{ year }}" style="background:linear-gradient(135deg,#7c3aed,#4f46e5); border:none;"><svg class="icon"><use href="#ic-package"/></svg> ชุดคัดเลือกหนังสือ 7 ฉบับ</a>
-      <a class="btn sm green" href="/textbooks/purchase/tor.docx?year={{ year }}"><svg class="icon"><use href="#ic-download"/></svg> ออก TOR (Word)</a>
     </div>
   </div>
   {% if not n_items %}
@@ -31,17 +29,33 @@
 </div>
 
 <div class="card">
-  <h2>ชุดเอกสารคัดเลือกหนังสือ <span class="muted" style="font-size:14px;">(ขั้นก่อนจัดซื้อ · ออกทีละฉบับได้)</span></h2>
-  <p class="muted" style="margin-top:0;">กรอกเลขที่/วันที่และรายชื่อกรรมการในฟอร์มด้านล่างก่อน แล้วกดปุ่มเพื่อออกเอกสาร</p>
-  <div style="display:flex; gap:8px; flex-wrap:wrap;">
-    <a class="btn sm gray" href="/textbooks/purchase/doc/memo?year={{ year }}">1. บันทึกขออนุญาต</a>
-    <a class="btn sm gray" href="/textbooks/purchase/doc/estimate?year={{ year }}">2. ประมาณการค่าหนังสือ</a>
-    <a class="btn sm gray" href="/textbooks/purchase/doc/order?year={{ year }}">3. คำสั่งแต่งตั้ง กก.คัดเลือก</a>
-    <a class="btn sm gray" href="/textbooks/purchase/doc/parties?year={{ year }}">4. ประกาศภาคี 4 ฝ่าย</a>
-    <a class="btn sm gray" href="/textbooks/purchase/doc/invite?year={{ year }}">5. หนังสือเชิญประชุม</a>
-    <a class="btn sm gray" href="/textbooks/purchase/doc/survey?year={{ year }}">6. แบบสำรวจความต้องการ</a>
-    <a class="btn sm gray" href="/textbooks/purchase/doc/report?year={{ year }}">7. รายงานการประชุม</a>
-  </div>
+  <h2>รายการหนังสือที่จะเข้าเอกสาร <span class="muted" style="font-size:15px;">(ดึงจากทะเบียนหนังสือเรียน)</span></h2>
+  <p class="muted" style="margin-top:0;">จำนวน = จำนวนนักเรียนในชั้นนั้น (ถ้ายังไม่มีนักเรียนในทะเบียน จะใช้จำนวนที่รับเข้า) · แก้ชื่อ/ราคาได้ที่ทะเบียนหนังสือ</p>
+  {% for level, items in groups %}
+  <h3 style="margin:12px 0 6px; color:#1d4ed8;">ชั้น {{ level or '-' }}</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th style="width:55%;">รายการหนังสือ</th><th class="right">ราคา</th><th class="right">จำนวน</th><th class="right">เป็นเงิน</th></tr></thead>
+    <tbody>
+      {% set ns = namespace(sum=0) %}
+      {% for it in items %}
+      {% set amt = it.price * it.qty %}
+      {% set ns.sum = ns.sum + amt %}
+      <tr>
+        <td>{{ it.title }}</td>
+        <td class="right">{{ "{:,.2f}".format(it.price) }}</td>
+        <td class="right">{{ "%g"|format(it.qty) }}</td>
+        <td class="right">{{ "{:,.2f}".format(amt) }}</td>
+      </tr>
+      {% endfor %}
+      <tr><td colspan="3" class="right"><b>รวมชั้น {{ level }}</b></td><td class="right"><b>{{ "{:,.2f}".format(ns.sum) }}</b></td></tr>
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="muted">ยังไม่มีรายการหนังสือในปีการศึกษานี้</p>
+  {% endfor %}
+  {% if n_items %}
+  <p style="margin-top:12px; font-size:17px;">รวมทั้งสิ้น <b>{{ n_items }}</b> รายการ เป็นเงิน <b style="color:var(--brand-dark);">{{ "{:,.2f}".format(total) }}</b> บาท</p>
+  {% endif %}
 </div>
 
 {% macro people(prefix, rows, n, title, hint, with_level=False) %}
@@ -64,7 +78,7 @@
 </div>
 {% endmacro %}
 
-<form method="post" action="/textbooks/purchase/save">
+<form id="purchase-form" method="post" action="/textbooks/purchase/save">
   <input type="hidden" name="year" value="{{ year }}">
 
   <div class="card">
@@ -157,35 +171,81 @@
     <br><br>
     <button class="btn green" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกข้อมูลทั้งหมด</button>
   </div>
+<div class="card">
+  <h2>ออกเอกสาร <span class="muted" style="font-size:14px;">(ขั้นก่อนจัดซื้อ · ออกทีละฉบับได้)</span></h2>
+  <p class="muted" style="margin-top:0;">ระบบจะตรวจข้อมูลและบันทึกข้อมูลล่าสุดก่อนออกเอกสารทุกครั้ง</p>
+  <p id="purchase-status" role="status" aria-live="polite"></p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <button class="btn green" type="submit" name="document" value="tor">บันทึกและออก TOR (Word)</button>
+    <button class="btn" type="submit" name="document" value="all">บันทึกและออกชุดคัดเลือก 7 ฉบับ</button>
+    <button class="btn sm gray" type="submit" name="document" value="memo">1. บันทึกขออนุญาต</button>
+    <button class="btn sm gray" type="submit" name="document" value="estimate">2. ประมาณการค่าหนังสือ</button>
+    <button class="btn sm gray" type="submit" name="document" value="order">3. คำสั่งแต่งตั้ง กก.คัดเลือก</button>
+    <button class="btn sm gray" type="submit" name="document" value="parties">4. ประกาศภาคี 4 ฝ่าย</button>
+    <button class="btn sm gray" type="submit" name="document" value="invite">5. หนังสือเชิญประชุม</button>
+    <button class="btn sm gray" type="submit" name="document" value="survey">6. แบบสำรวจความต้องการ</button>
+    <button class="btn sm gray" type="submit" name="document" value="report">7. รายงานการประชุม</button>
+  </div>
+</div>
+
 </form>
 
-<div class="card">
-  <h2>รายการหนังสือที่จะเข้าเอกสาร <span class="muted" style="font-size:15px;">(ดึงจากทะเบียนหนังสือเรียน)</span></h2>
-  <p class="muted" style="margin-top:0;">จำนวน = จำนวนนักเรียนในชั้นนั้น (ถ้ายังไม่มีนักเรียนในทะเบียน จะใช้จำนวนที่รับเข้า) · แก้ชื่อ/ราคาได้ที่ทะเบียนหนังสือ</p>
-  {% for level, items in groups %}
-  <h3 style="margin:12px 0 6px; color:#1d4ed8;">ชั้น {{ level or '-' }}</h3>
-  <div class="table-wrap"><table>
-    <thead><tr><th style="width:55%;">รายการหนังสือ</th><th class="right">ราคา</th><th class="right">จำนวน</th><th class="right">เป็นเงิน</th></tr></thead>
-    <tbody>
-      {% set ns = namespace(sum=0) %}
-      {% for it in items %}
-      {% set amt = it.price * it.qty %}
-      {% set ns.sum = ns.sum + amt %}
-      <tr>
-        <td>{{ it.title }}</td>
-        <td class="right">{{ "{:,.2f}".format(it.price) }}</td>
-        <td class="right">{{ "%g"|format(it.qty) }}</td>
-        <td class="right">{{ "{:,.2f}".format(amt) }}</td>
-      </tr>
-      {% endfor %}
-      <tr><td colspan="3" class="right"><b>รวมชั้น {{ level }}</b></td><td class="right"><b>{{ "{:,.2f}".format(ns.sum) }}</b></td></tr>
-    </tbody>
-  </table></div>
-  {% else %}
-  <p class="muted">ยังไม่มีรายการหนังสือในปีการศึกษานี้</p>
-  {% endfor %}
-  {% if n_items %}
-  <p style="margin-top:12px; font-size:17px;">รวมทั้งสิ้น <b>{{ n_items }}</b> รายการ เป็นเงิน <b style="color:var(--brand-dark);">{{ "{:,.2f}".format(total) }}</b> บาท</p>
-  {% endif %}
-</div>
+
+<script>
+(() => {
+  const form = document.getElementById('purchase-form');
+  const status = document.getElementById('purchase-status');
+  let dirty = false, busy = false;
+  const requirements = {
+    tor: ['fiscal_year','budget_source','delivery_days','m1_name'],
+    memo: ['memo_no','memo_date','academic_head'],
+    estimate: [], order: ['order_no','order_date','sel1_name'],
+    parties: ['announce_no','announce_date','pt1_name','pp1_name','pc1_name','ps1_name'],
+    invite: ['invite_no','invite_date','meet_date','meet_time','meet_place'],
+    survey: [], report: ['meet_date','meet_time','meet_place','recorder']
+  };
+  const markDirty = () => { dirty = true; status.textContent = 'มีข้อมูลที่ยังไม่ได้บันทึก'; };
+  form.addEventListener('input', markDirty);
+  form.addEventListener('change', markDirty);
+  window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (busy) return;
+    const kind = e.submitter?.name === 'document' ? e.submitter.value : '';
+    if (kind && !{{ n_items|tojson }}) {
+      status.textContent = 'กรุณาเพิ่มรายการหนังสือในทะเบียนก่อนออกเอกสาร'; return;
+    }
+    const required = kind === 'all' ? [...new Set(Object.entries(requirements).filter(([k]) => k !== 'tor').flatMap(([,v]) => v))] : requirements[kind] || [];
+    for (const name of required) {
+      const field = form.elements.namedItem(name);
+      if (!field.value.trim()) {
+        status.textContent = 'กรุณากรอกข้อมูลที่จำเป็นสำหรับเอกสารนี้';
+        field.focus();
+        field.scrollIntoView({block:'center', behavior:'smooth'});
+        const label = field.closest('div')?.querySelector('label');
+        status.textContent = 'กรุณากรอก ' + (label?.textContent || 'รายชื่อกรรมการ/ผู้ลงนาม') + ' ก่อนออกเอกสาร';
+        return;
+      }
+    }
+    if (!form.reportValidity()) return;
+    const data = new FormData(form);
+    const controls = [...form.querySelectorAll('input,select,textarea,button')];
+    const disabled = controls.map(el => el.disabled);
+    busy = true; controls.forEach(el => el.disabled = true);
+    status.textContent = 'กำลังบันทึกข้อมูล…';
+    try {
+      const response = await fetch(form.action, {method:'POST', body:data, credentials:'same-origin'});
+      const url = new URL(response.url);
+      if (!response.ok || url.pathname !== '/textbooks/purchase' || url.searchParams.get('saved') !== '1') throw new Error('save');
+      dirty = false;
+      status.textContent = kind ? 'บันทึกแล้ว กำลังเปิดเอกสาร…' : 'บันทึกข้อมูลแล้ว';
+      if (kind) window.location.assign('/textbooks/purchase/' + (kind === 'tor' ? 'tor.docx' : 'doc/' + kind) + '?year=' + encodeURIComponent(data.get('year')));
+    } catch (_) {
+      status.textContent = 'บันทึกไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อและการเข้าสู่ระบบ แล้วลองอีกครั้ง';
+    } finally {
+      busy = false; controls.forEach((el,i) => el.disabled = disabled[i]);
+    }
+  });
+})();
+</script>
 {% endblock %}
