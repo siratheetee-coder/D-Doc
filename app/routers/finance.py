@@ -1069,6 +1069,7 @@ async def check_add(request: Request, db: Session = Depends(get_db)):
     fy = _to_int(form.get("fiscal_year"), current_fiscal_year())
     db.add(CheckPayment(
         fiscal_year=fy, date=parse_be_date(form.get("date")),
+        pay_method=(form.get("pay_method") or "โอน").strip(),
         check_no=(form.get("check_no") or "").strip(), bank=(form.get("bank") or "").strip(),
         payee=(form.get("payee") or "").strip(), amount=_to_float(form.get("amount"), 0.0),
         purpose=(form.get("purpose") or "").strip(),
@@ -1080,7 +1081,7 @@ async def check_add(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/finance/checks/{cid}/toggle")
 def check_toggle(cid: int, db: Session = Depends(get_db)):
-    """สลับสถานะ 'ผู้รับนำไปขึ้นเงินแล้ว' (ใช้คำนวณเช็คคงค้างในงบกระทบยอด)"""
+    """สลับสถานะ 'เงินออกจากบัญชีแล้ว' (ใช้คำนวณรายการคงค้างในงบกระทบยอด)"""
     ck = db.get(CheckPayment, cid)
     fy = ck.fiscal_year if ck else current_fiscal_year()
     if ck:

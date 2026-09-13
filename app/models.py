@@ -794,19 +794,22 @@ class LoanReturn(Base):
 
 
 class CheckPayment(Base):
-    """ทะเบียนคุมการจ่ายเช็ค (ตามแบบฟอร์มทะเบียนคุมของสถานศึกษา)"""
+    """ทะเบียนคุมการจ่ายเงิน (เช็ค / โอน KTB Corporate Online / เงินสด)
+    ต่อยอดจากแบบฟอร์ม "ทะเบียนคุมการจ่ายเช็ค" ของสถานศึกษา แต่รองรับการโอนด้วย
+    เพราะปัจจุบันโรงเรียนส่วนใหญ่จ่ายผ่านระบบโอนแทนการเขียนเช็ค"""
     __tablename__ = "check_payment"
 
     id = Column(Integer, primary_key=True)
     fiscal_year = Column(Integer, nullable=False)
     date = Column(DateTime, nullable=True)           # วัน เดือน ปี ที่สั่งจ่าย
-    check_no = Column(String, default="")            # เลขที่เช็ค
+    pay_method = Column(String, default="โอน")       # เช็ค / โอน / เงินสด
+    check_no = Column(String, default="")            # เลขที่เช็ค หรือ เลขอ้างอิงการโอน
     bank = Column(String, default="")                # ธนาคาร/สาขา
     payee = Column(String, default="")               # จ่ายให้
     amount = Column(Float, default=0.0)
     purpose = Column(String, default="")             # รายการ/ค่าใช้จ่าย
     account_id = Column(Integer, ForeignKey("finance_account.id"), nullable=True)
-    cleared = Column(Boolean, default=False)         # ผู้รับนำไปขึ้นเงินแล้ว (ใช้ในงบกระทบยอด)
+    cleared = Column(Boolean, default=False)         # เงินออกจากบัญชีแล้ว (ขึ้นเช็ค/โอนสำเร็จ) - ใช้ในงบกระทบยอด
     note = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)
 

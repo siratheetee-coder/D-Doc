@@ -209,26 +209,32 @@ def render_loan_register(school, fiscal_year, loans) -> str:
     return _save(doc, f"ทะเบียนคุมลูกหนี้เงินยืม_ปีงบ{fiscal_year}")
 
 
-# ------------------------------------------------ ทะเบียนคุมการจ่ายเช็ค
+# ------------------------------------------------ ทะเบียนคุมการจ่ายเงิน
 def render_check_register(school, fiscal_year, checks) -> str:
+    """ทะเบียนคุมการจ่ายเงิน - ต่อยอดจาก "ทะเบียนคุมการจ่ายเช็ค" ของสถานศึกษา
+    เพิ่มคอลัมน์ "วิธีจ่าย" เพราะปัจจุบันจ่ายด้วยการโอน (KTB Corporate Online) เป็นหลัก"""
     doc = _new(landscape=True)
-    _p(doc, "ทะเบียนคุมการจ่ายเช็ค", align="center", bold=True, size=18, after=0)
+    _p(doc, "ทะเบียนคุมการจ่ายเงิน", align="center", bold=True, size=18, after=0)
+    _p(doc, "(เช็ค / โอนเงิน / เงินสด)", align="center", size=14, after=0)
     _p(doc, (school.name or "").strip(), align="center", bold=True, size=15, after=0)
     _p(doc, f"ปีงบประมาณ {fiscal_year}", align="center", size=14, after=6)
-    headers = ["วัน เดือน ปี", "เลขที่เช็ค", "ธนาคาร", "จ่ายให้", "รายการ", "จำนวนเงิน",
-               "ลงชื่อผู้รับเช็ค", "ลงชื่อผู้อนุมัติจ่ายเช็ค"]
-    widths = [Cm(2.4), Cm(2.4), Cm(3.0), Cm(4.4), Cm(4.4), Cm(2.6), Cm(3.4), Cm(3.9)]
+    headers = ["วัน เดือน ปี", "วิธีจ่าย", "เลขที่เช็ค/อ้างอิง", "ธนาคาร", "จ่ายให้", "รายการ",
+               "จำนวนเงิน", "ลงชื่อผู้รับเงิน", "ลงชื่อผู้อนุมัติ"]
+    widths = [Cm(2.3), Cm(1.8), Cm(2.6), Cm(2.8), Cm(4.0), Cm(3.8), Cm(2.4), Cm(3.2), Cm(3.6)]
     t = _grid(doc, headers, widths)
     total = 0.0
     for ck in checks:
         total += float(ck.amount or 0)
-        _row(t, [thai_date(ck.date) if ck.date else "", ck.check_no or "", ck.bank or "",
-                 ck.payee or "", (ck.purpose or "")[:50], _money(ck.amount), "", ""],
-             widths, ["center", "center", "left", "left", "left", "right", "center", "center"])
+        _row(t, [thai_date(ck.date) if ck.date else "", ck.pay_method or "โอน",
+                 ck.check_no or "", ck.bank or "", ck.payee or "",
+                 (ck.purpose or "")[:44], _money(ck.amount), "", ""],
+             widths, ["center", "center", "center", "left", "left", "left", "right",
+                      "center", "center"])
     for _ in range(max(0, 8 - len(checks))):
-        _row(t, [""] * 8, widths, ["center"] * 8)
-    _row(t, ["", "", "", "", "รวม", _money(total), "", ""], widths,
-         ["center", "center", "left", "left", "right", "right", "center", "center"], bold=True)
+        _row(t, [""] * 9, widths, ["center"] * 9)
+    _row(t, ["", "", "", "", "", "รวม", _money(total), "", ""], widths,
+         ["center", "center", "center", "left", "left", "right", "right", "center", "center"],
+         bold=True)
     _p(doc, "", after=10)
     _sign_table(doc, [[
         ("ลงชื่อ.......................................เจ้าหน้าที่การเงิน", "center"),
@@ -237,7 +243,7 @@ def render_check_register(school, fiscal_year, checks) -> str:
         ("ลงชื่อ.......................................", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
     ]])
-    return _save(doc, f"ทะเบียนคุมการจ่ายเช็ค_ปีงบ{fiscal_year}")
+    return _save(doc, f"ทะเบียนคุมการจ่ายเงิน_ปีงบ{fiscal_year}")
 
 
 # ------------------------------------------- งบกระทบยอดเงินฝากธนาคาร
@@ -261,7 +267,8 @@ def render_bank_recon(school, rec, account_name="", checks=None) -> str:
          widths, ["left", "right"], size=14)
     _row(t, ["บวก  ดอกเบี้ยรับที่ยังไม่ได้บันทึกบัญชี", _money(rec.interest)],
          widths, ["left", "right"], size=14)
-    _row(t, ["หัก  เช็คที่ผู้รับยังไม่นำไปขึ้นเงิน", _money(rec.outstanding)],
+    _row(t, ["หัก  รายการจ่ายที่เงินยังไม่ออกจากบัญชี (เช็คยังไม่ขึ้นเงิน/โอนยังไม่ตัด)",
+             _money(rec.outstanding)],
          widths, ["left", "right"], size=14)
     _row(t, ["หัก  ค่าธรรมเนียมธนาคารที่ยังไม่ได้บันทึกบัญชี", _money(rec.bank_fee)],
          widths, ["left", "right"], size=14)
@@ -287,17 +294,17 @@ def render_bank_recon(school, rec, account_name="", checks=None) -> str:
         _p(doc, f"หมายเหตุ  {rec.note.strip()}", align="justify", after=2)
 
     if checks:
-        _p(doc, "รายละเอียดเช็คที่ผู้รับยังไม่นำไปขึ้นเงิน", bold=True, before=6, after=2)
-        hw = [Cm(2.6), Cm(2.6), Cm(6.3), Cm(3.0)]
-        ct = _grid(doc, ["วัน เดือน ปี", "เลขที่เช็ค", "จ่ายให้", "จำนวนเงิน"], hw)
+        _p(doc, "รายละเอียดรายการจ่ายที่เงินยังไม่ออกจากบัญชี", bold=True, before=6, after=2)
+        hw = [Cm(2.4), Cm(1.8), Cm(2.4), Cm(5.3), Cm(2.6)]
+        ct = _grid(doc, ["วัน เดือน ปี", "วิธีจ่าย", "เลขที่/อ้างอิง", "จ่ายให้", "จำนวนเงิน"], hw)
         s = 0.0
         for ck in checks:
             s += float(ck.amount or 0)
-            _row(ct, [thai_date(ck.date) if ck.date else "", ck.check_no or "",
-                      ck.payee or "", _money(ck.amount)], hw,
-                 ["center", "center", "left", "right"], size=14)
-        _row(ct, ["", "", "รวม", _money(s)], hw, ["center", "center", "right", "right"],
-             size=14, bold=True)
+            _row(ct, [thai_date(ck.date) if ck.date else "", ck.pay_method or "โอน",
+                      ck.check_no or "", ck.payee or "", _money(ck.amount)], hw,
+                 ["center", "center", "center", "left", "right"], size=14)
+        _row(ct, ["", "", "", "รวม", _money(s)], hw,
+             ["center", "center", "center", "right", "right"], size=14, bold=True)
     _p(doc, "", after=12)
     _sign_table(doc, [[
         ("ลงชื่อ.......................................ผู้จัดทำ", "center"),
