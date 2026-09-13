@@ -7,7 +7,10 @@
     <span class="hero-title">รายงานเงินคงเหลือประจำวัน</span>
     <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} · ณ {{ thai_date(as_of) }}</div>
   </div>
-  <a class="btn" href="/finance/cash-report.docx?date={{ as_of_be }}"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลด Word</a>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a class="btn" href="/finance/cash-report.docx?date={{ as_of_be }}"><svg class="icon"><use href="#ic-download"/></svg> รายงานเงินคงเหลือ (Word)</a>
+    <a class="btn gray" href="/finance/safe-custody.docx?date={{ as_of_be }}"><svg class="icon"><use href="#ic-download"/></svg> บันทึกการรับเงินเพื่อเก็บรักษา</a>
+  </div>
 </div>
 
 <div class="card">

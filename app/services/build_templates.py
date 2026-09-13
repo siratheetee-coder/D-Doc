@@ -15,6 +15,7 @@ from pathlib import Path
 from docx import Document
 from docx.shared import Pt, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT, WD_LINE_SPACING
+from docx.enum.section import WD_ORIENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
@@ -100,11 +101,14 @@ LEGAL_INTRO = (
 
 def _margins(doc):
     """ตั้งระยะขอบกระดาษตามมาตรฐานหนังสือราชการไทย
-    ซ้าย 3.0 / ขวา 2.5 / บน 1.5 / ล่าง 2.0 ซม."""
+    แนวตั้ง: ซ้าย 3.0 / ขวา 1.5 -> พื้นที่พิมพ์ 16.5 ซม.
+    แนวนอน: ซ้าย-ขวา 1.5 -> พื้นที่พิมพ์ 26.7 ซม. (ตารางทะเบียนคุมกว้าง ไม่ต้องเผื่อขอบเย็บเล่ม)
+    * ต้องคงแนวกระดาษเดิมไว้ ห้ามบังคับเป็นแนวตั้งเสมอ ไม่งั้นเอกสารแนวนอนจะกลายเป็นแนวตั้งและตารางล้น"""
     for s in doc.sections:
-        s.page_width = Cm(21.0)     # A4 (ไม่ใช่ Letter ที่เป็นค่าปริยาย)
-        s.page_height = Cm(29.7)
-        s.left_margin = Cm(3.0)
+        land = s.orientation == WD_ORIENT.LANDSCAPE
+        # A4 (ไม่ใช่ Letter ที่เป็นค่าปริยายของ python-docx)
+        s.page_width, s.page_height = (Cm(29.7), Cm(21.0)) if land else (Cm(21.0), Cm(29.7))
+        s.left_margin = Cm(1.5) if land else Cm(3.0)
         s.right_margin = Cm(1.5)     # แคบลงจาก 2.5 ให้พื้นที่พิมพ์กว้างขึ้น กันตารางล้น
         s.top_margin = Cm(1.5)
         s.bottom_margin = Cm(1.3)    # แคบลงจาก 2.0 ให้ตัวอักษรลงได้ในหน้าเดียว

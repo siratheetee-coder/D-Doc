@@ -12,6 +12,7 @@
       </form>
       <a class="btn sm" href="/finance/accounts/{{ account.id }}/ledger.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> บัญชีแยกประเภท (Word)</a>
       <a class="btn sm green" href="/finance/accounts/{{ account.id }}/ledger.xlsx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> Excel</a>
+      {% if special_key %}<a class="btn sm gray" href="/finance/accounts/{{ account.id }}/register.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> {{ special_label[special_key] }}</a>{% endif %}
       <a class="btn gray sm" href="/finance/accounts"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
     </div>
   </div>
@@ -162,6 +163,13 @@
       <div style="flex:2;"><label>อ้างอิง</label><input name="ref" placeholder="เลขที่เรื่อง/เอกสารอื่น"></div>
       <div style="flex:2;"><label>หมายเหตุ</label><input name="note"></div>
     </div>
+    {% if special_key == "guarantee" %}
+    <div class="row">
+      <div><label>วันครบกำหนดคืนเงินประกัน</label><input name="due_date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>วันที่คืนเงินให้ผู้มีสิทธิ์</label><input name="refund_date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div style="flex:2; align-self:flex-end;"><span class="muted" style="font-size:13px;">กรอกวันครบกำหนดไว้ จะได้ไม่ลืมคืนเงินประกันให้ผู้รับจ้าง (พิมพ์ออกในทะเบียนคุมเงินประกันสัญญา)</span></div>
+    </div>
+    {% endif %}
     <span class="muted" style="font-size:13px;">กรอก "เลขที่ใบเสร็จ/ใบสำคัญ" หรือ "คู่สัญญา" ระบบจะลงรายการใน <a href="/finance/receipts">ทะเบียนใบเสร็จ/ใบสำคัญ</a> ให้อัตโนมัติ (ไม่ต้องกรอกซ้ำ)</span>
     <br><br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
   </form>

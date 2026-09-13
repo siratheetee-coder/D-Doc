@@ -24,6 +24,10 @@ from app.services.asset_utils import (
     account_balance_asof, item_remaining_asof,
 )
 from app.services.cash_report import render_cash_report, DEPOSIT_TYPES
+from app.services.fin_registers import (
+    special_form, SPECIAL_LABEL, render_account_register,
+    render_safe_custody, render_disburse_register,
+)
 from app.services.ledger_book_doc import (
     render_cash_book, render_cash_book_fund, build_cash_book_xlsx, build_cash_book_fund_xlsx,
     render_general_ledger, build_ledger_xlsx,
@@ -225,6 +229,7 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
         "parents": parents, "fund_types": FUND_TYPES, "presets": PRESET_SETS,
         "item_budget_total": sum(r["budget"] for r in item_rows if r["level"] == 0),
         "item_remain_total": sum(r["remain"] for r in item_rows if r["level"] == 0),
+        "special_key": special_form(a), "special_label": SPECIAL_LABEL,
     })
 
 
@@ -335,7 +340,8 @@ def account_item_delete(iid: int, db: Session = Depends(get_db)):
 def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("in"),
                     amount: str = Form("0"), date: str = Form(""), category: str = Form(""),
                     ref: str = Form(""), note: str = Form(""), fiscal_year: str = Form(""),
-                    item_id: str = Form(""), receipt_no: str = Form(""), party: str = Form("")):
+                    item_id: str = Form(""), receipt_no: str = Form(""), party: str = Form(""),
+                    due_date: str = Form(""), refund_date: str = Form("")):
     a = db.get(FinanceAccount, aid)
     fy = _to_int(fiscal_year, current_fiscal_year())
     if a:
@@ -346,6 +352,8 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
             account_id=a.id, fiscal_year=fy, item_id=_to_int(item_id, 0) or None,
             kind=k, amount=amt, date=dt,
             category=category.strip(), ref=ref.strip(), note=note.strip(),
+            due_date=parse_be_date(due_date) if due_date else None,
+            refund_date=parse_be_date(refund_date) if refund_date else None,
         )
         db.add(t); db.flush()
         # ถ้ากรอกเลขใบเสร็จ/ผู้รับเงิน -> สร้างรายการในทะเบียนใบเสร็จให้อัตโนมัติ (ผูกกัน)
@@ -1262,3 +1270,43 @@ def quarter_doc(db: Session = Depends(get_db), year: int | None = None, q: int =
     q = q if q in (1, 2, 3, 4) else 1
     rows, tot = _quarter_rows(db, fy, q)
     return serve_generated(render_quarter_report(get_school(db), fy, q, rows, tot), _DOCX)
+
+
+# ---------------- ทะเบียนคุมเฉพาะประเภทเงิน (เกาะกับบัญชีที่ครูตั้งไว้) ----------------
+@router.get("/finance/accounts/{aid}/register.docx")
+def account_register_docx(aid: int, db: Session = Depends(get_db), year: int | None = None):
+    """พิมพ์ทะเบียนคุมตามรูปแบบเฉพาะของประเภทบัญชี
+    (เงินประกันสัญญา / เงินรายได้แผ่นดิน / เงินฝากส่วนราชการผู้เบิก)"""
+    fy = year or current_fiscal_year()
+    a = db.get(FinanceAccount, aid)
+    key = special_form(a) if a else ""
+    if not a or not key:
+        return RedirectResponse(f"/finance/accounts/{aid}?year={fy}", status_code=303)
+    txns = [t for t in a.txns if t.fiscal_year == fy]
+    path = render_account_register(get_school(db), a, txns, opening_for(a, fy), fy, key)
+    return serve_generated(path, _DOCX)
+
+
+@router.get("/finance/safe-custody.docx")
+def safe_custody_docx(db: Session = Depends(get_db),
+                      year: int | None = None, date: str | None = None):
+    """บันทึกการรับเงินเพื่อเก็บรักษา - คู่กับรายงานเงินคงเหลือประจำวัน
+    นับเฉพาะ "เงินสด" เพราะเป็นเงินที่ต้องเก็บในตู้นิรภัย"""
+    as_of = parse_be_date(date) if date else datetime.now()
+    fy = year or current_fiscal_year(as_of)
+    accounts = db.query(FinanceAccount).order_by(FinanceAccount.id).all()
+    rows, totals = _build_cash_rows(accounts, fy, as_of)
+    cash_rows = [(r["name"], r.get("cash") or 0)
+                 for r in rows if r.get("kind") != "group" and (r.get("cash") or 0)]
+    path = render_safe_custody(get_school(db), cash_rows, totals.get("cash") or 0, as_of)
+    return serve_generated(path, _DOCX)
+
+
+@router.get("/finance/disburse-register.docx")
+def disburse_register_docx(db: Session = Depends(get_db), year: int | None = None):
+    """ทะเบียนคุมหลักฐานขอเบิก - สรุปบันทึกขอเบิกจ่ายทั้งปีงบ"""
+    fy = year or current_fiscal_year()
+    memos = (db.query(DisburseMemo).filter_by(fiscal_year=fy)
+             .order_by(DisburseMemo.date, DisburseMemo.id).all())
+    path = render_disburse_register(get_school(db), fy, memos)
+    return serve_generated(path, _DOCX)

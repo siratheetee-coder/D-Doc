@@ -716,6 +716,9 @@ class FinanceTxn(Base):
     ref = Column(String, default="")                 # อ้างอิงเอกสาร (เลขที่เรื่อง/ใบเสร็จ)
     note = Column(String, default="")
     disburse_id = Column(Integer, ForeignKey("disburse_memo.id"), nullable=True)
+    # ใช้เฉพาะบัญชีเงินประกันสัญญา (ทะเบียนคุมเงินฝาก) - ต้องคืนเงินเมื่อครบกำหนด
+    due_date = Column(DateTime, nullable=True)       # วันครบกำหนดคืนเงินประกัน
+    refund_date = Column(DateTime, nullable=True)    # วันที่เบิกจ่ายเงินคืนผู้มีสิทธิ์
 
     account = relationship("FinanceAccount", back_populates="txns")
     item = relationship("AccountItem")

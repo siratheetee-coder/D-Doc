@@ -60,7 +60,10 @@
 </div>
 
 <div class="card">
-  <h2>บันทึกขอเบิกจ่ายทั้งหมด</h2>
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h2 style="margin:0;">บันทึกขอเบิกจ่ายทั้งหมด</h2>
+    <a class="btn sm gray" href="/finance/disburse-register.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์ทะเบียนคุมหลักฐานขอเบิก (Word)</a>
+  </div>
   {% if rows %}
   <div class="table-wrap"><table>
     <thead><tr><th>เลขที่</th><th>วันที่</th><th>เรื่อง</th><th>จ่ายให้</th><th class="right">จำนวนเงิน</th><th>สถานะ</th></tr></thead>

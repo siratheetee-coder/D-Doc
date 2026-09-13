@@ -35,6 +35,8 @@ Base = declarative_base()
 
 # รายการเพิ่มคอลัมน์ใหม่บน DB เก่า (ปลอดภัย: ข้ามถ้ามีอยู่แล้ว)
 MIGRATIONS = [
+    ("finance_txn", "due_date", "DATETIME"),
+    ("finance_txn", "refund_date", "DATETIME"),
     ("check_payment", "pay_method", "VARCHAR DEFAULT 'โอน'"),
     ("textbook_purchase", "memo_no", "VARCHAR DEFAULT ''"),
     ("textbook_purchase", "memo_date", "DATETIME"),
