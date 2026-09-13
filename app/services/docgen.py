@@ -52,6 +52,13 @@ def _qn(tag: str):
     return qn(tag)
 
 
+def _sign_block(doc, lines, *, size=FONT_SIZE):
+    """ช่องลงนามชิดครึ่งขวาของหน้า - ทุกบรรทัดจัดกึ่งกลาง "ตรงกันเอง" ในบล็อก
+    ห้ามใช้ align=right ทีละบรรทัด เพราะบรรทัดยาวไม่เท่ากันจะไปเกาะขอบขวาแล้วดูเหลื่อม"""
+    from app.services.build_templates import _sign_table
+    _sign_table(doc, [[("", "center")], [(t, "center") for t in lines]])
+
+
 def _add_para(doc, text="", *, align=None, bold=False, size=FONT_SIZE, indent=None):
     """เพิ่มย่อหน้าพร้อมตั้งค่ารูปแบบให้สะดวก"""
     p = doc.add_paragraph()
@@ -156,14 +163,14 @@ def generate_purchase_request(db, procurement: Procurement, school: School) -> s
 
     # ---- ลงชื่อ ----
     _add_para(doc, "")
-    _add_para(doc, "ลงชื่อ ......................................... เจ้าหน้าที่พัสดุ", align="right")
-    _add_para(doc, f"({school.supply_officer or '...............................'})", align="right")
+    _sign_block(doc, ["ลงชื่อ ......................................... เจ้าหน้าที่พัสดุ",
+                      f"({school.supply_officer or '...............................'})"])
     _add_para(doc, "")
     _add_para(doc, "ความเห็น/คำสั่ง ผู้อำนวยการ  ☐ อนุมัติ   ☐ ไม่อนุมัติ")
     _add_para(doc, "")
-    _add_para(doc, "ลงชื่อ .........................................", align="right")
-    _add_para(doc, f"({school.director_name or '...............................'})", align="right")
-    _add_para(doc, school.director_position or "ผู้อำนวยการโรงเรียน", align="right")
+    _sign_block(doc, ["ลงชื่อ .........................................",
+                      f"({school.director_name or '...............................'})",
+                      school.director_position or "ผู้อำนวยการโรงเรียน"])
 
     # ---- บันทึกไฟล์ ----
     fname = _safe_filename(f"รายงานขอซื้อขอจ้าง_{procurement.doc_no or procurement.id}_{procurement.subject}.docx")

@@ -88,6 +88,19 @@ def _sign_finance(doc, school):
     ]])
 
 
+def _school_only(school) -> str:
+    """ชื่อโรงเรียนแบบตัดคำว่า "โรงเรียน" นำหน้าออก - กันข้อความซ้ำ เช่น "โรงเรียนโรงเรียนบ้าน..." """
+    name = (school.name or "").strip()
+    return name[len("โรงเรียน"):].strip() if name.startswith("โรงเรียน") else name
+
+
+def _right_block(doc, lines, *, align="center", gap=True):
+    """บล็อกข้อความชิดครึ่งขวาของหน้า โดยทุกบรรทัด "จัดตรงกันเอง" ในบล็อก
+    ใช้ตารางไร้ขอบ 2 ช่อง (ซ้ายว่าง) แทนการสั่ง align=right ทีละบรรทัด
+    ซึ่งทำให้บรรทัดยาวไม่เท่ากันไปเกาะขอบขวาแล้วดูเหลื่อมกัน"""
+    _sign_table(doc, [[("", "center")], [(t, align) for t in lines]], gap=gap)
+
+
 def _title(doc, school, title, fiscal_year, sub=""):
     _p(doc, title, align="center", bold=True, size=18, after=0)
     if sub:
@@ -102,8 +115,9 @@ def render_safe_custody(school, rows, total, as_of) -> str:
     ตามแบบฟอร์มจริง: ผอ. รับเงินไปเก็บรักษา แล้วคืนเจ้าหน้าที่การเงินในวันทำการถัดไป"""
     doc = _new()
     _p(doc, "บันทึกการรับเงินเพื่อเก็บรักษา", align="center", bold=True, size=18, after=6)
-    _p(doc, f"โรงเรียน{(school.name or '').strip() or _BLANK}", align="right", size=15, after=0)
-    _p(doc, f"วันที่ {thai_date(as_of) if as_of else _BLANK}", align="right", size=15, after=8)
+    _right_block(doc, [f"โรงเรียน{_school_only(school) or _BLANK}",
+                       f"วันที่ {thai_date(as_of) if as_of else _BLANK}"], align="left", gap=False)
+    _p(doc, "", after=4)
     _p(doc, "ข้าพเจ้าได้รับเงินคงเหลือตามรายการ ดังต่อไปนี้", indent=1.27, size=15, after=6)
 
     headers = ["รายการ", "จำนวนเงิน", "หมายเหตุ"]
@@ -120,16 +134,19 @@ def render_safe_custody(school, rows, total, as_of) -> str:
     _p(doc, "ข้าพเจ้า จะรับผิดชอบในการเก็บรักษาเงินดังกล่าว และจะส่งคืนให้เจ้าหน้าที่การเงิน "
             "เพื่อจ่ายในวันทำการถัดไป", indent=1.27, size=15, after=10)
 
-    _p(doc, "ลงชื่อ..............................................", align="right", size=15, after=0)
-    _p(doc, f"( {(school.director_name or '').strip() or _BLANK} )", align="right", size=15, after=0)
-    _p(doc, f"ผู้อำนวยการโรงเรียน{(school.name or '').strip()}", align="right", size=15, after=14)
+    _right_block(doc, ["ลงชื่อ..............................................",
+                       f"( {(school.director_name or '').strip() or _BLANK} )",
+                       f"ผู้อำนวยการโรงเรียน{_school_only(school)}"])
+    _p(doc, "", after=6)
 
-    _p(doc, f"ข้าพเจ้าได้รับเงิน {_money(total)} บาท คืนจากผู้อำนวยการโรงเรียน"
-            f"{(school.name or '').strip() or _BLANK} ในวันที่ ........................................... "
+    got = _money(total) if total else "..............................."
+    _p(doc, f"ข้าพเจ้าได้รับเงิน {got} บาท คืนจากผู้อำนวยการโรงเรียน"
+            f"{_school_only(school) or _BLANK} ในวันที่ ........................................... "
             "เพื่อจะนำไปจ่ายตามระเบียบของทางราชการ", indent=1.27, size=15, after=12)
-    _p(doc, "ลงชื่อ..............................................", align="right", size=15, after=0)
-    _p(doc, "(..............................................)", align="right", size=15, after=0)
-    _p(doc, "เจ้าหน้าที่การเงิน", align="right", size=15, after=14)
+    _right_block(doc, ["ลงชื่อ..............................................",
+                       "(..............................................)",
+                       "เจ้าหน้าที่การเงิน"])
+    _p(doc, "", after=6)
 
     _p(doc, "หมายเหตุ  บันทึกการรับเงินเพื่อเก็บรักษา ให้ถือเป็นหลักฐานแทนเงินสด "
             "ซึ่งจะต้องบันทึกไว้ทุกวันในวันที่เก็บรักษาเงินสด และจะต้องบันทึกไว้ในรายงานเงินคงเหลือประจำวัน",
