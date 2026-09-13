@@ -27,6 +27,10 @@
         </datalist>
         <div class="hint" style="margin-top:2px;">เลือก 3 งบมาตรฐานหรือพิมพ์ชื่อบัญชีเอง</div>
       </div>
+      <div><label>หมวดเงิน</label><select name="fund_type">
+        <option value="">ตามชื่อบัญชี (ชื่ออื่นเป็นเงินนอกงบประมาณ)</option>
+        <option>เงินงบประมาณ</option><option>เงินรายได้แผ่นดิน</option><option>เงินนอกงบประมาณ</option>
+      </select></div>
       <div><label>ยอดยกมา (บาท)</label><input name="opening_balance" type="number" step="0.01" value="0"></div>
       <div><label>เก็บเงินไว้ที่</label>
         <select name="deposit_type">
@@ -50,7 +54,14 @@
       {% for a in accounts %}
       <tr>
         <td><a href="/finance/accounts/{{ a.id }}?year={{ fiscal_year }}"><b>{{ a.name }}</b></a>
-          <span class="pill" style="background:var(--brand-soft); color:var(--brand-dark); font-size:12px;">{{ a.fund_type or 'เงินนอกงบประมาณ' }}</span>
+          <form method="post" action="/finance/accounts/{{ a.id }}/fund-type" style="margin:6px 0;">
+            <input type="hidden" name="year" value="{{ fiscal_year }}">
+            <select name="fund_type" aria-label="หมวดเงินของ {{ a.name }}" onchange="this.form.submit()">
+              {% for fund in ['เงินงบประมาณ','เงินรายได้แผ่นดิน','เงินนอกงบประมาณ'] %}
+              <option {{ 'selected' if (a.fund_type or 'เงินนอกงบประมาณ') == fund }}>{{ fund }}</option>
+              {% endfor %}
+            </select>
+          </form>
           {% if a.note %}<span class="muted">· {{ a.note }}</span>{% endif %}</td>
         <td>
           <form method="post" action="/finance/accounts/{{ a.id }}/deposit-type" style="margin:0;">

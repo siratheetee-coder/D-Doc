@@ -18,17 +18,17 @@
   <h2><svg class="icon"><use href="#ic-plus"/></svg> ทำสัญญายืมเงินใหม่</h2>
   <form method="post" action="/finance/loans">
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
-    <div class="row">
+    <div class="row loan-dates">
       <div><label>เลขที่สัญญา</label><input name="contract_no" placeholder="เช่น 1/{{ fiscal_year }}"></div>
       <div><label>วันที่ยืม</label><input name="date" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>ส่งใช้ภายใน (วัน)</label><input name="within_days" type="number" min="1" value="15" required></div>
       <div><label>วันที่ได้รับเงิน</label><input name="receive_date" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
-      <div><label>วันครบกำหนดส่งใช้</label><input name="due_date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>วันครบกำหนดส่งใช้</label><input name="due_date" readonly placeholder="วว/ดด/ปปปป" data-date="1"><small class="muted">นับจากวันที่ได้รับเงิน</small></div>
     </div>
     <div class="row">
       <div style="flex:1.6;"><label>ผู้ยืม *</label><input name="borrower" list="persons" required></div>
       <div><label>ตำแหน่ง</label><input name="position" value="ครู"></div>
       <div><label>จำนวนเงินที่ยืม (บาท) *</label><input name="amount" type="number" step="0.01" min="0" required></div>
-      <div><label>ส่งใช้ภายใน (วัน)</label><input name="within_days" type="number" min="1" value="15"></div>
     </div>
     <div class="row">
       <div style="flex:1.4;"><label>ยื่นต่อ</label><input name="submit_to" placeholder="เช่น ผู้อำนวยการโรงเรียน"></div>
@@ -66,9 +66,10 @@
         <td data-label="ส่งใช้แล้ว" class="right">{{ "{:,.2f}".format(r.paid) }}</td>
         <td data-label="คงค้าง" class="right">
           {% if r.left > 0.005 %}<b style="color:#b91c1c;">{{ "{:,.2f}".format(r.left) }}</b>
-          {% else %}<span class="pill done">ส่งใช้ครบแล้ว</span>{% endif %}</td>
-        <td class="right" style="white-space:nowrap;">
+          {% else %}<span class="pill done loan-settled">ส่งใช้ครบแล้ว</span>{% endif %}</td>
+        <td class="right loan-actions" style="white-space:normal;">
           <a class="btn sm" href="/finance/loans/{{ r.o.id }}/contract.docx"><svg class="icon"><use href="#ic-download"/></svg> สัญญา 8500</a>
+          {% if r.o.returns %}<a class="btn sm green" href="/finance/loans/{{ r.o.id }}/returns.docx">เอกสารส่งใช้ (Word)</a>{% endif %}
           <button class="btn sm gray" type="button" onclick="document.getElementById('ret{{ r.o.id }}').hidden = !document.getElementById('ret{{ r.o.id }}').hidden">ส่งใช้</button>
           <form method="post" action="/finance/loans/{{ r.o.id }}/delete" style="display:inline" onsubmit="return confirm('ลบสัญญายืมนี้และประวัติการส่งใช้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
         </td>
@@ -104,6 +105,15 @@
   {% endif %}
 </div>
 
+<style>
+  .loan-dates { display:grid; grid-template-columns:1fr 1.2fr .85fr 1.2fr 1.2fr; gap:12px; }
+  .loan-dates > div { min-width:0; }
+  tr[id^="ret"][hidden] { display:none !important; }
+  .loan-actions .btn { margin:2px; }
+  .loan-settled { display:inline-flex; white-space:nowrap; align-items:center; }
+  @media(max-width:800px) { .loan-dates { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media(max-width:480px) { .loan-dates { grid-template-columns:1fr; } }
+</style>
 <script>
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){
@@ -113,5 +123,30 @@
       if(this.value!==o)this.value=o;
     });
   });
+  (function(){
+    const form = document.querySelector('form[action="/finance/loans"][method="post"]');
+    const borrowed = form.elements.date, received = form.elements.receive_date;
+    const days = form.elements.within_days, due = form.elements.due_date;
+    let previousBorrowed = borrowed.value;
+    function parse(value) {
+      const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+      if(!m) return null;
+      const y = Number(m[3])-543, mo=Number(m[2])-1, d=Number(m[1]);
+      const date = new Date(Date.UTC(y,mo,d));
+      return date.getUTCFullYear()===y && date.getUTCMonth()===mo && date.getUTCDate()===d ? date : null;
+    }
+    function update() {
+      if(borrowed.value !== previousBorrowed) {
+        if(received.value === previousBorrowed) received.value = borrowed.value;
+        previousBorrowed = borrowed.value;
+      }
+      const base = parse(received.value || borrowed.value), n=Number(days.value);
+      if(!base || !Number.isInteger(n) || n<1) { due.value=''; return; }
+      base.setUTCDate(base.getUTCDate()+n);
+      due.value=String(base.getUTCDate()).padStart(2,'0')+'/'+String(base.getUTCMonth()+1).padStart(2,'0')+'/'+(base.getUTCFullYear()+543);
+    }
+    [borrowed, received, days].forEach(el=>['input','change'].forEach(event=>el.addEventListener(event,update)));
+    update();
+  })();
 </script>
 {% endblock %}

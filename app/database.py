@@ -316,6 +316,7 @@ def init_school_db(engine) -> None:
     from app import models  # noqa: F401  (ลงทะเบียนตารางทั้งหมด)
     Base.metadata.create_all(bind=engine)
     run_migrations(engine)
+    _repair_finance_fund_types(engine)
     _purge_student_sensitive(engine)
     _purge_report_photos(engine)
     _migrate_lunch_measures(engine)
@@ -459,3 +460,16 @@ def current_db_path() -> Path:
     """ที่อยู่ไฟล์ DB ของโรงเรียนปัจจุบัน (ใช้ดาวน์โหลดสำรอง)"""
     _, db_path = _current_engine_path()
     return db_path
+
+
+def _repair_finance_fund_types(engine):
+    from sqlalchemy import text
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE IF NOT EXISTS app_data_migration (name TEXT PRIMARY KEY)"))
+        key = "finance-fund-types-20260913"
+        if conn.execute(text("SELECT 1 FROM app_data_migration WHERE name=:key"), {"key": key}).first():
+            return
+        for name in ("เงินงบประมาณ", "เงินรายได้แผ่นดิน"):
+            conn.execute(text("UPDATE finance_account SET fund_type=:name WHERE trim(name)=:name "
+                              "AND (fund_type IS NULL OR fund_type='' OR fund_type='เงินนอกงบประมาณ')"), {"name": name})
+        conn.execute(text("INSERT INTO app_data_migration(name) VALUES (:key)"), {"key": key})

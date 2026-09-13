@@ -68,88 +68,24 @@ def _school_line(school) -> str:
 
 # ------------------------------------------------- สัญญาการยืมเงิน (แบบ 8500)
 def render_loan_contract(school, loan) -> str:
-    """หน้า = สัญญาการยืมเงินตามแบบ 8500 · หลัง = รายการส่งใช้เงินยืม"""
+    """Use the same boxed 8500 form as the lunch module."""
+    from app.services.lunch_ingredient_doc import render_loan_contract as render
+    return render(None, school, finance_loan=loan)
+
+
+def render_loan_returns(school, loan) -> str:
+    """Lunch repayment memo plus actual return history; amounts include partial settlements."""
+    from app.services.lunch_ingredient_doc import render_repay_memo
     doc = _new()
-    try:
-        items = json.loads(loan.items or "[]")
-    except Exception:
-        items = []
-    _p(doc, "แบบ 8500", align="right", size=13, after=0)
-    _p(doc, "สัญญาการยืมเงิน", align="center", bold=True, size=18, after=4)
-    _p(doc, f"ยื่นต่อ {(loan.submit_to or '').strip() or _LINE * 2}", size=15, after=1)
-    _p(doc, f"เลขที่ {(loan.contract_no or '').strip() or _LINE}"
-            f"          วันครบกำหนด {thai_date(loan.due_date) if loan.due_date else _LINE}",
-       size=15, after=3)
-    _p(doc, f"ข้าพเจ้า {(loan.borrower or '').strip() or _LINE}"
-            f"  ตำแหน่ง {(loan.position or '').strip() or _LINE}", size=15, after=1)
-    _p(doc, f"สังกัด {_school_line(school) or _LINE}", size=15, after=1)
-    _p(doc, f"มีความประสงค์ขอยืมเงินจาก {(loan.fund_from or '').strip() or _LINE * 2}",
-       size=15, after=1)
-    _p(doc, f"เพื่อเป็นค่าใช้จ่ายในการ {(loan.purpose or '').strip() or _LINE * 2} "
-            "ดังรายละเอียดต่อไปนี้", align="justify", size=15, after=3)
-
-    widths = [Cm(11.5), Cm(5.0)]
-    t = doc.add_table(rows=1, cols=2)
-    t.style = "Table Grid"
-    _fixed_cols(t, widths)
-    _set_cell(t.rows[0].cells[0], "รายการ", bold=True, align="center", size=14)
-    _set_cell(t.rows[0].cells[1], "จำนวนเงิน (บาท)", bold=True, align="center", size=14)
-    _repeat_header_row(t.rows[0]); _no_split_row(t.rows[0])
-    total = 0.0
-    rows = items or [{"name": "", "amount": 0}] * 3
-    for it in rows:
-        amt = float(it.get("amount") or 0)
-        total += amt
-        _row(t, [it.get("name") or "", _money(amt) if amt else ""], widths,
-             ["left", "right"], size=14)
-    total = total or float(loan.amount or 0)
-    _row(t, [f"(ตัวอักษร {bahttext(total)})", _money(total)], widths,
-         ["right", "right"], size=14, bold=True)
-
-    _p(doc, "", after=4)
-    _p(doc, f"ข้าพเจ้าสัญญาว่าจะปฏิบัติตามระเบียบของทางราชการทุกประการ และจะนำใบสำคัญคู่จ่าย"
-            "ที่ถูกต้องพร้อมทั้งเงินเหลือจ่าย (ถ้ามี) ส่งใช้ภายในกำหนดไว้ในระเบียบการเบิกจ่ายเงิน"
-            f"จากคลัง คือ ภายใน {loan.within_days or 15} วัน นับแต่วันที่ได้รับเงินนี้ "
-            "ถ้าข้าพเจ้าไม่ส่งตามกำหนด ข้าพเจ้ายินยอมให้หักเงินเดือน ค่าจ้าง เบี้ยหวัด บำเหน็จ "
-            "บำนาญ หรือเงินอื่นใดที่ข้าพเจ้าพึงได้รับจากทางราชการ ชดใช้จำนวนเงินที่ยืมไปจนครบถ้วนได้ทันที",
-       align="justify", indent=1.25, size=15, after=8)
-    _p(doc, f"ลายมือชื่อ...............................................ผู้ยืม"
-            f"        วันที่ {thai_date(loan.date) if loan.date else _LINE}",
-       align="right", size=15, after=8)
-
-    _p(doc, f"เสนอ {(loan.submit_to or '').strip() or _LINE}", size=15, after=1)
-    _p(doc, f"ได้ตรวจสอบแล้ว เห็นสมควรอนุมัติให้ยืมตามใบยืมฉบับนี้ได้ จำนวน {_money(total)} บาท "
-            f"({bahttext(total)})", align="justify", indent=1.25, size=15, after=6)
-    _sign_table(doc, [[
-        ("ลงชื่อ.......................................", "center"),
-        ("(.......................................)", "center"),
-        ("เจ้าหน้าที่การเงิน", "center"),
-    ]])
-    _p(doc, "คำอนุมัติ", bold=True, size=15, after=1)
-    _p(doc, f"อนุมัติให้ยืมตามเงื่อนไขข้างต้นได้ เป็นเงิน {_money(total)} บาท ({bahttext(total)})",
-       indent=1.25, size=15, after=8)
-    _sign_table(doc, [[
-        ("ลงชื่อ.......................................ผู้อนุมัติ", "center"),
-        (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
-        (f"วันที่ {_LINE}", "center"),
-    ]])
-    _p(doc, "ใบรับเงิน", bold=True, size=15, before=6, after=1)
-    _p(doc, f"ข้าพเจ้าได้รับเงินยืม จำนวน {_money(total)} บาท ({bahttext(total)}) "
-            "ไปเป็นการถูกต้องแล้ว", indent=1.25, size=15, after=8)
-    _sign_table(doc, [[
-        ("ลงชื่อ.......................................ผู้รับเงิน", "center"),
-        (f"( {(loan.borrower or '').strip() or _BLANK} )", "center"),
-        (f"วันที่ {thai_date(loan.receive_date) if loan.receive_date else _LINE}", "center"),
-    ]])
-
+    render_repay_memo(None, school, doc, finance_loan=loan)
     # ---------------- ด้านหลัง: รายการส่งใช้เงินยืม ----------------
     doc.add_page_break()
     _p(doc, "รายการส่งใช้เงินยืม", align="center", bold=True, size=17, after=4)
     headers = ["ครั้งที่", "วัน เดือน ปี", "เงินสดหรือใบสำคัญ", "จำนวนเงิน", "คงค้าง",
                "ใบรับเลขที่", "ลายมือชื่อผู้รับ"]
-    widths = [Cm(1.4), Cm(2.6), Cm(3.0), Cm(2.4), Cm(2.4), Cm(2.0), Cm(2.7)]
+    widths = [Cm(1.1), Cm(2.5), Cm(2.7), Cm(2.0), Cm(2.0), Cm(2.2), Cm(2.0)]
     t = _grid(doc, headers, widths, size=13)
-    left = float(loan.amount or total or 0)
+    left = float(loan.amount or 0)
     rets = list(loan.returns or [])
     for i in range(max(len(rets), 10)):
         r = rets[i] if i < len(rets) else None
@@ -160,8 +96,8 @@ def render_loan_contract(school, loan) -> str:
         else:
             vals = [""] * 7
         _row(t, vals, widths, ["center", "center", "center", "right", "right", "center", "center"])
-    _p(doc, f"ยอดเงินยืมทั้งสิ้น {_money(loan.amount or total)} บาท · "
-            f"ส่งใช้แล้ว {_money(float(loan.amount or total) - left)} บาท · "
+    _p(doc, f"ยอดเงินยืมทั้งสิ้น {_money(loan.amount or 0)} บาท · "
+            f"ส่งใช้แล้ว {_money(float(loan.amount or 0) - left)} บาท · "
             f"คงค้าง {_money(left)} บาท", bold=True, before=6, after=10)
     _sign_table(doc, [[
         ("ลงชื่อ.......................................เจ้าหน้าที่การเงิน", "center"),
@@ -170,7 +106,7 @@ def render_loan_contract(school, loan) -> str:
         ("ลงชื่อ.......................................ผู้ยืม", "center"),
         (f"( {(loan.borrower or '').strip() or _BLANK} )", "center"),
     ]])
-    return _save(doc, f"สัญญาการยืมเงิน_{(loan.contract_no or loan.id)}")
+    return _save(doc, f"เอกสารส่งใช้เงินยืม_{loan.contract_no or loan.id}")
 
 
 # --------------------------------------------- ทะเบียนคุมลูกหนี้เงินยืม

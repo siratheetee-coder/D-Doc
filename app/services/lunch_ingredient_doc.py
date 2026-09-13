@@ -588,31 +588,55 @@ def render_control_report(rnd, school, doc=None) -> str:
     return _finish(doc, own, f"บันทึกรายงานตรวจการประกอบอาหาร_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
-def render_repay_memo(rnd, school, doc=None) -> str:
+def render_repay_memo(rnd, school, doc=None, *, finance_loan=None) -> str:
     """10 บันทึกขออนุมัติเบิกจ่ายเงินเพื่อส่งใช้เงินยืม"""
     doc, own = _begin(doc)
-    prog = rnd.program
-    sname = _school_disp(school)
-    saddr = (school.address or "").strip()
-    fund = _fund(prog)
-    bname, bpos = _borrower(school, rnd.program)
-    fin = (getattr(school, "finance_officer_name", "") or "").strip() or _BLANK
-    director = (school.director_name or "").strip() or _BLANK
-    total = round(float(rnd.amount or 0), 2)
+    if finance_loan is None:
+        prog = rnd.program
+        sname = _school_disp(school)
+        saddr = (school.address or "").strip()
+        fund = _fund(prog)
+        bname, bpos = _borrower(school, rnd.program)
+        fin = (getattr(school, "finance_officer_name", "") or "").strip() or _BLANK
+        director = (school.director_name or "").strip() or _BLANK
+        total = round(float(rnd.amount or 0), 2)
 
-    _memo_head(doc, school, [f"ขออนุมัติเบิกจ่ายเงินเพื่อส่งใช้เงินยืม (เงินอุดหนุนอาหารกลางวันรับจาก{fund})"],
-               *_memo_ref(rnd, "repay"))
-    _p(doc, f"ตามที่อนุมัติให้ {bname} ผู้ยืมเงินโครงการอาหารกลางวัน ยืมเงิน (เงินอุดหนุนอาหารกลางวัน"
-            f"รับจาก{fund}) เพื่อเป็นค่าใช้จ่ายอาหารกลางวันให้นักเรียนรับประทาน จำนวนเงิน {_money(total)} "
-            f"บาท (ตัวอักษร {bahttext(total)}) ตามสัญญาการยืมเงินที่ {_doc_no(rnd, 'loan', (rnd.order_no or '').strip() or _BLANK)} "
-            f"ลงวันที่ {_dnum(_doc_dt(rnd, 'loan', 'date') or rnd.order_date)} นั้น", align="justify", indent=1.25, after=2)
-    _p(doc, "บัดนี้ ได้ดำเนินการตามวัตถุประสงค์แล้ว ขอส่งใช้หลักฐาน และเงินสด (ถ้ามี) ดังนี้",
-       align="justify", indent=1.25, after=0)
-    _p(doc, f"1. หลักฐานค่าอาหารกลางวัน\t\tจำนวน {_money(total)} บาท", indent=1.5, after=0)
-    _p(doc, "2. เงินสด (ถ้ามี)\t\t\tจำนวน - บาท", indent=1.5, after=0)
-    _p(doc, f"รวมเป็นเงิน {_money(total)} บาท", indent=1.5, after=2)
-    _p(doc, f"จึงเรียนมาเพื่อโปรดทราบ และอนุมัติเบิกจ่ายเงิน (เงินอุดหนุนอาหารกลางวันรับจาก{fund}) "
-            f"จำนวน {_money(total)} บาท (ตัวอักษร {bahttext(total)})", align="justify", indent=1.25, after=12)
+        _memo_head(doc, school, [f"ขออนุมัติเบิกจ่ายเงินเพื่อส่งใช้เงินยืม (เงินอุดหนุนอาหารกลางวันรับจาก{fund})"],
+                   *_memo_ref(rnd, "repay"))
+        _p(doc, f"ตามที่อนุมัติให้ {bname} ผู้ยืมเงินโครงการอาหารกลางวัน ยืมเงิน (เงินอุดหนุนอาหารกลางวัน"
+                f"รับจาก{fund}) เพื่อเป็นค่าใช้จ่ายอาหารกลางวันให้นักเรียนรับประทาน จำนวนเงิน {_money(total)} "
+                f"บาท (ตัวอักษร {bahttext(total)}) ตามสัญญาการยืมเงินที่ {_doc_no(rnd, 'loan', (rnd.order_no or '').strip() or _BLANK)} "
+                f"ลงวันที่ {_dnum(_doc_dt(rnd, 'loan', 'date') or rnd.order_date)} นั้น", align="justify", indent=1.25, after=2)
+        _p(doc, "บัดนี้ ได้ดำเนินการตามวัตถุประสงค์แล้ว ขอส่งใช้หลักฐาน และเงินสด (ถ้ามี) ดังนี้",
+           align="justify", indent=1.25, after=0)
+        _p(doc, f"1. หลักฐานค่าอาหารกลางวัน\t\tจำนวน {_money(total)} บาท", indent=1.5, after=0)
+        _p(doc, "2. เงินสด (ถ้ามี)\t\t\tจำนวน - บาท", indent=1.5, after=0)
+        _p(doc, f"รวมเป็นเงิน {_money(total)} บาท", indent=1.5, after=2)
+        _p(doc, f"จึงเรียนมาเพื่อโปรดทราบ และอนุมัติเบิกจ่ายเงิน (เงินอุดหนุนอาหารกลางวันรับจาก{fund}) "
+                f"จำนวน {_money(total)} บาท (ตัวอักษร {bahttext(total)})", align="justify", indent=1.25, after=12)
+        output_name = f"ขออนุมัติเบิกจ่ายส่งใช้เงินยืม_รอบที่{rnd.seq}_ปี{prog.year}"
+    else:
+        loan = finance_loan
+        bname, bpos = loan.borrower or _BLANK, loan.position or _BLANK
+        fin = (getattr(school, "finance_officer_name", "") or "").strip() or _BLANK
+        director = (school.director_name or "").strip() or _BLANK
+        cash = sum(float(r.amount or 0) for r in loan.returns if r.kind == "เงินสด")
+        vouchers = sum(float(r.amount or 0) for r in loan.returns if r.kind == "ใบสำคัญ")
+        total = cash + vouchers
+        dates = [r.date for r in loan.returns if r.date]
+        dt = max(dates) if dates else None
+        _memo_head(doc, school, ["ขออนุมัติเบิกจ่ายเงินเพื่อส่งใช้เงินยืม"], _dnum(dt), "")
+        _p(doc, f"ตามที่อนุมัติให้ {bname} ยืมเงิน {loan.fund_from or _BLANK} "
+                f"เพื่อเป็นค่าใช้จ่ายในการ{loan.purpose or _BLANK} จำนวน {_money(loan.amount)} บาท "
+                f"({bahttext(loan.amount or 0)}) ตามสัญญาการยืมเงินที่ {loan.contract_no or _BLANK} "
+                f"ลงวันที่ {_dnum(loan.date)} นั้น", align="justify", indent=1.25, after=2)
+        _p(doc, "ขอส่งใช้หลักฐานและเงินสดตามรายการที่บันทึก ดังนี้", indent=1.25, after=2)
+        _p(doc, f"1. ใบสำคัญคู่จ่าย จำนวน {_money(vouchers)} บาท", indent=1.5, after=2)
+        _p(doc, f"2. เงินสด จำนวน {_money(cash)} บาท", indent=1.5, after=2)
+        _p(doc, f"รวมส่งใช้ {_money(total)} บาท คงค้าง {_money(float(loan.amount or 0)-total)} บาท", indent=1.5, after=2)
+        _p(doc, f"จึงเรียนมาเพื่อโปรดพิจารณาหลักฐานการส่งใช้เงินยืม และอนุมัติเบิกจ่ายตามใบสำคัญ "
+                f"จำนวน {_money(vouchers)} บาท ({bahttext(vouchers)})", align="justify", indent=1.25, after=12)
+        output_name = f"ส่งใช้เงินยืม_{loan.contract_no or loan.id}"
     _sign_table(doc, [
         [("(ลงชื่อ)....................................................ผู้ยืม", "center"),
          (f"( {bname} )", "center"),
@@ -623,7 +647,7 @@ def render_repay_memo(rnd, school, doc=None) -> str:
                     f"เห็นควรอนุมัติเบิกจ่ายเงิน\n\n(ลงชื่อ)....................เจ้าหน้าที่การเงิน\n( {fin} )",
                     f"(  ) ทราบ  (  ) อนุมัติ\n\n(ลงชื่อ)....................ผู้อำนวยการโรงเรียน\n( {director} )"]],
                   [Cm(8.2), Cm(7.8)])
-    return _finish(doc, own, f"ขออนุมัติเบิกจ่ายส่งใช้เงินยืม_รอบที่{rnd.seq}_ปี{prog.year}")
+    return _finish(doc, own, output_name)
 
 
 def render_reimburse_summary(rnd, school, doc=None) -> str:
@@ -1094,33 +1118,57 @@ def render_inspect_report(rnd, school, doc=None) -> str:
     return _finish(doc, own, f"รายงานการตรวจรับพัสดุ_รอบที่{rnd.seq}_ปี{prog.year}")
 
 
-def render_loan_contract(rnd, school, doc=None) -> str:
+def render_loan_contract(rnd, school, doc=None, *, finance_loan=None) -> str:
     """04 สัญญาการยืมเงิน (แบบ 8500) หน้า + หลัง (รายการส่งใช้เงินยืม)
     ตรงตามคู่มืออาหารกลางวัน สพฐ. - เติมชื่อผู้ยืม/จำนวนเงิน/ประมาณการให้"""
     from docx.enum.table import WD_ROW_HEIGHT_RULE
     doc, own = _begin(doc)
-    prog = rnd.program
-    sname = _school_disp(school)
-    bname, bpos = _borrower(school, rnd.program)
-    director = (school.director_name or "").strip() or _BLANK
-    fund = _fund(prog)
-    students = prog.total_students
-    days = rnd.days or 0
-    rate = prog.rate_per_head or 0
-    total = round(float(rnd.amount or 0), 2)
-    money, baht = _money(total), bahttext(total)
-    month = _month_year(rnd.start_date)
-    # เลขที่/วันที่ของสัญญายืมเงิน กรอกที่หน้าจัดการงวด (doc_nos["loan"]) - หลายช่อง
-    oid = _doc_no(rnd, "loan", (rnd.order_no or "").strip() or _BLANK)
-    borrow_dt = _doc_dt(rnd, "loan", "date") or rnd.order_date         # วันที่ยืม (ผู้ยืมลงชื่อ)
-    present_dt = _doc_dt(rnd, "loan", "present_date")                  # วันที่เสนอ จนท.การเงิน/ผอ.อนุมัติ
-    receive_dt = _doc_dt(rnd, "loan", "receive_date") or borrow_dt     # วันที่ได้รับเงิน
+    if finance_loan is None:
+        prog = rnd.program
+        sname = _school_disp(school)
+        bname, bpos = _borrower(school, rnd.program)
+        director = (school.director_name or "").strip() or _BLANK
+        fund = _fund(prog)
+        students = prog.total_students
+        days = rnd.days or 0
+        rate = prog.rate_per_head or 0
+        total = round(float(rnd.amount or 0), 2)
+        money, baht = _money(total), bahttext(total)
+        month = _month_year(rnd.start_date)
+        # เลขที่/วันที่ของสัญญายืมเงิน กรอกที่หน้าจัดการงวด (doc_nos["loan"]) - หลายช่อง
+        oid = _doc_no(rnd, "loan", (rnd.order_no or "").strip() or _BLANK)
+        borrow_dt = _doc_dt(rnd, "loan", "date") or rnd.order_date         # วันที่ยืม (ผู้ยืมลงชื่อ)
+        present_dt = _doc_dt(rnd, "loan", "present_date")                  # วันที่เสนอ จนท.การเงิน/ผอ.อนุมัติ
+        receive_dt = _doc_dt(rnd, "loan", "receive_date") or borrow_dt     # วันที่ได้รับเงิน
+        submit_to = f"ผู้อำนวยการ{sname}"
+        fund_text = f"เงินอุดหนุนอาหารกลางวันรับจาก{fund}"
+        purpose_text = (f"ประกอบอาหารกลางวันให้นักเรียนรับประทาน ประจำเดือน {month} "
+                        f"จำนวน {students} คน x วันละ {_money(rate)} บาท x {days} วัน  ดังรายละเอียดต่อไปนี้")
+        due_dt = rnd.end_date
+        within_days = 30
+        returns = []
+        output_name = f"สัญญาการยืมเงิน_รอบที่{rnd.seq}_ปี{prog.year}"
+    else:
+        loan = finance_loan
+        sname = _school_disp(school)
+        bname, bpos = loan.borrower or _BLANK, loan.position or _BLANK
+        director = (school.director_name or "").strip() or _BLANK
+        total = round(float(loan.amount or 0), 2)
+        money, baht = _money(total), bahttext(total)
+        oid = loan.contract_no or _BLANK
+        borrow_dt, present_dt, receive_dt = loan.date, None, loan.receive_date or loan.date
+        due_dt = loan.due_date
+        submit_to = loan.submit_to or f"ผู้อำนวยการ{sname}"
+        fund_text, purpose_text = loan.fund_from or _BLANK, loan.purpose or _BLANK
+        within_days = loan.within_days or 15
+        returns = list(loan.returns or [])
+        output_name = f"สัญญาการยืมเงิน_{loan.contract_no or loan.id}"
     od = _dnum(borrow_dt)
     present_s = _dnum(present_dt) if present_dt else ".................."
     receive_s = _dnum(receive_dt)
     DOT = "..............................................."
     PROMISE = ("ข้าพเจ้าสัญญาว่าจะปฏิบัติตามระเบียบของทางราชการทุกประการ และจะนำใบสำคัญคู่จ่ายที่ถูกต้อง "
-               "พร้อมทั้งเงินเหลือจ่าย (ถ้ามี) ส่งใช้ภายในกำหนดไว้ในระเบียบการเบิกจ่ายเงินจากคลัง คือภายใน 30 วัน "
+               f"พร้อมทั้งเงินเหลือจ่าย (ถ้ามี) ส่งใช้ภายในกำหนดไว้ในระเบียบการเบิกจ่ายเงินจากคลัง คือภายใน {within_days} วัน "
                "นับแต่วันที่ได้รับเงินยืมนี้ ถ้าข้าพเจ้าไม่ส่งใช้ตามกำหนด ข้าพเจ้ายินยอมให้หักเงินเดือน ค่าจ้าง "
                "หรือเงินอื่นใดที่ข้าพเจ้าพึงได้รับจากทางราชการ ชดใช้จำนวนเงินที่ยืมไปจนครบถ้วนได้ทันที")
 
@@ -1136,16 +1184,15 @@ def render_loan_contract(rnd, school, doc=None) -> str:
         row.cells[1].width = RW
     # R0
     _box_cell(tbl.cell(0, 0), [("สัญญาการยืมเงิน", "center", True),
-                               (f"ยื่นต่อ ผู้อำนวยการ{sname}", "left", False)], line=1.5)
+                               (f"ยื่นต่อ {submit_to}", "left", False)], line=1.5)
     _box_cell(tbl.cell(0, 1), [(f"เลขที่ {oid}", "left", False),
-                               (f"วันครบกำหนด {_dnum(rnd.end_date)}", "left", False)], line=1.5)
+                               (f"วันครบกำหนด {_dnum(due_dt)}", "left", False)], line=1.5)
     # R1 (เต็มความกว้าง)
     c = tbl.cell(1, 0).merge(tbl.cell(1, 1))
     _box_cell(c, [(f"ข้าพเจ้า {bname}  ตำแหน่ง {bpos}", "left", False),
                   (f"สังกัด {sname}  {(school.address or '').strip()}", "left", False),
-                  (f"มีความประสงค์ขอยืมเงินจาก เงินอุดหนุนอาหารกลางวันรับจาก{fund}", "left", False),
-                  (f"เพื่อเป็นค่าใช้จ่ายในการประกอบอาหารกลางวันให้นักเรียนรับประทาน ประจำเดือน {month} "
-                   f"จำนวน {students} คน x วันละ {_money(rate)} บาท x {days} วัน  ดังรายละเอียดต่อไปนี้", "left", False)], line=1.5)
+                  (f"มีความประสงค์ขอยืมเงินจาก {fund_text}", "left", False),
+                  (f"เพื่อเป็นค่าใช้จ่ายในการ{purpose_text}", "left", False)], line=1.5)
     # R2: (ตัวอักษร) ... รวมเงิน (บาท) | ยอดเงิน
     _box_cell(tbl.cell(2, 0), [(f"(ตัวอักษร) {baht}          รวมเงิน (บาท)", "left", False)], line=1.5)
     _box_cell(tbl.cell(2, 1), [(money, "center", True)], size=15, line=1.5)
@@ -1155,7 +1202,7 @@ def render_loan_contract(rnd, school, doc=None) -> str:
                   (f"ลงชื่อ {DOT}ผู้ยืม   ( {bname} )   วันที่ {od}", "left", False)], line=1.5)
     # R4: เสนอ + คำอนุมัติ
     c = tbl.cell(4, 0).merge(tbl.cell(4, 1))
-    _box_cell(c, [("เสนอ  ผู้อำนวยการโรงเรียน", "left", True),
+    _box_cell(c, [(f"เสนอ  {submit_to}" if finance_loan is not None else "เสนอ  ผู้อำนวยการโรงเรียน", "left", True),
                   (f"ได้ตรวจสอบแล้วเห็นสมควรอนุมัติให้ยืมตามใบยืมฉบับนี้ได้ จำนวน {money} บาท ({baht})", "left", False),
                   (f"ลงชื่อ {DOT}เจ้าหน้าที่การเงิน   วันที่ {present_s}", "left", False),
                   ("คำอนุมัติ  อนุมัติให้ยืมตามเงื่อนไขข้างต้นได้", "left", True),
@@ -1172,7 +1219,7 @@ def render_loan_contract(rnd, school, doc=None) -> str:
     hdr = ["ครั้งที่", "วัน เดือน ปี", "เงินสดหรือใบสำคัญ", "จำนวนเงิน", "คงค้าง",
            "ลายมือชื่อผู้รับเงิน", "ใบรับเลขที่"]
     widths = [Cm(1.5), Cm(2.6), Cm(3.0), Cm(2.3), Cm(2.3), Cm(2.65), Cm(1.9)]
-    t = doc.add_table(rows=13, cols=7)
+    t = doc.add_table(rows=max(13, len(returns)+1), cols=7)
     t.style = "Table Grid"
     hcells = t.rows[0].cells
     for c, v, w in zip(hcells, hdr, widths):
@@ -1181,12 +1228,19 @@ def render_loan_contract(rnd, school, doc=None) -> str:
         row.height = Cm(0.9); row.height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
         for c, w in zip(row.cells, widths):
             c.width = w
+    left = total
+    for index, ret in enumerate(returns, 1):
+        left -= float(ret.amount or 0)
+        values = [str(index), _dnum(ret.date), ret.kind or "", _money(ret.amount),
+                  _money(left), "", ret.receipt_no or ""]
+        for cell, value in zip(t.rows[index].cells, values):
+            _set_cell(cell, value, size=14, align="center")
     _p(doc, "หมายเหตุ  (1) ยื่นต่อ ผู้อำนวยการโรงเรียน  (2) ระบุชื่อส่วนราชการที่จ่ายเงิน  "
             "(3) ระบุวัตถุประสงค์ที่จะนำเงินยืมไปใช้จ่าย  (4) เสนอต่อผู้มีอำนาจอนุมัติ",
        before=6, size=13)
     if own:   # ออกเดี่ยว: ย่อเนื้อความเหลือ 14 ให้หน้า+หลังพอดี 2 หน้า (ตามแบบ 8500)
         _shrink_body_font(doc, 14)
-    return _finish(doc, own, f"สัญญาการยืมเงิน_รอบที่{rnd.seq}_ปี{prog.year}")
+    return _finish(doc, own, output_name)
 
 
 def render_food_photos(rnd, school, doc=None) -> str:

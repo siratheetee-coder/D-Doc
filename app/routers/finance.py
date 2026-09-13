@@ -7,7 +7,7 @@ finance.py - งานการเงิน
 เลขบันทึกขอเบิกจ่ายใช้ชุดเลขกลาง 'memo' ร่วมกับทุกงาน
 """
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Request, Depends, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
@@ -46,8 +46,7 @@ _DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document
 _XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 # ประเภทเงินตามงบ (คอลัมน์สมุดเงินสดราชการ) - เก็บเป็นข้อความไทยตรงๆ
-FUND_TYPES = ["เงินงบประมาณ", "เงินรายได้แผ่นดิน", "เงินนอกงบประมาณ"]
-_FUND_DEFAULT = "เงินนอกงบประมาณ"
+from app.services.finance_types import FUND_TYPES, FUND_DEFAULT as _FUND_DEFAULT, resolve_fund_type
 
 # ชุดหมวดสำเร็จรูป (กดปุ่มเดียวสร้างทั้งโครง) - (ชื่อหมวดแม่ | None, [รายการลูก])
 PRESET_SETS = {
@@ -130,12 +129,12 @@ def accounts_page(request: Request, db: Session = Depends(get_db), year: int | N
 @router.post("/finance/accounts")
 def account_add(db: Session = Depends(get_db), name: str = Form(...),
                 opening_balance: str = Form("0"), note: str = Form(""),
-                deposit_type: str = Form("bank"), fund_type: str = Form(_FUND_DEFAULT)):
+                deposit_type: str = Form("bank"), fund_type: str = Form("")):
     if name.strip():
         nm = name.strip()
         dt = deposit_type if deposit_type in DEPOSIT_TYPES else "bank"
         # ช่องเดียวรวมชื่อ+ประเภทเงิน: ถ้าชื่อตรง 3 งบ ใช้เป็น fund_type เลย · ชื่ออื่น = นอกงบฯ (ปรับได้ภายหลัง)
-        ft = fund_type if fund_type in FUND_TYPES else (nm if nm in FUND_TYPES else _FUND_DEFAULT)
+        ft = resolve_fund_type(nm, fund_type)
         db.add(FinanceAccount(name=nm,
                               opening_balance=_to_float(opening_balance, 0.0),
                               deposit_type=dt, fund_type=ft, note=note.strip()))
@@ -999,17 +998,23 @@ def loans_page(request: Request, db: Session = Depends(get_db), year: int | None
 async def loan_add(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     fy = _to_int(form.get("fiscal_year"), current_fiscal_year())
+    borrow_date = parse_be_date(form.get("date"))
+    receive_date = parse_be_date(form.get("receive_date"))
+    within_days = max(1, _to_int(form.get("within_days"), 15))
+    # Match the contract: count from receipt of the money, falling back to borrowing date.
+    base_date = receive_date or borrow_date
+    due_date = base_date + timedelta(days=within_days) if base_date else None
     ln = MoneyLoan(
         fiscal_year=fy, contract_no=(form.get("contract_no") or "").strip(),
-        date=parse_be_date(form.get("date")), receive_date=parse_be_date(form.get("receive_date")),
-        due_date=parse_be_date(form.get("due_date")),
+        date=borrow_date, receive_date=receive_date,
+        due_date=due_date,
         borrower=(form.get("borrower") or "").strip(),
         position=(form.get("position") or "").strip(),
         submit_to=(form.get("submit_to") or "").strip(),
         fund_from=(form.get("fund_from") or "").strip(),
         purpose=(form.get("purpose") or "").strip(),
         amount=_to_float(form.get("amount"), 0.0),
-        within_days=_to_int(form.get("within_days"), 15),
+        within_days=within_days,
         account_id=_to_int(form.get("account_id"), 0) or None,
         note=(form.get("note") or "").strip())
     db.add(ln); db.commit()
@@ -1047,6 +1052,15 @@ def loan_contract_doc(lid: int, db: Session = Depends(get_db)):
     if not ln:
         return RedirectResponse("/finance/loans", status_code=303)
     return serve_generated(render_loan_contract(get_school(db), ln), _DOCX)
+
+
+@router.get("/finance/loans/{lid}/returns.docx")
+def loan_returns_doc(lid: int, db: Session = Depends(get_db)):
+    from app.services.finance_forms_doc import render_loan_returns
+    ln = db.get(MoneyLoan, lid)
+    if not ln or not ln.returns:
+        return RedirectResponse("/finance/loans", status_code=303)
+    return serve_generated(render_loan_returns(get_school(db), ln), _DOCX)
 
 
 @router.get("/finance/loans/register.docx")

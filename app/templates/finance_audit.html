@@ -50,8 +50,8 @@
   <p class="muted" style="margin-top:0;">แสดงเงินคงเหลือ ณ วันที่ที่ระบุ แยกคอลัมน์ เงินสด / เงินฝากธนาคาร / เงินฝากส่วนราชการผู้เบิก พร้อมช่องลงนามคณะกรรมการเก็บรักษาเงิน</p>
   <form method="get" action="/finance/cash-report" class="row" style="align-items:flex-end;">
     <input type="hidden" name="year" value="{{ fiscal_year }}">
-    <div><label>ณ วันที่</label><input name="date" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:130px;"></div>
-    <div><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-file"/></svg> เปิดรายงาน</button></div>
+    <div style="flex:0 0 auto;"><label>ณ วันที่</label><input name="date" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:130px;"></div>
+    <div style="flex:0 0 auto;"><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-file"/></svg> เปิดรายงาน</button></div>
   </form>
 </div>
 

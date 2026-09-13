@@ -21,9 +21,9 @@ _NOTE = PatternFill("solid", fgColor="FFF2CC")
 
 SHEETS = {
     "บัญชีเงิน": {
-        "headers": ["ชื่อบัญชี", "ยอดยกมา", "หมายเหตุ"],
+        "headers": ["ชื่อบัญชี", "ยอดยกมา", "หมายเหตุ", "หมวดเงิน"],
         "note": "กรอกรายการบัญชี/ประเภทเงินตั้งแต่แถวที่ 3 (เช่น เงินอุดหนุน, รายได้สถานศึกษา)",
-        "widths": [30, 16, 36],
+        "widths": [30, 16, 36, 25],
     },
     "รายการรับ-จ่าย": {
         "headers": ["บัญชี (ชื่อ)", "วันที่", "ประเภท (รับ/จ่าย)", "จำนวนเงิน", "หมวด", "อ้างอิง", "หมายเหตุ"],
@@ -86,6 +86,9 @@ def _kind(v) -> str:
     return "out" if ("จ่าย" in _s(v) or _s(v).lower() == "out") else "in"
 
 
+from app.services.finance_types import resolve_fund_type
+
+
 def import_finance_workbook(file_bytes: bytes, db) -> dict:
     wb = load_workbook(BytesIO(file_bytes), data_only=True)
     fy = current_fiscal_year()
@@ -100,7 +103,7 @@ def import_finance_workbook(file_bytes: bytes, db) -> dict:
             return None
         a = accounts.get(name)
         if a is None:
-            a = FinanceAccount(name=name)
+            a = FinanceAccount(name=name, fund_type=resolve_fund_type(name))
             db.add(a); db.flush()
             accounts[name] = a
         return a
@@ -115,9 +118,11 @@ def import_finance_workbook(file_bytes: bytes, db) -> dict:
                 continue
             a = accounts.get(name)
             if a is None:
-                a = FinanceAccount(name=name)
+                a = FinanceAccount(name=name, fund_type=resolve_fund_type(name))
                 db.add(a); db.flush()
                 accounts[name] = a
+            if len(row) > 3 and _s(row[3]):
+                a.fund_type = resolve_fund_type(name, _s(row[3]))
             a.opening_balance = _f(row[1]) if len(row) > 1 else 0.0
             a.note = _s(row[2]) if len(row) > 2 else ""
             added += 1
