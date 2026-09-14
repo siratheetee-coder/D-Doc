@@ -8,7 +8,7 @@ import io
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, Request, Depends, Form, UploadFile, File
+from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from sqlalchemy.orm import Session
 
@@ -19,6 +19,9 @@ from app.thai_utils import (current_academic_year, parse_be_date, be_date_input,
                             thai_date, SCHOOL_LEVELS)
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
+
+from app.services.textbook_people import read_people, read_parties, PARTY_LABELS
+from app.services.textbook_selection import load_selection, parse_selection, selection_groups
 
 router = APIRouter()
 
@@ -115,6 +118,9 @@ def _purchase_for(db, yr) -> TextbookPurchase:
 def _book_groups(db, yr) -> list:
     """รายการหนังสือแยกตามชั้น สำหรับตารางใน TOR
     จำนวน = จำนวนนักเรียนในชั้นนั้น (ถ้ายังไม่มีนักเรียน ใช้จำนวนที่รับเข้าในทะเบียน)"""
+    tp = db.query(TextbookPurchase).filter_by(year=yr).first()
+    if tp is not None and tp.selection_items is not None:
+        return selection_groups(load_selection(tp.selection_items), SCHOOL_LEVELS)
     from app.models import Student
     counts = {}
     for st in db.query(Student).all():
@@ -179,6 +185,9 @@ def _estimate_rows(db, tp, groups) -> list:
 
 def _survey_groups(db, yr) -> list:
     """รายการหนังสือรายชั้นสำหรับแบบสำรวจ (มีสำนักพิมพ์ด้วย)"""
+    tp = db.query(TextbookPurchase).filter_by(year=yr).first()
+    if tp is not None and tp.selection_items is not None:
+        return selection_groups(load_selection(tp.selection_items), SCHOOL_LEVELS, selected_only=False)
     counts = _student_counts(db)
     books = (db.query(TextBook).filter_by(year=yr)
              .order_by(TextBook.level, TextBook.title).all())
@@ -191,6 +200,49 @@ def _survey_groups(db, yr) -> list:
             "qty": counts.get(lv, 0) or int(b.qty_received or 0)})
     return [(lv, by[lv]) for lv in sorted(
         by, key=lambda l: SCHOOL_LEVELS.index(l) if l in SCHOOL_LEVELS else 99)]
+
+
+def _legacy_selection(db, yr):
+    counts = _student_counts(db)
+    return [{"key": f"legacy-{book.id}", "title": book.title, "level": book.level,
+             "publisher": book.publisher or "", "subject": book.subject or "",
+             "price": book.unit_price or 0, "qty": counts.get(book.level, 0) or book.qty_received or 0,
+             "selected": True, "source_id": "", "publication": ""}
+            for book in db.query(TextBook).filter_by(year=yr).order_by(TextBook.id).all()]
+
+
+@router.get("/textbooks/purchase/catalog")
+def textbook_catalog(q: str = "", level: str = "", page: int = 1):
+    from app.services.textbook_catalog import search_catalog
+    try:
+        return search_catalog(q, level, page)
+    except Exception:
+        raise HTTPException(status_code=502, detail="ติดต่อฐานข้อมูลหนังสือเรียนไม่ได้ในขณะนี้ กรุณาลองใหม่หรือกรอกรายการเอง")
+
+
+@router.post("/textbooks/purchase/to-register")
+def selected_to_register(db: Session = Depends(get_db), year: int = Form(...)):
+    tp = db.query(TextbookPurchase).filter_by(year=year).first()
+    rows = load_selection(tp.selection_items) if tp and tp.selection_items is not None else []
+    added = skipped = 0
+    for row in rows:
+        if not row.get("selected"):
+            continue
+        key = row["key"]
+        existing = db.query(TextBook).filter_by(selection_key=key).first()
+        if key.startswith("legacy-"):
+            existing = db.query(TextBook).filter_by(id=int(key[7:]), year=year).first() or existing
+        if existing:
+            skipped += 1
+            continue
+        db.add(TextBook(year=year, level=row["level"], title=row["title"],
+                        publisher=row.get("publisher", ""), subject=row.get("subject", ""),
+                        unit_price=row["price"], qty_received=0, selection_key=key,
+                        note=f"จากรายการคัดเลือก จำนวนที่วางแผน {row['qty']} เล่ม"))
+        db.flush()
+        added += 1
+    db.commit()
+    return {"added": added, "skipped": skipped}
 
 
 @router.get("/textbooks/purchase", response_class=HTMLResponse)
@@ -206,9 +258,13 @@ def book_purchase_page(request: Request, db: Session = Depends(get_db),
         members = json.loads(tp.members or "[]")
     except Exception:
         members = []
-    while len(members) < 3:
-        members.append({"name": "", "position": "ครู", "role":
-                        ["ประธานกรรมการ", "กรรมการ", "กรรมการและเลขานุการ"][len(members)]})
+    members = [m for m in members if (m.get("name") or "").strip()]
+    parties = _jload_safe(tp.parties, {})
+    party_rows = [{**row, "kind": kind} for kind in PARTY_LABELS
+                  for row in parties.get(kind, []) if (row.get("name") or "").strip()]
+    selection = load_selection(tp.selection_items)
+    if selection is None:
+        selection = _legacy_selection(db, yr)
     from app.routers.pages import POSITION_CHOICES
     return templates.TemplateResponse("textbook_purchase.html", {
         "request": request, "school": get_school(db), "tp": tp, "year": yr,
@@ -217,7 +273,9 @@ def book_purchase_page(request: Request, db: Session = Depends(get_db),
         "persons": db.query(Person).filter_by(active=True).order_by(Person.name).all(),
         "positions": POSITION_CHOICES, "saved": saved,
         "be_date_input": be_date_input,
-        "boards": _jload_safe(tp.boards, {}), "parties": _jload_safe(tp.parties, {}),
+        "boards": _jload_safe(tp.boards, {}), "parties": parties,
+        "party_rows": party_rows, "party_labels": PARTY_LABELS,
+        "selection": selection, "school_levels": SCHOOL_LEVELS,
         "est_rows": _estimate_rows(db, tp, groups),
         "levels": [lv for lv, _ in groups],
     })
@@ -226,7 +284,7 @@ def book_purchase_page(request: Request, db: Session = Depends(get_db),
 @router.post("/textbooks/purchase/save")
 async def book_purchase_save(request: Request, db: Session = Depends(get_db)):
     import json
-    form = await request.form()
+    form = await request.form(max_fields=10000)
     yr = _to_int(form.get("year"), current_academic_year())
     tp = _purchase_for(db, yr)
     tp.fiscal_year = _to_int(form.get("fiscal_year"), yr)
@@ -237,17 +295,18 @@ async def book_purchase_save(request: Request, db: Session = Depends(get_db)):
     tp.period_text = (form.get("period_text") or "").strip()
     tp.delivery_days = _to_int(form.get("delivery_days"), 15)
     tp.delivery_place = (form.get("delivery_place") or "").strip()
-    tp.purpose = (form.get("purpose") or "").strip()
-    tp.conditions = (form.get("conditions") or "").strip()
-    tp.contact = (form.get("contact") or "").strip()
-    members = []
-    for i in range(1, 6):
-        nm = (form.get(f"m{i}_name") or "").strip()
-        if nm:
-            members.append({"name": nm,
-                            "position": (form.get(f"m{i}_pos") or "ครู").strip(),
-                            "role": (form.get(f"m{i}_role") or "กรรมการ").strip()})
-    tp.members = json.dumps(members, ensure_ascii=False)
+    tp.contact_phone = (form.get("contact_phone") or "").strip()
+    # Preserve historical free text in storage; new TOR uses the standard template.
+    tp.members = json.dumps(read_people(form, "m"), ensure_ascii=False)
+    if form.get("selection_editor") == "1":
+        try:
+            previous = load_selection(tp.selection_items)
+            if previous is None:
+                previous = _legacy_selection(db, yr)
+            tp.selection_items = json.dumps(parse_selection(form, previous), ensure_ascii=False)
+        except ValueError as error:
+            db.rollback()
+            raise HTTPException(status_code=400, detail=str(error))
 
     # ---- ชุดคัดเลือกหนังสือ ----
     tp.academic_head = (form.get("academic_head") or "").strip()
@@ -259,22 +318,13 @@ async def book_purchase_save(request: Request, db: Session = Depends(get_db)):
     tp.meet_time = (form.get("meet_time") or "").strip()
     tp.meet_place = (form.get("meet_place") or "").strip()
 
-    def _people(prefix, n=8):
-        out = []
-        for i in range(1, n + 1):
-            nm = (form.get(f"{prefix}{i}_name") or "").strip()
-            if nm:
-                out.append({"name": nm,
-                            "position": (form.get(f"{prefix}{i}_pos") or "ครู").strip(),
-                            "role": (form.get(f"{prefix}{i}_role") or "กรรมการ").strip(),
-                            "level": (form.get(f"{prefix}{i}_level") or "").strip()})
-        return out
-
-    tp.boards = json.dumps({"exec": _people("ex"), "select": _people("sel", 15),
-                            "meeting": _people("mt")}, ensure_ascii=False)
-    tp.parties = json.dumps({"teacher": _people("pt"), "parent": _people("pp"),
-                             "community": _people("pc"), "student": _people("ps")},
-                            ensure_ascii=False)
+    tp.boards = json.dumps({"exec": read_people(form, "ex"), "select": read_people(form, "sel"),
+                            "meeting": read_people(form, "mt")}, ensure_ascii=False)
+    try:
+        tp.parties = json.dumps(read_parties(form), ensure_ascii=False)
+    except ValueError as error:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(error))
     rates = {}
     for lv, rt in zip(form.getlist("rate_level"), form.getlist("rate_value")):
         lv = (lv or "").strip()
@@ -282,6 +332,8 @@ async def book_purchase_save(request: Request, db: Session = Depends(get_db)):
             rates[lv] = _to_float(rt, 0)
     tp.rates = json.dumps(rates, ensure_ascii=False)
     db.commit()
+    if request.headers.get("X-Requested-With") == "fetch":
+        return {"saved": True, "selection": load_selection(tp.selection_items) or []}
     return RedirectResponse(f"/textbooks/purchase?year={yr}&saved=1", status_code=303)
 
 

@@ -35,6 +35,9 @@ Base = declarative_base()
 
 # รายการเพิ่มคอลัมน์ใหม่บน DB เก่า (ปลอดภัย: ข้ามถ้ามีอยู่แล้ว)
 MIGRATIONS = [
+    ("textbook_purchase", "contact_phone", "VARCHAR DEFAULT ''"),
+    ("textbook", "selection_key", "VARCHAR"),
+    ("textbook_purchase", "selection_items", "TEXT"),
     ("finance_txn", "due_date", "DATETIME"),
     ("finance_txn", "refund_date", "DATETIME"),
     ("check_payment", "pay_method", "VARCHAR DEFAULT 'โอน'"),
@@ -316,6 +319,8 @@ def init_school_db(engine) -> None:
     from app import models  # noqa: F401  (ลงทะเบียนตารางทั้งหมด)
     Base.metadata.create_all(bind=engine)
     run_migrations(engine)
+    with engine.begin() as connection:
+        connection.exec_driver_sql("CREATE UNIQUE INDEX IF NOT EXISTS ux_textbook_selection_key ON textbook(selection_key)")
     _repair_finance_fund_types(engine)
     _purge_student_sensitive(engine)
     _purge_report_photos(engine)

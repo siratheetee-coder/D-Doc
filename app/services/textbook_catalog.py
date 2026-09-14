@@ -1,0 +1,58 @@
+"""Read-only, paginated search of the public OBEC textbook catalogue."""
+import re
+import time
+from functools import lru_cache
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+from lxml import html
+
+SOURCE = "http://202.29.173.190/textbook/web/index.php"
+CLASS_IDS = {**{f"ป.{i}": str(i) for i in range(1, 7)},
+             "ม.1": "9", "ม.2": "10", "ม.3": "11", "ม.4": "13", "ม.5": "14", "ม.6": "15"}
+
+
+def parse_results(content):
+    tree = html.fromstring(content)
+    rows = []
+    for item in tree.xpath('//*[@id="result_content"]//div[@class="item"]'):
+        values = {}
+        for label in item.xpath('.//div[contains(concat(" ",normalize-space(@class)," ")," titleleft ")]'):
+            sibling = label.getnext()
+            if sibling is not None:
+                values[label.text_content().strip()] = ' '.join(sibling.text_content().split())
+        titles = [values[k] for k in ("หนังสือเรียน", "แบบฝึกหัด", "สื่อการเรียนรู้") if values.get(k)]
+        if not titles:
+            info = item.xpath('.//div[@class="infoarea"]/div[contains(@class,"objright")]')
+            titles = [' '.join(info[0].text_content().split())] if info else []
+        price = re.search(r"ราคา\s*([\d,.]+)\s*บาท", item.text_content())
+        identifier = re.search(r"addcart\('([0-9]+)&", html.tostring(item, encoding='unicode'))
+        if not titles or not price or not identifier:
+            raise ValueError("รูปแบบข้อมูลหนังสือจากต้นทางเปลี่ยนไป")
+        level = values.get("ชั้น", "")
+        m = re.fullmatch(r"(ประถม|มัธยม)ศึกษาปีที่\s*([1-6])", level)
+        rows.append({"title": titles[0], "price": float(price.group(1).replace(',', '')),
+                     "publisher": values.get("ผู้จัดพิมพ์", ""), "subject": values.get("กลุ่มสาระการเรียนรู้", ""),
+                     "level": (('ป.' if m[1] == 'ประถม' else 'ม.') + m[2]) if m else '',
+                     "source_level": level, "publication": values.get("ปี พ.ศ. ที่เผยแพร่", ""),
+                     "source_id": identifier[1]})
+    if not tree.xpath('//*[@id="result_content"]'):
+        raise ValueError("ไม่พบผลค้นหาจากฐานข้อมูลต้นทาง")
+    pages = re.search(r"หน้าที่\s*(\d+)\s*จาก\s*(\d+)\s*หน้า", tree.text_content())
+    return {"items": rows, "pages": int(pages[2]) if pages else 1}
+
+
+@lru_cache(maxsize=64)
+def _search(query, level, page, bucket):
+    params = {'bookmain': '11,12', 'name': query, 'class': CLASS_IDS.get(level, ''),
+              'chksearch': 'true', 'ispage': page}
+    url = SOURCE + '?' + urlencode(params)
+    # The URL is fixed: no user-provided host, path, or external credentials.
+    with urlopen(Request(url, headers={'User-Agent': 'EasyEkkasan/1.0'}), timeout=12) as response:
+        content = response.read(2_000_001)
+    if len(content) > 2_000_000:
+        raise ValueError("ผลค้นหาจากต้นทางมีขนาดเกินกำหนด")
+    return {**parse_results(content.decode('utf-8')), "source_url": url, "page": page}
+
+
+def search_catalog(query, level, page):
+    return _search(query.strip()[:100], level, min(max(page, 1), 1000), int(time.time() // 300))

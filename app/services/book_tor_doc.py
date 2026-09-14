@@ -75,7 +75,10 @@ def _class_table(doc, level, items):
     for i, it in enumerate(items, start=1):
         amount = float(it["price"]) * float(it["qty"])
         total += amount
-        vals = [str(i), it["title"], _money(it["price"]), f"{it['qty']:g}", _money(amount)]
+        title = it["title"]
+        if it.get("publisher"):
+            title += "\nสำนักพิมพ์/ผู้จัดพิมพ์ " + it["publisher"]
+        vals = [str(i), title, _money(it["price"]), f"{it['qty']:g}", _money(amount)]
         r = t.add_row(); _no_split_row(r)
         for c, v, w, al in zip(r.cells, vals, widths,
                                ["center", "left", "right", "center", "right"]):
@@ -96,6 +99,10 @@ def render_book_tor(school, tp, groups) -> str:
     sname = (school.name or "โรงเรียน").strip()
     n_items = sum(len(items) for _, items in groups)
     fy = tp.fiscal_year or tp.year
+    grand = sum(float(it["price"]) * float(it["qty"]) for _, items in groups for it in items)
+    budget = float(tp.total_budget or 0) or grand
+    level_text = " ".join("ชั้น " + level for level, items in groups if items)
+    delivery_place = (tp.delivery_place or "").strip() or sname
 
     _p(doc, "ขอบเขตของงาน (Terms of Reference : TOR)", align="center", bold=True, size=18, after=0)
     _p(doc, f"การจัดซื้อหนังสือเรียน จำนวน {n_items} รายการ ({tp.budget_source or 'เงินอุดหนุนรัฐบาล'})",
@@ -104,16 +111,15 @@ def render_book_tor(school, tp, groups) -> str:
     _p(doc, "--------------------------------", align="center", after=6)
 
     _p(doc, "1. ความเป็นมา", bold=True)
-    _p(doc, f"{sname} {(school.address or '').strip()} มีความประสงค์ที่จะซื้อหนังสือเรียน "
+    _p(doc, f"{sname} {(getattr(school, 'area_office', '') or '').strip()} มีความประสงค์ที่จะซื้อหนังสือเรียน "
             f"จำนวน {n_items} รายการ โดยวิธี{tp.method or 'เฉพาะเจาะจง'} "
             f"ได้รับจัดสรรงบประมาณรายจ่าย ประจำปี พ.ศ. {fy} "
             f"งบ{tp.budget_source or 'เงินอุดหนุนรัฐบาล'} โครงการสนับสนุนค่าใช้จ่ายในการจัดการศึกษา"
-            "ตั้งแต่ระดับอนุบาลจนจบการศึกษาขั้นพื้นฐาน", align="justify", indent=1.25, after=2)
+            f"ตั้งแต่ระดับอนุบาลจนจบการศึกษาขั้นพื้นฐาน รายการค่าหนังสือเรียน วงเงิน {_money(budget)} บาท ({bahttext(budget)})", align="justify", indent=1.25, after=2)
 
     _p(doc, "2. วัตถุประสงค์", bold=True)
-    _p(doc, (tp.purpose or "").strip() or
-            ("เพื่อเป็นสื่อการเรียนการสอนวิชาต่าง ๆ เพื่อพัฒนาการเรียนรู้และผลสัมฤทธิ์ทางการเรียน "
-             f"จึงจัดซื้อหนังสือเรียนให้นักเรียน{sname} ตามจำนวนนักเรียนที่มีอยู่จริง"),
+    _p(doc, ("เพื่อเป็นสื่อการเรียนการสอนวิชาต่าง ๆ เพื่อพัฒนาการเรียนรู้และผลสัมฤทธิ์ทางการเรียน "
+             f"จึงจัดซื้อหนังสือเรียน {level_text} ให้แก่นักเรียน{sname} ตามจำนวนนักเรียนที่มีอยู่จริง"),
        align="justify", indent=1.25, after=2)
 
     _p(doc, "3. คุณสมบัติของผู้ประสงค์จะเสนอราคา", bold=True)
@@ -122,30 +128,24 @@ def render_book_tor(school, tp, groups) -> str:
 
     _p(doc, f"4. รายละเอียดคุณลักษณะเฉพาะ รายการหนังสือเรียน ปีการศึกษา {tp.year}",
        bold=True, before=4)
-    grand = 0.0
-    for level, items in groups:
-        if items:
-            grand += _class_table(doc, level or "-", items)
-    if not groups:
-        _p(doc, "(ยังไม่มีรายการหนังสือในทะเบียนของปีการศึกษานี้)", indent=1.25)
-    _p(doc, f"รวมทั้งสิ้น {n_items} รายการ เป็นเงิน {_money(grand)} บาท ({bahttext(grand)})",
-       bold=True, indent=1.25, before=4, after=2)
+    _p(doc, f"ตามรายการแนบท้าย TOR จำนวน {n_items} รายการ รวมเป็นเงิน {_money(grand)} บาท ({bahttext(grand)})",
+       indent=1.25, after=2)
 
     _p(doc, "5. ระยะเวลาดำเนินการ", bold=True)
     _p(doc, (tp.period_text or "").strip() or _BLANK, indent=1.25, after=2)
 
     _p(doc, "6. ระยะเวลาและสถานที่ส่งมอบงาน", bold=True)
-    _p(doc, f"กำหนดส่งมอบภายใน {tp.delivery_days or 15} วันทำการ นับถัดจากวันที่ลงนามในใบสั่งซื้อ "
-            f"ณ {(tp.delivery_place or '').strip() or sname}", align="justify", indent=1.25, after=2)
+    _p(doc, f"กำหนดส่งมอบภายใน {tp.delivery_days or 15} วันทำการ นับถัดจากวันที่ผู้ขายได้รับใบสั่งซื้อ "
+            f"ณ {delivery_place}", align="justify", indent=1.25, after=2)
 
-    _p(doc, "7. คณะกรรมการจัดทำร่างขอบเขตของงานและผู้ตรวจรับพัสดุ", bold=True)
+    _p(doc, "7. ผู้จัดทำร่างขอบเขตของงาน (TOR)", bold=True)
     try:
         members = json.loads(tp.members or "[]")
     except Exception:
         members = []
     roles = ["ประธานกรรมการ", "กรรมการ", "กรรมการและเลขานุการ"]
     if not members:
-        members = [{"name": "", "position": ""} for _ in range(3)]
+        members = [{"name": "", "position": ""} for _ in range(1)]
     mt = doc.add_table(rows=len(members), cols=3)
     _no_borders(mt)
     _fixed_cols(mt, [Cm(7.0), Cm(4.5), Cm(5.0)])
@@ -157,7 +157,10 @@ def render_book_tor(school, tp, groups) -> str:
             _set_cell(c, v, size=14, align="left")
 
     _p(doc, "8. เงื่อนไข", bold=True, before=4)
-    for line in _lines(tp.conditions, _DEFAULT_CONDITIONS):
+    for line in [
+        "ผู้ซื้อสามารถเพิ่มหรือลดจำนวนและราคาได้ตามจำนวนนักเรียนที่มีอยู่จริง",
+        f"ผู้ขายส่งมอบหนังสือเรียน ณ {delivery_place} โดยจัดเป็นชุดแยกตามกลุ่มสาระการเรียนรู้ พร้อมแจกให้นักเรียนเป็นรายบุคคลตามที่โรงเรียนกำหนด",
+    ]:
         _p(doc, f"- {line}", align="justify", indent=1.25, after=1)
 
     budget = float(tp.total_budget or 0) or grand
@@ -169,14 +172,25 @@ def render_book_tor(school, tp, groups) -> str:
 
     _p(doc, "10. ติดต่อสอบถามรายละเอียดข้อมูลเพิ่มเติม และส่งข้อเสนอแนะ วิจารณ์ "
             "หรือแสดงความคิดเห็นได้ที่", bold=True)
-    _p(doc, (tp.contact or "").strip() or
-            (f"{sname} {(school.address or '').strip()} "
-             f"โทรศัพท์ {(getattr(school, 'phone', '') or '').strip() or _BLANK}"),
+    _p(doc, (f"{sname} {(school.address or '').strip()} "
+             f"โทรศัพท์ {(tp.contact_phone or '').strip() or _BLANK}"),
+       align="justify", indent=1.25, after=2)
+    _p(doc, "ผู้ประสงค์จะเสนอแนะ วิจารณ์ หรือแสดงความคิดเห็นเกี่ยวกับขอบเขตของงาน ให้ส่งเป็นลายลักษณ์อักษรถึงผู้จัดทำร่างขอบเขตของงาน ณ ที่อยู่โรงเรียน โดยระบุชื่อ ที่อยู่ และหมายเลขโทรศัพท์ที่ติดต่อได้ เพื่อประกอบการพิจารณาปรับปรุงต่อไป",
        align="justify", indent=1.25, after=10)
 
-    _p(doc, "ลงชื่อ..............................................ผู้จัดทำร่างขอบเขตของงาน",
-       align="right", after=0)
-    _p(doc, f"( {(school.officer_name or '').strip() or _BLANK} )", align="right", after=0)
+    for member in members:
+        _p(doc, "ลงชื่อ..............................................ผู้จัดทำร่างขอบเขตของงาน",
+           align="right", before=6, after=0)
+        _p(doc, f"( {(member.get('name') or '').strip() or _BLANK} )", align="right", after=0)
+
+    doc.add_page_break()
+    _p(doc, "รายการหนังสือเรียนแนบท้าย TOR", align="center", bold=True, size=18)
+    _p(doc, f"{sname} ปีการศึกษา {tp.year}", align="center", bold=True)
+    for level, items in groups:
+        if items:
+            _class_table(doc, level or "-", items)
+    _p(doc, f"รวมทั้งสิ้น {n_items} รายการ เป็นเงิน {_money(grand)} บาท ({bahttext(grand)})",
+       bold=True, before=6)
 
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)

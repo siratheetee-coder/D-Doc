@@ -1,0 +1,106 @@
+<div class="card" id="book-selection">
+  <h2>1. รายการคัดเลือกหนังสือเรียน</h2>
+  <p class="muted">เพิ่มหนังสือเพื่อพิจารณา แล้วติ๊ก “คัดเลือก” เฉพาะรายการที่จะจัดซื้อ ระบบใช้รายการที่คัดเลือกใน TOR ส่วนแบบสำรวจจะแสดงทุกรายการ</p>
+  <details style="margin:16px 0">
+    <summary style="cursor:pointer;font-weight:700">ค้นหาจากฐานข้อมูลหนังสือเรียน สพฐ.</summary>
+    <p class="muted">ค้นหาหนังสือเรียนและแบบฝึกหัดรายวิชาพื้นฐาน · ตรวจปีที่เผยแพร่และราคาก่อนเลือกใช้</p>
+    <div class="row">
+      <div><label for="catalog-query">ชื่อหนังสือ</label><input id="catalog-query" maxlength="100" placeholder="เช่น ภาษาพาที"></div>
+      <div><label for="catalog-level">ระดับชั้น</label><select id="catalog-level"><option value="">ทุกชั้นในฐานข้อมูล</option>{% for lv in school_levels if lv.startswith('ป.') or lv.startswith('ม.') %}<option>{{ lv }}</option>{% endfor %}</select></div>
+      <div style="align-self:end"><button class="btn" type="button" id="catalog-search">ค้นหา</button></div>
+    </div>
+    <p id="catalog-status" role="status" aria-live="polite"></p>
+    <div id="catalog-results"></div>
+    <div style="display:flex;gap:10px;margin-top:12px"><button class="btn sm gray" type="button" id="catalog-prev" hidden>หน้าก่อน</button><button class="btn sm gray" type="button" id="catalog-next" hidden>หน้าถัดไป</button></div>
+    <p><a id="catalog-source" href="http://202.29.173.190/textbook/web/index.php" target="_blank" rel="noopener noreferrer">เปิดฐานข้อมูลต้นทาง ↗</a> · หากไม่พบหนังสือ สามารถเพิ่มรายการเองด้านล่าง</p>
+  </details>
+  <input type="hidden" name="selection_editor" value="1">
+  <div class="table-wrap"><table style="min-width:1050px">
+    <thead><tr><th>คัดเลือก</th><th>ชั้น</th><th>ชื่อหนังสือ</th><th>กลุ่มสาระ</th><th>สำนักพิมพ์</th><th>ราคา/เล่ม</th><th>จำนวน</th><th></th></tr></thead>
+    <tbody id="selection-rows"></tbody>
+  </table></div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;align-items:center">
+    <button class="btn sm" type="button" id="add-selection">+ เพิ่มรายการเอง</button>
+    <strong id="selection-total" aria-live="polite"></strong>
+  </div>
+  <p class="muted">จำนวนเป็นจำนวนที่วางแผนซื้อ ยังไม่ใช่จำนวนรับเข้าจริง</p>
+  <p id="selection-status" role="status" aria-live="polite"></p>
+  <button class="btn green" type="submit" name="transfer" value="1">บันทึกและนำหนังสือที่คัดเลือกเข้าทะเบียน</button>
+  <a class="btn gray" href="/textbooks?year={{ year }}">เปิดทะเบียนหนังสือเรียน</a>
+</div>
+<script>
+(() => {
+  const form = document.getElementById('purchase-form');
+  const body = document.getElementById('selection-rows');
+  const levels = {{ school_levels|tojson }};
+  const counts = Object.fromEntries({{ est_rows|tojson }}.map(row => [row.level, row.students]));
+  const initial = {{ selection|tojson }};
+  const renumber = () => [...body.rows].forEach((row,i) => row.querySelectorAll('[data-field]').forEach(el => el.name = `book${i+1}_${el.dataset.field}`));
+  const totals = () => {
+    const rows = [...body.rows].filter(row => row.querySelector('[data-field=selected]').checked && row.querySelector('[data-field=title]').value.trim());
+    const amount = rows.reduce((sum,row) => sum + Number(row.querySelector('[data-field=price]').value || 0) * Number(row.querySelector('[data-field=qty]').value || 0), 0);
+    document.getElementById('selection-total').textContent = `คัดเลือก ${rows.length} รายการ · รวม ${amount.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})} บาท`;
+  };
+  function addRow(item={}, notify=true) {
+    const row = document.createElement('tr');
+    for (const field of ['selected','level','title','subject','publisher','price','qty']) {
+      const cell = row.insertCell();
+      const el = document.createElement(field === 'level' ? 'select' : 'input');
+      el.dataset.field = field; el.setAttribute('aria-label', field === 'title' ? 'ชื่อหนังสือ' : {selected:'คัดเลือก',level:'ชั้น',subject:'กลุ่มสาระ',publisher:'สำนักพิมพ์',price:'ราคา',qty:'จำนวน'}[field]);
+      if (field === 'level') {
+        for (const lv of ['', ...new Set([...levels, ...(item.level ? [item.level] : [])])]) { const opt=document.createElement('option'); opt.value=lv; opt.textContent=lv || 'เลือกชั้น'; el.appendChild(opt); }
+        el.value=item.level || ''; el.style.width='95px';
+      } else if (field === 'selected') { el.type='checkbox'; el.value='1'; el.checked=!!item.selected; }
+      else {
+        el.value=item[field] ?? (field === 'price' ? 0 : field === 'qty' ? (counts[item.level] || 0) : '');
+        if (['price','qty'].includes(field)) { el.type='number'; el.min='0'; el.step=field==='qty'?'1':'0.01'; el.style.width='95px'; }
+        else { el.type='text'; el.style.minWidth=field==='title'?'220px':'130px'; }
+      }
+      cell.appendChild(el);
+      if (field === 'title') {
+        for (const key of ['key','source_id','publication']) { const input=document.createElement('input'); input.type='hidden'; input.dataset.field=key; input.value=item[key] || ''; cell.appendChild(input); }
+        if (item.publication) { const note=document.createElement('small'); note.textContent=item.publication; cell.appendChild(note); }
+      }
+    }
+    const remove=document.createElement('button'); remove.type='button'; remove.className='btn sm gray'; remove.textContent='ลบ';
+    remove.addEventListener('click',()=>{row.remove();renumber();totals();form.dispatchEvent(new Event('input',{bubbles:true}));});
+    row.insertCell().appendChild(remove); body.appendChild(row); renumber(); totals();
+    row.querySelector('[data-field=level]').addEventListener('change',e=>{ const qty=row.querySelector('[data-field=qty]'); if (!Number(qty.value)) qty.value=counts[e.target.value] || 0; totals(); });
+    if (notify) form.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  initial.forEach(item=>addRow(item,false));
+  body.addEventListener('input',totals); body.addEventListener('change',totals);
+  document.getElementById('add-selection').addEventListener('click',()=>addRow());
+  totals();
+  let page=1, maxPage=1, searching=false;
+  const status=document.getElementById('catalog-status'), results=document.getElementById('catalog-results');
+  const controls=['catalog-search','catalog-prev','catalog-next','catalog-query','catalog-level'].map(id=>document.getElementById(id));
+  async function search(nextPage) {
+    if (searching) return;
+    searching=true; controls.forEach(el=>el.disabled=true); status.textContent='กำลังค้นหา…'; results.replaceChildren();
+    try {
+      const query=new URLSearchParams({q:document.getElementById('catalog-query').value,level:document.getElementById('catalog-level').value,page:nextPage});
+      const response=await fetch('/textbooks/purchase/catalog?'+query);
+      const data=await response.json(); if (!response.ok) throw new Error(data.detail);
+      page=data.page; maxPage=data.pages;
+      status.textContent=data.items.length?`หน้า ${page} / ${maxPage} · ${data.items.length} รายการ`:'ไม่พบรายการ ลองเปลี่ยนคำค้นหรือเพิ่มรายการเอง';
+      document.getElementById('catalog-source').href=data.source_url;
+      for (const item of data.items) {
+        const card=document.createElement('div'); card.style.cssText='padding:12px;border-bottom:1px solid #e2e8f0';
+        const title=document.createElement('strong'); title.textContent=item.title; card.appendChild(title);
+        const info=document.createElement('p'); info.textContent=[item.source_level,item.subject,item.publisher,item.publication,`${item.price} บาท`].filter(Boolean).join(' · '); card.appendChild(info);
+        const add=document.createElement('button'); add.type='button'; add.className='btn sm'; add.textContent='+ เพิ่มเพื่อคัดเลือก';
+        add.addEventListener('click',()=>{
+          if ([...body.querySelectorAll('[data-field=source_id]')].some(el=>el.value===item.source_id && el.closest('tr').querySelector('[data-field=level]').value===(item.level||document.getElementById('catalog-level').value))) { status.textContent='มีหนังสือรายการนี้ในชั้นที่เลือกแล้ว'; return; }
+          addRow({...item,level:item.level||document.getElementById('catalog-level').value,selected:false}); status.textContent='เพิ่มแล้ว กรุณาตรวจชั้น จำนวน และติ๊กคัดเลือกเมื่อพิจารณาแล้ว';
+        }); card.appendChild(add); results.appendChild(card);
+      }
+    } catch(error) { status.textContent=error.message || 'ค้นหาไม่ได้ กรุณาลองใหม่หรือเพิ่มรายการเอง'; }
+    finally { searching=false; controls.forEach(el=>el.disabled=false); document.getElementById('catalog-prev').hidden=page<=1; document.getElementById('catalog-next').hidden=page>=maxPage; }
+  }
+  document.getElementById('catalog-search').addEventListener('click',()=>search(1));
+  document.getElementById('catalog-query').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();search(1);}});
+  document.getElementById('catalog-prev').addEventListener('click',()=>search(page-1));
+  document.getElementById('catalog-next').addEventListener('click',()=>search(page+1));
+})();
+</script>

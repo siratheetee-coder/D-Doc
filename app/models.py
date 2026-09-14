@@ -1191,6 +1191,7 @@ class TextBook(Base):
     __tablename__ = "textbook"
 
     id = Column(Integer, primary_key=True)
+    selection_key = Column(String, nullable=True, unique=True)  # ป้องกันนำเข้ารายการคัดเลือกซ้ำ
     year = Column(Integer, nullable=False)          # ปีการศึกษา พ.ศ.
     level = Column(String, default="")              # ระดับชั้น เช่น ป.1
     room = Column(String, default="")               # ห้อง เช่น 2 (ว่าง = ใช้ทุกห้องในชั้นนี้)
@@ -1209,10 +1210,12 @@ class TextBook(Base):
 
 class TextbookPurchase(Base):
     """ข้อมูลการจัดซื้อหนังสือเรียน 1 ปีการศึกษา (ใช้ออก TOR และเอกสารชุดคัดเลือก/จัดซื้อ)
-    รายการหนังสือดึงจากทะเบียนหนังสือเรียน (TextBook) ของปีนั้น ไม่เก็บซ้ำ"""
+    เก็บรายการคัดเลือกแยกจากทะเบียนรับเข้า; ข้อมูลเดิมที่ยังไม่มีรายการคัดเลือกใช้ทะเบียนเดิม"""
     __tablename__ = "textbook_purchase"
 
     id = Column(Integer, primary_key=True)
+    selection_items = Column(Text, nullable=True)     # รายการคัดเลือก JSON; null = ข้อมูลเดิมจากทะเบียน
+    contact_phone = Column(String, default="")
     year = Column(Integer, nullable=False)             # ปีการศึกษา พ.ศ.
     fiscal_year = Column(Integer, nullable=True)       # ปีงบประมาณ พ.ศ.
     method = Column(String, default="เฉพาะเจาะจง")     # วิธีซื้อ
