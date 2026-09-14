@@ -81,20 +81,24 @@ def _save(doc, name: str) -> str:
     return str(path)
 
 
-def _member_rows(doc, members, *, numbered=True, start=1):
+def _member_rows(doc, members, *, numbered=True, start=1, selection=False):
     """รายชื่อกรรมการเป็นตารางไร้เส้นขอบ (ชื่อ / ตำแหน่ง / บทบาท ตรงคอลัมน์)"""
     rows = [m for m in (members or []) if (m.get("name") or "").strip()]
     if not rows:
         rows = [{"name": "", "position": "", "role": ""}]
     t = doc.add_table(rows=len(rows), cols=4)
     _no_borders(t)
-    widths = [Cm(1.0), Cm(6.6), Cm(4.6), Cm(4.3)]
+    widths = [Cm(1.0), Cm(8.0), Cm(3.5), Cm(4.0)] if selection else [Cm(1.0), Cm(6.6), Cm(4.6), Cm(4.3)]
     _fixed_cols(t, widths)
     for i, (row, m) in enumerate(zip(t.rows, rows), start=start):
         name = (m.get("name") or "").strip() or _BLANK
         pos = (m.get("position") or "").strip() or "ครู"
         role = (m.get("role") or "").strip() or "กรรมการ"
-        vals = [f"{i}." if numbered else "", name, f"ตำแหน่ง {pos}", role]
+        label = f"2.{i}" if selection else f"{i}." if numbered else ""
+        if selection:
+            name = f"{name} (ชั้น {(m.get('level') or '-').strip()})"
+        vals = [label, name, f"ตำแหน่ง {pos}", role]
+        _no_split_row(row)
         for c, v, w in zip(row.cells, vals, widths):
             _set_cell(c, v, size=15, align="left")
             c.width = w
@@ -233,12 +237,7 @@ def render_select_order(school, tp, doc=None):
 
     _p(doc, "2. คณะกรรมการพิจารณาคัดเลือกหนังสือเรียน (รายชั้น)", bold=True, indent=0.6, after=1)
     sel = boards.get("select") or []
-    if sel:
-        for i, m in enumerate(sel, start=1):
-            _p(doc, f"2.{i} ชั้น{(m.get('level') or '-').strip()}", indent=1.0, after=0)
-            _member_rows(doc, [m], numbered=False)
-    else:
-        _member_rows(doc, [])
+    _member_rows(doc, sel, selection=True)
     _p(doc, "หน้าที่  1. พิจารณาคัดเลือกหนังสือให้ตรงตามหลักสูตรที่กระทรวงศึกษาธิการกำหนด "
             "ตามมาตรฐานการเรียนรู้และตัวชี้วัด (ฉบับปรับปรุง พ.ศ. 2560)",
        align="justify", indent=1.25, before=2, after=0)

@@ -3,7 +3,7 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">งานบุคคล · การนิเทศภายใน</div>
+    <div class="hero-sub">งานวิชาการ · การนิเทศภายใน</div>
     <span class="hero-title">แบบบันทึกการนิเทศการจัดการเรียนรู้</span>
     <div class="hero-meta">{{ school.name or "" }}</div>
   </div>
@@ -12,7 +12,7 @@
 
 <div class="card">
   <h2 style="margin-top:0;">{{ 'แก้ไขแบบบันทึกการนิเทศ' if rec else 'บันทึกการนิเทศ (ใหม่)' }}</h2>
-  <form method="post" action="/hr/supervision-form/save">
+  <form method="post" action="/academic/supervision-form/save">
     {% if rec %}<input type="hidden" name="id" value="{{ rec.id }}">{% endif %}
     <div class="row" style="align-items:flex-end;">
       <div style="flex:2;"><label>ครูผู้รับการนิเทศ *</label>
@@ -69,9 +69,9 @@
     </div>
 
     <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
-      <button class="btn green" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
-      {% if rec %}<a class="btn" href="/hr/supervision-form/{{ rec.id }}/print.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์เอกสาร</a>
-      <a class="btn soft" href="/hr/supervision-form">+ ทำรายการใหม่</a>{% endif %}
+      <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
+      {% if rec %}<a class="btn" href="/academic/supervision-form/{{ rec.id }}/print.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์เอกสาร</a>
+      <a class="btn soft" href="/academic/supervision-form">+ ทำรายการใหม่</a>{% endif %}
     </div>
   </form>
 </div>
@@ -90,9 +90,9 @@
         <td data-label="ครั้งที่" class="center">{{ r.round_no }}</td>
         <td data-label="วันที่" style="white-space:nowrap;">{{ be_date(r.sup_date) if r.sup_date else '-' }}</td>
         <td data-label="เอกสาร" class="stack-full" style="white-space:nowrap;">
-          <a class="btn sm soft" href="/hr/supervision-form?edit={{ r.id }}">แก้ไข</a>
-          <a class="btn sm" href="/hr/supervision-form/{{ r.id }}/print.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์</a>
-          <form method="post" action="/hr/supervision-form/{{ r.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบรายการนี้?');"><button class="btn sm gray" type="submit">ลบ</button></form>
+          <a class="btn sm soft" href="/academic/supervision-form?edit={{ r.id }}">แก้ไข</a>
+          <a class="btn sm" href="/academic/supervision-form/{{ r.id }}/print.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์</a>
+          <form method="post" action="/academic/supervision-form/{{ r.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบรายการนี้?');"><button class="btn sm gray" type="submit">ลบ</button></form>
         </td>
       </tr>
     {% endfor %}

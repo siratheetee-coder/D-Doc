@@ -7,6 +7,11 @@
 .people-editor input { min-width: 140px; }
 #book-selection [hidden] { display: none !important; }
 #book-selection .btn { white-space: normal; }
+.purchase-invalid { outline:2px solid #dc2626 !important; background:#fff1f2 !important; }
+.purchase-field-error { display:block; color:#b91c1c; font-size:13px; margin-top:5px; }
+#purchase-errors { border:1px solid #fca5a5; background:#fff1f2; color:#991b1b; padding:14px; border-radius:12px; margin-bottom:14px; }
+#purchase-errors[hidden] { display:none !important; }
+#purchase-errors button { background:none;border:0;color:#991b1b;text-align:left;cursor:pointer;text-decoration:underline; }
 </style>
 <div class="hero" style="background:linear-gradient(135deg,#0ea5e9,#2563eb); color:#fff;">
   <div>
@@ -150,6 +155,7 @@
 <div class="card">
   <h2>ออกเอกสาร <span class="muted" style="font-size:14px;">(ขั้นก่อนจัดซื้อ · ออกทีละฉบับได้)</span></h2>
   <p class="muted" style="margin-top:0;">ระบบจะตรวจข้อมูลและบันทึกข้อมูลล่าสุดก่อนออกเอกสารทุกครั้ง</p>
+  <div id="purchase-errors" role="alert" hidden></div>
   <p id="purchase-status" role="status" aria-live="polite"></p>
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <button class="btn green" type="submit" name="document" value="tor">บันทึกและออก TOR (Word)</button>
@@ -172,6 +178,50 @@
   const form = document.getElementById('purchase-form');
   const status = document.getElementById('purchase-status');
   new MutationObserver(() => { document.getElementById('selection-status').textContent = status.textContent; }).observe(status, {childList:true,subtree:true,characterData:true});
+  form.noValidate = true;
+  const errorBox = document.getElementById('purchase-errors');
+  const issues = new Map();
+  function refreshErrors() {
+    errorBox.replaceChildren(); errorBox.hidden = !issues.size;
+    if (!issues.size) return;
+    const heading = document.createElement('strong'); heading.textContent = `กรุณาตรวจข้อมูล ${issues.size} จุดก่อนดำเนินการ`; errorBox.appendChild(heading);
+    const list = document.createElement('ul'); errorBox.appendChild(list);
+    issues.forEach((issue, field) => {
+      const li=document.createElement('li'), link=document.createElement('button'); link.type='button'; link.textContent=issue.message;
+      link.addEventListener('click',()=>{field.focus();field.scrollIntoView({block:'center',behavior:'smooth'});}); li.appendChild(link);list.appendChild(li);
+    });
+  }
+  function clearIssue(field) {
+    const issue=issues.get(field); if (!issue) return;
+    field.classList.remove('purchase-invalid'); field.removeAttribute('aria-invalid');
+    if (issue.description) field.setAttribute('aria-describedby',issue.description); else field.removeAttribute('aria-describedby');
+    issue.note.remove(); issues.delete(field); refreshErrors();
+  }
+  function flag(field, message) {
+    if (!field || issues.has(field)) return;
+    const note=document.createElement('span'); note.className='purchase-field-error'; note.id='purchase-error-'+(field.name || field.id || issues.size); note.textContent=message;
+    const description=field.getAttribute('aria-describedby') || '';
+    field.after(note); field.classList.add('purchase-invalid'); field.setAttribute('aria-invalid','true');field.setAttribute('aria-describedby',[description,note.id].filter(Boolean).join(' '));
+    if (!field.matches('input,select,textarea,button')) field.tabIndex=-1;
+    issues.set(field,{message,note,description});
+  }
+  const fieldLabels={memo_date:'วันที่บันทึกขออนุญาต',order_date:'วันที่คำสั่งแต่งตั้งกรรมการ',announce_date:'วันที่ประกาศภาคี 4 ฝ่าย',invite_date:'วันที่หนังสือเชิญประชุม',meet_date:'วันประชุมคัดเลือกหนังสือ',m1_name:'ชื่อผู้จัดทำ TOR',sel1_name:'ชื่อกรรมการคัดเลือกหนังสือ'};
+  const labelOf=field=>fieldLabels[field.name] || field.closest('div')?.querySelector('label')?.textContent || field.getAttribute('aria-label') || 'ข้อมูล';
+  form.addEventListener('input',event=>{for(const field of [...issues.keys()]) if(field===event.target || field.contains(event.target)) clearIssue(field);});
+  form.addEventListener('change',event=>{for(const field of [...issues.keys()]) if(field===event.target || field.contains(event.target)) clearIssue(field);});
+  form.querySelectorAll('input[data-date]').forEach(field=>{
+    field.inputMode='numeric'; field.maxLength=10;
+    field.addEventListener('input',()=>{
+      const old=field.value, cursor=field.selectionStart ?? old.length;
+      const count=old.slice(0,cursor).replace(/\D/g,'').length;
+      const pasted=old.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if(pasted) { field.value=pasted[1].padStart(2,'0')+'/'+pasted[2].padStart(2,'0')+'/'+pasted[3]; return; }
+      const digits=old.replace(/\D/g,'').slice(0,8);
+      field.value=[digits.slice(0,2),digits.slice(2,4),digits.slice(4)].filter(Boolean).join('/');
+      let position=0,seen=0;while(position<field.value.length && seen<count){if(/\d/.test(field.value[position]))seen++;position++;}
+      field.setSelectionRange(position,position);
+    });
+  });
   let dirty = false, busy = false;
   const requirements = {
     tor: ['fiscal_year','budget_source','delivery_days','period_text','m1_name'],
@@ -210,27 +260,35 @@
     if (busy) return;
     const kind = e.submitter?.name === 'document' ? e.submitter.value : '';
     const transfer = e.submitter?.name === 'transfer';
+    for (const field of [...issues.keys()]) clearIssue(field);
     const chosen = [...form.querySelectorAll('#selection-rows tr')].filter(row => row.querySelector('[data-field=title]').value.trim() && row.querySelector('[data-field=selected]').checked);
-    if ((transfer || ['tor','all','report'].includes(kind)) && !chosen.length) {
-      status.textContent = 'กรุณาติ๊กคัดเลือกหนังสืออย่างน้อย 1 รายการ'; return;
-    }
+    if ((transfer || ['tor','all','report'].includes(kind)) && !chosen.length) flag(document.getElementById('book-selection'),'กรุณาติ๊กคัดเลือกหนังสืออย่างน้อย 1 รายการ');
     if (['parties','all'].includes(kind)) {
       const kinds = new Set([...form.querySelectorAll('[data-prefix="party"] tbody tr')].filter(row => row.querySelector('[name$="_name"]').value.trim()).map(row => row.querySelector('select').value));
-      if (kinds.size < 4) { status.textContent = 'กรุณาระบุผู้แทนให้ครบทั้ง 4 ฝ่ายก่อนออกเอกสาร'; form.querySelector('[data-prefix="party"]').scrollIntoView({block:'center'}); return; }
+      const labels = {{ party_labels|tojson }};
+      const missing = Object.keys(labels).filter(key=>!kinds.has(key)).map(key=>labels[key]);
+      if(missing.length) flag(form.querySelector('[data-prefix="party"]'),'กรุณาระบุ '+missing.join(' · '));
     }
     const required = kind === 'all' ? [...new Set(Object.entries(requirements).filter(([k]) => k !== 'tor').flatMap(([,v]) => v))] : requirements[kind] || [];
     for (const name of required) {
-      const field = form.elements.namedItem(name);
-      if (!field || !field.value.trim()) {
-        status.textContent = 'กรุณากรอกข้อมูลที่จำเป็นสำหรับเอกสารนี้';
-        field.focus();
-        field.scrollIntoView({block:'center', behavior:'smooth'});
-        const label = field.closest('div')?.querySelector('label');
-        status.textContent = 'กรุณากรอก ' + (label?.textContent || 'รายชื่อกรรมการ/ผู้ลงนาม') + ' ก่อนออกเอกสาร';
-        return;
-      }
+      const field=form.elements.namedItem(name);
+      if(field && !field.value.trim()) flag(field,'กรุณากรอก '+labelOf(field));
     }
-    if (!form.reportValidity()) return;
+    form.querySelectorAll('input[data-date]').forEach(field=>{
+      if(!field.value.trim())return;
+      const match=field.value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      let valid=false;
+      if(match){const day=Number(match[1]),month=Number(match[2]),year=Number(match[3])-(Number(match[3])>2400?543:0);const date=new Date(Date.UTC(year,month-1,day)); valid=year>=1900 && date.getUTCFullYear()===year && date.getUTCMonth()===month-1 && date.getUTCDate()===day;}
+      if(!valid) flag(field,labelOf(field)+' ไม่ถูกต้อง กรุณากรอก วว/ดด/ปปปป เช่น 14/09/2569');
+    });
+    form.querySelectorAll('input,select,textarea').forEach(field=>{if(!field.validity.valid)flag(field,labelOf(field)+': '+field.validationMessage);});
+    form.querySelectorAll('#selection-rows tr').forEach(row=>{
+      const title=row.querySelector('[data-field=title]'),level=row.querySelector('[data-field=level]');
+      if(title.value.trim() && !level.value)flag(level,'กรุณาเลือกระดับชั้นของหนังสือ');
+      if(!title.value.trim() && [...row.querySelectorAll('[data-field=level],[data-field=subject],[data-field=publisher]')].some(field=>field.value.trim())) flag(title,'กรุณากรอกชื่อหนังสือ');
+    });
+    refreshErrors();
+    if(issues.size){status.textContent=`ยังดำเนินการไม่ได้ กรุณาตรวจช่องสีแดง ${issues.size} จุด`; const first=issues.keys().next().value;first.focus();first.scrollIntoView({block:'center',behavior:'smooth'});return;}
     const data = new FormData(form);
     const controls = [...form.querySelectorAll('input,select,textarea,button')];
     const disabled = controls.map(el => el.disabled);

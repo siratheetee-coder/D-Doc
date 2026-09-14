@@ -3,21 +3,21 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">งานบุคคล · การนิเทศภายในสถานศึกษา</div>
+    <div class="hero-sub">งานวิชาการ · การนิเทศภายในสถานศึกษา</div>
     <span class="hero-title">การนิเทศภายใน</span>
     <div class="hero-meta">{{ school.name or "" }} · ผอ. กรอกผลการประเมินแล้วพิมพ์เอกสารได้เลย</div>
   </div>
 </div>
 
 <div class="sup-grid">
-  <a class="sup-card sc-teal" href="/hr/supervision-form" style="--d:.05s;">
+  <a class="sup-card sc-violet" href="/academic/supervision-form" style="--d:.05s;">
     <span class="sc-glow"></span>
     <span class="sc-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span>
     <span class="sc-title">นิเทศการจัดการเรียนรู้</span>
     <span class="sc-desc">ประเมินสมรรถนะการจัดการเรียนรู้ 25 ข้อ (4 ด้าน) + บันทึกการนิเทศ</span>
     <span class="sc-foot"><span class="sc-count">{{ n_sup }}</span> รายการ <svg class="icon sc-arw"><use href="#ic-arrow-right"/></svg></span>
   </a>
-  <a class="sup-card sc-indigo" href="/hr/classroom-visit" style="--d:.16s;">
+  <a class="sup-card sc-indigo" href="/academic/classroom-visit" style="--d:.16s;">
     <span class="sc-glow"></span>
     <span class="sc-ic"><svg class="icon"><use href="#ic-users"/></svg></span>
     <span class="sc-title">การเยี่ยมชั้นเรียน</span>
@@ -32,7 +32,7 @@
     box-shadow:0 10px 30px rgba(16,24,40,.16); isolation:isolate;
     animation:scIn .5s cubic-bezier(.2,.75,.25,1) both; animation-delay:var(--d,0s);
     transition:transform .25s cubic-bezier(.2,.75,.25,1), box-shadow .25s; }
-  .sc-teal   { background:linear-gradient(135deg,#0ea5a5 0%,#0d9488 45%,#0f766e 100%); }
+  .sc-violet   { background:linear-gradient(135deg,#7c3aed 0%,#6366f1 45%,#4338ca 100%); }
   .sc-indigo { background:linear-gradient(135deg,#6366f1 0%,#4f46e5 45%,#4338ca 100%); }
   .sup-card:hover { transform:translateY(-6px) scale(1.015); box-shadow:0 20px 44px rgba(16,24,40,.28); }
   .sup-card:active { transform:translateY(-2px) scale(1.0); }

@@ -55,6 +55,11 @@ def module_for_path(path: str):
       /register.xlsx -> procurement     แต่ /register (หน้าสมัครสมาชิก) -> None
     """
     p = (path or "").rstrip("/") or "/"
+    # Legacy supervision links use academic access checks before redirecting.
+    if any(p == prefix or p.startswith(prefix + '/') for prefix in (
+            '/hr/supervision', '/hr/supervision-form', '/hr/classroom-visit')):
+        return 'academic'
+
     for key in MODULE_KEYS:
         for pre in MODULE_PREFIXES[key]:
             if pre.endswith("."):            # "/register." -> จับเฉพาะ /register.xlsx ฯลฯ

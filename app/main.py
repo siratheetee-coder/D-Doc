@@ -71,8 +71,8 @@ _DIRECTOR_WRITE_ALLOW = [
     re.compile(r"^/academic/lesson-plans/\d+/approve$"),   # อนุมัติแผนการสอน
     re.compile(r"^/hr/leave-requests/\d+/approve$"),        # อนุมัติใบลา
     re.compile(r"^/hr/travel-requests/\d+/approve$"),       # อนุมัติไปราชการ
-    re.compile(r"^/hr/classroom-visit/(save|\d+/delete)$"), # นิเทศ: เยี่ยมชั้นเรียน
-    re.compile(r"^/hr/supervision-form/(save|\d+/delete)$"),# นิเทศ: นิเทศการสอน
+    re.compile(r"^/(?:hr|academic)/classroom-visit/(save|\d+/delete)$"), # นิเทศ: เยี่ยมชั้นเรียน
+    re.compile(r"^/(?:hr|academic)/supervision-form/(save|\d+/delete)$"),# นิเทศ: นิเทศการสอน
     re.compile(r"^/support$"),                              # ติดต่อเจ้าหน้าที่
 ]
 
@@ -329,6 +329,8 @@ app.include_router(admin.router)
 app.include_router(finance.router)
 app.include_router(lunch.router)
 app.include_router(hr.router)
+from app.routers import academic_supervision
+app.include_router(academic_supervision.router)
 app.include_router(academic.router)
 app.include_router(textbooks.router)
 app.include_router(general.router)

@@ -834,7 +834,6 @@
         <a href="/hr/travel-requests" class="{{ 'active' if path.startswith('/hr/travel-requests') }}"><svg class="icon"><use href="#ic-send"/></svg> ขอไปราชการรออนุมัติ</a>
         <a href="/hr/leave" class="{{ 'active' if path == '/hr/leave' }}"><svg class="icon"><use href="#ic-calendar"/></svg> ทะเบียนวันลา</a>
         <a href="/hr/travel" class="{{ 'active' if path == '/hr/travel' or path.startswith('/hr/travel/') }}"><svg class="icon"><use href="#ic-send"/></svg> ทะเบียนไปราชการ</a>
-        <a href="/hr/supervision" class="{{ 'active' if path.startswith('/hr/supervision') or path.startswith('/hr/classroom-visit') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> การนิเทศภายใน</a>
 
         {% elif module == 'academic' %}
         {% set acad_teacher = request.session.get('person_id') and not request.session.get('owner') and not request.session.get('director') %}
@@ -844,6 +843,7 @@
         <a href="/academic/classes" class="{{ 'active' if path.startswith('/academic/classes') }}"><svg class="icon"><use href="#ic-users"/></svg> ห้องเรียน</a>
         <a href="/academic/subjects" class="{{ 'active' if path.startswith('/academic/subjects') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> รายวิชา</a>
         <a href="/academic/assign-teachers" class="{{ 'active' if path.startswith('/academic/assign-teachers') }}"><svg class="icon"><use href="#ic-users"/></svg> จัดครูเข้าสอน</a>
+        <a href="/academic/supervision" class="{{ 'active' if path.startswith('/academic/supervision') or path.startswith('/academic/classroom-visit') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> การนิเทศภายใน</a>
         <a href="/academic/calendar" class="{{ 'active' if path.startswith('/academic/calendar') }}"><svg class="icon"><use href="#ic-calendar"/></svg> ปฏิทินการศึกษา</a>
         {% endif %}
         <a href="/academic/attendance" class="{{ 'active' if path.startswith('/academic/attendance') }}"><svg class="icon"><use href="#ic-clock"/></svg> เวลาเรียน</a>
