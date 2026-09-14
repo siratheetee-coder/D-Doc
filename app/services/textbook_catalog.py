@@ -3,10 +3,34 @@ import re
 import time
 from functools import lru_cache
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.request import Request, urlopen, build_opener, HTTPRedirectHandler
 from lxml import html
 
 SOURCE = "http://202.29.173.190/textbook/web/index.php"
+
+class _NoImageRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+@lru_cache(maxsize=32)
+def fetch_cover(filename, bucket):
+    if not re.fullmatch(r'[A-Za-z0-9_-]{1,100}\.(?:jpg|jpeg|png|webp)', filename):
+        raise ValueError('Invalid cover filename')
+    url = SOURCE.rsplit('/', 1)[0] + '/images/book/' + filename
+    with build_opener(_NoImageRedirect()).open(Request(url, headers={'User-Agent': 'EasyEkkasan/1.0'}), timeout=8) as response:
+        data = response.read(2_000_001)
+    if len(data) > 2_000_000:
+        raise ValueError('Cover too large')
+    if data.startswith(b'\xff\xd8\xff'):
+        mime = 'image/jpeg'
+    elif data.startswith(b'\x89PNG\r\n\x1a\n'):
+        mime = 'image/png'
+    elif data[:4] == b'RIFF' and data[8:12] == b'WEBP':
+        mime = 'image/webp'
+    else:
+        raise ValueError('Unsupported cover data')
+    return data, mime
 CLASS_IDS = {**{f"ป.{i}": str(i) for i in range(1, 7)},
              "ม.1": "9", "ม.2": "10", "ม.3": "11", "ม.4": "13", "ม.5": "14", "ม.6": "15"}
 
@@ -30,11 +54,14 @@ def parse_results(content):
             raise ValueError("รูปแบบข้อมูลหนังสือจากต้นทางเปลี่ยนไป")
         level = values.get("ชั้น", "")
         m = re.fullmatch(r"(ประถม|มัธยม)ศึกษาปีที่\s*([1-6])", level)
+        images = item.xpath('./div[@class="image"]/img/@src')
+        cover = re.fullmatch(r'images/book/([A-Za-z0-9_-]{1,100}\.(?:jpg|jpeg|png|webp))', images[0]) if images else None
         rows.append({"title": titles[0], "price": float(price.group(1).replace(',', '')),
                      "publisher": values.get("ผู้จัดพิมพ์", ""), "subject": values.get("กลุ่มสาระการเรียนรู้", ""),
                      "level": (('ป.' if m[1] == 'ประถม' else 'ม.') + m[2]) if m else '',
                      "source_level": level, "publication": values.get("ปี พ.ศ. ที่เผยแพร่", ""),
-                     "source_id": identifier[1]})
+                     "source_id": identifier[1],
+                     "cover_url": '/textbooks/purchase/catalog/cover/' + cover[1] if cover else ''})
     if not tree.xpath('//*[@id="result_content"]'):
         raise ValueError("ไม่พบผลค้นหาจากฐานข้อมูลต้นทาง")
     pages = re.search(r"หน้าที่\s*(\d+)\s*จาก\s*(\d+)\s*หน้า", tree.text_content())

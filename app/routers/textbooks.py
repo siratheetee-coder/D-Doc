@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db, get_data_dir
@@ -218,6 +218,18 @@ def textbook_catalog(q: str = "", level: str = "", page: int = 1, subject: str =
         return search_catalog(q, level, page, subject, publisher, publication, refresh)
     except Exception:
         raise HTTPException(status_code=502, detail="ติดต่อฐานข้อมูลหนังสือเรียนไม่ได้ในขณะนี้ กรุณาลองใหม่หรือกรอกรายการเอง")
+
+
+@router.get("/textbooks/purchase/catalog/cover/{filename}")
+def textbook_cover(filename: str):
+    import time
+    from app.services.textbook_catalog import fetch_cover
+    try:
+        data, mime = fetch_cover(filename, int(time.time() // 300))
+    except Exception:
+        raise HTTPException(status_code=404, detail="ไม่พบรูปปกหนังสือ")
+    return Response(data, media_type=mime, headers={
+        'Cache-Control': 'private, max-age=300', 'X-Content-Type-Options': 'nosniff'})
 
 
 @router.post("/textbooks/purchase/to-register")

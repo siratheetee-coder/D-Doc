@@ -99,7 +99,16 @@
       if(data.fetched_at) status.textContent+=' · ดึงข้อมูล '+new Date(data.fetched_at*1000).toLocaleString('th-TH');
       document.getElementById('catalog-source').href=data.source_url;
       for (const item of data.items) {
-        const card=document.createElement('div'); card.style.cssText='padding:12px;border-bottom:1px solid #e2e8f0';
+        const card=document.createElement('div'); card.style.cssText='padding:12px;border-bottom:1px solid #e2e8f0;display:flow-root';
+        const cover=document.createElement('div'); cover.style.cssText='float:left;width:90px;min-height:120px;margin:0 16px 8px 0;background:#fff;border:1px solid #dce3ef;border-radius:8px;text-align:center;overflow:hidden';
+        const fallback=document.createElement('span'); fallback.textContent='ไม่มีรูปปก'; fallback.style.cssText='display:block;padding:42px 4px;color:#64748b;font-size:13px'; cover.appendChild(fallback);
+        if (item.cover_url && /^\/textbooks\/purchase\/catalog\/cover\/[A-Za-z0-9_-]+\.(jpg|jpeg|png|webp)$/.test(item.cover_url)) {
+          const img=document.createElement('img'); img.alt='ปกหนังสือ '+item.title; img.loading='lazy'; img.decoding='async'; img.width=90; img.height=120; img.style.cssText='display:block;object-fit:contain;max-width:100%';
+          img.onload=()=>{fallback.hidden=true;fallback.style.display='none';img.style.display='block';};
+          img.onerror=()=>{img.remove();fallback.hidden=false;fallback.style.display='block';fallback.textContent='โหลดรูปไม่ได้';};
+          fallback.style.display='none';img.src=item.cover_url; cover.appendChild(img);
+        }
+        card.appendChild(cover);
         const title=document.createElement('strong'); title.textContent=item.title; card.appendChild(title);
         const info=document.createElement('p'); info.textContent=[item.source_level,item.subject,item.publisher,item.publication,`${item.price} บาท`].filter(Boolean).join(' · '); card.appendChild(info);
         const add=document.createElement('button'); add.type='button'; add.className='btn sm'; add.textContent='+ เพิ่มเพื่อคัดเลือก';
