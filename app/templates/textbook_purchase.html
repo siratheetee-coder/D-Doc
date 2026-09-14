@@ -146,20 +146,18 @@
   <datalist id="persons">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist>
   <datalist id="positions">{% for ps in positions %}<option value="{{ ps }}">{% endfor %}</datalist>
 
-  <div class="card">
-    <h2>TOR แบบมาตรฐาน</h2>
-    <p>ระบบเติมความเป็นมา วัตถุประสงค์ คุณสมบัติผู้เสนอราคา เงื่อนไข และช่องทางติดต่อให้จากข้อมูลโรงเรียนและรายการที่คัดเลือก</p>
-    <p class="muted">ตรวจวิธีซื้อ งบประมาณ ระยะเวลาดำเนินการ การส่งมอบ และรายชื่อผู้จัดทำ TOR ด้านบนก่อนออกเอกสาร</p>
-    <button class="btn green" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกข้อมูลทั้งหมด</button>
-  </div>
 <div class="card">
-  <h2>ออกเอกสาร <span class="muted" style="font-size:14px;">(ขั้นก่อนจัดซื้อ · ออกทีละฉบับได้)</span></h2>
+  <h2>บันทึกข้อมูลและออกเอกสาร <span class="muted" style="font-size:14px;">(ขั้นก่อนจัดซื้อ · ออกทีละฉบับได้)</span></h2>
   <p class="muted" style="margin-top:0;">ระบบจะตรวจข้อมูลและบันทึกข้อมูลล่าสุดก่อนออกเอกสารทุกครั้ง</p>
   <div id="purchase-errors" role="alert" hidden></div>
   <p id="purchase-status" role="status" aria-live="polite"></p>
+  <div style="margin-bottom:16px;">
+    <button class="btn gray" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกข้อมูล</button>
+    <span class="muted">สำหรับบันทึกไว้ก่อน โดยยังไม่ออกเอกสาร</span>
+  </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
-    <button class="btn green" type="submit" name="document" value="tor">บันทึกและออก TOR (Word)</button>
-    <button class="btn" type="submit" name="document" value="all">บันทึกและออกชุดคัดเลือก 7 ฉบับ</button>
+    <button class="btn green" type="submit" name="document" value="tor">ออก TOR (Word)</button>
+    <button class="btn" type="submit" name="document" value="all">ออกชุดคัดเลือก 7 ฉบับ</button>
     <button class="btn sm gray" type="submit" name="document" value="memo">1. บันทึกขออนุญาต</button>
     <button class="btn sm gray" type="submit" name="document" value="estimate">2. ประมาณการค่าหนังสือ</button>
     <button class="btn sm gray" type="submit" name="document" value="order">3. คำสั่งแต่งตั้ง กก.คัดเลือก</button>
