@@ -2,24 +2,27 @@
 """
 book_select_doc.py - ชุดเอกสาร "คัดเลือกหนังสือเรียน" (ก่อนขั้นจัดซื้อ)
 
-7 ฉบับตามแฟ้มจริงของโรงเรียน:
+6 ฉบับตามแฟ้มจริงของโรงเรียน:
   1) บันทึกข้อความ ขออนุญาตดำเนินการคัดเลือกหนังสือเรียน
   2) ประมาณการค่าหนังสือเรียน (รายชั้น)
   3) คำสั่งแต่งตั้งคณะกรรมการคัดเลือกหนังสือเรียน (อำนวยการ/คัดเลือกรายชั้น/ดำเนินการประชุม)
   4) ประกาศแต่งตั้งคณะกรรมการภาคี 4 ฝ่าย
-  5) หนังสือเชิญประชุม
+  5) หนังสือเชิญประชุม (หนังสือราชการภายนอก - ครุฑกลาง + ขอแสดงความนับถือ)
   6) แบบสำรวจความต้องการหนังสือเรียน (ชั้นละแผ่น)
-  7) รายงานการประชุมคัดเลือกหนังสือเรียน
 ออกทีละฉบับหรือรวมทั้งชุดเป็นไฟล์เดียวก็ได้ (render_select_bundle)
+
+หมายเหตุ: ไม่มี "รายงานการประชุม" ในชุดนี้ เพราะโรงเรียนเขียนเองตามเนื้อหาที่ประชุมจริง
 """
 import json
 
 from docx import Document
-from docx.shared import Cm
+from docx.shared import Cm, Pt
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 
 from app.services.doc_page import set_a4
 from app.database import get_data_dir
-from app.thai_utils import thai_date, bahttext
+from app.thai_utils import thai_date, thai_date_official, bahttext
 from app.services.book_receipt_doc import _safe
 from app.services.build_templates import (
     _font, _p, _p_runs, _hr, _set_cell, _krut_and_title, _krut_center,
@@ -81,23 +84,75 @@ def _save(doc, name: str) -> str:
     return str(path)
 
 
-def _member_rows(doc, members, *, numbered=True, start=1, selection=False):
-    """รายชื่อกรรมการเป็นตารางไร้เส้นขอบ (ชื่อ / ตำแหน่ง / บทบาท ตรงคอลัมน์)"""
+# ระยะเยื้องมาตรฐานในคำสั่ง: หัวข้อคณะกรรมการ 1.25 ซม. · รายชื่อ/หน้าที่ เยื้องตามหัวข้อ
+_IND_HEAD = 1.25
+_IND_BODY = 1.85
+
+
+def _tbl_indent(t, cm: float):
+    """เยื้องทั้งตารางเข้ามาจากขอบซ้าย (ตาราง Word ไม่รับ paragraph indent)"""
+    ind = OxmlElement("w:tblInd")
+    ind.set(qn("w:w"), str(int(cm * 567)))
+    ind.set(qn("w:type"), "dxa")
+    t._tbl.tblPr.append(ind)
+
+
+def _board_head(doc, text):
+    """หัวข้อคณะกรรมการ (ตัวหนา เยื้องเท่ากันทุกหัวข้อ)"""
+    pr = _p(doc, text, bold=True, after=1)
+    pr.paragraph_format.left_indent = Cm(_IND_HEAD)
+    return pr
+
+
+def _duty(doc, text, *, extra=()):
+    """บรรทัด "หน้าที่" - คำว่าหน้าที่เป็นตัวหนา และเยื้องระดับเดียวกับหัวข้อคณะกรรมการ
+    extra = ข้อย่อย 2., 3. ... ที่ต้องเยื้องลึกกว่าอีกขั้น"""
+    pr = _p_runs(doc, [("หน้าที่  ", True), (text, False)], size=16, after=0)
+    pf = pr.paragraph_format
+    pf.left_indent = Cm(_IND_HEAD)
+    pf.alignment = None
+    for i, t in enumerate(extra):
+        q = _p(doc, t, after=0 if i < len(extra) - 1 else 2)
+        q.paragraph_format.left_indent = Cm(_IND_BODY)
+    if not extra:
+        pr.paragraph_format.space_after = Pt(4)
+    return pr
+
+
+def _member_rows(doc, members, *, numbered=True, start=1, selection=False, inline=False):
+    """รายชื่อกรรมการ เยื้องเข้ามาใต้หัวข้อคณะกรรมการ
+
+    inline=True : เขียนต่อกันเป็นบรรทัดเดียว (ชื่อ ตำแหน่ง บทบาท) ประหยัดพื้นที่
+    inline=False: ตารางไร้เส้นขอบ ให้ ชื่อ/ตำแหน่ง/บทบาท ตรงคอลัมน์กัน
+    """
     rows = [m for m in (members or []) if (m.get("name") or "").strip()]
     if not rows:
         rows = [{"name": "", "position": "", "role": ""}]
-    t = doc.add_table(rows=len(rows), cols=4)
-    _no_borders(t)
-    widths = [Cm(1.0), Cm(8.0), Cm(3.5), Cm(4.0)] if selection else [Cm(1.0), Cm(6.6), Cm(4.6), Cm(4.3)]
-    _fixed_cols(t, widths)
-    for i, (row, m) in enumerate(zip(t.rows, rows), start=start):
+
+    def parts(i, m):
         name = (m.get("name") or "").strip() or _BLANK
         pos = (m.get("position") or "").strip() or "ครู"
         role = (m.get("role") or "").strip() or "กรรมการ"
-        label = f"2.{i}" if selection else f"{i}." if numbered else ""
+        label = f"2.{i}" if selection else (f"{i}." if numbered else "")
         if selection:
             name = f"{name} (ชั้น {(m.get('level') or '-').strip()})"
-        vals = [label, name, f"ตำแหน่ง {pos}", role]
+        return label, name, f"ตำแหน่ง {pos}", role
+
+    if inline:
+        for i, m in enumerate(rows, start=start):
+            label, name, pos, role = parts(i, m)
+            line = " ".join(x for x in [label, name, pos, role] if x)
+            pr = _p(doc, line, size=15, after=0)
+            pr.paragraph_format.left_indent = Cm(_IND_BODY)
+        return None
+
+    t = doc.add_table(rows=len(rows), cols=4)
+    _no_borders(t)
+    widths = [Cm(1.0), Cm(7.0), Cm(3.4), Cm(3.4)] if selection else [Cm(1.0), Cm(5.8), Cm(4.2), Cm(3.8)]
+    _fixed_cols(t, widths)
+    _tbl_indent(t, _IND_BODY)
+    for i, (row, m) in enumerate(zip(t.rows, rows), start=start):
+        vals = list(parts(i, m))
         _no_split_row(row)
         for c, v, w in zip(row.cells, vals, widths):
             _set_cell(c, v, size=15, align="left")
@@ -230,28 +285,26 @@ def render_select_order(school, tp, doc=None):
             "ทางการศึกษา พ.ศ. 2547 จึงแต่งตั้งบุคคลผู้มีรายนามต่อไปนี้เป็นคณะกรรมการ ดังนี้",
        align="justify", indent=1.25, after=2)
 
-    _p(doc, "1. คณะกรรมการอำนวยการ", bold=True, indent=0.6, after=1)
-    _member_rows(doc, boards.get("exec") or [])
-    _p(doc, "หน้าที่  ให้คำปรึกษา แนะนำในการคัดเลือกหนังสือเรียนตามนโยบาย และการแต่งตั้ง"
-            "คณะกรรมการภาคี 4 ฝ่าย", align="justify", indent=1.25, before=2, after=2)
+    # คณะกรรมการอำนวยการ: เขียนติดกันบรรทัดเดียวต่อคน เพื่อประหยัดพื้นที่
+    _board_head(doc, "1. คณะกรรมการอำนวยการ")
+    _member_rows(doc, boards.get("exec") or [], inline=True)
+    _duty(doc, "ให้คำปรึกษา แนะนำในการคัดเลือกหนังสือเรียนตามนโยบาย "
+               "และการแต่งตั้งคณะกรรมการภาคี 4 ฝ่าย")
 
-    _p(doc, "2. คณะกรรมการพิจารณาคัดเลือกหนังสือเรียน (รายชั้น)", bold=True, indent=0.6, after=1)
-    sel = boards.get("select") or []
-    _member_rows(doc, sel, selection=True)
-    _p(doc, "หน้าที่  1. พิจารณาคัดเลือกหนังสือให้ตรงตามหลักสูตรที่กระทรวงศึกษาธิการกำหนด "
-            "ตามมาตรฐานการเรียนรู้และตัวชี้วัด (ฉบับปรับปรุง พ.ศ. 2560)",
-       align="justify", indent=1.25, before=2, after=0)
-    _p(doc, "2. ประชุมคณะกรรมการคัดเลือกหนังสือเรียน", indent=2.0, after=0)
-    _p(doc, "3. รวบรวมรายชื่อหนังสือส่งหัวหน้างานบริหารวิชาการ", indent=2.0, after=2)
+    _board_head(doc, "2. คณะกรรมการพิจารณาคัดเลือกหนังสือเรียน (รายชั้น)")
+    _member_rows(doc, boards.get("select") or [], selection=True)
+    _duty(doc, "1. พิจารณาคัดเลือกหนังสือให้ตรงตามหลักสูตรที่กระทรวงศึกษาธิการกำหนด "
+               "ตามมาตรฐานการเรียนรู้และตัวชี้วัด (ฉบับปรับปรุง พ.ศ. 2560)",
+          extra=["2. ประชุมคณะกรรมการคัดเลือกหนังสือเรียน",
+                 "3. รวบรวมรายชื่อหนังสือส่งหัวหน้างานบริหารวิชาการ"])
 
-    _p(doc, "3. คณะกรรมการดำเนินการจัดประชุม", bold=True, indent=0.6, after=1)
+    _board_head(doc, "3. คณะกรรมการดำเนินการจัดประชุม")
     _member_rows(doc, boards.get("meeting") or [])
-    _p(doc, "หน้าที่  จัดประชุมคณะกรรมการคัดเลือกหนังสือเรียนและคณะกรรมการภาคี 4 ฝ่าย "
-            "รวบรวมรายชื่อหนังสือส่งกลุ่มบริหารงบประมาณ จดบันทึกการประชุม และจัดทำแฟ้มสรุปงาน",
-       align="justify", indent=1.25, before=2, after=2)
+    _duty(doc, "จัดประชุมคณะกรรมการคัดเลือกหนังสือเรียนและคณะกรรมการภาคี 4 ฝ่าย "
+               "รวบรวมรายชื่อหนังสือส่งกลุ่มบริหารงบประมาณ จดบันทึกการประชุม และจัดทำแฟ้มสรุปงาน")
 
     _p(doc, "ให้คณะกรรมการที่ได้รับแต่งตั้งปฏิบัติหน้าที่ด้วยความเสียสละและรับผิดชอบ "
-            "เกิดผลดีแก่ทางราชการ", align="justify", indent=1.25, after=1)
+            "เกิดผลดีแก่ทางราชการ", align="justify", indent=1.25, before=4, after=1)
     _p(doc, f"สั่ง ณ วันที่ {thai_date(tp.order_date)}", align="center", before=4, after=12)
     _director_sign(doc, school)
     return _save(doc, f"คำสั่งแต่งตั้งกรรมการคัดเลือกหนังสือ_{tp.year}") if own else doc
@@ -284,7 +337,7 @@ def render_parties_announce(school, tp, doc=None):
     n = 1
     for key, label in _PARTY_LABELS:
         rows = [m for m in (parties.get(key) or []) if (m.get("name") or "").strip()]
-        _p(doc, f"{n}. {label}", bold=True, indent=0.6, after=1)
+        _board_head(doc, f"{n}. {label}")
         _member_rows(doc, rows or [{"name": "", "position": "", "role": label}], numbered=False)
         n += 1
     _p(doc, "ให้คณะกรรมการภาคี 4 ฝ่าย มีหน้าที่ร่วมพิจารณาให้ความเห็นชอบรายการหนังสือเรียน "
@@ -297,31 +350,61 @@ def render_parties_announce(school, tp, doc=None):
 
 # ------------------------------------------------------------------ 5) หนังสือเชิญประชุม
 def render_invite(school, tp, doc=None):
+    """หนังสือเชิญประชุม - เป็น "หนังสือราชการภายนอก" (ครุฑกลาง + ขอแสดงความนับถือ)
+    ไม่ใช่บันทึกข้อความ เพราะส่งถึงบุคคลภายนอก (ภาคี 4 ฝ่าย / กรรมการสถานศึกษา)"""
     own = doc is None
     doc = doc or _new()
     if not own:
         _break(doc)
     sname = (school.name or "โรงเรียน").strip()
-    _krut_and_title(doc)
-    _p_runs(doc, [("ส่วนราชการ  ", True), (_office(school), False)])
-    _p_runs(doc, [("ที่  ", True), (tp.invite_no or _BLANK, False),
-                  ("\t", False), ("วันที่ ", True), (thai_date(tp.invite_date), False)], tab_cm=8)
+    _krut_center(doc, height_cm=2.0)
+
+    # ที่ ... (ซ้าย) + ชื่อ/ที่อยู่โรงเรียน (ขวา)
+    t = doc.add_table(rows=1, cols=2)
+    _no_borders(t)
+    t.autofit = False
+    widths = [Cm(8.0), Cm(8.5)]
+    _fixed_cols(t, widths)
+    _set_cell(t.rows[0].cells[0], "ที่  " + (tp.invite_no or _BLANK), align="left", size=16)
+    addr = (getattr(school, "address", "") or "").strip()
+    _set_cell(t.rows[0].cells[1], sname + (("\n" + addr) if addr else ""), align="right", size=16)
+    for c, w in zip(t.rows[0].cells, widths):
+        c.width = w
+
+    _p(doc, thai_date_official(tp.invite_date) if tp.invite_date else _BLANK,
+       align="center", before=4, after=6)
     _p_runs(doc, [("เรื่อง  ", True), ("ขอเชิญประชุมคัดเลือกหนังสือเรียน "
                                        f"ปีการศึกษา {tp.year}", False)])
-    _p_runs(doc, [("เรียน  ", True), ("คณะกรรมการคัดเลือกหนังสือเรียน คณะกรรมการภาคี 4 ฝ่าย "
-                                      "และคณะกรรมการสถานศึกษาขั้นพื้นฐาน", False)])
-    _hr(doc)
+    _p_runs(doc, [("เรียน  ", True), ("คณะกรรมการสถานศึกษาขั้นพื้นฐาน / คณะกรรมการภาคี 4 ฝ่าย "
+                                      "และคณะกรรมการคัดเลือกหนังสือเรียน", False)])
+    _p_runs(doc, [("สิ่งที่ส่งมาด้วย  ", True), ("1. ระเบียบวาระการประชุม", False),
+                  ("	", False), ("จำนวน 1 ฉบับ", False)], tab_cm=11.5)
+    for n, txt in [(2, "รายละเอียดประมาณการค่าหนังสือเรียนและแบบฝึกหัด"),
+                   (3, "แบบสำรวจความต้องการหนังสือเรียนรายชั้น")]:
+        pr = _p_runs(doc, [(f"{n}. {txt}", False), ("	", False), ("จำนวน 1 ฉบับ", False)],
+                     tab_cm=11.5)
+        pr.paragraph_format.left_indent = Cm(2.6)
+
     when = thai_date(tp.meet_date) if tp.meet_date else _BLANK
-    _p(doc, f"ด้วย{sname} จะดำเนินการคัดเลือกหนังสือเสริมประสบการณ์ หนังสือเรียนรายวิชาพื้นฐาน"
-            f"ใน 8 กลุ่มสาระการเรียนรู้ และแบบฝึกหัดรายวิชาพื้นฐาน ประจำปีการศึกษา {tp.year} "
-            "ตามโครงการสนับสนุนค่าใช้จ่ายในการจัดการศึกษาตั้งแต่ระดับอนุบาลจนจบการศึกษาขั้นพื้นฐาน",
+    _p(doc, "", after=4)
+    _p(doc, "ตามแนวทางการดำเนินงานโครงการสนับสนุนค่าใช้จ่ายในการจัดการศึกษาตั้งแต่ระดับอนุบาล"
+            f"จนจบการศึกษาขั้นพื้นฐาน ปีการศึกษา {tp.year} ได้กำหนดบทบาทหน้าที่ของคณะกรรมการ"
+            "สถานศึกษาขั้นพื้นฐานและคณะกรรมการภาคี 4 ฝ่าย โดยการร่วมพิจารณาให้ความเห็นชอบ"
+            "การคัดเลือกหนังสือเรียน นั้น", align="justify", indent=1.25, after=2)
+    _p(doc, "เพื่อให้เป็นไปตามขั้นตอนตามแนวทางการดำเนินงานดังกล่าว "
+            f"{sname} จึงใคร่ขอเรียนเชิญท่านเข้าร่วมประชุมคัดเลือกหนังสือเรียน "
+            f"ประจำปีการศึกษา {tp.year} ในวันที่ {when} "
+            f"เวลา {(tp.meet_time or '').strip() or _BLANK} "
+            f"ณ {(tp.meet_place or '').strip() or _BLANK} รายละเอียดตามสิ่งที่ส่งมาด้วยพร้อมนี้",
        align="justify", indent=1.25, after=2)
-    _p(doc, f"ในการนี้ จึงขอเรียนเชิญท่านเข้าร่วมประชุมเพื่อพิจารณาให้ความเห็นชอบรายการหนังสือเรียน "
-            f"ในวันที่ {when} เวลา {(tp.meet_time or '').strip() or _BLANK} "
-            f"ณ {(tp.meet_place or '').strip() or _BLANK}", align="justify", indent=1.25, after=2)
-    _p(doc, "จึงเรียนมาเพื่อโปรดทราบและเข้าร่วมประชุมตามวัน เวลา และสถานที่ดังกล่าว",
-       align="justify", indent=1.25, after=12)
+    _p(doc, "จึงเรียนมาเพื่อโปรดทราบ และพิจารณา", align="justify", indent=1.25, after=8)
+
+    _p(doc, "ขอแสดงความนับถือ", align="center", after=12)
     _director_sign(doc, school)
+    head = (getattr(tp, "academic_head", "") or "").strip()
+    _p(doc, "งานบริหารวิชาการ" + (f"  {head}" if head else ""), size=14, before=10, after=0)
+    _p(doc, f"โทรศัพท์ {(getattr(school, 'phone', '') or '').strip() or _BLANK}",
+       size=14, after=0)
     return _save(doc, f"หนังสือเชิญประชุมคัดเลือกหนังสือ_{tp.year}") if own else doc
 
 
@@ -340,9 +423,9 @@ def render_survey(school, tp, groups, doc=None):
         first = False
         _p(doc, f"แบบสำรวจความต้องการหนังสือเรียนและแบบฝึกหัด ปีการศึกษา {tp.year}",
            align="center", bold=True, size=17, after=0)
-        _p(doc, f"ชั้น{level or _BLANK}", align="center", bold=True, size=16, after=0)
-        _p(doc, (school.name or "").strip(), align="center", size=15, after=6)
-        _p(doc, f"ครูผู้สอน/ครูประจำชั้น {_DOTS}", size=15, after=4)
+        _p(doc, f"ชั้น{level or _BLANK} {(school.name or '').strip()}",
+           align="center", bold=True, size=16, after=0)
+        _p(doc, f"ครูผู้สอน/ครูประจำชั้น {_DOTS}", align="center", size=15, after=4)
         headers = ["ที่", "ชื่อหนังสือ", "สำนักพิมพ์", "ราคา/เล่ม", "จำนวน", "เป็นเงิน"]
         widths = [Cm(1.0), Cm(6.2), Cm(3.0), Cm(2.1), Cm(1.8), Cm(2.4)]
         t = doc.add_table(rows=1, cols=len(headers))
@@ -382,104 +465,10 @@ def render_survey(school, tp, groups, doc=None):
     return _save(doc, f"แบบสำรวจความต้องการหนังสือเรียน_{tp.year}") if own else doc
 
 
-# --------------------------------------------------------------- 7) รายงานการประชุม
-def render_meeting_report(school, tp, groups, doc=None):
-    own = doc is None
-    doc = doc or _new()
-    if not own:
-        _break(doc)
-    sname = (school.name or "โรงเรียน").strip()
-    boards = _jload(tp.boards, {})
-    parties = _jload(tp.parties, {})
-    _p(doc, "รายงานการประชุมคณะกรรมการคัดเลือกหนังสือเรียน", align="center", bold=True,
-       size=17, after=0)
-    _p(doc, f"คณะกรรมการภาคี 4 ฝ่าย และคณะกรรมการสถานศึกษาขั้นพื้นฐาน ปีการศึกษา {tp.year}",
-       align="center", bold=True, size=16, after=0)
-    _p(doc, sname, align="center", size=15, after=0)
-    _p(doc, f"วันที่ {thai_date(tp.meet_date) if tp.meet_date else _BLANK} "
-            f"เวลา {(tp.meet_time or '').strip() or _BLANK} "
-            f"ณ {(tp.meet_place or '').strip() or _BLANK}", align="center", size=15, after=6)
-
-    attend = []
-    for key in ("exec", "meeting"):
-        attend += [m for m in (boards.get(key) or []) if (m.get("name") or "").strip()]
-    for key, _label in _PARTY_LABELS:
-        attend += [m for m in (parties.get(key) or []) if (m.get("name") or "").strip()]
-    seen, uniq = set(), []
-    for m in attend:
-        nm = (m.get("name") or "").strip()
-        if nm and nm not in seen:
-            seen.add(nm); uniq.append(m)
-    _p(doc, "ผู้มาประชุม", bold=True, indent=0.6, after=1)
-    _member_rows(doc, uniq)
-
-    _p(doc, "เริ่มประชุม", bold=True, indent=0.6, before=4, after=1)
-    _p(doc, f"ประธานกล่าวเปิดประชุมและดำเนินการประชุมตามระเบียบวาระ ดังนี้",
-       indent=1.25, after=2)
-    _p(doc, "ระเบียบวาระที่ 1 เรื่องที่ประธานแจ้งให้ที่ประชุมทราบ", bold=True, indent=0.6, after=1)
-    _p(doc, f"{sname} ได้รับจัดสรรงบประมาณค่าหนังสือเรียนตามโครงการสนับสนุนค่าใช้จ่าย"
-            f"ในการจัดการศึกษาตั้งแต่ระดับอนุบาลจนจบการศึกษาขั้นพื้นฐาน ปีการศึกษา {tp.year} "
-            "จึงต้องดำเนินการคัดเลือกหนังสือเรียนให้แล้วเสร็จก่อนเปิดภาคเรียน",
-       align="justify", indent=1.25, after=2)
-    _p(doc, "ระเบียบวาระที่ 2 เรื่องรับรองรายงานการประชุมครั้งที่ผ่านมา", bold=True,
-       indent=0.6, after=1)
-    _p(doc, "- ไม่มี -", indent=1.25, after=2)
-    _p(doc, "ระเบียบวาระที่ 3 เรื่องเสนอเพื่อพิจารณา", bold=True, indent=0.6, after=1)
-    _p(doc, "ครูผู้สอนแต่ละชั้นเสนอรายการหนังสือที่คัดเลือก โดยพิจารณาให้ตรงตามหลักสูตร"
-            "แกนกลางการศึกษาขั้นพื้นฐาน พุทธศักราช 2551 (ฉบับปรับปรุง พ.ศ. 2560) "
-            "สรุปจำนวนและวงเงินได้ ดังนี้", align="justify", indent=1.25, after=2)
-
-    headers = ["ที่", "ระดับชั้น", "จำนวนรายการ", "เป็นเงิน (บาท)"]
-    widths = [Cm(1.2), Cm(5.0), Cm(4.0), Cm(5.0)]
-    t = doc.add_table(rows=1, cols=len(headers))
-    t.style = "Table Grid"
-    _fixed_cols(t, widths)
-    _repeat_header_row(t.rows[0]); _no_split_row(t.rows[0])
-    for c, h, w in zip(t.rows[0].cells, headers, widths):
-        _set_cell(c, h, bold=True, align="center", size=14)
-        c.width = w
-    grand = 0.0
-    n_items = 0
-    for i, (level, items) in enumerate(groups or [], start=1):
-        amount = sum(float(x["price"]) * float(x["qty"]) for x in items)
-        grand += amount
-        n_items += len(items)
-        row = t.add_row(); _no_split_row(row)
-        for c, v, w, al in zip(row.cells,
-                               [str(i), level or "-", str(len(items)), _money(amount)],
-                               widths, ["center", "center", "center", "right"]):
-            _set_cell(c, v, align=al, size=14)
-            c.width = w
-    row = t.add_row(); _no_split_row(row)
-    _set_cell(row.cells[1], "รวม", bold=True, align="center", size=14)
-    _set_cell(row.cells[2], str(n_items), bold=True, align="center", size=14)
-    _set_cell(row.cells[3], _money(grand), bold=True, align="right", size=14)
-    for c, w in zip(row.cells, widths):
-        c.width = w
-
-    _p(doc, "ระเบียบวาระที่ 4 มติที่ประชุม", bold=True, indent=0.6, before=6, after=1)
-    _p(doc, f"ที่ประชุมมีมติเห็นชอบรายการหนังสือเรียนและแบบฝึกหัด จำนวน {n_items} รายการ "
-            f"เป็นเงิน {_money(grand)} บาท ({bahttext(grand)}) "
-            "และให้ดำเนินการจัดซื้อตามพระราชบัญญัติการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ "
-            "พ.ศ. 2560 ต่อไป (รายละเอียดตามบัญชีรายชื่อหนังสือที่แนบ)",
-       align="justify", indent=1.25, after=2)
-    _p(doc, "ระเบียบวาระที่ 5 เรื่องอื่น ๆ", bold=True, indent=0.6, after=1)
-    _p(doc, "- ไม่มี -", indent=1.25, after=2)
-    _p(doc, "เลิกประชุมเวลา ..................... น.", indent=1.25, after=12)
-    _sign_table(doc, [
-        [("ลงชื่อ ......................................", "center"),
-         (f"( {(tp.recorder or '').strip() or _BLANK} )", "center"),
-         ("ผู้จดรายงานการประชุม", "center")],
-        [("ลงชื่อ ......................................", "center"),
-         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
-         ("ผู้ตรวจรายงานการประชุม", "center")],
-    ])
-    return _save(doc, f"รายงานการประชุมคัดเลือกหนังสือ_{tp.year}") if own else doc
-
-
 # ------------------------------------------------------------------------ ทั้งชุด
 def render_select_bundle(school, tp, groups, est_rows, survey_groups) -> str:
-    """ออกชุดคัดเลือกหนังสือทั้ง 7 ฉบับเป็นไฟล์เดียว (เรียงตามลำดับการใช้งานจริง)"""
+    """ออกชุดคัดเลือกหนังสือทั้ง 6 ฉบับเป็นไฟล์เดียว (เรียงตามลำดับการใช้งานจริง)
+    ไม่รวมรายงานการประชุม - โรงเรียนเขียนเองตามเนื้อหาที่ประชุมจริง"""
     doc = _new()
     render_select_memo(school, tp, doc)
     render_estimate(school, tp, est_rows, doc)
@@ -487,5 +476,4 @@ def render_select_bundle(school, tp, groups, est_rows, survey_groups) -> str:
     render_parties_announce(school, tp, doc)
     render_invite(school, tp, doc)
     render_survey(school, tp, survey_groups, doc)
-    render_meeting_report(school, tp, groups, doc)
     return _save(doc, f"ชุดคัดเลือกหนังสือเรียน_{tp.year}")

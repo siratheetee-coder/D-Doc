@@ -366,7 +366,6 @@ def book_select_doc(kind: str, db: Session = Depends(get_db), year: int | None =
         "parties": lambda: bs.render_parties_announce(school, tp),
         "invite": lambda: bs.render_invite(school, tp),
         "survey": lambda: bs.render_survey(school, tp, survey),
-        "report": lambda: bs.render_meeting_report(school, tp, groups),
         "all": lambda: bs.render_select_bundle(school, tp, groups, est, survey),
     }
     if kind not in makers:

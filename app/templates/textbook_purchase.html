@@ -112,8 +112,7 @@
       <div style="flex:1.6;"><label>สถานที่ประชุม</label><input name="meet_place" value="{{ tp.meet_place }}" placeholder="เช่น ห้องประชุมโรงเรียน"></div>
     </div>
     <div class="row">
-      <div style="flex:1.4;"><label>หัวหน้างานวิชาการ (ผู้เสนอบันทึก)</label><input name="academic_head" list="persons" value="{{ tp.academic_head }}"></div>
-      <div style="flex:1.4;"><label>ผู้จดรายงานการประชุม</label><input name="recorder" list="persons" value="{{ tp.recorder }}"></div>
+      <div style="flex:1.4;"><label>หัวหน้างานวิชาการ (ผู้เสนอบันทึก / เจ้าของเรื่องท้ายหนังสือเชิญ)</label><input name="academic_head" list="persons" value="{{ tp.academic_head }}"></div>
     </div>
   </div>
 
@@ -157,14 +156,13 @@
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <button class="btn green" type="submit" name="document" value="tor">ออก TOR (Word)</button>
-    <button class="btn" type="submit" name="document" value="all">ออกชุดคัดเลือก 7 ฉบับ</button>
+    <button class="btn" type="submit" name="document" value="all">ออกชุดคัดเลือก 6 ฉบับ</button>
     <button class="btn sm gray" type="submit" name="document" value="memo">1. บันทึกขออนุญาต</button>
     <button class="btn sm gray" type="submit" name="document" value="estimate">2. ประมาณการค่าหนังสือ</button>
     <button class="btn sm gray" type="submit" name="document" value="order">3. คำสั่งแต่งตั้ง กก.คัดเลือก</button>
     <button class="btn sm gray" type="submit" name="document" value="parties">4. ประกาศภาคี 4 ฝ่าย</button>
     <button class="btn sm gray" type="submit" name="document" value="invite">5. หนังสือเชิญประชุม</button>
     <button class="btn sm gray" type="submit" name="document" value="survey">6. แบบสำรวจความต้องการ</button>
-    <button class="btn sm gray" type="submit" name="document" value="report">7. รายงานการประชุม</button>
   </div>
 </div>
 
@@ -227,7 +225,7 @@
     estimate: [], order: ['order_no','order_date','sel1_name'],
     parties: ['announce_no','announce_date'],
     invite: ['invite_no','invite_date','meet_date','meet_time','meet_place'],
-    survey: [], report: ['meet_date','meet_time','meet_place','recorder']
+    survey: []
   };
   const markDirty = () => { dirty = true; status.textContent = 'มีข้อมูลที่ยังไม่ได้บันทึก'; };
   form.addEventListener('input', markDirty);
@@ -260,7 +258,7 @@
     const transfer = e.submitter?.name === 'transfer';
     for (const field of [...issues.keys()]) clearIssue(field);
     const chosen = [...form.querySelectorAll('#selection-rows tr')].filter(row => row.querySelector('[data-field=title]').value.trim() && row.querySelector('[data-field=selected]').checked);
-    if ((transfer || ['tor','all','report'].includes(kind)) && !chosen.length) flag(document.getElementById('book-selection'),'กรุณาติ๊กคัดเลือกหนังสืออย่างน้อย 1 รายการ');
+    if ((transfer || ['tor','all'].includes(kind)) && !chosen.length) flag(document.getElementById('book-selection'),'กรุณาติ๊กคัดเลือกหนังสืออย่างน้อย 1 รายการ');
     if (['parties','all'].includes(kind)) {
       const kinds = new Set([...form.querySelectorAll('[data-prefix="party"] tbody tr')].filter(row => row.querySelector('[name$="_name"]').value.trim()).map(row => row.querySelector('select').value));
       const labels = {{ party_labels|tojson }};
