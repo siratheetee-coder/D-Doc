@@ -212,10 +212,10 @@ def _legacy_selection(db, yr):
 
 
 @router.get("/textbooks/purchase/catalog")
-def textbook_catalog(q: str = "", level: str = "", page: int = 1):
+def textbook_catalog(q: str = "", level: str = "", page: int = 1, subject: str = "", publisher: str = "", publication: str = "", refresh: bool = False):
     from app.services.textbook_catalog import search_catalog
     try:
-        return search_catalog(q, level, page)
+        return search_catalog(q, level, page, subject, publisher, publication, refresh)
     except Exception:
         raise HTTPException(status_code=502, detail="ติดต่อฐานข้อมูลหนังสือเรียนไม่ได้ในขณะนี้ กรุณาลองใหม่หรือกรอกรายการเอง")
 

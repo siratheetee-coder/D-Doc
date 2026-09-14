@@ -38,21 +38,32 @@ def parse_results(content):
     if not tree.xpath('//*[@id="result_content"]'):
         raise ValueError("ไม่พบผลค้นหาจากฐานข้อมูลต้นทาง")
     pages = re.search(r"หน้าที่\s*(\d+)\s*จาก\s*(\d+)\s*หน้า", tree.text_content())
-    return {"items": rows, "pages": int(pages[2]) if pages else 1}
+    filters = {}
+    for key, field in [('subjects', 'bookgroup'), ('publishers', 'bookprint')]:
+        filters[key] = [{'id': node.get('value'), 'label': ' '.join(node.xpath('ancestor::tr[1]')[0].text_content().split())}
+                        for node in tree.xpath('//input[@name="' + field + '[]"]')]
+    filters['rounds'] = [{'id': node.get('value'), 'label': ' '.join(node.text_content().split())}
+                         for node in tree.xpath('//select[@name="id_round"]/option[@value!=""]')]
+    return {"items": rows, "pages": int(pages[2]) if pages else 1, "filters": filters}
 
 
 @lru_cache(maxsize=64)
-def _search(query, level, page, bucket):
+def _search(query, level, page, bucket, subject='', publisher='', publication=''):
     params = {'bookmain': '11,12', 'name': query, 'class': CLASS_IDS.get(level, ''),
-              'chksearch': 'true', 'ispage': page}
+              'chksearch': 'true', 'ispage': page, 'bookgroup': subject,
+              'bookprint': publisher, 'id_round': publication}
     url = SOURCE + '?' + urlencode(params)
     # The URL is fixed: no user-provided host, path, or external credentials.
     with urlopen(Request(url, headers={'User-Agent': 'EasyEkkasan/1.0'}), timeout=12) as response:
         content = response.read(2_000_001)
     if len(content) > 2_000_000:
         raise ValueError("ผลค้นหาจากต้นทางมีขนาดเกินกำหนด")
-    return {**parse_results(content.decode('utf-8')), "source_url": url, "page": page}
+    return {**parse_results(content.decode('utf-8')), "source_url": url, "page": page,
+            "fetched_at": int(time.time())}
 
 
-def search_catalog(query, level, page):
-    return _search(query.strip()[:100], level, min(max(page, 1), 1000), int(time.time() // 300))
+def search_catalog(query, level, page, subject='', publisher='', publication='', refresh=False):
+    filters = [value if re.fullmatch(r'[0-9]{1,10}', value or '') else ''
+               for value in (subject, publisher, publication)]
+    search = _search.__wrapped__ if refresh else _search
+    return search(query.strip()[:100], level, min(max(page, 1), 1000), int(time.time() // 300), *filters)

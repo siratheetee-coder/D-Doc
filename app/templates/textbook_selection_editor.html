@@ -1,14 +1,18 @@
 <div class="card" id="book-selection">
   <h2>1. รายการคัดเลือกหนังสือเรียน</h2>
   <p class="muted">เพิ่มหนังสือเพื่อพิจารณา แล้วติ๊ก “คัดเลือก” เฉพาะรายการที่จะจัดซื้อ ระบบใช้รายการที่คัดเลือกใน TOR ส่วนแบบสำรวจจะแสดงทุกรายการ</p>
-  <details style="margin:16px 0">
-    <summary style="cursor:pointer;font-weight:700">ค้นหาจากฐานข้อมูลหนังสือเรียน สพฐ.</summary>
-    <p class="muted">ค้นหาหนังสือเรียนและแบบฝึกหัดรายวิชาพื้นฐาน · ตรวจปีที่เผยแพร่และราคาก่อนเลือกใช้</p>
+  <details open style="margin:16px 0;padding:18px;border:2px solid #4775ff;border-radius:14px;background:#f0f5ff">
+    <summary style="cursor:pointer;font-weight:800;font-size:20px;color:#1749cf">🔎 ค้นหาจากฐานข้อมูลหนังสือเรียน สพฐ.</summary>
+    <p class="muted">ค้นหาหนังสือเรียนและแบบฝึกหัดจากต้นทาง แล้วเพิ่มเข้ารายการได้ทันที</p>
     <div class="row">
       <div><label for="catalog-query">ชื่อหนังสือ</label><input id="catalog-query" maxlength="100" placeholder="เช่น ภาษาพาที"></div>
       <div><label for="catalog-level">ระดับชั้น</label><select id="catalog-level"><option value="">ทุกชั้นในฐานข้อมูล</option>{% for lv in school_levels if lv.startswith('ป.') or lv.startswith('ม.') %}<option>{{ lv }}</option>{% endfor %}</select></div>
-      <div style="align-self:end"><button class="btn" type="button" id="catalog-search">ค้นหา</button></div>
+      <div><label for="catalog-subject">กลุ่มสาระ</label><select id="catalog-subject"><option value="">ทุกกลุ่มสาระ</option></select></div>
+      <div><label for="catalog-publisher">สำนักพิมพ์</label><select id="catalog-publisher"><option value="">ทุกสำนักพิมพ์</option></select></div>
+      <div><label for="catalog-publication">ปี / รอบที่เผยแพร่</label><select id="catalog-publication"><option value="">ทุกปี / ทุกรอบ</option></select></div>
+      <div style="align-self:end"><button class="btn" type="button" id="catalog-search">ค้นหาหนังสือ</button> <button class="btn gray" type="button" id="catalog-refresh">ดึงข้อมูลล่าสุด</button></div>
     </div>
+    <p class="muted">ผลค้นหาปกติอาจเก็บไว้ไม่เกิน 5 นาที · กดดึงข้อมูลล่าสุดเพื่ออ่านต้นทางใหม่ รวมปี/รอบใหม่ที่เผยแพร่แล้ว ราคาของรายการที่บันทึกไว้จะไม่เปลี่ยนอัตโนมัติ</p>
     <p id="catalog-status" role="status" aria-live="polite"></p>
     <div id="catalog-results"></div>
     <div style="display:flex;gap:10px;margin-top:12px"><button class="btn sm gray" type="button" id="catalog-prev" hidden>หน้าก่อน</button><button class="btn sm gray" type="button" id="catalog-next" hidden>หน้าถัดไป</button></div>
@@ -74,16 +78,25 @@
   totals();
   let page=1, maxPage=1, searching=false;
   const status=document.getElementById('catalog-status'), results=document.getElementById('catalog-results');
-  const controls=['catalog-search','catalog-prev','catalog-next','catalog-query','catalog-level'].map(id=>document.getElementById(id));
-  async function search(nextPage) {
+  const controls=['catalog-search','catalog-prev','catalog-next','catalog-query','catalog-level','catalog-subject','catalog-publisher','catalog-publication','catalog-refresh'].map(id=>document.getElementById(id));
+  async function search(nextPage, refresh=false) {
     if (searching) return;
     searching=true; controls.forEach(el=>el.disabled=true); status.textContent='กำลังค้นหา…'; results.replaceChildren();
     try {
-      const query=new URLSearchParams({q:document.getElementById('catalog-query').value,level:document.getElementById('catalog-level').value,page:nextPage});
+      const query=new URLSearchParams({q:document.getElementById('catalog-query').value,level:document.getElementById('catalog-level').value,page:nextPage,subject:document.getElementById('catalog-subject').value,publisher:document.getElementById('catalog-publisher').value,publication:document.getElementById('catalog-publication').value,refresh});
       const response=await fetch('/textbooks/purchase/catalog?'+query);
       const data=await response.json(); if (!response.ok) throw new Error(data.detail);
       page=data.page; maxPage=data.pages;
+      for (const [id,key] of [['catalog-subject','subjects'],['catalog-publisher','publishers'],['catalog-publication','rounds']]) {
+        const select=document.getElementById(id), selected=select.value;
+        if (data.filters && data.filters[key]) {
+          while(select.options.length>1) select.remove(1);
+          for(const option of data.filters[key]) select.add(new Option(option.label,option.id));
+          select.value=selected;
+        }
+      }
       status.textContent=data.items.length?`หน้า ${page} / ${maxPage} · ${data.items.length} รายการ`:'ไม่พบรายการ ลองเปลี่ยนคำค้นหรือเพิ่มรายการเอง';
+      if(data.fetched_at) status.textContent+=' · ดึงข้อมูล '+new Date(data.fetched_at*1000).toLocaleString('th-TH');
       document.getElementById('catalog-source').href=data.source_url;
       for (const item of data.items) {
         const card=document.createElement('div'); card.style.cssText='padding:12px;border-bottom:1px solid #e2e8f0';
@@ -98,9 +111,11 @@
     } catch(error) { status.textContent=error.message || 'ค้นหาไม่ได้ กรุณาลองใหม่หรือเพิ่มรายการเอง'; }
     finally { searching=false; controls.forEach(el=>el.disabled=false); document.getElementById('catalog-prev').hidden=page<=1; document.getElementById('catalog-next').hidden=page>=maxPage; }
   }
+  document.getElementById('catalog-refresh').addEventListener('click',()=>search(1,true));
   document.getElementById('catalog-search').addEventListener('click',()=>search(1));
   document.getElementById('catalog-query').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();search(1);}});
   document.getElementById('catalog-prev').addEventListener('click',()=>search(page-1));
   document.getElementById('catalog-next').addEventListener('click',()=>search(page+1));
+  search(1);
 })();
 </script>
