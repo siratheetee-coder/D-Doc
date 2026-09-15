@@ -137,9 +137,9 @@ def _member_rows(doc, members, *, numbered=True, start=1, selection=False):
 
     t = doc.add_table(rows=len(rows), cols=4)
     _no_borders(t)
-    # ช่องตำแหน่งกว้างพอสำหรับ "ครูชำนาญการพิเศษ" ไม่ให้ตัดบรรทัด
-    widths = ([Cm(1.0), Cm(6.2), Cm(4.0), Cm(3.2)] if selection
-              else [Cm(1.0), Cm(5.2), Cm(5.2), Cm(3.2)])
+    # กว้างพอสำหรับ "ตำแหน่ง ครูชำนาญการพิเศษ" และ "กรรมการและเลขานุการ" ไม่ให้ตัดบรรทัด
+    widths = ([Cm(1.0), Cm(5.6), Cm(4.4), Cm(3.6)] if selection
+              else [Cm(1.0), Cm(4.8), Cm(4.9), Cm(3.9)])
     _fixed_cols(t, widths)
     _tbl_indent(t, _IND_BODY)
     for i, (row, m) in enumerate(zip(t.rows, rows), start=start):

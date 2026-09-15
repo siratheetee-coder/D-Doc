@@ -261,7 +261,7 @@ def selected_to_register(db: Session = Depends(get_db), year: int = Form(...)):
 def book_purchase_page(request: Request, db: Session = Depends(get_db),
                        year: int | None = None, saved: str = ""):
     import json
-    from app.models import Person
+    from app.models import Person, Vendor
     yr = year or current_academic_year()
     tp = _purchase_for(db, yr)
     groups = _book_groups(db, yr)
@@ -290,6 +290,7 @@ def book_purchase_page(request: Request, db: Session = Depends(get_db),
         "selection": selection, "school_levels": SCHOOL_LEVELS,
         "est_rows": _estimate_rows(db, tp, groups),
         "levels": [lv for lv, _ in groups],
+        "vendors": db.query(Vendor).order_by(Vendor.name).all(),
     })
 
 
@@ -308,6 +309,7 @@ async def book_purchase_save(request: Request, db: Session = Depends(get_db)):
     tp.delivery_days = _to_int(form.get("delivery_days"), 15)
     tp.delivery_place = (form.get("delivery_place") or "").strip()
     tp.contact_phone = (form.get("contact_phone") or "").strip()
+    tp.vendor_name = (form.get("vendor_name") or "").strip()
     # Preserve historical free text in storage; new TOR uses the standard template.
     tp.members = json.dumps(read_people(form, "m"), ensure_ascii=False)
     if form.get("selection_editor") == "1":
@@ -752,6 +754,15 @@ def _sync_book_procurement(db: Session, tp: TextbookPurchase, groups) -> "Procur
     proc.total_amount = round(total, 2)
     proc.delivery_days = tp.delivery_days or 15
     proc.price_ref_source = "ราคาตามบัญชีกำหนดสื่อการเรียนรู้ฯ / สืบราคาจากสำนักพิมพ์"
+    # ผู้ขาย: ใช้ที่กรอกไว้ในหน้าหนังสือเรียน (ยังไม่มีในระบบ = สร้างให้อัตโนมัติ)
+    vname = (tp.vendor_name or "").strip()
+    if vname:
+        from app.models import Vendor
+        v = db.query(Vendor).filter(Vendor.name == vname).first()
+        if v is None:
+            v = Vendor(name=vname)
+            db.add(v); db.flush()
+        proc.vendor_id = v.id
     proc.purpose = (tp.purpose or "").strip() or (
         "เพื่อใช้เป็นสื่อการเรียนการสอนให้แก่นักเรียนตามโครงการสนับสนุนค่าใช้จ่าย"
         "ในการจัดการศึกษาตั้งแต่ระดับอนุบาลจนจบการศึกษาขั้นพื้นฐาน")

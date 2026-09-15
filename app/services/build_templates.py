@@ -746,15 +746,17 @@ def _memo_head(doc, subject_expr, memo_no_expr="{{ memo_no }}", date_expr="{{ re
     _p_runs(doc, [("เรียน  ", True), ("{{ director_office }}", False)])
 
 
-def _signoff_officers(doc):
-    """ช่องลงนาม เจ้าหน้าที่ + หัวหน้าเจ้าหน้าที่ (2 คอลัมน์ จัดด้วยตารางไร้เส้น)"""
-    _p(doc, "", after=4)
+def _signoff_officers(doc, *, gap=True):
+    """ช่องลงนาม เจ้าหน้าที่ + หัวหน้าเจ้าหน้าที่ (2 คอลัมน์ จัดด้วยตารางไร้เส้น)
+    gap=False : ไม่เว้นบรรทัดหัว/ท้าย (ใช้กับเอกสารที่ต้องบีบให้จบหน้าเดียว)"""
+    if gap:
+        _p(doc, "", after=4)
     _sign_table(doc, [
         [("ลงชื่อ.....................................เจ้าหน้าที่", "center"),
          ("( {{ officer_name }} )", "center")],
         [("ลงชื่อ.....................................หัวหน้าเจ้าหน้าที่", "center"),
          ("( {{ head_officer_name }} )", "center")],
-    ])
+    ], gap=gap)
 
 
 def _signoff_director(doc, *, with_approve=True, sign_space=False):
@@ -1114,19 +1116,20 @@ def build_disbursement():
     _p(doc,
        "จึงเรียนมาเพื่อทราบผลการตรวจรับ{{ obj_word }} ตามนัยข้อ 175 (4) แห่งระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อ"
        "จัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560", align="justify", indent=1.25)
-    _signoff_officers(doc)
+    _signoff_officers(doc, gap=False)
 
     # ===== ความเห็นของเจ้าหน้าที่การเงิน + รายละเอียดการจ่าย =====
     _p(doc, "ความเห็นของเจ้าหน้าที่การเงิน", bold=True, indent=1.25, before=4)
     _p(doc, "ขออนุมัติจ่ายเงินให้แก่ {{ vendor_name }} รายละเอียดดังนี้", indent=1.25, after=2)
     # ตารางไร้เส้น 3 คอลัมน์ (ป้ายกำกับ | จำนวนเงินชิดขวา | หน่วย/คำอ่าน) จัดแนวตรงกันทุกแถว
     _finance_table(doc)
-    _p(doc, "", after=10)   # เว้นที่ให้เจ้าหน้าที่การเงินเซ็น
+    # บีบช่องว่างให้เอกสารจบหน้าเดียว (เดิมลายเซ็น ผอ. หลุดไปหน้า 2)
+    _p(doc, "", after=4)
     _sign_table(doc, [
         [("ลงชื่อ.....................................เจ้าหน้าที่การเงิน", "center"),
          ("( {{ finance_officer_name }} )", "center")],
-    ], gap=True)
-    _signoff_director(doc, with_approve=True, sign_space=True)   # เว้นที่ให้ ผอ. เซ็น
+    ], gap=False)
+    _signoff_director(doc, with_approve=True, sign_space=False)
     # ลดฟอนต์เนื้อความเหลือ 14 ทั้งเอกสาร (เว้น "บันทึกข้อความ") ให้ไม่แน่น + พอดีหน้าเดียว
     _shrink_body_font(doc, 14)
     TEMPLATES_DIR.mkdir(exist_ok=True)

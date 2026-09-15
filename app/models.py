@@ -1249,6 +1249,7 @@ class TextbookPurchase(Base):
     boards = Column(Text, default="")                  # กรรมการ 3 ชุด (JSON)
     parties = Column(Text, default="")                 # ภาคี 4 ฝ่าย (JSON)
     academic_head = Column(String, default="")         # หัวหน้างานวิชาการ (ผู้เสนอบันทึก)
+    vendor_name = Column(String, default="")           # ผู้ขาย (ใช้ตั้งคู่สัญญาในเรื่องจัดซื้อ)
     # เรื่องจัดซื้อในงานพัสดุที่สร้างจากรายการคัดเลือกนี้ (ใช้แม่แบบเอกสารพัสดุชุดเดิม)
     procurement_id = Column(Integer, ForeignKey("procurement.id"), nullable=True)
     recorder = Column(String, default="")              # ผู้จดรายงานการประชุม

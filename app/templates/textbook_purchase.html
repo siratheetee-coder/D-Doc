@@ -119,6 +119,10 @@
     </div>
     <div class="row">
       <div style="flex:1.4;"><label>หัวหน้างานวิชาการ (ผู้เสนอบันทึก / เจ้าของเรื่องท้ายหนังสือเชิญ)</label><input name="academic_head" list="persons" value="{{ tp.academic_head }}"></div>
+      <div style="flex:1.6;"><label>ผู้ขาย (ร้าน/สำนักพิมพ์ที่ตกลงซื้อ)</label>
+        <input name="vendor_name" list="vendors_dl" autocomplete="off" value="{{ tp.vendor_name or '' }}" placeholder="เช่น หจก.เพื่อนครูบุ๊คเซ็นเตอร์">
+        <datalist id="vendors_dl">{% for v in vendors %}<option value="{{ v.name }}">{% endfor %}</datalist>
+        <span class="muted" style="font-size:13px;">ใช้เป็นคู่สัญญาในใบสั่งซื้อ ใบตรวจรับ และประกาศผู้ชนะ · ถ้ายังไม่มีในระบบ ระบบจะเพิ่มให้เอง (แก้ที่อยู่/เลขผู้เสียภาษีได้ที่ทะเบียนผู้ขาย)</span></div>
     </div>
   </div>
 

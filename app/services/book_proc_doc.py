@@ -23,7 +23,7 @@ from app.database import get_data_dir
 from app.thai_utils import thai_date, thai_date_official, bahttext
 from app.services.book_receipt_doc import _safe
 from app.services.build_templates import (
-    _font, _p, _p_runs, _set_cell, _krut_and_title, _krut_center, _hr,
+    _font, _p, _p_runs, _set_cell, _cell_line, _krut_and_title, _krut_center, _hr,
     _repeat_header_row, _no_split_row, _no_borders, _fixed_cols, _sign_table,
 )
 
@@ -87,8 +87,10 @@ def _members_table(doc, members, *, roles=None, indent=1.85, label_fmt="{i})"):
     roles = roles or ["ประธานกรรมการ", "กรรมการ", "กรรมการ"]
     t = doc.add_table(rows=len(rows), cols=4)
     _no_borders(t)
-    # ตำแหน่งกว้างพอสำหรับ "ครูชำนาญการพิเศษ" (เดิม 4.0 ซม. ทำให้ตัดบรรทัด)
-    widths = [Cm(1.1), Cm(5.2), Cm(5.2), Cm(3.1)]
+    # วัดจากฟอนต์จริง TH Sarabun New 15pt + ขอบเซลล์ 0.38 ซม.
+    #   ชื่อยาวสุด "ว่าที่ร้อยตรี เกริกไกร สุขเพลีย" 4.51 · "ตำแหน่ง ครูชำนาญการพิเศษ" 4.38
+    #   บทบาทยาวสุด "กรรมการและเลขานุการ" 3.69  -> ทุกช่องต้องกว้างกว่านี้ ไม่งั้นตัดบรรทัด
+    widths = [Cm(1.0), Cm(4.8), Cm(4.9), Cm(3.9)]
     _fixed_cols(t, widths)
     _tbl_indent(t, indent)
     for i, (row, m) in enumerate(zip(t.rows, rows), start=1):
@@ -364,19 +366,29 @@ def render_purchase_order(school, proc, tp) -> str:
     _krut_center(doc)
     _p(doc, "ใบสั่งซื้อ", align="center", bold=True, size=20, after=6)
 
+    # หัวใบสั่งซื้อรูปแบบเดียวกับงานพัสดุ: ป้ายกำกับตัวหนา
+    # ซ้าย = ข้อมูลผู้ขาย | ขวา = เลขที่/วันที่ + ส่วนราชการ
     head = doc.add_table(rows=1, cols=2)
     _no_borders(head)
     _fixed_cols(head, [Cm(9.5), Cm(7.0)])
-    left = [f"ผู้ขาย {(v.name if v else '') or _BLANK}",
-            f"ที่อยู่ {(getattr(v, 'address', '') or '') if v else ''}",
-            f"โทร {(getattr(v, 'phone', '') or '') if v else ''}",
-            f"เลขประจำตัวผู้เสียภาษี {(getattr(v, 'tax_id', '') or '') if v else ''}",
-            f"เลขที่บัญชีเงินฝากธนาคาร {(getattr(v, 'bank_account', '') or '') if v else ''}"]
-    right = [f"ใบสั่งซื้อเลขที่ {proc.order_no or _BLANK}",
-             f"วันที่ {thai_date(proc.order_date) if proc.order_date else _DOT}",
-             _sname(school), f"ที่อยู่ {(school.address or '').strip()}"]
-    _set_cell(head.rows[0].cells[0], "\n".join(left), size=15, align="left")
-    _set_cell(head.rows[0].cells[1], "\n".join(right), size=15, align="left")
+    hl, hr = head.rows[0].cells
+
+    def vv(attr):
+        return (getattr(v, attr, "") or "") if v else ""
+
+    for i, (label, value) in enumerate([
+            ("ผู้ขาย : ", (v.name if v else "") or _BLANK),
+            ("ที่อยู่ : ", vv("address")),
+            ("โทรศัพท์ : ", vv("phone")),
+            ("เลขประจำตัวผู้เสียภาษี : ", vv("tax_id")),
+            ("เลขที่บัญชีเงินฝากธนาคาร : ", vv("bank_account"))]):
+        _cell_line(hl, [(label, True), (value, False)], first=(i == 0))
+    for i, (label, value) in enumerate([
+            ("ใบสั่งซื้อเลขที่ : ", proc.order_no or _BLANK),
+            ("วันที่ : ", thai_date(proc.order_date) if proc.order_date else _DOT),
+            ("ส่วนราชการ : ", _sname(school)),
+            ("ที่อยู่ : ", (school.address or "").strip())]):
+        _cell_line(hr, [(label, True), (value, False)], first=(i == 0))
 
     _p(doc, f"ตามที่ {(v.name if v else '') or _BLANK} ได้เสนอราคาไว้ต่อ{_sname(school)} "
             f"ลงวันที่ {thai_date(proc.quotation_date) if proc.quotation_date else _DOT} "
@@ -400,10 +412,6 @@ def render_purchase_order(school, proc, tp) -> str:
                             widths, ["center", "left", "center", "center", "right", "right"]):
         _set_cell(c, v2, align=al, size=14)
         c.width = w
-    for _ in range(3):
-        rr = t.add_row(); _no_split_row(rr)
-        for c, w in zip(rr.cells, widths):
-            _set_cell(c, "", size=14); c.width = w
     r = t.add_row(); _no_split_row(r)
     _set_cell(r.cells[0], bahttext(total), bold=True, align="center", size=14)
     r.cells[0].merge(r.cells[3])

@@ -23,7 +23,11 @@
     <span class="hero-title">{{ school.name or "ยังตั้งค่าโรงเรียนไม่ครบ" }}</span>
     <div class="hero-meta">{% if not school.name %}เพื่อให้เอกสารมีข้อมูลครบถ้วน ควรกรอกข้อมูลโรงเรียนก่อน · {% endif %}ปีงบประมาณ {{ fiscal_year }}</div>
   </div>
-  <a class="btn" href="/procurement/new"><svg class="icon"><use href="#ic-plus"/></svg> สร้างเรื่องใหม่</a>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    <a class="btn gray" style="white-space:nowrap;" href="/register.xlsx?year={{ fiscal_year }}&kind=buy"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดทะเบียนคุมจัดซื้อ</a>
+    <a class="btn gray" style="white-space:nowrap;" href="/register.xlsx?year={{ fiscal_year }}&kind=hire"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดทะเบียนคุมจัดจ้าง</a>
+    <a class="btn" href="/procurement/new"><svg class="icon"><use href="#ic-plus"/></svg> สร้างเรื่องใหม่</a>
+  </div>
 </div>
 
 <div class="card">
@@ -73,6 +77,11 @@
     <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span><h3>บัญชีวัสดุ · ใบเบิก</h3></div>
     <p class="nc-desc">บัญชีวัสดุคงคลัง + ใบเบิกวัสดุ ตัดยอดอัตโนมัติ</p>
     <span class="nc-go">เปิดบัญชีวัสดุ <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  <a class="nav-card" href="/textbooks/purchase">
+    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-book"/></svg></span><h3>จัดซื้อหนังสือเรียน</h3></div>
+    <p class="nc-desc">คัดเลือกหนังสือรายชั้น → TOR + ชุดเอกสารคัดเลือก → ส่งเข้างานพัสดุออกเอกสารจัดซื้อ</p>
+    <span class="nc-go">เปิดงานหนังสือเรียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
 </div>
 
@@ -189,7 +198,7 @@
 <div class="card" id="reg-buy">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h2>ทะเบียนคุมการจัดซื้อ <span class="muted" style="font-size:15px;">({{ buys|length }} เรื่อง · {{ "{:,.0f}".format(buy_total) }} บาท)</span></h2>
-    <a class="btn green sm" href="/register.xlsx?year={{ fiscal_year }}&kind=buy"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเล่มจัดซื้อ</a>
+    <a class="btn green sm" style="white-space:nowrap;" href="/register.xlsx?year={{ fiscal_year }}&kind=buy"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดทะเบียนคุมจัดซื้อ</a>
   </div>
   {% if buys %}{{ reg_table(buys) }}
   {% else %}<p class="muted">ยังไม่มีเรื่องจัดซื้อในปีงบนี้</p>{% endif %}
@@ -199,7 +208,7 @@
 <div class="card" id="reg-hire">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h2>ทะเบียนคุมการจัดจ้าง <span class="muted" style="font-size:15px;">({{ hires|length }} เรื่อง · {{ "{:,.0f}".format(hire_total) }} บาท)</span></h2>
-    <a class="btn green sm" href="/register.xlsx?year={{ fiscal_year }}&kind=hire"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเล่มจัดจ้าง</a>
+    <a class="btn green sm" style="white-space:nowrap;" href="/register.xlsx?year={{ fiscal_year }}&kind=hire"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดทะเบียนคุมจัดจ้าง</a>
   </div>
   {% if hires %}{{ reg_table(hires) }}
   {% else %}<p class="muted">ยังไม่มีเรื่องจัดจ้างในปีงบนี้</p>{% endif %}
