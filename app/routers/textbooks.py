@@ -331,7 +331,10 @@ async def book_purchase_save(request: Request, db: Session = Depends(get_db)):
     tp.meet_place = (form.get("meet_place") or "").strip()
 
     tp.boards = json.dumps({"exec": read_people(form, "ex"), "select": read_people(form, "sel"),
-                            "meeting": read_people(form, "mt")}, ensure_ascii=False)
+                            "meeting": read_people(form, "mt"),
+                            # คณะกรรมการขั้นจัดซื้อ (ส่งต่อเข้างานพัสดุ)
+                            "buy": read_people(form, "buy"),
+                            "inspect": read_people(form, "insp")}, ensure_ascii=False)
     try:
         tp.parties = json.dumps(read_parties(form), ensure_ascii=False)
     except ValueError as error:
@@ -770,21 +773,30 @@ def _sync_book_procurement(db: Session, tp: TextbookPurchase, groups) -> "Procur
     if created:
         commit_doc_no(db, "memo", fy, proc.memo_no, source="procurement", ref_id=proc.id,
                       subject=f"รายงานขอซื้อ{proc.subject}", date=proc.request_date)
-        # กรรมการกำหนดคุณลักษณะ = ชุดที่จัดทำร่าง TOR (คนเดียวกันตามแฟ้มจริง)
-        members = _jload_safe(tp.members, [])
-        members = [m for m in members if (m.get("name") or "").strip()]
-        if members:
-            roles = ["ประธานกรรมการ", "กรรมการ", "กรรมการ"]
-            for kind in ("spec", "inspect"):
-                cm = Committee(procurement_id=proc.id, kind=kind, mode="committee")
-                db.add(cm)
-                db.flush()
-                for i, m in enumerate(members):
-                    db.add(CommitteeMember(
-                        committee_id=cm.id, name=(m.get("name") or "").strip(),
-                        position=(m.get("position") or "").strip() or "ครู",
-                        role=(m.get("role") or "").strip()
-                             or (roles[i] if i < len(roles) else "กรรมการ"), seq=i))
+
+    # คณะกรรมการ: ยึดตามที่กรอกไว้ในหน้าจัดซื้อหนังสือเรียน (ชุดไหนว่างไม่แตะของเดิม)
+    boards = _jload_safe(tp.boards, {})
+    sources = {
+        "spec": _jload_safe(tp.members, []),     # ผู้จัดทำร่าง TOR
+        "purchase": boards.get("buy") or [],     # กก.จัดซื้อโดยวิธีเฉพาะเจาะจง
+        "inspect": boards.get("inspect") or [],  # กก.ตรวจรับพัสดุ
+    }
+    roles = ["ประธานกรรมการ", "กรรมการ", "กรรมการ"]
+    for kind, rows in sources.items():
+        rows = [m for m in rows if (m.get("name") or "").strip()]
+        if not rows:
+            continue
+        for old in [c for c in proc.committees if c.kind == kind]:
+            db.delete(old)
+        db.flush()
+        cm = Committee(procurement_id=proc.id, kind=kind, mode="committee")
+        db.add(cm); db.flush()
+        for i, m in enumerate(rows):
+            db.add(CommitteeMember(
+                committee_id=cm.id, name=(m.get("name") or "").strip(),
+                position=(m.get("position") or "").strip() or "ครู",
+                role=(m.get("role") or "").strip()
+                     or (roles[i] if i < len(roles) else "กรรมการ"), seq=i))
     db.commit()
     return proc
 
