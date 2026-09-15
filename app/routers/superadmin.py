@@ -601,3 +601,33 @@ def add_quota(tid: int, amount: str = Form("50")):
     finally:
         db.close()
     return RedirectResponse(f"/admin-console?msg={quote('เพิ่มโควตาทดลองใช้ +' + str(add) + ' ฉบับ')}", status_code=303)
+
+
+# ---------------- สรุปการใช้งานรายวัน (เจ้าของระบบเท่านั้น) ----------------
+@router.get("/admin-console/usage", response_class=HTMLResponse)
+def usage_page(request: Request, day: str | None = None):
+    """วันนี้ใครใช้ระบบบ้าง ใช้งานไหน แก้ข้อมูลกี่ครั้ง ออกเอกสารกี่ฉบับ
+
+    เก็บเป็นยอดรวมรายวัน ไม่เก็บว่าเปิดหน้าไหนหรือกรอกอะไร (ดู app/usage.py)
+    """
+    from app.usage import flush, days_with_data, summary_for_day, RETENTION_DAYS
+    flush()                       # เขียนที่ค้างในหน่วยความจำก่อน จะได้เห็นยอดล่าสุด
+    db = acc_session()
+    try:
+        days = days_with_data(db)
+        today = date.today().isoformat()
+        if today not in days:
+            days.insert(0, today)
+        sel = day if day in days else days[0]
+        rows = summary_for_day(db, sel)
+        return templates.TemplateResponse("superadmin_usage.html", {
+            "request": request, "days": days, "day": sel, "rows": rows,
+            "retention": RETENTION_DAYS,
+            "n_users": len(rows),
+            "n_schools": len({r["tenant_id"] for r in rows}),
+            "n_docs": sum(r["docs"] for r in rows),
+            "n_writes": sum(r["writes"] for r in rows),
+            "admin_name": request.session.get("name", "ผู้ดูแลระบบ"),
+        })
+    finally:
+        db.close()

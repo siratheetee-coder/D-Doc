@@ -225,7 +225,14 @@ async def tenant_auth(request: Request, call_next):
     token = current_school_id.set(tid)
     mtoken = current_module.set(mod)     # ให้ตอนออกเอกสารรู้ว่าอยู่งานไหน (หักโควตาเฉพาะงานที่ยังไม่ซื้อ)
     try:
-        return await call_next(request)
+        resp = await call_next(request)
+        # สรุปการใช้งานรายวัน (คอนโซลเจ้าของระบบ) - พักในหน่วยความจำ เขียนเป็นรอบ
+        try:
+            from app.usage import record
+            record(tid, acc, mod, request.method, resp.headers.get("content-type", ""))
+        except Exception:
+            pass
+        return resp
     finally:
         current_module.reset(mtoken)
         current_school_id.reset(token)
@@ -241,6 +248,16 @@ app.add_middleware(
     https_only=(os.environ.get("DDOC_HTTPS") == "1"),
     max_age=SESSION_TTL_REMEMBER,
 )
+
+
+@app.on_event("shutdown")
+def _flush_usage_on_shutdown():
+    """เขียนสรุปการใช้งานที่ยังค้างในหน่วยความจำก่อนปิดโปรเซส (กันข้อมูลรอบสุดท้ายหาย)"""
+    try:
+        from app.usage import flush
+        flush()
+    except Exception:
+        pass
 
 
 @app.api_route("/healthz", methods=["GET", "HEAD"])

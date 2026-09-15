@@ -16,7 +16,7 @@ from datetime import datetime, date
 
 from sqlalchemy import (
     create_engine, event, Column, Integer, String, Boolean, DateTime, Date, ForeignKey,
-    Float, LargeBinary, Text
+    Float, LargeBinary, Text, UniqueConstraint
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
@@ -156,6 +156,29 @@ class AuditLog(AccBase):
     target = Column(String, default="")         # สิ่งที่ถูกกระทำ (ชื่อผู้ใช้/ไฟล์/โรงเรียน)
     detail = Column(String, default="")
     ip = Column(String, default="")
+
+
+class UsageDay(AccBase):
+    """สรุปการใช้งาน 1 บัญชี ต่อ 1 วัน (ดูรายละเอียดที่ app/usage.py)
+
+    ไม่เก็บ URL ที่เปิดหรือข้อมูลที่กรอก เก็บแค่ยอดรวมพอให้ตอบได้ว่า
+    "วันนี้ใครใช้ ใช้งานไหน แก้ข้อมูลกี่ครั้ง ออกเอกสารกี่ฉบับ"
+    """
+    __tablename__ = "usage_day"
+    __table_args__ = (UniqueConstraint("tenant_id", "uid", "day", name="uq_usage_day"),)
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, nullable=False, index=True)
+    uid = Column(Integer, nullable=False, index=True)
+    day = Column(String, nullable=False, index=True)   # YYYY-MM-DD
+    username = Column(String, default="")
+    display_name = Column(String, default="")
+    hits = Column(Integer, default=0)        # จำนวนครั้งที่เรียกใช้ระบบ
+    writes = Column(Integer, default=0)      # ในจำนวนนั้น เป็นการบันทึก/แก้ข้อมูลกี่ครั้ง
+    docs = Column(Integer, default=0)        # ออกเอกสาร (Word/Excel/PDF) กี่ฉบับ
+    modules = Column(Text, default="{}")     # {"งาน": จำนวนครั้ง} เป็น JSON
+    first_at = Column(DateTime, nullable=True)
+    last_at = Column(DateTime, nullable=True)
 
 
 # ===================== engine / session =====================

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Easy Ekkasan | การใช้งานรายวัน</title>
+  <link rel="icon" type="image/png" href="/static/favicon-ekkasan.png">
+  <style>
+    @font-face { font-family:"Prompt"; font-weight:400; src:url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:600; src:url("/static/fonts/Prompt-SemiBold.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:700; src:url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:"Prompt","Sarabun","Segoe UI",sans-serif; background:#F5F6FA; color:#202224; }
+    .top { background:#1b2433; color:#fff; padding:14px 26px; display:flex; justify-content:space-between; align-items:center; }
+    .top b { font-size:18px; } .top a { color:#cbd5e1; text-decoration:none; font-size:15px; }
+    .wrap { max-width:1180px; margin:24px auto; padding:0 20px; }
+    .card { background:#fff; border:1px solid #eceef3; border-radius:14px; padding:20px 22px; margin-bottom:20px;
+      box-shadow:0 2px 8px rgba(16,24,40,.05); }
+    h1 { font-size:20px; margin:0 0 6px; }
+    .muted { color:#5a6a85; font-size:14px; }
+    .stats { display:flex; gap:14px; flex-wrap:wrap; margin:16px 0 4px; }
+    .stat { flex:1 1 160px; background:#f8f9fc; border:1px solid #eceef3; border-radius:12px; padding:14px 16px; }
+    .stat .n { font-size:26px; font-weight:700; line-height:1.1; }
+    .stat .l { font-size:13px; color:#5a6a85; margin-top:2px; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th,td { border-bottom:1px solid #eceef3; padding:10px 8px; text-align:left; vertical-align:top; }
+    th { font-size:13px; color:#5a6a85; white-space:nowrap; }
+    td.r, th.r { text-align:right; }
+    .pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600;
+      background:#eef4ff; color:#2563eb; margin:2px 4px 2px 0; white-space:nowrap; }
+    select { font-family:inherit; font-size:15px; padding:7px 10px; border:1px solid #d7dbe4; border-radius:9px; }
+    .sch { font-weight:600; }
+  </style>
+</head>
+<body>
+<div class="top">
+  <b>การใช้งานรายวัน</b>
+  <span><a href="/admin-console">← กลับคอนโซล</a></span>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <h1>ใครใช้ระบบบ้างในวันนี้</h1>
+    <p class="muted" style="margin:0;">
+      สรุปยอดรวมรายวันของแต่ละบัญชี — <b>ไม่ได้เก็บว่าเปิดหน้าไหนหรือกรอกข้อมูลอะไร</b>
+      เก็บย้อนหลัง {{ retention }} วัน แล้วลบอัตโนมัติ
+    </p>
+    <form method="get" action="/admin-console/usage" style="margin-top:14px;">
+      <label class="muted">เลือกวัน</label>
+      <select name="day" onchange="this.form.submit()">
+        {% for d in days %}<option value="{{ d }}" {{ 'selected' if d == day }}>{{ d }}</option>{% endfor %}
+      </select>
+    </form>
+    <div class="stats">
+      <div class="stat"><div class="n">{{ n_schools }}</div><div class="l">โรงเรียนที่ใช้งาน</div></div>
+      <div class="stat"><div class="n">{{ n_users }}</div><div class="l">บัญชีที่เข้าใช้</div></div>
+      <div class="stat"><div class="n">{{ n_writes }}</div><div class="l">ครั้งที่บันทึก/แก้ข้อมูล</div></div>
+      <div class="stat"><div class="n">{{ n_docs }}</div><div class="l">เอกสารที่ออก</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    {% if rows %}
+    <table>
+      <thead><tr>
+        <th>โรงเรียน</th><th>ผู้ใช้</th><th>ช่วงเวลาที่ใช้</th>
+        <th class="r">ครั้ง</th><th class="r">บันทึก/แก้</th><th class="r">เอกสาร</th><th>งานที่ใช้</th>
+      </tr></thead>
+      <tbody>
+        {% set ns = namespace(prev='') %}
+        {% for r in rows %}
+        <tr>
+          <td class="sch">{% if r.tenant != ns.prev %}{{ r.tenant }}{% set ns.prev = r.tenant %}{% endif %}</td>
+          <td>{{ r.display_name or r.username }}<br><span class="muted">{{ r.username }}</span></td>
+          <td>{{ r.first_at.strftime('%H:%M') if r.first_at else '-' }} – {{ r.last_at.strftime('%H:%M') if r.last_at else '-' }}</td>
+          <td class="r">{{ r.hits }}</td>
+          <td class="r">{{ r.writes }}</td>
+          <td class="r">{{ r.docs }}</td>
+          <td>{% for name, n in r.modules %}<span class="pill">{{ name }} {{ n }}</span>{% else %}<span class="muted">-</span>{% endfor %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted" style="margin:0;">ยังไม่มีการใช้งานในวันที่เลือก</p>
+    {% endif %}
+  </div>
+</div>
+</body>
+</html>
