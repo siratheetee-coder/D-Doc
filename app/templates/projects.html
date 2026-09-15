@@ -9,6 +9,8 @@
   </div>
   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <a class="btn sm gray" href="/projects/import"><svg class="icon"><use href="#ic-download"/></svg> นำเข้าจาก Excel</a>
+    <a class="btn sm" href="/projects/summary.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-file"/></svg> รายงานสรุปโครงการ (Word)</a>
+    <a class="btn sm green" href="/projects/summary.xlsx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> Excel</a>
     <form method="get" action="/projects">
       <select name="year" onchange="submitReplace(this.form)" style="color:var(--text);">
         {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>{{ year_label }} {{ y }}</option>{% endfor %}

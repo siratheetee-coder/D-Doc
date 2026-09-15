@@ -126,17 +126,24 @@
     <h2>อัตราค่าหนังสือต่อคน <span class="muted" style="font-size:14px;">(ใช้ในประมาณการค่าหนังสือ)</span></h2>
     <p class="muted" style="margin-top:0;">ค่าเริ่มต้น = ยอดค่าหนังสือจริงของชั้นนั้นจากทะเบียน แก้เป็นอัตราที่ได้รับจัดสรรได้</p>
     {% if est_rows %}
-    <div class="table-wrap"><table>
-      <thead><tr><th>ระดับชั้น</th><th class="right">จำนวนนักเรียน</th><th>อัตราค่าหนังสือ/คน (บาท)</th></tr></thead>
+    <div class="table-wrap"><table id="rate-table">
+      <thead><tr><th>ระดับชั้น</th><th class="right">จำนวนนักเรียน</th><th>อัตราค่าหนังสือ/คน (บาท)</th><th class="right">เป็นเงิน</th></tr></thead>
       <tbody>
         {% for r in est_rows %}
         <tr>
           <td>{{ r.level }}<input type="hidden" name="rate_level" value="{{ r.level }}"></td>
-          <td class="right">{{ r.students }}</td>
+          <td class="right" data-students="{{ r.students }}">{{ r.students }}</td>
           <td><input name="rate_value" type="number" step="0.01" min="0" value="{{ '%g'|format(r.rate) }}" style="width:140px;"></td>
+          <td class="right" data-amount>0.00</td>
         </tr>
         {% endfor %}
       </tbody>
+      <tfoot><tr>
+        <th>รวมทั้งสิ้น</th>
+        <th class="right" id="rate-students">0</th>
+        <th></th>
+        <th class="right" id="rate-total">0.00</th>
+      </tr></tfoot>
     </table></div>
     {% else %}<p class="muted">ยังไม่มีรายการหนังสือ</p>{% endif %}
   </div>
@@ -293,6 +300,24 @@
     const box = el.closest('tr')?.querySelector('[name$="_pos"]');
     if (pos && box && !box.value.trim()) { box.value = pos; markDirty(); }
   });
+  // รวมยอดประมาณการค่าหนังสือ (จำนวนนักเรียน x อัตราต่อคน) คิดใหม่ทุกครั้งที่แก้อัตรา
+  const rateTable = document.getElementById('rate-table');
+  const sumRates = () => {
+    if (!rateTable) return;
+    let students = 0, total = 0;
+    rateTable.querySelectorAll('tbody tr').forEach(row => {
+      const n = Number(row.querySelector('[data-students]')?.dataset.students || 0);
+      const rate = Number(row.querySelector('[name=rate_value]')?.value || 0);
+      const amount = n * rate;
+      students += n; total += amount;
+      const cell = row.querySelector('[data-amount]');
+      if (cell) cell.textContent = amount.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    });
+    document.getElementById('rate-students').textContent = students.toLocaleString('th-TH');
+    document.getElementById('rate-total').textContent = total.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  };
+  rateTable?.addEventListener('input', sumRates);
+  sumRates();
   window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
   form.addEventListener('submit', async e => {
     e.preventDefault();

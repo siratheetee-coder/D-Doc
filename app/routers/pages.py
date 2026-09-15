@@ -2658,6 +2658,35 @@ def projects_page(request: Request, db: Session = Depends(get_db), year: int | N
     })
 
 
+def _project_rows(db, year):
+    """โครงการของปีนั้น + สรุปงบ/การใช้จ่าย (ใช้ร่วมกันทั้ง Word และ Excel)"""
+    from app.services.project_summary import build_rows
+    projects = db.query(Project).filter(Project.plan_year == year).order_by(Project.name).all()
+    return build_rows(db, projects)
+
+
+@router.get("/projects/summary.docx")
+def project_summary_docx(db: Session = Depends(get_db), year: int | None = None,
+                         detail: int = 1):
+    """รายงานสรุปการใช้งบประมาณรายโครงการ (Word) - แนบรายการงานด้วยถ้า detail=1"""
+    from app.services.project_summary import render_project_summary
+    school = get_school(db)
+    cur = year or current_plan_year(school)
+    path = render_project_summary(school, cur, plan_year_label(school),
+                                  _project_rows(db, cur), detail=bool(detail))
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.get("/projects/summary.xlsx")
+def project_summary_xlsx(db: Session = Depends(get_db), year: int | None = None):
+    """รายงานสรุปการใช้งบประมาณรายโครงการ (Excel) - ชีตสรุป + ชีตรายการทั้งหมด"""
+    from app.services.project_summary import export_project_summary
+    school = get_school(db)
+    cur = year or current_plan_year(school)
+    path = export_project_summary(school, cur, plan_year_label(school), _project_rows(db, cur))
+    return serve_generated(path, _XLSX_MT)
+
+
 @router.post("/projects")
 def project_add(db: Session = Depends(get_db), name: str = Form(...), budget: str = Form("0"),
                 responsible: str = Form(""), plan_year: str = Form("")):

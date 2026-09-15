@@ -186,7 +186,7 @@
 </div>
 
 <!-- เล่มที่ 1: ทะเบียนคุมการจัดซื้อ -->
-<div class="card">
+<div class="card" id="reg-buy">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h2>ทะเบียนคุมการจัดซื้อ <span class="muted" style="font-size:15px;">({{ buys|length }} เรื่อง · {{ "{:,.0f}".format(buy_total) }} บาท)</span></h2>
     <a class="btn green sm" href="/register.xlsx?year={{ fiscal_year }}&kind=buy"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเล่มจัดซื้อ</a>
@@ -196,7 +196,7 @@
 </div>
 
 <!-- เล่มที่ 2: ทะเบียนคุมการจัดจ้าง -->
-<div class="card">
+<div class="card" id="reg-hire">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h2>ทะเบียนคุมการจัดจ้าง <span class="muted" style="font-size:15px;">({{ hires|length }} เรื่อง · {{ "{:,.0f}".format(hire_total) }} บาท)</span></h2>
     <a class="btn green sm" href="/register.xlsx?year={{ fiscal_year }}&kind=hire"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเล่มจัดจ้าง</a>

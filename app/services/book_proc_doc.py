@@ -87,7 +87,8 @@ def _members_table(doc, members, *, roles=None, indent=1.85, label_fmt="{i})"):
     roles = roles or ["ประธานกรรมการ", "กรรมการ", "กรรมการ"]
     t = doc.add_table(rows=len(rows), cols=4)
     _no_borders(t)
-    widths = [Cm(1.1), Cm(6.0), Cm(4.0), Cm(4.4)]
+    # ตำแหน่งกว้างพอสำหรับ "ครูชำนาญการพิเศษ" (เดิม 4.0 ซม. ทำให้ตัดบรรทัด)
+    widths = [Cm(1.1), Cm(5.2), Cm(5.2), Cm(3.1)]
     _fixed_cols(t, widths)
     _tbl_indent(t, indent)
     for i, (row, m) in enumerate(zip(t.rows, rows), start=1):

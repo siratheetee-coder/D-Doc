@@ -115,9 +115,10 @@
     </div>
     {% endif %}
 
-    <h2 style="margin-top:20px;">รายการพัสดุ</h2>
+    <h2 style="margin-top:20px;" id="itemsHead">รายการพัสดุ</h2>
+    <p class="muted" id="itemsHint" style="margin:-8px 0 8px; font-size:13px;"></p>
     <div class="table-wrap"><table id="items">
-      <thead><tr><th style="width:40%;">รายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th><th class="right">จำนวนเงิน</th><th></th></tr></thead>
+      <thead><tr><th style="width:40%;" id="itemsCol">รายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th><th class="right">จำนวนเงิน</th><th></th></tr></thead>
       <tbody>
         {% if prefill_items %}
           {% for it in prefill_items %}
@@ -462,7 +463,18 @@
   }
   function syncType() {
     var t = document.getElementById('procType').value;
-    document.getElementById('vendorLabel').innerText = (t === 'ซื้อ') ? 'ผู้ขาย' : 'ผู้รับจ้าง';
+    var buy = (t === 'ซื้อ');
+    document.getElementById('vendorLabel').innerText = buy ? 'ผู้ขาย' : 'ผู้รับจ้าง';
+    // งานจ้างไม่ได้ซื้อของ จึงเรียกว่า "รายละเอียดงานจ้าง" ไม่ใช่รายการพัสดุ
+    // (ข้อมูลเก็บที่เดียวกัน เอกสารก็ใช้ตารางเดียวกัน เปลี่ยนแค่คำเรียกให้ตรงงาน)
+    var head = document.getElementById('itemsHead');
+    var col  = document.getElementById('itemsCol');
+    var hint = document.getElementById('itemsHint');
+    if (head) head.innerText = buy ? 'รายการพัสดุ' : 'รายละเอียดงานจ้าง';
+    if (col)  col.innerText  = buy ? 'รายการ' : 'รายการงานที่จ้าง';
+    if (hint) hint.innerText = buy
+      ? ''
+      : 'งานจ้างเหมาที่ไม่มีรายการย่อย ให้กรอกบรรทัดเดียวเป็นชื่องานที่จ้าง จำนวน 1 งาน';
   }
   calcTotal(); syncType(); refreshAllRoles();
 
