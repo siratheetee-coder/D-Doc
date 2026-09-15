@@ -66,8 +66,9 @@ def build_rows(db, projects) -> list:
 
 
 # ------------------------------------------------------------------ Word
-def render_project_summary(school, year, year_label, rows, *, detail=True) -> str:
-    """detail=True แนบรายการงานของแต่ละโครงการด้วย · False = เฉพาะตารางสรุป"""
+def render_project_summary(school, year, year_label, rows, *, detail=True, as_of=None) -> str:
+    """detail=True แนบรายการงานของแต่ละโครงการด้วย · False = เฉพาะตารางสรุป
+    as_of = วันที่ที่ตัดยอด (ไม่ระบุ = วันที่ออกรายงาน)"""
     doc = Document(); set_a4(doc, landscape=True); _font(doc)
     sname = (school.name or "โรงเรียน").strip()
     t_budget = sum(r["budget"] for r in rows)
@@ -75,7 +76,9 @@ def render_project_summary(school, year, year_label, rows, *, detail=True) -> st
 
     _p(doc, "รายงานสรุปการใช้งบประมาณรายโครงการ", align="center", bold=True, size=18, after=0)
     _p(doc, sname, align="center", bold=True, size=16, after=0)
-    _p(doc, f"{year_label} {year}", align="center", size=15, after=6)
+    _p(doc, f"{year_label} {year}", align="center", size=15, after=0)
+    _p(doc, f"ข้อมูล ณ วันที่ {thai_date(as_of or datetime.now())}",
+       align="center", size=15, after=6)
 
     headers = ["ที่", "ชื่อโครงการ", "ผู้รับผิดชอบ", "งบที่ได้รับ", "ใช้ไป",
                "คงเหลือ", "ร้อยละที่ใช้", "จำนวนงาน"]
@@ -116,9 +119,11 @@ def render_project_summary(school, year, year_label, rows, *, detail=True) -> st
             if not r["works"]:
                 continue
             doc.add_page_break()
-            _p(doc, f"รายการที่ดำเนินการ - {r['name']}", bold=True, size=17, after=0)
+            _p(doc, "รายการที่ดำเนินการ", align="center", bold=True, size=17, after=0)
+            _p(doc, r["name"], align="center", bold=True, size=16, after=0)
+            _p(doc, f"{sname} · {year_label} {year}", align="center", size=14, after=0)
             _p(doc, f"งบที่ได้รับ {_money(r['budget'])} บาท · ใช้ไป {_money(r['spent'])} บาท · "
-                    f"คงเหลือ {_money(r['left'])} บาท", size=14, after=6)
+                    f"คงเหลือ {_money(r['left'])} บาท", align="center", size=14, after=6)
             h2 = ["ที่", "วัน เดือน ปี", "เลขที่", "รายการ", "วิธี", "ผู้ขาย/ผู้รับจ้าง",
                   "จำนวนเงิน", "สถานะ"]
             w2 = [Cm(1.1), Cm(2.6), Cm(2.4), Cm(7.4), Cm(3.0), Cm(5.0), Cm(2.8), Cm(2.4)]
@@ -219,7 +224,7 @@ def export_project_summary(school, year, year_label, rows) -> str:
     for sheet in (ws, ws2):
         sheet.insert_rows(1, 2)
         sheet["A1"] = f"รายงานสรุปการใช้งบประมาณรายโครงการ  {(school.name or '').strip()}"
-        sheet["A2"] = f"{year_label} {year}"
+        sheet["A2"] = f"{year_label} {year}  ·  ข้อมูล ณ วันที่ {thai_date(datetime.now())}"
         sheet["A1"].font = Font(bold=True, size=14)
         sheet.freeze_panes = "A4"
 
