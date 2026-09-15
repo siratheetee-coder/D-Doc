@@ -9,8 +9,9 @@ book_select_doc.py - ชุดเอกสาร "คัดเลือกหน
   4) ประกาศแต่งตั้งคณะกรรมการภาคี 4 ฝ่าย
   5) หนังสือเชิญประชุม (หนังสือราชการภายนอก - ครุฑกลาง + ขอแสดงความนับถือ)
   6) แบบสำรวจความต้องการหนังสือเรียน (ชั้นละแผ่น)
-  7) รายงานการประชุมคณะกรรมการร่วม 4 ฝ่าย (5 ระเบียบวาระ ตามแฟ้มจริง)
 ออกทีละฉบับหรือรวมทั้งชุดเป็นไฟล์เดียวก็ได้ (render_select_bundle)
+
+หมายเหตุ: ไม่มี "รายงานการประชุม" ในชุดนี้ เพราะโรงเรียนเขียนเองตามเนื้อหาที่ประชุมจริง
 """
 import json
 
@@ -464,202 +465,10 @@ def render_survey(school, tp, groups, doc=None):
     return _save(doc, f"แบบสำรวจความต้องการหนังสือเรียน_{tp.year}") if own else doc
 
 
-# --------------------------------------------------------------- 7) รายงานการประชุม
-# อัตราเงินอุดหนุนเรียนฟรี 15 ปี ส่วนที่ไม่ใช่ค่าหนังสือเรียน (บาท)
-# * ค่าหนังสือเรียนดึงจากอัตราที่โรงเรียนกรอกไว้ในระบบ (tp.rates) ไม่ได้ตายตัวที่นี่
-# * สามส่วนนี้เป็นอัตรามาตรฐานตามแนวทางฯ - โรงเรียนควรตรวจกับหนังสือจัดสรรของปีนั้นก่อนใช้
-_SUPPORT_RATES = [
-    ("ค่าอุปกรณ์การเรียน", "บาท/ภาคเรียน", [
-        ("ระดับก่อนประถมศึกษา", 145), ("ระดับประถมศึกษา", 220),
-        ("ระดับมัธยมศึกษาตอนต้น", 260)]),
-    ("ค่าเครื่องแบบนักเรียน", "บาท/คน/ปี", [
-        ("ระดับก่อนประถมศึกษา", 325), ("ระดับประถมศึกษา", 400),
-        ("ระดับมัธยมศึกษาตอนต้น", 500)]),
-    ("ค่ากิจกรรมพัฒนาคุณภาพผู้เรียน", "บาท/ภาคเรียน", [
-        ("ระดับก่อนประถมศึกษา", 232), ("ระดับประถมศึกษา", 259),
-        ("ระดับมัธยมศึกษาตอนต้น", 475)]),
-]
-
-
-def _grid(doc, headers, widths, *, size=14):
-    """ตารางมีเส้น + หัวตารางซ้ำทุกหน้า"""
-    t = doc.add_table(rows=1, cols=len(headers))
-    t.style = "Table Grid"
-    _fixed_cols(t, widths)
-    _repeat_header_row(t.rows[0]); _no_split_row(t.rows[0])
-    for c, h, w in zip(t.rows[0].cells, headers, widths):
-        _set_cell(c, h, bold=True, align="center", size=size)
-        c.width = w
-    return t
-
-
-def _row(t, vals, widths, aligns, *, size=14, bold=False):
-    r = t.add_row(); _no_split_row(r)
-    for c, v, w, al in zip(r.cells, vals, widths, aligns):
-        _set_cell(c, v, align=al, size=size, bold=bold)
-        c.width = w
-    return r
-
-
-def _agenda(doc, text):
-    """หัวระเบียบวาระ (ตัวหนา ชิดซ้าย)"""
-    return _p(doc, text, bold=True, size=16, before=6, after=2)
-
-
-def _resolution(doc, text="ที่ประชุมรับทราบ"):
-    _p_runs(doc, [("มติที่ประชุม : ", True), (text, False)], size=16, after=4)
-
-
-def _sub(doc, text, *, ind=_IND_HEAD):
-    pr = _p(doc, text, align="justify", size=16, after=2)
-    pr.paragraph_format.left_indent = Cm(ind)
-    return pr
-
-
-def _rate_lines(doc, title, unit, rows):
-    _sub(doc, title)
-    t = doc.add_table(rows=len(rows), cols=2)
-    _no_borders(t)
-    widths = [Cm(7.0), Cm(5.0)]
-    _fixed_cols(t, widths)
-    _tbl_indent(t, _IND_BODY)
-    for row, (name, amount) in zip(t.rows, rows):
-        _no_split_row(row)
-        _set_cell(row.cells[0], name, size=15, align="left")
-        _set_cell(row.cells[1], f"{amount:,.2f} {unit}", size=15, align="left")
-
-
-def _attendee_rows(school, tp):
-    """รายชื่อผู้เข้าประชุม - ใช้ที่กรอกไว้ ถ้ายังไม่กรอกใช้ ผอ. + ภาคี 4 ฝ่าย ให้อัตโนมัติ"""
-    rows = _jload(tp.attendees, [])
-    if rows:
-        return rows
-    name = (school.director_name or "").strip()
-    rows = ([{"name": name, "position": "ผู้อำนวยการโรงเรียน", "role": "ประธานกรรมการ"}]
-            if name else [])
-    parties = _jload(tp.parties, {})
-    for key, label in _PARTY_LABELS:
-        for m in parties.get(key) or []:
-            if (m.get("name") or "").strip():
-                rows.append({"name": m["name"], "position": label, "role": "กรรมการ"})
-    if rows:
-        rows[-1]["role"] = "กรรมการและเลขานุการ"
-    return rows
-
-
-def render_meeting_report(school, tp, groups, doc=None, *, est_rows=None):
-    """รายงานการประชุมคณะกรรมการร่วม 4 ฝ่าย (โครงสร้าง 5 ระเบียบวาระตามแฟ้มจริง)"""
-    own = doc is None
-    doc = doc or _new()
-    if not own:
-        _break(doc)
-    sname = (school.name or "โรงเรียน").strip()
-    rows = _attendee_rows(school, tp)
-
-    _p(doc, "รายงานการประชุมคณะกรรมการร่วม 4 ฝ่าย", align="center", bold=True, size=18, after=0)
-    _p(doc, f"ครั้งที่ {tp.meet_no or 1}  ปีการศึกษา {tp.year}",
-       align="center", bold=True, size=16, after=0)
-    _p(doc, thai_date_official(tp.meet_date) if tp.meet_date else _BLANK,
-       align="center", bold=True, size=16, after=0)
-    _p(doc, f"ณ  {(tp.meet_place or '').strip() or _BLANK}",
-       align="center", bold=True, size=16, after=6)
-
-    _p(doc, "รายชื่อคณะกรรมการผู้เข้าประชุม", bold=True, size=16, after=2)
-    _member_rows(doc, rows)
-
-    _p(doc, f"เริ่มประชุมเวลา {(tp.meet_time or '').strip() or _BLANK}",
-       bold=True, size=16, before=6, after=2)
-    chair = next((m["name"] for m in rows if "ประธาน" in (m.get("role") or "")),
-                 (school.director_name or "").strip())
-    _sub(doc, f"ประธานในที่ประชุม {chair or _BLANK} ผู้อำนวยการ{sname} "
-              "กล่าวเปิดประชุมและดำเนินการประชุมตามระเบียบวาระ ดังนี้")
-
-    # ---- วาระ 1 ----
-    _agenda(doc, "ระเบียบวาระที่ 1 เรื่องที่ประธานแจ้งให้ที่ประชุมทราบ")
-    _sub(doc, "1.1 ประธานกล่าวถึงแนวทางการจัดการศึกษาของสถานศึกษา ซึ่งกำหนดให้ครูผู้สอน"
-              "จัดการเรียนการสอนอย่างมีประสิทธิภาพ โดยผู้มีส่วนเกี่ยวข้องมีส่วนร่วม "
-              "และรัฐบาลสนับสนุนค่าใช้จ่ายอย่างเสมอภาคและเป็นธรรมในรายการพื้นฐาน")
-    counts = [r for r in (est_rows or []) if r.get("students")]
-    if counts:
-        _sub(doc, f"1.2 จำนวนนักเรียนที่ใช้คำนวณเงินอุดหนุนรายบุคคล ปีการศึกษา {tp.year}")
-        headers = ["ระดับชั้น", "จำนวนนักเรียน", "อัตราค่าหนังสือ/คน", "เป็นเงิน", "หมายเหตุ"]
-        widths = [Cm(5.4), Cm(2.6), Cm(3.2), Cm(2.8), Cm(2.5)]
-        t = _grid(doc, headers, widths, size=14)
-        tot_st = 0
-        tot_amt = 0.0
-        for r in counts:
-            amt = float(r.get("rate") or 0) * int(r.get("students") or 0)
-            tot_st += int(r.get("students") or 0)
-            tot_amt += amt
-            _row(t, [r["level"], str(r["students"]), _money(r.get("rate")), _money(amt), "-"],
-                 widths, ["left", "center", "right", "right", "center"], size=14)
-        _row(t, ["รวม", str(tot_st), "", _money(tot_amt), "-"], widths,
-             ["center", "center", "right", "right", "center"], size=14, bold=True)
-    _resolution(doc)
-
-    # ---- วาระ 2 ----
-    _agenda(doc, "ระเบียบวาระที่ 2 เรื่องรับรองรายงานการประชุมครั้งที่ผ่านมา")
-    prev = (tp.meet_no or 1) - 1
-    _sub(doc, "- ไม่มี -" if prev < 1 else
-              f"รายงานการประชุมครั้งที่ {prev} ปีการศึกษา {tp.year}")
-    _resolution(doc, "ที่ประชุมรับทราบ" if prev < 1 else "ที่ประชุมรับรองรายงานการประชุม")
-
-    # ---- วาระ 3 ----
-    _agenda(doc, "ระเบียบวาระที่ 3 เรื่องเสนอเพื่อทราบ")
-    _sub(doc, f"3.1 แนวปฏิบัติโครงการเรียนฟรี 15 ปี อย่างมีคุณภาพ ปีการศึกษา {tp.year} "
-              f"{sname} ได้รับเงินอุดหนุนจากรัฐบาล 5 รายการ ดังนี้")
-    for i, name in enumerate(["ค่าจัดการเรียนการสอน", "ค่าหนังสือเรียน", "ค่าอุปกรณ์การเรียน",
-                              "ค่าเครื่องแบบนักเรียน", "ค่ากิจกรรมพัฒนาคุณภาพผู้เรียน"], start=1):
-        pr = _p(doc, f"{i}. {name}", size=15, after=0)
-        pr.paragraph_format.left_indent = Cm(_IND_BODY)
-    _p(doc, "", after=4)
-    rates = _jload(tp.rates, {})
-    book_rows = [(r["level"], float(rates.get(r["level"]) or r.get("rate") or 0))
-                 for r in (est_rows or [])
-                 if float(rates.get(r["level"]) or r.get("rate") or 0)]
-    step = 2
-    if book_rows:
-        _rate_lines(doc, "3.2 อัตราค่าหนังสือเรียน", "บาท/ปี", book_rows)
-        step = 3
-    for title, unit, lines in _SUPPORT_RATES:
-        _rate_lines(doc, f"3.{step} {title}", unit, lines)
-        step += 1
-    _resolution(doc)
-
-    # ---- วาระ 4 ----
-    _agenda(doc, "ระเบียบวาระที่ 4 เรื่องเสนอเพื่อพิจารณาให้ความเห็นชอบ")
-    n_items = sum(len(items) for _, items in (groups or []))
-    grand = sum(float(it["price"]) * float(it["qty"])
-                for _, items in (groups or []) for it in items)
-    _sub(doc, f"4.1 รับรองจำนวนนักเรียน ปีการศึกษา {tp.year} ที่ใช้คำนวณเงินอุดหนุน")
-    _sub(doc, "4.2 การคัดเลือกหนังสือเรียนและแบบฝึกหัด ซึ่งคณะกรรมการคัดเลือกหนังสือเรียน"
-              "ได้พิจารณาให้ตรงตามหลักสูตรแกนกลางการศึกษาขั้นพื้นฐาน พุทธศักราช 2551 "
-              f"(ฉบับปรับปรุง พ.ศ. 2560) รวม {n_items} รายการ เป็นเงิน {_money(grand)} บาท "
-              f"({bahttext(grand)}) รายละเอียดตามบัญชีรายการหนังสือเรียนแนบท้าย")
-    _sub(doc, "4.3 การจัดซื้อหนังสือเรียน ให้จัดหาให้นักเรียนครบทุกคน เพื่อให้ได้รับ"
-              "สื่อการเรียนรู้อย่างทั่วถึงและทันก่อนเปิดภาคเรียน")
-    _resolution(doc, "ที่ประชุมให้ความเห็นชอบ")
-
-    # ---- วาระ 5 ----
-    _agenda(doc, "ระเบียบวาระที่ 5 เรื่องอื่น ๆ")
-    _sub(doc, "- ไม่มี -")
-    _p(doc, f"เลิกประชุมเวลา {_BLANK}", bold=True, size=16, before=4, after=12)
-
-    _sign_table(doc, [[
-        ("ลงชื่อ ..........................................", "center"),
-        (f"( {(tp.recorder or '').strip() or _BLANK} )", "center"),
-        ("ผู้บันทึกการประชุม", "center"),
-    ], [
-        ("ลงชื่อ ..........................................", "center"),
-        (f"( {(tp.meet_checker or '').strip() or _BLANK} )", "center"),
-        ("ผู้ตรวจบันทึกการประชุม", "center"),
-    ]])
-    return _save(doc, f"รายงานการประชุมคัดเลือกหนังสือเรียน_{tp.year}") if own else doc
-
-
 # ------------------------------------------------------------------------ ทั้งชุด
 def render_select_bundle(school, tp, groups, est_rows, survey_groups) -> str:
-    """ออกชุดคัดเลือกหนังสือทั้ง 7 ฉบับเป็นไฟล์เดียว (เรียงตามลำดับการใช้งานจริง)"""
+    """ออกชุดคัดเลือกหนังสือทั้ง 6 ฉบับเป็นไฟล์เดียว (เรียงตามลำดับการใช้งานจริง)
+    ไม่รวมรายงานการประชุม - โรงเรียนเขียนเองตามเนื้อหาที่ประชุมจริง"""
     doc = _new()
     render_select_memo(school, tp, doc)
     render_estimate(school, tp, est_rows, doc)
@@ -667,5 +476,4 @@ def render_select_bundle(school, tp, groups, est_rows, survey_groups) -> str:
     render_parties_announce(school, tp, doc)
     render_invite(school, tp, doc)
     render_survey(school, tp, survey_groups, doc)
-    render_meeting_report(school, tp, groups, doc, est_rows=est_rows)
     return _save(doc, f"ชุดคัดเลือกหนังสือเรียน_{tp.year}")

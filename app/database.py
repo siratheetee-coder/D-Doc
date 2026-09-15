@@ -35,9 +35,6 @@ Base = declarative_base()
 
 # รายการเพิ่มคอลัมน์ใหม่บน DB เก่า (ปลอดภัย: ข้ามถ้ามีอยู่แล้ว)
 MIGRATIONS = [
-    ("textbook_purchase", "meet_no", "INTEGER DEFAULT 1"),
-    ("textbook_purchase", "attendees", "TEXT"),
-    ("textbook_purchase", "meet_checker", "VARCHAR DEFAULT ''"),
     ("textbook_purchase", "procurement_id", "INTEGER"),
     ("textbook_purchase", "contact_phone", "VARCHAR DEFAULT ''"),
     ("textbook", "selection_key", "VARCHAR"),

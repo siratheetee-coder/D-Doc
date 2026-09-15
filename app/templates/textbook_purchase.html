@@ -113,9 +113,6 @@
     </div>
     <div class="row">
       <div style="flex:1.4;"><label>หัวหน้างานวิชาการ (ผู้เสนอบันทึก / เจ้าของเรื่องท้ายหนังสือเชิญ)</label><input name="academic_head" list="persons" value="{{ tp.academic_head }}"></div>
-      <div style="width:120px;"><label>ประชุมครั้งที่</label><input name="meet_no" type="number" min="1" value="{{ tp.meet_no or 1 }}"></div>
-      <div style="flex:1.2;"><label>ผู้บันทึกการประชุม</label><input name="recorder" list="persons" value="{{ tp.recorder }}"></div>
-      <div style="flex:1.2;"><label>ผู้ตรวจบันทึกการประชุม</label><input name="meet_checker" list="persons" value="{{ tp.meet_checker }}"></div>
     </div>
   </div>
 
@@ -144,11 +141,6 @@
   {{ people('mt', boards.get('meeting') or [], 6, 'คณะกรรมการดำเนินการจัดประชุม', '') }}
   <input type="hidden" name="parties_editor" value="combined">
   {{ people('party', party_rows, 1, 'ภาคี 4 ฝ่าย', '(เลือกฝ่ายของผู้แทนแต่ละคนในตารางเดียว)', with_party=True) }}
-  {{ people('at', attendees, 1, 'คณะกรรมการผู้เข้าประชุม', '(ใช้ในรายงานการประชุม · กดปุ่มด้านล่างดึงรายชื่อจากภาคี 4 ฝ่ายได้)') }}
-  <div class="card" style="margin-top:-10px; padding-top:0; border-top:0;">
-    <button type="button" class="btn sm gray" id="pull-attendees">ดึงรายชื่อจาก ภาคี 4 ฝ่าย มาใส่ผู้เข้าประชุม</button>
-    <span class="muted" style="font-size:13px;">เติมต่อท้ายรายชื่อที่มีอยู่ · ผอ. เป็นประธานกรรมการ · คนสุดท้ายเป็นกรรมการและเลขานุการ</span>
-  </div>
 
   <datalist id="persons">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist>
   <datalist id="positions">{% for ps in positions %}<option value="{{ ps }}">{% endfor %}</datalist>
@@ -164,14 +156,13 @@
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <button class="btn green" type="submit" name="document" value="tor">ออก TOR (Word)</button>
-    <button class="btn" type="submit" name="document" value="all">ออกชุดคัดเลือก 7 ฉบับ</button>
+    <button class="btn" type="submit" name="document" value="all">ออกชุดคัดเลือก 6 ฉบับ</button>
     <button class="btn sm gray" type="submit" name="document" value="memo">1. บันทึกขออนุญาต</button>
     <button class="btn sm gray" type="submit" name="document" value="estimate">2. ประมาณการค่าหนังสือ</button>
     <button class="btn sm gray" type="submit" name="document" value="order">3. คำสั่งแต่งตั้ง กก.คัดเลือก</button>
     <button class="btn sm gray" type="submit" name="document" value="parties">4. ประกาศภาคี 4 ฝ่าย</button>
     <button class="btn sm gray" type="submit" name="document" value="invite">5. หนังสือเชิญประชุม</button>
     <button class="btn sm gray" type="submit" name="document" value="survey">6. แบบสำรวจความต้องการ</button>
-    <button class="btn sm gray" type="submit" name="document" value="report">7. รายงานการประชุม</button>
   </div>
 </div>
 
@@ -252,7 +243,7 @@
     estimate: [], order: ['order_no','order_date','sel1_name'],
     parties: ['announce_no','announce_date'],
     invite: ['invite_no','invite_date','meet_date','meet_time','meet_place'],
-    survey: [], report: ['meet_date','meet_time','meet_place','recorder']
+    survey: []
   };
   const markDirty = () => { dirty = true; status.textContent = 'มีข้อมูลที่ยังไม่ได้บันทึก'; };
   form.addEventListener('input', markDirty);
@@ -276,37 +267,6 @@
         renumber(); markDirty();
       }
     });
-  });
-  // ดึงรายชื่อภาคี 4 ฝ่าย -> ตารางผู้เข้าประชุม (ผอ. เป็นประธาน · คนสุดท้ายเป็นเลขานุการ)
-  document.getElementById('pull-attendees')?.addEventListener('click', () => {
-    const src = form.querySelector('[data-prefix="party"] tbody');
-    const dst = form.querySelector('[data-prefix="at"]');
-    if (!src || !dst) return;
-    const labels = {{ party_labels|tojson }};
-    const body = dst.querySelector('tbody');
-    const proto = body.rows[0].cloneNode(true);
-    const rows = [...src.rows]
-      .map(r => ({ name: r.querySelector('[name$="_name"]').value.trim(),
-                   pos: labels[r.querySelector('select').value] || '',
-                   role: 'กรรมการ' }))
-      .filter(r => r.name);
-    if (!rows.length) { alert('ยังไม่มีรายชื่อในตารางภาคี 4 ฝ่าย'); return; }
-    const dirName = '{{ school.director_name or "" }}'.trim();
-    if (dirName) rows.unshift({ name: dirName, pos: 'ผู้อำนวยการโรงเรียน', role: 'ประธานกรรมการ' });
-    rows[rows.length - 1].role = 'กรรมการและเลขานุการ';
-    const blank = [...body.rows].every(r => !r.querySelector('[name$="_name"]').value.trim());
-    if (blank) body.innerHTML = '';
-    for (const r of rows) {
-      const row = proto.cloneNode(true);
-      row.querySelector('[name$="_name"]').value = r.name;
-      row.querySelector('[name$="_pos"]').value = r.pos;
-      row.querySelector('[name$="_role"]').value = r.role;
-      body.appendChild(row);
-    }
-    [...body.rows].forEach((row, i) => row.querySelectorAll('[name]').forEach(f => {
-      f.name = 'at' + (i + 1) + f.name.slice(f.name.lastIndexOf('_')); }));
-    markDirty();
-    dst.scrollIntoView({ block: 'center', behavior: 'smooth' });
   });
   window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
   form.addEventListener('submit', async e => {
