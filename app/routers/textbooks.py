@@ -290,6 +290,7 @@ def book_purchase_page(request: Request, db: Session = Depends(get_db),
         "selection": selection, "school_levels": SCHOOL_LEVELS,
         "est_rows": _estimate_rows(db, tp, groups),
         "levels": [lv for lv, _ in groups],
+        "attendees": _jload_safe(tp.attendees, []),
     })
 
 
@@ -329,6 +330,9 @@ async def book_purchase_save(request: Request, db: Session = Depends(get_db)):
         setattr(tp, f, parse_be_date(form.get(f) or ""))
     tp.meet_time = (form.get("meet_time") or "").strip()
     tp.meet_place = (form.get("meet_place") or "").strip()
+    tp.meet_no = _to_int(form.get("meet_no"), 1) or 1
+    tp.meet_checker = (form.get("meet_checker") or "").strip()
+    tp.attendees = json.dumps(read_people(form, "at"), ensure_ascii=False)
 
     tp.boards = json.dumps({"exec": read_people(form, "ex"), "select": read_people(form, "sel"),
                             "meeting": read_people(form, "mt")}, ensure_ascii=False)
@@ -366,6 +370,7 @@ def book_select_doc(kind: str, db: Session = Depends(get_db), year: int | None =
         "parties": lambda: bs.render_parties_announce(school, tp),
         "invite": lambda: bs.render_invite(school, tp),
         "survey": lambda: bs.render_survey(school, tp, survey),
+        "report": lambda: bs.render_meeting_report(school, tp, groups, est_rows=est),
         "all": lambda: bs.render_select_bundle(school, tp, groups, est, survey),
     }
     if kind not in makers:
