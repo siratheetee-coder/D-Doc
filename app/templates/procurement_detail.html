@@ -28,6 +28,13 @@
 </div>
 {% endmacro %}
 <div class="card">
+  {% if book_tp %}
+  <div class="alert" style="background:#eff6ff; color:#1e3a8a; margin-bottom:12px;">
+    เรื่องนี้สร้างจาก <a href="/textbooks/purchase?year={{ book_tp.year }}">จัดซื้อหนังสือเรียน ปีการศึกษา {{ book_tp.year }}</a> ·
+    รายการหนังสือกับวงเงินอัปเดตได้จากหน้านั้น (กดปุ่ม "อัปเดตรายการในเรื่องจัดซื้อ") ·
+    เอกสาร <b>รายละเอียดคุณลักษณะ (TOR)</b> จะออกเป็นฉบับหนังสือเรียน 8 หัวข้อ พร้อมรายการหนังสือแนบท้าย
+  </div>
+  {% endif %}
   <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; align-items:center;">
     <h1 style="margin:0;">เลขที่ {{ p.memo_no or "-" }} : {{ p.proc_type }}{{ p.subject }}</h1>
     <div style="display:flex; gap:10px; align-items:center;">

@@ -259,8 +259,30 @@ def _doc_seq(proc) -> str:
     return seq.replace("/", "-")
 
 
+def book_purchase_of(proc):
+    """ถ้าเรื่องนี้สร้างมาจาก "จัดซื้อหนังสือเรียน" คืน TextbookPurchase · ไม่ใช่ = None"""
+    from sqlalchemy.orm import object_session
+    from app.models import TextbookPurchase
+    db = object_session(proc)
+    if db is None or not getattr(proc, "id", None):
+        return None
+    try:
+        return db.query(TextbookPurchase).filter_by(procurement_id=proc.id).first()
+    except Exception:
+        return None
+
+
 def render_document(kind: str, proc, school) -> str:
     """สร้างไฟล์เอกสารชนิด kind จากแม่แบบ คืนค่าที่อยู่ไฟล์"""
+    # TOR ของเรื่องที่มาจากหนังสือเรียน ใช้ฉบับเฉพาะ (8 หัวข้อ + รายการหนังสือแนบท้าย)
+    # แทนแม่แบบ TOR ทั่วไป เพราะมีคุณสมบัติผู้เสนอราคา/หลักฐานเสนอราคา/หลักประกันครบตามแฟ้มจริง
+    if kind == "รายละเอียดคุณลักษณะ(TOR)":
+        tp = book_purchase_of(proc)
+        if tp is not None:
+            from sqlalchemy.orm import object_session
+            from app.services.book_tor_doc import render_book_tor
+            from app.routers.textbooks import _book_groups
+            return render_book_tor(school, tp, _book_groups(object_session(proc), tp.year))
     if kind not in TEMPLATE_FILES:
         raise ValueError(f"ยังไม่มีแม่แบบสำหรับ: {kind}")
     template_path = TEMPLATES_DIR / TEMPLATE_FILES[kind]

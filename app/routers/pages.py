@@ -35,7 +35,8 @@ from app.services.asset_utils import (
 )
 from app.services.doc_number import suggest_doc_no, commit_doc_no, check_doc_no, COUNTER_TYPES, parse_seq
 from app.services.budget import current_plan_year, plan_year_label, project_budget, project_spent
-from app.services.render import render_document, render_bundle, AVAILABLE_KINDS, kinds_for
+from app.services.render import (render_document, render_bundle, AVAILABLE_KINDS,
+                                 kinds_for, book_purchase_of)
 from app.services.register_export import export_register
 from app.services.thai_holidays import holiday_map, year_range_for
 from app.services.bulk_io import build_import_template, import_workbook
@@ -2270,6 +2271,8 @@ def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get
         "holidays_json": holiday_map(holiday_years),
         "docno_used": docno_used, "order_type": order_type,
         "case_info": PROC_CASES.get(proc.proc_case or "normal", PROC_CASES["normal"]),
+        # เรื่องที่มาจาก "จัดซื้อหนังสือเรียน" -> บอกที่มา + TOR ใช้ฉบับหนังสือเรียน
+        "book_tp": book_purchase_of(proc),
     })
 
 
