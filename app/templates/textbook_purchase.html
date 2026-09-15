@@ -40,7 +40,8 @@
   {% endif %}
 </div>
 
-{% macro people(prefix, rows, n, title, hint, with_level=False, with_party=False) %}
+{% set ROLE_CHOICES = ['ประธานกรรมการ', 'กรรมการ', 'กรรมการและเลขานุการ'] %}
+{% macro people(prefix, rows, n, title, hint, with_level=False, with_party=False, free_role=False) %}
 <div class="card people-editor" data-prefix="{{ prefix }}">
   <h2>{{ title }} <span class="muted" style="font-size:14px;">{{ hint }}</span></h2>
   <div class="table-wrap"><table>
@@ -53,7 +54,12 @@
         {% if with_level %}<td><input name="{{ prefix }}{{ i }}_level" value="{{ m.level or '' }}" placeholder="ป.1" style="width:80px;"></td>{% endif %}
         <td><input name="{{ prefix }}{{ i }}_name" list="persons" autocomplete="off" value="{{ m.name or '' }}"></td>
         <td><input name="{{ prefix }}{{ i }}_pos" list="positions" value="{{ m.position or '' }}"></td>
-        <td><input name="{{ prefix }}{{ i }}_role" value="{{ m.role or 'กรรมการ' }}"></td>
+        {% set role_now = m.role or ('ประธานกรรมการ' if i == 1 else 'กรรมการ') %}
+        <td>{% if free_role %}<input name="{{ prefix }}{{ i }}_role" value="{{ role_now }}">
+          {% else %}<select name="{{ prefix }}{{ i }}_role" aria-label="บทบาทในคณะกรรมการ">
+            {% for opt in ROLE_CHOICES %}<option value="{{ opt }}" {{ 'selected' if role_now == opt }}>{{ opt }}</option>{% endfor %}
+            {% if role_now not in ROLE_CHOICES %}<option value="{{ role_now }}" selected>{{ role_now }}</option>{% endif %}
+          </select>{% endif %}</td>
         <td><button type="button" class="btn sm gray" data-remove-person aria-label="ลบรายชื่อ">ลบ</button></td>
       </tr>
       {% endfor %}
@@ -140,7 +146,7 @@
   {{ people('sel', boards.get('select') or [], 12, 'คณะกรรมการคัดเลือกหนังสือ (รายชั้น)', '(ครูผู้สอนแต่ละชั้น)', True) }}
   {{ people('mt', boards.get('meeting') or [], 6, 'คณะกรรมการดำเนินการจัดประชุม', '') }}
   <input type="hidden" name="parties_editor" value="combined">
-  {{ people('party', party_rows, 1, 'ภาคี 4 ฝ่าย', '(เลือกฝ่ายของผู้แทนแต่ละคนในตารางเดียว)', with_party=True) }}
+  {{ people('party', party_rows, 1, 'ภาคี 4 ฝ่าย', '(เลือกฝ่ายของผู้แทนแต่ละคนในตารางเดียว)', with_party=True, free_role=True) }}
 
   <datalist id="persons">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist>
   <datalist id="positions">{% for ps in positions %}<option value="{{ ps }}">{% endfor %}</datalist>
@@ -257,16 +263,33 @@
       if (event.target.closest('[data-add-person]')) {
         const row = prototype.cloneNode(true);
         row.querySelectorAll('input').forEach(field => field.value = field.name.endsWith('_role') ? 'กรรมการ' : '');
+        row.querySelectorAll('select').forEach(field => { if (field.name.endsWith('_role')) field.value = 'กรรมการ'; });
         body.appendChild(row); renumber(); markDirty(); row.querySelector('input').focus();
       }
       const remove = event.target.closest('[data-remove-person]');
       if (remove) {
         const row = remove.closest('tr');
         if (body.rows.length > 1) row.remove();
-        else row.querySelectorAll('input').forEach(field => field.value = field.name.endsWith('_role') ? 'กรรมการ' : '');
+        else {
+          row.querySelectorAll('input').forEach(field => field.value = '');
+          row.querySelectorAll('select').forEach(field => { if (field.name.endsWith('_role')) field.value = 'ประธานกรรมการ'; });
+        }
         renumber(); markDirty();
       }
     });
+  });
+  // เลือกชื่อครูจากทะเบียนบุคลากร -> เติม "ตำแหน่ง" ให้เอง (ไม่ทับที่พิมพ์เองไว้แล้ว)
+  const personPos = {};
+  document.querySelectorAll('#persons option').forEach(o => {
+    const pos = (o.textContent || '').trim();
+    if (o.value && pos) personPos[o.value.trim()] = pos;
+  });
+  form.addEventListener('input', event => {
+    const el = event.target;
+    if (!el.name || !el.name.endsWith('_name')) return;
+    const pos = personPos[el.value.trim()];
+    const box = el.closest('tr')?.querySelector('[name$="_pos"]');
+    if (pos && box && !box.value.trim()) { box.value = pos; markDirty(); }
   });
   window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
   form.addEventListener('submit', async e => {

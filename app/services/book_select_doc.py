@@ -119,12 +119,9 @@ def _duty(doc, text, *, extra=()):
     return pr
 
 
-def _member_rows(doc, members, *, numbered=True, start=1, selection=False, inline=False):
-    """รายชื่อกรรมการ เยื้องเข้ามาใต้หัวข้อคณะกรรมการ
-
-    inline=True : เขียนต่อกันเป็นบรรทัดเดียว (ชื่อ ตำแหน่ง บทบาท) ประหยัดพื้นที่
-    inline=False: ตารางไร้เส้นขอบ ให้ ชื่อ/ตำแหน่ง/บทบาท ตรงคอลัมน์กัน
-    """
+def _member_rows(doc, members, *, numbered=True, start=1, selection=False):
+    """รายชื่อกรรมการ - ตารางไร้เส้นขอบ เยื้องใต้หัวข้อ
+    ให้ ชื่อ / ตำแหน่ง / บทบาท ตรงคอลัมน์กันทุกชุด (อ่านง่ายเหมือนคำสั่งจริง)"""
     rows = [m for m in (members or []) if (m.get("name") or "").strip()]
     if not rows:
         rows = [{"name": "", "position": "", "role": ""}]
@@ -137,14 +134,6 @@ def _member_rows(doc, members, *, numbered=True, start=1, selection=False, inlin
         if selection:
             name = f"{name} (ชั้น {(m.get('level') or '-').strip()})"
         return label, name, f"ตำแหน่ง {pos}", role
-
-    if inline:
-        for i, m in enumerate(rows, start=start):
-            label, name, pos, role = parts(i, m)
-            line = " ".join(x for x in [label, name, pos, role] if x)
-            pr = _p(doc, line, size=15, after=0)
-            pr.paragraph_format.left_indent = Cm(_IND_BODY)
-        return None
 
     t = doc.add_table(rows=len(rows), cols=4)
     _no_borders(t)
@@ -285,9 +274,8 @@ def render_select_order(school, tp, doc=None):
             "ทางการศึกษา พ.ศ. 2547 จึงแต่งตั้งบุคคลผู้มีรายนามต่อไปนี้เป็นคณะกรรมการ ดังนี้",
        align="justify", indent=1.25, after=2)
 
-    # คณะกรรมการอำนวยการ: เขียนติดกันบรรทัดเดียวต่อคน เพื่อประหยัดพื้นที่
     _board_head(doc, "1. คณะกรรมการอำนวยการ")
-    _member_rows(doc, boards.get("exec") or [], inline=True)
+    _member_rows(doc, boards.get("exec") or [])
     _duty(doc, "ให้คำปรึกษา แนะนำในการคัดเลือกหนังสือเรียนตามนโยบาย "
                "และการแต่งตั้งคณะกรรมการภาคี 4 ฝ่าย")
 
