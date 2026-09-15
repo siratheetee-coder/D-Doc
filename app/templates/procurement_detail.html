@@ -134,6 +134,17 @@
     </div>
 
     {% set has_purchase = (p.committees | selectattr('kind', 'equalto', 'purchase') | list | length) > 0 %}
+    {% if book_tp %}
+    {# หนังสือเรียนใช้คำสั่งฉบับเดียว แต่งตั้งทั้ง กก.จัดซื้อและ กก.ตรวจรับ จึงมีเลขที่ชุดเดียว #}
+    <div class="docgrp">
+      <div class="docgrp-h">คำสั่งแต่งตั้งคณะกรรมการจัดซื้อและตรวจรับพัสดุ</div>
+      <div class="docnote"><svg class="icon"><use href="#ic-info"/></svg> การจัดซื้อหนังสือเรียนออกคำสั่งฉบับเดียว มีทั้งคณะกรรมการจัดซื้อโดยวิธีเฉพาะเจาะจงและคณะกรรมการตรวจรับพัสดุ จึงใช้เลขที่คำสั่งชุดเดียว</div>
+      <div class="row">
+        <div><label>เลขที่คำสั่ง</label><input name="command_no" value="{{ p.command_no }}"></div>
+        <div><label>ลงวันที่</label><input name="command_date" value="{{ be_date(p.command_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      </div>
+    </div>
+    {% else %}
     {% if has_purchase %}
     <div class="docgrp">
       <div class="docgrp-h">คำสั่งแต่งตั้งคณะกรรมการซื้อ/จ้าง</div>
@@ -154,6 +165,7 @@
         <div><label>ลงวันที่</label><input name="command_date" value="{{ be_date(p.command_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       </div>
     </div>
+    {% endif %}
 
     <div class="docgrp">
       <div class="docgrp-h">ใบเสนอราคา</div>

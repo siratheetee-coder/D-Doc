@@ -368,8 +368,14 @@ _NEEDS_COMMITTEE = {"คำสั่งแต่งตั้งกรรมก�
 
 def kinds_for(proc):
     """ชนิดเอกสารที่ออกได้สำหรับเรื่องนี้ (ตัดเอกสารที่ไม่มีข้อมูลรองรับออก)"""
+    # หนังสือเรียน: คำสั่งแต่งตั้งเป็นฉบับเดียว (กก.จัดซื้อ + กก.ตรวจรับ)
+    # จึงไม่ต้องมีคำสั่ง กก.ซื้อ/จ้าง กับคำสั่ง กก.คุณลักษณะ แยกอีกใบ
+    book = book_purchase_of(proc) is not None
+    skip = {"คำสั่งแต่งตั้งกรรมการซื้อ/จ้าง"} if book else set()
     out = []
     for k in DOC_ORDER:
+        if k in skip:
+            continue
         need = _NEEDS_COMMITTEE.get(k)
         if need:
             c = _find_committee(proc, need)

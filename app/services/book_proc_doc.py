@@ -153,8 +153,9 @@ def _attach_table(doc, school, proc, tp, *, title=None):
     _p(doc, title or "บัญชีรายละเอียดแนบท้าย", align="center", bold=True, size=18, after=0)
     _p(doc, f"{_subject_line(proc, tp)}  {_sname(school)}",
        align="center", bold=True, size=15, after=6)
-    headers = ["ที่", "รายการหนังสือ", "จำนวน", "หน่วย", "ราคา/หน่วย", "จำนวนเงิน"]
-    widths = [Cm(1.0), Cm(7.3), Cm(1.8), Cm(1.6), Cm(2.2), Cm(2.6)]
+    # ตัดคอลัมน์ "หน่วย" ออก (หนังสือเป็น "เล่ม" ทุกบรรทัดอยู่แล้ว) เอาที่ว่างไปให้ชื่อหนังสือ
+    headers = ["ที่", "รายการหนังสือ", "จำนวน (เล่ม)", "ราคา/หน่วย", "จำนวนเงิน"]
+    widths = [Cm(1.0), Cm(8.9), Cm(2.2), Cm(2.2), Cm(2.2)]
     t = doc.add_table(rows=1, cols=len(headers))
     t.style = "Table Grid"
     _fixed_cols(t, widths)
@@ -165,16 +166,16 @@ def _attach_table(doc, school, proc, tp, *, title=None):
     total = 0.0
     for i, it in enumerate(proc.items, start=1):
         total += it.amount
-        vals = [str(i), it.name or "", f"{(it.quantity or 0):g}", it.unit or "เล่ม",
+        vals = [str(i), it.name or "", f"{(it.quantity or 0):g}",
                 _money(it.unit_price), _money(it.amount)]
         r = t.add_row(); _no_split_row(r)
         for c, v, w, al in zip(r.cells, vals, widths,
-                               ["center", "left", "center", "center", "right", "right"]):
+                               ["center", "left", "center", "right", "right"]):
             _set_cell(c, v, align=al, size=14)
             c.width = w
     r = t.add_row(); _no_split_row(r)
     _set_cell(r.cells[1], "รวมทั้งสิ้น", bold=True, align="right", size=14)
-    _set_cell(r.cells[5], _money(total), bold=True, align="right", size=14)
+    _set_cell(r.cells[4], _money(total), bold=True, align="right", size=14)
     for c, w in zip(r.cells, widths):
         c.width = w
 

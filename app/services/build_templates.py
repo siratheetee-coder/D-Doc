@@ -237,14 +237,44 @@ def _no_borders(table):
     tblPr.append(borders)
 
 
-def _sign_table(doc, columns, *, after=6, gap=True):
+def _keep_next(paragraph):
+    """ย่อหน้านี้ต้องอยู่หน้าเดียวกับสิ่งที่ตามมา (กันลายเซ็นหลุดไปหน้าใหม่ลำพัง)"""
+    pPr = paragraph._p.get_or_add_pPr()
+    if pPr.find(qn("w:keepNext")) is None:
+        e = OxmlElement("w:keepNext")
+        e.set(qn("w:val"), "true")
+        pPr.append(e)
+
+
+def _keep_tail(doc, n=3):
+    """ตรึงย่อหน้าท้าย ๆ ไว้กับสิ่งที่กำลังจะต่อ (ใช้ก่อนวางบล็อกลงนาม)
+
+    ไล่จากท้ายขึ้นมา ข้ามย่อหน้าว่างเพื่อไม่ให้ไปนับบรรทัดเว้นวรรคเป็นเนื้อหา
+    """
+    kept = 0
+    for p in reversed(doc.paragraphs):
+        _keep_next(p)
+        if p.text.strip():
+            kept += 1
+            if kept >= n:
+                break
+
+
+def _sign_table(doc, columns, *, after=6, gap=True, keep=True):
     """ช่องลงนามแบบจัดคอลัมน์ด้วยตารางไร้เส้นขอบ (จัดบรรทัดตรงกันเป๊ะ)
     columns = [ [ (text, align), ... ], ... ] แต่ละคอลัมน์คือบล็อกลงนาม 1 ช่อง
     gap=False : ไม่เพิ่มบรรทัดว่างท้ายตาราง (ประหยัดพื้นที่ ให้เนื้อหาอยู่หน้าเดียว)
+    keep=False: ไม่ต้องตรึงกับเนื้อหาด้านบน (กรณีตั้งใจให้ขึ้นหน้าใหม่)
+
+    ค่าปริยายจะตรึงบล็อกลงนามไว้กับข้อความก่อนหน้า และห้ามตัดแถวข้ามหน้า
+    เพื่อไม่ให้ลายเซ็นหลุดไปอยู่คนละหน้ากับเนื้อหา
     """
     n = len(columns)
+    if keep:
+        _keep_tail(doc)
     table = doc.add_table(rows=1, cols=n)
     _no_borders(table)
+    _no_split_row(table.rows[0])
     amap = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER,
             "right": WD_ALIGN_PARAGRAPH.RIGHT}
     for cell, lines in zip(table.rows[0].cells, columns):
@@ -258,6 +288,7 @@ def _sign_table(doc, columns, *, after=6, gap=True):
             _csize(r, 16)
             r.font.name = THAI_FONT
             r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
+    # แถวตั้ง cantSplit ไว้แล้ว บล็อกลงนามจึงอยู่ครบในหน้าเดียวเสมอ
     if gap:
         doc.add_paragraph().paragraph_format.space_after = Pt(after)
     return table
@@ -1104,6 +1135,44 @@ def build_disbursement():
     return out
 
 
+_SIGN_STARTS = ("ลงชื่อ", "(ลงชื่อ", "ลงนาม")
+
+
+def glue_signatures(path) -> int:
+    """ตรึงบล็อกลงนามไว้กับเนื้อหาด้านบน เพื่อไม่ให้ลายเซ็นหลุดไปอยู่คนละหน้า
+
+    หลายแม่แบบเขียนช่องลงนามเป็นย่อหน้าธรรมดาเรียงกัน (ไม่ใช่ตารางลงนาม)
+    จึงตามไปตั้ง keepNext ให้ทั้งบล็อก + ย่อหน้าก่อนหน้าอีก 2 ย่อหน้า ทีเดียวตอนสร้างแม่แบบ
+    คืนค่าจำนวนย่อหน้าที่ตั้งให้ (ไว้ตรวจว่าทำงานจริง)
+    """
+    doc = Document(str(path))
+    ps = doc.paragraphs
+    marks = set()
+    def starts_block(p) -> bool:
+        text = (p.text or "").strip()
+        if text.startswith(_SIGN_STARTS):
+            return True
+        # บางแม่แบบไม่มีบรรทัด "ลงชื่อ" แต่ขึ้นต้นด้วยชื่อในวงเล็บ เช่น "( {{ director_name }} )"
+        return (p.alignment == WD_ALIGN_PARAGRAPH.CENTER
+                and text.startswith("(") and text.endswith(")") and len(text) < 60)
+
+    for i, p in enumerate(ps):
+        if not starts_block(p):
+            continue
+        if i and starts_block(ps[i - 1]):
+            continue                      # อยู่กลางบล็อกเดิมอยู่แล้ว
+        # บล็อกลงนาม = ย่อหน้าตั้งแต่ "ลงชื่อ" ไปจนจบชุด (ชื่อในวงเล็บ/ตำแหน่ง/วันที่)
+        j = i
+        while j + 1 < len(ps) and ps[j + 1].text.strip() and len(ps[j + 1].text.strip()) < 90                 and not ps[j + 1].text.strip().startswith(_SIGN_STARTS):
+            j += 1
+        marks.update(range(max(0, i - 2), j))     # ย่อหน้าสุดท้ายของบล็อกไม่ต้องตรึงต่อ
+    for i in sorted(marks):
+        _keep_next(ps[i])
+    if marks:
+        doc.save(str(path))
+    return len(marks)
+
+
 def build_all():
     TEMPLATES_DIR.mkdir(exist_ok=True)
     built = [build_purchase_request(), build_inspection(), build_purchase_order(),
@@ -1111,6 +1180,11 @@ def build_all():
              build_quotation(), build_winner_announcement(), build_spec_committee(),
              build_purchase_command(), build_spec_command(),
              build_tor(), build_delivery_note(), build_disbursement()]
+    for path in built:
+        try:
+            glue_signatures(path)
+        except Exception:
+            pass      # แม่แบบยังใช้ได้ แค่ไม่ได้ตรึงลายเซ็น
     return built
 
 
