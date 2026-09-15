@@ -1858,13 +1858,30 @@ CASE_EXTRA_FIELDS = {
         ("advance_payer", "ผู้ทดรองจ่าย/ผู้ยืมเงิน", "person"),
     ],
     "w119t2": [
+        ("t2_item", "รายการค่าใช้จ่าย (ตารางที่ 2)", "select"),
+        ("pay_mode", "วิธีจ่ายเงิน", "select"),
         ("responsible", "ผู้รับผิดชอบกิจกรรม", "person"),
         ("receipt_book", "ใบเสร็จ/ใบส่งของ เล่มที่", "text"),
         ("receipt_no", "ใบเสร็จ/ใบส่งของ เลขที่", "text"),
         ("receipt_date", "วันที่ใบเสร็จ/ใบส่งของ", "date"),
         ("budget_kind", "งบประมาณ (ระบบจะติ๊กให้ในเอกสาร)", "select"),
         ("budget_other", "งบอื่น ๆ (ระบุ ถ้าเลือก “อื่นๆ”)", "text"),
+        # --- กรณีอบรม/ประชุม/มีวิทยากร (เว้นว่างได้ถ้าไม่ใช้) ---
+        ("event_place", "สถานที่จัดกิจกรรม", "text"),
+        ("event_date", "วันที่จัดกิจกรรม", "date"),
+        ("event_time", "เวลา (เช่น 08.30 - 16.30 น.)", "text"),
+        ("participants", "จำนวนผู้เข้าร่วม (คน)", "text"),
+        ("speaker_name", "ชื่อวิทยากร", "person"),
+        ("speaker_addr", "ที่อยู่วิทยากร", "text"),
+        ("speaker_hours", "จำนวนชั่วโมงบรรยาย", "text"),
+        ("speaker_rate", "อัตราค่าตอบแทน/ชั่วโมง (บาท)", "text"),
+        # --- กรณียืมเงิน ---
         ("advance_payer", "ผู้ทดรองจ่าย/ผู้ยืมเงิน", "person"),
+        ("borrower", "ผู้ยืมเงิน (ชื่อในสัญญายืม)", "person"),
+        ("borrower_pos", "ตำแหน่งผู้ยืม", "text"),
+        ("contract_no", "เลขที่สัญญายืมเงิน", "text"),
+        ("borrow_date", "วันที่ยืมเงิน", "date"),
+        ("due_date", "วันครบกำหนดส่งใช้", "date"),
     ],
     "clause79": [
         ("receipt_book", "ใบเสร็จ/ใบส่งของ เล่มที่", "text"),
@@ -1874,9 +1891,16 @@ CASE_EXTRA_FIELDS = {
 }
 
 # ตัวเลือกสำหรับฟิลด์ชนิด select ในฟอร์มรูปแบบพิเศษ (คีย์ = ชื่อฟิลด์)
+def _t2_options():
+    from app.services.w119_doc import T2_ITEMS, PAY_MODES
+    return T2_ITEMS, PAY_MODES
+
+
 CASE_SELECT_OPTIONS = {
     "budget_kind": ["รายหัว", "15 ปี", "ตามแผน", "อื่นๆ"],
     "pay_source": ["เงินสดสำรองจ่าย", "เงินยืม"],
+    "t2_item": _t2_options()[0],
+    "pay_mode": _t2_options()[1],
 }
 
 
@@ -2230,6 +2254,11 @@ async def procurement_edit_save(proc_id: int, request: Request, db: Session = De
 
 
 # ---------------- รายละเอียด ----------------
+def _w119t2_checklist(proc):
+    from app.services.w119_doc import checklist
+    return checklist(proc)
+
+
 @router.get("/procurement/{proc_id}", response_class=HTMLResponse)
 def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get_db)):
     proc = db.get(Procurement, proc_id)
@@ -2275,6 +2304,8 @@ def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get
         "case_info": PROC_CASES.get(proc.proc_case or "normal", PROC_CASES["normal"]),
         # เรื่องที่มาจาก "จัดซื้อหนังสือเรียน" -> บอกที่มา + TOR ใช้ฉบับหนังสือเรียน
         "book_tp": book_purchase_of(proc),
+        # ว.119 ตาราง 2: เอกสารที่ต้องออก/ต้องแนบ ขึ้นกับรายการและวิธีจ่ายเงิน
+        "w119t2": (_w119t2_checklist(proc) if (proc.proc_case or "") == "w119t2" else None),
     })
 
 
@@ -2463,8 +2494,9 @@ def procurement_receipt_voucher(proc_id: int, db: Session = Depends(get_db)):
 def procurement_altdoc(proc_id: int, kind: str, db: Session = Depends(get_db)):
     """ออกเอกสารจัดซื้อวิธีพิเศษ (ว.804 / ว.119 ตาราง 1 / ว.119 ตาราง 2)"""
     from app.services.proc_alt_doc import RENDERERS
+    from app.services.w119_doc import RENDERERS as W119_RENDERERS
     proc = db.get(Procurement, proc_id)
-    renderer = RENDERERS.get(kind)
+    renderer = RENDERERS.get(kind) or W119_RENDERERS.get(kind)
     if not proc or renderer is None:
         return RedirectResponse(f"/procurement/{proc_id}", status_code=303)
     file_path = renderer(proc, get_school(db))

@@ -120,9 +120,12 @@
     <div class="row">
       <div style="flex:1.4;"><label>หัวหน้างานวิชาการ (ผู้เสนอบันทึก / เจ้าของเรื่องท้ายหนังสือเชิญ)</label><input name="academic_head" list="persons" value="{{ tp.academic_head }}"></div>
       <div style="flex:1.6;"><label>ผู้ขาย (ร้าน/สำนักพิมพ์ที่ตกลงซื้อ)</label>
-        <input name="vendor_name" list="vendors_dl" autocomplete="off" value="{{ tp.vendor_name or '' }}" placeholder="เช่น หจก.เพื่อนครูบุ๊คเซ็นเตอร์">
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input name="vendor_name" id="vendorInput" list="vendors_dl" autocomplete="off" value="{{ tp.vendor_name or '' }}" placeholder="เช่น หจก.เพื่อนครูบุ๊คเซ็นเตอร์" style="flex:1;">
+          <button type="button" class="btn sm gray" style="white-space:nowrap;" onclick="openVendorModal()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มผู้ขาย</button>
+        </div>
         <datalist id="vendors_dl">{% for v in vendors %}<option value="{{ v.name }}">{% endfor %}</datalist>
-        <span class="muted" style="font-size:13px;">ใช้เป็นคู่สัญญาในใบสั่งซื้อ ใบตรวจรับ และประกาศผู้ชนะ · ถ้ายังไม่มีในระบบ ระบบจะเพิ่มให้เอง (แก้ที่อยู่/เลขผู้เสียภาษีได้ที่ทะเบียนผู้ขาย)</span></div>
+        <span class="muted" style="font-size:13px;">ที่อยู่ · เลขผู้เสียภาษี · เลขบัญชีธนาคาร ที่กรอกตอนเพิ่มผู้ขาย จะไปขึ้นในใบสั่งซื้อและใบตรวจรับให้เอง</span></div>
     </div>
   </div>
 
@@ -205,6 +208,68 @@
 
 </form>
 
+<!-- เพิ่มผู้ขายพร้อมรายละเอียด (ใช้ modal ชุดเดียวกับหน้าสร้างเรื่องจัดซื้อ) -->
+<div id="vendorOverlay" style="display:none; position:fixed; inset:0; background:rgba(16,24,40,.45); z-index:100; align-items:center; justify-content:center; padding:24px 16px; overflow:auto;">
+  <div class="card" style="max-width:560px; width:100%; margin:0;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2 style="margin:0;"><svg class="icon"><use href="#ic-store"/></svg> เพิ่มผู้ขาย/สำนักพิมพ์</h2>
+      <button type="button" class="btn gray sm" onclick="closeVendorModal()"><svg class="icon"><use href="#ic-x"/></svg></button>
+    </div>
+    <div id="vendorMsg"></div>
+    <div class="row">
+      <div style="flex:2;"><label>ชื่อร้าน/บริษัท/บุคคล *</label><input id="vm_name" placeholder="เช่น ห้างหุ้นส่วนจำกัดเพื่อนครูบุ๊คเซ็นเตอร์"></div>
+      <div style="flex:1;"><label>ชื่อเจ้าของ/ผู้ลงนาม</label><input id="vm_owner" placeholder="เช่น นายสงกรานต์ เจริญบุญ"></div>
+    </div>
+    <div class="row">
+      <div><label>เลขประจำตัวผู้เสียภาษี</label><input id="vm_tax"></div>
+      <div><label>เบอร์โทร</label><input id="vm_phone"></div>
+      <div><label>เลขบัญชีธนาคาร</label><input id="vm_bank"></div>
+    </div>
+    <label>ที่อยู่</label><input id="vm_address">
+    <br><br>
+    <button type="button" class="btn" onclick="saveVendor()"><svg class="icon"><use href="#ic-save"/></svg> บันทึกผู้ขาย</button>
+    <button type="button" class="btn gray" onclick="closeVendorModal()">ยกเลิก</button>
+  </div>
+</div>
+
+<script>
+  function openVendorModal(){
+    var ov = document.getElementById('vendorOverlay');
+    if (ov.parentNode !== document.body) document.body.appendChild(ov);
+    document.getElementById('vendorMsg').innerHTML = '';
+    var typed = (document.getElementById('vendorInput').value || '').trim();
+    if (typed) document.getElementById('vm_name').value = typed;
+    ov.style.display = 'flex';
+  }
+  function closeVendorModal(){ document.getElementById('vendorOverlay').style.display = 'none'; }
+  function saveVendor(){
+    var name = document.getElementById('vm_name').value.trim();
+    var msg = document.getElementById('vendorMsg');
+    if (!name){ msg.innerHTML = '<div class="alert warn" style="margin:8px 0;">กรุณากรอกชื่อร้าน/บริษัท</div>'; return; }
+    var data = new URLSearchParams();
+    data.append('name', name);
+    data.append('owner_name', document.getElementById('vm_owner').value.trim());
+    data.append('tax_id', document.getElementById('vm_tax').value.trim());
+    data.append('phone', document.getElementById('vm_phone').value.trim());
+    data.append('bank_account', document.getElementById('vm_bank').value.trim());
+    data.append('address', document.getElementById('vm_address').value.trim());
+    fetch('/vendors/quick-add', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:data, credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if (res.ok){
+          var input = document.getElementById('vendorInput');
+          input.value = res.name;
+          input.dispatchEvent(new Event('input', {bubbles:true}));
+          var opt = document.createElement('option'); opt.value = res.name;
+          document.getElementById('vendors_dl').appendChild(opt);
+          closeVendorModal();
+        } else {
+          msg.innerHTML = '<div class="alert warn" style="margin:8px 0;">บันทึกไม่สำเร็จ</div>';
+        }
+      })
+      .catch(function(){ msg.innerHTML = '<div class="alert warn" style="margin:8px 0;">เกิดข้อผิดพลาด</div>'; });
+  }
+</script>
 
 <script>
 (() => {

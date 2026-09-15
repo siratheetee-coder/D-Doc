@@ -306,7 +306,31 @@
 <div class="card hl">
   <h2><svg class="icon"><use href="#ic-file"/></svg> ออกเอกสาร - {{ case_info.label }}</h2>
   <p class="muted" style="margin-top:0;">{{ case_info.desc }}</p>
+  {% if w119t2 %}
+  {% if not w119t2.item %}
+  <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
+    ยังไม่ได้เลือก <b>รายการค่าใช้จ่าย (ตารางที่ 2)</b> และ <b>วิธีจ่ายเงิน</b> ·
+    <a href="/procurement/{{ p.id }}/edit">ไปเลือกก่อน</a> ระบบจะได้บอกว่าต้องใช้เอกสารใดบ้าง
+  </div>
+  {% else %}
+  <p style="margin:0 0 10px;"><b>{{ w119t2.item }}</b> ·
+    {{ 'ยืมเงินไปจ่าย' if w119t2.borrow else 'จ่ายตรงให้ผู้ขาย/ผู้รับจ้าง' }}</p>
+  {% endif %}
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    {% for kind, label in w119t2.docs %}
+    <a class="btn {{ '' if loop.first else 'gray sm' }}" style="white-space:normal;"
+       href="/procurement/{{ p.id }}/altdoc/{{ kind }}"><svg class="icon"><use href="#ic-download"/></svg> {{ label }}</a>
+    {% endfor %}
+  </div>
+  {% if w119t2.attach %}
+  <p class="muted" style="margin:14px 0 0;"><b>เอกสารที่ต้องแนบเอง</b> (ระบบพิมพ์ให้ไม่ได้)</p>
+  <ul class="muted" style="margin:4px 0 0;">
+    {% for a in w119t2.attach %}<li>{{ a }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% else %}
   <a class="btn" href="/procurement/{{ p.id }}/altdoc/{{ case_info.altkind }}"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเอกสาร {{ case_info.label }}</a>
+  {% endif %}
   {{ next_steps(p, modules_live) }}
 </div>
 {% endif %}
