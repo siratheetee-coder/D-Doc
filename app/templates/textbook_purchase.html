@@ -166,6 +166,24 @@
   </div>
 </div>
 
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-outbox"/></svg> ขั้นต่อไป: จัดซื้อจริง</h2>
+  <p class="muted" style="margin-top:0;">
+    เมื่อคัดเลือกหนังสือและประชุมเห็นชอบเรียบร้อยแล้ว กดปุ่มนี้เพื่อส่งรายการที่คัดเลือกไว้เข้า<b>งานพัสดุ</b>
+    ระบบจะสร้างเรื่องจัดซื้อพร้อมรายการหนังสือ วงเงิน และคณะกรรมการให้อัตโนมัติ
+    แล้วออกเอกสารชุดจัดซื้อได้ทันที — รายงานขอซื้อ · ใบเสนอราคา · ใบสั่งซื้อ · ใบตรวจรับ · ประกาศผู้ชนะ · รายงานขอเบิกจ่าย
+  </p>
+  {% if tp.procurement_id %}
+  <p><span class="pill done">ส่งเข้างานพัสดุแล้ว</span>
+     <a class="btn sm" href="/procurement/{{ tp.procurement_id }}">เปิดเรื่องจัดซื้อ</a></p>
+  <p class="muted" style="font-size:13px;">กดปุ่มด้านล่างอีกครั้งเมื่อแก้รายการหนังสือ เพื่ออัปเดตรายการและวงเงินในเรื่องเดิม (เลขที่/วันที่/กรรมการที่แก้ไว้เองจะไม่ถูกทับ)</p>
+  {% endif %}
+  <button class="btn green" type="submit" name="procure" value="1">
+    <svg class="icon"><use href="#ic-outbox"/></svg>
+    {{ 'อัปเดตรายการในเรื่องจัดซื้อ' if tp.procurement_id else 'ส่งเข้างานพัสดุ เพื่อออกเอกสารจัดซื้อ' }}
+  </button>
+</div>
+
 </form>
 
 
@@ -256,9 +274,10 @@
     if (busy) return;
     const kind = e.submitter?.name === 'document' ? e.submitter.value : '';
     const transfer = e.submitter?.name === 'transfer';
+    const procure = e.submitter?.name === 'procure';
     for (const field of [...issues.keys()]) clearIssue(field);
     const chosen = [...form.querySelectorAll('#selection-rows tr')].filter(row => row.querySelector('[data-field=title]').value.trim() && row.querySelector('[data-field=selected]').checked);
-    if ((transfer || ['tor','all'].includes(kind)) && !chosen.length) flag(document.getElementById('book-selection'),'กรุณาติ๊กคัดเลือกหนังสืออย่างน้อย 1 รายการ');
+    if ((transfer || procure || ['tor','all'].includes(kind)) && !chosen.length) flag(document.getElementById('book-selection'),'กรุณาติ๊กคัดเลือกหนังสืออย่างน้อย 1 รายการ');
     if (['parties','all'].includes(kind)) {
       const kinds = new Set([...form.querySelectorAll('[data-prefix="party"] tbody tr')].filter(row => row.querySelector('[name$="_name"]').value.trim()).map(row => row.querySelector('select').value));
       const labels = {{ party_labels|tojson }};
@@ -304,6 +323,15 @@
         const result = await response.json();
         if (!response.ok) throw new Error('บันทึกแล้ว แต่นำเข้าทะเบียนไม่สำเร็จ กรุณาลองใหม่');
         status.textContent = `นำเข้าทะเบียนแล้ว ${result.added} รายการ · มีอยู่แล้ว ${result.skipped} รายการ (จำนวนรับเข้าเริ่มที่ 0)`;
+      }
+      if (procure) {
+        const body = new FormData(); body.set('year', data.get('year'));
+        const res = await fetch('/textbooks/purchase/to-procurement', {method:'POST',body,credentials:'same-origin'});
+        const out = await res.json();
+        if (!res.ok || out.error) throw new Error(out.error || 'ส่งเข้างานพัสดุไม่สำเร็จ กรุณาลองใหม่');
+        status.textContent = `ส่งเข้างานพัสดุแล้ว ${out.items} รายการ กำลังเปิดเรื่องจัดซื้อ…`;
+        window.location.assign(out.url);
+        return;
       }
       if (kind) window.location.assign('/textbooks/purchase/' + (kind === 'tor' ? 'tor.docx' : 'doc/' + kind) + '?year=' + encodeURIComponent(data.get('year')));
     } catch (error) {

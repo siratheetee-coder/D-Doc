@@ -706,3 +706,96 @@ def textbook_export(db: Session = Depends(get_db), year: int | None = None):
     path = out / f"ทะเบียนหนังสือเรียน_ปีการศึกษา{yr}.xlsx"
     wb.save(str(path))
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+# ================= ส่งเรื่องเข้างานพัสดุ (ใช้แม่แบบเอกสารจัดซื้อชุดเดิม) =================
+# หนังสือเรียนเป็น "การจัดซื้อ" ปกติ เอกสารตั้งแต่รายงานขอซื้อจนถึงใบตรวจรับ
+# จึงใช้แม่แบบเดียวกับงานพัสดุทั่วไป ไม่ต้องทำเอกสารชุดใหม่ซ้ำ
+# ที่นี่ทำแค่ "สะพาน" แปลงรายการที่คัดเลือกไว้ -> เรื่องจัดซื้อ + รายการพัสดุ + คณะกรรมการ
+
+def _book_proc_subject(tp) -> str:
+    return f"หนังสือเรียนและแบบฝึกหัด ปีการศึกษา {tp.year}"
+
+
+def _sync_book_procurement(db: Session, tp: TextbookPurchase, groups) -> "Procurement":
+    """สร้าง/อัปเดตเรื่องจัดซื้อในงานพัสดุจากรายการหนังสือที่คัดเลือกไว้
+
+    - ครั้งแรก: สร้างเรื่องใหม่ + ออกเลขรายงานขอซื้อให้ + ตั้งคณะกรรมการจาก กก.จัดทำ TOR
+    - ครั้งถัดไป: อัปเดตเฉพาะรายการพัสดุกับวงเงิน ไม่ทับเลขที่/วันที่/กรรมการที่ครูแก้ไว้เอง
+    """
+    from app.models import Procurement, ProcurementItem, Committee, CommitteeMember
+    from app.services.doc_number import suggest_doc_no, commit_doc_no
+    from app.thai_utils import current_fiscal_year
+
+    fy = tp.fiscal_year or current_fiscal_year()
+    rows = [(lv, it) for lv, items in groups for it in items]
+    total = sum(float(it["price"]) * float(it["qty"]) for _, it in rows)
+
+    proc = db.get(Procurement, tp.procurement_id) if tp.procurement_id else None
+    created = proc is None
+    if created:
+        proc = Procurement(fiscal_year=fy, subject=_book_proc_subject(tp),
+                           memo_no=suggest_doc_no(db, "memo", fy),
+                           request_date=tp.memo_date or datetime.now())
+        db.add(proc)
+        db.flush()
+        tp.procurement_id = proc.id
+
+    proc.fiscal_year = fy
+    proc.subject = _book_proc_subject(tp)
+    proc.proc_type = "ซื้อ"
+    proc.method = tp.method or "เฉพาะเจาะจง"
+    proc.budget_source = tp.budget_source or "เงินอุดหนุนรัฐบาล"
+    proc.total_amount = round(total, 2)
+    proc.delivery_days = tp.delivery_days or 15
+    proc.price_ref_source = "ราคาตามบัญชีกำหนดสื่อการเรียนรู้ฯ / สืบราคาจากสำนักพิมพ์"
+    proc.purpose = (tp.purpose or "").strip() or (
+        "เพื่อใช้เป็นสื่อการเรียนการสอนให้แก่นักเรียนตามโครงการสนับสนุนค่าใช้จ่าย"
+        "ในการจัดการศึกษาตั้งแต่ระดับอนุบาลจนจบการศึกษาขั้นพื้นฐาน")
+
+    # รายการพัสดุ: ล้างของเดิมแล้วลงใหม่ตามรายการคัดเลือกล่าสุด
+    for old in list(proc.items):
+        db.delete(old)
+    db.flush()
+    for lv, it in rows:
+        name = (it.get("title") or "").strip()
+        if it.get("publisher"):
+            name += f" ({it['publisher']})"
+        if lv:
+            name = f"ชั้น{lv} - {name}"
+        db.add(ProcurementItem(procurement_id=proc.id, name=name,
+                               quantity=float(it.get("qty") or 0), unit="เล่ม",
+                               unit_price=float(it.get("price") or 0)))
+
+    if created:
+        commit_doc_no(db, "memo", fy, proc.memo_no, source="procurement", ref_id=proc.id,
+                      subject=f"รายงานขอซื้อ{proc.subject}", date=proc.request_date)
+        # กรรมการกำหนดคุณลักษณะ = ชุดที่จัดทำร่าง TOR (คนเดียวกันตามแฟ้มจริง)
+        members = _jload_safe(tp.members, [])
+        members = [m for m in members if (m.get("name") or "").strip()]
+        if members:
+            roles = ["ประธานกรรมการ", "กรรมการ", "กรรมการ"]
+            for kind in ("spec", "inspect"):
+                cm = Committee(procurement_id=proc.id, kind=kind, mode="committee")
+                db.add(cm)
+                db.flush()
+                for i, m in enumerate(members):
+                    db.add(CommitteeMember(
+                        committee_id=cm.id, name=(m.get("name") or "").strip(),
+                        position=(m.get("position") or "").strip() or "ครู",
+                        role=(m.get("role") or "").strip()
+                             or (roles[i] if i < len(roles) else "กรรมการ"), seq=i))
+    db.commit()
+    return proc
+
+
+@router.post("/textbooks/purchase/to-procurement")
+def book_to_procurement(db: Session = Depends(get_db), year: int = Form(...)):
+    """ส่งรายการหนังสือที่คัดเลือกแล้วเข้างานพัสดุ -> ได้เอกสารจัดซื้อชุดเต็ม"""
+    tp = _purchase_for(db, year)
+    groups = _book_groups(db, year)
+    if not any(items for _, items in groups):
+        return {"error": "ยังไม่มีรายการหนังสือที่คัดเลือก"}
+    proc = _sync_book_procurement(db, tp, groups)
+    return {"procurement_id": proc.id, "url": f"/procurement/{proc.id}",
+            "items": len(proc.items), "amount": proc.total_amount}
