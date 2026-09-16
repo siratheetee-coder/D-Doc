@@ -73,7 +73,11 @@ def test_key_decisions():
     assert walk(buy + [500000.01])["result"] == "over_limit"
     assert walk(hire + [30000])["result"] == "normal"           # ว.804 ไม่ใช้กับการจ้าง
     assert walk(hire + [8000, 0])["result"] == "w119t1"
-    assert walk([0, 0, 1, 1])["result"] == "w877"
+    # ว.877: ไม่ใช่ทางตัน วิธีจัดจ้างตามวงเงินปกติ แต่ต้องติดธงแสดงข้อควรระวัง
+    w877 = walk([0, 0, 1, 1, 30000])
+    assert w877["result"] == "normal" and w877["set"]["w877"] is True
+    assert walk([0, 0, 1, 1, 8000, 0])["result"] == "w119t1"
+    assert "w877" not in walk(hire + [30000])["set"]
     assert walk([0, 1])["result"] == "clause79"
     assert walk([1])["result"] == "w119t2"
     assert walk(buy + [8000, 0])["set"]["proc_type"] == "ซื้อ"

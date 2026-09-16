@@ -37,6 +37,7 @@
   const NODES = {{ nodes|tojson }};
   const RESULTS = {{ results|tojson }};
   const CASES = {{ cases|tojson }};
+  const W877 = {{ w877|tojson }};
   const trail = document.getElementById('wz-trail');
   const body = document.getElementById('wz-body');
   let history = [];            // [{node, label, value, set}]
@@ -100,6 +101,13 @@
     html += `<p style="line-height:1.7;">${esc(r.why)}</p>`;
     if (r.warn) html += `<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg><div>${esc(r.warn)}</div></div>`;
     if (r.alt) html += `<p class="muted">${esc(r.alt)}</p>`;
+    if (c.w877) {
+      html += `<div class="alert warn" style="display:block;"><b>${esc(W877.title)}</b>
+        <ul style="margin:6px 0 0; padding-left:20px;">${W877.points.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+        <p style="margin:10px 0 2px;"><b>ห้ามกำหนดเงื่อนไขเหล่านี้ในขอบเขตงานหรือสัญญา</b></p>
+        <ul style="margin:0; padding-left:20px;">${W877.forbid.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+        <p class="muted" style="margin:8px 0 0; font-size:13px;">อ้างอิง ${esc(W877.ref)}</p></div>`;
+    }
     if (r.refs && r.refs.length) html += `<p style="margin:12px 0 0; font-weight:600;">อ้างอิง</p><ul class="wz-refs">${r.refs.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
     html += `<div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:18px;">`;
     if (r.go) html += `<a class="btn" href="${esc(r.go)}">${esc(r.go_label)}</a>`;

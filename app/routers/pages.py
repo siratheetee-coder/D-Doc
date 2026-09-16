@@ -2053,9 +2053,9 @@ async def procurement_ai_items(file: UploadFile = File(...), db: Session = Depen
 @router.get("/procurement/wizard", response_class=HTMLResponse)
 def procurement_wizard(request: Request):
     """ตัวช่วยจัดซื้อจัดจ้าง - ถามทีละข้อแล้วแนะนำรูปแบบเอกสาร (กฎอยู่ที่ proc_wizard.py)"""
-    from app.services.proc_wizard import NODES, RESULTS
+    from app.services.proc_wizard import NODES, RESULTS, W877_NOTE
     return templates.TemplateResponse("procurement_wizard.html", {
-        "request": request, "nodes": NODES, "results": RESULTS,
+        "request": request, "nodes": NODES, "results": RESULTS, "w877": W877_NOTE,
         "cases": {k: v["label"] for k, v in PROC_CASES.items()},
     })
 
