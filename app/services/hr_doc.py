@@ -246,7 +246,9 @@ def render_travel_request(school, person, record, approver=None) -> str:
 
 
 def render_travel_order(school, person, record) -> str:
+    from app.services.build_templates import _krut_center
     doc = _doc()
+    _krut_center(doc)          # คำสั่งราชการต้องมีครุฑกึ่งกลาง
     _p(doc, "คำสั่ง" + (school.name or "โรงเรียน"), align="center", bold=True, size=17, after=0)
     _p(doc, f"ที่  {record.doc_no or '............/............'}", align="center", size=14, after=0)
     _p(doc, "เรื่อง  ให้ข้าราชการครูและบุคลากรทางการศึกษาไปราชการ", align="center", bold=True, size=15, after=8)

@@ -937,9 +937,10 @@ def build_quotation():
 
 
 def build_winner_announcement():
-    """แม่แบบ: ประกาศผู้ชนะการเสนอราคา"""
+    """แม่แบบ: ประกาศผู้ชนะการเสนอราคา (ครุฑกึ่งกลาง ตามแบบประกาศราชการ)"""
     doc = Document(); set_a4(doc)
     _font(doc)
+    _krut_center(doc)
     _p(doc, "ประกาศ{{ school_name }}", align="center", bold=True, size=18, after=0)
     _p(doc, "เรื่อง ประกาศผู้ชนะการเสนอราคา {{ proc_type }}{{ subject }} โดยวิธี{{ method }}",
        align="center", bold=True, after=0)
