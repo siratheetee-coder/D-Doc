@@ -27,6 +27,17 @@
   </a>
 </div>
 {% endmacro %}
+{% if case_warnings %}
+<div class="alert warn">
+  <svg class="icon"><use href="#ic-alert"/></svg>
+  <div style="flex:1;">
+    <b>รูปแบบที่เลือกอาจไม่ตรงกับเรื่องนี้</b>
+    <ul style="margin:6px 0 0; padding-left:20px;">{% for w in case_warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+    <div style="margin-top:8px;"><a class="btn sm" href="/procurement/wizard">ใช้ตัวช่วยจัดซื้อจัดจ้างตรวจอีกครั้ง</a>
+      <a class="btn sm gray" href="/procurement/{{ p.id }}/edit">แก้ไขเรื่อง</a></div>
+  </div>
+</div>
+{% endif %}
 <div class="card">
   {% if book_tp %}
   <div class="alert" style="background:#eff6ff; color:#1e3a8a; margin-bottom:12px;">

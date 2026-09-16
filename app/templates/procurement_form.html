@@ -19,7 +19,7 @@
       {% if ai_note|default('') %}<br><b>{{ ai_note }}</b>{% endif %}</span>
   </div>
   {% endif %}
-  <form method="post" action="{{ action }}">
+  <form method="post" action="{{ action }}" id="procForm">
     {% if pending_file|default('') %}<input type="hidden" name="pending_file" value="{{ pending_file }}">{% endif %}
     <input type="hidden" name="proc_case" value="{{ proc_case if proc_case is defined else (p.proc_case if p and p.proc_case else 'normal') }}">
     {% set is_special = (proc_case if proc_case is defined else (p.proc_case if p and p.proc_case else 'normal')) != 'normal' %}
@@ -476,7 +476,46 @@
       ? ''
       : 'งานจ้างเหมาที่ไม่มีรายการย่อย ให้กรอกบรรทัดเดียวเป็นชื่องานที่จ้าง จำนวน 1 งาน';
   }
+  // มาจากตัวช่วยจัดซื้อจัดจ้าง: ตั้งซื้อ/จ้างตามคำตอบให้เลย (เฉพาะสร้างเรื่องใหม่)
+  (function(){
+    var q = new URLSearchParams(location.search), pt = q.get('proc_type');
+    var sel = document.getElementById('procType');
+    if (pt && sel && !{{ 'true' if is_edit else 'false' }}) {
+      for (var i = 0; i < sel.options.length; i++) if (sel.options[i].value === pt) sel.value = pt;
+    }
+  })();
   calcTotal(); syncType(); refreshAllRoles();
+
+  // เตือนก่อนบันทึก ถ้ารูปแบบที่เลือกไม่ตรงกับวงเงิน/ชนิดงาน (กฎเดียวกับ proc_wizard.case_warnings)
+  (function(){
+    var LIMITS = {{ (case_limits if case_limits is defined else {})|tojson }};
+    var form = document.getElementById('procForm');
+    if (!form) return;
+    form.addEventListener('submit', function(e){
+      var caseKey = (form.querySelector('[name="proc_case"]') || {}).value || 'normal';
+      if (caseKey === 'w119t2') return;
+      var total = 0;
+      document.querySelectorAll('#items tbody tr').forEach(function(tr){
+        var qi = tr.querySelector('input[name="item_qty"]'), pi = tr.querySelector('input[name="item_price"]');
+        total += (parseFloat(qi && qi.value)||0) * (parseFloat(pi && pi.value)||0);
+      });
+      var type = (document.getElementById('procType') || {}).value || 'ซื้อ';
+      var fmt = function(n){ return n.toLocaleString('th-TH', {maximumFractionDigits:2}); };
+      var msgs = [];
+      if (LIMITS._all && total > LIMITS._all)
+        msgs.push('วงเงิน ' + fmt(total) + ' บาท เกิน 500,000 บาท (เพดานวิธีเฉพาะเจาะจง) ต้องใช้ e-bidding หรือวิธีคัดเลือก ระบบยังไม่รองรับกรณีนี้ (อยู่ระหว่างการพัฒนา)');
+      if (caseKey === 'w119t1' && total > LIMITS.w119t1)
+        msgs.push('แบบ ว.119 ตาราง 1 ใช้ได้เมื่อวงเงินไม่เกิน 10,000 บาท');
+      if (caseKey === 'w804' && type !== 'ซื้อ')
+        msgs.push('แบบ ว.804 ใช้กับการจัดซื้อเท่านั้น ไม่ใช้กับการจ้าง');
+      if (caseKey === 'w804' && total > LIMITS.w804)
+        msgs.push('แบบ ว.804 ใช้ได้เมื่อวงเงินไม่เกิน 50,000 บาท');
+      var NL = String.fromCharCode(10);
+      if (msgs.length && !confirm('โปรดตรวจสอบก่อนบันทึก' + NL + NL + '- ' + msgs.join(NL + '- ') + NL + NL + 'ต้องการบันทึกต่อหรือไม่?')) {
+        e.preventDefault();
+      }
+    });
+  })();
 
   // ใส่ / ให้อัตโนมัติในช่องวันที่ (วว/ดด/ปปปป)
   function _attachDateMask(el){

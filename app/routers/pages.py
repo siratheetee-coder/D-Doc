@@ -2050,6 +2050,16 @@ async def procurement_ai_items(file: UploadFile = File(...), db: Session = Depen
     return JSONResponse({"items": res.get("items", []), "ok": True})
 
 
+@router.get("/procurement/wizard", response_class=HTMLResponse)
+def procurement_wizard(request: Request):
+    """ตัวช่วยจัดซื้อจัดจ้าง - ถามทีละข้อแล้วแนะนำรูปแบบเอกสาร (กฎอยู่ที่ proc_wizard.py)"""
+    from app.services.proc_wizard import NODES, RESULTS
+    return templates.TemplateResponse("procurement_wizard.html", {
+        "request": request, "nodes": NODES, "results": RESULTS,
+        "cases": {k: v["label"] for k, v in PROC_CASES.items()},
+    })
+
+
 @router.get("/procurement/new", response_class=HTMLResponse)
 def procurement_new_form(request: Request, db: Session = Depends(get_db),
                          case: str | None = None):
@@ -2071,6 +2081,7 @@ def procurement_new_form(request: Request, db: Session = Depends(get_db),
         "proc_case": case, "case_info": PROC_CASES[case],
         "case_extra_fields": CASE_EXTRA_FIELDS.get(case, []), "case_extra": {},
         "case_select_options": CASE_SELECT_OPTIONS,
+        "case_limits": _case_limits(),
         **_form_lists(db),
     })
 
@@ -2238,6 +2249,7 @@ def procurement_edit_form(proc_id: int, request: Request, db: Session = Depends(
         "threshold": school.doc_set_threshold or 5000, "positions": POSITION_CHOICES,
         "case_extra_fields": CASE_EXTRA_FIELDS.get(proc.proc_case or "normal", []),
         "case_extra": extra_vals, "case_select_options": CASE_SELECT_OPTIONS,
+        "case_limits": _case_limits(),
         **_form_lists(db),
     })
 
@@ -2254,6 +2266,16 @@ async def procurement_edit_save(proc_id: int, request: Request, db: Session = De
 
 
 # ---------------- รายละเอียด ----------------
+def _case_limits():
+    from app.services.proc_wizard import case_limits
+    return case_limits()
+
+
+def _case_warnings(proc):
+    from app.services.proc_wizard import case_warnings
+    return case_warnings(proc)
+
+
 def _w119t2_checklist(proc):
     from app.services.w119_doc import checklist
     return checklist(proc)
@@ -2306,6 +2328,7 @@ def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get
         "book_tp": book_purchase_of(proc),
         # ว.119 ตาราง 2: เอกสารที่ต้องออก/ต้องแนบ ขึ้นกับรายการและวิธีจ่ายเงิน
         "w119t2": (_w119t2_checklist(proc) if (proc.proc_case or "") == "w119t2" else None),
+        "case_warnings": _case_warnings(proc),
     })
 
 
