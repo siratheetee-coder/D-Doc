@@ -697,16 +697,47 @@ def build(password: str, *, reset: bool = False, today: date | None = None) -> d
     return {"tenant_id": tid, "users": [OWNER_USER] + users, **ids}
 
 
+def password_error(pw: str) -> str | None:
+    """ตรวจรหัสผ่านกับเกณฑ์ของระบบ สำหรับทั้ง 3 บัญชี ก่อนเริ่มสร้างอะไร"""
+    from app.accounts import password_problem
+    for user in (OWNER_USER, "teacher1", "director"):
+        bad = password_problem(pw, user)
+        if bad:
+            return bad
+    return None
+
+
 def main():
     import getpass
     import os
+    try:                                    # cmd ภาษาไทยบางเครื่องพิมพ์ UTF-8 ไม่ได้ -> อย่าให้ล้มตอนแสดงผล
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     reset = "--reset" in sys.argv
     pw = os.environ.get("DEMO_PASSWORD") or ""
-    if not pw:
-        pw = getpass.getpass("ตั้งรหัสผ่านสำหรับบัญชีเดโม (ใช้ร่วมกันทั้ง 3 บัญชี): ")
-        if pw != getpass.getpass("พิมพ์รหัสผ่านอีกครั้ง: "):
-            raise SystemExit("รหัสผ่านไม่ตรงกัน")
-    r = build(pw, reset=reset)
+    if pw and password_error(pw):
+        raise SystemExit("DEMO_PASSWORD ใช้ไม่ได้: " + password_error(pw))
+    while not pw:
+        print("เกณฑ์รหัสผ่าน: อย่างน้อย 8 ตัว มีทั้งตัวอักษรและตัวเลข ไม่ใช่รหัสที่เดาง่าย")
+        a = getpass.getpass("ตั้งรหัสผ่านสำหรับบัญชีเดโม (ใช้ร่วมกันทั้ง 3 บัญชี): ")
+        bad = password_error(a)
+        if bad:
+            print(f"  ใช้ไม่ได้: {bad} - ลองใหม่อีกครั้ง")
+            continue
+        if a != getpass.getpass("พิมพ์รหัสผ่านอีกครั้ง: "):
+            print("  รหัสผ่านสองครั้งไม่ตรงกัน - ลองใหม่อีกครั้ง")
+            continue
+        pw = a
+    try:
+        r = build(pw, reset=reset)
+    except SystemExit:
+        raise
+    except Exception as e:                  # แสดงสาเหตุให้อ่านออก แทน traceback ยาว ๆ
+        import traceback
+        traceback.print_exc()
+        raise SystemExit(f"สร้างโรงเรียนเดโมไม่สำเร็จ: {e}")
     print(f"สร้าง {DEMO_SCHOOL} เรียบร้อย (ปีงบ {r['fiscal_year']} · ปีการศึกษา {r['academic_year']})")
     print("บัญชีเข้าสู่ระบบ:")
     for u, role in zip(r["users"], ("ไอดีหลัก (เจ้าหน้าที่)", "ครู", "ผู้อำนวยการ")):
