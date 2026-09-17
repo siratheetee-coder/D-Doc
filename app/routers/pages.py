@@ -2998,6 +2998,7 @@ def assets_form_export(db: Session = Depends(get_db)):
 
 @router.get("/assets", response_class=HTMLResponse)
 def assets_page(request: Request, db: Session = Depends(get_db)):
+    from app.models import AssetNumberSeries
     assets = db.query(Asset).order_by(Asset.id.desc()).all()
     total_cost = sum(a.cost or 0 for a in assets)
     total_nbv = sum(net_book_value(a.cost, a.salvage_value, a.useful_life,
@@ -3006,6 +3007,8 @@ def assets_page(request: Request, db: Session = Depends(get_db)):
         "request": request, "assets": assets, "categories": CATEGORIES,
         "category_life": CATEGORY_LIFE, "total_cost": total_cost, "total_nbv": total_nbv,
         "asset_statuses": ASSET_STATUSES,
+        "number_year": current_fiscal_year(),
+        "number_series": [{"prefix": x.prefix, "digits": x.digits, "reset": x.reset_yearly, "append": x.append_year} for x in db.query(AssetNumberSeries).all()],
     })
 
 
@@ -3105,32 +3108,69 @@ def _asset_from_form(asset: Asset, form) -> None:
     asset.unit = (form.get("unit") or "หน่วย").strip() or "หน่วย"
 
 
+@router.get("/assets/number-preview")
+def asset_number_preview(request: Request, db: Session = Depends(get_db)):
+    from app.services.asset_numbering import next_number
+    from fastapi import HTTPException
+    try:
+        return {"code": next_number(db, request.query_params)}
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc))
+
+
 @router.post("/assets")
 async def asset_add(request: Request, db: Session = Depends(get_db)):
+    from app.services.asset_numbering import lock_numbers, next_number, manual_number
+    from fastapi import HTTPException
     form = await request.form()
-    a = Asset()
-    _asset_from_form(a, form)
-    if a.name:
-        db.add(a); db.commit()
-    return RedirectResponse("/assets", status_code=303)
+    try:
+        lock_numbers(db)
+        a = Asset()
+        _asset_from_form(a, form)
+        if not a.name:
+            raise ValueError('กรุณากรอกชื่อครุภัณฑ์')
+        if form.get('number_mode') == 'auto':
+            if a.quantity != 1:
+                raise ValueError('ออกเลขอัตโนมัติครั้งละ 1 ชิ้นหรือ 1 ชุด กรุณาแยกรายการสำหรับหลายชิ้น')
+            a.asset_code = next_number(db, form, reserve=True)
+        else:
+            manual_number(db, a.asset_code)
+        db.add(a)
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(400, detail=str(exc))
+    return RedirectResponse('/assets?saved=1', status_code=303)
 
 
 @router.post("/assets/{asset_id}/update")
 async def asset_update(asset_id: int, request: Request, db: Session = Depends(get_db)):
-    a = db.get(Asset, asset_id)
-    if a:
-        form = await request.form()
-        _asset_from_form(a, form)
-        db.commit()
-    return RedirectResponse("/assets?saved=1", status_code=303)
+    from app.services.asset_numbering import lock_numbers, manual_number
+    from fastapi import HTTPException
+    form = await request.form()
+    try:
+        lock_numbers(db)
+        a = db.get(Asset, asset_id)
+        if a:
+            old = a.asset_code
+            manual_number(db, (form.get('asset_code') or '').strip(), old)
+            _asset_from_form(a, form)
+            db.commit()
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(400, detail=str(exc))
+    return RedirectResponse('/assets?saved=1', status_code=303)
 
 
 @router.post("/assets/{asset_id}/delete")
 def asset_delete(asset_id: int, db: Session = Depends(get_db)):
+    from app.services.asset_numbering import lock_numbers
+    lock_numbers(db)
     a = db.get(Asset, asset_id)
     if a:
-        db.delete(a); db.commit()
-    return RedirectResponse("/assets", status_code=303)
+        db.delete(a)
+    db.commit()
+    return RedirectResponse('/assets', status_code=303)
 
 
 @router.get("/assets/dispose", response_class=HTMLResponse)

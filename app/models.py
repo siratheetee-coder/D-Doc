@@ -857,6 +857,25 @@ class Receipt(Base):
     txn = relationship("FinanceTxn")
 
 
+class AssetNumberSeries(Base):
+    __tablename__ = "asset_number_series"
+    prefix = Column(String, primary_key=True)
+    digits = Column(Integer, default=4)
+    reset_yearly = Column(Boolean, default=True)
+    append_year = Column(Boolean, default=True)
+
+
+class AssetNumberCounter(Base):
+    __tablename__ = "asset_number_counter"
+    key = Column(String, primary_key=True)
+    last = Column(Integer, default=0)
+
+
+class AssetNumberUsed(Base):
+    __tablename__ = "asset_number_used"
+    code = Column(String, primary_key=True)
+
+
 class Asset(Base):
     """ครุภัณฑ์ 1 รายการ ในทะเบียนคุมทรัพย์สิน (คำนวณค่าเสื่อมแบบเส้นตรง)"""
     __tablename__ = "asset"
