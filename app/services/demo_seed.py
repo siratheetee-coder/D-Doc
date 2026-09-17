@@ -9,7 +9,7 @@ demo_seed.py - สร้างโรงเรียนสมมติสำห�
     python -m app.services.demo_seed --reset    # ลบโรงเรียนเดโมเดิมแล้วสร้างใหม่ให้เหมือนตั้งต้น
 
 บัญชีที่ได้ (รหัสผ่านเดียวกันทั้ง 3 บัญชี):
-    demo            ไอดีหลักของโรงเรียน (เจ้าหน้าที่/หัวหน้างาน เห็นทุกงาน)
+    demoschool      ไอดีหลักของโรงเรียน (เจ้าหน้าที่/หัวหน้างาน เห็นทุกงาน)
     teacher1.demo   บัญชีครู (ส่งแผนการสอน/ใบลา/ขอไปราชการ)
     director.demo   บัญชี ผอ. (อนุมัติเอกสาร)
 
@@ -24,7 +24,7 @@ from datetime import date, datetime, timedelta
 
 DEMO_SLUG = "demo"
 DEMO_SCHOOL = "โรงเรียนบ้านตัวอย่างวิทยา"
-OWNER_USER = "demo"
+OWNER_USER = "demoschool"          # "demo" เฉย ๆ มักชนกับบัญชีทดสอบเดิม
 
 
 # ------------------------------------------------------------------ helpers
@@ -659,6 +659,17 @@ def seed_school(db, *, today: date) -> dict:
 
 
 # ------------------------------------------------------------------ main
+def _taken_usernames() -> list:
+    """ชื่อผู้ใช้ของเดโมที่ชนกับบัญชีเดิม (ตรวจก่อนสร้าง กันสร้างค้างครึ่งทาง)"""
+    from app.accounts import acc_session, Account
+    wanted = [OWNER_USER, f"teacher1.{DEMO_SLUG}", f"director.{DEMO_SLUG}"]
+    db = acc_session()
+    try:
+        return [u for u in wanted if db.query(Account).filter_by(username=u).first()]
+    finally:
+        db.close()
+
+
 def build(password: str, *, reset: bool = False, today: date | None = None) -> dict:
     from app.accounts import purge_tenant
     from app.database import get_data_dir
@@ -671,6 +682,10 @@ def build(password: str, *, reset: bool = False, today: date | None = None) -> d
         raise SystemExit("มีโรงเรียนเดโมอยู่แล้ว ถ้าต้องการสร้างใหม่ให้ใส่ --reset")
     if old:
         purge_tenant(old)
+    taken = _taken_usernames()
+    if taken:
+        raise SystemExit("ชื่อผู้ใช้ต่อไปนี้ถูกใช้โดยโรงเรียนอื่นในเครื่องนี้แล้ว: " + ", ".join(taken)
+                         + " (ไม่ได้สร้างอะไรเลย)")
     info = create_accounts(password)
     tid = info["tenant_id"]
     db = session_for(tid)
