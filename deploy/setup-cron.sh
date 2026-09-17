@@ -53,6 +53,7 @@ $CURRENT
 0 2 * * * $BACKUP_SH >> /var/log/ddoc-backup.log 2>&1 $MARK
 */15 * * * * $HEALTH_SH >> /var/log/ddoc-health.log 2>&1 $MARK
 30 3 * * * cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.retention >> /var/log/ddoc-retention.log 2>&1 $MARK
+0 9 * * * cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.trial_notice >> /var/log/ddoc-trial-notice.log 2>&1 $MARK
 EOF
 )"
 
@@ -62,6 +63,7 @@ echo "ติดตั้ง cron เรียบร้อย:"
 echo "  - สำรองข้อมูล      ทุกวันตี 2      -> /var/log/ddoc-backup.log"
 echo "  - ตรวจสุขภาพระบบ  ทุก 15 นาที    -> /var/log/ddoc-health.log"
 echo "  - ลบข้อมูลที่ไม่ใช้งาน ทุกวัน ตี 3:30 -> /var/log/ddoc-retention.log"
+echo "  - อีเมลเตือนทดลองใช้  ทุกวัน 9 โมง -> /var/log/ddoc-trial-notice.log"
 echo ""
 crontab -l | grep "$MARK"
 echo ""

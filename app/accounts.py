@@ -53,6 +53,7 @@ class Tenant(AccBase):
     last_active_at = Column(DateTime, nullable=True)   # ล็อกอินล่าสุดของคนใดคนหนึ่งในโรงเรียน
     inactive_stage = Column(Integer, default=0)        # เตือนไปแล้วกี่ครั้ง (0-3) · ใช้งานอีกครั้ง = รีเซ็ต
     inactive_notified_at = Column(DateTime, nullable=True)  # เตือนครั้งล่าสุดเมื่อไหร่
+    trial_notice_stage = Column(Integer, default=0)    # อีเมลเตือนทดลองใช้ที่ส่งแล้ว 0-3 (ดู services/trial_notice.py)
 
     accounts = relationship("Account", back_populates="tenant",
                             cascade="all, delete-orphan")
@@ -240,6 +241,7 @@ def _ensure_engine():
                     "ALTER TABLE tenant ADD COLUMN last_active_at DATETIME",
                     "ALTER TABLE tenant ADD COLUMN inactive_stage INTEGER DEFAULT 0",
                     "ALTER TABLE tenant ADD COLUMN inactive_notified_at DATETIME",
+                    "ALTER TABLE tenant ADD COLUMN trial_notice_stage INTEGER DEFAULT 0",
                     # โรงเรียนเดิมยังไม่มีค่า -> ถือว่าใช้งานล่าสุด ณ วันที่สร้างบัญชี
                     # (ไม่ใช่ NULL ไม่งั้นจะถูกนับว่าไม่ใช้งานมานานทันทีตั้งแต่วันอัปเดต)
                     "UPDATE tenant SET last_active_at = created_at WHERE last_active_at IS NULL",
