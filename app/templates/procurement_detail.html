@@ -39,6 +39,12 @@
 </div>
 {% endif %}
 <div class="card">
+  {% if trip_src %}
+  <div class="alert" style="background:linear-gradient(135deg,#ecfeff,#eef2ff); color:#1e3a8a; margin-bottom:12px; border:1px solid #c7d2fe;">
+    เรื่องนี้สร้างจาก <b>ทัศนศึกษา: {{ trip_src.title }}</b> · รายการ ผู้ขาย และโครงการ ดึงมาให้แล้ว เหลือเติมเลขเอกสาร/ราคาตามใบเสนอราคา
+    <a class="btn sm" href="/general/trips/{{ trip_src.id }}#sec-buy" style="margin-left:8px;">← กลับไปหน้าทัศนศึกษา</a>
+  </div>
+  {% endif %}
   {% if book_tp %}
   <div class="alert" style="background:#eff6ff; color:#1e3a8a; margin-bottom:12px;">
     เรื่องนี้สร้างจาก <a href="/textbooks/purchase?year={{ book_tp.year }}">จัดซื้อหนังสือเรียน ปีการศึกษา {{ book_tp.year }}</a> ·

@@ -2050,6 +2050,13 @@ async def procurement_ai_items(file: UploadFile = File(...), db: Session = Depen
     return JSONResponse({"items": res.get("items", []), "ok": True})
 
 
+def _trip_of(db, proc_id):
+    """เรื่องจัดซื้อที่สร้างจากหน้าทัศนศึกษา -> คืน FieldTrip (ไว้ทำปุ่มกลับ)"""
+    from app.models import FieldTripCost
+    x = db.query(FieldTripCost).filter_by(procurement_id=proc_id).first()
+    return x.trip if x else None
+
+
 @router.get("/procurement/wizard", response_class=HTMLResponse)
 def procurement_wizard(request: Request):
     """ตัวช่วยจัดซื้อจัดจ้าง - ถามทีละข้อแล้วแนะนำรูปแบบเอกสาร (กฎอยู่ที่ proc_wizard.py)"""
@@ -2326,6 +2333,7 @@ def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get
         "case_info": PROC_CASES.get(proc.proc_case or "normal", PROC_CASES["normal"]),
         # เรื่องที่มาจาก "จัดซื้อหนังสือเรียน" -> บอกที่มา + TOR ใช้ฉบับหนังสือเรียน
         "book_tp": book_purchase_of(proc),
+        "trip_src": _trip_of(db, proc.id),
         # ว.119 ตาราง 2: เอกสารที่ต้องออก/ต้องแนบ ขึ้นกับรายการและวิธีจ่ายเงิน
         "w119t2": (_w119t2_checklist(proc) if (proc.proc_case or "") == "w119t2" else None),
         "case_warnings": _case_warnings(proc),

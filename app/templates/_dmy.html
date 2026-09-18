@@ -1,0 +1,61 @@
+{# วันที่แบบแยก วัน / เดือน / ปี พ.ศ. (dropdown) -> ส่งค่าเป็น "วว/ดด/ปปปป" ในช่อง hidden ชื่อเดิม
+   ใช้: {% from "_dmy.html" import date_select, time_select, dmy_script %} ... {{ dmy_script() }} ครั้งเดียวต่อหน้า #}
+{% set _TH_MONTHS = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"] %}
+
+{% macro date_select(name, dt, years=None) -%}
+{%- set by = dt.year + 543 if dt else none -%}
+{%- set now_y = years[0] if years else 2569 -%}
+<span class="dmy" data-dmy>
+  <input type="hidden" name="{{ name }}" value="{{ '%02d/%02d/%d'|format(dt.day, dt.month, by) if dt else '' }}">
+  <select class="dmy-d" aria-label="วัน"><option value="">วัน</option>
+    {%- for d in range(1, 32) %}<option value="{{ '%02d'|format(d) }}" {{ 'selected' if dt and dt.day == d }}>{{ d }}</option>{% endfor -%}
+  </select>
+  <select class="dmy-m" aria-label="เดือน"><option value="">เดือน</option>
+    {%- for m in _TH_MONTHS %}<option value="{{ '%02d'|format(loop.index) }}" {{ 'selected' if dt and dt.month == loop.index }}>{{ m }}</option>{% endfor -%}
+  </select>
+  <select class="dmy-y" aria-label="ปี พ.ศ."><option value="">ปี พ.ศ.</option>
+    {%- set ys = years or [] -%}
+    {%- if by and by not in ys %}{% set ys = [by] + ys %}{% endif -%}
+    {%- for y in ys|sort %}<option value="{{ y }}" {{ 'selected' if by == y }}>{{ y }}</option>{% endfor -%}
+  </select>
+</span>
+{%- endmacro %}
+
+{% macro time_select(name, dt) -%}
+<span class="dmy" data-hm>
+  <input type="hidden" name="{{ name }}" value="{{ '%02d:%02d'|format(dt.hour, dt.minute) if dt and (dt.hour or dt.minute) else '' }}">
+  <select class="hm-h" aria-label="ชั่วโมง"><option value="">ชม.</option>
+    {%- for h in range(0, 24) %}<option value="{{ '%02d'|format(h) }}" {{ 'selected' if dt and (dt.hour or dt.minute) and dt.hour == h }}>{{ '%02d'|format(h) }}</option>{% endfor -%}
+  </select><span class="dmy-sep">:</span>
+  <select class="hm-m" aria-label="นาที"><option value="">นาที</option>
+    {%- for m in range(0, 60, 5) %}<option value="{{ '%02d'|format(m) }}" {{ 'selected' if dt and (dt.hour or dt.minute) and dt.minute == m }}>{{ '%02d'|format(m) }}</option>{% endfor -%}
+  </select><span class="dmy-sep">น.</span>
+</span>
+{%- endmacro %}
+
+{% macro dmy_script() -%}
+<style>
+  .dmy[data-dmy]{ display:grid; grid-template-columns:62px minmax(0,1fr) 78px; gap:6px; width:100%; }
+  .dmy[data-hm]{ display:flex; gap:6px; align-items:center; width:100%; }
+  .dmy select{ width:100%; min-width:0; padding-left:8px; padding-right:22px; background-position:right 6px center; }
+  .dmy[data-hm] select{ width:72px; flex:0 0 72px; }
+  .dmy-sep{ color:var(--muted); }
+</style>
+<script>
+(function(){
+  function sync(box){
+    var hid = box.querySelector('input[type=hidden]');
+    if (box.hasAttribute('data-dmy')){
+      var d = box.querySelector('.dmy-d').value, m = box.querySelector('.dmy-m').value, y = box.querySelector('.dmy-y').value;
+      hid.value = (d && m && y) ? d + '/' + m + '/' + y : '';
+    } else {
+      var h = box.querySelector('.hm-h').value, mi = box.querySelector('.hm-m').value;
+      hid.value = h ? h + ':' + (mi || '00') : '';
+    }
+  }
+  document.querySelectorAll('[data-dmy],[data-hm]').forEach(function(box){
+    box.addEventListener('change', function(){ sync(box); });
+  });
+})();
+</script>
+{%- endmacro %}

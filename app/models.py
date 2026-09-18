@@ -1933,6 +1933,7 @@ class FieldTrip(Base):
     status = Column(String, default="draft")        # draft / requested / approved / done / reported
     order_id = Column(Integer, ForeignKey("school_order.id"), nullable=True)      # คำสั่งแต่งตั้งผู้ควบคุม
     report_id = Column(Integer, ForeignKey("project_report.id"), nullable=True)   # รายงานโครงการ
+    loan_id = Column(Integer, ForeignKey("money_loan.id"), nullable=True)         # สัญญายืมเงินที่สร้างให้
     created_at = Column(DateTime, default=datetime.now)
 
     project = relationship("Project")
@@ -1988,5 +1989,12 @@ class FieldTripCost(Base):
     basis = Column(String, default="student")
     rate = Column(Float, default=0.0)
     times = Column(Float, default=1.0)              # จำนวนมื้อ/วัน/คัน (เหมาจ่ายใช้เป็นจำนวนหน่วย)
+    kind = Column(String, default="other")          # ชนิดรายการ (fieldtrip.COST_KINDS) ใช้เตือนเพดานตาม ว 2983
+    pay_method = Column(String, default="procure")  # procure=จัดซื้อจัดจ้าง / allowance=เหมาจ่ายนักเรียน
+                                                    # / receipt=จ่ายตามใบเสร็จ / travel=เบิกค่าเดินทางครู
+    vendor_id = Column(Integer, ForeignKey("vendor.id"), nullable=True)            # ผู้ขาย (จัดซื้อจัดจ้าง)
+    procurement_id = Column(Integer, ForeignKey("procurement.id"), nullable=True)  # เรื่องที่สร้างให้แล้ว
 
     trip = relationship("FieldTrip", back_populates="costs")
+    vendor = relationship("Vendor")
+    procurement = relationship("Procurement")

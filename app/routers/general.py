@@ -336,9 +336,11 @@ def trip_new(db: Session = Depends(get_db)):
     t = FieldTrip(year=getattr(school, "academic_year", None) or current_academic_year(),
                   title="ทัศนศึกษา", responsible=school.name or "", request_date=datetime.now())
     # รายการที่พบบ่อย - อัตราเว้นว่างให้โรงเรียนกรอกเอง (ระบบไม่เดาอัตรา)
-    for i, (item, basis) in enumerate((("ค่าจ้างเหมารถโดยสาร", "lump"), ("ค่าอาหารและอาหารว่าง", "person"),
-                                       ("ค่าเข้าชมสถานที่", "student"), ("ค่าประกันภัยการเดินทาง", "student"))):
-        t.costs.append(FieldTripCost(seq=i, item=item, basis=basis, rate=0, times=1))
+    from app.services.fieldtrip import COST_KINDS
+    for i, kind in enumerate(("bus", "meal", "entry", "insurance")):
+        k = COST_KINDS[kind]
+        t.costs.append(FieldTripCost(seq=i, kind=kind, item="", basis=k["basis"], pay_method=k["pay"],
+                                     rate=0, times=1))
     db.add(t)
     db.commit()
     return RedirectResponse(f"/general/trips/{t.id}", status_code=303)
@@ -371,7 +373,17 @@ def trip_detail(tid: int, request: Request, db: Session = Depends(get_db), msg: 
         "basis": ft.COST_BASIS, "persons": persons, "groups": groups,
         "picked": {s.student_id for s in t.students}, "staff_ids": [s.person_id for s in t.staff],
         "projects": projects, "proj": proj, "approver": ft.approver_title(t, school),
-        "d": be_date_input, "reg": ft.REG_NAME})
+        "d": be_date_input, "reg": ft.REG_NAME,
+        "kinds": ft.COST_KINDS, "pays": ft.PAY_METHODS, "vendors": _vendors(db),
+        "groups_buy": [dict(g, labels=list(dict.fromkeys(ft.cost_label(x) for x in g["costs"])))
+                       for g in ft.procure_groups(t)],
+        "cash": ft.cash_costs(t), "cash_labels": [ft.cost_label(x) for x in ft.cash_costs(t)],
+        "cash_total": round(sum(ft.cost_amount(x, c) for x in ft.cash_costs(t)), 2),
+        "years": list(range(_be_year() - 1, _be_year() + 3)),
+        "cost_warn": {x.id: ft.cost_warnings(x) for x in t.costs},
+        "steps": ft.steps(t), "next": ft.next_actions(t), "loan": _loan(db, t),
+        "has_proc": _has_module("procurement"), "has_fin": _has_module("finance"),
+        "allow_total": sum(ft.cost_amount(x, c) for x in t.costs if x.pay_method == "allowance")})
 
 
 @router.post("/general/trips/{tid}/save")
@@ -420,15 +432,24 @@ async def trip_save(tid: int, request: Request, db: Session = Depends(get_db)):
                                                level=s.level or "", room=s.room or "", seq=i,
                                                consent=old.get(s.id, "")))
 
-    # ค่าใช้จ่าย
+    # ค่าใช้จ่าย (คงลิงก์เรื่องจัดจ้างที่สร้างไปแล้วของแถวเดิม)
+    old_proc = {x.id: x.procurement_id for x in t.costs}
     t.costs.clear()
     db.flush()
-    rows = zip(f.getlist("cost_item"), f.getlist("cost_basis"), f.getlist("cost_rate"), f.getlist("cost_times"))
-    for i, (item, basis, rate, times) in enumerate(rows):
+    rows = zip(f.getlist("cost_id"), f.getlist("cost_kind"), f.getlist("cost_item"), f.getlist("cost_basis"),
+               f.getlist("cost_rate"), f.getlist("cost_times"), f.getlist("cost_pay"), f.getlist("cost_vendor"))
+    for i, (cid, kind, item, basis, rate, times, pay, vendor) in enumerate(rows):
+        kind = kind if kind in ft.COST_KINDS else "other"
         item = (item or "").strip()
-        if item:
-            t.costs.append(FieldTripCost(seq=i, item=item, basis=basis if basis in ft.COST_BASIS else "student",
-                                         rate=_float(rate), times=_float(times, 1.0)))
+        if kind == "other" and not item:
+            continue
+        pay = pay if pay in ft.PAY_METHODS else ft.COST_KINDS[kind]["pay"]
+        vid = int(vendor) if str(vendor).isdigit() and pay == "procure" else None
+        pid = old_proc.get(int(cid)) if str(cid).isdigit() else None
+        t.costs.append(FieldTripCost(seq=i, kind=kind, item=item,
+                                     basis=basis if basis in ft.COST_BASIS else ft.COST_KINDS[kind]["basis"],
+                                     rate=_float(rate), times=_float(times, 1.0), pay_method=pay,
+                                     vendor_id=vid, procurement_id=pid if vid else None))
     db.commit()
     return RedirectResponse(f"/general/trips/{tid}?msg=บันทึกแล้ว", status_code=303)
 
@@ -479,7 +500,8 @@ def trip_doc(tid: int, kind: str, db: Session = Depends(get_db)):
     from app.services import fieldtrip_doc as fd
     t = _trip_or_404(db, tid)
     fn = {"request": fd.render_request, "parents": fd.render_parent_letters,
-          "report": fd.render_report, "project": fd.render_project}.get(kind)
+          "report": fd.render_report, "project": fd.render_project,
+          "allowance": fd.render_allowance}.get(kind)
     if not fn:
         raise HTTPException(404)
     return serve_generated(fn(t, get_school(db)), _DOCX, count=False)
@@ -556,3 +578,131 @@ def trip_project_report(tid: int, db: Session = Depends(get_db)):
         t.report_id = rep.id
         db.commit()
     return RedirectResponse(f"/project-reports/{rep.id}", status_code=303)
+
+
+
+# ---------------- เชื่อมงานพัสดุ / การเงิน ----------------
+def _be_year() -> int:
+    return datetime.now().year + 543
+
+
+def _vendors(db):
+    from app.models import Vendor
+    return db.query(Vendor).order_by(Vendor.name).all()
+
+
+def _loan(db, t):
+    from app.models import MoneyLoan
+    return db.get(MoneyLoan, t.loan_id) if t.loan_id else None
+
+
+def _has_module(key: str) -> bool:
+    """โรงเรียนนี้ใช้งานพัสดุ/การเงินได้ไหม (ทัศนศึกษาฟรี แต่ปุ่มสร้างเรื่องต้องใช้งานนั้น)"""
+    try:
+        from app.tenancy import current_school_id
+        from app.accounts import can_use_module
+        return bool(can_use_module(current_school_id.get(), key))
+    except Exception:
+        return True
+
+
+_UNITS = {"bus": "คัน", "meal": "ชุด", "snack": "ชุด", "lodging": "คน/คืน", "insurance": "คน"}
+
+
+@router.post("/general/trips/{tid}/vendor")
+def trip_vendor_add(tid: int, db: Session = Depends(get_db), name: str = Form(""), owner_name: str = Form(""),
+                    tax_id: str = Form(""), phone: str = Form(""), address: str = Form("")):
+    """เพิ่มผู้ขาย/ผู้รับจ้างรายใหม่จากหน้าทัศนศึกษา (ทะเบียนผู้ขายเดียวกับงานพัสดุ)"""
+    from app.models import Vendor
+    _trip_or_404(db, tid)
+    if name.strip():
+        db.add(Vendor(name=name.strip(), owner_name=owner_name.strip(), tax_id=tax_id.strip(),
+                      phone=phone.strip(), address=address.strip()))
+        db.commit()
+        return RedirectResponse(f"/general/trips/{tid}?msg=เพิ่มผู้ขายแล้ว เลือกได้ในตารางค่าใช้จ่าย#sec-cost",
+                                status_code=303)
+    return RedirectResponse(f"/general/trips/{tid}#sec-cost", status_code=303)
+
+
+@router.post("/general/trips/{tid}/procure")
+def trip_procure(tid: int, db: Session = Depends(get_db), vendor_id: int = Form(0), inspector_id: int = Form(0)):
+    """สร้างเรื่องจัดซื้อ/จัดจ้างในงานพัสดุ 1 เรื่องต่อผู้ขาย จากรายการค่าใช้จ่ายของทัศนศึกษา (สถานะร่าง)"""
+    from app.models import Procurement, ProcurementItem, Committee, CommitteeMember, Person
+    from app.services import fieldtrip as ft
+    from app.thai_utils import current_fiscal_year
+    t = _trip_or_404(db, tid)
+    back = f"/general/trips/{tid}"
+    if not _has_module("procurement"):
+        return RedirectResponse(back + "?msg=ต้องใช้งานพัสดุจึงจะสร้างเรื่องจัดซื้อจัดจ้างได้#sec-buy", status_code=303)
+    grp = next((g for g in ft.procure_groups(t) if g["vendor_id"] == vendor_id), None)
+    if not grp:
+        return RedirectResponse(back + "?msg=ไม่พบรายการของผู้ขายนี้#sec-buy", status_code=303)
+    if grp["proc"]:
+        return RedirectResponse(f"/procurement/{grp['proc'].id}", status_code=303)
+    insp = db.get(Person, inspector_id) if inspector_id else None
+    if not insp:
+        return RedirectResponse(back + "?msg=เลือกผู้ตรวจรับก่อนสร้างเรื่อง#sec-buy", status_code=303)
+    c = ft.counts(t)
+    ptype = grp["proc_type"]
+    labels = [ft.cost_label(x) for x in grp["costs"]]
+    subject = f"{ptype}{' '.join(dict.fromkeys(labels))} {t.title or 'ทัศนศึกษา'}".strip()
+    when = t.depart_at or datetime.now()
+    proc = Procurement(
+        fiscal_year=current_fiscal_year(when), subject=subject, proc_type=ptype, proc_case="normal",
+        project_id=t.project_id, project_name=t.project.name if t.project else "",
+        purpose=(f"เพื่อใช้ในการพานักเรียนไปนอกสถานศึกษา {t.purpose or ''} ณ {t.place or ''} "
+                 f"จำนวนนักเรียน {c['students']} คน ครู {c['staff']} คน").strip(),
+        total_amount=grp["total"], vendor_id=vendor_id, status="ร่าง",
+        request_date=datetime.now(), delivery_due_date=t.depart_at, inspection_mode="single",
+        delivery_days=max(1, (when.date() - datetime.now().date()).days) if t.depart_at else 7)
+    for x in grp["costs"]:
+        heads = {"student": c["students"], "person": c["people"]}.get(x.basis, 1)
+        qty = round(heads * (x.times or 1), 2)
+        proc.items.append(ProcurementItem(name=ft.cost_label(x), quantity=qty,
+                                          unit=_UNITS.get(x.kind, "รายการ"), unit_price=x.rate or 0))
+    ins = Committee(kind="inspect", mode="single")
+    ins.members.append(CommitteeMember(name=insp.name, position=insp.position or "ครู",
+                                       role="ผู้ตรวจรับพัสดุ", seq=1))
+    proc.committees.append(ins)
+    db.add(proc)
+    db.flush()
+    for x in grp["costs"]:
+        x.procurement_id = proc.id
+    db.commit()
+    return RedirectResponse(f"/procurement/{proc.id}", status_code=303)
+
+
+@router.post("/general/trips/{tid}/loan")
+def trip_loan(tid: int, db: Session = Depends(get_db), borrower_id: int = Form(0)):
+    """สร้างสัญญายืมเงิน (แบบ 8500) สำหรับรายการที่จ่ายเป็นเงินสดระหว่างทาง"""
+    import json
+    from app.models import MoneyLoan, Person
+    from app.services import fieldtrip as ft
+    from app.thai_utils import current_fiscal_year
+    t = _trip_or_404(db, tid)
+    back = f"/general/trips/{tid}"
+    if not _has_module("finance"):
+        return RedirectResponse(back + "?msg=ต้องใช้งานการเงินจึงจะสร้างสัญญายืมเงินได้#sec-buy", status_code=303)
+    if t.loan_id and db.get(MoneyLoan, t.loan_id):
+        return RedirectResponse("/finance/loans", status_code=303)
+    who = db.get(Person, borrower_id) if borrower_id else None
+    if not who:
+        return RedirectResponse(back + "?msg=เลือกผู้ยืมเงินก่อน#sec-buy", status_code=303)
+    c = ft.counts(t)
+    items = [{"name": ft.cost_label(x), "amount": ft.cost_amount(x, c)} for x in ft.cash_costs(t)]
+    school = get_school(db)
+    name = (school.name or "").strip()
+    ln = MoneyLoan(fiscal_year=current_fiscal_year(t.depart_at or datetime.now()), date=datetime.now(),
+                   borrower=who.name, position=who.position or "ครู",
+                   submit_to="ผู้อำนวยการ" + name if name.startswith("โรงเรียน") else "ผู้อำนวยการโรงเรียน",
+                   fund_from=(t.project.name if t.project else ""),
+                   purpose=f"พานักเรียนไปนอกสถานศึกษา {t.title or ''} ณ {t.place or ''}".strip(),
+                   items=json.dumps(items, ensure_ascii=False),
+                   amount=round(sum(i["amount"] for i in items), 2), within_days=15,
+                   note=f"ทัศนศึกษา #{t.id}")
+    db.add(ln)
+    db.flush()
+    t.loan_id = ln.id
+    db.commit()
+    return RedirectResponse(back + "?msg=สร้างสัญญายืมเงินแล้ว ดาวน์โหลด/บันทึกส่งใช้ได้ที่งานการเงิน#sec-buy",
+                            status_code=303)

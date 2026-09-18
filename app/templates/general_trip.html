@@ -1,105 +1,143 @@
 {% extends "base.html" %}
+{% from "_dmy.html" import date_select, time_select, dmy_script %}
 {% block title %}{{ t.title or "ทัศนศึกษา" }}{% endblock %}
 {% block content %}
 <style>
-  .tp-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px 14px; }
+  .tp-hero{ background:linear-gradient(135deg,#0891b2 0%,#4f46e5 55%,#7c3aed 100%); color:#fff; border-radius:18px;
+    padding:22px 24px; margin-bottom:16px; box-shadow:0 12px 30px rgba(79,70,229,.25); }
+  .tp-hero a{ color:#e0e7ff; }
+  .tp-hero .t{ font-size:24px; font-weight:800; margin:2px 0 6px; }
+  .tp-hero .m{ opacity:.92; font-size:14px; }
+  .tp-kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:14px; }
+  .tp-kpi{ background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.25); border-radius:12px; padding:10px 12px; }
+  .tp-kpi .l{ font-size:12.5px; opacity:.9; } .tp-kpi .v{ font-size:21px; font-weight:800; }
+  .tp-kpi.bad{ background:rgba(254,202,202,.28); }
+
+  .tp-steps{ display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin:0 0 16px; }
+  @media (max-width:900px){ .tp-steps{ grid-template-columns:repeat(3,1fr); } }
+  @media (max-width:520px){ .tp-steps{ grid-template-columns:repeat(2,1fr); } }
+  .tp-step{ display:block; text-decoration:none; color:var(--text); border-radius:14px; padding:10px 12px;
+    background:var(--surface); border:1px solid var(--border); position:relative; }
+  .tp-step .n{ display:inline-flex; width:24px; height:24px; border-radius:999px; align-items:center; justify-content:center;
+    font-size:13px; font-weight:800; background:#e5e7eb; color:#475569; margin-right:6px; }
+  .tp-step .s{ display:block; font-size:12px; color:var(--muted); margin-top:4px; min-height:15px; }
+  .tp-step.done{ background:linear-gradient(135deg,#ecfdf5,#d1fae5); border-color:#a7f3d0; }
+  .tp-step.done .n{ background:linear-gradient(135deg,#10b981,#059669); color:#fff; }
+  .tp-step.doing{ background:linear-gradient(135deg,#eef2ff,#e0e7ff); border-color:#c7d2fe; }
+  .tp-step.doing .n{ background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; }
+
+  .tp-next{ background:linear-gradient(135deg,#fff7ed,#fef3c7); border:1px solid #fde68a; border-radius:16px; padding:14px 16px; margin-bottom:16px; }
+  .tp-next h3{ margin:0 0 8px; font-size:16px; color:#92400e; }
+  .tp-next a.item{ display:flex; gap:8px; align-items:center; padding:8px 10px; border-radius:10px; background:#fff;
+    margin:6px 0 0; text-decoration:none; color:#1f2937; border:1px solid #fde68a; }
+  .tp-next a.item:hover{ border-color:#f59e0b; }
+
+  .tp-card{ background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:18px 20px; margin-bottom:16px;
+    box-shadow:var(--shadow); scroll-margin-top:80px; }
+  .tp-card > h2{ display:flex; gap:10px; align-items:center; margin:0 0 4px; font-size:18px; }
+  .tp-card > h2 .ic{ display:inline-flex; width:32px; height:32px; border-radius:10px; align-items:center; justify-content:center;
+    color:#fff; font-size:15px; font-weight:800; background:linear-gradient(135deg,var(--g1,#06b6d4),var(--g2,#4f46e5)); }
+  .tp-note{ font-size:13px; color:var(--muted); margin:2px 0 10px; }
+  .tp-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px 14px; }
   .tp-grid .full{ grid-column:1/-1; }
-  .tp-sec{ margin:0 0 4px; font-size:17px; }
-  .tp-note{ font-size:13px; color:var(--muted); margin:2px 0 0; }
   .tp-warn{ display:flex; gap:8px; padding:8px 12px; border-radius:10px; margin:6px 0; font-size:14px; }
-  .tp-warn.error{ background:#fde8e8; color:#991b1b; }
-  .tp-warn.warn{ background:#fff4e5; color:#92400e; }
+  .tp-warn.error{ background:#fde8e8; color:#991b1b; } .tp-warn.warn{ background:#fff4e5; color:#92400e; }
   .tp-warn.info{ background:#eef4ff; color:#1e40af; }
-  .stu-room{ border:1px solid var(--border); border-radius:10px; padding:8px 12px; margin:0 0 8px; }
-  .stu-room summary{ cursor:pointer; font-weight:600; }
+  .gbtn{ background:linear-gradient(135deg,#06b6d4,#4f46e5); color:#fff !important; border:none; }
+  .gbtn.v{ background:linear-gradient(135deg,#8b5cf6,#6366f1); }
+  .gbtn.g{ background:linear-gradient(135deg,#10b981,#059669); }
+  .gbtn.o{ background:linear-gradient(135deg,#f59e0b,#ea580c); }
+  .stu-room{ border:1px solid var(--border); border-radius:12px; padding:8px 12px; margin:0 0 8px; }
+  .stu-room summary{ cursor:pointer; font-weight:600; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .stu-list{ columns:3; column-gap:16px; margin-top:6px; font-size:14px; }
   @media (max-width:700px){ .stu-list{ columns:1; } }
-  .stu-list label{ display:block; margin:2px 0; font-weight:400; }
-  .cost-tbl input, .cost-tbl select{ width:100%; }
-  .docs a{ margin:0 6px 6px 0; }
+  .stu-list label{ display:flex; gap:8px; align-items:center; margin:3px 0; font-weight:400; break-inside:avoid; }
+  .stu-list input[type=checkbox]{ width:auto; margin:0; flex:0 0 auto; }
+  .cost-row{ border:1px solid var(--border); border-radius:14px; padding:10px 12px; margin:0 0 10px; background:linear-gradient(180deg,#fff,#fafbff); }
+  .cost-row .cg{ display:grid; grid-template-columns:2.2fr 1.3fr .9fr .6fr 1.5fr 1.8fr auto; gap:8px; align-items:end; }
+  @media (max-width:1000px){ .cost-row .cg{ grid-template-columns:1fr 1fr; } }
+  .cost-row label{ font-size:12.5px; margin:0 0 2px; }
+  .cost-row .amt{ font-weight:800; font-size:17px; text-align:right; padding-bottom:8px; }
+  .cost-row .ref{ font-size:12px; color:var(--muted); margin-top:6px; }
+  .cost-row .bad{ font-size:12.5px; color:#b45309; margin-top:4px; }
+  .buy-grp{ border:1px solid #c7d2fe; border-radius:14px; padding:12px 14px; margin:0 0 10px; background:linear-gradient(135deg,#f8faff,#eef2ff); }
+  .pill{ display:inline-block; padding:2px 10px; border-radius:999px; font-size:12.5px; font-weight:700; }
+  .pill.ok{ background:#d1fae5; color:#065f46; } .pill.wait{ background:#e5e7eb; color:#374151; } .pill.draft{ background:#fef3c7; color:#92400e; }
+  .docs-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px; }
+  .doc-tile{ display:flex; gap:10px; align-items:center; padding:12px; border-radius:14px; text-decoration:none; color:var(--text);
+    border:1px solid var(--border); background:linear-gradient(135deg,#fff,#f5f7ff); }
+  .doc-tile:hover{ border-color:#818cf8; box-shadow:0 6px 16px rgba(99,102,241,.15); }
+  .doc-tile .di{ width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#fff;
+    background:linear-gradient(135deg,#06b6d4,#4f46e5); flex:0 0 36px; }
+  .doc-tile small{ display:block; color:var(--muted); font-size:12px; }
 </style>
 
-<div class="hero">
-  <div>
-    <div class="hero-sub"><a href="/general/trips">ทัศนศึกษา</a></div>
-    <span class="hero-title">{{ t.title or "ทัศนศึกษา" }}</span>
-    <div class="hero-meta">{{ types[t.trip_type].label }} · ผู้อนุญาต: {{ types[t.trip_type].approver }} · สถานะ: <b>{{ status[t.status] }}</b></div>
+<div class="tp-hero">
+  <div class="m"><a href="/general">งานบริหารทั่วไป</a> › <a href="/general/trips">ทัศนศึกษา</a></div>
+  <div class="t">{{ t.title or "ทัศนศึกษา" }}</div>
+  <div class="m">{{ types[t.trip_type].label }} · ผู้อนุญาต: {{ types[t.trip_type].approver }} · สถานะ: <b>{{ status[t.status] }}</b></div>
+  <div class="tp-kpis">
+    <div class="tp-kpi"><div class="l">นักเรียน</div><div class="v">{{ c.students }}</div></div>
+    <div class="tp-kpi"><div class="l">ผู้ควบคุม + ผู้ช่วย</div><div class="v">{{ c.staff }}</div></div>
+    <div class="tp-kpi"><div class="l">ค่าใช้จ่ายประมาณการ</div><div class="v">{{ "{:,.2f}".format(total) }}</div></div>
+    {% if proj %}<div class="tp-kpi {{ 'bad' if total > proj.remaining }}"><div class="l">งบโครงการคงเหลือ</div><div class="v">{{ "{:,.2f}".format(proj.remaining) }}</div></div>{% endif %}
   </div>
 </div>
 {% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
 
-<div class="card">
-  <h2 class="tp-sec">สรุป</h2>
-  <div class="stat">
-    <div class="box"><div><div class="lab">นักเรียน</div><div class="num">{{ c.students }}</div></div></div>
-    <div class="box"><div><div class="lab">ผู้ควบคุม + ผู้ช่วย</div><div class="num">{{ c.staff }}</div></div></div>
-    <div class="box"><div><div class="lab">ค่าใช้จ่ายรวม (บาท)</div><div class="num">{{ "{:,.2f}".format(total) }}</div></div></div>
-    {% if proj %}<div class="box"><div><div class="lab">งบโครงการคงเหลือ</div>
-      <div class="num" style="{{ 'color:#b91c1c;' if total > proj.remaining }}">{{ "{:,.2f}".format(proj.remaining) }}</div></div></div>{% endif %}
-  </div>
-  {% if proj and total > proj.remaining %}
-    <div class="tp-warn warn">ค่าใช้จ่ายเกินงบคงเหลือของโครงการ {{ "{:,.2f}".format(total - proj.remaining) }} บาท
-      (งบโครงการ {{ "{:,.2f}".format(proj.budget) }} บาท) - ปรับงบได้ที่ <a href="/projects/{{ t.project_id }}">หน้าโครงการ</a></div>
-  {% endif %}
-  {% for lv, text in warnings %}<div class="tp-warn {{ lv }}">{{ text }}</div>{% endfor %}
-  {% if not warnings %}<div class="tp-warn info">ครบตามที่ระเบียบกำหนดแล้ว</div>{% endif %}
+<div class="tp-steps">
+  {% for name, st, sub, href in steps %}
+  <a class="tp-step {{ st }}" href="{{ href }}"><span class="n">{{ '✓' if st == 'done' else loop.index }}</span><b>{{ name }}</b><span class="s">{{ sub }}</span></a>
+  {% endfor %}
 </div>
 
-<div class="card docs">
-  <h2 class="tp-sec">เอกสาร</h2>
-  <p class="tp-note" style="margin-bottom:10px;">แบบ 3 ฉบับแรกยกจากแบบท้าย{{ reg }} · กด "บันทึก" ก่อนดาวน์โหลดทุกครั้ง</p>
-  <a class="btn sm" href="/general/trips/{{ t.id }}/doc/request.docx"><svg class="icon"><use href="#ic-file"/></svg> แบบขออนุญาตผู้บังคับบัญชา</a>
-  <a class="btn sm" href="/general/trips/{{ t.id }}/doc/parents.docx"><svg class="icon"><use href="#ic-file"/></svg> หนังสือขออนุญาตผู้ปกครอง ({{ c.students or 1 }} หน้า)</a>
-  <a class="btn sm" href="/general/trips/{{ t.id }}/doc/project.docx"><svg class="icon"><use href="#ic-file"/></svg> โครงการ + รายชื่อ + งบประมาณ</a>
-  <a class="btn sm soft" href="/general/trips/{{ t.id }}/doc/report.docx"><svg class="icon"><use href="#ic-file"/></svg> แบบรายงานผล (หลังกลับ)</a>
-  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;">
-    <form method="post" action="/general/trips/{{ t.id }}/order" style="margin:0;">
-      <button class="btn sm soft" type="submit"><svg class="icon"><use href="#ic-clipboard"/></svg>
-        {{ "ปรับคำสั่งแต่งตั้งตามรายชื่อล่าสุด" if t.order_id else "ออกคำสั่งแต่งตั้งผู้ควบคุม" }}</button></form>
-    {% if t.order_id %}<a class="btn sm" href="/general/trips/{{ t.id }}/order.docx"><svg class="icon"><use href="#ic-file"/></svg> ดาวน์โหลดคำสั่ง</a>{% endif %}
-    <form method="post" action="/general/trips/{{ t.id }}/project-report" style="margin:0;">
-      <button class="btn sm soft" type="submit"><svg class="icon"><use href="#ic-clipboard"/></svg>
-        {{ "เปิดรายงานโครงการ" if t.report_id else "ทำรายงานโครงการ" }}</button></form>
-  </div>
-  <form method="post" action="/general/trips/{{ t.id }}/status" style="display:flex; gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap;">
-    <label style="margin:0;">สถานะ</label>
-    <select name="status" style="width:auto;">{% for k, v in status.items() %}<option value="{{ k }}" {{ 'selected' if k == t.status }}>{{ v }}</option>{% endfor %}</select>
-    <button class="btn sm" type="submit">เปลี่ยนสถานะ</button>
-  </form>
+{% if next %}
+<div class="tp-next">
+  <h3>⏭ สิ่งที่ต้องทำต่อ</h3>
+  {% for text, href in next %}<a class="item" href="{{ href }}"><b>{{ loop.index }}.</b> {{ text }} <span style="margin-left:auto;">→</span></a>{% endfor %}
 </div>
+{% endif %}
 
-<form method="post" action="/general/trips/{{ t.id }}/save">
-<div class="card">
-  <h2 class="tp-sec">1. รายละเอียดการเดินทาง</h2>
+{% if proj and total > proj.remaining %}
+<div class="tp-warn warn">ค่าใช้จ่ายเกินงบคงเหลือของโครงการ {{ "{:,.2f}".format(total - proj.remaining) }} บาท (งบโครงการ {{ "{:,.2f}".format(proj.budget) }} บาท)
+  - ปรับงบได้ที่ <a href="/projects/{{ t.project_id }}">หน้าโครงการ</a></div>
+{% endif %}
+{% if warnings %}<div class="tp-card" style="--g1:#f59e0b; --g2:#ea580c;"><h2><span class="ic">!</span> ตรวจตามระเบียบ</h2>
+  {% for lv, text in warnings %}<div class="tp-warn {{ lv }}">{{ text }}</div>{% endfor %}</div>{% endif %}
+
+<form method="post" action="/general/trips/{{ t.id }}/save" id="tripForm">
+<div class="tp-card" id="sec-info">
+  <h2><span class="ic">1</span> ข้อมูลการไป</h2>
+  <p class="tp-note">ข้อมูลส่วนนี้ใช้เติมในแบบขออนุญาต หนังสือผู้ปกครอง แบบรายงาน และเรื่องจัดจ้างทุกฉบับ - กรอกครั้งเดียว</p>
   <div class="tp-grid">
     <div class="full"><label>ชื่อโครงการ/กิจกรรม</label><input name="title" value="{{ t.title }}"></div>
     <div class="full"><label>ผูกกับโครงการในแผน (งบประมาณ)</label>
       <select name="project_id"><option value="">- ไม่ผูก -</option>
         {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if p.id == t.project_id }}>{{ p.name }}{% if p.plan_year %} ({{ p.plan_year }}){% endif %}</option>{% endfor %}
       </select></div>
-    <div><label>ประเภท (ข้อ 5)</label>
+    <div><label>ประเภท (ระเบียบฯ ข้อ 5)</label>
       <select name="trip_type">{% for k, v in types.items() %}<option value="{{ k }}" {{ 'selected' if k == t.trip_type }}>{{ v.label }}</option>{% endfor %}</select>
       <p class="tp-note">ผู้อนุญาตตามข้อ 8: {{ types[t.trip_type].approver }}</p></div>
     <div><label>ไปเพื่อ</label><input name="purpose" value="{{ t.purpose }}" placeholder="เช่น ศึกษาแหล่งเรียนรู้ทางวิทยาศาสตร์"></div>
     <div><label>สถานที่ (ณ)</label><input name="place" value="{{ t.place }}"></div>
     <div><label>จังหวัด</label><input name="province" value="{{ t.province }}"></div>
-    <div><label>วันออกเดินทาง</label><input name="depart_date" data-date="1" value="{{ d(t.depart_at) }}" placeholder="วว/ดด/ปปปป"></div>
-    <div><label>เวลาออกเดินทาง</label><input name="depart_time" value="{{ '%02d:%02d'|format(t.depart_at.hour, t.depart_at.minute) if t.depart_at else '' }}" placeholder="07:00"></div>
-    <div><label>วันกลับถึงสถานศึกษา</label><input name="return_date" data-date="1" value="{{ d(t.return_at) }}" placeholder="วว/ดด/ปปปป"></div>
-    <div><label>เวลากลับถึง</label><input name="return_time" value="{{ '%02d:%02d'|format(t.return_at.hour, t.return_at.minute) if t.return_at else '' }}" placeholder="17:00"></div>
+    <div><label>วันออกเดินทาง</label>{{ date_select("depart_date", t.depart_at, years) }}</div>
+    <div><label>เวลาออกเดินทาง</label>{{ time_select("depart_time", t.depart_at) }}</div>
+    <div><label>วันกลับถึงสถานศึกษา</label>{{ date_select("return_date", t.return_at, years) }}</div>
+    <div><label>เวลากลับถึง</label>{{ time_select("return_time", t.return_at) }}</div>
     <div class="full"><label>เส้นทางผ่าน</label><input name="route" value="{{ t.route }}"></div>
-    <div><label>โดยพาหนะ</label><input name="vehicle" value="{{ t.vehicle }}" placeholder="เช่น รถโดยสารปรับอากาศ 1 คัน"></div>
+    <div><label>โดยพาหนะ</label><input name="vehicle" value="{{ t.vehicle }}" placeholder="เช่น รถโดยสารปรับอากาศชั้นเดียว 1 คัน"></div>
     <div><label>พักค้างที่ (เฉพาะพักแรม)</label><input name="lodging" value="{{ t.lodging }}"></div>
-    <div><label>วันที่ยื่นขออนุญาต</label><input name="request_date" data-date="1" value="{{ d(t.request_date) }}">
+    <div><label>วันที่ยื่นขออนุญาต</label>{{ date_select("request_date", t.request_date, years) }}
       <p class="tp-note">ต้องก่อนวันเดินทางไม่น้อยกว่า 15 วัน (ข้อ 9)</p></div>
     <div><label>เรียน (ผู้อนุญาต)</label><input name="request_to" value="{{ t.request_to }}" placeholder="{{ approver }}"></div>
   </div>
 </div>
 
-<div class="card">
-  <h2 class="tp-sec">2. ผู้ควบคุมและผู้ช่วยผู้ควบคุม (ข้อ 7(3))</h2>
-  <p class="tp-note">ผู้ควบคุม 1 คน + ผู้ช่วยผู้ควบคุม 1 คน ต่อนักเรียนไม่เกิน 30 คน · มีนักเรียนหญิงไปด้วยให้มีครูสตรีควบคุมไปด้วยตามความเหมาะสม</p>
-  <div class="tp-grid" style="margin-top:8px;">
+<div class="tp-card" id="sec-people" style="--g1:#8b5cf6; --g2:#6366f1;">
+  <h2><span class="ic">2</span> คนที่ไป</h2>
+  <p class="tp-note">ผู้ควบคุม 1 คน + ผู้ช่วย 1 คน ต่อนักเรียนไม่เกิน 30 คน (ข้อ 7(3)) · ครูควบคุมอย่างน้อย 2 คน (ว 1057 ข้อ 12) · ใช้เฉพาะชื่อและชั้นจากทะเบียน</p>
+  <div class="tp-grid">
     <div><label>ผู้ควบคุม</label>
       <select name="controller_id"><option value="">- เลือก -</option>
         {% for p in persons %}<option value="{{ p.id }}" {{ 'selected' if p.id == t.controller_id }}>{{ p.name }} ({{ p.position }})</option>{% endfor %}
@@ -109,48 +147,61 @@
   <div class="stu-list">
     {% for p in persons %}<label><input type="checkbox" name="staff" value="{{ p.id }}" {{ 'checked' if p.id in staff_ids }}> {{ p.name }}</label>{% endfor %}
   </div>
-</div>
-
-<div class="card">
-  <h2 class="tp-sec">3. นักเรียนที่ไป ({{ c.students }} คน)</h2>
-  <p class="tp-note">ดึงจากทะเบียนนักเรียน · ใช้เฉพาะชื่อและชั้น ไม่เก็บข้อมูลอื่นเพิ่ม</p>
+  <label style="margin-top:12px;">นักเรียน ({{ c.students }} คน)</label>
   {% for room, lst in groups.items() %}
-  <details class="stu-room" {{ 'open' if lst|selectattr('id','in',picked)|list }}>
-    <summary>{{ room }} ({{ lst|selectattr('id','in',picked)|list|length }}/{{ lst|length }})
-      <button type="button" class="btn sm soft" style="margin-left:8px;" onclick="pickAll(this, true)">เลือกทั้งห้อง</button>
-      <button type="button" class="btn sm soft" onclick="pickAll(this, false)">ไม่เลือก</button></summary>
+  {% set n_in = lst|selectattr('id','in',picked)|list|length %}
+  <details class="stu-room" {{ 'open' if n_in }}>
+    <summary>{{ room }} <span class="pill {{ 'ok' if n_in == lst|length else 'wait' }}">{{ n_in }}/{{ lst|length }}</span>
+      <button type="button" class="btn sm soft" onclick="pickAll(event, this, true)">เลือกทั้งห้อง</button>
+      <button type="button" class="btn sm soft" onclick="pickAll(event, this, false)">ไม่เลือก</button></summary>
     <div class="stu-list">
       {% for s in lst %}<label><input type="checkbox" name="student" value="{{ s.id }}" {{ 'checked' if s.id in picked }}> {{ s.name }}</label>{% endfor %}
     </div>
   </details>
-  {% else %}
-  <p class="muted">ยังไม่มีทะเบียนนักเรียน - เพิ่มได้ที่งานวิชาการ/ทะเบียนนักเรียน</p>
-  {% endfor %}
+  {% else %}<p class="muted">ยังไม่มีทะเบียนนักเรียน - เพิ่มได้ที่งานวิชาการ/ทะเบียนนักเรียน</p>{% endfor %}
 </div>
 
-<div class="card">
-  <h2 class="tp-sec">4. ค่าใช้จ่าย</h2>
-  <p class="tp-note">เป็นเงิน = อัตรา x จำนวนคน (ตามฐานที่เลือก) x ครั้ง · ครูผู้ควบคุมเบิกค่าใช้จ่ายในการเดินทางได้ตามระเบียบของทางราชการ (ข้อ 14) กรอกอัตราตามที่โรงเรียนใช้</p>
-  <table class="cost-tbl" style="margin-top:8px;">
-    <thead><tr><th style="width:36%;">รายการ</th><th>คิดแบบ</th><th style="width:14%;">อัตรา (บาท)</th><th style="width:10%;">ครั้ง</th><th style="text-align:right; width:14%;">เป็นเงิน</th><th></th></tr></thead>
-    <tbody id="costs">
-      {% for x in t.costs %}
-      <tr><td><input name="cost_item" value="{{ x.item }}"></td>
-        <td><select name="cost_basis">{% for k, v in basis.items() %}<option value="{{ k }}" {{ 'selected' if k == x.basis }}>{{ v }}</option>{% endfor %}</select></td>
-        <td><input name="cost_rate" inputmode="decimal" value="{{ '%g'|format(x.rate) }}"></td>
-        <td><input name="cost_times" inputmode="decimal" value="{{ '%g'|format(x.times) }}"></td>
-        <td style="text-align:right;">{{ "{:,.2f}".format(amounts[x.id]) }}</td>
-        <td><button type="button" class="btn sm soft" onclick="this.closest('tr').remove()">ลบ</button></td></tr>
-      {% endfor %}
-    </tbody>
-    <tfoot><tr><td colspan="4" style="text-align:right;"><b>รวม</b></td><td style="text-align:right;"><b>{{ "{:,.2f}".format(total) }}</b></td><td></td></tr></tfoot>
-  </table>
-  <button type="button" class="btn sm soft" onclick="addCost()" style="margin-top:8px;"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มรายการ</button>
-  <p class="tp-note">ยอด "เป็นเงิน" คำนวณใหม่หลังกดบันทึก</p>
+<div class="tp-card" id="sec-cost" style="--g1:#10b981; --g2:#0891b2;">
+  <h2><span class="ic">3</span> ค่าใช้จ่าย</h2>
+  <p class="tp-note">เลือกชนิดรายการจากรายการ ระบบตั้งวิธีคิดและวิธีจ่ายให้ และเตือนเมื่ออัตราเกินเพดานตาม ว 2983 ·
+    รายการ "จัดซื้อจัดจ้าง" ให้เลือกผู้ขาย แล้วระบบจะรวมเป็น 1 เรื่องต่อผู้ขาย</p>
+  <div id="costs">
+    {% for x in t.costs %}{% set k = kinds[x.kind] if x.kind in kinds else kinds['other'] %}
+    <div class="cost-row">
+      <input type="hidden" name="cost_id" value="{{ x.id }}">
+      <div class="cg">
+        <div><label>ชนิดรายการ</label>
+          <select name="cost_kind" onchange="kindChanged(this)">{% for key, v in kinds.items() %}<option value="{{ key }}" {{ 'selected' if key == (x.kind or 'other') }}>{{ v.label }}</option>{% endfor %}</select>
+          <input name="cost_item" value="{{ x.item }}" placeholder="ระบุชื่อรายการ" style="margin-top:6px; {{ '' if (x.kind or 'other') == 'other' else 'display:none;' }}"></div>
+        <div><label>คิดแบบ</label>
+          <select name="cost_basis">{% for key, v in basis.items() %}<option value="{{ key }}" {{ 'selected' if key == x.basis }}>{{ v }}</option>{% endfor %}</select></div>
+        <div><label>อัตรา (บาท)</label><input name="cost_rate" inputmode="decimal" value="{{ '%g'|format(x.rate) }}"></div>
+        <div><label>ครั้ง</label><input name="cost_times" inputmode="decimal" value="{{ '%g'|format(x.times) }}"></div>
+        <div><label>วิธีจ่าย</label>
+          <select name="cost_pay" onchange="payChanged(this)">{% for key, v in pays.items() %}<option value="{{ key }}" {{ 'selected' if key == x.pay_method }}>{{ v }}</option>{% endfor %}</select></div>
+        <div><label>ผู้ขาย/ผู้รับจ้าง</label>
+          <select name="cost_vendor" {{ '' if x.pay_method == 'procure' else 'disabled' }}><option value="">- เลือก -</option>
+            {% for v in vendors %}<option value="{{ v.id }}" {{ 'selected' if v.id == x.vendor_id }}>{{ v.name }}</option>{% endfor %}</select></div>
+        <div><button type="button" class="btn sm soft" onclick="this.closest('.cost-row').remove()">ลบ</button></div>
+      </div>
+      <div style="display:flex; gap:10px; justify-content:space-between; align-items:flex-end; flex-wrap:wrap;">
+        <div class="ref">{{ k.hint ~ ' · ' if k.hint }}{{ k.ref }}</div>
+        <div class="amt">{{ "{:,.2f}".format(amounts[x.id]) }} บาท</div>
+      </div>
+      {% for w in cost_warn[x.id] %}<div class="bad">⚠ {{ w }}</div>{% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    <button type="button" class="btn sm gbtn g" onclick="addCost()">+ เพิ่มรายการ</button>
+    <button type="button" class="btn sm soft" onclick="document.getElementById('vendorBox').hidden=false">+ เพิ่มผู้ขายรายใหม่</button>
+    <span style="margin-left:auto; font-size:17px;">รวม <b>{{ "{:,.2f}".format(total) }}</b> บาท</span>
+  </div>
+  <p class="tp-note">ยอดเงินคำนวณใหม่หลังกด "บันทึก"</p>
 </div>
 
-<div class="card">
-  <h2 class="tp-sec">5. รายละเอียดโครงการ (หัวข้อตามข้อ 9)</h2>
+<div class="tp-card" id="sec-plan" style="--g1:#0ea5e9; --g2:#6366f1;">
+  <h2><span class="ic">4</span> รายละเอียดโครงการ (หัวข้อตามข้อ 9)</h2>
   <div class="tp-grid">
     <div class="full"><label>หลักการและเหตุผล</label><textarea name="principle" rows="3">{{ t.principle }}</textarea></div>
     <div><label>วัตถุประสงค์ (บรรทัดละข้อ)</label><textarea name="objectives" rows="4">{{ t.objectives }}</textarea></div>
@@ -161,36 +212,117 @@
   </div>
 </div>
 
-<div class="card">
-  <h2 class="tp-sec">6. การเตรียมการก่อนเดินทาง</h2>
+<div class="tp-card" id="sec-check" style="--g1:#f43f5e; --g2:#e11d48;">
+  <h2><span class="ic">✓</span> การเตรียมการก่อนเดินทาง</h2>
+  <p class="tp-note">ตามระเบียบฯ ข้อ 7, 10, 12 และหนังสือ สพฐ. ว 1057 (3 ต.ค. 2567) - ติ๊กเมื่อจัดการแล้ว</p>
   {% for key, label, ref in checklist %}
   <label style="display:flex; gap:8px; font-weight:400; margin:6px 0;"><input type="checkbox" name="check" value="{{ key }}" {{ 'checked' if key in done }} style="width:auto;">
     <span>{{ label }} <span class="muted">({{ ref }})</span></span></label>
   {% endfor %}
 </div>
 
-<div class="card">
-  <h2 class="tp-sec">7. รายงานผลหลังกลับ (ข้อ 13)</h2>
+<div class="tp-card" id="sec-report" style="--g1:#64748b; --g2:#334155;">
+  <h2><span class="ic">6</span> รายงานผลหลังกลับ (ข้อ 13)</h2>
   <div class="tp-grid">
     <div><label>การพาไปครั้งนี้เป็นไปด้วยความ</label>
       <select name="result"><option value="">-</option>
         {% for v in ("เรียบร้อย", "ไม่เรียบร้อย") %}<option {{ 'selected' if t.result == v }}>{{ v }}</option>{% endfor %}</select></div>
-    <div><label>วันที่รายงาน</label><input name="report_date" data-date="1" value="{{ d(t.report_date) }}"></div>
+    <div><label>วันที่รายงาน</label>{{ date_select("report_date", t.report_date, years) }}</div>
     <div class="full"><label>ชี้แจงรายละเอียด</label><textarea name="result_detail" rows="3">{{ t.result_detail }}</textarea></div>
   </div>
 </div>
 
-<div style="display:flex; gap:8px; justify-content:flex-end; margin-bottom:16px;">
-  <button class="btn" type="submit"><svg class="icon"><use href="#ic-check"/></svg> บันทึก</button>
+<div style="position:sticky; bottom:12px; z-index:5; display:flex; justify-content:flex-end; margin-bottom:16px;">
+  <button class="btn gbtn" type="submit" style="padding:12px 28px; font-size:16px; box-shadow:0 10px 24px rgba(79,70,229,.35);">💾 บันทึก</button>
 </div>
 </form>
 
-<div class="card" id="consent">
-  <h2 class="tp-sec">ผลการตอบรับจากผู้ปกครอง (ข้อ 6)</h2>
+<div class="tp-card" id="sec-buy" style="--g1:#f59e0b; --g2:#ea580c;">
+  <h2><span class="ic">5</span> จัดซื้อจัดจ้าง / ยืมเงิน</h2>
+  <p class="tp-note">ระบบร่างเรื่องให้ในงานพัสดุ/การเงิน พร้อมรายการ ผู้ขาย และโครงการ - เข้าไปเติมเฉพาะเลขเอกสารและราคาตามใบเสนอราคา แล้วกด "กลับไปหน้าทัศนศึกษา"</p>
+  {% for g in groups_buy %}
+  <div class="buy-grp">
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <b>{{ g.proc_type }} · {{ g.vendor.name }}</b>
+      <span class="muted">{{ g.labels|join(', ') }}</span>
+      <span style="margin-left:auto; font-weight:800;">{{ "{:,.2f}".format(g.total) }} บาท</span>
+    </div>
+    {% if g.proc %}
+      <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <span class="pill {{ 'draft' if g.proc.status == 'ร่าง' else 'ok' }}">{{ g.proc.status }}</span>
+        {% if g.proc.memo_no %}<span class="muted">รายงานขอ{{ g.proc_type }} {{ g.proc.memo_no }}</span>{% endif %}
+        <a class="btn sm gbtn" href="/procurement/{{ g.proc.id }}">เปิดเรื่อง{{ g.proc_type }} →</a>
+        {% if (g.proc.total_amount or 0)|round(2) != g.total|round(2) %}<span class="muted" style="font-size:12.5px;">ยอดในงานพัสดุ {{ "{:,.2f}".format(g.proc.total_amount or 0) }} (ใช้ยอดนี้ตัดงบโครงการ)</span>{% endif %}
+      </div>
+    {% elif has_proc %}
+      <form method="post" action="/general/trips/{{ t.id }}/procure" style="margin-top:8px; display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
+        <input type="hidden" name="vendor_id" value="{{ g.vendor_id }}">
+        <div><label style="font-size:12.5px;">ผู้ตรวจรับ</label>
+          <select name="inspector_id" required style="min-width:220px;"><option value="">- เลือกผู้ตรวจรับ -</option>
+            {% for p in persons %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+        <button class="btn sm gbtn o" type="submit">สร้างเรื่อง{{ g.proc_type }}ในงานพัสดุ</button>
+      </form>
+    {% else %}
+      <p class="muted" style="margin:8px 0 0;">ต้องใช้งานพัสดุจึงจะสร้างเรื่องให้อัตโนมัติได้</p>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="muted">ยังไม่มีรายการ "จัดซื้อจัดจ้าง" ที่เลือกผู้ขายแล้ว</p>
+  {% endfor %}
+
+  <div class="buy-grp" style="border-color:#fde68a; background:linear-gradient(135deg,#fffbeb,#fef3c7);">
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <b>ยืมเงิน (จ่ายเป็นเงินสดระหว่างทาง)</b>
+      <span class="muted">{{ cash_labels|join(', ') or 'ไม่มีรายการ' }}</span>
+      {% if cash_total %}<span style="margin-left:auto; font-weight:800;">{{ "{:,.2f}".format(cash_total) }} บาท</span>{% endif %}
+    </div>
+    {% if loan %}
+      <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <span class="pill ok">สร้างสัญญายืมแล้ว</span><span class="muted">{{ loan.borrower }} · {{ "{:,.2f}".format(loan.amount) }} บาท</span>
+        <a class="btn sm gbtn" href="/finance/loans/{{ loan.id }}/contract.docx">สัญญายืม 8500</a>
+        <a class="btn sm soft" href="/finance/loans?year={{ loan.fiscal_year }}">บันทึกส่งใช้ที่งานการเงิน →</a>
+      </div>
+    {% elif cash and has_fin %}
+      <form method="post" action="/general/trips/{{ t.id }}/loan" style="margin-top:8px; display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
+        <div><label style="font-size:12.5px;">ผู้ยืมเงิน</label>
+          <select name="borrower_id" required style="min-width:220px;"><option value="">- เลือกผู้ยืม -</option>
+            {% for p in persons %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+        <button class="btn sm gbtn o" type="submit">สร้างสัญญายืมเงิน</button>
+      </form>
+    {% elif cash %}<p class="muted" style="margin:8px 0 0;">ต้องใช้งานการเงินจึงจะสร้างสัญญายืมเงินอัตโนมัติได้</p>{% endif %}
+  </div>
+</div>
+
+<div class="tp-card" id="sec-docs" style="--g1:#6366f1; --g2:#7c3aed;">
+  <h2><span class="ic">📄</span> เอกสาร</h2>
+  <p class="tp-note">กด "บันทึก" ก่อนดาวน์โหลดทุกครั้ง · แบบ 3 ฉบับแรกยกจากแบบท้าย{{ reg }}</p>
+  <div class="docs-grid">
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/request.docx"><span class="di">1</span><span>แบบขออนุญาตผู้บังคับบัญชา<small>ยื่นก่อนเดินทาง ≥ 15 วัน</small></span></a>
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/parents.docx"><span class="di">2</span><span>หนังสือขออนุญาตผู้ปกครอง<small>{{ c.students or 1 }} หน้า · หน้าละคน</small></span></a>
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/project.docx"><span class="di">3</span><span>โครงการ + รายชื่อ + งบประมาณ<small>หัวข้อตามข้อ 9</small></span></a>
+    {% if allow_total %}<a class="doc-tile" href="/general/trips/{{ t.id }}/doc/allowance.docx"><span class="di">฿</span><span>ใบสำคัญรับเงินนักเรียน (เอกสารแนบ 2)<small>ค่าอาหารเหมาจ่าย ตาม ว 2983</small></span></a>{% endif %}
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/report.docx"><span class="di">4</span><span>แบบรายงานผล<small>หลังกลับ (ข้อ 13)</small></span></a>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+    <form method="post" action="/general/trips/{{ t.id }}/order" style="margin:0;">
+      <button class="btn sm gbtn v" type="submit">{{ "ปรับคำสั่งแต่งตั้งตามรายชื่อล่าสุด" if t.order_id else "ออกคำสั่งแต่งตั้งผู้ควบคุม" }}</button></form>
+    {% if t.order_id %}<a class="btn sm soft" href="/general/trips/{{ t.id }}/order.docx">ดาวน์โหลดคำสั่ง</a>{% endif %}
+    <form method="post" action="/general/trips/{{ t.id }}/project-report" style="margin:0;">
+      <button class="btn sm gbtn g" type="submit">{{ "เปิดรายงานโครงการ" if t.report_id else "ทำรายงานโครงการ" }}</button></form>
+  </div>
+  <form method="post" action="/general/trips/{{ t.id }}/status" style="display:flex; gap:8px; align-items:center; margin-top:12px; flex-wrap:wrap;">
+    <label style="margin:0;">สถานะ</label>
+    <select name="status" style="width:auto;">{% for k, v in status.items() %}<option value="{{ k }}" {{ 'selected' if k == t.status }}>{{ v }}</option>{% endfor %}</select>
+    <button class="btn sm" type="submit">เปลี่ยนสถานะ</button>
+  </form>
+</div>
+
+<div class="tp-card" id="consent" style="--g1:#14b8a6; --g2:#0d9488;">
+  <h2><span class="ic">✉</span> ผลการตอบรับจากผู้ปกครอง (ข้อ 6)</h2>
   <p class="tp-note">อนุญาต {{ c.consent_yes }} · ไม่อนุญาต {{ c.consent_no }} · ยังไม่ส่งกลับ {{ c.consent_wait }}</p>
   {% if t.students %}
   <form method="post" action="/general/trips/{{ t.id }}/consent">
-    <table class="stack-sm" style="margin-top:8px;">
+    <table class="stack-sm">
       <thead><tr><th>ที่</th><th>ชื่อ</th><th>ชั้น</th><th>ผล</th></tr></thead>
       <tbody>{% for s in t.students %}
         <tr><td>{{ loop.index }}</td><td>{{ s.name }}</td><td>{{ s.level }}{% if s.room %}/{{ s.room }}{% endif %}</td>
@@ -200,7 +332,7 @@
             <option value="no" {{ 'selected' if s.consent == 'no' }}>ไม่อนุญาต</option></select></td></tr>
       {% endfor %}</tbody>
     </table>
-    <button class="btn sm" type="submit" style="margin-top:8px;">บันทึกผลการตอบรับ</button>
+    <button class="btn sm gbtn" type="submit" style="margin-top:8px;">บันทึกผลการตอบรับ</button>
   </form>
   {% if c.consent_no %}
   <form method="post" action="/general/trips/{{ t.id }}/drop-refused" style="margin-top:8px;">
@@ -209,16 +341,58 @@
   {% else %}<p class="muted">ยังไม่ได้เลือกนักเรียน</p>{% endif %}
 </div>
 
+<div class="tp-card" id="vendorBox" hidden style="--g1:#10b981; --g2:#0891b2;">
+  <h2><span class="ic">+</span> เพิ่มผู้ขาย/ผู้รับจ้างรายใหม่</h2>
+  <p class="tp-note">บันทึกลงทะเบียนผู้ขายเดียวกับงานพัสดุ · กดบันทึกข้อมูลทัศนศึกษาก่อน ไม่งั้นที่แก้ค้างไว้จะหาย</p>
+  <form method="post" action="/general/trips/{{ t.id }}/vendor" class="tp-grid">
+    <div><label>ชื่อร้าน/บริษัท/ผู้รับจ้าง</label><input name="name" required></div>
+    <div><label>เจ้าของ/ผู้มีอำนาจลงนาม</label><input name="owner_name"></div>
+    <div><label>เลขประจำตัวผู้เสียภาษี</label><input name="tax_id" inputmode="numeric" maxlength="13"></div>
+    <div><label>โทรศัพท์</label><input name="phone"></div>
+    <div class="full"><label>ที่อยู่</label><input name="address"></div>
+    <div><button class="btn gbtn g" type="submit">เพิ่มผู้ขาย</button></div>
+  </form>
+</div>
+
 <form method="post" action="/general/trips/{{ t.id }}/delete" onsubmit="return confirm('ลบการไปทัศนศึกษานี้?')" style="text-align:right;">
-  <button class="btn sm gray" type="submit">ลบ</button>
+  <button class="btn sm gray" type="submit">ลบการไปทัศนศึกษานี้</button>
 </form>
 
-<template id="cost-row"><tr><td><input name="cost_item"></td>
-  <td><select name="cost_basis">{% for k, v in basis.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></td>
-  <td><input name="cost_rate" inputmode="decimal" value="0"></td><td><input name="cost_times" inputmode="decimal" value="1"></td>
-  <td></td><td><button type="button" class="btn sm soft" onclick="this.closest('tr').remove()">ลบ</button></td></tr></template>
+<template id="cost-row">
+  <div class="cost-row"><input type="hidden" name="cost_id" value="">
+    <div class="cg">
+      <div><label>ชนิดรายการ</label>
+        <select name="cost_kind" onchange="kindChanged(this)">{% for key, v in kinds.items() %}<option value="{{ key }}" {{ 'selected' if key == 'other' }}>{{ v.label }}</option>{% endfor %}</select>
+        <input name="cost_item" placeholder="ระบุชื่อรายการ" style="margin-top:6px;"></div>
+      <div><label>คิดแบบ</label><select name="cost_basis">{% for key, v in basis.items() %}<option value="{{ key }}" {{ 'selected' if key == 'lump' }}>{{ v }}</option>{% endfor %}</select></div>
+      <div><label>อัตรา (บาท)</label><input name="cost_rate" inputmode="decimal" value="0"></div>
+      <div><label>ครั้ง</label><input name="cost_times" inputmode="decimal" value="1"></div>
+      <div><label>วิธีจ่าย</label><select name="cost_pay" onchange="payChanged(this)">{% for key, v in pays.items() %}<option value="{{ key }}">{{ v }}</option>{% endfor %}</select></div>
+      <div><label>ผู้ขาย/ผู้รับจ้าง</label><select name="cost_vendor"><option value="">- เลือก -</option>{% for v in vendors %}<option value="{{ v.id }}">{{ v.name }}</option>{% endfor %}</select></div>
+      <div><button type="button" class="btn sm soft" onclick="this.closest('.cost-row').remove()">ลบ</button></div>
+    </div>
+    <div class="ref"></div>
+  </div>
+</template>
+{{ dmy_script() }}
 <script>
+const KINDS = {{ kinds|tojson }};
 function addCost(){ document.getElementById('costs').appendChild(document.getElementById('cost-row').content.cloneNode(true)); }
-function pickAll(btn, on){ btn.closest('details').querySelectorAll('input[name=student]').forEach(i => i.checked = on); btn.closest('details').open = true; }
+function kindChanged(sel){
+  const row = sel.closest('.cost-row'), k = KINDS[sel.value] || KINDS.other;
+  row.querySelector('[name=cost_item]').style.display = sel.value === 'other' ? '' : 'none';
+  row.querySelector('[name=cost_basis]').value = k.basis;
+  const pay = row.querySelector('[name=cost_pay]'); pay.value = k.pay; payChanged(pay);
+  const ref = row.querySelector('.ref'); if (ref) ref.textContent = [k.hint, k.ref].filter(Boolean).join(' · ');
+}
+function payChanged(sel){
+  const v = sel.closest('.cost-row').querySelector('[name=cost_vendor]');
+  v.disabled = sel.value !== 'procure'; if (v.disabled) v.value = '';
+}
+function pickAll(ev, btn, on){ ev.preventDefault(); const d = btn.closest('details'); d.querySelectorAll('input[name=student]').forEach(i => i.checked = on); d.open = true; }
+// ช่องผู้ขายที่ถูก disable จะไม่ถูกส่ง -> เปิดคืนก่อนส่งให้จำนวนคอลัมน์ตรงกันทุกแถว
+document.getElementById('tripForm').addEventListener('submit', function(){
+  this.querySelectorAll('[name=cost_vendor]').forEach(v => { if (v.disabled) { v.disabled = false; v.value = ''; } });
+});
 </script>
 {% endblock %}

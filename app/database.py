@@ -35,6 +35,11 @@ Base = declarative_base()
 
 # รายการเพิ่มคอลัมน์ใหม่บน DB เก่า (ปลอดภัย: ข้ามถ้ามีอยู่แล้ว)
 MIGRATIONS = [
+    ("field_trip", "loan_id", "INTEGER"),
+    ("field_trip_cost", "kind", "VARCHAR DEFAULT 'other'"),
+    ("field_trip_cost", "pay_method", "VARCHAR DEFAULT 'procure'"),
+    ("field_trip_cost", "vendor_id", "INTEGER"),
+    ("field_trip_cost", "procurement_id", "INTEGER"),
     ("textbook_purchase", "vendor_name", "VARCHAR DEFAULT ''"),
     ("textbook_purchase", "procurement_id", "INTEGER"),
     ("textbook_purchase", "contact_phone", "VARCHAR DEFAULT ''"),

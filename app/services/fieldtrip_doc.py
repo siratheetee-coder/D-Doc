@@ -17,7 +17,7 @@ from app.services.doc_page import set_a4
 from app.services.build_templates import _font, _p, _p_runs, _sign_table, _set_cell
 from app.services.office_doc import _save_doc, _safe, _float_signature
 from app.services.fieldtrip import (REG_NAME, TRIP_TYPES, approver_title, counts, cost_amount,
-                                    total_cost, COST_BASIS)
+                                    total_cost, COST_BASIS, cost_label)
 from app.thai_utils import thai_date, bahttext, _THAI_MONTHS
 
 DOT = "................................"
@@ -245,7 +245,7 @@ def render_project(trip, school) -> str:
         calc = (f"{_money(x.rate)} x {heads} คน" if heads is not None else f"{_money(x.rate)}")
         if (x.times or 1) != 1:
             calc += f" x {x.times:g}"
-        rows.append((i, x.item, calc, _money(cost_amount(x, c))))
+        rows.append((i, cost_label(x), calc, _money(cost_amount(x, c))))
     rows.append(("", "รวมทั้งสิ้น", "", _money(total_cost(trip))))
     _grid(doc, ["ที่", "รายการ", "การคำนวณ", "จำนวนเงิน (บาท)"], rows,
           [1.2, 6.8, 4.5, 3.5], ["center", "left", "left", "right"])
@@ -291,3 +291,65 @@ def order_body(trip, school) -> str:
                  + " อย่างเคร่งครัด โดยคำนึงถึงความปลอดภัยของนักเรียนเป็นอันดับแรก")
     lines.append("ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป")
     return "\n".join(lines)
+
+
+# ---------------- 5) เอกสารแนบ 2 ท้ายหนังสือ สพฐ. ว 2983 ----------------
+def render_allowance(trip, school) -> str:
+    """แบบใบสำคัญรับเงินค่าใช้จ่ายในการจัดกิจกรรมสำหรับนักเรียน (เอกสารแนบ 2)
+    ยกหัวเรื่อง/คอลัมน์ตามแบบแนบท้ายหนังสือ สพฐ. ที่ ศธ 04002/ว 2983 ลว. 23 พ.ย. 2555
+    ช่อง "ที่อยู่" เว้นว่างให้กรอกด้วยลายมือ (ระบบไม่เก็บที่อยู่นักเรียน)"""
+    from app.services.build_templates import _repeat_header_row, _no_split_row, _fixed_cols
+    from app.services.fieldtrip import cost_amount
+    doc = Document(); set_a4(doc, landscape=True); _font(doc)
+    c = counts(trip)
+    per_student = {"allowance": 0.0}
+    one = dict(c, students=1, people=1)
+    for x in trip.costs:
+        if x.pay_method == "allowance":
+            per_student["allowance"] += cost_amount(x, one)
+    food = round(per_student["allowance"], 2)
+    d1, m1, y1, _ = _parts(trip.depart_at)
+    d2, m2, y2, _ = _parts(trip.return_at)
+    area = (school.area_office or "").strip()
+
+    _p(doc, "เอกสารแนบ 2", align="right", size=14, after=0)
+    _p(doc, "แบบใบสำคัญรับเงินค่าใช้จ่ายในการจัดกิจกรรมสำหรับนักเรียน", align="center", bold=True, size=17, after=4)
+    _p(doc, f"ชื่อส่วนราชการผู้จัดกิจกรรม {_v(school.name)}    โครงการ/หลักสูตร/กิจกรรม {_v(trip.title)}",
+       size=15, after=0)
+    _p(doc, f"วันที่ {d1} เดือน {m1} พ.ศ. {y1}  ถึงวันที่ {d2} เดือน {m2} พ.ศ. {y2}    "
+            f"จำนวนผู้เข้าร่วมกิจกรรมทั้งสิ้น {c['students']} คน", size=15, after=0)
+    _p(doc, f"ผู้เข้าร่วมกิจกรรม ได้รับเงินจากโรงเรียน {_v(school.name)}  สังกัด {_v(area)}", size=15, after=0)
+    _p(doc, "ปรากฏรายละเอียดดังนี้", size=15, after=4)
+
+    headers = ["ลำดับที่", "ชื่อ - สกุล", "ที่อยู่", "ค่าอาหาร\n(บาท)", "ค่าเช่าที่พัก\n(บาท)",
+               "ค่าพาหนะ\n(บาท)", "รวมเป็นเงิน\n(บาท)", "วัน เดือน ปี\nที่รับเงิน", "ลายมือชื่อ\nผู้รับเงิน"]
+    widths = [Cm(1.4), Cm(5.0), Cm(4.4), Cm(2.2), Cm(2.3), Cm(2.2), Cm(2.4), Cm(2.6), Cm(4.0)]
+    t = doc.add_table(rows=1, cols=len(headers))
+    t.style = "Table Grid"
+    _fixed_cols(t, widths)
+    _repeat_header_row(t.rows[0]); _no_split_row(t.rows[0])
+    for cell, h, w in zip(t.rows[0].cells, headers, widths):
+        _set_cell(cell, h, bold=True, align="center", size=13)
+        cell.width = w
+    money = _money(food) if food else ""
+    for i, s in enumerate(trip.students, 1):
+        r = t.add_row(); _no_split_row(r)
+        vals = [str(i), s.name, "", money, "-", "-", money, "", ""]
+        for j, (cell, v, w) in enumerate(zip(r.cells, vals, widths)):
+            _set_cell(cell, v, size=13, align="left" if j == 1 else ("right" if j in (3, 6) else "center"))
+            cell.width = w
+    r = t.add_row(); _no_split_row(r)
+    _set_cell(r.cells[1], "รวมเป็นเงินทั้งสิ้น", bold=True, align="right", size=13)
+    total = round(food * c["students"], 2)
+    _set_cell(r.cells[3], _money(total) if total else "", bold=True, align="right", size=13)
+    _set_cell(r.cells[6], _money(total) if total else "", bold=True, align="right", size=13)
+    for cell, w in zip(r.cells, widths):
+        cell.width = w
+    if total:
+        _p(doc, f"({bahttext(total)})", align="center", size=14, before=2, after=6)
+    _sign_table(doc, [[("", "center")], [
+        ("ลงชื่อ ...................................... ผู้จ่ายเงิน", "center"),
+        ("(......................................)", "center"),
+        ("ตำแหน่ง ......................................", "center"),
+    ]])
+    return _save_doc(doc, _safe(f"ใบสำคัญรับเงินนักเรียน_เอกสารแนบ2_{trip.id}") + ".docx")
