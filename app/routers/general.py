@@ -280,3 +280,279 @@ def arrival_stats(request: Request, db: Session = Depends(get_db),
         "n_total": n_total, "n_late": n_late, "n_ontime": n_total - n_late,
         "pct_late": round(n_late / n_total * 100) if n_total else 0,
     })
+
+
+# ============================================================
+# ทัศนศึกษา (พานักเรียนไปนอกสถานศึกษา) - ระเบียบ ศธ. พ.ศ. 2562
+# ============================================================
+def _trip_or_404(db, tid):
+    from fastapi import HTTPException
+    from app.models import FieldTrip
+    t = db.get(FieldTrip, tid)
+    if not t:
+        raise HTTPException(404)
+    return t
+
+
+def _dt(date_s: str, time_s: str = ""):
+    from app.thai_utils import parse_be_date
+    d = parse_be_date(date_s or "")
+    if not d:
+        return None
+    hm = _norm_hm(time_s)
+    if hm:
+        h, m = hm.split(":")
+        d = d.replace(hour=int(h), minute=int(m))
+    return d
+
+
+def _float(v, default=0.0):
+    try:
+        return float(str(v).replace(",", "").strip())
+    except (TypeError, ValueError):
+        return default
+
+
+_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+@router.get("/general/trips", response_class=HTMLResponse)
+def trips_list(request: Request, db: Session = Depends(get_db)):
+    from app.models import FieldTrip
+    from app.services import fieldtrip as ft
+    trips = db.query(FieldTrip).order_by(FieldTrip.id.desc()).all()
+    rows = [{"t": t, "c": ft.counts(t), "total": ft.total_cost(t),
+             "warn": sum(1 for lv, _ in ft.warnings(t) if lv in ("error", "warn"))} for t in trips]
+    return templates.TemplateResponse("general_trips.html", {
+        "request": request, "school": get_school(db), "rows": rows,
+        "types": ft.TRIP_TYPES, "status": ft.STATUS})
+
+
+@router.post("/general/trips/new")
+def trip_new(db: Session = Depends(get_db)):
+    from app.models import FieldTrip, FieldTripCost
+    from app.thai_utils import current_academic_year
+    school = get_school(db)
+    t = FieldTrip(year=getattr(school, "academic_year", None) or current_academic_year(),
+                  title="ทัศนศึกษา", responsible=school.name or "", request_date=datetime.now())
+    # รายการที่พบบ่อย - อัตราเว้นว่างให้โรงเรียนกรอกเอง (ระบบไม่เดาอัตรา)
+    for i, (item, basis) in enumerate((("ค่าจ้างเหมารถโดยสาร", "lump"), ("ค่าอาหารและอาหารว่าง", "person"),
+                                       ("ค่าเข้าชมสถานที่", "student"), ("ค่าประกันภัยการเดินทาง", "student"))):
+        t.costs.append(FieldTripCost(seq=i, item=item, basis=basis, rate=0, times=1))
+    db.add(t)
+    db.commit()
+    return RedirectResponse(f"/general/trips/{t.id}", status_code=303)
+
+
+@router.get("/general/trips/{tid}", response_class=HTMLResponse)
+def trip_detail(tid: int, request: Request, db: Session = Depends(get_db), msg: str = ""):
+    from app.models import Person, Student, Project
+    from app.services import fieldtrip as ft
+    from app.services.budget import project_budget, project_remaining
+    from app.thai_utils import be_date_input
+    t = _trip_or_404(db, tid)
+    school = get_school(db)
+    c = ft.counts(t)
+    persons = db.query(Person).filter(Person.active == True).order_by(Person.id).all()  # noqa: E712
+    students = db.query(Student).order_by(Student.level, Student.room, Student.student_no, Student.name).all()
+    projects = (db.query(Project).filter(Project.active == True)  # noqa: E712
+                .order_by(Project.plan_year.desc(), Project.name).all())
+    proj = None
+    if t.project:
+        proj = {"budget": project_budget(t.project), "remaining": project_remaining(t.project)}
+    groups = {}
+    for s in students:
+        groups.setdefault(f"{s.level}/{s.room}" if s.room else (s.level or "ไม่ระบุชั้น"), []).append(s)
+    return templates.TemplateResponse("general_trip.html", {
+        "request": request, "school": school, "t": t, "c": c, "msg": msg,
+        "total": ft.total_cost(t), "amounts": {x.id: ft.cost_amount(x, c) for x in t.costs},
+        "warnings": ft.warnings(t), "types": ft.TRIP_TYPES, "status": ft.STATUS,
+        "checklist": ft.checklist_items(t), "done": ft.checklist_done(t),
+        "basis": ft.COST_BASIS, "persons": persons, "groups": groups,
+        "picked": {s.student_id for s in t.students}, "staff_ids": [s.person_id for s in t.staff],
+        "projects": projects, "proj": proj, "approver": ft.approver_title(t, school),
+        "d": be_date_input, "reg": ft.REG_NAME})
+
+
+@router.post("/general/trips/{tid}/save")
+async def trip_save(tid: int, request: Request, db: Session = Depends(get_db)):
+    import json
+    from app.models import Person, Student, FieldTripStaff, FieldTripStudent, FieldTripCost
+    from app.services import fieldtrip as ft
+    t = _trip_or_404(db, tid)
+    f = await request.form()
+
+    def g(k):
+        return (f.get(k) or "").strip()
+
+    for k in ("title", "purpose", "place", "province", "route", "vehicle", "lodging", "request_to",
+              "principle", "objectives", "targets", "steps", "responsible", "emergency_plan",
+              "result", "result_detail"):
+        setattr(t, k, g(k))
+    t.trip_type = g("trip_type") if g("trip_type") in ft.TRIP_TYPES else "day"
+    t.depart_at = _dt(g("depart_date"), g("depart_time"))
+    t.return_at = _dt(g("return_date"), g("return_time"))
+    t.request_date = _dt(g("request_date"))
+    t.report_date = _dt(g("report_date"))
+    t.project_id = int(g("project_id")) if g("project_id").isdigit() else None
+    t.controller_id = int(g("controller_id")) if g("controller_id").isdigit() else None
+    keys = {k for k, _, _ in ft.checklist_items(t)}
+    t.checklist = json.dumps([k for k in f.getlist("check") if k in keys])
+
+    # ผู้ช่วยผู้ควบคุม (ไม่ซ้ำกับผู้ควบคุม)
+    want = [int(x) for x in f.getlist("staff") if str(x).isdigit() and int(x) != t.controller_id]
+    t.staff.clear()
+    db.flush()
+    for i, pid in enumerate(dict.fromkeys(want)):
+        p = db.get(Person, pid)
+        if p:
+            t.staff.append(FieldTripStaff(person_id=p.id, name=p.name, position=p.position or "", seq=i))
+
+    # นักเรียน: คงผลยินยอมเดิมของคนที่ยังอยู่ในรายชื่อ
+    want_st = [int(x) for x in f.getlist("student") if str(x).isdigit()]
+    old = {s.student_id: s.consent for s in t.students}
+    t.students.clear()
+    db.flush()
+    for i, sid in enumerate(dict.fromkeys(want_st)):
+        s = db.get(Student, sid)
+        if s:
+            t.students.append(FieldTripStudent(student_id=s.id, name=s.name, sex=s.sex or "",
+                                               level=s.level or "", room=s.room or "", seq=i,
+                                               consent=old.get(s.id, "")))
+
+    # ค่าใช้จ่าย
+    t.costs.clear()
+    db.flush()
+    rows = zip(f.getlist("cost_item"), f.getlist("cost_basis"), f.getlist("cost_rate"), f.getlist("cost_times"))
+    for i, (item, basis, rate, times) in enumerate(rows):
+        item = (item or "").strip()
+        if item:
+            t.costs.append(FieldTripCost(seq=i, item=item, basis=basis if basis in ft.COST_BASIS else "student",
+                                         rate=_float(rate), times=_float(times, 1.0)))
+    db.commit()
+    return RedirectResponse(f"/general/trips/{tid}?msg=บันทึกแล้ว", status_code=303)
+
+
+@router.post("/general/trips/{tid}/consent")
+async def trip_consent(tid: int, request: Request, db: Session = Depends(get_db)):
+    t = _trip_or_404(db, tid)
+    f = await request.form()
+    for s in t.students:
+        v = f.get(f"c{s.id}", "")
+        s.consent = v if v in ("yes", "no") else ""
+    db.commit()
+    return RedirectResponse(f"/general/trips/{tid}?msg=บันทึกผลการตอบรับแล้ว#consent", status_code=303)
+
+
+@router.post("/general/trips/{tid}/drop-refused")
+def trip_drop_refused(tid: int, db: Session = Depends(get_db)):
+    t = _trip_or_404(db, tid)
+    for s in [s for s in t.students if s.consent == "no"]:
+        t.students.remove(s)
+    db.commit()
+    return RedirectResponse(f"/general/trips/{tid}?msg=นำนักเรียนที่ผู้ปกครองไม่อนุญาตออกแล้ว#consent",
+                            status_code=303)
+
+
+@router.post("/general/trips/{tid}/status")
+def trip_status(tid: int, db: Session = Depends(get_db), status: str = Form("")):
+    from app.services import fieldtrip as ft
+    t = _trip_or_404(db, tid)
+    if status in ft.STATUS:
+        t.status = status
+        db.commit()
+    return RedirectResponse(f"/general/trips/{tid}", status_code=303)
+
+
+@router.post("/general/trips/{tid}/delete")
+def trip_delete(tid: int, db: Session = Depends(get_db)):
+    t = _trip_or_404(db, tid)
+    db.delete(t)
+    db.commit()
+    return RedirectResponse("/general/trips", status_code=303)
+
+
+@router.get("/general/trips/{tid}/doc/{kind}.docx")
+def trip_doc(tid: int, kind: str, db: Session = Depends(get_db)):
+    from fastapi import HTTPException
+    from app.routers.pages import serve_generated
+    from app.services import fieldtrip_doc as fd
+    t = _trip_or_404(db, tid)
+    fn = {"request": fd.render_request, "parents": fd.render_parent_letters,
+          "report": fd.render_report, "project": fd.render_project}.get(kind)
+    if not fn:
+        raise HTTPException(404)
+    return serve_generated(fn(t, get_school(db)), _DOCX, count=False)
+
+
+@router.post("/general/trips/{tid}/order")
+def trip_order(tid: int, db: Session = Depends(get_db)):
+    """ออกคำสั่งแต่งตั้งผู้ควบคุม/ผู้ช่วยผู้ควบคุม -> เก็บเป็นคำสั่งโรงเรียน (เลขจากทะเบียนเลขกลาง)"""
+    from app.models import SchoolOrder
+    from app.services.doc_number import suggest_doc_no, commit_doc_no
+    from app.services.fieldtrip_doc import order_body
+    from app.thai_utils import current_fiscal_year
+    t = _trip_or_404(db, tid)
+    o = db.get(SchoolOrder, t.order_id) if t.order_id else None
+    subject = f"แต่งตั้งผู้ควบคุมและผู้ช่วยผู้ควบคุมการพานักเรียนไปนอกสถานศึกษา ({t.title})"
+    if not o:
+        fy = current_fiscal_year()
+        o = SchoolOrder(fiscal_year=fy, date=datetime.now(), subject=subject)
+        db.add(o)
+        db.flush()
+        o.order_no = suggest_doc_no(db, "command", fy)
+        commit_doc_no(db, "command", fy, o.order_no, source="admin", ref_id=o.id, subject=subject, date=o.date)
+        t.order_id = o.id
+    o.subject = subject
+    o.body = order_body(t, get_school(db))
+    db.commit()
+    return RedirectResponse(f"/general/trips/{tid}?msg=ออกคำสั่งเลขที่ {o.order_no} แล้ว", status_code=303)
+
+
+@router.get("/general/trips/{tid}/order.docx")
+def trip_order_doc(tid: int, db: Session = Depends(get_db)):
+    from fastapi import HTTPException
+    from app.models import SchoolOrder
+    from app.routers.pages import serve_generated
+    from app.services.office_doc import render_order
+    t = _trip_or_404(db, tid)
+    o = db.get(SchoolOrder, t.order_id) if t.order_id else None
+    if not o:
+        raise HTTPException(404)
+    return serve_generated(render_order(o, get_school(db)), _DOCX, count=False)
+
+
+@router.post("/general/trips/{tid}/project-report")
+def trip_project_report(tid: int, db: Session = Depends(get_db)):
+    """สร้าง/เปิดรายงานโครงการ (ระบบรายงานผลโครงการเดิม) เติมข้อมูลจากการไปทัศนศึกษาให้"""
+    import json
+    from app.models import ProjectReport
+    from app.services import fieldtrip as ft
+    t = _trip_or_404(db, tid)
+    if not t.project_id:
+        return RedirectResponse(f"/general/trips/{tid}?msg=เลือกโครงการในแผนก่อน จึงจะทำรายงานโครงการได้",
+                                status_code=303)
+    rep = db.get(ProjectReport, t.report_id) if t.report_id else None
+    if not rep:
+        c = ft.counts(t)
+
+        def lines(s):
+            return [x.strip() for x in (s or "").splitlines() if x.strip()]
+
+        qty = lines(t.targets) or [f"นักเรียน จำนวน {c['students']} คน ครูควบคุม จำนวน {c['staff']} คน"]
+        rep = ProjectReport(
+            project_id=t.project_id, title=t.title or "", date_start=t.depart_at, date_end=t.return_at,
+            location=" จังหวัด".join(x for x in (t.place, t.province) if x),
+            responsible=t.controller.name if t.controller else "",
+            responsible_pos=(t.controller.position or "") if t.controller else "",
+            principles=t.principle or "",
+            objectives=json.dumps(lines(t.objectives), ensure_ascii=False),
+            target_qty=json.dumps(qty, ensure_ascii=False),
+            steps_items=json.dumps([{"act": s, "period": "", "who": ""} for s in lines(t.steps)],
+                                   ensure_ascii=False),
+            budget_planned=ft.total_cost(t), budget_note="ทัศนศึกษา")
+        db.add(rep)
+        db.flush()
+        t.report_id = rep.id
+        db.commit()
+    return RedirectResponse(f"/project-reports/{rep.id}", status_code=303)

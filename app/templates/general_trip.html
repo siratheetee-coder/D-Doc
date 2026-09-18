@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}{{ t.title or "ทัศนศึกษา" }}{% endblock %}
+{% block content %}
+<style>
+  .tp-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px 14px; }
+  .tp-grid .full{ grid-column:1/-1; }
+  .tp-sec{ margin:0 0 4px; font-size:17px; }
+  .tp-note{ font-size:13px; color:var(--muted); margin:2px 0 0; }
+  .tp-warn{ display:flex; gap:8px; padding:8px 12px; border-radius:10px; margin:6px 0; font-size:14px; }
+  .tp-warn.error{ background:#fde8e8; color:#991b1b; }
+  .tp-warn.warn{ background:#fff4e5; color:#92400e; }
+  .tp-warn.info{ background:#eef4ff; color:#1e40af; }
+  .stu-room{ border:1px solid var(--border); border-radius:10px; padding:8px 12px; margin:0 0 8px; }
+  .stu-room summary{ cursor:pointer; font-weight:600; }
+  .stu-list{ columns:3; column-gap:16px; margin-top:6px; font-size:14px; }
+  @media (max-width:700px){ .stu-list{ columns:1; } }
+  .stu-list label{ display:block; margin:2px 0; font-weight:400; }
+  .cost-tbl input, .cost-tbl select{ width:100%; }
+  .docs a{ margin:0 6px 6px 0; }
+</style>
+
+<div class="hero">
+  <div>
+    <div class="hero-sub"><a href="/general/trips">ทัศนศึกษา</a></div>
+    <span class="hero-title">{{ t.title or "ทัศนศึกษา" }}</span>
+    <div class="hero-meta">{{ types[t.trip_type].label }} · ผู้อนุญาต: {{ types[t.trip_type].approver }} · สถานะ: <b>{{ status[t.status] }}</b></div>
+  </div>
+</div>
+{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+
+<div class="card">
+  <h2 class="tp-sec">สรุป</h2>
+  <div class="stat">
+    <div class="box"><div><div class="lab">นักเรียน</div><div class="num">{{ c.students }}</div></div></div>
+    <div class="box"><div><div class="lab">ผู้ควบคุม + ผู้ช่วย</div><div class="num">{{ c.staff }}</div></div></div>
+    <div class="box"><div><div class="lab">ค่าใช้จ่ายรวม (บาท)</div><div class="num">{{ "{:,.2f}".format(total) }}</div></div></div>
+    {% if proj %}<div class="box"><div><div class="lab">งบโครงการคงเหลือ</div>
+      <div class="num" style="{{ 'color:#b91c1c;' if total > proj.remaining }}">{{ "{:,.2f}".format(proj.remaining) }}</div></div></div>{% endif %}
+  </div>
+  {% if proj and total > proj.remaining %}
+    <div class="tp-warn warn">ค่าใช้จ่ายเกินงบคงเหลือของโครงการ {{ "{:,.2f}".format(total - proj.remaining) }} บาท
+      (งบโครงการ {{ "{:,.2f}".format(proj.budget) }} บาท) - ปรับงบได้ที่ <a href="/projects/{{ t.project_id }}">หน้าโครงการ</a></div>
+  {% endif %}
+  {% for lv, text in warnings %}<div class="tp-warn {{ lv }}">{{ text }}</div>{% endfor %}
+  {% if not warnings %}<div class="tp-warn info">ครบตามที่ระเบียบกำหนดแล้ว</div>{% endif %}
+</div>
+
+<div class="card docs">
+  <h2 class="tp-sec">เอกสาร</h2>
+  <p class="tp-note" style="margin-bottom:10px;">แบบ 3 ฉบับแรกยกจากแบบท้าย{{ reg }} · กด "บันทึก" ก่อนดาวน์โหลดทุกครั้ง</p>
+  <a class="btn sm" href="/general/trips/{{ t.id }}/doc/request.docx"><svg class="icon"><use href="#ic-file"/></svg> แบบขออนุญาตผู้บังคับบัญชา</a>
+  <a class="btn sm" href="/general/trips/{{ t.id }}/doc/parents.docx"><svg class="icon"><use href="#ic-file"/></svg> หนังสือขออนุญาตผู้ปกครอง ({{ c.students or 1 }} หน้า)</a>
+  <a class="btn sm" href="/general/trips/{{ t.id }}/doc/project.docx"><svg class="icon"><use href="#ic-file"/></svg> โครงการ + รายชื่อ + งบประมาณ</a>
+  <a class="btn sm soft" href="/general/trips/{{ t.id }}/doc/report.docx"><svg class="icon"><use href="#ic-file"/></svg> แบบรายงานผล (หลังกลับ)</a>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;">
+    <form method="post" action="/general/trips/{{ t.id }}/order" style="margin:0;">
+      <button class="btn sm soft" type="submit"><svg class="icon"><use href="#ic-clipboard"/></svg>
+        {{ "ปรับคำสั่งแต่งตั้งตามรายชื่อล่าสุด" if t.order_id else "ออกคำสั่งแต่งตั้งผู้ควบคุม" }}</button></form>
+    {% if t.order_id %}<a class="btn sm" href="/general/trips/{{ t.id }}/order.docx"><svg class="icon"><use href="#ic-file"/></svg> ดาวน์โหลดคำสั่ง</a>{% endif %}
+    <form method="post" action="/general/trips/{{ t.id }}/project-report" style="margin:0;">
+      <button class="btn sm soft" type="submit"><svg class="icon"><use href="#ic-clipboard"/></svg>
+        {{ "เปิดรายงานโครงการ" if t.report_id else "ทำรายงานโครงการ" }}</button></form>
+  </div>
+  <form method="post" action="/general/trips/{{ t.id }}/status" style="display:flex; gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap;">
+    <label style="margin:0;">สถานะ</label>
+    <select name="status" style="width:auto;">{% for k, v in status.items() %}<option value="{{ k }}" {{ 'selected' if k == t.status }}>{{ v }}</option>{% endfor %}</select>
+    <button class="btn sm" type="submit">เปลี่ยนสถานะ</button>
+  </form>
+</div>
+
+<form method="post" action="/general/trips/{{ t.id }}/save">
+<div class="card">
+  <h2 class="tp-sec">1. รายละเอียดการเดินทาง</h2>
+  <div class="tp-grid">
+    <div class="full"><label>ชื่อโครงการ/กิจกรรม</label><input name="title" value="{{ t.title }}"></div>
+    <div class="full"><label>ผูกกับโครงการในแผน (งบประมาณ)</label>
+      <select name="project_id"><option value="">- ไม่ผูก -</option>
+        {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if p.id == t.project_id }}>{{ p.name }}{% if p.plan_year %} ({{ p.plan_year }}){% endif %}</option>{% endfor %}
+      </select></div>
+    <div><label>ประเภท (ข้อ 5)</label>
+      <select name="trip_type">{% for k, v in types.items() %}<option value="{{ k }}" {{ 'selected' if k == t.trip_type }}>{{ v.label }}</option>{% endfor %}</select>
+      <p class="tp-note">ผู้อนุญาตตามข้อ 8: {{ types[t.trip_type].approver }}</p></div>
+    <div><label>ไปเพื่อ</label><input name="purpose" value="{{ t.purpose }}" placeholder="เช่น ศึกษาแหล่งเรียนรู้ทางวิทยาศาสตร์"></div>
+    <div><label>สถานที่ (ณ)</label><input name="place" value="{{ t.place }}"></div>
+    <div><label>จังหวัด</label><input name="province" value="{{ t.province }}"></div>
+    <div><label>วันออกเดินทาง</label><input name="depart_date" data-date="1" value="{{ d(t.depart_at) }}" placeholder="วว/ดด/ปปปป"></div>
+    <div><label>เวลาออกเดินทาง</label><input name="depart_time" value="{{ '%02d:%02d'|format(t.depart_at.hour, t.depart_at.minute) if t.depart_at else '' }}" placeholder="07:00"></div>
+    <div><label>วันกลับถึงสถานศึกษา</label><input name="return_date" data-date="1" value="{{ d(t.return_at) }}" placeholder="วว/ดด/ปปปป"></div>
+    <div><label>เวลากลับถึง</label><input name="return_time" value="{{ '%02d:%02d'|format(t.return_at.hour, t.return_at.minute) if t.return_at else '' }}" placeholder="17:00"></div>
+    <div class="full"><label>เส้นทางผ่าน</label><input name="route" value="{{ t.route }}"></div>
+    <div><label>โดยพาหนะ</label><input name="vehicle" value="{{ t.vehicle }}" placeholder="เช่น รถโดยสารปรับอากาศ 1 คัน"></div>
+    <div><label>พักค้างที่ (เฉพาะพักแรม)</label><input name="lodging" value="{{ t.lodging }}"></div>
+    <div><label>วันที่ยื่นขออนุญาต</label><input name="request_date" data-date="1" value="{{ d(t.request_date) }}">
+      <p class="tp-note">ต้องก่อนวันเดินทางไม่น้อยกว่า 15 วัน (ข้อ 9)</p></div>
+    <div><label>เรียน (ผู้อนุญาต)</label><input name="request_to" value="{{ t.request_to }}" placeholder="{{ approver }}"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 class="tp-sec">2. ผู้ควบคุมและผู้ช่วยผู้ควบคุม (ข้อ 7(3))</h2>
+  <p class="tp-note">ผู้ควบคุม 1 คน + ผู้ช่วยผู้ควบคุม 1 คน ต่อนักเรียนไม่เกิน 30 คน · มีนักเรียนหญิงไปด้วยให้มีครูสตรีควบคุมไปด้วยตามความเหมาะสม</p>
+  <div class="tp-grid" style="margin-top:8px;">
+    <div><label>ผู้ควบคุม</label>
+      <select name="controller_id"><option value="">- เลือก -</option>
+        {% for p in persons %}<option value="{{ p.id }}" {{ 'selected' if p.id == t.controller_id }}>{{ p.name }} ({{ p.position }})</option>{% endfor %}
+      </select></div>
+  </div>
+  <label style="margin-top:10px;">ผู้ช่วยผู้ควบคุม</label>
+  <div class="stu-list">
+    {% for p in persons %}<label><input type="checkbox" name="staff" value="{{ p.id }}" {{ 'checked' if p.id in staff_ids }}> {{ p.name }}</label>{% endfor %}
+  </div>
+</div>
+
+<div class="card">
+  <h2 class="tp-sec">3. นักเรียนที่ไป ({{ c.students }} คน)</h2>
+  <p class="tp-note">ดึงจากทะเบียนนักเรียน · ใช้เฉพาะชื่อและชั้น ไม่เก็บข้อมูลอื่นเพิ่ม</p>
+  {% for room, lst in groups.items() %}
+  <details class="stu-room" {{ 'open' if lst|selectattr('id','in',picked)|list }}>
+    <summary>{{ room }} ({{ lst|selectattr('id','in',picked)|list|length }}/{{ lst|length }})
+      <button type="button" class="btn sm soft" style="margin-left:8px;" onclick="pickAll(this, true)">เลือกทั้งห้อง</button>
+      <button type="button" class="btn sm soft" onclick="pickAll(this, false)">ไม่เลือก</button></summary>
+    <div class="stu-list">
+      {% for s in lst %}<label><input type="checkbox" name="student" value="{{ s.id }}" {{ 'checked' if s.id in picked }}> {{ s.name }}</label>{% endfor %}
+    </div>
+  </details>
+  {% else %}
+  <p class="muted">ยังไม่มีทะเบียนนักเรียน - เพิ่มได้ที่งานวิชาการ/ทะเบียนนักเรียน</p>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2 class="tp-sec">4. ค่าใช้จ่าย</h2>
+  <p class="tp-note">เป็นเงิน = อัตรา x จำนวนคน (ตามฐานที่เลือก) x ครั้ง · ครูผู้ควบคุมเบิกค่าใช้จ่ายในการเดินทางได้ตามระเบียบของทางราชการ (ข้อ 14) กรอกอัตราตามที่โรงเรียนใช้</p>
+  <table class="cost-tbl" style="margin-top:8px;">
+    <thead><tr><th style="width:36%;">รายการ</th><th>คิดแบบ</th><th style="width:14%;">อัตรา (บาท)</th><th style="width:10%;">ครั้ง</th><th style="text-align:right; width:14%;">เป็นเงิน</th><th></th></tr></thead>
+    <tbody id="costs">
+      {% for x in t.costs %}
+      <tr><td><input name="cost_item" value="{{ x.item }}"></td>
+        <td><select name="cost_basis">{% for k, v in basis.items() %}<option value="{{ k }}" {{ 'selected' if k == x.basis }}>{{ v }}</option>{% endfor %}</select></td>
+        <td><input name="cost_rate" inputmode="decimal" value="{{ '%g'|format(x.rate) }}"></td>
+        <td><input name="cost_times" inputmode="decimal" value="{{ '%g'|format(x.times) }}"></td>
+        <td style="text-align:right;">{{ "{:,.2f}".format(amounts[x.id]) }}</td>
+        <td><button type="button" class="btn sm soft" onclick="this.closest('tr').remove()">ลบ</button></td></tr>
+      {% endfor %}
+    </tbody>
+    <tfoot><tr><td colspan="4" style="text-align:right;"><b>รวม</b></td><td style="text-align:right;"><b>{{ "{:,.2f}".format(total) }}</b></td><td></td></tr></tfoot>
+  </table>
+  <button type="button" class="btn sm soft" onclick="addCost()" style="margin-top:8px;"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มรายการ</button>
+  <p class="tp-note">ยอด "เป็นเงิน" คำนวณใหม่หลังกดบันทึก</p>
+</div>
+
+<div class="card">
+  <h2 class="tp-sec">5. รายละเอียดโครงการ (หัวข้อตามข้อ 9)</h2>
+  <div class="tp-grid">
+    <div class="full"><label>หลักการและเหตุผล</label><textarea name="principle" rows="3">{{ t.principle }}</textarea></div>
+    <div><label>วัตถุประสงค์ (บรรทัดละข้อ)</label><textarea name="objectives" rows="4">{{ t.objectives }}</textarea></div>
+    <div><label>เป้าหมาย (บรรทัดละข้อ)</label><textarea name="targets" rows="4">{{ t.targets }}</textarea></div>
+    <div><label>ขั้นตอนการดำเนินงาน (บรรทัดละข้อ)</label><textarea name="steps" rows="4">{{ t.steps }}</textarea></div>
+    <div><label>แผนสำรองกรณีเหตุฉุกเฉิน (บรรทัดละข้อ)</label><textarea name="emergency_plan" rows="4">{{ t.emergency_plan }}</textarea></div>
+    <div class="full"><label>หน่วยงาน/ผู้รับผิดชอบโครงการ</label><input name="responsible" value="{{ t.responsible }}"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 class="tp-sec">6. การเตรียมการก่อนเดินทาง</h2>
+  {% for key, label, ref in checklist %}
+  <label style="display:flex; gap:8px; font-weight:400; margin:6px 0;"><input type="checkbox" name="check" value="{{ key }}" {{ 'checked' if key in done }} style="width:auto;">
+    <span>{{ label }} <span class="muted">({{ ref }})</span></span></label>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2 class="tp-sec">7. รายงานผลหลังกลับ (ข้อ 13)</h2>
+  <div class="tp-grid">
+    <div><label>การพาไปครั้งนี้เป็นไปด้วยความ</label>
+      <select name="result"><option value="">-</option>
+        {% for v in ("เรียบร้อย", "ไม่เรียบร้อย") %}<option {{ 'selected' if t.result == v }}>{{ v }}</option>{% endfor %}</select></div>
+    <div><label>วันที่รายงาน</label><input name="report_date" data-date="1" value="{{ d(t.report_date) }}"></div>
+    <div class="full"><label>ชี้แจงรายละเอียด</label><textarea name="result_detail" rows="3">{{ t.result_detail }}</textarea></div>
+  </div>
+</div>
+
+<div style="display:flex; gap:8px; justify-content:flex-end; margin-bottom:16px;">
+  <button class="btn" type="submit"><svg class="icon"><use href="#ic-check"/></svg> บันทึก</button>
+</div>
+</form>
+
+<div class="card" id="consent">
+  <h2 class="tp-sec">ผลการตอบรับจากผู้ปกครอง (ข้อ 6)</h2>
+  <p class="tp-note">อนุญาต {{ c.consent_yes }} · ไม่อนุญาต {{ c.consent_no }} · ยังไม่ส่งกลับ {{ c.consent_wait }}</p>
+  {% if t.students %}
+  <form method="post" action="/general/trips/{{ t.id }}/consent">
+    <table class="stack-sm" style="margin-top:8px;">
+      <thead><tr><th>ที่</th><th>ชื่อ</th><th>ชั้น</th><th>ผล</th></tr></thead>
+      <tbody>{% for s in t.students %}
+        <tr><td>{{ loop.index }}</td><td>{{ s.name }}</td><td>{{ s.level }}{% if s.room %}/{{ s.room }}{% endif %}</td>
+          <td><select name="c{{ s.id }}" style="width:auto;">
+            <option value="" {{ 'selected' if not s.consent }}>ยังไม่ส่งกลับ</option>
+            <option value="yes" {{ 'selected' if s.consent == 'yes' }}>อนุญาต</option>
+            <option value="no" {{ 'selected' if s.consent == 'no' }}>ไม่อนุญาต</option></select></td></tr>
+      {% endfor %}</tbody>
+    </table>
+    <button class="btn sm" type="submit" style="margin-top:8px;">บันทึกผลการตอบรับ</button>
+  </form>
+  {% if c.consent_no %}
+  <form method="post" action="/general/trips/{{ t.id }}/drop-refused" style="margin-top:8px;">
+    <button class="btn sm soft" type="submit">นำนักเรียนที่ไม่ได้รับอนุญาตออกจากรายชื่อ ({{ c.consent_no }} คน)</button></form>
+  {% endif %}
+  {% else %}<p class="muted">ยังไม่ได้เลือกนักเรียน</p>{% endif %}
+</div>
+
+<form method="post" action="/general/trips/{{ t.id }}/delete" onsubmit="return confirm('ลบการไปทัศนศึกษานี้?')" style="text-align:right;">
+  <button class="btn sm gray" type="submit">ลบ</button>
+</form>
+
+<template id="cost-row"><tr><td><input name="cost_item"></td>
+  <td><select name="cost_basis">{% for k, v in basis.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></td>
+  <td><input name="cost_rate" inputmode="decimal" value="0"></td><td><input name="cost_times" inputmode="decimal" value="1"></td>
+  <td></td><td><button type="button" class="btn sm soft" onclick="this.closest('tr').remove()">ลบ</button></td></tr></template>
+<script>
+function addCost(){ document.getElementById('costs').appendChild(document.getElementById('cost-row').content.cloneNode(true)); }
+function pickAll(btn, on){ btn.closest('details').querySelectorAll('input[name=student]').forEach(i => i.checked = on); btn.closest('details').open = true; }
+</script>
+{% endblock %}

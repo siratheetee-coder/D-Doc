@@ -94,3 +94,11 @@ templates.env.globals.update(
     # "prices" (dict) เข้ามาเองผ่าน pricing_context() ซึ่งจะทับ global ตัวนี้จนเรียกใช้ไม่ได้
     price_list=lambda: pricing_context()["prices"],
 )
+
+
+def _thaidate(dt):
+    from app.thai_utils import thai_date
+    return thai_date(dt) if dt else ""
+
+
+templates.env.filters["thaidate"] = _thaidate

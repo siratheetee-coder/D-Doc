@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}ทัศนศึกษา{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานบริหารทั่วไป</div>
+    <span class="hero-title">ทัศนศึกษา / พานักเรียนไปนอกสถานศึกษา</span>
+    <div class="hero-meta">ตามระเบียบกระทรวงศึกษาธิการ ว่าด้วยการพานักเรียน และนักศึกษาไปนอกสถานศึกษา พ.ศ. 2562</div>
+  </div>
+  <form method="post" action="/general/trips/new" style="margin:0;">
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มการไปทัศนศึกษา</button>
+  </form>
+</div>
+
+<div class="card">
+  {% if rows %}
+  <table class="stack-sm">
+    <thead><tr><th>เรื่อง</th><th>วันเดินทาง</th><th>ประเภท</th><th style="text-align:right;">นักเรียน/ครู</th>
+      <th style="text-align:right;">ค่าใช้จ่าย</th><th>สถานะ</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}{% set t = r.t %}
+      <tr>
+        <td data-label="เรื่อง"><a href="/general/trips/{{ t.id }}"><b>{{ t.title or "-" }}</b></a>
+          {% if t.place %}<div class="muted" style="font-size:13px;">{{ t.place }}{% if t.province %} จ.{{ t.province }}{% endif %}</div>{% endif %}</td>
+        <td data-label="วันเดินทาง">{{ t.depart_at|thaidate if t.depart_at else "-" }}</td>
+        <td data-label="ประเภท">{{ types[t.trip_type].label }}</td>
+        <td data-label="นักเรียน/ครู" style="text-align:right;">{{ r.c.students }} / {{ r.c.staff }}</td>
+        <td data-label="ค่าใช้จ่าย" style="text-align:right;">{{ "{:,.2f}".format(r.total) }}</td>
+        <td data-label="สถานะ">{{ status[t.status] }}
+          {% if r.warn %}<span class="pill" style="background:#fff4e5;color:#b45309;">ต้องแก้ {{ r.warn }}</span>{% endif %}</td>
+        <td><a class="btn sm soft" href="/general/trips/{{ t.id }}">เปิด</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted" style="margin:0;">ยังไม่มีการไปทัศนศึกษา กด "เพิ่มการไปทัศนศึกษา" เพื่อเริ่ม · ระบบจะช่วยตรวจตามระเบียบ
+    และออกแบบขออนุญาต หนังสือขออนุญาตผู้ปกครอง แบบรายงานผล และเอกสารโครงการให้</p>
+  {% endif %}
+</div>
+{% endblock %}

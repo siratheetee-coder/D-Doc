@@ -1892,3 +1892,101 @@ class Supervision(Base):
     created_at = Column(DateTime, default=datetime.now)
 
     person = relationship("Person")
+
+
+# ============================================================
+# งานบริหารทั่วไป: ทัศนศึกษา (พานักเรียนไปนอกสถานศึกษา)
+# ตามระเบียบกระทรวงศึกษาธิการ ว่าด้วยการพานักเรียนและนักศึกษาไปนอกสถานศึกษา พ.ศ. 2562
+# ============================================================
+class FieldTrip(Base):
+    """การพานักเรียนไปนอกสถานศึกษา 1 ครั้ง (ผูกโครงการในแผนได้)"""
+    __tablename__ = "field_trip"
+
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, nullable=False)          # ปีการศึกษา พ.ศ.
+    project_id = Column(Integer, ForeignKey("project.id"), nullable=True)
+    title = Column(String, default="")              # ชื่อโครงการ/กิจกรรม
+    purpose = Column(String, default="")            # ไปเพื่อ ...
+    place = Column(String, default="")              # ณ ...
+    province = Column(String, default="")           # จังหวัด
+    trip_type = Column(String, default="day")       # day=ไม่พักแรม / overnight=พักแรม / abroad=นอกราชอาณาจักร (ข้อ 5)
+    depart_at = Column(DateTime, nullable=True)     # เริ่มออกเดินทาง
+    return_at = Column(DateTime, nullable=True)     # กลับถึงสถานศึกษา
+    route = Column(Text, default="")                # เส้นทางผ่าน
+    vehicle = Column(String, default="")            # โดยพาหนะ
+    lodging = Column(String, default="")            # พักค้างที่ (เฉพาะพักแรม)
+    controller_id = Column(Integer, ForeignKey("person.id"), nullable=True)  # ผู้ควบคุม (ข้อ 7(3))
+    request_date = Column(DateTime, nullable=True)  # วันที่ยื่นขออนุญาต (ต้องก่อนเดินทาง >= 15 วัน ข้อ 9)
+    request_to = Column(String, default="")         # เรียน (ผู้อนุญาตตามข้อ 8) ว่าง = ใช้ค่าตามประเภท
+    # เอกสารโครงการตามข้อ 9 วรรคสอง
+    principle = Column(Text, default="")            # หลักการและเหตุผล
+    objectives = Column(Text, default="")           # วัตถุประสงค์ (บรรทัดละข้อ)
+    targets = Column(Text, default="")              # เป้าหมาย (บรรทัดละข้อ)
+    steps = Column(Text, default="")                # ขั้นตอนการดำเนินงาน (บรรทัดละข้อ)
+    responsible = Column(String, default="")        # หน่วยงาน/ผู้รับผิดชอบโครงการ
+    emergency_plan = Column(Text, default="")       # แผนสำรองกรณีเหตุฉุกเฉิน
+    checklist = Column(Text, default="")            # JSON ข้อที่ตรวจแล้ว (ป้าย/ปฐมพยาบาล/ประกันภัย ...)
+    # รายงานผลหลังกลับ (ข้อ 13)
+    result = Column(String, default="")             # เรียบร้อย / ไม่เรียบร้อย
+    result_detail = Column(Text, default="")        # ชี้แจง
+    report_date = Column(DateTime, nullable=True)
+    status = Column(String, default="draft")        # draft / requested / approved / done / reported
+    order_id = Column(Integer, ForeignKey("school_order.id"), nullable=True)      # คำสั่งแต่งตั้งผู้ควบคุม
+    report_id = Column(Integer, ForeignKey("project_report.id"), nullable=True)   # รายงานโครงการ
+    created_at = Column(DateTime, default=datetime.now)
+
+    project = relationship("Project")
+    controller = relationship("Person", foreign_keys=[controller_id])
+    staff = relationship("FieldTripStaff", back_populates="trip", cascade="all, delete-orphan",
+                         order_by="FieldTripStaff.seq")
+    students = relationship("FieldTripStudent", back_populates="trip", cascade="all, delete-orphan",
+                            order_by="(FieldTripStudent.level, FieldTripStudent.room, FieldTripStudent.seq)")
+    costs = relationship("FieldTripCost", back_populates="trip", cascade="all, delete-orphan",
+                         order_by="FieldTripCost.seq")
+
+
+class FieldTripStaff(Base):
+    """ผู้ช่วยผู้ควบคุม (ครู/บุคคลที่ได้รับมอบหมาย 1 คน ต่อนักเรียนไม่เกิน 30 คน)"""
+    __tablename__ = "field_trip_staff"
+
+    id = Column(Integer, primary_key=True)
+    trip_id = Column(Integer, ForeignKey("field_trip.id"), nullable=False)
+    person_id = Column(Integer, ForeignKey("person.id"), nullable=True)
+    name = Column(String, default="")               # สำเนาชื่อ (กันชื่อเปลี่ยนย้อนหลัง)
+    position = Column(String, default="")
+    seq = Column(Integer, default=0)
+
+    trip = relationship("FieldTrip", back_populates="staff")
+
+
+class FieldTripStudent(Base):
+    """นักเรียนที่ไป (สำเนาชื่อ/ชั้นจากทะเบียนกลาง) + ผลยินยอมของผู้ปกครอง (ข้อ 6)"""
+    __tablename__ = "field_trip_student"
+
+    id = Column(Integer, primary_key=True)
+    trip_id = Column(Integer, ForeignKey("field_trip.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("student.id"), nullable=True)
+    name = Column(String, default="")
+    sex = Column(String, default="")                # M/F
+    level = Column(String, default="")
+    room = Column(String, default="")
+    seq = Column(Integer, default=0)
+    consent = Column(String, default="")            # "" ยังไม่ส่งกลับ / yes อนุญาต / no ไม่อนุญาต
+
+    trip = relationship("FieldTrip", back_populates="students")
+
+
+class FieldTripCost(Base):
+    """รายการค่าใช้จ่าย · basis: student=ต่อนักเรียน / person=ต่อคน (นักเรียน+ครู) / lump=เหมาจ่าย
+    เป็นเงิน = อัตรา x จำนวนหัว(ตาม basis) x ครั้ง"""
+    __tablename__ = "field_trip_cost"
+
+    id = Column(Integer, primary_key=True)
+    trip_id = Column(Integer, ForeignKey("field_trip.id"), nullable=False)
+    seq = Column(Integer, default=0)
+    item = Column(String, default="")
+    basis = Column(String, default="student")
+    rate = Column(Float, default=0.0)
+    times = Column(Float, default=1.0)              # จำนวนมื้อ/วัน/คัน (เหมาจ่ายใช้เป็นจำนวนหน่วย)
+
+    trip = relationship("FieldTrip", back_populates="costs")
