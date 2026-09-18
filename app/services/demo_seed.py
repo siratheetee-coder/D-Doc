@@ -132,6 +132,7 @@ VENDORS = [
     ("ร้านช่างแอร์ตัวอย่าง", "นายสมพงษ์ เย็นสบาย", "0000000000036", "7 หมู่ 1 ตำบลตัวอย่าง อำเภอเมือง จังหวัดสมมติ 99999", "080-000-0003"),
     ("ร้านตัวอย่างกีฬา", "นายวีระ แข็งแรง", "0000000000044", "88 ตลาดสมมติ อำเภอเมือง จังหวัดสมมติ 99999", "080-000-0004"),
     ("ร้านอาหารแม่ตัวอย่าง", "นางบุญเรือน อิ่มอร่อย", "0000000000052", "3 หมู่ 2 ตำบลตัวอย่าง อำเภอเมือง จังหวัดสมมติ 99999", "080-000-0005"),
+    ("หจก.ตัวอย่างทัวร์", "นายสุรชัย ขับดี", "0000000000061", "20 ถนนสมมติ ตำบลในเมือง อำเภอเมือง จังหวัดสมมติ 99999", "080-000-0006"),
 ]
 
 FIRST_M = ["ด.ช.ภูมิ", "ด.ช.ธีรภัทร", "ด.ช.กันต์", "ด.ช.ปัณณวัฒน์", "ด.ช.ณัฐวุฒิ", "ด.ช.พีรพัฒน์",
@@ -653,6 +654,37 @@ def seed_school(db, *, today: date) -> dict:
                                           weight=st.measures[0].weight if st.measures else 22,
                                           height=st.measures[0].height if st.measures else 118))
         db.add(ls)
+
+    # ---------------- งานบริหารทั่วไป: ทัศนศึกษา (ร่าง - เหลือขั้นขออนุญาต/จัดจ้างให้โชว์) ----------------
+    trip_day = now + timedelta(days=24)
+    while trip_day.weekday() >= 5:
+        trip_day += timedelta(days=1)
+    k6 = classes[1]
+    trip = m.FieldTrip(
+        year=ay, project_id=projects[0].id, title="ทัศนศึกษาแหล่งเรียนรู้วิทยาศาสตร์ ชั้น ป.6",
+        purpose="ศึกษาแหล่งเรียนรู้ทางวิทยาศาสตร์และเทคโนโลยี", place="อุทยานวิทยาศาสตร์สมมติ", province="สมมติ",
+        trip_type="day", depart_at=trip_day.replace(hour=7, minute=0), return_at=trip_day.replace(hour=17, minute=0),
+        route="ทางหลวงหมายเลข 99 (สมมติ)", vehicle="รถโดยสารปรับอากาศชั้นเดียว 1 คัน", request_date=now,
+        controller_id=persons[2].id, responsible="ฝ่ายบริหารงานวิชาการ",
+        principle="การเรียนรู้จากแหล่งเรียนรู้จริงช่วยให้นักเรียนเข้าใจเนื้อหาวิทยาศาสตร์ได้ลึกซึ้ง "
+                  "และเกิดแรงบันดาลใจในการเรียนรู้",
+        objectives="เพื่อให้นักเรียนได้เรียนรู้จากประสบการณ์ตรง\nเพื่อฝึกทักษะการสังเกตและการบันทึกข้อมูล",
+        targets="นักเรียนชั้นประถมศึกษาปีที่ 6 จำนวน 20 คน\nนักเรียนร้อยละ 90 ส่งใบงานสรุปการเรียนรู้",
+        steps="ขออนุญาตผู้บังคับบัญชาและผู้ปกครอง\nจัดจ้างรถโดยสารและอาหาร\nเดินทางและทำกิจกรรมตามกำหนดการ\nสรุปและรายงานผล",
+        emergency_plan="ประสานโรงพยาบาลใกล้เส้นทางไว้ล่วงหน้า\nกรณีรถขัดข้อง ประสานผู้ประกอบการส่งรถสำรอง",
+        checklist='["route_vehicle", "signage", "first_aid", "contact"]')
+    db.add(trip)
+    db.flush()
+    trip.staff.append(m.FieldTripStaff(person_id=persons[5].id, name=persons[5].name, position=persons[5].position, seq=0))
+    for i, st in enumerate(k6.students):
+        trip.students.append(m.FieldTripStudent(student_id=st.student_id, name=st.name, sex=st.sex, level=k6.level,
+                                                room=k6.room, seq=i, consent="yes" if i < 14 else ""))
+    for i, (kind, basis, rate, times, pay, vend) in enumerate((
+            ("bus", "lump", 8500, 1, "procure", vendors[5]), ("meal", "person", 80, 1, "procure", vendors[4]),
+            ("snack", "person", 25, 2, "procure", vendors[4]), ("entry", "student", 50, 1, "receipt", None),
+            ("perdiem", "staff", 160, 1, "travel", None))):
+        trip.costs.append(m.FieldTripCost(seq=i, kind=kind, basis=basis, rate=rate, times=times, pay_method=pay,
+                                          vendor_id=vend.id if vend else None))
 
     db.commit()
     return {"teacher_pid": teacher.id, "director_pid": director.id, "fiscal_year": fy, "academic_year": ay}

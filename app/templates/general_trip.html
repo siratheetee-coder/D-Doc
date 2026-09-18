@@ -67,7 +67,7 @@
   .doc-tile{ display:flex; gap:10px; align-items:center; padding:12px; border-radius:14px; text-decoration:none; color:var(--text);
     border:1px solid var(--border); background:linear-gradient(135deg,#fff,#f5f7ff); }
   .doc-tile:hover{ border-color:#818cf8; box-shadow:0 6px 16px rgba(99,102,241,.15); }
-  .doc-tile .di{ width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#fff;
+  .doc-tile .di{ min-width:36px; padding:0 4px; font-size:12px; font-weight:800; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#fff;
     background:linear-gradient(135deg,#06b6d4,#4f46e5); flex:0 0 36px; }
   .doc-tile small{ display:block; color:var(--muted); font-size:12px; }
 </style>
@@ -254,6 +254,14 @@
         <a class="btn sm gbtn" href="/procurement/{{ g.proc.id }}">เปิดเรื่อง{{ g.proc_type }} →</a>
         {% if (g.proc.total_amount or 0)|round(2) != g.total|round(2) %}<span class="muted" style="font-size:12.5px;">ยอดในงานพัสดุ {{ "{:,.2f}".format(g.proc.total_amount or 0) }} (ใช้ยอดนี้ตัดงบโครงการ)</span>{% endif %}
       </div>
+      {% if g.mismatch %}
+      <form method="post" action="/general/trips/{{ t.id }}/procure-sync" class="tp-warn warn" style="align-items:center; flex-wrap:wrap;">
+        <input type="hidden" name="vendor_id" value="{{ g.vendor_id }}">
+        <span>ข้อมูลในเรื่อง{{ g.proc_type }}ไม่ตรงกับหน้าทัศนศึกษา: <b>{{ g.mismatch|join(', ') }}</b>
+          {% if g.proc.status != 'ร่าง' %}(เรื่องนี้ไม่ใช่ร่างแล้ว จะอัปเดตเฉพาะวันและโครงการ){% endif %}</span>
+        <button class="btn sm gbtn o" type="submit" style="margin-left:auto;">อัปเดตให้ตรงกัน</button>
+      </form>
+      {% endif %}
     {% elif has_proc %}
       <form method="post" action="/general/trips/{{ t.id }}/procure" style="margin-top:8px; display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
         <input type="hidden" name="vendor_id" value="{{ g.vendor_id }}">
@@ -301,6 +309,7 @@
     <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/parents.docx"><span class="di">2</span><span>หนังสือขออนุญาตผู้ปกครอง<small>{{ c.students or 1 }} หน้า · หน้าละคน</small></span></a>
     <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/project.docx"><span class="di">3</span><span>โครงการ + รายชื่อ + งบประมาณ<small>หัวข้อตามข้อ 9</small></span></a>
     {% if allow_total %}<a class="doc-tile" href="/general/trips/{{ t.id }}/doc/allowance.docx"><span class="di">฿</span><span>ใบสำคัญรับเงินนักเรียน (เอกสารแนบ 2)<small>ค่าอาหารเหมาจ่าย ตาม ว 2983</small></span></a>{% endif %}
+    {% if travel_total %}<a class="doc-tile" href="/general/trips/{{ t.id }}/doc/travel.docx"><span class="di">8708</span><span>ใบเบิกค่าเดินทางไปราชการ (แบบ 8708)<small>ครูผู้ควบคุม · {{ "{:,.2f}".format(travel_total) }} บาท</small></span></a>{% endif %}
     <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/report.docx"><span class="di">4</span><span>แบบรายงานผล<small>หลังกลับ (ข้อ 13)</small></span></a>
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">

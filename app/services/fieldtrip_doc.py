@@ -353,3 +353,147 @@ def render_allowance(trip, school) -> str:
         ("ตำแหน่ง ......................................", "center"),
     ]])
     return _save_doc(doc, _safe(f"ใบสำคัญรับเงินนักเรียน_เอกสารแนบ2_{trip.id}") + ".docx")
+
+
+# ---------------- 6) ใบเบิกค่าใช้จ่ายในการเดินทางไปราชการ (แบบ 8708) ----------------
+_O, _X = "○", "◉"
+
+
+def _duration(a, b):
+    """รวมเวลาไปราชการ (วัน, ชั่วโมง) จากเวลาออกถึงเวลากลับ"""
+    if not (a and b) or b < a:
+        return ("....", "....")
+    secs = int((b - a).total_seconds())
+    return (str(secs // 86400), str((secs % 86400) // 3600))
+
+
+def render_travel_claim(trip, school) -> str:
+    """แบบ 8708 ส่วนที่ 1 (ใบเบิก - คณะเดินทาง) + ส่วนที่ 2 (หลักฐานการจ่ายเงิน รายคน)
+    ยกช่องตามแบบของกรมบัญชีกลาง · ผู้ขอรับเงิน = ผู้ควบคุม (หัวหน้าคณะ)"""
+    from sqlalchemy.orm import object_session
+    from docx.enum.section import WD_ORIENT, WD_SECTION
+    from app.models import MoneyLoan, SchoolOrder
+    from app.services.build_templates import _repeat_header_row, _no_split_row, _fixed_cols
+    from app.services.fieldtrip import travel_costs, staff_people, cost_label
+    db = object_session(trip)
+    loan = db.get(MoneyLoan, trip.loan_id) if (db and trip.loan_id) else None
+    order = db.get(SchoolOrder, trip.order_id) if (db and trip.order_id) else None
+    c = counts(trip)
+    people = staff_people(trip)
+    costs = travel_costs(trip)
+    per_person = sum(cost_amount(x, dict(c, staff=1, students=0, people=1)) for x in costs)
+    total = round(sum(cost_amount(x, c) for x in costs), 2)
+    days_claim = max((x.times or 0) for x in costs) if costs else 0
+    name = (school.name or "").strip()
+    dpos = "ผู้อำนวยการ" + name if name.startswith("โรงเรียน") else (school.director_position or "")
+    ctrl_name, ctrl_pos = (people[0][0], people[0][1]) if people else ("", "")
+
+    doc = _new_doc()
+    t = doc.add_table(rows=2, cols=2)
+    from app.services.build_templates import _no_borders
+    _no_borders(t)
+    _set_cell(t.rows[0].cells[0], f"สัญญาเงินยืมเลขที่ {_v(loan.contract_no if loan else '')}  วันที่ "
+              f"{thai_date(loan.date) if loan and loan.date else DOT}", size=14)
+    _set_cell(t.rows[0].cells[1], "ส่วนที่ 1", align="right", size=14)
+    _set_cell(t.rows[1].cells[0], f"ชื่อผู้ยืม {_v(loan.borrower if loan else '')}  จำนวนเงิน "
+              f"{_money(loan.amount) if loan else DOT} บาท", size=14)
+    _set_cell(t.rows[1].cells[1], "แบบ 8708", align="right", size=14)
+    from app.services.build_templates import _fixed_cols as _fc
+    _fc(t, [Cm(13.5), Cm(2.5)])
+    _p(doc, "ใบเบิกค่าใช้จ่ายในการเดินทางไปราชการ", align="center", bold=True, size=18, before=6, after=6)
+    _p(doc, f"ที่ทำการ {_v(school.name)}", align="right", after=0)
+    _p(doc, "วันที่ .......... เดือน .......................... พ.ศ. ..........", align="right", after=6)
+    _p_runs(doc, [("เรื่อง  ", False), ("ขออนุมัติเบิกค่าใช้จ่ายในการเดินทางไปราชการ", False)])
+    _p_runs(doc, [("เรียน  ", False), (dpos or DOT, False)], after=6)
+
+    others = ", ".join(f"{n} ตำแหน่ง {p}" for n, p, _ in people[1:]) or "-"
+    d1, m1, y1, t1 = _parts(trip.depart_at)
+    d2, m2, y2, t2 = _parts(trip.return_at)
+    dd, hh = _duration(trip.depart_at, trip.return_at)
+    body = (f"ตามคำสั่ง/บันทึกที่ {_v(order.order_no if order else '')} ลงวันที่ "
+            f"{thai_date(order.date) if order and order.date else DOT} ได้อนุมัติให้ ข้าพเจ้า {_v(ctrl_name)} "
+            f"ตำแหน่ง {_v(ctrl_pos)} สังกัด {_v(school.name)} พร้อมด้วย {others} "
+            f"เดินทางไปปฏิบัติราชการ ควบคุมนักเรียนไป{_v(trip.purpose)} ณ {_v(trip.place)} จังหวัด {_v(trip.province)} "
+            f"โดยออกเดินทางจาก {_O} บ้านพัก {_X} สำนักงาน {_O} ประเทศไทย ตั้งแต่วันที่ {d1} เดือน {m1} พ.ศ. {y1} "
+            f"เวลา {t1} น. และกลับถึง {_O} บ้านพัก {_X} สำนักงาน {_O} ประเทศไทย วันที่ {d2} เดือน {m2} พ.ศ. {y2} "
+            f"เวลา {t2} น. รวมเวลาไปราชการครั้งนี้ {dd} วัน {hh} ชั่วโมง")
+    _p(doc, body, align="justify", indent=2.5, after=6)
+    group = len(people) > 1
+    _p(doc, f"ข้าพเจ้าขอเบิกค่าใช้จ่ายในการเดินทางไปราชการสำหรับ {_X if not group else _O} ข้าพเจ้า "
+            f"{_X if group else _O} คณะเดินทาง ดังนี้", indent=2.5, after=2)
+    _p(doc, f"ค่าเบี้ยเลี้ยงเดินทางประเภท ......................  จำนวน {days_claim:g} วัน  รวม {_money(total)} บาท"
+            if costs else f"ค่าเบี้ยเลี้ยงเดินทางประเภท ...................... จำนวน ...... วัน รวม {DOT} บาท", after=0)
+    _p(doc, f"ค่าเช่าที่พักประเภท ...................... จำนวน ...... วัน รวม {DOT} บาท", after=0)
+    _p(doc, f"ค่าพาหนะ ................................................ รวม {DOT} บาท", after=0)
+    _p(doc, f"ค่าใช้จ่ายอื่น ............................................ รวม {DOT} บาท", after=0)
+    _p(doc, f"รวมเงินทั้งสิ้น {_money(total) if total else DOT} บาท", align="right", after=0)
+    _p(doc, f"จำนวนเงิน (ตัวอักษร) {bahttext(total) if total else DOT}", after=6)
+    _p(doc, "ข้าพเจ้าขอรับรองว่ารายการที่กล่าวมาข้างต้นเป็นความจริง และหลักฐานการจ่ายที่ส่งมาด้วย จำนวน "
+            ".......... ฉบับ รวมทั้งจำนวนเงินที่ขอเบิกถูกต้องตามกฎหมายทุกประการ", align="justify", indent=2.5, after=10)
+    _sign_table(doc, [[("", "center")], [
+        ("ลงชื่อ ...................................... ผู้ขอรับเงิน", "center"),
+        (f"({_v(ctrl_name)})", "center"), (f"ตำแหน่ง {_v(ctrl_pos)}", "center")]])
+
+    doc.add_page_break()
+    _p(doc, "- 2 -", align="center", after=6)
+    box = doc.add_table(rows=1, cols=2)
+    box.style = "Table Grid"
+    for cell, head in zip(box.rows[0].cells, ("ได้ตรวจสอบหลักฐานการเบิกจ่ายเงินที่แนบถูกต้องแล้ว\nเห็นควรอนุมัติให้เบิกจ่ายได้",
+                                              "อนุมัติให้จ่ายได้")):
+        _set_cell(cell, head + "\n\nลงชื่อ ......................................\n(......................................)\n"
+                  "ตำแหน่ง ......................................\nวันที่ ......................................", size=15)
+    _p(doc, "", after=4)
+    _p(doc, f"ได้รับเงินค่าใช้จ่ายในการเดินทางไปราชการ จำนวน {_money(total) if total else DOT} บาท "
+            f"({bahttext(total) if total else DOT}) ไว้เป็นการถูกต้องแล้ว", align="justify", indent=2.5, after=10)
+    _sign_table(doc, [
+        [("ลงชื่อ ............................ ผู้รับเงิน", "center"), ("(......................................)", "center"),
+         ("ตำแหน่ง ......................................", "center"), ("วันที่ ......................................", "center")],
+        [("ลงชื่อ ............................ ผู้จ่ายเงิน", "center"), ("(......................................)", "center"),
+         ("ตำแหน่ง ......................................", "center"), ("วันที่ ......................................", "center")],
+    ])
+    _p(doc, f"จากเงินยืมตามสัญญาเลขที่ {_v(loan.contract_no if loan else '')} วันที่ "
+            f"{thai_date(loan.date) if loan and loan.date else DOT}", after=6)
+    _p(doc, "หมายเหตุ  ในการเดินทางครั้งนี้เป็นการควบคุมนักเรียนไปนอกสถานศึกษา ตามระเบียบกระทรวงศึกษาธิการ "
+            "ว่าด้วยการพานักเรียน และนักศึกษาไปนอกสถานศึกษา พ.ศ. 2562 ข้อ 14", align="justify", after=4)
+
+    # ส่วนที่ 2 (แนวนอน)
+    sec = doc.add_section(WD_SECTION.NEW_PAGE)
+    sec.orientation = WD_ORIENT.LANDSCAPE
+    sec.page_width, sec.page_height = sec.page_height, sec.page_width
+    _p(doc, "ส่วนที่ 2", align="right", size=14, after=0)
+    _p(doc, "แบบ 8708", align="right", size=14, after=0)
+    _p(doc, "หลักฐานการจ่ายเงินค่าใช้จ่ายในการเดินทางไปราชการ", align="center", bold=True, size=17, after=2)
+    _p(doc, f"ชื่อส่วนราชการ {_v(school.name)}  จังหวัด {_v(school.province)}", align="center", size=15, after=0)
+    _p(doc, f"ประกอบใบเบิกค่าใช้จ่ายในการเดินทางของ {_v(ctrl_name)}  ลงวันที่ .......... เดือน .................. พ.ศ. ..........",
+       align="center", size=15, after=4)
+    headers = ["ลำดับที่", "ชื่อ", "ตำแหน่ง", "ค่าเบี้ยเลี้ยง", "ค่าเช่าที่พัก", "ค่าพาหนะ", "ค่าใช้จ่ายอื่น",
+               "รวม", "ลายมือชื่อ\nผู้รับเงิน", "วัน เดือน ปี\nที่รับเงิน", "หมายเหตุ"]
+    widths = [Cm(1.3), Cm(4.4), Cm(3.4), Cm(2.0), Cm(2.0), Cm(1.9), Cm(2.0), Cm(2.0), Cm(3.0), Cm(2.4), Cm(2.2)]
+    tb = doc.add_table(rows=1, cols=len(headers))
+    tb.style = "Table Grid"
+    _fixed_cols(tb, widths)
+    _repeat_header_row(tb.rows[0]); _no_split_row(tb.rows[0])
+    for cell, h, w in zip(tb.rows[0].cells, headers, widths):
+        _set_cell(cell, h, bold=True, align="center", size=13)
+        cell.width = w
+    rate_note = ", ".join(f"{x.rate:,.0f} บ. x {x.times:g} วัน" for x in costs)
+    for i, (n, p, _) in enumerate(people, 1):
+        r = tb.add_row(); _no_split_row(r)
+        amt = _money(per_person) if per_person else ""
+        for j, (cell, v, w) in enumerate(zip(r.cells, [str(i), n, p, amt, "", "", "", amt, "", "", rate_note], widths)):
+            _set_cell(cell, v, size=13, align="left" if j in (1, 2, 10) else ("right" if j in (3, 7) else "center"))
+            cell.width = w
+    r = tb.add_row(); _no_split_row(r)
+    _set_cell(r.cells[2], "รวมเงิน", bold=True, align="right", size=13)
+    _set_cell(r.cells[3], _money(total) if total else "", bold=True, align="right", size=13)
+    _set_cell(r.cells[7], _money(total) if total else "", bold=True, align="right", size=13)
+    _set_cell(r.cells[8], f"ตามสัญญาเงินยืมเลขที่ {loan.contract_no if loan and loan.contract_no else '.......'}", size=12)
+    for cell, w in zip(r.cells, widths):
+        cell.width = w
+    _p(doc, f"จำนวนเงินรวมทั้งสิ้น (ตัวอักษร) {bahttext(total) if total else DOT}", size=15, before=4, after=6)
+    _sign_table(doc, [[("", "center")], [
+        ("ลงชื่อ ...................................... ผู้จ่ายเงิน", "center"),
+        ("(......................................)", "center"),
+        ("ตำแหน่ง ......................................", "center"),
+        ("วันที่ ......................................", "center")]])
+    return _save_doc(doc, _safe(f"ใบเบิกค่าเดินทางไปราชการ_8708_{trip.id}") + ".docx")

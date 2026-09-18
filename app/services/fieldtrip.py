@@ -45,7 +45,7 @@ OVERNIGHT_CHECKLIST = [
     ("medic", "ผู้มีความรู้ด้านการรักษาพยาบาล และรถรับ-ส่งกรณีฉุกเฉิน", "ข้อ 12(4)"),
 ]
 
-COST_BASIS = {"student": "ต่อนักเรียน", "person": "ต่อคน (รวมครู)", "lump": "เหมาจ่าย"}
+COST_BASIS = {"student": "ต่อนักเรียน", "person": "ต่อคน (รวมครู)", "staff": "ต่อครู", "lump": "เหมาจ่าย"}
 
 _FEMALE_PREFIX = ("นาง", "น.ส.", "ด.ญ.", "เด็กหญิง", "Miss", "Mrs", "Ms")
 
@@ -78,7 +78,7 @@ def counts(trip) -> dict:
 
 
 def cost_amount(cost, c: dict) -> float:
-    heads = {"student": c["students"], "person": c["people"], "lump": 1}.get(cost.basis, 1)
+    heads = {"student": c["students"], "person": c["people"], "staff": c["staff"], "lump": 1}.get(cost.basis, 1)
     return round((cost.rate or 0) * heads * (cost.times or 0), 2)
 
 
@@ -187,8 +187,9 @@ COST_KINDS = {
                 "hint": "อัตรา = ต่อคนต่อคืน · ครั้ง = จำนวนคืน"},
     "insurance": {"label": "ค่าประกันภัยการเดินทาง", "basis": "student", "pay": "procure", "proc": "จ้าง",
                   "cap": None, "ref": "ระเบียบฯ 2562 ข้อ 7(7) · ว 2983 ข้อ 17 ค่าใช้จ่ายอื่นที่จำเป็น"},
-    "perdiem": {"label": "ค่าเบี้ยเลี้ยงครูผู้ควบคุม", "basis": "lump", "pay": "travel",
-                "cap": None, "ref": "ระเบียบฯ 2562 ข้อ 14 · ว 2983 ข้อ 11.1 (หักค่าอาหารที่จัดให้มื้อละ 1 ใน 3)"},
+    "perdiem": {"label": "ค่าเบี้ยเลี้ยงเดินทาง (ครูผู้ควบคุม)", "basis": "staff", "pay": "travel",
+                "cap": None, "ref": "ระเบียบฯ 2562 ข้อ 14 · ว 2983 ข้อ 11.1 (หักค่าอาหารที่จัดให้มื้อละ 1 ใน 3)",
+                "hint": "อัตรา = ต่อคนต่อวันตามสิทธิ (หักค่าอาหารที่จัดให้แล้ว) · ครั้ง = จำนวนวัน"},
     "other": {"label": "อื่น ๆ (ระบุ)", "basis": "lump", "pay": "procure", "proc": "ซื้อ", "cap": None, "ref": ""},
 }
 
@@ -311,3 +312,33 @@ def next_actions(trip) -> list:
     if trip.status == "done":
         out.append(("กรอกผลการเดินทาง แล้วดาวน์โหลดแบบรายงานผล", "#sec-report"))
     return out[:3]
+
+
+
+def travel_costs(trip) -> list:
+    """รายการที่เบิกผ่านใบเบิกค่าใช้จ่ายในการเดินทางไปราชการ (แบบ 8708)"""
+    return [x for x in trip.costs if x.pay_method == "travel"]
+
+
+def staff_people(trip) -> list:
+    """[(ชื่อ, ตำแหน่ง, หน้าที่)] ผู้ควบคุมก่อน แล้วผู้ช่วย"""
+    out = []
+    if trip.controller:
+        out.append((trip.controller.name, trip.controller.position or "ครู", "ผู้ควบคุม"))
+    out += [(s.name, s.position or "ครู", "ผู้ช่วยผู้ควบคุม") for s in trip.staff]
+    return out
+
+
+def proc_mismatch(trip, group) -> list:
+    """เรื่องจัดจ้างที่สร้างแล้ว ข้อมูลไม่ตรงกับทัศนศึกษา (หลังแก้หน้าทัศนศึกษา) -> รายการที่ต่าง"""
+    proc = group.get("proc")
+    if not proc:
+        return []
+    out = []
+    if trip.depart_at and proc.delivery_due_date and proc.delivery_due_date.date() != trip.depart_at.date():
+        out.append("วันเดินทาง/วันส่งมอบ")
+    if proc.status == "ร่าง" and round(proc.total_amount or 0, 2) != round(group["total"], 2):
+        out.append("ยอดเงิน")
+    if (proc.project_id or None) != (trip.project_id or None):
+        out.append("โครงการ")
+    return out

@@ -375,8 +375,9 @@ def trip_detail(tid: int, request: Request, db: Session = Depends(get_db), msg: 
         "projects": projects, "proj": proj, "approver": ft.approver_title(t, school),
         "d": be_date_input, "reg": ft.REG_NAME,
         "kinds": ft.COST_KINDS, "pays": ft.PAY_METHODS, "vendors": _vendors(db),
-        "groups_buy": [dict(g, labels=list(dict.fromkeys(ft.cost_label(x) for x in g["costs"])))
-                       for g in ft.procure_groups(t)],
+        "groups_buy": [dict(g, labels=list(dict.fromkeys(ft.cost_label(x) for x in g["costs"])),
+                            mismatch=ft.proc_mismatch(t, g)) for g in ft.procure_groups(t)],
+        "travel_total": round(sum(ft.cost_amount(x, c) for x in ft.travel_costs(t)), 2),
         "cash": ft.cash_costs(t), "cash_labels": [ft.cost_label(x) for x in ft.cash_costs(t)],
         "cash_total": round(sum(ft.cost_amount(x, c) for x in ft.cash_costs(t)), 2),
         "years": list(range(_be_year() - 1, _be_year() + 3)),
@@ -501,7 +502,7 @@ def trip_doc(tid: int, kind: str, db: Session = Depends(get_db)):
     t = _trip_or_404(db, tid)
     fn = {"request": fd.render_request, "parents": fd.render_parent_letters,
           "report": fd.render_report, "project": fd.render_project,
-          "allowance": fd.render_allowance}.get(kind)
+          "allowance": fd.render_allowance, "travel": fd.render_travel_claim}.get(kind)
     if not fn:
         raise HTTPException(404)
     return serve_generated(fn(t, get_school(db)), _DOCX, count=False)
@@ -656,7 +657,7 @@ def trip_procure(tid: int, db: Session = Depends(get_db), vendor_id: int = Form(
         request_date=datetime.now(), delivery_due_date=t.depart_at, inspection_mode="single",
         delivery_days=max(1, (when.date() - datetime.now().date()).days) if t.depart_at else 7)
     for x in grp["costs"]:
-        heads = {"student": c["students"], "person": c["people"]}.get(x.basis, 1)
+        heads = {"student": c["students"], "person": c["people"], "staff": c["staff"]}.get(x.basis, 1)
         qty = round(heads * (x.times or 1), 2)
         proc.items.append(ProcurementItem(name=ft.cost_label(x), quantity=qty,
                                           unit=_UNITS.get(x.kind, "รายการ"), unit_price=x.rate or 0))
@@ -705,4 +706,32 @@ def trip_loan(tid: int, db: Session = Depends(get_db), borrower_id: int = Form(0
     t.loan_id = ln.id
     db.commit()
     return RedirectResponse(back + "?msg=สร้างสัญญายืมเงินแล้ว ดาวน์โหลด/บันทึกส่งใช้ได้ที่งานการเงิน#sec-buy",
+                            status_code=303)
+
+
+
+@router.post("/general/trips/{tid}/procure-sync")
+def trip_procure_sync(tid: int, db: Session = Depends(get_db), vendor_id: int = Form(0)):
+    """อัปเดตเรื่องจัดจ้าง (ที่ยังเป็นร่าง) ให้ตรงกับทัศนศึกษา: รายการ ยอด วันส่งมอบ โครงการ
+    เรื่องที่อนุมัติแล้วไม่แตะรายการ/ยอด (อาจเป็นราคาจริงตามใบเสนอราคา) แก้แค่วันและโครงการ"""
+    from app.models import ProcurementItem
+    from app.services import fieldtrip as ft
+    t = _trip_or_404(db, tid)
+    g = next((g for g in ft.procure_groups(t) if g["vendor_id"] == vendor_id and g["proc"]), None)
+    if not g:
+        return RedirectResponse(f"/general/trips/{tid}#sec-buy", status_code=303)
+    proc = g["proc"]
+    proc.delivery_due_date = t.depart_at or proc.delivery_due_date
+    proc.project_id = t.project_id
+    proc.project_name = t.project.name if t.project else ""
+    if proc.status == "ร่าง":
+        c = ft.counts(t)
+        proc.items.clear()
+        for x in g["costs"]:
+            heads = {"student": c["students"], "person": c["people"], "staff": c["staff"]}.get(x.basis, 1)
+            proc.items.append(ProcurementItem(name=ft.cost_label(x), quantity=round(heads * (x.times or 1), 2),
+                                              unit=_UNITS.get(x.kind, "รายการ"), unit_price=x.rate or 0))
+        proc.total_amount = g["total"]
+    db.commit()
+    return RedirectResponse(f"/general/trips/{tid}?msg=อัปเดตเรื่อง{g['proc_type']}กับ {g['vendor'].name} แล้ว#sec-buy",
                             status_code=303)
