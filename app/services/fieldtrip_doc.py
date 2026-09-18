@@ -43,8 +43,8 @@ def _parts(dt):
 def _signer(trip, school):
     """ผู้ลงนามแบบขออนุญาต/รายงาน: ไม่พักแรม = ผู้ควบคุมเสนอหัวหน้าสถานศึกษา
     พักแรม/นอกราชอาณาจักร = หัวหน้าสถานศึกษาเสนอผู้อนุญาตตามข้อ 8"""
-    if trip.trip_type == "day" and trip.controller:
-        return trip.controller.name, trip.controller.position or "ครู"
+    if trip.trip_type == "day" and trip.ctrl_name:
+        return trip.ctrl_name, trip.ctrl_pos or "ครู"
     name = (school.name or "").strip()
     return (school.director_name or "", "ผู้อำนวยการ" + name if name.startswith("โรงเรียน")
             else (school.director_position or "ผู้อำนวยการโรงเรียน"))
@@ -61,7 +61,7 @@ def _head(doc, school, date, to):
 def _trip_sentence(trip, c):
     """ข้อความส่วนกลางที่ใช้ร่วมกันในแบบทั้ง 3 (ไปเพื่อ ณ จังหวัด เริ่มออกเดินทาง ... พาหนะ)"""
     d, m, y, t = _parts(trip.depart_at)
-    ctrl = trip.controller.name if trip.controller else DOT
+    ctrl = trip.ctrl_name or DOT
     return (f"โดยมี {ctrl} เป็นผู้ควบคุมไปเพื่อ {_v(trip.purpose)} ณ {_v(trip.place)} "
             f"จังหวัด {_v(trip.province)} เริ่มออกเดินทางวันที่ {d} เดือน {m} พ.ศ. {y} "
             f"เวลา {t} น.")
@@ -224,8 +224,8 @@ def render_project(trip, school) -> str:
     head(7, "หน่วยงานและผู้รับผิดชอบโครงการ"); body(_v(trip.responsible or school.name))
     head(8, "รายชื่อผู้ควบคุมและผู้ช่วยผู้ควบคุมในการเดินทาง")
     staff = []
-    if trip.controller:
-        staff.append((trip.controller.name, trip.controller.position or "", "ผู้ควบคุม"))
+    if trip.ctrl_name:
+        staff.append((trip.ctrl_name, trip.ctrl_pos or "", "ผู้ควบคุม"))
     staff += [(s.name, s.position, "ผู้ช่วยผู้ควบคุม") for s in trip.staff]
     _grid(doc, ["ที่", "ชื่อ - สกุล", "ตำแหน่ง", "หน้าที่"],
           [(i, n, p, r) for i, (n, p, r) in enumerate(staff, 1)] or [("", "", "", "")],
@@ -253,18 +253,18 @@ def render_project(trip, school) -> str:
         body(f"ใช้งบประมาณจากโครงการ{trip.project.name}")
     _p(doc, f"ทั้งนี้ ดำเนินการตาม{REG_NAME}", align="justify", indent=1.25, before=4, after=10)
 
-    ctrl = trip.controller
+    ctrl_n, ctrl_p = trip.ctrl_name, trip.ctrl_pos
     name = (school.name or "").strip()
     dpos = "ผู้อำนวยการ" + name if name.startswith("โรงเรียน") else (school.director_position or "")
     tbl = _sign_table(doc, [
         [("ลงชื่อ ................................ ผู้เสนอโครงการ", "center"),
-         (f"({_v(ctrl.name if ctrl else '')})", "center"),
-         (_v(ctrl.position if ctrl else ""), "center")],
+         (f"({_v(ctrl_n)})", "center"),
+         (_v(ctrl_p), "center")],
         [("ลงชื่อ ................................ ผู้อนุมัติโครงการ", "center"),
          (f"({_v(school.director_name)})", "center"), (dpos, "center")],
     ])
-    if ctrl:
-        _float_signature(tbl.rows[0].cells[0].paragraphs[0], ctrl.name)
+    if ctrl_n:
+        _float_signature(tbl.rows[0].cells[0].paragraphs[0], ctrl_n)
     _float_signature(tbl.rows[0].cells[1].paragraphs[0], school.director_name)
     return _save_doc(doc, _safe(f"โครงการทัศนศึกษา_{trip.id}") + ".docx")
 
@@ -280,8 +280,8 @@ def order_body(trip, school) -> str:
         "จึงแต่งตั้งบุคลากรดังต่อไปนี้",
     ]
     n = 1
-    if trip.controller:
-        lines.append(f"{n}. {trip.controller.name} ตำแหน่ง {trip.controller.position or 'ครู'} ผู้ควบคุม")
+    if trip.ctrl_name:
+        lines.append(f"{n}. {trip.ctrl_name} ตำแหน่ง {trip.ctrl_pos or 'ครู'} ผู้ควบคุม")
         n += 1
     for s in trip.staff:
         lines.append(f"{n}. {s.name} ตำแหน่ง {s.position or 'ครู'} ผู้ช่วยผู้ควบคุม")

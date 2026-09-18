@@ -1915,7 +1915,9 @@ class FieldTrip(Base):
     route = Column(Text, default="")                # เส้นทางผ่าน
     vehicle = Column(String, default="")            # โดยพาหนะ
     lodging = Column(String, default="")            # พักค้างที่ (เฉพาะพักแรม)
-    controller_id = Column(Integer, ForeignKey("person.id"), nullable=True)  # ผู้ควบคุม (ข้อ 7(3))
+    controller_id = Column(Integer, ForeignKey("person.id"), nullable=True)  # ผู้ควบคุม (ข้อ 7(3)) ถ้าอยู่ในทะเบียน
+    controller_name = Column(String, default="")   # ชื่อผู้ควบคุม (พิมพ์เองได้ - ไม่จำเป็นต้องอยู่ในทะเบียน)
+    controller_pos = Column(String, default="")    # ตำแหน่งผู้ควบคุม
     request_date = Column(DateTime, nullable=True)  # วันที่ยื่นขออนุญาต (ต้องก่อนเดินทาง >= 15 วัน ข้อ 9)
     request_to = Column(String, default="")         # เรียน (ผู้อนุญาตตามข้อ 8) ว่าง = ใช้ค่าตามประเภท
     # เอกสารโครงการตามข้อ 9 วรรคสอง
@@ -1938,6 +1940,14 @@ class FieldTrip(Base):
 
     project = relationship("Project")
     controller = relationship("Person", foreign_keys=[controller_id])
+    @property
+    def ctrl_name(self) -> str:
+        return (self.controller_name or "").strip() or (self.controller.name if self.controller else "")
+
+    @property
+    def ctrl_pos(self) -> str:
+        return (self.controller_pos or "").strip() or ((self.controller.position or "") if self.controller else "")
+
     staff = relationship("FieldTripStaff", back_populates="trip", cascade="all, delete-orphan",
                          order_by="FieldTripStaff.seq")
     students = relationship("FieldTripStudent", back_populates="trip", cascade="all, delete-orphan",

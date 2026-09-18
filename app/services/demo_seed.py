@@ -665,7 +665,8 @@ def seed_school(db, *, today: date) -> dict:
         purpose="ศึกษาแหล่งเรียนรู้ทางวิทยาศาสตร์และเทคโนโลยี", place="อุทยานวิทยาศาสตร์สมมติ", province="สมมติ",
         trip_type="day", depart_at=trip_day.replace(hour=7, minute=0), return_at=trip_day.replace(hour=17, minute=0),
         route="ทางหลวงหมายเลข 99 (สมมติ)", vehicle="รถโดยสารปรับอากาศชั้นเดียว 1 คัน", request_date=now,
-        controller_id=persons[2].id, responsible="ฝ่ายบริหารงานวิชาการ",
+        controller_id=persons[2].id, controller_name=persons[2].name, controller_pos=persons[2].position,
+        responsible="ฝ่ายบริหารงานวิชาการ",
         principle="การเรียนรู้จากแหล่งเรียนรู้จริงช่วยให้นักเรียนเข้าใจเนื้อหาวิทยาศาสตร์ได้ลึกซึ้ง "
                   "และเกิดแรงบันดาลใจในการเรียนรู้",
         objectives="เพื่อให้นักเรียนได้เรียนรู้จากประสบการณ์ตรง\nเพื่อฝึกทักษะการสังเกตและการบันทึกข้อมูล",

@@ -11,6 +11,7 @@ def _trip(n_students=20, n_female=0, staff=(), controller="นายก ข", **
     base = dict(students=students, staff=[NS(name=s) for s in staff],
                 controller_id=1 if controller else None,
                 controller=NS(name=controller) if controller else None,
+                ctrl_name=controller or "", ctrl_pos="ครู" if controller else "",
                 costs=[], checklist="[]", trip_type="day", depart_at=None, return_at=None,
                 request_date=None, status="draft", lodging="")
     base.update(kw)
@@ -32,6 +33,11 @@ def test_female_teacher_reminder():
     assert "ครูสตรี" in _texts(_trip(10, n_female=3, staff=["นายค ง"]))
     assert "ครูสตรี" not in _texts(_trip(10, n_female=3, staff=["นางสาวจ ฉ"]))
     assert "ครูสตรี" not in _texts(_trip(10, n_female=3, staff=["นายค ง"], controller="นางช ซ"))
+
+
+def test_steps_highlight_only_current():
+    t = _trip(0, controller="", title="", place="", loan_id=None)
+    assert [x[1] for x in ft.steps(t)] == ["doing", "todo", "todo", "todo", "todo", "todo"]
 
 
 def test_fifteen_days_before_departure():

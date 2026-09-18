@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_dmy.html" import date_select, time_select, dmy_script %}
+{% from "_dmy.html" import date_input, time_input, dmy_script %}
 {% block title %}{{ t.title or "ทัศนศึกษา" }}{% endblock %}
 {% block content %}
 <style>
@@ -40,6 +40,10 @@
   .tp-note{ font-size:13px; color:var(--muted); margin:2px 0 10px; }
   .tp-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px 14px; }
   .tp-grid .full{ grid-column:1/-1; }
+  .tp-when{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px 14px; }
+  @media (max-width:760px){ .tp-when{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  .staff-row{ display:grid; grid-template-columns:2fr 1.2fr auto; gap:8px; margin:0 0 6px; }
+  .tp-step.todo{ opacity:.8; }
   .tp-warn{ display:flex; gap:8px; padding:8px 12px; border-radius:10px; margin:6px 0; font-size:14px; }
   .tp-warn.error{ background:#fde8e8; color:#991b1b; } .tp-warn.warn{ background:#fff4e5; color:#92400e; }
   .tp-warn.info{ background:#eef4ff; color:#1e40af; }
@@ -111,24 +115,25 @@
   <p class="tp-note">ข้อมูลส่วนนี้ใช้เติมในแบบขออนุญาต หนังสือผู้ปกครอง แบบรายงาน และเรื่องจัดจ้างทุกฉบับ - กรอกครั้งเดียว</p>
   <div class="tp-grid">
     <div class="full"><label>ชื่อโครงการ/กิจกรรม</label><input name="title" value="{{ t.title }}"></div>
-    <div class="full"><label>ผูกกับโครงการในแผน (งบประมาณ)</label>
-      <select name="project_id"><option value="">- ไม่ผูก -</option>
-        {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if p.id == t.project_id }}>{{ p.name }}{% if p.plan_year %} ({{ p.plan_year }}){% endif %}</option>{% endfor %}
-      </select></div>
+    <div class="full"><label>ผูกกับโครงการในแผน (งบประมาณ) - พิมพ์ค้นหาหรือเลือก</label>
+      <input name="project_text" list="projectList" value="{{ project_label }}" placeholder="พิมพ์ชื่อโครงการ... (เว้นว่าง = ไม่ผูก)" autocomplete="off">
+      <datalist id="projectList">{% for p in projects %}<option value="{{ p.name }}{% if p.plan_year %} ({{ p.plan_year }}){% endif %}">{% endfor %}</datalist></div>
     <div><label>ประเภท (ระเบียบฯ ข้อ 5)</label>
       <select name="trip_type">{% for k, v in types.items() %}<option value="{{ k }}" {{ 'selected' if k == t.trip_type }}>{{ v.label }}</option>{% endfor %}</select>
       <p class="tp-note">ผู้อนุญาตตามข้อ 8: {{ types[t.trip_type].approver }}</p></div>
-    <div><label>ไปเพื่อ</label><input name="purpose" value="{{ t.purpose }}" placeholder="เช่น ศึกษาแหล่งเรียนรู้ทางวิทยาศาสตร์"></div>
+    <div><label>จุดประสงค์</label><input name="purpose" value="{{ t.purpose }}" placeholder="เช่น ศึกษาแหล่งเรียนรู้ทางวิทยาศาสตร์"></div>
     <div><label>สถานที่ (ณ)</label><input name="place" value="{{ t.place }}"></div>
     <div><label>จังหวัด</label><input name="province" value="{{ t.province }}"></div>
-    <div><label>วันออกเดินทาง</label>{{ date_select("depart_date", t.depart_at, years) }}</div>
-    <div><label>เวลาออกเดินทาง</label>{{ time_select("depart_time", t.depart_at) }}</div>
-    <div><label>วันกลับถึงสถานศึกษา</label>{{ date_select("return_date", t.return_at, years) }}</div>
-    <div><label>เวลากลับถึง</label>{{ time_select("return_time", t.return_at) }}</div>
+    <div class="full tp-when">
+      <div><label>วันออกเดินทาง</label>{{ date_input("depart_date", t.depart_at) }}</div>
+      <div><label>เวลาออกเดินทาง</label>{{ time_input("depart_time", t.depart_at) }}</div>
+      <div><label>วันกลับถึงสถานศึกษา</label>{{ date_input("return_date", t.return_at) }}</div>
+      <div><label>เวลากลับถึง</label>{{ time_input("return_time", t.return_at) }}</div>
+    </div>
     <div class="full"><label>เส้นทางผ่าน</label><input name="route" value="{{ t.route }}"></div>
     <div><label>โดยพาหนะ</label><input name="vehicle" value="{{ t.vehicle }}" placeholder="เช่น รถโดยสารปรับอากาศชั้นเดียว 1 คัน"></div>
     <div><label>พักค้างที่ (เฉพาะพักแรม)</label><input name="lodging" value="{{ t.lodging }}"></div>
-    <div><label>วันที่ยื่นขออนุญาต</label>{{ date_select("request_date", t.request_date, years) }}
+    <div><label>วันที่ยื่นขออนุญาต</label>{{ date_input("request_date", t.request_date) }}
       <p class="tp-note">ต้องก่อนวันเดินทางไม่น้อยกว่า 15 วัน (ข้อ 9)</p></div>
     <div><label>เรียน (ผู้อนุญาต)</label><input name="request_to" value="{{ t.request_to }}" placeholder="{{ approver }}"></div>
   </div>
@@ -137,16 +142,22 @@
 <div class="tp-card" id="sec-people" style="--g1:#8b5cf6; --g2:#6366f1;">
   <h2><span class="ic">2</span> คนที่ไป</h2>
   <p class="tp-note">ผู้ควบคุม 1 คน + ผู้ช่วย 1 คน ต่อนักเรียนไม่เกิน 30 คน (ข้อ 7(3)) · ครูควบคุมอย่างน้อย 2 คน (ว 1057 ข้อ 12) · ใช้เฉพาะชื่อและชั้นจากทะเบียน</p>
+  <datalist id="personList">{% for p in persons %}<option value="{{ p.name }}">{{ p.position }}</option>{% endfor %}</datalist>
   <div class="tp-grid">
-    <div><label>ผู้ควบคุม</label>
-      <select name="controller_id"><option value="">- เลือก -</option>
-        {% for p in persons %}<option value="{{ p.id }}" {{ 'selected' if p.id == t.controller_id }}>{{ p.name }} ({{ p.position }})</option>{% endfor %}
-      </select></div>
+    <div><label>ผู้ควบคุม (พิมพ์ชื่อหรือเลือก)</label>
+      <input name="controller_name" list="personList" value="{{ t.ctrl_name }}" placeholder="พิมพ์ชื่อ..." autocomplete="off" data-person></div>
+    <div><label>ตำแหน่งผู้ควบคุม</label><input name="controller_pos" value="{{ t.ctrl_pos }}" placeholder="เช่น ครู"></div>
   </div>
-  <label style="margin-top:10px;">ผู้ช่วยผู้ควบคุม</label>
-  <div class="stu-list">
-    {% for p in persons %}<label><input type="checkbox" name="staff" value="{{ p.id }}" {{ 'checked' if p.id in staff_ids }}> {{ p.name }}</label>{% endfor %}
+  <label style="margin-top:12px;">ผู้ช่วยผู้ควบคุม <span class="muted" style="font-weight:400;">({{ t.staff|length }} คน · ต้องมีอย่างน้อย {{ need_assist }} คน สำหรับนักเรียน {{ c.students }} คน)</span></label>
+  <div id="staffRows">
+    {% for s in t.staff %}
+    <div class="staff-row"><input name="staff_name" list="personList" value="{{ s.name }}" placeholder="พิมพ์ชื่อ..." autocomplete="off" data-person>
+      <input name="staff_pos" value="{{ s.position }}" placeholder="ตำแหน่ง">
+      <button type="button" class="btn sm soft" onclick="this.parentNode.remove()">ลบ</button></div>
+    {% endfor %}
   </div>
+  <button type="button" class="btn sm gbtn v" onclick="addStaff()" style="margin-top:6px;">+ เพิ่มผู้ช่วยผู้ควบคุม</button>
+  <p class="tp-note" style="margin-top:6px;">พิมพ์ชื่อบุคคลนอกทะเบียนได้ (เช่น บุคคลที่หัวหน้าสถานศึกษามอบหมาย) · ชื่อที่ตรงกับทะเบียนบุคลากร ระบบเติมตำแหน่งให้</p>
   <label style="margin-top:12px;">นักเรียน ({{ c.students }} คน)</label>
   {% for room, lst in groups.items() %}
   {% set n_in = lst|selectattr('id','in',picked)|list|length %}
@@ -227,12 +238,12 @@
     <div><label>การพาไปครั้งนี้เป็นไปด้วยความ</label>
       <select name="result"><option value="">-</option>
         {% for v in ("เรียบร้อย", "ไม่เรียบร้อย") %}<option {{ 'selected' if t.result == v }}>{{ v }}</option>{% endfor %}</select></div>
-    <div><label>วันที่รายงาน</label>{{ date_select("report_date", t.report_date, years) }}</div>
+    <div><label>วันที่รายงาน</label>{{ date_input("report_date", t.report_date) }}</div>
     <div class="full"><label>ชี้แจงรายละเอียด</label><textarea name="result_detail" rows="3">{{ t.result_detail }}</textarea></div>
   </div>
 </div>
 
-<div style="position:sticky; bottom:12px; z-index:5; display:flex; justify-content:flex-end; margin-bottom:16px;">
+<div style="position:sticky; bottom:14px; z-index:5; display:flex; justify-content:flex-end; margin:0 84px 16px 0;">
   <button class="btn gbtn" type="submit" style="padding:12px 28px; font-size:16px; box-shadow:0 10px 24px rgba(79,70,229,.35);">💾 บันทึก</button>
 </div>
 </form>
@@ -397,6 +408,21 @@ function kindChanged(sel){
 function payChanged(sel){
   const v = sel.closest('.cost-row').querySelector('[name=cost_vendor]');
   v.disabled = sel.value !== 'procure'; if (v.disabled) v.value = '';
+}
+const PERSONS = {{ person_pos|tojson }};
+function bindPerson(inp){
+  inp.addEventListener('change', function(){
+    const pos = inp.parentNode.querySelector('[name=staff_pos]') || document.querySelector('[name=controller_pos]');
+    if (PERSONS[inp.value] && pos && !pos.value) pos.value = PERSONS[inp.value];
+  });
+}
+document.querySelectorAll('[data-person]').forEach(bindPerson);
+function addStaff(){
+  const d = document.createElement('div'); d.className = 'staff-row';
+  d.innerHTML = '<input name="staff_name" list="personList" placeholder="พิมพ์ชื่อ..." autocomplete="off" data-person>'
+    + '<input name="staff_pos" placeholder="ตำแหน่ง">'
+    + '<button type="button" class="btn sm soft" onclick="this.parentNode.remove()">ลบ</button>';
+  document.getElementById('staffRows').appendChild(d); bindPerson(d.firstChild); d.firstChild.focus();
 }
 function pickAll(ev, btn, on){ ev.preventDefault(); const d = btn.closest('details'); d.querySelectorAll('input[name=student]').forEach(i => i.checked = on); d.open = true; }
 // ช่องผู้ขายที่ถูก disable จะไม่ถูกส่ง -> เปิดคืนก่อนส่งให้จำนวนคอลัมน์ตรงกันทุกแถว

@@ -68,7 +68,7 @@ def checklist_done(trip) -> set:
 
 def counts(trip) -> dict:
     n_stu = len(trip.students)
-    n_staff = len(trip.staff) + (1 if trip.controller_id else 0)
+    n_staff = len(trip.staff) + (1 if trip.ctrl_name else 0)
     return {"students": n_stu, "assistants": len(trip.staff), "staff": n_staff,
             "people": n_stu + n_staff,
             "female_students": sum(1 for s in trip.students if s.sex == "F"),
@@ -105,14 +105,14 @@ def warnings(trip, today: datetime | None = None) -> list:
     out = []
     c = counts(trip)
     today = today or datetime.now()
-    if not trip.controller_id:
+    if not trip.ctrl_name:
         out.append(("error", "ยังไม่ได้เลือกผู้ควบคุม (ข้อ 7(3) ให้หัวหน้าสถานศึกษาหรือผู้ได้รับมอบหมาย 1 คน เป็นผู้ควบคุม)"))
     need = math.ceil(c["students"] / MAX_PER_ASSISTANT) if c["students"] else 0
     if c["assistants"] < need:
         out.append(("error", f"ผู้ช่วยผู้ควบคุมไม่พอ: นักเรียน {c['students']} คน ต้องมีอย่างน้อย {need} คน "
                              f"(ข้อ 7(3) 1 คน ต่อนักเรียนไม่เกิน {MAX_PER_ASSISTANT} คน) ตอนนี้มี {c['assistants']} คน"))
     if c["female_students"]:
-        staff_names = [s.name for s in trip.staff] + ([trip.controller.name] if trip.controller else [])
+        staff_names = [s.name for s in trip.staff] + ([trip.ctrl_name] if trip.ctrl_name else [])
         if not any(is_female_name(n) for n in staff_names):
             out.append(("warn", f"มีนักเรียนหญิง {c['female_students']} คน แต่ยังไม่มีครูสตรีควบคุมไปด้วย "
                                 "(ข้อ 7(3) ให้มีครูสตรีควบคุมไปด้วยตามความเหมาะสม)"))
@@ -267,24 +267,26 @@ def steps(trip) -> list:
     c = counts(trip)
     groups = procure_groups(trip)
     info_ok = bool(trip.title and trip.place and trip.depart_at and trip.return_at)
-    people_ok = bool(trip.controller_id and c["students"])
+    people_ok = bool(trip.ctrl_name and c["students"])
     cost_ok = bool(trip.costs) and not any(cost_warnings(x) for x in trip.costs)
     approved = trip.status in ("approved", "done", "reported")
     made = sum(1 for g in groups if g["proc"])
     need_loan = bool(cash_costs(trip))
     buy_ok = bool(groups or need_loan) and made == len(groups) and (bool(trip.loan_id) or not need_loan)
 
-    def st(done, started=False):
-        return "done" if done else ("doing" if started else "todo")
+    done = [info_ok, people_ok, cost_ok, approved, buy_ok, trip.status == "reported"]
+    cur = next((i for i, d in enumerate(done) if not d), None)
+
+    def st(i):
+        return "done" if done[i] else ("doing" if i == cur else "todo")
     return [
-        ("ข้อมูลการไป", st(info_ok, bool(trip.place)), trip.place or "", "#sec-info"),
-        ("คนที่ไป", st(people_ok, bool(c["students"] or trip.controller_id)),
-         f"นักเรียน {c['students']} · ครู {c['staff']}", "#sec-people"),
-        ("ค่าใช้จ่าย", st(cost_ok, bool(trip.costs)), f"{total_cost(trip):,.0f} บาท", "#sec-cost"),
-        ("ขออนุญาต", st(approved, trip.status == "requested"), STATUS.get(trip.status, ""), "#sec-docs"),
-        ("จัดจ้าง/ยืมเงิน", st(buy_ok, made > 0 or bool(trip.loan_id)),
+        ("ข้อมูลการไป", st(0), trip.place or "", "#sec-info"),
+        ("คนที่ไป", st(1), f"นักเรียน {c['students']} · ครู {c['staff']}", "#sec-people"),
+        ("ค่าใช้จ่าย", st(2), f"{total_cost(trip):,.0f} บาท", "#sec-cost"),
+        ("ขออนุญาต", st(3), STATUS.get(trip.status, ""), "#sec-docs"),
+        ("จัดจ้าง/ยืมเงิน", st(4),
          (f"{made}/{len(groups)} เรื่อง" if groups else "") + (" · ยืมเงินแล้ว" if trip.loan_id else ""), "#sec-buy"),
-        ("หลังกลับ", st(trip.status == "reported", trip.status == "done"), "", "#sec-report"),
+        ("หลังกลับ", st(5), "", "#sec-report"),
     ]
 
 
@@ -294,7 +296,7 @@ def next_actions(trip) -> list:
     out = []
     if not (trip.place and trip.depart_at):
         out.append(("กรอกสถานที่และวันเดินทาง", "#sec-info"))
-    if not trip.controller_id or not c["students"]:
+    if not trip.ctrl_name or not c["students"]:
         out.append(("เลือกผู้ควบคุมและนักเรียนที่ไป", "#sec-people"))
     bad = [x for x in trip.costs if cost_warnings(x)]
     if bad:
@@ -323,8 +325,8 @@ def travel_costs(trip) -> list:
 def staff_people(trip) -> list:
     """[(ชื่อ, ตำแหน่ง, หน้าที่)] ผู้ควบคุมก่อน แล้วผู้ช่วย"""
     out = []
-    if trip.controller:
-        out.append((trip.controller.name, trip.controller.position or "ครู", "ผู้ควบคุม"))
+    if trip.ctrl_name:
+        out.append((trip.ctrl_name, trip.ctrl_pos or "ครู", "ผู้ควบคุม"))
     out += [(s.name, s.position or "ครู", "ผู้ช่วยผู้ควบคุม") for s in trip.staff]
     return out
 

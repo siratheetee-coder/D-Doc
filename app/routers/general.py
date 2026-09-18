@@ -294,6 +294,32 @@ def _trip_or_404(db, tid):
     return t
 
 
+def _project_label(p) -> str:
+    return f"{p.name} ({p.plan_year})" if p.plan_year else p.name
+
+
+def _project_from_text(db, text: str):
+    """ช่องโครงการแบบพิมพ์ค้นหา: ตรงกับ 'ชื่อ (ปี)' หรือชื่อโครงการ (ถ้าชื่อซ้ำหลายปี เอาปีล่าสุด)"""
+    from app.models import Project
+    text = (text or "").strip()
+    if not text:
+        return None
+    rows = db.query(Project).filter(Project.active == True).order_by(Project.plan_year.desc()).all()  # noqa: E712
+    for p in rows:
+        if _project_label(p) == text:
+            return p.id
+    for p in rows:
+        if p.name == text:
+            return p.id
+    return None
+
+
+def _person_by_name(db, name: str):
+    from app.models import Person
+    name = (name or "").strip()
+    return db.query(Person).filter(Person.name == name).first() if name else None
+
+
 def _dt(date_s: str, time_s: str = ""):
     from app.thai_utils import parse_be_date
     d = parse_be_date(date_s or "")
@@ -380,7 +406,9 @@ def trip_detail(tid: int, request: Request, db: Session = Depends(get_db), msg: 
         "travel_total": round(sum(ft.cost_amount(x, c) for x in ft.travel_costs(t)), 2),
         "cash": ft.cash_costs(t), "cash_labels": [ft.cost_label(x) for x in ft.cash_costs(t)],
         "cash_total": round(sum(ft.cost_amount(x, c) for x in ft.cash_costs(t)), 2),
-        "years": list(range(_be_year() - 1, _be_year() + 3)),
+        "project_label": _project_label(t.project) if t.project else "",
+        "person_pos": {p.name: p.position or "" for p in persons},
+        "need_assist": -(-c["students"] // ft.MAX_PER_ASSISTANT) if c["students"] else 0,
         "cost_warn": {x.id: ft.cost_warnings(x) for x in t.costs},
         "steps": ft.steps(t), "next": ft.next_actions(t), "loan": _loan(db, t),
         "has_proc": _has_module("procurement"), "has_fin": _has_module("finance"),
@@ -407,19 +435,28 @@ async def trip_save(tid: int, request: Request, db: Session = Depends(get_db)):
     t.return_at = _dt(g("return_date"), g("return_time"))
     t.request_date = _dt(g("request_date"))
     t.report_date = _dt(g("report_date"))
-    t.project_id = int(g("project_id")) if g("project_id").isdigit() else None
-    t.controller_id = int(g("controller_id")) if g("controller_id").isdigit() else None
+    t.project_id = _project_from_text(db, g("project_text"))
+    # ผู้ควบคุม: พิมพ์ชื่อเองหรือเลือกจากทะเบียน (ถ้าชื่อตรงกับทะเบียน ผูก Person ให้)
+    t.controller_name, t.controller_pos = g("controller_name"), g("controller_pos")
+    p = _person_by_name(db, t.controller_name)
+    t.controller_id = p.id if p else None
+    if p and not t.controller_pos:
+        t.controller_pos = p.position or ""
     keys = {k for k, _, _ in ft.checklist_items(t)}
     t.checklist = json.dumps([k for k in f.getlist("check") if k in keys])
 
-    # ผู้ช่วยผู้ควบคุม (ไม่ซ้ำกับผู้ควบคุม)
-    want = [int(x) for x in f.getlist("staff") if str(x).isdigit() and int(x) != t.controller_id]
+    # ผู้ช่วยผู้ควบคุม: รายชื่อพิมพ์เอง/เลือก (ไม่ซ้ำกันและไม่ซ้ำผู้ควบคุม)
     t.staff.clear()
     db.flush()
-    for i, pid in enumerate(dict.fromkeys(want)):
-        p = db.get(Person, pid)
-        if p:
-            t.staff.append(FieldTripStaff(person_id=p.id, name=p.name, position=p.position or "", seq=i))
+    seen = {t.controller_name}
+    for i, (nm, pos) in enumerate(zip(f.getlist("staff_name"), f.getlist("staff_pos"))):
+        nm, pos = (nm or "").strip(), (pos or "").strip()
+        if not nm or nm in seen:
+            continue
+        seen.add(nm)
+        p = _person_by_name(db, nm)
+        t.staff.append(FieldTripStaff(person_id=p.id if p else None, name=nm,
+                                      position=pos or ((p.position or "") if p else ""), seq=i))
 
     # นักเรียน: คงผลยินยอมเดิมของคนที่ยังอยู่ในรายชื่อ
     want_st = [int(x) for x in f.getlist("student") if str(x).isdigit()]
@@ -566,8 +603,7 @@ def trip_project_report(tid: int, db: Session = Depends(get_db)):
         rep = ProjectReport(
             project_id=t.project_id, title=t.title or "", date_start=t.depart_at, date_end=t.return_at,
             location=" จังหวัด".join(x for x in (t.place, t.province) if x),
-            responsible=t.controller.name if t.controller else "",
-            responsible_pos=(t.controller.position or "") if t.controller else "",
+            responsible=t.ctrl_name, responsible_pos=t.ctrl_pos,
             principles=t.principle or "",
             objectives=json.dumps(lines(t.objectives), ensure_ascii=False),
             target_qty=json.dumps(qty, ensure_ascii=False),
