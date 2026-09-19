@@ -48,6 +48,22 @@ def is_secondary(level: str) -> bool:
     return (level or "").strip().startswith("ม.")
 
 
+def level_key(level) -> tuple:
+    """คีย์เรียงระดับชั้นแบบที่คนอ่าน: อนุบาล -> ประถม -> มัธยม (ไม่ใช่ตามตัวอักษรที่ 'อ' ไปอยู่ท้าย)
+    รองรับ 'ป.1', 'ป.1/2', 'ป 1', 'ประถมศึกษาปีที่ 1' · ค่าที่ไม่รู้จักไปท้าย"""
+    import re
+    lv = (level or "").strip()
+    if lv in SCHOOL_LEVELS:
+        return (SCHOOL_LEVELS.index(lv), lv)
+    m = re.match(r"^(อนุบาล|ประถม|มัธยม|อ|ป|ม)[^\d]*(\d+)", lv)
+    if m:
+        head = {"อนุบาล": "อ", "ประถม": "ป", "มัธยม": "ม"}.get(m.group(1), m.group(1))
+        key = f"{head}.{int(m.group(2))}"
+        if key in SCHOOL_LEVELS:
+            return (SCHOOL_LEVELS.index(key), lv)
+    return (99, lv)
+
+
 def level_rank(level: str) -> int:
     """ลำดับของชั้นสำหรับเรียง - ชั้นที่ไม่อยู่ในลิสต์มาตรฐานไปอยู่ท้ายสุด"""
     try:

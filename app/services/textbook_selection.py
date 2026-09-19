@@ -42,6 +42,9 @@ def parse_selection(form, previous=()):
         rows.append({"key": key, **{field: text(field) for field in (
             "title", "level", "subject", "publisher", "source_id", "publication")},
             "price": price, "qty": qty, "selected": text("selected") == "1"})
+    # เรียงตามระดับชั้น (อนุบาล -> ประถม -> มัธยม) คงลำดับที่กรอกไว้ภายในชั้นเดียวกัน
+    from app.thai_utils import level_key
+    rows.sort(key=lambda r: level_key(r["level"])[0])
     return rows
 
 

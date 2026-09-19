@@ -22,6 +22,7 @@ from app.routers.pages import get_school, _to_int, _to_float, serve_generated
 
 from app.services.textbook_people import read_people, read_parties, PARTY_LABELS
 from app.services.textbook_selection import load_selection, parse_selection, selection_groups
+from app.thai_utils import level_key
 
 router = APIRouter()
 
@@ -51,8 +52,8 @@ def _issued_map(db, year: int) -> dict:
 @router.get("/textbooks", response_class=HTMLResponse)
 def textbooks_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
     yr = year or current_academic_year()
-    books = (db.query(TextBook).filter_by(year=yr)
-             .order_by(TextBook.level, TextBook.subject, TextBook.title).all())
+    books = sorted(db.query(TextBook).filter_by(year=yr).all(),
+                   key=lambda b: (level_key(b.level), b.subject or "", b.title or ""))
     issued = _issued_map(db, yr)
     rows = [{"b": b, "issued": issued.get(b.id, 0),
              "left": (b.qty_received or 0) - issued.get(b.id, 0)} for b in books]
@@ -127,8 +128,8 @@ def _book_groups(db, yr) -> list:
         lv = (st.level or "").strip()
         if lv:
             counts[lv] = counts.get(lv, 0) + 1
-    books = (db.query(TextBook).filter_by(year=yr)
-             .order_by(TextBook.level, TextBook.title).all())
+    books = sorted(db.query(TextBook).filter_by(year=yr).all(),
+                   key=lambda b: (level_key(b.level), b.title or ""))
     by_level = {}
     for b in books:
         lv = (b.level or "").strip()
@@ -189,8 +190,8 @@ def _survey_groups(db, yr) -> list:
     if tp is not None and tp.selection_items is not None:
         return selection_groups(load_selection(tp.selection_items), SCHOOL_LEVELS, selected_only=False)
     counts = _student_counts(db)
-    books = (db.query(TextBook).filter_by(year=yr)
-             .order_by(TextBook.level, TextBook.title).all())
+    books = sorted(db.query(TextBook).filter_by(year=yr).all(),
+                   key=lambda b: (level_key(b.level), b.title or ""))
     by = {}
     for b in books:
         lv = (b.level or "").strip()
@@ -441,8 +442,8 @@ def berk_page(request: Request, db: Session = Depends(get_db), year: int | None 
     (ใบเบิกแบบเก่ายังเปิดดูได้ในตารางด้านล่าง แต่ไม่สร้างใหม่แล้ว)"""
     from app.models import Person, Student, AcadClass, Requisition
     yr = year or current_academic_year()
-    books = (db.query(TextBook).filter_by(year=yr)
-             .order_by(TextBook.level, TextBook.title).all())
+    books = sorted(db.query(TextBook).filter_by(year=yr).all(),
+                   key=lambda b: (level_key(b.level), b.title or ""))
     mat_ready = {b.id for b in books
                  if db.query(MaterialItem).filter_by(book_id=b.id).first()}
 
@@ -668,8 +669,8 @@ def textbook_export(db: Session = Depends(get_db), year: int | None = None):
     from openpyxl import Workbook
     from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
     yr = year or current_academic_year()
-    books = (db.query(TextBook).filter_by(year=yr)
-             .order_by(TextBook.level, TextBook.subject, TextBook.title).all())
+    books = sorted(db.query(TextBook).filter_by(year=yr).all(),
+                   key=lambda b: (level_key(b.level), b.subject or "", b.title or ""))
     issued = _issued_map(db, yr)
     school = get_school(db)
     wb = Workbook(); ws = wb.active; ws.title = f"หนังสือเรียน {yr}"[:31]

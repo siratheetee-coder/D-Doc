@@ -90,7 +90,7 @@
   <div class="tp-kpis">
     <div class="tp-kpi"><div class="l">นักเรียน</div><div class="v">{{ c.students }}</div></div>
     <div class="tp-kpi"><div class="l">ผู้ควบคุม + ผู้ช่วย</div><div class="v">{{ c.staff }}</div></div>
-    <div class="tp-kpi"><div class="l">ค่าใช้จ่ายประมาณการ</div><div class="v">{{ "{:,.2f}".format(total) }}</div></div>
+    <div class="tp-kpi"><div class="l">ค่าใช้จ่ายประมาณการ</div><div class="v" id="kpiTotal">{{ "{:,.2f}".format(total) }}</div></div>
     {% if proj %}<div class="tp-kpi {{ 'bad' if total > proj.remaining }}"><div class="l">งบโครงการคงเหลือ</div><div class="v">{{ "{:,.2f}".format(proj.remaining) }}</div></div>{% endif %}
   </div>
 </div>
@@ -207,15 +207,15 @@
         <div class="ref">{{ k.hint ~ ' · ' if k.hint }}{{ k.ref }}</div>
         <div class="amt">{{ "{:,.2f}".format(amounts[x.id]) }} บาท</div>
       </div>
-      {% for w in cost_warn[x.id] %}<div class="bad">⚠ {{ w }}</div>{% endfor %}
+      <div class="live-warn">{% for w in cost_warn[x.id] %}<div class="bad">⚠ {{ w }}</div>{% endfor %}</div>
     </div>
     {% endfor %}
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
     <button type="button" class="btn sm gbtn g" onclick="addCost()">+ เพิ่มรายการ</button>
-    <span style="margin-left:auto; font-size:17px;">รวม <b>{{ "{:,.2f}".format(total) }}</b> บาท</span>
+    <span style="margin-left:auto; font-size:17px;">รวม <b id="costTotal">{{ "{:,.2f}".format(total) }}</b> บาท</span>
   </div>
-  <p class="tp-note">ยอดเงินคำนวณใหม่หลังกด "บันทึก"</p>
+  <p class="tp-note">ยอดเงินคำนวณทันทีตามจำนวนนักเรียน/ครูที่เลือกอยู่ · กด "บันทึก" เพื่อเก็บ</p>
 </div>
 
 <div class="tp-card" id="sec-sched" style="--g1:#0ea5e9; --g2:#6366f1;">
@@ -395,13 +395,15 @@
         <button type="button" class="vd-add" onclick="openVendor(this)">+ เพิ่มผู้ขาย/ผู้รับจ้างใหม่</button></div>
       <div><button type="button" class="btn sm soft" onclick="this.closest('.cost-row').remove()">ลบ</button></div>
     </div>
-    <div class="ref"></div>
+    <div style="display:flex; gap:10px; justify-content:space-between; align-items:flex-end; flex-wrap:wrap;">
+      <div class="ref"></div><div class="amt">0.00 บาท</div></div>
+    <div class="live-warn"></div>
   </div>
 </template>
 {{ dmy_script() }}
 <script>
 const KINDS = {{ kinds|tojson }};
-function addCost(){ document.getElementById('costs').appendChild(document.getElementById('cost-row').content.cloneNode(true)); }
+function addCost(){ document.getElementById('costs').appendChild(document.getElementById('cost-row').content.cloneNode(true)); recalc(); }
 function kindChanged(sel){
   const row = sel.closest('.cost-row'), k = KINDS[sel.value] || KINDS.other;
   row.querySelector('[name=cost_item]').style.display = sel.value === 'other' ? '' : 'none';
@@ -431,6 +433,34 @@ function addStaff(){
 }
 // main มี transform ทำให้ position:fixed อิงกับเนื้อหา -> ย้ายปุ่มบันทึกไปเป็นลูกของ body (ผูกฟอร์มด้วย form=)
 document.body.appendChild(document.getElementById('saveFab'));
+// ---------- คำนวณค่าใช้จ่ายทันที (ไม่ต้องกดบันทึก) ----------
+const fmt = n => n.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const num = v => { const x = parseFloat(String(v || '').replace(/,/g, '')); return isFinite(x) ? x : 0; };
+function heads(){
+  const students = document.querySelectorAll('input[name=student]:checked').length;
+  const ctrl = (document.querySelector('[name=controller_name]').value || '').trim() ? 1 : 0;
+  const staff = ctrl + [...document.querySelectorAll('[name=staff_name]')].filter(i => i.value.trim()).length;
+  return {student: students, staff: staff, person: students + staff, lump: 1};
+}
+function recalc(){
+  const h = heads(); let total = 0;
+  document.querySelectorAll('#costs .cost-row').forEach(row => {
+    const kind = row.querySelector('[name=cost_kind]').value, k = KINDS[kind] || KINDS.other;
+    const basis = row.querySelector('[name=cost_basis]').value;
+    const rate = num(row.querySelector('[name=cost_rate]').value), times = num(row.querySelector('[name=cost_times]').value);
+    const amt = Math.round(rate * (h[basis] ?? 1) * times * 100) / 100; total += amt;
+    const a = row.querySelector('.amt'); if (a) a.textContent = fmt(amt) + ' บาท';
+    const w = [];
+    if (k.cap && rate > k.cap) w.push('อัตรา ' + fmt(rate) + ' บาท เกินเพดาน ' + k.cap.toLocaleString() + ' บาท (' + k.ref + ')');
+    if (row.querySelector('[name=cost_pay]').value === 'procure' && !row.querySelector('[name=cost_vendor]').value) w.push('ยังไม่ได้เลือกผู้ขาย/ผู้รับจ้าง');
+    const box = row.querySelector('.live-warn'); if (box) box.innerHTML = w.map(x => '<div class="bad">⚠ ' + x + '</div>').join('');
+  });
+  document.getElementById('costTotal').textContent = fmt(total);
+  document.getElementById('kpiTotal').textContent = fmt(total);
+}
+document.getElementById('tripForm').addEventListener('input', recalc);
+document.getElementById('tripForm').addEventListener('change', recalc);
+document.addEventListener('click', e => { if (e.target.closest('#costs, #sec-people, #staffRows')) setTimeout(recalc, 0); });
 function checkAll(on){ document.querySelectorAll('#sec-check input[name=check]').forEach(i => i.checked = on); }
 function resultChanged(){
   const bad = document.querySelector('input[name=result][value="ไม่เรียบร้อย"]').checked;
@@ -462,7 +492,7 @@ async function saveVendor(){
   const tpl = document.getElementById('cost-row').content.querySelector('select[name=cost_vendor]');
   if (![...tpl.options].some(o => o.value == j.id)) tpl.add(new Option(j.name, j.id));
   if (vendorSel) vendorSel.value = j.id;
-  closeVendor();
+  closeVendor(); recalc();
 }
 function pickAll(ev, btn, on){ ev.preventDefault(); const d = btn.closest('details'); d.querySelectorAll('input[name=student]').forEach(i => i.checked = on); d.open = true; }
 // ช่องผู้ขายที่ถูก disable จะไม่ถูกส่ง -> เปิดคืนก่อนส่งให้จำนวนคอลัมน์ตรงกันทุกแถว

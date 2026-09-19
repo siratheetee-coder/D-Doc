@@ -88,7 +88,9 @@ def _class_label(stu: Student) -> str:
 
 def _student_rows(db: Session):
     """รายชื่อนักเรียนทั้งหมด (เรียงชั้น/ห้อง/ชื่อ) สำหรับช่องค้นหา"""
-    studs = db.query(Student).order_by(Student.level, Student.room, Student.name).all()
+    from app.thai_utils import level_key
+    studs = sorted(db.query(Student).all(),
+                   key=lambda s: (level_key(s.level), int(s.room) if (s.room or "").isdigit() else 999, s.name or ""))
     return [{"id": s.id, "name": s.name, "no": s.student_no or "",
              "cls": _class_label(s)} for s in studs]
 
@@ -387,7 +389,10 @@ def trip_detail(tid: int, request: Request, db: Session = Depends(get_db), msg: 
     school = get_school(db)
     c = ft.counts(t)
     persons = db.query(Person).filter(Person.active == True).order_by(Person.id).all()  # noqa: E712
-    students = db.query(Student).order_by(Student.level, Student.room, Student.student_no, Student.name).all()
+    from app.thai_utils import level_key
+    students = sorted(db.query(Student).all(),
+                      key=lambda s: (level_key(s.level), int(s.room) if (s.room or "").isdigit() else 999,
+                                     s.student_no or "", s.name or ""))
     projects = (db.query(Project).filter(Project.active == True)  # noqa: E712
                 .order_by(Project.plan_year.desc(), Project.name).all())
     proj = None
@@ -481,8 +486,11 @@ async def trip_save(tid: int, request: Request, db: Session = Depends(get_db)):
     old = {s.student_id: s.consent for s in t.students}
     t.students.clear()
     db.flush()
-    for i, sid in enumerate(dict.fromkeys(want_st)):
-        s = db.get(Student, sid)
+    from app.thai_utils import level_key
+    picked = [s for s in (db.get(Student, sid) for sid in dict.fromkeys(want_st)) if s]
+    picked.sort(key=lambda s: (level_key(s.level), int(s.room) if (s.room or "").isdigit() else 999,
+                               s.student_no or "", s.name or ""))
+    for i, s in enumerate(picked):
         if s:
             t.students.append(FieldTripStudent(student_id=s.id, name=s.name, sex=s.sex or "",
                                                level=s.level or "", room=s.room or "", seq=i,

@@ -1952,7 +1952,7 @@ class FieldTrip(Base):
     staff = relationship("FieldTripStaff", back_populates="trip", cascade="all, delete-orphan",
                          order_by="FieldTripStaff.seq")
     students = relationship("FieldTripStudent", back_populates="trip", cascade="all, delete-orphan",
-                            order_by="(FieldTripStudent.level, FieldTripStudent.room, FieldTripStudent.seq)")
+                            order_by="FieldTripStudent.seq")   # seq เรียงตามชั้น (อนุบาล->ประถม->มัธยม) ตอนบันทึก
     costs = relationship("FieldTripCost", back_populates="trip", cascade="all, delete-orphan",
                          order_by="FieldTripCost.seq")
 
