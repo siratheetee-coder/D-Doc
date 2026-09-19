@@ -83,6 +83,19 @@
   .doc-tile .di{ min-width:36px; padding:0 4px; font-size:12px; font-weight:800; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#fff;
     background:linear-gradient(135deg,#06b6d4,#4f46e5); flex:0 0 36px; }
   .doc-tile small{ display:block; color:var(--muted); font-size:12px; }
+
+  /* ไม่ใช้เส้นขอบ (outline) - แยกกล่องด้วยพื้นหลัง/เงาอ่อน */
+  .tp-kpi, .tp-step, .tp-next, .tp-next a.item, .tp-card, .stu-room, .cost-row, .buy-grp, .doc-tile, .tp-card .alert { border:0 !important; }
+  .tp-step{ box-shadow:0 4px 14px rgba(15,23,42,.06); }
+  .tp-next a.item{ box-shadow:0 2px 8px rgba(245,158,11,.12); }
+  .tp-next a.item:hover{ box-shadow:0 6px 16px rgba(245,158,11,.25); }
+  .tp-card{ box-shadow:0 8px 24px rgba(15,23,42,.06); }
+  .stu-room, .cost-row{ background:#f6f8fc; box-shadow:none; }
+  .buy-grp{ box-shadow:none; }
+  .doc-tile{ box-shadow:0 3px 10px rgba(79,70,229,.08); }
+  .doc-tile:hover{ box-shadow:0 8px 20px rgba(79,70,229,.18); }
+  .tp-sub{ border-top:0 !important; }
+  .tp-card > h2{ border:0 !important; background:none !important; padding:0 !important; margin-bottom:6px !important; }
 </style>
 
 <div class="tp-hero">
