@@ -55,7 +55,18 @@
   </div>
   <div class="hero-meta" style="color:var(--muted); margin-top:4px;">
     โครงการ {{ p.name }}{% if p.plan_year %} · {{ year_label }} {{ p.plan_year }}{% endif %}</div>
-  {% if saved %}<div class="alert">✔ บันทึกเรียบร้อยแล้ว</div>{% endif %}
+  {% if saved and saved.startswith('ai') %}<div class="alert">✔ AI เติมข้อมูลจากเอกสารโครงการแล้ว {{ saved[2:] }} หัวข้อ (เติมเฉพาะช่องที่ว่าง) - ตรวจทานก่อนออกเอกสาร</div>
+  {% elif saved %}<div class="alert">✔ บันทึกเรียบร้อยแล้ว</div>{% endif %}
+  {% if err %}<div class="alert" style="background:#fde8e8; color:#991b1b;">{{ err }}</div>{% endif %}
+  <form method="post" action="/project-reports/{{ rep.id }}/ai-fill" enctype="multipart/form-data"
+        style="margin-top:10px; padding:12px 14px; border-radius:14px; background:linear-gradient(135deg,#eef2ff,#f5f3ff);
+               border:1px solid #c7d2fe; display:flex; gap:10px; align-items:center; flex-wrap:wrap;"
+        onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='AI กำลังอ่าน...';">
+    <span style="font-weight:700;">✨ ให้ AI กรอกจากเอกสารโครงการ</span>
+    <input type="file" name="file" accept=".pdf,.docx,.png,.jpg,.jpeg" required style="flex:1 1 220px; min-width:0;">
+    <button class="btn sm" type="submit" style="background:linear-gradient(135deg,#8b5cf6,#6366f1); color:#fff; border:none;">อัปโหลดให้ AI กรอก</button>
+    <span class="rp-hint" style="flex-basis:100%; margin:0;">อัปโหลดไฟล์โครงการที่โรงเรียนเขียนไว้ (PDF/Word) · AI เติมหลักการ วัตถุประสงค์ เป้าหมาย ขั้นตอน ตัวชี้วัด ให้เฉพาะช่องที่ยังว่าง</span>
+  </form>
   <p class="rp-hint" style="margin-top:8px;">กรอกเท่าที่มี — <b>หัวข้อที่เว้นว่างจะไม่ขึ้นในเอกสาร</b>
     และเลขข้อจะไล่ใหม่ให้เอง ไม่ต้องมานั่งลบทีหลัง</p>
 </div>

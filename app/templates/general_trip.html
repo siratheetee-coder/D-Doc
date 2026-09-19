@@ -42,6 +42,8 @@
   .tp-grid .full{ grid-column:1/-1; }
   .tp-when{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px 14px; }
   @media (max-width:760px){ .tp-when{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  .sch-row{ display:grid; grid-template-columns:1.2fr 1.3fr 3fr auto; gap:8px; margin:0 0 6px; }
+  @media (max-width:760px){ .sch-row{ grid-template-columns:1fr 1fr; } }
   .staff-row{ display:grid; grid-template-columns:2fr 1.2fr auto; gap:8px; margin:0 0 6px; }
   .tp-step.todo{ opacity:.8; }
   .tp-warn{ display:flex; gap:8px; padding:8px 12px; border-radius:10px; margin:6px 0; font-size:14px; }
@@ -135,7 +137,7 @@
     <div><label>พักค้างที่ (เฉพาะพักแรม)</label><input name="lodging" value="{{ t.lodging }}"></div>
     <div><label>วันที่ยื่นขออนุญาต</label>{{ date_input("request_date", t.request_date) }}
       <p class="tp-note">ต้องก่อนวันเดินทางไม่น้อยกว่า 15 วัน (ข้อ 9)</p></div>
-    <div><label>เรียน (ผู้อนุญาต)</label><input name="request_to" value="{{ t.request_to }}" placeholder="{{ approver }}"></div>
+    <div><label>เรียน (ผู้อนุญาต)</label><input name="request_to" value="{{ t.request_to or approver }}"></div>
   </div>
 </div>
 
@@ -192,7 +194,8 @@
           <select name="cost_pay" onchange="payChanged(this)">{% for key, v in pays.items() %}<option value="{{ key }}" {{ 'selected' if key == x.pay_method }}>{{ v }}</option>{% endfor %}</select></div>
         <div><label>ผู้ขาย/ผู้รับจ้าง</label>
           <select name="cost_vendor" {{ '' if x.pay_method == 'procure' else 'disabled' }}><option value="">- เลือก -</option>
-            {% for v in vendors %}<option value="{{ v.id }}" {{ 'selected' if v.id == x.vendor_id }}>{{ v.name }}</option>{% endfor %}</select></div>
+            {% for v in vendors %}<option value="{{ v.id }}" {{ 'selected' if v.id == x.vendor_id }}>{{ v.name }}</option>{% endfor %}
+            <option value="__new">+ เพิ่มผู้ขาย/ผู้รับจ้างใหม่...</option></select></div>
         <div><button type="button" class="btn sm soft" onclick="this.closest('.cost-row').remove()">ลบ</button></div>
       </div>
       <div style="display:flex; gap:10px; justify-content:space-between; align-items:flex-end; flex-wrap:wrap;">
@@ -205,21 +208,26 @@
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
     <button type="button" class="btn sm gbtn g" onclick="addCost()">+ เพิ่มรายการ</button>
-    <button type="button" class="btn sm soft" onclick="document.getElementById('vendorBox').hidden=false">+ เพิ่มผู้ขายรายใหม่</button>
     <span style="margin-left:auto; font-size:17px;">รวม <b>{{ "{:,.2f}".format(total) }}</b> บาท</span>
   </div>
   <p class="tp-note">ยอดเงินคำนวณใหม่หลังกด "บันทึก"</p>
 </div>
 
-<div class="tp-card" id="sec-plan" style="--g1:#0ea5e9; --g2:#6366f1;">
-  <h2><span class="ic">4</span> รายละเอียดโครงการ (หัวข้อตามข้อ 9)</h2>
-  <div class="tp-grid">
-    <div class="full"><label>หลักการและเหตุผล</label><textarea name="principle" rows="3">{{ t.principle }}</textarea></div>
-    <div><label>วัตถุประสงค์ (บรรทัดละข้อ)</label><textarea name="objectives" rows="4">{{ t.objectives }}</textarea></div>
-    <div><label>เป้าหมาย (บรรทัดละข้อ)</label><textarea name="targets" rows="4">{{ t.targets }}</textarea></div>
-    <div><label>ขั้นตอนการดำเนินงาน (บรรทัดละข้อ)</label><textarea name="steps" rows="4">{{ t.steps }}</textarea></div>
-    <div><label>แผนสำรองกรณีเหตุฉุกเฉิน (บรรทัดละข้อ)</label><textarea name="emergency_plan" rows="4">{{ t.emergency_plan }}</textarea></div>
-    <div class="full"><label>หน่วยงาน/ผู้รับผิดชอบโครงการ</label><input name="responsible" value="{{ t.responsible }}"></div>
+<div class="tp-card" id="sec-sched" style="--g1:#0ea5e9; --g2:#6366f1;">
+  <h2><span class="ic">🕘</span> กำหนดการ</h2>
+  <p class="tp-note">ใช้ออกเอกสาร "กำหนดการ" · เว้นช่องวันว่างได้ (ใส่เฉพาะแถวที่ขึ้นวันใหม่ เมื่อไปหลายวัน)</p>
+  <div id="schedRows">
+    {% for r in schedule %}
+    <div class="sch-row"><input name="sch_day" value="{{ r.day }}" placeholder="วัน (ถ้าหลายวัน)">
+      <input name="sch_time" value="{{ r.time }}" placeholder="07.00 - 08.00 น.">
+      <input name="sch_act" value="{{ r.act }}" placeholder="กิจกรรม">
+      <button type="button" class="btn sm soft" onclick="this.parentNode.remove()">ลบ</button></div>
+    {% endfor %}
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
+    <button type="button" class="btn sm gbtn" onclick="addSched()">+ เพิ่มแถว</button>
+    <button type="submit" class="btn sm soft" name="sch_default" value="1"
+      {% if schedule %}onclick="return confirm('แทนที่กำหนดการเดิมด้วยตัวอย่าง?')"{% endif %}>ใส่กำหนดการตัวอย่าง (จากเวลาไป-กลับ)</button>
   </div>
 </div>
 
@@ -230,16 +238,26 @@
   <label style="display:flex; gap:8px; font-weight:400; margin:6px 0;"><input type="checkbox" name="check" value="{{ key }}" {{ 'checked' if key in done }} style="width:auto;">
     <span>{{ label }} <span class="muted">({{ ref }})</span></span></label>
   {% endfor %}
+  <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+    <button type="button" class="btn sm gbtn g" onclick="checkAll(true)">✓ เตรียมการครบทุกข้อเรียบร้อยแล้ว</button>
+    <button type="button" class="btn sm soft" onclick="checkAll(false)">ล้างทั้งหมด</button>
+  </div>
 </div>
 
 <div class="tp-card" id="sec-report" style="--g1:#64748b; --g2:#334155;">
   <h2><span class="ic">6</span> รายงานผลหลังกลับ (ข้อ 13)</h2>
+  <p class="tp-note">ติ๊กผลและวันที่รายงาน ระบบเขียนบันทึกรายงานผลให้เอง · เลือก "ไม่เรียบร้อย" จึงต้องเขียนรายละเอียด</p>
   <div class="tp-grid">
     <div><label>การพาไปครั้งนี้เป็นไปด้วยความ</label>
-      <select name="result"><option value="">-</option>
-        {% for v in ("เรียบร้อย", "ไม่เรียบร้อย") %}<option {{ 'selected' if t.result == v }}>{{ v }}</option>{% endfor %}</select></div>
+      <div style="display:flex; gap:18px; padding:8px 0;">
+        {% for v in ("เรียบร้อย", "ไม่เรียบร้อย") %}
+        <label style="display:flex; gap:6px; align-items:center; font-weight:600; margin:0;">
+          <input type="radio" name="result" value="{{ v }}" {{ 'checked' if t.result == v }} style="width:auto;" onchange="resultChanged()"> {{ v }}</label>
+        {% endfor %}
+      </div></div>
     <div><label>วันที่รายงาน</label>{{ date_input("report_date", t.report_date) }}</div>
-    <div class="full"><label>ชี้แจงรายละเอียด</label><textarea name="result_detail" rows="3">{{ t.result_detail }}</textarea></div>
+    <div class="full" id="badBox" {{ '' if t.result == 'ไม่เรียบร้อย' else 'hidden' }}><label>รายละเอียดเหตุการณ์ที่ไม่เรียบร้อย</label>
+      <textarea name="result_detail" rows="3" placeholder="เช่น รถขัดข้องระหว่างทาง ... ได้ประสานรถสำรอง ... นักเรียนทุกคนปลอดภัย">{{ t.result_detail }}</textarea></div>
   </div>
 </div>
 
@@ -316,12 +334,16 @@
   <h2><span class="ic">📄</span> เอกสาร</h2>
   <p class="tp-note">กด "บันทึก" ก่อนดาวน์โหลดทุกครั้ง · แบบ 3 ฉบับแรกยกจากแบบท้าย{{ reg }}</p>
   <div class="docs-grid">
-    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/request.docx"><span class="di">1</span><span>แบบขออนุญาตผู้บังคับบัญชา<small>ยื่นก่อนเดินทาง ≥ 15 วัน</small></span></a>
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/request.docx"><span class="di">1</span><span>บันทึกข้อความขออนุญาต<small>เสนอ ผอ. · ยื่นก่อนเดินทาง ≥ 15 วัน</small></span></a>
+    {% if t.trip_type != 'day' %}<a class="doc-tile" href="/general/trips/{{ t.id }}/doc/request_form.docx"><span class="di">1ข</span><span>แบบขออนุญาตท้ายระเบียบ<small>ส่ง{{ types[t.trip_type].approver }}</small></span></a>{% endif %}
     <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/parents.docx"><span class="di">2</span><span>หนังสือขออนุญาตผู้ปกครอง<small>{{ c.students or 1 }} หน้า · หน้าละคน</small></span></a>
-    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/project.docx"><span class="di">3</span><span>โครงการ + รายชื่อ + งบประมาณ<small>หัวข้อตามข้อ 9</small></span></a>
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/schedule.docx"><span class="di">3</span><span>กำหนดการ<small>{{ schedule|length or 'ตัวอย่าง' }}{{ ' แถว' if schedule }}</small></span></a>
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/signin_students.docx"><span class="di">4</span><span>ใบลงเวลานักเรียน<small>ลงชื่อ เวลามา/กลับ · {{ c.students }} คน</small></span></a>
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/signin_staff.docx"><span class="di">5</span><span>ใบลงเวลาครู<small>ผู้ควบคุม + ผู้ช่วย · {{ c.staff }} คน</small></span></a>
     {% if allow_total %}<a class="doc-tile" href="/general/trips/{{ t.id }}/doc/allowance.docx"><span class="di">฿</span><span>ใบสำคัญรับเงินนักเรียน (เอกสารแนบ 2)<small>ค่าอาหารเหมาจ่าย ตาม ว 2983</small></span></a>{% endif %}
     {% if travel_total %}<a class="doc-tile" href="/general/trips/{{ t.id }}/doc/travel.docx"><span class="di">8708</span><span>ใบเบิกค่าเดินทางไปราชการ (แบบ 8708)<small>ครูผู้ควบคุม · {{ "{:,.2f}".format(travel_total) }} บาท</small></span></a>{% endif %}
-    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/report.docx"><span class="di">4</span><span>แบบรายงานผล<small>หลังกลับ (ข้อ 13)</small></span></a>
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/report.docx"><span class="di">6</span><span>บันทึกรายงานผล<small>หลังกลับ (ข้อ 13)</small></span></a>
+    {% if t.trip_type != 'day' %}<a class="doc-tile" href="/general/trips/{{ t.id }}/doc/report_form.docx"><span class="di">6ข</span><span>แบบรายงานผลท้ายระเบียบ<small>ส่ง{{ types[t.trip_type].approver }}</small></span></a>{% endif %}
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
     <form method="post" action="/general/trips/{{ t.id }}/order" style="margin:0;">
@@ -361,18 +383,20 @@
   {% else %}<p class="muted">ยังไม่ได้เลือกนักเรียน</p>{% endif %}
 </div>
 
-<div class="tp-card" id="vendorBox" hidden style="--g1:#10b981; --g2:#0891b2;">
-  <h2><span class="ic">+</span> เพิ่มผู้ขาย/ผู้รับจ้างรายใหม่</h2>
-  <p class="tp-note">บันทึกลงทะเบียนผู้ขายเดียวกับงานพัสดุ · กดบันทึกข้อมูลทัศนศึกษาก่อน ไม่งั้นที่แก้ค้างไว้จะหาย</p>
-  <form method="post" action="/general/trips/{{ t.id }}/vendor" class="tp-grid">
-    <div><label>ชื่อร้าน/บริษัท/ผู้รับจ้าง</label><input name="name" required></div>
-    <div><label>เจ้าของ/ผู้มีอำนาจลงนาม</label><input name="owner_name"></div>
-    <div><label>เลขประจำตัวผู้เสียภาษี</label><input name="tax_id" inputmode="numeric" maxlength="13"></div>
-    <div><label>โทรศัพท์</label><input name="phone"></div>
-    <div class="full"><label>ที่อยู่</label><input name="address"></div>
-    <div><button class="btn gbtn g" type="submit">เพิ่มผู้ขาย</button></div>
-  </form>
-</div>
+<dialog id="vendorDlg" style="border:none; border-radius:18px; padding:0; width:min(560px,94vw); box-shadow:0 24px 60px rgba(15,23,42,.35);">
+  <div style="background:linear-gradient(135deg,#10b981,#0891b2); color:#fff; padding:14px 18px; font-weight:800; font-size:17px;">+ เพิ่มผู้ขาย/ผู้รับจ้างรายใหม่</div>
+  <div style="padding:16px 18px;" class="tp-grid">
+    <div class="full"><label>ชื่อร้าน/บริษัท/ผู้รับจ้าง *</label><input id="vd_name"></div>
+    <div><label>เจ้าของ/ผู้มีอำนาจลงนาม</label><input id="vd_owner"></div>
+    <div><label>เลขประจำตัวผู้เสียภาษี</label><input id="vd_tax" inputmode="numeric" maxlength="13"></div>
+    <div><label>โทรศัพท์</label><input id="vd_phone"></div>
+    <div class="full"><label>ที่อยู่</label><input id="vd_addr"></div>
+    <p class="tp-note full" id="vd_err" style="color:#b91c1c;"></p>
+    <div class="full" style="display:flex; gap:8px; justify-content:flex-end;">
+      <button type="button" class="btn sm soft" onclick="closeVendor(false)">ยกเลิก</button>
+      <button type="button" class="btn sm gbtn g" onclick="saveVendor()">บันทึกผู้ขาย</button></div>
+  </div>
+</dialog>
 
 <form method="post" action="/general/trips/{{ t.id }}/delete" onsubmit="return confirm('ลบการไปทัศนศึกษานี้?')" style="text-align:right;">
   <button class="btn sm gray" type="submit">ลบการไปทัศนศึกษานี้</button>
@@ -388,7 +412,7 @@
       <div><label>อัตรา (บาท)</label><input name="cost_rate" inputmode="decimal" value="0"></div>
       <div><label>ครั้ง</label><input name="cost_times" inputmode="decimal" value="1"></div>
       <div><label>วิธีจ่าย</label><select name="cost_pay" onchange="payChanged(this)">{% for key, v in pays.items() %}<option value="{{ key }}">{{ v }}</option>{% endfor %}</select></div>
-      <div><label>ผู้ขาย/ผู้รับจ้าง</label><select name="cost_vendor"><option value="">- เลือก -</option>{% for v in vendors %}<option value="{{ v.id }}">{{ v.name }}</option>{% endfor %}</select></div>
+      <div><label>ผู้ขาย/ผู้รับจ้าง</label><select name="cost_vendor"><option value="">- เลือก -</option>{% for v in vendors %}<option value="{{ v.id }}">{{ v.name }}</option>{% endfor %}<option value="__new">+ เพิ่มผู้ขาย/ผู้รับจ้างใหม่...</option></select></div>
       <div><button type="button" class="btn sm soft" onclick="this.closest('.cost-row').remove()">ลบ</button></div>
     </div>
     <div class="ref"></div>
@@ -423,6 +447,41 @@ function addStaff(){
     + '<input name="staff_pos" placeholder="ตำแหน่ง">'
     + '<button type="button" class="btn sm soft" onclick="this.parentNode.remove()">ลบ</button>';
   document.getElementById('staffRows').appendChild(d); bindPerson(d.firstChild); d.firstChild.focus();
+}
+function checkAll(on){ document.querySelectorAll('#sec-check input[name=check]').forEach(i => i.checked = on); }
+function resultChanged(){
+  const bad = document.querySelector('input[name=result][value="ไม่เรียบร้อย"]').checked;
+  document.getElementById('badBox').hidden = !bad;
+}
+function addSched(){
+  const d = document.createElement('div'); d.className = 'sch-row';
+  d.innerHTML = '<input name="sch_day" placeholder="วัน (ถ้าหลายวัน)"><input name="sch_time" placeholder="07.00 - 08.00 น.">'
+    + '<input name="sch_act" placeholder="กิจกรรม"><button type="button" class="btn sm soft" onclick="this.parentNode.remove()">ลบ</button>';
+  document.getElementById('schedRows').appendChild(d); d.children[1].focus();
+}
+let vendorSel = null;
+document.addEventListener('change', function(e){
+  if (e.target.name === 'cost_vendor' && e.target.value === '__new'){
+    vendorSel = e.target; e.target.value = '';
+    ['vd_name','vd_owner','vd_tax','vd_phone','vd_addr','vd_err'].forEach(id => { const el = document.getElementById(id); if (el.tagName === 'P') el.textContent = ''; else el.value = ''; });
+    document.getElementById('vendorDlg').showModal(); document.getElementById('vd_name').focus();
+  }
+});
+function closeVendor(){ document.getElementById('vendorDlg').close(); vendorSel = null; }
+async function saveVendor(){
+  const fd = new FormData();
+  fd.append('name', vd_name.value); fd.append('owner_name', vd_owner.value); fd.append('tax_id', vd_tax.value);
+  fd.append('phone', vd_phone.value); fd.append('address', vd_addr.value);
+  const r = await fetch('/general/trips/{{ t.id }}/vendor.json', {method: 'POST', body: fd});
+  const j = await r.json();
+  if (!r.ok) { vd_err.textContent = j.error || 'บันทึกไม่สำเร็จ'; return; }
+  document.querySelectorAll('select[name=cost_vendor]').forEach(sel => {
+    if (![...sel.options].some(o => o.value == j.id)) sel.add(new Option(j.name, j.id), sel.options[sel.options.length - 1]);
+  });
+  const tpl = document.getElementById('cost-row').content.querySelector('select[name=cost_vendor]');
+  if (![...tpl.options].some(o => o.value == j.id)) tpl.add(new Option(j.name, j.id), tpl.options[tpl.options.length - 1]);
+  if (vendorSel) vendorSel.value = j.id;
+  closeVendor();
 }
 function pickAll(ev, btn, on){ ev.preventDefault(); const d = btn.closest('details'); d.querySelectorAll('input[name=student]').forEach(i => i.checked = on); d.open = true; }
 // ช่องผู้ขายที่ถูก disable จะไม่ถูกส่ง -> เปิดคืนก่อนส่งให้จำนวนคอลัมน์ตรงกันทุกแถว

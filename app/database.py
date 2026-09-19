@@ -35,6 +35,7 @@ Base = declarative_base()
 
 # รายการเพิ่มคอลัมน์ใหม่บน DB เก่า (ปลอดภัย: ข้ามถ้ามีอยู่แล้ว)
 MIGRATIONS = [
+    ("field_trip", "schedule", "TEXT DEFAULT ''"),
     ("field_trip", "controller_name", "VARCHAR DEFAULT ''"),
     ("field_trip", "controller_pos", "VARCHAR DEFAULT ''"),
     ("field_trip", "loan_id", "INTEGER"),

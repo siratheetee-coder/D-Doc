@@ -1927,6 +1927,7 @@ class FieldTrip(Base):
     steps = Column(Text, default="")                # ขั้นตอนการดำเนินงาน (บรรทัดละข้อ)
     responsible = Column(String, default="")        # หน่วยงาน/ผู้รับผิดชอบโครงการ
     emergency_plan = Column(Text, default="")       # แผนสำรองกรณีเหตุฉุกเฉิน
+    schedule = Column(Text, default="")             # กำหนดการ JSON [{day, time, act}]
     checklist = Column(Text, default="")            # JSON ข้อที่ตรวจแล้ว (ป้าย/ปฐมพยาบาล/ประกันภัย ...)
     # รายงานผลหลังกลับ (ข้อ 13)
     result = Column(String, default="")             # เรียบร้อย / ไม่เรียบร้อย

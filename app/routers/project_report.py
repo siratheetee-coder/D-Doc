@@ -172,6 +172,78 @@ async def report_save(rid: int, request: Request, db: Session = Depends(get_db))
     return RedirectResponse(f"/project-reports/{rid}?saved=1", status_code=303)
 
 
+# ---------------- AI อ่านเอกสารโครงการ แล้วเติมให้ ----------------
+_AI_ERR = {
+    "no_key": "ฟีเจอร์ AI ใช้ได้เฉพาะโรงเรียนที่เป็นสมาชิก",
+    "no_text": "อ่านข้อความจากไฟล์ไม่ได้ (ไฟล์อาจเป็นภาพสแกน) ลองใช้ไฟล์ Word หรือ PDF ที่คัดลอกข้อความได้",
+    "bad_type": "รองรับไฟล์ PDF, Word (.docx) หรือรูปภาพ",
+}
+
+
+@router.post("/project-reports/{rid}/ai-fill")
+async def report_ai_fill(rid: int, request: Request, db: Session = Depends(get_db)):
+    """อัปโหลดเอกสารโครงการ -> AI ดึงหลักการ วัตถุประสงค์ เป้าหมาย ขั้นตอน ฯลฯ มาเติม
+    เติมเฉพาะช่องที่ยังว่าง ไม่ทับสิ่งที่ครูกรอกไว้แล้ว"""
+    import os
+    import tempfile
+    from urllib.parse import quote
+    from app.routers.pages import _ai_key
+    from app.services.ai_extract import read_project_doc
+    from app.services.pdf_extract import extract_text_any
+    rep = _get(db, rid)
+    if not rep:
+        return RedirectResponse("/projects", status_code=303)
+    back = f"/project-reports/{rid}"
+    f = await request.form()
+    up = f.get("file")
+    name = (getattr(up, "filename", "") or "").lower()
+    ext = os.path.splitext(name)[1]
+    if not up or ext not in (".pdf", ".docx", ".png", ".jpg", ".jpeg"):
+        return RedirectResponse(f"{back}?err={quote(_AI_ERR['bad_type'])}", status_code=303)
+    key = _ai_key()
+    if not key:
+        return RedirectResponse(f"{back}?err={quote(_AI_ERR['no_key'])}", status_code=303)
+    data = await up.read()
+    fd, path = tempfile.mkstemp(suffix=ext)
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(data)
+        try:
+            text = extract_text_any(path)
+        except Exception:
+            text = ""
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+    res = read_project_doc(text, key)
+    if not res.get("ok"):
+        msg = _AI_ERR.get(res.get("error"), "AI อ่านไม่สำเร็จ ลองใหม่อีกครั้ง")
+        return RedirectResponse(f"{back}?err={quote(msg)}", status_code=303)
+    filled = []
+    for k in ("title", "location", "responsible", "std_ref", "principles"):
+        v = str(res.get(k) or "").strip()
+        if v and not (getattr(rep, k) or "").strip():
+            setattr(rep, k, v); filled.append(k)
+    for k in LIST_FIELDS:
+        v = [str(x).strip() for x in (res.get(k) or []) if str(x).strip()]
+        if v and not load_list(getattr(rep, k)):
+            setattr(rep, k, _dump(v)); filled.append(k)
+    for k in ("steps_items", "eval_items"):
+        keys = TABLE_FIELDS[k]
+        v = [{kk: str((r or {}).get(kk) or "").strip() for kk in keys} for r in (res.get(k) or [])
+             if isinstance(r, dict)]
+        v = [r for r in v if any(r.values())]
+        if v and not load_list(getattr(rep, k)):
+            setattr(rep, k, _dump(v)); filled.append(k)
+    bp = _to_float(res.get("budget_planned"), 0)
+    if bp and not rep.budget_planned:
+        rep.budget_planned = bp; filled.append("budget_planned")
+    db.commit()
+    return RedirectResponse(f"{back}?saved=ai{len(filled)}", status_code=303)
+
+
 # ---------------- ออกเอกสาร ----------------
 @router.get("/project-reports/{rid}/doc.docx")
 def report_docx(rid: int, db: Session = Depends(get_db)):

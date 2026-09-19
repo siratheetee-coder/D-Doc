@@ -497,3 +497,273 @@ def render_travel_claim(trip, school) -> str:
         ("ตำแหน่ง ......................................", "center"),
         ("วันที่ ......................................", "center")]])
     return _save_doc(doc, _safe(f"ใบเบิกค่าเดินทางไปราชการ_8708_{trip.id}") + ".docx")
+
+
+# ======================================================================
+# ชุดบันทึกข้อความ (ตามแบบที่โรงเรียนใช้จริง) + กำหนดการ + ใบลงเวลา + คำสั่งแบบตาราง
+# ======================================================================
+_LEVEL_WORD = {"อ": "อนุบาลปีที่", "ป": "ประถมศึกษาปีที่", "ม": "มัธยมศึกษาปีที่"}
+
+
+def level_text(trip) -> str:
+    """ระดับชั้นของนักเรียนที่ไป เช่น 'ชั้นประถมศึกษาปีที่ 5 และชั้นประถมศึกษาปีที่ 6'"""
+    seen = []
+    for s in trip.students:
+        lv = (s.level or "").strip()
+        if lv and lv not in seen:
+            seen.append(lv)
+    words = []
+    for lv in seen:
+        head, _, num = lv.partition(".")
+        words.append(f"ชั้น{_LEVEL_WORD[head]} {num}" if head in _LEVEL_WORD and num else lv)
+    if len(words) > 1:
+        return " ".join(words[:-1]) + " และ" + words[-1]
+    return words[0] if words else DOT
+
+
+def _period_text(trip) -> str:
+    if not trip.depart_at:
+        return DOT
+    if trip.return_at and trip.return_at.date() != trip.depart_at.date():
+        return f"{thai_date(trip.depart_at)} ถึงวันที่ {thai_date(trip.return_at)}"
+    return thai_date(trip.depart_at)
+
+
+def _year_of(trip) -> str:
+    return str(trip.year or "")
+
+
+def _memo_head(doc, school, subject, to):
+    from app.services.build_templates import _krut_and_title, _hr
+    _krut_and_title(doc)
+    _p_runs(doc, [("ส่วนราชการ  ", True), (f"{_v(school.name)}", False)])
+    _p_runs(doc, [("ที่  ", True), ("......................................", False), ("\t", False),
+                  ("วันที่  ", True), ("......................................", False)], tab_cm=8)
+    _p_runs(doc, [("เรื่อง  ", True), (subject, False)])
+    _hr(doc)
+    _p_runs(doc, [("เรียน  ", False), (to, False)], after=6)
+
+
+def _director_title(school) -> str:
+    name = (school.name or "").strip()
+    return "ผู้อำนวยการ" + name if name.startswith("โรงเรียน") else (school.director_position or "ผู้อำนวยการโรงเรียน")
+
+
+def render_request_memo(trip, school) -> str:
+    """บันทึกข้อความขออนุญาตพานักเรียนไปทัศนศึกษา (ครูผู้รับผิดชอบเสนอ ผอ.)
+    เนื้อความตามแบบขออนุญาตผู้บังคับบัญชาท้ายระเบียบฯ 2562 จัดเป็นบันทึกข้อความแบบที่โรงเรียนใช้"""
+    doc = _new_doc()
+    c = counts(trip)
+    total = total_cost(trip)
+    d1, m1, y1, t1 = _parts(trip.depart_at)
+    d2, m2, y2, t2 = _parts(trip.return_at)
+    _memo_head(doc, school, f"ขออนุญาตพานักเรียนไป{_v(trip.title)} ประจำปีการศึกษา {_year_of(trip)}",
+               approver_title(trip, school) or _director_title(school))
+    lodging = f" พักค้างที่ {trip.lodging}" if trip.trip_type != "day" and (trip.lodging or "").strip() else ""
+    _p(doc, f"ข้าพเจ้าขออนุญาตนำนักเรียน ระดับ{level_text(trip)} มีจำนวน {c['students']} คน และครูควบคุม "
+            f"{c['staff']} คน โดยมี {_v(trip.ctrl_name)} เป็นผู้ควบคุมไปเพื่อ {_v(trip.purpose)} ณ {_v(trip.place)} "
+            f"จังหวัด {_v(trip.province)} เริ่มออกเดินทางวันที่ {d1} เดือน {m1} พ.ศ. {y1} เวลา {t1} น. "
+            f"และจะไปตามเส้นทางผ่าน {_v(trip.route)} โดย{_v(trip.vehicle)}{lodging} "
+            f"และกลับถึงสถานศึกษา วันที่ {d2} เดือน {m2} พ.ศ. {y2} เวลา {t2} น. "
+            f"ค่าใช้จ่ายทั้งสิ้น จำนวน {_money(total)} บาท ({bahttext(total)})",
+       align="justify", indent=2.5, after=4)
+    _p(doc, "การไปครั้งนี้ได้ปฏิบัติตามระเบียบกระทรวงศึกษาธิการว่าด้วยการพานักเรียนและนักศึกษาไปนอกสถานศึกษาแล้ว",
+       align="justify", indent=2.5, after=4)
+    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณา", indent=2.5, after=16)
+    tbl = _sign_table(doc, [[("", "center")], [
+        ("ลงชื่อ ......................................", "center"),
+        (f"({_v(trip.ctrl_name)})", "center"), ("ครูผู้รับผิดชอบโครงการ", "center")]])
+    if trip.ctrl_name:
+        _float_signature(tbl.rows[0].cells[1].paragraphs[0], trip.ctrl_name)
+    return _save_doc(doc, _safe(f"บันทึกขออนุญาตพานักเรียนไปนอกสถานศึกษา_{trip.id}") + ".docx")
+
+
+REPORT_OK = ("ในการนี้ การดำเนินกิจกรรมดังกล่าวเสร็จเป็นที่เรียบร้อยแล้ว นักเรียนและครูผู้ควบคุมเดินทางกลับถึง"
+             "สถานศึกษาโดยสวัสดิภาพ จึงขอส่งสรุปผลการดำเนินกิจกรรม \"{title}\" ประจำปีการศึกษา {year} "
+             "พร้อมสรุปข้อเสนอแนะและแนวทางในการพัฒนางานต่อไป")
+REPORT_BAD = ("ในการนี้ การดำเนินกิจกรรมดังกล่าวได้ดำเนินการแล้ว แต่มีเหตุการณ์ที่ไม่เรียบร้อย ดังนี้ {detail} "
+              "จึงขอรายงานผลการดำเนินกิจกรรม \"{title}\" ประจำปีการศึกษา {year} มาเพื่อทราบ")
+
+
+def render_report_memo(trip, school) -> str:
+    """บันทึกข้อความรายงานผลการดำเนินกิจกรรม (ข้อ 13) - ผู้ใช้ติ๊กแค่ เรียบร้อย/ไม่เรียบร้อย ระบบเขียนให้"""
+    doc = _new_doc()
+    c = counts(trip)
+    title = _v(trip.title)
+    _memo_head(doc, school, f"รายงานผลการดำเนินกิจกรรม \"{title}\" ประจำปีการศึกษา {_year_of(trip)}",
+               _director_title(school))
+    _p(doc, f"ด้วยข้าพเจ้า {_v(trip.ctrl_name)} ตำแหน่ง {_v(trip.ctrl_pos)} ได้รับมอบหมายให้ดำเนินกิจกรรม "
+            f"\"{title}\" ประจำปีการศึกษา {_year_of(trip)} โดยนำนักเรียน จำนวน {c['students']} คน และครูผู้ควบคุม "
+            f"จำนวน {c['staff']} คน ไป ณ {_v(trip.place)} จังหวัด {_v(trip.province)} ในวันที่ {_period_text(trip)} "
+            f"โดยมีวัตถุประสงค์เพื่อ{_v(trip.purpose)}", align="justify", indent=2.5, after=4)
+    if trip.result == "ไม่เรียบร้อย":
+        text = REPORT_BAD.format(detail=_v(trip.result_detail), title=title, year=_year_of(trip))
+    else:
+        text = REPORT_OK.format(title=title, year=_year_of(trip))
+    _p(doc, text, align="justify", indent=2.5, after=4)
+    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณา", indent=2.5, after=14)
+    tbl = _sign_table(doc, [[("", "center")], [
+        ("ลงชื่อ ......................................", "center"),
+        (f"({_v(trip.ctrl_name)})", "center"), ("ผู้รายงานกิจกรรม", "center")]])
+    if trip.ctrl_name:
+        _float_signature(tbl.rows[0].cells[1].paragraphs[0], trip.ctrl_name)
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Pt
+    box = doc.add_table(rows=1, cols=1)
+    box.style = "Table Grid"
+    cell = box.rows[0].cells[0]
+    lines = [("ความเห็นของผู้บริหารโรงเรียน", True, "left"), ("." * 168, False, "left"), ("." * 168, False, "left"),
+             ("", False, "left"), ("ลงชื่อ ......................................", False, "center"),
+             (f"({_v(school.director_name)})", False, "center"), (_director_title(school), False, "center")]
+    for i, (txt, bold, al) in enumerate(lines):
+        para = cell.paragraphs[0] if i == 0 else cell.add_paragraph()
+        para.alignment = WD_ALIGN_PARAGRAPH.CENTER if al == "center" else WD_ALIGN_PARAGRAPH.LEFT
+        para.paragraph_format.space_after = Pt(0)
+        run = para.add_run(txt)
+        from app.services.build_templates import _csize, _bcs, THAI_FONT
+        from docx.oxml.ns import qn
+        _csize(run, 16); _bcs(run, bold); run.font.name = THAI_FONT
+        run._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
+    return _save_doc(doc, _safe(f"บันทึกรายงานผลทัศนศึกษา_{trip.id}") + ".docx")
+
+
+def schedule_rows(trip) -> list:
+    import json
+    try:
+        rows = json.loads(trip.schedule or "[]")
+        return [r for r in rows if isinstance(r, dict)]
+    except (ValueError, TypeError):
+        return []
+
+
+def default_schedule(trip, school) -> list:
+    """กำหนดการตัวอย่าง (ตามแบบที่โรงเรียนใช้) คำนวณจากเวลาไป-กลับ ผู้ใช้แก้ต่อได้"""
+    from datetime import timedelta
+    dep = trip.depart_at
+    ret = trip.return_at
+    hm = lambda d: f"{d:%H.%M}"
+    if not (dep and ret) or not (dep.hour or dep.minute):
+        return [{"day": "", "time": "", "act": "นักเรียนรายงานตัว คณะครูให้ความรู้และแนวปฏิบัติในการทัศนศึกษา"}]
+    place = trip.place or "......"
+    rows = [
+        {"day": "", "time": f"{hm(dep - timedelta(minutes=30))} - {hm(dep)} น.",
+         "act": "นักเรียนรายงานตัวร่วมกิจกรรม คณะครูให้ความรู้และแนวปฏิบัติในการทัศนศึกษา"},
+        {"day": "", "time": f"{hm(dep)} - 10.00 น.", "act": f"ออกเดินทางไป {place}"},
+        {"day": "", "time": "10.00 - 12.00 น.", "act": f"เข้าชม/ทำกิจกรรม ณ {place}"},
+        {"day": "", "time": "12.00 - 13.00 น.", "act": "พักรับประทานอาหารกลางวัน"},
+        {"day": "", "time": "13.00 - 15.00 น.", "act": "เข้าชม/ทำกิจกรรม (ต่อ) และสรุปการเรียนรู้"},
+        {"day": "", "time": f"15.00 - {hm(ret)} น.", "act": "เดินทางกลับโรงเรียน"},
+        {"day": "", "time": f"{hm(ret)} น.", "act": f"เดินทางกลับถึง{school.name or 'โรงเรียน'} โดยสวัสดิภาพ"},
+    ]
+    if ret.date() != dep.date():
+        rows[0]["day"] = f"วันที่ {thai_date(dep)}"
+        rows[-2]["day"] = f"วันที่ {thai_date(ret)}"
+    return rows
+
+
+def render_schedule(trip, school) -> str:
+    """กำหนดการกิจกรรมโครงการทัศนศึกษา (ตามแบบที่โรงเรียนใช้)"""
+    from app.services.build_templates import _no_borders, _fixed_cols
+    doc = _new_doc()
+    _p(doc, f"กำหนดการกิจกรรมโครงการ{_v(trip.title)} ประจำปีการศึกษา {_year_of(trip)}", align="center", bold=True,
+       size=17, after=0)
+    _p(doc, f"นักเรียน{level_text(trip)} {_v(school.name)}", align="center", bold=True, after=0)
+    _p(doc, f"ณ {_v(trip.place)} จังหวัด {_v(trip.province)}", align="center", bold=True, after=0)
+    _p(doc, f"ในวันที่ {_period_text(trip)}", align="center", bold=True, after=10)
+    rows = schedule_rows(trip) or default_schedule(trip, school)
+    t = doc.add_table(rows=0, cols=2)
+    _no_borders(t)
+    _fixed_cols(t, [Cm(4.2), Cm(11.8)])
+    for r in rows:
+        if (r.get("day") or "").strip():
+            cells = t.add_row().cells
+            _set_cell(cells[0], r["day"].strip(), bold=True, size=16)
+            cells[0].merge(cells[1])
+        cells = t.add_row().cells
+        _set_cell(cells[0], (r.get("time") or "").strip(), size=16)
+        _set_cell(cells[1], (r.get("act") or "").strip(), size=16)
+    _p(doc, "", after=6)
+    _p(doc, "*******************************", after=2)
+    _p_runs(doc, [("*หมายเหตุ*  ", True), ("กำหนดการอาจเปลี่ยนแปลงได้ตามความเหมาะสม", False)])
+    return _save_doc(doc, _safe(f"กำหนดการทัศนศึกษา_{trip.id}") + ".docx")
+
+
+def render_signin(trip, school, who="students") -> str:
+    """ใบลงเวลา มา/กลับ แยกนักเรียน กับ ครู (ลงชื่อ เวลามา ลงชื่อ เวลากลับ หมายเหตุ)"""
+    from docx.enum.section import WD_ORIENT
+    from app.services.build_templates import _repeat_header_row, _no_split_row, _fixed_cols
+    from app.services.fieldtrip import staff_people
+    doc = Document(); set_a4(doc, landscape=True); _font(doc)
+    is_stu = who == "students"
+    head = "บัญชีลงเวลานักเรียน" if is_stu else "บัญชีลงเวลาครูผู้ควบคุมและผู้ช่วยผู้ควบคุม"
+    _p(doc, f"{head} การพานักเรียนไปนอกสถานศึกษา", align="center", bold=True, size=17, after=0)
+    _p(doc, f"กิจกรรม {_v(trip.title)}  ณ {_v(trip.place)} จังหวัด {_v(trip.province)}", align="center", size=15, after=0)
+    _p(doc, f"วันที่ {_period_text(trip)}   {_v(school.name)}", align="center", size=15, after=6)
+    col3 = "ชั้น" if is_stu else "ตำแหน่ง / หน้าที่"
+    headers = ["ที่", "ชื่อ - สกุล", col3, "ลงชื่อ (มา)", "เวลามา", "ลงชื่อ (กลับ)", "เวลากลับ", "หมายเหตุ"]
+    widths = [Cm(1.2), Cm(6.2), Cm(3.6 if not is_stu else 2.0), Cm(4.0), Cm(2.0), Cm(4.0), Cm(2.0),
+              Cm(2.7 if not is_stu else 4.3)]
+    t = doc.add_table(rows=1, cols=len(headers))
+    t.style = "Table Grid"
+    _fixed_cols(t, widths)
+    _repeat_header_row(t.rows[0]); _no_split_row(t.rows[0])
+    for cell, h, w in zip(t.rows[0].cells, headers, widths):
+        _set_cell(cell, h, bold=True, align="center", size=14)
+        cell.width = w
+    if is_stu:
+        rows = [(s.name, f"{s.level}/{s.room}" if s.room else s.level) for s in trip.students]
+    else:
+        rows = [(n, f"{p} / {r}") for n, p, r in staff_people(trip)]
+    from docx.enum.table import WD_ROW_HEIGHT_RULE
+    for i, (n, x) in enumerate(rows, 1):
+        r = t.add_row(); _no_split_row(r)
+        r.height = Cm(0.95); r.height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST   # พื้นที่พอให้เซ็นชื่อ
+        for j, (cell, v, w) in enumerate(zip(r.cells, [str(i), n, x, "", "", "", "", ""], widths)):
+            _set_cell(cell, v, size=14, align="left" if j in (1, 2) and not (is_stu and j == 2) else "center")
+            cell.width = w
+    _p(doc, f"รวม {len(rows)} คน", size=15, before=4, after=8)
+    _sign_table(doc, [[("", "center")], [
+        ("ลงชื่อ ...................................... ผู้ควบคุม", "center"),
+        (f"({_v(trip.ctrl_name)})", "center")]])
+    return _save_doc(doc, _safe(f"ใบลงเวลา{'นักเรียน' if is_stu else 'ครู'}_ทัศนศึกษา_{trip.id}") + ".docx")
+
+
+def render_trip_order(trip, order, school) -> str:
+    """คำสั่งแต่งตั้งผู้ควบคุม/ผู้ช่วยผู้ควบคุม - รายชื่อจัดเป็นตารางไร้เส้น (ชื่อ ตำแหน่ง หน้าที่ ตรงกันทุกบรรทัด)
+    หัว/ท้ายเหมือนแบบคำสั่งโรงเรียนเดิมของระบบ (office_doc.render_order)"""
+    from app.services.build_templates import _krut_center, _no_borders, _fixed_cols
+    from app.services.office_doc import _director_office
+    from app.services.fieldtrip import staff_people
+    from app.thai_utils import thai_date_official
+    doc = _new_doc()
+    _krut_center(doc, height_cm=1.8)
+    _p(doc, "คำสั่ง" + (school.name or ""), align="center", bold=True, size=18, after=0)
+    _p(doc, "ที่ " + (order.order_no or ""), align="center", bold=True, after=0)
+    _p(doc, "เรื่อง " + (order.subject or ""), align="center", bold=True, after=0)
+    _p(doc, "─────────────────────", align="center", after=6)
+    c = counts(trip)
+    _p(doc, f"ด้วย{_v(school.name)} จะนำนักเรียน จำนวน {c['students']} คน ไป{_v(trip.purpose)} ณ {_v(trip.place)} "
+            f"จังหวัด {_v(trip.province)} ในวันที่ {_period_text(trip)} ซึ่ง{REG_NAME} ข้อ 7(3) กำหนดให้มีผู้ควบคุม 1 คน "
+            f"และผู้ช่วยผู้ควบคุม 1 คน ต่อนักเรียนไม่เกิน 30 คน", align="justify", indent=2.5, after=2)
+    _p(doc, "จึงแต่งตั้งบุคลากรดังต่อไปนี้", indent=2.5, after=2)
+    people = staff_people(trip)
+    t = doc.add_table(rows=0, cols=4)
+    _no_borders(t)
+    _fixed_cols(t, [Cm(1.4), Cm(5.8), Cm(5.4), Cm(3.4)])
+    for i, (n, p, r) in enumerate(people, 1):
+        cells = t.add_row().cells
+        _set_cell(cells[0], f"{i}.", align="right", size=16)
+        _set_cell(cells[1], n, size=16)
+        _set_cell(cells[2], f"ตำแหน่ง {p}", size=16)
+        _set_cell(cells[3], r, size=16)
+    _p(doc, "ให้ผู้ที่ได้รับแต่งตั้งปฏิบัติหน้าที่ตามระเบียบดังกล่าว ข้อ 10 ข้อ 11"
+            + (" และข้อ 12" if trip.trip_type == "overnight" else "")
+            + " อย่างเคร่งครัด โดยคำนึงถึงความปลอดภัยของนักเรียนเป็นอันดับแรก", align="justify", indent=2.5,
+       before=4, after=2)
+    _p(doc, "ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป", indent=2.5, after=6)
+    _p(doc, "สั่ง ณ วันที่ " + thai_date_official(order.date), align="center", after=12)
+    sign_p = _p(doc, "(ลงชื่อ).........................................", align="center")
+    _float_signature(sign_p, school.director_name)
+    _p(doc, f"( {school.director_name or ''} )", align="center")
+    _p(doc, _director_office(school), align="center")
+    return _save_doc(doc, _safe(f"คำสั่ง_{order.order_no or order.id}_ผู้ควบคุมทัศนศึกษา") + ".docx")

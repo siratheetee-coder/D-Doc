@@ -294,6 +294,11 @@ def _trip_or_404(db, tid):
     return t
 
 
+def _sched_rows(t, school):
+    from app.services.fieldtrip_doc import schedule_rows
+    return schedule_rows(t)
+
+
 def _project_label(p) -> str:
     return f"{p.name} ({p.plan_year})" if p.plan_year else p.name
 
@@ -407,6 +412,7 @@ def trip_detail(tid: int, request: Request, db: Session = Depends(get_db), msg: 
         "cash": ft.cash_costs(t), "cash_labels": [ft.cost_label(x) for x in ft.cash_costs(t)],
         "cash_total": round(sum(ft.cost_amount(x, c) for x in ft.cash_costs(t)), 2),
         "project_label": _project_label(t.project) if t.project else "",
+        "schedule": _sched_rows(t, school),
         "person_pos": {p.name: p.position or "" for p in persons},
         "need_assist": -(-c["students"] // ft.MAX_PER_ASSISTANT) if c["students"] else 0,
         "cost_warn": {x.id: ft.cost_warnings(x) for x in t.costs},
@@ -427,7 +433,6 @@ async def trip_save(tid: int, request: Request, db: Session = Depends(get_db)):
         return (f.get(k) or "").strip()
 
     for k in ("title", "purpose", "place", "province", "route", "vehicle", "lodging", "request_to",
-              "principle", "objectives", "targets", "steps", "responsible", "emergency_plan",
               "result", "result_detail"):
         setattr(t, k, g(k))
     t.trip_type = g("trip_type") if g("trip_type") in ft.TRIP_TYPES else "day"
@@ -442,6 +447,19 @@ async def trip_save(tid: int, request: Request, db: Session = Depends(get_db)):
     t.controller_id = p.id if p else None
     if p and not t.controller_pos:
         t.controller_pos = p.position or ""
+    # กำหนดการ
+    import json as _json
+    sched = []
+    for day, tm, act in zip(f.getlist("sch_day"), f.getlist("sch_time"), f.getlist("sch_act")):
+        day, tm, act = (day or "").strip(), (tm or "").strip(), (act or "").strip()
+        if tm or act or day:
+            sched.append({"day": day, "time": tm, "act": act})
+    t.schedule = _json.dumps(sched, ensure_ascii=False)
+    if g("sch_default"):
+        from app.services.fieldtrip_doc import default_schedule
+        t.schedule = _json.dumps(default_schedule(t, get_school(db)), ensure_ascii=False)
+    if t.result != "ไม่เรียบร้อย":
+        t.result_detail = ""
     keys = {k for k, _, _ in ft.checklist_items(t)}
     t.checklist = json.dumps([k for k in f.getlist("check") if k in keys])
 
@@ -489,6 +507,9 @@ async def trip_save(tid: int, request: Request, db: Session = Depends(get_db)):
                                      rate=_float(rate), times=_float(times, 1.0), pay_method=pay,
                                      vendor_id=vid, procurement_id=pid if vid else None))
     db.commit()
+    if g("sch_default"):
+        return RedirectResponse(f"/general/trips/{tid}?msg=ใส่กำหนดการตัวอย่างแล้ว แก้ไขได้ตามจริง#sec-sched",
+                                status_code=303)
     return RedirectResponse(f"/general/trips/{tid}?msg=บันทึกแล้ว", status_code=303)
 
 
@@ -537,8 +558,11 @@ def trip_doc(tid: int, kind: str, db: Session = Depends(get_db)):
     from app.routers.pages import serve_generated
     from app.services import fieldtrip_doc as fd
     t = _trip_or_404(db, tid)
-    fn = {"request": fd.render_request, "parents": fd.render_parent_letters,
-          "report": fd.render_report, "project": fd.render_project,
+    fn = {"request": fd.render_request_memo, "request_form": fd.render_request,
+          "parents": fd.render_parent_letters, "report": fd.render_report_memo,
+          "report_form": fd.render_report, "project": fd.render_project, "schedule": fd.render_schedule,
+          "signin_students": lambda t, sc: fd.render_signin(t, sc, "students"),
+          "signin_staff": lambda t, sc: fd.render_signin(t, sc, "staff"),
           "allowance": fd.render_allowance, "travel": fd.render_travel_claim}.get(kind)
     if not fn:
         raise HTTPException(404)
@@ -579,7 +603,8 @@ def trip_order_doc(tid: int, db: Session = Depends(get_db)):
     o = db.get(SchoolOrder, t.order_id) if t.order_id else None
     if not o:
         raise HTTPException(404)
-    return serve_generated(render_order(o, get_school(db)), _DOCX, count=False)
+    from app.services.fieldtrip_doc import render_trip_order
+    return serve_generated(render_trip_order(t, o, get_school(db)), _DOCX, count=False)
 
 
 @router.post("/general/trips/{tid}/project-report")
@@ -771,3 +796,33 @@ def trip_procure_sync(tid: int, db: Session = Depends(get_db), vendor_id: int = 
     db.commit()
     return RedirectResponse(f"/general/trips/{tid}?msg=อัปเดตเรื่อง{g['proc_type']}กับ {g['vendor'].name} แล้ว#sec-buy",
                             status_code=303)
+
+
+
+@router.post("/general/trips/{tid}/vendor.json")
+async def trip_vendor_json(tid: int, request: Request, db: Session = Depends(get_db)):
+    """เพิ่มผู้ขาย/ผู้รับจ้างจากช่องในแต่ละรายการค่าใช้จ่าย (ไม่รีโหลดหน้า ข้อมูลที่กรอกค้างไม่หาย)"""
+    from app.models import Vendor
+    _trip_or_404(db, tid)
+    f = await request.form()
+    name = (f.get("name") or "").strip()
+    if not name:
+        return JSONResponse({"error": "กรอกชื่อผู้ขาย/ผู้รับจ้าง"}, status_code=400)
+    v = db.query(Vendor).filter(Vendor.name == name).first()
+    if not v:
+        v = Vendor(name=name, owner_name=(f.get("owner_name") or "").strip(), tax_id=(f.get("tax_id") or "").strip(),
+                   phone=(f.get("phone") or "").strip(), address=(f.get("address") or "").strip())
+        db.add(v)
+        db.commit()
+    return {"id": v.id, "name": v.name}
+
+
+@router.post("/general/trips/{tid}/schedule-default")
+def trip_schedule_default(tid: int, db: Session = Depends(get_db)):
+    """ใส่กำหนดการตัวอย่าง (คำนวณจากเวลาไป-กลับ) ทับของเดิม"""
+    import json
+    from app.services.fieldtrip_doc import default_schedule
+    t = _trip_or_404(db, tid)
+    t.schedule = json.dumps(default_schedule(t, get_school(db)), ensure_ascii=False)
+    db.commit()
+    return RedirectResponse(f"/general/trips/{tid}?msg=ใส่กำหนดการตัวอย่างแล้ว แก้ไขได้ตามจริง#sec-sched", status_code=303)
