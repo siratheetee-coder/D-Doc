@@ -49,6 +49,8 @@
   .save-fab{ position:fixed; right:88px; bottom:22px; z-index:60; height:54px; padding:0 26px; font-size:16px; border-radius:999px;
     box-shadow:0 10px 24px rgba(79,70,229,.35); display:inline-flex; align-items:center; gap:6px; }
   @media (max-width:820px){ .save-fab{ right:70px; bottom:calc(14px + env(safe-area-inset-bottom, 0px)); height:46px; padding:0 18px; } }
+  .tp-sub{ margin:16px 0 4px; font-size:15.5px; padding-top:12px; border-top:1px dashed var(--border); scroll-margin-top:80px; }
+  .tp-card > .tp-sub:first-of-type{ border-top:0; padding-top:0; margin-top:10px; }
   .staff-row{ display:grid; grid-template-columns:2fr 1.2fr auto; gap:8px; margin:0 0 6px; }
   .tp-step.todo{ opacity:.8; }
   .tp-warn{ display:flex; gap:8px; padding:8px 12px; border-radius:10px; margin:6px 0; font-size:14px; }
@@ -218,8 +220,12 @@
   <p class="tp-note">ยอดเงินคำนวณทันทีตามจำนวนนักเรียน/ครูที่เลือกอยู่ · กด "บันทึก" เพื่อเก็บ</p>
 </div>
 
-<div class="tp-card" id="sec-sched" style="--g1:#0ea5e9; --g2:#6366f1;">
-  <h2><span class="ic">🕘</span> กำหนดการ</h2>
+<button class="btn gbtn save-fab" type="submit" form="tripForm" id="saveFab">💾 บันทึก</button>
+</form>
+
+<div class="tp-card trip-fields" id="sec-docs" style="--g1:#6366f1; --g2:#7c3aed;">
+  <h2><span class="ic">4</span> ขออนุญาต</h2>
+  <h3 class="tp-sub" id="sec-sched">🕘 กำหนดการ</h3>
   <p class="tp-note">ใช้ออกเอกสาร "กำหนดการ" · เว้นช่องวันว่างได้ (ใส่เฉพาะแถวที่ขึ้นวันใหม่ เมื่อไปหลายวัน)</p>
   <div id="schedRows">
     {% for r in schedule %}
@@ -234,10 +240,8 @@
     <button type="submit" class="btn sm soft" name="sch_default" value="1"
       {% if schedule %}onclick="return confirm('แทนที่กำหนดการเดิมด้วยตัวอย่าง?')"{% endif %}>ใส่กำหนดการตัวอย่าง (จากเวลาไป-กลับ)</button>
   </div>
-</div>
 
-<div class="tp-card" id="sec-check" style="--g1:#f43f5e; --g2:#e11d48;">
-  <h2><span class="ic">✓</span> การเตรียมการก่อนเดินทาง</h2>
+  <h3 class="tp-sub" id="sec-check">✓ การเตรียมการก่อนเดินทาง</h3>
   <p class="tp-note">ตามระเบียบฯ ข้อ 7, 10, 12 และหนังสือ สพฐ. ว 1057 (3 ต.ค. 2567) - ติ๊กเมื่อจัดการแล้ว</p>
   {% for key, label, ref in checklist %}
   <label style="display:flex; gap:8px; font-weight:400; margin:6px 0;"><input type="checkbox" name="check" value="{{ key }}" {{ 'checked' if key in done }} style="width:auto;">
@@ -247,27 +251,26 @@
     <button type="button" class="btn sm gbtn g" onclick="checkAll(true)">✓ เตรียมการครบทุกข้อเรียบร้อยแล้ว</button>
     <button type="button" class="btn sm soft" onclick="checkAll(false)">ล้างทั้งหมด</button>
   </div>
-</div>
 
-<div class="tp-card" id="sec-report" style="--g1:#64748b; --g2:#334155;">
-  <h2><span class="ic">6</span> รายงานผลหลังกลับ (ข้อ 13)</h2>
-  <p class="tp-note">ติ๊กผลและวันที่รายงาน ระบบเขียนบันทึกรายงานผลให้เอง · เลือก "ไม่เรียบร้อย" จึงต้องเขียนรายละเอียด</p>
-  <div class="tp-grid">
-    <div><label>การพาไปครั้งนี้เป็นไปด้วยความ</label>
-      <div style="display:flex; gap:18px; padding:8px 0;">
-        {% for v in ("เรียบร้อย", "ไม่เรียบร้อย") %}
-        <label style="display:flex; gap:6px; align-items:center; font-weight:600; margin:0;">
-          <input type="radio" name="result" value="{{ v }}" {{ 'checked' if t.result == v }} style="width:auto;" onchange="resultChanged()"> {{ v }}</label>
-        {% endfor %}
-      </div></div>
-    <div><label>วันที่รายงาน</label>{{ date_input("report_date", t.report_date) }}</div>
-    <div class="full" id="badBox" {{ '' if t.result == 'ไม่เรียบร้อย' else 'hidden' }}><label>รายละเอียดเหตุการณ์ที่ไม่เรียบร้อย</label>
-      <textarea name="result_detail" rows="3" placeholder="เช่น รถขัดข้องระหว่างทาง ... ได้ประสานรถสำรอง ... นักเรียนทุกคนปลอดภัย">{{ t.result_detail }}</textarea></div>
+  <h3 class="tp-sub">📄 เอกสารขออนุญาต</h3>
+  <p class="tp-note">กด "บันทึก" ก่อนดาวน์โหลดทุกครั้ง · ยื่นขออนุญาตก่อนเดินทางไม่น้อยกว่า 15 วัน (ระเบียบฯ ข้อ 9)</p>
+  <div class="docs-grid">
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/request.docx"><span class="di">1</span><span>บันทึกข้อความขออนุญาต<small>เสนอ ผอ.</small></span></a>
+    {% if t.trip_type != 'day' %}<a class="doc-tile" href="/general/trips/{{ t.id }}/doc/request_form.docx"><span class="di">1ข</span><span>แบบขออนุญาตท้ายระเบียบ<small>ส่ง{{ types[t.trip_type].approver }}</small></span></a>{% endif %}
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/parents.docx"><span class="di">2</span><span>หนังสือขออนุญาตผู้ปกครอง<small>{{ c.students or 1 }} หน้า · หน้าละคน</small></span></a>
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/schedule.docx"><span class="di">3</span><span>กำหนดการ<small>{{ schedule|length or 'ตัวอย่าง' }}{{ ' แถว' if schedule }}</small></span></a>
   </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; align-items:center;">
+    <form method="post" action="/general/trips/{{ t.id }}/order" style="margin:0;">
+      <button class="btn sm gbtn v" type="submit">{{ "ปรับคำสั่งแต่งตั้งตามรายชื่อล่าสุด" if t.order_id else "ออกคำสั่งแต่งตั้งผู้ควบคุม" }}</button></form>
+    {% if t.order_id %}<a class="btn sm soft" href="/general/trips/{{ t.id }}/order.docx">ดาวน์โหลดคำสั่ง</a>{% endif %}
+  </div>
+  <form method="post" action="/general/trips/{{ t.id }}/status" style="display:flex; gap:8px; align-items:center; margin-top:12px; flex-wrap:wrap;">
+    <label style="margin:0;">สถานะ</label>
+    <select name="status" style="width:auto;">{% for k, v in status.items() %}<option value="{{ k }}" {{ 'selected' if k == t.status }}>{{ v }}</option>{% endfor %}</select>
+    <button class="btn sm" type="submit">เปลี่ยนสถานะ</button>
+  </form>
 </div>
-
-<button class="btn gbtn save-fab" type="submit" form="tripForm" id="saveFab">💾 บันทึก</button>
-</form>
 
 <div class="tp-card" id="sec-buy" style="--g1:#f59e0b; --g2:#ea580c;">
   <h2><span class="ic">5</span> จัดซื้อจัดจ้าง / ยืมเงิน</h2>
@@ -331,36 +334,46 @@
       </form>
     {% elif cash %}<p class="muted" style="margin:8px 0 0;">ต้องใช้งานการเงินจึงจะสร้างสัญญายืมเงินอัตโนมัติได้</p>{% endif %}
   </div>
-</div>
-
-<div class="tp-card" id="sec-docs" style="--g1:#6366f1; --g2:#7c3aed;">
-  <h2><span class="ic">📄</span> เอกสาร</h2>
-  <p class="tp-note">กด "บันทึก" ก่อนดาวน์โหลดทุกครั้ง · แบบ 3 ฉบับแรกยกจากแบบท้าย{{ reg }}</p>
+  {% if allow_total or travel_total %}
+  <h3 class="tp-sub">📄 เอกสารเบิกจ่าย</h3>
   <div class="docs-grid">
-    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/request.docx"><span class="di">1</span><span>บันทึกข้อความขออนุญาต<small>เสนอ ผอ. · ยื่นก่อนเดินทาง ≥ 15 วัน</small></span></a>
-    {% if t.trip_type != 'day' %}<a class="doc-tile" href="/general/trips/{{ t.id }}/doc/request_form.docx"><span class="di">1ข</span><span>แบบขออนุญาตท้ายระเบียบ<small>ส่ง{{ types[t.trip_type].approver }}</small></span></a>{% endif %}
-    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/parents.docx"><span class="di">2</span><span>หนังสือขออนุญาตผู้ปกครอง<small>{{ c.students or 1 }} หน้า · หน้าละคน</small></span></a>
-    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/schedule.docx"><span class="di">3</span><span>กำหนดการ<small>{{ schedule|length or 'ตัวอย่าง' }}{{ ' แถว' if schedule }}</small></span></a>
-    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/signin_students.docx"><span class="di">4</span><span>ใบลงเวลานักเรียน<small>ลงชื่อ เวลามา/กลับ · {{ c.students }} คน</small></span></a>
-    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/signin_staff.docx"><span class="di">5</span><span>ใบลงเวลาครู<small>ผู้ควบคุม + ผู้ช่วย · {{ c.staff }} คน</small></span></a>
     {% if allow_total %}<a class="doc-tile" href="/general/trips/{{ t.id }}/doc/allowance.docx"><span class="di">฿</span><span>ใบสำคัญรับเงินนักเรียน (เอกสารแนบ 2)<small>ค่าอาหารเหมาจ่าย ตาม ว 2983</small></span></a>{% endif %}
     {% if travel_total %}<a class="doc-tile" href="/general/trips/{{ t.id }}/doc/travel.docx"><span class="di">8708</span><span>ใบเบิกค่าเดินทางไปราชการ (แบบ 8708)<small>ครูผู้ควบคุม · {{ "{:,.2f}".format(travel_total) }} บาท</small></span></a>{% endif %}
-    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/report.docx"><span class="di">6</span><span>บันทึกรายงานผล<small>หลังกลับ (ข้อ 13)</small></span></a>
+  </div>
+  {% endif %}
+</div>
+
+
+<div class="tp-card trip-fields" id="sec-report" style="--g1:#64748b; --g2:#334155;">
+  <h2><span class="ic">6</span> วันเดินทางและหลังกลับ</h2>
+  <h3 class="tp-sub">🧾 ใบลงเวลา (ใช้วันเดินทาง)</h3>
+  <div class="docs-grid">
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/signin_students.docx"><span class="di">ส</span><span>ใบลงเวลานักเรียน<small>ลงชื่อ เวลามา/กลับ · {{ c.students }} คน</small></span></a>
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/signin_staff.docx"><span class="di">ค</span><span>ใบลงเวลาครู<small>ผู้ควบคุม + ผู้ช่วย · {{ c.staff }} คน</small></span></a>
+  </div>
+  <h3 class="tp-sub">📝 รายงานผล (ข้อ 13)</h3>
+  <p class="tp-note">ติ๊กผลและวันที่รายงาน ระบบเขียนบันทึกรายงานผลให้เอง · เลือก "ไม่เรียบร้อย" จึงต้องเขียนรายละเอียด</p>
+  <div class="tp-grid">
+    <div><label>การพาไปครั้งนี้เป็นไปด้วยความ</label>
+      <div style="display:flex; gap:18px; padding:8px 0;">
+        {% for v in ("เรียบร้อย", "ไม่เรียบร้อย") %}
+        <label style="display:flex; gap:6px; align-items:center; font-weight:600; margin:0;">
+          <input type="radio" name="result" value="{{ v }}" {{ 'checked' if t.result == v }} style="width:auto;" onchange="resultChanged()"> {{ v }}</label>
+        {% endfor %}
+      </div></div>
+    <div><label>วันที่รายงาน</label>{{ date_input("report_date", t.report_date) }}</div>
+    <div class="full" id="badBox" {{ '' if t.result == 'ไม่เรียบร้อย' else 'hidden' }}><label>รายละเอียดเหตุการณ์ที่ไม่เรียบร้อย</label>
+      <textarea name="result_detail" rows="3" placeholder="เช่น รถขัดข้องระหว่างทาง ... ได้ประสานรถสำรอง ... นักเรียนทุกคนปลอดภัย">{{ t.result_detail }}</textarea></div>
+  </div>
+  <div class="docs-grid" style="margin-top:10px;">
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/report.docx"><span class="di">6</span><span>บันทึกรายงานผล<small>เสนอ ผอ.</small></span></a>
     {% if t.trip_type != 'day' %}<a class="doc-tile" href="/general/trips/{{ t.id }}/doc/report_form.docx"><span class="di">6ข</span><span>แบบรายงานผลท้ายระเบียบ<small>ส่ง{{ types[t.trip_type].approver }}</small></span></a>{% endif %}
   </div>
-  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
-    <form method="post" action="/general/trips/{{ t.id }}/order" style="margin:0;">
-      <button class="btn sm gbtn v" type="submit">{{ "ปรับคำสั่งแต่งตั้งตามรายชื่อล่าสุด" if t.order_id else "ออกคำสั่งแต่งตั้งผู้ควบคุม" }}</button></form>
-    {% if t.order_id %}<a class="btn sm soft" href="/general/trips/{{ t.id }}/order.docx">ดาวน์โหลดคำสั่ง</a>{% endif %}
-    <form method="post" action="/general/trips/{{ t.id }}/project-report" style="margin:0;">
-      <button class="btn sm gbtn g" type="submit">{{ "เปิดรายงานโครงการ" if t.report_id else "ทำรายงานโครงการ" }}</button></form>
-  </div>
-  <form method="post" action="/general/trips/{{ t.id }}/status" style="display:flex; gap:8px; align-items:center; margin-top:12px; flex-wrap:wrap;">
-    <label style="margin:0;">สถานะ</label>
-    <select name="status" style="width:auto;">{% for k, v in status.items() %}<option value="{{ k }}" {{ 'selected' if k == t.status }}>{{ v }}</option>{% endfor %}</select>
-    <button class="btn sm" type="submit">เปลี่ยนสถานะ</button>
-  </form>
+  <form method="post" action="/general/trips/{{ t.id }}/project-report" style="margin:12px 0 0;">
+    <button class="btn sm gbtn g" type="submit">{{ "เปิดรายงานโครงการ" if t.report_id else "ทำรายงานโครงการ" }}</button></form>
 </div>
+
+
 
 <dialog id="vendorDlg" style="border:none; border-radius:18px; padding:0; width:min(560px,94vw); box-shadow:0 24px 60px rgba(15,23,42,.35);">
   <div style="background:linear-gradient(135deg,#10b981,#0891b2); color:#fff; padding:14px 18px; font-weight:800; font-size:17px;">+ เพิ่มผู้ขาย/ผู้รับจ้างรายใหม่</div>
@@ -461,7 +474,12 @@ function recalc(){
 document.getElementById('tripForm').addEventListener('input', recalc);
 document.getElementById('tripForm').addEventListener('change', recalc);
 document.addEventListener('click', e => { if (e.target.closest('#costs, #sec-people, #staffRows')) setTimeout(recalc, 0); });
-function checkAll(on){ document.querySelectorAll('#sec-check input[name=check]').forEach(i => i.checked = on); }
+function bindTripFields(root){
+  (root || document).querySelectorAll('.trip-fields input, .trip-fields textarea, .trip-fields select:not([name=status]), .trip-fields button[name]')
+    .forEach(el => { if (!el.closest('form')) el.setAttribute('form', 'tripForm'); });
+}
+bindTripFields();
+function checkAll(on){ document.querySelectorAll('input[name=check]').forEach(i => i.checked = on); }
 function resultChanged(){
   const bad = document.querySelector('input[name=result][value="ไม่เรียบร้อย"]').checked;
   document.getElementById('badBox').hidden = !bad;
@@ -470,7 +488,7 @@ function addSched(){
   const d = document.createElement('div'); d.className = 'sch-row';
   d.innerHTML = '<input name="sch_day" placeholder="วัน (ถ้าหลายวัน)"><input name="sch_time" placeholder="07.00 - 08.00 น.">'
     + '<input name="sch_act" placeholder="กิจกรรม"><button type="button" class="btn sm soft" onclick="this.parentNode.remove()">ลบ</button>';
-  document.getElementById('schedRows').appendChild(d); d.children[1].focus();
+  document.getElementById('schedRows').appendChild(d); bindTripFields(); d.children[1].focus();
 }
 let vendorSel = null;
 function openVendor(btn){
