@@ -200,7 +200,8 @@ def render_buy_report(school, proc, tp) -> str:
     _p_runs(doc, [("เรียน  ", True), (f"ผู้อำนวยการ{_sname(school)}", False)])
     _hr(doc)
 
-    levels = ", ".join(lv for lv, _ in (tp_groups(tp) or []) if lv)
+    from app.thai_utils import level_range
+    levels = level_range(lv for lv, _ in (tp_groups(tp) or []) if lv)
     _p(doc, f"ด้วย{_sname(school)} มีความประสงค์จะซื้อ{name} "
             f"โดยวิธี{proc.method or 'เฉพาะเจาะจง'} ซึ่งมีรายละเอียด ดังต่อไปนี้",
        align="justify", indent=1.25, after=2)
@@ -209,7 +210,7 @@ def render_buy_report(school, proc, tp) -> str:
         _p(doc, f"{no}.  {text}", align="justify", indent=1.25, after=1)
 
     item(1, "เหตุผลและความจำเป็นที่ต้องซื้อ เพื่อใช้ประกอบการเรียนการสอนของนักเรียน"
-            + (f" ระดับชั้น{levels}" if levels else ""))
+            + (f" ระดับ{levels}" if levels else ""))
     item(2, f"รายละเอียดคุณลักษณะเฉพาะของพัสดุ {name} จำนวน {_n_items(proc)} รายการ "
             "(รายละเอียดตามเอกสารแนบท้าย)")
     item(3, f"ราคากลางของพัสดุที่จะซื้อ เป็นเงิน {_money(total)} บาท ({bahttext(total)}) "

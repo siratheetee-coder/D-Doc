@@ -62,7 +62,7 @@ def _trip_sentence(trip, c):
     """ข้อความส่วนกลางที่ใช้ร่วมกันในแบบทั้ง 3 (ไปเพื่อ ณ จังหวัด เริ่มออกเดินทาง ... พาหนะ)"""
     d, m, y, t = _parts(trip.depart_at)
     ctrl = trip.ctrl_name or DOT
-    return (f"โดยมี {ctrl} เป็นผู้ควบคุมไปเพื่อ {_v(trip.purpose)} ณ {_v(trip.place)} "
+    return (f"โดยมี {ctrl} เป็นผู้ควบคุมไปเพื่อ{_v(_aim(trip))} ณ {_v(trip.place)} "
             f"จังหวัด {_v(trip.province)} เริ่มออกเดินทางวันที่ {d} เดือน {m} พ.ศ. {y} "
             f"เวลา {t} น.")
 
@@ -502,23 +502,18 @@ def render_travel_claim(trip, school) -> str:
 # ======================================================================
 # ชุดบันทึกข้อความ (ตามแบบที่โรงเรียนใช้จริง) + กำหนดการ + ใบลงเวลา + คำสั่งแบบตาราง
 # ======================================================================
-_LEVEL_WORD = {"อ": "อนุบาลปีที่", "ป": "ประถมศึกษาปีที่", "ม": "มัธยมศึกษาปีที่"}
 
 
 def level_text(trip) -> str:
-    """ระดับชั้นของนักเรียนที่ไป เช่น 'ชั้นประถมศึกษาปีที่ 5 และชั้นประถมศึกษาปีที่ 6'"""
-    seen = []
-    for s in trip.students:
-        lv = (s.level or "").strip()
-        if lv and lv not in seen:
-            seen.append(lv)
-    words = []
-    for lv in seen:
-        head, _, num = lv.partition(".")
-        words.append(f"ชั้น{_LEVEL_WORD[head]} {num}" if head in _LEVEL_WORD and num else lv)
-    if len(words) > 1:
-        return " ".join(words[:-1]) + " และ" + words[-1]
-    return words[0] if words else DOT
+    """ระดับชั้นที่ไป แบบช่วง (ชั้นแรก ถึง ชั้นสุดท้าย) - ใช้ helper กลาง thai_utils.level_range"""
+    from app.thai_utils import level_range
+    return level_range(s.level for s in trip.students) or DOT
+
+
+def _aim(trip) -> str:
+    """จุดประสงค์ ตัดคำว่า 'เพื่อ' นำหน้าออก (เอกสารเขียน 'ไปเพื่อ ...' อยู่แล้ว)"""
+    t = (trip.purpose or "").strip()
+    return t[len("เพื่อ"):].strip() if t.startswith("เพื่อ") else t
 
 
 def _period_text(trip) -> str:
@@ -561,7 +556,7 @@ def render_request_memo(trip, school) -> str:
                approver_title(trip, school) or _director_title(school))
     lodging = f" พักค้างที่ {trip.lodging}" if trip.trip_type != "day" and (trip.lodging or "").strip() else ""
     _p(doc, f"ข้าพเจ้าขออนุญาตนำนักเรียน ระดับ{level_text(trip)} มีจำนวน {c['students']} คน และครูควบคุม "
-            f"{c['staff']} คน โดยมี {_v(trip.ctrl_name)} เป็นผู้ควบคุมไปเพื่อ {_v(trip.purpose)} ณ {_v(trip.place)} "
+            f"{c['staff']} คน โดยมี {_v(trip.ctrl_name)} เป็นผู้ควบคุมไปเพื่อ{_v(_aim(trip))} ณ {_v(trip.place)} "
             f"จังหวัด {_v(trip.province)} เริ่มออกเดินทางวันที่ {d1} เดือน {m1} พ.ศ. {y1} เวลา {t1} น. "
             f"และจะไปตามเส้นทางผ่าน {_v(trip.route)} โดย{_v(trip.vehicle)}{lodging} "
             f"และกลับถึงสถานศึกษา วันที่ {d2} เดือน {m2} พ.ศ. {y2} เวลา {t2} น. "
@@ -595,7 +590,7 @@ def render_report_memo(trip, school) -> str:
     _p(doc, f"ด้วยข้าพเจ้า {_v(trip.ctrl_name)} ตำแหน่ง {_v(trip.ctrl_pos)} ได้รับมอบหมายให้ดำเนินกิจกรรม "
             f"\"{title}\" ประจำปีการศึกษา {_year_of(trip)} โดยนำนักเรียน จำนวน {c['students']} คน และครูผู้ควบคุม "
             f"จำนวน {c['staff']} คน ไป ณ {_v(trip.place)} จังหวัด {_v(trip.province)} ในวันที่ {_period_text(trip)} "
-            f"โดยมีวัตถุประสงค์เพื่อ{_v(trip.purpose)}", align="justify", indent=2.5, after=4)
+            f"โดยมีวัตถุประสงค์เพื่อ{_v(_aim(trip))}", align="justify", indent=2.5, after=4)
     if trip.result == "ไม่เรียบร้อย":
         text = REPORT_BAD.format(detail=_v(trip.result_detail), title=title, year=_year_of(trip))
     else:
@@ -642,7 +637,7 @@ def default_schedule(trip, school) -> list:
     dep = trip.depart_at
     ret = trip.return_at
     hm = lambda d: f"{d:%H.%M}"
-    if not (dep and ret) or not (dep.hour or dep.minute):
+    if not (dep and ret) or not (dep.hour or dep.minute) or ret <= dep:
         return [{"day": "", "time": "", "act": "นักเรียนรายงานตัว คณะครูให้ความรู้และแนวปฏิบัติในการทัศนศึกษา"}]
     place = trip.place or "......"
     rows = [

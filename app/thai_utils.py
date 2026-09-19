@@ -14,6 +14,33 @@ SCHOOL_LEVELS = ["อ.1", "อ.2", "อ.3", "ป.1", "ป.2", "ป.3", "ป.4", 
                  "ม.1", "ม.2", "ม.3"]
 GRADUATED = "จบการศึกษา"
 
+_LEVEL_FULL = {"อ": "อนุบาลปีที่", "ป": "ประถมศึกษาปีที่", "ม": "มัธยมศึกษาปีที่"}
+
+
+def level_full(lv: str) -> str:
+    """'ป.6' -> 'ชั้นประถมศึกษาปีที่ 6' (รูปแบบอื่นคืนตามเดิม)"""
+    head, _, num = (lv or "").strip().partition(".")
+    return f"ชั้น{_LEVEL_FULL[head]} {num}" if head in _LEVEL_FULL and num else (lv or "").strip()
+
+
+def level_range(levels) -> str:
+    """ระดับชั้นสำหรับเอกสาร: 1 ชั้น = ชื่อชั้น · 2 ชั้น = ก และ ข · มากกว่านั้น = ชั้นแรก ถึง ชั้นสุดท้าย
+    ไม่ไล่ทุกชั้น (เช่น ป.1 ... ม.3 -> 'ชั้นประถมศึกษาปีที่ 1 ถึงชั้นมัธยมศึกษาปีที่ 3')"""
+    def key(lv):
+        head, _, num = lv.partition(".")
+        try:
+            return ({"อ": 0, "ป": 1, "ม": 2}.get(head, 9), int(num))
+        except ValueError:
+            return (9, 99)
+    seen = sorted({(x or "").strip() for x in levels if (x or "").strip()}, key=key)
+    if not seen:
+        return ""
+    if len(seen) == 1:
+        return level_full(seen[0])
+    if len(seen) == 2:
+        return f"{level_full(seen[0])} และ{level_full(seen[1])}"
+    return f"{level_full(seen[0])} ถึง{level_full(seen[-1])}"
+
 
 def is_secondary(level: str) -> bool:
     """ชั้นนี้เป็นมัธยมไหม - มัธยมตัดสินผลการเรียนรายภาค ประถม/อนุบาลตัดสินรายปี
