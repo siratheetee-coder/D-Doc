@@ -1,0 +1,11 @@
+#floating-save-dock{position:fixed;bottom:0;left:0;right:0;z-index:55;display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:12px 94px calc(12px + env(safe-area-inset-bottom,0px)) 18px;background:rgba(255,255,255,.98);box-shadow:0 -3px 18px #0f172a12;min-height:82px}
+#floating-save-dock[hidden]{display:none!important}
+#floating-save-dock label{font-size:13px;white-space:nowrap;margin:0;color:#475569}
+#floating-save-dock select{max-width:340px;min-width:0;width:auto;margin:0}
+#floating-save-action{border:0;border-radius:999px;background:linear-gradient(120deg,#06b6d4,#4f46e5);color:white;min-height:46px;padding:10px 24px;box-shadow:0 5px 16px #4f46e52b;white-space:nowrap;max-width:55%;overflow:hidden;text-overflow:ellipsis}
+body.has-save-dock{padding-bottom:100px!important}
+body.has-save-dock main{scroll-padding-bottom:110px}
+body.has-save-dock main input,body.has-save-dock main select,body.has-save-dock main textarea,body.has-save-dock main button{scroll-margin-bottom:110px}
+.save-dock-original{position:static!important;right:auto!important;bottom:auto!important;box-shadow:none!important}
+@media(max-width:640px){#floating-save-dock{padding:10px 76px calc(10px + env(safe-area-inset-bottom,0px)) 10px;gap:6px}#floating-save-dock label{display:none}#floating-save-dock select{flex:1;width:0;font-size:12px;padding:8px}#floating-save-action{padding:10px 15px;font-size:14px}body.has-save-dock{padding-bottom:110px!important}}
+@media print{#floating-save-dock{display:none!important}body.has-save-dock{padding-bottom:0!important}}
