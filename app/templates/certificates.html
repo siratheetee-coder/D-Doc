@@ -6,6 +6,12 @@
   @font-face { font-family:'PromptCert'; src:url('/static/fonts/Prompt-SemiBold.ttf'); font-weight:600; }
   @font-face { font-family:'PromptCert'; src:url('/static/fonts/Prompt-Regular.ttf'); font-weight:400; }
   #pvName { font-family:'PromptCert', sans-serif; font-weight:600; }
+  #pvCertNo { font-family:'PromptCert', sans-serif; font-weight:400; }
+  #imgBox [data-drag] { pointer-events:auto !important; cursor:grab; touch-action:none; user-select:none; padding:5px; border-radius:4px; }
+  #imgBox [data-drag]:hover, #imgBox [data-drag]:focus-visible { outline:2px dashed #6366f1; background:rgba(99,102,241,.07); }
+  #imgBox [data-drag].dragging { cursor:grabbing; outline:2px solid #6366f1; }
+  .cert-slider { display:flex; gap:10px; align-items:center; margin:8px 0; }
+  .cert-slider input[type=range] { flex:1; min-width:80px; accent-color:#4f46e5; padding:0; }
   #pvSub  { font-family:'PromptCert', sans-serif; font-weight:400; }
   /* จอกว้าง: ตัวอย่าง(ซ้าย) ตรึงไว้เห็นตลอด | ตั้งค่า+รายชื่อ(ขวา) เลื่อนได้ */
   .cert-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:18px; align-items:start; }
@@ -15,7 +21,7 @@
 </style>
 <div class="card">
   <h1><svg class="icon"><use href="#ic-ai"/></svg> ออกเกียรติบัตร (อัปโหลดพื้นหลัง + พิมพ์ชื่อทับ)</h1>
-  <p class="muted" style="margin-top:0;">อัปโหลดรูปเกียรติบัตรของคุณ → คลิกบนรูปเพื่อปักตำแหน่งชื่อ → ใส่รายชื่อ (วางหรืออัป Excel) → ได้ PDF หลายหน้า (1 คน/หน้า)</p>
+  <p class="muted" style="margin-top:0;">อัปโหลดรูปเกียรติบัตรของคุณ → ลากชื่อบนรูปเพื่อจัดตำแหน่ง → ใส่รายชื่อ (วางหรืออัป Excel) → ได้ PDF หลายหน้า (1 คน/หน้า)</p>
   {% if request.query_params.get('err') %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> ต้องอัปโหลดพื้นหลังและใส่รายชื่ออย่างน้อย 1 ชื่อ</div>{% endif %}
 </div>
 
@@ -34,19 +40,20 @@
         <p class="muted" id="pvEmpty" style="margin:0;">อัปโหลดรูปพื้นหลังทางขวา แล้วตัวอย่างจะแสดงตรงนี้ ปรับขนาด/สีฟอนต์และพิมพ์รายชื่อได้โดยไม่ต้องเลื่อนขึ้นมาดู</p>
         <div id="previewWrap" style="display:none;">
           <div style="margin:0 0 6px; display:flex; gap:7px; align-items:center; flex-wrap:wrap; font-size:13px;">
-            <b>คลิกบนรูปเพื่อปัก:</b>
-            <button type="button" class="btn sm" id="modeName" onclick="setPlaceMode('name')">ตำแหน่งชื่อ (จุดแดง)</button>
-            <button type="button" class="btn sm gray" id="modeCert" onclick="setPlaceMode('cert')" style="display:none;">ตำแหน่งเลขที่ (จุดน้ำเงิน)</button>
+            <b>เลือกข้อความ:</b>
+            <button type="button" class="btn sm" id="modeName" onclick="setPlaceMode('name')">ชื่อ + ข้อความเสริม</button>
+            <button type="button" class="btn sm gray" id="modeCert" onclick="setPlaceMode('cert')" style="display:none;">เลขที่เกียรติบัตร</button>
           </div>
+          <div class="cert-slider"><label for="liveSize" id="liveSizeLabel">ขนาดชื่อ</label><input id="liveSize" type="range" min="10" max="120" value="48" oninput="setLiveSize(this.value)"><output id="liveSizeValue" for="liveSize">48</output></div>
           <div id="imgBox" style="position:relative; display:inline-block; max-width:100%; cursor:crosshair; border:1px solid var(--border);">
-            <img id="bgImg" style="display:block; max-width:100%; height:auto;" onclick="placeName(event)">
-            <div id="pvName" style="position:absolute; transform:translate(-50%,-50%); text-align:center; pointer-events:none; white-space:nowrap; line-height:1;"></div>
-            <div id="pvSub" style="position:absolute; transform:translate(-50%,-50%); text-align:center; pointer-events:none; white-space:pre; line-height:1;"></div>
-            <div id="pvCertNo" style="position:absolute; transform:translate(-50%,-50%); text-align:center; pointer-events:none; white-space:nowrap; line-height:1; display:none;"></div>
+            <img id="bgImg" draggable="false" style="display:block; max-width:100%; height:auto;" onclick="placeName(event)">
+            <div id="pvName" data-drag="name" tabindex="0" role="button" aria-label="ลากตำแหน่งชื่อ หรือใช้ปุ่มลูกศร" style="position:absolute; transform:translate(-50%,-50%); text-align:center; pointer-events:none; white-space:nowrap; line-height:1;"></div>
+            <div id="pvSub" data-drag="name" tabindex="0" role="button" aria-label="ลากชื่อพร้อมข้อความเสริม หรือใช้ปุ่มลูกศร" style="position:absolute; transform:translate(-50%,-50%); text-align:center; pointer-events:none; white-space:pre; line-height:1;"></div>
+            <div id="pvCertNo" data-drag="cert" tabindex="0" role="button" aria-label="ลากตำแหน่งเลขที่ หรือใช้ปุ่มลูกศร" style="position:absolute; transform:translate(-50%,-50%); text-align:center; pointer-events:none; white-space:nowrap; line-height:1; display:none;"></div>
             <div id="marker" style="position:absolute; width:10px; height:10px; margin:-5px 0 0 -5px; border-radius:50%; background:#e11; box-shadow:0 0 0 2px #fff; left:50%; top:45%; pointer-events:none;"></div>
             <div id="markerCert" style="position:absolute; width:10px; height:10px; margin:-5px 0 0 -5px; border-radius:50%; background:#2563eb; box-shadow:0 0 0 2px #fff; left:50%; top:85%; pointer-events:none; display:none;"></div>
           </div>
-          <p class="muted" style="margin:6px 0 0; font-size:13px;">ตัวอย่างแสดงชื่อแรกในรายการ (พิมพ์รายชื่อทางขวาเพื่อดูตัวอย่างสด)</p>
+          <p class="muted" style="margin:6px 0 0; font-size:13px;">ลากข้อความเพื่อย้าย · เลื่อนแถบเพื่อปรับขนาดทันที · ใช้ปุ่มลูกศรขยับละเอียด (Shift เพื่อขยับเร็ว) · ข้อความเสริมเคลื่อนตามชื่อ</p>
         </div>
       </div>
     </div>
@@ -144,13 +151,14 @@
       document.getElementById('previewWrap').style.display = 'block';
       var e = document.getElementById('pvEmpty'); if(e) e.style.display = 'none';
       document.getElementById('optCard').style.display = 'block';
-      msg.textContent = 'อัปโหลดแล้ว - คลิกบนรูปเพื่อปักตำแหน่งชื่อ';
+      msg.textContent = 'อัปโหลดแล้ว - ลากชื่อบนรูปเพื่อจัดตำแหน่ง';
       setTimeout(preview, 200);
     }).catch(function(){ msg.textContent = 'อัปโหลดไม่สำเร็จ'; });
   }
   var placeMode = 'name';
   function setPlaceMode(m){
     placeMode = m;
+    syncLiveSize();
     document.getElementById('modeName').className = 'btn sm' + (m==='name' ? '' : ' gray');
     document.getElementById('modeCert').className = 'btn sm' + (m==='cert' ? '' : ' gray');
   }
@@ -175,9 +183,44 @@
     }
     preview();
   }
+  function coordinate(id,fallback){const v=parseFloat(document.getElementById(id).value);return Number.isFinite(v)?v:fallback;}
+  function syncLiveSize(){
+    const field=document.getElementById(placeMode==='cert'?'cert_no_size':'name_size');
+    const slider=document.getElementById('liveSize');slider.min=field.min;slider.max=field.max;slider.value=field.value;
+    document.getElementById('liveSizeLabel').textContent=placeMode==='cert'?'ขนาดเลขที่':'ขนาดชื่อ';
+    document.getElementById('liveSizeValue').value=field.value;
+  }
+  function setLiveSize(value){document.getElementById(placeMode==='cert'?'cert_no_size':'name_size').value=value;preview();}
+  function moveText(mode,x,y){
+    const prefix=mode==='cert'?'cert_no':'name';
+    document.getElementById(prefix+'_x').value=Math.max(0,Math.min(100,x)).toFixed(2);
+    document.getElementById(prefix+'_y').value=Math.max(0,Math.min(100,y)).toFixed(2);
+    preview();
+  }
+  document.querySelectorAll('[data-drag]').forEach(el=>{
+    let drag=null;
+    el.addEventListener('pointerdown',e=>{
+      if(e.button!==0)return;e.preventDefault();setPlaceMode(el.dataset.drag);el.focus({preventScroll:true});
+      const rect=document.getElementById('bgImg').getBoundingClientRect();if(!rect.width||!rect.height)return;
+      const prefix=placeMode==='cert'?'cert_no':'name';
+      drag={id:e.pointerId,mode:placeMode,x:e.clientX,y:e.clientY,nx:coordinate(prefix+'_x',50),ny:coordinate(prefix+'_y',45),rect};
+      el.setPointerCapture(e.pointerId);el.classList.add('dragging');
+    });
+    el.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;e.preventDefault();moveText(drag.mode,drag.nx+(e.clientX-drag.x)/drag.rect.width*100,drag.ny+(e.clientY-drag.y)/drag.rect.height*100);});
+    function stop(){drag=null;el.classList.remove('dragging');}
+    el.addEventListener('pointerup',stop);el.addEventListener('pointercancel',stop);el.addEventListener('lostpointercapture',stop);
+    el.addEventListener('keydown',e=>{
+      if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))return;
+      e.preventDefault();setPlaceMode(el.dataset.drag);const prefix=placeMode==='cert'?'cert_no':'name',step=e.shiftKey?1:.1;
+      moveText(placeMode,coordinate(prefix+'_x',50)+(e.key==='ArrowLeft'?-step:e.key==='ArrowRight'?step:0),coordinate(prefix+'_y',45)+(e.key==='ArrowUp'?-step:e.key==='ArrowDown'?step:0));
+    });
+  });
+  document.getElementById('bgImg').addEventListener('load',preview);
+  if(window.ResizeObserver)new ResizeObserver(()=>preview()).observe(document.getElementById('bgImg'));
   function preview(){
-    var nxp = parseFloat(document.getElementById('name_x').value)||50;
-    var nyp = parseFloat(document.getElementById('name_y').value)||45;
+    syncLiveSize();
+    var nxp = coordinate('name_x',50);
+    var nyp = coordinate('name_y',45);
     var m = document.getElementById('marker');
     m.style.left = nxp + '%'; m.style.top = nyp + '%';
     var pv = document.getElementById('pvName'), sv = document.getElementById('pvSub');
@@ -205,8 +248,8 @@
     var cOn = document.getElementById('cert_no_on') && document.getElementById('cert_no_on').checked;
     var cpv = document.getElementById('pvCertNo'), cm = document.getElementById('markerCert');
     if(cOn){
-      var cxp = parseFloat(document.getElementById('cert_no_x').value)||50;
-      var cyp = parseFloat(document.getElementById('cert_no_y').value)||85;
+      var cxp = coordinate('cert_no_x',50);
+      var cyp = coordinate('cert_no_y',85);
       cm.style.left = cxp + '%'; cm.style.top = cyp + '%'; cm.style.display = 'block';
       var csize = parseInt(document.getElementById('cert_no_size').value||26)||26;
       var cpx = w * csize / 1000;

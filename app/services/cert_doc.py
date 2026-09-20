@@ -40,8 +40,8 @@ def render_certificates(batch, names: list, school, numbers: list = None) -> str
     name_px = max(10, int(W * float(batch.name_size or 48) / 1000))   # ขนาดชื่อ ~ %width
     sub_px = max(8, int(name_px * 0.5))
     color = batch.name_color or "#1a1a1a"
-    nx = W * float(batch.name_x or 50) / 100.0
-    ny = H * float(batch.name_y or 45) / 100.0
+    nx = W * float(batch.name_x if batch.name_x is not None else 50) / 100.0
+    ny = H * float(batch.name_y if batch.name_y is not None else 45) / 100.0
     name_font = _font(name_px, bold=True)
     sub_font = _font(sub_px, bold=False)
     sub_text = (batch.sub_text or "").strip()
@@ -50,8 +50,8 @@ def render_certificates(batch, names: list, school, numbers: list = None) -> str
     cert_on = bool(getattr(batch, "cert_no_on", 0)) and numbers
     cno_px = max(8, int(W * float(getattr(batch, "cert_no_size", 26) or 26) / 1000))
     cno_font = _font(cno_px, bold=False)
-    cnx = W * float(getattr(batch, "cert_no_x", 50) or 50) / 100.0
-    cny = H * float(getattr(batch, "cert_no_y", 85) or 85) / 100.0
+    cnx = W * float(getattr(batch, "cert_no_x", None) if getattr(batch, "cert_no_x", None) is not None else 50) / 100.0
+    cny = H * float(getattr(batch, "cert_no_y", None) if getattr(batch, "cert_no_y", None) is not None else 85) / 100.0
 
     pages = []
     for i, nm in enumerate(names):
