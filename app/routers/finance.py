@@ -75,6 +75,7 @@ def _finance_years(db, fy: int) -> list:
 # ---------------- Dashboard ----------------
 @router.get("/finance", response_class=HTMLResponse)
 def finance_dashboard(request: Request, db: Session = Depends(get_db), year: int | None = None):
+    from app.services.dashboard_tasks import finance_tasks
     fy = year or current_fiscal_year()
     accounts = db.query(FinanceAccount).order_by(FinanceAccount.name).all()
     total_bal = sum(account_balance_year(a, fy) for a in accounts)
@@ -88,6 +89,7 @@ def finance_dashboard(request: Request, db: Session = Depends(get_db), year: int
         "total_in": total_in, "total_out": total_out,
         "n_disburse": db.query(DisburseMemo).filter_by(fiscal_year=fy).count(),
         "n_receipt": db.query(Receipt).filter_by(fiscal_year=fy).count(),
+        "task_cards": finance_tasks(db, fy),
         "recent_disburse": db.query(DisburseMemo).order_by(DisburseMemo.id.desc()).limit(5).all(),
     })
 
@@ -393,7 +395,11 @@ def _items_map(db, fy) -> dict:
 @router.get("/finance/disburse", response_class=HTMLResponse)
 def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | None = None):
     fy = current_fiscal_year()
-    rows = db.query(DisburseMemo).order_by(DisburseMemo.id.desc()).all()
+    query = db.query(DisburseMemo)
+    if request.query_params.get('attention') == '1':
+        fy = _to_int(request.query_params.get('year'), fy)
+        query = query.filter(DisburseMemo.fiscal_year == fy, DisburseMemo.status.in_(['ร่าง', 'อนุมัติ']))
+    rows = query.order_by(DisburseMemo.id.desc()).all()
     # prefill จากเรื่องจัดซื้อ/จัดจ้าง (ถ้าระบุ ?proc=<id>)
     prefill = None
     if proc:
@@ -980,8 +986,16 @@ def receipt_voucher_doc(rid: int, db: Session = Depends(get_db)):
 @router.get("/finance/loans", response_class=HTMLResponse)
 def loans_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
     fy = year or current_fiscal_year()
-    loans = (db.query(MoneyLoan).filter_by(fiscal_year=fy)
-             .order_by(MoneyLoan.date, MoneyLoan.id).all())
+    from app.services.dashboard_tasks import loan_state
+    from zoneinfo import ZoneInfo
+    attention = request.query_params.get('attention')
+    query = db.query(MoneyLoan)
+    if attention not in ('overdue', 'soon', 'undated'):
+        query = query.filter_by(fiscal_year=fy)
+    loans = query.order_by(MoneyLoan.due_date, MoneyLoan.id).all()
+    if attention in ('overdue', 'soon', 'undated'):
+        today = datetime.now(ZoneInfo('Asia/Bangkok')).date()
+        loans = [loan for loan in loans if loan_state(loan, today)[0] == attention]
     rows = []
     for ln in loans:
         paid = sum(float(r.amount or 0) for r in (ln.returns or []))
@@ -1067,8 +1081,16 @@ def loan_returns_doc(lid: int, db: Session = Depends(get_db)):
 def loan_register_doc(db: Session = Depends(get_db), year: int | None = None):
     from app.services.finance_forms_doc import render_loan_register
     fy = year or current_fiscal_year()
-    loans = (db.query(MoneyLoan).filter_by(fiscal_year=fy)
-             .order_by(MoneyLoan.date, MoneyLoan.id).all())
+    from app.services.dashboard_tasks import loan_state
+    from zoneinfo import ZoneInfo
+    attention = request.query_params.get('attention')
+    query = db.query(MoneyLoan)
+    if attention not in ('overdue', 'soon', 'undated'):
+        query = query.filter_by(fiscal_year=fy)
+    loans = query.order_by(MoneyLoan.due_date, MoneyLoan.id).all()
+    if attention in ('overdue', 'soon', 'undated'):
+        today = datetime.now(ZoneInfo('Asia/Bangkok')).date()
+        loans = [loan for loan in loans if loan_state(loan, today)[0] == attention]
     return serve_generated(render_loan_register(get_school(db), fy, loans), _DOCX)
 
 

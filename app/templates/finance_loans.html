@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% block title %}เงินยืม{% endblock %}
 {% block content %}
+{% if request.query_params.get('attention') in ['overdue','soon','undated'] %}<div class="alert">แสดงเงินยืมคงค้างทุกปี: {{ {'overdue':'เกินกำหนด','soon':'ครบกำหนดวันนี้–7 วันข้างหน้า','undated':'ยังไม่ระบุวันครบกำหนด'}[request.query_params.get('attention')] }} · <a href="/finance/loans">ล้างตัวกรอง</a></div>{% endif %}
 <div class="hero">
   <div>
     <div class="hero-sub">สัญญาการยืมเงิน (แบบ 8500) · ทะเบียนคุมลูกหนี้เงินยืม</div>
     <span class="hero-title">เงินยืม</span>
-    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} · {{ rows|length }} สัญญา</div>
+    <div class="hero-meta">{% if request.query_params.get('attention') in ['overdue','soon','undated'] %}ทุกปีงบประมาณ{% else %}ปีงบประมาณ {{ fiscal_year }}{% endif %} · {{ rows|length }} สัญญา</div>
   </div>
   <form method="get" action="/finance/loans">
     <select name="year" onchange="submitReplace(this.form)">
@@ -56,7 +57,7 @@
       <th class="right">ยืม</th><th>ครบกำหนด</th><th class="right">ส่งใช้แล้ว</th><th class="right">คงค้าง</th><th></th></tr></thead>
     <tbody>
       {% for r in rows %}
-      <tr {% if r.left > 0.005 %}style="background:#fff7ed;"{% endif %}>
+      <tr id="loan-{{ r.o.id }}" style="scroll-margin-top:90px;{% if r.left > 0.005 %}background:#fff7ed;{% endif %}">
         <td data-label="เลขที่"><b>{{ r.o.contract_no or '-' }}</b></td>
         <td data-label="วันที่ยืม">{{ thai_date(r.o.date) if r.o.date else '-' }}</td>
         <td data-label="ผู้ยืม">{{ r.o.borrower }}</td>

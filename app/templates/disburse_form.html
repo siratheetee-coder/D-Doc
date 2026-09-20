@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}บันทึกขอเบิกจ่าย{% endblock %}
 {% block content %}
+{% if request.query_params.get('attention') == '1' %}<div class="alert">แสดงบันทึกที่ยังไม่จ่าย ปีงบ {{ fiscal_year }} · <a href="/finance/disburse">ดูทั้งหมด</a></div>{% endif %}
 <div class="card">
   <h1><svg class="icon"><use href="#ic-file"/></svg> ออกบันทึกขออนุมัติเบิกจ่ายเงิน</h1>
   <p class="muted" style="margin-top:0;">กรอกข้อมูลเอง หรือ เลือกดึงข้อมูลจากเรื่องจัดซื้อ/จัดจ้างเพื่อให้ระบบกรอกให้ จากนั้นบันทึกเพื่อออกเอกสาร</p>

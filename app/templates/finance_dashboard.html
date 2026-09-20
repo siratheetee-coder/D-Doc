@@ -19,6 +19,8 @@
 
 {% if request.query_params.get("carried") %}<div class="alert">✔ คัดลอกยอดคงเหลือสิ้นปีงบ {{ request.query_params.get("carried") }} ไปตั้งเป็นยอดยกมาของปีงบ {{ fiscal_year }} แล้ว (ข้อมูลปีเก่ายังอยู่ครบ เลือกดูได้จากช่องเลือกปี)</div>{% endif %}
 
+{% set task_scope = 'เงินยืมคงค้างรวมทุกปี · ใกล้ครบกำหนดนับจากวันนี้ถึงอีก 7 วัน · บันทึกเบิกจ่ายตามปีงบที่เลือก · แสดงตัวอย่างกลุ่มละไม่เกิน 5 รายการ' %}
+{% include '_dashboard_tasks.html' %}
 <div class="card">
   <div class="stat">
     <div class="box"><div><div class="lab">เงินคงเหลือรวมทุกบัญชี</div><div class="num">{{ "{:,.2f}".format(total_bal) }}</div></div>

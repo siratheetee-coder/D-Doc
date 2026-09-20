@@ -1,0 +1,13 @@
+<section class="card" aria-label="งานที่ต้องจัดการ">
+<style>
+.task-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.task-box{padding:16px;border-radius:14px;background:#f4f7fb;min-width:0}.task-box.urgent{background:#fff1f2}.task-top{display:flex;justify-content:space-between;gap:12px;align-items:center;color:inherit;text-decoration:none}.task-top strong{font-size:28px;color:#2563eb}.urgent .task-top strong{color:#be123c}.task-list{list-style:none;padding:0;margin:10px 0 0}.task-list li{border-top:1px solid #dde3ec;padding:10px 0}.task-list a{display:block;text-decoration:none;overflow-wrap:anywhere}.task-list small{display:block;color:var(--muted);margin-top:3px}.task-top:focus-visible,.task-list a:focus-visible{outline:3px solid #2563eb;outline-offset:3px}@media(max-width:640px){.task-grid{grid-template-columns:1fr}}
+</style>
+<h2>งานที่ต้องจัดการ</h2>
+<p class="muted">{{ task_scope }}</p>
+<div class="task-grid">
+{% for card in task_cards %}<article class="task-box {{ card.tone }}">
+<a class="task-top" href="{{ card.href }}"><b>{{ card.label }}</b><strong>{{ card.count }}</strong></a>
+{% if card.count %}<ul class="task-list">{% for item in card['items'] %}<li><a href="{{ item.href }}">{{ item.title }}<small>{{ item.detail }}{% if item.due %} · ครบกำหนด {{ thai_date(item.due) }}{% endif %}</small></a></li>{% endfor %}</ul><a href="{{ card.href }}">เปิดรายการทั้งหมด {{ card.count }} รายการ →</a>
+{% else %}<p class="muted" style="margin-bottom:0">ไม่มีรายการค้างในกลุ่มนี้</p>{% endif %}
+</article>{% endfor %}
+</div></section>

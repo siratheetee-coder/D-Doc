@@ -43,11 +43,13 @@ def _cur_year() -> int:
 # ==================== หน้าหลัก ====================
 @router.get("/hr", response_class=HTMLResponse)
 def hr_home(request: Request, db: Session = Depends(get_db)):
+    from app.services.dashboard_tasks import hr_tasks
     year = _cur_year()
     persons = db.query(Person).filter(Person.active == True).all()  # noqa: E712
     leaves_year = db.query(LeaveRecord).filter(LeaveRecord.year == year).all()
     return templates.TemplateResponse("hr_home.html", {
         "request": request, "school": get_school(db), "year": year,
+        "task_cards": hr_tasks(db),
         "n_staff": len(persons), "n_leaves": len(leaves_year),
         "days_leaves": sum(l.days or 0 for l in leaves_year),
     })
@@ -412,7 +414,11 @@ def hr_certificate_docx(pid: int, db: Session = Depends(get_db)):
 # ==================== ใบลาที่ครูส่งเข้าระบบ (อนุมัติ + แจ้งผล) ====================
 @router.get("/hr/leave-requests", response_class=HTMLResponse)
 def leave_requests_page(request: Request, db: Session = Depends(get_db), msg: str = "", err: str = ""):
-    reqs = db.query(LeaveRequest).all()
+    query = db.query(LeaveRequest)
+    selected_status = request.query_params.get('status')
+    if selected_status in ('pending', 'personnel'):
+        query = query.filter(LeaveRequest.status == selected_status)
+    reqs = query.all()
     reqs.sort(key=lambda r: (r.status != "pending", r.submitted_at or datetime.min), reverse=False)
     # pending ก่อน แล้วเรียงใหม่->เก่า
     reqs.sort(key=lambda r: (r.status != "pending", -(r.submitted_at.timestamp() if r.submitted_at else 0)))
@@ -616,7 +622,11 @@ def leave_request_delete(lid: int, db: Session = Depends(get_db)):
 # ==================== ขอไปราชการที่ครูส่งเข้าระบบ (อนุมัติ + ลงทะเบียน + แจ้ง) ====================
 @router.get("/hr/travel-requests", response_class=HTMLResponse)
 def travel_requests_page(request: Request, db: Session = Depends(get_db), msg: str = "", err: str = ""):
-    reqs = db.query(TravelRequest).all()
+    query = db.query(TravelRequest)
+    selected_status = request.query_params.get('status')
+    if selected_status in ('pending', 'personnel'):
+        query = query.filter(TravelRequest.status == selected_status)
+    reqs = query.all()
     reqs.sort(key=lambda r: (r.status != "pending",
                              -(r.submitted_at.timestamp() if r.submitted_at else 0)))
     n_pending = sum(1 for r in reqs if r.status == "pending")

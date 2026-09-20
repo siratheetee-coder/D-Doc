@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}ขอไปราชการที่รออนุมัติ{% endblock %}
 {% block content %}
+{% if request.query_params.get('status') in ['pending','personnel'] %}<div class="alert">ตัวกรอง: {{ 'รอบุคคลตรวจ' if request.query_params.get('status') == 'pending' else 'รอ ผอ. อนุมัติ' }} · <a href="/hr/travel-requests">ดูทุกสถานะ</a></div>{% endif %}
 <div class="hero">
   <div>
     <div class="hero-sub">งานบุคคล · อนุมัติไปราชการ</div>
