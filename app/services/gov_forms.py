@@ -18,6 +18,11 @@ from app.database import get_data_dir
 from app.thai_utils import _THAI_MONTHS
 
 _FORM_DIR = Path(__file__).resolve().parent.parent / "data" / "forms"
+
+# คอลัมน์ลงนามในใบลา (ซม.): ผู้ลา (ลงชื่อ) เริ่ม 9.5 ถึงขอบขวา 16.0 · ผู้บังคับบัญชาเริ่ม 9.7
+SIG_CENTER = 12.75      # กึ่งกลางบรรทัดลงชื่อของผู้ลา
+BOSS_LEFT = 9.7         # จุดเริ่ม (ลงชื่อ) ของผู้บังคับบัญชา
+BOSS_CENTER = 12.85     # กึ่งกลางบรรทัดลงชื่อของผู้บังคับบัญชา
 CHK = "✓"
 
 
@@ -119,6 +124,73 @@ def _set_para(p, text, size=16):
     return run
 
 
+# ---------- จัดแนวช่องลงนาม (ชื่อ/ตำแหน่ง/วันที่ ให้อยู่กึ่งกลางเดียวกับบรรทัด "(ลงชื่อ)") ----------
+_TWIP = 567          # 1 ซม.
+
+
+def _set_tabs(p, stops):
+    """กำหนด tab stops ของย่อหน้าใหม่ทั้งหมด · stops = [(cm, 'left'|'center'), ...]"""
+    pPr = p._element.get_or_add_pPr()
+    for old in pPr.findall(qn("w:tabs")):
+        pPr.remove(old)
+    tabs = OxmlElement("w:tabs")
+    for cm_pos, align in stops:
+        tab = OxmlElement("w:tab")
+        tab.set(qn("w:val"), align)
+        tab.set(qn("w:pos"), str(int(cm_pos * _TWIP)))
+        tabs.append(tab)
+    pPr.append(tabs)
+
+
+def _tab_before(p, idx):
+    """ลบช่องว่าง/แท็บที่อยู่หน้า run idx แล้วใส่แท็บเดียวแทน (ให้ตำแหน่งมาจาก tab stop)"""
+    runs = p.runs
+    j = idx - 1
+    while j >= 0 and runs[j].text.strip() == "":
+        runs[j].text = ""
+        j -= 1
+    r = runs[idx]
+    new = copy.deepcopy(r._element)
+    for t in new.findall(qn("w:t")):
+        new.remove(t)
+    for br in new.findall(qn("w:tab")):
+        new.remove(br)
+    new.append(OxmlElement("w:tab"))
+    r._element.addprevious(new)
+
+
+def _center_line(p, anchor, center_cm, keep_left=()):
+    """จัดข้อความที่ขึ้นต้นด้วย anchor ให้อยู่กึ่งกลางที่ center_cm (คอลัมน์ลงนามด้านขวา)"""
+    i = _find_run(p, anchor)
+    if i is None:
+        return
+    _tab_before(p, i)
+    _set_tabs(p, list(keep_left) + [(center_cm, "center")])
+
+
+def _left_line(p, anchor, start_cm, keep_left=()):
+    """จัดข้อความที่ขึ้นต้นด้วย anchor ให้เริ่มที่ start_cm"""
+    i = _find_run(p, anchor)
+    if i is None:
+        return
+    _tab_before(p, i)
+    _set_tabs(p, list(keep_left) + [(start_cm, "left")])
+
+
+def _paren_one_run(p, name):
+    """ยุบ '(' ... ')' ให้เป็น run เดียว '( ชื่อ )' เพื่อให้จัดกึ่งกลางได้ทั้งก้อน"""
+    i = _find_run(p, "(")
+    if i is None:
+        return
+    j = _find_run(p, ")")
+    if j is None or j <= i:
+        return
+    for r in p.runs[i + 1:j + 1]:
+        r.text = ""
+    p.runs[i].text = f"(  {(name or '').strip()}  )" if (name or "").strip() else "(                    )"
+    _strip_u(p.runs[i])
+
+
 def _fill_paren(p, name):
     """ใส่ชื่อในวงเล็บให้ ')' ชิดชื่อ (ไม่เว้นช่องยาว) : '( ชื่อ )'"""
     i = _find_run(p, "(")
@@ -137,6 +209,24 @@ def _dparts(dt):
     if not dt:
         return "", "", ""
     return str(dt.day), _THAI_MONTHS[dt.month], str(dt.year + 543)
+
+
+def _tick_box_before(p, idx):
+    """ติ๊กกล่องหน้าคำที่ run idx - กล่องเป็นสัญลักษณ์ Wingdings จึงต้องหา run ที่มี w:sym
+    (ถ้าเขียน ✓ ลง run ช่องว่างข้าง ๆ เครื่องหมายจะไปอยู่นอกกล่อง)"""
+    if idx is None:
+        return
+    for j in range(idx - 1, max(idx - 5, -1), -1):
+        try:
+            bx = p.runs[j]
+        except IndexError:
+            return
+        syms = bx._element.findall(qn("w:sym"))
+        if syms:
+            for sym in syms:
+                bx._element.remove(sym)
+            bx.text = CHK
+            return
 
 
 def _find_run(p, text):
@@ -386,9 +476,10 @@ def render_leave_official(school, person, record, db=None, approver=None,
     i18 = _find_run(P[18], "(ลงชื่อ)")                          # แปะลายเซ็นผู้ลา (ถ้ามีในทะเบียน)
     if i18 is not None:
         _stamp_sig(P[18].runs[i18], db, name)
-    _first_tab(P[19], 9.5)                                     # จัดชื่อให้ตรงกับ ตำแหน่ง/วันที่
-    _fill_paren(P[19], name)                                   # ( ชื่อ ) ให้ ) ชิดชื่อ
+    _center_line(P[19], "(", SIG_CENTER)                       # กึ่งกลางเดียวกับบรรทัด (ลงชื่อ)
+    _paren_one_run(P[19], name)                                # ( ชื่อ ) เป็นก้อนเดียว (ต้องทำหลังจัดแนว)
     _fill(P[20], [(3, " " + position)])                        # ตำแหน่ง
+    _center_line(P[20], "ตำแหน่ง", SIG_CENTER)
     if wd:                                                     # วันที่ = '1 กันยายน 2569'
         for k in (4, 5, 6, 7, 8):
             try:
@@ -396,6 +487,7 @@ def render_leave_official(school, person, record, db=None, approver=None,
             except Exception:
                 pass
         _insstrip(P[21], 3, " " + _full_date(wd))
+    _center_line(P[21], "วันที่", SIG_CENTER)
 
     # ---- ตารางสถิติการลา + การลาครั้งสุดท้าย (ดึงจากทะเบียนวันลา) ----
     year = getattr(record, "year", None)
@@ -434,30 +526,30 @@ def render_leave_official(school, person, record, db=None, approver=None,
             except Exception:
                 pass
 
+    # ---- ช่องลงนามผู้บังคับบัญชา: จัดแนวให้ตรงกันเสมอ (ทั้งกรณียังไม่อนุมัติ) ----
+    _left_line(P[28], "(ลงชื่อ)", BOSS_LEFT)
+    _center_line(P[29], "(", BOSS_CENTER)
+    _center_line(P[30], "ตำแหน่ง", BOSS_CENTER)
+    _center_line(P[31], "วันที่", BOSS_CENTER)
+
     # ---- คำสั่งอนุญาต + ลงนาม ผอ. (เมื่ออนุมัติแล้ว) ----
     if approver is not None:
         dname = (getattr(approver, "name", "") or "").strip()
         dpos = (getattr(school, "director_position", "") or "ผู้อำนวยการโรงเรียน")
         # ติ๊ก 'อนุญาต' - แทนที่กล่องก่อนคำว่า 'อนุญาต' ในตำแหน่งเดิม (ไม่ดันเลย์เอาต์)
-        i = _find_run(P[27], "อนุญาต")
-        if i is not None and i >= 1:
-            try:
-                bx = P[27].runs[i - 1]
-                for sym in bx._element.findall(qn("w:sym")):
-                    bx._element.remove(sym)
-                bx.text = CHK
-            except Exception:
-                pass
+        _tick_box_before(P[27], _find_run(P[27], "อนุญาต"))
         # ลายเซ็น ผอ. หลัง '(ลงชื่อ)' คอลัมน์ขวา (p28)
         i = _find_run(P[28], "(ลงชื่อ)")
         if i is not None:
             _stamp_sig(P[28].runs[i], db, dname)
-        # ชื่อ ผอ. ในวงเล็บ (p29 คอลัมน์ขวา) - ) ชิดชื่อ
-        _fill_paren(P[29], dname)
+        # ชื่อ ผอ. ในวงเล็บ (p29 คอลัมน์ขวา)
+        _paren_one_run(P[29], dname)
+        _center_line(P[29], "(", BOSS_CENTER)
         # ตำแหน่ง ผอ. (p30)
         i = _find_run(P[30], "ตำแหน่ง")
         if i is not None:
             _insstrip(P[30], i, " " + dpos)
+        _center_line(P[30], "ตำแหน่ง", BOSS_CENTER)
         # วันที่อนุมัติ ผอ. (p31) = '3 กันยายน 2569'
         if approve_date:
             i = _find_run(P[31], "วันที่")
