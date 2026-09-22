@@ -46,7 +46,8 @@ _DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document
 _XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 # ประเภทเงินตามงบ (คอลัมน์สมุดเงินสดราชการ) - เก็บเป็นข้อความไทยตรงๆ
-from app.services.finance_types import FUND_TYPES, FUND_DEFAULT as _FUND_DEFAULT, resolve_fund_type
+from app.services.finance_types import (FUND_TYPES, FUND_DEFAULT as _FUND_DEFAULT,
+                                        resolve_fund_type, fund_color)
 
 # ชุดหมวดสำเร็จรูป (กดปุ่มเดียวสร้างทั้งโครง) - (ชื่อหมวดแม่ | None, [รายการลูก])
 PRESET_SETS = {
@@ -122,9 +123,24 @@ def accounts_page(request: Request, db: Session = Depends(get_db), year: int | N
     budget_by_acct = {}
     for it in db.query(AccountItem).filter_by(fiscal_year=fy).all():
         budget_by_acct[it.account_id] = budget_by_acct.get(it.account_id, 0.0) + (it.budget or 0.0)
+    # จัดกลุ่มตามหมวดเงิน (งบประมาณ -> รายได้แผ่นดิน -> นอกงบประมาณ) พร้อมยอดรวมรายกลุ่ม
+    # ในกลุ่มเรียงตามที่เก็บเงิน (ธนาคาร/เงินสด/ส่วนราชการ) แล้วตามชื่อ
+    dep_order = {"bank": 0, "cash": 1, "agency": 2}
+    groups = []
+    for fund in FUND_TYPES:
+        rows = [a for a in accounts if (a.fund_type or _FUND_DEFAULT) == fund]
+        if not rows:
+            continue
+        rows.sort(key=lambda a: (dep_order.get(a.deposit_type, 9), a.name or ""))
+        groups.append({
+            "fund": fund, "color": fund_color(fund), "accounts": rows,
+            "budget": sum(budget_by_acct.get(a.id, 0.0) for a in rows),
+            "opening": sum(opening_for(a, fy) for a in rows),
+            "balance": sum(account_balance_year(a, fy) for a in rows),
+        })
     return templates.TemplateResponse("finance_accounts.html", {
         "request": request, "accounts": accounts, "budget_by_acct": budget_by_acct,
-        "fiscal_year": fy, "years": _finance_years(db, fy),
+        "groups": groups, "fiscal_year": fy, "years": _finance_years(db, fy),
     })
 
 
@@ -231,6 +247,7 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
         "item_budget_total": sum(r["budget"] for r in item_rows if r["level"] == 0),
         "item_remain_total": sum(r["remain"] for r in item_rows if r["level"] == 0),
         "special_key": special_form(a), "special_label": SPECIAL_LABEL,
+        "fund_c": fund_color(a.fund_type),
     })
 
 

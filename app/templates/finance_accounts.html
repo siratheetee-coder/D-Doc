@@ -45,47 +45,83 @@
   </form>
 </div>
 
+<style>
+  /* แยกหมวดเงินด้วยสี ไม่ใช้เส้นกรอบ - หัวกลุ่มไล่สี + แถวในกลุ่มพื้นจาง */
+  .fg{ margin:0 0 18px; }
+  .fg:last-child{ margin-bottom:0; }
+  .fg-h{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; color:#fff;
+         border-radius:14px 14px 0 0; padding:10px 16px; font-weight:700; font-size:15.5px; }
+  .fg-h .n{ background:rgba(255,255,255,.22); border-radius:999px; padding:1px 10px; font-size:13px; font-weight:600; }
+  .fg-h .sum{ margin-left:auto; font-size:14px; font-weight:600; opacity:.95; }
+  .fg-h .sum b{ font-size:16px; }
+  .fg table{ margin:0; }
+  .fg thead th{ background:transparent; font-size:13px; color:var(--muted); font-weight:600; }
+  .fg tbody tr > *{ border:0; }
+  .fg .dep{ display:inline-block; padding:1px 9px; border-radius:999px; font-size:12.5px; font-weight:600; }
+  .fg .tot td{ font-weight:700; background:transparent; }
+</style>
+
 <div class="card">
   <h2>บัญชีทั้งหมด</h2>
-  {% if accounts %}
-  <div class="table-wrap"><table>
-    <thead><tr><th>บัญชี/ประเภทเงิน</th><th>เก็บเงินไว้ที่</th><th class="right">งบตามหมวด (ปีงบ {{ fiscal_year }})</th><th class="right">ยอดยกมา (ปีงบ {{ fiscal_year }})</th><th class="right">คงเหลือ (ปีงบ {{ fiscal_year }})</th><th></th></tr></thead>
-    <tbody>
-      {% for a in accounts %}
-      <tr>
-        <td><a href="/finance/accounts/{{ a.id }}?year={{ fiscal_year }}"><b>{{ a.name }}</b></a>
-          <form method="post" action="/finance/accounts/{{ a.id }}/fund-type" style="margin:6px 0;">
-            <input type="hidden" name="year" value="{{ fiscal_year }}">
-            <select name="fund_type" aria-label="หมวดเงินของ {{ a.name }}" onchange="this.form.submit()">
-              {% for fund in ['เงินงบประมาณ','เงินรายได้แผ่นดิน','เงินนอกงบประมาณ'] %}
-              <option {{ 'selected' if (a.fund_type or 'เงินนอกงบประมาณ') == fund }}>{{ fund }}</option>
-              {% endfor %}
-            </select>
-          </form>
-          {% if a.note %}<span class="muted">· {{ a.note }}</span>{% endif %}</td>
-        <td>
-          <form method="post" action="/finance/accounts/{{ a.id }}/deposit-type" style="margin:0;">
-            <input type="hidden" name="year" value="{{ fiscal_year }}">
-            <select name="deposit_type" onchange="this.form.submit()" style="padding:5px 8px; font-size:14px;">
-              <option value="bank" {{ 'selected' if a.deposit_type=='bank' }}>เงินฝากธนาคาร</option>
-              <option value="cash" {{ 'selected' if a.deposit_type=='cash' }}>เงินสด</option>
-              <option value="agency" {{ 'selected' if a.deposit_type=='agency' }}>เงินฝากส่วนราชการผู้เบิก</option>
-            </select>
-          </form>
-        </td>
-        <td class="right">{{ "{:,.2f}".format(budget_by_acct.get(a.id, 0)) }}</td>
-        <td class="right">{{ "{:,.2f}".format(acct_opening(a, fiscal_year)) }}</td>
-        <td class="right"><b>{{ "{:,.2f}".format(acct_balance_year(a, fiscal_year)) }}</b></td>
-        <td class="right" style="white-space:nowrap;">
-          <a class="btn sm" href="/finance/accounts/{{ a.id }}?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-clipboard"/></svg> รับ-จ่าย</a>
-          <form method="post" action="/finance/accounts/{{ a.id }}/delete" style="display:inline" onsubmit="return confirm('ลบบัญชีนี้และรายการทั้งหมด?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table></div>
+  {% if groups %}
+  <p class="muted" style="margin-top:0;">จัดกลุ่มตามหมวดเงิน · ในกลุ่มเรียงตามที่เก็บเงิน (ธนาคาร → เงินสด → ส่วนราชการผู้เบิก)</p>
+  {% for g in groups %}
+  <div class="fg">
+    <div class="fg-h" style="background:linear-gradient(120deg,{{ g.color.g1 }},{{ g.color.g2 }});">
+      <svg class="icon"><use href="#ic-coins"/></svg> {{ g.fund }}
+      <span class="n">{{ g.accounts|length }} บัญชี</span>
+      <span class="sum">รวมคงเหลือ <b>{{ "{:,.2f}".format(g.balance) }}</b> บาท</span>
+    </div>
+    <div class="table-wrap" style="background:{{ g.color.tint }}; border-radius:0 0 14px 14px; padding:2px 6px 6px;"><table>
+      <thead><tr><th>บัญชี</th><th>เก็บเงินไว้ที่</th><th class="right">งบตามหมวด</th><th class="right">ยอดยกมา</th><th class="right">คงเหลือ</th><th></th></tr></thead>
+      <tbody>
+        {% for a in g.accounts %}
+        <tr>
+          <td><a href="/finance/accounts/{{ a.id }}?year={{ fiscal_year }}" style="color:{{ g.color.ink }};"><b>{{ a.name }}</b></a>
+            <form method="post" action="/finance/accounts/{{ a.id }}/fund-type" style="margin:5px 0 0;">
+              <input type="hidden" name="year" value="{{ fiscal_year }}">
+              <select name="fund_type" aria-label="หมวดเงินของ {{ a.name }}" onchange="this.form.submit()"
+                      title="ย้ายบัญชีนี้ไปหมวดอื่น" style="padding:4px 8px; font-size:13px; width:auto;">
+                {% for fund in ['เงินงบประมาณ','เงินรายได้แผ่นดิน','เงินนอกงบประมาณ'] %}
+                <option {{ 'selected' if (a.fund_type or 'เงินนอกงบประมาณ') == fund }}>{{ fund }}</option>
+                {% endfor %}
+              </select>
+            </form>
+            {% if a.note %}<span class="muted">· {{ a.note }}</span>{% endif %}</td>
+          <td>
+            <form method="post" action="/finance/accounts/{{ a.id }}/deposit-type" style="margin:0;">
+              <input type="hidden" name="year" value="{{ fiscal_year }}">
+              <select name="deposit_type" onchange="this.form.submit()" style="padding:5px 8px; font-size:14px;">
+                <option value="bank" {{ 'selected' if a.deposit_type=='bank' }}>เงินฝากธนาคาร</option>
+                <option value="cash" {{ 'selected' if a.deposit_type=='cash' }}>เงินสด</option>
+                <option value="agency" {{ 'selected' if a.deposit_type=='agency' }}>เงินฝากส่วนราชการผู้เบิก</option>
+              </select>
+            </form>
+          </td>
+          <td class="right">{{ "{:,.2f}".format(budget_by_acct.get(a.id, 0)) }}</td>
+          <td class="right">{{ "{:,.2f}".format(acct_opening(a, fiscal_year)) }}</td>
+          <td class="right"><b style="color:{{ g.color.ink }};">{{ "{:,.2f}".format(acct_balance_year(a, fiscal_year)) }}</b></td>
+          <td class="right" style="white-space:nowrap;">
+            <a class="btn sm" href="/finance/accounts/{{ a.id }}?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-clipboard"/></svg> รับ-จ่าย</a>
+            <form method="post" action="/finance/accounts/{{ a.id }}/delete" style="display:inline" onsubmit="return confirm('ลบบัญชีนี้และรายการทั้งหมด?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
+          </td>
+        </tr>
+        {% endfor %}
+        {% if g.accounts|length > 1 %}
+        <tr class="tot">
+          <td colspan="2" style="color:{{ g.color.ink }};">รวม{{ g.fund }}</td>
+          <td class="right">{{ "{:,.2f}".format(g.budget) }}</td>
+          <td class="right">{{ "{:,.2f}".format(g.opening) }}</td>
+          <td class="right" style="color:{{ g.color.ink }};">{{ "{:,.2f}".format(g.balance) }}</td>
+          <td></td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table></div>
+  </div>
+  {% endfor %}
   {% else %}
-  <p class="muted">ยังไม่มีบัญชี กรุณาเพิ่มด้านที่บน หรือนำเข้าจาก Excel</p>
+  <p class="muted">ยังไม่มีบัญชี กรุณาเพิ่มด้านบน หรือนำเข้าจาก Excel</p>
   {% endif %}
 </div>
 {% endblock %}
