@@ -336,6 +336,21 @@ def init_school_db(engine) -> None:
     _purge_report_photos(engine)
     _migrate_lunch_measures(engine)
     _backfill_memo_subjects(engine)
+    _fix_lunch_proc_case(engine)
+
+
+def _fix_lunch_proc_case(engine) -> None:
+    """เรื่องจัดจ้างอาหารกลางวันที่ระบบเคยผูกให้ ตั้งรูปแบบผิดเป็น ว.119 ตารางที่ 2
+    ทั้งที่จ้างเหมาประกอบอาหารเป็นการจัดจ้างวิธีเฉพาะเจาะจงตาม พ.ร.บ.ฯ
+    -> แก้เป็นแบบปกติ เพื่อให้ปุ่ม "เอกสารจัดจ้าง" เปิดชุดเอกสารเต็มรูป (idempotent)"""
+    try:
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                "UPDATE procurement SET proc_case='normal' WHERE proc_case='w119t2' "
+                "AND id IN (SELECT procurement_id FROM lunch_hire_round "
+                "           WHERE procurement_id IS NOT NULL)")
+    except Exception:
+        pass
 
 
 def _backfill_memo_subjects(engine) -> None:

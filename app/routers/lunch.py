@@ -354,13 +354,17 @@ def _sync_round_procurement(db: Session, rnd: LunchHireRound) -> None:
     proc = db.get(Procurement, rnd.procurement_id) if rnd.procurement_id else None
     if not proc:
         proc = Procurement(fiscal_year=fy, subject=subject, proc_type="จ้าง",
-                           method="เฉพาะเจาะจง", proc_case="w119t2",
+                           method="เฉพาะเจาะจง", proc_case="normal",
                            budget_source=prog.funding_org or "เงินอุดหนุนอาหารกลางวัน")
         db.add(proc)
         db.flush()
         rnd.procurement_id = proc.id
     proc.fiscal_year = fy
     proc.proc_type = "จ้าง"
+    # จ้างเหมาประกอบอาหารเป็นการจัดจ้างตาม พ.ร.บ.ฯ วิธีเฉพาะเจาะจง (ม.56 วรรคหนึ่ง (2)(ข))
+    # ไม่ใช่ ว.119 ตารางที่ 2 -> ต้องใช้ชุดเอกสารเต็มรูป (เคยตั้งผิดเป็น w119t2)
+    if (proc.proc_case or "") in ("", "w119t2"):
+        proc.proc_case = "normal"
     proc.subject = subject
     proc.order_no = (rnd.order_no or "").strip()
     proc.order_date = rnd.order_date
@@ -735,10 +739,10 @@ def round_delete(rid: int, db: Session = Depends(get_db)):
         for iid in insts:
             for l in db.query(LunchLedger).filter_by(installment_id=iid).all():
                 _delete_ledger(db, l)
-        # ลบเรื่องจัดจ้างที่ระบบผูกให้อัตโนมัติ (เฉพาะที่เราสร้างเอง = w119t2 อาหารกลางวัน)
+        # ลบเรื่องจัดจ้างที่ระบบผูกให้อัตโนมัติ (ดูจากชื่อเรื่องที่ระบบตั้งเอง)
         if rnd.procurement_id:
             proc = db.get(Procurement, rnd.procurement_id)
-            if proc and proc.proc_case == "w119t2" and "อาหารกลางวัน" in (proc.subject or ""):
+            if proc and "จ้างเหมาประกอบอาหารกลางวัน" in (proc.subject or ""):
                 db.delete(proc)
         from app.services.doc_number import remove_issued
         remove_issued(db, "lunch", rnd.id, "memo")      # ล้างเลขรวมแบบเดิม (ก่อนแยกรายฉบับ)
