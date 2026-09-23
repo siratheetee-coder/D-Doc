@@ -2,16 +2,14 @@
 {% block title %}อัพโหลดเรื่องซื้อ/จ้าง{% endblock %}
 {% block content %}
 <style>
-  .toggle { display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; }
-  .toggle input { display:none; }
-  .toggle .track { width:46px; height:26px; border-radius:999px; background:#cbd5e1; flex:none;
-    position:relative; transition:background .18s ease; }
-  .toggle .thumb { position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%;
-    background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:transform .18s ease; }
-  .toggle input:checked + .track { background:var(--brand); }
-  .toggle input:checked + .track .thumb { transform:translateX(20px); }
-  .toggle b { font-size:16.5px; }
-  .toggle.disabled { cursor:not-allowed; opacity:.55; }
+  /* แถวปุ่ม: ปุ่ม AI + ปุ่มระบบอ่านเอง + คำเตือน พยายามอยู่บรรทัดเดียว */
+  .read-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px; }
+  .read-row .warn-inline { display:flex; align-items:center; gap:6px; font-size:13px; color:#92400e;
+    background:#fff7ed; border-radius:999px; padding:6px 14px; line-height:1.35; min-width:0; }
+  /* จอกว้างพอ: คำเตือนอยู่บรรทัดเดียวกับปุ่ม ไม่ตัดคำ · จอแคบค่อยตกลงมาและห่อบรรทัดได้ */
+  @media (min-width:900px){ .read-row .warn-inline { white-space:nowrap; } }
+  .read-row .warn-inline .icon { width:15px; height:15px; flex:none; }
+  .ai-note { font-size:13px; color:var(--muted); margin:8px 0 0; }
 </style>
 <div class="card hl">
   <h1><svg class="icon"><use href="#ic-download"/></svg> อัพโหลดเรื่องซื้อ/จ้าง (PDF/Word/รูปถ่าย)</h1>
@@ -20,37 +18,30 @@
   {% endif %}
   <p class="muted" style="margin-top:0;">หากมีไฟล์เรื่องซื้อ/จ้าง (PDF/Word) สามารถอัปโหลดได้ ระบบจะอ่านข้อมูลมาเติมให้ กรุณาตรวจก่อนบันทึก <b>(ไฟล์ Word จะดีที่สุด)</b></p>
 
-  <div class="row" style="align-items:stretch;">
-    <!-- ซ้าย: อัปโหลดไฟล์ PDF/Word -->
-    <div style="flex:2; min-width:260px;">
-      <div class="alert warn" style="margin-bottom:12px;">
-        <svg class="icon"><use href="#ic-alert"/></svg>
-        <div>ระบบอาจดึงข้อมูลได้ไม่ครบ เนื่องจากรูปแบบฟอร์มของแต่ละโรงเรียนอาจไม่ตรงกัน โปรดตรวจสอบและแก้ไขก่อนบันทึกทุกครั้ง</div>
-      </div>
-      <form method="post" action="/procurement/from-file/upload" enctype="multipart/form-data" onsubmit="syncAi(this)" style="margin:0;">
-        <label>เลือกไฟล์ หรือ ถ่ายรูปรายการพัสดุ (PDF / Word / รูปภาพ)</label>
-        <input type="file" name="file" accept=".pdf,.docx,image/*" capture="environment" required
-               style="padding:6px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; width:100%;">
-        <br><br>
-        <button class="btn" type="submit" id="goBtn"><svg class="icon"><use href="#ic-upload"/></svg> อ่านไฟล์และเติมในฟอร์ม</button>
-      </form>
-    </div>
+  <form method="post" action="/procurement/from-file/upload" enctype="multipart/form-data" id="upForm" style="margin:0;">
+    <label>เลือกไฟล์ หรือ ถ่ายรูปรายการพัสดุ (PDF / Word / รูปภาพ)</label>
+    <input type="file" name="file" accept=".pdf,.docx,image/*" capture="environment" required
+           style="padding:6px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; width:100%;">
+    <input type="hidden" name="use_ai" id="useAi" value="">
 
-    <!-- ขวา: ตัวเลือกอ่านด้วย AI (toggle) -->
-    <div style="flex:1; min-width:240px;">
-      <div style="background:#fff; border:1px solid #cbd5e1; border-radius:10px; padding:14px 16px;">
-        <label class="toggle {{ '' if has_ai_key else 'disabled' }}">
-          <input type="checkbox" id="useAi" {{ "" if has_ai_key else "disabled" }}>
-          <span class="track"><span class="thumb"></span></span>
-          <b><svg class="icon" style="vertical-align:-3px; color:#7c3aed;"><use href="#ic-ai"/></svg> อ่านด้วย AI</b>
-        </label>
-        <div class="muted" style="font-size:13.5px; margin-top:6px;">ดึงข้อมูลครบถ้วนกว่าและรวดเร็ว</div>
-        {% if not has_ai_key %}
-        <div class="muted" style="font-size:13px; margin-top:6px;">ฟีเจอร์ AI สำหรับสมาชิก - <a href="/checkout">ต่ออายุ/เป็นสมาชิก</a> เพื่อเปิดใช้งาน</div>
-        {% endif %}
-      </div>
+    <div class="read-row">
+      <button class="btn ai {{ '' if has_ai_key else 'off' }}" type="submit" id="aiBtn"
+              {{ "" if has_ai_key else "disabled" }} onclick="pick(1)"
+              title="{{ 'อ่านได้ทั้ง PDF/Word และรูปถ่าย/สแกน แม่นกว่า' if has_ai_key else 'ฟีเจอร์สำหรับสมาชิก' }}">
+        <span class="sp"><svg class="icon"><use href="#ic-ai"/></svg></span> อ่านไฟล์ด้วย AI
+      </button>
+      <button class="btn gray" type="submit" id="plainBtn" onclick="pick(0)">
+        <svg class="icon"><use href="#ic-upload"/></svg> ระบบอ่านไฟล์เอง
+      </button>
+      <span class="warn-inline"><svg class="icon"><use href="#ic-alert"/></svg>
+        ฟอร์มแต่ละโรงเรียนไม่เหมือนกัน ระบบอาจอ่านได้ไม่ครบ โปรดตรวจก่อนบันทึก</span>
     </div>
-  </div>
+    {% if has_ai_key %}
+    <p class="ai-note">อ่านด้วย AI ใช้ได้ทั้ง PDF/Word และรูปถ่าย/สแกน ดึงข้อมูลครบกว่าและเร็วกว่า</p>
+    {% else %}
+    <p class="ai-note">อ่านด้วย AI เป็นฟีเจอร์สำหรับสมาชิก — <a href="/checkout">ต่ออายุ/เป็นสมาชิก</a> เพื่อเปิดใช้งาน</p>
+    {% endif %}
+  </form>
 </div>
 
 <div class="card">
@@ -58,16 +49,18 @@
 </div>
 
 <script>
-  function syncAi(form){
-    var on = document.getElementById('useAi').checked;
-    var h = form.querySelector('input[name="use_ai"]');
-    if(!h){ h = document.createElement('input'); h.type='hidden'; h.name='use_ai'; form.appendChild(h); }
-    h.value = on ? '1' : '';
-    // แสดงสถานะกำลังโหลด (กันกดซ้ำ + บอกผู้ใช้ว่ากำลังอ่าน โดยเฉพาะตอนใช้ AI ที่ใช้เวลา)
-    var b = document.getElementById('goBtn');
-    if(b){ b.disabled = true;
-      b.innerHTML = '<span class="spin" style="border-top-color:#fff; border-color:rgba(255,255,255,.4); border-top-color:#fff;"></span> '
-        + (on ? 'กำลังอ่านด้วย AI...' : 'กำลังอ่านไฟล์...'); }
+  // ปุ่มไหนถูกกด = วิธีอ่านไฟล์นั้น (ไม่ใช้ toggle แล้ว เพราะผู้ใช้ไม่รู้ว่ากดได้)
+  function pick(ai){
+    document.getElementById('useAi').value = ai ? '1' : '';
+    var b = document.getElementById(ai ? 'aiBtn' : 'plainBtn');
+    var other = document.getElementById(ai ? 'plainBtn' : 'aiBtn');
+    setTimeout(function(){
+      if(!document.getElementById('upForm').checkValidity()) return;   // ยังไม่ได้เลือกไฟล์
+      if(other) other.disabled = true;
+      b.disabled = true;
+      b.innerHTML = '<span class="spin" style="border-color:rgba(255,255,255,.4); border-top-color:#fff;"></span> '
+        + (ai ? 'กำลังอ่านด้วย AI...' : 'กำลังอ่านไฟล์...');
+    }, 0);
   }
 </script>
 {% endblock %}

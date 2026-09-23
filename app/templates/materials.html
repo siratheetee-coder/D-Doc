@@ -18,8 +18,8 @@
       <svg class="icon"><use href="#ic-upload"/></svg> ถ่ายรูป (อ่านเร็ว)
       <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="mScan(this,'/procurement/ocr-items','กำลังอ่านรูป (OCR)...')">
     </label>
-    <label class="btn sm" style="cursor:pointer; background:linear-gradient(120deg,#7c3aed,#4880FF); color:#fff; border:none;">
-      <svg class="icon"><use href="#ic-ai"/></svg> ให้ AI ช่วยอ่าน
+    <label class="btn ai sm" style="cursor:pointer;">
+      <span class="sp"><svg class="icon"><use href="#ic-ai"/></svg></span> ให้ AI ช่วยอ่าน
       <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="mScan(this,'/procurement/ai-items','กำลังให้ AI อ่านรูป...')">
     </label>
     <button type="button" class="btn soft sm" onclick="mAddRow('','หน่วย',0,0)"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มแถว</button>

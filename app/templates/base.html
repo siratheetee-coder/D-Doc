@@ -295,6 +295,28 @@
                       filter: none; box-shadow: 0 4px 12px rgba(72,128,255,.16); }
     .btn.red { background: linear-gradient(135deg, var(--danger), var(--danger-dark)); }
     .btn.red:hover { box-shadow: 0 6px 16px rgba(239,68,68,.3); }
+    /* ===== ปุ่ม AI (ใช้ปุ่มเดียวกันทุกที่ในระบบ) =====
+       gradient ม่วง-คราม ไล่สีขยับตลอดเวลา + ไอคอนประกายในวงกลมจาง ๆ
+       ใช้:  <button class="btn ai"><span class="sp">…svg ic-ai…</span> อ่านไฟล์ด้วย AI</button>   */
+    .btn.ai {
+      background: linear-gradient(100deg, #7c3aed, #6366f1, #a855f7, #6366f1, #7c3aed);
+      background-size: 300% 100%; animation: aiflow 6s linear infinite;
+      border-radius: 999px; padding: 10px 22px 10px 12px; color: #fff;
+      box-shadow: 0 6px 18px rgba(124,58,237,.38), inset 0 1px 0 rgba(255,255,255,.28);
+    }
+    .btn.ai:hover { box-shadow: 0 10px 26px rgba(124,58,237,.5), inset 0 1px 0 rgba(255,255,255,.35); }
+    .btn.ai.sm { padding: 6px 16px 6px 8px; font-size: 14.5px; }
+    .btn.ai .sp {
+      display: inline-flex; align-items: center; justify-content: center; flex: none;
+      width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,.22);
+    }
+    .btn.ai.sm .sp { width: 22px; height: 22px; }
+    .btn.ai .sp .icon { width: 16px; height: 16px; }
+    .btn.ai.sm .sp .icon { width: 13px; height: 13px; }
+    .btn.ai[disabled], .btn.ai.off { animation: none; filter: grayscale(.85); opacity: .6; cursor: not-allowed; }
+    @keyframes aiflow { to { background-position: -300% 0; } }
+    @media (prefers-reduced-motion: reduce) { .btn.ai { animation: none; } }
+
     .btn.sm { padding: 6px 13px; font-size: 14.5px; border-radius: 9px; }
     .btn.sm .icon { width: 16px; height: 16px; }
     /* จอสัมผัส (มือถือ): :hover ค้างหลังแตะ -> ตัด lift/เงาที่ทำให้ปุ่มดูค้างแปลก ๆ */

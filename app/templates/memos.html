@@ -22,8 +22,8 @@
     <form method="post" action="/admin/memos/upload" enctype="multipart/form-data" style="flex:1.7; display:flex; gap:8px; align-items:flex-end; margin:0;">
       <div style="flex:1;"><label>หรืออัปโหลดไฟล์ (PDF/Word/รูป)</label>
         <input type="file" name="file" accept=".pdf,.docx,.jpg,.jpeg,.png,.webp" required style="padding:6px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; width:100%;"></div>
-      <button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อ่านไฟล์</button>
-      <button class="btn sm" type="submit" name="ai" value="1" style="background:linear-gradient(135deg,#7c3aed,#2563eb);border:none;white-space:nowrap;">✨ อ่านด้วย AI</button>
+      <button class="btn sm gray" type="submit" style="white-space:nowrap;"><svg class="icon"><use href="#ic-upload"/></svg> ระบบอ่านไฟล์เอง</button>
+      <button class="btn ai sm" type="submit" name="ai" value="1" style="white-space:nowrap;"><span class="sp"><svg class="icon"><use href="#ic-ai"/></svg></span> อ่านด้วย AI</button>
     </form>
   </div>
 </div>
@@ -43,7 +43,7 @@
     </div>
     <label>ประเด็น/รายละเอียดสำคัญ (วัน เวลา สถานที่ ผลลัพธ์ ฯลฯ)</label>
     <textarea id="ai_points" rows="3" placeholder="เช่น จัดกิจกรรม 18 ส.ค. 2569 นักเรียนเข้าร่วม 250 คน กิจกรรมสำเร็จเรียบร้อย ขอรายงานให้ทราบ"></textarea>
-    <br><br><button type="button" class="btn sm" style="background:linear-gradient(120deg,#7c3aed,#4880FF); color:#fff; border:none;" onclick="aiWrite(this)"><svg class="icon"><use href="#ic-ai"/></svg> ให้ AI ช่วยเขียน</button>
+    <br><br><button type="button" class="btn ai sm" onclick="aiWrite(this)"><span class="sp"><svg class="icon"><use href="#ic-ai"/></svg></span> ให้ AI ช่วยเขียน</button>
   </div>
 
   <form method="post" action="/admin/memos">
