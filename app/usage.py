@@ -20,6 +20,8 @@ import threading
 import time
 from datetime import date, datetime, timedelta
 
+from sqlalchemy import func
+
 RETENTION_DAYS = 90        # อายุข้อมูลสรุปการใช้งาน
 _FLUSH_SECONDS = 30        # เขียนลงฐานข้อมูลทุก ๆ กี่วินาที (ระหว่างนั้นพักไว้ในหน่วยความจำ)
 _FLUSH_MAX_KEYS = 200      # หรือเมื่อค้างเกินกี่รายการ
@@ -114,7 +116,7 @@ def flush() -> int:
         db.close()
 
 
-def days_with_data(db, limit: int = 60) -> list:
+def days_with_data(db, limit: int = RETENTION_DAYS) -> list:
     """วันที่ที่มีข้อมูล (ใหม่ไปเก่า) ไว้ทำตัวเลือกวันในคอนโซล"""
     from app.accounts import UsageDay
     rows = (db.query(UsageDay.day).distinct()
@@ -122,24 +124,118 @@ def days_with_data(db, limit: int = 60) -> list:
     return [r[0] for r in rows if r[0]]
 
 
-def summary_for_day(db, day: str) -> list:
-    """สรุปการใช้งานของวันนั้น เรียงตามโรงเรียนและจำนวนครั้ง"""
+# ---------------------------------------------------------------- สรุปหลายวัน
+RANGES = [(1, "วันนี้"), (7, "7 วัน"), (30, "30 วัน"), (90, "90 วัน")]
+
+
+def range_bounds(days: int, end_day: str = "") -> tuple:
+    """ช่วงวันที่ (เริ่ม, สิ้นสุด) ย้อนหลัง days วันโดยนับวันสุดท้ายด้วย"""
+    end = date.fromisoformat(end_day) if end_day else date.today()
+    start = end - timedelta(days=max(1, days) - 1)
+    return start.isoformat(), end.isoformat()
+
+
+def _mods(text):
+    try:
+        return json.loads(text or "{}")
+    except Exception:
+        return {}
+
+
+def _mod_label(key):
+    """คีย์งาน -> ชื่อไทย (คีย์ที่ไม่รู้จักแสดงตามเดิม)"""
+    from app.modules import MODULE_LABELS
+    return MODULE_LABELS.get(key, key)
+
+
+def summary_for_range(db, start: str, end: str) -> dict:
+    """สรุปการใช้งานทั้งช่วง แยกรายโรงเรียน (มีรายบัญชีซ้อนอยู่ข้างใน)
+
+    คืน  schools = รายโรงเรียนที่มีการใช้งาน (เรียงตามจำนวนครั้ง)
+         daily   = ยอดรวมรายวันทุกวันในช่วง (ไว้วาดกราฟแท่ง วันที่ไม่มีข้อมูล = 0)
+         idle    = โรงเรียนที่ไม่มีการใช้งานเลยในช่วงนี้ + ใช้ล่าสุดเมื่อไหร่
+         totals  = ยอดรวมของทั้งช่วง
+    """
     from app.accounts import UsageDay, Tenant
-    rows = db.query(UsageDay).filter_by(day=day).all()
-    names = {t.id: (t.name or f"โรงเรียน #{t.id}") for t in db.query(Tenant).all()}
-    out = []
+    rows = (db.query(UsageDay)
+            .filter(UsageDay.day >= start, UsageDay.day <= end).all())
+    tenants = {t.id: t for t in db.query(Tenant).all()}
+
+    schools, daily = {}, {}
+    d0, d1 = date.fromisoformat(start), date.fromisoformat(end)
+    d = d0
+    while d <= d1:
+        daily[d.isoformat()] = {"day": d.isoformat(), "schools": set(), "users": 0,
+                                "hits": 0, "writes": 0, "docs": 0}
+        d += timedelta(days=1)
+
     for r in rows:
-        try:
-            mods = json.loads(r.modules or "{}")
-        except Exception:
-            mods = {}
-        out.append({
-            "tenant_id": r.tenant_id,
-            "tenant": names.get(r.tenant_id, f"#{r.tenant_id}"),
-            "username": r.username, "display_name": r.display_name,
-            "hits": r.hits or 0, "writes": r.writes or 0, "docs": r.docs or 0,
-            "first_at": r.first_at, "last_at": r.last_at,
-            "modules": sorted(mods.items(), key=lambda kv: -kv[1]),
-        })
-    out.sort(key=lambda x: (x["tenant"], -x["hits"]))
-    return out
+        t = tenants.get(r.tenant_id)
+        sc = schools.get(r.tenant_id)
+        if sc is None:
+            sc = schools[r.tenant_id] = {
+                "tenant_id": r.tenant_id,
+                "tenant": (t.name if t else None) or f"โรงเรียน #{r.tenant_id}",
+                "plan": (t.plan if t else ""), "expiry": (t.expiry_date if t else None),
+                "active": (t.active if t else True),
+                "users": {}, "days": set(), "hits": 0, "writes": 0, "docs": 0,
+                "modules": {}, "last_at": None,
+            }
+        u = sc["users"].get(r.uid)
+        if u is None:
+            u = sc["users"][r.uid] = {"uid": r.uid, "username": r.username,
+                                      "display_name": r.display_name, "days": set(),
+                                      "hits": 0, "writes": 0, "docs": 0,
+                                      "modules": {}, "last_at": None}
+        for box in (sc, u):
+            box["days"].add(r.day)
+            box["hits"] += r.hits or 0
+            box["writes"] += r.writes or 0
+            box["docs"] += r.docs or 0
+            if r.last_at and (box["last_at"] is None or r.last_at > box["last_at"]):
+                box["last_at"] = r.last_at
+            for k, v in _mods(r.modules).items():
+                box["modules"][k] = box["modules"].get(k, 0) + v
+        day = daily.get(r.day)
+        if day:
+            day["schools"].add(r.tenant_id)
+            day["users"] += 1
+            day["hits"] += r.hits or 0
+            day["writes"] += r.writes or 0
+            day["docs"] += r.docs or 0
+
+    out_schools = []
+    for sc in schools.values():
+        users = sorted(sc["users"].values(), key=lambda x: -x["hits"])
+        for u in users:
+            u["days_active"] = len(u["days"])
+            u["modules"] = [(_mod_label(k), v) for k, v in
+                            sorted(u["modules"].items(), key=lambda kv: -kv[1])]
+        sc["users"] = users
+        sc["n_users"] = len(users)
+        sc["days_active"] = len(sc["days"])
+        sc["modules"] = [(_mod_label(k), v) for k, v in
+                         sorted(sc["modules"].items(), key=lambda kv: -kv[1])]
+        out_schools.append(sc)
+    out_schools.sort(key=lambda x: (-x["hits"], x["tenant"]))
+
+    # โรงเรียนที่ไม่ได้ใช้เลยในช่วงนี้ (เรียงจากที่เงียบนานสุด)
+    last_seen = dict(db.query(UsageDay.tenant_id, func.max(UsageDay.day))
+                     .group_by(UsageDay.tenant_id).all())
+    idle = [{"tenant_id": t.id, "tenant": t.name or f"โรงเรียน #{t.id}",
+             "plan": t.plan, "active": t.active, "last_day": last_seen.get(t.id)}
+            for t in tenants.values() if t.id not in schools]
+    idle.sort(key=lambda x: (x["last_day"] or ""))
+
+    daily_rows = [dict(v, schools=len(v["schools"])) for v in
+                  sorted(daily.values(), key=lambda x: x["day"])]
+    return {
+        "schools": out_schools, "idle": idle, "daily": daily_rows,
+        "totals": {
+            "schools": len(out_schools),
+            "users": sum(s["n_users"] for s in out_schools),
+            "hits": sum(s["hits"] for s in out_schools),
+            "writes": sum(s["writes"] for s in out_schools),
+            "docs": sum(s["docs"] for s in out_schools),
+        },
+    }

@@ -605,28 +605,34 @@ def add_quota(tid: int, amount: str = Form("50")):
 
 # ---------------- สรุปการใช้งานรายวัน (เจ้าของระบบเท่านั้น) ----------------
 @router.get("/admin-console/usage", response_class=HTMLResponse)
-def usage_page(request: Request, day: str | None = None):
-    """วันนี้ใครใช้ระบบบ้าง ใช้งานไหน แก้ข้อมูลกี่ครั้ง ออกเอกสารกี่ฉบับ
+def usage_page(request: Request, day: str | None = None, days: int = 7):
+    """ใครใช้ระบบบ้าง ในช่วงที่เลือก (วันนี้ / 7 / 30 / 90 วัน หรือเจาะวันเดียว)
 
     เก็บเป็นยอดรวมรายวัน ไม่เก็บว่าเปิดหน้าไหนหรือกรอกอะไร (ดู app/usage.py)
     """
-    from app.usage import flush, days_with_data, summary_for_day, RETENTION_DAYS
+    from app.usage import (flush, days_with_data, summary_for_range,
+                           range_bounds, RETENTION_DAYS, RANGES)
     flush()                       # เขียนที่ค้างในหน่วยความจำก่อน จะได้เห็นยอดล่าสุด
     db = acc_session()
     try:
-        days = days_with_data(db)
+        have = days_with_data(db)
         today = date.today().isoformat()
-        if today not in days:
-            days.insert(0, today)
-        sel = day if day in days else days[0]
-        rows = summary_for_day(db, sel)
+        if today not in have:
+            have.insert(0, today)
+        # เลือกวันเดียว = ช่วง 1 วันที่จบวันนั้น · ไม่เลือก = ย้อนหลัง N วันถึงวันนี้
+        if day and day in have:
+            span, end_day = 1, day
+        else:
+            span, end_day, day = (days if days in [n for n, _ in RANGES] else 7), today, None
+        start, end = range_bounds(span, end_day)
+        data = summary_for_range(db, start, end)
+        peak = max([d["hits"] for d in data["daily"]] or [0])
         return templates.TemplateResponse("superadmin_usage.html", {
-            "request": request, "days": days, "day": sel, "rows": rows,
+            "request": request, "days_list": have, "day": day, "span": span,
+            "ranges": RANGES, "start": start, "end": end,
+            "schools": data["schools"], "idle": data["idle"],
+            "daily": data["daily"], "peak": peak, "t": data["totals"],
             "retention": RETENTION_DAYS,
-            "n_users": len(rows),
-            "n_schools": len({r["tenant_id"] for r in rows}),
-            "n_docs": sum(r["docs"] for r in rows),
-            "n_writes": sum(r["writes"] for r in rows),
             "admin_name": request.session.get("name", "ผู้ดูแลระบบ"),
         })
     finally:

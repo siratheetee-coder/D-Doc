@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Easy Ekkasan | การใช้งานรายวัน</title>
+  <title>Easy Ekkasan | การใช้งาน</title>
   <link rel="icon" type="image/png" href="/static/favicon-ekkasan.png">
   <style>
     @font-face { font-family:"Prompt"; font-weight:400; src:url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
@@ -14,77 +14,173 @@
     .top { background:#1b2433; color:#fff; padding:14px 26px; display:flex; justify-content:space-between; align-items:center; }
     .top b { font-size:18px; } .top a { color:#cbd5e1; text-decoration:none; font-size:15px; }
     .wrap { max-width:1180px; margin:24px auto; padding:0 20px; }
-    .card { background:#fff; border:1px solid #eceef3; border-radius:14px; padding:20px 22px; margin-bottom:20px;
-      box-shadow:0 2px 8px rgba(16,24,40,.05); }
+    .card { background:#fff; border-radius:14px; padding:20px 22px; margin-bottom:20px;
+      box-shadow:0 2px 10px rgba(16,24,40,.06); }
     h1 { font-size:20px; margin:0 0 6px; }
+    h2 { font-size:16px; margin:0 0 10px; }
     .muted { color:#5a6a85; font-size:14px; }
-    .stats { display:flex; gap:14px; flex-wrap:wrap; margin:16px 0 4px; }
-    .stat { flex:1 1 160px; background:#f8f9fc; border:1px solid #eceef3; border-radius:12px; padding:14px 16px; }
+
+    /* ---- เลือกช่วงเวลา ---- */
+    .tabs { display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 0; align-items:center; }
+    .tab { text-decoration:none; padding:7px 16px; border-radius:999px; font-size:14.5px; font-weight:600;
+      color:#44506b; background:#eef1f7; }
+    .tab.on { color:#fff; background:linear-gradient(120deg,#2563eb,#6366f1); box-shadow:0 4px 12px rgba(37,99,235,.28); }
+    select { font-family:inherit; font-size:14.5px; padding:6px 10px; border:1px solid #d7dbe4; border-radius:9px; }
+
+    .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:16px 0 0; }
+    .stat { border-radius:12px; padding:14px 16px; color:#fff; }
     .stat .n { font-size:26px; font-weight:700; line-height:1.1; }
-    .stat .l { font-size:13px; color:#5a6a85; margin-top:2px; }
+    .stat .l { font-size:13px; opacity:.92; margin-top:2px; }
+    .s1 { background:linear-gradient(120deg,#2563eb,#60a5fa); }
+    .s2 { background:linear-gradient(120deg,#0d9488,#5eead4); }
+    .s3 { background:linear-gradient(120deg,#b45309,#f59e0b); }
+    .s4 { background:linear-gradient(120deg,#7c3aed,#c4b5fd); }
+
+    /* ---- กราฟแท่งรายวัน ---- */
+    .chart { display:flex; align-items:flex-end; gap:3px; height:110px; margin:6px 0 4px; overflow-x:auto; }
+    .bar { flex:1 1 8px; min-width:7px; background:linear-gradient(180deg,#60a5fa,#2563eb);
+      border-radius:4px 4px 0 0; min-height:3px; position:relative; }
+    .bar.zero { background:#e4e8f0; }
+    .bar.last { background:linear-gradient(180deg,#a78bfa,#7c3aed); }
+    .xaxis { display:flex; justify-content:space-between; font-size:12px; color:#5a6a85; }
+
     table { width:100%; border-collapse:collapse; font-size:14px; }
-    th,td { border-bottom:1px solid #eceef3; padding:10px 8px; text-align:left; vertical-align:top; }
+    th,td { border-bottom:1px solid #eceef3; padding:9px 8px; text-align:left; vertical-align:top; }
     th { font-size:13px; color:#5a6a85; white-space:nowrap; }
     td.r, th.r { text-align:right; }
     .pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600;
       background:#eef4ff; color:#2563eb; margin:2px 4px 2px 0; white-space:nowrap; }
-    select { font-family:inherit; font-size:15px; padding:7px 10px; border:1px solid #d7dbe4; border-radius:9px; }
-    .sch { font-weight:600; }
+    .pill.trial { background:#fff4e5; color:#b45309; }
+    .pill.off { background:#fde8e8; color:#991b1b; }
+    .sch { font-weight:600; font-size:15px; }
+    details.sd > summary { cursor:pointer; color:#2563eb; font-size:13px; list-style:none; margin-top:4px; }
+    details.sd > summary::-webkit-details-marker { display:none; }
+    details.sd[open] > summary { color:#5a6a85; }
+    .utab { margin:8px 0 2px; background:#f8f9fc; border-radius:10px; padding:4px 10px; }
+    .utab th, .utab td { border-bottom:1px dashed #e4e8f0; font-size:13px; padding:6px; }
+    .utab tr:last-child td { border-bottom:0; }
   </style>
 </head>
 <body>
 <div class="top">
-  <b>การใช้งานรายวัน</b>
+  <b>การใช้งาน</b>
   <span><a href="/admin-console">← กลับคอนโซล</a></span>
 </div>
 
 <div class="wrap">
   <div class="card">
-    <h1>ใครใช้ระบบบ้างในวันนี้</h1>
+    <h1>ใครใช้ระบบบ้าง</h1>
     <p class="muted" style="margin:0;">
       สรุปยอดรวมรายวันของแต่ละบัญชี — <b>ไม่ได้เก็บว่าเปิดหน้าไหนหรือกรอกข้อมูลอะไร</b>
       เก็บย้อนหลัง {{ retention }} วัน แล้วลบอัตโนมัติ
     </p>
-    <form method="get" action="/admin-console/usage" style="margin-top:14px;">
-      <label class="muted">เลือกวัน</label>
-      <select name="day" onchange="this.form.submit()">
-        {% for d in days %}<option value="{{ d }}" {{ 'selected' if d == day }}>{{ d }}</option>{% endfor %}
-      </select>
-    </form>
+    <div class="tabs">
+      {% for n, label in ranges %}
+      <a class="tab {{ 'on' if (not day and span == n) }}" href="/admin-console/usage?days={{ n }}">{{ label }}</a>
+      {% endfor %}
+      <form method="get" action="/admin-console/usage" style="margin:0 0 0 6px;">
+        <select name="day" onchange="this.form.submit()" title="ดูเจาะจงวันเดียว">
+          <option value="">— เจาะวันเดียว —</option>
+          {% for d in days_list %}<option value="{{ d }}" {{ 'selected' if d == day }}>{{ d }}</option>{% endfor %}
+        </select>
+      </form>
+    </div>
+    <p class="muted" style="margin:10px 0 0;">
+      ช่วงที่แสดง: <b>{{ start }}</b>{% if start != end %} ถึง <b>{{ end }}</b>{% endif %}
+    </p>
     <div class="stats">
-      <div class="stat"><div class="n">{{ n_schools }}</div><div class="l">โรงเรียนที่ใช้งาน</div></div>
-      <div class="stat"><div class="n">{{ n_users }}</div><div class="l">บัญชีที่เข้าใช้</div></div>
-      <div class="stat"><div class="n">{{ n_writes }}</div><div class="l">ครั้งที่บันทึก/แก้ข้อมูล</div></div>
-      <div class="stat"><div class="n">{{ n_docs }}</div><div class="l">เอกสารที่ออก</div></div>
+      <div class="stat s1"><div class="n">{{ t.schools }}</div><div class="l">โรงเรียนที่ใช้งาน</div></div>
+      <div class="stat s2"><div class="n">{{ t.users }}</div><div class="l">บัญชีที่เข้าใช้</div></div>
+      <div class="stat s3"><div class="n">{{ "{:,}".format(t.writes) }}</div><div class="l">ครั้งที่บันทึก/แก้ข้อมูล</div></div>
+      <div class="stat s4"><div class="n">{{ "{:,}".format(t.docs) }}</div><div class="l">เอกสารที่ออก</div></div>
     </div>
   </div>
 
+  {% if daily|length > 1 %}
   <div class="card">
-    {% if rows %}
+    <h2>การใช้งานรายวัน <span class="muted" style="font-weight:400;">(ความสูง = จำนวนครั้งที่เรียกใช้ระบบ)</span></h2>
+    <div class="chart">
+      {% for d in daily %}
+      <div class="bar {{ 'zero' if not d.hits }}{{ ' last' if loop.last and d.hits }}"
+           style="height:{{ (d.hits / peak * 100)|round(1) if peak else 0 }}%;"
+           title="{{ d.day }} · {{ d.schools }} โรงเรียน · {{ d.users }} บัญชี · เรียกใช้ {{ d.hits }} ครั้ง · บันทึก {{ d.writes }} · เอกสาร {{ d.docs }}"></div>
+      {% endfor %}
+    </div>
+    <div class="xaxis"><span>{{ daily[0].day }}</span><span>{{ daily[-1].day }}</span></div>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>รายโรงเรียน <span class="muted" style="font-weight:400;">(กด "ดูรายบัญชี" เพื่อแยกเป็นรายคน)</span></h2>
+    {% if schools %}
     <table>
       <thead><tr>
-        <th>โรงเรียน</th><th>ผู้ใช้</th><th>ช่วงเวลาที่ใช้</th>
-        <th class="r">ครั้ง</th><th class="r">บันทึก/แก้</th><th class="r">เอกสาร</th><th>งานที่ใช้</th>
+        <th>โรงเรียน</th><th class="r">บัญชี</th><th class="r">วันที่ใช้</th>
+        <th class="r">ครั้ง</th><th class="r">บันทึก/แก้</th><th class="r">เอกสาร</th>
+        <th>ใช้ล่าสุด</th><th>งานที่ใช้</th>
       </tr></thead>
       <tbody>
-        {% set ns = namespace(prev='') %}
-        {% for r in rows %}
+        {% for s in schools %}
         <tr>
-          <td class="sch">{% if r.tenant != ns.prev %}{{ r.tenant }}{% set ns.prev = r.tenant %}{% endif %}</td>
-          <td>{{ r.display_name or r.username }}<br><span class="muted">{{ r.username }}</span></td>
-          <td>{{ r.first_at.strftime('%H:%M') if r.first_at else '-' }} – {{ r.last_at.strftime('%H:%M') if r.last_at else '-' }}</td>
-          <td class="r">{{ r.hits }}</td>
-          <td class="r">{{ r.writes }}</td>
-          <td class="r">{{ r.docs }}</td>
-          <td>{% for name, n in r.modules %}<span class="pill">{{ name }} {{ n }}</span>{% else %}<span class="muted">-</span>{% endfor %}</td>
+          <td>
+            <span class="sch">{{ s.tenant }}</span>
+            {% if not s.active %}<span class="pill off">ระงับ</span>
+            {% elif s.plan == 'trial' %}<span class="pill trial">ทดลองใช้</span>{% endif %}
+            {% if s.users|length %}
+            <details class="sd"><summary>ดูรายบัญชี ({{ s.n_users }})</summary>
+              <table class="utab">
+                <thead><tr><th>ผู้ใช้</th><th class="r">วันที่ใช้</th><th class="r">ครั้ง</th>
+                  <th class="r">บันทึก</th><th class="r">เอกสาร</th><th>ใช้ล่าสุด</th></tr></thead>
+                <tbody>
+                  {% for u in s.users %}
+                  <tr>
+                    <td>{{ u.display_name or u.username }} <span class="muted">{{ u.username }}</span></td>
+                    <td class="r">{{ u.days_active }}</td>
+                    <td class="r">{{ u.hits }}</td>
+                    <td class="r">{{ u.writes }}</td>
+                    <td class="r">{{ u.docs }}</td>
+                    <td>{{ u.last_at.strftime('%d/%m %H:%M') if u.last_at else '-' }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </details>
+            {% endif %}
+          </td>
+          <td class="r">{{ s.n_users }}</td>
+          <td class="r">{{ s.days_active }}{% if span > 1 %}<span class="muted">/{{ span }}</span>{% endif %}</td>
+          <td class="r">{{ "{:,}".format(s.hits) }}</td>
+          <td class="r">{{ "{:,}".format(s.writes) }}</td>
+          <td class="r">{{ "{:,}".format(s.docs) }}</td>
+          <td>{{ s.last_at.strftime('%d/%m %H:%M') if s.last_at else '-' }}</td>
+          <td>{% for name, n in s.modules[:6] %}<span class="pill">{{ name }} {{ n }}</span>{% else %}<span class="muted">-</span>{% endfor %}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
     {% else %}
-    <p class="muted" style="margin:0;">ยังไม่มีการใช้งานในวันที่เลือก</p>
+    <p class="muted" style="margin:0;">ยังไม่มีการใช้งานในช่วงที่เลือก</p>
     {% endif %}
   </div>
+
+  {% if idle %}
+  <div class="card">
+    <h2>ไม่ได้ใช้เลยในช่วงนี้ <span class="muted" style="font-weight:400;">({{ idle|length }} โรงเรียน · เรียงจากที่เงียบนานสุด)</span></h2>
+    <table>
+      <thead><tr><th>โรงเรียน</th><th>ใช้ล่าสุด</th></tr></thead>
+      <tbody>
+        {% for s in idle %}
+        <tr>
+          <td>{{ s.tenant }}
+            {% if not s.active %}<span class="pill off">ระงับ</span>
+            {% elif s.plan == 'trial' %}<span class="pill trial">ทดลองใช้</span>{% endif %}</td>
+          <td>{{ s.last_day or 'ไม่เคยมีข้อมูลการใช้งาน' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
 </div>
 </body>
 </html>
