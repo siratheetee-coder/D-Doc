@@ -74,8 +74,22 @@
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
     <h2 style="margin:0;">{{ class_label(c) }}
       {% if meta %}<span class="muted" style="font-size:14.5px;">{{ meta.title }} (อายุ {{ meta.age }} ขวบ) · แบบ {{ meta.form }}</span>{% endif %}</h2>
-    <a class="btn soft" href="/academic/kinder/class/{{ c.id }}/book.docx"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์สมุดพกทั้งห้อง</a>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn soft" href="/academic/attendance?mode=overall&cid={{ c.id }}"><svg class="icon"><use href="#ic-clock"/></svg> บันทึกเวลาเรียน</a>
+      <a class="btn soft" href="/academic/kinder/class/{{ c.id }}/book.docx"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์สมุดพกทั้งห้อง</a>
+    </div>
   </div>
+
+  {% if students and not att_months %}
+  <div class="alert warn" style="margin:12px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg>
+    <div>ห้องนี้ยังไม่ได้เช็กชื่อ (เวลาเรียน) — หน้า "เวลามาเรียนในรอบปี" ในสมุดพกจะเป็นตารางเปล่า ·
+      <a href="/academic/attendance?mode=overall&cid={{ c.id }}">ไปบันทึกเวลาเรียน</a></div>
+  </div>
+  {% elif students %}
+  <p class="muted" style="margin:10px 0 0; font-size:13px;">
+    <svg class="icon" style="vertical-align:-2px;"><use href="#ic-check"/></svg>
+    เช็กชื่อแล้ว {{ att_months }} เดือน — สมุดพกจะดึงเวลาเรียนกับน้ำหนัก/ส่วนสูงไปใส่ให้เอง ไม่ต้องกรอกซ้ำ</p>
+  {% endif %}
 
   <div class="kd-tabs" style="margin-top:12px;">
     {% for key, full, short in domains %}

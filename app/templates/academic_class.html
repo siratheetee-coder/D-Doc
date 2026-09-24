@@ -24,7 +24,8 @@
       {% endif %}
       {% if students %}
       <a class="btn soft" href="/academic/attendance?cid={{ c.id }}"><svg class="icon"><use href="#ic-clock"/></svg> เวลาเรียน</a>
-      <a class="btn soft" href="#print-docs"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ ปพ.5 / ปพ.6</a>
+      <a class="btn soft" href="#print-docs"><svg class="icon"><use href="#ic-file"/></svg>
+        พิมพ์{{ "สมุดพกนักเรียน" if is_kinder else " ปพ.5 / ปพ.6" }}</a>
       {% endif %}
     </div>
   </div>
@@ -70,7 +71,17 @@
   {% endif %}
 </div>
 
-{% if not is_teacher %}
+{% if not is_teacher and is_kinder %}
+<div class="card">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-star"/></svg> ระดับปฐมวัย</h2>
+  <p class="muted" style="margin:4px 0 10px;">ชั้นอนุบาลไม่ได้ตัดสินผลเป็นรายวิชา จึงไม่มี ปพ.5 / ปพ.6 —
+    ใช้ <b>สมุดรายงานประจำตัวนักเรียน (สมุดพกอนุบาล)</b> ประเมินพัฒนาการ 4 ด้านแทน</p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a class="btn" href="/academic/kinder?cid={{ c.id }}"><svg class="icon"><use href="#ic-edit"/></svg> กรอกผลประเมินพัฒนาการ</a>
+    <a class="btn soft" href="/academic/attendance?mode=overall&cid={{ c.id }}"><svg class="icon"><use href="#ic-clock"/></svg> บันทึกเวลาเรียน</a>
+  </div>
+</div>
+{% elif not is_teacher %}
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-users"/></svg> ครูผู้สอนรายวิชาของห้องนี้</h2>
   <p class="muted" style="font-size:13px; margin:4px 0 8px;">กำหนดแยกรายห้องได้ - วิชาเดียวกันคนละห้องใช้คนละครูได้ · ชื่อนี้จะไปลงนามท้าย ปพ.5</p>
@@ -106,9 +117,39 @@
 {% endif %}
 
 <div class="card" id="print-docs">
-  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์เอกสาร ปพ.5 / ปพ.6</h2>
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-file"/></svg>
+    พิมพ์เอกสาร{{ "สมุดพกนักเรียน (ระดับปฐมวัย)" if is_kinder else " ปพ.5 / ปพ.6" }}</h2>
   <p class="muted" style="font-size:13px; margin:4px 0 14px;">ดาวน์โหลดไฟล์ .docx สำหรับพิมพ์ - แยกออกจากส่วนกรอกคะแนน/ประเมินด้านบน กันสับสน</p>
-  {% if students %}
+  {% if students and is_kinder %}
+  {# ---- ระดับปฐมวัย: ไม่มี ปพ.5/ปพ.6 ใช้สมุดรายงานประจำตัวนักเรียน (สมุดพกอนุบาล) แทน ---- #}
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    <div>
+      <div style="font-weight:600; margin-bottom:6px;">ทั้งห้อง</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <a class="btn soft" href="/academic/kinder/class/{{ c.id }}/book.docx"><svg class="icon"><use href="#ic-file"/></svg> สมุดพกนักเรียน (ทั้งห้อง)</a>
+        <a class="btn" href="/academic/kinder?cid={{ c.id }}"><svg class="icon"><use href="#ic-edit"/></svg> ไปกรอกผลประเมินพัฒนาการ</a>
+      </div>
+    </div>
+    <div>
+      <div style="font-weight:600; margin-bottom:6px;">รายคน</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <select id="kdStu" style="max-width:320px;">
+          {% for s in students %}<option value="{{ s.id }}">{{ s.seq or '' }}. {{ s.name }}</option>{% endfor %}
+        </select>
+        <button class="btn soft" type="button" id="kdStuBtn"><svg class="icon"><use href="#ic-file"/></svg> ออกสมุดพกรายคน</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function(){
+      var b = document.getElementById('kdStuBtn');
+      if (b) b.addEventListener('click', function(){
+        var v = document.getElementById('kdStu').value;
+        if (v) window.location = '/academic/kinder/student/' + v + '/book.docx';
+      });
+    })();
+  </script>
+  {% elif students %}
   <div style="display:flex; flex-direction:column; gap:16px;">
     {% if can_edit_roster|default(true) %}
     <div>

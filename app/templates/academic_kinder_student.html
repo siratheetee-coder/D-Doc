@@ -1,5 +1,7 @@
 {% extends "base.html" %}
-{% block title %}สมุดพกอนุบาล - {{ s.name }}{% endblock %}
+{% from "_dmy.html" import dmy_script %}
+{% block title %}สมุดพกอนุบาล - {{ s.name }}{{ dmy_script() }}
+{% endblock %}
 {% block content %}
 <style>
   .ks-sec { margin:18px 0 0; }
@@ -80,7 +82,8 @@
   <div id="wRows">
     {% for w in works %}
     <div class="w-row">
-      <input name="w_date" value="{{ w.date }}" placeholder="วัน/เดือน/ปี" {{ '' if can_edit else 'readonly' }}>
+      <input name="w_date" value="{{ w.date }}" placeholder="วว/ดด/ปปปป" data-dmy
+             inputmode="numeric" maxlength="10" autocomplete="off" {{ '' if can_edit else 'readonly' }}>
       <input name="w_work" value="{{ w.work }}" placeholder="ผลงาน/ความสำเร็จที่น่าภูมิใจ" {{ '' if can_edit else 'readonly' }}>
       <input name="w_award" value="{{ w.award }}" placeholder="เกียรติคุณที่ได้รับ" {{ '' if can_edit else 'readonly' }}>
       <input name="w_org" value="{{ w.org }}" placeholder="หน่วยงานที่จัด" {{ '' if can_edit else 'readonly' }}>
@@ -88,7 +91,8 @@
     {% endfor %}
     {% for i in range(3 if works|length < 3 else 1) %}
     <div class="w-row">
-      <input name="w_date" placeholder="วัน/เดือน/ปี" {{ '' if can_edit else 'readonly' }}>
+      <input name="w_date" placeholder="วว/ดด/ปปปป" data-dmy
+             inputmode="numeric" maxlength="10" autocomplete="off" {{ '' if can_edit else 'readonly' }}>
       <input name="w_work" placeholder="ผลงาน/ความสำเร็จที่น่าภูมิใจ" {{ '' if can_edit else 'readonly' }}>
       <input name="w_award" placeholder="เกียรติคุณที่ได้รับ" {{ '' if can_edit else 'readonly' }}>
       <input name="w_org" placeholder="หน่วยงานที่จัด" {{ '' if can_edit else 'readonly' }}>
@@ -112,7 +116,20 @@
     var box = document.getElementById('wRows');
     var d = box.lastElementChild.cloneNode(true);
     d.querySelectorAll('input').forEach(function(i){ i.value = ''; });
-    box.appendChild(d); d.querySelector('input').focus();
+    box.appendChild(d); bindDmy(d); d.querySelector('input').focus();
+  }
+  // แถวที่เพิ่มใหม่ต้องผูกการเติม "/" เอง (dmy_script ผูกตอนโหลดหน้าเท่านั้น)
+  function bindDmy(root){
+    (root || document).querySelectorAll('input[data-dmy]').forEach(function(el){
+      if (el.dataset.dmyOn) return;
+      el.dataset.dmyOn = '1';
+      el.addEventListener('input', function(){
+        var v = el.value.replace(/\D/g, '').slice(0, 8), o = v;
+        if (v.length > 2) o = v.slice(0, 2) + '/' + v.slice(2);
+        if (v.length > 4) o = v.slice(0, 2) + '/' + v.slice(2, 4) + '/' + v.slice(4);
+        if (el.value !== o) el.value = o;
+      });
+    });
   }
   // ปุ่มบันทึกลอย: main มี transform จึงต้องย้ายไป body ไม่งั้น position:fixed ไม่ทำงาน
   (function(){

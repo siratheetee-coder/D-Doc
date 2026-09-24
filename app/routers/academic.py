@@ -1199,6 +1199,7 @@ def class_detail(request: Request, cid: int, db: Session = Depends(get_db)):
         "teachers": db.query(Person).filter_by(active=True).order_by(Person.name).all(),
         "terms": term_choices(c.level), "term_label": term_label,
         "is_sec": is_secondary(c.level),
+        "is_kinder": _is_kinder(c.level),
         "is_teacher": sc.is_teacher, "can_edit_roster": sc.can_homeroom(cid),
     })
 
@@ -1938,6 +1939,12 @@ async def indicators_save(request: Request, db: Session = Depends(get_db),
     return RedirectResponse(f"/academic/indicators?cid={cid}&sid={sid}&saved=1", status_code=303)
 
 
+def _is_kinder(level) -> bool:
+    """ชั้นนี้เป็นระดับปฐมวัยไหม (อนุบาลใช้สมุดพกอนุบาล ไม่มี ปพ.5/ปพ.6)"""
+    from app.services.kinder import is_kinder
+    return is_kinder(level)
+
+
 # ---------------- สมุดพกอนุบาล (ระดับปฐมวัย) ----------------
 def _kinder_notes(db, aid: int):
     """แถว KinderNote ของเด็กคนนี้ (สร้างให้ถ้ายังไม่มี)"""
@@ -1992,12 +1999,19 @@ def kinder_page(request: Request, db: Session = Depends(get_db),
                 if r.value:
                     done[r.acad_student_id] = done.get(r.acad_student_id, 0) + 1
     total_items = sum(len(kd.items_for(c.level, k)) for k, _, _ in kd.DOMAINS) if c else 0
+    # เวลาเรียนของห้องนี้ (โฮมรูม) - สมุดพกดึงจากตรงนี้ ถ้ายังไม่เช็กชื่อจะขึ้นตารางเปล่า
+    att_months = 0
+    if c and students:
+        att_months = (db.query(AcadAttendance.month)
+                      .filter(AcadAttendance.acad_student_id.in_([x.id for x in students]),
+                              AcadAttendance.subject_id.is_(None))
+                      .distinct().count())
     return templates.TemplateResponse("academic_kinder.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "classes": classes, "c": c, "students": students, "items": items,
         "results": results, "done": done, "total_items": total_items,
         "term": term, "domain": domain, "domains": kd.DOMAINS, "ratings": kd.RATINGS,
-        "levels": kd.KINDER_LEVELS, "class_label": _class_label,
+        "levels": kd.KINDER_LEVELS, "class_label": _class_label, "att_months": att_months,
         "can_edit": bool(c and sc.can_homeroom(c.id)),
     })
 

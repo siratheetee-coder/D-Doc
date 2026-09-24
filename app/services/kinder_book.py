@@ -89,7 +89,7 @@ def _text_or_lines(cell, text, n, *, size=13):
 # ---------------------------------------------------------------- หน้า 1 ปก
 def _cover(doc, school, s, meta, *, page_break):
     klass = s.klass
-    added = _logo_header(doc, school, page_break=page_break, height_cm=2.6, after=6)
+    added = _logo_header(doc, school, page_break=page_break, height_cm=3.0, after=8)
     if not added:
         _p(doc, "", after=0, page_break=page_break)
         _p(doc, "", after=0)
@@ -168,8 +168,6 @@ def _personal(doc, school, s, db):
     _p(doc, "", after=8)
     _p(doc, "รูปของนักเรียน", bold=True, size=13, after=2)
     _pp6_photo_box(doc)
-    _p(doc, "ช่องที่เว้นว่างเป็นข้อมูลที่ระบบไม่ได้เก็บไว้ (ข้อมูลส่วนบุคคลของเด็ก) ให้ครูเขียนเพิ่มในเล่ม",
-       size=11, after=0)
 
 
 # ---------------------------------------------------------------- หน้า 3 เวลาเรียน + น้ำหนักส่วนสูง
@@ -348,6 +346,7 @@ def _home_page(doc, s, klass):
         ct.style = "Table Grid"
         _lines(ct.rows[0].cells[0], 3, size=12)
         _widths(ct, [Cm(16.0)])
+        _p(doc, "", after=22)                       # เว้นที่ให้เซ็นชื่อจริง
         _p(doc, "ลงชื่อ ................................................ ผู้ปกครอง",
            align="right", size=13, after=1)
         _p(doc, "(................................................)", align="right", size=13, after=0)
@@ -407,7 +406,7 @@ def _summary_page(doc, school, s, db, notes, res, level):
     for i, (name, role) in enumerate([
             (homerooms[0] if homerooms else "", "ครูประจำชั้น"),
             (getattr(school, "director_name", "") or "", "ผู้บริหารสถานศึกษา")]):
-        _cell(r1[i], "ลงชื่อ ..........................................\n"
+        _cell(r1[i], "\n\nลงชื่อ ..........................................\n"
                      f"({name or '..........................................'})\n{role}\n"
                      "………… / ……………… / …………", size=13)
     _widths(sig, [Cm(8.0), Cm(8.0)])
