@@ -2009,3 +2009,43 @@ class FieldTripCost(Base):
     trip = relationship("FieldTrip", back_populates="costs")
     vendor = relationship("Vendor")
     procurement = relationship("Procurement")
+
+
+# ---------------- สมุดพกอนุบาล (สมุดรายงานประจำตัวนักเรียน ระดับปฐมวัย) ----------------
+class KinderResult(Base):
+    """ผลประเมินพัฒนาการรายข้อของเด็กปฐมวัย 1 คน ต่อ 1 ภาคเรียน
+
+    ตัวบ่งชี้เป็นชุดข้อมูลตายตัวตามชั้น (app/services/kinder.py) จึงเก็บด้วย code
+    เช่น 'phys:3' แทนที่จะทำตารางตัวบ่งชี้แยก (ตัวบ่งชี้ไม่ได้ให้โรงเรียนแก้เอง)
+    value: 3 = ปฏิบัติได้ · 2 = ปฏิบัติได้บางครั้ง · 1 = ควรเสริม
+    """
+    __tablename__ = "kinder_result"
+
+    id = Column(Integer, primary_key=True)
+    acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
+    term = Column(Integer, nullable=False)          # ภาคเรียน 1/2
+    code = Column(String, nullable=False)           # ด้าน:ลำดับ เช่น intel:17
+    value = Column(Integer, nullable=True)          # 1-3 (None = ยังไม่ประเมิน)
+
+    __table_args__ = (UniqueConstraint("acad_student_id", "term", "code",
+                                       name="uq_kinder_result"),)
+
+
+class KinderNote(Base):
+    """ส่วนบรรยายของสมุดพกอนุบาล 1 คน (ความเห็นครู · สรุปรายด้าน · ผลงานภาคภูมิใจ)
+
+    เก็บเป็น JSON เพราะเป็นข้อความอิสระหลายช่องที่ไม่ได้เอาไปคำนวณต่อ
+      comments = {"1": {"phys": "...", ...}, "2": {...}}     ความเห็นครูรายภาคเรียน
+      improve  = {"1": "...", "2": "..."}                    พฤติกรรมที่ควรส่งเสริมและพัฒนา
+      summary  = {"phys": 3, ...}                            สรุปรายด้าน (ว่าง = คิดจากผลรายข้อ)
+      works    = [{"date": "...", "work": "...", "award": "...", "org": "..."}]
+    """
+    __tablename__ = "kinder_note"
+
+    id = Column(Integer, primary_key=True)
+    acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False,
+                             unique=True)
+    comments = Column(Text, default="{}")
+    improve = Column(Text, default="{}")
+    summary = Column(Text, default="{}")
+    works = Column(Text, default="[]")

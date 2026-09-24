@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}สมุดพกอนุบาล{% endblock %}
+{% block content %}
+<style>
+  .kd-tabs { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 4px; }
+  .kd-tab { text-decoration:none; padding:7px 18px; border-radius:999px; font-size:14.5px; font-weight:600;
+    color:#44506b; background:#eef1f7; }
+  .kd-tab.on { color:#fff; background:linear-gradient(120deg,#0891b2,#4f46e5); box-shadow:0 4px 12px rgba(79,70,229,.25); }
+  .kd-wrap { overflow:auto; max-height:70vh; }
+  .kd-tbl { border-collapse:separate; border-spacing:0; font-size:13.5px; }
+  .kd-tbl th, .kd-tbl td { padding:5px 4px; border-bottom:1px solid var(--border); }
+  .kd-tbl thead th { position:sticky; top:0; z-index:3; background:#f6f8fc; font-size:12.5px;
+    color:#44506b; font-weight:600; vertical-align:bottom; }
+  .kd-tbl .stick { position:sticky; left:0; z-index:2; background:#fff; text-align:left; white-space:nowrap;
+    min-width:190px; box-shadow:1px 0 0 var(--border); }
+  .kd-tbl thead .stick { z-index:4; background:#f6f8fc; }
+  .kd-tbl .stu-no { display:inline-block; min-width:22px; color:var(--muted); font-size:12.5px; }
+  .kd-h { width:34px; }
+  .kd-btn { border:0; background:#e6ecf7; color:#33415c; border-radius:7px; width:26px; height:26px;
+    font-weight:700; font-size:12.5px; cursor:pointer; font-family:inherit; }
+  .kd-btn:hover { background:#d5e0f4; }
+  .kd-cell input { width:30px; text-align:center; padding:4px 0; font-size:14px; border-radius:7px;
+    border:1px solid #dfe3ea; }
+  .kd-cell input.v3 { background:#e9f9f1; border-color:#a7e8c8; }
+  .kd-cell input.v2 { background:#fff7e8; border-color:#fcd9a5; }
+  .kd-cell input.v1 { background:#fdeaea; border-color:#f6bcbc; }
+  .kd-info { background:#eef4ff; color:#1e3a8a; border-radius:10px; padding:9px 14px; font-size:13.5px;
+    margin:10px 0; display:flex; gap:8px; align-items:flex-start; }
+  .kd-legend { font-size:13px; color:var(--muted); margin:6px 0 0; }
+  .kd-prog { font-size:12.5px; color:var(--muted); white-space:nowrap; }
+  .kd-ref li { margin:3px 0; font-size:13.5px; }
+  .kd-ref .g { color:var(--muted); font-size:12.5px; }
+</style>
+
+<div class="hero" style="background:linear-gradient(120deg,#0891b2,#4f46e5 60%,#7c3aed);">
+  <div>
+    <div class="hero-sub">งานวิชาการ · ระดับปฐมวัย</div>
+    <span class="hero-title">สมุดพกอนุบาล</span>
+    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+  </div>
+</div>
+
+{% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกผลประเมินพัฒนาการแล้ว</div>{% endif %}
+
+<div class="card">
+  <form method="get" action="/academic/kinder" class="row" style="align-items:flex-end; margin:0;">
+    <div><label>ปีการศึกษา</label>
+      <select name="year" onchange="submitReplace(this.form)">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
+      </select></div>
+    <div style="flex:1;"><label>ห้องเรียน (เฉพาะชั้นอนุบาล)</label>
+      <select name="cid" onchange="submitReplace(this.form)">
+        <option value="">- เลือกห้อง -</option>
+        {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id==c.id }}>{{ class_label(k) }}</option>{% endfor %}
+      </select></div>
+    <input type="hidden" name="domain" value="{{ domain }}">
+    <div><label>ภาคเรียน</label>
+      <select name="term" onchange="submitReplace(this.form)">
+        <option value="1" {{ 'selected' if term==1 }}>ภาคเรียนที่ 1</option>
+        <option value="2" {{ 'selected' if term==2 }}>ภาคเรียนที่ 2</option>
+      </select></div>
+  </form>
+  {% if not classes %}
+  <div class="alert warn" style="margin:12px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg>
+    ปีการศึกษา {{ year }} ยังไม่มีห้องอนุบาล — <a href="/academic/classes">ไปสร้างห้อง อ.1 / อ.2 / อ.3 ก่อน</a></div>
+  {% elif not c %}
+  <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> เพื่อเริ่มประเมินพัฒนาการ</p>
+  {% endif %}
+</div>
+
+{% if c %}
+{% set meta = levels.get(c.level) %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;">{{ class_label(c) }}
+      {% if meta %}<span class="muted" style="font-size:14.5px;">{{ meta.title }} (อายุ {{ meta.age }} ขวบ) · แบบ {{ meta.form }}</span>{% endif %}</h2>
+    <a class="btn soft" href="/academic/kinder/class/{{ c.id }}/book.docx"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์สมุดพกทั้งห้อง</a>
+  </div>
+
+  <div class="kd-tabs" style="margin-top:12px;">
+    {% for key, full, short in domains %}
+    <a class="kd-tab {{ 'on' if key==domain }}" href="/academic/kinder?cid={{ c.id }}&term={{ term }}&domain={{ key }}">{{ full }}</a>
+    {% endfor %}
+  </div>
+  <p class="kd-legend">กรอก <b>3</b> = ปฏิบัติได้ · <b>2</b> = ปฏิบัติได้บางครั้ง · <b>1</b> = ควรเสริม · เว้นว่าง = ยังไม่ประเมิน
+    · พิมพ์แล้วช่องถัดไปเลื่อนให้เอง · <b>แตะหมายเลขข้อ</b>บนหัวตารางเพื่ออ่านว่าเป็นพฤติกรรมอะไร</p>
+
+  {% if not students %}
+  <p class="muted" style="margin:12px 0 0;">ห้องนี้ยังไม่มีนักเรียน — <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
+  {% elif not items %}
+  <div class="alert warn" style="margin:12px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg>
+    ไม่มีตัวบ่งชี้ของชั้น {{ c.level }} ในด้านนี้</div>
+  {% else %}
+
+  <div class="kd-info"><svg class="icon"><use href="#ic-info"/></svg>
+    <span id="kdInfo">แตะหมายเลขข้อในตารางด้านล่าง เพื่ออ่านรายละเอียดของตัวบ่งชี้นั้น</span></div>
+
+  {% if can_edit %}
+  <div style="margin-bottom:10px; display:flex; gap:8px; flex-wrap:wrap;">
+    <button type="button" class="btn sm soft" onclick="kdFill(3, false)">ทุกคนได้ 3 ทุกข้อ</button>
+    <button type="button" class="btn sm soft" onclick="kdFill(3, true)">เติม 3 เฉพาะช่องว่าง</button>
+    <button type="button" class="btn sm gray" onclick="kdFill('', false)">ล้างทั้งหมด</button>
+  </div>
+  {% endif %}
+
+  <form method="post" action="/academic/kinder/save" id="kdForm">
+    <input type="hidden" name="cid" value="{{ c.id }}">
+    <input type="hidden" name="term" value="{{ term }}">
+    <input type="hidden" name="domain" value="{{ domain }}">
+    <div class="table-wrap kd-wrap">
+    <table class="kd-tbl">
+      <thead><tr>
+        <th class="stick">นักเรียน</th>
+        {% for n, grp, text in items %}
+        <th class="kd-h"><button type="button" class="kd-btn" onclick="kdShow(this)"
+              data-text="{{ grp }} — {{ text }}">{{ n }}</button></th>
+        {% endfor %}
+        <th>ประเมินแล้ว<br>(ทั้ง 4 ด้าน)</th>
+      </tr></thead>
+      <tbody>
+      {% for s in students %}
+      <tr>
+        <td class="stick"><span class="stu-no">{{ s.seq or '' }}</span>
+          <a href="/academic/kinder/student/{{ s.id }}">{{ s.name }}</a></td>
+        {% for n, grp, text in items %}
+        {% set code = domain ~ ':' ~ n %}
+        {% set v = results.get((s.id, code)) %}
+        <td class="kd-cell"><input name="k_{{ s.id }}_{{ code }}" class="grid-adv kd-in v{{ v or 0 }}"
+               inputmode="numeric" maxlength="1" value="{{ v or '' }}"
+               {{ '' if can_edit else 'readonly' }}></td>
+        {% endfor %}
+        <td class="center kd-prog">{{ done.get(s.id, 0) }}/{{ total_items }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% if can_edit %}
+    <button class="btn" type="submit" style="margin-top:14px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกผลประเมิน</button>
+    <span class="muted" style="font-size:13px;">ตัวเลข "ประเมินแล้ว" นับรวมทุกด้านของภาคเรียนที่ {{ term }}</span>
+    {% endif %}
+  </form>
+
+  <h3 style="margin:20px 0 6px; font-size:16px;">ตัวบ่งชี้ทั้งหมดในด้านนี้ ({{ items|length }} ข้อ)</h3>
+  <ol class="kd-ref" style="margin:0; padding-left:20px;">
+    {% for n, grp, text in items %}<li>{{ text }} <span class="g">({{ grp }})</span></li>{% endfor %}
+  </ol>
+  {% endif %}
+</div>
+
+{% if students and items %}
+<div class="card">
+  <h2 style="margin-top:0;">ส่วนบรรยายรายคน</h2>
+  <p class="muted" style="margin-top:0;">ความเห็นครูประจำชั้น · พฤติกรรมที่ควรส่งเสริม · สรุปพัฒนาการ · ผลงานที่ภาคภูมิใจ — กรอกรายคน แล้วพิมพ์สมุดพกได้เลย</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>เลขที่</th><th>ชื่อ - นามสกุล</th><th class="center">ประเมินแล้ว</th><th></th></tr></thead>
+    <tbody>
+      {% for s in students %}
+      <tr>
+        <td>{{ s.seq or '' }}</td>
+        <td>{{ s.name }}</td>
+        <td class="center kd-prog">{{ done.get(s.id, 0) }}/{{ total_items }}</td>
+        <td class="right" style="white-space:nowrap;">
+          <a class="btn sm soft" href="/academic/kinder/student/{{ s.id }}"><svg class="icon"><use href="#ic-edit"/></svg> กรอกส่วนบรรยาย</a>
+          <a class="btn sm" href="/academic/kinder/student/{{ s.id }}/book.docx"><svg class="icon"><use href="#ic-download"/></svg> สมุดพก</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
+{% endif %}
+
+<script>
+  function kdShow(b){ document.getElementById('kdInfo').textContent = b.dataset.text; }
+  function kdTint(el){
+    el.classList.remove('v1','v2','v3');
+    var v = (el.value || '').trim();
+    if (v === '1' || v === '2' || v === '3') el.classList.add('v' + v);
+  }
+  function kdFill(v, blankOnly){
+    document.querySelectorAll('#kdForm input.kd-in').forEach(function(el){
+      if (el.readOnly) return;
+      if (blankOnly && (el.value || '').trim() !== '') return;
+      el.value = v; kdTint(el);
+    });
+  }
+  document.addEventListener('input', function(e){
+    if (e.target.classList && e.target.classList.contains('kd-in')) kdTint(e.target);
+  });
+</script>
+{% endblock %}

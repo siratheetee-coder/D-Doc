@@ -8,6 +8,7 @@ academic.py - งานวิชาการ
 ครูทั้งหมดมาจากทะเบียนบุคลากรกลาง (Person) ไม่มีการสร้างทะเบียนครูซ้ำ
 """
 from datetime import datetime
+import json
 from fastapi import APIRouter, Request, Depends, Form, File, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
@@ -1935,6 +1936,185 @@ async def indicators_save(request: Request, db: Session = Depends(get_db),
             row.passed = (sc is not None and sc >= 1)
     db.commit()
     return RedirectResponse(f"/academic/indicators?cid={cid}&sid={sid}&saved=1", status_code=303)
+
+
+# ---------------- สมุดพกอนุบาล (ระดับปฐมวัย) ----------------
+def _kinder_notes(db, aid: int):
+    """แถว KinderNote ของเด็กคนนี้ (สร้างให้ถ้ายังไม่มี)"""
+    from app.models import KinderNote
+    n = db.query(KinderNote).filter_by(acad_student_id=aid).first()
+    if not n:
+        n = KinderNote(acad_student_id=aid)
+        db.add(n)
+        db.flush()
+    return n
+
+
+def _jload(text, default):
+    try:
+        v = json.loads(text or "")
+        return v if isinstance(v, type(default)) else default
+    except Exception:
+        return default
+
+
+@router.get("/academic/kinder", response_class=HTMLResponse)
+def kinder_page(request: Request, db: Session = Depends(get_db),
+                cid: int | None = None, year: int | None = None,
+                term: int = 1, domain: str = "phys"):
+    """กรอกผลประเมินพัฒนาการปฐมวัย - ตารางรวม นักเรียน x ตัวบ่งชี้ ทีละด้าน/ภาคเรียน"""
+    from app.services import kinder as kd
+    from app.models import KinderResult
+    y = year or _acad_year(db)
+    sc = _scope(request, db)
+    classes = [x for x in _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
+               if kd.is_kinder(x.level)]
+    if sc.is_teacher:
+        classes = [x for x in classes if x.id in sc.teach_class_ids]
+    c = db.get(AcadClass, cid) if cid else (classes[0] if classes else None)
+    if c and not kd.is_kinder(c.level):
+        c = None
+    if c and not sc.can_class(c.id):
+        return _deny()
+    term = 2 if term == 2 else 1
+    if domain not in {k for k, _, _ in kd.DOMAINS}:
+        domain = "phys"
+    students, items, results, done = [], [], {}, {}
+    if c:
+        students = sorted(c.students, key=lambda x: (x.seq or 999, x.name))
+        items = kd.items_for(c.level, domain)
+        sids = [x.id for x in students]
+        if sids:
+            for r in (db.query(KinderResult)
+                      .filter(KinderResult.acad_student_id.in_(sids),
+                              KinderResult.term == term).all()):
+                results[(r.acad_student_id, r.code)] = r.value
+                if r.value:
+                    done[r.acad_student_id] = done.get(r.acad_student_id, 0) + 1
+    total_items = sum(len(kd.items_for(c.level, k)) for k, _, _ in kd.DOMAINS) if c else 0
+    return templates.TemplateResponse("academic_kinder.html", {
+        "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
+        "classes": classes, "c": c, "students": students, "items": items,
+        "results": results, "done": done, "total_items": total_items,
+        "term": term, "domain": domain, "domains": kd.DOMAINS, "ratings": kd.RATINGS,
+        "levels": kd.KINDER_LEVELS, "class_label": _class_label,
+        "can_edit": bool(c and sc.can_homeroom(c.id)),
+    })
+
+
+@router.post("/academic/kinder/save")
+async def kinder_save(request: Request, db: Session = Depends(get_db)):
+    """บันทึกผลทั้งตาราง (ช่อง k_<student_id>_<code> ค่า 1-3 หรือว่าง)"""
+    from app.services import kinder as kd
+    from app.models import KinderResult
+    form = await request.form()
+    cid, term = _to_int(form.get("cid"), 0), _to_int(form.get("term"), 1)
+    domain = form.get("domain") or "phys"
+    c = db.get(AcadClass, cid)
+    if not c or not kd.is_kinder(c.level):
+        return RedirectResponse("/academic/kinder", status_code=303)
+    if not _scope(request, db).can_homeroom(cid):
+        return _deny()
+    term = 2 if term == 2 else 1
+    codes = [kd.code_of(domain, n) for n, _, _ in kd.items_for(c.level, domain)]
+    sids = [x.id for x in c.students]
+    cur = {}
+    if sids and codes:
+        for r in (db.query(KinderResult)
+                  .filter(KinderResult.acad_student_id.in_(sids),
+                          KinderResult.term == term,
+                          KinderResult.code.in_(codes)).all()):
+            cur[(r.acad_student_id, r.code)] = r
+    for s in c.students:
+        for code in codes:
+            v = _to_int(form.get(f"k_{s.id}_{code}", ""), None)
+            v = v if v in (1, 2, 3) else None
+            row = cur.get((s.id, code))
+            if not row:
+                if v is None:
+                    continue                      # ไม่ต้องสร้างแถวเปล่า
+                row = KinderResult(acad_student_id=s.id, term=term, code=code)
+                db.add(row)
+            row.value = v
+    db.commit()
+    return RedirectResponse(
+        f"/academic/kinder?cid={cid}&term={term}&domain={domain}&saved=1", status_code=303)
+
+
+@router.get("/academic/kinder/student/{aid}", response_class=HTMLResponse)
+def kinder_student_page(aid: int, request: Request, db: Session = Depends(get_db)):
+    """ส่วนบรรยายของเด็ก 1 คน: ความเห็นครู 2 ภาคเรียน · สรุปรายด้าน · ผลงานภาคภูมิใจ"""
+    from app.services import kinder as kd
+    from app.models import KinderResult
+    s = db.get(AcadStudent, aid)
+    if not s:
+        return RedirectResponse("/academic/kinder", status_code=303)
+    if not _scope(request, db).can_class(s.class_id):
+        return _deny()
+    n = _kinder_notes(db, aid)
+    db.commit()
+    vals = {}
+    for r in db.query(KinderResult).filter_by(acad_student_id=aid).all():
+        vals.setdefault(r.code.split(":")[0], []).append(r.value)
+    auto = {k: kd.domain_average(vals.get(k, [])) for k, _, _ in kd.DOMAINS}
+    return templates.TemplateResponse("academic_kinder_student.html", {
+        "request": request, "school": get_school(db), "s": s, "c": s.klass,
+        "class_label": _class_label, "domains": kd.DOMAINS, "quality": kd.QUALITY,
+        "topics": kd.COMMENT_TOPICS, "auto": auto,
+        "comments": _jload(n.comments, {}), "improve": _jload(n.improve, {}),
+        "summary": _jload(n.summary, {}), "works": _jload(n.works, []),
+        "can_edit": _scope(request, db).can_homeroom(s.class_id),
+    })
+
+
+@router.post("/academic/kinder/student/{aid}")
+async def kinder_student_save(aid: int, request: Request, db: Session = Depends(get_db)):
+    from app.services import kinder as kd
+    s = db.get(AcadStudent, aid)
+    if not s:
+        return RedirectResponse("/academic/kinder", status_code=303)
+    if not _scope(request, db).can_homeroom(s.class_id):
+        return _deny()
+    form = await request.form()
+    n = _kinder_notes(db, aid)
+    keys = [k for k, _, _ in kd.DOMAINS]
+    n.comments = json.dumps({str(t): {k: (form.get(f"cm_{t}_{k}") or "").strip()
+                                      for k in keys} for t in (1, 2)}, ensure_ascii=False)
+    n.improve = json.dumps({str(t): (form.get(f"im_{t}") or "").strip() for t in (1, 2)},
+                           ensure_ascii=False)
+    n.summary = json.dumps({k: _to_int(form.get(f"sm_{k}"), 0) or 0 for k in keys},
+                           ensure_ascii=False)
+    works = []
+    for i in range(len(form.getlist("w_work"))):
+        row = {f: (form.getlist("w_" + f)[i] or "").strip()
+               for f in ("date", "work", "award", "org")}
+        if any(row.values()):
+            works.append(row)
+    n.works = json.dumps(works, ensure_ascii=False)
+    db.commit()
+    return RedirectResponse(f"/academic/kinder/student/{aid}?saved=1", status_code=303)
+
+
+@router.get("/academic/kinder/student/{aid}/book.docx")
+def kinder_book_docx(aid: int, request: Request, db: Session = Depends(get_db)):
+    from app.services.kinder_book import render_kinder_book
+    s = db.get(AcadStudent, aid)
+    if not s:
+        return RedirectResponse("/academic/kinder", status_code=303)
+    if not _scope(request, db).can_homeroom(s.class_id):
+        return _deny()
+    return serve_generated(render_kinder_book(get_school(db), s, db), _DOCX)
+
+
+@router.get("/academic/kinder/class/{cid}/book.docx")
+def kinder_book_all_docx(cid: int, request: Request, db: Session = Depends(get_db)):
+    from app.services.kinder_book import render_kinder_class
+    c = db.get(AcadClass, cid)
+    if not c:
+        return RedirectResponse("/academic/kinder", status_code=303)
+    if not _scope(request, db).can_homeroom(cid):
+        return _deny()
+    return serve_generated(render_kinder_class(get_school(db), c, db), _DOCX)
 
 
 # ---------------- ประเมิน (ที่ ปพ.6 ต้องใช้) ----------------
