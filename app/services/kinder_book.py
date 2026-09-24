@@ -31,7 +31,7 @@ from app.services.doc_page import set_a4
 from app.services.acad_doc import (_p, _cell, _widths, _logo_header, _class_label,
                                    _pp6_photo_box, _pp6_central, _safe, THAI_FONT)
 from app.services import kinder as kd
-from app.thai_utils import thai_date, be_date_input
+from app.thai_utils import thai_date, be_date_input, level_full
 from app.services.academic import TH_MONTH_FULL, TH_MONTHS, count_marks
 
 _TICK = "✓"
@@ -97,7 +97,9 @@ def _cover(doc, school, s, meta, *, page_break):
        size=13, after=10)
     _p(doc, "สมุดรายงานประจำตัวนักเรียน", align="center", bold=True, size=26, after=6)
     _p(doc, "ระดับปฐมวัย", align="center", bold=True, size=20, after=14)
-    _p(doc, f"{meta['title']}  (อายุ {meta['age']} ขวบ)"
+    # ชื่อชั้นใช้ของโรงเรียนเอง (อ.2 = อนุบาลปีที่ 2) ไม่ใช่ชื่อในไฟล์ต้นฉบับ ซึ่งทำไว้
+    # สมัยที่นับ 4 ขวบเป็น "อนุบาลปีที่ 1" · อายุกับรหัสแบบยังยึดตามต้นฉบับ
+    _p(doc, f"{level_full(klass.level)}  (อายุ {meta['age']} ขวบ)"
             + (f"  ห้อง {klass.room}" if (klass.room or "").strip() else ""),
        align="center", size=16, after=4)
     _p(doc, f"ปีการศึกษา {klass.year}", align="center", size=15, after=16)
@@ -306,10 +308,8 @@ def _teacher_comments(doc, s, notes):
 
 # ---------------------------------------------------------------- หน้า 10 ผู้ปกครอง
 def _full_class(klass):
-    """ชื่อชั้นแบบเต็มสำหรับเอกสารที่ส่งผู้ปกครอง เช่น อนุบาลปีที่ 1/1"""
-    meta = kd.KINDER_LEVELS.get((klass.level or "").strip())
-    title = (meta or {}).get("title", klass.level or "")
-    title = title.replace("ชั้น", "")
+    """ชื่อชั้นแบบเต็มสำหรับเอกสารที่ส่งผู้ปกครอง เช่น อนุบาลปีที่ 2/1"""
+    title = level_full(klass.level).replace("ชั้น", "")
     room = (klass.room or "").strip()
     return f"{title}/{room}" if room else title
 
