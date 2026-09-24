@@ -2120,6 +2120,18 @@ def kinder_book_docx(aid: int, request: Request, db: Session = Depends(get_db)):
     return serve_generated(render_kinder_book(get_school(db), s, db), _DOCX)
 
 
+@router.get("/academic/kinder/class/{cid}/teacher-book.docx")
+def kinder_teacher_book_docx(cid: int, request: Request, db: Session = Depends(get_db)):
+    """บัญชีเรียกชื่อและสมุดบันทึกพัฒนาการ (เล่มของครูประจำชั้น) ทั้งห้อง"""
+    from app.services.kinder_teacher import render_kinder_teacher_book
+    c = db.get(AcadClass, cid)
+    if not c:
+        return RedirectResponse("/academic/kinder", status_code=303)
+    if not _scope(request, db).can_homeroom(cid):
+        return _deny()
+    return serve_generated(render_kinder_teacher_book(get_school(db), c, db), _DOCX)
+
+
 @router.get("/academic/kinder/class/{cid}/book.docx")
 def kinder_book_all_docx(cid: int, request: Request, db: Session = Depends(get_db)):
     from app.services.kinder_book import render_kinder_class

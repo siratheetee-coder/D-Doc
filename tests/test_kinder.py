@@ -135,3 +135,118 @@ def test_comment_page_has_no_trailing_blank(tmp_path, monkeypatch):
     body = doc.element.body
     last = [c for c in body.iterchildren() if c.tag.endswith('}p') or c.tag.endswith('}tbl')][-1]
     assert last.tag.endswith('}tbl'), "มีย่อหน้าว่างต่อท้ายตารางภาค 2 -> จะเกิดหน้าเปล่า"
+
+
+def _fake_db(rows=()):
+    """db จำลองสำหรับเล่มครู: query(...).filter(...).all() -> rows ตามชนิดที่ถาม"""
+    class _Q:
+        def __init__(self, out):
+            self.out = out
+
+        def filter(self, *a, **k):
+            return self
+
+        def all(self):
+            return self.out
+
+    class _DB:
+        def query(self, model, *a):
+            return _Q(list(rows.get(getattr(model, "__name__", ""), []) if rows else []))
+
+        def get(self, *a, **k):
+            return None
+    return _DB()
+
+
+def test_teacher_book(tmp_path, monkeypatch):
+    """สมุดบันทึกของครู (อบ.2): ออกได้ · มีทุกหน้าที่ต้องมี · ตารางไม่เกินกรอบกระดาษ"""
+    import app.database as dbm
+    import app.services.kinder_teacher as kt
+    from docx import Document
+    from docx.shared import Emu
+    monkeypatch.setattr(dbm, "get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr(kt, "get_data_dir", lambda: tmp_path)
+
+    school = NS(name="โรงเรียนบ้านตัวอย่าง", district="เมือง", province="สมมติ",
+                area_office="ประถมศึกษาสมมติ เขต 1", director_name="นายเอนก ทดสอบ",
+                director_position="ผู้อำนวยการโรงเรียน", logo=None)
+    klass = NS(id=1, year=2569, level="อ.3", room="1",
+               homeroom=NS(name="นางสาวครู ใจดี"), co_homeroom=None)
+    klass.students = [NS(id=i, student_id=None, seq=i, student_no=f"46{i:02d}",
+                         name=f"เด็กชายทดสอบ คนที่{i}", sex="M" if i % 2 else "F")
+                      for i in range(1, 31)]                       # เต็มหน้า 30 คน
+
+    path = kt.render_kinder_teacher_book(school, klass, _fake_db())
+    doc = Document(path)
+    text = "\n".join(p.text for p in doc.paragraphs)
+    for t in doc.tables:
+        for row in t.rows:
+            for c in row.cells:
+                text += "\n" + c.text
+    for need in ["บัญชีเรียกชื่อและสมุดบันทึกพัฒนาการเด็กนักเรียน", "อบ.2/3",
+                 "ข้อมูลเด็ก", "สรุปผลน้ำหนัก - ส่วนสูง", "สรุปเวลาเรียน",
+                 "สรุปผลการพัฒนา", "เด็กที่ควรได้รับการเสริม", "ชั้นอนุบาลปีที่ 3"]:
+        assert need in text, need
+    # ตัวบ่งชี้ทุกข้อของชั้นนี้ต้องมีอยู่ในเล่ม
+    for key, _full, _short in kd.DOMAINS:
+        for _n, _g, body in kd.items_for("อ.3", key):
+            assert body in text, body
+    # ชื่อนักเรียนครบทุกคน
+    assert all(s.name in text for s in klass.students)
+
+    # ไม่มีตารางไหนเกินพื้นที่พิมพ์ของ section ที่ตัวเองอยู่ (แนวนอน 26.7 · แนวตั้ง 18.0)
+    widest_page = max(Emu(s.page_width - s.left_margin - s.right_margin).cm
+                      for s in doc.sections)
+    for i, t in enumerate(doc.tables, 1):
+        w = max(sum(Emu(c.width).cm for c in row.cells if c.width) for row in t.rows)
+        assert w <= widest_page + 0.01, f"ตารางที่ {i} กว้าง {w:.2f} ซม."
+
+
+def test_teacher_book_marks_weak_students(tmp_path, monkeypatch):
+    """หน้าสรุปต้องระบุเลขที่เด็กที่ได้ระดับ 'ควรเสริม' ของแต่ละด้าน"""
+    import app.database as dbm
+    import app.services.kinder_teacher as kt
+    from docx import Document
+    monkeypatch.setattr(dbm, "get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr(kt, "get_data_dir", lambda: tmp_path)
+
+    school = NS(name="รร.ทดสอบ", district="", province="", area_office="",
+                director_name="", director_position="", logo=None)
+    klass = NS(id=1, year=2569, level="อ.1", room="1", homeroom=None, co_homeroom=None)
+    klass.students = [NS(id=1, student_id=None, seq=1, student_no="1", name="เด็กเก่ง ดีมาก", sex="M"),
+                      NS(id=2, student_id=None, seq=2, student_no="2", name="เด็กควร เสริม", sex="F")]
+
+    # คนที่ 1 ได้ 3 ทุกข้อ · คนที่ 2 ได้ 1 ทุกข้อ -> ต้องขึ้นเลขที่ 2 ทุกด้าน
+    results = []
+    for s, val in ((1, 3), (2, 1)):
+        for key, _f, _sh in kd.DOMAINS:
+            for n, _g, _t in kd.items_for("อ.1", key):
+                results.append(NS(acad_student_id=s, term=1, code=kd.code_of(key, n), value=val))
+
+    class _Q:
+        def __init__(self, out):
+            self.out = out
+
+        def filter(self, *a, **k):
+            return self
+
+        def all(self):
+            return self.out
+
+    class _DB:
+        def query(self, model, *a):
+            return _Q(results if getattr(model, "__name__", "") == "KinderResult" else [])
+
+        def get(self, *a, **k):
+            return None
+
+    doc = Document(kt.render_kinder_teacher_book(school, klass, _DB()))
+    rows = []
+    for t in doc.tables:
+        for row in t.rows:
+            cells = [c.text.strip() for c in row.cells]
+            if cells and cells[0].startswith("ด้าน") and cells[0] != "ด้าน":
+                rows.append(cells)
+    assert rows, "ไม่พบตารางสรุปเด็กที่ควรได้รับการเสริม"
+    term1 = rows[:4]
+    assert all(r[1] == "2" for r in term1), term1
