@@ -93,7 +93,8 @@ def _cover(doc, school, s, meta, *, page_break):
     if not added:
         _p(doc, "", after=0, page_break=page_break)
         _p(doc, "", after=0)
-    _p(doc, meta["form"], align="right", size=13, after=10)
+    _p(doc, f"{meta['form']}        นักเรียนเลขที่  {s.seq or '......'}", align="right",
+       size=13, after=10)
     _p(doc, "สมุดรายงานประจำตัวนักเรียน", align="center", bold=True, size=26, after=6)
     _p(doc, "ระดับปฐมวัย", align="center", bold=True, size=20, after=14)
     _p(doc, f"{meta['title']}  (อายุ {meta['age']} ขวบ)"
@@ -101,13 +102,12 @@ def _cover(doc, school, s, meta, *, page_break):
        align="center", size=16, after=4)
     _p(doc, f"ปีการศึกษา {klass.year}", align="center", size=15, after=16)
     _p(doc, f"โรงเรียน{school.name or ''}", align="center", bold=True, size=17, after=2)
+    # ตำบล/อำเภอ/จังหวัด ตามแบบต้นฉบับ (ระบบไม่มีช่องตำบล -> เว้นให้เขียนเอง)
     loc = []
     for attr, prefix in (("subdistrict", "ตำบล"), ("district", "อำเภอ"), ("province", "จังหวัด")):
-        v = getattr(school, attr, "") or ""
-        if v:
-            loc.append(prefix + v)
-    if loc:
-        _p(doc, "  ".join(loc), align="center", size=14, after=2)
+        v = (getattr(school, attr, "") or "").strip()
+        loc.append(prefix + (v if v else " ................"))
+    _p(doc, "   ".join(loc), align="center", size=14, after=2)
     if getattr(school, "area_office", ""):
         _p(doc, f"สำนักงานเขตพื้นที่การศึกษา{school.area_office}", align="center", size=14, after=18)
     else:
@@ -135,9 +135,12 @@ def _personal(doc, school, s, db):
         ("เชื้อชาติ / สัญชาติ / ศาสนา", (getattr(st, "nationality", "") or "") if st else ""),
         ("หมู่เลือด", ""),
         ("โรคประจำตัว", ""),
-        ("ที่อยู่ตามทะเบียนบ้าน", ""),
-        ("โทรศัพท์", ""),
-        ("ข้อมูลพี่น้อง", ""),
+    ]
+    # ที่อยู่เป็นบรรทัดยาวเต็มความกว้าง (ผสาน 2 ช่อง) ไม่งั้นตกบรรทัดในคอลัมน์แคบ
+    addr = [
+        "ที่อยู่ตามทะเบียนบ้านเลขที่ ..............  หมู่ที่ ..........  ซอย ..............  ถนน ..............",
+        "ตำบล/แขวง ....................  อำเภอ/เขต ....................",
+        "จังหวัด ....................  รหัสไปรษณีย์ ..............  โทรศัพท์ ....................",
     ]
     t = doc.add_table(rows=0, cols=2)
     t.style = "Table Grid"
@@ -145,8 +148,25 @@ def _personal(doc, school, s, db):
         cells = t.add_row().cells
         _cell(cells[0], lab, bold=True, align="left", fill="F1F5F9")
         _cell(cells[1], val or "", align="left")
+    for line in addr:
+        cells = t.add_row().cells
+        cells[0].merge(cells[1])
+        _cell(cells[0], line, align="left", size=13)
     _widths(t, [Cm(5.2), Cm(10.8)])
+
+    # ---- ข้อมูลพี่น้อง (ตามแบบต้นฉบับ) ----
+    _p(doc, "", after=6)
+    _p(doc, "ข้อมูลพี่น้อง", bold=True, size=14, after=2)
+    bt = doc.add_table(rows=0, cols=1)
+    bt.style = "Table Grid"
+    for line in ("มีพี่น้องทั้งหมด ......... คน      พี่ชาย ......... คน      พี่สาว ......... คน",
+                 "เป็นบุตรคนที่ .........          น้องชาย ......... คน      น้องสาว ......... คน",
+                 "สถานภาพการสมรสของบิดามารดา ......................................................"):
+        _cell(bt.add_row().cells[0], line, align="left", size=13)
+    _widths(bt, [Cm(16.0)])
+
     _p(doc, "", after=8)
+    _p(doc, "รูปของนักเรียน", bold=True, size=13, after=2)
     _pp6_photo_box(doc)
     _p(doc, "ช่องที่เว้นว่างเป็นข้อมูลที่ระบบไม่ได้เก็บไว้ (ข้อมูลส่วนบุคคลของเด็ก) ให้ครูเขียนเพิ่มในเล่ม",
        size=11, after=0)
@@ -194,32 +214,38 @@ def _attendance(doc, school, s, db):
     for i, k in enumerate(("open", "/", "ป", "ล", "ข")):
         _cell(rc[2 + i], tot[k] or "", bold=True)
     _widths(t, [Cm(3.4), Cm(1.8), Cm(2.4), Cm(2.2), Cm(2.0), Cm(2.0), Cm(2.0)])
-    if tot["open"]:
-        pct = 100.0 * tot["/"] / tot["open"]
-        _p(doc, f"มาเรียนร้อยละ {pct:.1f}", size=13, after=8)
-    else:
-        _p(doc, "มาเรียนร้อยละ ..............", size=13, after=8)
+    pct = f"{100.0 * tot['/'] / tot['open']:.1f}" if tot["open"] else ".............."
+    _p(doc, f"มาเรียนร้อยละ {pct}          ย้ายออก ..............................", size=13, after=8)
 
     _p(doc, "น้ำหนักและส่วนสูง", bold=True, size=15, after=3)
     ms = growth.measures_for(db, s.student_id, klass.year) if s.student_id else {}
     st = _pp6_central(s, db)
     who = st or s
-    gh = ["ภาคเรียนที่", "ครั้งที่", "วันที่ประเมิน", "น้ำหนัก", "ส่วนสูง", "ผลการประเมิน"]
-    gt = doc.add_table(rows=1, cols=6)
+    # ผลการประเมินแยก น้ำหนัก/ส่วนสูง และชั่ง 2 ครั้งต่อภาคเรียน ตามแบบต้นฉบับ
+    gt = doc.add_table(rows=2, cols=7)
     gt.style = "Table Grid"
-    for i, h in enumerate(gh):
-        _cell(gt.rows[0].cells[i], h, bold=True, fill="EDE9FE")
+    g0, g1 = gt.rows[0].cells, gt.rows[1].cells
+    for i, h in enumerate(["ภาคเรียนที่", "ครั้งที่", "วันที่ประเมิน", "น้ำหนัก", "ส่วนสูง"]):
+        g0[i].merge(g1[i])
+        _cell(g0[i], h, bold=True, size=12, fill="EDE9FE")
+    g0[5].merge(g0[6])
+    _cell(g0[5], "ผลการประเมิน", bold=True, size=12, fill="EDE9FE")
+    _cell(g1[5], "น้ำหนัก", bold=True, size=11, fill="F5F3FF")
+    _cell(g1[6], "ส่วนสูง", bold=True, size=11, fill="F5F3FF")
     for term in (1, 2):
-        m = ms.get(term)
-        cells = gt.add_row().cells
-        _cell(cells[0], term)
-        _cell(cells[1], 1)
-        _cell(cells[2], be_date_input(m.date) if (m and m.date) else "")
-        _cell(cells[3], f"{m.weight:g}" if (m and m.weight) else "")
-        _cell(cells[4], f"{m.height:g}" if (m and m.height) else "")
-        res = growth.measure_result(who, m) if m else None
-        _cell(cells[5], res["wh"] if (res and res.get("wh")) else "")
-    _widths(gt, [Cm(2.6), Cm(2.0), Cm(3.2), Cm(2.6), Cm(2.6), Cm(3.0)])
+        for times in (1, 2):
+            # ระบบเก็บการชั่งภาคเรียนละ 1 ครั้ง -> ครั้งที่ 2 เว้นให้ครูกรอกเอง
+            m = ms.get(term) if times == 1 else None
+            res = growth.measure_result(who, m) if m else None
+            cells = gt.add_row().cells
+            _cell(cells[0], term, size=12)
+            _cell(cells[1], times, size=12)
+            _cell(cells[2], be_date_input(m.date) if (m and m.date) else "", size=12)
+            _cell(cells[3], f"{m.weight:g}" if (m and m.weight) else "", size=12)
+            _cell(cells[4], f"{m.height:g}" if (m and m.height) else "", size=12)
+            _cell(cells[5], (res or {}).get("wa", "") or "", size=11)
+            _cell(cells[6], (res or {}).get("ha", "") or "", size=11)
+    _widths(gt, [Cm(2.0), Cm(1.6), Cm(2.6), Cm(2.0), Cm(2.0), Cm(2.9), Cm(2.9)])
     _p(doc, "เกณฑ์อ้างอิง: กราฟการเจริญเติบโตของกรมอนามัย", align="center", size=12, after=0)
 
 
@@ -242,7 +268,8 @@ def _domain_page(doc, s, db, level, domain, title, items, res):
         code = kd.code_of(domain, n)
         cells = t.add_row().cells
         _cell(cells[0], n, size=12)
-        _cell(cells[1], f"{n}. {text}\n({grp})", align="left", size=12)
+        # \u00a0 = ช่องว่างไม่ตัดบรรทัด กันเลขข้อโดดไปอยู่บรรทัดเดียว
+        _cell(cells[1], f"{n}.\u00a0{text}\n({grp})", align="left", size=12)
         for ti, term in enumerate((1, 2)):
             v = res.get((term, code))
             for i, (val, _label) in enumerate(kd.RATINGS):
@@ -268,20 +295,31 @@ def _teacher_comments(doc, s, notes):
             cells = t.add_row().cells
             topics = " ".join(f"{i + 1}. {x}" for i, x in enumerate(kd.COMMENT_TOPICS[key]))
             _cell(cells[0], f"{full}\n{topics}", align="left", size=11)
-            _text_or_lines(cells[1], comments.get(str(term), {}).get(key, ""), 3, size=12)
+            _text_or_lines(cells[1], comments.get(str(term), {}).get(key, ""), 2, size=12)
         cells = t.add_row().cells
         _cell(cells[0], "พฤติกรรมที่ควรส่งเสริมและพัฒนา", bold=True, align="left", size=12,
               fill="F8FAFC")
         _text_or_lines(cells[1], improve.get(str(term), ""), 3, size=12)
         _widths(t, [Cm(5.4), Cm(10.6)])
-        _p(doc, "", after=8 if term == 1 else 0)
+        if term == 1:
+            _p(doc, "", after=8)      # เว้นวรรคระหว่าง 2 ภาคเรียน
+        # ไม่ใส่ย่อหน้าว่างท้ายภาค 2: ถ้าตารางเต็มหน้าพอดี ย่อหน้าว่างจะดันไปสร้างหน้าเปล่า
 
 
 # ---------------------------------------------------------------- หน้า 10 ผู้ปกครอง
+def _full_class(klass):
+    """ชื่อชั้นแบบเต็มสำหรับเอกสารที่ส่งผู้ปกครอง เช่น อนุบาลปีที่ 1/1"""
+    meta = kd.KINDER_LEVELS.get((klass.level or "").strip())
+    title = (meta or {}).get("title", klass.level or "")
+    title = title.replace("ชั้น", "")
+    room = (klass.room or "").strip()
+    return f"{title}/{room}" if room else title
+
+
 def _home_page(doc, s, klass):
     _p(doc, "ผู้ปกครองรายงานพฤติกรรมของนักเรียนขณะอยู่ที่บ้าน", align="center", bold=True,
        size=17, after=4, page_break=True)
-    _p(doc, f"ชื่อ - นามสกุล  {s.name}    เลขที่ {s.seq or '....'}    ชั้น {_class_label(klass)}",
+    _p(doc, f"ชื่อ - นามสกุล  {s.name}    เลขที่ {s.seq or '....'}    ชั้น {_full_class(klass)}",
        size=13, after=3)
     _p(doc, "ให้ผู้ปกครองทำเครื่องหมาย ✓ ที่ตรงกับพฤติกรรมของนักเรียนขณะอยู่ที่บ้าน",
        size=13, after=4)

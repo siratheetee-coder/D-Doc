@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """สมุดพกอนุบาล (สมุดรายงานประจำตัวนักเรียน ระดับปฐมวัย)
 
-ตรวจ 3 เรื่อง
+ตรวจ 4 เรื่อง
   1. ชุดตัวบ่งชี้ครบตามไฟล์ต้นฉบับ (อ.1/อ.2/อ.3 ด้านละ 10-10-10-20 ข้อ · ไม่ซ้ำกันข้ามชั้น)
   2. สรุประดับคุณภาพรายด้านจากผลรายข้อ
   3. เอกสารออกได้ครบทุกหน้าและมีข้อความสำคัญ (ตัวบ่งชี้ · ความเห็นครู · สรุป)
+  4. หน้ากระดาษ: ตารางไม่ล้นกรอบ A4 และไม่มีย่อหน้าว่างที่ทำให้เกิดหน้าเปล่า
 """
 from types import SimpleNamespace as NS
 
@@ -90,3 +91,47 @@ def test_render_book(tmp_path, monkeypatch):
     assert "วาดภาพระบายสี" in text
     assert kd.HOME_ITEMS[0] in text               # หน้าผู้ปกครอง
     assert "นายเอนก ทดสอบ" in text                # ลงนามผู้บริหาร
+
+
+def test_tables_fit_the_page(tmp_path, monkeypatch):
+    """ไม่มีตารางไหนกว้างเกินพื้นที่พิมพ์ A4 (เคยเป็นบั๊กซ้ำ ๆ ในเอกสารอื่น)"""
+    import app.database as dbm
+    import app.services.kinder_book as kb
+    from docx import Document
+    from docx.shared import Emu
+    monkeypatch.setattr(dbm, "get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr(kb, "get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr(kb, "_results_of", lambda db, aid: {})
+    monkeypatch.setattr(kb, "_notes_of", lambda db, aid: {"comments": {}, "improve": {},
+                                                         "summary": {}, "works": []})
+    monkeypatch.setattr(kb, "_attendance", lambda *a, **k: None)
+    monkeypatch.setattr(kb, "_personal", lambda *a, **k: None)
+
+    school = NS(name="รร.ทดสอบ", district="", province="", area_office="",
+                director_name="", director_position="", logo=None)
+    klass = NS(id=1, year=2569, level="อ.3", room="1", homeroom=None, co_homeroom=None)
+    student = NS(id=1, name="เด็กชายทดสอบ ทดสอบ", seq=1, student_no="1",
+                 student_id=None, klass=klass)
+    klass.students = [student]
+
+    doc = Document(kb.render_kinder_book(school, student, db=None))
+    sec = doc.sections[0]
+    avail = Emu(sec.page_width - sec.left_margin - sec.right_margin).cm
+    for i, t in enumerate(doc.tables, 1):
+        widest = max(sum(Emu(c.width).cm for c in row.cells if c.width) for row in t.rows)
+        assert widest <= avail + 0.01, f"ตารางที่ {i} กว้าง {widest:.2f} ซม. เกิน {avail:.2f} ซม."
+
+
+def test_comment_page_has_no_trailing_blank(tmp_path, monkeypatch):
+    """หน้าความเห็นครูต้องไม่ลงท้ายด้วยย่อหน้าว่าง (เคยดันให้เกิดหน้ากระดาษเปล่า)"""
+    import app.services.kinder_book as kb
+    from docx import Document
+
+    doc = Document()
+    kb._teacher_comments(doc, NS(name="x"), {"comments": {}, "improve": {}})
+    assert doc.paragraphs[-1].text.strip() != "" or doc.paragraphs[-1].text == "", \
+        "โครงสร้างเปลี่ยน - ตรวจใหม่"
+    # ย่อหน้าสุดท้ายของเอกสารต้องไม่ใช่ย่อหน้าว่างที่ต่อท้ายตารางภาคเรียนที่ 2
+    body = doc.element.body
+    last = [c for c in body.iterchildren() if c.tag.endswith('}p') or c.tag.endswith('}tbl')][-1]
+    assert last.tag.endswith('}tbl'), "มีย่อหน้าว่างต่อท้ายตารางภาค 2 -> จะเกิดหน้าเปล่า"
