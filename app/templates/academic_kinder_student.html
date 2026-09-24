@@ -26,7 +26,8 @@
   </div>
   <div style="display:flex; gap:8px; align-items:center;">
     <a class="btn sm gray" href="/academic/kinder?cid={{ c.id }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับห้อง</a>
-    <a class="btn sm" href="/academic/kinder/student/{{ s.id }}/book.docx"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์สมุดพก</a>
+    <a class="btn sm" href="/academic/kinder/student/{{ s.id }}/book.docx"
+       onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน · หมู่เลือด · โรคประจำตัว · ที่อยู่ · ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์สมุดพก</a>
   </div>
 </div>
 

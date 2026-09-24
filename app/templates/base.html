@@ -1109,55 +1109,128 @@
     </div>
   </div>
 
-  <!-- กล่องยืนยันก่อนส่ง (ใช้ร่วมทุกหน้า) เช่น เตือนให้เซ็นลายเซ็นก่อนส่งแผน -->
-  <div class="cf-ov" id="cfOverlay" hidden>
-    <div class="cf-card">
-      <span class="cf-ic"><svg class="icon"><use href="#ic-alert"/></svg></span>
-      <p id="cfMsg" class="cf-msg"></p>
-      <label class="cf-chk"><input type="checkbox" id="cfNo"> ไม่ต้องเตือนฉันอีก</label>
-      <div class="cf-btns">
-        <button type="button" class="btn gray" onclick="cfClose()">ยกเลิก</button>
-        <button type="button" class="btn green" id="cfOk">รับทราบและส่ง</button>
+  <!-- ===== การ์ดแจ้งเตือนกลาง (ใช้ร่วมทุกหน้า) =====
+       เรียกผ่าน ddocConfirm(event, ปุ่ม/ลิงก์, {key, title, msg, detail, ok})
+       - key    : คีย์ localStorage ของ "ไม่ต้องเตือนฉันอีก" (จำแยกรายเครื่อง/รายเบราว์เซอร์)
+       - detail : กรอบรายการย่อย (ไม่ใส่ก็ได้ ถ้าไม่มีกรอบจะไม่ขึ้น การ์ดจะสั้นลง)
+       ใช้ได้ทั้งปุ่ม submit ของฟอร์ม และลิงก์ <a> ที่ดาวน์โหลดเอกสาร -->
+  <div class="nt-ov" id="ntOverlay" hidden>
+    <div class="nt-card" role="alertdialog" aria-modal="true" aria-labelledby="ntTitle">
+      <div class="nt-head">
+        <span class="ring"><svg class="icon"><use href="#ic-alert"/></svg></span>
+        <b id="ntTitle"></b>
+      </div>
+      <div class="nt-body">
+        <p id="ntMsg"></p>
+        <div class="nt-hl" id="ntDetail" hidden></div>
+        <div class="nt-foot">
+          <label class="nt-chk"><input type="checkbox" id="ntNo"> ไม่ต้องเตือนฉันอีก</label>
+          <span style="display:flex; gap:8px;">
+            <button type="button" class="btn gray sm" onclick="ntClose()">ยกเลิก</button>
+            <button type="button" class="btn sm" id="ntOk">รับทราบ</button>
+          </span>
+        </div>
       </div>
     </div>
   </div>
   <style>
-    .cf-ov{ position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:1200; display:flex;
-      align-items:center; justify-content:center; padding:20px; }
-    .cf-ov[hidden]{ display:none; }   /* กัน display:flex ทับ attribute hidden (ไม่งั้นซ่อนไม่ได้) */
-    .cf-card{ background:#fff; max-width:420px; width:100%; border-radius:16px; padding:26px 24px;
-      text-align:center; box-shadow:0 24px 60px rgba(16,24,40,.35); }
-    .cf-ic{ width:56px; height:56px; border-radius:50%; background:#fff7ed; color:#ea580c;
-      display:flex; align-items:center; justify-content:center; margin:0 auto 12px; }
-    .cf-ic .icon{ width:28px; height:28px; }
-    .cf-msg{ font-size:16px; color:#1f2937; line-height:1.6; margin:0 0 14px; }
-    .cf-chk{ display:inline-flex; gap:7px; align-items:center; font-size:13.5px; color:var(--muted);
-      margin:0 0 18px; font-weight:400; cursor:pointer; }
-    .cf-chk input{ width:16px; height:16px; padding:0; margin:0; }
-    .cf-btns{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+    .nt-ov{ position:fixed; inset:0; background:rgba(15,23,42,.5); backdrop-filter:blur(3px);
+      z-index:1200; display:flex; align-items:center; justify-content:center; padding:20px; }
+    .nt-ov[hidden]{ display:none; }   /* กัน display:flex ทับ attribute hidden */
+    .nt-card{ background:#fff; width:100%; max-width:450px; border-radius:20px; overflow:hidden;
+      box-shadow:0 30px 70px rgba(16,24,40,.32); animation:ntPop .22s cubic-bezier(.2,.9,.3,1.3); }
+    @keyframes ntPop{ from{ opacity:0; transform:translateY(14px) scale(.94); } }
+    .nt-head{ background:linear-gradient(120deg,#f59e0b,#ea580c 60%,#db2777); color:#fff;
+      padding:16px 22px; display:flex; align-items:center; gap:12px; }
+    .nt-head .ring{ width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,.22);
+      display:flex; align-items:center; justify-content:center; flex:none; }
+    .nt-head .ring .icon{ width:21px; height:21px; }
+    .nt-head b{ font-size:17px; line-height:1.4; white-space:nowrap; overflow:hidden;
+      text-overflow:ellipsis; }
+    .nt-body{ padding:18px 22px 20px; }
+    .nt-body p{ font-size:14.5px; color:#55607a; line-height:1.7; margin:0 0 14px; }
+    .nt-hl{ background:#fff7ed; color:#9a3412; border-radius:12px; padding:10px 14px;
+      font-size:13.5px; line-height:1.6; margin:0 0 14px; }
+    .nt-hl[hidden]{ display:none; }
+    .nt-foot{ display:flex; align-items:center; justify-content:space-between; gap:12px;
+      flex-wrap:wrap; }
+    .nt-chk{ display:inline-flex; gap:8px; align-items:center; font-size:13.5px; color:var(--muted);
+      cursor:pointer; margin:0; font-weight:400; }
+    .nt-chk input{ width:16px; height:16px; padding:0; margin:0; accent-color:var(--brand); }
+    @media (max-width:430px){
+      .nt-head b{ white-space:normal; font-size:15.5px; }
+      .nt-foot{ justify-content:flex-end; }
+    }
+    @media (prefers-reduced-motion:reduce){ .nt-card{ animation:none; } }
+
+    /* การ์ดแจ้งเตือนแบบอยู่ในหน้า (ไม่ใช่ป๊อปอัป) - หน้าตาเดียวกับป๊อปอัป */
+    .nt-inline{ background:#fff; border-radius:18px; overflow:hidden; margin:0 0 16px;
+      box-shadow:0 2px 14px rgba(234,88,12,.16); }
+    .nt-inline .nt-head{ padding:13px 20px; }
+    .nt-inline .nt-head b{ font-size:16px; }
+    .nt-inline .nt-body{ padding:15px 20px 16px; }
+    .nt-inline .nt-body p{ margin:0 0 12px; }
   </style>
   <script>
     // ย้าย overlay ไปเป็นลูกของ body: กัน position:fixed อิงกับ main ที่มี transform (มืดไม่เต็มจอ)
-    (function(){ var m=document.getElementById('cfOverlay');
+    (function(){ var m=document.getElementById('ntOverlay');
       if(m && m.parentNode!==document.body) document.body.appendChild(m); })();
-    var _cfCb=null;
-    function cfClose(){ var o=document.getElementById('cfOverlay'); if(o) o.hidden=true; _cfCb=null; }
-    (function(){ var ok=document.getElementById('cfOk'); if(!ok) return;
-      ok.onclick=function(){ var d=document.getElementById('cfNo').checked; var cb=_cfCb; cfClose();
-        if(cb) cb(d); }; })();
-    // เรียกจาก onclick ของปุ่ม submit: ถ้ายังไม่ปิดเตือน จะเด้งกล่องก่อน แล้วค่อยส่งเมื่อกด "รับทราบและส่ง"
-    function confirmSend(ev, btn, key, msg){
-      if(btn._bypass){ btn._bypass=false; return true; }        // ยืนยันแล้ว -> ปล่อยส่งจริง
-      var f=btn.form;
-      if(f && !f.checkValidity()){ return true; }               // ให้เบราว์เซอร์เด้ง required เอง
-      try{ if(localStorage.getItem(key)==='1') return true; }catch(e){}
+    var _ntCb=null;
+    function ntClose(){ var o=document.getElementById('ntOverlay'); if(o) o.hidden=true; _ntCb=null; }
+    (function(){
+      var ok=document.getElementById('ntOk'); if(!ok) return;
+      ok.onclick=function(){ var d=document.getElementById('ntNo').checked, cb=_ntCb;
+        ntClose(); if(cb) cb(d); };
+      var ov=document.getElementById('ntOverlay');
+      if(ov) ov.addEventListener('click', function(e){ if(e.target===ov) ntClose(); });
+      document.addEventListener('keydown', function(e){
+        if(e.key==='Escape' && ov && !ov.hidden) ntClose(); });
+    })();
+
+    /* เปิดการ์ดเอง (ไม่ผูกปุ่ม) - cb(dontRemind) ถูกเรียกเมื่อกด "รับทราบ" */
+    function ntShow(o, cb){
+      document.getElementById('ntTitle').textContent = o.title || 'โปรดตรวจสอบก่อนดำเนินการ';
+      document.getElementById('ntMsg').textContent = o.msg || '';
+      var d=document.getElementById('ntDetail');
+      d.textContent = o.detail || ''; d.hidden = !o.detail;     // ไม่มีรายการย่อย = ไม่ขึ้นกรอบ
+      document.getElementById('ntOk').textContent = o.ok || 'รับทราบ';
+      document.getElementById('ntNo').checked = false;
+      _ntCb = cb;
+      document.getElementById('ntOverlay').hidden = false;
+    }
+
+    /* ใช้กับ onclick ของปุ่ม submit หรือลิงก์ดาวน์โหลด
+       return false = หยุดไว้ก่อน · กด "รับทราบ" แล้วจึงทำงานจริง */
+    function ddocConfirm(ev, el, o){
+      if(el._ntPass){ el._ntPass=false; return true; }          // ยืนยันแล้ว -> ปล่อยผ่าน
+      var f = el.form;
+      if(f && !f.checkValidity()) return true;                  // ให้เบราว์เซอร์เด้ง required เอง
+      try{ if(localStorage.getItem(o.key)==='1') return true; }catch(e){}
       ev.preventDefault();
-      document.getElementById('cfMsg').textContent=msg;
-      document.getElementById('cfNo').checked=false;
-      _cfCb=function(dontRemind){ if(dontRemind){ try{ localStorage.setItem(key,'1'); }catch(e){} }
-        btn._bypass=true; btn.click(); };
-      document.getElementById('cfOverlay').hidden=false;
+      ntShow(o, function(dontRemind){
+        if(dontRemind){ try{ localStorage.setItem(o.key,'1'); }catch(e){} }
+        el._ntPass=true;
+        if(el.tagName==='A'){ window.location = el.href; }      // ลิงก์ดาวน์โหลด
+        else { el.click(); }                                     // ปุ่มในฟอร์ม
+      });
       return false;
+    }
+
+    /* ของเดิม - ยังเรียกได้ (หัวข้อปริยาย ไม่มีกรอบรายการย่อย) */
+    function confirmSend(ev, btn, key, msg){
+      return ddocConfirm(ev, btn, {key:key, msg:msg, title:'โปรดตรวจสอบก่อนส่ง',
+                                   ok:'รับทราบและส่ง'});
+    }
+
+    /* ปิดการ์ดแบบอยู่ในหน้า (จำไว้ถ้าติ๊ก "ไม่ต้องแจ้งฉันอีก") */
+    function ntHideInline(key, id, chkId){
+      var chk=document.getElementById(chkId);
+      if(chk && chk.checked){ try{ localStorage.setItem(key,'1'); }catch(e){} }
+      var el=document.getElementById(id); if(el) el.hidden=true;
+    }
+    function ntInitInline(key, id){
+      try{ if(localStorage.getItem(key)!=='1') return; }catch(e){ return; }
+      var el=document.getElementById(id); if(el) el.hidden=true;
     }
   </script>
 

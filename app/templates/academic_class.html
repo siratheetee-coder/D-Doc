@@ -126,8 +126,10 @@
     <div>
       <div style="font-weight:600; margin-bottom:6px;">ทั้งห้อง</div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <a class="btn soft" href="/academic/kinder/class/{{ c.id }}/book.docx"><svg class="icon"><use href="#ic-file"/></svg> สมุดพกนักเรียน (ทั้งห้อง)</a>
-        <a class="btn soft" href="/academic/kinder/class/{{ c.id }}/teacher-book.docx"><svg class="icon"><use href="#ic-clipboard"/></svg> สมุดบันทึกของครู (บัญชีเรียกชื่อ)</a>
+        <a class="btn soft" href="/academic/kinder/class/{{ c.id }}/book.docx"
+           onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน · หมู่เลือด · โรคประจำตัว · ที่อยู่ · ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-file"/></svg> สมุดพกนักเรียน (ทั้งห้อง)</a>
+        <a class="btn soft" href="/academic/kinder/class/{{ c.id }}/teacher-book.docx"
+           onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน · หมู่เลือด · โรคประจำตัว · ที่อยู่ · ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-clipboard"/></svg> สมุดบันทึกของครู (บัญชีเรียกชื่อ)</a>
         <a class="btn" href="/academic/kinder?cid={{ c.id }}"><svg class="icon"><use href="#ic-edit"/></svg> ไปกรอกผลประเมินพัฒนาการ</a>
       </div>
     </div>
@@ -142,11 +144,19 @@
     </div>
   </div>
   <script>
+    function ntGo(url){
+      var o = {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน · หมู่เลือด · โรคประจำตัว · ที่อยู่ · ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'};
+      try{ if(localStorage.getItem(o.key)==='1'){ window.location=url; return; } }catch(e){}
+      ntShow(o, function(dontRemind){
+        if(dontRemind){ try{ localStorage.setItem(o.key,'1'); }catch(e){} }
+        window.location = url; });
+    }
     (function(){
       var b = document.getElementById('kdStuBtn');
       if (b) b.addEventListener('click', function(){
         var v = document.getElementById('kdStu').value;
-        if (v) window.location = '/academic/kinder/student/' + v + '/book.docx';
+        if (!v) return;
+        ntGo('/academic/kinder/student/' + v + '/book.docx');
       });
     })();
   </script>
@@ -162,7 +172,8 @@
         {% else %}
         <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม</a>
         {% endif %}
-        <a class="btn soft" href="/academic/classes/{{ c.id }}/pp6-all.docx"><svg class="icon"><use href="#ic-file"/></svg> สมุดรายงาน ปพ.6 (ทั้งห้อง)</a>
+        <a class="btn soft" href="/academic/classes/{{ c.id }}/pp6-all.docx"
+           onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน · หมู่เลือด · โรคประจำตัว · ที่อยู่ · ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-file"/></svg> สมุดรายงาน ปพ.6 (ทั้งห้อง)</a>
       </div>
     </div>
     {% endif %}
@@ -203,7 +214,7 @@
     var b6 = document.getElementById('pp6stuBtn');
     if (b6) b6.addEventListener('click', function(){
       var sid = document.getElementById('pp6stu').value;
-      if (sid) window.location = '/academic/student/' + sid + '/pp6.docx';
+      if (sid) ntGo('/academic/student/' + sid + '/pp6.docx');
     });
   })();
 </script>

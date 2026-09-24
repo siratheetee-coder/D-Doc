@@ -64,15 +64,16 @@
 
     {% if is_reviewer and not is_director and p.status in ('pending','revise') %}
     <hr style="margin:16px 0; border:none; border-top:1px solid var(--border);">
-    <div class="sign-hint" id="hintReviewer" hidden>
-      <div class="sh-body">
-        <svg class="icon"><use href="#ic-alert"/></svg>
-        <div><b>โปรดใส่ลายเซ็นของคุณก่อนส่งให้ผู้อำนวยการ</b>
-          <div class="muted" style="font-size:12.5px;">ดาวน์โหลดไฟล์ไปเซ็นแล้วอัปโหลดกลับ (ช่องด้านซ้าย) ก่อนกด "ผ่าน → ผอ."</div></div>
-      </div>
-      <div class="sh-act">
-        <label class="sh-chk"><input type="checkbox" id="hintReviewerNo"> ไม่ต้องแจ้งฉันอีก</label>
-        <button type="button" class="btn sm" onclick="dismissHint('ddoc_planhint_reviewer','hintReviewer')">รับทราบ</button>
+    <div class="nt-inline" id="hintReviewer" hidden>
+      <div class="nt-head"><span class="ring"><svg class="icon"><use href="#ic-alert"/></svg></span>
+        <b>ก่อนส่งให้ผู้อำนวยการ</b></div>
+      <div class="nt-body">
+        <p><b>โปรดใส่ลายเซ็นของคุณก่อนส่งให้ผู้อำนวยการ</b><br>ดาวน์โหลดไฟล์ไปเซ็นแล้วอัปโหลดกลับ (ช่องด้านซ้าย) ก่อนกด "ผ่าน → ผอ."</p>
+        <div class="nt-foot">
+          <label class="nt-chk"><input type="checkbox" id="hintReviewerNo"> ไม่ต้องแจ้งฉันอีก</label>
+          <button type="button" class="btn sm"
+                  onclick="ntHideInline('ddoc_planhint_reviewer','hintReviewer','hintReviewerNo')">รับทราบ</button>
+        </div>
       </div>
     </div>
     <form method="post" action="/academic/lesson-plans/{{ p.id }}/review">
@@ -80,7 +81,7 @@
       <textarea name="comment" rows="2" style="width:100%;" placeholder="เช่น ตรวจแล้ว เห็นควรเสนอ ผอ.">{{ p.comment or '' }}</textarea>
       <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
         <button class="btn green" type="submit" name="status" value="reviewed"
-          onclick="return confirmSend(event, this, 'ddoc_plansend_reviewer', 'โปรดตรวจสอบว่าท่านใส่ลายเซ็น (อัปโหลดไฟล์ที่เซ็นแล้ว) ก่อนส่งให้ผู้อำนวยการ')"><svg class="icon"><use href="#ic-check"/></svg> ผ่าน → ผอ.</button>
+          onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_reviewer', title:'ตรวจลายเซ็นก่อนส่ง', msg:'โปรดตรวจสอบว่าท่านใส่ลายเซ็น (อัปโหลดไฟล์ที่เซ็นแล้ว) ก่อนส่งให้ผู้อำนวยการ', ok:'รับทราบและส่ง'})"><svg class="icon"><use href="#ic-check"/></svg> ผ่าน → ผอ.</button>
         <button class="btn" type="submit" name="status" value="revise" style="background:#f59e0b;">ให้แก้</button>
       </div>
     </form>
@@ -88,15 +89,16 @@
 
     {% if is_director and p.status == 'director' %}
     <hr style="margin:16px 0; border:none; border-top:1px solid var(--border);">
-    <div class="sign-hint" id="hintDirector" hidden>
-      <div class="sh-body">
-        <svg class="icon"><use href="#ic-alert"/></svg>
-        <div><b>โปรดใส่ลายเซ็นของคุณก่อนอนุมัติ</b>
-          <div class="muted" style="font-size:12.5px;">ดาวน์โหลดไฟล์ไปเซ็นแล้วอัปโหลดกลับ (ช่องด้านซ้าย) ก่อนกด "อนุมัติ + ลงนาม"</div></div>
-      </div>
-      <div class="sh-act">
-        <label class="sh-chk"><input type="checkbox" id="hintDirectorNo"> ไม่ต้องแจ้งฉันอีก</label>
-        <button type="button" class="btn sm" onclick="dismissHint('ddoc_planhint_director','hintDirector')">รับทราบ</button>
+    <div class="nt-inline" id="hintDirector" hidden>
+      <div class="nt-head"><span class="ring"><svg class="icon"><use href="#ic-alert"/></svg></span>
+        <b>ก่อนอนุมัติแผน</b></div>
+      <div class="nt-body">
+        <p><b>โปรดใส่ลายเซ็นของคุณก่อนอนุมัติ</b><br>ดาวน์โหลดไฟล์ไปเซ็นแล้วอัปโหลดกลับ (ช่องด้านซ้าย) ก่อนกด "อนุมัติ + ลงนาม"</p>
+        <div class="nt-foot">
+          <label class="nt-chk"><input type="checkbox" id="hintDirectorNo"> ไม่ต้องแจ้งฉันอีก</label>
+          <button type="button" class="btn sm"
+                  onclick="ntHideInline('ddoc_planhint_director','hintDirector','hintDirectorNo')">รับทราบ</button>
+        </div>
       </div>
     </div>
     <form method="post" action="/academic/lesson-plans/{{ p.id }}/approve">
@@ -104,7 +106,7 @@
       <textarea name="comment" rows="2" style="width:100%;" placeholder="เช่น อนุมัติ / เห็นชอบ"></textarea>
       <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
         <button class="btn green" type="submit" name="decision" value="approve"
-          onclick="return confirmSend(event, this, 'ddoc_plansend_director', 'โปรดตรวจสอบว่าท่านใส่ลายเซ็น (อัปโหลดไฟล์ที่เซ็นแล้ว) ก่อนอนุมัติ')"><svg class="icon"><use href="#ic-check"/></svg> อนุมัติ + ลงนาม</button>
+          onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_director', title:'ตรวจลายเซ็นก่อนอนุมัติ', msg:'โปรดตรวจสอบว่าท่านใส่ลายเซ็น (อัปโหลดไฟล์ที่เซ็นแล้ว) ก่อนอนุมัติ', ok:'รับทราบและอนุมัติ'})"><svg class="icon"><use href="#ic-check"/></svg> อนุมัติ + ลงนาม</button>
         <button class="btn" type="submit" name="decision" value="revise" style="background:#f59e0b;">ส่งกลับให้แก้</button>
       </div>
     </form>
@@ -112,24 +114,10 @@
   </div>
 </div>
 <a class="btn gray" href="{{ '/approvals' if is_director else '/academic/lesson-plans' }}">← กลับ</a>
-<style>
-  .sign-hint{ display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center;
-    background:#fff7ed; border:1px solid #fed7aa; border-radius:12px; padding:12px 16px; margin-bottom:14px; }
-  .sign-hint[hidden]{ display:none; }   /* กัน display:flex ทับ attribute hidden */
-  .sign-hint .sh-body{ display:flex; gap:10px; align-items:flex-start; }
-  .sign-hint .sh-body > .icon{ color:#ea580c; flex:none; margin-top:2px; }
-  .sign-hint .sh-act{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
-  .sign-hint .sh-chk{ font-size:13px; display:flex; gap:6px; align-items:center; margin:0; font-weight:400; }
-  .sign-hint .sh-chk input{ width:16px; height:16px; padding:0; margin:0; }
-</style>
 <script>
+  // การ์ดเตือนในหน้า: ซ่อนไว้ก่อน แล้วค่อยโชว์ถ้ายังไม่เคยกด "ไม่ต้องแจ้งฉันอีก"
   function initHint(key, id){ try{ if(localStorage.getItem(key)==='1') return; }catch(e){}
     var el=document.getElementById(id); if(el) el.hidden=false; }
-  function dismissHint(key, id){
-    var no=document.getElementById(id+'No');
-    if(no && no.checked){ try{ localStorage.setItem(key,'1'); }catch(e){} }
-    var el=document.getElementById(id); if(el) el.hidden=true;
-  }
   initHint('ddoc_planhint_reviewer','hintReviewer');
   initHint('ddoc_planhint_director','hintDirector');
 </script>

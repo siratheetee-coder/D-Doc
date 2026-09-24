@@ -76,9 +76,11 @@
       {% if meta %}<span class="muted" style="font-size:14.5px;">{{ meta.title }} (อายุ {{ meta.age }} ขวบ) · แบบ {{ meta.form }}</span>{% endif %}</h2>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <a class="btn soft" href="/academic/attendance?mode=overall&cid={{ c.id }}"><svg class="icon"><use href="#ic-clock"/></svg> บันทึกเวลาเรียน</a>
-      <a class="btn soft" href="/academic/kinder/class/{{ c.id }}/book.docx"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์สมุดพกทั้งห้อง</a>
+      <a class="btn soft" href="/academic/kinder/class/{{ c.id }}/book.docx"
+         onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน · หมู่เลือด · โรคประจำตัว · ที่อยู่ · ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์สมุดพกทั้งห้อง</a>
       <a class="btn soft" href="/academic/kinder/class/{{ c.id }}/teacher-book.docx"
-         title="บัญชีเรียกชื่อ ข้อมูลเด็ก น้ำหนักส่วนสูง เวลาเรียน และบันทึกพัฒนาการทั้งห้อง"><svg class="icon"><use href="#ic-clipboard"/></svg> พิมพ์สมุดบันทึกของครู</a>
+         title="บัญชีเรียกชื่อ ข้อมูลเด็ก น้ำหนักส่วนสูง เวลาเรียน และบันทึกพัฒนาการทั้งห้อง"
+         onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน · หมู่เลือด · โรคประจำตัว · ที่อยู่ · ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-clipboard"/></svg> พิมพ์สมุดบันทึกของครู</a>
     </div>
   </div>
 
@@ -178,7 +180,8 @@
         <td class="center kd-prog">{{ done.get(s.id, 0) }}/{{ total_items }}</td>
         <td class="right" style="white-space:nowrap;">
           <a class="btn sm soft" href="/academic/kinder/student/{{ s.id }}"><svg class="icon"><use href="#ic-edit"/></svg> กรอกส่วนบรรยาย</a>
-          <a class="btn sm" href="/academic/kinder/student/{{ s.id }}/book.docx"><svg class="icon"><use href="#ic-download"/></svg> สมุดพก</a>
+          <a class="btn sm" href="/academic/kinder/student/{{ s.id }}/book.docx"
+             onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน · หมู่เลือด · โรคประจำตัว · ที่อยู่ · ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-download"/></svg> สมุดพก</a>
         </td>
       </tr>
       {% endfor %}

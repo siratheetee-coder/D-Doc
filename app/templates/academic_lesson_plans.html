@@ -13,17 +13,16 @@
 {% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
 
 {% if my_pid %}
-<div class="sign-hint" id="hintTeacher" hidden>
-  <div class="sh-body">
-    <svg class="icon"><use href="#ic-alert"/></svg>
-    <div>
-      <b>โปรดใส่ลายเซ็นของคุณในไฟล์แผนก่อนส่งให้ฝ่ายวิชาการ</b>
-      <div class="muted" style="font-size:12.5px;">เซ็นชื่อลงในไฟล์ (Word/PDF) ของคุณเองก่อน แล้วจึงอัปโหลดส่ง — ระบบไม่ได้เซ็นให้อัตโนมัติ</div>
+<div class="nt-inline" id="hintTeacher" hidden>
+  <div class="nt-head"><span class="ring"><svg class="icon"><use href="#ic-alert"/></svg></span>
+    <b>ก่อนส่งแผนการสอน</b></div>
+  <div class="nt-body">
+    <p><b>โปรดใส่ลายเซ็นของคุณในไฟล์แผนก่อนส่งให้ฝ่ายวิชาการ</b><br>เซ็นชื่อลงในไฟล์ (Word/PDF) ของคุณเองก่อน แล้วจึงอัปโหลดส่ง — ระบบไม่ได้เซ็นให้อัตโนมัติ</p>
+    <div class="nt-foot">
+      <label class="nt-chk"><input type="checkbox" id="hintTeacherNo"> ไม่ต้องแจ้งฉันอีก</label>
+      <button type="button" class="btn sm"
+              onclick="ntHideInline('ddoc_planhint_teacher','hintTeacher','hintTeacherNo')">รับทราบ</button>
     </div>
-  </div>
-  <div class="sh-act">
-    <label class="sh-chk"><input type="checkbox" id="hintTeacherNo"> ไม่ต้องแจ้งฉันอีก</label>
-    <button type="button" class="btn sm" onclick="dismissHint('ddoc_planhint_teacher','hintTeacher')">รับทราบ</button>
   </div>
 </div>
 <div class="card">
@@ -40,7 +39,7 @@
     <label style="margin-top:10px; display:block;">หมายเหตุถึงหัวหน้าฝ่าย (ไม่บังคับ)</label>
     <textarea name="note" rows="2" style="width:100%;" placeholder="เช่น ปรับตามที่แนะนำครั้งก่อนแล้ว"></textarea>
     <br><button class="btn green" type="submit" style="margin-top:10px;"
-        onclick="return confirmSend(event, this, 'ddoc_plansend_teacher', 'โปรดตรวจสอบว่าท่านใส่ลายเซ็นของครูผู้สอนในไฟล์แผนแล้ว ก่อนส่งให้ฝ่ายวิชาการ')"><svg class="icon"><use href="#ic-send"/></svg> ส่งแผนการสอน</button>
+        onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_teacher', title:'ตรวจลายเซ็นก่อนส่ง', msg:'โปรดตรวจสอบว่าท่านใส่ลายเซ็นของครูผู้สอนในไฟล์แผนแล้ว ก่อนส่งให้ฝ่ายวิชาการ', ok:'รับทราบและส่ง'})"><svg class="icon"><use href="#ic-send"/></svg> ส่งแผนการสอน</button>
   </form>
 </div>
 {% endif %}
@@ -87,7 +86,7 @@
           <form method="post" action="/academic/lesson-plans/{{ p.id }}/review" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:0;">
             <input name="comment" value="{{ p.comment or '' }}" placeholder="ความเห็น" style="width:150px;">
             <button class="btn sm green" type="submit" name="status" value="reviewed"
-              onclick="return confirmSend(event, this, 'ddoc_plansend_reviewer', 'โปรดตรวจสอบว่าท่านใส่ลายเซ็น (อัปโหลดไฟล์ที่เซ็นแล้ว) ก่อนส่งให้ผู้อำนวยการ')">ผ่าน → ผอ.</button>
+              onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_reviewer', title:'ตรวจลายเซ็นก่อนส่ง', msg:'โปรดตรวจสอบว่าท่านใส่ลายเซ็น (อัปโหลดไฟล์ที่เซ็นแล้ว) ก่อนส่งให้ผู้อำนวยการ', ok:'รับทราบและส่ง'})">ผ่าน → ผอ.</button>
             <button class="btn sm" type="submit" name="status" value="revise" style="background:#f59e0b;">ให้แก้</button>
           </form>
           {% else %}{{ p.comment or '-' }}{% if p.director_comment %}<div class="muted" style="font-size:12px;">ผอ.: {{ p.director_comment }}</div>{% endif %}{% endif %}
@@ -110,23 +109,11 @@
 </div>
 <style>
   table.stack-sm tr.term-sep td { background:#f5f3ff; font-weight:700; color:var(--brand-dark); text-align:left; font-size:13px; padding:6px 10px; }
-  .sign-hint{ display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center;
-    background:#fff7ed; border:1px solid #fed7aa; border-radius:12px; padding:12px 16px; margin-bottom:14px; }
-  .sign-hint[hidden]{ display:none; }   /* กัน display:flex ทับ attribute hidden */
-  .sign-hint .sh-body{ display:flex; gap:10px; align-items:flex-start; }
-  .sign-hint .sh-body > .icon{ color:#ea580c; flex:none; margin-top:2px; }
-  .sign-hint .sh-act{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
-  .sign-hint .sh-chk{ font-size:13px; display:flex; gap:6px; align-items:center; margin:0; font-weight:400; }
-  .sign-hint .sh-chk input{ width:16px; height:16px; padding:0; margin:0; }
 </style>
 <script>
+  // การ์ดเตือนในหน้า: ซ่อนไว้ก่อน แล้วค่อยโชว์ถ้ายังไม่เคยกด "ไม่ต้องแจ้งฉันอีก"
   function initHint(key, id){ try{ if(localStorage.getItem(key)==='1') return; }catch(e){}
     var el=document.getElementById(id); if(el) el.hidden=false; }
-  function dismissHint(key, id){
-    var no=document.getElementById(id+'No');
-    if(no && no.checked){ try{ localStorage.setItem(key,'1'); }catch(e){} }
-    var el=document.getElementById(id); if(el) el.hidden=true;
-  }
   initHint('ddoc_planhint_teacher','hintTeacher');
 </script>
 {% endblock %}
