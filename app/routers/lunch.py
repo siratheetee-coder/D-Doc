@@ -212,7 +212,7 @@ def nutrition_page(request: Request, db: Session = Depends(get_db), year: str = 
     from app.services import growth
     yr = _to_int(year, 0) or growth.current_academic_year()
     ctx = growth.build_ctx(db, yr)
-    ctx.update({"request": request, "school": get_school(db),
+    ctx.update({"request": request, "school": get_school(db), "slots": growth.SLOTS,
                 "years": growth.available_years(db), "today_be": be_date_input(datetime.now()),
                 "page_title": "ภาวะโภชนาการนักเรียน", "page_url": "/lunch/nutrition",
                 "report_url": "/lunch/nutrition/report.docx"})

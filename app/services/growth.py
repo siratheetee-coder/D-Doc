@@ -1,6 +1,8 @@
 """
 ภาวะโภชนาการส่วนกลาง (น้ำหนัก/ส่วนสูง) ผูกทะเบียนนักเรียนกลางโดยตรง
-ใช้ร่วมกัน 3 ที่: หน้ากรอกในทะเบียนนักเรียน, หน้าภาวะโภชนาการ (อาหารกลางวัน), สมุดพก ปพ.6
+ใช้ร่วมกัน 4 ที่: หน้ากรอกในทะเบียนนักเรียน, หน้าภาวะโภชนาการ (อาหารกลางวัน),
+สมุดพก ปพ.6 และสมุดพกอนุบาล · ชั่งภาคเรียนละ 2 ครั้ง (4 ครั้งต่อปี) ตามแบบบันทึกของทางราชการ
+สรุป/เฝ้าระวังใช้ผล "ครั้งล่าสุดของปี" ที่มีข้อมูล
 จัดกลุ่มตามเกณฑ์กรมอนามัยผ่าน growth_ref.classify_all (pure function)
 """
 from datetime import datetime
@@ -10,6 +12,9 @@ from app.services.growth_ref import classify_all, WH_LABELS, HA_LABELS, WA_LABEL
 from app.thai_utils import parse_be_date, SCHOOL_LEVELS
 
 TERMS = (1, 2)
+TIMES = (1, 2)
+# ช่องชั่งทั้งปี เรียงตามเวลา: ภาค 1 ครั้ง 1 -> ภาค 1 ครั้ง 2 -> ภาค 2 ครั้ง 1 -> ภาค 2 ครั้ง 2
+SLOTS = [(t, n) for t in TERMS for n in TIMES]
 
 # น้ำหนักตามเกณฑ์ส่วนสูง: สมส่วน (index 2) = ดีที่สุด · ยิ่งห่างยิ่งเสี่ยง
 _WH_ORDER = {lbl: i for i, lbl in enumerate(WH_LABELS)}
@@ -30,30 +35,49 @@ def measure_result(student, m):
     return classify_all(student.sex, student.birthdate, m.weight, m.height, m.date)
 
 
+def slot_label(slot) -> str:
+    """(1, 2) -> 'ภาคเรียนที่ 1 ครั้งที่ 2'"""
+    term, times = slot
+    return f"ภาคเรียนที่ {term} ครั้งที่ {times}"
+
+
+def filled(res) -> list:
+    """ช่องที่ชั่งแล้ว เรียงตามเวลา (ใช้หาครั้งแรก/ครั้งล่าสุดของปี)"""
+    return [res[sl] for sl in SLOTS if res.get(sl)]
+
+
+def latest(res):
+    """ผลการชั่งครั้งล่าสุดของปี (None ถ้ายังไม่ได้ชั่งเลย)"""
+    got = filled(res)
+    return got[-1] if got else None
+
+
 def wh_trend(res):
-    """เทียบน้ำหนัก/ส่วนสูง เทอม 1 -> เทอม 2 : up=ดีขึ้น / down=แย่ลง / same=คงที่ / None=ข้อมูลไม่พอ"""
-    r1, r2 = res.get(1), res.get(2)
-    if not (r1 and r2 and r1.get("wh") in _WH_ORDER and r2.get("wh") in _WH_ORDER):
+    """เทียบครั้งแรก -> ครั้งล่าสุดของปี : up=ดีขึ้น / down=แย่ลง / same=คงที่ / None=ข้อมูลไม่พอ"""
+    got = [r for r in filled(res) if r.get("wh") in _WH_ORDER]
+    if len(got) < 2:
         return None
-    d1 = abs(_WH_ORDER[r1["wh"]] - 2)
-    d2 = abs(_WH_ORDER[r2["wh"]] - 2)
+    d1 = abs(_WH_ORDER[got[0]["wh"]] - 2)
+    d2 = abs(_WH_ORDER[got[-1]["wh"]] - 2)
     return "up" if d2 < d1 else "down" if d2 > d1 else "same"
 
 
 def measures_for(db, student_id, year) -> dict:
-    """คืน {term: StudentMeasure} ของนักเรียนคนหนึ่งในปีที่ระบุ"""
+    """คืน {(term, times): StudentMeasure} ของนักเรียนคนหนึ่งในปีที่ระบุ"""
     rows = (db.query(StudentMeasure)
             .filter(StudentMeasure.student_id == student_id, StudentMeasure.year == year).all())
-    return {m.term: m for m in rows}
+    return {(m.term, m.times or 1): m for m in rows}
 
 
-def set_measure(db, student_id, year, term, weight, height, date):
-    """บันทึก/แก้ไขการชั่ง 1 ครั้ง (upsert ตาม student_id+year+term) - คืน StudentMeasure"""
+def set_measure(db, student_id, year, term, weight, height, date, times=1):
+    """บันทึก/แก้ไขการชั่ง 1 ครั้ง (upsert ตาม student_id+year+term+times)"""
+    times = times if times in TIMES else 1
     m = (db.query(StudentMeasure)
          .filter(StudentMeasure.student_id == student_id,
-                 StudentMeasure.year == year, StudentMeasure.term == term).first())
+                 StudentMeasure.year == year, StudentMeasure.term == term,
+                 StudentMeasure.times == times).first())
     if not m:
-        m = StudentMeasure(student_id=student_id, year=year, term=term)
+        m = StudentMeasure(student_id=student_id, year=year, term=term, times=times)
         db.add(m)
     m.date = date
     m.weight = weight or 0.0
@@ -70,11 +94,11 @@ def _rows(db, year):
     measures = (db.query(StudentMeasure).filter(StudentMeasure.year == year).all())
     by_student = {}
     for m in measures:
-        by_student.setdefault(m.student_id, {})[m.term] = m
+        by_student.setdefault(m.student_id, {})[(m.term, m.times or 1)] = m
     rows = []
     for s in students:
         ms = by_student.get(s.id, {})
-        res = {t: measure_result(s, ms.get(t)) for t in TERMS}
+        res = {sl: measure_result(s, ms.get(sl)) for sl in SLOTS}
         rows.append({"s": s, "m": ms, "res": res, "trend": wh_trend(res)})
     rows.sort(key=lambda r: (order.get((r["s"].level or "").strip(), 99),
                              (r["s"].level or ""), r["s"].name or ""))
@@ -90,20 +114,21 @@ def build_ctx(db, year):
     wa_count = {k: 0 for k in WA_LABELS}
     watch = []
     for r in rows:
-        latest = r["res"].get(2) or r["res"].get(1)
-        if not latest:
+        last = latest(r["res"])
+        if not last:
             continue
-        if latest.get("wh") in wh_count:
-            wh_count[latest["wh"]] += 1
-        if latest.get("ha") in ha_count:
-            ha_count[latest["ha"]] += 1
-        if latest.get("wa") in wa_count:
-            wa_count[latest["wa"]] += 1
-        if latest.get("wh") in _WH_RISK:
-            r1w = (r["res"].get(1) or {}).get("wh")
-            r2w = (r["res"].get(2) or {}).get("wh")
-            watch.append({"s": r["s"], "wh": latest["wh"], "trend": r["trend"],
-                          "repeat": (r1w in _WH_RISK and r2w in _WH_RISK)})
+        if last.get("wh") in wh_count:
+            wh_count[last["wh"]] += 1
+        if last.get("ha") in ha_count:
+            ha_count[last["ha"]] += 1
+        if last.get("wa") in wa_count:
+            wa_count[last["wa"]] += 1
+        if last.get("wh") in _WH_RISK:
+            # เสี่ยงต่อเนื่อง = ครั้งแรกของปีก็อยู่กลุ่มเสี่ยงเหมือนครั้งล่าสุด
+            got = filled(r["res"])
+            first_wh = got[0].get("wh") if got else None
+            watch.append({"s": r["s"], "wh": last["wh"], "trend": r["trend"],
+                          "repeat": len(got) > 1 and first_wh in _WH_RISK})
     assessed = sum(wh_count.values())
     by_class = []
     for r in rows:
@@ -128,7 +153,7 @@ def report_data(db, year):
     class_counts, cur, assessed = [], None, 0
     for r in rows:
         s = r["s"]
-        res = r["res"].get(2) or r["res"].get(1)
+        res = latest(r["res"])
         if not res or res.get("wh") not in totals:
             continue
         cat = res["wh"]

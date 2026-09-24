@@ -1537,11 +1537,11 @@ def _pp6_attendance_growth(doc, school, s, db, ef):
     gt = doc.add_table(rows=1, cols=6); gt.style = "Table Grid"
     for i, h in enumerate(gh):
         _cell(gt.rows[0].cells[i], h, bold=True, fill="EDE9FE")
-    for term in (1, 2):
-        m = ms.get(term)
+    for term, times in growth.SLOTS:          # ภาคเรียนละ 2 ครั้ง
+        m = ms.get((term, times))
         cells = gt.add_row().cells
         _cell(cells[0], term)
-        _cell(cells[1], 1)
+        _cell(cells[1], times)
         _cell(cells[2], be_date_input(m.date) if (m and m.date) else "")
         _cell(cells[3], f"{m.weight:g}" if (m and m.weight) else "")
         _cell(cells[4], f"{m.height:g}" if (m and m.height) else "")

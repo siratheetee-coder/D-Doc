@@ -376,20 +376,24 @@ class Student(Base):
     prev_school = Column(String, default="")        # โรงเรียนเดิม
 
     measures = relationship("StudentMeasure", back_populates="student",
-                            cascade="all, delete-orphan", order_by="StudentMeasure.term")
+                            cascade="all, delete-orphan",
+                            order_by="StudentMeasure.term, StudentMeasure.times")
 
 
 class StudentMeasure(Base):
     """การชั่งน้ำหนัก/วัดส่วนสูงของนักเรียน 1 ครั้ง (ผูกทะเบียนกลางโดยตรง มีปีการศึกษา)
-    เก็บที่ส่วนกลางเพื่อใช้ร่วมทั้งงานภาวะโภชนาการ (อาหารกลางวัน) และสมุดพก ปพ.6
-    คีย์ตรรกะ = (student_id, year, term) · term 1/2 = 2 ครั้งต่อปี"""
+    เก็บที่ส่วนกลางเพื่อใช้ร่วมทั้งงานภาวะโภชนาการ (อาหารกลางวัน) สมุดพก ปพ.6 และสมุดพกอนุบาล
+    คีย์ตรรกะ = (student_id, year, term, times) · ภาคเรียนละ 2 ครั้ง = 4 ครั้งต่อปี
+    (แบบบันทึกของทางราชการให้ช่องชั่งภาคเรียนละ 2 ครั้ง)"""
     __tablename__ = "student_measure"
-    __table_args__ = (UniqueConstraint("student_id", "year", "term", name="uq_student_measure"),)
+    __table_args__ = (UniqueConstraint("student_id", "year", "term", "times",
+                                       name="uq_student_measure"),)
 
     id = Column(Integer, primary_key=True)
     student_id = Column(Integer, ForeignKey("student.id"), nullable=False)
     year = Column(Integer, nullable=False)          # ปีการศึกษา (พ.ศ.)
     term = Column(Integer, default=1)               # ภาคเรียน 1 / 2
+    times = Column(Integer, default=1)              # ครั้งที่ 1 / 2 ของภาคเรียนนั้น
     date = Column(DateTime, nullable=True)          # วันที่ชั่ง
     weight = Column(Float, default=0.0)             # กก.
     height = Column(Float, default=0.0)             # ซม.

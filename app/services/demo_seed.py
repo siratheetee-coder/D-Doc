@@ -515,8 +515,14 @@ def seed_school(db, *, today: date) -> dict:
                            nationality="ไทย", enroll_date=_d(ce - (0 if lvl == "ป.1" else 5), 5, 16))
             db.add(st)
             db.flush()
-            db.add(m.StudentMeasure(student_id=st.id, year=ay, term=1, date=_d(ce, 6, 10),
-                                    weight=(21 if lvl == "ป.1" else 38) + (i % 7), height=(117 if lvl == "ป.1" else 145) + (i % 9)))
+            base_w = (21 if lvl == "ป.1" else 38) + (i % 7)
+            base_h = (117 if lvl == "ป.1" else 145) + (i % 9)
+            for k_i, (tm, tn, mo, dd) in enumerate([(1, 1, 6, 10), (1, 2, 9, 10),
+                                                    (2, 1, 11, 10), (2, 2, 2, 10)]):
+                db.add(m.StudentMeasure(
+                    student_id=st.id, year=ay, term=tm, times=tn,
+                    date=_d(ce + (1 if mo <= 4 else 0), mo, dd),
+                    weight=round(base_w + k_i * 0.5, 1), height=base_h + k_i))
             k.students.append(m.AcadStudent(student_id=st.id, seq=i + 1, student_no=sno, name=sname, sex=st.sex))
             students_all.append(st)
         classes.append(k)

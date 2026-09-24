@@ -337,6 +337,44 @@ def init_school_db(engine) -> None:
     _migrate_lunch_measures(engine)
     _backfill_memo_subjects(engine)
     _fix_lunch_proc_case(engine)
+    _migrate_measure_times(engine)
+
+
+def _migrate_measure_times(engine) -> None:
+    """เพิ่มคอลัมน์ times (ครั้งที่ชั่งในภาคเรียน) ให้ student_measure
+
+    ของเดิมคีย์เป็น (student_id, year, term) ซึ่งเป็น UNIQUE ที่ประกาศใน CREATE TABLE
+    SQLite ลบไม่ได้ จึงต้องสร้างตารางใหม่แล้วย้ายข้อมูล (แถวเดิม = ครั้งที่ 1)
+    idempotent: ทำครั้งเดียว ถ้ามีคอลัมน์ times แล้วข้าม
+    """
+    try:
+        with engine.begin() as conn:
+            cols = [r[1] for r in conn.exec_driver_sql(
+                "PRAGMA table_info(student_measure)").fetchall()]
+            if not cols or "times" in cols:
+                return
+            conn.exec_driver_sql("""
+                CREATE TABLE student_measure_new (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    student_id INTEGER NOT NULL REFERENCES student(id),
+                    year INTEGER NOT NULL,
+                    term INTEGER,
+                    times INTEGER DEFAULT 1,
+                    date DATETIME,
+                    weight FLOAT,
+                    height FLOAT,
+                    created_at DATETIME,
+                    CONSTRAINT uq_student_measure UNIQUE (student_id, year, term, times)
+                )""")
+            conn.exec_driver_sql(
+                "INSERT INTO student_measure_new "
+                "(id, student_id, year, term, times, date, weight, height, created_at) "
+                "SELECT id, student_id, year, term, 1, date, weight, height, created_at "
+                "FROM student_measure")
+            conn.exec_driver_sql("DROP TABLE student_measure")
+            conn.exec_driver_sql("ALTER TABLE student_measure_new RENAME TO student_measure")
+    except Exception:
+        pass
 
 
 def _fix_lunch_proc_case(engine) -> None:
@@ -407,7 +445,7 @@ def _migrate_lunch_measures(engine) -> None:
         try:
             valid_ids = {sid for (sid,) in db.query(Student.id).all()}
             prog_year = {p.id: (p.year or cur_year) for p in db.query(LunchProgram).all()}
-            existing = {(sm.student_id, sm.year, sm.term)
+            existing = {(sm.student_id, sm.year, sm.term, sm.times or 1)
                         for sm in db.query(StudentMeasure).all()}
             ls_map = {ls.id: ls for ls in db.query(LunchStudent).all()}
             added = 0
@@ -418,11 +456,12 @@ def _migrate_lunch_measures(engine) -> None:
                 if not lm.weight and not lm.height:
                     continue
                 year = prog_year.get(ls.program_id, cur_year)
-                key = (ls.student_id, year, lm.term or 1)
+                key = (ls.student_id, year, lm.term or 1, 1)
                 if key in existing:
                     continue
                 db.add(StudentMeasure(student_id=ls.student_id, year=year, term=lm.term or 1,
-                                      date=lm.date, weight=lm.weight or 0.0, height=lm.height or 0.0))
+                                      times=1, date=lm.date,
+                                      weight=lm.weight or 0.0, height=lm.height or 0.0))
                 existing.add(key)
                 added += 1
             if added:

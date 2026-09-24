@@ -1120,7 +1120,7 @@ def students_growth(request: Request, db: Session = Depends(get_db), year: str =
     from app.services import growth
     yr = _to_int(year, 0) or growth.current_academic_year()
     ctx = growth.build_ctx(db, yr)
-    ctx.update({"request": request, "school": get_school(db),
+    ctx.update({"request": request, "school": get_school(db), "slots": growth.SLOTS,
                 "years": growth.available_years(db), "today_be": be_date_input(datetime.now()),
                 "page_title": "น้ำหนัก/ส่วนสูง (ภาวะโภชนาการ)", "page_url": "/students/growth",
                 "report_url": None})
@@ -1129,7 +1129,7 @@ def students_growth(request: Request, db: Session = Depends(get_db), year: str =
 
 @router.post("/students/{sid:int}/measure")
 def student_measure(sid: int, request: Request, db: Session = Depends(get_db),
-                    year: str = Form(""), term: str = Form("1"),
+                    year: str = Form(""), term: str = Form("1"), times: str = Form("1"),
                     weight: str = Form(""), height: str = Form(""), date: str = Form("")):
     """บันทึกการชั่งน้ำหนัก/ส่วนสูง 1 ครั้ง ลงทะเบียนกลาง (ใช้ทั้งหน้าทะเบียนและหน้าอาหารกลางวัน)"""
     from app.services import growth
@@ -1142,7 +1142,8 @@ def student_measure(sid: int, request: Request, db: Session = Depends(get_db),
 
     if db.get(Student, sid):
         yr = _to_int(year, 0) or growth.current_academic_year()
-        growth.set_measure(db, sid, yr, _to_int(term, 1), _f(weight), _f(height), parse_be_date(date))
+        growth.set_measure(db, sid, yr, _to_int(term, 1), _f(weight), _f(height),
+                           parse_be_date(date), times=_to_int(times, 1))
     back = request.headers.get("referer") or "/students/growth"
     return RedirectResponse(back, status_code=303)
 

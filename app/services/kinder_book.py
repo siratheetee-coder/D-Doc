@@ -232,19 +232,17 @@ def _attendance(doc, school, s, db):
     _cell(g0[5], "ผลการประเมิน", bold=True, size=12, fill="EDE9FE")
     _cell(g1[5], "น้ำหนัก", bold=True, size=11, fill="F5F3FF")
     _cell(g1[6], "ส่วนสูง", bold=True, size=11, fill="F5F3FF")
-    for term in (1, 2):
-        for times in (1, 2):
-            # ระบบเก็บการชั่งภาคเรียนละ 1 ครั้ง -> ครั้งที่ 2 เว้นให้ครูกรอกเอง
-            m = ms.get(term) if times == 1 else None
-            res = growth.measure_result(who, m) if m else None
-            cells = gt.add_row().cells
-            _cell(cells[0], term, size=12)
-            _cell(cells[1], times, size=12)
-            _cell(cells[2], be_date_input(m.date) if (m and m.date) else "", size=12)
-            _cell(cells[3], f"{m.weight:g}" if (m and m.weight) else "", size=12)
-            _cell(cells[4], f"{m.height:g}" if (m and m.height) else "", size=12)
-            _cell(cells[5], (res or {}).get("wa", "") or "", size=11)
-            _cell(cells[6], (res or {}).get("ha", "") or "", size=11)
+    for term, times in growth.SLOTS:          # ภาคเรียนละ 2 ครั้ง ตามแบบต้นฉบับ
+        m = ms.get((term, times))
+        res = growth.measure_result(who, m) if m else None
+        cells = gt.add_row().cells
+        _cell(cells[0], term, size=12)
+        _cell(cells[1], times, size=12)
+        _cell(cells[2], be_date_input(m.date) if (m and m.date) else "", size=12)
+        _cell(cells[3], f"{m.weight:g}" if (m and m.weight) else "", size=12)
+        _cell(cells[4], f"{m.height:g}" if (m and m.height) else "", size=12)
+        _cell(cells[5], (res or {}).get("wa", "") or "", size=11)
+        _cell(cells[6], (res or {}).get("ha", "") or "", size=11)
     _widths(gt, [Cm(2.0), Cm(1.6), Cm(2.6), Cm(2.0), Cm(2.0), Cm(2.9), Cm(2.9)])
     _p(doc, "เกณฑ์อ้างอิง: กราฟการเจริญเติบโตของกรมอนามัย", align="center", size=12, after=0)
 
