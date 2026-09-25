@@ -3008,6 +3008,7 @@ def assets_form_export(db: Session = Depends(get_db)):
 @router.get("/assets", response_class=HTMLResponse)
 def assets_page(request: Request, db: Session = Depends(get_db)):
     from app.models import AssetNumberSeries
+    from app.services.asset_numbering import cost_groups
     assets = db.query(Asset).order_by(Asset.id.desc()).all()
     total_cost = sum(a.cost or 0 for a in assets)
     total_nbv = sum(net_book_value(a.cost, a.salvage_value, a.useful_life,
@@ -3018,6 +3019,7 @@ def assets_page(request: Request, db: Session = Depends(get_db)):
         "asset_statuses": ASSET_STATUSES,
         "number_year": current_fiscal_year(),
         "number_series": [{"prefix": x.prefix, "digits": x.digits, "reset": x.reset_yearly, "append": x.append_year} for x in db.query(AssetNumberSeries).all()],
+        "cost_groups": cost_groups(db),
     })
 
 
@@ -3171,6 +3173,22 @@ def asset_split(asset_id: int, db: Session = Depends(get_db), cost_mode: str = F
         db.rollback()
         raise HTTPException(400, detail=str(exc))
     return RedirectResponse(f"/assets?split={added + 1}", status_code=303)
+
+
+@router.post("/assets/group-cost")
+def asset_group_cost(db: Session = Depends(get_db), ids: str = Form(""),
+                     cost_mode: str = Form("total"), value: str = Form("0")):
+    """แก้ราคาทุนครุภัณฑ์ทั้งกลุ่มในครั้งเดียว (ใช้ตอนแยกรายชิ้นมาแล้วราคายังเป็นราคารวม)"""
+    from app.services.asset_numbering import set_group_cost
+    from fastapi import HTTPException
+    try:
+        n = set_group_cost(db, ids.split(","), "total" if cost_mode == "total" else "each",
+                           _to_float(value, 0.0))
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(400, detail=str(exc))
+    return RedirectResponse(f"/assets?grouped={n}", status_code=303)
 
 
 @router.post("/assets/{asset_id}/update")

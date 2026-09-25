@@ -146,3 +146,55 @@ def split_asset(db, asset, cost_mode='each'):
     asset.quantity = 1
     asset.cost = first_cost
     return qty - 1
+
+
+def cost_groups(db, min_rows=2):
+    """กลุ่มครุภัณฑ์ที่เป็นของชุดเดียวกัน (ชื่อ+ประเภท+วันที่ได้มา+เรื่องจัดซื้อเดียวกัน)
+
+    ใช้หาแถวที่แยกรายชิ้นมาแล้วแต่ราคาทุนยังเป็น "ราคารวม" ติดมาทุกแถว
+    คืน [{key, name, category, acquired_date, rows, ids, n, each, total, same_cost}]
+    เรียงกลุ่มที่น่าสงสัยที่สุดขึ้นก่อน (ราคาทุกแถวเท่ากัน = น่าจะก๊อปมาทั้งก้อน)
+    """
+    groups = {}
+    for a in db.query(Asset).order_by(Asset.asset_code, Asset.id).all():
+        key = ((a.name or "").strip(), (a.category or "").strip(),
+               a.acquired_date, a.procurement_id)
+        groups.setdefault(key, []).append(a)
+    out = []
+    for key, rows in groups.items():
+        if len(rows) < min_rows:
+            continue
+        costs = [float(r.cost or 0) for r in rows]
+        out.append({
+            "key": key, "name": key[0], "category": key[1], "acquired_date": key[2],
+            "rows": rows, "ids": ",".join(str(r.id) for r in rows), "n": len(rows),
+            "each": costs[0] if costs else 0.0, "total": round(sum(costs), 2),
+            "same_cost": len(set(costs)) == 1,
+        })
+    out.sort(key=lambda g: (not g["same_cost"], -g["total"]))
+    return out
+
+
+def set_group_cost(db, ids, mode, value):
+    """ตั้งราคาทุนให้ครุภัณฑ์ทั้งกลุ่ม
+
+    mode 'each'  = value คือราคาต่อชิ้น  -> ทุกแถวเท่ากับ value
+    mode 'total' = value คือราคารวมทั้งกลุ่ม -> หารเฉลี่ย เศษสตางค์ยกให้แถวแรก
+    คืนจำนวนแถวที่แก้
+    """
+    rows = [a for a in (db.get(Asset, int(i)) for i in ids if str(i).strip().isdigit()) if a]
+    if not rows:
+        raise ValueError('ไม่พบครุภัณฑ์ที่เลือก')
+    value = float(value or 0)
+    if value < 0:
+        raise ValueError('ราคาทุนต้องไม่ติดลบ')
+    n = len(rows)
+    if mode == 'total':
+        each = round(value / n, 2)
+        rest = round(value - each * (n - 1), 2)     # เศษสตางค์ยกให้แถวแรก ผลรวมเท่าที่กรอกเป๊ะ
+        for i, a in enumerate(rows):
+            a.cost = rest if i == 0 else each
+    else:
+        for a in rows:
+            a.cost = round(value, 2)
+    return n

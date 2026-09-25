@@ -137,3 +137,47 @@ def test_split_each_cost_keeps_value(db):
     db.commit()
     costs = [r.cost for r in db.query(Asset).all()]
     assert costs == [2500.0] * 4
+
+
+def test_cost_groups_finds_duplicates(db):
+    """แถวที่ ชื่อ+ประเภท+วันที่ได้มา+เรื่องจัดซื้อ ตรงกัน = กลุ่มเดียวกัน"""
+    from app.services.asset_numbering import cost_groups
+    for i in range(5):
+        _asset(db, name="Smart TV 55 นิ้ว", cost=138000.0, quantity=1, asset_code=f"TV-{i:04d}")
+    _asset(db, name="โต๊ะทำงาน", cost=3000.0, quantity=1, asset_code="DESK-0001")
+    groups = cost_groups(db)
+    assert len(groups) == 1, [g["name"] for g in groups]   # โต๊ะตัวเดียว ไม่นับเป็นกลุ่ม
+    g = groups[0]
+    assert g["name"] == "Smart TV 55 นิ้ว" and g["n"] == 5
+    assert g["total"] == 690000.0 and g["same_cost"] is True
+
+
+def test_set_group_cost_total(db):
+    """กรอกราคารวมทั้งกลุ่ม -> หารเฉลี่ย ผลรวมเท่าที่กรอกพอดี"""
+    from app.services.asset_numbering import cost_groups, set_group_cost
+    for i in range(5):
+        _asset(db, name="Smart TV 55 นิ้ว", cost=138000.0, quantity=1, asset_code=f"TV-{i:04d}")
+    g = cost_groups(db)[0]
+    assert set_group_cost(db, g["ids"].split(","), "total", 138000) == 5
+    db.commit()
+    costs = [r.cost for r in db.query(Asset).all()]
+    assert round(sum(costs), 2) == 138000.0 and set(costs) == {27600.0}
+
+
+def test_set_group_cost_each(db):
+    from app.services.asset_numbering import cost_groups, set_group_cost
+    for i in range(3):
+        _asset(db, name="โน้ตบุ๊ก", cost=99999.0, quantity=1, asset_code=f"NB-{i:04d}")
+    g = cost_groups(db)[0]
+    set_group_cost(db, g["ids"].split(","), "each", 21500)
+    db.commit()
+    assert [r.cost for r in db.query(Asset).all()] == [21500.0] * 3
+
+
+def test_set_group_cost_rejects_bad_input(db):
+    from app.services.asset_numbering import set_group_cost
+    a = _asset(db, quantity=1)
+    with pytest.raises(ValueError):
+        set_group_cost(db, [], "total", 100)
+    with pytest.raises(ValueError):
+        set_group_cost(db, [str(a.id)], "total", -5)
