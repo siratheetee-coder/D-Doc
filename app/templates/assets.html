@@ -5,6 +5,7 @@
   .qty-warn{ display:inline-block; margin-left:7px; padding:1px 9px; border-radius:999px;
     font-size:12px; font-weight:600; background:#fff7ed; color:#b45309; vertical-align:2px; }
   .split-btn{ background:linear-gradient(135deg,#f59e0b,#ea580c); border:none; color:#fff; }
+  .cost-mode{ width:auto; font-size:12.5px; padding:5px 8px; }
 </style>
 <datalist id="cats">{% for c in categories %}<option value="{{ c }}">{% endfor %}</datalist>
 
@@ -109,12 +110,14 @@
         <td class="right"><b>{{ "{:,.2f}".format(nbv(a.cost, a.salvage_value, a.useful_life, a.acquired_date)) }}</b></td>
         <td class="right" style="white-space:nowrap;">
           {% if (a.quantity or 1) > 1 %}
-          <form method="post" action="/assets/{{ a.id }}/split" style="display:inline; margin:0;">
-            <button class="btn sm split-btn" type="submit"
-              onclick="return ddocConfirm(event, this, {key:'ddoc_asset_split', title:'แยกครุภัณฑ์เป็นรายชิ้น',
-                msg:'ระบบจะแตกรายการนี้ออกเป็น {{ a.quantity|int }} ระเบียน ชิ้นละ 1 {{ a.unit or "หน่วย" }} เพื่อให้แต่ละชิ้นมีเลขครุภัณฑ์และสถานะของตัวเอง แจ้งชำรุดหรือจำหน่ายแยกกันได้',
-                detail:'แถวเดิมเก็บเลข {{ a.asset_code or "(ยังไม่มีเลข)" }} ไว้ · ชิ้นที่เพิ่มรันเลขต่อในชุดเดียวกัน ถ้าเลขเดิมอ่านรูปแบบไม่ได้จะเว้นว่างให้กรอกเอง · ราคาทุนต่อหน่วยคงเดิมทุกชิ้น',
-                ok:'แยกเลย'})"><svg class="icon"><use href="#ic-file-plus"/></svg> แยกเป็นรายชิ้น</button>
+          <form method="post" action="/assets/{{ a.id }}/split" style="display:inline-flex; gap:4px; margin:0; align-items:center;"
+                data-qty="{{ a.quantity|int }}" data-unit="{{ a.unit or 'หน่วย' }}"
+                data-cost="{{ '%.2f'|format(a.cost or 0) }}" data-code="{{ a.asset_code or '' }}">
+            <select name="cost_mode" class="cost-mode" title="ช่องราคาทุนของแถวนี้คือราคาอะไร">
+              <option value="each">ราคาทุนเป็นราคาต่อชิ้น</option>
+              <option value="total">ราคาทุนเป็นราคารวมทั้งหมด</option>
+            </select>
+            <button class="btn sm split-btn" type="submit" onclick="return splitAsk(event, this)"><svg class="icon"><use href="#ic-file-plus"/></svg> แยกเป็นรายชิ้น</button>
           </form>
           {% endif %}
           <a class="btn sm gray" href="/assets/{{ a.id }}/schedule"><svg class="icon"><use href="#ic-clipboard"/></svg> ตารางค่าเสื่อม</a>
@@ -225,6 +228,31 @@
     } catch(error){previewResult.textContent=error.message;}finally{button.disabled=false;}
   });
   modeChanged();
+
+  /* แยกเป็นรายชิ้น: ข้อความในการ์ดเปลี่ยนตามว่าราคาทุนที่กรอกเป็นต่อชิ้นหรือราคารวม */
+  function splitAsk(ev, btn){
+    var f = btn.form;
+    var n = parseInt(f.dataset.qty || '1', 10) || 1;
+    var unit = f.dataset.unit || 'หน่วย';
+    var cost = parseFloat(f.dataset.cost || '0') || 0;
+    var code = f.dataset.code || '';
+    var total = f.querySelector('[name=cost_mode]').value === 'total';
+    var money = function(x){ return x.toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}); };
+    var each = total ? cost / n : cost;
+    return ddocConfirm(ev, btn, {
+      key: 'ddoc_asset_split',
+      title: 'แยกครุภัณฑ์เป็นรายชิ้น',
+      msg: 'ระบบจะแตกรายการนี้ออกเป็น ' + n + ' ระเบียน ชิ้นละ 1 ' + unit +
+           ' เพื่อให้แต่ละชิ้นมีเลขครุภัณฑ์และสถานะของตัวเอง แจ้งชำรุดหรือจำหน่ายแยกกันได้',
+      detail: (total
+          ? 'ราคาทุน ' + money(cost) + ' บาท = ราคารวม → หารเป็นชิ้นละ ' + money(each) +
+            ' บาท (ราคาทุนรวมในทะเบียนเท่าเดิม)'
+          : 'ราคาทุนชิ้นละ ' + money(each) + ' บาท → ทะเบียนจะมีราคาทุนรวม ' +
+            money(each * n) + ' บาท') +
+        ' · แถวเดิมเก็บเลข ' + (code || '(ยังไม่มีเลข)') +
+        ' ไว้ ชิ้นที่เพิ่มรันเลขต่อในชุดเดียวกัน',
+      ok: 'แยกเลย'});
+  }
 
   /* ครุภัณฑ์ควรลง 1 ชิ้น = 1 เลขครุภัณฑ์ · จำนวนมากกว่า 1 ถูกต้องก็ต่อเมื่อหน่วยเป็น "ชุด"
      (เช่น ชุดรับแขก 1 ชุด) · ไม่ใช่ = เตือนก่อน แต่ยังให้บันทึกได้ */

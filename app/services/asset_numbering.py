@@ -105,18 +105,23 @@ def next_codes_like(db, code, count):
 
 
 # ฟิลด์ที่คัดลอกไปยังชิ้นที่แยกออกมา (ทุกอย่างยกเว้นเลขครุภัณฑ์/จำนวน/รหัส)
-_COPY_FIELDS = ("name", "category", "acquired_date", "cost", "useful_life", "salvage_value",
+_COPY_FIELDS = ("name", "category", "acquired_date", "useful_life", "salvage_value",
                 "location", "funding_source", "vendor_name", "procurement_id", "note",
                 "status", "disposed_date", "dispose_method", "dispose_reason",
                 "dispose_value", "dispose_doc_ref", "brand_model", "vendor_address",
                 "fund_type", "acquire_method", "doc_ref", "unit")
 
 
-def split_asset(db, asset):
+def split_asset(db, asset, cost_mode='each'):
     """แยกครุภัณฑ์แถวเดียวที่มีจำนวน > 1 ออกเป็นรายชิ้น ชิ้นละ 1 ระเบียน
 
     แถวเดิมเก็บเลขครุภัณฑ์เดิมไว้ (เหลือจำนวน 1) · ชิ้นที่เพิ่มรันเลขต่อในชุดเดียวกัน
-    ราคาทุนคงไว้เท่าเดิมทุกชิ้น เพราะช่องราคาทุนในทะเบียนคือราคาต่อหน่วย
+
+    cost_mode ตีความช่อง "ราคาทุน" ของแถวเดิม
+      'each'  = เป็นราคาต่อชิ้นอยู่แล้ว  -> ทุกชิ้นใช้ราคาเดิม
+      'total' = เป็นราคารวมทั้ง N ชิ้น   -> หารเฉลี่ยให้ชิ้นละเท่า ๆ กัน
+                (เศษสตางค์ยกให้ชิ้นแรก ผลรวมจึงเท่าเดิมเป๊ะ ไม่ทำให้ทะเบียนเพี้ยน)
+    ช่องราคาทุนในทะเบียนคือราคาของระเบียนนั้น (1 ระเบียน = 1 ชิ้น) และเป็นฐานคิดค่าเสื่อม
     คืนจำนวนชิ้นที่เพิ่ม
     """
     qty = int(asset.quantity or 1)
@@ -124,13 +129,20 @@ def split_asset(db, asset):
         raise ValueError('รายการนี้มีจำนวน 1 อยู่แล้ว ไม่ต้องแยก')
     if qty > 200:
         raise ValueError('แยกได้ครั้งละไม่เกิน 200 ชิ้น')
+    each_cost = float(asset.cost or 0)
+    first_cost = each_cost
+    if cost_mode == 'total':
+        each_cost = round(each_cost / qty, 2)
+        first_cost = round(float(asset.cost or 0) - each_cost * (qty - 1), 2)   # เก็บเศษไว้ชิ้นแรก
     codes = next_codes_like(db, asset.asset_code, qty - 1)
     for code in codes:
         new = Asset(asset_code=code, quantity=1)
         for f in _COPY_FIELDS:
             setattr(new, f, getattr(asset, f))
+        new.cost = each_cost
         db.add(new)
         if code:
             db.execute(insert(AssetNumberUsed).values(code=code).on_conflict_do_nothing())
     asset.quantity = 1
+    asset.cost = first_cost
     return qty - 1

@@ -3153,8 +3153,11 @@ async def asset_add(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/assets/{asset_id}/split")
-def asset_split(asset_id: int, db: Session = Depends(get_db)):
-    """แยกครุภัณฑ์แถวที่มีจำนวนมากกว่า 1 ออกเป็นรายชิ้น (1 ชิ้น = 1 เลขครุภัณฑ์)"""
+def asset_split(asset_id: int, db: Session = Depends(get_db), cost_mode: str = Form("each")):
+    """แยกครุภัณฑ์แถวที่มีจำนวนมากกว่า 1 ออกเป็นรายชิ้น (1 ชิ้น = 1 เลขครุภัณฑ์)
+
+    cost_mode: each = ราคาทุนที่กรอกเป็นราคาต่อชิ้น · total = เป็นราคารวมทั้งหมด (หารเฉลี่ย)
+    """
     from app.services.asset_numbering import lock_numbers, split_asset
     from fastapi import HTTPException
     a = db.get(Asset, asset_id)
@@ -3162,7 +3165,7 @@ def asset_split(asset_id: int, db: Session = Depends(get_db)):
         return RedirectResponse("/assets", status_code=303)
     try:
         lock_numbers(db)
-        added = split_asset(db, a)
+        added = split_asset(db, a, cost_mode="total" if cost_mode == "total" else "each")
         db.commit()
     except ValueError as exc:
         db.rollback()

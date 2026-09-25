@@ -104,3 +104,36 @@ def test_split_rejects_single(db):
     a = _asset(db, quantity=1)
     with pytest.raises(ValueError):
         split_asset(db, a)
+
+
+def test_split_total_cost_divides(db):
+    """ราคาทุนที่กรอกเป็น 'ราคารวม' -> หารเฉลี่ย ผลรวมต้องเท่าเดิมเป๊ะ ไม่บวมเป็น N เท่า"""
+    a = _asset(db, cost=138000.0, quantity=5)
+    lock_numbers(db)
+    split_asset(db, a, cost_mode="total")
+    db.commit()
+    costs = [r.cost for r in db.query(Asset).all()]
+    assert len(costs) == 5
+    assert round(sum(costs), 2) == 138000.0, costs      # รวมเท่าเดิม
+    assert all(c == 27600.0 for c in costs), costs
+
+
+def test_split_total_cost_keeps_remainder(db):
+    """หารไม่ลงตัว -> เศษสตางค์ยกให้ชิ้นแรก ผลรวมยังเท่าเดิม"""
+    a = _asset(db, cost=100.0, quantity=3)
+    lock_numbers(db)
+    split_asset(db, a, cost_mode="total")
+    db.commit()
+    costs = sorted(r.cost for r in db.query(Asset).all())
+    assert round(sum(costs), 2) == 100.0, costs
+    assert costs == [33.33, 33.33, 33.34], costs
+
+
+def test_split_each_cost_keeps_value(db):
+    """ราคาต่อชิ้น -> ทุกชิ้นราคาเดิม (ราคาทุนรวมเพิ่มเป็น N เท่า ซึ่งถูกต้อง)"""
+    a = _asset(db, cost=2500.0, quantity=4)
+    lock_numbers(db)
+    split_asset(db, a, cost_mode="each")
+    db.commit()
+    costs = [r.cost for r in db.query(Asset).all()]
+    assert costs == [2500.0] * 4
