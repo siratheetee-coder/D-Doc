@@ -13,7 +13,7 @@ pages.py
   /register.xlsx         ดาวน์โหลดทะเบียน Excel
 """
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, Response, HTTPException
@@ -28,10 +28,12 @@ from app.models import (
     Asset, MaterialItem, MaterialTxn, Requisition, RequisitionItem, IssuedDocNo,
     DocNumberCounter, OfficeMemo, SchoolOrder, IncomingLetter, OutgoingLetter,
     DisburseMemo, ItemCatalog, Student, ProcurementPlan, Contract,
+    AssetDisposal, AssetDisposalItem,
 )
 from app.services.asset_utils import (
     CATEGORIES, CATEGORY_LIFE, annual_depreciation, accumulated_depreciation,
     net_book_value, depreciation_schedule, material_balance, ASSET_STATUSES,
+    ASSET_BAD_STATUSES,
 )
 from app.services.doc_number import suggest_doc_no, commit_doc_no, check_doc_no, COUNTER_TYPES, parse_seq
 from app.services.budget import current_plan_year, plan_year_label, project_budget, project_spent
@@ -3269,6 +3271,225 @@ async def assets_dispose_submit(request: Request, db: Session = Depends(get_db))
                       source="asset", subject="ขออนุมัติจำหน่ายครุภัณฑ์", date=doc_date)
     db.commit()
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+# ===================== สำนวนจำหน่ายพัสดุ (ระเบียบฯ 2560 ข้อ 214-218) =====================
+_DP_MEMBER_SETS = ("fact", "price", "sale", "destroy", "auction")
+
+# ช่องวันที่ทั้งหมดของสำนวน (กรอกแบบ วว/ดด/ปปปป)
+_DP_DATES = (
+    "fact_memo_date", "fact_order_date", "fact_report_date", "fact_start", "fact_end",
+    "req_memo_date", "order_date", "invite_date", "quote_open", "price_memo_date",
+    "sale_memo_date", "sale_date", "auction_order_date", "notice_date", "view_date",
+    "auction_date", "destroy_memo_date", "destroy_date", "wo_memo_date",
+    "area_date", "sao_date", "mof_date", "written_off_date", "remit_date",
+)
+_DP_TEXTS = (
+    "fact_memo_no", "fact_order_no", "fact_report_no", "fact_found", "fact_opinion",
+    "req_memo_no", "order_no", "sale_mode", "invite_no", "invite_to", "quote_time",
+    "price_memo_no", "sale_memo_no", "buyer_name", "buyer_address", "buyer_taxid",
+    "bidders", "auction_order_no", "view_time", "auction_time", "auction_place",
+    "auction_report_no", "destroy_memo_no", "destroy_way", "wo_memo_no", "wo_reason",
+    "area_no", "sao_no", "sao_region", "sao_kind", "mof_no", "remit_no", "remit_to",
+    "revenue_kind", "contact_phone", "note", "stage",
+)
+
+
+def _dp_or_404(db, did):
+    dp = db.get(AssetDisposal, did)
+    if not dp:
+        raise HTTPException(status_code=404, detail="ไม่พบสำนวนจำหน่ายพัสดุนี้")
+    return dp
+
+
+def _dp_deadline(dp):
+    """เส้นตายตามระเบียบฯ: จำหน่ายให้เสร็จภายใน 60 วันนับถัดจากวันที่ ผอ. สั่งการ
+    และรายงานตามข้อ 218 ภายใน 30 วันนับแต่วันลงจ่ายพัสดุ"""
+    from app.services.asset_dispose_set import DISPOSE_DEADLINE_DAYS
+    out = []
+    today = datetime.now()
+    if dp.order_date:
+        due = dp.order_date + timedelta(days=DISPOSE_DEADLINE_DAYS)
+        out.append({"what": f"ดำเนินการจำหน่ายให้เสร็จ (ภายใน {DISPOSE_DEADLINE_DAYS} วัน"
+                            " นับถัดจากวันที่ ผอ. สั่งการ)",
+                    "due": due, "left": (due - today).days})
+    if dp.written_off_date:
+        due = dp.written_off_date + timedelta(days=30)
+        out.append({"what": "รายงาน สพท./สตง. ตามข้อ 218 (ภายใน 30 วันนับแต่วันลงจ่าย)",
+                    "due": due, "left": (due - today).days})
+    return out
+
+
+@router.get("/assets/disposal", response_class=HTMLResponse)
+def disposal_list(request: Request, db: Session = Depends(get_db)):
+    rows = db.query(AssetDisposal).order_by(AssetDisposal.year.desc(),
+                                            AssetDisposal.id.desc()).all()
+    bad = (db.query(Asset).filter(Asset.status.in_(ASSET_BAD_STATUSES))
+           .order_by(Asset.asset_code, Asset.id).all())
+    return templates.TemplateResponse("asset_disposal.html", {
+        "request": request, "rows": rows, "bad": bad, "year": current_fiscal_year(),
+        "today_input": be_date_input(datetime.now()),
+    })
+
+
+@router.post("/assets/disposal")
+async def disposal_new(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    ids = [int(x) for x in form.getlist("asset_ids") if str(x).isdigit()]
+    if not ids:
+        return RedirectResponse("/assets/disposal?err=none", status_code=303)
+    year = _to_int(form.get("year"), current_fiscal_year())
+    dp = AssetDisposal(year=year, stage="fact",
+                       sao_region=(form.get("sao_region") or "").strip(),
+                       contact_phone=(getattr(get_school(db), "phone", "") or "").strip())
+    db.add(dp)
+    db.flush()
+    for aid in ids:
+        a = db.get(Asset, aid)
+        if a is None:
+            continue
+        # เดาวิธีจำหน่ายจากสถานะ: สูญไป -> จำหน่ายเป็นสูญ, อื่น ๆ -> ขาย (แก้ได้ในหน้าสำนวน)
+        act = "จำหน่ายเป็นสูญ" if (a.status or "") == "สูญไป" else "ขาย"
+        db.add(AssetDisposalItem(disposal_id=dp.id, asset_id=aid, action=act,
+                                 price_mid=0.0))
+    db.commit()
+    return RedirectResponse(f"/assets/disposal/{dp.id}", status_code=303)
+
+
+@router.get("/assets/disposal/{did}", response_class=HTMLResponse)
+def disposal_detail(did: int, request: Request, db: Session = Depends(get_db)):
+    import json as _json
+    from app.services.asset_dispose_set import (DOCS, BUNDLES, DISPOSE_ACTIONS,
+                                                ACTION_CLAUSE, SELL_SPECIFIC_LIMIT,
+                                                WRITE_OFF_LIMIT, _keys_for)
+    dp = _dp_or_404(db, did)
+    try:
+        members = _json.loads(dp.members or "{}")
+    except Exception:
+        members = {}
+    items = sorted(dp.items, key=lambda it: ((it.asset.asset_code or ""), it.id))
+    total_cost = sum(float(it.asset.cost or 0) for it in items if it.asset)
+    sell_cost = sum(float(it.asset.cost or 0) for it in items
+                    if it.asset and (it.action or "") == "ขาย")
+    wo_cost = sum(float(it.asset.cost or 0) for it in items
+                  if it.asset and (it.action or "") == "จำหน่ายเป็นสูญ")
+    fy = dp.year
+    return templates.TemplateResponse("asset_disposal_detail.html", {
+        "request": request, "dp": dp, "items": items, "members": members,
+        "actions": DISPOSE_ACTIONS, "clauses": ACTION_CLAUSE,
+        "docs": DOCS, "bundles": BUNDLES,
+        "ready": {k: bool(_keys_for(dp, k)) for k in BUNDLES},
+        "total_cost": total_cost, "sell_cost": sell_cost, "wo_cost": wo_cost,
+        "sell_limit": SELL_SPECIFIC_LIMIT, "wo_limit": WRITE_OFF_LIMIT,
+        "deadlines": _dp_deadline(dp),
+        "persons": db.query(Person).filter_by(active=True).order_by(Person.name).all(),
+        "positions": POSITION_CHOICES,
+        "sug_memo": suggest_doc_no(db, "memo", fy),
+        "sug_command": suggest_doc_no(db, "command", fy),
+        "sug_out": suggest_doc_no(db, "outgoing", fy),
+        "today_input": be_date_input(datetime.now()),
+    })
+
+
+@router.post("/assets/disposal/{did}")
+async def disposal_save(did: int, request: Request, db: Session = Depends(get_db)):
+    import json as _json
+    dp = _dp_or_404(db, did)
+    form = await request.form()
+    for f in _DP_TEXTS:
+        if f in form:
+            setattr(dp, f, (form.get(f) or "").strip())
+    for f in _DP_DATES:
+        if f in form:
+            setattr(dp, f, parse_be_date(form.get(f) or ""))
+    dp.fact_days = _to_int(form.get("fact_days"), 7) or 7
+    dp.sale_total = _to_float(form.get("sale_total"), 0.0)
+    dp.fact_liable = form.get("fact_liable") == "1"
+    dp.auction_fee = form.get("auction_fee") == "1"
+    dp.wo_no_liable = form.get("wo_no_liable") == "1"
+    # กรรมการแต่ละชุด
+    mem = {}
+    for key in _DP_MEMBER_SETS:
+        rows = []
+        for i in range(1, 6):
+            nm = (form.get(f"{key}{i}_name") or "").strip()
+            if nm:
+                rows.append({"name": nm,
+                             "position": (form.get(f"{key}{i}_pos") or "ครู").strip(),
+                             "role": (form.get(f"{key}{i}_role") or "กรรมการ").strip()})
+        mem[key] = rows
+    dp.members = _json.dumps(mem, ensure_ascii=False)
+    # รายการในสำนวน
+    for it in dp.items:
+        pre = f"it{it.id}_"
+        if (pre + "action") in form:
+            it.action = (form.get(pre + "action") or "ขาย").strip()
+        if (pre + "cause") in form:
+            it.cause = (form.get(pre + "cause") or "").strip()
+        if (pre + "mid") in form:
+            it.price_mid = _to_float(form.get(pre + "mid"), 0.0)
+        if (pre + "sold") in form:
+            it.sold_price = _to_float(form.get(pre + "sold"), 0.0)
+        if (pre + "receipt") in form:
+            it.receipt_no = (form.get(pre + "receipt") or "").strip()
+    db.commit()
+    return RedirectResponse(f"/assets/disposal/{did}?saved=1", status_code=303)
+
+
+@router.post("/assets/disposal/{did}/delete")
+def disposal_delete(did: int, db: Session = Depends(get_db)):
+    dp = _dp_or_404(db, did)
+    db.delete(dp)
+    db.commit()
+    return RedirectResponse("/assets/disposal?deleted=1", status_code=303)
+
+
+@router.post("/assets/disposal/{did}/write-off")
+def disposal_write_off(did: int, db: Session = Depends(get_db)):
+    """ลงจ่ายพัสดุออกจากทะเบียน (ข้อ 218) - ทำหลังจำหน่ายเสร็จเท่านั้น
+    ระเบียบให้ลงจ่ายทันทีเมื่อจำหน่ายเสร็จ แล้วรายงานภายใน 30 วันนับแต่วันลงจ่าย"""
+    dp = _dp_or_404(db, did)
+    when = datetime.now()
+    dp.written_off_date = when
+    dp.stage = "closed"
+    n = 0
+    for it in dp.items:
+        a = it.asset
+        if a is None or a.status == "จำหน่ายแล้ว":
+            continue
+        a.status = "จำหน่ายแล้ว"
+        a.disposed_date = when
+        a.dispose_method = it.action or "ขาย"
+        a.dispose_reason = (it.cause or "").strip() or a.dispose_reason
+        a.dispose_value = float(it.sold_price or 0)
+        a.dispose_doc_ref = dp.order_no or dp.req_memo_no or ""
+        n += 1
+    db.commit()
+    return RedirectResponse(f"/assets/disposal/{did}?wo={n}", status_code=303)
+
+
+@router.get("/assets/disposal/{did}/doc/{kind}.docx")
+def disposal_doc(did: int, kind: str, db: Session = Depends(get_db)):
+    from app.services.asset_dispose_set import DOCS
+    dp = _dp_or_404(db, did)
+    if kind not in DOCS:
+        raise HTTPException(status_code=404, detail="ไม่รู้จักเอกสารนี้")
+    path = DOCS[kind][1](get_school(db), dp)
+    return serve_generated(
+        path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.get("/assets/disposal/{did}/bundle/{stage}.docx")
+def disposal_bundle(did: int, stage: str, db: Session = Depends(get_db)):
+    from app.services.asset_dispose_set import render_bundle, render_full_set
+    dp = _dp_or_404(db, did)
+    try:
+        path = (render_full_set(get_school(db), dp) if stage == "all"
+                else render_bundle(get_school(db), dp, stage))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return serve_generated(
+        path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 @router.get("/assets/{asset_id}/schedule", response_class=HTMLResponse)

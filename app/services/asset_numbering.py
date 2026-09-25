@@ -70,11 +70,81 @@ def manual_number(db, code, old_code=None):
 
 def _parse_code(code):
     """แยกเลขครุภัณฑ์เป็น (นำหน้า, ลำดับ, จำนวนหลัก, ปี) · คืน None ถ้ารูปแบบไม่เข้าเกณฑ์
-    รองรับทั้ง 7440-001-0001/2569 และ 7440-0001 (ไม่ต่อท้ายปี)"""
-    m = re.fullmatch(r'(.+)-(\d+)(?:/(\d{4}))?', (code or '').strip())
+
+    รองรับ 3 รูปแบบที่โรงเรียนใช้จริง
+      7440-001-0001/2569  รหัส FSN + ปี พ.ศ. เต็ม
+      7440-0001           ไม่ต่อท้ายปี
+      นอ/01/06/01/59      รหัสทรัพย์สินตามคู่มือฯ (ย่อโรงเรียน/ประเภท/ชนิด/ตัวที่/ปีงบ)
+                          ช่องรองสุดท้ายคือ "ตัวที่, เครื่องที่" ซึ่งเป็นตัวที่ต้องรัน
+    ปีเก็บตามที่เขียนไว้ (2 หรือ 4 หลัก) เพื่อเขียนกลับให้เหมือนเดิม
+    """
+    s = (code or '').strip()
+    # รูปแบบคั่นด้วย / : ช่องท้าย = ปี, ช่องรองท้าย = ตัวที่
+    m = re.fullmatch(r'(.+/)(\d+)/(\d{2}|\d{4})', s)
+    if m:
+        return m[1], int(m[2]), len(m[2]), m[3]
+    m = re.fullmatch(r'(.+)-(\d+)(?:/(\d{4}))?', s)
     if not m:
         return None
-    return m[1], int(m[2]), len(m[2]), (int(m[3]) if m[3] else None)
+    return m[1], int(m[2]), len(m[2]), (m[3] if m[3] else None)
+
+
+def _join_code(prefix, n, digits, year):
+    """ประกอบเลขกลับ โดยคงรูปแบบตัวคั่นเดิม (ลงท้ายด้วย / = รูปแบบรหัสทรัพย์สิน)"""
+    body = f'{n:0{digits}d}'
+    if prefix.endswith('/'):
+        return f'{prefix}{body}/{year}'
+    return f'{prefix}-{body}' + (f'/{year}' if year else '')
+
+
+def _parse_lot(code):
+    """แยกเลขแบบช่วง (ลอต) เป็น (นำหน้า, เริ่ม, สิ้นสุด, จำนวนหลัก, ปี)
+
+    คู่มือฯ ให้เขียนครุภัณฑ์ชุดเดียวกันที่เหมือนกันทุกชิ้นเป็นช่วงเลขในทะเบียนใบเดียว
+    เช่น นอ/04/01/01-10/59 = ชุดโต๊ะ-เก้าอี้ 10 ชุด ตัวที่ 1 ถึง 10
+    """
+    s = (code or '').strip()
+    m = re.fullmatch(r'(.+/)(\d+)-(\d+)/(\d{2}|\d{4})', s)
+    if m:
+        a, b = int(m[2]), int(m[3])
+        return (m[1], a, b, len(m[2]), m[4]) if b > a else None
+    m = re.fullmatch(r'(.+)-(\d+)-(\d+)(?:/(\d{4}))?', s)
+    if m:
+        a, b = int(m[2]), int(m[3])
+        if b > a and len(m[2]) == len(m[3]):
+            return m[1], a, b, len(m[2]), (m[4] if m[4] else None)
+    return None
+
+
+def lot_code(code, qty):
+    """เลขแบบช่วงสำหรับครุภัณฑ์ชุดเดียวกัน qty ชิ้นที่เก็บเป็นทะเบียนใบเดียว
+
+    นอ/04/01/01/59 + 10 ชิ้น -> นอ/04/01/01-10/59
+    คืนค่าเดิมถ้า qty <= 1 หรืออ่านเลขไม่ออก · ถ้าเป็นช่วงอยู่แล้วคืนค่าเดิม
+    """
+    qty = int(qty or 1)
+    if qty <= 1 or _parse_lot(code):
+        return (code or '').strip()
+    parsed = _parse_code(code)
+    if not parsed:
+        return (code or '').strip()
+    prefix, seq, digits, year = parsed
+    last = seq + qty - 1
+    body = f'{seq:0{digits}d}-{last:0{digits}d}'
+    if prefix.endswith('/'):
+        return f'{prefix}{body}/{year}'
+    return f'{prefix}-{body}' + (f'/{year}' if year else '')
+
+
+def expand_lot(code):
+    """แตกเลขแบบช่วงเป็นเลขรายชิ้น · ไม่ใช่ช่วงคืน [] (ให้ผู้เรียกไปรันเลขต่อเอง)"""
+    parsed = _parse_lot(code)
+    if not parsed:
+        return []
+    prefix, a, b, digits, year = parsed
+    if b - a + 1 > 200:
+        return []
+    return [_join_code(prefix, n, digits, year) for n in range(a, b + 1)]
 
 
 def _taken(db):
@@ -97,7 +167,7 @@ def next_codes_like(db, code, count):
         if n > 99999999:
             out.extend([''] * (count - len(out)))
             break
-        cand = f'{prefix}-{n:0{digits}d}' + (f'/{year}' if year else '')
+        cand = _join_code(prefix, n, digits, year)
         if cand not in taken:
             out.append(cand)
             taken.add(cand)
@@ -134,7 +204,13 @@ def split_asset(db, asset, cost_mode='each'):
     if cost_mode == 'total':
         each_cost = round(each_cost / qty, 2)
         first_cost = round(float(asset.cost or 0) - each_cost * (qty - 1), 2)   # เก็บเศษไว้ชิ้นแรก
-    codes = next_codes_like(db, asset.asset_code, qty - 1)
+    # ถ้าเลขเดิมเขียนเป็นช่วง (ลอต) ให้แตกช่วงนั้นออกตรง ๆ แถวเดิมรับตัวแรกของช่วง
+    lot = expand_lot(asset.asset_code)
+    if len(lot) == qty:
+        asset.asset_code = lot[0]
+        codes = lot[1:]
+    else:
+        codes = next_codes_like(db, asset.asset_code, qty - 1)
     for code in codes:
         new = Asset(asset_code=code, quantity=1)
         for f in _COPY_FIELDS:

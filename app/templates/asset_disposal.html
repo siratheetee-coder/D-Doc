@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}จำหน่ายพัสดุ{% endblock %}
+{% block content %}
+<style>
+  .dp-card { background:linear-gradient(180deg,#fbfcff,#f4f6fc); border-radius:16px;
+    padding:14px 16px; margin:0 0 12px; }
+  .dp-row { display:flex; justify-content:space-between; align-items:center;
+    flex-wrap:wrap; gap:10px; }
+  .dp-stage { display:inline-block; padding:2px 11px; border-radius:999px;
+    font-size:12.5px; font-weight:600; color:#fff; }
+  .st-fact { background:linear-gradient(135deg,#f59e0b,#ea580c); }
+  .st-approve { background:linear-gradient(135deg,#6366f1,#7c3aed); }
+  .st-sell { background:linear-gradient(135deg,#0891b2,#2563eb); }
+  .st-closed { background:linear-gradient(135deg,#10b981,#059669); }
+  .nowrap { white-space:nowrap; }
+</style>
+
+<div class="hero" style="background:linear-gradient(120deg,#b45309,#dc2626 55%,#7c3aed);">
+  <div>
+    <div class="hero-sub">งานพัสดุ · ระเบียบกระทรวงการคลังฯ พ.ศ. 2560 ข้อ 214-218</div>
+    <span class="hero-title">จำหน่ายพัสดุ</span>
+    <div class="hero-meta">สอบหาข้อเท็จจริง → ขออนุมัติจำหน่าย → ขาย/ทำลาย/จำหน่ายเป็นสูญ → ลงจ่าย + รายงาน</div>
+  </div>
+  <div style="display:flex; gap:8px; align-items:center;">
+    <a class="btn sm gray" href="/assets"><svg class="icon"><use href="#ic-arrow-left"/></svg> ทะเบียนครุภัณฑ์</a>
+    <a class="btn sm gray" href="/assets/audit"><svg class="icon"><use href="#ic-clipboard"/></svg> ตรวจสอบพัสดุประจำปี</a>
+  </div>
+</div>
+
+{% if request.query_params.get('err') == 'none' %}
+<div class="alert" style="background:#fee2e2; color:#b91c1c; border-color:#fca5a5;">ยังไม่ได้เลือกครุภัณฑ์</div>
+{% endif %}
+{% if request.query_params.get('deleted') %}<div class="alert">✔ ลบสำนวนแล้ว</div>{% endif %}
+
+{% if rows %}
+<div class="card">
+  <h2 style="margin-top:0;">สำนวนที่เปิดไว้ ({{ rows|length }})</h2>
+  <div class="table-wrap"><table>
+    <thead><tr>
+      <th>ปีงบ</th><th>รายการ</th><th>ขั้นตอน</th><th>ราคาทุนรวม</th>
+      <th>ลงจ่ายแล้ว</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for d in rows %}
+      {% set tc = d.items | map(attribute='asset') | select | map(attribute='cost') | select | sum %}
+      <tr>
+        <td class="nowrap">{{ d.year }}</td>
+        <td>{{ d.items|length }} รายการ
+          {% if d.note %}<br><span class="muted" style="font-size:12.5px;">{{ d.note }}</span>{% endif %}</td>
+        <td><span class="dp-stage st-{{ d.stage or 'fact' }}">{{
+          {'fact':'สอบหาข้อเท็จจริง','approve':'ขออนุมัติจำหน่าย','sell':'ดำเนินการขาย','closed':'ปิดเรื่องแล้ว'}.get(d.stage or 'fact', d.stage) }}</span></td>
+        <td class="right">{{ "{:,.2f}".format(tc or 0) }}</td>
+        <td class="nowrap">{{ thai_date(d.written_off_date) if d.written_off_date else "-" }}</td>
+        <td><a class="btn sm" href="/assets/disposal/{{ d.id }}">เปิดสำนวน</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
+
+<form method="post" action="/assets/disposal">
+<div class="card">
+  <h2 style="margin-top:0;">เปิดสำนวนใหม่</h2>
+  <p class="muted" style="margin-top:0;">เลือกครุภัณฑ์ที่คณะกรรมการตรวจสอบพัสดุประจำปีรายงานว่าชำรุด
+    เสื่อมสภาพ สูญไป หรือไม่จำเป็นต้องใช้ · ระบบจะเดาวิธีจำหน่ายให้ (สูญไป → จำหน่ายเป็นสูญ ที่เหลือ → ขาย)
+    แก้ได้ในหน้าสำนวน</p>
+  <div class="row">
+    <div><label>ปีงบประมาณ</label><input name="year" type="number" value="{{ year }}"></div>
+    <div><label>สตง. จังหวัด/ภูมิภาคที่</label><input name="sao_region" placeholder="เช่น นครราชสีมา"></div>
+  </div>
+
+  {% if bad %}
+  <div class="table-wrap"><table>
+    <thead><tr>
+      <th style="width:38px;"><input type="checkbox" id="checkall" title="เลือกทั้งหมด"></th>
+      <th>เลขครุภัณฑ์</th><th>ชื่อครุภัณฑ์</th><th>สถานะ</th>
+      <th class="right">ราคาทุน</th><th>ได้มา</th><th>สถานที่</th>
+    </tr></thead>
+    <tbody>
+      {% for a in bad %}
+      <tr>
+        <td><input type="checkbox" class="pick" name="asset_ids" value="{{ a.id }}"></td>
+        <td>{{ a.asset_code or "-" }}</td>
+        <td>{{ a.name }}{% if a.brand_model %}<br><span class="muted" style="font-size:12px;">{{ a.brand_model }}</span>{% endif %}</td>
+        <td class="nowrap">{{ a.status }}</td>
+        <td class="right">{{ "{:,.2f}".format(a.cost or 0) }}</td>
+        <td class="nowrap">{{ thai_date(a.acquired_date) if a.acquired_date else "-" }}</td>
+        <td>{{ a.location or "-" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <br><button class="btn" type="submit"><svg class="icon"><use href="#ic-file-plus"/></svg> เปิดสำนวนจำหน่าย</button>
+  {% else %}
+  <div class="dp-card">
+    <b>ยังไม่มีครุภัณฑ์ที่ต้องจำหน่าย</b>
+    <p class="muted" style="margin:4px 0 0;">สำนวนจำหน่ายเริ่มจากผลการตรวจสอบพัสดุประจำปี
+      ให้ไปตั้งสถานะครุภัณฑ์ที่ชำรุด/เสื่อมสภาพ/สูญไป/ไม่ใช้ ใน
+      <a href="/assets">ทะเบียนครุภัณฑ์</a> ก่อน แล้วกลับมาเปิดสำนวนที่นี่</p>
+  </div>
+  {% endif %}
+</div>
+</form>
+
+<script>
+  var ca = document.getElementById('checkall');
+  if (ca) ca.addEventListener('change', function(){
+    document.querySelectorAll('.pick').forEach(function(c){ c.checked = ca.checked; });
+  });
+</script>
+{% endblock %}

@@ -1124,7 +1124,7 @@
         <p id="ntMsg"></p>
         <div class="nt-hl" id="ntDetail" hidden></div>
         <div class="nt-foot">
-          <label class="nt-chk"><input type="checkbox" id="ntNo"> ไม่ต้องเตือนฉันอีก</label>
+          <label class="nt-chk" id="ntNoWrap"><input type="checkbox" id="ntNo"> ไม่ต้องเตือนฉันอีก</label>
           <span style="display:flex; gap:8px;">
             <button type="button" class="btn gray sm" onclick="ntClose()">ยกเลิก</button>
             <button type="button" class="btn sm" id="ntOk">รับทราบ</button>
@@ -1195,6 +1195,8 @@
       d.textContent = o.detail || ''; d.hidden = !o.detail;     // ไม่มีรายการย่อย = ไม่ขึ้นกรอบ
       document.getElementById('ntOk').textContent = o.ok || 'รับทราบ';
       document.getElementById('ntNo').checked = false;
+      // การกระทำที่ย้อนยากไม่ควรให้ปิดคำเตือนถาวร -> ซ่อนช่อง "ไม่ต้องเตือนฉันอีก"
+      document.getElementById('ntNoWrap').hidden = !!o.always;
       _ntCb = cb;
       document.getElementById('ntOverlay').hidden = false;
     }
@@ -1205,10 +1207,10 @@
       if(el._ntPass){ el._ntPass=false; return true; }          // ยืนยันแล้ว -> ปล่อยผ่าน
       var f = el.form;
       if(f && !f.checkValidity()) return true;                  // ให้เบราว์เซอร์เด้ง required เอง
-      try{ if(localStorage.getItem(o.key)==='1') return true; }catch(e){}
+      if(!o.always){ try{ if(localStorage.getItem(o.key)==='1') return true; }catch(e){} }
       ev.preventDefault();
       ntShow(o, function(dontRemind){
-        if(dontRemind){ try{ localStorage.setItem(o.key,'1'); }catch(e){} }
+        if(dontRemind && !o.always){ try{ localStorage.setItem(o.key,'1'); }catch(e){} }
         el._ntPass=true;
         if(el.tagName==='A'){ window.location = el.href; }      // ลิงก์ดาวน์โหลด
         else { el.click(); }                                     // ปุ่มในฟอร์ม

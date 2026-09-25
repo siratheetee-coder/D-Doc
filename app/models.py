@@ -919,6 +919,127 @@ class Asset(Base):
     created_at = Column(DateTime, default=datetime.now)
 
 
+class AssetDisposal(Base):
+    """สำนวนการจำหน่ายพัสดุ 1 เรื่อง (ต่อจากการตรวจสอบพัสดุประจำปี)
+
+    เก็บเป็นเรคคอร์ดเพราะขั้นตอนตามระเบียบฯ 2560 ข้อ 214-218 กินเวลาหลายสัปดาห์
+    และเอกสารขั้นถัดไปต้องอ้างเลขที่/วันที่/ชื่อกรรมการของขั้นก่อนหน้า
+    """
+    __tablename__ = "asset_disposal"
+
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, nullable=False)            # ปีงบประมาณ
+    stage = Column(String, default="fact")            # fact -> approve -> sell -> closed
+    note = Column(Text, default="")
+
+    # ---- ขั้นที่ 1 สอบหาข้อเท็จจริง (ข้อ 214) ----
+    fact_memo_no = Column(String, default="")         # บันทึกขอแต่งตั้ง
+    fact_memo_date = Column(DateTime, nullable=True)
+    fact_order_no = Column(String, default="")        # คำสั่งแต่งตั้ง
+    fact_order_date = Column(DateTime, nullable=True)
+    fact_days = Column(Integer, default=7)            # ให้รายงานผลภายในกี่วันทำการ
+    fact_report_no = Column(String, default="")       # บันทึกรายงานผล
+    fact_report_date = Column(DateTime, nullable=True)
+    fact_start = Column(DateTime, nullable=True)      # เริ่มสอบ
+    fact_end = Column(DateTime, nullable=True)        # แล้วเสร็จ
+    fact_found = Column(Text, default="")             # ผลการสอบหาข้อเท็จจริงปรากฏว่า...
+    fact_opinion = Column(Text, default="")           # คณะกรรมการพิจารณาแล้วเห็นว่า...
+    fact_liable = Column(Boolean, default=False)      # ต้องหาผู้รับผิดทางแพ่งหรือไม่
+
+    # ---- ขั้นที่ 2 ขออนุมัติจำหน่าย + แต่งตั้งคณะกรรมการดำเนินการ (ข้อ 215) ----
+    req_memo_no = Column(String, default="")
+    req_memo_date = Column(DateTime, nullable=True)
+    order_no = Column(String, default="")             # คำสั่งแต่งตั้ง กก.ประเมินราคากลาง/ขาย/ทำลาย
+    order_date = Column(DateTime, nullable=True)
+
+    # ---- ขั้นที่ 3 ขาย ----
+    sale_mode = Column(String, default="specific")    # specific = เฉพาะเจาะจง · auction = ทอดตลาด
+    invite_no = Column(String, default="")            # หนังสือขอเชิญเสนอราคา
+    invite_date = Column(DateTime, nullable=True)
+    invite_to = Column(String, default="")            # เชิญใคร
+    quote_open = Column(DateTime, nullable=True)      # วันเสนอราคา
+    quote_time = Column(String, default="")           # ช่วงเวลาเสนอราคา
+    price_memo_no = Column(String, default="")        # บันทึกการประเมินราคากลาง
+    price_memo_date = Column(DateTime, nullable=True)
+    sale_memo_no = Column(String, default="")         # รายงานผลการดำเนินการขาย
+    sale_memo_date = Column(DateTime, nullable=True)
+    sale_date = Column(DateTime, nullable=True)       # วันที่ขาย/ประมูลจริง
+    buyer_name = Column(String, default="")
+    buyer_address = Column(String, default="")
+    buyer_taxid = Column(String, default="")
+    sale_total = Column(Float, default=0.0)           # ราคาที่ขายได้รวม
+    bidders = Column(Text, default="")                # ผู้เสนอราคารายอื่น (บรรทัดละ ชื่อ|ราคา)
+
+    # ---- ขายทอดตลาด ----
+    auction_order_no = Column(String, default="")     # คำสั่งแต่งตั้ง กก.ขายทอดตลาด
+    auction_order_date = Column(DateTime, nullable=True)
+    notice_date = Column(DateTime, nullable=True)     # วันประกาศ
+    view_date = Column(DateTime, nullable=True)       # วันให้ดูพัสดุ
+    view_time = Column(String, default="")
+    auction_date = Column(DateTime, nullable=True)    # วันขายทอดตลาด
+    auction_time = Column(String, default="")
+    auction_place = Column(String, default="")
+    auction_fee = Column(Boolean, default=False)      # มีค่าธรรมเนียมโอนกรรมสิทธิ์ (เงื่อนไขข้อ 5)
+    auction_report_no = Column(String, default="")
+    auction_report_date = Column(DateTime, nullable=True)
+
+    # ---- ทำลาย ----
+    destroy_memo_no = Column(String, default="")
+    destroy_memo_date = Column(DateTime, nullable=True)
+    destroy_date = Column(DateTime, nullable=True)
+    destroy_way = Column(String, default="")          # บด/เผา/ทุบ/ฝังกลบ
+
+    # ---- จำหน่ายเป็นสูญ (ข้อ 217) ----
+    wo_memo_no = Column(String, default="")           # บันทึกขออนุมัติจำหน่ายเป็นสูญ
+    wo_memo_date = Column(DateTime, nullable=True)
+    wo_reason = Column(Text, default="")              # เหตุที่สูญไป / เหตุที่ไม่ควรจำหน่ายตามข้อ 215
+    wo_no_liable = Column(Boolean, default=True)      # ไม่ปรากฏตัวผู้รับผิด
+
+    # ---- ขั้นที่ 4 ปิดเรื่อง: รายงานตามข้อ 218 (ภายใน 30 วันนับแต่วันลงจ่าย) ----
+    # ระเบียบฯ ให้ส่งสำเนารายงาน 3 ทาง: สพท. · สตง.จังหวัด · ปลัดกระทรวงการคลัง
+    # (ทางที่สามเฉพาะกรณีจำหน่ายเป็นสูญ)
+    area_no = Column(String, default="")              # หนังสือแจ้งสำนักงานเขตพื้นที่การศึกษา
+    area_date = Column(DateTime, nullable=True)
+    mof_no = Column(String, default="")               # หนังสือแจ้งปลัดกระทรวงการคลัง
+    mof_date = Column(DateTime, nullable=True)
+    written_off_date = Column(DateTime, nullable=True)  # วันลงจ่ายออกจากทะเบียน (เริ่มนับ 30 วัน)
+    sao_no = Column(String, default="")               # หนังสือแจ้ง สตง.
+    sao_date = Column(DateTime, nullable=True)
+    sao_region = Column(String, default="")           # สตง.จังหวัด/ภูมิภาคที่
+    sao_kind = Column(String, default="จังหวัด")      # จังหวัด / ภูมิภาคที่
+    revenue_kind = Column(String, default="แผ่นดิน")  # แผ่นดิน / สถานศึกษา
+    remit_no = Column(String, default="")             # หนังสือนำส่งเงิน
+    remit_date = Column(DateTime, nullable=True)
+    remit_to = Column(String, default="")             # ส่งที่ไหน (สพป./คลังจังหวัด)
+    contact_phone = Column(String, default="")
+
+    members = Column(Text, default="")                # JSON {fact:[], price:[], sale:[], destroy:[], auction:[]}
+    created_at = Column(DateTime, default=datetime.now)
+
+    items = relationship("AssetDisposalItem", back_populates="disposal",
+                         cascade="all, delete-orphan")
+
+
+class AssetDisposalItem(Base):
+    """ครุภัณฑ์ 1 รายการในสำนวนจำหน่าย (วิธีจำหน่าย/สาเหตุ/ราคากลาง/ราคาที่ขายได้ แยกรายชิ้น)"""
+    __tablename__ = "asset_disposal_item"
+
+    id = Column(Integer, primary_key=True)
+    disposal_id = Column(Integer, ForeignKey("asset_disposal.id"), nullable=False)
+    asset_id = Column(Integer, ForeignKey("asset.id"), nullable=False)
+    action = Column(String, default="ขาย")            # ขาย / ทำลาย / โอน / แปรสภาพ
+    cause = Column(String, default="")                # สาเหตุที่ชำรุด (ใช้ในรายงานสอบข้อเท็จจริง)
+    price_mid = Column(Float, default=0.0)            # ราคากลางที่ประเมิน
+    sold_price = Column(Float, default=0.0)           # ราคาที่ขายได้จริง
+    receipt_no = Column(String, default="")           # เลขที่ใบเสร็จรับเงิน (บัญชีคุมขายทอดตลาด)
+
+    disposal = relationship("AssetDisposal", back_populates="items")
+    asset = relationship("Asset")
+
+    __table_args__ = (UniqueConstraint("disposal_id", "asset_id",
+                                       name="uq_asset_disposal_item"),)
+
+
 class MaterialItem(Base):
     """รายการวัสดุในบัญชีวัสดุ (ยอดคงเหลือคำนวณจากการเคลื่อนไหว)"""
     __tablename__ = "material_item"

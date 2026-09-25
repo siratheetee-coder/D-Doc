@@ -38,7 +38,8 @@ def _asset(db, **kw):
 
 
 def test_parse_code():
-    assert _parse_code("7440-001-0001/2569") == ("7440-001", 1, 4, 2569)
+    # ปีเก็บเป็นสตริงตามที่เขียนไว้ (รหัสทรัพย์สินบางแบบใช้ปี 2 หลัก เช่น /59)
+    assert _parse_code("7440-001-0001/2569") == ("7440-001", 1, 4, "2569")
     assert _parse_code("7440-0012") == ("7440", 12, 4, None)
     assert _parse_code("ครุภัณฑ์") is None
     assert _parse_code("") is None
@@ -181,3 +182,44 @@ def test_set_group_cost_rejects_bad_input(db):
         set_group_cost(db, [], "total", 100)
     with pytest.raises(ValueError):
         set_group_cost(db, [str(a.id)], "total", -5)
+
+
+# ---------------- รหัสทรัพย์สินแบบคู่มือฯ (ย่อโรงเรียน/ประเภท/ชนิด/ตัวที่/ปีงบ) ----------------
+def test_parse_slash_code():
+    """นอ/01/06/01/59 -> ช่องรองท้ายคือ 'ตัวที่' ที่ต้องรัน · ปีเก็บตามที่เขียน 2 หลัก"""
+    assert _parse_code("นอ/01/06/01/59") == ("นอ/01/06/", 1, 2, "59")
+    assert _parse_code("นอ/04/01/07/2569") == ("นอ/04/01/", 7, 2, "2569")
+
+
+def test_next_codes_keep_slash_format(db):
+    _asset(db, asset_code="นอ/03/03/01/59", quantity=3)
+    assert next_codes_like(db, "นอ/03/03/01/59", 2) == ["นอ/03/03/02/59", "นอ/03/03/03/59"]
+
+
+def test_lot_code_writes_range():
+    """ชุดเดียวกันหลายชิ้นที่เก็บทะเบียนใบเดียว เขียนเป็นช่วง ตามคู่มือฯ น.17"""
+    from app.services.asset_numbering import lot_code
+    assert lot_code("นอ/04/01/01/59", 10) == "นอ/04/01/01-10/59"
+    assert lot_code("7440-001-0001/2569", 5) == "7440-001-0001-0005/2569"
+    assert lot_code("นอ/04/01/01/59", 1) == "นอ/04/01/01/59"        # ชิ้นเดียวไม่ต้องเป็นช่วง
+    assert lot_code("นอ/04/01/01-10/59", 10) == "นอ/04/01/01-10/59"  # เป็นช่วงแล้วคงเดิม
+
+
+def test_expand_lot():
+    from app.services.asset_numbering import expand_lot
+    assert expand_lot("นอ/04/01/01-04/59") == [
+        "นอ/04/01/01/59", "นอ/04/01/02/59", "นอ/04/01/03/59", "นอ/04/01/04/59"]
+    assert expand_lot("7440-001-0001-0003/2569") == [
+        "7440-001-0001/2569", "7440-001-0002/2569", "7440-001-0003/2569"]
+    assert expand_lot("นอ/04/01/01/59") == []      # ไม่ใช่ช่วง
+    assert expand_lot("") == []
+
+
+def test_split_lot_uses_range_numbers(db):
+    """แยกลอตที่เขียนเป็นช่วง -> ได้เลขตรงตามช่วงเดิมพอดี ไม่รันเลยไป"""
+    a = _asset(db, asset_code="นอ/04/01/01-05/59", quantity=5, cost=1200.0)
+    lock_numbers(db)
+    assert split_asset(db, a) == 4
+    db.commit()
+    codes = sorted(r.asset_code for r in db.query(Asset).all())
+    assert codes == [f"นอ/04/01/0{i}/59" for i in range(1, 6)], codes
