@@ -3152,6 +3152,24 @@ async def asset_add(request: Request, db: Session = Depends(get_db)):
     return RedirectResponse('/assets?saved=1', status_code=303)
 
 
+@router.post("/assets/{asset_id}/split")
+def asset_split(asset_id: int, db: Session = Depends(get_db)):
+    """แยกครุภัณฑ์แถวที่มีจำนวนมากกว่า 1 ออกเป็นรายชิ้น (1 ชิ้น = 1 เลขครุภัณฑ์)"""
+    from app.services.asset_numbering import lock_numbers, split_asset
+    from fastapi import HTTPException
+    a = db.get(Asset, asset_id)
+    if not a:
+        return RedirectResponse("/assets", status_code=303)
+    try:
+        lock_numbers(db)
+        added = split_asset(db, a)
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(400, detail=str(exc))
+    return RedirectResponse(f"/assets?split={added + 1}", status_code=303)
+
+
 @router.post("/assets/{asset_id}/update")
 async def asset_update(asset_id: int, request: Request, db: Session = Depends(get_db)):
     from app.services.asset_numbering import lock_numbers, manual_number

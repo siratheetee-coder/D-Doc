@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% block title %}ทะเบียนครุภัณฑ์{% endblock %}
 {% block content %}
+<style>
+  .qty-warn{ display:inline-block; margin-left:7px; padding:1px 9px; border-radius:999px;
+    font-size:12px; font-weight:600; background:#fff7ed; color:#b45309; vertical-align:2px; }
+  .split-btn{ background:linear-gradient(135deg,#f59e0b,#ea580c); border:none; color:#fff; }
+</style>
 <datalist id="cats">{% for c in categories %}<option value="{{ c }}">{% endfor %}</datalist>
 
 <div class="hero">
@@ -77,6 +82,9 @@
   </form>
 </div>
 
+{% if request.query_params.get("split") %}
+<div class="alert">✔ แยกเป็นรายชิ้นแล้ว {{ request.query_params.get("split") }} ระเบียน — ตรวจเลขครุภัณฑ์ของชิ้นที่เพิ่มอีกครั้ง</div>
+{% endif %}
 <div class="card">
   <h2>รายการครุภัณฑ์ ({{ assets|length }})</h2>
   {% if assets %}
@@ -91,13 +99,24 @@
       {% for a in assets %}
       <tr>
         <td>{{ a.asset_code or "-" }}</td>
-        <td><b>{{ a.name }}</b><br><span class="muted" style="font-size:13px;">{{ a.category }}{% if a.location %} · {{ a.location }}{% endif %}</span></td>
+        <td><b>{{ a.name }}</b>
+          {% if (a.quantity or 1) > 1 %}<span class="qty-warn" title="ครุภัณฑ์ควรลงทะเบียน 1 ชิ้น = 1 เลขครุภัณฑ์">{{ a.quantity|int }} {{ a.unit or 'หน่วย' }}</span>{% endif %}
+          <br><span class="muted" style="font-size:13px;">{{ a.category }}{% if a.location %} · {{ a.location }}{% endif %}</span></td>
         <td>{{ thai_date(a.acquired_date) if a.acquired_date else "-" }}</td>
         <td class="right">{{ "{:,.2f}".format(a.cost or 0) }}</td>
         <td class="right">{{ "{:,.2f}".format(annual_dep(a.cost, a.salvage_value, a.useful_life)) }}</td>
         <td class="right">{{ "{:,.2f}".format(accum_dep(a.cost, a.salvage_value, a.useful_life, a.acquired_date)) }}</td>
         <td class="right"><b>{{ "{:,.2f}".format(nbv(a.cost, a.salvage_value, a.useful_life, a.acquired_date)) }}</b></td>
         <td class="right" style="white-space:nowrap;">
+          {% if (a.quantity or 1) > 1 %}
+          <form method="post" action="/assets/{{ a.id }}/split" style="display:inline; margin:0;">
+            <button class="btn sm split-btn" type="submit"
+              onclick="return ddocConfirm(event, this, {key:'ddoc_asset_split', title:'แยกครุภัณฑ์เป็นรายชิ้น',
+                msg:'ระบบจะแตกรายการนี้ออกเป็น {{ a.quantity|int }} ระเบียน ชิ้นละ 1 {{ a.unit or "หน่วย" }} เพื่อให้แต่ละชิ้นมีเลขครุภัณฑ์และสถานะของตัวเอง แจ้งชำรุดหรือจำหน่ายแยกกันได้',
+                detail:'แถวเดิมเก็บเลข {{ a.asset_code or "(ยังไม่มีเลข)" }} ไว้ · ชิ้นที่เพิ่มรันเลขต่อในชุดเดียวกัน ถ้าเลขเดิมอ่านรูปแบบไม่ได้จะเว้นว่างให้กรอกเอง · ราคาทุนต่อหน่วยคงเดิมทุกชิ้น',
+                ok:'แยกเลย'})"><svg class="icon"><use href="#ic-file-plus"/></svg> แยกเป็นรายชิ้น</button>
+          </form>
+          {% endif %}
           <a class="btn sm gray" href="/assets/{{ a.id }}/schedule"><svg class="icon"><use href="#ic-clipboard"/></svg> ตารางค่าเสื่อม</a>
           <button class="btn sm" type="button" onclick="toggleEdit('edit{{ a.id }}')"><svg class="icon"><use href="#ic-edit"/></svg></button>
         </td>
@@ -206,10 +225,32 @@
     } catch(error){previewResult.textContent=error.message;}finally{button.disabled=false;}
   });
   modeChanged();
+
+  /* ครุภัณฑ์ควรลง 1 ชิ้น = 1 เลขครุภัณฑ์ · จำนวนมากกว่า 1 ถูกต้องก็ต่อเมื่อหน่วยเป็น "ชุด"
+     (เช่น ชุดรับแขก 1 ชุด) · ไม่ใช่ = เตือนก่อน แต่ยังให้บันทึกได้ */
+  function qtyOk(form){
+    if(form._qtyPass){ form._qtyPass=false; return true; }
+    var q = parseFloat((form.querySelector('[name=quantity]')||{}).value || '1') || 1;
+    var u = ((form.querySelector('[name=unit]')||{}).value || '').trim();
+    if (q <= 1 || u.indexOf('ชุด') >= 0) return true;
+    try{ if(localStorage.getItem('ddoc_asset_qty')==='1') return true; }catch(e){}
+    ntShow({
+      title:'ครุภัณฑ์ควรลงทีละชิ้น',
+      msg:'กำลังบันทึกเป็น ' + q + ' ' + (u || 'หน่วย') + ' ในระเบียนเดียว — ทะเบียนคุมทรัพย์สินกำหนดให้ครุภัณฑ์ 1 ชิ้นมี 1 เลขครุภัณฑ์ ถ้ารวมไว้แถวเดียว จะแจ้งชำรุดหรือจำหน่ายเฉพาะบางชิ้นไม่ได้',
+      detail:'บันทึกแบบนี้ไปก่อนก็ได้ แล้วกดปุ่ม "แยกเป็นรายชิ้น" ที่แถวนั้นทีหลัง ระบบจะแตกให้พร้อมรันเลขครุภัณฑ์ · ถ้าเป็นของที่นับเป็นชุดจริง ให้ใส่หน่วยว่า "ชุด" แล้วจะไม่เตือนอีก',
+      ok:'บันทึกแบบนี้'
+    }, function(dontRemind){
+      if(dontRemind){ try{ localStorage.setItem('ddoc_asset_qty','1'); }catch(e){} }
+      form._qtyPass = true;
+      form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit',{cancelable:true}));
+    });
+    return false;
+  }
   document.querySelectorAll('form[action="/assets"],form[action$="/update"]').forEach(form=>{
     const error=document.createElement('p');error.setAttribute('role','alert');error.style.color='#b91c1c';form.appendChild(error);
     form.addEventListener('submit',async event=>{
       event.preventDefault();error.textContent='';
+      if(!qtyOk(form)) return;                 // เตือนเรื่องจำนวน > 1 ก่อน แล้วค่อยส่งซ้ำ
       const data=new FormData(form);const buttons=[...form.querySelectorAll('button[type="submit"]')];buttons.forEach(b=>b.disabled=true);
       try {const response=await fetch(form.action,{method:'POST',body:data});
         if(!response.ok){const body=await response.json();throw new Error(typeof body.detail==='string'?body.detail:'บันทึกไม่สำเร็จ');}

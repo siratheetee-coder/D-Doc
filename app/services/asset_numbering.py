@@ -66,3 +66,71 @@ def manual_number(db, code, old_code=None):
             raise ValueError('เลขครุภัณฑ์นี้ถูกใช้แล้ว กรุณาใช้เลขอื่น (รวมเลขที่เคยลบหรือจำหน่าย)')
         db.add(AssetNumberUsed(code=code))
     return code
+
+
+def _parse_code(code):
+    """แยกเลขครุภัณฑ์เป็น (นำหน้า, ลำดับ, จำนวนหลัก, ปี) · คืน None ถ้ารูปแบบไม่เข้าเกณฑ์
+    รองรับทั้ง 7440-001-0001/2569 และ 7440-0001 (ไม่ต่อท้ายปี)"""
+    m = re.fullmatch(r'(.+)-(\d+)(?:/(\d{4}))?', (code or '').strip())
+    if not m:
+        return None
+    return m[1], int(m[2]), len(m[2]), (int(m[3]) if m[3] else None)
+
+
+def _taken(db):
+    """เลขครุภัณฑ์ที่ใช้ไปแล้วทั้งหมด (รวมที่เคยลบ/จำหน่าย)"""
+    return ({c for c, in db.query(Asset.asset_code).all() if c}
+            | {c for c, in db.query(AssetNumberUsed.code).all() if c})
+
+
+def next_codes_like(db, code, count):
+    """เลขถัดไป count เลข ในชุดเดียวกับ code (รันเลขต่อจากเลขที่ใช้ไปแล้ว)
+    คืนลิสต์ความยาว count · ถ้าเลขต้นแบบอ่านไม่ออก คืนค่าว่างทั้งหมดให้กรอกเอง"""
+    parsed = _parse_code(code)
+    if not parsed or count <= 0:
+        return [''] * max(count, 0)
+    prefix, seq, digits, year = parsed
+    taken = _taken(db)
+    out, n = [], seq
+    while len(out) < count:
+        n += 1
+        if n > 99999999:
+            out.extend([''] * (count - len(out)))
+            break
+        cand = f'{prefix}-{n:0{digits}d}' + (f'/{year}' if year else '')
+        if cand not in taken:
+            out.append(cand)
+            taken.add(cand)
+    return out
+
+
+# ฟิลด์ที่คัดลอกไปยังชิ้นที่แยกออกมา (ทุกอย่างยกเว้นเลขครุภัณฑ์/จำนวน/รหัส)
+_COPY_FIELDS = ("name", "category", "acquired_date", "cost", "useful_life", "salvage_value",
+                "location", "funding_source", "vendor_name", "procurement_id", "note",
+                "status", "disposed_date", "dispose_method", "dispose_reason",
+                "dispose_value", "dispose_doc_ref", "brand_model", "vendor_address",
+                "fund_type", "acquire_method", "doc_ref", "unit")
+
+
+def split_asset(db, asset):
+    """แยกครุภัณฑ์แถวเดียวที่มีจำนวน > 1 ออกเป็นรายชิ้น ชิ้นละ 1 ระเบียน
+
+    แถวเดิมเก็บเลขครุภัณฑ์เดิมไว้ (เหลือจำนวน 1) · ชิ้นที่เพิ่มรันเลขต่อในชุดเดียวกัน
+    ราคาทุนคงไว้เท่าเดิมทุกชิ้น เพราะช่องราคาทุนในทะเบียนคือราคาต่อหน่วย
+    คืนจำนวนชิ้นที่เพิ่ม
+    """
+    qty = int(asset.quantity or 1)
+    if qty <= 1:
+        raise ValueError('รายการนี้มีจำนวน 1 อยู่แล้ว ไม่ต้องแยก')
+    if qty > 200:
+        raise ValueError('แยกได้ครั้งละไม่เกิน 200 ชิ้น')
+    codes = next_codes_like(db, asset.asset_code, qty - 1)
+    for code in codes:
+        new = Asset(asset_code=code, quantity=1)
+        for f in _COPY_FIELDS:
+            setattr(new, f, getattr(asset, f))
+        db.add(new)
+        if code:
+            db.execute(insert(AssetNumberUsed).values(code=code).on_conflict_do_nothing())
+    asset.quantity = 1
+    return qty - 1
