@@ -287,12 +287,13 @@
     .btn .icon { width: 18px; height: 18px; }
     .btn.green { background: linear-gradient(135deg, var(--success), var(--success-dark)); }
     .btn.green:hover { box-shadow: 0 6px 16px rgba(22,179,100,.32); }
-    .btn.gray { background: #fff; color: var(--sidebar-ink); border: 1px solid #dfe3ea; box-shadow: none; }
-    .btn.gray:hover { background: #f3f5f9; color: var(--text); filter: none; transform: none; box-shadow: none; }
-    .btn.soft { background: #fff; color: var(--brand-dark); border: 1.5px solid var(--brand-lite);
-                box-shadow: 0 1px 3px rgba(16,24,40,.07); }
-    .btn.soft:hover { background: var(--brand-soft); border-color: var(--brand); color: var(--brand-dark);
-                      filter: none; box-shadow: 0 4px 12px rgba(72,128,255,.16); }
+    /* ปุ่มรองใช้ "พื้นอ่อน" แทนเส้นขอบ - ทั้งระบบไม่มีปุ่มแบบมีขอบ
+       (ของเดิมพื้นขาว+ขอบ พอไปวางบนแถบ hero สีเข้ม ขอบจะโผล่มาอันเดียว ดูไม่เข้าพวก) */
+    .btn.gray { background: #eef1f7; color: var(--sidebar-ink); border: none; box-shadow: none; }
+    .btn.gray:hover { background: #e3e8f1; color: var(--text); filter: none; transform: none; box-shadow: none; }
+    .btn.soft { background: var(--brand-soft); color: var(--brand-dark); border: none; box-shadow: none; }
+    .btn.soft:hover { background: var(--brand-soft); border: none; color: var(--brand-dark);
+                      filter: brightness(.96); box-shadow: 0 4px 12px rgba(72,128,255,.16); }
     .btn.red { background: linear-gradient(135deg, var(--danger), var(--danger-dark)); }
     .btn.red:hover { box-shadow: 0 6px 16px rgba(239,68,68,.3); }
     /* ===== ปุ่ม AI (ใช้ปุ่มเดียวกันทุกที่ในระบบ) =====
@@ -539,8 +540,9 @@
       all: unset; display: block; font-size: 26px; font-weight: 800; line-height: 1.2; margin: 4px 0 6px;
     }
     .hero .hero-meta { font-size: 14.5px; opacity: .92; }
-    .hero .btn { background: rgba(255,255,255,.16); color: #fff; box-shadow: none; backdrop-filter: blur(2px); }
-    .hero .btn:hover { background: rgba(255,255,255,.28); color: #fff; box-shadow: none; }
+    .hero .btn { background: rgba(255,255,255,.16); color: #fff; border: none; box-shadow: none;
+                 backdrop-filter: blur(2px); }
+    .hero .btn:hover { background: rgba(255,255,255,.28); color: #fff; border: none; box-shadow: none; }
     .hero .btn .icon { color: #fff; }
 
     /* ===== Charts (วาดด้วย SVG ฝั่งเซิร์ฟเวอร์ ไม่ใช้ไลบรารีภายนอก) ===== */
