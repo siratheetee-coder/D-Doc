@@ -72,7 +72,7 @@ def _text(path):
 def test_every_doc_renders(db, school):
     """ทั้ง 21 ฉบับต้องออกได้โดยไม่พัง แม้ข้อมูลกรอกไม่ครบ"""
     dp = _make(db)
-    assert len(ds.DOCS) == 21
+    assert len(ds.DOCS) == 22
     for key, (label, fn) in ds.DOCS.items():
         path = fn(school, dp)
         assert path.endswith(".docx"), key
@@ -258,3 +258,25 @@ def test_audit_bundle_also_folds_breaks(db, school):
                 if b.get(qn('w:type')) == 'page']
             and not any(r.findall(qn('w:t')) for r in p.findall(qn('w:r')))]
     assert not lone, f"เหลือย่อหน้า page break เดี่ยว {len(lone)} จุด"
+
+
+def test_buyer_undertaking(db, school):
+    """คำรับรองของผู้ซื้อ (ขายทอดตลาด): ต้องมีเงื่อนไขจ่ายสด + ขนย้ายใน 3 วัน + พยาน 2 คน"""
+    dp = _make(db, actions=("ขาย", "ขาย"))
+    dp.sale_mode = "auction"
+    dp.buyer_name = "ร้านรับซื้อของเก่าสมชาย"
+    dp.sale_total = 9500.0
+    txt = _text(ds.render_buyer_undertaking(school, dp))
+    assert "ยินยอมรับซื้อพัสดุ" in txt and "ภายใน 3 วัน" in txt
+    assert "เป็นเงินสด" in txt and "9,500.00" in txt
+    # 2 ช่องลงนามพยาน (อีกครั้งคือวลี "ต่อหน้าพยาน" ในเนื้อความ)
+    assert txt.count("...... พยาน") == 2, txt
+    assert "ร้านรับซื้อของเก่าสมชาย" in txt
+    assert "คณะกรรมการขายพัสดุโดยวิธีทอดตลาด" in txt      # เรียน = คณะกรรมการ ไม่ใช่ ผอ.
+
+
+def test_auction_bundle_includes_undertaking(db, school):
+    dp = _make(db, actions=("ขาย",))
+    dp.sale_mode = "auction"
+    assert "undertaking" in ds._keys_for(dp, "auction")
+    assert "ยินยอมรับซื้อพัสดุ" in _text(ds.render_bundle(school, dp, "auction"))

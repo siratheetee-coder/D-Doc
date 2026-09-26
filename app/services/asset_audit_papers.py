@@ -493,6 +493,103 @@ def render_condition_ledger(school, ctx, assets, kind, doc=None):
     return _save(doc, f"{_safe(title)}_ปีงบ{year}") if own else doc
 
 
+# ============================ บัญชีพัสดุที่เหลือไม่ตรงตามบัญชี/ทะเบียน
+_MM_W = [Cm(1.8), Cm(5.6), Cm(4.4), Cm(3.6), Cm(6.4)]
+
+
+def render_mismatch_list(school, ctx, assets, materials=None, doc=None):
+    """บัญชีรายการพัสดุที่ตรวจสอบว่าเหลือไม่ตรงตามบัญชีหรือทะเบียน
+
+    แนบท้ายรายงานผลการตรวจสอบเมื่อตรวจนับแล้วไม่ตรง
+    ระบบเติมครุภัณฑ์ที่สถานะ "สูญไป" ให้ก่อน (ตามทะเบียนมี 1 ตรวจนับได้ 0)
+    ส่วนวัสดุที่นับแล้วขาด/เกิน ต้องกรอกเองเพราะระบบไม่มีผลการนับจริง
+    """
+    own = doc is None
+    if own:
+        doc = _new(landscape=True)
+    else:
+        _land(doc)
+    year = ctx.get("year")
+    _p(doc, "บัญชีรายการพัสดุที่ตรวจสอบว่าเหลือไม่ตรงตามบัญชีหรือทะเบียน",
+       align="center", bold=True, size=17, after=0)
+    _p(doc, f"ของ {(school.name or '').strip() or _BLANK}", align="center", size=16, after=0)
+    _p(doc, f"ประจำปีงบประมาณ พ.ศ. {year}  (ตรวจนับ ณ วันที่ 30 กันยายน {year})",
+       align="center", size=15, after=6)
+
+    lost = [a for a in (assets or []) if (a.status or "") == "สูญไป"]
+    n = max(len(lost) + 4, 8)
+    t = doc.add_table(rows=1 + n, cols=len(_MM_W))
+    t.style = "Table Grid"
+    t.autofit = False
+    _fixed_cols(t, _MM_W)
+    _center_table(t)
+    heads = ["เลขที่", "รายการ", "จำนวนพัสดุคงเหลือ\nตามบัญชีหรือทะเบียน",
+             "จำนวนพัสดุ\nที่ตรวจสอบ",
+             "เหตุที่พัสดุคงเหลือไม่ตรงตามบัญชีหรือทะเบียน"]
+    hdr = t.rows[0]
+    _repeat_header_row(hdr)
+    _no_split_row(hdr)
+    for c, h, w in zip(hdr.cells, heads, _MM_W):
+        _set_cell(c, h, bold=True, align="center", size=13)
+        c.width = w
+    for i in range(n):
+        row = t.rows[1 + i]
+        _no_split_row(row)
+        a = lost[i] if i < len(lost) else None
+        if a:
+            name = " ".join(x for x in [(a.name or "").strip(),
+                                        f"({a.asset_code})" if a.asset_code else ""] if x)
+            vals = [str(i + 1), name, f"{(a.quantity or 1):g} {a.unit or ''}",
+                    f"0 {a.unit or ''}", "สูญไป (รายละเอียดตามรายงานการสอบหาข้อเท็จจริง)"]
+        else:
+            vals = [""] * 5
+        for c, v, al, w in zip(row.cells, vals,
+                               ["center", "left", "center", "center", "left"], _MM_W):
+            _set_cell(c, v, align=al, size=13)
+            c.width = w
+        for c, w in zip(row.cells, _MM_W):
+            c.width = w
+    if not lost:
+        _p(doc, "หมายเหตุ  ระบบไม่พบครุภัณฑ์ที่สถานะสูญไป — ถ้าตรวจนับแล้วมีรายการ"
+                "ที่ไม่ตรงบัญชี ให้กรอกเพิ่มในตารางข้างต้น", size=12, before=3, after=2)
+    _p(doc, "", after=6)
+
+    # ลงนามตามแบบฟอร์ม: หัวหน้าเจ้าหน้าที่ผู้ตรวจสอบ แล้วตามด้วยเจ้าหน้าที่ผู้ตรวจสอบ
+    mem = _members(ctx)
+    solo = bool(ctx.get("single")) or len(mem) <= 1
+    first = (mem or [{}])[0]
+    # รวมลายเซ็นทั้งหมดไว้ในตารางเดียว (cantSplit) ไม่งั้นช่องล่างหลุดไปอยู่หน้าใหม่ลำพัง
+    rest = [] if solo else (mem[1:3] or [{}, {}])
+    st = doc.add_table(rows=2 if rest else 1, cols=max(len(rest), 1))
+    _no_borders(st)
+    _center_table(st)
+    _fixed_cols(st, [Cm(25.5 / max(len(rest), 1))] * max(len(rest), 1))
+    top = st.rows[0]
+    _no_split_row(top)
+    head_cell = top.cells[0]
+    if len(rest) > 1:
+        head_cell = head_cell.merge(top.cells[len(rest) - 1])
+    _set_cell(head_cell,
+              "ลงชื่อ ......................................\n"
+              f"( {(first.get('name') or '').strip() or _BLANK} )\n"
+              + ("ผู้ตรวจสอบพัสดุ" if solo else "หัวหน้าเจ้าหน้าที่ผู้ตรวจสอบ"),
+              align="center", size=16)
+    # cantSplit กันแถวขาดกลางแถวเท่านั้น ต้องใส่ keepNext ด้วย ไม่งั้นแถวล่าง
+    # (ช่องเจ้าหน้าที่ผู้ตรวจสอบ) หลุดไปอยู่หน้าใหม่ลำพัง
+    for cell in top.cells:
+        for par in cell.paragraphs:
+            par.paragraph_format.keep_with_next = True
+    if rest:
+        row = st.rows[1]
+        _no_split_row(row)
+        for c, m in zip(row.cells, rest):
+            _set_cell(c,
+                      "\nลงชื่อ ......................................\n"
+                      f"( {(m.get('name') or '').strip() or _BLANK} )\n"
+                      "เจ้าหน้าที่ผู้ตรวจสอบ", align="center", size=16)
+    return _save(doc, f"บัญชีพัสดุเหลือไม่ตรงตามบัญชี_ปีงบ{year}") if own else doc
+
+
 # ==================================================== หนังสือแจ้งผลการตรวจสอบ
 def _letter_head(doc, school, doc_no, date_txt, subject, to, encl):
     _krut_center(doc, height_cm=2.0)
@@ -591,6 +688,7 @@ PAPERS = {
     "wp_asset_flow": ("กระดาษทำการ ชุด 2 - รับครุภัณฑ์", render_wp_asset_flow, "asset"),
     "wp_mat_count": ("กระดาษทำการ ชุด 3 - วัสดุคงเหลือ", render_wp_material_count, "mat"),
     "wp_asset_count": ("กระดาษทำการ ชุด 4 - ครุภัณฑ์คงเหลือ", render_wp_asset_count, "asset"),
+    "mismatch": ("บัญชีพัสดุที่เหลือไม่ตรงตามบัญชี/ทะเบียน", render_mismatch_list, "asset"),
 }
 
 
@@ -601,6 +699,7 @@ def render_papers_bundle(school, ctx, assets, materials) -> str:
     render_wp_asset_flow(school, ctx, assets, doc)
     render_wp_material_count(school, ctx, materials, doc)
     render_wp_asset_count(school, ctx, assets, doc)
+    render_mismatch_list(school, ctx, assets, materials, doc)
     return _save(doc, f"กระดาษทำการตรวจสอบพัสดุ_ปีงบ{ctx.get('year')}")
 
 

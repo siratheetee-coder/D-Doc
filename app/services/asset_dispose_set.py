@@ -986,6 +986,56 @@ def render_auction_report(school, dp, doc=None):
     return _save(doc, f"รายงานผลการขายทอดตลาด_ปีงบ{dp.year}") if own else doc
 
 
+def render_buyer_undertaking(school, dp, doc=None):
+    """(22) บันทึกคำรับรองของผู้ซื้อ (ขายทอดตลาด)
+
+    ผู้ประมูลได้ลงนามรับรองว่าจะจ่ายเงินสดทันที และขนย้ายพัสดุออกภายใน 3 วัน
+    ลงนาม 4 ช่อง: ผู้ขาย · ผู้ซื้อ · พยาน 2 คน
+    ข้อมูลส่วนตัวของผู้ซื้อเว้นว่างให้กรอกเองในไฟล์ ยกเว้นชื่อที่บันทึกไว้ในสำนวนแล้ว
+    """
+    own = doc is None
+    doc = doc or _new()
+    if not own:
+        _break(doc)
+    rows = _items(dp, "ขาย")
+    total = float(dp.sale_total or 0)
+    _memo_header(doc, school, "การขายพัสดุโดยวิธีขายทอดตลาด พัสดุที่อนุญาตให้จำหน่าย",
+                 dp.auction_report_no, _d(dp.auction_report_date),
+                 to="คณะกรรมการขายพัสดุโดยวิธีทอดตลาด")
+    buyer = (dp.buyer_name or "").strip() or _BLANK
+    _p(doc, f"บันทึกฉบับนี้ เพื่อแสดงว่าวันที่ {_d(dp.auction_date)} "
+            f"เวลา {(dp.auction_time or '').strip() or '.........'} น. ข้าพเจ้า {buyer} "
+            "อยู่บ้านเลขที่ .......... หมู่ .......... ตำบล/แขวง .......................... "
+            "อำเภอ/เขต .......................... จังหวัด .......................... "
+            f"เป็นผู้เสนอราคาซื้อพัสดุที่อนุญาตให้จำหน่าย จำนวน {len(rows)} รายการ "
+            f"ตามประกาศขายโดยวิธีขายทอดตลาด ลงวันที่ {_d(dp.notice_date)} "
+            f"ของ{_sname(school)}", align="justify", indent=1.25, after=2)
+    _p(doc, "ข้าพเจ้าขอรับรองว่า หากทางราชการตกลงขายพัสดุตามรายการ จำนวน และวงเงิน"
+            "ที่กำหนดไว้ข้างต้นให้แก่ข้าพเจ้าแล้ว ข้าพเจ้ายินยอมรับซื้อพัสดุดังกล่าว"
+            f"จำนวนทั้งหมด โดยจะจ่ายเงินค่าพัสดุเป็นเงินสด จำนวน {total:,.2f} บาท "
+            f"({bahttext(total)}) ให้แก่{_sname(school)} ทันที และจะนำพัสดุ / ขนย้ายพัสดุ"
+            f"ทั้งหมดที่ซื้อแล้วออกไปจาก{_sname(school)} ภายใน 3 วัน",
+       align="justify", indent=1.25, after=3)
+    if rows:
+        _item_table(doc, rows)
+        _p(doc, "", after=3)
+    _p(doc, "จึงลงลายมือชื่อไว้เป็นหลักฐานสำคัญต่อหน้าพยาน",
+       align="justify", indent=1.25, after=10)
+    _sign_table(doc, [
+        [("ลงชื่อ ...................................... ผู้ขาย", "center"),
+         (f"( {(school.head_officer_name or '').strip() or _BLANK} )", "center")],
+        [("ลงชื่อ ...................................... ผู้ซื้อ", "center"),
+         (f"( {buyer} )", "center")],
+    ], after=8)
+    _sign_table(doc, [
+        [("ลงชื่อ ...................................... พยาน", "center"),
+         (f"( {_BLANK} )", "center")],
+        [("ลงชื่อ ...................................... พยาน", "center"),
+         (f"( {_BLANK} )", "center")],
+    ], keep=False)
+    return _save(doc, f"คำรับรองผู้ซื้อ ขายทอดตลาด_ปีงบ{dp.year}") if own else doc
+
+
 # ========================================= ขั้นที่ 3 (ค) ทำลาย
 def render_destroy_report(school, dp, doc=None):
     """(16) บันทึกข้อความ รายงานผลการทำลายพัสดุของคณะกรรมการทำลาย"""
@@ -1249,6 +1299,7 @@ DOCS = {
     "auction_list":   ("บัญชีรายการพัสดุที่จะขายทอดตลาด", render_auction_list),
     "auction_ledger": ("บัญชีคุมพัสดุที่ขายทอดตลาด", render_auction_ledger),
     "auction_report": ("รายงานผลการขายพัสดุโดยวิธีทอดตลาด", render_auction_report),
+    "undertaking":    ("คำรับรองของผู้ซื้อ (ขนย้ายภายใน 3 วัน)", render_buyer_undertaking),
     "destroy":        ("รายงานผลการทำลายพัสดุ", render_destroy_report),
     "writeoff":       ("บันทึกขออนุมัติจำหน่ายพัสดุเป็นสูญ", render_writeoff_memo),
     "area":           ("หนังสือแจ้งเขตพื้นที่การศึกษา", render_area_letter),
@@ -1265,7 +1316,7 @@ BUNDLES = {
     "sell":    ("ชุดขายโดยวิธีเฉพาะเจาะจง", ["invite", "quote", "price", "sale"]),
     "auction": ("ชุดขายทอดตลาด",
                 ["auction_order", "notice", "auction_list", "auction_ledger",
-                 "auction_report"]),
+                 "auction_report", "undertaking"]),
     "destroy": ("ชุดทำลายพัสดุ", ["destroy"]),
     "writeoff": ("ชุดจำหน่ายเป็นสูญ", ["writeoff"]),
     # ข้อ 218 ให้ส่งสำเนารายงาน 3 ทาง (ปลัดกระทรวงการคลังเฉพาะกรณีจำหน่ายเป็นสูญ)

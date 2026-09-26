@@ -202,8 +202,8 @@ def test_bundle_starts_on_page_one(db, school):
     from docx.text.paragraph import Paragraph
     assert first.tag == qn('w:tbl') or Paragraph(first, doc).text.strip(), \
         "เอกสารเริ่มด้วยย่อหน้าว่าง = เสี่ยงหน้าแรกเปล่า"
-    # 4 ชุด -> 4 section (หน้านอนทั้งหมด) ไม่ใช่ 5
-    assert len(doc.sections) == 4, len(doc.sections)
+    # 4 ชุด + บัญชีพัสดุที่เหลือไม่ตรง -> 5 section (หน้านอนทั้งหมด) ไม่ใช่ 6
+    assert len(doc.sections) == 5, len(doc.sections)
 
 
 # ------------------- แต่งตั้งผู้ตรวจสอบคนเดียว: ต้องไม่เหลือคำว่า "กรรมการ" -------------------
@@ -258,3 +258,24 @@ def test_solo_papers_sign_once(db, school):
     assert solo.count("ลงชื่อ") == 1, solo.count("ลงชื่อ")
     assert many.count("ลงชื่อ") == 2, many.count("ลงชื่อ")
     assert "ผู้ตรวจสอบพัสดุประจำปี" in solo
+
+
+def test_mismatch_list_prefills_lost_assets(db, school):
+    """บัญชีพัสดุที่เหลือไม่ตรงตามบัญชี: ครุภัณฑ์สถานะ 'สูญไป' ต้องถูกเติมให้ (ทะเบียนมี · นับได้ 0)"""
+    assets, mats = _seed(db)
+    txt = _text(ap.render_mismatch_list(school, CTX, assets, mats))
+    lost = [a for a in assets if a.status == "สูญไป"]
+    assert lost
+    for a in lost:
+        assert a.asset_code in txt, a.asset_code
+    assert "เหตุที่พัสดุคงเหลือไม่ตรงตามบัญชีหรือทะเบียน" in txt
+    assert "หัวหน้าเจ้าหน้าที่ผู้ตรวจสอบ" in txt and "เจ้าหน้าที่ผู้ตรวจสอบ" in txt
+    # ครุภัณฑ์ที่ยังอยู่ครบต้องไม่ถูกลากมาด้วย
+    fine = next(a for a in assets if a.status == "ใช้งาน")
+    assert fine.asset_code not in txt
+
+
+def test_mismatch_list_solo_signature(db, school):
+    assets, mats = _seed(db)
+    txt = _text(ap.render_mismatch_list(school, SOLO, assets, mats))
+    assert "ผู้ตรวจสอบพัสดุ" in txt and "หัวหน้าเจ้าหน้าที่ผู้ตรวจสอบ" not in txt
