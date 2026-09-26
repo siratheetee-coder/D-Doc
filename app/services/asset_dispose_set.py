@@ -25,7 +25,7 @@ from docx import Document
 from docx.shared import Cm
 
 from app.database import get_data_dir
-from app.services.doc_page import set_a4, tidy
+from app.services.doc_page import set_a4, tidy, strip_tail
 from app.thai_utils import thai_date, bahttext
 from app.services.build_templates import (
     _font, _krut_and_title, _krut_center, _p, _p_runs, _sign_table, _set_cell, _hr,
@@ -122,6 +122,10 @@ def _break(doc) -> None:
     """
     if not (doc.paragraphs or doc.tables):
         return
+    # บล็อกลงนามเติมย่อหน้าว่างไว้ท้ายฉบับ ถ้าปล่อยไว้แล้วหน้าก่อนหน้าเต็มพอดี
+    # ย่อหน้าว่างนั้นจะตกไปอยู่หน้าใหม่ แล้ว pageBreakBefore ของฉบับถัดไปดันต่ออีกหน้า
+    # -> ได้หน้าเปล่าคั่น · ตัดทิ้งก่อนขึ้นฉบับใหม่ทุกครั้ง
+    strip_tail(doc)
     from docx.enum.section import WD_ORIENT
     if doc.sections and doc.sections[-1].orientation == WD_ORIENT.LANDSCAPE:
         _portrait_section(doc)

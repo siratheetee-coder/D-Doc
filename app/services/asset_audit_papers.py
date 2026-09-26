@@ -20,7 +20,7 @@ from docx import Document
 from docx.shared import Cm
 
 from app.database import get_data_dir
-from app.services.doc_page import set_a4, tidy
+from app.services.doc_page import set_a4, tidy, strip_tail
 from app.thai_utils import thai_date
 from app.services.build_templates import (
     _font, _krut_center, _p, _p_runs, _sign_table, _set_cell, _hr,
@@ -58,8 +58,9 @@ def _new(landscape=False):
 
 def _land(doc):
     """ขึ้นหน้านอนสำหรับฉบับถัดไป · ถ้าเอกสารยังว่าง (ฉบับแรกของชุด) ไม่ต้องขึ้น section ใหม่
-    ไม่งั้นจะได้หน้าแรกเปล่าติดมาทุกครั้ง"""
+    ไม่งั้นจะได้หน้าแรกเปล่าติดมาทุกครั้ง · ตัดย่อหน้าว่างท้ายฉบับก่อนหน้าด้วย กันหน้าเปล่าคั่น"""
     if doc.paragraphs or doc.tables:
+        strip_tail(doc)
         _landscape_section(doc)
 
 

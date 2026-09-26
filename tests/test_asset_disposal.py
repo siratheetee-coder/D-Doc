@@ -280,3 +280,25 @@ def test_auction_bundle_includes_undertaking(db, school):
     dp.sale_mode = "auction"
     assert "undertaking" in ds._keys_for(dp, "auction")
     assert "ยินยอมรับซื้อพัสดุ" in _text(ds.render_bundle(school, dp, "auction"))
+
+
+def test_no_empty_paragraph_between_documents(db, school):
+    """ห้ามมีย่อหน้าว่างค้างท้ายฉบับ ก่อนขึ้นฉบับถัดไป
+
+    ย่อหน้าว่างท้ายฉบับ + pageBreakBefore ของฉบับถัดไป = หน้าเปล่าคั่น เมื่อหน้าเต็มพอดี
+    """
+    from docx.oxml.ns import qn
+    from docx.text.paragraph import Paragraph
+    dp = _make(db, actions=("ขาย", "ทำลาย", "จำหน่ายเป็นสูญ"))
+    dp.sale_mode = "auction"
+    doc = Document(ds.render_full_set(school, dp))
+    kids = [e for e in doc.element.body.iterchildren() if not e.tag.endswith('sectPr')]
+    for i, el in enumerate(kids[:-1]):
+        nxt = kids[i + 1]
+        if el.tag != qn('w:p') or nxt.tag != qn('w:p'):
+            continue
+        if Paragraph(el, doc).text.strip():
+            continue
+        pPr = nxt.find(qn('w:pPr'))
+        starts_new = pPr is not None and pPr.find(qn('w:pageBreakBefore')) is not None
+        assert not starts_new, f"ย่อหน้าว่างค้างก่อนขึ้นฉบับใหม่ (element {i})"

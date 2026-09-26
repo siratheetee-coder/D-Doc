@@ -9,7 +9,7 @@ asset_audit_doc.py - เอกสารตรวจสอบพัสดุป�
 from docx import Document
 from docx.shared import Cm
 
-from app.services.doc_page import set_a4, tidy
+from app.services.doc_page import set_a4, tidy, strip_tail
 
 from app.database import get_data_dir
 from app.thai_utils import thai_date
@@ -49,8 +49,13 @@ def _center_table(table) -> None:
 
 def _blank_doc_or_break(doc) -> None:
     """ขึ้นหน้าใหม่ก่อนเริ่มฉบับถัดไป - แต่ถ้ายังไม่มีเนื้อหาเลย (ฉบับแรกของชุด)
-    ห้ามขึ้นหน้าใหม่ ไม่งั้นจะได้หน้าแรกว่างเปล่าติดมาทุกครั้ง"""
+    ห้ามขึ้นหน้าใหม่ ไม่งั้นจะได้หน้าแรกว่างเปล่าติดมาทุกครั้ง
+
+    ตัดย่อหน้าว่างท้ายฉบับก่อนหน้าด้วย (บล็อกลงนามเติมไว้) ถ้าปล่อยไว้แล้วหน้าเต็มพอดี
+    ย่อหน้านั้นจะตกไปหน้าใหม่ แล้วฉบับถัดไปดันต่ออีกหน้า = ได้หน้าเปล่าคั่น
+    """
     if doc.paragraphs or doc.tables:
+        strip_tail(doc)
         doc.add_page_break()
 
 
