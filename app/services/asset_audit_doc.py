@@ -9,7 +9,7 @@ asset_audit_doc.py - เอกสารตรวจสอบพัสดุป�
 from docx import Document
 from docx.shared import Cm
 
-from app.services.doc_page import set_a4
+from app.services.doc_page import set_a4, tidy
 
 from app.database import get_data_dir
 from app.thai_utils import thai_date
@@ -33,6 +33,7 @@ def _safe(text: str) -> str:
 
 
 def _save(doc, name: str) -> str:
+    tidy(doc)                     # กันหน้าเปล่าคั่นระหว่างฉบับ และย่อหน้าว่างท้ายไฟล์
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)
     out_path = out_dir / (_safe(name) + ".docx")

@@ -223,3 +223,19 @@ def test_split_lot_uses_range_numbers(db):
     db.commit()
     codes = sorted(r.asset_code for r in db.query(Asset).all())
     assert codes == [f"นอ/04/01/0{i}/59" for i in range(1, 6)], codes
+
+
+def test_lot_reserves_its_whole_range(db):
+    """เลขแบบช่วงจองเลขทุกตัวในช่วง ห้ามแจกเลขในช่วงนั้นซ้ำให้ชิ้นอื่น"""
+    _asset(db, asset_code="นอ/04/01/01-10/59", quantity=10, cost=1200.0)
+    lock_numbers(db)
+    assert next_codes_like(db, "นอ/04/01/01/59", 3) == [
+        "นอ/04/01/11/59", "นอ/04/01/12/59", "นอ/04/01/13/59"]
+
+
+def test_lot_range_dash_style_also_reserved(db):
+    """รูปแบบขีดกลางก็ต้องกันช่วงเหมือนกัน"""
+    _asset(db, asset_code="7440-001-0001-0005/2569", quantity=5)
+    lock_numbers(db)
+    assert next_codes_like(db, "7440-001-0001/2569", 2) == [
+        "7440-001-0006/2569", "7440-001-0007/2569"]

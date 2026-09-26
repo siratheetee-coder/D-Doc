@@ -148,9 +148,16 @@ def expand_lot(code):
 
 
 def _taken(db):
-    """เลขครุภัณฑ์ที่ใช้ไปแล้วทั้งหมด (รวมที่เคยลบ/จำหน่าย)"""
-    return ({c for c, in db.query(Asset.asset_code).all() if c}
+    """เลขครุภัณฑ์ที่ใช้ไปแล้วทั้งหมด (รวมที่เคยลบ/จำหน่าย)
+
+    เลขที่เขียนเป็นช่วง (ลอต) เช่น นอ/04/01/01-10/59 จองเลขตัวที่ 1 ถึง 10 ไว้ทั้งหมด
+    ต้องกางออกด้วย ไม่งั้นจะแจกเลขที่อยู่ในช่วงนั้นซ้ำให้ครุภัณฑ์ชิ้นอื่น
+    """
+    used = ({c for c, in db.query(Asset.asset_code).all() if c}
             | {c for c, in db.query(AssetNumberUsed.code).all() if c})
+    for code in list(used):
+        used.update(expand_lot(code))
+    return used
 
 
 def next_codes_like(db, code, count):

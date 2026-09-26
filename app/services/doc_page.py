@@ -39,3 +39,46 @@ def set_a4(doc, landscape: bool = False, margins: bool = True):
     if margins:
         set_margins(doc)
     return doc
+
+
+def strip_tail(doc):
+    """ตัดย่อหน้าว่างท้ายเอกสาร (บล็อกลงนามมักเติมบรรทัดว่างไว้) กันหน้าเปล่าท้ายไฟล์"""
+    from docx.text.paragraph import Paragraph
+    body = doc.element.body
+    while True:
+        kids = [e for e in body.iterchildren() if not e.tag.endswith('sectPr')]
+        if not kids or not kids[-1].tag.endswith('}p'):
+            return doc
+        if Paragraph(kids[-1], doc).text.strip():
+            return doc
+        body.remove(kids[-1])
+
+
+def fold_breaks(doc):
+    """ย้าย page break ไปเป็นคุณสมบัติ "ขึ้นหน้าใหม่ก่อนย่อหน้านี้" ของย่อหน้าถัดไป
+
+    ย่อหน้าที่มีแต่ page break กินที่ 1 บรรทัด ถ้าหน้าก่อนหน้าเต็มพอดี ย่อหน้านั้น
+    จะตกไปอยู่หน้าใหม่แล้วดันเนื้อหาไปอีกหน้า -> เกิดหน้าเปล่าคั่น
+    แปลงเป็น w:pageBreakBefore แทน ผลเหมือนกันแต่ไม่มีหน้าเปล่า
+    """
+    from docx.oxml.ns import qn
+    body = doc.element.body
+    for para in list(body.findall(qn('w:p'))):
+        runs = para.findall(qn('w:r'))
+        brs = [b for r in runs for b in r.findall(qn('w:br'))
+               if b.get(qn('w:type')) == 'page']
+        if not brs or any(r.findall(qn('w:t')) or r.findall(qn('w:drawing')) for r in runs):
+            continue
+        nxt = para.getnext()
+        if nxt is None or nxt.tag != qn('w:p'):
+            continue                      # ถัดไปเป็นตาราง/ท้ายเอกสาร -> คงไว้ตามเดิม
+        pPr = nxt.get_or_add_pPr()
+        if pPr.find(qn('w:pageBreakBefore')) is None:
+            pPr.insert(0, pPr.makeelement(qn('w:pageBreakBefore'), {}))
+        body.remove(para)
+    return doc
+
+
+def tidy(doc):
+    """เก็บงานท้ายเอกสารก่อนเซฟ: ตัดย่อหน้าว่างท้ายไฟล์ + ยุบ page break"""
+    return fold_breaks(strip_tail(doc))

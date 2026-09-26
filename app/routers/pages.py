@@ -3255,11 +3255,12 @@ async def assets_dispose_submit(request: Request, db: Session = Depends(get_db))
               .order_by(Asset.id).all())
     if not assets:
         return RedirectResponse("/assets/dispose?err=none", status_code=303)
-    # แบ่งมูลค่าที่ขายได้รวม ไปยังแต่ละรายการตามสัดส่วนราคาทุน (ถ้าระบุมูลค่ารวม)
+    # แบ่งมูลค่าที่คาดว่าจะขายได้ ไปยังแต่ละรายการตามสัดส่วนราคาทุน (ถ้าระบุมูลค่ารวม)
     total_cost = sum(float(a.cost or 0) for a in assets) or 1.0
     for a in assets:
-        a.status = "จำหน่ายแล้ว"
-        a.disposed_date = doc_date
+        # บันทึกเจตนาขอจำหน่ายไว้ แต่ "ห้าม" ตั้งเป็นจำหน่ายแล้วตรงนี้
+        # ระเบียบฯ ข้อ 218 ให้ลงจ่ายออกจากทะเบียนหลังจำหน่ายเสร็จจริงเท่านั้น
+        # ตอนนี้ ผอ. ยังไม่อนุมัติ ของยังอยู่ที่โรงเรียน ถ้าตัดออกตอนนี้ตรวจนับจะไม่ตรง
         a.dispose_method = method
         a.dispose_reason = reason
         a.dispose_doc_ref = doc_no
@@ -3291,8 +3292,19 @@ _DP_TEXTS = (
     "bidders", "auction_order_no", "view_time", "auction_time", "auction_place",
     "auction_report_no", "destroy_memo_no", "destroy_way", "wo_memo_no", "wo_reason",
     "area_no", "sao_no", "sao_region", "sao_kind", "mof_no", "remit_no", "remit_to",
-    "revenue_kind", "contact_phone", "note", "stage",
+    "revenue_kind", "contact_phone", "note",
 )
+
+
+def _dp_stage(dp) -> str:
+    """ขั้นของสำนวน คิดจากข้อมูลที่กรอกจริง (ไม่เชื่อ hidden field ที่อาจค้างจากหน้าเก่า)"""
+    if dp.written_off_date:
+        return "closed"
+    if dp.sale_date or dp.auction_date or dp.destroy_date:
+        return "sell"
+    if dp.order_date or dp.req_memo_date:
+        return "approve"
+    return "fact"
 
 
 def _dp_or_404(db, did):
@@ -3339,6 +3351,14 @@ async def disposal_new(request: Request, db: Session = Depends(get_db)):
     if not ids:
         return RedirectResponse("/assets/disposal?err=none", status_code=303)
     year = _to_int(form.get("year"), current_fiscal_year())
+    # กันครุภัณฑ์ชิ้นเดียวไปอยู่หลายสำนวนพร้อมกัน (จะจำหน่ายซ้ำ/ลงจ่ายซ้ำ)
+    busy = {r[0] for r in db.query(AssetDisposalItem.asset_id)
+            .join(AssetDisposal)
+            .filter(AssetDisposal.written_off_date.is_(None)).all()}
+    dup = [i for i in ids if i in busy]
+    ids = [i for i in ids if i not in busy]
+    if not ids:
+        return RedirectResponse("/assets/disposal?err=busy", status_code=303)
     dp = AssetDisposal(year=year, stage="fact",
                        sao_region=(form.get("sao_region") or "").strip(),
                        contact_phone=(getattr(get_school(db), "phone", "") or "").strip())
@@ -3353,7 +3373,8 @@ async def disposal_new(request: Request, db: Session = Depends(get_db)):
         db.add(AssetDisposalItem(disposal_id=dp.id, asset_id=aid, action=act,
                                  price_mid=0.0))
     db.commit()
-    return RedirectResponse(f"/assets/disposal/{dp.id}", status_code=303)
+    tail = f"?skipped={len(dup)}" if dup else ""
+    return RedirectResponse(f"/assets/disposal/{dp.id}{tail}", status_code=303)
 
 
 @router.get("/assets/disposal/{did}", response_class=HTMLResponse)
@@ -3367,7 +3388,8 @@ def disposal_detail(did: int, request: Request, db: Session = Depends(get_db)):
         members = _json.loads(dp.members or "{}")
     except Exception:
         members = {}
-    items = sorted(dp.items, key=lambda it: ((it.asset.asset_code or ""), it.id))
+    items = sorted((it for it in dp.items if it.asset is not None),
+                   key=lambda it: ((it.asset.asset_code or "~"), it.id))
     total_cost = sum(float(it.asset.cost or 0) for it in items if it.asset)
     sell_cost = sum(float(it.asset.cost or 0) for it in items
                     if it.asset and (it.action or "") == "ขาย")
@@ -3419,6 +3441,7 @@ async def disposal_save(did: int, request: Request, db: Session = Depends(get_db
                              "role": (form.get(f"{key}{i}_role") or "กรรมการ").strip()})
         mem[key] = rows
     dp.members = _json.dumps(mem, ensure_ascii=False)
+    dp.stage = _dp_stage(dp)
     # รายการในสำนวน
     for it in dp.items:
         pre = f"it{it.id}_"
@@ -3452,10 +3475,19 @@ def disposal_write_off(did: int, db: Session = Depends(get_db)):
     when = datetime.now()
     dp.written_off_date = when
     dp.stage = "closed"
+    rows = [it for it in dp.items if it.asset is not None]
+    # ถ้ากรอกแต่ยอดขายรวม ไม่ได้ลงราคารายชิ้น ให้เฉลี่ยตามสัดส่วนราคาทุนของรายการที่ขาย
+    if float(dp.sale_total or 0) > 0 and not any(float(it.sold_price or 0) for it in rows):
+        sold = [it for it in rows if (it.action or "") == "ขาย"]
+        base = sum(float(it.asset.cost or 0) for it in sold)
+        if sold:
+            for it in sold:
+                share = (float(it.asset.cost or 0) / base) if base else (1 / len(sold))
+                it.sold_price = round(float(dp.sale_total) * share, 2)
     n = 0
-    for it in dp.items:
+    for it in rows:
         a = it.asset
-        if a is None or a.status == "จำหน่ายแล้ว":
+        if a.status == "จำหน่ายแล้ว":
             continue
         a.status = "จำหน่ายแล้ว"
         a.disposed_date = when

@@ -6,7 +6,10 @@
     <h1 style="margin:0;"><svg class="icon"><use href="#ic-trash"/></svg> ขออนุมัติจำหน่ายครุภัณฑ์</h1>
     <a class="btn gray sm" href="/assets"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับทะเบียนครุภัณฑ์</a>
   </div>
-  <p class="muted" style="margin-bottom:0;">เลือกครุภัณฑ์ที่ชำรุด/เสื่อมสภาพ/หมดความจำเป็น แล้วออกบันทึกข้อความขออนุมัติจำหน่าย (Word) ระบบจะปรับสถานะรายการที่เลือกเป็น "จำหน่ายแล้ว" ให้อัตโนมัติ</p>
+  <p class="muted" style="margin-bottom:0;">เลือกครุภัณฑ์ที่ชำรุด/เสื่อมสภาพ/หมดความจำเป็น แล้วออกบันทึกข้อความขออนุมัติจำหน่าย (Word)
+    ฉบับเดียวแบบเร็ว · <b>สถานะในทะเบียนยังไม่เปลี่ยน</b> เพราะ ผอ. ยังไม่อนุมัติและยังไม่ได้จำหน่ายจริง
+    เมื่อจำหน่ายเสร็จแล้วให้ไปกดลงจ่ายที่ <a href="/assets/disposal">สำนวนจำหน่ายพัสดุ</a>
+    ซึ่งออกเอกสารครบทั้งกระบวนการตามระเบียบฯ ข้อ 214-218</p>
   {% if request.query_params.get('err')=='none' %}<div class="alert" style="background:#fee2e2; color:#b91c1c; border-color:#fca5a5;">ยังไม่ได้เลือกครุภัณฑ์</div>{% endif %}
 </div>
 
@@ -54,7 +57,7 @@
       {% endfor %}
     </tbody>
   </table></div>
-  <br><button class="btn red" type="submit" onclick="return confirm('ออกเอกสารและปรับสถานะครุภัณฑ์ที่เลือกเป็น จำหน่ายแล้ว?')"><svg class="icon"><use href="#ic-download"/></svg> ออกเอกสาร + ปรับสถานะ</button>
+  <br><button class="btn" type="submit"><svg class="icon"><use href="#ic-download"/></svg> ออกบันทึกขออนุมัติจำหน่าย</button>
   {% else %}<p class="muted">ไม่มีครุภัณฑ์ที่ใช้งานอยู่ให้จำหน่าย</p>{% endif %}
 </div>
 </form>

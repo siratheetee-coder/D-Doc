@@ -60,6 +60,9 @@
 </div>
 
 {% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกแล้ว</div>{% endif %}
+{% if request.query_params.get('skipped') %}
+<div class="alert">ข้าม {{ request.query_params.get('skipped') }} รายการที่อยู่ในสำนวนอื่นที่ยังไม่ปิด</div>
+{% endif %}
 {% if request.query_params.get('wo') %}
 <div class="alert">✔ ลงจ่ายออกจากทะเบียนแล้ว {{ request.query_params.get('wo') }} ระเบียน —
   ต้องรายงาน สพท. และ สตง. ภายใน 30 วันนับแต่วันนี้ (ระเบียบฯ ข้อ 218)</div>
@@ -86,7 +89,7 @@
 </div>
 
 <form method="post" action="/assets/disposal/{{ dp.id }}" id="dpForm">
-<input type="hidden" name="stage" value="{{ dp.stage }}">
+{# ขั้นของสำนวนคิดจากวันที่ที่กรอก ไม่ส่งมาจากฟอร์ม กันหน้าที่ค้างอยู่ทำให้ย้อนขั้น #}
 
 <!-- ============================ รายการ ============================ -->
 <div class="dp-pane on" data-pane="items">

@@ -186,3 +186,75 @@ def test_empty_disposal_refuses_bundle(db, school):
         ds.render_full_set(school, dp)
     with pytest.raises(ValueError):
         ds.render_bundle(school, dp, "destroy")
+
+
+# ------------------------------- บั๊กที่เคยเจอ -------------------------------
+def test_landscape_does_not_leak(db, school):
+    """บัญชีคุมทอดตลาดเป็นหน้านอน ฉบับถัดไปในชุดต้องกลับมาเป็นหน้าตั้ง"""
+    from docx.enum.section import WD_ORIENT
+    dp = _make(db, actions=("ขาย", "ขาย"))
+    dp.sale_mode = "auction"
+    doc = Document(ds.render_bundle(school, dp, "auction"))
+    kinds = [s.orientation for s in doc.sections]
+    assert WD_ORIENT.LANDSCAPE in kinds, "บัญชีคุมต้องเป็นหน้านอน"
+    assert kinds[-1] == WD_ORIENT.PORTRAIT, "ฉบับสุดท้าย (รายงานผล) ต้องเป็นหน้าตั้ง"
+
+
+def test_items_sorted_by_code(db, school):
+    """ลำดับรายการในเอกสารต้องเรียงตามเลขครุภัณฑ์ ไม่ใช่ลำดับที่บันทึกลง DB"""
+    dp = AssetDisposal(year=2569)
+    db.add(dp)
+    db.flush()
+    for code in ("7440-001-0009/2569", "7440-001-0001/2569", "7440-001-0005/2569"):
+        a = Asset(asset_code=code, name="ของ", cost=100.0, quantity=1, status="ชำรุด")
+        db.add(a)
+        db.flush()
+        db.add(AssetDisposalItem(disposal_id=dp.id, asset_id=a.id, action="ขาย"))
+    db.commit()
+    codes = [it.asset.asset_code for it in ds._items(dp)]
+    assert codes == sorted(codes), codes
+
+
+def test_deleted_asset_does_not_break_docs(db, school):
+    """ครุภัณฑ์ที่ถูกลบทิ้ง ต้องไม่ทำให้เอกสารพัง (แค่ข้ามรายการนั้น)"""
+    dp = _make(db, actions=("ขาย", "ขาย"))
+    victim = dp.items[0]
+    db.delete(victim.asset)
+    db.commit()
+    db.expire_all()
+    dp = db.get(AssetDisposal, dp.id)
+    assert len(ds._items(dp)) == 1
+    assert len(_text(ds.render_dispose_request(school, dp))) > 200
+
+
+def test_audit_bundle_also_folds_breaks(db, school):
+    """ชุดตรวจสอบพัสดุประจำปี (ของเดิม) ต้องไม่มีย่อหน้าที่มีแต่ page break เหมือนกัน
+    ย่อหน้าแบบนั้นจะกลายเป็นหน้าเปล่าคั่นเมื่อฉบับก่อนหน้าจบท้ายหน้าพอดี"""
+    import datetime as _dt
+    from docx.oxml.ns import qn
+    import app.services.asset_audit_doc as ad
+    from app.models import MaterialItem
+
+    assets = []
+    for i in range(1, 31):
+        a = Asset(asset_code=f"7440-001-{i:04d}/2569", name=f"ครุภัณฑ์ {i}",
+                  category="ครุภัณฑ์สำนักงาน", cost=25000.0, quantity=1, unit="เครื่อง",
+                  useful_life=8, status="ชำรุด" if i % 3 else "ใช้งาน",
+                  acquired_date=_dt.datetime(2023, 8, 31))
+        db.add(a)
+        assets.append(a)
+    mats = [MaterialItem(name=f"วัสดุ {i}", unit="ชิ้น") for i in range(1, 21)]
+    for m in mats:
+        db.add(m)
+    db.commit()
+    ctx = {"year": 2569, "date": _dt.datetime(2026, 9, 12),
+           "result_date": _dt.datetime(2026, 10, 1), "memo_no": "ศธ 04166/1",
+           "order_no": "40/2569", "result_memo_no": "ศธ 04166/9", "damaged_count": "20",
+           "recv_ok": True, "recv_note": "", "count_ok": True, "count_note": "",
+           "members": [{"name": "นางสมศรี", "position": "ครู", "role": "ประธานกรรมการ"}]}
+    doc = Document(ad.render_audit_bundle(school, ctx, assets, mats))
+    lone = [p for p in doc.element.body.findall(qn('w:p'))
+            if [b for r in p.findall(qn('w:r')) for b in r.findall(qn('w:br'))
+                if b.get(qn('w:type')) == 'page']
+            and not any(r.findall(qn('w:t')) for r in p.findall(qn('w:r')))]
+    assert not lone, f"เหลือย่อหน้า page break เดี่ยว {len(lone)} จุด"

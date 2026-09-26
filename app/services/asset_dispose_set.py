@@ -25,7 +25,7 @@ from docx import Document
 from docx.shared import Cm
 
 from app.database import get_data_dir
-from app.services.doc_page import set_a4
+from app.services.doc_page import set_a4, tidy
 from app.thai_utils import thai_date, bahttext
 from app.services.build_templates import (
     _font, _krut_and_title, _krut_center, _p, _p_runs, _sign_table, _set_cell, _hr,
@@ -87,48 +87,8 @@ def _safe(text: str) -> str:
     return text.strip()[:80]
 
 
-def _fold_breaks(doc) -> None:
-    """ย้าย page break ไปเป็นคุณสมบัติ "ขึ้นหน้าใหม่ก่อนย่อหน้านี้" ของย่อหน้าถัดไป
-
-    ย่อหน้าที่มีแต่ page break จะกินที่ 1 บรรทัด ถ้าหน้าก่อนหน้าเต็มพอดี ย่อหน้านั้น
-    จะตกไปอยู่หน้าใหม่แล้วดันเนื้อหาไปอีกหน้า -> เกิดหน้าเปล่าคั่น
-    แปลงเป็น w:pageBreakBefore แทน ผลลัพธ์เหมือนกันแต่ไม่มีหน้าเปล่า
-    """
-    from docx.oxml.ns import qn
-    body = doc.element.body
-    for para in list(body.findall(qn('w:p'))):
-        runs = para.findall(qn('w:r'))
-        # ต้องเป็นย่อหน้าที่มี "เฉพาะ" break ชนิดขึ้นหน้าใหม่ ไม่มีข้อความอื่น
-        brs = [b for r in runs for b in r.findall(qn('w:br'))
-               if b.get(qn('w:type')) == 'page']
-        if not brs or any(r.findall(qn('w:t')) or r.findall(qn('w:drawing')) for r in runs):
-            continue
-        nxt = para.getnext()
-        if nxt is None or nxt.tag != qn('w:p'):
-            continue                      # ถัดไปเป็นตาราง/ท้ายเอกสาร -> คงไว้ตามเดิม
-        pPr = nxt.get_or_add_pPr()
-        if pPr.find(qn('w:pageBreakBefore')) is None:
-            el = pPr.makeelement(qn('w:pageBreakBefore'), {})
-            pPr.insert(0, el)
-        body.remove(para)
-
-
-def _strip_tail(doc) -> None:
-    """ตัดย่อหน้าว่างท้ายเอกสาร (บล็อกลงนามเติมบรรทัดว่างไว้) กันหน้าเปล่าท้ายไฟล์"""
-    from docx.text.paragraph import Paragraph
-    body = doc.element.body
-    while True:
-        kids = [e for e in body.iterchildren() if not e.tag.endswith('sectPr')]
-        if not kids or not kids[-1].tag.endswith('}p'):
-            return
-        if Paragraph(kids[-1], doc).text.strip():
-            return
-        body.remove(kids[-1])
-
-
 def _save(doc, name: str) -> str:
-    _strip_tail(doc)
-    _fold_breaks(doc)
+    tidy(doc)
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)
     out_path = out_dir / (_safe(name) + ".docx")
@@ -141,10 +101,32 @@ def _new():
     return doc
 
 
+def _portrait_section(doc):
+    """กลับมาเป็นหน้าตั้ง (A4 + ระยะขอบมาตรฐานราชการ) หลังจากมี section แนวนอน"""
+    from docx.enum.section import WD_SECTION, WD_ORIENT
+    from app.services.doc_page import (A4_W, A4_H, MARGIN_TOP, MARGIN_BOTTOM,
+                                       MARGIN_LEFT, MARGIN_RIGHT)
+    sec = doc.add_section(WD_SECTION.NEW_PAGE)
+    sec.orientation = WD_ORIENT.PORTRAIT
+    sec.page_width, sec.page_height = A4_W, A4_H
+    sec.top_margin, sec.bottom_margin = MARGIN_TOP, MARGIN_BOTTOM
+    sec.left_margin, sec.right_margin = MARGIN_LEFT, MARGIN_RIGHT
+    return sec
+
+
 def _break(doc) -> None:
-    """ขึ้นหน้าใหม่ก่อนฉบับถัดไป · ฉบับแรกของชุดไม่ต้องขึ้น (กันหน้าแรกว่าง)"""
-    if doc.paragraphs or doc.tables:
-        doc.add_page_break()
+    """ขึ้นหน้าใหม่ก่อนฉบับถัดไป · ฉบับแรกของชุดไม่ต้องขึ้น (กันหน้าแรกว่าง)
+
+    ถ้าฉบับก่อนหน้าเป็นหน้านอน (เช่น บัญชีคุมขายทอดตลาด) ต้องเปิด section
+    หน้าตั้งใหม่ ไม่งั้นฉบับถัดไปจะพิมพ์เป็นหน้านอนติดมาด้วย
+    """
+    if not (doc.paragraphs or doc.tables):
+        return
+    from docx.enum.section import WD_ORIENT
+    if doc.sections and doc.sections[-1].orientation == WD_ORIENT.LANDSCAPE:
+        _portrait_section(doc)
+        return
+    doc.add_page_break()
 
 
 def _d(dt) -> str:
@@ -284,8 +266,13 @@ def _sao_name(dp) -> str:
 
 
 def _items(dp, action=None):
-    """รายการในสำนวน (กรองตามวิธีจำหน่ายได้)"""
-    rows = [it for it in dp.items if it.asset is not None]
+    """รายการในสำนวน (กรองตามวิธีจำหน่ายได้)
+
+    เรียงตามเลขครุภัณฑ์เหมือนที่แสดงบนหน้าจอ เพื่อให้เลขลำดับในทุกฉบับตรงกัน
+    ข้ามรายการที่ครุภัณฑ์ถูกลบไปแล้ว (asset_id ค้าง) กันเอกสารพัง
+    """
+    rows = sorted((it for it in dp.items if it.asset is not None),
+                  key=lambda it: ((it.asset.asset_code or "~"), it.id))
     if action:
         rows = [it for it in rows if (it.action or "ขาย") == action]
     return rows
