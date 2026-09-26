@@ -3083,6 +3083,15 @@ async def asset_audit_generate(request: Request, db: Session = Depends(get_db)):
         "count_ok": (form.get("count_ok") or "1") == "1",
         "count_note": (form.get("count_note") or "").strip(),
         "members": members,
+        "single": form.get("single") == "1",
+        "all_clean": damaged in ("", "-", "0"),
+        "sao_kind": (form.get("sao_kind") or "จังหวัด").strip(),
+        "sao_region": (form.get("sao_region") or "").strip(),
+        "sao_no": (form.get("sao_no") or "").strip(),
+        "sao_date": parse_be_date(form.get("sao_date") or ""),
+        "area_no": (form.get("area_no") or "").strip(),
+        "area_date": parse_be_date(form.get("area_date") or ""),
+        "phone": (form.get("phone") or "").strip(),
     }
     materials = db.query(MaterialItem).order_by(MaterialItem.name).all()
     path = render_audit_bundle(get_school(db), ctx, assets, materials)
@@ -3221,6 +3230,84 @@ def asset_delete(asset_id: int, db: Session = Depends(get_db)):
         db.delete(a)
     db.commit()
     return RedirectResponse('/assets', status_code=303)
+
+
+# ---- เอกสารเสริมของการตรวจสอบพัสดุประจำปี (กระดาษทำการ · บัญชีแยกสภาพ · หนังสือแจ้ง) ----
+async def _audit_ctx(request, db):
+    """ประกอบ ctx จากฟอร์มหน้าตรวจสอบพัสดุ (ใช้ร่วมกันทุกเส้นทางเอกสาร)"""
+    form = await request.form()
+    members = []
+    for i in range(1, 6):
+        nm = (form.get(f"m{i}_name") or "").strip()
+        if nm:
+            members.append({"name": nm,
+                            "position": (form.get(f"m{i}_pos") or "ครู").strip(),
+                            "role": (form.get(f"m{i}_role") or "กรรมการ").strip()})
+    year = _to_int(form.get("year"), current_fiscal_year())
+    assets = (db.query(Asset).filter(Asset.status != "จำหน่ายแล้ว")
+              .order_by(Asset.asset_code, Asset.id).all())
+    damaged = (form.get("damaged_count") or "").strip()
+    if not damaged:
+        n = sum(1 for a in assets if (a.status or "") in ASSET_BAD_STATUSES)
+        damaged = str(n) if n else "-"
+    ctx = {
+        "year": year,
+        "date": parse_be_date(form.get("date") or ""),
+        "result_date": parse_be_date(form.get("result_date") or ""),
+        "memo_no": (form.get("memo_no") or "").strip(),
+        "order_no": (form.get("order_no") or "").strip(),
+        "result_memo_no": (form.get("result_memo_no") or "").strip(),
+        "damaged_count": damaged,
+        "members": members,
+        "single": form.get("single") == "1",
+        "all_clean": damaged in ("", "-", "0"),
+        "sao_kind": (form.get("sao_kind") or "จังหวัด").strip(),
+        "sao_region": (form.get("sao_region") or "").strip(),
+        "sao_no": (form.get("sao_no") or "").strip(),
+        "sao_date": parse_be_date(form.get("sao_date") or ""),
+        "area_no": (form.get("area_no") or "").strip(),
+        "area_date": parse_be_date(form.get("area_date") or ""),
+        "phone": (form.get("phone") or "").strip(),
+    }
+    materials = db.query(MaterialItem).order_by(MaterialItem.name).all()
+    return ctx, assets, materials
+
+
+@router.post("/assets/audit/papers")
+async def audit_papers(request: Request, db: Session = Depends(get_db)):
+    """กระดาษทำการของผู้ตรวจสอบ 4 ชุด (ระบบเติมข้อมูลจากบัญชีวัสดุ/ทะเบียนคุมทรัพย์สินให้)"""
+    from app.services.asset_audit_papers import render_papers_bundle
+    ctx, assets, materials = await _audit_ctx(request, db)
+    path = render_papers_bundle(get_school(db), ctx, assets, materials)
+    return serve_generated(
+        path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.post("/assets/audit/ledgers")
+async def audit_ledgers(request: Request, db: Session = Depends(get_db)):
+    """บัญชีพัสดุที่ต้องจำหน่าย แยก 4 ฉบับตามสภาพ (แบบฉบับปรับปรุง 2563)"""
+    from app.services.asset_audit_papers import render_ledgers_bundle
+    ctx, assets, _mats = await _audit_ctx(request, db)
+    try:
+        path = render_ledgers_bundle(get_school(db), ctx, assets)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return serve_generated(
+        path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.post("/assets/audit/letters")
+async def audit_letters(request: Request, db: Session = Depends(get_db)):
+    """หนังสือแจ้งผลการตรวจสอบ 2 ฉบับ: เขตพื้นที่การศึกษา + สตง."""
+    from app.services.asset_audit_papers import render_audit_letter, _new, _save
+    ctx, _assets, _mats = await _audit_ctx(request, db)
+    school = get_school(db)
+    doc = _new()
+    render_audit_letter(school, ctx, "area", doc)
+    render_audit_letter(school, ctx, "sao", doc)
+    path = _save(doc, f"หนังสือแจ้งผลการตรวจสอบพัสดุ_ปีงบ{ctx['year']}")
+    return serve_generated(
+        path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 @router.get("/assets/dispose", response_class=HTMLResponse)

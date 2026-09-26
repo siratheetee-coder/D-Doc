@@ -51,7 +51,28 @@
   </div>
 
   <div class="card">
+    <h2>หนังสือแจ้งผลการตรวจสอบ <span class="muted" style="font-size:14px;">(ระเบียบฯ ข้อ 213 ให้ส่งสำเนาทั้งเขตพื้นที่ฯ และ สตง.)</span></h2>
+    <div class="row">
+      <div><label>เลขที่หนังสือแจ้งเขตพื้นที่ฯ</label><input name="area_no" placeholder="เช่น ศธ 04166/..."></div>
+      <div><label>ลงวันที่</label><input name="area_date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>เลขที่หนังสือแจ้ง สตง.</label><input name="sao_no" placeholder="เช่น ศธ 04166/..."></div>
+      <div><label>ลงวันที่</label><input name="sao_date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+    </div>
+    <div class="row">
+      <div><label>สตง. ระดับ</label>
+        <select name="sao_kind">
+          <option value="จังหวัด">สำนักงานตรวจเงินแผ่นดินจังหวัด</option>
+          <option value="ภูมิภาคที่">สำนักงานตรวจเงินแผ่นดินภูมิภาคที่</option>
+        </select></div>
+      <div><label>จังหวัด / เลขภูมิภาค</label><input name="sao_region" placeholder="เช่น นครราชสีมา"></div>
+      <div><label>โทรศัพท์ผู้ประสาน</label><input name="phone" placeholder="เช่น 044-000111"></div>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>คณะกรรมการตรวจสอบพัสดุ <span class="muted" style="font-size:14px;">(กรรมการต้องไม่ใช่เจ้าหน้าที่พัสดุ)</span></h2>
+    <label class="nt-chk" style="margin:0 0 8px;"><input type="checkbox" name="single" value="1">
+      แต่งตั้ง<b>ผู้ตรวจสอบพัสดุคนเดียว</b> (โรงเรียนเล็ก) — เอกสารจะใช้คำว่า "ผู้ตรวจสอบพัสดุประจำปี" แทน "คณะกรรมการ"</label>
     <div class="table-wrap"><table>
       <thead><tr><th style="width:45%;">ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>บทบาท</th></tr></thead>
       <tbody>
@@ -71,7 +92,21 @@
   </div>
 
   <div class="card">
-    <button class="btn green" type="submit"><svg class="icon"><use href="#ic-download"/></svg> ออกชุดเอกสารตรวจสอบพัสดุ (Word)</button>
+    <h2 style="margin-top:0;">ออกเอกสาร</h2>
+    <p class="muted" style="margin-top:0;">กรอกข้อมูลข้างบนครั้งเดียว แล้วกดออกได้ทุกชุด</p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn green" type="submit" formaction="/assets/audit"><svg class="icon"><use href="#ic-download"/></svg> ชุดเอกสารหลัก</button>
+      <button class="btn" type="submit" formaction="/assets/audit/papers"><svg class="icon"><use href="#ic-clipboard"/></svg> กระดาษทำการ 4 ชุด</button>
+      <button class="btn" type="submit" formaction="/assets/audit/ledgers"><svg class="icon"><use href="#ic-file"/></svg> บัญชีพัสดุที่ต้องจำหน่าย (แยกสภาพ)</button>
+      <button class="btn" type="submit" formaction="/assets/audit/letters"><svg class="icon"><use href="#ic-file"/></svg> หนังสือแจ้งเขตพื้นที่ฯ + สตง.</button>
+    </div>
+    <div style="background:linear-gradient(180deg,#fbfcff,#f4f6fc); border-radius:14px; padding:11px 14px; margin:12px 0 0; font-size:13.5px;">
+      <b>กระดาษทำการ</b> คือหลักฐานว่าคณะกรรมการตรวจอะไรไปบ้าง ซึ่ง สตง. ขอดู — ระบบเติมให้จากบัญชีวัสดุและทะเบียนคุมทรัพย์สิน
+      เหลือแค่เดินนับจริงแล้วติ๊กช่องที่ไม่ตรง<br>
+      <b>บัญชีพัสดุที่ต้องจำหน่าย</b> แยก 4 ฉบับตามสภาพ (ชำรุด / เสื่อมสภาพ / สูญไป / ไม่จำเป็นต้องใช้)
+      ตามแบบฉบับปรับปรุง 2563 · ส่วนบัญชีใบรวม 14 คอลัมน์แบบเดิมยังอยู่ในชุดเอกสารหลัก<br>
+      ถ้าตรวจแล้วมีพัสดุต้องจำหน่าย ขั้นต่อไปคือ <a href="/assets/disposal">สำนวนจำหน่ายพัสดุ</a>
+    </div>
   </div>
 </form>
 
