@@ -204,3 +204,57 @@ def test_bundle_starts_on_page_one(db, school):
         "เอกสารเริ่มด้วยย่อหน้าว่าง = เสี่ยงหน้าแรกเปล่า"
     # 4 ชุด -> 4 section (หน้านอนทั้งหมด) ไม่ใช่ 5
     assert len(doc.sections) == 4, len(doc.sections)
+
+
+# ------------------- แต่งตั้งผู้ตรวจสอบคนเดียว: ต้องไม่เหลือคำว่า "กรรมการ" -------------------
+SOLO = {**CTX, "single": True,
+        "members": [{"name": "นายมรรคพันธุ์ คุณวงค์", "position": "ครูชำนาญการ",
+                     "role": "ประธานกรรมการ"}]}      # บทบาทที่ค้างมาจากฟอร์ม ต้องถูกทับ
+
+
+def _roles(path):
+    """บทบาทที่ปรากฏในเอกสาร (ไม่รวม 'คณะกรรมการการศึกษาขั้นพื้นฐาน' ในข้อความอ้างระเบียบ)"""
+    t = _text(path).replace("คณะกรรมการการศึกษาขั้นพื้นฐาน", "")
+    return [w for w in ("ประธานกรรมการ", "กรรมการและเลขานุการ", "กรรมการ") if w in t]
+
+
+@pytest.mark.parametrize("name", ["memo", "order", "result", "damaged"])
+def test_solo_never_says_committee(db, school, name):
+    """ติ๊กคนเดียวแล้ว ทุกฉบับต้องใช้ 'ผู้ตรวจสอบพัสดุ' ไม่ใช่ 'ประธานกรรมการ'"""
+    assets, _m = _seed(db)
+    path = {"memo": lambda: ad.render_appoint_memo(school, SOLO),
+            "order": lambda: ad.render_appoint_order(school, SOLO),
+            "result": lambda: ad.render_result_memo(school, SOLO, assets),
+            "damaged": lambda: ad.render_damaged_list(school, SOLO, assets)}[name]()
+    assert ad.SOLO_ROLE in _text(path), name
+    assert _roles(path) == [], (name, _roles(path))
+
+
+def test_solo_lists_one_person_only(db, school):
+    """ตารางรายชื่อในคำสั่งต้องมีแถวเดียว แม้ฟอร์มจะส่งชื่อมาหลายคน"""
+    many = {**SOLO, "members": SOLO["members"] + [
+        {"name": "คนที่สอง", "position": "ครู", "role": "กรรมการ"},
+        {"name": "คนที่สาม", "position": "ครู", "role": "กรรมการ"}]}
+    doc = Document(ad.render_appoint_order(school, many))
+    names = doc.tables[0]
+    assert len(names.rows) == 1, [r.cells[1].text for r in names.rows]
+    assert names.rows[0].cells[3].text.strip() == ad.SOLO_ROLE
+    assert "คนที่สอง" not in _text(ad.render_appoint_order(school, many))
+
+
+def test_committee_mode_unchanged(db, school):
+    """โหมดคณะกรรมการต้องยังเป็นเหมือนเดิม"""
+    assets, _m = _seed(db)
+    path = ad.render_appoint_order(school, CTX)
+    assert "ประธานกรรมการ" in _text(path)
+    assert ad.SOLO_ROLE not in _text(path)
+
+
+def test_solo_papers_sign_once(db, school):
+    """กระดาษทำการต้องลงชื่อช่องเดียว ไม่ใช่ 3 ช่องแบบคณะกรรมการ"""
+    assets, mats = _seed(db)
+    solo = _text(ap.render_wp_material_count(school, SOLO, mats))
+    many = _text(ap.render_wp_material_count(school, CTX, mats))
+    assert solo.count("ลงชื่อ") == 1, solo.count("ลงชื่อ")
+    assert many.count("ลงชื่อ") == 2, many.count("ลงชื่อ")
+    assert "ผู้ตรวจสอบพัสดุประจำปี" in solo

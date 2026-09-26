@@ -69,9 +69,25 @@ def _members(ctx) -> list:
     return [m for m in ctx.get("members", []) if (m.get("name") or "").strip()]
 
 
-def _member_lines(doc, members):
-    """รายชื่อกรรมการเป็นตารางไร้เส้นขอบ ให้ ชื่อ/ตำแหน่ง/บทบาท ตรงคอลัมน์กัน"""
-    data = list(members) if members else [None, None, None]
+SOLO_ROLE = "ผู้ตรวจสอบพัสดุ"
+
+
+def _is_solo(ctx) -> bool:
+    """แต่งตั้งผู้ตรวจสอบพัสดุคนเดียว (ติ๊กมา หรือกรอกชื่อมาคนเดียว)"""
+    return bool(ctx.get("single")) or len(_members(ctx)) == 1
+
+
+def _member_lines(doc, members, *, solo=False):
+    """รายชื่อผู้ได้รับแต่งตั้งเป็นตารางไร้เส้นขอบ ให้ ชื่อ/ตำแหน่ง/บทบาท ตรงคอลัมน์กัน
+
+    solo=True แต่งตั้งคนเดียว -> แสดงแถวเดียว และบทบาทเป็น "ผู้ตรวจสอบพัสดุ"
+    ไม่ใช่ "ประธานกรรมการ" ซึ่งใช้ได้เฉพาะกรณีเป็นคณะกรรมการ
+    """
+    if solo:
+        first = (list(members) or [None])[0]
+        data = [dict(first, role=SOLO_ROLE) if first else None]
+    else:
+        data = list(members) if members else [None, None, None]
     widths = [Cm(1.0), Cm(6.6), Cm(4.8), Cm(4.2)]
     t = doc.add_table(rows=len(data), cols=4)
     _no_borders(t)
@@ -82,7 +98,7 @@ def _member_lines(doc, members):
             role = (m.get("role") or "กรรมการ").strip()
         else:
             name, pos = _BLANK, "ตำแหน่ง .................."
-            role = "ประธานกรรมการ" if i == 1 else "กรรมการ"
+            role = SOLO_ROLE if solo else ("ประธานกรรมการ" if i == 1 else "กรรมการ")
         for c, v, w in zip(row.cells, [f"{i}.", name, pos, role], widths):
             _set_cell(c, v, size=16, align="left")
             c.width = w
@@ -129,13 +145,13 @@ def render_appoint_memo(school, ctx, doc=None):
     _memo_header(doc, school, f"การตรวจสอบพัสดุประจำปี ประจำปีงบประมาณ พ.ศ. {year}",
                  ctx.get("memo_no") or "", _thai_be(ctx.get("date")))
     _p(doc, _LEGAL, align="justify", indent=1.25, after=2)
-    solo = bool(ctx.get("single")) or len(_members(ctx)) == 1
+    solo = _is_solo(ctx)
     who = "ผู้ตรวจสอบพัสดุประจำปี" if solo else "คณะกรรมการตรวจสอบพัสดุประจำปี"
     _p(doc, f"ดังนั้น เพื่อให้การตรวจสอบการรับจ่ายพัสดุประจำปีงบประมาณ พ.ศ. {year} เป็นไปด้วย"
             f"ความเรียบร้อยถูกต้องตามระเบียบดังกล่าวข้างต้น {_DELEG} "
             f"จึงขอแต่งตั้งบุคคลผู้มีรายนามต่อไปนี้เป็น{who}",
        align="justify", indent=1.25, after=2)
-    _member_lines(doc, _members(ctx))
+    _member_lines(doc, _members(ctx), solo=solo)
     _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณา", indent=1.25, before=2, after=12)
     _sign_table(doc, [[
         ("ลงชื่อ ......................................", "center"),
@@ -166,7 +182,7 @@ def render_appoint_order(school, ctx, doc=None):
     _p(doc, f"ที่ {ctx.get('order_no') or _BLANK}", align="center", bold=True, after=0)
     # โรงเรียนเล็กแต่งตั้ง "ผู้ตรวจสอบพัสดุ" คนเดียวได้ (ระเบียบฯ ข้อ 213 ใช้คำว่า
     # "ผู้รับผิดชอบในการตรวจสอบพัสดุ ... คนหนึ่งหรือหลายคนตามความจำเป็น")
-    solo = bool(ctx.get("single")) or len(_members(ctx)) == 1
+    solo = _is_solo(ctx)
     who = "ผู้ตรวจสอบพัสดุประจำปี" if solo else "คณะกรรมการตรวจสอบพัสดุประจำปี"
     _p(doc, f"เรื่อง แต่งตั้ง{who} ประจำปีงบประมาณ พ.ศ. {year}",
        align="center", bold=True, after=0)
@@ -174,7 +190,7 @@ def render_appoint_order(school, ctx, doc=None):
     _p(doc, _LEGAL + " " + _DELEG
             + (f" จึงแต่งตั้งบุคคลผู้มีรายนามข้างท้ายนี้เป็น{who} ดังนี้"),
        align="justify", indent=1.25, after=2)
-    _member_lines(doc, _members(ctx))
+    _member_lines(doc, _members(ctx), solo=solo)
     _p(doc, f"ให้{who}ที่ได้รับการแต่งตั้งตามคำสั่งนี้ ปฏิบัติหน้าที่ที่ได้รับมอบหมายให้บังเกิด"
             "ผลดีต่อทางราชการโดยเคร่งครัด", align="justify", indent=1.25, before=2, after=2)
     _p(doc, f"ทั้งนี้ ตั้งแต่วันที่ 1 ตุลาคม พ.ศ. {year} เป็นต้นไป", indent=1.25, after=1)
@@ -205,11 +221,14 @@ def render_result_memo(school, ctx, assets=None, doc=None):
     _memo_header(doc, school, f"รายงานผลการตรวจสอบพัสดุประจำปี ประจำปีงบประมาณ พ.ศ. {year}",
                  ctx.get("result_memo_no") or "",
                  _thai_be(ctx.get("result_date") or ctx.get("date")))
+    solo = _is_solo(ctx)
+    who = "ผู้ตรวจสอบพัสดุประจำปี" if solo else "คณะกรรมการตรวจสอบพัสดุประจำปี"
     _p(doc, f"ตามคำสั่ง{(school.name or 'โรงเรียน').strip()} ที่ {ctx.get('order_no') or _BLANK} "
-            f"เรื่อง แต่งตั้งคณะกรรมการตรวจสอบพัสดุประจำปี ประจำปีงบประมาณ พ.ศ. {year} "
+            f"เรื่อง แต่งตั้ง{who} ประจำปีงบประมาณ พ.ศ. {year} "
             "ให้ดำเนินการตรวจสอบและตรวจนับวัสดุ/ครุภัณฑ์ที่คงเหลืออยู่ ณ วันสิ้นงวด นั้น",
        align="justify", indent=1.25, after=2)
-    _p(doc, "บัดนี้ คณะกรรมการตามคำสั่งดังกล่าว ได้ดำเนินการตรวจสอบการรับ - จ่ายพัสดุเรียบร้อยแล้ว "
+    _p(doc, f"บัดนี้ {'ผู้ตรวจสอบพัสดุ' if solo else 'คณะกรรมการ'}ตามคำสั่งดังกล่าว "
+            "ได้ดำเนินการตรวจสอบการรับ - จ่ายพัสดุเรียบร้อยแล้ว "
             "ผลการตรวจสอบสรุปได้ ดังนี้", align="justify", indent=1.25, after=2)
 
     recv_note = (ctx.get("recv_note") or "").strip()
@@ -239,9 +258,14 @@ def render_result_memo(school, ctx, assets=None, doc=None):
        indent=1.25, after=2)
     _p(doc, "จึงเรียนมาเพื่อโปรดทราบและพิจารณาดำเนินการต่อไป", indent=1.25, after=12)
     members = _members(ctx)
-    for m in (members or [{"name": _BLANK, "role": "ประธานกรรมการ"},
-                          {"name": _BLANK, "role": "กรรมการ"},
-                          {"name": _BLANK, "role": "กรรมการและเลขานุการ"}]):
+    if _is_solo(ctx):
+        first = (members or [{}])[0]
+        rows = [{"name": first.get("name") or _BLANK, "role": SOLO_ROLE}]
+    else:
+        rows = members or [{"name": _BLANK, "role": "ประธานกรรมการ"},
+                           {"name": _BLANK, "role": "กรรมการ"},
+                           {"name": _BLANK, "role": "กรรมการและเลขานุการ"}]
+    for m in rows:
         _sign_table(doc, [[
             (f"ลงชื่อ ...................................... {m.get('role','กรรมการ')}", "center"),
             (f"( {m.get('name', _BLANK)} )", "center"),
@@ -435,12 +459,17 @@ def render_damaged_list(school, ctx, assets, doc=None):
     # ---- ลงชื่อกรรมการ 3 คน เรียงกันด้วยตารางไร้เส้นขอบ (บรรทัดตรงกันทุกช่อง) ----
     _p(doc, "", after=8)
     default_roles = ["ประธานกรรมการ", "กรรมการ", "กรรมการและเลขานุการ"]
-    signers = _members(ctx)[:3]
-    while len(signers) < 3:
-        signers.append({"name": "", "role": default_roles[len(signers)]})
-    st = doc.add_table(rows=3, cols=3)
+    if _is_solo(ctx):
+        first = (_members(ctx) or [{}])[0]
+        signers = [{"name": first.get("name", ""), "role": SOLO_ROLE}]
+        default_roles = [SOLO_ROLE] * 3
+    else:
+        signers = _members(ctx)[:3]
+        while len(signers) < 3:
+            signers.append({"name": "", "role": default_roles[len(signers)]})
+    st = doc.add_table(rows=3, cols=len(signers))
     _no_borders(st)
-    _fixed_cols(st, [Cm(8.5)] * 3)
+    _fixed_cols(st, [Cm(25.5 / len(signers))] * len(signers))
     _center_table(st)
     for col, mem in enumerate(signers):
         name = (mem.get("name") or "").strip()

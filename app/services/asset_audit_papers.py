@@ -72,9 +72,11 @@ def _head(doc, school, title, sub=None, year=None):
     _p(doc, "", after=4)
 
 
-def _inspector_sign(doc, ctx, *, single=False):
+def _inspector_sign(doc, ctx, *, single=None):
     """ลงชื่อท้ายกระดาษทำการ - คนเดียวหรือคณะกรรมการตามที่โรงเรียนแต่งตั้ง"""
     mem = _members(ctx)
+    if single is None:
+        single = bool(ctx.get("single"))
     _p(doc, "", after=6)
     if single or len(mem) <= 1:
         m = mem[0] if mem else {}

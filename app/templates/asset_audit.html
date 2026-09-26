@@ -69,15 +69,15 @@
     </div>
   </div>
 
-  <div class="card">
-    <h2>คณะกรรมการตรวจสอบพัสดุ <span class="muted" style="font-size:14px;">(กรรมการต้องไม่ใช่เจ้าหน้าที่พัสดุ)</span></h2>
-    <label class="nt-chk" style="margin:0 0 8px;"><input type="checkbox" name="single" value="1">
+  <div class="card" id="cmtCard">
+    <h2 id="cmtHead">คณะกรรมการตรวจสอบพัสดุ <span class="muted" style="font-size:14px;" id="cmtHint">(กรรมการต้องไม่ใช่เจ้าหน้าที่พัสดุ)</span></h2>
+    <label class="nt-chk" style="margin:0 0 8px;"><input type="checkbox" name="single" value="1" id="soloBox">
       แต่งตั้ง<b>ผู้ตรวจสอบพัสดุคนเดียว</b> (โรงเรียนเล็ก) — เอกสารจะใช้คำว่า "ผู้ตรวจสอบพัสดุประจำปี" แทน "คณะกรรมการ"</label>
     <div class="table-wrap"><table>
       <thead><tr><th style="width:45%;">ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>บทบาท</th></tr></thead>
       <tbody>
         {% for i in range(1,6) %}
-        <tr>
+        <tr data-row="{{ i }}">
           <td><input name="m{{ i }}_name" list="persons" autocomplete="off"
                      placeholder="{{ 'ประธาน' if i==1 else 'กรรมการ' }}{{ ' (ไม่บังคับ)' if i>3 else '' }}"></td>
           <td><input name="m{{ i }}_pos" list="positions" value="{{ '' if i>3 else 'ครู' }}"></td>
@@ -88,7 +88,7 @@
     </table></div>
     <datalist id="persons">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist>
     <datalist id="positions">{% for ps in positions %}<option value="{{ ps }}">{% endfor %}</datalist>
-    <p class="muted" style="font-size:13px; margin:6px 0 0;">เว้นว่างได้ ระบบจะเว้นจุดไข่ปลาให้เซ็น</p>
+    <p class="muted" style="font-size:13px; margin:6px 0 0;" id="cmtNote">เว้นว่างได้ ระบบจะเว้นจุดไข่ปลาให้เซ็น</p>
   </div>
 
   <div class="card">
@@ -111,6 +111,45 @@
 </form>
 
 <script>
+  /* ติ๊ก "ผู้ตรวจสอบพัสดุคนเดียว" -> เหลือแถวเดียว และบทบาทเป็น "ผู้ตรวจสอบพัสดุ"
+     (บทบาท "ประธานกรรมการ" ใช้ได้เฉพาะตอนแต่งตั้งเป็นคณะกรรมการ)
+     แถวที่ซ่อนถูก disable ด้วย เพื่อไม่ให้ค่าที่เคยกรอกไว้ถูกส่งไปในเอกสาร */
+  (function(){
+    var box = document.getElementById('soloBox');
+    if (!box) return;
+    var rows = Array.prototype.slice.call(
+      document.querySelectorAll('#cmtCard tbody tr[data-row]'));
+    var role1 = document.querySelector('input[name="m1_role"]');
+    var keep = role1 ? role1.value : 'ประธานกรรมการ';
+    function sync(){
+      var solo = box.checked;
+      rows.forEach(function(tr){
+        var n = parseInt(tr.dataset.row, 10);
+        var off = solo && n > 1;
+        tr.hidden = off;
+        tr.querySelectorAll('input').forEach(function(el){ el.disabled = off; });
+      });
+      if (role1) {
+        if (solo) { if (role1.value !== 'ผู้ตรวจสอบพัสดุ') keep = role1.value;
+                    role1.value = 'ผู้ตรวจสอบพัสดุ'; }
+        else if (role1.value === 'ผู้ตรวจสอบพัสดุ') { role1.value = keep; }
+        role1.readOnly = solo;
+      }
+      var head = document.getElementById('cmtHead');
+      var hint = document.getElementById('cmtHint');
+      var note = document.getElementById('cmtNote');
+      if (head) head.childNodes[0].nodeValue =
+        solo ? 'ผู้ตรวจสอบพัสดุประจำปี ' : 'คณะกรรมการตรวจสอบพัสดุ ';
+      if (hint) hint.textContent =
+        solo ? '(ต้องไม่ใช่เจ้าหน้าที่พัสดุ)' : '(กรรมการต้องไม่ใช่เจ้าหน้าที่พัสดุ)';
+      if (note) note.textContent = solo
+        ? 'แต่งตั้งคนเดียว — เอกสารทุกฉบับจะลงชื่อผู้ตรวจสอบคนนี้คนเดียว'
+        : 'เว้นว่างได้ ระบบจะเว้นจุดไข่ปลาให้เซ็น';
+    }
+    box.addEventListener('change', sync);
+    sync();
+  })();
+
   // เลือกชื่อจากทะเบียนบุคลากร -> เติมตำแหน่งให้อัตโนมัติ
   var POS = {};
   document.querySelectorAll('#persons option').forEach(function(o){ POS[o.value] = o.textContent.trim(); });
