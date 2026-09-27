@@ -15,6 +15,12 @@
   </div>
 </div>
 
+{% if request.query_params.get('imported_materials') is not none %}
+<div class="alert" role="status">นำเข้าแล้ว: วัสดุ {{ request.query_params.get('imported_materials') }} รายการ · ครุภัณฑ์ {{ request.query_params.get('imported_assets') }} ชิ้น · ข้ามรายการซ้ำ {{ request.query_params.get('skipped') }} รายการ</div>
+{% endif %}
+{% if has_imported %}<div class="alert" role="status">เรื่องนี้มีรายการที่นำเข้าแล้ว ระบบจะข้ามรายการเดิมเพื่อไม่ให้ยอดรับเข้าซ้ำ</div>{% endif %}
+{% if has_suspected %}<div class="alert" style="background:#fff3cd;" role="alert">พบประวัตินำเข้าเดิมที่ชื่อและเรื่องอ้างอิงตรงกัน แต่ยังไม่มีรหัสเชื่อมรายการ โปรดตรวจบัญชีก่อนนำเข้า ระบบตั้งรายการเหล่านี้เป็น “ไม่นำเข้า” ไว้ก่อน</div>{% endif %}
+{% if request.query_params.get('warning') == 'legacy' %}<div class="alert" role="alert">ยังไม่ได้นำเข้า: กรุณาตรวจประวัติและติ๊กยืนยันด้านล่าง หรือเลือก “ไม่นำเข้า” สำหรับรายการที่มีประวัติเดิม</div>{% endif %}
 <div class="card">
   <form method="post" action="/procurement/{{ p.id }}/to-register">
     <div class="table-wrap"><table>
@@ -23,18 +29,18 @@
         {% for r in rows %}
         {% set i = loop.index0 %}
         <tr>
-          <td><b>{{ r.it.name }}</b></td>
+          <td><b>{{ r.it.name }}</b>{% if r.imported %}<div style="color:#15803d;">✓ นำเข้าแล้ว</div>{% elif r.suspected %}<div style="color:#92400e;">⚠ พบประวัติเดิม — โปรดตรวจสอบ</div>{% endif %}</td>
           <td class="right">{{ "%g"|format(r.it.quantity) }} {{ r.it.unit }}</td>
           <td class="right">{{ "{:,.2f}".format(r.it.unit_price) }}</td>
           <td>
-            <select name="dest_{{ i }}" onchange="toggleCat(this, {{ i }})">
-              <option value="asset" {{ "selected" if r.guess=="asset" }}>ครุภัณฑ์</option>
-              <option value="material" {{ "selected" if r.guess=="material" }}>วัสดุ</option>
-              <option value="skip">ไม่นำเข้า</option>
+            <select name="dest_{{ i }}" onchange="toggleCat(this, {{ i }})" {{ "disabled" if r.imported else "" }}>
+              <option value="asset" {{ "selected" if r.guess=="asset" and not r.imported and not r.suspected }}>ครุภัณฑ์</option>
+              <option value="material" {{ "selected" if r.guess=="material" and not r.imported and not r.suspected }}>วัสดุ</option>
+              <option value="skip" {{ "selected" if r.imported or r.suspected else "" }}>ไม่นำเข้า</option>
             </select>
           </td>
           <td>
-            <select name="cat_{{ i }}" id="cat_{{ i }}" {{ "" if r.guess=="asset" else "disabled" }}>
+            <select name="cat_{{ i }}" id="cat_{{ i }}" {{ "" if r.guess=="asset" and not r.imported and not r.suspected else "disabled" }}>
               {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
             </select>
           </td>
@@ -42,6 +48,7 @@
         {% endfor %}
       </tbody>
     </table></div>
+    {% if has_suspected %}<label style="display:flex;gap:10px;align-items:flex-start;margin:16px 0;"><input type="checkbox" name="confirm_legacy" value="1" style="width:20px;height:20px;flex-shrink:0;"> ตรวจประวัติแล้ว ยืนยันนำเข้ารายการที่เลือกแม้พบประวัติเดิม (อาจทำให้ยอดซ้ำหากเคยรับเข้าแล้ว)</label>{% endif %}
     <br>
     <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> นำเข้าทะเบียน</button>
     <a class="btn gray" href="/procurement/{{ p.id }}">ยกเลิก</a>
