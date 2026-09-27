@@ -79,6 +79,38 @@ def fold_breaks(doc):
     return doc
 
 
+def shrink_tail_after_table(doc):
+    """ถ้าเอกสารจบด้วยตาราง ให้ปิดท้ายด้วยย่อหน้าเล็กจิ๋วแทน
+
+    Word บังคับให้มีย่อหน้าต่อท้ายตารางเสมอ ถ้าปล่อยให้ใช้ขนาดปกติ (~16pt)
+    แล้วตารางจบพอดีท้ายหน้า ย่อหน้านั้นจะตกไปอยู่หน้าใหม่ = ได้หน้าเปล่าปิดท้าย
+    ย่อหน้าขนาด 1pt ไม่มีระยะห่าง แทรกได้เกือบทุกกรณีจึงไม่ดันหน้า
+    """
+    from docx.oxml.ns import qn
+    from docx.shared import Pt
+    body = doc.element.body
+    kids = [e for e in body.iterchildren() if not e.tag.endswith('sectPr')]
+    if not kids or kids[-1].tag != qn('w:tbl'):
+        return doc
+    par = doc.add_paragraph()
+    pf = par.paragraph_format
+    pf.space_before = Pt(0)
+    pf.space_after = Pt(0)
+    pf.line_spacing = 1
+    # ความสูงของย่อหน้าว่างมาจาก "เครื่องหมายย่อหน้า" (w:pPr/w:rPr) ไม่ใช่ run
+    # ตั้งที่ run อย่างเดียวไม่มีผล ย่อหน้ายังสูงเท่าขนาดปกติและดันไปหน้าใหม่
+    pPr = par._p.get_or_add_pPr()
+    rPr = pPr.find(qn('w:rPr'))
+    if rPr is None:
+        rPr = pPr.makeelement(qn('w:rPr'), {})
+        pPr.append(rPr)
+    for tag in ('w:sz', 'w:szCs'):
+        el = rPr.makeelement(qn(tag), {qn('w:val'): '2'})     # 2 half-points = 1pt
+        rPr.append(el)
+    return doc
+
+
 def tidy(doc):
-    """เก็บงานท้ายเอกสารก่อนเซฟ: ตัดย่อหน้าว่างท้ายไฟล์ + ยุบ page break"""
-    return fold_breaks(strip_tail(doc))
+    """เก็บงานท้ายเอกสารก่อนเซฟ: ตัดย่อหน้าว่างท้ายไฟล์ + ยุบ page break
+    + ปิดท้ายตารางด้วยย่อหน้าจิ๋ว (กันหน้าเปล่าปิดท้าย)"""
+    return shrink_tail_after_table(fold_breaks(strip_tail(doc)))

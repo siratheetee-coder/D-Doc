@@ -302,3 +302,21 @@ def test_no_empty_paragraph_between_documents(db, school):
         pPr = nxt.find(qn('w:pPr'))
         starts_new = pPr is not None and pPr.find(qn('w:pageBreakBefore')) is not None
         assert not starts_new, f"ย่อหน้าว่างค้างก่อนขึ้นฉบับใหม่ (element {i})"
+
+
+def test_document_ending_with_table_has_tiny_tail(db, school):
+    """เอกสารที่จบด้วยตาราง ต้องปิดท้ายด้วยย่อหน้าขนาดจิ๋ว
+
+    Word บังคับให้มีย่อหน้าต่อท้ายตารางเสมอ ถ้าใช้ขนาดปกติแล้วตารางจบพอดีท้ายหน้า
+    ย่อหน้านั้นจะตกไปหน้าใหม่ = หน้าเปล่าปิดท้าย · และความสูงมาจากเครื่องหมาย
+    ย่อหน้า (w:pPr/w:rPr) ไม่ใช่ run จึงต้องตั้งที่นั่น
+    """
+    from docx.oxml.ns import qn
+    dp = _make(db, actions=("ขาย", "ทำลาย"))
+    doc = Document(ds.render_bundle(school, dp, "approve"))
+    kids = [e for e in doc.element.body.iterchildren() if not e.tag.endswith('sectPr')]
+    assert kids[-1].tag == qn('w:p'), "ท้ายไฟล์ควรเป็นย่อหน้าปิดท้ายตาราง"
+    rPr = kids[-1].find(qn('w:pPr')).find(qn('w:rPr'))
+    assert rPr is not None, "เครื่องหมายย่อหน้าไม่ได้ตั้งขนาด"
+    sz = rPr.find(qn('w:sz'))
+    assert sz is not None and int(sz.get(qn('w:val'))) <= 4, "ย่อหน้าปิดท้ายต้องจิ๋ว"
