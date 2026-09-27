@@ -53,19 +53,20 @@
   .gvid iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
   .gvid-tag { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:#b91c1c; margin:2px 0 4px; }
   .gvid-tag .icon { width:16px; height:16px; }
-  .guide-video-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
-  .guide-video-card { display:flex; flex-direction:column; overflow:hidden; border:1px solid var(--border); border-radius:14px; background:var(--surface); color:inherit; text-decoration:none; }
+  .guide-video-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .guide-video-card { display:flex; align-items:center; gap:12px; padding:12px; min-width:0; overflow:hidden; border:1px solid var(--border); border-radius:12px; background:var(--surface); color:inherit; text-decoration:none; }
   .guide-video-card:hover { border-color:var(--brand); }
   .guide-video-card:focus-visible { outline:3px solid var(--brand); outline-offset:4px; }
-  .guide-video-cover { position:relative; aspect-ratio:16/9; background:#172554; overflow:hidden; }
+  .guide-video-cover { position:relative; flex:0 0 144px; aspect-ratio:16/9; border-radius:8px; background:#172554; overflow:hidden; }
   .guide-video-cover img { display:block; width:100%; height:100%; object-fit:cover; }
   .guide-video-play { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
-  .guide-video-play span { background:#dc2626; color:white; padding:10px 22px; border-radius:14px; font-size:24px; box-shadow:0 3px 14px #0004; }
-  .guide-video-body { display:flex; flex-direction:column; flex:1; padding:18px; gap:10px; }
+  .guide-video-play span { background:#dc2626; color:white; padding:5px 12px; border-radius:8px; font-size:16px; box-shadow:0 3px 14px #0004; }
+  .guide-video-body { display:flex; flex-direction:column; flex:1; min-width:0; gap:4px; }
   .guide-video-body small { color:var(--brand); font-weight:700; }
-  .guide-video-body h3 { margin:0; font-size:17px; line-height:1.6; }
-  .guide-video-link { margin-top:auto; padding-top:6px; color:var(--brand); font-weight:700; }
-  @media(max-width:640px) { .guide-video-grid { grid-template-columns:1fr; } }
+  .guide-video-body h3 { margin:0; font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+  .guide-video-link { padding-top:4px; color:var(--brand); font-weight:700; font-size:13px; }
+  @media(max-width:900px) { .guide-video-grid { grid-template-columns:1fr; } }
+  @media(max-width:480px) { .guide-video-card { gap:10px; padding:10px; } .guide-video-cover { flex-basis:96px; } }
 </style>
 {% set px = prices | default({'p_proc':890,'p_fin':190,'p_admin':390,'p_lunch':690,'p_hr':390,'p_acad':890,'bundle':2690}) %}
 {% macro simg(name) %}<img class="step-img" src="/static/guide/{{ name }}.png" alt="" loading="lazy" onerror="this.remove()">{% endmacro %}
