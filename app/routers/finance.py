@@ -1004,14 +1004,14 @@ def receipt_voucher_doc(rid: int, db: Session = Depends(get_db)):
 def loans_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
     fy = year or current_fiscal_year()
     from app.services.dashboard_tasks import loan_state
-    from zoneinfo import ZoneInfo
+    from app.thai_utils import thai_today
     attention = request.query_params.get('attention')
     query = db.query(MoneyLoan)
     if attention not in ('overdue', 'soon', 'undated'):
         query = query.filter_by(fiscal_year=fy)
     loans = query.order_by(MoneyLoan.due_date, MoneyLoan.id).all()
     if attention in ('overdue', 'soon', 'undated'):
-        today = datetime.now(ZoneInfo('Asia/Bangkok')).date()
+        today = thai_today()
         loans = [loan for loan in loans if loan_state(loan, today)[0] == attention]
     rows = []
     for ln in loans:
@@ -1095,18 +1095,19 @@ def loan_returns_doc(lid: int, db: Session = Depends(get_db)):
 
 
 @router.get("/finance/loans/register.docx")
-def loan_register_doc(db: Session = Depends(get_db), year: int | None = None):
+def loan_register_doc(request: Request, db: Session = Depends(get_db),
+                      year: int | None = None):
     from app.services.finance_forms_doc import render_loan_register
     fy = year or current_fiscal_year()
     from app.services.dashboard_tasks import loan_state
-    from zoneinfo import ZoneInfo
+    from app.thai_utils import thai_today
     attention = request.query_params.get('attention')
     query = db.query(MoneyLoan)
     if attention not in ('overdue', 'soon', 'undated'):
         query = query.filter_by(fiscal_year=fy)
     loans = query.order_by(MoneyLoan.due_date, MoneyLoan.id).all()
     if attention in ('overdue', 'soon', 'undated'):
-        today = datetime.now(ZoneInfo('Asia/Bangkok')).date()
+        today = thai_today()
         loans = [loan for loan in loans if loan_state(loan, today)[0] == attention]
     return serve_generated(render_loan_register(get_school(db), fy, loans), _DOCX)
 

@@ -1,5 +1,6 @@
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import timedelta
+
+from app.thai_utils import thai_today
 from sqlalchemy.orm import selectinload
 from app.models import MoneyLoan, DisburseMemo, LeaveRequest, TravelRequest
 
@@ -15,7 +16,7 @@ def loan_state(loan, today):
 
 
 def finance_tasks(db, year, today=None):
-    today = today or datetime.now(ZoneInfo('Asia/Bangkok')).date()
+    today = today or thai_today()
     groups = {key: [] for key in ('overdue', 'soon', 'undated')}
     for loan in db.query(MoneyLoan).options(selectinload(MoneyLoan.returns)).all():
         state, left = loan_state(loan, today)

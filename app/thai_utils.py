@@ -6,7 +6,7 @@ thai_utils.py
 - thai_date()     : แปลงวันที่เป็นรูปแบบไทย เช่น "5 มิถุนายน 2569"
 - SCHOOL_LEVELS   : ลำดับชั้นเรียน (ใช้ร่วมกันทุกงาน - เดิมคัดลอกไว้หลายที่จนเสี่ยงหลุดกัน)
 """
-from datetime import datetime
+from datetime import date, datetime, timedelta, timezone
 
 # ลำดับชั้นเรียนมาตรฐาน (เรียงจากเล็กไปใหญ่) - ใช้ทั้งเลื่อนชั้น/จัดกลุ่ม/เรียงรายงาน
 # แหล่งความจริงเดียว: pages(เลื่อนชั้น) · lunch(ภาวะโภชนาการ) · textbooks · academic
@@ -225,3 +225,20 @@ def current_term(dt: datetime | None = None) -> int:
     if dt is None:
         dt = datetime.now()
     return 1 if 5 <= dt.month <= 10 else 2
+
+
+# เวลาประเทศไทย = UTC+7 คงที่ ไม่มี DST จึงเขียนตรง ๆ ได้
+# (เดิมใช้ ZoneInfo('Asia/Bangkok') ซึ่งต้องมีฐานข้อมูลโซนเวลาในเครื่อง
+#  บน Windows และในไฟล์ .exe ที่แพ็กแล้วไม่มี tzdata จะโยน ZoneInfoNotFoundError
+#  ทำให้หน้าที่เรียกใช้พังเป็น 500 ทั้งหน้า)
+TH_TZ = timezone(timedelta(hours=7))
+
+
+def thai_now() -> datetime:
+    """เวลาปัจจุบันตามเวลาประเทศไทย (ไม่พึ่ง tzdata)"""
+    return datetime.now(TH_TZ)
+
+
+def thai_today() -> date:
+    """วันที่ปัจจุบันตามเวลาประเทศไทย"""
+    return thai_now().date()
