@@ -13,7 +13,7 @@ import json
 from docx import Document
 from docx.shared import Cm
 
-from app.services.doc_page import set_a4
+from app.services.doc_page import set_a4, tidy
 from app.database import get_data_dir
 from app.thai_utils import thai_date, bahttext
 from app.services.book_receipt_doc import _safe
@@ -36,6 +36,7 @@ def _new(landscape: bool = False):
 
 
 def _save(doc, name: str) -> str:
+    tidy(doc)          # ตัดย่อหน้าว่างท้ายไฟล์ + ยุบ page break กันหน้าเปล่า
     out = get_data_dir() / "documents"
     out.mkdir(exist_ok=True)
     path = out / (_safe(name) + ".docx")

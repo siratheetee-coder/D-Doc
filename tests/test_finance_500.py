@@ -136,3 +136,50 @@ def test_every_plain_get_page_loads(client):
     bad = [(u, client.get(u, follow_redirects=False).status_code) for u in urls]
     bad = [x for x in bad if x[1] >= 500]
     assert not bad, "หน้าที่พัง: " + "; ".join(f"{u} -> {c}" for u, c in bad)
+
+
+def test_no_undefined_global_names():
+    """หาชื่อที่ถูกใช้แต่ไม่เคยถูก import/ประกาศในโมดูลนั้น
+
+    บั๊กแบบนี้ import ผ่าน เทสที่ไม่วิ่งผ่านบรรทัดนั้นก็ผ่าน แต่พังเป็น 500 ตอนใช้งานจริง
+    (เคยเจอ 2 ครั้ง: request ที่ไม่ได้ประกาศ และ datetime ที่เผลอตัดออกจาก import)
+    ตรวจเฉพาะชื่อที่ "ไม่มีที่ไหนเลยในโมดูล" จึงไม่เตือนพร่ำเพรื่อกับตัวแปรท้องถิ่น
+    """
+    import builtins
+
+    safe = set(dir(builtins)) | {"__file__", "__name__", "__doc__", "self", "cls"}
+    problems = []
+    for path in glob.glob(str(ROOT / "app" / "**" / "*.py"), recursive=True):
+        tree = ast.parse(pathlib.Path(path).read_text(encoding="utf-8"))
+        bound = set()
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                for a in node.names:
+                    bound.add((a.asname or a.name).split(".")[0])
+            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                bound.add(node.name)
+                args = node.args if hasattr(node, "args") else None
+                if args:
+                    for a in (args.args + args.posonlyargs + args.kwonlyargs):
+                        bound.add(a.arg)
+                    for a in (args.vararg, args.kwarg):
+                        if a:
+                            bound.add(a.arg)
+            elif isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+                bound.add(node.id)
+            elif isinstance(node, ast.ExceptHandler) and node.name:
+                bound.add(node.name)
+            elif isinstance(node, (ast.comprehension,)):
+                for t in ast.walk(node.target):
+                    if isinstance(t, ast.Name):
+                        bound.add(t.id)
+            elif isinstance(node, ast.arg):
+                bound.add(node.arg)
+            elif isinstance(node, (ast.Global, ast.Nonlocal)):
+                bound.update(node.names)
+        used = {n.id for n in ast.walk(tree)
+                if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}
+        missing = sorted(used - bound - safe)
+        if missing:
+            problems.append(f"{pathlib.Path(path).name}: {', '.join(missing)}")
+    assert not problems, "ชื่อที่ไม่ได้ประกาศ -> จะพังเป็น 500 ตอนรัน:\n" + "\n".join(problems)

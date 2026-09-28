@@ -286,3 +286,139 @@ def render_account_register(school, account, txns, opening, fiscal_year, key) ->
     if key == "revenue":
         return render_revenue_register(school, account, txns, fiscal_year)
     return render_agency_passbook(school, account, txns, opening, fiscal_year)
+
+
+# ============================== ทะเบียนคุมเงิน (ฟอร์มกลาง ใช้ได้ทุกบัญชี) ==============================
+# คอลัมน์ตามแบบฟอร์มทะเบียนคุมเงินนอกงบประมาณที่โรงเรียนใช้จริง
+#   วัน เดือน ปี | ที่เอกสาร | รายการ | รับ
+#   จ่าย  [ ลูกหนี้ | ค่าตอบแทน ค่าใช้สอย ค่าวัสดุ ค่าครุภัณฑ์ อื่น ๆ | รวมจ่าย ]
+#   คงเหลือ [ เงินสด | เงินฝากธนาคาร | เงินฝากส่วนราชการผู้เบิก ] | หมายเหตุ
+#
+# แถวแรกเป็น "ยอดยกมาจากปีงบประมาณ ก่อนหน้า" เสมอ ตามแบบฟอร์ม
+_MR_GROUPS = [
+    ("วัน เดือน ปี", []), ("ที่เอกสาร", []), ("รายการ", []), ("รับ", []),
+    ("จ่าย", ["ลูกหนี้", "ค่าตอบแทน ค่าใช้สอย\nค่าวัสดุ ค่าครุภัณฑ์ อื่น ๆ", "รวมจ่าย"]),
+    ("คงเหลือ", ["เงินสด", "เงินฝากธนาคาร", "เงินฝากส่วนราชการ\nผู้เบิก"]),
+    ("หมายเหตุ", []),
+]
+_MR_W = [Cm(2.1), Cm(2.0), Cm(4.6), Cm(2.1),
+         Cm(1.9), Cm(2.6), Cm(2.0),
+         Cm(1.9), Cm(2.2), Cm(2.3), Cm(2.3)]
+_MR_ALIGN = (["center", "center", "left", "right"]
+             + ["right", "right", "right"]
+             + ["right", "right", "right"] + ["left"])
+# ช่องคงเหลือที่ต้องลงยอด ขึ้นกับว่าบัญชีนี้เก็บเงินไว้ที่ไหน
+_BAL_COL = {"cash": 7, "bank": 8, "agency": 9}
+# คำที่บ่งว่ารายการจ่ายนั้นเป็น "ลูกหนี้" (เงินยืม) ไม่ใช่ค่าใช้จ่ายปกติ
+_DEBTOR_WORDS = ("ลูกหนี้", "ยืม", "เงินยืม")
+
+
+def _is_debtor(txn) -> bool:
+    text = " ".join(str(getattr(txn, f, "") or "") for f in ("category", "note", "ref"))
+    return any(w in text for w in _DEBTOR_WORDS)
+
+
+def render_money_register(school, account, txns, opening, fiscal_year, *,
+                          item=None, doc=None) -> str:
+    """ทะเบียนคุมเงินของบัญชีหนึ่ง (หรือรายการย่อยหนึ่ง) ตามแบบฟอร์มกลาง
+
+    item = AccountItem -> ออกทะเบียนคุมเฉพาะรายการย่อยนั้น (เช่น ค่าเครื่องแบบนักเรียน
+    ซึ่งเป็นรายการย่อยของเงินอุดหนุน) ตามที่แบบฟอร์มระบุ "ประเภทเงิน ..." ไว้ด้านบน
+    """
+    own = doc is None
+    if own:
+        doc = _new(landscape=True)
+    else:
+        _break_land(doc)
+    kind = (account.fund_type or "").strip() or "เงินนอกงบประมาณ"
+    title = ("ทะเบียนคุมเงินนอกงบประมาณ" if kind == "เงินนอกงบประมาณ"
+             else f"ทะเบียนคุม{kind}")
+    money_name = (item.name if item is not None else account.name) or ""
+    _title(doc, school, title, fiscal_year,
+           sub=f"ประเภทเงิน {money_name.strip()}"
+               + (f"  (บัญชี{account.name})" if item is not None else ""))
+
+    t = _head2(doc, _MR_GROUPS, _MR_W)
+    bal_col = _BAL_COL.get((account.deposit_type or "bank"), 8)
+
+    def blank_row():
+        return [""] * len(_MR_W)
+
+    # ---- แถวยอดยกมา ----
+    running = float(opening or 0)
+    first = blank_row()
+    first[0] = f"1 ต.ค. {fiscal_year - 1}"
+    first[2] = f"ยอดยกมาจากปีงบประมาณ {fiscal_year - 1}"
+    first[3] = _money(running)
+    first[bal_col] = _money(running)
+    _row(t, first, _MR_W, _MR_ALIGN)
+
+    total_in = total_out = total_debtor = total_exp = 0.0
+    rows = sorted(txns, key=lambda x: (x.date or datetime.min, x.id or 0))
+    for x in rows:
+        amount = float(x.amount or 0)
+        vals = blank_row()
+        vals[0] = thai_date(x.date) if x.date else ""
+        vals[1] = (x.ref or "").strip()
+        vals[2] = (x.note or x.category or "").strip()
+        if (x.kind or "in") == "in":
+            running += amount
+            total_in += amount
+            vals[3] = _money(amount)
+        else:
+            running -= amount
+            total_out += amount
+            if _is_debtor(x):
+                vals[4] = _money(amount)
+                total_debtor += amount
+            else:
+                vals[5] = _money(amount)
+                total_exp += amount
+            vals[6] = _money(amount)
+        vals[bal_col] = _money(running)
+        _row(t, vals, _MR_W, _MR_ALIGN)
+
+    _blank_rows(t, max(0, 8 - len(rows)), _MR_W, len(_MR_W))
+    sums = blank_row()
+    sums[2] = "รวม"
+    sums[3] = _money(float(opening or 0) + total_in)
+    sums[4] = _money(total_debtor)
+    sums[5] = _money(total_exp)
+    sums[6] = _money(total_out)
+    sums[bal_col] = _money(running)
+    _row(t, sums, _MR_W, _MR_ALIGN, bold=True)
+    _sign_finance(doc, school)
+    if not own:
+        return doc
+    tag = f"{money_name.strip()}" if money_name.strip() else account.name
+    return _save(doc, f"ทะเบียนคุมเงิน_{tag}_ปีงบ{fiscal_year}")
+
+
+def _break_land(doc):
+    """ขึ้นหน้าใหม่แนวนอนสำหรับทะเบียนฉบับถัดไปในชุดรวม"""
+    from docx.enum.section import WD_ORIENT, WD_SECTION
+    from app.services.doc_page import A4_H, A4_W
+    if not (doc.paragraphs or doc.tables):
+        return
+    from app.services.doc_page import strip_tail
+    strip_tail(doc)
+    sec = doc.add_section(WD_SECTION.NEW_PAGE)
+    sec.orientation = WD_ORIENT.LANDSCAPE
+    sec.page_width, sec.page_height = A4_H, A4_W
+    sec.left_margin = sec.right_margin = Cm(1.5)
+    sec.top_margin = Cm(1.5); sec.bottom_margin = Cm(1.2)
+    return sec
+
+
+def render_all_registers(school, rows, fiscal_year) -> str:
+    """ทะเบียนคุมทุกบัญชี (และทุกรายการย่อย) รวมเป็นไฟล์เดียว
+
+    rows = [(account, item_or_None, txns, opening), ...] เรียงมาแล้วจากผู้เรียก
+    """
+    if not rows:
+        raise ValueError("ยังไม่มีบัญชีให้ออกทะเบียนคุม")
+    doc = _new(landscape=True)
+    for account, item, txns, opening in rows:
+        render_money_register(school, account, txns, opening, fiscal_year,
+                              item=item, doc=doc)
+    return _save(doc, f"ทะเบียนคุมเงินทุกบัญชี_ปีงบ{fiscal_year}")

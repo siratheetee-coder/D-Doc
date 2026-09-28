@@ -13,8 +13,11 @@
           {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
         </select>
       </form>
-      <a class="btn sm" href="/finance/accounts/{{ account.id }}/ledger.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> บัญชีแยกประเภท (Word)</a>
+      {# ปุ่มหลักคือ "ทะเบียนคุมเงิน" ตามแบบฟอร์มที่โรงเรียนใช้จริง
+         ส่วนบัญชีแยกประเภทเก็บไว้เป็นทางเลือก (บางเขตขอแบบนั้น) #}
+      <a class="btn sm" href="/finance/accounts/{{ account.id }}/money-register.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> ทะเบียนคุมเงิน (Word)</a>
       <a class="btn sm green" href="/finance/accounts/{{ account.id }}/ledger.xlsx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> Excel</a>
+      <a class="btn sm gray" href="/finance/accounts/{{ account.id }}/ledger.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> บัญชีแยกประเภท</a>
       {% if special_key %}<a class="btn sm gray" href="/finance/accounts/{{ account.id }}/register.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> {{ special_label[special_key] }}</a>{% endif %}
       <a class="btn gray sm" href="/finance/accounts"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
     </div>

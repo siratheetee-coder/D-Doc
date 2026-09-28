@@ -9,7 +9,7 @@ finance.py - งานการเงิน
 from pathlib import Path
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Request, Depends, Form, UploadFile, File
+from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from sqlalchemy.orm import Session
 
@@ -27,6 +27,7 @@ from app.services.cash_report import render_cash_report, DEPOSIT_TYPES
 from app.services.fin_registers import (
     special_form, SPECIAL_LABEL, render_account_register,
     render_safe_custody, render_disburse_register,
+    render_money_register, render_all_registers,
 )
 from app.services.ledger_book_doc import (
     render_cash_book, render_cash_book_fund, build_cash_book_xlsx, build_cash_book_fund_xlsx,
@@ -121,8 +122,32 @@ def accounts_page(request: Request, db: Session = Depends(get_db), year: int | N
     accounts = db.query(FinanceAccount).order_by(FinanceAccount.name).all()
     # งบตามหมวด (รวมทุกหมวด/รายการย่อยของบัญชี ในปีงบนั้น) - โชว์ระดับบัญชี
     budget_by_acct = {}
-    for it in db.query(AccountItem).filter_by(fiscal_year=fy).all():
+    items_by_acct = {}
+    all_items = (db.query(AccountItem).filter_by(fiscal_year=fy)
+                 .order_by(AccountItem.account_id, AccountItem.id).all())
+    for it in all_items:
         budget_by_acct[it.account_id] = budget_by_acct.get(it.account_id, 0.0) + (it.budget or 0.0)
+        items_by_acct.setdefault(it.account_id, []).append(it)
+    # รับ-จ่าย-คงเหลือ รายรายการย่อย (เงินอุดหนุนต้องดูระดับรายการย่อยได้ ไม่ใช่เห็นแต่ยอดรวม)
+    flow = {}
+    for t in db.query(FinanceTxn).filter_by(fiscal_year=fy).all():
+        if not t.item_id:
+            continue
+        cur = flow.setdefault(t.item_id, {"in": 0.0, "out": 0.0})
+        cur["in" if (t.kind or "in") == "in" else "out"] += float(t.amount or 0)
+    item_rows = {}
+    for aid_, rows_ in items_by_acct.items():
+        out = []
+        for it in rows_:
+            f = flow.get(it.id, {"in": 0.0, "out": 0.0})
+            used = f["out"]
+            budget = float(it.budget or 0)
+            out.append({
+                "o": it, "budget": budget, "got": f["in"], "used": used,
+                "left": budget - used,
+                "pct": min(100, round(used / budget * 100)) if budget else 0,
+            })
+        item_rows[aid_] = out
     # จัดกลุ่มตามหมวดเงิน (งบประมาณ -> รายได้แผ่นดิน -> นอกงบประมาณ) พร้อมยอดรวมรายกลุ่ม
     # ในกลุ่มเรียงตามที่เก็บเงิน (ธนาคาร/เงินสด/ส่วนราชการ) แล้วตามชื่อ
     dep_order = {"bank": 0, "cash": 1, "agency": 2}
@@ -141,6 +166,7 @@ def accounts_page(request: Request, db: Session = Depends(get_db), year: int | N
     return templates.TemplateResponse("finance_accounts.html", {
         "request": request, "accounts": accounts, "budget_by_acct": budget_by_acct,
         "groups": groups, "fiscal_year": fy, "years": _finance_years(db, fy),
+        "item_rows": item_rows,
     })
 
 
@@ -1324,6 +1350,61 @@ def quarter_doc(db: Session = Depends(get_db), year: int | None = None, q: int =
     q = q if q in (1, 2, 3, 4) else 1
     rows, tot = _quarter_rows(db, fy, q)
     return serve_generated(render_quarter_report(get_school(db), fy, q, rows, tot), _DOCX)
+
+
+# ---------------- ทะเบียนคุมเงิน (ฟอร์มกลาง ใช้ได้ทุกบัญชีและทุกรายการย่อย) ----------------
+def _register_rows(db, fy):
+    """แถวสำหรับออกทะเบียนคุม: ทุกบัญชี + ทุกรายการย่อยที่มีงบหรือมีรายการเคลื่อนไหว
+
+    บัญชีที่มีรายการย่อย (เช่น เงินอุดหนุน) ต้องมีทะเบียนคุมของตัวเองทั้งระดับบัญชี
+    และระดับรายการย่อย ตามที่แบบฟอร์มระบุ "ประเภทเงิน ..." ไว้ด้านบน
+    """
+    rows = []
+    for a in db.query(FinanceAccount).order_by(FinanceAccount.name).all():
+        txns = [t for t in a.txns if t.fiscal_year == fy]
+        rows.append((a, None, txns, opening_for(a, fy)))
+        items = (db.query(AccountItem)
+                 .filter_by(account_id=a.id, fiscal_year=fy)
+                 .order_by(AccountItem.id).all())
+        for it in items:
+            sub = [t for t in txns if t.item_id == it.id]
+            if not sub and not (it.budget or 0):
+                continue                       # รายการย่อยที่ยังไม่มีอะไรเลย ไม่ต้องพิมพ์
+            rows.append((a, it, sub, 0.0))     # รายการย่อยไม่มียอดยกมาแยก
+    return rows
+
+
+@router.get("/finance/accounts/{aid}/money-register.docx")
+def account_money_register_docx(aid: int, db: Session = Depends(get_db),
+                                year: int | None = None, item: int | None = None):
+    """ทะเบียนคุมเงินของบัญชีนี้ (ใส่ item=<id> เพื่อออกเฉพาะรายการย่อยนั้น)"""
+    fy = year or current_fiscal_year()
+    a = db.get(FinanceAccount, aid)
+    if not a:
+        return RedirectResponse("/finance/accounts", status_code=303)
+    txns = [t for t in a.txns if t.fiscal_year == fy]
+    sub = None
+    if item:
+        sub = db.get(AccountItem, item)
+        if not sub or sub.account_id != a.id:
+            raise HTTPException(status_code=404, detail="ไม่พบรายการย่อยนี้ในบัญชี")
+        txns = [t for t in txns if t.item_id == sub.id]
+    path = render_money_register(get_school(db), a, txns,
+                                 0.0 if sub else opening_for(a, fy), fy, item=sub)
+    return serve_generated(path, _DOCX)
+
+
+# ใช้ /finance/registers.docx ไม่ใช่ /finance/accounts/registers.docx
+# เพราะจะไปชนกับ /finance/accounts/{aid} (aid เป็น int -> ได้ 422 แทนไฟล์)
+@router.get("/finance/registers.docx")
+def all_money_registers_docx(db: Session = Depends(get_db), year: int | None = None):
+    """ออกทะเบียนคุมทุกบัญชีและทุกรายการย่อย รวมเป็นไฟล์เดียว"""
+    fy = year or current_fiscal_year()
+    try:
+        path = render_all_registers(get_school(db), _register_rows(db, fy), fy)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return serve_generated(path, _DOCX)
 
 
 # ---------------- ทะเบียนคุมเฉพาะประเภทเงิน (เกาะกับบัญชีที่ครูตั้งไว้) ----------------
