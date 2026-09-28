@@ -3754,8 +3754,10 @@ def requisitions_page(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/requisitions/new", response_class=HTMLResponse)
 def requisition_new(request: Request, db: Session = Depends(get_db)):
+    requested_ids = {int(x) for x in request.query_params.getlist('material_id') if x.isascii() and x.isdigit() and len(x) < 16}
+    selected_ids = [x.id for x in db.query(MaterialItem).filter(MaterialItem.id.in_(requested_ids)).order_by(MaterialItem.name).all()] if requested_ids else []
     return templates.TemplateResponse("requisition_form.html", {
-        "request": request, "items": db.query(MaterialItem).order_by(MaterialItem.name).all(),
+        "request": request, "selected_ids": selected_ids, "items": db.query(MaterialItem).order_by(MaterialItem.name).all(),
         "persons": db.query(Person).order_by(Person.name).all(),
         "departments": db.query(Department).order_by(Department.name).all(),
         "today_thai": be_date_input(datetime.now()),
@@ -3882,26 +3884,41 @@ def to_register_page(proc_id: int, request: Request, db: Session = Depends(get_d
         return RedirectResponse("/procurement", status_code=303)
     # เดาประเภทให้: ราคา/หน่วย ≥ เกณฑ์ครุภัณฑ์ (10,000) -> ครุภัณฑ์, ไม่งั้น -> วัสดุ
     ASSET_THRESHOLD = 10000
+    from app.services.register_import import import_history
+    done, suspected = import_history(db, proc)
     rows = []
     for it in proc.items:
         guess = "asset" if (it.unit_price or 0) >= ASSET_THRESHOLD else "material"
-        rows.append({"it": it, "guess": guess})
+        rows.append({"it": it, "guess": guess, "imported": it.id in done, "suspected": it.id in suspected})
     return templates.TemplateResponse("to_register.html", {
         "request": request, "p": proc, "rows": rows,
-        "categories": CATEGORIES, "asset_threshold": ASSET_THRESHOLD,
+        "categories": CATEGORIES, "asset_threshold": ASSET_THRESHOLD, "has_imported": bool(done), "has_suspected": bool(suspected),
     })
 
 
 @router.post("/procurement/{proc_id}/to-register")
 async def to_register_save(proc_id: int, request: Request, db: Session = Depends(get_db)):
+    from sqlalchemy import update
+    from app.services.register_import import import_history, reserve_import
+    form = await request.form()
+    # Acquire a write lock before reading history so concurrent imports cannot duplicate stock.
+    db.execute(update(Procurement).where(Procurement.id == proc_id).values(id=proc_id))
     proc = db.get(Procurement, proc_id)
     if not proc:
         return RedirectResponse("/procurement", status_code=303)
-    form = await request.form()
+    done, suspected = import_history(db, proc)
+    if any(it.id in suspected and form.get(f'dest_{i}') in ('asset', 'material') for i, it in enumerate(proc.items)) and form.get('confirm_legacy') != '1':
+        db.rollback()
+        return RedirectResponse(f'/procurement/{proc_id}/to-register?warning=legacy', status_code=303)
     vendor_name = proc.vendor.name if proc.vendor else ""
-    n_asset = n_material = 0
+    n_asset = n_material = skipped = 0
     for idx, it in enumerate(proc.items):
         dest = form.get(f"dest_{idx}")        # asset / material / skip
+        if dest not in ('asset', 'material'):
+            continue
+        if not reserve_import(db, proc.id, it.id, dest):
+            skipped += 1
+            continue
         if dest == "asset":
             qty = int(it.quantity or 1)
             category = form.get(f"cat_{idx}") or "ครุภัณฑ์สำนักงาน"
@@ -3918,7 +3935,7 @@ async def to_register_save(proc_id: int, request: Request, db: Session = Depends
                 n_asset += 1
         elif dest == "material":
             # หาวัสดุชื่อเดียวกัน ถ้าไม่มีสร้างใหม่ แล้วบันทึกรับเข้า
-            m = db.query(MaterialItem).filter(MaterialItem.name == it.name).first()
+            m = db.query(MaterialItem).filter(MaterialItem.name == it.name, MaterialItem.unit == (it.unit or "หน่วย")).first()
             if not m:
                 m = MaterialItem(name=it.name, unit=it.unit or "หน่วย")
                 db.add(m); db.flush()
@@ -3931,4 +3948,4 @@ async def to_register_save(proc_id: int, request: Request, db: Session = Depends
             n_material += 1
     db.commit()
     return RedirectResponse(
-        f"/procurement/{proc_id}?registered={n_asset}a{n_material}m", status_code=303)
+        f"/procurement/{proc_id}/to-register?imported_assets={n_asset}&imported_materials={n_material}&skipped={skipped}", status_code=303)

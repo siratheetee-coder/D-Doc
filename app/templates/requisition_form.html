@@ -48,9 +48,10 @@
     {% for it in items %}{id:{{ it.id }}, name:{{ it.name|tojson }}, unit:{{ it.unit|tojson }}, bal:{{ mat_balance(it) }}},
     {% endfor %}
   ];
+  function escapeMaterial(value){var el=document.createElement('span');el.textContent=value || '';return el.innerHTML;}
   function matOptions() {
     return '<option value="">- เลือกวัสดุ หรือพิมพ์ชื่อใหม่ -</option>' +
-      MATS.map(function(m){return '<option value="'+m.id+'">'+m.name+' (คงเหลือ '+m.bal+' '+m.unit+')</option>';}).join('');
+      MATS.map(function(m){return '<option value="'+m.id+'">'+escapeMaterial(m.name)+' (คงเหลือ '+m.bal+' '+escapeMaterial(m.unit)+')</option>';}).join('');
   }
   function addRow(name, qty, unit){
     var tr = document.createElement('tr');
@@ -114,6 +115,8 @@
       if(this.value!==o)this.value=o;
     });
   });
-  addRow();  // เริ่มต้น 1 แถว
+  var selectedIds = {{ selected_ids|default([])|tojson }};
+  selectedIds.forEach(function(id){var row=addRow();var select=row.querySelector('select');select.value=id;pick(select);});
+  if(!selectedIds.length) addRow();
 </script>
 {% endblock %}

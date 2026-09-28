@@ -1057,6 +1057,16 @@ class MaterialItem(Base):
                         cascade="all, delete-orphan", order_by="MaterialTxn.id")
 
 
+class ProcurementRegisterImport(Base):
+    """Durable per-source-line receipt; intentionally survives target deletion."""
+    __tablename__ = "procurement_register_import"
+    key = Column(String, primary_key=True)
+    procurement_id = Column(Integer, nullable=False, index=True)
+    item_id = Column(Integer, nullable=False)
+    destination = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+
+
 class MaterialTxn(Base):
     """การเคลื่อนไหววัสดุ: รับเข้า (in) / จ่ายออก (out)"""
     __tablename__ = "material_txn"

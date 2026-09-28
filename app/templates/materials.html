@@ -52,14 +52,21 @@
 <div class="card">
   <h2>รายการวัสดุในคลัง</h2>
   {% if items %}
+  <form id="material-selection" action="/requisitions/new" method="get" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px;background:#eff6ff;border-radius:12px;">
+    <label style="display:flex;gap:8px;align-items:center;"><input type="checkbox" id="select-materials" style="width:20px;height:20px;"> เลือกทั้งหมดที่มีคงเหลือ</label>
+    <span id="selection-count" aria-live="polite">เลือก 0 รายการ</span>
+    <button class="btn" id="issue-selected" disabled>เบิกรายการที่เลือก →</button>
+    <span class="muted">ไปกรอกจำนวนในหน้าเบิกวัสดุ</span>
+  </form>
   {% for cname, rows in groups %}
   <h3 style="margin:14px 0 6px; color:#1d4ed8;">{{ cname }} <span class="muted" style="font-weight:400; font-size:14px;">({{ rows|length }} รายการ)</span></h3>
   <div class="table-wrap"><table>
-    <thead><tr><th>ชื่อวัสดุ</th><th>หน่วย</th><th class="right">คงเหลือ</th><th>สถานะ</th><th></th></tr></thead>
+    <thead><tr><th>เลือก</th><th>ชื่อวัสดุ</th><th>หน่วย</th><th class="right">คงเหลือ</th><th>สถานะ</th><th></th></tr></thead>
     <tbody>
       {% for it in rows %}
       {% set bal = mat_balance(it) %}
       <tr>
+        <td><input type="checkbox" class="material-choice" form="material-selection" name="material_id" value="{{ it.id }}" aria-label="เลือก {{ it.name }}" style="width:20px;height:20px;" {{ 'disabled' if bal <= 0 else '' }}></td>
         <td><a href="/materials/{{ it.id }}"><b>{{ it.name }}</b></a></td>
         <td>{{ it.unit }}</td>
         <td class="right"><b>{{ "%g"|format(bal) }}</b></td>
@@ -84,6 +91,22 @@
 </div>
 
 <script>
+  var choices = Array.from(document.querySelectorAll('.material-choice:not(:disabled)'));
+  var selectAll = document.getElementById('select-materials');
+  function updateSelection(){
+    var count = choices.filter(function(c){return c.checked;}).length;
+    document.getElementById('selection-count').textContent = 'เลือก ' + count + ' รายการ';
+    document.getElementById('issue-selected').disabled = !count;
+    selectAll.checked = choices.length > 0 && count === choices.length;
+    selectAll.indeterminate = count > 0 && count < choices.length;
+  }
+  if(selectAll){
+    selectAll.addEventListener('change', function(){choices.forEach(function(c){c.checked=selectAll.checked;});updateSelection();});
+    choices.forEach(function(c){c.addEventListener('change',updateSelection);});
+    window.addEventListener('pageshow',updateSelection);
+    updateSelection();
+  }
+
   function _me(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
   function mAddRow(name, unit, qty, min){
     var tb = document.querySelector('#mbulk tbody');
