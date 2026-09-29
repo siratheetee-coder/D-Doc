@@ -55,8 +55,11 @@ def test_wht_certificate_fills_tax_ids():
         db.delete(m1); db.delete(m2); db.delete(v); db.commit()
 
 
-def test_procurement_wht_certificate():
+def test_procurement_wht_in_document_set():
+    """งานพัสดุ: หนังสือรับรองแบบ 4235 อยู่ในรายการเลือกเอกสาร (ใบสุดท้าย) เฉพาะเรื่องที่ตั้งอัตราหักไว้
+    ออกทีละใบ / รวมในชุดได้ · ไม่มีการ์ดแยกแล้ว"""
     from app.models import Procurement
+    from app.services.render import WHT_KIND, kinds_for
     c = _login(); db = _db()
     v = Vendor(name=MARK + "ร้านซ่อม", tax_id="3440100123456", address="5 ถ.ทดสอบ")
     db.add(v); db.commit()
@@ -67,16 +70,27 @@ def test_procurement_wht_certificate():
                      total_amount=500, wht_rate=0)
     db.add_all([p, p0]); db.commit()
     try:
-        t = _text(c.get(f"/procurement/{p.id}/wht.docx"))
-        assert "3440100123456" in t and "5 ถ.ทดสอบ" in t
-        assert "ค่าจ้างทำของ" in t
-        assert "10,000.00" in t and "100.00" in t      # ฐานก่อน VAT 10,000 · หัก 1% = 100
-        assert "15 ก.ย. 2569" in t
-        page = c.get(f"/procurement/{p.id}").text
-        assert f"/procurement/{p.id}/wht.docx" in page
-        page0 = c.get(f"/procurement/{p0.id}").text
-        assert f"/procurement/{p0.id}/wht.docx" not in page0   # ไม่ได้ตั้งอัตรา -> ไม่มีปุ่ม
+        assert kinds_for(p)[-1] == WHT_KIND                 # ใบสุดท้ายของชุด
+        assert WHT_KIND not in kinds_for(p0)                # ไม่ได้หักภาษี -> ไม่มีให้เลือก
+        page = c.get(f"/procurement/{p.id}/bundle").text
+        assert WHT_KIND in page
+        assert WHT_KIND not in c.get(f"/procurement/{p0.id}/bundle").text
+        detail = c.get(f"/procurement/{p.id}").text
+        assert "wht.docx" not in detail                     # การ์ดแยกเอาออกแล้ว
+
+        t = _text(c.post(f"/procurement/{p.id}/generate", data={"doc_kind": WHT_KIND}))
+        assert "แบบ 4235" in t and "3440100123456" in t and "5 ถ.ทดสอบ" in t
+        assert "ค่าจ้างทำของ" in t and "จ5/2569" in t and "15 ก.ย. 2569" in t
+        assert "10,000.00" in t and "100.00" in t            # ฐานก่อน VAT 10,000 · หัก 1% = 100
+
+        r = c.post(f"/procurement/{p.id}/bundle",
+                   data={"kinds": ["รายงานขอซื้อ", WHT_KIND]})
+        tb = _text(r)
+        assert "แบบ 4235" in tb and "3440100123456" in tb    # รวมในชุดเดียวได้
     finally:
+        from app.models import Document
+        db.query(Document).filter(Document.procurement_id.in_([p.id, p0.id])).delete(
+            synchronize_session=False)
         db.delete(p); db.delete(p0); db.delete(v); db.commit()
 
 

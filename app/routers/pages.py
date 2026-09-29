@@ -38,7 +38,7 @@ from app.services.asset_utils import (
 from app.services.doc_number import suggest_doc_no, commit_doc_no, check_doc_no, COUNTER_TYPES, parse_seq
 from app.services.budget import current_plan_year, plan_year_label, project_budget, project_spent
 from app.services.render import (render_document, render_bundle, AVAILABLE_KINDS,
-                                 kinds_for, book_purchase_of)
+                                 kinds_for, book_purchase_of, WHT_KIND)
 from app.services.register_export import export_register
 from app.services.thai_holidays import holiday_map, year_range_for
 from app.services.bulk_io import build_import_template, import_workbook
@@ -2327,7 +2327,7 @@ def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get
         }
     return templates.TemplateResponse("procurement_detail.html", {
         "request": request, "p": proc, "school": get_school(db),
-        "doc_kinds": kinds_for(proc), "inspect": inspect, "documents": docs,
+        "doc_kinds": kinds_for(proc), "wht_kind": WHT_KIND, "inspect": inspect, "documents": docs,
         "statuses": ["ร่าง", "อนุมัติ", "ตรวจรับแล้ว", "เบิกจ่ายแล้ว"],
         # เลขที่ที่ระบบเสนอ (ไว้เติมช่องว่างในฟอร์มแก้ไข)
         "sug_order": suggest_doc_no(db, order_type, fy),
@@ -2523,37 +2523,6 @@ def procurement_receipt_voucher(proc_id: int, db: Session = Depends(get_db)):
         school, payee=payee, payee_address=payee_addr, items=items,
         total=round(float(proc.total_amount or 0), 2), payer=payer,
         subject=(proc.order_no or proc.memo_no or str(proc.id)))
-    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-
-
-@router.get("/procurement/{proc_id}/wht.docx")
-def procurement_wht(proc_id: int, db: Session = Depends(get_db)):
-    """หนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) ของเรื่องจัดซื้อ/จ้าง
-    ภาษี = อัตราหัก ณ ที่จ่ายของเรื่อง x มูลค่าก่อน VAT (สูตรเดียวกับใบเบิกจ่ายในชุดเอกสาร)"""
-    from types import SimpleNamespace
-    from app.services.finance_forms_doc import render_wht_certificate
-    proc = db.get(Procurement, proc_id)
-    if not proc:
-        return RedirectResponse("/procurement", status_code=303)
-    total = float(proc.total_amount or 0)
-    if proc.vat_mode == "include":
-        goods = round(total / 1.07, 2)
-    else:
-        goods = total
-    wht = round(goods * float(proc.wht_rate or 0) / 100, 2)
-    v = proc.vendor
-    memo = SimpleNamespace(
-        id=proc.id, memo_no=proc.order_no or proc.memo_no or "",
-        amount=total, vat=round(total - goods, 2), wht=wht,
-        fine=round(total * float(proc.penalty_rate or 0.10) / 100 * (proc.overdue_days or 0), 2),
-        payee=(v.name if v else "") or "",
-        date=proc.inspect_date or proc.delivery_date or proc.order_date)
-    pay_type = "ค่าจ้างทำของ" if (proc.proc_type or "") == "จ้าง" else "ค่าซื้อพัสดุ"
-    path = render_wht_certificate(
-        get_school(db), memo,
-        payee_tax_id=((v.tax_id or "").strip() if v else ""),
-        payee_address=((v.address or "").strip() if v else ""),
-        pay_type=pay_type, rate=float(proc.wht_rate or 0))
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 

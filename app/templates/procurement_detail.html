@@ -348,6 +348,12 @@
   {% else %}
   <a class="btn" href="/procurement/{{ p.id }}/altdoc/{{ case_info.altkind }}"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเอกสาร {{ case_info.label }}</a>
   {% endif %}
+  {% if wht_kind in doc_kinds %}
+  <form method="post" action="/procurement/{{ p.id }}/generate" style="margin-top:10px;">
+    <input type="hidden" name="doc_kind" value="{{ wht_kind }}">
+    <button class="btn gray sm" type="submit"><svg class="icon"><use href="#ic-file"/></svg> {{ wht_kind }}</button>
+  </form>
+  {% endif %}
   {{ next_steps(p, modules_live) }}
 </div>
 {% endif %}
@@ -356,16 +362,6 @@
   <h2><svg class="icon"><use href="#ic-file"/></svg> ใบสำคัญรับเงิน</h2>
   <p class="muted" style="margin-top:0;">ฟอร์มใบสำคัญรับเงิน (ผู้ขาย/ผู้รับจ้าง ลงชื่อรับเงิน) ดึงชื่อผู้ขาย รายการ และวงเงินมาให้ · กรอกที่อยู่/สตางค์เพิ่มในไฟล์ได้</p>
   <a class="btn gray" href="/procurement/{{ p.id }}/receipt-voucher"><svg class="icon"><use href="#ic-download"/></svg> ออกใบสำคัญรับเงิน</a>
-</div>
-
-<div class="card">
-  <h2><svg class="icon"><use href="#ic-file"/></svg> หนังสือรับรองการหักภาษี ณ ที่จ่าย (แบบ 4235)</h2>
-  {% if (p.wht_rate or 0) > 0 %}
-  <p class="muted" style="margin-top:0;">หักร้อยละ {{ '%g'|format(p.wht_rate) }} ของมูลค่าก่อน VAT · ดึงเลขผู้เสียภาษี/ที่อยู่ของผู้ขายจากทะเบียนผู้ขาย และเลขผู้เสียภาษีของโรงเรียนจากหน้าตั้งค่า</p>
-  <a class="btn gray" href="/procurement/{{ p.id }}/wht.docx"><svg class="icon"><use href="#ic-download"/></svg> ออกหนังสือรับรอง (แบบ 4235)</a>
-  {% else %}
-  <p class="muted" style="margin:0;">เรื่องนี้ยังไม่ได้ตั้งอัตราหักภาษี ณ ที่จ่าย · ไปที่ <a href="/procurement/{{ p.id }}/edit">แก้ไขเรื่อง</a> แล้วกรอกช่อง "ภาษีหัก ณ ที่จ่าย (%)" ก่อน</p>
-  {% endif %}
 </div>
 
 {% if not case_info.altkind %}

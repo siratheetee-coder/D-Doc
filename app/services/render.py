@@ -272,8 +272,40 @@ def book_purchase_of(proc):
         return None
 
 
+# เอกสารที่สร้างด้วยโค้ด (ไม่มีแม่แบบ .docx) - ต่อท้ายชุดเอกสารพัสดุ
+WHT_KIND = "หนังสือรับรองการหักภาษี ณ ที่จ่าย (แบบ 4235)"
+
+
+def render_proc_wht(proc, school) -> str:
+    """หนังสือรับรองการหักภาษี ณ ที่จ่าย แบบ 4235 ของเรื่องจัดซื้อ/จ้าง
+    ภาษี = อัตราหัก ณ ที่จ่ายของเรื่อง x มูลค่าก่อน VAT (สูตรเดียวกับใบเบิกจ่ายในชุด)
+    ค่าปรับ = วันที่ส่งมอบเกินกำหนด (แสดงบรรทัดค่าปรับ ไม่รวมในยอดภาษี)"""
+    from types import SimpleNamespace
+    from app.services.finance_forms_doc import write_wht_4235, _new, _save
+    total = float(proc.total_amount or 0)
+    goods = round(total / 1.07, 2) if proc.vat_mode == "include" else total
+    wht = round(goods * float(getattr(proc, "wht_rate", 0) or 0) / 100, 2)
+    fine = round(total * float(proc.penalty_rate or 0.10) / 100 * (proc.overdue_days or 0), 2)
+    v = proc.vendor
+    memo = SimpleNamespace(
+        id=proc.id, memo_no=proc.order_no or proc.memo_no or "",
+        amount=total, vat=round(total - goods, 2), wht=wht, fine=fine,
+        payee=(v.name if v else "") or "",
+        date=proc.inspect_date or proc.delivery_date or proc.order_date)
+    doc = _new()
+    write_wht_4235(
+        doc, school, memo,
+        payee_tax_id=((v.tax_id or "").strip() if v else ""),
+        payee_address=((v.address or "").strip() if v else ""),
+        pay_type="ค่าจ้างทำของ" if (proc.proc_type or "") == "จ้าง" else "ค่าซื้อพัสดุ",
+        rate=float(getattr(proc, "wht_rate", 0) or 0))
+    return _save(doc, f"หนังสือรับรองหักภาษีณที่จ่าย_{_doc_seq(proc)}")
+
+
 def render_document(kind: str, proc, school) -> str:
     """สร้างไฟล์เอกสารชนิด kind จากแม่แบบ คืนค่าที่อยู่ไฟล์"""
+    if kind == WHT_KIND:
+        return render_proc_wht(proc, school)
     # TOR ของเรื่องที่มาจากหนังสือเรียน ใช้ฉบับเฉพาะ (8 หัวข้อ + รายการหนังสือแนบท้าย)
     # แทนแม่แบบ TOR ทั่วไป เพราะมีคุณสมบัติผู้เสนอราคา/หลักฐานเสนอราคา/หลักประกันครบตามแฟ้มจริง
     tp = book_purchase_of(proc)
@@ -354,9 +386,10 @@ DOC_ORDER = [
     "ใบส่งมอบงาน",                    # 9 ส่งมอบ
     "ใบตรวจรับพัสดุ",                 # 10 ตรวจรับ (กรรมการลงนาม)
     "รายงานผลตรวจรับและเบิกจ่าย",    # 11 บันทึกเสนอผลตรวจรับ + การเงิน + อนุมัติเบิกจ่าย
+    WHT_KIND,                         # 12 หนังสือรับรองหักภาษี ณ ที่จ่าย (เฉพาะเรื่องที่ตั้งอัตราหักไว้)
 ]
-# ตรวจว่าครบและตรงกับแม่แบบที่มี (กันพิมพ์ชื่อผิด)
-assert set(DOC_ORDER) == set(TEMPLATE_FILES), "DOC_ORDER ไม่ตรงกับ TEMPLATE_FILES"
+# ตรวจว่าครบและตรงกับแม่แบบที่มี (กันพิมพ์ชื่อผิด) - ยกเว้นเอกสารที่สร้างด้วยโค้ด
+assert set(DOC_ORDER) - {WHT_KIND} == set(TEMPLATE_FILES), "DOC_ORDER ไม่ตรงกับ TEMPLATE_FILES"
 
 # ชนิดเอกสารที่สร้างได้ (เรียงตามลำดับมาตรฐาน) ใช้แสดงปุ่ม/รวมไฟล์
 AVAILABLE_KINDS = DOC_ORDER
@@ -376,6 +409,8 @@ def kinds_for(proc):
     for k in DOC_ORDER:
         if k in skip:
             continue
+        if k == WHT_KIND and not float(getattr(proc, "wht_rate", 0) or 0) > 0:
+            continue                      # ไม่ได้หักภาษี ณ ที่จ่าย -> ไม่มีหนังสือรับรอง
         need = _NEEDS_COMMITTEE.get(k)
         if need:
             c = _find_committee(proc, need)
