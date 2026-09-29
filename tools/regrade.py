@@ -8,10 +8,12 @@ regrade.py — คิดเกรดจากคะแนนใหม่ทุ�
 ไม่แตะ:
   - เกรด ร / มส / ผ / มผ (ครูเลือกเองแน่นอน)
   - แถวที่มีเกรดแต่ไม่มีคะแนนเลย (ครูเลือกเกรดเองโดยไม่กรอกคะแนน)
+  - เกรดรายปีของคนที่ยังคิดจาก 2 ภาคไม่ได้ (อาจเป็นข้อมูลรุ่นเก่าที่กรอกทั้งปีครั้งเดียว) -> ไม่ลบ
 
 ใช้:
   python tools/regrade.py            # นับอย่างเดียว ไม่เขียนอะไร (ค่าเริ่มต้น)
   python tools/regrade.py --detail   # นับ + แจกแจงรายวิชา
+  python tools/regrade.py --rows     # นับ + ทุกแถวที่จะเปลี่ยน (รหัสนักเรียน/ร้อยละ/เกรดเดิม->ใหม่)
   python tools/regrade.py --apply    # เขียนจริง (สำรองข้อมูลก่อน: python tools/backup_all.py)
 """
 import sys
@@ -34,10 +36,11 @@ def _denom(db, subj, t):
 
 
 def regrade_school(db, apply: bool):
-    """คืน (แถวภาคที่เกรดเปลี่ยน, แถวรายปีที่เปลี่ยน, รายละเอียดรายวิชา, ตัวอย่างการเปลี่ยน)"""
+    """คืน (แถวภาคที่เกรดเปลี่ยน, แถวรายปีที่เปลี่ยน, รายละเอียดรายวิชา, สถิติการเปลี่ยน, ทุกแถว)"""
     n_term = n_year = 0
     per_subject = []
     moves = Counter()
+    rows_out = []
     for subj in db.query(AcadSubject).all():
         sec = is_secondary(subj.level)
         terms = [subj.term if subj.term in (1, 2) else 1] if sec else [1, 2]
@@ -52,9 +55,12 @@ def regrade_school(db, apply: bool):
                     continue
                 if r.score is None:
                     continue                      # ไม่มีคะแนน = ครูเลือกเกรดเอง -> ไม่แตะ
-                new = grade_of(r.score * 100.0 / denom)
+                pct = r.score * 100.0 / denom
+                new = grade_of(pct)
                 if new != old:
                     moves[(old or "(ว่าง)", new)] += 1
+                    rows_out.append((subj, f"ภาค {t}", r.acad_student_id,
+                                     f"{r.score:g}/{denom:g} = {pct:.1f}%", old, new))
                     ch_term += 1
                     r.grade = new
         ch_year = 0
@@ -66,16 +72,21 @@ def regrade_school(db, apply: bool):
                 res = _annual_result(rows_by.get((sid, 1)), rows_by.get((sid, 2)), denoms)
                 row = ann.get(sid)
                 old = (row.grade or "").strip() if row else ""
-                new = res[1] if res else ""
+                if res is None:
+                    continue                      # คิดจาก 2 ภาคไม่ได้ -> ไม่แตะเกรดรายปีเดิม
+                new = res[1]
                 if new != old:
                     ch_year += 1
-                    if res:
-                        if row is None:
-                            row = AcadScore(acad_student_id=sid, subject_id=subj.id, term=0)
-                            db.add(row)
-                        row.score, row.grade, row.grade_manual = res[0], res[1], False
-                    elif row is not None:
-                        row.score, row.grade = None, ""
+                    r1, r2 = rows_by.get((sid, 1)), rows_by.get((sid, 2))
+                    info = (f"ภาค1 {r1.score if r1 else '-'}/{denoms[1]:g} · "
+                            f"ภาค2 {r2.score if r2 else '-'}/{denoms[2]:g} -> เฉลี่ย "
+                            + (f"{res[0]:.2f}%" if res[0] is not None else "-")
+                            + f" (เดิมเก็บ {row.score if row else '-'})")
+                    rows_out.append((subj, "รายปี", sid, info, old, new))
+                    if row is None:
+                        row = AcadScore(acad_student_id=sid, subject_id=subj.id, term=0)
+                        db.add(row)
+                    row.score, row.grade, row.grade_manual = res[0], res[1], False
         if ch_term or ch_year:
             per_subject.append((subj, ch_term, ch_year))
         n_term += ch_term
@@ -84,12 +95,13 @@ def regrade_school(db, apply: bool):
         db.commit()
     else:
         db.rollback()
-    return n_term, n_year, per_subject, moves
+    return n_term, n_year, per_subject, moves, rows_out
 
 
 def main():
     apply = "--apply" in sys.argv
-    detail = "--detail" in sys.argv
+    show_rows = "--rows" in sys.argv
+    detail = "--detail" in sys.argv or show_rows
     root = get_data_dir() / "schools"
     ids = sorted((p.name for p in root.iterdir() if (p / "school.db").exists()),
                  key=lambda x: (not x.isdigit(), int(x) if x.isdigit() else 0, x))
@@ -101,7 +113,7 @@ def main():
         current_school_id.set(key)
         db = session_for(key)
         try:
-            t, y, subs, moves = regrade_school(db, apply)
+            t, y, subs, moves, rows_out = regrade_school(db, apply)
             if not (t or y):
                 continue
             n_sch += 1
@@ -113,6 +125,11 @@ def main():
                 for subj, ct, cy in subs:
                     print(f"    {subj.year} {subj.level} {subj.code or ''} {subj.name}"
                           f" (ภาค {subj.term or '1-2'}): ภาค {ct} · รายปี {cy}")
+            if show_rows:
+                print("    --- ทุกแถวที่จะเปลี่ยน ---")
+                for subj, kind, stu, info, old, new in rows_out:
+                    print(f"    {subj.level} {subj.code or ''} {kind} นร.id {stu}: {info} :"
+                          f" {old or '(ว่าง)'} -> {new or '(ว่าง)'}")
         finally:
             db.close()
     print(f"\nรวม: {n_sch} โรงเรียน · เกรดรายภาคเปลี่ยน {tot_t} แถว · เกรดรายปีเปลี่ยน {tot_y} แถว")
