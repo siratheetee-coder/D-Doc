@@ -959,13 +959,18 @@ def director_person_ids(tenant_id) -> list:
 
 def get_account_access(uid) -> dict | None:
     """สิทธิ์บัญชีสด ๆ จาก DB (ใช้ใน middleware กัน session ค้าง)
-    คืน {is_owner, modules, active} หรือ None ถ้าไม่พบบัญชี"""
+    คืน {uid, username, display_name, is_owner, modules, active, ...} หรือ None ถ้าไม่พบบัญชี
+
+    uid/username/display_name ต้องมีด้วย เพราะ usage.record() ใช้ระบุว่าใครใช้งาน
+    (ถ้าไม่มี uid สถิติการใช้งานในคอนโซลจะว่างเปล่าทั้งระบบ)"""
     db = acc_session()
     try:
         u = db.query(Account).filter_by(id=uid).first()
         if not u:
             return None
-        return {"is_owner": bool(u.is_owner), "modules": u.modules or "", "active": bool(u.active),
+        return {"uid": u.id, "username": u.username or "",
+                "display_name": u.display_name or "",
+                "is_owner": bool(u.is_owner), "modules": u.modules or "", "active": bool(u.active),
                 "is_director": bool(getattr(u, "is_director", False)),
                 "welcomed": bool(u.welcomed), "person_id": u.person_id}
     finally:
