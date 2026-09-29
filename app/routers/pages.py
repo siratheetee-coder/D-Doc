@@ -2637,6 +2637,11 @@ def bundle_page(proc_id: int, request: Request, db: Session = Depends(get_db)):
     if not (spec and spec.members):
         exclude |= SPEC_KINDS
     kinds = [{"name": k, "checked": k not in exclude} for k in kinds_for(proc)]
+    # หนังสือรับรองหักภาษี ณ ที่จ่าย ให้เห็นในรายการเสมอ จะได้รู้ว่ามีใบนี้ให้ออก
+    # แต่ถ้ายังไม่ได้ตั้งอัตราหักไว้ ออกไม่ได้ (จะได้ใบเปล่า) จึงล็อกไว้พร้อมบอกวิธีแก้
+    if WHT_KIND not in {k["name"] for k in kinds}:
+        kinds.append({"name": WHT_KIND, "checked": False,
+                      "blocked": "ยังไม่ได้ตั้งอัตราภาษีหัก ณ ที่จ่ายของเรื่องนี้"})
     return templates.TemplateResponse("bundle.html", {
         "request": request, "p": proc, "kinds": kinds,
         "is_large": is_large, "threshold": threshold,

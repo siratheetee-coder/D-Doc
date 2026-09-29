@@ -73,8 +73,15 @@ def test_procurement_wht_in_document_set():
         assert kinds_for(p)[-1] == WHT_KIND                 # ใบสุดท้ายของชุด
         assert WHT_KIND not in kinds_for(p0)                # ไม่ได้หักภาษี -> ไม่มีให้เลือก
         page = c.get(f"/procurement/{p.id}/bundle").text
-        assert WHT_KIND in page
-        assert WHT_KIND not in c.get(f"/procurement/{p0.id}/bundle").text
+        assert WHT_KIND in page and "ยังไม่ได้ตั้งอัตรา" not in page
+        # เรื่องที่ยังไม่ได้ตั้งอัตราหัก: เห็นใบนี้ในรายการเสมอ แต่ติ๊กไม่ได้ + บอกวิธีแก้
+        page0 = c.get(f"/procurement/{p0.id}/bundle").text
+        assert WHT_KIND in page0 and "ยังไม่ได้ตั้งอัตราภาษีหัก ณ ที่จ่าย" in page0
+        assert "disabled" in page0
+        # ต่อให้ยิง POST ตรง ๆ ก็ต้องไม่ออกใบเปล่าให้
+        r0 = c.post(f"/procurement/{p0.id}/bundle", data={"kinds": [WHT_KIND]},
+                    follow_redirects=False)
+        assert r0.status_code == 303
         detail = c.get(f"/procurement/{p.id}").text
         assert "wht.docx" not in detail                     # การ์ดแยกเอาออกแล้ว
 

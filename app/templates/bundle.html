@@ -22,9 +22,14 @@
         <tr>
           <td class="center">
             <input type="checkbox" name="kinds" value="{{ k.name }}" {{ "checked" if k.checked }}
-                   style="width:20px;height:20px;">
+                   {{ "disabled" if k.blocked }} style="width:20px;height:20px;">
           </td>
-          <td>{{ loop.index }}. {{ k.name }}</td>
+          <td>{{ loop.index }}. {{ k.name }}
+            {% if k.blocked %}
+            <div class="muted" style="font-size:13px; margin-top:2px;">{{ k.blocked }} ·
+              <a href="/procurement/{{ p.id }}/edit">ตั้งอัตราในหน้าแก้ไขเรื่อง</a> แล้วใบนี้จะเลือกได้</div>
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -43,7 +48,9 @@
 
 <script>
   function toggleAll(v) {
-    document.querySelectorAll('input[name="kinds"]').forEach(function(c){ c.checked = v; });
+    document.querySelectorAll('input[name="kinds"]').forEach(function(c){
+      if (!c.disabled) { c.checked = v; }      // ใบที่ยังออกไม่ได้ ไม่ต้องติ๊กให้
+    });
   }
 </script>
 {% endblock %}
