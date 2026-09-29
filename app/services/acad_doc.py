@@ -982,6 +982,25 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
         for row in db.query(AcadScore).filter(AcadScore.subject_id.in_(sub_ids),
                                               AcadScore.term == t).all():
             sc_map[(row.acad_student_id, row.subject_id)] = row
+    # ประถม: เกรดรายปี (term=0) เกิดเมื่อกรอกครบ 2 ภาคเท่านั้น -> ระหว่างปี (มีแค่ภาค 1)
+    # หน้าสรุปจะว่างทั้งแผ่น จึงใช้เกรดภาคล่าสุดที่มีแทนชั่วคราว แล้วติด * ไว้ให้รู้ว่ายังไม่ใช่เกรดรายปี
+    partial = set()
+    if not sec and sub_ids:
+        by_term = {}
+        for row in db.query(AcadScore).filter(AcadScore.subject_id.in_(sub_ids),
+                                              AcadScore.term.in_([1, 2])).all():
+            by_term[(row.acad_student_id, row.subject_id, row.term)] = row
+        for s in students:
+            for sid_ in sub_ids:
+                key = (s.id, sid_)
+                if sc_map.get(key) is not None and (sc_map[key].grade or ""):
+                    continue
+                for tno in (2, 1):
+                    r = by_term.get((s.id, sid_, tno))
+                    if r is not None and (r.grade or ""):
+                        sc_map[key] = r
+                        partial.add(key)
+                        break
     term_txt = f"ภาคเรียนที่ {t}" if sec else "ตลอดปีการศึกษา"
 
     # ---------- หน้า 1: ปก (แนวตั้ง · พื้นที่พิมพ์ 18.0 ซม.) ----------
@@ -1234,13 +1253,17 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
             for i, sub in enumerate(subjects):
                 row = sc_map.get((s.id, sub.id))
                 g = row.grade if row else ""
-                _cell(cells[2 + i], g or "", size=11, bold=True)
+                mark = "*" if g and (s.id, sub.id) in partial else ""
+                _cell(cells[2 + i], f"{g}{mark}" if g else "", size=11, bold=True)
                 pairs.append((g, sub.credit if sec else sub.hours))
             avg = weighted_avg(pairs)
             _cell(cells[-1], f"{avg:.2f}" if avg is not None else "", bold=True, size=11)
         _widths(mt, [Cm(1.2), Cm(6.0)] + [Cm(sw)] * len(subjects) + [Cm(1.8)])
         _p(doc, "เฉลี่ยถ่วงน้ำหนักด้วย" + ("หน่วยกิต" if sec else "เวลาเรียน")
            + " | ร/มส/ผ/มผ ไม่นำมาคิดเฉลี่ย", size=11, after=0, align="center")
+        if partial:
+            _p(doc, "* ผลการเรียนเฉพาะภาคเรียนที่กรอกแล้ว (เกรดรายปีจะคิดให้เมื่อกรอกครบ 2 ภาคเรียน)",
+               size=11, after=0, align="center")
 
     # ---------- สรุปคุณลักษณะฯ / อ่านคิดเขียน ทุกวิชา ----------
     _pp5_quality_summary(doc, klass, subjects, students, db, "char",
@@ -1300,7 +1323,8 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
             g = row.grade if row else ""
             grades.append(g)
             pairs.append((g, sub.credit if sec else sub.hours))
-            _cell(cells[i], g or "", size=14, bold=True)
+            mark = "*" if g and (s.id, sub.id) in partial else ""
+            _cell(cells[i], f"{g}{mark}" if g else "", size=14, bold=True)
         avg = weighted_avg(pairs)
         ef = effs[s.id]
         _cell(cells[a0], f"{avg:.2f}" if avg is not None else "", bold=True, size=14)
@@ -1309,7 +1333,9 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
         _cell(cells[a0 + 3], _qnum.get(ef["read_think"], ""), size=14)
         overall = ""
         asum = activity_summary(s, db) if acts else "ผ"    # ไม่มีกิจกรรม = ไม่กันด้วยกิจกรรม
-        if subjects and all((g or "").strip() for g in grades):
+        # ยังมีเกรดชั่วคราว (ไม่ครบ 2 ภาค) -> ยังตัดสินผลตลอดปีไม่ได้
+        not_final = any((s.id, sub.id) in partial for sub in subjects)
+        if subjects and not not_final and all((g or "").strip() for g in grades):
             bad_grade = any((g or "").strip() in ("0", "ร", "มส") for g in grades)
             bad_qual = "ไม่ผ่าน" in (ef["desired_char"], ef["read_think"])
             no_qual = not ef["desired_char"].strip() or not ef["read_think"].strip()
