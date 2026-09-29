@@ -983,7 +983,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
                                               AcadScore.term == t).all():
             sc_map[(row.acad_student_id, row.subject_id)] = row
     # ประถม: เกรดรายปี (term=0) เกิดเมื่อกรอกครบ 2 ภาคเท่านั้น -> ระหว่างปี (มีแค่ภาค 1)
-    # หน้าสรุปจะว่างทั้งแผ่น จึงใช้เกรดภาคล่าสุดที่มีแทนชั่วคราว แล้วติด * ไว้ให้รู้ว่ายังไม่ใช่เกรดรายปี
+    # หน้าสรุปจะว่างทั้งแผ่น จึงใช้เกรดภาคล่าสุดที่มีแทนชั่วคราว แล้วใส่หมายเหตุใต้ตารางว่ายังไม่ใช่เกรดรายปี
     partial = set()
     if not sec and sub_ids:
         by_term = {}
@@ -1253,8 +1253,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
             for i, sub in enumerate(subjects):
                 row = sc_map.get((s.id, sub.id))
                 g = row.grade if row else ""
-                mark = "*" if g and (s.id, sub.id) in partial else ""
-                _cell(cells[2 + i], f"{g}{mark}" if g else "", size=11, bold=True)
+                _cell(cells[2 + i], g or "", size=11, bold=True)
                 pairs.append((g, sub.credit if sec else sub.hours))
             avg = weighted_avg(pairs)
             _cell(cells[-1], f"{avg:.2f}" if avg is not None else "", bold=True, size=11)
@@ -1262,7 +1261,8 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
         _p(doc, "เฉลี่ยถ่วงน้ำหนักด้วย" + ("หน่วยกิต" if sec else "เวลาเรียน")
            + " | ร/มส/ผ/มผ ไม่นำมาคิดเฉลี่ย", size=11, after=0, align="center")
         if partial:
-            _p(doc, "* ผลการเรียนเฉพาะภาคเรียนที่กรอกแล้ว (เกรดรายปีจะคิดให้เมื่อกรอกครบ 2 ภาคเรียน)",
+            _p(doc, "หมายเหตุ: บางรายวิชายังกรอกคะแนนไม่ครบ 2 ภาคเรียน จึงแสดงผลการเรียนเฉพาะภาคเรียนที่กรอกแล้ว "
+                "(เกรดรายปีจะคิดให้เมื่อกรอกครบ 2 ภาคเรียน)",
                size=11, after=0, align="center")
 
     # ---------- สรุปคุณลักษณะฯ / อ่านคิดเขียน ทุกวิชา ----------
@@ -1323,8 +1323,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
             g = row.grade if row else ""
             grades.append(g)
             pairs.append((g, sub.credit if sec else sub.hours))
-            mark = "*" if g and (s.id, sub.id) in partial else ""
-            _cell(cells[i], f"{g}{mark}" if g else "", size=14, bold=True)
+            _cell(cells[i], g or "", size=14, bold=True)
         avg = weighted_avg(pairs)
         ef = effs[s.id]
         _cell(cells[a0], f"{avg:.2f}" if avg is not None else "", bold=True, size=14)
@@ -1356,7 +1355,8 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
             "ผล ผ = ผ่านครบทุกวิชา คุณลักษณะ อ่านเขียน และกิจกรรม (ข้อมูลไม่ครบ = เว้นว่าง)",
        size=12, after=0, align="center")
     if partial:
-        _p(doc, "* ผลการเรียนเฉพาะภาคเรียนที่กรอกแล้ว (เกรดรายปีจะคิดให้เมื่อกรอกครบ 2 ภาคเรียน)",
+        _p(doc, "หมายเหตุ: บางรายวิชายังกรอกคะแนนไม่ครบ 2 ภาคเรียน จึงแสดงผลการเรียนเฉพาะภาคเรียนที่กรอกแล้ว "
+                "(เกรดรายปีจะคิดให้เมื่อกรอกครบ 2 ภาคเรียน)",
            size=12, after=0, align="center")
 
     # ---------- หน้าสุดท้าย: เกณฑ์การประเมิน (แนวตั้ง) ----------
