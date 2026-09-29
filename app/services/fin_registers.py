@@ -18,7 +18,7 @@ from datetime import datetime
 
 from docx.shared import Cm
 
-from app.thai_utils import thai_date, bahttext
+from app.thai_utils import thai_date, thai_date_short, bahttext
 from app.services.build_templates import (
     _p, _set_cell, _repeat_header_row, _no_split_row, _fixed_cols, _sign_table,
 )
@@ -301,9 +301,12 @@ _MR_GROUPS = [
     ("คงเหลือ", ["เงินสด", "เงินฝากธนาคาร", "เงินฝากส่วนราชการ\nผู้เบิก"]),
     ("หมายเหตุ", []),
 ]
-_MR_W = [Cm(2.1), Cm(2.0), Cm(4.6), Cm(2.1),
-         Cm(1.9), Cm(2.6), Cm(2.0),
-         Cm(1.9), Cm(2.2), Cm(2.3), Cm(2.3)]
+# ช่อง "ค่าตอบแทน ค่าใช้สอย..." กับ "เงินฝากส่วนราชการ" กว้างพอให้หัวตารางเหลือ 2 บรรทัด
+# รวม 27.2 ซม. พอดีหน้า A4 แนวนอนขอบซ้าย-ขวา 1.2 ซม. (_MR_MARGIN)
+_MR_W = [Cm(2.3), Cm(1.8), Cm(4.8), Cm(2.1),
+         Cm(1.8), Cm(3.9), Cm(2.0),
+         Cm(1.8), Cm(2.3), Cm(2.8), Cm(1.6)]
+_MR_MARGIN = Cm(1.2)
 _MR_ALIGN = (["center", "center", "left", "right"]
              + ["right", "right", "right"]
              + ["right", "right", "right"] + ["left"])
@@ -330,6 +333,8 @@ def render_money_register(school, account, txns, opening, fiscal_year, *,
         doc = _new(landscape=True)
     else:
         _break_land(doc)
+    sec = doc.sections[-1]
+    sec.left_margin = sec.right_margin = _MR_MARGIN
     kind = (account.fund_type or "").strip() or "เงินนอกงบประมาณ"
     title = ("ทะเบียนคุมเงินนอกงบประมาณ" if kind == "เงินนอกงบประมาณ"
              else f"ทะเบียนคุม{kind}")
@@ -347,7 +352,7 @@ def render_money_register(school, account, txns, opening, fiscal_year, *,
     # ---- แถวยอดยกมา ----
     running = float(opening or 0)
     first = blank_row()
-    first[0] = f"1 ต.ค. {fiscal_year - 1}"
+    first[0] = thai_date_short(datetime(fiscal_year - 544, 10, 1))
     first[2] = f"ยอดยกมาจากปีงบประมาณ {fiscal_year - 1}"
     first[3] = _money(running)
     first[bal_col] = _money(running)
@@ -358,7 +363,7 @@ def render_money_register(school, account, txns, opening, fiscal_year, *,
     for x in rows:
         amount = float(x.amount or 0)
         vals = blank_row()
-        vals[0] = thai_date(x.date) if x.date else ""
+        vals[0] = thai_date_short(x.date) if x.date else ""
         vals[1] = (x.ref or "").strip()
         vals[2] = (x.note or x.category or "").strip()
         if (x.kind or "in") == "in":

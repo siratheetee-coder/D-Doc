@@ -133,6 +133,17 @@ def thai_date(dt: datetime | None = None) -> str:
     return f"{dt.day} {_THAI_MONTHS[dt.month]} {dt.year + 543}"
 
 
+_THAI_MONTHS_SHORT = ["", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+                      "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."]
+
+
+def thai_date_short(dt: datetime | None = None) -> str:
+    """วันที่แบบเดือนย่อ เช่น '28 ก.ค. 2569' (ใช้ในช่องตารางทะเบียนที่แคบ)"""
+    if dt is None:
+        dt = datetime.now()
+    return f"{dt.day} {_THAI_MONTHS_SHORT[dt.month]} {dt.year + 543}"
+
+
 def thai_date_official(dt: datetime | None = None) -> str:
     """
     แปลงวันที่เป็นรูปแบบหัวบันทึกข้อความราชการ
