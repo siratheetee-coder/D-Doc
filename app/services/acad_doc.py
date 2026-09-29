@@ -959,6 +959,38 @@ def _pp5_quality_summary(doc, klass, subjects, students, db, kind, title):
                 "ผลสุดท้ายมาจากเฉลี่ยข้ามวิชาด้วยเกณฑ์เดียวกัน", size=11, after=0, align="center")
 
 
+_PARTIAL_NOTE = ("หมายเหตุ: บางรายวิชายังกรอกคะแนนไม่ครบ 2 ภาคเรียน "
+                 "จึงแสดงผลการเรียนเฉพาะภาคเรียนที่กรอกแล้ว (เกรดรายปีจะคิดให้เมื่อกรอกครบ 2 ภาคเรียน)")
+
+
+def _fill_partial_grades(db, sc_map, student_ids, sub_ids) -> set:
+    """ประถม: เกรดรายปี (term=0) เกิดเมื่อกรอกครบ 2 ภาคเท่านั้น -> ระหว่างปีเอกสารจะว่างทั้งแผ่น
+    เติม sc_map[(นักเรียน, วิชา)] ที่ยังไม่มีเกรดรายปี ด้วยแถวภาคล่าสุดที่มีเกรด (ภาค 2 ก่อน ภาค 1)
+    คืนชุด key ที่เป็นเกรดชั่วคราว (ใช้ตัดสินว่าจะใส่หมายเหตุ/งดตัดสินผลตลอดปี)"""
+    from app.models import AcadScore
+    partial = set()
+    if not sub_ids or not student_ids:
+        return partial
+    by_term = {}
+    for row in db.query(AcadScore).filter(AcadScore.subject_id.in_(sub_ids),
+                                          AcadScore.acad_student_id.in_(student_ids),
+                                          AcadScore.term.in_([1, 2])).all():
+        by_term[(row.acad_student_id, row.subject_id, row.term)] = row
+    for sid in student_ids:
+        for sub_id in sub_ids:
+            key = (sid, sub_id)
+            cur = sc_map.get(key)
+            if cur is not None and (cur.grade or ""):
+                continue
+            for tno in (2, 1):
+                r = by_term.get((sid, sub_id, tno))
+                if r is not None and (r.grade or ""):
+                    sc_map[key] = r
+                    partial.add(key)
+                    break
+    return partial
+
+
 def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     """ปพ.5 ทั้งเล่ม: ปก (แนวตั้ง · ลายเซ็นครบทุกคนอยู่หน้าแรก)
     -> รายชื่อ -> สรุปเวลาเรียน -> คะแนนรายวิชา (วิชาละหน้า)
@@ -982,25 +1014,9 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
         for row in db.query(AcadScore).filter(AcadScore.subject_id.in_(sub_ids),
                                               AcadScore.term == t).all():
             sc_map[(row.acad_student_id, row.subject_id)] = row
-    # ประถม: เกรดรายปี (term=0) เกิดเมื่อกรอกครบ 2 ภาคเท่านั้น -> ระหว่างปี (มีแค่ภาค 1)
-    # หน้าสรุปจะว่างทั้งแผ่น จึงใช้เกรดภาคล่าสุดที่มีแทนชั่วคราว แล้วใส่หมายเหตุใต้ตารางว่ายังไม่ใช่เกรดรายปี
-    partial = set()
-    if not sec and sub_ids:
-        by_term = {}
-        for row in db.query(AcadScore).filter(AcadScore.subject_id.in_(sub_ids),
-                                              AcadScore.term.in_([1, 2])).all():
-            by_term[(row.acad_student_id, row.subject_id, row.term)] = row
-        for s in students:
-            for sid_ in sub_ids:
-                key = (s.id, sid_)
-                if sc_map.get(key) is not None and (sc_map[key].grade or ""):
-                    continue
-                for tno in (2, 1):
-                    r = by_term.get((s.id, sid_, tno))
-                    if r is not None and (r.grade or ""):
-                        sc_map[key] = r
-                        partial.add(key)
-                        break
+    # ประถม: ระหว่างปี (กรอกแค่ภาค 1) ยังไม่มีเกรดรายปี -> ใช้เกรดภาคล่าสุดแทน + หมายเหตุใต้ตาราง
+    partial = (_fill_partial_grades(db, sc_map, [s.id for s in students], sub_ids)
+               if not sec else set())
     term_txt = f"ภาคเรียนที่ {t}" if sec else "ตลอดปีการศึกษา"
 
     # ---------- หน้า 1: ปก (แนวตั้ง · พื้นที่พิมพ์ 18.0 ซม.) ----------
@@ -1261,9 +1277,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
         _p(doc, "เฉลี่ยถ่วงน้ำหนักด้วย" + ("หน่วยกิต" if sec else "เวลาเรียน")
            + " | ร/มส/ผ/มผ ไม่นำมาคิดเฉลี่ย", size=11, after=0, align="center")
         if partial:
-            _p(doc, "หมายเหตุ: บางรายวิชายังกรอกคะแนนไม่ครบ 2 ภาคเรียน จึงแสดงผลการเรียนเฉพาะภาคเรียนที่กรอกแล้ว "
-                "(เกรดรายปีจะคิดให้เมื่อกรอกครบ 2 ภาคเรียน)",
-               size=11, after=0, align="center")
+            _p(doc, _PARTIAL_NOTE, size=11, after=0, align="center")
 
     # ---------- สรุปคุณลักษณะฯ / อ่านคิดเขียน ทุกวิชา ----------
     _pp5_quality_summary(doc, klass, subjects, students, db, "char",
@@ -1355,9 +1369,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
             "ผล ผ = ผ่านครบทุกวิชา คุณลักษณะ อ่านเขียน และกิจกรรม (ข้อมูลไม่ครบ = เว้นว่าง)",
        size=12, after=0, align="center")
     if partial:
-        _p(doc, "หมายเหตุ: บางรายวิชายังกรอกคะแนนไม่ครบ 2 ภาคเรียน จึงแสดงผลการเรียนเฉพาะภาคเรียนที่กรอกแล้ว "
-                "(เกรดรายปีจะคิดให้เมื่อกรอกครบ 2 ภาคเรียน)",
-           size=12, after=0, align="center")
+        _p(doc, _PARTIAL_NOTE, size=12, after=0, align="center")
 
     # ---------- หน้าสุดท้าย: เกณฑ์การประเมิน (แนวตั้ง) ----------
     _new_section(doc, landscape=False)
@@ -1592,6 +1604,10 @@ def _pp6_grades(doc, school, s, db, ef):
     my = {(x.subject_id, x.term): x for x in
           db.query(AcadScore).filter_by(acad_student_id=s.id).all()}
     gpa_pairs = []
+    partial = set()
+    if not sec:      # ประถม: ยังไม่ครบ 2 ภาค -> แสดงเกรดภาคล่าสุดแทน (เหมือน ปพ.5)
+        ann = {(s.id, sub_id): row for (sub_id, tm), row in my.items() if tm == 0}
+        partial = _fill_partial_grades(db, ann, [s.id], [x.id for x in subs])
 
     if sec:
         heads = ["ที่", "รหัสวิชา", "รายวิชา", "หน่วยกิต", "ตัวชี้วัด", "ภาค 1", "ภาค 2"]
@@ -1629,16 +1645,20 @@ def _pp6_grades(doc, school, s, db, ef):
         else:
             _cell(cells[3], sub.hours or "")
             _cell(cells[4], "")   # ตัวชี้วัด: เว้นว่าง
-            row = my.get((sub.id, 0))
-            _cell(cells[5], f"{row.score:g}" if (row and row.score is not None) else "")
+            row = ann.get((s.id, sub.id))
+            # คะแนน: เกรดรายปี = ร้อยละเฉลี่ย 2 ภาค · เกรดชั่วคราว = ไม่โชว์ (คะแนนดิบภาคเดียวไม่ใช่ร้อยละ)
+            show_score = row is not None and row.score is not None and (s.id, sub.id) not in partial
+            _cell(cells[5], f"{row.score:g}" if show_score else "")
             _cell(cells[6], row.grade if row else "", bold=True)
-            gpa_pairs.append(((row.grade if row else ""), sub.credit or 1))
+            gpa_pairs.append(((row.grade if row else ""), sub.hours))    # ประถม: ถ่วงด้วยเวลาเรียน
     _widths(t, ws)
 
     gpa = weighted_avg(gpa_pairs)
     _p(doc, "", after=2)
     _p(doc, f"ผลการเรียนเฉลี่ย (GPA): {gpa:.2f}" if gpa is not None else "ผลการเรียนเฉลี่ย (GPA): -",
        bold=True, size=14, after=0)
+    if partial:
+        _p(doc, _PARTIAL_NOTE, size=12, after=0)
 
 
 def _pp6_assess_table(doc, s, db, title, model, avg_fn, summary_val):
@@ -1780,7 +1800,7 @@ def _pp6_summary(doc, school, s, db, ef):
     for sub in subs:
         row = my.get((sub.id, sub.term if sec else 0))
         if row:
-            pairs.append((row.grade, sub.credit or 1))
+            pairs.append((row.grade, (sub.credit or 1) if sec else sub.hours))   # ประถมถ่วงด้วยเวลาเรียน
             grades.append((str(row.grade) if row.grade is not None else "").strip())
     gpa = weighted_avg(pairs)
 

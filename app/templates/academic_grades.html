@@ -153,13 +153,13 @@
           <td><div class="gcell">
             <select name="grade_{{ s.id }}" style="width:100px;" data-grade="{{ s.id }}">
               <option value="">(คิดอัตโนมัติ)</option>
-              {% for g in grades %}<option value="{{ g }}" {{ 'selected' if sc and sc.grade==g }}>{{ g }}</option>{% endfor %}
+              {% for g in grades %}<option value="{{ g }}" {{ 'selected' if sc and sc.grade_manual and sc.grade==g }}>{{ g }}</option>{% endfor %}
             </select><span class="gpv" id="gp{{ s.id }}"></span>
           </div></td>
           {% if not is_sec %}
           {% set an = annual.get(s.id, {}) %}
           {% set other = an.get('t2') if sel_term==1 else an.get('t1') %}
-          <td class="center col-annual" id="oth{{ s.id }}" data-oth="{{ '%g'|format(other) if other is not none else '' }}">{{ '%g'|format(other) if other is not none else '-' }}</td>
+          <td class="center col-annual" id="oth{{ s.id }}" data-oth="{{ other if other is not none else '' }}">{{ '%g'|format(other|round(1)) if other is not none else '-' }}</td>
           <td class="center col-annual" id="avg{{ s.id }}">{{ '%g'|format(an.get('avg')) if an.get('avg') is not none else '-' }}</td>
           <td class="center col-annual"><b style="color:var(--acad-dark);" id="ag{{ s.id }}">{{ an.get('grade') or '-' }}</b></td>
           {% endif %}
@@ -223,7 +223,7 @@
           agEl  = document.getElementById('ag'+id);
       if(!othEl || !avgEl || !agEl) return;
       var oth = parseFloat(othEl.dataset.oth);
-      var p1  = (pct === null) ? null : Math.round(pct*10)/10;
+      var p1  = pct;                            // ไม่ปัดก่อนเฉลี่ย (ตรงกับฝั่งเซิร์ฟเวอร์)
       if(p1 === null || isNaN(oth)){ avgEl.textContent = '-'; agEl.textContent = '-'; return; }
       var avg = Math.round(((p1 + oth) / 2) * 100) / 100;
       avgEl.textContent = avg;

@@ -1615,6 +1615,8 @@ class AcadScore(Base):
     score_final = Column(Float, nullable=True)      # คะแนนปลายภาค
     score = Column(Float, nullable=True)            # คะแนนรวม (0-100)
     grade = Column(String, default="")              # 4/3.5/.../0 หรือ ร/มส (แก้มือทับได้)
+    # True = ครูเลือกเกรดเอง (ไม่คิดจากคะแนน) · False = เกรดคิดอัตโนมัติ ต้องคิดใหม่ทุกครั้งที่คะแนนเปลี่ยน
+    grade_manual = Column(Boolean, default=False)
 
     student = relationship("AcadStudent", back_populates="scores")
     subject = relationship("AcadSubject", back_populates="scores")

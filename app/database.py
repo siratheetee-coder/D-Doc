@@ -250,6 +250,7 @@ MIGRATIONS = [
     ("student", "guardian_name", "VARCHAR DEFAULT ''"),
     ("student", "guardian_relation", "VARCHAR DEFAULT ''"),
     ("student", "guardian_job", "VARCHAR DEFAULT ''"),
+    ("acad_score", "grade_manual", "BOOLEAN DEFAULT 0"),
     # ---- ตารางกลาง StudentMeasure สร้างอัตโนมัติผ่าน create_all (ไม่ต้อง migrate คอลัมน์) ----
 ]
 
@@ -263,6 +264,12 @@ def run_migrations(engine) -> None:
             cursor.execute(f"ALTER TABLE {table} ADD COLUMN {col} {coltype}")
         except Exception:
             pass
+    # เกรดพิเศษ (ร/มส/ผ/มผ) คิดจากคะแนนไม่ได้ ต้องเป็นค่าที่ครูเลือกเอง -> ติดธงไว้กันถูกคิดทับ
+    try:
+        cursor.execute("UPDATE acad_score SET grade_manual = 1 "
+                       "WHERE grade IN ('ร', 'มส', 'ผ', 'มผ') AND COALESCE(grade_manual, 0) = 0")
+    except Exception:
+        pass
     conn.commit()
     conn.close()
 
