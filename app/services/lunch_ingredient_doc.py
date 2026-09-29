@@ -833,41 +833,25 @@ def render_reimburse_advance(rnd, school, doc=None) -> str:
 
 
 def render_wht_cook(rnd, school, doc=None) -> str:
-    """ใบรับรองการหักภาษี ณ ที่จ่าย (ค่าจ้างประกอบอาหารกลางวัน - จ้างแม่ครัว)"""
+    """หนังสือรับรองการหักภาษี ณ ที่จ่าย แบบ 4235 (ค่าจ้างประกอบอาหารกลางวัน - จ้างแม่ครัว)"""
     doc, own = _begin(doc)
     prog = rnd.program
-    sname = _school_disp(school)
-    saddr = (school.address or "").strip()
-    stax = (getattr(school, "tax_id", "") or "").strip() or "-"
     v = rnd.vendor
-    vname = (v.name if v else "") or _BLANK
     vtax = (getattr(v, "tax_id", "") or "").strip() if v else ""
     vaddr = (getattr(v, "address", "") or "").strip() if v else ""
-    fin = (getattr(school, "finance_officer_name", "") or "").strip() or _BLANK
     order_no = _doc_no(rnd, "order", (rnd.order_no or "").strip() or _BLANK)
-    order_dt = _doc_dt(rnd, "order", "date") or rnd.order_date
     # ค่าจ้างแม่ครัว (cook_wage) เท่านั้น - ไม่ใช่งบรวมทั้งรอบ
     total = round(float(getattr(rnd, "cook_wage", 0) or 0) or float(rnd.amount or 0), 2)
     tax = round(total * 0.01, 2)
-    tb, ts = int(total), int(round((total - int(total)) * 100))
-    xb, xs = int(tax), int(round((tax - int(tax)) * 100))
 
-    _p(doc, "ใบรับรองการหักภาษี ณ ที่จ่าย", align="center", bold=True, size=18, after=4)
-    _p(doc, f"ส่วนราชการ {sname}  เลขประจำตัวผู้เสียภาษี {stax}", after=0)
-    _p(doc, f"ที่อยู่ {saddr or _BLANK}", after=4)
-    _p(doc, f"ขอรับรองว่าได้หักภาษี ณ ที่จ่ายตามใบสั่งจ้าง เลขที่ {order_no}  ลงวันที่ {_dnum(order_dt)}",
-       indent=1.25, after=0)
-    _p(doc, f"ชื่อผู้ถูกหัก {vname}  เลขประจำตัวผู้เสียภาษี {vtax or '-'}", after=0)
-    _p(doc, f"ที่อยู่ {vaddr or _BLANK}", after=6)
-    _simple_table(doc,
-                  ["ประเภทเงินได้ที่จ่าย", "วัน เดือน ปี ที่จ่าย", "จำนวนเงินที่จ่าย", "ภาษีที่หัก"],
-                  [["ค่าจ้างประกอบอาหารกลางวัน", _dnum(rnd.end_date), f"{_money(total)}", f"{_money(tax)}"],
-                   ["รวมเงินภาษีที่หักและนำส่ง", "", f"{_money(total)}", f"{_money(tax)}"]],
-                  [Cm(6.0), Cm(3.5), Cm(3.0), Cm(3.0)])
-    _p(doc, f"รวมเงินภาษี (ตัวอักษร) ({bahttext(tax)})", indent=0.5, before=2, after=12)
-    _sign_table(doc, [
-        [(f"(ลงชื่อ) ...........................................", "center"),
-         (f"( {fin} )", "center"), ("เจ้าหน้าที่การเงิน", "center")]])
+    # แบบ 4235 ตัวกลาง (เหมือนงานการเงิน/พัสดุ)
+    from types import SimpleNamespace
+    from app.services.finance_forms_doc import write_wht_4235
+    write_wht_4235(doc, school, SimpleNamespace(
+        amount=total, vat=0, wht=tax, fine=0, payee=(v.name if v else ""),
+        date=rnd.end_date, memo_no=""),
+        payee_tax_id=vtax, payee_address=vaddr, pay_type="ค่าจ้างประกอบอาหาร",
+        ref_no=("" if order_no == _BLANK else order_no))
     return _finish(doc, own, f"ใบรับรองหักภาษี_รอบที่{rnd.seq}_ปี{prog.year}")
 
 

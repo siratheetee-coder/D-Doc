@@ -413,7 +413,6 @@ def render_disburse_lunch_doc(inst, school, wht_rate=0.01) -> str:
     vendor = rnd.vendor
     vname = vendor.name if vendor else _BLANK
     vaddr = (vendor.address if vendor else "") or _BLANK
-    vtax = (vendor.tax_id if vendor else "") or _BLANK
     order_no = getattr(rnd, "order_no", None) or _BLANK
     sname = _school_disp(school)
     saddr = (school.address or "").strip()
@@ -480,25 +479,17 @@ def render_disburse_lunch_doc(inst, school, wht_rate=0.01) -> str:
          (f"( {fin} )", "center")],
     ])
 
-    # ===== 3. หนังสือรับรองการหักภาษี ณ ที่จ่าย =====
+    # ===== 3. หนังสือรับรองการหักภาษี ณ ที่จ่าย (แบบ 4235 ตัวกลาง) =====
+    from types import SimpleNamespace
+    from app.services.finance_forms_doc import write_wht_4235
     doc.add_page_break()
-    _p(doc, "หนังสือรับรองการหักภาษี ณ ที่จ่าย", align="center", bold=True, size=18, after=2)
-    _p(doc, "ตามมาตรา ๕๐ ทวิ แห่งประมวลรัษฎากร", align="center", after=8)
-    _p(doc, "ผู้มีหน้าที่หักภาษี ณ ที่จ่าย :", bold=True, after=0)
-    _p(doc, f"ส่วนราชการ {sname}   เลขประจำตัวผู้เสียภาษี {getattr(school,'tax_id','') or _BLANK}", after=0)
-    _p(doc, f"ที่อยู่ {saddr or _BLANK}", after=0)
-    _p(doc, f"ขอรับรองว่าได้หักภาษี ณ ที่จ่าย ตามใบสั่งจ้าง เลขที่ {order_no}", after=6)
-    _p(doc, "ผู้ถูกหักภาษี ณ ที่จ่าย :", bold=True, after=0)
-    _p(doc, f"ชื่อ {vname}   เลขประจำตัวประชาชน {vtax}", after=0)
-    _p(doc, f"ที่อยู่ {vaddr}", after=6)
-    _simple_table(doc, ["ประเภทเงินได้ที่จ่าย", "วันที่จ่าย", "จำนวนเงินที่จ่าย", "ภาษีที่หัก"],
-                  [["ค่าจ้างเหมาประกอบอาหารกลางวัน", _dnum(inst.inspect_date or inst.end_date), A, W],
-                   ["รวม", "", A, W]],
-                  [Cm(6.4), Cm(3.2), Cm(3.2), Cm(3.2)])
-    _p(doc, f"รวมเงินภาษีที่หัก (ตัวอักษร)  ({bahttext(wht)})", indent=1.25, before=2, after=12)
-    _p(doc, "(ลงชื่อ)...........................................ผู้จ่ายเงิน", align="center", after=0)
-    _p(doc, f"( {director} )", align="center", after=0)
-    _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
+    write_wht_4235(doc, school, SimpleNamespace(
+        amount=amt, vat=0, wht=wht, fine=0, payee=(vendor.name if vendor else ""),
+        date=inst.inspect_date or inst.end_date, memo_no=""),
+        payee_tax_id=((vendor.tax_id or "").strip() if vendor else ""),
+        payee_address=((vendor.address or "").strip() if vendor else ""),
+        pay_type="ค่าจ้างประกอบอาหาร",
+        ref_no=(getattr(rnd, "order_no", None) or ""))
 
     return _save(doc, f"ขอเบิกจ่าย_งวดที่{inst.seq}_ปี{prog.year}")
 

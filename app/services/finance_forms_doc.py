@@ -282,13 +282,21 @@ def _is_juristic(name: str) -> bool:
 
 def render_wht_certificate(school, memo, *, payee_tax_id="", payee_address="",
                            pay_type="ค่าจ้างทำของ", rate=1.0, ref_no=None) -> str:
-    """หนังสือรับรองการหักภาษี ณ ที่จ่าย แบบ 4235 (ใช้ทั้งบันทึกขอเบิกจ่าย และเรื่องจัดซื้อ/จ้าง)
+    """หนังสือรับรองการหักภาษี ณ ที่จ่าย แบบ 4235 เป็นไฟล์เดี่ยว (บันทึกขอเบิกจ่าย / เรื่องจัดซื้อจ้าง)"""
+    doc = _new()
+    ref = write_wht_4235(doc, school, memo, payee_tax_id=payee_tax_id, payee_address=payee_address,
+                         pay_type=pay_type, rate=rate, ref_no=ref_no)
+    return _save(doc, f"หนังสือรับรองหักภาษีณที่จ่าย_{ref or memo.memo_no or getattr(memo, 'id', '')}")
+
+
+def write_wht_4235(doc, school, memo, *, payee_tax_id="", payee_address="",
+                   pay_type="ค่าจ้างทำของ", rate=1.0, ref_no=None) -> str:
+    """เขียนหนังสือรับรองการหักภาษี ณ ที่จ่าย แบบ 4235 ลงเอกสาร doc (ใช้ร่วมทุกงาน: การเงิน/พัสดุ/อาหารกลางวัน)
     memo ต้องมี amount (รวม VAT) · vat · wht · fine · payee · date · memo_no
     - ฐานภาษี = amount - vat · ภาษี = memo.wht (ไม่มีก็คิด rate %)
     - นิติบุคคล/จด VAT -> ลงเลขประจำตัวผู้เสียภาษี · บุคคลธรรมดาไม่จด VAT -> เลขประจำตัวประชาชน
     - มีค่าปรับ -> ลงบรรทัดค่าปรับ และรวมอยู่ในยอดรวม"""
     from app.thai_utils import thai_date_short
-    doc = _new()
     base = float(memo.amount or 0) - float(memo.vat or 0)
     wht = float(memo.wht or 0) or round(base * rate / 100, 2)
     fine = float(getattr(memo, "fine", 0) or 0)
@@ -322,7 +330,7 @@ def render_wht_certificate(school, memo, *, payee_tax_id="", payee_address="",
     def at(idx, text):
         return "\n".join(text if k == idx else "" for k in range(3))
 
-    widths = [Cm(4.4), Cm(3.4), Cm(2.8), Cm(3.0), Cm(2.4)]
+    widths = [Cm(4.2), Cm(3.9), Cm(2.6), Cm(2.9), Cm(2.4)]   # ประเภทเงินต้องไม่ตกบรรทัด (บรรทัดจะเลื่อนไม่ตรงประเภทภาษี)
     t = _grid(doc, ["ประเภทภาษี", "ประเภทเงินที่ได้จ่าย", "วัน เดือน ปี ที่จ่าย",
                     "จำนวนเงินได้", "ภาษี"], widths, size=15)
     tax_col = at(line, _money(wht))
@@ -352,7 +360,7 @@ def render_wht_certificate(school, memo, *, payee_tax_id="", payee_address="",
             "ทะเบียนภาษีมูลค่าเพิ่ม", size=15, indent=1.25, after=0)
     _p(doc, "* ให้กรอกเลขประจำตัวผู้เสียภาษี กรณีผู้ถูกหักภาษี ณ ที่จ่ายเป็นนิติบุคคล และบุคคล"
             "ธรรมดาที่จดทะเบียนภาษีมูลค่าเพิ่ม", size=15, indent=1.25, after=0)
-    return _save(doc, f"หนังสือรับรองหักภาษีณที่จ่าย_{ref or memo.memo_no or getattr(memo, 'id', '')}")
+    return ref
 
 
 # ------------------------------------ รายงานผลการใช้จ่ายงบประมาณรายไตรมาส

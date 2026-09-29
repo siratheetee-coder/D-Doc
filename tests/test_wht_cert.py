@@ -78,3 +78,29 @@ def test_procurement_wht_certificate():
         assert f"/procurement/{p0.id}/wht.docx" not in page0   # ไม่ได้ตั้งอัตรา -> ไม่มีปุ่ม
     finally:
         db.delete(p); db.delete(p0); db.delete(v); db.commit()
+
+
+def test_lunch_certificates_use_4235():
+    """อาหารกลางวัน (จ้างเหมา + จ้างแม่ครัว) ใช้แบบ 4235 ตัวเดียวกับการเงิน/พัสดุ"""
+    from types import SimpleNamespace as N
+    from app.services.lunch_doc import render_disburse_lunch_doc
+    from app.services.lunch_ingredient_doc import render_wht_cook
+    sch = N(name="โรงเรียนทดสอบ", address="ต.ทดสอบ", tax_id="0994000111223",
+            director_name="นายผอ ทดสอบ", director_position="ผู้อำนวยการ", finance_officer_name="",
+            area_office="", doc_prefix="ศธ", logo=None, district="", province="")
+    v = N(name="นางแม่ครัว ใจดี", tax_id="3440100999999", address="9 ม.3")
+    rnd = N(program=N(year=2569, funding_org="อบต.", classes=[]), vendor=v, order_no="จ 3/2569",
+            cook_wage=12000, amount=12000, end_date=datetime(2026, 9, 30), seq=1,
+            order_date=datetime(2026, 6, 1), docnos="", doc_meta="")
+    inst = N(round=rnd, amount=48000, seq=1, start_date=datetime(2026, 6, 1),
+             end_date=datetime(2026, 6, 30), days=20, inspect_date=datetime(2026, 7, 1))
+
+    def text(path):
+        xml = zipfile.ZipFile(path).read("word/document.xml").decode("utf-8")
+        return re.sub(r"<[^>]+>", "", xml)
+
+    for t in (text(render_disburse_lunch_doc(inst, sch)), text(render_wht_cook(rnd, sch))):
+        assert "แบบ 4235" in t and "50 ทวิ" not in t and "๕๐ ทวิ" not in t
+        assert "3440100999999" in t and "จ 3/2569" in t and "0994000111223" in t
+    assert "480.00" in text(render_disburse_lunch_doc(inst, sch))     # 48,000 x 1%
+    assert "120.00" in text(render_wht_cook(rnd, sch))                # ค่าจ้างแม่ครัว 12,000 x 1%
