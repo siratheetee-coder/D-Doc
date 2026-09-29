@@ -104,3 +104,18 @@ def test_lunch_certificates_use_4235():
         assert "3440100999999" in t and "จ 3/2569" in t and "0994000111223" in t
     assert "480.00" in text(render_disburse_lunch_doc(inst, sch))     # 48,000 x 1%
     assert "120.00" in text(render_wht_cook(rnd, sch))                # ค่าจ้างแม่ครัว 12,000 x 1%
+
+
+def test_fine_shown_but_not_in_tax_total():
+    """ค่าปรับลงบรรทัดค่าปรับ แต่ยอดรวม/ตัวอักษร = ภาษีอย่างเดียว · ไม่มีหมายเหตุท้ายแบบ"""
+    from types import SimpleNamespace as N
+    from app.services.finance_forms_doc import render_wht_certificate
+    sch = N(name="โรงเรียนทดสอบ", address="", tax_id="", director_name="", director_position="")
+    memo = N(amount=10000, vat=0, wht=100, fine=50, payee="นายช่าง", date=datetime(2026, 9, 1),
+             memo_no="T9", id=9)
+    xml = zipfile.ZipFile(render_wht_certificate(sch, memo)).read("word/document.xml").decode("utf-8")
+    t = re.sub(r"<[^>]+>", "", xml)
+    assert "50.00" in t                       # ค่าปรับยังแสดง
+    assert "150.00" not in t                  # ไม่รวมค่าปรับเข้ายอดภาษี
+    assert "หนึ่งร้อยบาทถ้วน" in t
+    assert "หมายเหตุ" not in t

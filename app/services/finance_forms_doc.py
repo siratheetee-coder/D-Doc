@@ -295,7 +295,7 @@ def write_wht_4235(doc, school, memo, *, payee_tax_id="", payee_address="",
     memo ต้องมี amount (รวม VAT) · vat · wht · fine · payee · date · memo_no
     - ฐานภาษี = amount - vat · ภาษี = memo.wht (ไม่มีก็คิด rate %)
     - นิติบุคคล/จด VAT -> ลงเลขประจำตัวผู้เสียภาษี · บุคคลธรรมดาไม่จด VAT -> เลขประจำตัวประชาชน
-    - มีค่าปรับ -> ลงบรรทัดค่าปรับ และรวมอยู่ในยอดรวม"""
+    - มีค่าปรับ -> ลงบรรทัดค่าปรับให้เห็น แต่ไม่นับรวมในยอดภาษี (รวม/ตัวอักษร = ภาษีอย่างเดียว)"""
     from app.thai_utils import thai_date_short
     base = float(memo.amount or 0) - float(memo.vat or 0)
     wht = float(memo.wht or 0) or round(base * rate / 100, 2)
@@ -342,7 +342,7 @@ def write_wht_4235(doc, school, memo, *, payee_tax_id="", payee_address="",
          widths, ["left", "center", "center", "right", "right"], size=15)
     _set_cell(t.rows[-1].cells[0], "ภาษีเงินได้นิติบุคคล\nภาษีเงินได้บุคคลธรรมดา\nค่าปรับ",
               bold=True, size=15)                # ประเภทภาษีตัวหนา (ตามแบบ)
-    total_tax = round(wht + fine, 2)
+    total_tax = round(wht, 2)                    # ค่าปรับไม่รวมในยอดภาษี
     r = _row(t, ["", "", "รวม", _money(base), _money(total_tax)],
              widths, ["left", "center", "center", "right", "right"], size=15, bold=True)
     _no_border(r.cells[0])                       # แถวรวม: 3 ช่องซ้ายไม่มีกรอบ (ตามแบบ)
@@ -354,12 +354,6 @@ def write_wht_4235(doc, school, memo, *, payee_tax_id="", payee_address="",
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
         (f"ตำแหน่ง {(school.director_position or '').strip() or _BLANK}", "center"),
     ]])
-    _p(doc, "หมายเหตุ", bold=True, size=15, before=10, after=0)
-    _p(doc, "กรอกข้อมูลกรณีมีการโอนสิทธิเรียกร้องในการรับเงิน", size=15, after=0)
-    _p(doc, "* ให้กรอกเลขประจำตัวประชาชน กรณีผู้ถูกหักภาษี ณ ที่จ่าย เป็นบุคคลธรรมดาที่ไม่ได้จด"
-            "ทะเบียนภาษีมูลค่าเพิ่ม", size=15, indent=1.25, after=0)
-    _p(doc, "* ให้กรอกเลขประจำตัวผู้เสียภาษี กรณีผู้ถูกหักภาษี ณ ที่จ่ายเป็นนิติบุคคล และบุคคล"
-            "ธรรมดาที่จดทะเบียนภาษีมูลค่าเพิ่ม", size=15, indent=1.25, after=0)
     return ref
 
 
