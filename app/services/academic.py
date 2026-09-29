@@ -6,6 +6,8 @@ academic.py - ตรรกะกลางของงานวิชาการ
 - subject_preset()  : รายวิชาพื้นฐาน 8 กลุ่มสาระ + รหัสวิชาตามหลักสูตรแกนกลาง 2551
 - term_choices()    : ประถมตัดสินรายปี · มัธยมตัดสินรายภาค
 """
+import math
+
 from app.thai_utils import SCHOOL_LEVELS, is_secondary
 
 # ---- ระดับผลการเรียน ----
@@ -322,7 +324,8 @@ def weighted_avg(pairs) -> float | None:
     """ผลการเรียนเฉลี่ยถ่วงน้ำหนัก · pairs = [(grade_str, weight), ...]
     - เกรดที่แปลงเป็นตัวเลขไม่ได้ (ร/มส/ผ/มผ/ว่าง) ถูกข้าม
     - weight <= 0 หรือไม่มี -> ใช้ 1 (เฉลี่ยตรง) เพื่อไม่ให้วิชาหายจากเฉลี่ยเงียบ ๆ
-    - ไม่มีเกรดนับได้เลย -> None (แสดงเป็นช่องว่าง ไม่ใช่ 0)"""
+    - ไม่มีเกรดนับได้เลย -> None (แสดงเป็นช่องว่าง ไม่ใช่ 0)
+    - ทศนิยม 2 ตำแหน่ง "ตัดทิ้ง ไม่ปัดเศษ" ตามหลักเกณฑ์การวัดและประเมินผล (3.456 -> 3.45)"""
     total_w, total = 0.0, 0.0
     for grade, weight in pairs:
         p = grade_point(grade)
@@ -336,7 +339,10 @@ def weighted_avg(pairs) -> float | None:
             w = 1.0
         total += p * w
         total_w += w
-    return (total / total_w) if total_w > 0 else None
+    if total_w <= 0:
+        return None
+    # +1e-9 กันเลขทศนิยมลอยตัวคลาดเล็กน้อย (เช่น 3.45 ที่คำนวณได้ 3.4499999) ไม่ให้ตัดผิดเหลือ 3.44
+    return math.floor(total / total_w * 100 + 1e-9) / 100
 
 
 def term_choices(level: str) -> list:

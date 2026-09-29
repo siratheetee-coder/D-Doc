@@ -152,3 +152,11 @@ def test_pp6_primary_gpa_weighted_by_hours():
         assert "GPA): 3.58" in txt
     finally:
         _cleanup(db)
+
+
+def test_gpa_truncated_not_rounded():
+    from app.services.academic import weighted_avg
+    assert weighted_avg([("4", 2), ("3", 1)]) == 3.66          # 3.666.. -> 3.66 (ปัดจะได้ 3.67)
+    assert weighted_avg([("4", 1), ("3.5", 1), ("3", 1)]) == 3.5
+    assert weighted_avg([("3.5", 1), ("3.4", 1)]) == 3.45      # กันเลขลอยตัวตัดผิดเป็น 3.44
+    assert weighted_avg([("ร", 1), ("มส", 1)]) is None
