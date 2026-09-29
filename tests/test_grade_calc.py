@@ -84,6 +84,8 @@ def test_manual_grade_kept_and_flows_to_annual():
         assert _form_from(_page(c, cls, sub, 1))[f"grade_{st.id}"] == "ร"
         _save(c, db, cls, st, sub, 1, mid=25)
         assert _row(db, sub, 1).grade == "ร"
+        # ยังไม่มีภาค 2 -> ยังสรุปรายปีไม่ได้ (ไม่ใช่ขึ้น ร เป็นผลรายปีก่อนเวลา)
+        assert _row(db, sub, 0) is None or not _row(db, sub, 0).grade
         # ภาค 2 ได้เต็ม -> รายปีต้องเป็น ร (ไม่ใช่เอาคะแนนมาเฉลี่ยทับ)
         _save(c, db, cls, st, sub, 2, mid=30, fin=30)
         assert _row(db, sub, 0).grade == "ร"

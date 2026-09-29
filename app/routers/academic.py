@@ -1609,7 +1609,13 @@ def _term_denoms(db, subj) -> dict:
 def _annual_result(r1, r2, denoms):
     """เกรดรายปีประถมจากแถวภาค 1/2 -> (ร้อยละเฉลี่ย, เกรด) หรือ None ถ้ายังคิดไม่ได้
     - ภาคใดเป็น มส / ร (ครูเลือกเอง) -> ผลรายปีเป็นค่านั้น (มส มาก่อน ร) ไม่เอาคะแนนมาเฉลี่ยทับ
-    - ครบ 2 ภาค -> เฉลี่ย "ร้อยละ" ของ 2 ภาค แล้วตัดเกรด (ไม่ปัดร้อยละก่อนเฉลี่ย)"""
+    - ครบ 2 ภาค -> เฉลี่ย "ร้อยละ" ของ 2 ภาค แล้วตัดเกรด (ไม่ปัดร้อยละก่อนเฉลี่ย)
+    - ต้องมีผลครบทั้ง 2 ภาคก่อนเสมอ (ภาค 1 ได้ ร แต่ยังไม่มีภาค 2 = ยังสรุปรายปีไม่ได้)"""
+    def has(r):
+        return r is not None and (r.score is not None
+                                  or (getattr(r, "grade_manual", False) and (r.grade or "").strip()))
+    if not (has(r1) and has(r2)):
+        return None
     specials = [(r.grade or "").strip() for r in (r1, r2)
                 if r is not None and getattr(r, "grade_manual", False)]
     for g in ("มส", "ร"):
