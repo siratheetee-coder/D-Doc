@@ -253,41 +253,106 @@ def render_bank_recon(school, rec, account_name="", checks=None) -> str:
     return _save(doc, f"งบกระทบยอดเงินฝากธนาคาร_{thai_date(rec.as_of) if rec.as_of else rec.id}")
 
 
-# --------------------------------- หนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ)
+# --------------------------------- หนังสือรับรองการหักภาษี ณ ที่จ่าย (แบบ 4235)
+# ส่วนราชการใช้แบบ 4235 ของกรมบัญชีกลาง (ไม่ใช่แบบ 50 ทวิ ของกรมสรรพากร)
+_JURISTIC_PREFIX = ("บริษัท", "บจก", "บมจ", "ห้างหุ้นส่วน", "หจก", "หสน", "สหกรณ์",
+                    "มูลนิธิ", "สมาคม")
+
+
+def _no_border(cell, edges=("left", "bottom", "right")):
+    """ลบเส้นขอบบางด้านของเซลล์ (แถวรวมของแบบ 4235: ช่องซ้ายไม่มีกรอบ)"""
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    tcPr = cell._tc.get_or_add_tcPr()
+    borders = tcPr.find(qn("w:tcBorders"))
+    if borders is None:
+        borders = OxmlElement("w:tcBorders")
+        tcPr.append(borders)
+    for edge in edges:
+        el = OxmlElement(f"w:{edge}")
+        el.set(qn("w:val"), "nil")
+        borders.append(el)
+
+
+def _is_juristic(name: str) -> bool:
+    """ผู้ขายเป็นนิติบุคคลไหม (ดูจากคำนำหน้าชื่อ) -> เลือกบรรทัดภาษีเงินได้นิติบุคคล/บุคคลธรรมดา"""
+    n = (name or "").strip().replace(" ", "")
+    return n.startswith(_JURISTIC_PREFIX)
+
+
 def render_wht_certificate(school, memo, *, payee_tax_id="", payee_address="",
-                           pay_type="ค่าจ้างทำของ/ค่าบริการ", rate=1.0) -> str:
-    """ออกจากบันทึกขออนุมัติเบิกจ่ายที่มีการหักภาษี ณ ที่จ่าย"""
+                           pay_type="ค่าจ้างทำของ", rate=1.0, ref_no=None) -> str:
+    """หนังสือรับรองการหักภาษี ณ ที่จ่าย แบบ 4235 (ใช้ทั้งบันทึกขอเบิกจ่าย และเรื่องจัดซื้อ/จ้าง)
+    memo ต้องมี amount (รวม VAT) · vat · wht · fine · payee · date · memo_no
+    - ฐานภาษี = amount - vat · ภาษี = memo.wht (ไม่มีก็คิด rate %)
+    - นิติบุคคล/จด VAT -> ลงเลขประจำตัวผู้เสียภาษี · บุคคลธรรมดาไม่จด VAT -> เลขประจำตัวประชาชน
+    - มีค่าปรับ -> ลงบรรทัดค่าปรับ และรวมอยู่ในยอดรวม"""
+    from app.thai_utils import thai_date_short
     doc = _new()
     base = float(memo.amount or 0) - float(memo.vat or 0)
     wht = float(memo.wht or 0) or round(base * rate / 100, 2)
-    _p(doc, "หนังสือรับรองการหักภาษี ณ ที่จ่าย", align="center", bold=True, size=18, after=0)
-    _p(doc, "ตามมาตรา 50 ทวิ แห่งประมวลรัษฎากร", align="center", size=14, after=6)
-    _p(doc, f"ผู้มีหน้าที่หักภาษี ณ ที่จ่าย : {(school.name or '').strip()}", size=15, after=1)
-    _p(doc, f"ที่อยู่ : {(school.address or '').strip() or _BLANK}", size=15, after=1)
-    _p(doc, f"เลขประจำตัวผู้เสียภาษีอากร : {(getattr(school, 'tax_id', '') or '').strip() or _BLANK}",
-       size=15, after=4)
-    _p(doc, f"ผู้ถูกหักภาษี ณ ที่จ่าย : {(memo.payee or '').strip() or _BLANK}", size=15, after=1)
-    _p(doc, f"ที่อยู่ : {payee_address or _BLANK}", size=15, after=1)
-    _p(doc, f"เลขประจำตัวผู้เสียภาษีอากร : {payee_tax_id or _BLANK}", size=15, after=4)
+    fine = float(getattr(memo, "fine", 0) or 0)
+    payee = (memo.payee or "").strip()
+    juristic = _is_juristic(payee)
+    use_tax_line = juristic or float(memo.vat or 0) > 0
+    ref = (ref_no if ref_no is not None else (memo.memo_no or "")).strip()
+    sch_tax = (getattr(school, "tax_id", "") or "").strip()
+    pay_date = thai_date_short(memo.date) if memo.date else ""
 
-    widths = [Cm(7.5), Cm(3.0), Cm(3.0), Cm(3.0)]
-    t = _grid(doc, ["ประเภทเงินได้พึงประเมินที่จ่าย", "วัน เดือน ปี ที่จ่าย",
-                    "จำนวนเงินที่จ่าย", "ภาษีที่หักและนำส่งไว้"], widths, size=14)
-    _row(t, [pay_type, thai_date(memo.date) if memo.date else "", _money(base), _money(wht)],
-         widths, ["left", "center", "right", "right"], size=14)
-    _row(t, ["รวมเงินที่จ่ายและภาษีที่หักนำส่ง", "", _money(base), _money(wht)],
-         widths, ["right", "center", "right", "right"], size=14, bold=True)
-    _p(doc, f"รวมเงินภาษีที่หักนำส่ง (ตัวอักษร) {bahttext(wht)}", bold=True, before=4, after=4)
-    _p(doc, "ผู้จ่ายเงิน   ( ) หักภาษี ณ ที่จ่าย   ( ) ออกภาษีให้ตลอดไป   "
-            "( ) ออกภาษีให้ครั้งเดียว", size=14, after=6)
-    _p(doc, "ขอรับรองว่าข้อความและตัวเลขดังกล่าวข้างต้นถูกต้องตรงกับความจริงทุกประการ",
-       align="justify", indent=1.25, size=15, after=12)
-    _sign_table(doc, [[
-        ("ลงชื่อ.......................................ผู้จ่ายเงิน", "center"),
+    _p(doc, "หนังสือรับรองการหักภาษี ณ ที่จ่าย", align="center", bold=True, size=18, after=0)
+    _p(doc, "แบบ 4235", align="right", bold=True, size=16, after=4)
+    _p(doc, "ผู้มีหน้าที่หักภาษี ณ ที่จ่าย :", after=0)
+    _p(doc, f"ส่วนราชการ {(school.name or '').strip() or _BLANK}"
+            f"   เลขประจำตัวผู้เสียภาษี {sch_tax or _BLANK}", after=0)
+    _p(doc, f"ที่อยู่ {(school.address or '').strip() or _BLANK}", after=0)
+    _p(doc, f"ขอรับรองว่าได้หักเงิน ณ ที่จ่าย ตามบันทึกตกลงซื้อ/จ้าง เลขที่ {ref or _BLANK}",
+       indent=1.25, after=6)
+    _p(doc, "ผู้ถูกหักภาษี ณ ที่จ่าย :", after=0)
+    _p(doc, f"ชื่อ {payee or _BLANK}", after=0)
+    _p(doc, f"* เลขประจำตัวประชาชน {(payee_tax_id if not use_tax_line else '') or _BLANK}",
+       indent=4.5, after=0)
+    _p(doc, f"* เลขประจำตัวผู้เสียภาษี {(payee_tax_id if use_tax_line else '') or _BLANK}",
+       indent=4.5, after=0)
+    _p(doc, f"ที่อยู่ {payee_address or _BLANK}", after=0)
+    _p(doc, f"และได้โอนสิทธิเรียกร้องในเงินดังกล่าวให้แก่ {_BLANK}{_BLANK}", after=6)
+
+    # ตาราง: 3 บรรทัดในแถวเดียว (นิติบุคคล / บุคคลธรรมดา / ค่าปรับ) ค่าลงตรงบรรทัดของตัวเอง
+    line = 0 if juristic else 1
+
+    def at(idx, text):
+        return "\n".join(text if k == idx else "" for k in range(3))
+
+    widths = [Cm(4.4), Cm(3.4), Cm(2.8), Cm(3.0), Cm(2.4)]
+    t = _grid(doc, ["ประเภทภาษี", "ประเภทเงินที่ได้จ่าย", "วัน เดือน ปี ที่จ่าย",
+                    "จำนวนเงินได้", "ภาษี"], widths, size=15)
+    tax_col = at(line, _money(wht))
+    if fine > 0:
+        tax_col = "\n".join([_money(wht) if line == 0 else "",
+                              _money(wht) if line == 1 else "", _money(fine)])
+    _row(t, ["ภาษีเงินได้นิติบุคคล\nภาษีเงินได้บุคคลธรรมดา\nค่าปรับ",
+             at(line, pay_type), at(line, pay_date), at(line, _money(base)), tax_col],
+         widths, ["left", "center", "center", "right", "right"], size=15)
+    _set_cell(t.rows[-1].cells[0], "ภาษีเงินได้นิติบุคคล\nภาษีเงินได้บุคคลธรรมดา\nค่าปรับ",
+              bold=True, size=15)                # ประเภทภาษีตัวหนา (ตามแบบ)
+    total_tax = round(wht + fine, 2)
+    r = _row(t, ["", "", "รวม", _money(base), _money(total_tax)],
+             widths, ["left", "center", "center", "right", "right"], size=15, bold=True)
+    _no_border(r.cells[0])                       # แถวรวม: 3 ช่องซ้ายไม่มีกรอบ (ตามแบบ)
+    _no_border(r.cells[1], ("left", "bottom", "right"))
+    _no_border(r.cells[2], ("left", "bottom"))
+    _p(doc, f"รวมเงินภาษี (ตัวอักษร)  {bahttext(total_tax)}", bold=True, before=8, after=14)
+    _sign_table(doc, [[("", "center")], [
+        (f"(ลงชื่อ).......................................", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
-        (f"วันที่ {thai_date(memo.date) if memo.date else _LINE}", "center"),
+        (f"ตำแหน่ง {(school.director_position or '').strip() or _BLANK}", "center"),
     ]])
-    return _save(doc, f"หนังสือรับรองหักภาษีณที่จ่าย_{(memo.memo_no or memo.id)}")
+    _p(doc, "หมายเหตุ", bold=True, size=15, before=10, after=0)
+    _p(doc, "กรอกข้อมูลกรณีมีการโอนสิทธิเรียกร้องในการรับเงิน", size=15, after=0)
+    _p(doc, "* ให้กรอกเลขประจำตัวประชาชน กรณีผู้ถูกหักภาษี ณ ที่จ่าย เป็นบุคคลธรรมดาที่ไม่ได้จด"
+            "ทะเบียนภาษีมูลค่าเพิ่ม", size=15, indent=1.25, after=0)
+    _p(doc, "* ให้กรอกเลขประจำตัวผู้เสียภาษี กรณีผู้ถูกหักภาษี ณ ที่จ่ายเป็นนิติบุคคล และบุคคล"
+            "ธรรมดาที่จดทะเบียนภาษีมูลค่าเพิ่ม", size=15, indent=1.25, after=0)
+    return _save(doc, f"หนังสือรับรองหักภาษีณที่จ่าย_{ref or memo.memo_no or getattr(memo, 'id', '')}")
 
 
 # ------------------------------------ รายงานผลการใช้จ่ายงบประมาณรายไตรมาส

@@ -251,6 +251,7 @@ MIGRATIONS = [
     ("student", "guardian_relation", "VARCHAR DEFAULT ''"),
     ("student", "guardian_job", "VARCHAR DEFAULT ''"),
     ("acad_score", "grade_manual", "BOOLEAN DEFAULT 0"),
+    ("school", "tax_id", "VARCHAR DEFAULT ''"),
     # ---- ตารางกลาง StudentMeasure สร้างอัตโนมัติผ่าน create_all (ไม่ต้อง migrate คอลัมน์) ----
 ]
 

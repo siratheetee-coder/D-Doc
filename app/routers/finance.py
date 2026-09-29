@@ -1285,16 +1285,38 @@ def bank_recon_doc(rid: int, db: Session = Depends(get_db)):
 
 
 # ---------------- หนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) ----------------
+def _payee_vendor(db, memo):
+    """ผู้ขายของบันทึกขอเบิก: ผู้ขายของเรื่องจัดซื้อที่ผูกไว้ ก่อน · ไม่มีก็หาจากชื่อผู้รับเงินในทะเบียนผู้ขาย"""
+    from app.models import Procurement, Vendor
+    if memo.procurement_id:
+        p = db.get(Procurement, memo.procurement_id)
+        if p and p.vendor:
+            return p.vendor
+    name = (memo.payee or "").strip()
+    if not name:
+        return None
+    # ชื่อต้องตรงกันเป๊ะ - เว้นว่างให้เขียนเองดีกว่าดึงเลขภาษีของร้านอื่นมาผิดคน
+    return db.query(Vendor).filter(Vendor.name == name).first()
+
+
 @router.get("/finance/disburse/{mid}/wht.docx")
 def wht_certificate_doc(mid: int, db: Session = Depends(get_db),
                         tax_id: str = "", address: str = "",
-                        pay_type: str = "ค่าจ้างทำของ/ค่าบริการ"):
+                        pay_type: str = "ค่าจ้างทำของ"):
     from app.services.finance_forms_doc import render_wht_certificate
     memo = db.get(DisburseMemo, mid)
     if not memo:
         return RedirectResponse("/finance/disburse", status_code=303)
-    path = render_wht_certificate(get_school(db), memo, payee_tax_id=tax_id.strip(),
-                                  payee_address=address.strip(), pay_type=pay_type)
+    # ผู้ถูกหักภาษี: ดึงเลขผู้เสียภาษี/ที่อยู่จากทะเบียนผู้ขาย (ส่งค่าใน URL มาเองได้ทับ)
+    v = _payee_vendor(db, memo)
+    from app.models import Procurement
+    proc = db.get(Procurement, memo.procurement_id) if memo.procurement_id else None
+    path = render_wht_certificate(
+        get_school(db), memo,
+        ref_no=((proc.order_no or "").strip() if proc else "") or (memo.memo_no or ""),
+        payee_tax_id=tax_id.strip() or ((v.tax_id or "").strip() if v else ""),
+        payee_address=address.strip() or ((v.address or "").strip() if v else ""),
+        pay_type=pay_type)
     return serve_generated(path, _DOCX)
 
 

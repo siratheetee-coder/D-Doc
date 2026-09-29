@@ -358,6 +358,16 @@
   <a class="btn gray" href="/procurement/{{ p.id }}/receipt-voucher"><svg class="icon"><use href="#ic-download"/></svg> ออกใบสำคัญรับเงิน</a>
 </div>
 
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-file"/></svg> หนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ)</h2>
+  {% if (p.wht_rate or 0) > 0 %}
+  <p class="muted" style="margin-top:0;">หักร้อยละ {{ '%g'|format(p.wht_rate) }} ของมูลค่าก่อน VAT · ดึงเลขผู้เสียภาษี/ที่อยู่ของผู้ขายจากทะเบียนผู้ขาย และเลขผู้เสียภาษีของโรงเรียนจากหน้าตั้งค่า</p>
+  <a class="btn gray" href="/procurement/{{ p.id }}/wht.docx"><svg class="icon"><use href="#ic-download"/></svg> ออกหนังสือรับรอง 50 ทวิ</a>
+  {% else %}
+  <p class="muted" style="margin:0;">เรื่องนี้ยังไม่ได้ตั้งอัตราหักภาษี ณ ที่จ่าย · ไปที่ <a href="/procurement/{{ p.id }}/edit">แก้ไขเรื่อง</a> แล้วกรอกช่อง "ภาษีหัก ณ ที่จ่าย (%)" ก่อน</p>
+  {% endif %}
+</div>
+
 {% if not case_info.altkind %}
 <div class="card">
   <h2>ประวัติเอกสารที่ออก {% if documents %}<span class="muted" style="font-size:15px;">({{ documents|length }} ครั้ง)</span>{% endif %}</h2>

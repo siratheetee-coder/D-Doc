@@ -493,6 +493,7 @@ def settings_save(
     db: Session = Depends(get_db),
     name: str = Form(""), address: str = Form(""),
     district: str = Form(""), province: str = Form(""), area_office: str = Form(""),
+    tax_id: str = Form(""),
     director_name: str = Form(""), director_position: str = Form("ผู้อำนวยการโรงเรียน"),
     officer_name: str = Form(""), head_officer_name: str = Form(""),
     finance_officer_name: str = Form(""), finance_head_name: str = Form(""),
@@ -506,6 +507,7 @@ def settings_save(
     s = get_school(db)
     s.name, s.address, s.district, s.province = name, address, district, province
     s.area_office = area_office.strip()
+    s.tax_id = "".join(ch for ch in tax_id if ch.isdigit())    # เก็บเฉพาะตัวเลข (พิมพ์ขีด/เว้นวรรคมาได้)
     s.director_name, s.director_position = director_name, director_position
     s.officer_name, s.head_officer_name = officer_name, head_officer_name
     s.finance_officer_name = finance_officer_name.strip()
@@ -2521,6 +2523,37 @@ def procurement_receipt_voucher(proc_id: int, db: Session = Depends(get_db)):
         school, payee=payee, payee_address=payee_addr, items=items,
         total=round(float(proc.total_amount or 0), 2), payer=payer,
         subject=(proc.order_no or proc.memo_no or str(proc.id)))
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.get("/procurement/{proc_id}/wht.docx")
+def procurement_wht(proc_id: int, db: Session = Depends(get_db)):
+    """หนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) ของเรื่องจัดซื้อ/จ้าง
+    ภาษี = อัตราหัก ณ ที่จ่ายของเรื่อง x มูลค่าก่อน VAT (สูตรเดียวกับใบเบิกจ่ายในชุดเอกสาร)"""
+    from types import SimpleNamespace
+    from app.services.finance_forms_doc import render_wht_certificate
+    proc = db.get(Procurement, proc_id)
+    if not proc:
+        return RedirectResponse("/procurement", status_code=303)
+    total = float(proc.total_amount or 0)
+    if proc.vat_mode == "include":
+        goods = round(total / 1.07, 2)
+    else:
+        goods = total
+    wht = round(goods * float(proc.wht_rate or 0) / 100, 2)
+    v = proc.vendor
+    memo = SimpleNamespace(
+        id=proc.id, memo_no=proc.order_no or proc.memo_no or "",
+        amount=total, vat=round(total - goods, 2), wht=wht,
+        fine=round(total * float(proc.penalty_rate or 0.10) / 100 * (proc.overdue_days or 0), 2),
+        payee=(v.name if v else "") or "",
+        date=proc.inspect_date or proc.delivery_date or proc.order_date)
+    pay_type = "ค่าจ้างทำของ" if (proc.proc_type or "") == "จ้าง" else "ค่าซื้อพัสดุ"
+    path = render_wht_certificate(
+        get_school(db), memo,
+        payee_tax_id=((v.tax_id or "").strip() if v else ""),
+        payee_address=((v.address or "").strip() if v else ""),
+        pay_type=pay_type, rate=float(proc.wht_rate or 0))
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 

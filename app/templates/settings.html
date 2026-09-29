@@ -20,6 +20,10 @@
         <input name="area_office" value="{{ school.area_office or '' }}" placeholder="เช่น สำนักงานเขตพื้นที่การศึกษา...">
         <div class="hint">ใช้ในหนังสือรับรองบุคลากร (สังกัด...) และเอกสารราชการอื่น</div>
       </div>
+      <div><label>เลขประจำตัวผู้เสียภาษีอากร</label>
+        <input name="tax_id" value="{{ school.tax_id or '' }}" inputmode="numeric" maxlength="17" placeholder="13 หลัก">
+        <div class="hint">ใช้ในหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ)</div>
+      </div>
     </div>
     <div class="row">
       <div><label>ชื่อผู้อำนวยการ</label><input name="director_name" list="persons" value="{{ school.director_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>

@@ -32,6 +32,7 @@ class School(Base):
     district = Column(String, default="")          # อำเภอ
     province = Column(String, default="")          # จังหวัด
     area_office = Column(String, default="")       # สำนักงานเขตพื้นที่การศึกษาที่สังกัด (ใช้ในหนังสือรับรอง ฯลฯ)
+    tax_id = Column(String, default="")            # เลขประจำตัวผู้เสียภาษีอากรของส่วนราชการ (หนังสือรับรอง 50 ทวิ)
 
     director_name = Column(String, default="")     # ชื่อผู้อำนวยการ
     director_position = Column(String, default="ผู้อำนวยการโรงเรียน")
