@@ -149,7 +149,9 @@ def test_all_registers_covers_accounts_and_items(env, tmp_path):
     d = Document(p)
     heads = [x.text.strip() for x in d.paragraphs if x.text.strip().startswith("ประเภทเงิน")]
     names = {h.replace("ประเภทเงิน", "").split("(")[0].strip() for h in heads}
-    assert {"เงินอุดหนุน", "รายได้สถานศึกษา"} <= names, names
+    # เงินอุดหนุนแบ่งเป็นประเภทย่อย จึงไม่มีทะเบียนคุมของตัวเอง - คุมแยกทีละประเภท
+    assert "เงินอุดหนุน" not in names, names
+    assert "รายได้สถานศึกษา" in names, names          # บัญชีที่ไม่มีรายการย่อย ออกระดับบัญชี
     assert {"ค่าจัดการเรียนการสอน", "ค่าเครื่องแบบนักเรียน",
             "ค่ากิจกรรมพัฒนาคุณภาพผู้เรียน"} <= names, names
 
@@ -176,12 +178,42 @@ def test_accounts_page_shows_sub_items(env):
     assert "/finance/registers.docx" in html
     for nm in ("ค่าจัดการเรียนการสอน", "ค่าเครื่องแบบนักเรียน"):
         assert nm in html, nm
-    assert f"/finance/accounts/{aid}/money-register.docx" in html
-    assert "รายการย่อย 3" in html
+    # รายการย่อยโชว์เป็นแถวย่อหน้าเข้าไปเลย ไม่ต้องกดกาง และแต่ละอันมีทะเบียนคุมของตัวเอง
+    assert "sub-t" not in html and "รายการย่อย 3" not in html
+    assert html.count(f"/finance/accounts/{aid}/money-register.docx?year={FY}&item=") == 3
+    # บัญชีที่มีรายการย่อย ต้องไม่มีปุ่มทะเบียนคุมระดับบัญชี
+    assert f'/finance/accounts/{aid}/money-register.docx?year={FY}"' not in html
 
 
-def test_ledger_page_offers_money_register_first(env):
+def test_ledger_page_has_no_general_ledger_button(env):
+    """หน้าบัญชี: เหลือแต่ทะเบียนคุมเงิน · เลิกออกบัญชีแยกประเภทจากหน้านี้
+    และบัญชีที่มีรายการย่อย ออกทะเบียนคุมได้เฉพาะรายหมวด"""
     c, aid, _ = env
     html = c.get(f"/finance/accounts/{aid}?year={FY}").text
-    assert "ทะเบียนคุมเงิน (Word)" in html
+    assert "บัญชีแยกประเภท" not in html
+    assert "ledger.docx" not in html and "ledger.xlsx" not in html
     assert "money-register.docx" in html
+    assert "ทะเบียนคุมเงิน (Word)" not in html     # บัญชีนี้มีรายการย่อย
+
+
+def test_item_register_includes_child_items(env, tmp_path):
+    """หมวดหลักที่มีหมวดย่อย ทะเบียนคุมต้องรวมรายการของหมวดย่อยด้วย"""
+    from app.accounts import Tenant, acc_session
+    from app.models import AccountItem, FinanceTxn
+    from app.tenancy import session_for
+    c, aid, uniform = env
+    with acc_session() as s:
+        tid = s.query(Tenant).filter_by(slug="demo").one().id
+    db = session_for(tid)
+    kid = AccountItem(account_id=aid, fiscal_year=FY, name="ค่าเครื่องแบบ ป.1",
+                      budget=6000, deposit_type="bank", parent_id=uniform)
+    db.add(kid)
+    db.flush()
+    db.add(FinanceTxn(account_id=aid, fiscal_year=FY, date=datetime(2026, 2, 3),
+                      kind="out", amount=6000, ref="ฎ.20/2569",
+                      note="จ่ายเครื่องแบบ ป.1", item_id=kid.id))
+    db.commit()
+    db.close()
+    r = c.get(f"/finance/accounts/{aid}/money-register.docx?year={FY}&item={uniform}")
+    flat = "\n".join(" | ".join(x) for x in _cells(_save(r.content, tmp_path, "k.docx")))
+    assert "จ่ายเครื่องแบบ ป.1" in flat

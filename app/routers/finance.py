@@ -137,16 +137,24 @@ def accounts_page(request: Request, db: Session = Depends(get_db), year: int | N
         cur["in" if (t.kind or "in") == "in" else "out"] += float(t.amount or 0)
     item_rows = {}
     for aid_, rows_ in items_by_acct.items():
+        kids = {}
+        for it in rows_:
+            if it.parent_id:
+                kids.setdefault(it.parent_id, []).append(it)
         out = []
         for it in rows_:
-            f = flow.get(it.id, {"in": 0.0, "out": 0.0})
-            used = f["out"]
-            budget = float(it.budget or 0)
-            out.append({
-                "o": it, "budget": budget, "got": f["in"], "used": used,
-                "left": budget - used,
-                "pct": min(100, round(used / budget * 100)) if budget else 0,
-            })
+            if it.parent_id:
+                continue                       # ลูกจะถูกแทรกต่อท้ายแม่ของตัวเอง
+            for lv, node in [(0, it)] + [(1, k) for k in kids.get(it.id, [])]:
+                fam = [node] + kids.get(node.id, [])
+                got = sum(flow.get(x.id, {}).get("in", 0.0) for x in fam)
+                used = sum(flow.get(x.id, {}).get("out", 0.0) for x in fam)
+                budget = sum(float(x.budget or 0) for x in fam)
+                out.append({
+                    "o": node, "level": lv, "budget": budget, "got": got, "used": used,
+                    "left": budget - used,
+                    "pct": min(100, round(used / budget * 100)) if budget else 0,
+                })
         item_rows[aid_] = out
     # จัดกลุ่มตามหมวดเงิน (งบประมาณ -> รายได้แผ่นดิน -> นอกงบประมาณ) พร้อมยอดรวมรายกลุ่ม
     # ในกลุ่มเรียงตามที่เก็บเงิน (ธนาคาร/เงินสด/ส่วนราชการ) แล้วตามชื่อ
@@ -1354,24 +1362,36 @@ def quarter_doc(db: Session = Depends(get_db), year: int | None = None, q: int =
 
 # ---------------- ทะเบียนคุมเงิน (ฟอร์มกลาง ใช้ได้ทุกบัญชีและทุกรายการย่อย) ----------------
 def _register_rows(db, fy):
-    """แถวสำหรับออกทะเบียนคุม: ทุกบัญชี + ทุกรายการย่อยที่มีงบหรือมีรายการเคลื่อนไหว
+    """แถวสำหรับออกทะเบียนคุม: บัญชี + รายการย่อยที่มีงบหรือมีรายการเคลื่อนไหว
 
-    บัญชีที่มีรายการย่อย (เช่น เงินอุดหนุน) ต้องมีทะเบียนคุมของตัวเองทั้งระดับบัญชี
-    และระดับรายการย่อย ตามที่แบบฟอร์มระบุ "ประเภทเงิน ..." ไว้ด้านบน
+    บัญชีที่แบ่งเป็นรายการย่อย (เช่น เงินอุดหนุน) "ไม่มีทะเบียนคุมของตัวเอง"
+    ของจริงคุมแยกทีละประเภทย่อย (ค่าจัดการเรียนการสอน, ค่าหนังสือเรียน, ...)
+    จึงออกเฉพาะระดับรายการย่อย ตามที่แบบฟอร์มระบุ "ประเภทเงิน ..." ไว้ด้านบน
     """
     rows = []
     for a in db.query(FinanceAccount).order_by(FinanceAccount.name).all():
         txns = [t for t in a.txns if t.fiscal_year == fy]
-        rows.append((a, None, txns, opening_for(a, fy)))
         items = (db.query(AccountItem)
                  .filter_by(account_id=a.id, fiscal_year=fy)
                  .order_by(AccountItem.id).all())
+        if not items:
+            rows.append((a, None, txns, opening_for(a, fy)))
+            continue
         for it in items:
-            sub = [t for t in txns if t.item_id == it.id]
+            ids = _item_family(db, it)
+            sub = [t for t in txns if t.item_id in ids]
             if not sub and not (it.budget or 0):
                 continue                       # รายการย่อยที่ยังไม่มีอะไรเลย ไม่ต้องพิมพ์
             rows.append((a, it, sub, 0.0))     # รายการย่อยไม่มียอดยกมาแยก
     return rows
+
+
+def _item_family(db, it):
+    """id ของรายการย่อยนี้ + หมวดลูกทั้งหมด (หมวดหลักต้องคุมรวมของลูกด้วย)"""
+    ids = {it.id}
+    ids.update(x.id for x in db.query(AccountItem)
+               .filter_by(parent_id=it.id, fiscal_year=it.fiscal_year).all())
+    return ids
 
 
 @router.get("/finance/accounts/{aid}/money-register.docx")
@@ -1388,7 +1408,8 @@ def account_money_register_docx(aid: int, db: Session = Depends(get_db),
         sub = db.get(AccountItem, item)
         if not sub or sub.account_id != a.id:
             raise HTTPException(status_code=404, detail="ไม่พบรายการย่อยนี้ในบัญชี")
-        txns = [t for t in txns if t.item_id == sub.id]
+        ids = _item_family(db, sub)
+        txns = [t for t in txns if t.item_id in ids]
     path = render_money_register(get_school(db), a, txns,
                                  0.0 if sub else opening_for(a, fy), fy, item=sub)
     return serve_generated(path, _DOCX)

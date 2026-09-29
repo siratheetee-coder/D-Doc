@@ -13,11 +13,12 @@
           {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
         </select>
       </form>
-      {# ปุ่มหลักคือ "ทะเบียนคุมเงิน" ตามแบบฟอร์มที่โรงเรียนใช้จริง
-         ส่วนบัญชีแยกประเภทเก็บไว้เป็นทางเลือก (บางเขตขอแบบนั้น) #}
+      {# ออกได้อย่างเดียวคือ "ทะเบียนคุมเงิน" ตามแบบฟอร์มที่โรงเรียนใช้จริง
+         บัญชีที่แบ่งเป็นรายการย่อย ไม่มีทะเบียนคุมของตัวเอง - คุมแยกทีละประเภทย่อย
+         (ปุ่มอยู่ในตารางงบรายหมวดข้างล่าง) #}
+      {% if not item_rows %}
       <a class="btn sm" href="/finance/accounts/{{ account.id }}/money-register.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> ทะเบียนคุมเงิน (Word)</a>
-      <a class="btn sm green" href="/finance/accounts/{{ account.id }}/ledger.xlsx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> Excel</a>
-      <a class="btn sm gray" href="/finance/accounts/{{ account.id }}/ledger.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> บัญชีแยกประเภท</a>
+      {% endif %}
       {% if special_key %}<a class="btn sm gray" href="/finance/accounts/{{ account.id }}/register.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> {{ special_label[special_key] }}</a>{% endif %}
       <a class="btn gray sm" href="/finance/accounts"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
     </div>
@@ -128,7 +129,10 @@
         <td class="right" style="color:#16a34a;">{{ "{:,.2f}".format(r.tin) if r.tin else "-" }}</td>
         <td class="right" style="color:#dc2626;">{{ "{:,.2f}".format(r.tout) if r.tout else "-" }}</td>
         <td class="right"><b>{{ "{:,.2f}".format(r.remain) }}</b></td>
-        <td class="right"><form method="post" action="/finance/items/{{ r.it.id }}/delete" style="display:inline" onsubmit="return confirm('ลบหมวดนี้? (รายการเงินที่เคยผูกจะไม่ถูกลบ แต่จะไม่ผูกกับหมวดแล้ว)')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form></td>
+        <td class="right" style="white-space:nowrap;">
+          <a class="btn sm gray" href="/finance/accounts/{{ account.id }}/money-register.docx?year={{ fiscal_year }}&item={{ r.it.id }}"
+             title="ทะเบียนคุมเงินของหมวดนี้"><svg class="icon"><use href="#ic-download"/></svg> ทะเบียนคุม</a>
+          <form method="post" action="/finance/items/{{ r.it.id }}/delete" style="display:inline" onsubmit="return confirm('ลบหมวดนี้? (รายการเงินที่เคยผูกจะไม่ถูกลบ แต่จะไม่ผูกกับหมวดแล้ว)')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form></td>
       </tr>
       {% endfor %}
     </tbody>

@@ -67,20 +67,14 @@
   .fg .dep{ display:inline-block; padding:1px 9px; border-radius:999px; font-size:12.5px; font-weight:600; }
   .fg .tot td{ font-weight:700; background:transparent; }
 
-  /* ---- รายการย่อยของบัญชี (เงินอุดหนุนต้องดูรายรายการได้ ไม่ใช่เห็นแต่ยอดรวม) ---- */
-  .sub-box { background:#fff; border-radius:0 12px 12px 0; padding:10px 14px; margin:0 6px; }
-  .sub-head { font-size:13.5px; font-weight:700; margin:0 0 6px; }
-  .sub-tbl { width:100%; border-collapse:collapse; }
-  .sub-tbl th { font-size:12.5px; color:var(--muted); font-weight:600; text-align:left;
-                padding:4px 8px; border-bottom:1px solid #eef1f7; }
-  .sub-tbl td { font-size:13.5px; padding:6px 8px; border-bottom:1px solid #f4f6fa; }
-  .sub-tbl tr:last-child td { border-bottom:none; }
-  .sub-tbl .right, .sub-tbl th.right { text-align:right; }
-  .bar { display:inline-block; width:78px; height:7px; border-radius:99px; background:#eef1f7;
-         overflow:hidden; vertical-align:middle; }
+  /* ---- รายการย่อยของบัญชี (แสดงเป็นแถวย่อหน้าเข้าไปใต้บัญชีแม่ ไม่ต้องกดกาง) ---- */
+  .sub td{ font-size:13.5px; padding-top:4px; padding-bottom:4px; }
+  .sub .nm{ color:var(--sidebar-ink); }
+  .sub .tw{ color:var(--muted); }
+  .bar { display:inline-block; width:64px; height:6px; border-radius:99px; background:#e8edf5;
+         overflow:hidden; vertical-align:middle; margin-left:8px; }
   .bar span { display:block; height:100%; border-radius:99px; }
-  .pct { font-size:12px; color:var(--muted); margin-left:6px; vertical-align:middle; }
-  .sub-t.on { background:#dfe5f0; }
+  .pct { font-size:11.5px; color:var(--muted); margin-left:5px; vertical-align:middle; }
 </style>
 
 <div class="card">
@@ -125,51 +119,35 @@
           <td class="right"><b style="color:{{ g.color.ink }};">{{ "{:,.2f}".format(acct_balance_year(a, fiscal_year)) }}</b></td>
           <td class="right" style="white-space:nowrap;">
             <a class="btn sm" href="/finance/accounts/{{ a.id }}?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-clipboard"/></svg> รับ-จ่าย</a>
+            {# บัญชีที่แบ่งเป็นรายการย่อย ไม่มีทะเบียนคุมของตัวเอง - คุมแยกทีละประเภทย่อย #}
+            {% if not item_rows.get(a.id) %}
             <a class="btn sm gray" href="/finance/accounts/{{ a.id }}/money-register.docx?year={{ fiscal_year }}"
                title="ทะเบียนคุมเงินของบัญชีนี้"><svg class="icon"><use href="#ic-download"/></svg> ทะเบียนคุม</a>
-            {% if item_rows.get(a.id) %}
-            <button type="button" class="btn sm gray sub-t" data-acct="{{ a.id }}"
-                    title="ดูรายการย่อยของบัญชีนี้">รายการย่อย {{ item_rows.get(a.id)|length }}</button>
             {% endif %}
             <form method="post" action="/finance/accounts/{{ a.id }}/delete" style="display:inline" onsubmit="return confirm('ลบบัญชีนี้และรายการทั้งหมด?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
           </td>
         </tr>
-        {% if item_rows.get(a.id) %}
-        <tr class="sub-row" data-acct="{{ a.id }}" hidden>
-          <td colspan="6" style="padding:0 0 10px;">
-            <div class="sub-box" style="border-left:3px solid {{ g.color.g1 }};">
-              <div class="sub-head" style="color:{{ g.color.ink }};">รายการย่อยของ {{ a.name }} · ปีงบ {{ fiscal_year }}</div>
-              <table class="sub-tbl">
-                <thead><tr>
-                  <th>รายการย่อย</th><th class="right">งบที่ได้รับ</th><th class="right">รับแล้ว</th>
-                  <th class="right">ใช้ไป</th><th class="right">คงเหลือ</th><th style="width:118px;">ใช้ไปแล้ว</th><th></th>
-                </tr></thead>
-                <tbody>
-                {% for r in item_rows.get(a.id) %}
-                <tr>
-                  <td>{{ r.o.name }}</td>
-                  <td class="right">{{ "{:,.2f}".format(r.budget) }}</td>
-                  <td class="right">{{ "{:,.2f}".format(r.got) }}</td>
-                  <td class="right">{{ "{:,.2f}".format(r.used) }}</td>
-                  <td class="right"><b style="color:{{ '#b91c1c' if r.left < 0 else g.color.ink }};">{{ "{:,.2f}".format(r.left) }}</b></td>
-                  <td>
-                    <div class="bar" title="ใช้ไป {{ r.pct }}% ของงบที่ได้รับ">
-                      <span style="width:{{ r.pct }}%; background:{{ '#dc2626' if r.left < 0 else g.color.g1 }};"></span>
-                    </div>
-                    <span class="pct">{{ r.pct }}%</span>
-                  </td>
-                  <td class="right" style="white-space:nowrap;">
-                    <a class="btn sm gray" href="/finance/accounts/{{ a.id }}/money-register.docx?year={{ fiscal_year }}&item={{ r.o.id }}"
-                       title="ทะเบียนคุมของรายการย่อยนี้"><svg class="icon"><use href="#ic-download"/></svg> ทะเบียนคุม</a>
-                  </td>
-                </tr>
-                {% endfor %}
-                </tbody>
-              </table>
-            </div>
+        {# รายการย่อยของบัญชีนี้ - ย่อหน้าเข้าไปเป็นส่วนย่อยของบัญชีแม่ #}
+        {% for r in item_rows.get(a.id, []) %}
+        <tr class="sub" style="background:rgba(255,255,255,.45);">
+          <td style="padding-left:{{ 26 + r.level*22 }}px;">
+            <span class="tw">└</span> <span class="nm">{{ r.o.name }}</span>
+            {% if r.budget %}
+            <span class="bar" title="ใช้ไป {{ r.pct }}% ของงบที่ได้รับ"><span
+              style="width:{{ r.pct }}%; background:{{ '#dc2626' if r.left < 0 else g.color.g1 }};"></span></span><span
+              class="pct">{{ r.pct }}%</span>
+            {% endif %}
+          </td>
+          <td class="tw">รับแล้ว {{ "{:,.2f}".format(r.got) }} · ใช้ไป {{ "{:,.2f}".format(r.used) }}</td>
+          <td class="right">{{ "{:,.2f}".format(r.budget) }}</td>
+          <td class="right tw">-</td>
+          <td class="right"><b style="color:{{ '#b91c1c' if r.left < 0 else g.color.ink }};">{{ "{:,.2f}".format(r.left) }}</b></td>
+          <td class="right" style="white-space:nowrap;">
+            <a class="btn sm gray" href="/finance/accounts/{{ a.id }}/money-register.docx?year={{ fiscal_year }}&item={{ r.o.id }}"
+               title="ทะเบียนคุมเงินของ {{ r.o.name }}"><svg class="icon"><use href="#ic-download"/></svg> ทะเบียนคุม</a>
           </td>
         </tr>
-        {% endif %}
+        {% endfor %}
         {% endfor %}
         {% if g.accounts|length > 1 %}
         <tr class="tot">
@@ -188,34 +166,4 @@
   <p class="muted">ยังไม่มีบัญชี กรุณาเพิ่มด้านบน หรือนำเข้าจาก Excel</p>
   {% endif %}
 </div>
-
-<script>
-  /* ปุ่ม "รายการย่อย" กางแถวย่อยของบัญชีนั้น · จำไว้ว่ากางอันไหนค้างไว้
-     (ครูมักเปิดเงินอุดหนุนค้างไว้ตลอด ไม่ต้องกดใหม่ทุกครั้งที่เปลี่ยนปีงบ) */
-  (function () {
-    var KEY = 'ddoc_fin_sub_open';
-    var open = {};
-    try { open = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { open = {}; }
-    function apply(id, on) {
-      document.querySelectorAll('.sub-row[data-acct="' + id + '"]').forEach(function (tr) {
-        tr.hidden = !on;
-      });
-      document.querySelectorAll('.sub-t[data-acct="' + id + '"]').forEach(function (b) {
-        b.classList.toggle('on', on);
-      });
-    }
-    document.querySelectorAll('.sub-t').forEach(function (b) {
-      var id = b.dataset.acct;
-      if (open[id]) apply(id, true);
-      b.addEventListener('click', function () {
-        var on = !open[id];
-        open[id] = on;
-        if (!on) delete open[id];
-        apply(id, on);
-        try { localStorage.setItem(KEY, JSON.stringify(open)); } catch (e) {}
-      });
-    });
-  })();
-</script>
-
 {% endblock %}
