@@ -344,6 +344,7 @@ def init_school_db(engine) -> None:
     _purge_report_photos(engine)
     _migrate_lunch_measures(engine)
     _backfill_memo_subjects(engine)
+    _prune_stale_procurement_docnos(engine)
     _fix_lunch_proc_case(engine)
     _migrate_measure_times(engine)
 
@@ -435,6 +436,61 @@ def _backfill_memo_subjects(engine) -> None:
                         new = s if s.startswith("ขออนุมัติเบิกจ่าย") else f"ขออนุมัติเบิกจ่าย {s}".strip()
                 if new and (r.subject or "") != new:
                     r.subject = new
+                    changed += 1
+            if changed:
+                db.commit()
+        except Exception:
+            db.rollback()
+
+
+def _prune_stale_procurement_docnos(engine) -> None:
+    """เก็บกวาดทะเบียนเลขหนังสือฝั่งพัสดุให้ตรงกับเรื่องจริง (idempotent)
+
+    เดิมตอนแก้เลข (เช่น ใบสั่งซื้อ 21 -> 22) ระบบลงเลขใหม่โดยไม่ลบเลขเก่า
+    ทะเบียนจึงมีสองเลขสำหรับเอกสารใบเดียว และเลขเก่ายังค้างชื่อเรื่องเดิม
+    เช่น "(สำเนา)" ไว้ด้วย · อีกกรณีคือเรื่องถูกลบไปแล้วแต่เลขยังอยู่
+
+    ทำ 2 อย่าง
+      1) เลขที่ผูกกับเรื่องพัสดุ แต่เรื่องหายไป / ไม่ใช่เลขที่เรื่องนั้นใช้อยู่ -> ลบ
+      2) เลขลอย (ไม่รู้ว่าของงานไหน) ที่ตรงกับเลขบันทึกของเรื่องพัสดุ -> ผูกคืนให้เรื่องนั้น
+         (มาจากการคัดลอกเรื่องรุ่นเก่าที่ไม่ได้ผูก ref_id ไว้)
+    """
+    from sqlalchemy.orm import Session
+    from app.models import IssuedDocNo, Procurement
+    from app.services.doc_number import parse_seq
+
+    def _nos(p):
+        """{doc_type: {seq ที่เรื่องนี้ใช้อยู่จริง}}"""
+        order_type = "purchase_order" if p.proc_type == "ซื้อ" else "hire_order"
+        out = {
+            "memo": {p.memo_no, p.result_memo_no, p.spec_memo_no, p.inspect_memo_no},
+            "command": {p.command_no, p.spec_cmd_no, p.purchase_cmd_no},
+            order_type: {p.order_no},
+        }
+        return {k: {s for s in map(parse_seq, v) if s} for k, v in out.items()}
+
+    with Session(bind=engine) as db:
+        try:
+            changed = 0
+            for r in db.query(IssuedDocNo).filter(IssuedDocNo.source == "procurement").all():
+                p = db.get(Procurement, r.ref_id) if r.ref_id else None
+                if p is None or r.seq not in _nos(p).get(r.doc_type, set()):
+                    db.delete(r)
+                    changed += 1
+            floating = (db.query(IssuedDocNo)
+                        .filter(IssuedDocNo.ref_id.is_(None),
+                                (IssuedDocNo.source == "") | (IssuedDocNo.source.is_(None)),
+                                IssuedDocNo.doc_type == "memo").all())
+            if floating:
+                by_year = {}
+                for p in db.query(Procurement).all():
+                    by_year.setdefault(p.fiscal_year, {}).setdefault(parse_seq(p.memo_no), p)
+                for r in floating:
+                    p = by_year.get(r.fiscal_year, {}).get(r.seq)
+                    if p is None:
+                        continue
+                    r.source, r.ref_id = "procurement", p.id
+                    r.subject = f"รายงานขอ{p.proc_type or ''}{(p.subject or '').strip()}".strip()
                     changed += 1
             if changed:
                 db.commit()

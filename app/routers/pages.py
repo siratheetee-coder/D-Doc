@@ -35,7 +35,8 @@ from app.services.asset_utils import (
     net_book_value, depreciation_schedule, material_balance, ASSET_STATUSES,
     ASSET_BAD_STATUSES,
 )
-from app.services.doc_number import suggest_doc_no, commit_doc_no, check_doc_no, COUNTER_TYPES, parse_seq
+from app.services.doc_number import (suggest_doc_no, commit_doc_no, check_doc_no,
+                                     COUNTER_TYPES, parse_seq, remove_issued)
 from app.services.budget import current_plan_year, plan_year_label, project_budget, project_spent
 from app.services.render import (render_document, render_bundle, AVAILABLE_KINDS,
                                  kinds_for, book_purchase_of, WHT_KIND)
@@ -2112,9 +2113,7 @@ async def procurement_create(request: Request, db: Session = Depends(get_db)):
         proc.file_path = pf
     db.add(proc)
     db.flush()
-    commit_doc_no(db, "memo", proc.fiscal_year, proc.memo_no, source="procurement",
-                  ref_id=proc.id, subject=f"รายงานขอ{proc.proc_type or ''}{proc.subject or ''}".strip(),
-                  date=proc.request_date)
+    _sync_proc_docnos(db, proc)
     db.commit()
     db.refresh(proc)
     return RedirectResponse(f"/procurement/{proc.id}", status_code=303)
@@ -2266,6 +2265,40 @@ def procurement_edit_form(proc_id: int, request: Request, db: Session = Depends(
     })
 
 
+def _sync_proc_docnos(db, proc) -> None:
+    """ลงทะเบียนเลขหนังสือของเรื่องพัสดุนี้ใหม่ทั้งชุด (bump counter ด้วย)
+
+    ล้างเลขเดิมของเรื่องนี้ก่อนเสมอ แล้วค่อยลงใหม่ตามค่าปัจจุบัน
+    ไม่งั้นพอแก้เลข (เช่น ใบสั่งซื้อ 21 -> 22) เลขเก่าจะค้างในทะเบียน
+    กลายเป็นเอกสารใบเดียวมีสองเลข และชื่อเรื่องเก่า เช่น "(สำเนา)" ก็ค้างตาม
+    """
+    remove_issued(db, "procurement", proc.id)
+    fy = proc.fiscal_year
+    subj = f"{proc.proc_type or ''}{proc.subject or ''}".strip()
+    # แต่ละบันทึกมีชื่อรายงานนำหน้า (ในทะเบียนจะได้รู้ว่าเป็นบันทึกฉบับใด ไม่ใช่แค่ชื่อเรื่อง)
+    pt = proc.proc_type or ""
+    base = (proc.subject or "").strip()
+    for no, title in (
+        (proc.memo_no, f"รายงานขอ{pt}{base}"),
+        (proc.result_memo_no, f"รายงานผลการพิจารณาและขออนุมัติสั่ง{pt} {base}".strip()),
+        (proc.spec_memo_no, f"ขออนุมัติแต่งตั้งคณะกรรมการกำหนดคุณลักษณะเฉพาะและราคากลาง {base}".strip()),
+        (proc.inspect_memo_no, f"รายงานผลการตรวจรับพัสดุและอนุมัติเบิกจ่ายเงิน {base}".strip()),
+    ):
+        commit_doc_no(db, "memo", fy, no, source="procurement", ref_id=proc.id, subject=title,
+                      date=proc.request_date)
+    commit_doc_no(db, "command", fy, proc.command_no, source="procurement", ref_id=proc.id,
+                  subject=f"แต่งตั้งผู้ตรวจรับ {subj}".strip(), date=proc.command_date)
+    # คำสั่งแต่งตั้งกรรมการอื่น ๆ ใช้เลขรันคำสั่งชุดเดียวกัน (ลงทะเบียนกันเลขซ้ำ)
+    commit_doc_no(db, "command", fy, proc.spec_cmd_no, source="procurement", ref_id=proc.id,
+                  subject=f"แต่งตั้งคณะกรรมการกำหนดคุณลักษณะเฉพาะ (TOR) และราคากลาง {subj}".strip(),
+                  date=proc.spec_cmd_date)
+    commit_doc_no(db, "command", fy, proc.purchase_cmd_no, source="procurement", ref_id=proc.id,
+                  subject=f"แต่งตั้งคณะกรรมการ{subj}".strip(), date=proc.purchase_cmd_date)
+    commit_doc_no(db, "purchase_order" if proc.proc_type == "ซื้อ" else "hire_order", fy,
+                  proc.order_no, source="procurement", ref_id=proc.id, subject=subj,
+                  date=proc.order_date)
+
+
 @router.post("/procurement/{proc_id}/edit")
 async def procurement_edit_save(proc_id: int, request: Request, db: Session = Depends(get_db)):
     proc = db.get(Procurement, proc_id)
@@ -2273,6 +2306,8 @@ async def procurement_edit_save(proc_id: int, request: Request, db: Session = De
         return RedirectResponse("/procurement", status_code=303)
     form = await request.form()
     _populate_proc_from_form(proc, form, db, get_school(db).doc_set_threshold or 5000)
+    db.flush()
+    _sync_proc_docnos(db, proc)   # แก้ชื่อเรื่อง/เลขบันทึก -> ทะเบียนเลขหนังสือต้องตามด้วย
     db.commit()
     return RedirectResponse(f"/procurement/{proc_id}?saved=1", status_code=303)
 
@@ -2423,31 +2458,7 @@ async def procurement_update_refs(proc_id: int, request: Request, db: Session = 
     proc.delivery_note_no = (form.get("delivery_note_no") or "").strip()
     proc.delivery_note_book = (form.get("delivery_note_book") or "").strip()
 
-    # bump counters + บันทึกลงทะเบียนเลขกลาง (เลขรันรวมทั้งโรงเรียน)
-    fy = proc.fiscal_year
-    subj = f"{proc.proc_type or ''}{proc.subject or ''}".strip()
-    # แต่ละบันทึกมีชื่อรายงานนำหน้า (ในทะเบียนจะได้รู้ว่าเป็นบันทึกฉบับใด ไม่ใช่แค่ชื่อเรื่อง)
-    pt = proc.proc_type or ""
-    base = (proc.subject or "").strip()
-    for no, title in (
-        (proc.memo_no, f"รายงานขอ{pt}{base}"),
-        (proc.result_memo_no, f"รายงานผลการพิจารณาและขออนุมัติสั่ง{pt} {base}".strip()),
-        (proc.spec_memo_no, f"ขออนุมัติแต่งตั้งคณะกรรมการกำหนดคุณลักษณะเฉพาะและราคากลาง {base}".strip()),
-        (proc.inspect_memo_no, f"รายงานผลการตรวจรับพัสดุและอนุมัติเบิกจ่ายเงิน {base}".strip()),
-    ):
-        commit_doc_no(db, "memo", fy, no, source="procurement", ref_id=proc.id, subject=title,
-                      date=proc.request_date)
-    commit_doc_no(db, "command", fy, proc.command_no, source="procurement", ref_id=proc.id,
-                  subject=f"แต่งตั้งผู้ตรวจรับ {subj}".strip(), date=proc.command_date)
-    # คำสั่งแต่งตั้งกรรมการอื่น ๆ ใช้เลขรันคำสั่งชุดเดียวกัน (ลงทะเบียนกันเลขซ้ำ)
-    commit_doc_no(db, "command", fy, proc.spec_cmd_no, source="procurement", ref_id=proc.id,
-                  subject=f"แต่งตั้งคณะกรรมการกำหนดคุณลักษณะเฉพาะ (TOR) และราคากลาง {subj}".strip(),
-                  date=proc.spec_cmd_date)
-    commit_doc_no(db, "command", fy, proc.purchase_cmd_no, source="procurement", ref_id=proc.id,
-                  subject=f"แต่งตั้งคณะกรรมการ{subj}".strip(), date=proc.purchase_cmd_date)
-    commit_doc_no(db, "purchase_order" if proc.proc_type == "ซื้อ" else "hire_order", fy,
-                  proc.order_no, source="procurement", ref_id=proc.id, subject=subj,
-                  date=proc.order_date)
+    _sync_proc_docnos(db, proc)
 
     db.commit()
     return RedirectResponse(f"/procurement/{proc_id}?saved=1", status_code=303)
@@ -2478,7 +2489,9 @@ def procurement_duplicate(proc_id: int, db: Session = Depends(get_db)):
             nc.members.append(CommitteeMember(name=m.name, position=m.position, role=m.role, seq=m.seq))
         new.committees.append(nc)
     db.add(new)
-    commit_doc_no(db, "memo", fy, new.memo_no, date=new.request_date)
+    db.flush()
+    # ผูกเลขกับเรื่องใหม่ (source/ref_id) ไม่งั้นทะเบียนจะมีเลขลอยที่แก้ชื่อ/ลบตามไม่ได้
+    _sync_proc_docnos(db, new)
     db.commit()
     db.refresh(new)
     return RedirectResponse(f"/procurement/{new.id}/edit", status_code=303)
@@ -2488,6 +2501,7 @@ def procurement_duplicate(proc_id: int, db: Session = Depends(get_db)):
 def procurement_delete(proc_id: int, db: Session = Depends(get_db)):
     proc = db.get(Procurement, proc_id)
     if proc:
+        remove_issued(db, "procurement", proc.id)   # ลบเลขในทะเบียนกลางให้ตรงกัน
         db.delete(proc); db.commit()
     return RedirectResponse("/procurement", status_code=303)
 
