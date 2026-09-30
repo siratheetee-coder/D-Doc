@@ -15,6 +15,7 @@ from datetime import datetime
 
 import pytest
 from docx import Document
+from docx.shared import Pt
 
 from app.models import Committee, CommitteeMember, Procurement, ProcurementItem
 from app.routers.pages import get_school
@@ -357,3 +358,24 @@ def test_sign_space_helper_skips_the_name_under_a_signature_line():
     assert add_sign_space(d, 30) == 1
     assert a.paragraph_format.space_before.pt == 30
     assert b.paragraph_format.space_before is None
+
+
+def test_fit_blocks_handles_every_document_in_the_file():
+    """ไฟล์เดียวมีหลายฉบับ (ชุดเอกสาร) ต้องบีบให้ครบทุกฉบับ ไม่ใช่แค่ฉบับแรก"""
+    from docx import Document as NewDoc
+
+    from app.services.doc_page import set_a4
+    from app.services.page_fit import all_blocks, fit_blocks
+    d = NewDoc()
+    set_a4(d)
+    for i in range(2):
+        if i:
+            d.add_page_break()
+        for n in range(34):                     # ยาวเกินหน้านิดเดียว -> บีบแล้วพอดี
+            p = d.add_paragraph(f"ฉบับที่ {i + 1} บรรทัดที่ {n + 1}")
+            p.paragraph_format.space_after = Pt(2)
+    assert len(all_blocks(d)) == 2
+    out = fit_blocks(d)
+    assert len(out) == 2, out
+    assert all(r["fitted"] for r in out), out
+    assert all(r["spacing"] is not None or r["gap_scale"] < 1.0 for r in out), out

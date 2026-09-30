@@ -153,17 +153,31 @@ def _is_break(el) -> bool:
 
 def first_block(doc):
     """elements ของท่อนแรก (ก่อน page break แรก) พร้อมคู่ object ของ python-docx"""
+    blocks = all_blocks(doc)
+    return blocks[0] if blocks else []
+
+
+def all_blocks(doc):
+    """แบ่งเอกสารเป็น "ฉบับ" ตาม page break · คืน list ของ list(Paragraph/Table)
+
+    ไฟล์เดียวมักมีหลายฉบับต่อกัน (ชุดเอกสารอาหารกลางวัน ชุดจัดซื้อ ฯลฯ)
+    ต้องดูทีละฉบับ ไม่งั้นฉบับที่ 2 เป็นต้นไปจะล้นหน้าโดยไม่มีใครจัดการ
+    """
     from docx.table import Table
     from docx.text.paragraph import Paragraph
-    out = []
+    blocks, cur = [], []
     for el in doc.element.body:
         if _is_break(el):
-            break
+            if cur:
+                blocks.append(cur)
+            cur = []
         if el.tag == qn("w:p"):
-            out.append(Paragraph(el, doc))
+            cur.append(Paragraph(el, doc))
         elif el.tag == qn("w:tbl"):
-            out.append(Table(el, doc))
-    return out
+            cur.append(Table(el, doc))
+    if cur:
+        blocks.append(cur)
+    return blocks
 
 
 def block_height(doc, blocks=None) -> float:
@@ -267,6 +281,29 @@ def fit_one_page(doc) -> dict:
             "fitted": block_height(doc, blocks) <= budget}
 
 
+def fit_blocks(doc) -> list:
+    """บีบให้ "ทุกฉบับ" ในไฟล์จบหน้าเดียว (ไม่ใช่แค่ฉบับแรก) · คืนผลของแต่ละฉบับ"""
+    budget = page_budget(doc)
+    out = []
+    for blocks in all_blocks(doc):
+        before = block_height(doc, blocks)
+        used = (1.0, None)
+        if before > budget:
+            snap = _snapshot(blocks)
+            for step in _STEPS:
+                _apply(snap, *step)
+                used = step
+                if block_height(doc, blocks) <= budget:
+                    break
+            else:
+                _restore(snap)          # ยาวเกินหน้าจริง ๆ ปล่อยไว้ดีกว่าบีบเปล่า ๆ
+                used = (1.0, None)
+        out.append({"before": round(before, 1), "after": round(block_height(doc, blocks), 1),
+                    "gap_scale": used[0], "spacing": used[1],
+                    "fitted": block_height(doc, blocks) <= budget})
+    return out
+
+
 def finish_doc(doc) -> None:
     """เก็บงานก่อนเซฟเอกสารทุกฉบับ: เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว
 
@@ -278,6 +315,6 @@ def finish_doc(doc) -> None:
     except Exception:
         pass
     try:
-        fit_one_page(doc)
+        fit_blocks(doc)
     except Exception:
         pass
