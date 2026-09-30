@@ -747,7 +747,12 @@ def _krut_center(doc, *, height_cm=1.5):
 
 
 def _memo_head(doc, subject_expr, memo_no_expr="{{ memo_no }}", date_expr="{{ request_date }}"):
-    """หัวบันทึกข้อความมาตรฐาน (ครุฑซ้าย + บันทึกข้อความ + label ตัวหนา ไม่มีเส้นคั่น)"""
+    """หัวบันทึกข้อความมาตรฐาน (ครุฑซ้าย + บันทึกข้อความ + label ตัวหนา ไม่มีเส้นคั่น)
+
+    จำวันที่ของหัวบันทึกไว้ให้ช่องลงนาม ผอ. ใช้ต่อ จะได้เป็นวันเดียวกันเสมอ
+    (เดิมช่องลงนามใช้วันที่ใบสั่งซื้อ/จ้าง ทำให้ ผอ. ลงนามก่อนวันที่ของบันทึกเอง)
+    """
+    doc._head_date_expr = date_expr
     _krut_and_title(doc)
     _p_runs(doc, [("ส่วนราชการ  ", True), ("{{ school_office }}", False)])
     _p_runs(doc, [("ที่  ", True), (memo_no_expr, False),
@@ -770,9 +775,11 @@ def _signoff_officers(doc, *, gap=True, sign_gap=0):
     ], gap=gap, sign_gap=sign_gap)
 
 
-def _signoff_director(doc, *, with_approve=True, sign_space=False, sign_gap=0):
+def _signoff_director(doc, *, with_approve=True, sign_space=False, sign_gap=0,
+                      date_expr=None):
     """ช่องลงนามผู้อำนวยการ (กึ่งกลาง) · sign_space=True เว้นบรรทัดว่างให้เซ็นด้านบน
-    sign_gap : ช่องว่างเหนือบรรทัด "ลงชื่อ" (pt) ไว้ให้เซ็นชื่อจริง"""
+    sign_gap  : ช่องว่างเหนือบรรทัด "ลงชื่อ" (pt) ไว้ให้เซ็นชื่อจริง
+    date_expr : วันที่ใต้ชื่อ ผอ. · ไม่ระบุ = ใช้วันเดียวกับหัวบันทึก (ค่าที่ควรเป็น)"""
     if with_approve:
         _p(doc, "(   )  เห็นชอบ        (   )  อนุมัติ", align="center", before=4)
     if sign_space:
@@ -781,7 +788,8 @@ def _signoff_director(doc, *, with_approve=True, sign_space=False, sign_gap=0):
        before=sign_gap)
     _p(doc, "( {{ director_name }} )", align="center")
     _p(doc, "{{ director_office }}", align="center")
-    _p(doc, "วันที่ {{ order_date_thai }}", align="center")
+    head_date = date_expr or getattr(doc, "_head_date_expr", "{{ request_date }}")
+    _p(doc, f"วันที่ {head_date}", align="center")
 
 
 def build_result_report():

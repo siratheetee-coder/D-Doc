@@ -159,13 +159,27 @@ def _has_picture(par) -> bool:
 
 
 def _snapshot(blocks):
-    """จำช่องไฟเดิมของทุกย่อหน้าไว้ เพื่อบีบแบบ 'เทียบของเดิม' ไม่ใช่บีบทับซ้ำ ๆ"""
+    """จำรูปแบบเดิมของทุกย่อหน้าไว้ - เพื่อบีบแบบ 'เทียบของเดิม' ไม่ใช่บีบทับซ้ำ ๆ
+    และเพื่อคืนค่าเดิมได้ถ้าบีบจนสุดแล้วยังไม่จบหน้าเดียว"""
     out = []
     for p in _walk_paragraphs(blocks):
         pf = p.paragraph_format
         out.append((p, 0.0 if pf.space_before is None else pf.space_before.pt,
-                    0.0 if pf.space_after is None else pf.space_after.pt))
+                    0.0 if pf.space_after is None else pf.space_after.pt,
+                    pf.line_spacing, pf.line_spacing_rule))
     return out
+
+
+def _restore(snap):
+    """คืนรูปแบบเดิมทุกย่อหน้า (ใช้เมื่อบีบแล้วก็ยังไม่จบหน้าเดียวอยู่ดี)"""
+    for p, before, after, spacing, rule in snap:
+        pf = p.paragraph_format
+        if before:
+            pf.space_before = Pt(before)
+        if after:
+            pf.space_after = Pt(after)
+        pf.line_spacing = spacing
+        pf.line_spacing_rule = rule
 
 
 def _apply(snap, gap_scale, spacing):
@@ -174,7 +188,7 @@ def _apply(snap, gap_scale, spacing):
     ไม่บีบบรรทัดของย่อหน้าที่มีรูป (ตราครุฑ) หรือหัวเรื่องตัวใหญ่ ("บันทึกข้อความ" 29pt)
     เพราะกล่องบรรทัดจะเล็กกว่าตัวจริง ทำให้รูป/ตัวอักษรถูกตัดขอบ
     """
-    for p, before, after in snap:
+    for p, before, after, _sp, _rule in snap:
         pf = p.paragraph_format
         if before:
             pf.space_before = Pt(round(before * gap_scale, 1))
@@ -202,6 +216,11 @@ def fit_one_page(doc) -> dict:
             used = step
             if block_height(doc, blocks) <= budget:
                 break
+        else:
+            # บีบจนสุดแล้วก็ยังไม่จบหน้าเดียว = เนื้อหายาวเกินหน้าจริง ๆ
+            # คืนรูปแบบเดิม ดีกว่าปล่อยให้เอกสารแน่นโดยไม่ได้อะไรกลับมา
+            _restore(snap)
+            used = (1.0, None)
     return {"before": round(before, 1), "after": round(block_height(doc, blocks), 1),
             "budget": round(budget, 1), "gap_scale": used[0], "spacing": used[1],
             "fitted": block_height(doc, blocks) <= budget}

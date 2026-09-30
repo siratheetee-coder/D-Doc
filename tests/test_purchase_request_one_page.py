@@ -255,3 +255,59 @@ def test_disbursement_no_longer_shrinks_font():
     from app.services import build_templates as bt
     assert "_shrink_body_font" not in inspect.getsource(bt.build_disbursement)
     assert "รายงานผลตรวจรับและเบิกจ่าย" in ONE_PAGE_KINDS
+
+
+# ---------------- แบบฟอร์มอื่น ๆ ที่ต้องจบหน้าเดียว ----------------
+@pytest.mark.parametrize("kind", ["ใบตรวจรับพัสดุ", "ใบส่งมอบงาน", "ใบสั่งซื้อ/สั่งจ้าง",
+                                  "รายงานผลการพิจารณา", "คำสั่งแต่งตั้งผู้ตรวจรับ"])
+def test_other_forms_fit_one_page(kind):
+    """ใบตรวจรับเคยล้นเป็น 2 หน้า (สูงเกินพื้นที่ ~9%) ตอนนี้ต้องจบหน้าเดียวทุกใบ"""
+    db = _db()
+    d = _render_kind(db, kind, members=3)
+    h, printable = block_height(d), page_budget(d) + SAFETY_PT
+    assert h <= printable, f"{kind} สูง {h:.0f}pt เกินพื้นที่ {printable:.0f}pt"
+
+
+def test_long_document_is_not_squeezed_pointlessly():
+    """เอกสารที่ยาวเกินหน้าไปมาก (เช่น TOR รายการเยอะ) ปล่อยให้ขึ้นหน้าใหม่
+    ไม่ต้องบีบ เพราะบีบยังไงก็ไม่จบหน้าเดียว ได้แค่เอกสารแน่นเปล่า ๆ"""
+    from docx import Document as NewDoc
+
+    from app.services.doc_page import set_a4
+    from app.services.page_fit import fit_one_page
+    d = NewDoc()
+    set_a4(d)
+    for i in range(80):
+        d.add_paragraph(f"บรรทัดที่ {i + 1} ของเอกสารที่ยาวเกินหนึ่งหน้าไปมาก")
+    out = fit_one_page(d)
+    assert not out["fitted"] and out["spacing"] is None and out["gap_scale"] == 1.0
+    assert all(p.paragraph_format.line_spacing is None for p in d.paragraphs)
+
+
+def test_tor_is_allowed_to_run_long():
+    """TOR รายการพัสดุเยอะ ๆ ยาวข้ามหน้าเป็นปกติ ไม่ต้องบังคับหน้าเดียว"""
+    assert "รายละเอียดคุณลักษณะ(TOR)" not in ONE_PAGE_KINDS
+
+
+def test_director_signs_with_the_memo_date():
+    """วันที่ใต้ชื่อ ผอ. ต้องเป็นวันเดียวกับหัวบันทึก ไม่ใช่วันที่ใบสั่งซื้อ/จ้าง
+    (เดิมใบเบิกจ่ายขึ้นวันที่ใบสั่ง = ผอ. อนุมัติก่อนวันตรวจรับที่ตัวเองอนุมัติ)"""
+    import inspect
+    import re
+
+    from app.services import build_templates as bt
+    for builder in (bt.build_disbursement, bt.build_result_report):
+        src = inspect.getsource(builder)
+        head = re.search(r'date_expr="(\{\{[^"]+\}\})"', src)
+        assert head, f"{builder.__name__}: หาวันที่ของหัวบันทึกไม่เจอ"
+        assert "order_date_thai" not in src.split("_signoff_director")[-1], builder.__name__
+    assert 'f"วันที่ {head_date}"' in inspect.getsource(bt._signoff_director)
+
+
+def test_disbursement_director_date_equals_header_date():
+    db = _db()
+    d = _render_kind(db, "รายงานผลตรวจรับและเบิกจ่าย", members=0)
+    lines = [p.text.strip() for p in d.paragraphs if p.text.strip()]
+    head = next(t for t in lines if t.startswith("ที่")).split("วันที่")[-1].strip()
+    tail = [t for t in lines if t.startswith("วันที่")][-1].replace("วันที่", "").strip()
+    assert head == tail, (head, tail)
