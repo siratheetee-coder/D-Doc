@@ -147,14 +147,14 @@ def _sign_gaps(d):
     """ช่องว่างเหนือทุกบรรทัด 'ลงชื่อ' (pt) ทั้งย่อหน้าปกติและในตารางลงนาม"""
     out = []
     for p in d.paragraphs:
-        if p.text.strip().startswith("ลงชื่อ"):
+        if p.text.strip().lstrip("(").startswith("ลงชื่อ"):
             sb = p.paragraph_format.space_before
             out.append(sb.pt if sb else 0.0)
     for t in d.tables:
         for row in t.rows:
             for c in row.cells:
                 for p in c.paragraphs:
-                    if p.text.strip().startswith("ลงชื่อ"):
+                    if p.text.strip().lstrip("(").startswith("ลงชื่อ"):
                         sb = p.paragraph_format.space_before
                         out.append(sb.pt if sb else 0.0)
     return out
@@ -194,3 +194,64 @@ def test_no_date_line_under_director():
     texts = [p.text.strip() for p in first_block(d) if hasattr(p, "text")]
     tail = texts[-4:]
     assert not [t for t in tail if t.startswith("วันที่")], tail
+
+
+# ---------------- ใบอนุมัติเบิกจ่าย (รายงานผลตรวจรับและเบิกจ่าย) ----------------
+def _render_kind(db, kind, **kw):
+    from app.models import Vendor
+    v = db.query(Vendor).filter_by(name=MARK + "ร้านทดสอบ").first()
+    if v is None:
+        v = Vendor(name=MARK + "ร้านทดสอบ", owner_name="นายทดสอบ ใจดี")
+        db.add(v)
+        db.flush()
+    p = _make(db, **kw)
+    p.vendor_id = v.id
+    p.inspect_memo_no = "209/2569"
+    p.order_no = "จ22/2569"
+    p.order_date = datetime(2026, 9, 29)
+    p.inspect_date = datetime(2026, 10, 6)
+    db.commit()
+    try:
+        return Document(render_document(kind, p, get_school(db)))
+    finally:
+        from app.models import Document as Doc
+        db.query(Doc).filter_by(procurement_id=p.id).delete(synchronize_session=False)
+        db.delete(p)
+        db.query(Vendor).filter_by(id=v.id).delete(synchronize_session=False)
+        db.commit()
+
+
+def test_disbursement_body_is_16pt():
+    """ใบอนุมัติเบิกจ่ายเคยย่อเหลือ 14 pt เพื่อให้จบหน้าเดียว
+    ตอนนี้คง 16 pt ตามระเบียบงานสารบรรณ แล้วให้ page_fit จัดการเรื่องหน้าแทน"""
+    db = _db()
+    d = _render_kind(db, "รายงานผลตรวจรับและเบิกจ่าย", members=0)
+    sizes = {r.font.size.pt for b in first_block(d) if hasattr(b, "runs")
+             for r in b.runs if r.font.size}
+    assert 16.0 in sizes, sizes
+    assert not [s for s in sizes if s < 16.0], f"ยังมีตัวอักษรเล็กกว่า 16 pt: {sorted(sizes)}"
+
+
+def test_disbursement_fits_one_page():
+    db = _db()
+    d = _render_kind(db, "รายงานผลตรวจรับและเบิกจ่าย", members=0)
+    h, printable = block_height(d), page_budget(d) + SAFETY_PT
+    assert h <= printable, f"สูง {h:.0f}pt เกินพื้นที่ {printable:.0f}pt"
+
+
+def test_disbursement_has_room_to_sign():
+    """4 ช่องลงนาม (เจ้าหน้าที่ · หัวหน้าเจ้าหน้าที่ · เจ้าหน้าที่การเงิน · ผอ.)"""
+    db = _db()
+    d = _render_kind(db, "รายงานผลตรวจรับและเบิกจ่าย", members=0)
+    gaps = _sign_gaps(d)
+    assert len(gaps) >= 4, f"หาบรรทัดลงชื่อไม่ครบ: {gaps}"
+    assert all(g > 0 for g in gaps), f"ไม่มีที่เซ็น: {gaps}"
+
+
+def test_disbursement_no_longer_shrinks_font():
+    """กันเผลอใส่ _shrink_body_font กลับเข้าไปในแม่แบบเบิกจ่ายอีก"""
+    import inspect
+
+    from app.services import build_templates as bt
+    assert "_shrink_body_font" not in inspect.getsource(bt.build_disbursement)
+    assert "รายงานผลตรวจรับและเบิกจ่าย" in ONE_PAGE_KINDS

@@ -756,9 +756,10 @@ def _memo_head(doc, subject_expr, memo_no_expr="{{ memo_no }}", date_expr="{{ re
     _p_runs(doc, [("เรียน  ", True), ("{{ director_office }}", False)])
 
 
-def _signoff_officers(doc, *, gap=True):
+def _signoff_officers(doc, *, gap=True, sign_gap=0):
     """ช่องลงนาม เจ้าหน้าที่ + หัวหน้าเจ้าหน้าที่ (2 คอลัมน์ จัดด้วยตารางไร้เส้น)
-    gap=False : ไม่เว้นบรรทัดหัว/ท้าย (ใช้กับเอกสารที่ต้องบีบให้จบหน้าเดียว)"""
+    gap=False : ไม่เว้นบรรทัดหัว/ท้าย (ใช้กับเอกสารที่ต้องบีบให้จบหน้าเดียว)
+    sign_gap  : ช่องว่างเหนือบรรทัด "ลงชื่อ" (pt) ไว้ให้เซ็นชื่อจริง"""
     if gap:
         _p(doc, "", after=4)
     _sign_table(doc, [
@@ -766,16 +767,18 @@ def _signoff_officers(doc, *, gap=True):
          ("( {{ officer_name }} )", "center")],
         [("ลงชื่อ.....................................หัวหน้าเจ้าหน้าที่", "center"),
          ("( {{ head_officer_name }} )", "center")],
-    ], gap=gap)
+    ], gap=gap, sign_gap=sign_gap)
 
 
-def _signoff_director(doc, *, with_approve=True, sign_space=False):
-    """ช่องลงนามผู้อำนวยการ (กึ่งกลาง) · sign_space=True เว้นบรรทัดว่างให้เซ็นด้านบน"""
+def _signoff_director(doc, *, with_approve=True, sign_space=False, sign_gap=0):
+    """ช่องลงนามผู้อำนวยการ (กึ่งกลาง) · sign_space=True เว้นบรรทัดว่างให้เซ็นด้านบน
+    sign_gap : ช่องว่างเหนือบรรทัด "ลงชื่อ" (pt) ไว้ให้เซ็นชื่อจริง"""
     if with_approve:
         _p(doc, "(   )  เห็นชอบ        (   )  อนุมัติ", align="center", before=4)
     if sign_space:
         _p(doc, "", after=10)
-    _p(doc, "(ลงชื่อ).........................................", align="center")
+    _p(doc, "(ลงชื่อ).........................................", align="center",
+       before=sign_gap)
     _p(doc, "( {{ director_name }} )", align="center")
     _p(doc, "{{ director_office }}", align="center")
     _p(doc, "วันที่ {{ order_date_thai }}", align="center")
@@ -1127,7 +1130,7 @@ def build_disbursement():
     _p(doc,
        "จึงเรียนมาเพื่อทราบผลการตรวจรับ{{ obj_word }} ตามนัยข้อ 175 (4) แห่งระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อ"
        "จัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560", align="justify", indent=1.25)
-    _signoff_officers(doc, gap=False)
+    _signoff_officers(doc, gap=False, sign_gap=SIGN_GAP)
 
     # ===== ความเห็นของเจ้าหน้าที่การเงิน + รายละเอียดการจ่าย =====
     _p(doc, "ความเห็นของเจ้าหน้าที่การเงิน", bold=True, indent=1.25, before=4)
@@ -1139,10 +1142,10 @@ def build_disbursement():
     _sign_table(doc, [
         [("ลงชื่อ.....................................เจ้าหน้าที่การเงิน", "center"),
          ("( {{ finance_officer_name }} )", "center")],
-    ], gap=False)
-    _signoff_director(doc, with_approve=True, sign_space=False)
-    # ลดฟอนต์เนื้อความเหลือ 14 ทั้งเอกสาร (เว้น "บันทึกข้อความ") ให้ไม่แน่น + พอดีหน้าเดียว
-    _shrink_body_font(doc, 14)
+    ], gap=False, sign_gap=SIGN_GAP)
+    _signoff_director(doc, with_approve=True, sign_space=False, sign_gap=SIGN_GAP)
+    # คงเนื้อความ 16 pt ตามระเบียบงานสารบรรณ ส่วนการทำให้จบหน้าเดียว
+    # เป็นหน้าที่ของ page_fit ตอนออกเอกสาร (บีบช่องไฟ/ระยะบรรทัด ไม่ลดขนาดตัวอักษร)
     TEMPLATES_DIR.mkdir(exist_ok=True)
     out = TEMPLATES_DIR / "รายงานเบิกจ่าย.docx"
     doc.save(str(out))

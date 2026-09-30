@@ -406,7 +406,7 @@ assert set(DOC_ORDER) - {WHT_KIND} == set(TEMPLATE_FILES), "DOC_ORDER ไม่�
 AVAILABLE_KINDS = DOC_ORDER
 
 # บันทึกข้อความที่ต้องจบในหน้าเดียว (ท่อนก่อน page break แรก)
-ONE_PAGE_KINDS = {"รายงานขอซื้อ"}
+ONE_PAGE_KINDS = {"รายงานขอซื้อ", "รายงานผลตรวจรับและเบิกจ่าย"}
 
 # เอกสารที่มีความหมายเฉพาะเมื่อกรอกข้อมูลนั้นไว้ -> ไม่มีข้อมูล = ไม่โชว์ปุ่ม/ไม่รวมในชุด
 _NEEDS_COMMITTEE = {"คำสั่งแต่งตั้งกรรมการซื้อ/จ้าง": "purchase",
