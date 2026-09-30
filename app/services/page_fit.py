@@ -44,6 +44,47 @@ _STEPS = (
 ) + tuple((round(g / 10, 2), 0.90) for g in range(9, -1, -1))
 
 
+SIGN_STARTS = ("ลงชื่อ", "(ลงชื่อ", "ลงนาม")
+
+
+def add_sign_space(doc, gap: float = 30.0) -> int:
+    """เว้นที่ให้เซ็นเหนือทุกช่องลงนาม (รวมที่อยู่ในตาราง) คืนจำนวนบรรทัดที่ใส่ให้
+
+    นับเป็นช่องลงนามเมื่อ
+      - ขึ้นต้นด้วย "ลงชื่อ" / "(ลงชื่อ" / "ลงนาม"  หรือ
+      - เป็นบรรทัดกึ่งกลางสั้น ๆ รูปแบบ "( ชื่อ )" ที่ไม่ได้อยู่ใต้บรรทัด "ลงชื่อ"
+        (แบบฟอร์มคำสั่งไม่มีบรรทัด "ลงชื่อ" ผู้ลงนามเซ็นเหนือชื่อในวงเล็บเลย)
+    ถ้าเอกสารแน่นจนเกินหน้า fit_one_page จะค่อย ๆ ลดช่องนี้ให้เองตอนออกเอกสาร
+    """
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    n = 0
+
+    def _run(paragraphs):
+        nonlocal n
+        prev = ""
+        for par in paragraphs:
+            text = (par.text or "").strip()
+            if not text:
+                continue
+            hit = text.startswith(SIGN_STARTS) or (
+                par.alignment == WD_ALIGN_PARAGRAPH.CENTER and len(text) < 60
+                and text.startswith("(") and text.endswith(")")
+                and not prev.startswith(SIGN_STARTS))
+            if hit:
+                pf = par.paragraph_format
+                if pf.space_before is None or pf.space_before.pt < gap:
+                    pf.space_before = Pt(gap)
+                    n += 1
+            prev = text
+
+    _run(doc.paragraphs)
+    for t in doc.tables:
+        for row in t.rows:
+            for c in row.cells:
+                _run(c.paragraphs)
+    return n
+
+
 def advance_len(text: str) -> int:
     """จำนวนอักขระที่กินความกว้างจริง (ตัดสระบน/ล่าง/วรรณยุกต์ออก)"""
     return sum(1 for ch in text or "" if ord(ch) not in _ZERO_WIDTH)

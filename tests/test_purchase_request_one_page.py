@@ -311,3 +311,49 @@ def test_disbursement_director_date_equals_header_date():
     head = next(t for t in lines if t.startswith("ที่")).split("วันที่")[-1].strip()
     tail = [t for t in lines if t.startswith("วันที่")][-1].replace("วันที่", "").strip()
     assert head == tail, (head, tail)
+
+
+def test_every_form_has_room_to_sign():
+    """ทุกแบบฟอร์มต้องมีที่ว่างเหนือช่องลงนาม (รวมแบบฟอร์มคำสั่งที่ไม่มีบรรทัด 'ลงชื่อ'
+    แต่เซ็นเหนือชื่อในวงเล็บ)"""
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+    from app.services.page_fit import SIGN_STARTS
+    db = _db()
+    for kind in ("ใบตรวจรับพัสดุ", "ใบส่งมอบงาน", "คำสั่งแต่งตั้งผู้ตรวจรับ",
+                 "ประกาศผู้ชนะ", "ใบเสนอราคา"):
+        d = _render_kind(db, kind, members=3)
+        spots = []
+
+        def scan(paragraphs):
+            for p in paragraphs:
+                t = p.text.strip()
+                if t.startswith(SIGN_STARTS) or (
+                        p.alignment == WD_ALIGN_PARAGRAPH.CENTER
+                        and t.startswith("(") and t.endswith(")") and len(t) < 60):
+                    sb = p.paragraph_format.space_before
+                    spots.append(sb.pt if sb else 0.0)
+
+        scan(d.paragraphs)
+        for tb in d.tables:
+            for row in tb.rows:
+                for c in row.cells:
+                    scan(c.paragraphs)
+        assert spots, f"{kind}: หาช่องลงนามไม่เจอ"
+        assert max(spots) > 0, f"{kind}: ไม่มีที่เซ็นเลย"
+
+
+def test_sign_space_helper_skips_the_name_under_a_signature_line():
+    """ชื่อในวงเล็บที่อยู่ 'ใต้' บรรทัดลงชื่อ ไม่ใช่จุดเซ็น จึงไม่ต้องเว้นที่ให้"""
+    from docx import Document as NewDoc
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+    from app.services.page_fit import add_sign_space
+    d = NewDoc()
+    a = d.add_paragraph("ลงชื่อ.................................เจ้าหน้าที่")
+    a.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    b = d.add_paragraph("( นายทดสอบ ใจดี )")
+    b.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    assert add_sign_space(d, 30) == 1
+    assert a.paragraph_format.space_before.pt == 30
+    assert b.paragraph_format.space_before is None

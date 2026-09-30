@@ -40,6 +40,11 @@ def _save(doc, name: str) -> str:
     out = get_data_dir() / "documents"
     out.mkdir(exist_ok=True)
     path = out / (_safe(name) + ".docx")
+    try:
+        from app.services.page_fit import add_sign_space
+        add_sign_space(doc)      # เว้นที่ให้เซ็นเหนือทุกช่องลงนาม
+    except Exception:
+        pass
     doc.save(str(path))
     return str(path)
 

@@ -26,7 +26,7 @@ TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "doc_templates"
 
 # ช่องว่างเหนือบรรทัด "ลงชื่อ" (pt) ไว้ให้เซ็นชื่อจริงลงไปได้
 # ตัวบีบหน้า (page_fit) จะหวงช่องนี้ไว้จนถึงขั้นสุดท้าย ถ้าจำเป็นจริงจึงค่อยลด
-SIGN_GAP = 24
+SIGN_GAP = 30
 ASSETS_DIR = TEMPLATES_DIR / "assets"
 # ไฟล์รูปตราครุฑ (วางไฟล์นี้เองได้ ระบบจะฝังให้อัตโนมัติ) รองรับ .png/.jpg
 KRUT_CANDIDATES = ["krut.png", "krut.jpg", "ครุฑ.png", "ครุฑ.jpg"]
@@ -1198,6 +1198,20 @@ def glue_signatures(path) -> int:
     return len(marks)
 
 
+def space_signatures(path, gap=SIGN_GAP) -> int:
+    """เว้นที่ให้เซ็นเหนือทุกช่องลงนามของแม่แบบ (ดู page_fit.add_sign_space)
+
+    หลายแม่แบบเขียนช่องลงนามเป็นย่อหน้าธรรมดา จึงตามมาใส่ช่องว่างให้ทีเดียว
+    ตอนสร้างแม่แบบ แทนการไล่แก้ทีละใบ
+    """
+    from app.services.page_fit import add_sign_space
+    doc = Document(str(path))
+    n = add_sign_space(doc, gap)
+    if n:
+        doc.save(str(path))
+    return n
+
+
 def build_all():
     TEMPLATES_DIR.mkdir(exist_ok=True)
     built = [build_purchase_request(), build_inspection(), build_purchase_order(),
@@ -1208,8 +1222,9 @@ def build_all():
     for path in built:
         try:
             glue_signatures(path)
+            space_signatures(path)
         except Exception:
-            pass      # แม่แบบยังใช้ได้ แค่ไม่ได้ตรึงลายเซ็น
+            pass      # แม่แบบยังใช้ได้ แค่ไม่ได้ตรึง/เว้นที่ลายเซ็น
     return built
 
 
