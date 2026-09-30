@@ -98,10 +98,12 @@ def _save_doc(doc, fname: str) -> str:
         out_dir = get_data_dir() / "documents"
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / fname
+        _finish_before_save(doc)
         doc.save(str(out_path))
         return str(out_path)
     except OSError:
         out_path = Path(tempfile.gettempdir()) / fname
+        _finish_before_save(doc)
         doc.save(str(out_path))
         return str(out_path)
 
@@ -229,3 +231,12 @@ def render_official_letter(letter, school) -> str:
 
     fname = _safe(f"หนังสือราชการ_{letter.doc_no or letter.id}_{letter.subject}") + ".docx"
     return _save_doc(doc, fname)
+
+
+def _finish_before_save(doc):
+    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
+    try:
+        from app.services.page_fit import finish_doc
+        finish_doc(doc)
+    except Exception:
+        pass

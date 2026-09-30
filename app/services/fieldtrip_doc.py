@@ -315,11 +315,11 @@ def render_allowance(trip, school) -> str:
     _p(doc, "เอกสารแนบ 2", align="right", size=14, after=0)
     _p(doc, "แบบใบสำคัญรับเงินค่าใช้จ่ายในการจัดกิจกรรมสำหรับนักเรียน", align="center", bold=True, size=17, after=4)
     _p(doc, f"ชื่อส่วนราชการผู้จัดกิจกรรม {_v(school.name)}    โครงการ/หลักสูตร/กิจกรรม {_v(trip.title)}",
-       size=15, after=0)
+       size=16, after=0)
     _p(doc, f"วันที่ {d1} เดือน {m1} พ.ศ. {y1}  ถึงวันที่ {d2} เดือน {m2} พ.ศ. {y2}    "
-            f"จำนวนผู้เข้าร่วมกิจกรรมทั้งสิ้น {c['students']} คน", size=15, after=0)
-    _p(doc, f"ผู้เข้าร่วมกิจกรรม ได้รับเงินจากโรงเรียน {_v(school.name)}  สังกัด {_v(area)}", size=15, after=0)
-    _p(doc, "ปรากฏรายละเอียดดังนี้", size=15, after=4)
+            f"จำนวนผู้เข้าร่วมกิจกรรมทั้งสิ้น {c['students']} คน", size=16, after=0)
+    _p(doc, f"ผู้เข้าร่วมกิจกรรม ได้รับเงินจากโรงเรียน {_v(school.name)}  สังกัด {_v(area)}", size=16, after=0)
+    _p(doc, "ปรากฏรายละเอียดดังนี้", size=16, after=4)
 
     headers = ["ลำดับที่", "ชื่อ - สกุล", "ที่อยู่", "ค่าอาหาร\n(บาท)", "ค่าเช่าที่พัก\n(บาท)",
                "ค่าพาหนะ\n(บาท)", "รวมเป็นเงิน\n(บาท)", "วัน เดือน ปี\nที่รับเงิน", "ลายมือชื่อ\nผู้รับเงิน"]
@@ -463,9 +463,9 @@ def render_travel_claim(trip, school) -> str:
     _p(doc, "ส่วนที่ 2", align="right", size=14, after=0)
     _p(doc, "แบบ 8708", align="right", size=14, after=0)
     _p(doc, "หลักฐานการจ่ายเงินค่าใช้จ่ายในการเดินทางไปราชการ", align="center", bold=True, size=17, after=2)
-    _p(doc, f"ชื่อส่วนราชการ {_v(school.name)}  จังหวัด {_v(school.province)}", align="center", size=15, after=0)
+    _p(doc, f"ชื่อส่วนราชการ {_v(school.name)}  จังหวัด {_v(school.province)}", align="center", size=16, after=0)
     _p(doc, f"ประกอบใบเบิกค่าใช้จ่ายในการเดินทางของ {_v(ctrl_name)}  ลงวันที่ .......... เดือน .................. พ.ศ. ..........",
-       align="center", size=15, after=4)
+       align="center", size=16, after=4)
     headers = ["ลำดับที่", "ชื่อ", "ตำแหน่ง", "ค่าเบี้ยเลี้ยง", "ค่าเช่าที่พัก", "ค่าพาหนะ", "ค่าใช้จ่ายอื่น",
                "รวม", "ลายมือชื่อ\nผู้รับเงิน", "วัน เดือน ปี\nที่รับเงิน", "หมายเหตุ"]
     widths = [Cm(1.3), Cm(4.4), Cm(3.4), Cm(2.0), Cm(2.0), Cm(1.9), Cm(2.0), Cm(2.0), Cm(3.0), Cm(2.4), Cm(2.2)]
@@ -490,7 +490,7 @@ def render_travel_claim(trip, school) -> str:
     _set_cell(r.cells[8], f"ตามสัญญาเงินยืมเลขที่ {loan.contract_no if loan and loan.contract_no else '.......'}", size=12)
     for cell, w in zip(r.cells, widths):
         cell.width = w
-    _p(doc, f"จำนวนเงินรวมทั้งสิ้น (ตัวอักษร) {bahttext(total) if total else DOT}", size=15, before=4, after=6)
+    _p(doc, f"จำนวนเงินรวมทั้งสิ้น (ตัวอักษร) {bahttext(total) if total else DOT}", size=16, before=4, after=6)
     _sign_table(doc, [[("", "center")], [
         ("ลงชื่อ ...................................... ผู้จ่ายเงิน", "center"),
         ("(......................................)", "center"),
@@ -692,8 +692,8 @@ def render_signin(trip, school, who="students") -> str:
     is_stu = who == "students"
     head = "บัญชีลงเวลานักเรียน" if is_stu else "บัญชีลงเวลาครูผู้ควบคุมและผู้ช่วยผู้ควบคุม"
     _p(doc, f"{head} การพานักเรียนไปนอกสถานศึกษา", align="center", bold=True, size=17, after=0)
-    _p(doc, f"กิจกรรม {_v(trip.title)}  ณ {_v(trip.place)} จังหวัด {_v(trip.province)}", align="center", size=15, after=0)
-    _p(doc, f"วันที่ {_period_text(trip)}   {_v(school.name)}", align="center", size=15, after=6)
+    _p(doc, f"กิจกรรม {_v(trip.title)}  ณ {_v(trip.place)} จังหวัด {_v(trip.province)}", align="center", size=16, after=0)
+    _p(doc, f"วันที่ {_period_text(trip)}   {_v(school.name)}", align="center", size=16, after=6)
     col3 = "ชั้น" if is_stu else "ตำแหน่ง / หน้าที่"
     headers = ["ที่", "ชื่อ - สกุล", col3, "ลงชื่อ (มา)", "เวลามา", "ลงชื่อ (กลับ)", "เวลากลับ", "หมายเหตุ"]
     widths = [Cm(1.2), Cm(6.2), Cm(3.6 if not is_stu else 2.0), Cm(4.0), Cm(2.0), Cm(4.0), Cm(2.0),
@@ -716,7 +716,7 @@ def render_signin(trip, school, who="students") -> str:
         for j, (cell, v, w) in enumerate(zip(r.cells, [str(i), n, x, "", "", "", "", ""], widths)):
             _set_cell(cell, v, size=14, align="left" if j in (1, 2) and not (is_stu and j == 2) else "center")
             cell.width = w
-    _p(doc, f"รวม {len(rows)} คน", size=15, before=4, after=8)
+    _p(doc, f"รวม {len(rows)} คน", size=16, before=4, after=8)
     _sign_table(doc, [[("", "center")], [
         ("ลงชื่อ ...................................... ผู้ควบคุม", "center"),
         (f"({_v(trip.ctrl_name)})", "center")]])

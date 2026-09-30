@@ -53,6 +53,7 @@ def _save(doc, name: str) -> str:
     out = get_data_dir() / "documents"
     out.mkdir(exist_ok=True)
     path = out / (_safe(name) + ".docx")
+    _finish_before_save(doc)
     doc.save(str(path))
     return str(path)
 
@@ -154,7 +155,7 @@ def _attach_table(doc, school, proc, tp, *, title=None):
     doc.add_page_break()
     _p(doc, title or "บัญชีรายละเอียดแนบท้าย", align="center", bold=True, size=18, after=0)
     _p(doc, f"{_subject_line(proc, tp)}  {_sname(school)}",
-       align="center", bold=True, size=15, after=6)
+       align="center", bold=True, size=16, after=6)
     # ตัดคอลัมน์ "หน่วย" ออก (หนังสือเป็น "เล่ม" ทุกบรรทัดอยู่แล้ว) เอาที่ว่างไปให้ชื่อหนังสือ
     headers = ["ที่", "รายการหนังสือ", "จำนวน (เล่ม)", "ราคา/หน่วย", "จำนวนเงิน"]
     widths = [Cm(1.0), Cm(8.9), Cm(2.2), Cm(2.2), Cm(2.2)]
@@ -463,7 +464,7 @@ def render_inspection(school, proc, tp) -> str:
     fine = round(total * float(proc.penalty_rate or 0.1) / 100 * overdue, 2)
     _p(doc, "ใบตรวจรับพัสดุ", align="center", bold=True, size=20, after=0)
     _p(doc, "ตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ "
-            f"พ.ศ. 2560 {LAW_COMMITTEE_INSPECT}", align="center", size=15, after=6)
+            f"พ.ศ. 2560 {LAW_COMMITTEE_INSPECT}", align="center", size=16, after=6)
     _sign_table(doc, [[("", "center")], [
         (f"เขียนที่ {_sname(school)}", "left"),
         (f"วันที่ {thai_date(proc.inspect_date) if proc.inspect_date else _DOT}", "left"),
@@ -542,3 +543,12 @@ BOOK_RENDERERS = {
     "ใบสั่งซื้อ/สั่งจ้าง": render_purchase_order,
     "ใบตรวจรับพัสดุ": render_inspection,
 }
+
+
+def _finish_before_save(doc):
+    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
+    try:
+        from app.services.page_fit import finish_doc
+        finish_doc(doc)
+    except Exception:
+        pass

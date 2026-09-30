@@ -26,7 +26,7 @@ def _safe(text: str) -> str:
     return text.strip()
 
 
-def _p(doc, text="", *, align="left", bold=False, size=15, after=6, indent=0.0):
+def _p(doc, text="", *, align="left", bold=False, size=16, after=6, indent=0.0):
     p = doc.add_paragraph()
     p.alignment = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER,
                    "right": WD_ALIGN_PARAGRAPH.RIGHT, "justify": WD_ALIGN_PARAGRAPH.JUSTIFY}[align]
@@ -47,7 +47,7 @@ def _doc():
     sec.page_width, sec.page_height = Cm(21.0), Cm(29.7)   # A4 (ค่าเริ่มต้นของ python-docx คือ Letter)
     sec.left_margin = sec.right_margin = Cm(2.5)
     sec.top_margin = Cm(2.0); sec.bottom_margin = Cm(1.5)
-    base = doc.styles["Normal"]; base.font.name = THAI_FONT; base.font.size = Pt(15)
+    base = doc.styles["Normal"]; base.font.name = THAI_FONT; base.font.size = Pt(16)
     base._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
     return doc
 
@@ -81,7 +81,7 @@ def render_leave_form(school, person, record, type_label, approver=None) -> str:
             + (f"เนื่องจาก {record.reason} " if (record.reason or '').strip() else "")
             + "ในระหว่างลาข้าพเจ้าจะติดต่อได้ที่ "
             + ((record.contact or '').strip() or _BLANK),
-       align="justify", size=15, after=6, indent=1.25)
+       align="justify", size=16, after=6, indent=1.25)
     _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณาอนุญาต", align="justify", after=20, indent=1.25)
 
     _p(doc, "ขอแสดงความนับถือ", align="center", after=2)
@@ -103,12 +103,13 @@ def render_leave_form(school, person, record, type_label, approver=None) -> str:
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ใบลา_{name}_{record.id}") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
 
 # ---------------- หนังสือรับรองบุคลากร (ฟอร์มราชการ: ครุฑ + ที่ + ที่อยู่) ----------------
-def _hdr_cell(cell, lines, *, align="left", size=15):
+def _hdr_cell(cell, lines, *, align="left", size=16):
     cell.text = ""
     for i, txt in enumerate(lines):
         p = cell.paragraphs[0] if i == 0 else cell.add_paragraph()
@@ -176,16 +177,16 @@ def render_certificate(school, person) -> str:
             + "เริ่มรับราชการ ตั้งแต่วันที่ "
             + (thai_date(person.start_date) if person.start_date else "........................................")
             + " จนถึงปัจจุบันจริง")
-    _p(doc, body, align="justify", size=15, after=6, indent=1.25)
+    _p(doc, body, align="justify", size=16, after=6, indent=1.25)
     _p(doc, "หนังสือรับรองฉบับนี้ออกให้เพื่อนำไป"
             "................................................................ เท่านั้น",
-       align="justify", size=15, after=14, indent=1.25)
+       align="justify", size=16, after=14, indent=1.25)
 
     now = _d.datetime.now()
     _p(doc, f"ให้ไว้  ณ  วันที่ {now.day} เดือน{_THAI_MONTHS[now.month]} พ.ศ. {now.year + 543}",
-       align="center", size=15, after=0)
-    _p(doc, "", after=0, size=15)   # เว้นที่ให้ลายเซ็น ผอ.
-    _p(doc, "", after=0, size=15)
+       align="center", size=16, after=0)
+    _p(doc, "", after=0, size=16)   # เว้นที่ให้ลายเซ็น ผอ.
+    _p(doc, "", after=0, size=16)
 
     # ---- ลงนาม ผอ. (วางลายเซ็นจริงถ้ามี) ----
     director = (getattr(school, "director_name", "") or "").strip()
@@ -196,6 +197,7 @@ def render_certificate(school, person) -> str:
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"หนังสือรับรองบุคลากร_{name}") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -221,7 +223,7 @@ def render_travel_request(school, person, record, approver=None) -> str:
             f"รวม {(record.days or 0):g} วัน"
             + (f" โดยประมาณค่าใช้จ่าย {record.budget:,.0f} บาท" if (record.budget or 0) else "")
             + ((f"  {record.note}" ) if (getattr(record, 'note', '') or '').strip() else ""),
-       align="justify", size=15, after=8, indent=1.25)
+       align="justify", size=16, after=8, indent=1.25)
     _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณาอนุญาต", align="justify", after=22, indent=1.25)
 
     _p(doc, "(ลงชื่อ)...................................ผู้ขออนุญาต", align="center", after=0)
@@ -241,6 +243,7 @@ def render_travel_request(school, person, record, approver=None) -> str:
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ขออนุญาตไปราชการ_{name}_{record.id}") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -251,7 +254,7 @@ def render_travel_order(school, person, record) -> str:
     _krut_center(doc)          # คำสั่งราชการต้องมีครุฑกึ่งกลาง
     _p(doc, "คำสั่ง" + (school.name or "โรงเรียน"), align="center", bold=True, size=17, after=0)
     _p(doc, f"ที่  {record.doc_no or '............/............'}", align="center", size=14, after=0)
-    _p(doc, "เรื่อง  ให้ข้าราชการครูและบุคลากรทางการศึกษาไปราชการ", align="center", bold=True, size=15, after=8)
+    _p(doc, "เรื่อง  ให้ข้าราชการครูและบุคลากรทางการศึกษาไปราชการ", align="center", bold=True, size=16, after=8)
     _p(doc, "───────────────────", align="center", after=8)
 
     name = person.name or _BLANK
@@ -260,15 +263,15 @@ def render_travel_order(school, person, record) -> str:
     place = (record.place or "").strip() or _BLANK
     _p(doc, f"ด้วย {school.name or 'โรงเรียน'} มีความจำเป็นต้องให้บุคลากรไปราชการเพื่อ {subject} "
             f"จึงอาศัยอำนาจตามความในมาตราที่เกี่ยวข้อง แต่งตั้งให้บุคคลดังต่อไปนี้ไปราชการ",
-       align="justify", size=15, after=6, indent=1.25)
+       align="justify", size=16, after=6, indent=1.25)
     _p(doc, f"{name} ตำแหน่ง {pos} "
             f"ไปราชการ ณ {place} "
             f"ตั้งแต่วันที่ {_dt(record.start_date)} ถึงวันที่ {_dt(record.end_date)} "
             f"รวม {(record.days or 0):g} วัน"
             + (f" โดยเบิกค่าใช้จ่ายในการเดินทางไปราชการ จำนวน {record.budget:,.2f} บาท" if (record.budget or 0) else ""),
-       align="justify", size=15, after=6, indent=1.25)
+       align="justify", size=16, after=6, indent=1.25)
     _p(doc, "ทั้งนี้ ให้ผู้ได้รับแต่งตั้งปฏิบัติหน้าที่ที่ได้รับมอบหมายด้วยความเรียบร้อย เกิดผลดีแก่ทางราชการ",
-       align="justify", size=15, after=8, indent=1.25)
+       align="justify", size=16, after=8, indent=1.25)
     _p(doc, f"สั่ง ณ วันที่ {_dt(record.doc_date)}", align="center", after=24)
 
     _p(doc, "(ลงชื่อ)...................................", align="center", after=0)
@@ -277,6 +280,7 @@ def render_travel_order(school, person, record) -> str:
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"คำสั่งไปราชการ_{name}_{record.id}") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -298,7 +302,7 @@ def _tc(cell, text, *, bold=False, align="left", fill=None):
 def render_kp7(school, person) -> str:
     doc = _doc()
     _p(doc, "ทะเบียนประวัติบุคลากร (ก.พ.7)", align="center", bold=True, size=18, after=0)
-    _p(doc, (school.name or ""), align="center", bold=True, size=15, after=8)
+    _p(doc, (school.name or ""), align="center", bold=True, size=16, after=8)
 
     # ข้อมูลส่วนตัว
     info = [
@@ -353,6 +357,7 @@ def render_kp7(school, person) -> str:
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"กพ7_{person.name}") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -363,3 +368,12 @@ def _baht(v):
         return bahttext(v)
     except Exception:
         return ""
+
+
+def _finish_before_save(doc):
+    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
+    try:
+        from app.services.page_fit import finish_doc
+        finish_doc(doc)
+    except Exception:
+        pass

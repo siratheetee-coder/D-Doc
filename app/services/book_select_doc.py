@@ -80,6 +80,7 @@ def _save(doc, name: str) -> str:
     out = get_data_dir() / "documents"
     out.mkdir(exist_ok=True)
     path = out / (_safe(name) + ".docx")
+    _finish_before_save(doc)
     doc.save(str(path))
     return str(path)
 
@@ -415,7 +416,7 @@ def render_survey(school, tp, groups, doc=None):
            align="center", bold=True, size=17, after=0)
         _p(doc, f"ชั้น{level or _BLANK} {(school.name or '').strip()}",
            align="center", bold=True, size=16, after=0)
-        _p(doc, f"ครูผู้สอน/ครูประจำชั้น {_DOTS}", align="center", size=15, after=4)
+        _p(doc, f"ครูผู้สอน/ครูประจำชั้น {_DOTS}", align="center", size=16, after=4)
         headers = ["ที่", "ชื่อหนังสือ", "สำนักพิมพ์", "ราคา/เล่ม", "จำนวน", "เป็นเงิน"]
         widths = [Cm(1.0), Cm(6.2), Cm(3.0), Cm(2.1), Cm(1.8), Cm(2.4)]
         t = doc.add_table(rows=1, cols=len(headers))
@@ -467,3 +468,12 @@ def render_select_bundle(school, tp, groups, est_rows, survey_groups) -> str:
     render_invite(school, tp, doc)
     render_survey(school, tp, survey_groups, doc)
     return _save(doc, f"ชุดคัดเลือกหนังสือเรียน_{tp.year}")
+
+
+def _finish_before_save(doc):
+    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
+    try:
+        from app.services.page_fit import finish_doc
+        finish_doc(doc)
+    except Exception:
+        pass

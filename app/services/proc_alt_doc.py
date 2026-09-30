@@ -175,6 +175,7 @@ def _save(doc, name: str) -> str:
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)
     out_path = out_dir / (_safe(name) + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out_path))
     return str(out_path)
 
@@ -472,7 +473,7 @@ def render_w119_t1(proc, school) -> str:
     rtot.cells[0].merge(rtot.cells[3])
     _set_cell(rtot.cells[4], _money(total), bold=True, align="right", size=14)
     _set_cell(rtot.cells[5], "", align="center", size=14)
-    _p(doc, f"รวมทั้งสิ้น (ตัวอักษร) {bahttext(total)}", indent=1.25, after=4, size=15)
+    _p(doc, f"รวมทั้งสิ้น (ตัวอักษร) {bahttext(total)}", indent=1.25, after=4, size=16)
     _p(doc, f"ทั้งนี้ การดำเนินการจัดซื้อดังกล่าว เป็นการดำเนินการตาม{_W119_REF} "
             "ตามตารางที่ 1 รายการค่าใช้จ่ายที่เป็นการจัดซื้อจัดจ้าง ฯ",
        align="justify", indent=1.25, after=2)
@@ -618,3 +619,12 @@ RENDERERS = {
     "w119t2": render_w119_t2,
     "clause79": render_clause79,
 }
+
+
+def _finish_before_save(doc):
+    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
+    try:
+        from app.services.page_fit import finish_doc
+        finish_doc(doc)
+    except Exception:
+        pass

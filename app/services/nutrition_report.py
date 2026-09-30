@@ -80,7 +80,7 @@ def render_nutrition_report(school, cats, class_counts, sex_counts, totals, asse
     base._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
 
     _p(doc, "รายงานภาวะโภชนาการนักเรียน", align="center", bold=True, size=18, after=0)
-    _p(doc, (school.name or ""), align="center", bold=True, size=15, after=0)
+    _p(doc, (school.name or ""), align="center", bold=True, size=16, after=0)
     _p(doc, f"ประเมินแล้ว {assessed} คน · ณ {thai_date(as_of) if as_of else ''}", align="center", size=13, after=8)
 
     # ---- ตารางสรุปรวม (ภาวะ × เพศ) ----
@@ -159,5 +159,15 @@ def render_nutrition_report(school, cats, class_counts, sex_counts, totals, asse
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe("รายงานภาวะโภชนาการ") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
+
+
+def _finish_before_save(doc):
+    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
+    try:
+        from app.services.page_fit import finish_doc
+        finish_doc(doc)
+    except Exception:
+        pass

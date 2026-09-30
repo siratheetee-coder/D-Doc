@@ -69,7 +69,7 @@ def _head(doc, school, title, sub=None, year=None):
     _p(doc, name, align="center", bold=True, size=16, after=0)
     _p(doc, title, align="center", bold=True, size=17, after=0)
     if sub:
-        _p(doc, sub, align="center", size=15, after=0)
+        _p(doc, sub, align="center", size=16, after=0)
     _p(doc, "", after=4)
 
 
@@ -154,7 +154,7 @@ _MIN = _dtm(1, 1, 1)
 
 
 def _flow_table(doc, caption, heads, rows, *, min_rows=8):
-    _p(doc, caption, bold=True, size=15, after=3)
+    _p(doc, caption, bold=True, size=16, after=3)
     n = max(len(rows), min_rows)
     t = doc.add_table(rows=1 + n, cols=len(_WP_A_W))
     t.style = "Table Grid"
@@ -515,7 +515,7 @@ def render_mismatch_list(school, ctx, assets, materials=None, doc=None):
        align="center", bold=True, size=17, after=0)
     _p(doc, f"ของ {(school.name or '').strip() or _BLANK}", align="center", size=16, after=0)
     _p(doc, f"ประจำปีงบประมาณ พ.ศ. {year}  (ตรวจนับ ณ วันที่ 30 กันยายน {year})",
-       align="center", size=15, after=6)
+       align="center", size=16, after=6)
 
     lost = [a for a in (assets or []) if (a.status or "") == "สูญไป"]
     n = max(len(lost) + 4, 8)

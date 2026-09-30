@@ -80,7 +80,7 @@ def render_requisition(req, school, receipt=None) -> str:
             r.font.name = THAI_FONT
             from docx.shared import Pt
             from docx.oxml.ns import qn
-            r.font.size = Pt(15)
+            r.font.size = Pt(16)
             r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
 
     # ---- ใบรับหนังสือเรียน (แนบท้ายใบเบิก ให้ผู้เรียนลงลายมือชื่อเป็นหลักฐาน) ----

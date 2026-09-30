@@ -142,7 +142,7 @@ def render_cash_book(school, fiscal_year, rows, opening, totals, scope_name="ท
     doc = Document(); set_a4(doc)
     _landscape(doc)
     _p(doc, "สมุดเงินสด", align="center", bold=True, size=18, after=0)
-    _p(doc, (school.name or ""), align="center", bold=True, size=15, after=0)
+    _p(doc, (school.name or ""), align="center", bold=True, size=16, after=0)
     _p(doc, f"ประจำปีงบประมาณ {fiscal_year}   ({scope_name})", align="center", size=14, after=6)
 
     headers = ["ว/ด/ป", "รายการ", "เลขที่เอกสาร", "รับ (เดบิต)", "จ่าย (เครดิต)", "คงเหลือ"]
@@ -258,7 +258,7 @@ def render_cash_book_fund(school, fiscal_year, scope_name, open_by_fund, receipt
     doc = Document(); set_a4(doc)
     _landscape(doc)
     _p(doc, "สมุดเงินสด", align="center", bold=True, size=18, after=0)
-    _p(doc, (school.name or ""), align="center", bold=True, size=15, after=0)
+    _p(doc, (school.name or ""), align="center", bold=True, size=16, after=0)
     _p(doc, f"ประจำปีงบประมาณ {fiscal_year}   ({scope_name})", align="center", size=14, after=8)
 
     rin = _cb_section(doc, "ด้านรับ  (เดบิต = เงินสด · เครดิตแยกตามประเภทเงิน)",
@@ -287,7 +287,7 @@ def render_general_ledger(school, account, fiscal_year, rows, opening) -> str:
     doc = Document(); set_a4(doc)
     _landscape(doc)
     _p(doc, "บัญชีแยกประเภททั่วไป", align="center", bold=True, size=18, after=0)
-    _p(doc, (school.name or ""), align="center", bold=True, size=15, after=0)
+    _p(doc, (school.name or ""), align="center", bold=True, size=16, after=0)
     _p(doc, f"ชื่อบัญชี  {account.name}          ประจำปีงบประมาณ {fiscal_year}",
        align="center", size=14, after=6)
 

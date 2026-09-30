@@ -265,3 +265,19 @@ def fit_one_page(doc) -> dict:
     return {"before": round(before, 1), "after": round(block_height(doc, blocks), 1),
             "budget": round(budget, 1), "gap_scale": used[0], "spacing": used[1],
             "fitted": block_height(doc, blocks) <= budget}
+
+
+def finish_doc(doc) -> None:
+    """เก็บงานก่อนเซฟเอกสารทุกฉบับ: เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว
+
+    ปลอดภัยกับเอกสารยาว ๆ (ทะเบียน/สมุด/ปพ.5) เพราะถ้าบีบจนสุดแล้วยังไม่จบหน้าเดียว
+    fit_one_page จะคืนรูปแบบเดิมให้ทั้งหมด
+    """
+    try:
+        add_sign_space(doc)
+    except Exception:
+        pass
+    try:
+        fit_one_page(doc)
+    except Exception:
+        pass

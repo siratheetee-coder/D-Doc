@@ -76,9 +76,9 @@ def render_project_summary(school, year, year_label, rows, *, detail=True, as_of
 
     _p(doc, "รายงานสรุปการใช้งบประมาณรายโครงการ", align="center", bold=True, size=18, after=0)
     _p(doc, sname, align="center", bold=True, size=16, after=0)
-    _p(doc, f"{year_label} {year}", align="center", size=15, after=0)
+    _p(doc, f"{year_label} {year}", align="center", size=16, after=0)
     _p(doc, f"ข้อมูล ณ วันที่ {thai_date(as_of or datetime.now())}",
-       align="center", size=15, after=6)
+       align="center", size=16, after=6)
 
     headers = ["ที่", "ชื่อโครงการ", "ผู้รับผิดชอบ", "งบที่ได้รับ", "ใช้ไป",
                "คงเหลือ", "ร้อยละที่ใช้", "จำนวนงาน"]
@@ -112,7 +112,7 @@ def render_project_summary(school, year, year_label, rows, *, detail=True, as_of
     _p(doc, f"งบประมาณที่ได้รับรวม {_money(t_budget)} บาท ({bahttext(t_budget)}) · "
             f"ใช้ไป {_money(t_spent)} บาท ({bahttext(t_spent)}) · "
             f"คงเหลือ {_money(t_budget - t_spent)} บาท",
-       before=8, after=8, size=15)
+       before=8, after=8, size=16)
 
     if detail:
         for r in rows:
@@ -166,6 +166,7 @@ def render_project_summary(school, year, year_label, rows, *, detail=True, as_of
     out = get_data_dir() / "documents"
     out.mkdir(exist_ok=True)
     path = out / (_safe(f"สรุปการใช้งบประมาณรายโครงการ_{year}") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(path))
     return str(path)
 
@@ -233,3 +234,12 @@ def export_project_summary(school, year, year_label, rows) -> str:
     path = out / (_safe(f"สรุปการใช้งบประมาณรายโครงการ_{year}") + ".xlsx")
     wb.save(str(path))
     return str(path)
+
+
+def _finish_before_save(doc):
+    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
+    try:
+        from app.services.page_fit import finish_doc
+        finish_doc(doc)
+    except Exception:
+        pass

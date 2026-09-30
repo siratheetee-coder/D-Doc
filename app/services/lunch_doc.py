@@ -55,6 +55,7 @@ def _save(doc, name: str) -> str:
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)
     out_path = out_dir / (_safe(name) + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out_path))
     return str(out_path)
 
@@ -1236,3 +1237,12 @@ def render_contract_bundle(rnd, school) -> str:
     render_winner_doc(rnd, school, doc)              # ประกาศผู้ชนะ
     render_order_doc(rnd, school, doc)               # ใบสั่งจ้าง
     return _save(doc, f"ชุดเอกสารจ้างเหมา_รอบที่{rnd.seq}_ปี{rnd.program.year}")
+
+
+def _finish_before_save(doc):
+    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
+    try:
+        from app.services.page_fit import finish_doc
+        finish_doc(doc)
+    except Exception:
+        pass

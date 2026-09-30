@@ -24,7 +24,7 @@ def _safe(text: str) -> str:
     return text.strip()
 
 
-def _p(doc, text="", *, align="left", bold=False, size=15, after=6, indent=0.0):
+def _p(doc, text="", *, align="left", bold=False, size=16, after=6, indent=0.0):
     p = doc.add_paragraph()
     p.alignment = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER,
                    "right": WD_ALIGN_PARAGRAPH.RIGHT, "justify": WD_ALIGN_PARAGRAPH.JUSTIFY}[align]
@@ -44,7 +44,7 @@ def render_lunch_receipt(school, program, ledger) -> str:
     sec = doc.sections[0]
     sec.left_margin = sec.right_margin = Cm(2.5)
     sec.top_margin = Cm(2.0); sec.bottom_margin = Cm(1.5)
-    base = doc.styles["Normal"]; base.font.name = THAI_FONT; base.font.size = Pt(15)
+    base = doc.styles["Normal"]; base.font.name = THAI_FONT; base.font.size = Pt(16)
     base._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
 
     _p(doc, "ใบสำคัญรับเงิน", align="center", bold=True, size=20, after=2)
@@ -64,8 +64,8 @@ def render_lunch_receipt(school, program, ledger) -> str:
             f"({bahttext(amount)}) เป็นค่า {detail}"
             + (f" งวด/อ้างอิงที่ {ref}" if ref else "")
             + " ไว้เป็นการถูกต้องเรียบร้อยแล้ว",
-       align="justify", size=15, after=6, indent=1.25)
-    _p(doc, "จึงได้ลงลายมือชื่อไว้เป็นหลักฐาน", align="justify", size=15, after=24, indent=1.25)
+       align="justify", size=16, after=6, indent=1.25)
+    _p(doc, "จึงได้ลงลายมือชื่อไว้เป็นหลักฐาน", align="justify", size=16, after=24, indent=1.25)
 
     fin = (getattr(school, "finance_officer_name", "") or getattr(school, "officer_name", "") or "").strip()
     director = (getattr(school, "director_name", "") or "").strip()
@@ -80,10 +80,20 @@ def render_lunch_receipt(school, program, ledger) -> str:
             p = cell.paragraphs[0] if i == 0 else cell.add_paragraph()
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p.paragraph_format.space_after = Pt(0)
-            r = p.add_run(txt); r.font.size = Pt(15); r.font.name = THAI_FONT
+            r = p.add_run(txt); r.font.size = Pt(16); r.font.name = THAI_FONT
             r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ใบสำคัญรับเงินอาหารกลางวัน_{ledger.id}") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
+
+
+def _finish_before_save(doc):
+    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
+    try:
+        from app.services.page_fit import finish_doc
+        finish_doc(doc)
+    except Exception:
+        pass

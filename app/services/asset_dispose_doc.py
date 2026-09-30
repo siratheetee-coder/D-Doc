@@ -137,5 +137,15 @@ def render_asset_disposal(assets, school, *, doc_no="", doc_date=None,
     out_dir.mkdir(exist_ok=True)
     fname = _safe(f"ขออนุมัติจำหน่ายครุภัณฑ์_{doc_no or thai_date(doc_date)}") + ".docx"
     out_path = out_dir / fname
+    _finish_before_save(doc)
     doc.save(str(out_path))
     return str(out_path)
+
+
+def _finish_before_save(doc):
+    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
+    try:
+        from app.services.page_fit import finish_doc
+        finish_doc(doc)
+    except Exception:
+        pass

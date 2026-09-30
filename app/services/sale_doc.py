@@ -223,11 +223,13 @@ def _finish(doc, fname):
     out_dir.mkdir(parents=True, exist_ok=True)
     try:
         path = out_dir / fname
+        _finish_before_save(doc)
         doc.save(str(path))
         return str(path)
     except OSError:
         import tempfile
         path = Path(tempfile.gettempdir()) / fname
+        _finish_before_save(doc)
         doc.save(str(path))
         return str(path)
 
@@ -476,3 +478,12 @@ def render_quotation_pdf(lead, seller, doc_no, doc_date=None) -> str:
 
 def render_receipt_pdf(lead, seller, doc_no, doc_date=None) -> str:
     return _render_sale_pdf(lead, seller, doc_no, doc_date or datetime.now(), "receipt")
+
+
+def _finish_before_save(doc):
+    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
+    try:
+        from app.services.page_fit import finish_doc
+        finish_doc(doc)
+    except Exception:
+        pass

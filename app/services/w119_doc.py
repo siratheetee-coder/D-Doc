@@ -88,6 +88,7 @@ def _save(doc, name: str) -> str:
     out = get_data_dir() / "documents"
     out.mkdir(exist_ok=True)
     path = out / (_safe(name) + ".docx")
+    _finish_before_save(doc)
     doc.save(str(path))
     return str(path)
 
@@ -157,10 +158,10 @@ def render_attendance(proc, school) -> str:
     rows = max(10, int(float(ex.get("participants") or 0) or 0))
     _p(doc, "ใบลงเวลาผู้เข้าร่วม", align="center", bold=True, size=18, after=0)
     _p(doc, (proc.subject or "").strip() or _BLANK, align="center", bold=True, size=16, after=0)
-    _p(doc, f"ณ {_x(ex, 'event_place', _sname(school))}", align="center", size=15, after=0)
+    _p(doc, f"ณ {_x(ex, 'event_place', _sname(school))}", align="center", size=16, after=0)
     ev = _xd(ex, "event_date") or proc.request_date
     _p(doc, f"วันที่ {thai_date(ev) if ev else _BLANK}  เวลา {_x(ex, 'event_time', '08.30 - 16.30 น.')}",
-       align="center", size=15, after=6)
+       align="center", size=16, after=6)
 
     headers = ["ที่", "ชื่อ - สกุล", "ตำแหน่ง/หน่วยงาน",
                "ลายมือชื่อ\n(ช่วงเช้า)", "ลายมือชื่อ\n(ช่วงบ่าย)", "หมายเหตุ"]
@@ -198,14 +199,14 @@ def render_speaker_receipt(proc, school) -> str:
     amount = round(hours * rate, 2) or _total(proc)
 
     _p(doc, "ใบสำคัญรับเงินสำหรับวิทยากร", align="center", bold=True, size=18, after=8)
-    _p(doc, f"ชื่อส่วนราชการผู้จัดฝึกอบรม  {_sname(school)}", size=15, after=1)
-    _p(doc, f"โครงการ/หลักสูตร  {(proc.subject or '').strip() or _BLANK}", size=15, after=1)
+    _p(doc, f"ชื่อส่วนราชการผู้จัดฝึกอบรม  {_sname(school)}", size=16, after=1)
+    _p(doc, f"โครงการ/หลักสูตร  {(proc.subject or '').strip() or _BLANK}", size=16, after=1)
     ev = _xd(ex, "event_date") or proc.request_date
-    _p(doc, f"วันที่  {thai_date(ev) if ev else _BLANK}", size=15, after=6)
+    _p(doc, f"วันที่  {thai_date(ev) if ev else _BLANK}", size=16, after=6)
 
     _p(doc, f"ข้าพเจ้า {_x(ex, 'speaker_name')}  อยู่บ้านเลขที่ {_x(ex, 'speaker_addr')}",
-       indent=1.25, size=15, after=1)
-    _p(doc, f"ได้รับเงินจาก {_sname(school)} ดังรายละเอียดต่อไปนี้", indent=1.25, size=15, after=4)
+       indent=1.25, size=16, after=1)
+    _p(doc, f"ได้รับเงินจาก {_sname(school)} ดังรายละเอียดต่อไปนี้", indent=1.25, size=16, after=4)
 
     widths = [Cm(11.0), Cm(5.5)]
     t = doc.add_table(rows=1, cols=2)
@@ -224,7 +225,7 @@ def render_speaker_receipt(proc, school) -> str:
             _set_cell(c, v, align=al, size=15, bold=bold)
             c.width = w
 
-    _p(doc, f"จำนวนเงิน  ({bahttext(amount)})", indent=1.25, size=15, before=6, after=12)
+    _p(doc, f"จำนวนเงิน  ({bahttext(amount)})", indent=1.25, size=16, before=6, after=12)
     _sign_table(doc, [[("", "center")], [
         ("(ลงชื่อ) ...................................... ผู้รับเงิน", "center"),
         (f"( {_x(ex, 'speaker_name')} )", "center"),
@@ -244,12 +245,12 @@ def render_trainee_receipt(proc, school) -> str:
     rows = max(10, int(float(ex.get("participants") or 0) or 0))
     _p(doc, "ใบสำคัญรับเงินค่าใช้จ่ายในการเดินทางมาฝึกอบรมสำหรับบุคคลภายนอก",
        align="center", bold=True, size=17, after=0)
-    _p(doc, f"ชื่อส่วนราชการผู้จัดฝึกอบรม  {_sname(school)}", align="center", size=15, after=0)
+    _p(doc, f"ชื่อส่วนราชการผู้จัดฝึกอบรม  {_sname(school)}", align="center", size=16, after=0)
     _p(doc, f"โครงการ/หลักสูตร  {(proc.subject or '').strip() or _BLANK}",
-       align="center", size=15, after=0)
+       align="center", size=16, after=0)
     ev = _xd(ex, "event_date") or proc.request_date
     _p(doc, f"วันที่ {thai_date(ev) if ev else _BLANK} · ผู้เข้ารับการฝึกอบรมรวมทั้งสิ้น "
-            f"{_x(ex, 'participants', '.....')} คน", align="center", size=15, after=6)
+            f"{_x(ex, 'participants', '.....')} คน", align="center", size=16, after=6)
 
     headers = ["ลำดับ", "ชื่อ - สกุล", "ที่อยู่", "ค่าอาหาร\n(บาท)", "ค่าที่พัก\n(บาท)",
                "ค่าพาหนะ\n(บาท)", "รวมเป็นเงิน\n(บาท)", "วัน เดือน ปี\nที่รับเงิน",
@@ -364,3 +365,12 @@ RENDERERS = {
     "w119_borrow": render_borrow_set,
     "w119_repay": render_repay_set,
 }
+
+
+def _finish_before_save(doc):
+    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
+    try:
+        from app.services.page_fit import finish_doc
+        finish_doc(doc)
+    except Exception:
+        pass

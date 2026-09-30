@@ -620,6 +620,7 @@ def render_pp5(school, klass, subject, db) -> str:
     _pp5_criteria_page(doc, page_break=True)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ปพ.5_{subject.name}_{_class_label(klass)}_{klass.year}") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -1378,6 +1379,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     suffix = f"_ภาค{t}" if sec else ""
     out = out_dir / (_safe(f"ปพ.5_ทั้งเล่ม_{_class_label(klass)}_{klass.year}{suffix}") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -1440,7 +1442,7 @@ def _pp6_cover(doc, school, s, db, *, page_break):
         _p(doc, "", after=0)
     _p(doc, "สมุดรายงานประจำตัวนักเรียน", align="center", bold=True, size=26, after=6)
     _p(doc, "แบบรายงานผลการพัฒนาคุณภาพผู้เรียนรายบุคคล (ปพ.6)", align="center", bold=True, size=16, after=2)
-    _p(doc, f"ปีการศึกษา {klass.year}", align="center", size=15, after=18)
+    _p(doc, f"ปีการศึกษา {klass.year}", align="center", size=16, after=18)
     _p(doc, school.name or "", align="center", bold=True, size=17, after=2)
     loc = []
     if getattr(school, "district", ""):
@@ -1456,15 +1458,15 @@ def _pp6_cover(doc, school, s, db, *, page_break):
     # กรอบติดรูปบนปก (ระบบไม่เก็บรูปนักเรียนแล้ว - ครูติดรูปเองในเล่ม)
     st = _pp6_central(s, db)
     _pp6_photo_box(doc, height=4.0, width=3.5)
-    _p(doc, f"เลขที่ {s.seq or '.....'}", align="center", size=15, after=4)
+    _p(doc, f"เลขที่ {s.seq or '.....'}", align="center", size=16, after=4)
     _p(doc, f"ชื่อ  {s.name}", align="center", bold=True, size=18, after=4)
     _p(doc, f"เลขประจำตัวนักเรียน  {s.student_no or '................'}", align="center", size=14, after=4)
-    _p(doc, f"ชั้น  {_class_label(klass)}", align="center", size=15, after=24)
+    _p(doc, f"ชั้น  {_class_label(klass)}", align="center", size=16, after=24)
     homerooms = [p.name for p in (klass.homeroom, klass.co_homeroom) if p]
     _p(doc, "ครูประจำชั้น", align="center", size=14, after=2)
     if homerooms:
         for nm in homerooms:
-            _p(doc, nm, align="center", bold=True, size=15, after=2)
+            _p(doc, nm, align="center", bold=True, size=16, after=2)
     else:
         _p(doc, ".............................................", align="center", size=14, after=2)
 
@@ -1570,7 +1572,7 @@ def _pp6_attendance_growth(doc, school, s, db, ef):
         _p(doc, "", after=4)
 
     # ---- น้ำหนัก/ส่วนสูง (ภาวะโภชนาการ) ----
-    _p(doc, "น้ำหนัก / ส่วนสูง", bold=True, size=15, after=2)
+    _p(doc, "น้ำหนัก / ส่วนสูง", bold=True, size=16, after=2)
     st = _pp6_central(s, db)
     who = st or s     # ใช้ทะเบียนกลาง (มีวันเกิด) ถ้ามี ไม่งั้น AcadStudent
     ms = growth.measures_for(db, s.student_id, klass.year) if s.student_id else {}
@@ -1944,6 +1946,7 @@ def render_pp6(school, s, db) -> str:
     _pp6_body(doc, school, s, db)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ปพ.6_{s.name}_{s.klass.year}") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -1956,6 +1959,7 @@ def render_pp6_class(school, klass, db) -> str:
         _pp6_body(doc, school, s, db, page_break=(i > 0))
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ปพ.6_ทั้งห้อง_{_class_label(klass)}_{klass.year}") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -1992,7 +1996,7 @@ def _attendance_month_section(doc, school, klass, db, month, subject=None, page_
         teacher = klass.homeroom.name if klass.homeroom else ""
 
     has_logo = _logo_header(doc, school, height_cm=1.3, page_break=page_break)
-    _p(doc, school.name or "", align="center", bold=True, size=15, after=0,
+    _p(doc, school.name or "", align="center", bold=True, size=16, after=0,
        page_break=(page_break and not has_logo))
     _p(doc, "แบบบันทึกเวลาเรียน (รายวัน)", align="center", bold=True, size=13, after=0)
     # เน้นชื่อเดือนให้เด่น ครูดูออกทันทีว่าเดือนอะไร
@@ -2097,6 +2101,7 @@ def render_attendance_month(school, klass, db, month, subject=None) -> str:
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     tag = f"_{subject.code or subject.name}" if subject else ""
     out = out_dir / (_safe(f"เวลาเรียน_{_class_label(klass)}_{TH_MONTH_FULL[month]}{tag}_{klass.year}") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -2116,6 +2121,7 @@ def render_attendance_term(school, klass, db, term, subject=None) -> str:
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     tag = f"_{subject.code or subject.name}" if subject else ""
     out = out_dir / (_safe(f"เวลาเรียน_ภาค{term}_{_class_label(klass)}{tag}_{klass.year}") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -2225,6 +2231,7 @@ def render_timetable_class(school, klass, db) -> str:
     _tt_grid_doc(doc, periods, cell)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ตารางเรียน_{_class_label(klass)}_{y}") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -2261,5 +2268,15 @@ def render_timetable_teacher(school, person, db, year) -> str:
     _tt_grid_doc(doc, periods, cell)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ตารางสอน_{person.name}_{year}") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
+
+
+def _finish_before_save(doc):
+    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
+    try:
+        from app.services.page_fit import finish_doc
+        finish_doc(doc)
+    except Exception:
+        pass

@@ -102,7 +102,7 @@ def _cover(doc, school, s, meta, *, page_break):
     _p(doc, f"{level_full(klass.level)}  (อายุ {meta['age']} ขวบ)"
             + (f"  ห้อง {klass.room}" if (klass.room or "").strip() else ""),
        align="center", size=16, after=4)
-    _p(doc, f"ปีการศึกษา {klass.year}", align="center", size=15, after=16)
+    _p(doc, f"ปีการศึกษา {klass.year}", align="center", size=16, after=16)
     _p(doc, f"โรงเรียน{school.name or ''}", align="center", bold=True, size=17, after=2)
     # ตำบล/อำเภอ/จังหวัด ตามแบบต้นฉบับ (ระบบไม่มีช่องตำบล -> เว้นให้เขียนเอง)
     loc = []
@@ -114,7 +114,7 @@ def _cover(doc, school, s, meta, *, page_break):
         _p(doc, f"สำนักงานเขตพื้นที่การศึกษา{school.area_office}", align="center", size=14, after=18)
     else:
         _p(doc, "", after=18)
-    _p(doc, f"เลขที่  {s.seq or '......'}", align="center", size=15, after=4)
+    _p(doc, f"เลขที่  {s.seq or '......'}", align="center", size=16, after=4)
     _p(doc, f"ชื่อ - นามสกุล  {s.name}", align="center", bold=True, size=18, after=4)
     homerooms = [p.name for p in (klass.homeroom, klass.co_homeroom) if p]
     _p(doc, "ชื่อครูประจำชั้น  " + (" / ".join(homerooms) if homerooms else "......................"),
@@ -217,7 +217,7 @@ def _attendance(doc, school, s, db):
     pct = f"{100.0 * tot['/'] / tot['open']:.1f}" if tot["open"] else ".............."
     _p(doc, f"มาเรียนร้อยละ {pct}          ย้ายออก ..............................", size=13, after=8)
 
-    _p(doc, "น้ำหนักและส่วนสูง", bold=True, size=15, after=3)
+    _p(doc, "น้ำหนักและส่วนสูง", bold=True, size=16, after=3)
     ms = growth.measures_for(db, s.student_id, klass.year) if s.student_id else {}
     st = _pp6_central(s, db)
     who = st or s
@@ -284,7 +284,7 @@ def _teacher_comments(doc, s, notes):
     comments = notes["comments"]
     improve = notes["improve"]
     for term in (1, 2):
-        _p(doc, f"ภาคเรียนที่ {term}", bold=True, size=15, after=3)
+        _p(doc, f"ภาคเรียนที่ {term}", bold=True, size=16, after=3)
         t = doc.add_table(rows=1, cols=2)
         t.style = "Table Grid"
         _cell(t.rows[0].cells[0], "พัฒนาการด้าน", bold=True, size=12, fill="EDE9FE")
@@ -450,6 +450,7 @@ def render_kinder_book(school, student, db) -> str:
     if not _book(doc, school, student, db, page_break=False):
         _p(doc, "ชั้นนี้ไม่ใช่ระดับปฐมวัย จึงออกสมุดพกอนุบาลไม่ได้", align="center", size=16)
     path = get_data_dir() / f"สมุดพกอนุบาล_{_safe(student.name)}.docx"
+    _finish_before_save(doc)
     doc.save(path)
     return str(path)
 
@@ -465,5 +466,15 @@ def render_kinder_class(school, klass, db) -> str:
     if first:
         _p(doc, "ห้องนี้ยังไม่มีนักเรียน หรือไม่ใช่ระดับปฐมวัย", align="center", size=16)
     path = get_data_dir() / f"สมุดพกอนุบาล_{_safe(_class_label(klass))}.docx"
+    _finish_before_save(doc)
     doc.save(path)
     return str(path)
+
+
+def _finish_before_save(doc):
+    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
+    try:
+        from app.services.page_fit import finish_doc
+        finish_doc(doc)
+    except Exception:
+        pass

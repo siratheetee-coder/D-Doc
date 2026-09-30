@@ -214,5 +214,15 @@ def render_substitute_schedule(school, db, assignments, *, term="", year="",
 
     out = get_data_dir() / "documents"; out.mkdir(exist_ok=True)
     path = out / (_safe("แบบจัดตารางสอนแทน") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(path))
     return str(path)
+
+
+def _finish_before_save(doc):
+    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
+    try:
+        from app.services.page_fit import finish_doc
+        finish_doc(doc)
+    except Exception:
+        pass

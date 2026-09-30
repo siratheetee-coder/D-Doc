@@ -172,5 +172,15 @@ def render_book_receipt(year, groups, school) -> str:
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)
     path = out_dir / (_safe(f"แบบรับหนังสือเรียน_ปีการศึกษา{year}") + ".docx")
+    _finish_before_save(doc)
     doc.save(str(path))
     return str(path)
+
+
+def _finish_before_save(doc):
+    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
+    try:
+        from app.services.page_fit import finish_doc
+        finish_doc(doc)
+    except Exception:
+        pass

@@ -119,7 +119,7 @@ def render_loan_returns(school, loan) -> str:
 def render_loan_register(school, fiscal_year, loans) -> str:
     doc = _new(landscape=True)
     _p(doc, "ทะเบียนคุมลูกหนี้เงินยืม", align="center", bold=True, size=18, after=0)
-    _p(doc, (school.name or "").strip(), align="center", bold=True, size=15, after=0)
+    _p(doc, (school.name or "").strip(), align="center", bold=True, size=16, after=0)
     _p(doc, f"ปีงบประมาณ {fiscal_year}", align="center", size=14, after=6)
     headers = ["วัน เดือน ปี", "เลขที่สัญญา", "ชื่อผู้ยืม", "วัตถุประสงค์", "จำนวนเงินยืม",
                "วันครบกำหนด", "ส่งใช้แล้ว", "คงค้าง", "หมายเหตุ"]
@@ -158,7 +158,7 @@ def render_check_register(school, fiscal_year, checks) -> str:
     doc = _new(landscape=True)
     _p(doc, "ทะเบียนคุมการจ่ายเงิน", align="center", bold=True, size=18, after=0)
     _p(doc, "(เช็ค / โอนเงิน / เงินสด)", align="center", size=14, after=0)
-    _p(doc, (school.name or "").strip(), align="center", bold=True, size=15, after=0)
+    _p(doc, (school.name or "").strip(), align="center", bold=True, size=16, after=0)
     _p(doc, f"ปีงบประมาณ {fiscal_year}", align="center", size=14, after=6)
     headers = ["วัน เดือน ปี", "วิธีจ่าย", "เลขที่เช็ค/อ้างอิง", "ธนาคาร", "จ่ายให้", "รายการ",
                "จำนวนเงิน", "ลงชื่อผู้รับเงิน", "ลงชื่อผู้อนุมัติ"]
@@ -193,7 +193,7 @@ def render_bank_recon(school, rec, account_name="", checks=None) -> str:
     """checks = เช็คที่ยังไม่ขึ้นเงิน (แนบรายตัวท้ายงบ ถ้ามี)"""
     doc = _new()
     _p(doc, "งบกระทบยอดเงินฝากธนาคาร", align="center", bold=True, size=18, after=0)
-    _p(doc, (school.name or "").strip(), align="center", bold=True, size=15, after=0)
+    _p(doc, (school.name or "").strip(), align="center", bold=True, size=16, after=0)
     _p(doc, f"บัญชี {account_name or _BLANK}", align="center", size=14, after=0)
     _p(doc, f"ณ วันที่ {thai_date(rec.as_of) if rec.as_of else _BLANK}",
        align="center", size=14, after=8)
@@ -373,8 +373,8 @@ def render_quarter_report(school, fiscal_year, quarter, rows, totals) -> str:
     qname, qmonths = QUARTERS.get(quarter, ("", ""))
     _p(doc, "รายงานผลการใช้จ่ายงบประมาณ", align="center", bold=True, size=18, after=0)
     _p(doc, f"{qname} ({qmonths}) ปีงบประมาณ {fiscal_year}", align="center", bold=True,
-       size=15, after=0)
-    _p(doc, (school.name or "").strip(), align="center", size=15, after=6)
+       size=16, after=0)
+    _p(doc, (school.name or "").strip(), align="center", size=16, after=6)
     widths = [Cm(5.5), Cm(2.8), Cm(2.8), Cm(2.8), Cm(2.6)]
     t = _grid(doc, ["บัญชี/ประเภทเงิน", "ยอดยกมา", "รับในไตรมาส", "จ่ายในไตรมาส", "คงเหลือ"],
               widths, size=14)

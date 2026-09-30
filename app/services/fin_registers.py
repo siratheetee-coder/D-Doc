@@ -105,7 +105,7 @@ def _title(doc, school, title, fiscal_year, sub=""):
     _p(doc, title, align="center", bold=True, size=18, after=0)
     if sub:
         _p(doc, sub, align="center", size=14, after=0)
-    _p(doc, (school.name or "").strip(), align="center", bold=True, size=15, after=0)
+    _p(doc, (school.name or "").strip(), align="center", bold=True, size=16, after=0)
     _p(doc, f"ปีงบประมาณ {fiscal_year}", align="center", size=14, after=6)
 
 
@@ -118,7 +118,7 @@ def render_safe_custody(school, rows, total, as_of) -> str:
     _right_block(doc, [f"โรงเรียน{_school_only(school) or _BLANK}",
                        f"วันที่ {thai_date(as_of) if as_of else _BLANK}"], align="left", gap=False)
     _p(doc, "", after=4)
-    _p(doc, "ข้าพเจ้าได้รับเงินคงเหลือตามรายการ ดังต่อไปนี้", indent=1.27, size=15, after=6)
+    _p(doc, "ข้าพเจ้าได้รับเงินคงเหลือตามรายการ ดังต่อไปนี้", indent=1.27, size=16, after=6)
 
     headers = ["รายการ", "จำนวนเงิน", "หมายเหตุ"]
     widths = [Cm(9.0), Cm(3.5), Cm(4.0)]
@@ -130,9 +130,9 @@ def render_safe_custody(school, rows, total, as_of) -> str:
          ["right", "right", "left"], size=15, bold=True)
 
     _p(doc, "", after=4)
-    _p(doc, f"จำนวนเงิน  ({bahttext(total)})", indent=1.27, size=15, after=10)
+    _p(doc, f"จำนวนเงิน  ({bahttext(total)})", indent=1.27, size=16, after=10)
     _p(doc, "ข้าพเจ้า จะรับผิดชอบในการเก็บรักษาเงินดังกล่าว และจะส่งคืนให้เจ้าหน้าที่การเงิน "
-            "เพื่อจ่ายในวันทำการถัดไป", indent=1.27, size=15, after=10)
+            "เพื่อจ่ายในวันทำการถัดไป", indent=1.27, size=16, after=10)
 
     _right_block(doc, ["ลงชื่อ..............................................",
                        f"( {(school.director_name or '').strip() or _BLANK} )",
@@ -142,7 +142,7 @@ def render_safe_custody(school, rows, total, as_of) -> str:
     got = _money(total) if total else "..............................."
     _p(doc, f"ข้าพเจ้าได้รับเงิน {got} บาท คืนจากผู้อำนวยการโรงเรียน"
             f"{_school_only(school) or _BLANK} ในวันที่ ........................................... "
-            "เพื่อจะนำไปจ่ายตามระเบียบของทางราชการ", indent=1.27, size=15, after=12)
+            "เพื่อจะนำไปจ่ายตามระเบียบของทางราชการ", indent=1.27, size=16, after=12)
     _right_block(doc, ["ลงชื่อ..............................................",
                        "(..............................................)",
                        "เจ้าหน้าที่การเงิน"])

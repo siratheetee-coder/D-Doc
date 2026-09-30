@@ -91,7 +91,7 @@ def render_receipt_voucher(school, *, payee="", payee_address="", items=None, to
 
     _p(doc, "ใบสำคัญรับเงิน", align="center", bold=True, size=20, after=2)
     if sname:
-        _p(doc, sname, align="center", size=15, after=8)
+        _p(doc, sname, align="center", size=16, after=8)
 
     # วันที่รับเงิน (ชิดขวา)
     _p(doc, f"วันที่ {thai_date(date) if date else _BLANK}", align="right", after=6)
@@ -164,5 +164,15 @@ def render_receipt_voucher(school, *, payee="", payee_address="", items=None, to
     out_dir.mkdir(exist_ok=True)
     fname = _safe(f"ใบสำคัญรับเงิน {subject}".strip())
     out_path = out_dir / (fname + ".docx")
+    _finish_before_save(doc)
     doc.save(str(out_path))
     return str(out_path)
+
+
+def _finish_before_save(doc):
+    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
+    try:
+        from app.services.page_fit import finish_doc
+        finish_doc(doc)
+    except Exception:
+        pass

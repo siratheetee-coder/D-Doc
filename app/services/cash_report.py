@@ -86,7 +86,7 @@ def render_cash_report(school, rows, totals, as_of) -> str:
 
     _p(doc, "รายงานเงินคงเหลือประจำวัน " + (school.name or ""), align="center", bold=True, size=17, after=0)
     d, mon, be = be_date_parts(as_of)
-    _p(doc, f"ประจำวันที่ {d} เดือน {mon} พ.ศ. {be}", align="center", size=15, after=6)
+    _p(doc, f"ประจำวันที่ {d} เดือน {mon} พ.ศ. {be}", align="center", size=16, after=6)
 
     headers = ["ประเภท", "เงินสด", "เงินฝากธนาคาร", "เงินฝากส่วนราชการผู้เบิก", "รวม", "หมายเหตุ"]
     table = doc.add_table(rows=1, cols=len(headers))
