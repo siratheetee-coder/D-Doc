@@ -18,7 +18,7 @@ from app.models import (
     FinanceAccount, FinanceTxn, DisburseMemo, Receipt, Procurement, AccountOpening,
     AccountItem, Project, MoneyLoan, LoanReturn, CheckPayment, BankRecon,
 )
-from app.services.budget import current_plan_year
+from app.services.budget import current_plan_year, plan_year_label
 from app.services.asset_utils import (
     account_balance, account_balance_year, opening_for,
     account_balance_asof, item_remaining_asof,
@@ -281,6 +281,7 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
         "item_budget_total": sum(r["budget"] for r in item_rows if r["level"] == 0),
         "item_remain_total": sum(r["remain"] for r in item_rows if r["level"] == 0),
         "special_key": special_form(a), "special_label": SPECIAL_LABEL,
+        "projects": _plan_projects(db),
         "fund_c": fund_color(a.fund_type),
     })
 
@@ -393,7 +394,8 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
                     amount: str = Form("0"), date: str = Form(""), category: str = Form(""),
                     ref: str = Form(""), note: str = Form(""), fiscal_year: str = Form(""),
                     item_id: str = Form(""), receipt_no: str = Form(""), party: str = Form(""),
-                    due_date: str = Form(""), refund_date: str = Form("")):
+                    due_date: str = Form(""), refund_date: str = Form(""),
+                    project_id: str = Form("")):
     a = db.get(FinanceAccount, aid)
     fy = _to_int(fiscal_year, current_fiscal_year())
     if a:
@@ -402,6 +404,7 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
         dt = parse_be_date(date) or datetime.now()
         t = FinanceTxn(
             account_id=a.id, fiscal_year=fy, item_id=_to_int(item_id, 0) or None,
+            project_id=_to_int(project_id, 0) or None,
             kind=k, amount=amt, date=dt,
             category=category.strip(), ref=ref.strip(), note=note.strip(),
             due_date=parse_be_date(due_date) if due_date else None,
@@ -1487,4 +1490,61 @@ def disburse_register_docx(db: Session = Depends(get_db), year: int | None = Non
     memos = (db.query(DisburseMemo).filter_by(fiscal_year=fy)
              .order_by(DisburseMemo.date, DisburseMemo.id).all())
     path = render_disburse_register(get_school(db), fy, memos)
+    return serve_generated(path, _DOCX)
+
+
+def _plan_projects(db):
+    """โครงการของปีแผนปัจจุบัน (ไว้ให้เลือกตอนลงรับ-จ่าย)"""
+    from app.models import Project
+    cur = current_plan_year(get_school(db))
+    return (db.query(Project).filter(Project.plan_year == cur)
+            .order_by(Project.name).all())
+
+
+# ---------------- ทะเบียนคุมโครงการ (ผูกกับเงินที่จ่ายจริง) ----------------
+def _project_register_rows(db, year):
+    """โครงการของปีแผนนั้น + รายการใช้เงินจริงทุกทาง (จัดซื้อ · ขอเบิกจ่าย · จ่ายตรง)"""
+    from app.models import Project
+    from app.services.project_summary import build_rows
+    projects = (db.query(Project).filter(Project.plan_year == year)
+                .order_by(Project.name).all())
+    return build_rows(db, projects)
+
+
+def _plan_year_list(db, cur):
+    from app.models import Project
+    ys = {y for (y,) in db.query(Project.plan_year).distinct().all() if y}
+    ys.add(cur)
+    return sorted(ys, reverse=True)
+
+
+@router.get("/finance/projects", response_class=HTMLResponse)
+def finance_projects_page(request: Request, db: Session = Depends(get_db),
+                          year: int | None = None):
+    """ทะเบียนคุมโครงการ: งบที่ตั้งไว้ · ใช้ไปเท่าไร · เหลือเท่าไร · ใช้ไปกับอะไรบ้าง"""
+    school = get_school(db)
+    cur = year or current_plan_year(school)
+    rows = _project_register_rows(db, cur)
+    return templates.TemplateResponse("finance_projects.html", {
+        "request": request, "rows": rows, "fiscal_year": cur,
+        "year_label": plan_year_label(school), "years": _plan_year_list(db, cur),
+        "total_budget": sum(r["budget"] for r in rows),
+        "total_spent": sum(r["spent"] for r in rows),
+        "total_left": sum(r["left"] for r in rows),
+    })
+
+
+@router.get("/finance/projects/register.docx")
+def finance_projects_register_docx(db: Session = Depends(get_db),
+                                   year: int | None = None, project: int | None = None):
+    """ทะเบียนคุมโครงการเป็นไฟล์ Word (ใส่ project=<id> เพื่อออกเฉพาะโครงการนั้น)"""
+    from app.services.project_register import render_project_register
+    school = get_school(db)
+    cur = year or current_plan_year(school)
+    rows = _project_register_rows(db, cur)
+    if project:
+        rows = [r for r in rows if r["p"].id == project]
+        if not rows:
+            raise HTTPException(status_code=404, detail="ไม่พบโครงการนี้ในปีที่เลือก")
+    path = render_project_register(school, cur, plan_year_label(school), rows)
     return serve_generated(path, _DOCX)

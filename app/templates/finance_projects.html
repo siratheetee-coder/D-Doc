@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}ทะเบียนคุมโครงการ{% endblock %}
+{% block content %}
+<div class="hero" style="background:linear-gradient(120deg,#6d28d9,#7c3aed 55%,#a78bfa); box-shadow:0 10px 26px rgba(124,58,237,.28);">
+  <div>
+    <div class="hero-sub">งบที่ตั้งไว้ · ใช้ไปจริง · คงเหลือ · {{ year_label }} {{ fiscal_year }}</div>
+    <span class="hero-title">ทะเบียนคุมโครงการ</span>
+    <div class="hero-meta">{{ rows|length }} โครงการ · คงเหลือรวม {{ "{:,.2f}".format(total_left) }} บาท</div>
+  </div>
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    {% if rows %}
+    <a class="btn sm" href="/finance/projects/register.docx?year={{ fiscal_year }}"
+       title="ทะเบียนคุมทุกโครงการ 1 โครงการ 1 หน้า">
+      <svg class="icon"><use href="#ic-download"/></svg> ออกทะเบียนคุมทั้งหมด</a>
+    {% endif %}
+    <form method="get" action="/finance/projects" style="margin:0;">
+      <select name="year" onchange="submitReplace(this.form)" style="color:var(--text);">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>{{ year_label }} {{ y }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+</div>
+
+<style>
+  .bar { display:inline-block; width:96px; height:8px; border-radius:99px; background:#eef1f7;
+         overflow:hidden; vertical-align:middle; }
+  .bar span { display:block; height:100%; border-radius:99px; }
+  .pct { font-size:12px; color:var(--muted); margin-left:6px; vertical-align:middle; }
+  .work td { font-size:13.5px; padding-top:4px; padding-bottom:4px; color:var(--sidebar-ink); }
+  .work .tw { color:var(--muted); }
+  .over { color:#b91c1c; font-weight:700; }
+</style>
+
+<div class="card">
+  <div class="stat">
+    <div class="box"><div><div class="lab">งบตามแผนรวม</div><div class="num">{{ "{:,.2f}".format(total_budget) }}</div></div>
+      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+    <div class="box"><div><div class="lab">ใช้ไปแล้ว</div><div class="num">{{ "{:,.2f}".format(total_spent) }}</div></div>
+      <span class="ic-wrap ic-red"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+    <div class="box"><div><div class="lab">คงเหลือ</div><div class="num">{{ "{:,.2f}".format(total_left) }}</div></div>
+      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+  </div>
+
+  {% if rows %}
+  <p class="muted">ยอดใช้ไปนับจากของจริงทุกทาง: เรื่องจัดซื้อ/จัดจ้างที่ผูกโครงการ · บันทึกขอเบิกจ่าย · และรายการจ่ายตรงในทะเบียนคุมเงิน</p>
+  <div class="table-wrap"><table>
+    <thead><tr>
+      <th>โครงการ</th><th>ผู้รับผิดชอบ</th><th class="right">งบตามแผน</th>
+      <th class="right">ใช้ไป</th><th class="right">คงเหลือ</th><th style="width:150px;">ใช้ไปแล้ว</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td><b>{{ r.name }}</b>
+          {% if r.works %}
+          <button type="button" class="btn sm gray wk-t" data-pj="{{ r.p.id }}"
+                  style="margin-left:6px;">รายการ {{ r.works|length }}</button>
+          {% endif %}</td>
+        <td class="muted">{{ r.responsible or '-' }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.budget) }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.spent) }}</td>
+        <td class="right"><b {% if r.left < 0 %}class="over"{% endif %}>{{ "{:,.2f}".format(r.left) }}</b></td>
+        <td>
+          <div class="bar" title="ใช้ไป {{ r.pct }}% ของงบตามแผน">
+            <span style="width:{{ 100 if r.pct > 100 else r.pct }}%; background:{{ '#dc2626' if r.left < 0 else '#7c3aed' }};"></span>
+          </div><span class="pct">{{ r.pct }}%</span>
+        </td>
+        <td class="right" style="white-space:nowrap;">
+          <a class="btn sm gray" href="/finance/projects/register.docx?year={{ fiscal_year }}&project={{ r.p.id }}"
+             title="ทะเบียนคุมของโครงการนี้"><svg class="icon"><use href="#ic-download"/></svg> ทะเบียนคุม</a>
+        </td>
+      </tr>
+      {% if r.works %}
+      <tr class="wk-row" data-pj="{{ r.p.id }}" hidden>
+        <td colspan="7" style="padding:0 0 10px;">
+          <div style="background:#fff; border-left:3px solid #7c3aed; border-radius:0 12px 12px 0; padding:8px 14px; margin:0 6px;">
+            <table class="work" style="width:100%; border-collapse:collapse;">
+              <thead><tr>
+                <th style="text-align:left;">วันที่</th><th style="text-align:left;">ที่เอกสาร</th>
+                <th style="text-align:left;">รายการ</th><th style="text-align:left;">วิธีการ</th>
+                <th class="right">จำนวนเงิน</th>
+              </tr></thead>
+              <tbody>
+                {% for w in r.works %}
+                <tr>
+                  <td class="tw">{{ w.date.strftime('%d/%m/') ~ (w.date.year + 543) if w.date else '-' }}</td>
+                  <td class="tw">{{ w.no or '-' }}</td>
+                  <td>{{ w.subject }}{% if w.vendor %} <span class="tw">· {{ w.vendor }}</span>{% endif %}</td>
+                  <td class="tw">{{ w.method }}</td>
+                  <td class="right">{{ "{:,.2f}".format(w.amount) }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="muted">ยังไม่มีโครงการใน{{ year_label }} {{ fiscal_year }} — เพิ่มได้ที่หน้า <a href="/projects">โครงการ/แผนงบ</a></p>
+  {% endif %}
+</div>
+
+<script>
+  /* กดดูรายการใช้เงินของโครงการนั้น · จำไว้ว่ากางอันไหนค้างไว้ */
+  (function () {
+    var KEY = 'ddoc_fin_pj_open';
+    var open = {};
+    try { open = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { open = {}; }
+    function apply(id, on) {
+      document.querySelectorAll('.wk-row[data-pj="' + id + '"]').forEach(function (tr) { tr.hidden = !on; });
+      document.querySelectorAll('.wk-t[data-pj="' + id + '"]').forEach(function (b) { b.classList.toggle('on', on); });
+    }
+    document.querySelectorAll('.wk-t').forEach(function (b) {
+      var id = b.dataset.pj;
+      if (open[id]) apply(id, true);
+      b.addEventListener('click', function () {
+        var on = !open[id];
+        open[id] = on;
+        if (!on) { delete open[id]; }
+        apply(id, on);
+        try { localStorage.setItem(KEY, JSON.stringify(open)); } catch (e) {}
+      });
+    });
+  })();
+</script>
+{% endblock %}

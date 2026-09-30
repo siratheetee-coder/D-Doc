@@ -57,7 +57,26 @@ def project_spent(project) -> float:
             .filter(DisburseMemo.project_id == project.id,
                     DisburseMemo.procurement_id.is_(None)).all())
     spent += sum(d.amount or 0 for d in disb)
+    spent += project_txn_spent(project, db)
     return round(spent, 2)
+
+
+def project_txn_spent(project, db=None) -> float:
+    """เงินที่จ่ายจากโครงการนี้โดยลงในทะเบียนคุมเงินตรง ๆ (ไม่ได้ผ่านบันทึกขอเบิกจ่าย)
+
+    ข้ามรายการที่ผูกกับบันทึกเบิกจ่ายอยู่แล้ว (disburse_id) เพราะนับไปแล้วข้างบน
+    """
+    from sqlalchemy.orm import object_session
+
+    from app.models import FinanceTxn
+    db = db or object_session(project)
+    if db is None:
+        return 0.0
+    rows = (db.query(FinanceTxn)
+            .filter(FinanceTxn.project_id == project.id,
+                    FinanceTxn.kind == "out",
+                    FinanceTxn.disburse_id.is_(None)).all())
+    return round(sum(t.amount or 0 for t in rows), 2)
 
 
 def project_remaining(project) -> float:

@@ -31,7 +31,7 @@ def _money(v) -> str:
 
 def build_rows(db, projects) -> list:
     """สรุปรายโครงการ + รายการจัดซื้อ/จัดจ้างที่เกิดขึ้นจริงในโครงการนั้น"""
-    from app.models import DisburseMemo
+    from app.models import DisburseMemo, FinanceTxn
     rows = []
     for p in projects:
         budget = project_budget(p)
@@ -54,6 +54,17 @@ def build_rows(db, projects) -> list:
                 "date": d.date, "no": d.memo_no or "", "subject": d.subject or "",
                 "method": "เบิกจ่าย", "amount": float(d.amount or 0),
                 "vendor": d.payee or "", "status": d.status or "",
+            })
+        # จ่ายตรงจากทะเบียนคุมเงิน (ไม่ได้ผ่านบันทึกขอเบิกจ่าย) เช่น ค่าน้ำ ค่าไฟ ค่าวัสดุย่อย
+        for t in (db.query(FinanceTxn)
+                  .filter(FinanceTxn.project_id == p.id, FinanceTxn.kind == "out",
+                          FinanceTxn.disburse_id.is_(None))
+                  .order_by(FinanceTxn.date).all()):
+            works.append({
+                "date": t.date, "no": t.ref or "",
+                "subject": t.note or t.category or "จ่ายจากทะเบียนคุมเงิน",
+                "method": "ทะเบียนคุมเงิน", "amount": float(t.amount or 0),
+                "vendor": (t.account.name if t.account else ""), "status": "จ่ายแล้ว",
             })
         works.sort(key=lambda w: (w["date"] or datetime.min))
         rows.append({

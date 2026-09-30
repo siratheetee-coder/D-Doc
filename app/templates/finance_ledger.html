@@ -164,6 +164,13 @@
           {% for r in item_rows %}<option value="{{ r.it.id }}">{{ '　└ ' if r.level==1 }}{{ r.it.name }}</option>{% endfor %}
         </select>
       </div>
+      {# ผูกกับโครงการในแผน -> ยอดไปโผล่ที่ทะเบียนคุมโครงการเอง #}
+      <div><label>โครงการ</label>
+        <select name="project_id" title="ผูกรายการนี้กับโครงการในแผน เพื่อคุมงบรายโครงการ">
+          <option value="">- ไม่ผูกโครงการ -</option>
+          {% for pj in projects %}<option value="{{ pj.id }}">{{ pj.name }}</option>{% endfor %}
+        </select>
+      </div>
     </div>
     <div class="row">
       <div><label>เลขที่ใบเสร็จ/ใบสำคัญ</label><input name="receipt_no" placeholder="กรอกเพื่อลงทะเบียนใบเสร็จให้อัตโนมัติ"></div>
