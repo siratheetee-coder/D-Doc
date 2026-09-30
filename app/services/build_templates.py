@@ -527,7 +527,7 @@ def build_purchase_request():
     doc.add_page_break()
     _p(doc, "รายละเอียดแนบท้ายบันทึกข้อความ ที่ {{ memo_no }} ลงวันที่ {{ request_date }}",
        align="center", bold=True)
-    _p(doc, "สำหรับจัด{{ proc_type }}พัสดุ จำนวน {{ item_count }} รายการ", align="center", bold=True)
+    _p(doc, "สำหรับ{{ attach_for }} จำนวน {{ item_count }} รายการ", align="center", bold=True)
     _p(doc, "{{ school_name }}", align="center", after=4)
 
     # ตารางรายละเอียดแนบท้าย 7 คอลัมน์ (หัว 2 ชั้น) + แถวสรุป VAT/รวม/คำอ่าน

@@ -197,6 +197,9 @@ def build_context(proc, school) -> dict:
         # คำเรียกสิ่งที่จัดหา/ตรวจรับ/ส่งมอบ: งานซื้อ = "พัสดุ" · งานจ้าง = "งานจ้าง"
         # (ไม่ใช้กับชื่อกฎหมาย "การบริหารพัสดุภาครัฐ" หรือ "งานพัสดุ/เจ้าหน้าที่พัสดุ")
         "obj_word": ("พัสดุ" if proc.proc_type == "ซื้อ" else "งานจ้าง"),
+        # หัวรายละเอียดแนบท้าย: งานซื้อ = "จัดซื้อพัสดุ" · งานจ้าง = "งานจัดจ้าง"
+        # (ไม่ใช่ "จัดจ้างพัสดุ" เพราะงานจ้างไม่ได้ซื้อตัวพัสดุ)
+        "attach_for": ("จัดซื้อพัสดุ" if proc.proc_type == "ซื้อ" else "งานจัดจ้าง"),
         "committee_word": (("คณะกรรมการตรวจรับพัสดุ" if proc.proc_type == "ซื้อ" else "คณะกรรมการตรวจรับงานจ้าง")
                            if (proc.inspection_mode or "single") == "committee"
                            else ("ผู้ตรวจรับพัสดุ" if proc.proc_type == "ซื้อ" else "ผู้ตรวจรับงานจ้าง")),
@@ -330,6 +333,14 @@ def render_document(kind: str, proc, school) -> str:
 
     tpl = DocxTemplate(str(template_path))
     tpl.render(build_context(proc, school))
+    if kind in ONE_PAGE_KINDS:
+        # บันทึกข้อความต้องจบหน้าเดียวเสมอ ต่อให้ชื่อโครงการยาวหรือกรรมการหลายคน
+        # (บีบช่องไฟ/ระยะบรรทัดเท่านั้น ขนาดตัวอักษรคง 16 pt ตามระเบียบงานสารบรรณ)
+        try:
+            from app.services.page_fit import fit_one_page
+            fit_one_page(tpl.docx)
+        except Exception:
+            pass
 
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)
@@ -393,6 +404,9 @@ assert set(DOC_ORDER) - {WHT_KIND} == set(TEMPLATE_FILES), "DOC_ORDER ไม่�
 
 # ชนิดเอกสารที่สร้างได้ (เรียงตามลำดับมาตรฐาน) ใช้แสดงปุ่ม/รวมไฟล์
 AVAILABLE_KINDS = DOC_ORDER
+
+# บันทึกข้อความที่ต้องจบในหน้าเดียว (ท่อนก่อน page break แรก)
+ONE_PAGE_KINDS = {"รายงานขอซื้อ"}
 
 # เอกสารที่มีความหมายเฉพาะเมื่อกรอกข้อมูลนั้นไว้ -> ไม่มีข้อมูล = ไม่โชว์ปุ่ม/ไม่รวมในชุด
 _NEEDS_COMMITTEE = {"คำสั่งแต่งตั้งกรรมการซื้อ/จ้าง": "purchase",
