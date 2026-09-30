@@ -32,6 +32,15 @@ _TOTAL = PatternFill("solid", fgColor="F1F5F9")
 _SUBTOT = PatternFill("solid", fgColor="FEF9C3")
 
 
+def _sign_space(doc) -> None:
+    """เว้นที่ให้เซ็นเหนือช่องลงนามท้ายสมุด/ทะเบียน (สมุดเงินสด · แยกประเภท · เงินคงเหลือ)"""
+    try:
+        from app.services.page_fit import add_sign_space
+        add_sign_space(doc)
+    except Exception:
+        pass
+
+
 def _safe(text: str) -> str:
     for ch in '<>:"/\\|?*':
         text = text.replace(ch, "_")
@@ -184,6 +193,7 @@ def render_cash_book(school, fiscal_year, rows, opening, totals, scope_name="ท
     _sign_block(doc, school)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"สมุดเงินสด_ปีงบ{fiscal_year}_{scope_name}") + ".docx")
+    _sign_space(doc)
     doc.save(str(out))
     return str(out)
 
@@ -266,6 +276,7 @@ def render_cash_book_fund(school, fiscal_year, scope_name, open_by_fund, receipt
     _sign_block(doc, school)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"สมุดเงินสด_ปีงบ{fiscal_year}_{scope_name}") + ".docx")
+    _sign_space(doc)
     doc.save(str(out))
     return str(out)
 
@@ -317,6 +328,7 @@ def render_general_ledger(school, account, fiscal_year, rows, opening) -> str:
     _sign_block(doc, school)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"บัญชีแยกประเภท_{account.name}_ปีงบ{fiscal_year}") + ".docx")
+    _sign_space(doc)
     doc.save(str(out))
     return str(out)
 

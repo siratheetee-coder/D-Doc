@@ -151,5 +151,10 @@ def render_cash_report(school, rows, totals, as_of) -> str:
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"รายงานเงินคงเหลือประจำวัน_{be}-{as_of.month:02d}-{as_of.day:02d}" if as_of else "รายงานเงินคงเหลือประจำวัน") + ".docx")
+    try:
+        from app.services.page_fit import add_sign_space
+        add_sign_space(doc)      # เว้นที่ให้กรรมการเก็บรักษาเงินเซ็น
+    except Exception:
+        pass
     doc.save(str(out))
     return str(out)
