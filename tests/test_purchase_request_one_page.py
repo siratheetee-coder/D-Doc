@@ -93,11 +93,19 @@ def test_font_stays_16pt_after_fitting():
     assert not [s for s in body if s < 16.0], f"มีตัวอักษรเล็กกว่า 16 pt: {sorted(body)}"
 
 
-def test_line_spacing_untouched_when_it_already_fits():
-    """เอกสารที่พอดีอยู่แล้ว ต้องไม่ถูกบีบ (หน้าตาเหมือนเดิมเป๊ะ)"""
-    db = _db()
-    d = _render(db, members=0)
-    assert all(p.paragraph_format.line_spacing in (None, 1.0) for p in d.paragraphs)
+def test_short_document_is_left_alone():
+    """เอกสารสั้น ๆ ที่พอดีอยู่แล้ว ต้องไม่ถูกบีบเลย (หน้าตาเหมือนเดิมเป๊ะ)"""
+    from docx import Document as NewDoc
+
+    from app.services.doc_page import set_a4
+    from app.services.page_fit import fit_one_page
+    d = NewDoc()
+    set_a4(d)
+    for i in range(5):
+        d.add_paragraph(f"บรรทัดที่ {i + 1}")
+    out = fit_one_page(d)
+    assert out["fitted"] and out["spacing"] is None and out["gap_scale"] == 1.0
+    assert all(p.paragraph_format.line_spacing is None for p in d.paragraphs)
 
 
 def test_krut_paragraph_never_squeezed():
@@ -133,3 +141,56 @@ def test_context_has_attach_for():
 
 def test_purchase_request_is_registered_as_one_page_doc():
     assert "รายงานขอซื้อ" in ONE_PAGE_KINDS
+
+
+def _sign_gaps(d):
+    """ช่องว่างเหนือทุกบรรทัด 'ลงชื่อ' (pt) ทั้งย่อหน้าปกติและในตารางลงนาม"""
+    out = []
+    for p in d.paragraphs:
+        if p.text.strip().startswith("ลงชื่อ"):
+            sb = p.paragraph_format.space_before
+            out.append(sb.pt if sb else 0.0)
+    for t in d.tables:
+        for row in t.rows:
+            for c in row.cells:
+                for p in c.paragraphs:
+                    if p.text.strip().startswith("ลงชื่อ"):
+                        sb = p.paragraph_format.space_before
+                        out.append(sb.pt if sb else 0.0)
+    return out
+
+
+@pytest.mark.parametrize("members", [0, 2, 3])
+def test_room_to_sign_above_every_signature(members):
+    """ต้องมีที่ว่างเหนือบรรทัด 'ลงชื่อ' ให้เซ็นจริงได้ ทั้งเจ้าหน้าที่/หัวหน้า/ผอ."""
+    db = _db()
+    d = _render(db, members=members)
+    gaps = _sign_gaps(d)
+    assert len(gaps) >= 3, f"หาบรรทัดลงชื่อไม่ครบ: {gaps}"
+    assert all(g > 0 for g in gaps), f"ไม่มีที่เซ็น: {gaps}"
+
+
+def test_full_sign_gap_when_there_is_room():
+    """เอกสารที่ไม่แน่น ต้องได้ช่องเซ็นเต็มขนาดที่ตั้งไว้"""
+    from app.services.build_templates import SIGN_GAP
+    db = _db()
+    d = _render(db, members=0)
+    assert max(_sign_gaps(d)) == SIGN_GAP
+
+
+def test_sign_gap_is_given_up_last():
+    """บีบระยะบรรทัดจนสุดก่อน ค่อยยอมลดช่องเซ็น (ที่เซ็นสำคัญกว่าความโปร่ง)"""
+    from app.services.page_fit import _STEPS
+    first_gap_cut = next(i for i, (gap, _) in enumerate(_STEPS) if gap < 1.0)
+    tightest_before = min(sp for gap, sp in _STEPS[:first_gap_cut] if sp)
+    assert tightest_before == min(sp for _, sp in _STEPS if sp), \
+        "ต้องลดระยะบรรทัดจนสุดก่อน จึงค่อยลดช่องเซ็น"
+
+
+def test_no_date_line_under_director():
+    """ใต้ชื่อ ผอ. ไม่มีบรรทัด 'วันที่' (วันที่อยู่หัวบันทึกแล้ว) - บรรทัดนั้นเอาไปเป็นที่เซ็น"""
+    db = _db()
+    d = _render(db, members=3)
+    texts = [p.text.strip() for p in first_block(d) if hasattr(p, "text")]
+    tail = texts[-4:]
+    assert not [t for t in tail if t.startswith("วันที่")], tail

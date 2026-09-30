@@ -30,14 +30,19 @@ from docx.shared import Pt
 
 LINE_FACTOR = 1.34          # ความสูงบรรทัด / ขนาดฟอนต์ (16 pt -> 21.4 pt ตามที่ Word วัด)
 CHARS_PER_CM = 4.6          # อักษรไทยที่กินความกว้าง ต่อ 1 ซม. ที่ 16 pt (16.5 ซม. ~ 76 ตัว)
-SAFETY_PT = 18.0            # กันชนท้ายหน้า ~0.8 บรรทัด เผื่อความคลาดเคลื่อนของการประมาณ
+SAFETY_PT = 10.0            # กันชนท้ายหน้า เผื่อความคลาดเคลื่อน (ตัวประมาณเผื่อสูงไว้อีก ~1.5%)
 
 # อักขระไทยที่วางซ้อนบน/ล่าง ไม่กินความกว้างบรรทัด
 _ZERO_WIDTH = (set(range(0x0E31, 0x0E32)) | set(range(0x0E34, 0x0E3B))
                | set(range(0x0E47, 0x0E4F)) | {0x200B})
 
 # ไล่บีบทีละน้อย หยุดทันทีที่พอดี (เอกสารส่วนใหญ่จบที่ขั้นแรก ๆ หน้าตาแทบไม่ต่างเดิม)
-_STEPS = (None, 0.98, 0.96, 0.94, 0.92, 0.90)   # None = แค่ตัดช่องไฟ ยังไม่บีบบรรทัด
+# (สัดส่วนช่องไฟที่เหลือ, ระยะห่างบรรทัด) · None = ไม่บีบบรรทัด
+# ช่องว่างเหนือ "ลงชื่อ" (ที่ไว้เซ็นจริง) ถูกหวงไว้จนถึงขั้นท้าย ๆ จึงค่อยยอมลด
+_STEPS = (
+    (1.0, 0.98), (1.0, 0.96), (1.0, 0.94), (1.0, 0.92), (1.0, 0.90),
+    (0.6, 0.90), (0.3, 0.90), (0.0, 0.90),
+)
 
 
 def advance_len(text: str) -> int:
@@ -154,18 +159,28 @@ def _has_picture(par) -> bool:
     return bool(par._p.findall(".//" + qn("w:drawing")) or par._p.findall(".//" + qn("w:pict")))
 
 
-def _tighten(blocks, spacing):
-    """ตัดช่องไฟระหว่างย่อหน้า + (ถ้าระบุ) ลดระยะห่างบรรทัด
+def _snapshot(blocks):
+    """จำช่องไฟเดิมของทุกย่อหน้าไว้ เพื่อบีบแบบ 'เทียบของเดิม' ไม่ใช่บีบทับซ้ำ ๆ"""
+    out = []
+    for p in _walk_paragraphs(blocks):
+        pf = p.paragraph_format
+        out.append((p, 0.0 if pf.space_before is None else pf.space_before.pt,
+                    0.0 if pf.space_after is None else pf.space_after.pt))
+    return out
+
+
+def _apply(snap, gap_scale, spacing):
+    """ตั้งช่องไฟเป็นสัดส่วนของค่าเดิม + (ถ้าระบุ) ลดระยะห่างบรรทัด
 
     ไม่บีบบรรทัดของย่อหน้าที่มีรูป (ตราครุฑ) หรือหัวเรื่องตัวใหญ่ ("บันทึกข้อความ" 29pt)
     เพราะกล่องบรรทัดจะเล็กกว่าตัวจริง ทำให้รูป/ตัวอักษรถูกตัดขอบ
     """
-    for p in _walk_paragraphs(blocks):
+    for p, before, after in snap:
         pf = p.paragraph_format
-        if pf.space_before is not None and pf.space_before.pt > 0:
-            pf.space_before = Pt(0)
-        if pf.space_after is not None and pf.space_after.pt > 0:
-            pf.space_after = Pt(0)
+        if before:
+            pf.space_before = Pt(round(before * gap_scale, 1))
+        if after:
+            pf.space_after = Pt(round(after * gap_scale, 1))
         if spacing is not None and not _has_picture(p) and _para_size_pt(p) <= 18:
             pf.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
             pf.line_spacing = spacing
@@ -180,13 +195,14 @@ def fit_one_page(doc) -> dict:
     blocks = first_block(doc)
     budget = page_budget(doc)
     before = block_height(doc, blocks)
-    used = None
+    used = (1.0, None)
     if before > budget:
+        snap = _snapshot(blocks)
         for step in _STEPS:
-            _tighten(blocks, step)
+            _apply(snap, *step)
             used = step
             if block_height(doc, blocks) <= budget:
                 break
     return {"before": round(before, 1), "after": round(block_height(doc, blocks), 1),
-            "budget": round(budget, 1), "spacing": used,
+            "budget": round(budget, 1), "gap_scale": used[0], "spacing": used[1],
             "fitted": block_height(doc, blocks) <= budget}

@@ -23,6 +23,10 @@ from app.services.doc_page import set_a4
 
 THAI_FONT = "TH Sarabun New"
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "doc_templates"
+
+# ช่องว่างเหนือบรรทัด "ลงชื่อ" (pt) ไว้ให้เซ็นชื่อจริงลงไปได้
+# ตัวบีบหน้า (page_fit) จะหวงช่องนี้ไว้จนถึงขั้นสุดท้าย ถ้าจำเป็นจริงจึงค่อยลด
+SIGN_GAP = 24
 ASSETS_DIR = TEMPLATES_DIR / "assets"
 # ไฟล์รูปตราครุฑ (วางไฟล์นี้เองได้ ระบบจะฝังให้อัตโนมัติ) รองรับ .png/.jpg
 KRUT_CANDIDATES = ["krut.png", "krut.jpg", "ครุฑ.png", "ครุฑ.jpg"]
@@ -260,11 +264,12 @@ def _keep_tail(doc, n=3):
                 break
 
 
-def _sign_table(doc, columns, *, after=6, gap=True, keep=True):
+def _sign_table(doc, columns, *, after=6, gap=True, keep=True, sign_gap=0):
     """ช่องลงนามแบบจัดคอลัมน์ด้วยตารางไร้เส้นขอบ (จัดบรรทัดตรงกันเป๊ะ)
     columns = [ [ (text, align), ... ], ... ] แต่ละคอลัมน์คือบล็อกลงนาม 1 ช่อง
     gap=False : ไม่เพิ่มบรรทัดว่างท้ายตาราง (ประหยัดพื้นที่ ให้เนื้อหาอยู่หน้าเดียว)
     keep=False: ไม่ต้องตรึงกับเนื้อหาด้านบน (กรณีตั้งใจให้ขึ้นหน้าใหม่)
+    sign_gap  : ช่องว่างเหนือบรรทัด "ลงชื่อ" (pt) ไว้ให้เซ็นชื่อจริงลงไปได้
 
     ค่าปริยายจะตรึงบล็อกลงนามไว้กับข้อความก่อนหน้า และห้ามตัดแถวข้ามหน้า
     เพื่อไม่ให้ลายเซ็นหลุดไปอยู่คนละหน้ากับเนื้อหา
@@ -280,10 +285,13 @@ def _sign_table(doc, columns, *, after=6, gap=True, keep=True):
     for cell, lines in zip(table.rows[0].cells, columns):
         first = True
         for text, align in lines:
+            head = first
             p = cell.paragraphs[0] if first else cell.add_paragraph()
             first = False
             p.alignment = amap[align]
             p.paragraph_format.space_after = Pt(0)
+            if sign_gap and head:      # เว้นที่เซ็นเหนือบรรทัด "ลงชื่อ" บรรทัดแรกของช่อง
+                p.paragraph_format.space_before = Pt(sign_gap)
             r = p.add_run(text)
             _csize(r, 16)
             r.font.name = THAI_FONT
@@ -515,13 +523,15 @@ def build_purchase_request():
          ("( {{ officer_name }} )", "center")],
         [("ลงชื่อ.....................................หัวหน้าเจ้าหน้าที่", "center"),
          ("( {{ head_officer_name }} )", "center")],
-    ], gap=False)
+    ], gap=False, sign_gap=SIGN_GAP)
     # ===== เห็นชอบ/อนุมัติ โดยผู้อำนวยการ =====
     _p(doc, "(   )  เห็นชอบ        (   )  อนุมัติ", align="center", before=4)
-    _p(doc, "ลงชื่อ.................................................", align="center")
+    _p(doc, "ลงชื่อ.................................................", align="center",
+       before=SIGN_GAP)
     _p(doc, "( {{ director_name }} )", align="center")
     _p(doc, "{{ director_office }}", align="center")
-    _p(doc, "วันที่ {{ request_date }}", align="center")
+    # ไม่มีบรรทัด "วันที่" ใต้ชื่อ ผอ. - วันที่อยู่หัวบันทึกแล้ว (ตรงตามแบบฟอร์มจริง)
+    # และบรรทัดที่ประหยัดได้ เอาไปเป็นช่องว่างให้เซ็นชื่อแทน
 
     # ===== รายละเอียดแนบท้าย (ขึ้นหน้าใหม่) =====
     doc.add_page_break()
@@ -539,7 +549,7 @@ def build_purchase_request():
          ("( {{ officer_name }} )", "center")],
         [("ลงชื่อ.....................................หัวหน้าเจ้าหน้าที่", "center"),
          ("( {{ head_officer_name }} )", "center")],
-    ])
+    ], sign_gap=SIGN_GAP)
 
     TEMPLATES_DIR.mkdir(exist_ok=True)
     out = TEMPLATES_DIR / "รายงานขอซื้อ.docx"
