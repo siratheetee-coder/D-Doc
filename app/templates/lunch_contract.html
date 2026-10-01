@@ -225,7 +225,7 @@
         onsubmit="return confirm('คัดลอกมาที่รอบนี้?');">
     <div style="flex:1.6; min-width:220px;"><label>คัดลอกจากรอบ</label>
       <select name="src_round" required style="width:100%;">
-        <option value="">— เลือกรอบต้นทาง —</option>
+        <option value=""> · เลือกรอบต้นทาง · </option>
         {% for o in rounds_with_plan %}<option value="{{ o.id }}">{{ o.label }}</option>{% endfor %}
       </select></div>
     <div style="flex:0 0 auto;"><label style="display:block;">คัดลอกอะไร</label>
@@ -466,7 +466,7 @@
 
   <!-- ช่วงที่ 1: ซื้อวัตถุดิบ -->
   <div class="ph-panel active" data-ph="1">
-    <p class="muted" style="margin:16px 0 6px;"><b>ช่วงที่ 1 · ซื้อวัตถุดิบ</b> — ออกทีละใบ:</p>
+    <p class="muted" style="margin:16px 0 6px;"><b>ช่วงที่ 1 · ซื้อวัตถุดิบ</b> · ออกทีละใบ:</p>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/borrow"><svg class="icon"><use href="#ic-file"/></svg> ขออนุมัติยืมเงิน</a>
       <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/loan"><svg class="icon"><use href="#ic-file"/></svg> สัญญาการยืมเงิน (แบบ 8500)</a>
@@ -485,7 +485,7 @@
 
   <!-- ช่วงที่ 2: จ้างแม่ครัว -->
   <div class="ph-panel" data-ph="2">
-    <p class="muted" style="margin:16px 0 6px;"><b>ช่วงที่ 2 · จ้างแม่ครัว</b> (9 ขั้นตามลำดับ) — ออกทีละใบ:</p>
+    <p class="muted" style="margin:16px 0 6px;"><b>ช่วงที่ 2 · จ้างแม่ครัว</b> (9 ขั้นตามลำดับ) · ออกทีละใบ:</p>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/hire-report"><svg class="icon"><use href="#ic-file"/></svg> 1. รายงานขอจ้าง + แต่งตั้งกรรมการ</a>
       <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/tor"><svg class="icon"><use href="#ic-file"/></svg> 2. ขอบเขตของงาน (TOR)</a>

@@ -42,7 +42,7 @@ def client(monkeypatch):
         "is_owner": True, "modules": "", "active": True, "welcomed": True})
     c = TestClient(app)
     r = c.post("/login", data={"username": "t", "password": "x"}, follow_redirects=False)
-    assert r.status_code in (302, 303), f"ล็อกอินไม่ผ่าน ({r.status_code}) — ตรวจการแยกเทส"
+    assert r.status_code in (302, 303), f"ล็อกอินไม่ผ่าน ({r.status_code}) · ตรวจการแยกเทส"
     return c
 
 

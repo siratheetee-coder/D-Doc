@@ -19,7 +19,7 @@
     {% if not is_teacher %}
     <div style="flex:1;"><label>เลือกครู</label>
       <select name="pid" onchange="submitReplace(this.form)">
-        <option value="">— เลือกครู —</option>
+        <option value=""> · เลือกครู · </option>
         {% for t in teachers %}<option value="{{ t.id }}" {{ 'selected' if person and t.id==person.id }}>{{ t.name }}</option>{% endfor %}
       </select>
     </div>
@@ -31,7 +31,7 @@
 {% if person %}
 {% if clashes %}
 <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
-  พบคาบซ้อน {{ clashes|length }} จุด — ครูถูกจัดสอนมากกว่า 1 ห้องในคาบเดียวกัน (ช่องสีแดง) ควรแก้ที่ตารางรายห้อง</div>
+  พบคาบซ้อน {{ clashes|length }} จุด · ครูถูกจัดสอนมากกว่า 1 ห้องในคาบเดียวกัน (ช่องสีแดง) ควรแก้ที่ตารางรายห้อง</div>
 {% endif %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
@@ -61,7 +61,7 @@
           {% else %}
           <td class="center {{ 'clash' if lst|length > 1 }}" style="font-size:12.5px;">
             {% for e in lst %}<div><b>{{ e.subject }}</b><div class="muted" style="font-size:11px;">{{ e.class }}</div></div>{% endfor %}
-            {% if not lst %}<span class="muted">—</span>{% endif %}
+            {% if not lst %}<span class="muted"> · </span>{% endif %}
           </td>
           {% endif %}
         {% endfor %}

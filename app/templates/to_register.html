@@ -29,7 +29,7 @@
         {% for r in rows %}
         {% set i = loop.index0 %}
         <tr>
-          <td><b>{{ r.it.name }}</b>{% if r.imported %}<div style="color:#15803d;">✓ นำเข้าแล้ว</div>{% elif r.suspected %}<div style="color:#92400e;">⚠ พบประวัติเดิม — โปรดตรวจสอบ</div>{% endif %}</td>
+          <td><b>{{ r.it.name }}</b>{% if r.imported %}<div style="color:#15803d;">✓ นำเข้าแล้ว</div>{% elif r.suspected %}<div style="color:#92400e;">⚠ พบประวัติเดิม · โปรดตรวจสอบ</div>{% endif %}</td>
           <td class="right">{{ "%g"|format(r.it.quantity) }} {{ r.it.unit }}</td>
           <td class="right">{{ "{:,.2f}".format(r.it.unit_price) }}</td>
           <td>

@@ -23,7 +23,7 @@ def options(form):
     except (ValueError, TypeError):
         raise ValueError('จำนวนหลัก ปี และลำดับเริ่มต้นต้องเป็นตัวเลข')
     if not (1 <= digits <= 8 and 2400 <= year <= 3000 and 1 <= start <= 99999999):
-        raise ValueError('ตรวจจำนวนหลัก (1–8) ปี พ.ศ. และลำดับเริ่มต้น (1–99999999)')
+        raise ValueError('ตรวจจำนวนหลัก (1-8) ปี พ.ศ. และลำดับเริ่มต้น (1-99999999)')
     reset = form.get('number_reset') == 'yearly'
     append = form.get('number_append') == 'yes'
     if reset and not append:

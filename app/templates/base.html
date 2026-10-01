@@ -1126,7 +1126,7 @@
         <div style="display:flex; align-items:center; gap:9px; margin-bottom:16px; padding:9px 15px; border-radius:11px;
              background:#eef2ff; border:1px solid #ddd6fe; color:#4338ca; font-size:13.5px; font-weight:600;">
           <svg class="icon" style="width:17px;height:17px;flex:none;"><use href="#ic-info"/></svg>
-          <span>โหมดผู้อำนวยการ · เข้าดูได้อย่างเดียว (แก้ไข/สร้าง/ลบไม่ได้) — หน้าที่แก้ไขได้คือ กล่องรออนุมัติ และ งานนิเทศ</span>
+          <span>โหมดผู้อำนวยการ · เข้าดูได้อย่างเดียว (แก้ไข/สร้าง/ลบไม่ได้) · หน้าที่แก้ไขได้คือ กล่องรออนุมัติ และ งานนิเทศ</span>
         </div>
         {% endif %}
         {# ===== ประกาศแจ้งปิดปรับปรุงระบบ (ขึ้นทุกหน้า หายเองเมื่อพ้นกำหนด) ===== #}
@@ -1140,7 +1140,7 @@
             <div class="mt-when">
               <svg class="icon" style="width:18px;height:18px;"><use href="#ic-clock"/></svg>
               {{ thai_date(_mt.start_at) }} เวลา {{ "%02d:%02d"|format(_mt.start_at.hour, _mt.start_at.minute) }}
-              – {{ "%02d:%02d"|format(_mt.end_at.hour, _mt.end_at.minute) }} น.
+              - {{ "%02d:%02d"|format(_mt.end_at.hour, _mt.end_at.minute) }} น.
               {%- if _mt.end_at.date() != _mt.start_at.date() %} ({{ thai_date(_mt.end_at) }}){% endif %}
             </div>
             {% if _mt.lines %}

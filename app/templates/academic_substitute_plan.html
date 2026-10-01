@@ -32,7 +32,7 @@
         <td data-label="วิชา">{{ (c.subject.code ~ ' ' ~ c.subject.name) if c.subject else (c.subject.name if c.subject else '-') }}</td>
         <td data-label="ครูสอนแทน" class="stack-full">
           <select name="sub_{{ day.date.isoformat() }}_{{ c.period_id }}_{{ c.class_id }}" class="{{ 'has-sub' if c.cur }}">
-            <option value="">— ยังไม่จัด —</option>
+            <option value=""> · ยังไม่จัด · </option>
             {% for t in c.avail %}<option value="{{ t.id }}" {{ 'selected' if t.id==c.cur }}>{{ t.name }}</option>{% endfor %}
             {% if c.cur and c.cur not in c.avail|map(attribute='id')|list %}
               {# ครูที่จัดไว้แต่ตอนนี้ไม่ว่าง - ยังแสดงให้เห็น #}

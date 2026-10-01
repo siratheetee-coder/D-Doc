@@ -19,12 +19,14 @@
         {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
       </select>
       <select name="round" onchange="this.form.submit()" style="color:var(--text);">
-        <option value="1" {{ 'selected' if round==1 }}>ครั้งที่ 1 (1 ต.ค. – 31 มี.ค.)</option>
-        <option value="2" {{ 'selected' if round==2 }}>ครั้งที่ 2 (1 เม.ย. – 30 ก.ย.)</option>
+        <option value="1" {{ 'selected' if round==1 }}>ครั้งที่ 1 (1 ต.ค. - 31 มี.ค.)</option>
+        <option value="2" {{ 'selected' if round==2 }}>ครั้งที่ 2 (1 เม.ย. - 30 ก.ย.)</option>
       </select>
     </form>
-    <a class="btn gray" href="https://e-budget.jobobec.in.th/" target="_blank" rel="noopener">
-      <svg class="icon"><use href="#ic-arrow-right"/></svg> เปิดเว็บ e-Budget</a>
+    <a class="btn gray" href="https://e-budget.jobobec.in.th/school_login_form.php"
+       target="_blank" rel="noopener noreferrer"
+       title="เปิดหน้าเข้าสู่ระบบของสถานศึกษา ในแท็บใหม่">
+      <svg class="icon"><use href="#ic-arrow-right"/></svg> เปิดเว็บ e-Budget (แท็บใหม่)</a>
   </div>
 </div>
 
@@ -39,7 +41,7 @@
 
 <div class="alert warn">
   <svg class="icon"><use href="#ic-alert"/></svg>
-  <span><b>ตรวจทานก่อนกรอกทุกครั้ง</b> — ตัวเลขคำนวณจากทะเบียนคุมเงินที่ลงไว้ในระบบนี้
+  <span><b>ตรวจทานก่อนกรอกทุกครั้ง</b> · ตัวเลขคำนวณจากทะเบียนคุมเงินที่ลงไว้ในระบบนี้
     ถ้าทะเบียนยังลงไม่ครบ ตัวเลขก็จะไม่ครบตาม · ระบบนี้<b>ไม่ได้ส่งข้อมูลไปที่ e-Budget</b>
     ต้องเปิดเว็บแล้วคัดลอกไปวางเอง</span>
 </div>
@@ -47,7 +49,7 @@
 {% if d.unmapped %}
 <div class="alert info">
   <svg class="icon"><use href="#ic-info"/></svg>
-  <span><b>จับคู่ประเภทเงินไม่ได้ {{ d.unmapped|length }} รายการ</b> — ยอดถูกรวมไว้ที่ช่อง "อื่น ๆ (3.13)"
+  <span><b>จับคู่ประเภทเงินไม่ได้ {{ d.unmapped|length }} รายการ</b> · ยอดถูกรวมไว้ที่ช่อง "อื่น ๆ (3.13)"
     ได้แก่ {{ d.unmapped|join(" · ") }}<br>
     ถ้าควรอยู่ช่องอื่น ให้แก้ชื่อบัญชี/รายการย่อยให้มีคำที่ตรง เช่น "ค่าหนังสือเรียน" "เงินรายได้สถานศึกษา"</span>
 </div>
@@ -68,16 +70,17 @@
   </div>
   {% if d.check == 0 %}
   <div class="alert" style="margin:14px 0 0;"><svg class="icon"><use href="#ic-check"/></svg>
-    <span>ยอดตรงกันพอดี — กรอกได้เลย</span></div>
+    <span>ยอดตรงกันพอดี · กรอกได้เลย</span></div>
   {% else %}
   <div class="alert danger" style="margin:14px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg>
-    <span>ยอดไม่ตรง ต่างกัน {{ "{:,.2f}".format(d.check) }} บาท — ตรวจทะเบียนคุมเงินก่อนกรอก
+    <span>ยอดไม่ตรง ต่างกัน {{ "{:,.2f}".format(d.check) }} บาท · ตรวจทะเบียนคุมเงินก่อนกรอก
       (มักเกิดจากลงรายการผิดงวด หรือยังลงไม่ครบ)</span></div>
   {% endif %}
 </div>
 
 <div class="card">
   <h2>ส่วนที่ 2 · เงินคงเหลือยกมา <span class="muted" style="font-size:15px;">ณ {{ thai_date(d.start) }}</span></h2>
+  <p class="muted" style="margin-top:0;">เรียงตรงตามหน้าจอ e-Budget ทุกบรรทัด ไล่กรอกจากบนลงล่างได้เลย</p>
   <div class="table-wrap"><table class="eb">
     <thead><tr><th>ช่องใน e-Budget</th><th class="right" style="width:240px;">จำนวนเงิน (บาท)</th></tr></thead>
     <tbody>
@@ -94,7 +97,14 @@
 </div>
 
 <div class="card">
-  <h2>ส่วนที่ 3 · รายรับในงวด <span class="muted" style="font-size:15px;">{{ thai_date(d.start) }} – {{ thai_date(d.end) }}</span></h2>
+  <h2>รายรับในงวด (ใช้กับส่วนที่ 3)
+    <span class="muted" style="font-size:15px;">{{ thai_date(d.start) }} ถึง {{ thai_date(d.end) }}</span></h2>
+  <p class="muted" style="margin-top:0;">
+    หมายเหตุ: ส่วนที่ 3 ในเว็บ e-Budget แบ่งตาม <b>"ใครให้เงินมา"</b>
+    (ข้อ 2 ต้นสังกัด · ข้อ 3 หน่วยงานรัฐอื่น · ข้อ 4 อปท. · ข้อ 5 เงินนอกงบประมาณ · ข้อ 6 ส่งคืนเงิน)
+    แต่ทะเบียนคุมเงินแบ่งตาม <b>ประเภทเงิน</b> ระบบจึงสรุปยอดรับรายประเภทให้
+    แล้วนำไปลงข้อของเว็บเอง เช่น เงินอุดหนุนเรียนฟรีลงข้อ 2.1 · ค่าอาหารกลางวันจาก อบต. ลงข้อ 4.2
+    · เงินรายได้สถานศึกษาลงข้อ 5.3</p>
   <div class="table-wrap"><table class="eb">
     <thead><tr><th>ช่องใน e-Budget</th><th class="right" style="width:240px;">จำนวนเงิน (บาท)</th></tr></thead>
     <tbody>
@@ -111,8 +121,7 @@
 
 <div class="card">
   <h2>ส่วนที่ 4 · รายจ่ายในงวด แยกตามแหล่งเงิน</h2>
-  <p class="muted" style="margin-top:0;">e-Budget ให้กรอกเป็นตารางไขว้ <b>ด้าน × แหล่งเงิน</b> —
-    ระบบบอก<b>ยอดรวมของแต่ละแหล่งเงิน</b>ให้ (คอลัมน์) ส่วนจะลงแถว "ด้าน" ไหน
+  <p class="muted" style="margin-top:0;">e-Budget ให้กรอกเป็นตารางไขว้ <b>ด้าน × แหล่งเงิน</b> · ระบบบอก<b>ยอดรวมของแต่ละแหล่งเงิน</b>ให้ (คอลัมน์) ส่วนจะลงแถว "ด้าน" ไหน
     ต้องดูจากรายการข้างล่างแล้วแยกเอง เพราะทะเบียนคุมเงินยังไม่ได้เก็บหมวดรายจ่ายแบบ e-Budget</p>
   <div class="table-wrap"><table class="eb">
     <thead><tr><th>คอลัมน์ใน e-Budget</th><th class="right" style="width:240px;">จำนวนเงิน (บาท)</th></tr></thead>

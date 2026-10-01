@@ -16,7 +16,7 @@ def _esc(text: str) -> str:
 def when_text(notice) -> str:
     """ข้อความวันเวลาแบบอ่านง่าย (ข้ามวันก็บอกวันจบให้ด้วย)"""
     s, e = notice.start_at, notice.end_at
-    out = f"{thai_date(s)} เวลา {s:%H:%M} – {e:%H:%M} น."
+    out = f"{thai_date(s)} เวลา {s:%H:%M} - {e:%H:%M} น."
     if e.date() != s.date():
         out = f"{thai_date(s)} เวลา {s:%H:%M} น. ถึง {thai_date(e)} เวลา {e:%H:%M} น."
     return out

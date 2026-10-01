@@ -54,7 +54,7 @@
   {# ---------- กล่องเลือกตัวชี้วัดที่ใช้ (ลดจำนวนให้เหลือเฉพาะที่วัดจริง) ---------- #}
   <details class="pick-box" {% if all_indicators|length != indicators|length %}{% else %}open{% endif %}>
     <summary><svg class="icon"><use href="#ic-check"/></svg>
-      <b>เลือกตัวชี้วัดที่ใช้</b> <span class="muted">(ใช้ {{ indicators|length }} จาก {{ all_indicators|length }} ตัวชี้วัด — ติ๊กเฉพาะที่วัดจริง)</span></summary>
+      <b>เลือกตัวชี้วัดที่ใช้</b> <span class="muted">(ใช้ {{ indicators|length }} จาก {{ all_indicators|length }} ตัวชี้วัด · ติ๊กเฉพาะที่วัดจริง)</span></summary>
     <form method="post" action="/academic/indicators/pick" style="margin-top:8px;">
       <input type="hidden" name="cid" value="{{ c.id }}"><input type="hidden" name="sid" value="{{ subj.id }}">
       <div style="margin-bottom:8px;">
@@ -75,7 +75,7 @@
     </form>
   </details>
 
-  <p class="ind-hint">กรอก<b>คะแนน 0-3</b> ต่อตัวชี้วัด (3=ดีเยี่ยม · 2=ดี · 1=ผ่าน · 0=ไม่ผ่าน) — มี {{ indicators|length }} ตัวชี้วัด ·
+  <p class="ind-hint">กรอก<b>คะแนน 0-3</b> ต่อตัวชี้วัด (3=ดีเยี่ยม · 2=ดี · 1=ผ่าน · 0=ไม่ผ่าน) · มี {{ indicators|length }} ตัวชี้วัด ·
     <b>คลิกหมายเลขตัวชี้วัด</b>บนหัวตารางเพื่ออ่านว่าเป็นเรื่องอะไร · <b>ผ่าน</b> = ได้ตั้งแต่ 1 ขึ้นไป · เกณฑ์ ปพ.6 "ผ่านร้อยละ 100" คิดจากหน้านี้</p>
 
   <div style="margin-bottom:10px; display:flex; gap:8px; flex-wrap:wrap;">

@@ -15,7 +15,7 @@
 {% if err %}<div class="alert danger"><svg class="icon"><use href="#ic-alert"/></svg><span>{{ err }}</span></div>{% endif %}
 {% if not smtp_ok %}
 <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
-  <span>ยังไม่ได้ตั้งค่า SMTP — ประกาศขึ้นการ์ดบนเว็บได้ แต่ส่งอีเมลไม่ได้</span></div>
+  <span>ยังไม่ได้ตั้งค่า SMTP · ประกาศขึ้นการ์ดบนเว็บได้ แต่ส่งอีเมลไม่ได้</span></div>
 {% endif %}
 
 <div class="card">
@@ -58,7 +58,7 @@
         <td><b>{{ n.title }}</b></td>
         <td style="white-space:nowrap;">{{ thai_date(n.start_at) }}<br>
           <span class="muted">{{ "%02d:%02d"|format(n.start_at.hour, n.start_at.minute) }}
-            – {{ "%02d:%02d"|format(n.end_at.hour, n.end_at.minute) }} น.</span></td>
+            - {{ "%02d:%02d"|format(n.end_at.hour, n.end_at.minute) }} น.</span></td>
         <td>{% if n.lines() %}<ul style="margin:0; padding-left:18px;">
             {% for it in n.lines() %}<li style="font-size:13.5px;">{{ it }}</li>{% endfor %}</ul>
           {% else %}<span class="muted">-</span>{% endif %}</td>

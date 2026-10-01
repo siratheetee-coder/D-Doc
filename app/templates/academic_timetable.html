@@ -12,7 +12,7 @@
 {% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกตารางเรียนแล้ว</div>{% endif %}
 {% if request.query_params.get('psaved') %}<div class="alert">✔ บันทึกโครงคาบแล้ว</div>{% endif %}
 {% if request.query_params.get('auto') is not none %}
-<div class="alert">✔ จัดตารางอัตโนมัติแล้ว {{ request.query_params.get('auto') }} คาบ{% if request.query_params.get('un')|int > 0 %} · จัดไม่ได้ {{ request.query_params.get('un') }} คาบ (ช่องว่างไม่พอ หรือครูชนทุกช่อง — ลองลดจำนวนคาบ/เพิ่มคาบเรียน หรือกรอกเองส่วนที่เหลือ){% endif %}</div>
+<div class="alert">✔ จัดตารางอัตโนมัติแล้ว {{ request.query_params.get('auto') }} คาบ{% if request.query_params.get('un')|int > 0 %} · จัดไม่ได้ {{ request.query_params.get('un') }} คาบ (ช่องว่างไม่พอ หรือครูชนทุกช่อง · ลองลดจำนวนคาบ/เพิ่มคาบเรียน หรือกรอกเองส่วนที่เหลือ){% endif %}</div>
 {% endif %}
 
 <div class="card">
@@ -24,7 +24,7 @@
     </div>
     <div style="flex:1;"><label>เลือกห้องเรียน</label>
       <select name="cid" onchange="submitReplace(this.form)">
-        <option value="">— เลือกห้อง —</option>
+        <option value=""> · เลือกห้อง · </option>
         {% for cc in classes %}<option value="{{ cc.id }}" {{ 'selected' if c and cc.id==c.id }}>{{ class_label(cc) }}</option>{% endfor %}
       </select>
     </div>
@@ -79,7 +79,7 @@
 {# ---------- ตารางของห้องที่เลือก ---------- #}
 {% if c %}
 {% if not periods %}
-<div class="card"><p class="muted" style="margin:0;">ยังไม่ได้ตั้งโครงคาบเรียน — ตั้งด้านบนก่อน แล้วค่อยกรอกตาราง</p></div>
+<div class="card"><p class="muted" style="margin:0;">ยังไม่ได้ตั้งโครงคาบเรียน · ตั้งด้านบนก่อน แล้วค่อยกรอกตาราง</p></div>
 {% else %}
 {% if can_edit and subjects %}
 <details class="ac-card" {{ 'open' if request.query_params.get('auto') is not none }}>
@@ -98,7 +98,7 @@
         {% for s in subjects %}
         {% set dft = (s.hours // 40) if s.hours else 0 %}
         <div class="ac-item">
-          <span class="ac-code">{{ s.code or '—' }}</span>
+          <span class="ac-code">{{ s.code or ' · ' }}</span>
           <span class="ac-name">{{ s.name }}</span>
           <span class="ac-stepper">
             <button type="button" class="ac-pm" data-step="-1" tabindex="-1">−</button>
@@ -126,7 +126,7 @@
     <h2 style="margin:0;">ตารางเรียน ห้อง {{ class_label(c) }}</h2>
     <a class="btn soft" href="/academic/timetable/class.docx?cid={{ c.id }}"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ตารางห้องนี้</a>
   </div>
-  {% if can_edit %}<p class="muted" style="font-size:13px; margin:6px 0 8px;">เลือกวิชา/กิจกรรมในแต่ละช่อง — ครูผู้สอนระบบดึงจากที่ตั้งไว้ในห้องเรียนให้อัตโนมัติ · ถ้าครูซ้อนกับห้องอื่นในคาบเดียวกัน ช่องจะขึ้นแดงทันที</p>{% endif %}
+  {% if can_edit %}<p class="muted" style="font-size:13px; margin:6px 0 8px;">เลือกวิชา/กิจกรรมในแต่ละช่อง · ครูผู้สอนระบบดึงจากที่ตั้งไว้ในห้องเรียนให้อัตโนมัติ · ถ้าครูซ้อนกับห้องอื่นในคาบเดียวกัน ช่องจะขึ้นแดงทันที</p>{% endif %}
   {% if can_edit %}<div id="tt-clash" class="alert warn" style="display:none; margin-bottom:10px;"></div>{% endif %}
   <form method="post" action="/academic/timetable/save">
     <input type="hidden" name="cid" value="{{ c.id }}">
@@ -150,7 +150,7 @@
             {% elif can_edit %}
             <td style="padding:3px;">
               <select name="cell_{{ dnum }}_{{ p.id }}" onchange="ttCheck()" style="width:100%; min-width:125px; font-size:13px; padding:5px;">
-                <option value="">—</option>
+                <option value=""> · </option>
                 {% for val, label in options %}<option value="{{ val }}" {{ 'selected' if cell and cell.sel==val }}>{{ label }}</option>{% endfor %}
               </select>
               <div class="cell-teacher muted" style="font-size:11px; margin-top:2px; text-align:center;">{{ cell.teacher if cell else '' }}</div>
@@ -158,7 +158,7 @@
             </td>
             {% else %}
             <td class="center tt-ro" data-sel="{{ cell.sel if cell else '' }}" style="font-size:12.5px;">
-              {% if cell %}<b>{{ cell.label }}</b>{% if cell.teacher %}<div class="muted" style="font-size:11px;">{{ cell.teacher }}</div>{% endif %}{% else %}<span class="muted">—</span>{% endif %}
+              {% if cell %}<b>{{ cell.label }}</b>{% if cell.teacher %}<div class="muted" style="font-size:11px;">{{ cell.teacher }}</div>{% endif %}{% else %}<span class="muted"> · </span>{% endif %}
             </td>
             {% endif %}
           {% endfor %}
@@ -174,7 +174,7 @@
 {% elif classes %}
 <div class="card"><p class="muted" style="margin:0;">เลือกห้องด้านบนเพื่อกรอก/ดูตารางเรียน</p></div>
 {% else %}
-<div class="card"><p class="muted" style="margin:0;">ยังไม่มีห้องเรียนปีนี้ — <a href="/academic/classes">ไปสร้างห้องเรียน</a> ก่อน</p></div>
+<div class="card"><p class="muted" style="margin:0;">ยังไม่มีห้องเรียนปีนี้ · <a href="/academic/classes">ไปสร้างห้องเรียน</a> ก่อน</p></div>
 {% endif %}
 
 <style>
@@ -299,7 +299,7 @@
     });
     var b = document.getElementById('tt-clash');
     if (b){
-      if (clashes){ b.style.display='block'; b.innerHTML = '⚠ พบครูสอนซ้อนกับห้องอื่น ' + clashes + ' ช่อง (ช่องสีแดง) — แก้คาบให้ไม่ชนก่อนบันทึก'; }
+      if (clashes){ b.style.display='block'; b.innerHTML = '⚠ พบครูสอนซ้อนกับห้องอื่น ' + clashes + ' ช่อง (ช่องสีแดง) · แก้คาบให้ไม่ชนก่อนบันทึก'; }
       else b.style.display='none';
     }
   }

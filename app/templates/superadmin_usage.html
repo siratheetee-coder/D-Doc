@@ -71,7 +71,7 @@
   <div class="card">
     <h1>ใครใช้ระบบบ้าง</h1>
     <p class="muted" style="margin:0;">
-      สรุปยอดรวมรายวันของแต่ละบัญชี — <b>ไม่ได้เก็บว่าเปิดหน้าไหนหรือกรอกข้อมูลอะไร</b>
+      สรุปยอดรวมรายวันของแต่ละบัญชี · <b>ไม่ได้เก็บว่าเปิดหน้าไหนหรือกรอกข้อมูลอะไร</b>
       เก็บย้อนหลัง {{ retention }} วัน แล้วลบอัตโนมัติ
     </p>
     <div class="tabs">
@@ -80,7 +80,7 @@
       {% endfor %}
       <form method="get" action="/admin-console/usage" style="margin:0 0 0 6px;">
         <select name="day" onchange="this.form.submit()" title="ดูเจาะจงวันเดียว">
-          <option value="">— เจาะวันเดียว —</option>
+          <option value=""> · เจาะวันเดียว · </option>
           {% for d in days_list %}<option value="{{ d }}" {{ 'selected' if d == day }}>{{ d }}</option>{% endfor %}
         </select>
       </form>

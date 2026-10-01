@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}เงินยืม{% endblock %}
 {% block content %}
-{% if request.query_params.get('attention') in ['overdue','soon','undated'] %}<div class="alert">แสดงเงินยืมคงค้างทุกปี: {{ {'overdue':'เกินกำหนด','soon':'ครบกำหนดวันนี้–7 วันข้างหน้า','undated':'ยังไม่ระบุวันครบกำหนด'}[request.query_params.get('attention')] }} · <a href="/finance/loans">ล้างตัวกรอง</a></div>{% endif %}
+{% if request.query_params.get('attention') in ['overdue','soon','undated'] %}<div class="alert">แสดงเงินยืมคงค้างทุกปี: {{ {'overdue':'เกินกำหนด','soon':'ครบกำหนดวันนี้-7 วันข้างหน้า','undated':'ยังไม่ระบุวันครบกำหนด'}[request.query_params.get('attention')] }} · <a href="/finance/loans">ล้างตัวกรอง</a></div>{% endif %}
 <div class="hero">
   <div>
     <div class="hero-sub">สัญญาการยืมเงิน (แบบ 8500) · ทะเบียนคุมลูกหนี้เงินยืม</div>
@@ -35,7 +35,7 @@
       <div style="flex:1.4;"><label>ยื่นต่อ</label><input name="submit_to" placeholder="เช่น ผู้อำนวยการโรงเรียน"></div>
       <div style="flex:1.4;"><label>ขอยืมเงินจาก (ประเภทเงิน)</label><input name="fund_from" placeholder="เช่น เงินรายได้สถานศึกษา"></div>
       <div><label>บัญชีที่จ่ายเงินยืม</label>
-        <select name="account_id"><option value="">— ไม่ระบุ —</option>
+        <select name="account_id"><option value=""> · ไม่ระบุ · </option>
           {% for a in accounts %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
         </select></div>
     </div>

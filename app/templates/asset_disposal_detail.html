@@ -64,15 +64,14 @@
 <div class="alert">ข้าม {{ request.query_params.get('skipped') }} รายการที่อยู่ในสำนวนอื่นที่ยังไม่ปิด</div>
 {% endif %}
 {% if request.query_params.get('wo') %}
-<div class="alert">✔ ลงจ่ายออกจากทะเบียนแล้ว {{ request.query_params.get('wo') }} ระเบียน —
-  ต้องรายงาน สพท. และ สตง. ภายใน 30 วันนับแต่วันนี้ (ระเบียบฯ ข้อ 218)</div>
+<div class="alert">✔ ลงจ่ายออกจากทะเบียนแล้ว {{ request.query_params.get('wo') }} ระเบียน · ต้องรายงาน สพท. และ สตง. ภายใน 30 วันนับแต่วันนี้ (ระเบียบฯ ข้อ 218)</div>
 {% endif %}
 
 {% if deadlines %}
 <div class="card">
   <h2 style="margin-top:0;">กำหนดเวลาตามระเบียบ</h2>
   {% for d in deadlines %}
-  <p style="margin:0 0 6px;">{{ d.what }} — ครบกำหนด <b>{{ thai_date(d.due) }}</b>
+  <p style="margin:0 0 6px;">{{ d.what }} · ครบกำหนด <b>{{ thai_date(d.due) }}</b>
     <span class="dp-due {{ 'dp-late' if d.left < 0 else 'dp-ok' }}">{{
       ('เลยกำหนด ' ~ (-d.left) ~ ' วัน') if d.left < 0 else ('เหลือ ' ~ d.left ~ ' วัน') }}</span></p>
   {% endfor %}
@@ -126,7 +125,7 @@
       </tbody>
     </table></div>
     <div class="dp-note" style="margin-top:12px;">
-      <b>วงเงินที่ต้องระวัง</b> — ขายโดยวิธีเฉพาะเจาะจงได้เมื่อราคาซื้อหรือได้มารวมกัน
+      <b>วงเงินที่ต้องระวัง</b> · ขายโดยวิธีเฉพาะเจาะจงได้เมื่อราคาซื้อหรือได้มารวมกัน
       ไม่เกิน {{ "{:,.0f}".format(sell_limit) }} บาท (ข้อ 215 (1) (ก)) ·
       ตอนนี้รายการที่เลือก "ขาย" รวม <b>{{ "{:,.2f}".format(sell_cost) }}</b> บาท
       {% if sell_cost > sell_limit %}<span class="dp-due dp-late">เกินวงเงิน ต้องขายทอดตลาด</span>{% endif %}
@@ -185,7 +184,7 @@
       <div><label>คำสั่งแต่งตั้งคณะกรรมการ ที่</label><input name="order_no" value="{{ dp.order_no or '' }}"></div>
       <div><label>สั่ง ณ วันที่</label><input name="order_date" data-date="1" placeholder="วว/ดด/ปปปป" value="{{ bedate(dp.order_date) }}"></div>
     </div>
-    <div class="dp-note"><b>นับเส้นตาย 60 วันจากวันนี้</b> — ระเบียบฯ กำหนดให้การจำหน่ายตามข้อ 215
+    <div class="dp-note"><b>นับเส้นตาย 60 วันจากวันนี้</b> · ระเบียบฯ กำหนดให้การจำหน่ายตามข้อ 215
       แล้วเสร็จภายใน 60 วันนับถัดจากวันที่ ผอ. สั่งการ ระบบจะเตือนให้บนหัวหน้าเมื่อกรอกวันสั่ง ณ วันที่แล้ว</div>
   </div>
   {{ committee('price', 'คณะกรรมการประเมินราคากลาง', 'ต้องประเมินราคากลางก่อนประกาศขายทุกกรณี') }}
@@ -291,8 +290,7 @@
   <div class="card">
     <h2 style="margin-top:0;">ทำลาย / แปรสภาพ (ข้อ 215 (4))</h2>
     {% if not ready.destroy %}
-    <div class="dp-note">ยังไม่มีรายการที่เลือกวิธี "ทำลาย" หรือ "แปรสภาพ" —
-      ไปตั้งที่แท็บ <b>รายการและวิธีจำหน่าย</b> ก่อน</div>
+    <div class="dp-note">ยังไม่มีรายการที่เลือกวิธี "ทำลาย" หรือ "แปรสภาพ" · ไปตั้งที่แท็บ <b>รายการและวิธีจำหน่าย</b> ก่อน</div>
     {% endif %}
     <div class="row">
       <div><label>รายงานผลการทำลาย เลขที่</label><input name="destroy_memo_no" value="{{ dp.destroy_memo_no or '' }}"></div>
@@ -338,7 +336,7 @@
   <div class="card">
     <h2 style="margin-top:0;">ลงจ่ายออกจากทะเบียน (ข้อ 218)</h2>
     <div class="dp-note">ระเบียบฯ ให้ลงจ่ายพัสดุออกจากบัญชีหรือทะเบียน <b>ทันทีเมื่อจำหน่ายเสร็จ</b>
-      แล้วรายงานภายใน 30 วันนับแต่วันลงจ่าย — อย่ากดก่อนขาย/ทำลายเสร็จจริง
+      แล้วรายงานภายใน 30 วันนับแต่วันลงจ่าย · อย่ากดก่อนขาย/ทำลายเสร็จจริง
       ไม่งั้นของยังอยู่ที่โรงเรียนแต่หลุดจากทะเบียนไปแล้ว ตรวจนับจะไม่ตรง</div>
     {% if dp.written_off_date %}
     <p>✔ ลงจ่ายแล้วเมื่อ <b>{{ thai_date(dp.written_off_date) }}</b></p>

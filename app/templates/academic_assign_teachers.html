@@ -19,7 +19,7 @@
       </select></div>
     <div style="flex:1; min-width:220px;"><label>เลือกครู</label>
       <select name="pid" onchange="this.form.submit()">
-        <option value="">— เลือกครูที่ต้องการจัดวิชา —</option>
+        <option value=""> · เลือกครูที่ต้องการจัดวิชา · </option>
         {% for t in teachers %}<option value="{{ t.id }}" {{ 'selected' if t.id==pid }}>{{ t.name }}</option>{% endfor %}
       </select></div>
   </form>
@@ -81,7 +81,7 @@
     </div>
   </form>
   {% else %}
-  <div class="card"><p class="muted" style="margin:0;">ปีนี้ยังไม่มีห้องเรียนหรือรายวิชา — <a href="/academic/classes">สร้างห้องเรียน</a> และ <a href="/academic/subjects">สร้างรายวิชา</a> ก่อน</p></div>
+  <div class="card"><p class="muted" style="margin:0;">ปีนี้ยังไม่มีห้องเรียนหรือรายวิชา · <a href="/academic/classes">สร้างห้องเรียน</a> และ <a href="/academic/subjects">สร้างรายวิชา</a> ก่อน</p></div>
   {% endif %}
 {% else %}
 <div class="card"><p class="muted" style="margin:0;">เลือกครูด้านบนเพื่อเริ่มจัดวิชาที่สอน</p></div>

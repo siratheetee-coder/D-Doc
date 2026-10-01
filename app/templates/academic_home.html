@@ -21,7 +21,7 @@
 </div>
 
 {% macro dcell(done, total, href) %}
-  {% if total == 0 %}<td><span class="p-dash">–</span></td>
+  {% if total == 0 %}<td><span class="p-dash">-</span></td>
   {% else %}
     {% set cls = 'p-full' if done >= total else ('p-part' if done > 0 else 'p-none') %}
     <td><a class="pill-cell {{ cls }}" href="{{ href }}">{{ done }}/{{ total }}</a></td>
@@ -57,7 +57,7 @@
   </table>
   </div>
   {% else %}
-  <p class="muted" style="margin:0;">ยังไม่มีวิชาที่สอน — ให้เจ้าหน้าที่กำหนดครูผู้สอนในหน้าห้องเรียนก่อน</p>
+  <p class="muted" style="margin:0;">ยังไม่มีวิชาที่สอน · ให้เจ้าหน้าที่กำหนดครูผู้สอนในหน้าห้องเรียนก่อน</p>
   {% endif %}
   {% if todo['homerooms'] %}
   <p style="font-size:13.5px; margin:12px 0 0;"><b>ห้องที่ประจำชั้น (ปพ.6):</b>
@@ -115,12 +115,12 @@
         {{ dcell(p.ind, p.ind_total, '/academic/indicators?cid=' ~ c.id) }}
         {{ dcell(p.char, p.nsub, '/academic/assess?cid=' ~ c.id ~ '&kind=char') }}
         {{ dcell(p.read, p.nsub, '/academic/assess?cid=' ~ c.id ~ '&kind=read') }}
-        {% if p.n_acts == 0 %}<td><span class="p-dash">–</span></td>
+        {% if p.n_acts == 0 %}<td><span class="p-dash">-</span></td>
         {% else %}<td><a class="pill-cell {{ 'p-full' if p.act_done >= p.nst and p.nst else ('p-part' if p.act_done else 'p-none') }}"
           href="/academic/eval?cid={{ c.id }}">{{ p.act_done }}/{{ p.nst }}</a></td>{% endif %}
         <td><a class="pill-cell {{ 'p-full' if p.att else 'p-none' }}"
           href="/academic/attendance?cid={{ c.id }}">{{ '✓' if p.att else '✗' }}</a></td>
-        {% if not p.exit %}<td><span class="p-dash">–</span></td>
+        {% if not p.exit %}<td><span class="p-dash">-</span></td>
         {% else %}<td><a class="pill-cell {{ 'p-full' if p.onet else 'p-none' }}"
           href="/academic/eval?cid={{ c.id }}">{{ '✓' if p.onet else '✗' }}</a></td>{% endif %}
       </tr>

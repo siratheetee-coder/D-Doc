@@ -551,7 +551,7 @@ def render_mismatch_list(school, ctx, assets, materials=None, doc=None):
         for c, w in zip(row.cells, _MM_W):
             c.width = w
     if not lost:
-        _p(doc, "หมายเหตุ  ระบบไม่พบครุภัณฑ์ที่สถานะสูญไป — ถ้าตรวจนับแล้วมีรายการ"
+        _p(doc, "หมายเหตุ  ระบบไม่พบครุภัณฑ์ที่สถานะสูญไป · ถ้าตรวจนับแล้วมีรายการ"
                 "ที่ไม่ตรงบัญชี ให้กรอกเพิ่มในตารางข้างต้น", size=12, before=3, after=2)
     _p(doc, "", after=6)
 

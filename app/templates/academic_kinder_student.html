@@ -54,7 +54,7 @@
 
 <div class="card">
   <h2 style="margin-top:0;">สรุปการพัฒนาเด็ก</h2>
-  <p class="muted" style="margin-top:0;">ระบบคิดให้จากผลประเมินรายข้อทั้ง 2 ภาคเรียน — ถ้าเห็นต่างเลือกทับได้</p>
+  <p class="muted" style="margin-top:0;">ระบบคิดให้จากผลประเมินรายข้อทั้ง 2 ภาคเรียน · ถ้าเห็นต่างเลือกทับได้</p>
   <div class="table-wrap"><table class="ks-sum">
     <thead><tr><th>พัฒนาการ</th><th style="width:230px;">ระดับคุณภาพ</th><th>ระบบคิดให้</th></tr></thead>
     <tbody>
@@ -63,7 +63,7 @@
       <tr>
         <td>{{ full }}</td>
         <td><select name="sm_{{ key }}" {{ '' if can_edit else 'disabled' }}>
-          <option value="0">— ใช้ที่ระบบคิดให้ —</option>
+          <option value="0"> · ใช้ที่ระบบคิดให้ · </option>
           {% for v, name, meaning in quality %}
           <option value="{{ v }}" {{ 'selected' if summary.get(key) == v }}>{{ name }}</option>
           {% endfor %}

@@ -135,7 +135,7 @@
     {% for name, st, sub, href in steps %}
     <a class="tp-step {{ st }}" href="{{ href }}" {% if st == 'doing' %}aria-current="step"{% endif %}>
       <span class="tp-step-top"><span class="n">{{ loop.index }}</span><span class="tp-step-state">{{ '✓ เสร็จแล้ว' if st == 'done' else ('ขั้นตอนปัจจุบัน' if st == 'doing' else 'ยังไม่เสร็จ') }}</span></span>
-      <b>{{ name }}</b><span class="s">{{ sub or '—' }}</span>
+      <b>{{ name }}</b><span class="s">{{ sub or ' · ' }}</span>
     </a>
     {% endfor %}
   </div>

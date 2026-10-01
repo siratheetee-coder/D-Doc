@@ -3,7 +3,7 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">คุมการจ่ายเงินทุกวิธี — เช็ค · โอน (KTB Corporate Online) · เงินสด</div>
+    <div class="hero-sub">คุมการจ่ายเงินทุกวิธี · เช็ค · โอน (KTB Corporate Online) · เงินสด</div>
     <span class="hero-title">ทะเบียนคุมการจ่ายเงิน</span>
     <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} · {{ rows|length }} ฉบับ</div>
   </div>
@@ -30,7 +30,7 @@
       <div style="flex:1.6;"><label>จ่ายให้ *</label><input name="payee" required></div>
       <div style="flex:1.6;"><label>รายการ/ค่าใช้จ่าย</label><input name="purpose"></div>
       <div><label>บัญชีธนาคาร</label>
-        <select name="account_id"><option value="">— ไม่ระบุ —</option>
+        <select name="account_id"><option value=""> · ไม่ระบุ · </option>
           {% for a in accounts %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
         </select></div>
     </div>

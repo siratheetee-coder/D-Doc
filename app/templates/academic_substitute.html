@@ -58,7 +58,7 @@
     <div class="row" style="align-items:flex-end;">
       <div style="flex:1.4;"><label>ครูที่ไม่อยู่</label>
         <select name="person_id" required>
-          <option value="">— เลือกครู —</option>
+          <option value=""> · เลือกครู · </option>
           {% for p in teachers %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
         </select></div>
       <div><label>ตั้งแต่วันที่ *</label><input name="start" required placeholder="วว/ดด/ปปปป (พ.ศ.)" data-date="1"></div>

@@ -41,7 +41,7 @@ def main():
     db_vendor = c.get("/vendors").text
     assert "ร้านวัฒนาเครื่องเขียน" in db_vendor
 
-    # 4) สร้างเรื่อง #1 (ผู้ตรวจรับคนเดียว) — memo_no เว้นให้ระบบเสนอ = 1/2569
+    # 4) สร้างเรื่อง #1 (ผู้ตรวจรับคนเดียว) · memo_no เว้นให้ระบบเสนอ = 1/2569
     r = c.get("/procurement/new")
     assert "1/2569" in r.text, "ไม่เสนอเลขบันทึก 1/2569"
     r = c.post("/procurement/new", data={

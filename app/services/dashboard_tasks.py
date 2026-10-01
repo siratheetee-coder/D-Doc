@@ -25,7 +25,7 @@ def finance_tasks(db, year, today=None):
                 detail=f'สัญญา {loan.contract_no or "-"} · ปีงบ {loan.fiscal_year} · คงค้าง {left:,.2f} บาท',
                 due=loan.due_date, href=f'/finance/loans?year={loan.fiscal_year}#loan-{loan.id}'))
     cards = []
-    for key, label in [('overdue','เงินยืมเกินกำหนด'),('soon','ครบกำหนดวันนี้–7 วันข้างหน้า'),('undated','เงินยืมยังไม่ระบุวันครบกำหนด')]:
+    for key, label in [('overdue','เงินยืมเกินกำหนด'),('soon','ครบกำหนดวันนี้-7 วันข้างหน้า'),('undated','เงินยืมยังไม่ระบุวันครบกำหนด')]:
         items = sorted(groups[key], key=lambda x: x['due'] or datetime.max)
         cards.append(dict(label=label, count=len(items), items=items[:5], href=f'/finance/loans?attention={key}', tone='urgent' if key=='overdue' else 'normal'))
     memos = db.query(DisburseMemo).filter(DisburseMemo.fiscal_year==year, DisburseMemo.status.in_(['ร่าง','อนุมัติ'])).order_by(DisburseMemo.id).all()

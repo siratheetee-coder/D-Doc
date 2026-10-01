@@ -25,7 +25,7 @@
   </form>
 
   <div class="alert" style="background:#eff6ff; color:#1e3a8a;">
-    ระบบดึงให้อัตโนมัติ — ยอดตามบัญชีของโรงเรียน <b>{{ "{:,.2f}".format(book_balance) }}</b> บาท ·
+    ระบบดึงให้อัตโนมัติ · ยอดตามบัญชีของโรงเรียน <b>{{ "{:,.2f}".format(book_balance) }}</b> บาท ·
     รายการจ่ายที่เงินยังไม่ออกจากบัญชี <b>{{ outstanding|length }}</b> รายการ รวม <b>{{ "{:,.2f}".format(outstanding_sum) }}</b> บาท
     (<a href="/finance/checks?year={{ fiscal_year }}">ดูทะเบียนคุมการจ่ายเงิน</a>)
   </div>

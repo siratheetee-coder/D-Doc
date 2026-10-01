@@ -74,8 +74,7 @@
 {% if not is_teacher and is_kinder %}
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-star"/></svg> ระดับปฐมวัย</h2>
-  <p class="muted" style="margin:4px 0 10px;">ชั้นอนุบาลไม่ได้ตัดสินผลเป็นรายวิชา จึงไม่มี ปพ.5 / ปพ.6 —
-    ใช้ <b>สมุดรายงานประจำตัวนักเรียน (สมุดพกอนุบาล)</b> ประเมินพัฒนาการ 4 ด้านแทน</p>
+  <p class="muted" style="margin:4px 0 10px;">ชั้นอนุบาลไม่ได้ตัดสินผลเป็นรายวิชา จึงไม่มี ปพ.5 / ปพ.6 · ใช้ <b>สมุดรายงานประจำตัวนักเรียน (สมุดพกอนุบาล)</b> ประเมินพัฒนาการ 4 ด้านแทน</p>
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <a class="btn" href="/academic/kinder?cid={{ c.id }}"><svg class="icon"><use href="#ic-edit"/></svg> กรอกผลประเมินพัฒนาการ</a>
     <a class="btn soft" href="/academic/attendance?mode=overall&cid={{ c.id }}"><svg class="icon"><use href="#ic-clock"/></svg> บันทึกเวลาเรียน</a>

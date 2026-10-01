@@ -167,7 +167,7 @@ def render_substitute_schedule(school, db, assignments, *, term="", year="",
         m = rc[0]
         for k in range(1, ncol):
             m = m.merge(rc[k])
-        _set_cell(m, "— ยังไม่มีการจัดครูสอนแทน —")
+        _set_cell(m, " · ยังไม่มีการจัดครูสอนแทน · ")
     for r in rows:
         rc = table.add_row().cells
         _set_cell(rc[0], "")            # เติมภายหลังหลัง merge (กันข้อความซ้ำ)

@@ -70,7 +70,7 @@
 
     <label style="margin-top:12px; display:block;">มอบหมายครูสอนแทน</label>
     <select name="substitute_person_id">
-      <option value="">— เลือกครูสอนแทน —</option>
+      <option value=""> · เลือกครูสอนแทน · </option>
       {% for t in teachers %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
     </select>
     <p class="muted" style="font-size:12.5px; margin:6px 0 0;">หรือให้ฝ่ายวิชาการจัดคาบสอนแทนภายหลัง (เมนู "จัดคาบสอนแทน")</p>

@@ -17,7 +17,7 @@
     <div class="row" style="align-items:flex-end;">
       <div style="flex:2;"><label>ครูผู้รับการนิเทศ *</label>
         <select name="person_id" required>
-          <option value="">— เลือกครู —</option>
+          <option value=""> · เลือกครู · </option>
           {% for p in persons %}<option value="{{ p.id }}" {{ 'selected' if rec and rec.person_id==p.id }}>{{ p.name }}</option>{% endfor %}
         </select></div>
       <div><label>นิเทศครั้งที่</label><input name="round_no" value="{{ rec.round_no if rec else 1 }}" style="width:80px;"></div>

@@ -82,7 +82,7 @@ def _warn_html(school: str, stage: int, left_days: int, base_url: str) -> tuple:
     <p><a href="{base_url}/login">เข้าสู่ระบบที่นี่</a></p>
     <p style="color:#64748b;font-size:13px">อีเมลนี้ส่งอัตโนมัติจากระบบ Easy Ekkasan</p>
     """
-    subject = f"[Easy Ekkasan] {head} — {school}"
+    subject = f"[Easy Ekkasan] {head} · {school}"
     return subject, html
 
 

@@ -415,7 +415,7 @@ def render_fact_report(school, dp, doc=None):
            indent=1.25, after=1)
         for i, it in enumerate(causes, 1):
             _p(doc, f"{i}. {(it.asset.name or '').strip()} "
-                    f"({(it.asset.asset_code or '-').strip()}) — {it.cause.strip()}",
+                    f"({(it.asset.asset_code or '-').strip()}) · {it.cause.strip()}",
                align="justify", indent=2.0, after=1)
 
     opinion = (dp.fact_opinion or "").strip() or (

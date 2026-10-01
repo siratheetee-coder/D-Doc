@@ -111,7 +111,7 @@
   <div class="pf-note" style="background:#f0fdf4; border-color:#bbf7d0; color:#166534; margin-top:14px;">
     <b>เปิดใช้งานเรียบร้อยแล้ว · นี่คือรหัสสำรอง {{ tfa_codes|length }} รหัส</b><br>
     ใช้ตอน<b>มือถือหาย</b>หรือเปิดแอปไม่ได้ · <b>1 รหัสใช้ได้ครั้งเดียว</b><br>
-    <b style="color:#b91c1c;">หน้านี้แสดงรหัสครั้งเดียว รีเฟรชแล้วจะไม่โชว์อีก — คัดลอกเก็บไว้เดี๋ยวนี้</b>
+    <b style="color:#b91c1c;">หน้านี้แสดงรหัสครั้งเดียว รีเฟรชแล้วจะไม่โชว์อีก · คัดลอกเก็บไว้เดี๋ยวนี้</b>
     <div class="tfa-codes">
       {% for c in tfa_codes %}<code>{{ c }}</code>{% endfor %}
     </div>
@@ -146,8 +146,7 @@
   {% elif tfa.enabled %}
   <div class="pf-note" style="margin-top:14px;">
     เหลือรหัสสำรองอีก <b>{{ tfa.recovery_left }}</b> รหัส
-    {% if tfa.recovery_left == 0 %}<br><b style="color:#b91c1c;">ใช้รหัสสำรองหมดแล้ว —
-      ถ้ามือถือหายจะเข้าระบบไม่ได้ ควรปิดแล้วเปิดใหม่เพื่อรับรหัสสำรองชุดใหม่</b>
+    {% if tfa.recovery_left == 0 %}<br><b style="color:#b91c1c;">ใช้รหัสสำรองหมดแล้ว · ถ้ามือถือหายจะเข้าระบบไม่ได้ ควรปิดแล้วเปิดใหม่เพื่อรับรหัสสำรองชุดใหม่</b>
     {% elif tfa.recovery_left <= 2 %}<br><b style="color:#b45309;">รหัสสำรองใกล้หมด</b>{% endif %}
   </div>
   <form method="post" action="/account/2fa/disable"
@@ -178,8 +177,7 @@
   </div>
   {% if is_teacher %}
   <p class="muted" style="font-size:13px; margin:12px 0 0;">
-    ลืมรหัสผ่าน? บัญชีครูกดลิงก์ "ลืมรหัสผ่าน" เองไม่ได้ (ไม่ได้ผูกอีเมล) —
-    ให้แจ้งไอดีหลักของโรงเรียนรีเซ็ตรหัสให้</p>
+    ลืมรหัสผ่าน? บัญชีครูกดลิงก์ "ลืมรหัสผ่าน" เองไม่ได้ (ไม่ได้ผูกอีเมล) · ให้แจ้งไอดีหลักของโรงเรียนรีเซ็ตรหัสให้</p>
   {% endif %}
 </div>
 <script>

@@ -164,4 +164,4 @@ def test_when_text_handles_overnight(env):
     n = db.query(ac.MaintenanceNotice).get(_notice(ac, hours_ahead=20, length=10))
     txt = when_text(n)
     db.close()
-    assert "ถึง" in txt if n.end_at.date() != n.start_at.date() else "–" in txt
+    assert "ถึง" in txt if n.end_at.date() != n.start_at.date() else "-" in txt

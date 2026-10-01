@@ -44,7 +44,7 @@
       <h1>ส่ง{{ doc_label }}ทางอีเมล</h1>
       <p>เอกสารแนบจะใช้ <a href="/admin-console/signature">ลายเซ็นผู้ขายที่ตั้งไว้</a> อัตโนมัติ</p>
       <p class="sub">ตรวจ/แก้ข้อความได้ตามต้องการ แล้วกด "ส่งอีเมล" ระบบจะแนบไฟล์ {{ doc_label }} (PDF) ไปให้อัตโนมัติ{% if school %} · โรงเรียน {{ school }}{% endif %}</p>
-      {% if not smtp_ok %}<div class="warn">⚠ ยังไม่ได้ตั้งค่า SMTP ใน seller_local.py — ส่งอีเมลไม่ได้จนกว่าจะตั้งค่า</div>{% endif %}
+      {% if not smtp_ok %}<div class="warn">⚠ ยังไม่ได้ตั้งค่า SMTP ใน seller_local.py · ส่งอีเมลไม่ได้จนกว่าจะตั้งค่า</div>{% endif %}
       <form method="post" action="/admin-console/leads/{{ lid }}/email">
         <input type="hidden" name="kind" value="{{ kind }}">
         <label>ถึง (อีเมลลูกค้า)</label>
@@ -55,7 +55,7 @@
         <textarea name="body">{{ body }}</textarea>
         <div class="attach">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 0 1 4.24 4.24l-9.2 9.19a1 1 0 0 1-1.41-1.41l8.49-8.49"/></svg>
-          แนบไฟล์: <b>{{ doc_label }} (PDF)</b> — สร้างอัตโนมัติตอนกดส่ง
+          แนบไฟล์: <b>{{ doc_label }} (PDF)</b> · สร้างอัตโนมัติตอนกดส่ง
         </div>
         <div class="actions">
           <button class="btn send" type="submit" {{ 'disabled' if not smtp_ok }}>✉ ส่งอีเมล</button>

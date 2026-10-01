@@ -83,7 +83,7 @@ def login_page(request: Request, error: str | None = None, ok: str | None = None
         dest = "/admin-console" if request.session.get("role") == "superadmin" else "/"
         return RedirectResponse(dest, status_code=303)
     msg = ("ตั้งรหัสผ่านใหม่เรียบร้อยแล้ว เข้าสู่ระบบด้วยรหัสใหม่ได้เลย" if ok == "reset"
-           else "ไม่ได้ใช้งานนาน ระบบออกให้อัตโนมัติเพื่อความปลอดภัย — เข้าสู่ระบบอีกครั้งได้เลย"
+           else "ไม่ได้ใช้งานนาน ระบบออกให้อัตโนมัติเพื่อความปลอดภัย · เข้าสู่ระบบอีกครั้งได้เลย"
            if ok == "expired"
            else "ใส่รหัสยืนยัน 2 ชั้นไม่ทันเวลา กรุณาเข้าสู่ระบบใหม่อีกครั้ง"
            if ok == "expired2fa" else None)

@@ -62,7 +62,7 @@
   </form>
   {% if not classes %}
   <div class="alert warn" style="margin:12px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg>
-    ปีการศึกษา {{ year }} ยังไม่มีห้องอนุบาล — <a href="/academic/classes">ไปสร้างห้อง อ.1 / อ.2 / อ.3 ก่อน</a></div>
+    ปีการศึกษา {{ year }} ยังไม่มีห้องอนุบาล · <a href="/academic/classes">ไปสร้างห้อง อ.1 / อ.2 / อ.3 ก่อน</a></div>
   {% elif not c %}
   <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> เพื่อเริ่มประเมินพัฒนาการ</p>
   {% endif %}
@@ -86,13 +86,13 @@
 
   {% if students and not att_months %}
   <div class="alert warn" style="margin:12px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg>
-    <div>ห้องนี้ยังไม่ได้เช็กชื่อ (เวลาเรียน) — หน้า "เวลามาเรียนในรอบปี" ในสมุดพกจะเป็นตารางเปล่า ·
+    <div>ห้องนี้ยังไม่ได้เช็กชื่อ (เวลาเรียน) · หน้า "เวลามาเรียนในรอบปี" ในสมุดพกจะเป็นตารางเปล่า ·
       <a href="/academic/attendance?mode=overall&cid={{ c.id }}">ไปบันทึกเวลาเรียน</a></div>
   </div>
   {% elif students %}
   <p class="muted" style="margin:10px 0 0; font-size:13px;">
     <svg class="icon" style="vertical-align:-2px;"><use href="#ic-check"/></svg>
-    เช็กชื่อแล้ว {{ att_months }} เดือน — สมุดพกจะดึงเวลาเรียนกับน้ำหนัก/ส่วนสูงไปใส่ให้เอง ไม่ต้องกรอกซ้ำ</p>
+    เช็กชื่อแล้ว {{ att_months }} เดือน · สมุดพกจะดึงเวลาเรียนกับน้ำหนัก/ส่วนสูงไปใส่ให้เอง ไม่ต้องกรอกซ้ำ</p>
   {% endif %}
 
   <div class="kd-tabs" style="margin-top:12px;">
@@ -104,7 +104,7 @@
     · พิมพ์แล้วช่องถัดไปเลื่อนให้เอง · <b>แตะหมายเลขข้อ</b>บนหัวตารางเพื่ออ่านว่าเป็นพฤติกรรมอะไร</p>
 
   {% if not students %}
-  <p class="muted" style="margin:12px 0 0;">ห้องนี้ยังไม่มีนักเรียน — <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
+  <p class="muted" style="margin:12px 0 0;">ห้องนี้ยังไม่มีนักเรียน · <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
   {% elif not items %}
   <div class="alert warn" style="margin:12px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg>
     ไม่มีตัวบ่งชี้ของชั้น {{ c.level }} ในด้านนี้</div>
@@ -131,7 +131,7 @@
         <th class="stick">นักเรียน</th>
         {% for n, grp, text in items %}
         <th class="kd-h"><button type="button" class="kd-btn" onclick="kdShow(this)"
-              data-text="{{ grp }} — {{ text }}">{{ n }}</button></th>
+              data-text="{{ grp }} · {{ text }}">{{ n }}</button></th>
         {% endfor %}
         <th>ประเมินแล้ว<br>(ทั้ง 4 ด้าน)</th>
       </tr></thead>
@@ -169,7 +169,7 @@
 {% if students and items %}
 <div class="card">
   <h2 style="margin-top:0;">ส่วนบรรยายรายคน</h2>
-  <p class="muted" style="margin-top:0;">ความเห็นครูประจำชั้น · พฤติกรรมที่ควรส่งเสริม · สรุปพัฒนาการ · ผลงานที่ภาคภูมิใจ — กรอกรายคน แล้วพิมพ์สมุดพกได้เลย</p>
+  <p class="muted" style="margin-top:0;">ความเห็นครูประจำชั้น · พฤติกรรมที่ควรส่งเสริม · สรุปพัฒนาการ · ผลงานที่ภาคภูมิใจ · กรอกรายคน แล้วพิมพ์สมุดพกได้เลย</p>
   <div class="table-wrap"><table>
     <thead><tr><th>เลขที่</th><th>ชื่อ - นามสกุล</th><th class="center">ประเมินแล้ว</th><th></th></tr></thead>
     <tbody>

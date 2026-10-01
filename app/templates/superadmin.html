@@ -96,7 +96,7 @@
            {%- else %}💾 พื้นที่ดิสก์{% endif %}</b>
         <span>ใช้ไป {{ disk.percent }}% ({{ disk.used_gb }} / {{ disk.total_gb }} GB) · เหลือ <b>{{ disk.free_gb }} GB</b></span>
         {% if disk.level != 'ok' %}
-        <div class="disk-hint">ถ้าเต็ม ระบบจะ<b>บันทึกข้อมูลไม่ได้</b> และ<b>การสำรองข้อมูลจะล้มเหลว</b> — ควรอัปเกรดแพ็กเกจ VPS</div>
+        <div class="disk-hint">ถ้าเต็ม ระบบจะ<b>บันทึกข้อมูลไม่ได้</b> และ<b>การสำรองข้อมูลจะล้มเหลว</b> · ควรอัปเกรดแพ็กเกจ VPS</div>
         {% endif %}
       </div>
       <div class="disk-bar"><i style="width:{{ disk.percent }}%"></i></div>
@@ -108,7 +108,7 @@
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
         <b style="font-size:16px;">
           {% if online.now %}🟠 กำลังมีคนใช้งาน <span style="font-size:20px;">{{ online.now|length }}</span> คน
-          {% else %}🟢 ตอนนี้ไม่มีใครใช้งาน — รีสตาร์ทได้เลย{% endif %}</b>
+          {% else %}🟢 ตอนนี้ไม่มีใครใช้งาน · รีสตาร์ทได้เลย{% endif %}</b>
         <span class="muted2">ใช้งานใน 5 นาทีล่าสุด · ใน 30 นาทีล่าสุด {{ online.n30 }} คน</span>
         <a href="/admin-console" class="muted2" style="margin-left:auto;">↻ รีเฟรช</a>
       </div>
@@ -130,7 +130,7 @@
       </div>
       <p class="muted2" style="margin:8px 0 0; font-size:12.5px; line-height:1.6;">
         รีสตาร์ทใช้เวลาไม่กี่วินาที ผู้ใช้<b>ไม่หลุดจากระบบ</b> (ยังล็อกอินอยู่) ·
-        ที่อาจกระทบคือคนที่<b>กำลังกดบันทึก/อัปโหลดพอดีในวินาทีนั้น</b> — ถ้าไม่ด่วน รอให้ป้ายเป็นสีเขียวก่อน</p>
+        ที่อาจกระทบคือคนที่<b>กำลังกดบันทึก/อัปโหลดพอดีในวินาทีนั้น</b> · ถ้าไม่ด่วน รอให้ป้ายเป็นสีเขียวก่อน</p>
       {% endif %}
     </div>
 
@@ -200,7 +200,7 @@
             <div class="t-lbl">โควตา / อายุการใช้งาน</div>
             {% if r.plan == 'trial' %}
               <div>ทดลองใช้ฟรี 30 วัน{% if r.t.expiry_date %} · หมด <b>{{ be_date(r.t.expiry_date) }}</b>{% endif %}</div>
-              <div class="muted2">{% if r.days_left is none %}—{% elif r.days_left < 0 %}<b style="color:#b91c1c;">หมดอายุแล้ว</b> ({{ -r.days_left }} วันก่อน){% else %}เหลือ <b style="color:{{ '#b91c1c' if r.days_left<=3 else '#d97706' if r.days_left<=7 else '#0e9152' }};">{{ r.days_left }}</b> วัน{% endif %}</div>
+              <div class="muted2">{% if r.days_left is none %} · {% elif r.days_left < 0 %}<b style="color:#b91c1c;">หมดอายุแล้ว</b> ({{ -r.days_left }} วันก่อน){% else %}เหลือ <b style="color:{{ '#b91c1c' if r.days_left<=3 else '#d97706' if r.days_left<=7 else '#0e9152' }};">{{ r.days_left }}</b> วัน{% endif %}</div>
             {% else %}
               {% if r.t.expiry_date %}
                 <div>หมดอายุ <b>{{ be_date(r.t.expiry_date) }}</b></div>
