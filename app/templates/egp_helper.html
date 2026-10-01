@@ -20,9 +20,7 @@
 {% macro datecell(id, value) %}
 {% if value %}<span class="egp-text" id="{{ id }}">{{ value }}</span>
 <button type="button" class="btn xs" title="คัดลอกเป็น {{ value|replace('/','') }} แล้ว e-GP จะเติม / ให้เอง"
-        onclick="cpText(this,'{{ value|replace('/','') }}')">คัดลอก</button>
-<button type="button" class="btn xs gray" title="คัดลอกแบบมีขีด {{ value }} (เผื่อช่องที่พิมพ์เองได้)"
-        onclick="cp(this,'{{ id }}')">แบบมี /</button>{% else %}<span class="muted">-</span>{% endif %}
+        onclick="cpText(this,'{{ value|replace('/','') }}')">คัดลอก</button>{% else %}<span class="muted">-</span>{% endif %}
 {% endmacro %}
 {% macro docrow(label, nid, nval, did, dval) %}
 <tr><td>{{ label }}</td><td>{{ doccell(nid, nval) }}</td><td>{{ datecell(did, dval) }}</td></tr>
@@ -121,7 +119,7 @@
     · ขีด - คือยังไม่ได้กรอกในระบบ แก้ได้ที่หน้ารายละเอียดเรื่อง</p>
   <p class="muted" style="margin:0 0 10px; font-size:13px;">
     ปุ่ม <b>คัดลอก</b> ของช่องวันที่ จะคัดลอกเป็นตัวเลขล้วน (เช่น 30092569) เพราะช่องวันที่ของ e-GP เติม / ให้เอง
-    ถ้าวางแบบมี / ไปด้วยมันจะตัดท้ายทิ้งเหลือ 30/09/25 · ถ้าช่องไหนพิมพ์เองได้ ใช้ปุ่ม <b>แบบมี /</b></p>
+    ถ้าวางแบบมี / ไปด้วยมันจะตัดท้ายทิ้งเหลือ 30/09/25</p>
   <div class="table-wrap"><table>
     <thead><tr><th>เอกสาร</th><th>เลขที่</th><th>ลงวันที่</th></tr></thead>
     <tbody>

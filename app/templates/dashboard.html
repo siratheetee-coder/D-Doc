@@ -24,6 +24,12 @@
     <div class="hero-meta">{% if not school.name %}เพื่อให้เอกสารมีข้อมูลครบถ้วน ควรกรอกข้อมูลโรงเรียนก่อน · {% endif %}ปีงบประมาณ {{ fiscal_year }}</div>
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    <form method="get" action="/procurement" style="display:inline-flex; gap:8px; align-items:center; margin:0;">
+      <select name="year" onchange="submitReplace(this.form)" title="เปลี่ยนปีงบประมาณ"
+              style="width:auto; color:var(--text);">
+        {% for y in years %}<option value="{{ y }}" {{ "selected" if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
+      </select>
+    </form>
     <a class="btn gray" style="white-space:nowrap;" href="/register.xlsx?year={{ fiscal_year }}&kind=buy"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดทะเบียนคุมจัดซื้อ</a>
     <a class="btn gray" style="white-space:nowrap;" href="/register.xlsx?year={{ fiscal_year }}&kind=hire"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดทะเบียนคุมจัดจ้าง</a>
     <a class="btn" href="/procurement/new"><svg class="icon"><use href="#ic-plus"/></svg> สร้างเรื่องใหม่</a>
@@ -178,17 +184,6 @@
 </div>
 
 {% else %}
-<!-- แถบควบคุม: เลือกปีงบ + สร้างเรื่องใหม่ -->
-<div class="card" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-  <form method="get" action="/procurement" style="display:inline-flex; gap:8px; align-items:center; margin:0;">
-    <label style="margin:0;">ปีงบประมาณ</label>
-    <select name="year" onchange="submitReplace(this.form)" style="width:auto;">
-      {% for y in years %}<option value="{{ y }}" {{ "selected" if y==fiscal_year }}>{{ y }}</option>{% endfor %}
-    </select>
-  </form>
-  <a class="btn sm" href="/procurement/new"><svg class="icon"><use href="#ic-plus"/></svg> สร้างเรื่องใหม่</a>
-</div>
-
 <div class="card" style="background:#f0f9ff; border:1px solid #bae6fd;">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <div>

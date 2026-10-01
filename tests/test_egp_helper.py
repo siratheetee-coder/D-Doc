@@ -159,3 +159,19 @@ def test_date_copies_digits_by_default(proc):
     assert "แบบมี /" in html and "30/09/2569" in html    # ทางเลือกยังอยู่
     for d in ("29092569", "07102569", "25092569"):
         assert d in html, d
+
+
+def test_date_copy_has_one_button_only(proc):
+    """เหลือปุ่มเดียว: แสดงแบบมี / แต่คัดลอกได้เป็นตัวเลขล้วน"""
+    html = _login().get(f"/procurement/{proc.id}/egp").text
+    assert ">แบบมี /</button>" not in html      # ไม่มีปุ่มที่ 2 แล้ว
+    assert "cpText(this,'30092569')" in html and "30/09/2569" in html
+
+
+def test_year_picker_is_in_the_header(proc):
+    """ตัวเลือกปีงบต้องอยู่บนแถบหัว ไม่ใช่ซ่อนอยู่ล่างสุดจนหาไม่เจอ"""
+    html = _login().get("/procurement").text
+    start = html.index('<div class="hero"')
+    hero = html[start:html.index('<div class="card"', start)]
+    assert 'name="year"' in hero, "ตัวเลือกปีงบไม่ได้อยู่บนแถบหัว"
+    assert html.count('<select name="year"') == 1, "มีตัวเลือกปีงบซ้ำ"
