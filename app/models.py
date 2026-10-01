@@ -53,6 +53,9 @@ class School(Base):
     attendance_by_subject = Column(Boolean, default=False)  # เช็กเวลาเรียนแยกรายวิชา (ไม่ใช่รายห้อง)
 
     doc_prefix = Column(String, default="ศธ")      # อักษรนำเลขที่หนังสือ
+    # คำสั่ง สพฐ. ที่มอบอำนาจจัดซื้อจัดจ้างให้ ผอ.โรงเรียน (อ้างในคำสั่งแต่งตั้งคณะกรรมการ)
+    delegation_cmd_no = Column(String, default="")
+    delegation_cmd_date = Column(DateTime, nullable=True)
 
     # เกณฑ์วงเงิน (บาท) ที่ใช้แบ่ง "ชุดเอกสารแบบย่อ + ผู้ตรวจรับคนเดียว"
     # ออกจาก "ชุดเต็ม + คณะกรรมการตรวจรับ" - ปรับได้ตามแต่ละโรงเรียน
@@ -240,6 +243,11 @@ class Procurement(Base):
     price_ref_source = Column(String, default="การสืบราคาจากท้องตลาด")  # ที่มาราคากลาง
 
     delivery_days = Column(Integer, default=7)     # กำหนดส่งมอบภายใน (วัน)
+    # ---- ใช้ใน TOR/ขอบเขตของงาน ตามระเบียบฯ ข้อ 21 ----
+    objective = Column(Text, default="")           # วัตถุประสงค์ (เว้นว่าง = ใช้เหตุผลความจำเป็น)
+    quote_valid_days = Column(Integer, default=30) # ผู้เสนอราคาต้องยืนราคาไม่น้อยกว่ากี่วัน
+    warranty_text = Column(String, default="1 ปี") # รับประกันความชำรุดบกพร่องไม่น้อยกว่า
+    fix_days = Column(Integer, default=7)          # ต้องซ่อมแก้ไขให้ใช้การได้ภายในกี่วันนับจากแจ้ง
     penalty_rate = Column(Float, default=0.10)     # อัตราค่าปรับ ร้อยละต่อวัน
     overdue_days = Column(Integer, default=0)      # ส่งมอบเกินกำหนด (วัน) -> คำนวณค่าปรับ
 
@@ -309,6 +317,7 @@ class ProcurementItem(Base):
     quantity = Column(Float, default=1)            # จำนวน
     unit = Column(String, default="หน่วย")         # หน่วยนับ
     unit_price = Column(Float, default=0.0)        # ราคาต่อหน่วย
+    spec = Column(Text, default="")                # คุณลักษณะเฉพาะของรายการนี้ (คอลัมน์ในตาราง TOR)
 
     procurement = relationship("Procurement", back_populates="items")
 

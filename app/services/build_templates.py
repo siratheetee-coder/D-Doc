@@ -174,7 +174,8 @@ def _bcs(run, bold):
     el.set(qn("w:val"), "true" if bold else "false")
 
 
-def _p(doc, text="", *, align=None, bold=False, size=16, indent=None, before=0, after=2, line=None):
+def _p(doc, text="", *, align=None, bold=False, size=16, indent=None, before=0, after=2,
+       line=None, underline=False):
     p = doc.add_paragraph()
     pf = p.paragraph_format
     pf.space_before = Pt(before)
@@ -194,6 +195,7 @@ def _p(doc, text="", *, align=None, bold=False, size=16, indent=None, before=0, 
     run = p.add_run(text)
     _csize(run, size)
     _bcs(run, bold)
+    run.font.underline = underline or None   # หัวข้อในแบบฟอร์มราชการขีดเส้นใต้
     run.font.name = THAI_FONT
     run._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
     return p
@@ -858,30 +860,38 @@ def build_purchase_command():
 
 
 def build_spec_command():
-    """แม่แบบ: คำสั่งแต่งตั้งคณะกรรมการกำหนดรายละเอียดคุณลักษณะเฉพาะ/ขอบเขตของงาน (TOR) และราคากลาง
-    (ครุฑกึ่งกลาง) - ใช้เมื่อกรอกรายชื่อ กก.กำหนดคุณลักษณะไว้เท่านั้น"""
+    """แม่แบบ: คำสั่งแต่งตั้งคณะกรรมการจัดทำขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะ
+
+    ใช้เฉพาะทางคณะกรรมการ (ข้อ 21) · ทางมอบหมายบุคคลเดียวใช้บันทึกมอบหมายใบเดียวจบ
+    อ้างอำนาจตาม พ.ร.บ. มาตรา 61 มาตรา 100 และระเบียบฯ ข้อ 21 ข้อ 25
+    พร้อมคำสั่งมอบอำนาจของ สพฐ. (ตั้งค่าเลขที่/วันที่ได้ที่หน้าตั้งค่าโรงเรียน)
+    """
     doc = Document(); set_a4(doc)
     _font(doc)
     _krut_center(doc)
     _p(doc, "คำสั่ง{{ school_name }}", align="center", bold=True, size=18, after=0)
     _p(doc, "ที่ {{ spec_cmd_no }}", align="center", bold=True, after=0)
-    _p(doc, "เรื่อง แต่งตั้งคณะกรรมการกำหนดรายละเอียดคุณลักษณะเฉพาะและขอบเขตของงาน (TOR) "
-            "และราคากลาง {{ proc_type }}{{ subject }}", align="center", bold=True, after=0)
+    _p(doc, "เรื่อง แต่งตั้งคณะกรรมการจัดทำขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะ",
+       align="center", bold=True, after=0)
     _p(doc, "─────────────────────", align="center", after=6)
     _p(doc,
-       "ด้วย{{ school_name }} มีความประสงค์จะ{{ proc_type }}{{ subject }} โดยวิธี{{ method }} "
-       "วงเงิน {{ total_amount }} บาท ({{ total_baht }}) และเพื่อให้เป็นไปตามระเบียบกระทรวงการคลัง"
-       "ว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 ข้อ 21", align="justify", indent=1.25)
-    _p(doc, "จึงขอแต่งตั้งรายชื่อต่อไปนี้ เป็นคณะกรรมการกำหนดรายละเอียดคุณลักษณะเฉพาะ"
-            "และขอบเขตของงาน (TOR) และราคากลาง ดังนี้", align="justify", indent=1.25)
+       "ด้วย {{ school_name }} จะดำเนินการ{{ proc_type }}{{ subject }} จำนวน {{ item_count }} รายการ "
+       "วงเงิน {{ total_amount }} บาท ({{ total_baht }}) โดยวิธี{{ method }} {{ method_law }}",
+       align="justify", indent=1.25)
+    _p(doc,
+       "อาศัยอำนาจตามมาตรา 61 มาตรา 100 แห่งพระราชบัญญัติการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ "
+       "พ.ศ. 2560 และข้อ 21 ข้อ 25 แห่งระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้าง"
+       "และการบริหารพัสดุภาครัฐ พ.ศ. 2560 ซึ่งได้รับมอบอำนาจจากเลขาธิการคณะกรรมการการศึกษา"
+       "ขั้นพื้นฐาน {{ delegation_ref }} เรื่อง มอบอำนาจเกี่ยวกับการจัดซื้อจัดจ้างและการบริหารพัสดุ"
+       "ภาครัฐ จึงแต่งตั้งคณะกรรมการจัดทำขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะ ดังนี้",
+       align="justify", indent=1.25)
+    _p(doc, "คณะกรรมการจัดทำขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะ", bold=True, underline=True,
+       indent=1.25, after=2)
     _member_table(doc, "spec_members")
-    _p(doc, "อำนาจและหน้าที่", bold=True, indent=1.25)
-    _p(doc, "(1) จัดทำร่างขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะของ{{ obj_word }} "
-            "รวมทั้งกำหนดหลักเกณฑ์การพิจารณาคัดเลือกข้อเสนอ", align="justify", indent=1.25)
-    _p(doc, "(2) จัดทำราคากลางของ{{ obj_word }}ตามแนวทางที่คณะกรรมการราคากลางกำหนด "
-            "และเสนอต่อหัวหน้าหน่วยงานของรัฐเพื่อให้ความเห็นชอบ", align="justify", indent=1.25)
-    _p(doc, "ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป", bold=True, indent=2.5, after=6)
-    _p(doc, "สั่ง ณ วันที่ {{ spec_cmd_date_official }}", align="center", after=24)
+    _p(doc, "ให้คณะกรรมการจัดทำขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะที่ได้รับแต่งตั้ง "
+            "ดำเนินการให้เป็นไปตามระเบียบที่เกี่ยวข้องต่อไป", align="justify", indent=1.25)
+    _p(doc, "สั่ง ณ วันที่ {{ spec_cmd_date_official }}", align="center", before=6, after=SIGN_GAP)
+    _p(doc, "(ลงชื่อ).................................................", align="center")
     _p(doc, "( {{ director_name }} )", align="center")
     _p(doc, "{{ director_office }}", align="center")
     TEMPLATES_DIR.mkdir(exist_ok=True)
@@ -988,55 +998,179 @@ def build_winner_announcement():
 
 
 def build_spec_committee():
-    """แม่แบบ: บันทึกขออนุมัติแต่งตั้งคณะกรรมการกำหนดคุณลักษณะเฉพาะ/ราคากลาง (ข้อ 21)"""
+    """แม่แบบ: บันทึกข้อความ แต่งตั้งผู้จัดทำร่างขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะ
+
+    ระเบียบกระทรวงการคลังฯ พ.ศ. 2560 ส่วนที่ 2 ข้อ 21 ให้เลือกได้ 2 ทาง
+    แต่งตั้งคณะกรรมการ หรือ มอบหมายเจ้าหน้าที่/บุคคลใดบุคคลหนึ่ง
+    แม่แบบเดียวสลับข้อความตาม spec_mode จึงไม่ต้องมีเอกสารแยกอีกใบ
+    """
     doc = Document(); set_a4(doc)
     _font(doc)
-    _memo_head(doc, "ขออนุมัติแต่งตั้งคณะกรรมการกำหนดรายละเอียดคุณลักษณะเฉพาะ{{ obj_word }} และราคากลาง",
+    _memo_head(doc, "แต่งตั้งผู้จัดทำร่างขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะ",
                memo_no_expr="{{ spec_memo_no }}", date_expr="{{ spec_date_thai }}")
+
+    _p(doc, "ความเดิม", bold=True, underline=True, indent=1.25, after=0)
     _p(doc,
-       "ด้วย{{ school_name }} จะดำเนินการ{{ proc_type }}{{ subject }} โดยใช้วงเงินงบประมาณ จำนวน "
-       "{{ total_amount }} บาท ({{ total_baht }}) เพื่อให้การกำหนดรายละเอียดคุณลักษณะเฉพาะ{{ obj_word }}"
-       "เป็นไปตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 "
-       "ข้อ 21 จึงขอแต่งตั้งคณะกรรมการ ประกอบด้วย", align="justify", indent=1.25)
+       "ตามที่ {{ school_name }} ได้รับอนุมัติจัดสรรงบประมาณประจำปีงบประมาณ พ.ศ. {{ fiscal_year }} "
+       "งบ{{ budget_source }} ตามโครงการ{{ project_name }} จำนวน {{ total_amount }} บาท "
+       "({{ total_baht }}) ให้ดำเนินการ{{ proc_type }}{{ subject }} จำนวน {{ item_count }} รายการ "
+       "(รายละเอียดตามบันทึกข้อความที่แนบมาพร้อมนี้) นั้น", align="justify", indent=1.25)
+
+    _p(doc, "ข้อพิจารณา", bold=True, underline=True, indent=1.25, after=0)
+    _p(doc,
+       "เพื่อให้เป็นไปตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ "
+       "พ.ศ. 2560 ส่วนที่ 2 ข้อ 21 ซึ่งกำหนดให้หัวหน้าหน่วยงานของรัฐแต่งตั้งคณะกรรมการ "
+       "หรือมอบหมายเจ้าหน้าที่หรือบุคคลใดบุคคลหนึ่ง รับผิดชอบจัดทำร่างขอบเขตของงาน"
+       "หรือรายละเอียดคุณลักษณะเฉพาะของ{{ obj_word }}ที่จะ{{ proc_type }}", align="justify", indent=1.25)
+
+    _p(doc, "{%p if spec_mode == 'single' %}")
+    _p(doc, "จึงเห็นควรมอบหมาย {{ spec_drafter_name }} ตำแหน่ง {{ spec_drafter_position }} "
+            "เป็นผู้จัดทำร่างขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะของ{{ obj_word }} "
+            "และกำหนดราคากลาง โดยใช้บันทึกฉบับนี้เป็นหลักฐานการมอบหมายตามข้อ 21",
+       align="justify", indent=1.25)
+    _p(doc, "{%p else %}")
+    _p(doc, "จึงเห็นควรแต่งตั้งคณะกรรมการจัดทำขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะ "
+            "และกำหนดราคากลาง ประกอบด้วย", align="justify", indent=1.25)
     _member_table(doc, "spec_members")
-    _p(doc, "โดยให้มีหน้าที่ (1) จัดทำรายละเอียดคุณลักษณะเฉพาะ และกำหนดหลักเกณฑ์การพิจารณา "
-            "(2) จัดทำราคากลางของ{{ obj_word }}ตามแนวทางที่เกี่ยวข้อง", align="justify", indent=1.25)
-    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ", indent=1.25)
-    _signoff_officers(doc)
-    _signoff_director(doc, with_approve=True)
+    _p(doc, "{%p endif %}")
+
+    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณา", indent=1.25)
+    _signoff_officers(doc, sign_gap=SIGN_GAP)
+    _p(doc, "ทราบ / อนุมัติ", align="center", bold=True, before=4)
+    _p(doc, "(ลงชื่อ).................................................", align="center",
+       before=SIGN_GAP)
+    _p(doc, "( {{ director_name }} )", align="center")
+    _p(doc, "ตำแหน่ง {{ director_office }}", align="center")
+    _p(doc, "วันที่ {{ spec_date_thai }}", align="center")
     TEMPLATES_DIR.mkdir(exist_ok=True)
     out = TEMPLATES_DIR / "แต่งตั้งคุณลักษณะ.docx"
     doc.save(str(out))
     return out
 
 
+# คุณสมบัติผู้ยื่นข้อเสนอ - ข้อความมาตรฐานที่ใช้กันทุกหน่วยงาน (ไม่ต้องให้ครูพิมพ์เอง)
+BIDDER_QUALIFICATIONS = [
+    "มีความสามารถตามกฎหมาย",
+    "ไม่เป็นบุคคลล้มละลาย",
+    "ไม่อยู่ระหว่างเลิกกิจการ",
+    "ไม่เป็นบุคคลซึ่งอยู่ระหว่างถูกระงับการยื่นข้อเสนอหรือทำสัญญากับหน่วยงานของรัฐไว้ชั่วคราว "
+    "เนื่องจากเป็นผู้ไม่ผ่านเกณฑ์การประเมินผลการปฏิบัติงานของผู้ประกอบการตามระเบียบที่รัฐมนตรี"
+    "ว่าการกระทรวงการคลังกำหนดตามที่ประกาศเผยแพร่ในระบบเครือข่ายสารสนเทศของกรมบัญชีกลาง",
+    "ไม่เป็นบุคคลซึ่งถูกระบุชื่อไว้ในบัญชีรายชื่อผู้ทิ้งงานและได้แจ้งเวียนชื่อให้เป็นผู้ทิ้งงาน"
+    "ของหน่วยงานของรัฐในระบบเครือข่ายสารสนเทศของกรมบัญชีกลาง ซึ่งรวมถึงนิติบุคคลที่ผู้ทิ้งงาน"
+    "เป็นหุ้นส่วนผู้จัดการ กรรมการผู้จัดการ ผู้บริหาร ผู้มีอำนาจในการดำเนินงานในกิจการของนิติบุคคลนั้นด้วย",
+    "มีคุณสมบัติและไม่มีลักษณะต้องห้ามตามที่คณะกรรมการนโยบายการจัดซื้อจัดจ้างและการบริหารพัสดุ"
+    "ภาครัฐกำหนดในราชกิจจานุเบกษา",
+    "เป็นบุคคลธรรมดาหรือนิติบุคคล ผู้มีอาชีพขาย{{ obj_word }} หรืออาชีพรับจ้างงานดังกล่าว",
+    "ไม่เป็นผู้ได้รับเอกสิทธิ์หรือความคุ้มกัน ซึ่งอาจปฏิเสธไม่ยอมขึ้นศาลไทย เว้นแต่รัฐบาลของผู้ยื่น"
+    "ข้อเสนอได้มีคำสั่งให้สละเอกสิทธิ์และความคุ้มกันเช่นว่านั้น",
+]
+
+
+def _tor_item_table(doc):
+    """ตารางข้อ 4 ของ TOR: ลำดับ/รายการ/จำนวน/หน่วยนับ/คุณลักษณะเฉพาะ/ราคาต่อหน่วย/ราคารวม
+
+    กว้างรวม 16.5 ซม. เท่าความกว้างพิมพ์ได้ของ A4 ตามที่ใช้ทั้งระบบ
+    """
+    head = ["ลำดับที่", "รายการ", "จำนวน", "หน่วยนับ", "คุณลักษณะเฉพาะ", "ราคาต่อหน่วย", "ราคารวม"]
+    table = doc.add_table(rows=1, cols=len(head))
+    table.style = "Table Grid"
+    for i, text in enumerate(head):
+        _set_cell(table.rows[0].cells[i], text, align="center", bold=True)
+    _repeat_header_row(table.rows[0])
+    # แถวคำสั่งวนลูปต้องอยู่แถวของมันเอง (รูปแบบเดียวกับตารางอื่นในระบบ)
+    _set_cell(table.add_row().cells[0], "{%tr for it in items %}")
+    drow = table.add_row()
+    d = drow.cells
+    _no_split_row(drow)
+    _set_cell(d[0], "{{ loop.index }}", align="center")
+    _set_cell(d[1], "{{ it.name }}")
+    _set_cell(d[2], "{{ it.quantity }}", align="center")
+    _set_cell(d[3], "{{ it.unit }}", align="center")
+    _set_cell(d[4], "{{ it.spec }}")
+    _set_cell(d[5], "{{ it.unit_price }}", align="right")
+    _set_cell(d[6], "{{ it.amount }}", align="right")
+    _set_cell(table.add_row().cells[0], "{%tr endfor %}")
+    _summary_rows(table, label_cols=[0, 1, 2, 3, 4, 5], value_col=6, total_cols=7)
+    _fixed_cols(table, [Cm(1.3), Cm(3.6), Cm(1.4), Cm(1.5), Cm(5.0), Cm(1.8), Cm(1.9)])
+    return table
+
+
 def build_tor():
-    """แม่แบบ: รายละเอียดคุณลักษณะเฉพาะของพัสดุ (TOR)"""
+    """แม่แบบ: ขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะของพัสดุ (TOR)
+
+    10 หัวข้อตามแบบฟอร์มที่หน่วยงานการศึกษาใช้จริง
+    ท้ายเอกสารสลับระหว่าง "ผู้ได้รับมอบหมาย" กับ "คณะกรรมการ" ตามข้อ 21
+    """
     doc = Document(); set_a4(doc)
     _font(doc)
-    _p(doc, "รายละเอียดคุณลักษณะเฉพาะของ{{ obj_word }}ที่จะ{{ proc_type }} (TOR)", align="center", bold=True, size=18)
-    _p(doc, "ตามพระราชบัญญัติการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 (ข้อ 21)",
-       align="center", after=6)
-    _p(doc, "1. ความเป็นมา/เหตุผลความจำเป็น", bold=True)
-    _p(doc, "ด้วย{{ school_name }} มีความประสงค์จะ{{ proc_type }}{{ subject }} โดยวิธี{{ method }} "
-            "เนื่องจาก {{ purpose }}", align="justify", indent=1.25)
-    _p(doc, "2. ลักษณะการจัดหา", bold=True)
-    _p(doc, "งาน{{ proc_type }}", indent=1.25)
-    _p(doc, "3. รายละเอียดคุณลักษณะเฉพาะของ{{ obj_word }}", bold=True)
-    _item_table(doc)
-    _p(doc, "", after=4)
-    _p(doc, "4. กำหนดเวลาส่งมอบ", bold=True)
-    _p(doc, "ส่งมอบภายใน {{ delivery_days }} วัน", indent=1.25)
-    _p(doc, "5. หลักเกณฑ์การพิจารณาคัดเลือกข้อเสนอ", bold=True)
-    _p(doc, "พิจารณาตัดสินโดยใช้เกณฑ์ราคา", indent=1.25)
-    _p(doc, "6. ราคากลางและที่มาของราคากลาง", bold=True)
-    _p(doc, "ราคากลาง {{ total_amount }} บาท ({{ total_baht }}) ได้มาจาก {{ price_ref_source }}",
-       align="justify", indent=1.25)
-    _p(doc, "7. วงเงินงบประมาณ", bold=True)
-    _p(doc, "ใช้งบประมาณจากเงิน{{ budget_source }} จำนวน {{ total_amount }} บาท ({{ total_baht }})",
-       indent=1.25, after=8)
-    _p(doc, "คณะกรรมการกำหนดคุณลักษณะเฉพาะและราคากลาง", bold=True)
-    _member_table(doc, "spec_members")
+    _p(doc, "ขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะของ{{ obj_word }} (Terms of Reference : TOR)",
+       align="center", bold=True, size=17, after=0)
+    _p(doc, "{{ proc_word }}{{ subject }} จำนวน {{ item_count }} รายการ",
+       align="center", bold=True, after=0)
+    _p(doc, "{{ school_name }}", align="center", bold=True, after=8)
+
+    _p(doc, "1. ความเป็นมา", bold=True, underline=True, after=0)
+    _p(doc, "ด้วย {{ school_name }} {{ purpose }}", align="justify", indent=1.25)
+
+    _p(doc, "2. วัตถุประสงค์", bold=True, underline=True, after=0)
+    _p(doc, "{{ objective }}", align="justify", indent=1.25)
+
+    _p(doc, "3. คุณสมบัติผู้ยื่นข้อเสนอ", bold=True, underline=True, after=0)
+    for i, text in enumerate(BIDDER_QUALIFICATIONS, start=1):
+        _p(doc, f"{i}. {text}", align="justify", indent=1.25, after=0)
+
+    _p(doc, "4. รายละเอียดคุณลักษณะเฉพาะหรือขอบเขตของงาน", bold=True, underline=True, before=6, after=2)
+    _tor_item_table(doc)
+    _p(doc, "", after=2)
+
+    _p(doc, "5. การเสนอราคา และกำหนดส่งมอบ", bold=True, underline=True, after=0)
+    _p(doc, "1. ราคาที่เสนอจะต้องกำหนดยืนราคาไม่น้อยกว่า {{ quote_valid_days }} วัน "
+            "นับแต่วันเสนอราคาโดยภายในกำหนดยืนราคา ผู้ยื่นข้อเสนอต้องรับผิดชอบราคาที่ตนได้เสนอไว้ "
+            "และจะถอนการเสนอราคามิได้", align="justify", indent=1.25, after=0)
+    _p(doc, "2. กำหนดการส่งมอบ{{ obj_word }} หรือกำหนดให้งานแล้วเสร็จ ไม่เกิน {{ delivery_days }} วัน "
+            "นับถัดจากวันลงนามใน{{ order_kind }} หรือวันที่ได้รับหนังสือแจ้งให้ส่งมอบ{{ obj_word }} "
+            "หรือวันที่ได้รับหนังสือแจ้งให้เริ่มทำงาน", align="justify", indent=1.25)
+
+    _p(doc, "6. เกณฑ์การพิจารณาผลการยื่นข้อเสนอ", bold=True, underline=True, after=0)
+    _p(doc, "ในการพิจารณาผลการยื่นข้อเสนอครั้งนี้ {{ school_name }} จะพิจารณาตัดสินโดยใช้"
+            "เกณฑ์ราคา โดยพิจารณาจากราคารวม", align="justify", indent=1.25)
+
+    _p(doc, "7. งบประมาณในการดำเนินการ", bold=True, underline=True, after=0)
+    _p(doc, "ในการ{{ proc_type }}ครั้งนี้ ใช้งบประมาณจากเงิน{{ budget_source }} จำนวนเงิน "
+            "{{ total_amount }} บาท ({{ total_baht }})", align="justify", indent=1.25)
+
+    _p(doc, "8. อัตราค่าปรับ", bold=True, underline=True, after=0)
+    _p(doc, "{%p if proc_type == 'จ้าง' %}")
+    _p(doc, "งานจ้างให้คิดค่าปรับเป็นรายวันเป็นจำนวนเงินตายตัวในอัตราร้อยละ {{ penalty_rate }} "
+            "ของราคางานจ้างนั้น แต่จะต้องไม่ต่ำกว่าวันละ 100.00 บาท", align="justify", indent=1.25)
+    _p(doc, "{%p else %}")
+    _p(doc, "งานซื้อให้คิดค่าปรับในอัตราร้อยละ {{ penalty_rate }} ต่อวัน "
+            "ของราคา{{ obj_word }}ที่ยังไม่ได้รับมอบ", align="justify", indent=1.25)
+    _p(doc, "{%p endif %}")
+
+    _p(doc, "9. การรับประกันความชำรุดบกพร่อง", bold=True, underline=True, after=0)
+    _p(doc, "ระยะเวลารับประกันความชำรุดบกพร่อง ไม่น้อยกว่า {{ warranty_text }} "
+            "นับถัดจากวันที่ {{ school_name }} ได้รับมอบ โดย{{ vendor_label }}ต้องรีบจัดการ"
+            "ซ่อมแซมแก้ไขให้ใช้การได้ดีดังเดิมภายใน {{ fix_days }} วัน "
+            "นับถัดจากวันที่ได้รับแจ้งความชำรุดบกพร่อง", align="justify", indent=1.25)
+
+    _p(doc, "10. หน่วยงานที่รับผิดชอบ", bold=True, underline=True, after=0)
+    _p(doc, "{{ school_name }}", indent=1.25, after=SIGN_GAP)
+
+    # ===== ลงนามผู้จัดทำร่าง: มอบหมายคนเดียว หรือ คณะกรรมการ (ข้อ 21) =====
+    _p(doc, "{%p if spec_mode == 'single' %}")
+    _p(doc, "(ลงชื่อ).................................................", align="center")
+    _p(doc, "( {{ spec_drafter_name }} )", align="center")
+    _p(doc, "{{ spec_drafter_position }}", align="center")
+    _p(doc, "ผู้ได้รับมอบหมายให้จัดทำขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะ", align="center")
+    _p(doc, "{%p else %}")
+    _p(doc, "{%p for m in spec_members %}")
+    _p(doc, "(ลงชื่อ).................................................", align="center")
+    _p(doc, "( {{ m.name }} )", align="center")
+    _p(doc, "{{ m.role }}ขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะ", align="center", after=SIGN_GAP)
+    _p(doc, "{%p endfor %}")
+    _p(doc, "{%p endif %}")
     TEMPLATES_DIR.mkdir(exist_ok=True)
     out = TEMPLATES_DIR / "TOR.docx"
     doc.save(str(out))

@@ -39,7 +39,7 @@ from app.services.doc_number import (suggest_doc_no, commit_doc_no, check_doc_no
                                      COUNTER_TYPES, parse_seq, remove_issued)
 from app.services.budget import current_plan_year, plan_year_label, project_budget, project_spent
 from app.services.render import (render_document, render_bundle, AVAILABLE_KINDS,
-                                 kinds_for, book_purchase_of, WHT_KIND)
+                                 kinds_for, book_purchase_of, WHT_KIND, spec_mode_of)
 from app.services.register_export import export_register
 from app.services.thai_holidays import holiday_map, year_range_for
 from app.services.bulk_io import build_import_template, import_workbook
@@ -502,6 +502,7 @@ def settings_save(
     academic_head_email: str = Form(""), hr_head_email: str = Form(""),
     director_email: str = Form(""),
     doc_prefix: str = Form("ศธ"), doc_set_threshold: str = Form(""),
+    delegation_cmd_no: str = Form(""), delegation_cmd_date: str = Form(""),
     project_year_mode: str = Form("budget"),
     attendance_by_subject: str = Form(""),
 ):
@@ -521,6 +522,8 @@ def settings_save(
     s.project_year_mode = "academic" if project_year_mode == "academic" else "budget"
     s.attendance_by_subject = bool(attendance_by_subject)
     s.doc_prefix, s.doc_set_threshold = doc_prefix, _to_float(doc_set_threshold, 5000.0)
+    s.delegation_cmd_no = (delegation_cmd_no or "").strip()
+    s.delegation_cmd_date = parse_be_date(delegation_cmd_date) if delegation_cmd_date.strip() else None
     db.commit()
     return RedirectResponse("/settings?saved=1", status_code=303)
 
@@ -1967,6 +1970,7 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
     proc.items.clear()
     names, qtys = form.getlist("item_name"), form.getlist("item_qty")
     units, prices = form.getlist("item_unit"), form.getlist("item_price")
+    specs = form.getlist("item_spec")       # คุณลักษณะเฉพาะรายรายการ (คอลัมน์ใน TOR)
     total = 0.0
     for i, nm in enumerate(names):
         nm = (nm or "").strip()
@@ -1975,7 +1979,8 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
         qty = _to_float(qtys[i]) if i < len(qtys) else 0
         price = _to_float(prices[i]) if i < len(prices) else 0
         unit = (units[i] if i < len(units) else "") or "หน่วย"
-        proc.items.append(ProcurementItem(name=nm, quantity=qty, unit=unit, unit_price=price))
+        proc.items.append(ProcurementItem(name=nm, quantity=qty, unit=unit, unit_price=price,
+                                          spec=((specs[i] if i < len(specs) else "") or "").strip()))
         total += qty * price
         _catalog_upsert(db, nm, unit, price)   # เก็บเข้าคลังรายการพัสดุอัตโนมัติ
     proc.total_amount = total
@@ -1990,7 +1995,13 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
     inspect = _build_committee(form, "inspect", proc.inspection_mode, "")
     if inspect.members:
         proc.committees.append(inspect)
-    spec = _build_committee(form, "spec", "committee", "spec_")
+    # ข้อ 21: มอบหมายบุคคลเดียว (ค่าตั้งต้น) หรือแต่งตั้งคณะกรรมการ
+    spec_mode = form.get("spec_mode") or "single"
+    spec = _build_committee(form, "spec", spec_mode, "spec_")
+    if spec_mode == "single":
+        del spec.members[1:]        # มอบหมายคนเดียว เก็บชื่อแรกพอ
+        for m in spec.members:
+            m.role = "ผู้ได้รับมอบหมาย"
     if spec.members:
         proc.committees.append(spec)
     purchase = _build_committee(form, "purchase", "committee", "purchase_")
@@ -2255,6 +2266,7 @@ def procurement_edit_form(proc_id: int, request: Request, db: Session = Depends(
         "prefill_items": list(proc.items),
         "prefill_members": list(inspect.members) if inspect else [],
         "prefill_spec_members": list(spec.members) if spec else [],
+        "spec_mode": spec_mode_of(proc),
         "prefill_purchase_members": list(purchase.members) if purchase else [],
         "fiscal_year": proc.fiscal_year, "today_thai": thai_date(),
         "threshold": school.doc_set_threshold or 5000, "positions": POSITION_CHOICES,
@@ -2420,6 +2432,11 @@ async def procurement_update_refs(proc_id: int, request: Request, db: Session = 
     proc.memo_no = (form.get("memo_no") or "").strip()
     proc.result_memo_no = (form.get("result_memo_no") or "").strip()
     proc.spec_memo_no = (form.get("spec_memo_no") or "").strip()
+    # ช่องที่ TOR ตามแบบฟอร์มจริงต้องใช้ (ข้อ 5, 9 และวัตถุประสงค์)
+    proc.objective = (form.get("objective") or "").strip()
+    proc.quote_valid_days = _to_int(form.get("quote_valid_days"), 30)
+    proc.warranty_text = (form.get("warranty_text") or "").strip() or "1 ปี"
+    proc.fix_days = _to_int(form.get("fix_days"), 7)
     proc.inspect_memo_no = (form.get("inspect_memo_no") or "").strip()
     proc.command_no = (form.get("command_no") or "").strip()
     proc.order_no = (form.get("order_no") or "").strip()

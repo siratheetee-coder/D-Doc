@@ -90,7 +90,10 @@ def build_context(proc, school) -> dict:
     items = [{
         "name": it.name,
         "qty": f"{(it.quantity or 0):g}",
+        # ตาราง TOR ใช้ชื่อ quantity · ตารางแนบท้ายเดิมใช้ qty จึงให้ทั้งสองชื่อ
+        "quantity": f"{(it.quantity or 0):g}",
         "unit": it.unit,
+        "spec": (getattr(it, "spec", "") or ""),   # คุณลักษณะเฉพาะรายรายการ (คอลัมน์ใน TOR)
         "unit_price": _money(it.unit_price),
         "amount": _money(it.amount),
     } for it in proc.items]
@@ -107,11 +110,15 @@ def build_context(proc, school) -> dict:
             inspector_name = members[0].name
             inspector_position = members[0].position
 
-    # คณะกรรมการกำหนดคุณลักษณะ/ราคากลาง - ไม่กรอก = ตารางว่าง
+    # ผู้จัดทำร่างขอบเขตของงาน/รายละเอียดคุณลักษณะเฉพาะ (ระเบียบฯ ข้อ 21)
+    # ข้อ 21 ให้เลือกได้ 2 ทาง: แต่งตั้งคณะกรรมการ หรือ มอบหมายบุคคลใดบุคคลหนึ่ง
+    # โรงเรียนส่วนใหญ่ใช้ทางหลัง จึงต้องรองรับทั้งคู่ ไม่ใช่บังคับตั้งกรรมการ
     # (ไม่เอารายชื่อผู้ตรวจรับมาใส่แทน เพราะผู้ใช้จะไม่รู้ว่ามีชื่อคนอื่นโผล่ในเอกสาร)
     spec = _find_committee(proc, "spec")
     spec_members = ([{"name": m.name, "position": m.position, "role": m.role}
                      for m in spec.members] if spec and spec.members else [])
+    spec_mode = spec_mode_of(proc)
+    spec_drafter = (spec_members[0] if spec_members else {})
 
     # คณะกรรมการซื้อ/จ้าง (ไม่บังคับ) - ถ้าไม่มี = เจ้าหน้าที่ดำเนินการเอง
     purchase = _find_committee(proc, "purchase")
@@ -163,6 +170,36 @@ def build_context(proc, school) -> dict:
         "inspector_position": inspector_position or "ครู",
         "inspect_members": inspect_members,
         "spec_members": spec_members,
+        "spec_mode": spec_mode,
+        "fiscal_year": proc.fiscal_year or "",
+        # "จัดซื้อ"/"จัดจ้าง" สำหรับหัวเอกสาร (proc_type เป็น "ซื้อ"/"จ้าง" ใช้ต่อท้ายคำกริยา)
+        "proc_word": ("จัดซื้อ" if (proc.proc_type or "ซื้อ") == "ซื้อ" else "จัดจ้าง"),
+        "objective": (proc.objective or proc.purpose or "-"),
+        "quote_valid_days": proc.quote_valid_days or 30,
+        "warranty_text": proc.warranty_text or "1 ปี",
+        "fix_days": proc.fix_days or 7,
+        # มาตราที่รองรับวิธีที่เลือก (อ้างในคำสั่งแต่งตั้ง)
+        "method_law": _METHOD_LAW.get((proc.method or "").strip(), ""),
+        # คำสั่งมอบอำนาจของ สพฐ. - โรงเรียนกรอกเลขที่/วันที่ไว้ที่หน้าตั้งค่า
+        "delegation_ref": (
+            f"ตามคำสั่งสำนักงานคณะกรรมการการศึกษาขั้นพื้นฐาน ที่ {school.delegation_cmd_no} "
+            f"ลงวันที่ {thai_date(school.delegation_cmd_date)}"
+            if getattr(school, "delegation_cmd_no", "") else
+            "ตามคำสั่งสำนักงานคณะกรรมการการศึกษาขั้นพื้นฐาน ที่ ................ "
+            "ลงวันที่ ................"),
+        "spec_drafter_name": spec_drafter.get("name") or "..............................",
+        "spec_drafter_position": spec_drafter.get("position") or "เจ้าหน้าที่พัสดุ",
+        # คำเรียกผู้จัดทำร่าง ใช้ทั้งหัวข้อและช่องลงนามใน TOR
+        "spec_word": ("ผู้ได้รับมอบหมายให้จัดทำร่างขอบเขตของงานและรายละเอียดคุณลักษณะเฉพาะ"
+                      if spec_mode == "single"
+                      else "คณะกรรมการกำหนดรายละเอียดคุณลักษณะเฉพาะและราคากลาง"),
+        # ซื้อ = รายละเอียดคุณลักษณะเฉพาะ · จ้าง = ขอบเขตของงาน (TOR)
+        # เขียนรวมกันว่า "คุณลักษณะเฉพาะของงานจ้างที่จะจ้าง" ไม่ใช่คำที่ใช้กันจริง
+        "spec_doc_title": ("รายละเอียดคุณลักษณะเฉพาะของพัสดุที่จะซื้อ"
+                           if (proc.proc_type or "ซื้อ") == "ซื้อ"
+                           else "ขอบเขตของงานจ้าง (Terms of Reference : TOR)"),
+        "spec_doc_word": ("รายละเอียดคุณลักษณะเฉพาะ"
+                          if (proc.proc_type or "ซื้อ") == "ซื้อ" else "ขอบเขตของงาน"),
         "purchase_members": purchase_members,
         # ผู้เจรจาตกลงราคาในรายงานผลการพิจารณา (มี กก.ซื้อ/จ้าง = คณะกรรมการ, ไม่มี = เจ้าหน้าที่)
         "negotiator": ("คณะกรรมการซื้อหรือจ้าง" if purchase_members else "เจ้าหน้าที่"),
@@ -418,8 +455,29 @@ ONE_PAGE_KINDS = {
 }
 
 # เอกสารที่มีความหมายเฉพาะเมื่อกรอกข้อมูลนั้นไว้ -> ไม่มีข้อมูล = ไม่โชว์ปุ่ม/ไม่รวมในชุด
-_NEEDS_COMMITTEE = {"คำสั่งแต่งตั้งกรรมการซื้อ/จ้าง": "purchase",
-                    "คำสั่งแต่งตั้งกรรมการคุณลักษณะ": "spec"}
+_NEEDS_COMMITTEE = {"คำสั่งแต่งตั้งกรรมการซื้อ/จ้าง": "purchase"}
+
+
+# มาตราที่ใช้อ้างในคำสั่งแต่งตั้ง ตามวิธีจัดซื้อจัดจ้างที่เลือก
+_METHOD_LAW = {
+    "เฉพาะเจาะจง": "ตามมาตรา 56 วรรคหนึ่ง (2) (ข)",
+    "คัดเลือก": "ตามมาตรา 56 วรรคหนึ่ง (1)",
+    "ประกาศเชิญชวนทั่วไป": "ตามมาตรา 55 (1)",
+}
+
+
+def spec_mode_of(proc) -> str:
+    """ผู้จัดทำร่างตามข้อ 21 เป็นแบบไหน: 'single' (มอบหมายคนเดียว) หรือ 'committee'
+
+    เรื่องเก่าที่บันทึกไว้ก่อนมีตัวเลือกนี้ ไม่มีค่า mode ที่เชื่อถือได้
+    จึงดูจากจำนวนคนที่กรอกไว้จริง (กรอกคนเดียว = มอบหมาย, หลายคน = คณะกรรมการ)
+    """
+    c = _find_committee(proc, "spec")
+    if c is None:
+        return "single"
+    if (c.mode or "") in ("single", "committee"):
+        return c.mode
+    return "committee" if len(c.members or []) > 1 else "single"
 
 
 def kinds_for(proc):
@@ -434,6 +492,12 @@ def kinds_for(proc):
             continue
         if k == WHT_KIND and not float(getattr(proc, "wht_rate", 0) or 0) > 0:
             continue                      # ไม่ได้หักภาษี ณ ที่จ่าย -> ไม่มีหนังสือรับรอง
+        if k == "คำสั่งแต่งตั้งกรรมการคุณลักษณะ":
+            # คำสั่ง (ครุฑ) ใช้เฉพาะเมื่อแต่งตั้งเป็นคณะกรรมการ
+            # ทางมอบหมายบุคคลเดียวใช้บันทึกมอบหมายใบเดียวจบ ตามข้อ 21 วรรคท้าย
+            c = _find_committee(proc, "spec")
+            if spec_mode_of(proc) != "committee" or not (c and c.members):
+                continue
         need = _NEEDS_COMMITTEE.get(k)
         if need:
             c = _find_committee(proc, need)

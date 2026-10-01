@@ -118,12 +118,15 @@
     <h2 style="margin-top:20px;" id="itemsHead">รายการพัสดุ</h2>
     <p class="muted" id="itemsHint" style="margin:-8px 0 8px; font-size:13px;"></p>
     <div class="table-wrap"><table id="items">
-      <thead><tr><th style="width:40%;" id="itemsCol">รายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th><th class="right">จำนวนเงิน</th><th></th></tr></thead>
+      <thead><tr><th style="width:26%;" id="itemsCol">รายการ</th>
+        <th style="width:22%;">คุณลักษณะเฉพาะ <span class="muted" style="font-weight:400;">(ลงใน TOR)</span></th>
+        <th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th><th class="right">จำนวนเงิน</th><th></th></tr></thead>
       <tbody>
         {% if prefill_items %}
           {% for it in prefill_items %}
           <tr>
             <td><input name="item_name" list="catalog_dl" oninput="fillCat(this)" value="{{ it.name }}"></td>
+            <td><input name="item_spec" value="{{ it.spec or '' }}" placeholder="เช่น ขนาด A4 80 แกรม"></td>
             <td><input name="item_qty" type="number" step="any" value="{{ '%g'|format(it.quantity) }}" oninput="calcTotal()"></td>
             <td><input name="item_unit" value="{{ it.unit }}"></td>
             <td><input name="item_price" type="number" step="any" value="{{ '%g'|format(it.unit_price) }}" oninput="calcTotal()"></td>
@@ -134,6 +137,7 @@
         {% else %}
           <tr>
             <td><input name="item_name" list="catalog_dl" oninput="fillCat(this)"></td>
+            <td><input name="item_spec" placeholder="เช่น ขนาด A4 80 แกรม"></td>
             <td><input name="item_qty" type="number" step="any" value="1" oninput="calcTotal()"></td>
             <td><input name="item_unit" value="ชิ้น"></td>
             <td><input name="item_price" type="number" step="any" value="0" oninput="calcTotal()"></td>
@@ -235,9 +239,22 @@
     <datalist id="positions">{% for ps in positions %}<option value="{{ ps }}">{% endfor %}</datalist>
     <br><button type="button" class="btn soft sm" onclick="addMember()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มกรรมการ</button>
 
-    <h2 style="margin-top:24px;">คณะกรรมการกำหนดคุณลักษณะเฉพาะ/ราคากลาง</h2>
-    <p class="muted" style="margin:-8px 0 12px;">ไม่บังคับ ใช้กรณีต้องจัดทำ TOR หรือแต่งตั้งคณะกรรมการกำหนดคุณลักษณะ</p>
-    {% set sroles = ["ประธานกรรมการ", "กรรมการ", "กรรมการและเลขานุการ"] %}
+    <h2 style="margin-top:24px;">ผู้จัดทำร่างขอบเขตของงาน/รายละเอียดคุณลักษณะเฉพาะ</h2>
+    <p class="muted" style="margin:-8px 0 10px;">ระเบียบกระทรวงการคลังฯ พ.ศ. 2560 <b>ข้อ 21</b>
+      กำหนดให้ต้องจัดทำก่อนรายงานขอซื้อขอจ้าง<b>ทุกครั้ง</b> โดยเลือกได้ว่าจะมอบหมายบุคคลใดบุคคลหนึ่ง
+      หรือแต่งตั้งเป็นคณะกรรมการ</p>
+    <div class="row">
+      <div style="max-width:360px;">
+        <label>รูปแบบ</label>
+        {% set cur_spec = spec_mode|default('single') %}
+        <select name="spec_mode" id="specMode">
+          <option value="single" {{ "selected" if cur_spec=="single" }}>มอบหมายบุคคลเดียว (ข้อ 21)</option>
+          <option value="committee" {{ "selected" if cur_spec=="committee" }}>แต่งตั้งคณะกรรมการ</option>
+        </select>
+        <span class="muted" id="specHint"></span>
+      </div>
+    </div>
+    {% set sroles = ["ผู้ได้รับมอบหมาย", "ประธานกรรมการ", "กรรมการ", "กรรมการและเลขานุการ"] %}
     <div class="table-wrap"><table id="specmembers">
       <thead><tr><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th style="width:190px;">บทบาท</th><th></th></tr></thead>
       <tbody>
@@ -264,7 +281,26 @@
         {% endif %}
       </tbody>
     </table></div>
-    <br><button type="button" class="btn soft sm" onclick="addSpecMember()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มกรรมการคุณลักษณะ</button>
+    <br><button type="button" class="btn soft sm" id="addSpecBtn" onclick="addSpecMember()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มกรรมการคุณลักษณะ</button>
+
+    <h2 style="margin-top:24px;">ข้อมูลสำหรับ TOR / รายละเอียดคุณลักษณะเฉพาะ</h2>
+    <p class="muted" style="margin:-8px 0 12px;">ใช้ในเอกสารขอบเขตของงาน (TOR) ข้อ 2 ข้อ 5 และข้อ 9 ·
+      เว้นไว้ก็ได้ ระบบใส่ค่าที่ใช้กันทั่วไปให้</p>
+    <div class="row">
+      <div style="flex:1; min-width:260px;"><label>วัตถุประสงค์ <span class="muted" style="font-size:13px;">(เว้นว่าง = ใช้เหตุผลความจำเป็น)</span></label>
+        <textarea name="objective" rows="2">{{ p.objective if is_edit else '' }}</textarea></div>
+    </div>
+    <div class="row">
+      <div><label>ยืนราคาไม่น้อยกว่า (วัน)</label>
+        <input name="quote_valid_days" type="number" min="1"
+               value="{{ p.quote_valid_days or 30 if is_edit else 30 }}"></div>
+      <div><label>รับประกันความชำรุดบกพร่อง</label>
+        <input name="warranty_text" value="{{ p.warranty_text or '1 ปี' if is_edit else '1 ปี' }}"
+               placeholder="เช่น 1 ปี"></div>
+      <div><label>ซ่อมแก้ไขภายใน (วัน) นับจากแจ้ง</label>
+        <input name="fix_days" type="number" min="1"
+               value="{{ p.fix_days or 7 if is_edit else 7 }}"></div>
+    </div>
 
     <h2 style="margin-top:24px;">คณะกรรมการซื้อ/จ้าง</h2>
     <p class="muted" style="margin:-8px 0 12px;">ไม่บังคับ · ถ้าไม่กรอก ถือว่าเจ้าหน้าที่พัสดุดำเนินการเอง (ปกติของวิธีเฉพาะเจาะจง) ·
@@ -372,6 +408,7 @@
     var tr = document.createElement('tr');
     tr.innerHTML =
       '<td><input name="item_name" list="catalog_dl" oninput="fillCat(this)"></td>' +
+      '<td><input name="item_spec" placeholder="เช่น ขนาด A4 80 แกรม"></td>' +
       '<td><input name="item_qty" type="number" step="any" value="1" oninput="calcTotal()"></td>' +
       '<td><input name="item_unit" value="ชิ้น"></td>' +
       '<td><input name="item_price" type="number" step="any" value="0" oninput="calcTotal()"></td>' +
@@ -576,5 +613,25 @@
       }
     }
   });
+</script>
+<script>
+  /* ข้อ 21 เลือกได้ 2 ทาง · มอบหมายคนเดียวไม่ต้องโชว์ปุ่มเพิ่มกรรมการ
+     และเหลือแถวเดียวพอ (ระบบตัดชื่อที่เกินออกตอนบันทึกอยู่แล้ว) */
+  (function(){
+    var sel = document.getElementById('specMode');
+    if(!sel) return;
+    function apply(){
+      var single = sel.value === 'single';
+      var btn = document.getElementById('addSpecBtn');
+      if(btn) btn.hidden = single;
+      document.getElementById('specHint').textContent = single
+        ? 'ออกบันทึกมอบหมาย 1 ใบ ไม่ต้องมีคำสั่งแต่งตั้ง'
+        : 'ออกบันทึกขออนุมัติ + คำสั่งแต่งตั้ง (ครุฑ)';
+      var rows = document.querySelectorAll('#specmembers tbody tr');
+      rows.forEach(function(tr, i){ tr.hidden = single && i > 0; });
+    }
+    sel.addEventListener('change', apply);
+    apply();
+  })();
 </script>
 {% endblock %}

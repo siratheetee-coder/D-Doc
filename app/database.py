@@ -35,6 +35,13 @@ Base = declarative_base()
 
 # รายการเพิ่มคอลัมน์ใหม่บน DB เก่า (ปลอดภัย: ข้ามถ้ามีอยู่แล้ว)
 MIGRATIONS = [
+    ("procurement_item", "spec", "TEXT DEFAULT ''"),
+    ("procurement", "objective", "TEXT DEFAULT ''"),
+    ("procurement", "quote_valid_days", "INTEGER DEFAULT 30"),
+    ("procurement", "warranty_text", "VARCHAR DEFAULT '1 ปี'"),
+    ("procurement", "fix_days", "INTEGER DEFAULT 7"),
+    ("school", "delegation_cmd_no", "VARCHAR DEFAULT ''"),
+    ("school", "delegation_cmd_date", "DATETIME"),
     ("field_trip", "schedule", "TEXT DEFAULT ''"),
     ("field_trip", "controller_name", "VARCHAR DEFAULT ''"),
     ("field_trip", "controller_pos", "VARCHAR DEFAULT ''"),

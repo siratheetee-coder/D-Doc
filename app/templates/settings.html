@@ -53,6 +53,11 @@
     </div>
     <div class="row">
       <div><label>อักษรนำเลขหนังสือ</label><input name="doc_prefix" value="{{ school.doc_prefix }}"></div>
+      <div><label>คำสั่ง สพฐ. มอบอำนาจจัดซื้อจัดจ้าง ที่ <span class="muted" style="font-size:13px;">(อ้างในคำสั่งแต่งตั้งคณะกรรมการ)</span></label>
+        <input name="delegation_cmd_no" value="{{ school.delegation_cmd_no or '' }}" placeholder="เช่น 1340/2566"></div>
+      <div><label>ลงวันที่ (คำสั่งมอบอำนาจ)</label>
+        <input name="delegation_cmd_date" data-date="1" placeholder="วว/ดด/ปปปป"
+               value="{{ be_date(school.delegation_cmd_date) if school.delegation_cmd_date else '' }}"></div>
       <div>
         <label>เกณฑ์วงเงินแบ่งชุดเอกสาร (บาท)</label>
         <input name="doc_set_threshold" type="number" step="any" value="{{ school.doc_set_threshold }}">
