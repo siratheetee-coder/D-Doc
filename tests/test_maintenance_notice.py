@@ -97,8 +97,32 @@ def test_card_is_tied_to_the_notice_id(env):
     c, ac = env
     nid = _notice(ac)
     html = c.get("/").text
-    assert f'data-mt="{nid}"' in html
+    assert f'data-mt="{nid}_' in html
     assert "ddoc_maint_" in html
+
+
+def test_card_is_visible_without_javascript(env):
+    """การ์ดต้องไม่มี hidden ติดมา ถ้า JS พังประกาศก็ยังต้องถึงผู้ใช้"""
+    c, ac = env
+    _notice(ac)
+    tag = c.get("/").text.split('id="maintCard"')[1][:80]
+    assert "hidden" not in tag, tag
+
+
+def test_dismiss_key_differs_after_a_deleted_notice_reuses_the_id(env):
+    """SQLite เอา id เดิมกลับมาใช้ซ้ำหลังลบแถว ประกาศใหม่ต้องไม่ถูกซ่อนตามของเก่า"""
+    import re
+    c, ac = env
+    nid = _notice(ac)
+    first = re.search(r'data-mt="([^"]+)"', c.get("/").text).group(1)
+    db = ac.acc_session()
+    db.delete(db.get(ac.MaintenanceNotice, nid))
+    db.commit()
+    db.close()
+    nid2 = _notice(ac, title="ประกาศฉบับใหม่")
+    second = re.search(r'data-mt="([^"]+)"', c.get("/").text).group(1)
+    assert nid2 == nid, "ทดสอบนี้ต้องให้ id ถูกใช้ซ้ำจริง"
+    assert first != second
 
 
 def test_only_the_newest_pending_notice_shows(env):

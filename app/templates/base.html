@@ -1132,7 +1132,7 @@
         {# ===== ประกาศแจ้งปิดปรับปรุงระบบ (ขึ้นทุกหน้า หายเองเมื่อพ้นกำหนด) ===== #}
         {% set _mt = maint_notice() %}
         {% if _mt %}
-        <div class="maint" id="maintCard" data-mt="{{ _mt.id }}" hidden>
+        <div class="maint" id="maintCard" data-mt="{{ _mt.key }}">
           <svg class="icon mt-ic"><use href="#ic-tool"/></svg>
           <div style="flex:1; min-width:240px;">
             <div class="mt-sub">ขออภัยในความไม่สะดวก</div>
@@ -1154,13 +1154,13 @@
           </div>
         </div>
         <script>
-          /* ซ่อนเฉพาะเครื่องนี้ เมื่อกดรับทราบ · ประกาศใหม่ (id ใหม่) จะขึ้นอีก */
+          /* การ์ดโชว์ไว้ก่อน (ถ้า JS พัง ประกาศก็ยังถึงผู้ใช้) · ซ่อนเฉพาะคนที่กดรับทราบ
+             คีย์ผูกเวลาที่สร้างประกาศ ประกาศฉบับใหม่จึงขึ้นใหม่เสมอ */
           (function(){
             var c = document.getElementById('maintCard');
             if(!c) return;
             var key = 'ddoc_maint_' + c.dataset.mt;
-            try { if(localStorage.getItem(key) !== '1') c.hidden = false; }
-            catch(e) { c.hidden = false; }
+            try { if(localStorage.getItem(key) === '1') c.hidden = true; } catch(e) {}
             window.maintAck = function(){
               try { localStorage.setItem(key, '1'); } catch(e) {}
               c.hidden = true;

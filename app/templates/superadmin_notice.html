@@ -42,6 +42,14 @@
       <div style="flex:1;"><label>ข้อความท้ายการ์ด</label>
         <input name="note" value="ข้อมูลของท่านยังอยู่ครบ ไม่ต้องดำเนินการใด ๆ"></div>
     </div>
+    <div class="row" style="align-items:center;">
+      <label style="display:flex; gap:9px; align-items:center; font-weight:600; cursor:pointer;">
+        <input type="checkbox" name="send_mail" value="1" {{ 'checked' if smtp_ok }}
+               {{ 'disabled' if not smtp_ok }} style="width:auto;">
+        ส่งอีเมลแจ้งไอดีหลัก {{ targets|length }} โรงเรียน พร้อมกับประกาศนี้
+        {% if not smtp_ok %}<span class="muted" style="font-weight:400;">(ยังตั้งค่า SMTP ไม่ได้)</span>{% endif %}
+      </label>
+    </div>
     <br>
     <button class="btn" type="submit"><svg class="icon"><use href="#ic-check"/></svg> ประกาศ</button>
   </form>
@@ -66,7 +74,10 @@
           {% if n.emailed_at %}<span class="pill done">ส่งแล้ว {{ n.email_count }}</span><br>
             <span class="muted" style="font-size:12.5px;">{{ thai_date(n.emailed_at) }}</span>
           {% else %}<span class="muted">ยังไม่ส่ง</span>{% endif %}</td>
-        <td>{% if n.active %}<span class="pill">แสดงอยู่</span>{% else %}<span class="muted">ปิดแล้ว</span>{% endif %}</td>
+        <td style="white-space:nowrap;">
+          {% if live[n.id] == 'on' %}<span class="pill done">กำลังขึ้นให้ผู้ใช้</span>
+          {% elif live[n.id] == 'done' %}<span class="muted">พ้นกำหนดแล้ว การ์ดหายเอง</span>
+          {% else %}<span class="muted">ปิดการ์ดไว้</span>{% endif %}</td>
         <td class="right" style="white-space:nowrap;">
           <form method="post" action="/admin-console/notice/{{ n.id }}/email" style="display:inline;">
             <button class="btn sm" {{ 'disabled' if not smtp_ok }}

@@ -668,9 +668,15 @@ def notice_page(request: Request, msg: str = "", err: str = ""):
         rows = (db.query(MaintenanceNotice)
                 .order_by(MaintenanceNotice.start_at.desc()).limit(20).all())
         targets, skipped = owner_emails(with_skipped=True)
+        # การ์ดขึ้นเมื่อ active และยังไม่พ้นเวลาสิ้นสุด (ตรรกะเดียวกับ accounts.active_notice)
+        from app.thai_utils import thai_now
+        now = thai_now().replace(tzinfo=None)
+        live = {n.id: ("on" if (n.active and n.end_at >= now)
+                       else "off" if not n.active else "done") for n in rows}
         return templates.TemplateResponse("superadmin_notice.html", {
             "request": request, "rows": rows, "msg": msg, "err": err,
             "targets": targets, "skipped": skipped, "smtp_ok": smtp_configured(),
+            "live": live,
             "admin_name": request.session.get("name", "ผู้ดูแลระบบ"),
         })
     finally:
@@ -681,8 +687,11 @@ def notice_page(request: Request, msg: str = "", err: str = ""):
 def notice_save(request: Request, title: str = Form("แจ้งปิดปรับปรุงระบบชั่วคราว"),
                 start_day: str = Form(""), start_time: str = Form("21:00"),
                 end_day: str = Form(""), end_time: str = Form("23:00"),
-                items: str = Form(""), note: str = Form("")):
-    from app.accounts import MaintenanceNotice
+                items: str = Form(""), note: str = Form(""),
+                send_mail: str = Form("")):
+    """ประกาศ = ขึ้นการ์ดทันที · ติ๊กส่งอีเมลไว้ ระบบส่งให้เลยในขั้นตอนเดียว"""
+    from app.accounts import MaintenanceNotice, owner_emails
+    from app.services.mailer import smtp_configured
     start = _parse_dt(start_day, start_time, 21, 0)
     end = _parse_dt(end_day or start_day, end_time, 23, 0)
     if not start or not end:
@@ -691,16 +700,29 @@ def notice_save(request: Request, title: str = Form("แจ้งปิดปร
     if end <= start:
         return RedirectResponse("/admin-console/notice?err=" + quote("เวลาสิ้นสุดต้องหลังเวลาเริ่ม"),
                                 status_code=303)
+    mail_txt = ""
     db = acc_session()
     try:
-        db.add(MaintenanceNotice(title=title.strip() or "แจ้งปิดปรับปรุงระบบชั่วคราว",
-                                 start_at=start, end_at=end, items=items.strip(),
-                                 note=note.strip(), active=True))
+        n = MaintenanceNotice(title=title.strip() or "แจ้งปิดปรับปรุงระบบชั่วคราว",
+                              start_at=start, end_at=end, items=items.strip(),
+                              note=note.strip(), active=True)
+        db.add(n)
         db.commit()
+        if send_mail:
+            if not smtp_configured():
+                mail_txt = " · ส่งอีเมลไม่ได้ ยังไม่ได้ตั้งค่า SMTP"
+            else:
+                from app.services.notice_mail import send_maintenance_mail
+                sent, failed = send_maintenance_mail(n, owner_emails())
+                n.emailed_at = datetime.now()
+                n.email_count = sent
+                db.commit()
+                mail_txt = f" · ส่งอีเมลแล้ว {sent} โรงเรียน" + (f" (ส่งไม่สำเร็จ {failed})" if failed else "")
     finally:
         db.close()
-    return RedirectResponse("/admin-console/notice?msg=" + quote("ประกาศแล้ว · การ์ดขึ้นให้ผู้ใช้ทุกโรงเรียนทันที"),
-                            status_code=303)
+    return RedirectResponse(
+        "/admin-console/notice?msg=" + quote("ประกาศแล้ว การ์ดขึ้นให้ผู้ใช้ทุกโรงเรียนทันที" + mail_txt),
+        status_code=303)
 
 
 @router.post("/admin-console/notice/{nid}/toggle")

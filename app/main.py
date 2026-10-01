@@ -17,7 +17,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse, PlainTextResponse
+from fastapi.responses import RedirectResponse, PlainTextResponse, JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from urllib.parse import quote
@@ -258,6 +259,59 @@ def _flush_usage_on_shutdown():
         flush()
     except Exception:
         pass
+
+
+# ===================== หน้าแจ้งข้อผิดพลาดแบบอ่านรู้เรื่อง =====================
+# ค่าเริ่มต้นของ FastAPI คือ {"detail":"Not Found"} ซึ่งผู้ใช้อ่านไม่เข้าใจ
+# เปลี่ยนเป็นหน้าเว็บภาษาไทยเมื่อเป็นการเปิดหน้าจากเบราว์เซอร์ · ส่วน fetch/JS
+# ยังได้ JSON เหมือนเดิม (ดูที่ Accept: เบราว์เซอร์ส่ง text/html มาด้วยเสมอ)
+_ERR_TEXT = {
+    400: ("ข้อมูลที่ส่งมาไม่ครบหรือไม่ถูกต้อง", "กลับไปตรวจข้อมูลที่กรอกอีกครั้ง แล้วลองใหม่"),
+    403: ("ไม่มีสิทธิ์เข้าหน้านี้", "บัญชีของท่านยังไม่ได้รับสิทธิ์ในงานนี้ · ติดต่อไอดีหลักของโรงเรียนให้เปิดสิทธิ์"),
+    404: ("ไม่พบหน้าที่เรียก", "หน้านี้อาจถูกย้าย ลบไปแล้ว หรือพิมพ์ที่อยู่ผิด · กลับหน้าแรกแล้วเข้าจากเมนูอีกครั้ง"),
+    413: ("ไฟล์ใหญ่เกินกำหนด", "ย่อไฟล์ให้เล็กลงแล้วอัปโหลดอีกครั้ง"),
+    429: ("ใช้งานถี่เกินไป", "พักสักครู่แล้วลองใหม่อีกครั้ง"),
+    500: ("ระบบขัดข้องชั่วคราว", "ข้อมูลที่บันทึกไว้ยังอยู่ครบ · ลองใหม่อีกครั้ง ถ้ายังไม่ได้โปรดแจ้งปัญหาให้ทีมงานตรวจสอบ"),
+}
+
+
+def _wants_html(request: Request) -> bool:
+    return "text/html" in (request.headers.get("accept") or "")
+
+
+def _error_page(request: Request, status: int, detail: str = ""):
+    head, body = _ERR_TEXT.get(status, ("เกิดข้อผิดพลาด", "ลองใหม่อีกครั้ง หรือแจ้งปัญหาให้ทีมงานตรวจสอบ"))
+    # ข้อความจาก HTTPException ของเราเองเป็นภาษาไทยอยู่แล้ว ใช้แทนคำอธิบายกลาง
+    if detail and detail not in ("Not Found", "Forbidden", "Internal Server Error", "Method Not Allowed"):
+        body = detail
+    try:
+        return templates.TemplateResponse("error.html", {
+            "request": request, "head": head, "body": body, "code": status}, status_code=status)
+    except Exception:       # เรนเดอร์ base.html ไม่ได้ (เช่น ยังไม่มี session) -> หน้าเปล่าแบบง่าย
+        from fastapi.responses import HTMLResponse
+        return HTMLResponse(
+            f'<!doctype html><html lang="th"><meta charset="utf-8">'
+            f'<title>{head}</title><body style="font-family:sans-serif; padding:40px; text-align:center;">'
+            f'<h2>{head}</h2><p>{body}</p><p><a href="/">กลับหน้าแรก</a></p></body></html>',
+            status_code=status)
+
+
+@app.exception_handler(StarletteHTTPException)
+def _http_error(request: Request, exc: StarletteHTTPException):
+    if not _wants_html(request):
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code,
+                            headers=getattr(exc, "headers", None))
+    if exc.status_code in (301, 302, 303, 307, 308):
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+    return _error_page(request, exc.status_code, str(exc.detail or ""))
+
+
+@app.exception_handler(Exception)
+def _unhandled_error(request: Request, exc: Exception):
+    print("[error]", request.method, request.url.path, repr(exc))
+    if not _wants_html(request):
+        return JSONResponse({"detail": "Internal Server Error"}, status_code=500)
+    return _error_page(request, 500)
 
 
 @app.api_route("/healthz", methods=["GET", "HEAD"])

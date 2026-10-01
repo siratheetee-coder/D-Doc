@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ head }}{% endblock %}
+{% block content %}
+<div class="card" style="text-align:center; padding:40px 24px;">
+  <svg class="icon" style="width:54px; height:54px; color:#d97706;"><use href="#ic-alert"/></svg>
+  <h2 style="margin:14px 0 6px; font-size:24px;">{{ head }}</h2>
+  <p class="muted" style="margin:0 auto; max-width:520px;">{{ body }}</p>
+  {% if code %}<p class="muted" style="font-size:12.5px; margin-top:10px;">รหัสอ้างอิง {{ code }}</p>{% endif %}
+  <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:20px;">
+    <a class="btn" href="/"><svg class="icon"><use href="#ic-home"/></svg> กลับหน้าแรก</a>
+    <a class="btn gray" href="javascript:history.back()">ย้อนกลับ</a>
+    <a class="btn gray" href="/support">แจ้งปัญหา</a>
+  </div>
+</div>
+{% endblock %}

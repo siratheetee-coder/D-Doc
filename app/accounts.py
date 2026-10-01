@@ -2098,9 +2098,14 @@ def active_notice():
         if not n:
             return None
         # ตั้งชื่อ lines ไม่ใช่ items เพราะ Jinja เรียก dict.items เป็นเมธอดของ dict
-        return {"id": n.id, "title": n.title, "start_at": n.start_at, "end_at": n.end_at,
+        # key = คีย์จำว่า "กดรับทราบแล้ว" ต้องผูกเวลาที่สร้างด้วย เพราะ SQLite เอา id เดิม
+        # กลับมาใช้ซ้ำหลังลบแถว ถ้าใช้แค่ id ประกาศใหม่จะถูกซ่อนตามของเก่าที่เคยกดรับทราบ
+        stamp = int((n.created_at or n.start_at).timestamp() * 1_000_000)
+        return {"id": n.id, "key": f"{n.id}_{stamp}", "title": n.title,
+                "start_at": n.start_at, "end_at": n.end_at,
                 "lines": n.lines(), "note": n.note}
-    except Exception:
+    except Exception as e:      # noqa: BLE001
+        print("[notice] อ่านประกาศไม่สำเร็จ:", e)
         return None
     finally:
         db.close()

@@ -176,7 +176,7 @@
 
     <div class="card">
       <h2>โรงเรียนทั้งหมด ({{ rows|length }})</h2>
-      <input class="find" id="findBox" placeholder="🔍 ค้นหา ชื่อโรงเรียน / slug / ผู้ใช้...">
+      <input class="find" id="findBox" placeholder="🔍 ค้นหา ชื่อโรงเรียน / ชื่อย่อ / ไอดีผู้ใช้...">
       {% for r in rows %}
       <div class="t-card trow" data-find="{{ r.t.name }} {{ r.t.slug }} {% for u in r.users %}{{ u.username }} {% endfor %}">
         <div class="t-head">
