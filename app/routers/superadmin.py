@@ -6,6 +6,7 @@ superadmin.py - คอนโซลผู้ดูแลระบบ (ผู้�
 """
 import re
 from pathlib import Path
+from urllib.parse import quote
 from datetime import date
 
 from fastapi import APIRouter, Request, Form, Depends, HTTPException, UploadFile, File
@@ -637,3 +638,114 @@ def usage_page(request: Request, day: str | None = None, days: int = 7):
         })
     finally:
         db.close()
+
+
+# ---------------- ประกาศแจ้งปิดปรับปรุงระบบ (เจ้าของระบบเท่านั้น) ----------------
+def _parse_dt(day: str, time_: str, default_h=21, default_m=0):
+    """วว/ดด/ปปปป (พ.ศ.) + HH:MM -> datetime · คืน None ถ้ากรอกไม่ครบ"""
+    from app.thai_utils import parse_be_date
+    d = parse_be_date((day or "").strip())
+    if not d:
+        return None
+    hh, mm = default_h, default_m
+    t = (time_ or "").strip().replace(".", ":")
+    if ":" in t:
+        a, _, b = t.partition(":")
+        if a.isdigit():
+            hh = max(0, min(23, int(a)))
+        if b.isdigit():
+            mm = max(0, min(59, int(b)))
+    return datetime(d.year, d.month, d.day, hh, mm)
+
+
+@router.get("/admin-console/notice", response_class=HTMLResponse)
+def notice_page(request: Request, msg: str = "", err: str = ""):
+    """เขียนประกาศแจ้งปิดปรับปรุงระบบ -> ขึ้นการ์ดให้ผู้ใช้ทุกโรงเรียน + ส่งอีเมลแจ้งไอดีหลัก"""
+    from app.accounts import MaintenanceNotice, owner_emails
+    from app.services.mailer import smtp_configured
+    db = acc_session()
+    try:
+        rows = (db.query(MaintenanceNotice)
+                .order_by(MaintenanceNotice.start_at.desc()).limit(20).all())
+        targets, skipped = owner_emails(with_skipped=True)
+        return templates.TemplateResponse("superadmin_notice.html", {
+            "request": request, "rows": rows, "msg": msg, "err": err,
+            "targets": targets, "skipped": skipped, "smtp_ok": smtp_configured(),
+            "admin_name": request.session.get("name", "ผู้ดูแลระบบ"),
+        })
+    finally:
+        db.close()
+
+
+@router.post("/admin-console/notice")
+def notice_save(request: Request, title: str = Form("แจ้งปิดปรับปรุงระบบชั่วคราว"),
+                start_day: str = Form(""), start_time: str = Form("21:00"),
+                end_day: str = Form(""), end_time: str = Form("23:00"),
+                items: str = Form(""), note: str = Form("")):
+    from app.accounts import MaintenanceNotice
+    start = _parse_dt(start_day, start_time, 21, 0)
+    end = _parse_dt(end_day or start_day, end_time, 23, 0)
+    if not start or not end:
+        return RedirectResponse("/admin-console/notice?err=" + quote("กรอกวันที่ให้ครบ"),
+                                status_code=303)
+    if end <= start:
+        return RedirectResponse("/admin-console/notice?err=" + quote("เวลาสิ้นสุดต้องหลังเวลาเริ่ม"),
+                                status_code=303)
+    db = acc_session()
+    try:
+        db.add(MaintenanceNotice(title=title.strip() or "แจ้งปิดปรับปรุงระบบชั่วคราว",
+                                 start_at=start, end_at=end, items=items.strip(),
+                                 note=note.strip(), active=True))
+        db.commit()
+    finally:
+        db.close()
+    return RedirectResponse("/admin-console/notice?msg=" + quote("ประกาศแล้ว · การ์ดขึ้นให้ผู้ใช้ทุกโรงเรียนทันที"),
+                            status_code=303)
+
+
+@router.post("/admin-console/notice/{nid}/toggle")
+def notice_toggle(nid: int):
+    from app.accounts import MaintenanceNotice
+    db = acc_session()
+    try:
+        n = db.get(MaintenanceNotice, nid)
+        if n:
+            n.active = not n.active
+            db.commit()
+    finally:
+        db.close()
+    return RedirectResponse("/admin-console/notice", status_code=303)
+
+
+@router.post("/admin-console/notice/{nid}/delete")
+def notice_delete(nid: int):
+    from app.accounts import MaintenanceNotice
+    db = acc_session()
+    try:
+        n = db.get(MaintenanceNotice, nid)
+        if n:
+            db.delete(n)
+            db.commit()
+    finally:
+        db.close()
+    return RedirectResponse("/admin-console/notice", status_code=303)
+
+
+@router.post("/admin-console/notice/{nid}/email")
+def notice_email(nid: int):
+    """ส่งอีเมลแจ้งไปที่ไอดีหลักของทุกโรงเรียน (กดซ้ำได้ ระบบนับครั้งล่าสุดให้)"""
+    from app.accounts import MaintenanceNotice, owner_emails
+    from app.services.notice_mail import send_maintenance_mail
+    db = acc_session()
+    try:
+        n = db.get(MaintenanceNotice, nid)
+        if not n:
+            return RedirectResponse("/admin-console/notice", status_code=303)
+        sent, failed = send_maintenance_mail(n, owner_emails())
+        n.emailed_at = datetime.now()
+        n.email_count = sent
+        db.commit()
+    finally:
+        db.close()
+    txt = f"ส่งอีเมลแล้ว {sent} โรงเรียน" + (f" · ส่งไม่สำเร็จ {failed}" if failed else "")
+    return RedirectResponse("/admin-console/notice?msg=" + quote(txt), status_code=303)

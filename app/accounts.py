@@ -159,6 +159,29 @@ class AuditLog(AccBase):
     ip = Column(String, default="")
 
 
+class MaintenanceNotice(AccBase):
+    """ประกาศแจ้งปิดปรับปรุงระบบ - โชว์เป็นการ์ดให้ผู้ใช้ทุกโรงเรียน + ส่งอีเมลแจ้งไอดีหลัก
+
+    เก็บที่ accounts.db เพราะเป็นประกาศระดับระบบ ไม่ใช่ของโรงเรียนใดโรงเรียนหนึ่ง
+    การ์ดจะขึ้นเองตั้งแต่ตอนประกาศจนถึง end_at แล้วหายไปเอง (ไม่ต้องตามปิด)
+    """
+    __tablename__ = "maintenance_notice"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String, default="แจ้งปิดปรับปรุงระบบชั่วคราว")
+    start_at = Column(DateTime, nullable=False)     # เริ่มปิดปรับปรุง
+    end_at = Column(DateTime, nullable=False)       # คาดว่าเสร็จ (การ์ดหายเองหลังเวลานี้)
+    items = Column(Text, default="")                # สิ่งที่จะปรับปรุง บรรทัดละข้อ
+    note = Column(String, default="")               # ข้อความท้ายการ์ด (เช่น ข้อมูลอยู่ครบ)
+    active = Column(Boolean, default=True)
+    emailed_at = Column(DateTime, nullable=True)    # ส่งอีเมลแจ้งแล้วเมื่อไหร่
+    email_count = Column(Integer, default=0)        # ส่งถึงกี่โรงเรียน
+    created_at = Column(DateTime, default=datetime.now)
+
+    def lines(self) -> list:
+        return [x.strip() for x in (self.items or "").splitlines() if x.strip()]
+
+
 class UsageDay(AccBase):
     """สรุปการใช้งาน 1 บัญชี ต่อ 1 วัน (ดูรายละเอียดที่ app/usage.py)
 
@@ -2060,3 +2083,51 @@ def _migrate_legacy_db():
         print(f"[Easy Ekkasan] ย้ายข้อมูลเดิมเป็นโรงเรียน '{name}' (id={tid})")
     ensure_school_db(tid)
     print(f"[Easy Ekkasan] โรงเรียนแรก: ผู้ใช้ school / school123  (โปรดเปลี่ยนรหัสผ่าน)")
+
+
+# ===================== ประกาศแจ้งปิดปรับปรุงระบบ =====================
+def active_notice():
+    """ประกาศที่ยังไม่พ้นกำหนด (ล่าสุดอันเดียว) · คืน dict ให้เทมเพลตใช้ หรือ None"""
+    from app.thai_utils import thai_now
+    db = acc_session()
+    try:
+        now = thai_now().replace(tzinfo=None)
+        n = (db.query(MaintenanceNotice)
+             .filter(MaintenanceNotice.active.is_(True), MaintenanceNotice.end_at >= now)
+             .order_by(MaintenanceNotice.start_at).first())
+        if not n:
+            return None
+        # ตั้งชื่อ lines ไม่ใช่ items เพราะ Jinja เรียก dict.items เป็นเมธอดของ dict
+        return {"id": n.id, "title": n.title, "start_at": n.start_at, "end_at": n.end_at,
+                "lines": n.lines(), "note": n.note}
+    except Exception:
+        return None
+    finally:
+        db.close()
+
+
+def owner_emails(with_skipped: bool = False):
+    """อีเมลไอดีหลักของทุกโรงเรียนที่ยังใช้งานอยู่ (ไม่ส่งซ้ำอีเมลเดียวกัน)
+
+    ไอดีล็อกอินของบัญชีที่สมัครเองคืออีเมล · บัญชีที่แอดมินตั้งให้อาจเป็นชื่อธรรมดา
+    ซึ่งส่งอีเมลไม่ได้ จึงข้ามไว้ · with_skipped=True คืน (รายชื่อ, ที่ส่งไม่ได้) ด้วย
+    """
+    db = acc_session()
+    try:
+        rows = (db.query(Account.username, Tenant.name)
+                .join(Tenant, Account.tenant_id == Tenant.id)
+                .filter(Account.is_owner.is_(True), Account.active.is_(True),
+                        Tenant.active.is_(True)).all())
+        out, seen, skipped = [], set(), []
+        for username, school in rows:
+            addr = (username or "").strip()      # ไอดีล็อกอิน = อีเมลที่สมัครไว้
+            if "@" not in addr:
+                skipped.append(school or addr)
+                continue
+            if addr.lower() in seen:
+                continue
+            seen.add(addr.lower())
+            out.append({"email": addr, "school": school or ""})
+        return (out, skipped) if with_skipped else out
+    finally:
+        db.close()

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}ประกาศแจ้งปิดปรับปรุงระบบ{% endblock %}
+{% block content %}
+<div class="hero" style="background:linear-gradient(120deg,#b45309,#d97706 55%,#f59e0b); box-shadow:0 10px 26px rgba(217,119,6,.28);">
+  <div>
+    <div class="hero-sub">แจ้งผู้ใช้ทุกโรงเรียน · ขึ้นการ์ดบนเว็บ + ส่งอีเมลถึงไอดีหลัก</div>
+    <span class="hero-title">ประกาศแจ้งปิดปรับปรุงระบบ</span>
+    <div class="hero-meta">ไอดีหลักที่จะได้รับอีเมล {{ targets|length }} โรงเรียน{% if skipped %}
+      · ส่งไม่ได้ {{ skipped|length }} (ไอดีไม่ใช่อีเมล){% endif %}</div>
+  </div>
+  <a class="btn gray" href="/admin-console"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับคอนโซล</a>
+</div>
+
+{% if msg %}<div class="alert"><svg class="icon"><use href="#ic-check"/></svg><span>{{ msg }}</span></div>{% endif %}
+{% if err %}<div class="alert danger"><svg class="icon"><use href="#ic-alert"/></svg><span>{{ err }}</span></div>{% endif %}
+{% if not smtp_ok %}
+<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
+  <span>ยังไม่ได้ตั้งค่า SMTP — ประกาศขึ้นการ์ดบนเว็บได้ แต่ส่งอีเมลไม่ได้</span></div>
+{% endif %}
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-tool"/></svg> เขียนประกาศใหม่</h2>
+  <p class="muted" style="margin-top:0;">การ์ดจะขึ้นให้ผู้ใช้ทุกโรงเรียนทันทีที่ประกาศ และ<b>หายไปเองเมื่อพ้นเวลาสิ้นสุด</b> ไม่ต้องตามปิด</p>
+  <form method="post" action="/admin-console/notice">
+    <div class="row">
+      <div style="flex:2;"><label>หัวข้อ</label>
+        <input name="title" value="แจ้งปิดปรับปรุงระบบชั่วคราว" required></div>
+    </div>
+    <div class="row">
+      <div><label>วันที่เริ่ม *</label>
+        <input name="start_day" placeholder="วว/ดด/ปปปป" data-date="1" required></div>
+      <div><label>เวลาเริ่ม</label><input name="start_time" value="21:00" placeholder="21:00"></div>
+      <div><label>วันที่สิ้นสุด <span class="muted" style="font-size:13px;">(ว่าง = วันเดียวกัน)</span></label>
+        <input name="end_day" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>เวลาสิ้นสุด</label><input name="end_time" value="23:00" placeholder="23:00"></div>
+    </div>
+    <div class="row">
+      <div style="flex:1;"><label>สิ่งที่จะปรับปรุง <span class="muted" style="font-size:13px;">(บรรทัดละข้อ)</span></label>
+        <textarea name="items" rows="4" placeholder="แก้ปัญหาออกเอกสาร ปพ.5 ไม่ได้ในชั้นเรียนที่มีนักเรียนจำนวนมาก&#10;เพิ่มทะเบียนคุมโครงการ ผูกกับเงินที่จ่ายจริงในงานการเงิน"></textarea></div>
+    </div>
+    <div class="row">
+      <div style="flex:1;"><label>ข้อความท้ายการ์ด</label>
+        <input name="note" value="ข้อมูลของท่านยังอยู่ครบ ไม่ต้องดำเนินการใด ๆ"></div>
+    </div>
+    <br>
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-check"/></svg> ประกาศ</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>ประกาศที่ผ่านมา</h2>
+  {% if rows %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>หัวข้อ</th><th>ช่วงเวลา</th><th>รายการ</th><th>อีเมล</th><th>สถานะ</th><th></th></tr></thead>
+    <tbody>
+      {% for n in rows %}
+      <tr>
+        <td><b>{{ n.title }}</b></td>
+        <td style="white-space:nowrap;">{{ thai_date(n.start_at) }}<br>
+          <span class="muted">{{ "%02d:%02d"|format(n.start_at.hour, n.start_at.minute) }}
+            – {{ "%02d:%02d"|format(n.end_at.hour, n.end_at.minute) }} น.</span></td>
+        <td>{% if n.lines() %}<ul style="margin:0; padding-left:18px;">
+            {% for it in n.lines() %}<li style="font-size:13.5px;">{{ it }}</li>{% endfor %}</ul>
+          {% else %}<span class="muted">-</span>{% endif %}</td>
+        <td style="white-space:nowrap;">
+          {% if n.emailed_at %}<span class="pill done">ส่งแล้ว {{ n.email_count }}</span><br>
+            <span class="muted" style="font-size:12.5px;">{{ thai_date(n.emailed_at) }}</span>
+          {% else %}<span class="muted">ยังไม่ส่ง</span>{% endif %}</td>
+        <td>{% if n.active %}<span class="pill">แสดงอยู่</span>{% else %}<span class="muted">ปิดแล้ว</span>{% endif %}</td>
+        <td class="right" style="white-space:nowrap;">
+          <form method="post" action="/admin-console/notice/{{ n.id }}/email" style="display:inline;">
+            <button class="btn sm" {{ 'disabled' if not smtp_ok }}
+                    onclick="return confirm('ส่งอีเมลแจ้งถึงไอดีหลัก {{ targets|length }} โรงเรียน?')">
+              <svg class="icon"><use href="#ic-send"/></svg> ส่งอีเมล</button>
+          </form>
+          <form method="post" action="/admin-console/notice/{{ n.id }}/toggle" style="display:inline;">
+            <button class="btn sm gray">{{ 'ปิดการ์ด' if n.active else 'เปิดการ์ด' }}</button>
+          </form>
+          <form method="post" action="/admin-console/notice/{{ n.id }}/delete" style="display:inline;"
+                onsubmit="return confirm('ลบประกาศนี้?')">
+            <button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="muted">ยังไม่เคยประกาศ</p>{% endif %}
+</div>
+{% endblock %}

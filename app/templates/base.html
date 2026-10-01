@@ -423,6 +423,26 @@
     }
     .alert.danger > .icon { background: #ef4444; color: #fff; }
     .alert.danger b { color: #991b1b; }
+    /* ===== การ์ดแจ้งปิดปรับปรุงระบบ (ขึ้นทุกหน้า) ===== */
+    .maint {
+      display: flex; gap: 16px; align-items: flex-start; color: #fff;
+      border-radius: 16px; padding: 20px 24px; margin-bottom: 20px;
+      background: linear-gradient(120deg, #b45309, #d97706 55%, #f59e0b);
+      box-shadow: 0 10px 26px rgba(217,119,6,.28);
+    }
+    .maint .mt-ic { width: 44px; height: 44px; flex: none; padding: 10px;
+      border-radius: 13px; background: rgba(255,255,255,.22); }
+    .maint .mt-sub { font-size: 13.5px; opacity: .92; }
+    .maint h3 { margin: 1px 0 8px; font-size: 21px; font-weight: 700; }
+    .maint .mt-when { display: inline-flex; gap: 8px; align-items: center; font-weight: 700;
+      background: rgba(255,255,255,.18); border-radius: 999px; padding: 5px 14px; font-size: 15px; }
+    .maint ul { margin: 12px 0 0; padding-left: 18px; }
+    .maint li { margin: 3px 0; opacity: .95; }
+    .maint .mt-act { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .maint .mt-act .btn { background: #fff; color: #b45309; box-shadow: none; }
+    .maint .mt-note { font-size: 13.5px; opacity: .92; }
+    @media (max-width: 600px) { .maint { padding: 16px 18px; } .maint h3 { font-size: 19px; } }
+
     /* ===== Toast แจ้งเตือนเด้งจากบน แล้วหายเอง ===== */
     .toast-wrap { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 4000;
       display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
@@ -684,6 +704,7 @@
     <symbol id="ic-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
     <symbol id="ic-clipboard" viewBox="0 0 24 24"><path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1z"/><path d="M8 6H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2"/><path d="M8 12h8M8 16h6"/></symbol>
     <symbol id="ic-coins" viewBox="0 0 24 24"><ellipse cx="9" cy="6" rx="6" ry="3"/><path d="M3 6v6c0 1.7 2.7 3 6 3s6-1.3 6-3V6"/><path d="M3 12v6c0 1.7 2.7 3 6 3 1.3 0 2.5-.2 3.5-.6"/><circle cx="17" cy="15" r="4"/></symbol>
+    <symbol id="ic-tool" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 1 5 5l-9 9a2.1 2.1 0 1 1-3-3l9-9"/><path d="M9 12 3.5 6.5a2.1 2.1 0 0 1 3-3L12 9"/></symbol>
     <symbol id="ic-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
     <symbol id="ic-food" viewBox="0 0 24 24"><path d="M3 2v7a3 3 0 0 0 3 3v10M6 2v6M9 2v6M9 2v7a3 3 0 0 1-3 3"/><path d="M18 2c-1.7 0-3 2-3 5s1.3 5 3 5v10"/></symbol>
     <symbol id="ic-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 1 2-2h13"/><path d="M9 3v12"/></symbol>
@@ -1106,6 +1127,45 @@
           <svg class="icon" style="width:17px;height:17px;flex:none;"><use href="#ic-info"/></svg>
           <span>โหมดผู้อำนวยการ · เข้าดูได้อย่างเดียว (แก้ไข/สร้าง/ลบไม่ได้) — หน้าที่แก้ไขได้คือ กล่องรออนุมัติ และ งานนิเทศ</span>
         </div>
+        {% endif %}
+        {# ===== ประกาศแจ้งปิดปรับปรุงระบบ (ขึ้นทุกหน้า หายเองเมื่อพ้นกำหนด) ===== #}
+        {% set _mt = maint_notice() %}
+        {% if _mt %}
+        <div class="maint" id="maintCard" data-mt="{{ _mt.id }}" hidden>
+          <svg class="icon mt-ic"><use href="#ic-tool"/></svg>
+          <div style="flex:1; min-width:240px;">
+            <div class="mt-sub">ขออภัยในความไม่สะดวก</div>
+            <h3>{{ _mt.title }}</h3>
+            <div class="mt-when">
+              <svg class="icon" style="width:18px;height:18px;"><use href="#ic-clock"/></svg>
+              {{ thai_date(_mt.start_at) }} เวลา {{ "%02d:%02d"|format(_mt.start_at.hour, _mt.start_at.minute) }}
+              – {{ "%02d:%02d"|format(_mt.end_at.hour, _mt.end_at.minute) }} น.
+              {%- if _mt.end_at.date() != _mt.start_at.date() %} ({{ thai_date(_mt.end_at) }}){% endif %}
+            </div>
+            {% if _mt.lines %}
+            <ul>{% for it in _mt.lines %}<li>{{ it }}</li>{% endfor %}</ul>
+            {% endif %}
+            <div class="mt-act">
+              <button type="button" class="btn" onclick="maintAck()">
+                <svg class="icon"><use href="#ic-check"/></svg> รับทราบ</button>
+              {% if _mt.note %}<span class="mt-note">{{ _mt.note }}</span>{% endif %}
+            </div>
+          </div>
+        </div>
+        <script>
+          /* ซ่อนเฉพาะเครื่องนี้ เมื่อกดรับทราบ · ประกาศใหม่ (id ใหม่) จะขึ้นอีก */
+          (function(){
+            var c = document.getElementById('maintCard');
+            if(!c) return;
+            var key = 'ddoc_maint_' + c.dataset.mt;
+            try { if(localStorage.getItem(key) !== '1') c.hidden = false; }
+            catch(e) { c.hidden = false; }
+            window.maintAck = function(){
+              try { localStorage.setItem(key, '1'); } catch(e) {}
+              c.hidden = true;
+            };
+          })();
+        </script>
         {% endif %}
         {% block content %}{% endblock %}
       </main>

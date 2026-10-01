@@ -81,6 +81,7 @@ templates.env.globals.update(
     trial_days=TRIAL_DAYS,
     thai_date=thai_date, bahttext=bahttext, be_date=be_date_input,
     nav_alerts=nav_alerts, nav_holidays=nav_holidays, my_notices=my_notices,
+    maint_notice=lambda: __import__("app.accounts", fromlist=["x"]).active_notice(),
     accum_dep=accumulated_depreciation, nbv=net_book_value,
     annual_dep=annual_depreciation, mat_balance=material_balance,
     acct_balance=account_balance, acct_balance_year=account_balance_year,
