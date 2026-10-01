@@ -40,7 +40,7 @@ def build_html(notice, school: str = "") -> str:
                   f"<ul style='padding-left:18px;margin:8px 0'>{items}</ul>" if items else "")
     hello = f"เรียน ผู้ดูแลระบบ{(' ' + school) if school else ''}"
     note = (f"<p style='margin:14px 0 0'>{_esc(notice.note)}</p>" if notice.note else "")
-    return f"""<div style="font-family:'Segoe UI',Tahoma,sans-serif;max-width:640px;margin:0 auto;
+    return f"""<div style="font-family:'Prompt','Sarabun','Leelawadee UI','Segoe UI',Tahoma,sans-serif;max-width:640px;margin:0 auto;
      border:1px solid #eceef3;border-radius:12px;overflow:hidden">
   <div style="background:{k['grad']};color:#fff;padding:18px 22px">
     <div style="font-size:13.5px;opacity:.92">Easy Ekkasan · {_esc(k['label'])}</div>

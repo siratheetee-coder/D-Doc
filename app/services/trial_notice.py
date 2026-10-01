@@ -75,7 +75,7 @@ def build_email(school: str, stage: int, end: date, days_left: int, base_url: st
         body = (f"<p>ช่วงทดลองใช้ของ <b>{school_h}</b> สิ้นสุดเมื่อวันที่ {end_th}</p>"
                 "<p><b>ข้อมูลและเอกสารทั้งหมดยังเก็บไว้ครบ</b> สมัครสมาชิกแล้วเข้าใช้งานต่อจากเดิมได้ทันที</p>")
     html = f"""
-    <div style="font-family:sans-serif; max-width:520px; margin:0 auto;">
+    <div style="font-family:'Prompt','Sarabun','Leelawadee UI','Segoe UI',Tahoma,sans-serif; max-width:520px; margin:0 auto;">
       <h2 style="color:#2563eb;">{head}</h2>
       {body}
       <p style="text-align:center; margin:26px 0;">

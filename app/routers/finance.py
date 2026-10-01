@@ -1336,7 +1336,9 @@ def _quarter_rows(db, fy, quarter):
     rows = []
     tot = {"opening": 0.0, "income": 0.0, "expense": 0.0, "balance": 0.0}
     for acc in _fin_accounts(db):
-        opening = float(acc.opening_balance or 0)
+        # ต้องใช้ opening_for ไม่ใช่ acc.opening_balance ไม่งั้นปีที่ยกยอดมา
+        # จะกลับไปใช้ยอดตั้งต้นตอนสร้างบัญชี (ยอดยกมาที่ยกไว้หายทั้งก้อน)
+        opening = opening_for(acc, fy)
         inc = exp = 0.0
         for t in db.query(FinanceTxn).filter_by(account_id=acc.id, fiscal_year=fy).all():
             mth = t.date.month if t.date else 0

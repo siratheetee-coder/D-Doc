@@ -140,7 +140,7 @@ def send_verify_email(to: str, link: str) -> bool:
     from app.seller_config import SELLER
     brand = SELLER.get("name") or "Easy Ekkasan"
     html = f"""
-    <div style="font-family:sans-serif; max-width:520px; margin:0 auto;">
+    <div style="font-family:'Prompt','Sarabun','Leelawadee UI','Segoe UI',Tahoma,sans-serif; max-width:520px; margin:0 auto;">
       <h2 style="color:#2563eb;">ยืนยันอีเมลเพื่อเริ่มใช้งาน Easy Ekkasan</h2>
       <p>ขอบคุณที่ลงทะเบียน กรุณากดปุ่มด้านล่างเพื่อยืนยันอีเมลและเปิดใช้งานบัญชี (ทดลองใช้ฟรี)</p>
       <p style="text-align:center; margin:26px 0;">
@@ -157,7 +157,7 @@ def send_reset_email(to: str, link: str) -> bool:
     from app.seller_config import SELLER
     brand = SELLER.get("name") or "Easy Ekkasan"
     html = f"""
-    <div style="font-family:sans-serif; max-width:520px; margin:0 auto;">
+    <div style="font-family:'Prompt','Sarabun','Leelawadee UI','Segoe UI',Tahoma,sans-serif; max-width:520px; margin:0 auto;">
       <h2 style="color:#2563eb;">รีเซ็ตรหัสผ่าน Easy Ekkasan</h2>
       <p>เราได้รับคำขอรีเซ็ตรหัสผ่านสำหรับบัญชีนี้ กดปุ่มด้านล่างเพื่อตั้งรหัสผ่านใหม่ (ลิงก์มีอายุ 1 ชั่วโมง)</p>
       <p style="text-align:center; margin:26px 0;">
@@ -198,7 +198,7 @@ def send_order_notice(kind: str, *, school: str, contact: str = "", email: str =
         f'<td style="padding:4px 10px;font-weight:600;">{escape(str(v or "-"))}</td></tr>'
         for k, v in rows)
     html = f"""
-    <div style="font-family:sans-serif; max-width:560px; margin:0 auto;">
+    <div style="font-family:'Prompt','Sarabun','Leelawadee UI','Segoe UI',Tahoma,sans-serif; max-width:560px; margin:0 auto;">
       <h2 style="color:#2563eb;">มี{label}ใหม่</h2>
       <table style="border-collapse:collapse; font-size:15px; width:100%;">{tr}</table>
       <p style="text-align:center; margin:24px 0;">
