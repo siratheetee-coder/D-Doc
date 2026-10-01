@@ -128,7 +128,7 @@
   {% if d.missing %}
   <div class="alert warn" style="margin:0 0 14px;">
     <svg class="icon"><use href="#ic-alert"/></svg>
-    <span><b>ยังไม่ได้ระบุหมวดอีก {{ d.missing|length }} รายการ</b> ยอดพวกนี้จะยังไม่ขึ้นในตารางไขว้
+    <span><b>ยังต้องระบุหมวดอีก {{ d.missing|length }} รายการ</b> ยอดพวกนี้จะยังไม่ขึ้นในตารางไขว้
       <a href="/finance/ebudget/fill?year={{ fiscal_year }}&round={{ round }}"
          class="btn sm" style="margin-left:8px;">ไปเติมหมวด</a></span>
   </div>

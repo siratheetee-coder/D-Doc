@@ -342,7 +342,7 @@ def test_fill_page_pre_guesses_and_saves(env):
     from app.tenancy import session_for
     c, tid = env
     html = c.get(f"/finance/ebudget/fill?year={FY}&round=2").text
-    assert "เติมหมวด e-Budget" in html and "ระบบเดาหมวดให้ไว้แล้ว" in html
+    assert "เติมหมวด e-Budget" in html and "ระบบเลือกหมวดให้ไว้แล้ว" in html
     db = session_for(tid)
     t = (db.query(FinanceTxn).filter_by(kind="out")
          .filter(FinanceTxn.note.like("%ค่าตกแต่ง%")).first())
@@ -380,4 +380,4 @@ def test_missing_codes_are_flagged_on_the_report(env):
     d = _build(tid, 2)
     assert d["missing"], "ยังไม่ระบุหมวด ต้องขึ้นเตือน"
     html = c.get(f"/finance/ebudget?year={FY}&round=2").text
-    assert "ยังไม่ได้ระบุหมวด" in html and "/finance/ebudget/fill" in html
+    assert "ยังต้องระบุหมวด" in html and "/finance/ebudget/fill" in html

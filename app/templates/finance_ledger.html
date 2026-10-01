@@ -168,7 +168,7 @@
          ไว้ใช้ตอนรายงาน e-Budget ส่วนที่ 3/4 (เว้นว่างได้ ไปเติมทีหลังที่หน้า e-Budget) #}
       <div><label>หมวด e-Budget <span class="muted" style="font-size:13px;">(ไว้ใช้ตอนรายงาน)</span></label>
         <select name="eb_code" id="ebSel">
-          <option value="">- ยังไม่ระบุ -</option>
+          <option value="">- โปรดระบุหมวดเอง -</option>
           <optgroup label="เงินรับ" data-kind="in">
             {% for code, label in eb_income %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
           </optgroup>

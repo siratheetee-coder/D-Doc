@@ -5,7 +5,7 @@
   <div>
     <div class="hero-sub">ปีงบ {{ fiscal_year }} · ครั้งที่ {{ round }} · {{ label }}</div>
     <span class="hero-title">เติมหมวด e-Budget</span>
-    <div class="hero-meta">{{ rows|length }} รายการ{{ ' (ทั้งหมดในงวด)' if show_all else ' ที่ยังไม่ได้ระบุหมวด' }}</div>
+    <div class="hero-meta">{{ rows|length }} รายการ{{ ' (ทั้งหมดในงวด)' if show_all else ' ที่ต้องระบุหมวด' }}</div>
   </div>
   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <a class="btn gray" href="/finance/ebudget/fill?year={{ fiscal_year }}&round={{ round }}&all={{ 0 if show_all else 1 }}">
@@ -18,9 +18,9 @@
 {% if rows %}
 <div class="alert info">
   <svg class="icon"><use href="#ic-info"/></svg>
-  <span><b>ระบบเดาหมวดให้ไว้แล้ว</b> จากข้อความในรายการ หมวดงบ และโครงการที่ผูกไว้
-    ตรวจทานแล้วแก้เฉพาะที่ผิด จากนั้นกดบันทึกครั้งเดียว ·
-    ช่องที่เดาไม่ได้จะเป็น "ยังไม่ระบุ" ต้องเลือกเอง</span>
+  <span><b>ระบบเลือกหมวดให้ไว้แล้ว</b> จากข้อความในรายการ หมวดงบ และโครงการที่ผูกไว้
+    ตรวจทานแล้วแก้เฉพาะที่ไม่ตรง จากนั้นกดบันทึกครั้งเดียว ·
+    รายการที่ระบบเลือกให้ไม่ได้ จะขึ้นว่า "โปรดระบุหมวดเอง"</span>
 </div>
 
 <form method="post" action="/finance/ebudget/fill">
@@ -43,7 +43,7 @@
           <td class="right">{{ "{:,.2f}".format(r.t.amount or 0) }}</td>
           <td>
             <select name="eb_{{ r.t.id }}" style="width:100%;">
-              <option value="">- ยังไม่ระบุ -</option>
+              <option value="">- โปรดระบุหมวดเอง -</option>
               {% if r.t.kind == 'out' %}
                 {% for grp, opts in eb_expense %}
                 <optgroup label="{{ grp }}">
@@ -58,7 +58,8 @@
                 {% endfor %}
               {% endif %}
             </select>
-            {% if not r.current and r.guess %}<span class="muted" style="font-size:12px;">ระบบเดาให้</span>{% endif %}
+            {% if not r.current and r.guess %}<span class="muted" style="font-size:12px;">ระบบเลือกให้</span>
+            {% elif not r.current and not r.guess %}<span style="font-size:12px; color:#b45309; font-weight:600;">โปรดระบุหมวดเอง</span>{% endif %}
           </td>
         </tr>
         {% endfor %}
