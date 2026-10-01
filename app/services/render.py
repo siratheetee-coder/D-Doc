@@ -221,6 +221,7 @@ def build_context(proc, school) -> dict:
         "delivery_note_no": proc.delivery_note_no or "..............",
         "delivery_note_book": proc.delivery_note_book or "..............",
         # วันที่ (แก้ไขได้ภายหลัง)
+        "quotation_no": (getattr(proc, "quotation_no", "") or "").strip() or _BLANK,
         "quote_date_thai": _d(getattr(proc, "quotation_date", None) or proc.order_date),
         "order_date_thai": _d(proc.order_date),
         "order_date_official": _do(proc.order_date),
@@ -235,6 +236,7 @@ def build_context(proc, school) -> dict:
         "command_date_thai": _d(proc.command_date),
         "command_date_official": _do(proc.command_date),
         # ประกาศผู้ชนะ: ถ้าไม่ได้ระบุวันที่ประกาศ ใช้วันที่ใบสั่งแทน (พฤติกรรมเดิม)
+        "winner_no": (getattr(proc, "winner_no", "") or "").strip() or _BLANK,
         "winner_date_thai": _d(getattr(proc, "winner_date", None) or proc.order_date),
         "spec_cmd_no": getattr(proc, "spec_cmd_no", "") or _BLANK,
         "spec_cmd_date_official": _do(getattr(proc, "spec_cmd_date", None)),

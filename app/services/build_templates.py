@@ -927,6 +927,7 @@ def build_quotation():
     doc = Document(); set_a4(doc)
     _font(doc)
     _p(doc, "ใบเสนอราคา", align="center", bold=True, size=20, after=4)
+    _p(doc, "เลขที่ {{ quotation_no }}", align="right", after=0)
     _p(doc, "วันที่ {{ quote_date_thai }}", align="right")
     _p(doc, "เรียน  ผู้อำนวยการ{{ school_name }}")
     _p(doc,
@@ -963,6 +964,7 @@ def build_winner_announcement():
     _font(doc)
     _krut_center(doc)
     _p(doc, "ประกาศ{{ school_name }}", align="center", bold=True, size=18, after=0)
+    _p(doc, "ที่ {{ winner_no }}", align="center", after=0)
     _p(doc, "เรื่อง ประกาศผู้ชนะการเสนอราคา {{ proc_type }}{{ subject }} โดยวิธี{{ method }}",
        align="center", bold=True, after=0)
     _p(doc, "─────────────────────", align="center", after=6)

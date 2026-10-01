@@ -187,6 +187,8 @@
     <div class="docgrp">
       <div class="docgrp-h">ใบเสนอราคา</div>
       <div class="row">
+        <div><label>เลขที่ใบเสนอราคา <span class="muted" style="font-size:13px;">(ของร้าน · ใช้กรอก e-GP)</span></label>
+          <input name="quotation_no" value="{{ p.quotation_no or '' }}" placeholder="เช่น Q68/001"></div>
         <div><label>วันที่ใบเสนอราคา <span class="muted" style="font-size:13px;">(ถ้าว่างใช้วันที่ใบสั่ง)</span></label>
           <input name="quotation_date" value="{{ be_date(p.quotation_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       </div>
@@ -203,6 +205,8 @@
     <div class="docgrp">
       <div class="docgrp-h">ประกาศผู้ชนะการเสนอราคา</div>
       <div class="row">
+        <div><label>เลขที่ประกาศ <span class="muted" style="font-size:13px;">(ใช้กรอก e-GP)</span></label>
+          <input name="winner_no" value="{{ p.winner_no or '' }}" placeholder="เช่น 5/2569"></div>
         <div><label>วันที่ประกาศ <span class="muted" style="font-size:13px;">(ถ้าว่างใช้วันที่ใบสั่ง)</span></label>
           <input name="winner_date" value="{{ be_date(p.winner_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       </div>

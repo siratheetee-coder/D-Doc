@@ -320,7 +320,6 @@ def render_kinder_teacher_book(school, klass, db) -> str:
     if not meta:
         _p(doc, "ชั้นนี้ไม่ใช่ระดับปฐมวัย จึงออกเล่มนี้ไม่ได้", align="center", size=16)
         path = get_data_dir() / f"บัญชีเรียกชื่อ_{_safe(_class_label(klass))}.docx"
-        _finish_before_save(doc)
         doc.save(path)
         return str(path)
 
@@ -369,15 +368,6 @@ def render_kinder_teacher_book(school, klass, db) -> str:
     _summary_page(doc, school, klass, students, res_all, level)
 
     path = get_data_dir() / f"บัญชีเรียกชื่อ_{_safe(_class_label(klass))}.docx"
-    _finish_before_save(doc)
     doc.save(path)
     return str(path)
 
-
-def _finish_before_save(doc):
-    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
-    try:
-        from app.services.page_fit import finish_doc
-        finish_doc(doc)
-    except Exception:
-        pass

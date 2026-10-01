@@ -44,6 +44,13 @@ _STEPS = (
 ) + tuple((round(g / 10, 2), 0.90) for g in range(9, -1, -1))
 
 
+# เอกสารที่มีย่อหน้ามากกว่านี้ = สมุด/ทะเบียน (ปพ.5 · สมุดอนุบาล · ทะเบียนยาว ๆ)
+# ยังไงก็ไม่มีทางจบหน้าเดียว การไล่วัดความสูงทุกย่อหน้าซ้ำ ๆ บนตารางหลายพันช่อง
+# ช้าจนผู้ใช้รอไม่ไหว (เคยทำให้ ปพ.5 timeout 504) -> ข้ามไปเลย
+# นับ w:p ทั้งไฟล์ (รวมในตาราง) เพราะตารางนับเป็น element เดียวแต่มีช่องเป็นพัน
+MAX_FINISH_PARAGRAPHS = 1200
+HOPELESS = 1.35             # สูงเกินพื้นที่มากกว่านี้ = บีบยังไงก็ไม่พอ ไม่ต้องลอง
+
 SIGN_STARTS = ("ลงชื่อ", "(ลงชื่อ", "ลงนาม")
 
 
@@ -288,7 +295,7 @@ def fit_blocks(doc) -> list:
     for blocks in all_blocks(doc):
         before = block_height(doc, blocks)
         used = (1.0, None)
-        if before > budget:
+        if budget < before <= budget * HOPELESS:
             snap = _snapshot(blocks)
             for step in _STEPS:
                 _apply(snap, *step)
@@ -307,9 +314,14 @@ def fit_blocks(doc) -> list:
 def finish_doc(doc) -> None:
     """เก็บงานก่อนเซฟเอกสารทุกฉบับ: เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว
 
-    ปลอดภัยกับเอกสารยาว ๆ (ทะเบียน/สมุด/ปพ.5) เพราะถ้าบีบจนสุดแล้วยังไม่จบหน้าเดียว
-    fit_one_page จะคืนรูปแบบเดิมให้ทั้งหมด
+    ข้ามเอกสารเล่มใหญ่ (ปพ.5 · สมุดอนุบาล · ทะเบียนยาว) เพราะยังไงก็ไม่จบหน้าเดียว
+    และการไล่วัดทุกย่อหน้าซ้ำ ๆ บนตารางหลายพันช่องช้ามาก
     """
+    try:
+        if len(doc.element.body.findall(".//" + qn("w:p"))) > MAX_FINISH_PARAGRAPHS:
+            return
+    except Exception:
+        return
     try:
         add_sign_space(doc)
     except Exception:

@@ -266,6 +266,7 @@ class Procurement(Base):
     vendor_id = Column(Integer, ForeignKey("vendor.id"), nullable=True)
     request_date = Column(DateTime, default=datetime.now)   # วันที่รายงานขอซื้อ
     # วันที่ที่เกิดภายหลัง (แก้ไขได้ในหน้ารายละเอียด)
+    quotation_no = Column(String, default="")              # เลขที่ใบเสนอราคา (ผู้ขายออกให้ · ใช้กรอก e-GP)
     quotation_date = Column(DateTime, nullable=True)       # วันที่ใบเสนอราคา
     order_date = Column(DateTime, nullable=True)            # วันที่ใบสั่งซื้อ/สั่งจ้าง
     delivery_due_date = Column(DateTime, nullable=True)     # ครบกำหนดส่งมอบ
@@ -274,6 +275,7 @@ class Procurement(Base):
     spec_memo_date = Column(DateTime, nullable=True)        # วันที่แต่งตั้ง กก.กำหนดคุณลักษณะ
     spec_cmd_no = Column(String, default="")                # เลขที่คำสั่งแต่งตั้ง กก.กำหนดคุณลักษณะ (TOR)
     spec_cmd_date = Column(DateTime, nullable=True)         # วันที่คำสั่งแต่งตั้ง กก.กำหนดคุณลักษณะ
+    winner_no = Column(String, default="")                  # เลขที่ประกาศผู้ชนะ (ใช้กรอก e-GP)
     winner_date = Column(DateTime, nullable=True)           # วันที่ประกาศผู้ชนะการเสนอราคา
     purchase_cmd_no = Column(String, default="")            # เลขที่คำสั่งแต่งตั้ง กก.ซื้อ/จ้าง
     purchase_cmd_date = Column(DateTime, nullable=True)     # วันที่คำสั่งแต่งตั้ง กก.ซื้อ/จ้าง

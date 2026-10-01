@@ -620,7 +620,6 @@ def render_pp5(school, klass, subject, db) -> str:
     _pp5_criteria_page(doc, page_break=True)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ปพ.5_{subject.name}_{_class_label(klass)}_{klass.year}") + ".docx")
-    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -1379,7 +1378,6 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     suffix = f"_ภาค{t}" if sec else ""
     out = out_dir / (_safe(f"ปพ.5_ทั้งเล่ม_{_class_label(klass)}_{klass.year}{suffix}") + ".docx")
-    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -1946,7 +1944,6 @@ def render_pp6(school, s, db) -> str:
     _pp6_body(doc, school, s, db)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ปพ.6_{s.name}_{s.klass.year}") + ".docx")
-    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -1959,7 +1956,6 @@ def render_pp6_class(school, klass, db) -> str:
         _pp6_body(doc, school, s, db, page_break=(i > 0))
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ปพ.6_ทั้งห้อง_{_class_label(klass)}_{klass.year}") + ".docx")
-    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -2101,7 +2097,6 @@ def render_attendance_month(school, klass, db, month, subject=None) -> str:
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     tag = f"_{subject.code or subject.name}" if subject else ""
     out = out_dir / (_safe(f"เวลาเรียน_{_class_label(klass)}_{TH_MONTH_FULL[month]}{tag}_{klass.year}") + ".docx")
-    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -2121,7 +2116,6 @@ def render_attendance_term(school, klass, db, term, subject=None) -> str:
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     tag = f"_{subject.code or subject.name}" if subject else ""
     out = out_dir / (_safe(f"เวลาเรียน_ภาค{term}_{_class_label(klass)}{tag}_{klass.year}") + ".docx")
-    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -2231,7 +2225,6 @@ def render_timetable_class(school, klass, db) -> str:
     _tt_grid_doc(doc, periods, cell)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ตารางเรียน_{_class_label(klass)}_{y}") + ".docx")
-    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
@@ -2268,15 +2261,6 @@ def render_timetable_teacher(school, person, db, year) -> str:
     _tt_grid_doc(doc, periods, cell)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ตารางสอน_{person.name}_{year}") + ".docx")
-    _finish_before_save(doc)
     doc.save(str(out))
     return str(out)
 
-
-def _finish_before_save(doc):
-    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
-    try:
-        from app.services.page_fit import finish_doc
-        finish_doc(doc)
-    except Exception:
-        pass

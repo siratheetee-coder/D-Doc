@@ -107,16 +107,23 @@
 <!-- ============ เลขที่และวันที่เอกสาร (ย้ายขึ้นใต้ขั้นตอน 1) ============ -->
 <div class="card">
   <h2>เลขที่และวันที่เอกสาร</h2>
-  <p class="muted" style="margin-top:0;">ไว้กรอกช่อง "เลขที่ / ลงวันที่" ในเอกสารต่าง ๆ ของ e-GP (วันที่เป็น พ.ศ. รูปแบบ วว/ดด/ปปปป)</p>
+  <p class="muted" style="margin-top:0;">ไว้กรอกช่อง "เลขที่ / ลงวันที่" ในเอกสารต่าง ๆ ของ e-GP (วันที่เป็น พ.ศ. รูปแบบ วว/ดด/ปปปป)
+    · ขีด - คือยังไม่ได้กรอกในระบบ แก้ได้ที่หน้ารายละเอียดเรื่อง</p>
   <div class="table-wrap"><table>
     <thead><tr><th>เอกสาร</th><th>เลขที่</th><th>ลงวันที่</th></tr></thead>
     <tbody>
-      {{ docrow("รายงานขอ" ~ egp.buy_word, "d1n", p.memo_no, "d1d", be_date(p.request_date) if p.request_date else "") }}
-      {{ docrow("แต่งตั้ง กก.กำหนดคุณลักษณะ/ราคากลาง", "d2n", p.spec_memo_no, "d2d", be_date(p.spec_memo_date) if p.spec_memo_date else "") }}
-      {{ docrow("คำสั่งแต่งตั้งผู้ตรวจรับ", "d3n", p.command_no, "d3d", be_date(p.command_date) if p.command_date else "") }}
-      {{ docrow("รายงานผลการพิจารณา", "d4n", p.result_memo_no, "d4d", be_date(p.result_memo_date) if p.result_memo_date else "") }}
-      {{ docrow("ใบสั่ง" ~ egp.buy_word ~ " / สัญญา", "d5n", p.order_no, "d5d", be_date(p.order_date) if p.order_date else "") }}
-      {{ docrow("บันทึกเสนอผลตรวจรับ", "d6n", p.inspect_memo_no, "d6d", be_date(p.inspect_date) if p.inspect_date else "") }}
+      {# เรียงตามไทม์ไลน์จริง: เตรียมสเปก -> ขออนุมัติ -> เสนอราคา -> ตัดสิน -> สั่ง -> ส่งมอบ -> ตรวจรับ #}
+      {{ docrow("แต่งตั้ง กก.กำหนดคุณลักษณะ/ราคากลาง (บันทึก)", "d1n", p.spec_memo_no, "d1d", be_date(p.spec_memo_date) if p.spec_memo_date else "") }}
+      {{ docrow("คำสั่งแต่งตั้ง กก.กำหนดคุณลักษณะ/ราคากลาง", "d2n", p.spec_cmd_no, "d2d", be_date(p.spec_cmd_date) if p.spec_cmd_date else "") }}
+      {{ docrow("รายงานขอ" ~ egp.buy_word, "d3n", p.memo_no, "d3d", be_date(p.request_date) if p.request_date else "") }}
+      {{ docrow("คำสั่งแต่งตั้ง กก." ~ egp.buy_word, "d4n", p.purchase_cmd_no, "d4d", be_date(p.purchase_cmd_date) if p.purchase_cmd_date else "") }}
+      {{ docrow("คำสั่งแต่งตั้งผู้ตรวจรับ", "d5n", p.command_no, "d5d", be_date(p.command_date) if p.command_date else "") }}
+      {{ docrow("ใบเสนอราคา", "d6n", p.quotation_no, "d6d", be_date(p.quotation_date) if p.quotation_date else "") }}
+      {{ docrow("อนุมัติสั่งซื้อสั่งจ้างและรายงานผลพิจารณา", "d7n", p.result_memo_no, "d7d", be_date(p.result_memo_date) if p.result_memo_date else "") }}
+      {{ docrow("ประกาศผู้ชนะการเสนอราคา", "d8n", p.winner_no, "d8d", be_date(p.winner_date) if p.winner_date else "") }}
+      {{ docrow("ใบสั่ง" ~ egp.buy_word ~ " / สัญญา", "d9n", p.order_no, "d9d", be_date(p.order_date) if p.order_date else "") }}
+      {{ docrow("ใบส่งของ / ใบส่งมอบงาน", "d10n", p.delivery_note_no, "d10d", be_date(p.delivery_date) if p.delivery_date else "") }}
+      {{ docrow("บันทึกเสนอผลตรวจรับ", "d11n", p.inspect_memo_no, "d11d", be_date(p.inspect_date) if p.inspect_date else "") }}
     </tbody>
   </table></div>
 </div>

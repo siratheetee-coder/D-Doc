@@ -2435,7 +2435,9 @@ async def procurement_update_refs(proc_id: int, request: Request, db: Session = 
     proc.spec_memo_date   = _parse_date(form.get("spec_memo_date"))
     proc.command_date     = _parse_date(form.get("command_date"))
     proc.result_memo_date = _parse_date(form.get("result_memo_date"))
+    proc.quotation_no     = (form.get("quotation_no") or "").strip()
     proc.quotation_date   = _parse_date(form.get("quotation_date"))
+    proc.winner_no        = (form.get("winner_no") or "").strip()
     proc.winner_date      = _parse_date(form.get("winner_date"))
     if "purchase_cmd_date" in form:
         proc.purchase_cmd_date = _parse_date(form.get("purchase_cmd_date"))

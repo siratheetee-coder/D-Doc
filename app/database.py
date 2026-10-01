@@ -253,6 +253,8 @@ MIGRATIONS = [
     ("acad_score", "grade_manual", "BOOLEAN DEFAULT 0"),
     ("school", "tax_id", "VARCHAR DEFAULT ''"),
     ("finance_txn", "project_id", "INTEGER"),
+    ("procurement", "quotation_no", "VARCHAR DEFAULT ''"),
+    ("procurement", "winner_no", "VARCHAR DEFAULT ''"),
     # ---- ตารางกลาง StudentMeasure สร้างอัตโนมัติผ่าน create_all (ไม่ต้อง migrate คอลัมน์) ----
 ]
 

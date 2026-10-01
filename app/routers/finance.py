@@ -281,7 +281,7 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
         "item_budget_total": sum(r["budget"] for r in item_rows if r["level"] == 0),
         "item_remain_total": sum(r["remain"] for r in item_rows if r["level"] == 0),
         "special_key": special_form(a), "special_label": SPECIAL_LABEL,
-        "projects": _plan_projects(db),
+        "projects": _plan_projects(db, fy),
         "fund_c": fund_color(a.fund_type),
     })
 
@@ -1493,12 +1493,18 @@ def disburse_register_docx(db: Session = Depends(get_db), year: int | None = Non
     return serve_generated(path, _DOCX)
 
 
-def _plan_projects(db):
-    """โครงการของปีแผนปัจจุบัน (ไว้ให้เลือกตอนลงรับ-จ่าย)"""
+def _plan_projects(db, year=None):
+    """โครงการให้เลือกตอนลงรับ-จ่าย
+
+    เอาทั้งปีแผนปัจจุบันและปีที่กำลังดูอยู่ เพราะช่วงต้นปีงบ (1 ต.ค.)
+    ปีแผนจะข้ามไปปีใหม่แล้ว แต่ครูยังลงรายการของปีเก่าค้างอยู่
+    """
     from app.models import Project
-    cur = current_plan_year(get_school(db))
-    return (db.query(Project).filter(Project.plan_year == cur)
-            .order_by(Project.name).all())
+    years = {current_plan_year(get_school(db))}
+    if year:
+        years.add(year)
+    return (db.query(Project).filter(Project.plan_year.in_(years))
+            .order_by(Project.plan_year.desc(), Project.name).all())
 
 
 # ---------------- ทะเบียนคุมโครงการ (ผูกกับเงินที่จ่ายจริง) ----------------

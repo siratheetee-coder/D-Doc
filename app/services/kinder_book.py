@@ -450,7 +450,6 @@ def render_kinder_book(school, student, db) -> str:
     if not _book(doc, school, student, db, page_break=False):
         _p(doc, "ชั้นนี้ไม่ใช่ระดับปฐมวัย จึงออกสมุดพกอนุบาลไม่ได้", align="center", size=16)
     path = get_data_dir() / f"สมุดพกอนุบาล_{_safe(student.name)}.docx"
-    _finish_before_save(doc)
     doc.save(path)
     return str(path)
 
@@ -466,15 +465,6 @@ def render_kinder_class(school, klass, db) -> str:
     if first:
         _p(doc, "ห้องนี้ยังไม่มีนักเรียน หรือไม่ใช่ระดับปฐมวัย", align="center", size=16)
     path = get_data_dir() / f"สมุดพกอนุบาล_{_safe(_class_label(klass))}.docx"
-    _finish_before_save(doc)
     doc.save(path)
     return str(path)
 
-
-def _finish_before_save(doc):
-    """เว้นที่ให้เซ็น + พยายามให้จบหน้าเดียว (ดู page_fit.finish_doc)"""
-    try:
-        from app.services.page_fit import finish_doc
-        finish_doc(doc)
-    except Exception:
-        pass
