@@ -1298,6 +1298,18 @@
       try{ if(localStorage.getItem(key)!=='1') return; }catch(e){ return; }
       var el=document.getElementById(id); if(el) el.hidden=true;
     }
+
+    /* ช่องวันที่ทุกหน้า: พิมพ์ 02102569 แล้วใส่ / ให้เอง
+       ดักที่ document ชั้นเดียว ช่องที่เพิ่มทีหลังด้วย JS ก็ได้ด้วย และหน้าที่ลืมใส่
+       สคริปต์ของตัวเองจะไม่กลายเป็นช่องที่พิมพ์แล้วระบบอ่านไม่ออก */
+    document.addEventListener('input', function(ev){
+      var el = ev.target;
+      if(!el || !el.matches || !el.matches('input[data-date]')) return;
+      var v = el.value.replace(/\D/g, '').slice(0, 8), o = v;
+      if(v.length > 2) o = v.slice(0,2) + '/' + v.slice(2);
+      if(v.length > 4) o = v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4);
+      if(el.value !== o) el.value = o;
+    });
   </script>
 
   <!-- ปฏิทินลอย: เปิดดูวันหยุด/นักขัตฤกษ์ได้ทุกหน้า -->

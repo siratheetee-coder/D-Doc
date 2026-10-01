@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_dmy.html" import date_input, time_input, dmy_script %}
 {% block title %}ประกาศแจ้งปิดปรับปรุงระบบ{% endblock %}
 {% block content %}
 <div class="hero" style="background:linear-gradient(120deg,#b45309,#d97706 55%,#f59e0b); box-shadow:0 10px 26px rgba(217,119,6,.28);">
@@ -27,12 +28,12 @@
         <input name="title" value="แจ้งปิดปรับปรุงระบบชั่วคราว" required></div>
     </div>
     <div class="row">
-      <div><label>วันที่เริ่ม *</label>
-        <input name="start_day" placeholder="วว/ดด/ปปปป" data-date="1" required></div>
-      <div><label>เวลาเริ่ม</label><input name="start_time" value="21:00" placeholder="21:00"></div>
+      <div><label>วันที่เริ่ม * <span class="muted" style="font-size:13px;">พิมพ์ {{ today_digits }} ได้เลย</span></label>
+        {{ date_input('start_day', today) }}</div>
+      <div><label>เวลาเริ่ม</label>{{ time_input('start_time', start_default) }}</div>
       <div><label>วันที่สิ้นสุด <span class="muted" style="font-size:13px;">(ว่าง = วันเดียวกัน)</span></label>
-        <input name="end_day" placeholder="วว/ดด/ปปปป" data-date="1"></div>
-      <div><label>เวลาสิ้นสุด</label><input name="end_time" value="23:00" placeholder="23:00"></div>
+        {{ date_input('end_day', None) }}</div>
+      <div><label>เวลาสิ้นสุด</label>{{ time_input('end_time', end_default) }}</div>
     </div>
     <div class="row">
       <div style="flex:1;"><label>สิ่งที่จะปรับปรุง <span class="muted" style="font-size:13px;">(บรรทัดละข้อ)</span></label>
@@ -98,4 +99,5 @@
   </table></div>
   {% else %}<p class="muted">ยังไม่เคยประกาศ</p>{% endif %}
 </div>
+{{ dmy_script() }}
 {% endblock %}

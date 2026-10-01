@@ -200,11 +200,45 @@ def parse_be_date(s: str):
         except ValueError:
             return None
 
-    # รูปแบบ ค.ศ. yyyy-mm-dd (จาก input type=date เดิม)
+    # รูปแบบ yyyy-mm-dd (จาก input type=date เดิม) · ถ้าเป็นปี พ.ศ. ก็แปลงให้ด้วย
     try:
-        return datetime.strptime(s, "%Y-%m-%d")
+        dt = datetime.strptime(s, "%Y-%m-%d")
+        return dt.replace(year=dt.year - 543) if dt.year > 2400 else dt
     except ValueError:
+        pass
+
+    # พิมพ์ชื่อเดือนไทย เช่น "1 ตุลาคม 2569" หรือ "1 ต.ค. 2569"
+    # (ไม่เดาปี 2 หลัก เพราะช่องวันเกิดก็ใช้ฟังก์ชันนี้ เดาผิดแล้วข้อมูลเพี้ยนเงียบ ๆ)
+    m = re.match(r"^(\d{1,2})\s*([ก-๙\.]+)\s*(\d{3,4})$", s)
+    if m:
+        mo = thai_month_number(m.group(2))
+        if mo:
+            yr = int(m.group(3))
+            if yr > 2400:
+                yr -= 543
+            try:
+                return datetime(yr, mo, int(m.group(1)))
+            except ValueError:
+                return None
+    return None
+
+
+_TH_MONTHS = ("มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+              "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม")
+
+
+def thai_month_number(text: str) -> int | None:
+    """ชื่อเดือนไทย (เต็มหรือย่อ เช่น ตุลาคม / ต.ค. / ตค) -> เลขเดือน 1-12 · ไม่รู้จัก = None"""
+    t = (text or "").replace(".", "").replace(" ", "").strip()
+    if not t:
         return None
+    for i, name in enumerate(_TH_MONTHS, start=1):
+        if t == name:
+            return i
+    # แบบย่อ: ตัวแรกของชื่อเดือน + ตัวแรกของพยางค์หลัง (ตค, กพ, มีค, พย ...)
+    short = {"มค": 1, "กพ": 2, "มีค": 3, "เมย": 4, "พค": 5, "มิย": 6,
+             "กค": 7, "สค": 8, "กย": 9, "ตค": 10, "พย": 11, "ธค": 12}
+    return short.get(t)
 
 
 def current_fiscal_year(dt: datetime | None = None) -> int:

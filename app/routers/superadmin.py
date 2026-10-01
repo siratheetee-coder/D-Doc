@@ -673,10 +673,14 @@ def notice_page(request: Request, msg: str = "", err: str = ""):
         now = thai_now().replace(tzinfo=None)
         live = {n.id: ("on" if (n.active and n.end_at >= now)
                        else "off" if not n.active else "done") for n in rows}
+        today = now.date()
         return templates.TemplateResponse("superadmin_notice.html", {
             "request": request, "rows": rows, "msg": msg, "err": err,
             "targets": targets, "skipped": skipped, "smtp_ok": smtp_configured(),
-            "live": live,
+            "live": live, "today": today,
+            "today_digits": f"{today.day:02d}{today.month:02d}{today.year + 543}",
+            "start_default": datetime(today.year, today.month, today.day, 21, 0),
+            "end_default": datetime(today.year, today.month, today.day, 23, 0),
             "admin_name": request.session.get("name", "ผู้ดูแลระบบ"),
         })
     finally:
@@ -695,8 +699,12 @@ def notice_save(request: Request, title: str = Form("แจ้งปิดปร
     start = _parse_dt(start_day, start_time, 21, 0)
     end = _parse_dt(end_day or start_day, end_time, 23, 0)
     if not start or not end:
-        return RedirectResponse("/admin-console/notice?err=" + quote("กรอกวันที่ให้ครบ"),
-                                status_code=303)
+        bad = (start_day if not start else (end_day or start_day)).strip()
+        which = "วันที่เริ่ม" if not start else "วันที่สิ้นสุด"
+        return RedirectResponse("/admin-console/notice?err=" + quote(
+            f"อ่าน{which}ไม่ออก" + (f' (ท่านกรอกว่า "{bad}")' if bad else " (ยังไม่ได้กรอก)")
+            + " · พิมพ์เป็นตัวเลขติดกัน เช่น 02102569 ระบบจะใส่ / ให้เอง"),
+            status_code=303)
     if end <= start:
         return RedirectResponse("/admin-console/notice?err=" + quote("เวลาสิ้นสุดต้องหลังเวลาเริ่ม"),
                                 status_code=303)
