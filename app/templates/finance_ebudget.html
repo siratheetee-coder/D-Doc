@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}ช่วยกรอก e-Budget{% endblock %}
+{% block content %}
+{% macro cp(id, value) %}
+<span class="eb-val" id="{{ id }}">{{ "{:,.2f}".format(value) }}</span>
+{%- if value %}<button type="button" class="btn xs" title="คัดลอก {{ "%.2f"|format(value) }}"
+        onclick="cpText(this,'{{ "%.2f"|format(value) }}')">คัดลอก</button>{% endif %}
+{% endmacro %}
+
+<div class="hero" style="background:linear-gradient(120deg,#15803d,#16a34a 55%,#4ade80); box-shadow:0 10px 26px rgba(22,163,74,.28);">
+  <div>
+    <div class="hero-sub">ระบบบัญชีการศึกษาขั้นพื้นฐาน · สนผ. สพฐ. · ปีงบ {{ fiscal_year }}</div>
+    <span class="hero-title">ช่วยกรอก e-Budget</span>
+    <div class="hero-meta">รายงานครั้งที่ {{ round }} · {{ d.label }}</div>
+  </div>
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <form method="get" action="/finance/ebudget" style="display:flex; gap:8px; margin:0;">
+      <select name="year" onchange="this.form.submit()" style="color:var(--text);">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
+      </select>
+      <select name="round" onchange="this.form.submit()" style="color:var(--text);">
+        <option value="1" {{ 'selected' if round==1 }}>ครั้งที่ 1 (1 ต.ค. – 31 มี.ค.)</option>
+        <option value="2" {{ 'selected' if round==2 }}>ครั้งที่ 2 (1 เม.ย. – 30 ก.ย.)</option>
+      </select>
+    </form>
+    <a class="btn gray" href="https://e-budget.jobobec.in.th/" target="_blank" rel="noopener">
+      <svg class="icon"><use href="#ic-arrow-right"/></svg> เปิดเว็บ e-Budget</a>
+  </div>
+</div>
+
+<style>
+  .eb-val { font-weight:700; font-variant-numeric: tabular-nums; }
+  .eb tbody td { padding-top:5px; padding-bottom:5px; }
+  .eb .sub td:first-child { padding-left:34px; color:var(--sidebar-ink); font-size:14px; }
+  .eb .head td { font-weight:700; background:#f6f8fc; }
+  .eb .tot td { font-weight:700; border-top:2px solid var(--border); }
+  .eb .zero { color:var(--muted); font-weight:400; }
+</style>
+
+<div class="alert warn">
+  <svg class="icon"><use href="#ic-alert"/></svg>
+  <span><b>ตรวจทานก่อนกรอกทุกครั้ง</b> — ตัวเลขคำนวณจากทะเบียนคุมเงินที่ลงไว้ในระบบนี้
+    ถ้าทะเบียนยังลงไม่ครบ ตัวเลขก็จะไม่ครบตาม · ระบบนี้<b>ไม่ได้ส่งข้อมูลไปที่ e-Budget</b>
+    ต้องเปิดเว็บแล้วคัดลอกไปวางเอง</span>
+</div>
+
+{% if d.unmapped %}
+<div class="alert info">
+  <svg class="icon"><use href="#ic-info"/></svg>
+  <span><b>จับคู่ประเภทเงินไม่ได้ {{ d.unmapped|length }} รายการ</b> — ยอดถูกรวมไว้ที่ช่อง "อื่น ๆ (3.13)"
+    ได้แก่ {{ d.unmapped|join(" · ") }}<br>
+    ถ้าควรอยู่ช่องอื่น ให้แก้ชื่อบัญชี/รายการย่อยให้มีคำที่ตรง เช่น "ค่าหนังสือเรียน" "เงินรายได้สถานศึกษา"</span>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>ตรวจยอดก่อนกรอก</h2>
+  <p class="muted" style="margin-top:0;">เว็บ e-Budget จะตรวจว่า (ยกมา + รายรับ) − รายจ่าย = คงเหลือ ถ้าไม่ตรงจะกรอกไม่ผ่าน</p>
+  <div class="stat">
+    <div class="box"><div><div class="lab">ยกมาต้นงวด (ส่วนที่ 2)</div><div class="num">{{ "{:,.2f}".format(d.totals.opening) }}</div></div>
+      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+    <div class="box"><div><div class="lab">รายรับในงวด (ส่วนที่ 3)</div><div class="num">{{ "{:,.2f}".format(d.totals.income) }}</div></div>
+      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+    <div class="box"><div><div class="lab">รายจ่ายในงวด (ส่วนที่ 4)</div><div class="num">{{ "{:,.2f}".format(d.totals.expense) }}</div></div>
+      <span class="ic-wrap ic-red"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+    <div class="box"><div><div class="lab">คงเหลือปลายงวด (ส่วนที่ 5)</div><div class="num">{{ "{:,.2f}".format(d.totals.closing) }}</div></div>
+      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+  </div>
+  {% if d.check == 0 %}
+  <div class="alert" style="margin:14px 0 0;"><svg class="icon"><use href="#ic-check"/></svg>
+    <span>ยอดตรงกันพอดี — กรอกได้เลย</span></div>
+  {% else %}
+  <div class="alert danger" style="margin:14px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg>
+    <span>ยอดไม่ตรง ต่างกัน {{ "{:,.2f}".format(d.check) }} บาท — ตรวจทะเบียนคุมเงินก่อนกรอก
+      (มักเกิดจากลงรายการผิดงวด หรือยังลงไม่ครบ)</span></div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>ส่วนที่ 2 · เงินคงเหลือยกมา <span class="muted" style="font-size:15px;">ณ {{ thai_date(d.start) }}</span></h2>
+  <div class="table-wrap"><table class="eb">
+    <thead><tr><th>ช่องใน e-Budget</th><th class="right" style="width:240px;">จำนวนเงิน (บาท)</th></tr></thead>
+    <tbody>
+      {% for code, label, bold in order %}
+      <tr class="{{ 'head' if bold else 'sub' }}">
+        <td>{{ code }} {{ label }}</td>
+        <td class="right {{ 'zero' if not d.opening[code] }}">{{ cp('o' ~ code, d.opening[code]) }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="tot"><td>รวมเงินนอกงบประมาณคงเหลือ</td>
+        <td class="right">{{ cp('otot', d.totals.opening) }}</td></tr>
+    </tbody>
+  </table></div>
+</div>
+
+<div class="card">
+  <h2>ส่วนที่ 3 · รายรับในงวด <span class="muted" style="font-size:15px;">{{ thai_date(d.start) }} – {{ thai_date(d.end) }}</span></h2>
+  <div class="table-wrap"><table class="eb">
+    <thead><tr><th>ช่องใน e-Budget</th><th class="right" style="width:240px;">จำนวนเงิน (บาท)</th></tr></thead>
+    <tbody>
+      {% for code, label, bold in order %}
+      <tr class="{{ 'head' if bold else 'sub' }}">
+        <td>{{ code }} {{ label }}</td>
+        <td class="right {{ 'zero' if not d.income[code] }}">{{ cp('i' ~ code, d.income[code]) }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="tot"><td>รวมรายรับ</td><td class="right">{{ cp('itot', d.totals.income) }}</td></tr>
+    </tbody>
+  </table></div>
+</div>
+
+<div class="card">
+  <h2>ส่วนที่ 4 · รายจ่ายในงวด แยกตามแหล่งเงิน</h2>
+  <p class="muted" style="margin-top:0;">e-Budget ให้กรอกเป็นตารางไขว้ <b>ด้าน × แหล่งเงิน</b> —
+    ระบบบอก<b>ยอดรวมของแต่ละแหล่งเงิน</b>ให้ (คอลัมน์) ส่วนจะลงแถว "ด้าน" ไหน
+    ต้องดูจากรายการข้างล่างแล้วแยกเอง เพราะทะเบียนคุมเงินยังไม่ได้เก็บหมวดรายจ่ายแบบ e-Budget</p>
+  <div class="table-wrap"><table class="eb">
+    <thead><tr><th>คอลัมน์ใน e-Budget</th><th class="right" style="width:240px;">จำนวนเงิน (บาท)</th></tr></thead>
+    <tbody>
+      {% for key, label in sources %}
+      <tr><td>{{ label }}</td>
+        <td class="right {{ 'zero' if not d.expense[key] }}">{{ cp('e' ~ key, d.expense[key]) }}</td></tr>
+      {% endfor %}
+      <tr class="tot"><td>รวมรายจ่าย</td><td class="right">{{ cp('etot', d.totals.expense) }}</td></tr>
+    </tbody>
+  </table></div>
+
+  {% if d.rows %}
+  <h3 class="sub-h" style="margin-top:18px;">รายการจ่ายทั้งหมดในงวด ({{ d.rows|length }} รายการ)</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>วันที่</th><th>ที่เอกสาร</th><th>รายการ</th><th>บัญชี</th>
+      <th>แหล่งเงิน</th><th class="right">จำนวนเงิน</th></tr></thead>
+    <tbody>
+      {% for r in d.rows %}
+      <tr>
+        <td style="white-space:nowrap;">{{ thai_date(r.date) }}</td>
+        <td class="muted">{{ r.ref or '-' }}</td>
+        <td>{{ r.note or '-' }}</td>
+        <td class="muted">{{ r.account }}</td>
+        <td class="muted">{% for k, l in sources %}{{ l if k == r.source }}{% endfor %}</td>
+        <td class="right">{{ "{:,.2f}".format(r.amount) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="muted">ไม่มีรายการจ่ายในงวดนี้</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>ส่วนที่ 5 · เงินคงเหลือปลายงวด <span class="muted" style="font-size:15px;">ณ {{ thai_date(d.end) }}</span></h2>
+  <div class="table-wrap"><table class="eb">
+    <thead><tr><th>ช่องใน e-Budget</th><th class="right" style="width:240px;">จำนวนเงิน (บาท)</th></tr></thead>
+    <tbody>
+      {% for code, label, bold in order %}
+      <tr class="{{ 'head' if bold else 'sub' }}">
+        <td>{{ code }} {{ label }}</td>
+        <td class="right {{ 'zero' if not d.closing[code] }}">{{ cp('c' ~ code, d.closing[code]) }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="tot"><td>รวมส่วนที่ 5</td><td class="right">{{ cp('ctot', d.totals.closing) }}</td></tr>
+    </tbody>
+  </table></div>
+</div>
+
+<script>
+  function cpText(btn, txt){
+    function ok(){ var o=btn.innerHTML; btn.innerHTML='คัดลอกแล้ว'; btn.classList.add('green');
+      setTimeout(function(){ btn.innerHTML=o; btn.classList.remove('green'); }, 1100); }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(ok).catch(function(){ fb(txt); ok(); });
+    } else { fb(txt); ok(); }
+  }
+  function fb(txt){
+    var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta);
+  }
+</script>
+{% endblock %}

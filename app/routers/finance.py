@@ -1554,3 +1554,29 @@ def finance_projects_register_docx(db: Session = Depends(get_db),
             raise HTTPException(status_code=404, detail="ไม่พบโครงการนี้ในปีที่เลือก")
     path = render_project_register(school, cur, plan_year_label(school), rows)
     return serve_generated(path, _DOCX)
+
+
+# ---------------- ช่วยกรอก e-Budget (ระบบบัญชีการศึกษาขั้นพื้นฐาน สนผ. สพฐ.) ----------------
+@router.get("/finance/ebudget", response_class=HTMLResponse)
+def ebudget_page(request: Request, db: Session = Depends(get_db),
+                 year: int | None = None, round: int = 0):
+    """คำนวณตัวเลขทุกส่วนของ e-Budget ให้ แล้วคัดลอกไปกรอกในเว็บ สพฐ. ทีละช่อง
+
+    ไม่ได้ส่งข้อมูลไปที่ e-Budget · ครูยังต้องเปิดเว็บแล้ววางเอง (เหมือนหน้าช่วยกรอก e-GP)
+    """
+    from app.services.ebudget import ORDER, SOURCES, build, period
+    fy = year or current_fiscal_year()
+    rnd = 2 if round == 2 else (1 if round == 1 else _default_round(fy))
+    data = build(db, fy, rnd)
+    return templates.TemplateResponse("finance_ebudget.html", {
+        "request": request, "d": data, "order": ORDER, "sources": SOURCES,
+        "fiscal_year": fy, "round": rnd, "years": _finance_years(db, fy),
+        "school": get_school(db),
+    })
+
+
+def _default_round(fy: int) -> int:
+    """เดารอบรายงานจากวันที่วันนี้ · 1 ต.ค. เป็นต้นไป = ยื่นรอบที่ 2 ของปีงบที่เพิ่งจบ"""
+    from app.thai_utils import thai_now
+    now = thai_now()
+    return 1 if 4 <= now.month <= 9 else 2
