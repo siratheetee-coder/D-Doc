@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-notice_mail.py - อีเมลแจ้งปิดปรับปรุงระบบ ส่งถึงไอดีหลักของแต่ละโรงเรียน
+notice_mail.py - อีเมลประกาศถึงไอดีหลักของแต่ละโรงเรียน
 
-หน้าตาอีเมลคุมให้ตรงกับการ์ดบนเว็บ (สีอำพันไล่เฉด · วันเวลาเด่น · รายการที่จะปรับปรุง)
+ใช้ได้ทุกประเภทประกาศ (ปิดปรับปรุง / ของใหม่ / ทั่วไป) ถ้อยคำกับสีดึงจาก
+accounts.NOTICE_KINDS ที่เดียวกับการ์ดบนเว็บ อีเมลกับการ์ดจึงพูดตรงกันเสมอ
 ส่งทีละฉบับ ไม่ใส่ที่อยู่คนอื่นในช่อง To/Cc เพื่อไม่ให้อีเมลโรงเรียนอื่นรั่วถึงกัน
 """
 from app.services.mailer import send_email, send_bulk
@@ -13,32 +14,44 @@ def _esc(text: str) -> str:
     return (str(text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
 
+def kind_of(notice) -> dict:
+    from app.accounts import notice_kind
+    return notice_kind(getattr(notice, "kind", "") or "")
+
+
 def when_text(notice) -> str:
-    """ข้อความวันเวลาแบบอ่านง่าย (ข้ามวันก็บอกวันจบให้ด้วย)"""
-    s, e = notice.start_at, notice.end_at
-    out = f"{thai_date(s)} เวลา {s:%H:%M} - {e:%H:%M} น."
-    if e.date() != s.date():
-        out = f"{thai_date(s)} เวลา {s:%H:%M} น. ถึง {thai_date(e)} เวลา {e:%H:%M} น."
-    return out
+    """ข้อความวันเวลาแบบอ่านง่าย (ตัวจริงอยู่ที่ accounts.notice_when ใช้ร่วมกับการ์ด)"""
+    from app.accounts import notice_when
+    return notice_when(notice)
+
+
+_BOX = {      # สีกล่องวันเวลาในอีเมล ให้เข้าชุดกับหัวอีเมลแต่ละประเภท
+    "maint": ("#fff8ec", "#f0a020", "#7a4f06"),
+    "news": ("#eff5ff", "#3b82f6", "#1e40af"),
+    "info": ("#ecfdf5", "#10b981", "#065f46"),
+}
 
 
 def build_html(notice, school: str = "") -> str:
+    k = kind_of(notice)
+    bg, line, ink = _BOX.get(k["css"], _BOX["maint"])
     items = "".join(f"<li style='margin:4px 0'>{_esc(x)}</li>" for x in notice.lines())
-    items_html = (f"<b>สิ่งที่จะปรับปรุง</b><ul style='padding-left:18px;margin:8px 0'>{items}</ul>"
-                  if items else "")
+    items_html = (f"<b>{_esc(k['items_label'])}</b>"
+                  f"<ul style='padding-left:18px;margin:8px 0'>{items}</ul>" if items else "")
     hello = f"เรียน ผู้ดูแลระบบ{(' ' + school) if school else ''}"
     note = (f"<p style='margin:14px 0 0'>{_esc(notice.note)}</p>" if notice.note else "")
     return f"""<div style="font-family:'Segoe UI',Tahoma,sans-serif;max-width:640px;margin:0 auto;
      border:1px solid #eceef3;border-radius:12px;overflow:hidden">
-  <div style="background:linear-gradient(120deg,#b45309,#f59e0b);color:#fff;padding:18px 22px">
-    <div style="font-size:13.5px;opacity:.92">Easy Ekkasan · แจ้งปิดปรับปรุงระบบ</div>
-    <h2 style="margin:4px 0 0;font-size:20px">ขออภัยในความไม่สะดวก</h2>
+  <div style="background:{k['grad']};color:#fff;padding:18px 22px">
+    <div style="font-size:13.5px;opacity:.92">Easy Ekkasan · {_esc(k['label'])}</div>
+    <h2 style="margin:4px 0 0;font-size:20px">{_esc(notice.title)}</h2>
   </div>
   <div style="padding:20px 22px;color:#334155;font-size:15px;line-height:1.6">
     {_esc(hello)}<br>
-    ระบบจะมีการปรับปรุงในช่วงเวลาต่อไปนี้ ช่วงดังกล่าวอาจเข้าใช้งานไม่ได้ชั่วคราว
-    <div style="background:#fff8ec;border-left:3px solid #f0a020;border-radius:3px 10px 10px 3px;
-         padding:10px 14px;margin:14px 0;font-weight:700;color:#7a4f06">{_esc(when_text(notice))}</div>
+    {_esc(k['lead'])}
+    <div style="background:{bg};border-left:3px solid {line};border-radius:3px 10px 10px 3px;
+         padding:10px 14px;margin:14px 0;font-weight:700;color:{ink}">{_esc(k['when_label'])}
+         {_esc(when_text(notice))}</div>
     {items_html}{note}
   </div>
   <div style="border-top:1px solid #eceef3;padding:14px 22px;color:#7b8190;font-size:13px">

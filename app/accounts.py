@@ -159,15 +159,79 @@ class AuditLog(AccBase):
     ip = Column(String, default="")
 
 
-class MaintenanceNotice(AccBase):
-    """ประกาศแจ้งปิดปรับปรุงระบบ - โชว์เป็นการ์ดให้ผู้ใช้ทุกโรงเรียน + ส่งอีเมลแจ้งไอดีหลัก
+# ประเภทประกาศ · คุมถ้อยคำ/สี/ไอคอน ทั้งบนการ์ดและในอีเมลจากที่เดียว
+# (ชื่อตารางยังเป็น maintenance_notice ตามเดิม เพื่อไม่ต้องย้ายข้อมูลเก่า)
+NOTICE_KINDS = {
+    "maint": {
+        "label": "ปิดปรับปรุงระบบ",
+        "sub": "ขออภัยในความไม่สะดวก",
+        "icon": "ic-tool",
+        "when_label": "ช่วงที่ปิดปรับปรุง",
+        "items_label": "สิ่งที่จะปรับปรุง",
+        "lead": "ระบบจะมีการปรับปรุงในช่วงเวลาต่อไปนี้ ช่วงดังกล่าวอาจเข้าใช้งานไม่ได้ชั่วคราว",
+        "css": "maint",
+        "grad": "linear-gradient(120deg,#b45309,#f59e0b)",
+        "title_hint": "แจ้งปิดปรับปรุงระบบชั่วคราว",
+        "note_hint": "ข้อมูลของท่านยังอยู่ครบ ไม่ต้องดำเนินการใด ๆ",
+    },
+    "update": {
+        "label": "อัปเดตของใหม่",
+        "sub": "มีอะไรใหม่ในระบบ",
+        "icon": "ic-star",
+        "when_label": "เริ่มใช้งานได้",
+        "items_label": "สิ่งที่เพิ่มและปรับปรุง",
+        "lead": "ระบบเพิ่มความสามารถใหม่ให้แล้ว เข้าใช้งานได้ตามปกติ",
+        "css": "news",
+        "grad": "linear-gradient(120deg,#1d4ed8,#3b82f6)",
+        "title_hint": "อัปเดตใหม่ในระบบ",
+        "note_hint": "เข้าใช้งานได้ตามปกติ ไม่ต้องตั้งค่าอะไรเพิ่ม",
+    },
+    "info": {
+        "label": "ประกาศทั่วไป",
+        "sub": "ประกาศจากทีมงาน",
+        "icon": "ic-bell",
+        "when_label": "แจ้งเมื่อ",
+        "items_label": "รายละเอียด",
+        "lead": "มีเรื่องแจ้งให้ทราบดังนี้",
+        "css": "info",
+        "grad": "linear-gradient(120deg,#047857,#10b981)",
+        "title_hint": "ประกาศจากทีมงาน Easy Ekkasan",
+        "note_hint": "",
+    },
+}
+DEFAULT_KIND = "maint"
 
+
+def notice_kind(code: str) -> dict:
+    """ข้อมูลประเภทประกาศ · ไม่รู้จัก = ถือเป็นปิดปรับปรุงเหมือนประกาศเก่าก่อนมีประเภท"""
+    return NOTICE_KINDS.get((code or "").strip() or DEFAULT_KIND, NOTICE_KINDS[DEFAULT_KIND])
+
+
+def notice_when(notice) -> str:
+    """ข้อความวันเวลาของประกาศ · เขียนที่เดียว การ์ดกับอีเมลจะได้พูดตรงกัน
+
+    ปิดปรับปรุง = บอกช่วงเวลาด้วย (ข้ามวันก็บอกวันจบให้) · ประเภทอื่น = บอกแค่วัน
+    """
+    from app.thai_utils import thai_date
+    st, en = notice.start_at, notice.end_at
+    if notice_kind(getattr(notice, "kind", ""))["css"] != "maint":
+        return thai_date(st)
+    if en.date() != st.date():
+        return f"{thai_date(st)} เวลา {st:%H:%M} น. ถึง {thai_date(en)} เวลา {en:%H:%M} น."
+    return f"{thai_date(st)} เวลา {st:%H:%M} - {en:%H:%M} น."
+
+
+class MaintenanceNotice(AccBase):
+    """ประกาศถึงผู้ใช้ทุกโรงเรียน - โชว์เป็นการ์ดบนเว็บ + ส่งอีเมลแจ้งไอดีหลัก
+
+    ใช้ได้ทั้งแจ้งปิดปรับปรุง แจ้งของใหม่ และประกาศทั่วไป (ดู NOTICE_KINDS)
     เก็บที่ accounts.db เพราะเป็นประกาศระดับระบบ ไม่ใช่ของโรงเรียนใดโรงเรียนหนึ่ง
     การ์ดจะขึ้นเองตั้งแต่ตอนประกาศจนถึง end_at แล้วหายไปเอง (ไม่ต้องตามปิด)
     """
     __tablename__ = "maintenance_notice"
 
     id = Column(Integer, primary_key=True)
+    kind = Column(String, default=DEFAULT_KIND)     # maint / update / info
     title = Column(String, default="แจ้งปิดปรับปรุงระบบชั่วคราว")
     start_at = Column(DateTime, nullable=False)     # เริ่มปิดปรับปรุง
     end_at = Column(DateTime, nullable=False)       # คาดว่าเสร็จ (การ์ดหายเองหลังเวลานี้)
@@ -267,6 +331,7 @@ def _ensure_engine():
                     "ALTER TABLE tenant ADD COLUMN inactive_stage INTEGER DEFAULT 0",
                     "ALTER TABLE tenant ADD COLUMN inactive_notified_at DATETIME",
                     "ALTER TABLE tenant ADD COLUMN trial_notice_stage INTEGER DEFAULT 0",
+                    "ALTER TABLE maintenance_notice ADD COLUMN kind VARCHAR DEFAULT 'maint'",
                     "ALTER TABLE maintenance_notice ADD COLUMN email_started_at DATETIME",
                     "ALTER TABLE maintenance_notice ADD COLUMN email_total INTEGER DEFAULT 0",
                     # โรงเรียนเดิมยังไม่มีค่า -> ถือว่าใช้งานล่าสุด ณ วันที่สร้างบัญชี
@@ -2107,7 +2172,8 @@ def active_notice():
         stamp = int((n.created_at or n.start_at).timestamp() * 1_000_000)
         return {"id": n.id, "key": f"{n.id}_{stamp}", "title": n.title,
                 "start_at": n.start_at, "end_at": n.end_at,
-                "lines": n.lines(), "note": n.note}
+                "lines": n.lines(), "note": n.note, "k": notice_kind(n.kind),
+                "when": notice_when(n)}
     except Exception as e:      # noqa: BLE001
         print("[notice] อ่านประกาศไม่สำเร็จ:", e)
         return None

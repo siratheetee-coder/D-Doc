@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% from "_dmy.html" import date_input, time_input, dmy_script %}
-{% block title %}ประกาศแจ้งปิดปรับปรุงระบบ{% endblock %}
+{% block title %}ประกาศถึงผู้ใช้{% endblock %}
 {% block content %}
 <div class="hero" style="background:linear-gradient(120deg,#b45309,#d97706 55%,#f59e0b); box-shadow:0 10px 26px rgba(217,119,6,.28);">
   <div>
     <div class="hero-sub">แจ้งผู้ใช้ทุกโรงเรียน · ขึ้นการ์ดบนเว็บ + ส่งอีเมลถึงไอดีหลัก</div>
-    <span class="hero-title">ประกาศแจ้งปิดปรับปรุงระบบ</span>
+    <span class="hero-title">ประกาศถึงผู้ใช้</span>
     <div class="hero-meta">ไอดีหลักที่จะได้รับอีเมล {{ targets|length }} โรงเรียน{% if skipped %}
       · ส่งไม่ได้ {{ skipped|length }} (ไอดีไม่ใช่อีเมล){% endif %}</div>
   </div>
@@ -20,28 +20,37 @@
 {% endif %}
 
 <div class="card">
-  <h2><svg class="icon"><use href="#ic-tool"/></svg> เขียนประกาศใหม่</h2>
-  <p class="muted" style="margin-top:0;">การ์ดจะขึ้นให้ผู้ใช้ทุกโรงเรียนทันทีที่ประกาศ และ<b>หายไปเองเมื่อพ้นเวลาสิ้นสุด</b> ไม่ต้องตามปิด</p>
+  <h2><svg class="icon"><use href="#ic-bell"/></svg> เขียนประกาศใหม่</h2>
+  <p class="muted" style="margin-top:0;">การ์ดจะขึ้นให้ผู้ใช้ทุกโรงเรียนทันทีที่ประกาศ และ<b>หายไปเองเมื่อพ้นวันสิ้นสุด</b> ไม่ต้องตามปิด</p>
   <form method="post" action="/admin-console/notice">
     <div class="row">
+      <div><label>ประเภทประกาศ</label>
+        <select name="kind" id="kindSel">
+          {% for code, k in kinds.items() %}
+          <option value="{{ code }}" data-title="{{ k.title_hint }}" data-sub="{{ k.sub }}"
+                  data-items="{{ k.items_label }}" data-when="{{ k.when_label }}"
+                  data-note="{{ k.note_hint }}">{{ k.label }}</option>
+          {% endfor %}
+        </select>
+        <div class="muted" id="kindHint" style="font-size:13px; margin-top:5px;"></div></div>
       <div style="flex:2;"><label>หัวข้อ</label>
-        <input name="title" value="แจ้งปิดปรับปรุงระบบชั่วคราว" required></div>
+        <input name="title" id="titleBox" value="แจ้งปิดปรับปรุงระบบชั่วคราว" required></div>
     </div>
     <div class="row">
-      <div><label>วันที่เริ่ม * <span class="muted" style="font-size:13px;">พิมพ์ {{ today_digits }} ได้เลย</span></label>
+      <div><label><span class="lb-start">วันที่เริ่ม</span> * <span class="muted" style="font-size:13px;">พิมพ์ {{ today_digits }} ได้เลย</span></label>
         {{ date_input('start_day', today) }}</div>
-      <div><label>เวลาเริ่ม</label>{{ time_input('start_time', start_default) }}</div>
-      <div><label>วันที่สิ้นสุด <span class="muted" style="font-size:13px;">(ว่าง = วันเดียวกัน)</span></label>
+      <div class="only-maint"><label>เวลาเริ่ม</label>{{ time_input('start_time', start_default) }}</div>
+      <div><label><span class="lb-end">วันที่สิ้นสุด</span> <span class="muted" style="font-size:13px;">(ว่าง = วันเดียวกัน)</span></label>
         {{ date_input('end_day', None) }}</div>
-      <div><label>เวลาสิ้นสุด</label>{{ time_input('end_time', end_default) }}</div>
+      <div class="only-maint"><label>เวลาสิ้นสุด</label>{{ time_input('end_time', end_default) }}</div>
     </div>
     <div class="row">
-      <div style="flex:1;"><label>สิ่งที่จะปรับปรุง <span class="muted" style="font-size:13px;">(บรรทัดละข้อ)</span></label>
+      <div style="flex:1;"><label><span class="lb-items">สิ่งที่จะปรับปรุง</span> <span class="muted" style="font-size:13px;">(บรรทัดละข้อ)</span></label>
         <textarea name="items" rows="4" placeholder="แก้ปัญหาออกเอกสาร ปพ.5 ไม่ได้ในชั้นเรียนที่มีนักเรียนจำนวนมาก&#10;เพิ่มทะเบียนคุมโครงการ ผูกกับเงินที่จ่ายจริงในงานการเงิน"></textarea></div>
     </div>
     <div class="row">
       <div style="flex:1;"><label>ข้อความท้ายการ์ด</label>
-        <input name="note" value="ข้อมูลของท่านยังอยู่ครบ ไม่ต้องดำเนินการใด ๆ"></div>
+        <input name="note" id="noteBox" value="ข้อมูลของท่านยังอยู่ครบ ไม่ต้องดำเนินการใด ๆ"></div>
     </div>
     <div class="row" style="align-items:center;">
       <label style="display:flex; gap:9px; align-items:center; font-weight:600; cursor:pointer;">
@@ -64,7 +73,8 @@
     <tbody>
       {% for n in rows %}
       <tr>
-        <td><b>{{ n.title }}</b></td>
+        <td><b>{{ n.title }}</b><br>
+          <span class="muted" style="font-size:12.5px;">{{ kind_of(n.kind).label }}</span></td>
         <td style="white-space:nowrap;">{{ thai_date(n.start_at) }}<br>
           <span class="muted">{{ "%02d:%02d"|format(n.start_at.hour, n.start_at.minute) }}
             - {{ "%02d:%02d"|format(n.end_at.hour, n.end_at.minute) }} น.</span></td>
@@ -109,5 +119,32 @@
   setTimeout(function(){ location.href = '/admin-console/notice'; }, 5000);
 </script>
 {% endif %}
+<script>
+  /* เปลี่ยนประเภทประกาศ แล้วคำในฟอร์มเปลี่ยนตามให้ตรงกับที่ผู้ใช้จะเห็นบนการ์ด
+     ประกาศที่ไม่ใช่การปิดระบบ ไม่ต้องกรอกเวลา เพราะการ์ดบอกแค่วัน */
+  (function(){
+    var sel = document.getElementById('kindSel');
+    if(!sel) return;
+    function txt(cls, s){ var el = document.querySelector('.' + cls); if(el) el.textContent = s; }
+    function apply(){
+      var o = sel.options[sel.selectedIndex], maint = (sel.value === 'maint');
+      document.getElementById('kindHint').textContent =
+        'การ์ดจะขึ้นบรรทัดบนว่า "' + o.dataset.sub + '"';
+      txt('lb-items', o.dataset.items);
+      txt('lb-start', o.dataset.when);
+      txt('lb-end', maint ? 'วันที่สิ้นสุด' : 'แสดงการ์ดถึงวันที่');
+      document.querySelectorAll('.only-maint').forEach(function(el){ el.hidden = !maint; });
+      var t = document.getElementById('titleBox'), n = document.getElementById('noteBox');
+      if(!t.dataset.touched) t.value = o.dataset.title;
+      if(!n.dataset.touched) n.value = o.dataset.note;
+    }
+    ['titleBox','noteBox'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.addEventListener('input', function(){ el.dataset.touched = '1'; });
+    });
+    sel.addEventListener('change', apply);
+    apply();
+  })();
+</script>
 {{ dmy_script() }}
 {% endblock %}

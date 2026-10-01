@@ -53,11 +53,12 @@ def env(monkeypatch):
     return c, ac
 
 
-def _notice(ac, *, hours_ahead=24, length=2, active=True, title="แจ้งปิดปรับปรุงระบบชั่วคราว"):
+def _notice(ac, *, hours_ahead=24, length=2, active=True, kind="maint",
+            title="แจ้งปิดปรับปรุงระบบชั่วคราว"):
     db = ac.acc_session()
     try:
         n = ac.MaintenanceNotice(
-            title=title,
+            kind=kind, title=title,
             start_at=datetime.now() + timedelta(hours=hours_ahead),
             end_at=datetime.now() + timedelta(hours=hours_ahead + length),
             items="แก้ปัญหาออกเอกสาร ปพ.5\nเพิ่มทะเบียนคุมโครงการ",
@@ -279,3 +280,92 @@ def test_when_text_handles_overnight(env):
     txt = when_text(n)
     db.close()
     assert "ถึง" in txt if n.end_at.date() != n.start_at.date() else "-" in txt
+
+
+# ---------- ประเภทประกาศ: ใช้ได้มากกว่าแค่แจ้งปิดปรับปรุง ----------
+def test_update_notice_does_not_apologise(env):
+    """ประกาศของใหม่ต้องไม่ขึ้นว่าขออภัยในความไม่สะดวก และไม่พูดเหมือนระบบจะปิด"""
+    c, ac = env
+    _notice(ac, kind="update", title="อัปเดตใหม่ในระบบ")
+    html = c.get("/").text
+    assert "มีอะไรใหม่ในระบบ" in html
+    assert "ขออภัยในความไม่สะดวก" not in html
+    assert "สิ่งที่เพิ่มและปรับปรุง" in html
+    assert 'class="maint news"' in html          # สีคนละชุดกับการ์ดปิดระบบ
+
+
+def test_info_notice_wording(env):
+    c, ac = env
+    _notice(ac, kind="info", title="แจ้งกำหนดส่ง ปพ.5")
+    html = c.get("/").text
+    assert "ประกาศจากทีมงาน" in html and "แจ้งกำหนดส่ง ปพ.5" in html
+    assert 'class="maint info"' in html
+
+
+def test_only_maintenance_shows_the_closing_hours(env):
+    """ประกาศทั่วไป/ของใหม่ บอกแค่วัน ไม่ต้องบอกว่าระบบปิดกี่โมงถึงกี่โมง"""
+    c, ac = env
+    _notice(ac, kind="update")
+    assert "เวลา 21:00" not in c.get("/").text
+    db = ac.acc_session()
+    for n in db.query(ac.MaintenanceNotice).all():
+        db.delete(n)
+    db.commit()
+    db.close()
+    _notice(ac, kind="maint")
+    assert "ช่วงที่ปิดปรับปรุง" in c.get("/").text
+
+
+def test_old_notices_without_a_kind_still_work(env):
+    """ประกาศเก่าที่บันทึกไว้ก่อนมีประเภท ต้องถือเป็นแจ้งปิดปรับปรุงเหมือนเดิม"""
+    c, ac = env
+    nid = _notice(ac)
+    db = ac.acc_session()
+    db.get(ac.MaintenanceNotice, nid).kind = None
+    db.commit()
+    db.close()
+    html = c.get("/").text
+    assert "ขออภัยในความไม่สะดวก" in html and 'class="maint maint"' in html
+
+
+def test_email_follows_the_kind(env, monkeypatch):
+    """อีเมลต้องพูดชุดเดียวกับการ์ด ไม่ใช่ขึ้นหัวว่าปิดปรับปรุงทุกฉบับ"""
+    c, ac = env
+    box = _fake_smtp(monkeypatch)
+    db = ac.acc_session()
+    n = db.get(ac.MaintenanceNotice, _notice(ac, kind="update", title="ของใหม่เดือนนี้"))
+    from app.services import notice_mail
+    notice_mail.send_maintenance_mail(n, [{"email": "a@school.ac.th", "school": "โรงเรียน ก"}])
+    db.close()
+    body = box["msgs"][0][1]
+    assert "อัปเดตของใหม่" in body and "ของใหม่เดือนนี้" in body
+    assert "ขออภัย" not in body and "เข้าใช้งานไม่ได้ชั่วคราว" not in body
+
+
+def test_console_lets_you_pick_a_kind(env):
+    """คอนโซลต้องมีตัวเลือกประเภทให้เลือกจริง (ไม่งั้นเจ้าของระบบใช้ไม่ได้)"""
+    c, ac = env
+    db = ac.acc_session()
+    db.add(ac.Account(tenant_id=None, username="root2@test.th", display_name="แอดมิน",
+                      password_hash=ac.hash_password("Root!2569"), role="superadmin", active=True))
+    db.commit()
+    db.close()
+
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    admin = TestClient(app, raise_server_exceptions=False)
+    admin.post("/login", data={"username": "root2@test.th", "password": "Root!2569"},
+               follow_redirects=False)
+    page = admin.get("/admin-console/notice").text
+    for label in ("ปิดปรับปรุงระบบ", "อัปเดตของใหม่", "ประกาศทั่วไป"):
+        assert label in page, label
+    r = admin.post("/admin-console/notice", data={
+        "kind": "update", "title": "ของใหม่", "start_day": "02/10/2569", "start_time": "21:00",
+        "end_day": "", "end_time": "23:00", "items": "x", "note": ""}, follow_redirects=False)
+    assert r.status_code == 303
+    db = ac.acc_session()
+    saved = db.query(ac.MaintenanceNotice).order_by(ac.MaintenanceNotice.id.desc()).first()
+    kind = saved.kind
+    db.close()
+    assert kind == "update"

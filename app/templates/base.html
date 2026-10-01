@@ -423,7 +423,7 @@
     }
     .alert.danger > .icon { background: #ef4444; color: #fff; }
     .alert.danger b { color: #991b1b; }
-    /* ===== การ์ดแจ้งปิดปรับปรุงระบบ (ขึ้นทุกหน้า) ===== */
+    /* ===== การ์ดประกาศถึงผู้ใช้ (ขึ้นทุกหน้า) · สีตามประเภทประกาศ ===== */
     .maint {
       display: flex; gap: 16px; align-items: flex-start; color: #fff;
       border-radius: 16px; padding: 20px 24px; margin-bottom: 20px;
@@ -441,6 +441,13 @@
     .maint .mt-act { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
     .maint .mt-act .btn { background: #fff; color: #b45309; box-shadow: none; }
     .maint .mt-note { font-size: 13.5px; opacity: .92; }
+    /* ประกาศของใหม่ = น้ำเงิน · ประกาศทั่วไป = เขียว (ส้มสงวนไว้ให้เรื่องปิดระบบจริง ๆ) */
+    .maint.news { background: linear-gradient(120deg, #1d4ed8, #2563eb 55%, #3b82f6);
+      box-shadow: 0 10px 26px rgba(37,99,235,.28); }
+    .maint.news .mt-act .btn { color: #1d4ed8; }
+    .maint.info { background: linear-gradient(120deg, #047857, #059669 55%, #10b981);
+      box-shadow: 0 10px 26px rgba(5,150,105,.26); }
+    .maint.info .mt-act .btn { color: #047857; }
     @media (max-width: 600px) { .maint { padding: 16px 18px; } .maint h3 { font-size: 19px; } }
 
     /* ===== Toast แจ้งเตือนเด้งจากบน แล้วหายเอง ===== */
@@ -1132,18 +1139,17 @@
         {# ===== ประกาศแจ้งปิดปรับปรุงระบบ (ขึ้นทุกหน้า หายเองเมื่อพ้นกำหนด) ===== #}
         {% set _mt = maint_notice() %}
         {% if _mt %}
-        <div class="maint" id="maintCard" data-mt="{{ _mt.key }}">
-          <svg class="icon mt-ic"><use href="#ic-tool"/></svg>
+        <div class="maint {{ _mt.k.css }}" id="maintCard" data-mt="{{ _mt.key }}">
+          <svg class="icon mt-ic"><use href="#{{ _mt.k.icon }}"/></svg>
           <div style="flex:1; min-width:240px;">
-            <div class="mt-sub">ขออภัยในความไม่สะดวก</div>
+            <div class="mt-sub">{{ _mt.k.sub }}</div>
             <h3>{{ _mt.title }}</h3>
             <div class="mt-when">
               <svg class="icon" style="width:18px;height:18px;"><use href="#ic-clock"/></svg>
-              {{ thai_date(_mt.start_at) }} เวลา {{ "%02d:%02d"|format(_mt.start_at.hour, _mt.start_at.minute) }}
-              - {{ "%02d:%02d"|format(_mt.end_at.hour, _mt.end_at.minute) }} น.
-              {%- if _mt.end_at.date() != _mt.start_at.date() %} ({{ thai_date(_mt.end_at) }}){% endif %}
+              {{ _mt.k.when_label }} {{ _mt.when }}
             </div>
             {% if _mt.lines %}
+            <div style="margin-top:10px; font-weight:600; font-size:14px; opacity:.95;">{{ _mt.k.items_label }}</div>
             <ul>{% for it in _mt.lines %}<li>{{ it }}</li>{% endfor %}</ul>
             {% endif %}
             <div class="mt-act">

@@ -660,8 +660,8 @@ def _parse_dt(day: str, time_: str, default_h=21, default_m=0):
 
 @router.get("/admin-console/notice", response_class=HTMLResponse)
 def notice_page(request: Request, msg: str = "", err: str = ""):
-    """เขียนประกาศแจ้งปิดปรับปรุงระบบ -> ขึ้นการ์ดให้ผู้ใช้ทุกโรงเรียน + ส่งอีเมลแจ้งไอดีหลัก"""
-    from app.accounts import MaintenanceNotice, owner_emails
+    """เขียนประกาศถึงผู้ใช้ทุกโรงเรียน (ปิดปรับปรุง / ของใหม่ / ทั่วไป) + ส่งอีเมลแจ้งไอดีหลัก"""
+    from app.accounts import MaintenanceNotice, owner_emails, NOTICE_KINDS, notice_kind
     from app.services.mailer import smtp_configured
     db = acc_session()
     try:
@@ -688,6 +688,7 @@ def notice_page(request: Request, msg: str = "", err: str = ""):
             "targets": targets, "skipped": skipped, "smtp_ok": smtp_configured(),
             "live": live, "today": today, "sending": sending,
             "busy": busy, "stuck": stuck,
+            "kinds": NOTICE_KINDS, "kind_of": notice_kind,
             "today_digits": f"{today.day:02d}{today.month:02d}{today.year + 543}",
             "start_default": datetime(today.year, today.month, today.day, 21, 0),
             "end_default": datetime(today.year, today.month, today.day, 23, 0),
@@ -698,7 +699,8 @@ def notice_page(request: Request, msg: str = "", err: str = ""):
 
 
 @router.post("/admin-console/notice")
-def notice_save(request: Request, title: str = Form("แจ้งปิดปรับปรุงระบบชั่วคราว"),
+def notice_save(request: Request, kind: str = Form("maint"),
+                title: str = Form("แจ้งปิดปรับปรุงระบบชั่วคราว"),
                 start_day: str = Form(""), start_time: str = Form("21:00"),
                 end_day: str = Form(""), end_time: str = Form("23:00"),
                 items: str = Form(""), note: str = Form(""),
@@ -721,7 +723,10 @@ def notice_save(request: Request, title: str = Form("แจ้งปิดปร
     mail_txt = ""
     db = acc_session()
     try:
-        n = MaintenanceNotice(title=title.strip() or "แจ้งปิดปรับปรุงระบบชั่วคราว",
+        from app.accounts import NOTICE_KINDS, DEFAULT_KIND
+        k = kind if kind in NOTICE_KINDS else DEFAULT_KIND
+        n = MaintenanceNotice(kind=k,
+                              title=title.strip() or NOTICE_KINDS[k]["label"],
                               start_at=start, end_at=end, items=items.strip(),
                               note=note.strip(), active=True)
         db.add(n)
