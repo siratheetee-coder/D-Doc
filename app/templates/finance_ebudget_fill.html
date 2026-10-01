@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}เติมหมวด e-Budget{% endblock %}
+{% block content %}
+<div class="hero" style="background:linear-gradient(120deg,#15803d,#16a34a 55%,#4ade80); box-shadow:0 10px 26px rgba(22,163,74,.28);">
+  <div>
+    <div class="hero-sub">ปีงบ {{ fiscal_year }} · ครั้งที่ {{ round }} · {{ label }}</div>
+    <span class="hero-title">เติมหมวด e-Budget</span>
+    <div class="hero-meta">{{ rows|length }} รายการ{{ ' (ทั้งหมดในงวด)' if show_all else ' ที่ยังไม่ได้ระบุหมวด' }}</div>
+  </div>
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <a class="btn gray" href="/finance/ebudget/fill?year={{ fiscal_year }}&round={{ round }}&all={{ 0 if show_all else 1 }}">
+      {{ 'ดูเฉพาะที่ยังว่าง' if show_all else 'ดูทั้งหมดในงวด' }}</a>
+    <a class="btn gray" href="/finance/ebudget?year={{ fiscal_year }}&round={{ round }}">
+      <svg class="icon"><use href="#ic-arrow-left"/></svg> กลับหน้ารายงาน</a>
+  </div>
+</div>
+
+{% if rows %}
+<div class="alert info">
+  <svg class="icon"><use href="#ic-info"/></svg>
+  <span><b>ระบบเดาหมวดให้ไว้แล้ว</b> จากข้อความในรายการ หมวดงบ และโครงการที่ผูกไว้
+    ตรวจทานแล้วแก้เฉพาะที่ผิด จากนั้นกดบันทึกครั้งเดียว ·
+    ช่องที่เดาไม่ได้จะเป็น "ยังไม่ระบุ" ต้องเลือกเอง</span>
+</div>
+
+<form method="post" action="/finance/ebudget/fill">
+  <input type="hidden" name="year" value="{{ fiscal_year }}">
+  <input type="hidden" name="round" value="{{ round }}">
+  <div class="card">
+    <div class="table-wrap"><table>
+      <thead><tr><th style="width:92px;">วันที่</th><th>รายการ</th>
+        <th class="right" style="width:120px;">จำนวนเงิน</th>
+        <th style="width:330px;">หมวด e-Budget</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td style="white-space:nowrap;">{{ thai_date(r.t.date) }}
+            <div class="muted" style="font-size:12.5px;">{{ 'จ่าย' if r.t.kind == 'out' else 'รับ' }}</div></td>
+          <td>{{ r.t.note or r.t.category or '-' }}
+            <div class="muted" style="font-size:12.5px;">
+              {{ r.account }}{% if r.item %} · {{ r.item }}{% endif %}{% if r.project %} · โครงการ{{ r.project }}{% endif %}
+              {%- if r.t.ref %} · {{ r.t.ref }}{% endif %}</div></td>
+          <td class="right">{{ "{:,.2f}".format(r.t.amount or 0) }}</td>
+          <td>
+            <select name="eb_{{ r.t.id }}" style="width:100%;">
+              <option value="">- ยังไม่ระบุ -</option>
+              {% if r.t.kind == 'out' %}
+                {% for grp, opts in eb_expense %}
+                <optgroup label="{{ grp }}">
+                  {% for code, lbl in opts %}
+                  <option value="{{ code }}" {{ 'selected' if (r.current or r.guess) == code }}>{{ code }} {{ lbl }}</option>
+                  {% endfor %}
+                </optgroup>
+                {% endfor %}
+              {% else %}
+                {% for code, lbl in eb_income %}
+                <option value="{{ code }}" {{ 'selected' if (r.current or r.guess) == code }}>{{ lbl }}</option>
+                {% endfor %}
+              {% endif %}
+            </select>
+            {% if not r.current and r.guess %}<span class="muted" style="font-size:12px;">ระบบเดาให้</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    <br>
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-check"/></svg>
+      บันทึกหมวดทั้งหมด {{ rows|length }} รายการ</button>
+  </div>
+</form>
+{% else %}
+<div class="card">
+  <div class="alert"><svg class="icon"><use href="#ic-check"/></svg>
+    <span>ระบุหมวดครบทุกรายการในงวดนี้แล้ว · กลับไปหน้ารายงานเพื่อคัดลอกตัวเลขได้เลย</span></div>
+</div>
+{% endif %}
+{% endblock %}

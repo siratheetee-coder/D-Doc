@@ -724,6 +724,7 @@ class FinanceTxn(Base):
     note = Column(String, default="")
     disburse_id = Column(Integer, ForeignKey("disburse_memo.id"), nullable=True)
     project_id = Column(Integer, ForeignKey("project.id"), nullable=True)   # โครงการในแผนที่ใช้เงินก้อนนี้
+    eb_code = Column(String, default="")             # หมวด e-Budget (จ่าย = ส่วนที่ 4 · รับ = ส่วนที่ 3)
     # ใช้เฉพาะบัญชีเงินประกันสัญญา (ทะเบียนคุมเงินฝาก) - ต้องคืนเงินเมื่อครบกำหนด
     due_date = Column(DateTime, nullable=True)       # วันครบกำหนดคืนเงินประกัน
     refund_date = Column(DateTime, nullable=True)    # วันที่เบิกจ่ายเงินคืนผู้มีสิทธิ์

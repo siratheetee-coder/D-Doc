@@ -19,6 +19,7 @@ from app.models import (
     AccountItem, Project, MoneyLoan, LoanReturn, CheckPayment, BankRecon,
 )
 from app.services.budget import current_plan_year, plan_year_label
+from app.services.ebudget_cat import EXPENSE as EB_EXPENSE, INCOME as EB_INCOME
 from app.services.asset_utils import (
     account_balance, account_balance_year, opening_for,
     account_balance_asof, item_remaining_asof,
@@ -282,6 +283,7 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
         "item_remain_total": sum(r["remain"] for r in item_rows if r["level"] == 0),
         "special_key": special_form(a), "special_label": SPECIAL_LABEL,
         "projects": _plan_projects(db, fy),
+        "eb_expense": EB_EXPENSE, "eb_income": EB_INCOME[0][1],
         "fund_c": fund_color(a.fund_type),
     })
 
@@ -395,7 +397,7 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
                     ref: str = Form(""), note: str = Form(""), fiscal_year: str = Form(""),
                     item_id: str = Form(""), receipt_no: str = Form(""), party: str = Form(""),
                     due_date: str = Form(""), refund_date: str = Form(""),
-                    project_id: str = Form("")):
+                    project_id: str = Form(""), eb_code: str = Form("")):
     a = db.get(FinanceAccount, aid)
     fy = _to_int(fiscal_year, current_fiscal_year())
     if a:
@@ -405,6 +407,7 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
         t = FinanceTxn(
             account_id=a.id, fiscal_year=fy, item_id=_to_int(item_id, 0) or None,
             project_id=_to_int(project_id, 0) or None,
+            eb_code=(eb_code or "").strip(),
             kind=k, amount=amt, date=dt,
             category=category.strip(), ref=ref.strip(), note=note.strip(),
             due_date=parse_be_date(due_date) if due_date else None,
@@ -1580,3 +1583,65 @@ def _default_round(fy: int) -> int:
     from app.thai_utils import thai_now
     now = thai_now()
     return 1 if 4 <= now.month <= 9 else 2
+
+
+@router.get("/finance/ebudget/fill", response_class=HTMLResponse)
+def ebudget_fill_page(request: Request, db: Session = Depends(get_db),
+                      year: int | None = None, round: int = 0, all: int = 0):
+    """ไล่เติมหมวด e-Budget ย้อนหลัง - ระบบเดาให้ก่อน ครูแค่ตรวจทานแล้วกดบันทึก
+
+    all=1 แสดงทุกรายการในงวด (ไว้แก้ของที่เคยเติมไว้) · ปกติแสดงเฉพาะที่ยังว่าง
+    """
+    from app.models import AccountItem, FinanceAccount, FinanceTxn, Project
+    from app.services.ebudget import period
+    from app.services.ebudget_cat import EXPENSE, INCOME, guess
+    fy = year or current_fiscal_year()
+    rnd = 2 if round == 2 else (1 if round == 1 else _default_round(fy))
+    start, end, label = period(fy, rnd)
+    accts = {a.id: a for a in db.query(FinanceAccount).all()}
+    items = {i.id: i for i in db.query(AccountItem).filter_by(fiscal_year=fy).all()}
+    projs = {p.id: p for p in db.query(Project).all()}
+    rows = []
+    for t in db.query(FinanceTxn).filter_by(fiscal_year=fy).order_by(FinanceTxn.date).all():
+        d = t.date
+        if not d or not (start <= d <= end):
+            continue
+        if not all and (t.eb_code or "").strip():
+            continue
+        it = items.get(t.item_id)
+        pj = projs.get(t.project_id)
+        rows.append({
+            "t": t, "account": (accts.get(t.account_id).name if accts.get(t.account_id) else ""),
+            "item": it.name if it else "", "project": pj.name if pj else "",
+            "current": (t.eb_code or "").strip(),
+            "guess": guess(t, it.name if it else "", pj.name if pj else "",
+                           accts.get(t.account_id).name if accts.get(t.account_id) else ""),
+        })
+    return templates.TemplateResponse("finance_ebudget_fill.html", {
+        "request": request, "rows": rows, "fiscal_year": fy, "round": rnd,
+        "label": label, "start": start, "end": end, "show_all": bool(all),
+        "eb_expense": EXPENSE, "eb_income": INCOME[0][1],
+    })
+
+
+@router.post("/finance/ebudget/fill")
+async def ebudget_fill_save(request: Request, db: Session = Depends(get_db)):
+    """บันทึกหมวดที่ครูตรวจทานแล้ว (ส่งมาเป็น eb_<txn_id>)"""
+    from app.models import FinanceTxn
+    form = await request.form()
+    fy = _to_int(form.get("year"), current_fiscal_year())
+    rnd = _to_int(form.get("round"), 1)
+    saved = 0
+    for key, val in form.items():
+        if not key.startswith("eb_"):
+            continue
+        t = db.get(FinanceTxn, _to_int(key[3:], 0))
+        if t is None:
+            continue
+        new = (val or "").strip()
+        if (t.eb_code or "") != new:
+            t.eb_code = new
+            saved += 1
+    db.commit()
+    return RedirectResponse(f"/finance/ebudget?year={fy}&round={rnd}&saved={saved}",
+                            status_code=303)

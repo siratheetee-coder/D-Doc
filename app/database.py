@@ -255,6 +255,7 @@ MIGRATIONS = [
     ("finance_txn", "project_id", "INTEGER"),
     ("procurement", "quotation_no", "VARCHAR DEFAULT ''"),
     ("procurement", "winner_no", "VARCHAR DEFAULT ''"),
+    ("finance_txn", "eb_code", "VARCHAR DEFAULT ''"),
     # ---- ตารางกลาง StudentMeasure สร้างอัตโนมัติผ่าน create_all (ไม่ต้อง migrate คอลัมน์) ----
 ]
 

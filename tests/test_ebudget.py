@@ -281,3 +281,103 @@ def test_group_three_is_the_sum_of_its_children(env):
     kids = ["3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "3.7", "3.8",
             "3.9", "3.10", "3.11", "3.12", "3.13"]
     assert d["closing"]["3"] == round(sum(d["closing"][k] for k in kids), 2)
+
+
+# ---- หมวดรายจ่าย e-Budget: เลือกตอนลงรายการ + ไล่เติมย้อนหลัง ----
+@pytest.mark.parametrize("note,code", [
+    ("ค่าไฟฟ้า เดือนกรกฎาคม", "4.1.1"),
+    ("ค่าน้ำประปา", "4.1.2"),
+    ("ค่าอินเทอร์เน็ตรายเดือน", "4.1.5"),
+    ("ค่ากระดาษ หมึกพิมพ์", "4.4"),
+    ("ค่าจ้างรถทัศนศึกษา ป.4-6", "1.6"),
+    ("ค่าหนังสือเรียน ป.1", "1.3"),
+    ("ค่าจ้างธุรการโรงเรียน", "2.1.5"),
+    ("ค่าจ้างนักการภารโรง", "2.1.2"),
+    ("จัดซื้อครุภัณฑ์คอมพิวเตอร์", "3.1"),
+    ("ค่าอาหารกลางวันเดือน ก.ค.", "5.3"),
+    ("นำส่งภาษีหัก ณ ที่จ่าย", "4.7"),
+    ("ค่าเบี้ยเลี้ยงไปราชการ", "4.3"),
+])
+def test_guess_expense_from_what_the_teacher_typed(note, code):
+    """เดาหมวดจากข้อความที่ครูพิมพ์ ครูจะได้ไม่ต้องเลือกเองทุกบรรทัด"""
+    from app.services.ebudget_cat import guess_expense
+    assert guess_expense(note) == code, note
+
+
+def test_guess_falls_back_to_project_plan():
+    """ผูกโครงการไว้แต่เดาจากข้อความไม่ได้ = โครงการตามแผนปฏิบัติการ"""
+    from app.services.ebudget_cat import guess_expense
+    assert guess_expense("จ่ายตามบันทึก", "", "ส่งเสริมคุณธรรม") == "1.1"
+    assert guess_expense("จ่ายตามบันทึก") == ""      # ไม่มีอะไรให้เดา = ให้ครูเลือกเอง
+
+
+@pytest.mark.parametrize("text,code", [
+    ("รับจัดสรรเงินอุดหนุนรายหัว", "i2"),
+    ("รับเงินอาหารกลางวันจาก อบต.", "i4"),
+    ("รับเงินทุนเสมอภาค กสศ.", "i3"),
+    ("ดอกเบี้ยเงินฝากธนาคาร", "i6"),
+    ("รับเงินบริจาคจากผู้ปกครอง", "i5"),
+])
+def test_guess_income_source(text, code):
+    from app.services.ebudget_cat import guess_income
+    assert guess_income("", "", text) == code, text
+
+
+def test_ledger_form_offers_the_category(env):
+    from app.models import FinanceAccount
+    from app.tenancy import session_for
+    c, tid = env
+    db = session_for(tid)
+    aid = db.query(FinanceAccount).first().id
+    db.close()
+    html = c.get(f"/finance/accounts/{aid}?year={FY}").text
+    assert 'name="eb_code"' in html
+    assert "ค่าไฟฟ้า" in html and "กิจกรรมพัฒนาผู้เรียน" in html
+    assert 'data-kind="out"' in html and 'data-kind="in"' in html   # สลับตามรับ/จ่าย
+
+
+def test_fill_page_pre_guesses_and_saves(env):
+    """หน้าไล่เติมหมวด: เดาให้ก่อน ครูกดบันทึกครั้งเดียว"""
+    from app.models import FinanceTxn
+    from app.tenancy import session_for
+    c, tid = env
+    html = c.get(f"/finance/ebudget/fill?year={FY}&round=2").text
+    assert "เติมหมวด e-Budget" in html and "ระบบเดาหมวดให้ไว้แล้ว" in html
+    db = session_for(tid)
+    t = (db.query(FinanceTxn).filter_by(kind="out")
+         .filter(FinanceTxn.note.like("%ค่าตกแต่ง%")).first())
+    tid_ = t.id
+    db.close()
+    assert f'name="eb_{tid_}"' in html
+    r = c.post("/finance/ebudget/fill",
+               data={"year": FY, "round": 2, f"eb_{tid_}": "4.9"}, follow_redirects=False)
+    assert r.status_code == 303
+    db = session_for(tid)
+    assert db.get(FinanceTxn, tid_).eb_code == "4.9"
+    db.close()
+
+
+def test_matrix_appears_once_codes_are_filled(env):
+    """พอระบุหมวดแล้ว ส่วนที่ 4 ต้องออกมาเป็นตารางไขว้จริง"""
+    from app.models import FinanceTxn
+    from app.tenancy import session_for
+    c, tid = env
+    db = session_for(tid)
+    for t in db.query(FinanceTxn).filter_by(kind="out").all():
+        t.eb_code = "4.4"
+    db.commit()
+    db.close()
+    d = _build(tid, 2)
+    assert d["matrix"]["4.4"]["free"] == 24000
+    assert d["matrix"]["4.4"]["etc"] == 1500
+    assert not d["missing"]
+    html = c.get(f"/finance/ebudget?year={FY}&round=2").text
+    assert "ค่าวัสดุ" in html and "รวมทุกด้าน" in html
+
+
+def test_missing_codes_are_flagged_on_the_report(env):
+    c, tid = env
+    d = _build(tid, 2)
+    assert d["missing"], "ยังไม่ระบุหมวด ต้องขึ้นเตือน"
+    html = c.get(f"/finance/ebudget?year={FY}&round=2").text
+    assert "ยังไม่ได้ระบุหมวด" in html and "/finance/ebudget/fill" in html

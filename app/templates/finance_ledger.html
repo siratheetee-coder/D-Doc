@@ -164,6 +164,21 @@
           {% for r in item_rows %}<option value="{{ r.it.id }}">{{ '　└ ' if r.level==1 }}{{ r.it.name }}</option>{% endfor %}
         </select>
       </div>
+      {# หมวด e-Budget: เลือกตอนลงรายการ เพราะตอนนี้ครูรู้อยู่แล้วว่าจ่ายค่าอะไร
+         ไว้ใช้ตอนรายงาน e-Budget ส่วนที่ 3/4 (เว้นว่างได้ ไปเติมทีหลังที่หน้า e-Budget) #}
+      <div><label>หมวด e-Budget <span class="muted" style="font-size:13px;">(ไว้ใช้ตอนรายงาน)</span></label>
+        <select name="eb_code" id="ebSel">
+          <option value="">- ยังไม่ระบุ -</option>
+          <optgroup label="เงินรับ" data-kind="in">
+            {% for code, label in eb_income %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+          </optgroup>
+          {% for grp, rows in eb_expense %}
+          <optgroup label="{{ grp }}" data-kind="out">
+            {% for code, label in rows %}<option value="{{ code }}">{{ code }} {{ label }}</option>{% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
+      </div>
       {# ผูกกับโครงการในแผน -> ยอดไปโผล่ที่ทะเบียนคุมโครงการเอง #}
       <div><label>โครงการ</label>
         <select name="project_id" title="ผูกรายการนี้กับโครงการในแผน เพื่อคุมงบรายโครงการ">
@@ -230,3 +245,27 @@
   });
 </script>
 {% endblock %}
+
+<script>
+  /* โชว์เฉพาะหมวดที่เข้ากับรับ/จ่ายที่เลือกไว้ จะได้ไม่ต้องเลื่อนหาในลิสต์ยาว */
+  (function () {
+    var sel = document.getElementById('ebSel');
+    if (!sel) { return; }
+    var kindEls = document.querySelectorAll('[name="kind"]');
+    function sync() {
+      var kind = 'in';
+      kindEls.forEach(function (el) {
+        if (el.type === 'radio' ? el.checked : true) { kind = el.value; }
+      });
+      sel.querySelectorAll('optgroup').forEach(function (g) {
+        g.hidden = g.dataset.kind !== kind;
+      });
+      var cur = sel.selectedOptions[0];
+      if (cur && cur.parentElement.tagName === 'OPTGROUP' && cur.parentElement.hidden) {
+        sel.value = '';
+      }
+    }
+    kindEls.forEach(function (el) { el.addEventListener('change', sync); });
+    sync();
+  })();
+</script>

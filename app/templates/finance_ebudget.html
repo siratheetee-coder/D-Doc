@@ -23,6 +23,8 @@
         <option value="2" {{ 'selected' if round==2 }}>ครั้งที่ 2 (1 เม.ย. - 30 ก.ย.)</option>
       </select>
     </form>
+    <a class="btn" href="/finance/ebudget/fill?year={{ fiscal_year }}&round={{ round }}">
+      <svg class="icon"><use href="#ic-edit"/></svg> เติมหมวดรายจ่าย</a>
     <a class="btn gray" href="https://e-budget.jobobec.in.th/school_login_form.php"
        target="_blank" rel="noopener noreferrer"
        title="เปิดหน้าเข้าสู่ระบบของสถานศึกษา ในแท็บใหม่">
@@ -121,16 +123,52 @@
 
 <div class="card">
   <h2>ส่วนที่ 4 · รายจ่ายในงวด แยกตามแหล่งเงิน</h2>
-  <p class="muted" style="margin-top:0;">e-Budget ให้กรอกเป็นตารางไขว้ <b>ด้าน × แหล่งเงิน</b> · ระบบบอก<b>ยอดรวมของแต่ละแหล่งเงิน</b>ให้ (คอลัมน์) ส่วนจะลงแถว "ด้าน" ไหน
-    ต้องดูจากรายการข้างล่างแล้วแยกเอง เพราะทะเบียนคุมเงินยังไม่ได้เก็บหมวดรายจ่ายแบบ e-Budget</p>
+  <p class="muted" style="margin-top:0;">กรอกตามตารางนี้ได้เลย แถวคือ "ด้าน" คอลัมน์คือ "แหล่งเงิน"
+    ตรงกับหน้าจอ e-Budget · แสดงเฉพาะแถวที่มียอด</p>
+  {% if d.missing %}
+  <div class="alert warn" style="margin:0 0 14px;">
+    <svg class="icon"><use href="#ic-alert"/></svg>
+    <span><b>ยังไม่ได้ระบุหมวดอีก {{ d.missing|length }} รายการ</b> ยอดพวกนี้จะยังไม่ขึ้นในตารางไขว้
+      <a href="/finance/ebudget/fill?year={{ fiscal_year }}&round={{ round }}"
+         class="btn sm" style="margin-left:8px;">ไปเติมหมวด</a></span>
+  </div>
+  {% endif %}
+  {% if d.matrix %}
+  <div class="table-wrap"><table class="eb">
+    <thead><tr><th>ด้าน / รายการ</th>
+      {% for key, label in sources %}<th class="right">{{ label }}</th>{% endfor %}
+      <th class="right">รวมแถว</th></tr></thead>
+    <tbody>
+      {% for code, cols in d.matrix|dictsort %}
+      <tr>
+        <td>{{ eb_label(code) }}</td>
+        {% for key, label in sources %}
+        <td class="right {{ 'zero' if not cols[key] }}">{{ cp('m' ~ code ~ key, cols[key]) }}</td>
+        {% endfor %}
+        <td class="right"><b>{{ "{:,.2f}".format(cols.values()|sum) }}</b></td>
+      </tr>
+      {% endfor %}
+      <tr class="tot"><td>รวมทุกด้าน</td>
+        {% for key, label in sources %}
+        <td class="right">{{ cp('mt' ~ key, d.expense[key]) }}</td>
+        {% endfor %}
+        <td class="right">{{ cp('mtot', d.totals.expense) }}</td></tr>
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="muted">ยังไม่มีรายการจ่ายที่ระบุหมวด
+    <a href="/finance/ebudget/fill?year={{ fiscal_year }}&round={{ round }}">ไปเติมหมวด</a></p>
+  {% endif %}
+
+  <h3 class="sub-h" style="margin-top:18px;">ยอดรวมรายแหล่งเงิน (ไว้ตรวจว่าแยกแถวครบ)</h3>
   <div class="table-wrap"><table class="eb">
     <thead><tr><th>คอลัมน์ใน e-Budget</th><th class="right" style="width:240px;">จำนวนเงิน (บาท)</th></tr></thead>
     <tbody>
       {% for key, label in sources %}
       <tr><td>{{ label }}</td>
-        <td class="right {{ 'zero' if not d.expense[key] }}">{{ cp('e' ~ key, d.expense[key]) }}</td></tr>
+        <td class="right {{ 'zero' if not d.expense[key] }}">{{ cp('es' ~ key, d.expense[key]) }}</td></tr>
       {% endfor %}
-      <tr class="tot"><td>รวมรายจ่าย</td><td class="right">{{ cp('etot', d.totals.expense) }}</td></tr>
+      <tr class="tot"><td>รวมรายจ่าย</td><td class="right">{{ cp('esum', d.totals.expense) }}</td></tr>
     </tbody>
   </table></div>
 
@@ -138,7 +176,7 @@
   <h3 class="sub-h" style="margin-top:18px;">รายการจ่ายทั้งหมดในงวด ({{ d.rows|length }} รายการ)</h3>
   <div class="table-wrap"><table>
     <thead><tr><th>วันที่</th><th>ที่เอกสาร</th><th>รายการ</th><th>บัญชี</th>
-      <th>แหล่งเงิน</th><th class="right">จำนวนเงิน</th></tr></thead>
+      <th>แหล่งเงิน</th><th>หมวด e-Budget</th><th class="right">จำนวนเงิน</th></tr></thead>
     <tbody>
       {% for r in d.rows %}
       <tr>
@@ -147,6 +185,7 @@
         <td>{{ r.note or '-' }}</td>
         <td class="muted">{{ r.account }}</td>
         <td class="muted">{% for k, l in sources %}{{ l if k == r.source }}{% endfor %}</td>
+        <td class="muted">{{ eb_label(r.eb) if r.eb else '-' }}</td>
         <td class="right">{{ "{:,.2f}".format(r.amount) }}</td>
       </tr>
       {% endfor %}

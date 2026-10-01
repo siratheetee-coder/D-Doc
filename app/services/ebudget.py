@@ -205,6 +205,7 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
     opening, income, closing = _bucket(), _bucket(), _bucket()
     expense = {s: 0.0 for s, _ in SOURCES}
     rows, unmapped = [], set()
+    matrix, missing = {}, []          # ตารางไขว้ส่วนที่ 4 · รายการที่ยังไม่ได้ระบุหมวด
 
     # ยอดยกมาต้นปีงบ ลงช่องตามชื่อบัญชี
     for a in accounts:
@@ -238,9 +239,14 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
             if inside:
                 src = source_of(code, acct.fund_type if acct else "")
                 expense[src] += amt
+                eb = (getattr(t, "eb_code", "") or "").strip()
+                if eb:
+                    matrix.setdefault(eb, {k: 0.0 for k, _ in SOURCES})[src] += amt
+                else:
+                    missing.append(t.id)
                 rows.append({"date": d, "ref": t.ref or "", "note": t.note or "",
-                             "amount": amt, "source": src, "code": code,
-                             "account": acct.name if acct else ""})
+                             "amount": amt, "source": src, "code": code, "eb": eb,
+                             "account": acct.name if acct else "", "id": t.id})
 
     # หัวข้อรวม (3.1 / 3.2) ในแบบ e-Budget = ผลรวมของข้อย่อย ไม่ใช่ช่องกรอกแยก
     for bucket in (opening, income, closing):
@@ -256,6 +262,7 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
         "start": start, "end": end,
         "opening": opening, "income": income, "closing": closing,
         "expense": expense, "rows": rows,
+        "matrix": matrix, "missing": missing,
         "totals": {"opening": tot_open, "income": tot_in, "expense": tot_out,
                    "closing": tot_close},
         # เว็บ e-Budget ตรวจว่า (ยกมา + รายรับ) − รายจ่าย = คงเหลือ
