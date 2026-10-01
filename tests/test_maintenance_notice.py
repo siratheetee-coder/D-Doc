@@ -149,13 +149,48 @@ def test_owner_emails_lists_one_per_school(env):
     assert len({r["email"].lower() for r in rows}) == len(rows)   # ไม่ซ้ำ
 
 
+def _fake_smtp(monkeypatch, fail_for=(), delay=0.0):
+    """SMTP จำลอง · นับจำนวนครั้งที่เปิดการเชื่อมต่อ และเก็บฉบับที่ส่ง"""
+    import smtplib
+    import time
+
+    import app.seller_config as sc
+    from app.services import mailer
+    monkeypatch.setitem(sc.SELLER, "smtp_host", "smtp.test")
+    monkeypatch.setitem(sc.SELLER, "smtp_user", "sender@test.th")
+    monkeypatch.setitem(sc.SELLER, "smtp_pass", "x")
+    monkeypatch.setitem(sc.SELLER, "smtp_from", "sender@test.th")
+    box = {"opened": 0, "msgs": []}
+
+    class Fake:
+        def __init__(self, host, port, timeout=0):
+            box["opened"] += 1
+            time.sleep(delay)
+
+        def starttls(self, context=None):
+            pass
+
+        def login(self, user, pw):
+            pass
+
+        def send_message(self, msg):
+            if msg["To"] in fail_for:
+                raise OSError("ปลายทางปฏิเสธ")
+            box["msgs"].append((msg["To"], msg.get_payload()[-1].get_content()))
+
+        def quit(self):
+            pass
+
+    monkeypatch.setattr(smtplib, "SMTP", Fake)
+    monkeypatch.setattr(mailer, "smtp_configured", lambda: True)
+    return box
+
+
 def test_email_is_sent_one_by_one(env, monkeypatch):
     """ส่งทีละฉบับ ไม่เอาอีเมลโรงเรียนอื่นใส่รวมกัน (ข้อมูลลูกค้าไม่รั่วถึงกัน)"""
     c, ac = env
     from app.services import notice_mail
-    calls = []
-    monkeypatch.setattr(notice_mail, "send_email",
-                        lambda to, subject, html, attachments=None: calls.append((to, html)) or True)
+    box = _fake_smtp(monkeypatch)
     db = ac.acc_session()
     n = db.query(ac.MaintenanceNotice).get(_notice(ac))
     targets = [{"email": "a@school.ac.th", "school": "โรงเรียน ก"},
@@ -163,22 +198,77 @@ def test_email_is_sent_one_by_one(env, monkeypatch):
     sent, failed = notice_mail.send_maintenance_mail(n, targets)
     db.close()
     assert (sent, failed) == (2, 0)
-    assert [x[0] for x in calls] == ["a@school.ac.th", "b@school.ac.th"]
-    assert "b@school.ac.th" not in calls[0][1]        # ไม่มีอีเมลโรงเรียนอื่นในฉบับแรก
-    assert "โรงเรียน ก" in calls[0][1] and "แก้ปัญหาออกเอกสาร ปพ.5" in calls[0][1]
+    assert [to for to, _ in box["msgs"]] == ["a@school.ac.th", "b@school.ac.th"]
+    assert "b@school.ac.th" not in box["msgs"][0][1]   # ไม่มีอีเมลโรงเรียนอื่นในฉบับแรก
+    assert "โรงเรียน ก" in box["msgs"][0][1] and "แก้ปัญหาออกเอกสาร ปพ.5" in box["msgs"][0][1]
+
+
+def test_one_smtp_connection_for_every_school(env, monkeypatch):
+    """เปิดการเชื่อมต่อครั้งเดียว ไม่งั้นส่งหลายสิบโรงเรียนจะช้าจนโดนตัด 504"""
+    c, ac = env
+    from app.services import notice_mail
+    box = _fake_smtp(monkeypatch)
+    db = ac.acc_session()
+    n = db.query(ac.MaintenanceNotice).get(_notice(ac))
+    sent, failed = notice_mail.send_maintenance_mail(
+        n, [{"email": f"owner{i}@school.ac.th"} for i in range(56)])
+    db.close()
+    assert (sent, failed) == (56, 0)
+    assert box["opened"] == 1
 
 
 def test_email_counts_failures(env, monkeypatch):
     c, ac = env
     from app.services import notice_mail
-    monkeypatch.setattr(notice_mail, "send_email",
-                        lambda to, subject, html, attachments=None: to.startswith("ok"))
+    _fake_smtp(monkeypatch, fail_for={"bad@b.th"})
     db = ac.acc_session()
     n = db.query(ac.MaintenanceNotice).get(_notice(ac))
     sent, failed = notice_mail.send_maintenance_mail(
         n, [{"email": "ok@a.th"}, {"email": "bad@b.th"}])
     db.close()
     assert (sent, failed) == (1, 1)
+
+
+def test_sending_does_not_block_the_page(env, monkeypatch):
+    """กดส่งแล้วหน้าเว็บต้องตอบกลับทันที ส่วนอีเมลทยอยส่งเบื้องหลัง (กัน 504)"""
+    import time
+    c, ac = env
+    box = _fake_smtp(monkeypatch, delay=0.8)
+    db = ac.acc_session()
+    db.add(ac.Account(tenant_id=None, username="root@test.th", display_name="แอดมิน",
+                      password_hash=ac.hash_password("Root!2569"), role="superadmin", active=True))
+    for i in range(5):
+        t = ac.Tenant(name=f"โรงเรียน {i}", slug=f"sch{i}", active=True)
+        db.add(t)
+        db.flush()
+        db.add(ac.Account(tenant_id=t.id, username=f"owner{i}@school.ac.th", display_name="ผอ.",
+                          password_hash=ac.hash_password("x"), role="user",
+                          is_owner=True, active=True))
+    db.commit()
+    db.close()
+    nid = _notice(ac)
+
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    admin = TestClient(app, raise_server_exceptions=False)
+    admin.post("/login", data={"username": "root@test.th", "password": "Root!2569"},
+               follow_redirects=False)
+    started = time.time()
+    r = admin.post(f"/admin-console/notice/{nid}/email", follow_redirects=False)
+    took = time.time() - started
+    assert r.status_code == 303
+    assert took < 0.5, f"หน้าเว็บรอส่งอีเมลจบ ({took:.2f} วินาที) จะโดนตัด 504 เมื่อมีหลายสิบโรงเรียน"
+
+    for _ in range(100):           # รอให้เธรดเบื้องหลังส่งจบ
+        db = ac.acc_session()
+        done = db.get(ac.MaintenanceNotice, nid).emailed_at
+        db.close()
+        if done:
+            break
+        time.sleep(0.1)
+    assert done, "เธรดเบื้องหลังต้องส่งจนจบและบันทึกเวลาที่ส่งเสร็จ"
+    assert len(box["msgs"]) == 5 and box["opened"] == 1
 
 
 def test_when_text_handles_overnight(env):

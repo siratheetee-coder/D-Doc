@@ -74,6 +74,9 @@
         <td style="white-space:nowrap;">
           {% if n.emailed_at %}<span class="pill done">ส่งแล้ว {{ n.email_count }}</span><br>
             <span class="muted" style="font-size:12.5px;">{{ thai_date(n.emailed_at) }}</span>
+          {% elif busy[n.id] %}<span class="pill">กำลังส่ง {{ n.email_count }}/{{ n.email_total }}</span>
+          {% elif stuck[n.id] %}<span class="muted">ส่งค้างที่ {{ n.email_count }}/{{ n.email_total }}
+            <br><span style="font-size:12.5px;">กดส่งอีกครั้งได้</span></span>
           {% else %}<span class="muted">ยังไม่ส่ง</span>{% endif %}</td>
         <td style="white-space:nowrap;">
           {% if live[n.id] == 'on' %}<span class="pill done">กำลังขึ้นให้ผู้ใช้</span>
@@ -81,9 +84,10 @@
           {% else %}<span class="muted">ปิดการ์ดไว้</span>{% endif %}</td>
         <td class="right" style="white-space:nowrap;">
           <form method="post" action="/admin-console/notice/{{ n.id }}/email" style="display:inline;">
-            <button class="btn sm" {{ 'disabled' if not smtp_ok }}
+            <button class="btn sm" {{ 'disabled' if not smtp_ok or busy[n.id] }}
                     onclick="return confirm('ส่งอีเมลแจ้งถึงไอดีหลัก {{ targets|length }} โรงเรียน?')">
-              <svg class="icon"><use href="#ic-send"/></svg> ส่งอีเมล</button>
+              <svg class="icon"><use href="#ic-send"/></svg>
+              {{ 'กำลังส่ง' if busy[n.id] else 'ส่งอีเมล' }}</button>
           </form>
           <form method="post" action="/admin-console/notice/{{ n.id }}/toggle" style="display:inline;">
             <button class="btn sm gray">{{ 'ปิดการ์ด' if n.active else 'เปิดการ์ด' }}</button>
@@ -99,5 +103,11 @@
   </table></div>
   {% else %}<p class="muted">ยังไม่เคยประกาศ</p>{% endif %}
 </div>
+{% if sending %}
+<script>
+  /* ยังส่งอีเมลไม่จบ -> รีเฟรชให้เองทุก 5 วินาที จะได้เห็นความคืบหน้าโดยไม่ต้องกดเอง */
+  setTimeout(function(){ location.href = '/admin-console/notice'; }, 5000);
+</script>
+{% endif %}
 {{ dmy_script() }}
 {% endblock %}

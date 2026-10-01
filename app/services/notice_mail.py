@@ -5,7 +5,7 @@ notice_mail.py - อีเมลแจ้งปิดปรับปรุงร
 หน้าตาอีเมลคุมให้ตรงกับการ์ดบนเว็บ (สีอำพันไล่เฉด · วันเวลาเด่น · รายการที่จะปรับปรุง)
 ส่งทีละฉบับ ไม่ใส่ที่อยู่คนอื่นในช่อง To/Cc เพื่อไม่ให้อีเมลโรงเรียนอื่นรั่วถึงกัน
 """
-from app.services.mailer import send_email
+from app.services.mailer import send_email, send_bulk
 from app.thai_utils import thai_date
 
 
@@ -47,20 +47,52 @@ def build_html(notice, school: str = "") -> str:
 </div>"""
 
 
-def send_maintenance_mail(notice, targets) -> tuple:
+def send_maintenance_mail(notice, targets, on_progress=None) -> tuple:
     """ส่งอีเมลแจ้งทีละโรงเรียน · คืน (ส่งสำเร็จ, ส่งไม่สำเร็จ)
 
+    ส่งแยกฉบับ (ไม่ใส่ที่อยู่โรงเรียนอื่นใน To/Cc) แต่ใช้การเชื่อมต่อ SMTP เดียว
+    ไม่งั้น 56 โรงเรียนกินเวลาเป็นนาทีจนโดนตัด 504
     targets = [{"email": ..., "school": ...}, ...] จาก accounts.owner_emails()
     """
     subject = f"[Easy Ekkasan] {notice.title} · {when_text(notice)}"
-    sent = failed = 0
-    for t in targets:
+    msgs = [(t["email"], subject, build_html(notice, t.get("school", ""))) for t in targets]
+    return send_bulk(msgs, on_progress=on_progress)
+
+
+def send_in_background(notice_id: int) -> None:
+    """ยิงอีเมลในเธรดแยก แล้วอัปเดตความคืบหน้าลงฐานข้อมูลให้คอนโซลดูได้
+
+    หน้าเว็บตอบกลับทันที ไม่ต้องรอส่งจบ (เดิมรอจนโดน 504)
+    """
+    import threading
+
+    def run():
+        from datetime import datetime
+        from app.accounts import acc_session, MaintenanceNotice, owner_emails
+        targets = owner_emails()
+        db = acc_session()
         try:
-            ok = send_email(t["email"], subject, build_html(notice, t.get("school", "")))
-        except Exception:
-            ok = False
-        if ok:
-            sent += 1
-        else:
-            failed += 1
-    return sent, failed
+            n = db.get(MaintenanceNotice, notice_id)
+            if not n:
+                return
+            n.email_started_at = datetime.now()
+            n.email_total = len(targets)
+            n.email_count = 0
+            n.emailed_at = None
+            db.commit()
+
+            def progress(done, _total):
+                n.email_count = done
+                db.commit()
+
+            sent, failed = send_maintenance_mail(n, targets, on_progress=progress)
+            n.email_count = sent
+            n.emailed_at = datetime.now()
+            db.commit()
+            print(f"[notice] ส่งอีเมลประกาศ {notice_id}: สำเร็จ {sent} ไม่สำเร็จ {failed}")
+        except Exception as e:      # noqa: BLE001
+            print("[notice] ส่งอีเมลเบื้องหลังล้มเหลว:", e)
+        finally:
+            db.close()
+
+    threading.Thread(target=run, name=f"notice-mail-{notice_id}", daemon=True).start()

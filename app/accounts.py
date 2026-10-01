@@ -174,8 +174,10 @@ class MaintenanceNotice(AccBase):
     items = Column(Text, default="")                # สิ่งที่จะปรับปรุง บรรทัดละข้อ
     note = Column(String, default="")               # ข้อความท้ายการ์ด (เช่น ข้อมูลอยู่ครบ)
     active = Column(Boolean, default=True)
-    emailed_at = Column(DateTime, nullable=True)    # ส่งอีเมลแจ้งแล้วเมื่อไหร่
-    email_count = Column(Integer, default=0)        # ส่งถึงกี่โรงเรียน
+    emailed_at = Column(DateTime, nullable=True)    # ส่งอีเมลแจ้งครบแล้วเมื่อไหร่
+    email_count = Column(Integer, default=0)        # ส่งไปแล้วกี่โรงเรียน (เพิ่มระหว่างส่ง)
+    email_started_at = Column(DateTime, nullable=True)   # เริ่มส่งเมื่อไหร่ (ใช้บอกว่ากำลังส่งอยู่)
+    email_total = Column(Integer, default=0)        # ต้องส่งทั้งหมดกี่โรงเรียน
     created_at = Column(DateTime, default=datetime.now)
 
     def lines(self) -> list:
@@ -265,6 +267,8 @@ def _ensure_engine():
                     "ALTER TABLE tenant ADD COLUMN inactive_stage INTEGER DEFAULT 0",
                     "ALTER TABLE tenant ADD COLUMN inactive_notified_at DATETIME",
                     "ALTER TABLE tenant ADD COLUMN trial_notice_stage INTEGER DEFAULT 0",
+                    "ALTER TABLE maintenance_notice ADD COLUMN email_started_at DATETIME",
+                    "ALTER TABLE maintenance_notice ADD COLUMN email_total INTEGER DEFAULT 0",
                     # โรงเรียนเดิมยังไม่มีค่า -> ถือว่าใช้งานล่าสุด ณ วันที่สร้างบัญชี
                     # (ไม่ใช่ NULL ไม่งั้นจะถูกนับว่าไม่ใช้งานมานานทันทีตั้งแต่วันอัปเดต)
                     "UPDATE tenant SET last_active_at = created_at WHERE last_active_at IS NULL",

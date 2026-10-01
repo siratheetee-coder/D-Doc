@@ -65,6 +65,77 @@ def send_email(to: str, subject: str, html: str, attachments=None) -> bool:
         return False
 
 
+def send_bulk(messages, on_progress=None) -> tuple:
+    """ส่งอีเมลหลายฉบับด้วยการเชื่อมต่อ SMTP ครั้งเดียว · คืน (สำเร็จ, ไม่สำเร็จ)
+
+    ทำไมต้องมี: send_email เปิดการเชื่อมต่อ+TLS+ล็อกอินใหม่ทุกฉบับ ฉบับละ 1-3 วินาที
+    ส่ง 56 โรงเรียนจึงกินเวลาเป็นนาที จนเว็บเซิร์ฟเวอร์ตัดเป็น 504
+    เปิดครั้งเดียวแล้วส่งรวดเดียวเหลือหลักวินาที
+
+    messages = [(to, subject, html), ...] · on_progress(ส่งแล้ว, ทั้งหมด) เรียกทุกฉบับ
+    """
+    from app.seller_config import SELLER
+    import smtplib
+    import ssl
+    from email.message import EmailMessage
+
+    host = (SELLER.get("smtp_host") or "").strip()
+    user = (SELLER.get("smtp_user") or "").strip()
+    pw = SELLER.get("smtp_pass") or ""
+    frm = (SELLER.get("smtp_from") or user).strip()
+    try:
+        port = int(SELLER.get("smtp_port") or 587)
+    except (TypeError, ValueError):
+        port = 587
+    messages = list(messages)
+    total = len(messages)
+    if not (host and user) or not total:
+        return 0, total
+
+    def build(to, subject, html):
+        msg = EmailMessage()
+        msg["Subject"] = subject
+        msg["From"] = frm
+        msg["To"] = to
+        msg.set_content("กรุณาเปิดด้วยอีเมลที่รองรับ HTML")
+        msg.add_alternative(html, subtype="html")
+        return msg
+
+    sent = failed = 0
+    conn = None
+    for to, subject, html in messages:
+        for attempt in (1, 2):      # เชื่อมต่อหลุดกลางทาง -> ต่อใหม่แล้วลองฉบับนี้อีกครั้ง
+            try:
+                if conn is None:
+                    conn = smtplib.SMTP(host, port, timeout=30)
+                    conn.starttls(context=ssl.create_default_context())
+                    conn.login(user, pw)
+                conn.send_message(build(to, subject, html))
+                sent += 1
+                break
+            except Exception as e:   # noqa: BLE001
+                try:
+                    if conn:
+                        conn.quit()
+                except Exception:
+                    pass
+                conn = None
+                if attempt == 2:
+                    print("[mailer] ส่งไม่สำเร็จ:", to, e)
+                    failed += 1
+        if on_progress:
+            try:
+                on_progress(sent, total)
+            except Exception:
+                pass
+    try:
+        if conn:
+            conn.quit()
+    except Exception:
+        pass
+    return sent, failed
+
+
 def send_verify_email(to: str, link: str) -> bool:
     from app.seller_config import SELLER
     brand = SELLER.get("name") or "Easy Ekkasan"

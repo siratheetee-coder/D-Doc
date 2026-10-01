@@ -674,10 +674,20 @@ def notice_page(request: Request, msg: str = "", err: str = ""):
         live = {n.id: ("on" if (n.active and n.end_at >= now)
                        else "off" if not n.active else "done") for n in rows}
         today = now.date()
+        # ส่งค้างเกินครึ่งชั่วโมง = เซิร์ฟเวอร์รีสตาร์ทกลางคัน เธรดหายไปแล้ว
+        # ต้องไม่ขึ้นว่า "กำลังส่ง" ค้างไว้ตลอดกาล ให้บอกไปเลยว่าส่งค้าง กดส่งซ้ำได้
+        from datetime import timedelta
+        stale = now - timedelta(minutes=30)
+        busy = {n.id: bool(n.email_started_at and not n.emailed_at and n.email_started_at >= stale)
+                for n in rows}
+        stuck = {n.id: bool(n.email_started_at and not n.emailed_at and n.email_started_at < stale)
+                 for n in rows}
+        sending = any(busy.values())
         return templates.TemplateResponse("superadmin_notice.html", {
             "request": request, "rows": rows, "msg": msg, "err": err,
             "targets": targets, "skipped": skipped, "smtp_ok": smtp_configured(),
-            "live": live, "today": today,
+            "live": live, "today": today, "sending": sending,
+            "busy": busy, "stuck": stuck,
             "today_digits": f"{today.day:02d}{today.month:02d}{today.year + 543}",
             "start_default": datetime(today.year, today.month, today.day, 21, 0),
             "end_default": datetime(today.year, today.month, today.day, 23, 0),
@@ -720,12 +730,10 @@ def notice_save(request: Request, title: str = Form("แจ้งปิดปร
             if not smtp_configured():
                 mail_txt = " · ส่งอีเมลไม่ได้ ยังไม่ได้ตั้งค่า SMTP"
             else:
-                from app.services.notice_mail import send_maintenance_mail
-                sent, failed = send_maintenance_mail(n, owner_emails())
-                n.emailed_at = datetime.now()
-                n.email_count = sent
-                db.commit()
-                mail_txt = f" · ส่งอีเมลแล้ว {sent} โรงเรียน" + (f" (ส่งไม่สำเร็จ {failed})" if failed else "")
+                # ส่งเบื้องหลัง ไม่ให้หน้าเว็บค้างรอจนโดนตัด 504
+                from app.services.notice_mail import send_in_background
+                send_in_background(n.id)
+                mail_txt = f" · กำลังทยอยส่งอีเมลถึง {len(owner_emails())} โรงเรียนเบื้องหลัง"
     finally:
         db.close()
     return RedirectResponse(
@@ -765,17 +773,16 @@ def notice_delete(nid: int):
 def notice_email(nid: int):
     """ส่งอีเมลแจ้งไปที่ไอดีหลักของทุกโรงเรียน (กดซ้ำได้ ระบบนับครั้งล่าสุดให้)"""
     from app.accounts import MaintenanceNotice, owner_emails
-    from app.services.notice_mail import send_maintenance_mail
+    from app.services.notice_mail import send_in_background
     db = acc_session()
     try:
         n = db.get(MaintenanceNotice, nid)
         if not n:
             return RedirectResponse("/admin-console/notice", status_code=303)
-        sent, failed = send_maintenance_mail(n, owner_emails())
-        n.emailed_at = datetime.now()
-        n.email_count = sent
-        db.commit()
+        send_in_background(n.id)
+        total = len(owner_emails())
     finally:
         db.close()
-    txt = f"ส่งอีเมลแล้ว {sent} โรงเรียน" + (f" · ส่งไม่สำเร็จ {failed}" if failed else "")
-    return RedirectResponse("/admin-console/notice?msg=" + quote(txt), status_code=303)
+    return RedirectResponse("/admin-console/notice?msg=" + quote(
+        f"กำลังทยอยส่งอีเมลถึง {total} โรงเรียนเบื้องหลัง · รีเฟรชหน้านี้เพื่อดูความคืบหน้า"),
+        status_code=303)
