@@ -19,6 +19,7 @@ from app.models import (
     AccountItem, Project, MoneyLoan, LoanReturn, CheckPayment, BankRecon,
 )
 from app.services.budget import current_plan_year, plan_year_label
+from app.thai_utils import SCHOOL_LEVELS
 from app.services.ebudget_cat import EXPENSE as EB_EXPENSE, INCOME as EB_INCOME
 from app.services.asset_utils import (
     account_balance, account_balance_year, opening_for,
@@ -115,6 +116,139 @@ def carry_forward(db: Session = Depends(get_db), year: str = Form("")):
     db.commit()
     return RedirectResponse(f"/finance?year={nxt}&carried={src}", status_code=303)
 
+
+
+# ================= เงินอุดหนุนเรียนฟรี 15 ปี: คำนวณยอดที่ควรได้รับ =================
+def _acad_year_safe(db) -> int:
+    """ปีการศึกษาที่โรงเรียนตั้งไว้ · ไม่มีก็คำนวณจากปฏิทิน (พ.ค. ขึ้นปีใหม่)"""
+    from app.thai_utils import current_academic_year
+    school = get_school(db)
+    return int(getattr(school, "academic_year", 0) or 0) or current_academic_year()
+
+def _subsidy_counts(db, years: list) -> dict:
+    """จำนวนนักเรียนที่บันทึกไว้ -> {"jun2569": {"ป.1": 20, ...}, ...}"""
+    from app.models import SubsidyCensus
+    out = {}
+    rows = db.query(SubsidyCensus).filter(SubsidyCensus.academic_year.in_(years)).all()
+    for r in rows:
+        out.setdefault(f"{r.round}{r.academic_year}", {})[r.level] = r.count or 0
+    return out
+
+
+def _subsidy_rates(db, academic_year: int) -> dict:
+    """อัตราของปีนี้ · ยังไม่เคยตั้ง = ใช้อัตราฐานไว้ก่อน (แก้ได้ในหน้าเดียวกัน)"""
+    from app.models import SubsidyRate
+    from app.services.subsidy import default_rates
+    rows = db.query(SubsidyRate).filter_by(academic_year=academic_year).all()
+    if not rows:
+        return default_rates(), False
+    out = default_rates()
+    for r in rows:
+        out.setdefault(r.level, {})[r.item_key] = float(r.amount or 0)
+    return out, True
+
+
+@router.get("/finance/subsidy", response_class=HTMLResponse)
+def subsidy_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
+    """คำนวณเงินอุดหนุนที่ควรได้รับแต่ละงวด แล้วเทียบกับเงินที่รับจริงในทะเบียนคุม"""
+    from app.models import Student
+    from app.services import subsidy as sub
+    ay = year or _acad_year_safe(db)
+    rounds = sub.census_rounds(ay)
+    counts = _subsidy_counts(db, [ay - 1, ay])
+    rates, rates_set = _subsidy_rates(db, ay)
+    result = sub.compute(counts, rates, ay)
+    compare = sub.match_received(db, ay, result["by_item"])
+
+    # จำนวนนักเรียนในทะเบียนตอนนี้ ไว้ให้กดเติมลงช่องที่ยังว่าง
+    now_counts = {}
+    for st in db.query(Student).all():
+        lv = (st.level or "").strip()
+        if lv:
+            now_counts[lv] = now_counts.get(lv, 0) + 1
+
+    levels = [lv for lv in SCHOOL_LEVELS
+              if now_counts.get(lv) or any(c.get(lv) for c in counts.values())]
+    if not levels:
+        levels = [lv for lv in SCHOOL_LEVELS if lv.startswith(("อ", "ป"))]
+    return templates.TemplateResponse("finance_subsidy.html", {
+        "request": request, "academic_year": ay, "levels": levels,
+        "census_rounds": rounds, "counts": counts, "now_counts": now_counts,
+        "rates": rates, "rates_set": rates_set,
+        "items": sub.ITEMS, "item_name": sub.ITEM_NAME,
+        "result": result, "compare": compare,
+        "years": list(range(ay + 1, ay - 4, -1)),
+        "accounts": db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
+    })
+
+
+@router.post("/finance/subsidy")
+async def subsidy_save(request: Request, db: Session = Depends(get_db)):
+    """บันทึกจำนวนนักเรียนรายรอบ + อัตราต่อหัว (หน้าเดียวจบ กดบันทึกครั้งเดียว)"""
+    from app.models import SubsidyCensus, SubsidyRate
+    from app.services import subsidy as sub
+    form = await request.form()
+    ay = _to_int(form.get("academic_year"), _acad_year_safe(db))
+
+    for rnd in sub.census_rounds(ay):
+        for level in SCHOOL_LEVELS:
+            raw = form.get(f"n_{rnd['key']}_{level}")
+            if raw is None:
+                continue
+            n = _to_int(raw, 0)
+            row = (db.query(SubsidyCensus)
+                   .filter_by(academic_year=rnd["year"], round=rnd["round"], level=level).first())
+            if row is None:
+                if not n:
+                    continue
+                row = SubsidyCensus(academic_year=rnd["year"], round=rnd["round"], level=level)
+                db.add(row)
+            row.count = n
+
+    for level in SCHOOL_LEVELS:
+        for key in sub.ITEM_KEYS:
+            raw = form.get(f"r_{level}_{key}")
+            if raw is None:
+                continue
+            amount = _to_float(raw, 0.0)
+            row = (db.query(SubsidyRate)
+                   .filter_by(academic_year=ay, level=level, item_key=key).first())
+            if row is None:
+                row = SubsidyRate(academic_year=ay, level=level, item_key=key)
+                db.add(row)
+            row.amount = amount
+    db.commit()
+    return RedirectResponse(f"/finance/subsidy?year={ay}", status_code=303)
+
+
+@router.post("/finance/subsidy/to-budget")
+def subsidy_to_budget(request: Request, db: Session = Depends(get_db),
+                      year: str = Form(""), account_id: str = Form("")):
+    """ตั้งยอดที่คำนวณได้ เป็นงบของรายการย่อย 5 รายการในทะเบียนคุม
+
+    ไม่มีรายการย่อยก็สร้างให้ · มีอยู่แล้วก็อัปเดตยอด (กดซ้ำได้ ไม่เพิ่มซ้ำ)
+    """
+    from app.services import subsidy as sub
+    ay = _to_int(year, _acad_year_safe(db))
+    aid = _to_int(account_id, 0)
+    acct = db.get(FinanceAccount, aid)
+    if not acct:
+        return RedirectResponse(f"/finance/subsidy?year={ay}", status_code=303)
+    fy = ay + 1 if ay else current_fiscal_year()      # ปีงบของภาคเรียนที่ 1 ปีการศึกษานั้น
+    counts = _subsidy_counts(db, [ay - 1, ay])
+    rates, _ = _subsidy_rates(db, ay)
+    result = sub.compute(counts, rates, ay)
+
+    existing = {it.name.strip(): it for it in acct.items if it.fiscal_year == fy}
+    for key in sub.ITEM_KEYS:
+        name = sub.ITEM_NAME[key]
+        row = existing.get(name)
+        if row is None:
+            row = AccountItem(account_id=acct.id, fiscal_year=fy, name=name)
+            db.add(row)
+        row.budget = result["by_item"].get(key, 0.0)
+    db.commit()
+    return RedirectResponse(f"/finance/accounts/{aid}?year={fy}", status_code=303)
 
 # ---------------- ทะเบียนคุมเงิน (บัญชี + ledger) ----------------
 @router.get("/finance/accounts", response_class=HTMLResponse)

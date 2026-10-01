@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}คำนวณเงินอุดหนุน{% endblock %}
+{% block content %}
+<div class="hero" style="background:linear-gradient(120deg,#5b21b6,#7c3aed 55%,#a78bfa); box-shadow:0 10px 26px rgba(124,58,237,.28);">
+  <div>
+    <div class="hero-sub">เรียนฟรี 15 ปี · ภาคเรียนละ 2 งวด (70% แล้ว 30%)</div>
+    <span class="hero-title">คำนวณเงินอุดหนุนที่ควรได้รับ</span>
+    <div class="hero-meta">ปีการศึกษา {{ academic_year }} · รวมทั้งปี {{ "{:,.2f}".format(result.total) }} บาท</div>
+  </div>
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <form method="get" action="/finance/subsidy" style="display:flex; gap:6px; align-items:center;">
+      <select name="year" onchange="this.form.submit()">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y == academic_year }}>ปีการศึกษา {{ y }}</option>{% endfor %}
+      </select>
+    </form>
+    <a class="btn gray" href="/finance"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับการเงิน</a>
+  </div>
+</div>
+
+<div class="alert info">
+  <svg class="icon"><use href="#ic-info"/></svg>
+  <span><b>เงินแต่ละงวดใช้ยอดนักเรียนคนละรอบ</b>
+    ภาคเรียนที่ 1 งวด 70% ใช้ DMC 10 พ.ย. ของปีที่แล้ว งวด 30% ใช้ 10 มิ.ย. ·
+    ภาคเรียนที่ 2 งวด 70% ใช้ 10 มิ.ย. งวด 30% ใช้ 10 พ.ย. ·
+    ภาคเรียนที่ 1 ได้ครบ 5 รายการ ภาคเรียนที่ 2 ได้ 3 รายการ
+    (ค่าหนังสือเรียนและค่าเครื่องแบบจ่ายปีละครั้ง)</span>
+</div>
+
+{% if not rates_set %}
+<div class="alert warn">
+  <svg class="icon"><use href="#ic-alert"/></svg>
+  <span><b>อัตราที่ใช้อยู่เป็นอัตราฐาน</b> ยังไม่เคยตั้งอัตราของปีการศึกษา {{ academic_year }}
+    โปรดตรวจกับ<b>หนังสือแจ้งจัดสรรของเขตพื้นที่</b>แล้วแก้ในตารางอัตราด้านล่าง
+    (อัตรามีการปรับเพิ่มเป็นระยะ หนังสือแจ้งจัดสรรคือตัวจริง)</span>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-coins"/></svg> ยอดที่ควรได้รับแต่ละงวด</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>งวด</th><th>ฐานจำนวนนักเรียน</th><th class="right">นักเรียน</th>
+      {% for key, name, both in items %}<th class="right">{{ name }}</th>{% endfor %}
+      <th class="right">รวมงวด</th></tr></thead>
+    <tbody>
+      {% for r in result.rounds %}
+      <tr>
+        <td><b>ภาคเรียนที่ {{ r.term }}</b> <span class="pill">{{ r.pct_text }}</span></td>
+        <td class="muted">DMC {{ r.census_label }} {{ r.census_year }}</td>
+        <td class="right">{{ r.heads }}</td>
+        {% for key, name, both in items %}
+        <td class="right {{ 'zero' if not r.amounts.get(key) }}">
+          {{ "{:,.2f}".format(r.amounts[key]) if r.amounts.get(key) else '-' }}</td>
+        {% endfor %}
+        <td class="right"><b>{{ "{:,.2f}".format(r.total) }}</b></td>
+      </tr>
+      {% endfor %}
+      <tr style="background:#f1f5f9; font-weight:700;">
+        <td colspan="3">รวมทั้งปีการศึกษา</td>
+        {% for key, name, both in items %}
+        <td class="right">{{ "{:,.2f}".format(result.by_item[key]) }}</td>
+        {% endfor %}
+        <td class="right">{{ "{:,.2f}".format(result.total) }}</td>
+      </tr>
+    </tbody>
+  </table></div>
+  <p class="muted" style="margin:10px 0 0;">ภาคเรียนที่ 1 รวม {{ "{:,.2f}".format(result.by_term[1]) }} บาท ·
+    ภาคเรียนที่ 2 รวม {{ "{:,.2f}".format(result.by_term[2]) }} บาท</p>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;">เทียบกับเงินที่รับจริงในทะเบียนคุม</h2>
+  <p class="muted" style="margin-top:0;">นับรายการ<b>รับ</b>ที่ผูกกับรายการย่อยชื่อตรงกับ 5 รายการนี้
+    ในปีงบ {{ academic_year }} และ {{ academic_year + 1 }} (เงินอุดหนุน 1 ปีการศึกษาคร่อม 2 ปีงบ)</p>
+  <div class="table-wrap"><table class="stack-sm">
+    <thead><tr><th>รายการ</th><th class="right">ควรได้รับ</th><th class="right">รับจริง</th><th class="right">ส่วนต่าง</th></tr></thead>
+    <tbody>
+      {% for key, name, both in items %}
+      {% set c = compare[key] %}
+      <tr>
+        <td data-label="รายการ">{{ name }}{% if not both %}
+          <span class="muted" style="font-size:12.5px;">· ภาคเรียนที่ 1 เท่านั้น</span>{% endif %}</td>
+        <td data-label="ควรได้รับ" class="right">{{ "{:,.2f}".format(c.should) }}</td>
+        <td data-label="รับจริง" class="right">{{ "{:,.2f}".format(c.got) }}</td>
+        <td data-label="ส่วนต่าง" class="right"
+            style="color:{{ '#64748b' if c.diff == 0 else ('#b45309' if c.diff < 0 else '#047857') }}; font-weight:600;">
+          {{ "{:,.2f}".format(c.diff) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="muted" style="margin:10px 0 0;">ติดลบ = ยังรับเงินไม่ครบตามที่ควรได้ (อาจยังไม่ถึงงวด)
+    · เป็นบวก = รับเกินที่คำนวณไว้ ให้ตรวจอัตราหรือยอดนักเรียนอีกครั้ง</p>
+</div>
+
+<form method="post" action="/finance/subsidy">
+  <input type="hidden" name="academic_year" value="{{ academic_year }}">
+  <div class="card">
+    <h2 style="margin-top:0;">จำนวนนักเรียนตาม DMC</h2>
+    <p class="muted" style="margin-top:0;">กรอกยอดรายชั้นของแต่ละรอบสำรวจ ·
+      ปัจจุบันในทะเบียนนักเรียนมี {{ now_counts.values()|sum }} คน
+      <button type="button" class="btn sm soft" onclick="fillNow()">เติมยอดปัจจุบันลงช่องที่ว่าง</button></p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>ชั้น</th>
+        {% for r in census_rounds %}<th class="right">{{ r.label }}<br>
+          <span class="muted" style="font-weight:400; font-size:12px;">{{ r.why }}</span></th>{% endfor %}
+      </tr></thead>
+      <tbody>
+        {% for lv in levels %}
+        <tr>
+          <td><b>{{ lv }}</b></td>
+          {% for r in census_rounds %}
+          <td class="right"><input type="number" min="0" style="width:90px; text-align:right;"
+            name="n_{{ r.key }}_{{ lv }}" data-now="{{ now_counts.get(lv, 0) }}"
+            value="{{ counts.get(r.key, {}).get(lv, '') }}"></td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+        <tr style="background:#f1f5f9; font-weight:700;">
+          <td>รวม</td>
+          {% for r in census_rounds %}
+          <td class="right">{{ counts.get(r.key, {}).values()|sum }}</td>
+          {% endfor %}
+        </tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;">อัตราต่อคนต่อปี (บาท)</h2>
+    <p class="muted" style="margin-top:0;">แก้ตามหนังสือแจ้งจัดสรรของเขตพื้นที่ ·
+      ระบบแบ่งให้เองว่างวดไหนได้เท่าไร (รายการที่จ่ายทั้งสองภาคเรียนคิดภาคเรียนละครึ่ง)</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>ชั้น</th>
+        {% for key, name, both in items %}<th class="right">{{ name }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for lv in levels %}
+        <tr>
+          <td><b>{{ lv }}</b></td>
+          {% for key, name, both in items %}
+          <td class="right"><input type="number" step="any" min="0" style="width:90px; text-align:right;"
+            name="r_{{ lv }}_{{ key }}" value="{{ '%g'|format(rates.get(lv, {}).get(key, 0)) }}"></td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    <br>
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-check"/></svg>
+      บันทึกยอดนักเรียนและอัตรา แล้วคำนวณใหม่</button>
+  </div>
+</form>
+
+<div class="card">
+  <h2 style="margin-top:0;">ตั้งเป็นงบในทะเบียนคุม</h2>
+  <p class="muted" style="margin-top:0;">สร้างรายการย่อย 5 รายการใต้บัญชีที่เลือก แล้วตั้งงบ
+    ตามยอดรวมทั้งปีที่คำนวณได้ (กดซ้ำได้ ระบบอัปเดตยอดให้ ไม่สร้างซ้ำ) ·
+    ลงในปีงบ {{ academic_year + 1 }}</p>
+  <form method="post" action="/finance/subsidy/to-budget" class="row" style="align-items:flex-end;"
+        onsubmit="return confirm('ตั้งงบ 5 รายการตามยอดที่คำนวณได้?');">
+    <input type="hidden" name="year" value="{{ academic_year }}">
+    <div style="max-width:340px;"><label>บัญชีเงินอุดหนุน</label>
+      <select name="account_id" required>
+        <option value="">- เลือกบัญชี -</option>
+        {% for a in accounts %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
+      </select></div>
+    <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-tool"/></svg> ตั้งงบให้เลย</button></div>
+  </form>
+</div>
+
+<script>
+  /* เติมยอดนักเรียนปัจจุบันลงเฉพาะช่องที่ยังว่าง ไม่ทับของที่ครูกรอกไว้แล้ว */
+  function fillNow(){
+    document.querySelectorAll('input[name^="n_"]').forEach(function(el){
+      if(!el.value && el.dataset.now && el.dataset.now !== '0') el.value = el.dataset.now;
+    });
+  }
+</script>
+{% endblock %}

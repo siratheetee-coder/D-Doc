@@ -698,6 +698,40 @@ class AccountOpening(Base):
     account = relationship("FinanceAccount", back_populates="openings")
 
 
+class SubsidyCensus(Base):
+    """จำนวนนักเรียนตาม DMC รายชั้น ใช้เป็นฐานคิดเงินอุดหนุน
+
+    เก็บแยกรอบสำรวจ (10 มิ.ย. / 10 พ.ย.) เพราะเงินแต่ละงวดใช้คนละรอบ
+    ดู app/services/subsidy.py สำหรับกติกาว่างวดไหนใช้รอบไหน
+    """
+    __tablename__ = "subsidy_census"
+    __table_args__ = (UniqueConstraint("academic_year", "round", "level",
+                                       name="uq_subsidy_census"),)
+
+    id = Column(Integer, primary_key=True)
+    academic_year = Column(Integer, nullable=False, index=True)  # ปีการศึกษาของรอบสำรวจ
+    round = Column(String, nullable=False)        # jun = 10 มิ.ย. · nov = 10 พ.ย.
+    level = Column(String, nullable=False)        # ชั้น เช่น ป.1
+    count = Column(Integer, default=0)
+
+
+class SubsidyRate(Base):
+    """อัตราเงินอุดหนุนต่อคนต่อปี แยกรายชั้นและรายรายการ (แก้ได้ทุกปี)
+
+    ต้องเก็บแยกปีการศึกษา เพราะอัตรามีการปรับเพิ่มเป็นระยะ
+    และตัวจริงคือหนังสือแจ้งจัดสรรของเขตพื้นที่
+    """
+    __tablename__ = "subsidy_rate"
+    __table_args__ = (UniqueConstraint("academic_year", "level", "item_key",
+                                       name="uq_subsidy_rate"),)
+
+    id = Column(Integer, primary_key=True)
+    academic_year = Column(Integer, nullable=False, index=True)
+    level = Column(String, nullable=False)
+    item_key = Column(String, nullable=False)     # teach/book/equip/uniform/activity
+    amount = Column(Float, default=0.0)           # บาท/คน/ปี
+
+
 class AccountItem(Base):
     """หมวด/รายการย่อยในบัญชี แยกตามปีงบ (เช่น เงินอุดหนุน -> ค่าจัดการเรียนการสอน,
     ค่าหนังสือเรียน, ค่าอุปกรณ์...) แต่ละหมวดมีงบที่ตั้งไว้ + ติดตามรับ-จ่าย-คงเหลือรายหมวด"""
