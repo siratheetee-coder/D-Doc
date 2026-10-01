@@ -2631,10 +2631,15 @@ def procurement_egp(proc_id: int, request: Request, db: Session = Depends(get_db
     }
     # คณะกรรมการ/ผู้ตรวจรับ (สำหรับช่อง "ชื่อผู้ตรวจรับ")
     inspect = next((c for c in proc.committees if c.kind == "inspect"), None)
+    # e-GP ค้นหารายชื่อด้วย "ชื่อ" กับ "นามสกุล" แยกช่อง ถ้าวางชื่อเต็มจะหาไม่เจอ
+    # จึงแยกไว้ให้คัดลอกทีละช่อง (คำนำหน้าเป็น dropdown ใน e-GP คัดลอกไม่ได้)
+    inspectors = [dict(_split_name(m.name), name=m.name, role=m.role, position=m.position)
+                  for m in (inspect.members if inspect else [])]
     return templates.TemplateResponse("egp_helper.html", {
         "request": request, "p": proc, "school": school,
         "vendor": proc.vendor, "items": proc.items,
         "budget_in_pb": in_pb, "egp": egp, "inspect": inspect,
+        "inspectors": inspectors,
     })
 
 

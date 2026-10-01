@@ -117,3 +117,45 @@ def test_result_memo_uses_the_egp_wording(proc):
     c = _login()
     html = c.get(f"/procurement/{proc.id}/egp").text
     assert "อนุมัติสั่งซื้อสั่งจ้างและรายงานผลพิจารณา" in html
+
+
+def _with_committee(p):
+    from sqlalchemy.orm import object_session
+
+    from app.models import Committee, CommitteeMember
+    db = object_session(p)
+    c = Committee(kind="inspect", mode="committee")
+    for i, (nm, role) in enumerate([
+            ("นายอมรพรรณ จรนามน", "ประธานกรรมการ"),
+            ("นางสาวสุวิญญา พลชำนิ", "กรรมการ"),
+            ("เด็กชายทดสอบ", "กรรมการ")], 1):      # ไม่มีนามสกุล
+        c.members.append(CommitteeMember(name=nm, position="ครู", role=role, seq=i))
+    p.committees.append(c)
+    db.commit()
+
+
+def test_committee_names_split_for_egp_search(proc):
+    """e-GP ค้นด้วยชื่อ/นามสกุลแยกช่อง วางชื่อเต็มจะหาไม่เจอ -> ต้องคัดลอกแยกได้"""
+    _with_committee(proc)
+    html = _login().get(f"/procurement/{proc.id}/egp").text
+    assert ">อมรพรรณ<" in html and ">จรนามน<" in html
+    assert ">สุวิญญา<" in html and ">พลชำนิ<" in html
+    assert "นายอมรพรรณ จรนามน" in html          # ชื่อเต็มยังคัดลอกได้อยู่
+    assert "นาย" in html and "นางสาว" in html   # คำนำหน้าบอกให้เลือกใน dropdown
+
+
+def test_member_without_surname_does_not_break(proc):
+    _with_committee(proc)
+    html = _login().get(f"/procurement/{proc.id}/egp").text
+    assert ">ทดสอบ<" in html
+    assert html.count("คัดลอก") > 10
+
+
+def test_date_copies_digits_by_default(proc):
+    """ช่องวันที่ของ e-GP เติม / ให้เอง ถ้าวางแบบมี / ไปด้วยจะตัดท้ายทิ้ง
+    (30/09/2569 -> 30/09/25) ปุ่มหลักจึงต้องคัดลอกเป็นตัวเลขล้วน"""
+    html = _login().get(f"/procurement/{proc.id}/egp").text
+    assert "cpText(this,'30092569')" in html, "ปุ่มหลักไม่ได้คัดลอกตัวเลขล้วน"
+    assert "แบบมี /" in html and "30/09/2569" in html    # ทางเลือกยังอยู่
+    for d in ("29092569", "07102569", "25092569"):
+        assert d in html, d
