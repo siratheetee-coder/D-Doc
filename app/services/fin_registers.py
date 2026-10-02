@@ -427,3 +427,68 @@ def render_all_registers(school, rows, fiscal_year) -> str:
         render_money_register(school, account, txns, opening, fiscal_year,
                               item=item, doc=doc)
     return _save(doc, f"ทะเบียนคุมเงินทุกบัญชี_ปีงบ{fiscal_year}")
+
+
+# --------------------------------------- ทะเบียนคุมใบเสร็จรับเงิน/ใบสำคัญ
+def render_receipt_register(school, fiscal_year, rows) -> str:
+    """ทะเบียนคุมใบเสร็จรับเงินและใบสำคัญรับเงิน (แยกยอดด้านรับ-ด้านจ่าย)"""
+    doc = _new(landscape=True)
+    _title(doc, school, "ทะเบียนคุมใบเสร็จรับเงินและใบสำคัญรับเงิน", fiscal_year)
+    headers = ["วัน เดือน ปี", "เลขที่", "ประเภท", "ผู้รับ/ผู้จ่ายเงิน", "บัญชี/ประเภทเงิน",
+               "จำนวนเงิน", "หมายเหตุ"]
+    widths = [Cm(2.6), Cm(3.0), Cm(2.2), Cm(6.4), Cm(5.0), Cm(3.0), Cm(4.5)]
+    t = _grid(doc, headers, widths)
+    tot_in = tot_out = 0.0
+    for r, acct_name in rows:
+        amount = float(r.amount or 0)
+        if (r.kind or "รับ") == "รับ":
+            tot_in += amount
+        else:
+            tot_out += amount
+        _row(t, [thai_date(r.date) if r.date else "", r.receipt_no or "", r.kind or "รับ",
+                 r.party or "", acct_name or "", _money(amount), r.note or ""],
+             widths, ["center", "center", "center", "left", "left", "right", "left"])
+    _blank_rows(t, max(0, 6 - len(rows)), widths, 7)
+    _row(t, ["", "", "", "", "รวมด้านรับ", _money(tot_in), ""], widths,
+         ["center", "center", "center", "left", "right", "right", "left"], bold=True)
+    _row(t, ["", "", "", "", "รวมด้านจ่าย", _money(tot_out), ""], widths,
+         ["center", "center", "center", "left", "right", "right", "left"], bold=True)
+    _sign_finance(doc, school)
+    return _save(doc, f"ทะเบียนคุมใบเสร็จ_ปีงบ{fiscal_year}")
+
+
+# --------------------------------------- กระดาษคำนวณเงินอุดหนุน
+def render_subsidy_sheet(school, academic_year, items, result, compare) -> str:
+    """กระดาษคำนวณเงินอุดหนุนรายงวด ไว้แนบเป็นหลักฐานประกอบการตั้งงบ"""
+    doc = _new(landscape=True)
+    _p(doc, "กระดาษคำนวณเงินอุดหนุนรายหัว (เรียนฟรี 15 ปี)", align="center", bold=True,
+       size=18, after=0)
+    _p(doc, (school.name or "").strip(), align="center", bold=True, size=16, after=0)
+    _p(doc, f"ปีการศึกษา {academic_year}", align="center", size=14, after=6)
+    names = [name for _k, name, _b in items]
+    keys = [k for k, _n, _b in items]
+    headers = ["งวดที่ได้รับ", "ฐานจำนวนนักเรียน", "นักเรียน"] + names + ["รวมงวด"]
+    widths = [Cm(3.6), Cm(4.2), Cm(1.9)] + [Cm(2.7)] * len(names) + [Cm(2.9)]
+    t = _grid(doc, headers, widths)
+    align = ["left", "center", "center"] + ["right"] * (len(names) + 1)
+    for r in result["rounds"]:
+        cells = [f"ภาคเรียนที่ {r['term']} ({r['pct_text']})",
+                 f"DMC {r['census_label']} {r['census_year']}", str(r["heads"])]
+        cells += [_money(r["amounts"][k]) if r["amounts"].get(k) else "-" for k in keys]
+        cells += [_money(r["total"])]
+        _row(t, cells, widths, align)
+    _row(t, ["รวมทั้งปีการศึกษา", "", ""] + [_money(result["by_item"][k]) for k in keys]
+         + [_money(result["total"])], widths, align, bold=True)
+
+    _p(doc, "", after=6)
+    _p(doc, "เทียบกับเงินที่รับจริงในทะเบียนคุม", bold=True, size=15)
+    h2 = ["รายการ", "ควรได้รับ", "รับจริง", "ส่วนต่าง"]
+    w2 = [Cm(10.0), Cm(4.2), Cm(4.2), Cm(4.2)]
+    t2 = _grid(doc, h2, w2)
+    for key, name, both in items:
+        c = compare[key]
+        _row(t2, [name + ("" if both else " (ภาคเรียนที่ 1 เท่านั้น)"),
+                  _money(c["should"]), _money(c["got"]), _money(c["diff"])],
+             w2, ["left", "right", "right", "right"])
+    _sign_finance(doc, school)
+    return _save(doc, f"กระดาษคำนวณเงินอุดหนุน_ปีการศึกษา{academic_year}")

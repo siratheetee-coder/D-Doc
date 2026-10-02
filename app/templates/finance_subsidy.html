@@ -13,6 +13,9 @@
         {% for y in years %}<option value="{{ y }}" {{ 'selected' if y == academic_year }}>ปีการศึกษา {{ y }}</option>{% endfor %}
       </select>
     </form>
+    <a class="btn sm" href="/finance/subsidy.docx?year={{ academic_year }}"
+       title="กระดาษคำนวณรายงวด ไว้แนบประกอบการตั้งงบ">
+      <svg class="icon"><use href="#ic-download"/></svg> พิมพ์กระดาษคำนวณ</a>
     <a class="btn gray" href="/finance"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับการเงิน</a>
   </div>
 </div>

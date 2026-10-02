@@ -250,6 +250,33 @@ def subsidy_to_budget(request: Request, db: Session = Depends(get_db),
     db.commit()
     return RedirectResponse(f"/finance/accounts/{aid}?year={fy}", status_code=303)
 
+
+@router.get("/finance/receipts/register.docx")
+def receipt_register_docx(db: Session = Depends(get_db), year: int | None = None):
+    """ทะเบียนคุมใบเสร็จรับเงินและใบสำคัญรับเงิน (พิมพ์เก็บเป็นหลักฐาน)"""
+    from app.models import Receipt
+    from app.services.fin_registers import render_receipt_register
+    fy = year or current_fiscal_year()
+    names = {a.id: a.name for a in db.query(FinanceAccount).all()}
+    rows = [(r, names.get(r.account_id, ""))
+            for r in (db.query(Receipt).filter_by(fiscal_year=fy)
+                      .order_by(Receipt.date, Receipt.id).all())]
+    return serve_generated(render_receipt_register(get_school(db), fy, rows), _DOCX)
+
+
+@router.get("/finance/subsidy.docx")
+def subsidy_docx(db: Session = Depends(get_db), year: int | None = None):
+    """กระดาษคำนวณเงินอุดหนุน ไว้แนบประกอบการตั้งงบ/ชี้แจงผู้ตรวจ"""
+    from app.services import subsidy as sub
+    from app.services.fin_registers import render_subsidy_sheet
+    ay = year or _acad_year_safe(db)
+    counts = _subsidy_counts(db, [ay - 1, ay])
+    rates, _set = _subsidy_rates(db, ay)
+    result = sub.compute(counts, rates, ay)
+    compare = sub.match_received(db, ay, result["by_item"])
+    path = render_subsidy_sheet(get_school(db), ay, sub.ITEMS, result, compare)
+    return serve_generated(path, _DOCX)
+
 # ---------------- ทะเบียนคุมเงิน (บัญชี + ledger) ----------------
 @router.get("/finance/accounts", response_class=HTMLResponse)
 def accounts_page(request: Request, db: Session = Depends(get_db), year: int | None = None):

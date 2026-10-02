@@ -8,6 +8,9 @@
     <div class="hero-meta">{{ accounts|length }} บัญชี</div>
   </div>
   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <a class="btn sm" href="/finance/subsidy"
+       title="คำนวณเงินอุดหนุนที่ควรได้รับแต่ละงวด แล้วตั้งเป็นงบของรายการย่อยได้เลย">
+      <svg class="icon"><use href="#ic-coins"/></svg> คำนวณเงินอุดหนุน</a>
     {% if accounts %}
     <a class="btn sm" href="/finance/registers.docx?year={{ fiscal_year }}"
        title="ทะเบียนคุมทุกบัญชีและทุกรายการย่อย รวมเป็นไฟล์เดียว">
