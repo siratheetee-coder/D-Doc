@@ -59,8 +59,49 @@ def _fingerprint(data: Path) -> str:
     return h.hexdigest()
 
 
+KEEP_LOCAL = 3          # เก็บไฟล์สำรองในเครื่องกี่ชุด (ที่เหลืออยู่บนคลาวด์)
+MIN_FREE_GB_TO_BACKUP = 1.0     # เหลือน้อยกว่านี้ ไม่สำรอง (ไฟล์สำรองจะยิ่งทำให้ดิสก์เต็ม)
+
+
+def prune_local(keep: int = KEEP_LOCAL) -> int:
+    """ลบไฟล์สำรองเก่าในเครื่อง เหลือชุดล่าสุดตามที่กำหนด · คืนจำนวนที่ลบ
+
+    ต้องเรียกทุกเส้นทางที่สร้างไฟล์สำรอง ไม่ใช่เฉพาะตัวจับเวลา
+    ไม่งั้นปุ่ม "สำรองทันที" ในคอนโซลจะทิ้งไฟล์ค้างไว้ครั้งละเกือบร้อยเมกฯ
+    จนดิสก์เต็ม แล้ว SQLite จะเขียนไม่ได้ (disk I/O error) = ระบบล่มทั้งระบบ
+    """
+    n = 0
+    for old in sorted(_backups_dir().glob("ddoc-backup-*.zip"), reverse=True)[keep:]:
+        try:
+            size = old.stat().st_size
+            old.unlink()
+            print(f"    [backup] ลบไฟล์สำรองเก่า {old.name} ({size // 1024} KB)")
+            n += 1
+        except OSError as e:
+            print(f"    [backup] ลบ {old.name} ไม่สำเร็จ: {e}")
+    return n
+
+
+def _free_gb() -> float:
+    import shutil as _sh
+    try:
+        return _sh.disk_usage(get_data_dir()).free / (1024 ** 3)
+    except OSError:
+        return 0.0
+
+
 def _make_zip() -> Path:
-    """สร้าง zip ของข้อมูลที่สำรอง (flush WAL ก่อน) คืนที่อยู่ไฟล์"""
+    """สร้าง zip ของข้อมูลที่สำรอง (flush WAL ก่อน) คืนที่อยู่ไฟล์
+
+    ตัดไฟล์เก่าทิ้งก่อนสร้างไฟล์ใหม่ และถ้าพื้นที่เหลือน้อยเกินไปจะไม่สำรองเลย
+    เพราะการสำรองตอนดิสก์ใกล้เต็มคือการเร่งให้เต็มเร็วขึ้น
+    """
+    prune_local()
+    free = _free_gb()
+    if free < MIN_FREE_GB_TO_BACKUP:
+        raise OSError(f"พื้นที่ดิสก์เหลือ {free:.2f} GB น้อยเกินกว่าจะสำรองได้ "
+                      f"(ต้องเหลืออย่างน้อย {MIN_FREE_GB_TO_BACKUP} GB) "
+                      "- โปรดเพิ่มพื้นที่ดิสก์ก่อน")
     data = get_data_dir()
     try:
         from app.tenancy import checkpoint_all
@@ -147,9 +188,7 @@ def run_backup(force: bool = False) -> Path | None:
     else:
         print("   ", reason)
 
-    # ตัดสำรองในเครื่องให้เหลือไม่กี่ชุด (ดิสก์ฟรีพื้นที่จำกัด)
-    for old in sorted(_backups_dir().glob("ddoc-backup-*.zip"), reverse=True)[3:]:
-        old.unlink(missing_ok=True)
+    prune_local()                   # ตัดสำรองในเครื่องให้เหลือไม่กี่ชุด
     _last_fp = _fingerprint(data)   # baseline ใหม่ (หลัง checkpoint แล้ว)
     return zip_path
 
@@ -161,14 +200,18 @@ def manual_backup() -> str:
         zip_path = _make_zip()
     except Exception as e:
         return f"สร้างไฟล์สำรองไม่สำเร็จ: {e}"
-    if not client:
-        return f"สำรองในเครื่องแล้ว ({zip_path.name}) แต่ {reason}"
     try:
-        _upload(client, bucket, zip_path, snapshot=True)
-        mark_synced()
-        return f"สำเร็จ! อัปขึ้นคลาวด์แล้ว: {zip_path.name} ({zip_path.stat().st_size // 1024} KB)"
-    except Exception as e:
-        return f"สำรองในเครื่องได้ แต่อัปขึ้น R2 ไม่สำเร็จ: {e}"
+        if not client:
+            return f"สำรองในเครื่องแล้ว ({zip_path.name}) แต่ {reason}"
+        try:
+            _upload(client, bucket, zip_path, snapshot=True)
+            mark_synced()
+            return (f"สำเร็จ! อัปขึ้นคลาวด์แล้ว: {zip_path.name} "
+                    f"({zip_path.stat().st_size // 1024} KB)")
+        except Exception as e:      # noqa: BLE001
+            return f"สำรองในเครื่องได้ แต่อัปขึ้น R2 ไม่สำเร็จ: {e}"
+    finally:
+        prune_local()               # อัปสำเร็จหรือไม่ก็ตาม ห้ามทิ้งไฟล์ค้างในเครื่อง
 
 
 def restore_latest_from_s3() -> bool:
