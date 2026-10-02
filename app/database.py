@@ -343,21 +343,42 @@ def _purge_student_sensitive(engine) -> None:
             pass
 
 
-def init_school_db(engine) -> None:
-    """สร้างตารางทั้งหมด + เพิ่มคอลัมน์ใหม่ บน DB ของโรงเรียนที่ระบุ"""
-    from app import models  # noqa: F401  (ลงทะเบียนตารางทั้งหมด)
-    Base.metadata.create_all(bind=engine)
-    run_migrations(engine)
+def _textbook_key_index(engine) -> None:
+    """ดัชนีกันรหัสคัดเลือกหนังสือซ้ำ · ถ้าข้อมูลเดิมซ้ำอยู่แล้วจะสร้างไม่ได้ (ไม่เป็นไร)"""
     with engine.begin() as connection:
-        connection.exec_driver_sql("CREATE UNIQUE INDEX IF NOT EXISTS ux_textbook_selection_key ON textbook(selection_key)")
-    _repair_finance_fund_types(engine)
-    _purge_student_sensitive(engine)
-    _purge_report_photos(engine)
-    _migrate_lunch_measures(engine)
-    _backfill_memo_subjects(engine)
-    _prune_stale_procurement_docnos(engine)
-    _fix_lunch_proc_case(engine)
-    _migrate_measure_times(engine)
+        connection.exec_driver_sql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_textbook_selection_key "
+            "ON textbook(selection_key)")
+
+
+def init_school_db(engine) -> None:
+    """สร้างตารางทั้งหมด + เพิ่มคอลัมน์ใหม่ บน DB ของโรงเรียนที่ระบุ
+
+    ขั้นตอนซ่อม/ย้ายข้อมูลแต่ละตัวแยกกันคนละ try
+    ถ้าตัวใดตัวหนึ่งพังกับข้อมูลของโรงเรียนใดโรงเรียนหนึ่ง (เช่น ข้อมูลเดิมซ้ำจน
+    สร้างดัชนี unique ไม่ได้) ต้องไม่ลาก "ทั้งโรงเรียน" ล่มตามไปด้วย
+    เพราะ engine สร้างไม่สำเร็จ = ทุกหน้าของโรงเรียนนั้นขึ้น 500 หมด
+    ซึ่งหนักกว่าการที่งานย่อยงานเดียวไม่สมบูรณ์มาก
+    """
+    from app import models  # noqa: F401  (ลงทะเบียนตารางทั้งหมด)
+    Base.metadata.create_all(bind=engine)      # ไม่มีตาราง = ใช้งานไม่ได้จริง ต้องให้ดังถ้าพัง
+    steps = (
+        ("เพิ่มคอลัมน์ใหม่", run_migrations),
+        ("ดัชนีรหัสหนังสือ", _textbook_key_index),
+        ("ซ่อมประเภทเงิน", _repair_finance_fund_types),
+        ("ล้างข้อมูลอ่อนไหวของนักเรียน", _purge_student_sensitive),
+        ("ล้างภาพรายงาน", _purge_report_photos),
+        ("ย้ายข้อมูลชั่งน้ำหนัก", _migrate_lunch_measures),
+        ("เติมชื่อเรื่องบันทึก", _backfill_memo_subjects),
+        ("เก็บกวาดทะเบียนเลขหนังสือ", _prune_stale_procurement_docnos),
+        ("ปรับรูปแบบงานอาหารกลางวัน", _fix_lunch_proc_case),
+        ("เพิ่มครั้งที่ชั่งน้ำหนัก", _migrate_measure_times),
+    )
+    for label, fn in steps:
+        try:
+            fn(engine)
+        except Exception as e:      # noqa: BLE001
+            print(f"[school-db] ข้ามขั้นตอน '{label}' ของโรงเรียนนี้: {e!r}")
 
 
 def _migrate_measure_times(engine) -> None:
