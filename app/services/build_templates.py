@@ -1111,7 +1111,13 @@ def build_tor():
     _p(doc, "{{ school_name }}", align="center", bold=True, after=8)
 
     _p(doc, "1. ความเป็นมา", bold=True, underline=True, after=0)
-    _p(doc, "ด้วย {{ school_name }} {{ purpose }}", align="justify", indent=1.25)
+    _p(doc, "ด้วย {{ school_name }} มีความประสงค์จะดำเนินการ{{ proc_type }}{{ subject }} "
+            "{% if project_name %}ภายใต้โครงการ{{ project_name }} {% endif %}"
+            "ประจำปีงบประมาณ พ.ศ. {{ fiscal_year }} โดยมีเหตุผลและความจำเป็น คือ {{ purpose }} "
+            "เพื่อให้การดำเนินงานเป็นไปตามวัตถุประสงค์และได้{{ obj_word }}ที่เหมาะสมกับการใช้งาน "
+            "จึงจัดทำขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะฉบับนี้ เพื่อกำหนดรายการ "
+            "จำนวน คุณลักษณะ เงื่อนไขการส่งมอบ และการรับประกันให้ชัดเจน "
+            "สำหรับใช้ประกอบการเสนอราคาและการตรวจรับต่อไป", align="justify", indent=1.25)
 
     _p(doc, "2. วัตถุประสงค์", bold=True, underline=True, after=0)
     _p(doc, "{{ objective }}", align="justify", indent=1.25)
@@ -1162,13 +1168,12 @@ def build_tor():
     _p(doc, "{%p if spec_mode == 'single' %}")
     _p(doc, "(ลงชื่อ).................................................", align="center")
     _p(doc, "( {{ spec_drafter_name }} )", align="center")
-    _p(doc, "{{ spec_drafter_position }}", align="center")
-    _p(doc, "ผู้ได้รับมอบหมายให้จัดทำขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะ", align="center")
+    _p(doc, "ผู้จัดทำร่างขอบเขตของงาน", align="center")
     _p(doc, "{%p else %}")
     _p(doc, "{%p for m in spec_members %}")
     _p(doc, "(ลงชื่อ).................................................", align="center")
     _p(doc, "( {{ m.name }} )", align="center")
-    _p(doc, "{{ m.role }}ขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะ", align="center", after=SIGN_GAP)
+    _p(doc, "{{ m.role }}", align="center", after=SIGN_GAP)
     _p(doc, "{%p endfor %}")
     _p(doc, "{%p endif %}")
     TEMPLATES_DIR.mkdir(exist_ok=True)

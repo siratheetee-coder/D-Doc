@@ -188,7 +188,7 @@ def build_context(proc, school) -> dict:
             "ตามคำสั่งสำนักงานคณะกรรมการการศึกษาขั้นพื้นฐาน ที่ ................ "
             "ลงวันที่ ................"),
         "spec_drafter_name": spec_drafter.get("name") or "..............................",
-        "spec_drafter_position": spec_drafter.get("position") or "เจ้าหน้าที่พัสดุ",
+        "spec_drafter_position": spec_drafter.get("position") or "..............................",
         # คำเรียกผู้จัดทำร่าง ใช้ทั้งหัวข้อและช่องลงนามใน TOR
         "spec_word": ("ผู้ได้รับมอบหมายให้จัดทำร่างขอบเขตของงานและรายละเอียดคุณลักษณะเฉพาะ"
                       if spec_mode == "single"

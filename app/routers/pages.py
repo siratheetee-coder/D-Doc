@@ -1924,6 +1924,17 @@ def _collect_case_extra(proc: Procurement, form) -> None:
     proc.case_extra = json.dumps(data, ensure_ascii=False)
 
 
+def _populate_tor_fields(proc, form):
+    """Save only submitted TOR fields; reference-only forms must preserve them."""
+    for key in ('objective', 'warranty_text'):
+        if key in form:
+            value = (form.get(key) or '').strip()
+            setattr(proc, key, value or ('1 ปี' if key == 'warranty_text' else ''))
+    for key, default in (('quote_valid_days', 30), ('fix_days', 7)):
+        if key in form:
+            setattr(proc, key, max(1, _to_int(form.get(key), default)))
+
+
 def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: float = 0) -> None:
     """อ่านค่าจากฟอร์ม เติมลง proc + สร้างรายการพัสดุ + คณะกรรมการ (ตรวจรับ + คุณลักษณะ)
     (ใช้ทั้งตอนสร้างและแก้ไข ไม่ยุ่งกับเลขที่/วันที่เอกสาร)"""
@@ -1939,6 +1950,7 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
             proc.project_id = proj.id
     proc.department = (form.get("department") or "").strip()
     proc.purpose = (form.get("purpose") or "").strip()
+    _populate_tor_fields(proc, form)
     proc.proc_type = form.get("proc_type") or "ซื้อ"
     proc.method = form.get("method") or "เฉพาะเจาะจง"
     case = (form.get("proc_case") or "").strip()
@@ -2432,11 +2444,7 @@ async def procurement_update_refs(proc_id: int, request: Request, db: Session = 
     proc.memo_no = (form.get("memo_no") or "").strip()
     proc.result_memo_no = (form.get("result_memo_no") or "").strip()
     proc.spec_memo_no = (form.get("spec_memo_no") or "").strip()
-    # ช่องที่ TOR ตามแบบฟอร์มจริงต้องใช้ (ข้อ 5, 9 และวัตถุประสงค์)
-    proc.objective = (form.get("objective") or "").strip()
-    proc.quote_valid_days = _to_int(form.get("quote_valid_days"), 30)
-    proc.warranty_text = (form.get("warranty_text") or "").strip() or "1 ปี"
-    proc.fix_days = _to_int(form.get("fix_days"), 7)
+    _populate_tor_fields(proc, form)
     proc.inspect_memo_no = (form.get("inspect_memo_no") or "").strip()
     proc.command_no = (form.get("command_no") or "").strip()
     proc.order_no = (form.get("order_no") or "").strip()

@@ -2,6 +2,7 @@
 {% set is_edit = p is not none %}
 {% block title %}{{ "แก้ไขเรื่อง" if is_edit else "สร้างเรื่องจัดซื้อใหม่" }}{% endblock %}
 {% block content %}
+<style>#addSpecBtn[hidden], #specmembers tr[hidden] { display:none; }</style>
 <div class="card">
   <h1>{{ "แก้ไขเรื่องจัดซื้อ/จัดจ้าง" if is_edit else "สร้างเรื่องจัดซื้อ/จัดจ้างใหม่" }}</h1>
   {% if not is_edit %}<p class="muted">วันนี้: {{ today_thai }}</p>{% endif %}
@@ -628,7 +629,15 @@
         ? 'ออกบันทึกมอบหมาย 1 ใบ ไม่ต้องมีคำสั่งแต่งตั้ง'
         : 'ออกบันทึกขออนุมัติ + คำสั่งแต่งตั้ง (ครุฑ)';
       var rows = document.querySelectorAll('#specmembers tbody tr');
-      rows.forEach(function(tr, i){ tr.hidden = single && i > 0; });
+      rows.forEach(function(tr, i){
+        tr.hidden = single && i > 0;
+        var role = tr.querySelector('[name="spec_member_role"]');
+        if(role){
+          role.disabled = single;
+          if(single) role.value = 'ผู้ได้รับมอบหมาย';
+          else if(role.value === 'ผู้ได้รับมอบหมาย') role.value = i === 0 ? 'ประธานกรรมการ' : 'กรรมการ';
+        }
+      });
     }
     sel.addEventListener('change', apply);
     apply();

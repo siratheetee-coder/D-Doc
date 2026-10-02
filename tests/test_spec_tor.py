@@ -31,6 +31,8 @@ def _text(path) -> str:
 @pytest.fixture()
 def env(monkeypatch):
     tmp = pathlib.Path(tempfile.mkdtemp())
+    from app.services.build_templates import ensure_templates
+    ensure_templates(force=True)
     import app.accounts as ac
     import app.database as dbm
     import app.tenancy as tn
@@ -142,12 +144,14 @@ def test_tor_signature_follows_the_mode(env):
     db, school = env
     from app.services.render import render_document
     single = _text(render_document("รายละเอียดคุณลักษณะ(TOR)", _make(db, mode="single"), school))
-    assert "ผู้ได้รับมอบหมายให้จัดทำขอบเขตของงาน" in single
+    assert "ผู้จัดทำร่างขอบเขตของงาน" in single
+    assert "เจ้าหน้าที่พัสดุ" not in single
     assert "ประธานกรรมการ" not in single
 
     group = _text(render_document("รายละเอียดคุณลักษณะ(TOR)",
                                   _make(db, mode="committee", members=COMMITTEE), school))
-    assert "ประธานกรรมการขอบเขตของงาน" in group
+    assert "ประธานกรรมการ" in group
+    assert "ประธานกรรมการขอบเขตของงาน" not in group
     assert group.count("(ลงชื่อ)") >= 3
 
 
@@ -179,3 +183,40 @@ def test_old_records_without_a_mode_still_render(env):
     p2 = _make(db, mode="", members=COMMITTEE)
     assert spec_mode_of(p1) == "single"
     assert spec_mode_of(p2) == "committee"
+
+
+def test_tor_fields_survive_reference_saves_and_allow_clear(env):
+    from app.routers.pages import _populate_tor_fields, _populate_proc_from_form
+    from starlette.datastructures import FormData
+    db, school = env
+    p = _make(db)
+    _populate_proc_from_form(p, FormData(dict(subject='วัสดุสำนักงาน', fiscal_year='2569', purpose='ใช้ในการเรียนการสอน', objective='เพื่อพัฒนาการเรียนรู้', quote_valid_days='45', warranty_text='2 ปี', fix_days='14')), db)
+    db.commit(); db.expire_all()
+    assert (p.objective, p.quote_valid_days, p.warranty_text, p.fix_days) == ('เพื่อพัฒนาการเรียนรู้', 45, '2 ปี', 14)
+    _populate_tor_fields(p, FormData(dict(memo_no='123')))
+    db.commit(); db.expire_all()
+    assert p.objective == 'เพื่อพัฒนาการเรียนรู้' and p.fix_days == 14
+    from app.services.render import render_document
+    text = _text(render_document('รายละเอียดคุณลักษณะ(TOR)', p, school))
+    assert 'เพื่อพัฒนาการเรียนรู้' in text and '45 วัน' in text and '2 ปี' in text
+    _populate_tor_fields(p, FormData(dict(objective='')))
+    assert p.objective == ''
+
+
+def test_assignment_uses_selected_position_and_borderless_member_rows(env):
+    from app.services.render import render_document, build_context
+    from docx import Document
+    db, school = env
+    p = _make(db, members=[('นายทดสอบ งานร่าง', 'ครูชำนาญการพิเศษ', 'ผู้ได้รับมอบหมาย')])
+    text = _text(render_document('แต่งตั้งกรรมการคุณลักษณะ', p, school))
+    assert 'จึงเห็นควรมอบหมาย นายทดสอบ งานร่าง ตำแหน่ง ครูชำนาญการพิเศษ' in text
+    p2 = _make(db, mode='committee', members=COMMITTEE)
+    doc = Document(render_document('แต่งตั้งกรรมการคุณลักษณะ', p2, school))
+    table = next(t for t in doc.tables if 'นายสมชาย รักเรียน' in t._element.xml)
+    assert len(table.rows) == 3
+    for row, member in zip(table.rows, COMMITTEE):
+        assert member[0] in row.cells[1].text
+        assert member[1] in row.cells[2].text
+        assert member[2] in row.cells[3].text
+    p3 = _make(db); p3.committees.clear()
+    assert build_context(p3, school)['spec_drafter_position'] != 'เจ้าหน้าที่พัสดุ'
