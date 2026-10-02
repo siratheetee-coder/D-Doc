@@ -2076,15 +2076,55 @@ def get_secret_key() -> str:
     return key
 
 
+def _restore_if_truly_empty() -> None:
+    """กู้คืนจากคลาวด์ตอนเปิดเครื่อง เฉพาะกรณีดิสก์ว่างเปล่าจริง ๆ เท่านั้น
+
+    ทำไมต้องระวังขนาดนี้
+      ท่านี้มีไว้สำหรับโฮสต์แบบดิสก์ชั่วคราว (ไฟล์หายทุกครั้งที่ deploy)
+      แต่บนเซิร์ฟเวอร์ที่ดิสก์อยู่ถาวร ถ้า accounts.db หายไปชั่วคราวด้วยเหตุอื่น
+      (ดิสก์ยังไม่ mount ตอนบูต · ไฟล์ถูกย้าย · สคริปต์ deploy เผลอลบ)
+      แล้วระบบดึงไฟล์สำรองเก่ามาทับ โรงเรียนที่สมัครหลังเวลาสำรองจะหายทั้งแถว
+      ทั้งที่โฟลเดอร์ข้อมูลยังอยู่บนดิสก์ และไม่มีร่องรอยใน audit log เลย
+      (เพราะ audit log อยู่ในไฟล์ accounts.db ที่ถูกทับไปแล้วเหมือนกัน)
+
+    กติกาใหม่
+      1) มีโฟลเดอร์ข้อมูลโรงเรียนอยู่แล้ว = ดิสก์มีข้อมูลสด -> ไม่กู้คืนเด็ดขาด
+         ให้คนตรวจเองว่าทำไม accounts.db หาย ดีกว่าย้อนข้อมูลทับเงียบ ๆ
+      2) เปิดใช้ท่านี้ต้องตั้ง DDOC_RESTORE_ON_EMPTY=1 ไว้ชัดเจน
+    """
+    import os
+    data_dir = get_data_dir()
+    if (data_dir / "accounts.db").exists():
+        return
+
+    schools = data_dir / "schools"
+    existing = [p for p in schools.iterdir()
+                if p.is_dir() and p.name.isdigit()] if schools.exists() else []
+    if existing:
+        print("=" * 70)
+        print("[Easy Ekkasan] *** ไม่พบไฟล์ accounts.db แต่มีข้อมูลโรงเรียนอยู่บนดิสก์ "
+              f"{len(existing)} แห่ง ***")
+        print("  ไม่กู้คืนจากคลาวด์ให้อัตโนมัติ เพราะจะทับข้อมูลที่ใหม่กว่า")
+        print("  โปรดตรวจว่าทำไมไฟล์หาย (ดิสก์ยังไม่ mount? สคริปต์ deploy ลบ?)")
+        print("  ถ้าตั้งใจจะกู้คืนจริง ให้กู้ด้วยมือ แล้วตรวจจำนวนโรงเรียนก่อนเปิดใช้งาน")
+        print("=" * 70)
+        return
+
+    if os.environ.get("DDOC_RESTORE_ON_EMPTY") != "1":
+        print("[Easy Ekkasan] ดิสก์ว่าง และไม่ได้ตั้ง DDOC_RESTORE_ON_EMPTY=1 "
+              "-> เริ่มต้นใหม่ ไม่ดึงไฟล์สำรองมาทับ")
+        return
+
+    try:
+        from app.services.backup import restore_latest_from_s3
+        restore_latest_from_s3()
+    except Exception as e:      # noqa: BLE001
+        print("[Easy Ekkasan] กู้คืนจากคลาวด์ตอนเปิดไม่สำเร็จ:", e)
+
+
 def bootstrap():
     """เริ่มระบบ: สร้าง accounts.db, superadmin เริ่มต้น, และย้ายข้อมูลเดิม (ถ้ามี) เป็นโรงเรียนแรก"""
-    # ฟรีทีเออร์ (ดิสก์ชั่วคราว): ถ้าดิสก์ว่าง แต่มีสำรองบนคลาวด์ -> กู้คืนก่อน กันข้อมูลหายตอน deploy ใหม่
-    if not (get_data_dir() / "accounts.db").exists():
-        try:
-            from app.services.backup import restore_latest_from_s3
-            restore_latest_from_s3()
-        except Exception as e:
-            print("[Easy Ekkasan] กู้คืนจากคลาวด์ตอนเปิดไม่สำเร็จ:", e)
+    _restore_if_truly_empty()
     _ensure_engine()
     db = acc_session()
     try:
