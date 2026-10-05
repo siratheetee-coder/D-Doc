@@ -234,7 +234,7 @@
       <div class="docgrp-h">ส่งมอบ / ตรวจรับ / เบิกจ่าย</div>
       <div class="row">
         <div>
-          <label>วันที่ส่งมอบจริง (ใบส่งมอบงาน)
+          <label>วันที่ส่งมอบจริง ({{ doc_label('ใบส่งมอบงาน', p.proc_type) }})
           </label>
           <input name="delivery_date" value="{{ be_date(p.delivery_date) }}" placeholder="วว/ดด/ปปปป" data-date="1">
         </div>
@@ -317,7 +317,7 @@
     {% for kind in doc_kinds %}
     <form method="post" action="/procurement/{{ p.id }}/generate">
       <input type="hidden" name="doc_kind" value="{{ kind }}">
-      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-file"/></svg> {{ kind.replace('พัสดุ','งานจ้าง') if p.proc_type == 'จ้าง' else kind }}</button>
+      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-file"/></svg> {{ doc_label(kind, p.proc_type) }}</button>
     </form>
     {% endfor %}
   </div>

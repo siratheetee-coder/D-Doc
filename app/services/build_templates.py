@@ -1183,20 +1183,25 @@ def build_tor():
 
 
 def build_delivery_note():
-    """แม่แบบ: ใบส่งมอบงาน + แจ้งหนี้ขอเบิกเงิน"""
+    """แม่แบบ: ใบส่งของ (งานซื้อ) / ใบส่งมอบงาน (งานจ้าง) + แจ้งหนี้ขอเบิกเงิน
+
+    หัวเอกสารและถ้อยคำสลับตามประเภทงาน เรียกใบส่งมอบงานกับงานซื้อไม่ถูก
+    และผู้ขายเป็นคน "ขาย" ให้โรงเรียน ไม่ใช่ "รับซื้อ" จากโรงเรียน
+    """
     doc = Document(); set_a4(doc)
     _font(doc)
-    _p(doc, "ใบส่งมอบงาน", align="center", bold=True, size=20, after=4)
+    _p(doc, "{{ delivery_title }}", align="center", bold=True, size=20, after=4)
     _p(doc, "เขียนที่ {{ school_name }}", align="right")
     _p(doc, "วันที่ {{ delivery_date_thai }}", align="right", after=4)
-    _p(doc, "เรื่อง  ส่งมอบงาน{{ proc_type }}และแจ้งหนี้ขอเบิกเงิน")
+    _p(doc, "เรื่อง  {{ delivery_subject }}")
     _p(doc, "เรียน  {{ director_office }}")
     _p(doc,
-       "ตามที่{{ school_name }} ได้ตกลงให้ข้าพเจ้า {{ vendor_name }} รับ{{ proc_type }}{{ subject }} "
+       "ตามที่{{ school_name }} ได้ตกลงให้ข้าพเจ้า {{ vendor_name }} "
+       "{{ vendor_occupation }}{{ subject }} "
        "โดยวิธี{{ method }} ตาม{{ order_kind }} เลขที่ {{ order_no }} ลงวันที่ {{ order_date_thai }} "
        "ในวงเงิน {{ total_amount }} บาท ({{ total_baht }}) นั้น", align="justify", indent=1.25)
     _p(doc,
-       "บัดนี้ ข้าพเจ้าได้ปฏิบัติตาม{{ order_kind }} เสร็จเรียบร้อยแล้ว จึงขอส่งมอบงาน "
+       "บัดนี้ ข้าพเจ้าได้ปฏิบัติตาม{{ order_kind }} เสร็จเรียบร้อยแล้ว จึงขอ{{ deliver_obj }} "
        "เพื่อตรวจรับและขอเบิกจ่ายเงิน จำนวน {{ total_amount }} บาท ({{ total_baht }})",
        align="justify", indent=1.25, after=8)
     _p(doc, "ขอแสดงความนับถือ", align="center")

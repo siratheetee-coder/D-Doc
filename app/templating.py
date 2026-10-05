@@ -82,6 +82,8 @@ templates.env.globals.update(
     thai_date=thai_date, bahttext=bahttext, be_date=be_date_input,
     nav_alerts=nav_alerts, nav_holidays=nav_holidays, my_notices=my_notices,
     maint_notice=lambda: __import__("app.accounts", fromlist=["x"]).active_notice(),
+    doc_label=lambda kind, proc_type="ซื้อ": __import__(
+        "app.services.render", fromlist=["x"]).doc_label(kind, proc_type),
     eb_label=lambda code: __import__("app.services.ebudget_cat",
                                      fromlist=["x"]).LABELS.get(code, code or "-"),
     accum_dep=accumulated_depreciation, nbv=net_book_value,

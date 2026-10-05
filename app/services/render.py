@@ -231,6 +231,12 @@ def build_context(proc, school) -> dict:
         "order_kind": ("ใบสั่งซื้อ" if proc.proc_type == "ซื้อ" else "ใบสั่งจ้าง"),
         "vendor_label": ("ผู้ขาย" if proc.proc_type == "ซื้อ" else "ผู้รับจ้าง"),
         "vendor_occupation": ("ขาย" if proc.proc_type == "ซื้อ" else "รับจ้าง"),
+        # งานซื้อ ผู้ขายส่ง "ของ" · งานจ้าง ผู้รับจ้างส่ง "งาน"
+        # เรียกใบส่งมอบงานกับงานซื้อไม่ถูก และ e-GP ก็แยกสองคำนี้เหมือนกัน
+        "delivery_title": ("ใบส่งของ" if proc.proc_type == "ซื้อ" else "ใบส่งมอบงาน"),
+        "delivery_subject": ("ส่งของและแจ้งหนี้ขอเบิกเงิน" if proc.proc_type == "ซื้อ"
+                             else "ส่งมอบงานจ้างและแจ้งหนี้ขอเบิกเงิน"),
+        "deliver_obj": ("ส่งมอบพัสดุ" if proc.proc_type == "ซื้อ" else "ส่งมอบงาน"),
         # คำเรียกสิ่งที่จัดหา/ตรวจรับ/ส่งมอบ: งานซื้อ = "พัสดุ" · งานจ้าง = "งานจ้าง"
         # (ไม่ใช้กับชื่อกฎหมาย "การบริหารพัสดุภาครัฐ" หรือ "งานพัสดุ/เจ้าหน้าที่พัสดุ")
         "obj_word": ("พัสดุ" if proc.proc_type == "ซื้อ" else "งานจ้าง"),
@@ -478,6 +484,18 @@ def spec_mode_of(proc) -> str:
     if (c.mode or "") in ("single", "committee"):
         return c.mode
     return "committee" if len(c.members or []) > 1 else "single"
+
+
+def doc_label(kind: str, proc_type: str = "ซื้อ") -> str:
+    """ชื่อเอกสารที่โชว์บนปุ่ม/หัวข้อ ให้ตรงกับประเภทงาน
+
+    ชื่อคีย์ภายใน (ที่เก็บในทะเบียนและใช้เรียกแม่แบบ) ไม่เปลี่ยน
+    เปลี่ยนเฉพาะคำที่ผู้ใช้เห็น ไม่งั้นข้อมูลเดิมที่อ้างชื่อเอกสารไว้จะหาไม่เจอ
+    """
+    buy = (proc_type or "ซื้อ") == "ซื้อ"
+    if kind == "ใบส่งมอบงาน":
+        return "ใบส่งของ" if buy else "ใบส่งมอบงาน"
+    return kind if buy else kind.replace("พัสดุ", "งานจ้าง")
 
 
 def kinds_for(proc):
