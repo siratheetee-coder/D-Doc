@@ -98,7 +98,7 @@ def state(db, ay, term):
             if r.item_key in keys_for(term):
                 rates.setdefault(r.level, {})[r.item_key] = money(Decimal(str(r.amount)) / (1 if r.item_key in ('book', 'uniform') else 2))
         levels = [lv for lv in LEVELS if now[lv] or any(r['counts'].get(lv) for r in scans)]
-        cfg = {'levels': levels or LEVELS[:9], 'rates': rates, 'rate_source': '', 'rates_confirmed': False,
+        cfg = {'levels': levels or LEVELS[:9], 'rates': rates,
             'first': {}, 'first_ref': '', 'second': {}, 'second_ref': '', 'extras': {}, 'legacy': bool(old), 'note': ''}
     data = {'academic_year': ay, 'term': term, 'fiscal_year': fy, 'config': cfg, 'census': scans}
     data['token'] = fingerprint(data)
@@ -112,8 +112,6 @@ def state(db, ay, term):
 
 def calculate(cfg, scans, term):
     rows, missing, basis = [], [], []
-    if not cfg.get('rates_confirmed') or not cfg.get('rate_source'):
-        missing.append('ยังไม่ยืนยันอัตราและหนังสืออ้างอิงของเทอมนี้')
     for scan in scans:
         if not scan.get('confirmed') or not scan.get('source'):
             missing.append(f"ยังไม่ยืนยัน DMC {scan['label']}")
@@ -172,12 +170,9 @@ def save(db, ay, term, form):
     levels = [lv for lv in LEVELS if lv in form.getlist('levels')]
     if not levels:
         raise ValueError('เลือกชั้นเรียนอย่างน้อย 1 ชั้น')
-    cfg = {'levels': levels, 'rates': {}, 'rate_source': (form.get('rate_source') or '').strip(),
-        'rates_confirmed': form.get('rates_confirmed') == '1', 'first': {}, 'second': {},
+    cfg = {'levels': levels, 'rates': {}, 'first': {}, 'second': {},
         'first_ref': (form.get('first_ref') or '').strip(), 'second_ref': (form.get('second_ref') or '').strip(),
         'extras': {}, 'legacy': False, 'note': (form.get('note') or '').strip()}
-    if cfg['rates_confirmed'] and not cfg['rate_source']:
-        raise ValueError('ระบุแหล่งอ้างอิงอัตราก่อนยืนยัน')
     for lv in LEVELS:
         cfg['rates'][lv] = {k: number(form.get(f'r_{lv}_{k}'), f'อัตรา {lv}') for k in keys_for(term)}
     for which in ('first', 'second'):

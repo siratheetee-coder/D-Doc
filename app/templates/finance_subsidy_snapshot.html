@@ -9,7 +9,7 @@
 <p class="sub-notice ok">ยืนยันเมื่อ {{ snapshot.created_at.strftime('%d/%m/%Y %H:%M') }} · ตัวเลขและแหล่งข้อมูลในหน้านี้เก็บไว้ ณ วันที่ยืนยัน ไม่เปลี่ยนตามการแก้ไขภายหลัง</p>
 <p class="sub-total">ประมาณการเต็มเทอม {{ money(s.result.total) }} บาท</p>
 <div class="sub-scroll"><table><thead><tr><th>รายการ</th><th>ประมาณการงวดแรก</th><th>จัดสรรงวดแรกจริง</th><th>ประมาณการเต็มเทอม</th><th>งวดปรับยอด</th><th>จัดสรรงวดปรับยอดจริง</th></tr></thead><tbody>{% for r in s.result.rows %}<tr><td>{{ r.name }}</td><td>{{ money(r.first_estimate) }}</td><td>{{ money(r.first) }}</td><td>{{ money(r.full) }}</td><td>{{ money(r.remaining) }}</td><td>{{ money(r.second) }}</td></tr>{% endfor %}</tbody></table></div>
-<p>อ้างอิงอัตรา: {{ s.config.rate_source }}</p><p>หนังสือจัดสรรงวดแรก: {{ s.config.first_ref or 'ยังไม่มี' }} · งวดปรับยอด: {{ s.config.second_ref or 'ยังไม่มี' }}</p>
+<p>หนังสือจัดสรรงวดแรก: {{ s.config.first_ref or 'ยังไม่มี' }} · งวดปรับยอด: {{ s.config.second_ref or 'ยังไม่มี' }}</p>
 {% for k, extra in s.config.extras.items() %}<p>{{ names[k] }}: {{ money(extra.amount) }} บาท · {{ extra.ref }}</p>{% endfor %}
 <h2>อัตราที่ใช้ (บาท/คน/เทอม)</h2>
 <div class="sub-scroll"><table><thead><tr><th>ชั้น</th>{% for k in keys %}<th>{{ names[k] }}</th>{% endfor %}</tr></thead><tbody>{% for lv in s.config.levels %}<tr><td>{{ lv }}</td>{% for k in keys %}<td>{{ money(s.config.rates[lv][k]) }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>

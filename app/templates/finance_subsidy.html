@@ -23,7 +23,7 @@
 {% if error %}<div class="sub-notice error" role="alert">ยังบันทึกไม่ได้: {{ error }} · ข้อมูลที่กรอกยังอยู่ด้านล่าง</div>{% endif %}
 <div id="sub-dirty" class="sub-notice warn" role="status" {{ '' if error else 'hidden' }}>มีข้อมูลยังไม่บันทึก — บันทึกและคำนวณก่อนยืนยัน ออกเอกสาร หรือเชื่อมข้อมูล</div>
 <div class="sub-notice">อัตรากรอกเป็น <strong>บาท/คน/ภาคเรียน</strong> แยกชุดตามปีงบและเทอม เมื่อขึ้นเทอม 2 จะใช้ชุดอัตราของปีงบใหม่ ไม่เปลี่ยนข้อมูลเทอม 1<br>หนังสือเรียนและเครื่องแบบปกติคำนวณในเทอม 1 · ช่องว่างหมายถึงยังไม่มีข้อมูล กรอก 0 เมื่อยืนยันว่าไม่มีจริง</div>
-{% if cfg.legacy %}<div class="sub-notice warn">พบอัตรารายปีจากระบบเดิม จัดแสดงเป็นรายเทอมให้ตรวจสอบแล้ว แต่ยังไม่ยืนยัน กรุณาตรวจหนังสืออัตราของปีงบ {{ s.fiscal_year }} ก่อนใช้งาน ข้อมูลเดิมยังเก็บไว้</div>{% endif %}
+{% if cfg.legacy %}<div class="sub-notice warn">พบอัตรารายปีจากระบบเดิม จัดแสดงเป็นรายเทอมแล้ว สามารถปรับตัวเลขให้ตรงปีงบ {{ s.fiscal_year }} ก่อนใช้งาน ข้อมูลเดิมยังเก็บไว้</div>{% endif %}
 
 <section class="card">
   <h2>ผลคำนวณจากข้อมูลที่บันทึกล่าสุด</h2>
@@ -45,8 +45,6 @@
   <div class="sub-scroll"><table class="sub-rates"><thead><tr><th>ชั้น</th>{% for k in keys %}<th>{{ names[k] }}<small>บาท/คน/เทอม</small></th>{% endfor %}</tr></thead><tbody>
     {% for lv in levels %}<tr data-rate-level="{{ lv }}"><th>{{ lv }}</th>{% for k in keys %}<td><input aria-label="{{ names[k] }} {{ lv }}" type="number" min="0" max="1000000000" step="0.01" name="r_{{ lv }}_{{ k }}" value="{{ value('r_'~lv~'_'~k,cfg.rates.get(lv,{}).get(k)) }}"></td>{% endfor %}</tr>{% endfor %}
   </tbody></table></div>
-  <label>หนังสือ/ประกาศอัตราที่ใช้ (เลขที่ วันที่ หรือแหล่งอ้างอิง)<input name="rate_source" value="{{ value('rate_source',cfg.rate_source) }}" placeholder="ระบุให้ตรงปีงบและภาคเรียนนี้"></label>
-  <label class="sub-check"><input type="checkbox" name="rates_confirmed" value="1" {{ checked('rates_confirmed',cfg.rates_confirmed) }}> ตรวจสอบอัตราตามแหล่งอ้างอิงแล้ว</label>
 </section>
 <section class="card"><h2>2. ยอด DMC แยกตามวันสำรวจ</h2>
   <p>เทอม 1 เลื่อนฐานเดิมให้ชั้นต่อเนื่องอัตโนมัติ ส่วน อ.1 อ.2 ป.1 ม.1 ม.4 ใช้ฐานชั้นเดิมตามแนวทางปีงบ 2569 จึงต้องกรอกชั้นต้นทางด้วย ตัวเลขในตารางนี้เป็นยอดดิบ ณ วันสำรวจ</p>
@@ -97,5 +95,5 @@
 <p class="sub-muted">สูตรฐาน DMC ใช้แนวทางโรงเรียนปกติ สพฐ. ปีงบ 2569 อัตราและเงินเพิ่มเติมต้องตรวจหนังสือของปีงบที่เลือก โรงเรียนที่ใช้หลักเกณฑ์เฉพาะควรตรวจฐานจัดสรรก่อนยืนยัน</p>
 </div>
 <script id="subsidy-data" type="application/json">{{ {'now':s.now_counts,'previous':previous_rates,'error':(error != '')}|tojson }}</script>
-<script src="/static/subsidy.js?v=1" defer></script>
+<script src="/static/subsidy.js?v=2" defer></script>
 {% endblock %}

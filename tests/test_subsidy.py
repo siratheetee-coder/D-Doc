@@ -65,8 +65,7 @@ def db():
 
 def form_for(db, ay=2568, term=1, **overrides):
     s = sub.state(db, ay, term)
-    d = {'academic_year': str(ay), 'term': str(term), 'token': s['token'], 'levels': 'ป.1',
-         'rate_source': 'หนังสืออัตราทดสอบ', 'rates_confirmed': '1'}
+    d = {'academic_year': str(ay), 'term': str(term), 'token': s['token'], 'levels': 'ป.1'}
     for k in sub.keys_for(term):
         d['r_ป.1_'+k] = '1000'
     for scan in s['census']:
@@ -288,7 +287,7 @@ def test_confirmed_report_uses_frozen_amounts_and_sources(db,monkeypatch,tmp_pat
     path=subsidy_report.render(db.query(School).first(),json.loads(snap.payload),snap.id)
     doc=Document(path)
     assert doc.tables[0].rows[1].cells[3].text=='120,000.00'
-    assert any('หนังสืออัตราทดสอบ' in p.text for p in doc.paragraphs)
+    assert not any('อ้างอิงอัตรา:' in p.text for p in doc.paragraphs)
     assert not any('หนังสือใหม่' in p.text for p in doc.paragraphs)
 
 
@@ -298,10 +297,11 @@ def test_routes_save_validation_snapshot_and_budget(env):
     r=c.get('/finance/subsidy?year=2568&term=1')
     assert r.status_code==200, r.text[:500]
     assert 'บาท/คน/ภาคเรียน' in r.text
+    assert 'name="rate_source"' not in r.text and 'name="rates_confirmed"' not in r.text
     db=session_for(1)
     data=dict(form_for(db))
     a=account(db);db.commit();aid=a.id;db.close()
-    invalid=dict(data, rate_source='', rates_confirmed='1')
+    invalid=dict(data, **{'r_ป.1_teach':'-1'})
     r=c.post('/finance/subsidy',data=invalid,follow_redirects=False)
     assert r.status_code==422 and 'ยังบันทึกไม่ได้' in r.text
     assert 'value="1000"' in r.text

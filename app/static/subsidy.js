@@ -19,7 +19,6 @@
   function changed(e) {
     dirty = true;
     const name = e?.target?.name || '';
-    if (name.startsWith('r_') || name === 'rate_source' || name === 'levels') form.elements.rates_confirmed.checked = false;
     if (name.startsWith('n_') || name.startsWith('source_')) {
       const panel = e.target.closest('[data-census]');
       if (panel) form.elements['confirm_' + panel.dataset.census].checked = false;
@@ -42,12 +41,10 @@
     changed();
   }));
   document.getElementById('copy-rates')?.addEventListener('click',()=>{
-    if(!confirm('นำอัตราปีงบก่อนมาแทนค่าที่กรอกในตารางนี้เพื่อตรวจสอบ? ต้องตรวจอัตราปีงบใหม่ก่อนยืนยัน'))return;
+    if(!confirm('นำอัตราปีงบก่อนมาแทนค่าที่กรอกในตารางนี้เพื่อตรวจสอบ? กรุณาตรวจตัวเลขก่อนบันทึก'))return;
     Object.entries(data.previous).forEach(([lv,rates])=>Object.entries(rates).forEach(([key,n])=>{
       const input=form.elements['r_'+lv+'_'+key];if(input)input.value=n??'';
     }));
-    form.elements.rates_confirmed.checked=false;
-    form.elements.rate_source.value='';
     changed();
   });
   refresh();

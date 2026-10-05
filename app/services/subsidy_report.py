@@ -49,8 +49,7 @@ def render(school, data, snapshot_id=None):
     _p(doc, f"รวมประมาณการเต็มเทอม {amount(result['total'])} บาท", bold=True)
     _p(doc, 'เงินรับจริงต้องตรวจจากรายการโอนที่เชื่อมแยกต่างหาก ยอดติดลบเป็นจุดตรวจสอบกับหนังสือจัดสรร ไม่ใช่คำสั่งคืนเงิน', size=14)
     if result['missing']:
-        _p(doc, f"ยังมีข้อมูลต้องตรวจ {len(result['missing'])} จุด กรุณาตรวจช่องที่แสดง — และการยืนยันอัตรา/DMC ในหน้าคำนวณก่อนใช้งาน", size=14)
-    _p(doc, 'อ้างอิงอัตรา: ' + (cfg['rate_source'] or 'ยังไม่ระบุ') + (' · ตรวจแล้ว' if cfg['rates_confirmed'] else ' · ยังไม่ยืนยัน'), size=14)
+        _p(doc, f"ยังมีข้อมูลต้องตรวจ {len(result['missing'])} จุด กรุณาตรวจช่องที่แสดง — และข้อมูล DMC ในหน้าคำนวณก่อนใช้งาน", size=14)
     _p(doc, 'หนังสือจัดสรรงวดแรก: ' + (cfg['first_ref'] or 'ยังไม่แจ้ง'), size=14)
     _p(doc, 'หนังสือจัดสรรงวดปรับยอด: ' + (cfg['second_ref'] or 'ยังไม่แจ้ง'), size=14)
     for k, extra in cfg['extras'].items():
