@@ -278,6 +278,78 @@ def test_two_academic_years_contribute_to_same_fiscal_budget(db):
     assert item.budget==228000  # Other term's 120,000 remains intact.
 
 
+def actual_form(db, **changes):
+    data=dict(form_for(db,budget_basis='allocated',first_ref='งวดแรก',second_ref='ปรับยอด'))
+    for k in sub.keys_for(1):
+        data['first_'+k]='70000'
+        data['second_'+k]='50000'
+    data.update(changes)
+    return FormData(data)
+
+
+def test_actual_allocation_replaces_estimate_and_only_applies_delta(db):
+    snap=confirmed(db,**{'n_jun2568_ป.1':'100'})
+    a=account(db);db.commit()
+    p=sub.budget_preview(db,snap,a.id);sub.apply_budget(db,snap,a.id,sub.fingerprint(p));db.commit()
+    old_payload=snap.payload
+    s=sub.save(db,2568,1,actual_form(db));db.commit()
+    snap2=sub.confirm(db,2568,1,s['token']);db.commit()
+    p=sub.budget_preview(db,snap2,a.id)
+    teach=next(r for r in p['rows'] if r['key']=='teach')
+    assert (teach['old'],teach['contribution'],teach['delta'],teach['new'])==(100000,120000,20000,120000)
+    sub.apply_budget(db,snap2,a.id,sub.fingerprint(p));db.commit()
+    repeated=sub.budget_preview(db,snap2,a.id)
+    assert all(r['delta']==0 for r in repeated['rows'])
+    assert snap.payload==old_payload
+    s=sub.save(db,2568,1,actual_form(db,second_teach='10000'));db.commit()
+    snap3=sub.confirm(db,2568,1,s['token']);db.commit()
+    p=sub.budget_preview(db,snap3,a.id)
+    assert next(r for r in p['rows'] if r['key']=='teach')['delta']==-40000
+
+
+def test_actual_mode_needs_both_installments_but_not_estimate_inputs(db):
+    d=dict(actual_form(db,second_teach=''))
+    for scan in sub.state(db,2568,1)['census']:
+        d['n_'+scan['key']+'_ป.1']=''
+        d['confirm_'+scan['key']]=''
+        d['source_'+scan['key']]=''
+    for k in sub.keys_for(1):d['r_ป.1_'+k]=''
+    s=sub.save(db,2568,1,FormData(d));db.commit()
+    assert s['result']['budget_total'] is None and not s['result']['ready']
+    with pytest.raises(ValueError,match='สองงวด'):sub.confirm(db,2568,1,s['token'])
+    db.rollback()
+    d.update(token=sub.state(db,2568,1)['token'],second_teach='0')
+    s=sub.save(db,2568,1,FormData(d));db.commit()
+    assert s['result']['total'] is None
+    assert s['result']['budget_total']==550000 and s['result']['ready']
+    assert sub.confirm(db,2568,1,s['token']).id
+
+
+def test_supplementary_entries_sum_and_preserve_each_award(db):
+    d=list(form_for(db).multi_items())+[('extra_small','10000'),('extra_ref_small','ครั้งแรก'),('extra_small','8000'),('extra_ref_small','ครั้งสอง')]
+    s=sub.save(db,2568,1,FormData(d));db.commit()
+    extra=s['config']['extras']['small']
+    assert extra['amount']==18000 and len(extra['entries'])==2
+    snap=sub.confirm(db,2568,1,s['token']);db.commit()
+    a=account(db);db.commit()
+    p=sub.budget_preview(db,snap,a.id);sub.apply_budget(db,snap,a.id,sub.fingerprint(p));db.commit()
+    # Editing/removing an award adjusts only this category's previous contribution.
+    s=prepared(db,extra_small='10000',extra_ref_small='ครั้งแรก')
+    snap2=sub.confirm(db,2568,1,s['token']);db.commit()
+    p=sub.budget_preview(db,snap2,a.id)
+    assert next(r for r in p['rows'] if r['key']=='small')['delta']==-8000
+
+
+def test_legacy_snapshot_budget_defaults_to_original_estimate(db):
+    snap=confirmed(db)
+    data=json.loads(snap.payload)
+    for r in data['result']['rows']:r.pop('budget_amount')
+    for k in ('budget_label','budget_basis','budget_total'):data['result'].pop(k)
+    snap.payload=sub.dumps(data);db.commit()
+    a=account(db);db.commit()
+    assert sub.budget_preview(db,snap,a.id)['rows'][0]['contribution']==120000
+
+
 def test_confirmed_report_uses_frozen_amounts_and_sources(db,monkeypatch,tmp_path):
     from app.services import finance_forms_doc, subsidy_report
     from docx import Document

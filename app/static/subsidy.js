@@ -47,5 +47,21 @@
     }));
     changed();
   });
+  form.addEventListener('click',e=>{
+    const add=e.target.closest('[data-add-extra]'), remove=e.target.closest('[data-remove-extra]');
+    if(add){
+      const rows=add.closest('[data-extra-group]').querySelector('[data-extra-rows]');
+      if(rows.children.length>=100){alert('เพิ่มได้ไม่เกิน 100 ครั้งต่อประเภท');return;}
+      const row=rows.firstElementChild.cloneNode(true);
+      row.querySelectorAll('input').forEach(input=>input.value='');
+      rows.appendChild(row);row.querySelector('input').focus();changed();
+    }
+    if(remove){
+      const row=remove.closest('[data-extra-row]');
+      if(row.parentElement.children.length>1)row.remove();
+      else row.querySelectorAll('input').forEach(input=>input.value='');
+      changed();
+    }
+  });
   refresh();
 })();

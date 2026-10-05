@@ -19,6 +19,7 @@ ITEMS = [('teach', 'ค่าจัดการเรียนการสอน
 EXTRAS = [('small', 'เงินเพิ่มเติมโรงเรียนขนาดเล็ก'), ('poor', 'ปัจจัยพื้นฐานนักเรียนยากจน'),
     ('boarding', 'ค่าอาหารนักเรียนประจำพักนอน'), ('uniform_extra', 'ค่าเครื่องแบบเพิ่มเติม')]
 NAMES = {k: n for k, n, _ in ITEMS} | dict(EXTRAS)
+BUDGET_BASES = {'estimate': 'ยอดคำนวณจากนักเรียนและอัตรา', 'allocated': 'ยอดจัดสรรจริงที่กรอกครบสองงวด'}
 ROUND_LABEL = {'jun': '10 มิถุนายน', 'nov': '10 พฤศจิกายน'}
 
 
@@ -112,6 +113,8 @@ def state(db, ay, term):
 
 def calculate(cfg, scans, term):
     rows, missing, basis = [], [], []
+    budget_basis = cfg.get('budget_basis', 'estimate')
+    allocation_missing, extra_missing = [], []
     for scan in scans:
         if not scan.get('confirmed') or not scan.get('source'):
             missing.append(f"ยังไม่ยืนยัน DMC {scan['label']}")
@@ -146,19 +149,28 @@ def calculate(cfg, scans, term):
         second = cfg.get('second', {}).get(key)
         balance = money(Decimal(str(full)) - Decimal(str(used))) if full is not None and used is not None else None
         allocated = money((initial or 0) + (second or 0)) if initial is not None or second is not None else None
+        if initial is None or second is None:
+            allocation_missing.append(f'กรอกยอดจัดสรรให้ครบสองงวด: {NAMES[key]} (กรอก 0 หากไม่มี)')
+        budget_amount = full if budget_basis == 'estimate' else (allocated if initial is not None and second is not None else None)
         rows.append({'key': key, 'name': NAMES[key], 'first_estimate': money(initial_est) if valid_initial else None,
             'first': initial, 'second': second, 'basis': used, 'full': full, 'remaining': balance,
-            'allocated': allocated, 'extra': False})
+            'allocated': allocated, 'budget_amount': budget_amount, 'extra': False})
     for key, label in EXTRAS:
         extra = cfg.get('extras', {}).get(key)
         if extra is not None:
             if not extra.get('ref'):
-                missing.append(f'ขาดหนังสือจัดสรร {label}')
+                extra_missing.append(f'ขาดหนังสือจัดสรร {label}')
             rows.append({'key': key, 'name': label, 'full': extra['amount'], 'allocated': extra['amount'],
-                'first_estimate': None, 'first': None, 'second': None, 'remaining': None, 'basis': None, 'extra': True})
+                'first_estimate': None, 'first': None, 'second': None, 'remaining': None, 'basis': None,
+                'budget_amount': extra['amount'], 'extra': True})
     complete = all(r['full'] is not None for r in rows)
-    return {'rows': rows, 'basis': basis, 'missing': list(dict.fromkeys(missing)),
-        'ready': complete and not missing, 'total': money(sum(r['full'] for r in rows)) if complete else None,
+    selected_missing = (missing if budget_basis == 'estimate' else allocation_missing) + extra_missing
+    budget_complete = all(r['budget_amount'] is not None for r in rows)
+    return {'rows': rows, 'basis': basis, 'missing': list(dict.fromkeys(selected_missing)),
+        'estimate_missing': list(dict.fromkeys(missing)), 'budget_basis': budget_basis,
+        'budget_label': BUDGET_BASES[budget_basis],
+        'budget_total': money(sum(r['budget_amount'] for r in rows)) if budget_complete else None,
+        'ready': budget_complete and not selected_missing, 'total': money(sum(r['full'] for r in rows)) if complete else None,
         'known_total': money(sum(r['full'] or 0 for r in rows))}
 
 
@@ -171,8 +183,11 @@ def save(db, ay, term, form):
     if not levels:
         raise ValueError('เลือกชั้นเรียนอย่างน้อย 1 ชั้น')
     cfg = {'levels': levels, 'rates': {}, 'first': {}, 'second': {},
+        'budget_basis': form.get('budget_basis', 'estimate'),
         'first_ref': (form.get('first_ref') or '').strip(), 'second_ref': (form.get('second_ref') or '').strip(),
         'extras': {}, 'legacy': False, 'note': (form.get('note') or '').strip()}
+    if cfg['budget_basis'] not in BUDGET_BASES:
+        raise ValueError('เลือกวิธีตั้งงบให้ถูกต้อง')
     for lv in LEVELS:
         cfg['rates'][lv] = {k: number(form.get(f'r_{lv}_{k}'), f'อัตรา {lv}') for k in keys_for(term)}
     for which in ('first', 'second'):
@@ -180,12 +195,22 @@ def save(db, ay, term, form):
         if any(v is not None for v in cfg[which].values()) and not cfg[which + '_ref']:
             raise ValueError('กรอกเลขที่/วันที่หนังสือแจ้งจัดสรรของแต่ละงวดที่ลงยอดจริง')
     for key, label in EXTRAS:
-        value = number(form.get('extra_' + key), label)
-        if value is not None:
-            ref = (form.get('extra_ref_' + key) or '').strip()
+        values, refs = form.getlist('extra_' + key), form.getlist('extra_ref_' + key)
+        if len(values) != len(refs) or len(values) > 100:
+            raise ValueError(f'รายการเพิ่มเติม {label} ไม่ครบคู่ หรือเกิน 100 ครั้ง')
+        entries = []
+        for raw, raw_ref in zip(values, refs):
+            value, ref = number(raw, label), (raw_ref or '').strip()
+            if value is None and not ref:
+                continue
+            if value is None:
+                raise ValueError(f'กรอกจำนวนเงิน {label}')
             if not ref:
                 raise ValueError(f'กรอกหนังสือแจ้งจัดสรร {label}')
-            cfg['extras'][key] = {'amount': value, 'ref': ref}
+            entries.append({'amount': value, 'ref': ref})
+        if entries:
+            cfg['extras'][key] = {'amount': money(sum(e['amount'] for e in entries)),
+                'ref': ' / '.join(e['ref'] for e in entries), 'entries': entries}
     today = datetime.now(timezone(timedelta(hours=7))).date()
     for scan in before['census']:
         prefix = scan['key']
@@ -265,7 +290,7 @@ def budget_preview(db, snapshot, account_id):
     desired = {r['key']: r for r in data['result']['rows']}
     prior_rows = db.query(SubsidyBudgetContribution).filter_by(academic_year=snapshot.academic_year, term=snapshot.term).all()
     for p in prior_rows:
-        desired.setdefault(p.item_key, {'key': p.item_key, 'name': NAMES[p.item_key], 'full': 0})
+        desired.setdefault(p.item_key, {'key': p.item_key, 'name': NAMES[p.item_key], 'full': 0, 'budget_amount': 0})
     rows = []
     for r in desired.values():
         prior = next((p for p in prior_rows if p.item_key == r['key']), None)
@@ -280,13 +305,17 @@ def budget_preview(db, snapshot, account_id):
             item = matches[0] if matches else None
         old = money(item.budget or 0) if item else 0
         previous = money(prior.amount) if prior else 0
-        delta = money(r['full'] - previous)
+        contribution = r.get('budget_amount', r['full'])  # Old snapshots retain their original estimate basis.
+        if contribution is None:
+            raise ValueError('ยอดที่จะตั้งงบยังไม่ครบ กรุณาบันทึกและยืนยันข้อมูลก่อน')
+        delta = money(contribution - previous)
         new = money(old + delta)
         if new < 0:
             raise ValueError('งบปลายทางถูกแก้จนต่ำกว่าส่วนที่จะปรับลด กรุณาตรวจทะเบียนคุม')
         rows.append({'key': r['key'], 'name': r['name'], 'item_id': item.id if item else None,
-            'old': old, 'previous': previous, 'contribution': r['full'], 'delta': delta, 'new': new})
-    return {'rows': rows, 'account_id': account_id, 'snapshot_id': snapshot.id, 'fiscal_year': snapshot.fiscal_year}
+            'old': old, 'previous': previous, 'contribution': contribution, 'delta': delta, 'new': new})
+    return {'rows': rows, 'account_id': account_id, 'snapshot_id': snapshot.id, 'fiscal_year': snapshot.fiscal_year,
+        'budget_label': data['result'].get('budget_label', BUDGET_BASES['estimate'])}
 
 
 def apply_budget(db, snapshot, account_id, token):

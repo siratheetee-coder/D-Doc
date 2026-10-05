@@ -44,16 +44,19 @@ def render(school, data, snapshot_id=None):
     _p(doc, f"ปีการศึกษา {data['academic_year']} ภาคเรียนที่ {data['term']} · อัตราปีงบประมาณ {data['fiscal_year']}", align='center')
     _p(doc, f'ฉบับยืนยัน #{snapshot_id}' if snapshot_id else 'ร่าง — ข้อมูลที่บันทึกล่าสุด ยังไม่ใช่ฉบับยืนยัน', bold=True, align='center')
     _p(doc, 'ประมาณการงวดปรับยอด = ยอดเต็มตามฐานล่าสุด − จัดสรรงวดแรก (หากยังไม่แจ้ง ใช้ประมาณการ 70%)', size=14)
-    table(['รายการ', 'ประมาณการ\nงวดแรก', 'จัดสรรจริง\nงวดแรก', 'ประมาณการ\nเต็มเทอม', 'งวดปรับยอด\nที่คำนวณ', 'จัดสรรจริง\nงวดปรับยอด'], [6,3.6,3.6,3.6,3.6,3.6], [
-        [r['name']]+[amount(r[k]) for k in ('first_estimate','first','full','remaining','second')] for r in result['rows']])
+    table(['รายการ', 'ประมาณการ\nงวดแรก', 'จัดสรรจริง\nงวดแรก', 'ประมาณการ\nเต็มเทอม', 'งวดปรับยอด\nที่คำนวณ', 'จัดสรรจริง\nงวดปรับยอด', 'ยอดที่ใช้\nตั้งงบ'], [6,3,3,3,3,3,3], [
+        [r['name']]+[amount(r[k]) for k in ('first_estimate','first','full','remaining','second')]+[amount(r.get('budget_amount',r['full']))] for r in result['rows']])
     _p(doc, f"รวมประมาณการเต็มเทอม {amount(result['total'])} บาท", bold=True)
+    _p(doc, f"ยอดที่จะตั้งงบ {amount(result.get('budget_total',result['total']))} บาท · {result.get('budget_label','ยอดคำนวณจากนักเรียนและอัตรา')} รวมเงินเพิ่มเติม", bold=True)
     _p(doc, 'เงินรับจริงต้องตรวจจากรายการโอนที่เชื่อมแยกต่างหาก ยอดติดลบเป็นจุดตรวจสอบกับหนังสือจัดสรร ไม่ใช่คำสั่งคืนเงิน', size=14)
     if result['missing']:
-        _p(doc, f"ยังมีข้อมูลต้องตรวจ {len(result['missing'])} จุด กรุณาตรวจช่องที่แสดง — และข้อมูล DMC ในหน้าคำนวณก่อนใช้งาน", size=14)
+        _p(doc, f"ยังมีข้อมูลต้องตรวจ {len(result['missing'])} จุด กรุณาตรวจรายการแจ้งเตือนในหน้าคำนวณก่อนตั้งงบ", size=14)
     _p(doc, 'หนังสือจัดสรรงวดแรก: ' + (cfg['first_ref'] or 'ยังไม่แจ้ง'), size=14)
     _p(doc, 'หนังสือจัดสรรงวดปรับยอด: ' + (cfg['second_ref'] or 'ยังไม่แจ้ง'), size=14)
     for k, extra in cfg['extras'].items():
-        _p(doc, f"{NAMES[k]} {amount(extra['amount'])} บาท · {extra['ref']}", size=14)
+        _p(doc, f"{NAMES[k]} รวม {amount(extra['amount'])} บาท", size=14, bold=True)
+        for i, entry in enumerate(extra.get('entries',[extra]),1):
+            _p(doc, f"ครั้งที่ {i}: {amount(entry['amount'])} บาท · {entry['ref']}", size=14)
     doc.add_page_break()
     _p(doc, 'ฐานข้อมูลประกอบการคำนวณ', bold=True, size=18)
     keys = keys_for(data['term'])

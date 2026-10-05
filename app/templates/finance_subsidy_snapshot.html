@@ -8,9 +8,10 @@
 <p>ปีการศึกษา {{ s.academic_year }} · เทอม {{ s.term }} · ปีงบ {{ s.fiscal_year }}</p>
 <p class="sub-notice ok">ยืนยันเมื่อ {{ snapshot.created_at.strftime('%d/%m/%Y %H:%M') }} · ตัวเลขและแหล่งข้อมูลในหน้านี้เก็บไว้ ณ วันที่ยืนยัน ไม่เปลี่ยนตามการแก้ไขภายหลัง</p>
 <p class="sub-total">ประมาณการเต็มเทอม {{ money(s.result.total) }} บาท</p>
+<p class="sub-notice">ยอดที่จะตั้งงบ {{ money(s.result.get('budget_total',s.result.total)) }} บาท · {{ s.result.get('budget_label','ยอดคำนวณจากนักเรียนและอัตรา') }} รวมเงินเพิ่มเติมที่บันทึกไว้</p>
 <div class="sub-scroll"><table><thead><tr><th>รายการ</th><th>ประมาณการงวดแรก</th><th>จัดสรรงวดแรกจริง</th><th>ประมาณการเต็มเทอม</th><th>งวดปรับยอด</th><th>จัดสรรงวดปรับยอดจริง</th></tr></thead><tbody>{% for r in s.result.rows %}<tr><td>{{ r.name }}</td><td>{{ money(r.first_estimate) }}</td><td>{{ money(r.first) }}</td><td>{{ money(r.full) }}</td><td>{{ money(r.remaining) }}</td><td>{{ money(r.second) }}</td></tr>{% endfor %}</tbody></table></div>
 <p>หนังสือจัดสรรงวดแรก: {{ s.config.first_ref or 'ยังไม่มี' }} · งวดปรับยอด: {{ s.config.second_ref or 'ยังไม่มี' }}</p>
-{% for k, extra in s.config.extras.items() %}<p>{{ names[k] }}: {{ money(extra.amount) }} บาท · {{ extra.ref }}</p>{% endfor %}
+{% for k, extra in s.config.extras.items() %}<p><strong>{{ names[k] }} รวม {{ money(extra.amount) }} บาท</strong></p>{% for e in extra.get('entries',[extra]) %}<p>ครั้งที่ {{ loop.index }}: {{ money(e.amount) }} บาท · {{ e.ref }}</p>{% endfor %}{% endfor %}
 <h2>อัตราที่ใช้ (บาท/คน/เทอม)</h2>
 <div class="sub-scroll"><table><thead><tr><th>ชั้น</th>{% for k in keys %}<th>{{ names[k] }}</th>{% endfor %}</tr></thead><tbody>{% for lv in s.config.levels %}<tr><td>{{ lv }}</td>{% for k in keys %}<td>{{ money(s.config.rates[lv][k]) }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
 {% for scan in s.census %}<h3>DMC {{ scan.label }}</h3><p>อ้างอิง: {{ scan.source }}</p><p>{% for lv,n in scan.counts.items() %}{{ lv }}: {{ n if n is not none else 'ยังไม่กรอก' }} · {% endfor %}</p>{% endfor %}

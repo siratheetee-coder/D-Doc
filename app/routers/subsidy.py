@@ -37,9 +37,19 @@ def _page(request, db, ay, term, error='', posted=None, receipt_year=None):
     received, links, used = sub.receipt_summary(db, ay, term)
     ry = receipt_year or data['fiscal_year']
     previous = db.query(SubsidyTermSetting).filter_by(fiscal_year=data['fiscal_year']-1, term=term).first()
+    extra_entries = {}
+    for key, _ in sub.EXTRAS:
+        saved = data['config']['extras'].get(key)
+        rows = saved.get('entries', [saved]) if saved else [{'amount': '', 'ref': ''}]
+        if posted is not None:
+            amounts, refs = posted.getlist('extra_'+key), posted.getlist('extra_ref_'+key)
+            rows = [{'amount': amounts[i] if i < len(amounts) else '', 'ref': refs[i] if i < len(refs) else ''}
+                    for i in range(max(len(amounts), len(refs)))] or [{'amount': '', 'ref': ''}]
+        extra_entries[key] = rows
     return templates.TemplateResponse('finance_subsidy.html', {
         'request': request, 's': data, 'levels': sub.LEVELS, 'keys': sub.keys_for(term),
         'names': sub.NAMES, 'extras': sub.EXTRAS, 'error': error, 'posted': posted,
+        'extra_entries': extra_entries, 'budget_bases': sub.BUDGET_BASES,
         'previous_rates': json.loads(previous.payload)['rates'] if previous else {},
         'received': received, 'links': links, 'receipt_used': used, 'receipt_year': ry,
         'receipts': db.query(FinanceTxn).filter_by(kind='in', fiscal_year=ry).order_by(FinanceTxn.date.desc(), FinanceTxn.id.desc()).all(),

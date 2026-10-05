@@ -28,6 +28,7 @@
 <section class="card">
   <h2>ผลคำนวณจากข้อมูลที่บันทึกล่าสุด</h2>
   <p class="sub-total">ประมาณการเต็มเทอม {{ money(s.result.total) }} <small>บาท</small></p>
+  <p class="sub-notice"><strong>ยอดที่จะนำไปตั้งงบ {{ money(s.result.budget_total) }} บาท</strong><br>ใช้{{ s.result.budget_label }} รวมเงินเพิ่มเติมที่บันทึกไว้</p>
   <p>งวดแรกประมาณ 70% ของฐานเดิม · งวดปรับยอด = 100% ของฐานล่าสุด − <strong>ยอดจัดสรรงวดแรก</strong> (ถ้ายังไม่ทราบ ใช้ประมาณการงวดแรก)</p>
   <div class="sub-scroll"><table><thead><tr><th>รายการ</th><th>ประมาณการงวดแรก</th><th>จัดสรรงวดแรกจริง</th><th>ประมาณการเต็มเทอม</th><th>งวดปรับยอดที่คำนวณ</th><th>จัดสรรจริงรวมที่กรอก</th><th>รับเงินจริงที่เชื่อม</th></tr></thead><tbody>
   {% for r in s.result.rows %}<tr><td>{{ r.name }}{% if r.extra %}<small>ตามหนังสือจัดสรร</small>{% endif %}</td><td>{{ money(r.first_estimate) if not r.extra else '—' }}</td><td>{{ money(r.first) if r.first is not none else 'ยังไม่แจ้ง' }}</td><td>{{ money(r.full) }}</td><td class="{{ 'sub-negative' if r.remaining is not none and r.remaining<0 }}">{{ money(r.remaining) if not r.extra else '—' }}</td><td>{{ money(r.allocated) if r.allocated is not none else 'ยังไม่แจ้ง' }}</td><td>{{ money(received.get(r.key,0)) }}</td></tr>{% endfor %}
@@ -57,12 +58,17 @@
   </div>{% endfor %}</div>
   <p class="sub-muted">ทะเบียนนักเรียนปัจจุบันอาจต่างจากยอดย้อนหลัง เมื่อกดเติมจะยังเป็นร่าง หากยังไม่ถึงวันสำรวจให้เก็บเป็นประมาณการก่อน รอบ DMC เดียวกันใช้ร่วมกับเทอมที่เกี่ยวข้อง การแก้ไขจะไม่เปลี่ยนฉบับที่เคยยืนยันไว้</p>
 </section>
-<section class="card"><h2>3. ยอดตามหนังสือแจ้งจัดสรร (ถ้ามี)</h2>
-  <p>เว้นว่างได้จนกว่าจะได้รับแจ้ง ระบบจะแสดงประมาณการ แยกจากยอดโอนเข้าบัญชี</p>
+<section class="card"><h2>3. เลือกยอดที่จะใช้ตั้งงบ</h2>
+  {% set chosen_basis = posted.get('budget_basis','estimate') if posted is not none else cfg.get('budget_basis','estimate') %}
+  <label>นำยอดไหนไปตั้งงบ<select name="budget_basis">{% for k,n in budget_bases.items() %}<option value="{{ k }}" {{ 'selected' if chosen_basis==k }}>{{ n }}</option>{% endfor %}</select></label>
+  <p>ยังไม่ทราบยอดจัดสรร: ใช้ยอดคำนวณจากนักเรียนและอัตรา ไม่ต้องกรอกยอดจัดสรรด้านล่าง<br>ทราบยอดจัดสรรครบแล้ว: เลือกยอดจัดสรรจริง แล้วกรอกทั้งสองงวดทุกประเภท (กรอก 0 หากไม่มี) ระบบจะใช้ผลรวมนี้แทนยอดคำนวณ ส่วน DMC และอัตราใช้เพื่อเปรียบเทียบได้ ไม่บังคับให้ครบในโหมดนี้</p>
+  <h3>ยอดจัดสรรของเทอมนี้ (บาท)</h3><p>หากมีการปรับยอดของงวดเดิม ให้แก้เป็นยอดรวมล่าสุดของงวดนั้น เงินที่โอนเข้าบัญชีบันทึกแยกในข้อ 5</p>
   <div class="sub-scroll"><table><thead><tr><th>รายการ</th><th>งวดแรกที่แจ้งจัดสรร</th><th>งวดปรับยอดที่แจ้งจัดสรร</th></tr></thead><tbody>{% for k in keys %}<tr><td>{{ names[k] }}</td>{% for which in ['first','second'] %}<td><input aria-label="{{ names[k] }} {{ which }}" type="number" min="0" step="0.01" name="{{ which }}_{{ k }}" value="{{ value(which~'_'~k,cfg[which].get(k)) }}"></td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
   <div class="sub-two">{% for which in ['first','second'] %}<label>เลขที่/วันที่หนังสือ {{ 'งวดแรก' if which=='first' else 'งวดปรับยอด' }}<input name="{{ which }}_ref" value="{{ value(which~'_ref',cfg[which~'_ref']) }}"></label>{% endfor %}</div>
-  <details><summary>เงินเพิ่มเติมตามสิทธิ/หนังสือจัดสรร</summary><p>กรอกเฉพาะยอดของเทอมนี้ที่ได้รับแจ้ง ไม่รวมซ้ำกับอัตราปกติด้านบน ระบบไม่อนุมานสิทธิจากจำนวนนักเรียน</p>
-  {% for k,n in extras %}<div class="sub-two"><label>{{ n }} (บาท)<input type="number" min="0" step="0.01" name="extra_{{ k }}" value="{{ value('extra_'~k,cfg.extras.get(k,{}).get('amount')) }}"></label><label>เลขที่/วันที่หนังสือจัดสรร<input name="extra_ref_{{ k }}" value="{{ value('extra_ref_'~k,cfg.extras.get(k,{}).get('ref','')) }}"></label></div>{% endfor %}</details>
+  <details {% if cfg.extras or error %}open{% endif %}><summary>เงินเพิ่มเติม — เพิ่มเป็นครั้ง ๆ</summary><p>กรอกเฉพาะเงินเพิ่มเติมแยกประเภทของเทอมนี้ที่ยังไม่รวมในยอดด้านบน เช่น ครั้งแรก 10,000 บาท ได้เพิ่มอีก 8,000 บาท ให้เพิ่มแถว 8,000 ระบบรวมเป็น 18,000 บาทให้ ไม่ต้องทับยอดครั้งแรก</p>
+  {% for k,n in extras %}<div class="sub-panel" data-extra-group="{{ k }}"><h3>{{ n }}</h3><div data-extra-rows>
+    {% for e in extra_entries[k] %}<div class="sub-inline" data-extra-row><label>จำนวนเงินครั้งนี้ (บาท)<input type="number" min="0" step="0.01" name="extra_{{ k }}" value="{{ e.amount if e.amount is not none else '' }}"></label><label>เลขที่/วันที่หนังสือจัดสรร<input name="extra_ref_{{ k }}" value="{{ e.ref }}"></label><button type="button" class="btn gray sm" data-remove-extra>ลบครั้งนี้</button></div>{% endfor %}
+  </div><button type="button" class="btn gray sm" data-add-extra>+ เพิ่มครั้งที่ได้รับเงินเพิ่มเติม</button></div>{% endfor %}</details>
   <label>หมายเหตุ<textarea name="note">{{ value('note',cfg.note) }}</textarea></label>
   <button type="submit" class="btn">บันทึกและคำนวณ</button>
 </section>
@@ -95,5 +101,5 @@
 <p class="sub-muted">สูตรฐาน DMC ใช้แนวทางโรงเรียนปกติ สพฐ. ปีงบ 2569 อัตราและเงินเพิ่มเติมต้องตรวจหนังสือของปีงบที่เลือก โรงเรียนที่ใช้หลักเกณฑ์เฉพาะควรตรวจฐานจัดสรรก่อนยืนยัน</p>
 </div>
 <script id="subsidy-data" type="application/json">{{ {'now':s.now_counts,'previous':previous_rates,'error':(error != '')}|tojson }}</script>
-<script src="/static/subsidy.js?v=2" defer></script>
+<script src="/static/subsidy.js?v=3" defer></script>
 {% endblock %}
