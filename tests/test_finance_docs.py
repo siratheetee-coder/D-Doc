@@ -90,21 +90,24 @@ def test_receipt_register_prints(env):
 
 def test_subsidy_sheet_prints(env):
     c = env
-    data = {"academic_year": 2569}
+    html = c.get('/finance/subsidy?year=2569&term=1').text
+    token = re.search(r'name="token" value="([^"]+)"', html).group(1)
+    data = {"academic_year": 2569, "term": 1, "token": token, "levels": "ป.1"}
     for key in ("nov2568", "jun2569", "nov2569"):
         data[f"n_{key}_ป.1"] = 10
     for item, amount in (("teach", 2000), ("book", 600), ("equip", 400),
                          ("uniform", 360), ("activity", 500)):
         data[f"r_ป.1_{item}"] = amount
-    c.post("/finance/subsidy", data=data, follow_redirects=False)
+    assert c.post("/finance/subsidy", data=data, follow_redirects=False).status_code == 303
 
     r = c.get("/finance/subsidy.docx?year=2569")
     assert r.status_code == 200 and r.content[:2] == b"PK"
     text = _docx_text(r.content)
-    assert "กระดาษคำนวณเงินอุดหนุนรายหัว" in text
-    assert "ภาคเรียนที่ 1 (70%)" in text and "ภาคเรียนที่ 2 (30%)" in text
+    assert "กระดาษคำนวณเงินอุดหนุนเรียนฟรี 15 ปี" in text
+    assert "ภาคเรียนที่ 1" in text and "อัตราปีงบประมาณ 2569" in text
+    assert "ร่าง" in text and "20,000.00" in text and "6,000.00" in text
     assert "DMC 10 พฤศจิกายน 2568" in text
-    assert "เทียบกับเงินที่รับจริงในทะเบียนคุม" in text
+    assert "เงินรับจริงต้องตรวจจากรายการโอนที่เชื่อมแยกต่างหาก" in text
 
 
 # ---------------------------------------------------------------- ปุ่มบนหน้าจอ

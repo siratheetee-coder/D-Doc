@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}ฉบับคำนวณเงินอุดหนุน #{{ snapshot.id }}{% endblock %}
+{% block content %}
+{% macro money(n) %}{{ '{:,.2f}'.format(n) if n is not none else '—' }}{% endmacro %}
+<link rel="stylesheet" href="/static/subsidy.css?v=1">
+<div class="subsidy-page"><section class="card">
+<h1>ฉบับคำนวณเงินอุดหนุน #{{ snapshot.id }}</h1>
+<p>ปีการศึกษา {{ s.academic_year }} · เทอม {{ s.term }} · ปีงบ {{ s.fiscal_year }}</p>
+<p class="sub-notice ok">ยืนยันเมื่อ {{ snapshot.created_at.strftime('%d/%m/%Y %H:%M') }} · ตัวเลขและแหล่งข้อมูลในหน้านี้เก็บไว้ ณ วันที่ยืนยัน ไม่เปลี่ยนตามการแก้ไขภายหลัง</p>
+<p class="sub-total">ประมาณการเต็มเทอม {{ money(s.result.total) }} บาท</p>
+<div class="sub-scroll"><table><thead><tr><th>รายการ</th><th>ประมาณการงวดแรก</th><th>จัดสรรงวดแรกจริง</th><th>ประมาณการเต็มเทอม</th><th>งวดปรับยอด</th><th>จัดสรรงวดปรับยอดจริง</th></tr></thead><tbody>{% for r in s.result.rows %}<tr><td>{{ r.name }}</td><td>{{ money(r.first_estimate) }}</td><td>{{ money(r.first) }}</td><td>{{ money(r.full) }}</td><td>{{ money(r.remaining) }}</td><td>{{ money(r.second) }}</td></tr>{% endfor %}</tbody></table></div>
+<p>อ้างอิงอัตรา: {{ s.config.rate_source }}</p><p>หนังสือจัดสรรงวดแรก: {{ s.config.first_ref or 'ยังไม่มี' }} · งวดปรับยอด: {{ s.config.second_ref or 'ยังไม่มี' }}</p>
+{% for k, extra in s.config.extras.items() %}<p>{{ names[k] }}: {{ money(extra.amount) }} บาท · {{ extra.ref }}</p>{% endfor %}
+<h2>อัตราที่ใช้ (บาท/คน/เทอม)</h2>
+<div class="sub-scroll"><table><thead><tr><th>ชั้น</th>{% for k in keys %}<th>{{ names[k] }}</th>{% endfor %}</tr></thead><tbody>{% for lv in s.config.levels %}<tr><td>{{ lv }}</td>{% for k in keys %}<td>{{ money(s.config.rates[lv][k]) }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+{% for scan in s.census %}<h3>DMC {{ scan.label }}</h3><p>อ้างอิง: {{ scan.source }}</p><p>{% for lv,n in scan.counts.items() %}{{ lv }}: {{ n if n is not none else 'ยังไม่กรอก' }} · {% endfor %}</p>{% endfor %}
+<h3>ฐานที่ใช้หลังเลื่อนชั้นสำหรับงวดแรก</h3><div class="sub-scroll"><table><thead><tr><th>ชั้นรับเงิน</th><th>ชั้นต้นทาง</th><th>ฐานงวดแรก</th><th>ฐานล่าสุด</th></tr></thead><tbody>{% for b in s.result.basis %}<tr><td>{{ b.level }}</td><td>{{ b.source_level }}</td><td>{{ b.advance }}</td><td>{{ b.final }}</td></tr>{% endfor %}</tbody></table></div>
+<p>{{ s.config.note }}</p>
+<a class="btn" href="/finance/subsidy.docx?snapshot_id={{ snapshot.id }}">พิมพ์ Word ฉบับนี้</a> <a class="btn gray" href="/finance/subsidy?year={{ s.academic_year }}&term={{ s.term }}">กลับข้อมูลปัจจุบัน</a>
+</section></div>
+{% endblock %}

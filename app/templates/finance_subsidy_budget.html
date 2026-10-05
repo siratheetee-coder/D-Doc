@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}ตรวจยอดก่อนตั้งงบอุดหนุน{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/subsidy.css?v=1">
+<div class="subsidy-page"><section class="card">
+<h1>ตรวจยอดก่อนตั้งงบปี {{ p.fiscal_year }}</h1><p>บัญชี {{ account.name }} · ปีการศึกษา {{ snapshot.academic_year }} เทอม {{ snapshot.term }} · ฉบับ #{{ snapshot.id }}</p>
+<div class="sub-notice warn">ใช้ประมาณการเต็มเทอมในการตั้งงบ ไม่ใช่ยอดเงินรับจริง ระบบเพิ่มเฉพาะส่วนต่างจากการเชื่อมครั้งก่อน และคงงบส่วนอื่นไว้<br>หากยอดเดิมเคยรวมเงินเทอมนี้จากระบบเก่าหรือกรอกเองแล้ว ให้ย้อนกลับไปตรวจแยกยอดก่อน เพื่อไม่บวกซ้ำ</div>
+<div class="sub-scroll"><table><thead><tr><th>รายการ</th><th>งบเดิม</th><th>เทอมนี้เคยเชื่อมไว้</th><th>เทอมนี้ฉบับใหม่</th><th>ปรับเพิ่ม/ลด</th><th>งบหลังปรับ</th></tr></thead><tbody>{% for r in p.rows %}<tr><td>{{ r.name }}</td>{% for k in ['old','previous','contribution','delta','new'] %}<td>{{ '{:,.2f}'.format(r[k]) }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+<form action="/finance/subsidy/to-budget" method="post"><input type="hidden" name="snapshot_id" value="{{ snapshot.id }}"><input type="hidden" name="account_id" value="{{ p.account_id }}"><input type="hidden" name="token" value="{{ token }}"><label class="sub-check"><input type="checkbox" name="reviewed" value="1" required> ตรวจยอดเดิมแล้ว เงินเทอมนี้ไม่ซ้ำกับงบที่กรอกไว้ด้วยวิธีอื่น</label><button class="btn" type="submit">ยืนยันตั้งงบตามยอดที่แสดง</button> <a class="btn gray" href="/finance/subsidy?year={{ snapshot.academic_year }}&term={{ snapshot.term }}">กลับไปตรวจข้อมูล</a></form>
+</section></div>
+{% endblock %}

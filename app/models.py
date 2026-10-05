@@ -732,6 +732,68 @@ class SubsidyRate(Base):
     amount = Column(Float, default=0.0)           # บาท/คน/ปี
 
 
+class SubsidyTermSetting(Base):
+    """Term rates are explicitly attached to their fiscal year; old annual rates stay intact."""
+    __tablename__ = "subsidy_term_setting"
+    __table_args__ = (UniqueConstraint("fiscal_year", "term", name="uq_subsidy_term_setting"),)
+    id = Column(Integer, primary_key=True)
+    fiscal_year = Column(Integer, nullable=False)
+    term = Column(Integer, nullable=False)
+    payload = Column(Text, default="{}")
+
+
+class SubsidyCensusRevision(Base):
+    __tablename__ = "subsidy_census_revision"
+    id = Column(Integer, primary_key=True)
+    academic_year = Column(Integer, nullable=False, index=True)
+    round = Column(String, nullable=False)
+    payload = Column(Text, default="{}")
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class SubsidySnapshot(Base):
+    __tablename__ = "subsidy_snapshot"
+    id = Column(Integer, primary_key=True)
+    academic_year = Column(Integer, nullable=False, index=True)
+    term = Column(Integer, nullable=False)
+    fiscal_year = Column(Integer, nullable=False)
+    payload = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class SubsidyReceiptLink(Base):
+    """Explicit allocations of a receipt; one receipt can fund several categories/terms."""
+    __tablename__ = "subsidy_receipt_link"
+    __table_args__ = (UniqueConstraint("txn_id", "academic_year", "term", "item_key", "round", name="uq_subsidy_receipt_link"),)
+    id = Column(Integer, primary_key=True)
+    txn_id = Column(Integer, ForeignKey("finance_txn.id"), nullable=False, index=True)
+    academic_year = Column(Integer, nullable=False, index=True)
+    term = Column(Integer, nullable=False)
+    item_key = Column(String, nullable=False)
+    round = Column(String, nullable=False)
+    amount = Column(Float, nullable=False)
+
+
+class SubsidyBudgetContribution(Base):
+    __tablename__ = "subsidy_budget_contribution"
+    __table_args__ = (UniqueConstraint("academic_year", "term", "item_key", name="uq_subsidy_contribution"),)
+    id = Column(Integer, primary_key=True)
+    academic_year = Column(Integer, nullable=False)
+    term = Column(Integer, nullable=False)
+    item_key = Column(String, nullable=False)
+    account_item_id = Column(Integer, ForeignKey("account_item.id"), nullable=False)
+    amount = Column(Float, default=0)
+    snapshot_id = Column(Integer, nullable=False)
+
+
+class SubsidyBudgetHistory(Base):
+    __tablename__ = "subsidy_budget_history"
+    id = Column(Integer, primary_key=True)
+    snapshot_id = Column(Integer, nullable=False)
+    payload = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+
+
 class AccountItem(Base):
     """หมวด/รายการย่อยในบัญชี แยกตามปีงบ (เช่น เงินอุดหนุน -> ค่าจัดการเรียนการสอน,
     ค่าหนังสือเรียน, ค่าอุปกรณ์...) แต่ละหมวดมีงบที่ตั้งไว้ + ติดตามรับ-จ่าย-คงเหลือรายหมวด"""
@@ -747,6 +809,7 @@ class AccountItem(Base):
     note = Column(String, default="")
 
     account = relationship("FinanceAccount", back_populates="items")
+    subsidy_contributions = relationship("SubsidyBudgetContribution", cascade="all, delete-orphan")
     children = relationship("AccountItem", cascade="all, delete-orphan",
                             backref=backref("parent", remote_side=[id]))
 
@@ -773,6 +836,7 @@ class FinanceTxn(Base):
     refund_date = Column(DateTime, nullable=True)    # วันที่เบิกจ่ายเงินคืนผู้มีสิทธิ์
 
     account = relationship("FinanceAccount", back_populates="txns")
+    subsidy_links = relationship("SubsidyReceiptLink", cascade="all, delete-orphan")
     item = relationship("AccountItem")
     project = relationship("Project")
 
