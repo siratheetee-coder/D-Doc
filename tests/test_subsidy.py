@@ -132,8 +132,10 @@ def test_missing_is_not_zero_and_future_census_cannot_confirm(db):
     db.rollback()
     s=prepared(db, **{'n_jun2568_ป.1':'0'})
     assert s['result']['total'] == 0 and s['result']['ready']
+    future = sub.save(db,2699,2,form_for(db,2699,2))
+    assert not future['result']['ready']
     with pytest.raises(ValueError,match='ยังไม่ถึงวันสำรวจ'):
-        sub.save(db,2699,2,form_for(db,2699,2))
+        sub.confirm(db,2699,2,future['token'])
     db.rollback()
 
 
@@ -392,3 +394,16 @@ def test_routes_save_validation_snapshot_and_budget(env):
     post['reviewed']='1'
     assert c.post('/finance/subsidy/to-budget',data=post,follow_redirects=False).status_code==303
     assert c.get('/finance/subsidy?year=2568&term=3').status_code==400
+
+
+def test_dmc_save_without_source_or_checkbox_and_allocations_preserved(db):
+    data = dict(form_for(db))
+    data = {k:v for k,v in data.items() if not k.startswith(('source_', 'confirm_'))}
+    data.update(first_teach='70000', first_ref='งวดแรก', second_teach='50000', second_ref='งวดสอง')
+    s = sub.save(db,2568,1,FormData(data))
+    assert s['result']['ready']
+    assert all(scan['saved'] and not scan['confirmed'] and not scan['source'] for scan in s['census'])
+    assert s['config']['first']['teach'] == 70000
+    data.update(token=s['token'], budget_basis='estimate')
+    s = sub.save(db,2568,1,FormData(data))
+    assert s['config']['second']['teach'] == 50000

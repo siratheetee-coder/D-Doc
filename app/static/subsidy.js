@@ -9,6 +9,7 @@
   actions.forEach(el => el.querySelectorAll('button').forEach(b => b.dataset.originalDisabled = String(b.disabled)));
   function refresh() {
     banner.hidden = !dirty;
+    document.getElementById('allocation-fields').hidden = form.elements.budget_basis.value !== 'allocated';
     actions.forEach(el => {
       el.querySelectorAll('button').forEach(b => b.disabled = dirty || b.dataset.originalDisabled === 'true');
       if (el.tagName === 'A') el.setAttribute('aria-disabled', String(dirty));
@@ -18,11 +19,6 @@
   }
   function changed(e) {
     dirty = true;
-    const name = e?.target?.name || '';
-    if (name.startsWith('n_') || name.startsWith('source_')) {
-      const panel = e.target.closest('[data-census]');
-      if (panel) form.elements['confirm_' + panel.dataset.census].checked = false;
-    }
     refresh();
   }
   form.addEventListener('input',changed);
@@ -36,8 +32,6 @@
     if(!confirm('เติมเฉพาะช่องว่างของรอบนี้จากนักเรียนปัจจุบันเป็นร่าง? ต้องตรวจเทียบ DMC ณ วันสำรวจอีกครั้ง')) return;
     const key=button.dataset.fill;
     Object.entries(data.now).forEach(([lv,n])=>{const input=form.elements['n_'+key+'_'+lv];if(input.value==='')input.value=n;});
-    form.elements['source_'+key].value='ร่างจากทะเบียนปัจจุบัน — ยังไม่ได้ตรวจเทียบ DMC ณ วันสำรวจ';
-    form.elements['confirm_'+key].checked=false;
     changed();
   }));
   document.getElementById('copy-rates')?.addEventListener('click',()=>{

@@ -64,9 +64,9 @@ def render(school, data, snapshot_id=None):
         [lv]+[amount(cfg['rates'].get(lv,{}).get(k)) for k in keys] for lv in cfg['levels']])
     _p(doc, 'จำนวนนักเรียนที่ใช้คำนวณ (คน)', bold=True)
     table(['ชั้นรับเงิน','ชั้นต้นทางงวดแรก','ฐานงวดแรก','ฐานล่าสุด'], [6]*4, [
-        [b['level'],b['source_level'],b['advance'] if b['advance'] is not None else '—',b['final'] if b['final'] is not None else '—'] for b in result['basis']])
+        [b['level'],b['source_level'],b['advance'] if b['advance'] is not None else 'ยังไม่กรอก',b['final'] if b['final'] is not None else 'ยังไม่กรอก'] for b in result['basis']])
     for scan in data['census']:
-        _p(doc, f"DMC {scan['label']}: {scan['source'] or 'ยังไม่ระบุแหล่งข้อมูล'} · {'ตรวจแล้ว' if scan['confirmed'] else 'ร่าง'}", size=14)
+        _p(doc, f"DMC {scan['label']}", size=14)
     if cfg.get('note'):
         _p(doc, 'หมายเหตุ: '+cfg['note'], size=14)
     return _save(doc, f"เงินอุดหนุน_{data['academic_year']}_เทอม{data['term']}_{snapshot_id or 'ร่าง'}_{uuid4().hex[:12]}")

@@ -116,8 +116,10 @@ def calculate(cfg, scans, term):
     budget_basis = cfg.get('budget_basis', 'estimate')
     allocation_missing, extra_missing = [], []
     for scan in scans:
-        if not scan.get('confirmed') or not scan.get('source'):
-            missing.append(f"ยังไม่ยืนยัน DMC {scan['label']}")
+        if not (scan.get('id') or scan.get('saved') or scan.get('confirmed')):
+            missing.append(f"ยังไม่บันทึก DMC {scan['label']}")
+        if scan.get('year') and datetime(scan['year'] - 543, 6 if scan['round'] == 'jun' else 11, 10).date() > datetime.now(timezone(timedelta(hours=7))).date():
+            missing.append(f"DMC {scan['label']} ยังไม่ถึงวันสำรวจ ใช้เป็นประมาณการก่อน")
     for lv in cfg['levels']:
         src = advance_source(lv, term)
         basis.append({'level': lv, 'source_level': src, 'advance': scans[0]['counts'].get(src), 'final': scans[1]['counts'].get(lv)})
@@ -211,18 +213,11 @@ def save(db, ay, term, form):
         if entries:
             cfg['extras'][key] = {'amount': money(sum(e['amount'] for e in entries)),
                 'ref': ' / '.join(e['ref'] for e in entries), 'entries': entries}
-    today = datetime.now(timezone(timedelta(hours=7))).date()
     for scan in before['census']:
         prefix = scan['key']
         data = {'counts': {lv: number(form.get(f'n_{prefix}_{lv}'), f'DMC {lv}', True) for lv in LEVELS},
-            'source': (form.get(f'source_{prefix}') or '').strip(), 'confirmed': form.get(f'confirm_{prefix}') == '1'}
-        if data['confirmed']:
-            date = datetime(scan['year'] - 543, 6 if scan['round'] == 'jun' else 11, 10).date()
-            if date > today:
-                raise ValueError(f"DMC {scan['label']} ยังไม่ถึงวันสำรวจ ให้เก็บเป็นประมาณการก่อน")
-            if not data['source']:
-                raise ValueError(f"กรอกแหล่งข้อมูล DMC {scan['label']} ก่อนยืนยัน")
-        if data != {k: scan[k] for k in ('counts', 'source', 'confirmed')}:
+            'saved': True, 'source': '', 'confirmed': False}
+        if data != {k: scan.get(k) for k in data}:
             db.add(SubsidyCensusRevision(academic_year=scan['year'], round=scan['round'], payload=dumps(data)))
     row = db.query(SubsidyTermSetting).filter_by(fiscal_year=before['fiscal_year'], term=term).first()
     if row is None:
