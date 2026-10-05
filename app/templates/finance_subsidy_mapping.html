@@ -4,11 +4,11 @@
 <link rel="stylesheet" href="/static/subsidy.css?v=1">
 <div class="subsidy-page"><section class="card"><h1>บัญชีเงินอุดหนุน · ปีงบ {{ fy }}</h1>
 {% if error %}<p class="sub-notice error" role="alert">{{ error }}</p>{% endif %}
-<p>เลือกบัญชีเดิมและจับคู่หมวดย่อย หรือสร้างบัญชีพร้อม 5 รายการเมื่อยังไม่มี ระบบจำการจับคู่ไว้ใช้ทั้งตั้งงบและเชื่อมเงินรับของปีงบนี้</p>
-<form method="get" class="sub-inline"><input type="hidden" name="year" value="{{ ay }}"><input type="hidden" name="term" value="{{ term }}"><label>บัญชีของโรงเรียน<select name="account_id"><option value="0">สร้างบัญชีใหม่</option>{% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if a.id==account_id }}>{{ a.name }}</option>{% endfor %}</select></label><button class="btn gray">แสดงหมวดของบัญชีนี้</button></form>
-<form method="post"><input type="hidden" name="academic_year" value="{{ ay }}"><input type="hidden" name="term" value="{{ term }}"><input type="hidden" name="account_id" value="{{ account_id }}"><input type="hidden" name="token" value="{{ token }}">
-{% if not account_id %}<label>ชื่อบัญชีใหม่<input name="new_name" value="{{ new_name }}" required></label><p class="sub-notice">หากมีบัญชีอยู่แล้ว ให้เลือกบัญชีเดิมด้านบนก่อน เพื่อไม่สร้างซ้ำต่างชื่อ บัญชีใหม่และหมวดใหม่เริ่มที่ 0 บาท ไม่มีการสร้างรายการรับเงิน</p>{% endif %}
+<p>เลือกบัญชีที่มีอยู่ในทะเบียนคุมเงิน แล้วจับคู่หมวดย่อย ระบบจำการจับคู่ไว้ใช้ทั้งตั้งงบและเชื่อมเงินรับของปีงบนี้</p>
+<form method="get" class="sub-inline"><input type="hidden" name="year" value="{{ ay }}"><input type="hidden" name="term" value="{{ term }}"><label>บัญชีของโรงเรียน<select name="account_id"><option value="0">เลือกบัญชี</option>{% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if a.id==account_id }}>{{ a.name }}</option>{% endfor %}</select></label><button class="btn gray">แสดงหมวดของบัญชีนี้</button></form>
+<p><a class="btn gray" href="/finance/accounts?year={{ fy }}">ยังไม่มีบัญชีอุดหนุน? ไปสร้างบัญชีอุดหนุน</a></p>
+{% if account_id %}<form method="post"><input type="hidden" name="academic_year" value="{{ ay }}"><input type="hidden" name="term" value="{{ term }}"><input type="hidden" name="account_id" value="{{ account_id }}"><input type="hidden" name="token" value="{{ token }}">
 <div class="sub-scroll"><table><thead><tr><th>รายการของระบบ</th><th>หมวดในทะเบียนคุมเงิน</th></tr></thead><tbody>{% for k,n in names.items() %}<tr><td>{{ n }}{{ ' (ถ้ามี)' if k not in normal }}</td><td><select name="map_{{ k }}" {{ 'required' if k in normal }}><option value="">{{ 'เลือกหมวด' if k in normal else 'ยังไม่ใช้' }}</option>{% for i in items %}<option value="{{ i.id }}" {{ 'selected' if suggested[k]==i.id|string }}>{{ i.name }}</option>{% endfor %}<option value="new" {{ 'selected' if suggested[k]=='new' }}>สร้างหมวด: {{ n }}</option></select></td></tr>{% endfor %}</tbody></table></div>
 <p class="sub-muted">ตรวจคู่ที่ระบบเสนอให้ก่อนบันทึก แต่ละรายการต้องใช้คนละหมวด หากเคยตั้งงบหรือเชื่อมรับแล้ว ระบบจะป้องกันการเปลี่ยนไปหมวดอื่น</p>
-<button class="btn" type="submit">{{ 'สร้างบัญชีและบันทึกการจับคู่' if not account_id else 'บันทึกการจับคู่' }}</button> <a class="btn gray" href="/finance/subsidy?year={{ ay }}&term={{ term }}">กลับหน้าคำนวณ</a>
-</form></section></div>{% endblock %}
+<button class="btn" type="submit">บันทึกการจับคู่</button> <a class="btn gray" href="/finance/subsidy?year={{ ay }}&term={{ term }}">กลับหน้าคำนวณ</a>
+</form>{% endif %}</section></div>{% endblock %}

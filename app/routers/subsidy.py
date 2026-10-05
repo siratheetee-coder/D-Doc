@@ -203,7 +203,7 @@ def _mapping_page(request, year, term, account_id, db, error='', posted=None):
     return templates.TemplateResponse('finance_subsidy_mapping.html', {'request':request,'ay':year,'term':term,'fy':fy,
         'account_id':account_id,'accounts':db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
         'items':items,'names':sub.NAMES,'normal':sub.keys_for(1),'suggested':suggested,'token':sub.mapping_token(db,fy),
-        'error':error,'new_name':posted.get('new_name','เงินอุดหนุน') if posted is not None else 'เงินอุดหนุน'},status_code=422 if error else 200)
+        'error':error},status_code=422 if error else 200)
 
 
 @router.get('/finance/subsidy/mapping')
@@ -219,7 +219,7 @@ async def mapping_save(request: Request, db: Session=Depends(get_db)):
         ay,term = int(form.get('academic_year',0)),int(form.get('term',0))
         fy = sub.fiscal_year(ay,term)
         aid=int(form.get('account_id',0))
-        sub.save_mapping(db,fy,aid,{k:form.get('map_'+k,'') for k in sub.NAMES},form.get('token'),form.get('new_name',''))
+        sub.save_mapping(db,fy,aid,{k:form.get('map_'+k,'') for k in sub.NAMES},form.get('token'))
         db.commit()
     except ValueError as exc:
         db.rollback()

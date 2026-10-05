@@ -460,9 +460,10 @@ def test_explicit_mapping_custom_names_rename_and_wrong_receipt(db):
 def test_mapping_setup_idempotent_stale_and_applied_cannot_remap(db):
     choices={k:'new' for k in sub.keys_for(1)}
     token=sub.mapping_token(db,2568)
-    a=sub.save_mapping(db,2568,0,choices,token,'เงินอุดหนุนใหม่');db.commit()
+    a=account(db);db.commit()
+    sub.save_mapping(db,2568,a.id,choices,token);db.commit()
     assert db.query(AccountItem).count()==5
-    with pytest.raises(ValueError,match='เปลี่ยนแล้ว'):sub.save_mapping(db,2568,0,choices,token,'เงินอุดหนุนใหม่')
+    with pytest.raises(ValueError,match='เปลี่ยนแล้ว'):sub.save_mapping(db,2568,a.id,choices,token)
     db.rollback()
     snap=confirmed(db);p=sub.budget_preview(db,snap,a.id)
     sub.apply_budget(db,snap,a.id,sub.fingerprint(p));db.commit()
@@ -488,25 +489,23 @@ def test_receipt_changed_category_excluded_and_wrong_year_mapping_rejected(db):
     db.rollback()
 
 
-def test_mapping_routes_create_five_and_validation_keeps_inputs(env):
+def test_mapping_routes_use_existing_account_and_link_to_ledger(env):
     from app.tenancy import session_for
     c=env
     r=c.get('/finance/subsidy/mapping?year=2568&term=1&account_id=0')
     assert r.status_code==200
-    token=re.search(r'name="token" value="([^"]+)"',r.text).group(1)
-    data={'academic_year':'2568','term':'1','account_id':'0','new_name':'บัญชีทดสอบ','token':token}
+    assert '/finance/accounts?year=2568' in r.text
+    assert 'name="new_name"' not in r.text and 'name="map_teach"' not in r.text
+    db=session_for(1);token=sub.mapping_token(db,2568);db.close()
+    data={'academic_year':'2568','term':'1','account_id':'0','token':token}
     data.update({'map_'+k:'new' for k in sub.keys_for(1)})
-    invalid=dict(data,map_teach='')
-    r=c.post('/finance/subsidy/mapping',data=invalid)
-    assert r.status_code==422 and 'บัญชีทดสอบ' in r.text
+    assert c.post('/finance/subsidy/mapping',data=data).status_code==422
     db=session_for(1)
-    assert db.query(FinanceAccount).filter_by(name='บัญชีทดสอบ').count()==0
-    db.close()
+    assert db.query(FinanceAccount).count()==0
+    a=account(db);db.commit();data['account_id']=str(a.id);db.close()
     r=c.post('/finance/subsidy/mapping',data=data,follow_redirects=False)
     assert r.status_code==303
     db=session_for(1)
     assert len(sub.mappings(db,2568))==5
-    assert db.query(AccountItem).count()==5
-    assert all(i.budget==0 for i in sub.mappings(db,2568).values())
+    assert db.query(FinanceAccount).count()==1
     db.close()
-    assert c.post('/finance/subsidy/mapping',data=data).status_code==422

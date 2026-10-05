@@ -78,7 +78,7 @@
 <section class="card"><h2>เชื่อมกับทะเบียนคุมเงิน</h2>
 <p>{{ 'บัญชีที่จับคู่ไว้: '~mapped_account.name if mapped_account else 'ยังไม่ได้เลือกบัญชีและจับคู่หมวดเงินอุดหนุนของปีงบนี้' }}</p>
 <a class="btn" data-needs-saved href="/finance/subsidy/mapping?year={{ s.academic_year }}&term={{ s.term }}">{{ 'ตรวจ/แก้ไขการจับคู่หมวด' if mapped_account else 'เลือกบัญชีและจับคู่หมวดย่อย' }}</a>
-<a class="btn gray" data-needs-saved href="/finance/subsidy/mapping?year={{ s.academic_year }}&term={{ s.term }}&account_id=0">ตั้งบัญชีเงินอุดหนุนพร้อม 5 รายการ</a>
+<a class="btn gray" data-needs-saved href="/finance/accounts?year={{ s.fiscal_year }}">ยังไม่มีบัญชีอุดหนุน? ไปสร้างบัญชีอุดหนุน</a>
 {% if mapping %}<ul>{% for k,i in mapping.items() %}{% if i %}<li>{{ names[k] }} → {{ i.name }}</li>{% endif %}{% endfor %}</ul>{% endif %}
 </section>
 <section class="card"><h2>5. ยืนยันและใช้ผลคำนวณ</h2>

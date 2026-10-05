@@ -293,21 +293,13 @@ def mapping_token(db, fy):
     return fingerprint({k: [v.id, v.account_id, v.fiscal_year] if v else None for k,v in mappings(db,fy).items()})
 
 
-def save_mapping(db, fy, account_id, choices, token, new_name=''):
+def save_mapping(db, fy, account_id, choices, token):
     lock(db)
     if not 2500 <= fy <= 2700 or token != mapping_token(db,fy):
         raise ValueError('การจับคู่เปลี่ยนแล้ว กรุณาเปิดหน้าใหม่')
     account = db.get(FinanceAccount,account_id) if account_id else None
-    if not account_id:
-        name = new_name.strip()
-        if not name:
-            raise ValueError('กรอกชื่อบัญชีใหม่ หรือเลือกบัญชีที่มีอยู่')
-        if db.query(FinanceAccount).filter_by(name=name).first():
-            raise ValueError('มีบัญชีชื่อนี้แล้ว กรุณาเลือกบัญชีเดิมเพื่อไม่สร้างซ้ำ')
-        account = FinanceAccount(name=name, opening_balance=0, fund_type='เงินนอกงบประมาณ')
-        db.add(account); db.flush()
     if not account:
-        raise ValueError('ไม่พบบัญชีที่เลือก')
+        raise ValueError('เลือกบัญชีที่มีอยู่ หากยังไม่มีให้ไปสร้างที่ทะเบียนคุมเงิน')
     desired = {}
     for key in NAMES:
         choice = choices.get(key,'')
