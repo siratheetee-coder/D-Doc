@@ -83,7 +83,7 @@
 <div class="card">
   <h2>บัญชีทั้งหมด</h2>
   {% if groups %}
-  <p class="muted" style="margin-top:0;">จัดกลุ่มตามหมวดเงิน · ในกลุ่มเรียงตามที่เก็บเงิน (ธนาคาร → เงินสด → ส่วนราชการผู้เบิก)</p>
+  <p class="muted" style="margin-top:0;">จัดกลุ่มตามหมวดเงิน โดยจะเรียงตามที่เก็บเงิน (ธนาคาร → เงินสด → ส่วนราชการผู้เบิก)</p>
   {% for g in groups %}
   <div class="fg">
     <div class="fg-h" style="background:linear-gradient(120deg,{{ g.color.g1 }},{{ g.color.g2 }});">
