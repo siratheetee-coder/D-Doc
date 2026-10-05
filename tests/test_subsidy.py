@@ -186,16 +186,43 @@ def account(db):
     return a
 
 
+def ensure_mapping(db, fy, aid, extra_keys=()):
+    current = sub.mappings(db,fy)
+    choices = {}
+    for key in sub.keys_for(1)+list(extra_keys):
+        matches = db.query(AccountItem).filter_by(account_id=aid,fiscal_year=fy,name=sub.NAMES[key]).all()
+        choices[key] = str(current[key].id) if current.get(key) else (str(matches[0].id) if len(matches)==1 else 'new')
+    for key,item in current.items():
+        if item:choices.setdefault(key,str(item.id))
+    sub.save_mapping(db,fy,aid,choices,sub.mapping_token(db,fy))
+    db.commit()
+
+
+def mapped_preview(db,snap,aid):
+    if not sub.mappings(db,snap.fiscal_year):
+        ensure_mapping(db,snap.fiscal_year,aid,[r['key'] for r in json.loads(snap.payload)['result']['rows'] if r.get('extra')])
+    return sub.budget_preview(db,snap,aid)
+
+
+def mapped_receipt(db,ay,term,tid,key,rnd,amount):
+    txn=db.get(FinanceTxn,tid)
+    fy=sub.fiscal_year(ay,term)
+    if not sub.mappings(db,fy):ensure_mapping(db,fy,txn.account_id)
+    if txn.item_id is None:
+        txn.item_id=sub.mappings(db,fy)[key].id;db.commit()
+    return sub.link_receipt(db,ay,term,tid,key,rnd,amount)
+
+
 def test_receipt_split_cannot_double_count_between_terms_or_repeat_click(db):
     a=account(db)
     t=FinanceTxn(account_id=a.id,fiscal_year=2569,kind='in',amount=1000)
     db.add(t);db.commit()
-    sub.link_receipt(db,2568,2,t.id,'teach','first','600');db.commit()
-    with pytest.raises(ValueError,match='เชื่อมรายการ'): sub.link_receipt(db,2568,2,t.id,'teach','first','100')
+    mapped_receipt(db,2568,2,t.id,'teach','first','600');db.commit()
+    with pytest.raises(ValueError,match='เชื่อมรายการ'): mapped_receipt(db,2568,2,t.id,'teach','first','100')
     db.rollback()
-    with pytest.raises(ValueError,match='เกินเงินรับจริง'): sub.link_receipt(db,2569,1,t.id,'teach','first','500')
+    with pytest.raises(ValueError,match='เกินเงินรับจริง'): mapped_receipt(db,2569,1,t.id,'teach','first','500')
     db.rollback()
-    sub.link_receipt(db,2569,1,t.id,'teach','first','400');db.commit()
+    mapped_receipt(db,2569,1,t.id,'teach','first','400');db.commit()
     assert sub.receipt_summary(db,2568,2)[0]['teach']==600
     assert sub.receipt_summary(db,2569,1)[0]['teach']==400
     assert sub.receipt_summary(db,2570,1)[0]=={}
@@ -208,7 +235,7 @@ def test_deleted_receipt_cannot_attach_to_reused_id(db):
     a=account(db)
     t=FinanceTxn(account_id=a.id,fiscal_year=2568,kind='in',amount=1000)
     db.add(t);db.commit();tid=t.id
-    sub.link_receipt(db,2568,1,tid,'teach','first','500');db.commit()
+    mapped_receipt(db,2568,1,tid,'teach','first','500');db.commit()
     db.delete(t);db.commit()
     db.add(FinanceTxn(id=tid,account_id=a.id,fiscal_year=2568,kind='in',amount=1000));db.commit()
     assert sub.receipt_summary(db,2568,1)[0]=={}
@@ -218,14 +245,13 @@ def test_deleted_receipt_cannot_attach_to_reused_id(db):
 def test_deleted_budget_item_does_not_reuse_old_contribution(db):
     from app.models import SubsidyBudgetContribution
     snap=confirmed(db);a=account(db);db.commit()
-    p=sub.budget_preview(db,snap,a.id);sub.apply_budget(db,snap,a.id,sub.fingerprint(p));db.commit()
+    p=mapped_preview(db,snap,a.id);sub.apply_budget(db,snap,a.id,sub.fingerprint(p));db.commit()
     item=db.query(AccountItem).filter_by(name=sub.NAMES['teach']).one();iid=item.id
     db.delete(item);db.commit()
     db.add(AccountItem(id=iid,account_id=a.id,fiscal_year=2568,name='งบอื่น',budget=200));db.commit()
     assert db.query(SubsidyBudgetContribution).filter_by(item_key='teach').count()==0
-    p=sub.budget_preview(db,snap,a.id)
-    row=next(r for r in p['rows'] if r['key']=='teach')
-    assert row['item_id'] is None and row['previous']==0
+    with pytest.raises(ValueError,match='จับคู่'):
+        sub.budget_preview(db,snap,a.id)
 
 
 def test_budget_preserves_other_money_and_uses_correct_fy(db):
@@ -233,22 +259,22 @@ def test_budget_preserves_other_money_and_uses_correct_fy(db):
     a=account(db)
     item=AccountItem(account_id=a.id,fiscal_year=2568,name=sub.NAMES['teach'],budget=123)
     db.add(item);db.commit()
-    p=sub.budget_preview(db,snap,a.id)
+    p=mapped_preview(db,snap,a.id)
     token=sub.fingerprint(p)
     sub.apply_budget(db,snap,a.id,token);db.commit()
     assert item.budget==120123
     assert db.query(AccountItem).filter_by(fiscal_year=2569).count()==0
     with pytest.raises(ValueError,match='ยอดงบปลายทางเปลี่ยน'): sub.apply_budget(db,snap,a.id,token)
     db.rollback()
-    p=sub.budget_preview(db,snap,a.id)
+    p=mapped_preview(db,snap,a.id)
     sub.apply_budget(db,snap,a.id,sub.fingerprint(p));db.commit()
     assert item.budget==120123 and db.query(AccountItem).count()==5
 
 
 def test_budget_rejects_stale_snapshot_and_destination_change(db):
     snap=confirmed(db); a=account(db);db.commit()
-    p=sub.budget_preview(db,snap,a.id)
-    db.add(AccountItem(account_id=a.id,fiscal_year=2568,name=sub.NAMES['teach'],budget=100));db.commit()
+    p=mapped_preview(db,snap,a.id)
+    sub.mappings(db,2568)['teach'].budget=100;db.commit()
     with pytest.raises(ValueError,match='ยอดงบปลายทางเปลี่ยน'): sub.apply_budget(db,snap,a.id,sub.fingerprint(p))
     db.rollback()
     prepared(db, **{'r_ป.1_teach':'900'})
@@ -259,24 +285,24 @@ def test_budget_rejects_stale_snapshot_and_destination_change(db):
 def test_removed_extra_subtracts_only_previous_contribution(db):
     snap=confirmed(db,extra_small='500',extra_ref_small='หนังสือเพิ่มเติม')
     a=account(db);db.commit()
-    p=sub.budget_preview(db,snap,a.id);sub.apply_budget(db,snap,a.id,sub.fingerprint(p));db.commit()
+    p=mapped_preview(db,snap,a.id);sub.apply_budget(db,snap,a.id,sub.fingerprint(p));db.commit()
     item=db.query(AccountItem).filter_by(name=sub.NAMES['small']).one()
     item.budget+=50;db.commit()
     snap2=confirmed(db)
-    p=sub.budget_preview(db,snap2,a.id);sub.apply_budget(db,snap2,a.id,sub.fingerprint(p));db.commit()
+    p=mapped_preview(db,snap2,a.id);sub.apply_budget(db,snap2,a.id,sub.fingerprint(p));db.commit()
     assert item.budget==50
 
 
 def test_two_academic_years_contribute_to_same_fiscal_budget(db):
     a=account(db);db.commit()
     prior=confirmed(db,ay=2567,term=2)
-    p=sub.budget_preview(db,prior,a.id);sub.apply_budget(db,prior,a.id,sub.fingerprint(p));db.commit()
+    p=mapped_preview(db,prior,a.id);sub.apply_budget(db,prior,a.id,sub.fingerprint(p));db.commit()
     current=confirmed(db,ay=2568,term=1)
-    p=sub.budget_preview(db,current,a.id);sub.apply_budget(db,current,a.id,sub.fingerprint(p));db.commit()
+    p=mapped_preview(db,current,a.id);sub.apply_budget(db,current,a.id,sub.fingerprint(p));db.commit()
     item=db.query(AccountItem).filter_by(fiscal_year=2568,name=sub.NAMES['teach']).one()
     assert item.budget==240000
     amended=confirmed(db,ay=2568,term=1,**{'r_ป.1_teach':'900'})
-    p=sub.budget_preview(db,amended,a.id);sub.apply_budget(db,amended,a.id,sub.fingerprint(p));db.commit()
+    p=mapped_preview(db,amended,a.id);sub.apply_budget(db,amended,a.id,sub.fingerprint(p));db.commit()
     assert item.budget==228000  # Other term's 120,000 remains intact.
 
 
@@ -292,20 +318,20 @@ def actual_form(db, **changes):
 def test_actual_allocation_replaces_estimate_and_only_applies_delta(db):
     snap=confirmed(db,**{'n_jun2568_ป.1':'100'})
     a=account(db);db.commit()
-    p=sub.budget_preview(db,snap,a.id);sub.apply_budget(db,snap,a.id,sub.fingerprint(p));db.commit()
+    p=mapped_preview(db,snap,a.id);sub.apply_budget(db,snap,a.id,sub.fingerprint(p));db.commit()
     old_payload=snap.payload
     s=sub.save(db,2568,1,actual_form(db));db.commit()
     snap2=sub.confirm(db,2568,1,s['token']);db.commit()
-    p=sub.budget_preview(db,snap2,a.id)
+    p=mapped_preview(db,snap2,a.id)
     teach=next(r for r in p['rows'] if r['key']=='teach')
     assert (teach['old'],teach['contribution'],teach['delta'],teach['new'])==(100000,120000,20000,120000)
     sub.apply_budget(db,snap2,a.id,sub.fingerprint(p));db.commit()
-    repeated=sub.budget_preview(db,snap2,a.id)
+    repeated=mapped_preview(db,snap2,a.id)
     assert all(r['delta']==0 for r in repeated['rows'])
     assert snap.payload==old_payload
     s=sub.save(db,2568,1,actual_form(db,second_teach='10000'));db.commit()
     snap3=sub.confirm(db,2568,1,s['token']);db.commit()
-    p=sub.budget_preview(db,snap3,a.id)
+    p=mapped_preview(db,snap3,a.id)
     assert next(r for r in p['rows'] if r['key']=='teach')['delta']==-40000
 
 
@@ -334,11 +360,11 @@ def test_supplementary_entries_sum_and_preserve_each_award(db):
     assert extra['amount']==18000 and len(extra['entries'])==2
     snap=sub.confirm(db,2568,1,s['token']);db.commit()
     a=account(db);db.commit()
-    p=sub.budget_preview(db,snap,a.id);sub.apply_budget(db,snap,a.id,sub.fingerprint(p));db.commit()
+    p=mapped_preview(db,snap,a.id);sub.apply_budget(db,snap,a.id,sub.fingerprint(p));db.commit()
     # Editing/removing an award adjusts only this category's previous contribution.
     s=prepared(db,extra_small='10000',extra_ref_small='ครั้งแรก')
     snap2=sub.confirm(db,2568,1,s['token']);db.commit()
-    p=sub.budget_preview(db,snap2,a.id)
+    p=mapped_preview(db,snap2,a.id)
     assert next(r for r in p['rows'] if r['key']=='small')['delta']==-8000
 
 
@@ -349,7 +375,7 @@ def test_legacy_snapshot_budget_defaults_to_original_estimate(db):
     for k in ('budget_label','budget_basis','budget_total'):data['result'].pop(k)
     snap.payload=sub.dumps(data);db.commit()
     a=account(db);db.commit()
-    assert sub.budget_preview(db,snap,a.id)['rows'][0]['contribution']==120000
+    assert mapped_preview(db,snap,a.id)['rows'][0]['contribution']==120000
 
 
 def test_confirmed_report_uses_frozen_amounts_and_sources(db,monkeypatch,tmp_path):
@@ -374,7 +400,7 @@ def test_routes_save_validation_snapshot_and_budget(env):
     assert 'name="rate_source"' not in r.text and 'name="rates_confirmed"' not in r.text
     db=session_for(1)
     data=dict(form_for(db))
-    a=account(db);db.commit();aid=a.id;db.close()
+    a=account(db);db.commit();aid=a.id;ensure_mapping(db,2568,aid);db.close()
     invalid=dict(data, **{'r_ป.1_teach':'-1'})
     r=c.post('/finance/subsidy',data=invalid,follow_redirects=False)
     assert r.status_code==422 and 'ยังบันทึกไม่ได้' in r.text
@@ -407,3 +433,80 @@ def test_dmc_save_without_source_or_checkbox_and_allocations_preserved(db):
     data.update(token=s['token'], budget_basis='estimate')
     s = sub.save(db,2568,1,FormData(data))
     assert s['config']['second']['teach'] == 50000
+
+
+def test_explicit_mapping_custom_names_rename_and_wrong_receipt(db):
+    a=account(db)
+    custom=AccountItem(account_id=a.id,fiscal_year=2568,name='ค่ารายหัว',budget=10)
+    db.add(custom);db.commit()
+    choices={k:'new' for k in sub.keys_for(1)};choices['teach']=str(custom.id)
+    sub.save_mapping(db,2568,a.id,choices,sub.mapping_token(db,2568));db.commit()
+    snap=confirmed(db)
+    p=sub.budget_preview(db,snap,a.id)
+    assert p['rows'][0]['item_id']==custom.id and p['rows'][0]['new']==120010
+    custom.name='รายหัวใหม่';db.commit()
+    assert sub.budget_preview(db,snap,a.id)['rows'][0]['destination']=='รายหัวใหม่'
+    t=FinanceTxn(account_id=a.id,item_id=sub.mappings(db,2568)['book'].id,fiscal_year=2568,kind='in',amount=500)
+    db.add(t);db.commit()
+    with pytest.raises(ValueError,match='ไม่ตรง'):sub.link_receipt(db,2568,1,t.id,'teach','first','100')
+    db.rollback()
+    sub.link_receipt(db,2568,1,t.id,'book','first','100');db.commit()
+    choices={k:str(i.id) for k,i in sub.mappings(db,2568).items()}
+    choices['teach']=choices['book']
+    with pytest.raises(ValueError,match='คนละหมวด'):sub.save_mapping(db,2568,a.id,choices,sub.mapping_token(db,2568))
+    db.rollback()
+
+
+def test_mapping_setup_idempotent_stale_and_applied_cannot_remap(db):
+    choices={k:'new' for k in sub.keys_for(1)}
+    token=sub.mapping_token(db,2568)
+    a=sub.save_mapping(db,2568,0,choices,token,'เงินอุดหนุนใหม่');db.commit()
+    assert db.query(AccountItem).count()==5
+    with pytest.raises(ValueError,match='เปลี่ยนแล้ว'):sub.save_mapping(db,2568,0,choices,token,'เงินอุดหนุนใหม่')
+    db.rollback()
+    snap=confirmed(db);p=sub.budget_preview(db,snap,a.id)
+    sub.apply_budget(db,snap,a.id,sub.fingerprint(p));db.commit()
+    other=AccountItem(account_id=a.id,fiscal_year=2568,name='อื่น',budget=0);db.add(other);db.commit()
+    choices={k:str(i.id) for k,i in sub.mappings(db,2568).items()};choices['teach']=str(other.id)
+    with pytest.raises(ValueError,match='เคยตั้งงบ'):sub.save_mapping(db,2568,a.id,choices,sub.mapping_token(db,2568))
+    db.rollback()
+    assert sub.mappings(db,2568)['teach'].id != other.id
+    assert sub.mappings(db,2569)=={}
+
+
+def test_receipt_changed_category_excluded_and_wrong_year_mapping_rejected(db):
+    a=account(db);db.commit();ensure_mapping(db,2568,a.id)
+    m=sub.mappings(db,2568)
+    t=FinanceTxn(account_id=a.id,item_id=m['teach'].id,fiscal_year=2568,kind='in',amount=1000)
+    db.add(t);db.commit()
+    sub.link_receipt(db,2568,1,t.id,'teach','first','500');db.commit()
+    assert sub.receipt_summary(db,2568,1)[0]['teach']==500
+    t.item_id=m['book'].id;db.commit()
+    assert sub.receipt_summary(db,2568,1)[0]=={}
+    choices={k:str(i.id) for k,i in m.items()}
+    with pytest.raises(ValueError,match='ปีงบ'):sub.save_mapping(db,2569,a.id,choices,sub.mapping_token(db,2569))
+    db.rollback()
+
+
+def test_mapping_routes_create_five_and_validation_keeps_inputs(env):
+    from app.tenancy import session_for
+    c=env
+    r=c.get('/finance/subsidy/mapping?year=2568&term=1&account_id=0')
+    assert r.status_code==200
+    token=re.search(r'name="token" value="([^"]+)"',r.text).group(1)
+    data={'academic_year':'2568','term':'1','account_id':'0','new_name':'บัญชีทดสอบ','token':token}
+    data.update({'map_'+k:'new' for k in sub.keys_for(1)})
+    invalid=dict(data,map_teach='')
+    r=c.post('/finance/subsidy/mapping',data=invalid)
+    assert r.status_code==422 and 'บัญชีทดสอบ' in r.text
+    db=session_for(1)
+    assert db.query(FinanceAccount).filter_by(name='บัญชีทดสอบ').count()==0
+    db.close()
+    r=c.post('/finance/subsidy/mapping',data=data,follow_redirects=False)
+    assert r.status_code==303
+    db=session_for(1)
+    assert len(sub.mappings(db,2568))==5
+    assert db.query(AccountItem).count()==5
+    assert all(i.budget==0 for i in sub.mappings(db,2568).values())
+    db.close()
+    assert c.post('/finance/subsidy/mapping',data=data).status_code==422

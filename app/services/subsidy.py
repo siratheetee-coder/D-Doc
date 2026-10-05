@@ -10,7 +10,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from sqlalchemy import update
 from app.models import (School, Student, SubsidyCensus, SubsidyRate, SubsidyTermSetting,
     SubsidyCensusRevision, SubsidySnapshot, SubsidyReceiptLink, SubsidyBudgetContribution,
-    SubsidyBudgetHistory, AccountItem, FinanceAccount, FinanceTxn)
+    SubsidyBudgetHistory, SubsidyItemMapping, AccountItem, FinanceAccount, FinanceTxn)
 
 LEVELS = [f'อ.{i}' for i in range(1, 4)] + [f'ป.{i}' for i in range(1, 7)] + [f'ม.{i}' for i in range(1, 7)]
 ITEMS = [('teach', 'ค่าจัดการเรียนการสอน', True), ('book', 'ค่าหนังสือเรียน', False),
@@ -247,13 +247,17 @@ def confirm(db, ay, term, token):
 def receipt_summary(db, ay, term):
     all_links = db.query(SubsidyReceiptLink).all()
     totals, by_item, details = {}, {}, []
+    destinations = mappings(db,fiscal_year(ay,term))
     for link in all_links:
         totals[link.txn_id] = money(totals.get(link.txn_id, 0) + link.amount)
     for link in all_links:
         if (link.academic_year, link.term) != (ay, term):
             continue
         txn = db.get(FinanceTxn, link.txn_id)
-        valid = bool(txn and txn.kind == 'in' and totals[link.txn_id] <= money(txn.amount))
+        item = destinations.get(link.item_key)
+        valid = bool(txn and item and txn.kind == 'in' and txn.item_id == item.id
+            and txn.account_id == item.account_id and txn.fiscal_year == item.fiscal_year
+            and totals[link.txn_id] <= money(txn.amount))
         if valid:
             by_item[link.item_key] = money(by_item.get(link.item_key, 0) + link.amount)
         details.append({'link': link, 'txn': txn, 'valid': valid, 'name': NAMES[link.item_key]})
@@ -269,12 +273,81 @@ def link_receipt(db, ay, term, txn_id, key, rnd, raw):
     value = number(raw, 'ยอดที่เชื่อม')
     if not txn or txn.kind != 'in' or value is None or value <= 0:
         raise ValueError('เลือกรายการรับเงินและจำนวนมากกว่า 0')
+    item = mappings(db,fiscal_year(ay,term)).get(key)
+    if not item or txn.account_id != item.account_id or txn.item_id != item.id or txn.fiscal_year != item.fiscal_year:
+        raise ValueError('รายการรับไม่ตรงกับหมวดที่จับคู่ไว้ กรุณาตรวจการจับคู่และหมวดของรายการรับ')
     if db.query(SubsidyReceiptLink).filter_by(txn_id=txn_id, academic_year=ay, term=term, item_key=key, round=rnd).first():
         raise ValueError('เชื่อมรายการรับเงินกับงวดนี้แล้ว หากต้องการแก้ยอดให้ยกเลิกการเชื่อมเดิมก่อน')
     used = money(sum(x.amount for x in db.query(SubsidyReceiptLink).filter_by(txn_id=txn_id)))
     if money(used + value) > money(txn.amount):
         raise ValueError('ยอดที่เชื่อมรวมทุกเทอม/รายการเกินเงินรับจริง หรือรายการนี้เชื่อมครบแล้ว')
     db.add(SubsidyReceiptLink(txn_id=txn_id, academic_year=ay, term=term, item_key=key, round=rnd, amount=value))
+
+
+def mappings(db, fy):
+    rows = db.query(SubsidyItemMapping).filter_by(fiscal_year=fy).all()
+    return {r.item_key: db.get(AccountItem, r.account_item_id) for r in rows}
+
+
+def mapping_token(db, fy):
+    return fingerprint({k: [v.id, v.account_id, v.fiscal_year] if v else None for k,v in mappings(db,fy).items()})
+
+
+def save_mapping(db, fy, account_id, choices, token, new_name=''):
+    lock(db)
+    if not 2500 <= fy <= 2700 or token != mapping_token(db,fy):
+        raise ValueError('การจับคู่เปลี่ยนแล้ว กรุณาเปิดหน้าใหม่')
+    account = db.get(FinanceAccount,account_id) if account_id else None
+    if not account_id:
+        name = new_name.strip()
+        if not name:
+            raise ValueError('กรอกชื่อบัญชีใหม่ หรือเลือกบัญชีที่มีอยู่')
+        if db.query(FinanceAccount).filter_by(name=name).first():
+            raise ValueError('มีบัญชีชื่อนี้แล้ว กรุณาเลือกบัญชีเดิมเพื่อไม่สร้างซ้ำ')
+        account = FinanceAccount(name=name, opening_balance=0, fund_type='เงินนอกงบประมาณ')
+        db.add(account); db.flush()
+    if not account:
+        raise ValueError('ไม่พบบัญชีที่เลือก')
+    desired = {}
+    for key in NAMES:
+        choice = choices.get(key,'')
+        if not choice:
+            if key in keys_for(1):
+                raise ValueError('เลือกหมวดสำหรับ '+NAMES[key])
+            continue
+        if choice == 'new':
+            matches = db.query(AccountItem).filter_by(account_id=account.id,fiscal_year=fy,name=NAMES[key]).all()
+            if matches:
+                raise ValueError('มีหมวด '+NAMES[key]+' แล้ว กรุณาเลือกหมวดเดิม')
+            item = AccountItem(account_id=account.id,fiscal_year=fy,name=NAMES[key],budget=0)
+            db.add(item);db.flush()
+        else:
+            item = db.get(AccountItem,int(choice))
+        if not item or item.account_id != account.id or item.fiscal_year != fy:
+            raise ValueError('หมวดไม่ตรงกับบัญชีหรือปีงบที่เลือก')
+        if item.id in [i.id for i in desired.values()]:
+            raise ValueError('แต่ละรายการต้องใช้คนละหมวด')
+        desired[key] = item
+    old = mappings(db,fy)
+    for key in set(old) | set(desired):
+        item = desired.get(key)
+        prior = db.query(SubsidyBudgetContribution).join(AccountItem,AccountItem.id==SubsidyBudgetContribution.account_item_id).filter(
+            AccountItem.fiscal_year==fy,SubsidyBudgetContribution.item_key==key).all()
+        if any(not item or p.account_item_id != item.id for p in prior):
+            raise ValueError('รายการนี้เคยตั้งงบแล้ว ต้องตรวจยอดเดิมก่อนเปลี่ยนหมวด: '+NAMES[key])
+        links = db.query(SubsidyReceiptLink).filter_by(item_key=key).all()
+        for link in links:
+            if fiscal_year(link.academic_year,link.term) != fy:
+                continue
+            txn = db.get(FinanceTxn,link.txn_id)
+            if txn and (not item or txn.account_id != item.account_id or txn.item_id != item.id):
+                raise ValueError('มีเงินรับที่เชื่อมแล้ว กรุณายกเลิกการเชื่อมก่อนเปลี่ยนหมวด: '+NAMES[key])
+    for row in db.query(SubsidyItemMapping).filter_by(fiscal_year=fy).all():db.delete(row)
+    db.flush()
+    for key,item in desired.items():
+        db.add(SubsidyItemMapping(fiscal_year=fy,item_key=key,account_item_id=item.id))
+    db.flush()
+    return account
 
 
 def budget_preview(db, snapshot, account_id):
@@ -287,17 +360,14 @@ def budget_preview(db, snapshot, account_id):
     for p in prior_rows:
         desired.setdefault(p.item_key, {'key': p.item_key, 'name': NAMES[p.item_key], 'full': 0, 'budget_amount': 0})
     rows = []
+    destinations = mappings(db,snapshot.fiscal_year)
     for r in desired.values():
         prior = next((p for p in prior_rows if p.item_key == r['key']), None)
-        if prior:
-            item = db.get(AccountItem, prior.account_item_id)
-            if not item or item.account_id != account_id or item.fiscal_year != snapshot.fiscal_year:
-                raise ValueError('เทอมนี้เคยเชื่อมกับบัญชีอื่นหรือรายการปลายทางถูกเปลี่ยน โปรดตรวจประวัติก่อน')
-        else:
-            matches = db.query(AccountItem).filter_by(account_id=account_id, fiscal_year=snapshot.fiscal_year, name=r['name']).all()
-            if len(matches) > 1:
-                raise ValueError(f"มีรายการปลายทางชื่อซ้ำ: {r['name']} กรุณาจัดการชื่อซ้ำก่อน")
-            item = matches[0] if matches else None
+        item = destinations.get(r['key'])
+        if not item or item.account_id != account_id or item.fiscal_year != snapshot.fiscal_year:
+            raise ValueError('กรุณาจับคู่หมวดทะเบียนคุมก่อนตั้งงบ: '+r['name'])
+        if prior and prior.account_item_id != item.id:
+            raise ValueError('เคยตั้งงบไว้ในหมวดอื่น กรุณาตรวจยอดเดิมก่อนเปลี่ยนหมวด')
         old = money(item.budget or 0) if item else 0
         previous = money(prior.amount) if prior else 0
         contribution = r.get('budget_amount', r['full'])  # Old snapshots retain their original estimate basis.
@@ -308,7 +378,7 @@ def budget_preview(db, snapshot, account_id):
         if new < 0:
             raise ValueError('งบปลายทางถูกแก้จนต่ำกว่าส่วนที่จะปรับลด กรุณาตรวจทะเบียนคุม')
         rows.append({'key': r['key'], 'name': r['name'], 'item_id': item.id if item else None,
-            'old': old, 'previous': previous, 'contribution': contribution, 'delta': delta, 'new': new})
+            'destination': item.name, 'old': old, 'previous': previous, 'contribution': contribution, 'delta': delta, 'new': new})
     return {'rows': rows, 'account_id': account_id, 'snapshot_id': snapshot.id, 'fiscal_year': snapshot.fiscal_year,
         'budget_label': data['result'].get('budget_label', BUDGET_BASES['estimate'])}
 

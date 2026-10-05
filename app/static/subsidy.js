@@ -57,5 +57,15 @@
       changed();
     }
   });
+  const receipts=document.querySelector('form[action="/finance/subsidy/receipts"]');
+  if(receipts){
+    const type=receipts.elements.item_key, txn=receipts.elements.txn_id;
+    function filterReceipts(){
+      const id=type.selectedOptions[0]?.dataset.mappedItem;
+      [...txn.options].forEach(o=>{if(o.value){o.hidden=!id||o.dataset.item!==id;o.disabled=o.hidden;}});
+      if(txn.selectedOptions[0]?.disabled)txn.value='';
+    }
+    type.addEventListener('change',filterReceipts);filterReceipts();
+  }
   refresh();
 })();

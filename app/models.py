@@ -794,6 +794,17 @@ class SubsidyBudgetHistory(Base):
     created_at = Column(DateTime, default=datetime.now)
 
 
+class SubsidyItemMapping(Base):
+    """Explicit per-school (tenant DB), fiscal-year subsidy destinations."""
+    __tablename__ = "subsidy_item_mapping"
+    __table_args__ = (UniqueConstraint("fiscal_year", "item_key", name="uq_subsidy_mapping_key"),
+                     UniqueConstraint("fiscal_year", "account_item_id", name="uq_subsidy_mapping_item"))
+    id = Column(Integer, primary_key=True)
+    fiscal_year = Column(Integer, nullable=False)
+    item_key = Column(String, nullable=False)
+    account_item_id = Column(Integer, ForeignKey("account_item.id"), nullable=False)
+
+
 class AccountItem(Base):
     """หมวด/รายการย่อยในบัญชี แยกตามปีงบ (เช่น เงินอุดหนุน -> ค่าจัดการเรียนการสอน,
     ค่าหนังสือเรียน, ค่าอุปกรณ์...) แต่ละหมวดมีงบที่ตั้งไว้ + ติดตามรับ-จ่าย-คงเหลือรายหมวด"""
@@ -809,6 +820,7 @@ class AccountItem(Base):
     note = Column(String, default="")
 
     account = relationship("FinanceAccount", back_populates="items")
+    subsidy_mappings = relationship("SubsidyItemMapping", cascade="all, delete-orphan")
     subsidy_contributions = relationship("SubsidyBudgetContribution", cascade="all, delete-orphan")
     children = relationship("AccountItem", cascade="all, delete-orphan",
                             backref=backref("parent", remote_side=[id]))

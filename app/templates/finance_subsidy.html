@@ -75,14 +75,20 @@
 </section>
 </form>
 
+<section class="card"><h2>เชื่อมกับทะเบียนคุมเงิน</h2>
+<p>{{ 'บัญชีที่จับคู่ไว้: '~mapped_account.name if mapped_account else 'ยังไม่ได้เลือกบัญชีและจับคู่หมวดเงินอุดหนุนของปีงบนี้' }}</p>
+<a class="btn" data-needs-saved href="/finance/subsidy/mapping?year={{ s.academic_year }}&term={{ s.term }}">{{ 'ตรวจ/แก้ไขการจับคู่หมวด' if mapped_account else 'เลือกบัญชีและจับคู่หมวดย่อย' }}</a>
+<a class="btn gray" data-needs-saved href="/finance/subsidy/mapping?year={{ s.academic_year }}&term={{ s.term }}&account_id=0">ตั้งบัญชีเงินอุดหนุนพร้อม 5 รายการ</a>
+{% if mapping %}<ul>{% for k,i in mapping.items() %}{% if i %}<li>{{ names[k] }} → {{ i.name }}</li>{% endif %}{% endfor %}</ul>{% endif %}
+</section>
 <section class="card"><h2>5. ยืนยันและใช้ผลคำนวณ</h2>
   {% if s.changed %}<div class="sub-notice warn">มีการแก้ข้อมูลหลังฉบับล่าสุด ต้องยืนยันฉบับใหม่ก่อนตั้งงบ</div>{% endif %}
   <div class="sub-inline">
     <form method="post" action="/finance/subsidy/confirm" data-needs-saved>{{ period() }}<input type="hidden" name="token" value="{{ s.token }}"><button type="submit" class="btn" {{ 'disabled' if not s.result.ready }}>ยืนยันเก็บฉบับคำนวณนี้</button></form>
     <a class="btn gray" data-needs-saved href="/finance/subsidy.docx?year={{ s.academic_year }}&term={{ s.term }}">พิมพ์ร่างจากข้อมูลที่บันทึก</a>
   </div>
-  {% if s.latest and not s.changed %}<form action="/finance/subsidy/budget-preview" method="get" class="sub-inline" data-needs-saved>
-    <input type="hidden" name="snapshot_id" value="{{ s.latest.id }}"><label>บัญชีที่จะตั้งงบ<select name="account_id" required><option value="">เลือกบัญชี</option>{% for a in accounts %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}</select></label><button class="btn" type="submit">เปรียบเทียบก่อนตั้งงบปี {{ s.fiscal_year }}</button>
+  {% if s.latest and not s.changed and mapped_account %}<form action="/finance/subsidy/budget-preview" method="get" class="sub-inline" data-needs-saved>
+    <input type="hidden" name="snapshot_id" value="{{ s.latest.id }}"><input type="hidden" name="account_id" value="{{ mapped_account.id }}"><span>บัญชี {{ mapped_account.name }}</span><button class="btn" type="submit">เปรียบเทียบก่อนตั้งงบปี {{ s.fiscal_year }}</button>
   </form>{% endif %}
   <p class="sub-muted">การยืนยันเก็บตัวเลขและแหล่งอ้างอิงไว้เป็นฉบับย้อนหลัง การตั้งงบต้องตรวจยอดเดิมก่อนทุกครั้ง และไม่สร้างรายการรับเงิน</p>
   <details><summary>ฉบับย้อนหลัง ({{ s.history|length }}) และประวัติตั้งงบ</summary>
@@ -91,16 +97,16 @@
 </section>
 <section class="card"><h2>6. เชื่อมเงินรับจริงจากทะเบียนคุม</h2>
   <p>เลือกรายการรับเงิน แล้วระบุส่วนที่เป็นของเทอมนี้ สามารถแบ่งหนึ่งรายการโอนให้หลายประเภทหรือหลายเทอมได้ แต่ยอดรวมต้องไม่เกินเงินรับจริง</p>
-  <form method="get" class="sub-inline" data-needs-saved><input type="hidden" name="year" value="{{ s.academic_year }}"><input type="hidden" name="term" value="{{ s.term }}"><label>ค้นรายการรับในปีงบ<input name="receipt_year" type="number" value="{{ receipt_year }}" min="2500" max="2700" required></label><button class="btn gray" type="submit">แสดงรายการรับ</button></form>
+  <p>แสดงรายการรับที่มียอดมากกว่า 0 จากหมวดที่จับคู่ไว้ ปีงบ {{ s.fiscal_year }} หากไม่พบรายการ ให้บันทึกรับเงินพร้อมเลือกหมวดในทะเบียนคุมก่อน</p>
   <form action="/finance/subsidy/receipts" method="post" data-needs-saved>
-    {{ period() }}<label>รายการรับเงิน<select name="txn_id" required><option value="">เลือกรายการรับเงิน</option>{% for t in receipts %}<option value="{{ t.id }}">#{{ t.id }} · {{ t.date.strftime('%d/%m/%Y') if t.date else '' }} · {{ t.ref or t.note or t.category }} · {{ money(t.amount) }} บาท (เชื่อมแล้ว {{ money(receipt_used.get(t.id,0)) }})</option>{% endfor %}</select></label>
-    <div class="sub-inline"><label>ประเภท<select name="item_key">{% for k in keys %}<option value="{{ k }}">{{ names[k] }}</option>{% endfor %}{% for k,n in extras %}<option value="{{ k }}">{{ n }}</option>{% endfor %}</select></label><label>งวด<select name="round"><option value="first">งวดแรก</option><option value="balance">งวดปรับยอด</option><option value="extra">เงินเพิ่มเติม</option></select></label><label>ยอดที่เชื่อม (บาท)<input name="amount" type="number" min="0.01" step="0.01" required></label><button class="btn" type="submit">เชื่อมเงินรับ</button></div>
+    {{ period() }}<label>ประเภท<select name="item_key">{% for k in keys %}<option data-mapped-item="{{ mapping[k].id if mapping.get(k) else '' }}" value="{{ k }}">{{ names[k] }}</option>{% endfor %}{% for k,n in extras %}<option data-mapped-item="{{ mapping[k].id if mapping.get(k) else '' }}" value="{{ k }}">{{ n }}</option>{% endfor %}</select></label><label>รายการรับเงิน<select name="txn_id" required><option value="">เลือกรายการรับเงิน</option>{% for t in receipts %}<option data-item="{{ t.item_id }}" value="{{ t.id }}">{{ t.account.name }} / {{ t.item.name if t.item else 'ไม่ระบุหมวด' }} · #{{ t.id }} · {{ t.date.strftime('%d/%m/')~(t.date.year+543)|string if t.date else '' }} · {{ t.ref or t.note or t.category }} · {{ money(t.amount) }} บาท (เชื่อมแล้ว {{ money(receipt_used.get(t.id,0)) }})</option>{% endfor %}</select></label>
+    <div class="sub-inline"><label>งวด<select name="round"><option value="first">งวดแรก</option><option value="balance">งวดปรับยอด</option><option value="extra">เงินเพิ่มเติม</option></select></label><label>ยอดที่เชื่อม (บาท)<input name="amount" type="number" min="0.01" step="0.01" required></label><button class="btn" type="submit">เชื่อมเงินรับ</button></div>
   </form>
-  <div class="sub-scroll"><table><thead><tr><th>รายการรับ</th><th>ประเภท</th><th>งวด</th><th>ยอด</th><th>การเชื่อม</th></tr></thead><tbody>{% for d in links %}<tr><td>#{{ d.link.txn_id }}{% if not d.valid %}<strong class="sub-negative">รายการถูกลบ/แก้ยอดจนไม่ตรง ไม่รวมยอดนี้</strong>{% endif %}</td><td>{{ d.name }}</td><td>{{ {'first':'งวดแรก','balance':'งวดปรับยอด','extra':'เพิ่มเติม'}[d.link.round] }}</td><td>{{ money(d.link.amount) }}</td><td><form action="/finance/subsidy/receipts/{{ d.link.id }}/unlink" method="post" data-needs-saved><button class="btn gray sm" type="submit">ยกเลิกการเชื่อม</button></form></td></tr>{% else %}<tr><td colspan="5">ยังไม่มีการเชื่อมเงินรับ ระบบไม่จับคู่จากชื่อบัญชีอัตโนมัติ</td></tr>{% endfor %}</tbody></table></div>
+  <div class="sub-scroll"><table><thead><tr><th>รายการรับ</th><th>ประเภท</th><th>งวด</th><th>ยอด</th><th>การเชื่อม</th></tr></thead><tbody>{% for d in links %}<tr><td>#{{ d.link.txn_id }}{% if not d.valid %}<strong class="sub-negative">รายการหรือหมวดไม่ตรงกับการจับคู่ กรุณาตรวจสอบ ไม่รวมยอดนี้</strong>{% endif %}</td><td>{{ d.name }}</td><td>{{ {'first':'งวดแรก','balance':'งวดปรับยอด','extra':'เพิ่มเติม'}[d.link.round] }}</td><td>{{ money(d.link.amount) }}</td><td><form action="/finance/subsidy/receipts/{{ d.link.id }}/unlink" method="post" data-needs-saved><button class="btn gray sm" type="submit">ยกเลิกการเชื่อม</button></form></td></tr>{% else %}<tr><td colspan="5">ยังไม่มีการเชื่อมเงินรับ ระบบไม่จับคู่จากชื่อบัญชีอัตโนมัติ</td></tr>{% endfor %}</tbody></table></div>
   <p class="sub-muted">ยกเลิกการเชื่อมจะไม่ลบรายการรับเงินในทะเบียนคุม</p>
 </section>
 <p class="sub-muted">สูตรฐาน DMC ใช้แนวทางโรงเรียนปกติ สพฐ. ปีงบ 2569 อัตราและเงินเพิ่มเติมต้องตรวจหนังสือของปีงบที่เลือก โรงเรียนที่ใช้หลักเกณฑ์เฉพาะควรตรวจฐานจัดสรรก่อนยืนยัน</p>
 </div>
 <script id="subsidy-data" type="application/json">{{ {'now':s.now_counts,'previous':previous_rates,'error':(error != '')}|tojson }}</script>
-<script src="/static/subsidy.js?v=4" defer></script>
+<script src="/static/subsidy.js?v=5" defer></script>
 {% endblock %}

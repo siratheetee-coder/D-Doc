@@ -5,7 +5,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import (FinanceAccount, FinanceTxn, SubsidySnapshot, SubsidyReceiptLink,
-                        SubsidyTermSetting, SubsidyBudgetHistory)
+                        SubsidyTermSetting, SubsidyBudgetHistory, AccountItem)
 from app.templating import templates
 from app.thai_utils import current_academic_year
 from app.routers.pages import get_school, serve_generated
@@ -35,7 +35,10 @@ def _page(request, db, ay, term, error='', posted=None, receipt_year=None):
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     received, links, used = sub.receipt_summary(db, ay, term)
-    ry = receipt_year or data['fiscal_year']
+    ry = data['fiscal_year']
+    mapping = sub.mappings(db,ry)
+    mapped_ids = [i.id for i in mapping.values() if i and i.fiscal_year == ry]
+    mapped_account = db.get(FinanceAccount,next((i.account_id for i in mapping.values() if i),0))
     previous = db.query(SubsidyTermSetting).filter_by(fiscal_year=data['fiscal_year']-1, term=term).first()
     extra_entries = {}
     for key, _ in sub.EXTRAS:
@@ -49,10 +52,10 @@ def _page(request, db, ay, term, error='', posted=None, receipt_year=None):
     return templates.TemplateResponse('finance_subsidy.html', {
         'request': request, 's': data, 'levels': sub.LEVELS, 'keys': sub.keys_for(term),
         'names': sub.NAMES, 'extras': sub.EXTRAS, 'error': error, 'posted': posted,
-        'extra_entries': extra_entries, 'budget_bases': sub.BUDGET_BASES,
+        'mapping': mapping, 'mapped_account': mapped_account, 'extra_entries': extra_entries, 'budget_bases': sub.BUDGET_BASES,
         'previous_rates': json.loads(previous.payload)['rates'] if previous else {},
         'received': received, 'links': links, 'receipt_used': used, 'receipt_year': ry,
-        'receipts': db.query(FinanceTxn).filter_by(kind='in', fiscal_year=ry).order_by(FinanceTxn.date.desc(), FinanceTxn.id.desc()).all(),
+        'receipts': db.query(FinanceTxn).filter_by(kind='in', fiscal_year=ry).filter(FinanceTxn.item_id.in_(mapped_ids),FinanceTxn.amount>0).order_by(FinanceTxn.date.desc(), FinanceTxn.id.desc()).all(),
         'accounts': db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
         'budget_history': db.query(SubsidyBudgetHistory).join(SubsidySnapshot, SubsidySnapshot.id == SubsidyBudgetHistory.snapshot_id).filter(
             SubsidySnapshot.academic_year == ay, SubsidySnapshot.term == term).order_by(SubsidyBudgetHistory.id.desc()).all(),
@@ -174,3 +177,53 @@ def document(db: Session = Depends(get_db), year: int | None = None, term: int =
             raise HTTPException(400, str(exc))
     return serve_generated(render(get_school(db), data, snapshot_id),
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+
+
+def _mapping_page(request, year, term, account_id, db, error='', posted=None):
+    try:
+        fy = sub.fiscal_year(year,term)
+    except ValueError as exc:
+        raise HTTPException(400,str(exc))
+    current = sub.mappings(db,fy)
+    previous = sub.mappings(db,fy-1)
+    if account_id is None:
+        account_id = next((i.account_id for i in current.values() if i),None)
+        if account_id is None: account_id = next((i.account_id for i in previous.values() if i),0)
+    items = db.query(AccountItem).filter_by(account_id=account_id,fiscal_year=fy).order_by(AccountItem.name).all()
+    suggested = {}
+    for key,name in sub.NAMES.items():
+        item = current.get(key)
+        if item and item.account_id==account_id:
+            suggested[key] = str(item.id)
+        else:
+            matches = [i for i in items if i.name == (previous[key].name if previous.get(key) else name)]
+            suggested[key] = str(matches[0].id) if len(matches)==1 else ('new' if not items and key in sub.keys_for(1) else '')
+    if posted is not None:
+        suggested = {k:posted.get('map_'+k,'') for k in sub.NAMES}
+    return templates.TemplateResponse('finance_subsidy_mapping.html', {'request':request,'ay':year,'term':term,'fy':fy,
+        'account_id':account_id,'accounts':db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
+        'items':items,'names':sub.NAMES,'normal':sub.keys_for(1),'suggested':suggested,'token':sub.mapping_token(db,fy),
+        'error':error,'new_name':posted.get('new_name','เงินอุดหนุน') if posted is not None else 'เงินอุดหนุน'},status_code=422 if error else 200)
+
+
+@router.get('/finance/subsidy/mapping')
+def mapping_page(request: Request, year: int, term: int=1, account_id: int | None=None, db: Session=Depends(get_db)):
+    return _mapping_page(request,year,term,account_id,db)
+
+
+@router.post('/finance/subsidy/mapping')
+async def mapping_save(request: Request, db: Session=Depends(get_db)):
+    form = await request.form()
+    ay,term,aid=0,0,0
+    try:
+        ay,term = int(form.get('academic_year',0)),int(form.get('term',0))
+        fy = sub.fiscal_year(ay,term)
+        aid=int(form.get('account_id',0))
+        sub.save_mapping(db,fy,aid,{k:form.get('map_'+k,'') for k in sub.NAMES},form.get('token'),form.get('new_name',''))
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        if 2500<=ay<=2700 and term in (1,2):
+            return _mapping_page(request,ay,term,aid,db,str(exc),form)
+        raise HTTPException(400,str(exc))
+    return _redirect(ay,term,'mapped')
