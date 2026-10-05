@@ -192,8 +192,8 @@ def account_balance_asof(account, fy, as_of=None) -> float:
 
 
 def item_remaining_asof(item, as_of=None) -> float:
-    """คงเหลือของหมวด ณ วันที่ as_of = งบที่ตั้งไว้ + (รับ - จ่าย) ที่ผูกกับหมวดถึงวันนั้น"""
-    bal = float(item.budget or 0)
+    """คงเหลือของหมวด ณ วันที่ as_of = ยอดยกมา + (รับ - จ่าย) ที่ผูกกับหมวดถึงวันนั้น"""
+    bal = float(item.opening_balance or 0)
     for t in item.account.txns:
         if t.item_id != item.id or t.fiscal_year != item.fiscal_year or not _before(t, as_of):
             continue

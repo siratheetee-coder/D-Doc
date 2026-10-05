@@ -143,7 +143,7 @@
           </td>
           <td class="tw">รับแล้ว {{ "{:,.2f}".format(r.got) }} · ใช้ไป {{ "{:,.2f}".format(r.used) }}</td>
           <td class="right">{{ "{:,.2f}".format(r.budget) }}</td>
-          <td class="right tw">-</td>
+          <td class="right tw">{{ "{:,.2f}".format(r.opening) }}</td>
           <td class="right"><b style="color:{{ '#b91c1c' if r.left < 0 else g.color.ink }};">{{ "{:,.2f}".format(r.left) }}</b></td>
           <td class="right" style="white-space:nowrap;">
             <a class="btn sm gray" href="/finance/accounts/{{ a.id }}/money-register.docx?year={{ fiscal_year }}&item={{ r.o.id }}"

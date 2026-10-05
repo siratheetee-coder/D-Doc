@@ -179,3 +179,90 @@ def test_cashbook_delete_updates_ledger_and_linked_records(env):
     assert receipts==[] and sum(r['amount'] for r in payments)==100
     db.close()
     assert env.post(url,follow_redirects=False).status_code==303
+
+
+def test_item_openings_cash_balances_and_carry_forward(env,monkeypatch,tmp_path):
+    from app.tenancy import session_for
+    from app.models import FinanceAccount,AccountItem,FinanceTxn,AccountOpening
+    from app.services.finance_openings import save,token,carry
+    from app.services.asset_utils import item_remaining_asof,account_balance_year
+    from app.routers.finance import _build_cash_rows,_register_rows
+    db=session_for(1)
+    a=FinanceAccount(name='ทดสอบยอดยกมา',opening_balance=80000)
+    db.add(a);db.flush()
+    p=AccountItem(account_id=a.id,fiscal_year=FY,name='อุดหนุน',budget=900000)
+    db.add(p);db.flush()
+    x=AccountItem(account_id=a.id,fiscal_year=FY,name='รายหัว',parent_id=p.id,budget=100000,deposit_type='bank')
+    y=AccountItem(account_id=a.id,fiscal_year=FY,name='หนังสือ',parent_id=p.id,budget=30000,deposit_type='cash')
+    db.add_all([x,y]);db.commit()
+    f={'opening_token':token(db,a,FY),'account_opening':'80000','opening_'+str(p.id):'0','opening_'+str(x.id):'50000','opening_'+str(y.id):'30000'}
+    save(db,a,FY,f);db.commit()
+    with pytest.raises(ValueError,match='เปลี่ยนแล้ว'):save(db,a,FY,f)
+    db.rollback()
+    bad=dict(f,opening_token=token(db,a,FY),account_opening='90000')
+    with pytest.raises(ValueError,match='ผลรวม'):save(db,a,FY,bad)
+    db.rollback()
+    db.add_all([FinanceTxn(account_id=a.id,item_id=x.id,fiscal_year=FY,kind='in',amount=100000),FinanceTxn(account_id=a.id,item_id=x.id,fiscal_year=FY,kind='out',amount=5000)])
+    db.commit()
+    assert item_remaining_asof(x)==145000 # Budget is not received cash.
+    assert account_balance_year(a,FY)==175000
+    from app.services import finance_report
+    from openpyxl import load_workbook
+    monkeypatch.setattr(finance_report,'get_data_dir',lambda:tmp_path)
+    wb=load_workbook(finance_report.export_finance_report([a],a.txns,FY))
+    values=list(wb['งบรายหมวด'].values)
+    row=next(r for r in values if r[0] and str(r[0]).strip()=='รายหัว')
+    assert tuple(row[1:])==(100000,50000,100000,5000,145000)
+    wb.close()
+
+    rows,tot=_build_cash_rows([a],FY,None)
+    assert tot['total']==175000 and tot['cash']==30000 and tot['bank']==145000
+    registers=_register_rows(db,FY)
+    assert next(r[3] for r in registers if r[1] and getattr(r[1],'id',None)==x.id)==50000
+    carry(db,FY);db.commit()
+    nxt=db.query(AccountItem).filter_by(account_id=a.id,fiscal_year=FY+1,name='รายหัว').one()
+    assert nxt.opening_balance==145000 and nxt.budget==0
+    assert account_balance_year(a,FY+1)==175000
+    assert item_remaining_asof(x)==145000
+    n=db.query(AccountItem).count()
+    carry(db,FY);db.commit()
+    assert db.query(AccountItem).count()==n
+    assert db.query(AccountOpening).filter_by(account_id=a.id,fiscal_year=FY+1).count()==1
+    # Unclassified balances remain visible rather than disappearing from the daily report.
+    row=db.query(AccountOpening).filter_by(account_id=a.id,fiscal_year=FY).one();row.amount=81000;db.commit()
+    rows,tot=_build_cash_rows([a],FY,None)
+    assert tot['total']==176000 and any('ยังไม่แยกหมวด' in r['name'] and r['total']==1000 for r in rows)
+    db.close()
+
+
+def test_opening_form_and_register_use_item_cash(env):
+    from app.tenancy import session_for
+    from app.models import FinanceAccount,AccountItem
+    from app.services.finance_openings import token
+    db=session_for(1)
+    a=FinanceAccount(name='บัญชีเริ่มต้น',opening_balance=0);db.add(a);db.flush()
+    i=AccountItem(account_id=a.id,fiscal_year=FY,name='รายหัว',budget=100000);db.add(i);db.commit()
+    aid,iid=a.id,i.id
+    data={'fiscal_year':FY,'opening_token':token(db,a,FY),'account_opening':'80000','opening_'+str(iid):'80000'}
+    db.close()
+    r=env.get(f'/finance/accounts/{aid}?year={FY}')
+    assert r.status_code==200 and 'บันทึกยอดยกมา' in r.text
+    r=env.post(f'/finance/accounts/{aid}/openings',data=data,follow_redirects=False)
+    assert r.status_code==303
+    r=env.get(f'/finance/accounts/{aid}/money-register.docx?year={FY}&item={iid}')
+    assert r.status_code==200 and '80,000.00' in _docx_text(r.content)
+    assert env.get(f'/finance/accounts/{aid}/money-register.docx?year={FY+1}&item={iid}').status_code==404
+
+
+def test_opening_migration_preserves_existing_budget(tmp_path):
+    from sqlalchemy import create_engine,text
+    from app.database import run_migrations
+    engine=create_engine('sqlite:///'+str(tmp_path/'legacy.db'))
+    with engine.begin() as c:
+        c.execute(text('CREATE TABLE account_item (id INTEGER PRIMARY KEY, budget FLOAT)'))
+        c.execute(text('INSERT INTO account_item VALUES (1, 100000)'))
+    run_migrations(engine)
+    run_migrations(engine)
+    with engine.connect() as c:
+        assert tuple(c.execute(text('SELECT budget,opening_balance FROM account_item')).one())==(100000,0)
+    engine.dispose()

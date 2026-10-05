@@ -113,6 +113,7 @@ MIGRATIONS = [
     ("finance_txn",     "item_id",      "INTEGER"),
     ("receipt",         "txn_id",       "INTEGER"),
     ("finance_account", "deposit_type", "VARCHAR DEFAULT 'bank'"),
+    ("account_item",    "opening_balance", "FLOAT DEFAULT 0"),
     ("account_item",    "deposit_type", "VARCHAR DEFAULT 'bank'"),
     ("disburse_memo",   "vat",          "FLOAT DEFAULT 0"),
     ("disburse_memo",   "wht",          "FLOAT DEFAULT 0"),

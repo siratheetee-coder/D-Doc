@@ -107,11 +107,11 @@ def export_finance_report(accounts, txns, fiscal_year: int) -> str:
     has_items = any(it.fiscal_year == fiscal_year for a in accounts for it in a.items)
     if has_items:
         ws3 = wb.create_sheet("งบรายหมวด")
-        ws3.merge_cells("A1:E1")
+        ws3.merge_cells("A1:F1")
         t3 = ws3.cell(row=1, column=1, value=f"งบรายหมวดแยกตามบัญชี  ประจำปีงบประมาณ {fiscal_year}")
         t3.font = Font(name=THAI_FONT, bold=True, size=18)
         t3.alignment = Alignment(horizontal="center", vertical="center")
-        for c, h in enumerate(["หมวด/รายการ", "งบที่ตั้งไว้", "รับเพิ่ม", "จ่ายแล้ว", "คงเหลือ"], start=1):
+        for c, h in enumerate(["หมวด/รายการ", "งบที่ตั้งไว้", "ยอดยกมา", "รับจริง", "จ่ายแล้ว", "คงเหลือจริง"], start=1):
             _cell(ws3, 3, c, h, bold=True, align="center", fill=_HEAD)
         r = 4
         for a in accounts:
@@ -120,21 +120,26 @@ def export_finance_report(accounts, txns, fiscal_year: int) -> str:
                 continue
             # หัวกลุ่ม = ชื่อบัญชี
             _cell(ws3, r, 1, a.name, bold=True, fill=_TOTAL)
-            for c in range(2, 6):
+            for c in range(2, 7):
                 _cell(ws3, r, c, "", fill=_TOTAL)
             r += 1
             for it in items:
+                kids=[k for k in items if k.parent_id==it.id]
+                family={it.id}|{k.id for k in kids}
+                opening=sum(x.opening_balance or 0 for x in [it]+kids)
+                budget=sum(k.budget or 0 for k in kids) if kids else (it.budget or 0)
                 tin = sum(t.amount or 0 for t in a.txns
-                          if t.item_id == it.id and t.kind == "in" and t.fiscal_year == fiscal_year)
+                          if t.item_id in family and t.kind == "in" and t.fiscal_year == fiscal_year)
                 tout = sum(t.amount or 0 for t in a.txns
-                           if t.item_id == it.id and t.kind == "out" and t.fiscal_year == fiscal_year)
+                           if t.item_id in family and t.kind == "out" and t.fiscal_year == fiscal_year)
                 _cell(ws3, r, 1, "    " + it.name)
-                _cell(ws3, r, 2, float(it.budget or 0), money=True, align="right")
-                _cell(ws3, r, 3, tin, money=True, align="right")
-                _cell(ws3, r, 4, tout, money=True, align="right")
-                _cell(ws3, r, 5, round((it.budget or 0) + tin - tout, 2), money=True, align="right")
+                _cell(ws3, r, 2, float(budget), money=True, align="right")
+                _cell(ws3, r, 3, float(opening), money=True, align="right")
+                _cell(ws3, r, 4, tin, money=True, align="right")
+                _cell(ws3, r, 5, tout, money=True, align="right")
+                _cell(ws3, r, 6, round(opening + tin - tout, 2), money=True, align="right")
                 r += 1
-        for i, w in enumerate([40, 16, 16, 16, 16], start=1):
+        for i, w in enumerate([40, 16, 16, 16, 16, 16], start=1):
             ws3.column_dimensions[chr(64 + i)].width = w
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)

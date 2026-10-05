@@ -119,15 +119,13 @@ def carry_forward(db: Session = Depends(get_db), year: str = Form("")):
     ไม่ลบรายการเดิม (ปีเก่ายังกดกลับไปดูได้) - upsert จึงกดซ้ำได้ ค่าจะอัปเดตให้ตรงเสมอ"""
     src = _to_int(year, current_fiscal_year())
     nxt = src + 1
-    for a in db.query(FinanceAccount).all():
-        closing = account_balance_year(a, src)
-        row = (db.query(AccountOpening)
-               .filter_by(account_id=a.id, fiscal_year=nxt).first())
-        if row is None:
-            row = AccountOpening(account_id=a.id, fiscal_year=nxt)
-            db.add(row)
-        row.amount = closing
-    db.commit()
+    from app.services.finance_openings import carry
+    try:
+        carry(db,src)
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(409,str(exc))
     return RedirectResponse(f"/finance?year={nxt}&carried={src}", status_code=303)
 
 
@@ -179,13 +177,15 @@ def accounts_page(request: Request, db: Session = Depends(get_db), year: int | N
                 fam = [node] + kids.get(node.id, [])
                 got = sum(flow.get(x.id, {}).get("in", 0.0) for x in fam)
                 used = sum(flow.get(x.id, {}).get("out", 0.0) for x in fam)
-                budget = sum(float(x.budget or 0) for x in fam)
+                budget = sum(float(x.budget or 0) for x in kids.get(node.id, [])) if kids.get(node.id) else float(node.budget or 0)
                 out.append({
                     "o": node, "level": lv, "budget": budget, "got": got, "used": used,
-                    "left": budget - used,
+                    "opening": sum(float(x.opening_balance or 0) for x in fam),
+                    "left": sum(float(x.opening_balance or 0) for x in fam) + got - used,
                     "pct": min(100, round(used / budget * 100)) if budget else 0,
                 })
         item_rows[aid_] = out
+        budget_by_acct[aid_] = sum(r["budget"] for r in out if r["level"]==0)
     # จัดกลุ่มตามหมวดเงิน (งบประมาณ -> รายได้แผ่นดิน -> นอกงบประมาณ) พร้อมยอดรวมรายกลุ่ม
     # ในกลุ่มเรียงตามที่เก็บเงิน (ธนาคาร/เงินสด/ส่วนราชการ) แล้วตามชื่อ
     dep_order = {"bank": 0, "cash": 1, "agency": 2}
@@ -290,15 +290,17 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
         for k in kids:
             k_in, k_out = _self(k)
             krows.append({"it": k, "level": 1, "tin": k_in, "tout": k_out,
-                          "budget": k.budget or 0, "remain": round((k.budget or 0) + k_in - k_out, 2)})
+                          "opening": k.opening_balance or 0, "budget": k.budget or 0, "remain": round((k.opening_balance or 0) + k_in - k_out, 2)})
         # หมวดแม่: รับ-จ่ายรวมลูก (เงินลงหมวดแม่ตรงๆ ก็นับ) แต่ "งบ" ไม่บวกซ้ำ
         # ถ้ามีลูก งบ = ผลรวมงบลูกเท่านั้น (งบที่เคยตั้งบนหมวดแม่จะถูกแทนด้วยผลรวมลูก)
         tin = p_in + sum(r["tin"] for r in krows)
         tout = p_out + sum(r["tout"] for r in krows)
         budget = sum(r["budget"] for r in krows) if krows else p_bud
         item_rows.append({"it": p, "level": 0, "tin": tin, "tout": tout, "budget": budget,
-                          "remain": round(budget + tin - tout, 2), "has_kids": bool(krows)})
+                          "opening": (p.opening_balance or 0)+sum(r["opening"] for r in krows),
+                          "remain": round((p.opening_balance or 0)+sum(r["opening"] for r in krows) + tin - tout, 2), "has_kids": bool(krows)})
         item_rows.extend(krows)
+    from app.services.finance_openings import token as opening_token
     # แผนที่ รายการเงิน -> เลขใบเสร็จที่ออกผูกกัน (ไว้แสดงในประวัติ)
     receipt_map = {rc.txn_id: (rc.receipt_no or "(ไม่มีเลข)")
                    for rc in db.query(Receipt).filter(Receipt.txn_id.isnot(None)).all()
@@ -307,6 +309,9 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
         "request": request, "account": a, "rows": rows, "balance": round(bal, 2),
         "opening": opening, "fiscal_year": fy, "years": _finance_years(db, fy),
         "items": items, "item_rows": item_rows, "receipt_map": receipt_map,
+        "opening_token": opening_token(db,a,fy),
+        "opening_sum": round(sum(i.opening_balance or 0 for i in items),2),
+        "opening_gap": round(opening-sum(i.opening_balance or 0 for i in items),2),
         "parents": parents, "fund_types": FUND_TYPES, "presets": PRESET_SETS,
         "item_budget_total": sum(r["budget"] for r in item_rows if r["level"] == 0),
         "item_remain_total": sum(r["remain"] for r in item_rows if r["level"] == 0),
@@ -744,7 +749,7 @@ def _build_cash_rows(accounts, fy, as_of):
                     kids = kids_by.get(p.id, [])
                     if kids:
                         # หมวดแม่มีลูก: ไม่นับงบตัวเอง (นับเฉพาะเงินที่ลงหมวดแม่ตรงๆ) + รวมลูก
-                        p_own = item_remaining_asof(p, as_of) - (p.budget or 0)
+                        p_own = item_remaining_asof(p, as_of)
                         p_roll = amt_of(p_col, p_own)
                         krows = []
                         for k in kids:
@@ -758,6 +763,11 @@ def _build_cash_rows(accounts, fy, as_of):
                         p_amt = amt_of(p_col, item_remaining_asof(p, as_of))
                         a_body.append({"name": p.name, "level": 1 + off, "kind": "leaf", **p_amt})
                         _add_amt(a_sub, p_amt)
+                residual=round(account_balance_asof(a,fy,as_of)-a_sub['total'],2)
+                if residual:
+                    amt=amt_of(acc_col,residual)
+                    a_body.append({"name":"ยอดที่ยังไม่แยกหมวด / รายการไม่ระบุหมวด","level":1+off,"kind":"leaf",**amt})
+                    _add_amt(a_sub,amt)
                 if not redundant:
                     body.append({"name": a.name, "level": 1, "kind": "sub", **a_sub})
                 body.extend(a_body)
@@ -1444,9 +1454,18 @@ def _register_rows(db, fy):
         for it in items:
             ids = _item_family(db, it)
             sub = [t for t in txns if t.item_id in ids]
-            if not sub and not (it.budget or 0):
+            item_opening=sum(x.opening_balance or 0 for x in items if x.id in ids)
+            if not sub and not item_opening and not (it.budget or 0):
                 continue                       # รายการย่อยที่ยังไม่มีอะไรเลย ไม่ต้องพิมพ์
-            rows.append((a, it, sub, 0.0))     # รายการย่อยไม่มียอดยกมาแยก
+            rows.append((a, it, sub, item_opening))
+        # Keep unclassified openings/transactions visible in the combined register.
+        known={it.id for it in items}
+        unclassified=[t for t in txns if t.item_id not in known]
+        unallocated=round(opening_for(a,fy)-sum(it.opening_balance or 0 for it in items),2)
+        if unallocated or unclassified:
+            from types import SimpleNamespace
+            label=SimpleNamespace(name='ยอดที่ยังไม่แยกหมวด / รายการไม่ระบุหมวด',deposit_type=a.deposit_type)
+            rows.append((a,label,unclassified,unallocated))
     return rows
 
 
@@ -1470,12 +1489,12 @@ def account_money_register_docx(aid: int, db: Session = Depends(get_db),
     sub = None
     if item:
         sub = db.get(AccountItem, item)
-        if not sub or sub.account_id != a.id:
+        if not sub or sub.account_id != a.id or sub.fiscal_year != fy:
             raise HTTPException(status_code=404, detail="ไม่พบรายการย่อยนี้ในบัญชี")
         ids = _item_family(db, sub)
         txns = [t for t in txns if t.item_id in ids]
     path = render_money_register(get_school(db), a, txns,
-                                 0.0 if sub else opening_for(a, fy), fy, item=sub)
+                                 sum(i.opening_balance or 0 for i in a.items if i.id in ids) if sub else opening_for(a, fy), fy, item=sub)
     return serve_generated(path, _DOCX)
 
 
@@ -1681,3 +1700,20 @@ async def ebudget_fill_save(request: Request, db: Session = Depends(get_db)):
     db.commit()
     return RedirectResponse(f"/finance/ebudget?year={fy}&round={rnd}&saved={saved}",
                             status_code=303)
+
+
+@router.post('/finance/accounts/{aid}/openings')
+async def save_account_openings(aid: int, request: Request, db: Session=Depends(get_db)):
+    from app.services.finance_openings import save
+    form=await request.form()
+    a=db.get(FinanceAccount,aid)
+    if not a:raise HTTPException(404,'ไม่พบบัญชี')
+    try:
+        fy=int(form.get('fiscal_year',0))
+        if not 2500<=fy<=2700:raise ValueError('ปีงบไม่ถูกต้อง')
+        save(db,a,fy,form)
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(409,str(exc))
+    return RedirectResponse(f'/finance/accounts/{aid}?year={fy}',status_code=303)

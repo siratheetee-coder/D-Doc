@@ -344,7 +344,7 @@ def render_money_register(school, account, txns, opening, fiscal_year, *,
                + (f"  (บัญชี{account.name})" if item is not None else ""))
 
     t = _head2(doc, _MR_GROUPS, _MR_W)
-    bal_col = _BAL_COL.get((account.deposit_type or "bank"), 8)
+    bal_col = _BAL_COL.get(((item.deposit_type if item is not None else account.deposit_type) or "bank"), 8)
 
     def blank_row():
         return [""] * len(_MR_W)

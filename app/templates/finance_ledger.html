@@ -43,8 +43,27 @@
 </div>
 
 <div class="card">
+  <h2>ยอดยกมาต้นปีงบ {{ fiscal_year }}</h2>
+  <p class="muted">กรอกเงินคงเหลือจากปีก่อน ไม่ใช่งบที่ตั้งไว้ และไม่ต้องลงซ้ำเป็นรายการรับ หมวดแม่กรอกเฉพาะเงินของตัวเอง ไม่รวมยอดลูก</p>
+  {% if items and opening_gap %}<p role="alert" style="color:#b45309;">ยอดยกมาบัญชีและผลรวมหมวดยังต่างกัน {{ '{:,.2f}'.format(opening_gap) }} บาท กรุณาแยกยอดให้ครบ</p>{% endif %}
+  <form method="post" action="/finance/accounts/{{ account.id }}/openings" id="opening-form">
+    <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}"><input type="hidden" name="opening_token" value="{{ opening_token }}">
+    <label>ยอดยกมารวมบัญชี (บาท)<input type="number" step="0.01" name="account_opening" value="{{ opening }}" required></label>
+    {% if items %}<div class="table-wrap"><table><thead><tr><th>หมวด</th><th>ยอดยกมาเฉพาะหมวด (บาท)</th></tr></thead><tbody>
+    {% for r in item_rows %}<tr><td style="padding-left:{{ 8+r.level*24 }}px;">{{ '└ ' if r.level }}{{ r.it.name }}{{ ' (ไม่รวมลูก)' if r.has_kids }}</td><td><input type="number" step="0.01" name="opening_{{ r.it.id }}" value="{{ r.it.opening_balance or 0 }}" required></td></tr>{% endfor %}
+    </tbody></table></div><p>รวมยอดยกมาทุกหมวด: <strong id="opening-total">{{ '{:,.2f}'.format(opening_sum) }}</strong> บาท</p><p id="opening-error" role="alert" style="color:#b91c1c;"></p>{% endif %}
+    <button class="btn" type="submit">บันทึกยอดยกมา</button>
+  </form>
+</div>
+<script>
+(()=>{const f=document.getElementById('opening-form'),inputs=[...f.querySelectorAll('input[name^="opening_"]:not([type=hidden])')],out=document.getElementById('opening-total'),err=document.getElementById('opening-error');
+function check(){if(!out)return true;const total=inputs.reduce((n,i)=>n+Number(i.value),0),gap=Math.round((Number(f.elements.account_opening.value)-total)*100);out.textContent=total.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});err.textContent=gap?'ผลรวมรายหมวดต้องเท่ากับยอดยกมารวมบัญชี (ต่างกัน '+(gap/100).toLocaleString('th-TH')+' บาท)':'';return gap===0;}
+f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e.preventDefault();err.scrollIntoView({block:'center'});}});check();})();
+</script>
+
+<div class="card">
   <h2><svg class="icon"><use href="#ic-coins"/></svg> งบรายหมวด (ปีงบ {{ fiscal_year }})</h2>
-  <p class="muted" style="margin-top:0;">แบ่งบัญชีนี้เป็นหมวด/รายการย่อย แต่ละหมวดตั้งงบไว้ แล้วเวลาบันทึกรับ-จ่ายเลือกหมวดได้ → ระบบคิดคงเหลือรายหมวดให้</p>
+  <p class="muted" style="margin-top:0;">แบ่งบัญชีนี้เป็นหมวด/รายการย่อย งบที่ตั้งไว้แสดงแยกจากเงินคงเหลือจริง ซึ่งคำนวณจากยอดยกมา + รับ − จ่าย</p>
   <form method="post" action="/finance/accounts/{{ account.id }}/item">
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
     <div class="row">
@@ -99,7 +118,7 @@
   </div>
   {% if item_rows %}
   <div class="table-wrap"><table style="margin-top:14px;">
-    <thead><tr><th>หมวด/รายการ</th><th>เก็บที่</th><th class="right">งบที่ตั้งไว้</th><th class="right">รับเพิ่ม</th><th class="right">จ่ายแล้ว</th><th class="right">คงเหลือ</th><th></th></tr></thead>
+    <thead><tr><th>หมวด/รายการ</th><th>เก็บที่</th><th class="right">งบที่ตั้งไว้</th><th class="right">ยอดยกมา</th><th class="right">รับจริง</th><th class="right">จ่ายแล้ว</th><th class="right">คงเหลือ</th><th></th></tr></thead>
     <tbody>
       {% for r in item_rows %}
       {% set _dep = {'bank':'ธนาคาร','cash':'เงินสด','agency':'ส่วนราชการผู้เบิก'} %}
@@ -126,6 +145,7 @@
           </form>
           {% endif %}
         </td>
+        <td class="right">{{ "{:,.2f}".format(r.opening) }}</td>
         <td class="right" style="color:#16a34a;">{{ "{:,.2f}".format(r.tin) if r.tin else "-" }}</td>
         <td class="right" style="color:#dc2626;">{{ "{:,.2f}".format(r.tout) if r.tout else "-" }}</td>
         <td class="right"><b>{{ "{:,.2f}".format(r.remain) }}</b></td>
@@ -140,7 +160,7 @@
       <tr style="background:#f1f5f9; font-weight:700;">
         <td>รวมทุกหมวด</td><td></td>
         <td class="right">{{ "{:,.2f}".format(item_budget_total) }}</td>
-        <td></td><td></td>
+        <td class="right">{{ "{:,.2f}".format(opening_sum) }}</td><td></td><td></td>
         <td class="right">{{ "{:,.2f}".format(item_remain_total) }}</td><td></td>
       </tr>
     </tfoot>

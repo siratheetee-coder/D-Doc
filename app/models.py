@@ -815,6 +815,7 @@ class AccountItem(Base):
     parent_id = Column(Integer, ForeignKey("account_item.id"), nullable=True)  # หมวดแม่ (ซ้อนได้ 2 ชั้น) None=หมวดหลัก
     fiscal_year = Column(Integer, nullable=False)
     name = Column(String, nullable=False)            # ชื่อหมวด/รายการ
+    opening_balance = Column(Float, default=0.0)  # เงินยกมาเฉพาะหมวดนี้ ไม่รวมลูกและไม่ใช่งบ
     budget = Column(Float, default=0.0)              # งบที่ตั้งไว้/ได้รับจัดสรร
     deposit_type = Column(String, default="bank")    # เก็บเงินไว้ที่: cash/bank/agency
     note = Column(String, default="")
