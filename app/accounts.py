@@ -2076,6 +2076,21 @@ def get_secret_key() -> str:
     return key
 
 
+def _log(*parts) -> None:
+    """พิมพ์ข้อความลง log โดยไม่ทำให้โปรแกรมล้มถ้าคอนโซลไม่รองรับภาษาไทย
+
+    ข้อความ log ต้องไม่ทำให้ระบบเปิดไม่ขึ้นเด็ดขาด (บางเครื่องคอนโซลเป็น cp1252
+    พอพิมพ์ภาษาไทยจะโยน UnicodeEncodeError ตั้งแต่ตอน bootstrap)
+    """
+    text = " ".join(str(p) for p in parts)
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        import sys
+        enc = getattr(sys.stdout, "encoding", None) or "ascii"
+        print(text.encode(enc, "replace").decode(enc, "replace"))
+
+
 def _restore_if_truly_empty() -> None:
     """กู้คืนจากคลาวด์ตอนเปิดเครื่อง เฉพาะกรณีดิสก์ว่างเปล่าจริง ๆ เท่านั้น
 
@@ -2101,17 +2116,17 @@ def _restore_if_truly_empty() -> None:
     existing = [p for p in schools.iterdir()
                 if p.is_dir() and p.name.isdigit()] if schools.exists() else []
     if existing:
-        print("=" * 70)
-        print("[Easy Ekkasan] *** ไม่พบไฟล์ accounts.db แต่มีข้อมูลโรงเรียนอยู่บนดิสก์ "
+        _log("=" * 70)
+        _log("[Easy Ekkasan] *** ไม่พบไฟล์ accounts.db แต่มีข้อมูลโรงเรียนอยู่บนดิสก์ "
               f"{len(existing)} แห่ง ***")
-        print("  ไม่กู้คืนจากคลาวด์ให้อัตโนมัติ เพราะจะทับข้อมูลที่ใหม่กว่า")
-        print("  โปรดตรวจว่าทำไมไฟล์หาย (ดิสก์ยังไม่ mount? สคริปต์ deploy ลบ?)")
-        print("  ถ้าตั้งใจจะกู้คืนจริง ให้กู้ด้วยมือ แล้วตรวจจำนวนโรงเรียนก่อนเปิดใช้งาน")
-        print("=" * 70)
+        _log("  ไม่กู้คืนจากคลาวด์ให้อัตโนมัติ เพราะจะทับข้อมูลที่ใหม่กว่า")
+        _log("  โปรดตรวจว่าทำไมไฟล์หาย (ดิสก์ยังไม่ mount? สคริปต์ deploy ลบ?)")
+        _log("  ถ้าตั้งใจจะกู้คืนจริง ให้กู้ด้วยมือ แล้วตรวจจำนวนโรงเรียนก่อนเปิดใช้งาน")
+        _log("=" * 70)
         return
 
     if os.environ.get("DDOC_RESTORE_ON_EMPTY") != "1":
-        print("[Easy Ekkasan] ดิสก์ว่าง และไม่ได้ตั้ง DDOC_RESTORE_ON_EMPTY=1 "
+        _log("[Easy Ekkasan] ดิสก์ว่าง และไม่ได้ตั้ง DDOC_RESTORE_ON_EMPTY=1 "
               "-> เริ่มต้นใหม่ ไม่ดึงไฟล์สำรองมาทับ")
         return
 
@@ -2119,7 +2134,7 @@ def _restore_if_truly_empty() -> None:
         from app.services.backup import restore_latest_from_s3
         restore_latest_from_s3()
     except Exception as e:      # noqa: BLE001
-        print("[Easy Ekkasan] กู้คืนจากคลาวด์ตอนเปิดไม่สำเร็จ:", e)
+        _log("[Easy Ekkasan] กู้คืนจากคลาวด์ตอนเปิดไม่สำเร็จ:", e)
 
 
 def bootstrap():

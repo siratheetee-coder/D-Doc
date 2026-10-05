@@ -379,7 +379,10 @@ def init_school_db(engine) -> None:
         try:
             fn(engine)
         except Exception as e:      # noqa: BLE001
-            print(f"[school-db] ข้ามขั้นตอน '{label}' ของโรงเรียนนี้: {e!r}")
+            try:
+                print(f"[school-db] ข้ามขั้นตอน '{label}' ของโรงเรียนนี้: {e!r}")
+            except UnicodeEncodeError:      # คอนโซลไม่รองรับภาษาไทย ห้ามล้มเพราะ log
+                print(f"[school-db] skipped a repair step: {e!r}")
 
 
 def _migrate_measure_times(engine) -> None:
