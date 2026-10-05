@@ -53,6 +53,7 @@
       <th>วันที่</th><th>เลขที่เอกสาร</th><th>รายการ</th>
       <th class="right">เงินสด</th>
       {% for f in funds %}<th class="right">{{ f }}</th>{% endfor %}
+      <th>จัดการ</th>
     </tr></thead>
     <tbody>
       {% if sec.opening is not none %}
@@ -60,6 +61,7 @@
         <td></td><td></td><td>ยอดยกมา</td>
         <td class="right">{{ "{:,.2f}".format(sec.opening.values()|sum) }}</td>
         {% for f in funds %}<td class="right">{{ "{:,.2f}".format(sec.opening.get(f, 0)) if sec.opening.get(f, 0) else "" }}</td>{% endfor %}
+        <td></td>
       </tr>
       {% endif %}
       {% for r in sec.rows %}
@@ -69,6 +71,7 @@
         <td>{{ r.desc }}</td>
         <td class="right">{{ "{:,.2f}".format(r.amount) }}</td>
         {% for f in funds %}<td class="right">{{ "{:,.2f}".format(r.amount) if r.fund==f else "" }}</td>{% endfor %}
+        <td><form method="post" action="/finance/txn/{{ r.id }}/delete?return_to=cashbook&amp;year={{ fiscal_year }}{{ _q }}" onsubmit="return confirm('ลบรายการนี้ออกจากสมุดเงินสดและทะเบียนคุมเงิน? ใบเสร็จและการเชื่อมเงินอุดหนุนที่ผูกกับรายการนี้จะถูกลบด้วย');"><button class="btn red sm" type="submit" aria-label="ลบรายการ {{ r.ref or r.desc }}"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button></form></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -77,6 +80,7 @@
         <td></td><td></td><td class="right">{{ sec.total_label }}</td>
         <td class="right">{{ "{:,.2f}".format(sec.tot.cash) }}</td>
         {% for f in funds %}<td class="right">{{ "{:,.2f}".format(sec.tot[f]) }}</td>{% endfor %}
+        <td></td>
       </tr>
     </tfoot>
   </table>

@@ -150,3 +150,32 @@ def test_accounts_header_links_to_the_subsidy_calculator(env):
     html = c.get("/finance/accounts").text
     head = html.split('class="hero"', 1)[1].split("</div>\n\n", 1)[0]
     assert "/finance/subsidy" in head and "คำนวณเงินอุดหนุน" in head
+
+
+def test_cashbook_delete_updates_ledger_and_linked_records(env):
+    from app.tenancy import session_for
+    from app.models import FinanceAccount, FinanceTxn, Receipt, SubsidyReceiptLink
+    from app.routers.finance import _cashbook_fund_data
+    db=session_for(1)
+    a=FinanceAccount(name='บัญชีทดสอบลบ',opening_balance=0)
+    db.add(a);db.flush()
+    t=FinanceTxn(account_id=a.id,fiscal_year=FY,kind='in',amount=500,ref='รับผิด')
+    other=FinanceTxn(account_id=a.id,fiscal_year=FY,kind='out',amount=100,ref='เก็บไว้')
+    db.add_all([t,other]);db.flush()
+    db.add(Receipt(fiscal_year=FY,txn_id=t.id,account_id=a.id,amount=500))
+    db.add(SubsidyReceiptLink(txn_id=t.id,academic_year=FY,term=1,item_key='teach',round='first',amount=500))
+    db.commit();tid,oid,aid=t.id,other.id,a.id;db.close()
+    r=env.get(f'/finance/cashbook?year={FY}&account={aid}')
+    assert r.status_code==200 and f'/finance/txn/{tid}/delete?return_to=cashbook' in r.text
+    assert f'/finance/txn/{oid}/delete?return_to=cashbook' in r.text
+    url=f'/finance/txn/{tid}/delete?return_to=cashbook&year={FY}&account={aid}'
+    r=env.post(url,follow_redirects=False)
+    assert r.status_code==303 and r.headers['location']==f'/finance/cashbook?year={FY}&account={aid}'
+    db=session_for(1)
+    assert db.get(FinanceTxn,tid) is None and db.get(FinanceTxn,oid) is not None
+    assert db.query(Receipt).filter_by(txn_id=tid).count()==0
+    assert db.query(SubsidyReceiptLink).filter_by(txn_id=tid).count()==0
+    _,_,receipts,payments=_cashbook_fund_data(db,FY,aid)
+    assert receipts==[] and sum(r['amount'] for r in payments)==100
+    db.close()
+    assert env.post(url,follow_redirects=False).status_code==303

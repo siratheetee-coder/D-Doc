@@ -443,7 +443,8 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
 
 
 @router.post("/finance/txn/{tid}/delete")
-def account_txn_delete(tid: int, db: Session = Depends(get_db)):
+def account_txn_delete(tid: int, db: Session = Depends(get_db),
+                       return_to: str = "", year: int | None = None, account: int | None = None):
     t = db.get(FinanceTxn, tid)
     aid = t.account_id if t else None
     fy = t.fiscal_year if t else None
@@ -453,6 +454,10 @@ def account_txn_delete(tid: int, db: Session = Depends(get_db)):
             db.delete(rc)
         db.delete(t); db.commit()
     url = f"/finance/accounts/{aid}?year={fy}" if aid else "/finance/accounts"
+    if return_to == "cashbook":
+        url = f"/finance/cashbook?year={year or fy or current_fiscal_year()}"
+        if account:
+            url += f"&account={account}"
     return RedirectResponse(url, status_code=303)
 
 
@@ -880,7 +885,7 @@ def _cashbook_fund_data(db, fy, account_id=None):
         desc = " ".join(x for x in [(t.category or "").strip(), (t.note or "").strip()] if x) or "-"
         if multi and name_of.get(t.account_id):
             desc = f"[{name_of[t.account_id]}] {desc}"
-        row = {"date": thai_date(t.date) if t.date else "", "ref": (t.ref or "").strip(),
+        row = {"id": t.id, "date": thai_date(t.date) if t.date else "", "ref": (t.ref or "").strip(),
                "desc": desc, "amount": t.amount or 0.0, "fund": fund_of.get(t.account_id, _FUND_DEFAULT)}
         (receipts if t.kind == "in" else payments).append(row)
     return scope, open_by_fund, receipts, payments
