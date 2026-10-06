@@ -6,7 +6,7 @@
 {% macro checked(name, default=false, val='1') -%}{{ 'checked' if (val in posted.getlist(name) if posted is not none else default) else '' }}{%- endmacro %}
 {% macro money(n) -%}{{ '{:,.2f}'.format(n) if n is not none else 'ยังไม่ครบ' }}{%- endmacro %}
 {% macro period() %}<input type="hidden" name="academic_year" value="{{ s.academic_year }}"><input type="hidden" name="term" value="{{ s.term }}">{% endmacro %}
-<link rel="stylesheet" href="/static/subsidy.css?v=1">
+<link rel="stylesheet" href="/static/subsidy.css?v=2">
 <div class="subsidy-page">
 <div class="hero" style="background:linear-gradient(120deg,#087f5b,#12b886)">
   <div><div class="hero-sub">งานการเงิน · เงินอุดหนุนเรียนฟรี 15 ปี</div><h1>คำนวณเงินอุดหนุน</h1>
@@ -34,7 +34,10 @@
   {% for r in s.result.rows %}<tr><td>{{ r.name }}{% if r.extra %}<small>ตามหนังสือจัดสรร</small>{% endif %}</td><td>{{ money(r.first_estimate) if not r.extra else '—' }}</td><td>{{ money(r.first) if r.first is not none else 'ยังไม่แจ้ง' }}</td><td>{{ money(r.full) }}</td><td class="{{ 'sub-negative' if r.remaining is not none and r.remaining<0 }}">{{ money(r.remaining) if not r.extra else '—' }}</td><td>{{ money(r.allocated) if r.allocated is not none else 'ยังไม่แจ้ง' }}</td><td>{{ money(received.get(r.key,0)) }}</td></tr>{% endfor %}
   </tbody></table></div>
   <p class="sub-muted">ยอดติดลบหมายถึงจัดสรรงวดแรกสูงกว่าประมาณการเต็มเทอม ให้ตรวจหนังสือปรับยอด ระบบไม่สร้างรายการคืนเงินเอง เงินจัดสรรกับเงินโอนเข้าจริงเป็นคนละยอด</p>
-  {% if s.result.missing %}<details class="sub-notice warn" open><summary>ยังยืนยันไม่ได้ · ต้องตรวจ {{ s.result.missing|length }} จุด</summary><ul>{% for m in s.result.missing %}<li>{{ m }}</li>{% endfor %}</ul></details>{% endif %}
+  {% if s.result.missing %}<details class="sub-notice warn" open><summary>ยังยืนยันไม่ได้ · เหลือ {{ s.result.missing|length }} เรื่องที่ต้องกรอก</summary>
+    <ul>{% for m in s.result.missing %}<li>{{ m }}</li>{% endfor %}</ul>
+    {% if s.result.missing_fields %}<button type="button" class="btn sm" id="goto-missing">พาไปช่องที่ต้องกรอก ({{ s.result.missing_fields|length }} ช่อง)</button>{% endif %}
+  </details>{% endif %}
   <details><summary>ดูฐานนักเรียนที่นำมาคำนวณ</summary><div class="sub-scroll"><table><thead><tr><th>ชั้นที่จะได้รับ</th><th>ชั้นต้นทางงวดแรก</th><th>{{ s.census[0].label }}</th><th>{{ s.census[1].label }}</th></tr></thead><tbody>{% for b in s.result.basis %}<tr><td>{{ b.level }}</td><td>{{ b.source_level }}</td><td>{{ b.advance if b.advance is not none else 'ยังไม่กรอก' }}</td><td>{{ b.final if b.final is not none else 'ยังไม่กรอก' }}</td></tr>{% endfor %}</tbody></table></div></details>
 </section>
 
@@ -43,7 +46,9 @@
 <section class="card"><h2>1. ชั้นเรียนและอัตราปีงบ {{ s.fiscal_year }} / เทอม {{ s.term }}</h2>
   <div class="sub-levels">{% for lv in levels %}<label><input type="checkbox" name="levels" value="{{ lv }}" {{ checked('levels',lv in cfg.levels,lv) }}> {{ lv }}</label>{% endfor %}</div>
   {% if previous_rates %}<button type="button" class="btn gray sm" id="copy-rates">คัดลอกอัตราเทอมเดียวกันจากปีงบ {{ s.fiscal_year-1 }} มาเพื่อตรวจสอบ</button>{% endif %}
-  <div class="sub-scroll"><table class="sub-rates"><thead><tr><th>ชั้น</th>{% for k in keys %}<th>{{ names[k] }}<small>บาท/คน/เทอม</small></th>{% endfor %}</tr></thead><tbody>
+  <div class="sub-scroll"><table class="sub-rates"><thead><tr><th>ชั้น</th>{% for k in keys %}<th>{{ names[k] }}<small>บาท/คน/เทอม</small>
+      <button type="button" class="sub-fillcol" data-fill-col="{{ k }}"
+              title="ใส่ตัวเลขเดียว เติมให้ทุกชั้นในคอลัมน์นี้">เติมทั้งคอลัมน์</button></th>{% endfor %}</tr></thead><tbody>
     {% for lv in levels %}<tr data-rate-level="{{ lv }}"><th>{{ lv }}</th>{% for k in keys %}<td><input aria-label="{{ names[k] }} {{ lv }}" type="number" min="0" max="1000000000" step="0.01" name="r_{{ lv }}_{{ k }}" value="{{ value('r_'~lv~'_'~k,cfg.rates.get(lv,{}).get(k)) }}"></td>{% endfor %}</tr>{% endfor %}
   </tbody></table></div>
 </section>
@@ -52,7 +57,7 @@
   <div class="sub-two">{% for scan in s.census %}<div class="sub-panel" data-census="{{ scan.key }}">
     <h3>{{ 'ฐานงวดแรก' if loop.first else 'ฐานปรับยอดเต็มเทอม' }} · {{ scan.label }}</h3>
     <button type="button" class="btn gray sm" data-fill="{{ scan.key }}">เติมช่องว่างจากทะเบียนปัจจุบันเป็นร่าง</button>
-    <div class="sub-counts">{% for lv in levels %}<label>{{ lv }}<input aria-label="DMC {{ scan.label }} {{ lv }}" name="n_{{ scan.key }}_{{ lv }}" value="{{ value('n_'~scan.key~'_'~lv,scan.counts.get(lv)) }}" type="number" min="0" max="1000000" step="1"></label>{% endfor %}</div>
+    <div class="sub-counts">{% for lv in levels %}<label data-count-level="{{ lv }}">{{ lv }}<input aria-label="DMC {{ scan.label }} {{ lv }}" name="n_{{ scan.key }}_{{ lv }}" value="{{ value('n_'~scan.key~'_'~lv,scan.counts.get(lv)) }}" type="number" min="0" max="1000000" step="1"></label>{% endfor %}</div>
   </div>{% endfor %}</div>
   <p class="sub-muted">ทะเบียนนักเรียนปัจจุบันอาจต่างจากยอดย้อนหลัง ตรวจตัวเลขแล้วกดบันทึกและคำนวณได้เลย หากยังไม่ถึงวันสำรวจจะเก็บเป็นประมาณการก่อน รอบ DMC เดียวกันใช้ร่วมกับเทอมที่เกี่ยวข้อง การแก้ไขจะไม่เปลี่ยนฉบับที่เคยยืนยันไว้</p>
 </section>
@@ -107,6 +112,6 @@
 </section>
 <p class="sub-muted">สูตรฐาน DMC ใช้แนวทางโรงเรียนปกติ สพฐ. ปีงบ 2569 อัตราและเงินเพิ่มเติมต้องตรวจหนังสือของปีงบที่เลือก โรงเรียนที่ใช้หลักเกณฑ์เฉพาะควรตรวจฐานจัดสรรก่อนยืนยัน</p>
 </div>
-<script id="subsidy-data" type="application/json">{{ {'now':s.now_counts,'previous':previous_rates,'error':(error != '')}|tojson }}</script>
-<script src="/static/subsidy.js?v=5" defer></script>
+<script id="subsidy-data" type="application/json">{{ {'now':s.now_counts,'previous':previous_rates,'error':(error != ''),'need':s.result.missing_fields}|tojson }}</script>
+<script src="/static/subsidy.js?v=6" defer></script>
 {% endblock %}

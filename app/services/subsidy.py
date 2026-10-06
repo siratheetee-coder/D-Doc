@@ -111,22 +111,53 @@ def state(db, ay, term):
     return data
 
 
+def _group_missing(flat):
+    """ยุบข้อความเตือนที่ซ้ำรูปแบบเดียวกันให้เหลือบรรทัดเดียว
+
+    ของเดิมเตือนทีละชั้นทีละรายการ โรงเรียนประถมเปิดหน้าครั้งแรกจะเจอ 47 บรรทัด
+    ซึ่งอ่านไม่ออกว่าต้องทำอะไรก่อน · จัดกลุ่มแล้วเหลือ 3-4 บรรทัด
+    flat = [(ชนิด, หัวข้อ, รายละเอียด, ชื่อช่องที่ต้องกรอก), ...]
+    """
+    order, buckets, fields = [], {}, []
+    for kind, head, detail, field in flat:
+        key = (kind, head)
+        if key not in buckets:
+            buckets[key] = []
+            order.append(key)
+        if detail:
+            buckets[key].append(detail)
+        if field:
+            fields.append(field)
+    out = []
+    for kind, head in order:
+        items = buckets[(kind, head)]
+        if not items:
+            out.append(head)
+        elif len(items) > 6:
+            out.append(f"{head} ({len(items)} ชั้น)")
+        else:
+            out.append(f"{head} ({', '.join(items)})")
+    return out, list(dict.fromkeys(fields))
+
+
 def calculate(cfg, scans, term):
     rows, missing, basis = [], [], []
     budget_basis = cfg.get('budget_basis', 'estimate')
     allocation_missing, extra_missing = [], []
     for scan in scans:
         if not (scan.get('id') or scan.get('saved') or scan.get('confirmed')):
-            missing.append(f"ยังไม่บันทึก DMC {scan['label']}")
+            missing.append(('census', f"ยังไม่ได้บันทึกยอด DMC {scan['label']}", '', ''))
         if scan.get('year') and datetime(scan['year'] - 543, 6 if scan['round'] == 'jun' else 11, 10).date() > datetime.now(timezone(timedelta(hours=7))).date():
-            missing.append(f"DMC {scan['label']} ยังไม่ถึงวันสำรวจ ใช้เป็นประมาณการก่อน")
+            missing.append(('future', f"DMC {scan['label']} ยังไม่ถึงวันสำรวจ ใช้เป็นประมาณการก่อน", '', ''))
     for lv in cfg['levels']:
         src = advance_source(lv, term)
         basis.append({'level': lv, 'source_level': src, 'advance': scans[0]['counts'].get(src), 'final': scans[1]['counts'].get(lv)})
         if basis[-1]['advance'] is None:
-            missing.append(f'ขาดฐานงวดแรก {lv} (ใช้ยอด {src})')
+            missing.append(('adv', f"ยังไม่ได้กรอกยอด DMC {scans[0]['label']}", src,
+                            f"n_{scans[0]['key']}_{src}"))
         if basis[-1]['final'] is None:
-            missing.append(f'ขาดยอดนักเรียนปัจจุบัน {lv}')
+            missing.append(('fin', f"ยังไม่ได้กรอกยอด DMC {scans[1]['label']}", lv,
+                            f"n_{scans[1]['key']}_{lv}"))
     for key in keys_for(term):
         initial_est = Decimal(0)
         full = Decimal(0)
@@ -134,7 +165,8 @@ def calculate(cfg, scans, term):
         for b in basis:
             rate = cfg.get('rates', {}).get(b['level'], {}).get(key)
             if rate is None:
-                missing.append(f"ขาดอัตรา {b['level']} / {NAMES[key]}")
+                missing.append(('rate', f'ยังไม่ได้กรอกอัตรา {NAMES[key]}', b['level'],
+                                f"r_{b['level']}_{key}"))
                 valid_initial = valid_full = False
                 continue
             if b['advance'] is None:
@@ -151,8 +183,15 @@ def calculate(cfg, scans, term):
         second = cfg.get('second', {}).get(key)
         balance = money(Decimal(str(full)) - Decimal(str(used))) if full is not None and used is not None else None
         allocated = money((initial or 0) + (second or 0)) if initial is not None or second is not None else None
-        if initial is None or second is None:
-            allocation_missing.append(f'กรอกยอดจัดสรรให้ครบสองงวด: {NAMES[key]} (กรอก 0 หากไม่มี)')
+        # แยกเป็นคนละข้อความเพื่อไฮไลต์ช่องที่ขาดได้ตรงตัว แต่ยังบอกว่าต้องครบสองงวด
+        if initial is None:
+            allocation_missing.append(('alloc', 'ยังไม่ได้กรอกยอดจัดสรรงวดแรก '
+                                       '(ต้องกรอกให้ครบสองงวด กรอก 0 หากไม่มี)',
+                                       NAMES[key], f'first_{key}'))
+        if second is None:
+            allocation_missing.append(('alloc2', 'ยังไม่ได้กรอกยอดจัดสรรงวดปรับยอด '
+                                       '(ต้องกรอกให้ครบสองงวด กรอก 0 หากไม่มี)',
+                                       NAMES[key], f'second_{key}'))
         budget_amount = full if budget_basis == 'estimate' else (allocated if initial is not None and second is not None else None)
         rows.append({'key': key, 'name': NAMES[key], 'first_estimate': money(initial_est) if valid_initial else None,
             'first': initial, 'second': second, 'basis': used, 'full': full, 'remaining': balance,
@@ -161,15 +200,17 @@ def calculate(cfg, scans, term):
         extra = cfg.get('extras', {}).get(key)
         if extra is not None:
             if not extra.get('ref'):
-                extra_missing.append(f'ขาดหนังสือจัดสรร {label}')
+                extra_missing.append(('ref', 'ยังไม่ได้ระบุเลขที่หนังสือจัดสรรของเงินเพิ่มเติม',
+                                      label, f'extra_ref_{key}'))
             rows.append({'key': key, 'name': label, 'full': extra['amount'], 'allocated': extra['amount'],
                 'first_estimate': None, 'first': None, 'second': None, 'remaining': None, 'basis': None,
                 'budget_amount': extra['amount'], 'extra': True})
     complete = all(r['full'] is not None for r in rows)
     selected_missing = (missing if budget_basis == 'estimate' else allocation_missing) + extra_missing
     budget_complete = all(r['budget_amount'] is not None for r in rows)
-    return {'rows': rows, 'basis': basis, 'missing': list(dict.fromkeys(selected_missing)),
-        'estimate_missing': list(dict.fromkeys(missing)), 'budget_basis': budget_basis,
+    grouped, fields = _group_missing(selected_missing)
+    return {'rows': rows, 'basis': basis, 'missing': grouped, 'missing_fields': fields,
+        'estimate_missing': _group_missing(missing)[0], 'budget_basis': budget_basis,
         'budget_label': BUDGET_BASES[budget_basis],
         'budget_total': money(sum(r['budget_amount'] for r in rows)) if budget_complete else None,
         'ready': budget_complete and not selected_missing, 'total': money(sum(r['full'] for r in rows)) if complete else None,
