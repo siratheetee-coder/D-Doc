@@ -201,3 +201,41 @@ def test_page_warns_before_editing_a_shared_round():
     assert "ใช้ร่วมกับ" in html
     css = (ROOT / "app" / "static" / "subsidy.css").read_text(encoding="utf-8")
     assert ".sub-shared" in css and ".sub-step.doing" in css
+
+
+# ------------------------------- ถามย้ำเรื่องระดับชั้น ก่อนบันทึกยอดนักเรียน
+def test_save_asks_to_check_levels_only_when_counts_were_touched():
+    js = (ROOT / "app" / "static" / "subsidy.js").read_text(encoding="utf-8")
+    assert "censusTouched" in js, "ต้องรู้ว่าแตะยอด DMC หรือยัง"
+    assert "โปรดตรวจสอบระดับชั้นของนักเรียน ณ วันที่" in js
+    # ยกเลิกแล้วต้องไม่บันทึก และยังถือว่ามีข้อมูลค้างอยู่
+    submit = js[js.index("form.addEventListener('submit'"):]
+    submit = submit[:submit.index("});") + 3]
+    assert "preventDefault" in submit and "return;" in submit, submit
+    assert submit.index("preventDefault") < submit.index("dirty=false"), "ยกเลิกแล้วห้ามล้างสถานะค้าง"
+    # ปุ่มเติมช่องว่างก็เปลี่ยนยอด DMC จึงต้องถามย้ำด้วย
+    fill = js[js.index("[data-fill]"):]
+    assert "censusTouched=true" in fill[:fill.index("copy-rates")]
+
+
+def test_confirm_text_carries_the_survey_dates_and_the_shift_example():
+    html = (ROOT / "app" / "templates" / "finance_subsidy.html").read_text(encoding="utf-8")
+    assert "'surveys':s.census|map(attribute='label')|list" in html
+    assert "'shifts':advance_pairs" in html
+    router = (ROOT / "app" / "routers" / "subsidy.py").read_text(encoding="utf-8")
+    assert "advance_pairs" in router
+
+
+def test_shift_example_matches_the_rule_actually_used():
+    """ตัวอย่างในกล่องยืนยันต้องมาจากสูตรจริง ไม่ใช่ข้อความตายตัวที่อาจไม่ตรง"""
+    from app.services.subsidy import advance_source
+    pairs = [(advance_source(lv, 1), lv) for lv in LV9]
+    shifted = [(a, b) for a, b in pairs if a != b]
+    assert shifted, "เทอม 1 ต้องมีชั้นที่เลื่อนฐานมา"
+    for src, dest in shifted:
+        assert src != dest and src[0] == dest[0]
+    # ชั้นแรกของแต่ละช่วงใช้ฐานชั้นตัวเอง ไม่เลื่อน
+    for lv in ("อ.1", "อ.2", "ป.1"):
+        assert advance_source(lv, 1) == lv
+    # เทอม 2 ไม่เลื่อนชั้นเลย
+    assert all(advance_source(lv, 2) == lv for lv in LV9)

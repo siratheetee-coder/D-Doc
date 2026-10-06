@@ -53,6 +53,8 @@ def _page(request, db, ay, term, error='', posted=None, receipt_year=None):
     return templates.TemplateResponse('finance_subsidy.html', {
         'request': request, 's': data,
         'steps': sub.workflow_steps(data, mapping, mapped_account, links),
+        'advance_pairs': [[b['source_level'], b['level']] for b in data['result']['basis']
+                          if b['source_level'] != b['level']],
         'shared_rounds': shared, 'levels': sub.LEVELS, 'keys': sub.keys_for(term),
         'names': sub.NAMES, 'extras': sub.EXTRAS, 'error': error, 'posted': posted,
         'mapping': mapping, 'mapped_account': mapped_account, 'extra_entries': extra_entries, 'budget_bases': sub.BUDGET_BASES,

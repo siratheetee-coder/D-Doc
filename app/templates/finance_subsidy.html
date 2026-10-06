@@ -131,6 +131,6 @@
 </section>
 <p class="sub-muted">สูตรฐาน DMC ใช้แนวทางโรงเรียนปกติ สพฐ. ปีงบ 2569 อัตราและเงินเพิ่มเติมต้องตรวจหนังสือของปีงบที่เลือก โรงเรียนที่ใช้หลักเกณฑ์เฉพาะควรตรวจฐานจัดสรรก่อนยืนยัน</p>
 </div>
-<script id="subsidy-data" type="application/json">{{ {'now':s.now_counts,'previous':previous_rates,'error':(error != ''),'need':s.result.missing_fields}|tojson }}</script>
-<script src="/static/subsidy.js?v=6" defer></script>
+<script id="subsidy-data" type="application/json">{{ {'now':s.now_counts,'previous':previous_rates,'error':(error != ''),'need':s.result.missing_fields,'surveys':s.census|map(attribute='label')|list,'shifts':advance_pairs}|tojson }}</script>
+<script src="/static/subsidy.js?v=7" defer></script>
 {% endblock %}

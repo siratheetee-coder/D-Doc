@@ -55,13 +55,32 @@
       if (input) { input.value = n; input.removeAttribute('aria-invalid'); } });
     changed();
   }));
+  // ---- ยืนยันก่อนบันทึก เมื่อมีการแก้ยอดนักเรียน ----
+  // ระบบเลื่อนชั้นให้เองตอนคำนวณงวดแรก ถ้าครูกรอกเป็นชั้นของปีที่จะได้รับแทน
+  // ยอดจะเพี้ยนทั้งแผ่นโดยไม่มีอะไรฟ้อง จึงถามย้ำเฉพาะตอนที่แตะยอด DMC
+  let censusTouched = false;
+  const NL = String.fromCharCode(10);
+  function censusConfirmText() {
+    const dates = (data.surveys || []).join(' และ ');
+    const pair = (data.shifts || [])[0];
+    const example = pair ? NL + NL + 'ระบบจะเลื่อนชั้นให้เองตอนคำนวณงวดแรก เช่น ' + pair[0]
+      + ' ณ วันสำรวจ ถูกใช้เป็นฐานของ ' + pair[1] + ' ในปีที่คำนวณ จึงไม่ต้องเลื่อนชั้นมาก่อนกรอก' : '';
+    return 'โปรดตรวจสอบระดับชั้นของนักเรียน ณ วันที่ ' + dates + NL + NL
+      + 'ตัวเลขที่กรอกต้องเป็นจำนวนนักเรียนของชั้นนั้นจริง ๆ ณ วันสำรวจ'
+      + example + NL + NL + 'ตรวจแล้ว บันทึกเลยหรือไม่';
+  }
+
   function changed(e) {
     dirty = true;
+    if (e && e.target && e.target.closest && e.target.closest('[data-census]')) censusTouched = true;
     refresh();
   }
   form.addEventListener('input',changed);
   form.addEventListener('change',changed);
-  form.addEventListener('submit',()=>{dirty=false;});
+  form.addEventListener('submit',ev=>{
+    if(censusTouched && !confirm(censusConfirmText())){ev.preventDefault();return;}
+    dirty=false;
+  });
   window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
   actions.forEach(el=>el.addEventListener(el.tagName==='FORM'?'submit':'click',e=>{
     if(dirty){e.preventDefault();banner.scrollIntoView({block:'center'});}
@@ -70,6 +89,7 @@
     if(!confirm('เติมเฉพาะช่องว่างของรอบนี้จากนักเรียนปัจจุบันเป็นร่าง? ต้องตรวจเทียบ DMC ณ วันสำรวจอีกครั้ง')) return;
     const key=button.dataset.fill;
     Object.entries(data.now).forEach(([lv,n])=>{const input=form.elements['n_'+key+'_'+lv];if(input.value==='')input.value=n;});
+    censusTouched=true;
     changed();
   }));
   document.getElementById('copy-rates')?.addEventListener('click',()=>{
