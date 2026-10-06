@@ -324,8 +324,13 @@ def save(db, ay, term, form):
                 'ref': ' / '.join(e['ref'] for e in entries), 'entries': entries}
     for scan in before['census']:
         prefix = scan['key']
-        data = {'counts': {lv: number(form.get(f'n_{prefix}_{lv}'), f'DMC {lv}', True) for lv in LEVELS},
-            'saved': True, 'source': '', 'confirmed': False}
+        # ช่องที่ไม่ได้ส่งมากับฟอร์มเลย (หน้าเก่าค้างในเบราว์เซอร์ ฟอร์มไม่ครบ) ให้คงของเดิมไว้
+        # ไม่ใช่ลบทิ้ง เพราะยอด DMC หนึ่งรอบใช้ร่วมกันสองภาคเรียน เผลอลบคือพังทั้งสองเทอม
+        # ส่วนช่องที่ส่งมาแต่เว้นว่าง ยังหมายถึง "ลบค่าเดิม" เหมือนเดิม
+        counts = {lv: (number(form.get(f'n_{prefix}_{lv}'), f'DMC {lv}', True)
+                       if f'n_{prefix}_{lv}' in form else scan['counts'].get(lv))
+                  for lv in LEVELS}
+        data = {'counts': counts, 'saved': True, 'source': '', 'confirmed': False}
         if data != {k: scan.get(k) for k in data}:
             db.add(SubsidyCensusRevision(academic_year=scan['year'], round=scan['round'], payload=dumps(data)))
     row = db.query(SubsidyTermSetting).filter_by(fiscal_year=before['fiscal_year'], term=term).first()
