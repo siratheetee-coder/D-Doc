@@ -111,6 +111,74 @@ def state(db, ay, term):
     return data
 
 
+
+def shared_term(scan, ay, term):
+    """อีกภาคเรียนที่ใช้ยอด DMC รอบเดียวกันนี้ร่วมกัน -> (ปีการศึกษา, ภาคเรียน) หรือ None
+
+    ยอด DMC หนึ่งรอบถูกใช้สองภาคเรียน เช่น รอบ 10 มิถุนายน 2569
+    เป็นฐานปรับยอดของเทอม 1/2569 และเป็นฐานงวดแรกของเทอม 2/2569
+    แก้ที่หน้าไหนก็กระทบอีกเทอมด้วย จึงต้องบอกให้เห็นก่อนแก้
+    """
+    here = (scan['year'], scan['round'])
+    for cand_ay in (scan['year'], scan['year'] + 1):
+        for cand_term in (1, 2):
+            if (cand_ay, cand_term) != (ay, term) and here in rounds(cand_ay, cand_term):
+                return cand_ay, cand_term
+    return None
+
+
+def workflow_steps(data, mapping, mapped_account, links):
+    """ขั้นตอนงานเงินอุดหนุนพร้อมสถานะ เพื่อให้เห็นว่าค้างอยู่ตรงไหน
+
+    หน้านี้ยาวหกส่วนและต้องทำตามลำดับ (ไม่มีอัตรา ก็คำนวณไม่ได้ ยังไม่ยืนยัน
+    ก็ตั้งงบไม่ได้) ของเดิมต้องเลื่อนอ่านทั้งหน้าเองว่าเหลืออะไร
+    """
+    cfg, res = data['config'], data['result']
+    keys = keys_for(data['term'])
+    levels = cfg.get('levels') or []
+    rates = cfg.get('rates', {})
+    rate_total = len(levels) * len(keys)
+    rate_done = sum(1 for lv in levels for k in keys if rates.get(lv, {}).get(k) is not None)
+    cells = [b[w] for b in res['basis'] for w in ('advance', 'final')]
+    dmc_done = sum(1 for v in cells if v is not None)
+    mapped = [k for k in keys if mapping.get(k)]
+    valid_links = [d for d in links if d['valid']]
+    done_rates = bool(rate_total) and rate_done == rate_total
+    done_dmc = bool(cells) and dmc_done == len(cells)
+    done_budget = res['budget_total'] is not None
+    done_confirm = bool(data['latest'] and not data['changed'])
+    done_map = bool(mapped_account) and len(mapped) == len(keys)
+    steps = [
+        ('ชั้นเรียนและอัตรา', done_rates, f'กรอกอัตราแล้ว {rate_done} / {rate_total} ช่อง'
+         if rate_total else 'ยังไม่ได้เลือกชั้นเรียน', '#sec-rates'),
+        ('ยอด DMC สองรอบ', done_dmc, f'กรอกแล้ว {dmc_done} / {len(cells)} ช่อง'
+         if cells else 'รอเลือกชั้นเรียนก่อน', '#sec-dmc'),
+        ('ยอดที่ใช้ตั้งงบ', done_budget,
+         f"{res['budget_label']} {'{:,.2f}'.format(res['budget_total'])} บาท"
+         if done_budget else 'ยังรวมยอดไม่ได้ ข้อมูลไม่ครบ', '#sec-basis'),
+        ('ยืนยันฉบับคำนวณ', done_confirm,
+         f"ฉบับ #{data['latest'].id}" if done_confirm else
+         ('แก้ข้อมูลหลังฉบับล่าสุด ต้องยืนยันใหม่' if data['latest'] else 'ยังไม่มีฉบับยืนยัน'),
+         '#sec-confirm'),
+        ('จับคู่หมวดทะเบียนคุมเงิน', done_map,
+         f'จับคู่แล้ว {len(mapped)} / {len(keys)} ประเภท' if mapped_account
+         else 'ยังไม่ได้เลือกบัญชี', '#sec-mapping'),
+        ('เชื่อมเงินรับจริง', bool(valid_links),
+         f'เชื่อมแล้ว {len(valid_links)} รายการ' if valid_links
+         else 'ยังไม่มีเงินโอนเข้าที่เชื่อมไว้', '#sec-receipts'),
+    ]
+    out, doing_used = [], False
+    for name, ok, sub, href in steps:
+        if ok:
+            st = 'done'
+        elif not doing_used:
+            st, doing_used = 'doing', True
+        else:
+            st = 'todo'
+        out.append({'name': name, 'state': st, 'sub': sub, 'href': href})
+    return out
+
+
 def _group_missing(flat):
     """ยุบข้อความเตือนที่ซ้ำรูปแบบเดียวกันให้เหลือบรรทัดเดียว
 

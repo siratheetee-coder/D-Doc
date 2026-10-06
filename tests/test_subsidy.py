@@ -398,6 +398,11 @@ def test_routes_save_validation_snapshot_and_budget(env):
     assert r.status_code==200, r.text[:500]
     assert 'บาท/คน/ภาคเรียน' in r.text
     assert 'name="rate_source"' not in r.text and 'name="rates_confirmed"' not in r.text
+    # แถบขั้นตอนต้องขึ้นในหน้าจริง และบอกว่ารอบ DMC ใช้ร่วมกับอีกภาคเรียน
+    assert 'ลำดับงานเงินอุดหนุน' in r.text and 'class="sub-steps"' in r.text
+    assert r.text.count('class="sub-step ') == 6, 'ต้องมี 6 ขั้นตอน'
+    assert 'id="sec-rates"' in r.text and 'id="sec-receipts"' in r.text
+    assert 'ภาคเรียนที่ 2 ปีการศึกษา 2568' in r.text, 'ต้องบอกว่ารอบ 10 มิ.ย. ใช้ร่วมกัน'
     db=session_for(1)
     data=dict(form_for(db))
     a=account(db);db.commit();aid=a.id;ensure_mapping(db,2568,aid);db.close()

@@ -104,3 +104,100 @@ def test_script_hides_counts_highlights_and_fills(tmp_path):
 def test_css_marks_needed_fields():
     css = (ROOT / "app" / "static" / "subsidy.css").read_text(encoding="utf-8")
     assert 'aria-invalid="true"' in css
+
+
+# ---------------------------------------------- แถบขั้นตอน (เหมือนหน้าทัศนศึกษา)
+from app.services.subsidy import rounds, shared_term, workflow_steps
+
+
+def _data(term=1, rates=None, levels=None, latest=None, changed=False, basis=None,
+          empty_dmc=False):
+    lv = levels if levels is not None else LV9
+    scans = _full_scans() if term == 1 else [_scan(2569, "jun", {}), _scan(2569, "nov", {})]
+    if empty_dmc:
+        scans = [_scan(s["year"], s["round"], {}) for s in scans]
+    cfg = _cfg(rates if rates is not None else {}, levels=lv)
+    res = calculate(cfg, scans, term)
+    if basis is not None:
+        res["basis"] = basis
+    return {"config": cfg, "result": res, "term": term, "census": scans,
+            "latest": latest, "changed": changed}
+
+
+class _Snap:
+    id = 7
+
+
+def test_steps_start_at_rates_and_stop_at_the_first_unfinished_one():
+    steps = workflow_steps(_data(empty_dmc=True), {}, None, [])
+    assert [s["state"] for s in steps] == ["doing", "todo", "todo", "todo", "todo", "todo"]
+    assert "0 / 45 ช่อง" in steps[0]["sub"], steps[0]
+    assert "0 / 18 ช่อง" in steps[1]["sub"], steps[1]
+    # ทุกขั้นต้องชี้ไปที่ส่วนที่มีอยู่จริงในหน้า ไม่งั้นกดแล้วไม่ขยับ
+    html = (ROOT / "app" / "templates" / "finance_subsidy.html").read_text(encoding="utf-8")
+    for s in steps:
+        assert f'id="{s["href"][1:]}"' in html, s["href"]
+
+
+def test_finished_rates_move_the_current_step_forward():
+    rates = {lv: {k: 100 for k, _n, _b in ITEMS} for lv in LV9}
+    steps = workflow_steps(_data(rates=rates), {}, None, [])
+    assert steps[0]["state"] == "done" and "45 / 45" in steps[0]["sub"]
+    # DMC ครบด้วย (ฐานมาจาก _full_scans) จึงต้องข้ามไปขั้นที่ 3
+    assert steps[1]["state"] == "done"
+    assert steps[2]["state"] == "done", steps[2]       # รวมยอดได้แล้ว
+    assert steps[3]["state"] == "doing", steps[3]      # ค้างที่การยืนยัน
+
+
+def test_confirmed_then_changed_goes_back_to_not_done():
+    rates = {lv: {k: 100 for k, _n, _b in ITEMS} for lv in LV9}
+    ok = workflow_steps(_data(rates=rates, latest=_Snap()), {}, None, [])
+    assert ok[3]["state"] == "done" and "#7" in ok[3]["sub"]
+    stale = workflow_steps(_data(rates=rates, latest=_Snap(), changed=True), {}, None, [])
+    assert stale[3]["state"] == "doing"
+    assert "ยืนยันใหม่" in stale[3]["sub"], stale[3]
+
+
+def test_progress_counts_only_finished_steps():
+    rates = {lv: {k: 100 for k, _n, _b in ITEMS} for lv in LV9}
+    steps = workflow_steps(_data(rates=rates), {}, None, [])
+    assert sum(1 for s in steps if s["state"] == "done") == 3
+
+
+def test_invalid_receipt_link_does_not_count_as_finished():
+    rates = {lv: {k: 100 for k, _n, _b in ITEMS} for lv in LV9}
+    bad = workflow_steps(_data(rates=rates), {}, None, [{"valid": False}])
+    good = workflow_steps(_data(rates=rates), {}, None, [{"valid": True}])
+    assert bad[5]["state"] != "done" and good[5]["state"] == "done"
+
+
+# ---------------------------------------------- รอบ DMC ที่ใช้ร่วมกันสองภาคเรียน
+def test_june_round_is_shared_between_both_terms_of_the_same_year():
+    jun = _scan(2569, "jun", {})
+    assert shared_term(jun, 2569, 1) == (2569, 2)
+    assert shared_term(jun, 2569, 2) == (2569, 1)
+
+
+def test_november_round_is_shared_with_next_years_first_term():
+    nov = _scan(2568, "nov", {})
+    assert shared_term(nov, 2569, 1) == (2568, 2)
+    assert shared_term(nov, 2568, 2) == (2569, 1)
+
+
+def test_every_round_really_is_used_by_exactly_two_terms():
+    """กันไว้: ถ้าสูตรรอบ DMC เปลี่ยน คำเตือนว่าใช้ร่วมกันต้องไม่กลายเป็นคำโกหก"""
+    for ay in (2568, 2569, 2570):
+        for term in (1, 2):
+            for year, rnd in rounds(ay, term):
+                scan = _scan(year, rnd, {})
+                other = shared_term(scan, ay, term)
+                assert other is not None, (ay, term, year, rnd)
+                assert (year, rnd) in rounds(*other)
+
+
+def test_page_warns_before_editing_a_shared_round():
+    html = (ROOT / "app" / "templates" / "finance_subsidy.html").read_text(encoding="utf-8")
+    assert "shared_rounds.get(scan.key)" in html
+    assert "ใช้ร่วมกับ" in html
+    css = (ROOT / "app" / "static" / "subsidy.css").read_text(encoding="utf-8")
+    assert ".sub-shared" in css and ".sub-step.doing" in css

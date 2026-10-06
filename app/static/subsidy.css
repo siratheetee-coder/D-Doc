@@ -8,3 +8,36 @@
 .sub-fillcol{display:block;margin-top:4px;font-size:11px;font-weight:600;color:#1d4ed8;
   background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;}
 .sub-fillcol:hover{color:#1e3a8a;}
+
+/* แถบขั้นตอน: หน้านี้ยาวหกส่วนและต้องทำตามลำดับ ให้เห็นในหน้าจอเดียวว่าค้างตรงไหน
+   รูปแบบเดียวกับแถบขั้นตอนของทัศนศึกษา แต่ใช้โทนเขียวให้เข้ากับหัวหน้าเงินอุดหนุน */
+.sub-workflow{background:#fff;border-radius:20px;padding:20px;margin:18px 0;box-shadow:0 6px 24px rgba(15,23,42,.05);}
+.sub-workflow-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+.sub-workflow-title{font-size:16px;font-weight:800;color:#1f2937;}
+.sub-workflow-hint{font-size:12px;color:#64756d;margin-top:3px;line-height:1.6;}
+.sub-progress{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:700;color:#475569;}
+.sub-progress-track{width:88px;height:6px;background:#edf0f6;border-radius:10px;overflow:hidden;}
+.sub-progress-track span{display:block;height:100%;background:#059669;border-radius:10px;}
+.sub-steps{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;}
+.sub-step{display:flex;flex-direction:column;gap:9px;min-width:0;text-decoration:none;color:#1f2937;border-radius:14px;padding:14px;background:#f5f7fb;transition:transform .15s,box-shadow .15s;}
+.sub-step-top{display:flex;align-items:center;justify-content:space-between;gap:6px;}
+.sub-step .n{display:inline-flex;width:32px;height:32px;border-radius:10px;align-items:center;justify-content:center;font-size:15px;font-weight:800;background:#e6eaf1;color:#526176;flex-shrink:0;}
+.sub-step-state{font-size:11px;font-weight:700;color:#64748b;}
+.sub-step b{font-size:15px;line-height:1.45;overflow-wrap:anywhere;}
+.sub-step .s{font-size:12px;line-height:1.5;color:#64748b;overflow-wrap:anywhere;}
+.sub-step.done{background:#f0faf6;}
+.sub-step.done .n{background:#d1f3e4;color:#047857;}
+.sub-step.done .sub-step-state{color:#047857;}
+.sub-step.doing{background:linear-gradient(135deg,#087f5b,#12b886);color:#fff;box-shadow:0 6px 16px rgba(8,127,91,.22);}
+.sub-step.doing .n{background:rgba(255,255,255,.22);color:#fff;}
+.sub-step.doing .s,.sub-step.doing .sub-step-state{color:#fff;}
+.sub-steps .sub-step:hover{transform:translateY(-3px);box-shadow:0 6px 18px rgba(8,127,91,.17);}
+.sub-steps .sub-step:focus-visible{outline:3px solid #0b7285;outline-offset:3px;}
+.subsidy-page section[id]{scroll-margin-top:80px;}
+@media(max-width:1100px){.sub-steps{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@media(max-width:560px){.sub-workflow{padding:14px;}.sub-steps{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}.sub-step{padding:12px;}.sub-step b{font-size:14px;}}
+@media(prefers-reduced-motion:reduce){.sub-step{transition:none;}.sub-steps .sub-step:hover{transform:none;}}
+
+/* รอบ DMC หนึ่งรอบใช้สองภาคเรียน ต้องเตือนก่อนแก้ ไม่ใช่ซ่อนไว้ในหมายเหตุท้ายส่วน */
+.sub-shared{background:#fff5d9;color:#7a5300;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.65;margin:8px 0 12px;}
+.sub-shared a{color:#7a5300;font-weight:700;}

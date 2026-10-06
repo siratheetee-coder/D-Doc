@@ -49,8 +49,11 @@ def _page(request, db, ay, term, error='', posted=None, receipt_year=None):
             rows = [{'amount': amounts[i] if i < len(amounts) else '', 'ref': refs[i] if i < len(refs) else ''}
                     for i in range(max(len(amounts), len(refs)))] or [{'amount': '', 'ref': ''}]
         extra_entries[key] = rows
+    shared = {scan['key']: sub.shared_term(scan, ay, term) for scan in data['census']}
     return templates.TemplateResponse('finance_subsidy.html', {
-        'request': request, 's': data, 'levels': sub.LEVELS, 'keys': sub.keys_for(term),
+        'request': request, 's': data,
+        'steps': sub.workflow_steps(data, mapping, mapped_account, links),
+        'shared_rounds': shared, 'levels': sub.LEVELS, 'keys': sub.keys_for(term),
         'names': sub.NAMES, 'extras': sub.EXTRAS, 'error': error, 'posted': posted,
         'mapping': mapping, 'mapped_account': mapped_account, 'extra_entries': extra_entries, 'budget_bases': sub.BUDGET_BASES,
         'previous_rates': json.loads(previous.payload)['rates'] if previous else {},
