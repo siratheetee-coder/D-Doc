@@ -101,6 +101,21 @@
 
 <div class="card">
   <h2>งบกระทบยอดที่ทำไว้</h2>
+  <div class="recon-pack">
+    <div>
+      <b>พิมพ์ชุดส่งเขตประจำเดือน</b>
+      <div class="muted">งบกระทบยอดทุกบัญชีของเดือนที่เลือก ต่อด้วยรายงานเงินคงเหลือประจำวัน
+        ของวันสุดท้ายที่มีการรับ-จ่ายในเดือนนั้น รวมเป็นไฟล์เดียวพร้อมส่ง</div>
+    </div>
+    <form method="get" action="/finance/bank-recon/monthly.docx" class="sub-inline">
+      <input type="hidden" name="year" value="{{ fiscal_year }}">
+      <label>เดือน<select name="month">
+        {% for m, nm in months %}<option value="{{ m }}" {{ 'selected' if m==this_month }}>{{ nm }}</option>{% endfor %}
+      </select></label>
+      <label>พ.ศ.<input type="number" name="month_be" value="{{ this_year_be }}" min="2500" max="2700" style="width:90px;"></label>
+      <button class="btn" type="submit"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์ชุดส่งเขต</button>
+    </form>
+  </div>
   {% if rows %}
   <div class="table-wrap"><table class="stack-sm">
     <thead><tr><th>ณ วันที่</th><th>บัญชี</th><th class="right">ฝั่งธนาคาร</th><th class="right">ฝั่งโรงเรียน</th><th>ผลต่าง</th><th></th></tr></thead>
@@ -146,6 +161,9 @@
   .recon-hints ul{margin:6px 0 0;padding-left:20px;}
   .recon-hints li{margin:4px 0;}
   .recon-hints[hidden]{display:none;}
+  .recon-pack{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
+    background:#f1f5f9;border-radius:12px;padding:14px 18px;margin:0 0 16px;}
+  .recon-pack .muted{font-size:13px;color:#64748b;line-height:1.6;margin-top:3px;max-width:52ch;}
   @media(max-width:760px){.recon-sides{grid-template-columns:1fr;}}
 </style>
 <script src="/static/recon_hints.js?v=1"></script>

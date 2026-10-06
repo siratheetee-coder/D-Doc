@@ -1333,6 +1333,9 @@ def bank_recon_page(request: Request, db: Session = Depends(get_db),
         "book_balance": _book_balance(db, fy, aid),
         "opening": opening_for(db.get(FinanceAccount, aid), fy) if aid else 0.0,
         "daily_balance": daily,
+        "months": sorted(_MONTH_NAME.items()),
+        "this_month": datetime.now().month,
+        "this_year_be": datetime.now().year + 543,
         "outstanding": outstanding, "loose_checks": loose,
         "outstanding_sum": sum(float(c.amount or 0) for c in outstanding),
         # ให้หน้าจอคิดรายการคงค้าง ณ วันที่ที่เลือกได้เอง ไม่ต้องโหลดหน้าใหม่
@@ -1380,6 +1383,63 @@ def bank_recon_delete(rid: int, db: Session = Depends(get_db)):
     if rec:
         db.delete(rec); db.commit()
     return RedirectResponse(f"/finance/bank-recon?year={fy}", status_code=303)
+
+
+def _last_active_day(db, fy, month_be, month):
+    """วันสุดท้ายของเดือนที่มีการรับ-จ่ายเงินจริง (คู่มือ 2544 ให้ส่งรายงานของวันนั้น)
+
+    ไม่ใช่วันสิ้นเดือนตามปฏิทิน เพราะบางเดือนวันสุดท้ายตรงกับวันหยุด
+    ไม่มีรายการเคลื่อนไหวเลยทั้งเดือน ก็ใช้วันสิ้นเดือนไปก่อน
+    """
+    import calendar
+    ce = month_be - 543
+    last = datetime(ce, month, calendar.monthrange(ce, month)[1])
+    rows = (db.query(FinanceTxn.date).filter(FinanceTxn.fiscal_year == fy)
+            .filter(FinanceTxn.date >= datetime(ce, month, 1))
+            .filter(FinanceTxn.date <= last).all())
+    days = [r[0] for r in rows if r[0]]
+    return max(days) if days else last
+
+
+@router.get("/finance/bank-recon/monthly.docx")
+def bank_recon_monthly(db: Session = Depends(get_db), year: int | None = None,
+                       month_be: int | None = None, month: int | None = None):
+    """ชุดส่งเขตประจำเดือน: งบกระทบยอดทุกบัญชี + รายงานเงินคงเหลือประจำวันของเดือนนั้น
+
+    คู่มือการบัญชีหน่วยงานย่อยให้ส่งงบเทียบยอดพร้อมรายงานเงินคงเหลือ
+    ของวันสุดท้ายที่มีการรับ-จ่ายในเดือนนั้น ให้ส่วนราชการผู้เบิก
+    """
+    from app.services.finance_forms_doc import render_bank_recon
+    now = datetime.now()
+    fy = year or current_fiscal_year()
+    month = month or now.month
+    month_be = month_be or (now.year + 543)
+    as_of = _last_active_day(db, fy, month_be, month)
+    school = get_school(db)
+
+    # งบกระทบยอดของเดือนนี้ เอาฉบับล่าสุดของแต่ละบัญชี
+    picked = {}
+    for r in _recon_rows(db, fy, 0):
+        if r.as_of and r.as_of.month == month and (r.as_of.year + 543) == month_be:
+            picked.setdefault(r.account_id, r)
+    doc = None
+    for aid, rec in sorted(picked.items(), key=lambda kv: (kv[0] or 0)):
+        if doc is None:
+            from app.services.finance_forms_doc import _new
+            doc = _new()
+        acc = db.get(FinanceAccount, aid) if aid else None
+        checks, _loose = _outstanding_checks(db, fy, rec.account_id, as_of=rec.as_of)
+        render_bank_recon(school, rec, acc.name if acc else "", checks, doc=doc)
+
+    accounts = db.query(FinanceAccount).order_by(FinanceAccount.id).all()
+    rows, totals = _build_cash_rows(accounts, fy, as_of)
+    if doc is None:                       # ยังไม่ได้ทำงบกระทบยอดเดือนนี้ ส่งแค่เงินคงเหลือ
+        path = render_cash_report(school, rows, totals, as_of)
+    else:
+        render_cash_report(school, rows, totals, as_of, doc=doc)
+        from app.services.finance_forms_doc import _save
+        path = _save(doc, f"ชุดส่งเขต_{_MONTH_NAME.get(month, month)}_{month_be}")
+    return serve_generated(path, _DOCX)
 
 
 @router.get("/finance/bank-recon/{rid}.docx")

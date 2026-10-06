@@ -368,3 +368,75 @@ def test_printed_statement_puts_interest_under_the_school_side(env_client):
     interest = next(i for i, t in enumerate(flat) if "ดอกเบี้ย" in t)
     assert interest > head, "ดอกเบี้ยต้องอยู่ใต้หัวข้อฝั่งสถานศึกษา"
     assert any("ตรงกัน" in p.text for p in doc.paragraphs), [p.text for p in doc.paragraphs]
+
+
+# ------------------------------------------- ชุดส่งเขตประจำเดือน
+def test_last_active_day_is_the_last_day_money_actually_moved(db):
+    """คู่มือ 2544 ให้ส่งรายงานของวันสุดท้ายที่มีการรับ-จ่าย ไม่ใช่วันสิ้นเดือนปฏิทิน"""
+    from app.routers.finance import _last_active_day
+    acc = _account(db)
+    _txn(db, acc, 2570, "in", 100.0, (9, 12))
+    _txn(db, acc, 2570, "out", 50.0, (9, 27))
+    _txn(db, acc, 2570, "in", 70.0, (10, 2))        # เดือนถัดไป ต้องไม่ถูกเลือก
+    assert _last_active_day(db, 2570, 2569, 9).date() == datetime(2026, 9, 27).date()
+
+
+def test_a_month_with_no_movement_falls_back_to_the_calendar_end(db):
+    from app.routers.finance import _last_active_day
+    _account(db)
+    assert _last_active_day(db, 2570, 2569, 9).date() == datetime(2026, 9, 30).date()
+
+
+def test_monthly_pack_has_every_account_and_the_cash_report(env_client):
+    from docx import Document
+    import io
+    c, db = env_client
+    a = _account(db, "บัญชีเงินอุดหนุน")
+    b = _account(db, "บัญชีเงินรายได้สถานศึกษา")
+    for acc in (a, b):
+        db.add(BankRecon(fiscal_year=2570, account_id=acc.id, as_of=datetime(2026, 9, 30),
+                         stmt_balance=1000.0, book_balance=1000.0))
+    db.commit()
+    r = c.get("/finance/bank-recon/monthly.docx?year=2570&month=9&month_be=2569")
+    assert r.status_code == 200, r.status_code
+    doc = Document(io.BytesIO(r.content))
+    text = "\n".join(p.text for p in doc.paragraphs)
+    assert text.count("งบกระทบยอดเงินฝากธนาคาร") == 2, "ต้องมีงบของทุกบัญชี"
+    assert "บัญชีเงินอุดหนุน" in text and "บัญชีเงินรายได้สถานศึกษา" in text
+    assert "รายงานเงินคงเหลือประจำวัน" in text, "ต้องแนบรายงานเงินคงเหลือท้ายชุด"
+
+
+def test_monthly_pack_only_takes_the_month_asked_for(env_client):
+    from docx import Document
+    import io
+    c, db = env_client
+    acc = _account(db)
+    db.add(BankRecon(fiscal_year=2570, account_id=acc.id, as_of=datetime(2026, 9, 30),
+                     stmt_balance=1.0, book_balance=1.0))
+    db.add(BankRecon(fiscal_year=2570, account_id=acc.id, as_of=datetime(2026, 10, 31),
+                     stmt_balance=2.0, book_balance=2.0))
+    db.commit()
+    r = c.get("/finance/bank-recon/monthly.docx?year=2570&month=9&month_be=2569")
+    text = "\n".join(p.text for p in Document(io.BytesIO(r.content)).paragraphs)
+    assert text.count("งบกระทบยอดเงินฝากธนาคาร") == 1
+    assert "30 กันยายน 2569" in text and "31 ตุลาคม 2569" not in text
+
+
+def test_monthly_pack_still_works_before_any_reconciliation_is_saved(env_client):
+    """ยังไม่ได้ทำงบกระทบยอด ก็ยังต้องพิมพ์รายงานเงินคงเหลือส่งเขตได้"""
+    from docx import Document
+    import io
+    c, db = env_client
+    _account(db)
+    r = c.get("/finance/bank-recon/monthly.docx?year=2570&month=9&month_be=2569")
+    assert r.status_code == 200
+    text = "\n".join(p.text for p in Document(io.BytesIO(r.content)).paragraphs)
+    assert "รายงานเงินคงเหลือประจำวัน" in text
+
+
+def test_the_page_offers_the_monthly_pack_button(db):
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parents[1]
+    html = (root / "app" / "templates" / "finance_bank_recon.html").read_text(encoding="utf-8")
+    assert "/finance/bank-recon/monthly.docx" in html
+    assert "พิมพ์ชุดส่งเขต" in html

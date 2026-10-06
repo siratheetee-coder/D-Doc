@@ -74,10 +74,16 @@ def _p(doc, text="", *, align="left", bold=False, size=14, after=2):
     return p
 
 
-def render_cash_report(school, rows, totals, as_of) -> str:
+def render_cash_report(school, rows, totals, as_of, doc=None):
     """rows: list ของ dict {name, header(bool), indent(bool), cash, bank, agency, total}
-    totals: dict {cash, bank, agency, total}"""
-    doc = Document(); set_a4(doc)
+    totals: dict {cash, bank, agency, total}
+    doc: เขียนต่อในเอกสารที่ส่งมา (ใช้ตอนรวมเป็นชุดส่งเขต) แล้วคืน doc แทน path"""
+    append = doc is not None
+    if append:
+        if any(p.text.strip() for p in doc.paragraphs) or doc.tables:
+            doc.add_page_break()      # ขึ้นหน้าใหม่เฉพาะเมื่อมีเนื้อหาอยู่ก่อนแล้ว
+    else:
+        doc = Document(); set_a4(doc)
     sec = doc.sections[0]
     sec.left_margin = sec.right_margin = Cm(1.5)
     base = doc.styles["Normal"]
@@ -147,6 +153,9 @@ def render_cash_report(school, rows, totals, as_of) -> str:
     for _row in table.rows:                     # ไม่ให้แถวใดถูกตัดคนละหน้า
         _no_split_row(_row)
 
+
+    if append:
+        return doc
 
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)

@@ -189,9 +189,17 @@ def render_check_register(school, fiscal_year, checks) -> str:
 
 
 # ------------------------------------------- งบกระทบยอดเงินฝากธนาคาร
-def render_bank_recon(school, rec, account_name="", checks=None) -> str:
-    """checks = เช็คที่ยังไม่ขึ้นเงิน (แนบรายตัวท้ายงบ ถ้ามี)"""
-    doc = _new()
+def render_bank_recon(school, rec, account_name="", checks=None, doc=None):
+    """checks = เช็คที่ยังไม่ขึ้นเงิน (แนบรายตัวท้ายงบ ถ้ามี)
+
+    doc = เขียนต่อในเอกสารที่ส่งมา (ใช้ตอนรวมเป็นชุดส่งเขต) แล้วคืน doc แทน path
+    """
+    append = doc is not None
+    if append:
+        if any(p.text.strip() for p in doc.paragraphs) or doc.tables:
+            doc.add_page_break()      # ขึ้นหน้าใหม่เฉพาะเมื่อมีเนื้อหาอยู่ก่อนแล้ว
+    else:
+        doc = _new()
     _p(doc, "งบกระทบยอดเงินฝากธนาคาร", align="center", bold=True, size=18, after=0)
     _p(doc, (school.name or "").strip(), align="center", bold=True, size=16, after=0)
     _p(doc, f"บัญชี {account_name or _BLANK}", align="center", size=14, after=0)
@@ -263,6 +271,8 @@ def render_bank_recon(school, rec, account_name="", checks=None) -> str:
         ("ลงชื่อ.......................................", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
     ]])
+    if append:
+        return doc
     return _save(doc, f"งบกระทบยอดเงินฝากธนาคาร_{thai_date(rec.as_of) if rec.as_of else rec.id}")
 
 
