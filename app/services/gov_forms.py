@@ -142,11 +142,38 @@ def _set_tabs(p, stops):
     pPr.append(tabs)
 
 
+_ALT = "{http://schemas.openxmlformats.org/markup-compatibility/2006}AlternateContent"
+
+
+def _has_graphic(run):
+    """run นี้มีรูป/กล่องข้อความ/ตารางในกล่องข้อความอยู่ไหม
+
+    run พวกนี้ .text คืนค่าว่าง แต่ลบไม่ได้ เพราะ python-docx สั่ง r.text = ''
+    แล้วมันล้างลูกทั้งหมดของ run ทิ้ง (รวม w:drawing) · ในใบลา ตารางสถิติการลา
+    ผูกอยู่กับ run ว่างตัวแรกของบรรทัด 'วันที่' พอจัดแนวช่องลงนามจึงหายทั้งตาราง
+    """
+    el = run._element
+    return bool(el.findall(".//" + qn("w:drawing")) or el.findall(".//" + qn("w:pict"))
+                or el.findall(".//" + _ALT) or el.findall(".//" + qn("w:object")))
+
+
+def _is_dotted(run):
+    """run ว่างที่ขีดเส้นใต้ = เส้นไข่ปลาของฟิลด์อื่นบนบรรทัดเดียวกัน ไม่ใช่ช่องว่างจัดแนว
+
+    บรรทัดล่างของใบลามีสองคอลัมน์อยู่ด้วยกัน เช่น 'ตำแหน่ง....(ลงชื่อ)'
+    ถ้าจัดแนวคอลัมน์ขวาแล้วล้างช่องว่างข้างหน้าทิ้ง เส้นไข่ปลาของ 'ตำแหน่ง' จะหายไปด้วย
+    """
+    rpr = run._element.rPr
+    return rpr is not None and rpr.findall(qn("w:u")) != []
+
+
 def _tab_before(p, idx):
     """ลบช่องว่าง/แท็บที่อยู่หน้า run idx แล้วใส่แท็บเดียวแทน (ให้ตำแหน่งมาจาก tab stop)"""
     runs = p.runs
     j = idx - 1
     while j >= 0 and runs[j].text.strip() == "":
+        if _has_graphic(runs[j]) or _is_dotted(runs[j]):
+            break                          # รูป/กล่องข้อความ หรือเส้นไข่ปลาของฟิลด์อื่น ห้ามแตะ
         runs[j].text = ""
         j -= 1
     r = runs[idx]
@@ -186,7 +213,8 @@ def _paren_one_run(p, name):
     if j is None or j <= i:
         return
     for r in p.runs[i + 1:j + 1]:
-        r.text = ""
+        if not _has_graphic(r):            # ข้ามรูป/กล่องข้อความ ห้ามล้างทิ้ง
+            r.text = ""
     p.runs[i].text = f"(  {(name or '').strip()}  )" if (name or "").strip() else "(                    )"
     _strip_u(p.runs[i])
 
@@ -526,11 +554,12 @@ def render_leave_official(school, person, record, db=None, approver=None,
             except Exception:
                 pass
 
-    # ---- ช่องลงนามผู้บังคับบัญชา: จัดแนวให้ตรงกันเสมอ (ทั้งกรณียังไม่อนุมัติ) ----
-    _left_line(P[28], "(ลงชื่อ)", BOSS_LEFT)
-    _center_line(P[29], "(", BOSS_CENTER)
-    _center_line(P[30], "ตำแหน่ง", BOSS_CENTER)
-    _center_line(P[31], "วันที่", BOSS_CENTER)
+    # ---- ช่องลงนามผู้บังคับบัญชา ----
+    # จัดแนวเฉพาะตอนที่มีข้อความจะใส่จริง · ถ้ายังไม่มีใครลงนาม ปล่อยเลย์เอาต์ของแม่แบบไว้
+    # (บังคับจัดแนวทุกครั้ง ทำให้เส้นไข่ปลาที่ยาวอยู่แล้วถูกดันจนตกบรรทัด
+    #  กลายเป็นเส้นประลอยพาดท้ายหน้า และช่อง 'ตำแหน่ง' เสียเส้นไข่ปลาไป)
+    if checker is not None or approver is not None:
+        _left_line(P[28], "(ลงชื่อ)", BOSS_LEFT)
 
     # ---- คำสั่งอนุญาต + ลงนาม ผอ. (เมื่ออนุมัติแล้ว) ----
     if approver is not None:
@@ -561,6 +590,7 @@ def render_leave_official(school, person, record, db=None, approver=None,
                     except Exception:
                         break
                 _insstrip(P[31], i, " " + _full_date(approve_date))
+            _center_line(P[31], "วันที่", BOSS_CENTER)
 
     # ---- เอา '/' ออกจากช่องวันที่ผู้ตรวจสอบ/ผอ ที่ยังว่าง (เหลือจุดไข่ปลาไว้เขียน) ----
     try:
