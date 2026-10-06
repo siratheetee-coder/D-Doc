@@ -1342,6 +1342,12 @@ def bank_recon_page(request: Request, db: Session = Depends(get_db),
                         "on": c.date.strftime("%Y-%m-%d") if c.date else ""}
                        for c in db.query(CheckPayment).filter_by(fiscal_year=fy)
                        .order_by(CheckPayment.date).all() if c.account_id == aid],
+        # รายการรับจ่ายในทะเบียนคุม ใช้เทียบว่าผลต่างตรงกับรายการไหนพอดี
+        "txn_data": [{"amount": float(t.amount or 0), "kind": t.kind,
+                      "note": (t.note or t.ref or t.category or "")[:60],
+                      "on": t.date.strftime("%Y-%m-%d") if t.date else ""}
+                     for t in (db.query(FinanceTxn).filter_by(account_id=aid, fiscal_year=fy)
+                               .order_by(FinanceTxn.date.desc()).limit(400).all() if aid else [])],
     })
 
 

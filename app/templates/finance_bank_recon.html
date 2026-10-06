@@ -67,6 +67,10 @@
     </div>
 
     <div class="recon-verdict" data-recon-calc><span data-recon-diff>ผลต่าง 0.00 บาท</span></div>
+    <div class="recon-hints" data-recon-hints hidden>
+      <b>ลองตรวจตรงนี้ก่อน</b>
+      <ul data-recon-hint-list></ul>
+    </div>
 
     <div class="row">
       <div><label>รายการอื่น (+/-)</label><input name="other" type="number" step="0.01" value="0"></div>
@@ -138,8 +142,13 @@
     font-size:17px;background:#f1f5f9;color:#334155;}
   .recon-verdict.ok{background:#dcfce7;color:#047857;}
   .recon-verdict.off{background:#fee2e2;color:#b91c1c;}
+  .recon-hints{background:#fff7ed;border-radius:12px;padding:14px 18px;margin:0 0 14px;color:#7c2d12;line-height:1.75;}
+  .recon-hints ul{margin:6px 0 0;padding-left:20px;}
+  .recon-hints li{margin:4px 0;}
+  .recon-hints[hidden]{display:none;}
   @media(max-width:760px){.recon-sides{grid-template-columns:1fr;}}
 </style>
+<script src="/static/recon_hints.js?v=1"></script>
 <script>
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){
@@ -164,6 +173,8 @@
     var daily = {{ daily_balance|tojson }};
     var opening = {{ opening|round(2) }};
     var checks = {{ check_data|tojson }};
+    var txns = {{ txn_data|tojson }};
+    var looseSum = {{ loose_checks|sum(attribute='amount')|round(2) }};
     var baht = function(n){ return n.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); };
     var num = function(name){ var el = form.elements[name]; return parseFloat(el && el.value) || 0; };
 
@@ -215,6 +226,27 @@
                                 : 'ยังไม่ตรงกัน ต่างกัน ' + baht(diff) + ' บาท';
       box.classList.toggle('ok', ok);
       box.classList.toggle('off', !ok);
+      showHints(ok ? 0 : diff);
+    }
+
+    // ไม่ตรงแล้วบอกแค่ตัวเลขผลต่าง ครูก็ยังไม่รู้ว่าจะไปงมตรงไหน
+    // จึงเทียบผลต่างกับรายการที่มีอยู่จริง แล้วชี้เป้าให้ (กฎอยู่ใน recon_hints.js)
+    var hintBox = form.querySelector('[data-recon-hints]');
+    var hintList = form.querySelector('[data-recon-hint-list]');
+    function showHints(diff){
+      var iso = isoOf(form.elements.as_of.value);
+      var list = (!diff || !window.reconHints) ? [] : window.reconHints({
+        diff: diff, looseSum: looseSum,
+        checks: checks.filter(function(c){ return !c.cleared || (c.cleared_on && c.cleared_on > iso); }),
+        txns: txns
+      });
+      hintBox.hidden = !list.length;
+      hintList.innerHTML = '';
+      list.forEach(function(h){
+        var li = document.createElement('li');
+        li.textContent = h.text;
+        hintList.appendChild(li);
+      });
     }
     form.addEventListener('input', recalc);
     recalc();
