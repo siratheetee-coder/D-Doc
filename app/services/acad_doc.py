@@ -2001,7 +2001,7 @@ def _attendance_month_section(doc, school, klass, db, month, subject=None, page_
         sub += f"    วิชา {subject.code or ''} {subject.name}"
     if teacher:
         sub += f"    ครูผู้สอน/ประจำชั้น {teacher}"
-    _p(doc, sub, align="center", size=12, after=2)
+    _p(doc, sub, align="center", size=13, after=2)
 
     nday = len(open_days)
     ncol = 2 + nday + 5           # ที่ + ชื่อ + วัน + (มา/ป่วย/ลา/ขาด/ร้อยละ)
@@ -2009,32 +2009,32 @@ def _attendance_month_section(doc, school, klass, db, month, subject=None, page_
     t.style = "Table Grid"
     hdr = t.rows[0].cells
 
-    def vm(idx, text, size=12):
+    def vm(idx, text, size=13):
         c = t.rows[0].cells[idx].merge(t.rows[1].cells[idx]); _cell(c, text, bold=True, fill="EDE9FE", size=size)
 
     vm(0, "ที่"); vm(1, "ชื่อ-นามสกุล")
     if nday:
-        c = hdr[2].merge(hdr[2 + nday - 1]); _cell(c, "วันที่ (เฉพาะวันเปิดเรียน)", bold=True, fill="EDE9FE", size=12)
+        c = hdr[2].merge(hdr[2 + nday - 1]); _cell(c, "วันที่ (เฉพาะวันเปิดเรียน)", bold=True, fill="EDE9FE", size=13)
         for j, d in enumerate(open_days):
             _wa = _WD_ABBR.get(wd.get(d, ''), '')
-            _cell(t.rows[1].cells[2 + j], (f"{_wa}\n{d}" if _wa else str(d)), bold=True, fill="F1F5F9", size=11)
+            _cell(t.rows[1].cells[2 + j], (f"{_wa}\n{d}" if _wa else str(d)), bold=True, fill="F1F5F9", size=12)
     labels = ["มา", "ป่วย", "ลา", "ขาด", "ร้อยละ"]
     for k, lb in enumerate(labels):
-        vm(2 + nday + k, lb, size=12)
+        vm(2 + nday + k, lb, size=13)
 
     # แถวนักเรียน
     day_present = [0] * nday          # นับ "มา" รายวัน (แถวสรุปท้าย)
     tot = {"/": 0, "ป": 0, "ล": 0, "ข": 0}
     for i, s in enumerate(students):
         cells = t.rows[2 + i].cells
-        _cell(cells[0], s.seq or (i + 1), size=12)
-        _cell(cells[1], s.name, align="left", size=12)
+        _cell(cells[0], s.seq or (i + 1), size=13)
+        _cell(cells[1], s.name, align="left", size=13)
         a = rows.get(s.id)
         mk = parse_marks(a.marks) if a else {}
         cnt = count_marks(a.marks) if a else {"/": 0, "ป": 0, "ล": 0, "ข": 0}
         for j, d in enumerate(open_days):
             ch = mk.get(d, "")
-            _cell(cells[2 + j], ch, size=12)
+            _cell(cells[2 + j], ch, size=13)
             if ch == "/":
                 day_present[j] += 1
         for k in ("/", "ป", "ล", "ข"):
@@ -2042,17 +2042,17 @@ def _attendance_month_section(doc, school, klass, db, month, subject=None, page_
         pct = round(cnt.get("/", 0) * 100.0 / nday, 1) if nday else ""
         vals = [cnt.get("/", 0), cnt.get("ป", 0), cnt.get("ล", 0), cnt.get("ข", 0), pct]
         for k, v in enumerate(vals):
-            _cell(cells[2 + nday + k], v if v != 0 else ("0" if k < 4 else v), size=12)
+            _cell(cells[2 + nday + k], v if v != 0 else ("0" if k < 4 else v), size=13)
 
     # แถวสรุปรวมท้ายตาราง: จำนวนมาเรียนรายวัน + ยอดรวมทั้งห้อง
     last = t.rows[2 + len(students)].cells
-    sc = last[0].merge(last[1]); _cell(sc, "รวมมาเรียน (คน/วัน)", bold=True, align="right", fill="F1F5F9", size=12)
+    sc = last[0].merge(last[1]); _cell(sc, "รวมมาเรียน (คน/วัน)", bold=True, align="right", fill="F1F5F9", size=13)
     for j in range(nday):
-        _cell(last[2 + j], day_present[j], bold=True, fill="F1F5F9", size=12)
+        _cell(last[2 + j], day_present[j], bold=True, fill="F1F5F9", size=13)
     ndc = len(students) * nday
     class_pct = round(tot["/"] * 100.0 / ndc, 1) if ndc else ""
     for k, v in enumerate([tot["/"], tot["ป"], tot["ล"], tot["ข"], class_pct]):
-        _cell(last[2 + nday + k], v, bold=True, fill="F1F5F9", size=12)
+        _cell(last[2 + nday + k], v, bold=True, fill="F1F5F9", size=13)
 
     # ความกว้างคอลัมน์ให้พอดีแนวนอน (พื้นที่พิมพ์ ~26.7 ซม.)
     fixed = 0.9 + 4.2 + (0.9 * 4) + 1.3      # ที่+ชื่อ+4ช่องนับ+ร้อยละ
@@ -2072,14 +2072,15 @@ def _attendance_month_section(doc, school, klass, db, month, subject=None, page_
     _p(doc, f"สรุป: วันเปิดเรียนทั้งเดือน {nday} วัน · นักเรียน {len(students)} คน · "
             f"รวมวันมาเรียนทั้งห้อง {total_pres} คน-วัน · เฉลี่ยการมาเรียน {class_pct}%  "
             f"(ป่วย {tot['ป']} · ลา {tot['ล']} · ขาด {tot['ข']})",
-       align="left", size=10, after=0)
+       align="left", size=11, after=0)
     # ลงนามกึ่งกลาง + ชื่อผู้ลงนามอยู่ใต้ลายเซ็นพอดี
     sp = _p(doc, "ลงชื่อ .......................................... ครูผู้บันทึกเวลาเรียน",
-            align="center", size=12, after=0)
+            align="center", size=13, after=0)
+    sp.paragraph_format.space_before = Pt(26)      # เว้นที่ให้เซ็นจริงเหนือเส้น
     if teacher:
         _float_signature(sp, teacher)
     _p(doc, f"( {teacher or '..........................................'} )",
-       align="center", size=12, after=0)
+       align="center", size=13, after=0)
 
 
 def _attendance_doc(landscape=True):
