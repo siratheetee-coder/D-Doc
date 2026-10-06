@@ -166,3 +166,58 @@ def test_procurement_papers_carry_the_agency_title(agency):
     proc, school = agency
     text = _words(alt.RENDERERS["w119t1"](proc, school))
     assert "นายกเทศมนตรีตำบลหินลาด" in text
+
+
+# ------------------------------------------------------------ แม่แบบ .docx
+def _template_text(path):
+    import re
+    import zipfile
+    xml = zipfile.ZipFile(path).read("word/document.xml").decode("utf-8")
+    return re.sub(r"<[^>]+>", "", xml)
+
+
+def test_no_template_has_the_word_school_written_into_it():
+    """แม่แบบพัสดุต้องไม่เขียนคำว่าโรงเรียนตายตัว ต้องมาจากชื่อหน่วยงานที่ตั้งไว้"""
+    from app.services.build_templates import TEMPLATES_DIR, ensure_templates
+    ensure_templates()
+    files = sorted(TEMPLATES_DIR.glob("*.docx"))
+    assert files, "ยังไม่มีแม่แบบให้ตรวจ"
+    dirty = {p.name: [w for w in _template_text(p).split() if "โรงเรียน" in w] for p in files}
+    assert not {k: v for k, v in dirty.items() if v}, {k: v for k, v in dirty.items() if v}
+
+
+def test_order_form_asks_for_the_agency_name_from_the_context():
+    from app.services.build_templates import TEMPLATES_DIR, ensure_templates
+    ensure_templates()
+    txt = _template_text(TEMPLATES_DIR / "ใบสั่งซื้อจ้าง.docx")
+    assert "{{ org_name }}สงวนสิทธิ์" in txt.replace("\u200b", ""), txt[:0] or "ข้อ 5 ยังไม่ได้ใช้ชื่อหน่วยงาน"
+    assert "สถานที่ส่งมอบ {{ org_name }}" in txt
+
+
+def test_every_placeholder_in_the_templates_is_supplied(agency):
+    """แม่แบบอ้างตัวแปรไหน build_context ต้องมีให้ครบ ไม่งั้นพังเป็น 500 ตอนออกเอกสาร"""
+    import re
+    from app.services.build_templates import TEMPLATES_DIR, ensure_templates
+    from app.services.render import build_context
+    ensure_templates()
+    proc, school = agency
+    ctx = set(build_context(proc, school))
+    missing = {}
+    for p in sorted(TEMPLATES_DIR.glob("*.docx")):
+        text = _template_text(p)
+        names = set(re.findall(r"\{\{\s*([a-z_][a-z0-9_]*)", text))
+        # ตัวแปรที่เกิดจาก {% for x in ... %} ไม่ได้มาจาก build_context
+        # docxtpl เขียนลูปเป็น {%tr for m in ... %} / {%p for ... %} ด้วย
+        bound = {"loop"} | set(re.findall(r"\{%[a-z]*-?\s*for\s+([a-z_][a-z0-9_]*)", text))
+        gap = names - ctx - bound
+        if gap:
+            missing[p.name] = sorted(gap)
+    assert not missing, missing
+
+
+def test_order_form_for_another_agency_has_no_school_wording(agency):
+    from app.services.render import render_document
+    proc, school = agency
+    text = _template_text(render_document("ใบสั่งซื้อ/สั่งจ้าง", proc, school))
+    assert "เทศบาลตำบลหินลาด" in text
+    assert "โรงเรียน" not in text, [w for w in text.split() if "โรงเรียน" in w]

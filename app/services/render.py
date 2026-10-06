@@ -16,7 +16,7 @@ from docxcompose.composer import Composer
 
 from app.database import get_data_dir
 from app.thai_utils import bahttext, thai_date, thai_date_official
-from app.services.org_names import head_title
+from app.services.org_names import head_title, org_display
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "doc_templates"
 
@@ -138,6 +138,8 @@ def build_context(proc, school) -> dict:
 
     return {
         "school_name": school.name or "",
+        # ชื่อหน่วยงานสำหรับเขียนในประโยค เติมคำว่าโรงเรียนให้ถ้ากรอกมาแบบสั้น
+        "org_name": org_display(school),
         "school_address": (school.address or "") or _BLANK,
         "school_office": _school_office(school),
         "director_office": _director_office(school),
