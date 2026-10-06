@@ -943,6 +943,9 @@ class CheckPayment(Base):
     purpose = Column(String, default="")             # รายการ/ค่าใช้จ่าย
     account_id = Column(Integer, ForeignKey("finance_account.id"), nullable=True)
     cleared = Column(Boolean, default=False)         # เงินออกจากบัญชีแล้ว (ขึ้นเช็ค/โอนสำเร็จ) - ใช้ในงบกระทบยอด
+    # วันที่เงินออกจริง ใช้ตัดสินว่ารายการนี้ยังคงค้างอยู่ไหม ณ วันที่ทำงบกระทบยอด
+    # ว่างทั้งที่ติ๊กแล้ว = ข้อมูลเก่าก่อนมีช่องนี้ ถือว่าออกไปแล้วตั้งแต่ต้น
+    cleared_date = Column(DateTime, nullable=True)
     note = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)
 

@@ -60,9 +60,14 @@
         <td data-label="จำนวนเงิน" class="right">{{ "{:,.2f}".format(c.amount or 0) }}</td>
         <td data-label="สถานะ">
           {% if c.cleared %}<span class="pill done">เงินออกแล้ว</span>
+            <small style="display:block; color:#475569;">{{ thai_date(c.cleared_date) if c.cleared_date else 'ไม่ได้ระบุวันที่' }}</small>
           {% else %}<span class="pill" style="background:#fef3c7; color:#92400e;">ยังไม่ตัดบัญชี</span>{% endif %}</td>
         <td class="right" style="white-space:nowrap;">
-          <form method="post" action="/finance/checks/{{ c.id }}/toggle" style="display:inline"><button class="btn sm gray">{{ 'ยังไม่ตัดบัญชี' if c.cleared else 'เงินออกแล้ว' }}</button></form>
+          <form method="post" action="/finance/checks/{{ c.id }}/toggle" style="display:inline">
+            {% if not c.cleared %}<input name="cleared_date" value="{{ today_be }}" data-date="1"
+                   title="วันที่เงินออกจากบัญชีจริง ใช้ย้อนทำงบกระทบยอดของเดือนก่อนได้ถูกต้อง"
+                   style="width:112px; display:inline-block; margin-right:4px;">{% endif %}
+            <button class="btn sm gray">{{ 'ยังไม่ตัดบัญชี' if c.cleared else 'เงินออกแล้ว' }}</button></form>
           <form method="post" action="/finance/checks/{{ c.id }}/delete" style="display:inline" onsubmit="return confirm('ลบรายการจ่ายเงินนี้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
         </td>
       </tr>

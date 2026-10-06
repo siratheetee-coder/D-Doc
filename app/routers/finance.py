@@ -1226,12 +1226,19 @@ async def check_add(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/finance/checks/{cid}/toggle")
-def check_toggle(cid: int, db: Session = Depends(get_db)):
-    """สลับสถานะ 'เงินออกจากบัญชีแล้ว' (ใช้คำนวณรายการคงค้างในงบกระทบยอด)"""
+def check_toggle(cid: int, db: Session = Depends(get_db),
+                 date: str = Form("", alias="cleared_date")):
+    """สลับสถานะ 'เงินออกจากบัญชีแล้ว' พร้อมวันที่เงินออกจริง
+
+    วันที่นี้ทำให้ย้อนไปทำงบกระทบยอดของเดือนก่อนได้ถูกต้อง เช็คที่เพิ่งขึ้นเงิน
+    เดือนนี้ต้องยังนับเป็นรายการคงค้างของเดือนที่แล้ว ไม่ใช่หายไปทั้งแถว
+    """
     ck = db.get(CheckPayment, cid)
     fy = ck.fiscal_year if ck else current_fiscal_year()
     if ck:
-        ck.cleared = not bool(ck.cleared); db.commit()
+        ck.cleared = not bool(ck.cleared)
+        ck.cleared_date = (parse_be_date(date) or datetime.now()) if ck.cleared else None
+        db.commit()
     return RedirectResponse(f"/finance/checks?year={fy}", status_code=303)
 
 
@@ -1280,14 +1287,22 @@ def _recon_rows(db, fy, account_id):
     return q.order_by(BankRecon.as_of.desc(), BankRecon.id.desc()).all()
 
 
-def _outstanding_checks(db, fy, account_id):
+def _outstanding_checks(db, fy, account_id, as_of=None):
     """รายการจ่ายที่เงินยังไม่ออก -> (ของบัญชีนี้, ที่ยังไม่ได้ระบุบัญชี)
 
     ของเดิมถือว่ารายการที่ไม่ระบุบัญชีเป็นของบัญชีที่กำลังดู ทำให้โรงเรียน
     ที่มีหลายบัญชีเอายอดเดียวกันไปหักซ้ำทุกบัญชี · แยกออกมาเตือนให้ไประบุบัญชีแทน
+
+    as_of = ตัดสิน ณ วันที่ทำงบ รายการที่เงินออกหลังวันนั้น ยังถือว่าคงค้างอยู่
+    ติ๊กแล้วแต่ไม่มีวันที่ = ข้อมูลเก่าก่อนมีช่องนี้ ถือว่าออกไปแล้วตั้งแต่ต้น
     """
-    rows = (db.query(CheckPayment).filter_by(fiscal_year=fy, cleared=False)
-            .order_by(CheckPayment.date).all())
+    def still_out(c):
+        if not c.cleared:
+            return True
+        return bool(as_of and c.cleared_date and c.cleared_date.date() > as_of.date())
+
+    rows = [c for c in db.query(CheckPayment).filter_by(fiscal_year=fy)
+            .order_by(CheckPayment.date).all() if still_out(c)]
     mine = [c for c in rows if account_id and c.account_id == account_id]
     loose = [c for c in rows if not c.account_id]
     return mine, loose
@@ -1319,6 +1334,13 @@ def bank_recon_page(request: Request, db: Session = Depends(get_db),
         "daily_balance": daily,
         "outstanding": outstanding, "loose_checks": loose,
         "outstanding_sum": sum(float(c.amount or 0) for c in outstanding),
+        # ให้หน้าจอคิดรายการคงค้าง ณ วันที่ที่เลือกได้เอง ไม่ต้องโหลดหน้าใหม่
+        "check_data": [{"amount": float(c.amount or 0), "cleared": bool(c.cleared),
+                        "cleared_on": c.cleared_date.strftime("%Y-%m-%d") if c.cleared_date else "",
+                        "payee": c.payee or "", "no": c.check_no or "",
+                        "on": c.date.strftime("%Y-%m-%d") if c.date else ""}
+                       for c in db.query(CheckPayment).filter_by(fiscal_year=fy)
+                       .order_by(CheckPayment.date).all() if c.account_id == aid],
     })
 
 
@@ -1359,11 +1381,8 @@ def bank_recon_doc(rid: int, db: Session = Depends(get_db)):
     if not rec:
         return RedirectResponse("/finance/bank-recon", status_code=303)
     acc = db.get(FinanceAccount, rec.account_id) if rec.account_id else None
-    checks = (db.query(CheckPayment)
-              .filter_by(fiscal_year=rec.fiscal_year, cleared=False)
-              .order_by(CheckPayment.date).all())
-    if rec.account_id:
-        checks = [c for c in checks if (c.account_id or rec.account_id) == rec.account_id]
+    # รายการคงค้าง ณ วันที่ของงบใบนี้ ไม่ใช่ ณ วันที่กดพิมพ์
+    checks, _ = _outstanding_checks(db, rec.fiscal_year, rec.account_id, as_of=rec.as_of)
     return serve_generated(
         render_bank_recon(get_school(db), rec, acc.name if acc else "", checks), _DOCX)
 

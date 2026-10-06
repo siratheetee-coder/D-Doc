@@ -141,24 +141,38 @@
     };
     var daily = {{ daily_balance|tojson }};
     var opening = {{ opening|round(2) }};
+    var checks = {{ check_data|tojson }};
     var baht = function(n){ return n.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); };
     var num = function(name){ var el = form.elements[name]; return parseFloat(el && el.value) || 0; };
 
     // ยอดตามบัญชี ณ วันที่ที่เลือก = ยอดเคลื่อนไหวล่าสุดที่ไม่เกินวันนั้น
-    function bookAt(thaiDate){
-      var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((thaiDate || '').trim());
-      if (!m) return null;
-      var iso = (Number(m[3]) - 543) + '-' + m[2] + '-' + m[1];
+    function bookAt(iso){
+      if (!iso) return null;
       var best = opening;
       Object.keys(daily).sort().forEach(function(d){ if (d <= iso) best = daily[d]; });
       return best;
     }
-    var bookTouched = false;
+    function isoOf(thaiDate){
+      var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((thaiDate || '').trim());
+      return m ? (Number(m[3]) - 543) + '-' + m[2] + '-' + m[1] : null;
+    }
+    // รายการคงค้าง ณ วันนั้น = ยังไม่ตัดบัญชี หรือ เงินออกหลังวันนั้น
+    function outstandingAt(iso){
+      return checks.filter(function(c){
+        return !c.cleared || (c.cleared_on && c.cleared_on > iso);
+      }).reduce(function(a, c){ return a + c.amount; }, 0);
+    }
+    var bookTouched = false, outTouched = false;
     form.elements.book_balance.addEventListener('input', function(){ bookTouched = true; });
+    form.elements.outstanding.addEventListener('input', function(){ outTouched = true; });
     form.elements.as_of.addEventListener('input', function(){
-      if (bookTouched) return;                 // ครูแก้เองแล้ว อย่าเขียนทับ
-      var v = bookAt(this.value);
-      if (v !== null) form.elements.book_balance.value = v;
+      var iso = isoOf(this.value);
+      if (iso === null) return;
+      if (!bookTouched) {                      // ครูแก้เองแล้ว อย่าเขียนทับ
+        var v = bookAt(iso);
+        if (v !== null) form.elements.book_balance.value = v;
+      }
+      if (!outTouched) form.elements.outstanding.value = outstandingAt(iso).toFixed(2);
       recalc();
     });
 
