@@ -28,9 +28,16 @@
     ระบบดึงให้อัตโนมัติ · ยอดตามบัญชีของโรงเรียน <b>{{ "{:,.2f}".format(book_balance) }}</b> บาท ·
     รายการจ่ายที่เงินยังไม่ออกจากบัญชี <b>{{ outstanding|length }}</b> รายการ รวม <b>{{ "{:,.2f}".format(outstanding_sum) }}</b> บาท
     (<a href="/finance/checks?year={{ fiscal_year }}">ดูทะเบียนคุมการจ่ายเงิน</a>)
+    <br>เปลี่ยนวันที่แล้วยอดตามบัญชีจะตัดถึงวันนั้นให้เอง แก้ทับได้ถ้าต้องการ
   </div>
 
-  <form method="post" action="/finance/bank-recon">
+  {% if loose_checks %}
+  <div class="alert warn">ยังมีรายการจ่าย {{ loose_checks|length }} รายการที่ไม่ได้ระบุบัญชี รวม
+    {{ "{:,.2f}".format(loose_checks|sum(attribute='amount')) }} บาท จึงยังไม่นับเป็นรายการคงค้างของบัญชีไหน
+    <a href="/finance/checks?year={{ fiscal_year }}">ไประบุบัญชีให้ครบก่อน</a> ยอดกระทบถึงจะตรง</div>
+  {% endif %}
+
+  <form method="post" action="/finance/bank-recon" id="recon-form">
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
     <input type="hidden" name="account_id" value="{{ account_id }}">
     <div class="row">
@@ -47,6 +54,11 @@
     <div class="row">
       <div><label>รายการอื่น (+/-)</label><input name="other" type="number" step="0.01" value="0"></div>
       <div style="flex:2;"><label>คำอธิบายรายการอื่น</label><input name="other_note"></div>
+    </div>
+    <div class="recon-live" data-recon-calc>
+      <div><span>ยอดคงเหลือที่กระทบแล้ว</span><b data-recon-calc-total>0.00</b></div>
+      <div><span>ยอดคงเหลือตามบัญชีของโรงเรียน</span><b data-recon-calc-book>0.00</b></div>
+      <div class="recon-diff"><span>ผลต่าง</span><b data-recon-calc-diff>0.00</b></div>
     </div>
     <label>หมายเหตุ</label><textarea name="note" rows="2"></textarea>
     <br><br><button class="btn green" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกงบกระทบยอด</button>
@@ -97,6 +109,15 @@
   {% else %}<p class="muted">ยังไม่มีงบกระทบยอดในปีงบนี้</p>{% endif %}
 </div>
 
+<style>
+  .recon-live{display:grid;gap:6px;background:#f1f5f9;border-radius:12px;padding:14px 16px;margin:14px 0;}
+  .recon-live div{display:flex;justify-content:space-between;gap:12px;align-items:baseline;}
+  .recon-live b{font-variant-numeric:tabular-nums;font-size:17px;}
+  .recon-live .recon-diff{border-top:1px solid #cbd5e1;padding-top:8px;margin-top:2px;}
+  .recon-live .recon-diff b{font-size:19px;}
+  .recon-live.ok .recon-diff b{color:#047857;}
+  .recon-live.off .recon-diff b{color:#b91c1c;}
+</style>
 <script>
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){
@@ -106,5 +127,54 @@
       if(this.value!==o)this.value=o;
     });
   });
+
+  // ยอดกระทบและผลต่าง คำนวณสดระหว่างพิมพ์ จะได้รู้ทันทีว่าตรงหรือยัง
+  // ไม่ต้องกดบันทึกก่อนแล้วค่อยมาดูผลต่างในตารางด้านล่าง
+  (function(){
+    var form = document.getElementById('recon-form');
+    if (!form) return;
+    var box = form.querySelector('[data-recon-calc]');
+    var out = {
+      total: box.querySelector('[data-recon-calc-total]'),
+      book: box.querySelector('[data-recon-calc-book]'),
+      diff: box.querySelector('[data-recon-calc-diff]')
+    };
+    var daily = {{ daily_balance|tojson }};
+    var opening = {{ opening|round(2) }};
+    var baht = function(n){ return n.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+    var num = function(name){ var el = form.elements[name]; return parseFloat(el && el.value) || 0; };
+
+    // ยอดตามบัญชี ณ วันที่ที่เลือก = ยอดเคลื่อนไหวล่าสุดที่ไม่เกินวันนั้น
+    function bookAt(thaiDate){
+      var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((thaiDate || '').trim());
+      if (!m) return null;
+      var iso = (Number(m[3]) - 543) + '-' + m[2] + '-' + m[1];
+      var best = opening;
+      Object.keys(daily).sort().forEach(function(d){ if (d <= iso) best = daily[d]; });
+      return best;
+    }
+    var bookTouched = false;
+    form.elements.book_balance.addEventListener('input', function(){ bookTouched = true; });
+    form.elements.as_of.addEventListener('input', function(){
+      if (bookTouched) return;                 // ครูแก้เองแล้ว อย่าเขียนทับ
+      var v = bookAt(this.value);
+      if (v !== null) form.elements.book_balance.value = v;
+      recalc();
+    });
+
+    function recalc(){
+      var total = num('stmt_balance') + num('in_transit') + num('interest')
+                - num('outstanding') - num('bank_fee') + num('other');
+      var book = num('book_balance');
+      var diff = total - book;
+      out.total.textContent = baht(total);
+      out.book.textContent = baht(book);
+      out.diff.textContent = (Math.abs(diff) < 0.005 ? 'ตรงกัน' : baht(diff) + ' บาท');
+      box.classList.toggle('ok', Math.abs(diff) < 0.005);
+      box.classList.toggle('off', Math.abs(diff) >= 0.005);
+    }
+    form.addEventListener('input', recalc);
+    recalc();
+  })();
 </script>
 {% endblock %}

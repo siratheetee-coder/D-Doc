@@ -1254,15 +1254,43 @@ def check_register_doc(db: Session = Depends(get_db), year: int | None = None):
 
 
 # ---------------- งบกระทบยอดเงินฝากธนาคาร ----------------
-def _book_balance(db, fy, account_id):
-    """ยอดคงเหลือตามบัญชีของโรงเรียน = ยอดยกมา + รับ - จ่าย"""
+def _book_balance(db, fy, account_id, upto=None):
+    """ยอดคงเหลือตามบัญชีของโรงเรียน = ยอดยกมาของปีงบนั้น + รับ - จ่าย
+
+    upto = ตัดยอด ณ วันที่ (กระทบยอดสิ้นเดือนไหน ต้องใช้ยอดถึงวันนั้น
+    ไม่ใช่ยอดทั้งปีที่รวมเดือนถัด ๆ ไปที่ลงบัญชีไปแล้ว)
+    รายการที่ไม่มีวันที่ถือว่าอยู่ในช่วงเสมอ จะได้ไม่หายไปเงียบ ๆ
+    """
     acc = db.get(FinanceAccount, account_id) if account_id else None
     if not acc:
         return 0.0
-    bal = float(acc.opening_balance or 0)
+    bal = opening_for(acc, fy)      # ยอดยกมาของปีงบนั้น ไม่ใช่ยอดตั้งต้นของบัญชี
     for t in db.query(FinanceTxn).filter_by(account_id=acc.id, fiscal_year=fy).all():
+        if upto is not None and t.date is not None and t.date.date() > upto.date():
+            continue
         bal += float(t.amount or 0) if t.kind == "in" else -float(t.amount or 0)
-    return bal
+    return round(bal, 2)
+
+
+def _recon_rows(db, fy, account_id):
+    """งบกระทบยอดที่ทำไว้ เฉพาะบัญชีที่กำลังดู ไม่ปนบัญชีอื่น"""
+    q = db.query(BankRecon).filter_by(fiscal_year=fy)
+    if account_id:
+        q = q.filter(BankRecon.account_id == account_id)
+    return q.order_by(BankRecon.as_of.desc(), BankRecon.id.desc()).all()
+
+
+def _outstanding_checks(db, fy, account_id):
+    """รายการจ่ายที่เงินยังไม่ออก -> (ของบัญชีนี้, ที่ยังไม่ได้ระบุบัญชี)
+
+    ของเดิมถือว่ารายการที่ไม่ระบุบัญชีเป็นของบัญชีที่กำลังดู ทำให้โรงเรียน
+    ที่มีหลายบัญชีเอายอดเดียวกันไปหักซ้ำทุกบัญชี · แยกออกมาเตือนให้ไประบุบัญชีแทน
+    """
+    rows = (db.query(CheckPayment).filter_by(fiscal_year=fy, cleared=False)
+            .order_by(CheckPayment.date).all())
+    mine = [c for c in rows if account_id and c.account_id == account_id]
+    loose = [c for c in rows if not c.account_id]
+    return mine, loose
 
 
 @router.get("/finance/bank-recon", response_class=HTMLResponse)
@@ -1271,19 +1299,25 @@ def bank_recon_page(request: Request, db: Session = Depends(get_db),
     fy = year or current_fiscal_year()
     accounts = _fin_accounts(db)
     aid = account_id or (accounts[0].id if accounts else 0)
-    rows = (db.query(BankRecon).filter_by(fiscal_year=fy)
-            .order_by(BankRecon.as_of.desc(), BankRecon.id.desc()).all())
-    outstanding = (db.query(CheckPayment)
-                   .filter_by(fiscal_year=fy, cleared=False)
-                   .order_by(CheckPayment.date).all())
+    outstanding, loose = _outstanding_checks(db, fy, aid)
+    # ยอดตามบัญชีรายวัน ให้หน้าจอขยับตามวันที่ที่เลือกได้เองโดยไม่ต้องโหลดใหม่
+    daily, run = {}, opening_for(db.get(FinanceAccount, aid), fy) if aid else 0.0
     if aid:
-        outstanding = [c for c in outstanding if (c.account_id or aid) == aid]
+        txns = sorted(db.query(FinanceTxn).filter_by(account_id=aid, fiscal_year=fy).all(),
+                      key=lambda t: (t.date or datetime.min))
+        for t in txns:
+            run += float(t.amount or 0) if t.kind == "in" else -float(t.amount or 0)
+            if t.date:
+                daily[t.date.strftime("%Y-%m-%d")] = round(run, 2)
     return templates.TemplateResponse("finance_bank_recon.html", {
         "request": request, "school": get_school(db), "fiscal_year": fy,
-        "years": _finance_years(db, fy), "rows": rows, "accounts": accounts,
+        "years": _finance_years(db, fy), "rows": _recon_rows(db, fy, aid),
+        "accounts": accounts,
         "account_id": aid, "today_be": be_date_input(datetime.now()),
         "book_balance": _book_balance(db, fy, aid),
-        "outstanding": outstanding,
+        "opening": opening_for(db.get(FinanceAccount, aid), fy) if aid else 0.0,
+        "daily_balance": daily,
+        "outstanding": outstanding, "loose_checks": loose,
         "outstanding_sum": sum(float(c.amount or 0) for c in outstanding),
     })
 
