@@ -601,6 +601,9 @@ def render_pp5(school, klass, subject, db) -> str:
     _new_section(doc, landscape=False)
     att_months = TERM_MONTHS.get(subject.term) if is_secondary(klass.level) else None
     att_sub = subject.id if getattr(school, "attendance_by_subject", False) else None
+    from app.services.academic_lessons import plan_for
+    if plan_for(db, klass.id, subject.id):
+        att_sub = subject.id
     _pp5_attendance_daily(doc, klass, students, db, page_break=False, months_ok=att_months,
                           subject_id=att_sub)
     if _sel(subject):
@@ -762,7 +765,12 @@ def _pp5_attendance_daily(doc, klass, students, db, *, page_break=True, months_o
     """หน้าบันทึกเวลาเรียน (รายวัน) - ตารางเช็กชื่อต่อเดือน (เฉพาะเดือนที่มีปฏิทิน)
     months_ok = set เดือนที่อนุญาต (มัธยม = เฉพาะเดือนในภาคเรียนนั้น) · None = ทุกเดือน
     subject_id = ค่า = เวลาเรียนแยกรายวิชานั้น · None = รายห้อง (subject_id IS NULL)"""
-    from app.models import AcadCalendar, AcadAttendance
+    from app.models import AcadCalendar, AcadAttendance, AcadSubject
+    from app.services.academic_lessons import plan_for
+    if subject_id and plan_for(db, klass.id, subject_id):
+        _lesson_attendance_section(doc, klass, db.get(AcadSubject, subject_id), db,
+                                   months_ok=months_ok, page_break=page_break)
+        return True
     sids = [s.id for s in students]
     att = {}
     if sids:
@@ -2088,6 +2096,69 @@ def _attendance_doc(landscape=True):
     sec0 = doc.sections[0]
     sec0.top_margin = Cm(0.6); sec0.bottom_margin = Cm(0.45)   # บีบให้พอดีหน้าเดียว
     return doc
+
+
+def _lesson_attendance_section(doc, klass, subject, db, *, term=None, months_ok=None, page_break=False):
+    from app.services import academic_lessons as svc
+    from app.models import AcadLessonMark
+    rows = svc.lessons_for(db, klass.id, subject.id, term)
+    if months_ok is not None:
+        rows = [r for r in rows if r.date.month in months_ok]
+    students = sorted(klass.students, key=lambda s: (s.seq or 999, s.name))
+    marks = {(m.lesson_id, m.acad_student_id): m.mark for m in
+             db.query(AcadLessonMark).filter(AcadLessonMark.lesson_id.in_([r.id for r in rows]))}
+    _p(doc, "บันทึกเวลาเรียนรายคาบ", align="center", bold=True, size=16, page_break=page_break)
+    _p(doc, f"{subject.code or ''} {subject.name} ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}"
+       + (f" ภาคเรียนที่ {term}" if term else ""), align="center")
+    _p(doc, f"จัดวันสอน {len(rows)} คาบ รวม {svc.hours(sum(r.minutes for r in rows))} ชั่วโมง", align="center")
+    _p(doc, "/ = มา   ป = ป่วย   ล = ลา   ข = ขาด   — = ยังไม่เช็ค", align="center")
+    _p(doc, "ข้อมูลรายวันเดิมแยกเก็บย้อนหลัง ไม่รวมกับชั่วโมงรายคาบ", size=12, align="center")
+    if not rows:
+        _p(doc, "ยังไม่มีคาบเรียนในช่วงนี้", align="center")
+        return
+    # Six periods fit the portrait attendance section of the existing PP5 booklet.
+    for offset in range(0, len(rows), 6):
+        chunk = rows[offset:offset+6]
+        if offset:
+            _p(doc, "บันทึกเวลาเรียนรายคาบ ต่อ", bold=True, page_break=True)
+        table = doc.add_table(rows=1, cols=2+len(chunk)); table.style = "Table Grid"
+        headers = ["เลขที่", "ชื่อ นามสกุล"] + [
+            f"{r.date.day}/{r.date.month}/{r.date.year+543}\n{r.slot}\n{r.minutes} นาที" for r in chunk]
+        for cell, text in zip(table.rows[0].cells, headers):
+            _cell(cell, text, bold=True, size=13, fill="EDE9FE")
+        from docx.oxml import OxmlElement
+        table.rows[0]._tr.get_or_add_trPr().append(OxmlElement("w:tblHeader"))
+        for s in students:
+            cells = table.add_row().cells
+            values = [s.seq or "", s.name] + [marks.get((r.id, s.id), "—") for r in chunk]
+            for j, (cell, text) in enumerate(zip(cells, values)):
+                _cell(cell, text, align="left" if j==1 else "center", size=14)
+            cells[0]._tc.getparent().get_or_add_trPr().append(OxmlElement("w:cantSplit"))
+        _widths(table, [Cm(1), Cm(5)] + [Cm(12/len(chunk))]*len(chunk))
+    _p(doc, "สรุปเวลาเรียนรายบุคคล หน่วยชั่วโมง", bold=True, page_break=True)
+    table = doc.add_table(rows=1, cols=6); table.style="Table Grid"
+    for cell, text in zip(table.rows[0].cells, ["ชื่อ นามสกุล", "มา", "ป่วย", "ลา", "ขาด", "ยังไม่เช็ค"]):
+        _cell(cell, text, bold=True, fill="EDE9FE")
+    table.rows[0]._tr.get_or_add_trPr().append(OxmlElement("w:tblHeader"))
+    for s in students:
+        cells = table.add_row().cells
+        _cell(cells[0], s.name, align="left", size=14)
+        for i, mark in enumerate(["/", "ป", "ล", "ข", ""], 1):
+            mins = sum(r.minutes for r in rows if marks.get((r.id, s.id), "") == mark)
+            _cell(cells[i], svc.hours(mins), size=14)
+    _widths(table, [Cm(6)]+[Cm(2.4)]*5)
+
+
+def render_lesson_attendance(school, klass, subject, db, *, term=None, month=None):
+    from uuid import uuid4
+    doc = _doc()
+    _p(doc, school.name or "", align="center", bold=True)
+    _lesson_attendance_section(doc, klass, subject, db, term=term,
+                               months_ok={month} if month else None)
+    out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
+    out = out_dir / f"เวลาเรียนรายคาบ_{klass.id}_{subject.id}_{uuid4().hex}.docx"
+    doc.save(str(out))
+    return str(out)
 
 
 def render_attendance_month(school, klass, db, month, subject=None) -> str:

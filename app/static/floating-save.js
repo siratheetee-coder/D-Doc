@@ -10,7 +10,7 @@
   document.body.appendChild(dock);
   const select = dock.querySelector('select'), action = dock.querySelector('button');
   let targets = [], chosen = null, scheduled = false;
-  const visible = el => !!(el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden' && !el.closest('[hidden], [aria-hidden="true"]'));
+  const visible = el => !!(el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden' && !el.closest('[hidden], [aria-hidden="true"], details:not([open])'));
   function candidates() {
     return [...main.querySelectorAll('button,input[type=submit]')].filter(el => {
       const text = (el.textContent || el.value || '').replace(/💾/g, '').trim();
@@ -22,6 +22,7 @@
     });
   }
   function label(el, index) {
+    if (el.dataset.saveLabel) return `${index+1}. ${el.dataset.saveLabel}`;
     const row = el.closest('tr');
     const section = el.closest('.card,.tp-card,section');
     const title = row?.querySelector('input[name*=name]')?.value || row?.querySelector('td')?.textContent || section?.querySelector('h2,h3')?.textContent || '';
@@ -62,7 +63,7 @@
     chosen.click();schedule();
   });
   document.addEventListener('invalid',e=>e.target.scrollIntoView({block:'center',behavior:'smooth'}),true);
-  new MutationObserver(schedule).observe(main,{subtree:true,childList:true,attributes:true,attributeFilter:['hidden','style','class','disabled']});
+  new MutationObserver(schedule).observe(main,{subtree:true,childList:true,attributes:true,attributeFilter:['hidden','style','class','disabled','open']});
   document.addEventListener('click',schedule);window.addEventListener('resize',schedule);
   window.visualViewport?.addEventListener('resize',schedule);
   refresh();

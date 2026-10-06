@@ -9,7 +9,7 @@ academic.py - งานวิชาการ
 """
 from datetime import datetime
 import json
-from fastapi import APIRouter, Request, Depends, Form, File, UploadFile
+from fastapi import APIRouter, Request, Depends, Form, File, UploadFile, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -204,6 +204,12 @@ def _teacher_todo(sc, db, y, term):
         att = bool(sids) and db.query(AcadAttendance).filter(
             AcadAttendance.subject_id == sid, AcadAttendance.month == cm,
             AcadAttendance.acad_student_id.in_(sids)).first() is not None
+        from app.services.academic_lessons import plan_for, snapshot
+        if plan_for(db, cid, sid):
+            state = snapshot(db, c, subj, tt)
+            current_lessons = [r for r in state["lessons"] if r.date.month == cm]
+            att = bool(sids and current_lessons) and all(
+                (r.id, student_id) in state["marks"] for r in current_lessons for student_id in sids)
         items.append({
             "cid": cid, "sid": sid, "term": tt,
             "class": _class_label(c), "subject": (subj.code + " " if subj.code else "") + subj.name,
@@ -289,6 +295,9 @@ def _class_progress(c, db, term):
                                 AcadActivityResult.result != "").distinct().all()})
     att = bool(sids) and db.query(AcadAttendance).filter(
         AcadAttendance.acad_student_id.in_(sids)).first() is not None
+    if not att and sids:
+        from app.models import AcadLessonMark
+        att = db.query(AcadLessonMark).filter(AcadLessonMark.acad_student_id.in_(sids)).first() is not None
     onet = 0
     if is_exit_level(c.level) and sids:
         onet = db.query(AcadOnet).filter(
@@ -2536,7 +2545,7 @@ async def calendar_save(request: Request, db: Session = Depends(get_db), year: s
 def attendance_page(request: Request, db: Session = Depends(get_db),
                     cid: int | None = None, year: int | None = None,
                     month: int | None = None, sid: int | None = None,
-                    mode: str | None = None):
+                    mode: str | None = None, legacy: int = 0):
     y = year or _acad_year(db)
     school = get_school(db)
     sc = _scope(request, db)
@@ -2582,6 +2591,15 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
     subj = db.get(AcadSubject, sid) if (by_subj and sid) else None
     if subj and sc.is_teacher and not sc.can_teach(c.id if c else 0, subj.id):
         subj = None
+    if by_subj and c and subj:
+        from app.routers.academic_lessons import access, legacy_page
+        access(request, db, c.id, subj.id)
+        if legacy:
+            return legacy_page(request, db, c, subj)
+        term = subj.term if subj.term in (1, 2) else current_term()
+        if month:
+            term = 1 if month in TERM_MONTHS[1] else 2
+        return RedirectResponse(f"/academic/lessons?cid={c.id}&sid={subj.id}&term={term}", 303)
     home_pick = not by_subj
     att_sid = subj.id if (by_subj and subj) else None
     picked = (not by_subj) or (subj is not None)
@@ -2648,6 +2666,8 @@ async def attendance_day_save(request: Request, db: Session = Depends(get_db),
     """บันทึกเช็กชื่อรายวันของเดือนเดียว - เขียน marks + present ให้ตรงกัน"""
     if not _att_ok(_scope(request, db), _to_int(cid, 0), mode, _to_int(sid, 0)):
         return _deny()
+    if mode == 'subject':
+        raise HTTPException(409, 'เวลาเรียนรายวิชาเปลี่ยนเป็นรายคาบแล้ว กรุณาเปิดหน้าเวลาเรียนใหม่ ข้อมูลรายวันเดิมยังอยู่ครบ')
     form = await request.form()
     c = db.get(AcadClass, _to_int(cid, 0))
     m = _to_int(month, 0)
@@ -2693,6 +2713,8 @@ async def attendance_save(request: Request, db: Session = Depends(get_db),
                           cid: str = Form(""), sid: str = Form(""), mode: str = Form("")):
     if not _att_ok(_scope(request, db), _to_int(cid, 0), mode, _to_int(sid, 0)):
         return _deny()
+    if mode == 'subject':
+        raise HTTPException(409, 'เวลาเรียนรายวิชาเปลี่ยนเป็นรายคาบแล้ว กรุณาเปิดหน้าเวลาเรียนใหม่ ข้อมูลรายวันเดิมยังอยู่ครบ')
     form = await request.form()
     c = db.get(AcadClass, _to_int(cid, 0))
     if not c:
@@ -2777,6 +2799,8 @@ async def attendance_fill_year(request: Request, db: Session = Depends(get_db),
     เดือนที่ยังไม่มีปฏิทินแต่ครูพิมพ์จำนวนวันเปิดเรียนไว้ ใช้จำนวนนั้นเป็นยอด "มา" """
     if not _att_ok(_scope(request, db), _to_int(cid, 0), mode, _to_int(sid, 0)):
         return _deny()
+    if mode == 'subject':
+        raise HTTPException(409, 'เวลาเรียนรายวิชาเปลี่ยนเป็นรายคาบแล้ว กรุณาเปิดหน้าเวลาเรียนใหม่ ข้อมูลรายวันเดิมยังอยู่ครบ')
     form = await request.form()
     c = db.get(AcadClass, _to_int(cid, 0))
     if not c:
@@ -3202,6 +3226,13 @@ def attendance_month_docx(request: Request, cid: int, month: int,
     if not _att_ok(_scope(request, db), cid, mode, sid):
         return _deny()
     subject = db.get(AcadSubject, sid) if (mode == "subject" and sid) else None
+    if subject:
+        from app.routers.academic_lessons import access
+        from app.services.academic_lessons import plan_for
+        from app.services.acad_doc import render_lesson_attendance
+        access(request, db, cid, sid)
+        if plan_for(db, cid, sid):
+            return serve_generated(render_lesson_attendance(get_school(db), c, subject, db, month=month), _DOCX)
     return serve_generated(
         render_attendance_month(get_school(db), c, db, month, subject=subject), _DOCX)
 
@@ -3217,5 +3248,16 @@ def attendance_term_docx(request: Request, cid: int, term: int,
     if not _att_ok(_scope(request, db), cid, mode, sid):
         return _deny()
     subject = db.get(AcadSubject, sid) if (mode == "subject" and sid) else None
+    if subject:
+        from app.routers.academic_lessons import access
+        from app.services.academic_lessons import plan_for
+        from app.services.acad_doc import render_lesson_attendance
+        access(request, db, cid, sid)
+        if plan_for(db, cid, sid):
+            return serve_generated(render_lesson_attendance(get_school(db), c, subject, db, term=term), _DOCX)
     return serve_generated(
         render_attendance_term(get_school(db), c, db, term, subject=subject), _DOCX)
+
+
+from app.routers.academic_lessons import router as lesson_router
+router.include_router(lesson_router)

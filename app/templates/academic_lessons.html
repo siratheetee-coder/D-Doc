@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}เวลาเรียนรายคาบ · {{ subj.name }}{% endblock %}
+{% macro keys() %}<input type="hidden" name="cid" value="{{ c.id }}"><input type="hidden" name="sid" value="{{ subj.id }}"><input type="hidden" name="term" value="{{ term }}">{% endmacro %}
+{% block content %}
+<style>
+.lesson-actions,.lesson-inputs{display:flex;flex-wrap:wrap;gap:12px;align-items:end}.lesson-inputs>div{flex:1 1 160px}.lesson-inputs .short{flex:0 1 150px}.lesson-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}.lesson-stat{background:#f1efff;border:1px solid #ddd6fe;border-radius:14px;padding:16px}.lesson-stat strong{display:block;font-size:24px;color:#5941c6}.lesson-card summary{cursor:pointer;font-weight:700;padding:8px 0}.lesson-card[open] summary{margin-bottom:12px}.lesson-check{max-height:460px;overflow:auto}.lesson-check th{position:sticky;top:0;background:#eeebff;z-index:1}.lesson-check select{min-width:145px}.lesson-note{font-size:13px;color:var(--muted);margin-top:8px}.lesson-actions .btn{white-space:normal}.lesson-date{white-space:nowrap}@media(max-width:650px){.lesson-stats{grid-template-columns:1fr}.lesson-stat{padding:12px}.lesson-stat strong{font-size:20px}.lesson-inputs .short{flex:1 1 120px}}
+</style>
+<div class="hero"><div><div class="hero-sub">งานวิชาการ · เวลาเรียนรายคาบ</div><div class="hero-title">{{ subj.code }} {{ subj.name }}</div><div class="hero-meta">ห้อง {{ class_label(c) }} · ปีการศึกษา {{ c.year }} · ภาคเรียนที่ {{ term }}</div></div></div>
+<div class="lesson-actions" style="margin:16px 0">
+  <a class="btn soft" href="/academic/attendance?mode=subject&year={{ c.year }}&cid={{ c.id }}">← เลือกรายวิชา</a>
+  {% if subj.term not in [1,2] %}{% for t in [1,2] %}<a class="btn {{ '' if t==term else 'soft' }}" href="/academic/lessons?cid={{ c.id }}&sid={{ subj.id }}&term={{ t }}">ภาคเรียนที่ {{ t }}</a>{% endfor %}{% endif %}
+  <a class="btn soft" href="/academic/lessons/report.docx?cid={{ c.id }}&sid={{ subj.id }}&term={{ term }}">พิมพ์เวลาเรียนรายคาบ (Word)</a>
+</div>
+{% if error %}<div class="alert warn" role="alert">{{ error }}</div>{% endif %}
+{% if request.query_params.get('saved') %}<div class="alert" role="status">บันทึกแล้ว</div>{% endif %}
+{% if request.query_params.get('imported') is not none %}<div class="alert" role="status">เพิ่มแล้ว {{ request.query_params.get('imported') }} คาบ · ข้ามคาบที่มีอยู่แล้ว</div>{% endif %}
+<div class="lesson-stats">
+  <div class="lesson-stat">ชั่วโมงรายวิชา{{ 'ต่อเทอม' if subj.term in [1,2] else 'ทั้งปี' }}<strong>{{ subj.hours or 0 }} ชั่วโมง</strong>{% if not subj.hours %}<span class="lesson-note">ยังไม่ได้กำหนดในหน้ารายวิชา</span>{% endif %}</div>
+  <div class="lesson-stat">จัดวันสอนเทอมนี้แล้ว<strong>{{ hours(totals[term]) }} ชั่วโมง</strong>{{ lessons|length }} คาบ{% if target is not none %} · เป้าหมาย {{ hours(target) }} ชม.{% else %} · ยังไม่กำหนดเป้าหมายรายเทอม{% endif %}</div>
+  <div class="lesson-stat">เช็คชื่อครบทุกคนแล้ว<strong>{{ hours(checked) }} ชั่วโมง</strong><span class="lesson-note">เฉพาะคาบที่บันทึกสถานะครบทั้งห้อง</span></div>
+</div>
+{% if target is not none and totals[term] != target %}<div class="alert warn">จัดวันสอน{{ 'ขาดอีก' if totals[term] < target else 'เกินเป้าหมาย' }} {{ hours((totals[term]-target)|abs) }} ชั่วโมง · ยังเพิ่มวันสอนและเช็คชื่อได้ตามปกติ</div>{% endif %}
+{% if subj.term not in [1,2] and term==2 %}<p class="lesson-note">เทอม 1 จัดวันสอน {{ hours(totals[1]) }} ชั่วโมง · ทั้งปีจัดแล้ว {{ hours(totals[1]+totals[2]) }} ชั่วโมง{% if subj.hours %} · เหลือจากชั่วโมงทั้งปี {{ hours([0,subj.hours*60-totals[1]-totals[2]]|max) }} ชั่วโมง{% endif %}</p>{% endif %}
+{% if subj.term not in [1,2] %}
+<details class="card lesson-card" {% if entered.get('term1') is not none %}open{% endif %}>
+<summary>เป้าหมายชั่วโมงรายเทอม (ไม่บังคับ)</summary>
+<p>ชั่วโมงทั้งปี {{ subj.hours or 0 }} ชม. · จัดเทอม 1 แล้ว {{ hours(totals[1]) }} ชม. · เทอม 2 แล้ว {{ hours(totals[2]) }} ชม.</p>
+{% if subj.hours %}<p>คงเหลือจากทั้งปี {{ hours([0, subj.hours*60-totals[1]-totals[2]]|max) }} ชั่วโมง{% if totals[1]+totals[2]>subj.hours*60 %} · จัดเกินทั้งปี {{ hours(totals[1]+totals[2]-subj.hours*60) }} ชั่วโมง{% endif %}</p>{% endif %}
+<form method="post" action="/academic/lessons/targets">{{ keys() }}
+<div class="lesson-inputs"><div><label for="target1">เป้าหมายเทอม 1 (ชั่วโมง)</label><input id="target1" name="term1" type="number" min="0" step="any" value="{{ entered.get('term1', hours(plan.term1_minutes) if plan and plan.term1_minutes is not none else '') }}"></div><div><label for="target2">เป้าหมายเทอม 2 (ชั่วโมง)</label><input id="target2" name="term2" type="number" min="0" step="any" value="{{ entered.get('term2', hours(plan.term2_minutes) if plan and plan.term2_minutes is not none else '') }}"></div>
+{% if subj.hours %}<button type="button" class="btn soft" id="splitTargets" data-hours="{{ subj.hours }}">แบ่งเท่ากัน 2 เทอม</button>{% endif %}<button class="btn" type="submit">บันทึกเป้าหมาย</button></div>
+<p class="lesson-note">เว้นว่างได้ ระบบจะแสดงชั่วโมงทั้งปีเป็นข้อมูลอ้างอิง โดยไม่เตือนว่าชั่วโมงรายเทอมขาด</p><p id="targetNote" class="lesson-note" aria-live="polite"></p></form></details>
+{% endif %}
+<div class="card"><h2>เพิ่มวันสอนเอง</h2><p class="muted">เลือกวันที่และคาบที่สอนจริง · วันเดียวเพิ่มได้หลายคาบ · ไม่ต้องตั้งตารางเรียนก่อน</p>
+<form method="post" action="/academic/lessons/add">{{ keys() }}<div class="lesson-inputs">
+<div><label for="lessonDate">วันที่สอน</label><input required type="text" class="lesson-date-input" inputmode="numeric" maxlength="10" placeholder="วว/ดด/ปปปป (พ.ศ.)" id="lessonDate" name="date" value="{{ entered.get('date','') }}"></div>
+<div><label for="lessonSlot">คาบ / ช่วงเวลา</label><input required maxlength="80" id="lessonSlot" name="slot" placeholder="เช่น คาบ 1 หรือ 08:30–09:20" value="{{ entered.get('slot','') }}"></div>
+<div class="short"><label for="lessonMinutes">เวลาเรียน (นาที)</label><input required type="number" min="1" max="720" id="lessonMinutes" name="minutes" placeholder="เช่น 50" value="{{ entered.get('minutes','') }}"></div>
+<button class="btn" type="submit">เพิ่มวันสอน</button></div><p class="lesson-note">60 นาที = 1 ชั่วโมง · คาบที่เพิ่มอยู่ในภาคเรียนที่ {{ term }} · วันสอนนอกปฏิทินใช้สำหรับสอนชดเชยได้</p></form></div>
+<details class="card lesson-card" {% if preview is not none or entered.get('start') %}open{% endif %}><summary>ดึงวันสอนจากตารางเรียน</summary>
+<p class="muted">เลือกช่วงวันที่เพื่อดูตัวอย่างก่อนนำเข้า ใช้เฉพาะวันเปิดเรียนในปฏิทินการศึกษา ตารางเรียนที่แก้ภายหลังจะไม่เปลี่ยนคาบที่นำเข้าแล้ว</p>
+<form method="post" action="/academic/lessons/preview">{{ keys() }}<div class="lesson-inputs">
+<div><label for="lessonStart">ตั้งแต่วันที่</label><input required type="text" class="lesson-date-input" inputmode="numeric" maxlength="10" placeholder="วว/ดด/ปปปป (พ.ศ.)" id="lessonStart" name="start" value="{{ entered.get('start','') }}"></div>
+<div><label for="lessonEnd">ถึงวันที่</label><input required type="text" class="lesson-date-input" inputmode="numeric" maxlength="10" placeholder="วว/ดด/ปปปป (พ.ศ.)" id="lessonEnd" name="end" value="{{ entered.get('end','') }}"></div>
+<div><label for="fallbackMinutes">นาทีต่อคาบ (เฉพาะคาบที่ยังไม่มีเวลา)</label><input type="number" min="1" max="720" id="fallbackMinutes" name="fallback" value="{{ entered.get('fallback','') }}" placeholder="เว้นว่างถ้าตารางมีเวลาแล้ว"></div>
+<button class="btn" type="submit">ดึงวันสอน · ดูตัวอย่าง</button></div></form>
+{% if preview is not none %}<h3>ตัวอย่าง {{ preview|length }} คาบ · ภาคเรียนที่ {{ term }}</h3>
+<div class="table-wrap" style="max-height:300px;overflow:auto"><table><thead><tr><th>วันที่</th><th>คาบ</th><th>นาที</th><th>การนำเข้า</th></tr></thead><tbody>{% for r in preview %}<tr><td>{{ format_date(r.date) }}</td><td>{{ r.slot }}</td><td>{{ r.minutes }}</td><td>{{ 'มีอยู่แล้ว · ข้าม' if r.duplicate else 'เพิ่มใหม่' }}</td></tr>{% endfor %}</tbody></table></div>
+{% if preview %}<form method="post" action="/academic/lessons/import">{{ keys() }}<input type="hidden" name="token" value="{{ token }}"><button class="btn" style="margin-top:12px" type="submit">ยืนยันนำเข้าคาบตามตัวอย่าง</button></form>{% else %}<p>ไม่มีคาบตรงกับวันเปิดเรียนในช่วงที่เลือก</p>{% endif %}{% endif %}</details>
+<div class="card"><h2>วันสอนและการเช็คชื่อ · เทอม {{ term }}</h2><p class="muted">เปิดคาบเพื่อเช็คชื่อ · ช่องที่ยังไม่เช็คจะไม่นับเป็นขาด</p>
+{% for r in lessons %}<details class="lesson-card" style="border-top:1px solid #e5e7eb;padding:10px 0" {% if entered.get('lesson_id') == r.id|string or request.query_params.get('lesson') == r.id|string %}open{% endif %}>
+<summary><span class="lesson-date">{{ r.date.strftime('%d/%m/') }}{{ r.date.year+543 }}</span> · {{ r.slot }} · {{ r.minutes }} นาที <span class="muted">· เช็คแล้ว {{ checked_counts[r.id] }}/{{ students|length }} คน</span>{% if r.id in off_calendar %} <span class="muted">(นอกปฏิทิน)</span>{% endif %}</summary>
+{% if students %}<form method="post" action="/academic/lessons/marks" class="lesson-mark-form">{{ keys() }}<input type="hidden" name="lesson_id" value="{{ r.id }}">
+<button class="btn soft mark-all" type="button" style="margin-bottom:8px">ทุกคนมาในคาบนี้</button>
+<div class="table-wrap lesson-check"><table><thead><tr><th>เลขที่</th><th>ชื่อ–นามสกุล</th><th>สถานะคาบนี้</th></tr></thead><tbody>{% for s in students %}<tr><td>{{ s.seq or '' }}</td><td>{{ s.name }}</td><td><select aria-label="สถานะ {{ s.name }}" name="mark_{{ s.id }}"><option value="">ยังไม่เช็ค</option>{% for key,label in states.items() %}<option value="{{ key }}" {{ 'selected' if marks.get((r.id,s.id))==key }}>{{ label }}</option>{% endfor %}</select></td></tr>{% endfor %}</tbody></table></div><button class="btn" data-save-label="{{ r.date.strftime('%d/%m/') }}{{ r.date.year+543 }} · {{ r.slot }}" style="margin-top:10px" type="submit">บันทึกเช็คชื่อคาบนี้</button></form>{% else %}<p>ห้องนี้ยังไม่มีนักเรียน</p>{% endif %}
+<form method="post" action="/academic/lessons/remove" class="lesson-remove" style="margin-top:12px">{{ keys() }}<input type="hidden" name="lesson_id" value="{{ r.id }}"><button class="btn soft" type="submit">ลบคาบที่เพิ่มผิด</button><span class="lesson-note"> ลบได้เฉพาะคาบที่ยังไม่มีผลเช็คชื่อ</span></form></details>
+{% else %}<p>ยังไม่มีวันสอน เพิ่มวันสอนเองหรือดึงจากตารางเรียนด้านบนได้เลย</p>{% endfor %}</div>
+{% if lessons and students %}<div class="card"><h2>สรุปเวลาเรียนรายบุคคล · ชั่วโมง</h2><div class="table-wrap"><table><thead><tr><th>ชื่อ–นามสกุล</th><th>มา</th><th>ป่วย</th><th>ลา</th><th>ขาด</th><th>ยังไม่เช็ค</th></tr></thead><tbody>{% for s in students %}<tr><td>{{ s.name }}</td>{% for key in ['/','ป','ล','ข',''] %}<td>{{ hours(summary[s.id][key]) }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div></div>{% endif %}
+{% if legacy %}<div class="card"><h2>ข้อมูลรายวันเดิม</h2><p>มีข้อมูลเช็คชื่อรายวันก่อนใช้รายคาบ เก็บไว้ดูย้อนหลังแยกกัน ไม่บวกรวมกับชั่วโมงรายคาบ</p><a class="btn soft" href="/academic/attendance?mode=subject&cid={{ c.id }}&sid={{ subj.id }}&year={{ c.year }}&legacy=1">ดูข้อมูลรายวันเดิม</a></div>{% endif %}
+<script>
+document.querySelectorAll('.lesson-date-input').forEach(input=>input.addEventListener('input',e=>{if(e.inputType?.startsWith('delete'))return;const n=input.value.replace(/\D/g,'').slice(0,8);input.value=n.slice(0,2)+(n.length>2?'/'+n.slice(2,4):'')+(n.length>4?'/'+n.slice(4):'');}));
+document.querySelectorAll('.mark-all').forEach(b=>b.addEventListener('click',()=>{b.form.querySelectorAll('select').forEach(s=>{s.value='/';s.dispatchEvent(new Event('change',{bubbles:true}));});}));
+document.querySelectorAll('.lesson-remove').forEach(f=>f.addEventListener('submit',e=>{if(!confirm('ลบคาบนี้ออกจากวันสอน?'))e.preventDefault();}));
+const split=document.getElementById('splitTargets');
+const note=document.getElementById('targetNote');
+function targetNote(){if(!note)return;const a=document.getElementById('target1'),b=document.getElementById('target2');note.textContent=a.value!==''&&b.value!==''&&Number(a.value)+Number(b.value)!=={{ subj.hours or 0 }}?'เป้าหมายสองเทอมรวมไม่เท่ากับชั่วโมงทั้งปี โปรดตรวจสอบ (ยังบันทึกได้)':'';}
+if(split)split.addEventListener('click',()=>{document.getElementById('target1').value=Number(split.dataset.hours)/2;document.getElementById('target2').value=Number(split.dataset.hours)/2;targetNote();});
+['target1','target2'].forEach(id=>document.getElementById(id)?.addEventListener('input',targetNote));targetNote();
+</script>
+{% endblock %}

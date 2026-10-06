@@ -1719,6 +1719,46 @@ class AcadSubject(Base):
                           cascade="all, delete-orphan")
 
 
+class AcadLessonPlan(Base):
+    """Opt-in period attendance and optional term targets, per classroom/subject."""
+    __tablename__ = "acad_lesson_plan"
+    id = Column(Integer, primary_key=True)
+    class_id = Column(Integer, ForeignKey("acad_class.id"), nullable=False)
+    subject_id = Column(Integer, ForeignKey("acad_subject.id"), nullable=False)
+    term1_minutes = Column(Integer, nullable=True)
+    term2_minutes = Column(Integer, nullable=True)
+    klass = relationship("AcadClass", backref=backref("lesson_plans", cascade="all, delete-orphan"))
+    subject = relationship("AcadSubject", backref=backref("lesson_plans", cascade="all, delete-orphan"))
+    __table_args__ = (UniqueConstraint("class_id", "subject_id"),)
+
+
+class AcadLesson(Base):
+    """Snapshot of one teaching period; calendar/timetable edits never rewrite it."""
+    __tablename__ = "acad_lesson"
+    id = Column(Integer, primary_key=True)
+    class_id = Column(Integer, ForeignKey("acad_class.id"), nullable=False)
+    subject_id = Column(Integer, ForeignKey("acad_subject.id"), nullable=False)
+    date = Column(Date, nullable=False)
+    term = Column(Integer, nullable=False)
+    slot = Column(String, nullable=False)
+    minutes = Column(Integer, nullable=False)
+    source = Column(String, default="manual")
+    klass = relationship("AcadClass", backref=backref("lessons", cascade="all, delete-orphan"))
+    subject = relationship("AcadSubject", backref=backref("lessons", cascade="all, delete-orphan"))
+    __table_args__ = (UniqueConstraint("class_id", "subject_id", "date", "slot"),)
+
+
+class AcadLessonMark(Base):
+    __tablename__ = "acad_lesson_mark"
+    id = Column(Integer, primary_key=True)
+    lesson_id = Column(Integer, ForeignKey("acad_lesson.id"), nullable=False)
+    acad_student_id = Column(Integer, ForeignKey("acad_student.id"), nullable=False)
+    mark = Column(String, nullable=False)
+    lesson = relationship("AcadLesson", backref=backref("marks", cascade="all, delete-orphan"))
+    student = relationship("AcadStudent", backref=backref("lesson_marks", cascade="all, delete-orphan"))
+    __table_args__ = (UniqueConstraint("lesson_id", "acad_student_id"),)
+
+
 class AcadTeaching(Base):
     """ครูผู้สอน = รายวิชา × ห้อง (วิชาเดียวกันคนละห้อง คนละครูได้)"""
     __tablename__ = "acad_teaching"

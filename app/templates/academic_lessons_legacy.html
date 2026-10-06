@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}ข้อมูลเวลาเรียนรายวันเดิม{% endblock %}
+{% block content %}
+<div class="hero"><div><div class="hero-title">ข้อมูลเวลาเรียนรายวันเดิม</div><div class="hero-meta">{{ subj.code }} {{ subj.name }} · {{ class_label(c) }} · {{ c.year }}</div></div></div>
+<div class="card"><p>ข้อมูลย้อนหลังแบบรายวัน อ่านอย่างเดียว ไม่รวมกับชั่วโมงรายคาบ</p><a class="btn" href="/academic/lessons?cid={{ c.id }}&sid={{ subj.id }}">กลับเวลาเรียนรายคาบ</a>
+{% for term in [1,2] %}<a class="btn soft" href="/academic/lessons/legacy.docx?cid={{ c.id }}&sid={{ subj.id }}&term={{ term }}">พิมพ์ข้อมูลเดิม เทอม {{ term }}</a>{% endfor %}</div>
+{% for m,name in months %}<details class="card"><summary>{{ name }}</summary><div class="table-wrap"><table><thead><tr><th>ชื่อ–นามสกุล</th><th>มา (วัน)</th><th>สถานะรายวันที่เคยบันทึก</th></tr></thead><tbody>{% for s in students %}{% set r=values.get((s.id,m)) %}<tr><td>{{ s.name }}</td><td>{{ r.present if r and r.present is not none else '—' }}</td><td>{% if r %}{% for day,mark in parse_marks(r.marks).items() %}{% if mark in ['/','ป','ล','ข'] %} {{ day }}: {{ mark }} {% endif %}{% endfor %}{% endif %}</td></tr>{% endfor %}</tbody></table></div></details>{% endfor %}
+{% endblock %}
