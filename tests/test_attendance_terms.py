@@ -293,3 +293,20 @@ def test_saving_marks_manual_only_when_it_differs_from_the_calendar(env):
     db.close()
     assert rows[5].days_open_manual is False, "ตรงกับปฏิทิน = ไม่ใช่การตั้งเอง"
     assert rows[6].days_open_manual is True and rows[6].days_open == 15
+
+
+def test_no_reset_button_clutters_the_column():
+    """เคยมีลิงก์ใต้ช่องทุกแถว ทำให้คอลัมน์ไม่ตรงกับหัวตาราง และ CSS display:block
+    ชนะ attribute hidden จนลิงก์โผล่ทุกแถวแม้ไม่ได้ตั้งเอง"""
+    html = _page()
+    assert "data-dreset" not in html and "dopen-reset" not in html
+    assert "display:block" not in html.split(".dopen-own")[0][-200:]
+
+
+def test_clearing_the_box_returns_to_the_class_value():
+    """ไม่มีปุ่มแล้ว ต้องกลับไปใช้ของห้องด้วยการลบตัวเลขออก"""
+    html = _page()
+    i = html.index("[data-dopen]')) return;")
+    block = html[i:i + 420]
+    assert "=== ''" in block and "'1'" in block, block[:200]
+    assert "ลบตัวเลขออกเพื่อกลับไปใช้ของห้อง" in html, "ต้องบอกวิธีไว้ในหน้า"

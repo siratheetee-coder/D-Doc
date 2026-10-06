@@ -51,7 +51,7 @@
   <p class="muted" style="font-size:13px; margin:4px 0 8px;">
     <b>กรอกแค่ ป่วย / ลา / ขาด</b> - ระบบหักออกจากวันเปิดเรียนแล้วคิด "มา(รวม)" กับร้อยละให้เอง ·
     ถ้าอยากเช็กเป็นรายวันให้กด <b>แสดงรายเดือน</b> แล้วคลิกชื่อเดือน ·
-    เกณฑ์ผ่าน: มาเรียนไม่น้อยกว่าร้อยละ 80</p>
+    เกณฑ์ผ่าน: มาเรียนไม่น้อยกว่าร้อยละ 80 · ช่อง <b>เปิด(รวม)</b> เดินตามปฏิทินให้เอง ถ้าคนไหนต่างจากเพื่อน (ย้ายเข้ากลางปี) พิมพ์ทับได้ ลบตัวเลขออกเพื่อกลับไปใช้ของห้อง</p>
   {% if not has_cal %}
   <div class="alert warn" style="margin:0 0 10px;"><svg class="icon"><use href="#ic-alert"/></svg>
     ยังไม่ได้ตั้ง<b>ปฏิทินการศึกษา</b>ของปี {{ year }} -
@@ -126,13 +126,12 @@
                      inputmode="numeric" style="width:46px; text-align:center;"></td>
           {% endif %}
           {% endfor %}
-          <td><input name="dopen_{{ s.id }}" data-dopen value="{{ e.days_open if e and e.days_open is not none else '' }}" inputmode="numeric" style="width:56px; text-align:center;"
-                     title="ปกติเดินตามวันเปิดเรียนของห้อง แก้ได้ถ้าคนนี้ต่างจากเพื่อน เช่น ย้ายเข้ากลางปี">
+          <td class="center"><input name="dopen_{{ s.id }}" data-dopen
+                     value="{{ e.days_open if e and e.days_open is not none else '' }}"
+                     inputmode="numeric" style="width:56px; text-align:center;"
+                     title="ปกติเดินตามวันเปิดเรียนของห้อง · พิมพ์ทับได้ถ้าคนนี้ต่างจากเพื่อน (เช่น ย้ายเข้ากลางปี) · ลบตัวเลขออกเพื่อกลับไปใช้ของห้อง">
             <input type="hidden" name="dmanual_{{ s.id }}" data-dmanual
-                   value="{{ '1' if e and e.days_open_manual else '' }}">
-            <button type="button" class="dopen-reset" data-dreset
-                    title="คืนค่าให้เท่ากับวันเปิดเรียนของห้อง"
-                    {{ '' if (e and e.days_open_manual) else 'hidden' }}>คืนค่าตามห้อง</button></td>
+                   value="{{ '1' if e and e.days_open_manual else '' }}"></td>
           <td class="gapcol"><input name="sick_{{ s.id }}" data-gap value="{{ e.days_sick if e and e.days_sick is not none else '' }}" inputmode="numeric" style="width:52px; text-align:center;"></td>
           <td class="gapcol"><input name="leave_{{ s.id }}" data-gap value="{{ e.days_leave if e and e.days_leave is not none else '' }}" inputmode="numeric" style="width:52px; text-align:center;"></td>
           <td class="gapcol"><input name="abs_{{ s.id }}" data-gap value="{{ e.days_absent if e and e.days_absent is not none else '' }}" inputmode="numeric" style="width:52px; text-align:center;"></td>
@@ -177,8 +176,8 @@
   /* ป่วย/ลา/ขาด เก็บเป็นยอดทั้งปี ยังแยกรายภาคเรียนไม่ได้ -> ซ่อนตอนดูรายภาค
      ดีกว่าโชว์ยอดทั้งปีคู่กับวันเปิดเรียนของภาคเดียว ซึ่งอ่านแล้วเข้าใจผิด */
   #attTable.show-t1 .gapcol, #attTable.show-t2 .gapcol { display:none; }
-  .dopen-reset { display:block; margin:3px auto 0; font-size:10px; color:#1d4ed8;
-    background:none; border:0; padding:0; cursor:pointer; text-decoration:underline; }
+  /* ช่องที่ครูตั้งเอง (ต่างจากของห้อง) ให้เห็นว่าต่าง แต่ไม่ดันความสูงแถว */
+  #attTable input.dopen-own { border-color:#f59e0b; background:#fffbeb; font-weight:700; }
   .term-seg { display:inline-flex; border:1.5px solid var(--brand); border-radius:9px; overflow:hidden; }
   .tseg-btn { padding:9px 14px; font-size:14px; border:none; background:#fff; color:var(--brand-dark);
     cursor:pointer; font-weight:600; font-family:inherit; }
@@ -232,8 +231,7 @@
       // ไม่ได้ตั้งเอง = เดินตามยอดของห้องเสมอ แก้ปฏิทินแล้วตัวเลขต้องขยับตาม
       // (ของเดิมเติมให้เฉพาะตอนช่องว่าง พอบันทึกครั้งแรกแล้วค้างค่าเก่าตลอดไป)
       if (!manual && ot !== null) openEl.value = ot;
-      var resetBtn = tr.querySelector('[data-dreset]');
-      if (resetBtn) resetBtn.hidden = !manual;
+      openEl.classList.toggle('dopen-own', manual);
       var open = intOf(openEl);
 
       // ผลรวมรายเดือน (มาจากการเช็กชื่อรายวัน หรือพิมพ์เอง)
@@ -318,16 +316,10 @@
     if (!el.matches || !el.matches('[data-dopen]')) return;
     var row = el.closest('tr');
     var flag = row && row.querySelector('[data-dmanual]');
-    if (flag) flag.value = '1';
+    // ลบตัวเลขออก = เลิกตั้งเอง กลับไปใช้ของห้อง (ไม่ต้องมีปุ่มแยก)
+    if (flag) flag.value = (el.value || '').trim() === '' ? '' : '1';
   }, true);
-  document.addEventListener('click', function(ev){
-    var btn = ev.target.closest('[data-dreset]');
-    if (!btn) return;
-    var row = btn.closest('tr');
-    row.querySelector('[data-dmanual]').value = '';
-    row.querySelector('[data-dopen]').value = '';
-    if (window.recalcAttendance) window.recalcAttendance();
-  });
+
 </script>
 {% endif %}
 {% endblock %}
