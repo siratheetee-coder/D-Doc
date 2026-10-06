@@ -22,7 +22,7 @@ from app.services.budget import current_plan_year, plan_year_label
 from app.thai_utils import SCHOOL_LEVELS
 from app.services.ebudget_cat import EXPENSE as EB_EXPENSE, INCOME as EB_INCOME
 from app.services.asset_utils import (
-    account_balance, account_balance_year, opening_for,
+    account_balance, account_balance_year, opening_for, recon_sides,
     account_balance_asof, item_remaining_asof,
 )
 from app.services.cash_report import render_cash_report, DEPOSIT_TYPES
@@ -1326,7 +1326,8 @@ def bank_recon_page(request: Request, db: Session = Depends(get_db),
                 daily[t.date.strftime("%Y-%m-%d")] = round(run, 2)
     return templates.TemplateResponse("finance_bank_recon.html", {
         "request": request, "school": get_school(db), "fiscal_year": fy,
-        "years": _finance_years(db, fy), "rows": _recon_rows(db, fy, aid),
+        "years": _finance_years(db, fy),
+        "rows": [(r, recon_sides(r)) for r in _recon_rows(db, fy, aid)],
         "accounts": accounts,
         "account_id": aid, "today_be": be_date_input(datetime.now()),
         "book_balance": _book_balance(db, fy, aid),
@@ -1357,6 +1358,7 @@ async def bank_recon_add(request: Request, db: Session = Depends(get_db)):
         bank_fee=_to_float(form.get("bank_fee"), 0.0),
         interest=_to_float(form.get("interest"), 0.0),
         other=_to_float(form.get("other"), 0.0),
+        other_side=("book" if form.get("other_side") == "book" else "bank"),
         other_note=(form.get("other_note") or "").strip(),
         book_balance=_to_float(form.get("book_balance"), 0.0),
         note=(form.get("note") or "").strip())

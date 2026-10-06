@@ -198,40 +198,48 @@ def render_bank_recon(school, rec, account_name="", checks=None) -> str:
     _p(doc, f"ณ วันที่ {thai_date(rec.as_of) if rec.as_of else _BLANK}",
        align="center", size=14, after=8)
 
+    from app.services.asset_utils import recon_sides
+    sides = recon_sides(rec)
+    other = float(rec.other or 0)
+    other_side = (getattr(rec, "other_side", None) or "bank").strip()
+    other_label = f"รายการอื่น {(rec.other_note or '').strip()}".strip()
+
     widths = [Cm(11.5), Cm(5.0)]
     t = doc.add_table(rows=0, cols=2)
     t.style = "Table Grid"
     _fixed_cols(t, widths)
-    add = float(rec.stmt_balance or 0)
+    # ฝั่งธนาคาร: ปรับด้วยรายการที่เรารู้แล้วแต่ธนาคารยังไม่บันทึก
     _row(t, ["ยอดเงินคงเหลือตามใบแจ้งยอดธนาคาร (Statement)", _money(rec.stmt_balance)],
          widths, ["left", "right"], size=14, bold=True)
     _row(t, ["บวก  เงินฝากระหว่างทาง (ฝากแล้วธนาคารยังไม่บันทึก)", _money(rec.in_transit)],
          widths, ["left", "right"], size=14)
-    _row(t, ["บวก  ดอกเบี้ยรับที่ยังไม่ได้บันทึกบัญชี", _money(rec.interest)],
-         widths, ["left", "right"], size=14)
     _row(t, ["หัก  รายการจ่ายที่เงินยังไม่ออกจากบัญชี (เช็คยังไม่ขึ้นเงิน/โอนยังไม่ตัด)",
              _money(rec.outstanding)],
          widths, ["left", "right"], size=14)
-    _row(t, ["หัก  ค่าธรรมเนียมธนาคารที่ยังไม่ได้บันทึกบัญชี", _money(rec.bank_fee)],
-         widths, ["left", "right"], size=14)
-    other = float(rec.other or 0)
-    if other:
-        _row(t, [f"รายการอื่น {(rec.other_note or '').strip()}", _money(other)],
-             widths, ["left", "right"], size=14)
-    calc = (add + float(rec.in_transit or 0) + float(rec.interest or 0)
-            - float(rec.outstanding or 0) - float(rec.bank_fee or 0) + other)
-    _row(t, ["ยอดคงเหลือที่กระทบแล้ว", _money(calc)], widths, ["right", "right"],
-         size=14, bold=True)
+    if other and other_side != "book":
+        _row(t, [other_label, _money(other)], widths, ["left", "right"], size=14)
+    _row(t, ["ยอดคงเหลือที่ถูกต้อง (ฝั่งธนาคาร)", _money(sides["bank"])],
+         widths, ["right", "right"], size=14, bold=True)
+
+    # ฝั่งสถานศึกษา: ปรับด้วยรายการที่ธนาคารทำไปแล้วแต่เรายังไม่ได้ลงบัญชี
     _row(t, ["ยอดคงเหลือตามบัญชีเงินฝากธนาคารของสถานศึกษา", _money(rec.book_balance)],
          widths, ["left", "right"], size=14, bold=True)
-    diff = calc - float(rec.book_balance or 0)
-    _row(t, ["ผลต่าง", _money(diff)], widths, ["right", "right"], size=14, bold=True)
+    _row(t, ["บวก  ดอกเบี้ยรับที่ยังไม่ได้บันทึกบัญชี", _money(rec.interest)],
+         widths, ["left", "right"], size=14)
+    _row(t, ["หัก  ค่าธรรมเนียมธนาคารที่ยังไม่ได้บันทึกบัญชี", _money(rec.bank_fee)],
+         widths, ["left", "right"], size=14)
+    if other and other_side == "book":
+        _row(t, [other_label, _money(other)], widths, ["left", "right"], size=14)
+    _row(t, ["ยอดคงเหลือที่ถูกต้อง (ฝั่งสถานศึกษา)", _money(sides["book"])],
+         widths, ["right", "right"], size=14, bold=True)
+    _row(t, ["ผลต่าง", _money(sides["diff"])], widths, ["right", "right"], size=14, bold=True)
 
-    if abs(diff) > 0.005:
+    diff = sides["diff"]
+    if not sides["matched"]:
         _p(doc, f"** ยอดยังไม่ตรงกัน ผลต่าง {_money(diff)} บาท ต้องตรวจสอบรายการเพิ่มเติม **",
            bold=True, before=4, after=2)
     else:
-        _p(doc, "ยอดตรงกัน", bold=True, before=4, after=2)
+        _p(doc, "ยอดตรงกัน ทั้งสองฝั่งได้ยอดคงเหลือที่ถูกต้องเท่ากัน", bold=True, before=4, after=2)
     if (rec.note or "").strip():
         _p(doc, f"หมายเหตุ  {rec.note.strip()}", align="justify", after=2)
 

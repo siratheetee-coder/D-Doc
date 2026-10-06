@@ -61,6 +61,7 @@ MIGRATIONS = [
     ("finance_txn", "refund_date", "DATETIME"),
     ("check_payment", "pay_method", "VARCHAR DEFAULT 'โอน'"),
     ("check_payment", "cleared_date", "DATETIME"),
+    ("bank_recon", "other_side", "VARCHAR DEFAULT 'bank'"),
     ("textbook_purchase", "memo_no", "VARCHAR DEFAULT ''"),
     ("textbook_purchase", "memo_date", "DATETIME"),
     ("textbook_purchase", "order_no", "VARCHAR DEFAULT ''"),

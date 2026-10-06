@@ -964,6 +964,7 @@ class BankRecon(Base):
     bank_fee = Column(Float, default=0.0)            # หัก ค่าธรรมเนียมธนาคารที่ยังไม่ได้บันทึก
     interest = Column(Float, default=0.0)            # บวก ดอกเบี้ยรับที่ยังไม่ได้บันทึก
     other = Column(Float, default=0.0)               # รายการอื่น (+/-)
+    other_side = Column(String, default="bank")      # รายการอื่นนี้อยู่ฝั่งธนาคาร (bank) หรือฝั่งโรงเรียน (book)
     other_note = Column(String, default="")
     book_balance = Column(Float, default=0.0)        # ยอดคงเหลือตามบัญชีของโรงเรียน
     note = Column(Text, default="")

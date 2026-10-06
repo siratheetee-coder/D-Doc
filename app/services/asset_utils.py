@@ -199,3 +199,25 @@ def item_remaining_asof(item, as_of=None) -> float:
             continue
         bal += (t.amount or 0) if t.kind == "in" else -(t.amount or 0)
     return round(bal, 2)
+
+
+def recon_sides(rec) -> dict:
+    """สองฝั่งของงบกระทบยอดเงินฝากธนาคาร -> {'bank','book','diff','matched'}
+
+    ฝั่งธนาคาร  = ยอดตาม statement + เงินฝากระหว่างทาง - รายการที่เงินยังไม่ออก
+    ฝั่งโรงเรียน = ยอดตามสมุดบัญชี + ดอกเบี้ยที่ยังไม่ลงบัญชี - ค่าธรรมเนียมที่ยังไม่ลงบัญชี
+
+    ดอกเบี้ยกับค่าธรรมเนียมเป็นสิ่งที่ธนาคารทำไปแล้ว statement มีอยู่ในยอดแล้ว
+    จึงต้องไปปรับฝั่งโรงเรียน ของเดิมเอาไปบวกลบที่ฝั่ง statement ด้วย กลายเป็นนับซ้ำ
+    ยอดที่ความจริงตรงกัน จึงถูกฟ้องว่าต่างกันเป็นสองเท่าของสองรายการนั้น
+    """
+    f = lambda v: float(v or 0)                                  # noqa: E731
+    other = f(getattr(rec, "other", 0))
+    side = (getattr(rec, "other_side", None) or "bank").strip()
+    bank = (f(rec.stmt_balance) + f(rec.in_transit) - f(rec.outstanding)
+            + (other if side != "book" else 0))
+    book = (f(rec.book_balance) + f(rec.interest) - f(rec.bank_fee)
+            + (other if side == "book" else 0))
+    diff = round(bank - book, 2)
+    return {"bank": round(bank, 2), "book": round(book, 2), "diff": diff,
+            "matched": abs(diff) < 0.005}

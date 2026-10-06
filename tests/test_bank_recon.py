@@ -281,3 +281,90 @@ def test_printed_statement_lists_what_was_outstanding_on_its_own_date(env_client
     text = "\n".join(p.text for t in Document(io.BytesIO(r.content)).tables
                      for row in t.rows for cell in row.cells for p in cell.paragraphs)
     assert "ร้านปลายเดือน" in text, "เช็คที่ขึ้นเงินเดือนถัดไป ต้องยังอยู่ในใบของเดือนกันยายน"
+
+
+# ------------------------------------------- สองฝั่งของงบกระทบยอด
+def _rec(**kw):
+    base = dict(fiscal_year=2570, as_of=datetime(2026, 9, 30), stmt_balance=0.0,
+                in_transit=0.0, outstanding=0.0, bank_fee=0.0, interest=0.0,
+                other=0.0, other_side="bank", book_balance=0.0)
+    base.update(kw)
+    return BankRecon(**base)
+
+
+def test_interest_belongs_to_the_school_side_not_the_bank_side():
+    """ดอกเบี้ยที่ธนาคารลงให้แล้ว statement มีอยู่แล้ว ต้องไปบวกฝั่งโรงเรียน
+
+    ของเดิมเอาไปบวกฝั่ง statement ด้วย กลายเป็นนับซ้ำสองเท่า
+    ยอดที่ความจริงตรงกัน จึงถูกฟ้องว่าต่างกันเป็นสองเท่าของดอกเบี้ย
+    """
+    from app.services.asset_utils import recon_sides
+    s = recon_sides(_rec(stmt_balance=1050.0, book_balance=1000.0, interest=50.0))
+    assert s["bank"] == 1050.0 and s["book"] == 1050.0
+    assert s["diff"] == 0.0 and s["matched"]
+
+
+def test_bank_fee_also_belongs_to_the_school_side():
+    from app.services.asset_utils import recon_sides
+    s = recon_sides(_rec(stmt_balance=970.0, book_balance=1000.0, bank_fee=30.0))
+    assert s["bank"] == 970.0 and s["book"] == 970.0 and s["matched"]
+
+
+def test_the_whole_example_from_the_manual_comes_out_matching():
+    from app.services.asset_utils import recon_sides
+    s = recon_sides(_rec(stmt_balance=985000.0, in_transit=20000.0, outstanding=5000.0,
+                         interest=500.0, bank_fee=200.0, book_balance=999700.0))
+    assert s["bank"] == 1000000.0 and s["book"] == 1000000.0 and s["matched"]
+
+
+def test_a_real_shortfall_is_still_reported():
+    from app.services.asset_utils import recon_sides
+    s = recon_sides(_rec(stmt_balance=1000.0, book_balance=1200.0))
+    assert s["diff"] == -200.0 and not s["matched"]
+
+
+def test_other_line_can_sit_on_either_side():
+    from app.services.asset_utils import recon_sides
+    bank = recon_sides(_rec(stmt_balance=100.0, other=10.0, other_side="bank"))
+    assert bank["bank"] == 110.0 and bank["book"] == 0.0
+    book = recon_sides(_rec(stmt_balance=100.0, other=10.0, other_side="book"))
+    assert book["bank"] == 100.0 and book["book"] == 10.0
+
+
+def test_old_records_without_a_side_keep_behaving_as_bank_side():
+    from app.services.asset_utils import recon_sides
+    r = _rec(stmt_balance=100.0, other=10.0)
+    r.other_side = None
+    assert recon_sides(r)["bank"] == 110.0
+
+
+def test_other_side_column_is_migrated():
+    import app.database as dbm
+    assert ("bank_recon", "other_side", "VARCHAR DEFAULT 'bank'") in dbm.MIGRATIONS
+
+
+def test_page_shows_the_two_sides_separately(db):
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parents[1]
+    html = (root / "app" / "templates" / "finance_bank_recon.html").read_text(encoding="utf-8")
+    assert "data-side=\"bank\"" in html and "data-side=\"book\"" in html
+    assert "ฝั่งธนาคาร" in html and "ฝั่งโรงเรียน" in html
+
+
+def test_printed_statement_puts_interest_under_the_school_side(env_client):
+    from docx import Document
+    import io
+    c, db = env_client
+    acc = _account(db)
+    rec = _rec(account_id=acc.id, stmt_balance=1050.0, book_balance=1000.0, interest=50.0)
+    db.add(rec)
+    db.commit()
+    r = c.get(f"/finance/bank-recon/{rec.id}.docx")
+    assert r.status_code == 200
+    doc = Document(io.BytesIO(r.content))
+    rows = [[cell.text.strip() for cell in row.cells] for t in doc.tables for row in t.rows]
+    flat = [" ".join(r) for r in rows]
+    head = next(i for i, t in enumerate(flat) if "สถานศึกษา" in t and "ยอดคงเหลือ" in t)
+    interest = next(i for i, t in enumerate(flat) if "ดอกเบี้ย" in t)
+    assert interest > head, "ดอกเบี้ยต้องอยู่ใต้หัวข้อฝั่งสถานศึกษา"
+    assert any("ตรงกัน" in p.text for p in doc.paragraphs), [p.text for p in doc.paragraphs]
