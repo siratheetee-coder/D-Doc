@@ -223,3 +223,73 @@ def test_summary_has_the_columns_asked_for(env):
     page = text[text.index("สรุปเวลาเรียนรายเดือน"):]
     for col in ("เดือน", "วันเปิดเรียน", "มาเรียน", "ป่วย", "ลา", "ขาด", "ร้อยละการมาเรียน", "รวม"):
         assert col in page, col
+
+
+# ---------------------------------------------------------------- ตามปฏิทินการศึกษา
+def _set_calendar(year, per_month):
+    """ตั้งปฏิทินการศึกษา: {เดือน: จำนวนวันเปิดเรียน}"""
+    from app.models import AcadCalendar
+    from app.tenancy import session_for
+    db = session_for(1)
+    for r in db.query(AcadCalendar).filter_by(year=year).all():
+        db.delete(r)
+    for m, n in per_month.items():
+        db.add(AcadCalendar(year=year, month=m, days_csv=",".join(str(d) for d in range(1, n + 1))))
+    db.commit()
+    db.close()
+
+
+def test_class_days_follow_the_school_calendar(env):
+    """ปฏิทินบอก 199 วัน แต่ห้องเคยบันทึกไว้ 219 -> ต้องใช้ 199 ไม่ใช่ค่าที่ค้างไว้"""
+    from app.models import AcadClassMonth
+    from app.services.academic import class_open_days
+    from app.tenancy import session_for
+    client, cid = env
+    cal = {5: 8, 6: 20, 7: 20, 8: 20, 9: 20, 10: 7, 11: 20, 12: 20, 1: 21, 2: 20, 3: 23}
+    assert sum(cal.values()) == 199
+    _set_calendar(YEAR, cal)
+
+    db = session_for(1)
+    for m, n in ALL_MONTHS.items():                 # ค่าค้างเก่า รวม 219
+        db.add(AcadClassMonth(class_id=cid, month=m, days_open=n, days_open_manual=False))
+    db.commit()
+    try:
+        opens = class_open_days(db, cid, YEAR)
+        assert sum(opens.values()) == 199, opens
+        assert opens[10] == 7, "ตุลาคมต้องเป็น 7 ตามปฏิทิน ไม่ใช่ 20 ที่ค้างไว้"
+    finally:
+        db.close()
+
+
+def test_class_can_still_set_its_own_month(env):
+    """ห้องที่ตั้งเองจริง ๆ (ติดธง) ต้องไม่ถูกปฏิทินทับ"""
+    from app.models import AcadClassMonth
+    from app.services.academic import class_open_days
+    from app.tenancy import session_for
+    client, cid = env
+    _set_calendar(YEAR, {5: 8, 6: 20})
+    db = session_for(1)
+    db.add(AcadClassMonth(class_id=cid, month=5, days_open=3, days_open_manual=True))
+    db.add(AcadClassMonth(class_id=cid, month=6, days_open=99, days_open_manual=False))
+    db.commit()
+    try:
+        opens = class_open_days(db, cid, YEAR)
+        assert opens[5] == 3, "เดือนที่ครูตั้งเองต้องคงไว้"
+        assert opens[6] == 20, "เดือนที่ไม่ได้ตั้งเองต้องเดินตามปฏิทิน"
+    finally:
+        db.close()
+
+
+def test_saving_marks_manual_only_when_it_differs_from_the_calendar(env):
+    from app.models import AcadClassMonth
+    from app.tenancy import session_for
+    client, cid = env
+    _set_calendar(YEAR, {5: 10, 6: 20})
+    data = {"cid": str(cid), "mode": "overall", "open_5": "10", "open_6": "15"}
+    r = client.post("/academic/attendance/save", data=data, follow_redirects=False)
+    assert r.status_code in (302, 303)
+    db = session_for(1)
+    rows = {m.month: m for m in db.query(AcadClassMonth).filter_by(class_id=cid).all()}
+    db.close()
+    assert rows[5].days_open_manual is False, "ตรงกับปฏิทิน = ไม่ใช่การตั้งเอง"
+    assert rows[6].days_open_manual is True and rows[6].days_open == 15

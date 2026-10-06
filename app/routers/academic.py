@@ -35,7 +35,7 @@ from app.services.academic import (grade_of, subject_preset, term_choices, term_
                                    seed_fixed_holidays, holiday_map, in_term, auto_open_days,
                                    LUNAR_HOLIDAY_NAMES, activity_preset, activities_for,
                                    activity_summary, ONET_SUBJECTS, is_exit_level, onet_for,
-                                   TERM_MONTHS)
+                                   TERM_MONTHS, class_open_days)
 from app.thai_utils import parse_be_date, be_date_input
 from app.services.curriculum import indicators_for, has_indicators, selected_indicators
 
@@ -2608,8 +2608,10 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
     # ---- โหมดสรุปรายเดือน ----
     opens, att, marked = {}, {}, set()
     if c:
-        opens = {m.month: m.days_open for m in
-                 db.query(AcadClassMonth).filter_by(class_id=c.id).all()}
+        # ปฏิทินการศึกษาเป็นตัวตั้ง ห้องที่ไม่ได้แก้เองเดินตามปฏิทินเสมอ
+        opens = class_open_days(db, c.id, y)
+        manual_months = {m.month for m in db.query(AcadClassMonth)
+                         .filter_by(class_id=c.id) if m.days_open_manual}
         for a in rows:
             att[(a.acad_student_id, a.month)] = a.present
             if (a.marks or "").strip(MARK_BLANK):
@@ -2619,6 +2621,7 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
         "classes": classes, "c": c, "students": students, "class_label": _class_label,
         "months": TH_MONTHS, "opens": opens, "att": att, "marked": marked,
         "cal_days": {m: len(d) for m, d in cal.items()}, "has_cal": bool(cal),
+        "manual_months": manual_months if c else set(),
         "by_subj": by_subj, "subjects": subjects, "subj": subj,
         "picked": picked, "home_pick": home_pick, "mode": mode,
         "mterm": {m: (1 if m in TERM_MONTHS[1] else 2) for m, _ in TH_MONTHS},
@@ -2699,12 +2702,19 @@ async def attendance_save(request: Request, db: Session = Depends(get_db),
     subj_cond = (AcadAttendance.subject_id == att_sid) if att_sid else AcadAttendance.subject_id.is_(None)
     # วันเปิดเรียนรายเดือนของห้อง
     curm = {m.month: m for m in db.query(AcadClassMonth).filter_by(class_id=c.id).all()}
+    cal_n = {m: len(d) for m, d in
+             {r.month: parse_days_csv(r.days_csv)
+              for r in db.query(AcadCalendar).filter_by(year=c.year).all()}.items()}
     for mnum, _ in TH_MONTHS:
         row = curm.get(mnum)
         if not row:
             row = AcadClassMonth(class_id=c.id, month=mnum)
             db.add(row)
-        row.days_open = _to_int(form.get(f"open_{mnum}", ""), None)
+        typed = _to_int(form.get(f"open_{mnum}", ""), None)
+        # ตรงกับปฏิทิน = ปล่อยให้เดินตามปฏิทินต่อไป · ต่างจากปฏิทิน = ครูตั้งเอง
+        row.days_open_manual = bool(typed is not None and cal_n.get(mnum) is not None
+                                    and typed != cal_n[mnum])
+        row.days_open = typed
     # รายคน: รายเดือน + ยอดรวม + ป่วย/ลา/ขาด
     sids = [s.id for s in c.students]
     cura = {}
@@ -2714,9 +2724,8 @@ async def attendance_save(request: Request, db: Session = Depends(get_db),
             cura[(a.acad_student_id, a.month)] = a
     cure = {e.acad_student_id: e for e in db.query(AcadEval).join(AcadStudent)
             .filter(AcadStudent.class_id == c.id).all()}
-    open_total = sum(v for v in
-                     (_to_int(form.get(f"open_{m}", ""), None) for m, _ in TH_MONTHS)
-                     if v is not None)
+    db.flush()
+    open_total = sum(class_open_days(db, c.id, c.year).values())
     for s in c.students:
         monthly = []
         for mnum, _ in TH_MONTHS:

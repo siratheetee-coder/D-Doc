@@ -1930,6 +1930,9 @@ class AcadClassMonth(Base):
     class_id = Column(Integer, ForeignKey("acad_class.id"), nullable=False)
     month = Column(Integer, nullable=False)
     days_open = Column(Integer, nullable=True)
+    # ครูตั้งวันเปิดเรียนของเดือนนี้เอง (ต่างจากปฏิทินการศึกษาจริง ๆ)
+    # ปกติ False = เดินตามปฏิทินเสมอ แก้ปฏิทินแล้วทุกห้องขยับพร้อมกัน
+    days_open_manual = Column(Boolean, default=False)
 
 
 class AcadActivity(Base):

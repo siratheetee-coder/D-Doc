@@ -36,6 +36,7 @@ Base = declarative_base()
 # รายการเพิ่มคอลัมน์ใหม่บน DB เก่า (ปลอดภัย: ข้ามถ้ามีอยู่แล้ว)
 MIGRATIONS = [
     ("acad_eval", "days_open_manual", "BOOLEAN DEFAULT 0"),
+    ("acad_class_month", "days_open_manual", "BOOLEAN DEFAULT 0"),
     ("procurement_item", "spec", "TEXT DEFAULT ''"),
     ("procurement", "objective", "TEXT DEFAULT ''"),
     ("procurement", "quote_valid_days", "INTEGER DEFAULT 30"),

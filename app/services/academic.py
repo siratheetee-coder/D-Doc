@@ -55,6 +55,31 @@ def academic_ce_year(be_year: int, month: int) -> int:
     return ce + 1 if int(month) <= 4 else ce
 
 
+
+def class_open_days(db, class_id: int, year: int) -> dict:
+    """วันเปิดเรียนรายเดือนที่ใช้จริงของห้อง -> {เดือน: จำนวนวัน}
+
+    ปฏิทินการศึกษาเป็นตัวตั้ง ห้องที่ไม่ได้แก้เองจะเดินตามปฏิทินเสมอ
+    แก้ปฏิทินแล้วทุกห้องขยับพร้อมกัน ไม่ค้างค่าที่บันทึกไว้ตอนปฏิทินยังไม่เสร็จ
+    (เดิมเก็บค่าที่แสดงตอนกดบันทึกไว้ถาวร เลยกลายเป็นคนละเลขกับปฏิทิน)
+
+    ห้องที่ครูตั้งเอง (days_open_manual) ใช้ค่าที่ตั้งไว้ เช่น ห้องที่ปิดเรียนพิเศษ
+    """
+    from app.models import AcadCalendar, AcadClassMonth
+    cal = {r.month: len(parse_days_csv(r.days_csv))
+           for r in db.query(AcadCalendar).filter_by(year=year).all()}
+    rows = {m.month: m for m in db.query(AcadClassMonth).filter_by(class_id=class_id).all()}
+    out = {}
+    for mnum, _name in TH_MONTHS:
+        row = rows.get(mnum)
+        if row is not None and row.days_open_manual and row.days_open is not None:
+            out[mnum] = row.days_open
+        elif cal.get(mnum):
+            out[mnum] = cal[mnum]
+        elif row is not None and row.days_open is not None and not cal:
+            out[mnum] = row.days_open      # ยังไม่เคยตั้งปฏิทินเลย ใช้ของเดิมไปก่อน
+    return out
+
 def month_weekdays(be_year: int, month: int) -> dict:
     """{วันที่: ตัวย่อวันไทย} ของทุกวันในเดือนนั้น"""
     import calendar as _cal

@@ -22,7 +22,7 @@ from app.services.academic import (term_label, CHAR_ITEMS, CHAR_FIELDS, READ_DOM
                                    TH_MONTHS, TH_MONTH_FULL, TERM_MONTHS, quality_of_avg, char_avg, read_avg,
                                    effective_eval, weighted_avg, activities_for,
                                    activity_summary, onet_for, is_exit_level, ONET_SUBJECTS,
-                                   count_marks, parse_marks, parse_days_csv)
+                                   count_marks, parse_marks, parse_days_csv, class_open_days)
 
 THAI_FONT = "TH Sarabun New"
 
@@ -1123,8 +1123,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     if monthly:
         # แบบรายเดือน: เดือน + รวม + ป่วย/ลา/ขาด + ร้อยละ (มัธยม = เฉพาะเดือนในภาคเรียน)
         from app.models import AcadClassMonth, AcadAttendance
-        opens = {m.month: m.days_open for m in
-                 db.query(AcadClassMonth).filter_by(class_id=klass.id).all()}
+        opens = class_open_days(db, klass.id, klass.year)
         month_list = [(m, nm) for m, nm in TH_MONTHS if (att_months is None or m in att_months)]
         nmon = len(month_list)
         sids = [s.id for s in students]
@@ -2122,8 +2121,7 @@ def _attendance_summary_page(doc, school, klass, db, months, subject=None, term=
     by_month = {}
     for a in rows:
         by_month.setdefault(a.month, []).append(a)
-    opens = {m.month: m.days_open for m in
-             db.query(AcadClassMonth).filter_by(class_id=klass.id).all()}
+    opens = class_open_days(db, klass.id, klass.year)
 
     _logo_header(doc, school, height_cm=1.3, page_break=True)
     _p(doc, school.name or "", align="center", bold=True, size=16, after=0)
