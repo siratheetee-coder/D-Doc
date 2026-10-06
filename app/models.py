@@ -1811,7 +1811,10 @@ class AcadEval(Base):
     act_scout = Column(String, default="")          # (เลิกใช้)
     act_club = Column(String, default="")           # (เลิกใช้)
     act_social = Column(String, default="")         # (เลิกใช้)
-    days_open = Column(Integer, nullable=True)      # จำนวนวันเปิดเรียน
+    days_open = Column(Integer, nullable=True)      # จำนวนวันเปิดเรียน (ปกติ = ของห้อง)
+    # ครูตั้งวันเปิดเรียนของคนนี้เอง (เช่น ย้ายเข้ากลางปี) -> ห้ามให้ระบบคำนวณทับ
+    # ปกติ False = เดินตามปฏิทิน/ยอดของห้องเสมอ แก้ปฏิทินแล้วตัวเลขขยับตาม
+    days_open_manual = Column(Boolean, default=False)
     days_present = Column(Integer, nullable=True)   # จำนวนวันมาเรียน
     days_sick = Column(Integer, nullable=True)      # ป่วย (วัน) - สรุปเวลาเรียนใน ปพ.5
     days_leave = Column(Integer, nullable=True)     # ลา (วัน)

@@ -2101,6 +2101,92 @@ def render_attendance_month(school, klass, db, month, subject=None) -> str:
     return str(out)
 
 
+def _attendance_summary_page(doc, school, klass, db, months, subject=None, term=None):
+    """หน้าสรุปรายเดือนท้ายเล่ม: เดือน · วันเปิดเรียน · มา · ป่วย/ลา/ขาด · ร้อยละ
+
+    ออกเฉพาะเดือนที่อยู่ในเล่มนั้น พิมพ์ภาคเรียนไหนก็สรุปเฉพาะภาคนั้น
+    พิมพ์ทั้งปีจึงสรุปครบทุกเดือน (ไม่เอายอดรวมทั้งปีไปปนกับเล่มภาคเรียน)
+    ป่วย/ลา/ขาด นับจากการเช็กชื่อรายวัน เดือนที่กรอกมาเป็นยอดรวมจะเว้นไว้
+    """
+    from app.models import AcadAttendance, AcadClassMonth
+    from app.services.academic import parse_marks
+
+    students = sorted(klass.students, key=lambda s: (s.seq or 999, s.name))
+    sids = [s.id for s in students]
+    sid = subject.id if subject else None
+    subj_cond = (AcadAttendance.subject_id == sid) if sid else AcadAttendance.subject_id.is_(None)
+    rows = []
+    if sids:
+        rows = db.query(AcadAttendance).filter(
+            AcadAttendance.acad_student_id.in_(sids), subj_cond).all()
+    by_month = {}
+    for a in rows:
+        by_month.setdefault(a.month, []).append(a)
+    opens = {m.month: m.days_open for m in
+             db.query(AcadClassMonth).filter_by(class_id=klass.id).all()}
+
+    _logo_header(doc, school, height_cm=1.3, page_break=True)
+    _p(doc, school.name or "", align="center", bold=True, size=16, after=0)
+    head = "สรุปเวลาเรียนรายเดือน"
+    if term:
+        head += f" ภาคเรียนที่ {term}"
+    _p(doc, head, align="center", bold=True, size=16, after=0)
+    _p(doc, f"ชั้น {_class_label(klass)} ปีการศึกษา {klass.year}"
+            + (f"  วิชา {subject.name}" if subject else ""),
+       align="center", size=14, after=6)
+
+    headers = ["เดือน", "วันเปิดเรียน", "มาเรียน (คน-วัน)", "ป่วย", "ลา", "ขาด", "ร้อยละการมาเรียน"]
+    t = doc.add_table(rows=1, cols=len(headers))
+    t.style = "Table Grid"
+    for i, h in enumerate(headers):
+        _cell(t.rows[0].cells[i], h, bold=True, align="center", size=13)
+    tot_open = tot_present = 0
+    tot_sick = tot_leave = tot_absent = 0
+    any_marks = False
+    for m in months:
+        recs = by_month.get(m, [])
+        days = opens.get(m)
+        present = sum(a.present for a in recs if a.present is not None)
+        sick = leave = absent = 0
+        marked = False
+        for a in recs:
+            day_map = parse_marks(a.marks or "")
+            if not day_map:
+                continue
+            marked = any_marks = True
+            sick += sum(1 for ch in day_map.values() if ch == "ป")
+            leave += sum(1 for ch in day_map.values() if ch == "ล")
+            absent += sum(1 for ch in day_map.values() if ch == "ข")
+        seats = (days or 0) * len(students)
+        pct = (present * 100.0 / seats) if seats else None
+        tot_open += days or 0
+        tot_present += present
+        tot_sick += sick
+        tot_leave += leave
+        tot_absent += absent
+        cells = t.add_row().cells
+        vals = [TH_MONTH_FULL.get(m, str(m)), str(days) if days else "-", f"{present:,}",
+                str(sick) if marked else "-", str(leave) if marked else "-",
+                str(absent) if marked else "-",
+                f"{pct:.1f}" if pct is not None else "-"]
+        for i, v in enumerate(vals):
+            _cell(cells[i], v, align="left" if i == 0 else "center", size=13)
+    seats = tot_open * len(students)
+    cells = t.add_row().cells
+    vals = ["รวม", str(tot_open), f"{tot_present:,}",
+            str(tot_sick) if any_marks else "-", str(tot_leave) if any_marks else "-",
+            str(tot_absent) if any_marks else "-",
+            f"{(tot_present * 100.0 / seats):.1f}" if seats else "-"]
+    for i, v in enumerate(vals):
+        _cell(cells[i], v, bold=True, align="left" if i == 0 else "center", size=13)
+    _p(doc, f"จำนวนนักเรียน {len(students)} คน  ·  "
+            "ร้อยละการมาเรียน = วันมาเรียนรวมของทุกคน หารด้วย (วันเปิดเรียน x จำนวนนักเรียน)",
+       size=12, after=4)
+    if not any_marks:
+        _p(doc, "เดือนที่บันทึกเป็นยอดรวม (ไม่ได้เช็กชื่อรายวัน) จะไม่มีตัวเลขป่วย/ลา/ขาด",
+           size=12, after=4)
+
+
 def render_attendance_term(school, klass, db, term, subject=None) -> str:
     """แบบบันทึกเวลาเรียนทั้งภาคเรียน - รวมเดือนของภาคนั้นที่ตั้งปฏิทินแล้ว (คนละหน้า)"""
     from app.models import AcadCalendar
@@ -2113,6 +2199,8 @@ def render_attendance_term(school, klass, db, term, subject=None) -> str:
         _p(doc, "ยังไม่มีเดือนในภาคเรียนนี้", align="center", size=14)
     for i, m in enumerate(months):
         _attendance_month_section(doc, school, klass, db, m, subject=subject, page_break=(i > 0))
+    if months:
+        _attendance_summary_page(doc, school, klass, db, months, subject=subject, term=term)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     tag = f"_{subject.code or subject.name}" if subject else ""
     out = out_dir / (_safe(f"เวลาเรียน_ภาค{term}_{_class_label(klass)}{tag}_{klass.year}") + ".docx")

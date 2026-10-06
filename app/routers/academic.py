@@ -2737,7 +2737,12 @@ async def attendance_save(request: Request, db: Session = Depends(get_db),
         if not e:
             e = AcadEval(acad_student_id=s.id)
             db.add(e)
-        e.days_open = _to_int(form.get(f"dopen_{s.id}", ""), None) or (open_total or None)
+        # วันเปิดเรียนรายคน: ปกติเดินตามยอดของห้อง (แก้ปฏิทินแล้วต้องขยับตาม)
+        # ติดธง manual เฉพาะตอนครูพิมพ์เอง ซึ่งหน้าเว็บส่ง dmanual_<id> มาด้วย
+        e.days_open_manual = bool(form.get(f"dmanual_{s.id}"))
+        typed = _to_int(form.get(f"dopen_{s.id}", ""), None)
+        e.days_open = (typed if e.days_open_manual and typed is not None
+                       else (open_total or None))
         e.days_sick = _to_int(form.get(f"sick_{s.id}", ""), None)
         e.days_leave = _to_int(form.get(f"leave_{s.id}", ""), None)
         e.days_absent = _to_int(form.get(f"abs_{s.id}", ""), None)
