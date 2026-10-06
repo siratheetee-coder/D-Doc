@@ -24,11 +24,14 @@
     </select>
   </form>
 
-  <div class="alert" style="background:#eff6ff; color:#1e3a8a;">
-    ระบบดึงให้อัตโนมัติ · ยอดตามบัญชีของโรงเรียน <b>{{ "{:,.2f}".format(book_balance) }}</b> บาท ·
-    รายการจ่ายที่เงินยังไม่ออกจากบัญชี <b>{{ outstanding|length }}</b> รายการ รวม <b>{{ "{:,.2f}".format(outstanding_sum) }}</b> บาท
-    (<a href="/finance/checks?year={{ fiscal_year }}">ดูทะเบียนคุมการจ่ายเงิน</a>)
-    <br>เปลี่ยนวันที่แล้วยอดตามบัญชีจะตัดถึงวันนั้นให้เอง แก้ทับได้ถ้าต้องการ
+  <div class="alert recon-auto" style="background:#eff6ff; color:#1e3a8a;">
+    <div>ระบบดึงตัวเลขสองช่องนี้ให้อัตโนมัติ เปลี่ยนวันที่แล้วตัดยอดถึงวันนั้นให้เอง แก้ทับได้ถ้าต้องการ</div>
+    <ul>
+      <li>ยอดตามบัญชีของโรงเรียน <b>{{ "{:,.2f}".format(book_balance) }}</b> บาท</li>
+      <li>รายการจ่ายที่เงินยังไม่ออกจากบัญชี <b>{{ outstanding|length }}</b> รายการ
+        รวม <b>{{ "{:,.2f}".format(outstanding_sum) }}</b> บาท
+        <a href="/finance/checks?year={{ fiscal_year }}">ดูทะเบียนคุมการจ่ายเงิน</a></li>
+    </ul>
   </div>
 
   {% if loose_checks %}
@@ -119,6 +122,10 @@
 </div>
 
 <style>
+  .recon-auto{line-height:1.8;}
+  .recon-auto ul{margin:6px 0 0;padding-left:20px;}
+  .recon-auto li{margin:2px 0;}
+  .recon-auto a{text-decoration:underline;white-space:nowrap;}
   .recon-sides{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:16px 0 0;}
   .recon-col{background:#f8fafc;border-radius:14px;padding:16px 18px;}
   .recon-col h3{margin:0;font-size:16px;}
