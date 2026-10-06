@@ -14,6 +14,7 @@ from app.database import get_db
 from app.models import Student, Arrival, ArrivalSetting
 from app.templating import templates
 from app.routers.pages import get_school
+from app.services.org_names import head_title
 
 router = APIRouter()
 
@@ -764,7 +765,7 @@ def trip_loan(tid: int, db: Session = Depends(get_db), borrower_id: int = Form(0
     name = (school.name or "").strip()
     ln = MoneyLoan(fiscal_year=current_fiscal_year(t.depart_at or datetime.now()), date=datetime.now(),
                    borrower=who.name, position=who.position or "ครู",
-                   submit_to="ผู้อำนวยการ" + name if name.startswith("โรงเรียน") else "ผู้อำนวยการโรงเรียน",
+                   submit_to=head_title(school),
                    fund_from=(t.project.name if t.project else ""),
                    purpose=f"พานักเรียนไปนอกสถานศึกษา {t.title or ''} ณ {t.place or ''}".strip(),
                    items=json.dumps(items, ensure_ascii=False),

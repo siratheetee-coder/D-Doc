@@ -27,6 +27,7 @@ from app.services.build_templates import (
 )
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_ALIGN_VERTICAL
+from app.services.org_names import head_title, org_display
 
 _BLANK = "............................"
 
@@ -40,10 +41,7 @@ def _safe(text: str) -> str:
 def _school_disp(school) -> str:
     """ชื่อโรงเรียนแบบมีคำว่า 'โรงเรียน' นำหน้าเพียงครั้งเดียว
     (กันซ้ำ 'โรงเรียนโรงเรียนบ้านหินลาด' เมื่อชื่อที่บันทึกมี 'โรงเรียน' อยู่แล้ว)"""
-    n = (getattr(school, "name", "") or "").strip()
-    if not n:
-        return "โรงเรียน"
-    return n if n.startswith("โรงเรียน") else "โรงเรียน" + n
+    return org_display(school)
 
 
 def _money(x) -> str:
@@ -885,7 +883,7 @@ def _memo_head(doc, school, subject_lines, date, doc_no=None):
             _p_runs(doc, [("เรื่อง  ", True), (s, False)], after=0)
         else:
             _p(doc, "        " + s, after=0)
-    _p_runs(doc, [("เรียน  ", True), (f"ผู้อำนวยการ{sname}", False)], after=0)
+    _p_runs(doc, [("เรียน  ", True), (head_title(school), False)], after=0)
     _hr(doc)
 
 

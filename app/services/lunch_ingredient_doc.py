@@ -25,6 +25,7 @@ from app.services.build_templates import (
 from docx.shared import Pt
 from docx.oxml.ns import qn
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from app.services.org_names import head_title, head_title_short
 
 
 def _box_cell(cell, lines, *, size=14, before=0, after=1, line=None):
@@ -645,7 +646,7 @@ def render_repay_memo(rnd, school, doc=None, *, finance_loan=None) -> str:
     _simple_table(doc, ["ความคิดเห็นเจ้าหน้าที่การเงิน", "คำสั่ง/การสั่งการ"],
                   [[f"ได้ตรวจสอบหลักฐานและเอกสารประกอบการส่งใช้เงินยืมแล้วถูกต้องครบถ้วนตามระเบียบ "
                     f"เห็นควรอนุมัติเบิกจ่ายเงิน\n\n(ลงชื่อ)....................เจ้าหน้าที่การเงิน\n( {fin} )",
-                    f"(  ) ทราบ  (  ) อนุมัติ\n\n(ลงชื่อ)....................ผู้อำนวยการโรงเรียน\n( {director} )"]],
+                    f"(  ) ทราบ  (  ) อนุมัติ\n\n(ลงชื่อ)....................{head_title_short(school)}\n( {director} )"]],
                   [Cm(8.2), Cm(7.8)])
     return _finish(doc, own, output_name)
 
@@ -1186,7 +1187,7 @@ def render_loan_contract(rnd, school, doc=None, *, finance_loan=None) -> str:
                   (f"ลงชื่อ {DOT}ผู้ยืม   ( {bname} )   วันที่ {od}", "left", False)], line=1.5)
     # R4: เสนอ + คำอนุมัติ
     c = tbl.cell(4, 0).merge(tbl.cell(4, 1))
-    _box_cell(c, [(f"เสนอ  {submit_to}" if finance_loan is not None else "เสนอ  ผู้อำนวยการโรงเรียน", "left", True),
+    _box_cell(c, [(f"เสนอ  {submit_to}" if finance_loan is not None else f"เสนอ  {head_title(school)}", "left", True),
                   (f"ได้ตรวจสอบแล้วเห็นสมควรอนุมัติให้ยืมตามใบยืมฉบับนี้ได้ จำนวน {money} บาท ({baht})", "left", False),
                   (f"ลงชื่อ {DOT}เจ้าหน้าที่การเงิน   วันที่ {present_s}", "left", False),
                   ("คำอนุมัติ  อนุมัติให้ยืมตามเงื่อนไขข้างต้นได้", "left", True),
@@ -1219,7 +1220,7 @@ def render_loan_contract(rnd, school, doc=None, *, finance_loan=None) -> str:
                   _money(left), "", ret.receipt_no or ""]
         for cell, value in zip(t.rows[index].cells, values):
             _set_cell(cell, value, size=14, align="center")
-    _p(doc, "หมายเหตุ  (1) ยื่นต่อ ผู้อำนวยการโรงเรียน  (2) ระบุชื่อส่วนราชการที่จ่ายเงิน  "
+    _p(doc, f"หมายเหตุ  (1) ยื่นต่อ {head_title_short(school)}  (2) ระบุชื่อส่วนราชการที่จ่ายเงิน  "
             "(3) ระบุวัตถุประสงค์ที่จะนำเงินยืมไปใช้จ่าย  (4) เสนอต่อผู้มีอำนาจอนุมัติ",
        before=6, size=13)
     if own:   # ออกเดี่ยว: ย่อเนื้อความเหลือ 14 ให้หน้า+หลังพอดี 2 หน้า (ตามแบบ 8500)

@@ -13,6 +13,7 @@ from app.services.doc_page import set_a4, tidy, strip_tail
 
 from app.database import get_data_dir
 from app.thai_utils import thai_date
+from app.services.org_names import head_title
 
 
 def _thai_be(dt) -> str:
@@ -66,8 +67,7 @@ def _office(school) -> str:
 
 
 def _director_line(school) -> str:
-    name = (school.name or "").strip()
-    return "ผู้อำนวยการ" + name if name.startswith("โรงเรียน") else "ผู้อำนวยการโรงเรียน"
+    return head_title(school)
 
 
 def _members(ctx) -> list:

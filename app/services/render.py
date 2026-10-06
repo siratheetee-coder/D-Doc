@@ -16,6 +16,7 @@ from docxcompose.composer import Composer
 
 from app.database import get_data_dir
 from app.thai_utils import bahttext, thai_date, thai_date_official
+from app.services.org_names import head_title
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "doc_templates"
 
@@ -67,10 +68,7 @@ def _clean_project(name: str) -> str:
 
 def _director_office(school) -> str:
     """คำลงท้าย 'ผู้อำนวยการโรงเรียน...' ให้รวมชื่อโรงเรียนถ้าทำได้"""
-    name = (school.name or "").strip()
-    if name.startswith("โรงเรียน"):
-        return "ผู้อำนวยการ" + name
-    return school.director_position or "ผู้อำนวยการโรงเรียน"
+    return head_title(school)
 
 
 def _school_office(school) -> str:

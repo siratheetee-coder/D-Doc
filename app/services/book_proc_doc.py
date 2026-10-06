@@ -26,6 +26,7 @@ from app.services.build_templates import (
     _font, _p, _p_runs, _set_cell, _cell_line, _krut_and_title, _krut_center, _hr,
     _repeat_header_row, _no_split_row, _no_borders, _fixed_cols, _sign_table,
 )
+from app.services.org_names import head_title, head_title_short
 
 _BLANK = "................................"
 _DOT = "..........................."
@@ -139,10 +140,10 @@ def _officer_signs(doc, school, *, dated=True, date=None):
     _sign_table(doc, [left, right])
 
 
-def _director_sign(doc, school, *, date=None, label="ผู้อำนวยการโรงเรียน"):
+def _director_sign(doc, school, *, date=None, label=None):
     lines = [("ลงชื่อ.................................................", "center"),
              (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
-             (label + _sname(school).replace("โรงเรียน", "", 1), "center")]
+             (label or head_title(school), "center")]
     if date is not None:
         lines.append((f"วันที่ {thai_date(date) if date else _DOT}", "center"))
     _sign_table(doc, [[("", "center")], lines])

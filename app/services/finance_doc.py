@@ -21,6 +21,7 @@ from app.thai_utils import thai_date, bahttext
 from app.services.build_templates import (
     _font, _p, _p_runs, _krut_and_title, _sign_table, _hr,
 )
+from app.services.org_names import head_title
 
 
 def _safe(text: str) -> str:
@@ -35,10 +36,7 @@ def _school_office(school) -> str:
 
 
 def _director_office(school) -> str:
-    name = (school.name or "").strip()
-    if name.startswith("โรงเรียน"):
-        return "ผู้อำนวยการ" + name
-    return school.director_position or "ผู้อำนวยการโรงเรียน"
+    return head_title(school)
 
 
 def _fmt(v) -> str:

@@ -23,6 +23,7 @@ from app.services.academic import (term_label, CHAR_ITEMS, CHAR_FIELDS, READ_DOM
                                    effective_eval, weighted_avg, activities_for,
                                    activity_summary, onet_for, is_exit_level, ONET_SUBJECTS,
                                    count_marks, parse_marks, parse_days_csv, class_open_days)
+from app.services.org_names import head_title
 
 THAI_FONT = "TH Sarabun New"
 
@@ -516,8 +517,7 @@ def _pp5_subject_cover(doc, school, klass, subject, db, students):
                 "หัวหน้า/รองผู้อำนวยการ ฝ่ายวิชาการ", size=14, after=6)
     _p(doc, "[   ] อนุมัติ          [   ] ไม่อนุมัติ", align="center", size=14, after=4)
     director = (getattr(school, "director_name", "") or "").strip()
-    dpos = ("ผู้อำนวยการ" + school.name) if (school.name or "").startswith("โรงเรียน") \
-        else "ผู้อำนวยการโรงเรียน"
+    dpos = head_title(school)
     _sign_block(doc, director, dpos, size=14)
     _p(doc, "วันที่ …........../…..................../…...........", align="center", size=14, after=0)
 
@@ -1109,8 +1109,7 @@ def render_pp5_book(school, klass, db, term: int | None = None) -> str:
     _p(doc, "", after=8)
     _p(doc, "ผลการตรวจสอบ    [   ] อนุมัติ        [   ] ไม่อนุมัติ", align="center", size=14, after=6)
     director = (getattr(school, "director_name", "") or "").strip()
-    dpos = ("ผู้อำนวยการ" + school.name) if (school.name or "").startswith("โรงเรียน") \
-        else "ผู้อำนวยการโรงเรียน"
+    dpos = head_title(school)
     _sign_block(doc, director, dpos, size=14)
     _p(doc, "วันที่ ........ เดือน ......................... พ.ศ. ..........", align="center", size=14, after=0)
 
@@ -1901,8 +1900,7 @@ def _pp6_summary(doc, school, s, db, ef):
 
     _p(doc, "", after=10)
     director = (getattr(school, "director_name", "") or "").strip()
-    dpos = ("ผู้อำนวยการ" + school.name) if (school.name or "").startswith("โรงเรียน") \
-        else "ผู้อำนวยการโรงเรียน"
+    dpos = head_title(school)
     _sign_block(doc, director, dpos)
 
 

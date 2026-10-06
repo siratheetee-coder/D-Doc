@@ -49,6 +49,7 @@ from app.services.ai_extract import extract_with_ai
 from app.thai_utils import (current_fiscal_year, thai_date, bahttext, be_date_input, parse_be_date,
                             SCHOOL_LEVELS, GRADUATED, current_academic_year)
 from app.templating import templates
+from app.services.org_names import head_title, org_display
 
 router = APIRouter()
 
@@ -2630,12 +2631,9 @@ def procurement_egp(proc_id: int, request: Request, db: Session = Depends(get_db
     in_pb = any(k in src for k in _EGP_INPB)   # เงินในงบ พรบ.รายจ่าย ?
     buy_word = "ซื้อ" if (proc.proc_type or "ซื้อ") == "ซื้อ" else "จ้าง"
 
-    # เรียน = ผู้อำนวยการ + ชื่อโรงเรียน (ถ้าชื่อขึ้นต้นด้วย "โรงเรียน")
-    sname = (school.name or "").strip()
-    if sname.startswith("โรงเรียน"):
-        attn = "ผู้อำนวยการ" + sname
-    else:
-        attn = (school.director_position or "ผู้อำนวยการโรงเรียน")
+    # เรียน = ตำแหน่งผู้บริหารตามที่ตั้งไว้ (ต่อชื่อหน่วยงานให้ถ้าตำแหน่งยังกลาง ๆ)
+    sname = org_display(school)
+    attn = head_title(school)
 
     # ผู้ลงนามในรายงานขอซื้อขอจ้าง = เจ้าหน้าที่พัสดุ (ผู้รายงาน) ถ้าไม่มีใช้หัวหน้าเจ้าหน้าที่
     signer = (school.officer_name or school.head_officer_name or "").strip()

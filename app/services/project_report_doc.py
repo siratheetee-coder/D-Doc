@@ -30,6 +30,7 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
 from app.thai_utils import bahttext, thai_date
+from app.services.org_names import head_title, org_display
 
 def _dotline(doc, *, after=2, size=16):
     """บรรทัดจุดไข่ปลายาว "เต็มบรรทัดพอดี" - ใช้ tab stop ชิดขวาแบบ dot leader
@@ -125,10 +126,7 @@ def _lst(raw) -> list:
 
 def _school_disp(school) -> str:
     """ชื่อโรงเรียนที่มีคำว่า "โรงเรียน" นำหน้าเสมอ (ชื่อที่กรอกไว้มีทั้งแบบมีและไม่มี)"""
-    n = _txt(getattr(school, "name", ""))
-    if not n:
-        return "โรงเรียน......................................."
-    return n if n.startswith("โรงเรียน") else f"โรงเรียน{n}"
+    return org_display(school) or "โรงเรียน......................................."
 
 
 def _office(school) -> str:

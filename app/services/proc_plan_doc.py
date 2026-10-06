@@ -16,6 +16,7 @@ from app.thai_utils import thai_date, bahttext
 from app.services.build_templates import (
     _font, _p, _krut_center, _set_cell, _repeat_header_row, _no_split_row,
 )
+from app.services.org_names import head_title, org_display
 
 _BLANK = "............................"
 
@@ -66,7 +67,7 @@ def render_plan_announcement(school, fiscal_year, rows, announce_date=None) -> s
             "ของรัฐจัดทำแผนการจัดซื้อจัดจ้างประจำปี และประกาศเผยแพร่ในระบบเครือข่ายสารสนเทศของ"
             "กรมบัญชีกลางและของหน่วยงานของรัฐตามที่กรมบัญชีกลางกำหนด และให้ปิดประกาศโดยเปิดเผย "
             "ณ สถานที่ปิดประกาศของหน่วยงานของรัฐ นั้น", align="justify", indent=1.25, after=2)
-    _p(doc, f"โรงเรียน{sname} ขอประกาศเผยแพร่แผนการจัดซื้อจัดจ้าง ประจำปีงบประมาณ พ.ศ. {fiscal_year} "
+    _p(doc, f"{org_display(school)} ขอประกาศเผยแพร่แผนการจัดซื้อจัดจ้าง ประจำปีงบประมาณ พ.ศ. {fiscal_year} "
             "ตามเอกสารแนบท้ายประกาศนี้", align="justify", indent=1.25, after=8)
 
     headers = ["ลำดับ", "รายการ/โครงการที่จะจัดซื้อจัดจ้าง", "งบประมาณโครงการ\n(บาท)",

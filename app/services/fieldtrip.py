@@ -8,6 +8,7 @@ fieldtrip.py - กติกาการพานักเรียนไปน�
 import json
 import math
 from datetime import datetime
+from app.services.org_names import head_title
 
 REG_NAME = "ระเบียบกระทรวงศึกษาธิการ ว่าด้วยการพานักเรียน และนักศึกษาไปนอกสถานศึกษา พ.ศ. 2562"
 
@@ -92,8 +93,7 @@ def approver_title(trip, school) -> str:
     if (trip.request_to or "").strip():
         return trip.request_to.strip()
     if trip.trip_type == "day":
-        name = (school.name or "").strip()
-        return "ผู้อำนวยการ" + name if name.startswith("โรงเรียน") else "ผู้อำนวยการโรงเรียน"
+        return head_title(school)
     if trip.trip_type == "overnight":
         area = (school.area_office or "").strip()
         return "ผู้อำนวยการ" + area if area else "ผู้อำนวยการสำนักงานเขตพื้นที่การศึกษา"

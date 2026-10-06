@@ -31,6 +31,7 @@ from app.services.build_templates import (
     _font, _krut_and_title, _krut_center, _p, _p_runs, _sign_table, _set_cell, _hr,
     _repeat_header_row, _no_split_row, _no_borders, _fixed_cols,
 )
+from app.services.org_names import head_title
 
 _BLANK = "............................"
 _DOT = "................................................................"
@@ -144,8 +145,7 @@ def _office(school) -> str:
 
 
 def _director_line(school) -> str:
-    name = (school.name or "").strip()
-    return "ผู้อำนวยการ" + name if name.startswith("โรงเรียน") else "ผู้อำนวยการโรงเรียน"
+    return head_title(school)
 
 
 def _sname(school) -> str:

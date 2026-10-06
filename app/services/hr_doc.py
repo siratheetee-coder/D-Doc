@@ -15,6 +15,7 @@ from app.services.doc_page import set_a4
 
 from app.database import get_data_dir
 from app.thai_utils import thai_date
+from app.services.org_names import head_title
 
 THAI_FONT = "TH Sarabun New"
 _BLANK = "................................"
@@ -53,8 +54,7 @@ def _doc():
 
 
 def _director_pos(school):
-    return ("ผู้อำนวยการ" + school.name) if (school.name or "").startswith("โรงเรียน") \
-        else (getattr(school, "director_position", "") or "ผู้อำนวยการโรงเรียน")
+    return head_title(school)
 
 
 def _dt(d):

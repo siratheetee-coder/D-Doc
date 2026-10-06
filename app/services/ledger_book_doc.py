@@ -23,6 +23,7 @@ from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 
 from app.database import get_data_dir
 from app.thai_utils import thai_date, _THAI_MONTHS
+from app.services.org_names import head_title
 
 THAI_FONT = "TH Sarabun New"
 _thin = Side(style="thin")
@@ -131,8 +132,7 @@ def _sign_block(doc, school):
     _p(doc, "เจ้าหน้าที่การเงินและบัญชี", align="center", after=10)
     _p(doc, "ลงชื่อ.............................................ผู้ตรวจสอบ", align="center", after=0)
     _p(doc, f"( {(school.director_name or '').strip()} )", align="center", after=0)
-    director_pos = ("ผู้อำนวยการ" + school.name) if (school.name or "").startswith("โรงเรียน") \
-        else (school.director_position or "ผู้อำนวยการโรงเรียน")
+    director_pos = head_title(school)
     _p(doc, director_pos, align="center", after=2)
 
 

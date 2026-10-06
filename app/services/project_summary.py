@@ -21,6 +21,7 @@ from app.services.build_templates import (
     _font, _p, _set_cell, _repeat_header_row, _no_split_row, _fixed_cols, _sign_table,
 )
 from app.services.budget import project_budget, project_spent, project_procurements
+from app.services.org_names import head_title
 
 _BLANK = "................................"
 
@@ -171,7 +172,7 @@ def render_project_summary(school, year, year_label, rows, *, detail=True, as_of
     ], [
         ("ลงชื่อ.......................................", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
-        ("ผู้อำนวยการ" + (sname if sname.startswith("โรงเรียน") else "โรงเรียน"), "center"),
+        (head_title(school), "center"),
     ]])
 
     out = get_data_dir() / "documents"

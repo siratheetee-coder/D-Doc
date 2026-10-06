@@ -23,6 +23,7 @@ from app.services.build_templates import (
     _p, _set_cell, _repeat_header_row, _no_split_row, _fixed_cols, _sign_table,
 )
 from app.services.finance_forms_doc import _new, _save, _money, _grid, _row, _BLANK
+from app.services.org_names import head_title, head_title_short
 
 # ---------------------------------------------------------------- ชนิดฟอร์มพิเศษ
 SPECIAL_LABEL = {
@@ -84,7 +85,7 @@ def _sign_finance(doc, school):
     ], [
         ("ลงชื่อ.......................................", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
-        ("ผู้อำนวยการโรงเรียน", "center"),
+        (head_title_short(school), "center"),
     ]])
 
 
@@ -136,12 +137,12 @@ def render_safe_custody(school, rows, total, as_of) -> str:
 
     _right_block(doc, ["ลงชื่อ..............................................",
                        f"( {(school.director_name or '').strip() or _BLANK} )",
-                       f"ผู้อำนวยการโรงเรียน{_school_only(school)}"])
+                       head_title(school)])
     _p(doc, "", after=6)
 
     got = _money(total) if total else "..............................."
-    _p(doc, f"ข้าพเจ้าได้รับเงิน {got} บาท คืนจากผู้อำนวยการโรงเรียน"
-            f"{_school_only(school) or _BLANK} ในวันที่ ........................................... "
+    _p(doc, f"ข้าพเจ้าได้รับเงิน {got} บาท คืนจาก"
+            f"{head_title(school) or _BLANK} ในวันที่ ........................................... "
             "เพื่อจะนำไปจ่ายตามระเบียบของทางราชการ", indent=1.27, size=16, after=12)
     _right_block(doc, ["ลงชื่อ..............................................",
                        "(..............................................)",

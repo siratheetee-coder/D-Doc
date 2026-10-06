@@ -19,6 +19,7 @@ from app.services.office_doc import _save_doc, _safe, _float_signature
 from app.services.fieldtrip import (REG_NAME, TRIP_TYPES, approver_title, counts, cost_amount,
                                     total_cost, COST_BASIS, cost_label)
 from app.thai_utils import thai_date, bahttext, _THAI_MONTHS
+from app.services.org_names import head_title
 
 DOT = "................................"
 
@@ -45,9 +46,7 @@ def _signer(trip, school):
     พักแรม/นอกราชอาณาจักร = หัวหน้าสถานศึกษาเสนอผู้อนุญาตตามข้อ 8"""
     if trip.trip_type == "day" and trip.ctrl_name:
         return trip.ctrl_name, trip.ctrl_pos or "ครู"
-    name = (school.name or "").strip()
-    return (school.director_name or "", "ผู้อำนวยการ" + name if name.startswith("โรงเรียน")
-            else (school.director_position or "ผู้อำนวยการโรงเรียน"))
+    return (school.director_name or "", head_title(school))
 
 
 def _head(doc, school, date, to):
@@ -113,7 +112,7 @@ def render_parent_letters(trip, school, students=None) -> str:
     total = total_cost(trip)
     director = school.director_name or ""
     name = (school.name or "").strip()
-    dpos = "ผู้อำนวยการ" + name if name.startswith("โรงเรียน") else (school.director_position or "")
+    dpos = head_title(school)
     rows = students if students is not None else list(trip.students)
     if not rows:
         rows = [None]                              # ยังไม่เลือกนักเรียน -> ออกแบบเปล่า 1 หน้า
@@ -255,7 +254,7 @@ def render_project(trip, school) -> str:
 
     ctrl_n, ctrl_p = trip.ctrl_name, trip.ctrl_pos
     name = (school.name or "").strip()
-    dpos = "ผู้อำนวยการ" + name if name.startswith("โรงเรียน") else (school.director_position or "")
+    dpos = head_title(school)
     tbl = _sign_table(doc, [
         [("ลงชื่อ ................................ ผู้เสนอโครงการ", "center"),
          (f"({_v(ctrl_n)})", "center"),
@@ -385,7 +384,7 @@ def render_travel_claim(trip, school) -> str:
     total = round(sum(cost_amount(x, c) for x in costs), 2)
     days_claim = max((x.times or 0) for x in costs) if costs else 0
     name = (school.name or "").strip()
-    dpos = "ผู้อำนวยการ" + name if name.startswith("โรงเรียน") else (school.director_position or "")
+    dpos = head_title(school)
     ctrl_name, ctrl_pos = (people[0][0], people[0][1]) if people else ("", "")
 
     doc = _new_doc()
@@ -541,7 +540,7 @@ def _memo_head(doc, school, subject, to):
 
 def _director_title(school) -> str:
     name = (school.name or "").strip()
-    return "ผู้อำนวยการ" + name if name.startswith("โรงเรียน") else (school.director_position or "ผู้อำนวยการโรงเรียน")
+    return head_title(school)
 
 
 def render_request_memo(trip, school) -> str:

@@ -18,6 +18,7 @@ from app.services.doc_page import set_a4
 
 from app.database import get_data_dir
 from app.thai_utils import _THAI_MONTHS
+from app.services.org_names import head_title
 
 THAI_FONT = "TH Sarabun New"
 DEPOSIT_TYPES = {"cash": "เงินสด", "bank": "เงินฝากธนาคาร", "agency": "เงินฝากส่วนราชการผู้เบิก"}
@@ -140,8 +141,7 @@ def render_cash_report(school, rows, totals, as_of) -> str:
 
     _p(doc, "ลงชื่อ.............................................", align="center", after=0)
     _p(doc, f"( {(school.director_name or '').strip()} )", align="center", after=0)
-    director_pos = ("ผู้อำนวยการ" + school.name) if (school.name or "").startswith("โรงเรียน") \
-        else (school.director_position or "ผู้อำนวยการโรงเรียน")
+    director_pos = head_title(school)
     _p(doc, director_pos, align="center", after=2)
 
     for _row in table.rows:                     # ไม่ให้แถวใดถูกตัดคนละหน้า

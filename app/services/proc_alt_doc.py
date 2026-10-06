@@ -24,6 +24,7 @@ from app.services.build_templates import (
     _font, _krut_and_title, _hr, _p, _p_runs, _sign_table, _set_cell,
     _repeat_header_row, _no_split_row, THAI_FONT, _csize, _bcs,
 )
+from app.services.org_names import head_title, head_title_short
 
 _ALIGN = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER,
           "right": WD_ALIGN_PARAGRAPH.RIGHT}
@@ -114,15 +115,11 @@ def _school_office(school) -> str:
 
 
 def _director_office(school) -> str:
-    name = (school.name or "").strip()
-    if name.startswith("โรงเรียน"):
-        return "ผู้อำนวยการ" + name
-    return getattr(school, "director_position", None) or "ผู้อำนวยการโรงเรียน"
+    return head_title(school)
 
 
 def _director_line(school) -> str:
-    name = (school.name or "").strip()
-    return "ผู้อำนวยการ" + name if name.startswith("โรงเรียน") else "ผู้อำนวยการโรงเรียน"
+    return head_title(school)
 
 
 def _money(x) -> str:
@@ -382,7 +379,7 @@ _W119_REF = ("หนังสือด่วนที่สุด ที่ ก�
              "ค่าใช้จ่ายในการฝึกอบรม การจัดงาน และการประชุมของหน่วยงานของรัฐ")
 
 
-def _w119_box(doc, *, responsible, director_line, total_txt, baht_txt, advance_payer, fin,
+def _w119_box(doc, *, school, responsible, director_line, total_txt, baht_txt, advance_payer, fin,
               budget_kind, budget_other, director, director_office, table2=False):
     """กล่องความเห็น ว.119 - ตาราง 2×2 มีเส้นขอบ (ตาม template) · ฟอนต์ 14
     ใช้ร่วมกันทั้งตาราง 1 และตาราง 2
@@ -434,7 +431,7 @@ def _w119_box(doc, *, responsible, director_line, total_txt, baht_txt, advance_p
         ("(ลงชื่อ)..............................หัวหน้าเจ้าหน้าที่", "left", False),
     ])
     _fill_cell(t.rows[1].cells[1], [
-        ("ความเห็นของผู้อำนวยการโรงเรียน", "left", True),
+        (f"ความเห็นของ{head_title_short(school)}", "left", True),
         ("☐ อนุมัติ", "left", False),
         ("☐ ไม่อนุมัติ เนื่องจาก .............................", "left", False),
         ("", "left", False),
@@ -479,7 +476,7 @@ def render_w119_t1(proc, school) -> str:
        align="justify", indent=1.25, after=2)
     _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณาให้ความเห็นชอบ และให้ถือรายงานนี้เป็นหลักฐานการตรวจรับพัสดุ "
             "โดยอนุโลม", align="justify", indent=1.25, after=6)
-    _w119_box(doc,
+    _w119_box(doc, school=school,
               responsible=_x(ex, "responsible", officer or _BLANK),
               director_line=_director_line(school),
               total_txt=_money(total), baht_txt=bahttext(total),
@@ -547,7 +544,7 @@ def render_w119_t2(proc, school) -> str:
     _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณา", align="justify", indent=1.25, after=2)
     _p(doc, f"อนุมัติให้เบิกจ่ายเงินจำนวน {_money(total)} บาท ({bahttext(total)}) ให้แก่ {vendor}",
        indent=1.25, after=10)
-    _w119_box(doc,
+    _w119_box(doc, school=school,
               responsible=_x(ex, "responsible", officer or _BLANK),
               director_line=_director_line(school),
               total_txt=_money(total), baht_txt=bahttext(total),

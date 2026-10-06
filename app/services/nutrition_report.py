@@ -16,6 +16,7 @@ from app.services.doc_page import set_a4
 
 from app.database import get_data_dir
 from app.thai_utils import thai_date
+from app.services.org_names import head_title
 
 THAI_FONT = "TH Sarabun New"
 # สีประจำภาวะ (ใช้กับกราฟแท่ง)
@@ -154,7 +155,7 @@ def render_nutrition_report(school, cats, class_counts, sex_counts, totals, asse
     _p(doc, "เจ้าหน้าที่โครงการอาหารกลางวัน", align="center", after=8)
     _p(doc, "ลงชื่อ.............................................", align="center", after=0)
     _p(doc, f"( {(getattr(school, 'director_name', '') or '').strip()} )", align="center", after=0)
-    dpos = ("ผู้อำนวยการ" + school.name) if (school.name or "").startswith("โรงเรียน") else "ผู้อำนวยการโรงเรียน"
+    dpos = head_title(school)
     _p(doc, dpos, align="center", after=2)
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
