@@ -55,3 +55,12 @@ def org_display(school) -> str:
 def head_title_short(school) -> str:
     """ตำแหน่งสั้น ไม่มีชื่อหน่วยงาน สำหรับบรรทัดใต้ลายเซ็นที่มีชื่อหน่วยงานอยู่แล้ว"""
     return (getattr(school, "director_position", "") or "").strip() or DEFAULT_HEAD
+
+
+def parent_office(school, blank: str = "") -> str:
+    """ต้นสังกัดที่ต้องส่งรายงานให้ (ตั้งค่าได้ที่หน้าตั้งค่า)
+
+    ของเดิมถ้าไม่ได้กรอกจะเติมคำว่า "สำนักงานเขตพื้นที่การศึกษา" ให้เอง
+    ซึ่งผิดสำหรับหน่วยงานที่ไม่ใช่โรงเรียน · เว้นเป็นช่องว่างให้เติมมือแทน
+    """
+    return (getattr(school, "area_office", "") or "").strip() or blank

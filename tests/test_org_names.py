@@ -221,3 +221,36 @@ def test_order_form_for_another_agency_has_no_school_wording(agency):
     text = _template_text(render_document("ใบสั่งซื้อ/สั่งจ้าง", proc, school))
     assert "เทศบาลตำบลหินลาด" in text
     assert "โรงเรียน" not in text, [w for w in text.split() if "โรงเรียน" in w]
+
+
+# ------------------------------------------------------------ ต้นสังกัด
+def test_parent_office_uses_what_the_school_set():
+    from app.services.org_names import parent_office
+    s = _school("เทศบาลตำบลหินลาด")
+    s.area_office = "อำเภอเมือง จังหวัดขอนแก่น"
+    assert parent_office(s) == "อำเภอเมือง จังหวัดขอนแก่น"
+
+
+def test_parent_office_left_blank_is_not_guessed_as_a_school_district():
+    """ไม่กรอกต้นสังกัด ต้องเว้นให้เติมมือ ไม่ใช่เดาว่าเป็นเขตพื้นที่การศึกษา"""
+    from app.services.org_names import parent_office
+    s = _school("เทศบาลตำบลหินลาด")
+    s.area_office = ""
+    assert parent_office(s) == ""
+    assert parent_office(s, "......") == "......"
+
+
+def test_asset_papers_no_longer_hardcode_the_school_district():
+    for rel in ("app/services/asset_audit_papers.py", "app/services/asset_dispose_set.py"):
+        src = (ROOT / rel).read_text(encoding="utf-8")
+        for line in src.splitlines():
+            if line.strip().startswith("#") or '"""' in line:
+                continue
+            assert 'or "สำนักงานเขตพื้นที่การศึกษา"' not in line, f"{rel}: {line.strip()[:70]}"
+
+
+def test_settings_page_asks_for_the_parent_office_in_neutral_words():
+    html = (ROOT / "app" / "templates" / "settings.html").read_text(encoding="utf-8")
+    assert "<label>ต้นสังกัด</label>" in html
+    assert "คำสั่งมอบอำนาจจัดซื้อจัดจ้าง ที่" in html
+    assert "คำสั่ง สพฐ. มอบอำนาจ" not in html, "ป้ายช่องยังผูกกับ สพฐ."

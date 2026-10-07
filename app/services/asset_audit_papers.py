@@ -31,6 +31,7 @@ from app.services.asset_audit_doc import (
     _blank_doc_or_break, _landscape_section, _BLANK,
 )
 from app.services.asset_utils import material_balance
+from app.services.org_names import parent_office
 
 BOX = "☐"          # ☐ ช่องติ๊ก
 TICK = "☑"         # ☑ ช่องที่ระบบติ๊กให้แล้ว
@@ -632,7 +633,7 @@ def render_audit_letter(school, ctx, to_kind, doc=None):
     year = ctx.get("year")
     clean = ctx.get("all_clean", True)
     sao = _sao_name(ctx)
-    area = (school.area_office or "").strip() or "สำนักงานเขตพื้นที่การศึกษา"
+    area = parent_office(school, _BLANK)
     if to_kind == "sao":
         to, no, date = "ผู้อำนวยการ" + sao, ctx.get("sao_no"), ctx.get("sao_date")
         encl = f"สำเนาเอกสารหลักฐานการดำเนินการตรวจสอบพัสดุประจำปี จำนวน 1 ชุด"

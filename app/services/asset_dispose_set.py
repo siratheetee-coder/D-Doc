@@ -32,6 +32,7 @@ from app.services.build_templates import (
     _repeat_header_row, _no_split_row, _no_borders, _fixed_cols,
 )
 from app.services.org_names import head_title
+from app.services.org_names import parent_office
 
 _BLANK = "............................"
 _DOT = "................................................................"
@@ -1191,7 +1192,7 @@ def render_area_letter(school, dp, doc=None):
     doc = doc or _new()
     if not own:
         _break(doc)
-    area = (school.area_office or "").strip() or "สำนักงานเขตพื้นที่การศึกษา"
+    area = parent_office(school, _BLANK)
     sao = _sao_name(dp)
     _letter_header(doc, school, dp.area_no, _d(dp.area_date),
                    f"การตรวจสอบพัสดุประจำปี และการจำหน่ายพัสดุ ปีงบประมาณ พ.ศ. {dp.year}",
@@ -1261,7 +1262,7 @@ def render_remit_letter(school, dp, doc=None):
     kind = (dp.revenue_kind or "แผ่นดิน").strip()
     total = float(dp.sale_total or 0)
     to = (dp.remit_to or "").strip() or (
-        "ผู้อำนวยการ" + ((school.area_office or "").strip() or "สำนักงานเขตพื้นที่การศึกษา"))
+        ("ผู้อำนวยการ" + parent_office(school)) if parent_office(school) else _BLANK)
     _letter_header(doc, school, dp.remit_no, _d(dp.remit_date),
                    f"การนำส่งเงินรายได้{kind}", to,
                    f"1. เงินสด จำนวน {total:,.2f} บาท\n2. ใบนำส่งเงิน จำนวน 1 ฉบับ")
