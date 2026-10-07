@@ -141,9 +141,15 @@ def render_cash_report(school, rows, totals, as_of, doc=None):
 
     _p(doc, "คณะกรรมการเก็บรักษาเงิน ได้ตรวจสอบนับเงินสดคงเหลือประจำวันถูกต้อง ตามรายการข้างต้นแล้ว "
             "และได้นำเงินสดเก็บรักษาไว้ในตู้นิรภัยเป็นที่เรียบร้อยแล้ว", align="left", after=8)
-    _p(doc, "(ลงชื่อ)......................................กรรมการ      "
-            "(ลงชื่อ)......................................กรรมการ      "
-            "(ลงชื่อ)......................................กรรมการ", align="center", after=10)
+    # กรรมการสามคนวางเป็นตารางไร้เส้น คนละช่อง
+    # (เดิมต่อกันเป็นย่อหน้าเดียว พอความกว้างไม่พอ คำว่า "กรรมการ" ของคนที่สามตกบรรทัด)
+    from app.services.build_templates import _no_borders
+    sign = doc.add_table(rows=1, cols=3)
+    for cell in sign.rows[0].cells:
+        _set_cell(cell, "(ลงชื่อ)..............................กรรมการ", align="center")
+        cell.width = Cm(6.0)
+    _no_borders(sign)
+    _p(doc, "", after=10)
 
     _p(doc, "ลงชื่อ.............................................", align="center", after=0)
     _p(doc, f"( {(school.director_name or '').strip()} )", align="center", after=0)
