@@ -124,8 +124,8 @@ class PurchaseFlowTests(unittest.TestCase):
             password_hash = account.password_hash
             db.commit()
         page = self.client.post('/register', data={'email':'owner1@example.test',
-            'password':'another-password', 'school_name':'Different school', 'next':'checkout',
-            'packages':MODULE_LABELS[self.key]})
+            'password':'another-password1', 'school_name':'Different school', 'next':'checkout',
+            'packages':MODULE_LABELS[self.key], 'accept_policy':'1'})
         self.assertEqual(page.status_code, 200)
         self.assertTrue(page.context['pending'])
         with self.Session() as db:
@@ -137,11 +137,16 @@ class PurchaseFlowTests(unittest.TestCase):
     def test_deleted_school_email_can_register_again(self):
         from app.routers import superadmin
         with patch.object(superadmin, 'acc_session', self.Session), patch.object(superadmin, 'get_data_dir', return_value=Path(self.temp.name)), patch('app.tenancy.dispose_engine'):
-            superadmin.delete_tenant(1)
+            # delete_tenant รับ request ด้วย (ใช้บันทึก audit ว่าใครสั่งลบ)
+            from starlette.requests import Request as _Req
+            fake = _Req({'type': 'http', 'method': 'POST', 'path': '/x',
+                         'headers': [], 'query_string': b'', 'client': ('127.0.0.1', 1),
+                         'session': {'uid': 1, 'username': 'admin'}})
+            superadmin.delete_tenant(1, fake)
         with self.Session() as db:
             self.assertIsNone(db.query(accounts.Account).filter_by(username='owner1@example.test').first())
         with patch('app.tenancy.ensure_school_db'):
-            result = accounts.register_account('owner1@example.test', 'new-password', 'New school')
+            result = accounts.register_account('owner1@example.test', 'new-password1', 'New school')
         self.assertNotIn('error', result)
         self.assertTrue(result['needs_verify'])
         self.assertTrue(result['verify_token'])

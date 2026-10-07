@@ -3,7 +3,12 @@ import io, re
 from fastapi.testclient import TestClient
 from docx import Document as Docx
 from app.main import app
-from app.database import SessionLocal
+from app.tenancy import session_for
+
+
+def SessionLocal():
+    """ระบบเปลี่ยนเป็นหลายโรงเรียนแล้ว เทสต์ชุดเก่าใช้โรงเรียนทดสอบ id=1"""
+    return session_for(1)
 from app.models import (School, Vendor, Procurement, ProcurementItem, Person, Department,
                         Project, DocNumberCounter, Committee, CommitteeMember, Document)
 

@@ -133,13 +133,17 @@ class TextbookWorkflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch('app.services.book_tor_doc.get_data_dir',return_value=Path(directory)):
             doc=Document(render_book_tor(school,tp,[('ป.1',[{'title':'เลือกแล้ว','price':80,'qty':10}])]))
             text='\n'.join(p.text for p in doc.paragraphs)+'\n'+'\n'.join(c.text for t in doc.tables for r in t.rows for c in r.cells)
-            self.assertIn('รายการหนังสือเรียนแนบท้าย TOR',text)
+            self.assertIn('รายการหนังสือเรียนแนบท้ายขอบเขตของงาน (TOR)',text)
             self.assertIn('เลือกแล้ว',text)
             self.assertIn('800.00',text)
             self.assertNotIn('ข้อความเก่าที่ไม่ใช้',text)
             self.assertIn('( ผู้จัดทำคนเดียว )',text)
             self.assertNotIn('( ครูทดสอบ )',text)
-            self.assertEqual(len(doc.tables[0].rows),1)
+            # ตารางแนบท้ายต้องมีรายการเดียว (หัวตาราง + 1 รายการ + แถวรวม)
+            book=[t for t in doc.tables if any('รายการหนังสือ' in c.text for c in t.rows[0].cells)]
+            self.assertTrue(book,'ไม่เจอตารางรายการหนังสือ')
+            items=[r for r in book[0].rows if any('เลือกแล้ว' in c.text for c in r.cells)]
+            self.assertEqual(len(items),1)
 
 
 if __name__=='__main__': unittest.main()

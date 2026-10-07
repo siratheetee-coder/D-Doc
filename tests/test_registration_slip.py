@@ -75,10 +75,24 @@ class FixTests(unittest.TestCase):
             asyncio.run(read_slip(Upload(b'x' * (MAX_SLIP_BYTES + 1))))
         self.assertEqual(cm.exception.code, 'slipsize')
 
+    # PDF หน้าเดียวขนาดเล็กสุด เก็บเป็น base64 ในไฟล์เทสต์เอง
+    # จะได้ไม่ต้องติดตั้ง reportlab ซึ่งไม่ใช่ dependency ของแอป
+    ONE_PAGE_PDF_B64 = (
+        "JVBERi0xLjcKJcK1wrYKJSBXcml0dGVuIGJ5IE11UERGIDEuMjcuMgoKMSAwIG9iago8PC9U"
+        "eXBlL0NhdGFsb2cvUGFnZXMgMiAwIFIvSW5mbzw8L1Byb2R1Y2VyKE11UERGIDEuMjcuMik+"
+        "Pj4+CmVuZG9iagoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0NvdW50IDEvS2lkc1s0IDAgUl0+"
+        "PgplbmRvYmoKCjMgMCBvYmoKPDw+PgplbmRvYmoKCjQgMCBvYmoKPDwvVHlwZS9QYWdlL01l"
+        "ZGlhQm94WzAgMCAyMDAgMjAwXS9Sb3RhdGUgMC9SZXNvdXJjZXMgMyAwIFIvUGFyZW50IDIg"
+        "MCBSPj4KZW5kb2JqCgp4cmVmCjAgNQowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwNDIg"
+        "MDAwMDAgbiAKMDAwMDAwMDEyMCAwMDAwMCBuIAowMDAwMDAwMTcyIDAwMDAwIG4gCjAwMDAw"
+        "MDAxOTMgMDAwMDAgbiAKCnRyYWlsZXIKPDwvU2l6ZSA1L1Jvb3QgMSAwIFIvSURbPDM4QzNC"
+        "OTE5QzJCREMzODMzM0MzQTAyMzU1N0NDMkE2PjxFRUQ5Nzc2MUU0MUE0MDEyNzU2NjU5MzFD"
+        "NTFBRjFDMz5dPj4Kc3RhcnR4cmVmCjI4NAolJUVPRgo=")
+
     def test_pdf(self):
-        from reportlab.pdfgen.canvas import Canvas
-        buf = io.BytesIO(); c = Canvas(buf); c.drawString(10, 10, 'sample'); c.save()
-        self.assertEqual(asyncio.run(read_slip(Upload(buf.getvalue())))[1], '.pdf')
+        import base64
+        pdf = base64.b64decode(self.ONE_PAGE_PDF_B64)
+        self.assertEqual(asyncio.run(read_slip(Upload(pdf)))[1], '.pdf')
 
     def test_templates_parse_and_registration_renders(self):
         env = Environment(loader=FileSystemLoader(ROOT / 'app/templates'))

@@ -5,7 +5,12 @@
 import os
 from fastapi.testclient import TestClient
 
-from app.database import SessionLocal
+from app.tenancy import session_for
+
+
+def SessionLocal():
+    """ระบบเปลี่ยนเป็นหลายโรงเรียนแล้ว เทสต์ชุดเก่าใช้โรงเรียนทดสอบ id=1"""
+    return session_for(1)
 from app.models import School, Vendor, Procurement, ProcurementItem, DocNumberCounter
 from app.main import app
 
