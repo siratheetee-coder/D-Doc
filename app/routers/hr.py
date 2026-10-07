@@ -603,7 +603,7 @@ def leave_request_approve(lid: int, request: Request, db: Session = Depends(get_
     if res == "อนุมัติ":       # แจ้งวิชาการให้จัดครูสอนแทน
         _notify_academic_substitute(db, person, "ลา" + (r.leave_type or ""),
                                     r.start_date, r.end_date, r.days or 0)
-    return RedirectResponse("/approvals?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
+    return RedirectResponse(f"/hr/leave-requests/{lid}?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
 
 
 @router.post("/hr/leave-requests/{lid}/delete")
@@ -723,7 +723,7 @@ def travel_request_approve(tid: int, request: Request, db: Session = Depends(get
                 f"<p>ความเห็น ผอ.: {r.comment or '-'}</p>")
     if res == "อนุมัติ":       # แจ้งวิชาการให้จัดครูสอนแทน
         _notify_academic_substitute(db, person, "ไปราชการ", r.start_date, r.end_date, r.days or 0)
-    return RedirectResponse("/approvals?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
+    return RedirectResponse(f"/hr/travel-requests/{tid}?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
 
 
 @router.post("/hr/travel-requests/{tid}/delete")

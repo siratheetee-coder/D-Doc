@@ -11,7 +11,15 @@
     <div class="hero-meta">{{ teacher.name if teacher else '-' }} · ภาคเรียนที่ {{ p.term or '-' }} ปีการศึกษา {{ p.year }} · <span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }};">{{ st[0] }}</span></div>
   </div>
 </div>
-{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+{% if msg and p.status != 'approved' %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+{% if msg and p.status == 'approved' %}
+<div class="alert" style="display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap;">
+  <div><b>อนุมัติเรียบร้อยแล้ว</b><br><span class="muted">แผนการสอนลงนามครบแล้ว เปิดดูหรือพิมพ์เก็บเข้าแฟ้มได้เลย</span></div>
+  {% if p.file_blob %}<a class="btn green" href="/academic/lesson-plans/{{ p.id }}/file" target="_blank" rel="noopener">
+    <svg class="icon"><use href="#ic-download"/></svg> เปิดแผนการสอนฉบับสมบูรณ์</a>{% endif %}
+</div>
+{% endif %}
+
 {% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
 
 <div class="row" style="align-items:flex-start;">

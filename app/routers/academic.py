@@ -835,7 +835,7 @@ def lesson_plan_approve(request: Request, plan_id: int, db: Session = Depends(ge
         _send_notice(teacher.email, f"[แผนการสอน] {p.title} - {res}",
                      f"<p>แผนการสอน <b>{p.title}</b>: <b>{res}</b></p>"
                      f"<p>ความเห็น ผอ.: {p.director_comment or '-'}</p>")
-    return RedirectResponse("/approvals?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
+    return RedirectResponse(f"/academic/lesson-plans/{plan_id}?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
 
 
 @router.post("/academic/lesson-plans/{plan_id}/reupload")

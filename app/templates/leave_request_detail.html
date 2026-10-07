@@ -9,7 +9,15 @@
     <div class="hero-meta">{{ r.leave_type }} · {{ be_date(r.start_date) }} ถึง {{ be_date(r.end_date) }} · {{ r.days|int }} วัน · <span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }};">{{ st[0] }}</span></div>
   </div>
 </div>
-{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+{% if msg and r.status != 'approved' %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+{% if msg and r.status == 'approved' %}
+<div class="alert" style="display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap;">
+  <div><b>อนุมัติเรียบร้อยแล้ว</b><br><span class="muted">ใบลาลงนามครบแล้ว เปิดดูหรือพิมพ์เก็บเข้าแฟ้มได้เลย</span></div>
+  {% if r.record_id %}<a class="btn green" href="/hr/leave/{{ r.record_id }}/form.docx">
+    <svg class="icon"><use href="#ic-download"/></svg> เปิดใบลาฉบับสมบูรณ์</a>{% endif %}
+</div>
+{% endif %}
+
 {% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
 
 <div class="row" style="align-items:flex-start;">
