@@ -3062,6 +3062,7 @@ def assets_form_export(db: Session = Depends(get_db)):
 def assets_page(request: Request, db: Session = Depends(get_db)):
     from app.models import AssetNumberSeries
     from app.services.asset_numbering import cost_groups
+    from app.services.asset_catalog import series_options, catalog
     assets = db.query(Asset).order_by(Asset.id.desc()).all()
     total_cost = sum(a.cost or 0 for a in assets)
     total_nbv = sum(net_book_value(a.cost, a.salvage_value, a.useful_life,
@@ -3071,7 +3072,8 @@ def assets_page(request: Request, db: Session = Depends(get_db)):
         "category_life": CATEGORY_LIFE, "total_cost": total_cost, "total_nbv": total_nbv,
         "asset_statuses": ASSET_STATUSES,
         "number_year": current_fiscal_year(),
-        "number_series": [{"prefix": x.prefix, "digits": x.digits, "reset": x.reset_yearly, "append": x.append_year} for x in db.query(AssetNumberSeries).all()],
+        "number_series": series_options(db),
+        "asset_catalog_source": catalog()['source_url'],
         "cost_groups": cost_groups(db),
     })
 
@@ -3184,16 +3186,25 @@ def _asset_from_form(asset: Asset, form) -> None:
 @router.get("/assets/number-preview")
 def asset_number_preview(request: Request, db: Session = Depends(get_db)):
     from app.services.asset_numbering import next_number
+    from app.services.asset_catalog import prepare
     from fastapi import HTTPException
     try:
-        return {"code": next_number(db, request.query_params)}
+        form = prepare(db, request.query_params)
+        return {"code": next_number(db, form), "prefix": form.get('number_prefix', '')}
     except ValueError as exc:
         raise HTTPException(400, detail=str(exc))
+
+
+@router.get("/assets/catalog-search")
+def asset_catalog_search(q: str = "", db: Session = Depends(get_db)):
+    from app.services.asset_catalog import search
+    return search(db, q)
 
 
 @router.post("/assets")
 async def asset_add(request: Request, db: Session = Depends(get_db)):
     from app.services.asset_numbering import lock_numbers, next_number, manual_number
+    from app.services.asset_catalog import prepare
     from fastapi import HTTPException
     form = await request.form()
     try:
@@ -3205,7 +3216,8 @@ async def asset_add(request: Request, db: Session = Depends(get_db)):
         if form.get('number_mode') == 'auto':
             if a.quantity != 1:
                 raise ValueError('ออกเลขอัตโนมัติครั้งละ 1 ชิ้นหรือ 1 ชุด กรุณาแยกรายการสำหรับหลายชิ้น')
-            a.asset_code = next_number(db, form, reserve=True)
+            number_form = prepare(db, form, reserve=True)
+            a.asset_code = next_number(db, number_form, reserve=True)
         else:
             manual_number(db, a.asset_code)
         db.add(a)

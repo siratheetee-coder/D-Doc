@@ -1,0 +1,41 @@
+<link rel="stylesheet" href="/static/asset-number-picker.css?v=1">
+<div class="row"><div><label for="asset-name">ชื่อครุภัณฑ์ *</label><input id="asset-name" name="name" required placeholder="เช่น ตู้เหล็กเก็บเอกสาร 4 ลิ้นชัก"></div></div>
+<fieldset class="an-modes"><legend>เลขครุภัณฑ์</legend>
+  <label><input type="radio" name="number_mode" value="auto" checked> ให้ระบบออกเลข</label>
+  <label><input type="radio" name="number_mode" value="manual"> ใช้เลขตามทะเบียนเดิม</label>
+</fieldset>
+<div id="number-manual" hidden><label for="new-asset-code">เลขครุภัณฑ์ตามทะเบียนเดิม</label><input id="new-asset-code" name="asset_code" placeholder="พิมพ์เลขเดิมของโรงเรียนได้ทุกรูปแบบ"><p class="muted">ระบบเก็บเลขตามที่กรอก และตรวจว่าไม่ซ้ำกับเลขที่เคยใช้แล้ว</p></div>
+<div id="number-settings" class="an-picker">
+  <input type="hidden" name="number_choice" value="">
+  <input type="hidden" name="number_catalog_id" value="">
+  <input type="hidden" name="number_prefix" value="">
+  <div id="an-search-box">
+    <label for="an-search">ค้นหาชนิดและรายละเอียดครุภัณฑ์</label>
+    <div class="an-search-row"><input id="an-search" type="search" autocomplete="off" placeholder="เช่น ตู้ 4 ลิ้นชัก · คอมพิวเตอร์ · 7110"><button type="button" class="btn soft" id="an-search-button">ค้นหา</button></div>
+    <p class="an-help">เลือกจากคู่มือ หรือชุดรหัสที่โรงเรียนเคยใช้ · ระบบไม่กำหนดรหัสจากข้อความที่พิมพ์จนกว่าจะเลือกรายการ</p>
+    <div id="an-results" class="an-results" aria-label="ผลการค้นหารหัสครุภัณฑ์" hidden></div>
+    <p id="an-search-status" class="an-help" role="status" aria-live="polite"></p>
+  </div>
+  <div id="an-selected" class="an-selected" hidden><div><strong id="an-selected-name"></strong><span id="an-selected-code"></span><a id="an-source" target="_blank" rel="noopener" hidden>ดูในคู่มือ ↗</a></div><button class="btn soft" type="button" id="an-change">เปลี่ยนรายการ</button></div>
+  <button type="button" class="an-text-button" id="an-custom-toggle">ไม่พบรายการ? ใช้รหัสที่โรงเรียนกำหนด</button>
+  <div id="an-custom" hidden>
+    <div class="row"><div><label for="an-custom-name">ชื่อชุดรหัสของโรงเรียน *</label><input id="an-custom-name" name="number_label" maxlength="200" placeholder="เช่น ตู้เก็บเอกสาร 4 ลิ้นชัก"></div><div><label for="an-custom-code">รหัสจำแนก / รหัสนำหน้าของโรงเรียน *</label><input id="an-custom-code" maxlength="50" placeholder="ใส่รหัสตามที่โรงเรียนกำหนด"></div></div>
+    <p class="an-help">กรอกเฉพาะรหัสนำหน้า ไม่รวมเลขลำดับประจำชิ้นหรือปี · ระบบจะจำชื่อและรูปแบบนี้เมื่อบันทึกครุภัณฑ์</p>
+  </div>
+  <div class="an-preview-row">
+    <div class="an-preview" role="status" aria-live="polite"><span>เลขที่จะได้รับเมื่อบันทึก</span><strong id="number-preview-result">เลือกรายการด้านบนก่อน</strong><span id="an-number-parts" class="an-help"></span><span class="an-help">เลขนี้เป็นตัวอย่าง ระบบจองเลขจริงเมื่อบันทึกสำเร็จ</span></div>
+    <div class="an-year"><label for="an-year">ปี พ.ศ. ที่ใช้ในเลข</label><input id="an-year" name="number_year" type="number" min="2400" max="3000" value="{{ number_year }}"></div>
+  </div>
+  <details class="an-advanced"><summary>ตั้งค่ารูปแบบเลข / เริ่มนับต่อจากทะเบียนเดิม</summary>
+    <p id="an-format-note" class="an-help">ตั้งครั้งแรกได้ ระบบจะจำรูปแบบไว้กับชุดรหัสนี้</p>
+    <div class="row">
+      <div><label for="an-digits">จำนวนหลักเลขประจำชิ้น</label><select id="an-digits" name="number_digits">{% for n in range(1,9) %}<option value="{{ n }}" {{ 'selected' if n==4 }}>{{ n }} หลัก</option>{% endfor %}</select></div>
+      <div><label for="an-start">เริ่มที่เลขลำดับ</label><input id="an-start" name="number_start" type="number" min="1" max="99999999" value="1"><p class="an-help">เช่น ทะเบียนเดิมใช้ถึง 27 ให้ใส่ 28 · ระบบไม่ย้อนกลับไปใช้เลขเก่า</p></div>
+    </div>
+    <div class="row"><div><label for="an-reset">การนับเลขประจำชิ้น</label><select id="an-reset" name="number_reset"><option value="yearly">เริ่มใหม่แต่ละปี</option><option value="continuous">นับต่อเนื่องทุกปี</option></select></div><div><label for="an-append">แสดงปีท้ายเลข</label><select id="an-append" name="number_append"><option value="yes">ต่อท้าย /ปี พ.ศ.</option><option value="no">ไม่ต่อท้ายปี</option></select></div></div>
+  </details>
+  <p class="an-help">รหัสที่เลือกคงเดิมสำหรับชนิดเดียวกัน เลขประจำชิ้นจะรันเพิ่มแยกต่างหาก · ออกเลขครั้งละ 1 ชิ้นหรือ 1 ชุด</p>
+  <noscript><p>การค้นหารหัสและดูเลขอัตโนมัติต้องเปิด JavaScript ในเบราว์เซอร์</p></noscript>
+</div>
+<script type="application/json" id="an-series">{{ number_series|tojson }}</script>
+<script src="/static/asset-number-picker.js?v=1" defer></script>

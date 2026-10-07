@@ -991,6 +991,14 @@ class Receipt(Base):
     txn = relationship("FinanceTxn")
 
 
+class AssetNumberLabel(Base):
+    """School-local name for a numbering prefix; existing numbers are never rewritten."""
+    __tablename__ = "asset_number_label"
+    prefix = Column(String, primary_key=True)
+    label = Column(String, nullable=False)
+    catalog_id = Column(String, default="")
+
+
 class AssetNumberSeries(Base):
     __tablename__ = "asset_number_series"
     prefix = Column(String, primary_key=True)

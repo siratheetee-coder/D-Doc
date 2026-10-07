@@ -1,5 +1,6 @@
 """School-local numbering. All writes serialize on the SQLite counter row."""
 import re
+import unicodedata
 from sqlalchemy.dialects.sqlite import insert
 from app.models import Asset, AssetNumberSeries, AssetNumberCounter, AssetNumberUsed
 
@@ -14,7 +15,8 @@ def lock_numbers(db):
 
 def options(form):
     prefix = (form.get('number_prefix') or '').strip().rstrip('-')
-    if not re.fullmatch(r'[\w-]{1,50}', prefix) or prefix == '__lock__':
+    if (not 1 <= len(prefix) <= 50 or prefix == '__lock__' or
+            any(not (ch.isalnum() or ch in '_-' or unicodedata.category(ch).startswith('M')) for ch in prefix)):
         raise ValueError('กรอกรหัสนำหน้า ใช้ตัวอักษร ตัวเลข หรือขีดกลาง ไม่เกิน 50 ตัว')
     try:
         digits = int(form.get('number_digits', 4))
