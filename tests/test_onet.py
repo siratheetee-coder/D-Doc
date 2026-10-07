@@ -36,6 +36,8 @@ def _login():
         "uid": 1, "username": "t", "role": "owner", "tenant_id": TID,
         "display_name": "x", "must_change": False}
     main_mod.can_use_module = lambda tid, mod: True   # ข้าม module-gate ในการทดสอบ
+    main_mod.get_account_access = lambda uid: {
+        "is_owner": True, "modules": "", "active": True, "welcomed": True}
     c = TestClient(app)
     c.post("/login", data={"username": "t", "password": "x"})
     return c

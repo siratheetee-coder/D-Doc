@@ -265,8 +265,39 @@ def _find_run(p, text):
     return None
 
 
+def _float_at_run(inline, dx_emu=0, dy_emu=0):
+    """แปลงรูปแบบไหลตามข้อความ เป็นรูปลอย 'อยู่หน้าข้อความ' ตรงตำแหน่งตัวอักษรเดิม
+
+    ลายเซ็นที่แทรกแบบไหลตามข้อความจะกินที่บนบรรทัด ดันเส้นไข่ปลาและคำที่ตามหลังเลื่อนไป
+    ลอยไว้หน้าข้อความแทน เส้นไข่ปลาจึงอยู่ที่เดิมเป๊ะ เหมือนเซ็นทับกระดาษจริง
+    ยึดตำแหน่งกับตัวอักษร/บรรทัดที่แทรก ไม่ใช่กึ่งกลางคอลัมน์ เพราะบางบรรทัดมีสองคอลัมน์
+    """
+    drawing = inline.getparent()
+    anchor = OxmlElement("wp:anchor")
+    for k, v in (("distT", "0"), ("distB", "0"), ("distL", "0"), ("distR", "0"),
+                 ("simplePos", "0"), ("relativeHeight", "251658240"), ("behindDoc", "0"),
+                 ("locked", "0"), ("layoutInCell", "1"), ("allowOverlap", "1")):
+        anchor.set(k, v)
+    sp = OxmlElement("wp:simplePos"); sp.set("x", "0"); sp.set("y", "0"); anchor.append(sp)
+    ph = OxmlElement("wp:positionH"); ph.set("relativeFrom", "character")
+    ox = OxmlElement("wp:posOffset"); ox.text = str(int(dx_emu)); ph.append(ox); anchor.append(ph)
+    pv = OxmlElement("wp:positionV"); pv.set("relativeFrom", "line")
+    oy = OxmlElement("wp:posOffset"); oy.text = str(int(dy_emu)); pv.append(oy); anchor.append(pv)
+    for tag in ("wp:extent", "wp:effectExtent"):
+        el = inline.find(qn(tag))
+        if el is not None:
+            anchor.append(el)
+    anchor.append(OxmlElement("wp:wrapNone"))
+    for tag in ("wp:docPr", "wp:cNvGraphicFramePr", "a:graphic"):
+        el = inline.find(qn(tag))
+        if el is not None:
+            anchor.append(el)
+    drawing.remove(inline)
+    drawing.append(anchor)
+
+
 def _stamp_sig(run, db, name, height_cm=1.0):
-    """แปะรูปลายเซ็นของ name (ถ้ามีในทะเบียน) ต่อท้าย run · คืน True ถ้าแปะได้"""
+    """แปะรูปลายเซ็นของ name (ถ้ามีในทะเบียน) ลอยทับหลัง run · คืน True ถ้าแปะได้"""
     if db is None or not (name or "").strip():
         return False
     try:
@@ -279,10 +310,15 @@ def _stamp_sig(run, db, name, height_cm=1.0):
     new_r = OxmlElement("w:r")
     run._element.addnext(new_r)
     try:
-        Run(new_r, run._parent).add_picture(path, height=Cm(height_cm))
+        shape = Run(new_r, run._parent).add_picture(path, height=Cm(height_cm))
+        # ลอยทับเส้นไข่ปลา ยกขึ้นเล็กน้อยให้เส้นลอดใต้ลายเซ็นเหมือนเซ็นจริง
+        _float_at_run(shape._inline, dx_emu=Cm(0.6).emu, dy_emu=-Cm(height_cm * 0.30).emu)
         return True
     except Exception:
-        new_r.getparent().remove(new_r)
+        try:
+            new_r.getparent().remove(new_r)
+        except Exception:
+            pass
         return False
 
 
@@ -578,17 +614,19 @@ def render_leave_official(school, person, record, db=None, approver=None,
         i = _find_run(P[30], "ตำแหน่ง")
         if i is not None:
             _insstrip(P[30], i, " " + dpos)
+            for r in P[30].runs[i + 1:]:
+                if not r.text.strip():
+                    r.text = ""
         _center_line(P[30], "ตำแหน่ง", BOSS_CENTER)
         # วันที่อนุมัติ ผอ. (p31) = '3 กันยายน 2569'
         if approve_date:
             i = _find_run(P[31], "วันที่")
             if i is not None:
-                for k in range(i + 1, i + 8):
-                    try:
-                        if P[31].runs[k].text.strip() in ("", "/"):
-                            P[31].runs[k].text = ""
-                    except Exception:
-                        break
+                # ล้างช่องว่าง/เส้นไข่ปลาที่เหลือทั้งบรรทัด ไม่ใช่แค่ 8 run แรก
+                # (ถ้าเหลือไว้ บรรทัดจะยาวเกินจนตกไปอีกบรรทัด ดูเหมือนเว้นว่างก่อนวันที่)
+                for r in P[31].runs[i + 1:]:
+                    if not r.text.strip() or r.text.strip() == "/":
+                        r.text = ""
                 _insstrip(P[31], i, " " + _full_date(approve_date))
             _center_line(P[31], "วันที่", BOSS_CENTER)
 

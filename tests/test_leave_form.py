@@ -44,8 +44,9 @@ def render(monkeypatch, tmp_path):
                         director_position="ผู้อำนวยการโรงเรียนบ้านหินลาด")
         person = Person(name="นายสิรธีร์  ตีเมืองซ้าย", position="ครู")
         person.id = 11
+        kw.setdefault("db", None)
         return pathlib.Path(gf.render_leave_official(
-            school, person, _Rec(), db=None, work_group="กลุ่มสาระการเรียนรู้ภาษาไทย", **kw))
+            school, person, _Rec(), work_group="กลุ่มสาระการเรียนรู้ภาษาไทย", **kw))
     return go
 
 
@@ -146,3 +147,43 @@ def test_tab_before_keeps_the_dotted_field_of_the_other_column():
     after = sum(1 for r in p.runs
                 if r._element.rPr is not None and r._element.rPr.findall(qn("w:u")))
     assert after == before, "เส้นไข่ปลาของ 'ตำแหน่ง' หายตอนจัดแนวคอลัมน์ขวา"
+
+
+# ------------------------------------------------- ลายเซ็นต้องลอยหน้าข้อความ
+def test_signature_floats_in_front_of_text_so_dots_do_not_move(render, monkeypatch, tmp_path):
+    """ลายเซ็นแบบไหลตามข้อความจะดันเส้นไข่ปลาเลื่อน ต้องลอยทับแทน"""
+    from PIL import Image
+    import app.services.signature as sigmod
+    png = tmp_path / "sig.png"
+    Image.new("RGBA", (300, 100), (0, 0, 0, 0)).save(png)
+    monkeypatch.setattr(sigmod, "signature_path_for", lambda db, name: str(png))
+
+    class _Q:
+        def filter_by(self, **k): return self
+        def filter(self, *a, **k): return self
+        def order_by(self, *a, **k): return self
+        def all(self): return []
+        def first(self): return None
+
+    class _DB:
+        def query(self, *a, **k): return _Q()
+
+    boss = Person(name="นายอัครพงศ์ ศรีวงศ์", position="ผู้อำนวยการโรงเรียน")
+    boss.id = 1
+    path = render(db=_DB(), approver=boss, approve_date=datetime.datetime(2026, 10, 7))
+    import zipfile
+    xml = zipfile.ZipFile(path).read("word/document.xml").decode("utf-8")
+    assert "wp:anchor" in xml, "ลายเซ็นยังเป็นรูปแบบไหลตามข้อความ"
+    assert 'behindDoc="0"' in xml, "ต้องอยู่หน้าข้อความ ไม่ใช่หลังข้อความ"
+    assert "wp:wrapNone" in xml, "ต้องไม่ตัดข้อความรอบรูป"
+
+
+def test_approved_form_has_no_blank_line_before_the_director_date(render):
+    """วันที่ของ ผอ. ต้องอยู่ติดใต้บรรทัดตำแหน่ง ไม่เว้นบรรทัดลอย"""
+    boss = Person(name="นายอัครพงศ์ ศรีวงศ์", position="ผู้อำนวยการโรงเรียน")
+    boss.id = 1
+    doc = Document(str(render(approver=boss, approve_date=datetime.datetime(2026, 10, 7))))
+    texts = [p.text.strip() for p in doc.paragraphs]
+    pos = max(i for i, t in enumerate(texts) if "ตำแหน่ง" in t and "ผู้อำนวยการ" in t)
+    nxt = next(i for i in range(pos + 1, len(texts)) if texts[i])
+    assert "วันที่" in texts[nxt], texts[pos:pos + 4]

@@ -14,6 +14,8 @@ def main():
         "uid": 1, "username": "t", "role": "owner", "tenant_id": 1,
         "display_name": "x", "must_change": False}
     main_mod.can_use_module = lambda tid, mod: True
+    main_mod.get_account_access = lambda uid: {
+        "is_owner": True, "modules": "", "active": True, "welcomed": True}
     c = TestClient(app, raise_server_exceptions=False)
     c.post("/login", data={"username": "t", "password": "x"})
 
