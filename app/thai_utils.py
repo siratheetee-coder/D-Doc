@@ -287,3 +287,22 @@ def thai_now() -> datetime:
 def thai_today() -> date:
     """วันที่ปัจจุบันตามเวลาประเทศไทย"""
     return thai_now().date()
+
+
+# ย้อนหลัง/ล่วงหน้ากี่ปีในช่องเลือกปีงบ (ให้เท่ากันทุกหน้า)
+FY_BACK = 2
+FY_AHEAD = 1
+
+
+def fiscal_year_options(existing, fy: int, back: int = FY_BACK, ahead: int = FY_AHEAD) -> list:
+    """ปีงบที่ให้เลือกในหน้าทะเบียนต่าง ๆ เรียงใหม่ไปเก่า
+
+    existing = ปีที่มีข้อมูลอยู่แล้ว (iterable อาจมี None ปนมา)
+
+    ถ้าคืนเฉพาะปีที่มีข้อมูล โรงเรียนที่เพิ่งเริ่มใช้จะเห็นปีเดียว
+    แล้วย้อนไปลงข้อมูลปีก่อนไม่ได้เลย (ไก่กับไข่: ไม่มีข้อมูลจึงไม่มีปีให้เลือก
+    พอเลือกปีไม่ได้ก็ลงข้อมูลไม่ได้) จึงเปิดช่วงปีไว้ให้เสมอ
+    """
+    ys = {y for y in (existing or []) if y}
+    ys |= set(range(fy - back, fy + ahead + 1))
+    return sorted(ys, reverse=True)

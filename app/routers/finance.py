@@ -42,6 +42,7 @@ from app.services.finance_report import export_finance_report
 from app.thai_utils import current_fiscal_year, parse_be_date, be_date_input, thai_date
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
+from app.thai_utils import fiscal_year_options
 
 router = APIRouter()
 from app.routers.subsidy import router as subsidy_router
@@ -85,9 +86,7 @@ def _finance_years(db, fy: int) -> list:
     ys = {r[0] for r in db.query(FinanceTxn.fiscal_year).distinct()}
     ys |= {r[0] for r in db.query(AccountOpening.fiscal_year).distinct()}
     ys |= {r[0] for r in db.query(AccountItem.fiscal_year).distinct()}   # ตั้งงบไว้แต่ยังไม่มีรายการ
-    ys |= set(range(fy - _YEARS_BACK, fy + _YEARS_AHEAD + 1))
-    ys.discard(None)
-    return sorted(ys, reverse=True)
+    return fiscal_year_options(ys, fy, _YEARS_BACK, _YEARS_AHEAD)
 
 
 # ---------------- Dashboard ----------------
@@ -649,7 +648,8 @@ def receipts_page(request: Request, db: Session = Depends(get_db), year: int | N
     fy = year or current_fiscal_year()
     rows = (db.query(Receipt).filter_by(fiscal_year=fy)
             .order_by(Receipt.date, Receipt.id).all())
-    years = sorted({r[0] for r in db.query(Receipt.fiscal_year).distinct()} | {fy}, reverse=True)
+    years = fiscal_year_options(
+        [r[0] for r in db.query(Receipt.fiscal_year).distinct()], fy)
     return templates.TemplateResponse("receipts.html", {
         "request": request, "rows": rows, "fiscal_year": fy, "years": years,
         "accounts": db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
@@ -686,7 +686,8 @@ def report_page(request: Request, db: Session = Depends(get_db), year: int | Non
     fy = year or current_fiscal_year()
     accounts = db.query(FinanceAccount).order_by(FinanceAccount.name).all()
     txns = db.query(FinanceTxn).filter_by(fiscal_year=fy).all()
-    years = sorted({r[0] for r in db.query(FinanceTxn.fiscal_year).distinct()} | {fy}, reverse=True)
+    years = fiscal_year_options(
+        [r[0] for r in db.query(FinanceTxn.fiscal_year).distinct()], fy)
     # สรุปแยกบัญชี (เฉพาะปีงบที่เลือก)
     summary = []
     for a in accounts:
@@ -1699,8 +1700,7 @@ def _project_register_rows(db, year):
 def _plan_year_list(db, cur):
     from app.models import Project
     ys = {y for (y,) in db.query(Project.plan_year).distinct().all() if y}
-    ys.add(cur)
-    return sorted(ys, reverse=True)
+    return fiscal_year_options(ys, cur)
 
 
 @router.get("/finance/projects", response_class=HTMLResponse)

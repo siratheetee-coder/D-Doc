@@ -50,6 +50,7 @@ from app.thai_utils import (current_fiscal_year, thai_date, bahttext, be_date_in
                             SCHOOL_LEVELS, GRADUATED, current_academic_year)
 from app.templating import templates
 from app.services.org_names import head_title, org_display
+from app.thai_utils import fiscal_year_options
 
 router = APIRouter()
 
@@ -337,10 +338,8 @@ def docnos_page(request: Request, db: Session = Depends(get_db),
     rows = (db.query(IssuedDocNo)
             .filter(IssuedDocNo.fiscal_year == fy)
             .order_by(IssuedDocNo.doc_type, IssuedDocNo.seq).all())
-    years = [r[0] for r in db.query(IssuedDocNo.fiscal_year).distinct().all()]
-    if fy not in years:
-        years.append(fy)
-    years = sorted(set(years), reverse=True)
+    years = fiscal_year_options(
+        [r[0] for r in db.query(IssuedDocNo.fiscal_year).distinct()], fy)
     # จัดกลุ่มตามชนิดเอกสาร
     groups = {}
     for r in rows:
@@ -456,10 +455,8 @@ def dashboard(request: Request, db: Session = Depends(get_db),
             db.query(Procurement).filter(Procurement.fiscal_year == fy)
             .order_by(Procurement.id.desc()).all()
         )
-    years = [r[0] for r in db.query(Procurement.fiscal_year).distinct().all()]
-    if fy not in years:
-        years.append(fy)
-    years = sorted(set(years), reverse=True)
+    years = fiscal_year_options(
+        [r[0] for r in db.query(Procurement.fiscal_year).distinct()], fy)
     total_amount = sum(p.total_amount or 0 for p in procurements)
     # กราฟแสดงเฉพาะมุมมองรายปีงบ (ไม่แสดงตอนค้นหาข้ามปี)
     charts = None if q else _dashboard_charts(procurements)

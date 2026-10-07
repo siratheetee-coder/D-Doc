@@ -31,6 +31,7 @@ from app.services.pdf_extract import extract_letter_fields
 from app.thai_utils import current_fiscal_year, parse_be_date, be_date_input, SCHOOL_LEVELS
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
+from app.thai_utils import fiscal_year_options
 
 router = APIRouter()
 
@@ -122,7 +123,8 @@ def incoming_page(request: Request, db: Session = Depends(get_db), year: int | N
     fy = year or current_fiscal_year()
     rows = (db.query(IncomingLetter).filter_by(fiscal_year=fy)
             .order_by(IncomingLetter.recv_no).all())
-    years = sorted({r[0] for r in db.query(IncomingLetter.fiscal_year).distinct()} | {fy}, reverse=True)
+    years = fiscal_year_options(
+        [r[0] for r in db.query(IncomingLetter.fiscal_year).distinct()], fy)
     return templates.TemplateResponse("incoming.html", {
         "request": request, "rows": rows, "fiscal_year": fy, "years": years,
         "sug_recv": suggest_next(db, "incoming", fy),
@@ -182,7 +184,8 @@ def outgoing_page(request: Request, db: Session = Depends(get_db), year: int | N
     fy = year or current_fiscal_year()
     rows = (db.query(OutgoingLetter).filter_by(fiscal_year=fy)
             .order_by(OutgoingLetter.send_seq).all())
-    years = sorted({r[0] for r in db.query(OutgoingLetter.fiscal_year).distinct()} | {fy}, reverse=True)
+    years = fiscal_year_options(
+        [r[0] for r in db.query(OutgoingLetter.fiscal_year).distinct()], fy)
     school = get_school(db)
     seq = suggest_next(db, "outgoing", fy)
     sug_no = f"{school.doc_prefix or 'ศธ'} {seq}/{fy}"
