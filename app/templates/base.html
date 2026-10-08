@@ -1131,6 +1131,21 @@
           </div>
           {% endif %}
         {% endif %}
+        {# สมาชิกที่จ่ายแล้วใกล้หมดอายุ: ป้ายบนแถบหัวซ่อนบนมือถือ จึงต้องมีแถบในเนื้อหาด้วย
+           ไม่งั้นครูที่ใช้ผ่านมือถืออย่างเดียวจะไม่เห็นอะไรเลยจนโดนบล็อกทั้งระบบ #}
+        {% if _st and _st.plan == 'member' and _st.days_left is not none and 0 <= _st.days_left <= 30 %}
+        <div style="background:#fff7ed; border:1px solid #fed7aa; color:#b45309; border-radius:12px;
+                    padding:13px 18px; margin-bottom:16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <svg class="icon" style="flex:none;"><use href="#ic-bell"/></svg>
+          <span style="flex:1; min-width:200px;">
+            {% if _st.days_left == 0 %}<b>วันนี้เป็นวันสุดท้าย</b>ของการใช้งาน
+            {% else %}ระบบจะหมดอายุในอีก <b>{{ _st.days_left }} วัน</b>{% endif %}
+            - ต่ออายุเพื่อใช้งานต่อโดยไม่สะดุด ข้อมูลทั้งหมดยังอยู่ครบ
+          </span>
+          <a href="/checkout" style="background:#2563eb; color:#fff; text-decoration:none; font-weight:700;
+             padding:8px 18px; border-radius:9px; white-space:nowrap;">ต่ออายุ</a>
+        </div>
+        {% endif %}
         {% if request.session.get('director') and not request.session.get('owner') and path != '/' %}
         <div style="display:flex; align-items:center; gap:9px; margin-bottom:16px; padding:9px 15px; border-radius:11px;
              background:#eef2ff; border:1px solid #ddd6fe; color:#4338ca; font-size:13.5px; font-weight:600;">

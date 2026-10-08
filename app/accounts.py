@@ -54,6 +54,7 @@ class Tenant(AccBase):
     inactive_stage = Column(Integer, default=0)        # เตือนไปแล้วกี่ครั้ง (0-3) · ใช้งานอีกครั้ง = รีเซ็ต
     inactive_notified_at = Column(DateTime, nullable=True)  # เตือนครั้งล่าสุดเมื่อไหร่
     trial_notice_stage = Column(Integer, default=0)    # อีเมลเตือนทดลองใช้ที่ส่งแล้ว 0-3 (ดู services/trial_notice.py)
+    member_notice_stage = Column(Integer, default=0)   # อีเมลเตือนต่ออายุที่ส่งแล้ว 0-4 (ดู services/member_notice.py)
 
     accounts = relationship("Account", back_populates="tenant",
                             cascade="all, delete-orphan")
@@ -331,6 +332,7 @@ def _ensure_engine():
                     "ALTER TABLE tenant ADD COLUMN inactive_stage INTEGER DEFAULT 0",
                     "ALTER TABLE tenant ADD COLUMN inactive_notified_at DATETIME",
                     "ALTER TABLE tenant ADD COLUMN trial_notice_stage INTEGER DEFAULT 0",
+                    "ALTER TABLE tenant ADD COLUMN member_notice_stage INTEGER DEFAULT 0",
                     "ALTER TABLE maintenance_notice ADD COLUMN kind VARCHAR DEFAULT 'maint'",
                     "ALTER TABLE maintenance_notice ADD COLUMN email_started_at DATETIME",
                     "ALTER TABLE maintenance_notice ADD COLUMN email_total INTEGER DEFAULT 0",
