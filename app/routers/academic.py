@@ -722,6 +722,22 @@ def _serve_blob(data: bytes, name: str):
                     headers={"Content-Disposition": f"inline; filename*=UTF-8''{fn}"})
 
 
+def _plan_or_deny(request, db, plan_id, *, owner_only=False):
+    """คืน (แผน, is_director) ถ้าเข้าถึงได้ หรือคืน (None, response) ถ้าไม่ได้"""
+    from app.models import LessonPlan
+    p = db.get(LessonPlan, plan_id)
+    if not p:
+        return None, RedirectResponse("/academic/lesson-plans", status_code=303)
+    sc = _scope(request, db)
+    is_director = bool(request.session.get("director"))
+    mine = p.person_id == request.session.get("person_id")
+    if owner_only and not mine:
+        return None, _deny()      # ผลการสอนเป็นของครูเจ้าของแผนเท่านั้น
+    if sc.is_teacher and not is_director and not mine:
+        return None, _deny()
+    return p, is_director
+
+
 @router.post("/academic/lesson-plans/submit")
 async def lesson_plan_submit(request: Request, db: Session = Depends(get_db),
                              title: str = Form(""), note: str = Form(""), units: str = Form(""),
@@ -775,14 +791,16 @@ async def lesson_plan_submit(request: Request, db: Session = Depends(get_db),
 
 @router.get("/academic/lesson-plans/{plan_id}/file")
 def lesson_plan_file(request: Request, plan_id: int, db: Session = Depends(get_db)):
-    """เปิด/ดาวน์โหลดไฟล์แผนที่ครูอัปโหลด (ครูเจ้าของ หรือผู้ตรวจ/ผอ.)"""
-    from app.models import LessonPlan
-    p = db.get(LessonPlan, plan_id)
-    if not p or not p.file_blob:
+    """เปิด/ดาวน์โหลดไฟล์แผนที่ครูอัปโหลด (ครูเจ้าของ หรือผู้ตรวจ/ผอ.)
+
+    ผอ. มีบัญชีผูกกับ Person เหมือนครู เช็กแค่ "เป็นครูและไม่ใช่เจ้าของ" จึงเด้ง ผอ. ออก
+    ทั้งที่เป็นคนที่ต้องเปิดอ่านเพื่อพิจารณา · ใช้ตัวตรวจสิทธิ์ตัวเดียวกับหน้ารายละเอียด
+    """
+    p, res = _plan_or_deny(request, db, plan_id)
+    if p is None:
+        return res
+    if not p.file_blob:
         return RedirectResponse("/academic/lesson-plans", status_code=303)
-    sc = _scope(request, db)
-    if sc.is_teacher and p.person_id != request.session.get("person_id"):
-        return _deny()
     return _serve_blob(p.file_blob, p.file_name or "lesson-plan")
 
 
@@ -843,6 +861,7 @@ def lesson_plan_detail(request: Request, plan_id: int, db: Session = Depends(get
         "request": request, "school": get_school(db), "p": p,
         "teacher": p.teacher, "academic": academic, "director": director,
         "is_director": is_director, "is_reviewer": not sc.is_teacher,
+        "mine": p.person_id == request.session.get("person_id"),
         "term_label": term_label, "msg": msg, "err": err,
     })
 
@@ -902,22 +921,6 @@ def lesson_plan_memo(request: Request, plan_id: int, db: Session = Depends(get_d
                            _DOCX)
 
 
-def _plan_or_deny(request, db, plan_id, *, owner_only=False):
-    """คืน (แผน, is_director) ถ้าเข้าถึงได้ หรือคืน (None, response) ถ้าไม่ได้"""
-    from app.models import LessonPlan
-    p = db.get(LessonPlan, plan_id)
-    if not p:
-        return None, RedirectResponse("/academic/lesson-plans", status_code=303)
-    sc = _scope(request, db)
-    is_director = bool(request.session.get("director"))
-    mine = p.person_id == request.session.get("person_id")
-    if owner_only and not mine:
-        return None, _deny()      # ผลการสอนเป็นของครูเจ้าของแผนเท่านั้น
-    if sc.is_teacher and not is_director and not mine:
-        return None, _deny()
-    return p, is_director
-
-
 @router.get("/academic/lesson-plans/{plan_id}/units", response_class=HTMLResponse)
 def lesson_plan_units(request: Request, plan_id: int, db: Session = Depends(get_db),
                       msg: str = "", err: str = ""):
@@ -925,10 +928,11 @@ def lesson_plan_units(request: Request, plan_id: int, db: Session = Depends(get_
     p, res = _plan_or_deny(request, db, plan_id)
     if p is None:
         return res
+    mine = p.person_id == request.session.get("person_id")
     return templates.TemplateResponse("lesson_plan_units.html", {
         "request": request, "school": get_school(db), "p": p, "teacher": p.teacher,
-        "units": p.units_rows, "is_director": res,
-        "mine": p.person_id == request.session.get("person_id"),
+        "units": p.units_rows, "is_director": res, "mine": mine,
+        "can_record": mine and p.status == "approved",
         "msg": msg, "err": err,
     })
 
@@ -944,6 +948,10 @@ def lesson_unit_save(request: Request, plan_id: int, unit_id: int, db: Session =
     p, res = _plan_or_deny(request, db, plan_id, owner_only=True)
     if p is None:
         return res
+    if p.status != "approved":
+        return RedirectResponse(
+            f"/academic/lesson-plans/{plan_id}/units?err=บันทึกผลหลังสอนได้เมื่อ ผอ. อนุมัติแผนแล้ว",
+            status_code=303)
     u = db.get(LessonUnit, unit_id)
     if not u or u.plan_id != p.id:
         return RedirectResponse(f"/academic/lesson-plans/{plan_id}/units?err=ไม่พบหน่วยนี้",

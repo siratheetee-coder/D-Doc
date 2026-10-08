@@ -203,7 +203,11 @@ def test_whole_flow_over_http_upload_two_units_record_results_download():
         r = c.get(f"/academic/lesson-plans/{plan.id}/units")
         assert r.status_code == 200 and "บันทึกหลังการจัดการเรียนรู้" in r.text
 
-        # ครูกรอกผลหน่วยที่ 1
+        # ครูกรอกผลหน่วยที่ 1 ได้หลัง ผอ. อนุมัติแล้วเท่านั้น (สอนก่อนจึงมีผลให้บันทึก)
+        from datetime import datetime as _dt
+        plan.status = "approved"
+        plan.director_at = _dt.now()
+        db.commit()
         r = c.post(f"/academic/lesson-plans/{plan.id}/units/{rows[0].id}/save",
                    data={"name": "จำนวนนับ", "hours": "12", "taught_at": "17/08/2569",
                          "k_text": "นักเรียนร้อยละ 85 ผ่านเกณฑ์", "p_text": "", "a_text": "",
@@ -279,3 +283,140 @@ def test_merging_is_refused_for_pdf_and_images_instead_of_producing_junk():
                         ("unit1.docx", b"not really a docx")):
         unit = _unit(1, file_blob=blob, file_name=fname)
         assert merge_with_plan(_plan([unit]), _school(), unit) is None, fname
+
+
+def _login_as(person_id=None, *, owner=False, director=False):
+    from fastapi.testclient import TestClient
+    import app.routers.auth as auth_mod
+    import app.main as main_mod
+    from app.main import app
+    auth_mod.authenticate = lambda u, p: {
+        "uid": 1, "username": "tester", "role": "owner", "tenant_id": 1,
+        "display_name": "ผู้ทดสอบ", "must_change": False, "person_id": person_id,
+        "is_owner": owner, "is_director": director,
+    }
+    main_mod.can_use_module = lambda tid, mod: True
+    main_mod.get_account_access = lambda uid: {
+        "is_owner": owner, "modules": "academic", "active": True, "welcomed": True,
+        "is_director": director, "person_id": person_id}
+    c = TestClient(app)
+    r = c.post("/login", data={"username": "tester", "password": "x"}, follow_redirects=False)
+    assert r.status_code in (302, 303), r.status_code
+    return c
+
+
+def test_director_can_open_the_plan_file_of_a_teacher():
+    """ผอ. มีบัญชีผูกกับ Person เหมือนครู เคยโดนเด้งกลับหน้าวิชาการตอนกดเปิดไฟล์แผน"""
+    from app.tenancy import session_for
+    from app.models import LessonPlan, Person
+    mark = "ทดสอบสิทธิ์ไฟล์แผน_"
+    db = session_for(1)
+    teacher = Person(name=mark + "ครู", position="ครู")
+    boss = Person(name=mark + "ผอ", position="ผู้อำนวยการโรงเรียน")
+    db.add_all([teacher, boss]); db.commit()
+    plan = LessonPlan(person_id=teacher.id, year=2569, term=1, title=mark + "แผน",
+                      file_blob=_PDF, file_name="plan.pdf", status="director")
+    db.add(plan); db.commit()
+    pid = plan.id
+    try:
+        for who, kw in (("ผอ.", dict(person_id=boss.id, director=True)),
+                        ("หัวหน้าวิชาการ", dict(person_id=None, owner=True)),
+                        ("ครูเจ้าของ", dict(person_id=teacher.id))):
+            r = _login_as(**kw).get(f"/academic/lesson-plans/{pid}/file", follow_redirects=False)
+            assert r.status_code == 200, f"{who} เปิดไฟล์แผนไม่ได้ ({r.status_code})"
+            assert r.content == _PDF, who
+
+        # ครูคนอื่นยังต้องเปิดไม่ได้
+        other = Person(name=mark + "ครูอื่น", position="ครู")
+        db.add(other); db.commit()
+        r = _login_as(person_id=other.id).get(f"/academic/lesson-plans/{pid}/file",
+                                              follow_redirects=False)
+        assert r.status_code in (302, 303), "ครูคนอื่นต้องเปิดแผนของคนอื่นไม่ได้"
+    finally:
+        for lp in db.query(LessonPlan).filter(LessonPlan.title.like(mark + "%")).all():
+            db.delete(lp)
+        for q in db.query(Person).filter(Person.name.like(mark + "%")).all():
+            db.delete(q)
+        db.commit()
+        db.close()
+
+
+def test_results_can_only_be_recorded_after_the_director_approves():
+    """สอนก่อนจึงจะมีผลให้บันทึก ปุ่มที่ขึ้นตั้งแต่ยังไม่อนุมัติทำให้ครูสับสนว่าต้องกรอกตอนไหน"""
+    from app.tenancy import session_for
+    from app.models import LessonPlan, LessonUnit, Person
+    from datetime import datetime
+    mark = "ทดสอบลำดับบันทึกผล_"
+    db = session_for(1)
+    teacher = Person(name=mark + "ครู", position="ครู")
+    db.add(teacher); db.commit()
+    plan = LessonPlan(person_id=teacher.id, year=2569, term=1, title=mark + "แผน",
+                      status="director", file_blob=_PDF, file_name="p.pdf")
+    db.add(plan); db.commit()
+    db.add(LessonUnit(plan_id=plan.id, seq=1, name="หน่วยหนึ่ง"))
+    db.commit()
+    unit = db.query(LessonUnit).filter(LessonUnit.plan_id == plan.id).first()
+    pid, uid = plan.id, unit.id
+    c = _login_as(person_id=teacher.id)
+    try:
+        # ยังไม่อนุมัติ: หน้าบอกชัดว่ายังกรอกไม่ได้ และบันทึกไม่ผ่าน
+        r = c.get(f"/academic/lesson-plans/{pid}/units")
+        assert r.status_code == 200
+        assert "ผอ. ยังไม่อนุมัติ" in r.text or "ยังบันทึกผลหลังสอนไม่ได้" in r.text
+        assert "บันทึกผลหน่วยที่" not in r.text, "ยังไม่อนุมัติ ไม่ควรมีปุ่มบันทึกผล"
+
+        r = c.post(f"/academic/lesson-plans/{pid}/units/{uid}/save",
+                   data={"name": "หน่วยหนึ่ง", "k_text": "แอบกรอกก่อนอนุมัติ"},
+                   follow_redirects=False)
+        assert r.status_code in (302, 303) and "err=" in r.headers.get("location", "")
+        db.expire_all()
+        assert not (db.get(LessonUnit, uid).k_text or ""), "ยังไม่อนุมัติ ต้องบันทึกผลไม่ได้"
+
+        # อนุมัติแล้ว: กรอกได้
+        db.get(LessonPlan, pid).status = "approved"
+        db.get(LessonPlan, pid).director_at = datetime.now()
+        db.commit()
+        r = c.get(f"/academic/lesson-plans/{pid}/units")
+        assert "บันทึกผลหน่วยที่" in r.text
+        r = c.post(f"/academic/lesson-plans/{pid}/units/{uid}/save",
+                   data={"name": "หน่วยหนึ่ง", "k_text": "ผ่านเกณฑ์"}, follow_redirects=False)
+        assert r.status_code in (302, 303) and "err=" not in r.headers.get("location", "")
+        db.expire_all()
+        assert db.get(LessonUnit, uid).k_text == "ผ่านเกณฑ์"
+    finally:
+        for lp in db.query(LessonPlan).filter(LessonPlan.title.like(mark + "%")).all():
+            db.delete(lp)
+        for q in db.query(Person).filter(Person.name.like(mark + "%")).all():
+            db.delete(q)
+        db.commit()
+        db.close()
+
+
+def test_a_reviewer_sees_the_unit_page_read_only():
+    """หัวหน้าวิชาการ/ผอ. เห็นหน้าเดียวกับครูทุกปุ่ม เลยไม่รู้ว่าอะไรเป็นงานของใคร"""
+    from app.tenancy import session_for
+    from app.models import LessonPlan, LessonUnit, Person
+    from datetime import datetime
+    mark = "ทดสอบมุมมองผู้ตรวจ_"
+    db = session_for(1)
+    teacher = Person(name=mark + "ครู", position="ครู")
+    db.add(teacher); db.commit()
+    plan = LessonPlan(person_id=teacher.id, year=2569, term=1, title=mark + "แผน",
+                      status="approved", director_at=datetime.now(),
+                      file_blob=_PDF, file_name="p.pdf")
+    db.add(plan); db.commit()
+    db.add(LessonUnit(plan_id=plan.id, seq=1, name="หน่วยหนึ่ง"))
+    db.commit()
+    pid = plan.id
+    try:
+        r = _login_as(person_id=None, owner=True).get(f"/academic/lesson-plans/{pid}/units")
+        assert r.status_code == 200
+        assert "ท่านดูได้อย่างเดียว" in r.text
+        assert "บันทึกผลหน่วยที่" not in r.text, "ผู้ตรวจไม่ควรมีปุ่มบันทึกผลของครู"
+    finally:
+        for lp in db.query(LessonPlan).filter(LessonPlan.title.like(mark + "%")).all():
+            db.delete(lp)
+        for q in db.query(Person).filter(Person.name.like(mark + "%")).all():
+            db.delete(q)
+        db.commit()
+        db.close()
