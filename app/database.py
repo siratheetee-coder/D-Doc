@@ -189,6 +189,7 @@ MIGRATIONS = [
     ("lesson_plan", "director_by", "INTEGER"),            # ผอ.ที่อนุมัติ
     ("lesson_plan", "director_at", "DATETIME"),
     ("lesson_plan", "director_comment", "TEXT DEFAULT ''"),
+    ("lesson_plan", "units", "TEXT DEFAULT ''"),      # รายการหน่วยการเรียนรู้ (บรรทัดละหน่วย)
     ("leave_request", "work_group", "VARCHAR DEFAULT ''"),
     ("leave_request", "personnel_by", "INTEGER"),
     ("leave_request", "personnel_at", "DATETIME"),

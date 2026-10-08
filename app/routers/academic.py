@@ -701,7 +701,7 @@ def _serve_blob(data: bytes, name: str):
 
 @router.post("/academic/lesson-plans/submit")
 async def lesson_plan_submit(request: Request, db: Session = Depends(get_db),
-                             title: str = Form(""), note: str = Form(""),
+                             title: str = Form(""), note: str = Form(""), units: str = Form(""),
                              term: str = Form(""), file: UploadFile = File(None)):
     from app.models import LessonPlan
     from app.services.file_upload import detect_ext
@@ -717,7 +717,8 @@ async def lesson_plan_submit(request: Request, db: Session = Depends(get_db),
     fname = (file.filename or f"lesson.{ext}").strip()[:120]
     p = LessonPlan(person_id=pid, year=_acad_year(db),
                    term=_to_int(term, current_term()), title=title.strip(),
-                   note=(note or "").strip(), file_blob=data, file_name=fname, status="pending")
+                   note=(note or "").strip(), units=(units or "").strip(),
+                   file_blob=data, file_name=fname, status="pending")
     db.add(p); db.commit()
     teacher = db.get(Person, pid)
     s = get_school(db)
@@ -836,6 +837,27 @@ def lesson_plan_approve(request: Request, plan_id: int, db: Session = Depends(ge
                      f"<p>แผนการสอน <b>{p.title}</b>: <b>{res}</b></p>"
                      f"<p>ความเห็น ผอ.: {p.director_comment or '-'}</p>")
     return RedirectResponse(f"/academic/lesson-plans/{plan_id}?msg=บันทึกผลการพิจารณาแล้ว", status_code=303)
+
+
+@router.get("/academic/lesson-plans/{plan_id}/memo")
+def lesson_plan_memo(request: Request, plan_id: int, db: Session = Depends(get_db)):
+    """บันทึกข้อความขออนุมัติใช้แผนการจัดการเรียนรู้ (ลายเซ็นผู้ลงนามแปะอัตโนมัติ)
+
+    ไฟล์แผนของครูเป็นรูปแบบของแต่ละโรงเรียน ระบบแตะไม่ได้ ลายเซ็นจึงอยู่บนบันทึกนำหน้าแผนแทน
+    """
+    from app.models import LessonPlan
+    from app.services.lesson_plan_doc import render_plan_memo
+    p = db.get(LessonPlan, plan_id)
+    if not p:
+        return RedirectResponse("/academic/lesson-plans", status_code=303)
+    sc = _scope(request, db)
+    is_director = bool(request.session.get("director"))
+    if sc.is_teacher and not is_director and p.person_id != request.session.get("person_id"):
+        return _deny()
+    academic = db.get(Person, p.academic_by) if p.academic_by else None
+    director = db.get(Person, p.director_by) if p.director_by else None
+    return serve_generated(render_plan_memo(p, get_school(db), academic=academic, director=director),
+                           _DOCX)
 
 
 @router.post("/academic/lesson-plans/{plan_id}/reupload")

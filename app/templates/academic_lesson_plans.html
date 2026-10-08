@@ -17,7 +17,7 @@
   <div class="nt-head"><span class="ring"><svg class="icon"><use href="#ic-alert"/></svg></span>
     <b>ก่อนส่งแผนการสอน</b></div>
   <div class="nt-body">
-    <p><b>โปรดใส่ลายเซ็นของคุณในไฟล์แผนก่อนส่งให้ฝ่ายวิชาการ</b><br>เซ็นชื่อลงในไฟล์ (Word/PDF) ของคุณเองก่อน แล้วจึงอัปโหลดส่ง · ระบบไม่ได้เซ็นให้อัตโนมัติ</p>
+    <p><b>ระบบออกบันทึกข้อความเสนอ ผอ. ให้อัตโนมัติ</b><br>ลายเซ็นครู หัวหน้าวิชาการ และ ผอ. จะแปะบนบันทึกนำหน้าแผนให้เอง ไม่ต้องเซ็นในไฟล์แผน · ขอให้อัปโหลดลายเซ็นของคุณไว้ที่ ตั้งค่า → บุคลากร ก่อนส่ง</p>
     <div class="nt-foot">
       <label class="nt-chk"><input type="checkbox" id="hintTeacherNo"> ไม่ต้องแจ้งฉันอีก</label>
       <button type="button" class="btn sm"
@@ -27,7 +27,7 @@
 </div>
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-file"/></svg> ส่งแผนการสอน</h2>
-  <p class="muted" style="font-size:13px; margin:4px 0 12px;">แนบไฟล์แผน (PDF / Word / รูป) ที่<b>เซ็นชื่อครูผู้สอนแล้ว</b> · เมื่อส่ง หัวหน้าฝ่ายวิชาการตรวจ+ลงนามก่อน แล้วเสนอ ผอ. ลงนาม · ระบบแจ้งทางอีเมลให้อัตโนมัติ</p>
+  <p class="muted" style="font-size:13px; margin:4px 0 12px;">แนบไฟล์แผนตามรูปแบบของโรงเรียน (PDF / Word / รูป) · ระบบออก<b>บันทึกข้อความขออนุมัติใช้แผน</b>นำหน้าให้ และแปะลายเซ็นผู้ลงนามให้อัตโนมัติ · หัวหน้าฝ่ายวิชาการตรวจก่อน แล้วเสนอ ผอ. ลงนาม · แจ้งทางอีเมลให้อัตโนมัติ</p>
   <form method="post" action="/academic/lesson-plans/submit" enctype="multipart/form-data">
     <div class="row" style="align-items:flex-end;">
       <div style="flex:1.4;"><label>ชื่อแผน / วิชา / ชั้น *</label><input name="title" required placeholder="เช่น แผนการสอนภาษาไทย ป.1 หน่วยที่ 3"></div>
@@ -36,10 +36,13 @@
     </div>
     <label style="margin-top:10px; display:block;">ไฟล์แผนการสอน (PDF / Word / รูป) *</label>
     <input name="file" type="file" accept=".pdf,.docx,.jpg,.jpeg,.png,.webp" required style="padding:8px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; width:100%;">
+    <label style="margin-top:10px; display:block;">หน่วยการเรียนรู้ (บรรทัดละหน่วย)</label>
+    <textarea name="units" rows="4" style="width:100%;" placeholder="หน่วยที่ 1 จำนวนนับ (12 ชั่วโมง)&#10;หน่วยที่ 2 การบวก การลบ (15 ชั่วโมง)"></textarea>
+    <p class="muted" style="font-size:12.5px; margin:4px 0 0;">รายการนี้จะขึ้นเป็นตารางในบันทึกเสนอ ผอ. · ผอ. ลงนามครั้งเดียวครอบคลุมทุกหน่วยที่ระบุไว้ · ไม่กรอกก็ส่งได้</p>
     <label style="margin-top:10px; display:block;">หมายเหตุถึงหัวหน้าฝ่าย (ไม่บังคับ)</label>
     <textarea name="note" rows="2" style="width:100%;" placeholder="เช่น ปรับตามที่แนะนำครั้งก่อนแล้ว"></textarea>
     <br><button class="btn green" type="submit" style="margin-top:10px;"
-        onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_teacher', title:'ตรวจลายเซ็นก่อนส่ง', msg:'โปรดตรวจสอบว่าท่านใส่ลายเซ็นของครูผู้สอนในไฟล์แผนแล้ว ก่อนส่งให้ฝ่ายวิชาการ', ok:'รับทราบและส่ง'})"><svg class="icon"><use href="#ic-send"/></svg> ส่งแผนการสอน</button>
+        onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_teacher', title:'ตรวจก่อนส่ง', msg:'ระบบจะแปะลายเซ็นของท่านบนบันทึกเสนอ ผอ. ให้เอง โปรดตรวจว่าอัปโหลดลายเซ็นไว้ที่ ตั้งค่า → บุคลากร แล้ว', ok:'รับทราบและส่ง'})"><svg class="icon"><use href="#ic-send"/></svg> ส่งแผนการสอน</button>
   </form>
 </div>
 {% endif %}
@@ -86,13 +89,14 @@
           <form method="post" action="/academic/lesson-plans/{{ p.id }}/review" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:0;">
             <input name="comment" value="{{ p.comment or '' }}" placeholder="ความเห็น" style="width:150px;">
             <button class="btn sm green" type="submit" name="status" value="reviewed"
-              onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_reviewer', title:'ตรวจลายเซ็นก่อนส่ง', msg:'โปรดตรวจสอบว่าท่านใส่ลายเซ็น (อัปโหลดไฟล์ที่เซ็นแล้ว) ก่อนส่งให้ผู้อำนวยการ', ok:'รับทราบและส่ง'})">ผ่าน → ผอ.</button>
+              onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_reviewer', title:'ตรวจก่อนส่ง', msg:'ระบบจะแปะลายเซ็นของท่านบนบันทึกเสนอ ผอ. ให้เอง โปรดตรวจว่าอัปโหลดลายเซ็นไว้ที่ ตั้งค่า → บุคลากร แล้ว', ok:'รับทราบและส่ง'})">ผ่าน → ผอ.</button>
             <button class="btn sm" type="submit" name="status" value="revise" style="background:#f59e0b;">ให้แก้</button>
           </form>
           {% else %}{{ p.comment or '-' }}{% if p.director_comment %}<div class="muted" style="font-size:12px;">ผอ.: {{ p.director_comment }}</div>{% endif %}{% endif %}
         </td>
         <td data-label="จัดการ" class="stack-full" style="white-space:nowrap;">
           <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}">ดู</a>
+          <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/memo">บันทึกเสนอ</a>
           <form method="post" action="/academic/lesson-plans/{{ p.id }}/delete" style="margin:0; display:inline;"
                 onsubmit="return confirm('ลบ/ยกเลิกแผน &quot;{{ p.title }}&quot; ?');">
             <button class="btn sm gray" type="submit" style="color:#dc2626;"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button>

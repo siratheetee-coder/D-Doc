@@ -15,8 +15,12 @@
 {% if msg and p.status == 'approved' %}
 <div class="alert" style="display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap;">
   <div><b>อนุมัติเรียบร้อยแล้ว</b><br><span class="muted">แผนการสอนลงนามครบแล้ว เปิดดูหรือพิมพ์เก็บเข้าแฟ้มได้เลย</span></div>
-  {% if p.file_blob %}<a class="btn green" href="/academic/lesson-plans/{{ p.id }}/file" target="_blank" rel="noopener">
-    <svg class="icon"><use href="#ic-download"/></svg> เปิดแผนการสอนฉบับสมบูรณ์</a>{% endif %}
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a class="btn green" href="/academic/lesson-plans/{{ p.id }}/memo">
+      <svg class="icon"><use href="#ic-download"/></svg> บันทึกอนุมัติฉบับสมบูรณ์</a>
+    {% if p.file_blob %}<a class="btn" href="/academic/lesson-plans/{{ p.id }}/file" target="_blank" rel="noopener">
+      <svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์แผน</a>{% endif %}
+  </div>
 </div>
 {% endif %}
 
@@ -36,7 +40,14 @@
       {% endif %}
     {% elif p.link %}<a class="btn" href="{{ p.link }}" target="_blank" rel="noopener">เปิดลิงก์แผน ↗</a>
     {% else %}<p class="muted">ไม่มีไฟล์แนบ</p>{% endif %}
+    {% if p.units %}<p style="margin-top:10px;"><b>หน่วยการเรียนรู้:</b></p>
+    <div class="muted" style="white-space:pre-line; font-size:13px;">{{ p.units }}</div>{% endif %}
     {% if p.note %}<p style="margin-top:10px;"><b>หมายเหตุจากครู:</b> {{ p.note }}</p>{% endif %}
+    <p style="margin-top:12px;">
+      <a class="btn" href="/academic/lesson-plans/{{ p.id }}/memo">
+        <svg class="icon"><use href="#ic-download"/></svg> บันทึกข้อความเสนอ ผอ.</a>
+      <span class="muted" style="font-size:12.5px;">ระบบออกให้พร้อมตารางหน่วยและลายเซ็นผู้ที่ลงนามแล้ว</span>
+    </p>
     {% if (is_reviewer or is_director) and p.status != 'approved' %}
     <hr style="margin:14px 0; border:none; border-top:1px dashed var(--border);">
     <b style="font-size:14px;">อัปโหลดไฟล์ที่เซ็นแล้ว</b>
@@ -76,7 +87,7 @@
       <div class="nt-head"><span class="ring"><svg class="icon"><use href="#ic-alert"/></svg></span>
         <b>ก่อนส่งให้ผู้อำนวยการ</b></div>
       <div class="nt-body">
-        <p><b>โปรดใส่ลายเซ็นของคุณก่อนส่งให้ผู้อำนวยการ</b><br>ดาวน์โหลดไฟล์ไปเซ็นแล้วอัปโหลดกลับ (ช่องด้านซ้าย) ก่อนกด "ผ่าน → ผอ."</p>
+        <p><b>ลายเซ็นของคุณจะแปะบนบันทึกเสนอ ผอ. ให้อัตโนมัติ</b><br>ขอให้อัปโหลดลายเซ็นไว้ที่ ตั้งค่า → บุคลากร ก่อนกด "ผ่าน → ผอ." · ถ้าอยากเซ็นในไฟล์แผนเองก็ยังทำได้ที่ช่องด้านซ้าย</p>
         <div class="nt-foot">
           <label class="nt-chk"><input type="checkbox" id="hintReviewerNo"> ไม่ต้องแจ้งฉันอีก</label>
           <button type="button" class="btn sm"
@@ -89,7 +100,7 @@
       <textarea name="comment" rows="2" style="width:100%;" placeholder="เช่น ตรวจแล้ว เห็นควรเสนอ ผอ.">{{ p.comment or '' }}</textarea>
       <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
         <button class="btn green" type="submit" name="status" value="reviewed"
-          onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_reviewer', title:'ตรวจลายเซ็นก่อนส่ง', msg:'โปรดตรวจสอบว่าท่านใส่ลายเซ็น (อัปโหลดไฟล์ที่เซ็นแล้ว) ก่อนส่งให้ผู้อำนวยการ', ok:'รับทราบและส่ง'})"><svg class="icon"><use href="#ic-check"/></svg> ผ่าน → ผอ.</button>
+          onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_reviewer', title:'ตรวจก่อนส่ง', msg:'ระบบจะแปะลายเซ็นของท่านบนบันทึกเสนอ ผอ. ให้เอง โปรดตรวจว่าอัปโหลดลายเซ็นไว้ที่ ตั้งค่า → บุคลากร แล้ว', ok:'รับทราบและส่ง'})"><svg class="icon"><use href="#ic-check"/></svg> ผ่าน → ผอ.</button>
         <button class="btn" type="submit" name="status" value="revise" style="background:#f59e0b;">ให้แก้</button>
       </div>
     </form>
@@ -101,7 +112,7 @@
       <div class="nt-head"><span class="ring"><svg class="icon"><use href="#ic-alert"/></svg></span>
         <b>ก่อนอนุมัติแผน</b></div>
       <div class="nt-body">
-        <p><b>โปรดใส่ลายเซ็นของคุณก่อนอนุมัติ</b><br>ดาวน์โหลดไฟล์ไปเซ็นแล้วอัปโหลดกลับ (ช่องด้านซ้าย) ก่อนกด "อนุมัติ + ลงนาม"</p>
+        <p><b>ลายเซ็นของคุณจะแปะบนบันทึกอนุมัติให้อัตโนมัติ</b><br>ขอให้อัปโหลดลายเซ็นไว้ที่ ตั้งค่า → บุคลากร ก่อนกด "อนุมัติ + ลงนาม" · ถ้าอยากเซ็นในไฟล์แผนเองก็ยังทำได้ที่ช่องด้านซ้าย</p>
         <div class="nt-foot">
           <label class="nt-chk"><input type="checkbox" id="hintDirectorNo"> ไม่ต้องแจ้งฉันอีก</label>
           <button type="button" class="btn sm"
@@ -114,7 +125,7 @@
       <textarea name="comment" rows="2" style="width:100%;" placeholder="เช่น อนุมัติ / เห็นชอบ"></textarea>
       <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
         <button class="btn green" type="submit" name="decision" value="approve"
-          onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_director', title:'ตรวจลายเซ็นก่อนอนุมัติ', msg:'โปรดตรวจสอบว่าท่านใส่ลายเซ็น (อัปโหลดไฟล์ที่เซ็นแล้ว) ก่อนอนุมัติ', ok:'รับทราบและอนุมัติ'})"><svg class="icon"><use href="#ic-check"/></svg> อนุมัติ + ลงนาม</button>
+          onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_director', title:'ตรวจก่อนอนุมัติ', msg:'ระบบจะแปะลายเซ็นของท่านบนบันทึกอนุมัติให้เอง โปรดตรวจว่าอัปโหลดลายเซ็นไว้ที่ ตั้งค่า → บุคลากร แล้ว', ok:'รับทราบและอนุมัติ'})"><svg class="icon"><use href="#ic-check"/></svg> อนุมัติ + ลงนาม</button>
         <button class="btn" type="submit" name="decision" value="revise" style="background:#f59e0b;">ส่งกลับให้แก้</button>
       </div>
     </form>

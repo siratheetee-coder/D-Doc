@@ -2071,6 +2071,7 @@ class LessonPlan(Base):
     link = Column(Text, default="")             # (เดิม) ลิงก์ Google Drive - เลิกใช้ เปลี่ยนเป็นอัปโหลดไฟล์
     file_blob = Column(LargeBinary, nullable=True)   # ไฟล์แผนที่ครูอัปโหลด (PDF/Word)
     file_name = Column(String, default="")           # ชื่อไฟล์แผน
+    units = Column(Text, default="")            # รายการหน่วยการเรียนรู้ บรรทัดละหน่วย (ขึ้นในบันทึกเสนอ ผอ.)
     note = Column(Text, default="")             # หมายเหตุจากครู
     # สเตจ: pending(รอวิชาการ) / revise(ให้แก้) / director(วิชาการผ่าน รอ ผอ.) / approved(ผอ.อนุมัติ)
     status = Column(String, default="pending")

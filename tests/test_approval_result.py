@@ -38,12 +38,24 @@ def test_each_detail_page_shows_the_finished_document_after_approval():
 def test_the_finished_document_link_is_guarded_so_it_never_points_at_none():
     """ยังไม่อนุมัติจะยังไม่มีเลขทะเบียน ลิงก์ต้องไม่โผล่มาเป็น /None/"""
     for rel, guard in (("app/templates/leave_request_detail.html", "r.record_id"),
-                       ("app/templates/travel_request_detail.html", "r.record_id"),
-                       ("app/templates/lesson_plan_detail.html", "p.file_blob")):
+                       ("app/templates/travel_request_detail.html", "r.record_id")):
         html = _src(rel)
         i = html.index("ฉบับสมบูรณ์")
         window = html[max(0, i - 400):i]
         assert guard in window, f"{rel}: ปุ่มเอกสารฉบับสมบูรณ์ยังไม่มีเงื่อนไขกัน"
+
+
+def test_approved_lesson_plan_always_has_a_signed_document_to_open():
+    """แผนการสอนต่างจากใบลา: เอกสารที่ลงนามคือบันทึกที่ระบบออกเอง ไม่ใช่ไฟล์ที่ครูแนบ
+
+    จึงไม่ต้องมีเงื่อนไขกันลิงก์ ปุ่มใช้ได้เสมอ แต่ลิงก์ "เปิดไฟล์แผน" ที่ชี้ไปไฟล์ของครู
+    ยังต้องกันด้วย p.file_blob เหมือนเดิม
+    """
+    html = _src("app/templates/lesson_plan_detail.html")
+    i = html.index("ฉบับสมบูรณ์")
+    window = html[max(0, i - 400):i + 400]
+    assert "/memo" in window, "ปุ่มเอกสารฉบับสมบูรณ์ต้องชี้ไปบันทึกที่ระบบออกให้"
+    assert "p.file_blob" in window, "ลิงก์เปิดไฟล์แผนของครูยังต้องมีเงื่อนไขกัน"
 
 
 def test_detail_routes_still_open_after_the_item_leaves_the_inbox():
