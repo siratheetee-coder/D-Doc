@@ -248,7 +248,34 @@ def test_oversized_plan_file_is_rejected_with_a_clear_message():
         assert "err=" in r.headers.get("location", ""), "ไฟล์เกินเพดานต้องไม่ผ่าน"
         assert db.query(LessonPlan).filter(LessonPlan.title.like(mark + "%")).first() is None
     finally:
+        for lp in db.query(LessonPlan).filter(LessonPlan.title.like(mark + "%")).all():
+            db.delete(lp)
         for q in db.query(Person).filter(Person.name.like(mark + "%")).all():
             db.delete(q)
         db.commit()
         db.close()
+
+
+def test_merging_appends_the_note_to_a_word_plan_file():
+    """ไอเดียหลัก: ครูส่งแค่ตัวแผน ระบบเติมหน้าบันทึกให้ท้ายไฟล์"""
+    import io
+    from docx import Document as _D
+    from app.services.lesson_after_doc import merge_with_plan
+    src = _D()
+    src.add_paragraph("เนื้อหาแผนของโรงเรียน หน่วยที่ 1")
+    buf = io.BytesIO(); src.save(buf)
+    unit = _unit(1, name="จำนวนนับ", k_text="ผ่านเกณฑ์", file_blob=buf.getvalue(),
+                 file_name="unit1.docx")
+    out = merge_with_plan(_plan([unit]), _school(), unit)
+    assert out, "ไฟล์ Word ต้องรวมได้"
+    t = _text(out)
+    assert "เนื้อหาแผนของโรงเรียน หน่วยที่ 1" in t, "เนื้อแผนเดิมต้องอยู่ครบ"
+    assert "บันทึกหลังการจัดการเรียนรู้" in t and "ผ่านเกณฑ์" in t
+
+
+def test_merging_is_refused_for_pdf_and_images_instead_of_producing_junk():
+    from app.services.lesson_after_doc import merge_with_plan
+    for fname, blob in (("unit1.pdf", b"%PDF-1.4\n%%EOF\n"), ("unit1.png", b"\x89PNG\r\n"),
+                        ("unit1.docx", b"not really a docx")):
+        unit = _unit(1, file_blob=blob, file_name=fname)
+        assert merge_with_plan(_plan([unit]), _school(), unit) is None, fname

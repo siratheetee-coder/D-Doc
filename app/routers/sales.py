@@ -12,7 +12,7 @@ from datetime import datetime
 from urllib.parse import urlencode
 import math
 
-from fastapi import APIRouter, Request, Form, UploadFile, File, HTTPException
+from fastapi import APIRouter, Request, Form, UploadFile, File, HTTPException, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.database import get_data_dir
@@ -205,33 +205,64 @@ def _quote_price(request, selected):
     return pf, account, addon
 
 
+def _quote_owned(request):
+    """งานที่โรงเรียนนี้ซื้อไปแล้ว (ติ๊กค้างไว้ ไม่ต้องคิดเงินซ้ำตอนซื้อเพิ่มกลางรอบ)"""
+    from app.accounts import purchase_account, tenant_billing
+    from app.modules import parse_modules
+    account = purchase_account(request.session.get("uid"))
+    bill = tenant_billing(account["tenant_id"]) if account else None
+    return parse_modules((bill or {}).get("modules"))
+
+
+def _quote_ctx(request, selected, prefill, *, error=""):
+    """บริบทหน้าขอใบเสนอราคา: เลือกแพ็กเกจในหน้านี้ได้เลย และบอกราคาทันที
+
+    ราคายังคำนวณที่เซิร์ฟเวอร์ด้วย price_for เหมือนหน้าสั่งซื้อ (แหล่งความจริงเดียวของราคา)
+    JS บนหน้ามีหน้าที่แค่แสดงยอดให้ตรงกับสูตรเดียวกัน
+    """
+    from app.accounts import tenant_billing
+    from app.modules import MODULE_KEYS, MODULE_PRICE_KEY
+    from app.seller_config import pricing_context
+    pf, account, addon = _quote_price(request, selected)
+    ctx = pricing_context()
+    px = ctx["prices"]
+    frac = 1.0
+    if addon and account:
+        bill = tenant_billing(account["tenant_id"])
+        frac = max(0.0, min(1.0, ((bill or {}).get("days_left") or 0) / 365.0))
+    prefill = dict(prefill or {})
+    prefill["packages"] = pf["label"]
+    prefill["amount"] = pf["total"] if pf["count"] else ""
+    return {"request": request, "prefill": prefill, "account": account, "addon": addon,
+            "error": error,
+            "selected_mods": sorted(pf["modules"].split(",")) if pf["modules"] else [],
+            "unit_price": {k: int(round(px[MODULE_PRICE_KEY[k]] * frac)) for k in MODULE_KEYS},
+            "owned_mods": sorted(_quote_owned(request)), **ctx}
+
+
 @router.get("/quote", response_class=HTMLResponse)
-def quote_page(request: Request, packages: str = "", amount: str = ""):
-    pf, account, addon = _quote_price(request, modules_from_label(packages))
-    prefill = {"packages": pf["label"] or packages, "amount": pf["total"] if pf["count"] else ""}
-    return templates.TemplateResponse("quote.html", {"request": request, "prefill": prefill,
-                                                     "account": account, "addon": addon})
+def quote_page(request: Request, packages: str = "", amount: str = "", mod: list[str] = Query([])):
+    selected = set(mod or []) or modules_from_label(packages)
+    return templates.TemplateResponse("quote.html", _quote_ctx(request, selected, {}))
 
 
 @router.post("/quote")
 def quote_submit(request: Request, school_name: str = Form(""), address: str = Form(""), tax_id: str = Form(""),
                  contact_name: str = Form(""), email: str = Form(""), phone: str = Form(""),
                  mod: list[str] = Form([]), packages: str = Form(""), amount: str = Form(""),
-                 qty_school: str = Form(""), note: str = Form("")):
+                 note: str = Form("")):
     extra = (note or "").strip()
-    if (qty_school or "").strip():
-        extra = (f"จำนวนโรงเรียน: {qty_school.strip()}\n" + extra).strip()
     # ราคาคำนวณที่เซิร์ฟเวอร์เหมือนหน้าสั่งซื้อ · ถ้าไม่ได้ส่ง mod มา ลองแกะจากข้อความ packages เดิม
     pf, account, addon = _quote_price(request, set(mod or []) or modules_from_label(packages))
     if addon:
         extra = ("[ซื้อเพิ่มกลางรอบ prorate] " + extra).strip()
     if not pf["count"] or not school_name.strip() or not contact_name.strip() or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email.strip()):
-        return templates.TemplateResponse("quote.html", {"request": request,
-            "error": "กรุณาระบุแพ็กเกจ ชื่อโรงเรียน ผู้ติดต่อ และอีเมลให้ครบถ้วน",
-            "account": account, "addon": addon,
-            "prefill": {"school_name": school_name, "address": address, "tax_id": tax_id,
-                        "contact_name": contact_name, "email": email, "phone": phone,
-                        "packages": packages, "amount": pf["total"], "qty_school": qty_school, "note": note}}, status_code=400)
+        return templates.TemplateResponse("quote.html", _quote_ctx(
+            request, set(mod or []) or modules_from_label(packages),
+            {"school_name": school_name, "address": address, "tax_id": tax_id,
+             "contact_name": contact_name, "email": email, "phone": phone, "note": note},
+            error="กรุณาเลือกงานที่ต้องการ และกรอกชื่อโรงเรียน ผู้ติดต่อ และอีเมลให้ครบถ้วน"),
+            status_code=400)
     lid = add_lead(kind="quote", school_name=school_name.strip(), address=address.strip(),
                    tax_id=tax_id.strip(), contact_name=contact_name.strip(), email=email.strip(),
                    phone=phone.strip(), packages=pf["label"] or packages.strip(),

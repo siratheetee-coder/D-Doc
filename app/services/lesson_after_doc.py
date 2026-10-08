@@ -153,3 +153,32 @@ def render_after_notes(plan, school, *, units=None, teacher=None, director=None)
     if not units:
         _p(doc, "ยังไม่มีหน่วยการเรียนรู้ในชุดแผนนี้", align="center")
     return _save_doc(doc, _safe(f"บันทึกหลังการจัดการเรียนรู้_{plan.id}") + ".docx")
+
+
+def merge_with_plan(plan, school, unit, *, teacher=None, director=None) -> str | None:
+    """ไฟล์แผนของหน่วยนั้น + บันทึกหลังการจัดการเรียนรู้ ต่อท้ายเป็นไฟล์เดียว
+
+    ทำได้เฉพาะไฟล์ Word เพราะต่อท้ายเอกสารได้ตรง ๆ (docxcompose ที่ระบบใช้อยู่แล้ว)
+    ไฟล์ PDF และรูปถ่ายต่อท้ายไม่ได้ถ้าไม่เพิ่มเครื่องมือแปลงเอกสารบนเซิร์ฟเวอร์
+    คืน None เมื่อต่อไม่ได้ ให้ฝั่งเรียกใช้แจ้งผู้ใช้ว่าให้พิมพ์แนบเอง
+    """
+    import io
+    from docxcompose.composer import Composer
+    name = (unit.file_name or "").lower()
+    if not unit.file_blob or not name.endswith(".docx"):
+        return None
+    try:
+        master = Document(io.BytesIO(unit.file_blob))
+    except Exception:
+        return None       # ไฟล์ Word เสียหรือเป็น .doc รุ่นเก่าที่เปิดไม่ได้
+    master.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+    tail = Document()
+    set_a4(tail)
+    from app.services.build_templates import _font
+    _font(tail)
+    render_after_note(tail, plan, school, unit, teacher=teacher, director=director)
+    buf = io.BytesIO()
+    tail.save(buf)
+    buf.seek(0)
+    Composer(master).append(Document(buf))
+    return _save_doc(master, _safe(f"แผนพร้อมบันทึกหลังสอน_{plan.id}_หน่วยที่{unit.seq}") + ".docx")

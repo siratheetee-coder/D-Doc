@@ -975,6 +975,26 @@ def lesson_unit_file(request: Request, plan_id: int, unit_id: int, db: Session =
     return _serve_blob(u.file_blob, u.file_name or "lesson")
 
 
+@router.get("/academic/lesson-plans/{plan_id}/units/{unit_id}/full")
+def lesson_unit_full(request: Request, plan_id: int, unit_id: int, db: Session = Depends(get_db)):
+    """ไฟล์แผนของหน่วยนั้น + บันทึกหลังสอน ต่อท้ายเป็นไฟล์เดียว (เฉพาะไฟล์ Word)"""
+    from app.models import LessonUnit
+    from app.services.lesson_after_doc import merge_with_plan
+    p, res = _plan_or_deny(request, db, plan_id)
+    if p is None:
+        return res
+    u = db.get(LessonUnit, unit_id)
+    if not u or u.plan_id != p.id:
+        return RedirectResponse(f"/academic/lesson-plans/{plan_id}/units", status_code=303)
+    director = db.get(Person, p.director_by) if p.director_by else None
+    path = merge_with_plan(p, get_school(db), u, director=director)
+    if not path:
+        return RedirectResponse(
+            f"/academic/lesson-plans/{plan_id}/units?err=รวมไฟล์ได้เฉพาะแผนที่เป็นไฟล์ Word "
+            "ไฟล์ PDF หรือรูป ให้โหลดบันทึกหลังสอนไปพิมพ์แนบท้ายแทน", status_code=303)
+    return serve_generated(path, _DOCX)
+
+
 @router.get("/academic/lesson-plans/{plan_id}/after")
 def lesson_plan_after(request: Request, plan_id: int, db: Session = Depends(get_db),
                       unit: int = 0):

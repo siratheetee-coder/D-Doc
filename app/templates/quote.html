@@ -1,14 +1,88 @@
 {% extends "public_base.html" %}
 {% block title %}ขอใบเสนอราคา | Easy Ekkasan{% endblock %}
 {% block content %}
+<style>
+  /* ตัวเลือกแพ็กเกจ (ชุดเดียวกับหน้าสั่งซื้อ ให้ผู้ใช้เห็นภาพเดียวกัน) */
+  .co-list{ display:grid; gap:10px; }
+  .co-item{ position:relative; display:flex; align-items:center; gap:13px; border:2px solid var(--line);
+            border-radius:13px; padding:13px 15px; cursor:pointer; background:#fff;
+            transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+  .co-item:hover{ border-color:#bcd0f7; transform:translateY(-2px); box-shadow:0 10px 22px rgba(37,99,235,.10); }
+  .co-item.on{ border-color:var(--blue); background:linear-gradient(180deg,#f7faff,#eef4ff);
+               box-shadow:0 8px 20px rgba(37,99,235,.14); }
+  .co-item input{ position:absolute; width:1px; height:1px; padding:0; border:0; opacity:0; pointer-events:none; }
+  .co-item:focus-within{ outline:2px solid var(--blue); outline-offset:3px; }
+  .co-item.owned{ opacity:.72; cursor:default; }
+  .co-check{ flex:0 0 24px; height:24px; border-radius:8px; border:2px solid #cdd7e6; background:#fff;
+             display:flex; align-items:center; justify-content:center;
+             box-shadow:inset 0 1px 2px rgba(16,24,40,.06);
+             transition:background .2s ease, border-color .2s ease, transform .2s ease, box-shadow .2s ease; }
+  .co-item.on .co-check{ background:linear-gradient(150deg,#4880FF,#1d4ed8); border-color:#1d4ed8;
+             box-shadow:0 4px 11px rgba(37,99,235,.38); transform:scale(1.06); }
+  .co-check::after{ content:""; width:11px; height:6px; margin-top:-2px;
+             border-left:2.6px solid #fff; border-bottom:2.6px solid #fff;
+             transform:rotate(-45deg) scale(0); transform-origin:center;
+             transition:transform .24s cubic-bezier(.25,1.7,.4,1); }
+  .co-item.on .co-check::after{ transform:rotate(-45deg) scale(1); }
+  @media (prefers-reduced-motion: reduce){ .co-item, .co-item:hover{ transform:none; } .co-check::after{ transition:none; } }
+  .co-name{ flex:1; font-weight:600; font-size:15px; }
+  .co-name small{ display:block; font-weight:400; color:var(--muted); font-size:12px; }
+  .co-price{ font-weight:700; white-space:nowrap; }
+  .co-price::after{ content:" บาท"; font-weight:400; color:var(--muted); font-size:12px; }
+  .co-owned-tag{ font-size:12px; color:var(--green); font-weight:700; white-space:nowrap; }
+  .q-total{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+            margin-top:16px; padding-top:14px; border-top:1px dashed var(--line); }
+  .q-total .amt{ font-size:26px; font-weight:800; color:var(--blue); }
+  .q-save{ font-size:13px; color:var(--green); font-weight:700; }
+</style>
+
 <div class="page-head">
   <h1>ขอใบเสนอราคา</h1>
-  <p>กรอกข้อมูลสำหรับออกใบเสนอราคา ทีมงานจะส่งใบเสนอราคาให้ทางอีเมลที่ระบุ (ปกติภายใน 1 วันทำการ)</p>
+  <p>เลือกงานที่ต้องการแล้วระบบคิดราคาให้ทันที ทีมงานจะส่งใบเสนอราคาให้ทางอีเมลที่ระบุ (ปกติภายใน 1 วันทำการ)</p>
 </div>
 
-<form class="card" method="post" action="/quote" autocomplete="on">
+<form class="card" method="post" action="/quote" autocomplete="on" id="quoteForm">
   {% if error %}<p role="alert" style="color:#b91c1c;">{{ error }}</p>{% endif %}
-  <h2>ข้อมูลหน่วยงาน</h2>
+
+  <h2 style="margin-top:0;">เลือกงานที่ต้องการ</h2>
+  {% if addon %}
+  <p class="hint">โรงเรียนของท่านเป็นสมาชิกอยู่แล้ว งานที่ซื้อเพิ่มจะคิดราคาตามวันที่เหลือ และหมดอายุพร้อมงานเดิม</p>
+  {% endif %}
+  <div class="co-list" id="coList">
+    {% for it in [
+        ('procurement','p_proc','งานพัสดุ','จัดซื้อจัดจ้าง · ทรัพย์สิน/ครุภัณฑ์ · ใบเบิกพัสดุ สัญญา · ตัวช่วยกรอก e-GP'),
+        ('finance','p_fin','งานการเงิน','สมุดเงินสด · บัญชีแยกประเภท · บัญชีเงินคงเหลือประจำวัน · บันทึกเบิกจ่าย'),
+        ('admin','p_admin','งานธุรการ','หนังสือรับ-ส่ง · บันทึกข้อความ/คำสั่ง · เกียรติบัตร · AI ช่วยเขียนเอกสาร'),
+        ('lunch','p_lunch','งานอาหารกลางวัน','คำนวณงบ · เอกสารจ้าง · ภาวะโภชนาการ'),
+        ('hr','p_hr','งานบุคคล','ทะเบียนบุคลากร · วันลา · ไปราชการ · ก.พ.7 · หนังสือรับรอง'),
+        ('academic','p_acad','งานวิชาการ','ห้องเรียน/ครูประจำชั้น · รายวิชา 8 กลุ่มสาระ · ผลการเรียน · ปพ.5 · สมุดรายงาน ปพ.6') ] %}
+    {% set k = it[0] %}{% set owned = addon and k in owned_mods %}
+    <label class="co-item{{ ' owned' if owned }}{{ ' on' if owned or k in selected_mods }}"
+           data-key="{{ k }}" data-price="{{ unit_price[k] }}" data-name="{{ it[2] }}">
+      <input type="checkbox" name="mod" value="{{ k }}"
+        {{ 'checked' if owned or k in selected_mods }} {{ 'disabled' if owned }}>
+      <span class="co-check"></span>
+      <span class="co-name">{{ it[2] }}<small>{{ it[3] }}</small></span>
+      {% if owned %}<span class="co-owned-tag">มีอยู่แล้ว</span>
+      {% else %}<span class="co-price">{{ "{:,}".format(unit_price[k]) }}</span>{% endif %}
+    </label>
+    {% endfor %}
+  </div>
+  {% if not addon %}
+  <button type="button" class="btn btn-ghost" id="coAll" style="margin-top:12px; width:100%;">เลือกครบทุกงาน (คุ้มสุด {{ "{:,}".format(prices.bundle) }} บาท)</button>
+  {% endif %}
+
+  <div class="q-total">
+    <span style="font-weight:600;">ยอดโดยประมาณ{{ '' if addon else ' (1 ปี)' }}
+      <span class="q-save" id="coSave" style="display:none; margin-left:8px;"></span></span>
+    <span><span class="amt" id="coAmount">{{ "{:,}".format(prefill.amount or 0) }}</span>
+      <small style="color:var(--muted);">{{ 'บาท' if addon else 'บาท/ปี' }}</small></span>
+  </div>
+  <p class="hint" id="coLabel">{{ prefill.packages or 'ยังไม่ได้เลือกงาน' }}</p>
+  <input type="hidden" name="packages" id="coPackages" value="{{ prefill.packages or '' }}">
+  <input type="hidden" name="amount" id="coAmountField" value="{{ prefill.amount or '' }}">
+
+  <h2 style="margin-top:24px;">ข้อมูลหน่วยงาน</h2>
   {% if account %}<p class="hint">บัญชีที่จะได้รับสิทธิ์: {{ account.school_name }} ({{ account.username }})</p>{% endif %}
   <label>ชื่อโรงเรียน/หน่วยงาน <span class="req">*</span></label>
   <input name="school_name" required placeholder="เช่น โรงเรียนบ้านหินลาด" value="{{ prefill.school_name or '' }}">
@@ -38,33 +112,59 @@
     </div>
   </div>
 
-  <h2 style="margin-top:22px;">งานที่ต้องการ</h2>
-  <label>รายการงาน/แพ็กเกจ</label>
-  <input name="packages" required placeholder="เช่น ครบทุกงาน หรือ งานพัสดุ + งานการเงิน" value="{{ prefill.packages or '' }}">
+  <label style="margin-top:14px; display:block;">หมายเหตุ/ความต้องการเพิ่มเติม</label>
+  <textarea name="note" placeholder="รายละเอียดเพิ่มเติม เช่น ต้องการใบเสนอราคาในนามหน่วยงาน / ระยะเวลาที่ต้องการ / ขอใบเสนอราคาหลายโรงเรียน">{{ prefill.note or '' }}</textarea>
 
-  <div class="grid2">
-    <div>
-      <label>ยอดเงินโดยประมาณ ({{ 'บาท / ช่วงเวลาที่เหลือ' if addon else 'บาท/ปี' }})</label>
-      <input name="amount" inputmode="numeric" readonly value="{{ prefill.amount or '' }}">
-      <p class="hint">{{ 'ซื้อเพิ่มโดยหมดอายุพร้อมงานเดิม' if addon else 'ยอดต่อโรงเรียน คำนวณตามแพ็กเกจ' }} ทีมงานยืนยันราคาในใบเสนอราคาอีกครั้ง</p>
-    </div>
-    <div>
-      <label>จำนวนโรงเรียน (กรณีกลุ่มโรงเรียน)</label>
-      <input name="qty_school" inputmode="numeric" placeholder="1" value="{{ prefill.qty_school or '' }}">
-    </div>
-  </div>
-
-  <label>หมายเหตุ/ความต้องการเพิ่มเติม</label>
-  <textarea name="note" placeholder="รายละเอียดเพิ่มเติม เช่น ต้องการใบเสนอราคาในนามหน่วยงาน / ระยะเวลาที่ต้องการ">{{ prefill.note or '' }}</textarea>
-
-  <button class="btn btn-primary btn-full" type="submit" style="margin-top:22px;">ส่งคำขอใบเสนอราคา</button>
+  <button class="btn btn-primary btn-full" type="submit" id="coSubmit" style="margin-top:22px;">ส่งคำขอใบเสนอราคา</button>
   <p class="hint" style="text-align:center;">เราจะใช้ข้อมูลนี้ออกใบเสนอราคาและติดต่อกลับเท่านั้น</p>
 </form>
+
 <script>
-  document.querySelector('input[name="packages"]').addEventListener('input', function(){
-    var amount = document.querySelector('input[name="amount"]');
-    amount.value = '';
-    amount.placeholder = 'ทีมงานยืนยันราคาตามรายการที่แก้ไข';
+(function(){
+  // ต้องตรงกับ price_for() ฝั่งเซิร์ฟเวอร์ (seller_config.py) - ที่นี่แค่แสดงผล
+  // ยอดจริงเซิร์ฟเวอร์คำนวณเองตอนบันทึกคำขอเสมอ ไม่เชื่อค่าที่ส่งมาจากหน้าเว็บ
+  var TIERS = {{ tier_discount | default({2:100, 3:200, 4:300, 5:400}) | tojson }};
+  var BUNDLE = {{ prices.bundle }};
+  var NMODS = {{ module_keys | default(['procurement','admin','finance','lunch','hr','academic']) | length }};
+  var ADDON = {{ addon | tojson }};
+  var items = Array.prototype.slice.call(document.querySelectorAll('#coList .co-item'));
+  var amtEl = document.getElementById('coAmount');
+  var saveEl = document.getElementById('coSave');
+  var labelEl = document.getElementById('coLabel');
+  var pkgField = document.getElementById('coPackages');
+  var amtField = document.getElementById('coAmountField');
+  var submit = document.getElementById('coSubmit');
+  var fmt = function(n){ return n.toLocaleString('en-US'); };
+
+  function calc(){
+    var chosen = items.filter(function(it){ var i = it.querySelector('input'); return i.checked && !i.disabled; });
+    items.forEach(function(it){ it.classList.toggle('on', it.querySelector('input').checked); });
+    var count = chosen.length;
+    var listSum = chosen.reduce(function(s, it){ return s + (+it.dataset.price); }, 0);
+    // ส่วนลดขั้นบันได (เฉพาะซื้อปกติ): 2 งาน -100, 3 งาน -200, ... ครบทุกงาน = ราคาแพ็ก
+    var total = ADDON ? listSum
+                : (count === NMODS ? BUNDLE : (count ? Math.max(0, listSum - (TIERS[count] || 0)) : 0));
+    var savings = ADDON ? 0 : (listSum - total);
+    amtEl.textContent = fmt(total);
+    amtField.value = total || '';
+    if(savings > 0){ saveEl.style.display = ''; saveEl.textContent = 'ประหยัด ' + fmt(savings) + ' บาท'; }
+    else saveEl.style.display = 'none';
+    var label = count === 0 ? '' :
+      (count === NMODS ? 'ครบทุกงาน' : chosen.map(function(it){ return it.dataset.name; }).join(' + '));
+    pkgField.value = label;
+    labelEl.textContent = label || 'ยังไม่ได้เลือกงาน';
+    submit.disabled = count === 0;
+  }
+
+  items.forEach(function(it){
+    it.querySelector('input').addEventListener('change', calc);
   });
+  var all = document.getElementById('coAll');
+  if(all) all.addEventListener('click', function(){
+    items.forEach(function(it){ var i = it.querySelector('input'); if(!i.disabled) i.checked = true; });
+    calc();
+  });
+  calc();
+})();
 </script>
 {% endblock %}
