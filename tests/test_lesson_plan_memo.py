@@ -18,6 +18,18 @@ from docx.oxml.ns import qn
 from app.services.lesson_plan_doc import parse_units, total_hours, render_plan_memo
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+_CT_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+def _docx_blob():
+    import io
+    from docx import Document as _D
+    d = _D(); d.add_paragraph("เนื้อหาแผนของโรงเรียน")
+    buf = io.BytesIO(); d.save(buf)
+    return buf.getvalue()
+
+
+_DOCX = _docx_blob()
 
 
 class O:
@@ -152,9 +164,9 @@ def test_signature_is_anchored_in_front_of_text(monkeypatch, tmp_path):
 def test_route_and_form_are_wired():
     acad = (ROOT / "app/routers/academic.py").read_text(encoding="utf-8")
     assert '"/academic/lesson-plans/{plan_id}/memo"' in acad, "ยังไม่มีเส้นทางออกบันทึก"
-    assert "units=(units or \"\").strip()" in acad, "ตอนส่งแผนยังไม่เก็บรายการหน่วย"
+    assert "_build_units(db, p, blobs" in acad, "ตอนส่งแผนยังไม่สร้างหน่วยการเรียนรู้"
     html = (ROOT / "app/templates/academic_lesson_plans.html").read_text(encoding="utf-8")
-    assert 'name="units"' in html, "ฟอร์มส่งแผนยังไม่มีช่องหน่วยการเรียนรู้"
+    assert 'name="unit_name"' in html, "ฟอร์มส่งแผนยังไม่มีช่องชื่อหน่วยรายไฟล์"
     detail = (ROOT / "app/templates/lesson_plan_detail.html").read_text(encoding="utf-8")
     assert "/memo" in detail, "หน้ารายละเอียดยังไม่มีปุ่มดาวน์โหลดบันทึก"
 
@@ -206,17 +218,16 @@ def test_submit_keeps_units_and_memo_downloads_over_http():
     _clean()
     try:
         r = c.post("/academic/lesson-plans/submit",
-                   data={"title": mark + "คณิตศาสตร์ ป.4", "term": "1",
-                         "units": "หน่วยที่ 1 จำนวนนับ (12 ชั่วโมง)\nหน่วยที่ 2 การวัด (8 ชั่วโมง)",
-                         "note": ""},
-                   files={"file": ("plan.pdf", b"%PDF-1.4\ntrailer<</Root 1 0 R>>\n%%EOF\n",
-                                   "application/pdf")},
+                   data={"title": mark + "คณิตศาสตร์ ป.4", "term": "1", "note": "",
+                         "unit_name": ["จำนวนนับ", "การวัด"], "unit_hours": ["12", "8"]},
+                   files=[("file", ("u1.docx", _DOCX, _CT_DOCX)),
+                          ("file", ("u2.docx", _DOCX, _CT_DOCX))],
                    follow_redirects=False)
         assert r.status_code in (302, 303), r.status_code
         assert "err=" not in r.headers.get("location", ""), r.headers.get("location")
         p = db.query(LessonPlan).filter(LessonPlan.title.like(mark + "%")).first()
         assert p is not None, "ส่งแผนไม่สำเร็จ"
-        assert "จำนวนนับ" in (p.units or ""), "ช่องหน่วยการเรียนรู้ไม่ถูกบันทึก"
+        assert [u.name for u in p.units_rows] == ["จำนวนนับ", "การวัด"]
 
         r = c.get(f"/academic/lesson-plans/{p.id}/memo")
         assert r.status_code == 200, r.status_code

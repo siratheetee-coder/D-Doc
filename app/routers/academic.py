@@ -685,29 +685,38 @@ def lesson_plan_delete(request: Request, plan_id: int, db: Session = Depends(get
     return RedirectResponse("/academic/lesson-plans?err=ลบไม่ได้ (ไม่ใช่แผนของคุณ)", status_code=303)
 
 
-_PLAN_EXT = {"pdf", "docx", "png", "jpg", "webp"}
+# ไฟล์แผนรับเฉพาะ Word เพราะระบบต้องต่อ "หน้าบันทึกหลังการจัดการเรียนรู้" เข้าไปในไฟล์ให้
+# PDF กับรูปต่อท้ายไม่ได้ถ้าไม่ลงเครื่องมือแปลงเอกสารบนเซิร์ฟเวอร์ · รับไว้ครึ่ง ๆ กลาง ๆ
+# กลายเป็นว่าครูบางคนได้ไฟล์รวม บางคนไม่ได้ โดยไม่รู้ว่าเพราะอะไร
+_PLAN_EXT = {"docx"}
+# ไฟล์ที่ครูเคยส่งไว้ก่อนหน้านี้ยังเปิดได้ตามเดิม เงื่อนไขนี้ใช้ตอนอัปโหลดใหม่เท่านั้น
+_PLAN_EXT_SIGNED = {"docx", "pdf"}      # ไฟล์ที่เซ็นแล้วนำกลับเข้าระบบ รับ PDF ด้วย
 # ไฟล์แผนเก็บอยู่ในฐานข้อมูลของโรงเรียน และถูกสำรองขึ้นคลาวด์ทุกครั้งที่เปลี่ยน
 # ไม่จำกัดขนาดคือพื้นที่กับค่าโอนบานปลายเร็วมาก (สแกนทั้งเล่มไฟล์ละสิบกว่าเมกะไบต์)
 _PLAN_MAX = 10 * 1024 * 1024
 
 
-def _build_units(db, plan, blobs, units_text):
+def _build_units(db, plan, blobs, names, hours_list, units_text=""):
     """สร้างหน่วยการเรียนรู้จากไฟล์ที่แนบมา ไฟล์ละหนึ่งหน่วย
 
-    ชื่อหน่วยเอาจากบรรทัดที่ครูพิมพ์ในช่อง "หน่วยการเรียนรู้" ถ้าจำนวนตรงกับไฟล์
-    ไม่ตรงก็ใช้ชื่อไฟล์ไปก่อน แล้วครูแก้ทีหลังได้ที่หน้าหน่วยการเรียนรู้
+    ชื่อหน่วยมาจากช่องที่ขึ้นให้กรอกทีละไฟล์ (เรียงตามลำดับไฟล์)
+    เว้นว่าง = ใช้ชื่อไฟล์ไปก่อน แล้วครูแก้ทีหลังได้ที่หน้าหน่วยการเรียนรู้
+    units_text คือช่องพิมพ์รวมแบบเดิม ยังรับไว้เผื่อฟอร์มเก่า/เบราว์เซอร์ที่ไม่รันสคริปต์
     """
     import os
     from app.models import LessonUnit
     from app.services.lesson_plan_doc import parse_units
-    named = parse_units(units_text or "")
-    use_named = len(named) == len(blobs)
+    names = list(names or [])
+    hours_list = list(hours_list or [])
+    legacy = parse_units(units_text or "")
+    use_legacy = not any((n or "").strip() for n in names) and len(legacy) == len(blobs)
     for i, (data, fname) in enumerate(blobs):
-        if use_named:
-            name, hours = named[i]["name"], named[i]["hours"]
-        else:
-            name, hours = os.path.splitext(fname)[0], None
-        db.add(LessonUnit(plan_id=plan.id, seq=i + 1, name=name, hours=hours,
+        name = (names[i].strip() if i < len(names) and names[i] else "")
+        hours = _to_float(hours_list[i]) if i < len(hours_list) and hours_list[i] else None
+        if use_legacy:
+            name, hours = name or legacy[i]["name"], hours or legacy[i]["hours"]
+        db.add(LessonUnit(plan_id=plan.id, seq=i + 1,
+                          name=name or os.path.splitext(fname)[0], hours=hours or None,
                           file_blob=data, file_name=fname))
 
 
@@ -741,7 +750,8 @@ def _plan_or_deny(request, db, plan_id, *, owner_only=False):
 @router.post("/academic/lesson-plans/submit")
 async def lesson_plan_submit(request: Request, db: Session = Depends(get_db),
                              title: str = Form(""), note: str = Form(""), units: str = Form(""),
-                             term: str = Form(""), file: list[UploadFile] = File(None)):
+                             term: str = Form(""), file: list[UploadFile] = File(None),
+                             unit_name: list[str] = Form([]), unit_hours: list[str] = Form([])):
     """ครูส่งชุดแผน: แนบไฟล์ได้หลายไฟล์ ไฟล์ละหนึ่งหน่วยการเรียนรู้
 
     ครูอัปโหลดเฉพาะตัวแผน ไม่ต้องทำหน้าบันทึกหลังสอนและช่องลายเซ็นมาเอง
@@ -760,8 +770,11 @@ async def lesson_plan_submit(request: Request, db: Session = Depends(get_db),
             continue
         ext = detect_ext(data, f.filename or "")
         if ext not in _PLAN_EXT:
-            return RedirectResponse("/academic/lesson-plans?err=ไฟล์ต้องเป็น PDF / Word / รูปภาพ",
-                                    status_code=303)
+            return RedirectResponse(
+                f"/academic/lesson-plans?err=ไฟล์ {f.filename} ไม่ใช่ไฟล์ Word (.docx) "
+                "ระบบต้องต่อหน้าบันทึกหลังสอนเข้าไปในไฟล์ จึงรับเฉพาะ Word · "
+                "ถ้าเป็น .doc รุ่นเก่าหรือ PDF ให้เปิดใน Word แล้วบันทึกเป็น .docx ก่อน",
+                status_code=303)
         if len(data) > _PLAN_MAX:
             return RedirectResponse(
                 f"/academic/lesson-plans?err=ไฟล์ {f.filename} ใหญ่เกิน {_PLAN_MAX // (1024 * 1024)} MB "
@@ -775,7 +788,7 @@ async def lesson_plan_submit(request: Request, db: Session = Depends(get_db),
                    note=(note or "").strip(), units=(units or "").strip(),
                    file_blob=blobs[0][0], file_name=blobs[0][1], status="pending")
     db.add(p); db.flush()
-    _build_units(db, p, blobs, units)
+    _build_units(db, p, blobs, unit_name, unit_hours, units)
     db.commit()
     teacher = db.get(Person, pid)
     s = get_school(db)
@@ -1034,8 +1047,8 @@ async def lesson_plan_reupload(request: Request, plan_id: int, db: Session = Dep
     if not data:
         return RedirectResponse(f"/academic/lesson-plans/{plan_id}?err=ยังไม่ได้แนบไฟล์", status_code=303)
     ext = detect_ext(data, file.filename or "")
-    if ext not in _PLAN_EXT:
-        return RedirectResponse(f"/academic/lesson-plans/{plan_id}?err=ไฟล์ต้องเป็น PDF / Word / รูปภาพ",
+    if ext not in _PLAN_EXT_SIGNED:
+        return RedirectResponse(f"/academic/lesson-plans/{plan_id}?err=ไฟล์ที่เซ็นแล้วต้องเป็น Word หรือ PDF",
                                 status_code=303)
     if len(data) > _PLAN_MAX:
         return RedirectResponse(

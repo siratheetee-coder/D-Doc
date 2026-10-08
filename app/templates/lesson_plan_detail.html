@@ -68,7 +68,7 @@
     <p class="muted" style="font-size:12.5px; margin:4px 0 8px;">ดาวน์โหลดไฟล์ไปเซ็นในโปรแกรมของคุณ (Word/PDF) แล้วอัปโหลดกลับมาทับไฟล์เดิม จากนั้นจึงกด{{ 'อนุมัติ' if is_director and p.status=='director' else 'ผ่าน/ตรวจ' }}</p>
     <form method="post" action="/academic/lesson-plans/{{ p.id }}/reupload" enctype="multipart/form-data"
           style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-      <input name="file" type="file" accept=".pdf,.docx,.jpg,.jpeg,.png,.webp" required
+      <input name="file" type="file" accept=".docx,.pdf" required
              style="padding:7px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; flex:1; min-width:180px;">
       <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดไฟล์ที่เซ็นแล้ว</button>
     </form>

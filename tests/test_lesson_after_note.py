@@ -163,6 +163,18 @@ def _login_client(person_id=None):
 
 
 _PDF = b"%PDF-1.4\ntrailer<</Root 1 0 R>>\n%%EOF\n"
+_CT_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+def _docx_blob():
+    import io
+    from docx import Document as _D
+    d = _D(); d.add_paragraph("เนื้อหาแผนของโรงเรียน")
+    buf = io.BytesIO(); d.save(buf)
+    return buf.getvalue()
+
+
+_DOCX = _docx_blob()
 
 
 def test_whole_flow_over_http_upload_two_units_record_results_download():
@@ -184,9 +196,9 @@ def test_whole_flow_over_http_upload_two_units_record_results_download():
     try:
         r = c.post("/academic/lesson-plans/submit",
                    data={"title": mark + "คณิตศาสตร์ ป.4", "term": "1", "note": "",
-                         "units": "หน่วยที่ 1 จำนวนนับ (12 ชั่วโมง)\nหน่วยที่ 2 การวัด (8 ชั่วโมง)"},
-                   files=[("file", ("u1.pdf", _PDF, "application/pdf")),
-                          ("file", ("u2.pdf", _PDF, "application/pdf"))],
+                         "unit_name": ["จำนวนนับ", "การวัด"], "unit_hours": ["12", "8"]},
+                   files=[("file", ("u1.docx", _DOCX, _CT_DOCX)),
+                          ("file", ("u2.docx", _DOCX, _CT_DOCX))],
                    follow_redirects=False)
         assert r.status_code in (302, 303) and "err=" not in r.headers.get("location", ""), \
             r.headers.get("location")
@@ -197,7 +209,7 @@ def test_whole_flow_over_http_upload_two_units_record_results_download():
         assert len(rows) == 2, "แนบสองไฟล์ต้องได้สองหน่วย"
         assert rows[0].name == "จำนวนนับ" and rows[0].hours == 12
         assert rows[1].name == "การวัด", rows[1].name
-        assert rows[0].file_blob == _PDF, "ไฟล์แผนของหน่วยต้องถูกเก็บแยกรายหน่วย"
+        assert rows[0].file_blob == _DOCX, "ไฟล์แผนของหน่วยต้องถูกเก็บแยกรายหน่วย"
 
         # หน้าหน่วยการเรียนรู้เปิดได้
         r = c.get(f"/academic/lesson-plans/{plan.id}/units")
@@ -228,7 +240,7 @@ def test_whole_flow_over_http_upload_two_units_record_results_download():
 
         # ไฟล์แผนรายหน่วยเปิดได้
         r = c.get(f"/academic/lesson-plans/{plan.id}/units/{rows[1].id}/file")
-        assert r.status_code == 200 and r.content == _PDF
+        assert r.status_code == 200 and r.content == _DOCX
     finally:
         _clean()
         db.close()
@@ -243,10 +255,10 @@ def test_oversized_plan_file_is_rejected_with_a_clear_message():
     db.add(teacher); db.commit()
     c = _login_client(person_id=teacher.id)
     try:
-        big = _PDF + b"0" * (11 * 1024 * 1024)
+        big = _DOCX + b"0" * (11 * 1024 * 1024)
         r = c.post("/academic/lesson-plans/submit",
-                   data={"title": mark + "แผนใหญ่", "term": "1", "note": "", "units": ""},
-                   files=[("file", ("big.pdf", big, "application/pdf"))],
+                   data={"title": mark + "แผนใหญ่", "term": "1", "note": ""},
+                   files=[("file", ("big.docx", big, _CT_DOCX))],
                    follow_redirects=False)
         assert r.status_code in (302, 303)
         assert "err=" in r.headers.get("location", ""), "ไฟล์เกินเพดานต้องไม่ผ่าน"
@@ -420,3 +432,84 @@ def test_a_reviewer_sees_the_unit_page_read_only():
             db.delete(q)
         db.commit()
         db.close()
+
+
+def _docx_bytes(text="เนื้อหาแผน"):
+    import io
+    from docx import Document as _D
+    d = _D(); d.add_paragraph(text)
+    buf = io.BytesIO(); d.save(buf)
+    return buf.getvalue()
+
+
+def test_only_word_plan_files_are_accepted_so_the_note_can_always_be_appended():
+    """รับ PDF ไว้ด้วยกลายเป็นว่าครูบางคนได้ไฟล์รวม บางคนไม่ได้ โดยไม่รู้ว่าเพราะอะไร"""
+    from app.tenancy import session_for
+    from app.models import LessonPlan, Person
+    mark = "ทดสอบชนิดไฟล์แผน_"
+    db = session_for(1)
+    teacher = Person(name=mark + "ครู", position="ครู")
+    db.add(teacher); db.commit()
+    c = _login_as(person_id=teacher.id)
+
+    def _submit(title, fname, blob, ctype):
+        return c.post("/academic/lesson-plans/submit",
+                      data={"title": mark + title, "term": "1", "note": ""},
+                      files=[("file", (fname, blob, ctype))], follow_redirects=False)
+
+    try:
+        r = _submit("พีดีเอฟ", "u1.pdf", _PDF, "application/pdf")
+        assert "err=" in r.headers.get("location", ""), "ไฟล์ PDF ต้องไม่ผ่าน"
+        assert db.query(LessonPlan).filter(LessonPlan.title.like(mark + "%")).first() is None
+
+        r = _submit("เวิร์ด", "u1.docx", _docx_bytes(),
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        assert "err=" not in r.headers.get("location", ""), r.headers.get("location")
+        assert db.query(LessonPlan).filter(LessonPlan.title.like(mark + "%")).first() is not None
+    finally:
+        for lp in db.query(LessonPlan).filter(LessonPlan.title.like(mark + "%")).all():
+            db.delete(lp)
+        for q in db.query(Person).filter(Person.name.like(mark + "%")).all():
+            db.delete(q)
+        db.commit()
+        db.close()
+
+
+def test_unit_names_come_from_one_box_per_file():
+    """พิมพ์รวมเป็นบรรทัดแล้วต้องนับให้ตรงกับจำนวนไฟล์เองนั้นงง · ช่องแยกตามไฟล์ชัดกว่า"""
+    from app.tenancy import session_for
+    from app.models import LessonPlan, LessonUnit, Person
+    mark = "ทดสอบชื่อหน่วยรายไฟล์_"
+    db = session_for(1)
+    teacher = Person(name=mark + "ครู", position="ครู")
+    db.add(teacher); db.commit()
+    c = _login_as(person_id=teacher.id)
+    ctype = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    try:
+        r = c.post("/academic/lesson-plans/submit",
+                   data={"title": mark + "แผน", "term": "1", "note": "",
+                         "unit_name": ["จำนวนนับ", ""],          # ช่องที่สองเว้นว่าง
+                         "unit_hours": ["12", ""]},
+                   files=[("file", ("u1.docx", _docx_bytes(), ctype)),
+                          ("file", ("หน่วยการวัด.docx", _docx_bytes(), ctype))],
+                   follow_redirects=False)
+        assert "err=" not in r.headers.get("location", ""), r.headers.get("location")
+        plan = db.query(LessonPlan).filter(LessonPlan.title.like(mark + "%")).first()
+        rows = db.query(LessonUnit).filter(LessonUnit.plan_id == plan.id).order_by(
+            LessonUnit.seq).all()
+        assert [u.name for u in rows] == ["จำนวนนับ", "หน่วยการวัด"], [u.name for u in rows]
+        assert rows[0].hours == 12 and rows[1].hours is None
+    finally:
+        for lp in db.query(LessonPlan).filter(LessonPlan.title.like(mark + "%")).all():
+            db.delete(lp)
+        for q in db.query(Person).filter(Person.name.like(mark + "%")).all():
+            db.delete(q)
+        db.commit()
+        db.close()
+
+
+def test_submit_form_shows_one_name_box_per_chosen_file():
+    html = (ROOT / "app/templates/academic_lesson_plans.html").read_text(encoding="utf-8")
+    assert 'name="unit_name"' in html, "ยังไม่มีช่องชื่อหน่วยรายไฟล์"
+    assert 'accept=".docx"' in html, "ช่องแนบไฟล์ยังรับชนิดอื่นนอกจาก Word"
+    assert 'name="units"' not in html, "ยังเหลือช่องพิมพ์รวมแบบเดิมอยู่"
