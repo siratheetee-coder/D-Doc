@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}หน่วยการเรียนรู้ · {{ p.title }}{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">แผนการสอน · บันทึกหลังการจัดการเรียนรู้</div>
+    <span class="hero-title">{{ p.title }}</span>
+    <div class="hero-meta">{{ teacher.name if teacher else '-' }} · ภาคเรียนที่ {{ p.term or '-' }} ปีการศึกษา {{ p.year }} · {{ units|length }} หน่วย</div>
+  </div>
+</div>
+
+{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+{% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+    <div>
+      <h2 style="margin:0;">บันทึกหลังการจัดการเรียนรู้</h2>
+      <p class="muted" style="font-size:13px; margin:6px 0 0;">กรอกผลหลังสอนจบแต่ละหน่วย ระบบจะพิมพ์ลงในหน้าบันทึกให้ · ช่องที่เว้นไว้จะพิมพ์เป็นเส้นบรรทัดให้เขียนมือได้</p>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn" href="/academic/lesson-plans/{{ p.id }}/after"><svg class="icon"><use href="#ic-download"/></svg> บันทึกหลังสอนทุกหน่วย</a>
+      <a class="btn gray" href="/academic/lesson-plans/{{ p.id }}">← กลับหน้าแผน</a>
+    </div>
+  </div>
+</div>
+
+{% if not units %}
+<div class="card"><p class="muted">ชุดแผนนี้ยังไม่มีหน่วยการเรียนรู้ (ส่งแผนก่อนระบบอัปเดต) · ส่งแผนใหม่โดยแนบไฟล์ทีละหน่วยเพื่อใช้ความสามารถนี้</p></div>
+{% endif %}
+
+{% for u in units %}
+<div class="card">
+  <form method="post" action="/academic/lesson-plans/{{ p.id }}/units/{{ u.id }}/save">
+    <div class="row" style="align-items:flex-end;">
+      <div style="flex:2;"><label>หน่วยที่ {{ u.seq }} ชื่อหน่วยการเรียนรู้</label>
+        <input name="name" value="{{ u.name or '' }}" {{ 'readonly' if not mine }}></div>
+      <div style="width:120px;"><label>เวลา (ชั่วโมง)</label>
+        <input name="hours" value="{{ u.hours|round(0)|int if u.hours and u.hours == u.hours|round(0) else (u.hours or '') }}" {{ 'readonly' if not mine }}></div>
+      <div style="width:150px;"><label>วันที่สอนจบหน่วย</label>
+        <input name="taught_at" value="{{ be_date(u.taught_at) }}" placeholder="วว/ดด/ปปปป" {{ 'readonly' if not mine }}></div>
+      <div>
+        {% if u.file_blob %}<a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/units/{{ u.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> ไฟล์แผน</a>{% endif %}
+        <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/after?unit={{ u.id }}">บันทึกหลังสอน</a>
+      </div>
+    </div>
+
+    <label style="margin-top:10px; display:block;">ผลการจัดการเรียนรู้ ด้านความรู้ (Knowledge: K)</label>
+    <textarea name="k_text" rows="2" style="width:100%;" {{ 'readonly' if not mine }}>{{ u.k_text or '' }}</textarea>
+    <label style="margin-top:8px; display:block;">ด้านกระบวนการ (Process: P)</label>
+    <textarea name="p_text" rows="2" style="width:100%;" {{ 'readonly' if not mine }}>{{ u.p_text or '' }}</textarea>
+    <label style="margin-top:8px; display:block;">ด้านคุณลักษณะอันพึงประสงค์และเจตคติ (Attitude: A)</label>
+    <textarea name="a_text" rows="2" style="width:100%;" {{ 'readonly' if not mine }}>{{ u.a_text or '' }}</textarea>
+    <div class="row" style="margin-top:8px;">
+      <div style="flex:1;"><label>ปัญหาและอุปสรรค</label>
+        <textarea name="problem" rows="2" style="width:100%;" {{ 'readonly' if not mine }}>{{ u.problem or '' }}</textarea></div>
+      <div style="flex:1;"><label>ข้อเสนอแนะ / แนวทางแก้ไข</label>
+        <textarea name="suggestion" rows="2" style="width:100%;" {{ 'readonly' if not mine }}>{{ u.suggestion or '' }}</textarea></div>
+    </div>
+    {% if mine %}
+    <button class="btn green" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-check"/></svg> บันทึกผลหน่วยที่ {{ u.seq }}</button>
+    {% endif %}
+    {% if u.result_at %}<span class="muted" style="font-size:12.5px; margin-left:8px;">บันทึกผลล่าสุด {{ be_date(u.result_at) }}</span>{% endif %}
+  </form>
+</div>
+{% endfor %}
+{% endblock %}

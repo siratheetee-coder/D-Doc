@@ -686,6 +686,29 @@ def lesson_plan_delete(request: Request, plan_id: int, db: Session = Depends(get
 
 
 _PLAN_EXT = {"pdf", "docx", "png", "jpg", "webp"}
+# ไฟล์แผนเก็บอยู่ในฐานข้อมูลของโรงเรียน และถูกสำรองขึ้นคลาวด์ทุกครั้งที่เปลี่ยน
+# ไม่จำกัดขนาดคือพื้นที่กับค่าโอนบานปลายเร็วมาก (สแกนทั้งเล่มไฟล์ละสิบกว่าเมกะไบต์)
+_PLAN_MAX = 10 * 1024 * 1024
+
+
+def _build_units(db, plan, blobs, units_text):
+    """สร้างหน่วยการเรียนรู้จากไฟล์ที่แนบมา ไฟล์ละหนึ่งหน่วย
+
+    ชื่อหน่วยเอาจากบรรทัดที่ครูพิมพ์ในช่อง "หน่วยการเรียนรู้" ถ้าจำนวนตรงกับไฟล์
+    ไม่ตรงก็ใช้ชื่อไฟล์ไปก่อน แล้วครูแก้ทีหลังได้ที่หน้าหน่วยการเรียนรู้
+    """
+    import os
+    from app.models import LessonUnit
+    from app.services.lesson_plan_doc import parse_units
+    named = parse_units(units_text or "")
+    use_named = len(named) == len(blobs)
+    for i, (data, fname) in enumerate(blobs):
+        if use_named:
+            name, hours = named[i]["name"], named[i]["hours"]
+        else:
+            name, hours = os.path.splitext(fname)[0], None
+        db.add(LessonUnit(plan_id=plan.id, seq=i + 1, name=name, hours=hours,
+                          file_blob=data, file_name=fname))
 
 
 def _serve_blob(data: bytes, name: str):
@@ -702,30 +725,49 @@ def _serve_blob(data: bytes, name: str):
 @router.post("/academic/lesson-plans/submit")
 async def lesson_plan_submit(request: Request, db: Session = Depends(get_db),
                              title: str = Form(""), note: str = Form(""), units: str = Form(""),
-                             term: str = Form(""), file: UploadFile = File(None)):
+                             term: str = Form(""), file: list[UploadFile] = File(None)):
+    """ครูส่งชุดแผน: แนบไฟล์ได้หลายไฟล์ ไฟล์ละหนึ่งหน่วยการเรียนรู้
+
+    ครูอัปโหลดเฉพาะตัวแผน ไม่ต้องทำหน้าบันทึกหลังสอนและช่องลายเซ็นมาเอง
+    ระบบออกบันทึกเสนอ ผอ. หนึ่งใบต่อชุด และบันทึกหลังสอนหนึ่งใบต่อหน่วย
+    """
     from app.models import LessonPlan
     from app.services.file_upload import detect_ext
     pid = request.session.get("person_id")
     if not pid:
         return RedirectResponse("/academic/lesson-plans?err=บัญชีนี้ไม่ได้ผูกกับครู ส่งแผนไม่ได้", status_code=303)
-    data = await file.read() if file is not None else b""
-    if not (title or "").strip() or not data:
+    ups = [f for f in (file or []) if f is not None and (f.filename or "").strip()]
+    blobs = []
+    for f in ups:
+        data = await f.read()
+        if not data:
+            continue
+        ext = detect_ext(data, f.filename or "")
+        if ext not in _PLAN_EXT:
+            return RedirectResponse("/academic/lesson-plans?err=ไฟล์ต้องเป็น PDF / Word / รูปภาพ",
+                                    status_code=303)
+        if len(data) > _PLAN_MAX:
+            return RedirectResponse(
+                f"/academic/lesson-plans?err=ไฟล์ {f.filename} ใหญ่เกิน {_PLAN_MAX // (1024 * 1024)} MB "
+                "(ส่งเป็นไฟล์ Word หรือ PDF ที่พิมพ์เอง อย่าสแกนจากกระดาษ)", status_code=303)
+        blobs.append((data, (f.filename or f"lesson.{ext}").strip()[:120]))
+    if not (title or "").strip() or not blobs:
         return RedirectResponse("/academic/lesson-plans?err=กรอกชื่อแผนและแนบไฟล์แผนให้ครบ", status_code=303)
-    ext = detect_ext(data, file.filename or "")
-    if ext not in _PLAN_EXT:
-        return RedirectResponse("/academic/lesson-plans?err=ไฟล์ต้องเป็น PDF / Word / รูปภาพ", status_code=303)
-    fname = (file.filename or f"lesson.{ext}").strip()[:120]
+
     p = LessonPlan(person_id=pid, year=_acad_year(db),
                    term=_to_int(term, current_term()), title=title.strip(),
                    note=(note or "").strip(), units=(units or "").strip(),
-                   file_blob=data, file_name=fname, status="pending")
-    db.add(p); db.commit()
+                   file_blob=blobs[0][0], file_name=blobs[0][1], status="pending")
+    db.add(p); db.flush()
+    _build_units(db, p, blobs, units)
+    db.commit()
     teacher = db.get(Person, pid)
     s = get_school(db)
     _send_notice(s.academic_head_email,
                  f"[แผนการสอน] {teacher.name if teacher else ''} ส่งแผน: {p.title}",
                  f"<p>ครู <b>{teacher.name if teacher else ''}</b> ส่งแผนการสอนเข้าระบบ (แนบไฟล์)</p>"
                  f"<p>เรื่อง: {p.title}<br>ภาคเรียน: {p.term or '-'} ปีการศึกษา {p.year}</p>"
+                 f"<p>จำนวนหน่วย: {len(blobs)}</p>"
                  f"<p>หมายเหตุ: {p.note or '-'}</p>"
                  + _review_button("/academic/lesson-plans", "เปิดหน้าเพื่อตรวจแผนการสอน"))
     return RedirectResponse("/academic/lesson-plans?msg=ส่งแผนการสอนแล้ว แจ้งหัวหน้าฝ่ายวิชาการทางอีเมลเรียบร้อย", status_code=303)
@@ -860,6 +902,93 @@ def lesson_plan_memo(request: Request, plan_id: int, db: Session = Depends(get_d
                            _DOCX)
 
 
+def _plan_or_deny(request, db, plan_id, *, owner_only=False):
+    """คืน (แผน, is_director) ถ้าเข้าถึงได้ หรือคืน (None, response) ถ้าไม่ได้"""
+    from app.models import LessonPlan
+    p = db.get(LessonPlan, plan_id)
+    if not p:
+        return None, RedirectResponse("/academic/lesson-plans", status_code=303)
+    sc = _scope(request, db)
+    is_director = bool(request.session.get("director"))
+    mine = p.person_id == request.session.get("person_id")
+    if owner_only and not mine:
+        return None, _deny()      # ผลการสอนเป็นของครูเจ้าของแผนเท่านั้น
+    if sc.is_teacher and not is_director and not mine:
+        return None, _deny()
+    return p, is_director
+
+
+@router.get("/academic/lesson-plans/{plan_id}/units", response_class=HTMLResponse)
+def lesson_plan_units(request: Request, plan_id: int, db: Session = Depends(get_db),
+                      msg: str = "", err: str = ""):
+    """หน้าบันทึกผลการจัดการเรียนรู้รายหน่วย (ครูกรอกหลังสอนจบแต่ละหน่วย)"""
+    p, res = _plan_or_deny(request, db, plan_id)
+    if p is None:
+        return res
+    return templates.TemplateResponse("lesson_plan_units.html", {
+        "request": request, "school": get_school(db), "p": p, "teacher": p.teacher,
+        "units": p.units_rows, "is_director": res,
+        "mine": p.person_id == request.session.get("person_id"),
+        "msg": msg, "err": err,
+    })
+
+
+@router.post("/academic/lesson-plans/{plan_id}/units/{unit_id}/save")
+def lesson_unit_save(request: Request, plan_id: int, unit_id: int, db: Session = Depends(get_db),
+                     name: str = Form(""), hours: str = Form(""), taught_at: str = Form(""),
+                     k_text: str = Form(""), p_text: str = Form(""), a_text: str = Form(""),
+                     problem: str = Form(""), suggestion: str = Form("")):
+    """ครูบันทึกผลการจัดการเรียนรู้ของหน่วยหนึ่ง"""
+    from datetime import datetime as _dt
+    from app.models import LessonUnit
+    p, res = _plan_or_deny(request, db, plan_id, owner_only=True)
+    if p is None:
+        return res
+    u = db.get(LessonUnit, unit_id)
+    if not u or u.plan_id != p.id:
+        return RedirectResponse(f"/academic/lesson-plans/{plan_id}/units?err=ไม่พบหน่วยนี้",
+                                status_code=303)
+    u.name = (name or "").strip()
+    u.hours = _to_float(hours) or None
+    u.taught_at = parse_be_date(taught_at) if (taught_at or "").strip() else None
+    u.k_text = (k_text or "").strip()
+    u.p_text = (p_text or "").strip()
+    u.a_text = (a_text or "").strip()
+    u.problem = (problem or "").strip()
+    u.suggestion = (suggestion or "").strip()
+    u.result_at = _dt.now()
+    db.commit()
+    return RedirectResponse(f"/academic/lesson-plans/{plan_id}/units?msg=บันทึกผลหน่วยที่ {u.seq} แล้ว",
+                            status_code=303)
+
+
+@router.get("/academic/lesson-plans/{plan_id}/units/{unit_id}/file")
+def lesson_unit_file(request: Request, plan_id: int, unit_id: int, db: Session = Depends(get_db)):
+    """เปิดไฟล์แผนของหน่วยนั้น"""
+    from app.models import LessonUnit
+    p, res = _plan_or_deny(request, db, plan_id)
+    if p is None:
+        return res
+    u = db.get(LessonUnit, unit_id)
+    if not u or u.plan_id != p.id or not u.file_blob:
+        return RedirectResponse(f"/academic/lesson-plans/{plan_id}/units", status_code=303)
+    return _serve_blob(u.file_blob, u.file_name or "lesson")
+
+
+@router.get("/academic/lesson-plans/{plan_id}/after")
+def lesson_plan_after(request: Request, plan_id: int, db: Session = Depends(get_db),
+                      unit: int = 0):
+    """บันทึกหลังการจัดการเรียนรู้ ทุกหน่วยในไฟล์เดียว (หรือเฉพาะหน่วยที่ระบุ)"""
+    from app.services.lesson_after_doc import render_after_notes
+    p, res = _plan_or_deny(request, db, plan_id)
+    if p is None:
+        return res
+    rows = [u for u in p.units_rows if (not unit or u.id == unit)]
+    director = db.get(Person, p.director_by) if p.director_by else None
+    return serve_generated(render_after_notes(p, get_school(db), units=rows, director=director),
+                           _DOCX)
+
+
 @router.post("/academic/lesson-plans/{plan_id}/reupload")
 async def lesson_plan_reupload(request: Request, plan_id: int, db: Session = Depends(get_db),
                               file: UploadFile = File(None)):
@@ -880,6 +1009,10 @@ async def lesson_plan_reupload(request: Request, plan_id: int, db: Session = Dep
     if ext not in _PLAN_EXT:
         return RedirectResponse(f"/academic/lesson-plans/{plan_id}?err=ไฟล์ต้องเป็น PDF / Word / รูปภาพ",
                                 status_code=303)
+    if len(data) > _PLAN_MAX:
+        return RedirectResponse(
+            f"/academic/lesson-plans/{plan_id}?err=ไฟล์ใหญ่เกิน {_PLAN_MAX // (1024 * 1024)} MB",
+            status_code=303)
     p.file_blob = data
     p.file_name = (file.filename or f"lesson.{ext}").strip()[:120]
     db.commit()

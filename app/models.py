@@ -2084,6 +2084,35 @@ class LessonPlan(Base):
     director_comment = Column(Text, default="")      # ความเห็น ผอ.
 
     teacher = relationship("Person")
+    units_rows = relationship("LessonUnit", back_populates="plan",
+                              cascade="all, delete-orphan", order_by="LessonUnit.seq")
+
+
+class LessonUnit(Base):
+    """หน่วยการเรียนรู้ในชุดแผน: ไฟล์แผน 1 ไฟล์ + บันทึกหลังการจัดการเรียนรู้ 1 ใบ
+
+    ครูอัปโหลดเฉพาะตัวแผน ไม่ต้องมีหน้าบันทึกหลังสอนและช่องลายเซ็นมาเอง
+    ระบบออกหน้านั้นให้ท้ายแต่ละหน่วย พร้อมแปะลายเซ็นครูและ ผอ.
+    """
+    __tablename__ = "lesson_unit"
+
+    id = Column(Integer, primary_key=True)
+    plan_id = Column(Integer, ForeignKey("lesson_plan.id"), nullable=False)
+    seq = Column(Integer, default=1)              # ลำดับหน่วย (หน่วยที่ 1, 2, ...)
+    name = Column(String, default="")             # ชื่อหน่วยการเรียนรู้
+    hours = Column(Float, nullable=True)          # เวลาเรียน (ชั่วโมง)
+    file_blob = Column(LargeBinary, nullable=True)   # ไฟล์แผนของหน่วยนี้
+    file_name = Column(String, default="")
+    # ---- ผลการจัดการเรียนรู้ (ครูกรอกหลังสอนจบหน่วย) ----
+    k_text = Column(Text, default="")             # ด้านความรู้ (Knowledge)
+    p_text = Column(Text, default="")             # ด้านกระบวนการ (Process)
+    a_text = Column(Text, default="")             # ด้านคุณลักษณะอันพึงประสงค์และเจตคติ (Attitude)
+    problem = Column(Text, default="")            # ปัญหาและอุปสรรค
+    suggestion = Column(Text, default="")         # ข้อเสนอแนะ / แนวทางแก้ไข
+    taught_at = Column(DateTime, nullable=True)   # วันที่สอนจบหน่วย (ขึ้นใต้ลายเซ็นครู)
+    result_at = Column(DateTime, nullable=True)   # บันทึกผลครั้งล่าสุด (ไว้ตรวจย้อน)
+
+    plan = relationship("LessonPlan", back_populates="units_rows")
 
 
 class Notification(Base):

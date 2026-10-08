@@ -84,6 +84,19 @@ def parse_units(text: str) -> list[dict]:
     return out
 
 
+def plan_units(plan) -> list[dict]:
+    """รายการหน่วยของชุดแผน: ใช้หน่วยที่แยกเป็นไฟล์แล้วก่อน ถ้าไม่มีค่อยอ่านจากข้อความ
+
+    แผนที่ส่งก่อนระบบรองรับไฟล์รายหน่วย จะมีแต่ข้อความในช่องหน่วยการเรียนรู้
+    จึงต้องอ่านได้ทั้งสองทาง
+    """
+    rows = list(getattr(plan, "units_rows", None) or [])
+    if rows:
+        return [{"no": r.seq or (i + 1), "name": (r.name or "").strip(), "hours": r.hours}
+                for i, r in enumerate(rows)]
+    return parse_units(getattr(plan, "units", "") or "")
+
+
 def total_hours(units: list[dict]) -> float:
     return sum(u["hours"] for u in units if u.get("hours"))
 
@@ -222,7 +235,7 @@ def render_plan_memo(plan, school, *, academic=None, director=None) -> str:
     doc = Document()
     set_a4(doc)
     _font(doc)
-    units = parse_units(getattr(plan, "units", "") or "")
+    units = plan_units(plan)
     teacher = plan.teacher
     submitted = thai_date(plan.submitted_at) if plan.submitted_at else ""
 
