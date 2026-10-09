@@ -724,8 +724,8 @@
 </section>
 
 <!-- ================= ราคา ================= -->
-{% set px = prices | default({'p_proc':890,'p_fin':190,'p_admin':390,'p_lunch':690,'p_hr':390,'p_acad':890,'bundle':2690}) %}
-{% set full = full_sum | default(3440) %}
+{% set px = prices | default(price_list()) %}
+{% set full = full_sum | default(px.p_proc + px.p_fin + px.p_admin + px.p_lunch + px.p_hr + px.p_acad) %}
 {% set save = bundle_save | default(750) %}
 <section class="pricing" id="pricing">
   <div class="wrap">
@@ -955,7 +955,7 @@
 
   (function(){
     var BUNDLE = {{ px.bundle | tojson }};                 // แพ็กครบทุกงาน (ราคาโปรถ้ามี) - จาก pricing_context()
-    var FULL = {{ full_sum | default(3440) | tojson }};    // รวมงานแยกเต็ม (ราคาขีดฆ่า)
+    var FULL = {{ full_sum | default(px.p_proc + px.p_fin + px.p_admin + px.p_lunch + px.p_hr + px.p_acad) | tojson }};    // รวมงานแยกเต็ม (ราคาขีดฆ่า)
     var cards = [].slice.call(document.querySelectorAll('#pickList .mcard'));
     var TIERS = {{ tier_discount | default({2:100, 3:200, 4:300, 5:400}) | tojson }};
     var NMODS = cards.length;

@@ -68,7 +68,7 @@
   @media(max-width:900px) { .guide-video-grid { grid-template-columns:1fr; } }
   @media(max-width:480px) { .guide-video-card { gap:10px; padding:10px; } .guide-video-cover { flex-basis:96px; } }
 </style>
-{% set px = prices | default({'p_proc':890,'p_fin':190,'p_admin':390,'p_lunch':690,'p_hr':390,'p_acad':890,'bundle':2690}) %}
+{% set px = prices | default(price_list()) %}
 {% macro simg(name) %}<img class="step-img" src="/static/guide/{{ name }}.png" alt="" loading="lazy" onerror="this.remove()">{% endmacro %}
 {% macro vid(key) %}{% if videos and videos.get(key) %}
 <div class="gvid-tag">▶ วิดีโอสอนการใช้งาน</div>
