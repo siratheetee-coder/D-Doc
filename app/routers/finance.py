@@ -254,7 +254,8 @@ def account_delete(aid: int, db: Session = Depends(get_db)):
 
 
 @router.get("/finance/accounts/{aid}", response_class=HTMLResponse)
-def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), year: int | None = None):
+def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), year: int | None = None,
+                   item: int = 0, subsidy_year: int = 0, subsidy_term: int = 0):
     a = db.get(FinanceAccount, aid)
     if not a:
         return RedirectResponse("/finance/accounts", status_code=303)
@@ -306,6 +307,9 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
                    if rc.txn_id}
     return templates.TemplateResponse("finance_ledger.html", {
         "request": request, "account": a, "rows": rows, "balance": round(bal, 2),
+        "selected_item": item if any(i.id == item for i in items) else 0,
+        "subsidy_year": subsidy_year if 2500 <= subsidy_year <= 2800 and subsidy_term in (1, 2) else 0,
+        "subsidy_term": subsidy_term,
         "opening": opening, "fiscal_year": fy, "years": _finance_years(db, fy),
         "items": items, "item_rows": item_rows, "receipt_map": receipt_map,
         "opening_token": opening_token(db,a,fy),
@@ -430,7 +434,8 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
                     ref: str = Form(""), note: str = Form(""), fiscal_year: str = Form(""),
                     item_id: str = Form(""), receipt_no: str = Form(""), party: str = Form(""),
                     due_date: str = Form(""), refund_date: str = Form(""),
-                    project_id: str = Form(""), eb_code: str = Form("")):
+                    project_id: str = Form(""), eb_code: str = Form(""),
+                    subsidy_year: int = Form(0), subsidy_term: int = Form(0)):
     a = db.get(FinanceAccount, aid)
     fy = _to_int(fiscal_year, current_fiscal_year())
     if a:
@@ -455,7 +460,8 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
                 amount=amt, account_id=a.id, txn_id=t.id, note=note.strip(),
             ))
         db.commit()
-    return RedirectResponse(f"/finance/accounts/{aid}?year={fy}", status_code=303)
+    back = f"&subsidy_year={subsidy_year}&subsidy_term={subsidy_term}" if 2500 <= subsidy_year <= 2800 and subsidy_term in (1, 2) else ""
+    return RedirectResponse(f"/finance/accounts/{aid}?year={fy}{back}" + ("#txn-entry" if back else ""), status_code=303)
 
 
 @router.post("/finance/txn/{tid}/delete")

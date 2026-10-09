@@ -122,6 +122,20 @@
       const id=type.selectedOptions[0]?.dataset.mappedItem;
       [...txn.options].forEach(o=>{if(o.value){o.hidden=!id||o.dataset.item!==id;o.disabled=o.hidden;}});
       if(txn.selectedOptions[0]?.disabled)txn.value='';
+      const available=[...txn.options].some(o=>o.value&&!o.disabled);
+      const empty=document.getElementById('receipt-empty'), link=document.getElementById('receipt-create');
+      empty.hidden=available;
+      empty.textContent=id?`ยังไม่พบรายการรับเงินของประเภทนี้ในปีงบ ${receipts.dataset.fiscalYear}`:'ยังไม่ได้จับคู่หมวดของประเภทนี้ กรุณาเลือกบัญชีและจับคู่หมวดก่อน';
+      txn.disabled=!available;
+      txn.options[0].textContent=available?'เลือกรายการรับเงิน':(id?'ยังไม่มีรายการรับให้เลือก':'กรุณาจับคู่หมวดก่อน');
+      receipts.elements.round.disabled=!available;
+      receipts.elements.amount.disabled=!available;
+      const submit=receipts.querySelector('button[type="submit"]');
+      submit.dataset.originalDisabled=String(!available);
+      submit.disabled=!available||dirty;
+      const query=new URLSearchParams({year:receipts.dataset.fiscalYear,item:id||'',subsidy_year:receipts.dataset.year,subsidy_term:receipts.dataset.term});
+      link.href=id?`/finance/accounts/${type.selectedOptions[0].dataset.account}?${query}#txn-entry`:`/finance/subsidy/mapping?year=${receipts.dataset.year}&term=${receipts.dataset.term}`;
+      link.textContent=id?'บันทึกรับเงินอุดหนุน':'เลือกบัญชีและจับคู่หมวดก่อน';
     }
     type.addEventListener('change',filterReceipts);filterReceipts();
   }

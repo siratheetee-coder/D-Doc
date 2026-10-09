@@ -169,8 +169,11 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
 </div>
 
 <div class="card">
-  <h2><svg class="icon"><use href="#ic-plus"/></svg> บันทึกรับ / จ่าย</h2>
+  <h2 id="txn-entry" style="scroll-margin-top:90px;"><svg class="icon"><use href="#ic-plus"/></svg> บันทึกรับ / จ่าย</h2>
+  {% if subsidy_year %}<p>บันทึกรับเงินที่ได้รับโอนจริง แล้วกลับไปเลือกรายการเพื่อเชื่อมกับเงินอุดหนุนของเทอมนี้</p>
+  <p><a class="btn gray" href="/finance/subsidy?year={{ subsidy_year }}&term={{ subsidy_term }}#sec-receipts">กลับไปเชื่อมเงินอุดหนุน · ปีการศึกษา {{ subsidy_year }} เทอม {{ subsidy_term }}</a></p>{% endif %}
   <form method="post" action="/finance/accounts/{{ account.id }}/txn">
+    {% if subsidy_year %}<input type="hidden" name="subsidy_year" value="{{ subsidy_year }}"><input type="hidden" name="subsidy_term" value="{{ subsidy_term }}">{% endif %}
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
     <div class="row">
       <div><label>ประเภท</label>
@@ -181,7 +184,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       <div><label>หมวดงบ</label>
         <select name="item_id">
           <option value="">- ไม่ระบุหมวด -</option>
-          {% for r in item_rows %}<option value="{{ r.it.id }}">{{ '　└ ' if r.level==1 }}{{ r.it.name }}</option>{% endfor %}
+          {% for r in item_rows %}<option value="{{ r.it.id }}" {% if selected_item == r.it.id %}selected{% endif %}>{{ '　└ ' if r.level==1 }}{{ r.it.name }}</option>{% endfor %}
         </select>
       </div>
       {# หมวด e-Budget: เลือกตอนลงรายการ เพราะตอนนี้ครูรู้อยู่แล้วว่าจ่ายค่าอะไร
