@@ -394,6 +394,8 @@ app.include_router(auth.router)
 app.include_router(account.router)
 app.include_router(users.router)
 app.include_router(superadmin.router)
+from app.routers import plan_budget
+app.include_router(plan_budget.router)
 app.include_router(pages.router)
 app.include_router(project_report.router)
 app.include_router(admin.router)

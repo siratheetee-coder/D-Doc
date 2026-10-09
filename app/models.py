@@ -122,6 +122,38 @@ class Project(Base):
                              cascade="all, delete-orphan", order_by="ProjectBudgetRevision.seq")
 
 
+class PlanBudget(Base):
+    __tablename__ = "plan_budget"
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, nullable=False, unique=True)
+    mode = Column(String, nullable=False)
+    start_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime, nullable=False)
+
+
+class PlanFunding(Base):
+    __tablename__ = "plan_funding"
+    __table_args__ = {"sqlite_autoincrement": True}
+    id = Column(Integer, primary_key=True)
+    plan_id = Column(Integer, ForeignKey("plan_budget.id"), nullable=False)
+    source_key = Column(String, nullable=False, unique=True)
+    kind = Column(String, nullable=False)
+    name = Column(String, nullable=False)
+    amount = Column(Float, nullable=False, default=0)
+    snapshot_id = Column(Integer, nullable=True)
+    account_item_id = Column(Integer, nullable=True)
+    payload = Column(Text, nullable=False, default="{}")
+
+
+class ProjectFunding(Base):
+    __tablename__ = "project_funding"
+    __table_args__ = (UniqueConstraint("project_id", "funding_id", name="uq_project_funding"),)
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("project.id"), nullable=False)
+    funding_id = Column(Integer, ForeignKey("plan_funding.id"), nullable=False)
+    amount = Column(Float, nullable=False, default=0)
+
+
 class ProjectBudgetRevision(Base):
     """ประวัติการปรับงบของโครงการ (ครั้งที่ 1 แผนต้นปี, ครั้งที่ 2 ปรับกลางปี ...)
     งบปัจจุบัน = amount ของ revision ล่าสุด (ถ้าไม่มี = Project.budget)"""

@@ -819,6 +819,8 @@ def update_master(kind: str, item_id: int, db: Session = Depends(get_db),
             if kind == "person":
                 obj.position = position
             elif kind == "project":
+                from app.services.plan_funding import guard_project
+                guard_project(db,obj,budget=_to_float(budget,0.0) if not obj.revisions else None)
                 obj.budget = _to_float(budget, 0.0)
                 obj.budget_note = (budget_note or "").strip()
             db.commit()
@@ -831,6 +833,9 @@ def delete_master(kind: str, item_id: int, db: Session = Depends(get_db)):
     if model:
         obj = db.get(model, item_id)
         if obj:
+            if kind == 'project':
+                from app.services.plan_funding import guard_project
+                guard_project(db,obj,deleting=True)
             if kind == "person" and getattr(obj, "signature", ""):
                 from app.services.signature import delete_signature
                 delete_signature(obj.signature)
@@ -2757,6 +2762,7 @@ def _plan_years(db, cur):
 
 @router.get("/projects", response_class=HTMLResponse)
 def projects_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
+    from app.services import plan_funding as pf
     school = get_school(db)
     cur = year or current_plan_year(school)
     rows = db.query(Project).filter(Project.plan_year == cur).order_by(Project.name).all()
@@ -2766,7 +2772,8 @@ def projects_page(request: Request, db: Session = Depends(get_db), year: int | N
         legacy = db.query(Project).filter(Project.plan_year.is_(None)).order_by(Project.name).all()
     return templates.TemplateResponse("projects.html", {
         "request": request, "school": school, "rows": rows, "legacy": legacy,
-        "fiscal_year": cur, "year_label": plan_year_label(school),
+        "fiscal_year": cur, "year_label": plan_year_label(school,cur),
+        "plan_funding": pf.summary(db,pf.plan(db,cur)),
         "years": _plan_years(db, cur),
         "departments": db.query(Department).order_by(Department.name).all(),
         "total_budget": sum(project_budget(p) for p in rows),
@@ -2788,7 +2795,7 @@ def project_summary_docx(db: Session = Depends(get_db), year: int | None = None,
     from app.services.project_summary import render_project_summary
     school = get_school(db)
     cur = year or current_plan_year(school)
-    path = render_project_summary(school, cur, plan_year_label(school),
+    path = render_project_summary(school, cur, plan_year_label(school,cur),
                                   _project_rows(db, cur), detail=bool(detail))
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
@@ -2799,7 +2806,7 @@ def project_summary_xlsx(db: Session = Depends(get_db), year: int | None = None)
     from app.services.project_summary import export_project_summary
     school = get_school(db)
     cur = year or current_plan_year(school)
-    path = export_project_summary(school, cur, plan_year_label(school), _project_rows(db, cur))
+    path = export_project_summary(school, cur, plan_year_label(school,cur), _project_rows(db, cur))
     return serve_generated(path, _XLSX_MT)
 
 
@@ -2927,6 +2934,8 @@ def projects_import_confirm(db: Session = Depends(get_db),
         resp = (r.get("responsible") or "").strip()
         if name in existing:
             p = existing[name]
+            from app.services.plan_funding import guard_project
+            guard_project(db,p,budget=budget if not p.revisions else None)
             p.budget = budget
             if resp:
                 p.responsible = resp
@@ -2943,6 +2952,7 @@ def projects_import_confirm(db: Session = Depends(get_db),
 
 @router.get("/projects/{pid}", response_class=HTMLResponse)
 def project_detail(pid: int, request: Request, db: Session = Depends(get_db)):
+    from app.routers.plan_budget import project_context
     p = db.get(Project, pid)
     if not p:
         return RedirectResponse("/projects", status_code=303)
@@ -2956,8 +2966,9 @@ def project_detail(pid: int, request: Request, db: Session = Depends(get_db)):
                          ProjectReport.id).all())
     return templates.TemplateResponse("project_detail.html", {
         "request": request, "school": get_school(db), "p": p, "reports": reports,
+        **project_context(db,p),
         "procs": procs, "disb": disb, "next_seq": next_seq,
-        "year_label": plan_year_label(get_school(db)),
+        "year_label": plan_year_label(get_school(db),p.plan_year),
         "departments": db.query(Department).order_by(Department.name).all(),
         "years": _plan_years(db, p.plan_year or current_plan_year(get_school(db))),
     })
@@ -2968,6 +2979,8 @@ def project_revise(pid: int, db: Session = Depends(get_db), amount: str = Form("
                    date: str = Form(""), reason: str = Form("")):
     p = db.get(Project, pid)
     if p:
+        from app.services.plan_funding import guard_project
+        guard_project(db,p,budget=_to_float(amount,0.0))
         seq = max([r.seq or 0 for r in p.revisions], default=0) + 1
         db.add(ProjectBudgetRevision(project_id=pid, seq=seq, amount=_to_float(amount, 0.0),
                                      date=parse_be_date(date) or datetime.now(), reason=reason.strip()))
@@ -2982,6 +2995,8 @@ def project_update(pid: int, db: Session = Depends(get_db), name: str = Form(...
     if p:
         p.name = name.strip()
         p.responsible = responsible.strip()
+        from app.services.plan_funding import guard_project
+        guard_project(db,p,year=_to_int(plan_year,p.plan_year))
         p.plan_year = _to_int(plan_year, p.plan_year)
         p.active = (active == "1")
         db.commit()
@@ -2994,6 +3009,8 @@ def project_set_year(pid: int, db: Session = Depends(get_db),
     """เปลี่ยนปีของโครงการเดียว (จากตารางหรือหน้ารายละเอียด)"""
     p = db.get(Project, pid)
     if p:
+        from app.services.plan_funding import guard_project
+        guard_project(db,p,year=_to_int(plan_year,p.plan_year))
         p.plan_year = _to_int(plan_year, p.plan_year)
         db.commit()
         py = p.plan_year
@@ -3025,6 +3042,8 @@ def projects_assign_year(db: Session = Depends(get_db),
     if only_legacy == "1":
         q = q.filter(Project.plan_year.is_(None))
     for p in q.all():
+        from app.services.plan_funding import guard_project
+        guard_project(db,p,year=py)
         p.plan_year = py
     db.commit()
     return RedirectResponse(f"/projects?year={py}", status_code=303)
@@ -3034,6 +3053,8 @@ def projects_assign_year(db: Session = Depends(get_db),
 def project_delete(pid: int, db: Session = Depends(get_db)):
     p = db.get(Project, pid)
     if p:
+        from app.services.plan_funding import guard_project
+        guard_project(db,p,deleting=True)
         db.delete(p); db.commit()
     return RedirectResponse("/projects", status_code=303)
 

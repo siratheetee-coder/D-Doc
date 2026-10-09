@@ -114,7 +114,8 @@
   {% if s.latest and not s.changed and mapped_account %}<form action="/finance/subsidy/budget-preview" method="get" class="sub-inline" data-needs-saved>
     <input type="hidden" name="snapshot_id" value="{{ s.latest.id }}"><input type="hidden" name="account_id" value="{{ mapped_account.id }}"><span>บัญชี {{ mapped_account.name }}</span><button class="btn" type="submit">เปรียบเทียบก่อนตั้งงบปี {{ s.fiscal_year }}</button>
   </form>{% endif %}
-  <p class="sub-muted">การยืนยันเก็บตัวเลขและแหล่งอ้างอิงไว้เป็นฉบับย้อนหลัง การตั้งงบต้องตรวจยอดเดิมก่อนทุกครั้ง และไม่สร้างรายการรับเงิน</p>
+  <p class="sub-muted">การยืนยันเก็บตัวเลขไว้เป็นฉบับย้อนหลัง การตั้งงบต้องตรวจยอดเดิมก่อนทุกครั้ง และไม่สร้างรายการรับเงิน</p>
+  {% if s.latest and not s.changed %}<p><a class="btn gray" data-needs-saved href="/plan-budget/{{ s.academic_year }}?mode=academic">ใช้กับแผนปีการศึกษา {{ s.academic_year }}</a> <a class="btn gray" data-needs-saved href="/plan-budget/{{ s.fiscal_year }}?mode=budget">ใช้กับแผนปีงบ {{ s.fiscal_year }}</a></p><p class="sub-muted">ตรวจรูปแบบและช่วงวันที่ของแผนปลายทางก่อนนำงบเข้า เงินก้อนเดียวกันใช้ได้เพียงแผนเดียว</p>{% endif %}
   <details><summary>ฉบับย้อนหลัง ({{ s.history|length }}) และประวัติตั้งงบ</summary>
   <ul>{% for h in s.history %}<li><a href="/finance/subsidy/snapshots/{{ h.id }}">ฉบับ #{{ h.id }} · {{ h.created_at.strftime('%d/%m/%Y %H:%M') }}</a> · <a href="/finance/subsidy.docx?snapshot_id={{ h.id }}">Word</a></li>{% else %}<li>ยังไม่มีฉบับยืนยัน</li>{% endfor %}</ul>
   <ul>{% for h in budget_history %}<li>ตั้งงบจากฉบับ #{{ h.snapshot_id }} · {{ h.created_at.strftime('%d/%m/%Y %H:%M') }}</li>{% endfor %}</ul></details>

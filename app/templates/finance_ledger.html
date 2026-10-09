@@ -182,7 +182,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
     <div class="row">
       <div><label>ประเภท</label>
-        <select name="kind"><option value="in">รับเงิน (+)</option><option value="out">จ่ายเงิน (-)</option></select>
+        <select name="kind"><option value="in" {{ 'selected' if selected_kind!='out' }}>รับเงิน (+)</option><option value="out" {{ 'selected' if selected_kind=='out' }}>จ่ายเงิน (-)</option></select>
       </div>
       <div><label>จำนวนเงิน (บาท)</label><input name="amount" type="number" step="0.01" min="0" value="0" required></div>
       <div><label>วันที่</label><input name="date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
@@ -211,7 +211,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       <div><label>โครงการ</label>
         <select name="project_id" title="ผูกรายการนี้กับโครงการในแผน เพื่อคุมงบรายโครงการ">
           <option value="">- ไม่ผูกโครงการ -</option>
-          {% for pj in projects %}<option value="{{ pj.id }}">{{ pj.name }}</option>{% endfor %}
+          {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if selected_project==pj.id }}>{{ pj.name }}</option>{% endfor %}
         </select>
       </div>
     </div>

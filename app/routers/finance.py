@@ -249,13 +249,16 @@ def account_set_deposit_type(aid: int, db: Session = Depends(get_db),
 def account_delete(aid: int, db: Session = Depends(get_db)):
     a = db.get(FinanceAccount, aid)
     if a:
+        from app.services.plan_funding import guard_items
+        guard_items(db,[i.id for i in a.items])
         db.delete(a); db.commit()
     return RedirectResponse("/finance/accounts", status_code=303)
 
 
 @router.get("/finance/accounts/{aid}", response_class=HTMLResponse)
 def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), year: int | None = None,
-                   item: int = 0, subsidy_year: int = 0, subsidy_term: int = 0):
+                   item: int = 0, subsidy_year: int = 0, subsidy_term: int = 0,
+                   project: int = 0, kind: str = 'in'):
     a = db.get(FinanceAccount, aid)
     if not a:
         return RedirectResponse("/finance/accounts", status_code=303)
@@ -308,6 +311,8 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
     return templates.TemplateResponse("finance_ledger.html", {
         "request": request, "account": a, "rows": rows, "balance": round(bal, 2),
         "selected_item": item if any(i.id == item for i in items) else 0,
+        "selected_project": project if any(p.id==project for p in _plan_projects(db,fy)) else 0,
+        "selected_kind": 'out' if kind=='out' else 'in',
         "subsidy_year": subsidy_year if 2500 <= subsidy_year <= 2800 and subsidy_term in (1, 2) else 0,
         "subsidy_term": subsidy_term,
         "opening": opening, "fiscal_year": fy, "years": _finance_years(db, fy),
@@ -421,6 +426,8 @@ def account_item_delete(iid: int, db: Session = Depends(get_db)):
     aid = it.account_id if it else None
     fy = it.fiscal_year if it else current_fiscal_year()
     if it:
+        from app.services.plan_funding import guard_items
+        guard_items(db,[it.id]+[i.id for i in db.query(AccountItem).filter_by(parent_id=it.id)])
         # ปลดการผูกหมวดออกจากรายการที่อ้างถึง (ไม่ลบรายการเงิน)
         for t in db.query(FinanceTxn).filter_by(item_id=it.id).all():
             t.item_id = None
@@ -1689,6 +1696,11 @@ def _plan_projects(db, year=None):
     years = {current_plan_year(get_school(db))}
     if year:
         years.add(year)
+        from app.models import PlanBudget
+        start,end=datetime(year-544,10,1),datetime(year-543,9,30)
+        years.update(p.year for p in db.query(PlanBudget).filter(PlanBudget.start_date<=end,PlanBudget.end_date>=start))
+        if getattr(get_school(db),'project_year_mode','budget')=='academic':
+            years.add(year-1)
     return (db.query(Project).filter(Project.plan_year.in_(years))
             .order_by(Project.plan_year.desc(), Project.name).all())
 
@@ -1718,7 +1730,7 @@ def finance_projects_page(request: Request, db: Session = Depends(get_db),
     rows = _project_register_rows(db, cur)
     return templates.TemplateResponse("finance_projects.html", {
         "request": request, "rows": rows, "fiscal_year": cur,
-        "year_label": plan_year_label(school), "years": _plan_year_list(db, cur),
+        "year_label": plan_year_label(school,cur), "years": _plan_year_list(db, cur),
         "total_budget": sum(r["budget"] for r in rows),
         "total_spent": sum(r["spent"] for r in rows),
         "total_left": sum(r["left"] for r in rows),
@@ -1737,7 +1749,7 @@ def finance_projects_register_docx(db: Session = Depends(get_db),
         rows = [r for r in rows if r["p"].id == project]
         if not rows:
             raise HTTPException(status_code=404, detail="ไม่พบโครงการนี้ในปีที่เลือก")
-    path = render_project_register(school, cur, plan_year_label(school), rows)
+    path = render_project_register(school, cur, plan_year_label(school,cur), rows)
     return serve_generated(path, _DOCX)
 
 

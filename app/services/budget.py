@@ -14,8 +14,14 @@ def current_plan_year(school) -> int:
     return current_academic_year() if mode == "academic" else current_fiscal_year()
 
 
-def plan_year_label(school) -> str:
+def plan_year_label(school, year=None) -> str:
     mode = getattr(school, "project_year_mode", "budget") or "budget"
+    if year is not None:
+        from sqlalchemy.orm import object_session
+        from app.models import PlanBudget
+        db=object_session(school)
+        saved=db.query(PlanBudget).filter_by(year=year).first() if db else None
+        if saved: mode=saved.mode
     return "ปีการศึกษา" if mode == "academic" else "ปีงบประมาณ"
 
 

@@ -20,6 +20,9 @@
 </div>
 {% if request.query_params.get('added') or request.query_params.get('updated') %}<div class="alert">✔ นำเข้าโครงการแล้ว: สร้างใหม่ {{ request.query_params.get('added', 0) }} รายการ{% if request.query_params.get('updated') and request.query_params.get('updated')!='0' %} · อัปเดตงบ {{ request.query_params.get('updated') }} รายการ{% endif %}</div>{% endif %}
 
+<div class="card"><h2>งบประมาณที่ใช้จัดทำแผน</h2><p>เลือกเงินเหลือจากปีก่อนและเงินอุดหนุนรอบใหม่ แล้วจัดสรรให้แต่ละโครงการ</p>
+<p>งบรวมสำหรับวางแผน <b>{{ '{:,.2f}'.format(plan_funding.total) }}</b> · จัดสรรแล้ว <b>{{ '{:,.2f}'.format(plan_funding.allocated) }}</b> · ยังไม่ได้จัดสรร <b>{{ '{:,.2f}'.format(plan_funding.remaining) }}</b> บาท</p>
+<a class="btn" href="/plan-budget/{{ fiscal_year }}">เลือกงบที่จะใช้ในแผน</a><p class="muted">ยอดนี้แยกจากเงินสดในทะเบียนคุม และไม่เปลี่ยนงบโครงการเดิมจนกว่าจะจัดสรรเอง</p></div>
 <div class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มโครงการ ({{ year_label }} {{ fiscal_year }})</h2>
   <p class="muted" style="margin-top:0;">สามารถเพิ่มหรือแก้ไขโครงการได้ระหว่างปีงบประมาณ (เช่น เมื่อมีแผนปฏิบัติการประจำปีการศึกษาใหม่)</p>

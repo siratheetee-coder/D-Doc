@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}งบประมาณที่ใช้จัดทำแผน{% endblock %}
+{% block content %}
+<style>.plan-money-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:16px 0}.plan-money-summary>div{background:#f0f5ff;border-radius:12px;padding:16px}.plan-money-summary strong{display:block;font-size:24px;margin-top:8px}.plan-funding-table{min-width:700px}.plan-funding-table td:first-child{min-width:220px}</style>
+<div class="hero"><div><div class="hero-sub">โครงการ/แผนงบ</div><h1>งบประมาณที่ใช้จัดทำแผน</h1><p>{{ 'ปีการศึกษา' if mode=='academic' else 'ปีงบประมาณ' }} {{ year }}</p></div><a class="btn gray" href="/projects?year={{ year }}">กลับไปจัดสรรให้โครงการ</a></div>
+{% if request.query_params.get('saved') %}<div class="alert" role="status">บันทึกงบของแผนแล้ว</div>{% endif %}
+<div class="card"><h2>1. ช่วงเวลาของแผน</h2><p class="muted">เลือกเงินเหลือก่อนเริ่มแผนและเงินที่จะได้รับในรอบนี้ ยอดในหน้านี้เป็นวงเงินสำหรับวางแผน ยังไม่ใช่เงินสดที่ได้รับทั้งหมด</p>
+<form method="post" action="/plan-budget/{{ year }}/period" id="plan-period"><div class="row">
+<div><label>รูปแบบแผน</label><select name="mode"><option value="budget" {{ 'selected' if mode=='budget' }}>ปีงบประมาณ {{ year }}</option><option value="academic" {{ 'selected' if mode=='academic' }}>ปีการศึกษา {{ year }}</option></select></div>
+<div><label>วันเริ่มแผน (พ.ศ.)</label><input data-date="1" name="start" value="{{ start.strftime('%d/%m/') }}{{ start.year+543 }}" placeholder="วว/ดด/ปปปป" required></div>
+<div><label>วันสิ้นสุดแผน (พ.ศ.)</label><input data-date="1" name="end" value="{{ end.strftime('%d/%m/') }}{{ end.year+543 }}" placeholder="วว/ดด/ปปปป" required></div>
+</div><p>{{ thai_date(start) }} – {{ thai_date(end) }}</p><button class="btn" type="submit">บันทึกช่วงแผน</button></form>
+{% if plan and funding.rows %}<p class="muted">หากจะเปลี่ยนช่วงแผน ต้องยกเลิกการจัดสรรและนำงบออกจากแผนก่อน</p>{% endif %}</div>
+<div class="card"><h2>2. เลือกงบที่จะนำมาใช้</h2>
+{% if plan %}
+<div class="plan-money-summary"><div>งบรวมสำหรับวางแผน<strong>{{ '{:,.2f}'.format(funding.total) }}</strong></div><div>จัดสรรให้โครงการแล้ว<strong>{{ '{:,.2f}'.format(funding.allocated) }}</strong></div><div>ยังไม่ได้จัดสรร<strong>{{ '{:,.2f}'.format(funding.remaining) }}</strong></div></div>
+<h3>เงินเหลือจากก่อนเริ่มแผน</h3><p>ดึงจากยอดยกมาและรับ–จ่ายในทะเบียนคุมก่อนวันที่เริ่มแผน แยกเฉพาะเงินของแต่ละหมวด ไม่รวมหมวดย่อยซ้ำในหมวดแม่</p><a class="btn gray" href="/plan-budget/{{ year }}/review?kind=opening">ตรวจยอดเงินเหลือก่อนนำเข้าแผน</a>
+<h3>เงินอุดหนุนรอบใหม่</h3><p>ใช้ฉบับที่ยืนยันในหน้าคำนวณเงินอุดหนุนแล้ว เลือกรอบและตรวจยอดก่อนนำเข้า</p>
+{% for s in snapshots %}<p><a class="btn" href="/plan-budget/{{ year }}/review?kind=subsidy&snapshot_id={{ s.id }}">นำงบจากเงินอุดหนุนมาใช้ · ปีการศึกษา {{ s.academic_year }} เทอม {{ s.term }} (ปีงบ {{ s.fiscal_year }})</a></p>{% else %}<p class="muted">ยังไม่มีฉบับเงินอุดหนุนที่ยืนยันสำหรับแผนนี้</p>{% endfor %}
+<p><a href="/finance/subsidy?year={{ year if mode=='academic' else year-1 }}&term={{ 1 if mode=='academic' else 2 }}">ไปคำนวณเงินอุดหนุน{{ ' เทอม 1' if mode=='academic' else ' เทอม 2 ของปีก่อน' }}</a> · <a href="/finance/subsidy?year={{ year }}&term={{ 2 if mode=='academic' else 1 }}">{{ 'คำนวณเทอม 2' if mode=='academic' else 'คำนวณเทอม 1 ปีปัจจุบัน' }}</a></p>
+<details><summary>เงินอื่น ๆ (ถ้ามี)</summary><p class="muted">กรอกเฉพาะเงินที่ยังไม่ได้รวมในรายการเงินเหลือหรือเงินอุดหนุนด้านบน</p><form method="post" action="/plan-budget/{{ year }}/other"><input type="hidden" name="nonce" value="{{ nonce }}"><div class="row"><div><label>ชื่อรายการเงิน</label><input name="name" required maxlength="200" placeholder="เช่น เงินบริจาคสำหรับโครงการ"></div><div><label>จำนวนเงิน (บาท)</label><input type="number" name="amount" min="0.01" max="1000000000" step="0.01" required></div></div><p><button class="btn" type="submit">เพิ่มเงินอื่นในแผน</button></p></form></details>
+{% else %}<p>บันทึกช่วงแผนด้านบนก่อน แล้วจึงเลือกงบที่จะใช้</p>{% endif %}</div>
+{% if funding.rows %}<div class="card"><h2>งบที่นำเข้าแผนแล้ว</h2><p class="muted">การนำเข้าหรือปรับยอดในหน้านี้ไม่สร้างรายการรับเงิน และไม่เปลี่ยนงบโครงการให้อัตโนมัติ</p><div class="table-wrap"><table style="min-width:700px;"><thead><tr><th>รายการ</th><th>งบในแผน</th><th>จัดสรรแล้ว</th><th>ยังไม่จัดสรร</th><th></th></tr></thead><tbody>
+{% for r in funding.rows %}<tr><td>{{ r.source.name }}<br><small>{{ {'opening':'เงินเหลือก่อนเริ่มแผน','subsidy':'เงินอุดหนุนรอบใหม่','other':'เงินอื่น ๆ'}[r.source.kind] }}</small>{% if r.changed %}<p class="alert warn">ยอดต้นทางเปลี่ยนแล้ว กรุณาตรวจยอดด้านบนก่อนอัปเดตแผน</p>{% endif %}</td><td>{{ '{:,.2f}'.format(r.source.amount) }}</td><td>{{ '{:,.2f}'.format(r.allocated) }}</td><td>{{ '{:,.2f}'.format(r.source.amount-r.allocated) }}</td><td><form action="/plan-budget/{{ year }}/remove/{{ r.source.id }}" method="post" onsubmit="return confirm('นำเงินรายการนี้ออกจากแผน? ไม่ลบข้อมูลต้นทาง')"><button class="btn gray sm" {{ 'disabled' if r.allocated }}>นำออกจากแผน</button></form></td></tr>{% endfor %}
+</tbody></table></div></div>{% endif %}
+<script>(()=>{const f=document.getElementById('plan-period');f.elements.mode.addEventListener('change',()=>{const y={{ year }},a=f.elements.mode.value==='academic';f.elements.start.value=a?`01/05/${y}`:`01/10/${y-1}`;f.elements.end.value=a?`30/04/${y+1}`:`30/09/${y}`;});})();</script>
+{% endblock %}

@@ -36,7 +36,7 @@ MODULE_PRICE_KEY = {
 #        ส่วน "/register" เฉย ๆ คือหน้าสมัครสมาชิก (สาธารณะ) ต้องไม่โดนจับเป็นงานพัสดุ
 MODULE_PREFIXES = {
     "admin": ["/admin"],
-    "finance": ["/finance"],
+    "finance": ["/finance", "/plan-budget"],
     "lunch": ["/lunch"],
     "hr": ["/hr"],
     "academic": ["/academic"],
