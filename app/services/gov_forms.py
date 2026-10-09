@@ -796,8 +796,11 @@ def render_travel_official(school, person, record, db=None, approver=None, appro
         pass
     sr(22, 9, name)                                             # (ชื่อผู้ขอ)
     try:                                                        # แปะลายเซ็นผู้ขอ (ถ้ามีในทะเบียน)
-        if _stamp_sig(P[21].runs[6], db, name, height_cm=0.9):
-            P[21].runs[7].text = ""                             # ล้างจุดไข่ปลาเมื่อมีลายเซ็น
+        # ลายเซ็นลอย "อยู่หน้าข้อความ" ทับเส้นไข่ปลา ไม่ลบเส้นทิ้ง
+        # ของเดิมสั่ง P[21].runs[7].text = "" หลังแปะรูป ซึ่งหลังแปะแล้วดัชนี 7 คือ "รันรูป"
+        # การตั้ง text บน run คือ clear_content() ลบลูกทุกตัวรวมทั้ง w:drawing = ลายเซ็นหายทันที
+        # และถึงลบถูกรัน เส้นไข่ปลาหายก็ทำให้ข้อความท้ายบรรทัดเลื่อนมาทับลายเซ็น
+        _stamp_sig(P[21].runs[6], db, name, height_cm=0.9)
     except Exception:
         pass
 
@@ -821,9 +824,7 @@ def render_travel_official(school, person, record, db=None, approver=None, appro
         except Exception:
             pass
         try:                                                    # แปะลายเซ็น ผอ. หลัง 'ลงชื่อ' (p29)
-            r29 = P[29].runs[5]
-            if _stamp_sig(r29, db, dname, height_cm=0.9):
-                r29.text = " ลงชื่อ  "                          # ตัดจุดไข่ปลาในรันเดียวกันออก
+            _stamp_sig(P[29].runs[5], db, dname, height_cm=0.9)
         except Exception:
             pass
         if approve_date:                                        # วันที่อนุมัติ (บรรทัดใต้ตำแหน่ง ผอ. P31)

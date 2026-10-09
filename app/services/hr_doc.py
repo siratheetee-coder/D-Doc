@@ -274,8 +274,11 @@ def render_travel_order(school, person, record) -> str:
        align="justify", size=16, after=8, indent=1.25)
     _p(doc, f"สั่ง ณ วันที่ {_dt(record.doc_date)}", align="center", after=24)
 
-    _p(doc, "(ลงชื่อ)...................................", align="center", after=0)
-    _p(doc, f"( {(getattr(school, 'director_name', '') or '').strip() or _BLANK} )", align="center", after=0)
+    from app.services.office_doc import _float_signature
+    director = (getattr(school, "director_name", "") or "").strip()
+    sign_p = _p(doc, "(ลงชื่อ)...................................", align="center", after=0)
+    _float_signature(sign_p, director)      # คำสั่งนี้ ผอ. เป็นผู้ลงนามเสมอ แปะให้เหมือนเอกสารอื่น
+    _p(doc, f"( {director or _BLANK} )", align="center", after=0)
     _p(doc, _director_pos(school), align="center", after=2)
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
