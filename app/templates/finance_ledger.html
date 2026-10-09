@@ -44,20 +44,25 @@
 
 <div class="card">
   <h2>ยอดยกมาต้นปีงบ {{ fiscal_year }}</h2>
-  <p class="muted">กรอกเงินคงเหลือจากปีก่อน ไม่ใช่งบที่ตั้งไว้ และไม่ต้องลงซ้ำเป็นรายการรับ หมวดแม่กรอกเฉพาะเงินของตัวเอง ไม่รวมยอดลูก</p>
+  <p class="muted">กรอกเงินคงเหลือจากปีก่อนในหมวดย่อย ไม่ใช่งบที่ตั้งไว้ และไม่ต้องลงซ้ำเป็นรายการรับ หมวดแม่แสดงยอดรวมให้อัตโนมัติ</p>
   {% if items and opening_gap %}<p role="alert" style="color:#b45309;">ยอดยกมาบัญชีและผลรวมหมวดยังต่างกัน {{ '{:,.2f}'.format(opening_gap) }} บาท กรุณาแยกยอดให้ครบ</p>{% endif %}
   <form method="post" action="/finance/accounts/{{ account.id }}/openings" id="opening-form">
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}"><input type="hidden" name="opening_token" value="{{ opening_token }}">
     <label>ยอดยกมารวมบัญชี (บาท)<input type="number" step="0.01" name="account_opening" value="{{ opening }}" required></label>
     {% if items %}<div class="table-wrap"><table><thead><tr><th>หมวด</th><th>ยอดยกมาเฉพาะหมวด (บาท)</th></tr></thead><tbody>
-    {% for r in item_rows %}<tr><td style="padding-left:{{ 8+r.level*24 }}px;">{{ '└ ' if r.level }}{{ r.it.name }}{{ ' (ไม่รวมลูก)' if r.has_kids }}</td><td><input type="number" step="0.01" name="opening_{{ r.it.id }}" value="{{ r.it.opening_balance or 0 }}" required></td></tr>{% endfor %}
+    {% for r in item_rows %}<tr><td style="padding-left:{{ 8+r.level*24 }}px;">{{ '└ ' if r.level }}{{ r.it.name }}{{ ' (รวมหมวดย่อย)' if r.has_kids }}</td><td>
+      {% if r.has_kids %}
+      <output data-opening-parent="{{ r.it.id }}" data-own="{{ r.it.opening_balance or 0 }}" style="font-weight:700;">{{ '{:,.2f}'.format(r.opening) }}</output> บาท
+      {% if r.it.opening_balance %}<div class="muted">รวมยอดเดิมที่บันทึกในหมวดแม่ {{ '{:,.2f}'.format(r.it.opening_balance) }} บาท</div>{% endif %}
+      {% else %}<input type="number" step="0.01" name="opening_{{ r.it.id }}" data-parent="{{ r.it.parent_id or '' }}" value="{{ r.it.opening_balance or 0 }}" required>{% endif %}
+    </td></tr>{% endfor %}
     </tbody></table></div><p>รวมยอดยกมาทุกหมวด: <strong id="opening-total">{{ '{:,.2f}'.format(opening_sum) }}</strong> บาท</p><p id="opening-error" role="alert" style="color:#b91c1c;"></p>{% endif %}
     <button class="btn" type="submit">บันทึกยอดยกมา</button>
   </form>
 </div>
 <script>
 (()=>{const f=document.getElementById('opening-form'),inputs=[...f.querySelectorAll('input[name^="opening_"]:not([type=hidden])')],out=document.getElementById('opening-total'),err=document.getElementById('opening-error');
-function check(){if(!out)return true;const total=inputs.reduce((n,i)=>n+Number(i.value),0),gap=Math.round((Number(f.elements.account_opening.value)-total)*100);out.textContent=total.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});err.textContent=gap?'ผลรวมรายหมวดต้องเท่ากับยอดยกมารวมบัญชี (ต่างกัน '+(gap/100).toLocaleString('th-TH')+' บาท)':'';return gap===0;}
+function check(){if(!out)return true;const parents=[...f.querySelectorAll('[data-opening-parent]')],fmt=n=>n.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});parents.forEach(p=>{p.textContent=fmt(Number(p.dataset.own)+inputs.filter(i=>i.dataset.parent===p.dataset.openingParent).reduce((n,i)=>n+Number(i.value),0));});const total=inputs.reduce((n,i)=>n+Number(i.value),0)+parents.reduce((n,p)=>n+Number(p.dataset.own),0),gap=Math.round((Number(f.elements.account_opening.value)-total)*100);out.textContent=fmt(total);err.textContent=gap?'ผลรวมรายหมวดต้องเท่ากับยอดยกมารวมบัญชี (ต่างกัน '+(gap/100).toLocaleString('th-TH')+' บาท)':'';return gap===0;}
 f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e.preventDefault();err.scrollIntoView({block:'center'});}});check();})();
 </script>
 

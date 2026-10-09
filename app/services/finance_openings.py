@@ -26,7 +26,8 @@ def save(db, account, fy, form):
         raise ValueError('ยอดยกมาหรือหมวดเปลี่ยนแล้ว กรุณาเปิดหน้าใหม่ก่อนบันทึก')
     total=amount(form.get('account_opening'))
     items=db.query(AccountItem).filter_by(account_id=account.id,fiscal_year=fy).all()
-    values={i.id:amount(form.get('opening_'+str(i.id))) for i in items}
+    parents={i.parent_id for i in items if i.parent_id is not None}
+    values={i.id:(i.opening_balance or 0) if i.id in parents else amount(form.get('opening_'+str(i.id))) for i in items}
     if items and round(sum(values.values())-total,2)!=0:
         raise ValueError('ผลรวมยอดยกมาทุกหมวดต้องเท่ากับยอดยกมาของบัญชี โดยไม่นับยอดลูกซ้ำในหมวดแม่')
     for i in items:i.opening_balance=values[i.id]
