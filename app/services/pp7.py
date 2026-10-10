@@ -53,76 +53,136 @@ def average(rows):
 
 
 def render(payload, output):
+    import math
+    import unicodedata
     from docx import Document
     from docx.shared import Cm, Pt
+    from docx.enum.table import WD_ROW_HEIGHT_RULE, WD_CELL_VERTICAL_ALIGNMENT
     from docx.oxml import OxmlElement
     from docx.oxml.ns import qn
     from app.services.doc_page import set_a4
     from app.services.build_templates import _font, _krut_center, _no_split_row
     from app.services.cash_report import _set_cell, _p
+
     doc=Document();set_a4(doc);_font(doc)
-    sec=doc.sections[0];sec.left_margin=sec.right_margin=Cm(1.2)
-    sec.top_margin=sec.bottom_margin=Cm(1.2)
+    sec=doc.sections[0]
+    sec.left_margin=sec.right_margin=Cm(1.2)
+    sec.top_margin=sec.bottom_margin=Cm(0.9)
     groups=payload['groups']
-    # Three parallel panels; split large histories into subsequent pages, never shrink to illegibility.
-    panels=[]
+    slots=38
+
+    def borders(cell, **edges):
+        pr=cell._tc.get_or_add_tcPr()
+        b=pr.find(qn('w:tcBorders'))
+        if b is None:b=OxmlElement('w:tcBorders');pr.append(b)
+        for edge,style in edges.items():
+            el=OxmlElement('w:'+edge)
+            el.set(qn('w:val'),style);el.set(qn('w:sz'),'4');el.set(qn('w:color'),'000000')
+            b.append(el)
+
+    def table(widths):
+        t=doc.add_table(rows=1,cols=len(widths));t.autofit=False
+        for c,w in zip(t.columns,widths):c.width=Cm(w)
+        for c,w in zip(t.rows[0].cells,widths):c.width=Cm(w)
+        pr=t._tbl.tblPr
+        margins=OxmlElement('w:tblCellMar')
+        for edge,value in [('top',0),('bottom',0),('left',35),('right',35)]:
+            el=OxmlElement('w:'+edge);el.set(qn('w:w'),str(value));el.set(qn('w:type'),'dxa');margins.append(el)
+        pr.append(margins)
+        return t
+
+    def fields(items):
+        # Separate fixed-width value cells retain a dotted baseline after filling.
+        t=table([w for label,value,lw,vw in items for w in (lw,vw)])
+        for i,(label,value,lw,vw) in enumerate(items):
+            _set_cell(t.cell(0,i*2),label,size=13)
+            c=t.cell(0,i*2+1);_set_cell(c,str(value or ''),size=13)
+            borders(c,bottom='dotted')
+        _no_split_row(t.rows[0])
+
+    def span(text):
+        visible=sum(not unicodedata.combining(c) for c in text)
+        return max(1,math.ceil(visible/32))
+
+    # Reserve lines for group headings and GPA. Long subject names get merged
+    # vertical cells, so they wrap without squeezing adjacent grades.
+    panels=[];current=[];used=0
+    def flush():
+        nonlocal current,used
+        if current:panels.append(current)
+        current=[];used=0
+    def add(text,weight='',grade='',height=1,bold=False):
+        nonlocal used
+        current.append((text,weight,grade,height,bold));used+=height
     for g in groups:
-        for offset in range(0,len(g['rows']),22):
-            panels.append([(g,g['rows'][offset:offset+22],offset>0)])
-    packed=[]
-    for panel in panels:
-        if packed and sum(len(x[1])+3 for x in packed[-1])+len(panel[0][1])+3<=28:
-            packed[-1].extend(panel)
-        else:packed.append(panel)
-    panels=packed
+        title=f"ปีการศึกษา {g['year']} ชั้น {g['level']}"+(f" ภาค {g['term']}" if g['term'] else '')
+        required=2+sum(span(f"{r['code']} {r['name']}") for r in g['rows'])
+        if used and used+required>slots-2:flush()
+        add(title,bold=True)
+        for r in g['rows']:
+            text=f"{r['code']} {r['name']}";height=span(text)
+            if used+height+1>slots-2:
+                flush();add(title+' (ต่อ)',bold=True)
+            add(text,f"{r['weight']:g}",r['grade'] or '—',height)
+        avg=average(g['rows'])
+        add('ผลการเรียนเฉลี่ย','',f'{avg:.2f}' if avg is not None else '—',bold=True)
+    flush()
+    if not panels:panels=[[]]
     for page in range(0,len(panels),3):
         if page:doc.add_page_break()
         _p(doc,'ปพ.7',align='right',size=11,after=0)
-        _krut_center(doc,height_cm=1.4)
-        _p(doc,'ใบรับรองผลการเรียน',align='center',bold=True,size=17,after=2)
-        _p(doc,f"เลขที่ {payload['number']}   โรงเรียน{payload['school'].removeprefix('โรงเรียน')}",size=13,after=0)
-        _p(doc,f"ขอรับรองว่า {payload['name']}   เลขประจำตัวนักเรียน {payload['student_no']}",size=13,after=0)
-        _p(doc,f"เลขประจำตัวประชาชน {payload['id_card'] or '...........................'}   เกิดวันที่ {payload['birthdate'] or '...........................'}",size=12,after=0)
-        _p(doc,f"ชื่อบิดา {payload['father'] or '...........................'}   ชื่อมารดา {payload['mother'] or '...........................'}",size=12,after=0)
-        _p(doc,f"{payload['status']} โดยมีรายวิชาและผลการเรียนในช่วงปี {payload['start']}–{payload['end']} ดังนี้",size=12,after=3)
-        outer=doc.add_table(rows=1,cols=3);outer.autofit=False
-        for c in outer.columns:c.width=Cm(6.2)
+        _krut_center(doc,height_cm=1.6)
+        _p(doc,'ใบรับรองผลการเรียน',align='center',bold=True,size=18,after=2)
+        _p(doc,f"เลขที่ {payload['number']}",size=13,after=1)
+        fields([('ขอรับรองว่า',payload['name'],2,10),('เลขประจำตัวนักเรียน',payload['student_no'],3.4,3.2)])
+        fields([('เป็นนักเรียนโรงเรียน',payload['school'].removeprefix('โรงเรียน'),3.1,15.5)])
+        fields([('เลขประจำตัวประชาชน',payload['id_card'],3.5,6.5),('เกิดวันที่',payload['birthdate'],1.5,7.1)])
+        fields([('ชื่อบิดา',payload['father'],1.4,7.9),('ชื่อมารดา',payload['mother'],1.6,7.7)])
+        _p(doc,f"{payload['status']} มีรายวิชาและผลการเรียนช่วงปี {payload['start']}–{payload['end']} ดังนี้",size=12,after=2)
+
+        t=table([4.5,.9,.8]*3)
+        for col in range(3):
+            for j,text in enumerate(['รหัส / รายวิชา','ชม./นก.','ผล']):
+                _set_cell(t.cell(0,col*3+j),text,bold=True,size=11,align='center')
+                borders(t.cell(0,col*3+j),top='single',bottom='single',left='single',right='single')
+        for i in range(slots):
+            row=t.add_row();row.height=Cm(.40);row.height_rule=WD_ROW_HEIGHT_RULE.AT_LEAST
+            _no_split_row(row)
+            for c in row.cells:
+                _set_cell(c,'',size=11)
+                borders(c,left='single',right='single',bottom='single' if i==slots-1 else 'nil',top='nil')
         for col,panel in enumerate(panels[page:page+3]):
-            cell=outer.cell(0,col);cell.width=Cm(6.2)
-            for g,rows,continued in panel:
-                title_cell=cell.add_table(rows=1,cols=1).cell(0,0)
-                _set_cell(title_cell,f"ปี {g['year']} {g['level']}"+(f" ภาค {g['term']}" if g['term'] else ' ทั้งปี')+(' (ต่อ)' if continued else ''),bold=True,size=11)
-                t=cell.add_table(rows=1,cols=3);t.style='Table Grid';t.autofit=False
-                for c,w in zip(t.columns,[4.2,1,0.7]):c.width=Cm(w)
-                for c,text,w in zip(t.rows[0].cells,['รหัส / รายวิชา','ชม.' if g['unit']=='ชั่วโมง' else 'นก.','ผล'],[4.2,1,0.7]):
-                    c.width=Cm(w);_set_cell(c,text,bold=True,size=10)
-                for r in rows:
-                    cells=t.add_row().cells
-                    for c,text,w in zip(cells,[f"{r['code']} {r['name']}",f"{r['weight']:g}",r['grade'] or '—'],[4.2,1,0.7]):
-                        c.width=Cm(w);_set_cell(c,text,size=11)
-                    _no_split_row(t.rows[-1])
-                if rows[-1] is g['rows'][-1]:
-                    avg=average(g['rows'])
-                    p=cell.add_paragraph('ผลการเรียนเฉลี่ย '+(f'{avg:.2f}' if avg is not None else '— (ข้อมูลไม่ครบ/มีผลที่ไม่ใช่ตัวเลข)'))
-                    for r in p.runs:r.font.size=Pt(10)
-        _p(doc,'',after=2)
-        if page+3>=len(panels) and len({g['unit'] for g in groups})==1:
-            avg=average([r for g in groups for r in g['rows']]) if not payload['warnings'] else None
-            _p(doc,'ผลการเรียนเฉลี่ยรวมช่วงปีที่รับรอง: '+(f'{avg:.2f}' if avg is not None else '— (ข้อมูลยังไม่ครบหรือมีผลที่ไม่ใช่ตัวเลข)'),size=12,bold=True)
+            pos=1
+            for text,weight,grade,height,bold in panel:
+                for j,value in enumerate([text,weight,grade]):
+                    c=t.cell(pos,col*3+j)
+                    if height>1:c=c.merge(t.cell(pos+height-1,col*3+j))
+                    _set_cell(c,value,bold=bold,size=11,align='left' if j==0 else 'center')
+                    c.vertical_alignment=WD_CELL_VERTICAL_ALIGNMENT.CENTER
+                pos+=height
+        if page+3>=len(panels):
+            same_unit=len({g['unit'] for g in groups})==1
+            avg=average([r for g in groups for r in g['rows']]) if same_unit and not payload['warnings'] else None
+            label=t.cell(slots,6).merge(t.cell(slots,7))
+            _set_cell(label,'ผลการเรียนเฉลี่ยรวม',bold=True,size=11)
+            _set_cell(t.cell(slots,8),f'{avg:.2f}' if avg is not None else '—',bold=True,size=11,align='center')
+            for c in [label,t.cell(slots,8)]:borders(c,top='single',bottom='single')
         _p(doc,f"ออกให้ ณ วันที่ {payload['issued']}   ใบรับรองมีอายุ {payload['valid_days']} วันนับแต่วันที่ออก",size=12,after=2)
-        footer=doc.add_table(rows=1,cols=3)
-        _set_cell(footer.cell(0,0),'ติดรูปถ่าย\nนักเรียน\nขนาด 2 นิ้ว',align='center',size=12)
-        _set_cell(footer.cell(0,1),f"ลงชื่อ....................................\n({payload['registrar']})\nนายทะเบียน",align='center',size=12)
-        _set_cell(footer.cell(0,2),f"ลงชื่อ....................................\n({payload['director']})\nผู้อำนวยการโรงเรียน",align='center',size=12)
-        if payload['warnings']:_p(doc,'แสดงเฉพาะข้อมูลที่มีในระบบ ช่อง — หมายถึงยังไม่มีข้อมูล ไม่ใช่ผลการเรียน 0',size=10)
+        footer=table([3.5,7.55,7.55])
+        photo=footer.cell(0,0)
+        _set_cell(photo,'ติดรูปถ่ายนักเรียน\nขนาด 2 นิ้ว',align='center',size=11)
+        borders(photo,top='single',bottom='single',left='single',right='single')
+        footer.rows[0].height=Cm(2.1);footer.rows[0].height_rule=WD_ROW_HEIGHT_RULE.AT_LEAST
+        _set_cell(footer.cell(0,1),f"ลงชื่อ....................................\n({payload['registrar']})\nนายทะเบียน",align='center',size=13)
+        _set_cell(footer.cell(0,2),f"ลงชื่อ....................................\n({payload['director']})\nผู้อำนวยการโรงเรียน",align='center',size=13)
+        for c in footer.rows[0].cells:c.vertical_alignment=WD_CELL_VERTICAL_ALIGNMENT.CENTER
+        if payload['warnings']:_p(doc,'ช่อง — หมายถึงข้อมูลยังไม่ครบหรือไม่สามารถคำนวณค่าเฉลี่ยได้ ไม่ใช่ผลการเรียน 0',size=10,after=0)
     def normalize(container):
         for p in container.paragraphs:
             p.paragraph_format.space_before=Pt(0)
-            p.paragraph_format.line_spacing=1
-            if not p.text and not p._element.xpath('.//w:drawing'):
-                p.paragraph_format.space_after=Pt(0)
-                p.paragraph_format.line_spacing=Pt(1)
-                p.add_run('').font.size=Pt(1)
+            p.paragraph_format.space_after=Pt(0)
+            p.paragraph_format.line_spacing=(1 if p._element.xpath('.//w:drawing') else
+                Pt(max([r.font.size.pt if r.font.size else 11 for r in p.runs] or [11])*1.05))
             for r in p.runs:
                 size=r.font.size.pt if r.font.size else 11
                 r.font.name='TH Sarabun New'
