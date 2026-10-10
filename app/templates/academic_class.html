@@ -1,6 +1,15 @@
 {% extends "base.html" %}
 {% block title %}ห้อง {{ class_label }}{% endblock %}
 {% block content %}
+<script>
+    function ntGo(url){
+      var o = {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน · หมู่เลือด · โรคประจำตัว · ที่อยู่ · ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'};
+      try{ if(localStorage.getItem(o.key)==='1'){ window.location=url; return; } }catch(e){}
+      ntShow(o, function(dontRemind){
+        if(dontRemind){ try{ localStorage.setItem(o.key,'1'); }catch(e){} }
+        window.location = url; });
+    }
+</script>
 <div class="hero">
   <div>
     <div class="hero-sub">งานวิชาการ · ห้องเรียน</div>
@@ -143,13 +152,6 @@
     </div>
   </div>
   <script>
-    function ntGo(url){
-      var o = {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน · หมู่เลือด · โรคประจำตัว · ที่อยู่ · ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'};
-      try{ if(localStorage.getItem(o.key)==='1'){ window.location=url; return; } }catch(e){}
-      ntShow(o, function(dontRemind){
-        if(dontRemind){ try{ localStorage.setItem(o.key,'1'); }catch(e){} }
-        window.location = url; });
-    }
     (function(){
       var b = document.getElementById('kdStuBtn');
       if (b) b.addEventListener('click', function(){
