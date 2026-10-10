@@ -5,7 +5,7 @@
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h1 style="margin:0;">บันทึกขอเบิกจ่าย {{ m.memo_no or "" }}</h1>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <a class="btn gray sm" href="/finance/disburse"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
+      <a class="btn gray sm" href="/finance/disburse?year={{ m.fiscal_year }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
       <a class="btn sm" href="/finance/disburse/{{ m.id }}/generate"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลด Word</a>
       {% if (m.wht or 0) > 0 %}
       <a class="btn sm gray" href="/finance/disburse/{{ m.id }}/wht.docx"><svg class="icon"><use href="#ic-file"/></svg> หนังสือรับรองหักภาษี ณ ที่จ่าย (แบบ 4235)</a>
@@ -54,7 +54,7 @@
       <div><label>โครงการ (คุมงบ)</label>
         <select name="project_id">
           <option value="">- ไม่ผูกโครงการ -</option>
-          {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if m.project_id==pj.id }}>{{ pj.name }}</option>{% endfor %}
+          {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if m.project_id==pj.id }}>{{ pj.name }} · ปีแผน {{ pj.plan_year or "ไม่ระบุปี" }}{{ " (ปิดใช้งาน)" if not pj.active else "" }}</option>{% endfor %}
         </select>
       </div>
     </div>

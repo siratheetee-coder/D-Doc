@@ -1,16 +1,18 @@
 {% extends "base.html" %}
 {% block title %}บันทึกขอเบิกจ่าย{% endblock %}
 {% block content %}
+<div class="card"><form method="get" action="/finance/disburse"><label>ปีงบประมาณของบันทึกขอเบิกจ่าย</label><select name="year" onchange="this.form.submit()">{% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}</select><noscript><button class="btn">เลือกปี</button></noscript></form><p class="muted">เลือกปีก่อนกรอกข้อมูล เพื่อแสดงเรื่องจัดซื้อและหมวดเงินของปีนั้น</p></div>
 {% if request.query_params.get('attention') == '1' %}<div class="alert">แสดงบันทึกที่ยังไม่จ่าย ปีงบ {{ fiscal_year }} · <a href="/finance/disburse">ดูทั้งหมด</a></div>{% endif %}
 <div class="card">
   <h1><svg class="icon"><use href="#ic-file"/></svg> ออกบันทึกขออนุมัติเบิกจ่ายเงิน</h1>
   <p class="muted" style="margin-top:0;">กรอกข้อมูลเอง หรือ เลือกดึงข้อมูลจากเรื่องจัดซื้อ/จัดจ้างเพื่อให้ระบบกรอกให้ จากนั้นบันทึกเพื่อออกเอกสาร</p>
   <form method="post" action="/finance/disburse">
+    <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
     <div class="row">
       <div><label>เลขที่บันทึก</label><input name="memo_no" value="{{ prefill.memo_no if prefill and prefill.memo_no else sug_memo }}"></div>
       <div><label>วันที่</label><input name="date" value="{{ be_date(prefill.date) if prefill and prefill.date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       <div style="flex:2;"><label>ดึงข้อมูลจากเรื่องจัดซื้อ/จัดจ้าง (ไม่บังคับ)</label>
-        <select id="procSel" onchange="if(this.value)location.href='/finance/disburse?proc='+this.value;">
+        <select id="procSel" onchange="if(this.value)location.href='/finance/disburse?year={{ fiscal_year }}&proc='+this.value;">
           <option value="">- ไม่ผูกกับเรื่องพัสดุ -</option>
           {% for p in procs %}
           <option value="{{ p.id }}" {{ 'selected' if prefill and prefill.procurement_id==p.id }}>{{ p.order_no or p.memo_no or '-' }} · {{ p.proc_type }}{{ p.subject }}</option>
@@ -43,7 +45,7 @@
       <div><label>โครงการ</label>
         <select name="project_id">
           <option value="">- ไม่ผูกโครงการ -</option>
-          {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if prefill and prefill.project_id==pj.id }}>{{ pj.name }}</option>{% endfor %}
+          {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if prefill and prefill.project_id==pj.id }}>{{ pj.name }} · ปีแผน {{ pj.plan_year or "ไม่ระบุปี" }}{{ " (ปิดใช้งาน)" if not pj.active else "" }}</option>{% endfor %}
         </select>
       </div>
     </div>

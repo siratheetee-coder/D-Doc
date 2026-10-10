@@ -211,7 +211,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       <div><label>โครงการ</label>
         <select name="project_id" title="ผูกรายการนี้กับโครงการในแผน เพื่อคุมงบรายโครงการ">
           <option value="">- ไม่ผูกโครงการ -</option>
-          {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if selected_project==pj.id }}>{{ pj.name }}</option>{% endfor %}
+          {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if selected_project==pj.id }}>{{ pj.name }} · ปีแผน {{ pj.plan_year or "ไม่ระบุปี" }}{{ " (ปิดใช้งาน)" if not pj.active else "" }}</option>{% endfor %}
         </select>
       </div>
     </div>

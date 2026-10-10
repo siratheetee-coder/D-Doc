@@ -86,6 +86,8 @@ def _finance_years(db, fy: int) -> list:
     ys = {r[0] for r in db.query(FinanceTxn.fiscal_year).distinct()}
     ys |= {r[0] for r in db.query(AccountOpening.fiscal_year).distinct()}
     ys |= {r[0] for r in db.query(AccountItem.fiscal_year).distinct()}   # ตั้งงบไว้แต่ยังไม่มีรายการ
+    ys |= {r[0] for r in db.query(DisburseMemo.fiscal_year).distinct()}
+    ys |= {r[0] for r in db.query(Procurement.fiscal_year).distinct()}
     return fiscal_year_options(ys, fy, _YEARS_BACK, _YEARS_AHEAD)
 
 
@@ -501,17 +503,24 @@ def _items_map(db, fy) -> dict:
 
 
 @router.get("/finance/disburse", response_class=HTMLResponse)
-def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | None = None):
-    fy = current_fiscal_year()
+def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | None = None, year: int | None = None):
+    source = db.get(Procurement, proc) if proc else None
+    fy = year or (source.fiscal_year if source else None) or current_fiscal_year()
+    if not 2500 <= fy <= 2800:
+        raise HTTPException(400, 'ปีงบประมาณไม่ถูกต้อง')
     query = db.query(DisburseMemo)
     if request.query_params.get('attention') == '1':
         fy = _to_int(request.query_params.get('year'), fy)
         query = query.filter(DisburseMemo.fiscal_year == fy, DisburseMemo.status.in_(['ร่าง', 'อนุมัติ']))
+    elif year is not None:
+        query = query.filter(DisburseMemo.fiscal_year == fy)
     rows = query.order_by(DisburseMemo.id.desc()).all()
     # prefill จากเรื่องจัดซื้อ/จัดจ้าง (ถ้าระบุ ?proc=<id>)
     prefill = None
     if proc:
-        p = db.get(Procurement, proc)
+        p = source
+        if p and p.fiscal_year != fy:
+            raise HTTPException(400, 'เรื่องจัดซื้อไม่ตรงกับปีงบที่เลือก')
         if p:
             prefill = {
                 "subject": p.subject or "",
@@ -528,11 +537,12 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
             }
     return templates.TemplateResponse("disburse_form.html", {
         "request": request, "rows": rows, "fiscal_year": fy,
+        "years": _finance_years(db, fy),
         "sug_memo": suggest_doc_no(db, "memo", fy),
         "accounts": db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
         "items_map": _items_map(db, fy),
         "procs": db.query(Procurement).filter_by(fiscal_year=fy).order_by(Procurement.id.desc()).all(),
-        "projects": db.query(Project).filter_by(active=True).order_by(Project.name).all(),
+        "projects": _plan_projects(db, fy),
         "prefill": prefill,
     })
 
@@ -574,7 +584,7 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
         "request": request, "m": m, "school": get_school(db),
         "accounts": db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
         "items_map": _items_map(db, m.fiscal_year),
-        "projects": db.query(Project).filter_by(active=True).order_by(Project.name).all(),
+        "projects": _plan_projects(db, m.fiscal_year),
         "proc": db.get(Procurement, m.procurement_id) if m.procurement_id else None,
     })
 
@@ -1687,22 +1697,8 @@ def disburse_register_docx(db: Session = Depends(get_db), year: int | None = Non
 
 
 def _plan_projects(db, year=None):
-    """โครงการให้เลือกตอนลงรับ-จ่าย
-
-    เอาทั้งปีแผนปัจจุบันและปีที่กำลังดูอยู่ เพราะช่วงต้นปีงบ (1 ต.ค.)
-    ปีแผนจะข้ามไปปีใหม่แล้ว แต่ครูยังลงรายการของปีเก่าค้างอยู่
-    """
-    from app.models import Project
-    years = {current_plan_year(get_school(db))}
-    if year:
-        years.add(year)
-        from app.models import PlanBudget
-        start,end=datetime(year-544,10,1),datetime(year-543,9,30)
-        years.update(p.year for p in db.query(PlanBudget).filter(PlanBudget.start_date<=end,PlanBudget.end_date>=start))
-        if getattr(get_school(db),'project_year_mode','budget')=='academic':
-            years.add(year-1)
-    return (db.query(Project).filter(Project.plan_year.in_(years))
-            .order_by(Project.plan_year.desc(), Project.name).all())
+    """Keep historical and closed projects available for late financial entries."""
+    return db.query(Project).order_by(Project.plan_year.desc(), Project.name, Project.id).all()
 
 
 # ---------------- ทะเบียนคุมโครงการ (ผูกกับเงินที่จ่ายจริง) ----------------
