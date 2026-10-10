@@ -83,6 +83,25 @@ def _money_breakdown(doc, lines):
     return table
 
 
+def _disburse_project_name(memo):
+    """Resolve the selected project, then the linked procurement's project."""
+    from sqlalchemy.orm import object_session
+    from app.models import Project, Procurement
+    db = object_session(memo)
+    if db is not None:
+        project = db.get(Project, memo.project_id) if memo.project_id else None
+        if project and (project.name or '').strip():
+            return project.name.strip()
+        procurement = db.get(Procurement, memo.procurement_id) if memo.procurement_id else None
+        if procurement:
+            project = db.get(Project, procurement.project_id) if procurement.project_id else None
+            name = (project.name if project else '') or procurement.project_name
+            if (name or '').strip():
+                return name.strip()
+    # Preserve the previous free-text behavior for unlinked legacy memos.
+    return (memo.note or '').strip()
+
+
 def render_disburse(memo, school) -> str:
     """สร้างไฟล์ .docx บันทึกข้อความขออนุมัติเบิกจ่ายเงินนอกงบประมาณ คืนค่าที่อยู่ไฟล์"""
     doc = Document(); set_a4(doc)
@@ -98,6 +117,7 @@ def render_disburse(memo, school) -> str:
     src = (memo.budget_source or (memo.account.name if memo.account else "") or "เงินอุดหนุน")
     kind = memo.proc_kind or "จัดซื้อ"
     payee = memo.payee or "..............................."
+    project_name = _disburse_project_name(memo)
 
     _p_runs(doc, [("ส่วนราชการ  ", True), (_school_office(school), False)])
     _p_runs(doc, [("ที่  ", True), (memo.memo_no or "", False),
@@ -110,7 +130,7 @@ def render_disburse(memo, school) -> str:
     # ย่อหน้านำ
     _p(doc,
        f"ตามที่{school.name or 'โรงเรียน'} ได้ดำเนินการ{kind}{memo.subject or ''} "
-       f"เพื่อใช้ในโครงการ/กิจกรรม{(' ' + memo.note) if (memo.note or '').strip() else '..............................'} "
+       f"เพื่อใช้ในโครงการ/กิจกรรม{(' ' + project_name) if project_name else '..............................'} "
        f"(รายละเอียดตามที่แนบ) ตามใบส่งสินค้า/ใบกำกับภาษี เลขที่.................. ลงวันที่.................. "
        f"จาก {payee} จำนวนเงิน {_fmt(amount)} บาท ({bahttext(amount)}) "
        f"และในการนี้โรงเรียนขอใช้เงินนอกงบประมาณ ประเภท{src} นั้น",
