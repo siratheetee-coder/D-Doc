@@ -109,10 +109,14 @@ def render_cash_report(school, rows, totals, as_of, doc=None):
         cells = table.add_row().cells
         lvl = row.get("level", 0)
         kind = row.get("kind", "leaf")
-        name = ("    " * lvl) + row["name"]
+        name = row["name"]
         bold = kind in ("group", "sub")
         fill = "DCFCE7" if kind == "group" else ("F1F5F9" if kind == "sub" else None)
         _set_cell(cells[0], name, bold=bold, fill=fill)
+        # Real paragraph indentation survives Word wrapping long Thai names.
+        # Leading spaces can disappear when Word wraps them onto another line.
+        cells[0].paragraphs[0].paragraph_format.left_indent = Cm(0.45 * lvl)
+        cells[0].paragraphs[0].paragraph_format.first_line_indent = Cm(0)
         _set_cell(cells[1], _fmt(row.get("cash")), align="right", bold=bold, fill=fill)
         _set_cell(cells[2], _fmt(row.get("bank")), align="right", bold=bold, fill=fill)
         _set_cell(cells[3], _fmt(row.get("agency")), align="right", bold=bold, fill=fill)
