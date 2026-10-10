@@ -197,6 +197,7 @@
           {% for s in students %}<option value="{{ s.id }}">{{ s.seq or '' }}. {{ s.name }}</option>{% endfor %}
         </select>
         <button class="btn soft" type="button" id="pp6stuBtn"><svg class="icon"><use href="#ic-file"/></svg> ออก ปพ.6 รายคน</button>
+        <button class="btn soft" type="button" onclick="var s=document.getElementById('pp6stu').value;if(s)location.href='/academic/student/'+s+'/pp7'">ใบรับรองผลการเรียน ปพ.7</button>
       </div>
     </div>
     {% endif %}

@@ -1733,6 +1733,15 @@ class AcadStudent(Base):
                         cascade="all, delete-orphan")
 
 
+class AcadCertificate(Base):
+    __tablename__ = 'acad_certificate'
+    id = Column(Integer, primary_key=True)
+    acad_student_id = Column(Integer, ForeignKey('acad_student.id'), nullable=False)
+    number = Column(String, nullable=False, unique=True)
+    payload = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+
+
 class AcadSubject(Base):
     """รายวิชาของระดับชั้นในปีนั้น (ไม่ผูกห้อง - ครูผู้สอนอยู่ที่ AcadTeaching)"""
     __tablename__ = "acad_subject"

@@ -3400,6 +3400,78 @@ def pp6_docx(aid: int, request: Request, db: Session = Depends(get_db)):
     return serve_generated(render_pp6(get_school(db), s, db), _DOCX)
 
 
+@router.get('/academic/student/{aid}/pp7')
+def pp7_page(aid:int,request:Request,start:int|None=None,end:int|None=None,db:Session=Depends(get_db)):
+    from app.services.pp7 import history
+    from app.services.subsidy import fingerprint
+    from app.models import AcadCertificate
+    s=db.get(AcadStudent,aid)
+    if not s:raise HTTPException(404,'ไม่พบนักเรียน')
+    scope=_scope(request,db)
+    if not scope.can_homeroom(s.class_id):return _deny()
+    start=start or s.klass.year;end=end or s.klass.year
+    try:groups,warnings,records=history(db,s,start,end)
+    except ValueError as e:raise HTTPException(400,str(e))
+    if any(not scope.can_homeroom(r.class_id) for r in records):return _deny()
+    central=db.get(Student,s.student_id) if s.student_id else None
+    return templates.TemplateResponse('academic_pp7.html',dict(request=request,s=s,start=start,end=end,groups=groups,warnings=warnings,
+        central=central,school=get_school(db),today=be_date_input(datetime.now()),source_token=fingerprint([groups,warnings]),
+        certificates=db.query(AcadCertificate).filter_by(acad_student_id=aid).order_by(AcadCertificate.id.desc()).all()))
+
+
+@router.post('/academic/student/{aid}/pp7')
+async def pp7_issue(aid:int,request:Request,db:Session=Depends(get_db)):
+    from app.services.pp7 import history
+    from app.services.subsidy import fingerprint
+    from app.models import AcadCertificate
+    from app.thai_utils import thai_date
+    from sqlalchemy.exc import IntegrityError
+    s=db.get(AcadStudent,aid)
+    if not s:raise HTTPException(404,'ไม่พบนักเรียน')
+    scope=_scope(request,db)
+    if not scope.can_homeroom(s.class_id):return _deny()
+    f=await request.form()
+    try:
+        start,end=int(f.get('start')),int(f.get('end'))
+        groups,warnings,records=history(db,s,start,end)
+        if any(not scope.can_homeroom(r.class_id) for r in records):return _deny()
+        if f.get('source_token')!=fingerprint([groups,warnings]):raise ValueError('ผลการเรียนเปลี่ยนแล้ว กรุณาเปิดหน้าตรวจข้อมูลใหม่ก่อนออกใบรับรอง')
+        if not groups:raise ValueError('ยังไม่มีรายวิชาให้ออกใบรับรอง')
+        if warnings and f.get('accept_incomplete')!='1':raise ValueError('ข้อมูลยังไม่ครบ กรุณาตรวจคำเตือนและยืนยันการออกเฉพาะข้อมูลที่มี')
+        number=str(f.get('number','')).strip();registrar=str(f.get('registrar','')).strip()
+        if not number or len(number)>80 or not registrar:raise ValueError('กรอกเลขที่ใบรับรองและนายทะเบียน')
+        issued=parse_be_date(f.get('issued',''));days=int(f.get('valid_days',30))
+        if not issued or not 1<=days<=365:raise ValueError('วันที่หรืออายุใบรับรองไม่ถูกต้อง')
+        school=get_school(db)
+        payload=dict(number=number,school=school.name or '',name=s.name,student_no=s.student_no or '',
+            start=start,end=end,groups=groups,warnings=warnings,class_ids=[r.class_id for r in records],issued=thai_date(issued),valid_days=days,
+            status=f"เป็นนักเรียนชั้น {s.klass.level} ห้อง {s.klass.room or '-'} ปีการศึกษา {s.klass.year}",
+            registrar=registrar,director=school.director_name or '',
+            **{k:str(f.get(k,'')).strip()[:200] for k in ('id_card','birthdate','father','mother')})
+        certificate=AcadCertificate(acad_student_id=aid,number=number,payload=json.dumps(payload,ensure_ascii=False))
+        db.add(certificate);db.commit()
+    except (ValueError,TypeError) as e:
+        db.rollback();raise HTTPException(400,str(e))
+    except IntegrityError:
+        db.rollback();raise HTTPException(409,'เลขที่ใบรับรองนี้มีแล้ว กรุณาใช้เลขใหม่ หรือดาวน์โหลดฉบับเดิมจากทะเบียน')
+    return RedirectResponse(f'/academic/student/{aid}/pp7?start={start}&end={end}&issued=1',303)
+
+
+@router.get('/academic/pp7/{certificate_id}.docx')
+def pp7_download(certificate_id:int,request:Request,db:Session=Depends(get_db)):
+    from app.models import AcadCertificate
+    from app.services.pp7 import render
+    from app.database import get_data_dir
+    c=db.get(AcadCertificate,certificate_id)
+    if not c:raise HTTPException(404,'ไม่พบใบรับรอง')
+    s=db.get(AcadStudent,c.acad_student_id)
+    if not s or not _scope(request,db).can_homeroom(s.class_id):return _deny()
+    payload=json.loads(c.payload)
+    if any(not _scope(request,db).can_homeroom(cid) for cid in payload.get('class_ids',[])):return _deny()
+    out=get_data_dir()/'documents';out.mkdir(exist_ok=True)
+    return serve_generated(render(payload,out/f'pp7_{c.id}.docx'),_DOCX)
+
+
 @router.get("/academic/classes/{cid}/pp6-all.docx")
 def pp6_all_docx(cid: int, request: Request, db: Session = Depends(get_db)):
     from app.services.acad_doc import render_pp6_class
