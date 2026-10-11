@@ -173,3 +173,42 @@ def test_pp5_uses_period_marks_and_removes_orphans(db):
     db.delete(c);db.commit()
     assert db.query(AcadLesson).count()==0
     assert db.query(AcadLessonMark).count()==0
+
+
+def test_batch_calendar_and_grid_atomic_marks(env):
+    import json
+    import app.tenancy as tn
+    tid=next(iter(tn._engines))
+    with tn.session_for(tid) as db:
+        c,subject,student=seed(db)
+        cid,sid,stid=c.id,subject.id,student.id
+    args=dict(cid=cid,sid=sid,term=1,month='2026-05')
+    batch={**args,'dates':json.dumps(['2026-05-18','2026-05-19']),
+           'slots':json.dumps([dict(name='คาบ 2',minutes=40),dict(name='คาบ 1',minutes=50)])}
+    for expected in (4,0):
+        r=env.post('/academic/lessons/batch-add',data=batch)
+        assert r.status_code==200 and f'เพิ่มแล้ว {expected} คาบ' in r.text
+    assert r.text.count('id="lessonConfig"')==1
+    assert r.text.count('class="grid-copy"')==2
+    assert 'colspan="2"' in r.text
+    with tn.session_for(tid) as db:
+        rows=svc.lessons_for(db,cid,sid,1)
+        lids=[row.id for row in rows]
+        assert len(rows)==4
+    invalid=env.post('/academic/lessons/batch-add',data={**batch,'dates':json.dumps(['2026-05-20','2028-05-20'])})
+    assert invalid.status_code==200
+    def save(changes):
+        return env.post('/academic/lessons/grid-marks',data={**args,'changes':json.dumps(changes)})
+    def change(lid,mark,old=''):
+        return dict(lesson_id=lid,student_id=stid,mark=mark,old=old)
+    assert save([change(lids[0],'/'),change(lids[1],'ข')]).status_code==200
+    conflict=save([change(lids[2],'/'),change(lids[0],'ล')])
+    assert 'มีผู้แก้ไขข้อมูลบางช่องแล้ว' in conflict.text
+    assert save([{**change(lids[2],'/'),'student_id':999999}]).status_code==403
+    with tn.session_for(tid) as db:
+        assert len(svc.lessons_for(db,cid,sid,1))==4
+        state=svc.snapshot(db,db.get(AcadClass,cid),db.get(AcadSubject,sid),1)
+        assert state['summary'][stid]=={'/':40,'ข':50,'ป':0,'ล':0,'':90}
+    assert save([change(lids[0],'','/')]).status_code==200
+    june=env.get(f'/academic/lessons?cid={cid}&sid={sid}&term=1&month=2026-06')
+    assert 'เดือนนี้ยังไม่มีวันสอน' in june.text and 'class="grid-mark"' not in june.text

@@ -47,9 +47,27 @@ def legacy_page(request, db, c, subject):
 
 
 def page(request, db, c, subject, term, *, preview=None, token="", error="", entered=None):
+    from datetime import date
+    from itertools import groupby
+    from app.models import AcadPeriod
     from app.routers.academic import _class_label
     from app.thai_utils import parse_be_date, be_date_input
     state = svc.snapshot(db, c, subject, term)
+    months=[f'{c.year-543+(m<5)}-{m:02}' for m in list(range(5,13))+list(range(1,5))]
+    default=date.today().strftime('%Y-%m')
+    if default not in months:default=months[0]
+    month=(entered or {}).get('month') or request.query_params.get('month') or default
+    if month not in months:month=default
+    periods=db.query(AcadPeriod).filter_by(year=c.year,is_break=False).order_by(AcadPeriod.seq).all()
+    import re
+    order={p.name or f'คาบ {p.seq}':p.seq for p in periods}
+    def slot_order(row):
+        number=re.search(r'\d+',row.slot)
+        return (row.date,order.get(row.slot, int(number.group()) if number else 999),row.slot,row.id)
+    grid=sorted((r for r in state['lessons'] if r.date.strftime('%Y-%m')==month),key=slot_order)
+    day_groups=[(d,list(rows)) for d,rows in groupby(grid,key=lambda r:r.date)]
+    slot_choices=[dict(name=p.name or f'คาบ {p.seq}',minutes=svc.period_minutes(p.time_label) or 50) for p in periods]
+    if not slot_choices:slot_choices=[dict(name=f'คาบ {i}',minutes=50) for i in range(1,9)]
     sids = [s.id for s in c.students]
     legacy = bool(sids) and db.query(AcadAttendance).filter(
         AcadAttendance.subject_id == subject.id, AcadAttendance.acad_student_id.in_(sids)).first() is not None
@@ -60,7 +78,8 @@ def page(request, db, c, subject, term, *, preview=None, token="", error="", ent
         format_date=lambda value: be_date_input(parse_be_date(value)),
         class_label=_class_label, hours=svc.hours, states=svc.MARKS, legacy=legacy,
         off_calendar=off_calendar, preview=preview, token=token, error=error,
-        entered=entered or {}, **state))
+        entered=entered or {}, months=months,month=month,grid=grid,day_groups=day_groups,
+        slot_choices=slot_choices,calendar_events=[dict(date=r.date.isoformat(),slot=r.slot) for r in state['lessons']], **state))
 
 
 @router.get("/academic/lessons")
@@ -87,6 +106,45 @@ async def lesson_action(action: str, request: Request, db: Session = Depends(get
             first, second = svc.target_minutes(form.get("term1", "")), svc.target_minutes(form.get("term2", ""))
             plan = svc.plan_for(db, cid, sid, create=True)
             plan.term1_minutes, plan.term2_minutes = first, second
+        elif action == "batch-add":
+            import json
+            dates=json.loads(form.get('dates','[]'));slots=json.loads(form.get('slots','[]'))
+            if not isinstance(dates,list) or not isinstance(slots,list) or not dates or not slots or len(dates)*len(slots)>1000:
+                raise ValueError('เลือกวันและคาบที่จะเพิ่ม ไม่เกิน 1,000 คาบต่อครั้ง')
+            days=sorted({svc.check_date(c,d) for d in dates})
+            choices=[]
+            for slot in slots:
+                if not isinstance(slot,dict):raise ValueError('คาบไม่ถูกต้อง')
+                name=str(slot.get('name','')).strip()
+                if not name or len(name)>80:raise ValueError('กรอกชื่อคาบไม่เกิน 80 ตัวอักษร')
+                choices.append((name,svc.check_minutes(str(slot.get('minutes','')))))
+            added=0
+            for day in days:
+                for name,minutes in choices:added+=svc.add_lesson(db,c,subject,term,day,name,minutes)
+            db.commit()
+            return back(cid,sid,term,imported=added,month=days[0].strftime('%Y-%m'))
+        elif action == "grid-marks":
+            import json
+            changes=json.loads(form.get('changes','[]'))
+            if not isinstance(changes,list) or len(changes)>20000:raise ValueError('ข้อมูลเช็กชื่อไม่ถูกต้อง')
+            student_ids={s.id for s in c.students}
+            allowed={r.id for r in svc.lessons_for(db,cid,sid,term)}
+            pending=[];seen=set()
+            for item in changes:
+                if not isinstance(item,dict):raise ValueError('ข้อมูลเช็กชื่อไม่ถูกต้อง')
+                lid,student_id=int(str(item.get('lesson_id',0))),int(str(item.get('student_id',0)))
+                mark=str(item.get('mark',''));old=str(item.get('old',''))
+                if lid not in allowed or student_id not in student_ids:raise HTTPException(403,'คาบหรือนักเรียนไม่อยู่ในรายวิชาที่เลือก')
+                if (lid,student_id) in seen or (mark and mark not in svc.MARKS):raise ValueError('สถานะเช็กชื่อไม่ถูกต้อง')
+                seen.add((lid,student_id))
+                row=db.query(AcadLessonMark).filter_by(lesson_id=lid,acad_student_id=student_id).first()
+                if (row.mark if row else '')!=old:raise ValueError('มีผู้แก้ไขข้อมูลบางช่องแล้ว กรุณาโหลดหน้าล่าสุดก่อนบันทึก')
+                pending.append((row,lid,student_id,mark))
+            for row,lid,student_id,mark in pending:
+                if not mark:
+                    if row:db.delete(row)
+                elif row:row.mark=mark
+                else:db.add(AcadLessonMark(lesson_id=lid,acad_student_id=student_id,mark=mark))
         elif action == "add":
             day = svc.check_date(c, form.get("date", ""))
             minutes = svc.check_minutes(form.get("minutes", ""))
@@ -141,7 +199,7 @@ async def lesson_action(action: str, request: Request, db: Session = Depends(get
         else:
             raise HTTPException(404)
         db.commit()
-        return back(cid, sid, term, saved=1, **({"lesson": lesson.id} if action == "marks" else {}))
+        return back(cid, sid, term, saved=1, **({"lesson": lesson.id} if action == "marks" else {}), **({'month':form['month']} if form.get('month') else {}))
     except (ValueError, IntegrityError) as exc:
         db.rollback()
         error = str(exc) if isinstance(exc, ValueError) else "มีการบันทึกคาบนี้แล้ว กรุณาตรวจรายการล่าสุดเพื่อไม่ให้ซ้ำ"
