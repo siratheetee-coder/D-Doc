@@ -37,7 +37,7 @@ def test_issue_snapshot_and_download(env):
         _,s=seed(db);aid=s.id
     page=env.get(f'/academic/student/{aid}/pp7?start=2568&end=2569')
     assert page.status_code==200 and 'ภาษาไทย' in page.text
-    form=dict(start=2568,end=2569,number='1/2569',registrar='นายทะเบียนทดสอบ',issued='10/10/2569',valid_days=30)
+    form=dict(start=2568,end=2569,number='1/2569',registrar='นายทะเบียนทดสอบ',issued='10/10/2569',valid_days=30,birthdate='04/12/2546')
     import re
     form['source_token']=re.search('name="source_token" value="([^"]+)"',page.text)[1]
     response=env.post(f'/academic/student/{aid}/pp7',data=form,follow_redirects=False)
@@ -49,6 +49,14 @@ def test_issue_snapshot_and_download(env):
         assert json.loads(c.payload)['groups'][0]['rows'][0]['grade']=='4'
     download=env.get(f'/academic/pp7/{cid}.docx')
     assert download.status_code==200 and download.content[:2]==b'PK'
+    from io import BytesIO
+    from docx import Document
+    document=Document(BytesIO(download.content))
+    assert len(document.inline_shapes)==2  # Garuda and a replaceable photo placeholder.
+    cell_text=' '.join(c.text for t in document.tables for row in t.rows for c in row.cells)
+    assert '4 ธันวาคม 2546' in cell_text
+    assert all(r.bold for r in document.tables[0].cell(0,0).paragraphs[0].runs if r.text)
+    assert all(not r.bold for r in document.tables[0].cell(0,1).paragraphs[0].runs if r.text)
     assert env.post(f'/academic/student/{aid}/pp7',data=form).status_code==400
     fresh=env.get(f'/academic/student/{aid}/pp7?start=2568&end=2569')
     form['source_token']=re.search('name="source_token" value="([^"]+)"',fresh.text)[1]

@@ -60,7 +60,9 @@ def render(payload, output):
     import math
     import unicodedata
     from docx import Document
-    from docx.shared import Cm, Pt
+    from docx.shared import Cm, Pt, RGBColor
+    from pathlib import Path
+    from app.thai_utils import parse_be_date, thai_date
     from docx.enum.table import WD_ROW_HEIGHT_RULE, WD_CELL_VERTICAL_ALIGNMENT
     from docx.oxml import OxmlElement
     from docx.oxml.ns import qn
@@ -99,7 +101,7 @@ def render(payload, output):
         # Separate fixed-width value cells retain a dotted baseline after filling.
         t=table([w for label,value,lw,vw in items for w in (lw,vw)])
         for i,(label,value,lw,vw) in enumerate(items):
-            _set_cell(t.cell(0,i*2),label,size=13)
+            _set_cell(t.cell(0,i*2),label,size=13,bold=True)
             c=t.cell(0,i*2+1);_set_cell(c,str(value or ''),size=13)
             borders(c,bottom='dotted')
         _no_split_row(t.rows[0])
@@ -138,12 +140,21 @@ def render(payload, output):
         _p(doc,'ปพ.7',align='right',size=11,after=0)
         _krut_center(doc,height_cm=1.6)
         _p(doc,'ใบรับรองผลการเรียน',align='center',bold=True,size=18,after=2)
-        _p(doc,f"เลขที่ {payload['number']}",size=13,after=1)
+        number_p=_p(doc,'เลขที่ ',size=13,after=1,bold=True)
+        number_p.add_run(payload['number']).font.size=Pt(13)
         fields([('ขอรับรองว่า',payload['name'],2,10),('เลขประจำตัวนักเรียน',payload['student_no'],3.4,3.2)])
         fields([('เป็นนักเรียนโรงเรียน',payload['school'].removeprefix('โรงเรียน'),3.1,15.5)])
-        fields([('เลขประจำตัวประชาชน',payload['id_card'],3.5,6.5),('เกิดวันที่',payload['birthdate'],1.5,7.1)])
+        birthdate=payload['birthdate']
+        parsed_birthdate=parse_be_date(birthdate)
+        if parsed_birthdate:birthdate=thai_date(parsed_birthdate)
+        fields([('เลขประจำตัวประชาชน',payload['id_card'],3.5,6.5),('เกิดวันที่',birthdate,1.5,7.1)])
         fields([('ชื่อบิดา',payload['father'],1.4,7.9),('ชื่อมารดา',payload['mother'],1.6,7.7)])
-        _p(doc,f"{payload['status']} มีรายวิชาและผลการเรียนช่วงปี {payload['start']}–{payload['end']} ดังนี้",size=12,after=2)
+        status=payload['status']
+        if status.startswith('เป็นนักเรียนชั้น '):status=status.removeprefix('เป็นนักเรียนชั้น ')
+        else:status=status.removeprefix('ปัจจุบันกำลังศึกษาอยู่ ชั้น ')
+        status_p=_p(doc,'ปัจจุบันกำลังศึกษาอยู่ ',size=12,after=2,bold=True)
+        for text,bold in [(f'ชั้น {status} มีรายวิชาและผลการเรียน',False),('ช่วงปีการศึกษา ',True),(f"{payload['start']}–{payload['end']} ดังนี้",False)]:
+            run=status_p.add_run(text);run.bold=bold;run.font.size=Pt(12)
 
         t=table([4.5,.9,.8]*3)
         for col in range(3):
@@ -162,7 +173,8 @@ def render(payload, output):
                 for j,value in enumerate([text,weight,grade]):
                     c=t.cell(pos,col*3+j)
                     if height>1:c=c.merge(t.cell(pos+height-1,col*3+j))
-                    _set_cell(c,value,bold=bold,size=11,align='left' if j==0 else 'center')
+                    alignment=('right' if text=='ผลการเรียนเฉลี่ย' else 'left') if j==0 else 'center'
+                    _set_cell(c,value,bold=bold,size=11,align=alignment)
                     c.vertical_alignment=WD_CELL_VERTICAL_ALIGNMENT.CENTER
                 pos+=height
         if page+3>=len(panels):
@@ -175,8 +187,7 @@ def render(payload, output):
         _p(doc,f"ออกให้ ณ วันที่ {payload['issued']}   ใบรับรองมีอายุ {payload['valid_days']} วันนับแต่วันที่ออก",size=12,after=2)
         footer=table([4,7.3,7.3])
         photo=footer.cell(0,0)
-        _set_cell(photo,'ติดรูปถ่ายนักเรียน\nขนาด 2 นิ้ว\n(4 × 6 ซม.)',align='center',size=11)
-        borders(photo,top='single',bottom='single',left='single',right='single')
+        photo.paragraphs[0].add_run().add_picture(str(Path(__file__).resolve().parents[1]/'static/images/pp7_photo_placeholder.png'),width=Cm(4),height=Cm(6))
         footer.rows[0].height=Cm(6);footer.rows[0].height_rule=WD_ROW_HEIGHT_RULE.AT_LEAST
         _set_cell(footer.cell(0,1),f"ลงชื่อ....................................\n({payload['registrar']})\nนายทะเบียน",align='center',size=13)
         _set_cell(footer.cell(0,2),f"ลงชื่อ....................................\n({payload['director']})\nผู้อำนวยการโรงเรียน",align='center',size=13)
@@ -190,7 +201,11 @@ def render(payload, output):
             for r in p.runs:
                 size=r.font.size.pt if r.font.size else 11
                 r.font.name='TH Sarabun New'
+                r.font.color.rgb=RGBColor(0,0,0)
                 pr=r._element.get_or_add_rPr()
+                cs_bold=pr.find(qn('w:bCs'))
+                if cs_bold is None:cs_bold=OxmlElement('w:bCs');pr.append(cs_bold)
+                cs_bold.set(qn('w:val'),'1' if r.bold else '0')
                 cs=pr.find(qn('w:szCs'))
                 if cs is None:cs=OxmlElement('w:szCs');pr.append(cs)
                 cs.set(qn('w:val'),str(int(size*2)))
