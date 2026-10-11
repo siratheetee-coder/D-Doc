@@ -3451,6 +3451,9 @@ async def pp7_issue(aid:int,request:Request,db:Session=Depends(get_db)):
         issued=parse_be_date(f.get('issued',''));days=int(f.get('valid_days',30))
         if not issued or not 1<=days<=365:raise ValueError('วันที่หรืออายุใบรับรองไม่ถูกต้อง')
         school=get_school(db)
+        from app.services.pp7 import save_term_hours
+        save_term_hours(db,groups,f)
+        groups,warnings,records=history(db,s,start,end,term)
         payload=dict(number=number,school=school.name or '',name=s.name,student_no=s.student_no or '',
             start=start,end=end,term=term,groups=groups,warnings=warnings,class_ids=[r.class_id for r in records],issued=thai_date(issued),valid_days=days,
             status=f"เป็นนักเรียนชั้น {s.klass.level} ห้อง {s.klass.room or '-'} ปีการศึกษา {s.klass.year}",

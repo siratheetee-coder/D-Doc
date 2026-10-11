@@ -104,12 +104,21 @@ def test_primary_can_select_term_without_other_term_or_annual(db):
     groups,warnings,_=history(db,s,2569,2569,1)
     assert not warnings
     assert groups[0]['term']==1 and groups[0]['rows'][0]['grade']=='3.5'
-    assert groups[0]['unit']=='ชั่วโมง/ปี' and groups[0]['rows'][0]['weight']==200
+    assert groups[0]['unit']=='ชั่วโมง' and groups[0]['rows'][0]['weight']==100
     assert history(db,s,2569,2569,2)[0][0]['rows'][0]['grade']==''
     assert history(db,s,2569,2569,0)[0][0]['rows'][0]['grade']==''
     both=history(db,s,2569,2569,3)[0]
     assert [g['term'] for g in both]==[1,2]
     assert [g['rows'][0]['grade'] for g in both]==['3.5','']
+    from app.services.pp7 import save_term_hours
+    h=groups[0]['rows'][0]['term_hours']
+    save_term_hours(db,groups,{'hours1_'+h['key']:'120','hours2_'+h['key']:'80'})
+    db.commit()
+    assert history(db,s,2569,2569,1)[0][0]['rows'][0]['weight']==120
+    assert history(db,s,2569,2569,2)[0][0]['rows'][0]['weight']==80
+    assert history(db,s,2569,2569,0)[0][0]['rows'][0]['weight']==200
+    assert db.get(AcadScore,score.id).grade=='3.5'
+    with pytest.raises(ValueError):save_term_hours(db,groups,{'hours1_'+h['key']:'150','hours2_'+h['key']:'150'})
 
 
 def test_pp7_requires_homeroom_access(env,monkeypatch):
@@ -123,3 +132,23 @@ def test_pp7_requires_homeroom_access(env,monkeypatch):
     assert denied.status_code==303 and denied.headers['location']=='/academic'
     denied=env.post(f'/academic/student/{aid}/pp7',data={},follow_redirects=False)
     assert denied.status_code==303 and denied.headers['location']=='/academic'
+
+
+def test_issue_primary_semester_hours(env):
+    import app.tenancy as tn
+    import re
+    with tn.session_for(next(iter(tn._engines))) as db:
+        _,s=seed(db);aid=s.id
+        score=db.query(AcadScore).filter_by(acad_student_id=aid).one()
+        score.term=1;db.commit()
+        key=f'{s.class_id}_{score.subject_id}'
+    page=env.get(f'/academic/student/{aid}/pp7?term=1')
+    assert f'name="hours1_{key}"' in page.text
+    form=dict(start=2569,end=2569,term=1,number='hours/2569',registrar='นายทะเบียน',issued='11/10/2569',valid_days=30,
+        source_token=re.search('name="source_token" value="([^"]+)"',page.text)[1])
+    form['hours1_'+key]='120';form['hours2_'+key]='80'
+    assert env.post(f'/academic/student/{aid}/pp7',data=form,follow_redirects=False).status_code==303
+    with tn.session_for(next(iter(tn._engines))) as db:
+        payload=json.loads(db.query(AcadCertificate).one().payload)
+        assert payload['groups'][0]['rows'][0]['weight']==120
+        assert payload['groups'][0]['rows'][0]['grade']=='4'

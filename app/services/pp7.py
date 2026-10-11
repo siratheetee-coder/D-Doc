@@ -39,10 +39,21 @@ def history(db, student, start, end, term=0):
                 score=scores.get((sub.id,subject_term))
                 grade=(score.grade or '').strip() if score else ''
                 weight=float((sub.credit if is_secondary(s.klass.level) else sub.hours) or 0)
+                grade_weight=weight
+                term_hours=None
+                if not secondary and term and not sub.term:
+                    from app.services.academic_lessons import plan_for
+                    plan=plan_for(db,s.class_id,sub.id)
+                    annual_minutes=int(weight*60)
+                    m1=getattr(plan,'term1_minutes',None);m2=getattr(plan,'term2_minutes',None)
+                    if m1 is None:m1=max(0,annual_minutes-m2) if m2 is not None else annual_minutes//2
+                    if m2 is None:m2=max(0,annual_minutes-m1)
+                    term_hours=dict(key=f'{s.class_id}_{sub.id}',class_id=s.class_id,subject_id=sub.id,annual=grade_weight,t1=m1/60,t2=m2/60)
+                    weight=(m1 if subject_term==1 else m2)/60
                 if not grade:warnings.append(f'ยังไม่มีผลการเรียน {key[0]} {sub.code} {sub.name}'+(f' เทอม {subject_term}' if subject_term else ' รายปี'))
                 if weight<=0:warnings.append(f'ยังไม่ระบุเวลาเรียน/หน่วยกิต {key[0]} {sub.code} {sub.name}')
-                rows.append(dict(code=sub.code or '',name=sub.name,kind=sub.kind or '',grade=grade,weight=weight,group=sub.learn_group or ''))
-            groups.append(dict(year=key[0],level=key[1],term=subject_term,unit='หน่วยกิต' if secondary else ('ชั่วโมง/ปี' if term else 'ชั่วโมง'),rows=rows))
+                rows.append(dict(code=sub.code or '',name=sub.name,kind=sub.kind or '',grade=grade,weight=weight,grade_weight=grade_weight,term_hours=term_hours,group=sub.learn_group or ''))
+            groups.append(dict(year=key[0],level=key[1],term=subject_term,unit='หน่วยกิต' if secondary else 'ชั่วโมง',rows=rows))
     if not groups:warnings.append('ไม่มีผลการเรียนในช่วงปีที่เลือก')
     return groups,warnings,records
 
@@ -52,10 +63,29 @@ def average(rows):
     for r in rows:
         try:g=float(r['grade'])
         except (ValueError,TypeError):return None
-        if not 0<=g<=4 or r['weight']<=0:return None
-        total+=r['weight'];points+=g*r['weight']
+        weight=r.get('grade_weight',r['weight'])
+        if not 0<=g<=4 or weight<=0:return None
+        total+=weight;points+=g*weight
     from app.services.academic import weighted_avg
-    return weighted_avg([(r['grade'],r['weight']) for r in rows]) if total else None
+    return weighted_avg([(r['grade'],r.get('grade_weight',r['weight'])) for r in rows]) if total else None
+
+
+def save_term_hours(db, groups, form):
+    from app.services.academic_lessons import plan_for, target_minutes
+    seen=set()
+    for g in groups:
+        for r in g['rows']:
+            h=r.get('term_hours')
+            if not h or h['key'] in seen:continue
+            seen.add(h['key'])
+            a=target_minutes(form.get('hours1_'+h['key'],h['t1']))
+            b=target_minutes(form.get('hours2_'+h['key'],h['t2']))
+            if a is None or b is None:raise ValueError(f"กรอกชั่วโมงทั้งสองภาคของวิชา {r['name']}")
+            if h['annual']>0 and a+b!=round(h['annual']*60):
+                raise ValueError(f"ชั่วโมงสองภาคของวิชา {r['name']} ต้องรวมเท่ากับรายปี {h['annual']:g} ชั่วโมง")
+            plan=plan_for(db,h['class_id'],h['subject_id'],create=True)
+            plan.term1_minutes=a;plan.term2_minutes=b
+    db.flush()
 
 
 def render(payload, output):
