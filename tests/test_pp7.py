@@ -87,7 +87,7 @@ def test_secondary_uses_credit_and_separate_terms(db):
     assert all(g['unit']=='หน่วยกิต' and g['rows'][0]['weight']==1.5 for g in groups)
     assert [g['term'] for g in history(db,s,2569,2569,1)[0]]==[1]
     assert [g['term'] for g in history(db,s,2569,2569,2)[0]]==[2]
-    with pytest.raises(ValueError):history(db,s,2569,2569,3)
+    with pytest.raises(ValueError):history(db,s,2569,2569,4)
 
 
 def test_average_does_not_round_up_or_hide_incomplete():
@@ -95,6 +95,21 @@ def test_average_does_not_round_up_or_hide_incomplete():
     assert average(rows)==3.33
     assert average([dict(grade='ร',weight=1)]) is None
     assert average([dict(grade='4',weight=0)]) is None
+
+
+def test_primary_can_select_term_without_other_term_or_annual(db):
+    _,s=seed(db)
+    score=db.query(AcadScore).filter_by(acad_student_id=s.id).one()
+    score.term=1;score.grade='3.5';db.commit()
+    groups,warnings,_=history(db,s,2569,2569,1)
+    assert not warnings
+    assert groups[0]['term']==1 and groups[0]['rows'][0]['grade']=='3.5'
+    assert groups[0]['unit']=='ชั่วโมง/ปี' and groups[0]['rows'][0]['weight']==200
+    assert history(db,s,2569,2569,2)[0][0]['rows'][0]['grade']==''
+    assert history(db,s,2569,2569,0)[0][0]['rows'][0]['grade']==''
+    both=history(db,s,2569,2569,3)[0]
+    assert [g['term'] for g in both]==[1,2]
+    assert [g['rows'][0]['grade'] for g in both]==['3.5','']
 
 
 def test_pp7_requires_homeroom_access(env,monkeypatch):

@@ -6,7 +6,7 @@ from app.thai_utils import is_secondary
 
 
 def history(db, student, start, end, term=0):
-    if term not in (0,1,2):
+    if term not in (0,1,2,3):
         raise ValueError('เลือกทุกภาคเรียน ภาคเรียนที่ 1 หรือภาคเรียนที่ 2')
     if not 2500 <= start <= end <= 2800 or end-start > 12:
         raise ValueError('เลือกช่วงปีการศึกษาไม่เกิน 13 ปี และปีเริ่มต้นไม่เกินปีสิ้นสุด')
@@ -25,22 +25,24 @@ def history(db, student, start, end, term=0):
             raise ValueError(f'พบประวัติห้องซ้ำปี {key[0]} ชั้น {key[1]} กรุณาตรวจทะเบียนก่อนออกเอกสาร')
         seen.add(key)
         subs=db.query(AcadSubject).filter_by(year=s.klass.year,level=s.klass.level).order_by(AcadSubject.term,AcadSubject.kind,AcadSubject.seq,AcadSubject.code).all()
-        if term and is_secondary(s.klass.level):
-            subs=[sub for sub in subs if sub.term==term]
+        secondary=is_secondary(s.klass.level)
+        selected_terms=(1,2) if term==3 else (term,)
+        if term:
+            subs=[sub for sub in subs if sub.term in selected_terms or (not secondary and not sub.term)]
         scores={(x.subject_id,x.term):x for x in db.query(AcadScore).filter_by(acad_student_id=s.id)}
-        terms=sorted({x.term or 0 for x in subs})
+        terms=list(selected_terms) if term and not secondary and subs else sorted({x.term or 0 for x in subs})
         if not subs:warnings.append(f'ยังไม่มีรายวิชาปี {key[0]} ชั้น {key[1]}')
         for subject_term in terms:
             rows=[]
             for sub in subs:
-                if (sub.term or 0)!=subject_term:continue
+                if (sub.term or 0)!=subject_term and not (not secondary and term and not sub.term):continue
                 score=scores.get((sub.id,subject_term))
                 grade=(score.grade or '').strip() if score else ''
                 weight=float((sub.credit if is_secondary(s.klass.level) else sub.hours) or 0)
                 if not grade:warnings.append(f'ยังไม่มีผลการเรียน {key[0]} {sub.code} {sub.name}'+(f' เทอม {subject_term}' if subject_term else ' รายปี'))
                 if weight<=0:warnings.append(f'ยังไม่ระบุเวลาเรียน/หน่วยกิต {key[0]} {sub.code} {sub.name}')
                 rows.append(dict(code=sub.code or '',name=sub.name,kind=sub.kind or '',grade=grade,weight=weight,group=sub.learn_group or ''))
-            groups.append(dict(year=key[0],level=key[1],term=subject_term,unit='หน่วยกิต' if is_secondary(s.klass.level) else 'ชั่วโมง',rows=rows))
+            groups.append(dict(year=key[0],level=key[1],term=subject_term,unit='หน่วยกิต' if secondary else ('ชั่วโมง/ปี' if term else 'ชั่วโมง'),rows=rows))
     if not groups:warnings.append('ไม่มีผลการเรียนในช่วงปีที่เลือก')
     return groups,warnings,records
 
@@ -158,7 +160,8 @@ def render(payload, output):
 
         t=table([4.5,.9,.8]*3)
         for col in range(3):
-            for j,text in enumerate(['รหัส / รายวิชา','ชม./นก.','ผล']):
+            annual_hours=all(g['unit']=='ชั่วโมง/ปี' for g in groups)
+            for j,text in enumerate(['รหัส / รายวิชา','ชม./ปี' if annual_hours else 'ชม./นก.','ผล']):
                 _set_cell(t.cell(0,col*3+j),text,bold=True,size=11,align='center')
                 borders(t.cell(0,col*3+j),top='single',bottom='single',left='single',right='single')
         for i in range(slots):
