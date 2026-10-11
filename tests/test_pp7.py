@@ -67,6 +67,9 @@ def test_secondary_uses_credit_and_separate_terms(db):
     groups,_,_=history(db,s,2569,2569)
     assert [g['term'] for g in groups]==[1,2]
     assert all(g['unit']=='หน่วยกิต' and g['rows'][0]['weight']==1.5 for g in groups)
+    assert [g['term'] for g in history(db,s,2569,2569,1)[0]]==[1]
+    assert [g['term'] for g in history(db,s,2569,2569,2)[0]]==[2]
+    with pytest.raises(ValueError):history(db,s,2569,2569,3)
 
 
 def test_average_does_not_round_up_or_hide_incomplete():

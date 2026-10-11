@@ -2,8 +2,8 @@
 {% block title %}ใบรับรองผลการเรียน ปพ.7{% endblock %}
 {% block content %}
 <div class="card"><h1>ใบรับรองผลการเรียน ปพ.7</h1><p>{{ s.name }} · {{ s.klass.level }}/{{ s.klass.room }} · ปีการศึกษา {{ s.klass.year }}</p><a href="/academic/classes/{{ s.class_id }}">กลับห้องเรียน</a>
-<form method="get"><div class="row"><div><label>ตั้งแต่ปีการศึกษา</label><input type="number" name="start" value="{{ start }}" min="2500" max="2800" required></div><div><label>ถึงปีการศึกษา</label><input type="number" name="end" value="{{ end }}" min="2500" max="2800" required></div></div><button class="btn">ตรวจผลการเรียน</button></form>
-<p class="muted">ประถมใช้ผลรายปีที่บันทึกไว้ มัธยมแยกภาคเรียน ไม่ใช้เกรดภาคเดียวแทนผลรายปี และเชื่อมประวัติด้วยทะเบียนนักเรียนกลาง</p></div>
+<form method="get"><div class="row"><div><label>ตั้งแต่ปีการศึกษา</label><input type="number" name="start" value="{{ start }}" min="2500" max="2800" required></div><div><label>ถึงปีการศึกษา</label><input type="number" name="end" value="{{ end }}" min="2500" max="2800" required></div><div><label for="pp7-term">ภาคเรียน (รายวิชามัธยม)</label><select id="pp7-term" name="term"><option value="0" {{ 'selected' if term==0 else '' }}>ทุกภาคเรียน</option><option value="1" {{ 'selected' if term==1 else '' }}>ภาคเรียนที่ 1</option><option value="2" {{ 'selected' if term==2 else '' }}>ภาคเรียนที่ 2</option></select></div></div><button class="btn">ตรวจผลการเรียน</button></form>
+<p class="muted">ตัวเลือกภาคเรียนใช้กับรายวิชามัธยมในทุกปีที่เลือก ประถมยังใช้ผลรายปีที่บันทึกไว้ ไม่ใช้เกรดภาคเดียวแทนผลรายปี และเชื่อมประวัติด้วยทะเบียนนักเรียนกลาง</p></div>
 <div class="card"><h2>ตรวจข้อมูลก่อนออกใบรับรอง</h2>
 {% if warnings %}<div class="alert warn"><strong>ข้อมูลยังไม่ครบหรือมีจุดที่ต้องตรวจ</strong><ul>{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul></div>{% endif %}
 {% for g in groups %}<h3>ปี {{ g.year }} · {{ g.level }} · {{ 'ภาคเรียน '~g.term if g.term else 'ทั้งปี' }}</h3><div class="table-wrap"><table><thead><tr><th>รหัส</th><th>วิชา</th><th>{{ g.unit }}</th><th>ผลการเรียน</th></tr></thead><tbody>{% for r in g.rows %}<tr><td>{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.weight }}</td><td>{{ r.grade or 'ยังไม่มีข้อมูล' }}</td></tr>{% endfor %}</tbody></table></div>{% endfor %}
@@ -11,11 +11,12 @@
 {% if groups %}<div class="card"><h2>จัดทำใบรับรอง</h2><p>ตรวจข้อมูลให้ถูกต้องก่อนบันทึกฉบับออก โรงเรียนเป็นผู้ลงนามรับรอง เอกสารใช้สถานภาพชั้นเรียนที่เลือก ไม่รับรองการสำเร็จการศึกษาอัตโนมัติ</p>
 <form method="post"><input type="hidden" name="start" value="{{ start }}"><input type="hidden" name="end" value="{{ end }}">
 <input type="hidden" name="source_token" value="{{ source_token }}">
+<input type="hidden" name="term" value="{{ term }}">
 <div class="row"><div><label>เลขที่ใบรับรอง *</label><input name="number" required maxlength="80" placeholder="เช่น 1/2569"></div><div><label>วันที่ออก *</label><input name="issued" value="{{ today }}" data-date="1" required></div><div><label>อายุใบรับรอง (วัน)</label><input name="valid_days" type="number" value="30" min="1" max="365" required></div></div>
 <div class="row"><div><label>เลขประจำตัวประชาชน (ถ้ามี)</label><input name="id_card" value="{{ central.id_card or '' if central else '' }}" maxlength="13"></div><div><label>วันเกิด (พ.ศ.)</label><input name="birthdate" data-date="1" value="{{ be_date(central.birthdate) if central and central.birthdate else '' }}"></div></div>
 <div class="row"><div><label>ชื่อบิดา</label><input name="father" value="{{ central.father_name or '' if central else '' }}"></div><div><label>ชื่อมารดา</label><input name="mother" value="{{ central.mother_name or '' if central else '' }}"></div><div><label>ชื่อผู้ลงนามนายทะเบียน *</label><input name="registrar" required></div></div>
 <p>ผู้อำนวยการ: {{ school.director_name or 'ยังไม่ได้ระบุในตั้งค่าโรงเรียน' }}</p>
-{% if warnings %}<label><input type="checkbox" name="accept_incomplete" value="1" required> ตรวจแล้ว ให้ออกเฉพาะข้อมูลที่มี โดยเว้นผลที่ยังไม่ครบ</label>{% endif %}
+{% if warnings %}<label style="display:flex;align-items:flex-start;gap:10px;padding:14px 16px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;cursor:pointer"><input style="width:18px;height:18px;flex:0 0 18px;margin:3px 0 0;accent-color:#4f46e5" type="checkbox" name="accept_incomplete" value="1" required><span>ตรวจข้อมูลแล้ว ยืนยันออกใบรับรองเฉพาะผลการเรียนที่มี<span style="display:block;font-weight:normal;color:#64748b;margin-top:4px">ผลการเรียนที่ยังไม่มีข้อมูลจะเว้นไว้ในเอกสาร</span></span></label>{% endif %}
 <p><button class="btn" type="submit">บันทึกฉบับออก ปพ.7</button></p></form></div>{% endif %}
 <div class="card"><h2>ใบรับรองที่ออกแล้ว</h2><p class="muted">ฉบับเดิมเก็บข้อมูล ณ วันที่ออก การแก้คะแนนภายหลังไม่เปลี่ยนเอกสารย้อนหลัง</p>{% for c in certificates %}<p>{{ c.number }} · <a class="btn soft" href="/academic/pp7/{{ c.id }}.docx">ดาวน์โหลด Word</a></p>{% else %}<p>ยังไม่มีใบรับรอง</p>{% endfor %}</div>
 {% endblock %}

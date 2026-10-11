@@ -3401,7 +3401,7 @@ def pp6_docx(aid: int, request: Request, db: Session = Depends(get_db)):
 
 
 @router.get('/academic/student/{aid}/pp7')
-def pp7_page(aid:int,request:Request,start:int|None=None,end:int|None=None,db:Session=Depends(get_db)):
+def pp7_page(aid:int,request:Request,start:int|None=None,end:int|None=None,term:int=0,db:Session=Depends(get_db)):
     from app.services.pp7 import history
     from app.services.subsidy import fingerprint
     from app.models import AcadCertificate
@@ -3410,11 +3410,11 @@ def pp7_page(aid:int,request:Request,start:int|None=None,end:int|None=None,db:Se
     scope=_scope(request,db)
     if not scope.can_homeroom(s.class_id):return _deny()
     start=start or s.klass.year;end=end or s.klass.year
-    try:groups,warnings,records=history(db,s,start,end)
+    try:groups,warnings,records=history(db,s,start,end,term)
     except ValueError as e:raise HTTPException(400,str(e))
     if any(not scope.can_homeroom(r.class_id) for r in records):return _deny()
     central=db.get(Student,s.student_id) if s.student_id else None
-    return templates.TemplateResponse('academic_pp7.html',dict(request=request,s=s,start=start,end=end,groups=groups,warnings=warnings,
+    return templates.TemplateResponse('academic_pp7.html',dict(request=request,s=s,start=start,end=end,term=term,groups=groups,warnings=warnings,
         central=central,school=get_school(db),today=be_date_input(datetime.now()),source_token=fingerprint([groups,warnings]),
         certificates=db.query(AcadCertificate).filter_by(acad_student_id=aid).order_by(AcadCertificate.id.desc()).all()))
 
@@ -3433,7 +3433,8 @@ async def pp7_issue(aid:int,request:Request,db:Session=Depends(get_db)):
     f=await request.form()
     try:
         start,end=int(f.get('start')),int(f.get('end'))
-        groups,warnings,records=history(db,s,start,end)
+        term=int(f.get('term',0))
+        groups,warnings,records=history(db,s,start,end,term)
         if any(not scope.can_homeroom(r.class_id) for r in records):return _deny()
         if f.get('source_token')!=fingerprint([groups,warnings]):raise ValueError('ผลการเรียนเปลี่ยนแล้ว กรุณาเปิดหน้าตรวจข้อมูลใหม่ก่อนออกใบรับรอง')
         if not groups:raise ValueError('ยังไม่มีรายวิชาให้ออกใบรับรอง')
@@ -3444,7 +3445,7 @@ async def pp7_issue(aid:int,request:Request,db:Session=Depends(get_db)):
         if not issued or not 1<=days<=365:raise ValueError('วันที่หรืออายุใบรับรองไม่ถูกต้อง')
         school=get_school(db)
         payload=dict(number=number,school=school.name or '',name=s.name,student_no=s.student_no or '',
-            start=start,end=end,groups=groups,warnings=warnings,class_ids=[r.class_id for r in records],issued=thai_date(issued),valid_days=days,
+            start=start,end=end,term=term,groups=groups,warnings=warnings,class_ids=[r.class_id for r in records],issued=thai_date(issued),valid_days=days,
             status=f"เป็นนักเรียนชั้น {s.klass.level} ห้อง {s.klass.room or '-'} ปีการศึกษา {s.klass.year}",
             registrar=registrar,director=school.director_name or '',
             **{k:str(f.get(k,'')).strip()[:200] for k in ('id_card','birthdate','father','mother')})
@@ -3454,7 +3455,7 @@ async def pp7_issue(aid:int,request:Request,db:Session=Depends(get_db)):
         db.rollback();raise HTTPException(400,str(e))
     except IntegrityError:
         db.rollback();raise HTTPException(409,'เลขที่ใบรับรองนี้มีแล้ว กรุณาใช้เลขใหม่ หรือดาวน์โหลดฉบับเดิมจากทะเบียน')
-    return RedirectResponse(f'/academic/student/{aid}/pp7?start={start}&end={end}&issued=1',303)
+    return RedirectResponse(f'/academic/student/{aid}/pp7?start={start}&end={end}&term={term}&issued=1',303)
 
 
 @router.get('/academic/pp7/{certificate_id}.docx')

@@ -5,7 +5,9 @@ from app.models import AcadStudent, AcadClass, AcadSubject, AcadScore, Student
 from app.thai_utils import is_secondary
 
 
-def history(db, student, start, end):
+def history(db, student, start, end, term=0):
+    if term not in (0,1,2):
+        raise ValueError('เลือกทุกภาคเรียน ภาคเรียนที่ 1 หรือภาคเรียนที่ 2')
     if not 2500 <= start <= end <= 2800 or end-start > 12:
         raise ValueError('เลือกช่วงปีการศึกษาไม่เกิน 13 ปี และปีเริ่มต้นไม่เกินปีสิ้นสุด')
     q=db.query(AcadStudent).join(AcadClass).filter(AcadClass.year.between(start,end))
@@ -23,20 +25,22 @@ def history(db, student, start, end):
             raise ValueError(f'พบประวัติห้องซ้ำปี {key[0]} ชั้น {key[1]} กรุณาตรวจทะเบียนก่อนออกเอกสาร')
         seen.add(key)
         subs=db.query(AcadSubject).filter_by(year=s.klass.year,level=s.klass.level).order_by(AcadSubject.term,AcadSubject.kind,AcadSubject.seq,AcadSubject.code).all()
+        if term and is_secondary(s.klass.level):
+            subs=[sub for sub in subs if sub.term==term]
         scores={(x.subject_id,x.term):x for x in db.query(AcadScore).filter_by(acad_student_id=s.id)}
         terms=sorted({x.term or 0 for x in subs})
         if not subs:warnings.append(f'ยังไม่มีรายวิชาปี {key[0]} ชั้น {key[1]}')
-        for term in terms:
+        for subject_term in terms:
             rows=[]
             for sub in subs:
-                if (sub.term or 0)!=term:continue
-                score=scores.get((sub.id,term))
+                if (sub.term or 0)!=subject_term:continue
+                score=scores.get((sub.id,subject_term))
                 grade=(score.grade or '').strip() if score else ''
                 weight=float((sub.credit if is_secondary(s.klass.level) else sub.hours) or 0)
-                if not grade:warnings.append(f'ยังไม่มีผลการเรียน {key[0]} {sub.code} {sub.name}'+(f' เทอม {term}' if term else ' รายปี'))
+                if not grade:warnings.append(f'ยังไม่มีผลการเรียน {key[0]} {sub.code} {sub.name}'+(f' เทอม {subject_term}' if subject_term else ' รายปี'))
                 if weight<=0:warnings.append(f'ยังไม่ระบุเวลาเรียน/หน่วยกิต {key[0]} {sub.code} {sub.name}')
                 rows.append(dict(code=sub.code or '',name=sub.name,kind=sub.kind or '',grade=grade,weight=weight,group=sub.learn_group or ''))
-            groups.append(dict(year=key[0],level=key[1],term=term,unit='หน่วยกิต' if is_secondary(s.klass.level) else 'ชั่วโมง',rows=rows))
+            groups.append(dict(year=key[0],level=key[1],term=subject_term,unit='หน่วยกิต' if is_secondary(s.klass.level) else 'ชั่วโมง',rows=rows))
     if not groups:warnings.append('ไม่มีผลการเรียนในช่วงปีที่เลือก')
     return groups,warnings,records
 
@@ -69,7 +73,7 @@ def render(payload, output):
     sec.left_margin=sec.right_margin=Cm(1.2)
     sec.top_margin=sec.bottom_margin=Cm(0.9)
     groups=payload['groups']
-    slots=38
+    slots=32
 
     def borders(cell, **edges):
         pr=cell._tc.get_or_add_tcPr()
@@ -117,7 +121,8 @@ def render(payload, output):
     for g in groups:
         title=f"ปีการศึกษา {g['year']} ชั้น {g['level']}"+(f" ภาค {g['term']}" if g['term'] else '')
         required=2+sum(span(f"{r['code']} {r['name']}") for r in g['rows'])
-        if used and used+required>slots-2:flush()
+        if used and used+required+1>slots-2:flush()
+        if used:add('')
         add(title,bold=True)
         for r in g['rows']:
             text=f"{r['code']} {r['name']}";height=span(text)
@@ -168,15 +173,14 @@ def render(payload, output):
             _set_cell(t.cell(slots,8),f'{avg:.2f}' if avg is not None else '—',bold=True,size=11,align='center')
             for c in [label,t.cell(slots,8)]:borders(c,top='single',bottom='single')
         _p(doc,f"ออกให้ ณ วันที่ {payload['issued']}   ใบรับรองมีอายุ {payload['valid_days']} วันนับแต่วันที่ออก",size=12,after=2)
-        footer=table([3.5,7.55,7.55])
+        footer=table([4,7.3,7.3])
         photo=footer.cell(0,0)
-        _set_cell(photo,'ติดรูปถ่ายนักเรียน\nขนาด 2 นิ้ว',align='center',size=11)
+        _set_cell(photo,'ติดรูปถ่ายนักเรียน\nขนาด 2 นิ้ว\n(4 × 6 ซม.)',align='center',size=11)
         borders(photo,top='single',bottom='single',left='single',right='single')
-        footer.rows[0].height=Cm(2.1);footer.rows[0].height_rule=WD_ROW_HEIGHT_RULE.AT_LEAST
+        footer.rows[0].height=Cm(6);footer.rows[0].height_rule=WD_ROW_HEIGHT_RULE.AT_LEAST
         _set_cell(footer.cell(0,1),f"ลงชื่อ....................................\n({payload['registrar']})\nนายทะเบียน",align='center',size=13)
         _set_cell(footer.cell(0,2),f"ลงชื่อ....................................\n({payload['director']})\nผู้อำนวยการโรงเรียน",align='center',size=13)
         for c in footer.rows[0].cells:c.vertical_alignment=WD_CELL_VERTICAL_ALIGNMENT.CENTER
-        if payload['warnings']:_p(doc,'ช่อง — หมายถึงข้อมูลยังไม่ครบหรือไม่สามารถคำนวณค่าเฉลี่ยได้ ไม่ใช่ผลการเรียน 0',size=10,after=0)
     def normalize(container):
         for p in container.paragraphs:
             p.paragraph_format.space_before=Pt(0)
