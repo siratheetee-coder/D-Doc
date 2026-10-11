@@ -75,7 +75,7 @@ def render(payload, output):
     sec.left_margin=sec.right_margin=Cm(1.2)
     sec.top_margin=sec.bottom_margin=Cm(0.9)
     groups=payload['groups']
-    slots=32
+    slots=31
 
     def borders(cell, **edges):
         pr=cell._tc.get_or_add_tcPr()
@@ -185,13 +185,31 @@ def render(payload, output):
             _set_cell(t.cell(slots,8),f'{avg:.2f}' if avg is not None else '—',bold=True,size=11,align='center')
             for c in [label,t.cell(slots,8)]:borders(c,top='single',bottom='single')
         _p(doc,f"ออกให้ ณ วันที่ {payload['issued']}   ใบรับรองมีอายุ {payload['valid_days']} วันนับแต่วันที่ออก",size=12,after=2)
+        for _ in range(2):_p(doc,'',size=12,after=0)
         footer=table([4,7.3,7.3])
         photo=footer.cell(0,0)
-        photo.paragraphs[0].add_run().add_picture(str(Path(__file__).resolve().parents[1]/'static/images/pp7_photo_placeholder.png'),width=Cm(4),height=Cm(6))
+        picture=photo.paragraphs[0].add_run().add_picture(str(Path(__file__).resolve().parents[1]/'static/images/pp7_photo_placeholder.png'),width=Cm(4),height=Cm(6))
+        inline=picture._inline
+        anchor=OxmlElement('wp:anchor')
+        for key,value in dict(distT='0',distB='0',distL='0',distR='0',simplePos='0',relativeHeight='251658240',behindDoc='0',locked='0',layoutInCell='1',allowOverlap='1').items():anchor.set(key,value)
+        simple=OxmlElement('wp:simplePos');simple.set('x','0');simple.set('y','0');anchor.append(simple)
+        for axis,relative in [('H','column'),('V','paragraph')]:
+            position=OxmlElement('wp:position'+axis);position.set('relativeFrom',relative)
+            offset=OxmlElement('wp:posOffset');offset.text='0';position.append(offset);anchor.append(position)
+        for name in ['wp:extent','wp:effectExtent']:
+            el=inline.find(qn(name))
+            if el is not None:anchor.append(el)
+        anchor.append(OxmlElement('wp:wrapNone'))
+        for name in ['wp:docPr','wp:cNvGraphicFramePr','a:graphic']:
+            el=inline.find(qn(name))
+            if el is not None:anchor.append(el)
+        inline.getparent().replace(inline,anchor)
         footer.rows[0].height=Cm(6);footer.rows[0].height_rule=WD_ROW_HEIGHT_RULE.AT_LEAST
         _set_cell(footer.cell(0,1),f"ลงชื่อ....................................\n({payload['registrar']})\nนายทะเบียน",align='center',size=13)
         _set_cell(footer.cell(0,2),f"ลงชื่อ....................................\n({payload['director']})\nผู้อำนวยการโรงเรียน",align='center',size=13)
         for c in footer.rows[0].cells:c.vertical_alignment=WD_CELL_VERTICAL_ALIGNMENT.CENTER
+        photo.vertical_alignment=WD_CELL_VERTICAL_ALIGNMENT.TOP
+        _no_split_row(footer.rows[0])
     def normalize(container):
         for p in container.paragraphs:
             p.paragraph_format.space_before=Pt(0)

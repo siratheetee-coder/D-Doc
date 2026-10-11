@@ -3431,9 +3431,16 @@ async def pp7_issue(aid:int,request:Request,db:Session=Depends(get_db)):
     scope=_scope(request,db)
     if not scope.can_homeroom(s.class_id):return _deny()
     f=await request.form()
+    def pp7_warning(message):
+        page=pp7_page(aid,request,locals_start,locals_end,locals_term,db)
+        if not hasattr(page,'context'):return page
+        page.context.update(form_values=dict(f),form_warning=message)
+        return templates.TemplateResponse('academic_pp7.html',page.context)
+    locals_start=s.klass.year;locals_end=s.klass.year;locals_term=0
     try:
         start,end=int(f.get('start')),int(f.get('end'))
         term=int(f.get('term',0))
+        locals_start,locals_end,locals_term=start,end,term
         groups,warnings,records=history(db,s,start,end,term)
         if any(not scope.can_homeroom(r.class_id) for r in records):return _deny()
         if f.get('source_token')!=fingerprint([groups,warnings]):raise ValueError('ผลการเรียนเปลี่ยนแล้ว กรุณาเปิดหน้าตรวจข้อมูลใหม่ก่อนออกใบรับรอง')
@@ -3452,9 +3459,9 @@ async def pp7_issue(aid:int,request:Request,db:Session=Depends(get_db)):
         certificate=AcadCertificate(acad_student_id=aid,number=number,payload=json.dumps(payload,ensure_ascii=False))
         db.add(certificate);db.commit()
     except (ValueError,TypeError) as e:
-        db.rollback();raise HTTPException(400,str(e))
+        db.rollback();return pp7_warning(str(e))
     except IntegrityError:
-        db.rollback();raise HTTPException(409,'เลขที่ใบรับรองนี้มีแล้ว กรุณาใช้เลขใหม่ หรือดาวน์โหลดฉบับเดิมจากทะเบียน')
+        db.rollback();return pp7_warning('เลขที่ใบรับรองนี้มีแล้ว กรุณาใช้เลขใหม่ หรือดาวน์โหลดฉบับเดิมจากประวัติด้านล่าง')
     return RedirectResponse(f'/academic/student/{aid}/pp7?start={start}&end={end}&term={term}&issued=1',303)
 
 
@@ -3471,6 +3478,23 @@ def pp7_download(certificate_id:int,request:Request,db:Session=Depends(get_db)):
     if any(not _scope(request,db).can_homeroom(cid) for cid in payload.get('class_ids',[])):return _deny()
     out=get_data_dir()/'documents';out.mkdir(exist_ok=True)
     return serve_generated(render(payload,out/f'pp7_{c.id}.docx'),_DOCX)
+
+
+@router.post('/academic/pp7/{certificate_id}/delete')
+def pp7_delete(certificate_id:int,request:Request,db:Session=Depends(get_db)):
+    from app.models import AcadCertificate
+    from app.database import get_data_dir
+    c=db.get(AcadCertificate,certificate_id)
+    if not c:raise HTTPException(404,'ไม่พบใบรับรอง')
+    s=db.get(AcadStudent,c.acad_student_id)
+    scope=_scope(request,db)
+    if not s or not scope.can_homeroom(s.class_id):return _deny()
+    payload=json.loads(c.payload)
+    if any(not scope.can_homeroom(cid) for cid in payload.get('class_ids',[])):return _deny()
+    aid=s.id
+    (get_data_dir()/'documents'/f'pp7_{c.id}.docx').unlink(missing_ok=True)
+    db.delete(c);db.commit()
+    return RedirectResponse(f'/academic/student/{aid}/pp7?deleted=1',303)
 
 
 @router.get("/academic/classes/{cid}/pp6-all.docx")

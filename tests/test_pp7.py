@@ -52,16 +52,26 @@ def test_issue_snapshot_and_download(env):
     from io import BytesIO
     from docx import Document
     document=Document(BytesIO(download.content))
-    assert len(document.inline_shapes)==2  # Garuda and a replaceable photo placeholder.
+    assert len(document.inline_shapes)==1  # Garuda; the photo floats in front of text.
+    assert document._element.xpath('.//wp:anchor[@behindDoc="0"]')
     cell_text=' '.join(c.text for t in document.tables for row in t.rows for c in row.cells)
     assert '4 ธันวาคม 2546' in cell_text
     assert all(r.bold for r in document.tables[0].cell(0,0).paragraphs[0].runs if r.text)
     assert all(not r.bold for r in document.tables[0].cell(0,1).paragraphs[0].runs if r.text)
-    assert env.post(f'/academic/student/{aid}/pp7',data=form).status_code==400
+    changed=env.post(f'/academic/student/{aid}/pp7',data=form)
+    assert changed.status_code==200 and 'ผลการเรียนเปลี่ยนแล้ว' in changed.text
     fresh=env.get(f'/academic/student/{aid}/pp7?start=2568&end=2569')
     form['source_token']=re.search('name="source_token" value="([^"]+)"',fresh.text)[1]
-    assert env.post(f'/academic/student/{aid}/pp7',data=form).status_code==409
+    duplicate=env.post(f'/academic/student/{aid}/pp7',data=form)
+    assert duplicate.status_code==200 and 'เลขที่ใบรับรองนี้มีแล้ว' in duplicate.text
+    assert 'value="นายทะเบียนทดสอบ"' in duplicate.text
+    assert 'value="04/12/2546"' in duplicate.text
     assert env.get(f'/academic/student/{aid}/pp7?start=2570&end=2568').status_code==400
+    assert env.post(f'/academic/pp7/{cid}/delete',follow_redirects=False).status_code==303
+    assert env.get(f'/academic/pp7/{cid}.docx').status_code==404
+    with tn.session_for(tid) as db:
+        assert db.query(AcadCertificate).count()==0
+        assert db.query(AcadScore).count()==2
 
 
 def test_secondary_uses_credit_and_separate_terms(db):
