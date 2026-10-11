@@ -30,10 +30,24 @@
 {% if warnings %}<label style="display:flex;align-items:flex-start;gap:10px;padding:14px 16px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;cursor:pointer"><input style="width:18px;height:18px;flex:0 0 18px;margin:3px 0 0;accent-color:#4f46e5" type="checkbox" name="accept_incomplete" value="1" {{ "checked" if values.get("accept_incomplete")=="1" else "" }} required><span>ตรวจข้อมูลแล้ว ยืนยันออกใบรับรองเฉพาะผลการเรียนที่มี<span style="display:block;font-weight:normal;color:#64748b;margin-top:4px">ผลการเรียนที่ยังไม่มีข้อมูลจะเว้นไว้ในเอกสาร</span></span></label>{% endif %}
 <p><button class="btn" type="submit">บันทึกฉบับออก ปพ.7</button></p></form></div>{% endif %}
 <div class="card"><h2>ใบรับรองที่ออกแล้ว</h2><p class="muted">ฉบับเดิมเก็บข้อมูล ณ วันที่ออก การแก้คะแนนภายหลังไม่เปลี่ยนเอกสารย้อนหลัง</p>{% for c in certificates %}<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0"><strong>{{ c.number }}</strong><a class="btn soft" href="/academic/pp7/{{ c.id }}.docx">ดาวน์โหลด Word</a><form method="post" action="/academic/pp7/{{ c.id }}/delete" onsubmit="return confirm('ลบประวัติใบรับรองฉบับนี้? ไฟล์ที่ดาวน์โหลดไปแล้วและข้อมูลผลการเรียนจะไม่ถูกลบ')"><button type="submit" class="btn soft" style="color:#dc2626">ลบประวัติ</button></form></div>{% else %}<p>ยังไม่มีใบรับรอง</p>{% endfor %}</div>
-<dialog id="pp7-privacy" aria-labelledby="pp7-privacy-title" style="max-width:520px;width:calc(100% - 40px);border:0;border-radius:16px;padding:24px;box-shadow:0 16px 48px #0003">
-<h2 id="pp7-privacy-title">การเก็บข้อมูลในใบรับรอง</h2><p>ข้อมูลที่กรอก เช่น เลขประจำตัวประชาชน วันเกิด และชื่อบิดามารดา จะเก็บไว้ในฉบับที่ออก เพื่อให้ดาวน์โหลดซ้ำได้</p><p>ระบบจะไม่บันทึกค่าที่กรอกในหน้านี้กลับทะเบียนนักเรียนหรือจำไปเติมใบรับรองฉบับใหม่ หากทะเบียนนักเรียนยังไม่มีข้อมูล คุณอาจต้องกรอกใหม่ในครั้งถัดไป</p><div style="display:flex;gap:10px;justify-content:flex-end"><button type="button" class="btn soft" id="pp7-privacy-cancel">กลับไปตรวจ</button><button type="button" class="btn" id="pp7-privacy-continue">รับทราบและออกใบรับรอง</button></div></dialog>
 <script>
 document.querySelectorAll('[data-hours-name]').forEach(cell=>{const input=document.querySelector('[name="'+cell.dataset.hoursName+'"]');if(input){const update=()=>cell.textContent=input.value;input.addEventListener('input',update);update();}});
-(()=>{const form=document.getElementById('pp7-issue'),dialog=document.getElementById('pp7-privacy');if(!form)return;let confirmed=false;form.addEventListener('submit',event=>{if(confirmed)return;event.preventDefault();dialog.showModal();});document.getElementById('pp7-privacy-cancel').onclick=()=>dialog.close();document.getElementById('pp7-privacy-continue').onclick=()=>{confirmed=true;dialog.close();form.requestSubmit();};})();
+(()=>{
+  const form=document.getElementById('pp7-issue');
+  if(!form)return;
+  let confirmed=false;
+  form.addEventListener('submit',event=>{
+    if(confirmed)return;
+    event.preventDefault();
+    ntShow({
+      title:'การเก็บข้อมูลที่อ่อนไหว',
+      msg:'ข้อมูลที่อ่อนไหว เช่น เลขประจำตัวประชาชน วันเกิด และชื่อบิดามารดา จะเก็บไว้เฉพาะในใบรับรองฉบับนี้ เพื่อให้ดาวน์โหลดซ้ำได้',
+      detail:'ระบบจะไม่นำข้อมูลที่กรอกครั้งนี้ไปเติมในใบรับรองฉบับใหม่โดยอัตโนมัติ คุณอาจต้องกรอกข้อมูลเหล่านี้อีกครั้งเมื่อออกฉบับใหม่',
+      cancel:'กลับไปแก้ไข',
+      ok:'รับทราบและออกใบรับรอง',
+      always:true
+    },()=>{confirmed=true;form.requestSubmit();});
+  });
+})();
 </script>
 {% endblock %}

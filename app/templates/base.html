@@ -1213,7 +1213,7 @@
         <div class="nt-foot">
           <label class="nt-chk" id="ntNoWrap"><input type="checkbox" id="ntNo"> ไม่ต้องเตือนฉันอีก</label>
           <span style="display:flex; gap:8px;">
-            <button type="button" class="btn gray sm" onclick="ntClose()">ยกเลิก</button>
+            <button type="button" class="btn gray sm" id="ntCancel" onclick="ntClose()">ยกเลิก</button>
             <button type="button" class="btn sm" id="ntOk">รับทราบ</button>
           </span>
         </div>
@@ -1281,6 +1281,7 @@
       var d=document.getElementById('ntDetail');
       d.textContent = o.detail || ''; d.hidden = !o.detail;     // ไม่มีรายการย่อย = ไม่ขึ้นกรอบ
       document.getElementById('ntOk').textContent = o.ok || 'รับทราบ';
+      document.getElementById('ntCancel').textContent = o.cancel || 'ยกเลิก';
       document.getElementById('ntNo').checked = false;
       // การกระทำที่ย้อนยากไม่ควรให้ปิดคำเตือนถาวร -> ซ่อนช่อง "ไม่ต้องเตือนฉันอีก"
       document.getElementById('ntNoWrap').hidden = !!o.always;
