@@ -100,3 +100,81 @@ def project_sources(db, project_id, fy) -> list:
         else:
             add(acc, None, USED_BEFORE)
     return out
+
+
+def item_allocations(db, item_rows, txn_project) -> dict:
+    """หมวดในทะเบียนคุมเงินจัดสรรให้โครงการไหนบ้าง (ระยะ 2 ฝั่งการเงิน)
+
+    item_rows   แถวหมวดของหน้าทะเบียนคุมเงิน {it, level, remain, ...} หมวดแม่มาก่อนลูกเสมอ
+    txn_project {txn_id: Project} ของรายการจ่ายในปีงบนี้ (ได้จาก _txn_projects)
+
+    คืน {item_id: {...}} เฉพาะหมวดที่มีการจัดสรร หมวดแม่รวมยอดของลูก
+      paid      จ่ายแล้วทั้งหมดของหมวด (ทั้งที่ผูกโครงการและไม่ผูก)
+      waiting   รอใช้ในโครงการ = ส่วนที่จัดสรรให้โครงการไว้แต่โครงการยังไม่ได้จ่ายจากหมวดนี้
+      free      ยังไม่จัดสรรให้โครงการ = เงินคงเหลือจริง - รอใช้ในโครงการ (ติดลบ = จัดสรรเกิน)
+      projects  [{project, allocated, used}] เรียงยอดจัดสรรมากไปน้อย
+
+    นับ "โครงการใช้ไปจากหมวดนี้" ไม่เกินยอดที่จัดสรรให้ เพราะส่วนที่จ่ายเกินจัดสรรเป็นเงินของหมวด
+    ที่โครงการเอาไปใช้เพิ่ม ไม่ได้ทำให้ยอดรอใช้ของโครงการอื่นลดลง
+    """
+    if PlanFunding is None or not item_rows:
+        return {}
+    ids = [r["it"].id for r in item_rows]
+    rows = (db.query(PlanFunding.account_item_id, ProjectFunding.project_id, ProjectFunding.amount)
+            .join(ProjectFunding, ProjectFunding.funding_id == PlanFunding.id)
+            .filter(PlanFunding.account_item_id.in_(ids), ProjectFunding.amount > 0).all())
+    if not rows:
+        return {}
+    alloc = {}                                     # {item_id: {project_id: amount}}
+    for item_id, pid, amt in rows:
+        alloc.setdefault(item_id, {})
+        alloc[item_id][pid] = round(alloc[item_id].get(pid, 0) + (amt or 0), 2)
+
+    from app.models import Project
+    pids = {pid for per in alloc.values() for pid in per}
+    projects = {p.id: p for p in db.query(Project).filter(Project.id.in_(pids))}
+
+    own = {}
+    for r in item_rows:
+        it = r["it"]
+        per = alloc.get(it.id, {})
+        spent_by = {}                              # {project_id: จ่ายจากหมวดนี้}
+        for t in it.account.txns:
+            if t.item_id != it.id or t.kind != "out" or t.fiscal_year != it.fiscal_year:
+                continue
+            pj = txn_project.get(t.id)
+            if pj is not None and pj.id in per:
+                spent_by[pj.id] = spent_by.get(pj.id, 0) + (t.amount or 0)
+        plist = [{"project": projects[pid], "allocated": amt,
+                  "used": round(min(spent_by.get(pid, 0), amt), 2)}
+                 for pid, amt in per.items() if pid in projects]
+        own[it.id] = plist
+
+    out, parent_of = {}, {}
+    current = None
+    for r in item_rows:
+        if r["level"] == 0:
+            current = r["it"].id
+        else:
+            parent_of[r["it"].id] = current
+    for r in item_rows:
+        it = r["it"]
+        plist = list(own.get(it.id, []))
+        if r["level"] == 0:
+            for kid, par in parent_of.items():
+                if par == it.id:
+                    plist += own.get(kid, [])
+        if not plist:
+            continue
+        merged = {}
+        for p in plist:
+            m = merged.setdefault(p["project"].id, {"project": p["project"], "allocated": 0, "used": 0})
+            m["allocated"] = round(m["allocated"] + p["allocated"], 2)
+            m["used"] = round(m["used"] + p["used"], 2)
+        plist = sorted(merged.values(), key=lambda x: -x["allocated"])
+        waiting = round(sum(p["allocated"] - p["used"] for p in plist), 2)
+        remain = round(r["remain"], 2)
+        out[it.id] = {"paid": round(r["tout"], 2), "remain": remain, "waiting": waiting,
+                      "free": round(remain - waiting, 2), "projects": plist,
+                      "allocated": round(sum(p["allocated"] for p in plist), 2)}
+    return out
