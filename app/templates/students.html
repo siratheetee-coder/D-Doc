@@ -19,6 +19,8 @@
 {% if request.query_params.get('added') %}<div class="alert">✔ นำเข้านักเรียนแล้ว {{ request.query_params.get('added') }} คน</div>{% endif %}
 {% if request.query_params.get('promoted') %}<div class="alert">✔ เลื่อนชั้นแล้ว {{ request.query_params.get('promoted') }} คน (ชั้นสูงสุดถูกตั้งเป็น "จบการศึกษา")</div>{% endif %}
 {% if request.query_params.get('removed') %}<div class="alert">✔ ลบนักเรียนที่จบการศึกษาแล้ว {{ request.query_params.get('removed') }} คน</div>{% endif %}
+{% if request.query_params.get('deleted') %}<div class="alert">✔ ลบจากทะเบียนนักเรียนกลางแล้ว {{ request.query_params.get('deleted') }} คน</div>{% endif %}
+{% if request.query_params.get('delete_error') %}<div class="alert warn">ยังไม่ได้ลบข้อมูล กรุณาเลือกนักเรียนจากรายชื่อล่าสุดและยืนยันอีกครั้ง</div>{% endif %}
 {% if request.query_params.get('err') %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> อ่านไฟล์ Excel ไม่สำเร็จ ตรวจรูปแบบตามแบบฟอร์ม</div>{% endif %}
 
 <div class="card" style="background:#f0f9ff; border:1px solid #bae6fd;">
@@ -65,14 +67,20 @@
   {% if rows %}
   <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:12px 14px; margin:0 0 10px;
               background:#f4f7ff; border:1px solid #dbe6ff; border-radius:10px;">
-    <span style="font-weight:600;">ติ๊กเลือกนักเรียนหลายคน แล้วตั้งระดับชั้น/ห้อง ตรงนี้ได้เลย</span>
+    <span style="font-weight:600;">ติ๊กเลือกนักเรียน เพื่อตั้งชั้น/ห้อง หรือลบที่เลือก</span>
     <label style="display:flex; align-items:center; gap:6px; font-size:13.5px; margin:0;">ระดับชั้น
       <input id="bsLevel" list="lvlist" style="width:100px;"></label>
     <label style="display:flex; align-items:center; gap:6px; font-size:13.5px; margin:0;">ห้อง
       <input id="bsRoom" style="width:80px;"></label>
     <button class="btn sm" type="button" onclick="bulkSet(this)">ตั้งให้ที่เลือก (<span id="bsCount">0</span> คน)</button>
+    <button class="btn sm" type="button" id="bulkDeleteButton" style="background:#dc2626;color:white" disabled onclick="bulkDelete()">ลบที่เลือก (<span id="deleteCount">0</span> คน)</button>
     <span class="muted" style="flex-basis:100%; font-size:12.5px; margin:0;">คลิกได้ทั้งช่องแรกของแถว (พื้นที่กดใหญ่ขึ้น) · กด Shift ค้างแล้วคลิกเพื่อเลือกทีละช่วง (เช่น เลือกทั้งห้อง)</span>
   </div>
+  <form id="bulkDeleteForm" method="post" action="/students/bulk-delete"><input type="hidden" name="ids" id="deleteIds"><input type="hidden" name="confirmed" value="yes"></form>
+  <label>แสดงชั้น/ห้อง
+    <select id="rosterFilter" onchange="filterRoster()"><option value="">ทุกชั้น/ห้อง</option>{% for g in groups %}<option value="{{ loop.index0 }}">{{ g.level or 'ไม่ระบุชั้น' }}{{ (' ห้อง ' ~ g.room) if g.room else '' }}</option>{% endfor %}</select>
+  </label>
+  <p class="muted">เลือกทั้งหมดจะเลือกเฉพาะรายชื่อที่แสดง · เมื่อเปลี่ยนตัวกรอง ระบบจะล้างรายการที่เลือก</p>
   <style>
     /* ช่องติ๊กใหญ่ กดง่าย: ทั้งเซลล์เป็นพื้นที่กด + checkbox ใหญ่ขึ้น */
     .pickcol { padding:0 !important; width:46px; text-align:center; }
@@ -99,7 +107,7 @@
     <tbody>
     {% for g in groups %}
       {% set gi = loop.index0 %}
-      <tr class="grouphdr"><td colspan="8">
+      <tr class="grouphdr" data-group="{{ gi }}"><td colspan="8">
         <div class="gh">
           <input type="checkbox" onclick="toggleGroup(this, {{ gi }})" title="เลือกทั้งกลุ่มนี้">
           <span>{{ ('ชั้น ' ~ g.level) if g.level else 'ไม่ระบุชั้น' }}{{ (' ห้อง ' ~ g.room) if g.room else '' }}</span>
@@ -107,7 +115,7 @@
         </div>
       </td></tr>
       {% for s in g.students %}
-      <tr data-sid="{{ s.id }}">
+      <tr data-sid="{{ s.id }}" data-group="{{ gi }}">
         <td class="pickcol"><label class="pickbox"><input type="checkbox" class="bs-pick" data-g="{{ gi }}" value="{{ s.id }}" onchange="updateCount()"></label></td>
         <td><input name="student_no" value="{{ s.student_no }}" style="width:90px;"></td>
         <td><input name="name" value="{{ s.name }}"></td>
@@ -171,9 +179,14 @@
   function updateCount(){
     var n = document.querySelectorAll('.bs-pick:checked').length;
     var el = document.getElementById('bsCount'); if(el) el.textContent = n;
+    var count = document.getElementById('deleteCount'); if(count) count.textContent = n;
+    var button = document.getElementById('bulkDeleteButton'); if(button) button.disabled = !n;
+    var visible = Array.from(document.querySelectorAll('.bs-pick')).filter(c=>!c.closest('tr').hidden);
+    var all = document.getElementById('bsAll');
+    if(all){all.checked=visible.length>0&&visible.every(c=>c.checked);all.indeterminate=visible.some(c=>c.checked)&&!all.checked;}
   }
   function toggleAll(box){
-    document.querySelectorAll('.bs-pick').forEach(function(c){ c.checked = box.checked; });
+    document.querySelectorAll('.bs-pick').forEach(function(c){ if(!c.closest('tr').hidden)c.checked = box.checked; });
     updateCount();
   }
   // เลือก/ยกเลิกทั้งกลุ่มชั้น/ห้อง จากหัวกลุ่ม
@@ -189,7 +202,7 @@
       cb.addEventListener('click', function(e){
         if(e.shiftKey && last > -1){
           var a = Math.min(last, i), b = Math.max(last, i);
-          for(var k = a; k <= b; k++){ picks[k].checked = cb.checked; }
+          for(var k = a; k <= b; k++){ if(!picks[k].closest('tr').hidden)picks[k].checked = cb.checked; }
           updateCount();
         }
         last = i;
@@ -209,6 +222,23 @@
       method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:d
     }).then(function(){ location.href = '/students?bulkset=' + ids.length; })
       .catch(function(){ btn.disabled=false; alert('ตั้งค่าไม่สำเร็จ ลองใหม่'); });
+  }
+  function filterRoster(){
+    var group=document.getElementById('rosterFilter').value;
+    document.querySelectorAll('tr[data-group]').forEach(tr=>tr.hidden=group!==''&&tr.dataset.group!==group);
+    document.querySelectorAll('.bs-pick,.grouphdr input[type=checkbox]').forEach(c=>c.checked=false);
+    updateCount();
+  }
+  function bulkDelete(){
+    var picks=Array.from(document.querySelectorAll('.bs-pick:checked')).filter(c=>!c.closest('tr').hidden);
+    if(!picks.length)return;
+    var groups={};
+    picks.forEach(c=>{var title=document.querySelector('#rosterFilter option[value="'+c.dataset.g+'"]').textContent;groups[title]=(groups[title]||0)+1;});
+    var detail=Object.entries(groups).map(([title,n])=>title+' : '+n+' คน').join('\n');
+    if(!confirm('ลบนักเรียนที่เลือก '+picks.length+' คนจากทะเบียนกลาง?\n'+detail+'\n\nประวัติน้ำหนัก/ส่วนสูงและบันทึกเวลามาเรียนที่ผูกทะเบียนกลางจะถูกลบด้วย\nรายชื่อและผลการเรียนที่ดึงเข้าในงานวิชาการแล้ว รวมถึงรายชื่อในงานอาหารกลางวันและทัศนศึกษา จะยังอยู่ แต่จะไม่เชื่อมกับทะเบียนกลาง\n\nการลบย้อนกลับไม่ได้ ต้องการยืนยันลบหรือไม่?'))return;
+    document.getElementById('deleteIds').value=picks.map(c=>c.value).join(',');
+    document.getElementById('bulkDeleteButton').disabled=true;
+    document.getElementById('bulkDeleteForm').requestSubmit();
   }
 </script>
 {% endblock %}

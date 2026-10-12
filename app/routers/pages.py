@@ -1125,6 +1125,29 @@ def student_master_delete(sid: int, db: Session = Depends(get_db)):
     return RedirectResponse("/students", status_code=303)
 
 
+@router.post("/students/bulk-delete")
+def students_bulk_delete(ids: str = Form(""), confirmed: str = Form(""), db: Session = Depends(get_db)):
+    from app.models import Arrival, AcadStudent, LunchStudent, FieldTripStudent
+    try:
+        selected = {int(value) for value in ids.split(',') if value.strip()}
+    except ValueError:
+        selected = set()
+    if confirmed != 'yes' or not selected or any(value <= 0 for value in selected):
+        return RedirectResponse('/students?delete_error=1', status_code=303)
+    rows = db.query(Student).filter(Student.id.in_(selected)).all()
+    if len(rows) != len(selected):
+        return RedirectResponse('/students?delete_error=1', status_code=303)
+    # Keep copied academic/trip/lunch records; detach their central-roster links.
+    for model in (AcadStudent, LunchStudent, FieldTripStudent):
+        db.query(model).filter(model.student_id.in_(selected)).update(
+            {model.student_id: None}, synchronize_session=False)
+    db.query(Arrival).filter(Arrival.student_id.in_(selected)).delete(synchronize_session=False)
+    for student in rows:
+        db.delete(student)  # Includes measurements owned by the central roster.
+    db.commit()
+    return RedirectResponse(f'/students?deleted={len(rows)}', status_code=303)
+
+
 @router.get("/students/growth", response_class=HTMLResponse)
 def students_growth(request: Request, db: Session = Depends(get_db), year: str = ""):
     """หน้ากรอกน้ำหนัก/ส่วนสูง (ภาวะโภชนาการ) ในทะเบียนนักเรียนกลาง - ใช้ร่วมกับสมุดพก ปพ.6"""
