@@ -20,7 +20,8 @@
   </div>
 
   {# เงินของโครงการมาจากไหน: งบโครงการ (ต้องใช้เท่าไร) กับ จัดสรรเงินแล้ว (หาเงินมาให้ได้เท่าไร)
-     เป็นคนละตัวเลขโดยตั้งใจ (docs/plan-funding.md) โครงการได้เงินไม่ครบได้ จึงบอก "ยังขาด" ให้เห็นชัด
+     เป็นคนละตัวเลขโดยตั้งใจ (docs/plan-funding.md) โครงการได้เงินไม่ครบได้ จึงบอก "ยังไม่ได้จัดสรร" ให้เห็นชัด
+     (เจ้าของเลือกคำนี้ "ยังขาด" ฟังเหมือนโรงเรียนขาดเงิน ทั้งที่แค่ยังไม่ได้ระบุที่มา)
      โรงเรียนที่ไม่ได้ใช้การจัดสรรงบ ไม่ต้องเห็นส่วนนี้ #}
   {% set gap = b - (funding_assigned or 0) %}
   {% if funding_assigned or funding_rows %}
@@ -28,7 +29,7 @@
     <div class="pj-fund-line">
       <span>งบโครงการ <b>{{ "{:,.2f}".format(b) }}</b></span>
       <span>· จัดสรรเงินแล้ว <b>{{ "{:,.2f}".format(funding_assigned or 0) }}</b></span>
-      {% if gap > 0 %}<span class="pj-gap">· ยังขาด <b>{{ "{:,.2f}".format(gap) }}</b></span>
+      {% if gap > 0 %}<span class="pj-gap">· ยังไม่ได้จัดสรร <b>{{ "{:,.2f}".format(gap) }}</b></span>
       {% else %}<span class="pj-full">· จัดสรรครบแล้ว</span>{% endif %}
     </div>
     {% if b > 0 %}<div class="pj-bar"><span style="width:{{ ([funding_assigned or 0, b]|min / b * 100)|round(1) }}%"></span></div>{% endif %}
