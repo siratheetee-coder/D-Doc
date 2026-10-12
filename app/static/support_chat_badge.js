@@ -1,0 +1,1 @@
+(()=>{async function poll(){if(document.hidden)return;try{const r=await fetch('/admin-console/chat/inbox');if(!r.ok)return;const rows=await r.json(),n=rows.reduce((a,r)=>a+r.unread,0);document.getElementById('consoleChatCount').textContent=n?'('+n+')':'';}catch{}}poll();setInterval(poll,20000);})();

@@ -1,0 +1,10 @@
+<link rel="stylesheet" href="/static/support_chat.css">
+<section id="supportChat" class="support-chat" hidden aria-label="แชทติดต่อเจ้าหน้าที่" data-staff="{{ '1' if chat_staff else '0' }}">
+  <header><strong id="chatTitle">แชทติดต่อเจ้าหน้าที่</strong><button id="chatClose" type="button" aria-label="ปิดแชท">✕</button></header>
+  <p class="chat-help">บทสนทนานี้ใช้ร่วมกันในโรงเรียน · เจ้าหน้าที่อาจตอบภายหลัง</p>
+  <button id="chatOlder" type="button" hidden>โหลดข้อความก่อนหน้า</button>
+  <div id="chatMessages" role="log" aria-label="ประวัติข้อความ"></div>
+  <p id="chatStatus" role="status"></p>
+  <form id="chatForm"><label for="chatBody">ข้อความถึง{{ 'โรงเรียน' if chat_staff else 'เจ้าหน้าที่' }}</label><textarea id="chatBody" maxlength="4000" rows="3" required placeholder="พิมพ์ข้อความ…"></textarea><button id="chatSend" type="submit">ส่งข้อความ</button></form>
+</section>
+<script src="/static/support_chat.js" defer></script>

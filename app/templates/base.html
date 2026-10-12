@@ -970,6 +970,8 @@
           <input type="search" name="q" placeholder="ค้นหาทุกงาน: เรื่อง / เลขที่ / ผู้ขาย / วัสดุ" value="{{ request.query_params.get('q','') }}">
         </form>
         <span class="grow"></span>
+        <button type="button" class="bell" id="supportChatOpen" aria-label="แชทติดต่อเจ้าหน้าที่" title="แชทติดต่อเจ้าหน้าที่" style="position:relative">💬<span id="supportChatBadge" hidden style="background:#dc2626;color:white;border-radius:12px;padding:0 5px;font-size:11px"></span></button>
+        {% include 'support_chat_panel.html' %}
         {# แจ้งเตือนส่วนตัว (ครู) + งานพัสดุ (เจ้าหน้าที่/เจ้าของ ไม่ใช่ครู) #}
         {% set _is_teacher = request.session.get('person_id') and not request.session.get('owner') %}
         {% set bell_alerts = my_notices(request.session.get('person_id')) + ([] if _is_teacher else nav_alerts()) %}

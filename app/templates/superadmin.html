@@ -81,6 +81,8 @@
 </head>
 <body>
   <div class="top"><b>Easy Ekkasan · คอนโซลผู้ดูแลระบบ</b>
+    <a href="/admin-console/chat" style="color:#fff;font-weight:600">💬 แชทโรงเรียน <span id="consoleChatCount"></span></a>
+    <script src="/static/support_chat_badge.js" defer></script>
     <span><a href="/admin-console/leads" style="color:#fff; font-weight:600;">📥 คำขอจากเว็บ
         <span class="lead-cnt">{{ lead_counts.all if lead_counts else 0 }}</span>{% if lead_counts and lead_counts.new %}<span class="lead-cnt new">ใหม่ {{ lead_counts.new }}</span>{% endif %}</a>
       · {{ admin_name }} · <a href="/account/profile">โปรไฟล์ / ยืนยัน 2 ชั้น</a>

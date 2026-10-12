@@ -58,6 +58,8 @@ class Tenant(AccBase):
 
     accounts = relationship("Account", back_populates="tenant",
                             cascade="all, delete-orphan")
+    support_messages = relationship('SupportMessage', cascade='all, delete-orphan')
+    support_reads = relationship('SupportRead', cascade='all, delete-orphan')
 
 
 class Account(AccBase):
@@ -92,6 +94,27 @@ class Account(AccBase):
     created_at = Column(DateTime, default=datetime.now)
 
     tenant = relationship("Tenant", back_populates="accounts")
+    support_reads = relationship('SupportRead', cascade='all, delete-orphan')
+
+
+class SupportMessage(AccBase):
+    __tablename__ = 'support_message'
+    __table_args__ = (UniqueConstraint('sender_id', 'nonce'),)
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey('tenant.id'), nullable=False, index=True)
+    sender_id = Column(Integer, nullable=False)
+    sender_name = Column(String, nullable=False)
+    staff = Column(Boolean, nullable=False, default=False)
+    body = Column(Text, nullable=False)
+    nonce = Column(String(80), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class SupportRead(AccBase):
+    __tablename__ = 'support_read'
+    account_id = Column(Integer, ForeignKey('account.id'), primary_key=True)
+    tenant_id = Column(Integer, ForeignKey('tenant.id'), primary_key=True)
+    last_id = Column(Integer, nullable=False, default=0)
 
 
 class Lead(AccBase):

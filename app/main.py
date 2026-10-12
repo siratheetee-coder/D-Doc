@@ -74,7 +74,7 @@ _DIRECTOR_WRITE_ALLOW = [
     re.compile(r"^/hr/travel-requests/\d+/approve$"),       # อนุมัติไปราชการ
     re.compile(r"^/(?:hr|academic)/classroom-visit/(save|\d+/delete)$"), # นิเทศ: เยี่ยมชั้นเรียน
     re.compile(r"^/(?:hr|academic)/supervision-form/(save|\d+/delete)$"),# นิเทศ: นิเทศการสอน
-    re.compile(r"^/support$"),                              # ติดต่อเจ้าหน้าที่
+    re.compile(r"^/support(?:/chat/(?:send|read))?$"),        # ติดต่อเจ้าหน้าที่
 ]
 
 
@@ -394,6 +394,8 @@ app.include_router(auth.router)
 app.include_router(account.router)
 app.include_router(users.router)
 app.include_router(superadmin.router)
+from app.routers import support_chat
+app.include_router(support_chat.router)
 from app.routers import plan_budget
 app.include_router(plan_budget.router)
 app.include_router(pages.router)
