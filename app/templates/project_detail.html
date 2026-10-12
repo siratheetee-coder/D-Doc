@@ -10,13 +10,52 @@
   {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกเรียบร้อยแล้ว</div>{% endif %}
   <div class="hero-meta" style="color:var(--muted); margin-top:4px;">{{ year_label }} {{ p.plan_year or "(ยังไม่ระบุปี)" }}{% if p.responsible %} · {{ p.responsible }}{% endif %}</div>
   <div class="stat" style="margin-top:12px;">
-    <div class="box"><div><div class="lab">งบปัจจุบัน</div><div class="num">{{ "{:,.2f}".format(b) }}</div></div>
+    <div class="box"><div><div class="lab">งบโครงการ</div><div class="num">{{ "{:,.2f}".format(b) }}</div></div>
       <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
-    <div class="box"><div><div class="lab">ใช้ไปแล้ว</div><div class="num">{{ "{:,.2f}".format(s) }}</div></div>
+    <div class="box"><div><div class="lab">ใช้ไปแล้ว</div><div class="num">{{ "{:,.2f}".format(s) }}</div>
+        {% if actual_paid or funding_assigned or funding_rows %}<div class="pj-sub">จ่ายจริงตามทะเบียนคุมเงิน {{ "{:,.2f}".format(actual_paid or 0) }}{% if s - (actual_paid or 0) > 0 %} · ทำเรื่องแล้วรอจ่าย {{ "{:,.2f}".format(s - (actual_paid or 0)) }}{% endif %}</div>{% endif %}</div>
       <span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-upload"/></svg></span></div>
     <div class="box"><div><div class="lab">คงเหลือ</div><div class="num" style="color:{{ '#dc2626' if r < 0 else '#16a34a' }};">{{ "{:,.2f}".format(r) }}</div></div>
       <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
   </div>
+
+  {# เงินของโครงการมาจากไหน: งบโครงการ (ต้องใช้เท่าไร) กับ จัดสรรเงินแล้ว (หาเงินมาให้ได้เท่าไร)
+     เป็นคนละตัวเลขโดยตั้งใจ (docs/plan-funding.md) โครงการได้เงินไม่ครบได้ จึงบอก "ยังขาด" ให้เห็นชัด
+     โรงเรียนที่ไม่ได้ใช้การจัดสรรงบ ไม่ต้องเห็นส่วนนี้ #}
+  {% set gap = b - (funding_assigned or 0) %}
+  {% if funding_assigned or funding_rows %}
+  <div class="pj-fund">
+    <div class="pj-fund-line">
+      <span>งบโครงการ <b>{{ "{:,.2f}".format(b) }}</b></span>
+      <span>· จัดสรรเงินแล้ว <b>{{ "{:,.2f}".format(funding_assigned or 0) }}</b></span>
+      {% if gap > 0 %}<span class="pj-gap">· ยังขาด <b>{{ "{:,.2f}".format(gap) }}</b></span>
+      {% else %}<span class="pj-full">· จัดสรรครบแล้ว</span>{% endif %}
+    </div>
+    {% if b > 0 %}<div class="pj-bar"><span style="width:{{ ([funding_assigned or 0, b]|min / b * 100)|round(1) }}%"></span></div>{% endif %}
+    {% set given = funding_rows|selectattr('value')|list %}
+    {% if given %}
+    <div class="pj-src">เงินมาจาก
+      {% for r2 in given %}
+        {% if r2.item %}<a href="/finance/accounts/{{ r2.item.account_id }}?year={{ r2.item.fiscal_year }}">{{ r2.item.account.name }} / {{ r2.item.name }}</a>
+        {% else %}<span>{{ r2.source.name }}</span>{% endif %} {{ "{:,.2f}".format(r2.value) }}{% if not loop.last %} ·{% endif %}
+      {% endfor %}
+    </div>
+    {% elif gap > 0 %}
+    <div class="pj-src">ยังไม่ได้จัดสรรเงินให้โครงการนี้ เลือกได้ที่หัวข้อด้านล่าง</div>
+    {% endif %}
+  </div>
+  {% endif %}
+  <style>
+    .pj-sub{ font-size:12.5px; color:var(--muted); margin-top:4px; font-weight:400; }
+    .pj-fund{ margin-top:14px; padding:12px 14px; border-radius:12px; background:#f8fafc; }
+    .pj-fund-line{ display:flex; flex-wrap:wrap; gap:6px; font-size:15px; }
+    .pj-gap{ color:#b45309; }
+    .pj-full{ color:#15803d; }
+    .pj-bar{ height:8px; border-radius:6px; background:#fde68a; overflow:hidden; margin:8px 0 6px; max-width:420px; }
+    .pj-bar span{ display:block; height:100%; background:#16a34a; }
+    .pj-src{ font-size:13px; color:#475569; }
+    .pj-src a{ font-weight:600; }
+  </style>
 </div>
 
 {% include 'project_funding.html' %}
