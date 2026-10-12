@@ -111,11 +111,52 @@ def subsidy_candidates(db, p, snapshot_id):
     return result
 
 
+def _fy_of(d):
+    return d.year + 543 + (1 if d.month >= 10 else 0)
+
+
+def _fy_has_data(db, fy):
+    """ปีงบนี้มีการลงเงินในระบบแล้วหรือยัง (มียอดยกมา หรือมีรายการรับ-จ่าย)"""
+    if db.query(FinanceTxn.id).filter(FinanceTxn.fiscal_year == fy).first():
+        return True
+    return any((i.opening_balance or 0) for i in db.query(AccountItem).filter_by(fiscal_year=fy))
+
+
+def joined_fy(db, p):
+    """โรงเรียนที่เริ่มใช้ระบบกลางแผน: ปีงบก่อนเริ่มแผนยังไม่มีข้อมูลเลย
+    แต่มีปีงบที่เริ่ม (1 ต.ค.) ระหว่างแผนและกรอกยอดยกมาไว้แล้ว เช่น แผนปีการศึกษา 2569
+    (พ.ค. 2569 ถึง เม.ย. 2570) โรงเรียนมาใช้ระบบ ต.ค. 2569 กรอกยอดยกมาต้นปีงบ 2570
+    ยอดนั้นคือเงินของแผนที่ยังเหลืออยู่ตอนเริ่มใช้ระบบ คืนปีงบนั้น หรือ None"""
+    fy = _fy_of(p.start_date)
+    if _fy_has_data(db, fy):
+        return None
+    for later in range(fy + 1, _fy_of(p.end_date) + 1):
+        if datetime(later - 544, 10, 1) > p.end_date:
+            break
+        if any((i.opening_balance or 0) for i in db.query(AccountItem).filter_by(fiscal_year=later)):
+            return later
+        if _fy_has_data(db, later):
+            return None
+    return None
+
+
 def opening_candidates(db, p):
     # Budget year: use the new year's opening, not all prior transactions again.
-    fy = p.start_date.year + 543 + (1 if p.start_date.month >= 10 else 0)
-    cutoff = p.start_date - timedelta(microseconds=1)
+    fy = _fy_of(p.start_date)
+    joined = joined_fy(db, p)
     result = []
+    if joined:
+        start = datetime(joined - 544, 10, 1)
+        for item in db.query(AccountItem).filter_by(fiscal_year=joined).order_by(AccountItem.id):
+            value = float(item.opening_balance or 0)
+            if value < 0:
+                continue
+            result.append(dict(source_key=f'opening:{start.date()}:{item.id}', kind='opening',
+                               name=f'{item.account.name} / {item.name} · ยอดยกมาต้นปีงบ {joined}',
+                               amount=amount(value), snapshot_id=None, account_item_id=item.id,
+                               payload=dict(cutoff=str(start.date()), fiscal_year=joined, joined=True)))
+        return result
+    cutoff = p.start_date - timedelta(microseconds=1)
     for item in db.query(AccountItem).filter_by(fiscal_year=fy).order_by(AccountItem.id):
         value = float(item.opening_balance or 0) if p.start_date.month == 10 and p.start_date.day == 1 else item_remaining_asof(item, cutoff)
         if value < 0:
@@ -125,6 +166,15 @@ def opening_candidates(db, p):
                            name=f'{item.account.name} / {item.name}', amount=amount(value), snapshot_id=None,
                            account_item_id=item.id, payload=dict(cutoff=str(cutoff.date()), fiscal_year=fy)))
     return result
+
+
+def opening_info(db, p):
+    """บอกผู้ใช้ว่าระบบไปหาเงินเหลือจากปีงบไหน วันไหน (หน้าตรวจยอดว่างเปล่าแล้วงงว่าทำไม)"""
+    from app.thai_utils import thai_date
+    fy, joined = _fy_of(p.start_date), joined_fy(db, p)
+    return dict(fy=fy, start_th=thai_date(p.start_date), cutoff_th=thai_date(p.start_date - timedelta(days=1)),
+                has_data=_fy_has_data(db, fy), joined=joined,
+                joined_th=thai_date(datetime(joined - 544, 10, 1)) if joined else '')
 
 
 def preview(db, p, kind, snapshot_id=0):
@@ -145,7 +195,9 @@ def preview(db, p, kind, snapshot_id=0):
         used = allocated(db, old.id) if old else 0
         rows.append(dict(r, old=old.amount if old else 0, allocated=used,
                          delta=round(r['amount']-(old.amount if old else 0),2)))
-    return dict(plan_id=p.id, mode=p.mode, start=str(p.start_date),end=str(p.end_date),kind=kind, snapshot_id=snapshot_id, rows=rows)
+    info = opening_info(db, p)
+    return dict(plan_id=p.id, mode=p.mode, start=str(p.start_date),end=str(p.end_date),kind=kind, snapshot_id=snapshot_id, rows=rows,
+                info=info)
 
 
 def apply(db, p, kind, snapshot_id, expected, selected):
@@ -211,6 +263,11 @@ def allocate(db, p, project, values, expected):
     desired = {s.id:amount(values.get(str(s.id),0)) for s in rows}
     if round(sum(desired.values()),2) > round(project_budget(project),2):
         raise ValueError('ยอดจัดสรรรวมเกินงบโครงการ กรุณาปรับงบโครงการก่อน')
+    # ส่วนที่ใช้ไปก่อนเริ่มใช้ระบบจ่ายไปแล้วด้วยเงินนอกแผน ถ้าจัดสรรเต็มงบอีก เงินในหมวดจะถูกกันไว้เกินจริง
+    before = float(project.spent_before or 0)
+    if before and round(sum(desired.values()),2) > round(project_budget(project)-before,2):
+        raise ValueError('จัดสรรได้ไม่เกิน {:,.2f} บาท (งบโครงการ {:,.2f} หักใช้ไปก่อนเริ่มใช้ระบบ {:,.2f})'.format(
+            project_budget(project)-before, project_budget(project), before))
     for s in rows:
         old=db.query(ProjectFunding).filter_by(project_id=project.id,funding_id=s.id).first()
         if desired[s.id]>(old.amount if old else 0) and changed(db,p,s):

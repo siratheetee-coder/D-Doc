@@ -24,16 +24,20 @@
      เป็นคนละตัวเลขโดยตั้งใจ (docs/plan-funding.md) โครงการได้เงินไม่ครบได้ จึงบอก "ยังไม่ได้จัดสรร" ให้เห็นชัด
      (เจ้าของเลือกคำนี้ "ยังขาด" ฟังเหมือนโรงเรียนขาดเงิน ทั้งที่แค่ยังไม่ได้ระบุที่มา)
      โรงเรียนที่ไม่ได้ใช้การจัดสรรงบ ไม่ต้องเห็นส่วนนี้ #}
-  {% set gap = b - (funding_assigned or 0) %}
+  {# เงินที่ใช้ไปก่อนเริ่มใช้ระบบ จ่ายจากเงินที่ไม่ได้อยู่ในแผนแล้ว (แผนนำเข้าแค่เงินที่ยังเหลือตอนเริ่มใช้ระบบ)
+     จึงไม่ต้องจัดสรร ไม่งั้นโครงการที่ใช้ไปแล้ว 8,000 จะขึ้นว่า "ยังไม่ได้จัดสรร 8,000" ไปตลอด #}
+  {% set before = p.spent_before or 0 %}
+  {% set gap = b - before - (funding_assigned or 0) %}
   {% if funding_assigned or funding_rows %}
   <div class="pj-fund">
     <div class="pj-fund-line">
       <span>งบโครงการ <b>{{ "{:,.2f}".format(b) }}</b></span>
+      {% if before > 0 %}<span>· ใช้ไปก่อนเริ่มใช้ระบบ <b>{{ "{:,.2f}".format(before) }}</b> (ไม่ต้องจัดสรร)</span>{% endif %}
       <span>· จัดสรรเงินแล้ว <b>{{ "{:,.2f}".format(funding_assigned or 0) }}</b></span>
       {% if gap > 0 %}<span class="pj-gap">· ยังไม่ได้จัดสรร <b>{{ "{:,.2f}".format(gap) }}</b></span>
       {% else %}<span class="pj-full">· จัดสรรครบแล้ว</span>{% endif %}
     </div>
-    {% if b > 0 %}<div class="pj-bar"><span style="width:{{ ([funding_assigned or 0, b]|min / b * 100)|round(1) }}%"></span></div>{% endif %}
+    {% if b > 0 %}<div class="pj-bar"><span style="width:{{ ([(funding_assigned or 0) + before, b]|min / b * 100)|round(1) }}%"></span></div>{% endif %}
     {% set given = funding_rows|selectattr('value')|list %}
     {% if given %}
     <div class="pj-src">เงินมาจาก
