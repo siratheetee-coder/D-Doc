@@ -310,12 +310,13 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
     receipt_map = {rc.txn_id: (rc.receipt_no or "(ไม่มีเลข)")
                    for rc in db.query(Receipt).filter(Receipt.txn_id.isnot(None)).all()
                    if rc.txn_id}
-    from app.services.project_money import item_allocations
+    from app.services.project_money import item_allocations, account_plan_links
     txn_project = _txn_projects(db, txns)
     return templates.TemplateResponse("finance_ledger.html", {
         "request": request, "account": a, "rows": rows, "balance": round(bal, 2),
         "txn_project": txn_project,
         "item_alloc": item_allocations(db, item_rows, txn_project),
+        "plan_links": account_plan_links(db, a, fy),
         "selected_item": item if any(i.id == item for i in items) else 0,
         "selected_project": project if any(p.id==project for p in _plan_projects(db,fy)) else 0,
         "selected_kind": 'out' if kind=='out' else 'in',

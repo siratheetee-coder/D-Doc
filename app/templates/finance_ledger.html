@@ -121,13 +121,36 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       <button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-download"/></svg> คัดลอกหมวดจากปีงบ {{ fiscal_year - 1 }}</button>
     </form>
   </div>
+  {# ทางไปโครงการจากหน้าทะเบียนคุมเงิน (เดิมมีเฉพาะหมวดที่จัดสรรแล้ว และซ่อนในส่วนที่ต้องกดเปิด) #}
+  <div class="pl-strip">
+    <svg class="icon"><use href="#ic-clipboard"/></svg>
+    {% for pl in plan_links.plans %}
+      <span class="pl-item"><b>แผน{{ pl.label }} {{ pl.year }}</b>
+      {% if not pl.in_plan %}· เงินบัญชีนี้ยังไม่ได้นำเข้าแผน
+        <a class="btn sm" href="/plan-budget/{{ pl.year }}">นำเงินเข้าแผน</a>
+      {% elif not pl.n_projects %}· นำเข้าแผนแล้ว {{ "{:,.2f}".format(pl.in_plan) }} ยังไม่ได้จัดสรรให้โครงการ
+        <a class="btn sm" href="/projects?year={{ pl.year }}">ไปจัดสรรให้โครงการ</a>
+      {% else %}· จัดสรรให้ {{ pl.n_projects }} โครงการ {{ "{:,.2f}".format(pl.allocated) }} จาก {{ "{:,.2f}".format(pl.in_plan) }}
+        <a class="btn sm" href="/projects?year={{ pl.year }}">ดูโครงการ</a>
+      {% endif %}</span>
+    {% else %}
+      <span class="pl-item">ยังไม่ได้ตั้งแผนให้โครงการใช้เงินบัญชีนี้
+        <a class="btn sm" href="/plan-budget/{{ plan_links.suggest_year }}">นำเงินเข้าแผน</a></span>
+    {% endfor %}
+    <a class="btn sm gray" href="/projects">โครงการทั้งหมด</a>
+  </div>
+  <style>
+    .pl-strip{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-top:12px; padding:10px 14px;
+               border-radius:12px; background:linear-gradient(120deg,#eef2ff,#f0f9ff); font-size:14px; color:#1e3a8a; }
+    .pl-item{ display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px; }
+  </style>
   {% if item_rows %}
   {% if item_alloc %}
   <div class="al-legend">
     <span><i class="al-paid"></i>จ่ายแล้ว</span>
     <span><i class="al-wait"></i>รอใช้ในโครงการ</span>
     <span><i class="al-free"></i>ยังไม่จัดสรรให้โครงการ</span>
-    <span class="muted">· กดใต้ชื่อหมวดเพื่อดูว่าจัดสรรให้โครงการไหน</span>
+    <span class="muted">· กดชื่อโครงการใต้หมวดเพื่อไปหน้าโครงการ</span>
   </div>
   <style>
     .al-bar{ display:flex; height:8px; border-radius:6px; overflow:hidden; background:#e2e8f0; margin:2px 0 4px; max-width:360px; }
@@ -193,7 +216,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
             <span class="al-wait" style="width:{{ (al.waiting / base * 100)|round(1) }}%"></span>
             {% endif %}
           </div>
-          <details class="al-detail">
+          <details class="al-detail" open>
             <summary>รอใช้ในโครงการ {{ "{:,.2f}".format(al.waiting) }} ·
               {% if al.free >= 0 %}ยังไม่จัดสรรให้โครงการ {{ "{:,.2f}".format(al.free) }}
               {% else %}<span class="al-over">จัดสรรเกินเงินที่เหลือจริง {{ "{:,.2f}".format(-al.free) }}</span>{% endif %}</summary>

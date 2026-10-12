@@ -178,3 +178,34 @@ def item_allocations(db, item_rows, txn_project) -> dict:
                       "free": round(remain - waiting, 2), "projects": plist,
                       "allocated": round(sum(p["allocated"] for p in plist), 2)}
     return out
+
+
+def account_plan_links(db, account, fy) -> dict:
+    """หน้าทะเบียนคุมเงินพาไปโครงการ: บัญชีนี้อยู่ในแผนไหน จัดสรรให้กี่โครงการแล้ว
+
+    เดิมลิงก์ไปโครงการขึ้นเฉพาะหมวดที่จัดสรรแล้ว และซ่อนอยู่ในส่วนที่ต้องกดเปิด
+    บัญชีที่ยังไม่ได้นำเข้าแผนจึงไม่มีทางไปหน้าโครงการเลย (เจ้าของถามหาปุ่มนี้)
+    แผนปีการศึกษาคร่อมสองปีงบ จึงหาแผนจากช่วงวันที่ที่ซ้อนกับปีงบนี้ ไม่ใช่เลขปีตรงกัน
+
+    คืน {plans: [{year, label, in_plan, allocated, n_projects}], suggest_year}
+    """
+    from datetime import datetime
+    from app.models import PlanBudget, School
+    from app.services.budget import current_plan_year
+    fy_start, fy_end = datetime(fy - 544, 10, 1), datetime(fy - 543, 9, 30)
+    plans = []
+    if PlanFunding is not None:
+        item_ids = [i.id for i in db.query(AccountItem.id).filter(AccountItem.account_id == account.id)]
+        for p in (db.query(PlanBudget).filter(PlanBudget.start_date <= fy_end, PlanBudget.end_date >= fy_start)
+                  .order_by(PlanBudget.start_date)):
+            funds = (db.query(PlanFunding).filter(PlanFunding.plan_id == p.id,
+                                                  PlanFunding.account_item_id.in_(item_ids)).all()
+                     if item_ids else [])
+            alloc = (db.query(ProjectFunding).filter(ProjectFunding.funding_id.in_([f.id for f in funds]),
+                                                     ProjectFunding.amount > 0).all() if funds else [])
+            plans.append(dict(year=p.year, label="ปีการศึกษา" if p.mode == "academic" else "ปีงบประมาณ",
+                              in_plan=round(sum(f.amount or 0 for f in funds), 2),
+                              allocated=round(sum(a.amount or 0 for a in alloc), 2),
+                              n_projects=len({a.project_id for a in alloc})))
+    school = db.query(School).first()
+    return dict(plans=plans, suggest_year=current_plan_year(school))
