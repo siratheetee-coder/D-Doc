@@ -68,3 +68,14 @@ def test_split_routes_and_teacher_warnings(env):
         assert db.get(AcadPeriod,pid) is not None
     assert env.get(f'/academic/timetable/class.docx?cid={cid}').status_code==200
     assert env.get(f'/academic/timetable/teacher.docx?pid={teacher_id}&year=2569').status_code==200
+    pending=env.post('/academic/timetable/periods/save',data={'year':2569,'section':'secondary','period_cid':cid,f'name_{pid}':'พักใหม่',f'time_{pid}':'09:00-10:00',f'break_{pid}':'on'})
+    assert 'id="periodError"' in pending.text and 'value="พักใหม่"' in pending.text
+    assert 'name="break_'+str(pid)+'" aria-label="พัก คาบมัธยม" checked' in pending.text
+    with tn.session_for(tid) as db:
+        assert not db.get(AcadPeriod,pid).is_break
+        db.query(AcadTimetable).filter_by(period_id=pid).delete();db.commit()
+    saved=env.post('/academic/timetable/periods/save',data={'year':2569,'section':'secondary','period_cid':cid,f'name_{pid}':'พักใหม่',f'time_{pid}':'09:00-10:00',f'break_{pid}':'on'})
+    assert 'บันทึกโครงคาบแล้ว ตารางเรียนใช้ค่าล่าสุดแล้ว' in saved.text
+    assert f'cid={cid}' in str(saved.url)
+    with tn.session_for(tid) as db:
+        assert db.get(AcadPeriod,pid).is_break

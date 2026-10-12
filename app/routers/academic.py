@@ -3124,7 +3124,8 @@ def timetable_page(request: Request, db: Session = Depends(get_db),
         return _deny()
     if c:y=c.year
     split=ts.separated(db,y)
-    section=ts.section_for(db,y,c.level) if c else ('secondary' if split and request.query_params.get('section')=='secondary' else 'primary')
+    selected_section=getattr(request.state,'period_section',None) or request.query_params.get('section')
+    section=ts.section_for(db,y,c.level) if c else ('secondary' if split and selected_section=='secondary' else 'primary')
     periods=_tt_periods(db,y,section)
     classes=[x for x in _sorted_classes(db.query(AcadClass).filter_by(year=y).all()) if ts.section_for(db,y,x.level)==section and (not sc.is_teacher or x.id in sc.class_ids)]
     options = _tt_options(db, c) if c else []
@@ -3170,6 +3171,8 @@ def timetable_page(request: Request, db: Session = Depends(get_db),
         "can_edit": (not sc.is_teacher), "is_teacher": sc.is_teacher,
         "subj_teacher": subj_teacher, "busy": busy, "subjects": subjects,
         "separated":split,"section":section,
+        "period_error":getattr(request.state,'period_error',''),
+        "period_entered":getattr(request.state,'period_entered',{}),
         "term_label": term_label,
     })
 
@@ -3213,7 +3216,7 @@ async def timetable_periods_save(request: Request, db: Session = Depends(get_db)
         deleting=bool(form.get(f'del_{p.id}'))
         becoming_break=bool(form.get(f'break_{p.id}')) and not p.is_break
         if (deleting or becoming_break) and (db.query(AcadTimetable).filter_by(period_id=p.id).first() or db.query(SubstituteAssignment).filter_by(period_id=p.id).first()):
-            error='คาบนี้มีตารางเรียนหรือสอนแทนใช้อยู่ กรุณาย้ายรายการออกก่อนลบหรือเปลี่ยนเป็นพัก'
+            error=f'คาบนี้มีตารางเรียนหรือสอนแทนใช้อยู่: {p.name} ({p.time_label}) กรุณาย้ายวิชาในคาบนี้ไปคาบอื่นและบันทึกตารางของห้องที่เกี่ยวข้องก่อน แล้วจึงเปลี่ยนเป็นพักหรือลบคาบ'
         if not deleting:proposed.append(form.get(f'time_{p.id}','').strip())
     if form.get('new_name','').strip():proposed.append(form.get('new_time','').strip())
     ranges=[interval(t) for t in proposed]
@@ -3221,7 +3224,11 @@ async def timetable_periods_save(request: Request, db: Session = Depends(get_db)
         error='กรอกเวลาเริ่ม–สิ้นสุดให้ครบ เช่น 08:30-09:20 เพื่อใช้ตรวจครูสอนซ้อน'
     if any(a and b and max(a[0],b[0])<min(a[1],b[1]) for i,a in enumerate(ranges) for b in ranges[i+1:]):
         error='เวลาเรียนหรือเวลาพักในระดับเดียวกันซ้อนกัน กรุณาตรวจเวลาแต่ละคาบ'
-    if error:return RedirectResponse('/academic/timetable?'+urlencode(dict(year=y,section=section,err=error)),303)
+    if error:
+        request.state.period_error=error
+        request.state.period_entered=dict(form)
+        request.state.period_section=section
+        return timetable_page(request,db,cid=_to_int(form.get('period_cid'),0) or None,year=y)
     for p in _tt_periods(db, y, section):
         if form.get(f"del_{p.id}"):
             db.delete(p)
@@ -3237,7 +3244,8 @@ async def timetable_periods_save(request: Request, db: Session = Depends(get_db)
                           time_label=(form.get("new_time", "") or "").strip(),
                           is_break=bool(form.get("new_break"))))
     db.commit()
-    return RedirectResponse(f"/academic/timetable?year={y}&section={section}&psaved=1", status_code=303)
+    cid=_to_int(form.get('period_cid'),0)
+    return RedirectResponse(f"/academic/timetable?year={y}&section={section}&psaved=1"+(f'&cid={cid}' if cid else '')+'#period-editor', status_code=303)
 
 
 @router.post("/academic/timetable/save")
