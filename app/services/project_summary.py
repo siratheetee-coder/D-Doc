@@ -74,7 +74,7 @@ def build_rows(db, projects) -> list:
         if before > 0:
             works.insert(0, {
                 "date": getattr(p, "spent_before_at", None), "no": "",
-                "subject": "ใช้ไปก่อนใช้ระบบ (ยอดตั้งต้น)", "method": "ยอดตั้งต้น",
+                "subject": "ใช้ไปก่อนเริ่มใช้ระบบ (ยอดตั้งต้น)", "method": "ยอดตั้งต้น",
                 "amount": before, "vendor": "", "status": "ยอดตั้งต้น",
             })
         rows.append({

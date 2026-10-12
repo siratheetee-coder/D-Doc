@@ -13,7 +13,7 @@
     <div class="box"><div><div class="lab">งบโครงการ</div><div class="num">{{ "{:,.2f}".format(b) }}</div></div>
       <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
     <div class="box"><div><div class="lab">ใช้ไปแล้ว</div><div class="num">{{ "{:,.2f}".format(s) }}</div>
-        {% if p.spent_before %}<div class="pj-sub">รวมใช้ไปก่อนใช้ระบบ {{ "{:,.2f}".format(p.spent_before) }} · <a href="/projects/start?year={{ p.plan_year or '' }}">แก้ยอดตั้งต้น</a></div>{% endif %}
+        {% if p.spent_before %}<div class="pj-sub">รวมใช้ไปก่อนเริ่มใช้ระบบ {{ "{:,.2f}".format(p.spent_before) }} · <a href="/projects/start?year={{ p.plan_year or '' }}">แก้ยอดตั้งต้น</a></div>{% endif %}
         {% if actual_paid or funding_assigned or funding_rows %}<div class="pj-sub">จ่ายจริงตามทะเบียนคุมเงิน {{ "{:,.2f}".format(actual_paid or 0) }}{% set waiting_pay = s - (p.spent_before or 0) - (actual_paid or 0) %}{% if waiting_pay > 0 %} · ทำเรื่องแล้วรอจ่าย {{ "{:,.2f}".format(waiting_pay) }}{% endif %}</div>{% endif %}</div>
       <span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-upload"/></svg></span></div>
     <div class="box"><div><div class="lab">คงเหลือ</div><div class="num" style="color:{{ '#dc2626' if r < 0 else '#16a34a' }};">{{ "{:,.2f}".format(r) }}</div></div>

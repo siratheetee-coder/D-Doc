@@ -10,6 +10,7 @@
   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <a class="btn sm gray" href="/projects/import"><svg class="icon"><use href="#ic-download"/></svg> นำเข้าจาก Excel</a>
     <a class="btn sm gray" href="/projects/start?year={{ fiscal_year }}" title="สำหรับโรงเรียนที่เริ่มใช้ระบบกลางปี"><svg class="icon"><use href="#ic-edit"/></svg> ตั้งยอดตั้งต้น</a>
+    <a class="btn sm gray" href="/projects/next-year?year={{ fiscal_year }}" title="ปิดปีแผน: ยกโครงการที่ทำต่อไปปีถัดไป"><svg class="icon"><use href="#ic-arrow-right"/></svg> ยกโครงการไปปีหน้า</a>
     <a class="btn sm" href="/projects/summary.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-file"/></svg> รายงานสรุปโครงการ (Word)</a>
     <a class="btn sm green" href="/projects/summary.xlsx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> Excel</a>
     <form method="get" action="/projects">
@@ -20,6 +21,14 @@
   </div>
 </div>
 {% if request.query_params.get('started') is not none %}<div class="alert">✔ บันทึกยอดตั้งต้นแล้ว {{ request.query_params.get('started') }} โครงการ · ยอดใช้ไปและคงเหลือของแต่ละโครงการอัปเดตแล้ว</div>{% endif %}
+{% if request.query_params.get('copied') is not none %}<div class="alert">✔ สร้างโครงการ{{ year_label }} {{ fiscal_year }} จากปี {{ request.query_params.get('from', '') }} แล้ว {{ request.query_params.get('copied') }} โครงการ · ขั้นต่อไป นำเงินเหลือเข้าแผนแล้วจัดสรรให้โครงการ</div>{% endif %}
+{% if suggest_next %}
+<div class="card" style="background:#fff7ed;">
+  <b>{{ 'สิ้น' if suggest_next == 'ended' else 'ใกล้สิ้น' }}{{ year_label }} {{ fiscal_year }} แล้ว</b>
+  <p style="margin:6px 0 10px;">{{ year_label }} {{ fiscal_year + 1 }} ยังไม่มีโครงการ ยกโครงการที่ทำต่อไปได้ในคลิกเดียว ชื่อและฝ่ายเดิม ใส่งบใหม่ได้</p>
+  <a class="btn sm" href="/projects/next-year?year={{ fiscal_year }}">ยกโครงการไป{{ year_label }} {{ fiscal_year + 1 }}</a>
+</div>
+{% endif %}
 {% if suggest_start %}
 <div class="card" style="background:#eff6ff;">
   <b>เพิ่งเริ่มใช้ระบบกลางปีใช่ไหม</b>

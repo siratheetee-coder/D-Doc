@@ -21,10 +21,10 @@
 
 <div class="card">
   <h2 style="margin-top:0;">ใช้หน้านี้เมื่อไร</h2>
-  <p style="margin:0 0 10px;">ถ้าโรงเรียนใช้เงินโครงการไปบ้างแล้วก่อนมาใช้ระบบ ให้กรอกแค่ว่า <b>ตอนนี้แต่ละโครงการเหลืองบกี่บาท</b> ระบบคำนวณให้เองว่าใช้ไปก่อนใช้ระบบเท่าไร ไม่ต้องย้อนลงรายการจ่ายทีละรายการ</p>
+  <p style="margin:0 0 10px;">ถ้าโรงเรียนใช้เงินโครงการไปบ้างแล้วก่อนมาใช้ระบบ ให้กรอกแค่ว่า <b>ตอนนี้แต่ละโครงการเหลืองบกี่บาท</b> ระบบคำนวณให้เองว่าใช้ไปก่อนเริ่มใช้ระบบเท่าไร ไม่ต้องย้อนลงรายการจ่ายทีละรายการ</p>
   <div class="st-example">
     <b>ตัวอย่าง</b> โครงการกีฬาสี งบ 30,000 บาท ตอนนี้เหลือ 22,000 บาท
-    → ระบบบันทึกว่า <b>ใช้ไปก่อนใช้ระบบ 8,000 บาท</b> หน้าโครงการจะขึ้น ใช้ไปแล้ว 8,000 คงเหลือ 22,000 ตรงกับความจริง
+    → ระบบบันทึกว่า <b>ใช้ไปก่อนเริ่มใช้ระบบ 8,000 บาท</b> หน้าโครงการจะขึ้น ใช้ไปแล้ว 8,000 คงเหลือ 22,000 ตรงกับความจริง
   </div>
   <p class="muted" style="font-size:13px; margin:10px 0 0;">โครงการไหนยังไม่ได้ใช้เงินเลย ไม่ต้องกรอก · เงินที่อยู่ในบัญชีตอนนี้ ตั้งแยกที่ <a href="/finance/accounts">ทะเบียนคุมเงิน</a> (ยอดยกมา)</p>
 </div>
@@ -41,7 +41,7 @@
   <div class="table-wrap"><table class="stack-sm">
     <thead><tr>
       <th>โครงการ</th><th class="right">งบโครงการ</th><th class="right">ใช้ในระบบแล้ว</th>
-      <th class="right" style="min-width:150px;">ตอนนี้เหลือ (บาท)</th><th class="right">ใช้ไปก่อนใช้ระบบ</th>
+      <th class="right" style="min-width:150px;">ตอนนี้เหลือ (บาท)</th><th class="right">ใช้ไปก่อนเริ่มใช้ระบบ</th>
     </tr></thead>
     <tbody>
     {% for r in rows %}
@@ -54,7 +54,7 @@
                  value="{{ '%.2f'|format(r.remain) if r.before else '' }}" placeholder="ไม่ต้องกรอก">
           <div class="st-err" hidden></div>
         </td>
-        <td data-label="ใช้ไปก่อนใช้ระบบ" class="right"><b class="st-out">{{ "{:,.2f}".format(r.before) if r.before else "-" }}</b></td>
+        <td data-label="ใช้ไปก่อนเริ่มใช้ระบบ" class="right"><b class="st-out">{{ "{:,.2f}".format(r.before) if r.before else "-" }}</b></td>
       </tr>
     {% endfor %}
     </tbody>

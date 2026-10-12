@@ -3,7 +3,7 @@
 
 ปัญหาเดิม: ระบบรู้แต่เงินที่จ่ายผ่านระบบ โรงเรียนที่มาใช้กลางปีจึงเห็น "คงเหลือ" เต็มงบ
 ทั้งที่ใช้ไปแล้ว · ทางแก้: ถามโครงการละข้อเดียวว่า "ตอนนี้เหลืองบกี่บาท"
-แล้วระบบคำนวณเองว่าใช้ไปก่อนใช้ระบบเท่าไร (ใช้ไปก่อนใช้ระบบ = งบ - ใช้ในระบบแล้ว - เหลือตอนนี้)
+แล้วระบบคำนวณเองว่าใช้ไปก่อนเริ่มใช้ระบบเท่าไร (ใช้ไปก่อนเริ่มใช้ระบบ = งบ - ใช้ในระบบแล้ว - เหลือตอนนี้)
 รัน: .venv\\Scripts\\python.exe -m pytest tests/test_projects_start.py
 """
 import json
@@ -148,7 +148,7 @@ def test_project_page_shows_it_and_does_not_call_it_waiting_to_be_paid(client, w
     _fresh(world, world["sport"]).spent_before = 8000; s.commit()
     try:
         html = client.get(f"/projects/{world['sport']}").text
-        assert "รวมใช้ไปก่อนใช้ระบบ 8,000.00" in html
+        assert "รวมใช้ไปก่อนเริ่มใช้ระบบ 8,000.00" in html
         assert "จ่ายจริงตามทะเบียนคุมเงิน 1,000.00" in html, "บรรทัดนี้ต้องขึ้น ไม่งั้นเทสต์ไม่ได้ทดสอบอะไร"
         assert "ทำเรื่องแล้วรอจ่าย" not in html
     finally:
@@ -206,7 +206,7 @@ console.log(JSON.stringify({out: rows.map(r => r.out.textContent), bad: rows.map
                        encoding="utf-8")
     assert r.returncode == 0, r.stderr
     out = json.loads(r.stdout)
-    assert out["out"][0] == "8,000.00", "คำนวณใช้ไปก่อนใช้ระบบให้เห็นทันที"
+    assert out["out"][0] == "8,000.00", "คำนวณใช้ไปก่อนเริ่มใช้ระบบให้เห็นทันที"
     assert out["bad"] == [False, True, False, True]
     assert "ไม่เกิน 20,000.00" in out["err"][1]
     assert out["prevented"] is True, "มีช่องผิดต้องไม่ส่งฟอร์ม"

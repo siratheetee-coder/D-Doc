@@ -2803,7 +2803,25 @@ def projects_page(request: Request, db: Session = Depends(get_db), year: int | N
         "total_spent": sum(project_spent(p) for p in rows),
         # โรงเรียนที่เพิ่งมาใช้: มีโครงการแล้วแต่ยังไม่มีรายจ่ายและยังไม่เคยตั้งยอด
         "suggest_start": bool(rows) and not any(project_spent(p) for p in rows),
+        "suggest_next": _suggest_next_year(db, cur, rows),
     })
+
+
+def _suggest_next_year(db, year, rows) -> str:
+    """ใกล้สิ้นปีแผน (เหลือไม่เกิน 60 วัน หรือเลยแล้ว) และปีถัดไปยังไม่มีโครงการ -> ชวนยกโครงการ
+
+    คืน "" = ไม่ต้องชวน · "near" = ใกล้สิ้นปี · "ended" = สิ้นปีไปแล้ว (คำบนการ์ดต่างกัน)
+    """
+    if not rows or db.query(Project).filter(Project.plan_year == year + 1).count():
+        return ""
+    try:
+        _mode, end = _plan_mode(db, year)
+    except Exception:
+        return ""
+    now = datetime.now()
+    if now > end + timedelta(days=1):
+        return "ended"
+    return "near" if now >= end - timedelta(days=60) else ""
 
 
 def _project_rows(db, year):
@@ -2994,7 +3012,7 @@ def projects_start_page(request: Request, db: Session = Depends(get_db), year: i
                         err: str = ""):
     """ตั้งยอดตั้งต้นสำหรับโรงเรียนที่เริ่มใช้ระบบกลางปี
 
-    ถามโครงการละข้อเดียวว่า "ตอนนี้เหลืองบกี่บาท" แล้วระบบคำนวณเองว่าใช้ไปก่อนใช้ระบบเท่าไร
+    ถามโครงการละข้อเดียวว่า "ตอนนี้เหลืองบกี่บาท" แล้วระบบคำนวณเองว่าใช้ไปก่อนเริ่มใช้ระบบเท่าไร
     ผู้ใช้ไม่ต้องเข้าใจศัพท์บัญชี และไม่ต้องย้อนลงรายการจ่ายทีละรายการ
     """
     school = get_school(db)
@@ -3007,7 +3025,7 @@ def projects_start_page(request: Request, db: Session = Depends(get_db), year: i
 
 @router.post("/projects/start")
 async def projects_start_save(request: Request, db: Session = Depends(get_db)):
-    """บันทึกยอดตั้งต้น: ใช้ไปก่อนใช้ระบบ = งบ - ใช้ในระบบแล้ว - เหลือตอนนี้
+    """บันทึกยอดตั้งต้น: ใช้ไปก่อนเริ่มใช้ระบบ = งบ - ใช้ในระบบแล้ว - เหลือตอนนี้
 
     ช่องที่เว้นว่างไม่แตะ · กรอก "เหลือ" เท่ากับงบที่ยังไม่ได้ใช้ในระบบ = ล้างยอดตั้งต้นทิ้ง
     """
@@ -3045,6 +3063,87 @@ async def projects_start_save(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(f"/projects/start?year={year}&err=" + quote(" · ".join(bad)), status_code=303)
     db.commit()
     return RedirectResponse(f"/projects?year={year}&started={changed}", status_code=303)
+
+
+def _plan_mode(db, year):
+    """โหมดของแผนปีนั้น (ใช้ค่าที่บันทึกไว้ในแผน ถ้าไม่มีใช้ค่าตั้งค่าโรงเรียน)"""
+    from app.models import PlanBudget
+    saved = db.query(PlanBudget).filter_by(year=year).first()
+    if saved:
+        return saved.mode, saved.end_date
+    from app.services.plan_funding import defaults
+    mode = getattr(get_school(db), "project_year_mode", "budget") or "budget"
+    return mode, defaults(year, mode)[1]
+
+
+def _next_year_rows(db, year):
+    """โครงการของปี year พร้อมบอกว่ามีชื่อเดียวกันในปีถัดไปแล้วหรือยัง (กันสร้างซ้ำ)"""
+    nxt = {(n or "").strip() for (n,) in db.query(Project.name).filter(Project.plan_year == year + 1)}
+    out = []
+    for p in db.query(Project).filter(Project.plan_year == year).order_by(Project.name).all():
+        b = round(project_budget(p), 2)
+        sp = round(project_spent(p), 2)
+        out.append({"p": p, "budget": b, "spent": sp, "left": round(b - sp, 2),
+                    "exists": (p.name or "").strip() in nxt})
+    return out
+
+
+@router.get("/projects/next-year", response_class=HTMLResponse)
+def projects_next_year_page(request: Request, db: Session = Depends(get_db), year: int | None = None,
+                            err: str = ""):
+    """ปิดปีแผน: ยกโครงการที่ทำต่อไปปีถัดไป + บอกขั้นเรื่องเงินที่เหลือ
+
+    เรื่องเงินมีของเดิมอยู่แล้ว (ยกยอดเงินในหน้าหลักการเงิน และนำเงินเหลือเข้าแผนใหม่ที่หน้างบประมาณ
+    ที่ใช้จัดทำแผน) หน้านี้จึงทำเฉพาะส่วนที่ยังไม่มี คือยกโครงการ แล้วชี้ทางไปส่วนเงินตามลำดับ
+    """
+    from app.models import AccountOpening, FinanceAccount
+    school = get_school(db)
+    cur = year or current_plan_year(school)
+    mode, _end = _plan_mode(db, cur)
+    rows = _next_year_rows(db, cur)
+    n_acc = db.query(FinanceAccount).count()
+    carried = bool(n_acc) and db.query(AccountOpening).filter_by(fiscal_year=cur + 1).count() >= n_acc
+    return templates.TemplateResponse("projects_next_year.html", {
+        "request": request, "school": school, "year": cur, "next": cur + 1, "mode": mode,
+        "year_label": plan_year_label(school, cur), "years": _plan_years(db, cur), "rows": rows,
+        "carried": carried, "n_acc": n_acc, "err": err,
+        "total_budget": round(sum(r["budget"] for r in rows), 2),
+        "total_spent": round(sum(r["spent"] for r in rows), 2),
+    })
+
+
+@router.post("/projects/next-year")
+async def projects_next_year_save(request: Request, db: Session = Depends(get_db)):
+    """สร้างโครงการปีถัดไปจากโครงการที่ติ๊กไว้ ใช้ชื่อและฝ่ายเดิม งบตามที่กรอก
+
+    ไม่ยกยอดใช้ไป ยอดตั้งต้น การปรับงบ หรือการจัดสรรเงินไปด้วย เพราะปีใหม่เริ่มนับใหม่
+    ชื่อที่มีในปีถัดไปแล้วข้าม (กดซ้ำได้ไม่สร้างซ้ำ)
+    """
+    from urllib.parse import quote
+    form = await request.form()
+    year = _to_int(form.get("year"), current_plan_year(get_school(db)))
+    rows = {r["p"].id: r for r in _next_year_rows(db, year)}
+    picked = {_to_int(v, 0) for v in form.getlist("copy")}
+    bad, made = [], 0
+    for pid in picked:
+        r = rows.get(pid)
+        if r is None or r["exists"]:
+            continue
+        txt = str(form.get(f"budget_{pid}") or "").replace(",", "").strip()
+        try:
+            budget = round(float(txt), 2) if txt else 0.0
+        except ValueError:
+            bad.append(f"{r['p'].name}: งบต้องเป็นตัวเลข"); continue
+        if budget < 0:
+            bad.append(f"{r['p'].name}: งบติดลบไม่ได้"); continue
+        db.add(Project(name=r["p"].name, budget=budget, responsible=r["p"].responsible or "",
+                       plan_year=year + 1, active=True))
+        made += 1
+    if bad:
+        db.rollback()
+        return RedirectResponse(f"/projects/next-year?year={year}&err=" + quote(" · ".join(bad)), status_code=303)
+    db.commit()
+    return RedirectResponse(f"/projects?year={year + 1}&copied={made}&from={year}", status_code=303)
 
 
 @router.get("/projects/{pid}", response_class=HTMLResponse)
