@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>ระบบไม่พร้อมใช้งานชั่วคราว · Easy Ekkasan</title>
+  <style>
+    @font-face{font-family:Prompt;src:url('/_ddoc-errors/Prompt-Regular.ttf') format('truetype');font-weight:400;font-display:swap}
+    @font-face{font-family:Prompt;src:url('/_ddoc-errors/Prompt-SemiBold.ttf') format('truetype');font-weight:600;font-display:swap}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:#f5f6fa;color:#202224;font:16px/1.8 Prompt,"Leelawadee UI",sans-serif}
+    main{width:100%;max-width:610px;background:white;border:1px solid #e8eaf1;border-radius:24px;padding:40px;text-align:center;box-shadow:0 12px 40px #1725540b}
+    .brand{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:32px;text-align:left}.brand img{width:48px;height:48px;object-fit:contain}.brand strong{font-size:20px}.brand small{display:block;color:#758198;font-size:12px}
+    .status-icon{width:80px;height:80px;border-radius:24px;display:grid;place-items:center;margin:0 auto 24px;background:#eef2ff;color:#4f46e5}.status-icon svg{width:42px;height:42px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+    h1{font-size:25px;line-height:1.5;margin:0 0 16px;font-weight:600}p{margin:8px 0;color:#64748b}.wait{background:#fff8eb;border:1px solid #fde6bb;border-radius:12px;padding:14px;margin:24px 0;color:#925b0a}.wait strong{font-weight:600}
+    .actions{display:flex;justify-content:center;flex-wrap:wrap;gap:12px}button,.home{font:inherit;border-radius:10px;padding:11px 22px;border:0;cursor:pointer;text-decoration:none}button{background:#4f46e5;color:white;font-weight:600}.home{background:#f1f3f9;color:#475569}button:hover{background:#4338ca}button:focus-visible,a:focus-visible{outline:3px solid #818cf8;outline-offset:3px}
+    .contact{margin-top:26px;font-size:13px}.contact a{color:#4f46e5;text-underline-offset:3px}.note{font-size:12px;margin-top:20px;color:#758198}
+    @media(max-width:480px){body{padding:16px}main{padding:28px 20px}h1{font-size:22px}.brand{margin-bottom:24px}.actions>*{width:100%}}
+  </style>
+</head>
+<body>
+<main>
+  <div class="brand"><img src="/_ddoc-errors/logo.png" alt=""><div><strong>Easy Ekkasan</strong><small>ระบบงานโรงเรียน</small></div></div>
+  <div class="status-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 7a9 9 0 0 0-15-2L2 8m0-5v5h5M4 17a9 9 0 0 0 15 2l3-3m0 5v-5h-5"/><path d="M12 8v4l3 2"/></svg></div>
+  <h1>ระบบไม่พร้อมใช้งานชั่วคราว</h1>
+  <p>ระบบอาจอยู่ระหว่างอัปเดตหรือรีสตาร์ท<br>ขออภัยในความไม่สะดวก</p>
+  <div class="wait">กรุณารอประมาณ <strong>1–2 นาที</strong><br>แล้วกด “ลองอีกครั้ง” เพื่อเข้าใช้งานต่อ</div>
+  <div class="actions"><button type="button" id="retry">ลองอีกครั้ง</button><a class="home" href="/">กลับหน้าหลัก</a></div>
+  <noscript><p>กรุณาเปิดหน้าหลักอีกครั้งหลังรอ 1–2 นาที</p></noscript>
+  <p class="contact">หากยังเข้าใช้งานไม่ได้ <a href="https://www.facebook.com/profile.php?id=61590718498881" target="_blank" rel="noopener noreferrer">ติดต่อเจ้าหน้าที่ผ่าน Facebook</a></p>
+  <p class="note">หากเกิดขณะกดบันทึก กรุณาตรวจรายการล่าสุดเมื่อระบบกลับมา<br>ก่อนบันทึกซ้ำ</p>
+</main>
+<script>
+  // Navigate with GET; never reload a failed POST and resubmit a transaction.
+  document.getElementById('retry').addEventListener('click',function(){window.location.replace(window.location.href);});
+</script>
+</body>
+</html>

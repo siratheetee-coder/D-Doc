@@ -29,6 +29,7 @@ systemctl enable ddoc
 systemctl restart ddoc
 
 echo "[5/6] ตั้งค่า nginx..."
+bash "$APP_DIR/deploy/install-error-pages.sh"
 cp deploy/nginx-ddoc.conf /etc/nginx/sites-available/ddoc
 ln -sf /etc/nginx/sites-available/ddoc /etc/nginx/sites-enabled/ddoc
 rm -f /etc/nginx/sites-enabled/default
