@@ -10,6 +10,7 @@
 </div>
 
 {% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกตารางเรียนแล้ว</div>{% endif %}
+{% if request.query_params.get('err') %}<div class="alert warn">{{ request.query_params.get('err') }}</div>{% endif %}
 {% if request.query_params.get('psaved') %}<div class="alert">✔ บันทึกโครงคาบแล้ว</div>{% endif %}
 {% if request.query_params.get('auto') is not none %}
 <div class="alert">✔ จัดตารางอัตโนมัติแล้ว {{ request.query_params.get('auto') }} คาบ{% if request.query_params.get('un')|int > 0 %} · จัดไม่ได้ {{ request.query_params.get('un') }} คาบ (ช่องว่างไม่พอ หรือครูชนทุกช่อง · ลองลดจำนวนคาบ/เพิ่มคาบเรียน หรือกรอกเองส่วนที่เหลือ){% endif %}</div>
@@ -18,7 +19,7 @@
 <div class="card">
   <form method="get" action="/academic/timetable" class="row" style="align-items:flex-end; margin:0; gap:12px;">
     <div><label>ปีการศึกษา</label>
-      <select name="year" onchange="submitReplace(this.form)">
+      <input type="hidden" name="section" value="{{ section }}"><select name="year" onchange="this.form.cid.value='';submitReplace(this.form)">
         {% for yy in years %}<option value="{{ yy }}" {{ 'selected' if yy==year }}>{{ yy }}</option>{% endfor %}
       </select>
     </div>
@@ -32,6 +33,10 @@
   </form>
 </div>
 
+<div class="card">
+{% if separated %}<h2>แยกตารางประถม–มัธยม</h2><div class="row"><a class="btn {{ 'soft' if section!='primary' }}" href="/academic/timetable?year={{ year }}&section=primary">ประถม</a><a class="btn {{ 'soft' if section!='secondary' }}" href="/academic/timetable?year={{ year }}&section=secondary">มัธยม</a></div><p class="muted">กำหนดคาบและเวลาพักแยกตามระดับ · ห้องอนุบาลใช้เวลาเดียวกับฝั่งประถม · ครูที่สอนข้ามระดับตรวจเวลาซ้อนร่วมกัน</p>
+{% else %}<h2>แยกตารางประถม–มัธยม</h2><p>สำหรับโรงเรียนที่เวลาเรียนหรือเวลาพักของประถมและมัธยมไม่ตรงกัน</p>{% if can_edit %}<form method="post" action="/academic/timetable/separate"><input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="section" value="{{ section }}"><button class="btn" type="submit">แยกตารางประถม–มัธยม</button><p class="muted">ระบบจะคัดลอกเวลาเดิมให้มัธยมและเก็บวิชาที่จัดไว้ จากนั้นแก้เวลาของแต่ละระดับได้</p></form>{% endif %}{% endif %}
+</div>
 {% if can_edit %}
 {# ---------- ตั้งโครงคาบเรียน (เจ้าหน้าที่) ---------- #}
 <div class="card">
@@ -39,14 +44,14 @@
     <h2 style="margin:0;"><svg class="icon"><use href="#ic-clock"/></svg> โครงคาบเรียน <span class="muted" style="font-size:14px;">(ตั้งเองตามโรงเรียน)</span></h2>
     {% if not periods %}
     <form method="post" action="/academic/timetable/periods/preset" style="margin:0;">
-      <input type="hidden" name="year" value="{{ year }}">
+      <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="section" value="{{ section }}">
       <button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> สร้างคาบมาตรฐาน (8 คาบ + พักเที่ยง)</button>
     </form>
     {% endif %}
   </div>
   <p class="muted" style="font-size:13px; margin:6px 0 8px;">ติ๊ก "พัก" สำหรับคาบพักเที่ยง/พักเบรก (จะไม่ให้ใส่วิชา) · ลำดับ = การเรียงคาบในวัน</p>
   <form method="post" action="/academic/timetable/periods/save">
-    <input type="hidden" name="year" value="{{ year }}">
+    <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="section" value="{{ section }}">
     <button type="submit" aria-hidden="true" tabindex="-1" style="position:absolute; width:0; height:0; padding:0; border:0; overflow:hidden;"></button>
     <div class="table-wrap">
     <table>

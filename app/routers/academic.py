@@ -461,7 +461,9 @@ def _busy_at(db, year, day, period_id, tm):
         return busy
     for tt in (db.query(AcadTimetable)
                .filter(AcadTimetable.class_id.in_(cls_ids),
-                       AcadTimetable.day == day, AcadTimetable.period_id == period_id).all()):
+                       AcadTimetable.day == day).all()):
+        from app.services.timetable_sections import overlaps
+        if not overlaps(db.get(AcadPeriod,period_id),db.get(AcadPeriod,tt.period_id)):continue
         pid = tm.get((tt.class_id, tt.subject_id))
         if pid:
             busy.add(pid)
@@ -3068,9 +3070,9 @@ _PERIOD_PRESET = [
 ]
 
 
-def _tt_periods(db, year):
-    return (db.query(AcadPeriod).filter_by(year=year)
-            .order_by(AcadPeriod.seq, AcadPeriod.id).all())
+def _tt_periods(db, year, section=None, level=None):
+    from app.services.timetable_sections import periods
+    return periods(db,year,section,level)
 
 
 def _tt_teacher_name(db, class_id, subject_id):
@@ -3113,13 +3115,18 @@ def timetable_page(request: Request, db: Session = Depends(get_db),
                    cid: int | None = None, year: int | None = None):
     y = year or _acad_year(db)
     sc = _scope(request, db)
-    periods = _tt_periods(db, y)
+    from app.services import timetable_sections as ts
     classes = _sorted_classes(db.query(AcadClass).filter_by(year=y).all())
     if sc.is_teacher:
         classes = [c for c in classes if c.id in sc.class_ids]
     c = db.get(AcadClass, cid) if cid else None
     if c and sc.is_teacher and c.id not in sc.class_ids:
         return _deny()
+    if c:y=c.year
+    split=ts.separated(db,y)
+    section=ts.section_for(db,y,c.level) if c else ('secondary' if split and request.query_params.get('section')=='secondary' else 'primary')
+    periods=_tt_periods(db,y,section)
+    classes=[x for x in _sorted_classes(db.query(AcadClass).filter_by(year=y).all()) if ts.section_for(db,y,x.level)==section and (not sc.is_teacher or x.id in sc.class_ids)]
     options = _tt_options(db, c) if c else []
     cells = _tt_cells(db, c) if c else {}
     subjects_all = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
@@ -3150,36 +3157,72 @@ def timetable_page(request: Request, db: Session = Depends(get_db),
                 lbl = labels.get(r.class_id, "")
                 if r.subject:
                     lbl += f" ({r.subject.name})"
-                busy.setdefault(str(tid), {})[f"{r.day}_{r.period_id}"] = lbl
+                other_period=db.get(AcadPeriod,r.period_id)
+                for p in periods:
+                    if ts.overlaps(p,other_period):
+                        key=f'{r.day}_{p.id}'
+                        previous=busy.setdefault(str(tid),{}).get(key,'')
+                        busy[str(tid)][key]=(previous+' / ' if previous else '')+lbl
     return templates.TemplateResponse("academic_timetable.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "days": TT_DAYS, "periods": periods, "classes": classes, "c": c,
         "options": options, "cells": cells, "class_label": _class_label,
         "can_edit": (not sc.is_teacher), "is_teacher": sc.is_teacher,
         "subj_teacher": subj_teacher, "busy": busy, "subjects": subjects,
+        "separated":split,"section":section,
         "term_label": term_label,
     })
 
 
+@router.post('/academic/timetable/separate')
+def timetable_separate(request: Request, year: int = Form(...), db: Session = Depends(get_db)):
+    if _scope(request,db).is_teacher:return _deny()
+    from app.services.timetable_sections import enable
+    enable(db,year);db.commit()
+    return RedirectResponse(f'/academic/timetable?year={year}&section=secondary',303)
+
+
 @router.post("/academic/timetable/periods/preset")
-def timetable_periods_preset(request: Request, db: Session = Depends(get_db), year: str = Form("")):
+def timetable_periods_preset(request: Request, db: Session = Depends(get_db), year: str = Form(""), section: str = Form("primary")):
     if _scope(request, db).is_teacher:
         return _deny()
     y = _to_int(year, 0) or _acad_year(db)
-    if not _tt_periods(db, y):
+    from app.services.timetable_sections import separated
+    section='secondary' if section=='secondary' and separated(db,y) else 'primary'
+    if not _tt_periods(db, y, section):
         for i, (name, tlabel, brk) in enumerate(_PERIOD_PRESET):
-            db.add(AcadPeriod(year=y, seq=i + 1, name=name, time_label=tlabel, is_break=brk))
+            db.add(AcadPeriod(year=y, school_section=section, seq=i + 1, name=name, time_label=tlabel, is_break=brk))
         db.commit()
-    return RedirectResponse(f"/academic/timetable?year={y}", status_code=303)
+    return RedirectResponse(f"/academic/timetable?year={y}&section={section}", status_code=303)
 
 
 @router.post("/academic/timetable/periods/save")
-async def timetable_periods_save(request: Request, db: Session = Depends(get_db), year: str = Form("")):
+async def timetable_periods_save(request: Request, db: Session = Depends(get_db), year: str = Form(""), section: str = Form("primary")):
     if _scope(request, db).is_teacher:
         return _deny()
     form = await request.form()
     y = _to_int(year, 0) or _acad_year(db)
-    for p in _tt_periods(db, y):
+    from app.services.timetable_sections import separated
+    section='secondary' if section=='secondary' and separated(db,y) else 'primary'
+    from app.services.timetable_sections import interval
+    from urllib.parse import urlencode
+    from app.models import SubstituteAssignment
+    proposed=[]
+    error=''
+    for p in _tt_periods(db,y,section):
+        deleting=bool(form.get(f'del_{p.id}'))
+        becoming_break=bool(form.get(f'break_{p.id}')) and not p.is_break
+        if (deleting or becoming_break) and (db.query(AcadTimetable).filter_by(period_id=p.id).first() or db.query(SubstituteAssignment).filter_by(period_id=p.id).first()):
+            error='คาบนี้มีตารางเรียนหรือสอนแทนใช้อยู่ กรุณาย้ายรายการออกก่อนลบหรือเปลี่ยนเป็นพัก'
+        if not deleting:proposed.append(form.get(f'time_{p.id}','').strip())
+    if form.get('new_name','').strip():proposed.append(form.get('new_time','').strip())
+    ranges=[interval(t) for t in proposed]
+    if any(t and not interval(t) for t in proposed) or (separated(db,y) and any(r is None for r in ranges)):
+        error='กรอกเวลาเริ่ม–สิ้นสุดให้ครบ เช่น 08:30-09:20 เพื่อใช้ตรวจครูสอนซ้อน'
+    if any(a and b and max(a[0],b[0])<min(a[1],b[1]) for i,a in enumerate(ranges) for b in ranges[i+1:]):
+        error='เวลาเรียนหรือเวลาพักในระดับเดียวกันซ้อนกัน กรุณาตรวจเวลาแต่ละคาบ'
+    if error:return RedirectResponse('/academic/timetable?'+urlencode(dict(year=y,section=section,err=error)),303)
+    for p in _tt_periods(db, y, section):
         if form.get(f"del_{p.id}"):
             db.delete(p)
             continue
@@ -3189,12 +3232,12 @@ async def timetable_periods_save(request: Request, db: Session = Depends(get_db)
         p.seq = _to_int(form.get(f"seq_{p.id}", ""), p.seq)
     nm = (form.get("new_name", "") or "").strip()
     if nm:
-        n = len(_tt_periods(db, y))
-        db.add(AcadPeriod(year=y, seq=n + 1, name=nm,
+        n = len(_tt_periods(db, y, section))
+        db.add(AcadPeriod(year=y, school_section=section, seq=n + 1, name=nm,
                           time_label=(form.get("new_time", "") or "").strip(),
                           is_break=bool(form.get("new_break"))))
     db.commit()
-    return RedirectResponse(f"/academic/timetable?year={y}&psaved=1", status_code=303)
+    return RedirectResponse(f"/academic/timetable?year={y}&section={section}&psaved=1", status_code=303)
 
 
 @router.post("/academic/timetable/save")
@@ -3205,7 +3248,7 @@ async def timetable_save(request: Request, db: Session = Depends(get_db), cid: s
     c = db.get(AcadClass, _to_int(cid, 0))
     if not c:
         return RedirectResponse("/academic/timetable", status_code=303)
-    periods = _tt_periods(db, c.year)
+    periods = _tt_periods(db, c.year, level=c.level)
     cur = {(r.day, r.period_id): r for r in
            db.query(AcadTimetable).filter_by(class_id=c.id).all()}
     for d, _ in TT_DAYS:
@@ -3236,7 +3279,9 @@ def _auto_schedule(db, klass, counts, clear):
     - ไม่ทับช่องที่กรอกมือไว้ (ถ้าไม่ติ๊กล้าง) · หลบครูซ้อนกับห้องอื่น + ในห้องเดียวกัน
     - กระจายไม่ให้วิชาเดียวซ้ำวันเดียวกันถ้าเลี่ยงได้ · คืน (จัดได้, จัดไม่ได้)"""
     from collections import Counter
-    periods = [p for p in _tt_periods(db, klass.year) if not p.is_break]
+    periods = [p for p in _tt_periods(db, klass.year, level=klass.level) if not p.is_break]
+    from app.services.timetable_sections import overlaps
+    all_periods={p.id:p for p in _tt_periods(db,klass.year)}
     all_slots = [(d, p.id) for d, _ in TT_DAYS for p in periods]
     existing = {(r.day, r.period_id): r for r in
                 db.query(AcadTimetable).filter_by(class_id=klass.id).all()}
@@ -3273,7 +3318,7 @@ def _auto_schedule(db, klass, counts, clear):
     subj_day = set()
     for sid in demands:
         tid = my_teacher.get(sid)
-        cands = [s for s in free if (tid is None or (tid, s[0], s[1]) not in busy)]
+        cands = [s for s in free if tid is None or not any(t==tid and day==s[0] and overlaps(all_periods.get(pid),all_periods.get(s[1])) for t,day,pid in busy)]
         if not cands:
             unplaced += 1
             continue
@@ -3319,7 +3364,9 @@ def timetable_teacher_page(request: Request, db: Session = Depends(get_db),
     person = db.get(Person, pid) if pid else None
     periods = _tt_periods(db, y)
     class_ids = {x.id for x in db.query(AcadClass).filter_by(year=y).all()}
+    from app.services.timetable_sections import separated as timetable_separated
     tgrid, clashes = {}, []
+    clash_slots=set()
     if person:
         pairs = {(t.class_id, t.subject_id) for t in
                  db.query(AcadTeaching).filter_by(teacher_id=person.id).all()}
@@ -3329,14 +3376,17 @@ def timetable_teacher_page(request: Request, db: Session = Depends(get_db),
                 slot = tgrid.setdefault(r.day, {}).setdefault(r.period_id, [])
                 slot.append({"class": _class_label(c),
                              "subject": (r.subject.name if r.subject else "")})
+        from app.services.timetable_sections import overlaps
         for d, byp in tgrid.items():
             for p_id, lst in byp.items():
-                if len(lst) > 1:
+                if len(lst) > 1 or any(other!=p_id and overlaps(db.get(AcadPeriod,p_id),db.get(AcadPeriod,other)) for other in byp):
+                    clash_slots.add((d,p_id))
                     clashes.append({"day": dict(TT_DAYS).get(d, d), "n": len(lst)})
     return templates.TemplateResponse("academic_timetable_teacher.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "days": TT_DAYS, "periods": periods, "teachers": teachers, "person": person,
         "tgrid": tgrid, "clashes": clashes, "is_teacher": sc.is_teacher,
+        "clash_slots":clash_slots, "separated":timetable_separated(db,y),
     })
 
 

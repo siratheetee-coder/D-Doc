@@ -31,7 +31,7 @@
 {% if person %}
 {% if clashes %}
 <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
-  พบคาบซ้อน {{ clashes|length }} จุด · ครูถูกจัดสอนมากกว่า 1 ห้องในคาบเดียวกัน (ช่องสีแดง) ควรแก้ที่ตารางรายห้อง</div>
+  พบเวลาสอนซ้อน {{ clashes|length }} ช่อง · ครูถูกจัดสอนมากกว่า 1 ห้องในช่วงเวลาที่ทับกัน (ช่องสีแดง) ควรแก้ที่ตารางรายห้อง</div>
 {% endif %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
@@ -47,7 +47,7 @@
       <th style="min-width:70px;">วัน \ คาบ</th>
       {% for p in periods %}
       <th style="{{ 'background:#f1f5f9;' if p.is_break }} min-width:{{ '60px' if p.is_break else '120px' }};">
-        {{ p.name }}{% if p.time_label %}<div class="muted" style="font-size:11px; font-weight:400;">{{ p.time_label }}</div>{% endif %}</th>
+        {% if separated %}<div>{{ 'มัธยม' if p.school_section=='secondary' else 'ประถม' }}</div>{% endif %}{{ p.name }}{% if p.time_label %}<div class="muted" style="font-size:11px; font-weight:400;">{{ p.time_label }}</div>{% endif %}</th>
       {% endfor %}
     </tr></thead>
     <tbody>
@@ -59,7 +59,7 @@
           {% if p.is_break %}
           <td class="center muted" style="background:#f8fafc; font-size:12px;">พัก</td>
           {% else %}
-          <td class="center {{ 'clash' if lst|length > 1 }}" style="font-size:12.5px;">
+          <td class="center {{ 'clash' if (dnum,p.id) in clash_slots }}" style="font-size:12.5px;">
             {% for e in lst %}<div><b>{{ e.subject }}</b><div class="muted" style="font-size:11px;">{{ e.class }}</div></div>{% endfor %}
             {% if not lst %}<span class="muted"> · </span>{% endif %}
           </td>

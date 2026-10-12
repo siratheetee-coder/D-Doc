@@ -2347,8 +2347,8 @@ def render_timetable_class(school, klass, db) -> str:
     """ตารางเรียนของห้อง (แนวนอน) - วิชา + ครูผู้สอนในแต่ละคาบ"""
     from app.models import AcadPeriod, AcadTimetable, AcadTeaching
     y = klass.year
-    periods = (db.query(AcadPeriod).filter_by(year=y)
-               .order_by(AcadPeriod.seq, AcadPeriod.id).all())
+    from app.services.timetable_sections import periods as school_periods
+    periods = school_periods(db,y,level=klass.level)
     cells = {(r.day, r.period_id): r for r in
              db.query(AcadTimetable).filter_by(class_id=klass.id).all()}
 
@@ -2414,7 +2414,14 @@ def render_timetable_teacher(school, person, db, year) -> str:
     _p(doc, "ตารางสอน", align="center", bold=True, size=18, after=0)
     _p(doc, school.name or "", align="center", bold=True, size=18, after=1)
     _p(doc, f"ครู {person.name}   ปีการศึกษา {year}", align="center", size=16, after=4)
-    _tt_grid_doc(doc, periods, cell)
+    from app.services.timetable_sections import separated
+    if separated(db,year):
+        for i,(section,label) in enumerate([('primary','ประถม'),('secondary','มัธยม')]):
+            if i:doc.add_page_break()
+            _p(doc,label+' · ครู '+person.name,align='center',bold=True,size=18)
+            _tt_grid_doc(doc,[p for p in periods if p.school_section==section],cell)
+    else:
+        _tt_grid_doc(doc, periods, cell)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ตารางสอน_{person.name}_{year}") + ".docx")
     doc.save(str(out))

@@ -2052,10 +2052,17 @@ class AcadActivityResult(Base):
     result = Column(String, default="")     # "ผ" / "มผ"
 
 
+class AcadTimetableConfig(Base):
+    __tablename__ = 'acad_timetable_config'
+    year = Column(Integer, primary_key=True)
+    separated = Column(Boolean, default=False, nullable=False)
+
+
 class AcadPeriod(Base):
     """โครงคาบเรียนของโรงเรียน (ตั้งเองได้) - ใช้เป็นคอลัมน์/แถวของตารางเรียน
     is_break=True = คาบพัก (พักเที่ยง/พักเบรก) ไม่ใส่วิชา"""
     __tablename__ = "acad_period"
+    school_section = Column(String, default='primary', nullable=False)
 
     id = Column(Integer, primary_key=True)
     year = Column(Integer, nullable=False)

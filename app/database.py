@@ -264,6 +264,7 @@ MIGRATIONS = [
     ("student", "guardian_relation", "VARCHAR DEFAULT ''"),
     ("student", "guardian_job", "VARCHAR DEFAULT ''"),
     ("acad_score", "grade_manual", "BOOLEAN DEFAULT 0"),
+    ("acad_period", "school_section", "VARCHAR NOT NULL DEFAULT 'primary'"),
     ("school", "tax_id", "VARCHAR DEFAULT ''"),
     ("finance_txn", "project_id", "INTEGER"),
     ("procurement", "quotation_no", "VARCHAR DEFAULT ''"),

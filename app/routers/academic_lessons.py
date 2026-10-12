@@ -58,7 +58,8 @@ def page(request, db, c, subject, term, *, preview=None, token="", error="", ent
     if default not in months:default=months[0]
     month=(entered or {}).get('month') or request.query_params.get('month') or default
     if month not in months:month=default
-    periods=db.query(AcadPeriod).filter_by(year=c.year,is_break=False).order_by(AcadPeriod.seq).all()
+    from app.services.timetable_sections import periods as school_periods
+    periods=[p for p in school_periods(db,c.year,level=c.level) if not p.is_break]
     import re
     order={p.name or f'คาบ {p.seq}':p.seq for p in periods}
     def slot_order(row):
