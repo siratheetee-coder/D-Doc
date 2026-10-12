@@ -95,6 +95,7 @@ def _finance_years(db, fy: int) -> list:
 @router.get("/finance", response_class=HTMLResponse)
 def finance_dashboard(request: Request, db: Session = Depends(get_db), year: int | None = None):
     from app.services.dashboard_tasks import finance_tasks
+    from app.services.finance_setup import setup_steps as finance_setup_steps
     fy = year or current_fiscal_year()
     accounts = db.query(FinanceAccount).order_by(FinanceAccount.name).all()
     total_bal = sum(account_balance_year(a, fy) for a in accounts)
@@ -109,6 +110,7 @@ def finance_dashboard(request: Request, db: Session = Depends(get_db), year: int
         "n_disburse": db.query(DisburseMemo).filter_by(fiscal_year=fy).count(),
         "n_receipt": db.query(Receipt).filter_by(fiscal_year=fy).count(),
         "task_cards": finance_tasks(db, fy),
+        "setup": finance_setup_steps(db, fy, get_school(db)),
         "recent_disburse": db.query(DisburseMemo).order_by(DisburseMemo.id.desc()).limit(5).all(),
     })
 
