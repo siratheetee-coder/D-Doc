@@ -136,6 +136,8 @@ MIGRATIONS = [
     ("project", "plan_year",     "INTEGER"),
     ("project", "responsible",   "VARCHAR DEFAULT ''"),
     ("project", "active",        "BOOLEAN DEFAULT 1"),
+    ("project", "spent_before",    "FLOAT DEFAULT 0"),     # ใช้ไปก่อนใช้ระบบ (โรงเรียนที่เริ่มกลางปี)
+    ("project", "spent_before_at", "DATETIME"),
     ("procurement", "project_id", "INTEGER"),
     ("procurement", "proc_case", "VARCHAR DEFAULT 'normal'"),
     ("procurement", "case_extra", "TEXT DEFAULT ''"),

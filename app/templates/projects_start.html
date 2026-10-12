@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}ตั้งยอดตั้งต้นโครงการ{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">โครงการ/แผนงบ · สำหรับโรงเรียนที่เริ่มใช้ระบบกลางปี</div>
+    <span class="hero-title">ตั้งยอดตั้งต้นโครงการ</span>
+    <div class="hero-meta">{{ year_label }} {{ year }} · {{ rows|length }} โครงการ</div>
+  </div>
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <a class="btn sm gray" href="/projects?year={{ year }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับโครงการ</a>
+    <form method="get" action="/projects/start">
+      <select name="year" onchange="this.form.submit()">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ year_label }} {{ y }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+</div>
+
+{% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
+
+<div class="card">
+  <h2 style="margin-top:0;">ใช้หน้านี้เมื่อไร</h2>
+  <p style="margin:0 0 10px;">ถ้าโรงเรียนใช้เงินโครงการไปบ้างแล้วก่อนมาใช้ระบบ ให้กรอกแค่ว่า <b>ตอนนี้แต่ละโครงการเหลืองบกี่บาท</b> ระบบคำนวณให้เองว่าใช้ไปก่อนใช้ระบบเท่าไร ไม่ต้องย้อนลงรายการจ่ายทีละรายการ</p>
+  <div class="st-example">
+    <b>ตัวอย่าง</b> โครงการกีฬาสี งบ 30,000 บาท ตอนนี้เหลือ 22,000 บาท
+    → ระบบบันทึกว่า <b>ใช้ไปก่อนใช้ระบบ 8,000 บาท</b> หน้าโครงการจะขึ้น ใช้ไปแล้ว 8,000 คงเหลือ 22,000 ตรงกับความจริง
+  </div>
+  <p class="muted" style="font-size:13px; margin:10px 0 0;">โครงการไหนยังไม่ได้ใช้เงินเลย ไม่ต้องกรอก · เงินที่อยู่ในบัญชีตอนนี้ ตั้งแยกที่ <a href="/finance/accounts">ทะเบียนคุมเงิน</a> (ยอดยกมา)</p>
+</div>
+
+{% if not rows %}
+<div class="card">
+  <p style="margin:0;">{{ year_label }} {{ year }} ยังไม่มีโครงการ เพิ่มโครงการพร้อมงบเต็มปีก่อน</p>
+  <p style="margin:10px 0 0;"><a class="btn" href="/projects?year={{ year }}">เพิ่มโครงการ</a>
+     <a class="btn gray" href="/projects/import">นำเข้าจาก Excel</a></p>
+</div>
+{% else %}
+<form class="card" method="post" action="/projects/start" id="startForm">
+  <input type="hidden" name="year" value="{{ year }}">
+  <div class="table-wrap"><table class="stack-sm">
+    <thead><tr>
+      <th>โครงการ</th><th class="right">งบโครงการ</th><th class="right">ใช้ในระบบแล้ว</th>
+      <th class="right" style="min-width:150px;">ตอนนี้เหลือ (บาท)</th><th class="right">ใช้ไปก่อนใช้ระบบ</th>
+    </tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr data-room="{{ r.room }}">
+        <td data-label="โครงการ"><a href="/projects/{{ r.p.id }}">{{ r.p.name }}</a></td>
+        <td data-label="งบโครงการ" class="right">{{ "{:,.2f}".format(r.budget) }}</td>
+        <td data-label="ใช้ในระบบแล้ว" class="right">{{ "{:,.2f}".format(r.used) if r.used else "-" }}</td>
+        <td data-label="ตอนนี้เหลือ" class="right">
+          <input name="remain_{{ r.p.id }}" inputmode="decimal" class="st-in" autocomplete="off"
+                 value="{{ '%.2f'|format(r.remain) if r.before else '' }}" placeholder="ไม่ต้องกรอก">
+          <div class="st-err" hidden></div>
+        </td>
+        <td data-label="ใช้ไปก่อนใช้ระบบ" class="right"><b class="st-out">{{ "{:,.2f}".format(r.before) if r.before else "-" }}</b></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <button class="btn green" type="submit" style="margin-top:14px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกยอดตั้งต้น</button>
+  <p class="muted" style="font-size:12.5px; margin:8px 0 0;">กรอกผิดแก้ได้เสมอ กลับมาหน้านี้แล้วกรอกใหม่ · ถ้าจะล้างยอดตั้งต้นทิ้ง ให้กรอกยอดเหลือเท่ากับงบที่ยังไม่ได้ใช้ในระบบ</p>
+</form>
+{% endif %}
+
+<style>
+  .st-example{ background:#ecfdf5; color:#065f46; border-radius:10px; padding:10px 14px; font-size:14px; }
+  .st-in{ width:140px; text-align:right; }
+  .st-in.bad{ border-color:#dc2626; background:#fef2f2; }
+  .st-err{ color:#b91c1c; font-size:12px; margin-top:3px; }
+</style>
+<script>
+(function () {
+  var fmt = function (n) { return n.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
+  function check(inp) {
+    var tr = inp.closest('tr'), room = parseFloat(tr.getAttribute('data-room')) || 0;
+    var out = tr.querySelector('.st-out'), err = tr.querySelector('.st-err');
+    var txt = inp.value.replace(/,/g, '').trim();
+    inp.classList.remove('bad'); err.hidden = true;
+    if (!txt) { out.textContent = '-'; return true; }
+    var v = Number(txt);
+    var msg = isNaN(v) ? 'กรอกเป็นตัวเลข'
+            : v < 0 ? 'ติดลบไม่ได้'
+            : v > room + 0.004 ? 'เหลือได้ไม่เกิน ' + fmt(room) + ' บาท' : '';
+    if (msg) { inp.classList.add('bad'); err.textContent = msg; err.hidden = false; out.textContent = '-'; return false; }
+    var before = Math.round((room - v) * 100) / 100;
+    out.textContent = before > 0 ? fmt(before) : '-';
+    return true;
+  }
+  var form = document.getElementById('startForm');
+  if (!form) return;
+  form.querySelectorAll('.st-in').forEach(function (inp) {
+    inp.addEventListener('input', function () { check(inp); });
+  });
+  form.addEventListener('submit', function (e) {
+    var ok = true;
+    form.querySelectorAll('.st-in').forEach(function (inp) { ok = check(inp) && ok; });
+    if (!ok) { e.preventDefault(); var b = form.querySelector('.st-in.bad'); if (b) b.focus(); }
+  });
+})();
+</script>
+{% endblock %}

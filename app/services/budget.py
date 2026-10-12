@@ -52,7 +52,16 @@ def project_procurements(project) -> list:
 
 
 def project_spent(project) -> float:
-    """ยอดใช้จริงของโครงการ = เรื่องจัดซื้อที่ผูก + ขอเบิกจ่ายเดี่ยวที่ผูก (กันนับซ้ำเรื่องที่เบิกจากจัดซื้อ)"""
+    """ยอดใช้ไปของโครงการ = ที่บันทึกในระบบ + ใช้ไปก่อนใช้ระบบ (ยอดตั้งต้นของโรงเรียนที่เริ่มกลางปี)
+
+    ทุกหน้าที่โชว์ "ใช้ไป" (หน้าโครงการ รายการโครงการ รายงานสรุป) เรียกตัวนี้ตัวเดียว
+    จึงตรงกันเสมอ
+    """
+    return round(project_spent_in_system(project) + float(getattr(project, "spent_before", 0) or 0), 2)
+
+
+def project_spent_in_system(project) -> float:
+    """ยอดใช้จริงที่บันทึกในระบบ = เรื่องจัดซื้อที่ผูก + ขอเบิกจ่ายเดี่ยวที่ผูก (กันนับซ้ำเรื่องที่เบิกจากจัดซื้อ)"""
     from app.models import DisburseMemo
     from sqlalchemy.orm import object_session
     db = object_session(project)

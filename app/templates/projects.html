@@ -9,6 +9,7 @@
   </div>
   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <a class="btn sm gray" href="/projects/import"><svg class="icon"><use href="#ic-download"/></svg> นำเข้าจาก Excel</a>
+    <a class="btn sm gray" href="/projects/start?year={{ fiscal_year }}" title="สำหรับโรงเรียนที่เริ่มใช้ระบบกลางปี"><svg class="icon"><use href="#ic-edit"/></svg> ตั้งยอดตั้งต้น</a>
     <a class="btn sm" href="/projects/summary.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-file"/></svg> รายงานสรุปโครงการ (Word)</a>
     <a class="btn sm green" href="/projects/summary.xlsx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> Excel</a>
     <form method="get" action="/projects">
@@ -18,6 +19,14 @@
     </form>
   </div>
 </div>
+{% if request.query_params.get('started') is not none %}<div class="alert">✔ บันทึกยอดตั้งต้นแล้ว {{ request.query_params.get('started') }} โครงการ · ยอดใช้ไปและคงเหลือของแต่ละโครงการอัปเดตแล้ว</div>{% endif %}
+{% if suggest_start %}
+<div class="card" style="background:#eff6ff;">
+  <b>เพิ่งเริ่มใช้ระบบกลางปีใช่ไหม</b>
+  <p style="margin:6px 0 10px;">ถ้าโรงเรียนใช้เงินโครงการไปบ้างแล้วก่อนมาใช้ระบบ ให้กรอกว่าตอนนี้แต่ละโครงการเหลืองบเท่าไร ยอดใช้ไปและคงเหลือจะตรงกับความจริงทันที</p>
+  <a class="btn sm" href="/projects/start?year={{ fiscal_year }}">ตั้งยอดตั้งต้น</a>
+</div>
+{% endif %}
 {% if request.query_params.get('added') or request.query_params.get('updated') %}<div class="alert">✔ นำเข้าโครงการแล้ว: สร้างใหม่ {{ request.query_params.get('added', 0) }} รายการ{% if request.query_params.get('updated') and request.query_params.get('updated')!='0' %} · อัปเดตงบ {{ request.query_params.get('updated') }} รายการ{% endif %}</div>{% endif %}
 
 <div class="card"><h2>งบประมาณที่ใช้จัดทำแผน</h2><p>เลือกเงินเหลือจากปีก่อนและเงินอุดหนุนรอบใหม่ แล้วจัดสรรให้แต่ละโครงการ</p>

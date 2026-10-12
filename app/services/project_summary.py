@@ -68,6 +68,15 @@ def build_rows(db, projects) -> list:
                 "vendor": (t.account.name if t.account else ""), "status": "จ่ายแล้ว",
             })
         works.sort(key=lambda w: (w["date"] or datetime.min))
+        # ยอดตั้งต้นของโรงเรียนที่เริ่มใช้ระบบกลางปี ต้องขึ้นเป็นบรรทัดแรกของรายการด้วย
+        # ไม่งั้นผลรวมรายการในรายงานจะไม่เท่ากับยอด "ใช้ไป" ของโครงการ
+        before = float(getattr(p, "spent_before", 0) or 0)
+        if before > 0:
+            works.insert(0, {
+                "date": getattr(p, "spent_before_at", None), "no": "",
+                "subject": "ใช้ไปก่อนใช้ระบบ (ยอดตั้งต้น)", "method": "ยอดตั้งต้น",
+                "amount": before, "vendor": "", "status": "ยอดตั้งต้น",
+            })
         rows.append({
             "p": p, "name": p.name or "", "responsible": p.responsible or "",
             "budget": budget, "spent": spent, "left": round(budget - spent, 2),

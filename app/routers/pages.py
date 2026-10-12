@@ -2801,6 +2801,8 @@ def projects_page(request: Request, db: Session = Depends(get_db), year: int | N
         "departments": db.query(Department).order_by(Department.name).all(),
         "total_budget": sum(project_budget(p) for p in rows),
         "total_spent": sum(project_spent(p) for p in rows),
+        # โรงเรียนที่เพิ่งมาใช้: มีโครงการแล้วแต่ยังไม่มีรายจ่ายและยังไม่เคยตั้งยอด
+        "suggest_start": bool(rows) and not any(project_spent(p) for p in rows),
     })
 
 
@@ -2971,6 +2973,78 @@ def projects_import_confirm(db: Session = Depends(get_db),
             added += 1
     db.commit()
     return RedirectResponse(f"/projects?year={py}&added={added}&updated={updated}", status_code=303)
+
+
+def _start_rows(db, year):
+    """แถวของหน้าตั้งยอดตั้งต้น: งบ / ใช้ในระบบ / ใช้ก่อนใช้ระบบ / เหลือตอนนี้ ของแต่ละโครงการ"""
+    from app.services.budget import project_spent_in_system
+    out = []
+    for p in (db.query(Project).filter(Project.plan_year == year, Project.active == True)  # noqa: E712
+              .order_by(Project.name).all()):
+        b = round(project_budget(p), 2)
+        used = round(project_spent_in_system(p), 2)
+        before = round(float(p.spent_before or 0), 2)
+        out.append({"p": p, "budget": b, "used": used, "before": before,
+                    "remain": round(b - used - before, 2), "room": round(b - used, 2)})
+    return out
+
+
+@router.get("/projects/start", response_class=HTMLResponse)
+def projects_start_page(request: Request, db: Session = Depends(get_db), year: int | None = None,
+                        err: str = ""):
+    """ตั้งยอดตั้งต้นสำหรับโรงเรียนที่เริ่มใช้ระบบกลางปี
+
+    ถามโครงการละข้อเดียวว่า "ตอนนี้เหลืองบกี่บาท" แล้วระบบคำนวณเองว่าใช้ไปก่อนใช้ระบบเท่าไร
+    ผู้ใช้ไม่ต้องเข้าใจศัพท์บัญชี และไม่ต้องย้อนลงรายการจ่ายทีละรายการ
+    """
+    school = get_school(db)
+    cur = year or current_plan_year(school)
+    return templates.TemplateResponse("projects_start.html", {
+        "request": request, "school": school, "year": cur, "year_label": plan_year_label(school, cur),
+        "years": _plan_years(db, cur), "rows": _start_rows(db, cur), "err": err,
+    })
+
+
+@router.post("/projects/start")
+async def projects_start_save(request: Request, db: Session = Depends(get_db)):
+    """บันทึกยอดตั้งต้น: ใช้ไปก่อนใช้ระบบ = งบ - ใช้ในระบบแล้ว - เหลือตอนนี้
+
+    ช่องที่เว้นว่างไม่แตะ · กรอก "เหลือ" เท่ากับงบที่ยังไม่ได้ใช้ในระบบ = ล้างยอดตั้งต้นทิ้ง
+    """
+    from urllib.parse import quote
+    form = await request.form()
+    year = _to_int(form.get("year"), current_plan_year(get_school(db)))
+    rows = {r["p"].id: r for r in _start_rows(db, year)}
+    bad, changed = [], 0
+    for key, raw in form.items():
+        if not key.startswith("remain_"):
+            continue
+        txt = str(raw or "").replace(",", "").strip()
+        if not txt:
+            continue
+        pid = _to_int(key[len("remain_"):], 0)
+        r = rows.get(pid)
+        if r is None:
+            continue
+        try:
+            remain = round(float(txt), 2)
+        except ValueError:
+            bad.append(f"{r['p'].name}: กรอกเป็นตัวเลข"); continue
+        if remain < 0:
+            bad.append(f"{r['p'].name}: ยอดเหลือติดลบไม่ได้"); continue
+        if remain > r["room"]:
+            bad.append(f"{r['p'].name}: เหลือได้ไม่เกิน {r['room']:,.2f} บาท "
+                       f"(งบ {r['budget']:,.2f} หักที่ใช้ในระบบแล้ว {r['used']:,.2f})"); continue
+        before = round(r["room"] - remain, 2)
+        if before != r["before"]:
+            r["p"].spent_before = before
+            r["p"].spent_before_at = datetime.now() if before > 0 else None
+            changed += 1
+    if bad:
+        db.rollback()
+        return RedirectResponse(f"/projects/start?year={year}&err=" + quote(" · ".join(bad)), status_code=303)
+    db.commit()
+    return RedirectResponse(f"/projects?year={year}&started={changed}", status_code=303)
 
 
 @router.get("/projects/{pid}", response_class=HTMLResponse)

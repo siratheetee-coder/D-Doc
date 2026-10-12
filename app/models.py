@@ -117,6 +117,10 @@ class Project(Base):
     plan_year = Column(Integer, nullable=True)     # ปีของแผน (พ.ศ.) - ปีงบ หรือ ปีการศึกษา ตามตั้งค่าโรงเรียน
     responsible = Column(String, default="")       # ฝ่าย/ผู้รับผิดชอบโครงการ
     active = Column(Boolean, default=True)
+    # ยอดตั้งต้นของโรงเรียนที่เริ่มใช้ระบบกลางปี: เงินโครงการที่ใช้ไปก่อนมาใช้ระบบ
+    # ผู้ใช้ไม่ได้กรอกตัวเลขนี้ตรง ๆ แต่ตอบว่า "ตอนนี้เหลืองบกี่บาท" แล้วระบบคำนวณให้ (หน้า /projects/start)
+    spent_before = Column(Float, default=0.0)
+    spent_before_at = Column(DateTime, nullable=True)   # ตั้งยอดเมื่อไร
 
     revisions = relationship("ProjectBudgetRevision", back_populates="project",
                              cascade="all, delete-orphan", order_by="ProjectBudgetRevision.seq")
