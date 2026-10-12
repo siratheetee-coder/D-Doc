@@ -522,7 +522,9 @@ def _maybe_new_vendor(db, form):
 
 
 def _populate_round(rnd, form, db):
-    rnd.period_type = form.get("period_type") or "month"
+    # รายวัน/สัปดาห์/เดือน เลิกให้เลือกแล้ว: ไม่ได้ใช้คำนวณหรือออกเอกสาร ช่วงวันที่บอกอยู่แล้ว
+    # (เจ้าของถามว่าจำเป็นไหม) คอลัมน์ยังอยู่ เก็บค่าเดิมไว้ไม่ทับ
+    rnd.period_type = form.get("period_type") or rnd.period_type or "month"
     rnd.start_date = parse_be_date(form.get("start_date") or "")
     rnd.end_date = parse_be_date(form.get("end_date") or "")
     rnd.days = _to_int(form.get("days"), 0)

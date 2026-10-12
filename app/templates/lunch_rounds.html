@@ -1,33 +1,49 @@
 {% extends "base.html" %}
-{% block title %}จ้างเหมารายรอบ {{ p.year }}{% endblock %}
+{% block title %}รอบจัด{{ "ซื้อ" if p.operate_mode == "ingredient" else "จ้าง" }} {{ p.year }}{% endblock %}
 {% block content %}
+{% set RW = 'รอบจัดซื้อ' if p.operate_mode == 'ingredient' else 'รอบจัดจ้าง' %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-    <h1 style="margin:0;">จ้างเหมาประกอบอาหาร รายรอบ (ปีการศึกษา {{ p.year }})</h1>
+    <h1 style="margin:0;">{{ RW }} {{ {"hire":"จ้างเหมาประกอบอาหาร","person":"จ้างแม่ครัว","ingredient":"ซื้อวัตถุดิบ"}.get(p.operate_mode, "") }} (ปีการศึกษา {{ p.year }})</h1>
     <a class="btn sm gray" href="/lunch/{{ p.id }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับหน้าโครงการ</a>
   </div>
-  <p class="muted" style="margin-bottom:0;">จัดจ้างเป็นรอบ (รายวัน/สัปดาห์/เดือน) แต่ละรอบผูกเรื่องจัดจ้าง 1 เรื่อง เมื่อตั้งสถานะ "จ่ายแล้ว" ระบบลงบัญชีจ่ายให้อัตโนมัติ</p>
+  {# รอบ กับ งวด ฟังเหมือนกันว่า "ช่วงเวลา" แต่เป็นคนละชั้น: รอบ = ทำเรื่อง 1 ครั้ง / งวด = แบ่งจ่ายในรอบนั้น
+     งวดมีเฉพาะจ้างเหมา (แม่ครัว/ซื้อวัตถุดิบ 1 รอบ = ทำเรื่องและจ่าย 1 ครั้ง) จึงบอกตามโหมด #}
+  <div class="lw-explain">
+    {% if p.operate_mode == 'hire' %}
+    <b>1 รอบจัดจ้าง</b> = ทำเรื่องจ้างเหมา 1 ครั้ง (ใบสั่งจ้าง 1 ใบ) · ข้างในแบ่งจ่ายได้หลาย <b>งวดจ่ายเงิน</b>
+    <div class="lw-eg">ตัวอย่าง: ภาคเรียนที่ 1 จ้าง 1 รอบ 100 วัน 220,000 บาท แบ่งจ่าย 5 งวด งวดละ 20 วัน 44,000 บาท</div>
+    {% elif p.operate_mode == 'person' %}
+    <b>1 รอบจัดจ้าง</b> = ทำเรื่องจ้างแม่ครัวและจ่ายเงิน 1 ครั้ง ไม่มีงวด
+    <div class="lw-eg">ตัวอย่าง: จ้างรายเดือน เดือนละ 1 รอบ หรือจ้างทั้งภาคเรียน 1 รอบ</div>
+    {% else %}
+    <b>1 รอบจัดซื้อ</b> = ทำเรื่องซื้อวัตถุดิบและจ่ายเงิน 1 ครั้ง ไม่มีงวด งบคิดจากค่าวัตถุดิบที่กรอกรายวัน
+    <div class="lw-eg">ตัวอย่าง: ซื้อรายสัปดาห์ สัปดาห์ละ 1 รอบ หรือรายเดือน เดือนละ 1 รอบ</div>
+    {% endif %}
+  </div>
+  <style>
+    .lw-explain{ margin-top:10px; padding:10px 14px; border-radius:12px; background:linear-gradient(120deg,#eff6ff,#f0fdf4); font-size:14.5px; color:#1e3a8a; }
+    .lw-eg{ font-size:13px; color:#475569; margin-top:3px; }
+  </style>
+  <p class="muted" style="margin:8px 0 0;">เมื่อตั้งสถานะ{{ RW }}เป็น "จ่ายแล้ว" ระบบลงบัญชีจ่ายให้อัตโนมัติ</p>
   <div style="display:flex; gap:24px; flex-wrap:wrap; margin-top:10px; font-size:16px;">
     <div>งบทั้งปี: <b>{{ "{:,.2f}".format(p.budget) }}</b></div>
-    <div>ผูกจ้างแล้ว (ทุกรอบ): <b {{ 'style="color:#dc2626;"' if committed > p.budget else '' }}>{{ "{:,.2f}".format(committed) }}</b></div>
+    <div>ผูกวงเงินแล้ว (ทุก{{ RW }}): <b {{ 'style="color:#dc2626;"' if committed > p.budget else '' }}>{{ "{:,.2f}".format(committed) }}</b></div>
     <div>จ่ายแล้ว: <b style="color:var(--brand-dark);">{{ "{:,.2f}".format(paid) }}</b></div>
     <div>คงเหลือจากงบ: <b {{ 'style="color:#dc2626;"' if (p.budget - committed) < 0 else '' }}>{{ "{:,.2f}".format(p.budget - committed) }}</b></div>
   </div>
   {% if committed > p.budget %}
   <div class="alert danger" style="margin-top:12px;">
-    <svg class="icon"><use href="#ic-alert"/></svg><span>ผูกจ้างเกินงบทั้งปี {{ "{:,.2f}".format(committed - p.budget) }} บาท - ตรวจสอบวงเงินแต่ละรอบอีกครั้ง</span>
+    <svg class="icon"><use href="#ic-alert"/></svg><span>ผูกจ้างเกินงบทั้งปี {{ "{:,.2f}".format(committed - p.budget) }} บาท - ตรวจสอบวงเงินแต่ละ{{ RW }}อีกครั้ง</span>
   </div>
   {% endif %}
 </div>
 
 <div class="card">
-  <h2>{{ 'แก้ไขรอบที่ ' ~ edit.seq if edit else 'เพิ่มรอบจ้างเหมา' }}</h2>
+  <h2>{{ 'แก้ไข' ~ RW ~ 'ที่ ' ~ edit.seq if edit else 'เพิ่ม' ~ RW }}</h2>
   <form method="post" action="{{ ('/lunch/round/' ~ edit.id ~ '/update') if edit else ('/lunch/' ~ p.id ~ '/rounds/add') }}">
     {% if edit %}<input type="hidden" name="procurement_id" value="{{ edit.procurement_id or '' }}">{% endif %}
     <div class="row">
-      <div><label>รูปแบบรอบ</label><select name="period_type">
-        {% for k,v in periods.items() %}<option value="{{ k }}" {{ 'selected' if (edit.period_type if edit else default_period)==k }}>{{ v }}</option>{% endfor %}
-      </select></div>
       <div><label>วันที่เริ่ม</label><input name="start_date" id="sd" value="{{ be_date(edit.start_date) if edit else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" oninput="onStart()"></div>
       <div><label>จำนวนวันทำการ <span class="muted">(ไม่นับวันหยุด)</span></label><input name="days" id="days" type="number" min="0" value="{{ edit.days if edit else 0 }}" oninput="fromDays()"></div>
       <div><label>วันที่สิ้นสุด <span class="muted">(คำนวณให้)</span></label><input name="end_date" id="ed" value="{{ be_date(edit.end_date) if edit else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" oninput="onEnd()"></div>
@@ -82,22 +98,21 @@
     </div>
     <label>หมายเหตุ</label><input name="note" value="{{ edit.note if edit else '' }}">
     <p class="muted" id="sug" style="margin:8px 0;"></p>
-    <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> {{ 'บันทึกการแก้ไข' if edit else 'เพิ่มรอบ' }}</button>
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> {{ 'บันทึกการแก้ไข' if edit else 'เพิ่ม' ~ RW }}</button>
     {% if edit %}<a class="btn gray" href="/lunch/{{ p.id }}/rounds">ยกเลิก</a>{% endif %}
   </form>
 </div>
 
 <div class="card">
-  <h2>รอบจ้างเหมาทั้งหมด</h2>
+  <h2>{{ RW }}ทั้งหมด</h2>
   {% if rounds %}
   <div class="table-wrap">
   <table>
-    <thead><tr><th>รอบ</th><th>รูปแบบ</th><th>ช่วงเวลา</th><th class="right">วัน</th><th>ผู้รับจ้าง</th><th class="right">วงเงิน</th><th>สถานะ</th><th>บัญชี</th><th></th></tr></thead>
+    <thead><tr><th>{{ RW }}ที่</th><th>ช่วงเวลา</th><th class="right">วัน</th><th>ผู้รับจ้าง</th><th class="right">วงเงิน</th><th>สถานะ</th><th>บัญชี</th><th></th></tr></thead>
     <tbody>
     {% for r in rounds %}
       <tr>
         <td>{{ r.seq }}</td>
-        <td>{{ periods.get(r.period_type, r.period_type) }}</td>
         <td>{{ be_date(r.start_date) if r.start_date else '-' }} ถึง {{ be_date(r.end_date) if r.end_date else '-' }}</td>
         <td class="right">{{ r.days }}</td>
         <td>{{ r.vendor.name if r.vendor else '-' }}</td>
@@ -107,7 +122,7 @@
         </select></td>
         <td>{% if r.status=='จ่ายแล้ว' %}<span class="muted" title="ลงบัญชีจ่ายอัตโนมัติแล้ว">✔ ลงแล้ว</span>{% else %}<span class="muted">-</span>{% endif %}</td>
         <td style="white-space:nowrap;">
-          <a class="btn sm" href="/lunch/round/{{ r.id }}/plan">จัดการงวด</a>
+          <a class="btn sm" href="/lunch/round/{{ r.id }}/plan">{{ "เปิดรอบ · งวดจ่ายเงิน" if p.operate_mode == "hire" else "เปิด" ~ RW }}</a>
           <a class="btn sm gray" href="/lunch/round/{{ r.id }}/edit">แก้ไข</a>
           <form method="post" action="/lunch/round/{{ r.id }}/duplicate" onsubmit="return confirm('คัดลอกรอบนี้เป็นรอบใหม่? (ก็อปกรรมการ+ผู้รับจ้าง+วงเงิน เลื่อนวันไปงวดถัดไป)');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-file-plus"/></svg> คัดลอก</button></form>
           {% if r.procurement_id %}<a class="btn sm gray" href="/procurement/{{ r.procurement_id }}?keep=1" title="ดู/พิมพ์เอกสารจัดจ้างในงานพัสดุ">เอกสารจัดจ้าง</a>{% endif %}
@@ -119,7 +134,7 @@
   </table>
   </div>
   {% else %}
-  <p class="muted">ยังไม่มีรอบจ้างเหมา เพิ่มด้านบน</p>
+  <p class="muted">ยังไม่มี{{ RW }} เพิ่มด้านบน</p>
   {% endif %}
 </div>
 

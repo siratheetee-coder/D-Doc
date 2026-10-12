@@ -13,7 +13,7 @@
 
 {% if filled %}
   {% if filled == '0' %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg><span>ยังไม่ได้สร้างเมนู - ตรวจว่ามีเมนูตั้งต้นอย่างน้อย 1 รายการ และวันเริ่ม/สิ้นสุดถูกต้อง</span></div>
-  {% else %}<div class="alert">สร้างเมนูหมุนเวียนทั้งสัญญาแล้ว {{ filled }} วัน</div>{% endif %}
+  {% else %}<div class="alert">สร้างเมนูหมุนเวียนทั้งรอบแล้ว {{ filled }} วัน</div>{% endif %}
 {% endif %}
 
 <div class="card">
@@ -55,7 +55,7 @@
   <p class="muted" style="margin:0 0 6px;">ไม่ต้องพิมพ์เมนูทีละวันทั้งเทอม แค่ทำ 3 ขั้น:</p>
   <ol style="margin:0 0 12px; padding-left:22px; font-size:14px; line-height:2; color:var(--text);">
     <li>พิมพ์เมนูไว้ก่อน <b>1 สัปดาห์ (จันทร์-ศุกร์ = 5 เมนู)</b> ที่ช่อง "เพิ่มเมนูรายวัน" ด้านบน</li>
-    <li>ตรวจ <b>ช่วงวันที่</b> ด้านล่าง (ระบบดึงวันเริ่ม-สิ้นสุดจากสัญญาให้แล้ว แก้ได้)</li>
+    <li>ตรวจ <b>ช่วงวันที่</b> ด้านล่าง (ระบบดึงวันเริ่ม-สิ้นสุดจากรอบจัด{{ "ซื้อ" if p.operate_mode == "ingredient" else "จ้าง" }}ให้แล้ว แก้ได้)</li>
     <li>กดปุ่ม <b>"สร้างเมนู"</b> ระบบจะวนเมนู 5 อย่างนี้ซ้ำทุกสัปดาห์ ใส่ให้ครบทุกวันเปิดเรียน (ข้ามเสาร์-อาทิตย์ + วันหยุด) · วันเดียวกันของทุกสัปดาห์ได้เมนูเดิม · วันที่มีเมนูอยู่แล้วไม่ถูกทับ</li>
   </ol>
   {% if menu_count < 1 %}
@@ -74,7 +74,7 @@
       <input type="checkbox" name="skip_holiday" value="1" checked style="width:18px; height:18px; flex:none;"> ข้ามวันหยุดนักขัตฤกษ์</label></div>
     <div style="flex:0 0 auto;"><button class="btn" type="submit"><svg class="icon"><use href="#ic-calendar"/></svg> สร้างเมนู</button></div>
   </form>
-  {% if not term_start_be or not term_end_be %}<p class="muted" style="font-size:13px; margin:8px 0 0;">ยังไม่พบช่วงสัญญาจากรอบจ้าง - กรอกวันตั้งแต่/ถึง เอง</p>{% endif %}
+  {% if not term_start_be or not term_end_be %}<p class="muted" style="font-size:13px; margin:8px 0 0;">ยังไม่พบช่วงเวลาจากรอบจัด{{ "ซื้อ" if p.operate_mode == "ingredient" else "จ้าง" }} - กรอกวันตั้งแต่/ถึง เอง</p>{% endif %}
   {% endif %}
 </div>
 

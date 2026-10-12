@@ -4,7 +4,7 @@
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h1 style="margin:0;">วัตถุดิบรายวัน (ปีการศึกษา {{ p.year }})</h1>
-    <a class="btn sm gray" href="{{ back if back else '/lunch/' ~ p.id }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> {{ 'กลับหน้าจัดการงวด' if back else 'กลับหน้าโครงการ' }}</a>
+    <a class="btn sm gray" href="{{ back if back else '/lunch/' ~ p.id }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> {{ 'กลับหน้ารอบ' if back else 'กลับหน้าโครงการ' }}</a>
   </div>
   <p class="muted" style="margin:4px 0 0;">กรอกวัตถุดิบ/เครื่องปรุงที่ซื้อในแต่ละวัน แล้วเอกสาร "ใบรับรายงานวัตถุดิบ / ใบรับรองการจ่ายเงิน / สรุปรายการจัดซื้อ" จะดึงไปเติมให้อัตโนมัติ (ไม่ต้องเขียนมือ)</p>
   {% if ing_remaining is not none %}
