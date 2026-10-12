@@ -6,7 +6,7 @@ lunch.py - งานอาหารกลางวัน
 ตารางใหม่สร้างอัตโนมัติด้วย init_school_db (ไม่ต้อง ALTER)
 """
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -650,8 +650,48 @@ async def round_add(pid: int, request: Request, db: Session = Depends(get_db)):
     _sync_round_procurement(db, rnd)   # ผูกเรื่องจัดจ้าง (ถ้ามีเลขใบสั่งจ้าง)
     _sync_round_ledger(db, rnd)
     _register_round_docnos(db, rnd)    # ผูกเลขบันทึก/คำสั่งเข้าทะเบียนกลาง
+    n_inst = _to_int(form.get("n_inst"), 0)
+    split = prog.operate_mode == "hire" and _split_round(db, rnd, n_inst)
     db.commit()
+    if split:                          # แบ่งงวดแล้ว พาไปดูงวดที่สร้างให้เลย
+        return RedirectResponse(f"/lunch/round/{rnd.id}/plan#installments", status_code=303)
     return RedirectResponse(f"/lunch/{pid}/rounds", status_code=303)
+
+
+def _split_parts(days: int, n: int) -> list:
+    """แบ่งวันให้เท่า ๆ กัน เศษไปไว้งวดต้น ๆ เช่น 100 วัน 3 งวด = [34, 33, 33]"""
+    base, extra = divmod(days, n)
+    return [base + (1 if i < extra else 0) for i in range(n)]
+
+
+def _split_round(db: Session, rnd: LunchHireRound, n: int) -> bool:
+    """สร้างงวดจ่ายเงิน n งวดจากรอบที่เพิ่งสร้าง ไล่วันทำการต่อเนื่องจากวันเริ่มรอบ (ไม่นับวันหยุด)
+
+    วงเงินแบ่งตามสัดส่วนวัน งวดสุดท้ายรับเศษสตางค์ ผลรวมจึงเท่าวงเงินรอบพอดี
+    (ถ้ายังไม่ใส่วงเงินรอบ ใช้ จำนวนวัน x นักเรียน x อัตราต่อหัว แบบแบ่งงวดอัตโนมัติเดิม)
+    """
+    from app.services.thai_holidays import add_working_days, next_workday
+    if n <= 0 or not rnd.start_date or (rnd.days or 0) < n or rnd.installments:
+        return False
+    hol = set(_lunch_holidays(rnd.program).keys())
+    parts = _split_parts(rnd.days, n)
+    total = float(rnd.amount or 0)
+    prog = rnd.program
+    per_day = float(prog.rate_per_head or 0) * int(prog.total_students or 0)
+    cur, given = next_workday(rnd.start_date, hol), 0.0
+    for k, d in enumerate(parts):
+        end = add_working_days(cur, d, hol)
+        if total:
+            amt = round(total - given, 2) if k == n - 1 else round(total * d / rnd.days, 2)
+        else:
+            amt = round(d * per_day, 2)
+        given = round(given + amt, 2)
+        s_dt, e_dt = datetime(cur.year, cur.month, cur.day), datetime(end.year, end.month, end.day)
+        db.add(LunchInstallment(round_id=rnd.id, seq=k + 1, start_date=s_dt, end_date=e_dt, days=d,
+                                amount=amt, status="ร่าง", deliver_date=e_dt, inspect_date=e_dt))
+        cur = next_workday(end + timedelta(days=1), hol)
+    db.flush()
+    return True
 
 
 @router.post("/lunch/round/{rid}/update")
@@ -1308,7 +1348,7 @@ async def installment_update(iid: int, request: Request, db: Session = Depends(g
     db.commit()
     if request.headers.get("x-requested-with") == "fetch":
         return JSONResponse({"ok": True})
-    return RedirectResponse(f"/lunch/round/{inst.round_id}/plan", status_code=303)
+    return RedirectResponse(f"/lunch/round/{inst.round_id}/plan#installments", status_code=303)
 
 
 @router.post("/lunch/installment/{iid}/delete")

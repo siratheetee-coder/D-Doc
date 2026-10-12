@@ -166,19 +166,60 @@
   </div>
 </div>
 
-<div class="card">
+<div class="card" id="installments">
   <h2>งวดจ่ายเงินทั้งหมด</h2>
   {% if installments %}
+  {# งวดไหนถึงคิว ขั้นไหน: งวดแรกที่ยังไม่จ่าย แสดงขั้นถัดไปพร้อมเอกสารและปุ่มบันทึกสถานะ #}
+  {% set NEXT = {'ร่าง': ('ส่งมอบงาน', 'ส่งมอบแล้ว', 'doc', 'เอกสารงวด (ควบคุม ส่งมอบ ตรวจรับ)'),
+                 'ส่งมอบแล้ว': ('ตรวจรับงาน', 'ตรวจรับแล้ว', 'doc', 'เอกสารงวด (ควบคุม ส่งมอบ ตรวจรับ)'),
+                 'ตรวจรับแล้ว': ('ขอเบิกและจ่ายเงิน', 'จ่ายแล้ว', 'disburse-doc', 'เอกสารขอเบิกจ่าย')} %}
+  {% set n_paid = installments|selectattr('status', 'equalto', 'จ่ายแล้ว')|list|length %}
+  {% set nxt = (installments|rejectattr('status', 'equalto', 'จ่ายแล้ว')|list or [None])[0] %}
+  <div class="iq-sum">จ่ายแล้ว <b>{{ n_paid }}</b> จาก {{ installments|length }} งวด
+    <div class="iq-bar"><span style="width:{{ (n_paid / installments|length * 100)|round(0) }}%"></span></div></div>
+  {% if nxt %}
+  {% set st = NEXT.get(nxt.status, NEXT['ร่าง']) %}
+  <div class="iq-next">
+    <div class="iq-next-h">ถึงคิว: <b>งวดที่ {{ nxt.seq }}</b>
+      <span class="muted">({{ be_date(nxt.start_date) if nxt.start_date else '-' }} ถึง {{ be_date(nxt.end_date) if nxt.end_date else '-' }} · {{ "{:,.2f}".format(nxt.amount or 0) }} บาท)</span></div>
+    <div>ขั้นต่อไป: <b>{{ st[0] }}</b></div>
+    <div class="iq-act">
+      <a class="btn sm gray" href="/lunch/installment/{{ nxt.id }}/{{ st[2] }}"><svg class="icon"><use href="#ic-download"/></svg> {{ st[3] }}</a>
+      <form method="post" action="/lunch/installment/{{ nxt.id }}/update" style="margin:0;">
+        <input type="hidden" name="status" value="{{ st[1] }}">
+        <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-check"/></svg> บันทึกว่า{{ st[1] }}</button>
+      </form>
+    </div>
+    {% if st[1] == 'จ่ายแล้ว' %}<div class="muted" style="font-size:12.5px; margin-top:4px;">กด "จ่ายแล้ว" ระบบลงบัญชีจ่ายให้อัตโนมัติ</div>{% endif %}
+  </div>
+  {% else %}
+  <div class="iq-done">✔ จ่ายครบทุกงวดแล้ว</div>
+  {% endif %}
+  <style>
+    .iq-sum{ font-size:14.5px; margin-bottom:8px; }
+    .iq-bar{ height:8px; border-radius:6px; background:#e2e8f0; overflow:hidden; margin-top:5px; max-width:360px; }
+    .iq-bar span{ display:block; height:100%; background:linear-gradient(90deg,#16a34a,#22c55e); }
+    .iq-next{ background:linear-gradient(120deg,#eff6ff,#f0fdf4); border-radius:12px; padding:10px 14px; margin-bottom:12px; font-size:14.5px; }
+    .iq-next-h{ margin-bottom:2px; }
+    .iq-act{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; align-items:center; }
+    .iq-done{ background:#dcfce7; color:#15803d; border-radius:12px; padding:10px 14px; margin-bottom:12px; font-weight:600; }
+    .iq-steps{ display:flex; gap:3px; align-items:center; font-size:11.5px; white-space:nowrap; }
+    .iq-steps span{ padding:2px 7px; border-radius:999px; background:#f1f5f9; color:#94a3b8; }
+    .iq-steps span.on{ background:#16a34a; color:#fff; }
+    .iq-row-next td{ background:#eff6ff; }
+  </style>
   <div class="table-wrap">
   <table>
-    <thead><tr><th>งวดที่</th><th>ช่วงวันที่</th><th class="right">วัน</th><th class="right">วงเงิน</th><th>วันส่งมอบ</th><th>วันตรวจรับ</th><th>สถานะ</th><th>บัญชี</th><th></th></tr></thead>
+    <thead><tr><th>งวดที่</th><th>ช่วงวันที่</th><th class="right">วัน</th><th class="right">วงเงิน</th><th>ความคืบหน้า</th><th>วันส่งมอบ</th><th>วันตรวจรับ</th><th>สถานะ</th><th>บัญชี</th><th></th></tr></thead>
     <tbody>
     {% for i in installments %}
-      <tr data-iid="{{ i.id }}">
+      {% set lvl = {'ส่งมอบแล้ว': 1, 'ตรวจรับแล้ว': 2, 'จ่ายแล้ว': 3}.get(i.status, 0) %}
+      <tr data-iid="{{ i.id }}" {% if nxt and i.id == nxt.id %}class="iq-row-next"{% endif %}>
         <td>{{ i.seq }}</td>
         <td>{{ be_date(i.start_date) if i.start_date else '-' }} ถึง {{ be_date(i.end_date) if i.end_date else '-' }}</td>
         <td class="right">{{ i.days }}</td>
         <td class="right">{{ "{:,.2f}".format(i.amount or 0) }}</td>
+        <td><div class="iq-steps" title="สถานะ: {{ i.status }}">{% for s2 in ['ส่งมอบ', 'ตรวจรับ', 'จ่ายแล้ว'] %}<span class="{{ 'on' if loop.index <= lvl }}">{{ s2 }}</span>{% endfor %}</div></td>
         <td><input name="deliver_date" value="{{ be_date(i.deliver_date) if i.deliver_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:118px;"></td>
         <td><input name="inspect_date" value="{{ be_date(i.inspect_date) if i.inspect_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:118px;"></td>
         <td><select name="status" style="width:110px;">{% for s in ['ร่าง','ส่งมอบแล้ว','ตรวจรับแล้ว','จ่ายแล้ว'] %}<option {{ 'selected' if i.status==s }}>{{ s }}</option>{% endfor %}</select></td>

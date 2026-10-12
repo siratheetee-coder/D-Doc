@@ -60,6 +60,12 @@
         <div class="muted" style="font-size:12px; margin-top:3px; max-width:210px; line-height:1.5;">
           ใช้อ้างอิงเฉยๆ · <b>บัญชีคิดจากยอดจ่ายจริง</b> (ค่าจ้าง + เชื้อเพลิง + วัตถุดิบที่กรอก)</div>
         {% endif %}</div>
+      {% if p.operate_mode == 'hire' and not edit %}
+      {# สร้างรอบพร้อมแบ่งงวดจ่ายเงินในขั้นเดียว (เดิมต้องไปแบ่งอีกหน้า) #}
+      <div><label>แบ่งจ่ายกี่งวด <span class="muted">(เว้นว่างได้)</span></label>
+        <input name="n_inst" id="ninst" type="number" min="1" max="20" placeholder="เช่น 5" oninput="splitHint()" style="width:110px;">
+        <div class="muted" id="splitHint" style="font-size:12.5px; margin-top:3px; max-width:240px; line-height:1.5;">ระบบแบ่งวันและวงเงินให้เท่า ๆ กัน แก้ทีหลังได้</div></div>
+      {% endif %}
       {% if p.operate_mode in ['person','ingredient'] %}
       {% if p.operate_mode == 'person' %}<div><label>ค่าจ้างแม่ครัว (รอบนี้)</label><input name="cook_wage" type="number" step="0.01" value="{{ '%g'|format(edit.cook_wage) if edit and edit.cook_wage else '' }}" placeholder="เช่น 5000"></div>{% endif %}
       <div><label>ค่าเชื้อเพลิง (รอบนี้)</label><input name="fuel_cost" type="number" step="0.01" value="{{ '%g'|format(edit.fuel_cost) if edit and edit.fuel_cost else '' }}" placeholder="เช่น 500"></div>
@@ -72,7 +78,7 @@
     </div>
     <div class="tipbox" style="margin:2px 0 10px;">
       <b style="font-size:14px;"><svg class="icon"><use href="#ic-clipboard"/></svg> เลขที่หนังสือเอกสารแต่ละฉบับ</b>
-      <p class="muted" style="margin:4px 0 0; font-size:13px;">บันทึกข้อความมีหลายฉบับ · กรอกเลขที่/วันที่ของแต่ละฉบับได้ที่หน้า <b>จัดการงวด</b> ก่อนออกเอกสาร (เชื่อมทะเบียนเลขหนังสือกลางให้อัตโนมัติ)</p>
+      <p class="muted" style="margin:4px 0 0; font-size:13px;">บันทึกข้อความมีหลายฉบับ · กรอกเลขที่/วันที่ของแต่ละฉบับได้ที่หน้า <b>เปิด{{ RW }}</b> ก่อนออกเอกสาร (เชื่อมทะเบียนเลขหนังสือกลางให้อัตโนมัติ)</p>
     </div>
     <div id="nvBox" style="display:none; border:1px dashed var(--border); border-radius:8px; padding:12px; margin:4px 0 10px; background:#fff7ed;">
       <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -246,4 +252,21 @@
     }).catch(function(){ sel.disabled=false; alert('อัปเดตสถานะไม่สำเร็จ ลองใหม่'); });
   }
 </script>
+{% if p.operate_mode == 'hire' and not edit %}
+{# บอกล่วงหน้าว่าแต่ละงวดได้กี่วัน กี่บาท (ตรงกับ _split_parts ฝั่งเซิร์ฟเวอร์) #}
+<script>
+function splitParts(days, n){ var b=Math.floor(days/n), x=days%n, out=[]; for(var i=0;i<n;i++) out.push(b+(i<x?1:0)); return out; }
+function splitHint(){
+  var n=parseInt((document.getElementById('ninst')||{}).value)||0, el=document.getElementById('splitHint');
+  if(!el) return;
+  var days=parseInt(document.getElementById('days').value)||0, amt=parseFloat(document.getElementById('amt').value)||0;
+  if(n<1){ el.textContent='ระบบแบ่งวันและวงเงินให้เท่า ๆ กัน แก้ทีหลังได้'; return; }
+  if(days<n){ el.textContent='กรอกจำนวนวันทำการก่อน (อย่างน้อย '+n+' วัน)'; return; }
+  var p=splitParts(days,n), lo=Math.min.apply(null,p), hi=Math.max.apply(null,p);
+  var dtxt = lo===hi ? lo+' วัน' : lo+'-'+hi+' วัน';
+  el.textContent = n+' งวด งวดละ '+dtxt + (amt>0 ? ' ประมาณงวดละ '+(amt/n).toLocaleString('en-US',{maximumFractionDigits:2})+' บาท' : '');
+}
+document.addEventListener('input', function(e){ if(e.target && (e.target.id==='days'||e.target.id==='amt')) splitHint(); });
+</script>
+{% endif %}
 {% endblock %}
