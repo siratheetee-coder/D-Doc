@@ -10,7 +10,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -312,6 +312,7 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
                    if rc.txn_id}
     return templates.TemplateResponse("finance_ledger.html", {
         "request": request, "account": a, "rows": rows, "balance": round(bal, 2),
+        "txn_project": _txn_projects(db, txns),
         "selected_item": item if any(i.id == item for i in items) else 0,
         "selected_project": project if any(p.id==project for p in _plan_projects(db,fy)) else 0,
         "selected_kind": 'out' if kind=='out' else 'in',
@@ -500,6 +501,38 @@ def _items_map(db, fy) -> dict:
                .order_by(AccountItem.name).all()):
         out.setdefault(it.account_id, []).append({"id": it.id, "name": it.name})
     return out
+
+
+@router.get("/finance/project-sources/{pid}")
+def project_sources_json(pid: int, fy: int = 0, db: Session = Depends(get_db)):
+    """หมวดที่โครงการนี้ใช้ ในปีงบ fy (ให้ฟอร์มเบิกจ่ายเติมบัญชี+หมวดให้เอง)"""
+    from app.services.project_money import project_sources
+    fy = fy if 2500 <= fy <= 2800 else current_fiscal_year()
+    return JSONResponse({"sources": project_sources(db, pid, fy)})
+
+
+def _txn_projects(db, txns) -> dict:
+    """{txn_id: Project} ของรายการจ่าย · ผูกตรง หรือผ่านบันทึกเบิกจ่าย หรือผ่านเรื่องจัดซื้อของบันทึกนั้น
+
+    ไม่ได้เก็บโครงการซ้ำลงในรายการเงิน เพราะจะมีสองที่ต้องคอยให้ตรงกัน
+    แก้โครงการในบันทึกเบิกจ่ายแล้วรายการเงินจะชี้โครงการเก่าค้างอยู่
+    """
+    from app.models import Project
+    memo_ids = {t.disburse_id for t in txns if t.disburse_id}
+    memos = {m.id: m for m in db.query(DisburseMemo).filter(DisburseMemo.id.in_(memo_ids))} if memo_ids else {}
+    proc_ids = {m.procurement_id for m in memos.values() if m.procurement_id and not m.project_id}
+    procs = {p.id: p for p in db.query(Procurement).filter(Procurement.id.in_(proc_ids))} if proc_ids else {}
+    pid_of = {}
+    for t in txns:
+        pid = t.project_id
+        m = memos.get(t.disburse_id) if t.disburse_id else None
+        if not pid and m is not None:
+            pid = m.project_id or (procs[m.procurement_id].project_id
+                                   if m.procurement_id in procs else None)
+        if pid:
+            pid_of[t.id] = pid
+    projects = {p.id: p for p in db.query(Project).filter(Project.id.in_(set(pid_of.values())))}         if pid_of else {}
+    return {tid: projects[pid] for tid, pid in pid_of.items() if pid in projects}
 
 
 @router.get("/finance/disburse", response_class=HTMLResponse)

@@ -41,22 +41,25 @@
         </select>
       </div>
       <div><label>จำนวนเงินขอเบิก (รวม VAT)</label><input name="amount" type="number" step="0.01" value="{{ '%.2f'|format(m.amount or 0) }}"></div>
-      <div><label>แหล่งเงิน/หมวดงบ</label><input name="budget_source" value="{{ m.budget_source }}"></div>
+      <div style="flex:2;"><label>โครงการ</label>
+        <select name="project_id" id="projSel" data-fy="{{ m.fiscal_year }}" data-edit="1">
+          <option value="">- ไม่ผูกโครงการ -</option>
+          {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if m.project_id==pj.id }}>{{ pj.name }} · ปีแผน {{ pj.plan_year or "ไม่ระบุปี" }}{{ " (ปิดใช้งาน)" if not pj.active else "" }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div id="srcLine" class="src-line" hidden></div>
+    <div class="row" id="srcPick">
       <div><label>เบิกจากบัญชี</label>
         <select name="account_id" id="acctSel">
           <option value="">- ไม่ระบุ -</option>
           {% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if m.account_id==a.id }}>{{ a.name }}</option>{% endfor %}
         </select>
       </div>
-      <div><label>หมวด/รายการ (หักงบรายหมวด)</label>
+      <div><label>หมวด</label>
         <select name="item_id" id="itemSel"><option value="">- เลือกบัญชีก่อน -</option></select>
       </div>
-      <div><label>โครงการ (คุมงบ)</label>
-        <select name="project_id">
-          <option value="">- ไม่ผูกโครงการ -</option>
-          {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if m.project_id==pj.id }}>{{ pj.name }} · ปีแผน {{ pj.plan_year or "ไม่ระบุปี" }}{{ " (ปิดใช้งาน)" if not pj.active else "" }}</option>{% endfor %}
-        </select>
-      </div>
+      <div><label>ชื่อเงินที่พิมพ์ในเอกสาร</label><input name="budget_source" value="{{ m.budget_source }}" placeholder="เช่น เงินอุดหนุน"></div>
     </div>
     <div class="row">
       <div><label>ภาษีมูลค่าเพิ่ม (VAT)</label><input name="vat" type="number" step="0.01" value="{{ '%.2f'|format(m.vat or 0) }}"></div>
@@ -106,7 +109,8 @@
   function fillItems(sel){
     if(!itemSel) return;
     var list=ITEMS[acctSel.value]||[];
-    itemSel.innerHTML = list.length ? '<option value="">- ไม่ระบุหมวด -</option>'
+    itemSel.innerHTML = !acctSel.value ? '<option value="">- เลือกบัญชีก่อน -</option>'
+                      : list.length ? '<option value="">- ไม่ระบุหมวด -</option>'
                                     : '<option value="">- บัญชีนี้ยังไม่มีหมวด -</option>';
     list.forEach(function(it){
       var o=document.createElement('option'); o.value=it.id; o.textContent=it.name;
@@ -117,4 +121,14 @@
   if(acctSel){ acctSel.addEventListener('change', function(){fillItems(null);});
     fillItems({{ m.item_id or 'null' }}); }
 </script>
+<style>
+  .src-line{ border-radius:10px; padding:10px 14px; margin:2px 0 12px; font-size:14px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .src-ok{ background:#ecfdf5; color:#065f46; }
+  .src-new{ background:#fff7ed; color:#9a3412; }
+  .src-why{ color:#64748b; font-size:12.5px; }
+  .src-opts{ display:flex; flex-direction:column; gap:4px; width:100%; margin-top:4px; }
+  /* .row และ .src-line ตั้ง display:flex ไว้ ซึ่งชนะ [hidden] ของเบราว์เซอร์ ต้องบังคับซ่อนเอง */
+  #srcPick[hidden], #srcLine[hidden]{ display:none !important; }
+</style>
+<script src="/static/project_source.js?v=1"></script>
 {% endblock %}
