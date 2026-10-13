@@ -120,3 +120,96 @@ def hr_steps(db, school) -> dict:
                                             "เพิ่มชื่อให้ตรงกับในตั้งค่าโรงเรียน แล้วอัปโหลดลายเซ็น")),
              href="/masters", cta="อัปโหลดลายเซ็น"),
     ])
+
+
+# ---------------- อาหารกลางวัน: ขั้นตอนในหนึ่งรอบ ----------------
+def lunch_round_steps(rnd, *, committees, com_labels, doc_rows, menu_days, ing_total, ing_remaining) -> dict:
+    """ขั้นตอนของรอบจัดจ้าง/จัดซื้อหนึ่งรอบ แยกตามรูปแบบ (เจ้าของขอ)
+      hire       จ้างเหมาปรุงสำเร็จ: ช่วงเวลา/วงเงิน > ผู้รับจ้าง > กรรมการ > เลขที่หนังสือ > เมนู
+                 > ตกลงจ้าง (เลขที่ใบสั่งจ้าง) > แบ่งงวดจ่ายเงิน > ส่งมอบ ตรวจรับ จ่ายครบทุกงวด
+      ingredient ซื้อวัตถุดิบ: ช่วงเวลา > กรรมการ > เลขที่หนังสือ (รวมสัญญายืม) > เมนู > วัตถุดิบรายวัน > ส่งใช้เงินยืม
+      person     จ้างแม่ครัว + ซื้อวัตถุดิบ: ช่วงเวลา/ค่าจ้าง > แม่ครัว > กรรมการ > เลขที่หนังสือ > เมนู
+                 > วัตถุดิบรายวัน > ตกลงจ้าง > จ่ายแล้ว
+    ข้อมูลทุกตัวมาจากหน้ารอบอยู่แล้ว (contract_plan) ไม่ได้นับว่ากดดาวน์โหลดเอกสารหรือยัง"""
+    p = rnd.program
+    mode = p.operate_mode or "hire"
+    rid, pid = rnd.id, p.id
+    page = f"/lunch/round/{rid}/plan"
+    edit = f"/lunch/round/{rid}/edit"
+    word = "รอบจัดซื้อ" if mode == "ingredient" else "รอบจัดจ้าง"
+
+    has_period = bool(rnd.start_date and (rnd.days or 0) > 0)
+    no_com = [label for k, label in com_labels.items() if not committees.get(k)]
+    doc_total = len(doc_rows)
+    doc_done = sum(1 for d in doc_rows if any(f.get("value") for f in d["fields"]))
+    doc_left = [d["label"] for d in doc_rows if not any(f.get("value") for f in d["fields"])]
+    menu_total = len(menu_days)
+    menu_have = sum(1 for d in menu_days if d.get("has"))
+    ordered = bool((rnd.order_no or "").strip() and rnd.order_date)
+    paid = (rnd.status or "") == "จ่ายแล้ว"
+
+    def period_step(extra_ok=True, extra_text=""):
+        ok = has_period and extra_ok
+        return dict(title="ตั้งช่วงเวลา" + ("และวงเงิน" if mode == "hire" else "และค่าจ้างแม่ครัว" if mode == "person" else ""),
+                    done=ok,
+                    detail=(f"{rnd.days} วันทำการ" + (f" · {extra_text}" if extra_text else "")) if ok
+                    else ("ใส่วันเริ่มและจำนวนวันทำการ ระบบคำนวณวันสิ้นสุดให้ (ไม่นับวันหยุด)" if not has_period
+                          else f"ยังไม่ได้ใส่{'วงเงินรอบนี้' if mode == 'hire' else 'ค่าจ้างแม่ครัว (รอบนี้)'}"),
+                    href=edit, cta=f"แก้ไข{word}")
+
+    vendor_step = dict(title="เลือกผู้รับจ้าง" if mode == "hire" else "เลือกแม่ครัว (ผู้รับจ้าง)",
+                       done=bool(rnd.vendor_id),
+                       detail=(rnd.vendor.name if rnd.vendor else "เลือกจากรายชื่อ หรือพิมพ์ชื่อใหม่ในหน้าแก้ไขรอบ ระบบบันทึกเป็นผู้รับจ้างให้"),
+                       href=edit, cta=f"แก้ไข{word}")
+    com_step = dict(title="แต่งตั้งกรรมการ", done=not no_com,
+                    detail=("ครบทุกชุดแล้ว" if not no_com else "ยังไม่มีกรรมการ: " + ", ".join(no_com)
+                            + " · ดึงจากรอบอื่นที่ตั้งไว้แล้วได้"),
+                    href=page + "#committee", cta="ไปที่กรรมการ")
+    doc_step = dict(title="กรอกเลขที่หนังสือ", done=doc_total > 0 and not doc_left,
+                    detail=(f"ครบ {doc_total} ฉบับ" if not doc_left
+                            else f"กรอกแล้ว {doc_done} จาก {doc_total} ฉบับ · ยังไม่ได้กรอก {doc_left[0]}"
+                            + (f" และอีก {len(doc_left) - 1} ฉบับ" if len(doc_left) > 1 else "")),
+                    href=page + "#docnos", cta="ไปกรอกเลขที่")
+    menu_step = dict(title="ใส่เมนูอาหารครบทุกวัน", done=menu_total > 0 and menu_have >= menu_total,
+                     detail=(f"ครบ {menu_total} วัน" if menu_total and menu_have >= menu_total
+                             else (f"มีเมนู {menu_have} จาก {menu_total} วัน · สร้างเมนูหมุนเวียนทั้งรอบได้ทีเดียว"
+                                   if menu_total else "ตั้งช่วงเวลาของรอบก่อน")),
+                     href=page + "#menus", cta="ไปที่เมนู")
+    ing_ok = ing_total > 0 and ing_remaining >= 0
+    ing_step = dict(title="กรอกวัตถุดิบรายวัน", done=ing_ok,
+                    detail=(f"ค่าวัตถุดิบ {ing_total:,.2f} บาท อยู่ในงบ" if ing_ok
+                            else (f"ค่าวัตถุดิบ {ing_total:,.2f} บาท เกินงบ {-ing_remaining:,.2f} บาท" if ing_total > 0
+                                  else "กรอกวัตถุดิบและราคาต่อวัน ระบบรวมยอดและออกใบจัดซื้อรายวันให้")),
+                    href=f"/lunch/{pid}/ingredients?back={page}", cta="กรอกวัตถุดิบ")
+    order_step = dict(title="ตกลงจ้าง (เลขที่ใบสั่งจ้าง)", done=ordered,
+                      detail=(f"เลขที่ {rnd.order_no}" if ordered
+                              else "ใส่เลขที่และวันที่ตกลงจ้างในหน้าแก้ไขรอบ ใบสั่งจ้างและเอกสารเบิกจ่ายใช้เลขนี้"),
+                      href=edit, cta=f"แก้ไข{word}")
+
+    if mode == "hire":
+        insts = list(rnd.installments)
+        n_paid = sum(1 for i in insts if i.status == "จ่ายแล้ว")
+        steps = [period_step((rnd.amount or 0) > 0, f"วงเงิน {rnd.amount or 0:,.2f} บาท"), vendor_step, com_step,
+                 doc_step, menu_step, order_step,
+                 dict(title="แบ่งงวดจ่ายเงิน", done=bool(insts),
+                      detail=(f"{len(insts)} งวด" if insts else "เช่น 5 งวด งวดละ 20 วัน ระบบแบ่งวันและวงเงินให้"),
+                      href=page + "#installments", cta="แบ่งงวด"),
+                 dict(title="ส่งมอบ ตรวจรับ และจ่ายครบทุกงวด", done=bool(insts) and n_paid == len(insts),
+                      detail=(f"จ่ายแล้ว {n_paid} จาก {len(insts)} งวด" if insts else "แบ่งงวดก่อน"),
+                      href=page + "#installments", cta="ไปที่งวดจ่ายเงิน")]
+    elif mode == "person":
+        steps = [period_step((rnd.cook_wage or 0) > 0, f"ค่าจ้าง {rnd.cook_wage or 0:,.2f} บาท"), vendor_step,
+                 com_step, doc_step, menu_step, ing_step, order_step,
+                 dict(title="เบิกจ่ายและปิดรอบ", done=paid,
+                      detail=("จ่ายแล้ว ระบบลงบัญชีให้แล้ว" if paid
+                              else "ออกเอกสารขอเบิกจ่ายค่าจ้างและส่งใช้เงินยืม แล้วตั้งสถานะรอบเป็น \"จ่ายแล้ว\""),
+                      href=f"/lunch/{pid}/rounds", cta="ตั้งสถานะรอบ")]
+    else:
+        steps = [period_step(), com_step, doc_step, menu_step, ing_step,
+                 dict(title="ส่งใช้เงินยืมและปิดรอบ", done=paid,
+                      detail=("จ่ายแล้ว ระบบลงบัญชีให้แล้ว" if paid
+                              else "ออกเอกสารส่งใช้เงินยืม แล้วตั้งสถานะรอบเป็น \"จ่ายแล้ว\""),
+                      href=f"/lunch/{pid}/rounds", cta="ตั้งสถานะรอบ")]
+    if not doc_total:                      # รูปแบบที่ไม่มีเลขที่หนังสือให้กรอก ไม่ต้องมีขั้นนี้
+        steps = [st for st in steps if st is not doc_step]
+    return _pack(steps)

@@ -33,6 +33,9 @@
   {% endif %}
 </div>
 
+{# ขั้นตอนของรอบนี้ แยกตามรูปแบบ (จ้างเหมา / ซื้อวัตถุดิบ / จ้างแม่ครัว) app/services/module_setup.py #}
+{% set setup_key = 'lround' ~ r.id %}{% set setup_title = 'ขั้นตอนของ' ~ RW ~ 'ที่ ' ~ r.seq %}
+{% include '_setup_checklist.html' %}
 <div class="card" id="committee">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h2 style="margin:0;">คณะกรรมการ (TOR / ควบคุมงาน / ตรวจรับ)</h2>
@@ -280,7 +283,7 @@
 {% endif %}
 
 <!-- ============ เมนูอาหารในช่วงสัญญา (ต่อจากงวด เพื่อไม่ต้องข้ามหน้า) ============ -->
-<div class="card">
+<div class="card" id="menus">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
     <h2 style="margin:0;">เมนูอาหารใน{{ RW }}นี้</h2>
     <a class="btn sm gray" href="/lunch/{{ p.id }}/menu?back=/lunch/round/{{ r.id }}/plan"><svg class="icon"><use href="#ic-clipboard"/></svg> จัดการเมนูทั้งหมด / เมนูแนะนำ 5 หมู่</a>
@@ -354,7 +357,7 @@
   .dn-tag{font-size:12px; color:#16a34a; font-weight:600; display:none; margin-left:6px;}
   .dn-doc.saved .dn-tag{display:inline;}
 </style>
-<div class="card">
+<div class="card" id="docnos">
   <h2><svg class="icon"><use href="#ic-clipboard"/></svg> เลขที่หนังสือของแต่ละเอกสาร</h2>
   <p class="muted" style="margin-top:0;">เอกสารแต่ละฉบับมีเลข/วันที่ของตัวเอง (ต่างกันตามชนิดเอกสาร) · กรอกที่นี่ก่อนออกเอกสาร แล้วระบบจะพิมพ์ลงเอกสารและบันทึกเข้าทะเบียนเลขหนังสือกลางให้อัตโนมัติ</p>
   {% for d in doc_no_rows %}

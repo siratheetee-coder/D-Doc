@@ -1269,7 +1269,14 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         "menu_days": menu_days, "round_menus": round_menus,
         "past_mains": past_mains, "past_desserts": past_desserts,
         "doc_no_rows": doc_no_rows,
+        "setup": _round_setup(rnd, committees, com_kinds, doc_no_rows, menu_days, ing_total, ing_remaining),
     })
+
+
+def _round_setup(rnd, committees, com_kinds, doc_rows, menu_days, ing_total, ing_remaining):
+    from app.services.module_setup import lunch_round_steps
+    return lunch_round_steps(rnd, committees=committees, com_labels=com_kinds, doc_rows=doc_rows,
+                             menu_days=menu_days, ing_total=ing_total, ing_remaining=ing_remaining)
 
 
 @router.post("/lunch/round/{rid}/installment/add")
