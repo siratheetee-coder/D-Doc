@@ -84,20 +84,23 @@
   </script>
   <datalist id="persons_dl">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist>
   {% for k, label in com_kinds.items() %}
+  {# เลือกวันตรวจรับรายคน ใช้กับเอกสาร "มอบหมายการตรวจรับวัตถุดิบ" (ซื้อวัตถุดิบ/แม่ครัว ตรวจรับรายวันสลับกัน)
+     จ้างเหมาตรวจรับรายงวดทั้งคณะ ตามวันตรวจรับของแต่ละงวด จึงไม่ต้องเลือก (เจ้าของถาม) #}
+  {% set pick_days = k == 'inspect' and p.operate_mode != 'hire' %}
   <h3 style="margin:14px 0 4px; color:var(--brand-dark); font-size:15px;">กรรมการ{{ label }}</h3>
   {% if committees[k] %}
   <div class="table-wrap"><table>
-    <thead><tr><th style="width:50px;">ที่</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>บทบาท</th>{% if k == 'inspect' %}<th>วันตรวจรับ</th>{% endif %}<th></th></tr></thead>
+    <thead><tr><th style="width:50px;">ที่</th><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>บทบาท</th>{% if pick_days %}<th>วันตรวจรับ</th>{% endif %}<th></th></tr></thead>
     <tbody>
     {% for m in committees[k] %}
       {% set chosen = (m.inspect_days or '').split(',') %}
       {# วันที่กรรมการคนอื่นเลือกไปแล้ว -> คนนี้เลือกซ้ำไม่ได้ (1 วัน 1 คน) #}
       {% set taken_others = [] %}
-      {% if k == 'inspect' %}{% for mm in committees['inspect'] if mm.id != m.id %}
+      {% if pick_days %}{% for mm in committees['inspect'] if mm.id != m.id %}
         {% for dd in (mm.inspect_days or '').split(',') if dd %}{{ taken_others.append(dd) or '' }}{% endfor %}
       {% endfor %}{% endif %}
       <tr><td>{{ loop.index }}</td><td>{{ m.name }}</td><td>{{ m.position }}</td><td>{{ m.role }}</td>
-        {% if k == 'inspect' %}
+        {% if pick_days %}
         <td>
           {% if insp_workdays %}
           <details class="insp-days">

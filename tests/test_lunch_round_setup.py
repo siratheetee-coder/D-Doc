@@ -105,3 +105,17 @@ def test_hire_last_step_waits_for_every_installment(env, make):
     last = st['steps'][-1]
     assert last['title'] == 'ส่งมอบ ตรวจรับ และจ่ายครบทุกงวด'
     assert not last['done'] and last['detail'] == 'จ่ายแล้ว 1 จาก 2 งวด'
+
+
+@pytest.mark.parametrize('mode,shown', [('hire', False), ('ingredient', True), ('person', True)])
+def test_inspection_day_picker_only_where_a_document_uses_it(env, make, mode, shown):
+    """เลือกวันตรวจรับรายคนใช้กับ "มอบหมายการตรวจรับวัตถุดิบ" เท่านั้น จ้างเหมาตรวจรับรายงวด (เจ้าของถาม)"""
+    import app.tenancy as tn
+    from app.models import LunchCommittee
+    sid, pid, rid = make(mode, start_date=datetime(2026, 5, 18), end_date=datetime(2026, 5, 22), days=5)
+    with tn.session_for(sid) as s:
+        s.add(LunchCommittee(round_id=rid, kind='inspect', seq=1, name='ครูตรวจรับ', role='ประธานกรรมการ'))
+        s.commit()
+    html = env.get(f'/lunch/round/{rid}/plan').text
+    assert 'ครูตรวจรับ' in html
+    assert ('class="insp-days"' in html) is shown
