@@ -879,6 +879,7 @@ class FinanceTxn(Base):
     note = Column(String, default="")
     disburse_id = Column(Integer, ForeignKey("disburse_memo.id"), nullable=True)
     project_id = Column(Integer, ForeignKey("project.id"), nullable=True)   # โครงการในแผนที่ใช้เงินก้อนนี้
+    lunch_year = Column(Integer, nullable=True)      # รายการรับเงินอาหารกลางวัน: ใช้กับโครงการปีการศึกษาไหน (เว้นว่าง = ตามวันที่รับ)
     eb_code = Column(String, default="")             # หมวด e-Budget (จ่าย = ส่วนที่ 4 · รับ = ส่วนที่ 3)
     # ใช้เฉพาะบัญชีเงินประกันสัญญา (ทะเบียนคุมเงินฝาก) - ต้องคืนเงินเมื่อครบกำหนด
     due_date = Column(DateTime, nullable=True)       # วันครบกำหนดคืนเงินประกัน
@@ -1311,6 +1312,7 @@ class LunchProgram(Base):
     lunch_officer = Column(String, default="")      # เจ้าหน้าที่โครงการอาหารกลางวัน/ผู้จ่ายเงิน (อาจคนละคนกับ จนท.พัสดุ)
     note = Column(Text, default="")
     pool = Column(Integer, default=0)               # 1 = โปรแกรมพิเศษเก็บทะเบียนภาวะโภชนาการรวมของโรงเรียน (ซ่อนจากรายการโครงการ)
+    finance_account_id = Column(Integer, ForeignKey("finance_account.id"), nullable=True)  # บัญชีเงินอาหารกลางวันในทะเบียนคุมเงิน (เลือกเอง)
     created_at = Column(DateTime, default=datetime.now)
 
     classes = relationship("LunchClass", back_populates="program",

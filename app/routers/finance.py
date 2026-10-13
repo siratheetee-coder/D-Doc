@@ -317,6 +317,7 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
     return templates.TemplateResponse("finance_ledger.html", {
         "request": request, "account": a, "rows": rows, "balance": round(bal, 2),
         "txn_project": txn_project,
+        "lunch_mirror": _lunch_mirror(db),
         "item_alloc": item_allocations(db, item_rows, txn_project),
         "plan_links": account_plan_links(db, a, fy),
         "selected_item": item if any(i.id == item for i in items) else 0,
@@ -486,6 +487,9 @@ def account_txn_delete(tid: int, db: Session = Depends(get_db),
     t = db.get(FinanceTxn, tid)
     aid = t.account_id if t else None
     fy = t.fiscal_year if t else None
+    from app.services.lunch_finance import mirror_map
+    if t and t.id in mirror_map(db):
+        t = None          # รายการที่หน้าอาหารกลางวันคัดลอกมา แก้/ลบที่หน้าอาหารกลางวันเท่านั้น (ไม่งั้นสองฝั่งไม่ตรงกัน)
     if t:
         # ลบใบเสร็จที่ออกพร้อมรายการนี้ด้วย (กันยอดค้างในทะเบียนใบเสร็จ)
         for rc in db.query(Receipt).filter_by(txn_id=t.id).all():
@@ -515,6 +519,12 @@ def project_sources_json(pid: int, fy: int = 0, db: Session = Depends(get_db)):
     from app.services.project_money import project_sources
     fy = fy if 2500 <= fy <= 2800 else current_fiscal_year()
     return JSONResponse({"sources": project_sources(db, pid, fy)})
+
+
+def _lunch_mirror(db) -> dict:
+    """{txn_id: program_id} รายการที่หน้าอาหารกลางวันคัดลอกมา ให้ขึ้นว่า "แก้ที่หน้าอาหารกลางวัน" แทนปุ่มลบ"""
+    from app.services.lunch_finance import mirror_map
+    return mirror_map(db)
 
 
 def _txn_projects(db, txns) -> dict:
@@ -1010,6 +1020,7 @@ def cashbook_page(request: Request, db: Session = Depends(get_db),
     ]
     return templates.TemplateResponse("finance_cashbook.html", {
         "request": request, "school": get_school(db), "fiscal_year": fy,
+        "lunch_mirror": _lunch_mirror(db),
         "years": _finance_years(db, fy), "accounts": accounts, "sel_account": account,
         "scope": scope, "funds": FUND_TYPES, "sections": sections, "carry": carry,
         "opening_cash": opening_cash, "recv_total": recv_total, "pay_total": pay_total,

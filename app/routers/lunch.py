@@ -80,7 +80,10 @@ def _current_academic_year() -> int:
     return y if now.month >= 4 else y - 1
 
 
-def _ledger_totals(prog: LunchProgram) -> dict:
+def _ledger_totals(prog: LunchProgram, db=None) -> dict:
+    if db is not None:                       # รวมรายการรับที่ดึงจากทะเบียนคุมเงิน (บัญชีที่เลือก)
+        from app.services.lunch_finance import totals
+        return totals(db, prog)
     rin = sum(l.amount or 0 for l in prog.ledger if l.kind == "in")
     rout = sum(l.amount or 0 for l in prog.ledger if l.kind == "out")
     return {"in": rin, "out": rout, "balance": rin - rout}
@@ -92,7 +95,7 @@ def lunch_home(request: Request, db: Session = Depends(get_db)):
     progs = (db.query(LunchProgram)
              .filter((LunchProgram.pool == 0) | (LunchProgram.pool.is_(None)))
              .order_by(LunchProgram.year.desc(), LunchProgram.id.desc()).all())
-    rows = [{"p": p, "totals": _ledger_totals(p)} for p in progs]
+    rows = [{"p": p, "totals": _ledger_totals(p, db)} for p in progs]
     return templates.TemplateResponse("lunch_home.html", {
         "request": request, "school": get_school(db), "rows": rows,
         "modes": OPERATE_MODES,
@@ -135,8 +138,12 @@ def _setup_form(request, db, prog):
         levels = [{"level": lv, "num": counts.get(lv, 0)} for lv in ordered]
         from_roster = bool(counts)
     from app.models import Person
+    from app.services.lunch_finance import default_account
     persons = db.query(Person).order_by(Person.name).all()
+    accounts = db.query(FinanceAccount).order_by(FinanceAccount.name).all()
+    pre = prog.finance_account_id if prog and prog.finance_account_id else (getattr(default_account(db), "id", None))
     return templates.TemplateResponse("lunch_setup.html", {
+        "accounts": accounts, "account_pre": pre,
         "request": request, "school": get_school(db), "p": prog,
         "levels": levels, "modes": OPERATE_MODES, "from_roster": from_roster,
         "default_year": prog.year if prog else _current_academic_year(),
@@ -158,6 +165,16 @@ async def lunch_save(request: Request, db: Session = Depends(get_db)):
     prog.funding_org = (form.get("funding_org") or "").strip()
     prog.lunch_officer = (form.get("lunch_officer") or "").strip()
     prog.note = (form.get("note") or "").strip()
+    # บัญชีเงินอาหารกลางวัน: โครงการใหม่ตั้งได้เลย · โครงการเดิมที่มีรายการคัดลอกไปบัญชีอื่น
+    # ต้องยืนยันการย้ายก่อน (บอกจำนวนและยอด) จึงยังไม่เปลี่ยนตรงนี้
+    new_acc = _to_int(form.get("finance_account_id"), 0) or None
+    move_to = None
+    if new_acc != prog.finance_account_id:
+        from app.services.lunch_finance import move_preview
+        if prog.id and new_acc and move_preview(db, prog, new_acc)["n"]:
+            move_to = new_acc
+        else:
+            prog.finance_account_id = new_acc
 
     # ระดับชั้น (ล้างของเดิม สร้างใหม่ตามที่กรอก)
     prog.classes.clear()
@@ -178,7 +195,35 @@ async def lunch_save(request: Request, db: Session = Depends(get_db)):
     prog.rate_per_head = rate if rate > 0 else lunch_rate(total)
 
     db.commit()
+    if move_to:
+        return RedirectResponse(f"/lunch/{prog.id}/finance-account?to={move_to}", status_code=303)
     return RedirectResponse(f"/lunch/{prog.id}", status_code=303)
+
+
+@router.get("/lunch/{pid}/finance-account", response_class=HTMLResponse)
+def lunch_move_finance_page(pid: int, request: Request, to: int = 0, db: Session = Depends(get_db)):
+    """ยืนยันย้ายรายการที่หน้าอาหารกลางวันเคยคัดลอกไปบัญชีเดิม (มักเป็นบัญชี "อาหารกลางวัน" ที่ระบบสร้าง)
+    ไปบัญชีที่เลือก บอกจำนวนและยอดก่อน (เจ้าของกำหนด)"""
+    from app.services.lunch_finance import move_preview
+    prog, acc = db.get(LunchProgram, pid), db.get(FinanceAccount, to)
+    if not prog or not acc:
+        return RedirectResponse("/lunch", status_code=303)
+    return templates.TemplateResponse("lunch_move_finance.html", {
+        "request": request, "school": get_school(db), "p": prog, "acc": acc,
+        "pv": move_preview(db, prog, acc.id),
+        "current": db.get(FinanceAccount, prog.finance_account_id) if prog.finance_account_id else None,
+    })
+
+
+@router.post("/lunch/{pid}/finance-account")
+def lunch_move_finance(pid: int, to: int = Form(0), db: Session = Depends(get_db)):
+    from app.services.lunch_finance import move
+    prog, acc = db.get(LunchProgram, pid), db.get(FinanceAccount, to)
+    if not prog or not acc:
+        return RedirectResponse("/lunch", status_code=303)
+    n = move(db, prog, acc.id)
+    db.commit()
+    return RedirectResponse(f"/lunch/{pid}?moved={n}", status_code=303)
 
 
 @router.post("/lunch/{pid}/delete")
@@ -233,16 +278,25 @@ def lunch_detail(pid: int, request: Request, db: Session = Depends(get_db)):
     prog = db.get(LunchProgram, pid)
     if not prog:
         return RedirectResponse("/lunch", status_code=303)
-    ledger = sorted(prog.ledger, key=lambda l: (l.date or datetime.min, l.id))
-    # ยอดคงเหลือสะสมต่อรายการ
+    from app.services import lunch_finance as lf
+    incomes = lf.account_incomes(db, prog)
+    items = [dict(l=l, t=None, date=l.date, detail=l.detail, ref=l.ref, kind=l.kind, amount=l.amount or 0,
+                  key=(l.date or datetime.min, 0, l.id)) for l in prog.ledger]
+    items += [dict(l=None, t=t, date=t.date, detail=t.note or t.category or "รับเงินอาหารกลางวัน", ref=t.ref,
+                   kind="in", amount=t.amount or 0, key=(t.date or datetime.min, 1, t.id)) for t in incomes]
+    items.sort(key=lambda r: r["key"])
     running = 0.0
-    rows = []
-    for l in ledger:
-        running += (l.amount or 0) if l.kind == "in" else -(l.amount or 0)
-        rows.append({"l": l, "running": running})
+    for r in items:                          # ยอดคงเหลือสะสมต่อรายการ
+        running += r["amount"] if r["kind"] == "in" else -r["amount"]
+        r["running"] = running
+    dups = lf.duplicates([(r["detail"], r["date"], r["amount"]) for r in items if r["kind"] == "in"])
+    acc = db.get(FinanceAccount, prog.finance_account_id) if prog.finance_account_id else None
+    years = [prog.year - 1, prog.year, prog.year + 1]
     return templates.TemplateResponse("lunch_detail.html", {
         "request": request, "school": get_school(db), "p": prog,
-        "rows": rows, "totals": _ledger_totals(prog),
+        "rows": items, "totals": _ledger_totals(prog, db), "acc": acc, "dups": dups,
+        "years": years, "year_range": lf.year_range_text, "txn_year": lf.txn_year,
+        "err": request.query_params.get("err", ""),
         "modes": OPERATE_MODES, "auto_rate": lunch_rate(prog.total_students),
     })
 
@@ -255,6 +309,10 @@ def lunch_ledger_add(pid: int, db: Session = Depends(get_db),
     prog = db.get(LunchProgram, pid)
     if not prog:
         return RedirectResponse("/lunch", status_code=303)
+    if kind != "out" and prog.finance_account_id:
+        from urllib.parse import quote
+        return RedirectResponse(f"/lunch/{pid}?err=" + quote("รายการรับให้การเงินลงที่ทะเบียนคุมเงิน แล้วจะขึ้นที่นี่เอง"),
+                                status_code=303)
     led = LunchLedger(
         program_id=pid, date=parse_be_date(date) or datetime.now(),
         kind=("out" if kind == "out" else "in"), detail=detail.strip(),
@@ -299,6 +357,53 @@ def lunch_official_receipt_docx(lid: int, db: Session = Depends(get_db)):
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
+def _lunch_income(db, pid, tid):
+    """รายการรับในบัญชีของโครงการนี้ (ไม่ใช่รายการที่หน้าอาหารกลางวันคัดลอกไปเอง) หรือ None"""
+    from app.services.lunch_finance import mirror_map
+    prog, t = db.get(LunchProgram, pid), db.get(FinanceTxn, tid)
+    if not prog or not t or t.kind != "in" or not prog.finance_account_id \
+            or t.account_id != prog.finance_account_id or t.id in mirror_map(db):
+        return prog, None
+    return prog, t
+
+
+@router.post("/lunch/{pid}/income/{tid}/year")
+def lunch_income_year(pid: int, tid: int, lunch_year: int = Form(0), db: Session = Depends(get_db)):
+    """เปลี่ยนว่ารายการรับนี้ใช้กับโครงการปีการศึกษาไหน (ตั้งตามวันที่รับเป็นค่าเริ่มต้น)"""
+    from app.services.lunch_finance import lunch_year_of
+    prog, t = _lunch_income(db, pid, tid)
+    if t is not None and 2500 <= lunch_year <= 2800:
+        t.lunch_year = None if lunch_year == lunch_year_of(t.date) else lunch_year
+        db.commit()
+    return RedirectResponse(f"/lunch/{pid}#ledger", status_code=303)
+
+
+def _income_as_ledger(t):
+    from types import SimpleNamespace
+    return SimpleNamespace(id=f"f{t.id}", kind="in", amount=t.amount or 0, date=t.date, ref=t.ref or "",
+                           detail=t.note or t.category or "")
+
+
+@router.get("/lunch/{pid}/income/{tid}/receipt.docx")
+def lunch_income_voucher(pid: int, tid: int, db: Session = Depends(get_db)):
+    from app.services.lunch_receipt import render_ledger_voucher
+    prog, t = _lunch_income(db, pid, tid)
+    if t is None:
+        return RedirectResponse(f"/lunch/{pid}" if prog else "/lunch", status_code=303)
+    return serve_generated(render_ledger_voucher(get_school(db), prog, _income_as_ledger(t)),
+                           "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.get("/lunch/{pid}/income/{tid}/official-receipt.docx")
+def lunch_income_official(pid: int, tid: int, db: Session = Depends(get_db)):
+    from app.services.lunch_receipt import render_official_receipt
+    prog, t = _lunch_income(db, pid, tid)
+    if t is None:
+        return RedirectResponse(f"/lunch/{pid}" if prog else "/lunch", status_code=303)
+    return serve_generated(render_official_receipt(get_school(db), prog, _income_as_ledger(t)),
+                           "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
 def _ledger_vendor(db, led):
     """ผู้รับเงินของรายการจ่าย = ผู้รับจ้าง/ร้านของรอบ (รายการที่ระบบสร้างจากรอบหรืองวด)"""
     rnd = db.get(LunchHireRound, led.round_id) if led.round_id else None
@@ -338,7 +443,9 @@ def _ensure_lunch_account(db: Session) -> FinanceAccount:
 def _mirror_finance(db: Session, ledger: LunchLedger) -> None:
     """สร้าง/อัปเดตรายการคู่ใน FinanceTxn (บัญชีอาหารกลางวัน) ให้ตรงกับรายการบัญชีอาหารกลางวัน 1 แถว
     -> ยอดรับ-จ่ายอาหารกลางวันไปโผล่ในงบการเงินรวม/รายงานเงินคงเหลือ"""
-    acc = _ensure_lunch_account(db)
+    prog = ledger.program or db.get(LunchProgram, ledger.program_id)
+    acc = (db.get(FinanceAccount, prog.finance_account_id) if prog and prog.finance_account_id else None) \
+        or _ensure_lunch_account(db)
     d = ledger.date or datetime.now()
     txn = db.get(FinanceTxn, ledger.finance_txn_id) if ledger.finance_txn_id else None
     if not txn:

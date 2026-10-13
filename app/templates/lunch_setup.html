@@ -14,6 +14,15 @@
     </div>
     <div class="row">
       <div><label>อปท.ผู้จัดสรร (เทศบาล/อบต.)</label><input name="funding_org" value="{{ p.funding_org if p else '' }}"></div>
+      {# การเงินลงรับเงินอาหารกลางวันในบัญชีนี้ก่อนเสมอ หน้าอาหารกลางวันดึงรายการรับมาแสดงเอง
+         รายการจ่ายจากรอบ/งวดก็ลงบัญชีนี้ (app/services/lunch_finance.py) #}
+      <div style="flex:1.4;"><label>บัญชีเงินอาหารกลางวัน <span class="muted">(ในทะเบียนคุมเงิน)</span></label>
+        <select name="finance_account_id">
+          <option value="">- ยังไม่เลือก -</option>
+          {% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if a.id == account_pre }}>{{ a.name }}</option>{% endfor %}
+        </select>
+        <div class="muted" style="font-size:12.5px; margin-top:3px;">การเงินลงรับเงินในบัญชีนี้ แล้วรายการรับจะขึ้นที่หน้าอาหารกลางวันเอง
+          {% if not accounts %}· ยังไม่มีบัญชี <a href="/finance/accounts">สร้างบัญชีที่ทะเบียนคุมเงิน</a>{% endif %}</div></div>
       <div><label>เจ้าหน้าที่โครงการอาหารกลางวัน <span class="muted">(ผู้จ่ายเงิน/ผู้ยืม อาจคนละคนกับ จนท.พัสดุ)</span></label>
         <input name="lunch_officer" list="persons_dl" value="{{ p.lunch_officer if p else '' }}" placeholder="เลือกบุคลากร หรือพิมพ์ชื่อ (เว้นว่าง = ใช้ จนท.พัสดุ)">
         <datalist id="persons_dl">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist></div>

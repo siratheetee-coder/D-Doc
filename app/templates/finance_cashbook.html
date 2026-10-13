@@ -71,7 +71,7 @@
         <td>{{ r.desc }}</td>
         <td class="right">{{ "{:,.2f}".format(r.amount) }}</td>
         {% for f in funds %}<td class="right">{{ "{:,.2f}".format(r.amount) if r.fund==f else "" }}</td>{% endfor %}
-        <td><form method="post" action="/finance/txn/{{ r.id }}/delete?return_to=cashbook&amp;year={{ fiscal_year }}{{ _q }}" onsubmit="return confirm('ลบรายการนี้ออกจากสมุดเงินสดและทะเบียนคุมเงิน? ใบเสร็จและการเชื่อมเงินอุดหนุนที่ผูกกับรายการนี้จะถูกลบด้วย');"><button class="btn red sm" type="submit" aria-label="ลบรายการ {{ r.ref or r.desc }}"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button></form></td>
+        <td>{% if r.id in lunch_mirror %}<a class="pill" href="/lunch/{{ lunch_mirror[r.id] }}#ledger" style="background:#fff7ed; color:#c2410c; text-decoration:none; white-space:nowrap;">แก้ที่หน้าอาหารกลางวัน</a>{% else %}<form method="post" action="/finance/txn/{{ r.id }}/delete?return_to=cashbook&amp;year={{ fiscal_year }}{{ _q }}" onsubmit="return confirm('ลบรายการนี้ออกจากสมุดเงินสดและทะเบียนคุมเงิน? ใบเสร็จและการเชื่อมเงินอุดหนุนที่ผูกกับรายการนี้จะถูกลบด้วย');"><button class="btn red sm" type="submit" aria-label="ลบรายการ {{ r.ref or r.desc }}"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button></form>{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>

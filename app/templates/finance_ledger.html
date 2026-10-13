@@ -322,7 +322,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
         <td class="right">{{ "{:,.2f}".format(r.t.amount) if r.t.kind=="in" else "" }}</td>
         <td class="right">{{ "{:,.2f}".format(r.t.amount) if r.t.kind=="out" else "" }}</td>
         <td class="right"><b>{{ "{:,.2f}".format(r.balance) }}</b></td>
-        <td class="right"><form method="post" action="/finance/txn/{{ r.t.id }}/delete" style="display:inline" onsubmit="return confirm('ลบรายการนี้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form></td>
+        <td class="right">{% if r.t.id in lunch_mirror %}<a class="pill" href="/lunch/{{ lunch_mirror[r.t.id] }}#ledger" title="รายการนี้มาจากหน้าอาหารกลางวัน" style="background:#fff7ed; color:#c2410c; text-decoration:none; white-space:nowrap;">แก้ที่หน้าอาหารกลางวัน</a>{% else %}<form method="post" action="/finance/txn/{{ r.t.id }}/delete" style="display:inline" onsubmit="return confirm('ลบรายการนี้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}ย้ายรายการไปบัญชีเงินอาหารกลางวัน{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">อาหารกลางวัน · ปีการศึกษา {{ p.year }}</div>
+    <span class="hero-title">ย้ายรายการไปบัญชี {{ acc.name }}</span>
+  </div>
+</div>
+{# ยืนยันก่อนย้าย บอกจำนวนและยอด (เจ้าของกำหนด) · ย้ายเฉพาะรายการที่หน้าอาหารกลางวันโครงการนี้คัดลอกไปเอง #}
+<div class="card mv-card">
+  <p style="margin-top:0;">หน้าอาหารกลางวันเคยคัดลอกรายการรับ-จ่ายของโครงการนี้ไปไว้ที่
+    <b>{{ pv.from_names|join(', ') or 'บัญชีอื่น' }}</b> ในทะเบียนคุมเงิน
+    ถ้าเปลี่ยนไปใช้บัญชี <b>{{ acc.name }}</b> ต้องย้ายรายการเหล่านี้ไปด้วย ยอดในทะเบียนคุมเงินจึงจะตรงกัน</p>
+  <div class="mv-sum">
+    <div><span>จำนวน</span><b>{{ pv.n }} รายการ</b></div>
+    <div><span>รับ</span><b>{{ "{:,.2f}".format(pv.sum_in) }}</b></div>
+    <div><span>จ่าย</span><b>{{ "{:,.2f}".format(pv.sum_out) }}</b></div>
+  </div>
+  <div class="table-wrap"><table class="stack-sm">
+    <thead><tr><th>วันที่</th><th>รายการ</th><th class="right">รับ</th><th class="right">จ่าย</th></tr></thead>
+    <tbody>{% for t in pv.rows %}
+      <tr><td data-label="วันที่">{{ thai_date(t.date) if t.date else '-' }}</td><td data-label="รายการ">{{ t.note or t.category or '-' }}</td>
+          <td data-label="รับ" class="right">{{ "{:,.2f}".format(t.amount) if t.kind == 'in' else '' }}</td>
+          <td data-label="จ่าย" class="right">{{ "{:,.2f}".format(t.amount) if t.kind == 'out' else '' }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  <form method="post" action="/lunch/{{ p.id }}/finance-account" class="mv-act">
+    <input type="hidden" name="to" value="{{ acc.id }}">
+    <button class="btn" type="submit">ย้าย {{ pv.n }} รายการ และใช้บัญชี {{ acc.name }}</button>
+    <a class="btn gray" href="/lunch/{{ p.id }}">ยกเลิก{% if current %} ใช้บัญชี {{ current.name }} ต่อ{% endif %}</a>
+  </form>
+  <p class="muted" style="font-size:13px; margin:10px 0 0;">ข้อมูลไม่หาย แค่ย้ายบัญชี · ส่วนอื่นที่บันทึกในหน้าตั้งค่า (นักเรียน อัตรา ฯลฯ) บันทึกแล้ว</p>
+</div>
+<style>
+  .mv-card{ background:linear-gradient(120deg,#fff7ed,#fffbeb); }
+  .mv-sum{ display:flex; flex-wrap:wrap; gap:12px; margin:6px 0 12px; }
+  .mv-sum div{ background:#fff; border-radius:12px; padding:10px 16px; box-shadow:0 1px 3px rgba(15,23,42,.06); }
+  .mv-sum span{ display:block; font-size:12.5px; color:#64748b; } .mv-sum b{ font-size:18px; }
+  .mv-act{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+</style>
+{% endblock %}

@@ -52,8 +52,22 @@
   </table></div>
 </div>
 
-<div class="card">
+<div class="card" id="ledger">
   <h2>บัญชีรับ-จ่ายเงินอาหารกลางวัน</h2>
+  {% if request.query_params.get('moved') is not none %}<div class="alert">✔ ย้าย {{ request.query_params.get('moved') }} รายการไปบัญชี {{ acc.name if acc else '' }} แล้ว</div>{% endif %}
+  {% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}{% if acc %} · <a href="/finance/accounts/{{ acc.id }}">ไปลงรับที่บัญชี {{ acc.name }}</a>{% endif %}</div>{% endif %}
+  {# เชื่อมกับทะเบียนคุมเงิน: การเงินลงรับก่อนเสมอ หน้านี้ดึงรายการรับจากบัญชีที่เลือกมาแสดงเอง (app/services/lunch_finance.py) #}
+  {% if acc %}
+  <div class="lf-link">เชื่อมกับบัญชี <a href="/finance/accounts/{{ acc.id }}"><b>{{ acc.name }}</b></a> ในทะเบียนคุมเงิน ·
+    รายการรับให้การเงินลงที่บัญชีนั้น แล้วจะขึ้นที่นี่เอง (ป้าย "จากทะเบียนคุมเงิน") · รายการจ่ายจากรอบและงวดลงบัญชีนั้นให้อัตโนมัติ</div>
+  {% else %}
+  <div class="lf-link lf-warn">ยังไม่ได้เลือกบัญชีเงินอาหารกลางวัน ·
+    <a href="/lunch/{{ p.id }}/edit">เลือกบัญชีที่หน้าตั้งค่าโครงการ</a> แล้วรายการรับที่การเงินลงไว้จะขึ้นที่นี่เอง ไม่ต้องลงซ้ำ</div>
+  {% endif %}
+  {% if dups %}
+  <div class="lf-dup"><b>อาจลงรับซ้ำ</b> (ยอดเท่ากัน วันที่ห่างกันไม่เกิน 7 วัน) ตรวจว่าเป็นเงินคนละก้อนหรือไม่:
+    <ul>{% for a, b in dups %}<li>{{ "{:,.2f}".format(a[2]) }} บาท · {{ thai_date(a[1]) }} "{{ a[0] }}" กับ {{ thai_date(b[1]) }} "{{ b[0] }}"</li>{% endfor %}</ul></div>
+  {% endif %}
   <div style="display:flex; gap:24px; flex-wrap:wrap; margin-bottom:12px; font-size:16px;">
     <div>รับ: <b>{{ "{:,.2f}".format(totals['in']) }}</b></div>
     <div>จ่าย: <b>{{ "{:,.2f}".format(totals['out']) }}</b></div>
@@ -61,28 +75,43 @@
   </div>
   <form method="post" action="/lunch/{{ p.id }}/ledger/add" class="row" style="align-items:flex-end;">
     <div><label>วันที่</label><input name="date" placeholder="วว/ดด/ปปปป" data-date="1" style="width:130px;"></div>
-    <div><label>ประเภท</label><select name="kind"><option value="in">รับ</option><option value="out">จ่าย</option></select></div>
-    <div style="flex:2; min-width:200px;"><label>รายละเอียด</label><input name="detail" placeholder="เช่น รับเงินอุดหนุนงวด 1 / จ่ายค่าจ้างเหมา"></div>
+    <div><label>ประเภท</label><select name="kind">{% if not acc %}<option value="in">รับ</option>{% endif %}<option value="out">จ่าย</option></select></div>
+    <div style="flex:2; min-width:200px;"><label>รายละเอียด</label><input name="detail" placeholder="{{ 'เช่น จ่ายค่าแก๊ส' if acc else 'เช่น รับเงินอุดหนุนงวด 1 / จ่ายค่าจ้างเหมา' }}"></div>
     <div><label>จำนวนเงิน</label><input name="amount" type="number" step="0.01" style="width:130px;"></div>
     <div><label>เลขที่อ้างอิง</label><input name="ref" style="width:120px;"></div>
-    <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button></div>
+    <div><button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม{{ 'รายการจ่าย' if acc else '' }}</button></div>
   </form>
   <div class="table-wrap" style="margin-top:14px;">
   <table>
     <thead><tr><th>วันที่</th><th>รายละเอียด</th><th>อ้างอิง</th><th class="right">รับ</th><th class="right">จ่าย</th><th class="right">คงเหลือ</th><th></th></tr></thead>
     <tbody>
     {% for r in rows %}
-      <tr>
-        <td>{{ thai_date(r.l.date) if r.l.date else '-' }}</td>
-        <td>{{ r.l.detail }}</td>
-        <td>{{ r.l.ref }}</td>
-        <td class="right">{{ "{:,.2f}".format(r.l.amount) if r.l.kind=='in' else '' }}</td>
-        <td class="right">{{ "{:,.2f}".format(r.l.amount) if r.l.kind=='out' else '' }}</td>
+      <tr{% if r.t %} class="lf-row"{% endif %}>
+        <td>{{ thai_date(r.date) if r.date else '-' }}</td>
+        <td>{{ r.detail }}
+          {% if r.t %}<span class="lf-badge">จากทะเบียนคุมเงิน</span>
+          <form method="post" action="/lunch/{{ p.id }}/income/{{ r.t.id }}/year" class="lf-year">
+            <label>ใช้กับโครงการปีการศึกษา
+              <select name="lunch_year" onchange="this.form.submit()">
+                {% set cur = txn_year(r.t) %}{% for y in (years + [cur])|unique|sort %}<option value="{{ y }}" {{ 'selected' if y == cur }}>ปีการศึกษา {{ y }}</option>{% endfor %}
+              </select></label>
+            <span class="lf-range">{{ year_range(txn_year(r.t)) }}</span>
+          </form>{% endif %}
+        </td>
+        <td>{{ r.ref or '' }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.amount) if r.kind=='in' else '' }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.amount) if r.kind=='out' else '' }}</td>
         <td class="right">{{ "{:,.2f}".format(r.running) }}</td>
         <td style="white-space:nowrap;">
+          {% if r.t %}
+          <a class="btn sm gray" href="/lunch/{{ p.id }}/income/{{ r.t.id }}/receipt.docx" title="ใบสำคัญรับเงิน"><svg class="icon"><use href="#ic-download"/></svg> ใบสำคัญรับเงิน</a>
+          <a class="btn sm gray" href="/lunch/{{ p.id }}/income/{{ r.t.id }}/official-receipt.docx" title="ใบเสร็จรับเงินที่โรงเรียนออกให้ {{ p.funding_org or 'อปท.' }} (ต้นฉบับ + สำเนา)"><svg class="icon"><use href="#ic-download"/></svg> ใบเสร็จรับเงิน</a>
+          <a class="btn sm gray" href="/finance/accounts/{{ r.t.account_id }}?year={{ r.t.fiscal_year }}" title="แก้หรือลบที่ทะเบียนคุมเงิน">แก้ที่การเงิน</a>
+          {% else %}
           <a class="btn sm gray" href="/lunch/ledger/{{ r.l.id }}/receipt.docx" title="ใบสำคัญรับเงิน (ผู้รับเงินลงชื่อ)"><svg class="icon"><use href="#ic-download"/></svg> ใบสำคัญรับเงิน</a>
-          {% if r.l.kind=='in' %}<a class="btn sm gray" href="/lunch/ledger/{{ r.l.id }}/official-receipt.docx" title="ใบเสร็จรับเงินที่โรงเรียนออกให้ {{ p.funding_org or 'อปท.' }} (ต้นฉบับ + สำเนา)"><svg class="icon"><use href="#ic-download"/></svg> ใบเสร็จรับเงิน</a>{% endif %}
+          {% if r.kind=='in' %}<a class="btn sm gray" href="/lunch/ledger/{{ r.l.id }}/official-receipt.docx" title="ใบเสร็จรับเงินที่โรงเรียนออกให้ {{ p.funding_org or 'อปท.' }} (ต้นฉบับ + สำเนา)"><svg class="icon"><use href="#ic-download"/></svg> ใบเสร็จรับเงิน</a>{% endif %}
           <form method="post" action="/lunch/ledger/{{ r.l.id }}/delete" onsubmit="return confirm('ลบรายการนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
+          {% endif %}
         </td>
       </tr>
     {% else %}
@@ -91,5 +120,17 @@
     </tbody>
   </table>
   </div>
+  <style>
+    .lf-link{ background:linear-gradient(120deg,#eff6ff,#f0fdf4); border-radius:12px; padding:10px 14px; margin-bottom:12px; font-size:14px; color:#1e3a8a; }
+    .lf-warn{ background:#fff7ed; color:#9a3412; }
+    .lf-dup{ background:#fef3c7; color:#92400e; border-radius:12px; padding:10px 14px; margin-bottom:12px; font-size:14px; }
+    .lf-dup ul{ margin:6px 0 0; padding-left:20px; }
+    .lf-badge{ display:inline-block; margin-left:6px; background:#dbeafe; color:#1d4ed8; border-radius:999px; padding:1px 9px; font-size:12px; font-weight:600; }
+    .lf-year{ margin:6px 0 0; }
+    .lf-year label{ display:flex; align-items:center; gap:6px; margin:0; font-size:12.5px; color:#475569; flex-wrap:wrap; }
+    .lf-year select{ width:auto; padding:4px 8px; font-size:13px; }
+    .lf-range{ display:block; font-size:12px; color:#64748b; margin-top:2px; }
+    .lf-row td{ background:#f8fbff; }
+  </style>
 </div>
 {% endblock %}

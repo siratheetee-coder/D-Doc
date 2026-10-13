@@ -20,13 +20,17 @@ def _next(st):
 
 def test_lunch_steps_in_order(db):
     st = ms.lunch_steps(db, 2569)
-    assert _next(st) == 'ตั้งโครงการปีการศึกษา 2569' and st['total'] == 5
+    assert _next(st) == 'ตั้งโครงการปีการศึกษา 2569' and st['total'] == 6
     p = LunchProgram(year=2569, days=200, rate_per_head=0, operate_mode='hire'); db.add(p); db.flush()
     db.add(LunchClass(program_id=p.id, level='ป.1', num_students=120)); db.commit()
+    assert _next(ms.lunch_steps(db, 2569)) == 'เลือกบัญชีเงินอาหารกลางวัน'
+    from app.models import FinanceAccount
+    acc = FinanceAccount(name='เงินอาหารกลางวัน อบต.'); db.add(acc); db.flush()
+    p.finance_account_id = acc.id; db.commit()
     assert _next(ms.lunch_steps(db, 2569)) == 'ใส่จำนวนนักเรียนและอัตราต่อหัว'
     p.rate_per_head = 36; db.commit()
     st = ms.lunch_steps(db, 2569)
-    assert _next(st) == 'เลือกรูปแบบและผู้รับผิดชอบ' and 'งบทั้งปี 864,000.00 บาท' in st['steps'][1]['detail']
+    assert _next(st) == 'เลือกรูปแบบและผู้รับผิดชอบ' and 'งบทั้งปี 864,000.00 บาท' in st['steps'][2]['detail']
     assert 'อปท.ผู้จัดสรร' in st['next']['detail']
     p.funding_org, p.lunch_officer = 'อบต.ทดสอบ', 'ครูอาหาร'; db.commit()
     assert _next(ms.lunch_steps(db, 2569)) == 'เพิ่มรอบจัดจ้างแรก'

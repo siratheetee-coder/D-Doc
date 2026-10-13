@@ -39,6 +39,11 @@ def lunch_steps(db, year, school=None) -> dict:
         dict(title=f"ตั้งโครงการปีการศึกษา {year}", done=bool(prog),
              detail=("ตั้งโครงการแล้ว" if prog else "ระบบดึงจำนวนนักเรียนแต่ละชั้นจากทะเบียนนักเรียนให้เอง"),
              href="/lunch/setup", cta="ตั้งโครงการ"),
+        dict(title="เลือกบัญชีเงินอาหารกลางวัน", done=bool(prog and prog.finance_account_id),
+             detail=("เชื่อมกับทะเบียนคุมเงินแล้ว" if prog and prog.finance_account_id
+                     else "การเงินลงรับเงินในบัญชีนี้ แล้วรายการรับขึ้นที่หน้าอาหารกลางวันเอง ไม่ต้องลงซ้ำ"
+                     if prog else "ตั้งโครงการก่อน"),
+             href=edit, cta="เลือกบัญชี"),
         dict(title="ใส่จำนวนนักเรียนและอัตราต่อหัว", done=budget > 0,
              detail=(f"งบทั้งปี {budget:,.2f} บาท" if budget > 0
                      else "งบ = นักเรียน × อัตราต่อหัวต่อวัน × จำนวนวัน เช่น 120 คน × 36 บาท × 200 วัน = 864,000 บาท"),
