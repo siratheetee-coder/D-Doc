@@ -22,6 +22,11 @@
 </div>
 {% if request.query_params.get('started') is not none %}<div class="alert">✔ บันทึกยอดตั้งต้นแล้ว {{ request.query_params.get('started') }} โครงการ · ยอดใช้ไปและคงเหลือของแต่ละโครงการอัปเดตแล้ว</div>{% endif %}
 {% if request.query_params.get('copied') is not none %}<div class="alert">✔ สร้างโครงการ{{ year_label }} {{ fiscal_year }} จากปี {{ request.query_params.get('from', '') }} แล้ว {{ request.query_params.get('copied') }} โครงการ · ขั้นต่อไป นำเงินเหลือเข้าแผนแล้วจัดสรรให้โครงการ</div>{% endif %}
+{# รายการเริ่มต้น: มีสิทธิ์งานการเงิน = 5 ขั้นชุดเดียวกับหน้าการเงิน (ซ่อนแล้วซ่อนทั้งสองหน้า)
+   ไม่มีสิทธิ์ = ชุดสั้นเรื่องโครงการล้วน (ชุดเต็มพาไปหน้าที่เข้าไม่ได้) #}
+{% if can_finance %}{% set setup_key = 'fin' %}{% set setup_title = 'เริ่มต้นงานการเงินและโครงการ' %}
+{% else %}{% set setup_key = 'proj' %}{% set setup_title = 'เริ่มต้นวางแผนโครงการ' %}{% endif %}
+{% include '_setup_checklist.html' %}
 {% if suggest_next %}
 <div class="card" style="background:#fff7ed;">
   <b>{{ 'สิ้น' if suggest_next == 'ended' else 'ใกล้สิ้น' }}{{ year_label }} {{ fiscal_year }} แล้ว</b>
@@ -38,10 +43,12 @@
 {% endif %}
 {% if request.query_params.get('added') or request.query_params.get('updated') %}<div class="alert">✔ นำเข้าโครงการแล้ว: สร้างใหม่ {{ request.query_params.get('added', 0) }} รายการ{% if request.query_params.get('updated') and request.query_params.get('updated')!='0' %} · อัปเดตงบ {{ request.query_params.get('updated') }} รายการ{% endif %}</div>{% endif %}
 
+{% if can_finance %}{# หน้างบที่ใช้จัดทำแผนเป็นของงานการเงิน #}
 <div class="card"><h2>งบประมาณที่ใช้จัดทำแผน</h2><p>เลือกเงินเหลือจากปีก่อนและเงินอุดหนุนรอบใหม่ แล้วจัดสรรให้แต่ละโครงการ</p>
 <p>งบรวมสำหรับวางแผน <b>{{ '{:,.2f}'.format(plan_funding.total) }}</b> · จัดสรรแล้ว <b>{{ '{:,.2f}'.format(plan_funding.allocated) }}</b> · ยังไม่ได้จัดสรร <b>{{ '{:,.2f}'.format(plan_funding.remaining) }}</b> บาท</p>
 <a class="btn" href="/plan-budget/{{ fiscal_year }}">เลือกงบที่จะใช้ในแผน</a><p class="muted">ยอดนี้แยกจากเงินสดในทะเบียนคุม และไม่เปลี่ยนงบโครงการเดิมจนกว่าจะจัดสรรเอง</p></div>
-<div class="card">
+{% endif %}
+<div class="card" id="add-project">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มโครงการ ({{ year_label }} {{ fiscal_year }})</h2>
   <p class="muted" style="margin-top:0;">สามารถเพิ่มหรือแก้ไขโครงการได้ระหว่างปีงบประมาณ (เช่น เมื่อมีแผนปฏิบัติการประจำปีการศึกษาใหม่)</p>
   <form method="post" action="/projects">
@@ -63,9 +70,10 @@
     <p class="muted" style="margin:6px 0 0; font-size:12px;">ยังไม่มีฝ่ายให้เลือก? เพิ่มได้ที่ <a href="/masters">ข้อมูลหลัก › ฝ่าย</a></p>
     <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มโครงการ</button>
   </form>
+  {% include '_budget_help.html' %}
 </div>
 
-<div class="card">
+<div class="card" id="project-list">
   <h2>โครงการ {{ year_label }} {{ fiscal_year }}</h2>
   {% if rows %}
   <div class="table-wrap"><table>

@@ -1,0 +1,38 @@
+{# ใส่งบ กับ ปรับงบ ต่างกันยังไง (เจ้าของขอให้อธิบาย) ใช้ทั้งหน้ารายการโครงการและหน้าโครงการ
+   ตั้ง budget_help_open = true ก่อน include ถ้าอยากให้กางไว้ #}
+<details class="bh" id="budget-help" {% if budget_help_open %}open{% endif %}>
+  <summary>ใส่งบ กับ ปรับงบ ต่างกันยังไง</summary>
+  <div class="bh-grid">
+    <div class="bh-box">
+      <b>ใส่งบ / แก้งบ</b>
+      <p>งบตั้งต้นของโครงการ ใช้ตอนเพิ่งสร้างโครงการ หรือพิมพ์ตัวเลขผิด ไม่เก็บประวัติ</p>
+      <p class="bh-eg">ตัวอย่าง: สร้างกีฬาสีโดยลืมใส่งบ ใส่ 30,000 ได้เลย หรือพิมพ์ 3,000 ผิด แก้เป็น 30,000</p>
+      <p class="bh-where">ช่องด้านบนของหน้าโครงการ · ใช้ได้จนกว่าจะปรับงบครั้งแรก</p>
+    </div>
+    <div class="bh-box">
+      <b>ปรับงบ</b>
+      <p>แผนเปลี่ยนระหว่างปี ระบบเก็บเป็นครั้งที่ 1, 2, 3 พร้อมวันที่และเหตุผล ย้อนดูได้ทุกครั้ง</p>
+      <p class="bh-eg">ตัวอย่าง: กลางปีได้งบกีฬาสีเพิ่มจาก 30,000 เป็น 32,000 บันทึกเป็นปรับงบครั้งที่ 1</p>
+      <p class="bh-where">หัวข้อ "ปรับงบประมาณ" ในหน้าโครงการ</p>
+    </div>
+  </div>
+  {% if can_finance %}{# การจัดสรรเงินเป็นของงานการเงิน ไม่มีสิทธิ์ไม่ต้องอ่านเรื่องนี้ #}
+  <p class="bh-note">ถ้าจัดสรรเงินจากหมวดให้โครงการไว้แล้ว: ปรับงบเพิ่ม ระบบพาไปจัดสรรส่วนที่เพิ่มให้ ·
+    ปรับงบลด ต้องลดการจัดสรรก่อน เพราะงบต้องไม่ต่ำกว่าเงินที่จัดสรรไว้</p>{% endif %}
+</details>
+<style>
+  .bh{ margin-top:12px; border-radius:12px; background:linear-gradient(120deg,#f8fafc,#eff6ff); padding:10px 14px; }
+  .bh summary{ cursor:pointer; font-weight:600; color:#1e3a8a; }
+  .bh-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px; margin-top:10px; }
+  .bh-box{ background:#fff; border-radius:10px; padding:10px 12px; font-size:14px; }
+  .bh-box p{ margin:4px 0 0; }
+  .bh-eg{ color:#475569; font-size:13px; }
+  .bh-where{ color:#2563eb; font-size:12.5px; }
+  .bh-note{ font-size:13px; color:#475569; margin:10px 0 0; }
+</style>
+<script>
+(function () {   // กดลิงก์ #budget-help (จากรายการเริ่มต้น) แล้วกางให้เลย
+  function openIt() { if (location.hash === '#budget-help') { var d = document.getElementById('budget-help'); if (d) d.open = true; } }
+  window.addEventListener('hashchange', openIt); openIt();
+})();
+</script>

@@ -86,3 +86,44 @@ def setup_steps(db, fy, school=None) -> dict:
     nxt = next((s for s in steps if not s["done"]), None)
     done = sum(1 for s in steps if s["done"])
     return dict(steps=steps, done=done, total=len(steps), complete=nxt is None, next=nxt)
+
+
+def project_steps(db, plan_year, year_label="ปีงบประมาณ") -> dict:
+    """ชุดสั้นสำหรับหน้าโครงการ เมื่อผู้ใช้ไม่มีสิทธิ์งานการเงิน
+
+    หน้าโครงการใช้ได้ฟรี แต่ทะเบียนคุมเงินกับหน้างบที่ใช้จัดทำแผนเป็นของงานการเงิน
+    ชุด 5 ขั้นเต็มจะพาไปหน้าที่เข้าไม่ได้ จึงเหลือแค่เรื่องโครงการล้วน ๆ
+    """
+    from app.services.budget import project_budget
+    rows = db.query(Project).filter(Project.plan_year == plan_year).order_by(Project.name).all()
+    zero = [p for p in rows if project_budget(p) <= 0]
+    no_owner = [p for p in rows if not (p.responsible or "").strip()]
+
+    def names(ps):
+        head = ", ".join(p.name for p in ps[:3])
+        return head + (f" และอีก {len(ps) - 3} โครงการ" if len(ps) > 3 else "")
+
+    steps = [
+        dict(title="เพิ่มโครงการ", done=bool(rows),
+             detail=(f"{year_label} {plan_year} มี {len(rows)} โครงการ" if rows
+                     else "พิมพ์ทีละโครงการพร้อมงบ หรือนำเข้าจาก Excel ทีเดียวทั้งแผน"),
+             href="#add-project", cta="เพิ่มโครงการ",
+             extra=[("นำเข้าจาก Excel", "/projects/import")]),
+        dict(title="ใส่งบให้ทุกโครงการ", done=bool(rows) and not zero,
+             detail=("ทุกโครงการมีงบแล้ว" if rows and not zero
+                     else (f"ยังมี {len(zero)} โครงการที่งบเป็น 0: {names(zero)} · เปิดโครงการแล้วใส่งบในช่องด้านบนได้เลย "
+                           "ไม่นับเป็นการปรับงบ" if zero else "เพิ่มโครงการก่อน")),
+             href=(f"/projects/{zero[0].id}" if zero else "#add-project"), cta="ใส่งบโครงการ",
+             extra=[("ใส่งบ กับ ปรับงบ ต่างกันยังไง", "#budget-help")]),
+        dict(title="ระบุฝ่ายที่รับผิดชอบ", done=bool(rows) and not no_owner,
+             detail=("ทุกโครงการระบุฝ่ายแล้ว" if rows and not no_owner
+                     else (f"ยังไม่ระบุ {len(no_owner)} โครงการ: {names(no_owner)} · เลือกฝ่ายในตารางด้านล่างได้เลย "
+                           "ใช้ในรายงานผลโครงการ" if no_owner else "เพิ่มโครงการก่อน")),
+             href="#project-list", cta="ไปที่ตารางโครงการ"),
+    ]
+    for n, s in enumerate(steps, 1):
+        s["n"] = n
+        s.setdefault("extra", [])
+    nxt = next((s for s in steps if not s["done"]), None)
+    done = sum(1 for s in steps if s["done"])
+    return dict(steps=steps, done=done, total=len(steps), complete=nxt is None, next=nxt)

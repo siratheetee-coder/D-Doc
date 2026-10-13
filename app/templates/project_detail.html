@@ -86,11 +86,13 @@
   </style>
 </div>
 
-{% include 'project_funding.html' %}
+{# จัดสรรเงินเป็นของงานการเงิน (หน้างบแผน/ปุ่มจัดสรรอยู่ใต้ /plan-budget) ไม่มีสิทธิ์ก็ไม่ต้องโชว์ #}
+{% if can_finance %}{% include 'project_funding.html' %}{% endif %}
 
 <div class="card">
   <h2><svg class="icon"><use href="#ic-edit"/></svg> ปรับงบประมาณ (ครั้งที่ {{ next_seq }})</h2>
-  <p class="muted" style="margin-top:0;">บันทึกเมื่อแผนเปลี่ยน/โอนงบ - งบปัจจุบันจะอัปเดตเป็นค่าล่าสุด แต่ดูย้อนหลังได้ทุกครั้ง</p>
+  <p class="muted" style="margin-top:0;">บันทึกเมื่อแผนเปลี่ยนระหว่างปี งบปัจจุบันเปลี่ยนเป็นยอดล่าสุด แต่ย้อนดูได้ทุกครั้ง</p>
+  {% set budget_help_open = not p.revisions %}{% include '_budget_help.html' %}
   <form method="post" action="/projects/{{ p.id }}/revise">
     <div class="row">
       <div><label>งบรวมหลังปรับ (บาท)</label><input name="amount" type="number" step="0.01" min="0" value="{{ '%.2f'|format(b) }}" required class="pj-budget-in"></div>

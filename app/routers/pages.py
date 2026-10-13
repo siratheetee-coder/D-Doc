@@ -2788,6 +2788,8 @@ def _plan_years(db, cur):
 @router.get("/projects", response_class=HTMLResponse)
 def projects_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
     from app.services import plan_funding as pf
+    from app.services.finance_setup import setup_steps as finance_setup_steps, project_steps as project_setup_steps
+    can_fin = _can_finance(request)
     school = get_school(db)
     cur = year or current_plan_year(school)
     rows = db.query(Project).filter(Project.plan_year == cur).order_by(Project.name).all()
@@ -2806,7 +2808,20 @@ def projects_page(request: Request, db: Session = Depends(get_db), year: int | N
         # โรงเรียนที่เพิ่งมาใช้: มีโครงการแล้วแต่ยังไม่มีรายจ่ายและยังไม่เคยตั้งยอด
         "suggest_start": bool(rows) and not any(project_spent(p) for p in rows),
         "suggest_next": _suggest_next_year(db, cur, rows),
+        "can_finance": can_fin,
+        "setup": (finance_setup_steps(db, current_fiscal_year(), school) if can_fin
+                  else project_setup_steps(db, cur, plan_year_label(school, cur))),
     })
+
+
+def _can_finance(request) -> bool:
+    """ผู้ใช้คนนี้เข้างานการเงินได้ไหม (โรงเรียนเปิดงานการเงิน และบัญชีได้รับสิทธิ์) ตรงกับที่ main.py กั้น"""
+    from app.accounts import can_use_module
+    from app.modules import parse_modules
+    sess = request.session
+    if not can_use_module(sess.get("tid"), "finance"):
+        return False
+    return bool(sess.get("owner")) or "finance" in parse_modules(sess.get("mods") or "")
 
 
 def _suggest_next_year(db, year, rows) -> str:
@@ -3166,6 +3181,7 @@ def project_detail(pid: int, request: Request, db: Session = Depends(get_db), er
         "request": request, "school": get_school(db), "p": p, "reports": reports,
         **project_context(db,p),
         "procs": procs, "disb": disb, "next_seq": next_seq, "err": err,
+        "can_finance": _can_finance(request),
         **(_funding_suggest(p, project_context(db, p)) if grew else {}),
         "year_label": plan_year_label(get_school(db),p.plan_year),
         "departments": db.query(Department).order_by(Department.name).all(),
