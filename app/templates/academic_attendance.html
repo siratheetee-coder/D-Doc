@@ -12,11 +12,22 @@
 {% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกเวลาเรียนแล้ว</div>{% endif %}
 
 <div class="card">
-  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
-    <span class="badge" style="background:{{ '#ede9fe' if by_subj else '#dcfce7' }}; color:{{ '#6d28d9' if by_subj else '#166534' }}; padding:4px 10px; border-radius:6px; font-weight:600; font-size:13px;">
-      <svg class="icon"><use href="#ic-{{ 'clipboard' if by_subj else 'users' }}"/></svg> โหมด: {{ 'เช็คชื่อรายวิชา' if by_subj else 'เช็คเวลาเรียนโดยรวม (รายห้อง)' }}</span>
-    <a class="muted" href="/academic/attendance" style="font-size:13px;">← เปลี่ยนโหมด</a>
+  {# โหมดเป็นปุ่มสลับ 2 ฝั่ง (เดิมเป็นป้ายเล็ก + ลิงก์ "เปลี่ยนโหมด" ต้องกลับไปหน้าเลือกโหมดก่อน) #}
+  <div class="att-modes" role="tablist" aria-label="โหมดเช็คชื่อ">
+    {% for key, label, icon, ok in [('subject', 'เช็คชื่อรายวิชา', 'clipboard', can_subject), ('overall', 'เช็คเวลาเรียนรายห้อง', 'users', can_overall)] %}
+    {% if ok %}<a role="tab" aria-selected="{{ 'true' if mode == key else 'false' }}" class="att-mode{{ ' is-on' if mode == key }}"
+       href="/academic/attendance?mode={{ key }}&year={{ year }}"><svg class="icon"><use href="#ic-{{ icon }}"/></svg> {{ label }}</a>{% endif %}
+    {% endfor %}
   </div>
+  <style>
+    .att-modes{ display:inline-flex; gap:4px; padding:4px; margin-bottom:14px; border-radius:14px; background:#eef2ff; }
+    .att-mode{ display:inline-flex; align-items:center; gap:8px; padding:9px 18px; border-radius:11px; font-weight:600; font-size:14.5px;
+               color:#4338ca; text-decoration:none; transition:background .15s ease, color .15s ease; }
+    .att-mode:hover{ background:#e0e7ff; }
+    .att-mode.is-on{ background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff; box-shadow:0 4px 12px rgba(79,70,229,.3); cursor:default; }
+    .att-mode .icon{ width:18px; height:18px; }
+    @media (max-width:520px){ .att-modes{ display:flex; } .att-mode{ flex:1; justify-content:center; padding:9px 10px; font-size:13.5px; } }
+  </style>
   <form method="get" action="/academic/attendance" class="row" style="align-items:flex-end; margin:0;">
     <input type="hidden" name="mode" value="{{ mode }}">
     <div><label>ปีการศึกษา</label>

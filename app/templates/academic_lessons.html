@@ -6,8 +6,10 @@
 /* เวลาเรียนรายคาบ: สไตล์เดียวกับระบบ ไม่มีเส้นขอบ แยกกล่องด้วยพื้นหลังจางและเงาอ่อน ปุ่มหลักไล่สี */
 .lesson-actions,.lesson-inputs{display:flex;flex-wrap:wrap;gap:12px;align-items:end}.lesson-inputs>div{flex:1 1 160px}.lesson-inputs .short{flex:0 1 150px}
 .lesson-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:16px 0}
-.lesson-stat{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border-radius:16px;padding:16px 18px;color:#475569;font-size:14px;box-shadow:0 4px 14px rgba(79,70,229,.06)}
-.lesson-stat strong{display:block;font-size:24px;color:#4338ca;margin:2px 0}
+/* การ์ดชั่วโมง: น้ำเงินเข้ม ตัวอักษรขาว (เจ้าของขอ) */
+.lesson-stat{background:linear-gradient(135deg,#1e3a8a,#312e81);border-radius:16px;padding:18px 20px;color:rgba(255,255,255,.82);font-size:14px;box-shadow:0 8px 22px rgba(30,58,138,.28)}
+.lesson-stat strong{display:block;font-size:28px;color:#fff;margin:4px 0 2px;letter-spacing:.2px}
+.lesson-stat .lesson-note{color:rgba(255,255,255,.7);margin-top:4px;display:block}
 .lesson-note{font-size:13px;color:var(--muted);margin-top:8px}.lesson-actions .btn{white-space:normal}.lesson-date{white-space:nowrap}
 .lesson-card summary{display:flex;align-items:center;gap:12px;min-height:44px;font-size:17px;color:#312e81;flex-wrap:wrap}
 .lesson-card summary .muted{font-size:13px;font-weight:400;color:#64748b}

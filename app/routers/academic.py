@@ -2842,6 +2842,9 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
                 marked.add((a.acad_student_id, a.month))
     return templates.TemplateResponse("academic_attendance.html", {
         "request": request, "school": school, "year": y, "years": _years(db, y),
+        # ปุ่มสลับโหมด: ครูเห็นเฉพาะโหมดที่ตัวเองใช้ได้ (ไม่มีห้องประจำชั้น = ไม่มีโหมดรายห้อง)
+        "can_overall": (not sc.is_teacher) or bool(sc.homeroom_ids),
+        "can_subject": (not sc.is_teacher) or bool(sc.teach_pairs),
         "classes": classes, "c": c, "students": students, "class_label": _class_label,
         "months": TH_MONTHS, "opens": opens, "att": att, "marked": marked,
         "cal_days": {m: len(d) for m, d in cal.items()}, "has_cal": bool(cal),
