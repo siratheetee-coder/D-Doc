@@ -246,7 +246,15 @@ def academic_home(request: Request, db: Session = Depends(get_db),
         "term": t, "term_label": term_label, "is_teacher": sc.is_teacher,
         "att_mode": ("subject" if (sc.is_teacher and sc.teach_pairs) else "overall"),
         "todo": todo,
+        # ครูไม่ต้องตั้งค่าโรงเรียน จึงเห็นเฉพาะผู้ดูแล
+        "setup": None if sc.is_teacher else _acad_setup(db, y, tenant_id=request.session.get("tid"),
+                                                         is_owner=bool(request.session.get("owner"))),
     })
+
+
+def _acad_setup(db, year, **kw):
+    from app.services.academic_setup import setup_steps
+    return setup_steps(db, year, **kw)
 
 
 def _class_progress(c, db, term):
