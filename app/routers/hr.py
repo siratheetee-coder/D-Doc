@@ -63,10 +63,18 @@ def _hr_setup(db):
 
 # ==================== ทะเบียนบุคลากร ====================
 @router.get("/hr/staff", response_class=HTMLResponse)
-def hr_staff(request: Request, db: Session = Depends(get_db), edit: int | None = None):
+def hr_staff(request: Request, db: Session = Depends(get_db), edit: int | None = None,
+             incomplete: int = 0):
+    from app.services.module_setup import person_checks
     persons = db.query(Person).order_by(Person.active.desc(), Person.id).all()
+    checks = {p.id: person_checks(p) for p in persons}
+    active = [p for p in persons if p.active]
+    n_full = sum(1 for p in active if all(c["ok"] for c in checks[p.id]))
+    if incomplete:                       # ดูเฉพาะคนที่ข้อมูลยังไม่ครบ
+        persons = [p for p in persons if p.active and not all(c["ok"] for c in checks[p.id])]
     return templates.TemplateResponse("hr_staff.html", {
         "request": request, "school": get_school(db), "persons": persons,
+        "checks": checks, "n_active": len(active), "n_full": n_full, "incomplete": incomplete,
         "person_types": PERSON_TYPES, "edit": db.get(Person, edit) if edit else None,
         "today_be": be_date_input(datetime.now()),
     })
