@@ -3469,6 +3469,47 @@ def pp6_docx(aid: int, request: Request, db: Session = Depends(get_db)):
     return serve_generated(render_pp6(get_school(db), s, db), _DOCX)
 
 
+@router.get("/academic/pp7", response_class=HTMLResponse)
+def pp7_hub(request: Request, db: Session = Depends(get_db), year: int | None = None,
+            cid: int | None = None, q: str = ""):
+    """หน้ารวม ปพ.7 (ใบรับรองผลการศึกษา) เดิมต้องเข้าไปหาในหน้าห้องเรียนแต่ละห้องเท่านั้น
+    เลือกห้อง หรือค้นชื่อนักเรียนข้ามห้อง แล้วกดออกใบรับรอง · ครูเห็นเฉพาะห้องที่เป็นครูประจำชั้น"""
+    from app.models import AcadCertificate
+    y = year or _acad_year(db)
+    sc = _scope(request, db)
+    classes = [k for k in _sorted_classes(db.query(AcadClass).filter_by(year=y).all()) if sc.can_homeroom(k.id)]
+    allowed = {k.id for k in classes}
+    q = (q or "").strip()
+    c = db.get(AcadClass, cid) if cid and cid in allowed else None
+    if not c and not q and len(classes) == 1:
+        c = classes[0]
+    if q:
+        students = [st for k in classes for st in k.students if q in (st.name or "") or q == (st.student_no or "")]
+    elif c:
+        students = list(c.students)
+    else:
+        students = []
+    students.sort(key=lambda st: (_class_label(st.klass), st.seq or 999, st.name))
+    ids = [st.id for st in students]
+    certs = {}
+    if ids:
+        for cert in (db.query(AcadCertificate).filter(AcadCertificate.acad_student_id.in_(ids))
+                     .order_by(AcadCertificate.id.desc())):
+            certs.setdefault(cert.acad_student_id, []).append(cert)
+    recent = []
+    if allowed:
+        sub = db.query(AcadStudent.id).filter(AcadStudent.class_id.in_(allowed))
+        recent = (db.query(AcadCertificate).filter(AcadCertificate.acad_student_id.in_(sub))
+                  .order_by(AcadCertificate.id.desc()).limit(10).all())
+    return templates.TemplateResponse("academic_pp7_hub.html", {
+        "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
+        "classes": classes, "c": c, "q": q, "students": students, "certs": certs,
+        "recent": [dict(id=r.id, number=r.number, at=r.created_at, aid=r.acad_student_id,
+                        name=json.loads(r.payload).get("name", "")) for r in recent],
+        "class_label": _class_label,
+    })
+
+
 @router.get('/academic/student/{aid}/pp7')
 def pp7_page(aid:int,request:Request,start:int|None=None,end:int|None=None,term:int=0,db:Session=Depends(get_db)):
     from app.services.pp7 import history

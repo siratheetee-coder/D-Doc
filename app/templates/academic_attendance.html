@@ -14,7 +14,7 @@
 <div class="card">
   {# โหมดเป็นปุ่มสลับ 2 ฝั่ง (เดิมเป็นป้ายเล็ก + ลิงก์ "เปลี่ยนโหมด" ต้องกลับไปหน้าเลือกโหมดก่อน) #}
   <div class="att-modes" role="tablist" aria-label="โหมดเช็คชื่อ">
-    {% for key, label, icon, ok in [('subject', 'เช็คชื่อรายวิชา', 'clipboard', can_subject), ('overall', 'เช็คเวลาเรียนรายห้อง', 'users', can_overall)] %}
+    {% for key, label, icon, ok in [('overall', 'เช็คเวลาเรียนรายห้อง', 'users', can_overall), ('subject', 'เช็คชื่อรายวิชา', 'clipboard', can_subject)] %}
     {% if ok %}<a role="tab" aria-selected="{{ 'true' if mode == key else 'false' }}" class="att-mode{{ ' is-on' if mode == key }}"
        href="/academic/attendance?mode={{ key }}&year={{ year }}"><svg class="icon"><use href="#ic-{{ icon }}"/></svg> {{ label }}</a>{% endif %}
     {% endfor %}

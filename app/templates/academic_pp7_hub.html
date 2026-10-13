@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}ใบรับรองผลการศึกษา ปพ.7{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานวิชาการ · ใบรับรองผลการศึกษา</div>
+    <span class="hero-title">ปพ.7</span>
+    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+  </div>
+</div>
+
+<div class="card p7-intro">
+  <b>ปพ.7 คือใบรับรองผลการศึกษา</b> ใช้ยืนยันว่านักเรียนกำลังเรียนอยู่ หรือเรียนจบช่วงใดไปแล้ว พร้อมผลการเรียนรายวิชา
+  เช่น ใช้สมัครเรียนต่อ ขอทุน หรือย้ายโรงเรียน
+  <div class="p7-steps"><span>1 เลือกห้องหรือค้นชื่อ</span><span>2 กดออกใบรับรอง แล้วตรวจผลการเรียน</span><span>3 ใส่เลขที่และนายทะเบียน แล้วดาวน์โหลด Word</span></div>
+</div>
+
+<div class="card">
+  <form method="get" action="/academic/pp7" class="row p7-filter" style="align-items:flex-end; margin:0;">
+    <div><label>ปีการศึกษา</label>
+      <select name="year" onchange="submitReplace(this.form)">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
+      </select></div>
+    <div><label>ห้องเรียน</label>
+      <select name="cid" onchange="this.form.q.value=''; submitReplace(this.form)">
+        <option value="">- เลือกห้อง -</option>
+        {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id==c.id }}>{{ class_label(k) }}</option>{% endfor %}
+      </select></div>
+    <div style="flex:2;"><label>หรือค้นชื่อนักเรียน / เลขประจำตัว</label>
+      <div class="p7-search"><input name="q" value="{{ q }}" placeholder="เช่น กัญญารัตน์"><button class="btn" type="submit">ค้นหา</button></div></div>
+  </form>
+</div>
+
+{% if not classes %}
+<div class="card"><p class="muted" style="margin:0;">ยังไม่มีห้องเรียนในปีการศึกษา {{ year }} ที่คุณดูแลได้ · สร้างห้องเรียนที่ <a href="/academic/classes?year={{ year }}">ห้องเรียน</a></p></div>
+{% elif students %}
+<div class="card">
+  <h2 style="margin-top:0;">{% if q %}ผลการค้นหา "{{ q }}" · {{ students|length }} คน{% else %}นักเรียนห้อง {{ class_label(c) }} · {{ students|length }} คน{% endif %}</h2>
+  <div class="table-wrap"><table class="stack-sm p7-table">
+    <thead><tr><th>ที่</th><th>ชื่อ-นามสกุล</th>{% if q %}<th>ห้อง</th>{% endif %}<th>เลขประจำตัว</th><th>ออกแล้ว</th><th></th></tr></thead>
+    <tbody>
+    {% for st in students %}{% set mine = certs.get(st.id, []) %}
+      <tr>
+        <td data-label="ที่">{{ st.seq or loop.index }}</td>
+        <td data-label="ชื่อ-นามสกุล">{{ st.name }}</td>
+        {% if q %}<td data-label="ห้อง">{{ class_label(st.klass) }}</td>{% endif %}
+        <td data-label="เลขประจำตัว">{{ st.student_no or '-' }}</td>
+        <td data-label="ออกแล้ว">{% if mine %}<span class="p7-count">{{ mine|length }} ฉบับ</span>{% else %}<span class="muted">-</span>{% endif %}</td>
+        <td class="p7-act">
+          <a class="btn sm" href="/academic/student/{{ st.id }}/pp7">ออกใบรับรอง</a>
+          {% if mine %}<a class="btn sm soft" href="/academic/pp7/{{ mine[0].id }}.docx" title="เลขที่ {{ mine[0].number }}">ดาวน์โหลดฉบับล่าสุด</a>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% elif q %}
+<div class="card"><p class="muted" style="margin:0;">ไม่พบนักเรียนชื่อ "{{ q }}" ในปีการศึกษา {{ year }}</p></div>
+{% else %}
+<div class="card"><p class="muted" style="margin:0;">เลือกห้องเรียน หรือค้นชื่อนักเรียน เพื่อออกใบรับรอง</p></div>
+{% endif %}
+
+{% if recent %}
+<div class="card">
+  <h2 style="margin-top:0;">ออกล่าสุด</h2>
+  <div class="table-wrap"><table class="stack-sm">
+    <thead><tr><th>เลขที่</th><th>นักเรียน</th><th>วันที่ออก</th><th></th></tr></thead>
+    <tbody>{% for r in recent %}
+      <tr><td data-label="เลขที่">{{ r.number }}</td><td data-label="นักเรียน">{{ r.name }}</td>
+          <td data-label="วันที่ออก">{{ thai_date(r.at) if r.at else '-' }}</td>
+          <td class="p7-act"><a class="btn sm soft" href="/academic/pp7/{{ r.id }}.docx">ดาวน์โหลด</a>
+            <a class="btn sm gray" href="/academic/student/{{ r.aid }}/pp7">เปิด</a></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</div>
+{% endif %}
+
+<style>
+  .p7-intro{ background:linear-gradient(120deg,#eef2ff,#f5f3ff); font-size:14.5px; color:#334155; }
+  .p7-steps{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .p7-steps span{ background:#fff; border-radius:999px; padding:5px 12px; font-size:13px; color:#4338ca; box-shadow:0 1px 3px rgba(15,23,42,.06); }
+  .p7-search{ display:flex; gap:8px; }.p7-search input{ flex:1; min-width:0; }
+  .p7-count{ display:inline-block; background:#dcfce7; color:#166534; border-radius:999px; padding:2px 10px; font-size:13px; font-weight:600; }
+  .p7-act{ white-space:nowrap; text-align:right; }
+  @media (max-width:640px){ .p7-act{ white-space:normal; text-align:left; } }
+</style>
+{% endblock %}
