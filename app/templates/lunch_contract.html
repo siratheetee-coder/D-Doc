@@ -214,33 +214,49 @@
     .iq-steps span.on{ background:#16a34a; color:#fff; }
     .iq-row-next td{ background:#eff6ff; }
   </style>
+  {# 6 คอลัมน์ (เดิม 10 คอลัมน์ ล้นจอจนผู้ใช้ไม่รู้ว่าต้องเลื่อนขวา เจ้าของแจ้ง)
+     วัน/วงเงินอยู่ใต้ช่วงวันที่ · ลงบัญชีแล้วอยู่ใต้ความคืบหน้า · วันส่งมอบ/ตรวจรับซ้อนกัน · ปุ่มสั้นลง
+     (ไม่ใช้เมนูลอย เพราะอยู่ในกล่องเลื่อนแนวนอน เมนูจะถูกตัด) #}
   <div class="table-wrap">
-  <table>
-    <thead><tr><th>งวดที่</th><th>ช่วงวันที่</th><th class="right">วัน</th><th class="right">วงเงิน</th><th>ความคืบหน้า</th><th>วันส่งมอบ</th><th>วันตรวจรับ</th><th>สถานะ</th><th>บัญชี</th><th></th></tr></thead>
+  <table class="iq-table">
+    <thead><tr><th>งวด</th><th>ช่วงวันที่</th><th>ความคืบหน้า</th><th>วันส่งมอบ / ตรวจรับ</th><th>สถานะ</th><th></th></tr></thead>
     <tbody>
     {% for i in installments %}
       {% set lvl = {'ส่งมอบแล้ว': 1, 'ตรวจรับแล้ว': 2, 'จ่ายแล้ว': 3}.get(i.status, 0) %}
       <tr data-iid="{{ i.id }}" {% if nxt and i.id == nxt.id %}class="iq-row-next"{% endif %}>
-        <td>{{ i.seq }}</td>
-        <td>{{ be_date(i.start_date) if i.start_date else '-' }} ถึง {{ be_date(i.end_date) if i.end_date else '-' }}</td>
-        <td class="right">{{ i.days }}</td>
-        <td class="right">{{ "{:,.2f}".format(i.amount or 0) }}</td>
-        <td><div class="iq-steps" title="สถานะ: {{ i.status }}">{% for s2 in ['ส่งมอบ', 'ตรวจรับ', 'จ่ายแล้ว'] %}<span class="{{ 'on' if loop.index <= lvl }}">{{ s2 }}</span>{% endfor %}</div></td>
-        <td><input name="deliver_date" value="{{ be_date(i.deliver_date) if i.deliver_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:118px;"></td>
-        <td><input name="inspect_date" value="{{ be_date(i.inspect_date) if i.inspect_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:118px;"></td>
-        <td><select name="status" style="width:110px;">{% for s in ['ร่าง','ส่งมอบแล้ว','ตรวจรับแล้ว','จ่ายแล้ว'] %}<option {{ 'selected' if i.status==s }}>{{ s }}</option>{% endfor %}</select></td>
-        <td>{% if i.status=='จ่ายแล้ว' %}<span class="muted">✔ ลงแล้ว</span>{% else %}<span class="muted">-</span>{% endif %}</td>
-        <td style="white-space:nowrap;">
+        <td class="iq-no">{{ i.seq }}</td>
+        <td><div class="iq-range">{{ be_date(i.start_date) if i.start_date else '-' }} – {{ be_date(i.end_date) if i.end_date else '-' }}</div>
+            <div class="iq-sub">{{ i.days }} วัน · <b>{{ "{:,.2f}".format(i.amount or 0) }}</b> บาท</div></td>
+        <td><div class="iq-steps" title="สถานะ: {{ i.status }}">{% for s2 in ['ส่งมอบ', 'ตรวจรับ', 'จ่ายแล้ว'] %}<span class="{{ 'on' if loop.index <= lvl }}">{{ s2 }}</span>{% endfor %}</div>
+            {% if i.status=='จ่ายแล้ว' %}<div class="iq-sub iq-booked">✓ ลงบัญชีแล้ว</div>{% endif %}</td>
+        <td class="iq-dates">
+          <label>ส่งมอบ<input name="deliver_date" value="{{ be_date(i.deliver_date) if i.deliver_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></label>
+          <label>ตรวจรับ<input name="inspect_date" value="{{ be_date(i.inspect_date) if i.inspect_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></label>
+        </td>
+        <td><select name="status" class="iq-status">{% for s in ['ร่าง','ส่งมอบแล้ว','ตรวจรับแล้ว','จ่ายแล้ว'] %}<option {{ 'selected' if i.status==s }}>{{ s }}</option>{% endfor %}</select></td>
+        <td class="iq-acts">
           <button class="btn sm" type="button" onclick="saveInst(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
-          <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/doc"><svg class="icon"><use href="#ic-download"/></svg> เอกสารงวด</a>
-          <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/disburse-doc"><svg class="icon"><use href="#ic-coins"/></svg> ขอเบิกจ่าย</a>
-          <form method="post" action="/lunch/installment/{{ i.id }}/delete" onsubmit="return confirm('ลบงวดนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">✕</button></form>
+          <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/doc" title="เอกสารงวด (ควบคุม ส่งมอบ ตรวจรับ)"><svg class="icon"><use href="#ic-download"/></svg> เอกสาร</a>
+          <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/disburse-doc" title="ขอเบิกจ่าย"><svg class="icon"><use href="#ic-coins"/></svg> เบิกจ่าย</a>
+          <form method="post" action="/lunch/installment/{{ i.id }}/delete" onsubmit="return confirm('ลบงวดนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit" title="ลบงวดนี้" aria-label="ลบงวดนี้">✕</button></form>
         </td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
   </div>
+  <style>
+    .iq-table td{ vertical-align:middle; }
+    .iq-no{ font-weight:700; color:#475569; }
+    .iq-range{ white-space:nowrap; }
+    .iq-sub{ font-size:12.5px; color:#64748b; margin-top:2px; white-space:nowrap; }
+    .iq-booked{ color:#15803d; }
+    .iq-dates label{ display:flex; align-items:center; gap:6px; margin:0 0 4px; font-size:12px; color:#64748b; white-space:nowrap; }
+    .iq-dates input{ width:118px; padding:6px 8px; font-size:14px; }
+    .iq-status{ width:auto; min-width:104px; }
+    .iq-acts{ white-space:nowrap; }
+    .iq-acts .btn{ padding-left:10px; padding-right:10px; }
+  </style>
   <p class="muted" style="font-size:13px; margin:8px 0 0;">แก้สถานะ/วันส่งมอบ/วันตรวจรับ ในตารางแล้วกด "บันทึก" ได้เลย (งวดที่แบ่งอัตโนมัติ ระบบตั้งวันส่งมอบ/ตรวจรับเป็นวันสุดท้ายของงวดให้ · เปลี่ยนได้)</p>
   <script>
     function saveInst(btn){

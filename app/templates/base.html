@@ -373,6 +373,20 @@
        (ใส่ .dense เฉพาะตารางที่ต้องการ เพื่อไม่ให้ตารางแคบมีแถบเลื่อนโผล่มาเอง) */
     .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .table-wrap.dense > table { min-width: 980px; }
+    /* ตารางล้นจอ: เงาจางที่ขอบ + ปุ่ม "เลื่อนดูเพิ่ม" (static/table-scroll-hint.js) ผู้ใช้จะรู้ว่ามีคอลัมน์ซ่อนอยู่ */
+    .tsh-outer { position: relative; }
+    .tsh-fade { position: absolute; top: 0; bottom: 0; width: 34px; pointer-events: none; opacity: 0; transition: opacity .2s ease; z-index: 5; }
+    .tsh-l { left: 0; background: linear-gradient(to right, rgba(15,23,42,.13), rgba(15,23,42,0)); }
+    .tsh-r { right: 0; background: linear-gradient(to left, rgba(15,23,42,.13), rgba(15,23,42,0)); }
+    .tsh-more-l .tsh-l, .tsh-more-r .tsh-r { opacity: 1; }
+    .tsh-pill { position: absolute; top: 6px; right: 8px; z-index: 6; border: 0; border-radius: 999px; padding: 5px 12px;
+                font: inherit; font-size: 12.5px; font-weight: 600; color: #fff; cursor: pointer; display: none;
+                background: linear-gradient(135deg, var(--brand), var(--brand-lite)); box-shadow: 0 4px 12px rgba(15,23,42,.18);
+                animation: tshNudge 1.6s ease-in-out 2; }
+    .tsh-more-r .tsh-pill { display: inline-block; }
+    @keyframes tshNudge { 0%,100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
+    @media (prefers-reduced-motion: reduce) { .tsh-pill { animation: none; } }
+    @media print { .tsh-fade, .tsh-pill { display: none !important; } }
     /* select ในตารางเผื่อที่ลูกศรน้อยลง ไม่งั้นข้อความสั้น ๆ ก็ยังโดนตัด */
     td select { padding-right: 28px; background-position: right 8px center; }
     /* ช่องรอง (เช่น สาระการเรียนรู้ ใต้ชื่อรายวิชา) - ค่าที่กรอกจริงต้องเป็นสีปกติ
@@ -1653,5 +1667,6 @@
   <link rel="stylesheet" href="/static/floating-save.css?v=1">
   <script src="/static/floating-save.js?v=2" defer></script>
   <script src="/static/no-wheel-number.js?v=1"></script>
+  <script src="/static/table-scroll-hint.js?v=1"></script>
 </body>
 </html>

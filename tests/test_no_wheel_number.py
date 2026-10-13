@@ -50,3 +50,43 @@ console.log(JSON.stringify({num:num.blurred, text:text.blurred, num2:num2.blurre
     assert r.returncode == 0, r.stderr
     out = json.loads(r.stdout)
     assert out == {'num': True, 'text': False, 'num2': False, 'passive': True}, 'หมุนบนช่องอื่นต้องไม่ไปยุ่งช่องที่โฟกัส'
+
+
+# ---------------- ตารางล้นจอ: บอกให้รู้ว่าเลื่อนขวาได้ ----------------
+def test_table_scroll_hint_is_loaded_and_installment_table_is_slim(env):
+    import re
+    from datetime import datetime
+    import app.tenancy as tn
+    from app.models import LunchHireRound, LunchInstallment, LunchProgram
+    assert '<script src="/static/table-scroll-hint.js' in (ROOT / 'app/templates/base.html').read_text(encoding='utf-8')
+    with tn.session_for(next(iter(tn._engines))) as s:
+        p = LunchProgram(year=2569, operate_mode='hire'); s.add(p); s.flush()
+        r = LunchHireRound(program_id=p.id, seq=1); s.add(r); s.flush()
+        s.add(LunchInstallment(round_id=r.id, seq=1, days=10, amount=25680, status='จ่ายแล้ว',
+                               start_date=datetime(2026, 11, 2), end_date=datetime(2026, 11, 13))); s.commit()
+        rid = r.id
+    html = env.get(f'/lunch/round/{rid}/plan').text
+    head = re.search(r'<table class="iq-table">\s*<thead><tr>(.*?)</tr>', html, re.S).group(1)
+    assert head.count('<th') == 6, 'ตารางงวดเหลือ 6 คอลัมน์ (เดิม 10 ล้นจอ)'
+    assert '10 วัน · <b>25,680.00</b> บาท' in html and '✓ ลงบัญชีแล้ว' in html
+
+
+@pytest.mark.skipif(not NODE, reason='ต้องมี node')
+def test_hint_shows_only_when_there_is_more_to_the_right():
+    js = (ROOT / 'app/static/table-scroll-hint.js').read_text(encoding='utf-8')
+    runner = r"""
+function el(cls){ const e={className:cls||'', children:[], dataset:{}, listeners:{}, style:{},
+  classList:{ set:new Set(), toggle(c,on){ on?this.set.add(c):this.set.delete(c); } },
+  appendChild(c){ this.children.push(c); c.parentNode=this; }, insertBefore(n,ref){ this.children.push(n); n.parentNode=this; },
+  addEventListener(t,f){ this.listeners[t]=f; }, setAttribute(){}, };
+  return e; }
+const wrap=el('table-wrap'); wrap.scrollWidth=1100; wrap.clientWidth=800; wrap.scrollLeft=0; const card=el('card'); card.appendChild(wrap);
+global.window={addEventListener(){}}; global.document={readyState:'complete', createElement:()=>el(''), querySelectorAll:()=>[wrap]};
+SCRIPT
+const outer=wrap.parentNode, st=()=>[...outer.classList.set].sort().join(' ');
+const a=st(); wrap.scrollLeft=300; wrap.listeners.scroll(); const b=st(); wrap.scrollWidth=800; wrap.scrollLeft=0; wrap.listeners.scroll(); const c=st();
+console.log(JSON.stringify([a,b,c]));
+""".replace('SCRIPT', js)
+    r = subprocess.run([NODE, '-e', runner], capture_output=True, text=True, encoding='utf-8')
+    assert r.returncode == 0, r.stderr
+    assert json.loads(r.stdout) == ['tsh-more-r', 'tsh-more-l', ''], 'เริ่ม: ขวายังมี · เลื่อนสุด: เหลือแต่ซ้าย · ไม่ล้น: ไม่มีอะไร'
