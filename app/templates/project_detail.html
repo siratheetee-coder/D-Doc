@@ -1,6 +1,15 @@
 {% extends "base.html" %}
 {% block title %}{{ p.name }}{% endblock %}
 {% block content %}
+{% macro set_budget_form() %}
+  <form method="post" action="/projects/{{ p.id }}/set-budget" id="setBudget" class="pj-setb" {% if b > 0 %}hidden{% endif %}>
+    {% if b <= 0 %}<b>โครงการนี้ยังไม่ได้ใส่งบ</b> ใส่งบโครงการได้เลย{% else %}<b>แก้งบโครงการ</b>{% endif %}
+    <input name="amount" id="setBudgetIn" inputmode="decimal" required placeholder="เช่น 30000" value="{{ '%.2f'|format(b) if b > 0 else '' }}" class="pj-budget-in">
+    <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกงบ</button>
+    <div class="pj-bmsg" hidden></div>
+    <span class="pj-setb-note">ถ้าแผนเปลี่ยนภายหลัง ใช้หัวข้อ "ปรับงบ" ด้านล่าง ระบบจะเก็บประวัติให้</span>
+  </form>
+{% endmacro %}
 {% set b = proj_budget(p) %}{% set s = proj_spent(p) %}{% set r = b - s %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -9,8 +18,12 @@
   </div>
   {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกเรียบร้อยแล้ว</div>{% endif %}
   <div class="hero-meta" style="color:var(--muted); margin-top:4px;">{{ year_label }} {{ p.plan_year or "(ยังไม่ระบุปี)" }}{% if p.responsible %} · {{ p.responsible }}{% endif %}</div>
+  {# ใส่งบตรง ๆ ได้เฉพาะโครงการที่ยังไม่เคยปรับงบ: งบ 0 = ขึ้นเหนือกล่องตัวเลขเลย
+     มีงบแล้ว = ซ่อนไว้ใต้กล่อง กด "แก้งบ" ถึงจะขึ้น #}
+  {% if not p.revisions and b <= 0 %}{{ set_budget_form() }}{% endif %}
   <div class="stat" style="margin-top:12px;">
-    <div class="box"><div><div class="lab">งบโครงการ</div><div class="num">{{ "{:,.2f}".format(b) }}</div></div>
+    <div class="box"><div><div class="lab">งบโครงการ</div><div class="num">{{ "{:,.2f}".format(b) }}</div>
+        {% if not p.revisions and b > 0 %}<button type="button" class="pj-edit" onclick="document.getElementById('setBudget').hidden=false; this.hidden=true; document.getElementById('setBudgetIn').focus();">แก้งบ</button>{% endif %}</div>
       <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
     <div class="box"><div><div class="lab">ใช้ไปแล้ว</div><div class="num">{{ "{:,.2f}".format(s) }}</div>
         {% if p.spent_before %}<div class="pj-sub">รวมใช้ไปก่อนเริ่มใช้ระบบ {{ "{:,.2f}".format(p.spent_before) }} · <a href="/projects/start?year={{ p.plan_year or '' }}">แก้ยอดตั้งต้น</a></div>{% endif %}
@@ -19,6 +32,9 @@
     <div class="box"><div><div class="lab">คงเหลือ</div><div class="num" style="color:{{ '#dc2626' if r < 0 else '#16a34a' }};">{{ "{:,.2f}".format(r) }}</div></div>
       <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
   </div>
+
+  {% if not p.revisions and b > 0 %}{{ set_budget_form() }}{% endif %}
+  {% if err %}<div class="alert warn" style="margin-top:12px;"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
 
   {# เงินของโครงการมาจากไหน: งบโครงการ (ต้องใช้เท่าไร) กับ จัดสรรเงินแล้ว (หาเงินมาให้ได้เท่าไร)
      เป็นคนละตัวเลขโดยตั้งใจ (docs/plan-funding.md) โครงการได้เงินไม่ครบได้ จึงบอก "ยังไม่ได้จัดสรร" ให้เห็นชัด
@@ -53,6 +69,12 @@
   {% endif %}
   <style>
     .pj-sub{ font-size:12.5px; color:var(--muted); margin-top:4px; font-weight:400; }
+    .pj-edit{ background:none; border:0; padding:0; margin-top:4px; color:#2563eb; font-size:13px; cursor:pointer; text-decoration:underline; }
+    .pj-setb{ margin-top:14px; padding:12px 14px; border-radius:12px; background:#eff6ff; display:flex; flex-wrap:wrap;
+              align-items:center; gap:10px; font-size:15px; }
+    .pj-setb[hidden]{ display:none !important; }
+    .pj-setb input{ width:160px; text-align:right; }
+    .pj-setb-note{ flex-basis:100%; font-size:12.5px; color:#475569; }
     .pj-fund{ margin-top:14px; padding:12px 14px; border-radius:12px; background:#f8fafc; }
     .pj-fund-line{ display:flex; flex-wrap:wrap; gap:6px; font-size:15px; }
     .pj-gap{ color:#b45309; }
@@ -65,15 +87,17 @@
 </div>
 
 {% include 'project_funding.html' %}
+
 <div class="card">
   <h2><svg class="icon"><use href="#ic-edit"/></svg> ปรับงบประมาณ (ครั้งที่ {{ next_seq }})</h2>
   <p class="muted" style="margin-top:0;">บันทึกเมื่อแผนเปลี่ยน/โอนงบ - งบปัจจุบันจะอัปเดตเป็นค่าล่าสุด แต่ดูย้อนหลังได้ทุกครั้ง</p>
   <form method="post" action="/projects/{{ p.id }}/revise">
     <div class="row">
-      <div><label>งบรวมหลังปรับ (บาท)</label><input name="amount" type="number" step="0.01" min="0" value="{{ '%.2f'|format(b) }}" required></div>
+      <div><label>งบรวมหลังปรับ (บาท)</label><input name="amount" type="number" step="0.01" min="0" value="{{ '%.2f'|format(b) }}" required class="pj-budget-in"></div>
       <div><label>วันที่</label><input name="date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       <div style="flex:2;"><label>เหตุผล/หมายเหตุ</label><input name="reason" placeholder="เช่น โอนงบเพิ่มจากโครงการอื่น / ปรับตามแผนกลางปี"></div>
     </div>
+    <div class="pj-bmsg" hidden></div>
     <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกการปรับงบ</button>
   </form>
 
@@ -92,6 +116,42 @@
   {% endif %}
 </div>
 
+{# วางหลังฟอร์มแก้งบและฟอร์มปรับงบ (สคริปต์หาฟอร์มตอนรัน ถ้าวางก่อนจะหาไม่เจอ)
+   ปรับงบ/แก้งบ เทียบกับเงินที่จัดสรรไว้ทันทีที่พิมพ์ (เดิมกดแล้วเด้งไปหน้าข้อผิดพลาด)
+   ต่ำสุด = จัดสรรแล้ว + ใช้ไปก่อนเริ่มใช้ระบบ ตรงกับ guard_project ฝั่งเซิร์ฟเวอร์ #}
+{% set fa = funding_assigned or 0 %}
+<script>
+(function () {
+  var assigned = {{ fa }}, before = {{ (p.spent_before or 0) if fa else 0 }}, current = {{ b }}, hasPlan = {{ 'true' if funding_rows else 'false' }};
+  var floor = Math.round((assigned + before) * 100) / 100;
+  var fmt = function (n) { return n.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
+  document.querySelectorAll('.pj-budget-in').forEach(function (inp) {
+    var form = inp.form, msg = form.querySelector('.pj-bmsg'), btn = form.querySelector('button[type=submit]');
+    function check() {
+      var v = Number(String(inp.value).replace(/,/g, '').trim());
+      msg.hidden = true; msg.className = 'pj-bmsg'; btn.disabled = false;
+      if (!inp.value || isNaN(v)) return;
+      if (assigned > 0 && v < floor - 0.004) {
+        msg.innerHTML = 'งบต้องไม่ต่ำกว่า <b>' + fmt(floor) + '</b> บาท เพราะจัดสรรเงินให้โครงการนี้ไว้ ' + fmt(assigned) +
+          (before ? ' และใช้ไปก่อนเริ่มใช้ระบบ ' + fmt(before) : '') +
+          ' · <a href="#project-funding">ลดการจัดสรรก่อน</a> แล้วค่อยลดงบ';
+        msg.className = 'pj-bmsg is-bad'; msg.hidden = false; btn.disabled = true;
+      } else if (hasPlan && v > current + 0.004) {
+        msg.textContent = 'งบเพิ่ม ' + fmt(v - current) + ' บาท · บันทึกแล้วระบบจะพาไปจัดสรรเงินส่วนที่เพิ่ม';
+        msg.className = 'pj-bmsg is-up'; msg.hidden = false;
+      }
+    }
+    inp.addEventListener('input', check); check();
+  });
+})();
+</script>
+<style>
+  .pj-bmsg{ margin-top:8px; padding:8px 12px; border-radius:10px; font-size:13.5px; flex-basis:100%; }
+  .pj-bmsg[hidden]{ display:none !important; }
+  .pj-bmsg.is-bad{ background:#fef2f2; color:#b91c1c; }
+  .pj-bmsg.is-up{ background:#eff6ff; color:#1e3a8a; }
+  form:has(.pj-bmsg.is-bad) button[type=submit][disabled]{ opacity:.45; cursor:not-allowed; }
+</style>
 <div class="card">
   <h2>รายการที่ผูกกับโครงการ (ใช้จริง)</h2>
   {% if procs %}

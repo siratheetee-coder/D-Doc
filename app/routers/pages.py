@@ -3147,7 +3147,7 @@ async def projects_next_year_save(request: Request, db: Session = Depends(get_db
 
 
 @router.get("/projects/{pid}", response_class=HTMLResponse)
-def project_detail(pid: int, request: Request, db: Session = Depends(get_db)):
+def project_detail(pid: int, request: Request, db: Session = Depends(get_db), err: str = "", grew: int = 0):
     from app.routers.plan_budget import project_context
     p = db.get(Project, pid)
     if not p:
@@ -3163,25 +3163,103 @@ def project_detail(pid: int, request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("project_detail.html", {
         "request": request, "school": get_school(db), "p": p, "reports": reports,
         **project_context(db,p),
-        "procs": procs, "disb": disb, "next_seq": next_seq,
+        "procs": procs, "disb": disb, "next_seq": next_seq, "err": err,
+        **(_funding_suggest(p, project_context(db, p)) if grew else {}),
         "year_label": plan_year_label(get_school(db),p.plan_year),
         "departments": db.query(Department).order_by(Department.name).all(),
         "years": _plan_years(db, p.plan_year or current_plan_year(get_school(db))),
     })
 
 
+def _funding_suggest(p, ctx) -> dict:
+    """หลังปรับงบเพิ่ม: เติมยอดจัดสรรใหม่ไว้ให้ในช่องจัดสรร (ผู้ใช้แค่ตรวจแล้วกดบันทึก)
+
+    ส่วนที่ยังไม่ได้จัดสรร = งบ - ใช้ไปก่อนเริ่มใช้ระบบ - จัดสรรแล้ว เติมลงหมวดที่โครงการใช้อยู่ก่อน
+    แล้วค่อยหมวดอื่นตามลำดับ ไม่เกินเงินที่หมวดนั้นยังเหลือให้จัดสรร
+    คืน {funding_suggest: {source_id: ยอดใหม่}, funding_need, funding_short}
+    """
+    from app.services.budget import project_budget
+    rows = ctx.get("funding_rows") or []
+    need = round(project_budget(p) - float(p.spent_before or 0) - float(ctx.get("funding_assigned") or 0), 2)
+    if need <= 0 or not rows:
+        return {}
+    suggest, left = {}, need
+    for r in sorted(rows, key=lambda r: 0 if r["value"] else 1):
+        room = round(r["available"] - r["value"], 2)
+        if left <= 0 or room <= 0:
+            continue
+        add = min(room, left)
+        suggest[r["source"].id] = round(r["value"] + add, 2)
+        left = round(left - add, 2)
+    return dict(funding_suggest=suggest, funding_need=need, funding_short=max(left, 0))
+
+
+def _budget_saved_redirect(db, p, old_budget: float, new_budget: float):
+    """บันทึกงบแล้วกลับหน้าโครงการ · งบเพิ่มและโรงเรียนใช้การจัดสรรเงิน: พาไปที่ช่องจัดสรร
+    พร้อมเติมยอดใหม่ไว้ให้ (ปรับงบเปลี่ยนแค่ตัวเลขแผน เงินในหมวดผูกกับโครงการผ่านการจัดสรรเท่านั้น)"""
+    from app.services import plan_funding as pf
+    plan = pf.plan(db, p.plan_year) if p.plan_year else None
+    if new_budget > old_budget and pf.sources(db, plan):
+        return RedirectResponse(f"/projects/{p.id}?saved=1&grew=1#project-funding", status_code=303)
+    return RedirectResponse(f"/projects/{p.id}?saved=1", status_code=303)
+
+
+def _budget_err(pid: int, msg: str):
+    from urllib.parse import quote
+    return RedirectResponse(f"/projects/{pid}?err=" + quote(msg), status_code=303)
+
+
 @router.post("/projects/{pid}/revise")
 def project_revise(pid: int, db: Session = Depends(get_db), amount: str = Form("0"),
                    date: str = Form(""), reason: str = Form("")):
+    from fastapi import HTTPException
+    from app.services.budget import project_budget
+    from app.services.plan_funding import guard_project
     p = db.get(Project, pid)
-    if p:
-        from app.services.plan_funding import guard_project
-        guard_project(db,p,budget=_to_float(amount,0.0))
-        seq = max([r.seq or 0 for r in p.revisions], default=0) + 1
-        db.add(ProjectBudgetRevision(project_id=pid, seq=seq, amount=_to_float(amount, 0.0),
-                                     date=parse_be_date(date) or datetime.now(), reason=reason.strip()))
-        db.commit()
-    return RedirectResponse(f"/projects/{pid}?saved=1", status_code=303)
+    if not p:
+        return RedirectResponse("/projects", status_code=303)
+    old, value = project_budget(p), _to_float(amount, 0.0)
+    try:
+        guard_project(db, p, budget=value)
+    except HTTPException as e:              # เดิมเด้งไปหน้าข้อผิดพลาด ต้องออกจากหน้าโครงการ
+        db.rollback()
+        return _budget_err(pid, str(e.detail))
+    seq = max([r.seq or 0 for r in p.revisions], default=0) + 1
+    db.add(ProjectBudgetRevision(project_id=pid, seq=seq, amount=value,
+                                 date=parse_be_date(date) or datetime.now(), reason=reason.strip()))
+    db.commit()
+    return _budget_saved_redirect(db, p, old, value)
+
+
+@router.post("/projects/{pid}/set-budget")
+def project_set_budget(pid: int, db: Session = Depends(get_db), amount: str = Form("")):
+    """ใส่หรือแก้งบโครงการตรง ๆ (งบตั้งต้น) ได้เฉพาะโครงการที่ยังไม่เคยปรับงบ
+
+    เดิมฟอร์มแก้ไขโครงการไม่มีช่องงบ ทางเดียวคือ "ปรับงบ ครั้งที่ 1" ซึ่งบันทึกเป็นการปรับงบ
+    ทั้งที่แค่ใส่งบครั้งแรกหรือแก้ที่พิมพ์ผิด · เมื่อเคยปรับงบแล้วต้องใช้หัวข้อปรับงบ เพื่อเก็บประวัติ
+    """
+    from fastapi import HTTPException
+    from app.services.plan_funding import guard_project
+    p = db.get(Project, pid)
+    if not p:
+        return RedirectResponse("/projects", status_code=303)
+    if p.revisions:
+        return _budget_err(pid, "โครงการนี้เคยปรับงบแล้ว เปลี่ยนงบที่หัวข้อปรับงบ เพื่อเก็บประวัติ")
+    try:
+        value = round(float(str(amount).replace(",", "").strip()), 2)
+    except ValueError:
+        return _budget_err(pid, "งบต้องเป็นตัวเลข")
+    if value < 0:
+        return _budget_err(pid, "งบติดลบไม่ได้")
+    try:
+        guard_project(db, p, budget=value)      # งบต้องไม่ต่ำกว่าที่จัดสรรเงินไว้แล้ว
+    except HTTPException as e:
+        db.rollback()
+        return _budget_err(pid, str(e.detail))
+    old = float(p.budget or 0)
+    p.budget = value
+    db.commit()
+    return _budget_saved_redirect(db, p, old, value)
 
 
 @router.post("/projects/{pid}/update")

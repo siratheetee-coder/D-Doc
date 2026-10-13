@@ -295,8 +295,13 @@ def guard_project(db, project, *, year=None, budget=None, deleting=False):
     assigned=project_allocated(db,project.id)
     if assigned and (deleting or (year is not None and year!=project.plan_year)):
         raise HTTPException(409,'ยกเลิกการจัดสรรงบของโครงการก่อนลบหรือย้ายปี')
-    if budget is not None and budget<assigned:
-        raise HTTPException(409,'งบใหม่ต่ำกว่ายอดที่จัดสรรไว้ กรุณาปรับการจัดสรรก่อนลดงบโครงการ')
+    # ใช้ไปก่อนเริ่มใช้ระบบ จ่ายด้วยเงินนอกแผน จึงต้องบวกเข้าไปด้วย (ตรงกับเพดานใน allocate)
+    before=float(project.spent_before or 0) if assigned else 0
+    if budget is not None and round(budget,2)<round(assigned+before,2):
+        extra=' และใช้ไปก่อนเริ่มใช้ระบบ {:,.2f}'.format(before) if before else ''
+        raise HTTPException(409,'งบต้องไม่ต่ำกว่า {:,.2f} บาท เพราะจัดสรรเงินให้โครงการนี้ไว้ {:,.2f}{} '
+                                '· ลดการจัดสรรในหัวข้อ "โครงการนี้ใช้งบจากรายการใด" ก่อน แล้วค่อยลดงบ'.format(
+                                    assigned+before,assigned,extra))
 
 
 def guard_items(db, ids):
