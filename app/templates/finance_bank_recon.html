@@ -18,7 +18,7 @@
   <h2><svg class="icon"><use href="#ic-plus"/></svg> ทำงบกระทบยอด</h2>
   <form method="get" action="/finance/bank-recon" style="margin-bottom:12px;">
     <input type="hidden" name="year" value="{{ fiscal_year }}">
-    <label>บัญชีธนาคาร</label>
+    <label>บัญชีธนาคารที่ต้องการตรวจยอด</label><p class="recon-help">เลือกบัญชีที่จะเปรียบเทียบข้อมูลของโรงเรียนกับใบแจ้งยอดจากธนาคาร</p>
     <select name="account_id" onchange="this.form.submit()" style="max-width:420px;">
       {% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if a.id==account_id }}>{{ a.name }}</option>{% endfor %}
     </select>
@@ -43,26 +43,26 @@
   <form method="post" action="/finance/bank-recon" id="recon-form">
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
     <input type="hidden" name="account_id" value="{{ account_id }}">
-    <div style="max-width:320px;"><label>ณ วันที่</label>
+    <div style="max-width:320px;"><label>วันที่ตรวจยอด</label><p class="recon-help">ใช้ยอดคงเหลือและรายการค้าง ณ วันเดียวกันทั้งสองส่วน</p>
       <input name="as_of" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
 
     <div class="recon-sides">
       <section class="recon-col" data-side="bank">
-        <h3>ฝั่งธนาคาร</h3>
-        <p class="recon-why">ปรับด้วยสิ่งที่<b>เรารู้แล้ว แต่ธนาคารยังไม่บันทึก</b></p>
-        <label>ยอดคงเหลือตาม statement *<input name="stmt_balance" type="number" step="0.01" required></label>
-        <label>บวก เงินฝากระหว่างทาง<input name="in_transit" type="number" step="0.01" value="0"></label>
-        <label>หัก รายการจ่ายที่เงินยังไม่ออก<input name="outstanding" type="number" step="0.01" value="{{ '%g'|format(outstanding_sum) }}"></label>
-        <div class="recon-sum"><span>ยอดคงเหลือที่ถูกต้อง</span><b data-recon-bank>0.00</b></div>
+        <h3>1. ยอดตามใบแจ้งยอดธนาคาร</h3>
+        <p class="recon-why">เริ่มจากยอดใน Statement แล้วปรับรายการที่โรงเรียนบันทึกไว้ แต่ธนาคารยังไม่แสดง</p>
+        <label>ยอดคงเหลือตามใบแจ้งยอดธนาคาร (บาท) *<input name="stmt_balance" type="number" step="0.01" required></label><p class="recon-help">กรอกยอดจาก Statement ณ วันที่ตรวจยอด</p>
+        <label>บวก: เงินฝากที่ธนาคารยังไม่แสดง (บาท)<input name="in_transit" type="number" step="0.01" value="0"></label><p class="recon-help">โรงเรียนบันทึกรับและนำฝากแล้ว แต่ยอดฝากยังไม่ปรากฏใน Statement หากไม่มีให้ใส่ 0</p>
+        <label>หัก: เงินจ่ายที่ธนาคารยังไม่ตัด (บาท)<input name="outstanding" type="number" step="0.01" value="{{ '%g'|format(outstanding_sum) }}"></label><p class="recon-help">โรงเรียนบันทึกจ่ายแล้ว แต่เงินยังไม่ถูกตัดจากธนาคาร เช่น เช็คที่ผู้รับยังไม่ขึ้นเงิน</p>
+        <div class="recon-sum"><span>ยอดคงเหลือหลังปรับรายการ</span><b data-recon-bank>0.00</b></div>
       </section>
 
       <section class="recon-col" data-side="book">
-        <h3>ฝั่งโรงเรียน</h3>
-        <p class="recon-why">ปรับด้วยสิ่งที่<b>ธนาคารทำไปแล้ว แต่เรายังไม่ลงบัญชี</b></p>
-        <label>ยอดคงเหลือตามสมุดบัญชี<input name="book_balance" type="number" step="0.01" value="{{ '%g'|format(book_balance) }}"></label>
-        <label>บวก ดอกเบี้ยที่ยังไม่ลงบัญชี<input name="interest" type="number" step="0.01" value="0"></label>
-        <label>หัก ค่าธรรมเนียมธนาคาร<input name="bank_fee" type="number" step="0.01" value="0"></label>
-        <div class="recon-sum"><span>ยอดคงเหลือที่ถูกต้อง</span><b data-recon-book>0.00</b></div>
+        <h3>2. ยอดตามบัญชีที่โรงเรียนบันทึก</h3>
+        <p class="recon-why">เริ่มจากยอดที่โรงเรียนบันทึก แล้วปรับรายการที่ธนาคารดำเนินการแล้ว แต่โรงเรียนยังไม่ได้บันทึก</p>
+        <label>ยอดคงเหลือตามบัญชีของโรงเรียน (บาท)<input name="book_balance" type="number" step="0.01" value="{{ '%g'|format(book_balance) }}"></label><p class="recon-help">ยอดจากรายการที่โรงเรียนบันทึกในระบบ ณ วันที่ตรวจยอด ระบบเติมให้และสามารถแก้ไขได้</p>
+        <label>บวก: ดอกเบี้ยรับที่โรงเรียนยังไม่บันทึก (บาท)<input name="interest" type="number" step="0.01" value="0"></label><p class="recon-help">ธนาคารเพิ่มดอกเบี้ยใน Statement แล้ว แต่โรงเรียนยังไม่ได้บันทึกรับ หากบันทึกแล้วไม่ต้องกรอกซ้ำ</p>
+        <label>หัก: ค่าธรรมเนียมที่โรงเรียนยังไม่บันทึก (บาท)<input name="bank_fee" type="number" step="0.01" value="0"></label><p class="recon-help">ธนาคารหักค่าธรรมเนียมแล้ว แต่โรงเรียนยังไม่ได้บันทึกจ่าย หากบันทึกแล้วไม่ต้องกรอกซ้ำ</p>
+        <div class="recon-sum"><span>ยอดคงเหลือหลังปรับรายการ</span><b data-recon-book>0.00</b></div>
       </section>
     </div>
 
@@ -72,13 +72,22 @@
       <ul data-recon-hint-list></ul>
     </div>
 
-    <div class="row">
-      <div><label>รายการอื่น (+/-)</label><input name="other" type="number" step="0.01" value="0"></div>
-      <div><label>อยู่ฝั่งไหน</label><select name="other_side">
-        <option value="bank">ฝั่งธนาคาร</option><option value="book">ฝั่งโรงเรียน</option></select></div>
-      <div style="flex:2;"><label>คำอธิบายรายการอื่น</label><input name="other_note"></div>
+    <div class="recon-extra">
+      <h3>รายการปรับยอดเพิ่มเติม (ถ้ามี)</h3>
+      <p class="recon-help">ใช้เมื่อมีรายการที่ทำให้ยอดต่างกัน และไม่อยู่ในช่องข้างต้น หากไม่มีให้คงยอดไว้ที่ 0 ไม่ต้องกรอกส่วนนี้</p>
+      <div class="row">
+        <div><label for="recon-other">จำนวนเงินที่ต้องเพิ่มหรือลด (บาท)</label><input id="recon-other" name="other" type="number" step="0.01" value="0">
+          <p class="recon-help">เพิ่มยอดใส่ 500 · ลดยอดใส่ -500</p></div>
+        <div><label for="recon-other-side">นำไปปรับยอดส่วนใด</label><select id="recon-other-side" name="other_side">
+          <option value="bank">ยอดตามใบแจ้งยอดธนาคาร</option><option value="book">ยอดตามบัญชีของโรงเรียน</option></select>
+          <p class="recon-help">เลือกยอดที่ต้องเพิ่มหรือลดด้วยจำนวนเงินนี้</p></div>
+        <div style="flex:2;"><label for="recon-other-note">สาเหตุที่ต้องปรับยอด</label><input id="recon-other-note" name="other_note" placeholder="ระบุรายการและเหตุผลที่ต้องปรับยอด">
+          <p class="recon-help">ข้อความนี้จะแสดงในเอกสาร ก่อนยอดคงเหลือหลังปรับรายการของส่วนที่เลือก</p></div>
+      </div>
+      <p class="recon-help">การปรับยอดในหน้านี้ใช้สำหรับงบกระทบยอดเท่านั้น ไม่ได้เพิ่มหรือแก้ไขรายการรับ–จ่ายในทะเบียนคุมเงิน</p>
     </div>
-    <label>หมายเหตุ</label><textarea name="note" rows="2"></textarea>
+    <label for="recon-note">หมายเหตุประกอบงบกระทบยอด (ถ้ามี)</label><textarea id="recon-note" name="note" rows="2"></textarea>
+    <p class="recon-help">ใช้บันทึกข้อมูลเพิ่มเติม จะแสดงท้ายงบกระทบยอด และไม่มีผลต่อการคำนวณ</p>
     <br><br><button class="btn green" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกงบกระทบยอด</button>
   </form>
 </div>
@@ -141,6 +150,9 @@
 </div>
 
 <style>
+  .recon-help{font-size:13px;color:#64748b;line-height:1.7;margin:5px 0 10px;font-weight:normal;}
+  .recon-extra{background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:16px 18px;margin:16px 0;}
+  .recon-extra h3{margin:0;font-size:16px;}
   .recon-auto{line-height:1.8;}
   .recon-auto ul{margin:6px 0 0;padding-left:20px;}
   .recon-auto li{margin:2px 0;}

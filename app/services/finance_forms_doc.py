@@ -210,7 +210,7 @@ def render_bank_recon(school, rec, account_name="", checks=None, doc=None):
     sides = recon_sides(rec)
     other = float(rec.other or 0)
     other_side = (getattr(rec, "other_side", None) or "bank").strip()
-    other_label = f"รายการอื่น {(rec.other_note or '').strip()}".strip()
+    other_label = f"รายการปรับยอดเพิ่มเติม {(rec.other_note or '').strip()}".strip()
 
     widths = [Cm(11.5), Cm(5.0)]
     t = doc.add_table(rows=0, cols=2)
