@@ -165,3 +165,72 @@ def import_preview(db, klass, subject, term, start, end, fallback=None):
     if any(m not in cal for m in months):
         raise ValueError("ช่วงวันที่นี้ยังตั้งปฏิทินการศึกษาไม่ครบ จึงยังดึงตารางไม่ได้ หรือเลือกเพิ่มวันสอนเองได้")
     return result
+
+
+def term_spans(db, year):
+    """[(ภาคเรียน, วันเริ่ม, วันสิ้นสุด)] จากหน้าตั้งค่าปฏิทินปีการศึกษา · ยังไม่ตั้ง = []"""
+    from app.models import AcadYearSetting
+    s = db.query(AcadYearSetting).filter_by(year=year).first()
+    out = []
+    for t in (1, 2):
+        a, b = (getattr(s, f"t{t}_start", None), getattr(s, f"t{t}_end", None)) if s else (None, None)
+        if a or b:
+            out.append((t, a.date() if a else None, b.date() if b else None))
+    return out
+
+
+def term_of(spans, d):
+    """ภาคเรียนของวันนั้น · 0 = อยู่นอกทั้งสองภาคเรียน · None = โรงเรียนยังไม่ตั้งวันเปิดปิดภาคเรียน"""
+    if not spans:
+        return None
+    for t, lo, hi in spans:
+        if (lo is None or d >= lo) and (hi is None or d <= hi):
+            return t
+    return 0
+
+
+def check_in_term(db, klass, term, d):
+    """วันที่เลือกต้องอยู่ในภาคเรียนที่กำลังจัด (เดิมไม่ตรวจ วันของเทอม 2 เลยไปนับรวมเป็นเทอม 1)"""
+    t = term_of(term_spans(db, klass.year), d)
+    if t is None or t == term:
+        return d
+    label = f"{d.day}/{d.month}/{d.year + 543}"
+    if t == 0:
+        raise ValueError(f"วันที่ {label} อยู่นอกภาคเรียน (ตามปฏิทินปีการศึกษา)")
+    raise ValueError(f"วันที่ {label} อยู่ในภาคเรียนที่ {t} ไม่ใช่ภาคเรียนที่ {term}")
+
+
+def day_info(db, year):
+    """สถานะทุกวันของปีการศึกษา ให้ปฏิทินเลือกวันสอนรู้ว่าวันไหนเปิดเรียน วันไหนหยุด
+
+    {"2026-05-18": {"s": "open"|"hol"|"closed"|"off", "n": ชื่อวันหยุด, "t": ภาคเรียน}}
+      open   = วันเปิดเรียนตามปฏิทินปีการศึกษา (เดือนที่ยังไม่ตั้ง ใช้ จ.-ศ. ลบวันหยุด แบบหน้าปฏิทิน)
+      hol    = วันหยุดที่กรอกไว้ (ชื่อใน n)
+      closed = ไม่ใช่วันเปิดเรียน เช่น เสาร์-อาทิตย์ หรือโรงเรียนปิดวันนั้น
+      off    = อยู่นอกภาคเรียน
+    """
+    from app.services.academic import holiday_map, auto_open_days, academic_ce_year
+    import calendar as _cal
+    saved = calendar_days(db, year)
+    hol = holiday_map(year, db)
+    spans = term_spans(db, year)
+    out = {}
+    for m in list(range(5, 13)) + list(range(1, 5)):
+        ce = academic_ce_year(year, m)
+        open_days = saved[m] if m in saved else set(auto_open_days(year, m, db))
+        for d in range(1, _cal.monthrange(ce, m)[1] + 1):
+            day = date(ce, m, d)
+            t = term_of(spans, day)
+            if t == 0:
+                s = "off"
+            elif (m, d) in hol:
+                s = "hol"
+            elif d in open_days:
+                s = "open"
+            else:
+                s = "closed"
+            row = {"s": s, "t": t}          # t: None = ยังไม่ตั้งวันเปิดปิดภาคเรียน · 0 = นอกภาคเรียน
+            if (m, d) in hol:
+                row["n"] = hol[(m, d)]
+            out[day.isoformat()] = row
+    return out

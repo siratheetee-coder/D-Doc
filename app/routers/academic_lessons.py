@@ -72,15 +72,24 @@ def page(request, db, c, subject, term, *, preview=None, token="", error="", ent
     sids = [s.id for s in c.students]
     legacy = bool(sids) and db.query(AcadAttendance).filter(
         AcadAttendance.subject_id == subject.id, AcadAttendance.acad_student_id.in_(sids)).first() is not None
-    cal = svc.calendar_days(db, c.year)
-    off_calendar = {r.id for r in state["lessons"] if r.date.day not in cal.get(r.date.month, set())}
+    # สถานะวันจากหน้าตั้งค่าปฏิทินปีการศึกษา: ปฏิทินเลือกวันสอนรู้ว่าวันไหนหยุด
+    # และหัวตารางเช็กชื่อเตือนคาบที่ตกวันหยุด/วันปิดเรียน (เดิมคำนวณ off_calendar ไว้แต่ไม่ได้แสดง)
+    info = svc.day_info(db, c.year)
+    flags = {}
+    for r in state["lessons"]:
+        d = info.get(r.date.isoformat(), {})
+        if d.get("s") in ("hol", "closed", "off"):
+            flags[r.id] = d.get("n") or {"closed": "ไม่ใช่วันเปิดเรียน", "off": "นอกภาคเรียน"}.get(d["s"], "")
+    cc = state["checked_counts"]
     return templates.TemplateResponse("academic_lessons.html", dict(
         request=request, school=get_school(db), c=c, subj=subject, term=term,
         format_date=lambda value: be_date_input(parse_be_date(value)),
         class_label=_class_label, hours=svc.hours, states=svc.MARKS, legacy=legacy,
-        off_calendar=off_calendar, preview=preview, token=token, error=error,
+        lesson_flags=flags, preview=preview, token=token, error=error,
         entered=entered or {}, months=months,month=month,grid=grid,day_groups=day_groups,
-        slot_choices=slot_choices,calendar_events=[dict(date=r.date.isoformat(),slot=r.slot) for r in state['lessons']], **state))
+        slot_choices=slot_choices, day_info=info, term_spans=bool(svc.term_spans(db, c.year)),
+        calendar_events=[dict(id=r.id, date=r.date.isoformat(), slot=r.slot, minutes=r.minutes,
+                              checked=cc.get(r.id, 0)) for r in state['lessons']], **state))
 
 
 @router.get("/academic/lessons")
@@ -112,7 +121,7 @@ async def lesson_action(action: str, request: Request, db: Session = Depends(get
             dates=json.loads(form.get('dates','[]'));slots=json.loads(form.get('slots','[]'))
             if not isinstance(dates,list) or not isinstance(slots,list) or not dates or not slots or len(dates)*len(slots)>1000:
                 raise ValueError('เลือกวันและคาบที่จะเพิ่ม ไม่เกิน 1,000 คาบต่อครั้ง')
-            days=sorted({svc.check_date(c,d) for d in dates})
+            days=sorted({svc.check_in_term(db,c,term,svc.check_date(c,d)) for d in dates})
             choices=[]
             for slot in slots:
                 if not isinstance(slot,dict):raise ValueError('คาบไม่ถูกต้อง')
@@ -147,7 +156,7 @@ async def lesson_action(action: str, request: Request, db: Session = Depends(get
                 elif row:row.mark=mark
                 else:db.add(AcadLessonMark(lesson_id=lid,acad_student_id=student_id,mark=mark))
         elif action == "add":
-            day = svc.check_date(c, form.get("date", ""))
+            day = svc.check_in_term(db, c, term, svc.check_date(c, form.get("date", "")))
             minutes = svc.check_minutes(form.get("minutes", ""))
             if not svc.add_lesson(db, c, subject, term, day, form.get("slot", ""), minutes):
                 raise ValueError("วันและคาบนี้มีอยู่แล้ว ระบบไม่เพิ่มซ้ำ")
@@ -179,8 +188,13 @@ async def lesson_action(action: str, request: Request, db: Session = Depends(get
             if not lesson or (lesson.class_id, lesson.subject_id, lesson.term) != (cid, sid, term):
                 raise HTTPException(404, "ไม่พบคาบนี้")
             if action == "remove":
-                if db.query(AcadLessonMark).filter_by(lesson_id=lesson.id).first():
-                    raise ValueError("คาบนี้มีผลเช็คชื่อแล้ว กรุณาตรวจสอบและล้างผลเช็คชื่อของคาบนี้ก่อนลบ")
+                marked = db.query(AcadLessonMark).filter_by(lesson_id=lesson.id)
+                if marked.first():
+                    # เดิมลบไม่ได้เลยถ้าเช็กชื่อแล้ว ผู้ใช้ลบวันที่เลือกผิดไม่ได้ (เจ้าของแจ้ง)
+                    # ตอนนี้ลบได้เมื่อยืนยัน (หน้าเว็บถามก่อนว่าผลเช็กชื่อกี่คนจะหายไปด้วย)
+                    if form.get("force") != "1":
+                        raise ValueError("คาบนี้มีผลเช็คชื่อแล้ว กดลบอีกครั้งแล้วยืนยัน ผลเช็คชื่อของคาบนี้จะถูกลบไปด้วย")
+                    marked.delete(synchronize_session=False)
                 db.delete(lesson)
             else:
                 # Validate the whole submission before changing any student's mark.

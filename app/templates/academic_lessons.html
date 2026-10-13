@@ -3,33 +3,91 @@
 {% macro keys() %}<input type="hidden" name="cid" value="{{ c.id }}"><input type="hidden" name="sid" value="{{ subj.id }}"><input type="hidden" name="term" value="{{ term }}">{% endmacro %}
 {% block content %}
 <style>
-.lesson-actions,.lesson-inputs{display:flex;flex-wrap:wrap;gap:12px;align-items:end}.lesson-inputs>div{flex:1 1 160px}.lesson-inputs .short{flex:0 1 150px}.lesson-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}.lesson-stat{background:#f1efff;border:1px solid #ddd6fe;border-radius:14px;padding:16px}.lesson-stat strong{display:block;font-size:24px;color:#5941c6}.lesson-card summary{cursor:pointer;font-weight:700;padding:8px 0}.lesson-card[open] summary{margin-bottom:12px}.lesson-check{max-height:460px;overflow:auto}.lesson-check th{position:sticky;top:0;background:#eeebff;z-index:1}.lesson-check select{min-width:145px}.lesson-note{font-size:13px;color:var(--muted);margin-top:8px}.lesson-actions .btn{white-space:normal}.lesson-date{white-space:nowrap}@media(max-width:650px){.lesson-stats{grid-template-columns:1fr}.lesson-stat{padding:12px}.lesson-stat strong{font-size:20px}.lesson-inputs .short{flex:1 1 120px}}
-
-.lesson-setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}.lesson-calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:12px 0}.lesson-calendar button{border:1px solid #e2e8f0;border-radius:9px;background:#fafaff;min-height:45px;cursor:pointer;color:#334155}.lesson-calendar button.selected{background:#4f46e5;color:white}.lesson-calendar .has-lesson:after{content:'•';display:block;color:#a78bfa;line-height:8px}.slot-choices{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}.slot-choice{display:flex;align-items:center;gap:8px;padding:8px;background:#f5f3ff;border-radius:10px}.slot-choice input[type=checkbox]{width:18px;height:18px;flex:none}.slot-choice input[type=number]{width:72px;padding:6px}.lesson-matrix{overflow:auto;max-height:65vh;margin-top:16px}.lesson-matrix table{border-collapse:separate;border-spacing:0;min-width:100%}.lesson-matrix th,.lesson-matrix td{border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;text-align:center;padding:7px}.lesson-matrix thead{position:sticky;top:0;z-index:3;background:#ede9fe}.lesson-matrix .student-pin{position:sticky;left:0;min-width:210px;text-align:left;background:#fafaff;z-index:2}.lesson-matrix thead .student-pin{z-index:4;background:#ede9fe}.grid-mark{min-width:85px;padding:8px}.grid-mark[data-state="/"]{background:#dcfce7;color:#166534}.grid-mark[data-state="ข"]{background:#fee2e2;color:#991b1b}.grid-mark[data-state="ป"],.grid-mark[data-state="ล"]{background:#fef3c7;color:#92400e}.grid-mark.changed{outline:2px solid #818cf8}.grid-all,.grid-copy{display:block;font-size:11px;background:white;border:1px solid #c4b5fd;border-radius:6px;padding:4px;margin:4px auto;cursor:pointer}.grid-save{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:16px}.lesson-calendar span{text-align:center}.grid-save .btn{white-space:normal}@media(max-width:750px){.lesson-setup-grid{grid-template-columns:1fr}.lesson-matrix .student-pin{min-width:150px;max-width:170px}.slot-choices{grid-template-columns:1fr}}
-
-.lesson-card summary{display:flex;align-items:center;gap:12px;min-height:44px;font-size:16px;color:#312e81}
+/* เวลาเรียนรายคาบ: สไตล์เดียวกับระบบ ไม่มีเส้นขอบ แยกกล่องด้วยพื้นหลังจางและเงาอ่อน ปุ่มหลักไล่สี */
+.lesson-actions,.lesson-inputs{display:flex;flex-wrap:wrap;gap:12px;align-items:end}.lesson-inputs>div{flex:1 1 160px}.lesson-inputs .short{flex:0 1 150px}
+.lesson-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:16px 0}
+.lesson-stat{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border-radius:16px;padding:16px 18px;color:#475569;font-size:14px;box-shadow:0 4px 14px rgba(79,70,229,.06)}
+.lesson-stat strong{display:block;font-size:24px;color:#4338ca;margin:2px 0}
+.lesson-note{font-size:13px;color:var(--muted);margin-top:8px}.lesson-actions .btn{white-space:normal}.lesson-date{white-space:nowrap}
+.lesson-card summary{display:flex;align-items:center;gap:12px;min-height:44px;font-size:17px;color:#312e81;flex-wrap:wrap}
 .lesson-card summary .muted{font-size:13px;font-weight:400;color:#64748b}
-.lesson-setup-grid{padding-top:16px;border-top:1px solid #e2e8f0}
-.lesson-setup-grid>section{min-width:0;padding:18px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px}
-.lesson-setup-grid h3{margin:0 0 8px;font-size:16px}
-.lesson-calendar button{font:inherit;font-size:15px;min-height:48px;background:white}
-.lesson-calendar button.selected{box-shadow:0 2px 6px #4f46e530;border-color:#4f46e5}
-.slot-choice{margin:0;border:1px solid #e2e8f0;background:white;min-height:52px;font-size:14px}
-.slot-choice:has(input:checked){background:#eef2ff;border-color:#818cf8}
-.slot-choice input[type=checkbox]{width:22px;height:22px;accent-color:#4f46e5}
-.slot-choice span{flex:1}.slot-choice input[type=number]{font:inherit;width:66px}
-#batchSummary{padding:12px;background:#eef2ff;border-radius:10px;color:#3730a3;font-weight:600}
-.lesson-matrix{border:1px solid #e2e8f0;border-radius:12px}
-.lesson-matrix table{width:max-content;min-width:100%;table-layout:auto}
-.lesson-matrix th,.lesson-matrix td{padding:10px 12px}
-.lesson-matrix .student-pin{width:240px;min-width:200px;font-size:14px;font-weight:500}
-.lesson-matrix td{min-width:128px;background:#fff}
-.lesson-matrix .grid-mark{width:112px;min-width:112px;font:inherit;font-size:14px;min-height:40px;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;outline:none}
-.lesson-matrix .grid-mark:focus-visible{outline:2px solid #4f46e5;outline-offset:2px}
-.lesson-matrix .grid-mark.changed{border-color:#6366f1;box-shadow:inset 3px 0 #6366f1}
-.grid-all,.grid-copy{font:inherit;font-size:12px;min-height:32px;padding:5px 10px;color:#4338ca}
-.grid-save{padding:16px;background:#f8fafc;border-radius:12px;margin-top:12px}
-@media(max-width:750px){.lesson-card summary{flex-wrap:wrap}.lesson-setup-grid>section{padding:12px}.lesson-matrix .student-pin{width:160px;min-width:160px}.grid-save{flex-wrap:wrap}}
+.ls-step{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:14px;font-weight:700;flex:none}
+.lesson-setup-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;margin-top:14px}
+.ls-pane{min-width:0;padding:16px;background:#f8fafc;border-radius:16px}
+.ls-pane h3,.ls-saved h3{margin:0 0 8px;font-size:15px;color:#1e293b}
+.ls-calhead{display:flex;align-items:center;gap:8px;margin-bottom:8px}.ls-calhead strong{flex:1;text-align:center;font-size:16px;color:#312e81}
+.ls-nav{width:36px;height:36px;border:0;border-radius:10px;background:#e0e7ff;color:#4338ca;font-size:20px;cursor:pointer}.ls-nav:disabled{opacity:.35;cursor:default}
+.ls-legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:#64748b;margin-bottom:8px}.ls-legend i{display:inline-block;width:11px;height:11px;border-radius:4px;margin-right:4px;vertical-align:-1px}
+.lg-open{background:#fff;box-shadow:inset 0 0 0 1px #cbd5e1}.lg-hol{background:#fee2e2}.lg-closed{background:#e2e8f0}.lg-off{background:repeating-linear-gradient(45deg,#f1f5f9 0 3px,#e2e8f0 3px 6px)}.lg-has{background:#a78bfa}.lg-sel{background:linear-gradient(135deg,#4f46e5,#7c3aed)}
+.lesson-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.lesson-calendar .wd{text-align:center;font-size:12px;color:#94a3b8;padding:2px 0}
+.lesson-calendar button{position:relative;border:0;border-radius:11px;background:#fff;min-height:50px;cursor:pointer;color:#1e293b;font:inherit;font-size:15px;box-shadow:0 1px 3px rgba(15,23,42,.06);padding:4px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transition:transform .08s ease}
+.lesson-calendar button:hover{transform:translateY(-1px)}
+.lesson-calendar button small{font-size:9.5px;line-height:1.1;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
+.lesson-calendar button.s-hol{background:#fee2e2;color:#b91c1c}
+.lesson-calendar button.s-closed{background:#eef2f7;color:#94a3b8;box-shadow:none}
+.lesson-calendar button.s-off{background:repeating-linear-gradient(45deg,#f8fafc 0 4px,#eef2f7 4px 8px);color:#cbd5e1;box-shadow:none;cursor:not-allowed}
+.lesson-calendar button.today{box-shadow:inset 0 0 0 2px #818cf8}
+.lesson-calendar button .cnt{position:absolute;top:3px;right:4px;min-width:16px;height:16px;border-radius:8px;background:#a78bfa;color:#fff;font-size:10px;line-height:16px;padding:0 4px}
+.lesson-calendar button.selected{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;box-shadow:0 4px 12px rgba(79,70,229,.35)}
+.lesson-calendar button.selected .cnt{background:#fff;color:#4f46e5}
+.ls-hint{font-size:12.5px;color:#64748b;margin:8px 0 0}
+.ls-warn{font-size:13px;background:#fff7ed;color:#9a3412;border-radius:10px;padding:8px 10px;margin:8px 0 0}
+.ls-quick{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:12px}.ls-quick-label{font-size:13px;color:#475569;margin-right:2px}
+.ls-wd{border:0;border-radius:999px;background:#e0e7ff;color:#4338ca;font:inherit;font-size:13px;padding:6px 12px;cursor:pointer}.ls-wd:hover{background:#c7d2fe}
+.ls-quick select{width:auto;font-size:13px;padding:6px 8px}
+.ls-chips{display:flex;flex-wrap:wrap;gap:6px;min-height:34px}.ls-empty{font-size:13px;color:#94a3b8;align-self:center}
+.ls-chip{display:inline-flex;align-items:center;gap:4px;border:0;border-radius:999px;background:#eef2ff;color:#3730a3;font:inherit;font-size:13px;padding:5px 6px 5px 11px;cursor:pointer}
+.ls-chip b{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#c7d2fe;font-size:12px}
+.ls-chip.is-hol{background:#fee2e2;color:#b91c1c}
+.ls-link{border:0;background:none;color:#6366f1;font:inherit;font-size:13px;cursor:pointer;padding:4px 0;text-decoration:underline}
+.slot-choices{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.slot-choice{display:flex;align-items:center;gap:8px;margin:0;padding:8px 10px;background:#fff;border-radius:12px;min-height:50px;font-size:14px;box-shadow:0 1px 3px rgba(15,23,42,.06);cursor:pointer}
+.slot-choice:has(input:checked){background:#eef2ff;box-shadow:inset 0 0 0 2px #818cf8}
+.slot-choice input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#4f46e5}.slot-choice span{flex:1}.slot-choice input[type=number]{font:inherit;width:62px;padding:5px}
+.ls-addslot{display:flex;gap:8px;margin-bottom:10px}.ls-addslot input{flex:1;min-width:0}
+#batchSummary{padding:10px 12px;background:linear-gradient(120deg,#eef2ff,#f5f3ff);border-radius:12px;color:#3730a3;font-weight:600;font-size:14px}
+#batchSubmit{width:100%}
+.ls-saved{margin-top:16px;padding:14px 16px;background:#f8fafc;border-radius:16px}
+.ls-day{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 0}.ls-day+.ls-day{border-top:1px dashed #e2e8f0}
+.ls-day-label{min-width:120px;font-size:14px;font-weight:600;color:#334155}.ls-day-label.is-hol{color:#b91c1c}
+.ls-period{display:inline-flex;align-items:center;gap:6px;background:#fff;border-radius:999px;padding:4px 6px 4px 11px;font-size:13px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+.ls-period em{font-style:normal;color:#64748b;font-size:12px}
+.ls-del{border:0;width:22px;height:22px;border-radius:50%;background:#fee2e2;color:#b91c1c;cursor:pointer;font-size:12px;line-height:22px;padding:0}
+.lg-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.lg-head h2{display:flex;align-items:center;gap:10px;margin:0;border:0;background:none;padding:0}
+.lg-month{display:flex;align-items:center;gap:8px;margin:0}.lg-month label{margin:0;font-size:14px;color:#475569}.lg-month select{width:auto}
+.lg-legend{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:12px 0 10px;font-size:12.5px}
+.lg-legend .st{padding:3px 10px;border-radius:999px}.lg-tip{color:#64748b;margin-left:6px}
+.st-mark-p{background:#dcfce7;color:#166534}.st-mark-s{background:#e0f2fe;color:#075985}.st-mark-l{background:#fef3c7;color:#92400e}.st-mark-a{background:#fee2e2;color:#991b1b}.st-mark-n{background:#f1f5f9;color:#64748b}
+.lesson-matrix{overflow:auto;max-height:68vh;border-radius:16px;background:#fff;box-shadow:0 4px 18px rgba(15,23,42,.06)}
+.lesson-matrix table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%}
+.lesson-matrix th,.lesson-matrix td{border:0;text-align:center;padding:8px 10px}
+.lesson-matrix thead th{position:sticky;background:#eef2ff;color:#312e81;font-size:13px;font-weight:700;z-index:3}
+.lesson-matrix thead tr:first-child th{top:0;height:40px}.lesson-matrix thead tr:nth-child(2) th{top:40px;background:#f5f3ff}
+.lg-day{white-space:nowrap}.lg-day.is-flag{background:#fee2e2!important;color:#b91c1c!important}
+.lg-flag{display:block;font-size:10.5px;font-weight:600;max-width:200px;margin:0 auto;overflow:hidden;text-overflow:ellipsis}
+.lg-slot{min-width:108px;vertical-align:top}.lg-slot-name{font-size:13px}.lg-slot small{font-weight:400;color:#64748b;font-size:11.5px}
+.lg-prog{font-weight:700;color:#4338ca}.lg-prog.full{color:#15803d}
+.lg-btns{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.grid-all,.grid-copy{border:0;border-radius:999px;font:inherit;font-size:11.5px;padding:5px 8px;cursor:pointer;white-space:nowrap}
+.grid-all{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff}.grid-copy{background:#e0e7ff;color:#4338ca}
+.lesson-matrix .student-pin{position:sticky;left:0;z-index:2;background:#fff;text-align:left;min-width:220px;font-size:14px;font-weight:500;color:#1e293b;box-shadow:6px 0 10px -8px rgba(15,23,42,.25)}
+.lesson-matrix thead .student-pin{z-index:4;background:#eef2ff;vertical-align:bottom}.student-pin small{display:block;font-weight:400;color:#64748b}
+.lg-no{display:inline-block;min-width:26px;color:#94a3b8;font-size:12.5px}
+.lesson-matrix tbody tr:nth-child(even) td,.lesson-matrix tbody tr:nth-child(even) .student-pin{background:#fafaff}
+.lesson-matrix tbody tr:hover td,.lesson-matrix tbody tr:hover .student-pin{background:#f5f3ff}
+.lesson-matrix .grid-mark{appearance:none;-webkit-appearance:none;width:84px;min-width:84px;border:0;border-radius:999px;padding:7px 10px;font:inherit;font-size:13.5px;font-weight:600;text-align:center;text-align-last:center;cursor:pointer;background:#f1f5f9;color:#94a3b8}
+.lesson-matrix .grid-mark[data-state="/"]{background:#dcfce7;color:#166534}.lesson-matrix .grid-mark[data-state="ป"]{background:#e0f2fe;color:#075985}
+.lesson-matrix .grid-mark[data-state="ล"]{background:#fef3c7;color:#92400e}.lesson-matrix .grid-mark[data-state="ข"]{background:#fee2e2;color:#991b1b}
+.lesson-matrix .grid-mark.changed{box-shadow:0 0 0 2px #818cf8}.lesson-matrix .grid-mark:focus-visible{outline:2px solid #4f46e5;outline-offset:2px}
+.grid-save{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;margin-top:12px;background:linear-gradient(120deg,#eef2ff,#f5f3ff);border-radius:14px}
+.grid-save .btn{white-space:normal}#gridStatus{color:#3730a3;font-weight:600;font-size:14px}
+.lg-empty{padding:18px;background:#f8fafc;border-radius:14px;color:#475569;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+@media(max-width:860px){.lesson-setup-grid{grid-template-columns:1fr}}
+@media(max-width:650px){.lesson-stats{grid-template-columns:1fr}.lesson-stat{padding:12px}.lesson-stat strong{font-size:20px}.lesson-inputs .short{flex:1 1 120px}
+  .slot-choices{grid-template-columns:1fr}.lesson-calendar button{min-height:44px;font-size:14px}.lesson-calendar button small{display:none}
+  .lesson-matrix .student-pin{min-width:150px;max-width:170px}.grid-save{flex-wrap:wrap}.ls-pane{padding:12px}}
 </style>
 <div class="hero"><div><div class="hero-sub">งานวิชาการ · เวลาเรียนรายคาบ</div><div class="hero-title">{{ subj.code }} {{ subj.name }}</div><div class="hero-meta">ห้อง {{ class_label(c) }} · ปีการศึกษา {{ c.year }} · ภาคเรียนที่ {{ term }}</div></div></div>
 <div class="lesson-actions" style="margin:16px 0">
@@ -81,6 +139,6 @@ function targetNote(){if(!note)return;const a=document.getElementById('target1')
 if(split)split.addEventListener('click',()=>{document.getElementById('target1').value=Number(split.dataset.hours)/2;document.getElementById('target2').value=Number(split.dataset.hours)/2;targetNote();});
 ['target1','target2'].forEach(id=>document.getElementById(id)?.addEventListener('input',targetNote));targetNote();
 </script>
-<script id="lessonConfig" type="application/json">{{ {'months':months,'month':month,'events':calendar_events,'entered':entered}|tojson }}</script>
-<script src="/static/academic_lessons_grid.js?v=2"></script>
+<script id="lessonConfig" type="application/json">{{ {'months':months,'month':month,'events':calendar_events,'entered':entered,'days':day_info,'term':term,'students':students|length}|tojson }}</script>
+<script src="/static/academic_lessons_grid.js?v=3"></script>
 {% endblock %}
