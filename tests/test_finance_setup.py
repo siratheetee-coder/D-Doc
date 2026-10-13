@@ -61,12 +61,12 @@ def test_checklist_walks_through_the_steps_in_order(env):
         pj = Project(name='กีฬาสี', plan_year=2570, budget=30000); s.add(pj); s.commit()
         pf.allocate(s, p, pj, {str(pf.sources(s, p)[0].id): '30000'}, pf.allocation_token(s, p, pj)); s.commit()
     html = page()
-    assert 'id="finSetup"' not in html, "ครบทุกขั้นแล้วกล่องต้องหายเอง"
+    assert 'id="setup-fin"' not in html, "ครบทุกขั้นแล้วกล่องต้องหายเอง"
 
 
 def test_hide_is_per_browser_and_safe_without_storage():
-    html = (ROOT / 'app/templates/finance_dashboard.html').read_text(encoding='utf-8')
-    script = html[html.index("var KEY = 'finSetupHidden'"):]
+    html = (ROOT / 'app/templates/_setup_checklist.html').read_text(encoding='utf-8')
+    script = html[html.index("var KEY = 'setupHidden_{{ setup_key }}'"):]
     assert 'try { return localStorage.getItem' in script and 'catch (e)' in script
 
 

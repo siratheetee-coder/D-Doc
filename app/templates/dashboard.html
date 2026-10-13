@@ -1,22 +1,7 @@
 {% extends "base.html" %}
 {% block title %}หน้าหลัก{% endblock %}
 {% block content %}
-{% set incomplete = [] %}
-{% if not school.name %}{% set _ = incomplete.append("ชื่อโรงเรียน") %}{% endif %}
-{% if not school.director_name %}{% set _ = incomplete.append("ชื่อผู้อำนวยการ") %}{% endif %}
-{% if not school.officer_name %}{% set _ = incomplete.append("เจ้าหน้าที่พัสดุ") %}{% endif %}
-{% if not school.head_officer_name %}{% set _ = incomplete.append("หัวหน้าเจ้าหน้าที่พัสดุ") %}{% endif %}
-{% if incomplete %}
-<div class="alert warn">
-  <svg class="icon"><use href="#ic-alert"/></svg>
-  <div style="flex:1;">
-    <b>ยังตั้งค่าโรงเรียนไม่ครบ</b> เอกสารที่ออกจะมีช่องว่างตรงนี้: {{ incomplete|join(", ") }}
-    <div style="margin-top:10px;">
-      <a class="btn sm" href="/settings"><svg class="icon"><use href="#ic-settings"/></svg> ไปตั้งค่าโรงเรียน</a>
-    </div>
-  </div>
-</div>
-{% endif %}
+
 <div class="hero">
   <div>
     <div class="hero-sub">ระบบจัดการเอกสารและพัสดุ</div>
@@ -35,6 +20,11 @@
     <a class="btn" href="/procurement/new"><svg class="icon"><use href="#ic-plus"/></svg> สร้างเรื่องใหม่</a>
   </div>
 </div>
+
+{# รายการเริ่มต้นงานพัสดุ (app/services/procurement_setup.py) ขั้นที่ 1 คือข้อมูลโรงเรียน
+   แทนกล่องเตือน "ยังตั้งค่าโรงเรียนไม่ครบ" เดิม ไม่ให้เตือนซ้ำสองที่ #}
+{% set setup_key = 'proc' %}{% set setup_title = 'เริ่มต้นงานพัสดุ' %}
+{% include '_setup_checklist.html' %}
 
 <div class="card">
   <div class="stat">

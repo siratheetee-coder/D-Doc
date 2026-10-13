@@ -1,0 +1,67 @@
+{# รายการเริ่มต้นใช้งาน ใช้ร่วมกันทุกงาน: ระบบติ๊กเองจากข้อมูลจริง ขั้นถัดไปขั้นเดียว ครบแล้วหายเอง
+   ต้องตั้ง setup (dict จาก *_setup.setup_steps), setup_key (ไม่ซ้ำกัน), setup_title ก่อน include #}
+{% if not setup.complete %}
+<div class="card fs-card" id="setup-{{ setup_key }}">
+  <div class="fs-head">
+    <div><h2 class="fs-title">{{ setup_title }}</h2>
+      <div class="fs-sub">ทำแล้ว {{ setup.done }} จาก {{ setup.total }} ขั้น · ระบบติ๊กให้เองเมื่อข้อมูลครบ</div></div>
+    <button type="button" class="fs-hide" id="setup-{{ setup_key }}-hide">ซ่อนไว้ก่อน</button>
+  </div>
+  <div class="fs-bar"><span style="width:{{ (setup.done / setup.total * 100)|round(0) }}%"></span></div>
+  <ol class="fs-list">
+    {% for s in setup.steps %}
+    {% set is_next = setup.next and s.n == setup.next.n %}
+    <li class="fs-step {{ 'is-done' if s.done else ('is-next' if is_next else 'is-todo') }}">
+      <span class="fs-mark">{% if s.done %}✔{% elif is_next %}➜{% else %}{{ s.n }}{% endif %}</span>
+      <div class="fs-body">
+        <div class="fs-name">{{ s.n }}. {{ s.title }}</div>
+        {% if s.done or is_next %}<div class="fs-detail">{{ s.detail }}</div>{% endif %}
+        {% if is_next %}
+        <div class="fs-act"><a class="btn sm" href="{{ s.href }}">{{ s.cta }}</a>
+          {% for t, h in s.extra %}<a class="fs-extra" href="{{ h }}">{{ t }}</a>{% endfor %}</div>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+</div>
+<p class="fs-show" id="setup-{{ setup_key }}-show" hidden><a href="#" id="setup-{{ setup_key }}-showlink">แสดงขั้นตอนเริ่มต้นใช้งาน ({{ setup.done }}/{{ setup.total }})</a></p>
+<style>
+  .fs-card{ background:linear-gradient(135deg,#eff6ff,#f0fdf4); }
+  .fs-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .fs-title{ margin:0; border:none; background:none; padding:0; font-size:18px; }
+  .fs-sub{ font-size:13px; color:#475569; margin-top:2px; }
+  .fs-hide{ background:none; border:0; color:#64748b; font-size:13px; cursor:pointer; text-decoration:underline; padding:0; white-space:nowrap; }
+  .fs-bar{ height:8px; border-radius:6px; background:#e2e8f0; overflow:hidden; margin:10px 0 6px; }
+  .fs-bar span{ display:block; height:100%; background:linear-gradient(90deg,#16a34a,#22c55e); }
+  .fs-list{ list-style:none; margin:0; padding:0; }
+  .fs-step{ display:flex; gap:10px; align-items:flex-start; padding:8px 0; }
+  .fs-mark{ flex:0 0 26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+            font-size:13px; font-weight:700; background:#e2e8f0; color:#64748b; }
+  .is-done .fs-mark{ background:#16a34a; color:#fff; }
+  .is-next .fs-mark{ background:#2563eb; color:#fff; }
+  .fs-body{ flex:1; min-width:0; }
+  .fs-name{ font-weight:600; }
+  .is-todo .fs-name{ color:#94a3b8; font-weight:500; }
+  .is-done .fs-name{ color:#15803d; }
+  .fs-detail{ font-size:13.5px; color:#475569; margin-top:2px; }
+  .is-next{ background:#fff; border-radius:12px; padding:10px 12px; margin:4px -12px; box-shadow:0 4px 14px rgba(37,99,235,.12); }
+  .fs-act{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; margin-top:8px; }
+  .fs-extra{ font-size:13px; }
+  .fs-show{ margin:0 0 12px; font-size:13.5px; }
+  .fs-show[hidden], .fs-card[hidden]{ display:none !important; }
+</style>
+<script>
+(function () {
+  // ซ่อนเฉพาะในเบราว์เซอร์นี้ จำตามจำนวนขั้นที่ทำแล้ว ทำขั้นใหม่เสร็จจะกลับมาให้เห็นขั้นถัดไป
+  var KEY = 'setupHidden_{{ setup_key }}', mark = '{{ setup.done }}';
+  var card = document.getElementById('setup-{{ setup_key }}'), show = document.getElementById('setup-{{ setup_key }}-show');
+  function get() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+  function put(v) { try { v === null ? localStorage.removeItem(KEY) : localStorage.setItem(KEY, v); } catch (e) {} }
+  function apply(hidden) { card.hidden = hidden; show.hidden = !hidden; }
+  apply(get() === mark);
+  document.getElementById('setup-{{ setup_key }}-hide').addEventListener('click', function () { put(mark); apply(true); });
+  document.getElementById('setup-{{ setup_key }}-showlink').addEventListener('click', function (e) { e.preventDefault(); put(null); apply(false); });
+})();
+</script>
+{% endif %}

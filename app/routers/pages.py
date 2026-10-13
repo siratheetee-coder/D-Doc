@@ -437,6 +437,7 @@ def docnos_register_doc(request: Request, db: Session = Depends(get_db), year: i
 @router.get("/procurement", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db),
               year: int | None = None, q: str | None = None):
+    from app.services.procurement_setup import setup_steps as proc_setup_steps
     fy = year or current_fiscal_year()
     q = (q or "").strip()
     if q:
@@ -470,6 +471,7 @@ def dashboard(request: Request, db: Session = Depends(get_db),
         "hire_total": sum(p.total_amount or 0 for p in hires),
         "fiscal_year": fy, "years": years, "total_amount": total_amount,
         "count": len(procurements), "q": q, "charts": charts,
+        "setup": proc_setup_steps(db, fy, get_school(db)),
     })
 
 
