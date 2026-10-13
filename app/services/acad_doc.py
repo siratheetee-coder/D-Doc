@@ -2147,12 +2147,164 @@ def _lesson_attendance_section(doc, klass, subject, db, *, term=None, months_ok=
     _widths(table, [Cm(6)]+[Cm(2.4)]*5)
 
 
+_LESSON_COLS = 22          # คาบต่อหน้าที่ยังอ่านออกบนกระดาษแนวนอน (ช่องละ ~0.85 ซม. แบบรายวัน)
+
+
+def _lesson_month_section(doc, school, klass, subject, db, month, rows, marks, students, teacher,
+                          *, term=None, page_break=False, cont=False, last=True, month_rows=None):
+    """หนึ่งหน้าของแบบบันทึกเวลาเรียนรายคาบ หน้าตาเดียวกับแบบรายวัน (_attendance_month_section)
+    ต่างกันที่หัวคอลัมน์เป็น "คาบที่สอน" วันไหนสอน 2 คาบ เลขวันที่ซ้ำกัน 2 ช่อง (เจ้าของขอแบบนี้)
+    เดือนที่มีคาบเกินหน้าเดียวแบ่งหน้า ช่อง มา/ป่วย/ลา/ขาด/ร้อยละ อยู่หน้าสุดท้ายของเดือน (นับทั้งเดือน)"""
+    has_logo = _logo_header(doc, school, height_cm=1.3, page_break=page_break)
+    _p(doc, school.name or "", align="center", bold=True, size=16, after=0,
+       page_break=(page_break and not has_logo))
+    _p(doc, "แบบบันทึกเวลาเรียน (รายคาบ)" + (" (ต่อ)" if cont else ""), align="center", bold=True, size=13, after=0)
+    term_txt = f"  ภาคเรียนที่ {term}" if term else ""
+    _p(doc, f"ประจำเดือน{TH_MONTH_FULL[month]}  ปีการศึกษา {klass.year}{term_txt}", align="center",
+       bold=True, size=16, after=0)
+    sub = f"ชั้น {_class_label(klass)}    วิชา {subject.code or ''} {subject.name}"
+    if teacher:
+        sub += f"    ครูผู้สอน {teacher}"
+    _p(doc, sub, align="center", size=13, after=2)
+
+    n = len(rows)
+    tail = 5 if last else 0                 # มา ป่วย ลา ขาด ร้อยละ
+    t = doc.add_table(rows=2 + len(students) + 1, cols=2 + n + tail)
+    t.style = "Table Grid"
+    hdr = t.rows[0].cells
+
+    def vm(idx, text, size=13):
+        c = t.rows[0].cells[idx].merge(t.rows[1].cells[idx]); _cell(c, text, bold=True, fill="EDE9FE", size=size)
+
+    vm(0, "ที่"); vm(1, "ชื่อ-นามสกุล")
+    if n:
+        c = hdr[2].merge(hdr[2 + n - 1])
+        _cell(c, "วันที่ (เฉพาะคาบที่สอน)" if n >= 4 else "วันที่", bold=True, fill="EDE9FE", size=13)
+        # เลขวันที่อย่างเดียวแบบตัวอย่างที่เจ้าของส่งมา · วันที่สอน 2 คาบ เลขวันซ้ำ 2 ช่อง
+        for j, r in enumerate(rows):
+            _cell(t.rows[1].cells[2 + j], r.date.day, bold=True, fill="F1F5F9", size=12)
+    if last:
+        for k, lb in enumerate(["มา", "ป่วย", "ลา", "ขาด", "ร้อยละ"]):
+            vm(2 + n + k, lb)
+
+    every = month_rows or rows                # นับทั้งเดือน แม้ตารางแบ่งหลายหน้า
+    col_present = [0] * n
+    tot = {"/": 0, "ป": 0, "ล": 0, "ข": 0}
+    for i, st in enumerate(students):
+        cells = t.rows[2 + i].cells
+        _cell(cells[0], st.seq or (i + 1), size=13)
+        _cell(cells[1], st.name, align="left", size=13)
+        for j, r in enumerate(rows):
+            ch = marks.get((r.id, st.id), "")
+            _cell(cells[2 + j], ch, size=13)
+            if ch == "/":
+                col_present[j] += 1
+        if last:
+            cnt = {k: sum(1 for r in every if marks.get((r.id, st.id)) == k) for k in tot}
+            for k in tot:
+                tot[k] += cnt[k]
+            pct = round(cnt["/"] * 100.0 / len(every), 1) if every else ""
+            for k, v in enumerate([cnt["/"], cnt["ป"], cnt["ล"], cnt["ข"], pct]):
+                _cell(cells[2 + n + k], v, size=13)
+
+    lastrow = t.rows[2 + len(students)].cells
+    sc = lastrow[0].merge(lastrow[1]); _cell(sc, "รวมมาเรียน (คน/คาบ)", bold=True, align="right", fill="F1F5F9", size=13)
+    for j in range(n):
+        _cell(lastrow[2 + j], col_present[j], bold=True, fill="F1F5F9", size=13)
+    slots = len(students) * len(every)
+    class_pct = round(tot["/"] * 100.0 / slots, 1) if slots else ""
+    if last:
+        for k, v in enumerate([tot["/"], tot["ป"], tot["ล"], tot["ข"], class_pct]):
+            _cell(lastrow[2 + n + k], v, bold=True, fill="F1F5F9", size=13)
+
+    fixed = 0.9 + 4.2 + ((0.9 * 4) + 1.3 if last else 0)
+    colw = min(0.85, (26.7 - fixed) / n) if n else 0.85
+    colw = max(colw, min(1.6, 4.0 / n)) if n else colw     # เดือนที่มีไม่กี่คาบ ช่องกว้างขึ้น หัวตารางไม่ตกบรรทัด
+    _widths(t, [Cm(0.9), Cm(4.2)] + [Cm(colw)] * n + ([Cm(0.9)] * 4 + [Cm(1.3)] if last else []))
+    _tight_cells(t)
+    for row in t.rows:
+        for cell in row.cells:
+            for pp in cell.paragraphs:
+                pf = pp.paragraph_format
+                pf.space_before = Pt(0); pf.space_after = Pt(0); pf.line_spacing = 1.0
+    if not last:
+        return
+    from app.services.academic_lessons import hours
+    mins = sum(r.minutes for r in every)
+    unchecked = slots - sum(tot.values())
+    _p(doc, f"สรุป: สอนทั้งเดือน {len(every)} คาบ ({hours(mins)} ชั่วโมง) · นักเรียน {len(students)} คน · "
+            f"รวมมาเรียนทั้งห้อง {tot['/']} คน-คาบ · เฉลี่ยการมาเรียน {class_pct}%  "
+            f"(ป่วย {tot['ป']} · ลา {tot['ล']} · ขาด {tot['ข']}"
+            + (f" · ยังไม่เช็ก {unchecked}" if unchecked else "") + ")",
+       align="left", size=11, after=0)
+    sp = _p(doc, "ลงชื่อ .......................................... ครูผู้บันทึกเวลาเรียน",
+            align="center", size=13, after=0)
+    sp.paragraph_format.space_before = Pt(26)
+    if teacher:
+        _float_signature(sp, teacher)
+    _p(doc, f"( {teacher or '..........................................'} )", align="center", size=13, after=0)
+
+
+def _lesson_hours_page(doc, school, klass, subject, rows, marks, students, term):
+    """หน้าสรุปท้ายเล่ม: เวลาเรียนรายบุคคลเป็นชั่วโมง (ใช้กรอก ปพ.5 / ตัดสินสิทธิ์สอบ 80%)"""
+    from app.services.academic_lessons import hours
+    from docx.oxml import OxmlElement
+    has_logo = _logo_header(doc, school, height_cm=1.3, page_break=True)
+    _p(doc, school.name or "", align="center", bold=True, size=16, after=0, page_break=not has_logo)
+    _p(doc, "สรุปเวลาเรียนรายบุคคล (ชั่วโมง)", align="center", bold=True, size=16, after=0)
+    total = sum(r.minutes for r in rows)
+    _p(doc, f"ชั้น {_class_label(klass)}    วิชา {subject.code or ''} {subject.name}    ปีการศึกษา {klass.year}"
+       + (f"  ภาคเรียนที่ {term}" if term else "") + f"    สอนทั้งหมด {len(rows)} คาบ ({hours(total)} ชั่วโมง)",
+       align="center", size=13, after=2)
+    t = doc.add_table(rows=1, cols=8); t.style = "Table Grid"
+    for cell, text in zip(t.rows[0].cells, ["ที่", "ชื่อ-นามสกุล", "มา", "ป่วย", "ลา", "ขาด", "ยังไม่เช็ก", "ร้อยละที่มา"]):
+        _cell(cell, text, bold=True, fill="EDE9FE", size=13)
+    t.rows[0]._tr.get_or_add_trPr().append(OxmlElement("w:tblHeader"))
+    for i, st in enumerate(students):
+        cells = t.add_row().cells
+        got = {k: sum(r.minutes for r in rows if marks.get((r.id, st.id), "") == k) for k in ["/", "ป", "ล", "ข", ""]}
+        pct = round(got["/"] * 100.0 / total, 1) if total else ""
+        vals = [st.seq or (i + 1), st.name] + [hours(got[k]) for k in ["/", "ป", "ล", "ข", ""]] + [pct]
+        for j, v in enumerate(vals):
+            _cell(cells[j], v, align="left" if j == 1 else "center", size=13)
+    _widths(t, [Cm(1.2), Cm(7)] + [Cm(2.6)] * 5 + [Cm(3)])
+    _tight_cells(t)
+
+
 def render_lesson_attendance(school, klass, subject, db, *, term=None, month=None):
+    """แบบบันทึกเวลาเรียนรายคาบ แนวนอน หน้าละเดือน (หน้าตาเดียวกับแบบรายวัน)
+    term = ทั้งภาคเรียน (ท้ายเล่มมีหน้าสรุปชั่วโมงรายบุคคล) · month = เดือนเดียว"""
     from uuid import uuid4
-    doc = _doc()
-    _p(doc, school.name or "", align="center", bold=True)
-    _lesson_attendance_section(doc, klass, subject, db, term=term,
-                               months_ok={month} if month else None)
+    from itertools import groupby
+    from app.services import academic_lessons as svc
+    from app.models import AcadLessonMark, AcadTeaching
+    rows = svc.lessons_for(db, klass.id, subject.id, term)
+    if month:
+        rows = [r for r in rows if r.date.month == month]
+    students = sorted(klass.students, key=lambda s: (s.seq or 999, s.name))
+    marks = {(m.lesson_id, m.acad_student_id): m.mark for m in
+             db.query(AcadLessonMark).filter(AcadLessonMark.lesson_id.in_([r.id for r in rows] or [0]))}
+    tt = db.query(AcadTeaching).filter_by(class_id=klass.id, subject_id=subject.id).first()
+    teacher = tt.teacher.name if (tt and tt.teacher) else ""
+    doc = _attendance_doc()
+    rows = sorted(rows, key=lambda r: (r.date, r.id))
+    first = True
+    for _m, grp in groupby(rows, key=lambda r: (r.date.year, r.date.month)):
+        grp = list(grp)
+        chunks = [grp[i:i + _LESSON_COLS] for i in range(0, len(grp), _LESSON_COLS)]
+        for k, chunk in enumerate(chunks):
+            _lesson_month_section(doc, school, klass, subject, db, grp[0].date.month, chunk, marks, students,
+                                  teacher, term=term, page_break=not first, cont=k > 0,
+                                  last=k == len(chunks) - 1, month_rows=grp)
+            first = False
+    if first:                                   # ยังไม่มีคาบเลย
+        _logo_header(doc, school, height_cm=1.3)
+        _p(doc, school.name or "", align="center", bold=True, size=16, after=0)
+        _p(doc, "แบบบันทึกเวลาเรียน (รายคาบ)", align="center", bold=True, size=13, after=0)
+        _p(doc, f"วิชา {subject.code or ''} {subject.name} ชั้น {_class_label(klass)} ยังไม่มีคาบเรียนในช่วงนี้",
+           align="center", size=13)
+    elif not month:
+        _lesson_hours_page(doc, school, klass, subject, rows, marks, students, term)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / f"เวลาเรียนรายคาบ_{klass.id}_{subject.id}_{uuid4().hex}.docx"
     doc.save(str(out))

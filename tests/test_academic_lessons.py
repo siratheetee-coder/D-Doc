@@ -148,7 +148,9 @@ def test_routes_marks_export_permissions_and_legacy(env,monkeypatch):
     assert r.status_code==200,r.text[:300] if r.status_code!=200 else ''
     doc=Document(BytesIO(r.content))
     text=' '.join(p.text for p in doc.paragraphs)+' '.join(cell.text for t in doc.tables for row in t.rows for cell in row.cells)
-    assert '1.5 ชั่วโมง' in text and 'ยังไม่เช็ค' in text and '50 นาที' in text
+    # แบบใหม่: แนวนอน หน้าละเดือน หน้าตาเดียวกับแบบรายวัน + หน้าสรุปชั่วโมงรายบุคคลท้ายเล่ม
+    assert 'แบบบันทึกเวลาเรียน (รายคาบ)' in text and 'ประจำเดือนพฤษภาคม' in text
+    assert '1.5 ชั่วโมง' in text and 'ยังไม่เช็ก' in text and 'รวมมาเรียน (คน/คาบ)' in text
     with tn.session_for(tid) as db:
         assert db.query(AcadAttendance).filter_by(acad_student_id=student_id,subject_id=sid).one().present==1
         assert db.query(AcadClassMonth).filter_by(class_id=cid).one().days_open==6  # only homeroom save updates this
