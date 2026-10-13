@@ -279,13 +279,33 @@ def lunch_ledger_delete(lid: int, db: Session = Depends(get_db)):
 
 @router.get("/lunch/ledger/{lid}/receipt.docx")
 def lunch_receipt_docx(lid: int, db: Session = Depends(get_db)):
-    """ใบสำคัญรับเงิน (จากรายการ 'รับ' ในบัญชีอาหารกลางวัน)"""
-    from app.services.lunch_receipt import render_lunch_receipt
+    """ใบสำคัญรับเงินของรายการรับหรือจ่ายในบัญชีอาหารกลางวัน (ฟอร์มกลาง ตารางรายการ/จำนวนเงิน)"""
+    from app.services.lunch_receipt import render_ledger_voucher
     led = db.get(LunchLedger, lid)
     if not led:
         return RedirectResponse("/lunch", status_code=303)
-    path = render_lunch_receipt(get_school(db), led.program, led)
+    path = render_ledger_voucher(get_school(db), led.program, led, _ledger_vendor(db, led))
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.get("/lunch/ledger/{lid}/official-receipt.docx")
+def lunch_official_receipt_docx(lid: int, db: Session = Depends(get_db)):
+    """ใบเสร็จรับเงินที่โรงเรียนออกให้ อปท. (เฉพาะรายการรับ) ต้นฉบับ + สำเนา"""
+    from app.services.lunch_receipt import render_official_receipt
+    led = db.get(LunchLedger, lid)
+    if not led or led.kind != "in":
+        return RedirectResponse(f"/lunch/{led.program_id}" if led else "/lunch", status_code=303)
+    path = render_official_receipt(get_school(db), led.program, led)
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+def _ledger_vendor(db, led):
+    """ผู้รับเงินของรายการจ่าย = ผู้รับจ้าง/ร้านของรอบ (รายการที่ระบบสร้างจากรอบหรืองวด)"""
+    rnd = db.get(LunchHireRound, led.round_id) if led.round_id else None
+    if rnd is None and led.installment_id:
+        inst = db.get(LunchInstallment, led.installment_id)
+        rnd = inst.round if inst else None
+    return rnd.vendor if rnd is not None else None
 
 
 # ---------------- จ้างเหมารายรอบ ----------------

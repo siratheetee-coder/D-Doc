@@ -65,7 +65,8 @@ def _safe(name: str) -> str:
 
 
 def render_receipt_voucher(school, *, payee="", payee_address="", items=None, total=None,
-                           date=None, payer="", received_from="", subject="", doc=None) -> str:
+                           date=None, payer="", received_from="", subject="", doc=None,
+                           payee_sign=None) -> str:
     """ออกใบสำคัญรับเงิน 1 ฉบับ
       payee          = ผู้รับเงิน (ข้าพเจ้า)
       payee_address  = ที่อยู่ผู้รับเงิน (พิมพ์ต่อท้าย ถ้ามี)
@@ -75,6 +76,8 @@ def render_receipt_voucher(school, *, payee="", payee_address="", items=None, to
       payer          = ผู้จ่ายเงิน (เจ้าหน้าที่การเงิน/ผอ.)
       received_from  = ได้รับเงินจาก (ปกติ = ชื่อโรงเรียน)
       subject        = ใช้ตั้งชื่อไฟล์
+      payee_sign     = ชื่อใต้ลายเซ็นผู้รับเงิน (ไม่ส่งมา = payee) ใช้ตอนโรงเรียนเป็นผู้รับเงิน
+                       เช่น payee "นาง ก เจ้าหน้าที่การเงิน ในนามโรงเรียน ข" แต่ลงชื่อ "นาง ก"
     """
     own = doc is None
     if own:
@@ -144,13 +147,18 @@ def render_receipt_voucher(school, *, payee="", payee_address="", items=None, to
     for c, w in zip(tot, widths):
         c.width = w
 
+    # Word ยึดความกว้างของช่องหัวตารางที่ผสาน (tcW) มากกว่า grid ถ้าไม่ตั้งทุกแถว ช่อง ส.ต. จะกว้างเกิน
+    for row in tbl.rows:
+        for c, w in zip(row.cells, widths):
+            c.width = w
+
     _p(doc, f"จำนวนเงิน (ตัวอักษร)  {bahttext(total)}", bold=True, before=6, after=16, indent=0.5)
 
     # ช่องลงชื่อ ผู้รับเงิน / ผู้จ่ายเงิน (อยู่ด้านล่าง)
     payer_disp = (payer or "").strip()
     _sign_table(doc, [
         [(f"ลงชื่อ {_DOT} ผู้รับเงิน", "center"),
-         (f"( {who} )", "center")],
+         (f"( {(payee_sign or '').strip() or who} )", "center")],
     ])
     _p(doc, "", after=10)
     _sign_table(doc, [
