@@ -96,7 +96,15 @@ def lunch_home(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("lunch_home.html", {
         "request": request, "school": get_school(db), "rows": rows,
         "modes": OPERATE_MODES,
+        "setup": _lunch_setup(db),
     })
+
+
+def _lunch_setup(db):
+    """ขั้นเริ่มต้นของโครงการปีการศึกษาปัจจุบัน (ปีจากตั้งค่าโรงเรียน เหมือนงานวิชาการ)"""
+    from app.routers.academic import _acad_year
+    from app.services.module_setup import lunch_steps
+    return lunch_steps(db, _acad_year(db))
 
 
 # ---------------- ตั้งค่า/แก้ไขโครงการ ----------------

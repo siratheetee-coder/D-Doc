@@ -8,6 +8,8 @@
     <div class="hero-meta">{{ school.name or "" }} · ปีงบประมาณ {{ fiscal_year }}</div>
   </div>
 </div>
+{# รายการเริ่มต้นงาน (app/services/module_setup.py) ติ๊กเองจากข้อมูลจริง ครบแล้วหาย #}
+{% if setup %}{% set setup_key = 'admin' %}{% set setup_title = 'เริ่มต้นงานธุรการ' %}{% include '_setup_checklist.html' %}{% endif %}
 
 <div class="card">
   <div class="stat">

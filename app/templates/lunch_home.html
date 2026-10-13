@@ -8,6 +8,8 @@
     <div class="hero-meta">{{ school.name or "" }}</div>
   </div>
 </div>
+{# รายการเริ่มต้นงาน (app/services/module_setup.py) ติ๊กเองจากข้อมูลจริง ครบแล้วหาย #}
+{% if setup %}{% set setup_key = 'lunch' %}{% set setup_title = 'เริ่มต้นโครงการอาหารกลางวัน' %}{% include '_setup_checklist.html' %}{% endif %}
 
 <div class="nav-grid">
   <a class="nav-card" href="/lunch/setup">

@@ -52,7 +52,13 @@ def hr_home(request: Request, db: Session = Depends(get_db)):
         "task_cards": hr_tasks(db),
         "n_staff": len(persons), "n_leaves": len(leaves_year),
         "days_leaves": sum(l.days or 0 for l in leaves_year),
+        "setup": _hr_setup(db),
     })
+
+
+def _hr_setup(db):
+    from app.services.module_setup import hr_steps
+    return hr_steps(db, get_school(db))
 
 
 # ==================== ทะเบียนบุคลากร ====================

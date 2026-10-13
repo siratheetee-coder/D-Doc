@@ -114,7 +114,13 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         "n_order": db.query(SchoolOrder).filter_by(fiscal_year=fy).count(),
         "recent_memos": db.query(OfficeMemo).order_by(OfficeMemo.id.desc()).limit(5).all(),
         "recent_orders": db.query(SchoolOrder).order_by(SchoolOrder.id.desc()).limit(5).all(),
+        "setup": _admin_setup(db, get_school(db)),
     })
+
+
+def _admin_setup(db, school):
+    from app.services.module_setup import admin_steps
+    return admin_steps(db, school)
 
 
 # ---------------- ทะเบียนหนังสือรับ ----------------

@@ -8,6 +8,8 @@
     <div class="hero-meta">{{ school.name or "" }} · ปี พ.ศ. {{ year }}</div>
   </div>
 </div>
+{# รายการเริ่มต้นงาน (app/services/module_setup.py) ติ๊กเองจากข้อมูลจริง ครบแล้วหาย #}
+{% if setup %}{% set setup_key = 'hr' %}{% set setup_title = 'เริ่มต้นงานบุคคล' %}{% include '_setup_checklist.html' %}{% endif %}
 
 {% set task_scope = 'คำขอที่ยังไม่เสร็จรวมทุกปี · เปิดรายการเพื่อตรวจสอบหรือดำเนินการตามสิทธิ์ของคุณ' %}
 {% include '_dashboard_tasks.html' %}
