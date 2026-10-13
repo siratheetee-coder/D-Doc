@@ -6,6 +6,30 @@
 .lesson-actions,.lesson-inputs{display:flex;flex-wrap:wrap;gap:12px;align-items:end}.lesson-inputs>div{flex:1 1 160px}.lesson-inputs .short{flex:0 1 150px}.lesson-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}.lesson-stat{background:#f1efff;border:1px solid #ddd6fe;border-radius:14px;padding:16px}.lesson-stat strong{display:block;font-size:24px;color:#5941c6}.lesson-card summary{cursor:pointer;font-weight:700;padding:8px 0}.lesson-card[open] summary{margin-bottom:12px}.lesson-check{max-height:460px;overflow:auto}.lesson-check th{position:sticky;top:0;background:#eeebff;z-index:1}.lesson-check select{min-width:145px}.lesson-note{font-size:13px;color:var(--muted);margin-top:8px}.lesson-actions .btn{white-space:normal}.lesson-date{white-space:nowrap}@media(max-width:650px){.lesson-stats{grid-template-columns:1fr}.lesson-stat{padding:12px}.lesson-stat strong{font-size:20px}.lesson-inputs .short{flex:1 1 120px}}
 
 .lesson-setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}.lesson-calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:12px 0}.lesson-calendar button{border:1px solid #e2e8f0;border-radius:9px;background:#fafaff;min-height:45px;cursor:pointer;color:#334155}.lesson-calendar button.selected{background:#4f46e5;color:white}.lesson-calendar .has-lesson:after{content:'•';display:block;color:#a78bfa;line-height:8px}.slot-choices{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}.slot-choice{display:flex;align-items:center;gap:8px;padding:8px;background:#f5f3ff;border-radius:10px}.slot-choice input[type=checkbox]{width:18px;height:18px;flex:none}.slot-choice input[type=number]{width:72px;padding:6px}.lesson-matrix{overflow:auto;max-height:65vh;margin-top:16px}.lesson-matrix table{border-collapse:separate;border-spacing:0;min-width:100%}.lesson-matrix th,.lesson-matrix td{border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;text-align:center;padding:7px}.lesson-matrix thead{position:sticky;top:0;z-index:3;background:#ede9fe}.lesson-matrix .student-pin{position:sticky;left:0;min-width:210px;text-align:left;background:#fafaff;z-index:2}.lesson-matrix thead .student-pin{z-index:4;background:#ede9fe}.grid-mark{min-width:85px;padding:8px}.grid-mark[data-state="/"]{background:#dcfce7;color:#166534}.grid-mark[data-state="ข"]{background:#fee2e2;color:#991b1b}.grid-mark[data-state="ป"],.grid-mark[data-state="ล"]{background:#fef3c7;color:#92400e}.grid-mark.changed{outline:2px solid #818cf8}.grid-all,.grid-copy{display:block;font-size:11px;background:white;border:1px solid #c4b5fd;border-radius:6px;padding:4px;margin:4px auto;cursor:pointer}.grid-save{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:16px}.lesson-calendar span{text-align:center}.grid-save .btn{white-space:normal}@media(max-width:750px){.lesson-setup-grid{grid-template-columns:1fr}.lesson-matrix .student-pin{min-width:150px;max-width:170px}.slot-choices{grid-template-columns:1fr}}
+
+.lesson-card summary{display:flex;align-items:center;gap:12px;min-height:44px;font-size:16px;color:#312e81}
+.lesson-card summary .muted{font-size:13px;font-weight:400;color:#64748b}
+.lesson-setup-grid{padding-top:16px;border-top:1px solid #e2e8f0}
+.lesson-setup-grid>section{min-width:0;padding:18px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px}
+.lesson-setup-grid h3{margin:0 0 8px;font-size:16px}
+.lesson-calendar button{font:inherit;font-size:15px;min-height:48px;background:white}
+.lesson-calendar button.selected{box-shadow:0 2px 6px #4f46e530;border-color:#4f46e5}
+.slot-choice{margin:0;border:1px solid #e2e8f0;background:white;min-height:52px;font-size:14px}
+.slot-choice:has(input:checked){background:#eef2ff;border-color:#818cf8}
+.slot-choice input[type=checkbox]{width:22px;height:22px;accent-color:#4f46e5}
+.slot-choice span{flex:1}.slot-choice input[type=number]{font:inherit;width:66px}
+#batchSummary{padding:12px;background:#eef2ff;border-radius:10px;color:#3730a3;font-weight:600}
+.lesson-matrix{border:1px solid #e2e8f0;border-radius:12px}
+.lesson-matrix table{width:max-content;min-width:100%;table-layout:auto}
+.lesson-matrix th,.lesson-matrix td{padding:10px 12px}
+.lesson-matrix .student-pin{width:240px;min-width:200px;font-size:14px;font-weight:500}
+.lesson-matrix td{min-width:128px;background:#fff}
+.lesson-matrix .grid-mark{width:112px;min-width:112px;font:inherit;font-size:14px;min-height:40px;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;outline:none}
+.lesson-matrix .grid-mark:focus-visible{outline:2px solid #4f46e5;outline-offset:2px}
+.lesson-matrix .grid-mark.changed{border-color:#6366f1;box-shadow:inset 3px 0 #6366f1}
+.grid-all,.grid-copy{font:inherit;font-size:12px;min-height:32px;padding:5px 10px;color:#4338ca}
+.grid-save{padding:16px;background:#f8fafc;border-radius:12px;margin-top:12px}
+@media(max-width:750px){.lesson-card summary{flex-wrap:wrap}.lesson-setup-grid>section{padding:12px}.lesson-matrix .student-pin{width:160px;min-width:160px}.grid-save{flex-wrap:wrap}}
 </style>
 <div class="hero"><div><div class="hero-sub">งานวิชาการ · เวลาเรียนรายคาบ</div><div class="hero-title">{{ subj.code }} {{ subj.name }}</div><div class="hero-meta">ห้อง {{ class_label(c) }} · ปีการศึกษา {{ c.year }} · ภาคเรียนที่ {{ term }}</div></div></div>
 <div class="lesson-actions" style="margin:16px 0">
@@ -24,7 +48,7 @@
 {% if target is not none and totals[term] != target %}<div class="alert warn">จัดวันสอน{{ 'ขาดอีก' if totals[term] < target else 'เกินเป้าหมาย' }} {{ hours((totals[term]-target)|abs) }} ชั่วโมง · ยังเพิ่มวันสอนและเช็คชื่อได้ตามปกติ</div>{% endif %}
 {% if subj.term not in [1,2] and term==2 %}<p class="lesson-note">เทอม 1 จัดวันสอน {{ hours(totals[1]) }} ชั่วโมง · ทั้งปีจัดแล้ว {{ hours(totals[1]+totals[2]) }} ชั่วโมง{% if subj.hours %} · เหลือจากชั่วโมงทั้งปี {{ hours([0,subj.hours*60-totals[1]-totals[2]]|max) }} ชั่วโมง{% endif %}</p>{% endif %}
 {% if subj.term not in [1,2] %}
-<details class="card lesson-card" {% if entered.get('term1') is not none %}open{% endif %}>
+<details id="lessonTargets" class="card lesson-card" {% if entered.get('term1') is not none %}open{% endif %}>
 <summary>เป้าหมายชั่วโมงรายเทอม (ไม่บังคับ)</summary>
 <p>ชั่วโมงทั้งปี {{ subj.hours or 0 }} ชม. · จัดเทอม 1 แล้ว {{ hours(totals[1]) }} ชม. · เทอม 2 แล้ว {{ hours(totals[2]) }} ชม.</p>
 {% if subj.hours %}<p>คงเหลือจากทั้งปี {{ hours([0, subj.hours*60-totals[1]-totals[2]]|max) }} ชั่วโมง{% if totals[1]+totals[2]>subj.hours*60 %} · จัดเกินทั้งปี {{ hours(totals[1]+totals[2]-subj.hours*60) }} ชั่วโมง{% endif %}</p>{% endif %}
@@ -34,7 +58,7 @@
 <p class="lesson-note">เว้นว่างได้ ระบบจะแสดงชั่วโมงทั้งปีเป็นข้อมูลอ้างอิง โดยไม่เตือนว่าชั่วโมงรายเทอมขาด</p><p id="targetNote" class="lesson-note" aria-live="polite"></p></form></details>
 {% endif %}
 {% include 'academic_lessons_setup.html' %}
-<details class="card lesson-card" {% if preview is not none or entered.get('start') %}open{% endif %}><summary>ดึงวันสอนจากตารางเรียน</summary>
+<details id="lessonImport" class="card lesson-card" {% if preview is not none or entered.get('start') %}open{% endif %}><summary>ดึงวันสอนจากตารางเรียน</summary>
 <p class="muted">เลือกช่วงวันที่เพื่อดูตัวอย่างก่อนนำเข้า ใช้เฉพาะวันเปิดเรียนในปฏิทินการศึกษา ตารางเรียนที่แก้ภายหลังจะไม่เปลี่ยนคาบที่นำเข้าแล้ว</p>
 <form method="post" action="/academic/lessons/preview">{{ keys() }}<div class="lesson-inputs">
 <div><label for="lessonStart">ตั้งแต่วันที่</label><input required type="text" class="lesson-date-input" inputmode="numeric" maxlength="10" placeholder="วว/ดด/ปปปป (พ.ศ.)" id="lessonStart" name="start" value="{{ entered.get('start','') }}"></div>
@@ -58,5 +82,5 @@ if(split)split.addEventListener('click',()=>{document.getElementById('target1').
 ['target1','target2'].forEach(id=>document.getElementById(id)?.addEventListener('input',targetNote));targetNote();
 </script>
 <script id="lessonConfig" type="application/json">{{ {'months':months,'month':month,'events':calendar_events,'entered':entered}|tojson }}</script>
-<script src="/static/academic_lessons_grid.js"></script>
+<script src="/static/academic_lessons_grid.js?v=2"></script>
 {% endblock %}

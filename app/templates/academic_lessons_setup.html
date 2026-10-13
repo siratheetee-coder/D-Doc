@@ -1,11 +1,11 @@
-<details class="card lesson-card" id="lessonSetup" {% if not lessons or error or preview is not none %}open{% endif %}>
-<summary>1. ตั้งวันและคาบสอน <span class="muted">· กดเลือกหลายวันได้</span></summary>
+<details class="card lesson-card" id="lessonSetup" open>
+<summary>1. ตั้งวันและคาบสอน <span class="muted">เลือกวันที่ → เลือกคาบ → บันทึก</span></summary>
 <form id="batchLessons" method="post" action="/academic/lessons/batch-add">{{ keys() }}
 <input type="hidden" name="dates" id="batchDates"><input type="hidden" name="slots" id="batchSlots">
-<div class="lesson-setup-grid"><section><div class="lesson-actions"><button type="button" class="btn soft" id="calPrev" aria-label="เดือนก่อน">‹</button><strong id="calTitle"></strong><button type="button" class="btn soft" id="calNext" aria-label="เดือนถัดไป">›</button><button type="button" class="btn soft" id="calToday">วันนี้</button></div>
+<div class="lesson-setup-grid"><section><div class="lesson-actions"><button type="button" class="btn soft" id="lessonCalPrev" aria-label="เดือนก่อน">‹</button><strong id="lessonCalTitle"></strong><button type="button" class="btn soft" id="lessonCalNext" aria-label="เดือนถัดไป">›</button><button type="button" class="btn soft" id="lessonCalToday">วันนี้</button></div>
 <p class="lesson-note">กดวันที่เพื่อเลือกหรือยกเลิก · จุดสีม่วงหมายถึงมีคาบแล้ว</p><div id="lessonCalendar" class="lesson-calendar"></div><button type="button" class="btn soft" id="clearDates">ล้างวันที่เลือก</button></section>
 <section><h3>คาบที่สอนในวันที่เลือก</h3><p class="lesson-note">เลือกหลายคาบได้ แต่ละคาบจะมีช่องเช็กชื่อแยกกัน</p>
 <div id="slotChoices" class="slot-choices">{% for p in slot_choices %}<label class="slot-choice"><input type="checkbox" data-slot="{{ p.name }}"><span>{{ p.name }}</span><input type="number" min="1" max="720" value="{{ p.minutes }}" aria-label="นาที {{ p.name }}"><small>นาที</small></label>{% endfor %}</div>
 <div class="lesson-actions"><input id="customSlot" placeholder="ชื่อคาบเพิ่มเติม เช่น สอนเสริม" maxlength="80" style="width:200px"><button type="button" class="btn soft" id="addSlot">เพิ่มคาบอื่น</button></div>
-<p id="batchSummary" role="status"></p><button type="submit" class="btn">บันทึกวันสอนและไปเช็กชื่อ</button><p class="lesson-note">คาบที่มีวันและชื่อคาบซ้ำจะถูกข้าม ไม่เปลี่ยนเวลาเรียนเดิม · เพิ่มวันสอนชดเชยนอกปฏิทินได้</p></section></div></form>
+<p id="batchSummary" role="status"></p><button type="submit" class="btn">บันทึกวันและคาบสอน</button><p class="lesson-note">คาบที่มีวันและชื่อคาบซ้ำจะถูกข้าม ไม่เปลี่ยนเวลาเรียนเดิม · เพิ่มวันสอนชดเชยนอกปฏิทินได้</p></section></div></form>
 </details>
