@@ -2,6 +2,7 @@
 {% block title %}ยืนยันอีเมล | Easy Ekkasan{% endblock %}
 {% block content %}
 <div class="card" style="text-align:center; max-width:560px; margin:24px auto; padding:44px 28px;">
+  {% if error %}<div class="alert warn" role="alert">{{ error }}</div>{% endif %}
   {% if bad %}
     <div style="width:70px; height:70px; border-radius:50%; background:#fef2f2; color:#b91c1c;
                 display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:32px;">!</div>

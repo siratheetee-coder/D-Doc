@@ -28,6 +28,13 @@ _engine = None
 _Session = None
 
 
+class SignupThrottle(AccBase):
+    __tablename__ = "signup_throttle"
+    key = Column(String, primary_key=True)
+    started = Column(Integer, nullable=False)
+    count = Column(Integer, nullable=False, default=0)
+
+
 class Tenant(AccBase):
     """โรงเรียนผู้ใช้บริการ (1 โรงเรียน = 1 ฐานข้อมูลแยก ที่ data/schools/<id>/)"""
     __tablename__ = "tenant"

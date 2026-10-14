@@ -521,6 +521,14 @@ def register_submit(request: Request, email: str = Form(""), password: str = For
         return templates.TemplateResponse("register.html", _register_ctx(
             request, error="กรุณาอ่านและกดยอมรับนโยบายความเป็นส่วนตัวก่อนลงทะเบียน",
             form=_form, next=next, packages=packages, amount=amount), status_code=400)
+    from app.services.signup_guard import email_problem, throttle
+    wait = throttle(request, email)
+    problem = ("ทำรายการถี่เกินไป กรุณารอ %s วินาทีแล้วลองใหม่" % wait) if wait else email_problem(email)
+    if problem:
+        return templates.TemplateResponse("register.html", _register_ctx(
+            request, error=problem, form=_form, next=next, packages=packages, amount=amount),
+            status_code=429 if wait else 400,
+            headers={"Retry-After": str(wait)} if wait else {})
     res = register_account(email, password, school_name, contact_name, phone, trial_days=TRIAL_DAYS)
     if res.get("tenant_id"):
         from app.accounts import record_policy_accept, client_ip
@@ -589,6 +597,14 @@ def verify_email_route(request: Request, token: str = "", flow: str = ""):
 def register_resend(request: Request, email: str = Form(""), flow: str = Form("")):
     from app.accounts import new_verify_token
     from app.services.mailer import send_verify_email
+    from app.services.signup_guard import throttle, email_problem
+    wait = throttle(request, email)
+    problem = ("ทำรายการถี่เกินไป กรุณารอ %s วินาทีแล้วลองใหม่" % wait) if wait else email_problem(email)
+    if problem:
+        return templates.TemplateResponse("register_sent.html", {
+            "request": request, "email": email.strip().lower(), "pending": True,
+            "flow": flow, "error": problem}, status_code=429 if wait else 400,
+            headers={"Retry-After": str(wait)} if wait else {})
     token = new_verify_token(email)
     if token:
         send_verify_email(email.strip().lower(), _verify_link(request, token, flow))

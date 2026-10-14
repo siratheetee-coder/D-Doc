@@ -16,3 +16,5 @@ setuptools<81             # ให้ pkg_resources ใช้ได้ (docxcomp
 pytesseract==0.3.13       # OCR อ่านตัวอักษรจากรูป (ต้องมี tesseract-ocr + tesseract-ocr-tha)
 Pillow==11.1.0            # เปิด/ปรับรูปภาพก่อนส่งเข้า OCR
 qrcode
+
+dnspython>=2.6,<3
