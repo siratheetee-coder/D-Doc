@@ -66,6 +66,9 @@ class Tenant(AccBase):
     signup_source = Column(String, default="")      # ปุ่มที่กดตอนสมัคร "รู้จักเราจากไหน"
     signup_ref = Column(String, default="")         # ลิงก์ที่มา (?ref= ในลิงก์ที่แชร์)
     from_sandbox = Column(Boolean, default=False)   # เคยลองระบบตัวอย่างก่อนสมัคร
+    # ---- แนะนำเพื่อน (ดู app/services/referral.py) ----
+    ref_code = Column(String, nullable=True, index=True)   # รหัสแนะนำของโรงเรียนนี้ (สร้างตอนเปิดหน้าแนะนำเพื่อน)
+    referred_by = Column(Integer, nullable=True)           # tenant.id ของโรงเรียนที่แนะนำมา
 
     accounts = relationship("Account", back_populates="tenant",
                             cascade="all, delete-orphan")
@@ -283,6 +286,20 @@ class MaintenanceNotice(AccBase):
         return [x.strip() for x in (self.items or "").splitlines() if x.strip()]
 
 
+class Referral(AccBase):
+    """โรงเรียนหนึ่งแนะนำอีกโรงเรียน: เมื่อโรงเรียนที่ถูกแนะนำจ่ายเงินครั้งแรก ได้ใช้ฟรีเพิ่มทั้งคู่
+    ฝั่งผู้แนะนำที่ยังทดลองใช้อยู่ -> เก็บสิทธิ์ไว้ ได้ตอนจ่ายเงินเอง (referrer_bonus_at ยังว่าง)"""
+    __tablename__ = "referral"
+    id = Column(Integer, primary_key=True)
+    referrer_id = Column(Integer, nullable=False, index=True)
+    referred_id = Column(Integer, nullable=False, unique=True)
+    created_at = Column(DateTime, default=datetime.now)
+    paid_at = Column(DateTime, nullable=True)              # โรงเรียนที่ถูกแนะนำจ่ายเงินครั้งแรก
+    bonus_days = Column(Integer, default=0)                # จำนวนวันที่ให้ (ตามค่าตอนจ่าย)
+    referred_bonus_at = Column(DateTime, nullable=True)
+    referrer_bonus_at = Column(DateTime, nullable=True)
+
+
 class SandboxVisit(AccBase):
     """ทุกครั้งที่มีคนกด "ทดลองใช้ระบบตัวอย่าง" (ระบบตัวอย่างถูกลบใน 24 ชม. แต่ยอดนับยังอยู่)
     ไม่เก็บไอพีหรือข้อมูลส่วนบุคคล เก็บแค่เวลาและลิงก์ที่มา"""
@@ -382,6 +399,8 @@ def _ensure_engine():
                     "ALTER TABLE tenant ADD COLUMN signup_source VARCHAR DEFAULT ''",
                     "ALTER TABLE tenant ADD COLUMN signup_ref VARCHAR DEFAULT ''",
                     "ALTER TABLE tenant ADD COLUMN from_sandbox BOOLEAN DEFAULT 0",
+                    "ALTER TABLE tenant ADD COLUMN ref_code VARCHAR",
+                    "ALTER TABLE tenant ADD COLUMN referred_by INTEGER",
                     # โรงเรียนเดิมยังไม่มีค่า -> ถือว่าใช้งานล่าสุด ณ วันที่สร้างบัญชี
                     # (ไม่ใช่ NULL ไม่งั้นจะถูกนับว่าไม่ใช้งานมานานทันทีตั้งแต่วันอัปเดต)
                     "UPDATE tenant SET last_active_at = created_at WHERE last_active_at IS NULL",
@@ -2108,6 +2127,14 @@ def renew_lead(lead_id: int, days: int = 365) -> dict | None:
         lead.login_user = acc.username if acc else email
         lead.status = "ต่ออายุแล้ว"
         db.commit()
+    finally:
+        db.close()
+    from app.services.referral import on_paid
+    on_paid(tid)                    # แนะนำเพื่อน: จ่ายเงินแล้ว -> ได้วันใช้ฟรีเพิ่ม (ทั้งสองฝั่ง)
+    db = acc_session()
+    try:
+        t = db.get(Tenant, tid)
+        lead = db.get(Lead, lead_id)
         return {"tenant_id": tid, "username": lead.login_user, "expiry": t.expiry_date.isoformat()}
     finally:
         db.close()

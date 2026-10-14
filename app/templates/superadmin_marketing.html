@@ -134,6 +134,25 @@
     <div class="steps">ใช้ได้: ตัวอักษร ตัวเลข ภาษาไทย และ - _ . (ไม่เกิน 40 ตัว)</div>
   </div>
 </div>
+<div class="wrap" style="margin-top:0;">
+  <div class="card">
+    <h2>แนะนำเพื่อน <span class="muted" style="font-weight:400;">(สมัครผ่านลิงก์/รหัสของโรงเรียนอื่น · ทั้งหมด)</span></h2>
+    {% if referrals %}
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>ผู้แนะนำ</th><th>โรงเรียนที่สมัคร</th><th>สมัครเมื่อ</th><th>จ่ายเงิน</th><th>วันฟรีที่ให้</th></tr></thead>
+      <tbody>
+        {% for r in referrals %}
+        <tr><td>{{ r.referrer }}</td><td>{{ r.referred }}</td><td>{{ r.since.strftime('%d/%m/%Y') if r.since else '-' }}</td>
+          <td>{{ r.paid_at.strftime('%d/%m/%Y') if r.paid_at else 'ยังไม่จ่าย' }}</td>
+          <td>{% if r.paid_at %}คนละ {{ r.days }} วัน{% if not r.referrer_done %} <span class="pill">ผู้แนะนำรอรับตอนจ่ายเงิน</span>{% endif %}{% else %}-{% endif %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}
+    <p class="muted" style="margin:0;">ยังไม่มีโรงเรียนสมัครผ่านการแนะนำ</p>
+    {% endif %}
+  </div>
+</div>
 <script>
   var BASE = {{ base|tojson }};
   function mkLink(){

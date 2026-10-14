@@ -12,6 +12,15 @@ import pytest
 from tests.test_subsidy import env  # noqa: F401  (fixture)
 
 
+@pytest.fixture(autouse=True)
+def _no_signup_guard(monkeypatch):
+    """ด่านกันสแปมตอนสมัคร (อีเมลตัวอย่าง/สมัครถี่) มีเทสต์ของตัวเองใน test_signup_guard.py
+    ที่นี่ทดสอบเรื่องอื่น จึงปิดด่านไว้ (และไม่ให้ไปถามโดเมนอีเมลจริงทางเน็ต)"""
+    import app.services.signup_guard as g
+    monkeypatch.setattr(g, "email_problem", lambda email: None)
+    monkeypatch.setattr(g, "throttle", lambda request, email: 0)
+
+
 @pytest.fixture()
 def anon(env, monkeypatch):
     """ผู้เยี่ยมชมที่ยังไม่ล็อกอิน (ใช้ฐานข้อมูลชั่วคราวชุดเดียวกับ env)"""

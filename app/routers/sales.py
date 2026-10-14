@@ -468,9 +468,17 @@ def _remember_ref(resp, ref: str):
 
 def _register_ctx(request, **kw):
     from app.services.marketing import SOURCES, OTHER
+    from app.services import referral as rf
     ctx = {"request": request, "form": {}, "error": None, "next": "", "packages": "", "amount": "",
            "sources": SOURCES, "source_other": OTHER}
     ctx.update(kw)
+    form = dict(ctx["form"] or {})
+    code = form.get("invite_code") or request.cookies.get(rf.COOKIE, "")
+    ctx["invite"] = rf.referrer_by_code(code)
+    if ctx["invite"] and not form.get("invite_code"):      # มาจากลิงก์เพื่อน: กรอกรหัส + เลือกช่องทางให้ก่อน
+        form["invite_code"] = rf.clean_code(code)
+        form.setdefault("heard_from", "เพื่อนครูแนะนำ")
+    ctx["form"] = form
     return ctx
 
 
@@ -511,11 +519,12 @@ def sandbox_start_get():
 def register_submit(request: Request, email: str = Form(""), password: str = Form(""),
                     school_name: str = Form(""), contact_name: str = Form(""), phone: str = Form(""),
                     next: str = Form(""), packages: str = Form(""), amount: str = Form(""),
-                    accept_policy: str = Form(""), heard_from: str = Form(""), heard_other: str = Form("")):
+                    accept_policy: str = Form(""), heard_from: str = Form(""), heard_other: str = Form(""),
+                    invite_code: str = Form("")):
     next = _purchase_target(next, packages)
     from app.services.marketing import normalize_source, record_signup, read_ref, SANDBOX_COOKIE
     _form = {"email": email, "school_name": school_name, "contact_name": contact_name, "phone": phone,
-             "heard_from": heard_from, "heard_other": heard_other}
+             "heard_from": heard_from, "heard_other": heard_other, "invite_code": invite_code}
     # ต้องยอมรับนโยบายก่อนเสมอ - ตรวจฝั่งเซิร์ฟเวอร์ด้วย ไม่ใช่เชื่อป๊อปอัปฝั่งหน้าเว็บอย่างเดียว
     if not accept_policy:
         return templates.TemplateResponse("register.html", _register_ctx(
@@ -535,6 +544,8 @@ def register_submit(request: Request, email: str = Form(""), password: str = For
         record_policy_accept(res["tenant_id"], client_ip(request))
         record_signup(res["tenant_id"], normalize_source(heard_from, heard_other),
                       read_ref(request), request.cookies.get(SANDBOX_COOKIE) == "1")
+        from app.services import referral as rf
+        rf.link(res["tenant_id"], invite_code or request.cookies.get(rf.COOKIE, ""))
     if res.get('pending_verify'):
         email = email.strip().lower()
         return templates.TemplateResponse('register_sent.html', {
