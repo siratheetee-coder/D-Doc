@@ -71,6 +71,22 @@ def record(tenant_id, acc, module, method: str, content_type: str = "") -> None:
         flush()
 
 
+def _fold_into_lifetime(db, cut: str) -> None:
+    """รวมยอดของวันที่กำลังจะถูกลบเข้ายอดสะสม (ทำใน transaction เดียวกับการลบ จึงไม่นับซ้ำ)"""
+    from app.accounts import UsageDay, UsageLifetime
+    rows = (db.query(UsageDay.tenant_id, func.sum(UsageDay.hits), func.sum(UsageDay.writes),
+                     func.sum(UsageDay.docs))
+            .filter(UsageDay.day < cut).group_by(UsageDay.tenant_id).all())
+    for tid, hits, writes, docs in rows:
+        life = db.get(UsageLifetime, tid)
+        if life is None:
+            life = UsageLifetime(tenant_id=tid, hits=0, writes=0, docs=0)
+            db.add(life)
+        life.hits = (life.hits or 0) + (hits or 0)
+        life.writes = (life.writes or 0) + (writes or 0)
+        life.docs = (life.docs or 0) + (docs or 0)
+
+
 def flush() -> int:
     """เขียนที่ค้างในหน่วยความจำลงฐานข้อมูล (รวมยอดกับของเดิมของวันนั้น)"""
     global _last_flush, _last_purge
@@ -105,6 +121,7 @@ def flush() -> int:
         today = date.today().isoformat()
         if _last_purge != today:
             cut = (date.today() - timedelta(days=RETENTION_DAYS)).isoformat()
+            _fold_into_lifetime(db, cut)
             db.query(UsageDay).filter(UsageDay.day < cut).delete(synchronize_session=False)
             _last_purge = today
         db.commit()

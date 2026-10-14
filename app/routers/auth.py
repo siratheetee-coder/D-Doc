@@ -67,7 +67,9 @@ def landing_page(request: Request, ref: str = "", utm_source: str = ""):
     from app.seller_config import pricing_context
     from app.routers.sales import _remember_ref
     msg = request.session.pop("sandbox_msg", None) if "sandbox_msg" in request.session else None
+    from app.services.public_stats import landing_stats
     resp = templates.TemplateResponse("landing.html", {"request": request, "sandbox_msg": msg,
+                                                       "live": landing_stats(),
                                                        **pricing_context()})
     return _remember_ref(resp, ref or utm_source)
 

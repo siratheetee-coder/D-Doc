@@ -75,6 +75,16 @@
   </div>
 
   <div class="card">
+    <h2>ตัวเลขบนหน้า landing <span class="muted" style="font-weight:400;">(อัปเดตวันละครั้ง · นับเฉพาะโรงเรียนจริง ไม่รวมระบบตัวอย่างและโรงเรียนสาธิต)</span></h2>
+    <p style="margin:0; font-size:15px;">ใช้งานไปแล้ว <b>{{ "{:,}".format(live.hits) }}</b> ครั้ง จากทั้งหมด <b>{{ "{:,}".format(live.schools) }}</b> โรงเรียน
+      · ออกเอกสารแล้ว <b>{{ "{:,}".format(live.docs) }}</b> ฉบับ</p>
+    <p class="muted" style="margin:6px 0 0;">
+      {% if live.show %}<span class="pill">แสดงบนหน้า landing อยู่</span>
+      {% else %}<span class="pill" style="background:#fff4e5; color:#b45309;">ยังไม่แสดง</span>
+        จะขึ้นเมื่อมีโรงเรียนครบ {{ live_min }} โรงเรียน (ตัวเลขน้อยเกินไปทำให้ดูไม่น่าเชื่อถือ) · ปรับเกณฑ์ได้ที่ landing_stats_min_schools{% endif %}</p>
+  </div>
+
+  <div class="card">
     <h2>รู้จักเราจากไหน <span class="muted" style="font-weight:400;">(ปุ่มที่ผู้สมัครกดเอง)</span></h2>
     {% if s.sources %}
     {% set top = s.sources[0].signup %}

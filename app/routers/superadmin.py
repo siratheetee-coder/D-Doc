@@ -611,11 +611,13 @@ def marketing_page(request: Request, days: int = 90):
     """ลูกค้ามาจากช่องทางไหน หลุดที่ขั้นไหน (ดู app/services/marketing.py)"""
     from app.services.marketing import summary, RANGES
     from app.services.sandbox import active_count
+    from app.services.public_stats import compute as live_compute, min_schools
     days = days if days in [n for n, _ in RANGES] else 90
     base = (SELLER.get("base_url") or "").strip().rstrip("/") or str(request.base_url).rstrip("/")
     return templates.TemplateResponse("superadmin_marketing.html", {
         "request": request, "days": days, "ranges": RANGES, "s": summary(days),
         "sandbox_now": active_count(), "base": base,
+        "live": live_compute(), "live_min": min_schools(),
         "admin_name": request.session.get("name", "ผู้ดูแลระบบ"),
     })
 

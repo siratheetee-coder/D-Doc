@@ -292,6 +292,16 @@ class SandboxVisit(AccBase):
     ref = Column(String, default="")
 
 
+class UsageLifetime(AccBase):
+    """ยอดสะสมตลอดอายุของแต่ละโรงเรียน: แถว UsageDay ที่เกิน 90 วันถูกรวมมาไว้ที่นี่ก่อนลบ
+    (ตัวเลข "ใช้งานไปแล้ว" บนหน้า landing จึงไม่ลดลงเมื่อข้อมูลรายวันเก่าถูกลบ)"""
+    __tablename__ = "usage_lifetime"
+    tenant_id = Column(Integer, primary_key=True)
+    hits = Column(Integer, default=0)
+    writes = Column(Integer, default=0)
+    docs = Column(Integer, default=0)
+
+
 class UsageDay(AccBase):
     """สรุปการใช้งาน 1 บัญชี ต่อ 1 วัน (ดูรายละเอียดที่ app/usage.py)
 

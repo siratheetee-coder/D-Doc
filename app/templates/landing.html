@@ -93,6 +93,15 @@
   .stat b{ font-size:26px; font-weight:700; }
   .stat b em{ color:var(--yellow); font-style:normal; }
   .stat span{ display:block; font-size:13.5px; color:var(--muted); }
+  .live{ margin:-14px 0 30px; padding:12px 16px; border-radius:14px; max-width:560px;
+         background:linear-gradient(120deg,#ecfdf5,#eff6ff); }
+  .live-tag{ display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:#047857; }
+  .live-tag i{ width:8px; height:8px; border-radius:50%; background:#10b981; box-shadow:0 0 0 0 rgba(16,185,129,.6);
+               animation:livePulse 1.8s infinite; }
+  @keyframes livePulse{ 0%{ box-shadow:0 0 0 0 rgba(16,185,129,.55); } 70%{ box-shadow:0 0 0 8px rgba(16,185,129,0); }
+                        100%{ box-shadow:0 0 0 0 rgba(16,185,129,0); } }
+  .live-txt{ margin-top:3px; font-size:15.5px; color:var(--ink); line-height:1.6; }
+  .live-txt b{ font-size:19px; color:var(--blue-deep); }
 
   /* ซุ้มโค้ง + รูปครู */
   .stage{ position:relative; padding:12px 8px 0; }
@@ -562,6 +571,15 @@
         <div class="stat"><b>6<em>+</em></b><span>งานหลักในระบบเดียว</span></div>
         <div class="stat"><b>1 <em>คลิก</em></b><span>ออกเอกสารครบชุด</span></div>
       </div>
+      {% if live %}
+      {# ตัวเลขจริงจากระบบ อัปเดตวันละครั้ง (app/services/public_stats.py) #}
+      <div class="live">
+        <div class="live-tag"><i></i> ข้อมูลจริงจากระบบ · อัปเดต {{ live.as_of }}</div>
+        <div class="live-txt">ใช้งานไปแล้ว <b>{{ "{:,}".format(live.hits) }}</b> ครั้ง
+          จากทั้งหมด <b>{{ "{:,}".format(live.schools) }}</b> โรงเรียน{% if live.docs %}
+          · ออกเอกสารแล้ว <b>{{ "{:,}".format(live.docs) }}</b> ฉบับ{% endif %}</div>
+      </div>
+      {% endif %}
     </div>
 
     <div class="stage">
