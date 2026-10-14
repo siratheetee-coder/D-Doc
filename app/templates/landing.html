@@ -60,10 +60,6 @@
   .btn-try:hover{ transform:translateY(-2px); box-shadow:0 10px 24px rgba(234,88,12,.36); }
   .btn-try[disabled]{ opacity:.75; cursor:wait; transform:none; }
   .try-form{ display:contents; }
-  .invite-box{ display:flex; gap:12px; align-items:flex-start; margin:0 0 18px; padding:13px 16px; border-radius:14px;
-               background:linear-gradient(120deg,#ecfdf5,#d1fae5); color:#065f46; font-size:15px; line-height:1.55; }
-  .invite-box .ico{ font-size:22px; margin-top:2px; }
-  .invite-box span{ display:block; font-size:13.5px; opacity:.9; }
   .try-note{ flex-basis:100%; margin:-6px 0 0; font-size:13.5px; color:var(--muted, #64748b); }
   .try-msg{ flex-basis:100%; padding:10px 14px; border-radius:12px; font-size:14px; line-height:1.6;
             background:linear-gradient(120deg,#fff7ed,#ffedd5); color:#9a3412; }
@@ -550,12 +546,6 @@
       <h1>ลดงานเอกสาร<br><span class="hl">ให้ครูได้กลับไปสอน</span></h1>
       <p class="lead">Easy Ekkasan รวมงานพัสดุ การเงิน ธุรการ อาหารกลางวัน บุคคล และวิชาการ ไว้ในที่เดียว
         กรอกข้อมูลครั้งเดียว ระบบออกเอกสารราชการให้ครบชุด ถูกต้องตามระเบียบ พร้อมพิมพ์ทันที</p>
-      {% if invite %}
-      <div class="invite-box"><svg class="ico"><use href="#ic-users"/></svg>
-        <div><b>{{ invite.name }}</b> ชวนท่านมาใช้ Easy Ekkasan
-          <span>สมัครทดลองใช้ฟรีผ่านลิงก์นี้ เมื่อสมัครสมาชิกได้ใช้ฟรีเพิ่ม {{ invite_days }} วัน (ทั้งท่านและโรงเรียนที่แนะนำ)</span></div>
-      </div>
-      {% endif %}
       <div class="hero-actions" id="try">
         {% if sandbox_msg or request.query_params.get('sandbox') == 'ended' %}
         <div class="try-msg">{{ sandbox_msg or 'ระบบตัวอย่างชุดเดิมครบ 24 ชั่วโมงและถูกลบแล้ว กดปุ่มด้านล่างเพื่อเปิดชุดใหม่ได้เลย' }}</div>

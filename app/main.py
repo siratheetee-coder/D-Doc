@@ -119,7 +119,7 @@ async def tenant_auth(request: Request, call_next):
     if request.session.get("sandbox") and (path in _LEAVE_SANDBOX or path.startswith("/pay/")):
         request.session.clear()
     # /pay/<token> = ลิงก์ชำระเงินสาธารณะ (ลูกค้าไม่ต้องล็อกอิน) token เซ็นลายเซ็นกันปลอม
-    if path.startswith("/static") or path.startswith("/pay/") or path.startswith("/r/") or path in PUBLIC_PATHS:
+    if path.startswith("/static") or path.startswith("/pay/") or path in PUBLIC_PATHS:
         return await call_next(request)
 
     sess = request.session
@@ -445,8 +445,6 @@ app.include_router(academic.router)
 app.include_router(textbooks.router)
 app.include_router(general.router)
 app.include_router(sales.router)
-from app.routers import referral as referral_router
-app.include_router(referral_router.router)
 
 
 def _open_browser():

@@ -577,15 +577,9 @@ def renew_tenant(tid: int, days: str = Form("365")):
             t.modules = ALL_MODULES_CSV
             t.docs_limit = 0
             db.commit()
+            exp = t.expiry_date.isoformat()
         else:
             return RedirectResponse("/admin-console?msg=ไม่พบโรงเรียน", status_code=303)
-    finally:
-        db.close()
-    from app.services.referral import on_paid
-    on_paid(tid)                    # แนะนำเพื่อน: เป็นสมาชิกแล้ว -> ได้วันใช้ฟรีเพิ่ม
-    db = acc_session()
-    try:
-        exp = db.get(Tenant, tid).expiry_date.isoformat()
     finally:
         db.close()
     return RedirectResponse(f"/admin-console?msg={quote('ต่ออายุเป็นสมาชิกถึง ' + exp)}", status_code=303)
@@ -617,12 +611,11 @@ def marketing_page(request: Request, days: int = 90):
     """ลูกค้ามาจากช่องทางไหน หลุดที่ขั้นไหน (ดู app/services/marketing.py)"""
     from app.services.marketing import summary, RANGES
     from app.services.sandbox import active_count
-    from app.services.referral import all_rows
     days = days if days in [n for n, _ in RANGES] else 90
     base = (SELLER.get("base_url") or "").strip().rstrip("/") or str(request.base_url).rstrip("/")
     return templates.TemplateResponse("superadmin_marketing.html", {
         "request": request, "days": days, "ranges": RANGES, "s": summary(days),
-        "sandbox_now": active_count(), "base": base, "referrals": all_rows(),
+        "sandbox_now": active_count(), "base": base,
         "admin_name": request.session.get("name", "ผู้ดูแลระบบ"),
     })
 
