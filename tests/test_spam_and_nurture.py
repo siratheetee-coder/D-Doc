@@ -274,3 +274,19 @@ def test_restore_deleted_schools_from_backup(env, tmp_path):
         db.close()
     assert (get_data_dir() / "schools" / str(a) / "school.db").exists()
     assert rt.plan(bk)["restore"] == [], "กู้ซ้ำไม่ได้ (มีอยู่แล้ว)"
+
+
+def test_email_typo_hint_is_on_public_forms(env):
+    """เคยเจอจริง: ครูสมัครด้วย @hmail.com แล้วไม่ได้รับอีเมลยืนยัน · หน้าสมัคร/ขอใบเสนอราคาต้องเตือนโดเมนพิมพ์ผิด
+    (ตรรกะเดาโดเมนอยู่ใน static/email-typo.js ตรวจในเบราว์เซอร์แล้ว: hmail -> gmail/hotmail, ไม่เดากับ .ac.th)"""
+    import pathlib
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    for url in ("/register", "/quote"):
+        html = c.get(url).text
+        assert 'name="email"' in html and "data-email-typo" in html and "/static/email-typo.js" in html, url
+    js = (pathlib.Path(__file__).resolve().parents[1] / "app/static/email-typo.js").read_text(encoding="utf-8")
+    for d in ("gmail.com", "hotmail.com", "hotmail.co.th", "outlook.com", "yahoo.com"):
+        assert f"'{d}'" in js
+    assert c.get("/static/email-typo.js").status_code == 200

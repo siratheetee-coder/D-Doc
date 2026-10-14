@@ -16,7 +16,7 @@
   <input type="hidden" name="amount" value="{{ amount }}">
 
   <label>อีเมล (ใช้เป็นชื่อผู้ใช้เข้าระบบ) <span class="req">*</span></label>
-  <input name="email" type="email" required placeholder="name@example.com" value="{{ form.email or '' }}">
+  <input name="email" type="email" required placeholder="name@example.com" value="{{ form.email or '' }}" data-email-typo>
 
   <label>ตั้งรหัสผ่าน <span class="req">*</span></label>
   <input id="pw" name="password" type="password" required minlength="8"
@@ -238,4 +238,5 @@
     if(e.target === this) polClose();
   });
 </script>
+<script src="/static/email-typo.js?v=1"></script>
 {% endblock %}

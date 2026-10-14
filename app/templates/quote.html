@@ -109,7 +109,7 @@
     </div>
     <div>
       <label>อีเมล (รับใบเสนอราคา) <span class="req">*</span></label>
-      <input name="email" type="email" required placeholder="name@example.com" value="{{ prefill.email or '' }}">
+      <input name="email" type="email" required placeholder="name@example.com" value="{{ prefill.email or '' }}" data-email-typo>
     </div>
   </div>
 
@@ -168,4 +168,5 @@
   calc();
 })();
 </script>
+<script src="/static/email-typo.js?v=1"></script>
 {% endblock %}
