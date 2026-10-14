@@ -149,13 +149,13 @@ def run(dry_run: bool = False, verbose: bool = True, today: date | None = None) 
 
 
 if __name__ == "__main__":
-    # cron วันละครั้งตัวเดียวทำครบ: เตือนหมดเวลา + อีเมลแนะนำตามความคืบหน้า + ล้างการสมัครที่ไม่ยืนยันอีเมล
+    # cron วันละครั้งตัวเดียวทำครบ: เตือนหมดเวลา + อีเมลแนะนำตามความคืบหน้า
+    # (ไม่ลบการสมัครที่ไม่ยืนยันอีเมลอัตโนมัติ: ส่วนใหญ่เป็นครูจริง เจ้าของสั่ง 2026-10-14 ดู signup_cleanup)
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
     _dry = "--dry-run" in sys.argv or "-n" in sys.argv
     run(dry_run=_dry)
-    from app.services import trial_nurture, signup_cleanup
+    from app.services import trial_nurture
     trial_nurture.run(dry_run=_dry)
-    signup_cleanup.purge_unverified(dry_run=_dry, verbose=True)

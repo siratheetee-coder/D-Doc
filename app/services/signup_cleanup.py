@@ -1,19 +1,22 @@
 # -*- coding: utf-8 -*-
 """
-signup_cleanup.py - ลบการสมัครที่ไม่เคยยืนยันอีเมล (ส่วนใหญ่คือบอท/สแปม)
+signup_cleanup.py - ดู/ลบการสมัครที่ไม่เคยยืนยันอีเมล (สั่งเองเท่านั้น ไม่ลบอัตโนมัติ)
+
+!! ไม่มีการลบอัตโนมัติ: ตรวจของจริงบนเซิร์ฟเวอร์ (2026-10-14) พบว่าส่วนใหญ่เป็นครูจริงที่ยังไม่ได้กดยืนยัน
+   (อีเมลยืนยันอาจไปอยู่ในสแปม) การลบเองจะเสียรายชื่อลูกค้า · ลบได้เฉพาะเมื่อสั่งพร้อม --confirm
 
 ตอนสมัคร ระบบสร้างโรงเรียน + คำขอ "ทดลองใช้ฟรี" ไว้ก่อนยืนยันอีเมล
-ถ้าไม่ยืนยันภายใน UNVERIFIED_DAYS วัน ถือว่าไม่ใช่คนจริง -> ลบทิ้งทั้งโรงเรียนและคำขอ
-(รายชื่อในคอนโซลและตัวเลขบนหน้า landing จะได้ไม่ปนสแปม · คนจริงสมัครใหม่ได้ด้วยอีเมลเดิม)
+ระหว่างยังไม่ยืนยัน: ไม่นับในตัวเลขหน้า landing (public_stats) แต่ยังอยู่ในระบบ
 
 ลบเฉพาะที่ปลอดภัยแน่นอน:
   - plan = trial เท่านั้น (สมาชิกที่จ่ายเงินไม่แตะ)
   - ไอดีหลักทุกบัญชีของโรงเรียนนั้นยังไม่ยืนยันอีเมล และไม่มีบัญชีอื่นที่ยืนยันแล้ว
   - สมัครมานานเกิน UNVERIFIED_DAYS วัน
 
-รันเองดูก่อน (ไม่ลบจริง):
-    /opt/ddoc/.venv/bin/python -m app.services.signup_cleanup --dry-run
-ปกติรันอัตโนมัติวันละครั้งพร้อมอีเมลเตือนทดลองใช้ (cron ของ trial_notice) และตอนเปิดเซิร์ฟเวอร์
+ดูรายชื่อ (ไม่ลบ):
+    /opt/ddoc/.venv/bin/python -m app.services.signup_cleanup
+ลบจริง (ทุกรายการในรายชื่อ):
+    /opt/ddoc/.venv/bin/python -m app.services.signup_cleanup --confirm
 """
 import sys
 from datetime import datetime, timedelta
@@ -83,4 +86,4 @@ if __name__ == "__main__":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
-    purge_unverified(dry_run="--dry-run" in sys.argv or "-n" in sys.argv, verbose=True)
+    purge_unverified(dry_run="--confirm" not in sys.argv, verbose=True)     # ไม่ใส่ --confirm = ดูอย่างเดียว

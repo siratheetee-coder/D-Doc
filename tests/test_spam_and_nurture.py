@@ -207,3 +207,14 @@ def test_signup_check_survives_missing_dnspython(monkeypatch):
     assert email_problem("kru@school.ac.th") is None
     assert email_problem("kru@example.com"), "ยังกันอีเมลตัวอย่างได้"
     assert email_problem("not-an-email"), "ยังตรวจรูปแบบอีเมลได้"
+
+
+def test_unverified_signups_are_never_deleted_automatically():
+    """เจ้าของสั่ง (2026-10-14): ส่วนใหญ่เป็นครูจริงที่ยังไม่ได้กดยืนยัน ห้ามลบเอง
+    ลบได้เฉพาะสั่งด้วยมือพร้อม --confirm"""
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parents[1] / "app"
+    for f in ("main.py", "services/trial_notice.py"):
+        assert "purge_unverified" not in (root / f).read_text(encoding="utf-8"), f
+    src = (root / "services/signup_cleanup.py").read_text(encoding="utf-8")
+    assert 'dry_run="--confirm" not in sys.argv' in src

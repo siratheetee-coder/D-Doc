@@ -420,13 +420,6 @@ def _cleanup_sandboxes():
             print(f"[sandbox] ลบระบบตัวอย่างที่หมดเวลา {n} ชุด")
     except Exception as e:
         print("[sandbox] ล้างไม่สำเร็จ:", e)
-    try:                        # การสมัครที่ไม่ยืนยันอีเมลเกิน 3 วัน (สแปม) - ปกติล้างทุกวันจาก cron
-        from app.services.signup_cleanup import purge_unverified
-        n = purge_unverified()
-        if n:
-            print(f"[signup] ลบการสมัครที่ไม่ยืนยันอีเมล {n} รายการ")
-    except Exception as e:
-        print("[signup] ล้างไม่สำเร็จ:", e)
 
 
 _cleanup_sandboxes()
