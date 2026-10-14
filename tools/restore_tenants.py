@@ -37,7 +37,9 @@ def _cols(con, table):
 def plan(old_dir: Path, only_ids=None) -> dict:
     """ดูว่าจะกู้อะไร ชนอะไร (ไม่แก้ข้อมูล)"""
     from app.database import get_data_dir
-    old = sqlite3.connect(f"file:{old_dir / 'accounts.db'}?mode=ro", uri=True)
+    # immutable=1: ไฟล์สำรองเป็น WAL ถ้าเปิดแบบ ro ธรรมดา SQLite ยังต้องสร้าง -shm ข้างไฟล์
+    # โฟลเดอร์ที่ root แตกไว้ ผู้ใช้ ddoc เขียนไม่ได้ -> "attempt to write a readonly database"
+    old = sqlite3.connect(f"file:{(old_dir / 'accounts.db').as_posix()}?mode=ro&immutable=1", uri=True)
     cur = sqlite3.connect(f"file:{get_data_dir() / 'accounts.db'}?mode=ro", uri=True)
     try:
         now_ids = {r[0] for r in cur.execute("SELECT id FROM tenant")}
