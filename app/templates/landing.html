@@ -93,15 +93,17 @@
   .stat b{ font-size:26px; font-weight:700; }
   .stat b em{ color:var(--yellow); font-style:normal; }
   .stat span{ display:block; font-size:13.5px; color:var(--muted); }
-  .live{ margin:-14px 0 30px; padding:12px 16px; border-radius:14px; max-width:560px;
+  .live{ margin:-14px 0 30px; padding:12px 18px; border-radius:14px; width:fit-content; max-width:100%;
          background:linear-gradient(120deg,#ecfdf5,#eff6ff); }
   .live-tag{ display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:#047857; }
   .live-tag i{ width:8px; height:8px; border-radius:50%; background:#10b981; box-shadow:0 0 0 0 rgba(16,185,129,.6);
                animation:livePulse 1.8s infinite; }
   @keyframes livePulse{ 0%{ box-shadow:0 0 0 0 rgba(16,185,129,.55); } 70%{ box-shadow:0 0 0 8px rgba(16,185,129,0); }
                         100%{ box-shadow:0 0 0 0 rgba(16,185,129,0); } }
-  .live-txt{ margin-top:3px; font-size:15.5px; color:var(--ink); line-height:1.6; }
-  .live-txt b{ font-size:19px; color:var(--blue-deep); }
+  .live-txt{ margin-top:3px; font-size:15px; color:var(--ink); line-height:1.6; }
+  .live-txt span{ white-space:nowrap; }
+  .live-txt .dot{ color:var(--muted); }
+  .live-txt b{ font-size:18px; color:var(--blue-deep); }
 
   /* ซุ้มโค้ง + รูปครู */
   .stage{ position:relative; padding:12px 8px 0; }
@@ -506,6 +508,8 @@
     .brand img{ height:28px; }
     .nav-cta{ gap:6px; flex:none; }
     .nav-cta .btn{ padding:7px 12px; font-size:13px; }
+    .live-txt span{ display:block; }          /* มือถือ: วลีละบรรทัด */
+    .live-txt .dot{ display:none; }
   }
   @media (max-width:380px){
     .brand{ font-size:14.5px; gap:5px; }
@@ -587,9 +591,10 @@
       {# ตัวเลขจริงจากระบบ อัปเดตวันละครั้ง (app/services/public_stats.py) #}
       <div class="live">
         <div class="live-tag"><i></i> ข้อมูลจริงจากระบบ · อัปเดต {{ live.as_of }}</div>
-        <div class="live-txt">ใช้งานไปแล้ว <b>{{ "{:,}".format(live.hits) }}</b> ครั้ง
-          จากทั้งหมด <b>{{ "{:,}".format(live.schools) }}</b> โรงเรียน{% if live.docs %}
-          · ออกเอกสารแล้ว <b>{{ "{:,}".format(live.docs) }}</b> ฉบับ{% endif %}</div>
+        {# แต่ละวลีห้ามตัดกลาง (ตัวเลขกับหน่วยต้องอยู่บรรทัดเดียวกัน) ตกบรรทัดได้เฉพาะระหว่างวลี #}
+        <div class="live-txt"><span>ใช้งานไปแล้ว <b>{{ "{:,}".format(live.hits) }}</b> ครั้ง</span>
+          <span>จากทั้งหมด <b>{{ "{:,}".format(live.schools) }}</b> โรงเรียน</span>{% if live.docs %}
+          <span class="dot">·</span> <span>ออกเอกสารแล้ว <b>{{ "{:,}".format(live.docs) }}</b> ฉบับ</span>{% endif %}</div>
       </div>
       {% endif %}
     </div>
