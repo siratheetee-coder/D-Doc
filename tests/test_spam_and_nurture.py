@@ -218,3 +218,59 @@ def test_unverified_signups_are_never_deleted_automatically():
         assert "purge_unverified" not in (root / f).read_text(encoding="utf-8"), f
     src = (root / "services/signup_cleanup.py").read_text(encoding="utf-8")
     assert 'dry_run="--confirm" not in sys.argv' in src
+
+
+def test_restore_deleted_schools_from_backup(env, tmp_path):
+    """กู้เหตุการณ์จริง 2026-10-14: ระบบลบการสมัครที่ไม่ยืนยันอีเมล 20 แห่งตอนเปิดเซิร์ฟเวอร์
+    กู้เฉพาะโรงเรียนที่ถูกลบจากไฟล์สำรอง โดยไม่ทับโรงเรียนอื่น · ชนอีเมลที่สมัครใหม่ = ข้าม"""
+    import importlib.util
+    import pathlib
+    import shutil
+    import sqlite3
+    from app.accounts import acc_session, Account, Lead, Tenant
+    from app.database import get_data_dir
+    from app.services import signup_cleanup as sc
+    from app.tenancy import ensure_school_db
+    db = acc_session()
+    try:
+        a = _school(db, "ครูจริงก", age_days=5)
+        b = _school(db, "ครูจริงข", age_days=5)
+        keep = _school(db, "อยู่ต่อ", verified=True, age_days=5)
+    finally:
+        db.close()
+    ensure_school_db(a)
+    # ไฟล์สำรอง (snapshot ก่อนลบ) แบบเดียวกับ deploy/backup.sh
+    bk = tmp_path / "old"
+    (bk / "schools" / str(a)).mkdir(parents=True)
+    src = sqlite3.connect(str(get_data_dir() / "accounts.db"))
+    dst = sqlite3.connect(str(bk / "accounts.db"))
+    src.backup(dst); dst.close(); src.close()
+    shutil.copyfile(get_data_dir() / "schools" / str(a) / "school.db", bk / "schools" / str(a) / "school.db")
+
+    assert sc.purge_unverified() == 2                       # เหตุการณ์ที่เกิดจริง
+    db = acc_session()
+    try:
+        db.get(Tenant, keep).name = "อยู่ต่อ (แก้หลังสำรอง)"   # ข้อมูลใหม่หลังวันสำรองต้องไม่ถูกทับ
+        t = Tenant(name="สมัครใหม่", slug="new-b", plan="trial"); db.add(t); db.flush()
+        db.add(Account(tenant_id=t.id, username="ครูจริงข@school.ac.th", password_hash="x", is_owner=True))
+        db.commit()
+    finally:
+        db.close()
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location("restore_tenants", root / "tools" / "restore_tenants.py")
+    rt = importlib.util.module_from_spec(spec); spec.loader.exec_module(rt)
+    p = rt.plan(bk)
+    assert [i["tenant"]["id"] for i in p["restore"]] == [a]
+    assert [s[0] for s in p["skipped"]] == [b], "อีเมลนี้สมัครใหม่ไปแล้ว ต้องข้าม"
+    assert rt.apply(bk, p) == 1
+    db = acc_session()
+    try:
+        assert db.get(Tenant, a).name == "ครูจริงก"
+        assert db.query(Account).filter_by(tenant_id=a, username="ครูจริงก@school.ac.th").count() == 1
+        assert db.query(Lead).filter_by(tenant_id=a, kind="trial").count() == 1
+        assert db.get(Tenant, keep).name == "อยู่ต่อ (แก้หลังสำรอง)"
+    finally:
+        db.close()
+    assert (get_data_dir() / "schools" / str(a) / "school.db").exists()
+    assert rt.plan(bk)["restore"] == [], "กู้ซ้ำไม่ได้ (มีอยู่แล้ว)"
