@@ -500,6 +500,18 @@
     .fc-3,.fc-a,.fc-c{ display:none; }
     .fc-1{ left:0; }
     .fc-b{ left:0; }
+    /* แถบบนจอมือถือ: โลโก้ + 2 ปุ่มต้องอยู่บรรทัดเดียวโดยไม่ทับกัน */
+    .nav{ height:60px; gap:8px; }
+    .brand{ font-size:16px; gap:7px; white-space:nowrap; min-width:0; }
+    .brand img{ height:28px; }
+    .nav-cta{ gap:6px; flex:none; }
+    .nav-cta .btn{ padding:7px 12px; font-size:13px; }
+  }
+  @media (max-width:380px){
+    .brand{ font-size:14.5px; gap:5px; }
+    .brand img{ height:24px; }
+    .nav-cta .btn{ padding:7px 10px; font-size:12.5px; }
+    .nav-cta .btn-ghost{ border:0; padding:7px 4px; }
   }
 </style>
 </head>
