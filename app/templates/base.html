@@ -1170,6 +1170,26 @@
           <span>โหมดผู้อำนวยการ · เข้าดูได้อย่างเดียว (แก้ไข/สร้าง/ลบไม่ได้) · หน้าที่แก้ไขได้คือ กล่องรออนุมัติ และ งานนิเทศ</span>
         </div>
         {% endif %}
+        {% if request.session.get('sandbox') %}
+        {# ===== ระบบตัวอย่าง: บอกทุกหน้าว่าเป็นข้อมูลสมมติ + ทางไปสมัครจริง ===== #}
+        <div class="sbx-bar">
+          <svg class="icon" style="width:22px;height:22px;flex:none;"><use href="#ic-info"/></svg>
+          <div style="flex:1; min-width:220px;">
+            <b>นี่คือระบบตัวอย่าง</b> ข้อมูลทั้งหมดเป็นของสมมติ ลองกด ลองแก้ ลองพิมพ์เอกสารได้เต็มที่
+            <span class="sbx-sub">ระบบจะลบข้อมูลชุดนี้เองภายใน 24 ชั่วโมง · ไม่มีการส่งอีเมลจริง</span>
+          </div>
+          <a class="sbx-btn" href="/register?from=sandbox">สมัครใช้งานจริง ฟรี {{ trial_days or 30 }} วัน</a>
+        </div>
+        <style>
+          .sbx-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px;
+            padding:12px 16px; border-radius:14px; color:#fff; font-size:14.5px; line-height:1.55;
+            background:linear-gradient(120deg,#c2410c,#ea580c 55%,#f59e0b); box-shadow:0 6px 18px rgba(234,88,12,.25); }
+          .sbx-sub { display:block; font-size:13px; opacity:.92; }
+          .sbx-btn { background:#fff; color:#c2410c; font-weight:700; text-decoration:none; padding:9px 16px;
+            border-radius:10px; white-space:nowrap; }
+          .sbx-btn:hover { background:#fff7ed; }
+        </style>
+        {% endif %}
         {# ===== ประกาศแจ้งปิดปรับปรุงระบบ (ขึ้นทุกหน้า หายเองเมื่อพ้นกำหนด) ===== #}
         {% set _mt = maint_notice() %}
         {% if _mt %}

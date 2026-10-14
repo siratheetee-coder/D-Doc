@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Easy Ekkasan | ลูกค้ามาจากไหน</title>
+  <link rel="icon" type="image/png" href="/static/favicon-ekkasan.png">
+  <style>
+    @font-face { font-family:"Prompt"; font-weight:400; src:url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:600; src:url("/static/fonts/Prompt-SemiBold.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:700; src:url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:"Prompt","Sarabun","Segoe UI",sans-serif; background:#F5F6FA; color:#202224; }
+    .top { background:#1b2433; color:#fff; padding:14px 26px; display:flex; justify-content:space-between; align-items:center; }
+    .top b { font-size:18px; } .top a { color:#cbd5e1; text-decoration:none; font-size:15px; }
+    .wrap { max-width:1180px; margin:24px auto; padding:0 20px; }
+    .card { background:#fff; border-radius:14px; padding:20px 22px; margin-bottom:20px;
+      box-shadow:0 2px 10px rgba(16,24,40,.06); }
+    h1 { font-size:20px; margin:0 0 6px; }
+    h2 { font-size:16px; margin:0 0 10px; }
+    .muted { color:#5a6a85; font-size:14px; }
+    .tabs { display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 0; }
+    .tab { text-decoration:none; padding:7px 16px; border-radius:999px; font-size:14.5px; font-weight:600;
+      color:#44506b; background:#eef1f7; }
+    .tab.on { color:#fff; background:linear-gradient(120deg,#2563eb,#6366f1); box-shadow:0 4px 12px rgba(37,99,235,.28); }
+    .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:16px 0 0; }
+    .stat { border-radius:12px; padding:14px 16px; color:#fff; }
+    .stat .n { font-size:26px; font-weight:700; line-height:1.1; }
+    .stat .l { font-size:13px; opacity:.92; margin-top:2px; }
+    .s1 { background:linear-gradient(120deg,#ea580c,#f59e0b); }
+    .s2 { background:linear-gradient(120deg,#2563eb,#60a5fa); }
+    .s3 { background:linear-gradient(120deg,#0d9488,#5eead4); }
+    .s4 { background:linear-gradient(120deg,#7c3aed,#c4b5fd); }
+    .tbl-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th,td { border-bottom:1px solid #eceef3; padding:9px 8px; text-align:left; vertical-align:middle; }
+    th { font-size:13px; color:#5a6a85; white-space:nowrap; }
+    td.r, th.r { text-align:right; }
+    tr.sum td { font-weight:700; background:#f8f9fc; }
+    .bar { height:8px; border-radius:999px; background:#eef1f7; overflow:hidden; min-width:80px; }
+    .bar i { display:block; height:100%; background:linear-gradient(90deg,#2563eb,#6366f1); border-radius:999px; }
+    .pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600;
+      background:#eef4ff; color:#2563eb; margin:2px 4px 2px 0; }
+    .link-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+    input { font-family:inherit; font-size:14.5px; padding:8px 12px; border:0; border-radius:10px; background:#eef1f7; }
+    .out { flex:1; min-width:260px; background:#f0fdf4; color:#166534; font-weight:600; word-break:break-all; }
+    .btn { font-family:inherit; font-size:14px; font-weight:600; padding:8px 16px; border:0; border-radius:10px; cursor:pointer;
+      color:#fff; background:linear-gradient(120deg,#2563eb,#6366f1); }
+    .steps { display:flex; gap:6px; flex-wrap:wrap; font-size:13px; color:#5a6a85; margin-top:6px; }
+    .steps b { color:#202224; }
+  </style>
+</head>
+<body>
+<div class="top">
+  <b>ลูกค้ามาจากไหน</b>
+  <span><a href="/admin-console">← กลับคอนโซล</a></span>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <h1>ลูกค้ามาจากช่องทางไหน และหลุดที่ขั้นไหน</h1>
+    <p class="muted" style="margin:0;">นับโรงเรียนที่สมัครในช่วงที่เลือก (ไม่รวมระบบตัวอย่าง) ·
+      <b>ใช้งานจริง</b> = ออกเอกสารอย่างน้อย 1 ฉบับ · <b>จ่ายเงิน</b> = เป็นสมาชิกแล้ว</p>
+    <div class="tabs">
+      {% for n, label in ranges %}
+      <a class="tab {{ 'on' if days == n }}" href="/admin-console/marketing?days={{ n }}">{{ label }}</a>
+      {% endfor %}
+    </div>
+    <div class="stats">
+      <div class="stat s1"><div class="n">{{ s.visits }}</div><div class="l">ครั้งที่ลองระบบตัวอย่าง (ตอนนี้เปิดอยู่ {{ sandbox_now }} ชุด)</div></div>
+      <div class="stat s2"><div class="n">{{ s.total.signup }}</div><div class="l">สมัครใช้งาน{% if s.after_sandbox %} · ลองระบบตัวอย่างก่อน {{ s.after_sandbox }}{% endif %}</div></div>
+      <div class="stat s3"><div class="n">{{ s.total.used }}</div><div class="l">ใช้งานจริง</div></div>
+      <div class="stat s4"><div class="n">{{ s.total.paid }}</div><div class="l">จ่ายเงินแล้ว{% if s.total.rate is not none %} ({{ s.total.rate }}%){% endif %}</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>รู้จักเราจากไหน <span class="muted" style="font-weight:400;">(ปุ่มที่ผู้สมัครกดเอง)</span></h2>
+    {% if s.sources %}
+    {% set top = s.sources[0].signup %}
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>ช่องทาง</th><th></th><th class="r">สมัคร</th><th class="r">ยืนยันอีเมล</th>
+        <th class="r">ใช้งานจริง</th><th class="r">จ่ายเงิน</th><th class="r">จ่าย/สมัคร</th><th class="r">ลองตัวอย่างก่อน</th></tr></thead>
+      <tbody>
+        {% for r in s.sources %}
+        <tr>
+          <td><b>{{ r.label }}</b></td>
+          <td style="width:22%;"><div class="bar"><i style="width:{{ (r.signup / top * 100)|round(1) if top else 0 }}%;"></i></div></td>
+          <td class="r">{{ r.signup }}</td><td class="r">{{ r.verified }}</td><td class="r">{{ r.used }}</td>
+          <td class="r">{{ r.paid }}</td><td class="r">{{ (r.rate ~ '%') if r.rate is not none else '-' }}</td>
+          <td class="r">{{ r.sandbox }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="sum"><td>รวม</td><td></td><td class="r">{{ s.total.signup }}</td><td class="r">{{ s.total.verified }}</td>
+          <td class="r">{{ s.total.used }}</td><td class="r">{{ s.total.paid }}</td>
+          <td class="r">{{ (s.total.rate ~ '%') if s.total.rate is not none else '-' }}</td><td class="r">{{ s.total.sandbox }}</td></tr>
+      </tbody>
+    </table></div>
+    {% if s.others %}
+    <p class="muted" style="margin:12px 0 0;">ที่พิมพ์มาในช่อง "อื่น ๆ":
+      {% for o in s.others %}<span class="pill">{{ o }}</span>{% endfor %}</p>
+    {% endif %}
+    <p class="muted" style="margin:10px 0 0;">"ไม่ระบุ" = สมัครก่อนมีปุ่มนี้ หรือผู้ดูแลสร้างบัญชีให้</p>
+    {% else %}
+    <p class="muted">ยังไม่มีการสมัครในช่วงนี้</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>ลิงก์ที่มา <span class="muted" style="font-weight:400;">(ลิงก์ที่มี ?ref= ระบบจำไว้ 60 วัน)</span></h2>
+    {% if s.refs %}
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>ชื่อลิงก์</th><th class="r">ลองระบบตัวอย่าง</th><th class="r">สมัคร</th>
+        <th class="r">ใช้งานจริง</th><th class="r">จ่ายเงิน</th></tr></thead>
+      <tbody>
+        {% for r in s.refs %}
+        <tr><td><b>{{ r.label }}</b></td><td class="r">{{ r.visits }}</td><td class="r">{{ r.signup }}</td>
+          <td class="r">{{ r.used }}</td><td class="r">{{ r.paid }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}
+    <p class="muted" style="margin:0 0 6px;">ยังไม่มีใครเข้ามาทางลิงก์ที่ตั้งชื่อไว้ในช่วงนี้</p>
+    {% endif %}
+
+    <h2 style="margin-top:18px;">สร้างลิงก์สำหรับแชร์</h2>
+    <p class="muted" style="margin:0;">ตั้งชื่อให้แต่ละที่ที่โพสต์ เช่น <b>fb-กลุ่มครูพัสดุ</b>, <b>yt-คลิปพัสดุ</b>, <b>qr-โปสเตอร์อบรม</b>
+      แล้วใช้ลิงก์นั้นแทนลิงก์ปกติ ระบบจะบอกได้ว่าคนที่สมัครมาจากโพสต์ไหน</p>
+    <div class="link-row">
+      <input id="refName" placeholder="ชื่อลิงก์ เช่น fb-กลุ่มครูพัสดุ" maxlength="40" oninput="mkLink()">
+      <input id="refOut" class="out" readonly value="{{ base }}/landing">
+      <button class="btn" type="button" onclick="cpLink(this)">คัดลอก</button>
+    </div>
+    <div class="steps">ใช้ได้: ตัวอักษร ตัวเลข ภาษาไทย และ - _ . (ไม่เกิน 40 ตัว)</div>
+  </div>
+</div>
+<script>
+  var BASE = {{ base|tojson }};
+  function mkLink(){
+    var v = document.getElementById('refName').value.trim().replace(/[^0-9A-Za-z฀-๿._-]/g, '').slice(0, 40);
+    document.getElementById('refOut').value = BASE + '/landing' + (v ? '?ref=' + encodeURIComponent(v) : '');
+  }
+  function cpLink(btn){
+    var o = document.getElementById('refOut');
+    o.select();
+    (navigator.clipboard ? navigator.clipboard.writeText(o.value) : Promise.reject()).catch(function(){
+      document.execCommand('copy');
+    }).finally(function(){ btn.textContent = 'คัดลอกแล้ว'; setTimeout(function(){ btn.textContent = 'คัดลอก'; }, 1500); });
+  }
+</script>
+</body>
+</html>

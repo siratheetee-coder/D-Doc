@@ -61,10 +61,15 @@ def _safe_next(nxt: str) -> str:
 
 
 @router.get("/landing", response_class=HTMLResponse)
-def landing_page(request: Request):
-    """หน้า landing สาธารณะ (สำหรับแนะนำระบบ/ขาย) - ยังไม่ผูกโดเมนจริง ดูผ่าน /landing"""
+def landing_page(request: Request, ref: str = "", utm_source: str = ""):
+    """หน้า landing สาธารณะ (สำหรับแนะนำระบบ/ขาย) - ยังไม่ผูกโดเมนจริง ดูผ่าน /landing
+    ?ref=ชื่อ (หรือ utm_source) = ลิงก์ที่มา จำไว้ในคุกกี้ไว้ดูว่าใครมาจากช่องทางไหน"""
     from app.seller_config import pricing_context
-    return templates.TemplateResponse("landing.html", {"request": request, **pricing_context()})
+    from app.routers.sales import _remember_ref
+    msg = request.session.pop("sandbox_msg", None) if "sandbox_msg" in request.session else None
+    resp = templates.TemplateResponse("landing.html", {"request": request, "sandbox_msg": msg,
+                                                       **pricing_context()})
+    return _remember_ref(resp, ref or utm_source)
 
 
 @router.get("/privacy", response_class=HTMLResponse)

@@ -159,7 +159,7 @@ def summary_for_range(db, start: str, end: str) -> dict:
     from app.accounts import UsageDay, Tenant
     rows = (db.query(UsageDay)
             .filter(UsageDay.day >= start, UsageDay.day <= end).all())
-    tenants = {t.id: t for t in db.query(Tenant).all()}
+    tenants = {t.id: t for t in db.query(Tenant).filter(Tenant.plan != "sandbox")}   # ไม่นับระบบตัวอย่าง
 
     schools, daily = {}, {}
     d0, d1 = date.fromisoformat(start), date.fromisoformat(end)

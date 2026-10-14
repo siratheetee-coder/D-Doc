@@ -114,7 +114,8 @@ def console(request: Request, msg: str | None = None):
     db = acc_session()
     try:
         today = date.today()
-        tenants = db.query(Tenant).order_by(Tenant.id.desc()).all()
+        tenants = (db.query(Tenant).filter(Tenant.plan != "sandbox")    # ระบบตัวอย่างไม่ใช่โรงเรียนจริง
+                   .order_by(Tenant.id.desc()).all())
         rows = []
         summ = {"total": 0, "active": 0, "trial": 0, "member": 0, "expired": 0, "expiring": 0}
         for t in tenants:
@@ -605,6 +606,20 @@ def add_quota(tid: int, amount: str = Form("50")):
 
 
 # ---------------- สรุปการใช้งานรายวัน (เจ้าของระบบเท่านั้น) ----------------
+@router.get("/admin-console/marketing", response_class=HTMLResponse)
+def marketing_page(request: Request, days: int = 90):
+    """ลูกค้ามาจากช่องทางไหน หลุดที่ขั้นไหน (ดู app/services/marketing.py)"""
+    from app.services.marketing import summary, RANGES
+    from app.services.sandbox import active_count
+    days = days if days in [n for n, _ in RANGES] else 90
+    base = (SELLER.get("base_url") or "").strip().rstrip("/") or str(request.base_url).rstrip("/")
+    return templates.TemplateResponse("superadmin_marketing.html", {
+        "request": request, "days": days, "ranges": RANGES, "s": summary(days),
+        "sandbox_now": active_count(), "base": base,
+        "admin_name": request.session.get("name", "ผู้ดูแลระบบ"),
+    })
+
+
 @router.get("/admin-console/usage", response_class=HTMLResponse)
 def usage_page(request: Request, day: str | None = None, days: int = 7):
     """ใครใช้ระบบบ้าง ในช่วงที่เลือก (วันนี้ / 7 / 30 / 90 วัน หรือเจาะวันเดียว)

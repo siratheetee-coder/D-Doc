@@ -455,45 +455,86 @@ async def checkout_submit(request: Request, school_name: str = Form(""), contact
 
 
 # ---------------- ลงทะเบียน (อีเมล+รหัส) -> ทดลองใช้ทันที ----------------
+def _remember_ref(resp, ref: str):
+    """ลิงก์ที่มา (?ref=) จำไว้ในคุกกี้ 60 วัน ใช้ตอนสมัคร/ลองระบบตัวอย่าง"""
+    from app.services.marketing import REF_COOKIE, COOKIE_AGE
+    from app.services.sandbox import clean_ref
+    from urllib.parse import quote as _q
+    ref = clean_ref(ref)
+    if ref:
+        resp.set_cookie(REF_COOKIE, _q(ref, safe=""), max_age=COOKIE_AGE, samesite="lax", httponly=True)
+    return resp
+
+
+def _register_ctx(request, **kw):
+    from app.services.marketing import SOURCES, OTHER
+    ctx = {"request": request, "form": {}, "error": None, "next": "", "packages": "", "amount": "",
+           "sources": SOURCES, "source_other": OTHER}
+    ctx.update(kw)
+    return ctx
+
+
 @router.get("/register", response_class=HTMLResponse)
-def register_page(request: Request, next: str = "", packages: str = "", amount: str = ""):
+def register_page(request: Request, next: str = "", packages: str = "", amount: str = "", ref: str = ""):
     next = _purchase_target(next, packages)
     if request.session.get("uid"):   # ล็อกอินอยู่แล้ว
         return RedirectResponse(next or "/", status_code=303)
-    return templates.TemplateResponse("register.html", {
-        "request": request, "form": {}, "error": None,
-        "next": next, "packages": packages, "amount": amount})
+    return _remember_ref(templates.TemplateResponse("register.html", _register_ctx(
+        request, next=next, packages=packages, amount=amount)), ref)
+
+
+@router.post("/sandbox/start")
+def sandbox_start(request: Request):
+    """ปุ่ม "ทดลองใช้ระบบตัวอย่าง" หน้า landing: ได้โรงเรียนสมมติของตัวเอง เข้าใช้ทันที ไม่ต้องสมัคร"""
+    from app.accounts import client_ip
+    from app.services import sandbox
+    from app.services.marketing import read_ref, SANDBOX_COOKIE, COOKIE_AGE
+    res = sandbox.create(client_ip(request), read_ref(request))
+    if res.get("error"):
+        request.session["sandbox_msg"] = res["error"]
+        return RedirectResponse("/landing#try", status_code=303)
+    request.session.clear()
+    request.session.update({"uid": res["uid"], "username": res["username"], "role": "user",
+                            "tid": res["tid"], "name": res["name"], "must_change": False,
+                            "owner": True, "welcomed": True, "sandbox": True})
+    resp = RedirectResponse("/", status_code=303)
+    resp.set_cookie(SANDBOX_COOKIE, "1", max_age=COOKIE_AGE, samesite="lax", httponly=True)
+    return resp
+
+
+@router.get("/sandbox/start")
+def sandbox_start_get():
+    return RedirectResponse("/landing#try", status_code=303)
 
 
 @router.post("/register")
 def register_submit(request: Request, email: str = Form(""), password: str = Form(""),
                     school_name: str = Form(""), contact_name: str = Form(""), phone: str = Form(""),
                     next: str = Form(""), packages: str = Form(""), amount: str = Form(""),
-                    accept_policy: str = Form("")):
+                    accept_policy: str = Form(""), heard_from: str = Form(""), heard_other: str = Form("")):
     next = _purchase_target(next, packages)
+    from app.services.marketing import normalize_source, record_signup, read_ref, SANDBOX_COOKIE
+    _form = {"email": email, "school_name": school_name, "contact_name": contact_name, "phone": phone,
+             "heard_from": heard_from, "heard_other": heard_other}
     # ต้องยอมรับนโยบายก่อนเสมอ - ตรวจฝั่งเซิร์ฟเวอร์ด้วย ไม่ใช่เชื่อป๊อปอัปฝั่งหน้าเว็บอย่างเดียว
     if not accept_policy:
-        return templates.TemplateResponse("register.html", {
-            "request": request,
-            "error": "กรุณาอ่านและกดยอมรับนโยบายความเป็นส่วนตัวก่อนลงทะเบียน",
-            "form": {"email": email, "school_name": school_name,
-                     "contact_name": contact_name, "phone": phone},
-            "next": next, "packages": packages, "amount": amount}, status_code=400)
+        return templates.TemplateResponse("register.html", _register_ctx(
+            request, error="กรุณาอ่านและกดยอมรับนโยบายความเป็นส่วนตัวก่อนลงทะเบียน",
+            form=_form, next=next, packages=packages, amount=amount), status_code=400)
     res = register_account(email, password, school_name, contact_name, phone, trial_days=TRIAL_DAYS)
     if res.get("tenant_id"):
         from app.accounts import record_policy_accept, client_ip
         record_policy_accept(res["tenant_id"], client_ip(request))
+        record_signup(res["tenant_id"], normalize_source(heard_from, heard_other),
+                      read_ref(request), request.cookies.get(SANDBOX_COOKIE) == "1")
     if res.get('pending_verify'):
         email = email.strip().lower()
         return templates.TemplateResponse('register_sent.html', {
             'request': request, 'email': email, 'pending': True,
             'flow': _registration_flow(email, next, packages)})
     if res.get("error"):
-        return templates.TemplateResponse("register.html", {
-            "request": request, "error": res["error"],
-            "form": {"email": email, "school_name": school_name,
-                     "contact_name": contact_name, "phone": phone},
-            "next": next, "packages": packages, "amount": amount})
+        return templates.TemplateResponse("register.html", _register_ctx(
+            request, error=res["error"], form=_form, next=next, packages=packages, amount=amount))
     # เปิด SMTP -> ต้องยืนยันอีเมลก่อน (ยังไม่ล็อกอิน)
     if res.get("needs_verify"):
         from app.services.mailer import send_verify_email

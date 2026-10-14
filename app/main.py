@@ -64,7 +64,10 @@ except Exception:
 PUBLIC_PATHS = {"/login", "/login/2fa", "/logout", "/healthz", "/favicon.ico", "/landing", "/privacy",
                 "/quote", "/checkout", "/checkout/promptpay.png", "/sale-thanks",
                 "/trial", "/register", "/register/resend", "/verify",
-                "/forgot", "/reset"}
+                "/forgot", "/reset", "/sandbox/start"}
+
+# ออกจากระบบตัวอย่างอัตโนมัติเมื่อไปหน้าสมัคร/ซื้อ/ล็อกอิน (ไม่ให้คำสั่งซื้อไปผูกกับโรงเรียนสมมติ)
+_LEAVE_SANDBOX = {"/register", "/checkout", "/trial", "/login", "/quote", "/verify"}
 
 # บัญชี ผอ./รองผอ. (director ที่ไม่ใช่ไอดีหลัก) = อ่านได้ทุกงาน แก้ไขไม่ได้
 # ยกเว้นการกระทำที่เป็นหน้าที่ ผอ. โดยตรง: อนุมัติเอกสาร + งานนิเทศภายใน + เปลี่ยนรหัสตัวเอง
@@ -113,6 +116,8 @@ async def tenant_auth(request: Request, call_next):
                 return PlainTextResponse("ปฏิเสธคำขอข้ามโดเมน (CSRF)", status_code=403)
 
     path = request.url.path
+    if request.session.get("sandbox") and (path in _LEAVE_SANDBOX or path.startswith("/pay/")):
+        request.session.clear()
     # /pay/<token> = ลิงก์ชำระเงินสาธารณะ (ลูกค้าไม่ต้องล็อกอิน) token เซ็นลายเซ็นกันปลอม
     if path.startswith("/static") or path.startswith("/pay/") or path in PUBLIC_PATHS:
         return await call_next(request)
@@ -121,7 +126,10 @@ async def tenant_auth(request: Request, call_next):
     if not sess.get("uid"):
         # ผู้เยี่ยมชม (ยังไม่ล็อกอิน): เข้าหน้าแรก "/" -> หน้า landing (แนะนำระบบ/ขาย)
         # ส่วนลิงก์งานภายในอื่น ๆ -> หน้า login (เพื่อกลับมาหน้าที่ต้องการหลังล็อกอิน)
-        return RedirectResponse("/landing" if path == "/" else "/login", status_code=303)
+        if path == "/":       # เก็บ ?ref= ของลิงก์ที่แชร์ไว้ให้หน้า landing จำ
+            q = request.url.query
+            return RedirectResponse("/landing" + (f"?{q}" if q else ""), status_code=303)
+        return RedirectResponse("/login", status_code=303)
 
     # อายุการล็อกอิน: นับจาก "ครั้งสุดท้ายที่ใช้งาน" (ไม่ติ๊กจดจำ = 12 ชม. · ติ๊ก = 30 วัน)
     # session เก่าที่ยังไม่มี exp ปล่อยผ่าน แล้วเริ่มนับด้วยค่าเริ่มต้นจากรอบนี้
@@ -135,6 +143,12 @@ async def tenant_auth(request: Request, call_next):
     ttl = int(sess.get("ttl") or SESSION_TTL_DEFAULT)
     if not exp or now + ttl - int(exp) > 60:      # เขียนทุก 60 วิพอ ไม่ต้องทุก request
         sess["exp"] = now + ttl
+
+    # ระบบตัวอย่าง: ปิดการบันทึกส่วนบัญชีผู้ใช้/รหัสผ่าน/กู้คืน/แชท (ดู app/services/sandbox.py)
+    if sess.get("sandbox"):
+        from app.services.sandbox import blocked as _sbx_blocked
+        if _sbx_blocked(path, request.method):
+            return templates.TemplateResponse("sandbox_blocked.html", {"request": request}, status_code=403)
 
     # บังคับเปลี่ยนรหัสผ่านครั้งแรก (ก่อนใช้งานอื่นใด)
     if sess.get("must_change") and not path.startswith("/account"):
@@ -163,7 +177,10 @@ async def tenant_auth(request: Request, call_next):
     # หน้า /account (เปลี่ยนรหัส) ผ่านไปแล้วด้านบน จึงไม่ต้องกันบัญชีที่ถูกปิดออกจากหน้านั้น
     acc = get_account_access(sess.get("uid"))
     if not acc or not acc["active"]:
+        was_sandbox = sess.get("sandbox")
         request.session.clear()
+        if was_sandbox:                            # ระบบตัวอย่างครบ 24 ชม. ถูกลบไปแล้ว
+            return RedirectResponse("/landing?sandbox=ended#try", status_code=303)
         return RedirectResponse("/login", status_code=303)
     # ใครกำลังใช้งานอยู่ -> โชว์ในคอนโซล (เขียน DB นาทีละครั้งต่อคน ไม่ใช่ทุกคลิก)
     try:
@@ -186,6 +203,9 @@ async def tenant_auth(request: Request, call_next):
     # ผู้ใช้โรงเรียน: ตรวจสถานะโรงเรียนก่อน
     tid = sess.get("tid")
     st = tenant_state(tid)
+    if sess.get("sandbox") and (not st or st["expired"]):
+        request.session.clear()                    # ระบบตัวอย่างครบ 24 ชม. ถูกลบไปแล้ว
+        return RedirectResponse("/landing?sandbox=ended#try", status_code=303)
     if not st or not st["active"] or st["expired"]:
         reason = ("บัญชีถูกระงับการใช้งาน" if (st and not st["active"])
                   else "บัญชีหมดอายุการใช้งาน" if st else "ไม่พบข้อมูลโรงเรียน")
@@ -229,8 +249,9 @@ async def tenant_auth(request: Request, call_next):
         resp = await call_next(request)
         # สรุปการใช้งานรายวัน (คอนโซลเจ้าของระบบ) - พักในหน่วยความจำ เขียนเป็นรอบ
         try:
-            from app.usage import record
-            record(tid, acc, mod, request.method, resp.headers.get("content-type", ""))
+            if not sess.get("sandbox"):        # ระบบตัวอย่างไม่นับเป็นการใช้งานของโรงเรียน
+                from app.usage import record
+                record(tid, acc, mod, request.method, resp.headers.get("content-type", ""))
         except Exception:
             pass
         return resp
@@ -388,6 +409,20 @@ def _prune_audit_log():
 
 
 _prune_audit_log()
+
+
+def _cleanup_sandboxes():
+    """ลบระบบตัวอย่างที่ครบ 24 ชม. ตอนเปิดเซิร์ฟเวอร์ (ปกติล้างตอนมีคนกดลองใหม่อยู่แล้ว)"""
+    try:
+        from app.services.sandbox import cleanup
+        n = cleanup()
+        if n:
+            print(f"[sandbox] ลบระบบตัวอย่างที่หมดเวลา {n} ชุด")
+    except Exception as e:
+        print("[sandbox] ล้างไม่สำเร็จ:", e)
+
+
+_cleanup_sandboxes()
 
 
 app.include_router(auth.router)

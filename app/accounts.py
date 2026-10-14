@@ -55,6 +55,10 @@ class Tenant(AccBase):
     inactive_notified_at = Column(DateTime, nullable=True)  # เตือนครั้งล่าสุดเมื่อไหร่
     trial_notice_stage = Column(Integer, default=0)    # อีเมลเตือนทดลองใช้ที่ส่งแล้ว 0-3 (ดู services/trial_notice.py)
     member_notice_stage = Column(Integer, default=0)   # อีเมลเตือนต่ออายุที่ส่งแล้ว 0-4 (ดู services/member_notice.py)
+    # ---- ช่องทางที่ลูกค้ารู้จักเรา (หน้าสรุปการตลาดในคอนโซล) ----
+    signup_source = Column(String, default="")      # ปุ่มที่กดตอนสมัคร "รู้จักเราจากไหน"
+    signup_ref = Column(String, default="")         # ลิงก์ที่มา (?ref= ในลิงก์ที่แชร์)
+    from_sandbox = Column(Boolean, default=False)   # เคยลองระบบตัวอย่างก่อนสมัคร
 
     accounts = relationship("Account", back_populates="tenant",
                             cascade="all, delete-orphan")
@@ -272,6 +276,15 @@ class MaintenanceNotice(AccBase):
         return [x.strip() for x in (self.items or "").splitlines() if x.strip()]
 
 
+class SandboxVisit(AccBase):
+    """ทุกครั้งที่มีคนกด "ทดลองใช้ระบบตัวอย่าง" (ระบบตัวอย่างถูกลบใน 24 ชม. แต่ยอดนับยังอยู่)
+    ไม่เก็บไอพีหรือข้อมูลส่วนบุคคล เก็บแค่เวลาและลิงก์ที่มา"""
+    __tablename__ = "sandbox_visit"
+    id = Column(Integer, primary_key=True)
+    created_at = Column(DateTime, default=datetime.now, index=True)
+    ref = Column(String, default="")
+
+
 class UsageDay(AccBase):
     """สรุปการใช้งาน 1 บัญชี ต่อ 1 วัน (ดูรายละเอียดที่ app/usage.py)
 
@@ -359,6 +372,9 @@ def _ensure_engine():
                     "ALTER TABLE maintenance_notice ADD COLUMN kind VARCHAR DEFAULT 'maint'",
                     "ALTER TABLE maintenance_notice ADD COLUMN email_started_at DATETIME",
                     "ALTER TABLE maintenance_notice ADD COLUMN email_total INTEGER DEFAULT 0",
+                    "ALTER TABLE tenant ADD COLUMN signup_source VARCHAR DEFAULT ''",
+                    "ALTER TABLE tenant ADD COLUMN signup_ref VARCHAR DEFAULT ''",
+                    "ALTER TABLE tenant ADD COLUMN from_sandbox BOOLEAN DEFAULT 0",
                     # โรงเรียนเดิมยังไม่มีค่า -> ถือว่าใช้งานล่าสุด ณ วันที่สร้างบัญชี
                     # (ไม่ใช่ NULL ไม่งั้นจะถูกนับว่าไม่ใช้งานมานานทันทีตั้งแต่วันอัปเดต)
                     "UPDATE tenant SET last_active_at = created_at WHERE last_active_at IS NULL",
@@ -653,7 +669,7 @@ def tenant_state(tenant_id) -> dict | None:
             return None
         expired = bool(t.expiry_date and t.expiry_date < date.today())
         return {"name": t.name, "active": bool(t.active), "expired": expired,
-                "expiry_date": t.expiry_date}
+                "expiry_date": t.expiry_date, "plan": t.plan or "member"}
     finally:
         db.close()
 
@@ -773,7 +789,7 @@ def ai_key_for(tenant_id) -> str:
     db = acc_session()
     try:
         t = db.get(Tenant, tenant_id)
-        if not t or (t.plan or "member") == "trial":
+        if not t or (t.plan or "member") in ("trial", "sandbox"):
             return ""
         return key
     finally:
@@ -2272,7 +2288,7 @@ def owner_emails(with_skipped: bool = False):
         rows = (db.query(Account.username, Tenant.name)
                 .join(Tenant, Account.tenant_id == Tenant.id)
                 .filter(Account.is_owner.is_(True), Account.active.is_(True),
-                        Tenant.active.is_(True)).all())
+                        Tenant.active.is_(True), Tenant.plan != "sandbox").all())
         out, seen, skipped = [], set(), []
         for username, school in rows:
             addr = (username or "").strip()      # ไอดีล็อกอิน = อีเมลที่สมัครไว้

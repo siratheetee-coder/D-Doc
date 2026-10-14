@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Easy Ekkasan | ระบบตัวอย่าง</title>
+  <link rel="icon" type="image/png" href="/static/favicon-ekkasan.png">
+  <style>
+    @font-face { font-family:"Prompt"; font-weight:400; src:url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:700; src:url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+      font-family:"Prompt","Sarabun","Segoe UI",sans-serif; background:#F5F6FA; color:#202224; padding:20px; }
+    .card { background:#fff; max-width:480px; border-radius:18px; padding:34px 30px; text-align:center;
+      box-shadow:0 12px 34px rgba(16,24,40,.12); }
+    .ic { width:64px; height:64px; border-radius:50%; background:linear-gradient(135deg,#fff7ed,#ffedd5); color:#ea580c;
+      display:flex; align-items:center; justify-content:center; margin:0 auto 16px; }
+    .ic svg { width:32px; height:32px; }
+    h1 { font-size:22px; margin:0 0 8px; }
+    p { color:#5a6a85; line-height:1.7; margin:0; }
+    .btns { margin-top:22px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+    .btn { display:inline-block; background:linear-gradient(120deg,#c2410c,#ea580c); color:#fff; text-decoration:none;
+      padding:11px 22px; border-radius:11px; font-weight:700; border:none; cursor:pointer; }
+    .btn.gray { background:#e2e8f0; color:#334155; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="ic">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </div>
+    <h1>ส่วนนี้ปิดไว้ในระบบตัวอย่าง</h1>
+    <p>ระบบตัวอย่างลองได้ทุกงาน แต่ปิดส่วน<b>บัญชีผู้ใช้ รหัสผ่าน การกู้คืนข้อมูล และการติดต่อทีมงาน</b>ไว้<br>
+       สมัครทดลองใช้ฟรี {{ trial_days }} วัน เพื่อใช้ครบทุกส่วนกับข้อมูลโรงเรียนของท่านเอง</p>
+    <div class="btns">
+      <a class="btn" href="/register?from=sandbox">สมัครใช้งานจริง ฟรี {{ trial_days }} วัน</a>
+      <a class="btn gray" href="javascript:history.back()">ย้อนกลับ</a>
+    </div>
+  </div>
+</body>
+</html>

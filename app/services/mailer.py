@@ -10,6 +10,16 @@ def smtp_configured() -> bool:
     return bool((SELLER.get("smtp_host") or "").strip() and (SELLER.get("smtp_user") or "").strip())
 
 
+def _sandbox_request() -> bool:
+    """คำขอนี้มาจากระบบตัวอย่าง -> ไม่ส่งอีเมลจริง (อีเมลในข้อมูลสมมติอาจเป็นของคนจริง)"""
+    try:
+        from app.tenancy import current_school_id
+        from app.services.sandbox import is_sandbox
+        return is_sandbox(current_school_id.get())
+    except Exception:
+        return False
+
+
 def send_email(to: str, subject: str, html: str, attachments=None) -> bool:
     """ส่งอีเมล HTML ผ่าน SMTP (คืน True ถ้าสำเร็จ) - ต้องตั้ง smtp_* ใน seller_local.py
     attachments = list ของไฟล์แนบ - แต่ละตัวเป็นได้ทั้ง:
@@ -30,7 +40,7 @@ def send_email(to: str, subject: str, html: str, attachments=None) -> bool:
         port = int(SELLER.get("smtp_port") or 587)
     except (TypeError, ValueError):
         port = 587
-    if not (host and user):
+    if not (host and user) or _sandbox_request():
         return False
     msg = EmailMessage()
     msg["Subject"] = subject
@@ -89,7 +99,7 @@ def send_bulk(messages, on_progress=None) -> tuple:
         port = 587
     messages = list(messages)
     total = len(messages)
-    if not (host and user) or not total:
+    if not (host and user) or not total or _sandbox_request():
         return 0, total
 
     def build(to, subject, html):

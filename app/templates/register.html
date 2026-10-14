@@ -41,6 +41,19 @@
     </div>
   </div>
 
+  {# ---------- รู้จักเราจากไหน: กดปุ่มเดียว (เจ้าของดูสรุปที่คอนโซล > การตลาด) ---------- #}
+  <label>รู้จักเราจากไหน <span class="req">*</span></label>
+  <input type="hidden" name="heard_from" id="heardFrom" value="{{ form.heard_from or '' }}">
+  <div class="src-chips" id="srcChips" role="radiogroup" aria-label="รู้จักเราจากไหน">
+    {% for s in sources or [] %}
+    <button type="button" class="src-chip{% if form.heard_from == s %} on{% endif %}" role="radio"
+            aria-checked="{{ 'true' if form.heard_from == s else 'false' }}" data-v="{{ s }}">{{ s }}</button>
+    {% endfor %}
+  </div>
+  <input name="heard_other" id="heardOther" maxlength="60" placeholder="บอกเราสักนิด เช่น ชื่อเพจ หรือกลุ่มที่เห็น"
+         value="{{ form.heard_other or '' }}" {% if form.heard_from != source_other %}hidden{% endif %} style="margin-top:8px;">
+  <div class="src-err" id="srcErr" hidden>กรุณากดเลือกว่ารู้จักเราจากไหน</div>
+
   <button class="btn btn-primary btn-full" type="submit" style="margin-top:22px;">
     {% if next %}ลงทะเบียนและรับอีเมลยืนยัน{% else %}ลงทะเบียน เริ่มใช้งานฟรี{% endif %}
   </button>
@@ -107,6 +120,14 @@
     var button = form.querySelector('button[type="submit"]');
     var original = button.innerHTML;
     form.addEventListener('submit', function(event){
+      // ต้องเลือก "รู้จักเราจากไหน" ก่อน (กดปุ่มเดียว)
+      if(!document.getElementById('heardFrom').value){
+        event.preventDefault();
+        var err = document.getElementById('srcErr');
+        err.hidden = false;
+        document.getElementById('srcChips').scrollIntoView({block:'center', behavior:'smooth'});
+        return;
+      }
       // ยังไม่ยอมรับนโยบาย -> เปิดป๊อปอัปให้อ่านก่อน (ตรวจฝั่งเซิร์ฟเวอร์อีกชั้นด้วย)
       if(!document.getElementById('acceptPolicy').value){
         event.preventDefault();
@@ -119,6 +140,24 @@
       button.textContent = 'กำลังสมัครและส่งอีเมลยืนยัน…';
     });
     window.addEventListener('pageshow', function(){ button.disabled = false; button.innerHTML = original; });
+  })();
+
+  (function(){
+    var box = document.getElementById('srcChips'), hid = document.getElementById('heardFrom'),
+        other = document.getElementById('heardOther'), OTHER = {{ (source_other or 'อื่น ๆ')|tojson }};
+    box.addEventListener('click', function(e){
+      var b = e.target.closest('.src-chip');
+      if(!b) return;
+      box.querySelectorAll('.src-chip').forEach(function(x){
+        var on = x === b;
+        x.classList.toggle('on', on);
+        x.setAttribute('aria-checked', on ? 'true' : 'false');
+      });
+      hid.value = b.dataset.v;
+      document.getElementById('srcErr').hidden = true;
+      other.hidden = b.dataset.v !== OTHER;
+      if(!other.hidden) other.focus();
+    });
   })();
 
   // ตรวจความแข็งแรงรหัสผ่านสดๆ (เกณฑ์เดียวกับฝั่งเซิร์ฟเวอร์)
@@ -145,6 +184,12 @@
   }
 </script>
 <style>
+  .src-chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .src-chip { font:inherit; font-size:14px; padding:8px 15px; border:0; border-radius:999px; cursor:pointer;
+    background:#eef1f7; color:#334155; transition:background .15s, color .15s, box-shadow .15s; }
+  .src-chip:hover { background:#e2e8f3; }
+  .src-chip.on { color:#fff; background:linear-gradient(120deg,#2563eb,#6366f1); box-shadow:0 4px 12px rgba(37,99,235,.28); }
+  .src-err { color:#b91c1c; font-size:13px; margin-top:6px; }
   .pw-meter { height:6px; border-radius:999px; background:#e9edf4; overflow:hidden; margin:8px 0 6px; }
   .pw-meter > i { display:block; height:100%; width:0; border-radius:999px; transition:width .2s, background .2s; }
   .pw-meter > i.w1 { width:25%;  background:#ef4444; }

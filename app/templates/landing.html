@@ -56,6 +56,13 @@
   .btn-ghost:hover{ border-color:var(--blue); color:var(--blue); }
   .btn-white{ background:#fff; color:var(--blue-deep); }
   .btn-white:hover{ transform:translateY(-2px); }
+  .btn-try{ background:linear-gradient(120deg,#ea580c,#f59e0b); color:#fff; box-shadow:0 8px 20px rgba(234,88,12,.28); }
+  .btn-try:hover{ transform:translateY(-2px); box-shadow:0 10px 24px rgba(234,88,12,.36); }
+  .btn-try[disabled]{ opacity:.75; cursor:wait; transform:none; }
+  .try-form{ display:contents; }
+  .try-note{ flex-basis:100%; margin:-6px 0 0; font-size:13.5px; color:var(--muted, #64748b); }
+  .try-msg{ flex-basis:100%; padding:10px 14px; border-radius:12px; font-size:14px; line-height:1.6;
+            background:linear-gradient(120deg,#fff7ed,#ffedd5); color:#9a3412; }
   .btn-play{ background:transparent; color:var(--ink); font-weight:600; }
   .btn-play .ic{ width:40px; height:40px; border-radius:50%; border:1.5px solid var(--line);
                  display:inline-flex; align-items:center; justify-content:center; color:var(--blue); }
@@ -539,9 +546,16 @@
       <h1>ลดงานเอกสาร<br><span class="hl">ให้ครูได้กลับไปสอน</span></h1>
       <p class="lead">Easy Ekkasan รวมงานพัสดุ การเงิน ธุรการ อาหารกลางวัน บุคคล และวิชาการ ไว้ในที่เดียว
         กรอกข้อมูลครั้งเดียว ระบบออกเอกสารราชการให้ครบชุด ถูกต้องตามระเบียบ พร้อมพิมพ์ทันที</p>
-      <div class="hero-actions">
+      <div class="hero-actions" id="try">
+        {% if sandbox_msg or request.query_params.get('sandbox') == 'ended' %}
+        <div class="try-msg">{{ sandbox_msg or 'ระบบตัวอย่างชุดเดิมครบ 24 ชั่วโมงและถูกลบแล้ว กดปุ่มด้านล่างเพื่อเปิดชุดใหม่ได้เลย' }}</div>
+        {% endif %}
+        <form class="try-form" method="post" action="/sandbox/start" onsubmit="tryStart(this)">
+          <button class="btn btn-try" type="submit"><svg class="ico"><use href="#ic-play"/></svg> ทดลองใช้ระบบตัวอย่าง</button>
+        </form>
         <a class="btn btn-primary" href="/register">ทดลองใช้ฟรี</a>
         <a class="btn btn-play" href="#how"><span class="ic"><svg class="ico" style="font-size:13px;"><use href="#ic-play"/></svg></span> ดูวิธีใช้งาน</a>
+        <p class="try-note">ระบบตัวอย่าง: เข้าดูได้ทันทีไม่ต้องสมัคร มีข้อมูลโรงเรียนสมมติครบทุกงาน ลบเองใน 24 ชั่วโมง</p>
       </div>
       <div class="hero-stats">
         <div class="stat"><b>60<em>+</em></b><span>แบบเอกสารราชการ</span></div>
@@ -1038,6 +1052,9 @@
       <h2>เริ่มคืนเวลาให้ห้องเรียน</h2>
       <p>ทดลองใช้ฟรี ไม่ต้องติดตั้งโปรแกรม ใช้ได้ทันทีผ่านเบราว์เซอร์ · สอบถามหรือขอทดลองใช้ทาง Facebook</p>
       <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+        <form class="try-form" method="post" action="/sandbox/start" onsubmit="tryStart(this)">
+          <button class="btn btn-try" type="submit"><svg class="ico"><use href="#ic-play"/></svg> ทดลองใช้ระบบตัวอย่าง</button>
+        </form>
         <a class="btn btn-white" href="https://www.facebook.com/profile.php?id=61590718498881&locale=th_TH" target="_blank" rel="noopener"><svg class="ico"><use href="#ic-facebook"/></svg> ติดต่อทาง Facebook</a>
         <a class="btn btn-ghost" href="/login" style="color:#fff; border-color:rgba(255,255,255,.5);">เข้าสู่ระบบ</a>
       </div>
@@ -1057,5 +1074,16 @@
   </div>
 </footer>
 
+<script>
+  function tryStart(form){
+    var b = form.querySelector('button');
+    setTimeout(function(){ b.disabled = true; b.textContent = 'กำลังเตรียมระบบตัวอย่าง…'; }, 0);
+  }
+  window.addEventListener('pageshow', function(){
+    document.querySelectorAll('.try-form button').forEach(function(b){
+      if (b.disabled) { b.disabled = false; b.innerHTML = '<svg class="ico"><use href="#ic-play"/></svg> ทดลองใช้ระบบตัวอย่าง'; }
+    });
+  });
+</script>
 </body>
 </html>
