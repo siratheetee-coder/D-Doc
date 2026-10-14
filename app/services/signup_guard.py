@@ -18,8 +18,13 @@ def email_problem(email):
     if any(domain == d or domain.endswith("." + d) for d in
            ("example.com", "example.net", "example.org", "invalid", "localhost", "test")):
         return "กรุณาใช้อีเมลจริงที่สามารถรับข้อความได้ ไม่ใช่อีเมลตัวอย่าง"
-    import dns.resolver
-    import dns.exception
+    try:
+        import dns.resolver
+        import dns.exception
+    except ImportError:
+        # Server missing dnspython (requirements not installed yet): skip only the MX lookup.
+        # Registration must never 500 because of an optional check.
+        return None
     resolver = dns.resolver.Resolver()
     resolver.timeout = 1
     resolver.lifetime = 2
