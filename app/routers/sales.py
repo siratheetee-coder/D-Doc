@@ -250,7 +250,12 @@ def quote_page(request: Request, packages: str = "", amount: str = "", mod: list
 def quote_submit(request: Request, school_name: str = Form(""), address: str = Form(""), tax_id: str = Form(""),
                  contact_name: str = Form(""), email: str = Form(""), phone: str = Form(""),
                  mod: list[str] = Form([]), packages: str = Form(""), amount: str = Form(""),
-                 note: str = Form("")):
+                 note: str = Form(""), ft: str = Form(""), website: str = Form("")):
+    from app.services import form_guard
+    why = form_guard.is_bot(ft, website)
+    if why:                     # บอท: ตอบเหมือนสำเร็จ แต่ไม่บันทึก ไม่แจ้งเจ้าของ
+        form_guard.log("quote", why, request)
+        return RedirectResponse("/sale-thanks?type=quote", status_code=303)
     extra = (note or "").strip()
     # ราคาคำนวณที่เซิร์ฟเวอร์เหมือนหน้าสั่งซื้อ · ถ้าไม่ได้ส่ง mod มา ลองแกะจากข้อความ packages เดิม
     pf, account, addon = _quote_price(request, set(mod or []) or modules_from_label(packages))
@@ -511,8 +516,15 @@ def sandbox_start_get():
 def register_submit(request: Request, email: str = Form(""), password: str = Form(""),
                     school_name: str = Form(""), contact_name: str = Form(""), phone: str = Form(""),
                     next: str = Form(""), packages: str = Form(""), amount: str = Form(""),
-                    accept_policy: str = Form(""), heard_from: str = Form(""), heard_other: str = Form("")):
+                    accept_policy: str = Form(""), heard_from: str = Form(""), heard_other: str = Form(""),
+                    ft: str = Form(""), website: str = Form("")):
     next = _purchase_target(next, packages)
+    from app.services import form_guard
+    why = form_guard.is_bot(ft, website)
+    if why:                     # บอท: ตอบเหมือนสำเร็จ แต่ไม่สร้างบัญชี ไม่ส่งอีเมล
+        form_guard.log("register", why, request)
+        return templates.TemplateResponse("register_sent.html", {
+            "request": request, "email": email.strip().lower()[:120], "flow": ""})
     from app.services.marketing import normalize_source, record_signup, read_ref, SANDBOX_COOKIE
     _form = {"email": email, "school_name": school_name, "contact_name": contact_name, "phone": phone,
              "heard_from": heard_from, "heard_other": heard_other}
@@ -594,7 +606,14 @@ def verify_email_route(request: Request, token: str = "", flow: str = ""):
 
 
 @router.post("/register/resend")
-def register_resend(request: Request, email: str = Form(""), flow: str = Form("")):
+def register_resend(request: Request, email: str = Form(""), flow: str = Form(""),
+                    ft: str = Form(""), website: str = Form("")):
+    from app.services import form_guard
+    why = form_guard.is_bot(ft, website)
+    if why:
+        form_guard.log("resend", why, request)
+        return templates.TemplateResponse("register_sent.html", {
+            "request": request, "email": email.strip().lower()[:120], "resent": True, "flow": ""})
     from app.accounts import new_verify_token
     from app.services.mailer import send_verify_email
     from app.services.signup_guard import throttle, email_problem
@@ -610,6 +629,13 @@ def register_resend(request: Request, email: str = Form(""), flow: str = Form(""
         send_verify_email(email.strip().lower(), _verify_link(request, token, flow))
     return templates.TemplateResponse("register_sent.html", {
         "request": request, "email": email.strip().lower(), "resent": True, "flow": flow})
+
+
+@router.get("/email/stop", response_class=HTMLResponse)
+def email_stop(request: Request, t: str = ""):
+    """ลิงก์ท้ายอีเมลแนะนำการใช้งาน: เลิกรับ (อีเมลเตือนหมดเวลาทดลองยังส่งตามปกติ)"""
+    from app.services.trial_nurture import stop_by_token
+    return templates.TemplateResponse("email_stop.html", {"request": request, "ok": stop_by_token(t)})
 
 
 @router.get("/trial-limit", response_class=HTMLResponse)

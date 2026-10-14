@@ -10,6 +10,7 @@
 <form id="registrationForm" class="card" method="post" action="/register" autocomplete="on" style="max-width:600px;">
   {% if error %}<div style="background:#fde8e8; color:#b91c1c; border:1px solid #f7caca; padding:11px 14px; border-radius:10px; margin-bottom:14px;">{{ error }}
     {% if 'ลงทะเบียนแล้ว' in error %}<a href="/login?next={{ next|urlencode }}" style="color:#b91c1c; font-weight:700;">เข้าสู่ระบบ</a>{% endif %}</div>{% endif %}
+  {{ form_guard() if form_guard is defined }}
   <input type="hidden" name="next" value="{{ next }}">
   <input type="hidden" name="packages" value="{{ packages }}">
   <input type="hidden" name="amount" value="{{ amount }}">

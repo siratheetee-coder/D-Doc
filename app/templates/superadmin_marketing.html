@@ -75,6 +75,14 @@
   </div>
 
   <div class="card">
+    <h2>กันสแปมสมัคร</h2>
+    <p style="margin:0; font-size:15px;">กันบอทได้ <b>{{ "{:,}".format(spam.bots) }}</b> ครั้ง ใน {{ spam.days }} วันที่ผ่านมา
+      · สมัครแล้วยังไม่ยืนยันอีเมล <b>{{ "{:,}".format(spam.pending) }}</b> รายการ</p>
+    <p class="muted" style="margin:6px 0 0;">บอทที่ถูกกัน: ไม่บันทึกอะไร ไม่ส่งอีเมล ไม่แจ้งเตือนท่าน ·
+      การสมัครที่ไม่ยืนยันอีเมลเกิน {{ spam.keep }} วัน ระบบลบให้เองทุกวัน (ไม่นับในตัวเลขหน้า landing)</p>
+  </div>
+
+  <div class="card">
     <h2>ตัวเลขบนหน้า landing <span class="muted" style="font-weight:400;">(อัปเดตวันละครั้ง · โรงเรียน = ทุกโรงเรียนที่เคยสมัคร รวมที่ลบ/ระงับไปแล้ว · ไม่รวมระบบตัวอย่างและโรงเรียนสาธิต)</span></h2>
     <p style="margin:0; font-size:15px;">ใช้งานไปแล้ว <b>{{ "{:,}".format(live.hits) }}</b> ครั้ง จากทั้งหมด <b>{{ "{:,}".format(live.schools) }}</b> โรงเรียน
       · ออกเอกสารแล้ว <b>{{ "{:,}".format(live.docs) }}</b> ฉบับ</p>

@@ -64,7 +64,7 @@ except Exception:
 PUBLIC_PATHS = {"/login", "/login/2fa", "/logout", "/healthz", "/favicon.ico", "/landing", "/privacy",
                 "/quote", "/checkout", "/checkout/promptpay.png", "/sale-thanks",
                 "/trial", "/register", "/register/resend", "/verify",
-                "/forgot", "/reset", "/sandbox/start"}
+                "/forgot", "/reset", "/sandbox/start", "/email/stop"}
 
 # ออกจากระบบตัวอย่างอัตโนมัติเมื่อไปหน้าสมัคร/ซื้อ/ล็อกอิน (ไม่ให้คำสั่งซื้อไปผูกกับโรงเรียนสมมติ)
 _LEAVE_SANDBOX = {"/register", "/checkout", "/trial", "/login", "/quote", "/verify"}
@@ -420,6 +420,13 @@ def _cleanup_sandboxes():
             print(f"[sandbox] ลบระบบตัวอย่างที่หมดเวลา {n} ชุด")
     except Exception as e:
         print("[sandbox] ล้างไม่สำเร็จ:", e)
+    try:                        # การสมัครที่ไม่ยืนยันอีเมลเกิน 3 วัน (สแปม) - ปกติล้างทุกวันจาก cron
+        from app.services.signup_cleanup import purge_unverified
+        n = purge_unverified()
+        if n:
+            print(f"[signup] ลบการสมัครที่ไม่ยืนยันอีเมล {n} รายการ")
+    except Exception as e:
+        print("[signup] ล้างไม่สำเร็จ:", e)
 
 
 _cleanup_sandboxes()

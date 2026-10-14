@@ -23,6 +23,14 @@ def _clear_login_throttle():
 
 
 @pytest.fixture(autouse=True)
+def _no_form_guard(monkeypatch):
+    """ด่านกันบอท (โทเคนเวลา + ช่องล่อ) ต้องเปิดหน้าก่อนส่งฟอร์ม · เทสต์ส่วนใหญ่ยิงฟอร์มตรง
+    จึงปิดไว้ · เทสต์ของด่านเอง (test_form_guard.py) เปิดกลับเอง"""
+    import app.services.form_guard as fg
+    monkeypatch.setattr(fg, "ENABLED", False)
+
+
+@pytest.fixture(autouse=True)
 def _no_login_throttle():
     _clear_login_throttle()
     yield

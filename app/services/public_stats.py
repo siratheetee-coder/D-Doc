@@ -33,7 +33,10 @@ def ever_registered(db) -> int:
              .filter(Account.is_owner.is_(True), Tenant.plan != "sandbox", Tenant.slug != "demo")}
     demo = {(u or "").strip().lower() for (u,) in db.query(Account.username)
             .join(Tenant, Account.tenant_id == Tenant.id).filter(Tenant.slug == "demo")}
-    return len(keys - demo - {""})
+    # สมัครแล้วยังไม่ยืนยันอีเมล = ยังไม่นับ (ส่วนใหญ่เป็นบอท ถูกลบเองใน 3 วัน ดู signup_cleanup)
+    pending = {(u or "").strip().lower() for (u,) in db.query(Account.username)
+               .filter(Account.is_owner.is_(True), Account.verified.is_(False))}
+    return len(keys - demo - pending - {""})
 
 
 def compute(today: date | None = None) -> dict:

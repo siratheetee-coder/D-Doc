@@ -42,6 +42,7 @@
 </div>
 
 <form class="card" method="post" action="/quote" autocomplete="on" id="quoteForm">
+  {{ form_guard() if form_guard is defined }}
   {% if error %}<p role="alert" style="color:#b91c1c;">{{ error }}</p>{% endif %}
 
   <h2 style="margin-top:0;">เลือกงานที่ต้องการ</h2>

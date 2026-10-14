@@ -21,6 +21,7 @@ from app.services.nav import nav_alerts, nav_holidays, my_notices
 from app.services.budget import project_budget, project_spent, project_remaining
 from app.modules import MODULE_KEYS, MODULE_LABELS, MODULE_PRICE_KEY, module_for_path
 from app.seller_config import pricing_context
+from app.services.form_guard import fields as _form_guard_fields
 
 
 def account_status(tenant_id=None):
@@ -79,6 +80,7 @@ MODULES_LIVE = {"procurement": True, "admin": True, "finance": True, "lunch": Tr
 # global helper ใช้ได้ทุกเทมเพลต
 templates.env.globals.update(
     trial_days=TRIAL_DAYS,
+    form_guard=_form_guard_fields,       # ฟอร์มสาธารณะ: โทเคนเวลา + ช่องล่อกันบอท
     thai_date=thai_date, bahttext=bahttext, be_date=be_date_input,
     nav_alerts=nav_alerts, nav_holidays=nav_holidays, my_notices=my_notices,
     maint_notice=lambda: __import__("app.accounts", fromlist=["x"]).active_notice(),

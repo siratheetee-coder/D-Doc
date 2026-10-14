@@ -1,0 +1,86 @@
+# -*- coding: utf-8 -*-
+"""
+signup_cleanup.py - ลบการสมัครที่ไม่เคยยืนยันอีเมล (ส่วนใหญ่คือบอท/สแปม)
+
+ตอนสมัคร ระบบสร้างโรงเรียน + คำขอ "ทดลองใช้ฟรี" ไว้ก่อนยืนยันอีเมล
+ถ้าไม่ยืนยันภายใน UNVERIFIED_DAYS วัน ถือว่าไม่ใช่คนจริง -> ลบทิ้งทั้งโรงเรียนและคำขอ
+(รายชื่อในคอนโซลและตัวเลขบนหน้า landing จะได้ไม่ปนสแปม · คนจริงสมัครใหม่ได้ด้วยอีเมลเดิม)
+
+ลบเฉพาะที่ปลอดภัยแน่นอน:
+  - plan = trial เท่านั้น (สมาชิกที่จ่ายเงินไม่แตะ)
+  - ไอดีหลักทุกบัญชีของโรงเรียนนั้นยังไม่ยืนยันอีเมล และไม่มีบัญชีอื่นที่ยืนยันแล้ว
+  - สมัครมานานเกิน UNVERIFIED_DAYS วัน
+
+รันเองดูก่อน (ไม่ลบจริง):
+    /opt/ddoc/.venv/bin/python -m app.services.signup_cleanup --dry-run
+ปกติรันอัตโนมัติวันละครั้งพร้อมอีเมลเตือนทดลองใช้ (cron ของ trial_notice) และตอนเปิดเซิร์ฟเวอร์
+"""
+import sys
+from datetime import datetime, timedelta
+
+UNVERIFIED_DAYS = 3
+
+
+def candidates(now: datetime | None = None) -> list:
+    """[(tenant_id, ชื่อโรงเรียน, [อีเมล])] ที่เข้าเกณฑ์ลบ"""
+    from app.accounts import acc_session, Account, Tenant
+    cut = (now or datetime.now()) - timedelta(days=UNVERIFIED_DAYS)
+    db = acc_session()
+    try:
+        out = []
+        for t in db.query(Tenant).filter(Tenant.plan == "trial", Tenant.created_at < cut):
+            accs = db.query(Account).filter_by(tenant_id=t.id).all()
+            if accs and not any(a.verified for a in accs):
+                out.append((t.id, t.name, [a.username for a in accs]))
+        return out
+    finally:
+        db.close()
+
+
+def spam_status(days: int = 7) -> dict:
+    """คอนโซล: บอทที่ถูกกันใน N วัน + การสมัครที่ยังไม่ยืนยันอีเมล (รอลบอัตโนมัติ)"""
+    from app.accounts import acc_session, Account, AuditLog, Tenant
+    db = acc_session()
+    try:
+        since = datetime.now() - timedelta(days=days)
+        bots = db.query(AuditLog).filter(AuditLog.action == "bot.blocked", AuditLog.at >= since).count()
+        pending = 0
+        for t in db.query(Tenant).filter(Tenant.plan == "trial"):
+            accs = db.query(Account).filter_by(tenant_id=t.id).all()
+            if accs and not any(a.verified for a in accs):
+                pending += 1
+        return {"bots": bots, "pending": pending, "days": days, "keep": UNVERIFIED_DAYS}
+    finally:
+        db.close()
+
+
+def purge_unverified(now: datetime | None = None, dry_run: bool = False, verbose: bool = False) -> int:
+    from app.accounts import acc_session, Lead, audit, purge_tenant
+    rows = candidates(now)
+    if verbose:
+        print(f"[signup_cleanup] สมัครแต่ไม่ยืนยันอีเมลเกิน {UNVERIFIED_DAYS} วัน: {len(rows)} รายการ"
+              + (" (ดูอย่างเดียว ไม่ลบ)" if dry_run else ""))
+        for tid, name, users in rows[:50]:
+            print(f"  - #{tid} {name} · {', '.join(users)}")
+    if dry_run:
+        return len(rows)
+    for tid, name, users in rows:
+        purge_tenant(tid)
+        db = acc_session()
+        try:
+            db.query(Lead).filter(Lead.kind == "trial", Lead.tenant_id == tid).delete(synchronize_session=False)
+            db.commit()
+        finally:
+            db.close()
+    if rows:
+        audit("signup.unverified_purged", tenant_id=None, uid=None, target=f"{len(rows)} รายการ",
+              detail=", ".join(n for _, n, _ in rows)[:400])
+    return len(rows)
+
+
+if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+    purge_unverified(dry_run="--dry-run" in sys.argv or "-n" in sys.argv, verbose=True)

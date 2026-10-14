@@ -149,4 +149,13 @@ def run(dry_run: bool = False, verbose: bool = True, today: date | None = None) 
 
 
 if __name__ == "__main__":
-    run(dry_run="--dry-run" in sys.argv or "-n" in sys.argv)
+    # cron วันละครั้งตัวเดียวทำครบ: เตือนหมดเวลา + อีเมลแนะนำตามความคืบหน้า + ล้างการสมัครที่ไม่ยืนยันอีเมล
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+    _dry = "--dry-run" in sys.argv or "-n" in sys.argv
+    run(dry_run=_dry)
+    from app.services import trial_nurture, signup_cleanup
+    trial_nurture.run(dry_run=_dry)
+    signup_cleanup.purge_unverified(dry_run=_dry, verbose=True)
