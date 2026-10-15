@@ -67,3 +67,12 @@ def test_finance_and_procurement_remember_hiding_separately(env):
     html = env.get(f'/procurement?year={FY}').text
     assert "var KEY = 'setupHidden_proc'" in html
     assert "var KEY = 'setupHidden_fin'" in env.get(f'/finance?year={FY}').text
+
+
+def test_checklist_has_tutorial_video_button(env):
+    """รายการเริ่มต้นงานพัสดุมีปุ่มไปหน้าวิดีโอสอนใช้งาน · กดแล้วไปถึงส่วนวิดีโอพอดี
+    งานอื่นยังไม่มีวิดีโอ จึงไม่มีปุ่ม"""
+    html = env.get(f'/procurement?year={FY}').text
+    assert 'id="setup-proc"' in html and 'class="fs-video" href="/guide#guide-videos"' in html
+    assert 'id="guide-videos"' in env.get('/guide').text
+    assert 'class="fs-video"' not in env.get(f'/finance?year={FY}').text

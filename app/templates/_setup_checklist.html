@@ -1,10 +1,12 @@
 {# รายการเริ่มต้นใช้งาน ใช้ร่วมกันทุกงาน: ระบบติ๊กเองจากข้อมูลจริง ขั้นถัดไปขั้นเดียว ครบแล้วหายเอง
-   ต้องตั้ง setup (dict จาก *_setup.setup_steps), setup_key (ไม่ซ้ำกัน), setup_title ก่อน include #}
+   ต้องตั้ง setup (dict จาก *_setup.setup_steps), setup_key (ไม่ซ้ำกัน), setup_title ก่อน include
+   ไม่บังคับ: setup_video = ลิงก์หน้าวิดีโอสอนของงานนั้น (มีปุ่ม "ดูวิดีโอสอนใช้งาน" ที่หัวกล่อง) #}
 {% if not setup.complete %}
 <div class="card fs-card" id="setup-{{ setup_key }}">
   <div class="fs-head">
     <div><h2 class="fs-title">{{ setup_title }}</h2>
-      <div class="fs-sub">ทำแล้ว {{ setup.done }} จาก {{ setup.total }} ขั้น · ระบบติ๊กให้เองเมื่อข้อมูลครบ</div></div>
+      <div class="fs-sub">ทำแล้ว {{ setup.done }} จาก {{ setup.total }} ขั้น · ระบบติ๊กให้เองเมื่อข้อมูลครบ</div>
+      {% if setup_video %}<a class="fs-video" href="{{ setup_video }}"><span class="fs-play">▶</span> ดูวิดีโอสอนใช้งาน</a>{% endif %}</div>
     <button type="button" class="fs-hide" id="setup-{{ setup_key }}-hide">ซ่อนไว้ก่อน</button>
   </div>
   <div class="fs-bar"><span style="width:{{ (setup.done / setup.total * 100)|round(0) }}%"></span></div>
@@ -31,6 +33,12 @@
   .fs-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
   .fs-title{ margin:0; border:none; background:none; padding:0; font-size:18px; }
   .fs-sub{ font-size:13px; color:#475569; margin-top:2px; }
+  .fs-video{ display:inline-flex; align-items:center; gap:8px; margin-top:10px; padding:7px 14px 7px 8px; border-radius:999px;
+             font-size:14px; font-weight:600; color:#fff; text-decoration:none;
+             background:linear-gradient(120deg,#dc2626,#f97316); box-shadow:0 4px 12px rgba(220,38,38,.25); }
+  .fs-video:hover{ transform:translateY(-1px); color:#fff; }
+  .fs-play{ width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,.25); display:inline-flex;
+            align-items:center; justify-content:center; font-size:11px; }
   .fs-hide{ background:none; border:0; color:#64748b; font-size:13px; cursor:pointer; text-decoration:underline; padding:0; white-space:nowrap; }
   .fs-bar{ height:8px; border-radius:6px; background:#e2e8f0; overflow:hidden; margin:10px 0 6px; }
   .fs-bar span{ display:block; height:100%; background:linear-gradient(90deg,#16a34a,#22c55e); }
