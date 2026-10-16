@@ -185,7 +185,10 @@ async def tenant_auth(request: Request, call_next):
     # ใครกำลังใช้งานอยู่ -> โชว์ในคอนโซล (เขียน DB นาทีละครั้งต่อคน ไม่ใช่ทุกคลิก)
     try:
         from app.accounts import touch_last_seen
-        touch_last_seen(sess.get("uid"), path)
+        # เปิดหน้าจริง = GET ที่ขอ HTML · แชท/ค้นหาสด/ดาวน์โหลดเบื้องหลังไม่ใช่ "หน้าที่กำลังทำงาน"
+        is_page = (request.method == "GET" and "text/html" in (request.headers.get("accept") or "")
+                   and not path.startswith("/support/chat"))
+        touch_last_seen(sess.get("uid"), path, page=is_page)
     except Exception:
         pass
     # sync ลง session ให้เทมเพลต (sidebar/hub) แสดงตรงกับสิทธิ์จริงโดยไม่ต้อง re-login

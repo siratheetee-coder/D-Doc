@@ -614,13 +614,19 @@ def purge_tenant(tenant_id) -> dict:
 # ---------------- ใครกำลังใช้งานอยู่ (ดูในคอนโซลก่อนรีสตาร์ทเซิร์ฟเวอร์) ----------------
 _SEEN_EVERY = 60        # เขียน DB ไม่เกินนาทีละครั้งต่อคน (ไม่งั้นทุกคลิกจะเขียน accounts.db)
 _seen_cache: dict = {}  # uid -> เวลาที่เขียนล่าสุด (ต่อโปรเซส)
+_seen_page: dict = {}   # uid -> หน้าล่าสุดที่ "เปิดดูจริง" (ยังไม่ได้เขียนลง DB)
 
 
-def touch_last_seen(uid, path: str = "") -> None:
-    """บันทึกว่าบัญชีนี้เพิ่งใช้งาน · เรียกจากมิดเดิลแวร์ทุก request แต่เขียนจริงนาทีละครั้ง"""
+def touch_last_seen(uid, path: str = "", page: bool = True) -> None:
+    """บันทึกว่าบัญชีนี้เพิ่งใช้งาน · เรียกจากมิดเดิลแวร์ทุก request แต่เขียนจริงนาทีละครั้ง
+
+    page=False = คำขอเบื้องหลัง (แชทเช็กข้อความทุก 15 วิ, ค้นหาสด ฯลฯ) นับว่ายังออนไลน์
+    แต่ไม่ใช่ "หน้าที่กำลังทำงาน" · เคยบันทึกทุกคำขอ คอนโซลจึงขึ้น /support/chat ทุกคน"""
     import time as _t
     if not uid:
         return
+    if page and path:
+        _seen_page[uid] = path
     now = _t.time()
     if now - _seen_cache.get(uid, 0) < _SEEN_EVERY:
         return
@@ -630,7 +636,8 @@ def touch_last_seen(uid, path: str = "") -> None:
         a = db.get(Account, uid)
         if a:
             a.last_seen_at = datetime.now()
-            a.last_path = (path or "")[:120]
+            if _seen_page.get(uid):
+                a.last_path = _seen_page[uid][:120]
             db.commit()
     except Exception:
         pass
