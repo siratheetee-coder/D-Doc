@@ -136,7 +136,8 @@ def test_dashboard_has_a_card_for_every_menu_item(env):
     """
     c = env
     html = c.get("/finance").text
-    cards = set(re.findall(r'class="nav-card" href="(/finance/[a-z-]+)"', html))
+    # การ์ดบางใบมี ?year= ต่อท้าย (เช่น บันทึกขอเบิกจ่าย) ต้องนับด้วย ไม่งั้นเทสฟ้องผิด
+    cards = set(re.findall(r'class="nav-card" href="(/finance/[a-z-]+)(?:\?[^"]*)?"', html))
     side = html.split('class="side', 1)[1] if 'class="side' in html else html
     menu = {m for m in re.findall(r'href="(/finance/[a-z-]+)"', side)} - {"/finance"}
     assert len(cards) >= 14, f"การ์ดน้อยผิดปกติ: {sorted(cards)}"

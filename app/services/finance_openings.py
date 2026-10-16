@@ -62,3 +62,26 @@ def carry(db, fy):
         row=db.query(AccountOpening).filter_by(account_id=a.id,fiscal_year=fy+1).first()
         if row is None:row=AccountOpening(account_id=a.id,fiscal_year=fy+1);db.add(row)
         row.amount=account_balance_year(a,fy)
+
+
+def carry_status(db, fy) -> list:
+    """บัญชีที่ยอดยกมาปีงบ fy ไม่ตรงกับยอดคงเหลือสิ้นปีงบ fy-1 -> ยอดทุกหน้าของปีงบ fy ผิดอยู่
+
+    เกิดได้ 2 แบบ: ยังไม่ได้กดยกยอดเลย (ระบบใช้ยอดตั้งต้นของบัญชีแทน) หรือ
+    ยกยอดแล้วแต่มีรายการปีก่อนเพิ่ม/แก้ทีหลัง · ตรวจเฉพาะบัญชีที่ปีก่อนมีความเคลื่อนไหว
+    และเฉพาะเมื่อปีก่อนปิดไปแล้ว (ปีที่ยังไม่จบ ยอดยังเปลี่ยนได้ ไม่ต้องเตือน)
+    """
+    from app.thai_utils import current_fiscal_year
+    if fy > current_fiscal_year():
+        return []
+    out = []
+    for a in db.query(FinanceAccount).order_by(FinanceAccount.name):
+        prev = (any(t.fiscal_year == fy - 1 for t in a.txns)
+                or any(o.fiscal_year == fy - 1 for o in (a.openings or [])))
+        if not prev:
+            continue
+        want, got = account_balance_year(a, fy - 1), opening_for(a, fy)
+        if round(want - got, 2) != 0:
+            out.append({"name": a.name, "want": want, "got": got,
+                        "carried": any(o.fiscal_year == fy for o in (a.openings or []))})
+    return out

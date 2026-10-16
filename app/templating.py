@@ -24,6 +24,23 @@ from app.seller_config import pricing_context
 from app.services.form_guard import fields as _form_guard_fields
 
 
+def _finance_carry_warn(fy):
+    """เตือนในทุกหน้าการเงิน: ยอดยกมาปีงบนี้ไม่ตรงยอดสิ้นปีก่อน (ดู finance_openings.carry_status)"""
+    try:
+        from app.tenancy import current_school_id, session_for
+        from app.services.finance_openings import carry_status
+        sid = current_school_id.get()
+        if sid is None or not fy:
+            return []
+        db = session_for(sid)
+        try:
+            return carry_status(db, int(fy))
+        finally:
+            db.close()
+    except Exception:
+        return []
+
+
 def account_status(tenant_id=None):
     """สถานะแพ็กเกจของโรงเรียน (ส่ง tenant_id จาก request.session - เชื่อถือได้ตอนเรนเดอร์)
     ถ้าไม่ส่ง จะลองอ่านจาก contextvar (อาจว่างตอน render lazy) หรือคืน None"""
@@ -80,7 +97,8 @@ MODULES_LIVE = {"procurement": True, "admin": True, "finance": True, "lunch": Tr
 # global helper ใช้ได้ทุกเทมเพลต
 templates.env.globals.update(
     trial_days=TRIAL_DAYS,
-    form_guard=_form_guard_fields,       # ฟอร์มสาธารณะ: โทเคนเวลา + ช่องล่อกันบอท
+    form_guard=_form_guard_fields,
+    finance_carry_warn=_finance_carry_warn,       # ฟอร์มสาธารณะ: โทเคนเวลา + ช่องล่อกันบอท
     thai_date=thai_date, bahttext=bahttext, be_date=be_date_input,
     nav_alerts=nav_alerts, nav_holidays=nav_holidays, my_notices=my_notices,
     maint_notice=lambda: __import__("app.accounts", fromlist=["x"]).active_notice(),

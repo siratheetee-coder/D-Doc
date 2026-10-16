@@ -90,3 +90,33 @@ def test_the_picker_on_screen_offers_more_than_one_year(env):
     block = html.split('name="year"', 1)[1].split("</select>", 1)[0]
     options = re.findall(r'value="(\d{4})"', block)
     assert len(set(options)) >= 3, options
+
+
+def test_warns_when_opening_does_not_match_last_year_end(env):
+    """เจอจริง ต.ค. 2569: ขึ้นปีงบใหม่แล้วยังไม่กดยกยอด ระบบใช้ยอดตั้งต้นของบัญชีแทนยอดสิ้นปีก่อน
+    ยอดคงเหลือทุกหน้าผิดเงียบ ๆ และปุ่มยกยอดท้ายหน้าชี้ไปปีถัดไป (ผิดทาง) -> ต้องเตือนพร้อมปุ่มที่ถูกปี"""
+    from datetime import datetime
+    import app.tenancy as tn
+    from app.models import FinanceAccount, FinanceTxn
+    from app.thai_utils import current_fiscal_year
+    fy = current_fiscal_year()
+    sid = next(iter(tn._engines))
+    with tn.session_for(sid) as s:
+        a = FinanceAccount(name="บัญชีทดสอบยกยอด", opening_balance=100000); s.add(a); s.flush()
+        s.add(FinanceTxn(account_id=a.id, fiscal_year=fy - 1, kind="in", amount=50000, date=datetime(2026, 6, 1)))
+        s.add(FinanceTxn(account_id=a.id, fiscal_year=fy, kind="out", amount=700, date=datetime.now()))  # ปีนี้ยังไม่จบ
+        s.commit(); aid = a.id
+    for url in (f"/finance?year={fy}", f"/finance/accounts/{aid}?year={fy}", f"/finance/cashbook?year={fy}"):
+        html = env.get(url).text
+        assert f"ยอดยกมาปีงบ {fy} ยังไม่ตรงกับยอดคงเหลือสิ้นปีงบ {fy - 1}" in html, url
+    html = env.get(f"/finance?year={fy}").text
+    assert "150,000.00" in html and "ยังไม่ได้ยกยอดจากปีงบ" in html
+    assert f'<input type="hidden" name="year" value="{fy - 1}">' in html, "ปุ่มต้องยกจากปีก่อนมาปีนี้"
+    assert "ยังไม่ตรงกับยอดคงเหลือ" not in env.get(f"/finance?year={fy + 1}").text, "ปีที่ยังไม่มาถึงไม่ต้องเตือน"
+    env.post("/finance/carry-forward", data={"year": str(fy - 1)})
+    assert "ยังไม่ตรงกับยอดคงเหลือ" not in env.get(f"/finance?year={fy}").text
+    with tn.session_for(sid) as s:                     # ลงรายการปีก่อนเพิ่มหลังยกยอดแล้ว
+        s.add(FinanceTxn(account_id=aid, fiscal_year=fy - 1, kind="out", amount=2000, date=datetime(2026, 9, 1)))
+        s.commit()
+    html = env.get(f"/finance?year={fy}").text
+    assert "เพิ่มหรือแก้หลังยกยอดไปแล้ว" in html and "148,000.00" in html
