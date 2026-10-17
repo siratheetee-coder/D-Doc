@@ -1807,15 +1807,44 @@ def ebudget_page(request: Request, db: Session = Depends(get_db),
 
     ไม่ได้ส่งข้อมูลไปที่ e-Budget · ครูยังต้องเปิดเว็บแล้ววางเอง (เหมือนหน้าช่วยกรอก e-GP)
     """
-    from app.services.ebudget import ORDER, SOURCES, build, period
+    from app.services.ebudget import ORDER, SOURCES, build, period, slot_choices
     fy = year or current_fiscal_year()
     rnd = 2 if round == 2 else (1 if round == 1 else _default_round(fy))
     data = build(db, fy, rnd)
+    choices = slot_choices()
+    names = dict(choices)
+    own = [{"kind": "account", "id": a.id, "name": a.name, "account": a.name, "account_id": a.id,
+            "slot": a.eb_slot, "label": names.get(a.eb_slot, a.eb_slot)}
+           for a in db.query(FinanceAccount).order_by(FinanceAccount.name) if (a.eb_slot or "").strip()]
+    own += [{"kind": "item", "id": i.id, "name": i.name, "account": i.account.name if i.account else "",
+             "account_id": i.account_id, "slot": i.eb_slot, "label": names.get(i.eb_slot, i.eb_slot)}
+            for i in db.query(AccountItem).filter_by(fiscal_year=fy).order_by(AccountItem.id)
+            if (i.eb_slot or "").strip()]
     return templates.TemplateResponse("finance_ebudget.html", {
         "request": request, "d": data, "order": ORDER, "sources": SOURCES,
         "fiscal_year": fy, "round": rnd, "years": _finance_years(db, fy),
-        "school": get_school(db),
+        "school": get_school(db), "slot_choices": choices, "own_slots": own,
+        "slot_saved": request.query_params.get("slot_saved"),
     })
+
+
+@router.post("/finance/ebudget/slot")
+def ebudget_slot_save(db: Session = Depends(get_db), kind: str = Form(""), id: str = Form(""),
+                      slot: str = Form(""), year: str = Form(""), round: str = Form("")):
+    """เลือกเองว่าเงินในบัญชี/หมวดย่อยนี้ลงช่องไหนของ e-Budget (ส่วน 2/3/5) · ว่าง = กลับไปเดาจากชื่อ
+    เลือกครั้งเดียวใช้ตลอด (หมวดย่อยยกไปปีถัดไปพร้อมค่าที่เลือก)"""
+    from app.services.ebudget import slot_choices
+    slot = (slot or "").strip()
+    if slot and slot not in dict(slot_choices()):
+        raise HTTPException(400, "ไม่มีช่องนี้ในแบบ e-Budget")
+    obj = (db.get(FinanceAccount, _to_int(id, 0)) if kind == "account"
+           else db.get(AccountItem, _to_int(id, 0)) if kind == "item" else None)
+    if obj is None:
+        raise HTTPException(404, "ไม่พบบัญชีหรือหมวดนี้")
+    obj.eb_slot = slot
+    db.commit()
+    fy, rnd = _to_int(year, current_fiscal_year()), (2 if round == "2" else 1)
+    return RedirectResponse(f"/finance/ebudget?year={fy}&round={rnd}&slot_saved=1#eb-slots", status_code=303)
 
 
 def _default_round(fy: int) -> int:

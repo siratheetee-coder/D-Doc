@@ -1,6 +1,18 @@
 {% extends "base.html" %}
 {% block title %}ช่วยกรอก e-Budget{% endblock %}
 {% block content %}
+{% macro lbl(code, label) %}{{ label if label.startswith(code ~ ' ') else code ~ ' ' ~ label }}{% endmacro %}
+{% macro slot_form(r, current='') %}
+<form method="post" action="/finance/ebudget/slot" class="slot-form">
+  <input type="hidden" name="kind" value="{{ r.kind }}"><input type="hidden" name="id" value="{{ r.id }}">
+  <input type="hidden" name="year" value="{{ fiscal_year }}"><input type="hidden" name="round" value="{{ round }}">
+  <select name="slot" aria-label="ช่อง e-Budget ของ {{ r.name }}">
+    <option value="">{{ '- ให้ระบบเดาจากชื่อ -' if current else '- เลือกช่อง e-Budget -' }}</option>
+    {% for code, label in slot_choices %}<option value="{{ code }}" {{ 'selected' if code == current }}>{{ label }}</option>{% endfor %}
+  </select>
+  <button class="btn sm" type="submit" data-no-floating-save>บันทึก</button>{# ปุ่มอยู่ข้างช่องแล้ว ไม่ต้องมีแถบบันทึกลอย #}
+</form>
+{% endmacro %}
 {% macro cp(id, value) %}
 <span class="eb-val" id="{{ id }}">{{ "{:,.2f}".format(value) }}</span>
 {%- if value %}<button type="button" class="btn xs" title="คัดลอก {{ "%.2f"|format(value) }}"
@@ -48,14 +60,59 @@
     ต้องเปิดเว็บแล้วคัดลอกไปวางเอง</span>
 </div>
 
+{# ===== เงินที่ระบบยังไม่รู้ว่าลงช่องไหน (ตกไปช่อง "อื่น ๆ") : เลือกช่องตรงนี้ได้เลย ไม่ต้องไปแก้ชื่อบัญชี ===== #}
+<div id="eb-slots"></div>
+{% if slot_saved %}<div class="slot-ok">บันทึกช่อง e-Budget แล้ว ตัวเลขด้านล่างคำนวณใหม่ตามที่เลือก</div>{% endif %}
 {% if d.unmapped %}
-<div class="alert info">
-  <svg class="icon"><use href="#ic-info"/></svg>
-  <span><b>จับคู่ประเภทเงินไม่ได้ {{ d.unmapped|length }} รายการ</b> · ยอดถูกรวมไว้ที่ช่อง "อื่น ๆ (3.13)"
-    ได้แก่ {{ d.unmapped|join(" · ") }}<br>
-    ถ้าควรอยู่ช่องอื่น ให้แก้ชื่อบัญชี/รายการย่อยให้มีคำที่ตรง เช่น "ค่าหนังสือเรียน" "เงินรายได้สถานศึกษา"</span>
+<div class="card slot-box">
+  <h2 style="margin-top:0;">เงินที่ระบบยังไม่รู้ว่าลงช่องไหนใน e-Budget</h2>
+  <p class="slot-sub">ตอนนี้ยอดเหล่านี้ไปรวมอยู่ช่อง <b>"อื่น ๆ"</b> ระบบดูจากชื่อบัญชีหรือหมวดแล้วเดาไม่ได้</p>
+  <ul class="slot-how">
+    <li><b>เงินในบัญชี/หมวดนี้เป็นประเภทเดียว</b> (เช่น บัญชีออมทรัพย์ที่เก็บเฉพาะเงินรายได้สถานศึกษา) เลือกช่องแล้วกดบันทึก ระบบจำไว้ใช้ตลอด</li>
+    <li><b>มีเงินหลายประเภทปนกัน</b> (เช่น รายหัว + ค่าหนังสือเรียน อยู่บัญชีเดียวกัน) กด "แยกหมวดย่อย" ไปสร้างหมวดในบัญชีนั้น
+      (มีปุ่มชุดหมวดมาตรฐานเงินอุดหนุน 5 รายการ) แล้วลงรายการรับจ่ายให้ตรงหมวด</li>
+  </ul>
+  <div class="table-wrap"><table class="slot-tbl">
+    <thead><tr><th>บัญชี / หมวด</th><th class="right">ยอดคงเหลือ</th><th>ลงช่องไหนใน e-Budget</th></tr></thead>
+    <tbody>
+      {% for r in d.unmapped %}
+      <tr>
+        <td>{% if r.kind == 'item' %}<b>{{ r.name }}</b><div class="slot-acc">หมวดในบัญชี {{ r.account }}</div>
+            {% else %}<b>{{ r.name }}</b><div class="slot-acc">ทั้งบัญชี{% if r.has_items %} (ยอดที่ไม่ได้ลงหมวด){% endif %}</div>{% endif %}
+          <a class="slot-link" href="/finance/accounts/{{ r.account_id }}?year={{ fiscal_year }}">{{ 'แยกหมวดย่อย' if r.kind == 'account' else 'ดูบัญชีนี้' }}</a></td>
+        <td class="right">{{ "{:,.2f}".format(r.balance) }}</td>
+        <td>{{ slot_form(r) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
 </div>
 {% endif %}
+{% if own_slots %}
+<details class="card slot-own">
+  <summary>ช่องที่ท่านเลือกเองไว้ ({{ own_slots|length }}) · กดเพื่อดูหรือเปลี่ยน</summary>
+  <div class="table-wrap"><table class="slot-tbl">
+    <tbody>
+      {% for r in own_slots %}
+      <tr><td><b>{{ r.name }}</b><div class="slot-acc">{{ 'หมวดในบัญชี ' ~ r.account if r.kind == 'item' else 'ทั้งบัญชี' }}</div></td>
+        <td>{{ slot_form(r, r.slot) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</details>
+{% endif %}
+<style>
+  .slot-box { background:linear-gradient(135deg,#fff7ed,#fffbeb); }
+  .slot-sub { margin:0 0 6px; color:#7c2d12; }
+  .slot-how { margin:0 0 12px; padding-left:20px; font-size:14px; line-height:1.7; color:#475569; }
+  .slot-tbl td { vertical-align:middle; }
+  .slot-acc { font-size:12.5px; color:var(--muted); }
+  .slot-link { font-size:13px; }
+  .slot-form { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:0; }
+  .slot-form select { max-width:340px; }
+  .slot-own summary { cursor:pointer; font-weight:600; }
+  .slot-ok { margin:0 0 14px; padding:10px 14px; border-radius:12px; background:linear-gradient(120deg,#ecfdf5,#d1fae5); color:#065f46; }
+</style>
 
 <div class="card">
   <h2>ตรวจยอดก่อนกรอก</h2>
@@ -88,7 +145,7 @@
     <tbody>
       {% for code, label, bold in order %}
       <tr class="{{ 'head' if bold else 'sub' }}">
-        <td>{{ code }} {{ label }}</td>
+        <td>{{ lbl(code, label) }}</td>
         <td class="right {{ 'zero' if not d.opening[code] }}">{{ cp('o' ~ code, d.opening[code]) }}</td>
       </tr>
       {% endfor %}
@@ -112,7 +169,7 @@
     <tbody>
       {% for code, label, bold in order %}
       <tr class="{{ 'head' if bold else 'sub' }}">
-        <td>{{ code }} {{ label }}</td>
+        <td>{{ lbl(code, label) }}</td>
         <td class="right {{ 'zero' if not d.income[code] }}">{{ cp('i' ~ code, d.income[code]) }}</td>
       </tr>
       {% endfor %}
@@ -201,7 +258,7 @@
     <tbody>
       {% for code, label, bold in order %}
       <tr class="{{ 'head' if bold else 'sub' }}">
-        <td>{{ code }} {{ label }}</td>
+        <td>{{ lbl(code, label) }}</td>
         <td class="right {{ 'zero' if not d.closing[code] }}">{{ cp('c' ~ code, d.closing[code]) }}</td>
       </tr>
       {% endfor %}

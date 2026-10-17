@@ -173,7 +173,7 @@ def test_expense_is_split_by_funding_source(env):
 def test_unmapped_items_are_reported_not_hidden(env):
     _c, tid = env
     d = _build(tid, 2)
-    assert "ค่าตกแต่งสวนหย่อม" in d["unmapped"]
+    assert "ค่าตกแต่งสวนหย่อม" in [r["name"] for r in d["unmapped"]]
 
 
 def test_page_lists_every_box_with_copy_buttons(env):

@@ -707,6 +707,7 @@ class FinanceAccount(Base):
     opening_balance = Column(Float, default=0.0)     # ยอดยกมา (ต้นปีงบ)
     deposit_type = Column(String, default="bank")    # เก็บเงินไว้ที่: cash/bank/agency (สำหรับรายงานเงินคงเหลือ)
     fund_type = Column(String, default="เงินนอกงบประมาณ")  # ประเภทเงินตามงบ (สมุดเงินสด): เงินงบประมาณ/เงินรายได้แผ่นดิน/เงินนอกงบประมาณ
+    eb_slot = Column(String, default="")             # ช่อง e-Budget ส่วน 2/3/5 ที่เลือกเอง (ว่าง = เดาจากชื่อ)
     note = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)
 
@@ -853,6 +854,7 @@ class AccountItem(Base):
     name = Column(String, nullable=False)            # ชื่อหมวด/รายการ
     opening_balance = Column(Float, default=0.0)  # เงินยกมาเฉพาะหมวดนี้ ไม่รวมลูกและไม่ใช่งบ
     budget = Column(Float, default=0.0)              # งบที่ตั้งไว้/ได้รับจัดสรร
+    eb_slot = Column(String, default="")             # ช่อง e-Budget ที่เลือกเอง (ว่าง = เดาจากชื่อ / ตามบัญชี)
     deposit_type = Column(String, default="bank")    # เก็บเงินไว้ที่: cash/bank/agency
     note = Column(String, default="")
 

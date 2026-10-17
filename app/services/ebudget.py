@@ -154,6 +154,23 @@ def _target(name: str, fund_type: str = "") -> str:
     return classify(name, fund_type)[0]
 
 
+OTHER_SLOTS = ("3.13", "2.5")      # ช่อง "อื่น ๆ" = เดาไม่ได้ ถ้ายังไม่ได้เลือกเอง
+
+
+def slot_choices() -> list:
+    """ช่องที่เลือกได้ (เฉพาะข้อย่อย หัวข้อรวมคิดจากลูกเอง) -> [(code, label)]"""
+    return [(code, label if label.startswith(code + " ") else f"{code} {label}")
+            for code, label, bold in ORDER if not bold and code not in PARENTS]
+
+
+def slot_of(obj, fund_type: str = "") -> tuple:
+    """(ช่อง, เลือกเองไหม) ของบัญชีหรือหมวดย่อย · เลือกเองไว้ = ใช้ค่านั้น ไม่งั้นเดาจากชื่อ"""
+    own = (getattr(obj, "eb_slot", "") or "").strip()
+    if own and own in {code for code, _l in slot_choices()}:
+        return own, True
+    return _target(getattr(obj, "name", "") or "", fund_type), False
+
+
 # หัวข้อรวมในแบบ e-Budget = ผลรวมของข้อย่อย (ไล่จากชั้นในออกชั้นนอก)
 PARENTS = {
     "3.1": ["3.1.1", "3.1.2", "3.1.3", "3.1.4", "3.1.5", "3.1.6", "3.1.7"],
@@ -191,37 +208,65 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
     items = {it.id: it for it in db.query(AccountItem).filter_by(fiscal_year=fiscal_year).all()}
     txns = [t for t in db.query(FinanceTxn).filter_by(fiscal_year=fiscal_year).all()]
 
-    def code_for(t) -> str:
-        """ช่องของรายการนี้ - ดูชื่อรายการย่อยก่อน ถ้าไม่มีจึงใช้ชื่อบัญชี"""
-        acct = next((a for a in accounts if a.id == t.account_id), None)
+    acc_by_id = {a.id: a for a in accounts}
+
+    def place(acct, it) -> tuple:
+        """(ช่อง, ต้นทางที่ทำให้ลงช่องนี้) ของเงินในหมวดย่อย it ของบัญชี acct
+        หมวดย่อยที่เลือกเองหรือชื่อตรง -> ใช้หมวด · ไม่งั้นใช้ของบัญชี"""
         ft = acct.fund_type if acct else ""
-        it = items.get(t.item_id) if t.item_id else None
         if it is not None:
-            code = _target(it.name, ft)
-            if code not in ("3.13", "2.5"):
-                return code
-        return _target(acct.name if acct else "", ft)
+            code, own = slot_of(it, ft)
+            if own or code not in OTHER_SLOTS:
+                return code, ("item", it.id, own)
+        if acct is None:
+            return "3.13", ("none", 0, False)
+        code, own = slot_of(acct, ft)
+        if it is not None and code in OTHER_SLOTS and not own:
+            return code, ("item", it.id, False)     # ทั้งหมวดและบัญชีเดาไม่ได้: ให้แก้ที่หมวด (เจาะจงกว่า)
+        return code, ("account", acct.id, own)
 
     opening, income, closing = _bucket(), _bucket(), _bucket()
     expense = {s: 0.0 for s, _ in SOURCES}
-    rows, unmapped = [], set()
+    rows = []
     matrix, missing = {}, []          # ตารางไขว้ส่วนที่ 4 · รายการที่ยังไม่ได้ระบุหมวด
+    other = {}                        # ต้นทางที่ยอดไปตกช่อง "อื่น ๆ" เพราะเดาไม่ได้ -> ยอดคงเหลือ/ความเคลื่อนไหว
 
-    # ยอดยกมาต้นปีงบ ลงช่องตามชื่อบัญชี
+    def note_other(src, code, bal=0.0, moved=0.0):
+        kind, oid, own = src
+        if code in OTHER_SLOTS and not own and kind != "none":
+            r = other.setdefault((kind, oid), {"balance": 0.0, "moved": 0.0})
+            r["balance"] += bal
+            r["moved"] += moved
+
+    # ยอดยกมาต้นปีงบ: หมวดย่อยลงช่องของหมวด (ยอดยกมาแยกหมวดไว้แล้ว) ส่วนที่เหลือลงช่องของบัญชี
+    # (เดิมลงทั้งก้อนตามชื่อบัญชี แต่รายการจ่ายลงตามหมวด -> ช่องหมวดติดลบ ช่องบัญชีเกิน)
+    from app.services.asset_utils import opening_for
     for a in accounts:
-        from app.services.asset_utils import opening_for
-        code = _target(a.name, a.fund_type)
-        opening[code] += opening_for(a, fiscal_year)
-        closing[code] += opening_for(a, fiscal_year)
+        total = opening_for(a, fiscal_year)
+        used = 0.0
+        for it in (i for i in items.values() if i.account_id == a.id):
+            amt = float(it.opening_balance or 0)
+            if not amt:
+                continue
+            code, src = place(a, it)
+            opening[code] += amt
+            closing[code] += amt
+            note_other(src, code, bal=amt)
+            used += amt
+        rest = round(total - used, 2)
+        code, src = place(a, None)
+        opening[code] += rest
+        closing[code] += rest
+        note_other(src, code, bal=rest)
 
     for t in txns:
-        code = code_for(t)
+        acct = acc_by_id.get(t.account_id)
+        it = items.get(t.item_id) if t.item_id else None
+        code, src = place(acct, it)
         amt = float(t.amount or 0)
-        acct = next((a for a in accounts if a.id == t.account_id), None)
-        if code in ("3.13", "2.5"):
-            it = items.get(t.item_id) if t.item_id else None
-            unmapped.add((it.name if it else (acct.name if acct else "-")))
         d = t.date or start
+        if start <= d <= end or d < start:
+            note_other(src, code, bal=amt if t.kind == "in" else -amt, moved=amt)
         inside = start <= d <= end
         before = d < start
         if t.kind == "in":
@@ -267,5 +312,28 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
                    "closing": tot_close},
         # เว็บ e-Budget ตรวจว่า (ยกมา + รายรับ) − รายจ่าย = คงเหลือ
         "check": round(tot_open + tot_in - tot_out - tot_close, 2),
-        "unmapped": sorted(x for x in unmapped if x),
+        "unmapped": _unmapped_rows(other, acc_by_id, items),
     }
+
+
+def _unmapped_rows(other: dict, acc_by_id: dict, items: dict) -> list:
+    """ต้นทางที่ยอดไปตกช่อง "อื่น ๆ" เพราะระบบเดาไม่ได้ (ยังไม่ได้เลือกเอง) · ยอดมากก่อน"""
+    out = []
+    for (kind, oid), v in other.items():
+        if not round(v["balance"], 2) and not round(v["moved"], 2):
+            continue
+        if kind == "item":
+            it = items.get(oid)
+            if not it:
+                continue
+            acc = acc_by_id.get(it.account_id)
+            out.append({"kind": "item", "id": oid, "name": it.name, "account": acc.name if acc else "",
+                        "account_id": it.account_id, "balance": round(v["balance"], 2)})
+        else:
+            acc = acc_by_id.get(oid)
+            if not acc:
+                continue
+            n_items = sum(1 for i in items.values() if i.account_id == oid)
+            out.append({"kind": "account", "id": oid, "name": acc.name, "account": acc.name,
+                        "account_id": oid, "balance": round(v["balance"], 2), "has_items": bool(n_items)})
+    return sorted(out, key=lambda r: -abs(r["balance"]))

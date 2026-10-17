@@ -56,6 +56,8 @@ def carry(db, fy):
             if new.id in [x.id for x in mapped.values()]:
                 raise ValueError('หมวดต้นทางชื่อซ้ำ กรุณาตรวจบัญชี '+a.name)
             new.opening_balance=item_remaining_asof(old)
+            if not (new.eb_slot or '') and (old.eb_slot or ''):   # ช่อง e-Budget ที่เลือกไว้ ตามไปปีใหม่
+                new.eb_slot=old.eb_slot
             mapped[old.id]=new
         if any(i.id not in [x.id for x in mapped.values()] and (i.opening_balance or 0) for i in target):
             raise ValueError('มีหมวดปีใหม่ที่มียอดยกมาแต่ไม่มีคู่ในปีก่อน กรุณาตรวจบัญชี '+a.name)
