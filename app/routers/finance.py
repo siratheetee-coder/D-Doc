@@ -1807,7 +1807,8 @@ def ebudget_page(request: Request, db: Session = Depends(get_db),
 
     ไม่ได้ส่งข้อมูลไปที่ e-Budget · ครูยังต้องเปิดเว็บแล้ววางเอง (เหมือนหน้าช่วยกรอก e-GP)
     """
-    from app.services.ebudget import ORDER, SOURCES, build, period, slot_choices
+    from app.services.ebudget import ORDER, SOURCES, build, period, slot_choices, checklist
+    from app.services.ebudget_cat import INCOME as EB_IN
     fy = year or current_fiscal_year()
     rnd = 2 if round == 2 else (1 if round == 1 else _default_round(fy))
     data = build(db, fy, rnd)
@@ -1824,6 +1825,7 @@ def ebudget_page(request: Request, db: Session = Depends(get_db),
         "request": request, "d": data, "order": ORDER, "sources": SOURCES,
         "fiscal_year": fy, "round": rnd, "years": _finance_years(db, fy),
         "school": get_school(db), "slot_choices": choices, "own_slots": own,
+        "setup": checklist(data, fy, rnd), "income_sources": EB_IN[0][1], "slot_names": names,
         "slot_saved": request.query_params.get("slot_saved"),
     })
 

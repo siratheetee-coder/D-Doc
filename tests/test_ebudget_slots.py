@@ -105,3 +105,50 @@ def test_carry_forward_keeps_the_chosen_slot(env, school):
         assert nxt.eb_slot == "3.1.5"
     finally:
         db.close()
+
+
+def test_checklist_walks_to_ready_and_section3_uses_chosen_source(env, school):
+    """หน้า e-Budget ใช้ยาก -> มีกล่องขั้นตอนก่อนกรอก ติ๊กเองจากข้อมูลจริง
+    ส่วนที่ 3 ใช้ "ใครให้เงินมา" ที่เลือกตอนบันทึกรับ (เดิมบันทึกไว้แต่ไม่ได้ใช้)"""
+    import re
+    import app.tenancy as tn
+    from app.models import FinanceTxn
+    sid, ids = school
+    page = lambda: env.get(f"/finance/ebudget?year={FY}&round=1").text          # noqa: E731
+    html = page()
+    assert 'id="setup-ebudget"' in html and "ขั้นตอนก่อนกรอก e-Budget" in html
+    nxt = re.search(r'fs-step is-next.*?fs-name">\d\. ([^<]+)<', html, re.S).group(1)
+    assert nxt == "บอกระบบว่าเงินแต่ละบัญชีลงช่องไหน"
+    assert "ยังไม่ได้ระบุที่มาของเงินอีก <b>1 รายการ</b>" in html
+    env.post("/finance/ebudget/slot", data={"kind": "account", "id": ids["bank"], "slot": "3.5", "year": FY})
+    nxt = re.search(r'fs-step is-next.*?fs-name">\d\. ([^<]+)<', page(), re.S).group(1)
+    assert nxt == "ระบุที่มาของเงินรับทุกรายการ (ส่วนที่ 3)"
+    db = tn.session_for(sid)
+    try:
+        t_in = db.query(FinanceTxn).filter_by(account_id=ids["bank"]).one().id
+        t_out = db.query(FinanceTxn).filter_by(item_id=ids["book"]).one().id
+    finally:
+        db.close()
+    env.post("/finance/ebudget/fill", data={"year": FY, "round": 1, f"eb_{t_in}": "i5", f"eb_{t_out}": "1.3"})
+    html = page()
+    assert 'id="setup-ebudget"' not in html and "พร้อมกรอกแล้ว" in html
+    sec3 = html.split("ส่วนที่ 3 · รายรับในงวด", 1)[1].split("</table>", 1)[0]
+    assert "ข้อ 5 เงินนอกงบประมาณ" in sec3 and "2,500.00" in sec3 and "3.5 เงินรายได้สถานศึกษา" in sec3
+
+
+@pytest.mark.parametrize("text,code", [
+    ("ค่าขยายเขตไฟฟ้าอาคาร 2", "3.4"),
+    ("ค่าไฟฟ้าเดือน พ.ย.", "4.1.1"),
+    ("ค่าจ้างพี่เลี้ยงเด็กพิการ", "2.1.7"),
+    ("ค่าจ้างบรรณารักษ์", "2.1.9"),
+    ("อบรมครูเรื่องการวัดผล", "2.2"),
+    ("ค่าอาหารนักเรียนพักนอน", "5.2"),
+    ("ค่าอาหารพักนอนพื้นที่ยากลำบาก", "5.11"),
+    ("เงินลูกเสือ ปีการศึกษา 2569", "5.4"),
+    ("ค่ากิจกรรมเข้าค่ายลูกเสือ", "1.6"),
+    ("เงินยุวกาชาด", "5.6"),
+    ("กิจกรรมสร้างความสัมพันธ์ชุมชน", "4.5"),
+])
+def test_more_expense_guesses(text, code):
+    from app.services.ebudget_cat import guess_expense
+    assert guess_expense(text) == code

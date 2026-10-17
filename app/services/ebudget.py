@@ -230,6 +230,9 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
     rows = []
     matrix, missing = {}, []          # ตารางไขว้ส่วนที่ 4 · รายการที่ยังไม่ได้ระบุหมวด
     other = {}                        # ต้นทางที่ยอดไปตกช่อง "อื่น ๆ" เพราะเดาไม่ได้ -> ยอดคงเหลือ/ความเคลื่อนไหว
+    # ส่วนที่ 3 จริงของเว็บ = "ใครให้เงินมา" (ข้อ 2-6) ใช้ค่าที่ครูเลือกตอนบันทึกรับ (eb_code i2-i6)
+    # แยกย่อยตามประเภทเงินไว้ช่วยเลือกข้อย่อยในเว็บ เช่น ข้อ 2 -> 3.1.1 รายหัว 100,000
+    income_src, income_missing = {}, []
 
     def note_other(src, code, bal=0.0, moved=0.0):
         kind, oid, own = src
@@ -276,6 +279,12 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
                 opening[code] += amt
             if inside:
                 income[code] += amt
+                src_in = (getattr(t, "eb_code", "") or "").strip()
+                if src_in.startswith("i"):
+                    by = income_src.setdefault(src_in, {})
+                    by[code] = by.get(code, 0.0) + amt
+                else:
+                    income_missing.append(t.id)
         else:
             if before or inside:
                 closing[code] -= amt
@@ -313,7 +322,40 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
         # เว็บ e-Budget ตรวจว่า (ยกมา + รายรับ) − รายจ่าย = คงเหลือ
         "check": round(tot_open + tot_in - tot_out - tot_close, 2),
         "unmapped": _unmapped_rows(other, acc_by_id, items),
+        "income_src": income_src, "income_missing": income_missing,
+        "n_in_period": sum(1 for t in txns if t.date and start <= t.date <= end),
     }
+
+
+def checklist(d: dict, fiscal_year: int, rnd: int) -> dict:
+    """ขั้นตอนก่อนกรอก e-Budget (กล่องรายการเริ่มต้นแบบเดียวกับงานอื่น) ติ๊กเองจากตัวเลขจริง"""
+    from app.services.module_setup import _pack
+    fill = f"/finance/ebudget/fill?year={fiscal_year}&round={rnd}"
+    n_un = len(d["unmapped"])
+    steps = [
+        dict(title="ลงรายการรับ-จ่ายของงวดนี้ในทะเบียนคุมเงิน", done=d["n_in_period"] > 0,
+             detail=(f"มี {d['n_in_period']} รายการในงวดนี้" if d["n_in_period"]
+                     else "ยังไม่มีรายการในงวดนี้ ตัวเลข e-Budget คำนวณจากทะเบียนคุมเงินทั้งหมด"),
+             href=f"/finance/accounts?year={fiscal_year}", cta="ไปทะเบียนคุมเงิน"),
+        dict(title="บอกระบบว่าเงินแต่ละบัญชีลงช่องไหน", done=not n_un,
+             detail=("ระบบรู้ช่องของเงินทุกบัญชีแล้ว (ส่วนที่ 2 และ 5)" if not n_un
+                     else f"มี {n_un} บัญชี/หมวดที่ระบบเดาช่องไม่ได้ ยอดไปรวมอยู่ช่อง \"อื่น ๆ\""),
+             href="#eb-slots", cta="เลือกช่องให้บัญชี"),
+        dict(title="ระบุที่มาของเงินรับทุกรายการ (ส่วนที่ 3)", done=not d["income_missing"],
+             detail=("ครบทุกรายการแล้ว" if not d["income_missing"]
+                     else f"ยังไม่ระบุ {len(d['income_missing'])} รายการ ว่าใครให้เงินมา (ต้นสังกัด / อปท. / เงินนอกงบ ฯลฯ) "
+                          "ระบบเดาไว้ให้แล้ว แค่ตรวจแล้วกดบันทึก"),
+             href=fill, cta="เติมที่มาของเงิน"),
+        dict(title="ระบุหมวดรายจ่ายทุกรายการ (ส่วนที่ 4)", done=not d["missing"],
+             detail=("ครบทุกรายการแล้ว" if not d["missing"]
+                     else f"ยังไม่ระบุ {len(d['missing'])} รายการ ว่าจ่ายด้านไหน ระบบเดาไว้ให้แล้ว แค่ตรวจแล้วกดบันทึก"),
+             href=fill, cta="เติมหมวดรายจ่าย"),
+        dict(title="ยอดตรวจตรงกัน (ยกมา + รับ − จ่าย = คงเหลือ)", done=d["check"] == 0,
+             detail=("ตรงกันพอดี" if d["check"] == 0
+                     else f"ต่างกัน {d['check']:,.2f} บาท มักเกิดจากลงรายการผิดงวดหรือยังลงไม่ครบ"),
+             href=f"/finance/cashbook?year={fiscal_year}", cta="ตรวจสมุดเงินสด"),
+    ]
+    return _pack(steps)
 
 
 def _unmapped_rows(other: dict, acc_by_id: dict, items: dict) -> list:

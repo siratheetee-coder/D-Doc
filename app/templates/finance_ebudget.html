@@ -53,6 +53,20 @@
   .eb .zero { color:var(--muted); font-weight:400; }
 </style>
 
+{% set setup_key = 'ebudget' %}{% set setup_title = 'ขั้นตอนก่อนกรอก e-Budget' %}
+{% include '_setup_checklist.html' %}
+{% if setup.complete %}
+<div class="eb-ready"><b>พร้อมกรอกแล้ว</b> · เปิดเว็บ e-Budget แล้วกด "คัดลอก" ทีละช่องตามลำดับด้านล่าง
+  (ส่วนที่ 2 → 3 → 4 → 5)</div>
+{% endif %}
+<style>
+  .eb-ready { margin:0 0 14px; padding:12px 16px; border-radius:12px; color:#065f46;
+    background:linear-gradient(120deg,#ecfdf5,#d1fae5); }
+  .src-head td { font-weight:700; background:#f6f8fc; }
+  .src-sub td:first-child { padding-left:34px; color:var(--muted); font-size:13.5px; }
+  .eb-todo { margin:0 0 14px; padding:10px 14px; border-radius:12px; color:#7c2d12;
+    background:linear-gradient(120deg,#fff7ed,#ffedd5); }
+</style>
 <div class="alert warn">
   <svg class="icon"><use href="#ic-alert"/></svg>
   <span><b>ตรวจทานก่อนกรอกทุกครั้ง</b> · ตัวเลขคำนวณจากทะเบียนคุมเงินที่ลงไว้ในระบบนี้
@@ -156,14 +170,32 @@
 </div>
 
 <div class="card">
-  <h2>รายรับในงวด (ใช้กับส่วนที่ 3)
+  <h2>ส่วนที่ 3 · รายรับในงวด แยกตามใครให้เงินมา
     <span class="muted" style="font-size:15px;">{{ thai_date(d.start) }} ถึง {{ thai_date(d.end) }}</span></h2>
-  <p class="muted" style="margin-top:0;">
-    หมายเหตุ: ส่วนที่ 3 ในเว็บ e-Budget แบ่งตาม <b>"ใครให้เงินมา"</b>
-    (ข้อ 2 ต้นสังกัด · ข้อ 3 หน่วยงานรัฐอื่น · ข้อ 4 อปท. · ข้อ 5 เงินนอกงบประมาณ · ข้อ 6 ส่งคืนเงิน)
-    แต่ทะเบียนคุมเงินแบ่งตาม <b>ประเภทเงิน</b> ระบบจึงสรุปยอดรับรายประเภทให้
-    แล้วนำไปลงข้อของเว็บเอง เช่น เงินอุดหนุนเรียนฟรีลงข้อ 2.1 · ค่าอาหารกลางวันจาก อบต. ลงข้อ 4.2
-    · เงินรายได้สถานศึกษาลงข้อ 5.3</p>
+  <p class="muted" style="margin-top:0;">ใช้ที่มาของเงินที่เลือกไว้ตอนบันทึกรับ · ใต้แต่ละข้อบอกว่าเป็นเงินประเภทไหน
+    ไว้ช่วยเลือกข้อย่อยในเว็บ (เช่น ข้อ 2 เงินอุดหนุนรายหัว ลงข้อ 2.1)</p>
+  {% if d.income_missing %}
+  <div class="eb-todo">ยังไม่ได้ระบุที่มาของเงินอีก <b>{{ d.income_missing|length }} รายการ</b> ยอดพวกนี้ยังไม่อยู่ในตารางนี้ ·
+    <a href="/finance/ebudget/fill?year={{ fiscal_year }}&round={{ round }}">เติมที่มาของเงิน</a></div>
+  {% endif %}
+  <div class="table-wrap"><table class="eb">
+    <thead><tr><th>ที่มาของเงินรับ</th><th class="right" style="width:240px;">จำนวนเงิน (บาท)</th></tr></thead>
+    <tbody>
+      {% for code, label in income_sources %}
+      {% set by = d.income_src.get(code, {}) %}
+      {% set total = by.values()|sum %}
+      <tr class="src-head"><td>{{ label }}</td>
+        <td class="right {{ 'zero' if not total }}">{{ cp('s' ~ code, total) }}</td></tr>
+      {% for slot, amt in by|dictsort %}
+      <tr class="src-sub"><td>{{ slot_names.get(slot, slot) }}</td><td class="right">{{ "{:,.2f}".format(amt) }}</td></tr>
+      {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<details class="card">
+  <summary style="cursor:pointer; font-weight:600;">รายรับในงวด แยกตามประเภทเงิน (ไว้ตรวจทาน)</summary>
   <div class="table-wrap"><table class="eb">
     <thead><tr><th>ช่องใน e-Budget</th><th class="right" style="width:240px;">จำนวนเงิน (บาท)</th></tr></thead>
     <tbody>
@@ -176,19 +208,15 @@
       <tr class="tot"><td>รวมรายรับ</td><td class="right">{{ cp('itot', d.totals.income) }}</td></tr>
     </tbody>
   </table></div>
-</div>
+</details>
 
 <div class="card">
   <h2>ส่วนที่ 4 · รายจ่ายในงวด แยกตามแหล่งเงิน</h2>
   <p class="muted" style="margin-top:0;">กรอกตามตารางนี้ได้เลย แถวคือ "ด้าน" คอลัมน์คือ "แหล่งเงิน"
     ตรงกับหน้าจอ e-Budget · แสดงเฉพาะแถวที่มียอด</p>
   {% if d.missing %}
-  <div class="alert warn" style="margin:0 0 14px;">
-    <svg class="icon"><use href="#ic-alert"/></svg>
-    <span><b>ยังต้องระบุหมวดอีก {{ d.missing|length }} รายการ</b> ยอดพวกนี้จะยังไม่ขึ้นในตารางไขว้
-      <a href="/finance/ebudget/fill?year={{ fiscal_year }}&round={{ round }}"
-         class="btn sm" style="margin-left:8px;">ไปเติมหมวด</a></span>
-  </div>
+  <div class="eb-todo"><b>ยังต้องระบุหมวดอีก {{ d.missing|length }} รายการ</b> ยอดพวกนี้จะยังไม่ขึ้นในตารางไขว้ ·
+    <a href="/finance/ebudget/fill?year={{ fiscal_year }}&round={{ round }}">ไปเติมหมวด</a></div>
   {% endif %}
   {% if d.matrix %}
   <div class="table-wrap"><table class="eb">
