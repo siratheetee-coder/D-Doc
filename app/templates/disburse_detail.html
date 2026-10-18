@@ -16,6 +16,9 @@
   {% if request.query_params.get("posted") %}<div class="alert">✔ ลงรายการจ่ายเงินเข้าทะเบียนคุมเงินแล้ว</div>{% endif %}
   {% if request.query_params.get("payment_error") %}<div class="alert">กรุณาเลือกบัญชีที่จ่ายเงิน ข้อมูลยังไม่ได้บันทึก</div>{% endif %}
   {% if not posted and m.status == 'จ่ายแล้ว' %}<div class="alert">ยังไม่พบรายการจ่ายในทะเบียนคุมเงินของบันทึกนี้ กรุณาตรวจรายการเดิมก่อนลงจ่าย เพื่อป้องกันการจ่ายซ้ำ</div>{% endif %}
+  {% if request.query_params.get('payment_message') %}<div class="alert">{{ request.query_params.get('payment_message') }}</div>{% endif %}
+  {% if request.query_params.get('linked') %}<div class="alert">เชื่อมรายการจ่ายเดิมแล้ว ยอดเงินคงเหลือไม่เปลี่ยน และไม่ได้สร้างรายการจ่ายเพิ่ม</div>{% endif %}
+  {% if request.query_params.get('unlinked') %}<div class="alert">ยกเลิกการเชื่อมแล้ว รายการจ่ายเดิมยังอยู่ในทะเบียนคุมเงิน</div>{% endif %}
   {% if proc %}<div class="alert" style="background:#e8f0ff; color:#3568e0; border-color:#c7d7fb;">เชื่อมกับเรื่องพัสดุ: <a href="/procurement/{{ proc.id }}">{{ proc.memo_no or proc.order_no or '-' }} · {{ proc.proc_type }}{{ proc.subject }}</a></div>{% endif %}
 </div>
 
@@ -76,15 +79,33 @@
     </div>
     <label>รายละเอียดเพิ่มเติม</label>
     <textarea name="note">{{ m.note or "" }}</textarea>
-    {% if posted %}<p class="muted" style="margin:10px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg> บันทึกนี้ลงจ่ายเข้าทะเบียนคุมเงินแล้ว: การแก้ "หมวด / บัญชี / จำนวนเงิน / วันที่" แล้วกดบันทึก จะอัปเดตรายการในทะเบียนคุมเงินให้อัตโนมัติ (ยอดคงเหลือรายหมวดปรับตาม)</p>{% endif %}
+    {% if posted and not payment_info.own[0].linked_existing %}<p class="muted" style="margin:10px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg> บันทึกนี้ลงจ่ายเข้าทะเบียนคุมเงินแล้ว: การแก้ "หมวด / บัญชี / จำนวนเงิน / วันที่" แล้วกดบันทึก จะอัปเดตรายการในทะเบียนคุมเงินให้อัตโนมัติ (ยอดคงเหลือรายหมวดปรับตาม)</p>{% endif %}
     <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกการแก้ไข</button>
   </form>
+</div>
+
+<div class="card">
+  <h2>ตรวจยอดจ่ายของ{{ 'เรื่องจัดซื้อ/จัดจ้าง' if proc else 'บันทึกนี้' }}</h2>
+  <div class="row">
+    <div><label>ยอด{{ 'ทั้งเรื่อง' if proc else 'บันทึก' }}</label><strong>{{ '{:,.2f}'.format(payment_info.total) }} บาท</strong></div>
+    <div><label>จ่ายแล้ว</label><strong>{{ '{:,.2f}'.format(payment_info.paid) }} บาท</strong></div>
+    <div><label>เหลือจ่าย</label><strong>{{ '{:,.2f}'.format(payment_info.remaining) }} บาท</strong></div>
+  </div>
+  {% if proc %}<p class="muted">จำนวนเงินขอเบิกด้านบนคือยอดที่เบิกครั้งนี้ หากแบ่งจ่ายหลายงวด ให้ทำบันทึกแยกแต่ละงวดโดยเลือกเรื่องเดียวกัน</p>{% endif %}
+  {% for t in payment_info.rows %}
+  <p><a href="/finance/accounts/{{ t.account_id }}?year={{ t.fiscal_year }}">ดูรายการจ่าย · {{ be_date(t.date) }} · {{ t.ref or 'ไม่ระบุเลขอ้างอิง' }} · {{ t.account.name }}</a>
+    — {{ '{:,.2f}'.format(t.amount) }} บาท {% if t.id in payment_info.lunch_ids %}(จากอาหารกลางวัน){% endif %}</p>
+  {% else %}<p class="muted">ยังไม่พบรายการจ่ายที่เชื่อมกับเรื่องนี้ หากเคยลงจ่ายเอง ให้ตรวจและเชื่อมรายการเดิมด้านล่างก่อนลงจ่ายใหม่</p>{% endfor %}
 </div>
 
 <div class="card">
   <h2><svg class="icon"><use href="#ic-coins"/></svg> ลงรายการจ่ายเงิน</h2>
   {% if posted %}
   <p class="muted">รายการนี้ลงจ่ายในทะเบียนคุมเงินแล้ว</p>
+  {% elif payment_info.managed %}
+  <div class="alert">เรื่องนี้ลงจ่ายผ่านงานอาหารกลางวัน ให้บันทึกจ่ายที่หน้าอาหารกลางวัน แล้วเลือกเชื่อมรายการเดิมด้านล่าง เพื่อไม่ตัดเงินซ้ำ</div>
+  {% elif payment_info.remaining <= 0 %}
+  <div class="alert">เรื่องนี้มียอดจ่ายครบหรือเกินยอดแล้ว กรุณาตรวจรายการจ่ายเดิมก่อน</div>
   {% elif m.account_id %}
   <p class="muted">กดเพื่อลงรายการจ่ายเงิน {{ "{:,.2f}".format(m.amount or 0) }} บาท เข้าทะเบียนคุมเงินบัญชีที่เลือก (สถานะจะเปลี่ยนเป็น "จ่ายแล้ว")</p>
   <form method="post" action="/finance/disburse/{{ m.id }}/post" onsubmit="return confirm('ลงรายการจ่ายเงินเข้าทะเบียนคุมเงิน?')">
@@ -96,7 +117,31 @@
 </div>
 
 <div class="card">
-  <form method="post" action="/finance/disburse/{{ m.id }}/delete" onsubmit="return confirm('ลบบันทึกนี้? (รายการเงินที่ผูกไว้จะถูกลบด้วย)')">
+  <h2>เคยบันทึกจ่ายเงินไว้แล้วหรือไม่?</h2>
+  <p>หากเคยบันทึกจ่ายเงินในหน้ารับ–จ่ายแล้ว ไม่ต้องลงจ่ายซ้ำ ให้ <strong>เชื่อมรายการจ่ายที่บันทึกไว้แล้ว</strong> กับบันทึกนี้ ยอดเงินจะไม่ถูกตัดเพิ่ม</p>
+  {% if posted %}
+    {% if payment_info.own[0].linked_existing %}
+    <div class="alert">บันทึกนี้ใช้รายการจ่ายเดิม การแก้เอกสารจะไม่แก้วันที่ เลขอ้างอิง หรือยอดในรายการเงินจริง หากต้องการเปลี่ยนบัญชี หมวด หรือยอด ให้ยกเลิกการเชื่อมก่อน</div>
+    <form method="post" action="/finance/disburse/{{ m.id }}/unlink-payment" onsubmit="return confirm('ยกเลิกการเชื่อมเท่านั้น รายการจ่ายเดิมและยอดเงินยังคงอยู่ ยืนยันหรือไม่?')">
+      <button class="btn gray" type="submit">ยกเลิกการเชื่อม (เก็บรายการจ่ายเดิม)</button>
+    </form>
+    {% else %}<p class="muted">บันทึกนี้มีรายการจ่ายแล้ว จึงไม่ต้องเชื่อมเพิ่ม</p>{% endif %}
+  {% else %}
+    <p class="muted">แสดงเฉพาะรายการจ่ายที่ยังไม่เชื่อมเอกสาร บัญชี หมวด ปีงบประมาณ และจำนวนเงินตรงกับบันทึกนี้ โปรดตรวจวันที่และเลขอ้างอิงให้ตรงกับการจ่ายครั้งเดียวกัน</p>
+    {% if payment_candidates %}
+    <form method="post" action="/finance/disburse/{{ m.id }}/link-payment" onsubmit="return confirm('ยืนยันว่ารายการที่เลือกเป็นเงินจ่ายครั้งเดียวกับบันทึกนี้? ระบบจะไม่ตัดยอดเพิ่ม')">
+      <label>เลือกรายการที่เคยจ่ายแล้ว</label>
+      <select name="txn_id" required><option value="">— เลือกรายการจ่ายเดิม —</option>
+      {% for t in payment_candidates %}<option value="{{ t.id }}">{{ be_date(t.date) }} · {{ t.ref or 'ไม่ระบุเลขอ้างอิง' }} · {{ t.note or t.category }} · {{ '{:,.2f}'.format(t.amount) }} บาท · รายการ #{{ t.id }}</option>{% endfor %}
+      </select>
+      <p><button class="btn" type="submit">เชื่อมรายการจ่ายที่บันทึกไว้แล้ว</button></p>
+    </form>
+    {% else %}<div class="alert">ยังไม่พบรายการจ่ายเดิมที่ตรงกัน ตรวจบัญชี หมวด ปีงบประมาณ และจำนวนเงิน แล้วบันทึกข้อมูลด้านบนก่อน หากรายการเดิมเชื่อมเอกสารอื่นอยู่แล้ว จะเลือกซ้ำไม่ได้</div>{% endif %}
+  {% endif %}
+</div>
+
+<div class="card">
+  <form method="post" action="/finance/disburse/{{ m.id }}/delete" onsubmit="return confirm('ลบบันทึกนี้? รายการที่สร้างจากบันทึกนี้จะถูกลบ แต่รายการจ่ายเดิมที่นำมาเชื่อมจะยังอยู่')">
     <button class="btn red sm" type="submit"><svg class="icon"><use href="#ic-trash"/></svg> ลบบันทึกนี้</button>
   </form>
 </div>

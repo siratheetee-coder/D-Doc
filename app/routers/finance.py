@@ -13,6 +13,8 @@ from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, HTTPExc
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import update
+from urllib.parse import quote
+from app.services import disburse_payments as payments
 
 from app.database import get_db
 from app.models import (
@@ -640,6 +642,8 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("disburse_detail.html", {
         "request": request, "m": m, "school": get_school(db),
         "posted": db.query(FinanceTxn).filter_by(disburse_id=m.id).first() is not None,
+        "payment_info": payments.summary(db, m),
+        "payment_candidates": payments.candidates(db, m),
         "accounts": db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
         "items_map": _items_map(db, m.fiscal_year),
         "projects": _plan_projects(db, m.fiscal_year),
@@ -655,6 +659,7 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
                     vat: str = Form("0"), wht: str = Form("0"), fine: str = Form("0"),
                     proc_kind: str = Form("จัดซื้อ"), project_id: str = Form(""),
                     item_id: str = Form("")):
+    payments.lock(db)
     m = db.get(DisburseMemo, mid)
     if m:
         m.memo_no = memo_no.strip(); m.seq = parse_seq(memo_no)
@@ -669,11 +674,21 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
         # ถ้าบันทึกนี้ลงจ่ายเข้าทะเบียนคุมเงินไปแล้ว ให้ปรับรายการในทะเบียนให้ตรงกัน
         # (แก้หมวด/บัญชี/จำนวน/วันที่ ย้อนหลังได้ ยอดคงเหลือรายหมวดจะอัปเดตตาม)
         txn = db.query(FinanceTxn).filter_by(disburse_id=m.id).first()
+        if txn:
+            try:
+                if txn.linked_existing:
+                    if (m.account_id, m.item_id, round(m.amount, 2)) != (txn.account_id, txn.item_id, round(txn.amount, 2)):
+                        raise ValueError('รายการนี้ใช้ยอดจ่ายเดิม หากต้องการเปลี่ยนบัญชี หมวด หรือยอด ให้ยกเลิกการเชื่อมก่อน')
+                else:
+                    payments.validate_new(db, m, excluding=txn.id)
+            except ValueError as exc:
+                db.rollback()
+                return RedirectResponse(f"/finance/disburse/{mid}?payment_message={quote(str(exc))}", status_code=303)
         if txn and not m.account_id:
             db.rollback()
             return RedirectResponse(f"/finance/disburse/{mid}?payment_error=account", status_code=303)
         m.status = "จ่ายแล้ว" if txn else (status.strip() if status.strip() in ("ร่าง", "อนุมัติ") else "อนุมัติ")
-        if txn:
+        if txn and not txn.linked_existing:
             if m.account_id:
                 txn.account_id = m.account_id
             txn.item_id = m.item_id
@@ -691,8 +706,7 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
 @router.post("/finance/disburse/{mid}/post")
 def disburse_post(mid: int, db: Session = Depends(get_db)):
     """ลงรายการจ่ายเงินจริงเข้าทะเบียนคุมเงิน (ตามบัญชีที่เลือก) + ตั้งสถานะจ่ายแล้ว"""
-    # Serialize posting on SQLite before checking for an existing payment.
-    db.execute(update(DisburseMemo).where(DisburseMemo.id == mid).values(id=mid))
+    payments.lock(db)
     m = db.get(DisburseMemo, mid)
     if not m:
         return RedirectResponse("/finance/disburse", status_code=303)
@@ -701,6 +715,11 @@ def disburse_post(mid: int, db: Session = Depends(get_db)):
         if not m.account_id or not db.get(FinanceAccount, m.account_id):
             db.rollback()
             return RedirectResponse(f"/finance/disburse/{mid}?payment_error=account", status_code=303)
+        try:
+            payments.validate_new(db, m)
+        except ValueError as exc:
+            db.rollback()
+            return RedirectResponse(f"/finance/disburse/{mid}?payment_message={quote(str(exc))}", status_code=303)
         db.add(FinanceTxn(
             account_id=m.account_id, fiscal_year=m.fiscal_year, kind="out",
             item_id=m.item_id, amount=m.amount or 0, date=m.date or datetime.now(),
@@ -712,13 +731,59 @@ def disburse_post(mid: int, db: Session = Depends(get_db)):
     return RedirectResponse(f"/finance/disburse/{mid}?posted=1", status_code=303)
 
 
+@router.post("/finance/disburse/{mid}/link-payment")
+def disburse_link_payment(mid: int, db: Session = Depends(get_db), txn_id: int = Form(...)):
+    payments.lock(db)
+    m = db.get(DisburseMemo, mid)
+    if not m:
+        return RedirectResponse("/finance/disburse", status_code=303)
+    t = db.get(FinanceTxn, txn_id)
+    try:
+        info = payments.summary(db, m)
+        if info['own'] or not payments.compatible(db, m, t):
+            raise ValueError('รายการนี้ไม่ตรงกับบัญชี หมวด ปี หรือยอดเบิก หรือมีการเชื่อมไปแล้ว กรุณาตรวจใหม่')
+        # Lunch entries already belong to the source total; do not count them twice.
+        if t.id not in {x.id for x in info['rows']} and round(info['paid'] + t.amount - info['total'], 2) > 0:
+            raise ValueError('ยอดรวมเกินยอดของเรื่อง กรุณาตรวจรายการจ่ายเดิม')
+        t.disburse_id = m.id
+        t.linked_existing = True
+        m.status = 'จ่ายแล้ว'
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        return RedirectResponse(f"/finance/disburse/{mid}?payment_message={quote(str(exc))}", status_code=303)
+    return RedirectResponse(f"/finance/disburse/{mid}?linked=1", status_code=303)
+
+
+@router.post("/finance/disburse/{mid}/unlink-payment")
+def disburse_unlink_payment(mid: int, db: Session = Depends(get_db)):
+    payments.lock(db)
+    m = db.get(DisburseMemo, mid)
+    if m:
+        for t in db.query(FinanceTxn).filter_by(disburse_id=mid).all():
+            if t.linked_existing:
+                t.disburse_id = None
+                t.linked_existing = False
+        if not db.query(FinanceTxn).filter_by(disburse_id=mid).first():
+            m.status = 'อนุมัติ'
+        db.commit()
+    return RedirectResponse(f"/finance/disburse/{mid}?unlinked=1", status_code=303)
+
+
 @router.post("/finance/disburse/{mid}/delete")
 def disburse_delete(mid: int, db: Session = Depends(get_db)):
+    payments.lock(db)
     m = db.get(DisburseMemo, mid)
     if m:
         # ลบรายการเงินที่ผูกกับบันทึกนี้ด้วย (ถ้ามี)
         for t in db.query(FinanceTxn).filter_by(disburse_id=m.id).all():
-            db.delete(t)
+            if t.linked_existing:
+                t.disburse_id = None
+                t.linked_existing = False
+            else:
+                for rc in db.query(Receipt).filter_by(txn_id=t.id).all():
+                    db.delete(rc)
+                db.delete(t)
         db.delete(m); db.commit()
     return RedirectResponse("/finance/disburse", status_code=303)
 

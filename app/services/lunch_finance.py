@@ -93,6 +93,9 @@ def move_preview(db, prog, account_id) -> dict:
 def move(db, prog, account_id) -> int:
     pv = move_preview(db, prog, account_id)
     for t in pv["rows"]:
+        if t.account_id != account_id:
+            from app.services.disburse_payments import detach_original
+            detach_original(db, t)
         t.account_id = account_id
     prog.finance_account_id = account_id
     db.flush()

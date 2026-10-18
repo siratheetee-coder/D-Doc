@@ -451,6 +451,13 @@ def _mirror_finance(db: Session, ledger: LunchLedger) -> None:
     if not txn:
         txn = FinanceTxn(account_id=acc.id, fiscal_year=current_fiscal_year(d))
         db.add(txn)
+    if txn.disburse_id and txn.linked_existing and (txn.account_id != acc.id or round(txn.amount or 0, 2) != round(ledger.amount or 0, 2)):
+        from app.models import DisburseMemo
+        memo = db.get(DisburseMemo, txn.disburse_id)
+        if memo:
+            memo.status = 'อนุมัติ'
+        txn.disburse_id = None
+        txn.linked_existing = False
     txn.account_id = acc.id
     txn.fiscal_year = current_fiscal_year(d)
     txn.date = d
@@ -468,6 +475,11 @@ def _unmirror_finance(db: Session, ledger: LunchLedger) -> None:
     if ledger.finance_txn_id:
         t = db.get(FinanceTxn, ledger.finance_txn_id)
         if t:
+            if t.disburse_id:
+                from app.models import DisburseMemo
+                memo = db.get(DisburseMemo, t.disburse_id)
+                if memo:
+                    memo.status = 'อนุมัติ'
             db.delete(t)
         ledger.finance_txn_id = None
 
