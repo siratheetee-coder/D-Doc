@@ -11,7 +11,7 @@
 
 {# รายการเริ่มต้นงานวิชาการ (app/services/academic_setup.py) แทนกล่อง "เริ่มใช้งานงานวิชาการ" เดิม
    ที่เป็นข้อความตายตัว · ครูไม่เห็น (setup = None) #}
-{% if setup %}{% set setup_key = 'acad' %}{% set setup_title = 'เริ่มต้นงานวิชาการ ปีการศึกษา ' ~ year %}
+{% if setup %}{% set setup_key = 'acad' %}{% set setup_video = '/guide#video-academic' %}{% set setup_title = 'เริ่มต้นงานวิชาการ ปีการศึกษา ' ~ year %}
 {% include '_setup_checklist.html' %}{% endif %}
 
 <div class="card">

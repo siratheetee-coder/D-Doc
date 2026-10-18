@@ -92,14 +92,15 @@
 
 <section class="card" id="guide-videos" aria-labelledby="guide-videos-title" style="scroll-margin-top:80px;">
   <h2 id="guide-videos-title" style="margin-top:0;">▶ วิดีโอสอนใช้งาน</h2>
-  <p class="muted">เริ่มดูระบบเบื้องต้นใน Part 1 งานพัสดุใน Part 2 และขั้นตอนจัดซื้อ/จ้างพร้อมเบิกวัสดุใน Part 3 · เปิดดูบน YouTube ในแท็บใหม่</p>
+  <p class="muted">เริ่มดูระบบเบื้องต้นใน Part 1 งานพัสดุใน Part 2 และขั้นตอนจัดซื้อ/จ้างพร้อมเบิกวัสดุใน Part 3 และวิดีโอวิธีใช้งานงานวิชาการ · เปิดดูบน YouTube ในแท็บใหม่</p>
   <div class="guide-video-grid">
     {% for video_id, part, video_title in [
       ('ks6JMRmpTwI', 'Part 1', 'Easy Ekkasan - วิธีใช้งานระบบเบื้องต้น (Part 1)'),
       ('R5TYppPAbsg', 'Part 2', 'Easy Ekkasan - วิธีใช้งานระบบ "งานพัสดุ" เบื้องต้น (Part 2)'),
-      ('tjjGHRh-MmM', 'Part 3', 'Easy Ekkasan - ขั้นตอนการทำเรื่องจัดซื้อ/จ้าง + เบิกวัสดุ (Part 3)')
+      ('tjjGHRh-MmM', 'Part 3', 'Easy Ekkasan - ขั้นตอนการทำเรื่องจัดซื้อ/จ้าง + เบิกวัสดุ (Part 3)'),
+      ('wEqnetDyygE', 'งานวิชาการ', 'Easy Ekkasan - วิธีใช้งานระบบงานวิชาการ')
     ] %}
-    <a class="guide-video-card" href="https://youtu.be/{{ video_id }}" target="_blank" rel="noopener noreferrer">
+    <a {% if video_id == 'wEqnetDyygE' %}id="video-academic" style="scroll-margin-top:90px;"{% endif %} class="guide-video-card" href="https://youtu.be/{{ video_id }}" target="_blank" rel="noopener noreferrer">
       <div class="guide-video-cover">
         <img src="https://i.ytimg.com/vi/{{ video_id }}/hqdefault.jpg" alt="" loading="lazy" width="480" height="360">
         <div class="guide-video-play" aria-hidden="true"><span>▶</span></div>
