@@ -451,7 +451,7 @@ def _mirror_finance(db: Session, ledger: LunchLedger) -> None:
     if not txn:
         txn = FinanceTxn(account_id=acc.id, fiscal_year=current_fiscal_year(d))
         db.add(txn)
-    if txn.disburse_id and txn.linked_existing and (txn.account_id != acc.id or round(txn.amount or 0, 2) != round(ledger.amount or 0, 2)):
+    if txn.disburse_id and txn.linked_existing and (txn.account_id != acc.id or txn.fiscal_year != current_fiscal_year(d) or round(txn.amount or 0, 2) != round(ledger.amount or 0, 2)):
         from app.models import DisburseMemo
         memo = db.get(DisburseMemo, txn.disburse_id)
         if memo:

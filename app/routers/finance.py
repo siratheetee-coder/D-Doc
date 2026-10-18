@@ -677,6 +677,10 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
         if txn:
             try:
                 if txn.linked_existing:
+                    source_proc = db.get(Procurement, m.procurement_id) if m.procurement_id else None
+                    effective_project = m.project_id or (source_proc.project_id if source_proc else None)
+                    if txn.project_id and txn.project_id != effective_project:
+                        raise ValueError('โครงการไม่ตรงกับรายการจ่ายเดิม กรุณายกเลิกการเชื่อมก่อนเปลี่ยนโครงการ')
                     if (m.account_id, m.item_id, round(m.amount, 2)) != (txn.account_id, txn.item_id, round(txn.amount, 2)):
                         raise ValueError('รายการนี้ใช้ยอดจ่ายเดิม หากต้องการเปลี่ยนบัญชี หมวด หรือยอด ให้ยกเลิกการเชื่อมก่อน')
                 else:

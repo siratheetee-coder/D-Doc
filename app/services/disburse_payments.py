@@ -57,7 +57,9 @@ def compatible(db, memo, txn):
         return False
     if not math.isfinite(txn.amount or 0) or round((txn.amount or 0) - (memo.amount or 0), 2) != 0 or txn.amount <= 0:
         return False
-    if txn.project_id and txn.project_id != memo.project_id:
+    proc = db.get(Procurement, memo.procurement_id) if memo.procurement_id else None
+    project_id = memo.project_id or (proc.project_id if proc else None)
+    if txn.project_id and txn.project_id != project_id:
         return False
     ledger = db.query(LunchLedger).filter_by(finance_txn_id=txn.id).first()
     return not ledger or bool(memo.procurement_id and ledger.procurement_id == memo.procurement_id)

@@ -119,3 +119,42 @@ def test_schema_upgrade_preserves_old_transactions():
     with engine.connect() as conn:
         assert tuple(conn.exec_driver_sql('SELECT amount, linked_existing FROM finance_txn').one()) == (250,0)
     engine.dispose()
+
+
+def test_project_inherited_from_procurement(db):
+    from app.models import Project
+    a,p,m=seed(db)
+    project=Project(name='linked project',plan_year=2570);db.add(project);db.flush()
+    p.project_id=project.id
+    t=FinanceTxn(account_id=a.id,fiscal_year=2570,kind='out',amount=400,project_id=project.id)
+    db.add(t);db.flush()
+    assert pay.compatible(db,m,t)
+
+
+def test_lunch_year_change_releases_link(db):
+    from app.routers.lunch import _mirror_finance
+    from datetime import datetime
+    a,p,m=seed(db)
+    prog=LunchProgram(year=2570,finance_account_id=a.id);db.add(prog);db.flush()
+    led=LunchLedger(program_id=prog.id,procurement_id=p.id,kind='out',amount=400,date=datetime(2026,10,2))
+    db.add(led);db.flush();_mirror_finance(db,led)
+    t=db.get(FinanceTxn,led.finance_txn_id)
+    t.disburse_id=m.id;t.linked_existing=True;m.status='จ่ายแล้ว';db.flush()
+    led.date=datetime(2026,9,30);_mirror_finance(db,led)
+    assert t.fiscal_year==2569 and t.disburse_id is None and m.status=='อนุมัติ'
+
+
+def test_linked_project_cannot_be_changed(env):
+    import app.tenancy as tn
+    from app.models import Project
+    sid=next(iter(tn._engines))
+    with tn.session_for(sid) as db:
+        a,p,m=seed(db)
+        pj=Project(name='original project',plan_year=2570);db.add(pj);db.flush()
+        m.project_id=pj.id
+        t=FinanceTxn(account_id=a.id,fiscal_year=2570,kind='out',amount=400,project_id=pj.id,disburse_id=m.id,linked_existing=True)
+        db.add(t);db.commit();mid,aid,pid=m.id,a.id,pj.id
+    result=env.post(f'/finance/disburse/{mid}/update',data={'account_id':aid,'amount':400,'project_id':''},follow_redirects=False)
+    assert 'payment_message=' in result.headers['location']
+    with tn.session_for(sid) as db:
+        assert db.get(DisburseMemo,mid).project_id==pid
