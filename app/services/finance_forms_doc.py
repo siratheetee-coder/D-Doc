@@ -107,7 +107,7 @@ def render_loan_returns(school, loan) -> str:
             f"คงค้าง {_money(left)} บาท", bold=True, before=6, after=10)
     _sign_table(doc, [[
         ("ลงชื่อ.......................................เจ้าหน้าที่การเงิน", "center"),
-        ("(.......................................)", "center"),
+        (f"( {(getattr(school, 'finance_officer_name', '') or '').strip() or _BLANK} )", "center"),
     ], [
         ("ลงชื่อ.......................................ผู้ยืม", "center"),
         (f"( {(loan.borrower or '').strip() or _BLANK} )", "center"),

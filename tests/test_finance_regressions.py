@@ -99,6 +99,14 @@ class FinanceTests(unittest.TestCase):
             self.assertIn('เดินทางไปราชการ',xml); self.assertNotIn('อาหารกลางวัน',xml)
             self.assertIn('V1',xml); self.assertIn('15 วัน',xml)
             repayment=Document(render_loan_returns(school,loan))
+            signature = repayment.tables[-1].cell(0,0).text
+            self.assertIn('นางการเงิน ทดสอบ', signature)
+            self.assertNotIn('ครูพัสดุ', signature)
+            self.assertIn('ลงชื่อ', signature)
+            school.finance_officer_name = '  '
+            blank_repayment = Document(render_loan_returns(school,loan))
+            self.assertNotIn('ครูพัสดุ', blank_repayment.tables[-1].cell(0,0).text)
+            school.finance_officer_name = 'นางการเงิน ทดสอบ'
             xml=repayment.element.xml
             self.assertIn('คงค้าง 300',xml); self.assertIn('600',xml); self.assertIn('100',xml)
             self.assertNotIn('อาหารกลางวัน',xml)
