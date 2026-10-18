@@ -14,6 +14,8 @@
   </div>
   {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกข้อมูลเรียบร้อยแล้ว</div>{% endif %}
   {% if request.query_params.get("posted") %}<div class="alert">✔ ลงรายการจ่ายเงินเข้าทะเบียนคุมเงินแล้ว</div>{% endif %}
+  {% if request.query_params.get("payment_error") %}<div class="alert">กรุณาเลือกบัญชีที่จ่ายเงิน ข้อมูลยังไม่ได้บันทึก</div>{% endif %}
+  {% if not posted and m.status == 'จ่ายแล้ว' %}<div class="alert">ยังไม่พบรายการจ่ายในทะเบียนคุมเงินของบันทึกนี้ กรุณาตรวจรายการเดิมก่อนลงจ่าย เพื่อป้องกันการจ่ายซ้ำ</div>{% endif %}
   {% if proc %}<div class="alert" style="background:#e8f0ff; color:#3568e0; border-color:#c7d7fb;">เชื่อมกับเรื่องพัสดุ: <a href="/procurement/{{ proc.id }}">{{ proc.memo_no or proc.order_no or '-' }} · {{ proc.proc_type }}{{ proc.subject }}</a></div>{% endif %}
 </div>
 
@@ -24,9 +26,14 @@
       <div><label>เลขที่บันทึก</label><input name="memo_no" value="{{ m.memo_no }}"></div>
       <div><label>วันที่</label><input name="date" value="{{ be_date(m.date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       <div><label>สถานะ</label>
+        {% if posted %}
+        <input value="จ่ายแล้ว · ลงทะเบียนคุมเงินแล้ว" readonly>
+        {% else %}
         <select name="status">
-          {% for s in ["ร่าง","อนุมัติ","จ่ายแล้ว"] %}<option value="{{ s }}" {{ 'selected' if m.status==s }}>{{ s }}</option>{% endfor %}
+          {% for s in ["ร่าง","อนุมัติ"] %}<option value="{{ s }}" {{ 'selected' if m.status==s or (m.status=='จ่ายแล้ว' and s=='อนุมัติ') }}>{{ s }}</option>{% endfor %}
         </select>
+        <small class="muted">สถานะจ่ายแล้วจะเปลี่ยนให้เมื่อกดลงจ่ายเข้าทะเบียนคุมเงิน</small>
+        {% endif %}
       </div>
     </div>
     <div class="row">
@@ -69,14 +76,14 @@
     </div>
     <label>รายละเอียดเพิ่มเติม</label>
     <textarea name="note">{{ m.note or "" }}</textarea>
-    {% if m.status == "จ่ายแล้ว" %}<p class="muted" style="margin:10px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg> บันทึกนี้ลงจ่ายเข้าทะเบียนคุมเงินแล้ว: การแก้ "หมวด / บัญชี / จำนวนเงิน / วันที่" แล้วกดบันทึก จะอัปเดตรายการในทะเบียนคุมเงินให้อัตโนมัติ (ยอดคงเหลือรายหมวดปรับตาม)</p>{% endif %}
+    {% if posted %}<p class="muted" style="margin:10px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg> บันทึกนี้ลงจ่ายเข้าทะเบียนคุมเงินแล้ว: การแก้ "หมวด / บัญชี / จำนวนเงิน / วันที่" แล้วกดบันทึก จะอัปเดตรายการในทะเบียนคุมเงินให้อัตโนมัติ (ยอดคงเหลือรายหมวดปรับตาม)</p>{% endif %}
     <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกการแก้ไข</button>
   </form>
 </div>
 
 <div class="card">
   <h2><svg class="icon"><use href="#ic-coins"/></svg> ลงรายการจ่ายเงิน</h2>
-  {% if m.status == "จ่ายแล้ว" %}
+  {% if posted %}
   <p class="muted">รายการนี้ลงจ่ายในทะเบียนคุมเงินแล้ว</p>
   {% elif m.account_id %}
   <p class="muted">กดเพื่อลงรายการจ่ายเงิน {{ "{:,.2f}".format(m.amount or 0) }} บาท เข้าทะเบียนคุมเงินบัญชีที่เลือก (สถานะจะเปลี่ยนเป็น "จ่ายแล้ว")</p>

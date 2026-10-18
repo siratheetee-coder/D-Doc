@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import update
 
 from app.database import get_db
 from app.models import (
@@ -494,7 +495,14 @@ def account_txn_delete(tid: int, db: Session = Depends(get_db),
         # ลบใบเสร็จที่ออกพร้อมรายการนี้ด้วย (กันยอดค้างในทะเบียนใบเสร็จ)
         for rc in db.query(Receipt).filter_by(txn_id=t.id).all():
             db.delete(rc)
-        db.delete(t); db.commit()
+        mid = t.disburse_id
+        db.delete(t)
+        db.flush()
+        if mid and not db.query(FinanceTxn).filter_by(disburse_id=mid).first():
+            memo = db.get(DisburseMemo, mid)
+            if memo:
+                memo.status = "อนุมัติ"
+        db.commit()
     url = f"/finance/accounts/{aid}?year={fy}" if aid else "/finance/accounts"
     if return_to == "cashbook":
         url = f"/finance/cashbook?year={year or fy or current_fiscal_year()}"
@@ -631,6 +639,7 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/finance/disburse", status_code=303)
     return templates.TemplateResponse("disburse_detail.html", {
         "request": request, "m": m, "school": get_school(db),
+        "posted": db.query(FinanceTxn).filter_by(disburse_id=m.id).first() is not None,
         "accounts": db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
         "items_map": _items_map(db, m.fiscal_year),
         "projects": _plan_projects(db, m.fiscal_year),
@@ -656,12 +665,14 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
         m.account_id = _to_int(account_id, 0) or None
         m.item_id = _to_int(item_id, 0) or None
         m.project_id = _to_int(project_id, 0) or None
-        if status.strip():
-            m.status = status.strip()
         m.note = note
         # ถ้าบันทึกนี้ลงจ่ายเข้าทะเบียนคุมเงินไปแล้ว ให้ปรับรายการในทะเบียนให้ตรงกัน
         # (แก้หมวด/บัญชี/จำนวน/วันที่ ย้อนหลังได้ ยอดคงเหลือรายหมวดจะอัปเดตตาม)
         txn = db.query(FinanceTxn).filter_by(disburse_id=m.id).first()
+        if txn and not m.account_id:
+            db.rollback()
+            return RedirectResponse(f"/finance/disburse/{mid}?payment_error=account", status_code=303)
+        m.status = "จ่ายแล้ว" if txn else (status.strip() if status.strip() in ("ร่าง", "อนุมัติ") else "อนุมัติ")
         if txn:
             if m.account_id:
                 txn.account_id = m.account_id
@@ -680,17 +691,24 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
 @router.post("/finance/disburse/{mid}/post")
 def disburse_post(mid: int, db: Session = Depends(get_db)):
     """ลงรายการจ่ายเงินจริงเข้าทะเบียนคุมเงิน (ตามบัญชีที่เลือก) + ตั้งสถานะจ่ายแล้ว"""
+    # Serialize posting on SQLite before checking for an existing payment.
+    db.execute(update(DisburseMemo).where(DisburseMemo.id == mid).values(id=mid))
     m = db.get(DisburseMemo, mid)
-    if m and m.account_id and not any(
-            t.disburse_id == m.id for t in db.query(FinanceTxn).filter_by(disburse_id=m.id)):
+    if not m:
+        return RedirectResponse("/finance/disburse", status_code=303)
+    txn = db.query(FinanceTxn).filter_by(disburse_id=mid).first()
+    if not txn:
+        if not m.account_id or not db.get(FinanceAccount, m.account_id):
+            db.rollback()
+            return RedirectResponse(f"/finance/disburse/{mid}?payment_error=account", status_code=303)
         db.add(FinanceTxn(
             account_id=m.account_id, fiscal_year=m.fiscal_year, kind="out",
             item_id=m.item_id, amount=m.amount or 0, date=m.date or datetime.now(),
             category="เบิกจ่าย", ref=m.memo_no or "", note=f"จ่าย {m.payee}".strip(),
             disburse_id=m.id,
         ))
-        m.status = "จ่ายแล้ว"
-        db.commit()
+    m.status = "จ่ายแล้ว"
+    db.commit()
     return RedirectResponse(f"/finance/disburse/{mid}?posted=1", status_code=303)
 
 
