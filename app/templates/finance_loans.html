@@ -17,6 +17,7 @@
 
 <div class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> ทำสัญญายืมเงินใหม่</h2>
+  <p class="muted">บันทึกสัญญายังไม่ตัดเงิน เมื่อจ่ายเงินจริงแล้วให้กด “จ่ายเงินยืม / รับคืนเงินสด” หรือเชื่อมรายการที่ลงจ่ายไว้แล้ว</p>
   <form method="post" action="/finance/loans">
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
     <div class="row loan-dates">
@@ -69,6 +70,7 @@
           {% if r.left > 0.005 %}<b style="color:#b91c1c;">{{ "{:,.2f}".format(r.left) }}</b>
           {% else %}<span class="pill done loan-settled">ส่งใช้ครบแล้ว</span>{% endif %}</td>
         <td class="right loan-actions" style="white-space:normal;">
+          <a class="btn sm green" href="/finance/loans/{{ r.o.id }}/money">จ่ายเงินยืม / รับคืนเงินสด</a>
           <a class="btn sm" href="/finance/loans/{{ r.o.id }}/contract.docx"><svg class="icon"><use href="#ic-download"/></svg> สัญญา 8500</a>
           {% if r.o.returns %}<a class="btn sm green" href="/finance/loans/{{ r.o.id }}/returns.docx">เอกสารส่งใช้ (Word)</a>{% endif %}
           <button class="btn sm gray" type="button" onclick="document.getElementById('ret{{ r.o.id }}').hidden = !document.getElementById('ret{{ r.o.id }}').hidden">ส่งใช้</button>

@@ -273,6 +273,8 @@ MIGRATIONS = [
     ("finance_txn", "project_id", "INTEGER"),
     ("procurement", "quotation_no", "VARCHAR DEFAULT ''"),
     ("procurement", "winner_no", "VARCHAR DEFAULT ''"),
+    ("finance_txn", "loan_id", "INTEGER"),
+    ("finance_txn", "loan_return_id", "INTEGER"),
     ("finance_txn", "linked_existing", "BOOLEAN DEFAULT 0"),
     ("finance_txn", "eb_code", "VARCHAR DEFAULT ''"),
     ("finance_account", "eb_slot", "VARCHAR DEFAULT ''"),

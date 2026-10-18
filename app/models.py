@@ -881,6 +881,8 @@ class FinanceTxn(Base):
     note = Column(String, default="")
     disburse_id = Column(Integer, ForeignKey("disburse_memo.id"), nullable=True)
     project_id = Column(Integer, ForeignKey("project.id"), nullable=True)   # โครงการในแผนที่ใช้เงินก้อนนี้
+    loan_id = Column(Integer, ForeignKey("money_loan.id"), nullable=True)
+    loan_return_id = Column(Integer, ForeignKey("loan_return.id"), nullable=True)
     linked_existing = Column(Boolean, default=False)  # Keep original ledger entry when unlinking/deleting its memo.
     lunch_year = Column(Integer, nullable=True)      # รายการรับเงินอาหารกลางวัน: ใช้กับโครงการปีการศึกษาไหน (เว้นว่าง = ตามวันที่รับ)
     eb_code = Column(String, default="")             # หมวด e-Budget (จ่าย = ส่วนที่ 4 · รับ = ส่วนที่ 3)

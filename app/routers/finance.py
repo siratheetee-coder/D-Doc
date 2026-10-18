@@ -256,6 +256,9 @@ def account_set_deposit_type(aid: int, db: Session = Depends(get_db),
 def account_delete(aid: int, db: Session = Depends(get_db)):
     a = db.get(FinanceAccount, aid)
     if a:
+        loan_txn = db.query(FinanceTxn).filter(FinanceTxn.account_id == aid, FinanceTxn.loan_id.isnot(None)).first()
+        if loan_txn:
+            return RedirectResponse(f"/finance/loans/{loan_txn.loan_id}/money?message={quote('บัญชีนี้มีรายการเชื่อมเงินยืมอยู่ กรุณาตรวจรายการก่อนลบบัญชี')}", status_code=303)
         from app.services.plan_funding import guard_items
         guard_items(db,[i.id for i in a.items])
         db.delete(a); db.commit()
@@ -491,6 +494,8 @@ def account_txn_delete(tid: int, db: Session = Depends(get_db),
     aid = t.account_id if t else None
     fy = t.fiscal_year if t else None
     from app.services.lunch_finance import mirror_map
+    if t and t.loan_id:
+        return RedirectResponse(f"/finance/loans/{t.loan_id}/money?message={quote('รายการนี้เชื่อมเงินยืมอยู่ กรุณายกเลิกการเชื่อมก่อนลบรายการเงินจริง')}", status_code=303)
     if t and t.id in mirror_map(db):
         t = None          # รายการที่หน้าอาหารกลางวันคัดลอกมา แก้/ลบที่หน้าอาหารกลางวันเท่านั้น (ไม่งั้นสองฝั่งไม่ตรงกัน)
     if t:
@@ -1301,24 +1306,81 @@ async def loan_add(request: Request, db: Session = Depends(get_db)):
 async def loan_return_add(lid: int, request: Request, db: Session = Depends(get_db)):
     """บันทึกการส่งใช้เงินยืม (เงินสดหรือใบสำคัญ)"""
     form = await request.form()
+    payments.lock(db)
     ln = db.get(MoneyLoan, lid)
     if ln:
-        db.add(LoanReturn(loan_id=lid, date=parse_be_date(form.get("date")),
-                          kind=(form.get("kind") or "เงินสด").strip(),
-                          amount=_to_float(form.get("amount"), 0.0),
-                          receipt_no=(form.get("receipt_no") or "").strip(),
-                          note=(form.get("note") or "").strip()))
-        db.commit()
-    return RedirectResponse(f"/finance/loans?year={ln.fiscal_year if ln else ''}", status_code=303)
+        try:
+            amount = _to_float(form.get('amount'), 0)
+            payments.validate_amount(amount)
+            kind = (form.get('kind') or '').strip()
+            if kind not in ('เงินสด', 'ใบสำคัญ'):
+                raise ValueError('เลือกส่งใช้เป็นเงินสดหรือใบสำคัญ')
+            if round(sum(r.amount or 0 for r in ln.returns) + amount - ln.amount, 2) > 0:
+                raise ValueError('ยอดส่งใช้รวมเกินจำนวนเงินยืม')
+            date = parse_be_date(form.get('date'))
+            if not date:
+                raise ValueError('กรุณาระบุวันที่ส่งใช้')
+            db.add(LoanReturn(loan_id=lid, date=date, kind=kind, amount=amount,
+                receipt_no=(form.get('receipt_no') or '').strip(), note=(form.get('note') or '').strip()))
+            db.commit()
+        except ValueError as exc:
+            db.rollback()
+            return RedirectResponse(f"/finance/loans/{lid}/money?message={quote(str(exc))}", status_code=303)
+    return RedirectResponse(f"/finance/loans/{lid}/money", status_code=303)
 
 
 @router.post("/finance/loans/{lid}/delete")
 def loan_delete(lid: int, db: Session = Depends(get_db)):
+    payments.lock(db)
+    if db.query(FinanceTxn).filter_by(loan_id=lid).first():
+        return RedirectResponse(f"/finance/loans/{lid}/money?message={quote('ยังลบสัญญาไม่ได้ เพราะมีรายการเงินจริงเชื่อมอยู่ กรุณาตรวจและยกเลิกการเชื่อมก่อน')}", status_code=303)
     ln = db.get(MoneyLoan, lid)
     fy = ln.fiscal_year if ln else current_fiscal_year()
     if ln:
         db.delete(ln); db.commit()
     return RedirectResponse(f"/finance/loans?year={fy}", status_code=303)
+
+
+@router.get("/finance/loans/{lid}/money", response_class=HTMLResponse)
+def loan_money_page(lid: int, request: Request, db: Session = Depends(get_db)):
+    from app.services import loan_money as lm
+    loan = db.get(MoneyLoan, lid)
+    if not loan:
+        return RedirectResponse('/finance/loans', status_code=303)
+    entries = []
+    for ret in [None] + list(loan.returns):
+        rid = ret.id if ret else 0
+        err = ''
+        try:
+            _, amount, date, fy, kind = lm.details(db, loan, rid)
+        except ValueError as exc:
+            amount, date, fy, kind = (ret.amount if ret else loan.amount), (ret.date if ret else loan.receive_date), loan.fiscal_year, ('in' if ret else 'out')
+            err = str(exc)
+        txns = db.query(FinanceTxn).filter_by(fiscal_year=fy, kind=kind, loan_id=None, disburse_id=None).order_by(FinanceTxn.date.desc()).all()
+        txns = [t for t in txns if lm.eligible(db,t,t.account_id,amount,fy,kind,t.item_id)] if not err else []
+        entries.append(dict(rid=rid, ret=ret, amount=amount, date=date, fy=fy, error=err,
+                            txn=lm.linked(db,lid,rid), candidates=txns))
+    return templates.TemplateResponse('loan_money.html', dict(request=request, loan=loan, entries=entries,
+        accounts=_fin_accounts(db), items=db.query(AccountItem).order_by(AccountItem.fiscal_year,AccountItem.name).all()))
+
+
+@router.post('/finance/loans/{lid}/money/{rid}')
+async def loan_money_record(lid: int, rid: int, request: Request, db: Session = Depends(get_db)):
+    from app.services import loan_money as lm
+    form = await request.form()
+    try:
+        if form.get('mode') == 'unlink':
+            lm.unlink(db,lid,rid)
+            message = 'ยกเลิกการเชื่อมแล้ว รายการเงินจริงยังอยู่ หากต้องการยกเลิกเงินจริงให้ตรวจและลบในหน้ารับ–จ่าย'
+        else:
+            lm.record(db,lid,rid,form.get('mode'),_to_int(form.get('account_id'),0),
+                      _to_int(form.get('item_id'),0) or None,_to_int(form.get('txn_id'),0))
+            message = 'บันทึกการเชื่อมทะเบียนคุมเงินแล้ว'
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        message = str(exc)
+    return RedirectResponse(f'/finance/loans/{lid}/money?message={quote(message)}', status_code=303)
 
 
 @router.get("/finance/loans/{lid}/contract.docx")
