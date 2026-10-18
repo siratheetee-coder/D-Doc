@@ -28,7 +28,7 @@ def test_project_only_steps_walk_in_order(db):
                                                                  responsible='วิชาการ')
     db.add_all([a, b]); db.commit()
     st = project_steps(db, PY)
-    assert st['next']['title'] == 'ใส่งบให้ทุกโครงการ'
+    assert st['next']['title'] == 'ใส่งบให้โครงการ (ข้ามได้ถ้าไม่ใช้งบ)'
     assert 'ยังมี 1 โครงการที่งบเป็น 0: กีฬาสี' in st['next']['detail'] and st['next']['href'] == f'/projects/{a.id}'
     a.budget = 30000; db.commit()
     st = project_steps(db, PY)

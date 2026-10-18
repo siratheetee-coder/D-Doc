@@ -19,7 +19,7 @@ def setup_steps(db, year, *, tenant_id=None, is_owner=False) -> dict:
     from app.routers.academic import _class_label, _sorted_classes
     classes = _sorted_classes(db.query(AcadClass).filter_by(year=year).all())
     setting = db.query(AcadYearSetting).filter_by(year=year).first()
-    terms_set = bool(setting and setting.t1_start and setting.t2_start)
+    terms_set = bool(setting and setting.t1_start and setting.t1_end and setting.t2_start and setting.t2_end)
     empty = [_class_label(c) for c in classes if not c.students]
     no_home = [_class_label(c) for c in classes if not c.homeroom_id]
     subjects = db.query(AcadSubject).filter_by(year=year).all()
@@ -78,7 +78,7 @@ def setup_steps(db, year, *, tenant_id=None, is_owner=False) -> dict:
                           detail=(f"มีบัญชีครู {n_acc} บัญชี" if n_acc
                                   else "ครูเข้าระบบด้วยบัญชีของตัวเอง กรอกคะแนนและเช็กชื่อได้เฉพาะวิชาและห้องที่สอน"),
                           href="/academic/teacher-accounts", cta="สร้างบัญชีครู"))
-    steps.append(dict(title="ตั้งตารางเรียน", done=bool(classes) and not no_tt,
+    steps.append(dict(title="ตั้งตารางเรียน (ข้ามได้ถ้ากรอกวันสอนเอง)", done=bool(classes) and not no_tt,
                       detail=("ทุกห้องมีตารางเรียนแล้ว" if classes and not no_tt
                               else (f"ยังไม่มีตารางเรียน: {_names(no_tt)} · ใช้ดึงวันสอนเข้าเวลาเรียนรายคาบ "
                                     "และพิมพ์ตารางรายห้อง/รายครู" if no_tt else "สร้างห้องเรียนก่อน")),

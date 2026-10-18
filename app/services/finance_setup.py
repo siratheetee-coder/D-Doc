@@ -13,7 +13,7 @@ finance_setup.py - รายการเริ่มต้นงานการ�
 """
 from datetime import datetime
 
-from app.models import AccountItem, FinanceAccount, FinanceTxn, PlanBudget, Project
+from app.models import AccountOpening, AccountItem, FinanceAccount, FinanceTxn, PlanBudget, Project
 
 try:
     from app.models import PlanFunding, ProjectFunding
@@ -28,7 +28,7 @@ def _plans_for(db, fy):
             .order_by(PlanBudget.start_date).all())
 
 
-def setup_steps(db, fy, school=None) -> dict:
+def setup_steps(db, fy, school=None, *, selected_plan_year=None) -> dict:
     """คืน {steps: [...], done: n, total: n, complete: bool, next: step}
 
     step = {n, title, done, detail, href, cta, extra: [(ข้อความ, ลิงก์)]}
@@ -41,8 +41,11 @@ def setup_steps(db, fy, school=None) -> dict:
     has_money = (any((i.opening_balance or 0) > 0 for i in items)
                  or db.query(FinanceTxn.id).filter(FinanceTxn.fiscal_year == fy,
                                                    FinanceTxn.item_id.isnot(None)).first() is not None)
-    plans = _plans_for(db, fy)
-    plan_year = plans[0].year if plans else current_plan_year(school)
+    saved_openings = {r.account_id for r in db.query(AccountOpening).filter_by(fiscal_year=fy)}
+    has_money = has_money or bool(item_acc) and all(aid in saved_openings for aid in item_acc)
+    plans = (_plans_for(db, fy) if selected_plan_year is None else
+             db.query(PlanBudget).filter_by(year=selected_plan_year).all())
+    plan_year = selected_plan_year if selected_plan_year is not None else (plans[0].year if plans else current_plan_year(school))
     funds = []
     if PlanFunding is not None and plans:
         funds = db.query(PlanFunding).filter(PlanFunding.plan_id.in_([p.id for p in plans])).all()
@@ -109,7 +112,7 @@ def project_steps(db, plan_year, year_label="ปีงบประมาณ") ->
                      else "พิมพ์ทีละโครงการพร้อมงบ หรือนำเข้าจาก Excel ทีเดียวทั้งแผน"),
              href="#add-project", cta="เพิ่มโครงการ",
              extra=[("นำเข้าจาก Excel", "/projects/import")]),
-        dict(title="ใส่งบให้ทุกโครงการ", done=bool(rows) and not zero,
+        dict(title="ใส่งบให้โครงการ (ข้ามได้ถ้าไม่ใช้งบ)", done=bool(rows) and not zero,
              detail=("ทุกโครงการมีงบแล้ว" if rows and not zero
                      else (f"ยังมี {len(zero)} โครงการที่งบเป็น 0: {names(zero)} · เปิดโครงการแล้วใส่งบในช่องด้านบนได้เลย "
                            "ไม่นับเป็นการปรับงบ" if zero else "เพิ่มโครงการก่อน")),

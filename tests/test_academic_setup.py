@@ -66,7 +66,7 @@ def test_checklist_walks_through_the_steps_in_order(env, monkeypatch):
 
     monkeypatch.setattr(accounts, 'list_teacher_accounts', lambda tid: [{'id': 1}])
     html = page()
-    assert _next_step(html) == (7, 'ตั้งตารางเรียน') and 'ป.1/1, ป.1/2' in html
+    assert _next_step(html) == (7, 'ตั้งตารางเรียน (ข้ามได้ถ้ากรอกวันสอนเอง)') and 'ป.1/1, ป.1/2' in html
 
     with tn.session_for(sid) as s:
         p = AcadPeriod(year=Y, seq=1, name='คาบ 1', time_label='08:30-09:30', is_break=False); s.add(p); s.flush()

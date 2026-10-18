@@ -37,7 +37,7 @@ def lunch_steps(db, year, school=None) -> dict:
     word = "รอบจัดซื้อ" if mode == "ingredient" else "รอบจัดจ้าง"
     steps = [
         dict(title=f"ตั้งโครงการปีการศึกษา {year}", done=bool(prog),
-             detail=("ตั้งโครงการแล้ว" if prog else "ระบบดึงจำนวนนักเรียนแต่ละชั้นจากทะเบียนนักเรียนให้เอง"),
+             detail=(f"กำลังตรวจโครงการล่าสุด: ปีการศึกษา {year} (รหัส {pid})" if prog else "ระบบดึงจำนวนนักเรียนแต่ละชั้นจากทะเบียนนักเรียนให้เอง"),
              href="/lunch/setup", cta="ตั้งโครงการ"),
         dict(title="เลือกบัญชีเงินอาหารกลางวัน", done=bool(prog and prog.finance_account_id),
              detail=("เชื่อมกับทะเบียนคุมเงินแล้ว" if prog and prog.finance_account_id
@@ -102,8 +102,8 @@ def admin_steps(db, school) -> dict:
 def hr_steps(db, school) -> dict:
     who = _missing(school, [("name", "ชื่อโรงเรียน"), ("director_name", "ชื่อผู้อำนวยการ")])
     people = db.query(Person).filter(Person.active.isnot(False)).all()
-    director = (school.director_name or "").strip()
-    d_person = next((p for p in people if (p.name or "").strip() == director), None) if director else None
+    director = " ".join((school.director_name or "").split())
+    d_person = next((p for p in people if " ".join((p.name or "").split()) == director), None) if director else None
     has_sig = bool(d_person and (d_person.signature or "").strip())
     emails = [e for e in ((school.director_email or "").strip(), (school.hr_head_email or "").strip()) if e]
     return _pack([

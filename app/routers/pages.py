@@ -2809,7 +2809,7 @@ def projects_page(request: Request, db: Session = Depends(get_db), year: int | N
         "suggest_start": bool(rows) and not any(project_spent(p) for p in rows),
         "suggest_next": _suggest_next_year(db, cur, rows),
         "can_finance": can_fin,
-        "setup": (finance_setup_steps(db, current_fiscal_year(), school) if can_fin
+        "setup": (finance_setup_steps(db, cur + (1 if plan_year_label(school, cur) == "ปีการศึกษา" else 0), school, selected_plan_year=cur) if can_fin
                   else project_setup_steps(db, cur, plan_year_label(school, cur))),
     })
 

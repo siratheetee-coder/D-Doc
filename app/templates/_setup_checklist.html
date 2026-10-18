@@ -13,22 +13,30 @@
   <ol class="fs-list">
     {% for s in setup.steps %}
     {% set is_next = setup.next and s.n == setup.next.n %}
-    <li class="fs-step {{ 'is-done' if s.done else ('is-next' if is_next else 'is-todo') }}">
+    <li data-step="{{ s.title }}" data-done="{{ 1 if s.done else 0 }}" class="fs-step {{ 'is-done' if s.done else ('is-next' if is_next else 'is-todo') }}">
       <span class="fs-mark">{% if s.done %}✔{% elif is_next %}➜{% else %}{{ s.n }}{% endif %}</span>
       <div class="fs-body">
         <div class="fs-name">{{ s.n }}. {{ s.title }}</div>
-        {% if s.done or is_next %}<div class="fs-detail">{{ s.detail }}</div>{% endif %}
-        {% if is_next %}
-        <div class="fs-act"><a class="btn sm" href="{{ s.href }}">{{ s.cta }}</a>
+        <div class="fs-detail" {% if not s.done and not is_next %}hidden{% endif %}>{{ s.detail }}</div>
+        {% if not s.done %}
+        <div class="fs-act" {% if not is_next %}hidden{% endif %}><a class="btn sm" href="{{ s.href }}">{{ s.cta }}</a>
+          <button type="button" class="fs-skip">ข้ามขั้นตอนนี้ <span aria-hidden="true">→</span></button>
           {% for t, h in s.extra %}<a class="fs-extra" href="{{ h }}">{{ t }}</a>{% endfor %}</div>
         {% endif %}
       </div>
     </li>
     {% endfor %}
   </ol>
+  <p class="fs-skip-status" role="status" aria-live="polite"></p>
 </div>
 <p class="fs-show" id="setup-{{ setup_key }}-show" hidden><a href="#" id="setup-{{ setup_key }}-showlink">แสดงขั้นตอนเริ่มต้นใช้งาน ({{ setup.done }}/{{ setup.total }})</a></p>
 <style>
+  .fs-act[hidden],.fs-detail[hidden]{display:none!important}
+  .fs-skip{font:inherit;font-size:13px;font-weight:600;border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:10px;padding:8px 12px;cursor:pointer;min-height:38px}
+  .fs-skip:hover{background:#eef2ff;border-color:#818cf8;color:#4338ca}
+  .fs-skip:focus-visible{outline:2px solid #4f46e5;outline-offset:3px}
+  .is-skipped .fs-mark{background:#fff7ed;color:#9a3412}.is-skipped .fs-name{color:#64748b}
+  .fs-skip-status{font-size:13px;color:#64748b;margin-bottom:0}
   .fs-card{ background:linear-gradient(135deg,#eff6ff,#f0fdf4); }
   .fs-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
   .fs-title{ margin:0; border:none; background:none; padding:0; font-size:18px; }
@@ -64,6 +72,30 @@
   // ซ่อนเฉพาะในเบราว์เซอร์นี้ จำตามจำนวนขั้นที่ทำแล้ว ทำขั้นใหม่เสร็จจะกลับมาให้เห็นขั้นถัดไป
   var KEY = 'setupHidden_{{ setup_key }}', mark = '{{ setup.done }}';
   var card = document.getElementById('setup-{{ setup_key }}'), show = document.getElementById('setup-{{ setup_key }}-show');
+  var scope = {{ [request.session.get('tid'), request.session.get('uid'), setup_key, setup.steps|map(attribute='title')|list, setup.steps|map(attribute='href')|list]|tojson }};
+  var skipKey = 'setupSkipped:' + JSON.stringify(scope), skipped = [];
+  try { skipped = JSON.parse(localStorage.getItem(skipKey) || '[]'); if (!Array.isArray(skipped)) skipped=[]; } catch(e) {}
+  var rows = Array.from(card.querySelectorAll('[data-step]'));
+  function renderSteps() {
+    var next = rows.find(function(r){return r.dataset.done !== '1' && skipped.indexOf(r.dataset.step)<0;});
+    var count=0;
+    rows.forEach(function(r){
+      var done=r.dataset.done==='1', skip=!done && skipped.indexOf(r.dataset.step)>=0, active=r===next;
+      if(skip) count++;
+      r.classList.toggle('is-next',active);r.classList.toggle('is-skipped',skip);r.classList.toggle('is-todo',!done&&!active&&!skip);
+      r.querySelector('.fs-detail').hidden=!done&&!active;
+      var actions=r.querySelector('.fs-act'); if(actions)actions.hidden=!active&&!skip;
+      var button=r.querySelector('.fs-skip');if(button)button.textContent=skip?'กลับมาทำขั้นตอนนี้':'ข้ามขั้นตอนนี้ →';
+      if(!done)r.querySelector('.fs-mark').textContent=skip?'↷':active?'➜':String(rows.indexOf(r)+1);
+    });
+    card.querySelector('.fs-skip-status').textContent=count?'ข้ามไว้ '+count+' ขั้น · ยังไม่นับว่าทำเสร็จ กลับมาทำได้ทุกเมื่อ (จำเฉพาะผู้ใช้และชุดขั้นตอนนี้ในเบราว์เซอร์นี้)':'';
+  }
+  rows.forEach(function(r){var b=r.querySelector('.fs-skip');if(b)b.addEventListener('click',function(){
+    var title=r.dataset.step, idx=skipped.indexOf(title);if(idx>=0)skipped.splice(idx,1);else skipped.push(title);
+    try{localStorage.setItem(skipKey,JSON.stringify(skipped));}catch(e){}
+    renderSteps();
+  });});
+  renderSteps();
   function get() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
   function put(v) { try { v === null ? localStorage.removeItem(KEY) : localStorage.setItem(KEY, v); } catch (e) {} }
   function apply(hidden) { card.hidden = hidden; show.hidden = !hidden; }
