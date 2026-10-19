@@ -195,6 +195,9 @@ def _rollup(bucket: dict) -> dict:
     return bucket
 
 
+from app.services.ebudget_cat import INCOME_LEAVES  # noqa: E402  (ส่วนที่ 3 ข้อย่อยที่เลือกได้)
+
+
 def build(db, fiscal_year: int, rnd: int) -> dict:
     """สรุปตัวเลขทุกส่วนของ e-Budget จากทะเบียนคุมเงิน
 
@@ -292,7 +295,7 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
                 if src_in.startswith("i"):
                     by = income_src.setdefault(src_in, {})
                     by[code] = by.get(code, 0.0) + amt
-                else:
+                if src_in not in INCOME_LEAVES:      # ว่าง หรือรหัสรุ่นเก่าที่เลือกแค่ข้อใหญ่ = ยังไม่ระบุข้อย่อย
                     income_missing.append(t.id)
         else:
             if before or inside:
@@ -338,6 +341,31 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
     }
 
 
+def section3_rows(d: dict) -> list:
+    """ตารางส่วนที่ 3 เรียงตามแบบ e-Budget: ข้อ 1 คิดจากส่วนที่ 2 · ข้อ 2-6 จากที่มาของเงินที่เลือกตอนบันทึกรับ
+    [{code, label, level, amount, unsorted}] · unsorted = ยอดที่เลือกแค่ข้อใหญ่ ยังไม่ระบุข้อย่อย"""
+    from app.services.ebudget_cat import INCOME_TREE
+    op = d["opening"]
+    other = round(op["3"] - op["3.1"] - op["3.2"], 2)
+    rows = [
+        dict(code="c1", label="1. งบประมาณคงเหลือจากที่ผ่านมา", level=0,
+             amount=round(op["1"] + op["2"] + op["3"] + op["4"], 2)),
+        dict(code="c1.1", label="1.1 เงินกันไว้เบิกเหลื่อมปี [ส่วนที่ 2 ข้อ 1]", level=1, amount=op["1"]),
+        dict(code="c1.2", label="1.2 เงินรายได้แผ่นดินคงเหลือ [ส่วนที่ 2 ข้อ 2]", level=1, amount=op["2"]),
+        dict(code="c1.3", label="1.3 เงินนอกงบประมาณคงเหลือ", level=1, amount=op["3"]),
+        dict(code="c1.3.1", label="(1) เงินอุดหนุนทั่วไป โครงการเรียนฟรี [ส่วนที่ 2 ข้อ 3.1]", level=2, amount=op["3.1"]),
+        dict(code="c1.3.2", label="(2) เงินอุดหนุนทั่วไป [ส่วนที่ 2 ข้อ 3.2]", level=2, amount=op["3.2"]),
+        dict(code="c1.3.3", label="(3) เงินอุดหนุนอื่น [ส่วนที่ 2 ข้อ 3.3 - 3.13]", level=2, amount=other),
+        dict(code="c1.4", label="1.4 เงินอื่น ๆ คงเหลือ [ส่วนที่ 2 ข้อ 4]", level=1, amount=op["4"]),
+    ]
+    leaf = {code: sum(by.values()) for code, by in d["income_src"].items()}
+    for code, label, level in INCOME_TREE:
+        total = sum(v for c, v in leaf.items() if c == code or c.startswith(code + "."))
+        rows.append(dict(code=code, label=label, level=level, amount=round(total, 2),
+                         unsorted=round(leaf.get(code, 0.0), 2) if level == 0 else 0.0))
+    return rows
+
+
 def checklist(d: dict, fiscal_year: int, rnd: int) -> dict:
     """ขั้นตอนก่อนกรอก e-Budget (กล่องรายการเริ่มต้นแบบเดียวกับงานอื่น) ติ๊กเองจากตัวเลขจริง"""
     from app.services.module_setup import _pack
@@ -357,8 +385,8 @@ def checklist(d: dict, fiscal_year: int, rnd: int) -> dict:
              href="#eb-slots", cta="เลือกช่องให้บัญชี"),
         dict(title="ระบุที่มาของเงินรับทุกรายการ (ส่วนที่ 3)", done=not d["income_missing"],
              detail=("ครบทุกรายการแล้ว" if not d["income_missing"]
-                     else f"ยังไม่ระบุ {len(d['income_missing'])} รายการ ว่าใครให้เงินมา (ต้นสังกัด / อปท. / เงินนอกงบ ฯลฯ) "
-                          "ระบบเดาไว้ให้แล้ว แค่ตรวจแล้วกดบันทึก"),
+                     else f"ยังไม่ระบุ {len(d['income_missing'])} รายการ ว่าเป็นเงินข้อไหน (เช่น 2.1 (1) รายหัว จากต้นสังกัด, "
+                          "4.2 ค่าอาหารกลางวันจาก อปท.) ระบบเดาไว้ให้จากประเภทเงินของบัญชีแล้ว แค่ตรวจแล้วกดบันทึก"),
              href=fill, cta="เติมที่มาของเงิน"),
         dict(title="ระบุหมวดรายจ่ายทุกรายการ (ส่วนที่ 4)", done=not d["missing"],
              detail=("ครบทุกรายการแล้ว" if not d["missing"]

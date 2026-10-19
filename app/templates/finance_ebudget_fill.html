@@ -53,8 +53,12 @@
                 </optgroup>
                 {% endfor %}
               {% else %}
-                {% for code, lbl in eb_income %}
-                <option value="{{ code }}" {{ 'selected' if (r.current or r.guess) == code }}>{{ lbl }}</option>
+                {% for grp, opts in eb_income %}
+                <optgroup label="{{ grp }}">
+                  {% for code, lbl in opts %}
+                  <option value="{{ code }}" {{ 'selected' if (r.current or r.guess) == code }}>{{ lbl }}</option>
+                  {% endfor %}
+                </optgroup>
                 {% endfor %}
               {% endif %}
             </select>

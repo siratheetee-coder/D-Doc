@@ -719,6 +719,20 @@ class FinanceAccount(Base):
                          cascade="all, delete-orphan")
 
 
+class EbudgetStaff(Base):
+    """e-Budget ส่วนที่ 1 จำนวนบุคลากรที่ครูแก้เอง (ไม่มีแถว = ใช้ตัวเลขที่นับจากทะเบียนบุคลากร)"""
+    __tablename__ = "ebudget_staff"
+    __table_args__ = (
+        UniqueConstraint("fiscal_year", "round", "code", name="uq_ebstaff"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    fiscal_year = Column(Integer, nullable=False)
+    round = Column(Integer, nullable=False)
+    code = Column(String, nullable=False)          # "1".."16" ตาม ebudget_staff.ROWS
+    count = Column(Integer, default=0)
+
+
 class AccountOpening(Base):
     """ยอดยกมาของบัญชี แยกตามปีงบประมาณ (ทำให้แต่ละปีเป็น 'เล่ม' แยกกัน)
     ปีที่ไม่มีระเบียนนี้ จะใช้ FinanceAccount.opening_balance เป็นยอดตั้งต้น"""

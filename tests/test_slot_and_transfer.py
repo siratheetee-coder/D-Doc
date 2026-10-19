@@ -96,7 +96,7 @@ def test_internal_transfer_moves_balance_but_not_income_or_expense(env):
     html = env.get(f"/finance/accounts/{cash.id}?year={FY}").text
     assert 'name="no_count" value="1"' in html and "ไม่นับเป็นรายรับ/รายจ่าย" in html
     env.post(f"/finance/accounts/{cash.id}/txn", data={"kind": "in", "amount": "3000", "date": "05/11/2569",
-                                                     "fiscal_year": FY, "note": "รับค่าเช่าโรงอาหาร", "eb_code": "i5"})
+                                                     "fiscal_year": FY, "note": "รับค่าเช่าโรงอาหาร", "eb_code": "i5.10"})
     env.post(f"/finance/accounts/{cash.id}/txn", data={"kind": "out", "amount": "3000", "date": "06/11/2569",
                                                      "fiscal_year": FY, "note": "นำฝากธนาคาร", "no_count": "1", "eb_code": "4.9"})
     env.post(f"/finance/accounts/{bank.id}/txn", data={"kind": "in", "amount": "3000", "date": "06/11/2569",

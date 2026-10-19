@@ -286,9 +286,11 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       <div><label>หมวด e-Budget <span class="muted" style="font-size:13px;">(ไว้ใช้ตอนรายงาน)</span></label>
         <select name="eb_code" id="ebSel">
           <option value="">- โปรดระบุหมวดเอง -</option>
-          <optgroup label="เงินรับ" data-kind="in">
-            {% for code, label in eb_income %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+          {% for grp, opts in eb_income %}
+          <optgroup label="รับ · {{ grp }}" data-kind="in">
+            {% for code, label in opts %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
           </optgroup>
+          {% endfor %}
           {% for grp, rows in eb_expense %}
           <optgroup label="{{ grp }}" data-kind="out">
             {% for code, label in rows %}<option value="{{ code }}">{{ code }} {{ label }}</option>{% endfor %}

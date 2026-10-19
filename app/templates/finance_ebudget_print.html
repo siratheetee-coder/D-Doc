@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>รายงาน e-Budget ปีงบ {{ fiscal_year }} ครั้งที่ {{ round }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    @page { size: A4; margin: 1.5cm; }
+    body { font-family: "TH Sarabun New", "Sarabun", sans-serif; color:#111; font-size:16px; background:#fff; margin:16px; }
+    h1 { text-align:center; font-size:22px; margin:0 0 2px; }
+    .sub { text-align:center; color:#444; margin:0 0 14px; }
+    h2 { font-size:18px; margin:18px 0 6px; }
+    table { width:100%; border-collapse:collapse; margin-bottom:6px; }
+    th, td { border:1px solid #555; padding:4px 8px; vertical-align:top; }
+    th { background:#f0f0f0; }
+    td.n, th.n { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    tr.b td { font-weight:700; background:#fafafa; }
+    tr.t td { font-weight:700; border-top:2px solid #111; }
+    .l1 { padding-left:22px; } .l2 { padding-left:40px; } .l3 { padding-left:58px; }
+    .staff { display:grid; grid-template-columns:1fr 1fr; gap:0 18px; }
+    .warn { border:1px solid #b45309; color:#7c2d12; padding:6px 10px; margin:8px 0; }
+    .ok { border:1px solid #15803d; color:#14532d; padding:6px 10px; margin:8px 0; }
+    .sign { display:flex; justify-content:space-around; margin-top:40px; text-align:center; }
+    .noprint { text-align:center; margin:16px 0; }
+    .btn { padding:8px 18px; font-size:16px; cursor:pointer; }
+    .page-break { break-before:page; }
+    @media print { .noprint { display:none; } body { margin:0; } }
+    @media (max-width:600px) { .staff { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="noprint"><button class="btn" onclick="window.print()">พิมพ์ / บันทึกเป็น PDF</button></div>
+  <h1>รายงานข้อมูลการเงิน (e-Budget)</h1>
+  <p class="sub">{{ school.name }} &middot; ปีงบประมาณ {{ fiscal_year }} ครั้งที่ {{ round }} &middot;
+    {{ thai_date(d.start) }} ถึง {{ thai_date(d.end) }}</p>
+
+  {% if d.check == 0 %}
+  <div class="ok">ตรวจยอดแล้ว: ยกมา + รายรับ - รายจ่าย = คงเหลือ ตรงกันพอดี</div>
+  {% else %}
+  <div class="warn">ยอดยังไม่ตรง ต่างกัน {{ "{:,.2f}".format(d.check) }} บาท กรุณาตรวจทะเบียนคุมเงินก่อนกรอกในเว็บ e-Budget</div>
+  {% endif %}
+  {% if d.missing or d.income_missing %}
+  <div class="warn">ยังระบุหมวดไม่ครบ: รายจ่าย {{ d.missing|length }} รายการ · รายรับ {{ d.income_missing|length }} รายการ
+    (ยอดเหล่านี้ยังไม่อยู่ในส่วนที่ 3 / 4)</div>
+  {% endif %}
+
+  <h2>ส่วนที่ 1 ข้อมูลบุคลากร (รวม {{ staff.total }} คน)</h2>
+  <div class="staff">
+    {% for half in staff.rows|slice(2) %}
+    <table>
+      <tbody>
+        {% for r in half %}<tr><td>{{ r.code }}. {{ r.label }}</td><td class="n" style="width:70px;">{{ r.value }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    {% endfor %}
+  </div>
+
+  <h2>ส่วนที่ 2 เงินคงเหลือยกมา ณ {{ thai_date(d.start) }}</h2>
+  <table>
+    <thead><tr><th>รายการ</th><th class="n" style="width:170px;">จำนวนเงิน (บาท)</th></tr></thead>
+    <tbody>
+      {% for code, label, bold in order %}
+      <tr class="{{ 'b' if bold }}"><td class="{{ '' if bold else 'l1' }}">{{ label if label.startswith(code ~ ' ') else code ~ ' ' ~ label }}</td>
+        <td class="n">{{ "{:,.2f}".format(d.opening[code]) }}</td></tr>
+      {% endfor %}
+      <tr class="t"><td>รวม</td><td class="n">{{ "{:,.2f}".format(d.totals.opening) }}</td></tr>
+    </tbody>
+  </table>
+
+  <h2>ส่วนที่ 3 รายรับ (แสดงเฉพาะข้อที่มียอด)</h2>
+  <table>
+    <thead><tr><th>รายการ</th><th class="n" style="width:170px;">จำนวนเงิน (บาท)</th></tr></thead>
+    <tbody>
+      {% for r in sec3 %}
+      <tr class="{{ 'b' if r.level == 0 }}"><td class="l{{ r.level }}">{{ r.label }}</td>
+        <td class="n">{{ "{:,.2f}".format(r.amount) }}</td></tr>
+      {% if r.unsorted %}<tr><td class="l1">ยังไม่ระบุข้อย่อย</td><td class="n">{{ "{:,.2f}".format(r.unsorted) }}</td></tr>{% endif %}
+      {% endfor %}
+      <tr class="t"><td>รวมรายรับในงวด</td><td class="n">{{ "{:,.2f}".format(d.totals.income) }}</td></tr>
+    </tbody>
+  </table>
+
+  <h2>ส่วนที่ 4 รายจ่าย แยกตามแหล่งเงิน</h2>
+  {% if d.matrix %}
+  <table>
+    <thead><tr><th>ด้าน / รายการ</th>{% for key, label in sources %}<th class="n">{{ label }}</th>{% endfor %}<th class="n">รวม</th></tr></thead>
+    <tbody>
+      {% for code, cols in d.matrix|dictsort %}
+      <tr><td>{{ eb_label(code) }}</td>
+        {% for key, label in sources %}<td class="n">{{ "{:,.2f}".format(cols[key]) if cols[key] else '-' }}</td>{% endfor %}
+        <td class="n">{{ "{:,.2f}".format(cols.values()|sum) }}</td></tr>
+      {% endfor %}
+      <tr class="t"><td>รวม</td>
+        {% for key, label in sources %}<td class="n">{{ "{:,.2f}".format(d.expense[key]) }}</td>{% endfor %}
+        <td class="n">{{ "{:,.2f}".format(d.totals.expense) }}</td></tr>
+    </tbody>
+  </table>
+  {% else %}<p>ไม่มีรายการจ่ายที่ระบุหมวดในงวดนี้</p>{% endif %}
+
+  <h2>ส่วนที่ 5 เงินคงเหลือ ณ {{ thai_date(d.end) }}</h2>
+  <table>
+    <thead><tr><th>รายการ</th><th class="n" style="width:170px;">จำนวนเงิน (บาท)</th></tr></thead>
+    <tbody>
+      {% for code, label, bold in order %}
+      <tr class="{{ 'b' if bold }}"><td class="{{ '' if bold else 'l1' }}">{{ label if label.startswith(code ~ ' ') else code ~ ' ' ~ label }}</td>
+        <td class="n">{{ "{:,.2f}".format(d.closing[code]) }}</td></tr>
+      {% endfor %}
+      <tr class="t"><td>รวม</td><td class="n">{{ "{:,.2f}".format(d.totals.closing) }}</td></tr>
+    </tbody>
+  </table>
+
+  <div class="sign">
+    <div>ลงชื่อ ........................................<br>({{ school.finance_officer_name or '........................................' }})<br>เจ้าหน้าที่การเงิน</div>
+    <div>ลงชื่อ ........................................<br>({{ school.director_name or '........................................' }})<br>{{ school.director_position or 'ผู้อำนวยการโรงเรียน' }}</div>
+  </div>
+</body>
+</html>

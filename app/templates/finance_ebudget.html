@@ -37,6 +37,8 @@
     </form>
     <a class="btn" href="/finance/ebudget/fill?year={{ fiscal_year }}&round={{ round }}">
       <svg class="icon"><use href="#ic-edit"/></svg> เติมหมวดรายจ่าย</a>
+    <a class="btn gray" href="/finance/ebudget/print?year={{ fiscal_year }}&round={{ round }}" target="_blank" rel="noopener">
+      <svg class="icon"><use href="#ic-file"/></svg> พิมพ์รายงาน 5 ส่วน</a>
     <a class="btn gray" href="https://e-budget.jobobec.in.th/school_login_form.php"
        target="_blank" rel="noopener noreferrer"
        title="เปิดหน้าเข้าสู่ระบบของสถานศึกษา ในแท็บใหม่">
@@ -155,6 +157,42 @@
   {% endif %}
 </div>
 
+<div class="card" id="eb-staff">
+  <h2>ส่วนที่ 1 · ข้อมูลบุคลากร <span class="muted" style="font-size:15px;">รวม {{ staff.total }} คน</span></h2>
+  <p class="muted" style="margin-top:0;">ระบบนับให้จากทะเบียนบุคลากร (ตำแหน่ง) · ถ้าไม่ตรงแก้ตัวเลขแล้วกดบันทึก ระบบจำไว้ของรายงานครั้งนี้
+    · ตัวเลขเล็กสีเทา = ที่นับได้จากทะเบียน</p>
+  {% if staff_saved %}<div class="slot-ok">บันทึกจำนวนบุคลากรแล้ว</div>{% endif %}
+  <form method="post" action="/finance/ebudget/staff">
+    <input type="hidden" name="year" value="{{ fiscal_year }}"><input type="hidden" name="round" value="{{ round }}">
+    <div class="staff-grid">
+      {% for r in staff.rows %}
+      <label class="staff-cell {{ 'edited' if r.edited }}">
+        <span class="staff-lab">{{ r.code }}. {{ r.label }}</span>
+        <span class="staff-in"><input type="number" name="n_{{ r.code }}" value="{{ r.value }}" min="0" max="9999" inputmode="numeric"
+          aria-label="{{ r.label }}"> คน
+          <span class="staff-auto" title="นับจากทะเบียนบุคลากร">({{ r.auto }})</span>
+          <button type="button" class="btn xs" onclick="cpText(this,this.closest('.staff-in').querySelector('input').value)">คัดลอก</button></span>
+      </label>
+      {% endfor %}
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+      <button class="btn sm" type="submit" data-no-floating-save>บันทึกจำนวนบุคลากร</button>
+      {% if staff.saved %}<button class="btn sm gray" type="submit" name="reset" value="1">กลับไปนับจากทะเบียนบุคลากร</button>{% endif %}
+      <a class="btn sm gray" href="/masters">แก้ตำแหน่งในรายชื่อบุคลากร</a>
+    </div>
+  </form>
+  <style>
+    .staff-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:8px; }
+    .staff-cell { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 12px;
+      border-radius:12px; background:#f6f8fc; font-size:14px; }
+    .staff-cell.edited { background:linear-gradient(120deg,#eef2ff,#ede9fe); }
+    .staff-lab { flex:1; }
+    .staff-in { display:flex; align-items:center; gap:6px; white-space:nowrap; }
+    .staff-in input { width:70px; padding:4px 8px; text-align:right; }
+    .staff-auto { color:var(--muted); font-size:12.5px; }
+  </style>
+</div>
+
 <div class="card">
   <h2>ส่วนที่ 2 · เงินคงเหลือยกมา <span class="muted" style="font-size:15px;">ณ {{ thai_date(d.start) }}</span></h2>
   <p class="muted" style="margin-top:0;">เรียงตรงตามหน้าจอ e-Budget ทุกบรรทัด ไล่กรอกจากบนลงล่างได้เลย</p>
@@ -174,28 +212,40 @@
 </div>
 
 <div class="card">
-  <h2>ส่วนที่ 3 · รายรับในงวด แยกตามใครให้เงินมา
+  <h2>ส่วนที่ 3 · รายรับ
     <span class="muted" style="font-size:15px;">{{ thai_date(d.start) }} ถึง {{ thai_date(d.end) }}</span></h2>
-  <p class="muted" style="margin-top:0;">ใช้ที่มาของเงินที่เลือกไว้ตอนบันทึกรับ · ใต้แต่ละข้อบอกว่าเป็นเงินประเภทไหน
-    ไว้ช่วยเลือกข้อย่อยในเว็บ (เช่น ข้อ 2 เงินอุดหนุนรายหัว ลงข้อ 2.1)</p>
+  <p class="muted" style="margin-top:0;">เรียงตามข้อในเว็บ e-Budget · ข้อ 1 คิดจากส่วนที่ 2 ให้เอง · ข้อ 2-6 ใช้ข้อที่เลือกไว้ตอนบันทึกรับ
+</p>
+  <button type="button" class="btn xs gray" id="sec3All" style="margin:0 0 10px;"
+          onclick="var t=document.getElementById('sec3'); t.classList.toggle('show-all'); this.textContent = t.classList.contains('show-all') ? 'ซ่อนข้อที่เป็น 0' : 'แสดงทุกข้อ (รวมข้อที่เป็น 0)';">แสดงทุกข้อ (รวมข้อที่เป็น 0)</button>
   {% if d.income_missing %}
-  <div class="eb-todo">ยังไม่ได้ระบุที่มาของเงินอีก <b>{{ d.income_missing|length }} รายการ</b> ยอดพวกนี้ยังไม่อยู่ในตารางนี้ ·
-    <a href="/finance/ebudget/fill?year={{ fiscal_year }}&round={{ round }}">เติมที่มาของเงิน</a></div>
+  <div class="eb-todo">ยังไม่ได้ระบุข้อย่อยของเงินรับอีก <b>{{ d.income_missing|length }} รายการ</b> ยอดพวกนี้ยังไม่ลงข้อย่อยในตาราง ·
+    <a href="/finance/ebudget/fill?year={{ fiscal_year }}&round={{ round }}">เลือกข้อย่อย (ระบบเดาไว้ให้แล้ว)</a></div>
   {% endif %}
-  <div class="table-wrap"><table class="eb">
-    <thead><tr><th>ที่มาของเงินรับ</th><th class="right" style="width:240px;">จำนวนเงิน (บาท)</th></tr></thead>
+  <div class="table-wrap"><table class="eb sec3" id="sec3">
+    <thead><tr><th>รายรับ</th><th class="right" style="width:240px;">จำนวนเงิน (บาท)</th></tr></thead>
     <tbody>
-      {% for code, label in income_sources %}
-      {% set by = d.income_src.get(code, {}) %}
-      {% set total = by.values()|sum %}
-      <tr class="src-head"><td>{{ label }}</td>
-        <td class="right {{ 'zero' if not total }}">{{ cp('s' ~ code, total) }}</td></tr>
-      {% for slot, amt in by|dictsort %}
-      <tr class="src-sub"><td>{{ slot_names.get(slot, slot) }}</td><td class="right">{{ "{:,.2f}".format(amt) }}</td></tr>
-      {% endfor %}
+      {% for r in sec3 %}
+      <tr class="lv{{ r.level }} {{ 'nz' if r.amount or r.level == 0 else 'z' }}">
+        <td>{{ r.label }}</td>
+        <td class="right {{ 'zero' if not r.amount }}">{{ cp('s' ~ r.code, r.amount) }}</td></tr>
+      {% if r.unsorted %}
+      <tr class="lv1 nz unsorted"><td>ยังไม่ระบุข้อย่อย ·
+          <a href="/finance/ebudget/fill?year={{ fiscal_year }}&round={{ round }}">เลือกข้อย่อย</a></td>
+        <td class="right">{{ "{:,.2f}".format(r.unsorted) }}</td></tr>
+      {% endif %}
       {% endfor %}
     </tbody>
   </table></div>
+  <style>
+    .sec3 .lv0 td { font-weight:700; background:#f6f8fc; }
+    .sec3 .lv1 td:first-child { padding-left:28px; }
+    .sec3 .lv2 td:first-child { padding-left:50px; color:var(--sidebar-ink); font-size:14px; }
+    .sec3 .lv3 td:first-child { padding-left:72px; color:var(--sidebar-ink); font-size:13.5px; }
+    .sec3 tr.z { display:none; }
+    .sec3.show-all tr.z { display:table-row; }
+    .sec3 .unsorted td { color:#9a3412; background:#fff7ed; font-size:13.5px; }
+  </style>
 </div>
 
 <details class="card">

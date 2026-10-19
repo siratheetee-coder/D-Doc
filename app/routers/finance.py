@@ -24,6 +24,7 @@ from app.models import (
 from app.services.budget import current_plan_year, plan_year_label
 from app.thai_utils import SCHOOL_LEVELS
 from app.services.ebudget_cat import EXPENSE as EB_EXPENSE, INCOME as EB_INCOME
+from app.services import ebudget_staff as eb_staff
 from app.services.asset_utils import (
     account_balance, account_balance_year, opening_for, recon_sides,
     account_balance_asof, item_remaining_asof,
@@ -375,7 +376,7 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
         "item_remain_total": sum(r["remain"] for r in item_rows if r["level"] == 0),
         "special_key": special_form(a), "special_label": SPECIAL_LABEL,
         "projects": _plan_projects(db, fy),
-        "eb_expense": EB_EXPENSE, "eb_income": EB_INCOME[0][1],
+        "eb_expense": EB_EXPENSE, "eb_income": EB_INCOME,
         "fund_c": fund_color(a.fund_type),
     })
 
@@ -2070,8 +2071,7 @@ def ebudget_page(request: Request, db: Session = Depends(get_db),
 
     ไม่ได้ส่งข้อมูลไปที่ e-Budget · ครูยังต้องเปิดเว็บแล้ววางเอง (เหมือนหน้าช่วยกรอก e-GP)
     """
-    from app.services.ebudget import ORDER, SOURCES, build, period, slot_choices, checklist
-    from app.services.ebudget_cat import INCOME as EB_IN
+    from app.services.ebudget import ORDER, SOURCES, build, period, slot_choices, checklist, section3_rows
     fy = year or current_fiscal_year()
     rnd = 2 if round == 2 else (1 if round == 1 else _default_round(fy))
     data = build(db, fy, rnd)
@@ -2088,8 +2088,37 @@ def ebudget_page(request: Request, db: Session = Depends(get_db),
         "request": request, "d": data, "order": ORDER, "sources": SOURCES,
         "fiscal_year": fy, "round": rnd, "years": _finance_years(db, fy),
         "school": get_school(db), "slot_choices": choices, "own_slots": own,
-        "setup": checklist(data, fy, rnd), "income_sources": EB_IN[0][1], "slot_names": names,
+        "setup": checklist(data, fy, rnd), "sec3": section3_rows(data), "slot_names": names,
         "slot_saved": request.query_params.get("slot_saved"),
+        "staff": eb_staff.rows(db, fy, rnd), "staff_saved": request.query_params.get("staff_saved"),
+    })
+
+
+@router.post("/finance/ebudget/staff")
+async def ebudget_staff_save(request: Request, db: Session = Depends(get_db)):
+    """ส่วนที่ 1 จำนวนบุคลากร · reset=1 กลับไปนับจากทะเบียนบุคลากร"""
+    form = await request.form()
+    fy = _to_int(form.get("year"), current_fiscal_year())
+    rnd = 2 if form.get("round") == "2" else 1
+    if form.get("reset"):
+        eb_staff.reset(db, fy, rnd)
+    else:
+        eb_staff.save(db, fy, rnd, {c: _to_int(form.get("n_" + c), 0) for c in eb_staff.CODES})
+    return RedirectResponse(f"/finance/ebudget?year={fy}&round={rnd}&staff_saved=1#eb-staff", status_code=303)
+
+
+@router.get("/finance/ebudget/print", response_class=HTMLResponse)
+def ebudget_print(request: Request, db: Session = Depends(get_db), year: int | None = None, round: int = 0):
+    """รายงาน e-Budget ครบ 5 ส่วน สำหรับพิมพ์เก็บเป็นหลักฐาน / ให้ ผอ. ตรวจก่อนกรอกในเว็บ"""
+    from app.services.ebudget import ORDER, SOURCES, build, section3_rows
+    fy = year or current_fiscal_year()
+    rnd = 2 if round == 2 else (1 if round == 1 else _default_round(fy))
+    data = build(db, fy, rnd)
+    return templates.TemplateResponse("finance_ebudget_print.html", {
+        "request": request, "d": data, "order": ORDER, "sources": SOURCES,
+        "fiscal_year": fy, "round": rnd, "school": get_school(db),
+        "sec3": [r for r in section3_rows(data) if r["amount"] or r["level"] == 0],
+        "staff": eb_staff.rows(db, fy, rnd),
     })
 
 
@@ -2127,8 +2156,8 @@ def ebudget_fill_page(request: Request, db: Session = Depends(get_db),
     all=1 แสดงทุกรายการในงวด (ไว้แก้ของที่เคยเติมไว้) · ปกติแสดงเฉพาะที่ยังว่าง
     """
     from app.models import AccountItem, FinanceAccount, FinanceTxn, Project
-    from app.services.ebudget import period
-    from app.services.ebudget_cat import EXPENSE, INCOME, guess
+    from app.services.ebudget import period, slot_of
+    from app.services.ebudget_cat import EXPENSE, INCOME, LEGACY_INCOME, guess
     fy = year or current_fiscal_year()
     rnd = 2 if round == 2 else (1 if round == 1 else _default_round(fy))
     start, end, label = period(fy, rnd)
@@ -2140,23 +2169,30 @@ def ebudget_fill_page(request: Request, db: Session = Depends(get_db),
         d = t.date
         if not d or not (start.date() <= d.date() <= end.date()):
             continue
-        if not all and (t.eb_code or "").strip():
+        legacy = (t.eb_code or "").strip() in LEGACY_INCOME      # เคยเลือกแค่ข้อใหญ่ ต้องระบุข้อย่อย
+        if not all and (t.eb_code or "").strip() and not legacy:
             continue
         if t.no_count:                       # โอนภายใน ไม่ลง e-Budget ไม่ต้องเลือกหมวด
             continue
         it = items.get(t.item_id)
         pj = projs.get(t.project_id)
+        acct = accts.get(t.account_id)
+        slot = ""
+        if acct is not None:
+            slot = slot_of(it, acct.fund_type)[0] if it is not None else ""
+            if not slot or slot in ("3.13", "2.5"):
+                slot = slot_of(acct, acct.fund_type)[0]
         rows.append({
             "t": t, "account": (accts.get(t.account_id).name if accts.get(t.account_id) else ""),
             "item": it.name if it else "", "project": pj.name if pj else "",
-            "current": (t.eb_code or "").strip(),
+            "current": "" if legacy else (t.eb_code or "").strip(),
             "guess": guess(t, it.name if it else "", pj.name if pj else "",
-                           accts.get(t.account_id).name if accts.get(t.account_id) else ""),
+                           acct.name if acct else "", slot),
         })
     return templates.TemplateResponse("finance_ebudget_fill.html", {
         "request": request, "rows": rows, "fiscal_year": fy, "round": rnd,
         "label": label, "start": start, "end": end, "show_all": bool(all),
-        "eb_expense": EXPENSE, "eb_income": INCOME[0][1],
+        "eb_expense": EXPENSE, "eb_income": INCOME,
     })
 
 

@@ -119,7 +119,7 @@ def test_checklist_walks_to_ready_and_section3_uses_chosen_source(env, school):
     assert 'id="setup-ebudget"' in html and "ขั้นตอนก่อนกรอก e-Budget" in html
     nxt = re.search(r'fs-step is-next.*?fs-name">\d\. ([^<]+)<', html, re.S).group(1)
     assert nxt == "บอกระบบว่าเงินแต่ละบัญชีลงช่องไหน"
-    assert "ยังไม่ได้ระบุที่มาของเงินอีก <b>1 รายการ</b>" in html
+    assert "ยังไม่ได้ระบุข้อย่อยของเงินรับอีก <b>1 รายการ</b>" in html
     env.post("/finance/ebudget/slot", data={"kind": "account", "id": ids["bank"], "slot": "3.5", "year": FY})
     nxt = re.search(r'fs-step is-next.*?fs-name">\d\. ([^<]+)<', page(), re.S).group(1)
     assert nxt == "ระบุที่มาของเงินรับทุกรายการ (ส่วนที่ 3)"
@@ -129,11 +129,40 @@ def test_checklist_walks_to_ready_and_section3_uses_chosen_source(env, school):
         t_out = db.query(FinanceTxn).filter_by(item_id=ids["book"]).one().id
     finally:
         db.close()
-    env.post("/finance/ebudget/fill", data={"year": FY, "round": 1, f"eb_{t_in}": "i5", f"eb_{t_out}": "1.3"})
+    env.post("/finance/ebudget/fill", data={"year": FY, "round": 1, f"eb_{t_in}": "i5.3", f"eb_{t_out}": "1.3"})
     html = page()
     assert 'id="setup-ebudget"' not in html and "พร้อมกรอกแล้ว" in html
-    sec3 = html.split("ส่วนที่ 3 · รายรับในงวด", 1)[1].split("</table>", 1)[0]
-    assert "ข้อ 5 เงินนอกงบประมาณ" in sec3 and "2,500.00" in sec3 and "3.5 เงินรายได้สถานศึกษา" in sec3
+    sec3 = html.split('id="sec3"', 1)[1].split("</table>", 1)[0]
+    row = re.search(r'<tr class="lv1 nz">\s*<td>5\.3 เงินรายได้สถานศึกษา[^<]*</td>\s*<td class="right[^"]*">(.*?)</td>', sec3, re.S)
+    assert row and "2,500.00" in row.group(1), "ข้อย่อยที่เลือกขึ้นยอดในตารางส่วนที่ 3"
+    assert re.search(r'<tr class="lv0 nz">\s*<td>5\. เงินนอกงบประมาณ', sec3), "ข้อใหญ่รวมยอดข้อย่อย"
+    assert '<tr class="lv1 z">' in sec3, "ข้อที่เป็น 0 ซ่อนไว้ กดแสดงทุกข้อได้"
+
+
+def test_legacy_top_income_code_asks_for_sub_item(school, env):
+    """รายการที่เคยเลือกแค่ข้อใหญ่ (รุ่นเก่า i5) = ยังไม่ระบุข้อย่อย ต้องกลับไปเลือก ระบบเดาให้จากประเภทเงินของบัญชี"""
+    from app.models import FinanceTxn
+    import app.tenancy as tn
+    from app.services.ebudget import build, section3_rows
+    sid, ids = school
+    env.post("/finance/ebudget/slot", data={"kind": "account", "id": ids["bank"], "slot": "3.5", "year": FY})
+    db = tn.session_for(sid)
+    try:
+        t = db.query(FinanceTxn).filter_by(account_id=ids["bank"]).one()
+        t.eb_code = "i5"
+        db.commit()
+        tid = t.id
+        d = build(db, FY, 1)
+        assert tid in d["income_missing"]
+        top5 = next(r for r in section3_rows(d) if r["code"] == "i5")
+        assert top5["amount"] == 2500 and top5["unsorted"] == 2500
+    finally:
+        db.close()
+    fill = env.get(f"/finance/ebudget/fill?year={FY}&round=1").text
+    assert f'name="eb_{tid}"' in fill
+    sel = fill.split(f'name="eb_{tid}"', 1)[1].split("</select>", 1)[0]
+    assert '<option value="i5.3" selected' in sel, "เดาจากช่อง 3.5 ของบัญชี = 5.3 เงินรายได้สถานศึกษา"
+    assert "ยังไม่ระบุข้อย่อย" in env.get(f"/finance/ebudget?year={FY}&round=1").text
 
 
 @pytest.mark.parametrize("text,code", [
