@@ -3,7 +3,7 @@
 {% block content %}
 <div class="hero" style="background:linear-gradient(120deg,#6d28d9,#7c3aed 55%,#a78bfa); box-shadow:0 10px 26px rgba(124,58,237,.28);">
   <div>
-    <div class="hero-sub">งบที่ตั้งไว้ · ใช้ไปจริง · คงเหลือ · {{ year_label }} {{ fiscal_year }}</div>
+    <div class="hero-sub">งบที่ตั้งไว้ · จ่ายและกันงบ · คงเหลือ · {{ year_label }} {{ fiscal_year }}</div>
     <span class="hero-title">ทะเบียนคุมโครงการ</span>
     <div class="hero-meta">{{ rows|length }} โครงการ · คงเหลือรวม {{ "{:,.2f}".format(total_left) }} บาท</div>
   </div>
@@ -35,18 +35,18 @@
   <div class="stat">
     <div class="box"><div><div class="lab">งบตามแผนรวม</div><div class="num">{{ "{:,.2f}".format(total_budget) }}</div></div>
       <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
-    <div class="box"><div><div class="lab">ใช้ไปแล้ว</div><div class="num">{{ "{:,.2f}".format(total_spent) }}</div></div>
+    <div class="box"><div><div class="lab">ใช้/กันงบแล้ว</div><div class="num">{{ "{:,.2f}".format(total_spent) }}</div></div>
       <span class="ic-wrap ic-red"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
-    <div class="box"><div><div class="lab">คงเหลือ</div><div class="num">{{ "{:,.2f}".format(total_left) }}</div></div>
+    <div class="box"><div><div class="lab">งบเหลือทำเรื่องใหม่</div><div class="num">{{ "{:,.2f}".format(total_left) }}</div></div>
       <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
   </div>
 
   {% if rows %}
-  <p class="muted">ยอดใช้ไปนับจากของจริงทุกทาง: เรื่องจัดซื้อ/จัดจ้างที่ผูกโครงการ · บันทึกขอเบิกจ่าย · และรายการจ่ายตรงในทะเบียนคุมเงิน</p>
+  <p class="muted">ใช้/กันงบ = ใช้ก่อนเริ่มระบบ + จ่ายจริงตามทะเบียนคุมเงิน + ทำเรื่องแล้วรอจ่าย (รวมเรื่องร่าง) งบเหลือทำเรื่องใหม่ไม่ใช่ยอดเงินสดหรือธนาคาร</p>
   <div class="table-wrap"><table>
     <thead><tr>
       <th>โครงการ</th><th>ผู้รับผิดชอบ</th><th class="right">งบตามแผน</th>
-      <th class="right">ใช้ไป</th><th class="right">คงเหลือ</th><th style="width:150px;">ใช้ไปแล้ว</th><th></th>
+      <th class="right">ใช้/กันงบ</th><th class="right">งบเหลือทำเรื่องใหม่</th><th style="width:150px;">ใช้/กันงบแล้ว</th><th></th>
     </tr></thead>
     <tbody>
       {% for r in rows %}
@@ -58,7 +58,7 @@
           {% endif %}</td>
         <td class="muted">{{ r.responsible or '-' }}</td>
         <td class="right">{{ "{:,.2f}".format(r.budget) }}</td>
-        <td class="right">{{ "{:,.2f}".format(r.spent) }}</td>
+        <td class="right">{{ "{:,.2f}".format(r.spent) }}<small style="display:block">จ่ายจริง {{ '{:,.2f}'.format(r.paid) }}<br>รอจ่าย {{ '{:,.2f}'.format(r.waiting) }}<br>ก่อนเริ่มระบบ {{ '{:,.2f}'.format(r.before) }}</small></td>
         <td class="right"><b {% if r.left < 0 %}class="over"{% endif %}>{{ "{:,.2f}".format(r.left) }}</b></td>
         <td>
           <div class="bar" title="ใช้ไป {{ r.pct }}% ของงบตามแผน">

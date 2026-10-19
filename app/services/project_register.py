@@ -44,6 +44,8 @@ def _one(doc, school, row, year, year_label):
     if row.get("responsible"):
         head += f"   ผู้รับผิดชอบ {row['responsible']}"
     _p(doc, head, align="center", after=4)
+    _p(doc, f"ก่อนเริ่มระบบ {_money(row.get('before',0))} · จ่ายจริง {_money(row.get('paid',0))} · ทำเรื่องแล้วรอจ่าย {_money(row.get('waiting',0))} บาท", size=14)
+    _p(doc, "ยอดรอจ่ายรวมเรื่องร่าง ตารางนี้คุมงบประมาณ คงเหลือไม่ใช่ยอดเงินสดหรือธนาคาร", size=14)
 
     t = doc.add_table(rows=1, cols=len(_HEAD))
     t.style = "Table Grid"
@@ -68,7 +70,7 @@ def _one(doc, school, row, year, year_label):
             _set_cell(c, v, size=14, align=a)
             c.width = wd
     cells = t.add_row().cells
-    for c, v, w, a in zip(cells, ["", "", "รวมใช้ไป", "", _money(row["spent"]), _money(row["left"])],
+    for c, v, w, a in zip(cells, ["", "", "รวมใช้/กันงบ", "", _money(row["spent"]), _money(row["left"])],
                           _W, ["center", "center", "right", "center", "right", "right"]):
         _set_cell(c, v, size=14, align=a, bold=True)
         c.width = w

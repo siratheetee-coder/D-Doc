@@ -18,7 +18,7 @@ from app.services.asset_utils import (
     account_balance, account_balance_year, opening_for,
 )
 from app.services.nav import nav_alerts, nav_holidays, my_notices
-from app.services.budget import project_budget, project_spent, project_remaining
+from app.services.budget import project_budget, project_spent, project_remaining, project_money_summary
 from app.modules import MODULE_KEYS, MODULE_LABELS, MODULE_PRICE_KEY, module_for_path
 from app.seller_config import pricing_context
 from app.services.form_guard import fields as _form_guard_fields
@@ -110,7 +110,7 @@ templates.env.globals.update(
     annual_dep=annual_depreciation, mat_balance=material_balance,
     acct_balance=account_balance, acct_balance_year=account_balance_year,
     acct_opening=opening_for,
-    proj_budget=project_budget, proj_spent=project_spent, proj_remaining=project_remaining,
+    proj_money=project_money_summary, proj_budget=project_budget, proj_spent=project_spent, proj_remaining=project_remaining,
     modules_live=MODULES_LIVE, account_status=account_status,
     my_modules=my_modules, can_use=can_use,
     module_labels=MODULE_LABELS, module_keys=MODULE_KEYS,

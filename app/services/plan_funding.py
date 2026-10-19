@@ -281,11 +281,8 @@ def allocate(db, p, project, values, expected):
 
 
 def actual_paid(db, project):
-    # One ledger transaction counted once, whether linked directly or through a memo.
-    procurement_ids=db.query(Procurement.id).filter(Procurement.project_id==project.id)
-    memo_ids = db.query(DisburseMemo.id).filter(or_(DisburseMemo.project_id==project.id,DisburseMemo.procurement_id.in_(procurement_ids)))
-    rows = db.query(FinanceTxn).filter(FinanceTxn.kind=='out',or_(FinanceTxn.project_id==project.id,FinanceTxn.disburse_id.in_(memo_ids))).all()
-    return round(sum(t.amount or 0 for t in rows),2)
+    from app.services.budget import project_money_summary
+    return project_money_summary(project)['paid']
 
 
 def guard_project(db, project, *, year=None, budget=None, deleting=False):

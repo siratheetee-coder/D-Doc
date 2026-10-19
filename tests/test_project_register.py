@@ -142,7 +142,7 @@ def test_register_docx_one_page_per_project(env, tmp_path):
     d = Document(f)
     flat = "\n".join(" | ".join(x.text.strip() for x in row.cells)
                      for t in d.tables for row in t.rows)
-    assert "งบที่ได้รับอนุมัติ" in flat and "รวมใช้ไป" in flat
+    assert "งบที่ได้รับอนุมัติ" in flat and "รวมใช้/กันงบ" in flat
     assert "50,000.00" in flat
     assert "42,000.00" in flat        # 50,000 - 8,000
     assert "39,500.00" in flat        # - 2,500

@@ -20,7 +20,7 @@ from app.services.book_receipt_doc import _safe
 from app.services.build_templates import (
     _font, _p, _set_cell, _repeat_header_row, _no_split_row, _fixed_cols, _sign_table,
 )
-from app.services.budget import project_budget, project_spent, project_procurements
+from app.services.budget import project_budget, project_spent, project_procurements, project_money_summary
 from app.services.org_names import head_title
 
 _BLANK = "................................"
@@ -36,7 +36,8 @@ def build_rows(db, projects) -> list:
     rows = []
     for p in projects:
         budget = project_budget(p)
-        spent = project_spent(p)
+        money = project_money_summary(p)
+        spent = money["used"]
         works = []
         for pr in sorted(project_procurements(p), key=lambda x: (x.request_date or datetime.min)):
             works.append({
@@ -69,7 +70,7 @@ def build_rows(db, projects) -> list:
             })
         works.sort(key=lambda w: (w["date"] or datetime.min))
         # ยอดตั้งต้นของโรงเรียนที่เริ่มใช้ระบบกลางปี ต้องขึ้นเป็นบรรทัดแรกของรายการด้วย
-        # ไม่งั้นผลรวมรายการในรายงานจะไม่เท่ากับยอด "ใช้ไป" ของโครงการ
+        # ไม่งั้นผลรวมรายการในรายงานจะไม่เท่ากับยอด "ใช้/กันงบ" ของโครงการ
         before = float(getattr(p, "spent_before", 0) or 0)
         if before > 0:
             works.insert(0, {
@@ -77,8 +78,15 @@ def build_rows(db, projects) -> list:
                 "subject": "ใช้ไปก่อนเริ่มใช้ระบบ (ยอดตั้งต้น)", "method": "ยอดตั้งต้น",
                 "amount": before, "vendor": "", "status": "ยอดตั้งต้น",
             })
+        # Keep the budget register running balance aligned when actual payments
+        # exceed a source document or old links associate the same expense twice.
+        difference = round(spent - sum(w['amount'] for w in works), 2)
+        if difference:
+            works.append(dict(date=None, no='', subject='ส่วนปรับเทียบยอดกับทะเบียนคุมเงิน (ไม่นับจ่ายซ้ำ)',
+                              method='ปรับยอดสรุป', amount=difference, vendor='', status='คำนวณ'))
         rows.append({
             "p": p, "name": p.name or "", "responsible": p.responsible or "",
+            "paid": money["paid"], "waiting": money["waiting"], "before": money["before"],
             "budget": budget, "spent": spent, "left": round(budget - spent, 2),
             "pct": round(spent / budget * 100, 1) if budget else 0.0,
             "works": works,
@@ -101,8 +109,8 @@ def render_project_summary(school, year, year_label, rows, *, detail=True, as_of
     _p(doc, f"ข้อมูล ณ วันที่ {thai_date(as_of or datetime.now())}",
        align="center", size=16, after=6)
 
-    headers = ["ที่", "ชื่อโครงการ", "ผู้รับผิดชอบ", "งบที่ได้รับ", "ใช้ไป",
-               "คงเหลือ", "ร้อยละที่ใช้", "จำนวนงาน"]
+    headers = ["ที่", "ชื่อโครงการ", "ผู้รับผิดชอบ", "งบที่ได้รับ", "ใช้/กันงบ",
+               "งบเหลือ", "ร้อยละที่ใช้", "จำนวนงาน"]
     widths = [Cm(1.1), Cm(7.6), Cm(4.2), Cm(3.0), Cm(3.0), Cm(3.0), Cm(2.4), Cm(2.4)]
     t = doc.add_table(rows=1, cols=len(headers))
     t.style = "Table Grid"
@@ -131,9 +139,19 @@ def render_project_summary(school, year, year_label, rows, *, detail=True, as_of
         c.width = w
 
     _p(doc, f"งบประมาณที่ได้รับรวม {_money(t_budget)} บาท ({bahttext(t_budget)}) · "
-            f"ใช้ไป {_money(t_spent)} บาท ({bahttext(t_spent)}) · "
+            f"ใช้/กันงบ {_money(t_spent)} บาท ({bahttext(t_spent)}) · "
             f"คงเหลือ {_money(t_budget - t_spent)} บาท",
        before=8, after=8, size=16)
+
+    _p(doc, "แยกยอดจ่ายจริงและยอดรอจ่าย (ยอดรอจ่ายรวมเรื่องร่าง)", bold=True, after=4)
+    split = doc.add_table(rows=1, cols=4)
+    split.style = 'Table Grid'
+    for cell, text in zip(split.rows[0].cells, ['โครงการ', 'ก่อนเริ่มระบบ', 'จ่ายจริงในระบบ', 'ทำเรื่องแล้วรอจ่าย']):
+        _set_cell(cell, text, bold=True, size=14)
+    for r in rows:
+        for cell, value in zip(split.add_row().cells, [r['name'], _money(r['before']), _money(r['paid']), _money(r['waiting'])]):
+            _set_cell(cell, value, size=14)
+    _p(doc, "งบเหลือเป็นยอดหลังหักจ่ายจริงและกันงบรอจ่าย ไม่ใช่ยอดเงินสดหรือธนาคาร", size=14)
 
     if detail:
         for r in rows:
@@ -143,7 +161,7 @@ def render_project_summary(school, year, year_label, rows, *, detail=True, as_of
             _p(doc, "รายการที่ดำเนินการ", align="center", bold=True, size=17, after=0)
             _p(doc, r["name"], align="center", bold=True, size=16, after=0)
             _p(doc, f"{sname} · {year_label} {year}", align="center", size=14, after=0)
-            _p(doc, f"งบที่ได้รับ {_money(r['budget'])} บาท · ใช้ไป {_money(r['spent'])} บาท · "
+            _p(doc, f"งบที่ได้รับ {_money(r['budget'])} บาท · ใช้/กันงบ {_money(r['spent'])} บาท · "
                     f"คงเหลือ {_money(r['left'])} บาท", align="center", size=14, after=6)
             h2 = ["ที่", "วัน เดือน ปี", "เลขที่", "รายการ", "วิธี", "ผู้ขาย/ผู้รับจ้าง",
                   "จำนวนเงิน", "สถานะ"]
@@ -216,7 +234,7 @@ def export_project_summary(school, year, year_label, rows) -> str:
 
     ws = wb.active
     ws.title = "สรุปรายโครงการ"
-    head(ws, ["ที่", "ชื่อโครงการ", "ผู้รับผิดชอบ", "งบที่ได้รับ", "ใช้ไป", "คงเหลือ",
+    head(ws, ["ที่", "ชื่อโครงการ", "ผู้รับผิดชอบ", "งบที่ได้รับ", "ใช้/กันงบ", "งบเหลือ",
               "ร้อยละที่ใช้", "จำนวนงาน"], [6, 46, 22, 15, 15, 15, 12, 11])
     for i, r in enumerate(rows, start=1):
         ws.append([i, r["name"], r["responsible"], r["budget"], r["spent"], r["left"],
@@ -253,6 +271,18 @@ def export_project_summary(school, year, year_label, rows) -> str:
     out = get_data_dir() / "documents"
     out.mkdir(exist_ok=True)
     path = out / (_safe(f"สรุปการใช้งบประมาณรายโครงการ_{year}") + ".xlsx")
+    split = wb.create_sheet('จ่ายจริงและรอจ่าย')
+    split.append(['โครงการ', 'ใช้ก่อนเริ่มระบบ', 'จ่ายจริงในระบบ', 'ทำเรื่องแล้วรอจ่าย (รวมร่าง)', 'งบเหลือทำเรื่องใหม่'])
+    for r in rows:
+        split.append([r['name'], r['before'], r['paid'], r['waiting'], r['left']])
+    split.freeze_panes = 'B2'
+    for col, width in [('A',45),('B',22),('C',22),('D',36),('E',30)]:
+        split.column_dimensions[col].width = width
+    for cell in split[1]:
+        cell.font = Font(bold=True)
+    for row in split.iter_rows(min_row=2,min_col=2):
+        for cell in row:
+            cell.number_format = '#,##0.00'
     wb.save(str(path))
     return str(path)
 

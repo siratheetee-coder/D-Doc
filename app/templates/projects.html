@@ -5,7 +5,7 @@
   <div>
     <div class="hero-sub">แผนปฏิบัติการประจำปีและการบริหารงบประมาณโครงการ</div>
     <span class="hero-title">โครงการ/แผนงบ</span>
-    <div class="hero-meta">{{ year_label }} {{ fiscal_year }} · {{ rows|length }} โครงการ · งบรวม {{ "{:,.0f}".format(total_budget) }} · ใช้ไป {{ "{:,.0f}".format(total_spent) }} บาท</div>
+    <div class="hero-meta">{{ year_label }} {{ fiscal_year }} · {{ rows|length }} โครงการ · งบรวม {{ "{:,.0f}".format(total_budget) }} · ใช้/กันงบ {{ "{:,.0f}".format(total_spent) }} บาท</div>
   </div>
   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <a class="btn sm gray" href="/projects/import"><svg class="icon"><use href="#ic-download"/></svg> นำเข้าจาก Excel</a>
@@ -78,10 +78,10 @@
   {% if rows %}
   <div class="table-wrap"><table>
     <thead><tr><th>โครงการ</th><th>ฝ่าย/ผู้รับผิดชอบ</th><th class="right">งบปัจจุบัน</th>
-        <th class="right">ใช้ไป</th><th class="right">คงเหลือ</th><th></th></tr></thead>
+        <th class="right">ใช้/กันงบ</th><th class="right">งบเหลือทำเรื่องใหม่</th><th></th></tr></thead>
     <tbody>
       {% for p in rows %}
-      {% set b = proj_budget(p) %}{% set s = proj_spent(p) %}{% set r = b - s %}
+      {% set money = proj_money(p) %}{% set b = proj_budget(p) %}{% set s = proj_spent(p) %}{% set r = b - s %}
       <tr>
         <td><a href="/projects/{{ p.id }}"><b>{{ p.name }}</b></a>{% if not p.active %} <span class="pill">ปิด</span>{% endif %}
             {% if p.revisions %}<br><span class="muted" style="font-size:12px;">ปรับงบ {{ p.revisions|length }} ครั้ง</span>{% endif %}</td>
@@ -93,7 +93,7 @@
           </select>
         </td>
         <td class="right">{{ "{:,.2f}".format(b) }}</td>
-        <td class="right" style="color:#dc2626;">{{ "{:,.2f}".format(s) }}</td>
+        <td class="right" style="color:#dc2626;">{{ "{:,.2f}".format(s) }}<small style="display:block">จ่ายจริง {{ '{:,.2f}'.format(money.paid) }}<br>รอจ่าย {{ '{:,.2f}'.format(money.waiting) }}<br>ก่อนเริ่มระบบ {{ '{:,.2f}'.format(money.before) }}</small></td>
         <td class="right"><b style="color:{{ '#dc2626' if r < 0 else '#16a34a' }};">{{ "{:,.2f}".format(r) }}</b></td>
         <td class="right" style="white-space:nowrap;">
           <form method="post" action="/projects/{{ p.id }}/set-year" style="display:inline;">

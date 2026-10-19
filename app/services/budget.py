@@ -61,19 +61,9 @@ def project_spent(project) -> float:
 
 
 def project_spent_in_system(project) -> float:
-    """ยอดใช้จริงที่บันทึกในระบบ = เรื่องจัดซื้อที่ผูก + ขอเบิกจ่ายเดี่ยวที่ผูก (กันนับซ้ำเรื่องที่เบิกจากจัดซื้อ)"""
-    from app.models import DisburseMemo
-    from sqlalchemy.orm import object_session
-    db = object_session(project)
-    if db is None:
-        return 0.0
-    spent = sum(p.total_amount or 0 for p in project_procurements(project))
-    disb = (db.query(DisburseMemo)
-            .filter(DisburseMemo.project_id == project.id,
-                    DisburseMemo.procurement_id.is_(None)).all())
-    spent += sum(d.amount or 0 for d in disb)
-    spent += project_txn_spent(project, db)
-    return round(spent, 2)
+    """Budget consumed in-system: ledger payments plus unpaid source documents."""
+    info = project_money_summary(project)
+    return round(info['paid'] + info['waiting'], 2)
 
 
 def project_txn_spent(project, db=None) -> float:
@@ -96,3 +86,48 @@ def project_txn_spent(project, db=None) -> float:
 
 def project_remaining(project) -> float:
     return round(project_budget(project) - project_spent(project), 2)
+
+
+def project_money_summary(project):
+    """Separate recorded cash, unpaid document amounts, and legacy opening spend.
+
+    Pending includes drafts for compatibility with existing budget reservation;
+    it is not an assertion that a legal obligation or payment has occurred.
+    Each transaction is attributed once: direct project, memo, then procurement.
+    """
+    from sqlalchemy.orm import object_session
+    from app.models import FinanceTxn, DisburseMemo, LunchLedger
+    db = object_session(project)
+    before = float(getattr(project, 'spent_before', 0) or 0)
+    sources, paid_by = {}, {}
+    paid = 0.0
+    if db is not None:
+        procs = project_procurements(project)
+        proc_ids = {p.id for p in procs}
+        sources = {('proc', p.id): float(p.total_amount or 0) for p in procs}
+        memos = {m.id: m for m in db.query(DisburseMemo)}
+        for m in memos.values():
+            if m.project_id == project.id and not m.procurement_id:
+                sources[('memo', m.id)] = float(m.amount or 0)
+        lunch = {l.finance_txn_id: l.procurement_id for l in db.query(LunchLedger)
+                 if l.finance_txn_id and l.procurement_id}
+        for t in db.query(FinanceTxn).filter_by(kind='out'):
+            m = memos.get(t.disburse_id)
+            proc_id = (m.procurement_id if m else None) or lunch.get(t.id)
+            if t.project_id:
+                belongs = t.project_id == project.id
+            elif m and m.project_id:
+                belongs = m.project_id == project.id
+            else:
+                belongs = proc_id in proc_ids
+            if not belongs:
+                continue
+            value = float(t.amount or 0)
+            paid += value
+            key = ('proc', proc_id) if proc_id in proc_ids else ('memo', m.id) if m else None
+            if key in sources:
+                paid_by[key] = paid_by.get(key, 0) + value
+    waiting = sum(max(value - paid_by.get(key, 0), 0) for key, value in sources.items())
+    used = round(before + paid + waiting, 2)
+    return dict(paid=round(paid,2), waiting=round(waiting,2), before=round(before,2),
+                used=used, remaining=round(project_budget(project)-used,2))

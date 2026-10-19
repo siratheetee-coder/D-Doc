@@ -10,7 +10,7 @@
     <span class="pj-setb-note">ถ้าแผนเปลี่ยนภายหลัง ใช้หัวข้อ "ปรับงบ" ด้านล่าง ระบบจะเก็บประวัติให้</span>
   </form>
 {% endmacro %}
-{% set b = proj_budget(p) %}{% set s = proj_spent(p) %}{% set r = b - s %}
+{% set money = proj_money(p) %}{% set b = proj_budget(p) %}{% set s = proj_spent(p) %}{% set r = b - s %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h1 style="margin:0;">{{ p.name }}</h1>
@@ -25,14 +25,12 @@
     <div class="box"><div><div class="lab">งบโครงการ</div><div class="num">{{ "{:,.2f}".format(b) }}</div>
         {% if not p.revisions and b > 0 %}<button type="button" class="pj-edit" onclick="document.getElementById('setBudget').hidden=false; this.hidden=true; document.getElementById('setBudgetIn').focus();">แก้งบ</button>{% endif %}</div>
       <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
-    <div class="box"><div><div class="lab">ใช้ไปแล้ว</div><div class="num">{{ "{:,.2f}".format(s) }}</div>
-        {% if p.spent_before %}<div class="pj-sub">รวมใช้ไปก่อนเริ่มใช้ระบบ {{ "{:,.2f}".format(p.spent_before) }} · <a href="/projects/start?year={{ p.plan_year or '' }}">แก้ยอดตั้งต้น</a></div>{% endif %}
-        {% if actual_paid or funding_assigned or funding_rows %}<div class="pj-sub">จ่ายจริงตามทะเบียนคุมเงิน {{ "{:,.2f}".format(actual_paid or 0) }}{% set waiting_pay = s - (p.spent_before or 0) - (actual_paid or 0) %}{% if waiting_pay > 0 %} · ทำเรื่องแล้วรอจ่าย {{ "{:,.2f}".format(waiting_pay) }}{% endif %}</div>{% endif %}</div>
-      <span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-upload"/></svg></span></div>
-    <div class="box"><div><div class="lab">คงเหลือ</div><div class="num" style="color:{{ '#dc2626' if r < 0 else '#16a34a' }};">{{ "{:,.2f}".format(r) }}</div></div>
-      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+    <div class="box"><div><div class="lab">จ่ายจริงในระบบ</div><div class="num">{{ "{:,.2f}".format(money.paid) }}</div><div class="pj-sub">จ่ายจริงตามทะเบียนคุมเงิน</div></div></div>
+    <div class="box"><div><div class="lab">ทำเรื่องแล้วรอจ่าย</div><div class="num">{{ "{:,.2f}".format(money.waiting) }}</div><div class="pj-sub">ยอดเรื่องจัดซื้อ/ขอเบิกที่ยังไม่จ่าย รวมเรื่องร่าง</div></div></div>
+    <div class="box"><div><div class="lab">งบเหลือทำเรื่องใหม่</div><div class="num" style="color:{{ '#dc2626' if r < 0 else '#16a34a' }};">{{ "{:,.2f}".format(r) }}</div></div></div>
   </div>
 
+  <p class="muted">งบเหลือทำเรื่องใหม่ = งบโครงการ − ใช้ไปก่อนเริ่มระบบ {{ '{:,.2f}'.format(money.before) }} − จ่ายจริงในระบบ − ทำเรื่องแล้วรอจ่าย เป็นยอดงบประมาณ ไม่ใช่เงินสดหรือยอดธนาคารคงเหลือ · <a href="/projects/start?year={{ p.plan_year or '' }}">ตรวจยอดตั้งต้น</a></p>
   {% if not p.revisions and b > 0 %}{{ set_budget_form() }}{% endif %}
   {% if err %}<div class="alert warn" style="margin-top:12px;"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
 
@@ -155,7 +153,7 @@
   form:has(.pj-bmsg.is-bad) button[type=submit][disabled]{ opacity:.45; cursor:not-allowed; }
 </style>
 <div class="card">
-  <h2>รายการที่ผูกกับโครงการ (ใช้จริง)</h2>
+  <h2>เรื่องจัดซื้อและขอเบิกที่ผูกกับโครงการ (ยอดตามเอกสาร)</h2>
   {% if procs %}
   <h3 style="font-size:15px; margin:6px 0;">เรื่องจัดซื้อ/จัดจ้าง</h3>
   <div class="table-wrap"><table><thead><tr><th>เลขที่</th><th>เรื่อง</th><th class="right">วงเงิน</th><th>สถานะ</th></tr></thead>
