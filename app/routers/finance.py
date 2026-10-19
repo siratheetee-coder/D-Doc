@@ -256,6 +256,9 @@ def account_set_deposit_type(aid: int, db: Session = Depends(get_db),
 def account_delete(aid: int, db: Session = Depends(get_db)):
     a = db.get(FinanceAccount, aid)
     if a:
+        check = db.query(CheckPayment).join(FinanceTxn, CheckPayment.txn_id==FinanceTxn.id).filter(FinanceTxn.account_id==aid).first()
+        if check:
+            return RedirectResponse(f"/finance/checks?year={check.fiscal_year}&message={quote('บัญชีนี้มีรายการจ่ายเชื่อมทะเบียนเช็ค/โอนอยู่ กรุณาตรวจและยกเลิกการเชื่อมก่อนลบ')}", status_code=303)
         loan_txn = db.query(FinanceTxn).filter(FinanceTxn.account_id == aid, FinanceTxn.loan_id.isnot(None)).first()
         if loan_txn:
             return RedirectResponse(f"/finance/loans/{loan_txn.loan_id}/money?message={quote('บัญชีนี้มีรายการเชื่อมเงินยืมอยู่ กรุณาตรวจรายการก่อนลบบัญชี')}", status_code=303)
@@ -494,6 +497,8 @@ def account_txn_delete(tid: int, db: Session = Depends(get_db),
     aid = t.account_id if t else None
     fy = t.fiscal_year if t else None
     from app.services.lunch_finance import mirror_map
+    if t and db.query(CheckPayment).filter_by(txn_id=t.id).first():
+        return RedirectResponse(f"/finance/checks?year={fy}&message={quote('รายการนี้เชื่อมทะเบียนเช็ค/โอนอยู่ กรุณายกเลิกการเชื่อมก่อนลบรายการเงินจริง')}", status_code=303)
     if t and t.loan_id:
         return RedirectResponse(f"/finance/loans/{t.loan_id}/money?message={quote('รายการนี้เชื่อมเงินยืมอยู่ กรุณายกเลิกการเชื่อมก่อนลบรายการเงินจริง')}", status_code=303)
     if t and t.id in mirror_map(db):
@@ -681,6 +686,9 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
         txn = db.query(FinanceTxn).filter_by(disburse_id=m.id).first()
         if txn:
             try:
+                check = db.query(CheckPayment).filter_by(txn_id=txn.id).first()
+                if check and not txn.linked_existing and (m.account_id != txn.account_id or round(m.amount,2) != round(txn.amount,2) or (m.date and (not txn.date or m.date.date()!=txn.date.date()))):
+                    raise ValueError('รายการจ่ายนี้เชื่อมทะเบียนเช็ค/โอนอยู่ กรุณายกเลิกการเชื่อมก่อนเปลี่ยนบัญชี ยอด หรือวันที่')
                 if txn.linked_existing:
                     source_proc = db.get(Procurement, m.procurement_id) if m.procurement_id else None
                     effective_project = m.project_id or (source_proc.project_id if source_proc else None)
@@ -784,6 +792,9 @@ def disburse_delete(mid: int, db: Session = Depends(get_db)):
     payments.lock(db)
     m = db.get(DisburseMemo, mid)
     if m:
+        owned_ids = db.query(FinanceTxn.id).filter(FinanceTxn.disburse_id==mid, FinanceTxn.linked_existing.isnot(True))
+        if db.query(CheckPayment).filter(CheckPayment.txn_id.in_(owned_ids)).first():
+            return RedirectResponse(f"/finance/disburse/{mid}?payment_message={quote('ยังลบไม่ได้ รายการจ่ายเชื่อมทะเบียนเช็ค/โอนอยู่ กรุณายกเลิกการเชื่อมก่อน')}", status_code=303)
         # ลบรายการเงินที่ผูกกับบันทึกนี้ด้วย (ถ้ามี)
         for t in db.query(FinanceTxn).filter_by(disburse_id=m.id).all():
             if t.linked_existing:
@@ -1425,9 +1436,11 @@ def checks_page(request: Request, db: Session = Depends(get_db), year: int | Non
     fy = year or current_fiscal_year()
     rows = (db.query(CheckPayment).filter_by(fiscal_year=fy)
             .order_by(CheckPayment.date, CheckPayment.id).all())
+    from app.services.check_money import candidates
+    choices = {c.id: candidates(db,c) for c in rows}
     return templates.TemplateResponse("finance_checks.html", {
         "request": request, "school": get_school(db), "fiscal_year": fy,
-        "years": _finance_years(db, fy), "rows": rows, "accounts": _fin_accounts(db),
+        "years": _finance_years(db, fy), "rows": rows, "choices": choices, "accounts": _fin_accounts(db),
         "today_be": be_date_input(datetime.now()),
     })
 
@@ -1446,6 +1459,27 @@ async def check_add(request: Request, db: Session = Depends(get_db)):
         note=(form.get("note") or "").strip()))
     db.commit()
     return RedirectResponse(f"/finance/checks?year={fy}", status_code=303)
+
+
+@router.post('/finance/checks/{cid}/link')
+def check_link(cid: int, db: Session = Depends(get_db), txn_id: int = Form(0), mode: str = Form('link')):
+    from app.services.check_money import eligible
+    payments.lock(db)
+    c = db.get(CheckPayment,cid)
+    if not c:
+        return RedirectResponse('/finance/checks',status_code=303)
+    if mode == 'unlink':
+        c.txn_id = None
+        message = 'ยกเลิกการเชื่อมแล้ว รายการเงินจริงยังอยู่'
+    elif c.txn_id:
+        message = 'รายการนี้เชื่อมไว้แล้ว ไม่ได้สร้างรายการจ่ายเพิ่ม'
+    elif eligible(db,c,db.get(FinanceTxn,txn_id)):
+        c.txn_id = txn_id
+        message = 'เชื่อมรายการจ่ายเดิมแล้ว ยอดเงินไม่ถูกตัดเพิ่ม'
+    else:
+        message = 'เลือกยอด บัญชี ปี และวันที่ตรงกัน รายการต้องไม่เชื่อมเช็ค/โอนอื่น และไม่ใช่รายการอัตโนมัติจากอาหารกลางวัน'
+    db.commit()
+    return RedirectResponse(f'/finance/checks?year={c.fiscal_year}&message={quote(message)}',status_code=303)
 
 
 @router.post("/finance/checks/{cid}/toggle")
@@ -1520,6 +1554,8 @@ def _outstanding_checks(db, fy, account_id, as_of=None):
     ติ๊กแล้วแต่ไม่มีวันที่ = ข้อมูลเก่าก่อนมีช่องนี้ ถือว่าออกไปแล้วตั้งแต่ต้น
     """
     def still_out(c):
+        if c.pay_method == 'เงินสด' or (as_of and c.date and c.date.date() > as_of.date()):
+            return False
         if not c.cleared:
             return True
         return bool(as_of and c.cleared_date and c.cleared_date.date() > as_of.date())
@@ -1560,6 +1596,8 @@ def bank_recon_page(request: Request, db: Session = Depends(get_db),
         "this_month": datetime.now().month,
         "this_year_be": datetime.now().year + 543,
         "outstanding": outstanding, "loose_checks": loose,
+        "unlinked_checks": db.query(CheckPayment).filter(CheckPayment.fiscal_year==fy,
+            CheckPayment.account_id==aid, CheckPayment.pay_method!='เงินสด', CheckPayment.txn_id.is_(None)).count(),
         "outstanding_sum": sum(float(c.amount or 0) for c in outstanding),
         # ให้หน้าจอคิดรายการคงค้าง ณ วันที่ที่เลือกได้เอง ไม่ต้องโหลดหน้าใหม่
         "check_data": [{"amount": float(c.amount or 0), "cleared": bool(c.cleared),
@@ -1567,7 +1605,7 @@ def bank_recon_page(request: Request, db: Session = Depends(get_db),
                         "payee": c.payee or "", "no": c.check_no or "",
                         "on": c.date.strftime("%Y-%m-%d") if c.date else ""}
                        for c in db.query(CheckPayment).filter_by(fiscal_year=fy)
-                       .order_by(CheckPayment.date).all() if c.account_id == aid],
+                       .order_by(CheckPayment.date).all() if c.account_id == aid and c.pay_method != "เงินสด"],
         # รายการรับจ่ายในทะเบียนคุม ใช้เทียบว่าผลต่างตรงกับรายการไหนพอดี
         "txn_data": [{"amount": float(t.amount or 0), "kind": t.kind,
                       "note": (t.note or t.ref or t.category or "")[:60],

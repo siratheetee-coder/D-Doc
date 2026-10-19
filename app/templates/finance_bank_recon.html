@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}งบกระทบยอดเงินฝากธนาคาร{% endblock %}
 {% block content %}
+{% if unlinked_checks %}<div class="alert">มีเช็ค/โอน {{ unlinked_checks }} รายการในปีนี้ที่ยังไม่เชื่อมรายการจ่ายจริง ระบบยังคำนวณยอดคงค้างจากทะเบียนเดิม กรุณาตรวจว่าลงจ่ายในสมุดบัญชีแล้วก่อนใช้รายงาน · <a href="/finance/checks?year={{ fiscal_year }}">ตรวจและเชื่อมรายการจ่าย</a></div>{% endif %}
 <div class="hero">
   <div>
     <div class="hero-sub">เทียบยอดสมุดบัญชีของโรงเรียนกับใบแจ้งยอดธนาคาร</div>
@@ -222,7 +223,7 @@
     // รายการคงค้าง ณ วันนั้น = ยังไม่ตัดบัญชี หรือ เงินออกหลังวันนั้น
     function outstandingAt(iso){
       return checks.filter(function(c){
-        return !c.cleared || (c.cleared_on && c.cleared_on > iso);
+        return (!c.on || c.on <= iso) && (!c.cleared || (c.cleared_on && c.cleared_on > iso));
       }).reduce(function(a, c){ return a + c.amount; }, 0);
     }
     var bookTouched = false, outTouched = false;
@@ -267,7 +268,7 @@
       var iso = isoOf(form.elements.as_of.value);
       var list = (!diff || !window.reconHints) ? [] : window.reconHints({
         diff: diff, looseSum: looseSum,
-        checks: checks.filter(function(c){ return !c.cleared || (c.cleared_on && c.cleared_on > iso); }),
+        checks: checks.filter(function(c){ return (!c.on || c.on <= iso) && (!c.cleared || (c.cleared_on && c.cleared_on > iso)); }),
         txns: txns
       });
       hintBox.hidden = !list.length;

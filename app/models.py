@@ -975,6 +975,8 @@ class CheckPayment(Base):
     __tablename__ = "check_payment"
 
     id = Column(Integer, primary_key=True)
+    txn_id = Column(Integer, ForeignKey("finance_txn.id"), nullable=True)
+    txn = relationship("FinanceTxn")
     fiscal_year = Column(Integer, nullable=False)
     date = Column(DateTime, nullable=True)           # วัน เดือน ปี ที่สั่งจ่าย
     pay_method = Column(String, default="โอน")       # เช็ค / โอน / เงินสด

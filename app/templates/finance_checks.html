@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}ทะเบียนคุมการจ่ายเงิน{% endblock %}
 {% block content %}
+{% if request.query_params.get("message") %}<div class="alert">{{ request.query_params.get("message") }}</div>{% endif %}
 <div class="hero">
   <div>
     <div class="hero-sub">คุมการจ่ายเงินทุกวิธี · เช็ค · โอน (KTB Corporate Online) · เงินสด</div>
@@ -16,6 +17,7 @@
 
 <div class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> บันทึกการจ่ายเงิน</h2>
+  <div class="alert">หน้านี้เป็นทะเบียนวิธีจ่าย ไม่ได้ตัดเงินจริง หากเคยบันทึกจ่ายในหน้ารับ–จ่ายหรือบันทึกเบิกจ่ายแล้ว ให้เชื่อมรายการเดิมด้านล่าง การติ๊ก “เงินออกแล้ว” เป็นการระบุสถานะธนาคาร ไม่ตัดเงินเพิ่ม</div>
   <form method="post" action="/finance/checks">
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
     <div class="row">
@@ -43,7 +45,7 @@
     <h2 style="margin:0;">รายการจ่ายเงิน</h2>
     <a class="btn sm gray" href="/finance/checks/register.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์ทะเบียนคุม (Word)</a>
   </div>
-  <p class="muted" style="margin-top:0;">รายการที่ยังไม่ติ๊ก "เงินออกแล้ว" จะถูกนำไปคิดเป็น<b>รายการคงค้าง</b>ในงบกระทบยอดเงินฝากธนาคารให้อัตโนมัติ (เช็คที่ผู้รับยังไม่ขึ้นเงิน หรือรายการโอนที่ธนาคารยังไม่ตัดบัญชี)</p>
+  <p class="muted" style="margin-top:0;">รายการเช็ค/โอนที่ยังไม่ติ๊ก "เงินออกแล้ว" จะถูกนำไปคิดเป็น<b>รายการคงค้าง</b>ในงบกระทบยอดเงินฝากธนาคารให้อัตโนมัติ (เช็คที่ผู้รับยังไม่ขึ้นเงิน หรือรายการโอนที่ธนาคารยังไม่ตัดบัญชี)</p>
   {% if rows %}
   <div class="table-wrap"><table class="stack-sm">
     <thead><tr><th>วันที่</th><th>วิธีจ่าย</th><th>เลขที่/อ้างอิง</th><th>ธนาคาร</th><th>จ่ายให้</th><th>รายการ</th>
@@ -68,9 +70,25 @@
                    title="วันที่เงินออกจากบัญชีจริง ใช้ย้อนทำงบกระทบยอดของเดือนก่อนได้ถูกต้อง"
                    style="width:112px; display:inline-block; margin-right:4px;">{% endif %}
             <button class="btn sm gray">{{ 'ยังไม่ตัดบัญชี' if c.cleared else 'เงินออกแล้ว' }}</button></form>
-          <form method="post" action="/finance/checks/{{ c.id }}/delete" style="display:inline" onsubmit="return confirm('ลบรายการจ่ายเงินนี้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
+          <form method="post" action="/finance/checks/{{ c.id }}/delete" style="display:inline" onsubmit="return confirm('ลบเฉพาะทะเบียนเช็ค/โอนนี้? รายการเงินจริงยังอยู่')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
         </td>
       </tr>
+      <tr><td colspan="9" style="background:#f8fafc;white-space:normal;">
+        {% if c.txn %}
+          <p><strong>เชื่อมรายการจ่ายแล้ว</strong> · <a href="/finance/accounts/{{ c.txn.account_id }}?year={{ c.txn.fiscal_year }}">ดูรายการจ่าย #{{ c.txn.id }} · {{ c.txn.ref or '-' }}</a></p>
+          <form method="post" action="/finance/checks/{{ c.id }}/link" onsubmit="return confirm('ยกเลิกเฉพาะการเชื่อม รายการเงินจริงยังอยู่ ยืนยันหรือไม่?')"><button class="btn sm gray" name="mode" value="unlink">ยกเลิกการเชื่อม (เก็บรายการจ่ายเดิม)</button></form>
+        {% else %}
+          <details><summary style="cursor:pointer;padding:8px 0;"><strong>ยังไม่เชื่อมรายการจ่ายจริง · หากเคยลงจ่ายไว้แล้ว ให้เชื่อมรายการเดิม</strong></summary>
+          <p class="muted">เลือกได้เฉพาะบัญชี ปี วันที่ และยอดตรงกัน โดยยังไม่ผูกกับเช็ค/โอนอื่น การเชื่อมจะไม่ตัดเงินเพิ่ม ไม่รวมรายการอัตโนมัติจากอาหารกลางวัน</p>
+          {% if choices[c.id] %}
+          <form method="post" action="/finance/checks/{{ c.id }}/link" onsubmit="return confirm('ยืนยันว่ารายการนี้เป็นการจ่ายครั้งเดียวกัน?')">
+            <select name="txn_id" required><option value="">— เลือกรายการจ่ายเดิม —</option>{% for t in choices[c.id] %}<option value="{{ t.id }}">#{{ t.id }} · {{ thai_date(t.date) }} · {{ t.ref or '-' }} · {{ t.note or t.category }} · {{ '{:,.2f}'.format(t.amount) }} บาท</option>{% endfor %}</select>
+            <p><button class="btn sm" type="submit">เชื่อมรายการจ่ายที่บันทึกไว้แล้ว</button></p>
+          </form>
+          {% else %}<p>ยังไม่พบรายการที่ตรงกัน ตรวจบัญชี วันที่ และยอดเงิน หรือไปบันทึกจ่ายก่อนที่ <a href="/finance/accounts?year={{ c.fiscal_year }}">หน้ารับ–จ่าย</a></p>{% endif %}
+          </details>
+        {% endif %}
+      </td></tr>
       {% endfor %}
     </tbody>
   </table></div>
