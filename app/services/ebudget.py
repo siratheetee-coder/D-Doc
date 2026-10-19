@@ -203,6 +203,8 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
     """
     from app.models import AccountItem, FinanceAccount, FinanceTxn
     start, end, label = period(fiscal_year, rnd)
+    year_start = period(fiscal_year, 1)[0]
+    start_day, end_day = start.date(), end.date()
 
     accounts = db.query(FinanceAccount).all()
     items = {it.id: it for it in db.query(AccountItem).filter_by(fiscal_year=fiscal_year).all()}
@@ -267,11 +269,14 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
         it = items.get(t.item_id) if t.item_id else None
         code, src = place(acct, it)
         amt = float(t.amount or 0)
-        d = t.date or start
-        if start <= d <= end or d < start:
+        # Compare calendar days, including transactions late on the closing day.
+        # Undated legacy entries belong to the same provisional period in both rounds.
+        d = t.date or year_start
+        day = d.date()
+        if day <= end_day:
             note_other(src, code, bal=amt if t.kind == "in" else -amt, moved=amt)
-        inside = start <= d <= end
-        before = d < start
+        inside = start_day <= day <= end_day
+        before = day < start_day
         if t.kind == "in":
             if before or inside:
                 closing[code] += amt
@@ -323,7 +328,8 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
         "check": round(tot_open + tot_in - tot_out - tot_close, 2),
         "unmapped": _unmapped_rows(other, acc_by_id, items),
         "income_src": income_src, "income_missing": income_missing,
-        "n_in_period": sum(1 for t in txns if t.date and start <= t.date <= end),
+        "n_in_period": sum(1 for t in txns if t.date and start_day <= t.date.date() <= end_day),
+        "undated": [t.id for t in txns if not t.date],
     }
 
 
@@ -333,6 +339,9 @@ def checklist(d: dict, fiscal_year: int, rnd: int) -> dict:
     fill = f"/finance/ebudget/fill?year={fiscal_year}&round={rnd}"
     n_un = len(d["unmapped"])
     steps = [
+        dict(title="ตรวจวันที่รายการรับ–จ่าย", done=not d.get("undated"),
+             detail="ระบุวันที่ครบแล้ว" if not d.get("undated") else "มีรายการไม่ระบุวันที่ กรุณาแก้วันที่ก่อนนำตัวเลขไปใช้",
+             href=f"/finance/cashbook?year={fiscal_year}", cta="ตรวจรายการ"),
         dict(title="ลงรายการรับ-จ่ายของงวดนี้ในทะเบียนคุมเงิน", done=d["n_in_period"] > 0,
              detail=(f"มี {d['n_in_period']} รายการในงวดนี้" if d["n_in_period"]
                      else "ยังไม่มีรายการในงวดนี้ ตัวเลข e-Budget คำนวณจากทะเบียนคุมเงินทั้งหมด"),

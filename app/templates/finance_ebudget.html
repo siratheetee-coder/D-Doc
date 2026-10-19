@@ -53,6 +53,10 @@
   .eb .zero { color:var(--muted); font-weight:400; }
 </style>
 
+{% if d.undated %}
+<div class="alert warn"><b>มีรายการรับ–จ่ายไม่ระบุวันที่ {{ d.undated|length }} รายการ</b><br>
+ระบบยังแยกงวดจริงไม่ได้ จึงนับรายการเหล่านี้ในครั้งที่ 1 ชั่วคราว และยกยอดต่อไปครั้งที่ 2 กรุณาตรวจและระบุวันที่ในทะเบียนคุมเงินก่อนนำตัวเลขไปกรอก e-Budget</div>
+{% endif %}
 {% set setup_key = 'ebudget' %}{% set setup_title = 'ขั้นตอนก่อนกรอก e-Budget' %}
 {% include '_setup_checklist.html' %}
 {% if setup.complete %}

@@ -2090,7 +2090,7 @@ def ebudget_fill_page(request: Request, db: Session = Depends(get_db),
     rows = []
     for t in db.query(FinanceTxn).filter_by(fiscal_year=fy).order_by(FinanceTxn.date).all():
         d = t.date
-        if not d or not (start <= d <= end):
+        if not d or not (start.date() <= d.date() <= end.date()):
             continue
         if not all and (t.eb_code or "").strip():
             continue
