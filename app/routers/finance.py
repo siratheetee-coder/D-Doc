@@ -505,8 +505,8 @@ def account_txn_delete(tid: int, db: Session = Depends(get_db),
         t = None          # รายการที่หน้าอาหารกลางวันคัดลอกมา แก้/ลบที่หน้าอาหารกลางวันเท่านั้น (ไม่งั้นสองฝั่งไม่ตรงกัน)
     if t:
         # ลบใบเสร็จที่ออกพร้อมรายการนี้ด้วย (กันยอดค้างในทะเบียนใบเสร็จ)
-        for rc in db.query(Receipt).filter_by(txn_id=t.id).all():
-            db.delete(rc)
+        from app.services.receipt_money import release_for_deleted_txn
+        release_for_deleted_txn(db,t)
         mid = t.disburse_id
         db.delete(t)
         db.flush()
@@ -686,6 +686,9 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
         txn = db.query(FinanceTxn).filter_by(disburse_id=m.id).first()
         if txn:
             try:
+                receipt = db.query(Receipt).filter_by(txn_id=txn.id).first()
+                if receipt and not txn.linked_existing and (m.account_id != txn.account_id or round(m.amount,2) != round(txn.amount,2)):
+                    raise ValueError('รายการจ่ายนี้เชื่อมใบเสร็จ/ใบสำคัญอยู่ กรุณายกเลิกการเชื่อมก่อนเปลี่ยนบัญชีหรือยอด')
                 check = db.query(CheckPayment).filter_by(txn_id=txn.id).first()
                 if check and not txn.linked_existing and (m.account_id != txn.account_id or round(m.amount,2) != round(txn.amount,2) or (m.date and (not txn.date or m.date.date()!=txn.date.date()))):
                     raise ValueError('รายการจ่ายนี้เชื่อมทะเบียนเช็ค/โอนอยู่ กรุณายกเลิกการเชื่อมก่อนเปลี่ยนบัญชี ยอด หรือวันที่')
@@ -801,8 +804,8 @@ def disburse_delete(mid: int, db: Session = Depends(get_db)):
                 t.disburse_id = None
                 t.linked_existing = False
             else:
-                for rc in db.query(Receipt).filter_by(txn_id=t.id).all():
-                    db.delete(rc)
+                from app.services.receipt_money import release_for_deleted_txn
+                release_for_deleted_txn(db,t)
                 db.delete(t)
         db.delete(m); db.commit()
     return RedirectResponse("/finance/disburse", status_code=303)
@@ -825,8 +828,10 @@ def receipts_page(request: Request, db: Session = Depends(get_db), year: int | N
             .order_by(Receipt.date, Receipt.id).all())
     years = fiscal_year_options(
         [r[0] for r in db.query(Receipt.fiscal_year).distinct()], fy)
+    from app.services.receipt_money import candidates
+    choices = {r.id: candidates(db,r) for r in rows}
     return templates.TemplateResponse("receipts.html", {
-        "request": request, "rows": rows, "fiscal_year": fy, "years": years,
+        "request": request, "rows": rows, "choices": choices, "fiscal_year": fy, "years": years,
         "accounts": db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
     })
 
@@ -845,6 +850,29 @@ def receipt_add(db: Session = Depends(get_db), fiscal_year: str = Form(""),
     ))
     db.commit()
     return RedirectResponse("/finance/receipts", status_code=303)
+
+
+@router.post('/finance/receipts/{rid}/link')
+def receipt_link(rid: int, db: Session = Depends(get_db), txn_id: int = Form(0), mode: str = Form('link')):
+    from app.services.receipt_money import eligible
+    payments.lock(db)
+    r = db.get(Receipt,rid)
+    if not r:
+        return RedirectResponse('/finance/receipts',status_code=303)
+    if mode == 'unlink':
+        r.txn_id=None
+        r.linked_existing=False
+        message='ยกเลิกการเชื่อมแล้ว เอกสารและรายการเงินจริงยังอยู่'
+    elif r.txn_id:
+        message='เอกสารนี้เชื่อมรายการเงินแล้ว ไม่ได้ลงรับหรือจ่ายเพิ่ม'
+    elif eligible(db,r,db.get(FinanceTxn,txn_id)):
+        r.txn_id=txn_id
+        r.linked_existing=True
+        message='เชื่อมรายการเดิมแล้ว ยอดเงินไม่เปลี่ยน'
+    else:
+        message='บัญชี ปี ประเภทรายการ และยอดต้องตรงกัน และรายการเงินต้องไม่เชื่อมใบเสร็จ/ใบสำคัญฉบับอื่น'
+    db.commit()
+    return RedirectResponse(f'/finance/receipts?year={r.fiscal_year}&message={quote(message)}',status_code=303)
 
 
 @router.post("/finance/receipts/{rid}/delete")

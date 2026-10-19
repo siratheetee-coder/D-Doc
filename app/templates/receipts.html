@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}ทะเบียนใบเสร็จ/ใบสำคัญ{% endblock %}
 {% block content %}
+{% if request.query_params.get('message') %}<div class="alert">{{ request.query_params.get('message') }}</div>{% endif %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h1 style="margin:0;">ทะเบียนใบเสร็จ/ใบสำคัญ <span class="muted" style="font-size:16px;">ปีงบ {{ fiscal_year }}</span></h1>
@@ -19,6 +20,7 @@
 
 <div class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มใบเสร็จ/ใบสำคัญ</h2>
+  <div class="alert info">การเพิ่มเอกสารในหน้านี้ยังไม่ลงรับ–จ่ายเงินจริง หากเคยบันทึกรับหรือจ่ายไว้แล้ว ให้เชื่อมรายการเดิมด้านล่าง ยอดเงินจะไม่เพิ่มหรือลดซ้ำ</div>
   <form method="post" action="/finance/receipts">
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
     <div class="row">
@@ -57,8 +59,24 @@
         <td class="right">{{ "{:,.2f}".format(r.amount or 0) }}</td>
         <td class="right" style="white-space:nowrap;">
           <a class="btn sm" href="/finance/receipts/{{ r.id }}/voucher"><svg class="icon"><use href="#ic-download"/></svg> ใบสำคัญรับเงิน</a>
-          <form method="post" action="/finance/receipts/{{ r.id }}/delete" style="display:inline" onsubmit="return confirm('ลบรายการนี้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form></td>
+          <form method="post" action="/finance/receipts/{{ r.id }}/delete" style="display:inline" onsubmit="return confirm('ลบเฉพาะใบเสร็จ/ใบสำคัญนี้? รายการเงินจริงยังอยู่')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form></td>
       </tr>
+      <tr><td colspan="7" style="background:#f8fafc;white-space:normal;">
+      {% if r.txn %}
+        <p><strong style="color:#15803d">เชื่อมรายการ{{ 'จ่าย' if r.kind=='จ่าย' else 'รับ' }}แล้ว</strong> · <a href="/finance/accounts/{{ r.txn.account_id }}?year={{ r.txn.fiscal_year }}">ดูรายการเงินจริง #{{ r.txn.id }} · {{ r.txn.ref or '-' }}</a></p>
+        <form method="post" action="/finance/receipts/{{ r.id }}/link" onsubmit="return confirm('ยกเลิกเฉพาะการเชื่อม เอกสารและรายการเงินจริงยังอยู่ ยืนยันหรือไม่?')"><button class="btn sm gray" name="mode" value="unlink">ยกเลิกการเชื่อม (เก็บรายการเงินจริง)</button></form>
+      {% else %}
+        <details open><summary style="cursor:pointer;padding:8px 0;"><strong style="color:#b45309">ยังไม่เชื่อมรายการรับ–จ่าย</strong></summary>
+        <p>หากเคยบันทึก{{ 'จ่าย' if r.kind=='จ่าย' else 'รับ' }}เงินไว้แล้ว ให้ <strong>เชื่อมรายการ{{ 'จ่าย' if r.kind=='จ่าย' else 'รับ' }}ที่บันทึกไว้แล้ว</strong> กับเอกสารนี้ โดยไม่ลงเงินซ้ำ</p>
+        {% if choices[r.id] %}
+          <form method="post" action="/finance/receipts/{{ r.id }}/link" onsubmit="return confirm('ยืนยันว่าเป็นเงินรับหรือจ่ายครั้งเดียวกับเอกสารนี้?')">
+            <select name="txn_id" required><option value="">— เลือกรายการเดิม —</option>{% for t in choices[r.id] %}<option value="{{ t.id }}">#{{ t.id }} · {{ thai_date(t.date) if t.date else '-' }} · {{ t.ref or '-' }} · {{ t.note or t.category }} · {{ '{:,.2f}'.format(t.amount) }} บาท</option>{% endfor %}</select>
+            <p><button class="btn sm" type="submit">เชื่อมรายการ{{ 'จ่าย' if r.kind=='จ่าย' else 'รับ' }}ที่บันทึกไว้แล้ว</button></p>
+          </form>
+        {% else %}<p class="muted">ยังไม่พบรายการที่ตรงกัน ต้องเป็นบัญชี ปี ประเภทรับ/จ่าย และยอดตรงกัน และยังไม่เชื่อมเอกสารอื่น · <a href="/finance/accounts?year={{ r.fiscal_year }}">ไปหน้ารับ–จ่าย</a></p>{% endif %}
+        </details>
+      {% endif %}
+      </td></tr>
       {% endfor %}
     </tbody>
   </table></div>

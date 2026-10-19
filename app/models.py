@@ -1027,6 +1027,7 @@ class Receipt(Base):
     party = Column(String, default="")               # ผู้รับ/ผู้จ่ายเงิน
     amount = Column(Float, default=0.0)
     account_id = Column(Integer, ForeignKey("finance_account.id"), nullable=True)
+    linked_existing = Column(Boolean, default=False)
     txn_id = Column(Integer, ForeignKey("finance_txn.id"), nullable=True)  # ผูกกับรายการรับ-จ่าย (ถ้าออกพร้อมกัน)
     note = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)
