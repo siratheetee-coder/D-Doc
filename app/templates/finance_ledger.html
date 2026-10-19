@@ -72,7 +72,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
   <form method="post" action="/finance/accounts/{{ account.id }}/item">
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
     <div class="row">
-      <div style="flex:2;"><label>ชื่อหมวด/รายการ *</label><input name="name" required placeholder="เช่น ค่าจัดการเรียนการสอน, ค่าหนังสือเรียน"></div>
+      <div style="flex:2;"><label>ชื่อหมวด/รายการ *</label><input name="name" id="itemName" required placeholder="เช่น ค่าจัดการเรียนการสอน, ค่าหนังสือเรียน"></div>
       <div><label>งบที่ตั้งไว้ (บาท)</label><input name="budget" type="number" step="0.01" min="0" value="0"></div>
       <div><label>ระดับหมวด</label>
         <select id="levelSel" onchange="cbToggleParent()">
@@ -103,6 +103,13 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
         </select>
       </div>
       <div style="flex:2;"><label>หมายเหตุ</label><input name="note"></div>
+      <div style="flex:2;"><label>ลงช่องไหนใน e-Budget</label>
+        <select name="eb_slot" data-eb-guess data-name-input="#itemName" data-account-id="{{ account.id }}">
+          <option value="">ตามบัญชีนี้</option>
+          {% for code, label in eb_slot_choices() %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+        </select>
+        <div class="hint eb-guess-hint" style="margin-top:2px;"></div>
+      </div>
     </div>
     <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มหมวด</button>
   </form>
@@ -169,7 +176,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
   </style>
   {% endif %}
   <div class="table-wrap"><table style="margin-top:14px;">
-    <thead><tr><th>หมวด/รายการ</th><th>เก็บที่</th><th class="right">งบที่ตั้งไว้</th><th class="right">ยอดยกมา</th><th class="right">รับจริง</th><th class="right">จ่ายแล้ว</th><th class="right">คงเหลือ</th><th></th></tr></thead>
+    <thead><tr><th>หมวด/รายการ</th><th>เก็บที่</th><th>ช่อง e-Budget</th><th class="right">งบที่ตั้งไว้</th><th class="right">ยอดยกมา</th><th class="right">รับจริง</th><th class="right">จ่ายแล้ว</th><th class="right">คงเหลือ</th><th></th></tr></thead>
     <tbody>
       {% for r in item_rows %}
       {% set _dep = {'bank':'ธนาคาร','cash':'เงินสด','agency':'ส่วนราชการผู้เบิก'} %}
@@ -182,6 +189,17 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
               <option value="bank" {{ 'selected' if r.it.deposit_type=='bank' }}>ธนาคาร</option>
               <option value="cash" {{ 'selected' if r.it.deposit_type=='cash' }}>เงินสด</option>
               <option value="agency" {{ 'selected' if r.it.deposit_type=='agency' }}>ส่วนราชการผู้เบิก</option>
+            </select>
+          </form>
+        </td>
+        <td>
+          {% set _slot, _own = eb_slot_of(r.it, account.fund_type) %}
+          <form method="post" action="/finance/items/{{ r.it.id }}/update" style="margin:0;">
+            <input type="hidden" name="year" value="{{ fiscal_year }}">
+            <select name="eb_slot" onchange="this.form.submit()" aria-label="ช่อง e-Budget ของ {{ r.it.name }}"
+                    style="padding:4px 6px; font-size:13px; max-width:220px;">
+              <option value="" {{ 'selected' if not _own }}>{{ 'ตามบัญชี' if _slot in ('3.13', '2.5') else 'เดาจากชื่อ ' ~ _slot }}</option>
+              {% for code, label in eb_slot_choices() %}<option value="{{ code }}" {{ 'selected' if _own and _slot == code }}>{{ label }}</option>{% endfor %}
             </select>
           </form>
         </td>
@@ -300,12 +318,22 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       <div style="flex:2; align-self:flex-end;"><span class="muted" style="font-size:13px;">กรอกวันครบกำหนดไว้ จะได้ไม่ลืมคืนเงินประกันให้ผู้รับจ้าง (พิมพ์ออกในทะเบียนคุมเงินประกันสัญญา)</span></div>
     </div>
     {% endif %}
+    <label class="nc-box"><input type="checkbox" name="no_count" value="1" id="noCount">
+      <span><b>ไม่นับเป็นรายรับ/รายจ่าย</b> (โอนเงินภายในโรงเรียน เช่น ฝากเงินสดเข้าธนาคาร ถอนเงินจากธนาคาร โอนระหว่างบัญชีของโรงเรียน)
+        <span class="nc-sub">ยอดคงเหลือยังขยับตามปกติ แต่ไม่ถูกนับในรายรับ-รายจ่ายของ e-Budget · โอนระหว่างบัญชีต้องลงทั้งฝั่งจ่ายและฝั่งรับ ·
+          ไม่ใช้กับเงินยืม (บันทึกที่หน้าเงินยืม)</span></span></label>
+    <style>
+      .nc-box { display:flex; gap:10px; align-items:flex-start; margin:4px 0 12px; padding:10px 12px; border-radius:12px;
+        background:linear-gradient(120deg,#f8fafc,#eef2ff); font-size:14px; cursor:pointer; }
+      .nc-box input { width:18px; height:18px; margin-top:2px; flex:none; }
+      .nc-sub { display:block; font-size:12.5px; color:var(--muted); margin-top:2px; }
+    </style>
     <span class="muted" style="font-size:13px;">กรอก "เลขที่ใบเสร็จ/ใบสำคัญ" หรือ "คู่สัญญา" ระบบจะลงรายการใน <a href="/finance/receipts">ทะเบียนใบเสร็จ/ใบสำคัญ</a> ให้อัตโนมัติ (ไม่ต้องกรอกซ้ำ)</span>
     <br><br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
   </form>
 </div>
 
-<div class="card">
+<div class="card" id="txn-history">
   <h2>ประวัติรับ-จ่าย-คงเหลือ</h2>
   {% if rows %}
   <div class="table-wrap"><table>
@@ -322,7 +350,14 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
         <td class="right">{{ "{:,.2f}".format(r.t.amount) if r.t.kind=="in" else "" }}</td>
         <td class="right">{{ "{:,.2f}".format(r.t.amount) if r.t.kind=="out" else "" }}</td>
         <td class="right"><b>{{ "{:,.2f}".format(r.balance) }}</b></td>
-        <td class="right">{% if r.t.id in lunch_mirror %}<a class="pill" href="/lunch/{{ lunch_mirror[r.t.id] }}#ledger" title="รายการนี้มาจากหน้าอาหารกลางวัน" style="background:#fff7ed; color:#c2410c; text-decoration:none; white-space:nowrap;">แก้ที่หน้าอาหารกลางวัน</a>{% else %}<form method="post" action="/finance/txn/{{ r.t.id }}/delete" style="display:inline" onsubmit="return confirm('ลบรายการนี้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>{% endif %}</td>
+        <td class="right" style="white-space:nowrap;">
+          <form method="post" action="/finance/txn/{{ r.t.id }}/no-count" style="display:inline; margin:0;">
+            <input type="hidden" name="value" value="{{ '' if r.t.no_count else '1' }}">
+            <button class="nc-pill {{ 'on' if r.t.no_count }}" type="submit" data-no-floating-save
+                    title="{{ 'กดเพื่อกลับไปนับเป็นรายรับ/รายจ่าย' if r.t.no_count else 'กดถ้ารายการนี้เป็นการโอนเงินภายในโรงเรียน (ไม่นับเป็นรายรับ/รายจ่าย)' }}">
+              {{ 'โอนภายใน · ไม่นับรับ-จ่าย' if r.t.no_count else 'ไม่นับ' }}</button>
+          </form>
+          {% if r.t.id in lunch_mirror %}<a class="pill" href="/lunch/{{ lunch_mirror[r.t.id] }}#ledger" title="รายการนี้มาจากหน้าอาหารกลางวัน" style="background:#fff7ed; color:#c2410c; text-decoration:none; white-space:nowrap;">แก้ที่หน้าอาหารกลางวัน</a>{% else %}<form method="post" action="/finance/txn/{{ r.t.id }}/delete" style="display:inline" onsubmit="return confirm('ลบรายการนี้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -332,6 +367,12 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
   {% endif %}
 </div>
 
+<style>
+  .nc-pill { font:inherit; font-size:12px; border:0; border-radius:999px; padding:3px 10px; cursor:pointer;
+    background:#f1f5f9; color:#64748b; }
+  .nc-pill.on { background:linear-gradient(120deg,#e0e7ff,#ede9fe); color:#4338ca; font-weight:600; }
+</style>
+<script src="/static/eb-slot-guess.js?v=2"></script>
 <script>
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){

@@ -886,6 +886,9 @@ class FinanceTxn(Base):
     linked_existing = Column(Boolean, default=False)  # Keep original ledger entry when unlinking/deleting its memo.
     lunch_year = Column(Integer, nullable=True)      # รายการรับเงินอาหารกลางวัน: ใช้กับโครงการปีการศึกษาไหน (เว้นว่าง = ตามวันที่รับ)
     eb_code = Column(String, default="")             # หมวด e-Budget (จ่าย = ส่วนที่ 4 · รับ = ส่วนที่ 3)
+    # โอนเงินภายในโรงเรียน (ฝากเงินสดเข้าธนาคาร / ถอนเงิน / โอนระหว่างบัญชี): ยอดคงเหลือขยับ
+    # แต่ไม่นับเป็นรายรับ/รายจ่าย (e-Budget ส่วน 3/4 และยอดรับ-จ่ายรวม) ไม่งั้นรับ-จ่ายบวมเกินจริง
+    no_count = Column(Boolean, default=False)
     # ใช้เฉพาะบัญชีเงินประกันสัญญา (ทะเบียนคุมเงินฝาก) - ต้องคืนเงินเมื่อครบกำหนด
     due_date = Column(DateTime, nullable=True)       # วันครบกำหนดคืนเงินประกัน
     refund_date = Column(DateTime, nullable=True)    # วันที่เบิกจ่ายเงินคืนผู้มีสิทธิ์

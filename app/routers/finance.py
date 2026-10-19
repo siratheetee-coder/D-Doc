@@ -103,8 +103,8 @@ def finance_dashboard(request: Request, db: Session = Depends(get_db), year: int
     accounts = db.query(FinanceAccount).order_by(FinanceAccount.name).all()
     total_bal = sum(account_balance_year(a, fy) for a in accounts)
     txns = db.query(FinanceTxn).filter_by(fiscal_year=fy).all()
-    total_in = sum(t.amount or 0 for t in txns if t.kind == "in")
-    total_out = sum(t.amount or 0 for t in txns if t.kind == "out")
+    total_in = sum(t.amount or 0 for t in txns if t.kind == "in" and not t.no_count)    # โอนภายในไม่ใช่รายรับ
+    total_out = sum(t.amount or 0 for t in txns if t.kind == "out" and not t.no_count)
     return templates.TemplateResponse("finance_dashboard.html", {
         "request": request, "school": get_school(db), "fiscal_year": fy,
         "years": _finance_years(db, fy), "next_year": fy + 1,
@@ -217,7 +217,7 @@ def accounts_page(request: Request, db: Session = Depends(get_db), year: int | N
 @router.post("/finance/accounts")
 def account_add(db: Session = Depends(get_db), name: str = Form(...),
                 opening_balance: str = Form("0"), note: str = Form(""),
-                deposit_type: str = Form("bank"), fund_type: str = Form("")):
+                deposit_type: str = Form("bank"), fund_type: str = Form(""), eb_slot: str = Form("")):
     if name.strip():
         nm = name.strip()
         dt = deposit_type if deposit_type in DEPOSIT_TYPES else "bank"
@@ -225,9 +225,40 @@ def account_add(db: Session = Depends(get_db), name: str = Form(...),
         ft = resolve_fund_type(nm, fund_type)
         db.add(FinanceAccount(name=nm,
                               opening_balance=_to_float(opening_balance, 0.0),
-                              deposit_type=dt, fund_type=ft, note=note.strip()))
+                              deposit_type=dt, fund_type=ft, note=note.strip(),
+                              eb_slot=_valid_slot(eb_slot)))
         db.commit()
     return RedirectResponse("/finance/accounts", status_code=303)
+
+
+def _valid_slot(slot) -> str:
+    """ช่อง e-Budget ที่ส่งมาจากฟอร์ม · ไม่มีในแบบ = ว่าง (ให้ระบบเดาจากชื่อ)"""
+    from app.services.ebudget import slot_choices
+    slot = slot.strip() if isinstance(slot, str) else ""
+    return slot if slot in dict(slot_choices()) else ""
+
+
+@router.get("/finance/ebudget/guess")
+def ebudget_guess(name: str = "", fund_type: str = "", account_id: int = 0, db: Session = Depends(get_db)):
+    """ช่องที่ระบบเดาจากชื่อ (ฟอร์มสร้างบัญชี/หมวดใช้เลือกให้ก่อน) · other = เดาไม่ได้"""
+    from app.services.ebudget import _target, OTHER_SLOTS, slot_of
+    ft = fund_type
+    if account_id:
+        acc = db.get(FinanceAccount, account_id)
+        ft = acc.fund_type if acc else ft
+    code = _target(name or "", ft or "")
+    if code in OTHER_SLOTS and account_id and acc:           # หมวดชื่อไม่บอก -> ใช้ของบัญชี
+        code = slot_of(acc, ft)[0]
+    return {"slot": code, "other": code in OTHER_SLOTS}
+
+
+@router.post("/finance/accounts/{aid}/eb-slot")
+def account_eb_slot(aid: int, db: Session = Depends(get_db), eb_slot: str = Form(""), year: str = Form("")):
+    a = db.get(FinanceAccount, aid)
+    if a:
+        a.eb_slot = _valid_slot(eb_slot)
+        db.commit()
+    return RedirectResponse(f"/finance/accounts?year={_to_int(year, current_fiscal_year())}", status_code=303)
 
 
 @router.post("/finance/accounts/{aid}/fund-type")
@@ -352,7 +383,7 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
 @router.post("/finance/accounts/{aid}/item")
 def account_item_add(aid: int, db: Session = Depends(get_db), name: str = Form(...),
                      budget: str = Form("0"), note: str = Form(""), fiscal_year: str = Form(""),
-                     deposit_type: str = Form("bank"), parent_id: str = Form("")):
+                     deposit_type: str = Form("bank"), parent_id: str = Form(""), eb_slot: str = Form("")):
     a = db.get(FinanceAccount, aid)
     fy = _to_int(fiscal_year, current_fiscal_year())
     if a and name.strip():
@@ -364,7 +395,8 @@ def account_item_add(aid: int, db: Session = Depends(get_db), name: str = Form(.
             if not (par and par.account_id == a.id and par.fiscal_year == fy and par.parent_id is None):
                 pid = None
         db.add(AccountItem(account_id=a.id, fiscal_year=fy, name=name.strip(), parent_id=pid,
-                           budget=_to_float(budget, 0.0), deposit_type=dt, note=note.strip()))
+                           budget=_to_float(budget, 0.0), deposit_type=dt, note=note.strip(),
+                           eb_slot=_valid_slot(eb_slot)))
         db.commit()
     return RedirectResponse(f"/finance/accounts/{aid}?year={fy}", status_code=303)
 
@@ -420,8 +452,8 @@ def account_copy_items(aid: int, db: Session = Depends(get_db), year: str = Form
 @router.post("/finance/items/{iid}/update")
 def account_item_update(iid: int, db: Session = Depends(get_db), budget: str = Form(None),
                         name: str = Form(None), deposit_type: str = Form(None),
-                        note: str = Form(None), year: str = Form("")):
-    """แก้ไขหมวดในตาราง (งบ/ชื่อ/เก็บที่/หมายเหตุ) - บันทึกอินไลน์"""
+                        note: str = Form(None), year: str = Form(""), eb_slot: str = Form(None)):
+    """แก้ไขหมวดในตาราง (งบ/ชื่อ/เก็บที่/หมายเหตุ/ช่อง e-Budget) - บันทึกอินไลน์"""
     it = db.get(AccountItem, iid)
     if it:
         if budget is not None:
@@ -432,6 +464,8 @@ def account_item_update(iid: int, db: Session = Depends(get_db), budget: str = F
             it.deposit_type = deposit_type
         if note is not None:
             it.note = note.strip()
+        if eb_slot is not None:
+            it.eb_slot = _valid_slot(eb_slot)
         db.commit()
     aid = it.account_id if it else None
     fy = _to_int(year, it.fiscal_year if it else current_fiscal_year())
@@ -460,7 +494,7 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
                     ref: str = Form(""), note: str = Form(""), fiscal_year: str = Form(""),
                     item_id: str = Form(""), receipt_no: str = Form(""), party: str = Form(""),
                     due_date: str = Form(""), refund_date: str = Form(""),
-                    project_id: str = Form(""), eb_code: str = Form(""),
+                    project_id: str = Form(""), eb_code: str = Form(""), no_count: str = Form(""),
                     subsidy_year: int = Form(0), subsidy_term: int = Form(0)):
     a = db.get(FinanceAccount, aid)
     fy = _to_int(fiscal_year, current_fiscal_year())
@@ -471,7 +505,8 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
         t = FinanceTxn(
             account_id=a.id, fiscal_year=fy, item_id=_to_int(item_id, 0) or None,
             project_id=_to_int(project_id, 0) or None,
-            eb_code=(eb_code or "").strip(),
+            eb_code="" if no_count else (eb_code or "").strip(),
+            no_count=bool(no_count),
             kind=k, amount=amt, date=dt,
             category=category.strip(), ref=ref.strip(), note=note.strip(),
             due_date=parse_be_date(due_date) if due_date else None,
@@ -488,6 +523,19 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
         db.commit()
     back = f"&subsidy_year={subsidy_year}&subsidy_term={subsidy_term}" if 2500 <= subsidy_year <= 2800 and subsidy_term in (1, 2) else ""
     return RedirectResponse(f"/finance/accounts/{aid}?year={fy}{back}" + ("#txn-entry" if back else ""), status_code=303)
+
+
+@router.post("/finance/txn/{tid}/no-count")
+def account_txn_no_count(tid: int, db: Session = Depends(get_db), value: str = Form("")):
+    """สลับ "ไม่นับเป็นรายรับ/รายจ่าย" ของรายการที่บันทึกไปแล้ว (โอนเงินภายในโรงเรียน)"""
+    t = db.get(FinanceTxn, tid)
+    if t is None:
+        raise HTTPException(404, "ไม่พบรายการ")
+    t.no_count = value == "1"
+    if t.no_count:
+        t.eb_code = ""
+    db.commit()
+    return RedirectResponse(f"/finance/accounts/{t.account_id}?year={t.fiscal_year}#txn-history", status_code=303)
 
 
 @router.post("/finance/txn/{tid}/delete")
@@ -2093,6 +2141,8 @@ def ebudget_fill_page(request: Request, db: Session = Depends(get_db),
         if not d or not (start.date() <= d.date() <= end.date()):
             continue
         if not all and (t.eb_code or "").strip():
+            continue
+        if t.no_count:                       # โอนภายใน ไม่ลง e-Budget ไม่ต้องเลือกหมวด
             continue
         it = items.get(t.item_id)
         pj = projs.get(t.project_id)

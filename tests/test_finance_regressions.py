@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def route_functions():
     tree = ast.parse((ROOT/'app/routers/finance.py').read_text(encoding='utf-8'))
-    names = {'account_add', 'loan_add', 'account_set_fund_type', '_cashbook_fund_data'}
+    names = {'account_add', 'loan_add', 'account_set_fund_type', '_cashbook_fund_data', '_valid_slot'}
     funcs = [n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name in names]
     for n in funcs: n.decorator_list = []
     ns = dict(Session=Session, Depends=Depends, Form=Form, Request=Request, get_db=lambda: None,

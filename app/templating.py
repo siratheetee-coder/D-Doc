@@ -22,6 +22,7 @@ from app.services.budget import project_budget, project_spent, project_remaining
 from app.modules import MODULE_KEYS, MODULE_LABELS, MODULE_PRICE_KEY, module_for_path
 from app.seller_config import pricing_context
 from app.services.form_guard import fields as _form_guard_fields
+from app.services.ebudget import slot_choices as _eb_slot_choices, slot_of as _eb_slot_of
 
 
 def _finance_carry_warn(fy):
@@ -98,7 +99,8 @@ MODULES_LIVE = {"procurement": True, "admin": True, "finance": True, "lunch": Tr
 templates.env.globals.update(
     trial_days=TRIAL_DAYS,
     form_guard=_form_guard_fields,
-    finance_carry_warn=_finance_carry_warn,       # ฟอร์มสาธารณะ: โทเคนเวลา + ช่องล่อกันบอท
+    finance_carry_warn=_finance_carry_warn,
+    eb_slot_choices=_eb_slot_choices, eb_slot_of=_eb_slot_of,     # ช่อง e-Budget ของบัญชี/หมวด       # ฟอร์มสาธารณะ: โทเคนเวลา + ช่องล่อกันบอท
     thai_date=thai_date, bahttext=bahttext, be_date=be_date_input,
     nav_alerts=nav_alerts, nav_holidays=nav_holidays, my_notices=my_notices,
     maint_notice=lambda: __import__("app.accounts", fromlist=["x"]).active_notice(),

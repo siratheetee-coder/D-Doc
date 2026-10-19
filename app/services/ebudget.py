@@ -235,6 +235,7 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
     # ส่วนที่ 3 จริงของเว็บ = "ใครให้เงินมา" (ข้อ 2-6) ใช้ค่าที่ครูเลือกตอนบันทึกรับ (eb_code i2-i6)
     # แยกย่อยตามประเภทเงินไว้ช่วยเลือกข้อย่อยในเว็บ เช่น ข้อ 2 -> 3.1.1 รายหัว 100,000
     income_src, income_missing = {}, []
+    nc_net = 0.0                      # ผลรวมรายการโอนภายในในงวด (ครบคู่ = 0 · ไม่ครบคู่ -> ยอดตรวจไม่ตรง)
 
     def note_other(src, code, bal=0.0, moved=0.0):
         kind, oid, own = src
@@ -277,12 +278,15 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
             note_other(src, code, bal=amt if t.kind == "in" else -amt, moved=amt)
         inside = start_day <= day <= end_day
         before = day < start_day
+        nc = bool(getattr(t, "no_count", False))      # โอนภายใน: ยอดคงเหลือขยับ แต่ไม่ใช่รายรับ/รายจ่าย
+        if nc and inside:
+            nc_net += amt if t.kind == "in" else -amt
         if t.kind == "in":
             if before or inside:
                 closing[code] += amt
             if before:
                 opening[code] += amt
-            if inside:
+            if inside and not nc:
                 income[code] += amt
                 src_in = (getattr(t, "eb_code", "") or "").strip()
                 if src_in.startswith("i"):
@@ -295,7 +299,7 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
                 closing[code] -= amt
             if before:
                 opening[code] -= amt
-            if inside:
+            if inside and not nc:
                 src = source_of(code, acct.fund_type if acct else "")
                 expense[src] += amt
                 eb = (getattr(t, "eb_code", "") or "").strip()
@@ -330,6 +334,7 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
         "income_src": income_src, "income_missing": income_missing,
         "n_in_period": sum(1 for t in txns if t.date and start_day <= t.date.date() <= end_day),
         "undated": [t.id for t in txns if not t.date],
+        "no_count_net": round(nc_net, 2),
     }
 
 
@@ -361,6 +366,10 @@ def checklist(d: dict, fiscal_year: int, rnd: int) -> dict:
              href=fill, cta="เติมหมวดรายจ่าย"),
         dict(title="ยอดตรวจตรงกัน (ยกมา + รับ − จ่าย = คงเหลือ)", done=d["check"] == 0,
              detail=("ตรงกันพอดี" if d["check"] == 0
+                     else (f"ต่างกัน {d['check']:,.2f} บาท เพราะรายการ \"ไม่นับเป็นรายรับ/รายจ่าย\" (โอนเงินภายใน) "
+                           f"ยังลงไม่ครบคู่ ต่างกัน {abs(d.get('no_count_net', 0)):,.2f} บาท "
+                           "(โอนออกจากบัญชีหนึ่งต้องลงรับเข้าอีกบัญชีด้วย)")
+                     if d.get("no_count_net") and round(abs(d["check"]) - abs(d["no_count_net"]), 2) == 0
                      else f"ต่างกัน {d['check']:,.2f} บาท มักเกิดจากลงรายการผิดงวดหรือยังลงไม่ครบ"),
              href=f"/finance/cashbook?year={fiscal_year}", cta="ตรวจสมุดเงินสด"),
     ]
