@@ -121,7 +121,7 @@
             <form method="post" action="/finance/accounts/{{ a.id }}/eb-slot" style="margin:5px 0 0;">
               <input type="hidden" name="year" value="{{ fiscal_year }}">
               <select name="eb_slot" aria-label="ช่อง e-Budget ของ {{ a.name }}" onchange="this.form.submit()"
-                      title="เงินในบัญชีนี้ลงช่องไหนของ e-Budget" style="padding:4px 8px; font-size:13px; width:auto; max-width:300px;
+                      title="เงินในบัญชีนี้ลงช่องไหนของ e-Budget" style="padding:4px 8px; font-size:13px; width:auto; max-width:220px;
                       {{ 'background:#fff7ed; color:#9a3412;' if (not _own and _slot in ('3.13', '2.5')) }}">
                 <option value="" {{ 'selected' if not _own }}>e-Budget: {{ 'ยังไม่ระบุ (ตกช่องอื่น ๆ)' if _slot in ('3.13', '2.5') else 'เดาจากชื่อ ' ~ _slot }}</option>
                 {% for code, label in eb_slot_choices() %}<option value="{{ code }}" {{ 'selected' if _own and _slot == code }}>e-Budget: {{ label }}</option>{% endfor %}
@@ -131,7 +131,7 @@
           <td>
             <form method="post" action="/finance/accounts/{{ a.id }}/deposit-type" style="margin:0;">
               <input type="hidden" name="year" value="{{ fiscal_year }}">
-              <select name="deposit_type" onchange="this.form.submit()" style="padding:5px 8px; font-size:14px;">
+              <select name="deposit_type" onchange="this.form.submit()" style="padding:5px 8px; font-size:14px; min-width:150px;">
                 <option value="bank" {{ 'selected' if a.deposit_type=='bank' }}>เงินฝากธนาคาร</option>
                 <option value="cash" {{ 'selected' if a.deposit_type=='cash' }}>เงินสด</option>
                 <option value="agency" {{ 'selected' if a.deposit_type=='agency' }}>เงินฝากส่วนราชการผู้เบิก</option>

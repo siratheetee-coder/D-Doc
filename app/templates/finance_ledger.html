@@ -175,8 +175,9 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
     .al-legend i{ display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
   </style>
   {% endif %}
-  <div class="table-wrap"><table style="margin-top:14px;">
-    <thead><tr><th>หมวด/รายการ</th><th>เก็บที่</th><th>ช่อง e-Budget</th><th class="right">งบที่ตั้งไว้</th><th class="right">ยอดยกมา</th><th class="right">รับจริง</th><th class="right">จ่ายแล้ว</th><th class="right">คงเหลือ</th><th></th></tr></thead>
+  {# 9 คอลัมน์: ให้เลื่อนซ้าย-ขวาแทนการบีบจนชื่อหมวดตัดคำทีละคำ #}
+  <div class="table-wrap"><table style="margin-top:14px; min-width:1080px;">
+    <thead><tr><th style="min-width:180px;">หมวด/รายการ</th><th>เก็บที่</th><th>ช่อง e-Budget</th><th class="right">งบที่ตั้งไว้</th><th class="right">ยอดยกมา</th><th class="right">รับจริง</th><th class="right">จ่ายแล้ว</th><th class="right">คงเหลือ</th><th></th></tr></thead>
     <tbody>
       {% for r in item_rows %}
       {% set _dep = {'bank':'ธนาคาร','cash':'เงินสด','agency':'ส่วนราชการผู้เบิก'} %}
@@ -185,7 +186,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
         <td>
           <form method="post" action="/finance/items/{{ r.it.id }}/update" style="margin:0;">
             <input type="hidden" name="year" value="{{ fiscal_year }}">
-            <select name="deposit_type" onchange="this.form.submit()" style="padding:4px 6px; font-size:13px;">
+            <select name="deposit_type" onchange="this.form.submit()" style="padding:4px 6px; font-size:13px; min-width:105px;">
               <option value="bank" {{ 'selected' if r.it.deposit_type=='bank' }}>ธนาคาร</option>
               <option value="cash" {{ 'selected' if r.it.deposit_type=='cash' }}>เงินสด</option>
               <option value="agency" {{ 'selected' if r.it.deposit_type=='agency' }}>ส่วนราชการผู้เบิก</option>
@@ -197,7 +198,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
           <form method="post" action="/finance/items/{{ r.it.id }}/update" style="margin:0;">
             <input type="hidden" name="year" value="{{ fiscal_year }}">
             <select name="eb_slot" onchange="this.form.submit()" aria-label="ช่อง e-Budget ของ {{ r.it.name }}"
-                    style="padding:4px 6px; font-size:13px; max-width:220px;">
+                    style="padding:4px 6px; font-size:13px; min-width:170px; max-width:220px;">
               <option value="" {{ 'selected' if not _own }}>{{ 'ตามบัญชี' if _slot in ('3.13', '2.5') else 'เดาจากชื่อ ' ~ _slot }}</option>
               {% for code, label in eb_slot_choices() %}<option value="{{ code }}" {{ 'selected' if _own and _slot == code }}>{{ label }}</option>{% endfor %}
             </select>
