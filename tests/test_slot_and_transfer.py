@@ -133,4 +133,6 @@ def test_internal_transfer_moves_balance_but_not_income_or_expense(env):
         assert db.get(FinanceTxn, tid).no_count is False
     finally:
         db.close()
-    assert "โอนภายใน · ไม่นับรับ-จ่าย" in env.get(f"/finance/accounts/{bank.id}?year={FY}").text
+    html = env.get(f"/finance/accounts/{bank.id}?year={FY}").text
+    assert "โอนภายใน (ไม่นับรับ-จ่าย)" in html
+    assert "ตั้งเป็นโอนภายใน" in env.get(f"/finance/accounts/{cash.id}?year={FY}").text, "รายการปกติมีปุ่มตั้งเป็นโอนภายใน"

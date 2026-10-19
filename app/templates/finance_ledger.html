@@ -358,7 +358,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
             <input type="hidden" name="value" value="{{ '' if r.t.no_count else '1' }}">
             <button class="nc-pill {{ 'on' if r.t.no_count }}" type="submit" data-no-floating-save
                     title="{{ 'กดเพื่อกลับไปนับเป็นรายรับ/รายจ่าย' if r.t.no_count else 'กดถ้ารายการนี้เป็นการโอนเงินภายในโรงเรียน (ไม่นับเป็นรายรับ/รายจ่าย)' }}">
-              {{ 'โอนภายใน · ไม่นับรับ-จ่าย' if r.t.no_count else 'ไม่นับ' }}</button>
+              {% if r.t.no_count %}โอนภายใน (ไม่นับรับ-จ่าย) <span class="nc-x">ยกเลิก</span>{% else %}ตั้งเป็นโอนภายใน{% endif %}</button>
           </form>
           {% if r.t.id in lunch_mirror %}<a class="pill" href="/lunch/{{ lunch_mirror[r.t.id] }}#ledger" title="รายการนี้มาจากหน้าอาหารกลางวัน" style="background:#fff7ed; color:#c2410c; text-decoration:none; white-space:nowrap;">แก้ที่หน้าอาหารกลางวัน</a>{% else %}<form method="post" action="/finance/txn/{{ r.t.id }}/delete" style="display:inline" onsubmit="return confirm('ลบรายการนี้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>{% endif %}</td>
       </tr>
@@ -374,6 +374,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
   .nc-pill { font:inherit; font-size:12px; border:0; border-radius:999px; padding:3px 10px; cursor:pointer;
     background:#f1f5f9; color:#64748b; }
   .nc-pill.on { background:linear-gradient(120deg,#e0e7ff,#ede9fe); color:#4338ca; font-weight:600; }
+  .nc-x { font-weight:400; text-decoration:underline; margin-left:4px; opacity:.8; }
 </style>
 <script src="/static/eb-slot-guess.js?v=2"></script>
 <script>
