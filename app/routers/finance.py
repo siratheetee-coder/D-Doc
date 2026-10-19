@@ -1135,10 +1135,35 @@ def _cashbook_data(db, fy, account_id=None):
     return accounts, scope, opening, rows, totals
 
 
-def _cashbook_fund_data(db, fy, account_id=None):
+_TH_MONTH_FULL = ["", "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+                  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"]
+_FY_MONTHS = [10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+
+def _fy_month_range(fy: int, month: int):
+    """เดือนในปีงบ (พ.ศ.) -> (วันแรก, วันแรกของเดือนถัดไป, ป้าย "ประจำเดือน พฤศจิกายน 2569")
+    ต.ค.-ธ.ค. อยู่ปี ค.ศ. ก่อนหน้าปีงบ"""
+    y = fy - 543 - (1 if month >= 10 else 0)
+    start = datetime(y, month, 1)
+    end = datetime(y + (month == 12), 1 if month == 12 else month + 1, 1)
+    return start, end, f"ประจำเดือน {_TH_MONTH_FULL[month]} {y + 543}"
+
+
+def _month_options(fy: int):
+    return [(m, _fy_month_range(fy, m)[2].replace("ประจำเดือน ", "")) for m in _FY_MONTHS]
+
+
+def _valid_month(month) -> int:
+    m = _to_int(month, 0)
+    return m if 1 <= m <= 12 else 0
+
+
+def _cashbook_fund_data(db, fy, account_id=None, month=0):
     """ข้อมูลสมุดเงินสดแบบราชการ (แยกด้านรับ/จ่าย + แยกประเภทเงินตามงบ)
     คืน (scope, open_by_fund{งบ:ยอดยกมา}, receipts[], payments[])
-    แต่ละรายการ = {date, ref, desc, amount, fund}"""
+    แต่ละรายการ = {date, ref, desc, amount, fund}
+    month (1-12) = เฉพาะเดือนนั้น · ยอดยกมา = ยกมาต้นปี + รับ - จ่าย ก่อนวันที่ 1 ของเดือน
+    (รายการไม่ระบุวันที่ไม่อยู่ในรายงานรายเดือน ดู _cashbook_undated)"""
     if account_id:
         acc = db.get(FinanceAccount, account_id)
         accts = [acc] if acc else []
@@ -1155,6 +1180,15 @@ def _cashbook_fund_data(db, fy, account_id=None):
         open_by_fund[fund_of[a.id]] = open_by_fund.get(fund_of[a.id], 0.0) + (opening_for(a, fy) or 0.0)
     aids = set(fund_of)
     txns = [t for t in db.query(FinanceTxn).filter_by(fiscal_year=fy).all() if t.account_id in aids]
+    if month:
+        m_start, m_end, _lbl = _fy_month_range(fy, month)
+        for t in txns:
+            if t.date and t.date < m_start:
+                f = fund_of.get(t.account_id, _FUND_DEFAULT)
+                amt = t.amount or 0.0
+                open_by_fund[f] = open_by_fund.get(f, 0.0) + (amt if t.kind == "in" else -amt)
+        open_by_fund = {f: round(v, 2) for f, v in open_by_fund.items()}
+        txns = [t for t in txns if t.date and m_start <= t.date < m_end]
     receipts, payments = [], []
     for t in sorted(txns, key=lambda x: (x.date or datetime.min, x.id)):
         desc = " ".join(x for x in [(t.category or "").strip(), (t.note or "").strip()] if x) or "-"
@@ -1166,12 +1200,16 @@ def _cashbook_fund_data(db, fy, account_id=None):
     return scope, open_by_fund, receipts, payments
 
 
-@router.get("/finance/cashbook", response_class=HTMLResponse)
-def cashbook_page(request: Request, db: Session = Depends(get_db),
-                  year: int | None = None, account: int | None = None):
-    fy = year or current_fiscal_year()
-    accounts = db.query(FinanceAccount).order_by(FinanceAccount.name).all()
-    scope, open_by_fund, receipts, payments = _cashbook_fund_data(db, fy, account)
+def _cashbook_undated(db, fy, account_id=None) -> int:
+    q = db.query(FinanceTxn).filter(FinanceTxn.fiscal_year == fy, FinanceTxn.date.is_(None))
+    if account_id:
+        q = q.filter(FinanceTxn.account_id == account_id)
+    return q.count()
+
+
+def _cashbook_context(db, fy, account, month):
+    """ตัวเลขที่หน้าเว็บกับหน้าพิมพ์ใช้ร่วมกัน"""
+    scope, open_by_fund, receipts, payments = _cashbook_fund_data(db, fy, account, month)
 
     def _sect_tot(rows, opening=None):
         tot = {"cash": 0.0}
@@ -1198,28 +1236,57 @@ def cashbook_page(request: Request, db: Session = Depends(get_db),
         {"title": "ด้านจ่าย  (เครดิต = เงินสด · เดบิตแยกตามประเภทเงิน)",
          "total_label": "รวมด้านจ่าย", "rows": payments, "opening": None, "tot": rout},
     ]
-    return templates.TemplateResponse("finance_cashbook.html", {
-        "request": request, "school": get_school(db), "fiscal_year": fy,
-        "lunch_mirror": _lunch_mirror(db),
-        "years": _finance_years(db, fy), "accounts": accounts, "sel_account": account,
+    return {
+        "school": get_school(db), "fiscal_year": fy, "sel_account": account,
+        "month": month, "period_label": _fy_month_range(fy, month)[2] if month else f"ประจำปีงบประมาณ {fy}",
+        "undated": _cashbook_undated(db, fy, account) if month else 0,
         "scope": scope, "funds": FUND_TYPES, "sections": sections, "carry": carry,
         "opening_cash": opening_cash, "recv_total": recv_total, "pay_total": pay_total,
+    }
+
+
+@router.get("/finance/cashbook", response_class=HTMLResponse)
+def cashbook_page(request: Request, db: Session = Depends(get_db),
+                  year: int | None = None, account: int | None = None, month: str = ""):
+    fy = year or current_fiscal_year()
+    ctx = _cashbook_context(db, fy, account, _valid_month(month))
+    ctx.update({
+        "request": request, "lunch_mirror": _lunch_mirror(db), "years": _finance_years(db, fy),
+        "accounts": db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
+        "month_options": _month_options(fy),
     })
+    return templates.TemplateResponse("finance_cashbook.html", ctx)
+
+
+@router.get("/finance/cashbook/print", response_class=HTMLResponse)
+def cashbook_print(request: Request, db: Session = Depends(get_db),
+                   year: int | None = None, account: int | None = None, month: str = ""):
+    """สมุดเงินสดสำหรับพิมพ์ / บันทึกเป็น PDF (ทั้งปีงบ หรือรายเดือน)"""
+    fy = year or current_fiscal_year()
+    ctx = _cashbook_context(db, fy, account, _valid_month(month))
+    ctx["request"] = request
+    return templates.TemplateResponse("finance_cashbook_print.html", ctx)
 
 
 @router.get("/finance/cashbook.docx")
-def cashbook_docx(db: Session = Depends(get_db), year: int | None = None, account: int | None = None):
+def cashbook_docx(db: Session = Depends(get_db), year: int | None = None, account: int | None = None,
+                  month: str = ""):
     fy = year or current_fiscal_year()
-    scope, open_by_fund, receipts, payments = _cashbook_fund_data(db, fy, account)
-    path = render_cash_book_fund(get_school(db), fy, scope, open_by_fund, receipts, payments)
+    m = _valid_month(month)
+    scope, open_by_fund, receipts, payments = _cashbook_fund_data(db, fy, account, m)
+    path = render_cash_book_fund(get_school(db), fy, scope, open_by_fund, receipts, payments,
+                                 period_label=_fy_month_range(fy, m)[2] if m else "")
     return serve_generated(path, _DOCX)
 
 
 @router.get("/finance/cashbook.xlsx")
-def cashbook_xlsx(db: Session = Depends(get_db), year: int | None = None, account: int | None = None):
+def cashbook_xlsx(db: Session = Depends(get_db), year: int | None = None, account: int | None = None,
+                  month: str = ""):
     fy = year or current_fiscal_year()
-    scope, open_by_fund, receipts, payments = _cashbook_fund_data(db, fy, account)
-    path = build_cash_book_fund_xlsx(fy, scope, open_by_fund, receipts, payments)
+    m = _valid_month(month)
+    scope, open_by_fund, receipts, payments = _cashbook_fund_data(db, fy, account, m)
+    path = build_cash_book_fund_xlsx(fy, scope, open_by_fund, receipts, payments,
+                                     period_label=_fy_month_range(fy, m)[2] if m else "")
     return serve_generated(path, _XLSX)
 
 

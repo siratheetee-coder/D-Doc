@@ -252,14 +252,14 @@ def _cb_section(doc, title, total_label, rows, *, open_by_fund=None):
     return tot
 
 
-def render_cash_book_fund(school, fiscal_year, scope_name, open_by_fund, receipts, payments) -> str:
+def render_cash_book_fund(school, fiscal_year, scope_name, open_by_fund, receipts, payments, period_label="") -> str:
     """สมุดเงินสดแบบราชการ แนวนอน: ด้านรับ (เดบิตเงินสด) + ด้านจ่าย (เครดิตเงินสด)
     เครดิต/เดบิตแยกตามประเภทเงิน (งบประมาณ/รายได้แผ่นดิน/นอกงบประมาณ)"""
     doc = Document(); set_a4(doc)
     _landscape(doc)
     _p(doc, "สมุดเงินสด", align="center", bold=True, size=18, after=0)
     _p(doc, (school.name or ""), align="center", bold=True, size=16, after=0)
-    _p(doc, f"ประจำปีงบประมาณ {fiscal_year}   ({scope_name})", align="center", size=14, after=8)
+    _p(doc, f"{period_label or 'ประจำปีงบประมาณ ' + str(fiscal_year)}   ({scope_name})", align="center", size=14, after=8)
 
     rin = _cb_section(doc, "ด้านรับ  (เดบิต = เงินสด · เครดิตแยกตามประเภทเงิน)",
                       "รวมด้านรับ", receipts, open_by_fund=open_by_fund)
@@ -275,7 +275,7 @@ def render_cash_book_fund(school, fiscal_year, scope_name, open_by_fund, receipt
 
     _sign_block(doc, school)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
-    out = out_dir / (_safe(f"สมุดเงินสด_ปีงบ{fiscal_year}_{scope_name}") + ".docx")
+    out = out_dir / (_safe(f"สมุดเงินสด_{period_label or 'ปีงบ' + str(fiscal_year)}_{scope_name}") + ".docx")
     _sign_space(doc)
     doc.save(str(out))
     return str(out)
@@ -430,11 +430,11 @@ def _cb_fund_section_xlsx(ws, r, title, total_label, rows, open_by_fund=None):
     return r + 2, tot
 
 
-def build_cash_book_fund_xlsx(fiscal_year, scope_name, open_by_fund, receipts, payments) -> str:
+def build_cash_book_fund_xlsx(fiscal_year, scope_name, open_by_fund, receipts, payments, period_label="") -> str:
     """สมุดเงินสดแบบราชการ (Excel): แยกด้านรับ/จ่าย + คอลัมน์ เงินสด + 3 งบ"""
     wb = Workbook(); ws = wb.active; ws.title = "สมุดเงินสด"
     ws.merge_cells("A1:G1")
-    t = ws.cell(1, 1, f"สมุดเงินสด  ประจำปีงบประมาณ {fiscal_year}  ({scope_name})")
+    t = ws.cell(1, 1, f"สมุดเงินสด  {period_label or 'ประจำปีงบประมาณ ' + str(fiscal_year)}  ({scope_name})")
     t.font = Font(name=THAI_FONT, bold=True, size=16)
     t.alignment = Alignment(horizontal="center", vertical="center")
     r = 3
@@ -450,7 +450,7 @@ def build_cash_book_fund_xlsx(fiscal_year, scope_name, open_by_fund, receipts, p
     for i, w in enumerate([13, 16, 40, 15, 15, 16, 16], 1):
         ws.column_dimensions[chr(64 + i)].width = w
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
-    path = out_dir / (_safe(f"สมุดเงินสด_ปีงบ{fiscal_year}_{scope_name}") + ".xlsx")
+    path = out_dir / (_safe(f"สมุดเงินสด_{period_label or 'ปีงบ' + str(fiscal_year)}_{scope_name}") + ".xlsx")
     wb.save(str(path))
     return str(path)
 

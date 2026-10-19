@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>สมุดเงินสด {{ period_label }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    @page { size: A4 landscape; margin: 1.2cm; }
+    body { font-family: "TH Sarabun New", "Sarabun", sans-serif; color:#111; font-size:15px; background:#fff; margin:16px; }
+    h1 { text-align:center; font-size:22px; margin:0; }
+    .sub { text-align:center; margin:0; }
+    .scope { text-align:center; color:#444; margin:0 0 12px; }
+    h2 { font-size:17px; margin:14px 0 4px; }
+    .wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { border:1px solid #555; padding:3px 7px; vertical-align:top; }
+    th { background:#f0f0f0; }
+    td.n, th.n { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    td.d { white-space:nowrap; }
+    tr.op td { background:#fafafa; font-weight:700; }
+    tr.t td { font-weight:700; border-top:2px solid #111; }
+    .carry { margin:10px 0 0; text-align:right; font-weight:700; font-size:16px; }
+    .carry small { display:block; font-weight:400; font-size:14px; }
+    .warn { border:1px solid #b45309; color:#7c2d12; padding:6px 10px; margin:8px 0; }
+    .sign { display:flex; justify-content:space-around; margin-top:36px; text-align:center; break-inside:avoid; }
+    .noprint { text-align:center; margin:0 0 14px; }
+    .btn { padding:8px 18px; font-size:16px; cursor:pointer; }
+    @media print { .noprint { display:none; } body { margin:0; } .wrap { overflow:visible; } }
+  </style>
+</head>
+<body>
+  <div class="noprint"><button class="btn" onclick="window.print()">พิมพ์ / บันทึกเป็น PDF</button></div>
+  <h1>สมุดเงินสด</h1>
+  <p class="sub"><b>{{ school.name }}</b></p>
+  <p class="scope">{{ period_label }}{% if month %} (ปีงบประมาณ {{ fiscal_year }}){% endif %} &middot; {{ scope }}</p>
+  {% if undated %}
+  <div class="warn">มี {{ undated }} รายการที่ไม่ได้ระบุวันที่ ไม่อยู่ในรายงานรายเดือนนี้</div>
+  {% endif %}
+
+  {% for sec in sections %}
+  <h2>{{ sec.title }}</h2>
+  <div class="wrap"><table>
+    <thead><tr>
+      <th style="width:96px;">วันที่</th><th style="width:110px;">เลขที่เอกสาร</th><th>รายการ</th>
+      <th class="n">เงินสด</th>{% for f in funds %}<th class="n">{{ f }}</th>{% endfor %}
+    </tr></thead>
+    <tbody>
+      {% if sec.opening is not none %}
+      <tr class="op"><td></td><td></td><td>ยอดยกมา</td>
+        <td class="n">{{ "{:,.2f}".format(sec.opening.values()|sum) }}</td>
+        {% for f in funds %}<td class="n">{{ "{:,.2f}".format(sec.opening.get(f, 0)) if sec.opening.get(f, 0) else "" }}</td>{% endfor %}</tr>
+      {% endif %}
+      {% for r in sec.rows %}
+      <tr><td class="d">{{ r.date or "" }}</td><td>{{ r.ref or "-" }}</td><td>{{ r.desc }}</td>
+        <td class="n">{{ "{:,.2f}".format(r.amount) }}</td>
+        {% for f in funds %}<td class="n">{{ "{:,.2f}".format(r.amount) if r.fund==f else "" }}</td>{% endfor %}</tr>
+      {% else %}
+      <tr><td colspan="{{ 4 + funds|length }}" style="text-align:center; color:#666;">ไม่มีรายการ</td></tr>
+      {% endfor %}
+      <tr class="t"><td></td><td></td><td class="n">{{ sec.total_label }}</td>
+        <td class="n">{{ "{:,.2f}".format(sec.tot.cash) }}</td>
+        {% for f in funds %}<td class="n">{{ "{:,.2f}".format(sec.tot[f]) }}</td>{% endfor %}</tr>
+    </tbody>
+  </table></div>
+  {% endfor %}
+
+  <p class="carry">เงินสดคงเหลือยกไป {{ "{:,.2f}".format(carry.cash) }} บาท
+    <small>{% for f in funds %}{{ f }} {{ "{:,.2f}".format(carry[f]) }}{{ " · " if not loop.last }}{% endfor %}</small></p>
+
+  <div class="sign">
+    <div>ลงชื่อ ........................................ ผู้จัดทำ<br>( {{ school.finance_officer_name or school.officer_name or '........................................' }} )<br>เจ้าหน้าที่การเงินและบัญชี</div>
+    <div>ลงชื่อ ........................................ ผู้ตรวจสอบ<br>( {{ school.director_name or '........................................' }} )<br>{{ school.director_position or 'ผู้อำนวยการโรงเรียน' }}</div>
+  </div>
+</body>
+</html>
