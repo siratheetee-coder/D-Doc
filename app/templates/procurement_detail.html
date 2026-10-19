@@ -54,7 +54,7 @@
   {% endif %}
   <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; align-items:center;">
     <h1 style="margin:0;">เลขที่ {{ p.memo_no or "-" }} : {{ p.proc_type }}{{ p.subject }}</h1>
-    <div style="display:flex; gap:10px; align-items:center;">
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
       <span class="pill {{ 'approve' if p.status=='อนุมัติ' else 'done' if p.status in ['ตรวจรับแล้ว','เบิกจ่ายแล้ว'] else '' }}">{{ p.status }}</span>
       <a class="btn sm" href="/procurement/{{ p.id }}/edit"><svg class="icon"><use href="#ic-edit"/></svg> แก้ไขเรื่อง</a>
       <button type="button" class="btn sm gray" onclick="showDocNos({{ p.fiscal_year }})"><svg class="icon"><use href="#ic-clipboard"/></svg> ดูเลขล่าสุด</button>

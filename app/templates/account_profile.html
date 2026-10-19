@@ -183,8 +183,7 @@
 <script>
   function copyCodes(btn){
     var txt = [].map.call(document.querySelectorAll('.tfa-codes code'),
-                          function(c){ return c.textContent.trim(); }).join('
-');
+                          function(c){ return c.textContent.trim(); }).join('\n');
     navigator.clipboard.writeText(txt).then(function(){
       var old = btn.textContent; btn.textContent = 'คัดลอกแล้ว ✓';
       setTimeout(function(){ btn.textContent = old; }, 1800);

@@ -16,7 +16,7 @@
       <div style="flex:1;"><label>วางลิงก์จาก AMSS</label><input name="url" placeholder="http://.../xxx.pdf"></div>
       <button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-download"/></svg> ดึง</button>
     </form>
-    <form method="post" action="/admin/outgoing/upload" enctype="multipart/form-data" style="flex:1.7; display:flex; gap:8px; align-items:flex-end; margin:0;">
+    <form method="post" action="/admin/outgoing/upload" enctype="multipart/form-data" style="flex:1.7; display:flex; gap:8px; align-items:flex-end; margin:0; flex-wrap:wrap;">
       <div style="flex:1;"><label>หรืออัปโหลดไฟล์ (PDF/Word/รูป)</label>
         <input type="file" name="file" accept=".pdf,.docx,.jpg,.jpeg,.png,.webp" required style="padding:6px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; width:100%;"></div>
       <button class="btn sm gray" type="submit" style="white-space:nowrap;"><svg class="icon"><use href="#ic-upload"/></svg> ระบบอ่านไฟล์เอง</button>
