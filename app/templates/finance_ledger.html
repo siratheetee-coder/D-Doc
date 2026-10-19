@@ -311,7 +311,21 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       <div><label>คู่สัญญา/ผู้รับเงิน</label><input name="party" placeholder="ชื่อผู้รับ/ผู้จ่ายเงิน"></div>
     </div>
     <div class="row">
-      <div style="flex:2;"><label>อ้างอิง</label><input name="ref" placeholder="เลขที่เรื่อง/เอกสารอื่น"></div>
+      <div style="flex:3;"><label for="refInput">เลขที่เอกสาร</label>
+        <div class="docno">
+          <select name="ref_mode" id="refMode" aria-label="วิธีใส่เลขที่เอกสาร">
+            <option value="">พิมพ์เอง</option>
+            <option value="บจ.">บจ. รันเลขให้</option>
+            <option value="บค.">บค. รันเลขให้</option>
+          </select>
+          <select name="ref_yfmt" id="refYfmt" aria-label="รูปแบบปีท้ายเลข" hidden>
+            <option value="2">/{{ "%02d"|format(fiscal_year % 100) }}</option>
+            <option value="4">/{{ fiscal_year }}</option>
+          </select>
+          <input name="ref" id="refInput" placeholder="เลขที่เรื่อง/เอกสารอื่น" autocomplete="off">
+        </div>
+        <div class="hint" id="refHint"></div>
+      </div>
       <div style="flex:2;"><label>หมายเหตุ</label><input name="note"></div>
     </div>
     {% if special_key == "guarantee" %}
@@ -377,6 +391,42 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
   .nc-x { font-weight:400; text-decoration:underline; margin-left:4px; opacity:.8; }
 </style>
 <script src="/static/eb-slot-guess.js?v=2"></script>
+<style>
+  .docno { display:flex; gap:6px; flex-wrap:wrap; }
+  .docno select { width:auto; flex:none; }
+  .docno input { flex:1 1 140px; min-width:0; }
+  .docno input[readonly] { background:linear-gradient(120deg,#eef2ff,#f5f3ff); font-weight:600; color:#4338ca; }
+</style>
+<script>
+  /* เลข บจ./บค.: เลือกแล้วโชว์เลขถัดไป · เลขจริงออกตอนกดบันทึก · จำตัวเลือกล่าสุดไว้ในเครื่องนี้ */
+  (function () {
+    var mode = document.getElementById('refMode'), yf = document.getElementById('refYfmt'),
+        inp = document.getElementById('refInput'), hint = document.getElementById('refHint');
+    if (!mode) return;
+    var fy = mode.form.querySelector('[name=fiscal_year]').value, typed = '';
+    function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+    function load(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+    function refresh() {
+      var auto = !!mode.value;
+      yf.hidden = !auto;
+      inp.readOnly = auto;
+      if (!auto) { inp.value = typed; hint.textContent = ''; return; }
+      inp.value = '';
+      fetch('/finance/docno/next?prefix=' + encodeURIComponent(mode.value) + '&year=' + fy + '&yfmt=' + yf.value,
+            { headers: { 'X-Requested-With': 'fetch' } })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { inp.value = d.ref || ''; hint.textContent = 'ระบบออกเลขให้ตอนกดบันทึก (ถ้ามีคนบันทึกก่อน เลขจะขยับเป็นเลขถัดไป)'; })
+        .catch(function () { hint.textContent = 'ระบบจะออกเลขให้ตอนกดบันทึก'; });
+    }
+    inp.addEventListener('input', function () { if (!mode.value) typed = inp.value; });
+    mode.addEventListener('change', function () { store('ddoc.refMode', mode.value); refresh(); });
+    yf.addEventListener('change', function () { store('ddoc.refYfmt', yf.value); refresh(); });
+    var m0 = load('ddoc.refMode'), y0 = load('ddoc.refYfmt');
+    if (m0 && mode.querySelector('option[value="' + m0 + '"]')) mode.value = m0;
+    if (y0 === '2' || y0 === '4') yf.value = y0;
+    if (mode.value) refresh();
+  })();
+</script>
 <script>
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){

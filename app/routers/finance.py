@@ -25,6 +25,7 @@ from app.services.budget import current_plan_year, plan_year_label
 from app.thai_utils import SCHOOL_LEVELS
 from app.services.ebudget_cat import EXPENSE as EB_EXPENSE, INCOME as EB_INCOME
 from app.services import ebudget_staff as eb_staff
+from app.services import docno
 from app.services.asset_utils import (
     account_balance, account_balance_year, opening_for, recon_sides,
     account_balance_asof, item_remaining_asof,
@@ -496,6 +497,7 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
                     item_id: str = Form(""), receipt_no: str = Form(""), party: str = Form(""),
                     due_date: str = Form(""), refund_date: str = Form(""),
                     project_id: str = Form(""), eb_code: str = Form(""), no_count: str = Form(""),
+                    ref_mode: str = Form(""), ref_yfmt: str = Form("2"),
                     subsidy_year: int = Form(0), subsidy_term: int = Form(0)):
     a = db.get(FinanceAccount, aid)
     fy = _to_int(fiscal_year, current_fiscal_year())
@@ -503,6 +505,9 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
         k = "out" if kind == "out" else "in"
         amt = _to_float(amount, 0.0)
         dt = parse_be_date(date) or datetime.now()
+        if ref_mode in docno.PREFIXES:
+            # ออกเลขตอนบันทึกจริง (ไม่ใช้เลขที่โชว์ในฟอร์ม) กันเลขซ้ำถ้ามีคนบันทึกก่อนหน้า
+            ref = docno.next_ref(db, ref_mode, fy, "4" if ref_yfmt == "4" else "2")
         t = FinanceTxn(
             account_id=a.id, fiscal_year=fy, item_id=_to_int(item_id, 0) or None,
             project_id=_to_int(project_id, 0) or None,
@@ -524,6 +529,15 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
         db.commit()
     back = f"&subsidy_year={subsidy_year}&subsidy_term={subsidy_term}" if 2500 <= subsidy_year <= 2800 and subsidy_term in (1, 2) else ""
     return RedirectResponse(f"/finance/accounts/{aid}?year={fy}{back}" + ("#txn-entry" if back else ""), status_code=303)
+
+
+@router.get("/finance/docno/next")
+def docno_next(db: Session = Depends(get_db), prefix: str = "", year: str = "", yfmt: str = "2"):
+    """เลข บจ./บค. ถัดไปของปีงบ (โชว์ในฟอร์มก่อนกดบันทึก)"""
+    if prefix not in docno.PREFIXES:
+        raise HTTPException(400, "ไม่มีชนิดเลขนี้")
+    fy = _to_int(year, current_fiscal_year())
+    return JSONResponse({"ref": docno.next_ref(db, prefix, fy, "4" if yfmt == "4" else "2")})
 
 
 @router.post("/finance/txn/{tid}/no-count")
