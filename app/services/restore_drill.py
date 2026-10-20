@@ -96,7 +96,7 @@ def _db_check(path: Path) -> tuple[bool, str, dict]:
                 return False, f"integrity_check: {res[:120]}", {}
             counts = {}
             for (t,) in con.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"):
-                counts[t] = con.execute(f'SELECT count(*) FROM "{t}"').fetchone()[0]
+                counts[t] = con.execute(f'SELECT count(*) FROM "{t}" NOT INDEXED').fetchone()[0]
             return True, "", counts
         finally:
             con.close()

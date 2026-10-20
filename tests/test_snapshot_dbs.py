@@ -170,3 +170,35 @@ def test_reindex_refuses_mixed_damage_reported_without_crash(tmp_path, capsys):
     assert rx.repair(db) == 3
     assert "ไม่ใช่แค่ดัชนี" in capsys.readouterr().out
     assert db.read_bytes() == before and not list(tmp_path.glob("accounts.db.before-reindex-*"))
+
+
+def test_reindex_counts_rows_from_table_not_from_broken_index(tmp_path, capsys):
+    """แบบเดียวกับ audit_log บน VPS: แถวกว้าง + ดัชนีคอลัมน์เลขเล็ก ๆ ที่เพี้ยน
+    count(*) ของ SQLite เลือกนับผ่านดัชนีที่เล็กที่สุด = ได้ตัวเลขผิดก่อนซ่อม -> เคยทำให้เครื่องมือย้อนกลับเอง"""
+    db = tmp_path / "accounts.db"
+    c = sqlite3.connect(db)
+    c.execute("CREATE TABLE audit_log (id INTEGER PRIMARY KEY, tenant_id INTEGER, detail TEXT)")
+    c.execute("CREATE INDEX ix_audit_log_tenant_id ON audit_log(tenant_id)")
+    c.executemany("INSERT INTO audit_log (tenant_id, detail) VALUES (?, ?)", [(i % 7, "x" * 400) for i in range(300)])
+    c.commit()
+    row = c.execute("SELECT type, name, tbl_name, rootpage, sql FROM sqlite_master WHERE name='ix_audit_log_tenant_id'").fetchone()
+    c.execute("PRAGMA writable_schema=ON")
+    c.execute("DELETE FROM sqlite_master WHERE name='ix_audit_log_tenant_id'")
+    c.commit(); c.close()
+    c = sqlite3.connect(db)
+    c.executemany("INSERT INTO audit_log (tenant_id, detail) VALUES (?, ?)", [(1, "y" * 400) for _ in range(40)])
+    c.commit(); c.close()
+    c = sqlite3.connect(db)
+    c.execute("PRAGMA writable_schema=ON")
+    c.execute("INSERT INTO sqlite_master (type, name, tbl_name, rootpage, sql) VALUES (?,?,?,?,?)", row)
+    c.commit(); c.close()
+    c = sqlite3.connect(db)
+    plan = " ".join(str(r) for r in c.execute("EXPLAIN QUERY PLAN SELECT count(*) FROM audit_log"))
+    via_index = c.execute("SELECT count(*) FROM audit_log").fetchone()[0]
+    c.close()
+    assert "ix_audit_log_tenant_id" in plan and via_index == 300, "ยืนยันว่า count(*) เฉย ๆ นับผ่านดัชนีที่เพี้ยน"
+    assert rx.repair(db) == 0, capsys.readouterr().out
+    c = sqlite3.connect(db)
+    assert c.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    assert c.execute("SELECT count(*) FROM audit_log").fetchone()[0] == 340
+    c.close()

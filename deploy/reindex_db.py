@@ -28,8 +28,10 @@ def integrity(con) -> list:
 
 
 def counts(con) -> dict:
+    """จำนวนแถวจริงจากตัวตาราง · NOT INDEXED สำคัญ: count(*) เฉย ๆ SQLite นับผ่านดัชนีที่เล็กที่สุด
+    ซึ่งคือดัชนีที่เพี้ยนอยู่ ตัวเลข "ก่อนซ่อม" จะผิด แล้วเครื่องมือย้อนกลับเองทั้งที่ซ่อมถูก (เจอบน VPS)"""
     tables = [t for (t,) in con.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")]
-    return {t: con.execute(f'SELECT count(*) FROM "{t}"').fetchone()[0] for t in tables}
+    return {t: con.execute(f'SELECT count(*) FROM "{t}" NOT INDEXED').fetchone()[0] for t in tables}
 
 
 def repair(db: Path) -> int:
