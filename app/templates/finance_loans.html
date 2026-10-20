@@ -109,12 +109,12 @@
 </div>
 
 <style>
-  .loan-dates { display:grid; grid-template-columns:1fr 1.2fr .85fr 1.2fr 1.2fr; gap:12px; }
+  /* auto-fit ตามความกว้างจริงของการ์ด (มีแถบเมนูข้าง) ช่องแคบเกินจนหัวข้อตกบรรทัดจะขึ้นแถวใหม่แทน */
+  .loan-dates { display:grid; grid-template-columns:repeat(auto-fit, minmax(165px, 1fr)); gap:12px; }
   .loan-dates > div { min-width:0; }
   tr[id^="ret"][hidden] { display:none !important; }
   .loan-actions .btn { margin:2px; }
   .loan-settled { display:inline-flex; white-space:nowrap; align-items:center; }
-  @media(max-width:800px) { .loan-dates { grid-template-columns:repeat(2,minmax(0,1fr)); } }
   @media(max-width:480px) { .loan-dates { grid-template-columns:1fr; } }
 </style>
 <script>

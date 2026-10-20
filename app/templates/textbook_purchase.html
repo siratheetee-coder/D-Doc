@@ -86,7 +86,7 @@
       <div style="flex:1.4;"><label>แหล่งงบประมาณ</label><input name="budget_source" value="{{ tp.budget_source or 'เงินอุดหนุนรัฐบาล' }}"></div>
     </div>
     <div class="row">
-      <div><label>วงเงินงบประมาณที่ได้รับ (บาท)</label><input name="total_budget" type="number" step="0.01" value="{{ '%g'|format(tp.total_budget or 0) }}"></div>
+      <div><label title="วงเงินงบประมาณที่ได้รับ">วงเงินงบประมาณ (บาท)</label><input name="total_budget" type="number" step="0.01" value="{{ '%g'|format(tp.total_budget or 0) }}"></div>
       <div><label>ราคากลาง (บาท)</label><input name="price_ref" type="number" step="0.01" value="{{ '%g'|format(tp.price_ref or 0) }}"></div>
       <div style="flex:1.4;"><label>ระยะเวลาดำเนินการ</label><input name="period_text" value="{{ tp.period_text }}" placeholder="เช่น เมษายน - พฤษภาคม 2569"></div>
     </div>
@@ -103,7 +103,7 @@
     <div class="row">
       <div><label>เลขที่บันทึกขออนุญาต</label><input name="memo_no" value="{{ tp.memo_no }}"></div>
       <div><label>ลงวันที่</label><input name="memo_date" value="{{ be_date_input(tp.memo_date) if tp.memo_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
-      <div><label>เลขที่คำสั่งแต่งตั้ง กก.คัดเลือก</label><input name="order_no" value="{{ tp.order_no }}"></div>
+      <div><label title="เลขที่คำสั่งแต่งตั้งคณะกรรมการคัดเลือก">เลขที่คำสั่ง กก.คัดเลือก</label><input name="order_no" value="{{ tp.order_no }}"></div>
       <div><label>ลงวันที่</label><input name="order_date" value="{{ be_date_input(tp.order_date) if tp.order_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
     </div>
     <div class="row">
@@ -118,8 +118,8 @@
       <div style="flex:1.6;"><label>สถานที่ประชุม</label><input name="meet_place" value="{{ tp.meet_place }}" placeholder="เช่น ห้องประชุมโรงเรียน"></div>
     </div>
     <div class="row">
-      <div style="flex:1.4;"><label>หัวหน้างานวิชาการ (ผู้เสนอบันทึก / เจ้าของเรื่องท้ายหนังสือเชิญ)</label><input name="academic_head" list="persons" value="{{ tp.academic_head }}"></div>
-      <div style="flex:1.6;"><label>ผู้ขาย (ร้าน/สำนักพิมพ์ที่ตกลงซื้อ)</label>
+      <div style="flex:1.4;"><label title="ผู้เสนอบันทึก / เจ้าของเรื่องท้ายหนังสือเชิญ">หัวหน้างานวิชาการ</label><input name="academic_head" list="persons" value="{{ tp.academic_head }}"></div>
+      <div style="flex:1.6;"><label title="ร้าน/สำนักพิมพ์ที่ตกลงซื้อ">ผู้ขาย (ร้าน/สำนักพิมพ์)</label>
         <div style="display:flex; gap:8px; align-items:center;">
           <input name="vendor_name" id="vendorInput" list="vendors_dl" autocomplete="off" value="{{ tp.vendor_name or '' }}" placeholder="เช่น หจก.เพื่อนครูบุ๊คเซ็นเตอร์" style="flex:1;">
           <button type="button" class="btn sm gray" style="white-space:nowrap;" onclick="openVendorModal()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มผู้ขาย</button>

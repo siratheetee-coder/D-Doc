@@ -298,7 +298,7 @@
       <div><label>รับประกันความชำรุดบกพร่อง</label>
         <input name="warranty_text" value="{{ p.warranty_text or '1 ปี' if is_edit else '1 ปี' }}"
                placeholder="เช่น 1 ปี"></div>
-      <div><label>ซ่อมแก้ไขภายใน (วัน) นับจากแจ้ง</label>
+      <div><label title="นับจากวันที่แจ้ง">ซ่อมแก้ไขภายใน (วัน)</label>
         <input name="fix_days" type="number" min="1"
                value="{{ p.fix_days or 7 if is_edit else 7 }}"></div>
     </div>

@@ -252,5 +252,5 @@ def test_asset_papers_no_longer_hardcode_the_school_district():
 def test_settings_page_asks_for_the_parent_office_in_neutral_words():
     html = (ROOT / "app" / "templates" / "settings.html").read_text(encoding="utf-8")
     assert "<label>ต้นสังกัด</label>" in html
-    assert "คำสั่งมอบอำนาจจัดซื้อจัดจ้าง ที่" in html
+    assert "<label>คำสั่งมอบอำนาจ ที่</label>" in html and "คำสั่งมอบอำนาจจัดซื้อจัดจ้างของต้นสังกัด" in html
     assert "คำสั่ง สพฐ. มอบอำนาจ" not in html, "ป้ายช่องยังผูกกับ สพฐ."

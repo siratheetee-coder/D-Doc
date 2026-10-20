@@ -21,7 +21,7 @@
         <div class="hint">หน่วยงานที่ต้องส่งรายงานให้ ใช้ในหนังสือรับรองบุคลากร (สังกัด...)
           หนังสือแจ้งผลตรวจสอบพัสดุ และหนังสือแจ้งจำหน่ายพัสดุ</div>
       </div>
-      <div><label>เลขประจำตัวผู้เสียภาษีอากร</label>
+      <div><label title="เลขประจำตัวผู้เสียภาษีอากร">เลขผู้เสียภาษี</label>
         <input name="tax_id" value="{{ school.tax_id or '' }}" inputmode="numeric" maxlength="17" placeholder="13 หลัก">
         <div class="hint">ใช้ในหนังสือรับรองการหักภาษี ณ ที่จ่าย (แบบ 4235)</div>
       </div>
@@ -54,8 +54,9 @@
     </div>
     <div class="row">
       <div><label>อักษรนำเลขหนังสือ</label><input name="doc_prefix" value="{{ school.doc_prefix }}"></div>
-      <div><label>คำสั่งมอบอำนาจจัดซื้อจัดจ้าง ที่ <span class="muted" style="font-size:13px;">(คำสั่งของต้นสังกัด เช่น สพฐ. ที่ 1340/2560 · อ้างในคำสั่งแต่งตั้งคณะกรรมการ)</span></label>
-        <input name="delegation_cmd_no" value="{{ school.delegation_cmd_no or '' }}" placeholder="เช่น 1340/2566"></div>
+      <div><label>คำสั่งมอบอำนาจ ที่</label>
+        <input name="delegation_cmd_no" value="{{ school.delegation_cmd_no or '' }}" placeholder="เช่น 1340/2566">
+        <div class="hint">คำสั่งมอบอำนาจจัดซื้อจัดจ้างของต้นสังกัด เช่น สพฐ. ที่ 1340/2560 · อ้างในคำสั่งแต่งตั้งคณะกรรมการ</div></div>
       <div><label>ลงวันที่ (คำสั่งมอบอำนาจ)</label>
         <input name="delegation_cmd_date" data-date="1" placeholder="วว/ดด/ปปปป"
                value="{{ be_date(school.delegation_cmd_date) if school.delegation_cmd_date else '' }}"></div>

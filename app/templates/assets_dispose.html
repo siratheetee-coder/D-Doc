@@ -29,7 +29,7 @@
         {% for m in ["ขายทอดตลาด","ขาย","บริจาค","แลกเปลี่ยน","โอน","ทำลาย","ตัดจำหน่าย (สูญ/ไม่มีซาก)"] %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
       </select>
     </div>
-    <div><label>มูลค่าที่คาดว่าจะได้ (กรณีขาย)</label><input name="dispose_value" type="number" step="0.01" min="0" value="0"></div>
+    <div><label title="มูลค่าที่คาดว่าจะได้ กรณีขาย">มูลค่าที่คาดว่าจะได้</label><input name="dispose_value" type="number" step="0.01" min="0" value="0"><div class="hint">กรณีขาย</div></div>
   </div>
   <label>หมายเหตุเพิ่มเติม (ไม่บังคับ)</label>
   <textarea name="note" placeholder="ข้อความเพิ่มเติมในเอกสาร (ถ้ามี)"></textarea>

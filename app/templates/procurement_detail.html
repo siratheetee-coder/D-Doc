@@ -187,10 +187,12 @@
     <div class="docgrp">
       <div class="docgrp-h">ใบเสนอราคา</div>
       <div class="row">
-        <div><label>เลขที่ใบเสนอราคา <span class="muted" style="font-size:13px;">(ของร้าน · ใช้กรอก e-GP)</span></label>
-          <input name="quotation_no" value="{{ p.quotation_no or '' }}" placeholder="เช่น Q68/001"></div>
-        <div><label>วันที่ใบเสนอราคา <span class="muted" style="font-size:13px;">(ถ้าว่างใช้วันที่ใบสั่ง)</span></label>
-          <input name="quotation_date" value="{{ be_date(p.quotation_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+        <div><label>เลขที่ใบเสนอราคา</label>
+          <input name="quotation_no" value="{{ p.quotation_no or '' }}" placeholder="เช่น Q68/001">
+          <div class="hint">เลขของร้าน ใช้ตอนกรอก e-GP</div></div>
+        <div><label>วันที่ใบเสนอราคา</label>
+          <input name="quotation_date" value="{{ be_date(p.quotation_date) }}" placeholder="วว/ดด/ปปปป" data-date="1">
+          <div class="hint">เว้นว่าง ใช้วันที่ใบสั่ง</div></div>
       </div>
     </div>
 
@@ -218,10 +220,9 @@
         <div><label>เลขที่ใบสั่ง</label><input name="order_no" value="{{ p.order_no }}"></div>
         <div><label>ลงวันที่</label><input name="order_date" id="order_date" value="{{ be_date(p.order_date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
         <div>
-          <label>ครบกำหนดส่งมอบ
-            <span class="muted" style="font-size:13px;">(คำนวณให้ถ้าว่าง)</span>
-          </label>
+          <label>ครบกำหนดส่งมอบ</label>
           <input name="delivery_due_date" id="delivery_due_date" value="{{ be_date(p.delivery_due_date) }}" placeholder="วว/ดด/ปปปป" data-date="1">
+          <div class="hint">เว้นว่าง ระบบคำนวณให้</div>
         </div>
       </div>
       <div class="docnote"><svg class="icon"><use href="#ic-info"/></svg>
