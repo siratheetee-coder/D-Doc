@@ -73,8 +73,9 @@ def check_backup() -> dict:
     if not BACKUP_DIR.is_dir():
         return {"name": "backup", "ok": False,
                 "detail": f"ไม่พบโฟลเดอร์สำรอง {BACKUP_DIR} (ตั้ง cron backup.sh แล้วหรือยัง)"}
-    files = sorted(BACKUP_DIR.glob("ddoc-backup-*.tar.gz"), key=lambda p: p.stat().st_mtime,
-                   reverse=True)
+    # backup.sh เข้ารหัสแล้วได้ .tar.gz.enc (glob "*.tar.gz" ไม่จับไฟล์นี้ เคยทำให้ตรวจไม่เจอไฟล์สำรองเลย)
+    files = sorted(list(BACKUP_DIR.glob("ddoc-backup-*.tar.gz.enc")) + list(BACKUP_DIR.glob("ddoc-backup-*.tar.gz")),
+                   key=lambda p: p.stat().st_mtime, reverse=True)
     if not files:
         return {"name": "backup", "ok": False, "detail": f"ยังไม่มีไฟล์สำรองใน {BACKUP_DIR}"}
     newest = files[0]

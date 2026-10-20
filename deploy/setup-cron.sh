@@ -28,6 +28,7 @@ done
 
 chmod +x "$BACKUP_SH" "$HEALTH_SH"
 [ -f "$APP_DIR/deploy/restore.sh" ] && chmod +x "$APP_DIR/deploy/restore.sh"
+[ -f "$APP_DIR/deploy/restore-drill.sh" ] && chmod +x "$APP_DIR/deploy/restore-drill.sh"
 
 # backup.sh เข้ารหัสไฟล์สำรองเสมอ ถ้ายังไม่มีกุญแจจะล้มเหลวทุกคืนแบบเงียบ ๆ
 KEYFILE="${DDOC_BACKUP_KEYFILE:-/etc/ddoc-backup.key}"
@@ -55,6 +56,7 @@ $CURRENT
 30 3 * * * cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.retention >> /var/log/ddoc-retention.log 2>&1 $MARK
 0 9 * * * cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.trial_notice >> /var/log/ddoc-trial-notice.log 2>&1 $MARK
 0 8 * * * cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.member_notice >> /var/log/ddoc-member-notice.log 2>&1 $MARK
+0 4 1 * * $APP_DIR/deploy/restore-drill.sh >> /var/log/ddoc-restore-drill.log 2>&1 $MARK
 EOF
 )"
 
@@ -66,6 +68,7 @@ echo "  - ตรวจสุขภาพระบบ  ทุก 15 นาที 
 echo "  - ลบข้อมูลที่ไม่ใช้งาน ทุกวัน ตี 3:30 -> /var/log/ddoc-retention.log"
 echo "  - อีเมลเตือนต่ออายุ   ทุกวัน 8 โมง -> /var/log/ddoc-member-notice.log"
 echo "  - อีเมลเตือนทดลองใช้  ทุกวัน 9 โมง -> /var/log/ddoc-trial-notice.log"
+echo "  - ซ้อมกู้ข้อมูล (ไม่แตะข้อมูลจริง) วันที่ 1 ทุกเดือน ตี 4 -> /var/log/ddoc-restore-drill.log"
 echo ""
 crontab -l | grep "$MARK"
 echo ""
