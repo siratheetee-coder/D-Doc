@@ -775,7 +775,7 @@
 <!-- ================= ราคา ================= -->
 {% set px = prices | default(price_list()) %}
 {% set full = full_sum | default(px.p_proc + px.p_fin + px.p_admin + px.p_lunch + px.p_hr + px.p_acad) %}
-{% set save = bundle_save | default(750) %}
+{% set save = bundle_save | default(1250) %}
 <section class="pricing" id="pricing">
   <div class="wrap">
     <div class="sec-head">
