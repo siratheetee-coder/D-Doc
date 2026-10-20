@@ -531,27 +531,69 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
     return RedirectResponse(f"/finance/accounts/{aid}?year={fy}{back}" + ("#txn-entry" if back else ""), status_code=303)
 
 
+_FUND_KIND_TH = {"opening": "เงินเหลือก่อนเริ่มแผน", "subsidy": "เงินอุดหนุนรอบใหม่", "other": "เงินอื่น ๆ"}
+
+
+@router.get("/finance/projects/quick-form")
+def project_quick_form(db: Session = Depends(get_db), year: str = ""):
+    """ข้อมูลสำหรับ pop-up เพิ่มโครงการ: ฝ่าย · ปีแผน · รายการเงินในแผนงบปีนั้นที่ยังจัดสรรได้"""
+    from app.models import Department
+    from app.services import plan_funding as pf
+    school = get_school(db)
+    cur = current_plan_year(school)
+    py = _to_int(year, 0)
+    if not 2500 <= py <= 2800:
+        py = cur
+    plan = pf.plan(db, py)
+    sources = [{"id": s.id, "name": s.name, "kind": _FUND_KIND_TH.get(s.kind, s.kind),
+                "available": round(s.amount - pf.allocated(db, s.id), 2)} for s in pf.sources(db, plan)]
+    return JSONResponse({
+        "plan_year": py, "current": cur, "year_label": plan_year_label(school),
+        "years": _plan_year_list(db, cur),
+        "departments": [d.name for d in db.query(Department).order_by(Department.name)],
+        "has_plan": plan is not None, "plan_link": f"/plan-budget/{py}",
+        "sources": [s for s in sources if s["available"] > 0],
+    })
+
+
 @router.post("/finance/projects/quick")
-def project_quick_add(db: Session = Depends(get_db), name: str = Form(""), budget: str = Form("0"),
-                      plan_year: str = Form("")):
-    """เพิ่มโครงการจากช่องเลือกโครงการในฟอร์มบันทึกรายการ/ขอเบิกจ่าย (ไม่ต้องออกจากหน้า)
-    ชื่อซ้ำในปีแผนเดียวกัน = ใช้โครงการเดิม ไม่สร้างซ้ำ"""
-    from app.services.budget import current_plan_year
-    name = " ".join((name or "").split())
+async def project_quick_add(request: Request, db: Session = Depends(get_db)):
+    """เพิ่มโครงการจาก pop-up ในฟอร์มบันทึกรายการ/ขอเบิกจ่าย (ไม่ต้องออกจากหน้า)
+    กรอกได้ครบเหมือนหน้าโครงการ + จัดสรรงบจากแผนงบ (fund_<id>) ในคราวเดียว
+    จัดสรรไม่ผ่าน (เกินงบ/เกินเงินที่เหลือ) = ไม่สร้างโครงการเลย · ชื่อซ้ำในปีแผนเดียวกัน = แจ้งและใช้โครงการเดิม"""
+    from app.services import plan_funding as pf
+    f = await request.form()
+    name = " ".join(str(f.get("name") or "").split())
     if not name:
         raise HTTPException(400, "กรุณาพิมพ์ชื่อโครงการ")
     if len(name) > 300:
         raise HTTPException(400, "ชื่อโครงการยาวเกินไป")
-    py = _to_int(plan_year, 0)
+    py = _to_int(f.get("plan_year"), 0)
     if not 2500 <= py <= 2800:
         py = current_plan_year(get_school(db))
+    responsible = " ".join(str(f.get("responsible") or "").split())[:200]
+    budget = max(0.0, _to_float(f.get("budget"), 0.0))
+    funds = {k[5:]: v for k, v in f.items() if k.startswith("fund_") and _to_float(v, 0.0) > 0}
     pj = db.query(Project).filter(Project.plan_year == py, Project.name == name).first()
-    created = pj is None
-    if created:
-        pj = Project(name=name, budget=max(0.0, _to_float(budget, 0.0)), plan_year=py, active=True)
-        db.add(pj)
-        db.commit()
-    return JSONResponse({"id": pj.id, "label": f"{pj.name} · ปีแผน {pj.plan_year}", "created": created})
+    if pj is not None:
+        return JSONResponse({"id": pj.id, "label": f"{pj.name} · ปีแผน {pj.plan_year}", "created": False,
+                             "link": f"/projects/{pj.id}",
+                             "message": f"มีโครงการชื่อนี้ในปี {py} อยู่แล้ว ระบบเลือกโครงการเดิมให้"})
+    pj = Project(name=name, budget=budget, responsible=responsible, plan_year=py, active=True)
+    db.add(pj)
+    db.flush()
+    if funds:
+        plan = pf.plan(db, py)
+        try:
+            if plan is None:
+                raise ValueError(f"ยังไม่ได้กำหนดงบที่ใช้จัดทำแผน ปี {py}")
+            pf.allocate(db, plan, pj, funds, pf.allocation_token(db, plan, pj))
+        except ValueError as e:
+            db.rollback()
+            raise HTTPException(400, str(e))
+    db.commit()
+    return JSONResponse({"id": pj.id, "label": f"{pj.name} · ปีแผน {pj.plan_year}", "created": True,
+                         "link": f"/projects/{pj.id}"})
 
 
 @router.get("/finance/docno/next")
