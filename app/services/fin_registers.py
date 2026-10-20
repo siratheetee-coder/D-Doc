@@ -159,20 +159,24 @@ def render_safe_custody(school, rows, total, as_of) -> str:
 def render_disburse_register(school, fiscal_year, memos) -> str:
     doc = _new(landscape=True)
     _title(doc, school, "ทะเบียนคุมหลักฐานขอเบิก", fiscal_year)
-    headers = ["วัน เดือน ปี", "เจ้าหนี้หรือผู้ขอเบิก", "ประเภทรายจ่าย", "จำนวนเงิน",
-               "ลายมือชื่อผู้รับหลักฐาน", "วัน เดือน ปี ที่ส่ง\nส่วนราชการผู้เบิก", "หมายเหตุ"]
-    widths = [Cm(2.6), Cm(6.0), Cm(5.4), Cm(2.8), Cm(4.2), Cm(3.2), Cm(2.5)]
+    # 9 คอลัมน์ในกระดาษ A4 แนวนอน (กว้างใช้ได้ 26.7 ซม.) วันที่แบบย่อ กันตกบรรทัดในช่องแคบ
+    # ความกว้างตรวจแล้วกับเอกสารจริง (Word -> PDF) ตัวเลข/วันที่/เลขที่บันทึกไม่ตกบรรทัด
+    headers = ["วัน เดือน ปี", "เลขที่บันทึก", "เจ้าหนี้หรือผู้ขอเบิก", "ประเภทรายจ่าย", "จำนวนเงิน",
+               "ชื่อผู้รับเงิน", "ลายมือชื่อ\nผู้รับหลักฐาน", "วัน เดือน ปี ที่ส่ง\nส่วนราชการผู้เบิก", "หมายเหตุ"]
+    widths = [Cm(2.3), Cm(2.1), Cm(4.2), Cm(4.2), Cm(2.6), Cm(3.4), Cm(2.8), Cm(2.6), Cm(2.5)]
+    aligns = ["center", "center", "left", "left", "right", "left", "center", "center", "left"]
     t = _grid(doc, headers, widths)
     total = 0.0
     for m in memos:
         total += float(m.amount or 0)
-        _row(t, [thai_date(m.date) if m.date else "", m.payee or "",
-                 (m.budget_source or m.subject or "")[:48], _money(m.amount), "", "",
-                 m.memo_no or ""],
-             widths, ["center", "left", "left", "right", "center", "center", "center"])
-    _blank_rows(t, max(0, 6 - len(memos)), widths, 7)
-    _row(t, ["", "", "รวม", _money(total), "", "", ""], widths,
-         ["center", "left", "right", "right", "center", "center", "center"], bold=True)
+        _row(t, [thai_date_short(m.date) if m.date else "", m.memo_no or "", m.payee or "",
+                 (m.budget_source or m.subject or "")[:100], _money(m.amount),
+                 (getattr(m, "receiver_name", "") or "").strip(), "", "",
+                 (getattr(m, "register_note", "") or "").strip()],
+             widths, aligns)
+    _blank_rows(t, max(0, 6 - len(memos)), widths, len(headers))
+    _row(t, ["", "", "", "รวม", _money(total), "", "", "", ""], widths,
+         ["center", "center", "left", "right", "right", "left", "center", "center", "left"], bold=True)
     _sign_finance(doc, school)
     return _save(doc, f"ทะเบียนคุมหลักฐานขอเบิก_ปีงบ{fiscal_year}")
 

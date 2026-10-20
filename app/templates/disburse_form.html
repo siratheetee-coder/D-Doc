@@ -22,7 +22,7 @@
     </div>
     <div class="row">
       <div style="flex:2;"><label>เรื่อง *</label><input name="subject" required value="{{ prefill.subject if prefill else '' }}" placeholder="เช่น จัดซื้อวัสดุสำนักงาน"></div>
-      <div style="flex:2;"><label>จ่ายให้ (ผู้รับเงิน)</label><input name="payee" value="{{ prefill.payee if prefill else '' }}" placeholder="ชื่อผู้ขาย/ผู้รับจ้าง"></div>
+      <div style="flex:2;"><label>จ่ายให้ (เจ้าหนี้/ผู้ขาย)</label><input name="payee" value="{{ prefill.payee if prefill else '' }}" placeholder="ชื่อผู้ขาย/ผู้รับจ้าง"></div>
     </div>
     <div class="row">
       <div><label>ประเภท</label>
@@ -59,6 +59,12 @@
       <div><label>มูลค่าสินค้า / คงเหลือจ่ายจริง</label><input value="คำนวณให้อัตโนมัติในเอกสาร" disabled style="background:#f3f5f9;"></div>
     </div>
     <input type="hidden" name="procurement_id" value="{{ prefill.procurement_id if prefill else '' }}">
+    <div class="row">
+      <div><label>ชื่อผู้รับเงิน</label><input name="receiver_name" value="" placeholder="คนที่มารับเงิน/เช็คจริง">
+        <div class="hint">ลงในทะเบียนคุมหลักฐานขอเบิก · เว้นว่างไว้เขียนมือได้</div></div>
+      <div style="flex:2;"><label>หมายเหตุในทะเบียน</label><input name="register_note" value="" maxlength="300">
+        <div class="hint">แสดงในช่องหมายเหตุของทะเบียนคุมหลักฐานขอเบิก (แยกจากรายละเอียดเพิ่มเติม)</div></div>
+    </div>
     <label>รายละเอียดเพิ่มเติม</label>
     <textarea name="note" placeholder="รายละเอียดประกอบการเบิกจ่าย (ไม่บังคับ)"></textarea>
     <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกและสร้างเรื่อง</button>

@@ -751,7 +751,7 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
                     account_id: str = Form(""), procurement_id: str = Form(""), note: str = Form(""),
                     vat: str = Form("0"), wht: str = Form("0"), fine: str = Form("0"),
                     proc_kind: str = Form("จัดซื้อ"), project_id: str = Form(""),
-                    item_id: str = Form("")):
+                    item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form("")):
     fy = _to_int(fiscal_year, current_fiscal_year())
     no = memo_no.strip() or suggest_doc_no(db, "memo", fy)
     m = DisburseMemo(
@@ -763,6 +763,7 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
         item_id=_to_int(item_id, 0) or None,
         procurement_id=_to_int(procurement_id, 0) or None, note=note,
         project_id=_to_int(project_id, 0) or None,
+        receiver_name=receiver_name.strip()[:200], register_note=register_note.strip()[:300],
     )
     db.add(m); db.flush()
     commit_doc_no(db, "memo", fy, no, source="finance", ref_id=m.id, date=m.date,
@@ -796,7 +797,7 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
                     account_id: str = Form(""), status: str = Form(""), note: str = Form(""),
                     vat: str = Form("0"), wht: str = Form("0"), fine: str = Form("0"),
                     proc_kind: str = Form("จัดซื้อ"), project_id: str = Form(""),
-                    item_id: str = Form("")):
+                    item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form("")):
     payments.lock(db)
     m = db.get(DisburseMemo, mid)
     if m:
@@ -809,6 +810,8 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
         m.item_id = _to_int(item_id, 0) or None
         m.project_id = _to_int(project_id, 0) or None
         m.note = note
+        m.receiver_name = receiver_name.strip()[:200]
+        m.register_note = register_note.strip()[:300]
         # ถ้าบันทึกนี้ลงจ่ายเข้าทะเบียนคุมเงินไปแล้ว ให้ปรับรายการในทะเบียนให้ตรงกัน
         # (แก้หมวด/บัญชี/จำนวน/วันที่ ย้อนหลังได้ ยอดคงเหลือรายหมวดจะอัปเดตตาม)
         txn = db.query(FinanceTxn).filter_by(disburse_id=m.id).first()

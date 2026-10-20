@@ -282,6 +282,8 @@ MIGRATIONS = [
     ("finance_account", "eb_slot", "VARCHAR DEFAULT ''"),
     ("account_item", "eb_slot", "VARCHAR DEFAULT ''"),
     ("finance_txn", "no_count", "BOOLEAN DEFAULT 0"),
+    ("disburse_memo", "receiver_name", "VARCHAR DEFAULT ''"),
+    ("disburse_memo", "register_note", "VARCHAR DEFAULT ''"),
     # ---- ตารางกลาง StudentMeasure สร้างอัตโนมัติผ่าน create_all (ไม่ต้อง migrate คอลัมน์) ----
 ]
 

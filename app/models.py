@@ -936,6 +936,8 @@ class DisburseMemo(Base):
     procurement_id = Column(Integer, ForeignKey("procurement.id"), nullable=True)
     project_id = Column(Integer, ForeignKey("project.id"), nullable=True)  # ผูกกับโครงการในแผน
     note = Column(Text, default="")                  # รายละเอียดเพิ่มเติม
+    receiver_name = Column(String, default="")       # ชื่อผู้รับเงิน (คนที่มารับเงิน/เช็คจริง) ลงทะเบียนคุมหลักฐานขอเบิก
+    register_note = Column(String, default="")       # หมายเหตุในทะเบียนคุมหลักฐานขอเบิก (แยกจากรายละเอียดเพิ่มเติม)
     status = Column(String, default="ร่าง")          # ร่าง / อนุมัติ / จ่ายแล้ว
     file_path = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)
