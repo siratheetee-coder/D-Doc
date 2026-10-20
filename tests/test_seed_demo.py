@@ -198,3 +198,33 @@ def test_demo_pages_and_documents_work(demo):
                 f"/procurement/{pid}", f"/procurement/{pid}/bundle"]:
         rr = c.get(url)
         assert rr.status_code == 200 and len(rr.content) > 10000, url
+
+
+def test_seed_school_money_is_consistent(tmp_path):
+    """ระบบตัวอย่าง (ทดลองใช้ระบบตัวอย่าง) ไม่ควรมีบัญชีติดลบ หรือกล่องเตือนยอดยกมาไม่ตรง
+    เดิมรับเงินอาหารกลางวันลงแค่บัญชีหน้าอาหารกลางวัน บัญชีในทะเบียนคุมเงินเลยมีแต่จ่าย ติดลบ -122,400"""
+    from datetime import date
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from app.database import init_school_db
+    from app.services.demo_seed import seed_school
+    from app.services.finance_openings import carry_status, account_balance_year
+    from app.services.lunch_finance import totals
+    from app.thai_utils import current_fiscal_year
+    from app.models import FinanceAccount, LunchProgram
+    e = create_engine(f"sqlite:///{tmp_path / 's.db'}")
+    init_school_db(e)
+    db = sessionmaker(bind=e)()
+    try:
+        seed_school(db, today=date.today())
+        fy = current_fiscal_year()
+        assert carry_status(db, fy) == []
+        for a in db.query(FinanceAccount):
+            for y in {t.fiscal_year for t in a.txns} | {fy}:
+                assert account_balance_year(a, y) >= 0, (a.name, y)
+        prog = db.query(LunchProgram).first()
+        t = totals(db, prog)
+        assert prog.finance_account_id and t["in"] > 0 and t["balance"] >= 0
+    finally:
+        db.close()
+        e.dispose()

@@ -73,9 +73,13 @@ def _dir():
     return d
 
 
+# เปลี่ยนเลขเมื่อแก้ข้อมูลตัวอย่าง (demo_seed) ให้สร้างต้นแบบใหม่ทันทีหลัง deploy ไม่ต้องรอข้ามวัน
+SEED_REV = 2
+
+
 def template_path(today: date | None = None):
     today = today or date.today()
-    return _dir() / f"template-{today:%Y%m%d}.db"
+    return _dir() / f"template-{today:%Y%m%d}-r{SEED_REV}.db"
 
 
 def ensure_template(today: date | None = None):

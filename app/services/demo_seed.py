@@ -21,6 +21,7 @@ demo_seed.py - สร้างโรงเรียนสมมติสำห�
 import json
 import sys
 from datetime import date, datetime, timedelta
+from app.thai_utils import current_fiscal_year
 
 DEMO_SLUG = "demo"
 DEMO_SCHOOL = "โรงเรียนบ้านตัวอย่างวิทยา"
@@ -612,10 +613,19 @@ def seed_school(db, *, today: date) -> dict:
                           funding_org="องค์การบริหารส่วนตำบลตัวอย่าง", lunch_officer=PEOPLE[8][0])
     for i, (lvl, n) in enumerate((("อ.2", 6), ("อ.3", 6), ("ป.1", 20), ("ป.2", 5), ("ป.3", 3))):
         prog.classes.append(m.LunchClass(seq=i, level=lvl, num_students=n))
+    # บัญชีเงินอาหารกลางวันในทะเบียนคุมเงิน: การเงินลงรับเงินจาก อบต. ที่นี่ หน้าอาหารกลางวันดึงรายการรับมาเอง
+    # (เดิมลงรับในบัญชีหน้าอาหารกลางวัน ซึ่งไม่ไปถึงทะเบียนคุมเงิน บัญชีอาหารกลางวันเลยติดลบในระบบตัวอย่าง)
+    acc_lunch = m.FinanceAccount(name="เงินอาหารกลางวัน", opening_balance=0, deposit_type="bank",
+                                 fund_type="เงินนอกงบประมาณ", eb_slot="3.2.2")
+    db.add(acc_lunch)
+    db.flush()
+    prog.finance_account_id = acc_lunch.id
     db.add(prog)
     db.flush()
-    prog.ledger.append(m.LunchLedger(date=_d(ce, 5, 20), kind="in", amount=round(prog.budget / 2, 2),
-                                     detail="รับเงินอุดหนุนอาหารกลางวัน ภาคเรียนที่ 1", ref="อบต 0002/88"))
+    recv = _d(ce, 5, 20)
+    db.add(m.FinanceTxn(account_id=acc_lunch.id, kind="in", amount=round(prog.budget / 2, 2), date=recv,
+                        fiscal_year=current_fiscal_year(recv), lunch_year=ay, eb_code="i4.2",
+                        note="รับเงินอุดหนุนอาหารกลางวัน ภาคเรียนที่ 1 จาก อบต.", ref="อบต 0002/88"))
     per_day = prog.total_students * prog.rate_per_head
     rounds_def = [(1, t1s, _d(ce, 7, 31), "จ่ายแล้ว"), (2, _d(ce, 8, 1), t1e, "จ้างแล้ว")]
     from app.routers.lunch import _sync_round_procurement, _sync_installment_ledger
@@ -692,6 +702,13 @@ def seed_school(db, *, today: date) -> dict:
             ("perdiem", "staff", 160, 1, "travel", None))):
         trip.costs.append(m.FieldTripCost(seq=i, kind=kind, basis=basis, rate=rate, times=times, pay_method=pay,
                                           vendor_id=vend.id if vend else None))
+
+    # ยกยอดปีงบที่จบไปแล้วให้เหมือนโรงเรียนที่กดยกยอดแล้ว (ระบบตัวอย่างไม่ควรขึ้นกล่องเตือนยอดยกมา)
+    db.flush()
+    from app.services.finance_openings import carry
+    cur_fy = current_fiscal_year(datetime.combine(today, datetime.min.time()))
+    for y in sorted({y for (y,) in db.query(m.FinanceTxn.fiscal_year).distinct() if y and y < cur_fy}):
+        carry(db, y)
 
     db.commit()
     return {"teacher_pid": teacher.id, "director_pid": director.id, "fiscal_year": fy, "academic_year": ay}
