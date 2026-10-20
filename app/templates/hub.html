@@ -62,7 +62,10 @@
   .ay-tag { font-size:11.5px; font-weight:600; color:#6d28d9; background:#f3e8ff; padding:2px 8px;
     border-radius:999px; vertical-align:middle; margin-left:4px; }
   .ay-actions { display:flex; gap:8px; flex-wrap:wrap; }
-  .onboard { margin-bottom: 22px; }
+  .onboard { margin-bottom: 22px; background:linear-gradient(135deg,#eff6ff,#f0fdf4); }
+  .ob-top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+  .ob-h { margin:0 0 2px; border:none; background:none; padding:0; font-size:19px; }
+  .ob-next { font-size:14.5px; }
   .onboard .ob-bar { height:8px; border-radius:999px; background:#eef0f4; overflow:hidden; margin:12px 0 16px; }
   .onboard .ob-bar i { display:block; height:100%; background:#16a34a; border-radius:999px; transition:width .3s; }
   .ob-list { display:flex; flex-direction:column; gap:10px; }
@@ -113,34 +116,25 @@
     {% endif %}
   </div>
 
-  {% if onboard_done < onboard_total %}
+  {% if not qs.complete %}
   <div class="card onboard" id="onboardCard">
-    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
-      <h2 style="margin:0; border:none; background:none; padding:0;"><svg class="icon"><use href="#ic-check"/></svg> เริ่มต้นใช้งาน</h2>
-      <span class="muted">ทำแล้ว {{ onboard_done }}/{{ onboard_total }} ขั้น</span>
-    </div>
-    <div class="ob-bar"><i style="width:{{ (onboard_done / onboard_total * 100)|round(0,'floor') }}%"></i></div>
-    <div class="ob-list">
-      {% for s in onboard %}
-      <div class="ob-item {{ 'done' if s.done }}">
-        <span class="ob-chk">{% if s.done %}<svg class="icon"><use href="#ic-check"/></svg>{% endif %}</span>
-        <div class="ob-body">
-          <div class="ob-label">{{ s.label }}</div>
-          <div class="muted" style="font-size:12.5px;">{{ s.hint }}</div>
-        </div>
-        {% if not s.done %}<a class="btn sm" href="{{ s.href }}">ไปทำ <svg class="icon"><use href="#ic-arrow-right"/></svg></a>{% endif %}
+    <div class="ob-top">
+      <div>
+        <h2 class="ob-h">เริ่มต้นใช้งานใน 10 นาที</h2>
+        <div class="muted">ทำแล้ว {{ qs.done }}/{{ qs.total }} ขั้น · เหลืออีกประมาณ <b>{{ qs.minutes_left }} นาที</b></div>
       </div>
-      {% endfor %}
+      <a class="btn" href="/start">{{ 'เริ่มเลย' if qs.done == 0 else 'ทำต่อ' }} <svg class="icon"><use href="#ic-arrow-right"/></svg></a>
     </div>
-    <div style="margin-top:14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-      <a class="btn soft sm" href="/guide"><svg class="icon"><use href="#ic-info"/></svg> ดูวิธีใช้งานทั้งหมด</a>
-      <button type="button" class="btn gray sm" onclick="dismissOnboard()">ซ่อนไปก่อน</button>
-    </div>
+    <div class="ob-bar"><i style="width:{{ (qs.done / qs.total * 100)|round(0,'floor') if qs.total else 0 }}%"></i></div>
+    {% if qs.next %}<div class="ob-next">ขั้นถัดไป: <b>{{ qs.next.title }}</b> <span class="muted">(ประมาณ {{ qs.next.minutes }} นาที)</span>
+      · <a href="{{ qs.next.href }}">{{ qs.next.cta }}</a></div>{% endif %}
+    <div style="margin-top:12px;"><button type="button" class="btn gray sm" onclick="dismissOnboard()">ซ่อนไปก่อน</button>
+      <a class="muted" style="font-size:13px; margin-left:10px;" href="/guide">ดูวิธีใช้งานทั้งหมด</a></div>
   </div>
   <script>
-    (function(){ if(localStorage.getItem('ddoc_onboard_hidden')==='1'){
-      var c=document.getElementById('onboardCard'); if(c) c.style.display='none'; } })();
-    function dismissOnboard(){ localStorage.setItem('ddoc_onboard_hidden','1');
+    (function(){ try { if(localStorage.getItem('ddoc_onboard_hidden')==='1'){
+      var c=document.getElementById('onboardCard'); if(c) c.style.display='none'; } } catch(e){} })();
+    function dismissOnboard(){ try { localStorage.setItem('ddoc_onboard_hidden','1'); } catch(e){}
       var c=document.getElementById('onboardCard'); if(c) c.style.display='none'; }
   </script>
   {% endif %}
@@ -274,14 +268,15 @@
 {% if request.session.get('owner') and not request.session.get('welcomed') %}
 <div id="welcomeModal" class="wm-ov">
   <div class="wm-card">
-    <span class="wm-ic"><svg class="icon"><use href="#ic-users"/></svg></span>
+    <span class="wm-ic"><svg class="icon"><use href="#ic-check"/></svg></span>
     <h2>ยินดีต้อนรับสู่ Easy Ekkasan!</h2>
-    <p>เริ่มต้นด้วยการ<b>ตั้งค่าผู้ใช้</b> โปรดเพิ่มบัญชีให้เจ้าหน้าที่แต่ละงาน (การเงิน พัสดุ ธุรการ ฯลฯ)
-       และกำหนดสิทธิ์ว่าการใช้งาน<br>
-       บัญชีนี้เป็น<b>ไอดีหลัก</b>และสามารถเข้าใช้ได้ทุกงานที่ซื้อได้</p>
+    <p>เริ่มจาก<b>ตั้งค่าพื้นฐานให้ครบใน 10 นาที</b> (ข้อมูลโรงเรียน รายชื่อบุคลากร และขั้นจำเป็นของแต่ละงาน)
+       ระบบพาทำทีละขั้นและติ๊กให้เอง<br>
+       บัญชีนี้เป็น<b>ไอดีหลัก</b> เพิ่มบัญชีให้เจ้าหน้าที่แต่ละงานได้ที่ "จัดการผู้ใช้"</p>
     <div class="wm-btns">
-      <button class="btn" type="button" onclick="welcomeSeen(true)"><svg class="icon"><use href="#ic-users"/></svg> ไปจัดการผู้ใช้</button>
-      <button class="btn gray" type="button" onclick="welcomeSeen(false)">ข้ามไปก่อน</button>
+      <button class="btn" type="button" onclick="welcomeSeen('/start')"><svg class="icon"><use href="#ic-arrow-right"/></svg> เริ่มต้นใช้งานใน 10 นาที</button>
+      <button class="btn gray" type="button" onclick="welcomeSeen('/users')"><svg class="icon"><use href="#ic-users"/></svg> จัดการผู้ใช้</button>
+      <button class="btn gray" type="button" onclick="welcomeSeen('')">ข้ามไปก่อน</button>
     </div>
   </div>
 </div>
@@ -307,7 +302,7 @@
     // keepalive: ให้ POST ส่งจนเสร็จแม้หน้าจะ navigate ต่อทันที (กันบันทึกไม่ทันแล้วการ์ดเด้งซ้ำ)
     fetch('/welcome/seen', {method:'POST', headers:{'X-Requested-With':'fetch'}, keepalive:true}).catch(function(){});
     var m=document.getElementById('welcomeModal'); if(m) m.remove();
-    if(go) location.href='/users';
+    if(go) location.href=go;
   }
 </script>
 {% endif %}

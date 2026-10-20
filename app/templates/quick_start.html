@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}เริ่มต้นใช้งานใน 10 นาที{% endblock %}
+{% block content %}
+<div class="hero" style="background:linear-gradient(120deg,#4f46e5,#7c3aed 55%,#a855f7); box-shadow:0 10px 26px rgba(124,58,237,.28);">
+  <div>
+    <div class="hero-sub">{{ school.name or 'โรงเรียนของคุณ' }}</div>
+    <span class="hero-title">เริ่มต้นใช้งานใน 10 นาที</span>
+    <div class="hero-meta">
+      {% if qs.complete %}ตั้งค่าครบแล้ว พร้อมใช้งานทุกงาน
+      {% else %}ทำแล้ว {{ qs.done }}/{{ qs.total }} ขั้น · เหลืออีกประมาณ {{ qs.minutes_left }} นาที{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="qs-bar" aria-hidden="true"><i style="width:{{ (qs.done / qs.total * 100)|round(0,'floor') if qs.total else 100 }}%"></i></div>
+<p class="qs-intro">ทำตามลำดับจากบนลงล่าง ระบบติ๊กให้เองเมื่อข้อมูลครบ (ไม่ต้องกดบันทึกที่หน้านี้)
+  · กรอกครั้งเดียว ใช้ได้ทุกงาน · กดปุ่มแล้วทำเสร็จ กลับมาหน้านี้เพื่อทำขั้นถัดไป</p>
+
+{% if qs.complete %}
+<div class="qs-done-all"><b>เรียบร้อย ตั้งค่าครบแล้ว</b> · เริ่มใช้งานจริงได้เลย ขั้นที่เหลือของแต่ละงานดูได้ด้านล่าง</div>
+{% endif %}
+
+{% for sec in qs.sections %}
+<div class="card qs-sec">
+  <h2 class="qs-h">{{ sec.label }}
+    <span class="qs-min">ประมาณ {{ sec.steps|sum(attribute='minutes') }} นาที</span></h2>
+  <ol class="qs-list">
+    {% for s in sec.steps %}
+    {% set is_next = qs.next and s.n == qs.next.n %}
+    <li class="qs-step {{ 'is-done' if s.done else ('is-next' if is_next else '') }}" {% if is_next %}id="next"{% endif %}>
+      <span class="qs-mark">{% if s.done %}✔{% else %}{{ s.n }}{% endif %}</span>
+      <div class="qs-body">
+        <div class="qs-name">{{ s.title }} <span class="qs-time">{{ s.minutes }} นาที</span></div>
+        <div class="qs-detail">{{ s.detail }}</div>
+      </div>
+      {% if not s.done %}<a class="btn sm {{ '' if is_next else 'gray' }}" href="{{ s.href }}">{{ s.cta }}</a>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+</div>
+{% endfor %}
+
+{% if qs.rest %}
+<div class="card qs-sec">
+  <h2 class="qs-h">ทำต่อในแต่ละงาน <span class="qs-min">ขั้นที่เหลือ ทำตอนเริ่มใช้งานนั้นจริงได้</span></h2>
+  <div class="qs-rest">
+    {% for r in qs.rest %}
+    <a class="qs-mod {{ 'ok' if r.complete }}" href="{{ r.href }}">
+      <b>{{ r.label }}</b>
+      <span>{% if r.complete %}ครบแล้ว{% else %}ทำแล้ว {{ r.done }}/{{ r.total }} ขั้น{% endif %}</span>
+      <i style="width:{{ (r.done / r.total * 100)|round(0,'floor') if r.total else 100 }}%"></i>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<style>
+  .qs-bar { height:10px; border-radius:999px; background:#ede9fe; overflow:hidden; margin:0 0 10px; }
+  .qs-bar i { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#7c3aed,#22c55e); }
+  .qs-intro { color:var(--muted); font-size:14px; margin:0 0 14px; }
+  .qs-done-all { margin:0 0 14px; padding:12px 16px; border-radius:12px; color:#065f46; background:linear-gradient(120deg,#ecfdf5,#d1fae5); }
+  .qs-sec { background:linear-gradient(135deg,#ffffff,#f8fafc); }
+  .qs-h { margin:0 0 10px; border:none; background:none; padding:0; font-size:18px; display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; }
+  .qs-min { font-size:13px; font-weight:400; color:var(--muted); }
+  .qs-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .qs-step { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:12px; background:#f6f8fc; }
+  .qs-step.is-next { background:linear-gradient(120deg,#eef2ff,#f5f3ff); box-shadow:0 0 0 2px #a5b4fc inset; }
+  .qs-step.is-done { background:linear-gradient(120deg,#f0fdf4,#ecfdf5); }
+  .qs-mark { width:30px; height:30px; flex:none; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-weight:700; background:#fff; color:#475569; }
+  .is-next .qs-mark { background:#4f46e5; color:#fff; }
+  .is-done .qs-mark { background:#16a34a; color:#fff; }
+  .qs-body { flex:1; min-width:0; }
+  .qs-name { font-weight:600; }
+  .is-done .qs-name { color:#15803d; }
+  .qs-time { font-weight:400; font-size:12px; color:#6d28d9; background:#f3e8ff; border-radius:999px; padding:1px 8px; margin-left:4px; white-space:nowrap; }
+  .is-done .qs-time { display:none; }
+  .qs-detail { font-size:13.5px; color:var(--muted); }
+  .qs-step .btn { flex:none; }
+  .qs-rest { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:10px; }
+  .qs-mod { position:relative; display:flex; flex-direction:column; gap:2px; padding:12px 14px 16px; border-radius:12px;
+    background:#f6f8fc; color:inherit; text-decoration:none; overflow:hidden; }
+  .qs-mod:hover { background:#eef2ff; }
+  .qs-mod span { font-size:13px; color:var(--muted); }
+  .qs-mod i { position:absolute; left:0; bottom:0; height:4px; background:linear-gradient(90deg,#7c3aed,#22c55e); }
+  .qs-mod.ok span { color:#15803d; }
+  @media(max-width:560px) { .qs-step { flex-wrap:wrap; } .qs-body { flex:1 1 calc(100% - 44px); } .qs-step .btn { margin-left:42px; } }
+</style>
+{% endblock %}

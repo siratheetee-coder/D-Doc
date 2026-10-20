@@ -197,27 +197,10 @@ def hub(request: Request, db: Session = Depends(get_db), msg: str = ""):
     }
     admin_total = stats["memo"] + stats["order"] + stats["incoming"] + stats["outgoing"]
 
-    # ---- checklist เริ่มต้นใช้งาน (ติ๊กอัตโนมัติจากข้อมูลจริง) ----
+    # ---- เริ่มต้นใช้งานใน 10 นาที (ติ๊กอัตโนมัติจากรายการเริ่มต้นของทุกงานที่โรงเรียนใช้ · หน้าเต็มที่ /start) ----
     school = get_school(db)
-    settings_ok = all([school.name, school.director_name,
-                       school.officer_name, school.head_officer_name])
-    has_person = db.query(Person).count() > 0
-    has_signature = db.query(Person).filter(Person.signature != "").count() > 0
-    has_register = (db.query(Vendor).count() > 0) or (db.query(Student).count() > 0)
-    has_doc = (stats["proc"] + admin_total) > 0
-    onboard = [
-        {"label": "ตั้งค่าข้อมูลโรงเรียน", "hint": "ชื่อโรงเรียน ผู้อำนวยการ เจ้าหน้าที่พัสดุ",
-         "done": settings_ok, "href": "/settings", "icon": "ic-settings"},
-        {"label": "เพิ่มบุคลากร / ผู้ลงนาม", "hint": "ครู กรรมการ ผู้ลงนามในเอกสาร",
-         "done": has_person, "href": "/masters", "icon": "ic-users"},
-        {"label": "อัปโหลดลายเซ็นผู้ลงนาม", "hint": "ระบบจะใส่ลายเซ็นในเอกสารให้อัตโนมัติ",
-         "done": has_signature, "href": "/masters", "icon": "ic-edit"},
-        {"label": "เพิ่มทะเบียนข้อมูล", "hint": "ผู้ขาย/ผู้รับจ้าง หรือรายชื่อนักเรียน (กรอกครั้งเดียวใช้ซ้ำ)",
-         "done": has_register, "href": "/vendors", "icon": "ic-store"},
-        {"label": "สร้างเอกสารฉบับแรก", "hint": "เริ่มจากงานที่ต้องการ ระบบออกเอกสารให้ครบชุด",
-         "done": has_doc, "href": "/procurement/new", "icon": "ic-file-plus"},
-    ]
-    onboard_done = sum(1 for s in onboard if s["done"])
+    from app.services.quick_start import build as quick_start, tenant_modules
+    qs = quick_start(db, school, tenant_modules(request.session.get("tid")))
 
     # แจ้งเตือนไอดีหลัก: มีงานที่โรงเรียนซื้อเพิ่มแต่ยังไม่ได้มอบสิทธิ์ให้ทีม
     from app.accounts import owner_new_modules
@@ -229,10 +212,23 @@ def hub(request: Request, db: Session = Depends(get_db), msg: str = ""):
     return templates.TemplateResponse("hub.html", {
         "request": request, "school": school, "fiscal_year": fy,
         "stats": stats, "admin_total": admin_total,
-        "onboard": onboard, "onboard_done": onboard_done, "onboard_total": len(onboard),
+        "qs": qs,
         "new_mod_labels": new_mod_labels,
         "acad_year": acad_year, "acad_year_auto": not school.academic_year,
         "acad_year_calc": current_academic_year(), "msg": msg,
+    })
+
+
+@router.get("/start", response_class=HTMLResponse)
+def quick_start_page(request: Request, db: Session = Depends(get_db)):
+    """เริ่มต้นใช้งานใน 10 นาที: ขั้นจำเป็นของทุกงานที่โรงเรียนใช้ หน้าเดียว ตามลำดับ"""
+    if request.session.get("person_id") and not request.session.get("owner"):
+        return RedirectResponse("/academic", status_code=303)
+    from app.services.quick_start import build, tenant_modules
+    school = get_school(db)
+    return templates.TemplateResponse("quick_start.html", {
+        "request": request, "school": school,
+        "qs": build(db, school, tenant_modules(request.session.get("tid"))),
     })
 
 
