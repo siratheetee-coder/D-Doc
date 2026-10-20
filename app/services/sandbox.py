@@ -74,7 +74,7 @@ def _dir():
 
 
 # เปลี่ยนเลขเมื่อแก้ข้อมูลตัวอย่าง (demo_seed) ให้สร้างต้นแบบใหม่ทันทีหลัง deploy ไม่ต้องรอข้ามวัน
-SEED_REV = 2
+SEED_REV = 3
 
 
 def template_path(today: date | None = None):

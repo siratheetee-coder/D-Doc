@@ -21,7 +21,6 @@ demo_seed.py - สร้างโรงเรียนสมมติสำห�
 import json
 import sys
 from datetime import date, datetime, timedelta
-from app.thai_utils import current_fiscal_year
 
 DEMO_SLUG = "demo"
 DEMO_SCHOOL = "โรงเรียนบ้านตัวอย่างวิทยา"
@@ -141,6 +140,11 @@ FIRST_M = ["ด.ช.ภูมิ", "ด.ช.ธีรภัทร", "ด.ช.ก
 FIRST_F = ["ด.ญ.ปุณยวีร์", "ด.ญ.ณิชา", "ด.ญ.พิมพ์ชนก", "ด.ญ.กัญญาณัฐ", "ด.ญ.ชนิดา", "ด.ญ.ธัญชนก",
            "ด.ญ.อรปรียา", "ด.ญ.สุพิชญา", "ด.ญ.เบญญาภา", "ด.ญ.ปาณิสรา"]
 LAST = ["มีสุข", "ใจงาม", "ศรีทอง", "บุญเย็น", "แก้วใส", "ทองคำ", "รุ่งเรือง", "สายใจ", "พูนผล", "เพชรงาม"]
+
+
+def _fy_of(d) -> int:
+    """ปีงบ (พ.ศ.) ของวันที่ คิดจากวันที่ตรง ๆ (ไม่พึ่งวันนี้ของเครื่อง)"""
+    return d.year + 543 + (1 if d.month >= 10 else 0)
 
 
 def seed_school(db, *, today: date) -> dict:
@@ -624,7 +628,7 @@ def seed_school(db, *, today: date) -> dict:
     db.flush()
     recv = _d(ce, 5, 20)
     db.add(m.FinanceTxn(account_id=acc_lunch.id, kind="in", amount=round(prog.budget / 2, 2), date=recv,
-                        fiscal_year=current_fiscal_year(recv), lunch_year=ay, eb_code="i4.2",
+                        fiscal_year=_fy_of(recv), lunch_year=ay, eb_code="i4.2",
                         note="รับเงินอุดหนุนอาหารกลางวัน ภาคเรียนที่ 1 จาก อบต.", ref="อบต 0002/88"))
     per_day = prog.total_students * prog.rate_per_head
     rounds_def = [(1, t1s, _d(ce, 7, 31), "จ่ายแล้ว"), (2, _d(ce, 8, 1), t1e, "จ้างแล้ว")]
@@ -706,9 +710,24 @@ def seed_school(db, *, today: date) -> dict:
     # ยกยอดปีงบที่จบไปแล้วให้เหมือนโรงเรียนที่กดยกยอดแล้ว (ระบบตัวอย่างไม่ควรขึ้นกล่องเตือนยอดยกมา)
     db.flush()
     from app.services.finance_openings import carry
-    cur_fy = current_fiscal_year(datetime.combine(today, datetime.min.time()))
+    cur_fy = _fy_of(today)
     for y in sorted({y for (y,) in db.query(m.FinanceTxn.fiscal_year).distinct() if y and y < cur_fy}):
         carry(db, y)
+
+    # ---------------- แผนงบ (หน้างบที่ใช้จัดทำแผน) + จัดสรรให้โครงการ ----------------
+    # ทำหลังยกยอด (ยกยอดไม่ยอมให้หมวดปีใหม่มียอดยกมาที่ไม่มีคู่ปีก่อน) · ยอดยกมาของหมวดรวมกัน = ยอดยกมาของบัญชี
+    # นำเงินเข้าแผนและจัดสรรผ่านตรรกะเดียวกับที่ผู้ใช้กด (preview/apply/allocate) ตัวเลขจึงตรงกับของจริง
+    item_teach.opening_balance, item_book.opening_balance = 115000, 70000
+    db.flush()
+    from app.services import plan_funding as pf
+    from app.services import subsidy as subsvc
+    ds, de = pf.defaults(fy, "budget")
+    plan = pf.save_period(db, fy, "budget", ds.isoformat(), de.isoformat())
+    data = pf.preview(db, plan, "opening")
+    pf.apply(db, plan, "opening", 0, subsvc.fingerprint(data), [r["source_key"] for r in data["rows"]])
+    src = {s.account_item_id: s for s in pf.sources(db, plan)}
+    for pj, amt in zip(projects, (60000, 25000, 20000)):     # โครงการที่ 3 จัดสรรไว้บางส่วน ให้เห็นยอดที่ยังเหลือ
+        pf.allocate(db, plan, pj, {str(src[item_teach.id].id): amt}, pf.allocation_token(db, plan, pj))
 
     db.commit()
     return {"teacher_pid": teacher.id, "director_pid": director.id, "fiscal_year": fy, "academic_year": ay}

@@ -225,6 +225,15 @@ def test_seed_school_money_is_consistent(tmp_path):
         prog = db.query(LunchProgram).first()
         t = totals(db, prog)
         assert prog.finance_account_id and t["in"] > 0 and t["balance"] >= 0
+        # แผนงบตัวอย่าง: มีเงินในแผน จัดสรรให้โครงการแล้วบางส่วน ยังเหลือให้ลองจัดสรรใน pop-up เพิ่มโครงการ
+        from app.services import plan_funding as pf
+        from app.services.ebudget import build
+        from app.models import Project
+        plan = pf.plan(db, fy)
+        s = pf.summary(db, plan)
+        assert s["total"] == 185000 and 0 < s["allocated"] < s["total"] and not any(r["changed"] for r in s["rows"])
+        assert all(pf.project_allocated(db, pj.id) > 0 for pj in db.query(Project).filter_by(plan_year=fy))
+        assert build(db, fy, 1)["check"] == 0, "แยกยอดยกมาตามหมวดแล้ว e-Budget ยังตรง"
     finally:
         db.close()
         e.dispose()
