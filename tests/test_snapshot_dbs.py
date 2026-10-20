@@ -106,3 +106,67 @@ def test_refuses_stage_inside_data(tmp_path):
     data = tmp_path / "data"
     _wal_db(data / "accounts.db").close()
     assert snap.main([str(data), str(data / "stage")]) == 2
+
+
+spec2 = importlib.util.spec_from_file_location("reindex_db", ROOT / "deploy" / "reindex_db.py")
+rx = importlib.util.module_from_spec(spec2)
+spec2.loader.exec_module(rx)
+
+
+def test_reindex_repairs_index_only_damage_without_losing_rows(tmp_path, capsys):
+    db = tmp_path / "accounts.db"
+    _wal_db(db).close()
+    _break_index(db)
+    c = sqlite3.connect(db)
+    before = c.execute("SELECT count(*) FROM audit_log").fetchone()[0]
+    c.close()
+    assert rx.repair(db) == 0
+    out = capsys.readouterr().out
+    assert "ซ่อมเสร็จ ตรวจผ่าน" in out and "จำนวนแถวเท่าเดิม" in out
+    c = sqlite3.connect(db)
+    assert c.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    assert c.execute("SELECT count(*) FROM audit_log").fetchone()[0] == before == 520
+    c.close()
+    baks = list(tmp_path.glob("accounts.db.before-reindex-*"))
+    assert len(baks) == 1, "สำรองฐานเดิมไว้ก่อนซ่อม"
+    b = sqlite3.connect(baks[0])
+    assert b.execute("SELECT count(*) FROM audit_log").fetchone()[0] == 520
+    b.close()
+    assert rx.repair(db) == 0 and "ไม่ต้องซ่อม" in capsys.readouterr().out
+
+
+def test_reindex_refuses_non_index_damage(tmp_path, capsys):
+    db = tmp_path / "accounts.db"
+    _wal_db(db).close()
+    c = sqlite3.connect(db)
+    c.execute("PRAGMA journal_mode=DELETE")
+    c.close()
+    raw = bytearray(db.read_bytes())
+    raw[4096 + 8: 4096 + 4000] = bytes([255]) * 3992          # ทำหน้าตารางพัง (ไม่ใช่แค่ดัชนี)
+    db.write_bytes(bytes(raw))
+    before = db.read_bytes()
+    code = rx.repair(db)
+    assert code == 3
+    assert db.read_bytes() == before, "ความเสียหายแบบอื่น ไม่แตะไฟล์"
+    assert not list(tmp_path.glob("accounts.db.before-reindex-*"))
+
+
+def test_reindex_refuses_mixed_damage_reported_without_crash(tmp_path, capsys):
+    """integrity_check รายงานปัญหาอื่นนอกจากดัชนี (หน้าไม่ถูกใช้) = หยุด ไม่ซ่อม ไม่แตะไฟล์"""
+    db = tmp_path / "accounts.db"
+    _wal_db(db).close()
+    _break_index(db)
+    c = sqlite3.connect(db)
+    c.execute("PRAGMA writable_schema=ON")
+    c.execute("CREATE INDEX ix_extra ON audit_log(id)")
+    c.commit()
+    c.execute("DELETE FROM sqlite_master WHERE name='ix_extra'")       # หน้าของดัชนีนี้กลายเป็นหน้ากำพร้า
+    c.commit(); c.close()
+    c = sqlite3.connect(db)
+    report = [r[0] for r in c.execute("PRAGMA integrity_check")]
+    c.close()
+    assert any("never used" in r for r in report) and any("index ix_audit_log_action" in r for r in report)
+    before = db.read_bytes()
+    assert rx.repair(db) == 3
+    assert "ไม่ใช่แค่ดัชนี" in capsys.readouterr().out
+    assert db.read_bytes() == before and not list(tmp_path.glob("accounts.db.before-reindex-*"))
