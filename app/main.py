@@ -333,6 +333,8 @@ def _http_error(request: Request, exc: StarletteHTTPException):
 @app.exception_handler(Exception)
 def _unhandled_error(request: Request, exc: Exception):
     print("[error]", request.method, request.url.path, repr(exc))
+    from app.services.error_alert import report
+    report(request, exc)            # อีเมลแจ้งเจ้าของระบบ (จำกัดความถี่) + บันทึก data/error-log.jsonl
     if not _wants_html(request):
         return JSONResponse({"detail": "Internal Server Error"}, status_code=500)
     return _error_page(request, 500)

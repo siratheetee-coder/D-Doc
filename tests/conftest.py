@@ -31,6 +31,12 @@ def _no_form_guard(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_error_alert(monkeypatch):
+    """เทสต์ที่ตั้งใจให้ขึ้น 500 ไม่ต้องเขียน error-log/ส่งอีเมล · test_error_alert.py เปิดกลับเอง"""
+    monkeypatch.setenv("DDOC_ERROR_ALERT", "0")
+
+
+@pytest.fixture(autouse=True)
 def _no_login_throttle():
     _clear_login_throttle()
     yield
