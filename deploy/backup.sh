@@ -70,16 +70,25 @@ TS="$(date +%Y%m%d-%H%M%S)"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 
-# 1) snapshot ทุกไฟล์ .db ด้วย sqlite .backup (สอดคล้องแม้กำลังเขียน) - fallback เป็น cp
-while IFS= read -r db; do
-  rel="${db#"$DATA_DIR"/}"
-  mkdir -p "$STAGE/$(dirname "$rel")"
-  if command -v sqlite3 >/dev/null 2>&1; then
-    sqlite3 "$db" ".backup '$STAGE/$rel'" 2>/dev/null || cp "$db" "$STAGE/$rel"
-  else
-    cp "$db" "$STAGE/$rel"
-  fi
-done < <(find "$DATA_DIR" -type f -name '*.db')
+# 1) snapshot ทุกไฟล์ .db ด้วย backup API ของ SQLite (deploy/snapshot_dbs.py) - ได้ข้อมูลครบรวมที่ยังอยู่ใน -wal
+#    เดิม fallback เป็น cp เมื่อเครื่องไม่มีคำสั่ง sqlite3 = ไม่ได้ข้อมูลใน -wal / ดัชนีไม่ตรง (เจอจากการซ้อมกู้)
+#    รันด้วยผู้ใช้ ddoc: ไฟล์ -wal/-shm ที่อาจถูกสร้างข้างฐานจริงจะเป็นของ ddoc ไม่ใช่ root (บริการเขียนต่อได้)
+#    ฐานไหนคัดลอกไม่ได้หรือสำเนาเสีย = ถือว่าสำรองล้มเหลว (healthcheck จะเตือนเมื่อไม่มีไฟล์สำรองใหม่)
+SNAP_PY="$APP_DIR/.venv/bin/python"
+[ -x "$SNAP_PY" ] || SNAP_PY="$(command -v python3 || true)"
+if [ -z "$SNAP_PY" ]; then
+  log "ไม่พบ python สำหรับ snapshot ฐานข้อมูล" >&2
+  exit 1
+fi
+SNAP_AS=()
+if [ "$(id -u)" -eq 0 ] && id ddoc >/dev/null 2>&1; then
+  chown ddoc:ddoc "$STAGE"
+  SNAP_AS=(runuser -u ddoc --)
+fi
+if ! "${SNAP_AS[@]}" "$SNAP_PY" "$APP_DIR/deploy/snapshot_dbs.py" "$DATA_DIR" "$STAGE"; then
+  log "สำรองไม่สำเร็จ: snapshot ฐานข้อมูลล้มเหลว/สำเนาไม่ผ่านการตรวจ (ไม่สร้างไฟล์สำรองชุดนี้)" >&2
+  exit 1
+fi
 
 # 2) ไฟล์แนบ (uploads) - ข้อมูลจริงที่ generate ใหม่ไม่ได้
 if [ -d "$DATA_DIR/uploads" ]; then
