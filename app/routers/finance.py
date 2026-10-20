@@ -531,6 +531,29 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
     return RedirectResponse(f"/finance/accounts/{aid}?year={fy}{back}" + ("#txn-entry" if back else ""), status_code=303)
 
 
+@router.post("/finance/projects/quick")
+def project_quick_add(db: Session = Depends(get_db), name: str = Form(""), budget: str = Form("0"),
+                      plan_year: str = Form("")):
+    """เพิ่มโครงการจากช่องเลือกโครงการในฟอร์มบันทึกรายการ/ขอเบิกจ่าย (ไม่ต้องออกจากหน้า)
+    ชื่อซ้ำในปีแผนเดียวกัน = ใช้โครงการเดิม ไม่สร้างซ้ำ"""
+    from app.services.budget import current_plan_year
+    name = " ".join((name or "").split())
+    if not name:
+        raise HTTPException(400, "กรุณาพิมพ์ชื่อโครงการ")
+    if len(name) > 300:
+        raise HTTPException(400, "ชื่อโครงการยาวเกินไป")
+    py = _to_int(plan_year, 0)
+    if not 2500 <= py <= 2800:
+        py = current_plan_year(get_school(db))
+    pj = db.query(Project).filter(Project.plan_year == py, Project.name == name).first()
+    created = pj is None
+    if created:
+        pj = Project(name=name, budget=max(0.0, _to_float(budget, 0.0)), plan_year=py, active=True)
+        db.add(pj)
+        db.commit()
+    return JSONResponse({"id": pj.id, "label": f"{pj.name} · ปีแผน {pj.plan_year}", "created": created})
+
+
 @router.get("/finance/docno/next")
 def docno_next(db: Session = Depends(get_db), prefix: str = "", year: str = "", yfmt: str = "2"):
     """เลข บจ./บค. ถัดไปของปีงบ (โชว์ในฟอร์มก่อนกดบันทึก)"""

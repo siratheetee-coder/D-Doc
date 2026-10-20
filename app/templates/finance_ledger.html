@@ -300,7 +300,8 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       </div>
       {# ผูกกับโครงการในแผน -> ยอดไปโผล่ที่ทะเบียนคุมโครงการเอง #}
       <div><label>โครงการ</label>
-        <select name="project_id" title="ผูกรายการนี้กับโครงการในแผน เพื่อคุมงบรายโครงการ">
+        <select name="project_id" title="ผูกรายการนี้กับโครงการในแผน เพื่อคุมงบรายโครงการ"
+                data-quick-project>
           <option value="">- ไม่ผูกโครงการ -</option>
           {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if selected_project==pj.id }}>{{ pj.name }} · ปีแผน {{ pj.plan_year or "ไม่ระบุปี" }}{{ " (ปิดใช้งาน)" if not pj.active else "" }}</option>{% endfor %}
         </select>
@@ -391,6 +392,15 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
   .nc-x { font-weight:400; text-decoration:underline; margin-left:4px; opacity:.8; }
 </style>
 <script src="/static/eb-slot-guess.js?v=2"></script>
+<style>
+  .qp-box { margin-top:8px; padding:12px; border-radius:12px; background:linear-gradient(120deg,#eef2ff,#f5f3ff); }
+  .qp-title { font-weight:700; margin-bottom:6px; } .qp-title span { font-weight:400; color:var(--muted); font-size:13px; }
+  .qp-row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:6px; }
+  .qp-row input { flex:1 1 160px; min-width:0; }
+  .qp-msg { font-size:13px; color:#9a3412; }
+  .qp-hint { font-size:12.5px; color:var(--muted); }
+</style>
+<script src="/static/quick-project.js?v=1"></script>
 <style>
   .docno { display:flex; gap:6px; flex-wrap:wrap; }
   .docno select { width:auto; flex:none; }

@@ -33,7 +33,7 @@
       </div>
       <div><label>จำนวนเงินขอเบิก (รวม VAT)</label><input name="amount" type="number" step="0.01" min="0" value="{{ '%.2f'|format(prefill.amount) if prefill else '0' }}"></div>
       <div style="flex:2;"><label>โครงการ</label>
-        <select name="project_id" id="projSel" data-fy="{{ fiscal_year }}">
+        <select name="project_id" id="projSel" data-fy="{{ fiscal_year }}" data-quick-project>
           <option value="">- ไม่ผูกโครงการ -</option>
           {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if prefill and prefill.project_id==pj.id }}>{{ pj.name }} · ปีแผน {{ pj.plan_year or "ไม่ระบุปี" }}{{ " (ปิดใช้งาน)" if not pj.active else "" }}</option>{% endfor %}
         </select>
@@ -124,5 +124,14 @@
   /* .row และ .src-line ตั้ง display:flex ไว้ ซึ่งชนะ [hidden] ของเบราว์เซอร์ ต้องบังคับซ่อนเอง */
   #srcPick[hidden], #srcLine[hidden]{ display:none !important; }
 </style>
+<style>
+  .qp-box { margin-top:8px; padding:12px; border-radius:12px; background:linear-gradient(120deg,#eef2ff,#f5f3ff); }
+  .qp-title { font-weight:700; margin-bottom:6px; } .qp-title span { font-weight:400; color:var(--muted); font-size:13px; }
+  .qp-row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:6px; }
+  .qp-row input { flex:1 1 160px; min-width:0; }
+  .qp-msg { font-size:13px; color:#9a3412; }
+  .qp-hint { font-size:12.5px; color:var(--muted); }
+</style>
+<script src="/static/quick-project.js?v=1"></script>
 <script src="/static/project_source.js?v=1"></script>
 {% endblock %}
