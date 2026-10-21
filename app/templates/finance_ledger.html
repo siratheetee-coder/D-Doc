@@ -351,6 +351,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
   </form>
 </div>
 
+<style>.txn-row{scroll-margin-top:90px;} .txn-row:target td{background:linear-gradient(120deg,#fef9c3,#fef3c7);}</style>
 <div class="card" id="txn-history">
   <h2>ประวัติรับ-จ่าย-คงเหลือ</h2>
   {% if rows %}
@@ -360,7 +361,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
     <tbody>
       <tr><td colspan="6"><span class="muted">ยอดยกมา (ปีงบ {{ fiscal_year }})</span></td><td class="right"><b>{{ "{:,.2f}".format(opening) }}</b></td><td></td></tr>
       {% for r in rows %}
-      <tr>
+      <tr id="t{{ r.t.id }}" class="txn-row">
         <td>{{ thai_date(r.t.date) }}</td>
         <td>{% if r.t.kind=="in" %}<span style="color:#16a34a;">รับ</span>{% else %}<span style="color:#dc2626;">จ่าย</span>{% endif %}{% if r.t.note %} · {{ r.t.note }}{% endif %}{% if receipt_map.get(r.t.id) %} <span class="pill" style="background:#dcfce7; color:#15803d;">ใบเสร็จ {{ receipt_map.get(r.t.id) }}</span>{% endif %}{% set pj = txn_project.get(r.t.id) %}{% if pj %} <a class="pill" href="/projects/{{ pj.id }}" title="ไปหน้าโครงการ" style="background:#eef2ff; color:#3730a3; text-decoration:none;">โครงการ{{ pj.name }}</a>{% endif %}</td>
         <td>{{ r.t.item.name if r.t.item else (r.t.category or "-") }}</td>

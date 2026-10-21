@@ -74,7 +74,12 @@ def carry_status(db, fy) -> list:
     และเฉพาะเมื่อปีก่อนปิดไปแล้ว (ปีที่ยังไม่จบ ยอดยังเปลี่ยนได้ ไม่ต้องเตือน)
     """
     from app.thai_utils import current_fiscal_year
+    from app.services.finance_health import _joined
     if fy > current_fiscal_year():
+        return []
+    # โรงเรียนเริ่มใช้ระบบที่ปีงบ fy (กรอกยอดยกมาเอง ปีก่อนไม่มีเงินเข้าเลย): รายการปีก่อนคือรายการก่อนเริ่มใช้ระบบ
+    # ห้ามชวนให้ยกยอด (จะได้ยอดติดลบทับยอดยกมาจริง) · หน้าตรวจสุขภาพข้อมูลบอกให้ลบรายการพวกนั้นแทน
+    if _joined(db, fy):
         return []
     out = []
     for a in db.query(FinanceAccount).order_by(FinanceAccount.name):

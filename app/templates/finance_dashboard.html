@@ -19,6 +19,35 @@
 
 {% if request.query_params.get("carried") %}<div class="alert">✔ คัดลอกยอดคงเหลือสิ้นปีงบ {{ request.query_params.get("carried") }} ไปตั้งเป็นยอดยกมาของปีงบ {{ fiscal_year }} แล้ว (ข้อมูลปีเก่ายังอยู่ครบ เลือกดูได้จากช่องเลือกปี)</div>{% endif %}
 
+{# ตรวจสุขภาพข้อมูลการเงิน (app/services/finance_health.py) · มีปัญหา = แถบเด่น · เรียบร้อย = แถบเขียวเล็ก ๆ #}
+{% if health %}
+<a class="fhb {{ 'fhb-bad' if health.fix else ('fhb-warn' if health.check else 'fhb-ok') }}" href="/finance/health?year={{ fiscal_year }}">
+  <span class="fhb-ic"><svg class="icon"><use href="#{{ 'ic-alert' if health.fix or health.check else 'ic-check' }}"/></svg></span>
+  <span class="fhb-txt"><b>ตรวจสุขภาพข้อมูลการเงิน</b>
+    {% if health.fix or health.check or health.notice %}
+    <span class="fhb-chips">{% if health.fix %}<i class="c-fix">ควรแก้ {{ health.fix }}</i>{% endif %}{% if health.check %}<i class="c-check">ควรเช็ค {{ health.check }}</i>{% endif %}{% if health.notice %}<i class="c-notice">ควรสังเกต {{ health.notice }}</i>{% endif %}</span>
+    {% else %}<span class="fhb-sub">ข้อมูลเรียบร้อย ผ่านทั้ง {{ health.passed }} ข้อ</span>{% endif %}
+  </span>
+  <span class="fhb-go">ไปดู <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+</a>
+<style>
+  .fhb { display:flex; align-items:center; gap:14px; padding:14px 18px; border-radius:16px; margin:0 0 16px; text-decoration:none;
+         color:var(--text); box-shadow:0 4px 14px rgba(15,23,42,.06); transition:transform .15s; }
+  .fhb:hover { transform:translateY(-1px); }
+  .fhb-bad { background:linear-gradient(120deg,#fff1f2,#ffe4e6 60%,#fef3c7); }
+  .fhb-warn { background:linear-gradient(120deg,#fffbeb,#fef3c7); }
+  .fhb-ok { background:linear-gradient(120deg,#ecfdf5,#d1fae5); }
+  .fhb-ic { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex:none; background:#fff; }
+  .fhb-bad .fhb-ic { color:#e11d48; } .fhb-warn .fhb-ic { color:#d97706; } .fhb-ok .fhb-ic { color:#059669; }
+  .fhb-txt { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+  .fhb-sub { font-size:14px; color:#065f46; }
+  .fhb-chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .fhb-chips i { font-style:normal; font-size:13px; font-weight:600; padding:2px 10px; border-radius:999px; background:#fff; }
+  .fhb-chips .c-fix { color:#e11d48; } .fhb-chips .c-check { color:#b45309; } .fhb-chips .c-notice { color:#1d4ed8; }
+  .fhb-go { display:inline-flex; align-items:center; gap:4px; font-weight:600; font-size:14px; white-space:nowrap; }
+</style>
+{% endif %}
+
 {# รายการเริ่มต้นใช้งาน: ระบบติ๊กเองจากข้อมูลจริง ครบแล้วหายเอง (app/services/finance_setup.py) #}
 {% set setup_key = 'fin' %}{% set setup_title = 'เริ่มต้นงานการเงินและโครงการ' %}
 {% include '_setup_checklist.html' %}
@@ -68,6 +97,11 @@
     <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-coins"/></svg></span><h3>รายงานการเงิน</h3></div>
     <p class="nc-desc">สรุปรับ-จ่ายตามประเภทเงิน · ดาวน์โหลด Excel/Word</p>
     <span class="nc-go">ดูรายงาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  <a class="nav-card" href="/finance/health?year={{ fiscal_year }}">
+    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-search"/></svg></span><h3>ตรวจสุขภาพข้อมูลการเงิน</h3></div>
+    <p class="nc-desc">ระบบไล่ตรวจข้อมูลให้ บอกสิ่งที่ควรแก้ ควรเช็ค ควรสังเกต พร้อมพาไปหน้าที่แก้ได้</p>
+    <span class="nc-go">ตรวจเลย <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/finance/import">
     <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-upload"/></svg></span><h3>นำเข้าข้อมูล</h3></div>

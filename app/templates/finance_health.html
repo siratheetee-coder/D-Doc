@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}ตรวจสุขภาพข้อมูลการเงิน{% endblock %}
+{% block content %}
+{% set c = h.counts %}
+{% set n_issue = c.fix + c.check + c.notice %}
+<div class="hero fh-hero">
+  <div>
+    <div class="hero-sub">งานการเงิน · ปีงบประมาณ {{ fiscal_year }}</div>
+    <span class="hero-title">ตรวจสุขภาพข้อมูลการเงิน</span>
+    <div class="hero-meta">ระบบไล่ตรวจข้อมูลให้ทั้งหมด {{ n_issue + c.passed }} ข้อ · แค่ตรวจและบอก ไม่แก้ข้อมูลเอง</div>
+  </div>
+  <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+    <a class="btn sm gray" href="/finance?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> งานการเงิน</a>
+    <form method="get" action="/finance/health" style="margin:0;">
+      <select name="year" onchange="this.form.submit()" style="color:var(--text);">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+</div>
+
+<div class="fh-sum">
+  {% for key, label, _ in levels %}
+  <a class="fh-tile fh-{{ key }}{{ ' fh-zero' if not c[key] }}" href="#lv-{{ key }}">
+    <span class="fh-num">{{ c[key] }}</span><span class="fh-lab">{{ label }}</span>
+  </a>
+  {% endfor %}
+  <a class="fh-tile fh-ok" href="#lv-passed"><span class="fh-num">{{ c.passed }}</span><span class="fh-lab">ผ่านแล้ว</span></a>
+</div>
+
+{% if not n_issue %}
+<div class="fh-allok">
+  <svg class="icon"><use href="#ic-check"/></svg>
+  <div><b>ข้อมูลการเงินปีงบ {{ fiscal_year }} เรียบร้อยดี</b>
+    <div>ไม่พบสิ่งที่ควรแก้ ควรเช็ค หรือควรสังเกต ตรวจซ้ำได้ทุกเมื่อ ระบบตรวจจากข้อมูลล่าสุดทุกครั้งที่เปิดหน้านี้</div></div>
+</div>
+{% endif %}
+
+{% for key, label, desc in levels %}{% if h[key] %}
+<section class="fh-level" id="lv-{{ key }}">
+  <div class="fh-lhead"><span class="fh-dot fh-{{ key }}"></span><h2>{{ label }} <span class="fh-count">{{ h[key]|length }}</span></h2></div>
+  <p class="fh-ldesc">{{ desc }}</p>
+  {% for it in h[key] %}
+  <article class="fh-card fh-{{ key }}">
+    <div class="fh-chead">
+      <div class="fh-ic"><svg class="icon"><use href="#{{ 'ic-alert' if key == 'fix' else ('ic-search' if key == 'check' else 'ic-info') }}"/></svg></div>
+      <div class="fh-ctext">
+        <h3>{{ it.title }}</h3>
+        <p>{{ it.why }}</p>
+      </div>
+      <a class="fh-go" href="{{ it.href }}">{{ it.label }} <svg class="icon"><use href="#ic-arrow-right"/></svg></a>
+    </div>
+    <ul class="fh-rows">
+      {% for r in it.rows %}
+      <li><a href="{{ r.href }}">
+        <span class="fh-rmain">{% if r.date %}<span class="fh-date">{{ thai_date(r.date) }}</span>{% endif %}{{ r.text }}
+          {% if r.sub %}<small>{{ r.sub }}</small>{% endif %}</span>
+        {% if r.amount is not none %}<span class="fh-amt{{ ' neg' if r.amount < 0 }}">{{ "{:,.2f}".format(r.amount) }}</span>{% endif %}
+        <span class="fh-rgo">ไปดู <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      </a></li>
+      {% endfor %}
+    </ul>
+    {% if it.total > it.rows|length %}<div class="fh-more">และอีก {{ it.total - it.rows|length }} รายการ · กด "{{ it.label }}" เพื่อดูทั้งหมด</div>{% endif %}
+  </article>
+  {% endfor %}
+</section>
+{% endif %}{% endfor %}
+
+<section class="fh-level" id="lv-passed">
+  <details class="fh-passed"{{ ' open' if not n_issue }}>
+    <summary><span class="fh-dot fh-ok"></span> ผ่านแล้ว {{ h.passed|length }} ข้อ <span class="muted">(กดเพื่อดูว่าตรวจอะไรบ้าง)</span></summary>
+    <ul>{% for t in h.passed %}<li><svg class="icon"><use href="#ic-check"/></svg> {{ t }}</li>{% endfor %}</ul>
+  </details>
+</section>
+
+<style>
+  .fh-hero { background:linear-gradient(120deg,#0f766e,#0d9488 50%,#2dd4bf); box-shadow:0 10px 26px rgba(13,148,136,.28); }
+  .fh-sum { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:0 0 20px; }
+  .fh-tile { display:flex; flex-direction:column; gap:2px; padding:16px 18px; border-radius:16px; text-decoration:none;
+             color:var(--text); transition:transform .15s, box-shadow .15s; box-shadow:0 4px 14px rgba(15,23,42,.06); }
+  .fh-tile:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(15,23,42,.10); }
+  .fh-num { font-size:30px; font-weight:700; line-height:1.1; }
+  .fh-lab { font-size:14px; font-weight:600; }
+  .fh-tile.fh-fix { background:linear-gradient(135deg,#fff1f2,#ffe4e6); color:#9f1239; }
+  .fh-tile.fh-check { background:linear-gradient(135deg,#fffbeb,#fef3c7); color:#92400e; }
+  .fh-tile.fh-notice { background:linear-gradient(135deg,#eff6ff,#dbeafe); color:#1e40af; }
+  .fh-tile.fh-ok { background:linear-gradient(135deg,#ecfdf5,#d1fae5); color:#065f46; }
+  .fh-tile.fh-zero { opacity:.55; }
+
+  .fh-allok { display:flex; gap:14px; align-items:center; padding:18px 20px; border-radius:16px; margin-bottom:20px;
+              color:#065f46; background:linear-gradient(120deg,#ecfdf5,#d1fae5); }
+  .fh-allok > .icon { width:34px; height:34px; flex:none; }
+  .fh-allok div div { font-size:14px; margin-top:2px; }
+
+  .fh-level { margin:0 0 26px; scroll-margin-top:84px; }
+  .fh-lhead { display:flex; align-items:center; gap:10px; }
+  .fh-lhead h2 { margin:0; padding:0; font-size:20px; background:none; border:0; box-shadow:none; }
+  .fh-count { display:inline-block; min-width:26px; text-align:center; font-size:14px; padding:1px 8px; border-radius:999px;
+              background:#f1f5f9; color:#334155; vertical-align:3px; }
+  .fh-ldesc { margin:4px 0 12px 22px; color:#64748b; font-size:14px; }
+  .fh-dot { width:12px; height:12px; border-radius:50%; flex:none; display:inline-block; }
+  .fh-dot.fh-fix { background:linear-gradient(135deg,#f43f5e,#e11d48); box-shadow:0 0 0 4px #ffe4e6; }
+  .fh-dot.fh-check { background:linear-gradient(135deg,#f59e0b,#d97706); box-shadow:0 0 0 4px #fef3c7; }
+  .fh-dot.fh-notice { background:linear-gradient(135deg,#60a5fa,#2563eb); box-shadow:0 0 0 4px #dbeafe; }
+  .fh-dot.fh-ok { background:linear-gradient(135deg,#34d399,#059669); box-shadow:0 0 0 4px #d1fae5; }
+
+  .fh-card { border-radius:18px; padding:18px 20px; margin:0 0 14px; background:#fff;
+             box-shadow:0 6px 20px rgba(15,23,42,.06); position:relative; overflow:hidden; }
+  .fh-card::before { content:""; position:absolute; left:0; top:0; bottom:0; width:5px; }
+  .fh-card.fh-fix::before { background:linear-gradient(180deg,#fb7185,#e11d48); }
+  .fh-card.fh-check::before { background:linear-gradient(180deg,#fbbf24,#d97706); }
+  .fh-card.fh-notice::before { background:linear-gradient(180deg,#93c5fd,#2563eb); }
+  .fh-chead { display:flex; gap:14px; align-items:flex-start; }
+  .fh-ic { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .fh-ic .icon { width:20px; height:20px; }
+  .fh-fix .fh-ic { background:linear-gradient(135deg,#fff1f2,#ffe4e6); color:#e11d48; }
+  .fh-check .fh-ic { background:linear-gradient(135deg,#fffbeb,#fef3c7); color:#d97706; }
+  .fh-notice .fh-ic { background:linear-gradient(135deg,#eff6ff,#dbeafe); color:#2563eb; }
+  .fh-ctext { flex:1; min-width:0; }
+  .fh-ctext h3 { margin:0 0 4px; font-size:16.5px; line-height:1.45; }
+  .fh-ctext p { margin:0; color:#475569; font-size:14px; line-height:1.65; }
+  .fh-go { flex:none; display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:999px;
+           font-weight:600; font-size:14px; text-decoration:none; color:#fff; white-space:nowrap; }
+  .fh-fix .fh-go { background:linear-gradient(120deg,#e11d48,#f43f5e); box-shadow:0 6px 14px rgba(225,29,72,.25); }
+  .fh-check .fh-go { background:linear-gradient(120deg,#d97706,#f59e0b); box-shadow:0 6px 14px rgba(217,119,6,.25); }
+  .fh-notice .fh-go { background:linear-gradient(120deg,#2563eb,#3b82f6); box-shadow:0 6px 14px rgba(37,99,235,.25); }
+  .fh-go:hover { filter:brightness(1.05); transform:translateY(-1px); }
+
+  .fh-rows { list-style:none; margin:14px 0 0 54px; padding:0; display:flex; flex-direction:column; gap:6px; }
+  .fh-rows a { display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:12px; text-decoration:none;
+               color:var(--text); background:#f8fafc; transition:background .15s; }
+  .fh-rows a:hover { background:linear-gradient(120deg,#f1f5f9,#eef2ff); }
+  .fh-rmain { flex:1; min-width:0; font-size:14px; overflow-wrap:anywhere; }
+  .fh-rmain small { display:block; color:#64748b; font-size:12.5px; }
+  .fh-date { color:#64748b; margin-right:8px; white-space:nowrap; }
+  .fh-amt { font-weight:600; white-space:nowrap; font-size:14px; }
+  .fh-amt.neg { color:#e11d48; }
+  .fh-rgo { color:#64748b; font-size:13px; white-space:nowrap; display:inline-flex; align-items:center; gap:4px; }
+  .fh-more { margin:8px 0 0 54px; color:#64748b; font-size:13px; }
+
+  .fh-passed { border-radius:16px; padding:14px 18px; background:linear-gradient(120deg,#f0fdf4,#ecfdf5); }
+  .fh-passed summary { cursor:pointer; font-weight:600; color:#065f46; display:flex; align-items:center; gap:10px; list-style:none; }
+  .fh-passed summary::-webkit-details-marker { display:none; }
+  .fh-passed ul { list-style:none; margin:12px 0 0; padding:0; display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:6px 18px; }
+  .fh-passed li { display:flex; gap:8px; align-items:flex-start; font-size:14px; color:#065f46; }
+  .fh-passed li .icon { flex:none; margin-top:3px; }
+
+  @media (max-width:760px) {
+    .fh-sum { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .fh-chead { flex-wrap:wrap; }
+    .fh-go { width:100%; justify-content:center; }
+    .fh-rows, .fh-more { margin-left:0; }
+    .fh-rows a { flex-wrap:wrap; }
+    .fh-rgo { display:none; }
+  }
+</style>
+{% endblock %}

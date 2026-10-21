@@ -117,6 +117,27 @@ def finance_dashboard(request: Request, db: Session = Depends(get_db), year: int
         "task_cards": finance_tasks(db, fy),
         "setup": finance_setup_steps(db, fy, get_school(db)),
         "recent_disburse": db.query(DisburseMemo).order_by(DisburseMemo.id.desc()).limit(5).all(),
+        "health": _health_counts(db, fy),
+    })
+
+
+def _health_counts(db, fy):
+    from app.services.finance_health import run
+    try:
+        return run(db, fy)["counts"]
+    except Exception as e:  # noqa: BLE001  ตรวจไม่ได้ไม่ควรทำให้หน้าแรกการเงินพัง
+        print("[finance-health]", repr(e))
+        return None
+
+
+@router.get("/finance/health", response_class=HTMLResponse)
+def finance_health_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
+    """ตรวจสุขภาพข้อมูลการเงิน: บอกสิ่งที่ควรแก้ / ควรเช็ค / ควรสังเกต พร้อมลิงก์ไปหน้าที่แก้ได้ (ไม่แก้ข้อมูลเอง)"""
+    from app.services.finance_health import run, LEVELS
+    fy = year or current_fiscal_year()
+    return templates.TemplateResponse("finance_health.html", {
+        "request": request, "school": get_school(db), "fiscal_year": fy,
+        "years": _finance_years(db, fy), "levels": LEVELS, "h": run(db, fy),
     })
 
 
