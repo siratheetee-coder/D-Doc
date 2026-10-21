@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}ย้ายเรื่องไปโครงการปีที่ถูกต้อง{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">โครงการ/แผนงบ · {{ year_label }} {{ year }} ({{ thai_date(start) }} ถึง {{ thai_date(end) }})</div>
+    <span class="hero-title">ย้ายเรื่องไปโครงการปีที่ถูกต้อง</span>
+    <div class="hero-meta">{{ rows|length }} เรื่อง · รวม {{ "{:,.2f}".format(total) }} บาท</div>
+  </div>
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <a class="btn sm gray" href="/projects?year={{ year }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับโครงการ</a>
+    <form method="get" action="/projects/realign" style="margin:0;">
+      <select name="year" onchange="this.form.submit()">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ year_label }} {{ y }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+</div>
+
+{% if done %}
+<div class="ra-ok"><b>ย้ายแล้ว {{ done }} เรื่อง</b>{% if created and created != '0' %} · สร้างโครงการปีปลายทางใหม่ {{ created }} โครงการ (งบ 0 บาท กรอกงบตามแผนปีนั้นได้ที่หน้าโครงการ){% endif %}
+  · <a href="/projects?year={{ year }}">กลับไปดูโครงการ{{ year_label }} {{ year }}</a></div>
+{% endif %}
+{% if err %}<div class="ra-err">{{ err }}</div>{% endif %}
+
+{% if rows %}
+<div class="card">
+  <p style="margin-top:0;">เรื่องเหล่านี้ลงวันที่<b>นอกช่วง{{ year_label }} {{ year }}</b> แต่ตอนนี้หักงบโครงการของปีนี้
+    กดยืนยันแล้วระบบจะย้ายแต่ละเรื่องไปผูกกับ<b>โครงการชื่อเดียวกันของปีที่ถูกต้อง</b> (ช่องขวาสุด)</p>
+  <ul class="ra-how">
+    <li>ไม่เปลี่ยนเรื่องพัสดุ เลขที่ เอกสาร ทะเบียนพัสดุ และเงินในทะเบียนคุมเงิน เปลี่ยนแค่ว่าหักงบโครงการปีไหน</li>
+    <li>โครงการปีปลายทางที่ยังไม่มี ระบบสร้างให้ชื่อเดิม ฝ่ายเดิม งบ 0 บาท{% if n_new %} (ครั้งนี้จะสร้าง {{ n_new }} โครงการ){% endif %}
+      กรอกงบตามแผนปีนั้นทีหลังได้</li>
+    <li>ย้ายกลับได้ภายหลัง โดยเลือกโครงการใหม่ในหน้าแก้ไขเรื่องนั้น</li>
+  </ul>
+  <div class="table-wrap"><table>
+    <thead><tr><th>วันที่</th><th>เลขที่</th><th>เรื่อง</th><th class="right">จำนวนเงิน</th><th>ตอนนี้หักงบ</th><th>จะย้ายไป</th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td style="white-space:nowrap;">{{ thai_date(r.date) }}</td>
+        <td style="white-space:nowrap;">{{ r.no or '-' }}</td>
+        <td>{{ r.title }}{% if r.kind != 'proc' %} <span class="muted">({{ kind_label[r.kind] }})</span>{% endif %}</td>
+        <td class="right">{{ "{:,.2f}".format(r.amount) }}</td>
+        <td class="muted">{{ r.project.name }} · {{ year }}</td>
+        <td><b>{{ r.project.name }} · {{ r.target_year }}</b>
+          {% if not r.target %}<span class="ra-new">สร้างใหม่</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <form method="post" action="/projects/realign" style="margin-top:14px;"
+        onsubmit="return confirm('ย้าย {{ rows|length }} เรื่องไปโครงการปีที่ถูกต้อง?');">
+    <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="token" value="{{ token }}">
+    <button class="btn" type="submit" data-no-floating-save>ยืนยันย้าย {{ rows|length }} เรื่อง</button>
+  </form>
+</div>
+{% else %}
+<div class="card"><p style="margin:0;">ไม่มีเรื่องที่ลงวันที่นอกช่วง{{ year_label }} {{ year }} ทุกเรื่องหักงบโครงการถูกปีแล้ว</p></div>
+{% endif %}
+<style>
+  .ra-how { margin:0 0 12px; padding-left:20px; font-size:14px; color:#475569; line-height:1.7; }
+  .ra-new { font-size:12px; color:#6d28d9; background:#f3e8ff; border-radius:999px; padding:1px 8px; margin-left:4px; white-space:nowrap; }
+  .ra-ok { margin:0 0 14px; padding:12px 16px; border-radius:12px; color:#065f46; background:linear-gradient(120deg,#ecfdf5,#d1fae5); }
+  .ra-err { margin:0 0 14px; padding:12px 16px; border-radius:12px; color:#991b1b; background:linear-gradient(120deg,#fef2f2,#fee2e2); }
+</style>
+{% endblock %}

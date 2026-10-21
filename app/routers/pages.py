@@ -2804,6 +2804,7 @@ def projects_page(request: Request, db: Session = Depends(get_db), year: int | N
         # โรงเรียนที่เพิ่งมาใช้: มีโครงการแล้วแต่ยังไม่มีรายจ่ายและยังไม่เคยตั้งยอด
         "suggest_start": bool(rows) and not any(project_spent(p) for p in rows),
         "suggest_next": _suggest_next_year(db, cur, rows),
+        "realign_n": len(_realign_rows(db, cur)),
         "can_finance": can_fin,
         "setup": (finance_setup_steps(db, cur + (1 if plan_year_label(school, cur) == "ปีการศึกษา" else 0), school, selected_plan_year=cur) if can_fin
                   else project_setup_steps(db, cur, plan_year_label(school, cur))),
@@ -3018,6 +3019,49 @@ def _start_rows(db, year):
         out.append({"p": p, "budget": b, "used": used, "before": before,
                     "remain": round(b - used - before, 2), "room": round(b - used, 2)})
     return out
+
+
+def _realign_rows(db, year):
+    from app.services.project_realign import find
+    try:
+        return find(db, year)
+    except Exception as e:  # noqa: BLE001  ตรวจไม่ได้ไม่ควรทำให้หน้าโครงการพัง
+        print("[realign]", e)
+        return []
+
+
+@router.get("/projects/realign", response_class=HTMLResponse)
+def projects_realign_page(request: Request, db: Session = Depends(get_db), year: int | None = None,
+                          done: str = "", created: str = "", err: str = ""):
+    """เรื่องที่ลงวันที่นอกช่วงปีของแผน แต่หักงบโครงการปีนี้ -> ย้ายไปโครงการชื่อเดียวกันของปีที่ถูกต้อง (ตรวจก่อนยืนยัน)"""
+    from app.services import project_realign as pr
+    school = get_school(db)
+    cur = year or current_plan_year(school)
+    rows = pr.find(db, cur)
+    tg = pr.targets(db, rows)
+    start, end = pr.plan_range(db, cur)
+    for r in rows:
+        r["target"] = tg.get(((r["project"].name or "").strip(), r["target_year"]))
+    return templates.TemplateResponse("projects_realign.html", {
+        "request": request, "school": school, "year": cur, "year_label": plan_year_label(school, cur),
+        "years": _plan_years(db, cur), "rows": rows, "token": pr.token(rows), "start": start, "end": end,
+        "kind_label": pr.KIND_LABEL, "total": round(sum(r["amount"] for r in rows), 2),
+        "n_new": sum(1 for v in tg.values() if v is None),
+        "done": done, "created": created, "err": err,
+    })
+
+
+@router.post("/projects/realign")
+def projects_realign_save(db: Session = Depends(get_db), year: str = Form(""), token: str = Form("")):
+    from urllib.parse import quote
+    from app.services.project_realign import apply
+    y = _to_int(year, current_plan_year(get_school(db)))
+    try:
+        res = apply(db, y, token)
+    except ValueError as e:
+        db.rollback()
+        return RedirectResponse(f"/projects/realign?year={y}&err=" + quote(str(e)), status_code=303)
+    return RedirectResponse(f"/projects/realign?year={y}&done={res['moved']}&created={res['created']}", status_code=303)
 
 
 @router.get("/projects/start", response_class=HTMLResponse)

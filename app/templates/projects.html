@@ -34,6 +34,15 @@
   <a class="btn sm" href="/projects/next-year?year={{ fiscal_year }}">ยกโครงการไป{{ year_label }} {{ fiscal_year + 1 }}</a>
 </div>
 {% endif %}
+{% if realign_n %}
+<div class="card ra-note">
+  <b>มี {{ realign_n }} เรื่องที่ลงวันที่นอกช่วง{{ year_label }} {{ fiscal_year }} แต่หักงบโครงการปีนี้</b>
+  <p style="margin:6px 0 10px;">เช่น เรื่องพัสดุที่ทำตามปีงบ ซึ่งคาบเกี่ยวกับ{{ year_label }}ก่อนหน้า ทำให้โครงการปีนี้ดูเหมือนใช้เงินเกินจริง
+    ย้ายไปผูกกับโครงการชื่อเดียวกันของปีที่ถูกต้องได้ (ตรวจรายการก่อนยืนยัน เรื่องพัสดุและเอกสารไม่เปลี่ยน)</p>
+  <a class="btn sm" href="/projects/realign?year={{ fiscal_year }}">ตรวจและย้ายไปปีที่ถูกต้อง</a>
+</div>
+<style>.ra-note { background:linear-gradient(120deg,#fff7ed,#fef3c7); color:#7c2d12; }</style>
+{% endif %}
 {% if suggest_start %}
 <div class="card" style="background:#eff6ff;">
   <b>เพิ่งเริ่มใช้ระบบกลางปีใช่ไหม</b>
