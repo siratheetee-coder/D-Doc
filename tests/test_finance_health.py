@@ -333,3 +333,86 @@ def test_showcase_triggers_every_check_and_every_link_works(env):
                 assert f'id="{frag}"' in r.text, f"ลิงก์ {h} ไม่มีจุด #{frag} ในหน้าปลายทาง"
             checked += 1
     assert checked >= 20
+
+
+def test_move_wrong_year_txn_and_block_new_ones(env):
+    """รายการลงผิดปีงบ: กดย้ายไปปีงบตามวันที่ได้ในคลิกเดียว (หมวดตามไปหมวดชื่อเดียวกัน) · ลงใหม่ผิดปีงบไม่ได้แล้ว"""
+    from app.models import FinanceTxn, AccountItem, FinanceAccount
+    fy, ay, sub_id, lunch_id = _seed()
+    ce = fy - 544
+    db = _db()
+    try:
+        t = db.query(FinanceTxn).filter_by(note="ค่าวัสดุ").one()
+        tid = t.id
+        db.add(AccountItem(account_id=sub_id, fiscal_year=fy - 1, name="ค่าจัดการเรียนการสอน")); db.commit()
+    finally:
+        db.close()
+    html = env.get(f"/finance/health?year={fy}").text
+    assert f'action="/finance/txn/{tid}/move-year"' in html and f"ย้ายไปปีงบ {fy - 1}" in html
+    r = env.post(f"/finance/txn/{tid}/move-year", data={"back": fy}, follow_redirects=False)
+    assert "ok=" in r.headers["location"]
+    db = _db()
+    try:
+        t = db.get(FinanceTxn, tid)
+        assert t.fiscal_year == fy - 1 and t.item.fiscal_year == fy - 1 and t.item.name == "ค่าจัดการเรียนการสอน"
+        assert t.amount == 500 and t.date == datetime(ce, 9, 20), "ยอดเงินและวันที่ไม่เปลี่ยน"
+    finally:
+        db.close()
+    r = env.post(f"/finance/txn/{tid}/move-year", data={"back": fy}, follow_redirects=False)
+    assert "err=" in r.headers["location"], "ย้ายซ้ำไม่ได้ (ตรงปีแล้ว)"
+
+    # ลงรายการใหม่ในหน้าปีงบ fy ด้วยวันที่ของปีงบก่อน = ไม่บันทึก + บอกเหตุผล
+    db = _db()
+    try:
+        n0 = db.query(FinanceTxn).count()
+    finally:
+        db.close()
+    r = env.post(f"/finance/accounts/{sub_id}/txn", data={"fiscal_year": fy, "kind": "out", "amount": "100",
+                                                          "date": f"20/09/{ce + 543}", "note": "ผิดปี"},
+                 follow_redirects=False)
+    assert "txn_err=" in r.headers["location"]
+    assert "ยังไม่ได้บันทึก" in env.get(r.headers["location"]).text
+    env.post(f"/finance/accounts/{sub_id}/txn", data={"fiscal_year": fy, "kind": "out", "amount": "100",
+                                                      "date": f"20/10/{ce + 543}", "note": "ถูกปี"})
+    db = _db()
+    try:
+        assert db.query(FinanceTxn).count() == n0 + 1
+    finally:
+        db.close()
+
+
+def test_carry_error_explains_instead_of_409(env):
+    from app.models import FinanceAccount, AccountItem, FinanceTxn
+    from app.thai_utils import current_fiscal_year
+    fy = current_fiscal_year()
+    db = _db()
+    try:
+        a = FinanceAccount(name="เงินอุดหนุน"); db.add(a); db.flush()
+        db.add(FinanceTxn(account_id=a.id, fiscal_year=fy - 1, kind="in", amount=1000, date=datetime(fy - 544, 9, 1)))
+        db.add(AccountItem(account_id=a.id, fiscal_year=fy, name="หมวดที่กรอกเอง", opening_balance=500)); db.commit()
+    finally:
+        db.close()
+    r = env.post("/finance/carry-forward", data={"year": fy - 1}, follow_redirects=False)
+    assert r.status_code == 303 and "carry_err=" in r.headers["location"]
+    html = env.get(r.headers["location"]).text
+    assert "หมวดที่กรอกเอง" in html and "ข้อมูลยังไม่ถูกเปลี่ยน" in html
+
+
+def test_receipt_number_gap():
+    from app.services.finance_health import _receipt_key
+    assert _receipt_key("12/2570") == ("/2570", 12) and _receipt_key(" 7 ") == ("", 7)
+    assert _receipt_key("เล่มที่ 3 เลขที่ 15") == ("เล่ม 3", 15) and _receipt_key("ABC") is None
+
+
+def test_search_box_on_every_page(env):
+    from app.thai_utils import current_fiscal_year
+    fy = current_fiscal_year()
+    for url in ("/finance", f"/finance/disburse?year={fy}", "/procurement/new"):
+        assert "/static/combo-pick.js?v=2" in env.get(url).text, url
+    from app.models import FinanceAccount
+    db = _db()
+    try:
+        a = FinanceAccount(name="บัญชีทดสอบ"); db.add(a); db.commit(); aid = a.id
+    finally:
+        db.close()
+    assert 'data-quick-project data-combo' in env.get(f"/finance/accounts/{aid}?year={fy}").text

@@ -9,6 +9,7 @@ notice = สิ่งที่ควรสังเกต (ไม่ผิด �
 """
 import hashlib
 import json
+import re
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -31,8 +32,9 @@ def _issue(title, why, rows, href, label="ไปดู"):
                 sig=hashlib.sha256(raw.encode()).hexdigest()[:20])
 
 
-def _row(text, href, sub="", amount=None, date=None):
-    return dict(text=text, href=href, sub=sub, amount=amount, date=date)
+def _row(text, href, sub="", amount=None, date=None, action=None):
+    """action = ปุ่มแก้ในแถวนั้นเลย {url, label, confirm} (ส่งแบบ POST)"""
+    return dict(text=text, href=href, sub=sub, amount=amount, date=date, action=action)
 
 
 def _ledger(t):
@@ -98,11 +100,18 @@ def txn_wrong_year(db, fy, today):
     for t in db.query(FinanceTxn).filter(FinanceTxn.date.isnot(None)).order_by(FinanceTxn.date):
         real = _fy_of(t.date)
         if real != t.fiscal_year:
+            src = (" · มาจากบันทึกขอเบิกจ่าย" if t.disburse_id else " · มาจากเงินยืม" if (t.loan_id or t.loan_return_id)
+                   else " · มาจากอาหารกลางวัน" if t.lunch_year else "")
             rows.append(_row(_txn_text(t), _ledger(t), date=t.date, amount=t.amount,
-                             sub=f"ลงไว้ในปีงบ {t.fiscal_year} แต่วันที่อยู่ในปีงบ {real}"))
+                             sub=f"ลงไว้ในปีงบ {t.fiscal_year} แต่วันที่อยู่ในปีงบ {real}{src}",
+                             action=dict(url=f"/finance/txn/{t.id}/move-year", label=f"ย้ายไปปีงบ {real}",
+                                         confirm=f"ย้ายรายการนี้จากทะเบียนปีงบ {t.fiscal_year} ไปปีงบ {real} ตามวันที่?\n"
+                                                 f"ยอดเงินและวันที่ไม่เปลี่ยน หมวดย้ายไปหมวดชื่อเดียวกันของปีงบ {real}")))
     if rows:
         return _issue("รายการเงินลงผิดปีงบ (วันที่ไม่อยู่ในปีงบที่ลงไว้)",
-                      "ยอดคงเหลือของทั้งสองปีงบจะเพี้ยน ให้แก้วันที่ให้ถูก หรือลบแล้วลงใหม่ในปีงบที่ตรงกับวันที่จ่ายจริง",
+                      "ทะเบียนคุมเงินลงตามวันที่รับหรือจ่ายจริง ถ้าวันที่ถูกแล้ว กดปุ่ม \"ย้ายไปปีงบ...\" ท้ายรายการ "
+                      "ระบบย้ายให้ทันที (ยอดเงินและวันที่ไม่เปลี่ยน) ถ้าวันที่ผิด ให้กด \"ไปดู\" แล้วลบรายการ จากนั้นลงใหม่ให้ถูก "
+                      "(รายการจากบันทึกขอเบิกจ่าย แก้วันที่ที่หน้าบันทึกนั้นได้) · ถ้าปีงบเก่ายกยอดไปแล้ว ให้ยกยอดใหม่อีกครั้งหลังย้าย",
                       rows, rows[0]["href"])
 
 
@@ -134,7 +143,9 @@ def carry_mismatch(db, fy, today):
             for r in carry_status(db, fy)]
     if rows:
         return _issue(f"ยอดยกมาปีงบ {fy} ไม่ตรงกับยอดคงเหลือสิ้นปีงบ {fy - 1}",
-                      "ยอดคงเหลือของปีนี้ในทุกหน้าจึงยังไม่ถูกต้อง ถ้าข้อมูลปีก่อนถูกแล้ว กดยกยอดที่กล่องสีส้มในหน้าบัญชี",
+                      "ยอดคงเหลือของปีนี้ในทุกหน้าจึงยังไม่ถูกต้อง ทำตามลำดับ: (1) ถ้ามีข้อ \"รายการเงินลงผิดปีงบ\" ให้แก้ข้อนั้นก่อน "
+                      "(2) ตรวจรายการปีก่อนว่าครบและถูก (3) กด \"ไปดู\" แล้วกดปุ่มยกยอดในกล่องสีส้มด้านบนของหน้าบัญชี "
+                      "ระบบคัดลอกยอดคงเหลือสิ้นปีก่อนมาเป็นยอดยกมาให้ (ไม่ลบข้อมูลปีเก่า กดซ้ำได้)",
                       rows, rows[0]["href"])
 
 
@@ -156,7 +167,9 @@ def negative_balance(db, fy, today):
                 rows.append(_row(f"{a.name} / {i.name}", href, sub="เงินคงเหลือในหมวดติดลบ", amount=bal))
     if rows:
         return _issue("เงินคงเหลือติดลบ",
-                      "จ่ายเกินเงินที่มี มักเกิดจากยอดยกมายังไม่ได้กรอก ลงรายการรับไม่ครบ หรือลงจ่ายผิดหมวด/ผิดบัญชี",
+                      "จ่ายเกินเงินที่มี มักเกิดจาก (1) ยอดยกมายังไม่ได้กรอก (กรอกในหน้าบัญชี ส่วนยอดยกมาต้นปีงบ) "
+                      "(2) ลงรายการรับไม่ครบ (3) ลงจ่ายผิดหมวดหรือผิดบัญชี (ลบแล้วลงใหม่) "
+                      "(4) มีรายการลงผิดปีงบ (ถ้ามีข้อนั้น ให้แก้ข้อนั้นก่อน ยอดนี้อาจหายเอง)",
                       rows, rows[0]["href"])
 
 
@@ -179,7 +192,9 @@ def project_wrong_year(db, fy, today):
             for r in found]
     if rows:
         return _issue(f"เรื่องที่ลงวันที่นอกช่วง{label} {year} แต่หักงบโครงการปีนี้",
-                      "เช่น เรื่องพัสดุที่ทำตามปีงบ ซึ่งคาบเกี่ยวกับปีการศึกษาก่อน ทำให้โครงการปีนี้ดูเหมือนใช้เงินเกิน "
+                      ("เช่น เรื่องพัสดุที่ทำตามปีงบ ซึ่งคาบเกี่ยวกับปีการศึกษาก่อน" if "การศึกษา" in label
+                       else "เช่น เรื่องพัสดุของปีงบก่อนที่เลือกโครงการปีงบนี้ไว้")
+                      + " ทำให้โครงการปีนี้ดูเหมือนใช้เงินเกิน "
                       "ย้ายไปโครงการชื่อเดียวกันของปีที่ถูกต้องได้ในคลิกเดียว (ตรวจรายการก่อนยืนยัน)",
                       rows, f"/projects/realign?year={year}", "ไปตรวจและย้าย")
 
@@ -437,6 +452,49 @@ def receipt_duplicate_no(db, fy, today):
                       rows, rows[0]["href"])
 
 
+_RC_BOOK = re.compile(r"เล่ม(?:ที่)?\s*([0-9A-Za-zก-ฮ]+)")
+_RC_NO = re.compile(r"(?:เลขที่|เลข|no\.?)\s*(\d+)", re.I)
+_RC_PLAIN = re.compile(r"^\s*(\d+)\s*(?:/\s*(\d{2,4}))?\s*$")
+
+
+def _receipt_key(no: str):
+    """แยกเลขใบเสร็จเป็น (ชุด, เลข) · "12/2570" -> ("/2570", 12) · "เล่มที่ 3 เลขที่ 15" -> ("เล่ม 3", 15)
+    รูปแบบอื่นอ่านไม่ออก = None (ไม่ตรวจเลขข้าม)"""
+    no = (no or "").strip()
+    m = _RC_PLAIN.match(no)
+    if m:
+        return ("/" + m.group(2) if m.group(2) else ""), int(m.group(1))
+    b, n = _RC_BOOK.search(no), _RC_NO.search(no)
+    if b and n:
+        return "เล่ม " + b.group(1), int(n.group(1))
+    return None
+
+
+def receipt_number_gap(db, fy, today):
+    """ใบเสร็จรับเงินเลขที่ข้าม (ในชุดเดียวกัน) · ใบที่ยกเลิกต้องเก็บต้นฉบับไว้ จึงเป็นข้อควรเช็ค ไม่ใช่ข้อผิดแน่"""
+    from app.models import Receipt
+    sets = defaultdict(set)
+    for r in db.query(Receipt).filter(Receipt.fiscal_year == fy, Receipt.kind == "รับ"):
+        k = _receipt_key(r.receipt_no)
+        if k:
+            sets[k[0]].add(k[1])
+    rows = []
+    for book, nums in sorted(sets.items()):
+        if len(nums) < 2:
+            continue
+        miss = sorted(set(range(min(nums), max(nums) + 1)) - nums)
+        if miss and len(miss) <= 200:
+            shown = ", ".join(str(n) for n in miss[:15]) + (f" และอีก {len(miss) - 15} เลข" if len(miss) > 15 else "")
+            rows.append(_row(f"ใบเสร็จ{(' ' + book) if book.startswith('เล่ม') else (' ชุด ' + book.lstrip('/')) if book else ''}"
+                             f" เลขที่ {min(nums)} ถึง {max(nums)}", f"/finance/receipts?year={fy}",
+                             sub=f"เลขที่ข้ามไป: {shown}"))
+    if rows:
+        return _issue("ใบเสร็จรับเงินเลขที่ข้าม",
+                      "เลขใบเสร็จควรเรียงต่อกันไม่ขาด ถ้าเลขที่ขาดเป็นใบที่เขียนผิดแล้วยกเลิก ให้เก็บต้นฉบับที่ยกเลิกไว้ครบทุกฉบับ "
+                      "แล้วกด \"ตรวจแล้ว ไม่ใช่ปัญหา\" ถ้าเป็นใบที่ออกจริงแต่ยังไม่ได้บันทึก ให้บันทึกในทะเบียนใบเสร็จให้ครบ",
+                      rows, rows[0]["href"])
+
+
 # ---------------------------------------------------------------- สิ่งที่ควรสังเกต
 def cash_on_hand(db, fy, today):
     """เงินสดที่เก็บไว้ที่โรงเรียน (ประเภทที่เก็บ = เงินสด) ค้างไว้เกิน 7 วันโดยไม่มีความเคลื่อนไหว"""
@@ -559,12 +617,38 @@ CHECKS = [
     ("check", "รับเงินอุดหนุนไม่เกินยอดที่คำนวณไว้", subsidy_over_received),
     ("check", "รอบจ้างเหมาอาหารกลางวัน วงเงินไม่เกินอัตรารายหัว", lunch_round_over_rate),
     ("check", "ใบเสร็จรับเงินเลขที่ไม่ซ้ำ", receipt_duplicate_no),
+    ("check", "ใบเสร็จรับเงินเลขที่เรียงต่อกันไม่ข้าม", receipt_number_gap),
     ("notice", "จัดสรรเงินในแผนให้โครงการครบ", plan_unallocated),
     ("notice", "ทำงบกระทบยอดเงินฝากธนาคารเดือนที่แล้ว", bank_recon_missing),
     ("notice", "รายการเงินระบุหมวดครบ", txn_without_item),
     ("notice", "ใกล้สิ้นปีงบ ทุกหมวดใช้เงินตามแผน", low_spend_year_end),
     ("notice", "ไม่มีเงินสดค้างที่โรงเรียนนานเกิน 7 วัน", cash_on_hand),
 ]
+
+
+def move_txn_year(db, tid) -> dict:
+    """ย้ายรายการเงินที่ลงผิดปีงบ ไปปีงบตามวันที่ (ทะเบียนคุมเงินลงตามวันที่จ่าย/รับจริง)
+    หมวดย้ายไปหมวดชื่อเดียวกันของปีงบใหม่ ถ้าไม่มีหมวดชื่อนั้น = ไม่ระบุหมวด · ใบเสร็จที่ผูกไว้ย้ายปีตาม
+    ไม่แตะยอดเงิน วันที่ บันทึกขอเบิกจ่าย หรือเรื่องพัสดุ"""
+    from app.models import FinanceTxn, AccountItem, Receipt
+    t = db.get(FinanceTxn, tid)
+    if not t or not t.date:
+        raise ValueError("ไม่พบรายการ หรือรายการไม่มีวันที่")
+    new = _fy_of(t.date)
+    if new == t.fiscal_year:
+        raise ValueError("รายการนี้อยู่ในปีงบที่ตรงกับวันที่แล้ว")
+    old_item = db.get(AccountItem, t.item_id) if t.item_id else None
+    item = None
+    if old_item:
+        item = (db.query(AccountItem).filter_by(account_id=t.account_id, fiscal_year=new, name=old_item.name)
+                .order_by(AccountItem.id).first())
+    old = t.fiscal_year
+    t.fiscal_year, t.item_id = new, (item.id if item else None)
+    for r in db.query(Receipt).filter_by(txn_id=t.id):
+        r.fiscal_year = new
+    db.commit()
+    return dict(old=old, new=new, account_id=t.account_id, item_lost=bool(old_item and not item),
+                item_name=old_item.name if old_item else "")
 
 
 def acks(db) -> dict:

@@ -106,7 +106,9 @@ def seed(db, now=None) -> dict:
     db.add(CheckPayment(fiscal_year=fy - 1, pay_method="เช็ค", check_no="0001234", payee="ร้านรุ่งเรืองพาณิชย์",
                         amount=700, date=now - timedelta(days=170)))
     db.add_all([Receipt(fiscal_year=fy, kind="รับ", receipt_no="12/" + str(fy), party="ผู้ปกครอง ก", amount=100, date=recent),
-                Receipt(fiscal_year=fy, kind="รับ", receipt_no="12/" + str(fy), party="ผู้ปกครอง ข", amount=150, date=recent)])
+                Receipt(fiscal_year=fy, kind="รับ", receipt_no="12/" + str(fy), party="ผู้ปกครอง ข", amount=150, date=recent),
+                Receipt(fiscal_year=fy, kind="รับ", receipt_no="10/" + str(fy), party="ผู้ปกครอง ค", amount=80, date=recent)])
+    # ↑ 12 ซ้ำ + 11 ข้าม
 
     # ---- เงินในแผน: ไม่ตรงทะเบียน + ยังไม่ได้จัดสรร
     plan = PlanBudget(year=ay, mode="academic", start_date=datetime(ay - 543, 5, 16), end_date=datetime(ay - 542, 5, 15))

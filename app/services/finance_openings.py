@@ -48,19 +48,26 @@ def carry(db, fy):
             pid=parent.id if parent else None
             matches=[i for i in target if i.name==old.name and i.parent_id==pid]
             if len(matches)>1 or (old.parent_id and not parent):
-                raise ValueError('หมวดซ้ำหรือโครงสร้างไม่ตรง กรุณาตรวจบัญชี '+a.name)
+                raise ValueError(f'ยกยอดไม่ได้: บัญชี "{a.name}" ปีงบ {fy+1} มีหมวดชื่อ "{old.name}" ซ้ำกันหลายหมวด '
+                                 f'หรือหมวดย่อยอยู่ใต้หมวดแม่คนละชื่อกับปีงบ {fy} ให้แก้ชื่อหมวดปีงบ {fy+1} ไม่ให้ซ้ำก่อน')
             if matches:new=matches[0]
             else:
                 new=AccountItem(account_id=a.id,fiscal_year=fy+1,name=old.name,parent_id=pid,budget=0,deposit_type=old.deposit_type,note=old.note)
                 db.add(new);db.flush();target.append(new)
             if new.id in [x.id for x in mapped.values()]:
-                raise ValueError('หมวดต้นทางชื่อซ้ำ กรุณาตรวจบัญชี '+a.name)
+                raise ValueError(f'ยกยอดไม่ได้: บัญชี "{a.name}" ปีงบ {fy} มีหมวดชื่อ "{old.name}" ซ้ำกัน '
+                                 f'ให้แก้ชื่อหมวดปีงบ {fy} ไม่ให้ซ้ำก่อน')
             new.opening_balance=item_remaining_asof(old)
             if not (new.eb_slot or '') and (old.eb_slot or ''):   # ช่อง e-Budget ที่เลือกไว้ ตามไปปีใหม่
                 new.eb_slot=old.eb_slot
             mapped[old.id]=new
-        if any(i.id not in [x.id for x in mapped.values()] and (i.opening_balance or 0) for i in target):
-            raise ValueError('มีหมวดปีใหม่ที่มียอดยกมาแต่ไม่มีคู่ในปีก่อน กรุณาตรวจบัญชี '+a.name)
+        orphan=[i.name for i in target if i.id not in [x.id for x in mapped.values()] and (i.opening_balance or 0)]
+        if orphan:
+            raise ValueError(f'ยกยอดไม่ได้: บัญชี "{a.name}" ปีงบ {fy+1} มีหมวด {", ".join(orphan)} ที่กรอกยอดยกมาเองไว้ '
+                             f'แต่ปีงบ {fy} ไม่มีหมวดชื่อนี้ ระบบจึงไม่รู้ว่าจะเอายอดไปไว้ที่ไหน · '
+                             f'ถ้ายอดยกมาที่กรอกเองถูกแล้ว (เช่น เริ่มใช้ระบบปีงบ {fy+1}) ไม่ต้องยกยอด '
+                             f'และถ้ามีรายการปีงบ {fy} ที่ลงไว้ก่อนเริ่มใช้ระบบ ให้ลบออก · '
+                             f'ถ้าต้องการยกยอดจริง ให้แก้ชื่อหมวดปีงบ {fy+1} ให้ตรงกับปีงบ {fy} ก่อน')
         row=db.query(AccountOpening).filter_by(account_id=a.id,fiscal_year=fy+1).first()
         if row is None:row=AccountOpening(account_id=a.id,fiscal_year=fy+1);db.add(row)
         row.amount=account_balance_year(a,fy)

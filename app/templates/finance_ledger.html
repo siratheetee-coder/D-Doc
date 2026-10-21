@@ -264,6 +264,8 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
 
 <div class="card">
   <h2 id="txn-entry" style="scroll-margin-top:90px;"><svg class="icon"><use href="#ic-plus"/></svg> บันทึกรับ / จ่าย</h2>
+  {% if request.query_params.get('txn_err') %}<div class="alert" role="alert" style="background:linear-gradient(120deg,#fef2f2,#fee2e2); color:#991b1b;">ยังไม่ได้บันทึก: {{ request.query_params.get('txn_err') }}</div>{% endif %}
+  {% if request.query_params.get('moved') %}<div class="alert">✔ ย้ายรายการไปปีงบ {{ request.query_params.get('moved') }} ตามวันที่แล้ว</div>{% endif %}
   {% if subsidy_year %}<p>บันทึกรับเงินที่ได้รับโอนจริง แล้วกลับไปเลือกรายการเพื่อเชื่อมกับเงินอุดหนุนของเทอมนี้</p>
   <p><a class="btn gray" href="/finance/subsidy?year={{ subsidy_year }}&term={{ subsidy_term }}#sec-receipts">กลับไปเชื่อมเงินอุดหนุน · ปีการศึกษา {{ subsidy_year }} เทอม {{ subsidy_term }}</a></p>{% endif %}
   <form method="post" action="/finance/accounts/{{ account.id }}/txn">
@@ -301,7 +303,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       {# ผูกกับโครงการในแผน -> ยอดไปโผล่ที่ทะเบียนคุมโครงการเอง #}
       <div><label>โครงการ</label>
         <select name="project_id" title="ผูกรายการนี้กับโครงการในแผน เพื่อคุมงบรายโครงการ"
-                data-quick-project>
+                data-quick-project data-combo>
           <option value="">- ไม่ผูกโครงการ -</option>
           {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if selected_project==pj.id }}>{{ pj.name }} · ปีแผน {{ pj.plan_year or "ไม่ระบุปี" }}{{ " (ปิดใช้งาน)" if not pj.active else "" }}</option>{% endfor %}
         </select>

@@ -29,6 +29,7 @@
 </div>
 
 {% if err %}<div class="fh-err">{{ err }}</div>{% endif %}
+{% if ok %}<div class="fh-ok-msg">✔ {{ ok }}</div>{% endif %}
 {% if not n_issue %}
 <div class="fh-allok">
   <svg class="icon"><use href="#ic-check"/></svg>
@@ -58,7 +59,11 @@
           {% if r.sub %}<small>{{ r.sub }}</small>{% endif %}</span>
         {% if r.amount is not none %}<span class="fh-amt{{ ' neg' if r.amount < 0 }}">{{ "{:,.2f}".format(r.amount) }}</span>{% endif %}
         <span class="fh-rgo">ไปดู <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-      </a></li>
+      </a>{% if r.action %}
+      <form method="post" action="{{ r.action.url }}" class="fh-rowact" onsubmit="return confirm({{ r.action.confirm|tojson|forceescape }});">
+        <input type="hidden" name="back" value="{{ fiscal_year }}">
+        <button type="submit" data-no-floating-save>{{ r.action.label }}</button>
+      </form>{% endif %}</li>
       {% endfor %}
     </ul>
     {% if it.total > it.rows|length %}<div class="fh-more">และอีก {{ it.total - it.rows|length }} รายการ · กด "{{ it.label }}" เพื่อดูทั้งหมด</div>{% endif %}
@@ -174,6 +179,13 @@
   .fh-passed li .icon { flex:none; margin-top:3px; }
 
   .fh-err { margin:0 0 16px; padding:12px 16px; border-radius:12px; color:#991b1b; background:linear-gradient(120deg,#fef2f2,#fee2e2); }
+  .fh-ok-msg { margin:0 0 16px; padding:12px 16px; border-radius:12px; color:#065f46; background:linear-gradient(120deg,#ecfdf5,#d1fae5); }
+  .fh-rows li { display:flex; gap:8px; align-items:stretch; }
+  .fh-rows li > a { flex:1; min-width:0; }
+  .fh-rowact { margin:0; display:flex; }
+  .fh-rowact button { font:inherit; font-size:13px; font-weight:600; border:0; border-radius:12px; padding:0 14px; cursor:pointer;
+                      color:#fff; background:linear-gradient(120deg,#0d9488,#14b8a6); white-space:nowrap; }
+  .fh-rowact button:hover { filter:brightness(1.05); }
   .fh-ackf { margin:10px 0 0 54px; }
   .fh-ack { font:inherit; font-size:13px; font-weight:600; color:#475569; background:#f1f5f9; border:0; border-radius:999px;
             padding:6px 14px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
@@ -191,6 +203,8 @@
              background:#eef2ff; color:#3730a3; text-decoration:none; }
 
   @media (max-width:760px) {
+    .fh-rows li { flex-direction:column; }
+    .fh-rowact button { padding:9px 14px; width:100%; }
     .fh-ackf { margin-left:0; }
     .fh-sum { grid-template-columns:repeat(2,minmax(0,1fr)); }
     .fh-chead { flex-wrap:wrap; }

@@ -138,7 +138,7 @@ def finance_health_page(request: Request, db: Session = Depends(get_db), year: i
     return templates.TemplateResponse("finance_health.html", {
         "request": request, "school": get_school(db), "fiscal_year": fy,
         "years": _finance_years(db, fy), "levels": LEVELS, "h": run(db, fy),
-        "err": request.query_params.get("err", ""),
+        "err": request.query_params.get("err", ""), "ok": request.query_params.get("ok", ""),
     })
 
 
@@ -154,6 +154,22 @@ def finance_health_ack(request: Request, db: Session = Depends(get_db), year: st
         db.rollback()
         return RedirectResponse(f"/finance/health?year={y}&err=" + quote(str(e)), status_code=303)
     return RedirectResponse(f"/finance/health?year={y}#lv-dismissed", status_code=303)
+
+
+@router.post("/finance/txn/{tid}/move-year")
+def finance_txn_move_year(tid: int, db: Session = Depends(get_db), back: str = Form("")):
+    """ย้ายรายการที่ลงผิดปีงบ ไปปีงบตามวันที่ (ปุ่มในหน้าตรวจสุขภาพข้อมูล)"""
+    from app.services.finance_health import move_txn_year
+    y = _to_int(back, current_fiscal_year())
+    try:
+        r = move_txn_year(db, tid)
+    except ValueError as e:
+        db.rollback()
+        return RedirectResponse(f"/finance/health?year={y}&err=" + quote(str(e)), status_code=303)
+    note = f"ย้ายรายการไปทะเบียนปีงบ {r['new']} แล้ว"
+    if r["item_lost"]:
+        note += f" · ปีงบ {r['new']} ไม่มีหมวด \"{r['item_name']}\" รายการจึงยังไม่ระบุหมวด เลือกหมวดได้ที่ทะเบียนปีงบ {r['new']}"
+    return RedirectResponse(f"/finance/health?year={y}&ok=" + quote(note), status_code=303)
 
 
 @router.post("/finance/health/unack")
@@ -175,8 +191,8 @@ def carry_forward(db: Session = Depends(get_db), year: str = Form("")):
         carry(db,src)
         db.commit()
     except ValueError as exc:
-        db.rollback()
-        raise HTTPException(409,str(exc))
+        db.rollback()      # ไม่มีอะไรเปลี่ยน · กลับหน้าการเงินพร้อมคำอธิบาย (เดิมขึ้นหน้า error 409 ให้งง)
+        return RedirectResponse(f"/finance?year={nxt}&carry_err=" + quote(str(exc)), status_code=303)
     return RedirectResponse(f"/finance?year={nxt}&carried={src}", status_code=303)
 
 
@@ -548,6 +564,14 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
         k = "out" if kind == "out" else "in"
         amt = _to_float(amount, 0.0)
         dt = parse_be_date(date) or datetime.now()
+        # วันที่ต้องอยู่ในปีงบที่ลง ไม่งั้นยอดคงเหลือของทั้งสองปีเพี้ยน (เจอจริงหลายโรงเรียน: ลงย้อนหลังในหน้าปีงบใหม่)
+        real_fy = dt.year + 543 + (1 if dt.month >= 10 else 0)
+        if real_fy != fy:
+            why = (f"วันที่ {dt.day}/{dt.month}/{dt.year + 543} อยู่ในปีงบ {real_fy} แต่กำลังลงในทะเบียนปีงบ {fy} "
+                   f"เลือกปีงบ {real_fy} ที่ช่องด้านบนก่อนบันทึก หรือแก้วันที่ให้ถูก" if date.strip()
+                   else f"กรุณากรอกวันที่ (ถ้าไม่กรอก ระบบใช้วันนี้ ซึ่งอยู่ในปีงบ {real_fy} ไม่ใช่ปีงบ {fy})")
+            return RedirectResponse(f"/finance/accounts/{aid}?year={fy}&txn_err=" + quote(why) + "#txn-entry",
+                                    status_code=303)
         if ref_mode in docno.PREFIXES:
             # ออกเลขตอนบันทึกจริง (ไม่ใช้เลขที่โชว์ในฟอร์ม) กันเลขซ้ำถ้ามีคนบันทึกก่อนหน้า
             ref = docno.next_ref(db, ref_mode, fy, "4" if ref_yfmt == "4" else "2")

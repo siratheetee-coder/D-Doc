@@ -50,7 +50,7 @@
     </div>
     <div id="sdWarn" style="display:none; margin:6px 0 0; padding:7px 12px; border-radius:8px; background:#fff4e5; border:1px solid #fcd9a5; color:#b45309; font-size:13.5px;"></div>
     <div class="row">
-      <div style="flex:2;"><label>ผู้รับจ้าง</label><select name="vendor_id" id="vsel">
+      <div style="flex:2;"><label>ผู้รับจ้าง</label><select name="vendor_id" id="vsel" data-combo data-combo-placeholder="พิมพ์ชื่อผู้รับจ้างเพื่อค้นหา หรือคลิกเพื่อเลือก">
         <option value="">- ไม่ระบุ -</option>
         {% for v in vendors %}<option value="{{ v.id }}" {{ 'selected' if edit and edit.vendor_id==v.id }}>{{ v.name }}</option>{% endfor %}
       </select>

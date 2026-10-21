@@ -444,7 +444,7 @@
   document.querySelectorAll('input[list="persons"]').forEach(function(el){
     el.addEventListener('change', function(){
       var pos = POS[this.value];
-      var box = this.closest('tr').querySelector('input[list="positions"]');
+      var box = this.closest('tr').querySelector('input[list="positions"],input[data-cp-list="positions"]');
       if (pos && box && !box.dataset.touched) box.value = pos;
     });
   });
