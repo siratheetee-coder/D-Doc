@@ -17,7 +17,9 @@
   </div>
 </div>
 
-{% if request.query_params.get("carry_err") %}<div class="alert warn" role="alert">{{ request.query_params.get("carry_err") }} · ข้อมูลยังไม่ถูกเปลี่ยน</div>{% endif %}
+{% if request.query_params.get("carry_err") %}{% set _ce = request.query_params.get("carry_err").split("\n") %}
+<div class="alert warn" role="alert"><div><b>{{ _ce[0] }}</b>
+  <ul style="margin:6px 0 0; padding-left:18px;">{% for line in _ce[1:] %}<li>{{ line }}</li>{% endfor %}<li>ข้อมูลยังไม่ถูกเปลี่ยน</li></ul></div></div>{% endif %}
 {% if request.query_params.get("carried") %}<div class="alert">✔ คัดลอกยอดคงเหลือสิ้นปีงบ {{ request.query_params.get("carried") }} ไปตั้งเป็นยอดยกมาของปีงบ {{ fiscal_year }} แล้ว (ข้อมูลปีเก่ายังอยู่ครบ เลือกดูได้จากช่องเลือกปี)</div>{% endif %}
 
 {# ตรวจสุขภาพข้อมูลการเงิน (app/services/finance_health.py) · มีปัญหา = แถบเด่น · เรียบร้อย = แถบเขียวเล็ก ๆ #}

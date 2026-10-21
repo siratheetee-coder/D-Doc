@@ -1201,7 +1201,7 @@
         {# ===== งานการเงิน: ยอดยกมาปีนี้ไม่ตรงยอดสิ้นปีก่อน = ยอดคงเหลือทุกหน้าผิด ===== #}
         <div class="cw-box">
           <div class="cw-head">ยอดยกมาปีงบ {{ fiscal_year }} ยังไม่ตรงกับยอดคงเหลือสิ้นปีงบ {{ fiscal_year - 1 }}</div>
-          <div class="cw-sub">ยอดคงเหลือของปีงบ {{ fiscal_year }} ในทุกหน้าจึงยังไม่ถูกต้อง ·
+          <div class="cw-sub">ยอดคงเหลือของปีงบ {{ fiscal_year }} ในทุกหน้าจึงยังไม่ถูกต้อง เพราะ
             {% if _cw|selectattr('carried')|list %}มีรายการปีงบ {{ fiscal_year - 1 }} เพิ่มหรือแก้หลังยกยอดไปแล้ว{% else %}ยังไม่ได้ยกยอดจากปีงบ {{ fiscal_year - 1 }}{% endif %}</div>
           <ul class="cw-list">
             {% for r in _cw %}<li><b>{{ r.name }}</b> · สิ้นปีงบ {{ fiscal_year - 1 }} คงเหลือ <b>{{ "{:,.2f}".format(r.want) }}</b> บาท แต่ตอนนี้ใช้เป็นยอดยกมา {{ "{:,.2f}".format(r.got) }} บาท</li>{% endfor %}

@@ -5,9 +5,9 @@
 {% set n_issue = c.fix + c.check + c.notice %}
 <div class="hero fh-hero">
   <div>
-    <div class="hero-sub">งานการเงิน · ปีงบประมาณ {{ fiscal_year }}</div>
+    <div class="hero-sub">งานการเงิน ปีงบประมาณ {{ fiscal_year }}</div>
     <span class="hero-title">ตรวจสุขภาพข้อมูลการเงิน</span>
-    <div class="hero-meta">ระบบไล่ตรวจข้อมูลให้ทั้งหมด {{ n_issue + c.passed }} ข้อ · แค่ตรวจและบอก ไม่แก้ข้อมูลเอง</div>
+    <div class="hero-meta">ระบบตรวจข้อมูลให้ {{ n_issue + c.passed }} ข้อ แค่ตรวจและบอก ไม่แก้ข้อมูลเอง</div>
   </div>
   <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
     <a class="btn sm gray" href="/finance?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> งานการเงิน</a>
@@ -48,7 +48,7 @@
       <div class="fh-ic"><svg class="icon"><use href="#{{ 'ic-alert' if key == 'fix' else ('ic-search' if key == 'check' else 'ic-info') }}"/></svg></div>
       <div class="fh-ctext">
         <h3>{{ it.title }}</h3>
-        <p>{{ it.why }}</p>
+        {% if it.why is string %}<p>{{ it.why }}</p>{% else %}<ul class="fh-why">{% for w in it.why %}<li>{{ w }}</li>{% endfor %}</ul>{% endif %}
       </div>
       <a class="fh-go" href="{{ it.href }}">{{ it.label }} <svg class="icon"><use href="#ic-arrow-right"/></svg></a>
     </div>
@@ -66,7 +66,7 @@
       </form>{% endif %}</li>
       {% endfor %}
     </ul>
-    {% if it.total > it.rows|length %}<div class="fh-more">และอีก {{ it.total - it.rows|length }} รายการ · กด "{{ it.label }}" เพื่อดูทั้งหมด</div>{% endif %}
+    {% if it.total > it.rows|length %}<div class="fh-more">และอีก {{ it.total - it.rows|length }} รายการ กด "{{ it.label }}" เพื่อดูทั้งหมด</div>{% endif %}
     {% if it.can_ack %}
     <form method="post" action="/finance/health/ack" class="fh-ackf"
           onsubmit="return confirm('ยืนยันว่าตรวจแล้ว ข้อนี้ไม่ใช่ปัญหา?\nถ้ามีรายการใหม่เข้าข่ายข้อนี้ ระบบจะกลับมาเตือนอีก');">
@@ -83,10 +83,10 @@
 {% if h.dismissed %}
 <section class="fh-level" id="lv-dismissed">
   <details class="fh-dis">
-    <summary><span class="fh-dot fh-dis-dot"></span> ตรวจแล้ว ไม่ใช่ปัญหา {{ h.dismissed|length }} ข้อ <span class="muted">(ไม่นับในจำนวนด้านบน · ถ้ามีรายการใหม่ จะกลับมาเตือน)</span></summary>
+    <summary><span class="fh-dot fh-dis-dot"></span> ตรวจแล้ว ไม่ใช่ปัญหา {{ h.dismissed|length }} ข้อ <span class="muted">(ไม่นับในจำนวนด้านบน ถ้ามีรายการใหม่จะกลับมาเตือน)</span></summary>
     <ul>{% for it in h.dismissed %}<li>
       <div><b>{{ it.title }}</b>
-        <small>{{ it.total }} รายการ · กดโดย {{ it.ack.by_name or 'ไม่ระบุ' }} เมื่อ {{ thai_date(it.ack.created_at) }}</small></div>
+        <small>{{ it.total }} รายการ กดโดย {{ it.ack.by_name or 'ไม่ระบุ' }} เมื่อ {{ thai_date(it.ack.created_at) }}</small></div>
       <div class="fh-disbtn">
         <a class="fh-mini" href="{{ it.href }}">ไปดู</a>
         <form method="post" action="/finance/health/unack" style="margin:0;">
@@ -170,6 +170,8 @@
   .fh-amt.neg { color:#e11d48; }
   .fh-rgo { color:#64748b; font-size:13px; white-space:nowrap; display:inline-flex; align-items:center; gap:4px; }
   .fh-more { margin:8px 0 0 54px; color:#64748b; font-size:13px; }
+  .fh-why { margin:0; padding-left:18px; color:#475569; font-size:14px; line-height:1.65; }
+  .fh-why li { margin:1px 0; }
 
   .fh-passed { border-radius:16px; padding:14px 18px; background:linear-gradient(120deg,#f0fdf4,#ecfdf5); }
   .fh-passed summary { cursor:pointer; font-weight:600; color:#065f46; display:flex; align-items:center; gap:10px; list-style:none; }

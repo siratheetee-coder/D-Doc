@@ -51,8 +51,8 @@
     <div class="row-head">
       <div>
         <h1>โรงเรียนไหนมีข้อมูลการเงินที่ควรแก้</h1>
-        <p class="muted" style="margin:0;">ผลจากหน้า "ตรวจสุขภาพข้อมูลการเงิน" ของแต่ละโรงเรียน (ปีงบปัจจุบัน) ไม่รวมระบบตัวอย่าง ·
-          ระบบตรวจให้ทุกคืน ตี 5 · {% if d %}ตรวจล่าสุด {{ d.at }} · ปีงบ {{ d.fy }}{% else %}ยังไม่เคยตรวจ{% endif %}</p>
+        <p class="muted" style="margin:0;">ผลจากหน้า "ตรวจสุขภาพข้อมูลการเงิน" ของแต่ละโรงเรียน (ปีงบปัจจุบัน) ไม่รวมระบบตัวอย่าง
+          ระบบตรวจให้ทุกคืนตอนตี 5 {% if d %}ตรวจล่าสุด {{ d.at }} ปีงบ {{ d.fy }}{% else %}ยังไม่เคยตรวจ{% endif %}</p>
       </div>
       <form method="post" action="/admin-console/finance-health/run" style="margin:0;"
             onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='กำลังตรวจ...';">
@@ -80,7 +80,7 @@
         <div class="muted">ตรวจไม่สำเร็จ: {{ r.error }}</div></div>
       {% elif r.counts.fix or r.counts.check %}
       <div class="sch {{ 'bad' if r.counts.fix else 'warn' }}">
-        <span class="nm">{{ r.name }}</span><span class="off">id {{ r.id }}{{ ' · ปิดใช้งาน' if not r.active }}</span>
+        <span class="nm">{{ r.name }}</span><span class="off">id {{ r.id }}{{ ' (ปิดใช้งาน)' if not r.active }}</span>
         <span class="chips">
           {% if r.counts.fix %}<span class="chip c-fix">ควรแก้ {{ r.counts.fix }}</span>{% endif %}
           {% if r.counts.check %}<span class="chip c-check">ควรเช็ค {{ r.counts.check }}</span>{% endif %}
@@ -92,7 +92,7 @@
     {% endfor %}
     {% if ns.ok %}
     <details><summary>เรียบร้อย / มีแค่สิ่งที่ควรสังเกต {{ ns.ok|length }} โรงเรียน</summary>
-      <ul class="muted">{% for r in ns.ok %}<li>{{ r.name }}{% if r.counts.notice %} · ควรสังเกต {{ r.counts.notice }}{% endif %}</li>{% endfor %}</ul>
+      <ul class="muted">{% for r in ns.ok %}<li>{{ r.name }}{% if r.counts.notice %} (ควรสังเกต {{ r.counts.notice }}){% endif %}</li>{% endfor %}</ul>
     </details>
     {% endif %}
   </div>

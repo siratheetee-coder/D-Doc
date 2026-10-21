@@ -168,7 +168,7 @@ def finance_txn_move_year(tid: int, db: Session = Depends(get_db), back: str = F
         return RedirectResponse(f"/finance/health?year={y}&err=" + quote(str(e)), status_code=303)
     note = f"ย้ายรายการไปทะเบียนปีงบ {r['new']} แล้ว"
     if r["item_lost"]:
-        note += f" · ปีงบ {r['new']} ไม่มีหมวด \"{r['item_name']}\" รายการจึงยังไม่ระบุหมวด เลือกหมวดได้ที่ทะเบียนปีงบ {r['new']}"
+        note += f" แต่ปีงบ {r['new']} ไม่มีหมวด \"{r['item_name']}\" รายการจึงยังไม่ระบุหมวด เลือกหมวดได้ที่ทะเบียนปีงบ {r['new']}"
     return RedirectResponse(f"/finance/health?year={y}&ok=" + quote(note), status_code=303)
 
 

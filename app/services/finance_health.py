@@ -42,7 +42,7 @@ def _ledger(t):
 
 
 def _txn_text(t):
-    return ("รับ" if t.kind == "in" else "จ่าย") + (f" · {t.note}" if t.note else (f" · {t.ref}" if t.ref else ""))
+    return ("รับ" if t.kind == "in" else "จ่าย") + (f" {t.note}" if t.note else (f" {t.ref}" if t.ref else ""))
 
 
 def _plan(db):
@@ -89,8 +89,8 @@ def opening_equals_budget(db, fy, today):
                              amount=sum(i.opening_balance or 0 for i in cand)))
     if rows:
         return _issue("ยอดยกมาเท่ากับงบที่ตั้งไว้ทุกหมวด",
-                      f"ยอดยกมาต้องเป็นเงินที่เหลือจริงในบัญชี ณ 1 ต.ค. (ดูจากสมุดบัญชีธนาคารหรือทะเบียนคุมเงินเดิม) "
-                      f"ไม่ใช่งบที่ได้รับจัดสรร ถ้ากรอกผิด ยอดคงเหลือทุกหน้าและเงินที่ใช้จัดสรรให้โครงการจะผิดตาม",
+                      ["ยอดยกมาต้องเป็นเงินที่เหลือจริงในบัญชี ณ 1 ต.ค. ดูได้จากสมุดบัญชีธนาคาร",
+                       "ไม่ใช่งบที่ได้รับจัดสรร ถ้ากรอกผิด ยอดคงเหลือทุกหน้าจะผิดตาม"],
                       rows, rows[0]["href"], "ไปแก้ยอดยกมา")
 
 
@@ -100,8 +100,8 @@ def txn_wrong_year(db, fy, today):
     for t in db.query(FinanceTxn).filter(FinanceTxn.date.isnot(None)).order_by(FinanceTxn.date):
         real = _fy_of(t.date)
         if real != t.fiscal_year:
-            src = (" · มาจากบันทึกขอเบิกจ่าย" if t.disburse_id else " · มาจากเงินยืม" if (t.loan_id or t.loan_return_id)
-                   else " · มาจากอาหารกลางวัน" if t.lunch_year else "")
+            src = (" (มาจากบันทึกขอเบิกจ่าย)" if t.disburse_id else " (มาจากเงินยืม)" if (t.loan_id or t.loan_return_id)
+                   else " (มาจากอาหารกลางวัน)" if t.lunch_year else "")
             rows.append(_row(_txn_text(t), _ledger(t), date=t.date, amount=t.amount,
                              sub=f"ลงไว้ในปีงบ {t.fiscal_year} แต่วันที่อยู่ในปีงบ {real}{src}",
                              action=dict(url=f"/finance/txn/{t.id}/move-year", label=f"ย้ายไปปีงบ {real}",
@@ -109,8 +109,8 @@ def txn_wrong_year(db, fy, today):
                                                  f"ยอดเงินและวันที่ไม่เปลี่ยน หมวดย้ายไปหมวดชื่อเดียวกันของปีงบ {real}")))
     if rows:
         return _issue("รายการเงินลงผิดปีงบ (วันที่ไม่อยู่ในปีงบที่ลงไว้)",
-                      "ถ้าวันที่ถูกแล้ว กดปุ่มสีเขียว \"ย้ายไปปีงบ ...\" ระบบย้ายให้เลย (ยอดเงินและวันที่ไม่เปลี่ยน) · "
-                      "ถ้าวันที่ผิด กด \"ไปดู\" แล้วลบรายการนั้น และลงใหม่ให้ถูก",
+                      ["ถ้าวันที่ถูกแล้ว กดปุ่มสีเขียว \"ย้ายไปปีงบ ...\" ระบบย้ายให้ ยอดเงินและวันที่ไม่เปลี่ยน",
+                       "ถ้าวันที่ผิด กด \"ไปดู\" แล้วลบรายการนั้น จากนั้นลงใหม่ให้ถูก"],
                       rows, rows[0]["href"])
 
 
@@ -125,9 +125,9 @@ def before_start(db, fy, today):
             for t in db.query(FinanceTxn).filter(FinanceTxn.fiscal_year == prev).order_by(FinanceTxn.date)]
     if rows:
         return _issue(f"มีรายการเงินในปีงบ {prev} ซึ่งเป็นช่วงก่อนเริ่มใช้ระบบ",
-                      f"โรงเรียนเริ่มลงเงินในระบบที่ปีงบ {fy} ด้วยยอดยกมา ซึ่งหักเงินที่จ่ายไปก่อนหน้าแล้ว "
-                      f"รายการปีงบ {prev} จึงนับซ้ำ และทำให้ระบบเตือนให้ยกยอดติดลบ ให้ลบรายการเหล่านี้ และอย่ากดยกยอด "
-                      f"(งบโครงการยังหักจากเรื่องพัสดุเหมือนเดิม)",
+                      [f"โรงเรียนเริ่มใช้ระบบปีงบ {fy} ด้วยยอดยกมา ซึ่งหักเงินที่จ่ายไปก่อนหน้าแล้ว",
+                       f"รายการปีงบ {prev} จึงนับซ้ำ ให้ลบรายการเหล่านี้",
+                       "อย่ากดยกยอด งบโครงการยังหักจากเรื่องพัสดุเหมือนเดิม"],
                       rows, rows[0]["href"])
 
 
@@ -142,9 +142,9 @@ def carry_mismatch(db, fy, today):
             for r in carry_status(db, fy)]
     if rows:
         return _issue(f"ยอดยกมาปีงบ {fy} ไม่ตรงกับยอดคงเหลือสิ้นปีงบ {fy - 1}",
-                      "ยอดคงเหลือของปีนี้ในทุกหน้าจึงยังไม่ถูกต้อง ทำตามลำดับ: (1) ถ้ามีข้อ \"รายการเงินลงผิดปีงบ\" ให้แก้ข้อนั้นก่อน "
-                      "(2) ตรวจรายการปีก่อนว่าครบและถูก (3) กด \"ไปดู\" แล้วกดปุ่มยกยอดในกล่องสีส้มด้านบนของหน้าบัญชี "
-                      "ระบบคัดลอกยอดคงเหลือสิ้นปีก่อนมาเป็นยอดยกมาให้ (ไม่ลบข้อมูลปีเก่า กดซ้ำได้)",
+                      ["ถ้ามีข้อ \"รายการเงินลงผิดปีงบ\" ให้แก้ข้อนั้นก่อน",
+                       "ตรวจรายการปีก่อนว่าครบและถูก",
+                       "กด \"ไปดู\" แล้วกดปุ่มยกยอดในกล่องสีส้มด้านบน ข้อมูลปีเก่าไม่หาย"],
                       rows, rows[0]["href"])
 
 
@@ -166,9 +166,10 @@ def negative_balance(db, fy, today):
                 rows.append(_row(f"{a.name} / {i.name}", href, sub="เงินคงเหลือในหมวดติดลบ", amount=bal))
     if rows:
         return _issue("เงินคงเหลือติดลบ",
-                      "จ่ายเกินเงินที่มี มักเกิดจาก (1) ยอดยกมายังไม่ได้กรอก (กรอกในหน้าบัญชี ส่วนยอดยกมาต้นปีงบ) "
-                      "(2) ลงรายการรับไม่ครบ (3) ลงจ่ายผิดหมวดหรือผิดบัญชี (ลบแล้วลงใหม่) "
-                      "(4) มีรายการลงผิดปีงบ (ถ้ามีข้อนั้น ให้แก้ข้อนั้นก่อน ยอดนี้อาจหายเอง)",
+                      ["ถ้ายังไม่ได้กรอกยอดยกมา ให้กรอกที่หน้าบัญชี",
+                       "ถ้าลงรายการรับไม่ครบ ให้ลงให้ครบ",
+                       "ถ้าลงจ่ายผิดหมวดหรือผิดบัญชี ให้ลบแล้วลงใหม่",
+                       "ถ้ามีข้อ \"รายการเงินลงผิดปีงบ\" ให้แก้ข้อนั้นก่อน ยอดนี้อาจหายเอง"],
                       rows, rows[0]["href"])
 
 
@@ -178,7 +179,7 @@ def project_no_budget(db, fy, today):
             for p, b, s in projects if b <= 0 and s > 0.005]
     if rows:
         return _issue(f"โครงการ{label} {year} ยังไม่ได้ใส่งบ แต่มีเรื่องหักงบแล้ว",
-                      "ใส่งบตามแผนปฏิบัติการ (ปุ่มแก้งบในหน้าโครงการ) ระบบถึงจะคำนวณงบเหลือได้ถูก",
+                      ["ใส่งบตามแผนปฏิบัติการ ด้วยปุ่มแก้งบในหน้าโครงการ"],
                       rows, rows[0]["href"], "ไปใส่งบ")
 
 
@@ -191,10 +192,10 @@ def project_wrong_year(db, fy, today):
             for r in found]
     if rows:
         return _issue(f"เรื่องที่ลงวันที่นอกช่วง{label} {year} แต่หักงบโครงการปีนี้",
-                      ("เช่น เรื่องพัสดุที่ทำตามปีงบ ซึ่งคาบเกี่ยวกับปีการศึกษาก่อน" if "การศึกษา" in label
-                       else "เช่น เรื่องพัสดุของปีงบก่อนที่เลือกโครงการปีงบนี้ไว้")
-                      + " ทำให้โครงการปีนี้ดูเหมือนใช้เงินเกิน "
-                      "ย้ายไปโครงการชื่อเดียวกันของปีที่ถูกต้องได้ในคลิกเดียว (ตรวจรายการก่อนยืนยัน)",
+                      [("เช่น เรื่องพัสดุที่ทำตามปีงบ ซึ่งคาบเกี่ยวกับปีการศึกษาก่อน" if "การศึกษา" in label
+                        else "เช่น เรื่องพัสดุของปีงบก่อนที่เลือกโครงการปีงบนี้ไว้"),
+                       "ทำให้โครงการปีนี้ดูเหมือนใช้เงินเกิน",
+                       "กดปุ่มแล้วตรวจรายการ ระบบย้ายไปโครงการชื่อเดียวกันของปีที่ถูกต้องให้"],
                       rows, f"/projects/realign?year={year}", "ไปตรวจและย้าย")
 
 
@@ -207,23 +208,25 @@ def memo_over_procurement(db, fy, today):
     for pid, paid in total.items():
         p = db.get(Procurement, pid)
         if p and paid > (p.total_amount or 0) + 0.005:
-            rows.append(_row(f"{p.memo_no or '-'} · {p.proc_type or ''}{p.subject or ''}", f"/procurement/{p.id}",
+            rows.append(_row(f"เลขที่ {p.memo_no or '-'} {p.proc_type or ''}{p.subject or ''}", f"/procurement/{p.id}",
                              sub=f"ขอเบิกรวม {paid:,.2f} แต่ยอดเรื่อง {p.total_amount or 0:,.2f}",
                              amount=paid - (p.total_amount or 0)))
     if rows:
         return _issue("ขอเบิกเกินยอดของเรื่องพัสดุ",
-                      "บันทึกขอเบิกจ่ายที่ผูกกับเรื่องเดียวกันรวมแล้วเกินยอดสั่งซื้อ/สั่งจ้าง อาจทำบันทึกซ้ำ หรือกรอกยอดผิด",
+                      ["บันทึกขอเบิกจ่ายของเรื่องเดียวกันรวมแล้วเกินยอดสั่งซื้อหรือสั่งจ้าง",
+                       "อาจทำบันทึกซ้ำ หรือกรอกยอดผิด"],
                       rows, rows[0]["href"])
 
 
 # ---------------------------------------------------------------- สิ่งที่ควรเช็ค
 def project_over_budget(db, fy, today):
     year, label, projects = _plan_projects(db)
-    rows = [_row(p.name, f"/projects/{p.id}", sub=f"งบ {b:,.2f} · ใช้/กันงบ {s:,.2f}", amount=s - b)
+    rows = [_row(p.name, f"/projects/{p.id}", sub=f"งบ {b:,.2f} บาท ใช้หรือกันงบไปแล้ว {s:,.2f} บาท", amount=s - b)
             for p, b, s in projects if b > 0 and s > b + 0.005]
     if rows:
         return _issue(f"โครงการ{label} {year} ใช้เงินเกินงบ",
-                      "ตรวจว่าเรื่องที่หักงบเป็นของโครงการนี้จริง ถ้าใช่ ให้ปรับงบโครงการ (พร้อมเหตุผล) หรือย้ายบางเรื่องไปโครงการอื่น",
+                      ["ตรวจว่าเรื่องที่หักงบเป็นของโครงการนี้จริง",
+                       "ถ้าใช่ ให้ปรับงบโครงการ ถ้าไม่ใช่ ให้ย้ายเรื่องไปโครงการที่ถูก"],
                       rows, rows[0]["href"])
 
 
@@ -238,8 +241,8 @@ def plan_out_of_date(db, fy, today):
             for r in pf.summary(db, p)["rows"] if r["changed"]]
     if rows:
         return _issue(f"เงินในแผน{label} {year} ไม่ตรงกับทะเบียนคุมเงินแล้ว",
-                      "เช่น แก้ยอดยกมาหรือยอดเงินอุดหนุนหลังนำเข้าแผน ให้กดนำเข้าใหม่ในหน้างบที่ใช้จัดทำแผน "
-                      "ยอดที่ใช้จัดสรรให้โครงการจะได้ตรงกับเงินจริง",
+                      ["ยอดในทะเบียนคุมเงินเปลี่ยนหลังนำเข้าแผน เช่น แก้ยอดยกมา",
+                       "กดนำเข้าใหม่ในหน้างบที่ใช้จัดทำแผน ยอดที่จัดสรรจะได้ตรงกับเงินจริง"],
                       rows, f"/plan-budget/{year}", "ไปอัปเดตเงินในแผน")
 
 
@@ -247,13 +250,13 @@ def memo_unpaid_long(db, fy, today):
     from app.models import DisburseMemo
     cut = today - timedelta(days=30)
     rows = [_row(m.subject or m.memo_no or "บันทึกขอเบิกจ่าย", f"/finance/disburse/{m.id}", date=m.date, amount=m.amount,
-                 sub=f"เลขที่ {m.memo_no or '-'} · อนุมัติแล้วแต่ยังไม่ลงจ่าย")
+                 sub=f"เลขที่ {m.memo_no or '-'} อนุมัติแล้วแต่ยังไม่ลงจ่าย")
             for m in db.query(DisburseMemo).filter(DisburseMemo.status == "อนุมัติ", DisburseMemo.date.isnot(None),
                                                    DisburseMemo.date < cut).order_by(DisburseMemo.date)]
     if rows:
         return _issue("บันทึกขอเบิกอนุมัติเกิน 30 วันแล้ว ยังไม่ลงจ่าย",
-                      "ถ้าจ่ายเงินไปแล้ว ให้กดลงจ่ายเข้าทะเบียนคุมเงิน (หรือเชื่อมรายการจ่ายเดิม) ยอดคงเหลือจะได้ตรง "
-                      "ถ้ายังไม่จ่าย ตรวจว่าค้างจ่ายผู้ขายอยู่หรือไม่",
+                      ["ถ้าจ่ายเงินแล้ว ให้กดลงจ่ายเข้าทะเบียนคุมเงิน หรือเชื่อมรายการจ่ายเดิม",
+                       "ถ้ายังไม่จ่าย ตรวจว่ายังค้างจ่ายผู้ขายอยู่หรือไม่"],
                       rows, rows[0]["href"])
 
 
@@ -265,11 +268,12 @@ def loans_overdue(db, fy, today):
         state, left = loan_state(loan, today.date())
         if state == "overdue":
             rows.append(_row(loan.borrower or "ไม่ระบุผู้ยืม", f"/finance/loans?year={loan.fiscal_year}#loan-{loan.id}",
-                             sub=f"สัญญา {loan.contract_no or '-'} · ครบกำหนดแล้ว ยังคงค้าง", amount=left,
+                             sub=f"สัญญา {loan.contract_no or '-'} ครบกำหนดแล้ว ยังค้างอยู่", amount=left,
                              date=loan.due_date))
     if rows:
         return _issue("เงินยืมเลยกำหนดส่งใช้",
-                      "ติดตามให้ผู้ยืมส่งใช้ใบสำคัญหรือเงินสดที่เหลือ ถ้าส่งแล้วให้บันทึกการส่งใช้ในหน้าเงินยืม",
+                      ["ติดตามให้ผู้ยืมส่งใช้ใบสำคัญหรือเงินที่เหลือ",
+                       "ถ้าส่งใช้แล้ว ให้บันทึกการส่งใช้ในหน้าเงินยืม"],
                       rows, "/finance/loans?attention=overdue")
 
 
@@ -288,8 +292,8 @@ def duplicate_payments(db, fy, today):
                              sub=f"ยอดเท่ากัน วันเดียวกัน บัญชีเดียวกัน {len(ts)} รายการ"))
     if rows:
         return _issue("รายการจ่ายที่อาจลงซ้ำ",
-                      "ถ้าเป็นการจ่ายคนละเรื่องจริงก็ไม่ต้องแก้ ถ้าลงซ้ำ ให้ลบรายการที่เกิน "
-                      "(ถ้ามาจากบันทึกขอเบิกจ่าย ใช้ปุ่มเชื่อมรายการจ่ายเดิมแทนการลงใหม่)",
+                      ["ถ้าเป็นการจ่ายคนละเรื่องจริง ไม่ต้องแก้",
+                       "ถ้าลงซ้ำ ให้ลบรายการที่เกิน"],
                       rows, rows[0]["href"])
 
 
@@ -305,21 +309,23 @@ def wht_vendor_no_tax_id(db, fy, today):
             rows.append(_row(v.name, "/vendors", sub=f"ถูกหักภาษี ณ ที่จ่าย (บันทึก {m.memo_no or '-'}) แต่ยังไม่มีเลขผู้เสียภาษี"))
     if rows:
         return _issue("ผู้ขายถูกหักภาษี ณ ที่จ่าย แต่ไม่มีเลขประจำตัวผู้เสียภาษี",
-                      "ออกหนังสือรับรองการหักภาษี ณ ที่จ่ายให้ผู้ขายไม่ได้ ให้เพิ่มเลขผู้เสียภาษีในข้อมูลผู้ขาย",
+                      ["ไม่มีเลขผู้เสียภาษี จะออกหนังสือรับรองการหักภาษีให้ผู้ขายไม่ได้",
+                       "เพิ่มเลขผู้เสียภาษีในข้อมูลผู้ขาย"],
                       rows, "/vendors", "ไปเพิ่มข้อมูลผู้ขาย")
 
 
 def checks_not_cleared(db, fy, today):
     from app.models import CheckPayment
     cut = today - timedelta(days=150)
-    rows = [_row(f"เช็ค {c.check_no or '-'} · {c.payee or ''}", f"/finance/checks?year={c.fiscal_year}", date=c.date,
+    rows = [_row(f"เช็คเลขที่ {c.check_no or '-'} จ่าย {c.payee or ''}", f"/finance/checks?year={c.fiscal_year}", date=c.date,
                  amount=c.amount, sub="สั่งจ่ายเกิน 5 เดือนแล้ว ยังไม่ขึ้นเงิน (เช็คขึ้นเงินได้ภายใน 6 เดือน)")
             for c in db.query(CheckPayment).filter(CheckPayment.pay_method == "เช็ค", CheckPayment.cleared.isnot(True),
                                                    CheckPayment.date.isnot(None), CheckPayment.date < cut)
             .order_by(CheckPayment.date)]
     if rows:
         return _issue("เช็คใกล้หมดอายุ ยังไม่ขึ้นเงิน",
-                      "ติดตามผู้รับเงินให้นำเช็คไปขึ้นเงิน ถ้าขึ้นเงินแล้วให้ติ๊กขึ้นเงินแล้วในทะเบียนคุมเช็ค",
+                      ["ติดตามผู้รับเงินให้นำเช็คไปขึ้นเงิน",
+                       "ถ้าขึ้นเงินแล้ว ให้ติ๊กว่าขึ้นเงินแล้วในทะเบียนคุมเช็ค"],
                       rows, rows[0]["href"])
 
 
@@ -350,14 +356,15 @@ def split_purchases(db, fy, today):
                 continue
             first, last = ch[0], ch[-1]
             vname = first[1].vendor.name if first[1].vendor else "ผู้ขาย"
-            rows.append(_row(f"{vname} · {kind} {len(ch)} เรื่อง ห่างกัน {(last[0] - first[0]).days} วัน",
+            rows.append(_row(f"{vname} {kind} {len(ch)} เรื่อง ห่างกัน {(last[0] - first[0]).days} วัน",
                              f"/procurement/{first[1].id}", date=first[0],
                              amount=sum(x[1].total_amount or 0 for x in ch),
                              sub="เลขที่ " + ", ".join(x[1].memo_no or "-" for x in ch)))
     if rows:
         return _issue("ซื้อ/จ้างร้านเดียวกันหลายเรื่องในเวลาใกล้กัน (อาจเข้าข่ายแบ่งซื้อแบ่งจ้าง)",
-                      "ผู้ตรวจสอบมักทักข้อนี้ ถ้าเป็นความต้องการคนละครั้งจริง (คนละโครงการ คนละช่วง) กด \"ตรวจแล้ว ไม่ใช่ปัญหา\" "
-                      "ถ้าเป็นของที่ควรซื้อพร้อมกัน ครั้งหน้าให้รวมเป็นเรื่องเดียว",
+                      ["ผู้ตรวจสอบมักทักข้อนี้",
+                       "ถ้าเป็นความต้องการคนละครั้งจริง กด \"ตรวจแล้ว ไม่ใช่ปัญหา\"",
+                       "ถ้าเป็นของที่ควรซื้อพร้อมกัน ครั้งหน้าให้รวมเป็นเรื่องเดียว"],
                       rows, rows[0]["href"])
 
 
@@ -373,13 +380,13 @@ def asset_not_registered(db, fy, today):
         done, suspected = import_history(db, p)
         miss = [it for it in big if it.id not in done and it.id not in suspected]
         if miss:
-            rows.append(_row(f"{p.memo_no or '-'} · {p.subject or ''}", f"/procurement/{p.id}/to-register",
+            rows.append(_row(f"เลขที่ {p.memo_no or '-'} {p.subject or ''}", f"/procurement/{p.id}/to-register",
                              date=p.inspect_date, amount=sum((it.unit_price or 0) * (it.quantity or 0) for it in miss),
                              sub="ยังไม่ขึ้นทะเบียน: " + ", ".join(it.name for it in miss[:3])))
     if rows:
         return _issue("ซื้อครุภัณฑ์ (ราคาต่อหน่วย 10,000 บาทขึ้นไป) ตรวจรับแล้ว แต่ยังไม่ขึ้นทะเบียน",
-                      "ขึ้นทะเบียนครุภัณฑ์ให้ครบ ตรวจนับพัสดุประจำปีและคิดค่าเสื่อมราคาจะได้ตรง "
-                      "ถ้าเป็นวัสดุ (ไม่ใช่ครุภัณฑ์) เลือกส่งเข้าบัญชีวัสดุได้ในหน้าเดียวกัน",
+                      ["ขึ้นทะเบียนให้ครบ การตรวจนับประจำปีและค่าเสื่อมราคาจะได้ถูก",
+                       "ถ้าเป็นวัสดุ เลือกส่งเข้าบัญชีวัสดุได้ในหน้าเดียวกัน"],
                       rows, rows[0]["href"], "ไปขึ้นทะเบียน")
 
 
@@ -404,13 +411,13 @@ def subsidy_over_received(db, fy, today):
             got, _, _ = sub.receipt_summary(db, ay, term)
             for key, amt in got.items():
                 if key in want and amt > want[key] + 0.5:
-                    rows.append(_row(f"{sub.NAMES.get(key, key)} · ปีการศึกษา {ay} ภาคเรียนที่ {term}",
+                    rows.append(_row(f"{sub.NAMES.get(key, key)} ปีการศึกษา {ay} ภาคเรียนที่ {term}",
                                      f"/finance/subsidy?year={ay}&term={term}", amount=amt - want[key],
                                      sub=f"รับแล้ว {amt:,.2f} แต่คำนวณ/จัดสรรไว้ {want[key]:,.2f}"))
     if rows:
         return _issue("รับเงินอุดหนุนเกินยอดที่คำนวณไว้",
-                      "อาจผูกรายการรับซ้ำ ผูกผิดภาคเรียน หรือยอดจัดสรรในหน้าคำนวณยังไม่ได้อัปเดต "
-                      "ตรวจรายการรับที่ผูกไว้ในหน้าคำนวณเงินอุดหนุน",
+                      ["อาจผูกรายการรับซ้ำ หรือผูกผิดภาคเรียน",
+                       "ตรวจรายการรับที่ผูกไว้ในหน้าคำนวณเงินอุดหนุน"],
                       rows, rows[0]["href"])
 
 
@@ -424,14 +431,14 @@ def lunch_round_over_rate(db, fy, today):
             continue
         cap = float(p.total_students or 0) * float(p.rate_per_head or 0) * float(r.days or 0)
         if cap > 0 and (r.amount or 0) > cap + 0.5:
-            rows.append(_row(f"รอบที่ {r.seq} · ปีการศึกษา {p.year}", f"/lunch/round/{r.id}/edit", date=r.start_date,
+            rows.append(_row(f"รอบที่ {r.seq} ปีการศึกษา {p.year}", f"/lunch/round/{r.id}/edit", date=r.start_date,
                              amount=(r.amount or 0) - cap,
                              sub=f"วงเงิน {r.amount or 0:,.2f} แต่ {p.total_students} คน x {p.rate_per_head:,.2f} บาท x {r.days} วัน "
                                  f"= {cap:,.2f}"))
     if rows:
         return _issue("รอบจ้างเหมาอาหารกลางวัน วงเงินเกินอัตรารายหัว",
-                      "วงเงินจ้างต่อรอบไม่ควรเกิน จำนวนนักเรียน x อัตราต่อหัวต่อวัน x จำนวนวันทำการในรอบ "
-                      "ตรวจจำนวนนักเรียน จำนวนวัน หรือวงเงินของรอบนั้น",
+                      ["วงเงินต่อรอบไม่ควรเกิน จำนวนนักเรียน x อัตราต่อหัว x จำนวนวัน",
+                       "ตรวจจำนวนนักเรียน จำนวนวัน หรือวงเงินของรอบนั้น"],
                       rows, rows[0]["href"])
 
 
@@ -447,7 +454,8 @@ def receipt_duplicate_no(db, fy, today):
             for rs in groups.values() if len(rs) > 1]
     if rows:
         return _issue("ใบเสร็จรับเงินเลขที่ซ้ำกัน",
-                      "ใบเสร็จรับเงินแต่ละใบต้องมีเลขไม่ซ้ำ ผู้ตรวจสอบดูข้อนี้ทุกครั้ง ตรวจว่าพิมพ์เลขผิด หรือบันทึกใบเดียวกันซ้ำ",
+                      ["ใบเสร็จแต่ละใบต้องมีเลขไม่ซ้ำ",
+                       "ตรวจว่าพิมพ์เลขผิด หรือบันทึกใบเดียวกันซ้ำ"],
                       rows, rows[0]["href"])
 
 
@@ -489,8 +497,8 @@ def receipt_number_gap(db, fy, today):
                              sub=f"เลขที่ข้ามไป: {shown}"))
     if rows:
         return _issue("ใบเสร็จรับเงินเลขที่ข้าม",
-                      "เลขใบเสร็จควรเรียงต่อกันไม่ขาด ถ้าเลขที่ขาดเป็นใบที่เขียนผิดแล้วยกเลิก ให้เก็บต้นฉบับที่ยกเลิกไว้ครบทุกฉบับ "
-                      "แล้วกด \"ตรวจแล้ว ไม่ใช่ปัญหา\" ถ้าเป็นใบที่ออกจริงแต่ยังไม่ได้บันทึก ให้บันทึกในทะเบียนใบเสร็จให้ครบ",
+                      ["ถ้าเป็นใบที่ยกเลิก ให้เก็บต้นฉบับไว้ แล้วกด \"ตรวจแล้ว ไม่ใช่ปัญหา\"",
+                       "ถ้าเป็นใบที่ออกจริงแต่ยังไม่ได้บันทึก ให้บันทึกให้ครบ"],
                       rows, rows[0]["href"])
 
 
@@ -521,8 +529,8 @@ def cash_on_hand(db, fy, today):
                                  sub="ไม่มีรับ-จ่ายเลยตั้งแต่ต้นปีงบ" if last is None else "ไม่มีรับ-จ่ายเกิน 7 วันแล้ว"))
     if rows:
         return _issue("มีเงินสดเก็บไว้ที่โรงเรียนนานเกิน 7 วัน",
-                      "เงินสดที่ยังไม่ใช้ควรนำฝากธนาคาร ลดความเสี่ยงสูญหาย และให้ยอดตรงกับรายงานเงินคงเหลือประจำวัน "
-                      "ถ้านำฝากแล้ว ให้ลงรายการนำฝากในทะเบียนคุมเงิน",
+                      ["เงินสดที่ยังไม่ใช้ควรนำฝากธนาคาร",
+                       "ถ้านำฝากแล้ว ให้ลงรายการนำฝากในทะเบียนคุมเงิน"],
                       rows, rows[0]["href"])
 
 
@@ -538,11 +546,12 @@ def low_spend_year_end(db, fy, today):
                     if t.item_id == i.id and t.fiscal_year == fy and t.kind == "out")
         if spent < 0.2 * i.budget:
             rows.append(_row(f"{i.account.name} / {i.name}", f"/finance/accounts/{i.account_id}?year={fy}#txn-history",
-                             sub=f"ตั้งงบ {i.budget:,.2f} · ใช้ไป {spent:,.2f} ({spent / i.budget * 100:.0f}%)",
+                             sub=f"ตั้งงบ {i.budget:,.2f} บาท ใช้ไป {spent:,.2f} บาท ({spent / i.budget * 100:.0f}%)",
                              amount=i.budget - spent))
     if rows:
         return _issue(f"ใกล้สิ้นปีงบ {fy} แล้ว บางหมวดยังใช้เงินไม่ถึง 20% ของงบ",
-                      "วางแผนใช้ให้ทันก่อน 30 ก.ย. ถ้าก่อหนี้ผูกพันไว้แล้วแต่จ่ายไม่ทัน ให้ทำเรื่องกันเงินไว้เบิกเหลื่อมปี",
+                      ["วางแผนใช้ให้ทันก่อน 30 ก.ย.",
+                       "ถ้าก่อหนี้ไว้แล้วแต่จ่ายไม่ทัน ให้ทำเรื่องกันเงินไว้เบิกเหลื่อมปี"],
                       rows, rows[0]["href"])
 
 
@@ -555,10 +564,10 @@ def plan_unallocated(db, fy, today):
     s = pf.summary(db, p)
     if s["remaining"] > 0.005:
         rows = [_row(f"เงินในแผน{label} {year}", f"/projects?year={year}",
-                     sub=f"นำเข้าแผน {s['total']:,.2f} · จัดสรรแล้ว {s['allocated']:,.2f}", amount=s["remaining"])]
+                     sub=f"นำเข้าแผน {s['total']:,.2f} บาท จัดสรรแล้ว {s['allocated']:,.2f} บาท", amount=s["remaining"])]
         return _issue("เงินในแผนยังไม่ได้จัดสรรให้โครงการ",
-                      "จัดสรรในหน้าโครงการแต่ละโครงการ (ส่วน \"โครงการนี้ใช้งบจากรายการใด\") "
-                      "ใส่เท่ายอดงบเหลือทำเรื่องใหม่ จะได้รู้ว่าโครงการไหนใช้เงินก้อนไหน",
+                      ["จัดสรรที่หน้าโครงการแต่ละโครงการ ส่วน \"โครงการนี้ใช้งบจากรายการใด\"",
+                       "ใส่เท่ากับยอดงบเหลือทำเรื่องใหม่"],
                       rows, f"/projects?year={year}", "ไปจัดสรร")
 
 
@@ -579,7 +588,7 @@ def bank_recon_missing(db, fy, today):
             rows.append(_row(a.name, f"/finance/bank-recon?year={fy}", sub="ยังไม่ได้ทำงบกระทบยอดของเดือนที่แล้ว"))
     if rows:
         return _issue("ยังไม่ได้ทำงบกระทบยอดเงินฝากธนาคารของเดือนที่แล้ว",
-                      "เทียบยอดในทะเบียนคุมเงินกับ statement ธนาคารทุกสิ้นเดือน จะเจอรายการที่ลงขาดหรือลงซ้ำได้เร็ว",
+                      ["เทียบยอดในทะเบียนคุมเงินกับ statement ธนาคารทุกสิ้นเดือน จะเจอรายการที่ลงขาดหรือลงซ้ำได้เร็ว"],
                       rows, f"/finance/bank-recon?year={fy}")
 
 
@@ -591,7 +600,7 @@ def txn_without_item(db, fy, today):
             rows.append(_row(_txn_text(t), _ledger(t), date=t.date, amount=t.amount, sub=f"บัญชี {t.account.name}"))
     if rows:
         return _issue("รายการที่ยังไม่ได้ระบุหมวด",
-                      "บัญชีนี้แยกหมวดไว้ แต่รายการเหล่านี้ไม่ได้เลือกหมวด ยอดคงเหลือรายหมวดจึงไม่ครบ",
+                      ["บัญชีนี้แยกหมวดไว้ แต่รายการเหล่านี้ไม่ได้เลือกหมวด ยอดรายหมวดจึงไม่ครบ"],
                       rows, rows[0]["href"])
 
 

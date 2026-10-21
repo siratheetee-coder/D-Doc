@@ -61,7 +61,7 @@
     <input type="hidden" name="procurement_id" value="{{ prefill.procurement_id if prefill else '' }}">
     <div class="row">
       <div><label>ชื่อผู้รับเงิน</label><input name="receiver_name" autocomplete="off" data-suggest="receiver" value="" placeholder="คนที่มารับเงิน/เช็คจริง">
-        <div class="hint">ลงในทะเบียนคุมหลักฐานขอเบิก · เว้นว่างไว้เขียนมือได้</div></div>
+        <div class="hint">ลงในทะเบียนคุมหลักฐานขอเบิก เว้นว่างไว้เขียนมือได้</div></div>
       <div style="flex:2;"><label>หมายเหตุในทะเบียน</label><input name="register_note" value="" maxlength="300">
         <div class="hint">แสดงในช่องหมายเหตุของทะเบียนคุมหลักฐานขอเบิก (แยกจากรายละเอียดเพิ่มเติม)</div></div>
     </div>
@@ -130,7 +130,7 @@
   /* .row และ .src-line ตั้ง display:flex ไว้ ซึ่งชนะ [hidden] ของเบราว์เซอร์ ต้องบังคับซ่อนเอง */
   #srcPick[hidden], #srcLine[hidden]{ display:none !important; }
 </style>
-<script src="/static/quick-project.js?v=2"></script>
+<script src="/static/quick-project.js?v=3"></script>
 <script src="/static/project_source.js?v=1"></script>
 <script>window.SUGGEST_NAMES = {{ names|tojson }};</script>
 {% endblock %}

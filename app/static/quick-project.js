@@ -85,7 +85,7 @@
       var tooMuch = tot > b + 0.001;
       el.className = 'qp-sum' + (tooMuch || over ? ' over' : '');
       el.textContent = 'ระบุที่มาของงบแล้ว ' + money(tot) + ' จากงบโครงการ ' + money(b) + ' บาท' +
-        (tooMuch ? ' · เกินงบโครงการ' : over ? ' · เกินเงินที่เหลือให้จัดสรร' : '');
+        (tooMuch ? ' (เกินงบโครงการ)' : over ? ' (เกินเงินที่เหลือให้จัดสรร)' : '');
     }
     budget.addEventListener('input', sum);
 
@@ -102,9 +102,9 @@
           planLink.href = d.plan_link;
           planLink.textContent = 'เปิดหน้างบที่ใช้จัดทำแผน ' + d.plan_year;
           if (!d.has_plan) {
-            src.innerHTML = '<p>ยังไม่ได้กำหนดงบที่ใช้จัดทำแผน ปี ' + d.plan_year + ' · บันทึกโครงการได้เลย แล้วค่อยจัดสรรงบทีหลังที่หน้าโครงการ</p>';
+            src.innerHTML = '<p>ยังไม่ได้กำหนดงบที่ใช้จัดทำแผน ปี ' + d.plan_year + ' บันทึกโครงการได้เลย แล้วค่อยจัดสรรงบทีหลังที่หน้าโครงการ</p>';
           } else if (!d.sources.length) {
-            src.innerHTML = '<p>แผนงบปี ' + d.plan_year + ' ไม่มีเงินที่ยังเหลือให้จัดสรร · บันทึกโครงการได้เลย หรือนำเงินเข้าแผนเพิ่มที่หน้างบที่ใช้จัดทำแผน</p>';
+            src.innerHTML = '<p>แผนงบปี ' + d.plan_year + ' ไม่มีเงินที่ยังเหลือให้จัดสรร บันทึกโครงการได้เลย หรือนำเงินเข้าแผนเพิ่มที่หน้างบที่ใช้จัดทำแผน</p>';
           } else {
             src.innerHTML = '<p>กรอกส่วนที่จัดสรรให้โครงการนี้ (เว้นว่างได้ จัดสรรทีหลังที่หน้าโครงการ)</p>' +
               d.sources.map(function (s) {
@@ -115,7 +115,7 @@
             sum();
           }
         })
-        .catch(function () { src.innerHTML = '<p>โหลดรายการงบไม่สำเร็จ · บันทึกโครงการได้ แล้วจัดสรรงบทีหลังที่หน้าโครงการ</p>'; });
+        .catch(function () { src.innerHTML = '<p>โหลดรายการงบไม่สำเร็จ แต่บันทึกโครงการได้ แล้วจัดสรรงบทีหลังที่หน้าโครงการ</p>'; });
     }
     year.addEventListener('change', function () { load(year.value); });
     load('');
@@ -161,7 +161,7 @@
         sel.value = String(d.id); prev = sel.value;
         var note = sel.parentElement.querySelector('.qp-note');
         if (!note) { note = document.createElement('div'); note.className = 'qp-note hint'; sel.parentElement.appendChild(note); }
-        note.innerHTML = (d.message ? esc(d.message) + ' · ' : 'เพิ่มโครงการแล้ว · ') +
+        note.innerHTML = (d.message ? esc(d.message) + ' ' : 'เพิ่มโครงการแล้ว ') +
           '<a href="' + esc(d.link) + '" target="_blank" rel="noopener">ดู/แก้ที่หน้าโครงการ</a>';
         sel.dispatchEvent(new Event('change', { bubbles: true }));
       });

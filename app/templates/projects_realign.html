@@ -5,7 +5,7 @@
   <div>
     <div class="hero-sub">โครงการ/แผนงบ · {{ year_label }} {{ year }} ({{ thai_date(start) }} ถึง {{ thai_date(end) }})</div>
     <span class="hero-title">ย้ายเรื่องไปโครงการปีที่ถูกต้อง</span>
-    <div class="hero-meta">{{ rows|length }} เรื่อง · รวม {{ "{:,.2f}".format(total) }} บาท</div>
+    <div class="hero-meta">{{ rows|length }} เรื่อง รวม {{ "{:,.2f}".format(total) }} บาท</div>
   </div>
   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <a class="btn sm gray" href="/projects?year={{ year }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับโครงการ</a>
@@ -18,8 +18,11 @@
 </div>
 
 {% if done %}
-<div class="ra-ok"><b>ย้ายแล้ว {{ done }} เรื่อง</b>{% if created and created != '0' %} · สร้างโครงการปีปลายทางใหม่ {{ created }} โครงการ (งบ 0 บาท กรอกงบตามแผนปีนั้นได้ที่หน้าโครงการ){% endif %}
-  · <a href="/projects?year={{ year }}">กลับไปดูโครงการ{{ year_label }} {{ year }}</a></div>
+<div class="ra-ok"><b>ย้ายแล้ว {{ done }} เรื่อง</b>
+  <ul style="margin:6px 0 0; padding-left:18px;">
+    {% if created and created != '0' %}<li>สร้างโครงการปีปลายทางใหม่ {{ created }} โครงการ งบ 0 บาท กรอกงบตามแผนปีนั้นได้ที่หน้าโครงการ</li>{% endif %}
+    <li><a href="/projects?year={{ year }}">กลับไปดูโครงการ{{ year_label }} {{ year }}</a></li>
+  </ul></div>
 {% endif %}
 {% if err %}<div class="ra-err">{{ err }}</div>{% endif %}
 
