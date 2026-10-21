@@ -63,11 +63,9 @@ def carry(db, fy):
             mapped[old.id]=new
         orphan=[i.name for i in target if i.id not in [x.id for x in mapped.values()] and (i.opening_balance or 0)]
         if orphan:
-            raise ValueError(f'ยกยอดไม่ได้: บัญชี "{a.name}" ปีงบ {fy+1} มีหมวด {", ".join(orphan)} ที่กรอกยอดยกมาเองไว้ '
-                             f'แต่ปีงบ {fy} ไม่มีหมวดชื่อนี้ ระบบจึงไม่รู้ว่าจะเอายอดไปไว้ที่ไหน · '
-                             f'ถ้ายอดยกมาที่กรอกเองถูกแล้ว (เช่น เริ่มใช้ระบบปีงบ {fy+1}) ไม่ต้องยกยอด '
-                             f'และถ้ามีรายการปีงบ {fy} ที่ลงไว้ก่อนเริ่มใช้ระบบ ให้ลบออก · '
-                             f'ถ้าต้องการยกยอดจริง ให้แก้ชื่อหมวดปีงบ {fy+1} ให้ตรงกับปีงบ {fy} ก่อน')
+            raise ValueError(f'ยกยอดไม่ได้ เพราะบัญชี "{a.name}" ปีงบ {fy+1} มีหมวด "{", ".join(orphan)}" ที่ปีงบ {fy} ไม่มี · '
+                             f'ถ้ายอดยกมาปีงบ {fy+1} ที่กรอกไว้ถูกแล้ว ไม่ต้องกดยกยอด · '
+                             f'ถ้าจะยกยอด ให้เปลี่ยนชื่อหมวดปีงบ {fy+1} ให้ตรงกับปีงบ {fy} ก่อน')
         row=db.query(AccountOpening).filter_by(account_id=a.id,fiscal_year=fy+1).first()
         if row is None:row=AccountOpening(account_id=a.id,fiscal_year=fy+1);db.add(row)
         row.amount=account_balance_year(a,fy)

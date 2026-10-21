@@ -264,11 +264,11 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
 
 <div class="card">
   <h2 id="txn-entry" style="scroll-margin-top:90px;"><svg class="icon"><use href="#ic-plus"/></svg> บันทึกรับ / จ่าย</h2>
-  {% if request.query_params.get('txn_err') %}<div class="alert" role="alert" style="background:linear-gradient(120deg,#fef2f2,#fee2e2); color:#991b1b;">ยังไม่ได้บันทึก: {{ request.query_params.get('txn_err') }}</div>{% endif %}
+  {% if request.query_params.get('txn_err') %}<div class="alert warn" role="alert">ยังไม่ได้บันทึก: {{ request.query_params.get('txn_err') }}</div>{% endif %}
   {% if request.query_params.get('moved') %}<div class="alert">✔ ย้ายรายการไปปีงบ {{ request.query_params.get('moved') }} ตามวันที่แล้ว</div>{% endif %}
   {% if subsidy_year %}<p>บันทึกรับเงินที่ได้รับโอนจริง แล้วกลับไปเลือกรายการเพื่อเชื่อมกับเงินอุดหนุนของเทอมนี้</p>
   <p><a class="btn gray" href="/finance/subsidy?year={{ subsidy_year }}&term={{ subsidy_term }}#sec-receipts">กลับไปเชื่อมเงินอุดหนุน · ปีการศึกษา {{ subsidy_year }} เทอม {{ subsidy_term }}</a></p>{% endif %}
-  <form method="post" action="/finance/accounts/{{ account.id }}/txn">
+  <form method="post" action="/finance/accounts/{{ account.id }}/txn" id="txnForm">
     {% if subsidy_year %}<input type="hidden" name="subsidy_year" value="{{ subsidy_year }}"><input type="hidden" name="subsidy_term" value="{{ subsidy_term }}">{% endif %}
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
     <div class="row">
@@ -276,7 +276,8 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
         <select name="kind"><option value="in" {{ 'selected' if selected_kind!='out' }}>รับเงิน (+)</option><option value="out" {{ 'selected' if selected_kind=='out' }}>จ่ายเงิน (-)</option></select>
       </div>
       <div><label>จำนวนเงิน (บาท)</label><input name="amount" type="number" step="0.01" min="0" value="0" required></div>
-      <div><label>วันที่</label><input name="date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>วันที่</label><input name="date" id="txnDate" placeholder="วว/ดด/ปปปป" data-date="1">
+        <div id="txnDateWarn" class="txn-date-warn" hidden></div></div>
       <div><label>หมวดงบ</label>
         <select name="item_id">
           <option value="">- ไม่ระบุหมวด -</option>
@@ -442,8 +443,8 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
     });
   });
 </script>
-{% endblock %}
 
+{# เดิมสคริปต์นี้อยู่หลัง endblock ซึ่ง Jinja ไม่แสดง (ตัวกรองหมวด e-Budget ไม่เคยทำงาน) จึงย้ายเข้ามาใน block #}
 <script>
   /* โชว์เฉพาะหมวดที่เข้ากับรับ/จ่ายที่เลือกไว้ จะได้ไม่ต้องเลื่อนหาในลิสต์ยาว */
   (function () {
@@ -467,3 +468,30 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
     sync();
   })();
 </script>
+
+<style>.txn-date-warn{margin-top:6px;padding:8px 12px;border-radius:10px;font-size:13.5px;line-height:1.5;color:#9a3412;background:linear-gradient(120deg,#fff7ed,#ffedd5);}</style>
+<script>
+  // วันที่ต้องอยู่ในปีงบของทะเบียนนี้ (1 ต.ค. ถึง 30 ก.ย.) · เตือนทันทีที่พิมพ์ครบ และไม่ส่งฟอร์ม ข้อมูลที่กรอกไว้จึงไม่หาย
+  // (เซิร์ฟเวอร์ตรวจซ้ำอีกชั้น)
+  (function () {
+    var form = document.getElementById('txnForm'), inp = document.getElementById('txnDate'),
+        warn = document.getElementById('txnDateWarn');
+    if (!form || !inp || !warn) { return; }
+    var FY = {{ fiscal_year }};
+    function check() {
+      var m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(inp.value.trim());
+      if (!m) { warn.hidden = true; return true; }
+      var fy = (+m[2] >= 10) ? +m[3] + 1 : +m[3];
+      if (fy === FY) { warn.hidden = true; return true; }
+      warn.textContent = 'วันที่นี้อยู่ในปีงบ ' + fy + ' แต่หน้านี้คือทะเบียนปีงบ ' + FY +
+        ' · ถ้าวันที่ถูกแล้ว ให้เปลี่ยนปีงบด้านบนเป็น ' + fy + ' ก่อนบันทึก';
+      warn.hidden = false; return false;
+    }
+    inp.addEventListener('input', check);
+    inp.addEventListener('change', check);
+    form.addEventListener('submit', function (e) {
+      if (!check()) { e.preventDefault(); e.stopImmediatePropagation(); inp.focus(); }
+    }, true);
+  })();
+</script>
+{% endblock %}

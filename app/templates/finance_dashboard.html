@@ -17,7 +17,7 @@
   </div>
 </div>
 
-{% if request.query_params.get("carry_err") %}<div class="alert" role="alert" style="background:linear-gradient(120deg,#fef2f2,#fee2e2); color:#991b1b;">{{ request.query_params.get("carry_err") }} · ข้อมูลยังไม่ถูกเปลี่ยน</div>{% endif %}
+{% if request.query_params.get("carry_err") %}<div class="alert warn" role="alert">{{ request.query_params.get("carry_err") }} · ข้อมูลยังไม่ถูกเปลี่ยน</div>{% endif %}
 {% if request.query_params.get("carried") %}<div class="alert">✔ คัดลอกยอดคงเหลือสิ้นปีงบ {{ request.query_params.get("carried") }} ไปตั้งเป็นยอดยกมาของปีงบ {{ fiscal_year }} แล้ว (ข้อมูลปีเก่ายังอยู่ครบ เลือกดูได้จากช่องเลือกปี)</div>{% endif %}
 
 {# ตรวจสุขภาพข้อมูลการเงิน (app/services/finance_health.py) · มีปัญหา = แถบเด่น · เรียบร้อย = แถบเขียวเล็ก ๆ #}
