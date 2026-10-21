@@ -22,7 +22,7 @@
     </div>
     <div class="row">
       <div style="flex:2;"><label>เรื่อง *</label><input name="subject" required value="{{ prefill.subject if prefill else '' }}" placeholder="เช่น จัดซื้อวัสดุสำนักงาน"></div>
-      <div style="flex:2;"><label>จ่ายให้ (เจ้าหนี้/ผู้ขาย)</label><input name="payee" value="{{ prefill.payee if prefill else '' }}" placeholder="ชื่อผู้ขาย/ผู้รับจ้าง"></div>
+      <div style="flex:2;"><label>จ่ายให้ (เจ้าหนี้/ผู้ขาย)</label><input name="payee" autocomplete="off" data-suggest="payee" value="{{ prefill.payee if prefill else '' }}" placeholder="ชื่อผู้ขาย/ผู้รับจ้าง"></div>
     </div>
     <div class="row">
       <div><label>ประเภท</label>
@@ -33,7 +33,7 @@
       </div>
       <div><label>ยอดขอเบิก (รวม VAT)</label><input name="amount" type="number" step="0.01" min="0" value="{{ '%.2f'|format(prefill.amount) if prefill else '0' }}"></div>
       <div style="flex:2;"><label>โครงการ</label>
-        <select name="project_id" id="projSel" data-fy="{{ fiscal_year }}" data-quick-project>
+        <select name="project_id" id="projSel" data-combo data-fy="{{ fiscal_year }}" data-quick-project>
           <option value="">- ไม่ผูกโครงการ -</option>
           {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if prefill and prefill.project_id==pj.id }}>{{ pj.name }} · ปีแผน {{ pj.plan_year or "ไม่ระบุปี" }}{{ " (ปิดใช้งาน)" if not pj.active else "" }}</option>{% endfor %}
         </select>
@@ -60,7 +60,7 @@
     </div>
     <input type="hidden" name="procurement_id" value="{{ prefill.procurement_id if prefill else '' }}">
     <div class="row">
-      <div><label>ชื่อผู้รับเงิน</label><input name="receiver_name" value="" placeholder="คนที่มารับเงิน/เช็คจริง">
+      <div><label>ชื่อผู้รับเงิน</label><input name="receiver_name" autocomplete="off" data-suggest="receiver" value="" placeholder="คนที่มารับเงิน/เช็คจริง">
         <div class="hint">ลงในทะเบียนคุมหลักฐานขอเบิก · เว้นว่างไว้เขียนมือได้</div></div>
       <div style="flex:2;"><label>หมายเหตุในทะเบียน</label><input name="register_note" value="" maxlength="300">
         <div class="hint">แสดงในช่องหมายเหตุของทะเบียนคุมหลักฐานขอเบิก (แยกจากรายละเอียดเพิ่มเติม)</div></div>
@@ -132,4 +132,6 @@
 </style>
 <script src="/static/quick-project.js?v=2"></script>
 <script src="/static/project_source.js?v=1"></script>
+<script>window.SUGGEST_NAMES = {{ names|tojson }};</script>
+<script src="/static/combo-pick.js?v=1"></script>
 {% endblock %}

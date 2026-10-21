@@ -59,3 +59,27 @@ def test_fields_saved_and_register_columns(env):
     t = Document(io.BytesIO(env.get(f"/finance/disburse-register.docx?year={FY}").content)).tables[0]
     row = [c.text for c in t.rows[1].cells]
     assert row[5] == "" and row[8] == "โอนเข้าบัญชี"
+
+
+def test_name_suggestions_and_project_combo(env):
+    """ช่องจ่ายให้/ชื่อผู้รับเงิน มีรายชื่อแนะนำจากผู้ขายในระบบ + ชื่อที่เคยใช้ · ช่องโครงการพิมพ์ค้นหาได้"""
+    import json
+    import re
+    import app.tenancy as tn
+    from app.models import Vendor
+    db = tn.session_for(next(iter(tn._engines)))
+    try:
+        db.add(Vendor(name="ร้านรุ่งเรืองพาณิชย์", owner_name="นายสมชาย รุ่งเรือง")); db.commit()
+    finally:
+        db.close()
+    env.post("/finance/disburse", data={"fiscal_year": FY, "subject": "ซื้อวัสดุ", "payee": "ร้านศึกษาภัณฑ์",
+             "amount": "100", "receiver_name": "นางสาวสมหญิง ใจดี", "note": "x1"})
+    for url in (f"/finance/disburse?year={FY}", f"/finance/disburse/{_memo('x1')[0]}"):
+        html = env.get(url).text
+        assert 'name="payee" autocomplete="off" data-suggest="payee"' in html
+        assert 'data-suggest="receiver"' in html and 'id="projSel" data-combo' in html
+        assert "/static/combo-pick.js" in html
+        names = json.loads(re.search(r"window.SUGGEST_NAMES = (\{.*?\});</script>", html).group(1))
+        assert {"ร้านรุ่งเรืองพาณิชย์", "ร้านศึกษาภัณฑ์"} <= set(names["payee"])
+        assert {"นายสมชาย รุ่งเรือง", "นางสาวสมหญิง ใจดี"} <= set(names["receiver"])
+        assert "" not in names["payee"] and len(names["payee"]) == len(set(names["payee"]))

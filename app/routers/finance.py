@@ -699,6 +699,29 @@ def _txn_projects(db, txns) -> dict:
     return {tid: projects[pid] for tid, pid in pid_of.items() if pid in projects}
 
 
+def _name_suggest(db) -> dict:
+    """รายชื่อแนะนำในช่อง "จ่ายให้" และ "ชื่อผู้รับเงิน" (พิมพ์ชื่อใหม่เองได้)
+    payee = ผู้ขาย/ผู้รับจ้างในระบบ + ชื่อที่เคยจ่าย · receiver = เจ้าของร้าน + บุคลากร + ชื่อที่เคยรับเงิน"""
+    from collections import Counter
+    from app.models import Vendor
+
+    def uniq(names):
+        out, seen = [], set()
+        for n in names:
+            n = (n or "").strip()
+            if n and n not in seen:
+                seen.add(n); out.append(n)
+        return out
+    memos = db.query(DisburseMemo.payee, DisburseMemo.receiver_name).all()
+    used_payee = [n for n, _ in Counter((p or "").strip() for p, _ in memos).most_common()]
+    used_recv = [n for n, _ in Counter((r or "").strip() for _, r in memos).most_common()]
+    vendors = db.query(Vendor).order_by(Vendor.name).all()
+    return {
+        "payee": uniq(used_payee + [v.name for v in vendors]),
+        "receiver": uniq(used_recv + [v.owner_name for v in vendors] + [p.name for p in _fin_persons(db)]),
+    }
+
+
 @router.get("/finance/disburse", response_class=HTMLResponse)
 def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | None = None, year: int | None = None):
     source = db.get(Procurement, proc) if proc else None
@@ -741,6 +764,7 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
         "procs": db.query(Procurement).filter_by(fiscal_year=fy).order_by(Procurement.id.desc()).all(),
         "projects": _plan_projects(db, fy),
         "prefill": prefill,
+        "names": _name_suggest(db),
     })
 
 
@@ -787,6 +811,7 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
         "items_map": _items_map(db, m.fiscal_year),
         "projects": _plan_projects(db, m.fiscal_year),
         "proc": db.get(Procurement, m.procurement_id) if m.procurement_id else None,
+        "names": _name_suggest(db),
     })
 
 
