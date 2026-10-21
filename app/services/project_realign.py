@@ -25,6 +25,13 @@ def plan_range(db, year):
     return pf.defaults(year, getattr(school, "project_year_mode", "budget") or "budget")
 
 
+def proc_date(pr):
+    """วันที่ของเรื่องพัสดุ = วันที่ใบสั่งซื้อ/สั่งจ้าง (ตัวเดียวกับที่แสดงในรายการเรื่องพัสดุ)
+    request_date ใช้เป็นตัวสุดท้าย: ค่าเริ่มต้นคือวันที่พิมพ์เรื่องเข้าระบบ เรื่องที่ลงย้อนหลังจะได้วันที่ใหม่
+    (เจอจริง: ลงเรื่องปีงบ 2569 ย้อนหลัง request_date เป็นเดือน ต.ค. 69 ทุกเรื่อง ตรวจไม่เจอว่าอยู่ปีก่อน)"""
+    return pr.order_date or pr.inspect_date or pr.delivery_date or pr.request_date
+
+
 def find(db, year) -> list:
     """เรื่องที่ผูกโครงการปีนี้แต่ลงวันที่นอกช่วงปี · [{kind, id, date, no, title, amount, project, target_year}]"""
     from app.models import Project, DisburseMemo, FinanceTxn
@@ -46,7 +53,7 @@ def find(db, year) -> list:
 
     for pj in projects:
         for pr in project_procurements(pj):
-            add("proc", pr, pr.request_date or pr.order_date, pr.memo_no, f"{pr.proc_type or ''}{pr.subject or ''}",
+            add("proc", pr, proc_date(pr), pr.memo_no, f"{pr.proc_type or ''}{pr.subject or ''}",
                 pr.total_amount, pj)
     if by_id:
         for m in db.query(DisburseMemo).filter(DisburseMemo.project_id.in_(by_id), DisburseMemo.procurement_id.is_(None)):

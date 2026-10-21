@@ -116,3 +116,32 @@ def test_reuses_existing_target_project(env):
         assert len(same) == 1 and same[0].budget == 250000, "ใช้โครงการปี 2568 ที่มีอยู่ ไม่สร้างซ้ำ ไม่แตะงบ"
     finally:
         db.close()
+
+
+def test_uses_order_date_not_request_date_entered_later(env):
+    """ลงเรื่องย้อนหลัง: request_date = วันที่พิมพ์เข้าระบบ (ต.ค. 69) แต่ใบสั่งซื้อลงวันที่ปีการศึกษาก่อน
+    ต้องยึดวันที่ใบสั่งซื้อ (ตัวที่แสดงในรายการเรื่องพัสดุ)"""
+    from app.models import School, Project, Procurement
+    db = _db()
+    try:
+        db.query(School).first().project_year_mode = "academic"
+        pj = Project(name="โครงการส่งเสริมความเป็นเลิศ", budget=30000, plan_year=AY)
+        db.add(pj); db.flush()
+        db.add_all([
+            Procurement(fiscal_year=2569, memo_no="3/2569", subject="วัสดุศิลปหัตถกรรม", total_amount=4990,
+                        request_date=datetime(2026, 10, 15), order_date=datetime(2025, 11, 12), project_id=pj.id),
+            Procurement(fiscal_year=2569, memo_no="23/2569", subject="วัสดุแข่งขันภาษาไทย", total_amount=4000,
+                        request_date=datetime(2026, 10, 15), order_date=datetime(2026, 6, 18), project_id=pj.id),
+            Procurement(fiscal_year=2569, memo_no="99/2569", subject="ยังไม่ออกใบสั่ง", total_amount=100,
+                        request_date=datetime(2026, 3, 1), project_id=pj.id),
+        ])
+        db.commit()
+    finally:
+        db.close()
+    from app.services.project_realign import find
+    db = _db()
+    try:
+        got = sorted(r["no"] for r in find(db, AY))
+    finally:
+        db.close()
+    assert got == ["3/2569", "99/2569"], "ยึดวันที่ใบสั่งซื้อ · ไม่มีใบสั่งค่อยใช้วันที่รายงานขอซื้อ"
