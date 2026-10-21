@@ -286,3 +286,50 @@ def test_admin_overview_skips_sandbox(env):
     assert "มีสิ่งที่ควรแก้" in html and "ควรแก้ 7" in html and "ยอดยกมาเท่ากับงบที่ตั้งไว้ทุกหมวด" in html
     assert c.post("/admin-console/finance-health/run", follow_redirects=False).status_code == 303
     assert env.get("/admin-console/finance-health").status_code in (302, 303, 403), "โรงเรียนเข้าหน้าแอดมินไม่ได้"
+
+
+def _showcase():
+    import importlib.util
+    import pathlib
+    spec = importlib.util.spec_from_file_location(
+        "seed_health_showcase", pathlib.Path(__file__).resolve().parents[1] / "tools" / "seed_health_showcase.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    db = _db()
+    try:
+        return mod.seed(db)
+    finally:
+        db.close()
+
+
+def test_showcase_triggers_every_check_and_every_link_works(env):
+    """ชุดตัวอย่างขึ้นครบทุกข้อ และทุกลิงก์ "ไปดู" เปิดได้จริง (ไม่ 404/500 ไม่เด้งไปหน้าอื่น) + จุดที่ลิงก์ชี้ (#...) มีอยู่จริง"""
+    import re
+    from html import unescape
+    from app.services.finance_health import run, CHECKS
+    info = _showcase()
+    db = _db()
+    try:
+        cur, old = run(db, info["fy"]), run(db, info["carry_year"])
+    finally:
+        db.close()
+    shown = {i["key"] for lv in ("fix", "check", "notice") for i in cur[lv]}
+    shown |= {i["key"] for lv in ("fix", "check", "notice") for i in old[lv]}
+    expected = {fn.__name__ for _, _, fn in CHECKS} - {"low_spend_year_end"}     # ขึ้นเฉพาะ ก.ค. ถึง ก.ย.
+    assert expected - shown == set(), f"ข้อที่ยังไม่ขึ้น: {expected - shown}"
+
+    checked = 0
+    for year in (info["fy"], info["carry_year"]):
+        html = env.get(f"/finance/health?year={year}").text
+        hrefs = set(re.findall(r'<a class="fh-go" href="([^"]+)"', html))
+        hrefs |= set(re.findall(r'<ul class="fh-rows">.*?</ul>', html, re.S) and
+                     re.findall(r'<li><a href="([^"]+)">', html))
+        assert hrefs
+        for h in sorted(unescape(x) for x in hrefs):
+            path, _, frag = h.partition("#")
+            r = env.get(path, follow_redirects=False)
+            assert r.status_code == 200, (h, r.status_code, r.headers.get("location"))
+            if frag:
+                assert f'id="{frag}"' in r.text, f"ลิงก์ {h} ไม่มีจุด #{frag} ในหน้าปลายทาง"
+            checked += 1
+    assert checked >= 20

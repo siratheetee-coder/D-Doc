@@ -369,7 +369,106 @@ def asset_not_registered(db, fy, today):
                       rows, rows[0]["href"], "ไปขึ้นทะเบียน")
 
 
+def subsidy_over_received(db, fy, today):
+    """รับเงินอุดหนุนรายหมวดเกินยอดที่คำนวณ/ได้รับจัดสรรไว้ (ฉบับล่าสุด) · รับไม่ครบเป็นเรื่องปกติ (ทยอยโอน) จึงไม่เตือน"""
+    from app.models import SubsidySnapshot
+    from app.services import subsidy as sub
+    from app.thai_utils import current_academic_year
+    ay0 = current_academic_year(today)
+    rows = []
+    for ay in (ay0 - 1, ay0):
+        for term in (1, 2):
+            snap = (db.query(SubsidySnapshot).filter_by(academic_year=ay, term=term)
+                    .order_by(SubsidySnapshot.id.desc()).first())
+            if not snap:
+                continue
+            want = {}
+            for r in json.loads(snap.payload)["result"]["rows"]:
+                v = r.get("allocated") if r.get("allocated") is not None else r.get("full")
+                if v is not None:
+                    want[r["key"]] = float(v)
+            got, _, _ = sub.receipt_summary(db, ay, term)
+            for key, amt in got.items():
+                if key in want and amt > want[key] + 0.5:
+                    rows.append(_row(f"{sub.NAMES.get(key, key)} · ปีการศึกษา {ay} ภาคเรียนที่ {term}",
+                                     f"/finance/subsidy?year={ay}&term={term}", amount=amt - want[key],
+                                     sub=f"รับแล้ว {amt:,.2f} แต่คำนวณ/จัดสรรไว้ {want[key]:,.2f}"))
+    if rows:
+        return _issue("รับเงินอุดหนุนเกินยอดที่คำนวณไว้",
+                      "อาจผูกรายการรับซ้ำ ผูกผิดภาคเรียน หรือยอดจัดสรรในหน้าคำนวณยังไม่ได้อัปเดต "
+                      "ตรวจรายการรับที่ผูกไว้ในหน้าคำนวณเงินอุดหนุน",
+                      rows, rows[0]["href"])
+
+
+def lunch_round_over_rate(db, fy, today):
+    """จ้างเหมาอาหารกลางวัน: วงเงินรอบเกิน จำนวนนักเรียน x อัตราต่อหัว x จำนวนวัน"""
+    from app.models import LunchHireRound
+    rows = []
+    for r in db.query(LunchHireRound).filter(LunchHireRound.start_date.isnot(None)).order_by(LunchHireRound.start_date):
+        p = r.program
+        if _fy_of(r.start_date) != fy or not p or (p.operate_mode or "hire") != "hire":
+            continue
+        cap = float(p.total_students or 0) * float(p.rate_per_head or 0) * float(r.days or 0)
+        if cap > 0 and (r.amount or 0) > cap + 0.5:
+            rows.append(_row(f"รอบที่ {r.seq} · ปีการศึกษา {p.year}", f"/lunch/round/{r.id}/edit", date=r.start_date,
+                             amount=(r.amount or 0) - cap,
+                             sub=f"วงเงิน {r.amount or 0:,.2f} แต่ {p.total_students} คน x {p.rate_per_head:,.2f} บาท x {r.days} วัน "
+                                 f"= {cap:,.2f}"))
+    if rows:
+        return _issue("รอบจ้างเหมาอาหารกลางวัน วงเงินเกินอัตรารายหัว",
+                      "วงเงินจ้างต่อรอบไม่ควรเกิน จำนวนนักเรียน x อัตราต่อหัวต่อวัน x จำนวนวันทำการในรอบ "
+                      "ตรวจจำนวนนักเรียน จำนวนวัน หรือวงเงินของรอบนั้น",
+                      rows, rows[0]["href"])
+
+
+def receipt_duplicate_no(db, fy, today):
+    from app.models import Receipt
+    groups = defaultdict(list)
+    for r in db.query(Receipt).filter(Receipt.fiscal_year == fy, Receipt.kind == "รับ"):
+        no = "".join((r.receipt_no or "").split())
+        if no:
+            groups[no].append(r)
+    rows = [_row(f"ใบเสร็จเลขที่ {rs[0].receipt_no}", f"/finance/receipts?year={fy}", date=rs[0].date,
+                 sub="ใช้ซ้ำ " + str(len(rs)) + " ใบ: " + ", ".join(r.party or "-" for r in rs[:3]))
+            for rs in groups.values() if len(rs) > 1]
+    if rows:
+        return _issue("ใบเสร็จรับเงินเลขที่ซ้ำกัน",
+                      "ใบเสร็จรับเงินแต่ละใบต้องมีเลขไม่ซ้ำ ผู้ตรวจสอบดูข้อนี้ทุกครั้ง ตรวจว่าพิมพ์เลขผิด หรือบันทึกใบเดียวกันซ้ำ",
+                      rows, rows[0]["href"])
+
+
 # ---------------------------------------------------------------- สิ่งที่ควรสังเกต
+def cash_on_hand(db, fy, today):
+    """เงินสดที่เก็บไว้ที่โรงเรียน (ประเภทที่เก็บ = เงินสด) ค้างไว้เกิน 7 วันโดยไม่มีความเคลื่อนไหว"""
+    from app.models import FinanceAccount
+    from app.services.asset_utils import account_balance_year, item_remaining_asof
+    from app.thai_utils import current_fiscal_year
+    if fy != current_fiscal_year(today):
+        return None
+    cut = today - timedelta(days=7)
+    rows = []
+    for a in db.query(FinanceAccount).order_by(FinanceAccount.name):
+        href = f"/finance/accounts/{a.id}?year={fy}#txn-history"
+        targets = []
+        if (a.deposit_type or "") == "cash":
+            targets.append((a.name, account_balance_year(a, fy), [t for t in a.txns if t.fiscal_year == fy]))
+        else:
+            for i in a.items:
+                if i.fiscal_year == fy and (i.deposit_type or "") == "cash":
+                    targets.append((f"{a.name} / {i.name}", item_remaining_asof(i),
+                                    [t for t in a.txns if t.item_id == i.id and t.fiscal_year == fy]))
+        for name, bal, txns in targets:
+            last = max((t.date for t in txns if t.date), default=None)
+            if bal > 0.005 and (last is None or last < cut):
+                rows.append(_row(name, href, amount=bal, date=last,
+                                 sub="ไม่มีรับ-จ่ายเลยตั้งแต่ต้นปีงบ" if last is None else "ไม่มีรับ-จ่ายเกิน 7 วันแล้ว"))
+    if rows:
+        return _issue("มีเงินสดเก็บไว้ที่โรงเรียนนานเกิน 7 วัน",
+                      "เงินสดที่ยังไม่ใช้ควรนำฝากธนาคาร ลดความเสี่ยงสูญหาย และให้ยอดตรงกับรายงานเงินคงเหลือประจำวัน "
+                      "ถ้านำฝากแล้ว ให้ลงรายการนำฝากในทะเบียนคุมเงิน",
+                      rows, rows[0]["href"])
+
+
 def low_spend_year_end(db, fy, today):
     """ช่วง ก.ค. ถึง ก.ย. หมวดที่ตั้งงบไว้แต่ใช้ไปไม่ถึง 20% เตือนให้วางแผนใช้หรือกันเงินไว้เบิกเหลื่อมปี"""
     from app.models import AccountItem
@@ -457,10 +556,14 @@ CHECKS = [
     ("check", "เช็คที่สั่งจ่าย ขึ้นเงินแล้ว", checks_not_cleared),
     ("check", "ไม่มีการซื้อ/จ้างร้านเดียวกันหลายเรื่องในเวลาใกล้กัน", split_purchases),
     ("check", "ครุภัณฑ์ที่ตรวจรับแล้ว ขึ้นทะเบียนครบ", asset_not_registered),
+    ("check", "รับเงินอุดหนุนไม่เกินยอดที่คำนวณไว้", subsidy_over_received),
+    ("check", "รอบจ้างเหมาอาหารกลางวัน วงเงินไม่เกินอัตรารายหัว", lunch_round_over_rate),
+    ("check", "ใบเสร็จรับเงินเลขที่ไม่ซ้ำ", receipt_duplicate_no),
     ("notice", "จัดสรรเงินในแผนให้โครงการครบ", plan_unallocated),
     ("notice", "ทำงบกระทบยอดเงินฝากธนาคารเดือนที่แล้ว", bank_recon_missing),
     ("notice", "รายการเงินระบุหมวดครบ", txn_without_item),
     ("notice", "ใกล้สิ้นปีงบ ทุกหมวดใช้เงินตามแผน", low_spend_year_end),
+    ("notice", "ไม่มีเงินสดค้างที่โรงเรียนนานเกิน 7 วัน", cash_on_hand),
 ]
 
 
