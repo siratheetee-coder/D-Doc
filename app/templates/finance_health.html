@@ -28,6 +28,7 @@
   <a class="fh-tile fh-ok" href="#lv-passed"><span class="fh-num">{{ c.passed }}</span><span class="fh-lab">ผ่านแล้ว</span></a>
 </div>
 
+{% if err %}<div class="fh-err">{{ err }}</div>{% endif %}
 {% if not n_issue %}
 <div class="fh-allok">
   <svg class="icon"><use href="#ic-check"/></svg>
@@ -61,10 +62,37 @@
       {% endfor %}
     </ul>
     {% if it.total > it.rows|length %}<div class="fh-more">และอีก {{ it.total - it.rows|length }} รายการ · กด "{{ it.label }}" เพื่อดูทั้งหมด</div>{% endif %}
+    {% if it.can_ack %}
+    <form method="post" action="/finance/health/ack" class="fh-ackf"
+          onsubmit="return confirm('ยืนยันว่าตรวจแล้ว ข้อนี้ไม่ใช่ปัญหา?\nถ้ามีรายการใหม่เข้าข่ายข้อนี้ ระบบจะกลับมาเตือนอีก');">
+      <input type="hidden" name="year" value="{{ fiscal_year }}"><input type="hidden" name="key" value="{{ it.key }}">
+      <input type="hidden" name="sig" value="{{ it.sig }}">
+      <button type="submit" class="fh-ack" data-no-floating-save><svg class="icon"><use href="#ic-check"/></svg> ตรวจแล้ว ไม่ใช่ปัญหา</button>
+    </form>
+    {% endif %}
   </article>
   {% endfor %}
 </section>
 {% endif %}{% endfor %}
+
+{% if h.dismissed %}
+<section class="fh-level" id="lv-dismissed">
+  <details class="fh-dis">
+    <summary><span class="fh-dot fh-dis-dot"></span> ตรวจแล้ว ไม่ใช่ปัญหา {{ h.dismissed|length }} ข้อ <span class="muted">(ไม่นับในจำนวนด้านบน · ถ้ามีรายการใหม่ จะกลับมาเตือน)</span></summary>
+    <ul>{% for it in h.dismissed %}<li>
+      <div><b>{{ it.title }}</b>
+        <small>{{ it.total }} รายการ · กดโดย {{ it.ack.by_name or 'ไม่ระบุ' }} เมื่อ {{ thai_date(it.ack.created_at) }}</small></div>
+      <div class="fh-disbtn">
+        <a class="fh-mini" href="{{ it.href }}">ไปดู</a>
+        <form method="post" action="/finance/health/unack" style="margin:0;">
+          <input type="hidden" name="year" value="{{ fiscal_year }}"><input type="hidden" name="key" value="{{ it.key }}">
+          <button type="submit" class="fh-mini" data-no-floating-save>กลับมาเตือน</button>
+        </form>
+      </div>
+    </li>{% endfor %}</ul>
+  </details>
+</section>
+{% endif %}
 
 <section class="fh-level" id="lv-passed">
   <details class="fh-passed"{{ ' open' if not n_issue }}>
@@ -145,7 +173,25 @@
   .fh-passed li { display:flex; gap:8px; align-items:flex-start; font-size:14px; color:#065f46; }
   .fh-passed li .icon { flex:none; margin-top:3px; }
 
+  .fh-err { margin:0 0 16px; padding:12px 16px; border-radius:12px; color:#991b1b; background:linear-gradient(120deg,#fef2f2,#fee2e2); }
+  .fh-ackf { margin:10px 0 0 54px; }
+  .fh-ack { font:inherit; font-size:13px; font-weight:600; color:#475569; background:#f1f5f9; border:0; border-radius:999px;
+            padding:6px 14px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+  .fh-ack:hover { background:linear-gradient(120deg,#ecfdf5,#d1fae5); color:#065f46; }
+  .fh-dis { border-radius:16px; padding:14px 18px; background:linear-gradient(120deg,#f8fafc,#f1f5f9); }
+  .fh-dis summary { cursor:pointer; font-weight:600; color:#334155; display:flex; align-items:center; gap:10px; list-style:none; flex-wrap:wrap; }
+  .fh-dis summary::-webkit-details-marker { display:none; }
+  .fh-dis-dot { background:linear-gradient(135deg,#94a3b8,#64748b); box-shadow:0 0 0 4px #e2e8f0; }
+  .fh-dis ul { list-style:none; margin:12px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .fh-dis li { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+               background:#fff; border-radius:12px; padding:10px 14px; font-size:14px; }
+  .fh-dis li small { display:block; color:#64748b; font-size:12.5px; }
+  .fh-disbtn { display:flex; gap:6px; align-items:center; }
+  .fh-mini { font:inherit; font-size:13px; font-weight:600; border:0; border-radius:999px; padding:5px 12px; cursor:pointer;
+             background:#eef2ff; color:#3730a3; text-decoration:none; }
+
   @media (max-width:760px) {
+    .fh-ackf { margin-left:0; }
     .fh-sum { grid-template-columns:repeat(2,minmax(0,1fr)); }
     .fh-chead { flex-wrap:wrap; }
     .fh-go { width:100%; justify-content:center; }

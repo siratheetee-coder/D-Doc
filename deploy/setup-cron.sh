@@ -57,6 +57,7 @@ $CURRENT
 0 9 * * * cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.trial_notice >> /var/log/ddoc-trial-notice.log 2>&1 $MARK
 0 8 * * * cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.member_notice >> /var/log/ddoc-member-notice.log 2>&1 $MARK
 0 4 1 * * $APP_DIR/deploy/restore-drill.sh >> /var/log/ddoc-restore-drill.log 2>&1 $MARK
+0 5 * * * runuser -u ddoc -- bash -c "cd $APP_DIR && nice -n 19 $APP_DIR/.venv/bin/python -m app.services.finance_health" >> /var/log/ddoc-finance-health.log 2>&1 $MARK
 EOF
 )"
 
@@ -69,6 +70,7 @@ echo "  - ลบข้อมูลที่ไม่ใช้งาน ทุก
 echo "  - อีเมลเตือนต่ออายุ   ทุกวัน 8 โมง -> /var/log/ddoc-member-notice.log"
 echo "  - อีเมลเตือนทดลองใช้  ทุกวัน 9 โมง -> /var/log/ddoc-trial-notice.log"
 echo "  - ซ้อมกู้ข้อมูล (ไม่แตะข้อมูลจริง) วันที่ 1 ทุกเดือน ตี 4 -> /var/log/ddoc-restore-drill.log"
+echo "  - ตรวจข้อมูลการเงินทุกโรงเรียน (ไม่แก้ข้อมูล) ทุกวัน ตี 5 -> /var/log/ddoc-finance-health.log"
 echo ""
 crontab -l | grep "$MARK"
 echo ""

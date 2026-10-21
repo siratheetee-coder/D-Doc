@@ -1013,6 +1013,18 @@ class CheckPayment(Base):
     created_at = Column(DateTime, default=datetime.now)
 
 
+class FinanceHealthAck(Base):
+    """หน้าตรวจสุขภาพข้อมูลการเงิน: ข้อที่โรงเรียนกด "ตรวจแล้ว ไม่ใช่ปัญหา" (เฉพาะระดับควรเช็ค/ควรสังเกต)
+    sig = ลายนิ้วมือของรายการที่เห็นตอนกด ถ้ามีรายการใหม่เพิ่มเข้ามา ข้อนั้นจะกลับมาเตือนอีก"""
+    __tablename__ = "finance_health_ack"
+
+    id = Column(Integer, primary_key=True)
+    key = Column(String, nullable=False, unique=True)    # ชื่อข้อตรวจ เช่น duplicate_payments
+    sig = Column(String, nullable=False, default="")
+    by_name = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+
 class BankRecon(Base):
     """งบกระทบยอดเงินฝากธนาคาร (เทียบยอดสมุดบัญชีกับ statement ธนาคาร)"""
     __tablename__ = "bank_recon"

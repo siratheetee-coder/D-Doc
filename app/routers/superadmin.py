@@ -623,6 +623,24 @@ def marketing_page(request: Request, days: int = 90):
     })
 
 
+@router.get("/admin-console/finance-health", response_class=HTMLResponse)
+def finance_health_all_page(request: Request):
+    """ข้อมูลการเงินของทุกโรงเรียน: โรงเรียนไหนมีสิ่งที่ควรแก้ (ผลตรวจล่าสุดจาก cron ทุกคืน หรือกดตรวจเดี๋ยวนี้)"""
+    from app.services.finance_health import load_all
+    data = load_all()
+    return templates.TemplateResponse("superadmin_finance_health.html", {
+        "request": request, "d": data,
+        "admin_name": request.session.get("name", "ผู้ดูแลระบบ"),
+    })
+
+
+@router.post("/admin-console/finance-health/run")
+def finance_health_all_run():
+    from app.services.finance_health import scan_all
+    scan_all()
+    return RedirectResponse("/admin-console/finance-health", status_code=303)
+
+
 @router.get("/admin-console/usage", response_class=HTMLResponse)
 def usage_page(request: Request, day: str | None = None, days: int = 7):
     """ใครใช้ระบบบ้าง ในช่วงที่เลือก (วันนี้ / 7 / 30 / 90 วัน หรือเจาะวันเดียว)

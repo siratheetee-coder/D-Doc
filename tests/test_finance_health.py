@@ -159,3 +159,130 @@ def test_check_and_notice_levels(env):
     assert "txn_without_item" in note, note
     if now.month != 10:      # เดือนแรกของปีงบ เดือนที่แล้วเป็นปีงบก่อน ไม่ตรวจ
         assert "bank_recon_missing" in note
+
+
+def _proc_seed():
+    from app.models import Vendor, Procurement, ProcurementItem
+    from app.thai_utils import current_fiscal_year
+    fy = current_fiscal_year()
+    ce = fy - 544
+    db = _db()
+    try:
+        v = Vendor(name="ร้านรุ่งเรือง"); db.add(v); db.flush()
+        a = Procurement(fiscal_year=fy, memo_no="1/s", subject="กระดาษ", vendor_id=v.id, total_amount=9000,
+                        order_date=datetime(ce, 11, 1))
+        b = Procurement(fiscal_year=fy, memo_no="2/s", subject="หมึก", vendor_id=v.id, total_amount=9500,
+                        order_date=datetime(ce, 11, 10))
+        far = Procurement(fiscal_year=fy, memo_no="3/s", subject="แฟ้ม", vendor_id=v.id, total_amount=500,
+                          order_date=datetime(ce + 1, 3, 1))
+        nb = Procurement(fiscal_year=fy, memo_no="4/s", subject="โน้ตบุ๊ก", proc_type="ซื้อ", total_amount=22000,
+                         order_date=datetime(ce + 1, 1, 5), inspect_date=datetime(ce + 1, 1, 12))
+        db.add_all([a, b, far, nb]); db.flush()
+        db.add(ProcurementItem(procurement_id=nb.id, name="โน้ตบุ๊ก", quantity=1, unit_price=22000))
+        db.commit()
+        return fy, nb.id
+    finally:
+        db.close()
+
+
+def test_split_purchase_asset_and_dismiss_flow(env):
+    from app.services.finance_health import run
+    fy, nb_id = _proc_seed()
+    db = _db()
+    try:
+        h = run(db, fy)
+    finally:
+        db.close()
+    chk = {i["key"]: i for i in h["check"]}
+    sp = chk["split_purchases"]["rows"]
+    assert len(sp) == 1 and sp[0]["amount"] == 18500 and "1/s, 2/s" in sp[0]["sub"], "3/s ห่างเกิน 15 วัน ไม่นับ"
+    assert chk["asset_not_registered"]["href"] == f"/procurement/{nb_id}/to-register"
+
+    html = env.get(f"/finance/health?year={fy}").text
+    assert 'action="/finance/health/ack"' in html and "ตรวจแล้ว ไม่ใช่ปัญหา" in html
+    r = env.post("/finance/health/ack", data={"year": fy, "key": "split_purchases", "sig": chk["split_purchases"]["sig"]},
+                 follow_redirects=False)
+    assert r.status_code == 303
+    db = _db()
+    try:
+        h2 = run(db, fy)
+    finally:
+        db.close()
+    assert "split_purchases" not in {i["key"] for i in h2["check"]}
+    assert [i["key"] for i in h2["dismissed"]] == ["split_purchases"] and h2["counts"]["check"] == h["counts"]["check"] - 1
+    assert "กลับมาเตือน" in env.get(f"/finance/health?year={fy}").text
+
+    # มีเรื่องใหม่เข้าข่าย = กลับมาเตือน
+    from app.models import Procurement
+    db = _db()
+    try:
+        p = db.query(Procurement).filter_by(memo_no="2/s").one()
+        db.add(Procurement(fiscal_year=fy, memo_no="5/s", subject="ปากกา", vendor_id=p.vendor_id, total_amount=800,
+                           order_date=p.order_date)); db.commit()
+        h3 = run(db, fy)
+    finally:
+        db.close()
+    assert "split_purchases" in {i["key"] for i in h3["check"]} and not h3["dismissed"]
+
+    # ข้อระดับควรแก้กดข้ามไม่ได้ · กลับมาเตือนได้
+    r = env.post("/finance/health/ack", data={"year": fy, "key": "negative_balance", "sig": "x"}, follow_redirects=False)
+    assert "err=" in r.headers["location"]
+    env.post("/finance/health/unack", data={"year": fy, "key": "split_purchases"})
+    from app.models import FinanceHealthAck
+    db = _db()
+    try:
+        assert db.query(FinanceHealthAck).count() == 0
+    finally:
+        db.close()
+
+
+def test_low_spend_only_near_year_end(env):
+    from app.models import FinanceAccount, AccountItem, FinanceTxn
+    from app.services.finance_health import low_spend_year_end
+    from app.thai_utils import current_fiscal_year
+    fy = current_fiscal_year()
+    db = _db()
+    try:
+        a = FinanceAccount(name="เงินอุดหนุน"); db.add(a); db.flush()
+        book = AccountItem(account_id=a.id, fiscal_year=fy, name="ค่าหนังสือ", budget=80000)
+        used = AccountItem(account_id=a.id, fiscal_year=fy, name="ค่าเครื่องแบบ", budget=10000)
+        db.add_all([book, used]); db.flush()
+        db.add(FinanceTxn(account_id=a.id, item_id=used.id, fiscal_year=fy, kind="out", amount=9000,
+                          date=datetime(fy - 543, 6, 1)))
+        db.commit()
+        aug = datetime(fy - 543, 8, 15)                 # ส.ค. ของปีงบ fy
+        got = low_spend_year_end(db, fy, aug)
+        assert [r["text"] for r in got["rows"]] == ["เงินอุดหนุน / ค่าหนังสือ"] and got["rows"][0]["amount"] == 80000
+        assert low_spend_year_end(db, fy, datetime(fy - 544, 12, 1)) is None, "ต้นปีงบ ยังไม่เตือน"
+        assert low_spend_year_end(db, fy - 1, aug) is None, "ปีงบที่ผ่านไปแล้ว ไม่เตือน"
+    finally:
+        db.close()
+
+
+def test_admin_overview_skips_sandbox(env):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.accounts import acc_session, Tenant, Account, hash_password
+    from app.services.finance_health import scan_all, load_all
+    _seed()
+    db = acc_session()
+    try:
+        for t in db.query(Tenant):
+            t.slug = "school-1"          # ชุดทดสอบใช้ slug demo ซึ่งเป็นโรงเรียนสาธิต (ถูกข้ามตอนตรวจทุกโรงเรียน)
+        db.add(Tenant(name="ตัวอย่าง", slug="sandbox-x", plan="sandbox"))
+        db.add(Account(username="boss", password_hash=hash_password("Boss2569xyz"), role="superadmin"))
+        db.commit()
+    finally:
+        db.close()
+    d = scan_all()
+    assert d == load_all()
+    names = [r["name"] for r in d["schools"]]
+    assert "ตัวอย่าง" not in names and len(names) == 1
+    top = d["schools"][0]
+    assert top["counts"]["fix"] == 7 and "ยอดยกมาเท่ากับงบที่ตั้งไว้ทุกหมวด" in top["fix"]
+    c = TestClient(app, raise_server_exceptions=False)
+    c.post("/login", data={"username": "boss", "password": "Boss2569xyz"})
+    html = c.get("/admin-console/finance-health").text
+    assert "มีสิ่งที่ควรแก้" in html and "ควรแก้ 7" in html and "ยอดยกมาเท่ากับงบที่ตั้งไว้ทุกหมวด" in html
+    assert c.post("/admin-console/finance-health/run", follow_redirects=False).status_code == 303
+    assert env.get("/admin-console/finance-health").status_code in (302, 303, 403), "โรงเรียนเข้าหน้าแอดมินไม่ได้"

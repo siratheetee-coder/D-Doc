@@ -7,6 +7,8 @@ notice = สิ่งที่ควรสังเกต (ไม่ผิด �
 ข้อตรวจแต่ละข้อมาจากปัญหาที่เจอจริง (บ้านหินลาด 2569-10: ยอดยกมากรอกเท่างบ, รายการปีก่อนเริ่มใช้ระบบ,
 โครงการงบ 0 แต่มีเรื่องหักงบ, เรื่องพัสดุลงวันที่นอกปีของแผน)
 """
+import hashlib
+import json
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -23,7 +25,10 @@ def _fy_of(d) -> int:
 
 
 def _issue(title, why, rows, href, label="ไปดู"):
-    return dict(title=title, why=why, rows=rows[:MAX_ROWS], total=len(rows), href=href, label=label)
+    # sig = ลายนิ้วมือของรายการทั้งหมด (ไม่ใช่แค่ที่แสดง) ใช้กับปุ่ม "ตรวจแล้ว ไม่ใช่ปัญหา": รายการเปลี่ยน = เตือนใหม่
+    raw = "|".join(f"{r['href']}:{r['text']}:{r['amount']}" for r in rows)
+    return dict(title=title, why=why, rows=rows[:MAX_ROWS], total=len(rows), href=href, label=label,
+                sig=hashlib.sha256(raw.encode()).hexdigest()[:20])
 
 
 def _row(text, href, sub="", amount=None, date=None):
@@ -304,7 +309,87 @@ def checks_not_cleared(db, fy, today):
                       rows, rows[0]["href"])
 
 
+def split_purchases(db, fy, today):
+    """ซื้อ/จ้างร้านเดียวกัน ประเภทเดียวกัน ห่างกันไม่เกิน 15 วัน หลายเรื่อง = ลักษณะเหมือนแบ่งซื้อแบ่งจ้าง
+    ไม่ฟันธงว่าผิด (ความต้องการคนละครั้งก็มี) จึงอยู่ระดับควรเช็ค และกดตรวจแล้วไม่ใช่ปัญหาได้
+    ไม่นับงานจ้างเหมาอาหารกลางวัน (จ้างเป็นรอบตามปกติ)"""
+    from app.models import Procurement, LunchHireRound
+    lunch = {pid for (pid,) in db.query(LunchHireRound.procurement_id).filter(LunchHireRound.procurement_id.isnot(None))}
+    groups = defaultdict(list)
+    for p in db.query(Procurement).filter(Procurement.fiscal_year == fy, Procurement.vendor_id.isnot(None)):
+        d = p.order_date or p.request_date
+        if d and p.id not in lunch:
+            groups[(p.vendor_id, p.proc_type or "ซื้อ")].append((d, p))
+    rows = []
+    for (_vid, kind), ps in groups.items():
+        ps.sort(key=lambda x: (x[0], x[1].id))
+        chains, cur = [], [ps[0]]
+        for d, p in ps[1:]:
+            if (d - cur[-1][0]).days <= 15:
+                cur.append((d, p))
+            else:
+                chains.append(cur)
+                cur = [(d, p)]
+        chains.append(cur)
+        for ch in chains:
+            if len(ch) < 2:
+                continue
+            first, last = ch[0], ch[-1]
+            vname = first[1].vendor.name if first[1].vendor else "ผู้ขาย"
+            rows.append(_row(f"{vname} · {kind} {len(ch)} เรื่อง ห่างกัน {(last[0] - first[0]).days} วัน",
+                             f"/procurement/{first[1].id}", date=first[0],
+                             amount=sum(x[1].total_amount or 0 for x in ch),
+                             sub="เลขที่ " + ", ".join(x[1].memo_no or "-" for x in ch)))
+    if rows:
+        return _issue("ซื้อ/จ้างร้านเดียวกันหลายเรื่องในเวลาใกล้กัน (อาจเข้าข่ายแบ่งซื้อแบ่งจ้าง)",
+                      "ผู้ตรวจสอบมักทักข้อนี้ ถ้าเป็นความต้องการคนละครั้งจริง (คนละโครงการ คนละช่วง) กด \"ตรวจแล้ว ไม่ใช่ปัญหา\" "
+                      "ถ้าเป็นของที่ควรซื้อพร้อมกัน ครั้งหน้าให้รวมเป็นเรื่องเดียว",
+                      rows, rows[0]["href"])
+
+
+def asset_not_registered(db, fy, today):
+    from app.models import Procurement
+    from app.services.register_import import import_history
+    rows = []
+    for p in db.query(Procurement).filter(Procurement.fiscal_year == fy, Procurement.proc_type == "ซื้อ",
+                                          Procurement.inspect_date.isnot(None)).order_by(Procurement.inspect_date):
+        big = [it for it in p.items if (it.unit_price or 0) >= 10000]
+        if not big:
+            continue
+        done, suspected = import_history(db, p)
+        miss = [it for it in big if it.id not in done and it.id not in suspected]
+        if miss:
+            rows.append(_row(f"{p.memo_no or '-'} · {p.subject or ''}", f"/procurement/{p.id}/to-register",
+                             date=p.inspect_date, amount=sum((it.unit_price or 0) * (it.quantity or 0) for it in miss),
+                             sub="ยังไม่ขึ้นทะเบียน: " + ", ".join(it.name for it in miss[:3])))
+    if rows:
+        return _issue("ซื้อครุภัณฑ์ (ราคาต่อหน่วย 10,000 บาทขึ้นไป) ตรวจรับแล้ว แต่ยังไม่ขึ้นทะเบียน",
+                      "ขึ้นทะเบียนครุภัณฑ์ให้ครบ ตรวจนับพัสดุประจำปีและคิดค่าเสื่อมราคาจะได้ตรง "
+                      "ถ้าเป็นวัสดุ (ไม่ใช่ครุภัณฑ์) เลือกส่งเข้าบัญชีวัสดุได้ในหน้าเดียวกัน",
+                      rows, rows[0]["href"], "ไปขึ้นทะเบียน")
+
+
 # ---------------------------------------------------------------- สิ่งที่ควรสังเกต
+def low_spend_year_end(db, fy, today):
+    """ช่วง ก.ค. ถึง ก.ย. หมวดที่ตั้งงบไว้แต่ใช้ไปไม่ถึง 20% เตือนให้วางแผนใช้หรือกันเงินไว้เบิกเหลื่อมปี"""
+    from app.models import AccountItem
+    from app.thai_utils import current_fiscal_year
+    if fy != current_fiscal_year(today) or today.month not in (7, 8, 9):
+        return None
+    rows = []
+    for i in db.query(AccountItem).filter(AccountItem.fiscal_year == fy, AccountItem.budget > 0):
+        spent = sum(t.amount or 0 for t in i.account.txns
+                    if t.item_id == i.id and t.fiscal_year == fy and t.kind == "out")
+        if spent < 0.2 * i.budget:
+            rows.append(_row(f"{i.account.name} / {i.name}", f"/finance/accounts/{i.account_id}?year={fy}#txn-history",
+                             sub=f"ตั้งงบ {i.budget:,.2f} · ใช้ไป {spent:,.2f} ({spent / i.budget * 100:.0f}%)",
+                             amount=i.budget - spent))
+    if rows:
+        return _issue(f"ใกล้สิ้นปีงบ {fy} แล้ว บางหมวดยังใช้เงินไม่ถึง 20% ของงบ",
+                      "วางแผนใช้ให้ทันก่อน 30 ก.ย. ถ้าก่อหนี้ผูกพันไว้แล้วแต่จ่ายไม่ทัน ให้ทำเรื่องกันเงินไว้เบิกเหลื่อมปี",
+                      rows, rows[0]["href"])
+
+
 def plan_unallocated(db, fy, today):
     from app.services import plan_funding as pf
     year, label = _plan(db)
@@ -370,27 +455,125 @@ CHECKS = [
     ("check", "ไม่มีรายการจ่ายที่อาจลงซ้ำ", duplicate_payments),
     ("check", "ผู้ขายที่ถูกหักภาษี ณ ที่จ่าย มีเลขผู้เสียภาษี", wht_vendor_no_tax_id),
     ("check", "เช็คที่สั่งจ่าย ขึ้นเงินแล้ว", checks_not_cleared),
+    ("check", "ไม่มีการซื้อ/จ้างร้านเดียวกันหลายเรื่องในเวลาใกล้กัน", split_purchases),
+    ("check", "ครุภัณฑ์ที่ตรวจรับแล้ว ขึ้นทะเบียนครบ", asset_not_registered),
     ("notice", "จัดสรรเงินในแผนให้โครงการครบ", plan_unallocated),
     ("notice", "ทำงบกระทบยอดเงินฝากธนาคารเดือนที่แล้ว", bank_recon_missing),
     ("notice", "รายการเงินระบุหมวดครบ", txn_without_item),
+    ("notice", "ใกล้สิ้นปีงบ ทุกหมวดใช้เงินตามแผน", low_spend_year_end),
 ]
 
 
+def acks(db) -> dict:
+    from app.models import FinanceHealthAck
+    return {a.key: a for a in db.query(FinanceHealthAck)}
+
+
 def run(db, fy, today=None) -> dict:
-    """{'fix': [issue], 'check': [...], 'notice': [...], 'passed': [ชื่อข้อที่ผ่าน], 'counts': {...}}"""
+    """{'fix': [issue], 'check': [...], 'notice': [...], 'dismissed': [...], 'passed': [ชื่อข้อที่ผ่าน], 'counts': {...}}
+    dismissed = ข้อที่กด "ตรวจแล้ว ไม่ใช่ปัญหา" และรายการยังเหมือนตอนกด (ไม่นับเป็นปัญหา)"""
     today = today or datetime.now()
     out = {k: [] for k, _, _ in LEVELS}
-    passed = []
+    passed, dismissed = [], []
+    try:
+        ack = acks(db)
+    except Exception as e:  # noqa: BLE001  อ่านไม่ได้ก็ยังตรวจได้ (แค่ไม่ซ่อนข้อที่กดข้ามไว้)
+        print("[finance-health] acks", repr(e))
+        ack = {}
     for level, ok_title, fn in CHECKS:
         try:
             res = fn(db, fy, today)
         except Exception as e:  # noqa: BLE001  ข้อตรวจข้อเดียวพัง ไม่ควรทำให้ทั้งหน้าพัง
             print("[finance-health]", fn.__name__, repr(e))
             continue
-        if res:
-            out[level].append(dict(res, key=fn.__name__))
-        else:
+        if not res:
             passed.append(ok_title)
+            continue
+        res = dict(res, key=fn.__name__, level=level, can_ack=level != "fix")
+        a = ack.get(fn.__name__)
+        if res["can_ack"] and a and a.sig == res["sig"]:
+            dismissed.append(dict(res, ack=a))
+        else:
+            out[level].append(res)
     counts = {k: len(v) for k, v in out.items()}
     counts["passed"] = len(passed)
-    return dict(out, passed=passed, counts=counts, fy=fy)
+    counts["dismissed"] = len(dismissed)
+    return dict(out, passed=passed, dismissed=dismissed, counts=counts, fy=fy)
+
+
+def set_ack(db, key, sig, by_name=""):
+    """กด "ตรวจแล้ว ไม่ใช่ปัญหา" · ข้อระดับควรแก้กดไม่ได้ (ข้อมูลผิดแน่ ต้องแก้)"""
+    from app.models import FinanceHealthAck
+    lv = {fn.__name__: level for level, _, fn in CHECKS}
+    if lv.get(key) not in ("check", "notice") or not sig:
+        raise ValueError("ข้อนี้เป็นข้อมูลที่ผิดแน่นอน ต้องแก้ข้อมูล กดข้ามไม่ได้")
+    row = db.query(FinanceHealthAck).filter_by(key=key).first() or FinanceHealthAck(key=key)
+    row.sig, row.by_name, row.created_at = sig[:40], (by_name or "")[:100], datetime.now()
+    db.add(row)
+    db.commit()
+
+
+def clear_ack(db, key):
+    from app.models import FinanceHealthAck
+    db.query(FinanceHealthAck).filter_by(key=key).delete()
+    db.commit()
+
+
+# ---------------------------------------------------------------- ภาพรวมทุกโรงเรียน (หน้าแอดมิน + cron ทุกคืน)
+def _all_path():
+    from app.database import get_data_dir
+    return get_data_dir() / "finance-health-all.json"
+
+
+def scan_all(today=None) -> dict:
+    """ตรวจทุกโรงเรียน (ไม่รวมระบบตัวอย่าง/โรงเรียนสาธิต) เก็บสรุปไว้ที่ data/finance-health-all.json
+    เปิดเฉพาะโรงเรียนที่มีไฟล์ฐานอยู่แล้ว (ไม่สร้างไฟล์ใหม่ให้โรงเรียนที่ยังไม่เคยใช้) · อ่านอย่างเดียว"""
+    from app.accounts import acc_session, Tenant
+    from app.database import get_data_dir
+    from app.tenancy import session_for
+    from app.thai_utils import current_fiscal_year
+    today = today or datetime.now()
+    fy = current_fiscal_year(today)
+    adb = acc_session()
+    try:
+        tenants = [(t.id, t.name, bool(t.active)) for t in adb.query(Tenant)
+                   .filter(Tenant.plan != "sandbox", Tenant.slug != "demo").order_by(Tenant.id)]
+    finally:
+        adb.close()
+    rows = []
+    for tid, name, active in tenants:
+        if not (get_data_dir() / "schools" / str(tid) / "school.db").exists():
+            continue
+        db = session_for(tid)
+        try:
+            h = run(db, fy, today)
+            rows.append(dict(id=tid, name=name, active=active, counts=h["counts"],
+                             fix=[i["title"] for i in h["fix"]], check=[i["title"] for i in h["check"]],
+                             notice=[i["title"] for i in h["notice"]]))
+        except Exception as e:  # noqa: BLE001  โรงเรียนเดียวพัง ไม่ให้ทั้งรอบพัง
+            rows.append(dict(id=tid, name=name, active=active, error=repr(e)[:200]))
+        finally:
+            db.close()
+    rows.sort(key=lambda r: (-(r.get("counts") or {}).get("fix", 0), -(r.get("counts") or {}).get("check", 0),
+                             r["name"] or ""))
+    data = dict(at=today.strftime("%Y-%m-%d %H:%M"), fy=fy, schools=rows)
+    p = _all_path()
+    tmp = p.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(p)
+    return data
+
+
+def load_all():
+    try:
+        return json.loads(_all_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+if __name__ == "__main__":      # cron ทุกคืน: python -m app.services.finance_health
+    d = scan_all()
+    bad = [r for r in d["schools"] if (r.get("counts") or {}).get("fix")]
+    print(f"[{d['at']}] ตรวจ {len(d['schools'])} โรงเรียน · มีสิ่งที่ควรแก้ {len(bad)} โรงเรียน")
+    for r in bad:
+        print(f"  - {r['name']}: ควรแก้ {r['counts']['fix']}")

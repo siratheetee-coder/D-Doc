@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Easy Ekkasan | ข้อมูลการเงินทุกโรงเรียน</title>
+  <link rel="icon" type="image/png" href="/static/favicon-ekkasan.png">
+  <style>
+    @font-face { font-family:"Prompt"; font-weight:400; src:url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:600; src:url("/static/fonts/Prompt-SemiBold.ttf") format("truetype"); }
+    @font-face { font-family:"Prompt"; font-weight:700; src:url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:"Prompt","Sarabun","Segoe UI",sans-serif; background:#F5F6FA; color:#202224; }
+    .top { background:#1b2433; color:#fff; padding:14px 26px; display:flex; justify-content:space-between; align-items:center; }
+    .top b { font-size:18px; } .top a { color:#cbd5e1; text-decoration:none; font-size:15px; }
+    .wrap { max-width:1180px; margin:24px auto; padding:0 20px; }
+    .card { background:#fff; border-radius:14px; padding:20px 22px; margin-bottom:20px; box-shadow:0 2px 10px rgba(16,24,40,.06); }
+    h1 { font-size:20px; margin:0 0 6px; }
+    .muted { color:#5a6a85; font-size:14px; }
+    .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:16px 0 0; }
+    .stat { border-radius:12px; padding:14px 16px; color:#fff; }
+    .stat .n { font-size:26px; font-weight:700; line-height:1.1; }
+    .stat .l { font-size:13px; opacity:.92; margin-top:2px; }
+    .s-fix { background:linear-gradient(120deg,#e11d48,#fb7185); }
+    .s-check { background:linear-gradient(120deg,#d97706,#fbbf24); }
+    .s-ok { background:linear-gradient(120deg,#059669,#34d399); }
+    .s-all { background:linear-gradient(120deg,#2563eb,#60a5fa); }
+    .btn { font-family:inherit; font-size:14px; font-weight:600; padding:9px 18px; border:0; border-radius:10px; cursor:pointer;
+      color:#fff; background:linear-gradient(120deg,#2563eb,#6366f1); }
+    .row-head { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .sch { border-radius:12px; padding:14px 16px; margin:0 0 10px; background:#f8fafc; }
+    .sch.bad { background:linear-gradient(120deg,#fff1f2,#fff); }
+    .sch.warn { background:linear-gradient(120deg,#fffbeb,#fff); }
+    .sch .nm { font-weight:700; }
+    .chips { display:inline-flex; gap:6px; flex-wrap:wrap; margin-left:8px; vertical-align:2px; }
+    .chip { font-size:12.5px; font-weight:600; padding:1px 9px; border-radius:999px; background:#fff; }
+    .c-fix { color:#e11d48; } .c-check { color:#b45309; } .c-notice { color:#1d4ed8; } .c-ok { color:#059669; }
+    .sch ul { margin:8px 0 0; padding-left:20px; font-size:14px; line-height:1.7; }
+    .sch li.f { color:#9f1239; } .sch li.c { color:#92400e; }
+    .off { font-size:12px; color:#64748b; margin-left:6px; }
+    details summary { cursor:pointer; color:#5a6a85; font-size:14px; }
+  </style>
+</head>
+<body>
+<div class="top">
+  <b>ข้อมูลการเงินทุกโรงเรียน</b>
+  <span><a href="/admin-console">← กลับคอนโซล</a></span>
+</div>
+<div class="wrap">
+  <div class="card">
+    <div class="row-head">
+      <div>
+        <h1>โรงเรียนไหนมีข้อมูลการเงินที่ควรแก้</h1>
+        <p class="muted" style="margin:0;">ผลจากหน้า "ตรวจสุขภาพข้อมูลการเงิน" ของแต่ละโรงเรียน (ปีงบปัจจุบัน) ไม่รวมระบบตัวอย่าง ·
+          ระบบตรวจให้ทุกคืน ตี 5 · {% if d %}ตรวจล่าสุด {{ d.at }} · ปีงบ {{ d.fy }}{% else %}ยังไม่เคยตรวจ{% endif %}</p>
+      </div>
+      <form method="post" action="/admin-console/finance-health/run" style="margin:0;"
+            onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='กำลังตรวจ...';">
+        <button class="btn" type="submit">ตรวจทุกโรงเรียนเดี๋ยวนี้</button>
+      </form>
+    </div>
+    {% if d %}
+    {% set bad = d.schools|selectattr('counts')|selectattr('counts.fix')|list %}
+    {% set warn = d.schools|selectattr('counts')|rejectattr('counts.fix')|selectattr('counts.check')|list %}
+    <div class="stats">
+      <div class="stat s-all"><div class="n">{{ d.schools|length }}</div><div class="l">โรงเรียนที่ตรวจ</div></div>
+      <div class="stat s-fix"><div class="n">{{ bad|length }}</div><div class="l">มีสิ่งที่ควรแก้</div></div>
+      <div class="stat s-check"><div class="n">{{ warn|length }}</div><div class="l">มีแค่สิ่งที่ควรเช็ค</div></div>
+      <div class="stat s-ok"><div class="n">{{ d.schools|length - bad|length - warn|length }}</div><div class="l">เรียบร้อย</div></div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if d %}
+  <div class="card">
+    {% set ns = namespace(ok=[]) %}
+    {% for r in d.schools %}
+      {% if r.error %}
+      <div class="sch bad"><span class="nm">{{ r.name }}</span> <span class="off">id {{ r.id }}</span>
+        <div class="muted">ตรวจไม่สำเร็จ: {{ r.error }}</div></div>
+      {% elif r.counts.fix or r.counts.check %}
+      <div class="sch {{ 'bad' if r.counts.fix else 'warn' }}">
+        <span class="nm">{{ r.name }}</span><span class="off">id {{ r.id }}{{ ' · ปิดใช้งาน' if not r.active }}</span>
+        <span class="chips">
+          {% if r.counts.fix %}<span class="chip c-fix">ควรแก้ {{ r.counts.fix }}</span>{% endif %}
+          {% if r.counts.check %}<span class="chip c-check">ควรเช็ค {{ r.counts.check }}</span>{% endif %}
+          {% if r.counts.notice %}<span class="chip c-notice">ควรสังเกต {{ r.counts.notice }}</span>{% endif %}
+        </span>
+        <ul>{% for t in r.fix %}<li class="f">{{ t }}</li>{% endfor %}{% for t in r.check %}<li class="c">{{ t }}</li>{% endfor %}</ul>
+      </div>
+      {% else %}{% set ns.ok = ns.ok + [r] %}{% endif %}
+    {% endfor %}
+    {% if ns.ok %}
+    <details><summary>เรียบร้อย / มีแค่สิ่งที่ควรสังเกต {{ ns.ok|length }} โรงเรียน</summary>
+      <ul class="muted">{% for r in ns.ok %}<li>{{ r.name }}{% if r.counts.notice %} · ควรสังเกต {{ r.counts.notice }}{% endif %}</li>{% endfor %}</ul>
+    </details>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+</body>
+</html>

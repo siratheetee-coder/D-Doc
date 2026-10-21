@@ -138,7 +138,29 @@ def finance_health_page(request: Request, db: Session = Depends(get_db), year: i
     return templates.TemplateResponse("finance_health.html", {
         "request": request, "school": get_school(db), "fiscal_year": fy,
         "years": _finance_years(db, fy), "levels": LEVELS, "h": run(db, fy),
+        "err": request.query_params.get("err", ""),
     })
+
+
+@router.post("/finance/health/ack")
+def finance_health_ack(request: Request, db: Session = Depends(get_db), year: str = Form(""),
+                       key: str = Form(""), sig: str = Form("")):
+    """ตรวจแล้ว ไม่ใช่ปัญหา (เฉพาะข้อควรเช็ค/ควรสังเกต) · รายการเปลี่ยนเมื่อไร ข้อนั้นกลับมาเตือนเอง"""
+    from app.services.finance_health import set_ack
+    y = _to_int(year, current_fiscal_year())
+    try:
+        set_ack(db, key.strip(), sig.strip(), request.session.get("name", ""))
+    except ValueError as e:
+        db.rollback()
+        return RedirectResponse(f"/finance/health?year={y}&err=" + quote(str(e)), status_code=303)
+    return RedirectResponse(f"/finance/health?year={y}#lv-dismissed", status_code=303)
+
+
+@router.post("/finance/health/unack")
+def finance_health_unack(db: Session = Depends(get_db), year: str = Form(""), key: str = Form("")):
+    from app.services.finance_health import clear_ack
+    clear_ack(db, key.strip())
+    return RedirectResponse(f"/finance/health?year={_to_int(year, current_fiscal_year())}", status_code=303)
 
 
 # ---------------- ยกยอดคงเหลือไปปีงบถัดไป (ไม่ลบข้อมูลเก่า) ----------------
