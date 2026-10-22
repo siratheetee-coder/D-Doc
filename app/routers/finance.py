@@ -156,6 +156,44 @@ def finance_health_ack(request: Request, db: Session = Depends(get_db), year: st
     return RedirectResponse(f"/finance/health?year={y}#lv-dismissed", status_code=303)
 
 
+@router.get("/finance/paid-before", response_class=HTMLResponse)
+def paid_before_page(request: Request, db: Session = Depends(get_db), cutoff: str = ""):
+    """เรื่องพัสดุที่จ่ายเงินไปก่อนเริ่มใช้ระบบ แต่ยังขึ้นว่ารอจ่าย ติ๊กเลือกแล้วทำเครื่องหมายทีเดียว"""
+    from app.services import paid_before as pb
+    cut = parse_be_date(cutoff) if cutoff.strip() else None
+    cut = cut or pb.default_cutoff(db)
+    rows, done = pb.candidates(db, cut), pb.marked(db)
+    pids = {p.project_id for p in rows + done if p.project_id}
+    projects = {p.id: p for p in db.query(Project).filter(Project.id.in_(pids))} if pids else {}
+    return templates.TemplateResponse("finance_paid_before.html", {
+        "request": request, "school": get_school(db), "cutoff": cut, "rows": rows, "done": done,
+        "projects": projects, "proc_date": pb.proc_date,
+        "msg": request.query_params.get("msg", ""), "err": request.query_params.get("err", ""),
+    })
+
+
+@router.post("/finance/paid-before")
+async def paid_before_save(request: Request, db: Session = Depends(get_db)):
+    """ทำเครื่องหมาย (on=1) หรือยกเลิก (on=0) · back = หน้าที่กดมา (หน้ารวม หรือหน้าเรื่องพัสดุ)"""
+    from app.services import paid_before as pb
+    form = await request.form()
+    on = form.get("on") == "1"
+    back = form.get("back") or "/finance/paid-before"
+    if not back.startswith("/") or back.startswith("//"):
+        back = "/finance/paid-before"
+    sep = "&" if "?" in back else "?"
+    ids = [v for v in form.getlist("pid") if str(v).isdigit()]
+    if not ids:
+        return RedirectResponse(back + sep + "err=" + quote("ยังไม่ได้เลือกเรื่อง"), status_code=303)
+    try:
+        n = pb.set_mark(db, ids, on)
+    except ValueError as e:
+        db.rollback()
+        return RedirectResponse(back + sep + "err=" + quote(str(e)), status_code=303)
+    msg = f"ทำเครื่องหมายจ่ายแล้วก่อนเริ่มใช้ระบบ {n} เรื่อง" if on else f"ยกเลิกเครื่องหมาย {n} เรื่อง"
+    return RedirectResponse(back + sep + "msg=" + quote(msg), status_code=303)
+
+
 @router.post("/finance/txn/{tid}/move-year")
 def finance_txn_move_year(tid: int, db: Session = Depends(get_db), back: str = Form("")):
     """ย้ายรายการที่ลงผิดปีงบ ไปปีงบตามวันที่ (ปุ่มในหน้าตรวจสุขภาพข้อมูล)"""
@@ -828,7 +866,8 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
         "sug_memo": suggest_doc_no(db, "memo", fy),
         "accounts": db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
         "items_map": _items_map(db, fy),
-        "procs": db.query(Procurement).filter_by(fiscal_year=fy).order_by(Procurement.id.desc()).all(),
+        "procs": db.query(Procurement).filter(Procurement.fiscal_year == fy, Procurement.paid_before_system.isnot(True))
+                 .order_by(Procurement.id.desc()).all(),
         "projects": _plan_projects(db, fy),
         "prefill": prefill,
         "names": _name_suggest(db),

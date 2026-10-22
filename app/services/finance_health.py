@@ -534,6 +534,24 @@ def cash_on_hand(db, fy, today):
                       rows, rows[0]["href"])
 
 
+def paid_before_pending(db, fy, today):
+    """โรงเรียนที่เริ่มใช้ระบบกลางทาง: เรื่องพัสดุก่อนวันเริ่มใช้ระบบที่ยังขึ้นว่ารอจ่าย"""
+    from app.services import paid_before as pb
+    from app.thai_utils import current_fiscal_year
+    cur = current_fiscal_year(today)
+    if fy != cur or not any(_joined(db, y) for y in (cur, cur - 1, cur - 2)):
+        return None
+    cut = pb.default_cutoff(db)
+    rows = [_row(f"เลขที่ {p.memo_no or '-'} {p.proc_type or ''}{p.subject or ''}", "/finance/paid-before",
+                 date=pb.proc_date(p), amount=p.total_amount) for p in pb.candidates(db, cut)]
+    if rows:
+        return _issue("เรื่องพัสดุก่อนเริ่มใช้ระบบ ยังขึ้นว่ารอจ่าย",
+                      ["ถ้าจ่ายเงินไปแล้วก่อนเริ่มใช้ระบบ ทำเครื่องหมาย \"จ่ายแล้วก่อนเริ่มใช้ระบบ\" ได้ทีละหลายเรื่อง",
+                       "ไม่สร้างรายการเงิน และงบโครงการที่ใช้ไปเท่าเดิม",
+                       "ถ้ายังไม่ได้จ่ายจริง ให้ทำบันทึกขอเบิกจ่ายตามปกติ"],
+                      rows, "/finance/paid-before", "ไปทำเครื่องหมาย")
+
+
 def low_spend_year_end(db, fy, today):
     """ช่วง ก.ค. ถึง ก.ย. หมวดที่ตั้งงบไว้แต่ใช้ไปไม่ถึง 20% เตือนให้วางแผนใช้หรือกันเงินไว้เบิกเหลื่อมปี"""
     from app.models import AccountItem
@@ -630,6 +648,7 @@ CHECKS = [
     ("notice", "ทำงบกระทบยอดเงินฝากธนาคารเดือนที่แล้ว", bank_recon_missing),
     ("notice", "รายการเงินระบุหมวดครบ", txn_without_item),
     ("notice", "ใกล้สิ้นปีงบ ทุกหมวดใช้เงินตามแผน", low_spend_year_end),
+    ("notice", "เรื่องพัสดุก่อนเริ่มใช้ระบบ ไม่มีเรื่องที่ยังขึ้นว่ารอจ่าย", paid_before_pending),
     ("notice", "ไม่มีเงินสดค้างที่โรงเรียนนานเกิน 7 วัน", cash_on_hand),
 ]
 

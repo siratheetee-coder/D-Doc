@@ -2425,7 +2425,13 @@ def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get
         # ว.119 ตาราง 2: เอกสารที่ต้องออก/ต้องแนบ ขึ้นกับรายการและวิธีจ่ายเงิน
         "w119t2": (_w119t2_checklist(proc) if (proc.proc_case or "") == "w119t2" else None),
         "case_warnings": _case_warnings(proc),
+        "paid_in_system": proc.id in _paid_in_system(db),
     })
+
+
+def _paid_in_system(db):
+    from app.services.paid_before import paid_in_system
+    return paid_in_system(db)
 
 
 @router.get("/document/{doc_id}/download")

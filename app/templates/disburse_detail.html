@@ -107,6 +107,13 @@
 <div class="card">
   <h2><svg class="icon"><use href="#ic-coins"/></svg> ลงรายการจ่ายเงิน</h2>
   {% set wrong_fy = date_fy and date_fy != m.fiscal_year %}
+  {% if proc and proc.paid_before_system and not posted %}
+  <div class="alert warn" role="alert"><div><b>เรื่องพัสดุนี้ทำเครื่องหมายว่าจ่ายแล้วก่อนเริ่มใช้ระบบ</b>
+    <ul style="margin:6px 0 0; padding-left:18px;">
+      <li>ถ้าลงจ่ายอีก เงินในทะเบียนคุมเงินจะถูกตัดซ้ำ</li>
+      <li>ถ้าจ่ายจริงครั้งนี้ ให้ยกเลิกเครื่องหมายที่<a href="/procurement/{{ proc.id }}?keep=1">หน้าเรื่องพัสดุ</a>ก่อน</li>
+    </ul></div></div>
+  {% endif %}
   {% if posted %}
   <p class="muted">รายการนี้ลงจ่ายในทะเบียนคุมเงินแล้ว</p>
   {% if posted_txn and posted_txn.date and posted_txn.fiscal_year != date_fy %}

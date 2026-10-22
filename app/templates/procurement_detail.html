@@ -56,6 +56,7 @@
     <h1 style="margin:0;">เลขที่ {{ p.memo_no or "-" }} : {{ p.proc_type }}{{ p.subject }}</h1>
     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
       <span class="pill {{ 'approve' if p.status=='อนุมัติ' else 'done' if p.status in ['ตรวจรับแล้ว','เบิกจ่ายแล้ว'] else '' }}">{{ p.status }}</span>
+      {% if p.paid_before_system %}<span class="pill pb-pill">จ่ายแล้ว (ก่อนเริ่มใช้ระบบ)</span>{% endif %}
       <a class="btn sm" href="/procurement/{{ p.id }}/edit"><svg class="icon"><use href="#ic-edit"/></svg> แก้ไขเรื่อง</a>
       <button type="button" class="btn sm gray" onclick="showDocNos({{ p.fiscal_year }})"><svg class="icon"><use href="#ic-clipboard"/></svg> ดูเลขล่าสุด</button>
       <form method="post" action="/procurement/{{ p.id }}/duplicate" style="margin:0;">
@@ -74,6 +75,26 @@
     </div>
   </div>
   {% if request.query_params.get("saved") %}<div class="alert" style="margin-top:10px;">✔ บันทึกการแก้ไขเรียบร้อย</div>{% endif %}
+  {% if request.query_params.get("msg") %}<div class="alert" style="margin-top:10px;">✔ {{ request.query_params.get("msg") }}</div>{% endif %}
+  {% if request.query_params.get("err") %}<div class="alert warn" style="margin-top:10px;">{{ request.query_params.get("err") }}</div>{% endif %}
+  {% if modules_live.finance and not paid_in_system %}
+  {# จ่ายเงินไปก่อนเริ่มใช้ระบบ: ทำเครื่องหมายให้ไม่ขึ้นว่ารอจ่าย (ไม่สร้างรายการเงิน) #}
+  <form method="post" action="/finance/paid-before" class="pb-one"
+        onsubmit="return confirm({{ ('ยกเลิกเครื่องหมาย เรื่องนี้จะกลับไปขึ้นว่ารอจ่าย?' if p.paid_before_system else 'ทำเครื่องหมายว่าเรื่องนี้จ่ายเงินไปแล้วก่อนเริ่มใช้ระบบ?
+ไม่สร้างรายการเงินในทะเบียนคุมเงิน') |tojson|forceescape }});">
+    <input type="hidden" name="pid" value="{{ p.id }}"><input type="hidden" name="on" value="{{ '0' if p.paid_before_system else '1' }}">
+    <input type="hidden" name="back" value="/procurement/{{ p.id }}?keep=1">
+    {% if p.paid_before_system %}
+    <span class="muted">เรื่องนี้ทำเครื่องหมายว่าจ่ายแล้วก่อนเริ่มใช้ระบบ</span>
+    <button class="btn sm gray" type="submit" data-no-floating-save>ยกเลิกเครื่องหมาย</button>
+    {% else %}
+    <span class="muted">จ่ายเงินเรื่องนี้ไปแล้วก่อนเริ่มใช้ระบบ?</span>
+    <button class="btn sm gray" type="submit" data-no-floating-save><svg class="icon"><use href="#ic-check"/></svg> จ่ายแล้วก่อนเริ่มใช้ระบบ</button>
+    {% endif %}
+  </form>
+  <style>.pb-one{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0 0;padding:10px 14px;border-radius:12px;background:linear-gradient(120deg,#f0fdfa,#ecfeff);}
+    .pb-pill{background:linear-gradient(120deg,#ccfbf1,#99f6e4);color:#115e59;}</style>
+  {% endif %}
   {% set reg = request.query_params.get("registered") %}
   {% if reg %}
   {% set na = reg.split("a")[0] %}{% set nm = reg.split("a")[1].rstrip("m") %}

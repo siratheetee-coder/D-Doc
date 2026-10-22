@@ -308,6 +308,10 @@ class Procurement(Base):
     status = Column(String, default="ร่าง")        # ร่าง/อนุมัติ/ตรวจรับแล้ว/เบิกจ่ายแล้ว
 
     vendor_id = Column(Integer, ForeignKey("vendor.id"), nullable=True)
+    # "จ่ายแล้วก่อนเริ่มใช้ระบบ": เรื่องที่จ่ายเงินไปก่อนเริ่มลงเงินในระบบ (ยอดยกมาหักไปแล้ว)
+    # ไม่สร้างรายการเงิน แค่ย้ายจาก "รอจ่าย" ไปนับเป็น "ก่อนเริ่มระบบ" งบโครงการที่ใช้ไปเท่าเดิม
+    paid_before_system = Column(Boolean, default=False)
+    paid_before_marked_at = Column(DateTime, nullable=True)
     request_date = Column(DateTime, default=datetime.now)   # วันที่รายงานขอซื้อ
     # วันที่ที่เกิดภายหลัง (แก้ไขได้ในหน้ารายละเอียด)
     quotation_no = Column(String, default="")              # เลขที่ใบเสนอราคา (ผู้ขายออกให้ · ใช้กรอก e-GP)

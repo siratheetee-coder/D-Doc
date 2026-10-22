@@ -61,9 +61,10 @@ def project_spent(project) -> float:
 
 
 def project_spent_in_system(project) -> float:
-    """Budget consumed in-system: ledger payments plus unpaid source documents."""
+    """Budget consumed in-system: ledger payments plus unpaid source documents
+    (รวมเรื่องที่ทำเครื่องหมาย "จ่ายแล้วก่อนเริ่มใช้ระบบ" ด้วย ยอดใช้ไปจึงเท่าเดิม)"""
     info = project_money_summary(project)
-    return round(info['paid'] + info['waiting'], 2)
+    return round(info['paid'] + info['waiting'] + info['paid_pre'], 2)
 
 
 def project_txn_spent(project, db=None) -> float:
@@ -127,7 +128,12 @@ def project_money_summary(project):
             key = ('proc', proc_id) if proc_id in proc_ids else ('memo', m.id) if m else None
             if key in sources:
                 paid_by[key] = paid_by.get(key, 0) + value
-    waiting = sum(max(value - paid_by.get(key, 0), 0) for key, value in sources.items())
-    used = round(before + paid + waiting, 2)
-    return dict(paid=round(paid,2), waiting=round(waiting,2), before=round(before,2),
+    # เรื่องพัสดุที่ "จ่ายแล้วก่อนเริ่มใช้ระบบ": ส่วนที่ยังไม่มีรายการจ่ายในระบบ ไม่นับเป็นรอจ่าย
+    # ไปรวมในยอด "ก่อนเริ่มระบบ" แทน (หน้าโครงการและรายงานแสดงในช่องนั้นอยู่แล้ว)
+    pre_keys = {('proc', p.id) for p in (procs if db is not None else []) if getattr(p, 'paid_before_system', False)}
+    paid_pre = sum(max(value - paid_by.get(key, 0), 0) for key, value in sources.items() if key in pre_keys)
+    waiting = sum(max(value - paid_by.get(key, 0), 0) for key, value in sources.items() if key not in pre_keys)
+    used = round(before + paid + waiting + paid_pre, 2)
+    return dict(paid=round(paid,2), waiting=round(waiting,2), before=round(before + paid_pre, 2),
+                paid_pre=round(paid_pre, 2), spent_before=round(before, 2),
                 used=used, remaining=round(project_budget(project)-used,2))

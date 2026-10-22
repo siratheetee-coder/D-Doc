@@ -161,7 +161,7 @@
       <tr><td><a href="/procurement/{{ pr.id }}">{{ pr.order_no or pr.memo_no or "-" }}</a></td>
           <td>{{ pr.proc_type }}{{ pr.subject }}</td>
           <td class="right">{{ "{:,.2f}".format(pr.total_amount or 0) }}</td>
-          <td>{{ pr.status }}</td></tr>
+          <td>{{ pr.status }}{% if pr.paid_before_system %}<small style="display:block; color:#115e59;">จ่ายแล้ว (ก่อนเริ่มใช้ระบบ)</small>{% endif %}</td></tr>
     {% endfor %}</tbody></table></div>
   {% endif %}
   {% if disb %}
