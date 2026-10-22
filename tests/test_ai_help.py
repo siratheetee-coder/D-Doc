@@ -6,11 +6,18 @@ def _enable(on=True):
     with acc_session() as db:
         t = db.get(Tenant, db.query(Account).filter_by(username='demo').one().tenant_id)
         t.ai_help = on
+        t.plan = 'trial'   # ทดลองใช้: ขึ้นกับปุ่มเปิดในคอนโซล
         db.commit()
         return t.id
 
 
-def test_ai_off_by_default_and_page_has_button(env):
+def test_member_on_automatically_trial_off(env):
+    from app.services import ai_help as ai
+    with acc_session() as db:
+        t = db.get(Tenant, db.query(Account).filter_by(username='demo').one().tenant_id)
+        t.plan = 'member'; t.ai_help = False; db.commit()
+        assert ai.on_for(t)
+        t.plan = 'trial'; db.commit()
     assert env.get('/ai/status').json()['why'] == 'off'
     assert env.post('/ai/ask', data={'q': 'ยอดยกมา'}).status_code == 403
     assert 'id="aiHelpOpen"' in env.get('/finance').text

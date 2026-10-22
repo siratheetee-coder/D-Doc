@@ -1,6 +1,6 @@
 """ผู้ช่วย "ถาม AI": ตอบคำถามการใช้ระบบจากคู่มือ app/ai_help/knowledge.md
 
-- บริการเสริม: ผู้ขายเปิดรายโรงเรียนที่คอนโซล (Tenant.ai_help)
+- โรงเรียนสมาชิกใช้ได้อัตโนมัติ · โรงเรียนทดลองใช้ ผู้ขายเปิดให้รายโรงเรียนที่คอนโซลได้ (Tenant.ai_help)
 - ใช้ได้เฉพาะไอดีเจ้าหน้าที่ (ไม่ใช่บัญชีครู) จำกัดวันละ DAILY_LIMIT คำถามต่อโรงเรียน
 - คีย์ API ของผู้ขาย ตั้งใน env ANTHROPIC_API_KEY บนเซิร์ฟเวอร์
 """
@@ -44,11 +44,16 @@ def used_today(db, tenant_id) -> int:
     return db.query(AiQuestion).filter(AiQuestion.tenant_id == tenant_id, AiQuestion.created_at >= start).count()
 
 
+def on_for(t) -> bool:
+    """สมาชิก (จ่ายแล้ว) ใช้ได้อัตโนมัติ · ทดลองใช้/ระบบตัวอย่าง ต้องให้ผู้ขายเปิดให้"""
+    return (t.plan or 'member') == 'member' or bool(t.ai_help)
+
+
 def allowed(db, account) -> str:
     """คืนข้อความเหตุผลถ้าใช้ไม่ได้ ('' = ใช้ได้)"""
     from app.accounts import Tenant
     t = db.get(Tenant, account.tenant_id) if account and account.tenant_id else None
-    if not t or not t.ai_help:
+    if not t or not (on_for(t)):
         return 'off'
     if account.person_id and not account.is_owner:
         return 'teacher'
