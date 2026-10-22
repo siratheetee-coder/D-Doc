@@ -106,15 +106,33 @@
 
 <div class="card">
   <h2><svg class="icon"><use href="#ic-coins"/></svg> ลงรายการจ่ายเงิน</h2>
+  {% set wrong_fy = date_fy and date_fy != m.fiscal_year %}
   {% if posted %}
   <p class="muted">รายการนี้ลงจ่ายในทะเบียนคุมเงินแล้ว</p>
+  {% if posted_txn and posted_txn.date and posted_txn.fiscal_year != date_fy %}
+  <div class="alert warn" role="alert"><div><b>รายการจ่ายนี้อยู่ในทะเบียนปีงบ {{ posted_txn.fiscal_year }} แต่วันที่จ่ายอยู่ในปีงบ {{ date_fy }}</b>
+    <ul style="margin:6px 0 0; padding-left:18px;">
+      <li>ถ้าวันที่ถูกแล้ว ย้ายรายการไปปีงบ {{ date_fy }} ได้ที่<a href="/finance/health?year={{ posted_txn.fiscal_year }}">หน้าตรวจสุขภาพข้อมูลการเงิน</a></li>
+      <li>ถ้าวันที่ผิด แก้วันที่ในรายละเอียดด้านบน แล้วกดบันทึก</li>
+    </ul></div></div>
+  {% endif %}
   {% elif payment_info.managed %}
   <div class="alert">เรื่องนี้ลงจ่ายผ่านงานอาหารกลางวัน ให้บันทึกจ่ายที่หน้าอาหารกลางวัน แล้วเลือกเชื่อมรายการเดิมด้านล่าง เพื่อไม่ตัดเงินซ้ำ</div>
   {% elif payment_info.remaining <= 0 %}
   <div class="alert">เรื่องนี้มียอดจ่ายครบหรือเกินยอดแล้ว กรุณาตรวจรายการจ่ายเดิมก่อน</div>
   {% elif m.account_id %}
   <p class="muted">กดเพื่อลงรายการจ่ายเงิน {{ "{:,.2f}".format(m.amount or 0) }} บาท เข้าทะเบียนคุมเงินบัญชีที่เลือก (สถานะจะเปลี่ยนเป็น "จ่ายแล้ว")</p>
-  <form method="post" action="/finance/disburse/{{ m.id }}/post" onsubmit="return confirm('ลงรายการจ่ายเงินเข้าทะเบียนคุมเงิน?')">
+  {% if wrong_fy %}
+  <div class="alert warn" role="alert"><div><b>วันที่ในบันทึกนี้อยู่ในปีงบ {{ date_fy }} แต่บันทึกนี้เป็นปีงบ {{ m.fiscal_year }}</b>
+    <ul style="margin:6px 0 0; padding-left:18px;">
+      <li>ถ้ากดลงจ่าย รายการจะไปอยู่ในทะเบียนปีงบ {{ m.fiscal_year }}</li>
+      <li>ถ้าวันที่ผิด แก้วันที่ในรายละเอียดด้านบนก่อน</li>
+      <li>ถ้าวันที่ถูกแล้ว ลงจ่ายได้ตามปกติ แล้วย้ายรายการไปปีงบ {{ date_fy }} ได้ที่หน้าตรวจสุขภาพข้อมูลการเงิน</li>
+    </ul></div></div>
+  {% endif %}
+  <form method="post" action="/finance/disburse/{{ m.id }}/post"
+        onsubmit="return confirm({{ ('วันที่ในบันทึกอยู่ในปีงบ ' ~ date_fy ~ ' แต่รายการจะลงทะเบียนปีงบ ' ~ m.fiscal_year ~ '
+ยืนยันลงรายการจ่ายเงินเข้าทะเบียนคุมเงิน?') if wrong_fy else 'ลงรายการจ่ายเงินเข้าทะเบียนคุมเงิน?' }}|tojson|forceescape);">
     <button class="btn green" type="submit"><svg class="icon"><use href="#ic-check"/></svg> ลงจ่ายเข้าทะเบียนคุมเงิน</button>
   </form>
   {% else %}

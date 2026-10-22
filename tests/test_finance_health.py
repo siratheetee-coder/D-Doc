@@ -416,3 +416,35 @@ def test_search_box_on_every_page(env):
     finally:
         db.close()
     assert 'data-quick-project data-combo' in env.get(f"/finance/accounts/{aid}?year={fy}").text
+
+
+def test_disburse_memo_warns_when_date_in_other_fiscal_year(env):
+    """บันทึกขอเบิกปีงบ fy-1 แต่ลงวันที่ ต.ค. (ปีงบ fy): เตือนก่อนลงจ่าย แต่ไม่บังคับ ลงจ่ายได้ตามปกติ"""
+    from app.models import FinanceAccount, DisburseMemo, FinanceTxn
+    from app.thai_utils import current_fiscal_year
+    fy = current_fiscal_year()
+    db = _db()
+    try:
+        a = FinanceAccount(name="เงินอุดหนุน"); db.add(a); db.flush()
+        m = DisburseMemo(fiscal_year=fy - 1, memo_no="9/x", subject="ค่าวัสดุ", amount=500, status="อนุมัติ",
+                         date=datetime(fy - 544, 10, 3), account_id=a.id)
+        ok = DisburseMemo(fiscal_year=fy, memo_no="10/x", subject="ค่าน้ำ", amount=100, status="อนุมัติ",
+                          date=datetime(fy - 544, 10, 3), account_id=a.id)
+        db.add_all([m, ok]); db.commit(); mid, ok_id = m.id, ok.id
+    finally:
+        db.close()
+    html = env.get(f"/finance/disburse/{mid}").text
+    assert f"วันที่ในบันทึกนี้อยู่ในปีงบ {fy} แต่บันทึกนี้เป็นปีงบ {fy - 1}" in html
+    assert f'action="/finance/disburse/{mid}/post"' in html, "ยังกดลงจ่ายได้ (เตือนเฉย ๆ)"
+    assert "วันที่ในบันทึกนี้อยู่ในปีงบ" not in env.get(f"/finance/disburse/{ok_id}").text, "ปีงบตรงกัน ไม่เตือน"
+
+    env.post(f"/finance/disburse/{mid}/post")
+    db = _db()
+    try:
+        t = db.query(FinanceTxn).filter_by(disburse_id=mid).one()
+        assert t.fiscal_year == fy - 1, "ไม่บังคับ: ลงตามปีงบของบันทึกเหมือนเดิม"
+    finally:
+        db.close()
+    html = env.get(f"/finance/disburse/{mid}").text
+    assert f"รายการจ่ายนี้อยู่ในทะเบียนปีงบ {fy - 1} แต่วันที่จ่ายอยู่ในปีงบ {fy}" in html
+    assert f'href="/finance/health?year={fy - 1}"' in html

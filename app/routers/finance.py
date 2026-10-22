@@ -879,6 +879,9 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
         "projects": _plan_projects(db, m.fiscal_year),
         "proc": db.get(Procurement, m.procurement_id) if m.procurement_id else None,
         "names": _name_suggest(db),
+        # ปีงบตามวันที่ในบันทึก ถ้าไม่ตรงกับปีงบของบันทึก รายการจ่ายจะลงผิดปีงบ (เตือนเฉย ๆ ไม่บังคับ)
+        "date_fy": (m.date.year + 543 + (1 if m.date.month >= 10 else 0)) if m.date else None,
+        "posted_txn": db.query(FinanceTxn).filter_by(disburse_id=m.id).first(),
     })
 
 
