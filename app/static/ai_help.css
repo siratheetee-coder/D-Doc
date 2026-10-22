@@ -51,6 +51,16 @@
 .ai-foot button { border:0; border-radius:999px; padding:7px 12px; font:inherit; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;
   color:#0f766e; background:linear-gradient(120deg,#ccfbf1,#e0f2fe); }
 
+/* การ์ดชวนเป็นสมาชิก (โรงเรียนที่ยังไม่ได้เป็นสมาชิก) */
+.ai-promo { margin:auto 0; padding:22px 20px; border-radius:18px; text-align:center; color:#1e1b4b;
+  background:linear-gradient(140deg,#eef2ff,#fae8ff 60%,#fff7ed); box-shadow:0 6px 20px rgba(99,102,241,.15); }
+.ai-promo-ic { font-size:34px; animation:aiTwinkle 2.4s ease-in-out infinite; }
+.ai-promo b { display:block; font-size:17px; margin:6px 0 4px; }
+.ai-promo ul { text-align:left; margin:10px 0 16px; padding-left:20px; line-height:1.8; font-size:14px; color:#334155; }
+.ai-promo-btn { display:inline-block; padding:10px 22px; border-radius:999px; color:#fff; font-weight:700; text-decoration:none;
+  background:linear-gradient(110deg,#6366f1,#a855f7,#ec4899,#6366f1); background-size:300% 100%; animation:aiFlow 6s linear infinite; }
+.ai-promo small { display:block; margin-top:12px; font-size:12.5px; color:#64748b; }
+
 /* จอแคบ: เหลือแต่ไอคอนวงกลมไล่สี ให้ชื่อหน้าในแถบบนไม่ถูกบีบ */
 @media (max-width:1100px) {
   .ai-btn { width:38px; padding:0; justify-content:center; }

@@ -258,72 +258,33 @@ def academic_year_reset(request: Request, db: Session = Depends(get_db)):
 
 
 # ---------------- ค้นหากลาง (ข้ามทุกงาน) ----------------
+def _search_groups(request, db, q, limit):
+    from app.services.search import search, allowed_modules
+    sess = request.session
+    teacher = bool(sess.get("person_id")) and not sess.get("owner")
+    return search(db, q, allowed_modules(sess, sess.get("tid")), limit=limit, data=not teacher)
+
+
 @router.get("/search", response_class=HTMLResponse)
 def global_search(request: Request, db: Session = Depends(get_db), q: str | None = None):
-    """ค้นหารวมทุกงาน: พัสดุ / บันทึก / คำสั่ง / หนังสือรับ-ส่ง / ครุภัณฑ์ / วัสดุ"""
+    """ค้นหารวมทุกงาน (ดู services/search.py)"""
+    from app.services.search import MOD_SHORT
     q = (q or "").strip()
-    groups = []
-    if q:
-        like = f"%{q}%"
-        # งานพัสดุ
-        procs = (db.query(Procurement).outerjoin(Procurement.vendor)
-                 .filter(or_(Procurement.subject.ilike(like), Procurement.memo_no.ilike(like),
-                             Procurement.order_no.ilike(like), Vendor.name.ilike(like)))
-                 .order_by(Procurement.id.desc()).limit(20).all())
-        groups.append(("งานพัสดุ: เรื่องจัดซื้อจัดจ้าง", "procurement", [{
-            "title": f"{p.order_no or p.memo_no or '-'} · {p.proc_type or ''}{p.subject or ''}",
-            "sub": (p.vendor.name if p.vendor else "") + " · " + (p.status or ""),
-            "url": f"/procurement/{p.id}"} for p in procs]))
-        # บันทึกข้อความ
-        memos = (db.query(OfficeMemo).filter(or_(OfficeMemo.subject.ilike(like),
-                 OfficeMemo.memo_no.ilike(like))).order_by(OfficeMemo.id.desc()).limit(20).all())
-        groups.append(("งานธุรการ: บันทึกข้อความ", "admin", [{
-            "title": f"{m.memo_no or '-'} · {m.subject or ''}", "sub": m.to_person or "",
-            "url": f"/admin/memos/{m.id}"} for m in memos]))
-        # คำสั่ง
-        orders = (db.query(SchoolOrder).filter(or_(SchoolOrder.subject.ilike(like),
-                  SchoolOrder.order_no.ilike(like))).order_by(SchoolOrder.id.desc()).limit(20).all())
-        groups.append(("งานธุรการ: คำสั่งโรงเรียน", "admin", [{
-            "title": f"{o.order_no or '-'} · {o.subject or ''}", "sub": "",
-            "url": f"/admin/orders/{o.id}"} for o in orders]))
-        # หนังสือรับ
-        inc = (db.query(IncomingLetter).filter(or_(IncomingLetter.subject.ilike(like),
-               IncomingLetter.letter_no.ilike(like), IncomingLetter.from_org.ilike(like)))
-               .order_by(IncomingLetter.id.desc()).limit(20).all())
-        groups.append(("งานธุรการ: หนังสือรับ", "admin", [{
-            "title": f"รับ {r.recv_no} · {r.subject or ''}", "sub": (r.letter_no or "") + " · " + (r.from_org or ""),
-            "url": "/admin/incoming"} for r in inc]))
-        # หนังสือส่ง
-        out = (db.query(OutgoingLetter).filter(or_(OutgoingLetter.subject.ilike(like),
-               OutgoingLetter.send_no.ilike(like), OutgoingLetter.to_org.ilike(like)))
-               .order_by(OutgoingLetter.id.desc()).limit(20).all())
-        groups.append(("งานธุรการ: หนังสือส่ง", "admin", [{
-            "title": f"{r.send_no or '-'} · {r.subject or ''}", "sub": r.to_org or "",
-            "url": "/admin/outgoing"} for r in out]))
-        # ครุภัณฑ์
-        assets = (db.query(Asset).filter(or_(Asset.name.ilike(like), Asset.asset_code.ilike(like)))
-                  .order_by(Asset.id.desc()).limit(20).all())
-        groups.append(("งานพัสดุ: ครุภัณฑ์", "procurement", [{
-            "title": f"{a.asset_code or '-'} · {a.name}", "sub": a.category or "",
-            "url": "/assets"} for a in assets]))
-        # วัสดุ
-        mats = (db.query(MaterialItem).filter(MaterialItem.name.ilike(like))
-                .order_by(MaterialItem.name).limit(20).all())
-        groups.append(("งานพัสดุ: วัสดุ", "procurement", [{
-            "title": it.name, "sub": "คงเหลือ " + format(material_balance(it), "g") + " " + (it.unit or ""),
-            "url": f"/materials/{it.id}"} for it in mats]))
-        # การเงิน: บันทึกขอเบิกจ่าย
-        disb = (db.query(DisburseMemo).filter(or_(DisburseMemo.subject.ilike(like),
-                DisburseMemo.memo_no.ilike(like), DisburseMemo.payee.ilike(like)))
-                .order_by(DisburseMemo.id.desc()).limit(20).all())
-        groups.append(("งานการเงิน: บันทึกขอเบิกจ่าย", "finance", [{
-            "title": f"{d.memo_no or '-'} · {d.subject or ''}",
-            "sub": (d.payee or "") + " · " + "{:,.2f}".format(d.amount or 0) + " บาท",
-            "url": f"/finance/disburse/{d.id}"} for d in disb]))
-    total = sum(len(g[2]) for g in groups)
+    groups = _search_groups(request, db, q, 20) if q else []
     return templates.TemplateResponse("search_results.html", {
-        "request": request, "q": q, "groups": groups, "total": total,
+        "request": request, "q": q, "groups": groups, "mod_short": MOD_SHORT,
+        "total": sum(len(g["items"]) for g in groups),
     })
+
+
+@router.get("/search/suggest")
+def search_suggest(request: Request, db: Session = Depends(get_db), q: str = ""):
+    """ผลค้นหาย่อ ๆ ให้กล่องค้นหาในแถบบนแสดงระหว่างพิมพ์"""
+    q = q.strip()
+    if len(q) < 2:
+        return {"groups": []}
+    groups = _search_groups(request, db, q, 4)
+    return {"groups": [dict(label=g["label"], items=g["items"][:4]) for g in groups[:6]]}
 
 
 # ---------------- ทะเบียนเลขหนังสือกลาง (ใช้ร่วมทุกงาน) ----------------

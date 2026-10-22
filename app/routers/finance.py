@@ -134,6 +134,8 @@ def _health_counts(db, fy):
 def finance_health_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
     """ตรวจสุขภาพข้อมูลการเงิน: บอกสิ่งที่ควรแก้ / ควรเช็ค / ควรสังเกต พร้อมลิงก์ไปหน้าที่แก้ได้ (ไม่แก้ข้อมูลเอง)"""
     from app.services.finance_health import run, LEVELS
+    from app.services.nav import _health_cache
+    _health_cache.clear()          # เปิดหน้านี้ = ดูผลล่าสุด กระดิ่งก็ควรตรงกัน
     fy = year or current_fiscal_year()
     return templates.TemplateResponse("finance_health.html", {
         "request": request, "school": get_school(db), "fiscal_year": fy,

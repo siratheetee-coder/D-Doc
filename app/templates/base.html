@@ -541,6 +541,18 @@
       border: none; background: none; padding: 0; font-size: 15px; box-shadow: none !important;
     }
     .topsearch input:focus { outline: none; }
+    /* ผลค้นหาระหว่างพิมพ์ (search-suggest.js) */
+    .topsearch { position: relative; }
+    .ss-box { position: absolute; left: 0; top: calc(100% + 8px); width: min(460px, 92vw); max-height: 70vh; overflow-y: auto;
+      background: #fff; border-radius: 16px; box-shadow: 0 16px 40px rgba(16,24,40,.18); z-index: 60; padding: 8px; }
+    .ss-box[hidden] { display: none; }
+    .ss-h { font-size: 12px; font-weight: 700; color: #6366f1; padding: 8px 10px 4px; }
+    .ss-box a { display: block; padding: 8px 10px; border-radius: 10px; text-decoration: none; color: var(--text); }
+    .ss-box a b { display: block; font-weight: 600; font-size: 14.5px; }
+    .ss-box a small { display: block; font-size: 12.5px; color: var(--muted); }
+    .ss-box a:hover, .ss-box a.on { background: linear-gradient(120deg,#e0e7ff,#f3e8ff); }
+    .ss-box a.ss-all { margin-top: 4px; font-weight: 700; color: #4f46e5; font-size: 14px; }
+    .ss-none { padding: 14px 10px; color: var(--muted); font-size: 14px; }
     .brandchip { display: flex; align-items: center; gap: 10px; flex: none; position: relative; }
     .chipbtn { display:flex; align-items:center; gap:10px; border:1px solid transparent; background:none;
       font-family:inherit; cursor:pointer; padding:4px 8px 4px 4px; border-radius:999px;
@@ -645,6 +657,8 @@
     .bell-item .bell-title { display: block; font-weight: 600; font-size: 15px; line-height: 1.35; }
     .bell-item .bell-reason { display: block; font-size: 13px; color: var(--muted); margin-top: 1px; }
     .bell-item.lv-urgent .bell-reason { color: var(--danger-dark); font-weight: 600; }
+    .bell-tag { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 1px 8px; margin-right: 6px; border-radius: 999px;
+      background: linear-gradient(120deg,#e0e7ff,#f3e8ff); color: #4338ca; vertical-align: 1px; }
     .bell-empty { padding: 24px 16px; text-align: center; color: var(--muted); font-size: 14.5px; }
 
     /* ===== ปุ่มปิด sidebar (มือถือ) + overlay ===== */
@@ -987,7 +1001,7 @@
         <span class="ttl">{{ self.title() }}</span>
         <form class="topsearch topbar-hide-sm" method="get" action="/search" role="search">
           <svg class="icon"><use href="#ic-search"/></svg>
-          <input type="search" name="q" placeholder="ค้นหาทุกงาน: เรื่อง / เลขที่ / ผู้ขาย / วัสดุ" value="{{ request.query_params.get('q','') }}">
+          <input type="search" name="q" placeholder="ค้นหาเมนู เรื่อง ชื่อ เลขที่ หรือยอดเงิน" value="{{ request.query_params.get('q','') }}">
         </form>
         <span class="grow"></span>
         {% if not (request.session.get('person_id') and not request.session.get('owner')) %}{% include 'ai_help_panel.html' %}{% endif %}
@@ -995,7 +1009,7 @@
         {% include 'support_chat_panel.html' %}
         {# แจ้งเตือนส่วนตัว (ครู) + งานพัสดุ (เจ้าหน้าที่/เจ้าของ ไม่ใช่ครู) #}
         {% set _is_teacher = request.session.get('person_id') and not request.session.get('owner') %}
-        {% set bell_alerts = my_notices(request.session.get('person_id')) + ([] if _is_teacher else nav_alerts()) %}
+        {% set bell_alerts = my_notices(request.session.get('person_id')) + ([] if _is_teacher else nav_alerts(request.session)) %}
         <div class="bell-wrap">
           <button class="bell" onclick="toggleBell(event)" aria-label="การแจ้งเตือน">
             <svg class="icon"><use href="#ic-bell"/></svg>
@@ -1008,7 +1022,7 @@
               {% for a in bell_alerts %}
               <a class="bell-item lv-{{ a.level }}" href="{{ a.href or ('/procurement/' ~ a.id) }}">
                 <span class="bell-dot"></span>
-                <span><span class="bell-title">{{ a.title }}</span><span class="bell-reason">{{ a.reason }}</span></span>
+                <span><span class="bell-title">{% if a.tag %}<span class="bell-tag">{{ a.tag }}</span>{% endif %}{{ a.title }}</span><span class="bell-reason">{{ a.reason }}</span></span>
               </a>
               {% endfor %}
             </div>
@@ -1723,5 +1737,6 @@
   <script src="/static/no-wheel-number.js?v=1"></script>
   <script src="/static/table-scroll-hint.js?v=1"></script>
   <script src="/static/combo-pick.js?v=2"></script>
+  <script src="/static/search-suggest.js?v=1" defer></script>
 </body>
 </html>

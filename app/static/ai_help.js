@@ -68,12 +68,30 @@
   };
   function showLeft() {
     if (!status) return;
-    left.textContent = status.ok ? `เดือนนี้ถามได้อีก ${status.left} จาก ${status.limit} คำถาม` : 'ยังใช้งานไม่ได้';
+    left.textContent = status.ok ? `เดือนนี้ถามได้อีก ${status.left} จาก ${status.limit} คำถาม` : status.why === 'off' ? 'สำหรับโรงเรียนสมาชิก' : 'ยังใช้งานไม่ได้';
     const blocked = !status.ok || status.left <= 0;
     q.disabled = send.disabled = blocked || busy;
-    q.placeholder = !status.ok ? 'ยังใช้งานไม่ได้' : status.left <= 0 ? 'เดือนนี้ถามครบแล้ว ถามใหม่ได้วันที่ 1 เดือนหน้าครับ' : 'พิมพ์คำถาม เช่น กรอกยอดยกมาที่ไหน';
+    q.placeholder = status.why === 'off' ? 'สำหรับโรงเรียนสมาชิก' : !status.ok ? 'ยังใช้งานไม่ได้' : status.left <= 0 ? 'เดือนนี้ถามครบแล้ว ถามใหม่ได้วันที่ 1 เดือนหน้าครับ' : 'พิมพ์คำถาม เช่น กรอกยอดยกมาที่ไหน';
+    if (status.why === 'off') return promo();
     // บอกเหตุผลที่ใช้ไม่ได้เสมอ (แสดงซ้ำได้หลัง render ใหม่)
     if (!status.ok && !log.querySelector('.ai-msg.err')) bubble('err', WHY[status.why] || WHY.net);
+  }
+  // โรงเรียนที่ยังไม่เป็นสมาชิก: การ์ดชวนสมัคร แทนตัวอย่างคำถาม
+  function promo() {
+    if (log.querySelector('.ai-promo')) return;
+    log.replaceChildren();
+    const d = document.createElement('div');
+    d.className = 'ai-promo';
+    d.innerHTML = `<div class="ai-promo-ic">✨</div>
+      <b>ถาม AI สำหรับโรงเรียนสมาชิก</b>
+      <ul>
+        <li>ถามวิธีใช้ระบบได้ทันที ไม่ต้องรอเจ้าหน้าที่</li>
+        <li>ตอบพร้อมปุ่มพาไปหน้าที่ต้องทำ</li>
+        <li>รวมในแพ็กเกจสมาชิก เดือนละ ${status.limit || 30} คำถาม</li>
+      </ul>
+      <a class="ai-promo-btn" href="/checkout">ดูแพ็กเกจสมาชิก</a>
+      <small>มีคำถามตอนนี้ กดติดต่อเจ้าหน้าที่ด้านล่างได้เลยครับ</small>`;
+    log.append(d);
   }
   async function loadStatus() {
     try {

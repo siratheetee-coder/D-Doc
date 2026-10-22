@@ -2,48 +2,46 @@
 {% block title %}ค้นหา{% endblock %}
 {% block content %}
 <style>
-  .sr-group { margin-bottom: 8px; }
-  .sr-group h2 .cnt { font-weight: 600; font-size: 14px; color: var(--muted); }
-  .sr-item { display:block; padding: 11px 14px; border-radius: 10px; text-decoration: none; color: var(--text);
-    border: 1px solid var(--border); margin-bottom: 8px; transition: background .14s, border-color .14s; }
-  .sr-item:hover { background: var(--brand-soft); border-color: var(--brand); }
-  .sr-item .t { font-weight: 600; }
-  .sr-item .s { font-size: 13px; color: var(--muted); }
-  .sr-tag { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 20px; }
-  .tag-admin { background:#ede9fe; color:#7c3aed; } .tag-procurement { background:#e8f0ff; color:#4880FF; }
+  .sr-head { background:linear-gradient(120deg,#eef2ff,#f5f3ff); }
+  .sr-form { display:flex; gap:8px; align-items:center; margin:0; }
+  .sr-form input { flex:1; }
+  .sr-group h2 { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:17px; }
+  .sr-group h2 .cnt { font-weight:600; font-size:14px; color:var(--muted); }
+  .sr-item { display:block; padding:11px 14px; border-radius:12px; text-decoration:none; color:var(--text);
+    background:#f8fafc; margin-bottom:8px; transition:background .14s; }
+  .sr-item:hover { background:linear-gradient(120deg,#e0e7ff,#f3e8ff); }
+  .sr-item .t { font-weight:600; }
+  .sr-item .s { font-size:13px; color:var(--muted); }
+  .sr-tag { font-size:12px; font-weight:700; padding:2px 10px; border-radius:20px; background:#e2e8f0; color:#334155; }
+  .tag-procurement { background:#e8f0ff; color:#2563eb; } .tag-admin { background:#ede9fe; color:#7c3aed; }
+  .tag-finance { background:#dcfce7; color:#15803d; } .tag-hr { background:#ffedd5; color:#c2410c; }
+  .tag-academic { background:#fce7f3; color:#be185d; } .tag-lunch { background:#fef9c3; color:#a16207; }
+  .tag-page { background:linear-gradient(120deg,#6366f1,#a855f7); color:#fff; }
 </style>
 
-<div class="card">
-  <h1>ผลการค้นหา {% if q %}: "{{ q }}"{% endif %}</h1>
-  <form method="get" action="/search" style="display:flex; gap:8px; align-items:center; margin:0;">
-    <input name="q" value="{{ q }}" placeholder="ค้นหาเรื่อง / เลขที่ / ผู้ขาย / ชื่อวัสดุ-ครุภัณฑ์" autofocus style="flex:1;">
+<div class="card sr-head">
+  <h1>ค้นหา{% if q %}: "{{ q }}"{% endif %}</h1>
+  <form method="get" action="/search" class="sr-form">
+    <input name="q" value="{{ q }}" placeholder="ชื่อเมนู เรื่อง เลขที่ ผู้ขาย ชื่อคน หรือจำนวนเงิน" autofocus>
     <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-search"/></svg> ค้นหา</button>
   </form>
-  {% if q %}<p class="muted" style="margin:10px 0 0;">พบ {{ total }} รายการ จากทุกงาน (พัสดุ · ธุรการ)</p>{% endif %}
+  <p class="muted" style="margin:10px 0 0;">{% if q %}พบ {{ total }} รายการ{% else %}ค้นได้ทุกงานที่บัญชีนี้เข้าได้ พิมพ์จำนวนเงิน เช่น 127200 เพื่อหารายการตามยอดเงินได้ด้วย{% endif %}</p>
 </div>
 
-{% if q %}
-  {% set ns = namespace(any=false) %}
-  {% for label, mod, items in groups %}
-    {% if items %}
-    {% set ns.any = true %}
-    <div class="card sr-group">
-      <h2>
-        <span class="sr-tag tag-{{ mod }}">{{ 'ธุรการ' if mod=='admin' else 'พัสดุ' }}</span>
-        {{ label.split(': ')[1] if ': ' in label else label }}
-        <span class="cnt">({{ items|length }})</span>
-      </h2>
-      {% for it in items %}
-      <a class="sr-item" href="{{ it.url }}">
-        <div class="t">{{ it.title }}</div>
-        {% if it.sub %}<div class="s">{{ it.sub }}</div>{% endif %}
-      </a>
-      {% endfor %}
-    </div>
-    {% endif %}
+{% for g in groups %}
+<div class="card sr-group">
+  <h2>
+    <span class="sr-tag tag-{{ g.mod or 'system' }}">{{ 'เมนู' if g.mod == 'page' else mod_short.get(g.mod, 'ระบบ') }}</span>
+    {{ g.label }} <span class="cnt">({{ g['items']|length }})</span>
+  </h2>
+  {% for it in g['items'] %}
+  <a class="sr-item" href="{{ it.url }}">
+    <div class="t">{{ it.title }}</div>
+    {% if it.sub %}<div class="s">{{ it.sub }}</div>{% endif %}
+  </a>
   {% endfor %}
-  {% if not ns.any %}
-  <div class="card"><p class="muted">ไม่พบรายการที่ตรงกับ "{{ q }}" ในทุกงาน</p></div>
-  {% endif %}
-{% endif %}
+</div>
+{% else %}
+{% if q %}<div class="card"><p class="muted">ไม่พบรายการที่ตรงกับ "{{ q }}" ลองพิมพ์สั้นลง หรือค้นด้วยคำอื่น</p></div>{% endif %}
+{% endfor %}
 {% endblock %}
