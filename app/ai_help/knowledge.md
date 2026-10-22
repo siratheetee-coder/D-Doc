@@ -657,64 +657,6 @@ AccountItem.opening_balance แยกจาก budget โดยหมวดเ�
 
 ---
 
-# เอกสารประกอบ: subsidy-calculation.md
-
-# คำนวณเงินอุดหนุนแยกภาคเรียนและปีงบประมาณ
-
-หน้าการเงิน `/finance/subsidy` ใช้ชุดอัตรา **บาทต่อคนต่อภาคเรียน** แยกตาม `(fiscal_year, term)` ภาคเรียน 1 ของปีการศึกษา Y ใช้ปีงบ Y และภาคเรียน 2 ใช้ปีงบ Y+1 อัตราปีใหม่ไม่ถูกเดา ผู้ใช้คัดลอกอัตราเทอมเดียวกันของปีก่อนมาแก้ไขได้ กรอกตัวเลขแล้วบันทึกเพื่อคำนวณ โดยไม่ต้องติ๊กยืนยันอัตราหรือระบุหนังสืออ้างอิงอัตรา
-
-## ฐานการคำนวณ
-
-ใช้แนวทางสำหรับโรงเรียนปกติ สพฐ. จาก [แนวทางเงินอุดหนุน ปีงบ 2569](https://www.rayong2.go.th/wp-content/uploads/2025/11/แนวทางเงินอุดหนุนปี-2569_ฉบับสมบูรณ์.pdf) หน้าเอกสาร 31 (หน้า PDF 35) เป็นฐานกติกา DMC ไม่ครอบคลุมการอนุมานสิทธิโรงเรียนเฉพาะประเภทหรือเงินเพิ่มเติม
-
-- เทอม 1: ฐานงวดแรก 10 พฤศจิกายนปีก่อน เลื่อนชั้นต่อเนื่อง ส่วน อ.1 อ.2 ป.1 ม.1 ม.4 ใช้จำนวนชั้นเดิม ฐานปรับยอด 10 มิถุนายนปีปัจจุบัน
-- เทอม 2: ฐานงวดแรก 10 มิถุนายน และฐานปรับยอด 10 พฤศจิกายนปีปัจจุบัน
-- งวดแรกประมาณ 70% ของฐานเดิม งวดปรับยอด = 100% ของฐานล่าสุด − ยอดจัดสรรงวดแรกจริง หากยังไม่ทราบยอดจัดสรรใช้ประมาณการงวดแรกแทน **ไม่ใช่ 30% ของฐานใหม่โดยตรง**
-- หนังสือเรียน/เครื่องแบบปกติอยู่เทอม 1 เงินเพิ่มเติมบันทึกตามหนังสือจัดสรร แยกจากอัตราปกติ
-- ช่องว่างต่างจาก 0; เมื่อเลือกใช้ยอดคำนวณ ช่องว่างหรือฐาน DMC ที่ยังไม่บันทึกทำให้ยังยืนยันฉบับคำนวณไม่ได้ ยอดลดลงอาจได้ผลปรับยอดติดลบ ต้องตรวจหนังสือจัดสรร ไม่มีการสร้างรายการคืนเงินอัตโนมัติ
-- ตัวเลขนี้เป็นประมาณการสำหรับวางแผน ยอดแจ้งจัดสรรและเงินรับจริงแสดงแยกกัน
-
-## ข้อมูลย้อนหลังและการบันทึก
-
-ตารางใหม่สร้างผ่าน `Base.metadata.create_all` ในกระบวนการเปิดฐานข้อมูลโรงเรียนเดิม ไม่มีการแก้หรือลบ `subsidy_rate` และ `subsidy_census` เดิม อัตรารายปีเดิมแสดงเป็นรายเทอม (หาร 2 ยกเว้นหนังสือ/เครื่องแบบ) ผู้ใช้ปรับตัวเลขแล้วบันทึกได้เลย
-
-`subsidy_census_revision` เก็บฉบับของยอดดิบแต่ละวันสำรวจ รอบเดียวกันใช้ร่วมกันระหว่างเทอม การบันทึกเก็บ token ป้องกันหน้าเก่าทับข้อมูลที่เพิ่งแก้ ส่วน `subsidy_snapshot` เก็บ JSON ของตัวเลข ฐานนักเรียน อัตรา แหล่งอ้างอิงและผลคำนวณ ณ วันยืนยัน การแก้ไขภายหลังไม่เปลี่ยนฉบับนี้
-
-## เงินรับและงบปลายทาง
-
-ผู้ใช้เลือกฐานตั้งงบได้ระหว่างยอดคำนวณ (ค่าเริ่มต้น) กับยอดจัดสรรจริง เมื่อใช้ยอดจัดสรรจริง ต้องกรอกครบทั้งสองงวดของทุกรายการ โดยกรอก 0 หากไม่มี ไม่บังคับให้ข้อมูลนักเรียนหรืออัตราครบเพื่อใช้ยอดจัดสรรจริง ข้อมูลเหล่านั้นยังแสดงเป็นประมาณการเปรียบเทียบ
-
-รายการปกติกรอกยอดรวมล่าสุดของแต่ละงวด ส่วนเงินเพิ่มเติมทั้งสี่ประเภทเพิ่มแถวแยกแต่ละครั้งได้ ระบบรวมยอดแต่ละประเภท เก็บรายละเอียดแต่ละครั้งในฉบับย้อนหลังและ Word ข้อมูลเงินเพิ่มเติมรูปแบบเดิมยังอ่านได้
-
-ตัวอย่าง เคยตั้งงบจากประมาณการ 100,000 บาท ต่อมาเลือกยอดจัดสรรจริงรวม 120,000 บาท จะปรับเพิ่มเฉพาะ 20,000 บาท การยืนยันซ้ำไม่เพิ่มซ้ำ หากลดเหลือ 90,000 บาท จะปรับลด 30,000 บาท ฉบับย้อนหลังเดิมที่ยังไม่มีตัวเลือกฐานตั้งงบใช้ยอดคำนวณเดิม
-
-เชื่อม `FinanceTxn` ฝั่งรับด้วยตนเอง สามารถแยกยอดข้ามประเภท/เทอม แต่ยอดรวมทุกการเชื่อมต้องไม่เกินรายการรับ การกดซ้ำรายการเดิมถูกป้องกัน การยกเลิกเชื่อมไม่ลบธุรกรรม หากแก้ยอดรับต่ำกว่ารวมที่เชื่อม ระบบเตือนและไม่นำยอดเชื่อมที่เสียความถูกต้องมารวม เมื่อลบธุรกรรมหรือหมวดงบผ่านระบบ การเชื่อมที่เกี่ยวข้องถูกล้างตามไปด้วย จึงไม่ผูกผิดรายการหากฐานข้อมูลนำเลขรายการกลับมาใช้ใหม่ ประวัติตั้งงบและฉบับคำนวณยังอยู่
-
-ก่อนตั้งงบต้องใช้ฉบับยืนยันล่าสุดที่ยังตรงกับข้อมูลปัจจุบัน และตรวจหน้าเปรียบเทียบ ระบบเก็บส่วนที่เคยส่งจากแต่ละเทอม แล้วปรับเฉพาะส่วนต่างเข้า `AccountItem.budget` ของปีงบที่ถูกต้อง จึงรักษาส่วนอื่นของงบเดิมไว้ ตรวจ token ของยอดปลายทางอีกครั้งก่อนเขียน
-
-**ยอดที่กรอกเองหรือเคยตั้งจากระบบเก่าไม่มีข้อมูลแยกส่วนของแต่ละเทอม** ต้องตรวจยอดเดิมในหน้าเปรียบเทียบก่อน ไม่ควรบวกเงินก้อนที่อยู่ในยอดเดิมแล้ว ระบบไม่ได้ย้ายหรือทับยอดเดิมให้อัตโนมัติ
-
-## ตรวจสอบ
-
-`pytest tests/test_subsidy.py tests/test_finance_regressions.py tests/test_finance_docs.py tests/test_finance_500.py`
-
-ครอบคลุมสูตรปรับยอด การเลื่อนชั้น การแยกอัตรา ข้อมูลว่าง/ศูนย์ วันที่สำรวจอนาคต ฉบับย้อนหลัง การเชื่อมรับซ้ำ การรวมสองเทอมในปีงบเดียวกัน การปรับงบส่วนต่าง และเอกสารจากฉบับที่เก็บไว้
-
-## การกรอกข้อมูลแบบย่อ
-
-DMC ใช้การบันทึกจำนวนนักเรียนโดยไม่ต้องกรอกแหล่งข้อมูลหรือติ๊กตรวจสอบ Word แสดงวันสำรวจและจำนวนที่บันทึก ช่องว่างแสดงว่ายังไม่กรอก ไม่ใช่ศูนย์ วันสำรวจในอนาคตบันทึกร่างได้แต่ยังยืนยันตั้งงบด้วยยอดคำนวณไม่ได้ ประวัติเดิมยังเก็บอยู่
-
-ช่องยอดจัดสรรจริงแสดงเฉพาะเมื่อเลือกฐานจัดสรรจริง สลับกลับยอดคำนวณจะซ่อนช่องโดยเก็บค่าเดิมไว้ เงินเพิ่มเติม (ถ้ามี) แยกเป็นส่วนอิสระใช้ได้ทั้งสองฐาน และต้องไม่รวมเงินที่อยู่ในยอดจัดสรรแล้ว
-
-## จับคู่ทะเบียนคุมเงิน
-
-ตาราง subsidy_item_mapping เก็บรหัสหมวดแยกปีงบ มีคู่เดียวต่อประเภท และไม่ใช้หมวดซ้ำกัน โรงเรียนเลือกบัญชีเดิม หากยังไม่มีใช้ปุ่มไปสร้างบัญชีในหน้าทะเบียนคุมเงิน หน้าจับคู่ไม่สร้างบัญชีใหม่ ไม่สร้างรายการรับ การตั้งงบต้องจับคู่ก่อน ไม่เดาจากชื่อ และหน้าเปรียบเทียบแสดงชื่อหมวดปลายทาง ปีใหม่เสนอคู่จากชื่อเดิมแต่ต้องบันทึกยืนยันเอง
-
-การเชื่อมรับกรองรายการรับยอดบวกของหมวดที่จับคู่และปีงบเดียวกัน ตรวจฝั่งเซิร์ฟเวอร์ด้วย หากรายการรับเดิมไม่ได้ระบุหมวด ต้องจัดหมวดในทะเบียนคุมก่อน ไม่ย้ายรายการให้อัตโนมัติ การลบหมวดล้างคู่ตามไปเพื่อป้องกันรหัสถูกใช้ซ้ำ การเปลี่ยนคู่ที่มีประวัติตั้งงบหรือมีเงินรับเชื่อมไว้ถูกบล็อกให้ตรวจข้อมูลเดิมก่อน
-
-
----
-
 # เอกสารประกอบ: pp7.md
 
 # ใบรับรองผลการเรียน ปพ.7
@@ -740,34 +682,4 @@ AcadCertificate เก็บเลขที่ไม่ซ้ำและข้�
 เลขที่ซ้ำเตือนในหน้าเดิมและคงค่าที่กรอก เพิ่มการลบประวัติพร้อมไฟล์ Word ที่สร้างในเซิร์ฟเวอร์ โดยตรวจสิทธิ์ทุกห้องที่เกี่ยวข้องและไม่ลบผลการเรียน ก่อนออกฉบับมีการ์ดอธิบายว่าข้อมูลส่วนตัวคงอยู่ในฉบับที่ออก แต่ไม่บันทึกกลับทะเบียนนักเรียนหรือเติมจากฉบับเก่าโดยอัตโนมัติ รูปใช้ In Front of Text และเว้นสองบรรทัดก่อนส่วนรูปกับลายเซ็น
 
 ประถมเลือกผลภาคเรียนที่ 1, 2 หรือแยกทั้งสองภาคได้ โดยอ่านคะแนนภาคนั้นของวิชารายปี ไม่ต้องมีอีกภาคก่อน ไม่ใช้แทนผลรายปี ตัวเลือกผลรายปีเดิมยังอ่าน term=0 ชั่วโมงของวิชาประถมรายภาคใช้เป้าหมายใน AcadLessonPlan ของห้องและวิชาเดียวกัน หากยังไม่ตั้งเสนอครึ่งหนึ่งของรายปี (หรือยอดที่เหลือจากอีกภาคที่ตั้งไว้แล้ว) ครูปรับสองเทอมได้ในหน้า ปพ.7 และบันทึกเมื่อออกฉบับสำเร็จ ต้องรวมเท่ารายปี การปรับชั่วโมงไม่เปลี่ยนคะแนน เกรด หรือน้ำหนักเดิมที่ใช้คำนวณค่าเฉลี่ย
-
-
----
-
-# เอกสารประกอบ: asset-code-catalog.md
-
-# Asset code picker
-
-The asset form separates selection of a classification prefix from allocation of a per-item sequence. Manual registration and previously saved series retain their existing formats and numbers.
-
-## Reference data
-
-`app/data/asset_catalog.json` contains 907 rows extracted from all populated tables in PDF pages 7–68 of the user-supplied [คู่มือการกำหนดรหัสครุภัณฑ์](https://www.napang-nan.go.th/index/add_file/2kHQo7CThu91152.pdf). The file records the source SHA-256 and the PDF page for each row. Names retain source wording, with whitespace joined and decomposed Thai sara am normalized.
-
-The introduction describes 4–3–4 FSN codes, but the actual appended tables have two four-digit columns, `ประเภท` and `ชนิด`. These columns are preserved as `NNNN-NNNN`; they are not silently shortened, expanded, or converted to the introductory scheme. The app appends its own individual-asset sequence and optional year. For example the table's `7110-0204` (four-drawer steel cabinet) stays fixed while `7110-0204-0001/2570` becomes `7110-0204-0002/2570` for the next item. This appended format is the application's numbering convention, not a format mandated by the source.
-
-Four codes occur against different descriptions: `6650-0201`, `7195-0901`, `7440-0120`, `7440-0121`. Their eight rows remain searchable with source links, but cannot be selected for automatic allocation. Users may consult their own register and explicitly supply a school-defined code; the system does not invent corrections to the reference.
-
-## Storage and safety
-
-- Built-in lookup is local JSON; the source website is not needed to register assets.
-- New `AssetNumberLabel` records store school-local names for prefixes, in the same transaction as the first successful asset allocation. The table is created through existing `init_school_db` metadata initialization.
-- Preview and search never reserve numbers or create labels.
-- Server-side selection uses the catalogue ID, never a client-supplied prefix for built-in rows. Existing series retain their saved width/reset/year format.
-- Existing `lock_numbers`, counters and used-number reservations continue to handle concurrency, rollback, deleted assets, and duplicate protection.
-- No historical asset number is modified and no classification is inferred automatically from a free-text asset name.
-
-## Validation
-
-Run `pytest tests/test_asset_catalog.py tests/test_asset_numbering.py tests/test_asset_split.py` with the project's dependencies. Browser checks cover search, selection, live preview, custom and manual modes, existing-series reuse, and mobile layout.
 

@@ -8,7 +8,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
-DOCS = ['finance-guide.md', 'finance-openings.md', 'plan-funding.md', 'subsidy-calculation.md', 'pp7.md', 'asset-code-catalog.md']
+# เฉพาะคู่มือที่เขียนให้ผู้ใช้อ่าน (เอกสารเทคนิคของนักพัฒนาไม่ต้องส่ง เปลืองค่า AI ทุกคำถาม)
+DOCS = ['finance-guide.md', 'finance-openings.md', 'plan-funding.md', 'pp7.md']
 
 
 def guide_text():
