@@ -106,3 +106,30 @@ def test_project_page_does_not_call_pre_system_spending_unallocated(env):
     html = env.get(f'/projects/{pid}').text
     assert 'ใช้ไปก่อนเริ่มใช้ระบบ <b>8,000.00</b> (ไม่ต้องจัดสรร)' in html
     assert 'จัดสรรครบแล้ว' in html and 'ยังไม่ได้จัดสรร <b>' not in html
+
+
+def test_plan_page_shows_steps_and_status(env):
+    """หน้าเงินสำหรับทำโครงการ: 3 ขั้น บอกสถานะแต่ละขั้น และบอกเมื่อยอดในทะเบียนเปลี่ยน (ต้องอัปเดต)"""
+    import re
+    import app.tenancy as tn
+    from app.models import AccountItem
+    sid = next(iter(tn._engines))
+    html = env.get('/plan-budget/2569?mode=academic').text
+    assert 'ขั้นที่ 1 กำหนดช่วงเวลาของแผน' in html and 'ทำขั้นที่ 1 ก่อน' in html
+    env.post('/plan-budget/2569/period', data=dict(mode='academic', start='18/05/2569', end='30/04/2570'))
+    with tn.session_for(sid) as s:
+        _items(s, 2570, กิจกรรม=50000)
+        s.add(Project(name='กีฬาสี', plan_year=2569, budget=30000)); s.commit()
+    html = env.get('/plan-budget/2569').text
+    assert 'แก้ช่วงเวลา' in html and 'ยังไม่ได้นำเข้า' in html and 'ยอดยกมาต้นปีงบ 2570' in html
+    review = env.get('/plan-budget/2569/review?kind=opening').text
+    tok = re.search(r'name="token" value="([^"]+)"', review).group(1)
+    keys = re.findall(r'name="selected" value="([^"]+)"', review)
+    env.post('/plan-budget/2569/apply', data={'kind': 'opening', 'snapshot_id': '0', 'token': tok, 'selected': keys})
+    html = env.get('/plan-budget/2569').text
+    assert 'นำเข้าแล้ว 50,000.00' in html and 'ขั้นที่ 3 แบ่งเงินให้แต่ละโครงการ' in html
+    assert 'กีฬาสี' in html and 'ยังไม่ได้แบ่ง' in html and '#project-funding' in html
+    with tn.session_for(sid) as s:
+        s.query(AccountItem).filter_by(fiscal_year=2570).first().opening_balance = 42000; s.commit()
+    html = env.get('/plan-budget/2569').text
+    assert 'ยอดในทะเบียนเปลี่ยนแล้ว' in html and 'อัปเดตเป็นยอดใหม่' in html

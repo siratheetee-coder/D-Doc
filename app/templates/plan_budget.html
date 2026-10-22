@@ -1,27 +1,189 @@
 {% extends "base.html" %}
-{% block title %}งบประมาณที่ใช้จัดทำแผน{% endblock %}
+{% block title %}เงินสำหรับทำโครงการ{% endblock %}
 {% block content %}
-<style>.plan-money-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:16px 0}.plan-money-summary>div{background:#f0f5ff;border-radius:12px;padding:16px}.plan-money-summary strong{display:block;font-size:24px;margin-top:8px}.plan-funding-table{min-width:700px}.plan-funding-table td:first-child{min-width:220px}</style>
-<div class="hero"><div><div class="hero-sub">โครงการ/แผนงบ</div><h1>งบประมาณที่ใช้จัดทำแผน</h1><p>{{ 'ปีการศึกษา' if mode=='academic' else 'ปีงบประมาณ' }} {{ year }}</p></div><a class="btn gray" href="/projects?year={{ year }}">กลับไปจัดสรรให้โครงการ</a></div>
-{% if request.query_params.get('saved') %}<div class="alert" role="status">บันทึกงบของแผนแล้ว</div>{% endif %}
-<div class="card"><h2>1. ช่วงเวลาของแผน</h2><p class="muted">เลือกเงินเหลือก่อนเริ่มแผนและเงินที่จะได้รับในรอบนี้ ยอดในหน้านี้เป็นวงเงินสำหรับวางแผน ยังไม่ใช่เงินสดที่ได้รับทั้งหมด</p>
-<form method="post" action="/plan-budget/{{ year }}/period" id="plan-period"><div class="row">
-<div><label>รูปแบบแผน</label><select name="mode"><option value="budget" {{ 'selected' if mode=='budget' }}>ปีงบประมาณ {{ year }}</option><option value="academic" {{ 'selected' if mode=='academic' }}>ปีการศึกษา {{ year }}</option></select></div>
-<div><label>วันเริ่มแผน (พ.ศ.)</label><input data-date="1" name="start" value="{{ start.strftime('%d/%m/') }}{{ start.year+543 }}" placeholder="วว/ดด/ปปปป" required></div>
-<div><label>วันสิ้นสุดแผน (พ.ศ.)</label><input data-date="1" name="end" value="{{ end.strftime('%d/%m/') }}{{ end.year+543 }}" placeholder="วว/ดด/ปปปป" required></div>
-</div><p>{{ thai_date(start) }} – {{ thai_date(end) }}</p><button class="btn" type="submit">บันทึกช่วงแผน</button></form>
-{% if plan and funding.rows %}<p class="muted">หากจะเปลี่ยนช่วงแผน ต้องยกเลิกการจัดสรรและนำงบออกจากแผนก่อน</p>{% endif %}</div>
-<div class="card"><h2>2. เลือกงบที่จะนำมาใช้</h2>
+{% set ylabel = 'ปีการศึกษา' if mode=='academic' else 'ปีงบประมาณ' %}
+{% set not_alloc = projects|selectattr('allocated', 'equalto', 0)|list %}
+{% set step2_warn = opening_changed or terms|selectattr('changed')|list %}
+{% set step2_done = funding.rows and not step2_warn %}
+<div class="hero pbg-hero">
+  <div>
+    <div class="hero-sub">โครงการ/แผนงบ</div>
+    <span class="hero-title">เงินสำหรับทำโครงการ {{ ylabel }} {{ year }}</span>
+    <div class="hero-meta">นำเงินที่โรงเรียนมีเข้ามาไว้ที่นี่ แล้วแบ่งให้แต่ละโครงการ จะได้รู้ว่าโครงการไหนใช้เงินก้อนไหน</div>
+  </div>
+  <a class="btn gray" href="/projects?year={{ year }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> หน้าโครงการ</a>
+</div>
+{% if request.query_params.get('saved') %}<div class="alert" role="status">บันทึกแล้ว</div>{% endif %}
+
 {% if plan %}
-<div class="plan-money-summary"><div>งบรวมสำหรับวางแผน<strong>{{ '{:,.2f}'.format(funding.total) }}</strong></div><div>จัดสรรให้โครงการแล้ว<strong>{{ '{:,.2f}'.format(funding.allocated) }}</strong></div><div>ยังไม่ได้จัดสรร<strong>{{ '{:,.2f}'.format(funding.remaining) }}</strong></div></div>
-<h3>เงินเหลือจากก่อนเริ่มแผน</h3><p>ดึงจากยอดยกมาและรับ–จ่ายในทะเบียนคุมก่อนวันที่เริ่มแผน แยกเฉพาะเงินของแต่ละหมวด ไม่รวมหมวดย่อยซ้ำในหมวดแม่</p><a class="btn gray" href="/plan-budget/{{ year }}/review?kind=opening">ตรวจยอดเงินเหลือก่อนนำเข้าแผน</a>
-<h3>เงินอุดหนุนรอบใหม่</h3><p>ใช้ฉบับที่ยืนยันในหน้าคำนวณเงินอุดหนุนแล้ว เลือกรอบและตรวจยอดก่อนนำเข้า</p>
-{% for s in snapshots %}<p><a class="btn" href="/plan-budget/{{ year }}/review?kind=subsidy&snapshot_id={{ s.id }}">นำงบจากเงินอุดหนุนมาใช้ · ปีการศึกษา {{ s.academic_year }} เทอม {{ s.term }} (ปีงบ {{ s.fiscal_year }})</a></p>{% else %}<p class="muted">ยังไม่มีฉบับเงินอุดหนุนที่ยืนยันสำหรับแผนนี้</p>{% endfor %}
-<p><a href="/finance/subsidy?year={{ year if mode=='academic' else year-1 }}&term={{ 1 if mode=='academic' else 2 }}">ไปคำนวณเงินอุดหนุน{{ ' เทอม 1' if mode=='academic' else ' เทอม 2 ของปีก่อน' }}</a> · <a href="/finance/subsidy?year={{ year }}&term={{ 2 if mode=='academic' else 1 }}">{{ 'คำนวณเทอม 2' if mode=='academic' else 'คำนวณเทอม 1 ปีปัจจุบัน' }}</a></p>
-<details><summary>เงินอื่น ๆ (ถ้ามี)</summary><p class="muted">กรอกเฉพาะเงินที่ยังไม่ได้รวมในรายการเงินเหลือหรือเงินอุดหนุนด้านบน</p><form method="post" action="/plan-budget/{{ year }}/other"><input type="hidden" name="nonce" value="{{ nonce }}"><div class="row"><div><label>ชื่อรายการเงิน</label><input name="name" required maxlength="200" placeholder="เช่น เงินบริจาคสำหรับโครงการ"></div><div><label>จำนวนเงิน (บาท)</label><input type="number" name="amount" min="0.01" max="1000000000" step="0.01" required></div></div><p><button class="btn" type="submit">เพิ่มเงินอื่นในแผน</button></p></form></details>
-{% else %}<p>บันทึกช่วงแผนด้านบนก่อน แล้วจึงเลือกงบที่จะใช้</p>{% endif %}</div>
-{% if funding.rows %}<div class="card"><h2>งบที่นำเข้าแผนแล้ว</h2><p class="muted">การนำเข้าหรือปรับยอดในหน้านี้ไม่สร้างรายการรับเงิน และไม่เปลี่ยนงบโครงการให้อัตโนมัติ</p><div class="table-wrap"><table style="min-width:700px;"><thead><tr><th>รายการ</th><th>งบในแผน</th><th>จัดสรรแล้ว</th><th>ยังไม่จัดสรร</th><th></th></tr></thead><tbody>
-{% for r in funding.rows %}<tr><td>{{ r.source.name }}<br><small>{{ {'opening':'เงินเหลือก่อนเริ่มแผน','subsidy':'เงินอุดหนุนรอบใหม่','other':'เงินอื่น ๆ'}[r.source.kind] }}</small>{% if r.changed %}<p class="alert warn">ยอดต้นทางเปลี่ยนแล้ว กรุณาตรวจยอดด้านบนก่อนอัปเดตแผน</p>{% endif %}</td><td>{{ '{:,.2f}'.format(r.source.amount) }}</td><td>{{ '{:,.2f}'.format(r.allocated) }}</td><td>{{ '{:,.2f}'.format(r.source.amount-r.allocated) }}</td><td><form action="/plan-budget/{{ year }}/remove/{{ r.source.id }}" method="post" onsubmit="return confirm('นำเงินรายการนี้ออกจากแผน? ไม่ลบข้อมูลต้นทาง')"><button class="btn gray sm" {{ 'disabled' if r.allocated }}>นำออกจากแผน</button></form></td></tr>{% endfor %}
-</tbody></table></div></div>{% endif %}
-<script>(()=>{const f=document.getElementById('plan-period');f.elements.mode.addEventListener('change',()=>{const y={{ year }},a=f.elements.mode.value==='academic';f.elements.start.value=a?`01/05/${y}`:`01/10/${y-1}`;f.elements.end.value=a?`30/04/${y+1}`:`30/09/${y}`;});})();</script>
+<div class="pbg-sum">
+  <div class="pbg-tile t1"><span>เงินในแผน</span><b>{{ '{:,.2f}'.format(funding.total) }}</b></div>
+  <div class="pbg-tile t2"><span>แบ่งให้โครงการแล้ว</span><b>{{ '{:,.2f}'.format(funding.allocated) }}</b></div>
+  <div class="pbg-tile t3"><span>ยังไม่ได้แบ่ง</span><b>{{ '{:,.2f}'.format(funding.remaining) }}</b></div>
+</div>
+{% endif %}
+
+{# ---------- ขั้นที่ 1 ---------- #}
+<section class="pbg-step {{ 'done' if plan }}">
+  <div class="pbg-num">{% if plan %}<svg class="icon"><use href="#ic-check"/></svg>{% else %}1{% endif %}</div>
+  <div class="pbg-body">
+    <h2>ขั้นที่ 1 กำหนดช่วงเวลาของแผน</h2>
+    {% if plan %}
+    <p class="pbg-line">{{ ylabel }} {{ year }} ตั้งแต่ {{ thai_date(start) }} ถึง {{ thai_date(end) }}</p>
+    <details class="pbg-edit"><summary>แก้ช่วงเวลา</summary>
+    {% else %}
+    <p class="pbg-line">ตั้งครั้งเดียว ระบบเติมวันที่ให้ตามแบบที่โรงเรียนใช้ ตรวจแล้วกดบันทึก</p>
+    {% endif %}
+      <form method="post" action="/plan-budget/{{ year }}/period" id="plan-period"><div class="row">
+        <div><label>แผนแบบ</label><select name="mode"><option value="budget" {{ 'selected' if mode=='budget' }}>ปีงบประมาณ {{ year }}</option><option value="academic" {{ 'selected' if mode=='academic' }}>ปีการศึกษา {{ year }}</option></select></div>
+        <div><label>วันเริ่มแผน</label><input data-date="1" name="start" value="{{ start.strftime('%d/%m/') }}{{ start.year+543 }}" placeholder="วว/ดด/ปปปป" required></div>
+        <div><label>วันสิ้นสุดแผน</label><input data-date="1" name="end" value="{{ end.strftime('%d/%m/') }}{{ end.year+543 }}" placeholder="วว/ดด/ปปปป" required></div>
+      </div>
+      {% if plan and funding.rows %}<p class="muted">ถ้าจะเปลี่ยนช่วงเวลา ต้องยกเลิกการแบ่งเงินให้โครงการ และนำเงินออกจากแผนก่อน</p>{% endif %}
+      <button class="btn" type="submit">บันทึกช่วงเวลา</button></form>
+    {% if plan %}</details>{% endif %}
+  </div>
+</section>
+
+{# ---------- ขั้นที่ 2 ---------- #}
+<section class="pbg-step {{ 'done' if step2_done }} {{ 'warn' if step2_warn }} {{ 'off' if not plan }}">
+  <div class="pbg-num">{% if step2_done %}<svg class="icon"><use href="#ic-check"/></svg>{% elif step2_warn %}!{% else %}2{% endif %}</div>
+  <div class="pbg-body">
+    <h2>ขั้นที่ 2 นำเงินเข้าแผน</h2>
+    {% if not plan %}<p class="pbg-line muted">ทำขั้นที่ 1 ก่อน</p>{% else %}
+    <p class="pbg-line">นำเข้าแค่ยอดที่ระบบคำนวณให้ ไม่สร้างรายการรับเงิน และไม่เปลี่ยนเงินในทะเบียนคุมเงิน</p>
+
+    <div class="pbg-src {{ 'warn' if opening_changed }}">
+      <div class="pbg-src-h">
+        <div><b>ก. เงินที่เหลืออยู่ในบัญชี</b>
+          <small>{% if info and info.joined %}ใช้ยอดยกมาต้นปีงบ {{ info.joined }} ({{ info.joined_th }}) ตอนเริ่มใช้ระบบ{% else %}ใช้เงินคงเหลือแต่ละหมวด ณ {{ info.cutoff_th if info else '' }} (วันก่อนเริ่มแผน){% endif %}</small></div>
+        <div class="pbg-st">{% if opening_changed %}<span class="st-warn">ยอดในทะเบียนเปลี่ยนแล้ว</span>{% elif opening_done %}<span class="st-ok">นำเข้าแล้ว {{ '{:,.2f}'.format(opening_total) }}</span>{% else %}<span class="st-no">ยังไม่ได้นำเข้า</span>{% endif %}</div>
+      </div>
+      {% if opening_changed %}<p class="pbg-note">ยอดยกมาหรือรายการในทะเบียนคุมเงินเปลี่ยนหลังนำเข้า กดปุ่มด้านล่างเพื่อใช้ยอดใหม่</p>{% endif %}
+      <a class="btn {{ '' if opening_changed or not opening_done else 'gray' }} sm" href="/plan-budget/{{ year }}/review?kind=opening">{{ 'อัปเดตเป็นยอดใหม่' if opening_changed else ('ตรวจยอดอีกครั้ง' if opening_done else 'ตรวจยอดและนำเข้า') }}</a>
+    </div>
+
+    <div class="pbg-src">
+      <div class="pbg-src-h">
+        <div><b>ข. เงินอุดหนุนที่จะได้รับ</b>
+          <small>ยอดจากหน้าคำนวณเงินอุดหนุนที่กดยืนยันแล้ว แยกตามภาคเรียน</small></div>
+      </div>
+      {% if info and info.joined %}<p class="pbg-note">เงินอุดหนุนที่ได้รับก่อน {{ info.joined_th }} อยู่ในยอดยกมาแล้ว นำเข้าเฉพาะภาคเรียนที่ได้รับเงินหลังจากนั้น</p>{% endif %}
+      {% for t in terms %}
+      <div class="pbg-term">
+        <span>ภาคเรียนที่ {{ t.snap.term }}/{{ t.snap.academic_year }}</span>
+        {% if t.changed %}<span class="st-warn">ยอดเปลี่ยนแล้ว</span>{% elif t.imported %}<span class="st-ok">นำเข้าแล้ว {{ '{:,.2f}'.format(t.total) }}</span>{% else %}<span class="st-no">ยังไม่ได้นำเข้า</span>{% endif %}
+        <a class="btn sm {{ 'gray' if t.imported and not t.changed }}" href="/plan-budget/{{ year }}/review?kind=subsidy&snapshot_id={{ t.snap.id }}">{{ 'อัปเดต' if t.changed else ('ดูยอด' if t.imported else 'ตรวจยอดและนำเข้า') }}</a>
+      </div>
+      {% else %}
+      <p class="muted" style="margin:6px 0;">ยังไม่มียอดเงินอุดหนุนที่ยืนยันแล้วสำหรับแผนนี้</p>
+      {% endfor %}
+      <p class="pbg-links">คำนวณเงินอุดหนุน:
+        <a href="/finance/subsidy?year={{ year if mode=='academic' else year-1 }}&term={{ 1 if mode=='academic' else 2 }}">{{ 'ภาคเรียนที่ 1/' ~ year if mode=='academic' else 'ภาคเรียนที่ 2/' ~ (year-1) }}</a>
+        <a href="/finance/subsidy?year={{ year }}&term={{ 2 if mode=='academic' else 1 }}">{{ 'ภาคเรียนที่ 2/' ~ year if mode=='academic' else 'ภาคเรียนที่ 1/' ~ year }}</a></p>
+    </div>
+
+    <details class="pbg-src pbg-other" {{ 'open' if others }}>
+      <summary><b>ค. เงินอื่น ๆ (ถ้ามี)</b> <small>เช่น เงินบริจาคสำหรับโครงการ ที่ไม่อยู่ใน ก. หรือ ข.</small></summary>
+      {% for r in others %}<div class="pbg-term"><span>{{ r.source.name }}</span><span class="st-ok">{{ '{:,.2f}'.format(r.source.amount) }}</span></div>{% endfor %}
+      <form method="post" action="/plan-budget/{{ year }}/other"><input type="hidden" name="nonce" value="{{ nonce }}"><div class="row">
+        <div><label>ชื่อรายการเงิน</label><input name="name" required maxlength="200" placeholder="เช่น เงินบริจาคสำหรับโครงการ"></div>
+        <div><label>จำนวนเงิน (บาท)</label><input type="number" name="amount" min="0.01" max="1000000000" step="0.01" required></div></div>
+        <p><button class="btn sm" type="submit">เพิ่มเงินอื่น</button></p></form>
+    </details>
+    {% endif %}
+  </div>
+</section>
+
+{# ---------- ขั้นที่ 3 ---------- #}
+<section class="pbg-step {{ 'done' if funding.rows and funding.remaining <= 0.005 }} {{ 'off' if not funding.rows }}">
+  <div class="pbg-num">{% if funding.rows and funding.remaining <= 0.005 %}<svg class="icon"><use href="#ic-check"/></svg>{% else %}3{% endif %}</div>
+  <div class="pbg-body">
+    <h2>ขั้นที่ 3 แบ่งเงินให้แต่ละโครงการ</h2>
+    {% if not funding.rows %}<p class="pbg-line muted">ทำขั้นที่ 2 ก่อน</p>{% else %}
+    <ul class="pbg-how">
+      <li>กด "แบ่งเงิน" ท้ายโครงการ แล้วกรอกที่ส่วน "โครงการนี้ใช้งบจากรายการใด"</li>
+      <li>ใส่ไม่เกินยอดงบเหลือของโครงการ (เรื่องที่ทำไปแล้วจ่ายจากเงินก่อนหน้านี้)</li>
+      <li>เงินในแผนน้อยกว่าที่ต้องใช้ได้ แบ่งเท่าที่มีก่อน พอได้เงินเพิ่มค่อยนำเข้าแล้วแบ่งเพิ่ม</li>
+    </ul>
+    {% if projects %}
+    <div class="table-wrap"><table class="stack-sm pbg-pj">
+      <thead><tr><th>โครงการ</th><th class="right">งบโครงการ</th><th class="right">งบเหลือ</th><th class="right">แบ่งเงินให้แล้ว</th><th></th></tr></thead>
+      <tbody>{% for r in projects %}
+        <tr class="{{ 'need' if not r.allocated and r.left > 0 }}">
+          <td data-label="โครงการ"><a href="/projects/{{ r.p.id }}">{{ r.p.name }}</a></td>
+          <td data-label="งบโครงการ" class="right">{{ '{:,.2f}'.format(r.budget) }}</td>
+          <td data-label="งบเหลือ" class="right" style="color:{{ '#dc2626' if r.left < 0 else 'inherit' }};">{{ '{:,.2f}'.format(r.left) }}</td>
+          <td data-label="แบ่งเงินให้แล้ว" class="right">{% if r.allocated %}{{ '{:,.2f}'.format(r.allocated) }}{% else %}<span class="st-no">ยังไม่ได้แบ่ง</span>{% endif %}</td>
+          <td><a class="btn sm {{ 'gray' if r.allocated }}" style="white-space:nowrap;" href="/projects/{{ r.p.id }}#project-funding">แบ่งเงิน</a></td>
+        </tr>{% endfor %}
+      </tbody>
+    </table></div>
+    {% if not_alloc %}<p class="muted" style="margin:8px 0 0;">ยังไม่ได้แบ่งเงินให้ {{ not_alloc|length }} โครงการ</p>{% endif %}
+    {% else %}<p class="muted">ยังไม่มีโครงการของ{{ ylabel }} {{ year }}</p>{% endif %}
+    {% endif %}
+  </div>
+</section>
+
+{% if funding.rows %}
+<details class="card pbg-list">
+  <summary><b>รายการเงินในแผนทั้งหมด</b> <span class="muted">{{ funding.rows|length }} รายการ</span></summary>
+  <div class="table-wrap" style="margin-top:10px;"><table class="stack-sm">
+    <thead><tr><th>รายการ</th><th class="right">เงินในแผน</th><th class="right">แบ่งแล้ว</th><th class="right">ยังไม่ได้แบ่ง</th><th></th></tr></thead>
+    <tbody>{% for r in funding.rows %}
+      <tr>
+        <td data-label="รายการ">{{ r.source.name }}<small style="display:block;" class="muted">{{ {'opening':'ก. เงินที่เหลืออยู่ในบัญชี','subsidy':'ข. เงินอุดหนุน','other':'ค. เงินอื่น ๆ'}[r.source.kind] }}{% if r.changed %} (ยอดต้นทางเปลี่ยนแล้ว กดอัปเดตที่ขั้นที่ 2){% endif %}</small></td>
+        <td data-label="เงินในแผน" class="right">{{ '{:,.2f}'.format(r.source.amount) }}</td>
+        <td data-label="แบ่งแล้ว" class="right">{{ '{:,.2f}'.format(r.allocated) }}</td>
+        <td data-label="ยังไม่ได้แบ่ง" class="right">{{ '{:,.2f}'.format(r.source.amount - r.allocated) }}</td>
+        <td><form action="/plan-budget/{{ year }}/remove/{{ r.source.id }}" method="post" style="margin:0;" onsubmit="return confirm('นำเงินรายการนี้ออกจากแผน? ข้อมูลในทะเบียนคุมเงินไม่เปลี่ยน')"><button class="btn gray sm" {{ 'disabled title="ยกเลิกการแบ่งเงินให้โครงการก่อน"' if r.allocated }}>นำออก</button></form></td>
+      </tr>{% endfor %}
+    </tbody>
+  </table></div>
+</details>
+{% endif %}
+
+<script>(()=>{const f=document.getElementById('plan-period');if(!f)return;f.elements.mode.addEventListener('change',()=>{const y={{ year }},a=f.elements.mode.value==='academic';f.elements.start.value=a?`01/05/${y}`:`01/10/${y-1}`;f.elements.end.value=a?`30/04/${y+1}`:`30/09/${y}`;});})();</script>
+<style>
+  .pbg-hero { background:linear-gradient(120deg,#4338ca,#6366f1 55%,#a5b4fc); box-shadow:0 10px 26px rgba(99,102,241,.28); }
+  .pbg-sum { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:0 0 18px; }
+  .pbg-tile { border-radius:16px; padding:14px 18px; display:flex; flex-direction:column; gap:2px; box-shadow:0 4px 14px rgba(15,23,42,.06); }
+  .pbg-tile span { font-size:14px; font-weight:600; }
+  .pbg-tile b { font-size:24px; }
+  .pbg-tile.t1 { background:linear-gradient(135deg,#eef2ff,#e0e7ff); color:#3730a3; }
+  .pbg-tile.t2 { background:linear-gradient(135deg,#ecfdf5,#d1fae5); color:#065f46; }
+  .pbg-tile.t3 { background:linear-gradient(135deg,#fffbeb,#fef3c7); color:#92400e; }
+  .pbg-step { display:flex; gap:16px; background:#fff; border-radius:18px; padding:18px 20px; margin:0 0 14px; box-shadow:0 6px 20px rgba(15,23,42,.06); }
+  .pbg-step.off { opacity:.6; }
+  .pbg-num { width:38px; height:38px; flex:none; border-radius:50%; display:flex; align-items:center; justify-content:center;
+             font-weight:700; color:#fff; background:linear-gradient(135deg,#6366f1,#4338ca); }
+  .pbg-step.done .pbg-num { background:linear-gradient(135deg,#34d399,#059669); }
+  .pbg-step.warn .pbg-num { background:linear-gradient(135deg,#fb923c,#ea580c); }
+  .pbg-body { flex:1; min-width:0; }
+  .pbg-body h2 { margin:4px 0 6px; padding:0; background:none; border:0; font-size:18px; }
+  .pbg-line { margin:0 0 10px; color:#475569; }
+  .pbg-edit summary { cursor:pointer; color:#4338ca; font-weight:600; font-size:14px; }
+  .pbg-src { border-radius:14px; padding:14px 16px; margin:10px 0 0; background:linear-gradient(120deg,#f8fafc,#f1f5f9); }
+  .pbg-src.warn { background:linear-gradient(120deg,#fff7ed,#ffedd5); }
+  .pbg-src-h { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap; margin-bottom:8px; }
+  .pbg-src-h small, .pbg-other small { display:block; color:#64748b; font-size:13px; font-weight:400; }
+  .pbg-other summary { cursor:pointer; list-style:none; }
+  .pbg-other summary::-webkit-details-marker { display:none; }
+  .pbg-note { margin:0 0 10px; font-size:14px; color:#9a3412; }
+  .pbg-term { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:8px 10px; margin:6px 0; border-radius:10px; background:#fff; }
+  .pbg-term > span:first-child { flex:1; min-width:140px; font-weight:600; }
+  .pbg-links { margin:8px 0 0; font-size:14px; color:#475569; }
+  .pbg-links a { margin-left:8px; }
+  .st-ok, .st-no, .st-warn { font-size:13px; font-weight:600; padding:2px 10px; border-radius:999px; white-space:nowrap; }
+  .st-ok { background:#d1fae5; color:#065f46; }
+  .st-no { background:#f1f5f9; color:#475569; }
+  .st-warn { background:#ffedd5; color:#9a3412; }
+  .pbg-how { margin:0 0 12px; padding-left:20px; color:#334155; font-size:14px; line-height:1.75; }
+  .pbg-pj tr.need td { background:#fffbeb; }
+  .pbg-list summary { cursor:pointer; }
+  @media (max-width:760px) {
+    .pbg-sum { grid-template-columns:1fr; }
+    .pbg-step { padding:16px 14px; gap:12px; }
+  }
+</style>
 {% endblock %}

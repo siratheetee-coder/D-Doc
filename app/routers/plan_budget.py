@@ -31,7 +31,26 @@ def page_context(db, year, requested_mode=None):
     for s in db.query(SubsidySnapshot).order_by(SubsidySnapshot.id.desc()):
         if (s.academic_year==year if mode=='academic' else s.fiscal_year==year):
             latest.setdefault((s.academic_year,s.term),s)
-    return dict(plan=p,year=year,mode=mode,start=start,end=end, funding=pf.summary(db,p),snapshots=list(latest.values()),nonce=str(uuid4()))
+    funding=pf.summary(db,p)
+    # สถานะของแต่ละขั้น ให้หน้าเว็บบอกได้ว่าทำแล้วหรือยัง และยอดต้นทางเปลี่ยนไหม (ต้องกดอัปเดต)
+    opening=[r for r in funding['rows'] if r['source'].kind=='opening']
+    terms=[]
+    for s in sorted(latest.values(), key=lambda s:(s.academic_year,s.term)):
+        pre=f'subsidy:{s.academic_year}:{s.term}:'
+        rows=[r for r in funding['rows'] if r['source'].source_key.startswith(pre)]
+        terms.append(dict(snap=s, imported=bool(rows), total=round(sum(r['source'].amount for r in rows),2),
+                          changed=any(r['changed'] for r in rows)))
+    projects=[]
+    if p:
+        from app.services.budget import project_budget, project_money_summary
+        for pj in db.query(Project).filter(Project.plan_year==year).order_by(Project.name):
+            m=project_money_summary(pj)
+            projects.append(dict(p=pj, budget=project_budget(pj), left=m['remaining'], allocated=pf.project_allocated(db,pj.id)))
+    return dict(plan=p,year=year,mode=mode,start=start,end=end, funding=funding,snapshots=list(latest.values()),nonce=str(uuid4()),
+                info=pf.opening_info(db,p) if p else None,
+                opening_total=round(sum(r['source'].amount for r in opening),2), opening_done=bool(opening),
+                opening_changed=any(r['changed'] for r in opening), terms=terms, projects=projects,
+                others=[r for r in funding['rows'] if r['source'].kind=='other'])
 
 
 @router.get('/plan-budget/{year}')

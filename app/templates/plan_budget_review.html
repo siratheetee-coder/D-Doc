@@ -1,18 +1,52 @@
 {% extends "base.html" %}
-{% block title %}ตรวจยอดก่อนนำงบเข้าแผน<style>.pbr-note{background:#eff6ff;color:#1e3a8a;}.pbr-note a{color:#1d4ed8;}</style>
-{% endblock %}
+{% block title %}ตรวจยอดก่อนนำเงินเข้าแผน{% endblock %}
 {% block content %}
-<div class="card"><h1>ตรวจยอดก่อนนำงบเข้าแผน {{ year }}</h1><p>เลือกรายการที่จะใช้ ระบบอัปเดตยอดเดิมของเงินก้อนนั้น ไม่บวกซ้ำ รายการที่ไม่ได้เลือกจะคงยอดเดิม</p><p class="muted">งบนี้ใช้วางแผนโครงการ ไม่สร้างเงินรับจริงและไม่เปลี่ยนยอดในทะเบียนคุม</p>
-{% if data.kind == 'subsidy' %}<p class="alert warn">หากได้รับเงินของเทอมนี้ก่อนวันเริ่มแผน ให้เชื่อมรายการรับในหน้าคำนวณเงินอุดหนุนก่อน ระบบจะหักเงินส่วนนั้นออกจากยอดที่จะนำเข้า เพราะเงินคงเหลือรวมอยู่ในยอดยกมาแล้ว</p>{% for r in data.rows %}{% if r.payload.received_before %}<p>{{ r.name }}: หักเงินรับก่อนเริ่มแผน {{ '{:,.2f}'.format(r.payload.received_before) }} บาทแล้ว</p>{% endif %}{% endfor %}{% endif %}
-{% set info = data.info %}
-{% if info and info.joined %}<div class="alert pbr-note">ยังไม่มีข้อมูลเงินของปีงบ {{ info.fy }} ในระบบ (ช่วงก่อนเริ่มแผน {{ info.start_th }}) ระบบจึงใช้ <b>ยอดยกมาต้นปีงบ {{ info.joined }}</b> ({{ info.joined_th }}) แทน คือเงินของแผนที่ยังเหลืออยู่ตอนเริ่มใช้ระบบ
-  <br>ตัวอย่าง: หมวดค่ากิจกรรม ยกมา 50,000 บาท นำเข้าแผน 50,000 แล้วจัดสรรให้โครงการต่อ ส่วนเงินที่โครงการใช้ไปก่อนเริ่มใช้ระบบ กรอกที่ <a href="/projects/start?year={{ year }}">ตั้งยอดตั้งต้นโครงการ</a>
-  {% if data.kind == 'subsidy' %}<br><b>ระวังนับซ้ำ:</b> เงินอุดหนุนที่ได้รับก่อน {{ info.joined_th }} ส่วนที่ยังเหลือรวมอยู่ในยอดยกมาแล้ว นำเข้าเฉพาะรอบที่ได้รับหลังจากนั้น{% endif %}</div>
-{% elif info and data.kind == 'opening' and not data.rows and not info.has_data %}<div class="alert warn">แผนนี้เริ่ม {{ info.start_th }} ระบบจึงหาเงินคงเหลือของแต่ละหมวด ณ วันที่ {{ info.cutoff_th }} ซึ่งอยู่ใน<b>ปีงบ {{ info.fy }}</b> แต่ปีงบ {{ info.fy }} ยังไม่มียอดยกมาหรือรายการรับจ่ายในระบบ
-  <br>ถ้ามีตัวเลขปีงบ {{ info.fy }} ให้ <a href="/finance/accounts?year={{ info.fy }}">กรอกยอดยกมาปีงบ {{ info.fy }}</a> แยกตามหมวด · ถ้าเพิ่งเริ่มใช้ระบบปีงบถัดไป ให้กรอกยอดยกมาต้นปีงบนั้นแยกตามหมวด ระบบจะใช้ยอดนั้นแทนให้เอง</div>
-{% endif %}
-<form method="post" action="/plan-budget/{{ year }}/apply"><input type="hidden" name="kind" value="{{ data.kind }}"><input type="hidden" name="snapshot_id" value="{{ data.snapshot_id }}"><input type="hidden" name="token" value="{{ token }}">
-<div class="table-wrap"><table style="min-width:700px;"><thead><tr><th>เลือก</th><th>รายการ</th><th>เดิมในแผน</th><th>ยอดใหม่</th><th>เพิ่ม/ลด</th><th>จัดสรรแล้ว</th></tr></thead><tbody>{% for r in data.rows %}<tr><td><input type="checkbox" name="selected" value="{{ r.source_key }}" {{ 'checked' if data.kind=='subsidy' or r.old }} aria-label="เลือก {{ r.name }}"></td><td>{{ r.name }}</td><td>{{ '{:,.2f}'.format(r.old) }}</td><td>{{ '{:,.2f}'.format(r.amount) }}</td><td>{{ '{:+,.2f}'.format(r.delta) }}</td><td>{{ '{:,.2f}'.format(r.allocated) }}{% if r.amount<r.allocated %}<p class="alert warn">ต้องลดการจัดสรรให้โครงการก่อน</p>{% endif %}</td></tr>{% else %}<tr><td colspan="6">ยังไม่มีเงินที่นำเข้าได้ ตรวจยอดและหมวดในทะเบียนคุมเงินก่อน</td></tr>{% endfor %}</tbody></table></div>
-<p><button class="btn" type="submit" {{ 'disabled' if not data.rows }}>ยืนยันนำรายการที่เลือกเข้าแผน</button> <a class="btn gray" href="/plan-budget/{{ year }}">กลับโดยไม่เปลี่ยนยอด</a></p></form></div>
-<style>.pbr-note{background:#eff6ff;color:#1e3a8a;}.pbr-note a{color:#1d4ed8;}</style>
+<div class="card">
+  <h1>ตรวจยอดก่อนนำเข้าแผน {{ year }}</h1>
+  <p style="margin-top:0;">{{ 'ก. เงินที่เหลืออยู่ในบัญชี' if data.kind == 'opening' else 'ข. เงินอุดหนุนที่จะได้รับ' }}</p>
+  <ul class="pbr-how">
+    <li>ติ๊กรายการที่จะใช้ แล้วกดยืนยัน ระบบใส่ยอดใหม่แทนยอดเดิม ไม่บวกซ้ำ</li>
+    <li>รายการที่ไม่ได้ติ๊ก คงยอดเดิมไว้</li>
+    <li>ไม่สร้างรายการรับเงิน และไม่เปลี่ยนเงินในทะเบียนคุมเงิน</li>
+  </ul>
+  {% set info = data.info %}
+  {% if info and info.joined %}
+  <div class="alert pbr-note"><div>
+    <b>ใช้ยอดยกมาต้นปีงบ {{ info.joined }} ({{ info.joined_th }})</b>
+    <ul class="pbr-how" style="margin:6px 0 0;">
+      <li>ปีงบ {{ info.fy }} ยังไม่มีข้อมูลเงินในระบบ ยอดยกมาตอนเริ่มใช้ระบบคือเงินของแผนที่ยังเหลืออยู่</li>
+      <li>เงินที่โครงการใช้ไปก่อนเริ่มใช้ระบบ ไม่ต้องนำเข้า ถ้าเป็นเรื่องพัสดุให้ทำเครื่องหมาย<a href="/finance/paid-before">จ่ายแล้วก่อนเริ่มใช้ระบบ</a> ถ้าไม่มีเรื่องในระบบ กรอกที่<a href="/projects/start?year={{ year }}">ตั้งยอดตั้งต้นโครงการ</a></li>
+      {% if data.kind == 'subsidy' %}<li><b>ระวังนับซ้ำ:</b> เงินอุดหนุนที่ได้รับก่อน {{ info.joined_th }} อยู่ในยอดยกมาแล้ว นำเข้าเฉพาะภาคเรียนที่ได้รับเงินหลังจากนั้น</li>{% endif %}
+    </ul></div></div>
+  {% elif info and data.kind == 'opening' and not data.rows and not info.has_data %}
+  <div class="alert warn"><div>
+    <b>ยังหาเงินคงเหลือ ณ {{ info.cutoff_th }} ไม่ได้ เพราะปีงบ {{ info.fy }} ยังไม่มีข้อมูลเงินในระบบ</b>
+    <ul class="pbr-how" style="margin:6px 0 0;">
+      <li>ถ้ามีตัวเลขปีงบ {{ info.fy }} ให้<a href="/finance/accounts?year={{ info.fy }}">กรอกยอดยกมาปีงบ {{ info.fy }}</a> แยกตามหมวด</li>
+      <li>ถ้าเพิ่งเริ่มใช้ระบบปีงบถัดไป ให้กรอกยอดยกมาต้นปีงบนั้นแยกตามหมวด ระบบจะใช้ยอดนั้นแทน</li>
+    </ul></div></div>
+  {% endif %}
+  {% if data.kind == 'subsidy' %}
+  {% for r in data.rows %}{% if r.payload.received_before %}<p class="muted">{{ r.name }}: หักเงินที่ได้รับก่อนเริ่มแผน {{ '{:,.2f}'.format(r.payload.received_before) }} บาทแล้ว</p>{% endif %}{% endfor %}
+  {% endif %}
+  <form method="post" action="/plan-budget/{{ year }}/apply"><input type="hidden" name="kind" value="{{ data.kind }}"><input type="hidden" name="snapshot_id" value="{{ data.snapshot_id }}"><input type="hidden" name="token" value="{{ token }}">
+    <div class="table-wrap"><table class="stack-sm"><thead><tr><th>เลือก</th><th>รายการ</th><th class="right">ยอดเดิมในแผน</th><th class="right">ยอดใหม่</th><th class="right">เปลี่ยนไป</th><th class="right">แบ่งให้โครงการแล้ว</th></tr></thead><tbody>
+      {% for r in data.rows %}<tr>
+        <td><input type="checkbox" class="pbr-c" name="selected" value="{{ r.source_key }}" {{ 'checked' if data.kind=='subsidy' or r.old }} aria-label="เลือก {{ r.name }}"></td>
+        <td data-label="รายการ">{{ r.name }}</td>
+        <td data-label="ยอดเดิมในแผน" class="right">{{ '{:,.2f}'.format(r.old) }}</td>
+        <td data-label="ยอดใหม่" class="right"><b>{{ '{:,.2f}'.format(r.amount) }}</b></td>
+        <td data-label="เปลี่ยนไป" class="right">{{ '{:+,.2f}'.format(r.delta) }}</td>
+        <td data-label="แบ่งให้โครงการแล้ว" class="right">{{ '{:,.2f}'.format(r.allocated) }}{% if r.amount < r.allocated %}<p class="alert warn" style="margin:6px 0 0;">ยอดใหม่น้อยกว่าที่แบ่งให้โครงการไปแล้ว ต้องลดการแบ่งเงินในหน้าโครงการก่อน</p>{% endif %}</td>
+      </tr>{% else %}<tr><td colspan="6">ยังไม่มีเงินที่นำเข้าได้ ตรวจยอดและหมวดในทะเบียนคุมเงินก่อน</td></tr>{% endfor %}
+    </tbody></table></div>
+    <p><button class="btn" type="submit" {{ 'disabled' if not data.rows }}>ยืนยันนำรายการที่เลือกเข้าแผน</button> <a class="btn gray" href="/plan-budget/{{ year }}">กลับโดยไม่เปลี่ยนยอด</a></p>
+  </form>
+</div>
+<style>
+  .pbr-note { background:linear-gradient(120deg,#eff6ff,#e0e7ff); color:#1e3a8a; }
+  .pbr-note a { color:#1d4ed8; }
+  .pbr-how { margin:0 0 12px; padding-left:20px; line-height:1.75; color:inherit; }
+  .pbr-c { width:20px; height:20px; accent-color:#4f46e5; }
+</style>
 {% endblock %}
