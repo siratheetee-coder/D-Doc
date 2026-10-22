@@ -48,6 +48,7 @@ def test_ai_teacher_blocked_and_no_key(env, monkeypatch):
     tid = _enable()
     monkeypatch.setattr(ai, 'configured', lambda: False)
     assert env.post('/ai/ask', data={'q': 'x'}).status_code == 503
+    assert env.get('/ai/status').json()['why'] == 'nokey'
     with acc_session() as db:
         db.add(Account(username='t1.ai', password_hash=hash_password('Teach!12345'), tenant_id=tid, person_id=1))
         db.commit()
@@ -56,7 +57,9 @@ def test_ai_teacher_blocked_and_no_key(env, monkeypatch):
     assert teacher.get('/ai/status').json()['why'] == 'teacher'
 
 
-def test_console_toggle(env):
+def test_console_toggle(env, monkeypatch):
+    from app.services import ai_help as ai
+    monkeypatch.setattr(ai, 'configured', lambda: True)
     from fastapi.testclient import TestClient
     from app.main import app
     with acc_session() as db:

@@ -20,7 +20,7 @@ def _account(db, request):
 def status(request: Request):
     with acc_session() as db:
         user = _account(db, request)
-        why = ai.allowed(db, user)
+        why = ai.allowed(db, user) or ('' if ai.configured() else 'nokey')
         return {'ok': not why, 'why': why, 'left': max(ai.DAILY_LIMIT - ai.used_today(db, user.tenant_id), 0),
                 'limit': ai.DAILY_LIMIT}
 

@@ -60,29 +60,34 @@
     chat.forEach(m => bubble(m.role, m.text));
     log.scrollTop = log.scrollHeight;
   }
+  const WHY = {
+    off: 'ถาม AI เป็นบริการเสริม โรงเรียนยังไม่ได้เปิดใช้ครับ สนใจกดติดต่อเจ้าหน้าที่ด้านล่างได้เลยครับ',
+    teacher: 'ถาม AI ใช้ได้เฉพาะไอดีเจ้าหน้าที่ครับ',
+    nokey: 'ระบบถาม AI ยังไม่พร้อมใช้งาน กรุณาติดต่อเจ้าหน้าที่ครับ',
+    net: 'เชื่อมต่อไม่ได้ ลองปิดแล้วเปิดหน้าต่างนี้ใหม่ครับ',
+  };
   function showLeft() {
     if (!status) return;
-    left.textContent = status.ok ? `วันนี้ถามได้อีก ${status.left} จาก ${status.limit} คำถาม` : '';
+    left.textContent = status.ok ? `วันนี้ถามได้อีก ${status.left} จาก ${status.limit} คำถาม` : 'ยังใช้งานไม่ได้';
     const blocked = !status.ok || status.left <= 0;
     q.disabled = send.disabled = blocked || busy;
     q.placeholder = !status.ok ? 'ยังใช้งานไม่ได้' : status.left <= 0 ? 'วันนี้ถามครบแล้ว ถามใหม่ได้พรุ่งนี้ครับ' : 'พิมพ์คำถาม เช่น กรอกยอดยกมาที่ไหน';
+    // บอกเหตุผลที่ใช้ไม่ได้เสมอ (แสดงซ้ำได้หลัง render ใหม่)
+    if (!status.ok && !log.querySelector('.ai-msg.err')) bubble('err', WHY[status.why] || WHY.net);
   }
   async function loadStatus() {
     try {
-      const r = await fetch('/ai/status');
+      const r = await fetch('/ai/status', { cache: 'no-store' });
       if (!r.ok || r.redirected) throw Error();
       status = await r.json();
     } catch { status = { ok: false, why: 'net' }; }
-    if (!status.ok && !log.querySelector('.err')) {
-      bubble('err', status.why === 'off' ? 'ถาม AI เป็นบริการเสริม โรงเรียนยังไม่ได้เปิดใช้ครับ สนใจกดติดต่อเจ้าหน้าที่ด้านล่างได้เลยครับ'
-        : status.why === 'teacher' ? 'ถาม AI ใช้ได้เฉพาะไอดีเจ้าหน้าที่ครับ' : 'เชื่อมต่อไม่ได้ ลองใหม่อีกครั้งครับ');
-    }
     showLeft();
   }
   function open(focus = true) {
     panel.hidden = false;
     store.set('aiOpen', true);
     render();
+    showLeft();
     loadStatus();
     if (focus) setTimeout(() => q.focus(), 50);
   }
