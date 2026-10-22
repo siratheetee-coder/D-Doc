@@ -1,7 +1,7 @@
 """ผู้ช่วย "ถาม AI": ตอบคำถามการใช้ระบบจากคู่มือ app/ai_help/knowledge.md
 
 - โรงเรียนสมาชิกใช้ได้อัตโนมัติ · โรงเรียนทดลองใช้ ผู้ขายเปิดให้รายโรงเรียนที่คอนโซลได้ (Tenant.ai_help)
-- ใช้ได้เฉพาะไอดีเจ้าหน้าที่ (ไม่ใช่บัญชีครู) จำกัดวันละ DAILY_LIMIT คำถามต่อโรงเรียน
+- ใช้ได้เฉพาะไอดีเจ้าหน้าที่ (ไม่ใช่บัญชีครู) จำกัดเดือนละ MONTHLY_LIMIT คำถามต่อโรงเรียน (รีเซ็ตวันที่ 1 ของเดือน)
 - คีย์ API ของผู้ขาย ตั้งใน env ANTHROPIC_API_KEY บนเซิร์ฟเวอร์
 """
 import os
@@ -9,7 +9,7 @@ from datetime import datetime, time
 from functools import lru_cache
 
 MODEL = 'claude-sonnet-5-5'
-DAILY_LIMIT = 10
+MONTHLY_LIMIT = 30
 THB = 33.0
 PRICE = (2.00, 10.00, 0.20, 2.50)  # ดอลลาร์ต่อ 1 ล้าน token: input, output, cache read, cache write
 HISTORY = 6                         # ส่งบทสนทนาก่อนหน้าไปด้วยกี่ข้อความ
@@ -38,9 +38,9 @@ def system_prompt() -> str:
     return SYSTEM.format(kb=kb.read_text(encoding='utf-8'))
 
 
-def used_today(db, tenant_id) -> int:
+def used_this_month(db, tenant_id) -> int:
     from app.accounts import AiQuestion
-    start = datetime.combine(datetime.now().date(), time.min)
+    start = datetime.combine(datetime.now().date().replace(day=1), time.min)
     return db.query(AiQuestion).filter(AiQuestion.tenant_id == tenant_id, AiQuestion.created_at >= start).count()
 
 

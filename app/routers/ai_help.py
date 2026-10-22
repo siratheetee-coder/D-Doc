@@ -21,8 +21,8 @@ def status(request: Request):
     with acc_session() as db:
         user = _account(db, request)
         why = ai.allowed(db, user) or ('' if ai.configured() else 'nokey')
-        return {'ok': not why, 'why': why, 'left': max(ai.DAILY_LIMIT - ai.used_today(db, user.tenant_id), 0),
-                'limit': ai.DAILY_LIMIT}
+        return {'ok': not why, 'why': why, 'left': max(ai.MONTHLY_LIMIT - ai.used_this_month(db, user.tenant_id), 0),
+                'limit': ai.MONTHLY_LIMIT}
 
 
 @router.post('/ai/ask')
@@ -40,8 +40,8 @@ async def ask(request: Request, q: str = Form(''), path: str = Form(''), history
             raise HTTPException(403, 'โรงเรียนยังไม่ได้เปิดบริการถาม AI ครับ')
         if why == 'teacher':
             raise HTTPException(403, 'ถาม AI ใช้ได้เฉพาะไอดีเจ้าหน้าที่ครับ')
-        if ai.used_today(db, user.tenant_id) >= ai.DAILY_LIMIT:
-            raise HTTPException(429, f'วันนี้โรงเรียนถามครบ {ai.DAILY_LIMIT} คำถามแล้ว ถามใหม่ได้พรุ่งนี้ครับ หรือกดติดต่อเจ้าหน้าที่')
+        if ai.used_this_month(db, user.tenant_id) >= ai.MONTHLY_LIMIT:
+            raise HTTPException(429, f'เดือนนี้โรงเรียนถามครบ {ai.MONTHLY_LIMIT} คำถามแล้ว ถามใหม่ได้วันที่ 1 เดือนหน้าครับ หรือกดติดต่อเจ้าหน้าที่')
         tid, uid = user.tenant_id, user.id
     if not ai.configured():
         raise HTTPException(503, 'ระบบถาม AI ยังไม่พร้อมใช้งาน กรุณาติดต่อเจ้าหน้าที่ครับ')
@@ -59,5 +59,5 @@ async def ask(request: Request, q: str = Form(''), path: str = Form(''), history
     with acc_session() as db:
         db.add(AiQuestion(tenant_id=tid, account_id=uid, path=path, question=q, answer=answer, cost_thb=round(cost, 4)))
         db.commit()
-        left = max(ai.DAILY_LIMIT - ai.used_today(db, tid), 0)
+        left = max(ai.MONTHLY_LIMIT - ai.used_this_month(db, tid), 0)
     return {'answer': answer, 'left': left}

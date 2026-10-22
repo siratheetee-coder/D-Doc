@@ -35,12 +35,12 @@ def test_ai_ask_quota_and_log(env, monkeypatch):
     monkeypatch.setattr(ai, 'ask', fake)
     r = env.post('/ai/ask', data={'q': 'กรอกยอดยกมาที่ไหน', 'path': '/finance', 'history': '[{"role":"me","text":"hi"}]'})
     assert r.status_code == 200, r.text
-    assert r.json() == {'answer': 'ไปที่ `/finance/accounts` ครับ', 'left': ai.DAILY_LIMIT - 1}
+    assert r.json() == {'answer': 'ไปที่ `/finance/accounts` ครับ', 'left': ai.MONTHLY_LIMIT - 1}
     assert seen['path'] == '/finance' and seen['hist'][0]['text'] == 'hi'
     with acc_session() as db:
         row = db.query(AiQuestion).one()
         assert row.tenant_id == tid and row.cost_thb == 1.5
-        for _ in range(ai.DAILY_LIMIT - 1):
+        for _ in range(ai.MONTHLY_LIMIT - 1):
             db.add(AiQuestion(tenant_id=tid, account_id=row.account_id, question='x'))
         db.commit()
     r = env.post('/ai/ask', data={'q': 'อีกข้อ'})

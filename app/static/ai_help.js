@@ -68,10 +68,10 @@
   };
   function showLeft() {
     if (!status) return;
-    left.textContent = status.ok ? `วันนี้ถามได้อีก ${status.left} จาก ${status.limit} คำถาม` : 'ยังใช้งานไม่ได้';
+    left.textContent = status.ok ? `เดือนนี้ถามได้อีก ${status.left} จาก ${status.limit} คำถาม` : 'ยังใช้งานไม่ได้';
     const blocked = !status.ok || status.left <= 0;
     q.disabled = send.disabled = blocked || busy;
-    q.placeholder = !status.ok ? 'ยังใช้งานไม่ได้' : status.left <= 0 ? 'วันนี้ถามครบแล้ว ถามใหม่ได้พรุ่งนี้ครับ' : 'พิมพ์คำถาม เช่น กรอกยอดยกมาที่ไหน';
+    q.placeholder = !status.ok ? 'ยังใช้งานไม่ได้' : status.left <= 0 ? 'เดือนนี้ถามครบแล้ว ถามใหม่ได้วันที่ 1 เดือนหน้าครับ' : 'พิมพ์คำถาม เช่น กรอกยอดยกมาที่ไหน';
     // บอกเหตุผลที่ใช้ไม่ได้เสมอ (แสดงซ้ำได้หลัง render ใหม่)
     if (!status.ok && !log.querySelector('.ai-msg.err')) bubble('err', WHY[status.why] || WHY.net);
   }
