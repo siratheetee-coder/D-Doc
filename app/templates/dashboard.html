@@ -26,6 +26,39 @@
 {% set setup_key = 'proc' %}{% set setup_title = 'เริ่มต้นงานพัสดุ' %}{% set setup_video = '/guide#guide-videos' %}
 {% include '_setup_checklist.html' %}
 
+{# เรื่องพัสดุที่ทำก่อนเริ่มใช้ระบบและจ่ายไปแล้ว: ติ๊กหลายเรื่องได้ที่นี่เลย (app/services/paid_before.py) #}
+{% if pb_rows and request.query_params.get('pb') != 'hide' %}
+<details class="pbx" {{ 'open' if request.query_params.get('msg') or request.query_params.get('err') }}>
+  <summary>
+    <span class="pbx-ic"><svg class="icon"><use href="#ic-check"/></svg></span>
+    <span class="pbx-t"><b>เรื่องพัสดุที่ทำก่อนเริ่มใช้ระบบและจ่ายไปแล้ว</b>
+      <small>{{ pb_rows|length }} เรื่องที่ลงวันที่ก่อน {{ thai_date(pb_cutoff) }} ยังขึ้นว่ารอจ่าย กดเพื่อเลือกเรื่องที่จ่ายไปแล้ว</small></span>
+    <span class="pbx-go">เลือกเรื่อง</span>
+  </summary>
+  <ul class="pbx-how">
+    <li>ติ๊กเฉพาะเรื่องที่จ่ายเงินไปแล้วก่อนเริ่มใช้ระบบ</li>
+    <li>ไม่สร้างรายการเงิน และงบโครงการที่ใช้ไปเท่าเดิม</li>
+    <li>เรื่องที่ยังไม่ได้จ่าย ไม่ต้องติ๊ก ให้ทำบันทึกขอเบิกจ่ายตามปกติ</li>
+  </ul>
+  {% set pb_back = "/procurement?year=" ~ fiscal_year %}
+  {% include "_paid_before_select.html" %}
+</details>
+<style>
+  .pbx { margin:0 0 16px; padding:14px 18px; border-radius:16px; background:linear-gradient(120deg,#f0fdfa,#ccfbf1); box-shadow:0 4px 14px rgba(15,23,42,.06); }
+  .pbx > summary { display:flex; align-items:center; gap:14px; cursor:pointer; list-style:none; }
+  .pbx > summary::-webkit-details-marker { display:none; }
+  .pbx-ic { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex:none; background:#fff; color:#0d9488; }
+  .pbx-t { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .pbx-t small { color:#115e59; font-size:13.5px; }
+  .pbx-go { font-weight:600; font-size:14px; color:#0f766e; white-space:nowrap; }
+  .pbx[open] .pbx-go { display:none; }
+  .pbx-how { margin:12px 0 10px; padding-left:20px; color:#134e4a; font-size:14px; line-height:1.7; }
+  .pbx .table-wrap { background:#fff; border-radius:12px; }
+</style>
+{% endif %}
+{% if request.query_params.get('msg') %}<div class="alert">✔ {{ request.query_params.get('msg') }}</div>{% endif %}
+{% if request.query_params.get('err') %}<div class="alert warn">{{ request.query_params.get('err') }}</div>{% endif %}
+
 <div class="card">
   <div class="stat">
     <div class="box">

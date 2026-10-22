@@ -12,7 +12,7 @@ from app.accounts import TRIAL_DAYS
 
 from fastapi.templating import Jinja2Templates
 
-from app.thai_utils import thai_date, bahttext, be_date_input
+from app.thai_utils import thai_date, thai_date_short, bahttext, be_date_input
 from app.services.asset_utils import (
     accumulated_depreciation, net_book_value, annual_depreciation, material_balance,
     account_balance, account_balance_year, opening_for,
@@ -101,7 +101,7 @@ templates.env.globals.update(
     form_guard=_form_guard_fields,
     finance_carry_warn=_finance_carry_warn,
     eb_slot_choices=_eb_slot_choices, eb_slot_of=_eb_slot_of,     # ช่อง e-Budget ของบัญชี/หมวด       # ฟอร์มสาธารณะ: โทเคนเวลา + ช่องล่อกันบอท
-    thai_date=thai_date, bahttext=bahttext, be_date=be_date_input,
+    thai_date=thai_date, thai_date_short=thai_date_short, bahttext=bahttext, be_date=be_date_input,
     nav_alerts=nav_alerts, nav_holidays=nav_holidays, my_notices=my_notices,
     maint_notice=lambda: __import__("app.accounts", fromlist=["x"]).active_notice(),
     doc_label=lambda kind, proc_type="ซื้อ": __import__(

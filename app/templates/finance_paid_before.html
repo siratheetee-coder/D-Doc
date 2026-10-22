@@ -30,29 +30,9 @@
 
 <div class="card">
   {% if rows %}
-  <form method="post" action="/finance/paid-before"
-        onsubmit="var n=this.querySelectorAll('input[name=pid]:checked').length; if(!n){alert('ยังไม่ได้เลือกเรื่อง');return false;} return confirm('ทำเครื่องหมายว่าจ่ายแล้วก่อนเริ่มใช้ระบบ '+n+' เรื่อง?');">
-    <input type="hidden" name="on" value="1">
-    <input type="hidden" name="back" value="/finance/paid-before?cutoff={{ be_date(cutoff) }}">
-    <div class="pb-bar">
-      <b>{{ rows|length }} เรื่องที่ยังขึ้นว่ารอจ่าย</b>
-      <label class="pb-all"><input type="checkbox" id="pbAll"> เลือกทั้งหมด</label>
-    </div>
-    <div class="table-wrap"><table class="stack-sm">
-      <thead><tr><th></th><th>วันที่</th><th>เลขที่</th><th>เรื่อง</th><th>โครงการ</th><th class="right">จำนวนเงิน</th></tr></thead>
-      <tbody>{% for p in rows %}{% set pj = projects.get(p.project_id) %}
-        <tr>
-          <td><input type="checkbox" name="pid" value="{{ p.id }}" class="pb-c" aria-label="เลือกเรื่อง {{ p.memo_no }}"></td>
-          <td data-label="วันที่" style="white-space:nowrap;">{{ thai_date(proc_date(p)) }}</td>
-          <td data-label="เลขที่"><a href="/procurement/{{ p.id }}?keep=1">{{ p.memo_no or '-' }}</a></td>
-          <td data-label="เรื่อง">{{ p.proc_type }}{{ p.subject }}</td>
-          <td data-label="โครงการ" class="muted">{{ pj.name if pj else (p.project_name or '-') }}</td>
-          <td data-label="จำนวนเงิน" class="right">{{ "{:,.2f}".format(p.total_amount or 0) }}</td>
-        </tr>{% endfor %}
-      </tbody>
-    </table></div>
-    <button class="btn" type="submit" style="margin-top:14px;" data-no-floating-save><svg class="icon"><use href="#ic-check"/></svg> ทำเครื่องหมายว่าจ่ายแล้วก่อนเริ่มใช้ระบบ</button>
-  </form>
+  {% set pb_rows, pb_projects, pb_date = rows, projects, proc_date %}
+  {% set pb_back = "/finance/paid-before?cutoff=" ~ be_date(cutoff) %}
+  {% include "_paid_before_select.html" %}
   {% else %}
   <p style="margin:0;">ไม่มีเรื่องที่ลงวันที่ก่อน {{ thai_date(cutoff) }} และยังขึ้นว่ารอจ่าย</p>
   {% endif %}
@@ -83,10 +63,6 @@
 
 <script>
   (function () {
-    var all = document.getElementById('pbAll');
-    if (all) all.addEventListener('change', function () {
-      document.querySelectorAll('.pb-c').forEach(function (c) { c.checked = all.checked; });
-    });
     document.querySelectorAll('input[data-date]').forEach(function (el) {
       el.addEventListener('input', function () {
         var v = this.value.replace(/\D/g, '').slice(0, 8), o = v;
@@ -103,8 +79,6 @@
   .pb-cut { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin:0; }
   .pb-cut label { margin:0; font-size:14px; }
   .pb-cut input { max-width:180px; display:block; margin-top:4px; }
-  .pb-bar { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
-  .pb-all { margin:0; font-size:14px; display:flex; gap:6px; align-items:center; }
   .pb-sum { cursor:pointer; font-weight:600; }
   .pb-ok { background:linear-gradient(120deg,#ecfdf5,#d1fae5); color:#065f46; }
 </style>

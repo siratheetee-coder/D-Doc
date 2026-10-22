@@ -138,3 +138,27 @@ def test_health_notice_until_marked(env):
         assert "paid_before_pending" not in {i["key"] for i in run(db, fy)["notice"]}
     finally:
         db.close()
+
+
+def test_select_many_on_procurement_page_and_project_shown(env):
+    fy, pid, old1, old2, new, aid = _seed()
+    html = env.get(f"/procurement?year={fy}").text
+    assert "เรื่องพัสดุที่ทำก่อนเริ่มใช้ระบบและจ่ายไปแล้ว" in html
+    box = html.split('class="pbx"')[1].split("</details>")[0]
+    assert f'name="pid" value="{old1}"' in box and f'name="pid" value="{new}"' not in box
+    assert f'name="back" value="/procurement?year={fy}"' in box and "เลือกทั้งหมด" in box
+    r = env.post("/finance/paid-before", data={"on": "1", "pid": [str(old1), str(old2)], "back": f"/procurement?year={fy}"},
+                 follow_redirects=False)
+    assert r.headers["location"].startswith(f"/procurement?year={fy}&msg=")
+
+    # หน้าเรื่องพัสดุ: ช่องโครงการแสดงโครงการที่ผูกด้วย project_id (เดิมขึ้นเป็นขีด)
+    detail = env.get(f"/procurement/{old1}?keep=1").text
+    assert f'<a href="/projects/{pid}">โครงการอาหารกลางวัน</a>' in detail
+
+    from app.services.finance_health import run
+    db = _db()
+    try:
+        titles = [i["title"] for i in run(db, fy)["notice"]]
+    finally:
+        db.close()
+    assert all("รอจ่าย" not in t for t in titles)

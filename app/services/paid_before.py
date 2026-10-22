@@ -47,6 +47,24 @@ def candidates(db, cutoff) -> list:
     return sorted(rows, key=lambda p: (proc_date(p), p.id), reverse=True)
 
 
+def pending(db):
+    """(วันเริ่มใช้ระบบ, เรื่องที่ยังขึ้นว่ารอจ่าย) เฉพาะโรงเรียนที่เริ่มใช้ระบบกลางทาง (กรอกยอดยกมา)
+    โรงเรียนอื่นคืน (None, []) จะได้ไม่ขึ้นกล่องนี้ในหน้าพัสดุ/หน้าตรวจสุขภาพข้อมูล"""
+    from app.services.finance_health import _joined
+    from app.thai_utils import current_fiscal_year
+    cur = current_fiscal_year()
+    if not any(_joined(db, y) for y in (cur, cur - 1, cur - 2)):
+        return None, []
+    cut = default_cutoff(db)
+    return cut, candidates(db, cut)
+
+
+def project_map(db, rows) -> dict:
+    from app.models import Project
+    ids = {p.project_id for p in rows if p.project_id}
+    return {p.id: p for p in db.query(Project).filter(Project.id.in_(ids))} if ids else {}
+
+
 def marked(db) -> list:
     from app.models import Procurement
     rows = db.query(Procurement).filter(Procurement.paid_before_system.is_(True)).all()

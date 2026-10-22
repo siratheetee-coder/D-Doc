@@ -1,0 +1,41 @@
+{# รายการเรื่องพัสดุให้ติ๊กเลือก แล้วทำเครื่องหมาย "จ่ายแล้วก่อนเริ่มใช้ระบบ" ทีละหลายเรื่อง
+   ใช้ร่วมกัน: หน้า /finance/paid-before และกล่องด้านบนของหน้าหลักพัสดุ
+   ต้องมี: pb_rows, pb_projects, pb_back, pb_date (ฟังก์ชันวันที่ของเรื่อง) #}
+<form method="post" action="/finance/paid-before" class="pbs"
+      onsubmit="var n=this.querySelectorAll('input[name=pid]:checked').length; if(!n){alert('ยังไม่ได้เลือกเรื่อง');return false;} return confirm('ทำเครื่องหมายว่าจ่ายแล้วก่อนเริ่มใช้ระบบ '+n+' เรื่อง?');">
+  <input type="hidden" name="on" value="1">
+  <input type="hidden" name="back" value="{{ pb_back }}">
+  <div class="pbs-bar">
+    <b>{{ pb_rows|length }} เรื่องที่ยังขึ้นว่ารอจ่าย</b>
+    <label class="pbs-all"><input type="checkbox" class="pbs-allc"> เลือกทั้งหมด</label>
+  </div>
+  <div class="table-wrap"><table class="stack-sm">
+    <thead><tr><th style="width:44px;"></th><th>วันที่</th><th>เลขที่</th><th>เรื่อง</th><th>โครงการ</th><th class="right">จำนวนเงิน</th></tr></thead>
+    <tbody>{% for p in pb_rows %}{% set pj = pb_projects.get(p.project_id) %}
+      <tr>
+        <td><input type="checkbox" name="pid" value="{{ p.id }}" class="pbs-c" aria-label="เลือกเรื่อง {{ p.memo_no }}"></td>
+        <td data-label="วันที่" style="white-space:nowrap;">{{ thai_date_short(pb_date(p)) }}</td>
+        <td data-label="เลขที่"><a href="/procurement/{{ p.id }}?keep=1">{{ p.memo_no or '-' }}</a></td>
+        <td data-label="เรื่อง" class="pbs-subj">{{ p.proc_type }}{{ p.subject }}</td>
+        <td data-label="โครงการ" class="muted">{{ pj.name if pj else (p.project_name or '-') }}</td>
+        <td data-label="จำนวนเงิน" class="right" style="white-space:nowrap;">{{ "{:,.2f}".format(p.total_amount or 0) }}</td>
+      </tr>{% endfor %}
+    </tbody>
+  </table></div>
+  <button class="btn" type="submit" style="margin-top:14px;" data-no-floating-save><svg class="icon"><use href="#ic-check"/></svg> ทำเครื่องหมายว่าจ่ายแล้วก่อนเริ่มใช้ระบบ</button>
+</form>
+<script>
+  document.querySelectorAll('form.pbs').forEach(function (f) {
+    var all = f.querySelector('.pbs-allc');
+    if (all) all.addEventListener('change', function () {
+      f.querySelectorAll('.pbs-c').forEach(function (c) { c.checked = all.checked; });
+    });
+  });
+</script>
+<style>
+  .pbs-bar { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+  .pbs-all { margin:0; font-size:14.5px; font-weight:600; display:inline-flex; gap:8px; align-items:center; white-space:nowrap; cursor:pointer; }
+  .pbs-subj { min-width:200px; }
+  .pbs td[data-label="โครงการ"] { min-width:150px; }
+  .pbs input[type=checkbox] { width:20px; height:20px; min-width:20px; margin:0; cursor:pointer; accent-color:#0d9488; }
+</style>

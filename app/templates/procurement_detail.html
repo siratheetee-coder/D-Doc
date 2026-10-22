@@ -105,7 +105,7 @@
   {% endif %}
   <div class="table-wrap"><table>
     <tr><th style="width:200px;">วันที่</th><td>{{ thai_date(p.request_date) }}</td></tr>
-    <tr><th>โครงการ / ฝ่าย</th><td>{{ p.project_name or "-" }} / {{ p.department or "-" }}</td></tr>
+    <tr><th>โครงการ / ฝ่าย</th><td>{% if proj %}<a href="/projects/{{ proj.id }}">{{ proj.name }}</a>{% if proj.plan_year %} (ปี {{ proj.plan_year }}){% endif %}{% else %}{{ p.project_name or "-" }}{% endif %} / {{ p.department or (proj.responsible if proj and proj.responsible else "-") }}</td></tr>
     <tr><th>วิธี</th><td>{{ p.method }}</td></tr>
     <tr><th>เหตุผลความจำเป็น</th><td>{{ p.purpose or "-" }}</td></tr>
     <tr><th>แหล่งงบ / ที่มาราคากลาง</th><td>{{ p.budget_source }} / {{ p.price_ref_source }}</td></tr>

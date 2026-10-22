@@ -467,6 +467,7 @@ def dashboard(request: Request, db: Session = Depends(get_db),
         "hire_total": sum(p.total_amount or 0 for p in hires),
         "fiscal_year": fy, "years": years, "total_amount": total_amount,
         "count": len(procurements), "q": q, "charts": charts,
+        **_paid_before_box(db),
         "setup": proc_setup_steps(db, fy, get_school(db)),
     })
 
@@ -2426,7 +2427,21 @@ def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get
         "w119t2": (_w119t2_checklist(proc) if (proc.proc_case or "") == "w119t2" else None),
         "case_warnings": _case_warnings(proc),
         "paid_in_system": proc.id in _paid_in_system(db),
+        # โครงการที่ผูกด้วย project_id (เรื่องใหม่ไม่ได้เก็บชื่อโครงการเป็นข้อความ เดิมช่องนี้จึงขึ้นเป็นขีด)
+        "proj": db.get(Project, proc.project_id) if proc.project_id else None,
     })
+
+
+def _paid_before_box(db):
+    """กล่อง "เรื่องพัสดุที่ทำก่อนเริ่มใช้ระบบและจ่ายไปแล้ว" ด้านบนหน้าหลักพัสดุ (เฉพาะโรงเรียนที่เริ่มใช้กลางทาง)"""
+    from app.services import paid_before as pb
+    try:
+        cut, rows = pb.pending(db)
+    except Exception as e:  # noqa: BLE001  กล่องเสริม ไม่ควรทำให้หน้าหลักพัง
+        print("[paid-before]", repr(e))
+        cut, rows = None, []
+    return {"pb_rows": rows, "pb_cutoff": cut, "pb_projects": pb.project_map(db, rows) if rows else {},
+            "pb_date": pb.proc_date}
 
 
 def _paid_in_system(db):
