@@ -382,6 +382,29 @@
   .sl-ribbon{ position:absolute; top:-10px; right:-8px; background:linear-gradient(135deg,#fbbf24,#f59e0b);
               color:#fff; font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:999px;
               box-shadow:0 3px 8px rgba(245,158,11,.45); }
+  /* ส่วนลดปลดล็อกทีละขั้นตามจำนวนงานที่เลือก (สคริปต์ render ใส่ class locked / current / unlocking) */
+  .sl-card.locked{ background:linear-gradient(135deg,#cbd5e1,#94a3b8); box-shadow:none; }
+  .sl-card.locked > .ico{ opacity:.55; }
+  .sl-lock{ position:absolute; top:7px; right:9px; display:none; }
+  .sl-best .sl-lock{ top:auto; bottom:7px; }   /* มุมบนมีริบบิ้น "คุ้มสุด" */
+  .sl-lock svg{ width:17px; height:17px; fill:none; stroke:#fff; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+  .sl-card.locked .sl-lock, .sl-card.unlocking .sl-lock{ display:block; }
+  .sl-need{ display:none; font-style:normal; font-size:12px; font-weight:600; color:#fff; opacity:.95; }
+  .sl-card.locked .sl-need{ display:block; }
+  .sl-card.current{ transform:translateY(-3px) scale(1.04);
+    box-shadow:0 0 0 3px #fff, 0 0 0 6px rgba(37,99,235,.45), 0 16px 32px rgba(37,99,235,.35); }
+  .sl-best.current{ box-shadow:0 0 0 3px #fff, 0 0 0 6px rgba(22,163,74,.45), 0 16px 32px rgba(22,163,74,.35); }
+  .sl-card.unlocking{ animation:slPop .65s cubic-bezier(.2,.8,.3,1.35); }
+  .sl-card.unlocking::after{ content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+    background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.7) 50%,transparent 65%) no-repeat;
+    background-size:250% 100%; background-position:150% 0; animation:slShine .8s ease-out .1s forwards; }
+  .sl-card.unlocking .sl-lock{ animation:slFly .55s ease-in forwards; }
+  @keyframes slPop{ 0%{ transform:scale(.92); } 55%{ transform:scale(1.12); } 100%{ transform:translateY(-3px) scale(1.04); } }
+  @keyframes slShine{ to{ background-position:-50% 0; } }
+  @keyframes slFly{ 0%{ transform:none; opacity:1; } 100%{ transform:translate(10px,-18px) rotate(25deg); opacity:0; } }
+  @media (prefers-reduced-motion: reduce){
+    .sl-card.unlocking, .sl-card.unlocking::after, .sl-card.unlocking .sl-lock{ animation:none; }
+  }
   /* 6 งาน = 6 คอลัมน์ เรียงแถวเดียวให้ทุกใบอยู่ในแกน x เดียวกัน (การ์ดเป็นแนวตั้ง) */
   .mgrid{ display:grid; grid-template-columns:repeat(6,1fr); gap:12px; align-items:stretch; }
   .mcard{ background:#fff; border:2px solid var(--line); border-radius:18px; padding:18px 14px 14px;
@@ -828,26 +851,26 @@
     <!-- หรือเลือกเฉพาะงาน -->
     <div class="or-head">หรือเลือกเฉพาะงานที่ต้องใช้</div>
     <div class="save-ladder">
-      <div class="sl-card">
+      <div class="sl-card" data-n="2"><span class="sl-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
         <svg class="ico"><use href="#ic-tag"/></svg>
-        <div class="sl-txt"><b>2 งาน</b><span>ลด 100 บาท</span></div>
+        <div class="sl-txt"><b>2 งาน</b><span>ลด 100 บาท</span><em class="sl-need"></em></div>
       </div>
-      <div class="sl-card">
+      <div class="sl-card" data-n="3"><span class="sl-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
         <svg class="ico"><use href="#ic-tag"/></svg>
-        <div class="sl-txt"><b>3 งาน</b><span>ลด 200 บาท</span></div>
+        <div class="sl-txt"><b>3 งาน</b><span>ลด 200 บาท</span><em class="sl-need"></em></div>
       </div>
-      <div class="sl-card">
+      <div class="sl-card" data-n="4"><span class="sl-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
         <svg class="ico"><use href="#ic-tag"/></svg>
-        <div class="sl-txt"><b>4 งาน</b><span>ลด 300 บาท</span></div>
+        <div class="sl-txt"><b>4 งาน</b><span>ลด 300 บาท</span><em class="sl-need"></em></div>
       </div>
-      <div class="sl-card">
+      <div class="sl-card" data-n="5"><span class="sl-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
         <svg class="ico"><use href="#ic-tag"/></svg>
-        <div class="sl-txt"><b>5 งาน</b><span>ลด 400 บาท</span></div>
+        <div class="sl-txt"><b>5 งาน</b><span>ลด 400 บาท</span><em class="sl-need"></em></div>
       </div>
-      <div class="sl-card sl-best">
+      <div class="sl-card sl-best" data-n="6"><span class="sl-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
         <span class="sl-ribbon">คุ้มสุด!</span>
         <svg class="ico"><use href="#ic-star"/></svg>
-        <div class="sl-txt"><b>6 งาน <i>(ครบทุกงาน)</i></b><span>เหลือ {{ "{:,}".format(px.bundle) }} บาท</span></div>
+        <div class="sl-txt"><b>6 งาน <i>(ครบทุกงาน)</i></b><span>เหลือ {{ "{:,}".format(px.bundle) }} บาท</span><em class="sl-need"></em></div>
       </div>
     </div>
     <div class="mgrid" id="pickList">
@@ -1021,6 +1044,24 @@
     var btnBuy = document.getElementById('btnBuy');
     var btnQuote = document.getElementById('btnQuote');
     var fmt = function(n){ return n.toLocaleString('en-US'); };
+    var ladder = [].slice.call(document.querySelectorAll('.save-ladder .sl-card[data-n]'));
+    var ready = false;                                   // ครั้งแรกที่โหลดหน้า ไม่เล่นเอฟเฟกต์
+    // การ์ดส่วนลด: ปลดล็อกตามจำนวนงานที่เลือก ใบที่ใช้อยู่ตอนนี้มีกรอบเด่น
+    function renderLadder(count){
+      var top = 0;
+      ladder.forEach(function(el){
+        var n = +el.dataset.n, open = count >= n, wasOpen = !el.classList.contains('locked');
+        if(open) top = Math.max(top, n);
+        el.classList.toggle('locked', !open);
+        var need = el.querySelector('.sl-need');
+        if(need) need.textContent = open ? '' : 'เลือกอีก ' + (n - count) + ' งาน';
+        if(open && !wasOpen && ready){
+          el.classList.remove('unlocking'); void el.offsetWidth; el.classList.add('unlocking');
+          setTimeout(function(){ el.classList.remove('unlocking'); }, 950);
+        }
+      });
+      ladder.forEach(function(el){ el.classList.toggle('current', +el.dataset.n === top); });
+    }
     function render(){
       var chosen = cards.filter(function(c){ return c.querySelector('input').checked; });
       cards.forEach(function(c){ c.classList.toggle('on', c.querySelector('input').checked); });
@@ -1032,6 +1073,7 @@
       var savings = discount;
       var label = count === NMODS ? 'ครบทุกงาน' : (count ? chosen.map(function(c){ return c.dataset.name; }).join(' + ') : 'ยังไม่ได้เลือกงาน');
 
+      renderLadder(count);
       sbSel.textContent = count ? label : 'ยังไม่ได้เลือกงาน';
       sumTotal.textContent = fmt(total);
 
@@ -1077,6 +1119,7 @@
     }
     cards.forEach(function(c){ c.querySelector('input').addEventListener('change', render); });
     render();
+    ready = true;
   })();
 </script>
 
