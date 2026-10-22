@@ -28,3 +28,4 @@ app/doc_templates/*.docx
 
 # ทางลัด Windows ที่เผลอวางในโฟลเดอร์โปรเจกต์
 *.lnk
+tools/ai_eval/out/
