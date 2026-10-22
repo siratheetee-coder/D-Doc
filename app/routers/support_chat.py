@@ -8,6 +8,39 @@ from app.templating import templates
 
 router = APIRouter()
 
+# อีเมลแจ้งผู้ขายเมื่อโรงเรียนส่งข้อความ · โรงเรียนเดียวกันแจ้งไม่ถี่กว่า 10 นาทีครั้ง (ส่งรัว ๆ ไม่ท่วมกล่องเมล)
+NOTIFY_GAP = 600
+_notified: dict[int, float] = {}
+
+
+def notify_staff(tid, school, sender, body):
+    import threading, time
+    now = time.time()
+    if now - _notified.get(tid, 0) < NOTIFY_GAP:
+        return
+    _notified[tid] = now
+
+    def run():
+        try:
+            from html import escape
+            from app.services.mailer import send_email
+            from app.services.notifications import notification_email
+            to = notification_email()
+            if not to:
+                return
+            from app.seller_config import SELLER
+            base = SELLER.get('base_url', '')
+            html = (f'<div style="font-family:Tahoma,sans-serif;font-size:15px;line-height:1.7">'
+                    f'<p><b>{escape(school)}</b> ส่งข้อความในแชทติดต่อเจ้าหน้าที่</p>'
+                    f'<p style="background:#f1f5f9;border-radius:10px;padding:10px 14px;white-space:pre-wrap">'
+                    f'<b>{escape(sender)}:</b> {escape(body[:1000])}</p>'
+                    f'<p><a href="{base}/admin-console/chat">เปิดแชทเพื่อตอบ</a></p>'
+                    f'<p style="color:#888;font-size:13px">โรงเรียนเดียวกันจะแจ้งไม่ถี่กว่า 10 นาทีครั้ง</p></div>')
+            send_email(to, f'💬 ข้อความใหม่จาก {school}', html)
+        except Exception as e:  # noqa: BLE001
+            print('[support-chat] ส่งอีเมลแจ้งไม่ได้:', e)
+    threading.Thread(target=run, daemon=True).start()
+
 
 def identity(request, db, tenant_id):
     user = db.get(Account, request.session.get('uid'))
@@ -103,6 +136,8 @@ def send(request: Request, tenant_id: int = Form(0), body: str = Form(''), nonce
         except IntegrityError:
             db.rollback()
             raise HTTPException(409, 'ข้อความกำลังส่ง กรุณาลองอีกครั้ง')
+        if not staff:
+            notify_staff(tid, db.get(Tenant, tid).name, msg.sender_name, body)
         return {'id': msg.id}
 
 

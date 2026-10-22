@@ -18,3 +18,4 @@ Pillow==11.1.0            # เปิด/ปรับรูปภาพก่อ
 qrcode
 
 dnspython>=2.6,<3
+anthropic==2.1.0         # ถาม AI (Claude API) ใช้คีย์จาก env ANTHROPIC_API_KEY

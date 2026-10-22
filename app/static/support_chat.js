@@ -31,5 +31,8 @@ function showInbox(){const target=document.getElementById('chatInbox'),q=documen
 async function inbox(){try{const r=await fetch('/admin-console/chat/inbox');if(!r.ok||r.redirected)throw Error();rows=await r.json();showInbox();document.getElementById('inboxStatus').textContent=rows.length?'':'ยังไม่มีโรงเรียน';}catch{document.getElementById('inboxStatus').textContent='โหลดรายชื่อไม่ได้ กรุณาลองใหม่';}}
 if(staff){document.getElementById('chatSearch').oninput=showInbox;inbox();}
 async function poll(){if(document.hidden)return;if(staff)await inbox();if(!panel.hidden)await load();else if(!staff){try{notify((await api('/messages?summary=true')).unread);}catch{}}}
-poll();setInterval(poll,15000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll();});
+// เปิดหน้าต่างแชทอยู่ = เช็กข้อความใหม่ทุก 4 วินาที · ปิดอยู่ = ทุก 15 วินาที (แค่นับข้อความยังไม่อ่าน)
+let timer=0;async function tick(){clearTimeout(timer);await poll();timer=setTimeout(tick,panel.hidden?15000:4000);}
+tick();document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick();});window.addEventListener('focus',tick);
+document.getElementById('supportChatOpen')?.addEventListener('click',()=>setTimeout(tick,300));
 })();

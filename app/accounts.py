@@ -67,6 +67,7 @@ class Tenant(AccBase):
     signup_source = Column(String, default="")      # ปุ่มที่กดตอนสมัคร "รู้จักเราจากไหน"
     signup_ref = Column(String, default="")         # ลิงก์ที่มา (?ref= ในลิงก์ที่แชร์)
     from_sandbox = Column(Boolean, default=False)   # เคยลองระบบตัวอย่างก่อนสมัคร
+    ai_help = Column(Boolean, default=False)        # เปิดบริการเสริม "ถาม AI" (ผู้ขายเปิดให้ในคอนโซล)
 
     accounts = relationship("Account", back_populates="tenant",
                             cascade="all, delete-orphan")
@@ -127,6 +128,19 @@ class SupportRead(AccBase):
     account_id = Column(Integer, ForeignKey('account.id'), primary_key=True)
     tenant_id = Column(Integer, ForeignKey('tenant.id'), primary_key=True)
     last_id = Column(Integer, nullable=False, default=0)
+
+
+class AiQuestion(AccBase):
+    """คำถามที่ถาม AI (นับโควตารายวัน + ให้ผู้ขายดูว่าถามอะไร/ค่าใช้จ่ายเท่าไหร่)"""
+    __tablename__ = 'ai_question'
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey('tenant.id'), nullable=False, index=True)
+    account_id = Column(Integer, nullable=False)
+    path = Column(String, default='')               # หน้าที่ผู้ใช้อยู่ตอนถาม
+    question = Column(Text, nullable=False)
+    answer = Column(Text, default='')
+    cost_thb = Column(Float, default=0)
+    created_at = Column(DateTime, default=datetime.now, nullable=False, index=True)
 
 
 class Lead(AccBase):
@@ -394,6 +408,7 @@ def _ensure_engine():
                     "ALTER TABLE tenant ADD COLUMN signup_source VARCHAR DEFAULT ''",
                     "ALTER TABLE tenant ADD COLUMN signup_ref VARCHAR DEFAULT ''",
                     "ALTER TABLE tenant ADD COLUMN from_sandbox BOOLEAN DEFAULT 0",
+                    "ALTER TABLE tenant ADD COLUMN ai_help BOOLEAN DEFAULT 0",
                     # โรงเรียนเดิมยังไม่มีค่า -> ถือว่าใช้งานล่าสุด ณ วันที่สร้างบัญชี
                     # (ไม่ใช่ NULL ไม่งั้นจะถูกนับว่าไม่ใช้งานมานานทันทีตั้งแต่วันอัปเดต)
                     "UPDATE tenant SET last_active_at = created_at WHERE last_active_at IS NULL",

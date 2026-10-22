@@ -1,0 +1,25 @@
+{# ปุ่ม + หน้าต่าง "ถาม AI" (บัญชีครูไม่เห็น) · หน้าต่างเปิดค้างข้ามหน้าได้ จำบทสนทนาไว้ในแท็บนี้ #}
+<link rel="stylesheet" href="/static/ai_help.css?v=2">
+<button type="button" class="ai-btn" id="aiHelpOpen" aria-label="ถาม AI" title="ถาม AI วิธีใช้ระบบ">
+  <svg class="ai-spark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9z"/><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2-2.2-.8 2.2-.8z"/></svg>
+  <span class="ai-btn-txt">ถาม AI</span>
+</button>
+<section id="aiHelp" class="ai-panel" hidden aria-label="ถาม AI">
+  <header>
+    <div><strong>✨ ถาม AI</strong><small id="aiLeft"></small></div>
+    <div class="ai-hd-btns">
+      <button type="button" id="aiClear" title="เริ่มคุยใหม่" aria-label="เริ่มคุยใหม่">↺</button>
+      <button type="button" id="aiClose" title="ปิด" aria-label="ปิดหน้าต่างถาม AI">✕</button>
+    </div>
+  </header>
+  <div id="aiLog" class="ai-log" role="log" aria-live="polite"></div>
+  <form id="aiForm" class="ai-form">
+    <textarea id="aiQ" rows="2" maxlength="1000" placeholder="พิมพ์คำถาม เช่น กรอกยอดยกมาที่ไหน" aria-label="คำถาม"></textarea>
+    <button type="submit" id="aiSend" aria-label="ส่งคำถาม"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 21 3l-8.5 18-2.2-7.3z"/></svg></button>
+  </form>
+  <div class="ai-foot">
+    <span>AI อาจตอบผิดได้ ตรวจกับระเบียบจริงด้วยนะครับ</span>
+    <button type="button" id="aiHuman">💬 ติดต่อเจ้าหน้าที่</button>
+  </div>
+</section>
+<script src="/static/ai_help.js?v=2" defer></script>

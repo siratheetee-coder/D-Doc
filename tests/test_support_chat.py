@@ -8,6 +8,8 @@ def test_chat_roundtrip_isolation_unread_and_retry(env):
     with acc_session() as db:
         school=db.query(Account).filter_by(username='demo').one().tenant_id
         admin=db.query(Account).filter_by(role='superadmin').first()
+        if not admin:  # บางลำดับการรันชุดทดสอบไม่มีบัญชีผู้ดูแลตั้งต้น
+            admin=Account(username='boss-chat',role='superadmin');db.add(admin)
         admin.password_hash=hash_password('Chat!12345');admin.must_change_password=False
         admin_name=admin.username
         other=Tenant(name='โรงเรียนอื่น',active=True,modules='');db.add(other);db.flush()

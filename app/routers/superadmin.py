@@ -116,6 +116,11 @@ def console(request: Request, msg: str | None = None):
         today = date.today()
         tenants = (db.query(Tenant).filter(Tenant.plan != "sandbox")    # ระบบตัวอย่างไม่ใช่โรงเรียนจริง
                    .order_by(Tenant.id.desc()).all())
+        from sqlalchemy import func as _f
+        from app.accounts import AiQuestion
+        ai_month = {tid: (n, c) for tid, n, c in db.query(AiQuestion.tenant_id, _f.count(AiQuestion.id), _f.sum(AiQuestion.cost_thb))
+                    .filter(AiQuestion.created_at >= datetime.combine(today.replace(day=1), datetime.min.time()))
+                    .group_by(AiQuestion.tenant_id)}
         rows = []
         summ = {"total": 0, "active": 0, "trial": 0, "member": 0, "expired": 0, "expiring": 0}
         for t in tenants:
@@ -132,6 +137,7 @@ def console(request: Request, msg: str | None = None):
                 "days_left": days_left, "docs_used": docs_used, "docs_limit": docs_limit,
                 "docs_left": max(0, docs_limit - docs_used),
                 "unverified": sum(1 for u in users if not getattr(u, "verified", True)),
+                "ai_n": ai_month.get(t.id, (0, 0))[0], "ai_thb": ai_month.get(t.id, (0, 0))[1] or 0,
             })
             summ["total"] += 1
             if t.active and not expired:
@@ -554,6 +560,38 @@ def set_tenant_modules(tid: int, mod: list[str] = Form([])):
     finally:
         db.close()
     return RedirectResponse(f"/admin-console?msg={quote('ตั้งสิทธิ์เป็น %d งานแล้ว' % n)}", status_code=303)
+
+
+@router.post("/admin-console/tenant/{tid}/ai")
+def set_tenant_ai(tid: int, on: str = Form("0")):
+    """เปิด/ปิดบริการเสริม "ถาม AI" ของโรงเรียน"""
+    from urllib.parse import quote
+    db = acc_session()
+    try:
+        t = db.get(Tenant, tid)
+        if not t:
+            return RedirectResponse("/admin-console?msg=ไม่พบโรงเรียน", status_code=303)
+        t.ai_help = on == "1"
+        db.commit()
+        msg = f"{'เปิด' if t.ai_help else 'ปิด'}ถาม AI ของ {t.name} แล้ว"
+    finally:
+        db.close()
+    return RedirectResponse(f"/admin-console?msg={quote(msg)}", status_code=303)
+
+
+@router.get("/admin-console/ai", response_class=HTMLResponse)
+def ai_questions(request: Request):
+    """คำถามล่าสุดที่โรงเรียนถาม AI (ใช้ปรับคู่มือ + ดูค่าใช้จ่าย)"""
+    from app.accounts import AiQuestion
+    db = acc_session()
+    try:
+        names = {t.id: t.name for t in db.query(Tenant).all()}
+        rows = db.query(AiQuestion).order_by(AiQuestion.id.desc()).limit(200).all()
+        return templates.TemplateResponse("superadmin_ai.html", {
+            "request": request, "rows": rows, "names": names,
+            "total": round(sum(r.cost_thb or 0 for r in rows), 2)})
+    finally:
+        db.close()
 
 
 @router.post("/admin-console/tenant/{tid}/renew")

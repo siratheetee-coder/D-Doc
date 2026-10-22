@@ -82,7 +82,7 @@
 <body>
   <div class="top"><b>Easy Ekkasan · คอนโซลผู้ดูแลระบบ</b>
     <a href="/admin-console/chat" style="color:#fff;font-weight:600">💬 แชทโรงเรียน <span id="consoleChatCount"></span></a>
-    <script src="/static/support_chat_badge.js" defer></script>
+    <script src="/static/support_chat_badge.js?v=2" defer></script>
     <span><a href="/admin-console/leads" style="color:#fff; font-weight:600;">📥 คำขอจากเว็บ
         <span class="lead-cnt">{{ lead_counts.all if lead_counts else 0 }}</span>{% if lead_counts and lead_counts.new %}<span class="lead-cnt new">ใหม่ {{ lead_counts.new }}</span>{% endif %}</a>
       · {{ admin_name }} · <a href="/account/profile">โปรไฟล์ / ยืนยัน 2 ชั้น</a>
@@ -141,6 +141,7 @@
       <a href="/admin-console/usage">📊 การใช้งานรายวัน</a> ·
       <a href="/admin-console/marketing">📈 ลูกค้ามาจากไหน</a> ·
       <a href="/admin-console/finance-health">🩺 ข้อมูลการเงินทุกโรงเรียน</a> ·
+      <a href="/admin-console/ai">✨ คำถามถาม AI</a> ·
       <a href="/admin-console/notice">📣 ประกาศแจ้งปิดปรับปรุง</a> ·
       <a href="/admin-console/notifications">ตั้งค่าอีเมลแจ้งเตือน</a> ·
       <a href="/admin-console/signature">ตั้งค่าลายเซ็นผู้ขายสำหรับอีเมลและเอกสาร</a>
@@ -265,6 +266,11 @@
                 {% endfor %}
               </div>
               <button class="btn sm" type="submit">บันทึกสิทธิ์</button>
+            </form>
+            <form method="post" action="/admin-console/tenant/{{ r.t.id }}/ai" style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="hidden" name="on" value="{{ '0' if r.t.ai_help else '1' }}">
+              <span>✨ ถาม AI: <b>{{ 'เปิด' if r.t.ai_help else 'ปิด' }}</b>{% if r.ai_n %} <span class="muted2">(เดือนนี้ {{ r.ai_n }} คำถาม {{ '%.2f'|format(r.ai_thb) }} บาท)</span>{% endif %}</span>
+              <button class="btn sm {{ 'gray' if r.t.ai_help else 'green' }}" type="submit">{{ 'ปิด' if r.t.ai_help else 'เปิด' }}ถาม AI</button>
             </form>
           </div>
           <div>
