@@ -59,22 +59,66 @@ def keys_for(term):
     return [k for k, _, both in ITEMS if both or term == 1]
 
 
-# เงินเพิ่มเติมที่คิดเป็นอัตราต่อคนได้ (กรอกบาท/คน/เทอม ต่อชั้น ไม่บังคับ ว่าง = ไม่ได้รับ)
-# คำนวณแบบเดียวกับรายการปกติ: งวดแรก 70% ของฐานเดิม งวดปรับยอดตามฐานล่าสุด
-RATE_EXTRAS = ['small']
+# เงินเพิ่มเติม 3 แบบ (กรอกในส่วนเงินเพิ่มเติม)
+#   dmc   = บาท/คน/เทอม แยกระดับ x นักเรียนทุกคนตามยอด DMC แบ่งงวดแรก 70% / ปรับยอด เหมือนรายการปกติ
+#   count = บาท/คน แยกระดับ x จำนวนนักเรียนที่มีสิทธิ์ (กรอกเอง) ได้ยอดเดียว
+#   lump  = กรอกยอดก้อนตามหนังสือจัดสรร (เพิ่มได้หลายครั้ง)
+EXTRA_MODE = {'small': 'dmc', 'poor': 'count', 'uniform_extra': 'count', 'boarding': 'lump'}
+RATE_EXTRAS = [k for k, m in EXTRA_MODE.items() if m == 'dmc']
+GROUPS = [('k', 'อนุบาล'), ('p', 'ประถมศึกษา'), ('m1', 'มัธยมศึกษาตอนต้น'), ('m2', 'มัธยมศึกษาตอนปลาย')]
+GROUP_NAMES = dict(GROUPS)
+
+
+def group_of(level):
+    if level.startswith('อ.'):
+        return 'k'
+    if level.startswith('ป.'):
+        return 'p'
+    return 'm1' if int(level.split('.')[1]) <= 3 else 'm2'
+
+
+def groups_for(levels):
+    have = {group_of(lv) for lv in levels}
+    return [(g, n) for g, n in GROUPS if g in have]
 
 
 def rate_keys(term):
     return keys_for(term) + RATE_EXTRAS
 
 
+def extra_rate(cfg, key, level):
+    return (cfg.get('extra_rates', {}).get(key) or {}).get(group_of(level))
+
+
 def rate_extra_on(cfg, key):
-    return any((cfg.get('rates', {}).get(lv, {}).get(key) or 0) > 0 for lv in cfg.get('levels', []))
+    return any((v or 0) > 0 for v in (cfg.get('extra_rates', {}).get(key) or {}).values())
 
 
 def calc_keys(cfg, term):
-    """รายการที่คำนวณจากอัตราของเทอมนี้ (รวมเงินเพิ่มเติมรายหัวที่กรอกอัตราไว้)"""
+    """รายการที่คำนวณจากนักเรียนตามยอด DMC (รวมเงินเพิ่มเติมรายหัวที่กรอกอัตราไว้)"""
     return keys_for(term) + [k for k in RATE_EXTRAS if rate_extra_on(cfg, k)]
+
+
+def count_extra(cfg, key):
+    """เงินเพิ่มเติมแบบ บาท/คน x จำนวนนักเรียนที่มีสิทธิ์ -> (ยอด, มีข้อมูลไหม)"""
+    rates = cfg.get('extra_rates', {}).get(key) or {}
+    counts = cfg.get('extra_counts', {}).get(key) or {}
+    total, used = Decimal(0), False
+    for g in set(rates) | set(counts):
+        if rates.get(g) and counts.get(g):
+            total += Decimal(str(rates[g])) * counts[g]
+            used = True
+    return money(total), used
+
+
+def _migrate_extra_rates(cfg):
+    """ฉบับก่อนหน้า (ไม่กี่ชั่วโมง) เก็บอัตราขนาดเล็กไว้ในตารางอัตรารายชั้น -> ย้ายมาเป็นรายระดับ"""
+    for key in RATE_EXTRAS:
+        for lv, r in (cfg.get('rates') or {}).items():
+            v = (r or {}).pop(key, None)
+            if v:
+                cfg.setdefault('extra_rates', {}).setdefault(key, {}).setdefault(group_of(lv), v)
+    return cfg
 
 
 def rounds(ay, term):
@@ -109,7 +153,7 @@ def state(db, ay, term):
         if lv in now:
             now[lv] += 1
     if row:
-        cfg = json.loads(row.payload)
+        cfg = _migrate_extra_rates(json.loads(row.payload))
     else:
         old = db.query(SubsidyRate).filter_by(academic_year=ay).all()
         rates = {}
@@ -250,9 +294,7 @@ def calculate(cfg, scans, term):
         full = Decimal(0)
         valid_initial = valid_full = True
         for b in basis:
-            rate = cfg.get('rates', {}).get(b['level'], {}).get(key)
-            if rate is None and optional:
-                rate = 0
+            rate = (extra_rate(cfg, key, b['level']) or 0) if optional else cfg.get('rates', {}).get(b['level'], {}).get(key)
             if rate is None:
                 missing.append(('rate', f'ยังไม่ได้กรอกอัตรา {NAMES[key]}', b['level'],
                                 f"r_{b['level']}_{key}"))
@@ -287,6 +329,13 @@ def calculate(cfg, scans, term):
             'allocated': allocated, 'budget_amount': budget_amount, 'extra': False})
     for key, label in EXTRAS:
         extra = cfg.get('extras', {}).get(key)
+        if EXTRA_MODE[key] == 'count':
+            amount, used = count_extra(cfg, key)
+            if used:                           # คิดจากอัตราต่อคน แทนยอดก้อนแบบเดิม
+                rows.append({'key': key, 'name': label, 'full': amount, 'allocated': amount, 'per_head': True,
+                    'first_estimate': None, 'first': None, 'second': None, 'remaining': None, 'basis': None,
+                    'budget_amount': amount, 'extra': True})
+                continue
         if extra is not None and key in RATE_EXTRAS and rate_extra_on(cfg, key):
             continue                           # ยอดก้อนแบบเดิม ถูกแทนด้วยอัตราต่อคนแล้ว
         if extra is not None:
@@ -334,7 +383,18 @@ def save(db, ay, term, form):
     if cfg['budget_basis'] not in BUDGET_BASES:
         raise ValueError('เลือกวิธีตั้งงบให้ถูกต้อง')
     for lv in LEVELS:
-        cfg['rates'][lv] = {k: number(form.get(f'r_{lv}_{k}'), f'อัตรา {lv}') for k in rate_keys(term)}
+        cfg['rates'][lv] = {k: number(form.get(f'r_{lv}_{k}'), f'อัตรา {lv}') for k in keys_for(term)}
+    cfg['extra_rates'], cfg['extra_counts'] = {}, {}
+    for key, label in EXTRAS:
+        if EXTRA_MODE[key] == 'lump':
+            continue
+        r = {g: number(form.get(f'xr_{key}_{g}'), f'{label} {n}') for g, n in GROUPS}
+        if any(v for v in r.values()):
+            cfg['extra_rates'][key] = {g: v for g, v in r.items() if v is not None}
+        if EXTRA_MODE[key] == 'count':
+            c = {g: number(form.get(f'xn_{key}_{g}'), f'จำนวนนักเรียน {label} {n}', True) for g, n in GROUPS}
+            if any(v for v in c.values()):
+                cfg['extra_counts'][key] = {g: v for g, v in c.items() if v is not None}
     for which in ('first', 'second'):
         cfg[which] = {k: number(form.get(f'{which}_{k}'), NAMES[k]) for k in rate_keys(term)}
         if any(v is not None for v in cfg[which].values()) and not cfg[which + '_ref']:

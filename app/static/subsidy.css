@@ -44,3 +44,6 @@
 
 /* ตารางผล: คอลัมน์รวมเต็มเทอม + แถวรวม / คอลัมน์เงินเพิ่มเติมรายหัว */
 .sub-result td,.sub-result th{text-align:right}.sub-result td:first-child,.sub-result th:first-child{text-align:left}.sub-result .sub-sum{background:linear-gradient(120deg,#e6f7ef,#d3f2e3);font-weight:700;color:#065f46}.sub-result tfoot th{background:#e2efe9;font-weight:700;border-top:2px solid #b7d9c8}.sub-result tfoot .sub-sum{background:linear-gradient(120deg,#c9efdc,#b4e8cf)}.sub-extra-col{background:#fff8e6}th.sub-extra-col{background:#ffefc2}
+
+/* เงินเพิ่มเติมรายหัว */
+.sub-xpanel{margin:12px 0;background:linear-gradient(135deg,#fbfdfc,#f1f8f5)}.sub-xtag{display:inline-block;margin-left:8px;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:#dff3ea;color:#0b6b4c;vertical-align:2px}.sub-xgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.sub-xgrid small{display:block;color:#617269;font-size:12px}.sub-xtable td,.sub-xtable th{text-align:right}.sub-xtable td:first-child,.sub-xtable th:first-child{text-align:left}.sub-xtable tfoot th{background:#e2efe9}

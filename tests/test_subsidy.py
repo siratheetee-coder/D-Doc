@@ -517,14 +517,31 @@ def test_mapping_routes_use_existing_account_and_link_to_ledger(env):
 
 
 def test_small_school_extra_per_student_rate_and_totals(db):
-    """เงินเพิ่มเติมโรงเรียนขนาดเล็กกรอกบาท/คน/เทอม แล้วคิด 70% ฐานเดิม + ปรับยอดตามฐานล่าสุดเหมือนรายการปกติ"""
-    s=prepared(db,**{'r_ป.1_small':'250'})
+    """เงินเพิ่มเติมโรงเรียนขนาดเล็ก: บาท/คน/เทอม รายระดับ คิด 70% ฐานเดิม + ปรับยอดตามฐานล่าสุดเหมือนรายการปกติ"""
+    s=prepared(db,xr_small_p='250')
     rows={r['key']:r for r in s['result']['rows']}
     assert 'small' in rows and not rows['small']['extra']
-    teach=rows['teach']
-    n_final=teach['full']/s['config']['rates']['ป.1']['teach']
-    assert rows['small']['full']==250*n_final
+    assert rows['small']['full']==250*120 and rows['small']['first_estimate']==250*100*0.7
     t=s['result']['totals']
     assert t['full']==sum(r['full'] for r in s['result']['rows'])
     assert t['first_estimate']==sum(r['first_estimate'] for r in s['result']['rows'])
-    assert all(m.find('เงินเพิ่มเติม')<0 for m in s['result']['missing'])
+    assert not any('เงินเพิ่มเติม' in m for m in s['result']['missing'])
+
+
+def test_poor_students_extra_rate_times_eligible_count(db):
+    s=prepared(db,xr_poor_p='500',xn_poor_p='7')
+    row=next(r for r in s['result']['rows'] if r['key']=='poor')
+    assert row['full']==3500 and row['extra'] and row['per_head']
+    assert s['result']['ready']                     # รายหัวไม่ต้องมีเลขหนังสือจัดสรร
+
+
+def test_old_small_rate_column_moves_to_extra_section(db):
+    import json
+    from app.models import SubsidyTermSetting
+    prepared(db)
+    row=db.query(SubsidyTermSetting).first()
+    cfg=json.loads(row.payload); cfg['rates']['ป.1']['small']=250
+    row.payload=sub.dumps(cfg); db.commit()
+    s=sub.state(db,2568,1)
+    assert s['config']['extra_rates']['small']=={'p':250}
+    assert any(r['key']=='small' and r['full']==250*120 for r in s['result']['rows'])

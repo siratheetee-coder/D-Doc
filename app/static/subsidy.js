@@ -141,3 +141,22 @@
   }
   refresh();
 })();
+
+// เงินเพิ่มเติมรายหัว (บาท/คน x จำนวนนักเรียนที่มีสิทธิ์): รวมให้เห็นทันทีระหว่างพิมพ์
+(() => {
+  const fmt = n => n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.querySelectorAll('[data-xcount]').forEach(table => {
+    const calc = () => {
+      let total = 0;
+      table.querySelectorAll('tbody tr').forEach(tr => {
+        const [rate, count] = tr.querySelectorAll('input');
+        const v = (parseFloat(rate.value) || 0) * (parseInt(count.value, 10) || 0);
+        total += v;
+        tr.querySelector('[data-xsum]').textContent = v ? fmt(v) : '-';
+      });
+      table.querySelector('[data-xtotal]').textContent = total ? fmt(total) : '-';
+    };
+    table.addEventListener('input', calc);
+    calc();
+  });
+})();

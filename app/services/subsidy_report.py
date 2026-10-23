@@ -5,7 +5,7 @@ from docx.oxml.ns import qn
 from uuid import uuid4
 from app.services.finance_forms_doc import _new, _save, _grid, _row
 from app.services.build_templates import _p
-from app.services.subsidy import NAMES, keys_for, RATE_EXTRAS
+from app.services.subsidy import NAMES, keys_for, GROUP_NAMES
 
 
 def render(school, data, snapshot_id=None):
@@ -56,13 +56,18 @@ def render(school, data, snapshot_id=None):
         _p(doc, f"ยังมีข้อมูลต้องตรวจ {len(result['missing'])} จุด กรุณาตรวจรายการแจ้งเตือนในหน้าคำนวณก่อนตั้งงบ", size=14)
     _p(doc, 'หนังสือจัดสรรงวดแรก: ' + (cfg['first_ref'] or 'ยังไม่แจ้ง'), size=14)
     _p(doc, 'หนังสือจัดสรรงวดปรับยอด: ' + (cfg['second_ref'] or 'ยังไม่แจ้ง'), size=14)
+    for k, rates in (cfg.get('extra_rates') or {}).items():
+        counts = (cfg.get('extra_counts') or {}).get(k) or {}
+        parts = [f"{GROUP_NAMES[g]} {amount(v)} บาท/คน" + (f" x {counts[g]} คน" if g in counts else '') for g, v in rates.items() if v]
+        if parts:
+            _p(doc, f"{NAMES[k]} (รายหัว): " + ', '.join(parts), size=14, bold=True)
     for k, extra in cfg['extras'].items():
         _p(doc, f"{NAMES[k]} รวม {amount(extra['amount'])} บาท", size=14, bold=True)
         for i, entry in enumerate(extra.get('entries',[extra]),1):
             _p(doc, f"ครั้งที่ {i}: {amount(entry['amount'])} บาท · {entry['ref']}", size=14)
     doc.add_page_break()
     _p(doc, 'ฐานข้อมูลประกอบการคำนวณ', bold=True, size=18)
-    keys = keys_for(data['term']) + [k for k in RATE_EXTRAS if any((cfg['rates'].get(lv, {}).get(k) or 0) > 0 for lv in cfg['levels'])]
+    keys = keys_for(data['term'])
     table(['ชั้น']+[NAMES[k]+'\nบาท/คน/เทอม' for k in keys], [2]+[22/len(keys)]*len(keys), [
         [lv]+[amount(cfg['rates'].get(lv,{}).get(k)) for k in keys] for lv in cfg['levels']])
     _p(doc, 'จำนวนนักเรียนที่ใช้คำนวณ (คน)', bold=True)
