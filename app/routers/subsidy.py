@@ -55,7 +55,7 @@ def _page(request, db, ay, term, error='', posted=None, receipt_year=None):
         'steps': sub.workflow_steps(data, mapping, mapped_account, links),
         'advance_pairs': [[b['source_level'], b['level']] for b in data['result']['basis']
                           if b['source_level'] != b['level']],
-        'shared_rounds': shared, 'levels': sub.LEVELS, 'keys': sub.keys_for(term),
+        'shared_rounds': shared, 'levels': sub.LEVELS, 'keys': sub.keys_for(term), 'rate_keys': sub.rate_keys(term), 'rate_extras': sub.RATE_EXTRAS,
         'names': sub.NAMES, 'extras': sub.EXTRAS, 'error': error, 'posted': posted,
         'mapping': mapping, 'mapped_account': mapped_account, 'extra_entries': extra_entries, 'budget_bases': sub.BUDGET_BASES,
         'previous_rates': json.loads(previous.payload)['rates'] if previous else {},

@@ -41,3 +41,6 @@
 /* รอบ DMC หนึ่งรอบใช้สองภาคเรียน ต้องเตือนก่อนแก้ ไม่ใช่ซ่อนไว้ในหมายเหตุท้ายส่วน */
 .sub-shared{background:#fff5d9;color:#7a5300;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.65;margin:8px 0 12px;}
 .sub-shared a{color:#7a5300;font-weight:700;}
+
+/* ตารางผล: คอลัมน์รวมเต็มเทอม + แถวรวม / คอลัมน์เงินเพิ่มเติมรายหัว */
+.sub-result td,.sub-result th{text-align:right}.sub-result td:first-child,.sub-result th:first-child{text-align:left}.sub-result .sub-sum{background:linear-gradient(120deg,#e6f7ef,#d3f2e3);font-weight:700;color:#065f46}.sub-result tfoot th{background:#e2efe9;font-weight:700;border-top:2px solid #b7d9c8}.sub-result tfoot .sub-sum{background:linear-gradient(120deg,#c9efdc,#b4e8cf)}.sub-extra-col{background:#fff8e6}th.sub-extra-col{background:#ffefc2}

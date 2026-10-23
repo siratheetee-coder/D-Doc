@@ -5,7 +5,7 @@ from docx.oxml.ns import qn
 from uuid import uuid4
 from app.services.finance_forms_doc import _new, _save, _grid, _row
 from app.services.build_templates import _p
-from app.services.subsidy import NAMES, keys_for
+from app.services.subsidy import NAMES, keys_for, RATE_EXTRAS
 
 
 def render(school, data, snapshot_id=None):
@@ -44,8 +44,11 @@ def render(school, data, snapshot_id=None):
     _p(doc, f"ปีการศึกษา {data['academic_year']} ภาคเรียนที่ {data['term']} · อัตราปีงบประมาณ {data['fiscal_year']}", align='center')
     _p(doc, f'ฉบับยืนยัน #{snapshot_id}' if snapshot_id else 'ร่าง — ข้อมูลที่บันทึกล่าสุด ยังไม่ใช่ฉบับยืนยัน', bold=True, align='center')
     _p(doc, 'ประมาณการงวดปรับยอด = ยอดเต็มตามฐานล่าสุด − จัดสรรงวดแรก (หากยังไม่แจ้ง ใช้ประมาณการ 70%)', size=14)
-    table(['รายการ', 'ประมาณการ\nงวดแรก', 'จัดสรรจริง\nงวดแรก', 'ประมาณการ\nเต็มเทอม', 'งวดปรับยอด\nที่คำนวณ', 'จัดสรรจริง\nงวดปรับยอด', 'ยอดที่ใช้\nตั้งงบ'], [6,3,3,3,3,3,3], [
-        [r['name']]+[amount(r[k]) for k in ('first_estimate','first','full','remaining','second')]+[amount(r.get('budget_amount',r['full']))] for r in result['rows']])
+    tt = result.get('totals') or {}
+    table(['รายการ', 'ประมาณการ\nงวดแรก 70%', 'จัดสรรจริง\nงวดแรก', 'งวดปรับยอด\nที่คำนวณ', 'รวม\nเต็มเทอม', 'จัดสรรจริง\nงวดปรับยอด', 'ยอดที่ใช้\nตั้งงบ'], [6,3,3,3,3,3,3], [
+        [r['name']]+[amount(r[k]) for k in ('first_estimate','first','remaining','full','second')]+[amount(r.get('budget_amount',r['full']))] for r in result['rows']]
+        + ([['รวม', amount(tt.get('first_estimate')), amount(tt.get('first')), amount(tt.get('remaining')), amount(tt.get('full')), '',
+             amount(result.get('budget_total'))]] if tt else []))
     _p(doc, f"รวมประมาณการเต็มเทอม {amount(result['total'])} บาท", bold=True)
     _p(doc, f"ยอดที่จะตั้งงบ {amount(result.get('budget_total',result['total']))} บาท · {result.get('budget_label','ยอดคำนวณจากนักเรียนและอัตรา')} รวมเงินเพิ่มเติม", bold=True)
     _p(doc, 'เงินรับจริงต้องตรวจจากรายการโอนที่เชื่อมแยกต่างหาก ยอดติดลบเป็นจุดตรวจสอบกับหนังสือจัดสรร ไม่ใช่คำสั่งคืนเงิน', size=14)
@@ -59,7 +62,7 @@ def render(school, data, snapshot_id=None):
             _p(doc, f"ครั้งที่ {i}: {amount(entry['amount'])} บาท · {entry['ref']}", size=14)
     doc.add_page_break()
     _p(doc, 'ฐานข้อมูลประกอบการคำนวณ', bold=True, size=18)
-    keys = keys_for(data['term'])
+    keys = keys_for(data['term']) + [k for k in RATE_EXTRAS if any((cfg['rates'].get(lv, {}).get(k) or 0) > 0 for lv in cfg['levels'])]
     table(['ชั้น']+[NAMES[k]+'\nบาท/คน/เทอม' for k in keys], [2]+[22/len(keys)]*len(keys), [
         [lv]+[amount(cfg['rates'].get(lv,{}).get(k)) for k in keys] for lv in cfg['levels']])
     _p(doc, 'จำนวนนักเรียนที่ใช้คำนวณ (คน)', bold=True)

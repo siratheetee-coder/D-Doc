@@ -59,6 +59,24 @@ def keys_for(term):
     return [k for k, _, both in ITEMS if both or term == 1]
 
 
+# เงินเพิ่มเติมที่คิดเป็นอัตราต่อคนได้ (กรอกบาท/คน/เทอม ต่อชั้น ไม่บังคับ ว่าง = ไม่ได้รับ)
+# คำนวณแบบเดียวกับรายการปกติ: งวดแรก 70% ของฐานเดิม งวดปรับยอดตามฐานล่าสุด
+RATE_EXTRAS = ['small']
+
+
+def rate_keys(term):
+    return keys_for(term) + RATE_EXTRAS
+
+
+def rate_extra_on(cfg, key):
+    return any((cfg.get('rates', {}).get(lv, {}).get(key) or 0) > 0 for lv in cfg.get('levels', []))
+
+
+def calc_keys(cfg, term):
+    """รายการที่คำนวณจากอัตราของเทอมนี้ (รวมเงินเพิ่มเติมรายหัวที่กรอกอัตราไว้)"""
+    return keys_for(term) + [k for k in RATE_EXTRAS if rate_extra_on(cfg, k)]
+
+
 def rounds(ay, term):
     return [(ay - 1, 'nov'), (ay, 'jun')] if term == 1 else [(ay, 'jun'), (ay, 'nov')]
 
@@ -226,12 +244,15 @@ def calculate(cfg, scans, term):
         if basis[-1]['final'] is None:
             missing.append(('fin', f"ยังไม่ได้กรอกยอด DMC {scans[1]['label']}", lv,
                             f"n_{scans[1]['key']}_{lv}"))
-    for key in keys_for(term):
+    for key in calc_keys(cfg, term):
+        optional = key in RATE_EXTRAS          # ว่าง = ไม่ได้รับเงินนี้ในชั้นนั้น ไม่ใช่ข้อมูลขาด
         initial_est = Decimal(0)
         full = Decimal(0)
         valid_initial = valid_full = True
         for b in basis:
             rate = cfg.get('rates', {}).get(b['level'], {}).get(key)
+            if rate is None and optional:
+                rate = 0
             if rate is None:
                 missing.append(('rate', f'ยังไม่ได้กรอกอัตรา {NAMES[key]}', b['level'],
                                 f"r_{b['level']}_{key}"))
@@ -266,6 +287,8 @@ def calculate(cfg, scans, term):
             'allocated': allocated, 'budget_amount': budget_amount, 'extra': False})
     for key, label in EXTRAS:
         extra = cfg.get('extras', {}).get(key)
+        if extra is not None and key in RATE_EXTRAS and rate_extra_on(cfg, key):
+            continue                           # ยอดก้อนแบบเดิม ถูกแทนด้วยอัตราต่อคนแล้ว
         if extra is not None:
             if not extra.get('ref'):
                 extra_missing.append(('ref', 'ยังไม่ได้ระบุเลขที่หนังสือจัดสรรของเงินเพิ่มเติม',
@@ -277,7 +300,18 @@ def calculate(cfg, scans, term):
     selected_missing = (missing if budget_basis == 'estimate' else allocation_missing) + extra_missing
     budget_complete = all(r['budget_amount'] is not None for r in rows)
     grouped, fields = _group_missing(selected_missing)
-    return {'rows': rows, 'basis': basis, 'missing': grouped, 'missing_fields': fields,
+
+    def col(k, rs):
+        vals = [r[k] for r in rs]
+        return money(sum(vals)) if vals and all(v is not None for v in vals) else None
+    calc_rows = [r for r in rows if not r['extra']]
+    totals = {'first_estimate': col('first_estimate', calc_rows), 'remaining': col('remaining', calc_rows),
+              'first': money(sum(r['first'] for r in calc_rows if r['first'] is not None))
+              if any(r['first'] is not None for r in calc_rows) else None,
+              'allocated': money(sum(r['allocated'] for r in rows if r['allocated'] is not None))
+              if any(r['allocated'] is not None for r in rows) else None,
+              'full': col('full', rows)}
+    return {'totals': totals, 'rows': rows, 'basis': basis, 'missing': grouped, 'missing_fields': fields,
         'estimate_missing': _group_missing(missing)[0], 'budget_basis': budget_basis,
         'budget_label': BUDGET_BASES[budget_basis],
         'budget_total': money(sum(r['budget_amount'] for r in rows)) if budget_complete else None,
@@ -300,9 +334,9 @@ def save(db, ay, term, form):
     if cfg['budget_basis'] not in BUDGET_BASES:
         raise ValueError('เลือกวิธีตั้งงบให้ถูกต้อง')
     for lv in LEVELS:
-        cfg['rates'][lv] = {k: number(form.get(f'r_{lv}_{k}'), f'อัตรา {lv}') for k in keys_for(term)}
+        cfg['rates'][lv] = {k: number(form.get(f'r_{lv}_{k}'), f'อัตรา {lv}') for k in rate_keys(term)}
     for which in ('first', 'second'):
-        cfg[which] = {k: number(form.get(f'{which}_{k}'), NAMES[k]) for k in keys_for(term)}
+        cfg[which] = {k: number(form.get(f'{which}_{k}'), NAMES[k]) for k in rate_keys(term)}
         if any(v is not None for v in cfg[which].values()) and not cfg[which + '_ref']:
             raise ValueError('กรอกเลขที่/วันที่หนังสือแจ้งจัดสรรของแต่ละงวดที่ลงยอดจริง')
     for key, label in EXTRAS:

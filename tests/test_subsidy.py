@@ -386,7 +386,7 @@ def test_confirmed_report_uses_frozen_amounts_and_sources(db,monkeypatch,tmp_pat
     prepared(db,rate_source='หนังสือใหม่',**{'r_ป.1_teach':'900'})
     path=subsidy_report.render(db.query(School).first(),json.loads(snap.payload),snap.id)
     doc=Document(path)
-    assert doc.tables[0].rows[1].cells[3].text=='120,000.00'
+    assert doc.tables[0].rows[1].cells[4].text=='120,000.00'  # รวมเต็มเทอม อยู่หลังงวดปรับยอด
     assert not any('อ้างอิงอัตรา:' in p.text for p in doc.paragraphs)
     assert not any('หนังสือใหม่' in p.text for p in doc.paragraphs)
 
@@ -514,3 +514,17 @@ def test_mapping_routes_use_existing_account_and_link_to_ledger(env):
     assert len(sub.mappings(db,2568))==5
     assert db.query(FinanceAccount).count()==1
     db.close()
+
+
+def test_small_school_extra_per_student_rate_and_totals(db):
+    """เงินเพิ่มเติมโรงเรียนขนาดเล็กกรอกบาท/คน/เทอม แล้วคิด 70% ฐานเดิม + ปรับยอดตามฐานล่าสุดเหมือนรายการปกติ"""
+    s=prepared(db,**{'r_ป.1_small':'250'})
+    rows={r['key']:r for r in s['result']['rows']}
+    assert 'small' in rows and not rows['small']['extra']
+    teach=rows['teach']
+    n_final=teach['full']/s['config']['rates']['ป.1']['teach']
+    assert rows['small']['full']==250*n_final
+    t=s['result']['totals']
+    assert t['full']==sum(r['full'] for r in s['result']['rows'])
+    assert t['first_estimate']==sum(r['first_estimate'] for r in s['result']['rows'])
+    assert all(m.find('เงินเพิ่มเติม')<0 for m in s['result']['missing'])
