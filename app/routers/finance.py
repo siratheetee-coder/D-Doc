@@ -1569,9 +1569,10 @@ def finance_import_page(request: Request, imported: str | None = None, import_er
                 sheet, n = part.split(":", 1)
                 lines.append(f"{sheet}: เพิ่ม {n} รายการ")
     err = {"type": "ไฟล์ต้องเป็น .xlsx เท่านั้น",
-           "read": "อ่านไฟล์ไม่สำเร็จ ตรวจสอบว่าใช้เทมเพลตที่ถูกต้อง"}.get(import_err)
+           "read": "อ่านไฟล์ไม่สำเร็จ ตรวจสอบว่าใช้เทมเพลตที่ถูกต้อง",
+           "expired": "ไฟล์ที่รอยืนยันหมดอายุแล้ว กรุณาอัปโหลดใหม่"}.get(import_err)
     return templates.TemplateResponse("finance_import.html", {
-        "request": request, "import_lines": lines, "import_err": err,
+        "request": request, "import_lines": lines, "import_err": err, "plan": None,
     })
 
 
@@ -1581,15 +1582,45 @@ def finance_template():
     return serve_generated(path, _XLSX)
 
 
+def _fin_import_path(token):
+    """ไฟล์ที่อัปโหลดรอยืนยัน เก็บแยกตามโรงเรียน (ชื่อไฟล์มีเลขโรงเรียน กันใช้ข้ามโรงเรียน)"""
+    import re, tempfile
+    from app.tenancy import current_school_id
+    if not re.fullmatch(r"[0-9a-f]{32}", token or ""):
+        return None
+    return Path(tempfile.gettempdir()) / f"ddoc_finimport_{current_school_id.get()}_{token}.xlsx"
+
+
 @router.post("/finance/import")
-async def finance_import(db: Session = Depends(get_db), file: UploadFile = File(...)):
+async def finance_import(request: Request, db: Session = Depends(get_db), file: UploadFile = File(...)):
+    """ขั้นที่ 1: อ่านไฟล์แล้วแสดงหน้าตรวจ (ยังไม่บันทึก)"""
+    from uuid import uuid4
+    from app.services.finance_io import parse_finance_workbook
     if not file.filename or not file.filename.lower().endswith(".xlsx"):
         return RedirectResponse("/finance/import?import_err=type", status_code=303)
     content = await file.read()
     try:
-        summary = import_finance_workbook(content, db)
+        plan = parse_finance_workbook(content, db)
     except Exception:
         return RedirectResponse("/finance/import?import_err=read", status_code=303)
+    token = uuid4().hex
+    _fin_import_path(token).write_bytes(content)
+    return templates.TemplateResponse("finance_import.html", {
+        "request": request, "import_lines": [], "import_err": None, "plan": plan, "token": token,
+        "filename": file.filename})
+
+
+@router.post("/finance/import/confirm")
+def finance_import_confirm(db: Session = Depends(get_db), token: str = Form("")):
+    """ขั้นที่ 2: ตรวจไฟล์เดิมซ้ำอีกครั้ง (ข้อมูลอาจเปลี่ยนระหว่างรอ) แล้วบันทึกเฉพาะแถวที่ผ่าน"""
+    from app.services.finance_io import parse_finance_workbook, apply_finance_import
+    path = _fin_import_path(token)
+    if not path or not path.exists():
+        return RedirectResponse("/finance/import?import_err=expired", status_code=303)
+    try:
+        summary = apply_finance_import(parse_finance_workbook(path.read_bytes(), db), db)
+    finally:
+        path.unlink(missing_ok=True)
     q = ",".join(f"{k}:{v}" for k, v in summary.items()) or "none"
     return RedirectResponse(f"/finance/import?imported={q}", status_code=303)
 

@@ -133,3 +133,4 @@ class FinanceTests(unittest.TestCase):
                 if name == "render_loan_contract": self.assertIn("30 วัน",actual)
 
 if __name__=='__main__': unittest.main()
+

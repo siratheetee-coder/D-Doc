@@ -15,11 +15,46 @@
   </div>
   {% endif %}
 
+{% if plan %}
+  <h2 style="margin:6px 0 4px;">ตรวจก่อนนำเข้า: {{ filename }}</h2>
+  <p class="muted" style="margin:0 0 10px;">ยังไม่ได้บันทึก แถวสีแดงจะไม่ถูกนำเข้า แก้ในไฟล์แล้วอัปโหลดใหม่ได้</p>
+  <div class="fi-sum">
+    {% for k, label in [('accounts','บัญชีเงิน'),('txns','รายการรับ-จ่าย'),('receipts','ใบเสร็จ-ใบสำคัญ')] %}
+    <div><span>{{ label }}</span><b>นำเข้า {{ plan[k~'_ok'] }}</b>{% if plan[k~'_bad'] %}<em>ข้าม {{ plan[k~'_bad'] }}</em>{% endif %}</div>
+    {% endfor %}
+  </div>
+  {% if plan.new_accounts %}<div class="alert warn">ระบบจะสร้างบัญชีใหม่: {{ plan.new_accounts|join(', ') }} ถ้าเป็นบัญชีเดิมที่ชื่อต่างกันเล็กน้อย ให้แก้ชื่อในไฟล์ให้ตรงก่อน</div>{% endif %}
+  <form method="post" action="/finance/import/confirm" style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 4px;"
+        onsubmit="return confirm('นำเข้ารายการที่ผ่านการตรวจ?');">
+    <input type="hidden" name="token" value="{{ token }}">
+    <button class="btn" type="submit" {{ 'disabled' if not (plan.accounts_ok or plan.txns_ok or plan.receipts_ok) }}>ยืนยันนำเข้า</button>
+    <a class="btn gray" href="/finance/import">เลือกไฟล์ใหม่</a>
+  </form>
+</div>
+{% macro msgs(r) %}{% for e in r.errors %}<span class="fi-err">{{ e }}</span>{% endfor %}{% for w in r.warnings %}<span class="fi-warn">{{ w }}</span>{% endfor %}{% endmacro %}
+{% if plan.accounts %}<div class="card"><h2>บัญชีเงิน</h2><div class="table-wrap"><table class="stack-sm">
+  <thead><tr><th>แถว</th><th>บัญชี</th><th class="right">ยอดยกมา</th><th>ของปีงบ</th><th>หมายเหตุ</th></tr></thead><tbody>
+  {% for r in plan.accounts %}<tr class="{{ 'fi-bad' if r.errors }}"><td data-label="แถว">{{ r.line }}</td><td data-label="บัญชี">{{ r.name }}{% if not r.exists %} <small class="fi-new">ใหม่</small>{% endif %}{{ msgs(r) }}</td>
+    <td data-label="ยอดยกมา" class="right">{{ '{:,.2f}'.format(r.opening) }}</td><td data-label="ของปีงบ">{{ r.opening_fy or 'ยอดตั้งต้น (ไม่ระบุปี)' }}</td><td data-label="หมายเหตุ">{{ r.note }}</td></tr>{% endfor %}
+</tbody></table></div></div>{% endif %}
+{% if plan.txns %}<div class="card"><h2>รายการรับ-จ่าย</h2><div class="table-wrap"><table class="stack-sm">
+  <thead><tr><th>แถว</th><th>วันที่</th><th>ปีงบ</th><th>บัญชี</th><th>หมวด</th><th>รับ/จ่าย</th><th class="right">จำนวนเงิน</th><th>อ้างอิง</th></tr></thead><tbody>
+  {% for r in plan.txns %}<tr class="{{ 'fi-bad' if r.errors }}"><td data-label="แถว">{{ r.line }}</td><td data-label="วันที่" style="white-space:nowrap;">{{ r.date_th or '-' }}</td><td data-label="ปีงบ">{{ r.fy }}</td>
+    <td data-label="บัญชี">{{ r.account }}{{ msgs(r) }}</td><td data-label="หมวด">{{ r.item_name or ((r.category ~ ' (ไม่พบ)') if r.category else '-') }}</td>
+    <td data-label="รับ/จ่าย">{{ 'รับ' if r.kind=='in' else 'จ่าย' }}</td><td data-label="จำนวนเงิน" class="right">{{ '{:,.2f}'.format(r.amount) }}</td><td data-label="อ้างอิง">{{ r.ref }}</td></tr>{% endfor %}
+</tbody></table></div></div>{% endif %}
+{% if plan.receipts %}<div class="card"><h2>ใบเสร็จ-ใบสำคัญ</h2><div class="table-wrap"><table class="stack-sm">
+  <thead><tr><th>แถว</th><th>เลขที่</th><th>วันที่</th><th>ปีงบ</th><th>รับ/จ่าย</th><th>ผู้รับ/ผู้จ่าย</th><th class="right">จำนวนเงิน</th></tr></thead><tbody>
+  {% for r in plan.receipts %}<tr class="{{ 'fi-bad' if r.errors }}"><td data-label="แถว">{{ r.line }}</td><td data-label="เลขที่">{{ r.receipt_no or '-' }}{{ msgs(r) }}</td><td data-label="วันที่">{{ r.date_th or '-' }}</td><td data-label="ปีงบ">{{ r.fy }}</td>
+    <td data-label="รับ/จ่าย">{{ r.kind }}</td><td data-label="ผู้รับ/ผู้จ่าย">{{ r.party }}</td><td data-label="จำนวนเงิน" class="right">{{ '{:,.2f}'.format(r.amount) }}</td></tr>{% endfor %}
+</tbody></table></div></div>{% endif %}
+{% else %}
   <ol class="muted" style="margin:6px 0 14px; padding-left:22px; line-height:1.9;">
     <li>กด <b>ดาวน์โหลดเทมเพลต</b> จะได้ไฟล์ Excel 3 ชีต: บัญชีเงิน / รายการรับ-จ่าย / ใบเสร็จ-ใบสำคัญ</li>
-    <li>กรอกข้อมูลตั้งแต่ <b>แถวที่ 3</b> (แถวที่ 2 คือหัวตาราง) - วันที่เป็น พ.ศ. เช่น 09/06/2569 · ประเภทใส่ "รับ" หรือ "จ่าย"</li>
-    <li>ในชีตรายการรับ-จ่าย/ใบเสร็จ ช่อง "บัญชี" ใส่ชื่อบัญชีให้ตรงกับชีตบัญชีเงิน (ถ้ายังไม่มีระบบจะสร้างให้)</li>
-    <li>กลับมา <b>เลือกไฟล์</b> แล้วกด <b>อัปโหลด</b></li>
+    <li>กรอกข้อมูลตั้งแต่ <b>แถวที่ 3</b> (แถวที่ 2 คือหัวตาราง) วันที่เป็น พ.ศ. เช่น 09/06/2569 ประเภทใส่ "รับ" หรือ "จ่าย"</li>
+    <li>ช่อง "บัญชี" ใส่ชื่อบัญชีให้ตรงกับชีตบัญชีเงิน (ถ้ายังไม่มีระบบจะสร้างให้)</li>
+    <li>ช่อง "หมวด" ใส่ชื่อให้ตรงกับหมวดในทะเบียนคุมเงินของปีงบนั้น ระบบจับคู่ให้ (สร้างหมวดในหน้าทะเบียนคุมเงินก่อนนำเข้า)</li>
+    <li>เลือกไฟล์แล้วกด <b>อัปโหลด</b> ระบบจะให้ตรวจก่อน รายการที่มีอยู่แล้วจะไม่ถูกนำเข้าซ้ำ</li>
   </ol>
 
   <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
@@ -32,4 +67,16 @@
     </form>
   </div>
 </div>
+{% endif %}
+<style>
+  .fi-sum { display:flex; gap:12px; flex-wrap:wrap; margin:8px 0; }
+  .fi-sum div { flex:1; min-width:160px; border-radius:14px; padding:12px 16px; background:linear-gradient(135deg,#dcfce7,#ecfdf5); }
+  .fi-sum span { display:block; font-size:13px; color:#475569; }
+  .fi-sum b { display:block; font-size:20px; color:#166534; }
+  .fi-sum em { font-style:normal; font-size:13px; color:#b91c1c; }
+  .fi-bad td { background:#fff1f2; }
+  .fi-err { display:block; color:#b91c1c; font-size:13px; }
+  .fi-warn { display:block; color:#a16207; font-size:13px; }
+  .fi-new { background:#e0e7ff; color:#3730a3; border-radius:999px; padding:1px 8px; }
+</style>
 {% endblock %}
