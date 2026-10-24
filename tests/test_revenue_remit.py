@@ -33,7 +33,8 @@ def test_summary_create_documents_and_delete(env):
     rem = db.query(RevenueRemit).one()
     out = db.get(FinanceTxn, rem.txn_id)
     assert out.kind == 'out' and out.amount == 812.5 and out.fiscal_year == 2570 and out.account_id == aid
-    for which in ('memo', 'letter', 'slip', 'all'):
+    assert env.get(f'/finance/revenue/{rem.id}/slip.docx', follow_redirects=False).status_code == 303
+    for which in ('memo', 'letter', 'all'):
         d = env.get(f'/finance/revenue/{rem.id}/{which}.docx')
         assert d.status_code == 200 and d.content[:2] == b'PK', which
     from docx import Document
@@ -44,7 +45,7 @@ def test_summary_create_documents_and_delete(env):
     assert rep.status_code == 200 and rep.content[:2] == b'PK'
     # ค่าที่ใช้ครั้งก่อนจำไว้ให้
     html = env.get('/finance/revenue?year=2570').text
-    assert 'value="703935"' in html and 'value="41010001"' in html
+    assert 'value="สำนักงานเขตพื้นที่การศึกษาประถมศึกษาทดสอบ เขต 1"' in html and 'value="0800000000"' in html
     rid, txn_id = rem.id, rem.txn_id
     env.post(f'/finance/revenue/{rid}/delete')
     db.expire_all()

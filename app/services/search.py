@@ -36,7 +36,7 @@ PAGES = [
     ('สมุดเงินสด', '/finance/cashbook', 'finance', 'เงินสด'),
     ('เงินคงเหลือประจำวัน', '/finance/cash-report', 'finance', 'รายงานเงินคงเหลือ'),
     ('เงินยืม', '/finance/loans', 'finance', 'ลูกหนี้ สัญญายืม'),
-    ('นำส่งเงินรายได้แผ่นดิน', '/finance/revenue', 'finance', 'รายได้แผ่นดิน ดอกเบี้ย ส่งคลัง ใบแจ้งการชำระเงิน'),
+    ('นำส่งเงินรายได้แผ่นดิน', '/finance/revenue', 'finance', 'รายได้แผ่นดิน ดอกเบี้ย ส่งคลัง'),
     ('ทะเบียนคุมเช็ค', '/finance/checks', 'finance', 'เช็ค'),
     ('งบกระทบยอดธนาคาร', '/finance/bank-recon', 'finance', 'ธนาคาร กระทบยอด'),
     ('รายงานการเงิน', '/finance/report', 'finance', 'รายงาน'),

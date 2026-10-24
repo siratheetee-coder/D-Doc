@@ -7,7 +7,9 @@
 - สถานศึกษาที่ไม่ได้เป็นหน่วยเบิกจ่าย นำส่งผ่านสำนักงานเขตพื้นที่ ด้วยใบแจ้งการชำระเงินของธนาคารกรุงไทย
   (Company Code ของเขต, Ref.1 = รหัสโรงเรียน, Ref.2 = รหัสรายได้)
 
-เอกสาร: บันทึกขออนุมัตินำส่ง, หนังสือนำส่งถึงเขต, ใบแจ้งการชำระเงิน (2 ส่วน), รายงานประจำเดือน
+เอกสาร: บันทึกขออนุมัตินำส่ง, หนังสือนำส่งถึงเขต, รายงานประจำเดือน
+(ใบแจ้งการชำระเงินแต่ละเขตออกแบบฟอร์มเอง ระบบไม่ออกให้)
+การนำส่งไม่ใช่การเบิกจ่าย ไม่ต้องทำบันทึกขอเบิกจ่าย บันทึกนำส่งแล้วระบบลง "นำส่ง" ในทะเบียนคุมให้
 """
 from datetime import datetime
 
@@ -138,11 +140,9 @@ def _render_memo(doc, school, r):
             "ตามระเบียบกระทรวงการคลังว่าด้วยการเบิกเงินจากคลัง การรับเงิน การจ่ายเงิน "
             "การเก็บรักษาเงิน และการนำเงินส่งคลัง พ.ศ. 2562", align="justify", indent=1.25, after=2)
     how = {"เงินสด": "เป็นเงินสด", "เงินโอน": "โดยการโอนเงิน", "เช็ค": "เป็นเช็ค"}.get(r.method, "")
-    codes = "  ".join(x for x in [f"Company Code {r.company_code}" if r.company_code else "",
-                                   f"Ref.1 {r.ref1}" if r.ref1 else "", f"Ref.2 {r.ref2}" if r.ref2 else ""] if x)
     _p(doc, f"จึงขออนุมัตินำเงินจำนวนดังกล่าวส่งคลังผ่าน{to} {how} "
-            "โดยชำระผ่านธนาคารกรุงไทยตามใบแจ้งการชำระเงินรายได้แผ่นดิน"
-            + (f" ({codes})" if codes else ""), align="justify", indent=1.25, after=2)
+            "ตามใบแจ้งการชำระเงินที่สำนักงานเขตพื้นที่กำหนด"
+            + (f" (รหัสรายได้ {r.ref2})" if r.ref2 else ""), align="justify", indent=1.25, after=2)
     _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ", align="justify", indent=1.25, after=10)
     _sign_officer(doc, school)
     _p(doc, "", after=6)
@@ -158,11 +158,11 @@ def _render_letter(doc, school, r):
     to = r.send_to or parent_office(school, "") or _BLANK
     _letter_header(doc, school, r.letter_no, _d(r.date), "การนำส่งเงินรายได้แผ่นดิน",
                    "ผู้อำนวยการ" + to if to != _BLANK else _BLANK,
-                   "ใบแจ้งการชำระเงินรายได้แผ่นดิน (ส่วนของผู้ชำระเงิน) จำนวน 1 ฉบับ")
+                   "สำเนาหลักฐานการชำระเงิน จำนวน 1 ฉบับ")
     _p(doc, f"ด้วย{_sname(school)} ได้นำส่งเงินรายได้แผ่นดิน ประเภท {NAMES[r.rtype]}"
             + (f" รหัสรายได้ {r.ref2}" if r.ref2 else "")
-            + f" จำนวน {amt:,.2f} บาท ({bahttext(amt)}) โดยชำระผ่านธนาคารกรุงไทย"
-            f" เมื่อวันที่ {_d(r.date)} เข้าบัญชีของ{to} เรียบร้อยแล้ว "
+            + f" จำนวน {amt:,.2f} บาท ({bahttext(amt)}) ตามใบแจ้งการชำระเงินของ{to}"
+            f" เมื่อวันที่ {_d(r.date)} เรียบร้อยแล้ว "
             "รายละเอียดตามสิ่งที่ส่งมาด้วยพร้อมนี้", align="justify", indent=1.25, after=2)
     _p(doc, "จึงเรียนมาเพื่อโปรดทราบ และออกใบเสร็จรับเงินให้โรงเรียนเพื่อเป็นหลักฐานต่อไป",
        align="justify", indent=1.25, after=8)
@@ -173,32 +173,8 @@ def _render_letter(doc, school, r):
     _p(doc, f"โทร. {r.phone or _BLANK}", size=14, after=6)
 
 
-def _render_slip(doc, school, r):
-    """ใบแจ้งการชำระเงินรายได้แผ่นดิน 2 ส่วน (ผู้ชำระเงิน / ธนาคาร) ตามแบบที่เขตพื้นที่ใช้"""
-    amt = float(r.amount or 0)
-    to = r.send_to or parent_office(school, "") or _BLANK
-    for part in ("ส่วนของผู้ชำระเงิน", "ส่วนของธนาคาร"):
-        _p(doc, part, bold=True, size=14, after=2)
-        widths = [Cm(9.0), Cm(8.0)]
-        t = _grid(doc, ["ใบแจ้งการชำระเงิน รายได้แผ่นดิน", f"วันที่ / Date  {thai_date(r.date)}"], widths, size=15)
-        rows = [
-            (f"ให้แก่ {to}", f"Company Code  {r.company_code or _BLANK}"),
-            (f"โรงเรียน  {_sname(school)}", f"Ref.1 รหัสโรงเรียน  {r.ref1 or _BLANK}"),
-            ("", f"Ref.2 รหัสรายได้  {r.ref2 or _BLANK}"),
-            ("  ".join(("☑ " if r.method == m else "☐ ") + m for m in METHODS), "ธนาคารกรุงไทย  สาขา ......................"),
-            (f"จำนวนเงินเป็นตัวอักษร  ({bahttext(amt)})", f"จำนวนเงินเป็นตัวเลข  {amt:,.2f}  บาท"),
-            (f"ผู้นำฝาก  {r.payer or _BLANK}   โทร. {r.phone or _BLANK}", "เจ้าหน้าที่ธนาคาร (ประทับตรา)"),
-        ]
-        for a, b in rows:
-            _row(t, [a, b], widths, ["left", "left"], size=14)
-        _p(doc, "", after=4)
-        if part == "ส่วนของผู้ชำระเงิน":
-            _p(doc, "-" * 60 + "  ตัดตามรอยนี้  " + "-" * 60, align="center", size=10, after=8)
-
-
 RENDERERS = {"memo": ("บันทึกขออนุมัตินำส่งเงินรายได้แผ่นดิน", _render_memo),
-             "letter": ("หนังสือนำส่งเงินรายได้แผ่นดิน", _render_letter),
-             "slip": ("ใบแจ้งการชำระเงินรายได้แผ่นดิน", _render_slip)}
+             "letter": ("หนังสือนำส่งเงินรายได้แผ่นดิน", _render_letter)}
 
 
 def render(school, r, which) -> str:

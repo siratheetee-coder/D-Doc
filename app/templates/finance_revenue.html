@@ -61,18 +61,15 @@
       <div><label>ที่ บันทึกขออนุมัติ</label><input name="memo_no" placeholder="เช่น 015/2570"></div>
       <div><label>ที่ หนังสือนำส่งถึงเขต</label><input name="letter_no" placeholder="เช่น ศธ 04xxx.xxx/123"></div>
     </div>
-    <h3 class="rv-sub">ใบแจ้งการชำระเงิน (ธนาคารกรุงไทย)</h3>
     <div class="row">
       <div style="flex:2;"><label>นำส่งผ่าน (ส่วนราชการผู้รับ)</label><input name="send_to" value="{{ defaults.send_to }}" placeholder="เช่น สำนักงานเขตพื้นที่การศึกษาประถมศึกษาขอนแก่น เขต 1"></div>
-      <div><label>Company Code ของเขต</label><input name="company_code" value="{{ defaults.company_code }}" placeholder="เช่น 703935"></div>
+      <div><label>รหัสรายได้ (ถ้ามี)</label><input name="ref2" id="rvCode" placeholder="ตามใบแจ้งชำระของเขต"></div>
+      <div><label>เบอร์โทรงานการเงิน</label><input name="phone" value="{{ defaults.phone }}"></div>
     </div>
-    <div class="row">
-      <div><label>Ref.1 รหัสโรงเรียน (SMIS 8 หลัก)</label><input name="ref1" value="{{ defaults.ref1 }}" inputmode="numeric"></div>
-      <div><label>Ref.2 รหัสรายได้</label><input name="ref2" id="rvCode" placeholder="ตามที่เขตกำหนด"></div>
-      <div><label>ผู้นำฝาก</label><input name="payer" value="{{ defaults.payer }}"></div>
-      <div><label>เบอร์โทร</label><input name="phone" value="{{ defaults.phone }}"></div>
-    </div>
-    <p class="muted">รหัสรายได้ที่ใช้ทั่วไป: ดอกเบี้ยเงินฝาก 821, เงินเหลือจ่ายปีเก่าส่งคืน 811, ค่าขายของเบ็ดเตล็ด 642 ตรวจกับประกาศของเขตอีกครั้ง Company Code และรหัสโรงเรียน ระบบจำไว้ใช้ครั้งต่อไป</p>
+    <ul class="rv-rule">
+      <li>ใบแจ้งการชำระเงินใช้แบบที่เขตกำหนด ระบบออกให้เฉพาะบันทึกขออนุมัติและหนังสือนำส่ง</li>
+      <li>การนำส่งไม่ต้องทำบันทึกขอเบิกจ่าย กดบันทึกแล้วระบบลง "นำส่ง" ในทะเบียนคุมเงินให้เอง</li>
+    </ul>
     <button class="btn" type="submit">บันทึกการนำส่ง</button>
   </form>
 </div>
@@ -97,8 +94,7 @@
       <td data-label="เอกสาร" class="rv-docs">
         <a class="btn sm" href="/finance/revenue/{{ r.id }}/all.docx">ชุดเอกสาร</a>
         <a href="/finance/revenue/{{ r.id }}/memo.docx">บันทึกขออนุมัติ</a>
-        <a href="/finance/revenue/{{ r.id }}/letter.docx">หนังสือนำส่ง</a>
-        <a href="/finance/revenue/{{ r.id }}/slip.docx">ใบแจ้งชำระเงิน</a></td>
+        <a href="/finance/revenue/{{ r.id }}/letter.docx">หนังสือนำส่ง</a></td>
       <td><form method="post" action="/finance/revenue/{{ r.id }}/delete" onsubmit="return confirm('ลบการนำส่งนี้ และรายการนำส่งในทะเบียนคุมเงิน?');">
         <button class="btn sm red" type="submit">ลบ</button></form></td>
     </tr>{% else %}<tr><td colspan="6" class="muted">ยังไม่มีการนำส่งในปีงบนี้</td></tr>{% endfor %}</tbody>
