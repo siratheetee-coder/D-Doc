@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}นำส่งเงินรายได้แผ่นดิน{% endblock %}
+{% block content %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">ทะเบียนคุมการรับและนำส่งเงินรายได้แผ่นดิน</div>
+    <span class="hero-title">นำส่งเงินรายได้แผ่นดิน</span>
+    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }}</div>
+  </div>
+  <form method="get" action="/finance/revenue">
+    <select name="year" onchange="submitReplace(this.form)">
+      {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+{% if msg == 'saved' %}<div class="alert">บันทึกการนำส่งแล้ว ระบบลงรายการนำส่งในทะเบียนคุมเงินให้แล้ว ดาวน์โหลดเอกสารได้ที่รายการด้านล่าง</div>{% endif %}
+{% if msg == 'deleted' %}<div class="alert">ลบการนำส่งและรายการในทะเบียนคุมเงินแล้ว</div>{% endif %}
+{% if err %}<div class="alert warn">{{ err }}</div>{% endif %}
+
+<div class="card">
+  <h2>เงินที่รอนำส่ง</h2>
+  <ul class="rv-rule">
+    <li>เก็บเป็นเงินสดได้ไม่เกิน {{ '{:,.0f}'.format(limit) }} บาท และนำส่งอย่างน้อยเดือนละ 1 ครั้ง</li>
+    <li>วันไหนเกิน {{ '{:,.0f}'.format(limit) }} บาท ต้องนำส่งภายใน 3 วันทำการ</li>
+  </ul>
+  {% for s in summary %}
+  <div class="rv-acc {{ 'rv-urgent' if s.urgent }}">
+    <div class="rv-acc-head"><b>{{ s.account.name }}</b>
+      <span>ค้างนำส่ง <b>{{ '{:,.2f}'.format(s.pending) }}</b> บาท</span>
+      {% if s.urgent %}<span class="rv-tag">ควรนำส่งตอนนี้</span>{% endif %}</div>
+    {% if s['items'] %}<div class="table-wrap"><table class="stack-sm">
+      <thead><tr><th>ประเภท</th><th class="right">รับรวม</th><th class="right">นำส่งแล้ว</th><th class="right">ค้างนำส่ง</th><th>ค้างมา</th><th></th></tr></thead>
+      <tbody>{% for r in s['items'] %}<tr>
+        <td data-label="ประเภท">{{ r.name }}</td>
+        <td data-label="รับรวม" class="right">{{ '{:,.2f}'.format(r.got) }}</td>
+        <td data-label="นำส่งแล้ว" class="right">{{ '{:,.2f}'.format(r.sent) }}</td>
+        <td data-label="ค้างนำส่ง" class="right"><b>{{ '{:,.2f}'.format(r.pending) }}</b></td>
+        <td data-label="ค้างมา">{% if r.pending > 0 %}<span class="{{ 'rv-late' if r.days > 30 }}">{{ r.days }} วัน</span>{% else %}-{% endif %}</td>
+        <td>{% if r.pending > 0 %}<button type="button" class="btn sm" data-remit='{{ {"account": s.account.id, "rtype": r.key, "amount": r.pending}|tojson }}'>นำส่งยอดนี้</button>{% endif %}</td>
+      </tr>{% endfor %}</tbody></table></div>
+    {% else %}<p class="muted">ยังไม่มีรายการรับในบัญชีนี้</p>{% endif %}
+  </div>
+  {% else %}
+  <div class="alert warn">ยังไม่มีบัญชีเงินรายได้แผ่นดิน ไปที่<a href="/finance/accounts?year={{ fiscal_year }}">ทะเบียนคุมเงิน</a> เพิ่มบัญชี แล้วเลือกประเภทเงินตามงบเป็น "เงินรายได้แผ่นดิน" จากนั้นลงรับเงิน เช่น ดอกเบี้ยเงินฝาก</div>
+  {% endfor %}
+  <p class="muted">ระบบจัดประเภทจากหมวดหรือหมายเหตุของรายการรับ เช่น คำว่า ดอกเบี้ย เหลือจ่าย ขาย ค่าปรับ</p>
+</div>
+
+{% if summary %}
+<div class="card" id="remit-form">
+  <h2>ทำเรื่องนำส่ง</h2>
+  <form method="post" action="/finance/revenue">
+    <div class="row">
+      <div><label>บัญชี</label><select name="account_id" id="rvAcc">{% for s in summary %}<option value="{{ s.account.id }}">{{ s.account.name }}</option>{% endfor %}</select></div>
+      <div><label>ประเภทเงิน</label><select name="rtype" id="rvType">{% for k,n,c,_ in types %}<option value="{{ k }}" data-code="{{ c }}">{{ n }}</option>{% endfor %}</select></div>
+      <div><label>จำนวนเงิน (บาท)</label><input name="amount" id="rvAmt" type="number" min="0.01" step="0.01" required></div>
+      <div><label>วันที่นำส่ง</label><input name="date" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" data-date="1" required></div>
+    </div>
+    <div class="row">
+      <div><label>วิธีชำระ</label><select name="method">{% for m in methods %}<option {{ 'selected' if defaults.method==m }}>{{ m }}</option>{% endfor %}</select></div>
+      <div><label>ที่ บันทึกขออนุมัติ</label><input name="memo_no" placeholder="เช่น 015/2570"></div>
+      <div><label>ที่ หนังสือนำส่งถึงเขต</label><input name="letter_no" placeholder="เช่น ศธ 04xxx.xxx/123"></div>
+    </div>
+    <h3 class="rv-sub">ใบแจ้งการชำระเงิน (ธนาคารกรุงไทย)</h3>
+    <div class="row">
+      <div style="flex:2;"><label>นำส่งผ่าน (ส่วนราชการผู้รับ)</label><input name="send_to" value="{{ defaults.send_to }}" placeholder="เช่น สำนักงานเขตพื้นที่การศึกษาประถมศึกษาขอนแก่น เขต 1"></div>
+      <div><label>Company Code ของเขต</label><input name="company_code" value="{{ defaults.company_code }}" placeholder="เช่น 703935"></div>
+    </div>
+    <div class="row">
+      <div><label>Ref.1 รหัสโรงเรียน (SMIS 8 หลัก)</label><input name="ref1" value="{{ defaults.ref1 }}" inputmode="numeric"></div>
+      <div><label>Ref.2 รหัสรายได้</label><input name="ref2" id="rvCode" placeholder="ตามที่เขตกำหนด"></div>
+      <div><label>ผู้นำฝาก</label><input name="payer" value="{{ defaults.payer }}"></div>
+      <div><label>เบอร์โทร</label><input name="phone" value="{{ defaults.phone }}"></div>
+    </div>
+    <p class="muted">รหัสรายได้ที่ใช้ทั่วไป: ดอกเบี้ยเงินฝาก 821, เงินเหลือจ่ายปีเก่าส่งคืน 811, ค่าขายของเบ็ดเตล็ด 642 ตรวจกับประกาศของเขตอีกครั้ง Company Code และรหัสโรงเรียน ระบบจำไว้ใช้ครั้งต่อไป</p>
+    <button class="btn" type="submit">บันทึกการนำส่ง</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h2 style="margin:0;">การนำส่งในปีงบ {{ fiscal_year }}</h2>
+    <form method="get" action="/finance/revenue/report.docx" style="display:flex;gap:8px;align-items:center;margin:0;">
+      <label style="margin:0;">รายงานประจำเดือน</label>
+      <input type="month" name="month" value="{{ this_month }}" style="width:auto;">
+      <button class="btn sm gray" type="submit">ดาวน์โหลด Word</button>
+    </form>
+  </div>
+  <div class="table-wrap"><table class="stack-sm">
+    <thead><tr><th>วันที่</th><th>ประเภท</th><th class="right">จำนวนเงิน</th><th>หนังสือนำส่ง</th><th>เอกสาร</th><th></th></tr></thead>
+    <tbody>{% for r in remits %}<tr id="remit-{{ r.id }}">
+      <td data-label="วันที่" style="white-space:nowrap;">{{ thai_date_short(r.date) }}</td>
+      <td data-label="ประเภท">{{ names[r.rtype] }}<div class="muted">{{ r.account.name }}{% if r.ref2 %} รหัส {{ r.ref2 }}{% endif %}</div></td>
+      <td data-label="จำนวนเงิน" class="right">{{ '{:,.2f}'.format(r.amount) }}</td>
+      <td data-label="หนังสือนำส่ง">{{ r.letter_no or '-' }}</td>
+      <td data-label="เอกสาร" class="rv-docs">
+        <a class="btn sm" href="/finance/revenue/{{ r.id }}/all.docx">ชุดเอกสาร</a>
+        <a href="/finance/revenue/{{ r.id }}/memo.docx">บันทึกขออนุมัติ</a>
+        <a href="/finance/revenue/{{ r.id }}/letter.docx">หนังสือนำส่ง</a>
+        <a href="/finance/revenue/{{ r.id }}/slip.docx">ใบแจ้งชำระเงิน</a></td>
+      <td><form method="post" action="/finance/revenue/{{ r.id }}/delete" onsubmit="return confirm('ลบการนำส่งนี้ และรายการนำส่งในทะเบียนคุมเงิน?');">
+        <button class="btn sm red" type="submit">ลบ</button></form></td>
+    </tr>{% else %}<tr><td colspan="6" class="muted">ยังไม่มีการนำส่งในปีงบนี้</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+
+<style>
+  .rv-rule { margin:0 0 12px; padding-left:20px; line-height:1.8; color:#475569; }
+  .rv-acc { border-radius:16px; padding:14px 16px; margin:10px 0; background:linear-gradient(135deg,#fffaf0,#fff4e0); }
+  .rv-acc.rv-urgent { background:linear-gradient(135deg,#fff1f2,#ffe4e6); }
+  .rv-acc-head { display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-bottom:6px; }
+  .rv-tag { background:#dc2626; color:#fff; border-radius:999px; padding:2px 10px; font-size:12.5px; font-weight:700; }
+  .rv-late { color:#b91c1c; font-weight:700; }
+  .rv-sub { font-size:16px; margin:14px 0 4px; }
+  .rv-docs a:not(.btn) { display:inline-block; margin:2px 8px 2px 0; font-size:13.5px; }
+</style>
+<script>
+  (function () {
+    var type = document.getElementById('rvType'), code = document.getElementById('rvCode');
+    function setCode() { if (type && code) code.value = type.selectedOptions[0].dataset.code || ''; }
+    if (type) { type.addEventListener('change', setCode); setCode(); }
+    document.querySelectorAll('[data-remit]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var d = JSON.parse(b.dataset.remit);
+        document.getElementById('rvAcc').value = d.account;
+        type.value = d.rtype; setCode();
+        document.getElementById('rvAmt').value = d.amount.toFixed(2);
+        document.getElementById('remit-form').scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+  })();
+</script>
+{% endblock %}

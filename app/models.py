@@ -1017,6 +1017,34 @@ class CheckPayment(Base):
     created_at = Column(DateTime, default=datetime.now)
 
 
+class RevenueRemit(Base):
+    """การนำส่งเงินรายได้แผ่นดิน 1 ครั้ง (ผ่านสำนักงานเขตพื้นที่ ด้วยใบแจ้งการชำระเงินของธนาคาร)
+    บันทึกแล้วระบบลงรายการ "นำส่ง" (จ่ายออก) ในบัญชีเงินรายได้แผ่นดินให้ (txn_id)
+    เก็บข้อมูลไว้ออกเอกสาร: บันทึกขออนุมัติ หนังสือนำส่ง ใบแจ้งการชำระเงิน"""
+    __tablename__ = "revenue_remit"
+
+    id = Column(Integer, primary_key=True)
+    fiscal_year = Column(Integer, nullable=False)
+    date = Column(DateTime, nullable=False)
+    account_id = Column(Integer, ForeignKey("finance_account.id"), nullable=False)
+    rtype = Column(String, nullable=False)          # interest / old_return / sale / fine / other
+    amount = Column(Float, default=0.0)
+    txn_id = Column(Integer, nullable=True)         # รายการนำส่งในทะเบียนคุมเงิน
+    memo_no = Column(String, default="")            # ที่ บันทึกขออนุมัตินำส่ง
+    letter_no = Column(String, default="")          # ที่ หนังสือนำส่งถึงเขต
+    send_to = Column(String, default="")            # ส่วนราชการผู้รับ เช่น สพป.ขอนแก่น เขต 1
+    company_code = Column(String, default="")       # Company Code ของเขต (กรุงไทย)
+    ref1 = Column(String, default="")               # รหัสโรงเรียน (SMIS 8 หลัก)
+    ref2 = Column(String, default="")               # รหัสรายได้ เช่น 821
+    method = Column(String, default="เงินสด")       # เงินสด / เงินโอน / เช็ค
+    payer = Column(String, default="")              # ผู้นำฝาก
+    phone = Column(String, default="")
+    note = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+    account = relationship("FinanceAccount")
+
+
 class FinanceHealthAck(Base):
     """หน้าตรวจสุขภาพข้อมูลการเงิน: ข้อที่โรงเรียนกด "ตรวจแล้ว ไม่ใช่ปัญหา" (เฉพาะระดับควรเช็ค/ควรสังเกต)
     sig = ลายนิ้วมือของรายการที่เห็นตอนกด ถ้ามีรายการใหม่เพิ่มเข้ามา ข้อนั้นจะกลับมาเตือนอีก"""

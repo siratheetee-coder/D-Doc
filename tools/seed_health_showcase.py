@@ -122,5 +122,10 @@ def seed(db, now=None) -> dict:
     db.add(LunchClass(program_id=prog.id, level="ป.1", num_students=10))
     db.add(LunchHireRound(program_id=prog.id, seq=1, start_date=datetime(ce, 11, 3), end_date=datetime(ce, 11, 28),
                           days=20, amount=10000))
+    # ---- รายได้แผ่นดิน: ขายของเหลือใช้ได้เงินเกิน 10,000 บาท ยังไม่นำส่ง (ต้องส่งภายใน 3 วันทำการ)
+    rev = FinanceAccount(name="เงินรายได้แผ่นดิน", fund_type="เงินรายได้แผ่นดิน")
+    db.add(rev); db.flush()
+    db.add(FinanceTxn(account_id=rev.id, fiscal_year=fy, kind="in", amount=12500, date=recent,
+                      category="ค่าขายของเบ็ดเตล็ด", note="ขายพัสดุชำรุด"))
     db.commit()
     return dict(fy=fy, ay=ay, carry_year=fy - 2)

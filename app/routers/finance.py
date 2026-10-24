@@ -1654,6 +1654,82 @@ def receipt_voucher_doc(rid: int, db: Session = Depends(get_db)):
 
 
 # ---------------- เงินยืม (สัญญาแบบ 8500 + ทะเบียนคุมลูกหนี้) ----------------
+# ==================== นำส่งเงินรายได้แผ่นดิน ====================
+@router.get("/finance/revenue", response_class=HTMLResponse)
+def revenue_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
+    """เงินรายได้แผ่นดินค้างนำส่ง + ทำเรื่องนำส่ง (บันทึก/หนังสือนำส่ง/ใบแจ้งการชำระเงิน) + รายงานประจำเดือน"""
+    from app.models import RevenueRemit
+    from app.services import revenue_remit as rr
+    fy = year or current_fiscal_year()
+    school = get_school(db)
+    now = datetime.now()
+    return templates.TemplateResponse("finance_revenue.html", {
+        "request": request, "school": school, "fiscal_year": fy, "years": _finance_years(db, fy),
+        "summary": rr.summary(db), "types": rr.TYPES, "methods": rr.METHODS, "names": rr.NAMES,
+        "defaults": rr.defaults(db, school), "limit": rr.CASH_LIMIT,
+        "remits": db.query(RevenueRemit).filter_by(fiscal_year=fy).order_by(RevenueRemit.date.desc(), RevenueRemit.id.desc()).all(),
+        "today_be": be_date_input(now), "this_month": f"{now.year + 543}-{now.month:02d}",
+        "msg": request.query_params.get("msg", ""), "err": request.query_params.get("err", ""),
+    })
+
+
+@router.post("/finance/revenue")
+def revenue_create(db: Session = Depends(get_db), account_id: int = Form(0), rtype: str = Form(""),
+                   amount: str = Form(""), date: str = Form(""), memo_no: str = Form(""), letter_no: str = Form(""),
+                   send_to: str = Form(""), company_code: str = Form(""), ref1: str = Form(""), ref2: str = Form(""),
+                   method: str = Form("เงินสด"), payer: str = Form(""), phone: str = Form(""), note: str = Form("")):
+    from urllib.parse import quote
+    from app.services import revenue_remit as rr
+    d = parse_be_date(date)
+    try:
+        r = rr.create(db, account_id=account_id, rtype=rtype, amount=_to_float(amount, 0.0), date=d,
+                      memo_no=memo_no, letter_no=letter_no, send_to=send_to, company_code=company_code,
+                      ref1=ref1, ref2=ref2, method=method if method in rr.METHODS else "เงินสด",
+                      payer=payer, phone=phone, note=note)
+        db.commit()
+    except ValueError as e:
+        db.rollback()
+        return RedirectResponse(f"/finance/revenue?err={quote(str(e))}#remit-form", status_code=303)
+    return RedirectResponse(f"/finance/revenue?year={r.fiscal_year}&msg=saved#remit-{r.id}", status_code=303)
+
+
+@router.post("/finance/revenue/{rid}/delete")
+def revenue_delete(rid: int, db: Session = Depends(get_db)):
+    from app.models import RevenueRemit
+    from app.services import revenue_remit as rr
+    r = db.get(RevenueRemit, rid)
+    fy = r.fiscal_year if r else current_fiscal_year()
+    if r:
+        rr.delete(db, r)
+        db.commit()
+    return RedirectResponse(f"/finance/revenue?year={fy}&msg=deleted", status_code=303)
+
+
+@router.get("/finance/revenue/{rid}/{which}.docx")
+def revenue_doc(rid: int, which: str, db: Session = Depends(get_db)):
+    from app.models import RevenueRemit
+    from app.services import revenue_remit as rr
+    r = db.get(RevenueRemit, rid)
+    if not r or which not in list(rr.RENDERERS) + ["all"]:
+        return RedirectResponse("/finance/revenue", status_code=303)
+    return serve_generated(rr.render(get_school(db), r, which), _DOCX)
+
+
+@router.get("/finance/revenue/report.docx")
+def revenue_month_report(db: Session = Depends(get_db), month: str = ""):
+    """รายงานการรับและนำส่งเงินรายได้แผ่นดินประจำเดือน (month = ปปปป-ดด แบบ พ.ศ.)"""
+    from app.services import revenue_remit as rr
+    try:
+        y, m = (int(x) for x in month.split("-"))
+        if y > 2400:
+            y -= 543
+        if not 1 <= m <= 12:
+            raise ValueError
+    except ValueError:
+        now = datetime.now(); y, m = now.year, now.month
+    return serve_generated(rr.render_month_report(db, get_school(db), y, m), _DOCX)
+
+
 @router.get("/finance/loans", response_class=HTMLResponse)
 def loans_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
     fy = year or current_fiscal_year()

@@ -215,17 +215,13 @@ def render_guarantee_register(school, account, txns, fiscal_year) -> str:
 
 
 # --------------------------------------- 4) ทะเบียนคุมการรับและนำส่งเงินรายได้แผ่นดิน
-_REV_COLS = ["ดอกเบี้ยบัญชีเงินฝากธนาคาร", "เงินอุดหนุนเหลือจ่ายเกิน 2 ปี", "ค่าปรับอื่น ๆ"]
+# 4 ช่องประเภทตามแบบทะเบียนคุมของกลุ่มตรวจสอบภายใน สพฐ. (จัดประเภทเดียวกับหน้านำส่งรายได้แผ่นดิน)
+_REV_COLS = ["ดอกเบี้ยเงินฝาก", "เงินเหลือจ่ายปีเก่าส่งคืน", "ค่าขายของเบ็ดเตล็ด", "ค่าปรับและอื่น ๆ"]
 
 
 def _rev_bucket(txn) -> int:
-    """จัดรายการเข้า 3 ช่องของฟอร์ม จากคำในหมวด/หมายเหตุ (ค่าเริ่มต้น = ค่าปรับอื่น ๆ)"""
-    text = f"{txn.category or ''} {txn.note or ''}"
-    if "ดอกเบี้ย" in text:
-        return 0
-    if "เหลือจ่าย" in text:
-        return 1
-    return 2
+    from app.services.revenue_remit import classify
+    return {"interest": 0, "old_return": 1, "sale": 2}.get(classify(txn), 3)
 
 
 def render_revenue_register(school, account, txns, fiscal_year) -> str:
@@ -236,10 +232,10 @@ def render_revenue_register(school, account, txns, fiscal_year) -> str:
     for label in _REV_COLS:
         groups.append((label, ["รับ", "นำส่ง", "คงเหลือ"]))
     groups += [("รวมเงินคงเหลือ\nทุกประเภท", []), ("หมายเหตุ", [])]
-    widths = [Cm(2.2), Cm(2.0), Cm(3.0)] + [Cm(1.65)] * 9 + [Cm(2.5), Cm(2.0)]
+    widths = [Cm(2.0), Cm(1.8), Cm(2.6)] + [Cm(1.45)] * 12 + [Cm(2.0), Cm(1.4)]
     t = _head2(doc, groups, widths)
 
-    bal = [0.0, 0.0, 0.0]
+    bal = [0.0] * len(_REV_COLS)
     ordered = sorted(txns, key=lambda x: (x.date or datetime.min, x.id))
     for x in ordered:
         b = _rev_bucket(x)
@@ -247,14 +243,14 @@ def render_revenue_register(school, account, txns, fiscal_year) -> str:
         got = amt if x.kind == "in" else 0.0
         sent = amt if x.kind == "out" else 0.0     # "นำส่ง" คลัง = จ่ายออก
         bal[b] += got - sent
-        cells = ["", "", "", "", "", "", "", "", ""]
+        cells = [""] * (3 * len(_REV_COLS))
         cells[b * 3] = _money(got) if got else ""
         cells[b * 3 + 1] = _money(sent) if sent else ""
         cells[b * 3 + 2] = _money(bal[b])
         _row(t, [thai_date(x.date) if x.date else "", x.ref or "",
                  (x.note or x.category or "")[:30]] + cells + [_money(sum(bal)), ""],
-             widths, ["center", "center", "left"] + ["right"] * 9 + ["right", "left"], size=12)
-    _blank_rows(t, max(0, 6 - len(ordered)), widths, 14)
+             widths, ["center", "center", "left"] + ["right"] * 12 + ["right", "left"], size=11)
+    _blank_rows(t, max(0, 6 - len(ordered)), widths, 17)
     _sign_finance(doc, school)
     return _save(doc, f"ทะเบียนคุมเงินรายได้แผ่นดิน_ปีงบ{fiscal_year}")
 

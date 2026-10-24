@@ -503,6 +503,26 @@ def receipt_number_gap(db, fy, today):
 
 
 # ---------------------------------------------------------------- สิ่งที่ควรสังเกต
+def revenue_not_remitted(db, fy, today):
+    """เงินรายได้แผ่นดินค้างนำส่งเกิน 10,000 บาท หรือค้างเกิน 30 วัน (ต้องนำส่งอย่างน้อยเดือนละครั้ง)"""
+    from app.services.revenue_remit import summary, CASH_LIMIT
+    from app.thai_utils import current_fiscal_year
+    if fy != current_fiscal_year(today):
+        return None
+    rows = []
+    for s in summary(db, today):
+        for r in s["items"]:
+            if r["pending"] > 0.005 and (s["pending"] > CASH_LIMIT or r["days"] > 30):
+                rows.append(_row(f"{s['account'].name} / {r['name']}", "/finance/revenue", amount=r["pending"],
+                                 sub=f"ค้างนำส่ง {r['days']} วัน"))
+    if rows:
+        return _issue("เงินรายได้แผ่นดินค้างนำส่งนานหรือมากเกินไป",
+                      ["ต้องนำส่งอย่างน้อยเดือนละ 1 ครั้ง",
+                       f"วันใดมีเกิน {CASH_LIMIT:,.0f} บาท ต้องนำส่งภายใน 3 วันทำการ",
+                       "กดไปดู แล้วกด \"นำส่งยอดนี้\" ระบบออกบันทึก หนังสือนำส่ง และใบแจ้งการชำระเงินให้"],
+                      rows, "/finance/revenue", "ไปนำส่ง")
+
+
 def cash_on_hand(db, fy, today):
     """เงินสดที่เก็บไว้ที่โรงเรียน (ประเภทที่เก็บ = เงินสด) ค้างไว้เกิน 7 วันโดยไม่มีความเคลื่อนไหว"""
     from app.models import FinanceAccount
@@ -636,6 +656,7 @@ CHECKS = [
     ("check", "เงินในแผนตรงกับทะเบียนคุมเงิน", plan_out_of_date),
     ("check", "บันทึกขอเบิกที่อนุมัติแล้ว ลงจ่ายครบ", memo_unpaid_long),
     ("check", "เงินยืมส่งใช้ตามกำหนด", loans_overdue),
+    ("check", "เงินรายได้แผ่นดินนำส่งตามกำหนด", revenue_not_remitted),
     ("check", "ไม่มีรายการจ่ายที่อาจลงซ้ำ", duplicate_payments),
     ("check", "ผู้ขายที่ถูกหักภาษี ณ ที่จ่าย มีเลขผู้เสียภาษี", wht_vendor_no_tax_id),
     ("check", "เช็คที่สั่งจ่าย ขึ้นเงินแล้ว", checks_not_cleared),

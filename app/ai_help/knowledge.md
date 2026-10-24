@@ -39,7 +39,7 @@ Easy Ekkasan คือระบบงานเอกสารโรงเรี�
 - แผนการจัดซื้อจัดจ้าง `/procurement/plan`
 - สัญญา/ใบสั่ง `/procurement/contracts`
 - ซื้อหนังสือเรียน `/textbooks/purchase`
-- ครุภัณฑ์ `/assets` (ตรวจนับ `/assets/audit`, จำหน่าย `/assets/disposal`)
+- ครุภัณฑ์ `/assets` (ตรวจนับ `/assets/audit`, จำหน่าย `/assets/disposal`, นำเข้าทะเบียนเดิมจาก Excel `/assets/import`)
 - วัสดุคงคลัง `/materials`
 - เบิกวัสดุ `/requisitions`
 - รายการพัสดุ `/catalog`
@@ -64,8 +64,9 @@ Easy Ekkasan คือระบบงานเอกสารโรงเรี�
 - รายงาน `/finance/report`, รายงานรายไตรมาส `/finance/quarter`, ตรวจสอบ `/finance/audit`
 - คำนวณเงินอุดหนุน `/finance/subsidy`
 - e-Budget `/finance/ebudget`
-- นำเข้า `/finance/import`
+- นำเข้า `/finance/import` (Excel: บัญชี ยอดยกมาตามปีงบ รายการรับ-จ่าย ใบเสร็จ มีหน้าตรวจก่อนยืนยัน จับคู่หมวด และไม่นำเข้ารายการซ้ำ)
 - ตรวจสุขภาพข้อมูลการเงิน `/finance/health`
+- นำส่งเงินรายได้แผ่นดิน `/finance/revenue` (ดูยอดค้างนำส่ง ออกบันทึกขออนุมัติ หนังสือนำส่งถึงเขต ใบแจ้งการชำระเงินธนาคารกรุงไทย และรายงานประจำเดือน)
 - เรื่องพัสดุที่ทำก่อนเริ่มใช้ระบบและจ่ายไปแล้ว `/finance/paid-before`
 
 ### อาหารกลางวัน
