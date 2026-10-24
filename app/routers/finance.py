@@ -1716,11 +1716,12 @@ def revenue_doc(rid: int, which: str, db: Session = Depends(get_db)):
 
 
 @router.get("/finance/revenue/report.docx")
-def revenue_month_report(db: Session = Depends(get_db), month: str = ""):
-    """รายงานการรับและนำส่งเงินรายได้แผ่นดินประจำเดือน (month = ปปปป-ดด แบบ พ.ศ.)"""
+def revenue_month_report(db: Session = Depends(get_db), month: str = "", m: int = 0, y: int = 0):
+    """รายงานการรับและนำส่งเงินรายได้แผ่นดินประจำเดือน (m = เดือน, y = ปี พ.ศ. หรือ month = ปปปป-ดด)"""
     from app.services import revenue_remit as rr
     try:
-        y, m = (int(x) for x in month.split("-"))
+        if not (m and y):
+            y, m = (int(x) for x in month.split("-"))
         if y > 2400:
             y -= 543
         if not 1 <= m <= 12:

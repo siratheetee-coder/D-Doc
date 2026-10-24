@@ -41,7 +41,8 @@ def test_summary_create_documents_and_delete(env):
     import io
     text = '\n'.join(p.text for p in Document(io.BytesIO(env.get(f'/finance/revenue/{rem.id}/all.docx').content)).paragraphs)
     assert 'ขออนุมัตินำส่งเงินรายได้แผ่นดิน' in text and 'การนำส่งเงินรายได้แผ่นดิน' in text
-    rep = env.get('/finance/revenue/report.docx?month=2569-10')
+    assert 'name="m"' in html and 'ตุลาคม' in html
+    rep = env.get('/finance/revenue/report.docx?m=10&y=2569')
     assert rep.status_code == 200 and rep.content[:2] == b'PK'
     # ค่าที่ใช้ครั้งก่อนจำไว้ให้
     html = env.get('/finance/revenue?year=2570').text

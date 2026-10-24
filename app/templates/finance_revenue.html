@@ -80,7 +80,9 @@
     <h2 style="margin:0;">การนำส่งในปีงบ {{ fiscal_year }}</h2>
     <form method="get" action="/finance/revenue/report.docx" style="display:flex;gap:8px;align-items:center;margin:0;">
       <label style="margin:0;">รายงานประจำเดือน</label>
-      <input type="month" name="month" value="{{ this_month }}" style="width:auto;">
+      {% set ym = this_month.split('-') %}
+      <select name="m" style="width:auto;" aria-label="เดือน">{% for n in ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'] %}<option value="{{ loop.index }}" {{ 'selected' if loop.index == ym[1]|int }}>{{ n }}</option>{% endfor %}</select>
+      <select name="y" style="width:auto;" aria-label="ปี พ.ศ.">{% for y in range(ym[0]|int, ym[0]|int - 4, -1) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}</select>
       <button class="btn sm gray" type="submit">ดาวน์โหลด Word</button>
     </form>
   </div>
