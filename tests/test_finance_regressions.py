@@ -62,6 +62,18 @@ class FinanceTests(unittest.TestCase):
         buf=io.BytesIO(); wb.save(buf)
         import_finance_workbook(buf.getvalue(),self.db)
         self.assertEqual([a.fund_type for a in self.db.query(FinanceAccount).order_by(FinanceAccount.id)],FUND_TYPES+['เงินรายได้แผ่นดิน'])
+    def test_import_uses_fiscal_year_of_each_row_date(self):
+        from app.models import Receipt
+        wb=Workbook(); ws=wb.active; ws.title='รายการรับ-จ่าย'
+        ws.append(['คำแนะนำ']); ws.append(['หัวตาราง'])
+        ws.append(['เงินอุดหนุน','15/09/2568','รับ',100,'','',''])   # ปีงบ 2568
+        ws.append(['เงินอุดหนุน','03/10/2568','จ่าย',40,'','',''])   # ปีงบ 2569
+        rs=wb.create_sheet('ใบเสร็จ-ใบสำคัญ'); rs.append(['คำแนะนำ']); rs.append(['หัวตาราง'])
+        rs.append(['1','20/09/2568','รับ','ผู้ปกครอง',50,'เงินอุดหนุน',''])
+        buf=io.BytesIO(); wb.save(buf)
+        import_finance_workbook(buf.getvalue(),self.db)
+        self.assertEqual(sorted((t.kind,t.fiscal_year) for t in self.db.query(FinanceTxn)),[('in',2568),('out',2569)])
+        self.assertEqual(self.db.query(Receipt).one().fiscal_year,2568)
     def test_repair_is_one_time_and_leaves_custom_accounts(self):
         self.db.add_all([FinanceAccount(name='เงินงบประมาณ',fund_type=FUND_DEFAULT),FinanceAccount(name='เงินรายได้แผ่นดิน',fund_type=FUND_DEFAULT),FinanceAccount(name='ทุนกิจกรรม',fund_type=FUND_DEFAULT)])
         self.db.commit(); _repair_finance_fund_types(self.engine); self.db.expire_all()

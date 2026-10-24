@@ -133,9 +133,11 @@ def import_admin_workbook(file_bytes: bytes, db) -> dict:
             subject = _s(row[6]) if len(row) > 6 else ""
             if not (subject or (len(row) > 0 and _s(row[0]))):
                 continue
+            d = parse_be_date(_s(row[1])) if len(row) > 1 else None
             db.add(IncomingLetter(
-                fiscal_year=fy, recv_no=_i(row[0]),
-                recv_date=parse_be_date(_s(row[1])) if len(row) > 1 else None,
+                # ทะเบียนหนังสือแยกตามปีงบ ใช้ปีงบตามวันที่รับ (เดิมใช้ปีงบปัจจุบันทุกแถว)
+                fiscal_year=current_fiscal_year(d) if d else fy, recv_no=_i(row[0]),
+                recv_date=d,
                 letter_no=_s(row[2]) if len(row) > 2 else "",
                 letter_date=parse_be_date(_s(row[3])) if len(row) > 3 else None,
                 from_org=_s(row[4]) if len(row) > 4 else "",
@@ -158,9 +160,10 @@ def import_admin_workbook(file_bytes: bytes, db) -> dict:
             if not (send_no or subject):
                 continue
             mm = re.search(r"(\d+)", send_no)
+            d = parse_be_date(_s(row[1])) if len(row) > 1 else None
             db.add(OutgoingLetter(
-                fiscal_year=fy, send_no=send_no, send_seq=(int(mm.group(1)) if mm else 0),
-                date=parse_be_date(_s(row[1])) if len(row) > 1 else None,
+                fiscal_year=current_fiscal_year(d) if d else fy, send_no=send_no, send_seq=(int(mm.group(1)) if mm else 0),
+                date=d,
                 to_org=_s(row[2]) if len(row) > 2 else "",
                 subject=subject,
             ))

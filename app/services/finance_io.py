@@ -137,9 +137,11 @@ def import_finance_workbook(file_bytes: bytes, db) -> dict:
             acc = _get_account(_s(row[0]) if len(row) > 0 else "")
             if acc is None:
                 continue
+            d = parse_be_date(_s(row[1])) if len(row) > 1 else None
             db.add(FinanceTxn(
-                account_id=acc.id, fiscal_year=fy,
-                date=parse_be_date(_s(row[1])) if len(row) > 1 else None,
+                # ปีงบตามวันที่ของรายการ (เดิมใช้ปีงบปัจจุบันทุกแถว -> นำเข้ารายการปีก่อนแล้วขึ้น "ลงผิดปีงบ")
+                account_id=acc.id, fiscal_year=current_fiscal_year(d) if d else fy,
+                date=d,
                 kind=_kind(row[2]) if len(row) > 2 else "in",
                 amount=_f(row[3]) if len(row) > 3 else 0.0,
                 category=_s(row[4]) if len(row) > 4 else "",
@@ -160,9 +162,10 @@ def import_finance_workbook(file_bytes: bytes, db) -> dict:
             if not (receipt_no or party):
                 continue
             acc = _get_account(_s(row[5]) if len(row) > 5 else "")
+            d = parse_be_date(_s(row[1])) if len(row) > 1 else None
             db.add(Receipt(
-                fiscal_year=fy, receipt_no=receipt_no,
-                date=parse_be_date(_s(row[1])) if len(row) > 1 else None,
+                fiscal_year=current_fiscal_year(d) if d else fy, receipt_no=receipt_no,
+                date=d,
                 kind="จ่าย" if (len(row) > 2 and "จ่าย" in _s(row[2])) else "รับ",
                 party=party,
                 amount=_f(row[4]) if len(row) > 4 else 0.0,
