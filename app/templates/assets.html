@@ -34,12 +34,14 @@
     <a class="btn red" href="/assets/disposal"><svg class="icon"><use href="#ic-trash"/></svg> จำหน่ายพัสดุ (สำนวนเต็ม)</a>
     <a class="btn sm gray" href="/assets/dispose" title="บันทึกขออนุมัติจำหน่ายฉบับเดียว (ทางด่วน)">ขออนุมัติจำหน่ายอย่างย่อ</a>
     <a class="btn" href="/assets/audit"><svg class="icon"><use href="#ic-file"/></svg> ตรวจสอบพัสดุประจำปี</a>
+    <a class="btn gray" href="/assets/import"><svg class="icon"><use href="#ic-download"/></svg> นำเข้าทะเบียนเดิมจาก Excel</a>
   </div>{% endif %}
 </div>
 
 <div class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มครุภัณฑ์</h2>
   {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกเรียบร้อย</div>{% endif %}
+  {% if request.query_params.get("imported") %}<div class="alert">✔ นำเข้าครุภัณฑ์จาก Excel {{ request.query_params.get("imported") }} รายการแล้ว</div>{% endif %}
   <form method="post" action="/assets" id="asset-add">
     {% include "asset_number_picker.html" %}
     <div class="row">
@@ -206,7 +208,7 @@
   </table>
   </div>
   {% else %}
-  <p class="muted">ยังไม่มีครุภัณฑ์ โปรดเพิ่มครุภัณฑ์ด้านบน หรือนำเข้าจากเรื่องจัดซื้อ (ปุ่ม "นำเข้าทะเบียน" ในหน้ารายละเอียดเรื่อง)</p>
+  <p class="muted">ยังไม่มีครุภัณฑ์ โปรดเพิ่มครุภัณฑ์ด้านบน หรือ<a href="/assets/import">นำเข้าทะเบียนเดิมจาก Excel</a> หรือนำเข้าจากเรื่องจัดซื้อ (ปุ่ม "นำเข้าทะเบียน" ในหน้ารายละเอียดเรื่อง)</p>
   {% endif %}
 </div>
 

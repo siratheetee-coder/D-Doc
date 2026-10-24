@@ -3560,6 +3560,51 @@ async def asset_add(request: Request, db: Session = Depends(get_db)):
     return RedirectResponse('/assets?saved=1', status_code=303)
 
 
+# ---------------- นำเข้าทะเบียนครุภัณฑ์เดิมจาก Excel ----------------
+@router.get("/assets/import", response_class=HTMLResponse)
+def asset_import_page(request: Request, err: str = ""):
+    return templates.TemplateResponse("asset_import.html", {"request": request, "res": None, "err": err})
+
+
+@router.get("/assets/import/template.xlsx")
+def asset_import_template():
+    from app.services.asset_import import build_template
+    return serve_generated(build_template(), _XLSX_MT)
+
+
+@router.post("/assets/import")
+async def asset_import_preview(request: Request, db: Session = Depends(get_db), file: UploadFile = File(...)):
+    import json
+    from urllib.parse import quote
+    from app.services.asset_import import parse
+    if not file.filename or not file.filename.lower().endswith(".xlsx"):
+        return RedirectResponse("/assets/import?err=" + quote("ใช้ไฟล์ Excel (.xlsx) เท่านั้น"), status_code=303)
+    try:
+        res = parse(await file.read(), db)
+    except ValueError as e:
+        return RedirectResponse("/assets/import?err=" + quote(str(e)), status_code=303)
+    except Exception:  # noqa: BLE001  ไฟล์เสีย/ไม่ใช่ Excel จริง
+        return RedirectResponse("/assets/import?err=" + quote("อ่านไฟล์ไม่ได้ ลองบันทึกเป็น .xlsx ใหม่"), status_code=303)
+    payload = json.dumps([r for r in res["rows"] if not r["errors"]], ensure_ascii=False)
+    return templates.TemplateResponse("asset_import.html", {"request": request, "res": res, "payload": payload,
+                                                            "filename": file.filename, "err": ""})
+
+
+@router.post("/assets/import/confirm")
+def asset_import_confirm(db: Session = Depends(get_db), payload: str = Form("[]")):
+    import json
+    from urllib.parse import quote
+    from app.services.asset_import import save
+    try:
+        rows = json.loads(payload or "[]")
+        n = save(db, rows if isinstance(rows, list) else [])
+        db.commit()
+    except ValueError as e:
+        db.rollback()
+        return RedirectResponse("/assets/import?err=" + quote(str(e) + " ลองอัปโหลดไฟล์ใหม่อีกครั้ง"), status_code=303)
+    return RedirectResponse(f"/assets?imported={n}", status_code=303)
+
+
 @router.post("/assets/{asset_id}/split")
 def asset_split(asset_id: int, db: Session = Depends(get_db), cost_mode: str = Form("each")):
     """แยกครุภัณฑ์แถวที่มีจำนวนมากกว่า 1 ออกเป็นรายชิ้น (1 ชิ้น = 1 เลขครุภัณฑ์)
