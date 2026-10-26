@@ -632,6 +632,12 @@ _seen_cache: dict = {}  # uid -> เวลาที่เขียนล่า�
 _seen_page: dict = {}   # uid -> หน้าล่าสุดที่ "เปิดดูจริง" (ยังไม่ได้เขียนลง DB)
 
 
+def remember_page(uid, path: str) -> None:
+    """จดหน้าที่ผู้ใช้เปิดได้สำเร็จ (เขียนลง DB พร้อมรอบถัดไปของ touch_last_seen)"""
+    if uid and path:
+        _seen_page[uid] = path
+
+
 def touch_last_seen(uid, path: str = "", page: bool = True) -> None:
     """บันทึกว่าบัญชีนี้เพิ่งใช้งาน · เรียกจากมิดเดิลแวร์ทุก request แต่เขียนจริงนาทีละครั้ง
 

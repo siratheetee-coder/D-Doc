@@ -184,12 +184,14 @@ async def tenant_auth(request: Request, call_next):
             return RedirectResponse("/landing?sandbox=ended#try", status_code=303)
         return RedirectResponse("/login", status_code=303)
     # ใครกำลังใช้งานอยู่ -> โชว์ในคอนโซล (เขียน DB นาทีละครั้งต่อคน ไม่ใช่ทุกคลิก)
+    # เปิดหน้าจริง = GET ที่ขอ HTML · แชท/ค้นหาสด/ดาวน์โหลดเบื้องหลังไม่ใช่ "หน้าที่กำลังทำงาน"
+    is_page = (request.method == "GET" and "text/html" in (request.headers.get("accept") or "")
+               and not path.startswith(("/support/chat", "/ai/")))
     try:
         from app.accounts import touch_last_seen
-        # เปิดหน้าจริง = GET ที่ขอ HTML · แชท/ค้นหาสด/ดาวน์โหลดเบื้องหลังไม่ใช่ "หน้าที่กำลังทำงาน"
-        is_page = (request.method == "GET" and "text/html" in (request.headers.get("accept") or "")
-                   and not path.startswith(("/support/chat", "/ai/")))
-        touch_last_seen(sess.get("uid"), path, page=is_page)
+        # จดหน้าที่เปิดหลังรู้ผลแล้ว (ด้านล่าง) เฉพาะหน้าที่เปิดได้จริง
+        # ไม่งั้นบอทที่สแกนหาไฟล์ลับ (/.env /wp-login.php) จะไปโผล่ในคอนโซลเหมือนผู้ใช้กำลังเปิดหน้านั้น
+        touch_last_seen(sess.get("uid"), path, page=False)
     except Exception:
         pass
     # sync ลง session ให้เทมเพลต (sidebar/hub) แสดงตรงกับสิทธิ์จริงโดยไม่ต้อง re-login
@@ -251,6 +253,12 @@ async def tenant_auth(request: Request, call_next):
     mtoken = current_module.set(mod)     # ให้ตอนออกเอกสารรู้ว่าอยู่งานไหน (หักโควตาเฉพาะงานที่ยังไม่ซื้อ)
     try:
         resp = await call_next(request)
+        if is_page and resp.status_code < 400:
+            try:
+                from app.accounts import remember_page
+                remember_page(sess.get("uid"), path)
+            except Exception:
+                pass
         # สรุปการใช้งานรายวัน (คอนโซลเจ้าของระบบ) - พักในหน่วยความจำ เขียนเป็นรอบ
         try:
             if not sess.get("sandbox"):        # ระบบตัวอย่างไม่นับเป็นการใช้งานของโรงเรียน
