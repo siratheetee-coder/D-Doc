@@ -1,13 +1,70 @@
 {% extends "public_base.html" %}
 {% block title %}ลงทะเบียน / ทดลองใช้ฟรี | Easy Ekkasan{% endblock %}
-{% block content %}
-<div class="page-head">
-  <h1>{% if next %}ลงทะเบียนก่อนสั่งซื้อ{% else %}ลงทะเบียน (ทดลองใช้ฟรี {{ trial_days }} วัน){% endif %}</h1>
-  <p>ใช้อีเมลเป็นชื่อผู้ใช้ได้เลย หลังลงทะเบียน กรุณากดลิงก์ยืนยันในอีเมลเพื่อเริ่มใช้งาน
-     {% if next %}<br>หลังยืนยันอีเมล ระบบจะพากลับไปดำเนินการสั่งซื้อรายการเดิม{% endif %}</p>
-</div>
+{% block extra_css %}
+  /* หน้าเต็มจอแบบเดียวกับหน้าเข้าสู่ระบบ: ฟอร์มด้านซ้าย ข้อความจุดเด่นอยู่ข้างรูปครู */
+  .top { display:none; }
+  body { background:#cfe3fb url("/static/images/login-bg.webp") left center / cover no-repeat fixed; }
+  body::before { content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:radial-gradient(ellipse 34% 50% at 46% 50%, rgba(240,247,255,.9), rgba(240,247,255,.55) 55%, rgba(240,247,255,0) 100%); }
+  .wrap { position:relative; z-index:1; max-width:1500px; margin:0; padding:28px 4vw; min-height:100vh;
+    display:flex; align-items:center; gap:4vw; }
+  .rg-side { flex:0 0 470px; max-width:100%; }
+  .rg-back { display:block; margin-bottom:12px; padding:11px 16px; border-radius:14px; text-align:center;
+    font-size:14px; font-weight:600; color:#1d4ed8; background:rgba(255,255,255,.85); box-shadow:0 4px 16px rgba(16,24,40,.08); }
+  .rg-back:hover { background:#fff; }
+  #registrationForm.card { border:0; border-radius:24px; padding:28px 30px 22px; margin:0;
+    background:rgba(255,255,255,.96); box-shadow:0 24px 60px rgba(30,64,175,.20); }
+  .rg-head { text-align:center; margin-bottom:6px; }
+  .rg-head img { width:46px; height:52px; object-fit:contain; }
+  .rg-head h1 { font-size:23px; margin:4px 0 2px; }
+  .rg-head p { font-size:13.5px; color:#64748b; line-height:1.6; }
+  .rg-badge { display:inline-block; margin-top:8px; padding:4px 14px; border-radius:999px; font-size:13px; font-weight:700;
+    color:#fff; background:linear-gradient(110deg,#16a34a,#22c55e); }
+  #registrationForm input { border-radius:12px; padding:11px 14px; }
+  #registrationForm .btn-primary { border-radius:12px; background:linear-gradient(110deg,#2563eb,#3b82f6); }
 
-<form id="registrationForm" class="card" method="post" action="/register" autocomplete="on" style="max-width:600px;">
+  .rg-hero { flex:0 1 400px; text-align:center; margin-top:-6vh; animation:rgIn .55s cubic-bezier(.2,.75,.25,1) both; }
+  .rg-hero .logo { display:inline-flex; align-items:center; gap:12px; }
+  .rg-hero .logo img { width:54px; height:62px; object-fit:contain; filter:drop-shadow(0 8px 16px rgba(37,99,235,.28)); }
+  .rg-hero .logo b { font-size:36px; font-weight:800; letter-spacing:-.5px; color:#0f172a; }
+  .rg-hero .logo b span { color:#2563eb; }
+  .rg-hero h2 { font-size:21px; margin:12px 0 14px; color:#1e293b; }
+  .rg-pill { display:inline-flex; align-items:center; gap:10px; padding:10px 22px; border-radius:999px; color:#fff; font-size:17px; font-weight:600;
+    background:linear-gradient(110deg,#16a34a,#22c55e,#4ade80); box-shadow:0 10px 24px rgba(22,163,74,.3); }
+  .rg-feats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:24px; }
+  .rg-feat { display:flex; flex-direction:column; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:#334155; line-height:1.35; }
+  .rg-feat span { width:58px; height:58px; border-radius:18px; display:flex; align-items:center; justify-content:center; background:#fff;
+    box-shadow:0 8px 20px rgba(15,23,42,.10); animation:rgFloat 3.2s ease-in-out infinite; }
+  .rg-feat:nth-child(2) span { animation-delay:-.8s; } .rg-feat:nth-child(3) span { animation-delay:-1.6s; } .rg-feat:nth-child(4) span { animation-delay:-2.4s; }
+  .rg-feat svg { width:30px; height:30px; }
+  .rg-steps { display:flex; justify-content:center; gap:6px; margin-top:26px; flex-wrap:wrap; }
+  .rg-steps div { display:flex; align-items:center; gap:8px; padding:8px 14px; border-radius:999px; background:rgba(255,255,255,.85);
+    font-size:13.5px; font-weight:600; color:#334155; }
+  .rg-steps b { display:inline-flex; width:22px; height:22px; border-radius:50%; align-items:center; justify-content:center; font-size:12px; color:#fff;
+    background:linear-gradient(135deg,#2563eb,#60a5fa); }
+  @keyframes rgFloat { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-7px); } }
+  @keyframes rgIn { from { opacity:0; transform:translateX(14px); } to { opacity:1; transform:none; } }
+  @media (max-width:1100px) { .rg-hero { display:none; } }
+  @media (max-width:720px) {
+    body { background-position:82% top; background-size:auto 40vh; background-attachment:scroll; background-color:#e6f0fd; }
+    body::before { background:linear-gradient(180deg, rgba(230,240,253,0) 0%, rgba(230,240,253,.2) 24vh, #e6f0fd 38vh); }
+    .wrap { padding:24vh 16px 24px; align-items:flex-start; }
+    .rg-side { flex:1 1 auto; }
+    #registrationForm.card { padding:24px 18px 20px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .rg-hero, .rg-feat span { animation:none; } }
+{% endblock %}
+{% block content %}
+<div class="rg-side">
+<a class="rg-back" href="/login?next={{ next|urlencode }}">← มีบัญชีแล้ว เข้าสู่ระบบ</a>
+<form id="registrationForm" class="card" method="post" action="/register" autocomplete="on">
+  <div class="rg-head">
+    <img src="/static/logo-ekkasan-clear.png" alt="">
+    <h1>{% if next %}ลงทะเบียนก่อนสั่งซื้อ{% else %}ลงทะเบียนใช้งาน{% endif %}</h1>
+    <p>ใช้อีเมลเป็นชื่อผู้ใช้ได้เลย หลังลงทะเบียนกดลิงก์ยืนยันในอีเมลเพื่อเริ่มใช้งาน
+      {% if next %}<br>หลังยืนยันอีเมล ระบบจะพากลับไปสั่งซื้อรายการเดิม{% endif %}</p>
+    {% if not next %}<span class="rg-badge">ทดลองใช้ฟรี {{ trial_days }} วัน</span>{% endif %}
+  </div>
   {% if error %}<div style="background:#fde8e8; color:#b91c1c; border:1px solid #f7caca; padding:11px 14px; border-radius:10px; margin-bottom:14px;">{{ error }}
     {% if 'ลงทะเบียนแล้ว' in error %}<a href="/login?next={{ next|urlencode }}" style="color:#b91c1c; font-weight:700;">เข้าสู่ระบบ</a>{% endif %}</div>{% endif %}
   {{ form_guard() if form_guard is defined }}
@@ -65,6 +122,20 @@
   <a href="/privacy" target="_blank" style="color:var(--blue); font-weight:600; text-decoration:underline; text-underline-offset:3px;">นโยบายความเป็นส่วนตัว</a>
   ให้อ่านและกดยอมรับก่อน</p>
 </form>
+</div>
+
+<section class="rg-hero" aria-label="จุดเด่นของ Easy Ekkasan">
+  <div class="logo"><img src="/static/logo-ekkasan-clear.png" alt=""><b>Easy <span>Ekkasan</span></b></div>
+  <h2>เริ่มใช้งานได้ทันที ไม่ต้องติดตั้งโปรแกรม</h2>
+  <div class="rg-pill">ทดลองใช้ฟรี {{ trial_days }} วัน</div>
+  <div class="rg-feats">
+    <div class="rg-feat"><span style="color:#2563eb"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2.5h8.2L19 7.3V20a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 20V4a1.5 1.5 0 0 1 1-1.5z" fill="currentColor"/><path d="M8 11.5h8M8 14.5h8M8 17.5h5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg></span>เอกสาร<br>ครบชุด</div>
+    <div class="rg-feat"><span style="color:#10b981"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6.5c0 5 3.4 8.9 8 10.5 4.6-1.6 8-5.5 8-10.5V5z" fill="currentColor"/><path d="m8.5 12 2.4 2.4L15.8 9.5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>ข้อมูล<br>ปลอดภัย</div>
+    <div class="rg-feat"><span style="color:#8b5cf6"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2" fill="currentColor"/><path d="M9 21h6M12 17v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="m10 8.5 4 2-4 2z" fill="#fff"/></svg></span>ไม่ต้อง<br>ติดตั้ง</div>
+    <div class="rg-feat"><span style="color:#f59e0b"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4A2.5 2.5 0 0 1 4 13.5z" fill="currentColor"/><circle cx="9" cy="9.5" r="1.2" fill="#fff"/><circle cx="12" cy="9.5" r="1.2" fill="#fff"/><circle cx="15" cy="9.5" r="1.2" fill="#fff"/></svg></span>มีทีมช่วย<br>ตอบคำถาม</div>
+  </div>
+  <div class="rg-steps"><div><b>1</b>กรอกข้อมูล</div><div><b>2</b>ยืนยันอีเมล</div><div><b>3</b>เริ่มใช้งาน</div></div>
+</section>
 
 {# ---------- ป๊อปอัปนโยบาย: ต้องอ่านและกดยอมรับก่อนจึงจะลงทะเบียนได้ ---------- #}
 <div class="pol-ov" id="polOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="polTitle">
