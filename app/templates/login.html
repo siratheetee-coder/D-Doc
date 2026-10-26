@@ -5,106 +5,173 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Easy Ekkasan | เข้าสู่ระบบ</title>
   <link rel="icon" type="image/png" href="/static/favicon-ekkasan.png">
+  <link rel="preload" as="image" href="/static/images/login-bg.webp">
   <style>
     @font-face { font-family:"Prompt"; font-weight:400; src:url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
     @font-face { font-family:"Prompt"; font-weight:600; src:url("/static/fonts/Prompt-SemiBold.ttf") format("truetype"); }
     @font-face { font-family:"Prompt"; font-weight:700; src:url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
     * { box-sizing:border-box; }
-    body { margin:0; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
-      font-family:"Prompt","Sarabun","Leelawadee UI","Segoe UI",sans-serif;
-      background:linear-gradient(135deg,#3568e0,#4880FF 55%,#6f9bff); color:#202224; padding:20px;
-      overflow-x:hidden; }
-    .card { background:#fff; width:100%; max-width:380px; border-radius:18px; padding:34px 30px;
-      box-shadow:0 20px 50px rgba(16,24,40,.30); }
-    .brand { display:flex; flex-direction:column; align-items:center; gap:8px; margin-bottom:22px; }
-    .brand img { width:64px; height:64px; object-fit:contain; }
-    .brand .name { font-size:26px; font-weight:800; letter-spacing:.3px; }
-    .brand .sub { font-size:14px; color:#7b8190; }
-    label { display:block; margin:14px 0 5px; font-weight:600; font-size:15px; }
-    input { width:100%; padding:11px 13px; border:1px solid #dfe3ea; border-radius:10px; font-size:16px;
-      font-family:inherit; }
-    input:focus { outline:none; border-color:#4880FF; box-shadow:0 0 0 3px rgba(72,128,255,.18); }
-    .btn { width:100%; margin-top:22px; background:#4880FF; color:#fff; border:none; padding:12px;
-      border-radius:11px; font-size:17px; font-weight:700; cursor:pointer; font-family:inherit; }
-    .btn:hover { background:#3568e0; }
-    .btn-outline { display:block; width:100%; margin-top:11px; text-align:center; text-decoration:none;
-      background:#fff; color:#3568e0; border:1.5px solid #cddbf7; padding:11px; border-radius:11px;
-      font-size:16px; font-weight:700; }
-    .btn-outline:hover { border-color:#4880FF; background:#f5f8ff; }
-    .landing-link { display:block; width:100%; max-width:380px; margin-bottom:14px;
-      padding:12px 16px; border-radius:12px; background:#fff; color:#2356bb;
-      font-size:14px; font-weight:600; text-align:center; text-decoration:none;
-      box-shadow:0 4px 16px rgba(16,24,40,.12); }
-    .landing-link:hover { background:#eef4ff; }
-    .landing-link:focus-visible, a.brand:focus-visible { outline:3px solid #facc15; outline-offset:4px; }
-    a.brand { color:inherit; text-decoration:none; }
-    .err { background:#fde8e8; color:#b91c1c; border:1px solid #f7caca; padding:10px 13px;
-      border-radius:10px; font-size:14.5px; margin-bottom:6px; }
-    .ok { background:#e9f7ef; color:#0e7a44; border:1px solid #b7ebcd; padding:10px 13px;
-      border-radius:10px; font-size:14.5px; margin-bottom:6px; }
-    .row-opt { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:11px; }
-    .row-opt a { color:#5b6b84; font-size:13.5px; text-decoration:none; }
-    .row-opt a:hover { color:#4880FF; text-decoration:underline; }
-    .remember { display:inline-flex; align-items:center; gap:7px; margin:0;
-      font-size:13.5px; font-weight:500; color:#5b6b84; cursor:pointer; user-select:none; }
-    .remember input[type=checkbox] { width:16px; height:16px; padding:0; margin:0;
-      accent-color:#4880FF; cursor:pointer; flex:none; }
-    .sep { display:flex; align-items:center; gap:12px; margin:22px 0 4px; color:#9aa3b2; font-size:13px; }
-    .sep::before, .sep::after { content:""; flex:1; height:1px; background:#e6ebf3; }
-    .pdpa { display:inline-flex; align-items:center; gap:7px; margin:18px auto 0; padding:8px 16px;
-      color:#e8eefc; font-size:12.5px; text-decoration:none; border-radius:999px;
-      background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.22); backdrop-filter:blur(3px);
-      transition:background .16s, transform .1s; }
-    .pdpa:hover { background:rgba(255,255,255,.24); transform:translateY(-1px); }
-    .pdpa svg { flex:0 0 auto; opacity:.9; }
-    /* transition ระหว่างสลับหน้า login/ลงทะเบียน/ลืมรหัส (เบราว์เซอร์ที่รองรับ) + การ์ดค่อย ๆ ปรากฏ */
+    body { margin:0; min-height:100vh; font-family:"Prompt","Sarabun","Leelawadee UI","Segoe UI",sans-serif; color:#1e293b;
+      background:#cfe3fb url("/static/images/login-bg.webp") right center / cover no-repeat; overflow-x:hidden; }
+    /* ไล่สีทับด้านซ้าย ให้ตัวหนังสือชัด แต่ยังเห็นรูปครูด้านขวา */
+    body::before { content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+      background:linear-gradient(90deg, rgba(232,242,255,.92) 0%, rgba(232,242,255,.78) 42%, rgba(232,242,255,.15) 64%, rgba(232,242,255,0) 78%); }
+    .wrap { position:relative; z-index:1; min-height:100vh; display:flex; align-items:center; gap:48px;
+      padding:32px 4vw; max-width:1500px; }
+
+    /* ---- ฝั่งแบรนด์ ---- */
+    .hero { flex:0 1 430px; text-align:center; }
+    .hero-logo { display:inline-flex; align-items:center; gap:14px; text-decoration:none; color:inherit; }
+    .hero-logo img { width:68px; height:68px; object-fit:contain; filter:drop-shadow(0 8px 16px rgba(37,99,235,.28)); }
+    .hero-logo b { font-size:44px; font-weight:800; letter-spacing:-.5px; line-height:1; color:#0f172a; }
+    .hero-logo b span { color:#2563eb; }
+    .hero h1 { margin:14px 0 14px; font-size:22px; font-weight:700; color:#1e293b; }
+    .pill { display:inline-flex; align-items:center; gap:10px; padding:10px 22px; border-radius:999px; color:#fff;
+      font-size:17px; font-weight:600; background:linear-gradient(110deg,#2563eb,#3b82f6,#60a5fa); box-shadow:0 10px 24px rgba(37,99,235,.3); }
+    .pill i { display:inline-flex; width:24px; height:24px; border-radius:50%; background:#fff; color:#2563eb; align-items:center; justify-content:center; font-style:normal; font-weight:800; }
+    .feats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:24px; }
+    .feat { display:flex; flex-direction:column; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:#334155; line-height:1.35; }
+    .feat span { width:56px; height:56px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:26px;
+      background:rgba(255,255,255,.9); box-shadow:0 8px 20px rgba(15,23,42,.10); }
+
+    /* ---- การ์ดเข้าสู่ระบบ ---- */
+    .side { flex:0 0 400px; max-width:100%; }
+    .landing-link { display:block; margin-bottom:12px; padding:11px 16px; border-radius:14px; text-align:center; text-decoration:none;
+      font-size:14px; font-weight:600; color:#1d4ed8; background:rgba(255,255,255,.85); box-shadow:0 4px 16px rgba(16,24,40,.08); }
+    .landing-link:hover { background:#fff; }
+    .card { background:rgba(255,255,255,.96); border-radius:24px; padding:30px 30px 26px; box-shadow:0 24px 60px rgba(30,64,175,.20);
+      backdrop-filter:blur(6px); }
+    .brand { display:flex; flex-direction:column; align-items:center; gap:4px; margin-bottom:18px; color:inherit; text-decoration:none; }
+    .brand img { width:52px; height:52px; object-fit:contain; }
+    .brand .name { font-size:24px; font-weight:800; color:#0f172a; }
+    .brand .name span { color:#2563eb; }
+    .brand .sub { font-size:13.5px; color:#64748b; }
+    label { display:block; margin:14px 0 6px; font-weight:600; font-size:15px; }
+    .field { position:relative; }
+    .field svg.ic { position:absolute; left:13px; top:50%; transform:translateY(-50%); width:18px; height:18px; color:#94a3b8; pointer-events:none; }
+    input { width:100%; padding:12px 14px 12px 40px; border:1px solid #dbe3ef; border-radius:12px; font-size:16px; font-family:inherit; background:#fff; }
+    input:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.18); }
+    .eye { position:absolute; right:8px; top:50%; transform:translateY(-50%); border:0; background:none; padding:6px; cursor:pointer; color:#64748b; border-radius:8px; }
+    .eye:hover { color:#2563eb; background:#eff6ff; }
+    .eye svg { width:20px; height:20px; display:block; }
+    .row-opt { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px; }
+    .row-opt a { color:#2563eb; font-size:13.5px; text-decoration:none; font-weight:600; }
+    .row-opt a:hover { text-decoration:underline; }
+    .remember { display:inline-flex; align-items:center; gap:8px; margin:0; font-size:13.5px; font-weight:500; color:#475569; cursor:pointer; user-select:none; }
+    .remember input[type=checkbox] { width:17px; height:17px; padding:0; margin:0; accent-color:#2563eb; cursor:pointer; flex:none; }
+    .btn { width:100%; margin-top:20px; display:flex; align-items:center; justify-content:center; gap:8px; color:#fff; border:none; padding:13px;
+      border-radius:12px; font-size:17px; font-weight:700; cursor:pointer; font-family:inherit;
+      background:linear-gradient(110deg,#2563eb,#3b82f6); box-shadow:0 10px 22px rgba(37,99,235,.32); transition:transform .1s, box-shadow .15s; }
+    .btn:hover { transform:translateY(-1px); box-shadow:0 14px 28px rgba(37,99,235,.38); }
+    .btn-outline { display:block; width:100%; margin-top:10px; text-align:center; text-decoration:none; background:#fff; color:#1d4ed8;
+      border:1.5px solid #bfd3f6; padding:11px; border-radius:12px; font-size:16px; font-weight:700; }
+    .btn-outline:hover { border-color:#3b82f6; background:#f5f8ff; }
+    .sep { display:flex; align-items:center; gap:12px; margin:18px 0 4px; color:#94a3b8; font-size:13px; }
+    .sep::before, .sep::after { content:""; flex:1; height:1px; background:#e2e8f0; }
+    .err { background:#fde8e8; color:#b91c1c; padding:10px 13px; border-radius:10px; font-size:14.5px; margin-bottom:6px; }
+    .ok { background:#e9f7ef; color:#0e7a44; padding:10px 13px; border-radius:10px; font-size:14.5px; margin-bottom:6px; }
+    .pdpa { display:flex; align-items:center; justify-content:center; gap:7px; margin:14px auto 0; padding:8px 16px; width:fit-content;
+      color:#334155; font-size:12.5px; text-decoration:none; border-radius:999px; background:rgba(255,255,255,.7); }
+    .pdpa:hover { background:#fff; }
+    a:focus-visible, button:focus-visible { outline:3px solid #facc15; outline-offset:3px; }
+
     @view-transition { navigation: auto; }
     @keyframes authCardIn { from { opacity:0; transform:translateY(16px) scale(.985); } to { opacity:1; transform:none; } }
-    .card { animation: authCardIn .45s cubic-bezier(.2,.75,.25,1) both; }
-    @media (prefers-reduced-motion: reduce){ .card{ animation:none; } }
+    @keyframes heroIn { from { opacity:0; transform:translateX(-14px); } to { opacity:1; transform:none; } }
+    .card { animation:authCardIn .45s cubic-bezier(.2,.75,.25,1) both; }
+    .hero { animation:heroIn .55s cubic-bezier(.2,.75,.25,1) both; }
+
+    /* จอกลาง: ซ่อนฝั่งแบรนด์ เหลือการ์ดด้านซ้าย รูปครูด้านขวา */
+    @media (max-width:1100px) { .hero { display:none; } }
+    /* มือถือ: รูปครูอยู่ด้านบน การ์ดเต็มความกว้าง */
+    @media (max-width:720px) {
+      body { background-position:82% top; background-size:auto 46vh; background-color:#e6f0fd; }
+      body::before { background:linear-gradient(180deg, rgba(230,240,253,0) 0%, rgba(230,240,253,.2) 30vh, #e6f0fd 44vh); }
+      .wrap { padding:30vh 16px 24px; align-items:flex-start; }
+      .side { flex:1 1 auto; }
+      .card { padding:26px 20px 22px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .card, .hero { animation:none; } }
   </style>
 </head>
 <body>
-  <a class="landing-link" href="/landing">← หน้าแนะนำระบบและแพ็กเกจ</a>
-  <form class="card" method="post" action="/login">
-    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
-    <a class="brand" href="/landing" aria-label="Easy Ekkasan · หน้าแนะนำระบบ">
-      <img src="/static/logo-ekkasan.png" alt="Easy Ekkasan">
-      <span class="name">Easy Ekkasan</span>
-      <span class="sub">ระบบจัดการเอกสารและพัสดุโรงเรียน</span>
-    </a>
-    {% if ok_msg %}<div class="ok">{{ ok_msg }}</div>{% endif %}
-    {% if error %}<div class="err">{{ error }}</div>{% endif %}
-    {% if unverified_email %}
-    <div style="margin:-2px 0 6px;">
-      <button type="submit" form="resendVerification" style="width:100%; background:#fff7e6; color:#a15c07; border:1px solid #ffe0a8;
-        padding:9px; border-radius:10px; font-weight:600; font-size:14px; cursor:pointer; font-family:inherit;">
-        ส่งอีเมลยืนยันอีกครั้ง</button>
+  <main class="wrap">
+    <section class="hero" aria-label="Easy Ekkasan">
+      <a class="hero-logo" href="/landing"><img src="/static/logo-ekkasan.png" alt=""><b>Easy <span>Ekkasan</span></b></a>
+      <h1>ระบบจัดการเอกสารและพัสดุโรงเรียน</h1>
+      <div class="pill"><i>✓</i> จัดการเอกสาร ง่าย ครบ จบในที่เดียว</div>
+      <div class="feats">
+        <div class="feat"><span>📄</span>เอกสาร<br>โรงเรียน</div>
+        <div class="feat"><span>📦</span>จัดการ<br>พัสดุ</div>
+        <div class="feat"><span>👩‍🏫</span>ใช้งานง่าย<br>สำหรับครู</div>
+        <div class="feat"><span>📊</span>ช่วยงาน<br>ให้เป็นระบบ</div>
+      </div>
+    </section>
+
+    <div class="side">
+      <a class="landing-link" href="/landing">← หน้าแนะนำระบบและแพ็กเกจ</a>
+      <form class="card" method="post" action="/login">
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        <a class="brand" href="/landing" aria-label="Easy Ekkasan หน้าแนะนำระบบ">
+          <img src="/static/logo-ekkasan.png" alt="Easy Ekkasan">
+          <span class="name">Easy <span>Ekkasan</span></span>
+          <span class="sub">ระบบจัดการเอกสารและพัสดุโรงเรียน</span>
+        </a>
+        {% if ok_msg %}<div class="ok">{{ ok_msg }}</div>{% endif %}
+        {% if error %}<div class="err">{{ error }}</div>{% endif %}
+        {% if unverified_email %}
+        <div style="margin:-2px 0 6px;">
+          <button type="submit" form="resendVerification" style="width:100%; background:#fff7e6; color:#a15c07; border:1px solid #ffe0a8;
+            padding:9px; border-radius:10px; font-weight:600; font-size:14px; cursor:pointer; font-family:inherit;">
+            ส่งอีเมลยืนยันอีกครั้ง</button>
+        </div>
+        {% endif %}
+        <label for="lgUser">ชื่อผู้ใช้ หรือ อีเมล</label>
+        <div class="field">
+          <svg class="ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zm0 2c-4.4 0-8 2.2-8 5v2h16v-2c0-2.8-3.6-5-8-5z"/></svg>
+          <input id="lgUser" name="username" autocomplete="username" required autofocus placeholder="อีเมล หรือ ไอดีครู เช่น teacher1.104">
+        </div>
+        <label for="lgPass">รหัสผ่าน</label>
+        <div class="field">
+          <svg class="ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17 9V7a5 5 0 0 0-10 0v2H5v13h14V9h-2zM9 7a3 3 0 0 1 6 0v2H9V7zm4 9.7V19h-2v-2.3a2 2 0 1 1 2 0z"/></svg>
+          <input id="lgPass" name="password" type="password" autocomplete="current-password" required placeholder="กรอกรหัสผ่าน" style="padding-right:44px;">
+          <button type="button" class="eye" id="lgEye" aria-label="แสดงรหัสผ่าน" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div class="row-opt">
+          <label class="remember"><input type="checkbox" name="remember" value="1"> จดจำฉันไว้</label>
+          <a href="/forgot">ลืมรหัสผ่าน?</a>
+        </div>
+        <button class="btn" type="submit">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          เข้าสู่ระบบ</button>
+        <div class="sep">หรือ</div>
+        <a class="btn-outline" href="/register?next={{ next|urlencode }}">ลงทะเบียน / ทดลองใช้ฟรี</a>
+      </form>
+      <a class="pdpa" href="/privacy">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        ข้อมูลของคุณปลอดภัย นโยบายความเป็นส่วนตัว (PDPA)
+      </a>
     </div>
-    {% endif %}
-    <label>ชื่อผู้ใช้ หรือ อีเมล</label>
-    <input name="username" autocomplete="username" required autofocus
-           placeholder="อีเมล หรือ ไอดีครู เช่น teacher1.104">
-    <label>รหัสผ่าน</label>
-    <input name="password" type="password" autocomplete="current-password" required>
-    <div class="row-opt">
-      <label class="remember"><input type="checkbox" name="remember" value="1"> จดจำฉันไว้</label>
-      <a href="/forgot">ลืมรหัสผ่าน?</a>
-    </div>
-    <button class="btn" type="submit">เข้าสู่ระบบ</button>
-    <div class="sep">ยังไม่มีบัญชี?</div>
-    <a class="btn-outline" href="/register?next={{ next|urlencode }}">ลงทะเบียน / ทดลองใช้ฟรี</a>
-  </form>
+  </main>
   {% if unverified_email %}
   <form id="resendVerification" method="post" action="/register/resend">
     <input type="hidden" name="email" value="{{ unverified_email }}">
     <input type="hidden" name="flow" value="{{ flow or '' }}">
   </form>
   {% endif %}
-  <a class="pdpa" href="/privacy">
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
-         stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-    ข้อมูลของคุณปลอดภัย · นโยบายความเป็นส่วนตัว (PDPA)
-  </a>
+  <script>
+    (function () {
+      var b = document.getElementById('lgEye'), p = document.getElementById('lgPass');
+      b.addEventListener('click', function () {
+        var show = p.type === 'password';
+        p.type = show ? 'text' : 'password';
+        b.setAttribute('aria-pressed', show);
+        b.setAttribute('aria-label', show ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน');
+      });
+    })();
+  </script>
 </body>
 </html>
