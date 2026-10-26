@@ -58,7 +58,9 @@
   #registrationForm .pw-meter { margin:8px 0 0; }
   #registrationForm .src-chip { display:inline-flex; align-items:center; gap:8px; background:#f1f5f9; padding:9px 16px 9px 11px; font-size:15px; }
   #registrationForm .src-chip svg { width:18px; height:18px; flex:none; }
-  #registrationForm .src-chip.on svg .bg { fill:#fff; }
+  /* ปุ่มที่เลือก: พื้นไล่สีฟ้า ตัวหนังสือขาว ไอคอนคงสีเดิมบนวงกลมขาว */
+  #registrationForm .src-chip.on { color:#fff; background:linear-gradient(120deg,#2563eb,#6366f1); box-shadow:0 6px 16px rgba(37,99,235,.32); }
+  #registrationForm .src-chip.on svg { background:#fff; border-radius:50%; padding:2px; width:22px; height:22px; }
   #registrationForm .btn-primary { border-radius:15px; padding:16px; font-size:18.5px; background:linear-gradient(110deg,#1d4ed8,#3b82f6);
     box-shadow:0 12px 26px rgba(37,99,235,.35); }
   #registrationForm .hint { text-align:center; }
