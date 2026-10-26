@@ -23,7 +23,7 @@
     /* ---- ฝั่งแบรนด์ ---- */
     .hero { flex:0 1 440px; text-align:center; margin-top:-6vh; }
     .hero-logo { display:inline-flex; align-items:center; gap:14px; text-decoration:none; color:inherit; }
-    .hero-logo img { width:68px; height:68px; object-fit:contain; filter:drop-shadow(0 8px 16px rgba(37,99,235,.28)); }
+    .hero-logo img { width:60px; height:68px; object-fit:contain; filter:drop-shadow(0 8px 16px rgba(37,99,235,.28)); }
     .hero-logo b { font-size:44px; font-weight:800; letter-spacing:-.5px; line-height:1; color:#0f172a; }
     .hero-logo b span { color:#2563eb; }
     .hero h1 { margin:14px 0 14px; font-size:22px; font-weight:700; color:#1e293b; }
@@ -35,6 +35,12 @@
     .feat span { width:58px; height:58px; border-radius:18px; display:flex; align-items:center; justify-content:center;
       background:#fff; box-shadow:0 8px 20px rgba(15,23,42,.10); }
     .feat svg { width:30px; height:30px; }
+    /* ไอคอนลอยขึ้นลงเบา ๆ จังหวะไม่พร้อมกัน */
+    @keyframes floaty { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-7px); } }
+    .feat span { animation:floaty 3.2s ease-in-out infinite; }
+    .feat:nth-child(2) span { animation-delay:-.8s; }
+    .feat:nth-child(3) span { animation-delay:-1.6s; }
+    .feat:nth-child(4) span { animation-delay:-2.4s; }
     .f-doc { color:#2563eb; } .f-box { color:#10b981; } .f-team { color:#8b5cf6; } .f-chart { color:#f59e0b; }
 
     /* ---- การ์ดเข้าสู่ระบบ ---- */
@@ -94,7 +100,7 @@
       .side { flex:1 1 auto; }
       .card { padding:26px 20px 22px; }
     }
-    @media (prefers-reduced-motion: reduce) { .card, .hero { animation:none; } }
+    @media (prefers-reduced-motion: reduce) { .card, .hero, .feat span { animation:none; } }
   </style>
 </head>
 <body>
@@ -105,7 +111,7 @@
       <form class="card" method="post" action="/login">
         {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
         <a class="brand" href="/landing" aria-label="Easy Ekkasan หน้าแนะนำระบบ">
-          <img src="/static/logo-ekkasan.png" alt="Easy Ekkasan">
+          <img src="/static/logo-ekkasan-clear.png" alt="Easy Ekkasan">
           <span class="name">Easy <span>Ekkasan</span></span>
           <span class="sub">ระบบจัดการเอกสารและพัสดุโรงเรียน</span>
         </a>
@@ -148,7 +154,7 @@
       </a>
     </div>
     <section class="hero" aria-label="Easy Ekkasan">
-      <a class="hero-logo" href="/landing"><img src="/static/logo-ekkasan.png" alt=""><b>Easy <span>Ekkasan</span></b></a>
+      <a class="hero-logo" href="/landing"><img src="/static/logo-ekkasan-clear.png" alt=""><b>Easy <span>Ekkasan</span></b></a>
       <h1>ระบบจัดการเอกสารและพัสดุโรงเรียน</h1>
       <div class="pill"><i>✓</i> จัดการเอกสาร ง่าย ครบ จบในที่เดียว</div>
       <div class="feats">
