@@ -124,3 +124,28 @@ def test_write_and_doc_counts_are_separated(client):
         assert r.docs >= 1, f"ไม่ได้นับเอกสารที่ออก: {r.docs}"
     finally:
         db.close()
+
+
+def test_flush_failure_keeps_counts_for_next_round(monkeypatch):
+    """บันทึกลงฐานข้อมูลไม่ได้ชั่วคราว ยอดต้องไม่หาย (ของเดิมทิ้งไปเงียบ ๆ)"""
+    import app.usage as u
+    import app.accounts as ac
+    u._buf.clear()
+    u.record(99, {"uid": 7, "username": "x"}, "finance", "POST", "")
+
+    class Broken:
+        def query(self, *a, **k):
+            raise RuntimeError("database is locked")
+        def rollback(self):
+            pass
+        def close(self):
+            pass
+    real = ac.acc_session
+    monkeypatch.setattr(ac, "acc_session", lambda: Broken())
+    assert u.flush() == 0
+    key = next(k for k in u._buf if k[0] == 99)
+    assert u._buf[key]["hits"] == 1 and u._buf[key]["writes"] == 1
+    u.record(99, {"uid": 7, "username": "x"}, "finance", "GET", "")
+    assert u._buf[key]["hits"] == 2
+    monkeypatch.setattr(ac, "acc_session", real)
+    u._buf.clear()

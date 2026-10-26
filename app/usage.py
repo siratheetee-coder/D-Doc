@@ -118,19 +118,42 @@ def flush() -> int:
             for k, v in row["modules"].items():
                 mods[k] = mods.get(k, 0) + v
             rec.modules = json.dumps(mods, ensure_ascii=False)
-        today = date.today().isoformat()
-        if _last_purge != today:
-            cut = (date.today() - timedelta(days=RETENTION_DAYS)).isoformat()
-            _fold_into_lifetime(db, cut)
-            db.query(UsageDay).filter(UsageDay.day < cut).delete(synchronize_session=False)
-            _last_purge = today
         db.commit()
-        return len(pending)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
+        # บันทึกไม่สำเร็จ (เช่น ฐานข้อมูลถูกล็อกชั่วคราว) -> คืนยอดกลับเข้าคิว รอบหน้าลองใหม่
+        # ของเดิมทิ้งยอดไปเลยและไม่บอกใคร ประวัติการใช้งานจึงหายได้ทั้งวันโดยไม่รู้ตัว
         db.rollback()
+        print("[usage] บันทึกการใช้งานไม่สำเร็จ จะลองใหม่:", repr(e))
+        with _lock:
+            for key, row in pending.items():
+                cur = _buf.get(key)
+                if cur is None:
+                    _buf[key] = row
+                    continue
+                for k in ("hits", "writes", "docs"):
+                    cur[k] += row[k]
+                cur["first_at"] = min(cur["first_at"], row["first_at"])
+                for m, v in row["modules"].items():
+                    cur["modules"][m] = cur["modules"].get(m, 0) + v
         return 0
     finally:
         db.close()
+    # ล้างข้อมูลเก่าวันละครั้ง แยกจากการบันทึกยอดวันนี้ (ล้างพลาดก็ไม่ทำให้ยอดวันนี้หาย)
+    today = date.today().isoformat()
+    if _last_purge != today:
+        db = acc_session()
+        try:
+            cut = (date.today() - timedelta(days=RETENTION_DAYS)).isoformat()
+            _fold_into_lifetime(db, cut)
+            db.query(UsageDay).filter(UsageDay.day < cut).delete(synchronize_session=False)
+            db.commit()
+            _last_purge = today
+        except Exception as e:  # noqa: BLE001
+            db.rollback()
+            print("[usage] ล้างข้อมูลการใช้งานเก่าไม่สำเร็จ:", repr(e))
+        finally:
+            db.close()
+    return len(pending)
 
 
 def days_with_data(db, limit: int = RETENTION_DAYS) -> list:
