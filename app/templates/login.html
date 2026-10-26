@@ -14,13 +14,14 @@
     body { margin:0; min-height:100vh; font-family:"Prompt","Sarabun","Leelawadee UI","Segoe UI",sans-serif; color:#1e293b;
       background:#cfe3fb url("/static/images/login-bg.webp") right center / cover no-repeat; overflow-x:hidden; }
     /* ไล่สีทับด้านซ้าย ให้ตัวหนังสือชัด แต่ยังเห็นรูปครูด้านขวา */
+    /* แสงขาวนุ่ม ๆ หลังข้อความ ให้อ่านง่ายบนรูป โดยไม่บังหน้าครู */
     body::before { content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
-      background:linear-gradient(90deg, rgba(232,242,255,.92) 0%, rgba(232,242,255,.78) 42%, rgba(232,242,255,.15) 64%, rgba(232,242,255,0) 78%); }
-    .wrap { position:relative; z-index:1; min-height:100vh; display:flex; align-items:center; gap:48px;
+      background:radial-gradient(ellipse 34% 46% at 44% 50%, rgba(240,247,255,.88), rgba(240,247,255,.55) 55%, rgba(240,247,255,0) 100%); }
+    .wrap { position:relative; z-index:1; min-height:100vh; display:flex; align-items:center; gap:4vw;
       padding:32px 4vw; max-width:1500px; }
 
     /* ---- ฝั่งแบรนด์ ---- */
-    .hero { flex:0 1 430px; text-align:center; }
+    .hero { flex:0 1 440px; text-align:center; margin-top:-6vh; }
     .hero-logo { display:inline-flex; align-items:center; gap:14px; text-decoration:none; color:inherit; }
     .hero-logo img { width:68px; height:68px; object-fit:contain; filter:drop-shadow(0 8px 16px rgba(37,99,235,.28)); }
     .hero-logo b { font-size:44px; font-weight:800; letter-spacing:-.5px; line-height:1; color:#0f172a; }
@@ -31,8 +32,10 @@
     .pill i { display:inline-flex; width:24px; height:24px; border-radius:50%; background:#fff; color:#2563eb; align-items:center; justify-content:center; font-style:normal; font-weight:800; }
     .feats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:24px; }
     .feat { display:flex; flex-direction:column; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:#334155; line-height:1.35; }
-    .feat span { width:56px; height:56px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:26px;
-      background:rgba(255,255,255,.9); box-shadow:0 8px 20px rgba(15,23,42,.10); }
+    .feat span { width:58px; height:58px; border-radius:18px; display:flex; align-items:center; justify-content:center;
+      background:#fff; box-shadow:0 8px 20px rgba(15,23,42,.10); }
+    .feat svg { width:30px; height:30px; }
+    .f-doc { color:#2563eb; } .f-box { color:#10b981; } .f-team { color:#8b5cf6; } .f-chart { color:#f59e0b; }
 
     /* ---- การ์ดเข้าสู่ระบบ ---- */
     .side { flex:0 0 400px; max-width:100%; }
@@ -77,7 +80,7 @@
 
     @view-transition { navigation: auto; }
     @keyframes authCardIn { from { opacity:0; transform:translateY(16px) scale(.985); } to { opacity:1; transform:none; } }
-    @keyframes heroIn { from { opacity:0; transform:translateX(-14px); } to { opacity:1; transform:none; } }
+    @keyframes heroIn { from { opacity:0; transform:translateX(14px); } to { opacity:1; transform:none; } }
     .card { animation:authCardIn .45s cubic-bezier(.2,.75,.25,1) both; }
     .hero { animation:heroIn .55s cubic-bezier(.2,.75,.25,1) both; }
 
@@ -96,17 +99,6 @@
 </head>
 <body>
   <main class="wrap">
-    <section class="hero" aria-label="Easy Ekkasan">
-      <a class="hero-logo" href="/landing"><img src="/static/logo-ekkasan.png" alt=""><b>Easy <span>Ekkasan</span></b></a>
-      <h1>ระบบจัดการเอกสารและพัสดุโรงเรียน</h1>
-      <div class="pill"><i>✓</i> จัดการเอกสาร ง่าย ครบ จบในที่เดียว</div>
-      <div class="feats">
-        <div class="feat"><span>📄</span>เอกสาร<br>โรงเรียน</div>
-        <div class="feat"><span>📦</span>จัดการ<br>พัสดุ</div>
-        <div class="feat"><span>👩‍🏫</span>ใช้งานง่าย<br>สำหรับครู</div>
-        <div class="feat"><span>📊</span>ช่วยงาน<br>ให้เป็นระบบ</div>
-      </div>
-    </section>
 
     <div class="side">
       <a class="landing-link" href="/landing">← หน้าแนะนำระบบและแพ็กเกจ</a>
@@ -155,6 +147,17 @@
         ข้อมูลของคุณปลอดภัย นโยบายความเป็นส่วนตัว (PDPA)
       </a>
     </div>
+    <section class="hero" aria-label="Easy Ekkasan">
+      <a class="hero-logo" href="/landing"><img src="/static/logo-ekkasan.png" alt=""><b>Easy <span>Ekkasan</span></b></a>
+      <h1>ระบบจัดการเอกสารและพัสดุโรงเรียน</h1>
+      <div class="pill"><i>✓</i> จัดการเอกสาร ง่าย ครบ จบในที่เดียว</div>
+      <div class="feats">
+        <div class="feat"><span class="f-doc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2.5h8.2L19 7.3V20a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 20V4a1.5 1.5 0 0 1 1-1.5z" fill="currentColor"/><path d="M14 2.5V7a.5.5 0 0 0 .5.5H19" fill="#fff" opacity=".55"/><path d="M8 11.5h8M8 14.5h8M8 17.5h5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg></span>เอกสาร<br>โรงเรียน</div>
+        <div class="feat"><span class="f-box"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 21 7v10l-9 4.5L3 17V7z" fill="currentColor"/><path d="M3 7l9 4.5L21 7M12 11.5v10" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" fill="none" opacity=".85"/><path d="M7.5 4.8l9 4.5" stroke="#fff" stroke-width="1.5" opacity=".6"/></svg></span>จัดการ<br>พัสดุ</div>
+        <div class="feat"><span class="f-team"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7.5" r="3.6" fill="currentColor"/><path d="M5 20c0-3.9 3.1-6.5 7-6.5s7 2.6 7 6.5z" fill="currentColor"/><circle cx="5.2" cy="9.5" r="2.4" fill="currentColor" opacity=".55"/><circle cx="18.8" cy="9.5" r="2.4" fill="currentColor" opacity=".55"/><path d="M1 19c0-2.6 1.8-4.4 4.3-4.6M23 19c0-2.6-1.8-4.4-4.3-4.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".55" fill="none"/></svg></span>ใช้งานง่าย<br>สำหรับครู</div>
+        <div class="feat"><span class="f-chart"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="12" width="4" height="8.5" rx="1.2" fill="currentColor" opacity=".6"/><rect x="10" y="7.5" width="4" height="13" rx="1.2" fill="currentColor" opacity=".8"/><rect x="16" y="3.5" width="4" height="17" rx="1.2" fill="currentColor"/></svg></span>ช่วยงาน<br>ให้เป็นระบบ</div>
+      </div>
+    </section>
   </main>
   {% if unverified_email %}
   <form id="resendVerification" method="post" action="/register/resend">
