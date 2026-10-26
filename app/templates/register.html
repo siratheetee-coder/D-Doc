@@ -4,10 +4,10 @@
   /* หน้าเต็มจอ: รูปครูด้านซ้าย (ข้อความ+ป้ายจุดเด่นลอยรอบรูป) ฟอร์มด้านขวา */
   .top { display:none; }
   body { background:#dcebfb url("/static/images/register-bg.webp") left center / cover no-repeat fixed; }
-  .wrap { position:relative; max-width:none; margin:0; padding:24px 3vw; min-height:100vh;
+  .wrap { position:relative; max-width:none; margin:0; padding:16px 3vw; min-height:100vh;
     display:flex; align-items:center; justify-content:flex-end; }
   .rg-art { position:fixed; inset:0; pointer-events:none; z-index:0; }
-  .rg-side { position:relative; z-index:2; flex:0 0 560px; max-width:100%; margin-right:2vw; }
+  .rg-side { position:relative; z-index:2; flex:0 0 clamp(560px, 47vw, 780px); max-width:100%; margin-right:1vw; }
 
   /* ---- ข้อความแบรนด์ + ป้ายจุดเด่นรอบรูปครู ---- */
   .rg-brand { position:absolute; left:2.5vw; top:4vh; pointer-events:auto; padding:16px 26px 22px 18px; border-radius:26px;
@@ -30,36 +30,40 @@
   .rg-tip i { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex:none; }
   .rg-tip svg { width:26px; height:26px; }
   .t1 { left:3vw; top:46vh; } .t2 { left:5vw; top:63vh; animation-delay:-1.2s; }
-  .t3 { left:43vw; top:52vh; animation-delay:-.6s; } .t4 { left:45vw; top:69vh; animation-delay:-1.8s; }
+  .t3 { left:35vw; top:50vh; animation-delay:-.6s; } .t4 { left:37vw; top:68vh; animation-delay:-1.8s; }
   @keyframes rgFloat { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-8px); } }
 
   /* ---- การ์ดฟอร์ม ---- */
-  #registrationForm.card { border:0; border-radius:26px; padding:26px 34px 22px; margin:0; background:rgba(255,255,255,.97);
+  #registrationForm.card { border:0; border-radius:28px; padding:26px clamp(28px, 3vw, 52px) 20px; margin:0; background:rgba(255,255,255,.97);
     box-shadow:0 24px 60px rgba(30,64,175,.22); }
   .rg-head { text-align:center; }
   .rg-head .logo { display:inline-flex; align-items:center; gap:10px; text-align:left; }
-  .rg-head .logo img { width:46px; height:52px; object-fit:contain; }
-  .rg-head .logo b { display:block; font-size:24px; line-height:1.1; }
+  .rg-head .logo img { width:54px; height:62px; object-fit:contain; }
+  .rg-head .logo b { display:block; font-size:28px; line-height:1.1; }
   .rg-head .logo small { display:block; font-size:12.5px; color:#64748b; font-weight:500; }
-  .rg-head h1 { font-size:26px; margin:10px 0 2px; }
-  .rg-head p { font-size:14px; color:#64748b; line-height:1.6; }
+  .rg-head h1 { font-size:30px; margin:8px 0 2px; }
+  .rg-head p { font-size:15.5px; color:#64748b; line-height:1.6; }
   .fi { position:relative; }
   .fi > svg { position:absolute; left:13px; top:50%; transform:translateY(-50%); width:18px; height:18px; color:#94a3b8; pointer-events:none; }
-  #registrationForm .fi input { padding:11px 14px 11px 40px; border-radius:12px; }
-  #registrationForm label { margin:12px 0 5px; }
+  #registrationForm .fi input { padding:13px 16px 13px 44px; border-radius:13px; font-size:16.5px; }
+  #registrationForm label { margin:11px 0 5px; font-size:16px; }
+  .fi > svg { left:15px; width:20px; height:20px; }
+  #registrationForm .pw-rules { font-size:13.5px; display:flex; flex-wrap:wrap; gap:2px 18px; padding:8px 14px; }
+  #registrationForm .pw-rules li { margin:0; }
+  #registrationForm .hint { font-size:13.5px; margin-top:6px; }
   .rg-eye { position:absolute; right:8px; top:50%; transform:translateY(-50%); border:0; background:none; padding:6px; cursor:pointer; color:#64748b; border-radius:8px; }
   .rg-eye:hover { color:#2563eb; background:#eff6ff; }
   .rg-eye svg { width:20px; height:20px; display:block; }
   #registrationForm .pw-rules { background:#f1f5f9; border-radius:12px; padding:8px 12px; margin-top:6px; }
   #registrationForm .pw-meter { margin:8px 0 0; }
-  #registrationForm .src-chip { display:inline-flex; align-items:center; gap:7px; background:#f1f5f9; padding:7px 14px 7px 10px; }
+  #registrationForm .src-chip { display:inline-flex; align-items:center; gap:8px; background:#f1f5f9; padding:9px 16px 9px 11px; font-size:15px; }
   #registrationForm .src-chip svg { width:18px; height:18px; flex:none; }
   #registrationForm .src-chip.on svg .bg { fill:#fff; }
-  #registrationForm .btn-primary { border-radius:14px; padding:14px; font-size:17px; background:linear-gradient(110deg,#1d4ed8,#3b82f6);
+  #registrationForm .btn-primary { border-radius:15px; padding:16px; font-size:18.5px; background:linear-gradient(110deg,#1d4ed8,#3b82f6);
     box-shadow:0 12px 26px rgba(37,99,235,.35); }
   #registrationForm .hint { text-align:center; }
 
-  @media (max-width:1180px) { .rg-tip.t3, .rg-tip.t4 { display:none; } }
+  @media (max-width:1280px) { .rg-tip.t3, .rg-tip.t4 { display:none; } }
   @media (max-width:980px) {
     body { background-position:28% top; background-size:auto 52vh; background-attachment:scroll; }
     .rg-art { position:absolute; height:52vh; }
