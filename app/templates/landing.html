@@ -607,6 +607,7 @@
       <a href="#modules">โมดูล</a>
       <a href="#pricing">ราคา</a>
       <a href="#contact">ติดต่อ</a>
+      {% if kb_count %}<a href="/knowledge">คลังความรู้</a>{% endif %}
     </nav>
     <div class="nav-cta">
       <a class="btn btn-ghost" href="/login">เข้าสู่ระบบ</a>
@@ -1171,8 +1172,10 @@
 
 <footer>
   <div class="wrap foot">
-    <a class="brand" href="/landing"><img src="/static/logo-ekkasan.png" alt="" onerror="this.remove()">Easy <b>Ekkasan</b></a>
+    <a class="brand" href="/"><img src="/static/logo-ekkasan.png" alt="" onerror="this.remove()">Easy <b>Ekkasan</b></a>
     <span>ระบบจัดการเอกสารและพัสดุโรงเรียน</span>
+    <a href="/guide" style="color:var(--blue); font-weight:600;">วิธีใช้งาน</a>
+    {% if kb_count %}<a href="/knowledge" style="color:var(--blue); font-weight:600;">คลังความรู้</a>{% endif %}
     <a class="fb-link" href="https://www.facebook.com/profile.php?id=61590718498881&locale=th_TH" target="_blank" rel="noopener"
        style="display:inline-flex; align-items:center; gap:7px; color:var(--blue); font-weight:600;">
       <svg class="ico"><use href="#ic-facebook"/></svg> ติดตามเราบน Facebook

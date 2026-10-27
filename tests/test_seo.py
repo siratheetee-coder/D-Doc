@@ -47,3 +47,62 @@ def test_guide_public_for_visitors(env):
     assert env.get("/guide").status_code == 200
     # หน้าในระบบอื่นยังต้องล็อกอิน
     assert c.get("/finance", follow_redirects=False).headers["location"] == "/login"
+
+
+def test_knowledge_drafts_hidden_and_published_listed(env, monkeypatch, tmp_path):
+    from app.services import articles
+    monkeypatch.setattr(articles, "DIR", tmp_path)
+    (tmp_path / "draft-one.html").write_text(
+        "<!--\ntitle: ร่างลับ\ndescription: d\ndate: 2026-10-27\ncategory: งานพัสดุ\ndraft: true\n-->\n<p>x</p>", encoding="utf-8")
+    c = _anon()
+    # ยังไม่มีบทความเผยแพร่: หน้ารวมเปิดได้ แต่ร่างไม่โผล่ ไม่อยู่ใน sitemap ไม่มีลิงก์ในหน้าแรก
+    r = c.get("/knowledge")
+    assert r.status_code == 200 and "ร่างลับ" not in r.text
+    assert c.get("/knowledge/draft-one").status_code == 404
+    assert "/knowledge" not in c.get("/sitemap.xml").text
+    assert 'href="/knowledge"' not in c.get("/").text
+
+    (tmp_path / "pub-one.html").write_text(
+        "<!--\ntitle: เรื่องเผยแพร่\ndescription: สรุปสั้น\ndate: 2026-10-20\nupdated: 2026-10-25\n"
+        "category: งานพัสดุ\ndraft: false\n-->\n<h2>หัวข้อ</h2><p>เนื้อหา</p>", encoding="utf-8")
+    page = c.get("/knowledge/pub-one")
+    assert page.status_code == 200 and '<h2 id="s1">หัวข้อ</h2>' in page.text  # หัวข้อมี id ให้สารบัญลิงก์มา
+    assert '<link rel="canonical" href="https://www.easy-ekkasan.com/knowledge/pub-one">' in page.text
+    ld = json.loads(re.search(r'<script type="application/ld\+json">(.*?)</script>', page.text, re.S).group(1))
+    art = next(g for g in ld["@graph"] if g["@type"] == "Article")
+    assert art["dateModified"] == "2026-10-25"
+    sm = c.get("/sitemap.xml").text
+    assert "<loc>https://www.easy-ekkasan.com/knowledge/pub-one</loc><lastmod>2026-10-25</lastmod>" in sm
+    assert "draft-one" not in sm
+    assert 'href="/knowledge"' in c.get("/").text
+    # slug แปลก ๆ ไม่เปิดไฟล์นอกโฟลเดอร์
+    assert c.get("/knowledge/..%2F..%2Fmain").status_code == 404
+
+
+def test_knowledge_drafts_visible_to_superadmin(env, monkeypatch, tmp_path):
+    from app.services import articles
+    monkeypatch.setattr(articles, "DIR", tmp_path)
+    (tmp_path / "draft-two.html").write_text(
+        "<!--\ntitle: ร่างให้แอดมินดู\ndate: 2026-10-27\ndraft: true\n-->\n<p>x</p>", encoding="utf-8")
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.accounts import acc_session, Account, hash_password
+    with acc_session() as db:
+        db.add(Account(username="kb-boss", password_hash=hash_password("Boss2569xyz"), role="superadmin"))
+        db.commit()
+    boss = TestClient(app, raise_server_exceptions=False)
+    boss.post("/login", data={"username": "kb-boss", "password": "Boss2569xyz"}, follow_redirects=False)
+    assert "ร่างให้แอดมินดู" in boss.get("/knowledge").text
+    r = boss.get("/knowledge/draft-two")
+    assert r.status_code == 200 and 'name="robots" content="noindex"' in r.text
+    # เจ้าของโรงเรียน (ไม่ใช่ผู้ดูแลระบบ) ไม่เห็นร่าง
+    assert env.get("/knowledge/draft-two").status_code == 404
+
+
+def test_bundled_articles_parse():
+    from app.services import articles
+    arts = articles.all_articles(include_drafts=True)
+    assert len(arts) >= 3
+    for a in arts:
+        assert a["title"] and a["description"] and a["category"], a["slug"]
+        assert len(a["description"]) <= 170, a["slug"]

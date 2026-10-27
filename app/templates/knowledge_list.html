@@ -1,0 +1,128 @@
+{% extends "public_app.html" %}
+{% block title %}คลังความรู้งานเอกสารโรงเรียน พัสดุ การเงิน ธุรการ วิชาการ | Easy Ekkasan{% endblock %}
+{% block head_meta %}
+<meta name="description" content="รวมคำตอบเรื่องงานเอกสารโรงเรียนที่ครูถามบ่อย จัดซื้อจัดจ้าง ว.119 ว.804 ทะเบียนคุมเงิน เงินอุดหนุน ปพ.5 อธิบายตามระเบียบ อ่านง่าย">
+{% if not_found %}<meta name="robots" content="noindex">{% else %}<link rel="canonical" href="{{ site_url }}/knowledge">{% endif %}
+<meta property="og:title" content="คลังความรู้งานเอกสารโรงเรียน | Easy Ekkasan">
+<meta property="og:description" content="คำตอบเรื่องที่ครูถามบ่อย อธิบายตามระเบียบ อ่านจบในไม่กี่นาที">
+<meta property="og:image" content="{{ site_url }}/static/landing/og-share.jpg?v=1">
+{% endblock %}
+{% block content %}
+{% set cats = [] %}{% for a in items %}{% if a.category and a.category not in cats %}{% set _ = cats.append(a.category) %}{% endif %}{% endfor %}
+
+<header class="kl-head">
+  <span class="kl-pill">คลังความรู้</span>
+  <h1>งานเอกสารโรงเรียน<br><em>อธิบายให้เข้าใจง่าย</em></h1>
+  <p>คำตอบเรื่องที่ครูถามบ่อย จัดซื้อจัดจ้าง การเงิน ธุรการ และวิชาการ เขียนตามระเบียบ อ่านจบในไม่กี่นาที</p>
+  <i class="kl-blob a"></i><i class="kl-blob b"></i>
+</header>
+
+{% if not_found %}<div class="kl-msg warn">ไม่พบบทความนี้ ลองเลือกเรื่องอื่นด้านล่าง</div>{% endif %}
+{% if show_drafts %}<div class="kl-msg">คุณเห็นบทความร่างด้วยเพราะเป็นผู้ดูแลระบบ คนทั่วไปเห็นเฉพาะที่เผยแพร่แล้ว</div>{% endif %}
+
+{% if items %}
+{% if cats|length > 1 %}
+<div class="kl-filter" id="klFilter">
+  <button type="button" class="on" data-cat="">ทั้งหมด</button>
+  {% for c in cats %}<button type="button" data-cat="{{ c }}">{{ c }}</button>{% endfor %}
+</div>
+{% endif %}
+<div class="kl-grid">
+  {% for a in items %}{% set st = cat_style(a.category) %}
+  <a class="kl-card" href="/knowledge/{{ a.slug }}" data-cat="{{ a.category }}" style="--c1:{{ st.c1 }}; --c2:{{ st.c2 }};">
+    <span class="kl-top">
+      <span class="kl-ic"><svg class="icon"><use href="#{{ st.icon }}"/></svg></span>
+      <span class="kl-cat">{{ a.category or 'ทั่วไป' }}</span>
+      {% if a.draft %}<b class="kl-draft">ร่าง</b>{% endif %}
+    </span>
+    <h2>{{ a.title }}</h2>
+    <p>{{ a.description }}</p>
+    <span class="kl-meta"><span>{{ thai_date(a.updated) }}</span><span>อ่าน {{ a.minutes }} นาที</span><span class="kl-go">อ่านต่อ →</span></span>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="kl-empty">กำลังเตรียมบทความ เร็ว ๆ นี้</div>
+{% endif %}
+
+<section class="kl-cta">
+  <div>
+    <h2>อยากให้ระบบทำเอกสารพวกนี้ให้อัตโนมัติ?</h2>
+    <p>ลองระบบตัวอย่างได้ทันที ไม่ต้องสมัคร หรือทดลองใช้ฟรี 30 วัน</p>
+  </div>
+  <div class="kl-btns">
+    <a class="btn kl-w" href="/#try">ลองระบบตัวอย่าง</a>
+    <a class="btn kl-o" href="/register">ทดลองใช้ฟรี 30 วัน</a>
+  </div>
+</section>
+
+<style>
+  .kl-head h1, .kl-card h2, .kl-cta h2 { display:block; background:none; border:0; border-radius:0; padding:0; box-shadow:none; }
+  .kl-head { position:relative; overflow:hidden; padding:40px 40px 44px; border-radius:28px; color:#fff;
+    background:linear-gradient(135deg,#1d4ed8 0%,#4f46e5 55%,#7c3aed 100%); box-shadow:0 20px 44px rgba(79,70,229,.26); }
+  .kl-blob { position:absolute; border-radius:50%; background:rgba(255,255,255,.12); pointer-events:none; }
+  .kl-blob.a { width:340px; height:340px; right:-90px; top:-120px; }
+  .kl-blob.b { width:200px; height:200px; right:180px; bottom:-120px; background:rgba(255,255,255,.08); }
+  .kl-pill { position:relative; display:inline-block; padding:5px 14px; border-radius:999px; background:rgba(255,255,255,.2); font-size:14px; font-weight:700; }
+  .kl-head h1 { position:relative; margin:14px 0 0; font-size:40px; line-height:1.3; font-weight:800; color:#fff; }
+  .kl-head h1 em { font-style:normal; color:#fde047; }
+  .kl-head p { position:relative; margin:14px 0 0; max-width:640px; font-size:17.5px; line-height:1.7; opacity:.93; }
+
+  .kl-msg { margin:16px 0 0; padding:12px 18px; border-radius:14px; font-size:14.5px; color:#92400e; background:linear-gradient(135deg,#fffbeb,#fef3c7); }
+  .kl-msg.warn { color:#9f1239; background:linear-gradient(135deg,#fff1f2,#ffe4e6); }
+
+  .kl-filter { display:flex; gap:8px; flex-wrap:wrap; margin:24px 0 4px; }
+  .kl-filter button { border:0; cursor:pointer; padding:9px 18px; border-radius:999px; font:inherit; font-size:15px; font-weight:600;
+    color:#334155; background:var(--surface); box-shadow:0 2px 10px rgba(15,23,42,.06); }
+  .kl-filter button:hover { color:#1d4ed8; }
+  .kl-filter button.on { color:#fff; background:linear-gradient(135deg,#2563eb,#7c3aed); box-shadow:0 8px 18px rgba(79,70,229,.28); }
+
+  .kl-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:18px; margin-top:18px; }
+  .kl-card { position:relative; overflow:hidden; display:flex; flex-direction:column; gap:10px; padding:24px 24px 20px; border-radius:24px;
+    background:var(--surface); box-shadow:0 6px 24px rgba(15,23,42,.07); text-decoration:none; color:var(--text);
+    transition:box-shadow .18s, transform .18s; }
+  .kl-card::before { content:""; position:absolute; left:0; right:0; top:0; height:6px; background:linear-gradient(90deg,var(--c1),var(--c2)); }
+  .kl-card:hover { transform:translateY(-3px); box-shadow:0 16px 36px rgba(72,128,255,.2); }
+  .kl-top { display:flex; align-items:center; gap:10px; }
+  .kl-ic { width:42px; height:42px; border-radius:13px; display:grid; place-items:center; color:#fff; background:linear-gradient(135deg,var(--c1),var(--c2)); }
+  .kl-cat { font-size:14px; font-weight:700; color:var(--c1); }
+  .kl-draft { margin-left:auto; padding:2px 10px; border-radius:999px; font-size:12.5px; color:#92400e; background:#fef3c7; }
+  .kl-card h2 { margin:4px 0 0; font-size:20px; line-height:1.45; font-weight:800; color:#0f172a; }
+  .kl-card p { margin:0; font-size:15px; line-height:1.7; color:#64748b; }
+  .kl-meta { display:flex; gap:14px; align-items:center; margin-top:auto; padding-top:10px; font-size:13.5px; color:#94a3b8; }
+  .kl-go { margin-left:auto; font-weight:700; color:var(--c1); }
+  .kl-empty { margin-top:20px; padding:30px; border-radius:20px; text-align:center; color:var(--muted); background:var(--surface); }
+
+  .kl-cta { display:flex; justify-content:space-between; align-items:center; gap:20px; flex-wrap:wrap; margin-top:30px; padding:28px 34px;
+    border-radius:26px; background:linear-gradient(135deg,#eff6ff,#f5f3ff); }
+  .kl-cta h2 { margin:0 0 4px; font-size:22px; font-weight:800; color:#0f172a; }
+  .kl-cta p { margin:0; color:#64748b; font-size:15.5px; }
+  .kl-btns { display:flex; gap:10px; flex-wrap:wrap; }
+  .kl-w { background:linear-gradient(135deg,#2563eb,#7c3aed); color:#fff; }
+  .kl-o { background:linear-gradient(135deg,#f97316,#ef4444); color:#fff; }
+
+  @media (max-width:640px) {
+    .kl-head { padding:26px 22px 30px; border-radius:22px; }
+    .kl-head h1 { font-size:28px; }
+    .kl-head p { font-size:16px; }
+    .kl-grid { grid-template-columns:1fr; }
+    .kl-card { padding:20px 18px 16px; }
+    .kl-card h2 { font-size:18.5px; }
+    .kl-cta { padding:22px 20px; }
+    .kl-btns, .kl-btns .btn { width:100%; justify-content:center; }
+  }
+</style>
+<script>
+(function () {
+  var box = document.getElementById('klFilter');
+  if (!box) return;
+  box.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    box.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); });
+    document.querySelectorAll('.kl-card').forEach(function (c) {
+      c.style.display = !b.dataset.cat || c.dataset.cat === b.dataset.cat ? '' : 'none';
+    });
+  });
+})();
+</script>
+{% endblock %}

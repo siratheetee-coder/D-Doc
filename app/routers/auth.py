@@ -68,8 +68,10 @@ def landing_page(request: Request, ref: str = "", utm_source: str = ""):
     from app.routers.sales import _remember_ref
     msg = request.session.pop("sandbox_msg", None) if "sandbox_msg" in request.session else None
     from app.services.public_stats import landing_stats
+    from app.services import articles as _articles
     resp = templates.TemplateResponse("landing.html", {"request": request, "sandbox_msg": msg,
                                                        "live": landing_stats(), "site_url": site_url(),
+                                                       "kb_count": len(_articles.all_articles()),
                                                        **pricing_context()})
     return _remember_ref(resp, ref or utm_source)
 
@@ -87,7 +89,7 @@ SITEMAP_PAGES = [("/", "weekly", "1.0"), ("/guide", "monthly", "0.8"), ("/privac
 @router.get("/robots.txt", response_class=PlainTextResponse)
 def robots_txt():
     lines = ["User-agent: *"]
-    lines += [f"Allow: {p}" for p, _, _ in SITEMAP_PAGES] + ["Allow: /static/", "Allow: /landing"]
+    lines += [f"Allow: {p}" for p, _, _ in SITEMAP_PAGES] + ["Allow: /knowledge", "Allow: /static/", "Allow: /landing"]
     # หน้าในระบบ/ฟอร์ม ไม่ต้องเก็บ (ต้องล็อกอิน หรือเป็นขั้นตอนซื้อ)
     lines += [f"Disallow: {p}" for p in ("/login", "/register", "/checkout", "/quote", "/forgot", "/reset",
                                          "/verify", "/pay/", "/sandbox/", "/trial", "/sale-thanks", "/email/")]
@@ -99,8 +101,14 @@ def robots_txt():
 def sitemap_xml():
     from datetime import date
     today = date.today().isoformat()
-    urls = "".join(f"<url><loc>{site_url()}{p}</loc><lastmod>{today}</lastmod>"
-                   f"<changefreq>{f}</changefreq><priority>{pr}</priority></url>" for p, f, pr in SITEMAP_PAGES)
+    from app.services import articles
+    pages = [(p, today, f, pr) for p, f, pr in SITEMAP_PAGES]
+    arts = articles.all_articles()          # เฉพาะที่เผยแพร่แล้ว (ร่างไม่ใส่)
+    if arts:
+        pages.append(("/knowledge", arts[0]["updated"].isoformat(), "weekly", "0.7"))
+        pages += [(f"/knowledge/{a['slug']}", a["updated"].isoformat(), "monthly", "0.6") for a in arts]
+    urls = "".join(f"<url><loc>{site_url()}{p}</loc><lastmod>{lm}</lastmod>"
+                   f"<changefreq>{f}</changefreq><priority>{pr}</priority></url>" for p, lm, f, pr in pages)
     xml = ('<?xml version="1.0" encoding="UTF-8"?>'
            f'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>')
     return Response(xml, media_type="application/xml")
