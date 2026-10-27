@@ -597,6 +597,30 @@ class IncomingLetter(Base):
     action_note = Column(String, default="")        # การปฏิบัติ/หมายเหตุ
     file_path = Column(String, default="")          # ไฟล์ PDF ต้นฉบับที่แนบ (จาก AMSS)
     created_at = Column(DateTime, default=datetime.now)
+    # เวียนหนังสือ: '' = ยังไม่เวียน, director = รอ ผอ. สั่งการ, sent = เวียนถึงครูแล้ว
+    route_status = Column(String, default="")
+    route_note = Column(Text, default="")           # ธุรการเสนอ ผอ.
+    director_order = Column(Text, default="")       # ข้อสั่งการ ผอ.
+    director_name = Column(String, default="")      # ผู้สั่งการ (ชื่อ)
+    director_sig = Column(String, default="")       # ไฟล์ลายเซ็นผู้สั่งการ ณ ตอนสั่ง
+    director_at = Column(DateTime, nullable=True)
+    sent_at = Column(DateTime, nullable=True)
+    recipients = relationship("LetterRecipient", back_populates="letter",
+                              cascade="all, delete-orphan", order_by="LetterRecipient.id")
+
+
+class LetterRecipient(Base):
+    """ผู้รับหนังสือเวียน 1 คน + เวลารับทราบ"""
+    __tablename__ = "letter_recipient"
+
+    id = Column(Integer, primary_key=True)
+    letter_id = Column(Integer, ForeignKey("incoming_letter.id"), nullable=False, index=True)
+    person_id = Column(Integer, ForeignKey("person.id"), nullable=False, index=True)
+    name = Column(String, default="")               # ชื่อ ณ ตอนเวียน (เผื่อแก้ทะเบียนบุคลากรภายหลัง)
+    ack_at = Column(DateTime, nullable=True)        # รับทราบเมื่อ
+    ack_by = Column(String, default="")             # '' = รับทราบเอง, อื่นๆ = ชื่อธุรการที่บันทึกแทน
+    created_at = Column(DateTime, default=datetime.now)
+    letter = relationship("IncomingLetter", back_populates="recipients")
 
 
 class OutgoingLetter(Base):

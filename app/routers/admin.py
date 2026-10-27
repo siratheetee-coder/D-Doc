@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db, get_data_dir
 from app.models import (
     School, IncomingLetter, OutgoingLetter, OfficeMemo, SchoolOrder, Person, Department,
-    OfficialLetter, CertificateBatch, Student, IssuedDocNo,
+    OfficialLetter, CertificateBatch, Student, IssuedDocNo, LetterRecipient,
 )
 from app.services import file_upload
 from app.services.doc_number import (
@@ -182,6 +182,206 @@ def incoming_delete(rid: int, db: Session = Depends(get_db)):
     if r:
         db.delete(r); db.commit()
     return RedirectResponse("/admin/incoming", status_code=303)
+
+
+# ---------------- เวียนหนังสือรับ: ธุรการเสนอ -> ผอ. สั่งการ -> ครูรับทราบ ----------------
+_ROUTE_LABEL = {"": "ยังไม่เวียน", "director": "รอ ผอ. สั่งการ", "sent": "เวียนแล้ว"}
+
+
+def _can_endorse(request) -> bool:
+    """ผู้สั่งการได้ = ผอ./รองผอ. หรือไอดีหลัก (โรงเรียนเล็กที่ ผอ. ใช้ไอดีหลักเอง)"""
+    s = request.session
+    return bool(s.get("director") or s.get("owner"))
+
+
+def _staff_options(db, tid):
+    """บุคลากรที่เลือกเป็นผู้รับได้ + ธงว่ามีบัญชีเข้าระบบไหม (ไม่มีบัญชี = ธุรการบันทึกรับทราบแทน)"""
+    from app.accounts import list_teacher_accounts
+    linked = {a["person_id"] for a in list_teacher_accounts(tid) if a["active"]} if tid else set()
+    people = db.query(Person).filter(Person.active == True).order_by(Person.id).all()  # noqa: E712
+    return [{"id": p.id, "name": p.name, "position": p.position or "", "has_account": p.id in linked}
+            for p in people]
+
+
+def _pick_ids(form) -> list:
+    out = []
+    for v in form.getlist("pid"):
+        n = _to_int(v, 0)
+        if n and n not in out:
+            out.append(n)
+    return out
+
+
+def _add_recipients(db, r, ids, notify=True) -> list:
+    """เพิ่มผู้รับ (ข้ามคนที่มีอยู่แล้ว) คืนแถวที่เพิ่มจริง · notify = แจ้งกระดิ่งรายคนเลย"""
+    have = {x.person_id for x in r.recipients}
+    added = []
+    for pid in ids:
+        p = db.get(Person, pid)
+        if not p or pid in have:
+            continue
+        rc = LetterRecipient(person_id=pid, name=p.name)
+        r.recipients.append(rc)
+        added.append(rc)
+    db.flush()
+    if notify:
+        _notify(db, r, added)
+    return added
+
+
+def _notify(db, r, rows):
+    from app.services.nav import create_notice
+    for rc in rows:
+        create_notice(db, rc.person_id, f"หนังสือเวียน: {r.subject or 'หนังสือรับ'}",
+                      reason=(r.director_order or r.from_org or "")[:120],
+                      link=f"/me/letters/{rc.id}", level="warn")
+
+
+def _signer(db, request):
+    """ชื่อ + ไฟล์ลายเซ็นของผู้สั่งการ: บัญชีที่ผูกบุคลากร > ชื่อ ผอ. ในตั้งค่า"""
+    from app.services.signature import _norm
+    p = db.get(Person, request.session.get("person_id") or 0)
+    if p:
+        return p.name, p.signature or ""
+    name = (get_school(db).director_name or "").strip() or (request.session.get("name") or "")
+    for q in db.query(Person).filter(Person.signature != "").all():
+        if _norm(q.name) == _norm(name):
+            return name, q.signature
+    return name, ""
+
+
+@router.get("/admin/incoming/{rid}", response_class=HTMLResponse)
+def incoming_detail(rid: int, request: Request, db: Session = Depends(get_db), msg: str = ""):
+    r = db.get(IncomingLetter, rid)
+    if not r:
+        return RedirectResponse("/admin/incoming", status_code=303)
+    acked = sum(1 for x in r.recipients if x.ack_at)
+    return templates.TemplateResponse("incoming_detail.html", {
+        "request": request, "r": r, "msg": msg, "status_label": _ROUTE_LABEL.get(r.route_status or "", ""),
+        "staff": _staff_options(db, request.session.get("tid")), "acked": acked,
+        "picked": {x.person_id for x in r.recipients}, "can_endorse": _can_endorse(request),
+        "director_name": get_school(db).director_name or "",
+    })
+
+
+@router.post("/admin/incoming/{rid}/route")
+async def incoming_route(rid: int, request: Request, db: Session = Depends(get_db)):
+    """ธุรการ: director = เสนอ ผอ. สั่งการ, send = เวียนเลย (ไม่ผ่าน ผอ.), add = เวียนเพิ่ม, recall = ดึงกลับ"""
+    r = db.get(IncomingLetter, rid)
+    if not r:
+        return RedirectResponse("/admin/incoming", status_code=303)
+    form = await request.form()
+    action = form.get("action", "")
+    note = (form.get("note") or "").strip()[:2000]
+    ids = _pick_ids(form)
+    back = f"/admin/incoming/{rid}"
+    if action == "recall" and r.route_status == "director":
+        r.route_status = ""
+        db.commit()
+        return RedirectResponse(back + "?msg=ดึงกลับจาก ผอ. แล้ว", status_code=303)
+    if action == "director" and r.route_status != "sent":
+        r.route_status, r.route_note = "director", note
+        # ผู้รับที่ธุรการเลือก = ข้อเสนอ ผอ. แก้ได้ตอนสั่งการ (ยังไม่แจ้งครูจนกว่า ผอ. จะสั่ง)
+        r.recipients = [x for x in r.recipients if x.person_id in ids]
+        _add_recipients(db, r, ids, notify=False)
+        db.commit()
+        return RedirectResponse(back + "?msg=เสนอ ผอ. แล้ว รอ ผอ. สั่งการ", status_code=303)
+    if action in ("send", "add"):
+        if not ids:
+            return RedirectResponse(back + "?msg=เลือกผู้รับอย่างน้อย 1 คน", status_code=303)
+        if action == "send" and r.route_status != "sent":
+            r.director_order = note or r.director_order
+            r.route_status, r.sent_at = "sent", datetime.now()
+            if note and not r.action_note:
+                r.action_note = note[:200]
+        n = len(_add_recipients(db, r, ids))
+        db.commit()
+        return RedirectResponse(back + f"?msg=เวียนถึง {n} คนแล้ว", status_code=303)
+    return RedirectResponse(back, status_code=303)
+
+
+@router.post("/admin/incoming/{rid}/endorse")
+async def incoming_endorse(rid: int, request: Request, db: Session = Depends(get_db)):
+    """ผอ. สั่งการ + เลือกผู้รับ -> เวียนถึงครูทันที"""
+    if not _can_endorse(request):
+        return RedirectResponse(f"/admin/incoming/{rid}", status_code=303)
+    r = db.get(IncomingLetter, rid)
+    if not r or r.route_status == "sent":
+        return RedirectResponse("/approvals?err=หนังสือนี้สั่งการไปแล้ว", status_code=303)
+    form = await request.form()
+    order = (form.get("order") or "").strip()[:2000] or "ทราบ"
+    ids = _pick_ids(form)
+    r.director_order = order
+    r.director_name, r.director_sig = _signer(db, request)
+    r.director_at = r.sent_at = datetime.now()
+    r.route_status = "sent"
+    if not r.action_note:
+        r.action_note = order[:200]
+    r.recipients = [x for x in r.recipients if x.person_id in ids]
+    _add_recipients(db, r, ids, notify=False)
+    _notify(db, r, r.recipients)
+    n = len(r.recipients)
+    db.commit()
+    dest = "/approvals" if request.session.get("director") and not request.session.get("owner") else f"/admin/incoming/{rid}"
+    return RedirectResponse(dest + f"?msg=สั่งการแล้ว เวียนถึง {n} คน", status_code=303)
+
+
+@router.post("/admin/incoming/{rid}/ack/{rcid}")
+def incoming_ack_for(rid: int, rcid: int, request: Request, db: Session = Depends(get_db)):
+    """ธุรการบันทึกรับทราบแทน (ครูที่ไม่มีบัญชี/ลงชื่อในกระดาษ) กดซ้ำ = ยกเลิก"""
+    rc = db.get(LetterRecipient, rcid)
+    if rc and rc.letter_id == rid:
+        if rc.ack_at and rc.ack_by:
+            rc.ack_at, rc.ack_by = None, ""
+        elif not rc.ack_at:
+            rc.ack_at, rc.ack_by = datetime.now(), (request.session.get("name") or "ธุรการ")
+        db.commit()
+    return RedirectResponse(f"/admin/incoming/{rid}#recipients", status_code=303)
+
+
+# ---------------- หนังสือถึงฉัน (ครูทุกบัญชีที่ผูกบุคลากร ไม่ขึ้นกับงานที่ซื้อ) ----------------
+def _my_rc(db, request, rcid):
+    rc = db.get(LetterRecipient, rcid)
+    pid = request.session.get("person_id")
+    ok = rc and pid and rc.person_id == pid and rc.letter.route_status == "sent"
+    return rc if ok else None
+
+
+@router.get("/me/letters", response_class=HTMLResponse)
+def my_letters(request: Request, db: Session = Depends(get_db)):
+    pid = request.session.get("person_id") or 0
+    rows = (db.query(LetterRecipient).join(IncomingLetter)
+            .filter(LetterRecipient.person_id == pid, IncomingLetter.route_status == "sent")
+            .order_by(LetterRecipient.ack_at.isnot(None), LetterRecipient.id.desc()).limit(300).all())
+    return templates.TemplateResponse("my_letters.html", {
+        "request": request, "rows": rows, "linked": bool(pid),
+        "pending": sum(1 for x in rows if not x.ack_at),
+    })
+
+
+@router.get("/me/letters/{rcid}", response_class=HTMLResponse)
+def my_letter(rcid: int, request: Request, db: Session = Depends(get_db)):
+    rc = _my_rc(db, request, rcid)
+    if not rc:
+        return RedirectResponse("/me/letters", status_code=303)
+    return templates.TemplateResponse("my_letter.html", {"request": request, "rc": rc, "r": rc.letter})
+
+
+@router.post("/me/letters/{rcid}/ack")
+def my_letter_ack(rcid: int, request: Request, db: Session = Depends(get_db)):
+    rc = _my_rc(db, request, rcid)
+    if rc and not rc.ack_at:
+        rc.ack_at, rc.ack_by = datetime.now(), ""
+        db.commit()
+    return RedirectResponse(f"/me/letters/{rcid}" if rc else "/me/letters", status_code=303)
+
+
+@router.get("/me/letters/{rcid}/file")
+def my_letter_file(rcid: int, request: Request, db: Session = Depends(get_db)):
+    rc = _my_rc(db, request, rcid)
+    if not rc or not rc.letter.file_path:
+        return RedirectResponse("/me/letters", status_code=303)
+    return serve_uploaded(rc.letter.file_path)
 
 
 # ---------------- ทะเบียนหนังสือส่ง ----------------

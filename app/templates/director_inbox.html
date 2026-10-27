@@ -81,4 +81,27 @@
   </div>
   {% else %}<p class="muted" style="margin:0;">ไม่มีคำขอไปราชการรออนุมัติ</p>{% endif %}
 </div>
+
+{# ---------------- หนังสือรับ รอ ผอ. สั่งการ ---------------- #}
+<div class="card" id="letters">
+  <h2><svg class="icon"><use href="#ic-send"/></svg> หนังสือรอสั่งการ ({{ letters|length }})</h2>
+  {% if letters %}
+  <div class="table-wrap">
+  <table class="stack-sm">
+    <thead><tr><th>เลขรับ</th><th>จาก</th><th>เรื่อง</th><th>ธุรการเสนอ</th><th></th></tr></thead>
+    <tbody>
+      {% for r in letters %}
+      <tr>
+        <td data-label="เลขรับ">{{ r.recv_no }}</td>
+        <td data-label="จาก">{{ r.from_org or '-' }}</td>
+        <td data-label="เรื่อง">{{ r.subject or '-' }}</td>
+        <td data-label="เสนอ">{{ r.route_note or '-' }}</td>
+        <td class="right"><a class="btn sm" href="/admin/incoming/{{ r.id }}">อ่านและสั่งการ</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted" style="margin:0;">ไม่มีหนังสือรอสั่งการ</p>{% endif %}
+</div>
 {% endblock %}

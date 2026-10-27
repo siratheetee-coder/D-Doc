@@ -145,8 +145,9 @@ def director_pending_counts(db: Session) -> dict:
     plans = db.query(LessonPlan).filter(LessonPlan.status == "director").count()
     leaves = db.query(LeaveRequest).filter(LeaveRequest.status == "personnel").count()
     travels = db.query(TravelRequest).filter(TravelRequest.status == "personnel").count()
-    return {"plans": plans, "leaves": leaves, "travels": travels,
-            "total": plans + leaves + travels}
+    letters = db.query(IncomingLetter).filter(IncomingLetter.route_status == "director").count()
+    return {"plans": plans, "leaves": leaves, "travels": travels, "letters": letters,
+            "total": plans + leaves + travels + letters}
 
 
 @router.get("/approvals", response_class=HTMLResponse)
@@ -161,9 +162,11 @@ def director_inbox(request: Request, db: Session = Depends(get_db), msg: str = "
               .order_by(LeaveRequest.personnel_at.desc()).all())
     travels = (db.query(TravelRequest).filter(TravelRequest.status == "personnel")
                .order_by(TravelRequest.personnel_at.desc()).all())
+    letters = (db.query(IncomingLetter).filter(IncomingLetter.route_status == "director")
+               .order_by(IncomingLetter.id).all())
     return templates.TemplateResponse("director_inbox.html", {
         "request": request, "school": get_school(db),
-        "plans": plans, "leaves": leaves, "travels": travels,
+        "plans": plans, "leaves": leaves, "travels": travels, "letters": letters,
         "counts": director_pending_counts(db), "msg": msg, "err": err,
     })
 

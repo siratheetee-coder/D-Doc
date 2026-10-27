@@ -60,7 +60,7 @@
   {% if rows %}
   <div style="overflow-x:auto;">
   <table>
-    <thead><tr><th>เลขรับ</th><th>วันที่รับ</th><th>ที่หนังสือ</th><th>จาก</th><th>เรื่อง</th><th>มอบให้</th><th></th></tr></thead>
+    <thead><tr><th>เลขรับ</th><th>วันที่รับ</th><th>ที่หนังสือ</th><th>จาก</th><th>เรื่อง</th><th>มอบให้</th><th>เวียน</th><th></th></tr></thead>
     <tbody>
       {% for r in rows %}
       <tr>
@@ -70,7 +70,14 @@
         <td>{{ r.from_org or "-" }}</td>
         <td>{{ r.subject or "-" }}{% if r.action_note %}<br><span class="muted" style="font-size:13px;">{{ r.action_note }}</span>{% endif %}</td>
         <td>{{ r.to_person or "-" }}</td>
+        <td style="white-space:nowrap;">
+          {% if r.route_status == 'sent' %}{% set n = r.recipients|length %}{% set a = r.recipients|selectattr('ack_at')|list|length %}
+          <span class="pill" style="background:{{ '#dcfce7' if a == n else '#e0e7ff' }}; color:{{ '#166534' if a == n else '#3730a3' }};">รับทราบ {{ a }}/{{ n }}</span>
+          {% elif r.route_status == 'director' %}<span class="pill" style="background:#fef3c7; color:#92400e;">รอ ผอ. สั่งการ</span>
+          {% else %}<span class="muted">-</span>{% endif %}
+        </td>
         <td class="right" style="white-space:nowrap;">
+          <a class="btn sm" href="/admin/incoming/{{ r.id }}">{{ 'ส่งเวียน' if not r.route_status else 'ดู' }}</a>
           {% if r.file_path %}<a class="btn sm gray" href="/admin/uploaded/{{ r.file_path }}" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> PDF</a>{% endif %}
           <form method="post" action="/admin/incoming/{{ r.id }}/delete" style="display:inline" onsubmit="return confirm('ลบรายการนี้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
         </td>

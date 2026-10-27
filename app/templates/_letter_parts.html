@@ -1,0 +1,106 @@
+{# ส่วนที่ใช้ร่วมกัน: หน้าหนังสือรับ (ธุรการ/ผอ.) และหนังสือถึงฉัน (ครู) #}
+
+{% macro letter_file(r, url) %}
+{% set fp = (r.file_path or '').lower() %}
+{% if not r.file_path %}
+  <p class="muted" style="margin:0;">หนังสือฉบับนี้ไม่ได้แนบไฟล์ไว้</p>
+{% elif fp.endswith('.pdf') %}
+  <iframe src="{{ url }}" class="lt-frame" title="ไฟล์หนังสือ"></iframe>
+  <a class="btn sm gray" href="{{ url }}" target="_blank" rel="noopener" style="margin-top:8px;"><svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์เต็มจอ</a>
+{% elif fp.endswith(('.png','.jpg','.jpeg','.webp')) %}
+  <img src="{{ url }}" alt="ไฟล์หนังสือ" style="width:100%; border-radius:12px;">
+{% else %}
+  <a class="btn" href="{{ url }}" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์หนังสือ</a>
+{% endif %}
+{% endmacro %}
+
+{% macro letter_info(r) %}
+<dl class="lt-info">
+  <dt>เลขรับ</dt><dd>{{ r.recv_no or '-' }}{% if r.recv_date %}&emsp;รับเมื่อ {{ thai_date(r.recv_date) }}{% endif %}</dd>
+  <dt>ที่หนังสือ</dt><dd>{{ r.letter_no or '-' }}{% if r.letter_date %}&emsp;ลงวันที่ {{ thai_date(r.letter_date) }}{% endif %}</dd>
+  <dt>จาก</dt><dd>{{ r.from_org or '-' }}</dd>
+  <dt>เรื่อง</dt><dd><b>{{ r.subject or '-' }}</b></dd>
+</dl>
+{% endmacro %}
+
+{% macro order_box(r) %}
+{% if r.director_order %}
+<div class="lt-order">
+  <div class="lt-order-h">{{ 'ข้อสั่งการ ผอ.' if r.director_name else 'ข้อความจากธุรการ' }}</div>
+  <div class="lt-order-t">{{ r.director_order }}</div>
+  {% if r.director_name %}
+  <div class="lt-sign">
+    {% if r.director_sig %}<img src="/signatures/{{ r.director_sig }}" alt="ลายเซ็น">{% endif %}
+    <div>({{ r.director_name }})</div>
+    {% if r.director_at %}<div class="muted">{{ thai_date(r.director_at) }} เวลา {{ r.director_at.strftime('%H:%M') }} น.</div>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro people_pick(staff, picked, exclude=()) %}
+<div class="pp" data-pp>
+  <div class="pp-bar">
+    <input type="search" placeholder="ค้นหาชื่อ" data-pp-q aria-label="ค้นหาชื่อผู้รับ">
+    <button type="button" class="btn sm gray" data-pp-all>เลือกทุกคน</button>
+    <button type="button" class="btn sm gray" data-pp-none>ล้าง</button>
+    <span class="muted" data-pp-n></span>
+  </div>
+  <div class="pp-list">
+    {% for p in staff if p.id not in exclude %}
+    <label class="pp-item" data-name="{{ p.name }} {{ p.position }}">
+      <input type="checkbox" name="pid" value="{{ p.id }}" {{ 'checked' if p.id in picked }}>
+      <span><b>{{ p.name }}</b><small>{{ p.position }}{% if not p.has_account %}&emsp;<i>ไม่มีบัญชี</i>{% endif %}</small></span>
+    </label>
+    {% else %}
+    <p class="muted" style="margin:0;">ยังไม่มีรายชื่อบุคลากร <a href="/masters">เพิ่มที่ข้อมูลพื้นฐาน</a></p>
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
+{% macro parts_css() %}
+<style>
+  .lt-frame { width:100%; height:620px; border:0; border-radius:12px; background:#f1f5f9; }
+  .lt-info { display:grid; grid-template-columns:auto 1fr; gap:6px 14px; margin:0; font-size:15px; }
+  .lt-info dt { color:var(--muted); }
+  .lt-info dd { margin:0; }
+  .lt-order { margin-top:14px; padding:16px 18px; border-radius:14px; background:linear-gradient(135deg,#eef2ff,#f5f3ff); }
+  .lt-order-h { font-weight:700; color:#4338ca; margin-bottom:6px; }
+  .lt-order-t { white-space:pre-wrap; font-size:15.5px; line-height:1.7; }
+  .lt-sign { text-align:center; margin:10px 0 0 auto; width:max-content; max-width:100%; }
+  .lt-sign img { max-height:54px; display:block; margin:0 auto; }
+  .pp-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+  .pp-bar input { flex:1; min-width:160px; }
+  .pp-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:8px; max-height:340px; overflow:auto; }
+  .pp-item { display:flex; gap:10px; align-items:flex-start; padding:9px 12px; border-radius:12px; background:#f6f8fc; cursor:pointer; margin:0; }
+  .pp-item:has(input:checked) { background:linear-gradient(135deg,#e0e7ff,#ede9fe); }
+  .pp-item input { width:auto; margin-top:4px; }
+  .pp-item small { display:block; color:var(--muted); font-size:12.5px; }
+  .pp-item i { color:#b45309; font-style:normal; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 10px; }
+  .chips button { border:0; border-radius:999px; padding:5px 12px; font:inherit; font-size:13.5px; background:#eef1f7; color:#334155; cursor:pointer; }
+  .chips button:hover { background:#e0e7ff; }
+  @media (max-width:640px) { .lt-frame { height:420px; } }
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-pp]').forEach(function (box) {
+    var items = [].slice.call(box.querySelectorAll('.pp-item')), n = box.querySelector('[data-pp-n]');
+    function count() { n.textContent = 'เลือกแล้ว ' + box.querySelectorAll('input:checked').length + ' คน'; }
+    function shown() { return items.filter(function (i) { return i.style.display !== 'none'; }); }
+    box.querySelector('[data-pp-q]').addEventListener('input', function () {
+      var q = this.value.trim();
+      items.forEach(function (i) { i.style.display = !q || i.dataset.name.indexOf(q) >= 0 ? '' : 'none'; });
+    });
+    box.querySelector('[data-pp-all]').onclick = function () { shown().forEach(function (i) { i.querySelector('input').checked = true; }); count(); };
+    box.querySelector('[data-pp-none]').onclick = function () { items.forEach(function (i) { i.querySelector('input').checked = false; }); count(); };
+    box.addEventListener('change', count); count();
+  });
+  document.querySelectorAll('.chips button').forEach(function (b) {
+    b.onclick = function () { var t = document.getElementById(b.parentNode.dataset.for); t.value = b.textContent; t.focus(); };
+  });
+});
+</script>
+{% endmacro %}

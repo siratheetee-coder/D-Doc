@@ -86,10 +86,17 @@ def _hr_alerts(db):
 
 
 def _director_alerts(db):
-    from app.models import LeaveRequest, TravelRequest
+    from app.models import LeaveRequest, TravelRequest, IncomingLetter
+    out = []
     n = (db.query(LeaveRequest).filter(LeaveRequest.status == "personnel").count()
          + db.query(TravelRequest).filter(TravelRequest.status == "personnel").count())
-    return [_alert("warn", f"รอ ผอ. อนุมัติ {n} เรื่อง", "ใบลาและคำขอไปราชการ", "/approvals", "อนุมัติ")] if n else []
+    if n:
+        out.append(_alert("warn", f"รอ ผอ. อนุมัติ {n} เรื่อง", "ใบลาและคำขอไปราชการ", "/approvals", "อนุมัติ"))
+    n = db.query(IncomingLetter).filter(IncomingLetter.route_status == "director").count()
+    if n:
+        out.append(_alert("warn", f"หนังสือรอ ผอ. สั่งการ {n} ฉบับ", "สั่งการแล้วระบบเวียนถึงครูให้",
+                          "/approvals#letters", "อนุมัติ"))
+    return out
 
 
 def nav_alerts(session=None):

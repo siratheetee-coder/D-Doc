@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% from "_letter_parts.html" import letter_file, letter_info, order_box, people_pick, parts_css %}
+{% block title %}หนังสือรับ {{ r.recv_no }}{% endblock %}
+{% block content %}
+{% set director_view = request.session.get('director') and not request.session.get('owner') %}
+{% set st = {'':('ยังไม่เวียน','#eef1f7','#475569'), 'director':('รอ ผอ. สั่งการ','#fef3c7','#92400e'), 'sent':('เวียนแล้ว','#dcfce7','#166534')}[r.route_status or ''] %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">หนังสือรับ เลขรับ {{ r.recv_no }}</div>
+    <span class="hero-title">{{ r.subject or 'ไม่มีชื่อเรื่อง' }}</span>
+    <div class="hero-meta">{{ r.from_org or '-' }}&emsp;<span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }};">{{ st[0] }}</span>
+      {% if r.route_status == 'sent' %}&emsp;รับทราบ {{ acked }}/{{ r.recipients|length }} คน{% endif %}</div>
+  </div>
+</div>
+{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+
+<div class="row" style="align-items:flex-start;">
+  {% if r.file_path %}
+  <div class="card" style="flex:1.2; min-width:300px;">
+    <h2 style="margin-top:0;">ตัวหนังสือ</h2>
+    {{ letter_file(r, '/admin/uploaded/' ~ r.file_path) }}
+  </div>
+  {% endif %}
+
+  <div style="flex:1; min-width:300px; {{ '' if r.file_path else 'max-width:860px;' }}">
+    <div class="card">
+      {{ letter_info(r) }}
+      {% if not r.file_path %}<p class="muted" style="margin:12px 0 0;">หนังสือนี้ไม่ได้แนบไฟล์</p>{% endif %}
+      {% if r.route_note and r.route_status == 'director' %}
+      <div class="lt-order" style="background:#fffbeb;"><div class="lt-order-h" style="color:#92400e;">ธุรการเสนอ</div><div class="lt-order-t">{{ r.route_note }}</div></div>
+      {% endif %}
+      {{ order_box(r) }}
+    </div>
+
+    {# ---------- ขั้นที่ 1: ธุรการเสนอ ผอ. หรือเวียนเลย ---------- #}
+    {% if not r.route_status and not director_view %}
+    <form class="card" method="post" action="/admin/incoming/{{ r.id }}/route">
+      <h2 style="margin-top:0;">ส่งเวียนหนังสือ</h2>
+      <label for="note">ข้อความเสนอ ผอ. หรือข้อความถึงผู้รับ</label>
+      <div class="chips" data-for="note"><button type="button">เรียน ผอ. เพื่อโปรดทราบ</button><button type="button">เรียน ผอ. เพื่อโปรดพิจารณาสั่งการ</button><button type="button">เห็นควรแจ้งครูทุกคนทราบ</button></div>
+      <textarea id="note" name="note" rows="3"></textarea>
+      <label style="margin-top:12px;">ผู้รับ (ผอ. แก้ได้ตอนสั่งการ)</label>
+      {{ people_pick(staff, picked) }}
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;">
+        <button class="btn" name="action" value="director"><svg class="icon"><use href="#ic-send"/></svg> เสนอ ผอ. สั่งการ</button>
+        <button class="btn gray" name="action" value="send" onclick="return confirm('เวียนถึงผู้รับเลยโดยไม่ผ่าน ผอ.?')">เวียนเลย ไม่ผ่าน ผอ.</button>
+      </div>
+    </form>
+    {% endif %}
+
+    {# ---------- ขั้นที่ 2: ผอ. สั่งการ ---------- #}
+    {% if r.route_status == 'director' %}
+      {% if can_endorse %}
+      <form class="card" method="post" action="/admin/incoming/{{ r.id }}/endorse" style="background:linear-gradient(135deg,#f5f3ff,#fff);">
+        <h2 style="margin-top:0;">ผอ. สั่งการ</h2>
+        <label for="order">ข้อสั่งการ</label>
+        <div class="chips" data-for="order"><button type="button">ทราบ</button><button type="button">ทราบ แจ้งครูทุกคนทราบ</button><button type="button">ทราบ มอบผู้เกี่ยวข้องดำเนินการ</button><button type="button">อนุญาต ดำเนินการตามเสนอ</button></div>
+        <textarea id="order" name="order" rows="3" placeholder="เช่น ทราบ มอบครูสมชายดำเนินการ"></textarea>
+        <label style="margin-top:12px;">ผู้รับ</label>
+        {{ people_pick(staff, picked) }}
+        <button class="btn" style="margin-top:14px;"><svg class="icon"><use href="#ic-check"/></svg> สั่งการและเวียนถึงผู้รับ</button>
+        <p class="muted" style="margin:8px 0 0; font-size:13.5px;">ระบบแปะลายเซ็น{{ (' ' ~ director_name) if director_name }} และแจ้งเตือนผู้รับทุกคนทันที</p>
+      </form>
+      {% else %}
+      <div class="card">
+        <p style="margin:0 0 10px;">รอ ผอ. สั่งการ ผอ. จะเห็นหนังสือนี้ในกล่องรออนุมัติ</p>
+        {% if picked %}<p class="muted" style="margin:0 0 10px;">ผู้รับที่เสนอ: {{ r.recipients|map(attribute='name')|join(', ') }}</p>{% endif %}
+        <form method="post" action="/admin/incoming/{{ r.id }}/route"><button class="btn sm gray" name="action" value="recall" data-no-floating-save>ดึงกลับมาแก้</button></form>
+      </div>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{# ---------- ขั้นที่ 3: ติดตามการรับทราบ ---------- #}
+{% if r.route_status == 'sent' %}
+<div class="card" id="recipients">
+  <h2 style="margin-top:0;">ผู้รับ รับทราบแล้ว {{ acked }} จาก {{ r.recipients|length }} คน</h2>
+  <div class="table-wrap">
+  <table class="stack-sm">
+    <thead><tr><th>ผู้รับ</th><th>สถานะ</th><th>เมื่อ</th><th></th></tr></thead>
+    <tbody>
+      {% for x in r.recipients %}
+      <tr>
+        <td data-label="ผู้รับ">{{ x.name }}</td>
+        <td data-label="สถานะ">{% if x.ack_at %}<span class="pill" style="background:#dcfce7; color:#166534;">รับทราบแล้ว</span>{% if x.ack_by %} <span class="muted" style="font-size:13px;">({{ x.ack_by }} บันทึกแทน)</span>{% endif %}
+          {% else %}<span class="pill" style="background:#fef3c7; color:#92400e;">ยังไม่รับทราบ</span>{% endif %}</td>
+        <td data-label="เมื่อ">{{ (thai_date(x.ack_at) ~ ' ' ~ x.ack_at.strftime('%H:%M') ~ ' น.') if x.ack_at else '-' }}</td>
+        <td class="right">
+          {% if not director_view and (not x.ack_at or x.ack_by) %}
+          <form method="post" action="/admin/incoming/{{ r.id }}/ack/{{ x.id }}" style="margin:0;">
+            <button class="btn sm gray" data-no-floating-save>{{ 'ยกเลิกที่บันทึกแทน' if x.ack_at else 'บันทึกรับทราบแทน' }}</button></form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if not director_view %}
+  <details style="margin-top:14px;">
+    <summary class="btn sm gray" style="display:inline-flex;">เวียนเพิ่ม</summary>
+    <form method="post" action="/admin/incoming/{{ r.id }}/route" style="margin-top:12px;">
+      {{ people_pick(staff, (), picked) }}
+      <button class="btn sm" name="action" value="add" data-no-floating-save style="margin-top:10px;">เวียนถึงคนที่เลือกเพิ่ม</button>
+    </form>
+  </details>
+  {% endif %}
+</div>
+{% endif %}
+
+<p><a href="/admin/incoming?year={{ r.fiscal_year }}">กลับทะเบียนหนังสือรับ</a></p>
+{{ parts_css() }}
+{% endblock %}
