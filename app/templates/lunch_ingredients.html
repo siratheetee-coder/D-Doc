@@ -16,7 +16,7 @@
   {% endif %}
 </div>
 
-<div class="card">
+<div data-addbox class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มวัตถุดิบ</h2>
   <form method="post" action="/lunch/{{ p.id }}/ingredients/add" class="row" style="align-items:flex-end;">
     {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}

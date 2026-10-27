@@ -183,6 +183,24 @@
     .tipbox.danger > .icon { color: #dc2626; }
     /* การ์ดลิงก์บนหน้าหลักของแต่ละงาน - ใช้สีประจำโมดูลอัตโนมัติผ่าน var(--brand) */
     .nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-bottom: 22px; }
+    /* กล่อง "ยังไม่มีข้อมูล" (_empty.html) */
+    .empty-box { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px;
+      padding: 34px 20px; margin: 12px 0 0; border-radius: 18px; background: linear-gradient(135deg,#f8fafc,#eef2ff); }
+    .empty-ic { width: 64px; height: 64px; border-radius: 20px; display: flex; align-items: center; justify-content: center;
+      background: #fff; color: var(--brand); box-shadow: 0 8px 20px rgba(15,23,42,.08); margin-bottom: 4px; }
+    .empty-ic .icon { width: 30px; height: 30px; }
+    .empty-t { font-size: 18px; color: #1e293b; }
+    .empty-p { margin: 0; max-width: 460px; color: var(--muted); font-size: 14.5px; line-height: 1.6; }
+    .empty-box .btn { margin-top: 8px; }
+    /* การ์ดฟอร์มเพิ่มข้อมูล (addbox.js): ปิดเป็นปุ่มจนกว่าจะกด */
+    .card.addbox > h2, .card.addbox > h3 { cursor: pointer; user-select: none; margin-bottom: 0; }
+    .card.addbox > h2::after, .card.addbox > h3::after { content: "เปิดฟอร์ม"; margin-left: auto; font-size: 13px; font-weight: 600;
+      color: var(--brand); padding: 4px 12px; border-radius: 999px; background: var(--brand-soft); }
+    .card.addbox.open > h2::after, .card.addbox.open > h3::after { content: "ปิด"; color: var(--muted); background: #f1f5f9; }
+    .card.addbox > h2:hover::after { filter: brightness(.95); }
+    .card.addbox:not(.open) > .addbox-body { display: none; }
+    .card.addbox.open > h2, .card.addbox.open > h3 { margin-bottom: 14px; }
+    .card.addbox:not(.open) { padding-top: 16px; padding-bottom: 16px; }
     .nav-card {
       display: flex; flex-direction: column; gap: 12px; padding: 22px 24px;
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
@@ -1741,5 +1759,6 @@
   <script src="/static/table-scroll-hint.js?v=1"></script>
   <script src="/static/combo-pick.js?v=2"></script>
   <script src="/static/search-suggest.js?v=1" defer></script>
+  <script src="/static/addbox.js?v=2" defer></script>
 </body>
 </html>

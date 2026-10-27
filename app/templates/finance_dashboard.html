@@ -1,6 +1,19 @@
 {% extends "base.html" %}
-{% block title %}งานการเงิน{% endblock %}
+{% block title %}งานการเงิน<style>
+  /* การ์ดเมนูแบบกะทัดรัด จัดเป็นกลุ่ม (เดิม 17 ใบยาวต่อกัน) */
+  .nav-sec-h { margin:6px 0 10px; font-size:16px; color:#334155; }
+  .nav-compact { grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:12px; margin-bottom:18px; }
+  .nav-compact .nav-card { padding:14px 16px; gap:6px; }
+  .nav-compact .nav-card .nc-ic { width:36px; height:36px; border-radius:10px; }
+  .nav-compact .nav-card .nc-ic .icon { width:18px; height:18px; }
+  .nav-compact .nav-card h3 { font-size:15.5px; }
+  .nav-compact .nav-card .nc-desc { font-size:13px; line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .nav-compact .nav-card .nc-go { display:none; }
+  @media (max-width:640px) { .nav-compact { grid-template-columns:1fr 1fr; } .nav-compact .nav-card .nc-desc { display:none; } }
+</style>
+{% endblock %}
 {% block content %}
+{% from "_empty.html" import empty_state %}
 <div class="hero" style="background:linear-gradient(120deg,#15803d,#16a34a 55%,#4ade80); box-shadow:0 10px 26px rgba(22,163,74,.28);">
   <div>
     <div class="hero-sub">ทะเบียนคุมเงิน ขอเบิกจ่าย ใบเสร็จ รายงาน</div>
@@ -21,6 +34,19 @@
 <div class="alert warn" role="alert"><div><b>{{ _ce[0] }}</b>
   <ul style="margin:6px 0 0; padding-left:18px;">{% for line in _ce[1:] %}<li>{{ line }}</li>{% endfor %}<li>ข้อมูลยังไม่ถูกเปลี่ยน</li></ul></div></div>{% endif %}
 {% if request.query_params.get("carried") %}<div class="alert">✔ คัดลอกยอดคงเหลือสิ้นปีงบ {{ request.query_params.get("carried") }} ไปตั้งเป็นยอดยกมาของปีงบ {{ fiscal_year }} แล้ว (ข้อมูลปีเก่ายังอยู่ครบ เลือกดูได้จากช่องเลือกปี)</div>{% endif %}
+
+<div class="card">
+  <div class="stat">
+    <div class="box"><div><div class="lab">เงินคงเหลือรวมทุกบัญชี</div><div class="num">{{ "{:,.2f}".format(total_bal) }}</div></div>
+      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
+    <div class="box"><div><div class="lab">รับ (ปีนี้)</div><div class="num">{{ "{:,.0f}".format(total_in) }}</div></div>
+      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-download"/></svg></span></div>
+    <div class="box"><div><div class="lab">จ่าย (ปีนี้)</div><div class="num">{{ "{:,.0f}".format(total_out) }}</div></div>
+      <span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-upload"/></svg></span></div>
+    <div class="box"><div><div class="lab">บันทึกขอเบิกจ่าย</div><div class="num">{{ n_disburse }}</div></div>
+      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-file"/></svg></span></div>
+  </div>
+</div>
 
 {# ตรวจสุขภาพข้อมูลการเงิน (app/services/finance_health.py) มีปัญหา = แถบเด่น เรียบร้อย = แถบเขียวเล็ก ๆ #}
 {% if health %}
@@ -57,20 +83,9 @@
 
 {% set task_scope = 'เงินยืมคงค้างรวมทุกปี ใกล้ครบกำหนดนับจากวันนี้ถึงอีก 7 วัน บันทึกเบิกจ่ายตามปีงบที่เลือก แสดงตัวอย่างกลุ่มละไม่เกิน 5 รายการ' %}
 {% include '_dashboard_tasks.html' %}
-<div class="card">
-  <div class="stat">
-    <div class="box"><div><div class="lab">เงินคงเหลือรวมทุกบัญชี</div><div class="num">{{ "{:,.2f}".format(total_bal) }}</div></div>
-      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
-    <div class="box"><div><div class="lab">รับ (ปีนี้)</div><div class="num">{{ "{:,.0f}".format(total_in) }}</div></div>
-      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-download"/></svg></span></div>
-    <div class="box"><div><div class="lab">จ่าย (ปีนี้)</div><div class="num">{{ "{:,.0f}".format(total_out) }}</div></div>
-      <span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-upload"/></svg></span></div>
-    <div class="box"><div><div class="lab">บันทึกขอเบิกจ่าย</div><div class="num">{{ n_disburse }}</div></div>
-      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-file"/></svg></span></div>
-  </div>
-</div>
 
-<div class="nav-grid">
+<h3 class="nav-sec-h">งานประจำ</h3>
+<div class="nav-grid nav-compact">
   <a class="nav-card" href="/finance/accounts">
     <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-coins"/></svg></span><h3>ทะเบียนคุมเงิน</h3></div>
     <p class="nc-desc">บัญชีเงินฝาก/ประเภทเงิน คุมยอดรับ-จ่าย-คงเหลือแต่ละบัญชี</p>
@@ -84,36 +99,6 @@
   <a class="nav-card" href="/finance/receipts">
     <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span><h3>ทะเบียนใบเสร็จ/ใบสำคัญ</h3></div>
     <p class="nc-desc">บันทึกใบเสร็จรับเงิน/ใบสำคัญรับเงิน คุมหลักฐานการจ่าย</p>
-    <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/cashbook">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-coins"/></svg></span><h3>สมุดเงินสด</h3></div>
-    <p class="nc-desc">สมุดเงินสด + บัญชีแยกประเภท ระบบคุมยอดคงเหลือให้อัตโนมัติ</p>
-    <span class="nc-go">เปิดสมุด <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/cash-report">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-file"/></svg></span><h3>เงินคงเหลือประจำวัน</h3></div>
-    <p class="nc-desc">รายงานเงินคงเหลือประจำวัน พร้อมช่องลงนามกรรมการเก็บรักษาเงิน</p>
-    <span class="nc-go">ออกรายงาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/report">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-coins"/></svg></span><h3>รายงานการเงิน</h3></div>
-    <p class="nc-desc">สรุปรับ-จ่ายตามประเภทเงิน ดาวน์โหลด Excel/Word</p>
-    <span class="nc-go">ดูรายงาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/health?year={{ fiscal_year }}">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-search"/></svg></span><h3>ตรวจสุขภาพข้อมูลการเงิน</h3></div>
-    <p class="nc-desc">ระบบไล่ตรวจข้อมูลให้ บอกสิ่งที่ควรแก้ ควรเช็ค ควรสังเกต พร้อมพาไปหน้าที่แก้ได้</p>
-    <span class="nc-go">ตรวจเลย <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/import">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-upload"/></svg></span><h3>นำเข้าข้อมูล</h3></div>
-    <p class="nc-desc">นำรายการรับ-จ่ายเข้าจากไฟล์ Excel ตามแม่แบบของระบบ</p>
-    <span class="nc-go">นำเข้า <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/projects">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span><h3>ทะเบียนคุมโครงการ</h3></div>
-    <p class="nc-desc">คุมงบรายโครงการตามแผนปฏิบัติการ ผูกกับเงินที่จ่ายจริง</p>
     <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/finance/loans">
@@ -131,30 +116,66 @@
     <p class="nc-desc">คุมการจ่ายด้วยเช็ค/โอน พร้อมเลขอ้างอิงและผู้รับเงิน</p>
     <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
-  <a class="nav-card" href="/finance/bank-recon">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-file"/></svg></span><h3>งบกระทบยอดธนาคาร</h3></div>
-    <p class="nc-desc">กระทบยอดสมุดบัญชีกับ statement ธนาคารรายเดือน</p>
-    <span class="nc-go">ทำงบกระทบยอด <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  <a class="nav-card" href="/finance/projects">
+    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span><h3>ทะเบียนคุมโครงการ</h3></div>
+    <p class="nc-desc">คุมงบรายโครงการตามแผนปฏิบัติการ ผูกกับเงินที่จ่ายจริง</p>
+    <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+</div>
+<h3 class="nav-sec-h">รายงานและสมุดบัญชี</h3>
+<div class="nav-grid nav-compact">
+  <a class="nav-card" href="/finance/cashbook">
+    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-coins"/></svg></span><h3>สมุดเงินสด</h3></div>
+    <p class="nc-desc">สมุดเงินสด + บัญชีแยกประเภท ระบบคุมยอดคงเหลือให้อัตโนมัติ</p>
+    <span class="nc-go">เปิดสมุด <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  <a class="nav-card" href="/finance/cash-report">
+    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-file"/></svg></span><h3>เงินคงเหลือประจำวัน</h3></div>
+    <p class="nc-desc">รายงานเงินคงเหลือประจำวัน พร้อมช่องลงนามกรรมการเก็บรักษาเงิน</p>
+    <span class="nc-go">ออกรายงาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  <a class="nav-card" href="/finance/report">
+    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-coins"/></svg></span><h3>รายงานการเงิน</h3></div>
+    <p class="nc-desc">สรุปรับ-จ่ายตามประเภทเงิน ดาวน์โหลด Excel/Word</p>
+    <span class="nc-go">ดูรายงาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/finance/quarter">
     <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span><h3>รายงานรายไตรมาส</h3></div>
     <p class="nc-desc">สรุปยอดยกมา รับ-จ่ายในไตรมาส และคงเหลือ ส่งเขตพื้นที่</p>
     <span class="nc-go">ออกรายงาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
-  <a class="nav-card" href="/finance/subsidy">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-coins"/></svg></span><h3>คำนวณเงินอุดหนุน</h3></div>
-    <p class="nc-desc">คิดยอดที่ควรได้รับแต่ละงวด (70% และ 30%) ตามรอบ DMC</p>
-    <span class="nc-go">คำนวณ <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  <a class="nav-card" href="/finance/audit">
+    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span><h3>รายงานแบบ สตง.</h3></div>
+    <p class="nc-desc">รายงานการเงินรูปแบบที่ตรวจสอบได้ตามแนว สตง.</p>
+    <span class="nc-go">ออกรายงาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  <a class="nav-card" href="/finance/bank-recon">
+    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-file"/></svg></span><h3>งบกระทบยอดธนาคาร</h3></div>
+    <p class="nc-desc">กระทบยอดสมุดบัญชีกับ statement ธนาคารรายเดือน</p>
+    <span class="nc-go">ทำงบกระทบยอด <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/finance/ebudget">
     <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-send"/></svg></span><h3>ช่วยกรอก e-Budget</h3></div>
     <p class="nc-desc">จัดตัวเลขให้ตรงช่องของระบบบัญชีการศึกษาขั้นพื้นฐาน สพฐ.</p>
     <span class="nc-go">เปิดตัวช่วย <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
-  <a class="nav-card" href="/finance/audit">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span><h3>รายงานแบบ สตง.</h3></div>
-    <p class="nc-desc">รายงานการเงินรูปแบบที่ตรวจสอบได้ตามแนว สตง.</p>
-    <span class="nc-go">ออกรายงาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+</div>
+<h3 class="nav-sec-h">ตั้งค่าและตรวจสอบ</h3>
+<div class="nav-grid nav-compact">
+  <a class="nav-card" href="/finance/health?year={{ fiscal_year }}">
+    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-search"/></svg></span><h3>ตรวจสุขภาพข้อมูลการเงิน</h3></div>
+    <p class="nc-desc">ระบบไล่ตรวจข้อมูลให้ บอกสิ่งที่ควรแก้ ควรเช็ค ควรสังเกต พร้อมพาไปหน้าที่แก้ได้</p>
+    <span class="nc-go">ตรวจเลย <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  <a class="nav-card" href="/finance/subsidy">
+    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-coins"/></svg></span><h3>คำนวณเงินอุดหนุน</h3></div>
+    <p class="nc-desc">คิดยอดที่ควรได้รับแต่ละงวด (70% และ 30%) ตามรอบ DMC</p>
+    <span class="nc-go">คำนวณ <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </a>
+  <a class="nav-card" href="/finance/import">
+    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-upload"/></svg></span><h3>นำเข้าข้อมูล</h3></div>
+    <p class="nc-desc">นำรายการรับ-จ่ายเข้าจากไฟล์ Excel ตามแม่แบบของระบบ</p>
+    <span class="nc-go">นำเข้า <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
 </div>
 
@@ -174,7 +195,7 @@
         {% endfor %}
       </tbody>
     </table></div>
-    {% else %}<p class="muted">ยังไม่มีบัญชี - <a href="/finance/accounts">เพิ่มบัญชี</a> หรือ <a href="/finance/import">นำเข้าจาก Excel</a></p>{% endif %}
+    {% else %}{{ empty_state('ยังไม่มีบัญชี', 'เพิ่มบัญชีเงิน เช่น เงินอุดหนุน รายได้สถานศึกษา หรือนำเข้าจาก Excel ที่หน้านำเข้าข้อมูล', '/finance/accounts', 'เพิ่มบัญชี', 'ic-coins') }}{% endif %}
   </div>
   <div class="card" style="flex:1; min-width:320px;">
     <h2>บันทึกขอเบิกจ่ายล่าสุด</h2>
@@ -191,15 +212,6 @@
   </div>
 </div>
 
-<div class="card">
-  <h2><svg class="icon"><use href="#ic-clipboard"/></svg> สมุดบัญชี &amp; รายงานแบบ สตง.</h2>
-  <p class="muted" style="margin-top:0;">ออกสมุดเงินสด บัญชีแยกประเภท และชุดรายงานการเงินสำหรับตรวจสอบ จากข้อมูลที่บันทึกไว้</p>
-  <div style="display:flex; gap:8px; flex-wrap:wrap;">
-    <a class="btn" href="/finance/cashbook?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-coins"/></svg> สมุดเงินสด</a>
-    <a class="btn gray" href="/finance/audit?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-clipboard"/></svg> รายงานแบบ สตง.</a>
-    <a class="btn gray" href="/finance/cash-report?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-file"/></svg> เงินคงเหลือประจำวัน</a>
-  </div>
-</div>
 
 <div class="card">
   <h2><svg class="icon"><use href="#ic-coins"/></svg> ยกยอดไปปีงบถัดไป</h2>
@@ -210,4 +222,16 @@
     <button class="btn" type="submit"><svg class="icon"><use href="#ic-arrow-right"/></svg> ยกยอดไปปีงบ {{ fiscal_year + 1 }}</button>
   </form>
 </div>
+<style>
+  /* การ์ดเมนูแบบกะทัดรัด จัดเป็นกลุ่ม (เดิม 17 ใบยาวต่อกัน) */
+  .nav-sec-h { margin:6px 0 10px; font-size:16px; color:#334155; }
+  .nav-compact { grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:12px; margin-bottom:18px; }
+  .nav-compact .nav-card { padding:14px 16px; gap:6px; }
+  .nav-compact .nav-card .nc-ic { width:36px; height:36px; border-radius:10px; }
+  .nav-compact .nav-card .nc-ic .icon { width:18px; height:18px; }
+  .nav-compact .nav-card h3 { font-size:15.5px; }
+  .nav-compact .nav-card .nc-desc { font-size:13px; line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .nav-compact .nav-card .nc-go { display:none; }
+  @media (max-width:640px) { .nav-compact { grid-template-columns:1fr 1fr; } .nav-compact .nav-card .nc-desc { display:none; } }
+</style>
 {% endblock %}

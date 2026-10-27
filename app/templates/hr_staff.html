@@ -16,7 +16,7 @@
 </div>
 {% endif %}
 
-<div class="card" id="edit">
+<div data-addbox data-open="{{ 1 if edit else 0 }}" class="card" id="edit">
   <h2>{{ 'แก้ไขบุคลากร' if edit else 'เพิ่มบุคลากร' }}</h2>
   {% if edit %}{% set cl = checks.get(edit.id, []) %}
   <div class="ps-check">

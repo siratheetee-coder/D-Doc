@@ -38,7 +38,7 @@
   </div>{% endif %}
 </div>
 
-<div class="card">
+<div data-addbox class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มครุภัณฑ์</h2>
   {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกเรียบร้อย</div>{% endif %}
   {% if request.query_params.get("imported") %}<div class="alert">✔ นำเข้าครุภัณฑ์จาก Excel {{ request.query_params.get("imported") }} รายการแล้ว</div>{% endif %}

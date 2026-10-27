@@ -40,7 +40,7 @@
 </div>
 {% endif %}
 
-<div class="card">
+<div data-addbox class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มสัญญา (ปีงบ {{ fiscal_year }})</h2>
   <form method="post" action="/procurement/contracts/add" class="row" style="align-items:flex-end;">
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">

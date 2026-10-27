@@ -7,7 +7,7 @@
   {% if saved %}<div class="alert">✔ บันทึกแล้ว</div>{% endif %}
 </div>
 
-<div class="card">
+<div data-addbox class="card">
   <h2>เพิ่มรายการใหม่</h2>
   <form method="post" action="/catalog/add" class="row" style="align-items:flex-end;">
     <div style="flex:2;"><label>ชื่อพัสดุ *</label><input name="name" required placeholder="เช่น กระดาษ A4 80 แกรม"></div>

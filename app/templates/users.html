@@ -78,7 +78,7 @@
 </div>
 
 {% if billable < max_users %}
-<div class="card">
+<div data-addbox class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มผู้ใช้ใหม่</h2>
   <form method="post" action="/users/add">
     <div class="row" style="align-items:flex-end;">

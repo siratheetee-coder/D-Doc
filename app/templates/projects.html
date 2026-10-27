@@ -57,7 +57,7 @@
 <p>งบรวมสำหรับวางแผน <b>{{ '{:,.2f}'.format(plan_funding.total) }}</b> จัดสรรแล้ว <b>{{ '{:,.2f}'.format(plan_funding.allocated) }}</b> ยังไม่ได้จัดสรร <b>{{ '{:,.2f}'.format(plan_funding.remaining) }}</b> บาท</p>
 <a class="btn" href="/plan-budget/{{ fiscal_year }}">เลือกงบที่จะใช้ในแผน</a><p class="muted">ยอดนี้แยกจากเงินสดในทะเบียนคุม และไม่เปลี่ยนงบโครงการเดิมจนกว่าจะจัดสรรเอง</p></div>
 {% endif %}
-<div class="card" id="add-project">
+<div data-addbox class="card" id="add-project">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มโครงการ ({{ year_label }} {{ fiscal_year }})</h2>
   <p class="muted" style="margin-top:0;">สามารถเพิ่มหรือแก้ไขโครงการได้ระหว่างปีงบประมาณ (เช่น เมื่อมีแผนปฏิบัติการประจำปีการศึกษาใหม่)</p>
   <form method="post" action="/projects">

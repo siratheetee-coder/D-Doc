@@ -33,7 +33,7 @@
   {% if saved %}<div class="alert" style="margin-top:10px;">✔ บันทึกแล้ว{% if saved|int > 1 %} (นำเข้า {{ saved }} รายการ){% endif %}</div>{% endif %}
 </div>
 
-<div class="card">
+<div data-addbox class="card">
   <h2>เพิ่มหนังสือ</h2>
   <form method="post" action="/textbooks/add" class="row" style="align-items:flex-end;">
     <input type="hidden" name="year" value="{{ year }}">

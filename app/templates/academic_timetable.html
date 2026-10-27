@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}ตารางเรียน{% endblock %}
 {% block content %}
+{% from "_empty.html" import empty_state %}
 <div class="hero">
   <div>
     <div class="hero-sub">งานวิชาการ</div>
@@ -179,7 +180,7 @@
 {% elif classes %}
 <div class="card"><p class="muted" style="margin:0;">เลือกห้องด้านบนเพื่อกรอก/ดูตารางเรียน</p></div>
 {% else %}
-<div class="card"><p class="muted" style="margin:0;">ยังไม่มีห้องเรียนปีนี้ <a href="/academic/classes">ไปสร้างห้องเรียน</a> ก่อน</p></div>
+<div class="card">{{ empty_state('ยังไม่มีห้องเรียนปีนี้', 'สร้างห้องเรียนก่อน แล้วกลับมาจัดตารางเรียนรายห้อง', '/academic/classes', 'สร้างห้องเรียน', 'ic-calendar') }}</div>
 {% endif %}
 
 <style>

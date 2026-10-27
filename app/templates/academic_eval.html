@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}ประเมิน ปพ.6{% endblock %}
 {% block content %}
+{% from "_empty.html" import empty_state %}
 <div class="hero">
   <div>
     <div class="hero-sub">งานวิชาการ</div>
@@ -24,8 +25,7 @@
       </select></div>
   </form>
   {% if not classes %}
-  <p class="muted" style="margin:10px 0 0;">ยังไม่มีห้องเรียนของปี {{ year }}
-    <a href="/academic/classes?year={{ year }}">โปรดสร้างห้องเรียนก่อน</a></p>
+  {{ empty_state('ยังไม่มีห้องเรียนของปี ' ~ year, 'สร้างห้องเรียนก่อน แล้วกลับมาประเมินและออกสมุดรายงาน ปพ.6', '/academic/classes?year=' ~ year, 'สร้างห้องเรียน', 'ic-users') }}
   {% elif not c %}
   <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> ด้านบน เพื่อประเมินและออกสมุดรายงาน ปพ.6</p>
   {% endif %}

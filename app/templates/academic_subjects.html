@@ -69,7 +69,7 @@
 {% endif %}
 
 {% if not is_teacher %}
-<div class="card">
+<div data-addbox class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มรายวิชา</h2>
   <form method="post" action="/academic/subjects/add" class="row" style="align-items:flex-end;">
     <input type="hidden" name="year" value="{{ year }}">

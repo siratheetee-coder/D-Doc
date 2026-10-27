@@ -1,0 +1,10 @@
+{# กล่อง "ยังไม่มีข้อมูล" แบบเดียวกันทั้งระบบ: ไอคอน + หัวข้อ + คำอธิบาย + ปุ่มพาไปขั้นถัดไป
+   ใช้: {% from '_empty.html' import empty_state %} {{ empty_state('ยังไม่มีห้องเรียน', 'คำอธิบาย', '/academic/classes', 'สร้างห้องเรียน', 'ic-users') }} #}
+{% macro empty_state(title, text='', href='', button='', icon='ic-clipboard') -%}
+<div class="empty-box">
+  <span class="empty-ic"><svg class="icon"><use href="#{{ icon }}"/></svg></span>
+  <b class="empty-t">{{ title }}</b>
+  {% if text %}<p class="empty-p">{{ text }}</p>{% endif %}
+  {% if href and button %}<a class="btn" href="{{ href }}"><svg class="icon"><use href="#ic-plus"/></svg> {{ button }}</a>{% endif %}
+</div>
+{%- endmacro %}

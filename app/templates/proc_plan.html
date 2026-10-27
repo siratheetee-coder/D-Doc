@@ -18,7 +18,7 @@
 </div>
 {% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกแล้ว</div>{% endif %}
 
-<div class="card">
+<div data-addbox class="card">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มรายการในแผน (ปีงบ {{ fiscal_year }})</h2>
   <form method="post" action="/procurement/plan/add" class="row" style="align-items:flex-end;">
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">

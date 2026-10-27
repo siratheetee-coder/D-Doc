@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}เวลาเรียน{% endblock %}
 {% block content %}
+{% from "_empty.html" import empty_state %}
 <div class="hero">
   <div>
     <div class="hero-sub">งานวิชาการ ใช้ประกอบ ปพ.5</div>
@@ -166,7 +167,7 @@
     </div>
   </form>
   {% else %}
-  <p class="muted">ห้องนี้ยังไม่มีนักเรียน - <a href="/academic/classes/{{ c.id }}">ไปดึงนักเรียนเข้าห้อง</a></p>
+  {{ empty_state('ห้องนี้ยังไม่มีนักเรียน', 'ดึงนักเรียนเข้าห้องก่อน แล้วกลับมาบันทึกเวลาเรียน', '/academic/classes/' ~ c.id, 'ดึงนักเรียนเข้าห้อง', 'ic-users') }}
   {% endif %}
 </div>
 <style>
