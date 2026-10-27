@@ -16,7 +16,7 @@ def test_home_serves_landing_without_redirect(env):
     r = c.get("/?ref=fbad", follow_redirects=False)
     assert r.status_code == 200 and "ลดงานเอกสาร" in r.text
     assert '<link rel="canonical" href="https://www.easy-ekkasan.com/">' in r.text
-    assert 'og:image" content="https://www.easy-ekkasan.com/static/' in r.text
+    assert 'og:image" content="https://www.easy-ekkasan.com/static/landing/og-share.jpg' in r.text
     ld = re.search(r'<script type="application/ld\+json">(.*?)</script>', r.text, re.S).group(1)
     graph = json.loads(ld)["@graph"]
     app_ = next(g for g in graph if g["@type"] == "SoftwareApplication")
@@ -42,6 +42,7 @@ def test_guide_public_for_visitors(env):
     r = c.get("/guide", follow_redirects=False)
     assert r.status_code == 200 and "วิธีใช้งาน" in r.text
     assert '<link rel="canonical" href="https://www.easy-ekkasan.com/guide">' in r.text
+    assert 'og:image" content="https://www.easy-ekkasan.com/static/landing/og-share.jpg' in r.text
     # ล็อกอินแล้วยังเห็นแบบในระบบ (มีเมนูด้านข้าง)
     assert env.get("/guide").status_code == 200
     # หน้าในระบบอื่นยังต้องล็อกอิน
