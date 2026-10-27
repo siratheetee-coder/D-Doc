@@ -1,0 +1,39 @@
+<!doctype html>
+{# หน้าสาธารณะที่ใช้หน้าตาเดียวกับในระบบ (สไตล์+ไอคอนชุดเดียวกับ base.html) แต่ไม่มีเมนูด้านข้าง
+   ใช้กับหน้าที่อยากให้คนทั่วไปและ Google เปิดได้ เช่น /guide #}
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Easy Ekkasan{% endblock %}</title>
+  {% block head_meta %}{% endblock %}
+  <link rel="icon" type="image/png" href="/static/favicon-ekkasan.png">
+  <style>
+{% include "_app_style.html" %}
+    .pub-top { background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 30; }
+    .pub-top .in { max-width: 1180px; margin: 0 auto; padding: 12px 22px; display: flex; align-items: center; gap: 12px; }
+    .pub-brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; color: var(--text); text-decoration: none; margin-right: auto; }
+    .pub-brand img { width: 30px; height: 34px; }
+    .pub-brand b { color: var(--brand); }
+    .pub-top .btn { white-space: nowrap; }
+    .pub-main { max-width: 1180px; padding: 24px 22px 60px; }
+    @media (max-width: 560px) {
+      .pub-top .in { padding: 10px 14px; gap: 8px; }
+      .pub-brand { font-size: 17px; }
+      .pub-top .login { display: none; }
+      .pub-main { padding: 16px 14px 48px; }
+    }
+  </style>
+</head>
+<body>
+  {% include "_icon_sprite.html" %}
+  <header class="pub-top"><div class="in">
+    <a class="pub-brand" href="/"><img src="/static/logo-ekkasan-clear.png" alt="">Easy <b>Ekkasan</b></a>
+    <a class="btn gray sm login" href="/login">เข้าสู่ระบบ</a>
+    <a class="btn sm" href="/register">ทดลองใช้ฟรี</a>
+  </div></header>
+  <main class="pub-main">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

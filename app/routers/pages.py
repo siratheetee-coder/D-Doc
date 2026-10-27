@@ -541,8 +541,10 @@ def _guide_videos() -> dict:
 @router.get("/guide", response_class=HTMLResponse)
 def guide_page(request: Request):
     from app.seller_config import pricing_context
+    from app.routers.auth import site_url
     return templates.TemplateResponse("guide.html",
-                                      {"request": request, "videos": _guide_videos(), **pricing_context()})
+                                      {"request": request, "videos": _guide_videos(), "site_url": site_url(),
+                                       **pricing_context()})
 
 
 # ---------------- ติดต่อเจ้าหน้าที่ / รีวิว ----------------

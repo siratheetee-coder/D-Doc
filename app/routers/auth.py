@@ -5,7 +5,7 @@ auth.py - ล็อกอิน/ออกจากระบบ (ระบบค�
 import time
 
 from fastapi import APIRouter, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse, Response
 
 from app.accounts import (audit, authenticate, login_fail_count, login_fail_record,
                           login_fail_clear, totp_check, totp_required)
@@ -69,9 +69,41 @@ def landing_page(request: Request, ref: str = "", utm_source: str = ""):
     msg = request.session.pop("sandbox_msg", None) if "sandbox_msg" in request.session else None
     from app.services.public_stats import landing_stats
     resp = templates.TemplateResponse("landing.html", {"request": request, "sandbox_msg": msg,
-                                                       "live": landing_stats(),
+                                                       "live": landing_stats(), "site_url": site_url(),
                                                        **pricing_context()})
     return _remember_ref(resp, ref or utm_source)
+
+
+def site_url() -> str:
+    """โดเมนจริงของเว็บ (ใช้ทำ canonical / sitemap / รูปตอนแชร์ลิงก์)"""
+    from app.seller_config import SELLER
+    return (SELLER.get("base_url") or "https://www.easy-ekkasan.com").rstrip("/")
+
+
+# หน้าที่ให้ Google เก็บ (หน้าอื่นต้องล็อกอิน เก็บไปก็เปิดไม่ได้)
+SITEMAP_PAGES = [("/", "weekly", "1.0"), ("/guide", "monthly", "0.8"), ("/privacy", "yearly", "0.3")]
+
+
+@router.get("/robots.txt", response_class=PlainTextResponse)
+def robots_txt():
+    lines = ["User-agent: *"]
+    lines += [f"Allow: {p}" for p, _, _ in SITEMAP_PAGES] + ["Allow: /static/", "Allow: /landing"]
+    # หน้าในระบบ/ฟอร์ม ไม่ต้องเก็บ (ต้องล็อกอิน หรือเป็นขั้นตอนซื้อ)
+    lines += [f"Disallow: {p}" for p in ("/login", "/register", "/checkout", "/quote", "/forgot", "/reset",
+                                         "/verify", "/pay/", "/sandbox/", "/trial", "/sale-thanks", "/email/")]
+    lines += ["", f"Sitemap: {site_url()}/sitemap.xml", ""]
+    return "\n".join(lines)
+
+
+@router.get("/sitemap.xml")
+def sitemap_xml():
+    from datetime import date
+    today = date.today().isoformat()
+    urls = "".join(f"<url><loc>{site_url()}{p}</loc><lastmod>{today}</lastmod>"
+                   f"<changefreq>{f}</changefreq><priority>{pr}</priority></url>" for p, f, pr in SITEMAP_PAGES)
+    xml = ('<?xml version="1.0" encoding="UTF-8"?>'
+           f'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>')
+    return Response(xml, media_type="application/xml")
 
 
 @router.get("/privacy", response_class=HTMLResponse)

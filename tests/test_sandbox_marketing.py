@@ -128,7 +128,8 @@ def test_going_to_register_leaves_the_sandbox(anon):
     _start(c)
     r = c.get("/register?from=sandbox", follow_redirects=False)
     assert r.status_code == 200 and "รู้จักเราจากไหน" in r.text
-    assert c.get("/", follow_redirects=False).headers["location"].startswith("/landing")
+    home = c.get("/", follow_redirects=False)      # ออกจากระบบตัวอย่างแล้ว = เห็นหน้า landing
+    assert home.status_code == 200 and "ลดงานเอกสาร" in home.text
 
 
 def test_expired_sandbox_is_removed(anon):

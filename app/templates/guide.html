@@ -1,5 +1,10 @@
-{% extends "base.html" %}
-{% block title %}วิธีใช้งาน{% endblock %}
+{# ล็อกอินแล้ว = หน้าในระบบ, ผู้เยี่ยมชม/Google = หน้าสาธารณะ (เปิดให้ค้นเจอได้) #}
+{% extends "base.html" if request.session.get('uid') else "public_app.html" %}
+{% block title %}วิธีใช้งาน Easy Ekkasan ระบบพัสดุ การเงิน ธุรการ วิชาการ โรงเรียน{% endblock %}
+{% block head_meta %}
+<meta name="description" content="คู่มือใช้งาน Easy Ekkasan ทีละขั้น ตั้งแต่สมัคร ตั้งค่าโรงเรียน ทำเรื่องจัดซื้อจัดจ้าง ว.119 ว.804 ทะเบียนคุมเงิน ทะเบียนหนังสือ ใบลา ปพ.5 ปพ.6 พร้อมคำถามที่พบบ่อย">
+<link rel="canonical" href="{{ site_url }}/guide">
+{% endblock %}
 {% block content %}
 <style>
   .acc { border:1px solid var(--border); border-radius:14px; margin-bottom:14px; background:var(--surface); overflow:hidden; }
@@ -78,7 +83,7 @@
 <div class="hero">
   <div>
     <div class="hero-sub">คู่มือการใช้งานระบบ Easy Ekkasan</div>
-    <span class="hero-title">วิธีใช้งาน</span>
+    <h1 class="hero-title" style="margin:0;">วิธีใช้งาน Easy Ekkasan</h1>
     <div class="hero-meta">กรอกข้อมูลครั้งเดียว ระบบออกเอกสารราชการให้ครบชุด ดาวน์โหลด Word พร้อมพิมพ์</div>
   </div>
 </div>

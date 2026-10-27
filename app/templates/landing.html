@@ -8,8 +8,34 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Easy Ekkasan - ลดงานเอกสาร ให้ครูได้กลับไปสอน">
 <meta property="og:description" content="ระบบพัสดุ การเงิน ธุรการ อาหารกลางวัน บุคคล วิชาการ ในที่เดียว ออกเอกสารราชการครบชุดใน 1 คลิก">
-<meta property="og:image" content="/static/landing/teacher-hero.png?v=3">
+<meta property="og:image" content="{{ site_url }}/static/landing/teacher-hero.png?v=3">
+<meta property="og:url" content="{{ site_url }}/">
+<meta property="og:site_name" content="Easy Ekkasan">
+<meta property="og:locale" content="th_TH">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="{{ site_url }}/">
 <meta name="theme-color" content="#2563eb">
+{# ข้อมูลโครงสร้างให้ Google เข้าใจว่าเป็นซอฟต์แวร์สำหรับโรงเรียน (ราคาเดียวกับที่แสดงในหน้า) #}
+<script type="application/ld+json">
+{{ {
+  "@context": "https://schema.org",
+  "@graph": [
+    {"@type": "Organization", "@id": site_url ~ "/#org", "name": "Easy Ekkasan", "url": site_url ~ "/",
+     "logo": site_url ~ "/static/logo-ekkasan.png"},
+    {"@type": "WebSite", "@id": site_url ~ "/#web", "name": "Easy Ekkasan", "url": site_url ~ "/",
+     "inLanguage": "th", "publisher": {"@id": site_url ~ "/#org"}},
+    {"@type": "SoftwareApplication", "name": "Easy Ekkasan",
+     "applicationCategory": "BusinessApplication", "operatingSystem": "Web",
+     "url": site_url ~ "/", "inLanguage": "th",
+     "description": "ระบบเอกสารโรงเรียน รวมงานพัสดุ การเงิน ธุรการ อาหารกลางวัน บุคคล และวิชาการ ไว้ในระบบเดียว ออกเอกสารราชการครบชุด พร้อมพิมพ์",
+     "image": site_url ~ "/static/landing/teacher-hero.png",
+     "publisher": {"@id": site_url ~ "/#org"},
+     "offers": {"@type": "Offer", "price": prices.bundle, "priceCurrency": "THB",
+                "description": "แพ็กเกจครบทุกงาน ราคาต่อปี ทดลองใช้ฟรี 30 วัน",
+                "url": site_url ~ "/#pricing"}}
+  ]
+}|tojson }}
+</script>
 <link rel="icon" href="/static/favicon-ekkasan.png">
 <style>
   /* ===== ฟอนต์ Prompt (ชุดเดียวกับเว็บหลัก base.html) ===== */

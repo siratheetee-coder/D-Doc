@@ -1,0 +1,734 @@
+{# สไตล์หลักของหน้าในระบบ ใช้ร่วม base.html และหน้าสาธารณะแบบเดียวกัน (public_app.html) #}
+    /* ===== ฟอนต์ Prompt (ฝังในโปรเจกต์ ใช้ offline เหมือนกันทุกเครื่อง) ===== */
+    @font-face { font-family: "Prompt"; font-weight: 400; font-display: swap;
+                 src: url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+    @font-face { font-family: "Prompt"; font-weight: 500; font-display: swap;
+                 src: url("/static/fonts/Prompt-Medium.ttf") format("truetype"); }
+    @font-face { font-family: "Prompt"; font-weight: 600; font-display: swap;
+                 src: url("/static/fonts/Prompt-SemiBold.ttf") format("truetype"); }
+    @font-face { font-family: "Prompt"; font-weight: 700; font-display: swap;
+                 src: url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+    @font-face { font-family: "Prompt"; font-weight: 800; font-display: swap;
+                 src: url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+
+    /* ===== โทน DashStack (offline, ฝังในตัว) ===== */
+    :root {
+      --brand: #4880FF;           /* primary */
+      --brand-dark: #3568e0;
+      --brand-soft: #e8f0ff;
+      --brand-lite: #6f9bff;      /* เฉดอ่อน ปลายไล่สีแถบ hero */
+      --bg: #F5F6FA;              /* พื้นหลัง */
+      --surface: #ffffff;
+      --border: #eceef3;
+      --text: #202224;
+      --muted: #7b8190;
+      --sidebar-ink: #5a6a85;     /* เมนูที่ไม่ active */
+      --success: #16b364;
+      --success-dark: #0e9152;
+      --danger: #ef4444;
+      --danger-dark: #dc2626;
+      --radius: 14px;
+      --shadow: 0 2px 8px rgba(16,24,40,.05), 0 1px 2px rgba(16,24,40,.04);
+    }
+    /* ===== ธีมสีต่อกลุ่มงาน (override เฉพาะสีแบรนด์ คงสีพื้น/เลย์เอาต์ -> รักษากฎ 60/30/10) ===== */
+    .layout[data-module="admin"]   { --brand:#7c3aed; --brand-dark:#6d28d9; --brand-soft:#ede9fe; --brand-lite:#a78bfa; }
+    .layout[data-module="finance"] { --brand:#16a34a; --brand-dark:#15803d; --brand-soft:#dcfce7; --brand-lite:#4ade80; }
+    .layout[data-module="lunch"]   { --brand:#ea580c; --brand-dark:#c2410c; --brand-soft:#ffedd5; --brand-lite:#fb923c; }
+    .layout[data-module="hr"]      { --brand:#0d9488; --brand-dark:#0f766e; --brand-soft:#ccfbf1; --brand-lite:#2dd4bf; }
+    .layout[data-module="academic"] { --brand:#4f46e5; --brand-dark:#4338ca; --brand-soft:#e0e7ff; --brand-lite:#818cf8; }
+    /* พัสดุ + hub ใช้สีน้ำเงินเริ่มต้นจาก :root */
+    * { box-sizing: border-box; }
+    /* กันหน้าจอ "ขยับซ้าย-ขวา" เวลาสลับหน้า (หน้าสั้นไม่มีสกรอลล์ vs หน้ายาวมีสกรอลล์) - จองที่สกรอลล์ไว้เสมอ */
+    html { overflow-y: scroll; scrollbar-gutter: stable; }
+    /* สปินเนอร์หมุน (ใช้ตอนรอ AI/OCR) */
+    .spin { display:inline-block; width:14px; height:14px; vertical-align:-2px;
+      border:2px solid rgba(72,128,255,.3); border-top-color:var(--brand); border-radius:50%;
+      animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    body {
+      /* ฟอนต์ UI ทันสมัย (ใช้ฟอนต์ที่มีในเครื่อง Windows อยู่แล้ว ไม่ต้องต่อเน็ต):
+         Sarabun (โมเดิร์น) -> Leelawadee UI (Thai UI ของ Windows) -> Segoe UI */
+      font-family: "Prompt", "Sarabun", "Leelawadee UI", "Segoe UI", system-ui,
+                   -apple-system, "Noto Sans Thai", sans-serif;
+      margin: 0; background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--brand-dark); }
+    .icon { width: 20px; height: 20px; stroke: currentColor; fill: none;
+            stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+    /* ===== Layout: sidebar + content ===== */
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 256px; background: var(--surface); border-right: 1px solid var(--border);
+      position: sticky; top: 0; height: 100vh; padding: 18px 14px; flex: none;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .sidebar .brand {
+      display: flex; align-items: center; gap: 11px; padding: 4px 6px 18px;
+    }
+    .sidebar .brand .logo { width: 44px; height: 44px; flex: none; }
+    .sidebar .brand .logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .sidebar .brand .name { font-size: 21px; font-weight: 800; color: var(--text); line-height: 1.05; letter-spacing: .3px; }
+    .sidebar .brand .sub { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+    .sidebar nav {
+      display: flex; flex-direction: column; gap: 4px;
+      flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 12px;
+    }
+    /* แถบเลื่อน sidebar แบบบาง ไม่เกะกะ */
+    .sidebar nav::-webkit-scrollbar { width: 7px; }
+    .sidebar nav::-webkit-scrollbar-thumb { background: #d7dce6; border-radius: 8px; }
+    .sidebar nav::-webkit-scrollbar-thumb:hover { background: #c2c9d6; }
+    .sidebar nav a {
+      display: flex; align-items: center; gap: 13px; padding: 11px 14px; border-radius: 11px;
+      color: var(--sidebar-ink); text-decoration: none; font-size: 16.5px; font-weight: 600;
+      transition: background .14s, color .14s;
+    }
+    .sidebar nav a:hover { background: var(--brand-soft); color: var(--brand-dark); }
+    .sidebar nav a.active { background: var(--brand); color: #fff; box-shadow: 0 6px 16px rgba(72,128,255,.35); }
+
+    .content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .topbar {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 14px 26px; position: sticky; top: 0; z-index: 30;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    /* ชื่อหน้าอยู่บรรทัดเดียวเสมอ (ยาวมากค่อยตัด ...) ช่องค้นหาเป็นฝ่ายหดแทน */
+    .topbar .ttl { font-size: 18px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis; flex: 0 0 auto; min-width: 0; max-width: 34vw; }
+    .topbar .who { color: var(--muted); font-size: 15px; }
+    main { padding: 24px 30px; max-width: 1480px; width: 100%; margin: 0 auto; animation: pageIn .2s ease both; }
+    /* ===== แอนิเมชันเปลี่ยนหน้า: เฟดอย่างเดียว ไม่เลื่อนตำแหน่ง (กันหน้าขยับตอนสลับแท็บ) ===== */
+    @keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes dropIn { from { opacity: 0; transform: translateY(-8px) scale(.98); } to { opacity: 1; transform: none; } }
+    /* การเปลี่ยนสี/พื้นหลังของลิงก์เมนู ปุ่ม อินพุต ให้ลื่น (ไม่ใช้ transform กันสั่นตอนเลื่อน) */
+    .sidebar nav a { transition: background .18s ease, color .18s ease; }
+    .btn { transition: background .16s ease, box-shadow .16s ease, transform .1s ease, opacity .16s ease; }
+    .btn:active { transform: translateY(1px) scale(.99); }
+    input, select, textarea { transition: border-color .15s ease, box-shadow .15s ease; }
+    table tbody tr { transition: background .14s ease; }
+    /* ปิดแอนิเมชันให้ผู้ที่ตั้งค่าลดการเคลื่อนไหว (accessibility) */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+    /* ===== ปฏิทินลอย (วันหยุด/นักขัตฤกษ์) ===== */
+    .fab-cal { position: fixed; right: 22px; bottom: 22px; width: 54px; height: 54px; border-radius: 50%;
+      background: var(--brand); color: #fff; border: none; cursor: pointer; z-index: 70;
+      box-shadow: 0 8px 22px rgba(72,128,255,.45); display: flex; align-items: center; justify-content: center;
+      transition: transform .15s ease, box-shadow .15s ease; }
+    .fab-cal:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(72,128,255,.55); }
+    .fab-cal .icon { width: 24px; height: 24px; }
+    .cal-panel { position: fixed; right: 22px; bottom: 86px; width: 326px; max-width: 90vw; background: #fff;
+      border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 16px 40px rgba(16,24,40,.20);
+      z-index: 70; padding: 14px 16px; opacity: 0; visibility: hidden; transform: translateY(12px) scale(.98);
+      transition: opacity .18s ease, transform .18s ease, visibility .18s ease; }
+    .cal-panel.open { opacity: 1; visibility: visible; transform: none; }
+    .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .cal-head b { font-size: 16px; color: var(--text); }
+    .cal-nav { background: #f1f4f9; border: none; width: 32px; height: 32px; border-radius: 9px;
+      cursor: pointer; font-size: 18px; color: var(--text); transition: background .14s; }
+    .cal-nav:hover { background: var(--brand-soft); }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .cal-grid .dow { text-align: center; font-size: 12px; color: var(--muted); padding: 4px 0; font-weight: 600; }
+    .cal-cell { text-align: center; padding: 7px 0; border-radius: 9px; font-size: 14px; }
+    .cal-cell.wk { color: #dc2626; }
+    .cal-cell.hl { background: #fde8e8; color: #b91c1c; font-weight: 700; cursor: default; }
+    .cal-cell.today { outline: 2px solid var(--brand); outline-offset: -2px; font-weight: 700; }
+    .cal-holidays { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px;
+      font-size: 13px; max-height: 124px; overflow-y: auto; }
+    .cal-holidays .h { display: flex; gap: 8px; padding: 3px 0; }
+    .cal-holidays .h b { color: #b91c1c; white-space: nowrap; }
+
+    /* ===== Cards ===== */
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 22px 24px; box-shadow: var(--shadow); margin-bottom: 22px;
+    }
+    /* การ์ดพับเก็บได้ (คลิกหัวเพื่อกาง/พับ) - ใช้ <details class="card"> + <summary> ประหยัดพื้นที่หน้ายาว */
+    details.card > summary {
+      list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px;
+      font-size: 20px; font-weight: 800; color: var(--text); outline: none;
+    }
+    details.card > summary::-webkit-details-marker { display: none; }
+    details.card > summary::after {
+      content: "\203A"; margin-left: auto; font-size: 24px; line-height: 1; color: var(--muted);
+      transition: transform .2s ease;
+    }
+    details.card[open] > summary::after { transform: rotate(90deg); }
+    details.card[open] > summary { margin-bottom: 14px; }
+    details.card > summary:hover { color: var(--brand-dark); }
+    /* เผยเนื้อหาแบบเลื่อนลง (ทุกกล่องพับเก็บได้ <details>) */
+    @keyframes revealDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+    details[open] > summary ~ * { animation: revealDown .24s cubic-bezier(.22,.75,.3,1); }
+    details > summary { user-select: none; }
+    @media (prefers-reduced-motion: reduce) { details[open] > summary ~ * { animation: none; } }
+    /* การ์ด/กล่องเน้น: ไม่มีขอบ outline รอบ ใช้แถบสีซ้าย + พื้นสีอ่อน + เงานุ่ม (สไตล์เดียวกับการ์ดแจ้งเตือน) */
+    .card.hl { border: none; border-left: 4px solid #3b82f6; background: #f2f7ff; box-shadow: 0 4px 16px rgba(16,24,40,.07); }
+    .card.hl.warn { border-left-color: #f0a020; background: #fff8ec; }
+    .card.hl.danger { border-left-color: #ef4444; background: #fef1f1; }
+    .card.hl.danger h2 { color: #b91c1c; }
+    .tipbox { border: none; border-left: 4px solid #3b82f6; background: #f2f7ff;
+      border-radius: 4px 10px 10px 4px; padding: 12px 15px; margin-bottom: 14px;
+      box-shadow: 0 3px 12px rgba(16,24,40,.06); }
+    .tipbox.warn { border-left-color: #f0a020; background: #fff8ec; }
+    .tipbox.danger { border-left-color: #ef4444; background: #fef1f1; color: #b91c1c; }
+    .tipbox > .icon, .tipbox b > .icon { color: #2563eb; }
+    .tipbox.danger > .icon { color: #dc2626; }
+    /* การ์ดลิงก์บนหน้าหลักของแต่ละงาน - ใช้สีประจำโมดูลอัตโนมัติผ่าน var(--brand) */
+    .nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-bottom: 22px; }
+    /* กล่อง "ยังไม่มีข้อมูล" (_empty.html) */
+    .empty-box { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px;
+      padding: 34px 20px; margin: 12px 0 0; border-radius: 18px; background: linear-gradient(135deg,#f8fafc,#eef2ff); }
+    .empty-ic { width: 64px; height: 64px; border-radius: 20px; display: flex; align-items: center; justify-content: center;
+      background: #fff; color: var(--brand); box-shadow: 0 8px 20px rgba(15,23,42,.08); margin-bottom: 4px; }
+    .empty-ic .icon { width: 30px; height: 30px; }
+    .empty-t { font-size: 18px; color: #1e293b; }
+    .empty-p { margin: 0; max-width: 460px; color: var(--muted); font-size: 14.5px; line-height: 1.6; }
+    .empty-box .btn { margin-top: 8px; }
+    /* การ์ดฟอร์มเพิ่มข้อมูล (addbox.js): ปิดเป็นปุ่มจนกว่าจะกด */
+    .card.addbox > h2, .card.addbox > h3 { cursor: pointer; user-select: none; margin-bottom: 0; }
+    .card.addbox > h2::after, .card.addbox > h3::after { content: "เปิดฟอร์ม"; margin-left: auto; font-size: 13px; font-weight: 600;
+      color: var(--brand); padding: 4px 12px; border-radius: 999px; background: var(--brand-soft); }
+    .card.addbox.open > h2::after, .card.addbox.open > h3::after { content: "ปิด"; color: var(--muted); background: #f1f5f9; }
+    .card.addbox > h2:hover::after { filter: brightness(.95); }
+    .card.addbox:not(.open) > .addbox-body { display: none; }
+    .card.addbox.open > h2, .card.addbox.open > h3 { margin-bottom: 14px; }
+    .card.addbox:not(.open) { padding-top: 16px; padding-bottom: 16px; }
+    .nav-card {
+      display: flex; flex-direction: column; gap: 12px; padding: 22px 24px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: var(--shadow); text-decoration: none; color: inherit; cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    }
+    .nav-card:hover {
+      transform: translateY(-4px); border-color: var(--brand);
+      box-shadow: 0 14px 30px rgba(16,24,40,.14);
+    }
+    .nav-card:active { transform: translateY(-1px); }
+    .nav-card:focus-visible { outline: 3px solid var(--brand-soft); outline-offset: 2px; border-color: var(--brand); }
+    .nav-card .nc-head { display: flex; align-items: center; gap: 12px; }
+    .nav-card .nc-ic {
+      width: 44px; height: 44px; border-radius: 12px; flex: none;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--brand-soft); color: var(--brand);
+      transition: background .15s ease, color .15s ease;
+    }
+    .nav-card:hover .nc-ic { background: var(--brand); color: #fff; }
+    .nav-card .nc-ic .icon { width: 22px; height: 22px; }
+    .nav-card h3 { margin: 0; font-size: 18px; font-weight: 800; color: #1b2433; }
+    .nav-card .nc-desc { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.55; flex: 1; }
+    .nav-card .nc-go {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--brand); font-weight: 700; font-size: 14.5px;
+      transition: gap .15s ease;
+    }
+    .nav-card:hover .nc-go { gap: 11px; }
+    .nav-card .nc-go .icon { width: 16px; height: 16px; }
+    /* รายละเอียดในการ์ดแบบ bullet บรรทัดละข้อ (อ่านง่ายกว่าคั่นด้วย ·) */
+    .nav-card .nc-list { margin: 0; padding-left: 18px; flex: 1;
+      color: var(--muted); font-size: 14.5px; line-height: 1.7; }
+    .nav-card .nc-list li { margin: 0 0 2px; }
+    /* การ์ด/กล่องสถิติหน้าแรก: ปรากฏแบบเลื่อนขึ้นทีละใบ (stagger) ตอนเปิดหน้า */
+    @keyframes riseIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+    .nav-grid > .nav-card, .stat > .box { animation: riseIn .42s cubic-bezier(.22,.75,.3,1) backwards; }
+    .stat > .box:nth-child(1) { animation-delay: .02s; }
+    .stat > .box:nth-child(2) { animation-delay: .08s; }
+    .stat > .box:nth-child(3) { animation-delay: .14s; }
+    .stat > .box:nth-child(4) { animation-delay: .20s; }
+    .nav-grid > .nav-card:nth-child(1) { animation-delay: .05s; }
+    .nav-grid > .nav-card:nth-child(2) { animation-delay: .11s; }
+    .nav-grid > .nav-card:nth-child(3) { animation-delay: .17s; }
+    .nav-grid > .nav-card:nth-child(4) { animation-delay: .23s; }
+    .nav-grid > .nav-card:nth-child(5) { animation-delay: .29s; }
+    .nav-grid > .nav-card:nth-child(6) { animation-delay: .35s; }
+    @media (prefers-reduced-motion: reduce) {
+      .nav-card, .nav-card .nc-ic, .nav-card .nc-go, .stat .box, .stat .box .ic-wrap { transition: none; }
+      .nav-card:hover, .stat .box:hover { transform: none; }
+      .nav-grid > .nav-card, .stat > .box { animation: none; }
+    }
+    /* หัวข้อหน้า + หัว section: แถบสีเทา + แถบ accent น้ำเงินด้านซ้าย + ตัวหนาเข้ม
+       ตั้งใจให้คนละโทนกับ "ปุ่ม" (ปุ่มเป็นน้ำเงินเข้ม/ฟ้าอ่อน) จะได้แยกออกชัด */
+    h1, h2 {
+      display: flex; align-items: center; gap: 11px; line-height: 1.3;
+      font-weight: 800; color: #1b2433;
+      background: #eef1f6; border-left: 5px solid var(--brand); border-radius: 10px;
+    }
+    h1 { font-size: 22px; padding: 13px 18px; margin: 0 0 18px; }
+    h2 { font-size: 17px; padding: 10px 16px; margin: 0 0 16px; }
+    h1 .icon, h2 .icon { color: var(--brand); flex: none; }
+    h1 .muted, h2 .muted { font-weight: 600; }
+
+    /* ===== Forms ===== */
+    label { display: block; margin: 12px 0 5px; font-weight: 600; font-size: 16px; }
+    input, select, textarea {
+      width: 100%; padding: 9px 12px; border: 1px solid #dfe3ea; border-radius: 10px;
+      font-size: 16.5px; font-family: inherit; background: #fff; color: var(--text);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(72,128,255,.18);
+    }
+    /* เอาลูกศรเลื่อนตัวเลข (spinner) ออกจากช่อง number ทุกช่องทั้งระบบ */
+    input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    /* dropdown สวย + กดง่าย: เอาลูกศรเดิมออก ใส่ลูกศรเอง + เพิ่มพื้นที่กด */
+    select {
+      appearance: none; -webkit-appearance: none; -moz-appearance: none;
+      padding: 11px 40px 11px 14px; cursor: pointer; line-height: 1.45;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237b8190' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 14px center; background-size: 16px;
+    }
+    select:hover { border-color: #c2ccda; }
+    select:focus { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234880FF' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); }
+    option { font-size: 16px; padding: 6px; }
+    textarea { min-height: 72px; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .row > div { flex: 1; min-width: 180px; }
+    /* คำอธิบายใต้ช่องกรอก: ใส่ใต้ช่องแทนวงเล็บยาว ๆ ในหัวข้อ (หัวข้อตกบรรทัด = ช่องในแถวไม่ตรงกัน) */
+    .hint { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+
+    /* ===== Buttons ===== */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      background: linear-gradient(135deg, var(--brand), var(--brand-dark)); color: #fff;
+      border: none; padding: 10px 18px; border-radius: 11px; font-size: 16.5px; font-weight: 600;
+      cursor: pointer; text-decoration: none; font-family: inherit;
+      transition: filter .14s ease, box-shadow .16s ease, transform .08s ease;
+      box-shadow: 0 2px 6px rgba(16,24,40,.14);
+    }
+    .btn:hover { filter: brightness(1.06); box-shadow: 0 7px 18px rgba(72,128,255,.3); transform: translateY(-1px); }
+    .btn:active { transform: translateY(1px) scale(.985); filter: brightness(.97); }
+    .btn .icon { width: 18px; height: 18px; }
+    .btn.green { background: linear-gradient(135deg, var(--success), var(--success-dark)); }
+    .btn.green:hover { box-shadow: 0 6px 16px rgba(22,179,100,.32); }
+    /* ปุ่มรองใช้ "พื้นอ่อน" แทนเส้นขอบ - ทั้งระบบไม่มีปุ่มแบบมีขอบ
+       (ของเดิมพื้นขาว+ขอบ พอไปวางบนแถบ hero สีเข้ม ขอบจะโผล่มาอันเดียว ดูไม่เข้าพวก) */
+    .btn.gray { background: #eef1f7; color: var(--sidebar-ink); border: none; box-shadow: none; }
+    .btn.gray:hover { background: #e3e8f1; color: var(--text); filter: none; transform: none; box-shadow: none; }
+    .btn.soft { background: var(--brand-soft); color: var(--brand-dark); border: none; box-shadow: none; }
+    .btn.soft:hover { background: var(--brand-soft); border: none; color: var(--brand-dark);
+                      filter: brightness(.96); box-shadow: 0 4px 12px rgba(72,128,255,.16); }
+    .btn.red { background: linear-gradient(135deg, var(--danger), var(--danger-dark)); }
+    .btn.red:hover { box-shadow: 0 6px 16px rgba(239,68,68,.3); }
+    /* ===== ปุ่ม AI (ใช้ปุ่มเดียวกันทุกที่ในระบบ) =====
+       gradient ม่วง-คราม ไล่สีขยับตลอดเวลา + ไอคอนประกายในวงกลมจาง ๆ
+       ใช้:  <button class="btn ai"><span class="sp">…svg ic-ai…</span> อ่านไฟล์ด้วย AI</button>   */
+    .btn.ai {
+      background: linear-gradient(100deg, #7c3aed, #6366f1, #a855f7, #6366f1, #7c3aed);
+      background-size: 300% 100%; animation: aiflow 6s linear infinite;
+      border-radius: 999px; padding: 10px 22px 10px 12px; color: #fff;
+      box-shadow: 0 6px 18px rgba(124,58,237,.38), inset 0 1px 0 rgba(255,255,255,.28);
+    }
+    .btn.ai:hover { box-shadow: 0 10px 26px rgba(124,58,237,.5), inset 0 1px 0 rgba(255,255,255,.35); }
+    .btn.ai.sm { padding: 6px 16px 6px 8px; font-size: 14.5px; }
+    .btn.ai .sp {
+      display: inline-flex; align-items: center; justify-content: center; flex: none;
+      width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,.22);
+    }
+    .btn.ai.sm .sp { width: 22px; height: 22px; }
+    .btn.ai .sp .icon { width: 16px; height: 16px; }
+    .btn.ai.sm .sp .icon { width: 13px; height: 13px; }
+    .btn.ai[disabled], .btn.ai.off { animation: none; filter: grayscale(.85); opacity: .6; cursor: not-allowed; }
+    @keyframes aiflow { to { background-position: -300% 0; } }
+    @media (prefers-reduced-motion: reduce) { .btn.ai { animation: none; } }
+
+    .btn.sm { padding: 6px 13px; font-size: 14.5px; border-radius: 9px; }
+    .btn.sm .icon { width: 16px; height: 16px; }
+    /* ปุ่มเล็กข้างตัวเลข เช่น "คัดลอก" ในหน้าช่วยกรอก e-Budget / e-GP */
+    .btn.xs { padding: 2px 9px; font-size: 12.5px; border-radius: 7px; min-height: 0; line-height: 1.6;
+      box-shadow: none; white-space: nowrap; flex: none; vertical-align: middle; }
+    /* จอสัมผัส (มือถือ): :hover ค้างหลังแตะ -> ตัด lift/เงาที่ทำให้ปุ่มดูค้างแปลก ๆ */
+    @media (hover: none) {
+      .btn:hover { transform: none; filter: none; }
+      .btn:active { transform: scale(.97); filter: brightness(.95); }
+    }
+
+    /* ===== Tables ===== */
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 16px; }
+    th, td { border-bottom: 1px solid var(--border); padding: 11px 12px; text-align: left; }
+    thead th { background: #fafbfd; color: var(--muted); font-weight: 700; font-size: 14.5px;
+               text-transform: none; border-bottom: 1px solid var(--border); }
+    tbody tr { transition: background .12s; }
+    tbody tr:hover td { background: #f7f9fe; }
+    /* แถวที่คลิกเปิดได้ทั้งแถว (auto จาก base.html) - บอกใบ้ว่าคลิกได้ */
+    tbody tr.row-link { cursor: pointer; }
+    tbody tr.row-link:hover td { background: #eef4ff; }
+    tbody tr.row-link:hover td:first-child { box-shadow: inset 3px 0 0 var(--brand, #2f6fed); }
+    /* transition ระหว่างเปลี่ยนหน้า (เบราว์เซอร์ที่รองรับ) + เนื้อหาค่อย ๆ ปรากฏตอนโหลด (เช่น หลัง login เข้าหน้าหลัก) */
+    @view-transition { navigation: auto; }
+    @keyframes contentIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    .content main { animation: contentIn .32s cubic-bezier(.2,.7,.25,1) both; }
+    @media (prefers-reduced-motion: reduce) { .content main { animation: none; } }
+    /* ป็อปอัป "ดูเลขล่าสุด" (ไม่เปลี่ยนหน้า) */
+    .dn-ov { position:fixed; inset:0; background:rgba(15,23,42,.5); z-index:1000; display:flex;
+      align-items:center; justify-content:center; padding:20px; animation:dnFade .18s ease; }
+    .dn-box { background:#fff; width:100%; max-width:580px; max-height:82vh; overflow:auto; border-radius:16px;
+      box-shadow:0 24px 60px rgba(16,24,40,.34); animation:dnPop .22s cubic-bezier(.2,.8,.25,1); }
+    .dn-hd { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:16px 20px;
+      border-bottom:1px solid var(--border); position:sticky; top:0; background:#fff; }
+    .dn-hd b { font-size:17px; }
+    .dn-x { border:0; background:#eef0f4; color:#5a6a85; width:30px; height:30px; border-radius:8px;
+      cursor:pointer; font-size:15px; line-height:1; }
+    .dn-x:hover { background:#e2e6ee; }
+    .dn-body { padding:14px 20px 20px; }
+    .dn-tb { width:100%; border-collapse:collapse; }
+    .dn-tb th { text-align:left; font-size:13px; color:var(--muted); padding:6px 8px; border-bottom:1px solid var(--border); white-space:nowrap; }
+    .dn-tb td { padding:9px 8px; border-bottom:1px solid #f0f2f6; font-size:15px; vertical-align:top; }
+    .dn-tb td:first-child { white-space:nowrap; font-weight:600; }
+    .dn-tb .dn-sub { color:var(--muted); font-size:13px; }
+    .dn-tb .dn-date { color:var(--muted); font-size:13px; white-space:nowrap; }
+    .dn-next { display:inline-block; background:#e8f0ff; color:#2b58c9; font-weight:700; border-radius:999px; padding:2px 10px; font-size:13.5px; }
+    .dn-peek { display:inline-block; margin-top:4px; font-size:12.5px; font-weight:600; color:var(--brand, #2563eb);
+      cursor:pointer; text-decoration:none; }
+    .dn-peek:hover { text-decoration:underline; }
+    .dn-peek svg { width:13px; height:13px; vertical-align:-2px; margin-right:2px; }
+    @keyframes dnFade { from{opacity:0} to{opacity:1} }
+    @keyframes dnPop { from{opacity:0; transform:translateY(12px) scale(.98)} to{opacity:1; transform:none} }
+    .right { text-align: right; }
+    .center { text-align: center; }
+    /* ตารางคอลัมน์เยอะ: เลื่อนแนวนอนแทนที่จะบีบตัวอักษรจนอ่านไม่ออก
+       (ใส่ .dense เฉพาะตารางที่ต้องการ เพื่อไม่ให้ตารางแคบมีแถบเลื่อนโผล่มาเอง) */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-wrap.dense > table { min-width: 980px; }
+    /* ตารางล้นจอ: เงาจางที่ขอบ + ปุ่ม "เลื่อนดูเพิ่ม" (static/table-scroll-hint.js) ผู้ใช้จะรู้ว่ามีคอลัมน์ซ่อนอยู่ */
+    .tsh-outer { position: relative; }
+    .tsh-fade { position: absolute; top: 0; bottom: 0; width: 34px; pointer-events: none; opacity: 0; transition: opacity .2s ease; z-index: 5; }
+    .tsh-l { left: 0; background: linear-gradient(to right, rgba(15,23,42,.13), rgba(15,23,42,0)); }
+    .tsh-r { right: 0; background: linear-gradient(to left, rgba(15,23,42,.13), rgba(15,23,42,0)); }
+    .tsh-more-l .tsh-l, .tsh-more-r .tsh-r { opacity: 1; }
+    .tsh-pill { position: absolute; top: 6px; right: 8px; z-index: 6; border: 0; border-radius: 999px; padding: 5px 12px;
+                font: inherit; font-size: 12.5px; font-weight: 600; color: #fff; cursor: pointer; display: none;
+                background: linear-gradient(135deg, var(--brand), var(--brand-lite)); box-shadow: 0 4px 12px rgba(15,23,42,.18);
+                animation: tshNudge 1.6s ease-in-out 2; }
+    .tsh-more-r .tsh-pill { display: inline-block; }
+    @keyframes tshNudge { 0%,100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
+    @media (prefers-reduced-motion: reduce) { .tsh-pill { animation: none; } }
+    @media print { .tsh-fade, .tsh-pill { display: none !important; } }
+    /* select ในตารางเผื่อที่ลูกศรน้อยลง ไม่งั้นข้อความสั้น ๆ ก็ยังโดนตัด */
+    td select { padding-right: 28px; background-position: right 8px center; }
+    /* ช่องรอง (เช่น สาระการเรียนรู้ ใต้ชื่อรายวิชา) - ค่าที่กรอกจริงต้องเป็นสีปกติ
+       ทำจางเฉพาะ placeholder ไม่งั้นครูนึกว่าช่องยังว่างอยู่ */
+    input.sub-group { color: var(--text, #1b2433); }
+    input.sub-group::placeholder { color: var(--muted); }
+    /* แถวคั่นกลุ่มในตาราง (เช่น คั่นตามระดับชั้น) */
+    tbody tr.lv-sep td { background: #f2f4f9; color: #1b2433; font-weight: 800;
+      font-size: 14.5px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    tbody tr.lv-sep:hover td { background: #f2f4f9; }
+
+    /* ===== Pills / Badges ===== */
+    .pill {
+      display: inline-block; padding: 4px 13px; border-radius: 999px; font-size: 14px;
+      font-weight: 700; background: #eef0f4; color: #5a6a85;
+    }
+    .pill.approve { background: #e3f9ee; color: #0e9152; }
+    .pill.done { background: var(--brand-soft); color: var(--brand-dark); }
+    .pill.danger { background: var(--danger); color: #fff; }
+
+    /* ===== Notice / การ์ดแจ้งเตือน (สไตล์เดียวกันทั้งแอป) =====
+       โครง: [ไอคอนชิป] [ข้อความ flex:1] [ปุ่ม/ลิงก์]  มีแถบสีซ้าย + เงานุ่ม
+       ตัวแปรสี: (ค่าเริ่มต้น = สำเร็จ/เขียว) .warn = เตือน/เหลือง  .info = ข้อมูล/น้ำเงิน */
+    .alert {
+      display: flex; align-items: center; gap: 13px; flex-wrap: wrap;
+      background: #edfaf1; color: #0e7a44; border: none; border-left: 4px solid #16a34a;
+      padding: 13px 16px 13px 15px; border-radius: 4px 12px 12px 4px; margin-bottom: 14px;
+      font-weight: 500; line-height: 1.5; box-shadow: 0 4px 14px rgba(16,24,40,.08);
+    }
+    .alert > .icon {
+      width: 38px; height: 38px; flex: none; padding: 8px; box-sizing: border-box;
+      border-radius: 11px; background: #16a34a; color: #fff; stroke-width: 2;
+    }
+    .alert b { color: #0b5b34; font-weight: 700; }
+    .alert > span { flex: 1; min-width: 200px; }
+    .alert.warn {
+      background: #fff8ec; color: #92610a; border-left-color: #f0a020;
+    }
+    .alert.warn > .icon { background: #f0a020; color: #fff; }
+    .alert.warn b { color: #7a4f06; }
+    .alert.info {
+      background: #eef5ff; color: #1e40af; border-left-color: #3b82f6;
+    }
+    .alert.info > .icon { background: #3b82f6; color: #fff; }
+    .alert.info b { color: #1e3a8a; }
+    .alert.danger {
+      background: #fef1f1; color: #b91c1c; border-left-color: #ef4444;
+    }
+    .alert.danger > .icon { background: #ef4444; color: #fff; }
+    .alert.danger b { color: #991b1b; }
+    /* ===== การ์ดประกาศถึงผู้ใช้ (ขึ้นทุกหน้า) สีตามประเภทประกาศ ===== */
+    .maint {
+      display: flex; gap: 16px; align-items: flex-start; color: #fff;
+      border-radius: 16px; padding: 20px 24px; margin-bottom: 20px;
+      background: linear-gradient(120deg, #b45309, #d97706 55%, #f59e0b);
+      box-shadow: 0 10px 26px rgba(217,119,6,.28);
+    }
+    .maint[hidden] { display: none; } /* Keep acknowledgement hidden despite the flex layout. */
+    .maint .mt-ic { width: 44px; height: 44px; flex: none; padding: 10px;
+      border-radius: 13px; background: rgba(255,255,255,.22); }
+    .maint .mt-sub { font-size: 13.5px; opacity: .92; }
+    .maint h3 { margin: 1px 0 8px; font-size: 21px; font-weight: 700; }
+    .maint .mt-when { display: inline-flex; gap: 8px; align-items: center; font-weight: 700;
+      background: rgba(255,255,255,.18); border-radius: 999px; padding: 5px 14px; font-size: 15px; }
+    .maint ul { margin: 12px 0 0; padding-left: 18px; }
+    .maint li { margin: 3px 0; opacity: .95; }
+    .maint .mt-act { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .maint .mt-act .btn { background: #fff; color: #b45309; box-shadow: none; }
+    .maint .mt-note { font-size: 13.5px; opacity: .92; }
+    /* ประกาศของใหม่ = น้ำเงิน ประกาศทั่วไป = เขียว (ส้มสงวนไว้ให้เรื่องปิดระบบจริง ๆ) */
+    .maint.news { background: linear-gradient(120deg, #1d4ed8, #2563eb 55%, #3b82f6);
+      box-shadow: 0 10px 26px rgba(37,99,235,.28); }
+    .maint.news .mt-act .btn { color: #1d4ed8; }
+    .maint.info { background: linear-gradient(120deg, #047857, #059669 55%, #10b981);
+      box-shadow: 0 10px 26px rgba(5,150,105,.26); }
+    .maint.info .mt-act .btn { color: #047857; }
+    @media (max-width: 600px) { .maint { padding: 16px 18px; } .maint h3 { font-size: 19px; } }
+
+    /* ===== Toast แจ้งเตือนเด้งจากบน แล้วหายเอง ===== */
+    .toast-wrap { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 4000;
+      display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+    .toast { background: #0e7a44; color: #fff; padding: 11px 20px; border-radius: 999px; font-weight: 700;
+      font-size: 15px; box-shadow: 0 10px 28px rgba(14,122,68,.38); display: flex; align-items: center; gap: 8px;
+      opacity: 0; transform: translateY(-18px); transition: opacity .25s ease, transform .25s ease; max-width: 92vw; }
+    .toast.show { opacity: 1; transform: none; }
+    .toast.warn { background: #b45309; box-shadow: 0 10px 28px rgba(180,83,9,.38); }
+    @media (prefers-reduced-motion: reduce) { .toast { transition: opacity .2s ease; transform: none; } }
+    .muted { color: var(--muted); font-size: 15.5px; }
+
+    /* ===== Dashboard stat cards (DashStack style) ===== */
+    .stat { display: flex; gap: 20px; flex-wrap: wrap; }
+    .stat .box {
+      flex: 1; min-width: 190px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow);
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    }
+    .stat .box:hover {
+      transform: translateY(-3px); border-color: var(--brand-soft);
+      box-shadow: 0 12px 26px rgba(16,24,40,.12);
+    }
+    .stat .box:hover .ic-wrap { transform: scale(1.08) rotate(-3deg); }
+    .stat .box .ic-wrap { transition: transform .18s ease; }
+    .stat .box .lab { color: var(--muted); font-size: 15px; font-weight: 600; }
+    .stat .box .num { font-size: 28px; font-weight: 800; color: var(--text); line-height: 1.15; margin-top: 4px; }
+    .stat .box .ic-wrap {
+      width: 52px; height: 52px; border-radius: 14px; flex: none;
+      display: flex; align-items: center; justify-content: center; color: #fff;
+    }
+    .stat .box .ic-wrap .icon { width: 26px; height: 26px; stroke-width: 2; }
+    .ic-blue { background: linear-gradient(135deg, #4880FF, #6f9bff); }
+    .ic-green { background: linear-gradient(135deg, #16b364, #34d27f); }
+    .ic-amber { background: linear-gradient(135deg, #f6a609, #fbbf24); }
+
+    /* ===== Sidebar section labels (จัดกลุ่มเมนู) ===== */
+    .sidebar nav .nav-sec {
+      font-size: 11.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+      color: #aab2c0; padding: 14px 14px 5px; user-select: none;
+    }
+    .sidebar nav .nav-sec:first-child { padding-top: 4px; }
+    .sidebar nav a.subnav { padding-left: 34px; font-size: 15px; margin-top: -2px; }
+    .sidebar nav a.subnav .icon { width: 15px; height: 15px; opacity: .75; }
+    .sidebar nav a.navback { color: var(--muted); font-size: 13.5px; margin-bottom: 4px; }
+    .sidebar nav a.navback:hover { color: var(--brand-dark); }
+    .sidebar nav .navdim {
+      display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-radius: 10px;
+      color: #b9c0cc; font-size: 14px; cursor: default; user-select: none;
+    }
+    .sidebar nav .navdim .icon { opacity: .6; }
+
+    /* ===== Topbar: ปุ่มเมนู + ค้นหา + แบรนด์ชิป ===== */
+    .topbar .hamb {
+      display: none; background: none; border: none; padding: 6px; border-radius: 9px;
+      color: var(--sidebar-ink); cursor: pointer; box-shadow: none;
+    }
+    .topbar .hamb:hover { background: var(--brand-soft); color: var(--brand-dark); }
+    .topbar .hamb .icon { width: 24px; height: 24px; }
+    .topbar .grow { flex: 1; min-width: 0; }
+    .topsearch {
+      display: flex; align-items: center; gap: 8px; background: #f3f5f9; border: 1px solid var(--border);
+      border-radius: 999px; padding: 7px 15px; max-width: 360px; width: auto; flex: 1 1 auto; min-width: 0;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .topsearch:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(72,128,255,.15); background:#fff; }
+    .topsearch .icon { width: 18px; height: 18px; color: var(--muted); }
+    .topsearch input {
+      border: none; background: none; padding: 0; font-size: 15px; box-shadow: none !important; min-width: 0; width: 100%;
+    }
+    .topsearch input:focus { outline: none; }
+    /* ผลค้นหาระหว่างพิมพ์ (search-suggest.js) */
+    .topsearch { position: relative; }
+    .ss-box { position: absolute; left: 0; top: calc(100% + 8px); width: min(460px, 92vw); max-height: 70vh; overflow-y: auto;
+      background: #fff; border-radius: 16px; box-shadow: 0 16px 40px rgba(16,24,40,.18); z-index: 60; padding: 8px; }
+    .ss-box[hidden] { display: none; }
+    .ss-h { font-size: 12px; font-weight: 700; color: #6366f1; padding: 8px 10px 4px; }
+    .ss-box a { display: block; padding: 8px 10px; border-radius: 10px; text-decoration: none; color: var(--text); }
+    .ss-box a b { display: block; font-weight: 600; font-size: 14.5px; }
+    .ss-box a small { display: block; font-size: 12.5px; color: var(--muted); }
+    .ss-box a:hover, .ss-box a.on { background: linear-gradient(120deg,#e0e7ff,#f3e8ff); }
+    .ss-box a.ss-all { margin-top: 4px; font-weight: 700; color: #4f46e5; font-size: 14px; }
+    .ss-none { padding: 14px 10px; color: var(--muted); font-size: 14px; }
+    .brandchip { display: flex; align-items: center; gap: 10px; flex: none; position: relative; }
+    .chipbtn { display:flex; align-items:center; gap:10px; border:1px solid transparent; background:none;
+      font-family:inherit; cursor:pointer; padding:4px 8px 4px 4px; border-radius:999px;
+      transition:background .14s, border-color .14s; }
+    .chipbtn:hover { background:var(--brand-soft); border-color:var(--border); }
+    .chipbtn .chev { width:16px; height:16px; color:var(--muted); flex:none; }
+    .chipbtn[aria-expanded="true"] { background:var(--brand-soft); border-color:var(--border); }
+    .memenu { position:absolute; top:calc(100% + 8px); right:0; z-index:120; min-width:250px;
+      background:var(--surface); border:1px solid var(--border); border-radius:13px;
+      box-shadow:0 14px 34px rgba(15,23,42,.16); padding:6px; }
+    .memenu[hidden] { display:none; }
+    .memenu .me-h { padding:9px 12px 10px; border-bottom:1px solid var(--border); margin-bottom:5px; }
+    .memenu .me-n { font-weight:700; font-size:14.5px; color:var(--text);
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .memenu .me-u { font-size:12.5px; color:var(--muted); margin-top:2px;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .memenu a { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:9px;
+      color:var(--text); text-decoration:none; font-size:14px; white-space:nowrap; }
+    .memenu a:hover { background:var(--brand-soft); color:var(--brand-dark); }
+    .memenu a .icon { width:17px; height:17px; flex:none; color:var(--muted); }
+    .memenu a:hover .icon { color:var(--brand-dark); }
+    .memenu .me-tag { margin-left:auto; font-size:11px; color:var(--muted);
+      background:#f1f5f9; border-radius:20px; padding:1px 8px; }
+    .memenu .me-out { border-top:1px solid var(--border); margin-top:5px; padding-top:10px; border-radius:0 0 9px 9px; }
+    .memenu .me-out:hover { background:#fef2f2; color:#b91c1c; }
+    .memenu .me-out:hover .icon { color:#b91c1c; }
+    .brandchip .avatar {
+      width: 38px; height: 38px; border-radius: 50%; flex: none; display: flex;
+      align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 16px;
+      background: linear-gradient(135deg, #4880FF, #6f9bff); overflow: hidden;
+    }
+    .brandchip .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .brandchip .who { color: var(--text); font-size: 15px; font-weight: 600; }
+
+    /* ===== Hero banner (แดชบอร์ด) ===== */
+    .hero {
+      background: linear-gradient(120deg, var(--brand-dark), var(--brand) 55%, var(--brand-lite));
+      color: #fff; border-radius: var(--radius); padding: 26px 28px; margin-bottom: 22px;
+      box-shadow: 0 10px 26px rgba(15,23,42,.18);
+      display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap;
+    }
+    .hero .hero-sub { font-size: 14px; font-weight: 600; opacity: .9; }
+    .hero .hero-title {
+      all: unset; display: block; font-size: 26px; font-weight: 800; line-height: 1.2; margin: 4px 0 6px;
+    }
+    .hero .hero-meta { font-size: 14.5px; opacity: .92; }
+    .hero .btn { background: rgba(255,255,255,.16); color: #fff; border: none; box-shadow: none;
+                 backdrop-filter: blur(2px); }
+    .hero .btn:hover { background: rgba(255,255,255,.28); color: #fff; border: none; box-shadow: none; }
+    .hero .btn .icon { color: #fff; }
+
+    /* ===== Charts (วาดด้วย SVG ฝั่งเซิร์ฟเวอร์ ไม่ใช้ไลบรารีภายนอก) ===== */
+    .charts { display: grid; grid-template-columns: 1.7fr 1fr; gap: 22px; margin-bottom: 22px; }
+    .chart-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 20px 22px; box-shadow: var(--shadow); min-width: 0;
+    }
+    .chart-card .chart-title { font-size: 16px; font-weight: 700; color: #1b2433; margin-bottom: 4px; }
+    .chart-card .chart-note { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+    .chart-card svg { width: 100%; height: auto; display: block; }
+    .donut-wrap { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .donut-wrap .donut { width: 150px; flex: none; }
+    .legend { display: flex; flex-direction: column; gap: 9px; font-size: 14.5px; color: var(--text); }
+    .legend .lg { display: flex; align-items: center; gap: 9px; }
+    .legend .dot { width: 13px; height: 13px; border-radius: 4px; flex: none; }
+    .legend .lg b { font-weight: 700; }
+    .legend .lg .pc { color: var(--muted); font-size: 13px; }
+    @media (max-width: 880px) { .charts { grid-template-columns: 1fr; } }
+
+    /* ===== กระดิ่งแจ้งเตือน ===== */
+    .bell-wrap { position: relative; flex: none; }
+    .bell {
+      position: relative; background: none; border: none; padding: 8px; border-radius: 10px;
+      color: var(--sidebar-ink); cursor: pointer; box-shadow: none; display: inline-flex;
+    }
+    .bell:hover { background: var(--brand-soft); color: var(--brand-dark); }
+    .bell .icon { width: 22px; height: 22px; }
+    .bell-badge {
+      position: absolute; top: 2px; right: 2px; min-width: 17px; height: 17px; padding: 0 4px;
+      background: var(--danger); color: #fff; font-size: 11px; font-weight: 700; border-radius: 999px;
+      display: flex; align-items: center; justify-content: center; line-height: 1;
+    }
+    .bell-panel {
+      position: absolute; right: 0; top: 46px; width: 330px; max-width: 84vw;
+      background: #fff; border: 1px solid var(--border); border-radius: 14px;
+      box-shadow: 0 12px 34px rgba(16,24,40,.16); z-index: 50; overflow: hidden;
+      opacity: 0; visibility: hidden; transform: translateY(-8px) scale(.98);
+      transition: opacity .16s ease, transform .16s ease, visibility .16s ease;
+    }
+    .bell-panel.open { opacity: 1; visibility: visible; transform: none; }
+    .bell-head { padding: 13px 16px; font-weight: 700; color: var(--text); border-bottom: 1px solid var(--border); }
+    .bell-list { max-height: 360px; overflow-y: auto; }
+    .bell-item {
+      display: flex; gap: 11px; align-items: flex-start; padding: 12px 16px; text-decoration: none;
+      color: var(--text); border-bottom: 1px solid #f1f3f8;
+    }
+    .bell-item:hover { background: #f7f9fe; }
+    .bell-item .bell-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 7px; flex: none; background: #9aa6b8; }
+    .bell-item.lv-urgent .bell-dot { background: var(--danger); }
+    .bell-item.lv-warn .bell-dot { background: #f0a020; }
+    .bell-item.lv-info .bell-dot { background: var(--brand); }
+    .bell-item .bell-title { display: block; font-weight: 600; font-size: 15px; line-height: 1.35; }
+    .bell-item .bell-reason { display: block; font-size: 13px; color: var(--muted); margin-top: 1px; }
+    .bell-item.lv-urgent .bell-reason { color: var(--danger-dark); font-weight: 600; }
+    .bell-tag { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 1px 8px; margin-right: 6px; border-radius: 999px;
+      background: linear-gradient(120deg,#e0e7ff,#f3e8ff); color: #4338ca; vertical-align: 1px; }
+    .bell-empty { padding: 24px 16px; text-align: center; color: var(--muted); font-size: 14.5px; }
+
+    /* ===== ปุ่มปิด sidebar (มือถือ) + overlay ===== */
+    .sb-overlay { display: none; position: fixed; inset: 0; background: rgba(16,24,40,.45); z-index: 38; }
+
+    @media (max-width: 880px) {
+      .topbar .hamb { display: inline-flex; }
+      .topsearch { max-width: none; }
+      .brandchip .who { display: none; }
+      .sidebar {
+        position: fixed; top: 0; left: 0; height: 100vh; z-index: 40;
+        transform: translateX(-100%); transition: transform .22s ease; box-shadow: 0 0 40px rgba(0,0,0,.18);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .sb-overlay.show { display: block; }
+      main { padding: 16px 12px; }
+      .card { padding: 16px 12px; }
+    }
+    /* ===== มือถือ: topbar กระชับ ไม่ล้นแนวนอน ===== */
+    @media (max-width: 820px) {
+      .topbar-hide-sm { display: none !important; }   /* ซ่อน ค้นหา + ป้ายสมาชิก/ทดลอง */
+      .brandchip .who { display: none; }        /* มือถือ: เหลือวงกลมย่อ + ลูกศร ให้ยังกดเปิดเมนูได้ */
+      .brandchip .avatar { width: 32px; height: 32px; font-size: 14px; }
+      .memenu { min-width: 220px; }
+      .topbar { padding: 11px 12px; gap: 8px; }
+      .topbar .ttl { font-size: 16px; overflow: hidden; text-overflow: ellipsis;
+        white-space: nowrap; min-width: 0; flex: 1 1 auto; }
+      .topbar .grow { display: none; }
+      .bell-panel { right: 0; left: auto; width: 320px; max-width: calc(100vw - 20px); }
+    }
+    @media (max-width: 560px) {
+      main { padding: 10px 7px 78px; }   /* padding ล่าง กันเนื้อหาท้ายหน้าถูกปุ่มลอยปฏิทินบัง */
+      .card { padding: 14px 10px; margin-bottom: 14px; }
+      .hero { padding: 16px 14px; }
+      /* ปุ่มลอยปฏิทิน เล็กลงบนมือถือ + เผื่อ safe-area (iPhone) ไม่ให้ทับเนื้อห */
+      .fab-cal { width: 46px; height: 46px; right: 14px;
+        bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+      .fab-cal .icon { width: 21px; height: 21px; }
+      /* ===== ตารางแบบ stack-sm: บนมือถือแปลงแต่ละแถวเป็นการ์ด label:value อ่านง่าย ไม่ต้องเลื่อนซ้ายขวา ===== */
+      table.stack-sm { border: 0; }
+      table.stack-sm thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      table.stack-sm, table.stack-sm tbody, table.stack-sm tr, table.stack-sm td { display: block; width: 100%; }
+      table.stack-sm tr { border: 1px solid #e6e8ef; border-radius: 12px; margin-bottom: 12px;
+        padding: 4px 12px; background: #fff; box-shadow: 0 1px 3px rgba(16,24,40,.05); }
+      table.stack-sm td { border: none; border-bottom: 1px solid #f1f3f8; padding: 8px 0;
+        display: flex; align-items: center; justify-content: space-between; gap: 14px; text-align: right; }
+      table.stack-sm tr td:last-child { border-bottom: 0; }
+      table.stack-sm td::before { content: attr(data-label); font-weight: 600; color: #64748b;
+        font-size: 13px; text-align: left; white-space: nowrap; flex: 0 0 auto; }
+      table.stack-sm td:empty, table.stack-sm td[data-empty="1"] { display: none; }
+      table.stack-sm td.center { justify-content: space-between; }
+      /* เซลล์ที่มีฟอร์ม/ปุ่มหลายอัน: ป้ายอยู่บน เนื้อหาเต็มความกว้างด้านล่าง */
+      table.stack-sm td.stack-full { flex-direction: column; align-items: stretch; text-align: left; gap: 6px; }
+      table.stack-sm td.stack-full::before { text-align: left; }
+      table.stack-sm td.stack-full input:not([type=checkbox]), table.stack-sm td.stack-full select { width: 100%; }
+      /* แถวคั่นกลุ่มชั้น (lv-sep): เป็นหัวข้อ ไม่ใช่การ์ด */
+      table.stack-sm tr.lv-sep { border: 0; box-shadow: none; background: transparent; padding: 14px 2px 2px; margin: 0; }
+      table.stack-sm tr.lv-sep td { border: 0; padding: 0; font-weight: 700; color: var(--brand-dark, #3730a3); }
+      table.stack-sm tr.lv-sep td::before { content: ''; }
+    }

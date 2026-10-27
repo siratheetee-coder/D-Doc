@@ -37,9 +37,9 @@ def test_public_pages_no_auth():
     c = TestClient(m.app)
     assert c.get("/login").status_code == 200
     assert c.get("/landing").status_code == 200
-    # หน้าแรกของผู้ไม่ล็อกอิน -> เด้งไป landing
+    # หน้าแรกของผู้ไม่ล็อกอิน = หน้า landing เลย (ไม่ redirect ให้ Google เก็บหน้าแรกได้)
     r = c.get("/", follow_redirects=False)
-    assert r.status_code in (302, 303) and "/landing" in r.headers.get("location", "")
+    assert r.status_code == 200 and "ลดงานเอกสาร" in r.text
 
 
 KEY_PAGES = [

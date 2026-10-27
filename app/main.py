@@ -62,6 +62,7 @@ except Exception:
 
 # เส้นทางที่เข้าได้โดยไม่ต้องล็อกอิน
 PUBLIC_PATHS = {"/login", "/login/2fa", "/logout", "/healthz", "/favicon.ico", "/landing", "/privacy",
+                "/guide", "/robots.txt", "/sitemap.xml",
                 "/quote", "/checkout", "/checkout/promptpay.png", "/sale-thanks",
                 "/trial", "/register", "/register/resend", "/verify",
                 "/forgot", "/reset", "/sandbox/start", "/email/stop"}
@@ -128,11 +129,12 @@ async def tenant_auth(request: Request, call_next):
 
     sess = request.session
     if not sess.get("uid"):
-        # ผู้เยี่ยมชม (ยังไม่ล็อกอิน): เข้าหน้าแรก "/" -> หน้า landing (แนะนำระบบ/ขาย)
+        # ผู้เยี่ยมชม (ยังไม่ล็อกอิน): หน้าแรก "/" แสดงหน้า landing ตรง ๆ (ไม่ redirect ให้ Google เก็บหน้าแรกได้)
         # ส่วนลิงก์งานภายในอื่น ๆ -> หน้า login (เพื่อกลับมาหน้าที่ต้องการหลังล็อกอิน)
-        if path == "/":       # เก็บ ?ref= ของลิงก์ที่แชร์ไว้ให้หน้า landing จำ
-            q = request.url.query
-            return RedirectResponse("/landing" + (f"?{q}" if q else ""), status_code=303)
+        if path == "/" and request.method == "GET":
+            from app.routers.auth import landing_page
+            qp = request.query_params
+            return landing_page(request, ref=qp.get("ref", ""), utm_source=qp.get("utm_source", ""))
         return RedirectResponse("/login", status_code=303)
 
     # อายุการล็อกอิน: นับจาก "ครั้งสุดท้ายที่ใช้งาน" (ไม่ติ๊กจดจำ = 12 ชม. · ติ๊ก = 30 วัน)
