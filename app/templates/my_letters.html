@@ -9,6 +9,20 @@
     <div class="hero-meta">{% if pending %}ยังไม่รับทราบ {{ pending }} ฉบับ{% else %}รับทราบครบทุกฉบับแล้ว{% endif %}</div>
   </div>
 </div>
+{% if email_msg == 'ok' %}<div class="alert">✔ บันทึกอีเมลแล้ว หนังสือเวียนฉบับต่อไปจะส่งเข้าอีเมลนี้ด้วย</div>
+{% elif email_msg == 'off' %}<div class="alert">✔ ลบอีเมลแล้ว จะไม่ส่งหนังสือเวียนเข้าอีเมล</div>
+{% elif email_msg == 'bad' %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> อีเมลไม่ถูกรูปแบบ ลองพิมพ์ใหม่</div>{% endif %}
+{% if linked %}
+<div class="card em-card">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-send"/></svg> {{ 'ส่งหนังสือเวียนเข้าอีเมล ' ~ my_email if my_email else 'อยากได้หนังสือเวียนทางอีเมลด้วยไหม' }}</h2>
+  <p class="muted" style="margin:0 0 10px;">{{ 'แก้อีเมลได้ ลบให้ว่างแล้วกดบันทึก = เลิกส่งทางอีเมล' if my_email else 'ใส่อีเมลของคุณ ระบบจะส่งหนังสือพร้อมไฟล์แนบเข้าอีเมลทุกครั้งที่มีหนังสือเวียนถึงคุณ' }}</p>
+  <form class="em-form" method="post" action="/me/email">
+    <input type="hidden" name="back" value="/me/letters">
+    <input type="email" name="email" value="{{ my_email }}" placeholder="เช่น kru.somchai@gmail.com" aria-label="อีเมลของฉัน">
+    <button class="btn sm" data-no-floating-save>บันทึกอีเมล</button>
+  </form>
+</div>
+{% endif %}
 {% if not linked %}
 <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> บัญชีนี้ยังไม่ได้ผูกกับรายชื่อบุคลากร จึงรับหนังสือเวียนไม่ได้ ติดต่อผู้ดูแลระบบของโรงเรียน</div>
 {% elif not rows %}
@@ -30,6 +44,9 @@
 </div>
 {% endif %}
 <style>
+  .em-card { background:linear-gradient(135deg,#eff6ff,#f5f3ff); }
+  .em-form { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:0; }
+  .em-form input[type=email] { flex:1; min-width:220px; }
   .ml-list { display:flex; flex-direction:column; gap:10px; }
   .ml-item { display:flex; gap:12px; align-items:center; padding:14px 16px; border-radius:16px; background:var(--card, #fff);
     box-shadow:0 2px 10px rgba(15,23,42,.06); text-decoration:none; color:inherit; }

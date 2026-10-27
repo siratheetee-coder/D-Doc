@@ -199,8 +199,8 @@ def _staff_options(db, tid):
     from app.accounts import list_teacher_accounts
     linked = {a["person_id"] for a in list_teacher_accounts(tid) if a["active"]} if tid else set()
     people = db.query(Person).filter(Person.active == True).order_by(Person.id).all()  # noqa: E712
-    return [{"id": p.id, "name": p.name, "position": p.position or "", "has_account": p.id in linked}
-            for p in people]
+    return [{"id": p.id, "name": p.name, "position": p.position or "", "has_account": p.id in linked,
+             "has_email": bool((p.email or "").strip())} for p in people]
 
 
 def _pick_ids(form) -> list:
@@ -235,6 +235,78 @@ def _notify(db, r, rows):
         create_notice(db, rc.person_id, f"หนังสือเวียน: {r.subject or 'หนังสือรับ'}",
                       reason=(r.director_order or r.from_org or "")[:120],
                       link=f"/me/letters/{rc.id}", level="warn")
+    _email_letter(db, r, rows)
+
+
+_MAIL_ATTACH_MAX = 10 * 1024 * 1024     # ไฟล์ใหญ่กว่านี้ไม่แนบ ให้กดลิงก์เปิดในระบบแทน
+
+
+def _esc(s) -> str:
+    return str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _letter_mail_html(school, r, rcid, attached) -> str:
+    from app.seller_config import SELLER
+    from urllib.parse import quote
+    base = (SELLER.get("base_url") or "").rstrip("/")
+    path = f"/me/letters/{rcid}"
+    link = (base + "/login?next=" + quote(path, safe="")) if base else path
+    who = f"{_esc(r.director_name)} สั่งการ" if r.director_name else "ข้อความจากธุรการ"
+    order = (f'<div style="background:#eef2ff;border-radius:10px;padding:12px 14px;margin:14px 0">'
+             f'<b style="color:#4338ca">{who}</b><br>{_esc(r.director_order).replace(chr(10), "<br>")}</div>'
+             if r.director_order else "")
+    note = "ไฟล์หนังสือแนบมากับอีเมลนี้" if attached else "เปิดอ่านตัวหนังสือได้ที่ปุ่มด้านล่าง"
+    return f"""<div style="font-family:'Sarabun','Leelawadee UI','Segoe UI',Tahoma,sans-serif;max-width:620px;margin:0 auto;color:#334155;font-size:15px;line-height:1.6">
+  <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:16px 20px;border-radius:12px 12px 0 0">
+    <div style="font-size:13px;opacity:.9">หนังสือเวียน {_esc(school)}</div>
+    <h2 style="margin:4px 0 0;font-size:19px">{_esc(r.subject or 'หนังสือรับ')}</h2>
+  </div>
+  <div style="padding:16px 20px;background:#fff">
+    จาก {_esc(r.from_org or '-')}{(' ที่ ' + _esc(r.letter_no)) if r.letter_no else ''}
+    {order}
+    <p style="margin:0">{note} อ่านแล้วกดปุ่มรับทราบในระบบด้วย</p>
+    <p style="margin:18px 0"><a href="{link}" style="background:#16a34a;color:#fff;text-decoration:none;padding:11px 24px;border-radius:9px;font-weight:700;display:inline-block">เปิดหนังสือและกดรับทราบ</a></p>
+  </div>
+  <div style="padding:10px 20px;color:#7b8190;font-size:12.5px">อีเมลนี้ส่งอัตโนมัติจากระบบ Easy Ekkasan เพราะคุณใส่อีเมลไว้รับหนังสือเวียน</div>
+</div>"""
+
+
+def _email_letter(db, r, rows):
+    """ส่งหนังสือเวียนเข้าอีเมลผู้รับที่ใส่อีเมลไว้ (เธรดแยก หน้าเว็บไม่ต้องรอ)"""
+    jobs = []
+    school = get_school(db).name or ""
+    attach = None
+    if r.file_path and _SAFE_FILE_NAME.match(r.file_path):
+        f = _uploads_dir() / r.file_path
+        try:
+            if f.exists() and f.stat().st_size <= _MAIL_ATTACH_MAX:
+                ext = Path(r.file_path).suffix
+                attach = (f"หนังสือ{(' ' + r.recv_no) if r.recv_no else ''}{ext}", f.read_bytes())
+        except OSError:
+            attach = None
+    for rc in rows:
+        p = db.get(Person, rc.person_id)
+        to = ((p.email if p else "") or "").strip()
+        if to:
+            jobs.append((to, f"[หนังสือเวียน] {r.subject or 'หนังสือรับ'}",
+                         _letter_mail_html(school, r, rc.id, bool(attach))))
+    if not jobs:
+        return 0
+    import contextvars
+    import threading
+    from app.services.mailer import send_email
+
+    def run():
+        for to, subject, html in jobs:
+            try:
+                send_email(to, subject, html, attachments=[attach] if attach else None)
+            except Exception as e:      # noqa: BLE001
+                print("[letter-mail] ส่งไม่สำเร็จ:", e)
+
+    # copy_context: ให้เธรดรู้ว่าเป็นโรงเรียนไหน (ระบบตัวอย่างจะไม่ส่งอีเมลจริง)
+    ctx = contextvars.copy_context()
+    threading.Thread(target=ctx.run, args=(run,), daemon=True).start()
+    return len(jobs)
 
 
 def _signer(db, request):
@@ -339,6 +411,104 @@ def incoming_ack_for(rid: int, rcid: int, request: Request, db: Session = Depend
     return RedirectResponse(f"/admin/incoming/{rid}#recipients", status_code=303)
 
 
+# ---------------- บัญชีครู + อีเมลรับหนังสือ (หน้าในงานธุรการ) ----------------
+_EMAIL_RX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _clean_email(v) -> str | None:
+    """คืนอีเมลที่ใช้ได้ / '' = ลบ / None = รูปแบบผิด"""
+    v = (v or "").strip()[:200]
+    if not v:
+        return ""
+    return v if _EMAIL_RX.match(v) else None
+
+
+def _random_password() -> str:
+    """รหัสอ่านออกเสียงได้ + ตัวเลข 3 หลัก (เกณฑ์เดียวกับปุ่มสุ่มหน้าบัญชีครู)"""
+    import secrets
+    from app.accounts import password_problem
+    c, v = "bcdfghjkmnpqrstvwxz", "aeiou"
+    while True:
+        s = "".join(secrets.choice(c) + secrets.choice(v) for _ in range(3)).capitalize()
+        s += "".join(secrets.choice("23456789") for _ in range(3))
+        if not password_problem(s):
+            return s
+
+
+def _staff_accounts_ctx(request, db, **extra):
+    from app.accounts import list_teacher_accounts
+    tid = request.session.get("tid")
+    acc = {a["person_id"]: a for a in list_teacher_accounts(tid)} if tid else {}
+    people = db.query(Person).filter(Person.active == True).order_by(Person.id).all()  # noqa: E712
+    rows = [{"p": p, "acc": acc.get(p.id)} for p in people]
+    ctx = {"request": request, "rows": rows, "is_owner": bool(request.session.get("owner")),
+           "n_none": sum(1 for x in rows if not x["acc"]),
+           "n_email": sum(1 for x in rows if (x["p"].email or "").strip()),
+           "msg": "", "err": "", "created": None}
+    ctx.update(extra)
+    return ctx
+
+
+@router.get("/admin/staff-accounts", response_class=HTMLResponse)
+def staff_accounts_page(request: Request, db: Session = Depends(get_db), msg: str = "", err: str = ""):
+    return templates.TemplateResponse("staff_accounts.html", _staff_accounts_ctx(request, db, msg=msg, err=err))
+
+
+@router.post("/admin/staff-accounts/create", response_class=HTMLResponse)
+async def staff_accounts_create(request: Request, db: Session = Depends(get_db)):
+    """ไอดีหลักกดสร้างบัญชีครูให้หลายคนทีเดียว ระบบตั้งไอดี+รหัสให้ แสดงรหัสครั้งเดียว"""
+    if not request.session.get("owner"):
+        return RedirectResponse("/admin/staff-accounts?err=ให้ไอดีหลักของโรงเรียนเป็นคนสร้างบัญชี", status_code=303)
+    from app.accounts import add_teacher_account, audit
+    tid = request.session.get("tid")
+    created, failed = [], []
+    for pid in _pick_ids(await request.form()):
+        p = db.get(Person, pid)
+        if not p or not p.active:
+            continue
+        pw = _random_password()
+        res = add_teacher_account(tid, pid, f"kru{pid}", pw, display_name=p.name)
+        if res.get("ok"):
+            created.append({"name": p.name, "username": res["username"], "password": pw})
+            audit("teacher.add", request=request, target=res["username"], detail=f"ผูกกับบุคลากร: {p.name}")
+        else:
+            failed.append(f"{p.name}: {res.get('error', '')}")
+    if not created:
+        return RedirectResponse("/admin/staff-accounts?err=" + ("ไม่ได้เลือกครู" if not failed else " ".join(failed)),
+                                status_code=303)
+    # เรนเดอร์ตรง (ไม่ redirect) รหัสผ่านอยู่ในหน้านี้ครั้งเดียว ไม่ผ่าน URL/session
+    return templates.TemplateResponse("staff_accounts.html", _staff_accounts_ctx(
+        request, db, created=created, err=" ".join(failed)))
+
+
+@router.post("/admin/staff-accounts/email/{pid}")
+def staff_email_set(pid: int, db: Session = Depends(get_db), email: str = Form("")):
+    p = db.get(Person, pid)
+    v = _clean_email(email)
+    if not p:
+        return RedirectResponse("/admin/staff-accounts", status_code=303)
+    if v is None:
+        return RedirectResponse(f"/admin/staff-accounts?err=อีเมลของ {p.name} ไม่ถูกรูปแบบ", status_code=303)
+    p.email = v
+    db.commit()
+    return RedirectResponse(f"/admin/staff-accounts?msg=บันทึกอีเมลของ {p.name} แล้ว", status_code=303)
+
+
+@router.post("/me/email")
+def my_email_set(request: Request, db: Session = Depends(get_db), email: str = Form(""), back: str = Form("")):
+    """ครูใส่อีเมลของตัวเอง ใช้รับหนังสือเวียนและแจ้งผลต่าง ๆ ทางอีเมล"""
+    dest = back if back in ("/me/letters", "/account/profile") else "/me/letters"
+    p = db.get(Person, request.session.get("person_id") or 0)
+    v = _clean_email(email)
+    if not p:
+        return RedirectResponse(dest, status_code=303)
+    if v is None:
+        return RedirectResponse(dest + "?email=bad", status_code=303)
+    p.email = v
+    db.commit()
+    return RedirectResponse(dest + ("?email=ok" if v else "?email=off"), status_code=303)
+
+
 # ---------------- หนังสือถึงฉัน (ครูทุกบัญชีที่ผูกบุคลากร ไม่ขึ้นกับงานที่ซื้อ) ----------------
 def _my_rc(db, request, rcid):
     rc = db.get(LetterRecipient, rcid)
@@ -348,14 +518,16 @@ def _my_rc(db, request, rcid):
 
 
 @router.get("/me/letters", response_class=HTMLResponse)
-def my_letters(request: Request, db: Session = Depends(get_db)):
+def my_letters(request: Request, db: Session = Depends(get_db), email: str = ""):
     pid = request.session.get("person_id") or 0
+    me = db.get(Person, pid) if pid else None
     rows = (db.query(LetterRecipient).join(IncomingLetter)
             .filter(LetterRecipient.person_id == pid, IncomingLetter.route_status == "sent")
             .order_by(LetterRecipient.ack_at.isnot(None), LetterRecipient.id.desc()).limit(300).all())
     return templates.TemplateResponse("my_letters.html", {
         "request": request, "rows": rows, "linked": bool(pid),
         "pending": sum(1 for x in rows if not x.ack_at),
+        "my_email": (me.email or "") if me else "", "email_msg": email,
     })
 
 

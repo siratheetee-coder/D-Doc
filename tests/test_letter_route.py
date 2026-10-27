@@ -123,3 +123,62 @@ def test_route_send_directly_without_director(env):
         assert len(r.recipients) == 1
     finally:
         db.close()
+
+
+def test_staff_accounts_and_letter_email(env, monkeypatch):
+    """ไอดีหลักกดสร้างบัญชีครูทีเดียว ครูใส่อีเมลเอง แล้วหนังสือเวียนส่งเข้าอีเมลพร้อมลิงก์"""
+    import time
+    from app.accounts import acc_session, Account, list_teacher_accounts
+    from app.tenancy import session_for
+    from app.models import IncomingLetter, Person
+    sent = []
+    monkeypatch.setattr("app.services.mailer.send_email",
+                        lambda to, s, h, attachments=None: sent.append((to, s, h)) or True)
+    with acc_session() as adb:
+        tid = adb.query(Account).filter_by(username="demo").one().tenant_id
+    have = {a["person_id"] for a in list_teacher_accounts(tid)}
+    db = session_for(tid)
+    try:
+        pids = [p.id for p in db.query(Person).filter(Person.active == True).order_by(Person.id)  # noqa: E712
+                if p.id not in have][:2]
+    finally:
+        db.close()
+    assert len(pids) == 2
+    assert "บัญชีครูและอีเมล" in env.get("/admin/staff-accounts").text
+    page = env.post("/admin/staff-accounts/create", data={"pid": pids})
+    assert page.status_code == 200 and "สร้างบัญชีแล้ว 2 คน" in page.text
+    accs = {a["person_id"]: a["username"] for a in list_teacher_accounts(tid)}
+    assert set(pids) <= set(accs)
+    # รหัสผ่านที่แสดงในหน้าใช้ล็อกอินได้จริง
+    import re
+    pw = re.findall(r"<td data-label=\"รหัสผ่าน\"><code>([^<]+)</code>", page.text)[0]
+    teacher = _login(accs[pids[0]], pw)
+    assert teacher.get("/me/letters").status_code == 200
+
+    # ครูใส่อีเมลเอง (รูปแบบผิดไม่บันทึก)
+    teacher.post("/me/email", data={"email": "ไม่ใช่อีเมล", "back": "/me/letters"})
+    teacher.post("/me/email", data={"email": "kru.test@example.com", "back": "/account/profile"})
+    assert "kru.test@example.com" in teacher.get("/account/profile").text
+    db = session_for(tid)
+    try:
+        assert db.get(Person, pids[0]).email == "kru.test@example.com"
+    finally:
+        db.close()
+
+    # ไอดีย่อยที่ไม่ใช่ไอดีหลัก สร้างบัญชีไม่ได้
+    assert teacher.post("/admin/staff-accounts/create", data={"pid": pids[1:]}).status_code in (303, 403)
+
+    env.post("/admin/incoming", data={"fiscal_year": 2570, "subject": "หนังสือส่งเข้าอีเมล"})
+    db = session_for(tid)
+    try:
+        rid = db.query(IncomingLetter).filter_by(subject="หนังสือส่งเข้าอีเมล").one().id
+    finally:
+        db.close()
+    env.post(f"/admin/incoming/{rid}/route", data={"action": "send", "note": "แจ้งทราบ", "pid": pids})
+    for _ in range(40):
+        if sent:
+            break
+        time.sleep(0.05)
+    assert len(sent) == 1        # คนที่ 2 ไม่มีอีเมล ไม่ส่ง
+    to, subject, html = sent[0]
+    assert to == "kru.test@example.com" and "หนังสือส่งเข้าอีเมล" in subject and ("/me/letters/" in html or "%2Fme%2Fletters%2F" in html)

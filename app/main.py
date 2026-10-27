@@ -77,6 +77,7 @@ _DIRECTOR_WRITE_ALLOW = [
     re.compile(r"^/hr/travel-requests/\d+/approve$"),       # อนุมัติไปราชการ
     re.compile(r"^/admin/incoming/\d+/endorse$"),            # สั่งการหนังสือรับ + เวียน
     re.compile(r"^/me/letters/\d+/ack$"),                    # รับทราบหนังสือเวียนถึงตัวเอง
+    re.compile(r"^/me/email$"),                               # ใส่อีเมลรับหนังสือเวียนของตัวเอง
     re.compile(r"^/(?:hr|academic)/classroom-visit/(save|\d+/delete)$"), # นิเทศ: เยี่ยมชั้นเรียน
     re.compile(r"^/(?:hr|academic)/supervision-form/(save|\d+/delete)$"),# นิเทศ: นิเทศการสอน
     re.compile(r"^/support(?:/chat/(?:send|read))?$"),        # ติดต่อเจ้าหน้าที่

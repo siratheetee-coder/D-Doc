@@ -179,7 +179,8 @@ def _finish_login(request: Request, user: dict, remember, next: str, ip: str):
     elif user.get("is_director") and not user.get("is_owner"):
         dest = "/"                     # ผอ./รองผอ. = หน้าหลักแบบ ผอ. (งาน+นิเทศ+รออนุมัติ)
     elif user.get("person_id"):
-        dest = "/academic"
+        from app.accounts import tenant_modules
+        dest = "/academic" if "academic" in tenant_modules(user.get("tenant_id")) else "/me/letters"
     else:
         dest = "/"
     return RedirectResponse(dest, status_code=303)

@@ -166,6 +166,26 @@
 </div>
 {% endif %}
 
+{% if my_email is not none %}
+<div class="card em-card" id="email">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-send"/></svg> อีเมลรับหนังสือเวียน</h2>
+  <p class="muted" style="font-size:13.5px; margin:4px 0 12px;">ระบบส่งหนังสือเวียนพร้อมไฟล์แนบ และแจ้งผลตรวจแผนการสอนเข้าอีเมลนี้ เว้นว่าง = ไม่ส่งทางอีเมล</p>
+  {% if email_msg == 'ok' %}<div class="alert">✔ บันทึกอีเมลแล้ว หนังสือเวียนฉบับต่อไปจะส่งเข้าอีเมลนี้ด้วย</div>
+{% elif email_msg == 'off' %}<div class="alert">✔ ลบอีเมลแล้ว จะไม่ส่งหนังสือเวียนเข้าอีเมล</div>
+{% elif email_msg == 'bad' %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> อีเมลไม่ถูกรูปแบบ ลองพิมพ์ใหม่</div>{% endif %}
+  <form class="em-form" method="post" action="/me/email">
+    <input type="hidden" name="back" value="/account/profile">
+    <input type="email" name="email" value="{{ my_email }}" placeholder="เช่น kru.somchai@gmail.com" aria-label="อีเมลของฉัน">
+    <button class="btn sm" data-no-floating-save>บันทึกอีเมล</button>
+  </form>
+</div>
+<style>
+  .em-card { background:linear-gradient(135deg,#eff6ff,#f5f3ff); }
+  .em-form { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:0; }
+  .em-form input[type=email] { flex:1; min-width:220px; }
+</style>
+{% endif %}
+
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-check"/></svg> ความปลอดภัย</h2>
   <div style="display:flex; gap:10px; flex-wrap:wrap;">

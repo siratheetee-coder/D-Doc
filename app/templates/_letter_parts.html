@@ -51,12 +51,14 @@
     {% for p in staff if p.id not in exclude %}
     <label class="pp-item" data-name="{{ p.name }} {{ p.position }}">
       <input type="checkbox" name="pid" value="{{ p.id }}" {{ 'checked' if p.id in picked }}>
-      <span><b>{{ p.name }}</b><small>{{ p.position }}{% if not p.has_account %}&emsp;<i>ไม่มีบัญชี</i>{% endif %}</small></span>
+      <span><b>{{ p.name }}</b><small>{{ p.position }}{% if not p.has_account %}&emsp;<i>ไม่มีบัญชี</i>{% elif p.has_email %}&emsp;<em>มีอีเมล</em>{% endif %}</small></span>
     </label>
     {% else %}
     <p class="muted" style="margin:0;">ยังไม่มีรายชื่อบุคลากร <a href="/masters">เพิ่มที่ข้อมูลพื้นฐาน</a></p>
     {% endfor %}
   </div>
+  {% set n_none = staff|rejectattr('has_account')|list|length %}
+  {% if n_none %}<p class="muted pp-hint">ยังไม่มีบัญชี {{ n_none }} คน ธุรการต้องบันทึกรับทราบแทน <a href="/admin/staff-accounts">สร้างบัญชีครู</a></p>{% endif %}
 </div>
 {% endmacro %}
 
@@ -79,6 +81,8 @@
   .pp-item input { width:auto; margin-top:4px; }
   .pp-item small { display:block; color:var(--muted); font-size:12.5px; }
   .pp-item i { color:#b45309; font-style:normal; }
+  .pp-item em { color:#2563eb; font-style:normal; }
+  .pp-hint { margin:8px 0 0; font-size:13.5px; }
   .chips { display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 10px; }
   .chips button { border:0; border-radius:999px; padding:5px 12px; font:inherit; font-size:13.5px; background:#eef1f7; color:#334155; cursor:pointer; }
   .chips button:hover { background:#e0e7ff; }

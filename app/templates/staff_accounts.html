@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}บัญชีครูและอีเมล{% endblock %}
+{% block content %}
+{% set director_view = request.session.get('director') and not request.session.get('owner') %}
+<div class="hero">
+  <div>
+    <div class="hero-sub">งานธุรการ</div>
+    <span class="hero-title">บัญชีครูและอีเมล</span>
+    <div class="hero-meta">มีบัญชีแล้ว {{ rows|length - n_none }} จาก {{ rows|length }} คน&emsp;ใส่อีเมลแล้ว {{ n_email }} คน</div>
+  </div>
+</div>
+
+{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+{% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
+
+{% if created %}
+<div class="card sa-done">
+  <h2 style="margin-top:0; color:#166534;"><svg class="icon"><use href="#ic-check"/></svg> สร้างบัญชีแล้ว {{ created|length }} คน</h2>
+  <p style="margin:0 0 12px; color:#166534;"><b>คัดลอกหรือพิมพ์เก็บไว้ส่งให้ครูเลย</b> รหัสผ่านแสดงครั้งเดียว รีเฟรชแล้วจะไม่โชว์อีก</p>
+  <div class="table-wrap">
+  <table class="stack-sm" id="sa-created">
+    <thead><tr><th>ครู</th><th>ไอดี</th><th>รหัสผ่าน</th></tr></thead>
+    <tbody>
+      {% for c in created %}
+      <tr><td data-label="ครู">{{ c.name }}</td><td data-label="ไอดี"><code>{{ c.username }}</code></td><td data-label="รหัสผ่าน"><code>{{ c.password }}</code></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+    <button type="button" class="btn green" id="sa-copy" data-no-floating-save><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอกทั้งหมด</button>
+    <button type="button" class="btn gray" onclick="window.print()" data-no-floating-save>พิมพ์</button>
+  </div>
+  <p class="muted" style="margin:10px 0 0; font-size:13.5px;">ครูเข้าระบบแล้วไปที่เมนู "หนังสือถึงฉัน" ใส่อีเมลของตัวเองได้ ระบบจะส่งหนังสือเวียนเข้าอีเมลให้ด้วย</p>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2 style="margin-top:0;">ครูต้องมีบัญชี จึงรับหนังสือเวียนและกดรับทราบเองได้</h2>
+  <ul class="sa-how">
+    <li>ติ๊กเลือกครูที่ยังไม่มีบัญชี แล้วกด <b>สร้างบัญชีให้คนที่เลือก</b> ระบบตั้งไอดีและรหัสผ่านให้</li>
+    <li>ใส่อีเมลไว้ ระบบจะส่งหนังสือเวียนพร้อมไฟล์แนบเข้าอีเมลด้วย ครูใส่อีเมลเองได้</li>
+    <li>รีเซ็ตรหัสหรือปิดบัญชี ทำที่หน้า <a href="/users">จัดการผู้ใช้</a></li>
+  </ul>
+</div>
+
+<form class="card" method="post" action="/admin/staff-accounts/create" id="sa-form">
+  {% if is_owner and n_none %}
+  <div class="sa-bar">
+    <label class="sa-all"><input type="checkbox" id="sa-all"> เลือกทุกคนที่ยังไม่มีบัญชี ({{ n_none }} คน)</label>
+    <button class="btn" data-no-floating-save><svg class="icon"><use href="#ic-plus"/></svg> สร้างบัญชีให้คนที่เลือก</button>
+  </div>
+  {% elif not is_owner and n_none %}
+  <p class="muted" style="margin:0 0 12px;">ยังไม่มีบัญชี {{ n_none }} คน ให้ไอดีหลักของโรงเรียนเข้าหน้านี้แล้วกดสร้างบัญชี</p>
+  {% endif %}
+  <div class="table-wrap">
+  <table class="stack-sm">
+    <thead><tr><th style="width:36px;"></th><th>ครู</th><th>บัญชี</th><th>อีเมลรับหนังสือ</th></tr></thead>
+    <tbody>
+      {% for x in rows %}{% set p = x.p %}
+      <tr>
+        <td>{% if not x.acc and is_owner %}<input type="checkbox" name="pid" value="{{ p.id }}" class="sa-pick" aria-label="เลือก {{ p.name }}">{% endif %}</td>
+        <td data-label="ครู"><b>{{ p.name }}</b><div class="muted" style="font-size:13px;">{{ p.position or '' }}</div></td>
+        <td data-label="บัญชี">{% if x.acc %}<code>{{ x.acc.username }}</code>{% if not x.acc.active %} <span class="muted">(ปิดใช้งาน)</span>{% endif %}
+          {% else %}<span class="pill" style="background:#fef3c7; color:#92400e;">ยังไม่มีบัญชี</span>{% endif %}</td>
+        <td data-label="อีเมล">
+          {% if director_view %}{{ p.email or '-' }}
+          {% else %}
+          <span class="sa-mail">
+            <input type="email" value="{{ p.email or '' }}" placeholder="ยังไม่มีอีเมล" form="mail-{{ p.id }}" name="email" aria-label="อีเมลของ {{ p.name }}">
+            <button class="btn sm gray" form="mail-{{ p.id }}" data-no-floating-save>บันทึก</button>
+          </span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="muted">ยังไม่มีรายชื่อบุคลากร <a href="/masters">เพิ่มที่ข้อมูลพื้นฐาน</a></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</form>
+{% if not director_view %}{% for x in rows %}<form id="mail-{{ x.p.id }}" method="post" action="/admin/staff-accounts/email/{{ x.p.id }}" hidden></form>{% endfor %}{% endif %}
+
+<style>
+  .sa-how { margin:0; padding-left:20px; line-height:1.9; }
+  .sa-bar { display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:12px;
+    padding:12px 14px; border-radius:14px; background:linear-gradient(135deg,#eef2ff,#f5f3ff); }
+  .sa-all { display:flex; gap:8px; align-items:center; margin:0; font-weight:600; cursor:pointer; }
+  .sa-all input, .sa-pick { width:auto; }
+  .sa-mail { display:flex; gap:6px; align-items:center; }
+  .sa-mail input { min-width:180px; flex:1; }
+  .sa-done { background:linear-gradient(135deg,#f0fdf4,#ecfeff); }
+  .sa-done code, td code { background:#fff; padding:2px 8px; border-radius:6px; font-weight:700; }
+  @media print {
+    body * { visibility:hidden; }
+    .sa-done, .sa-done * { visibility:visible; }
+    .sa-done { position:absolute; left:0; top:0; width:100%; }
+    .sa-done button, .sa-done p.muted { display:none; }
+  }
+</style>
+<script>
+(function () {
+  var all = document.getElementById('sa-all');
+  if (all) all.onchange = function () {
+    document.querySelectorAll('.sa-pick').forEach(function (c) { c.checked = all.checked; });
+  };
+  var f = document.getElementById('sa-form');
+  if (f) f.addEventListener('submit', function (e) {
+    var n = f.querySelectorAll('.sa-pick:checked').length;
+    if (!n) { e.preventDefault(); alert('ติ๊กเลือกครูที่จะสร้างบัญชีก่อน'); return; }
+    if (!confirm('สร้างบัญชีให้ ' + n + ' คน?')) e.preventDefault();
+  });
+  var cp = document.getElementById('sa-copy');
+  if (cp) cp.onclick = function () {
+    var lines = [];
+    document.querySelectorAll('#sa-created tbody tr').forEach(function (tr) {
+      var td = tr.querySelectorAll('td');
+      lines.push('ครู' + td[0].textContent.trim() + '\nไอดี: ' + td[1].textContent.trim() + '\nรหัสผ่าน: ' + td[2].textContent.trim());
+    });
+    var text = lines.join('\n\n'), done = function () { cp.textContent = '✔ คัดลอกแล้ว'; };
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done);
+    else { var t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); done(); }
+  };
+})();
+</script>
+{% endblock %}

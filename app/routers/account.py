@@ -79,8 +79,28 @@ def password_submit(request: Request, current: str = Form(""),
     return RedirectResponse(dest, status_code=303)
 
 
+def _my_person_email(request):
+    """อีเมลในทะเบียนบุคลากรของบัญชีครู (None = ไม่ใช่บัญชีครู)"""
+    pid, tid = request.session.get("person_id"), request.session.get("tid")
+    if not (pid and tid):
+        return None
+    try:
+        from app.tenancy import session_for
+        from app.models import Person
+        db = session_for(tid)
+        try:
+            p = db.get(Person, pid)
+            return (p.email or "") if p else None
+        finally:
+            db.close()
+    except Exception:
+        return None
+
+
 def _profile_ctx(request, **extra):
     ctx = {
+        "my_email": _my_person_email(request),
+        "email_msg": request.query_params.get("email", ""),
         "request": request,
         "name": request.session.get("name", ""),
         "username": request.session.get("username", ""),
