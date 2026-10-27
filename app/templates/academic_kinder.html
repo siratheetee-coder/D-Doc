@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_empty.html" import empty_state %}
 {% block title %}สมุดพกอนุบาล{% endblock %}
 {% block content %}
 <style>
@@ -61,8 +62,7 @@
       </select></div>
   </form>
   {% if not classes %}
-  <div class="alert warn" style="margin:12px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg>
-    ปีการศึกษา {{ year }} ยังไม่มีห้องอนุบาล <a href="/academic/classes">ไปสร้างห้อง อ.1 / อ.2 / อ.3 ก่อน</a></div>
+  {{ empty_state('ยังไม่มีห้องอนุบาลของปี ' ~ year, 'สร้างห้อง อ.1 อ.2 อ.3 ก่อน แล้วกลับมาประเมินพัฒนาการและออกสมุดพก', '/academic/classes?year=' ~ year, 'สร้างห้องอนุบาล', 'ic-users') }}
   {% elif not c %}
   <p class="muted" style="margin:10px 0 0;">เลือก <b>ห้องเรียน</b> เพื่อเริ่มประเมินพัฒนาการ</p>
   {% endif %}
