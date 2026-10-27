@@ -18,7 +18,7 @@
   </div>
   <div id="lessonCalendar" class="lesson-calendar" role="grid" aria-label="ปฏิทินเลือกวันสอน"></div>
   <p id="calHint" class="ls-hint" aria-live="polite">กดวันที่เพื่อเลือก กดซ้ำเพื่อยกเลิก</p>
-  {% if not term_spans %}<p class="ls-warn">ยังไม่ได้ตั้งวันเปิด-ปิดภาคเรียน ระบบจึงแยกวันของภาคเรียนที่ 1 กับ 2 ให้ไม่ได้ ·
+  {% if not term_spans %}<p class="ls-warn">ยังไม่ได้ตั้งวันเปิด-ปิดภาคเรียน ระบบจึงแยกวันของภาคเรียนที่ 1 กับ 2 ให้ไม่ได้
     <a href="/academic/calendar?year={{ c.year }}">ตั้งค่าปฏิทินปีการศึกษา</a></p>{% endif %}
   <div class="ls-quick">
     <span class="ls-quick-label">เลือกเร็ว ทุกวัน</span>
@@ -37,12 +37,12 @@
   <div class="ls-addslot"><input id="customSlot" placeholder="คาบอื่น เช่น สอนเสริม" maxlength="80"><button type="button" class="btn soft sm" id="addSlot">เพิ่มคาบ</button></div>
   <p id="batchSummary" role="status"></p>
   <button type="submit" class="btn" id="batchSubmit">บันทึกวันและคาบสอน</button>
-  <p class="ls-hint">คาบที่มีวันและชื่อคาบซ้ำจะข้ามให้ ไม่เปลี่ยนเวลาเรียนเดิม · เลือกวันหยุดเป็นวันสอนชดเชยได้ ระบบจะถามก่อน</p>
+  <p class="ls-hint">คาบที่มีวันและชื่อคาบซ้ำจะข้ามให้ ไม่เปลี่ยนเวลาเรียนเดิม เลือกวันหยุดเป็นวันสอนชดเชยได้ ระบบจะถามก่อน</p>
 </section>
 </div>
 </form>
 <div class="ls-saved">
-  <h3>คาบที่บันทึกแล้ว · <span id="savedTitle"></span></h3>
+  <h3>คาบที่บันทึกแล้ว <span id="savedTitle"></span></h3>
   <div id="savedList"></div>
   <p class="ls-hint">ลบคาบที่บันทึกผิดได้ที่นี่ ถ้าคาบนั้นเช็กชื่อแล้ว ระบบจะถามยืนยันก่อน เพราะผลเช็กชื่อของคาบนั้นจะถูกลบไปด้วย</p>
 </div>

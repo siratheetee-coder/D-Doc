@@ -133,11 +133,11 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
     <svg class="icon"><use href="#ic-clipboard"/></svg>
     {% for pl in plan_links.plans %}
       <span class="pl-item"><b>แผน{{ pl.label }} {{ pl.year }}</b>
-      {% if not pl.in_plan %}· เงินบัญชีนี้ยังไม่ได้นำเข้าแผน
+      {% if not pl.in_plan %} เงินบัญชีนี้ยังไม่ได้นำเข้าแผน
         <a class="btn sm" href="/plan-budget/{{ pl.year }}">นำเงินเข้าแผน</a>
-      {% elif not pl.n_projects %}· นำเข้าแผนแล้ว {{ "{:,.2f}".format(pl.in_plan) }} ยังไม่ได้จัดสรรให้โครงการ
+      {% elif not pl.n_projects %} นำเข้าแผนแล้ว {{ "{:,.2f}".format(pl.in_plan) }} ยังไม่ได้จัดสรรให้โครงการ
         <a class="btn sm" href="/projects?year={{ pl.year }}">ไปจัดสรรให้โครงการ</a>
-      {% else %}· จัดสรรให้ {{ pl.n_projects }} โครงการ {{ "{:,.2f}".format(pl.allocated) }} จาก {{ "{:,.2f}".format(pl.in_plan) }}
+      {% else %} จัดสรรให้ {{ pl.n_projects }} โครงการ {{ "{:,.2f}".format(pl.allocated) }} จาก {{ "{:,.2f}".format(pl.in_plan) }}
         <a class="btn sm" href="/projects?year={{ pl.year }}">ดูโครงการ</a>
       {% endif %}</span>
     {% else %}
@@ -157,7 +157,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
     <span><i class="al-paid"></i>จ่ายแล้ว</span>
     <span><i class="al-wait"></i>รอใช้ในโครงการ</span>
     <span><i class="al-free"></i>ยังไม่จัดสรรให้โครงการ</span>
-    <span class="muted">· กดชื่อโครงการใต้หมวดเพื่อไปหน้าโครงการ</span>
+    <span class="muted">กดชื่อโครงการใต้หมวดเพื่อไปหน้าโครงการ</span>
   </div>
   <style>
     .al-bar{ display:flex; height:8px; border-radius:6px; overflow:hidden; background:#e2e8f0; margin:2px 0 4px; max-width:360px; }
@@ -182,7 +182,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       {% for r in item_rows %}
       {% set _dep = {'bank':'ธนาคาร','cash':'เงินสด','agency':'ส่วนราชการผู้เบิก'} %}
       <tr {% if r.level==0 and r.has_kids %}style="background:#f8fafc;"{% endif %}>
-        <td style="padding-left:{{ 8 + r.level*26 }}px;">{% if r.level==1 %}<span class="muted">└ </span>{% endif %}{% if r.level==0 %}<b>{{ r.it.name }}</b>{% else %}{{ r.it.name }}{% endif %}{% if r.it.note %} <span class="muted">· {{ r.it.note }}</span>{% endif %}</td>
+        <td style="padding-left:{{ 8 + r.level*26 }}px;">{% if r.level==1 %}<span class="muted">└ </span>{% endif %}{% if r.level==0 %}<b>{{ r.it.name }}</b>{% else %}{{ r.it.name }}{% endif %}{% if r.it.note %} <span class="muted">{{ r.it.note }}</span>{% endif %}</td>
         <td>
           <form method="post" action="/finance/items/{{ r.it.id }}/update" style="margin:0;">
             <input type="hidden" name="year" value="{{ fiscal_year }}">
@@ -236,13 +236,13 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
             {% endif %}
           </div>
           <details class="al-detail" open>
-            <summary>รอใช้ในโครงการ {{ "{:,.2f}".format(al.waiting) }} ·
+            <summary>รอใช้ในโครงการ {{ "{:,.2f}".format(al.waiting) }}
               {% if al.free >= 0 %}ยังไม่จัดสรรให้โครงการ {{ "{:,.2f}".format(al.free) }}
               {% else %}<span class="al-over">จัดสรรเกินเงินที่เหลือจริง {{ "{:,.2f}".format(-al.free) }}</span>{% endif %}</summary>
             {% if al.free < 0 %}<p class="al-note">จัดสรรให้โครงการไว้มากกว่าเงินที่มีอยู่ในหมวดตอนนี้ มักเกิดจากเงินอุดหนุนงวดถัดไปยังไม่เข้า ถ้าเงินเข้าแล้วยังติดลบ ให้ลดการจัดสรรในหน้าโครงการ</p>{% endif %}
             {% for pj in al.projects %}
             <div class="al-pj"><a href="/projects/{{ pj.project.id }}">{{ pj.project.name }}</a>
-              <span>จัดสรร {{ "{:,.2f}".format(pj.allocated) }} · จ่ายแล้ว {{ "{:,.2f}".format(pj.used) }} · รอใช้ {{ "{:,.2f}".format(pj.allocated - pj.used) }}</span></div>
+              <span>จัดสรร {{ "{:,.2f}".format(pj.allocated) }} จ่ายแล้ว {{ "{:,.2f}".format(pj.used) }} รอใช้ {{ "{:,.2f}".format(pj.allocated - pj.used) }}</span></div>
             {% endfor %}
           </details>
         </td>
@@ -267,7 +267,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
   {% if request.query_params.get('txn_err') %}<div class="alert warn" role="alert">ยังไม่ได้บันทึก: {{ request.query_params.get('txn_err') }}</div>{% endif %}
   {% if request.query_params.get('moved') %}<div class="alert">✔ ย้ายรายการไปปีงบ {{ request.query_params.get('moved') }} ตามวันที่แล้ว</div>{% endif %}
   {% if subsidy_year %}<p>บันทึกรับเงินที่ได้รับโอนจริง แล้วกลับไปเลือกรายการเพื่อเชื่อมกับเงินอุดหนุนของเทอมนี้</p>
-  <p><a class="btn gray" href="/finance/subsidy?year={{ subsidy_year }}&term={{ subsidy_term }}#sec-receipts">กลับไปเชื่อมเงินอุดหนุน · ปีการศึกษา {{ subsidy_year }} เทอม {{ subsidy_term }}</a></p>{% endif %}
+  <p><a class="btn gray" href="/finance/subsidy?year={{ subsidy_year }}&term={{ subsidy_term }}#sec-receipts">กลับไปเชื่อมเงินอุดหนุน ปีการศึกษา {{ subsidy_year }} เทอม {{ subsidy_term }}</a></p>{% endif %}
   <form method="post" action="/finance/accounts/{{ account.id }}/txn" id="txnForm">
     {% if subsidy_year %}<input type="hidden" name="subsidy_year" value="{{ subsidy_year }}"><input type="hidden" name="subsidy_term" value="{{ subsidy_term }}">{% endif %}
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
@@ -290,7 +290,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
         <select name="eb_code" id="ebSel">
           <option value="">- โปรดระบุหมวดเอง -</option>
           {% for grp, opts in eb_income %}
-          <optgroup label="รับ · {{ grp }}" data-kind="in">
+          <optgroup label="รับ {{ grp }}" data-kind="in">
             {% for code, label in opts %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
           </optgroup>
           {% endfor %}
@@ -306,7 +306,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
         <select name="project_id" title="ผูกรายการนี้กับโครงการในแผน เพื่อคุมงบรายโครงการ"
                 data-quick-project data-combo>
           <option value="">- ไม่ผูกโครงการ -</option>
-          {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if selected_project==pj.id }}>{{ pj.name }} · ปีแผน {{ pj.plan_year or "ไม่ระบุปี" }}{{ " (ปิดใช้งาน)" if not pj.active else "" }}</option>{% endfor %}
+          {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if selected_project==pj.id }}>{{ pj.name }} ปีแผน {{ pj.plan_year or "ไม่ระบุปี" }}{{ " (ปิดใช้งาน)" if not pj.active else "" }}</option>{% endfor %}
         </select>
       </div>
     </div>
@@ -341,7 +341,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
     {% endif %}
     <label class="nc-box"><input type="checkbox" name="no_count" value="1" id="noCount">
       <span><b>ไม่นับเป็นรายรับ/รายจ่าย</b> (โอนเงินภายในโรงเรียน เช่น ฝากเงินสดเข้าธนาคาร ถอนเงินจากธนาคาร โอนระหว่างบัญชีของโรงเรียน)
-        <span class="nc-sub">ยอดคงเหลือยังขยับตามปกติ แต่ไม่ถูกนับในรายรับ-รายจ่ายของ e-Budget · โอนระหว่างบัญชีต้องลงทั้งฝั่งจ่ายและฝั่งรับ ·
+        <span class="nc-sub">ยอดคงเหลือยังขยับตามปกติ แต่ไม่ถูกนับในรายรับ-รายจ่ายของ e-Budget โอนระหว่างบัญชีต้องลงทั้งฝั่งจ่ายและฝั่งรับ
           ไม่ใช้กับเงินยืม (บันทึกที่หน้าเงินยืม)</span></span></label>
     <style>
       .nc-box { display:flex; gap:10px; align-items:flex-start; margin:4px 0 12px; padding:10px 12px; border-radius:12px;
@@ -366,7 +366,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       {% for r in rows %}
       <tr id="t{{ r.t.id }}" class="txn-row">
         <td>{{ thai_date(r.t.date) }}</td>
-        <td>{% if r.t.kind=="in" %}<span style="color:#16a34a;">รับ</span>{% else %}<span style="color:#dc2626;">จ่าย</span>{% endif %}{% if r.t.note %} · {{ r.t.note }}{% endif %}{% if receipt_map.get(r.t.id) %} <span class="pill" style="background:#dcfce7; color:#15803d;">ใบเสร็จ {{ receipt_map.get(r.t.id) }}</span>{% endif %}{% set pj = txn_project.get(r.t.id) %}{% if pj %} <a class="pill" href="/projects/{{ pj.id }}" title="ไปหน้าโครงการ" style="background:#eef2ff; color:#3730a3; text-decoration:none;">โครงการ{{ pj.name }}</a>{% endif %}</td>
+        <td>{% if r.t.kind=="in" %}<span style="color:#16a34a;">รับ</span>{% else %}<span style="color:#dc2626;">จ่าย</span>{% endif %}{% if r.t.note %} {{ r.t.note }}{% endif %}{% if receipt_map.get(r.t.id) %} <span class="pill" style="background:#dcfce7; color:#15803d;">ใบเสร็จ {{ receipt_map.get(r.t.id) }}</span>{% endif %}{% set pj = txn_project.get(r.t.id) %}{% if pj %} <a class="pill" href="/projects/{{ pj.id }}" title="ไปหน้าโครงการ" style="background:#eef2ff; color:#3730a3; text-decoration:none;">โครงการ{{ pj.name }}</a>{% endif %}</td>
         <td>{{ r.t.item.name if r.t.item else (r.t.category or "-") }}</td>
         <td>{{ r.t.ref or "-" }}</td>
         <td class="right">{{ "{:,.2f}".format(r.t.amount) if r.t.kind=="in" else "" }}</td>
@@ -404,7 +404,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
   .docno input[readonly] { background:linear-gradient(120deg,#eef2ff,#f5f3ff); font-weight:600; color:#4338ca; }
 </style>
 <script>
-  /* เลข บจ./บค.: เลือกแล้วโชว์เลขถัดไป · เลขจริงออกตอนกดบันทึก · จำตัวเลือกล่าสุดไว้ในเครื่องนี้ */
+  /* เลข บจ./บค.: เลือกแล้วโชว์เลขถัดไป เลขจริงออกตอนกดบันทึก จำตัวเลือกล่าสุดไว้ในเครื่องนี้ */
   (function () {
     var mode = document.getElementById('refMode'), yf = document.getElementById('refYfmt'),
         inp = document.getElementById('refInput'), hint = document.getElementById('refHint');
@@ -471,7 +471,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
 
 <style>.txn-date-warn{margin-top:6px;padding:8px 12px;border-radius:10px;font-size:13.5px;line-height:1.5;color:#9a3412;background:linear-gradient(120deg,#fff7ed,#ffedd5);}</style>
 <script>
-  // วันที่ต้องอยู่ในปีงบของทะเบียนนี้ (1 ต.ค. ถึง 30 ก.ย.) · เตือนทันทีที่พิมพ์ครบ และไม่ส่งฟอร์ม ข้อมูลที่กรอกไว้จึงไม่หาย
+  // วันที่ต้องอยู่ในปีงบของทะเบียนนี้ (1 ต.ค. ถึง 30 ก.ย.) เตือนทันทีที่พิมพ์ครบ และไม่ส่งฟอร์ม ข้อมูลที่กรอกไว้จึงไม่หาย
   // (เซิร์ฟเวอร์ตรวจซ้ำอีกชั้น)
   (function () {
     var form = document.getElementById('txnForm'), inp = document.getElementById('txnDate'),

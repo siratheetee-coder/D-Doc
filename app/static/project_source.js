@@ -62,7 +62,7 @@
       apply(list[0]);
       line.hidden = false;
       line.className = 'src-line src-ok';
-      line.innerHTML = 'จะหักจาก <b>' + esc(list[0].label) + '</b> <span class="src-why">· '
+      line.innerHTML = 'จะหักจาก <b>' + esc(list[0].label) + '</b> <span class="src-why">'
         + esc(list[0].why) + '</span> <button type="button" class="btn sm gray" id="srcChange">เปลี่ยน</button>';
       showPick(false);
       document.getElementById('srcChange').onclick = function () { showPick(true); this.remove(); };
@@ -73,7 +73,7 @@
     var h = 'โครงการนี้ใช้เงินหลายหมวด เลือกหมวดที่จะหัก:<div class="src-opts">';
     list.forEach(function (s, i) {
       h += '<label><input type="radio" name="_src" value="' + i + '"> ' + esc(s.label)
-        + ' <span class="src-why">· ' + esc(s.why) + '</span></label>';
+        + ' <span class="src-why">' + esc(s.why) + '</span></label>';
     });
     line.innerHTML = h + '</div>';
     showPick(false);

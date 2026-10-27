@@ -6,7 +6,7 @@
   <div>
     <div class="hero-sub">ระบบจัดการเอกสารและพัสดุ</div>
     <span class="hero-title">{{ school.name or "ยังตั้งค่าโรงเรียนไม่ครบ" }}</span>
-    <div class="hero-meta">{% if not school.name %}เพื่อให้เอกสารมีข้อมูลครบถ้วน ควรกรอกข้อมูลโรงเรียนก่อน · {% endif %}ปีงบประมาณ {{ fiscal_year }}</div>
+    <div class="hero-meta">{% if not school.name %}เพื่อให้เอกสารมีข้อมูลครบถ้วน ควรกรอกข้อมูลโรงเรียนก่อน {% endif %}ปีงบประมาณ {{ fiscal_year }}</div>
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
     <form method="get" action="/procurement" style="display:inline-flex; gap:8px; align-items:center; margin:0;">
@@ -104,11 +104,11 @@
   </a>
   <a class="nav-card" href="/assets">
     <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-package"/></svg></span><h3>ทะเบียนครุภัณฑ์</h3></div>
-    <p class="nc-desc">คุมทรัพย์สิน/ครุภัณฑ์ · คิดค่าเสื่อม · รายงานตรวจสอบพัสดุประจำปี</p>
+    <p class="nc-desc">คุมทรัพย์สิน/ครุภัณฑ์ คิดค่าเสื่อม รายงานตรวจสอบพัสดุประจำปี</p>
     <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/materials">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span><h3>บัญชีวัสดุ · ใบเบิก</h3></div>
+    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span><h3>บัญชีวัสดุ ใบเบิก</h3></div>
     <p class="nc-desc">บัญชีวัสดุคงคลัง + ใบเบิกวัสดุ ตัดยอดอัตโนมัติ</p>
     <span class="nc-go">เปิดบัญชีวัสดุ <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
@@ -124,7 +124,7 @@
   <!-- กราฟแท่ง: ยอดจัดซื้อรายเดือน -->
   <div class="chart-card">
     <div class="chart-title">ยอดจัดซื้อรายเดือน</div>
-    <div class="chart-note">ปีงบประมาณ {{ fiscal_year }} · ตามวันที่ใบสั่งซื้อ/จ้าง (สูงสุด {{ "{:,.0f}".format(charts.monthly_max) }} บาท)</div>
+    <div class="chart-note">ปีงบประมาณ {{ fiscal_year }} ตามวันที่ใบสั่งซื้อ/จ้าง (สูงสุด {{ "{:,.0f}".format(charts.monthly_max) }} บาท)</div>
     {% if charts.monthly_max > 0 %}
     <svg viewBox="0 0 660 200" role="img" aria-label="ยอดจัดซื้อรายเดือน">
       <line x1="6" y1="170" x2="654" y2="170" stroke="#e3e7ef" stroke-width="1"/>
@@ -221,7 +221,7 @@
 <!-- เล่มที่ 1: ทะเบียนคุมการจัดซื้อ -->
 <div class="card" id="reg-buy">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-    <h2>ทะเบียนคุมการจัดซื้อ <span class="muted" style="font-size:15px;">({{ buys|length }} เรื่อง · {{ "{:,.0f}".format(buy_total) }} บาท)</span></h2>
+    <h2>ทะเบียนคุมการจัดซื้อ <span class="muted" style="font-size:15px;">({{ buys|length }} เรื่อง {{ "{:,.0f}".format(buy_total) }} บาท)</span></h2>
     <a class="btn green sm" style="white-space:nowrap;" href="/register.xlsx?year={{ fiscal_year }}&kind=buy"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดทะเบียนคุมจัดซื้อ</a>
   </div>
   {% if buys %}{{ reg_table(buys) }}
@@ -231,7 +231,7 @@
 <!-- เล่มที่ 2: ทะเบียนคุมการจัดจ้าง -->
 <div class="card" id="reg-hire">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-    <h2>ทะเบียนคุมการจัดจ้าง <span class="muted" style="font-size:15px;">({{ hires|length }} เรื่อง · {{ "{:,.0f}".format(hire_total) }} บาท)</span></h2>
+    <h2>ทะเบียนคุมการจัดจ้าง <span class="muted" style="font-size:15px;">({{ hires|length }} เรื่อง {{ "{:,.0f}".format(hire_total) }} บาท)</span></h2>
     <a class="btn green sm" style="white-space:nowrap;" href="/register.xlsx?year={{ fiscal_year }}&kind=hire"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดทะเบียนคุมจัดจ้าง</a>
   </div>
   {% if hires %}{{ reg_table(hires) }}

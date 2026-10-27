@@ -68,7 +68,7 @@ def test_table_scroll_hint_is_loaded_and_installment_table_is_slim(env):
     html = env.get(f'/lunch/round/{rid}/plan').text
     head = re.search(r'<table class="iq-table">\s*<thead><tr>(.*?)</tr>', html, re.S).group(1)
     assert head.count('<th') == 6, 'ตารางงวดเหลือ 6 คอลัมน์ (เดิม 10 ล้นจอ)'
-    assert '10 วัน · <b>25,680.00</b> บาท' in html and '✓ ลงบัญชีแล้ว' in html
+    assert '10 วัน <b>25,680.00</b> บาท' in html and '✓ ลงบัญชีแล้ว' in html
 
 
 @pytest.mark.skipif(not NODE, reason='ต้องมี node')

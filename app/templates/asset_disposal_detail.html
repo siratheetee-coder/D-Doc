@@ -47,15 +47,15 @@
 
 <div class="hero" style="background:linear-gradient(120deg,#b45309,#dc2626 55%,#7c3aed);">
   <div>
-    <div class="hero-sub">สำนวนจำหน่ายพัสดุ · ปีงบประมาณ {{ dp.year }}</div>
-    <span class="hero-title">{{ items|length }} รายการ · ราคาทุนรวม {{ "{:,.2f}".format(total_cost) }} บาท</span>
+    <div class="hero-sub">สำนวนจำหน่ายพัสดุ ปีงบประมาณ {{ dp.year }}</div>
+    <span class="hero-title">{{ items|length }} รายการ ราคาทุนรวม {{ "{:,.2f}".format(total_cost) }} บาท</span>
     <div class="hero-meta">ขาย {{ "{:,.2f}".format(sell_cost) }} บาท
-      {% if wo_cost %} · จำหน่ายเป็นสูญ {{ "{:,.2f}".format(wo_cost) }} บาท{% endif %}</div>
+      {% if wo_cost %} จำหน่ายเป็นสูญ {{ "{:,.2f}".format(wo_cost) }} บาท{% endif %}</div>
   </div>
   <div style="display:flex; gap:8px; align-items:center;">
     <a class="btn sm gray" href="/assets/disposal"><svg class="icon"><use href="#ic-arrow-left"/></svg> สำนวนทั้งหมด</a>
     <a class="btn sm" href="/assets/disposal/{{ dp.id }}/bundle/all.docx"
-       onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของผู้ให้ถ้อยคำและผู้ซื้อในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัว', detail:'ช่องที่เว้นว่าง: ชื่อ-ที่อยู่-อาชีพของผู้ให้ถ้อยคำในบันทึกถ้อยคำ · ที่อยู่และเลขประจำตัวผู้เสียภาษีของผู้ซื้อ', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-download"/></svg> ออกทั้งสำนวน</a>
+       onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของผู้ให้ถ้อยคำและผู้ซื้อในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัว', detail:'ช่องที่เว้นว่าง: ชื่อ-ที่อยู่-อาชีพของผู้ให้ถ้อยคำในบันทึกถ้อยคำ ที่อยู่และเลขประจำตัวผู้เสียภาษีของผู้ซื้อ', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-download"/></svg> ออกทั้งสำนวน</a>
   </div>
 </div>
 
@@ -64,14 +64,14 @@
 <div class="alert">ข้าม {{ request.query_params.get('skipped') }} รายการที่อยู่ในสำนวนอื่นที่ยังไม่ปิด</div>
 {% endif %}
 {% if request.query_params.get('wo') %}
-<div class="alert">✔ ลงจ่ายออกจากทะเบียนแล้ว {{ request.query_params.get('wo') }} ระเบียน · ต้องรายงาน สพท. และ สตง. ภายใน 30 วันนับแต่วันนี้ (ระเบียบฯ ข้อ 218)</div>
+<div class="alert">✔ ลงจ่ายออกจากทะเบียนแล้ว {{ request.query_params.get('wo') }} ระเบียน ต้องรายงาน สพท. และ สตง. ภายใน 30 วันนับแต่วันนี้ (ระเบียบฯ ข้อ 218)</div>
 {% endif %}
 
 {% if deadlines %}
 <div class="card">
   <h2 style="margin-top:0;">กำหนดเวลาตามระเบียบ</h2>
   {% for d in deadlines %}
-  <p style="margin:0 0 6px;">{{ d.what }} · ครบกำหนด <b>{{ thai_date(d.due) }}</b>
+  <p style="margin:0 0 6px;">{{ d.what }} ครบกำหนด <b>{{ thai_date(d.due) }}</b>
     <span class="dp-due {{ 'dp-late' if d.left < 0 else 'dp-ok' }}">{{
       ('เลยกำหนด ' ~ (-d.left) ~ ' วัน') if d.left < 0 else ('เหลือ ' ~ d.left ~ ' วัน') }}</span></p>
   {% endfor %}
@@ -94,7 +94,7 @@
 <div class="dp-pane on" data-pane="items">
   <div class="card">
     <h2 style="margin-top:0;">รายการที่ขอจำหน่าย</h2>
-    <p class="muted" style="margin-top:0;">เลือกวิธีจำหน่ายรายรายการตามระเบียบฯ ข้อ 215 ·
+    <p class="muted" style="margin-top:0;">เลือกวิธีจำหน่ายรายรายการตามระเบียบฯ ข้อ 215
       สาเหตุที่กรอกจะไปขึ้นในรายงานผลการสอบหาข้อเท็จจริงและบันทึกถ้อยคำ</p>
     <div class="table-wrap"><table class="it-tbl">
       <thead><tr>
@@ -125,11 +125,11 @@
       </tbody>
     </table></div>
     <div class="dp-note" style="margin-top:12px;">
-      <b>วงเงินที่ต้องระวัง</b> · ขายโดยวิธีเฉพาะเจาะจงได้เมื่อราคาซื้อหรือได้มารวมกัน
-      ไม่เกิน {{ "{:,.0f}".format(sell_limit) }} บาท (ข้อ 215 (1) (ก)) ·
+      <b>วงเงินที่ต้องระวัง</b> ขายโดยวิธีเฉพาะเจาะจงได้เมื่อราคาซื้อหรือได้มารวมกัน
+      ไม่เกิน {{ "{:,.0f}".format(sell_limit) }} บาท (ข้อ 215 (1) (ก))
       ตอนนี้รายการที่เลือก "ขาย" รวม <b>{{ "{:,.2f}".format(sell_cost) }}</b> บาท
       {% if sell_cost > sell_limit %}<span class="dp-due dp-late">เกินวงเงิน ต้องขายทอดตลาด</span>{% endif %}
-      <br>จำหน่ายเป็นสูญที่ ผอ. อนุมัติเองได้ ต้องไม่เกิน {{ "{:,.0f}".format(wo_limit) }} บาท (ข้อ 217 (1)) ·
+      <br>จำหน่ายเป็นสูญที่ ผอ. อนุมัติเองได้ ต้องไม่เกิน {{ "{:,.0f}".format(wo_limit) }} บาท (ข้อ 217 (1))
       ตอนนี้รวม <b>{{ "{:,.2f}".format(wo_cost) }}</b> บาท
       {% if wo_cost > wo_limit %}<span class="dp-due dp-late">เกินวงเงิน เป็นอำนาจกระทรวงการคลัง</span>{% endif %}
     </div>
@@ -162,7 +162,7 @@
     <label class="nt-chk" style="margin-top:8px;"><input type="checkbox" name="fact_liable" value="1" {{ 'checked' if dp.fact_liable }}>
       ต้องหาตัวผู้รับผิดทางแพ่ง (จะเพิ่มย่อหน้าอ้างระเบียบความรับผิดทางละเมิด พ.ศ. 2539)</label>
   </div>
-  {{ committee('fact', 'คณะกรรมการสอบหาข้อเท็จจริง', 'ระเบียบฯ ข้อ 214 · ปกติตั้ง 3 คน และไม่ควรเป็นเจ้าหน้าที่พัสดุ') }}
+  {{ committee('fact', 'คณะกรรมการสอบหาข้อเท็จจริง', 'ระเบียบฯ ข้อ 214 ปกติตั้ง 3 คน และไม่ควรเป็นเจ้าหน้าที่พัสดุ') }}
   <div class="card">
     <h2 style="margin-top:0;">เอกสารขั้นนี้</h2>
     <div class="dp-docs">
@@ -184,7 +184,7 @@
       <div><label>คำสั่งแต่งตั้งคณะกรรมการ ที่</label><input name="order_no" value="{{ dp.order_no or '' }}"></div>
       <div><label>สั่ง ณ วันที่</label><input name="order_date" data-date="1" placeholder="วว/ดด/ปปปป" value="{{ bedate(dp.order_date) }}"></div>
     </div>
-    <div class="dp-note"><b>นับเส้นตาย 60 วันจากวันนี้</b> · ระเบียบฯ กำหนดให้การจำหน่ายตามข้อ 215
+    <div class="dp-note"><b>นับเส้นตาย 60 วันจากวันนี้</b> ระเบียบฯ กำหนดให้การจำหน่ายตามข้อ 215
       แล้วเสร็จภายใน 60 วันนับถัดจากวันที่ ผอ. สั่งการ ระบบจะเตือนให้บนหัวหน้าเมื่อกรอกวันสั่ง ณ วันที่แล้ว</div>
   </div>
   {{ committee('price', 'คณะกรรมการประเมินราคากลาง', 'ต้องประเมินราคากลางก่อนประกาศขายทุกกรณี') }}
@@ -217,7 +217,7 @@
           {% for k in ['แผ่นดิน','สถานศึกษา'] %}<option value="{{ k }}" {{ 'selected' if (dp.revenue_kind or 'แผ่นดิน') == k }}>{{ k }}</option>{% endfor %}
         </select></div>
     </div>
-    <p class="muted" style="font-size:13px; margin:2px 0 0;">ซื้อด้วยเงินงบประมาณ → รายได้แผ่นดิน ·
+    <p class="muted" style="font-size:13px; margin:2px 0 0;">ซื้อด้วยเงินงบประมาณ → รายได้แผ่นดิน
       ซื้อด้วยเงินรายได้สถานศึกษาหรือเงินบริจาค → รายได้สถานศึกษา (ข้อ 216)</p>
   </div>
 
@@ -290,7 +290,7 @@
   <div class="card">
     <h2 style="margin-top:0;">ทำลาย / แปรสภาพ (ข้อ 215 (4))</h2>
     {% if not ready.destroy %}
-    <div class="dp-note">ยังไม่มีรายการที่เลือกวิธี "ทำลาย" หรือ "แปรสภาพ" · ไปตั้งที่แท็บ <b>รายการและวิธีจำหน่าย</b> ก่อน</div>
+    <div class="dp-note">ยังไม่มีรายการที่เลือกวิธี "ทำลาย" หรือ "แปรสภาพ" ไปตั้งที่แท็บ <b>รายการและวิธีจำหน่าย</b> ก่อน</div>
     {% endif %}
     <div class="row">
       <div><label>รายงานผลการทำลาย เลขที่</label><input name="destroy_memo_no" value="{{ dp.destroy_memo_no or '' }}"></div>
@@ -311,7 +311,7 @@
   <div class="card">
     <h2 style="margin-top:0;">จำหน่ายเป็นสูญ (ข้อ 217)</h2>
     <div class="dp-note">ใช้เมื่อพัสดุสูญไปโดยไม่ปรากฏตัวผู้รับผิด หรือมีตัวผู้รับผิดแต่ไม่สามารถ
-      ชดใช้ได้ หรือมีตัวพัสดุอยู่แต่ไม่สมควรจำหน่ายตามข้อ 215 ·
+      ชดใช้ได้ หรือมีตัวพัสดุอยู่แต่ไม่สมควรจำหน่ายตามข้อ 215
       <b>ไม่เกิน {{ "{:,.0f}".format(wo_limit) }} บาท ผอ. อนุมัติเองได้</b>
       เกินกว่านั้นเป็นอำนาจกระทรวงการคลัง (ข้อ 217 (2) (ก))</div>
     {% if not ready.writeoff %}
@@ -336,7 +336,7 @@
   <div class="card">
     <h2 style="margin-top:0;">ลงจ่ายออกจากทะเบียน (ข้อ 218)</h2>
     <div class="dp-note">ระเบียบฯ ให้ลงจ่ายพัสดุออกจากบัญชีหรือทะเบียน <b>ทันทีเมื่อจำหน่ายเสร็จ</b>
-      แล้วรายงานภายใน 30 วันนับแต่วันลงจ่าย · อย่ากดก่อนขาย/ทำลายเสร็จจริง
+      แล้วรายงานภายใน 30 วันนับแต่วันลงจ่าย อย่ากดก่อนขาย/ทำลายเสร็จจริง
       ไม่งั้นของยังอยู่ที่โรงเรียนแต่หลุดจากทะเบียนไปแล้ว ตรวจนับจะไม่ตรง</div>
     {% if dp.written_off_date %}
     <p>✔ ลงจ่ายแล้วเมื่อ <b>{{ thai_date(dp.written_off_date) }}</b></p>
@@ -349,7 +349,7 @@
   <div class="card">
     <h2 style="margin-top:0;">หนังสือรายงาน 3 ทาง</h2>
     <p class="muted" style="margin-top:0;">ระเบียบฯ ข้อ 218 ให้ส่งสำเนารายงานถึงสำนักงานเขตพื้นที่การศึกษา
-      และสำนักงานตรวจเงินแผ่นดิน · ถ้ามีการจำหน่ายเป็นสูญ ต้องแจ้งปลัดกระทรวงการคลังด้วย</p>
+      และสำนักงานตรวจเงินแผ่นดิน ถ้ามีการจำหน่ายเป็นสูญ ต้องแจ้งปลัดกระทรวงการคลังด้วย</p>
     <div class="row">
       <div><label>หนังสือแจ้ง สพท. เลขที่</label><input name="area_no" value="{{ dp.area_no or '' }}"></div>
       <div><label>ลงวันที่</label><input name="area_date" data-date="1" placeholder="วว/ดด/ปปปป" value="{{ bedate(dp.area_date) }}"></div>
@@ -399,14 +399,14 @@
     <button class="btn green" type="submit"
       onclick="return ddocConfirm(event, this, {always:1, key:'', title:'ลงจ่ายออกจากทะเบียน',
         msg:'ระบบจะปรับสถานะครุภัณฑ์ {{ items|length }} รายการในสำนวนนี้เป็น จำหน่ายแล้ว และบันทึกวันลงจ่ายเป็นวันนี้',
-        detail:'กดเมื่อขาย/ทำลาย/จำหน่ายเป็นสูญ เสร็จจริงแล้วเท่านั้น · หลังจากนี้ต้องรายงาน สพท. และ สตง. ภายใน 30 วัน',
+        detail:'กดเมื่อขาย/ทำลาย/จำหน่ายเป็นสูญ เสร็จจริงแล้วเท่านั้น หลังจากนี้ต้องรายงาน สพท. และ สตง. ภายใน 30 วัน',
         ok:'ลงจ่ายเลย'})"><svg class="icon"><use href="#ic-check"/></svg> ลงจ่ายออกจากทะเบียน</button>
   </form>
   <form method="post" action="/assets/disposal/{{ dp.id }}/delete" style="display:inline; margin-left:8px;">
     <button class="btn sm gray" type="submit"
       onclick="return ddocConfirm(event, this, {always:1, key:'', title:'ลบสำนวนนี้',
         msg:'ลบสำนวนจำหน่ายพัสดุนี้ทั้งเรื่อง รวมเลขที่หนังสือและรายชื่อกรรมการที่กรอกไว้',
-        detail:'ทะเบียนครุภัณฑ์ไม่ถูกแตะต้อง · ถ้าลงจ่ายไปแล้ว สถานะ จำหน่ายแล้ว ยังคงอยู่',
+        detail:'ทะเบียนครุภัณฑ์ไม่ถูกแตะต้อง ถ้าลงจ่ายไปแล้ว สถานะ จำหน่ายแล้ว ยังคงอยู่',
         ok:'ลบสำนวน'})">ลบสำนวน</button>
   </form>
 </div>

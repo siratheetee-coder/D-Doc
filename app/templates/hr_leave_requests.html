@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% block title %}ใบลาที่รออนุมัติ{% endblock %}
 {% block content %}
-{% if request.query_params.get('status') in ['pending','personnel'] %}<div class="alert">ตัวกรอง: {{ 'รอบุคคลตรวจ' if request.query_params.get('status') == 'pending' else 'รอ ผอ. อนุมัติ' }} · <a href="/hr/leave-requests">ดูทุกสถานะ</a></div>{% endif %}
+{% if request.query_params.get('status') in ['pending','personnel'] %}<div class="alert">ตัวกรอง: {{ 'รอบุคคลตรวจ' if request.query_params.get('status') == 'pending' else 'รอ ผอ. อนุมัติ' }} <a href="/hr/leave-requests">ดูทุกสถานะ</a></div>{% endif %}
 <div class="hero">
   <div>
-    <div class="hero-sub">งานบุคคล · อนุมัติใบลา</div>
+    <div class="hero-sub">งานบุคคล อนุมัติใบลา</div>
     <span class="hero-title">ใบลาที่ครูส่งเข้าระบบ</span>
-    <div class="hero-meta">{{ school.name or "" }}{% if n_pending %} · รออนุมัติ {{ n_pending }} รายการ{% endif %}</div>
+    <div class="hero-meta">{{ school.name or "" }}{% if n_pending %} รออนุมัติ {{ n_pending }} รายการ{% endif %}</div>
   </div>
 </div>
 
@@ -20,7 +20,7 @@
     <thead><tr><th>ผู้ลา</th><th>ประเภท</th><th>ตั้งแต่</th><th>ถึง</th><th>วัน</th><th>เหตุผล</th><th>ติดต่อ</th><th>สถานะ</th><th>พิจารณา</th></tr></thead>
     <tbody>
     {% for r in reqs %}
-      {% set st = {'pending':('รอบุคคลตรวจ','#fef9c3','#854d0e'), 'personnel':('ผ่านบุคคล · รอ ผอ.','#dbeafe','#1e40af'), 'approved':('อนุมัติ','#dcfce7','#166534'), 'rejected':('ไม่อนุมัติ','#fee2e2','#b91c1c')}.get(r.status, ('รอบุคคลตรวจ','#fef9c3','#854d0e')) %}
+      {% set st = {'pending':('รอบุคคลตรวจ','#fef9c3','#854d0e'), 'personnel':('ผ่านบุคคล รอ ผอ.','#dbeafe','#1e40af'), 'approved':('อนุมัติ','#dcfce7','#166534'), 'rejected':('ไม่อนุมัติ','#fee2e2','#b91c1c')}.get(r.status, ('รอบุคคลตรวจ','#fef9c3','#854d0e')) %}
       <tr>
         <td data-label="ผู้ลา" style="white-space:nowrap; font-weight:600;">{{ r.person.name if r.person else '-' }}</td>
         <td data-label="ประเภท" style="white-space:nowrap;">{{ r.leave_type }}</td>
@@ -46,7 +46,7 @@
             <button class="btn sm red" type="submit" name="status" value="rejected">ไม่อนุมัติ</button>
           </form>
           {% elif r.status == 'personnel' %}
-          <div class="muted" style="font-size:13px;">ส่งต่อ ผอ. แล้ว รออนุมัติ · <a href="/hr/leave-requests/{{ r.id }}">ดูรายละเอียด</a></div>
+          <div class="muted" style="font-size:13px;">ส่งต่อ ผอ. แล้ว รออนุมัติ <a href="/hr/leave-requests/{{ r.id }}">ดูรายละเอียด</a></div>
           {% else %}
           <a class="btn sm gray" href="/hr/leave-requests/{{ r.id }}">ดูรายละเอียด</a>
           {% endif %}

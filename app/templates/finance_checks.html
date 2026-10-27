@@ -4,9 +4,9 @@
 {% if request.query_params.get("message") %}<div class="alert">{{ request.query_params.get("message") }}</div>{% endif %}
 <div class="hero">
   <div>
-    <div class="hero-sub">คุมการจ่ายเงินทุกวิธี · เช็ค · โอน (KTB Corporate Online) · เงินสด</div>
+    <div class="hero-sub">คุมการจ่ายเงินทุกวิธี เช็ค โอน (KTB Corporate Online) เงินสด</div>
     <span class="hero-title">ทะเบียนคุมการจ่ายเงิน</span>
-    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} · {{ rows|length }} ฉบับ</div>
+    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} {{ rows|length }} ฉบับ</div>
   </div>
   <form method="get" action="/finance/checks">
     <select name="year" onchange="submitReplace(this.form)">
@@ -32,7 +32,7 @@
       <div style="flex:1.6;"><label>จ่ายให้ *</label><input name="payee" required></div>
       <div style="flex:1.6;"><label>รายการ/ค่าใช้จ่าย</label><input name="purpose"></div>
       <div><label>บัญชีธนาคาร</label>
-        <select name="account_id"><option value=""> · ไม่ระบุ · </option>
+        <select name="account_id"><option value=""> ไม่ระบุ </option>
           {% for a in accounts %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
         </select></div>
     </div>
@@ -75,14 +75,14 @@
       </tr>
       <tr><td colspan="9" style="background:#f8fafc;white-space:normal;">
         {% if c.txn %}
-          <p><strong>เชื่อมรายการจ่ายแล้ว</strong> · <a href="/finance/accounts/{{ c.txn.account_id }}?year={{ c.txn.fiscal_year }}">ดูรายการจ่าย #{{ c.txn.id }} · {{ c.txn.ref or '-' }}</a></p>
+          <p><strong>เชื่อมรายการจ่ายแล้ว</strong> <a href="/finance/accounts/{{ c.txn.account_id }}?year={{ c.txn.fiscal_year }}">ดูรายการจ่าย #{{ c.txn.id }} {{ c.txn.ref or '-' }}</a></p>
           <form method="post" action="/finance/checks/{{ c.id }}/link" onsubmit="return confirm('ยกเลิกเฉพาะการเชื่อม รายการเงินจริงยังอยู่ ยืนยันหรือไม่?')"><button class="btn sm gray" name="mode" value="unlink">ยกเลิกการเชื่อม (เก็บรายการจ่ายเดิม)</button></form>
         {% else %}
-          <details><summary style="cursor:pointer;padding:8px 0;"><strong>ยังไม่เชื่อมรายการจ่ายจริง · หากเคยลงจ่ายไว้แล้ว ให้เชื่อมรายการเดิม</strong></summary>
+          <details><summary style="cursor:pointer;padding:8px 0;"><strong>ยังไม่เชื่อมรายการจ่ายจริง หากเคยลงจ่ายไว้แล้ว ให้เชื่อมรายการเดิม</strong></summary>
           <p class="muted">เลือกได้เฉพาะบัญชี ปี วันที่ และยอดตรงกัน โดยยังไม่ผูกกับเช็ค/โอนอื่น การเชื่อมจะไม่ตัดเงินเพิ่ม ไม่รวมรายการอัตโนมัติจากอาหารกลางวัน</p>
           {% if choices[c.id] %}
           <form method="post" action="/finance/checks/{{ c.id }}/link" onsubmit="return confirm('ยืนยันว่ารายการนี้เป็นการจ่ายครั้งเดียวกัน?')">
-            <select name="txn_id" required><option value="">— เลือกรายการจ่ายเดิม —</option>{% for t in choices[c.id] %}<option value="{{ t.id }}">#{{ t.id }} · {{ thai_date(t.date) }} · {{ t.ref or '-' }} · {{ t.note or t.category }} · {{ '{:,.2f}'.format(t.amount) }} บาท</option>{% endfor %}</select>
+            <select name="txn_id" required><option value="">— เลือกรายการจ่ายเดิม —</option>{% for t in choices[c.id] %}<option value="{{ t.id }}">#{{ t.id }} {{ thai_date(t.date) }} {{ t.ref or '-' }} {{ t.note or t.category }} {{ '{:,.2f}'.format(t.amount) }} บาท</option>{% endfor %}</select>
             <p><button class="btn sm" type="submit">เชื่อมรายการจ่ายที่บันทึกไว้แล้ว</button></p>
           </form>
           {% else %}<p>ยังไม่พบรายการที่ตรงกัน ตรวจบัญชี วันที่ และยอดเงิน หรือไปบันทึกจ่ายก่อนที่ <a href="/finance/accounts?year={{ c.fiscal_year }}">หน้ารับ–จ่าย</a></p>{% endif %}

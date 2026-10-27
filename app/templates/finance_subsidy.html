@@ -9,8 +9,8 @@
 <link rel="stylesheet" href="/static/subsidy.css?v=5">
 <div class="subsidy-page">
 <div class="hero" style="background:linear-gradient(120deg,#087f5b,#12b886)">
-  <div><div class="hero-sub">งานการเงิน · เงินอุดหนุนเรียนฟรี 15 ปี</div><h1>คำนวณเงินอุดหนุน</h1>
-  <p>ปีการศึกษา {{ s.academic_year }} · ภาคเรียนที่ {{ s.term }} · ใช้อัตราปีงบประมาณ <strong>{{ s.fiscal_year }}</strong></p></div>
+  <div><div class="hero-sub">งานการเงิน เงินอุดหนุนเรียนฟรี 15 ปี</div><h1>คำนวณเงินอุดหนุน</h1>
+  <p>ปีการศึกษา {{ s.academic_year }} ภาคเรียนที่ {{ s.term }} ใช้อัตราปีงบประมาณ <strong>{{ s.fiscal_year }}</strong></p></div>
 </div>
 <div class="card sub-toolbar">
   <form method="get" class="sub-inline" id="period-switch">
@@ -22,8 +22,8 @@
 {% set step_done = steps | selectattr('state', 'equalto', 'done') | list | length %}
 <nav class="sub-workflow" aria-label="ขั้นตอนงานเงินอุดหนุน">
   <div class="sub-workflow-head">
-    <div><div class="sub-workflow-title">ลำดับงานเงินอุดหนุน · {{ steps|length }} ขั้นตอน</div>
-      <div class="sub-workflow-hint">กดที่ขั้นตอนเพื่อเลื่อนไปส่วนนั้น · เงินเพิ่มเติมกรอกเมื่อมีหนังสือจัดสรรเท่านั้น ไม่นับเป็นขั้นตอน</div></div>
+    <div><div class="sub-workflow-title">ลำดับงานเงินอุดหนุน {{ steps|length }} ขั้นตอน</div>
+      <div class="sub-workflow-hint">กดที่ขั้นตอนเพื่อเลื่อนไปส่วนนั้น เงินเพิ่มเติมกรอกเมื่อมีหนังสือจัดสรรเท่านั้น ไม่นับเป็นขั้นตอน</div></div>
     <div class="sub-progress"><span>เสร็จแล้ว {{ step_done }} / {{ steps|length }} ขั้นตอน</span>
       <div class="sub-progress-track" aria-hidden="true"><span style="width:{{ step_done * 100 / (steps|length or 1) }}%"></span></div></div>
   </div>
@@ -35,23 +35,23 @@
   </div>
 </nav>
 {% if request.query_params.get('message') %}<div class="sub-notice ok" role="status">ดำเนินการเรียบร้อยแล้ว</div>{% endif %}
-{% if error %}<div class="sub-notice error" role="alert">ยังบันทึกไม่ได้: {{ error }} · ข้อมูลที่กรอกยังอยู่ด้านล่าง</div>{% endif %}
+{% if error %}<div class="sub-notice error" role="alert">ยังบันทึกไม่ได้: {{ error }} ข้อมูลที่กรอกยังอยู่ด้านล่าง</div>{% endif %}
 <div id="sub-dirty" class="sub-notice warn" role="status" {{ '' if error else 'hidden' }}>มีข้อมูลยังไม่บันทึก — บันทึกและคำนวณก่อนยืนยัน ออกเอกสาร หรือเชื่อมข้อมูล</div>
-<div class="sub-notice">อัตรากรอกเป็น <strong>บาท/คน/ภาคเรียน</strong> แยกชุดตามปีงบและเทอม เมื่อขึ้นเทอม 2 จะใช้ชุดอัตราของปีงบใหม่ ไม่เปลี่ยนข้อมูลเทอม 1<br>หนังสือเรียนและเครื่องแบบปกติคำนวณในเทอม 1 · ช่องว่างหมายถึงยังไม่มีข้อมูล กรอก 0 เมื่อยืนยันว่าไม่มีจริง</div>
+<div class="sub-notice">อัตรากรอกเป็น <strong>บาท/คน/ภาคเรียน</strong> แยกชุดตามปีงบและเทอม เมื่อขึ้นเทอม 2 จะใช้ชุดอัตราของปีงบใหม่ ไม่เปลี่ยนข้อมูลเทอม 1<br>หนังสือเรียนและเครื่องแบบปกติคำนวณในเทอม 1 ช่องว่างหมายถึงยังไม่มีข้อมูล กรอก 0 เมื่อยืนยันว่าไม่มีจริง</div>
 {% if cfg.legacy %}<div class="sub-notice warn">พบอัตรารายปีจากระบบเดิม จัดแสดงเป็นรายเทอมแล้ว สามารถปรับตัวเลขให้ตรงปีงบ {{ s.fiscal_year }} ก่อนใช้งาน ข้อมูลเดิมยังเก็บไว้</div>{% endif %}
 
 <section class="card">
   <h2>ผลคำนวณจากข้อมูลที่บันทึกล่าสุด</h2>
   <p class="sub-total">ประมาณการเต็มเทอม {{ money(s.result.total) }} <small>บาท</small></p>
   <p class="sub-notice"><strong>ยอดที่จะนำไปตั้งงบ {{ money(s.result.budget_total) }} บาท</strong><br>ใช้{{ s.result.budget_label }} รวมเงินเพิ่มเติมที่บันทึกไว้</p>
-  <p>งวดแรกประมาณ 70% ของฐานเดิม · งวดปรับยอด = 100% ของฐานล่าสุด − <strong>ยอดจัดสรรงวดแรก</strong> (ถ้ายังไม่ทราบ ใช้ประมาณการงวดแรก)</p>
+  <p>งวดแรกประมาณ 70% ของฐานเดิม งวดปรับยอด = 100% ของฐานล่าสุด − <strong>ยอดจัดสรรงวดแรก</strong> (ถ้ายังไม่ทราบ ใช้ประมาณการงวดแรก)</p>
   {% set tt = s.result.totals or {} %}
   <div class="sub-scroll"><table class="sub-result"><thead><tr><th>รายการ</th><th>งวดแรก<small>ประมาณ 70%</small></th><th>จัดสรรงวดแรกจริง</th><th>งวดปรับยอด<small>ส่วนที่เหลือ</small></th><th class="sub-sum">รวมเต็มเทอม<small>งวดแรก + งวดปรับยอด</small></th><th>จัดสรรจริงรวมที่กรอก</th><th>รับเงินจริงที่เชื่อม</th></tr></thead><tbody>
   {% for r in s.result.rows %}<tr><td>{{ r.name }}{% if r.extra and not r.per_head %}<small>ตามหนังสือจัดสรร</small>{% elif r.key in rate_extras %}<small>รายหัว ตามยอด DMC</small>{% endif %}{% if r.per_head %}<small>รายหัว x นักเรียนที่มีสิทธิ์</small>{% endif %}</td><td>{{ money(r.first_estimate) if not r.extra else '—' }}</td><td>{{ money(r.first) if r.first is not none else 'ยังไม่แจ้ง' }}</td><td class="{{ 'sub-negative' if r.remaining is not none and r.remaining<0 }}">{{ money(r.remaining) if not r.extra else '—' }}</td><td class="sub-sum">{{ money(r.full) }}</td><td>{{ money(r.allocated) if r.allocated is not none else 'ยังไม่แจ้ง' }}</td><td>{{ money(received.get(r.key,0)) }}</td></tr>{% endfor %}
   </tbody><tfoot><tr><th>รวม</th><th>{{ money(tt.first_estimate) }}</th><th>{{ money(tt.first) if tt.first is not none else '—' }}</th><th>{{ money(tt.remaining) }}</th><th class="sub-sum">{{ money(tt.full) }}</th><th>{{ money(tt.allocated) if tt.allocated is not none else '—' }}</th><th>{{ money(received.values()|sum) }}</th></tr></tfoot></table></div>
   <p class="sub-muted">งวดแรก + งวดปรับยอด = รวมเต็มเทอม (เงินเพิ่มเติมที่กรอกเป็นยอดก้อน นับเฉพาะในช่องรวม)</p>
   <p class="sub-muted">ยอดติดลบหมายถึงจัดสรรงวดแรกสูงกว่าประมาณการเต็มเทอม ให้ตรวจหนังสือปรับยอด ระบบไม่สร้างรายการคืนเงินเอง เงินจัดสรรกับเงินโอนเข้าจริงเป็นคนละยอด</p>
-  {% if s.result.missing %}<details class="sub-notice warn" open><summary>ยังยืนยันไม่ได้ · เหลือ {{ s.result.missing|length }} เรื่องที่ต้องกรอก</summary>
+  {% if s.result.missing %}<details class="sub-notice warn" open><summary>ยังยืนยันไม่ได้ เหลือ {{ s.result.missing|length }} เรื่องที่ต้องกรอก</summary>
     <ul>{% for m in s.result.missing %}<li>{{ m }}</li>{% endfor %}</ul>
     {% if s.result.missing_fields %}<button type="button" class="btn sm" id="goto-missing">พาไปช่องที่ต้องกรอก ({{ s.result.missing_fields|length }} ช่อง)</button>{% endif %}
   </details>{% endif %}
@@ -72,7 +72,7 @@
 <section class="card" id="sec-dmc"><h2>2. ยอด DMC แยกตามวันสำรวจ</h2>
   <p>เทอม 1 เลื่อนฐานเดิมให้ชั้นต่อเนื่องอัตโนมัติ ส่วน อ.1 อ.2 ป.1 ม.1 ม.4 ใช้ฐานชั้นเดิมตามแนวทางปีงบ 2569 จึงต้องกรอกชั้นต้นทางด้วย ตัวเลขในตารางนี้เป็นยอดดิบ ณ วันสำรวจ</p>
   <div class="sub-two">{% for scan in s.census %}<div class="sub-panel" data-census="{{ scan.key }}">
-    <h3>{{ 'ฐานงวดแรก' if loop.first else 'ฐานปรับยอดเต็มเทอม' }} · {{ scan.label }}</h3>
+    <h3>{{ 'ฐานงวดแรก' if loop.first else 'ฐานปรับยอดเต็มเทอม' }} {{ scan.label }}</h3>
     {% set other = shared_rounds.get(scan.key) %}
     {% if other %}<p class="sub-shared">รอบนี้ใช้ร่วมกับ <strong>ภาคเรียนที่ {{ other[1] }} ปีการศึกษา {{ other[0] }}</strong>
       แก้ตัวเลขที่นี่แล้วภาคเรียนนั้นเปลี่ยนตามด้วย เพราะเป็นยอด DMC รอบเดียวกัน
@@ -141,8 +141,8 @@
   <p class="sub-muted">การยืนยันเก็บตัวเลขไว้เป็นฉบับย้อนหลัง การตั้งงบต้องตรวจยอดเดิมก่อนทุกครั้ง และไม่สร้างรายการรับเงิน</p>
   {% if s.latest and not s.changed %}<p><a class="btn gray" data-needs-saved href="/plan-budget/{{ s.academic_year }}?mode=academic">ใช้กับแผนปีการศึกษา {{ s.academic_year }}</a> <a class="btn gray" data-needs-saved href="/plan-budget/{{ s.fiscal_year }}?mode=budget">ใช้กับแผนปีงบ {{ s.fiscal_year }}</a></p><p class="sub-muted">ตรวจรูปแบบและช่วงวันที่ของแผนปลายทางก่อนนำงบเข้า เงินก้อนเดียวกันใช้ได้เพียงแผนเดียว</p>{% endif %}
   <details><summary>ฉบับย้อนหลัง ({{ s.history|length }}) และประวัติตั้งงบ</summary>
-  <ul>{% for h in s.history %}<li><a href="/finance/subsidy/snapshots/{{ h.id }}">ฉบับ #{{ h.id }} · {{ h.created_at.strftime('%d/%m/%Y %H:%M') }}</a> · <a href="/finance/subsidy.docx?snapshot_id={{ h.id }}">Word</a></li>{% else %}<li>ยังไม่มีฉบับยืนยัน</li>{% endfor %}</ul>
-  <ul>{% for h in budget_history %}<li>ตั้งงบจากฉบับ #{{ h.snapshot_id }} · {{ h.created_at.strftime('%d/%m/%Y %H:%M') }}</li>{% endfor %}</ul></details>
+  <ul>{% for h in s.history %}<li><a href="/finance/subsidy/snapshots/{{ h.id }}">ฉบับ #{{ h.id }} {{ h.created_at.strftime('%d/%m/%Y %H:%M') }}</a> <a href="/finance/subsidy.docx?snapshot_id={{ h.id }}">Word</a></li>{% else %}<li>ยังไม่มีฉบับยืนยัน</li>{% endfor %}</ul>
+  <ul>{% for h in budget_history %}<li>ตั้งงบจากฉบับ #{{ h.snapshot_id }} {{ h.created_at.strftime('%d/%m/%Y %H:%M') }}</li>{% endfor %}</ul></details>
 </section>
 <section class="card" id="sec-receipts"><h2>6. เชื่อมเงินรับจริงจากทะเบียนคุม</h2>
   <p>เลือกรายการรับเงิน แล้วระบุส่วนที่เป็นของเทอมนี้ สามารถแบ่งหนึ่งรายการโอนให้หลายประเภทหรือหลายเทอมได้ แต่ยอดรวมต้องไม่เกินเงินรับจริง</p>
@@ -151,7 +151,7 @@
   <form action="/finance/subsidy/receipts" method="post" data-needs-saved data-fiscal-year="{{ s.fiscal_year }}" data-year="{{ s.academic_year }}" data-term="{{ s.term }}">
     <p id="receipt-empty" role="status" hidden></p>
     <p><a id="receipt-create" class="btn" data-needs-saved href="/finance/subsidy/mapping?year={{ s.academic_year }}&term={{ s.term }}">เลือกบัญชีและจับคู่หมวดก่อน</a></p>
-    {{ period() }}<label>ประเภท<select name="item_key">{% for k in keys %}<option data-account="{{ mapping[k].account_id if mapping.get(k) else '' }}" data-mapped-item="{{ mapping[k].id if mapping.get(k) else '' }}" value="{{ k }}">{{ names[k] }}</option>{% endfor %}{% for k,n in extras %}<option data-account="{{ mapping[k].account_id if mapping.get(k) else '' }}" data-mapped-item="{{ mapping[k].id if mapping.get(k) else '' }}" value="{{ k }}">{{ n }}</option>{% endfor %}</select></label><label>รายการรับเงิน<select name="txn_id" required><option value="">เลือกรายการรับเงิน</option>{% for t in receipts %}<option data-item="{{ t.item_id }}" value="{{ t.id }}">{{ t.account.name }} / {{ t.item.name if t.item else 'ไม่ระบุหมวด' }} · #{{ t.id }} · {{ t.date.strftime('%d/%m/')~(t.date.year+543)|string if t.date else '' }} · {{ t.ref or t.note or t.category }} · {{ money(t.amount) }} บาท (เชื่อมแล้ว {{ money(receipt_used.get(t.id,0)) }})</option>{% endfor %}</select></label>
+    {{ period() }}<label>ประเภท<select name="item_key">{% for k in keys %}<option data-account="{{ mapping[k].account_id if mapping.get(k) else '' }}" data-mapped-item="{{ mapping[k].id if mapping.get(k) else '' }}" value="{{ k }}">{{ names[k] }}</option>{% endfor %}{% for k,n in extras %}<option data-account="{{ mapping[k].account_id if mapping.get(k) else '' }}" data-mapped-item="{{ mapping[k].id if mapping.get(k) else '' }}" value="{{ k }}">{{ n }}</option>{% endfor %}</select></label><label>รายการรับเงิน<select name="txn_id" required><option value="">เลือกรายการรับเงิน</option>{% for t in receipts %}<option data-item="{{ t.item_id }}" value="{{ t.id }}">{{ t.account.name }} / {{ t.item.name if t.item else 'ไม่ระบุหมวด' }} #{{ t.id }} {{ t.date.strftime('%d/%m/')~(t.date.year+543)|string if t.date else '' }} {{ t.ref or t.note or t.category }} {{ money(t.amount) }} บาท (เชื่อมแล้ว {{ money(receipt_used.get(t.id,0)) }})</option>{% endfor %}</select></label>
     <div class="sub-inline"><label>งวด<select name="round"><option value="first">งวดแรก</option><option value="balance">งวดปรับยอด</option><option value="extra">เงินเพิ่มเติม</option></select></label><label>ยอดที่เชื่อม (บาท)<input name="amount" type="number" min="0.01" step="0.01" required></label><button class="btn" type="submit">เชื่อมเงินรับ</button></div>
   </form>
   <div class="sub-scroll"><table><thead><tr><th>รายการรับ</th><th>ประเภท</th><th>งวด</th><th>ยอด</th><th>การเชื่อม</th></tr></thead><tbody>{% for d in links %}<tr><td>#{{ d.link.txn_id }}{% if not d.valid %}<strong class="sub-negative">รายการหรือหมวดไม่ตรงกับการจับคู่ กรุณาตรวจสอบ ไม่รวมยอดนี้</strong>{% endif %}</td><td>{{ d.name }}</td><td>{{ {'first':'งวดแรก','balance':'งวดปรับยอด','extra':'เพิ่มเติม'}[d.link.round] }}</td><td>{{ money(d.link.amount) }}</td><td><form action="/finance/subsidy/receipts/{{ d.link.id }}/unlink" method="post" data-needs-saved><button class="btn gray sm" type="submit">ยกเลิกการเชื่อม</button></form></td></tr>{% else %}<tr><td colspan="5">ยังไม่ได้เชื่อมรายการรับเงินกับเทอมนี้</td></tr>{% endfor %}</tbody></table></div>

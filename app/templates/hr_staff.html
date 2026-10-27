@@ -3,16 +3,16 @@
 {% block content %}
 <div class="card">
   <h1 style="margin:0;">ทะเบียนบุคลากร</h1>
-  <p class="muted" style="margin:6px 0 0;">ข้อมูลใช้ร่วมกับทั้งระบบ (กรรมการ/ผู้ลงนาม) · เพิ่มข้อมูลงานบุคคลเพื่อออกหนังสือรับรอง/ใบลา</p>
+  <p class="muted" style="margin:6px 0 0;">ข้อมูลใช้ร่วมกับทั้งระบบ (กรรมการ/ผู้ลงนาม) เพิ่มข้อมูลงานบุคคลเพื่อออกหนังสือรับรอง/ใบลา</p>
 </div>
 
-{# ข้อมูลรายคนครบหรือยัง (เจ้าของขอเช็กลิสต์รายคน) นับเฉพาะคนที่ยังปฏิบัติงาน · app/services/module_setup.py person_checks #}
+{# ข้อมูลรายคนครบหรือยัง (เจ้าของขอเช็กลิสต์รายคน) นับเฉพาะคนที่ยังปฏิบัติงาน app/services/module_setup.py person_checks #}
 {% if n_active %}
 <div class="card ps-sum">
   <div class="ps-sum-h"><b>ข้อมูลบุคลากรครบ {{ n_full }} จาก {{ n_active }} คน</b>
     {% if incomplete %}<a href="/hr/staff">แสดงทั้งหมด</a>{% elif n_full < n_active %}<a href="/hr/staff?incomplete=1">แสดงเฉพาะคนที่ยังไม่ครบ ({{ n_active - n_full }})</a>{% endif %}</div>
   <div class="ps-bar"><span style="width:{{ (n_full / n_active * 100)|round(0) }}%"></span></div>
-  <div class="ps-hint">ครบ = ตำแหน่ง วิทยฐานะ (ครู/ผู้บริหาร) เลขบัตร วันเกิด วันบรรจุ เงินเดือน อีเมล และลายเซ็น · กดป้ายในตารางเพื่อดูว่าใครยังไม่ได้กรอกอะไร</div>
+  <div class="ps-hint">ครบ = ตำแหน่ง วิทยฐานะ (ครู/ผู้บริหาร) เลขบัตร วันเกิด วันบรรจุ เงินเดือน อีเมล และลายเซ็น กดป้ายในตารางเพื่อดูว่าใครยังไม่ได้กรอกอะไร</div>
 </div>
 {% endif %}
 
@@ -21,7 +21,7 @@
   {% if edit %}{% set cl = checks.get(edit.id, []) %}
   <div class="ps-check">
     <b>ข้อมูลของ {{ edit.name }}: ครบ {{ cl|selectattr('ok')|list|length }} จาก {{ cl|length }} รายการ</b>
-    <ul>{% for c in cl %}<li class="{{ 'ok' if c.ok else 'no' }}"><span>{{ '✓' if c.ok else '○' }}</span> {{ c.label }}{% if not c.ok %} <em>· {{ c.why }}</em>{% if c.label == 'ลายเซ็น' %} <a href="/masters">อัปโหลดลายเซ็น</a>{% endif %}{% endif %}</li>{% endfor %}</ul>
+    <ul>{% for c in cl %}<li class="{{ 'ok' if c.ok else 'no' }}"><span>{{ '✓' if c.ok else '○' }}</span> {{ c.label }}{% if not c.ok %} <em>{{ c.why }}</em>{% if c.label == 'ลายเซ็น' %} <a href="/masters">อัปโหลดลายเซ็น</a>{% endif %}{% endif %}</li>{% endfor %}</ul>
   </div>
   {% endif %}
   <form method="post" action="{{ ('/hr/staff/' ~ edit.id ~ '/update') if edit else '/hr/staff/add' }}">
@@ -58,11 +58,11 @@
     <tbody>
     {% for p in persons %}
       <tr{% if not p.active %} style="opacity:.55;"{% endif %}>
-        <td data-label="ชื่อ-นามสกุล"><b>{{ p.name }}</b>{% if p.phone %} <span class="muted" style="font-size:12px;">· {{ p.phone }}</span>{% endif %}</td>
+        <td data-label="ชื่อ-นามสกุล"><b>{{ p.name }}</b>{% if p.phone %} <span class="muted" style="font-size:12px;">{{ p.phone }}</span>{% endif %}</td>
         {% set cl = checks.get(p.id, []) %}{% set miss = cl|rejectattr('ok')|map(attribute='label')|list %}
         <td data-label="ข้อมูล">{% if not miss %}<span class="ps-chip ok">ครบ</span>{% else %}<a class="ps-chip no" href="/hr/staff?edit={{ p.id }}#edit" title="ยังไม่ได้กรอก: {{ miss|join(', ') }}">ยังไม่ครบ {{ miss|length }}</a>{% endif %}</td>
         <td data-label="ประเภท">{{ p.person_type or '-' }}</td>
-        <td data-label="ตำแหน่ง/วิทยฐานะ">{{ p.position or '-' }}{% if p.rank %} <span class="muted">· {{ p.rank }}</span>{% endif %}</td>
+        <td data-label="ตำแหน่ง/วิทยฐานะ">{{ p.position or '-' }}{% if p.rank %} <span class="muted">{{ p.rank }}</span>{% endif %}</td>
         <td data-label="วันบรรจุ">{{ be_date(p.start_date) if p.start_date else '-' }}</td>
         <td data-label="สถานะ">{% if p.active %}<span class="pill" style="background:var(--brand-soft);color:var(--brand-dark);">ปฏิบัติงาน</span>{% else %}<span class="muted">พ้น/ย้าย</span>{% endif %}</td>
         <td data-label="หนังสือรับรอง" class="stack-full" style="white-space:nowrap;">

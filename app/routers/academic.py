@@ -782,7 +782,7 @@ async def lesson_plan_submit(request: Request, db: Session = Depends(get_db),
         if ext not in _PLAN_EXT:
             return RedirectResponse(
                 f"/academic/lesson-plans?err=ไฟล์ {f.filename} ไม่ใช่ไฟล์ Word (.docx) "
-                "ระบบต้องต่อหน้าบันทึกหลังสอนเข้าไปในไฟล์ จึงรับเฉพาะ Word · "
+                "ระบบต้องต่อหน้าบันทึกหลังสอนเข้าไปในไฟล์ จึงรับเฉพาะ Word "
                 "ถ้าเป็น .doc รุ่นเก่าหรือ PDF ให้เปิดใน Word แล้วบันทึกเป็น .docx ก่อน",
                 status_code=303)
         if len(data) > _PLAN_MAX:

@@ -55,18 +55,18 @@
 <div class="card" id="ledger">
   <h2>บัญชีรับ-จ่ายเงินอาหารกลางวัน</h2>
   {% if request.query_params.get('moved') is not none %}<div class="alert">✔ ย้าย {{ request.query_params.get('moved') }} รายการไปบัญชี {{ acc.name if acc else '' }} แล้ว</div>{% endif %}
-  {% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}{% if acc %} · <a href="/finance/accounts/{{ acc.id }}">ไปลงรับที่บัญชี {{ acc.name }}</a>{% endif %}</div>{% endif %}
+  {% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}{% if acc %} <a href="/finance/accounts/{{ acc.id }}">ไปลงรับที่บัญชี {{ acc.name }}</a>{% endif %}</div>{% endif %}
   {# เชื่อมกับทะเบียนคุมเงิน: การเงินลงรับก่อนเสมอ หน้านี้ดึงรายการรับจากบัญชีที่เลือกมาแสดงเอง (app/services/lunch_finance.py) #}
   {% if acc %}
-  <div class="lf-link">เชื่อมกับบัญชี <a href="/finance/accounts/{{ acc.id }}"><b>{{ acc.name }}</b></a> ในทะเบียนคุมเงิน ·
-    รายการรับให้การเงินลงที่บัญชีนั้น แล้วจะขึ้นที่นี่เอง (ป้าย "จากทะเบียนคุมเงิน") · รายการจ่ายจากรอบและงวดลงบัญชีนั้นให้อัตโนมัติ</div>
+  <div class="lf-link">เชื่อมกับบัญชี <a href="/finance/accounts/{{ acc.id }}"><b>{{ acc.name }}</b></a> ในทะเบียนคุมเงิน
+    รายการรับให้การเงินลงที่บัญชีนั้น แล้วจะขึ้นที่นี่เอง (ป้าย "จากทะเบียนคุมเงิน") รายการจ่ายจากรอบและงวดลงบัญชีนั้นให้อัตโนมัติ</div>
   {% else %}
-  <div class="lf-link lf-warn">ยังไม่ได้เลือกบัญชีเงินอาหารกลางวัน ·
+  <div class="lf-link lf-warn">ยังไม่ได้เลือกบัญชีเงินอาหารกลางวัน
     <a href="/lunch/{{ p.id }}/edit">เลือกบัญชีที่หน้าตั้งค่าโครงการ</a> แล้วรายการรับที่การเงินลงไว้จะขึ้นที่นี่เอง ไม่ต้องลงซ้ำ</div>
   {% endif %}
   {% if dups %}
   <div class="lf-dup"><b>อาจลงรับซ้ำ</b> (ยอดเท่ากัน วันที่ห่างกันไม่เกิน 7 วัน) ตรวจว่าเป็นเงินคนละก้อนหรือไม่:
-    <ul>{% for a, b in dups %}<li>{{ "{:,.2f}".format(a[2]) }} บาท · {{ thai_date(a[1]) }} "{{ a[0] }}" กับ {{ thai_date(b[1]) }} "{{ b[0] }}"</li>{% endfor %}</ul></div>
+    <ul>{% for a, b in dups %}<li>{{ "{:,.2f}".format(a[2]) }} บาท {{ thai_date(a[1]) }} "{{ a[0] }}" กับ {{ thai_date(b[1]) }} "{{ b[0] }}"</li>{% endfor %}</ul></div>
   {% endif %}
   <div style="display:flex; gap:24px; flex-wrap:wrap; margin-bottom:12px; font-size:16px;">
     <div>รับ: <b>{{ "{:,.2f}".format(totals['in']) }}</b></div>

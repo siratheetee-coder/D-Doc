@@ -3,7 +3,7 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">งานวิชาการ · การนิเทศภายใน</div>
+    <div class="hero-sub">งานวิชาการ การนิเทศภายใน</div>
     <span class="hero-title">แบบบันทึกการนิเทศการจัดการเรียนรู้</span>
     <div class="hero-meta">{{ school.name or "" }}</div>
   </div>
@@ -17,7 +17,7 @@
     <div class="row" style="align-items:flex-end;">
       <div style="flex:2;"><label>ครูผู้รับการนิเทศ *</label>
         <select name="person_id" required>
-          <option value=""> · เลือกครู · </option>
+          <option value=""> เลือกครู </option>
           {% for p in persons %}<option value="{{ p.id }}" {{ 'selected' if rec and rec.person_id==p.id }}>{{ p.name }}</option>{% endfor %}
         </select></div>
       <div><label>นิเทศครั้งที่</label><input name="round_no" value="{{ rec.round_no if rec else 1 }}" style="width:80px;"></div>
@@ -30,8 +30,8 @@
       <div><label>ชั้น</label><input name="grade_class" value="{{ rec.grade_class if rec else '' }}" placeholder="ป.3" style="width:90px;"></div>
     </div>
 
-    <h3 style="margin:16px 0 4px;">ตอนที่ 2 ประเมินสมรรถนะ (25 ข้อ · 4 ด้าน)</h3>
-    <p class="muted" style="font-size:13px; margin:0 0 8px;">5 = มากที่สุด · 4 = มาก · 3 = ปานกลาง · 2 = น้อย · 1 = น้อยที่สุด</p>
+    <h3 style="margin:16px 0 4px;">ตอนที่ 2 ประเมินสมรรถนะ (25 ข้อ 4 ด้าน)</h3>
+    <p class="muted" style="font-size:13px; margin:0 0 8px;">5 = มากที่สุด 4 = มาก 3 = ปานกลาง 2 = น้อย 1 = น้อยที่สุด</p>
     <div class="table-wrap">
     <table class="rate-tbl">
       <thead><tr><th>ที่</th><th style="text-align:left;">รายการ</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th></tr></thead>

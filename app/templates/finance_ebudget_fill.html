@@ -3,7 +3,7 @@
 {% block content %}
 <div class="hero" style="background:linear-gradient(120deg,#15803d,#16a34a 55%,#4ade80); box-shadow:0 10px 26px rgba(22,163,74,.28);">
   <div>
-    <div class="hero-sub">ปีงบ {{ fiscal_year }} · ครั้งที่ {{ round }} · {{ label }}</div>
+    <div class="hero-sub">ปีงบ {{ fiscal_year }} ครั้งที่ {{ round }} {{ label }}</div>
     <span class="hero-title">เติมหมวด e-Budget</span>
     <div class="hero-meta">{{ rows|length }} รายการ{{ ' (ทั้งหมดในงวด)' if show_all else ' ที่ต้องระบุหมวด' }}</div>
   </div>
@@ -19,7 +19,7 @@
 <div class="alert info">
   <svg class="icon"><use href="#ic-info"/></svg>
   <span><b>ระบบเลือกหมวดให้ไว้แล้ว</b> จากข้อความในรายการ หมวดงบ และโครงการที่ผูกไว้
-    ตรวจทานแล้วแก้เฉพาะที่ไม่ตรง จากนั้นกดบันทึกครั้งเดียว ·
+    ตรวจทานแล้วแก้เฉพาะที่ไม่ตรง จากนั้นกดบันทึกครั้งเดียว
     รายการที่ระบบเลือกให้ไม่ได้ จะขึ้นว่า "โปรดระบุหมวดเอง"</span>
 </div>
 
@@ -38,8 +38,8 @@
             <div class="muted" style="font-size:12.5px;">{{ 'จ่าย' if r.t.kind == 'out' else 'รับ' }}</div></td>
           <td>{{ r.t.note or r.t.category or '-' }}
             <div class="muted" style="font-size:12.5px;">
-              {{ r.account }}{% if r.item %} · {{ r.item }}{% endif %}{% if r.project %} · โครงการ{{ r.project }}{% endif %}
-              {%- if r.t.ref %} · {{ r.t.ref }}{% endif %}</div></td>
+              {{ r.account }}{% if r.item %} {{ r.item }}{% endif %}{% if r.project %} โครงการ{{ r.project }}{% endif %}
+              {%- if r.t.ref %} {{ r.t.ref }}{% endif %}</div></td>
           <td class="right">{{ "{:,.2f}".format(r.t.amount or 0) }}</td>
           <td>
             <select name="eb_{{ r.t.id }}" style="width:100%;">
@@ -77,7 +77,7 @@
 {% else %}
 <div class="card">
   <div class="alert"><svg class="icon"><use href="#ic-check"/></svg>
-    <span>ระบุหมวดครบทุกรายการในงวดนี้แล้ว · กลับไปหน้ารายงานเพื่อคัดลอกตัวเลขได้เลย</span></div>
+    <span>ระบุหมวดครบทุกรายการในงวดนี้แล้ว กลับไปหน้ารายงานเพื่อคัดลอกตัวเลขได้เลย</span></div>
 </div>
 {% endif %}
 {% endblock %}

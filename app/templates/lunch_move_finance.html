@@ -3,11 +3,11 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">อาหารกลางวัน · ปีการศึกษา {{ p.year }}</div>
+    <div class="hero-sub">อาหารกลางวัน ปีการศึกษา {{ p.year }}</div>
     <span class="hero-title">ย้ายรายการไปบัญชี {{ acc.name }}</span>
   </div>
 </div>
-{# ยืนยันก่อนย้าย บอกจำนวนและยอด (เจ้าของกำหนด) · ย้ายเฉพาะรายการที่หน้าอาหารกลางวันโครงการนี้คัดลอกไปเอง #}
+{# ยืนยันก่อนย้าย บอกจำนวนและยอด (เจ้าของกำหนด) ย้ายเฉพาะรายการที่หน้าอาหารกลางวันโครงการนี้คัดลอกไปเอง #}
 <div class="card mv-card">
   <p style="margin-top:0;">หน้าอาหารกลางวันเคยคัดลอกรายการรับ-จ่ายของโครงการนี้ไปไว้ที่
     <b>{{ pv.from_names|join(', ') or 'บัญชีอื่น' }}</b> ในทะเบียนคุมเงิน
@@ -30,7 +30,7 @@
     <button class="btn" type="submit">ย้าย {{ pv.n }} รายการ และใช้บัญชี {{ acc.name }}</button>
     <a class="btn gray" href="/lunch/{{ p.id }}">ยกเลิก{% if current %} ใช้บัญชี {{ current.name }} ต่อ{% endif %}</a>
   </form>
-  <p class="muted" style="font-size:13px; margin:10px 0 0;">ข้อมูลไม่หาย แค่ย้ายบัญชี · ส่วนอื่นที่บันทึกในหน้าตั้งค่า (นักเรียน อัตรา ฯลฯ) บันทึกแล้ว</p>
+  <p class="muted" style="font-size:13px; margin:10px 0 0;">ข้อมูลไม่หาย แค่ย้ายบัญชี ส่วนอื่นที่บันทึกในหน้าตั้งค่า (นักเรียน อัตรา ฯลฯ) บันทึกแล้ว</p>
 </div>
 <style>
   .mv-card{ background:linear-gradient(120deg,#fff7ed,#fffbeb); }

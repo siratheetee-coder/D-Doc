@@ -3,9 +3,9 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">งานวิชาการ · จัดครูผู้สอน</div>
+    <div class="hero-sub">งานวิชาการ จัดครูผู้สอน</div>
     <span class="hero-title">จัดครูเข้าสอน (รายครู)</span>
-    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+    <div class="hero-meta">{{ school.name or "" }} ปีการศึกษา {{ year }}</div>
   </div>
 </div>
 
@@ -19,7 +19,7 @@
       </select></div>
     <div style="flex:1; min-width:220px;"><label>เลือกครู</label>
       <select name="pid" onchange="this.form.submit()">
-        <option value=""> · เลือกครูที่ต้องการจัดวิชา · </option>
+        <option value=""> เลือกครูที่ต้องการจัดวิชา </option>
         {% for t in teachers %}<option value="{{ t.id }}" {{ 'selected' if t.id==pid }}>{{ t.name }}</option>{% endfor %}
       </select></div>
   </form>
@@ -33,7 +33,7 @@
     <input type="hidden" name="pid" value="{{ pid }}">
     {% for b in blocks %}
     <div class="card">
-      <h2 style="margin-top:0;">ชั้น {{ b.level }} <span class="muted" style="font-size:14px;">({{ b.rooms|length }} ห้อง · {{ b.subs|length }} วิชา)</span></h2>
+      <h2 style="margin-top:0;">ชั้น {{ b.level }} <span class="muted" style="font-size:14px;">({{ b.rooms|length }} ห้อง {{ b.subs|length }} วิชา)</span></h2>
       <div class="table-wrap">
       <table class="assign-tbl">
         <thead>
@@ -59,7 +59,7 @@
             {% for r in b.rooms %}
               {% set t = cur.get((r.id, s.id)) %}
               {% if t and t.id != pid %}
-              <td class="cell has-other" title="วิชานี้มีครูอยู่แล้ว · เอาครูออกที่หน้าของ {{ t.name }} ก่อน">
+              <td class="cell has-other" title="วิชานี้มีครูอยู่แล้ว เอาครูออกที่หน้าของ {{ t.name }} ก่อน">
                 <div class="other">🔒 {{ t.name }}</div>
               </td>
               {% else %}
@@ -81,7 +81,7 @@
     </div>
   </form>
   {% else %}
-  <div class="card"><p class="muted" style="margin:0;">ปีนี้ยังไม่มีห้องเรียนหรือรายวิชา · <a href="/academic/classes">สร้างห้องเรียน</a> และ <a href="/academic/subjects">สร้างรายวิชา</a> ก่อน</p></div>
+  <div class="card"><p class="muted" style="margin:0;">ปีนี้ยังไม่มีห้องเรียนหรือรายวิชา <a href="/academic/classes">สร้างห้องเรียน</a> และ <a href="/academic/subjects">สร้างรายวิชา</a> ก่อน</p></div>
   {% endif %}
 {% else %}
 <div class="card"><p class="muted" style="margin:0;">เลือกครูด้านบนเพื่อเริ่มจัดวิชาที่สอน</p></div>
@@ -106,7 +106,7 @@
 {% if teacher and blocks %}
 <script>
   (function(){
-    // ติ๊กหัวคอลัมน์ = ทุกวิชาของห้องนั้น (เฉพาะช่องที่ยังจัดได้ · ช่องที่ล็อกไม่มี checkbox อยู่แล้ว)
+    // ติ๊กหัวคอลัมน์ = ทุกวิชาของห้องนั้น (เฉพาะช่องที่ยังจัดได้ ช่องที่ล็อกไม่มี checkbox อยู่แล้ว)
     document.querySelectorAll('.colall').forEach(function(master){
       master.addEventListener('change', function(){
         document.querySelectorAll('.cellchk[data-col="'+master.dataset.col+'"]').forEach(function(c){

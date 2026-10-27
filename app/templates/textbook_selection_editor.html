@@ -12,11 +12,11 @@
       <div><label for="catalog-publication">ปี / รอบที่เผยแพร่</label><select id="catalog-publication"><option value="">ทุกปี / ทุกรอบ</option></select></div>
       <div style="align-self:end"><button class="btn" type="button" id="catalog-search">ค้นหาหนังสือ</button> <button class="btn gray" type="button" id="catalog-refresh">ดึงข้อมูลล่าสุด</button></div>
     </div>
-    <p class="muted">ผลค้นหาปกติอาจเก็บไว้ไม่เกิน 5 นาที · กดดึงข้อมูลล่าสุดเพื่ออ่านต้นทางใหม่ รวมปี/รอบใหม่ที่เผยแพร่แล้ว ราคาของรายการที่บันทึกไว้จะไม่เปลี่ยนอัตโนมัติ</p>
+    <p class="muted">ผลค้นหาปกติอาจเก็บไว้ไม่เกิน 5 นาที กดดึงข้อมูลล่าสุดเพื่ออ่านต้นทางใหม่ รวมปี/รอบใหม่ที่เผยแพร่แล้ว ราคาของรายการที่บันทึกไว้จะไม่เปลี่ยนอัตโนมัติ</p>
     <p id="catalog-status" role="status" aria-live="polite"></p>
     <div id="catalog-results"></div>
     <div style="display:flex;gap:10px;margin-top:12px"><button class="btn sm gray" type="button" id="catalog-prev" hidden>หน้าก่อน</button><button class="btn sm gray" type="button" id="catalog-next" hidden>หน้าถัดไป</button></div>
-    <p><a id="catalog-source" href="http://202.29.173.190/textbook/web/index.php" target="_blank" rel="noopener noreferrer">เปิดฐานข้อมูลต้นทาง ↗</a> · หากไม่พบหนังสือ สามารถเพิ่มรายการเองด้านล่าง</p>
+    <p><a id="catalog-source" href="http://202.29.173.190/textbook/web/index.php" target="_blank" rel="noopener noreferrer">เปิดฐานข้อมูลต้นทาง ↗</a> หากไม่พบหนังสือ สามารถเพิ่มรายการเองด้านล่าง</p>
   </details>
   <input type="hidden" name="selection_editor" value="1">
   <div class="table-wrap"><table style="min-width:1050px">
@@ -43,7 +43,7 @@
   const totals = () => {
     const rows = [...body.rows].filter(row => row.querySelector('[data-field=selected]').checked && row.querySelector('[data-field=title]').value.trim());
     const amount = rows.reduce((sum,row) => sum + Number(row.querySelector('[data-field=price]').value || 0) * Number(row.querySelector('[data-field=qty]').value || 0), 0);
-    document.getElementById('selection-total').textContent = `คัดเลือก ${rows.length} รายการ · รวม ${amount.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})} บาท`;
+    document.getElementById('selection-total').textContent = `คัดเลือก ${rows.length} รายการ รวม ${amount.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})} บาท`;
   };
   function addRow(item={}, notify=true) {
     const row = document.createElement('tr');
@@ -95,8 +95,8 @@
           select.value=selected;
         }
       }
-      status.textContent=data.items.length?`หน้า ${page} / ${maxPage} · ${data.items.length} รายการ`:'ไม่พบรายการ ลองเปลี่ยนคำค้นหรือเพิ่มรายการเอง';
-      if(data.fetched_at) status.textContent+=' · ดึงข้อมูล '+new Date(data.fetched_at*1000).toLocaleString('th-TH');
+      status.textContent=data.items.length?`หน้า ${page} / ${maxPage} ${data.items.length} รายการ`:'ไม่พบรายการ ลองเปลี่ยนคำค้นหรือเพิ่มรายการเอง';
+      if(data.fetched_at) status.textContent+=' ดึงข้อมูล '+new Date(data.fetched_at*1000).toLocaleString('th-TH');
       document.getElementById('catalog-source').href=data.source_url;
       for (const item of data.items) {
         const card=document.createElement('div'); card.style.cssText='padding:12px;border-bottom:1px solid #e2e8f0;display:flow-root';
@@ -110,7 +110,7 @@
         }
         card.appendChild(cover);
         const title=document.createElement('strong'); title.textContent=item.title; card.appendChild(title);
-        const info=document.createElement('p'); info.textContent=[item.source_level,item.subject,item.publisher,item.publication,`${item.price} บาท`].filter(Boolean).join(' · '); card.appendChild(info);
+        const info=document.createElement('p'); info.textContent=[item.source_level,item.subject,item.publisher,item.publication,`${item.price} บาท`].filter(Boolean).join(' '); card.appendChild(info);
         const add=document.createElement('button'); add.type='button'; add.className='btn sm'; add.textContent='+ เพิ่มเพื่อคัดเลือก';
         add.addEventListener('click',()=>{
           if ([...body.querySelectorAll('[data-field=source_id]')].some(el=>el.value===item.source_id && el.closest('tr').querySelector('[data-field=level]').value===(item.level||document.getElementById('catalog-level').value))) { status.textContent='มีหนังสือรายการนี้ในชั้นที่เลือกแล้ว'; return; }

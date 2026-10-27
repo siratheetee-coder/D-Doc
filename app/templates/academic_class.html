@@ -3,7 +3,7 @@
 {% block content %}
 <script>
     function ntGo(url){
-      var o = {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน · หมู่เลือด · โรคประจำตัว · ที่อยู่ · ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'};
+      var o = {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน หมู่เลือด โรคประจำตัว ที่อยู่ ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'};
       try{ if(localStorage.getItem(o.key)==='1'){ window.location=url; return; } }catch(e){}
       ntShow(o, function(dontRemind){
         if(dontRemind){ try{ localStorage.setItem(o.key,'1'); }catch(e){} }
@@ -12,11 +12,11 @@
 </script>
 <div class="hero">
   <div>
-    <div class="hero-sub">งานวิชาการ · ห้องเรียน</div>
+    <div class="hero-sub">งานวิชาการ ห้องเรียน</div>
     <span class="hero-title">ห้อง {{ class_label }}</span>
-    <div class="hero-meta">ปีการศึกษา {{ c.year }} ·
-      ครูประจำชั้น {{ c.homeroom.name if c.homeroom else '-' }}{% if c.co_homeroom %} · ครูคู่ชั้น {{ c.co_homeroom.name }}{% endif %}
-      · {{ 'ตัดสินรายภาค (มัธยม)' if is_sec else 'ตัดสินรายปี (ประถม)' }}</div>
+    <div class="hero-meta">ปีการศึกษา {{ c.year }}
+      ครูประจำชั้น {{ c.homeroom.name if c.homeroom else '-' }}{% if c.co_homeroom %} ครูคู่ชั้น {{ c.co_homeroom.name }}{% endif %}
+      {{ 'ตัดสินรายภาค (มัธยม)' if is_sec else 'ตัดสินรายปี (ประถม)' }}</div>
   </div>
 </div>
 
@@ -83,7 +83,7 @@
 {% if not is_teacher and is_kinder %}
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-star"/></svg> ระดับปฐมวัย</h2>
-  <p class="muted" style="margin:4px 0 10px;">ชั้นอนุบาลไม่ได้ตัดสินผลเป็นรายวิชา จึงไม่มี ปพ.5 / ปพ.6 · ใช้ <b>สมุดรายงานประจำตัวนักเรียน (สมุดพกอนุบาล)</b> ประเมินพัฒนาการ 4 ด้านแทน</p>
+  <p class="muted" style="margin:4px 0 10px;">ชั้นอนุบาลไม่ได้ตัดสินผลเป็นรายวิชา จึงไม่มี ปพ.5 / ปพ.6 ใช้ <b>สมุดรายงานประจำตัวนักเรียน (สมุดพกอนุบาล)</b> ประเมินพัฒนาการ 4 ด้านแทน</p>
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <a class="btn" href="/academic/kinder?cid={{ c.id }}"><svg class="icon"><use href="#ic-edit"/></svg> กรอกผลประเมินพัฒนาการ</a>
     <a class="btn soft" href="/academic/attendance?mode=overall&cid={{ c.id }}"><svg class="icon"><use href="#ic-clock"/></svg> บันทึกเวลาเรียน</a>
@@ -92,9 +92,9 @@
 {% elif not is_teacher %}
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-users"/></svg> ครูผู้สอนรายวิชาของห้องนี้</h2>
-  <p class="muted" style="font-size:13px; margin:4px 0 8px;">กำหนดแยกรายห้องได้ - วิชาเดียวกันคนละห้องใช้คนละครูได้ · ชื่อนี้จะไปลงนามท้าย ปพ.5</p>
+  <p class="muted" style="font-size:13px; margin:4px 0 8px;">กำหนดแยกรายห้องได้ - วิชาเดียวกันคนละห้องใช้คนละครูได้ ชื่อนี้จะไปลงนามท้าย ปพ.5</p>
   {% if subjects %}
-  <p class="muted" style="font-size:13px; margin:0 0 8px;">พิมพ์ชื่อครูเพื่อค้นหา แล้วเลือกจากรายการ (หรือพิมพ์เต็มชื่อ) · เว้นว่าง = ไม่มีครู</p>
+  <p class="muted" style="font-size:13px; margin:0 0 8px;">พิมพ์ชื่อครูเพื่อค้นหา แล้วเลือกจากรายการ (หรือพิมพ์เต็มชื่อ) เว้นว่าง = ไม่มีครู</p>
   <form method="post" action="/academic/classes/{{ c.id }}/teaching">
     <datalist id="teachers-dl">
       {% for t in teachers %}<option value="{{ t.name }}"></option>{% endfor %}
@@ -135,9 +135,9 @@
       <div style="font-weight:600; margin-bottom:6px;">ทั้งห้อง</div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <a class="btn soft" href="/academic/kinder/class/{{ c.id }}/book.docx"
-           onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน · หมู่เลือด · โรคประจำตัว · ที่อยู่ · ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-file"/></svg> สมุดพกนักเรียน (ทั้งห้อง)</a>
+           onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน หมู่เลือด โรคประจำตัว ที่อยู่ ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-file"/></svg> สมุดพกนักเรียน (ทั้งห้อง)</a>
         <a class="btn soft" href="/academic/kinder/class/{{ c.id }}/teacher-book.docx"
-           onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน · หมู่เลือด · โรคประจำตัว · ที่อยู่ · ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-clipboard"/></svg> สมุดบันทึกของครู (บัญชีเรียกชื่อ)</a>
+           onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน หมู่เลือด โรคประจำตัว ที่อยู่ ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-clipboard"/></svg> สมุดบันทึกของครู (บัญชีเรียกชื่อ)</a>
         <a class="btn" href="/academic/kinder?cid={{ c.id }}"><svg class="icon"><use href="#ic-edit"/></svg> ไปกรอกผลประเมินพัฒนาการ</a>
       </div>
     </div>
@@ -174,7 +174,7 @@
         <a class="btn soft" href="/academic/classes/{{ c.id }}/pp5-book.docx"><svg class="icon"><use href="#ic-file"/></svg> ปพ.5 ทั้งเล่ม</a>
         {% endif %}
         <a class="btn soft" href="/academic/classes/{{ c.id }}/pp6-all.docx"
-           onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน · หมู่เลือด · โรคประจำตัว · ที่อยู่ · ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-file"/></svg> สมุดรายงาน ปพ.6 (ทั้งห้อง)</a>
+           onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน หมู่เลือด โรคประจำตัว ที่อยู่ ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-file"/></svg> สมุดรายงาน ปพ.6 (ทั้งห้อง)</a>
       </div>
     </div>
     {% endif %}

@@ -42,7 +42,7 @@
   <div class="warn">ยอดยังไม่ตรง ต่างกัน {{ "{:,.2f}".format(d.check) }} บาท กรุณาตรวจทะเบียนคุมเงินก่อนกรอกในเว็บ e-Budget</div>
   {% endif %}
   {% if d.missing or d.income_missing %}
-  <div class="warn">ยังระบุหมวดไม่ครบ: รายจ่าย {{ d.missing|length }} รายการ · รายรับ {{ d.income_missing|length }} รายการ
+  <div class="warn">ยังระบุหมวดไม่ครบ: รายจ่าย {{ d.missing|length }} รายการ รายรับ {{ d.income_missing|length }} รายการ
     (ยอดเหล่านี้ยังไม่อยู่ในส่วนที่ 3 / 4)</div>
   {% endif %}
 

@@ -24,7 +24,7 @@
 <div class="card">
   <h1 style="margin:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> ตัวช่วยจัดซื้อจัดจ้าง</h1>
   <p class="muted" style="margin:8px 0 0;">ตอบคำถามทีละข้อ ระบบจะแนะนำรูปแบบเอกสารที่ตรงกับเรื่องของคุณ
-    พร้อมบอกเหตุผลและระเบียบที่อ้างอิง · <a href="/procurement/new">เลือกรูปแบบเองแทน</a></p>
+    พร้อมบอกเหตุผลและระเบียบที่อ้างอิง <a href="/procurement/new">เลือกรูปแบบเองแทน</a></p>
 </div>
 
 <div class="card" id="wz">
@@ -95,9 +95,9 @@
     const r = RESULTS[key];
     const c = carried();
     let html = `<div class="wz-result">`;
-    if (r.dev) html += `<span class="wz-badge">${r.out_of_scope ? 'อยู่นอกขอบเขตระบบ · ' : ''}อยู่ระหว่างการพัฒนา</span>`;
+    if (r.dev) html += `<span class="wz-badge">${r.out_of_scope ? 'อยู่นอกขอบเขตระบบ ' : ''}อยู่ระหว่างการพัฒนา</span>`;
     html += `<p class="muted" style="margin:0;">ระบบแนะนำ</p><h2>${esc(r.title)}</h2>`;
-    if (c.amount) html += `<p style="margin:0 0 6px;">วงเงิน <b>${money(c.amount)}</b> บาท${c.proc_type ? ` · งาน<b>${esc(c.proc_type)}</b>` : ''}</p>`;
+    if (c.amount) html += `<p style="margin:0 0 6px;">วงเงิน <b>${money(c.amount)}</b> บาท${c.proc_type ? ` งาน<b>${esc(c.proc_type)}</b>` : ''}</p>`;
     html += `<p style="line-height:1.7;">${esc(r.why)}</p>`;
     if (r.warn) html += `<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg><div>${esc(r.warn)}</div></div>`;
     if (r.alt) html += `<p class="muted">${esc(r.alt)}</p>`;

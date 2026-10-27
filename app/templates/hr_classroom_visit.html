@@ -3,7 +3,7 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">งานวิชาการ · การนิเทศภายใน</div>
+    <div class="hero-sub">งานวิชาการ การนิเทศภายใน</div>
     <span class="hero-title">แบบการเยี่ยมชั้นเรียน</span>
     <div class="hero-meta">{{ school.name or "" }}</div>
   </div>
@@ -17,7 +17,7 @@
     <div class="row" style="align-items:flex-end;">
       <div style="flex:2;"><label>ครูผู้รับผิดชอบชั้นเรียน *</label>
         <select name="person_id" required>
-          <option value=""> · เลือกครู · </option>
+          <option value=""> เลือกครู </option>
           {% for p in persons %}<option value="{{ p.id }}" {{ 'selected' if rec and rec.person_id==p.id }}>{{ p.name }}</option>{% endfor %}
         </select></div>
       <div><label>ภาคเรียน</label><input name="term" value="{{ rec.term if rec else 1 }}" style="width:70px;"></div>
@@ -36,7 +36,7 @@
     </div>
 
     <h3 style="margin:16px 0 4px;">ตอนที่ 2 การประเมิน (10 ข้อ)</h3>
-    <p class="muted" style="font-size:13px; margin:0 0 8px;">5 = ดีมาก · 4 = ดี · 3 = ปานกลาง · 2 = พอใช้ · 1 = ควรปรับปรุง</p>
+    <p class="muted" style="font-size:13px; margin:0 0 8px;">5 = ดีมาก 4 = ดี 3 = ปานกลาง 2 = พอใช้ 1 = ควรปรับปรุง</p>
     <div class="table-wrap">
     <table class="rate-tbl">
       <thead><tr><th>ที่</th><th style="text-align:left;">รายการ</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th></tr></thead>

@@ -53,7 +53,7 @@
             <div id="marker" style="position:absolute; width:10px; height:10px; margin:-5px 0 0 -5px; border-radius:50%; background:#e11; box-shadow:0 0 0 2px #fff; left:50%; top:45%; pointer-events:none;"></div>
             <div id="markerCert" style="position:absolute; width:10px; height:10px; margin:-5px 0 0 -5px; border-radius:50%; background:#2563eb; box-shadow:0 0 0 2px #fff; left:50%; top:85%; pointer-events:none; display:none;"></div>
           </div>
-          <p class="muted" style="margin:6px 0 0; font-size:13px;">ลากข้อความเพื่อย้าย · เลื่อนแถบเพื่อปรับขนาดทันที · ใช้ปุ่มลูกศรขยับละเอียด (Shift เพื่อขยับเร็ว) · ข้อความเสริมเคลื่อนตามชื่อ</p>
+          <p class="muted" style="margin:6px 0 0; font-size:13px;">ลากข้อความเพื่อย้าย เลื่อนแถบเพื่อปรับขนาดทันที ใช้ปุ่มลูกศรขยับละเอียด (Shift เพื่อขยับเร็ว) ข้อความเสริมเคลื่อนตามชื่อ</p>
         </div>
       </div>
     </div>
@@ -97,14 +97,14 @@
           <div id="certNoOpts" style="display:none; margin-top:8px;" class="row">
             <div><label>คำนำหน้าเลข</label><input name="cert_no_prefix" id="cert_no_prefix" placeholder="เช่น กช." oninput="preview()" style="width:120px;"></div>
             <div><label>ขนาดเลข</label><input name="cert_no_size" id="cert_no_size" type="number" min="8" max="80" value="26" oninput="preview()" style="width:90px;"></div>
-            <div style="flex:2; display:flex; align-items:flex-end;"><span class="muted" style="font-size:13px;">รันต่อเนื่องทั้งโรงเรียนต่อปี เช่น <b>กช.0001/2569</b> · กดปุ่ม "ตำแหน่งเลขที่" ด้านซ้ายแล้วคลิกบนรูปเพื่อวาง</span></div>
+            <div style="flex:2; display:flex; align-items:flex-end;"><span class="muted" style="font-size:13px;">รันต่อเนื่องทั้งโรงเรียนต่อปี เช่น <b>กช.0001/2569</b> กดปุ่ม "ตำแหน่งเลขที่" ด้านซ้ายแล้วคลิกบนรูปเพื่อวาง</span></div>
           </div>
         </div>
       </div>
 
       <div class="card">
         <h2>3) รายชื่อ <span class="muted" style="font-size:14px;">(1 ชื่อ/บรรทัด)</span>
-          <span id="nameCount" style="font-size:14px; color:var(--brand,#2563eb); font-weight:600;">· 0 ชื่อ</span></h2>
+          <span id="nameCount" style="font-size:14px; color:var(--brand,#2563eb); font-weight:600;">0 ชื่อ</span></h2>
         <!-- ดึงรายชื่อจากทะเบียนกลาง: เลือกชั้น/ห้อง แล้วติ๊กเลือกนักเรียน -->
         <div style="border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:10px; background:#f8fafc;">
           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -307,7 +307,7 @@
   // ---- นับจำนวนชื่อ + ล้างรายชื่อ ----
   function updateCount(){
     var n = document.getElementById('names').value.split('\n').map(function(s){return s.trim();}).filter(Boolean).length;
-    var el = document.getElementById('nameCount'); if(el) el.textContent = '· ' + n + ' ชื่อ';
+    var el = document.getElementById('nameCount'); if(el) el.textContent = '' + n + ' ชื่อ';
   }
   function onNamesInput(){ preview(); updateCount(); }
   function clearNames(){

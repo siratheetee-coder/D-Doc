@@ -106,7 +106,7 @@
       <div><label>ภาษีหัก ณ ที่จ่าย (%)</label>
         <input name="wht_rate" type="number" step="0.01" min="0" value="{{ '%g'|format(p.wht_rate) if is_edit and p.wht_rate else '0' }}" list="whtList">
         <datalist id="whtList"><option value="1"><option value="3"><option value="5"></datalist>
-        <span class="muted" style="font-size:12px;">งานจ้าง/บริการ เช่น 1% (จ้างทำของ), 3% (บริการ) · ซื้อสินค้าใส่ 0</span>
+        <span class="muted" style="font-size:12px;">งานจ้าง/บริการ เช่น 1% (จ้างทำของ), 3% (บริการ) ซื้อสินค้าใส่ 0</span>
       </div>
       <div><label>ผู้ลงนามในใบสั่งซื้อ/จ้าง</label>
         <select name="order_signer">
@@ -208,7 +208,7 @@
         <span class="muted" id="modeHint"></span>
       </div>
     </div>
-    <p class="muted" style="margin:-4px 0 10px;">บทบาท: ระบบเลือกให้อัตโนมัติ (คนเดียว = ผู้ตรวจรับ · หลายคน = ประธาน/กรรมการ/กรรมการและเลขานุการ) - <b>เปลี่ยนเองได้</b></p>
+    <p class="muted" style="margin:-4px 0 10px;">บทบาท: ระบบเลือกให้อัตโนมัติ (คนเดียว = ผู้ตรวจรับ หลายคน = ประธาน/กรรมการ/กรรมการและเลขานุการ) - <b>เปลี่ยนเองได้</b></p>
     {% set roles = ["ผู้ตรวจรับ", "ประธานกรรมการ", "กรรมการ", "กรรมการและเลขานุการ"] %}
     <div class="table-wrap"><table id="members">
       <thead><tr><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th style="width:190px;">บทบาท</th><th></th></tr></thead>
@@ -285,7 +285,7 @@
     <br><button type="button" class="btn soft sm" id="addSpecBtn" onclick="addSpecMember()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มกรรมการคุณลักษณะ</button>
 
     <h2 style="margin-top:24px;">ข้อมูลสำหรับ TOR / รายละเอียดคุณลักษณะเฉพาะ</h2>
-    <p class="muted" style="margin:-8px 0 12px;">ใช้ในเอกสารขอบเขตของงาน (TOR) ข้อ 2 ข้อ 5 และข้อ 9 ·
+    <p class="muted" style="margin:-8px 0 12px;">ใช้ในเอกสารขอบเขตของงาน (TOR) ข้อ 2 ข้อ 5 และข้อ 9
       เว้นไว้ก็ได้ ระบบใส่ค่าที่ใช้กันทั่วไปให้</p>
     <div class="row">
       <div style="flex:1; min-width:260px;"><label>วัตถุประสงค์ <span class="muted" style="font-size:13px;">(เว้นว่าง = ใช้เหตุผลความจำเป็น)</span></label>
@@ -304,7 +304,7 @@
     </div>
 
     <h2 style="margin-top:24px;">คณะกรรมการซื้อ/จ้าง</h2>
-    <p class="muted" style="margin:-8px 0 12px;">ไม่บังคับ · ถ้าไม่กรอก ถือว่าเจ้าหน้าที่พัสดุดำเนินการเอง (ปกติของวิธีเฉพาะเจาะจง) ·
+    <p class="muted" style="margin:-8px 0 12px;">ไม่บังคับ ถ้าไม่กรอก ถือว่าเจ้าหน้าที่พัสดุดำเนินการเอง (ปกติของวิธีเฉพาะเจาะจง)
       ถ้ากรอก ระบบจะออก <b>คำสั่งแต่งตั้งคณะกรรมการซื้อ/จ้าง</b> ให้ และในรายงานผลการพิจารณาจะระบุว่าคณะกรรมการเป็นผู้เจรจาตกลงราคา</p>
     <div class="table-wrap"><table id="purchasemembers">
       <thead><tr><th>ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th style="width:190px;">บทบาท</th><th></th></tr></thead>
@@ -616,7 +616,7 @@
   });
 </script>
 <script>
-  /* ข้อ 21 เลือกได้ 2 ทาง · มอบหมายคนเดียวไม่ต้องโชว์ปุ่มเพิ่มกรรมการ
+  /* ข้อ 21 เลือกได้ 2 ทาง มอบหมายคนเดียวไม่ต้องโชว์ปุ่มเพิ่มกรรมการ
      และเหลือแถวเดียวพอ (ระบบตัดชื่อที่เกินออกตอนบันทึกอยู่แล้ว) */
   (function(){
     var sel = document.getElementById('specMode');

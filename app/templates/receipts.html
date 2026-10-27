@@ -63,17 +63,17 @@
       </tr>
       <tr><td colspan="7" style="background:#f8fafc;white-space:normal;">
       {% if r.txn %}
-        <p><strong style="color:#15803d">เชื่อมรายการ{{ 'จ่าย' if r.kind=='จ่าย' else 'รับ' }}แล้ว</strong> · <a href="/finance/accounts/{{ r.txn.account_id }}?year={{ r.txn.fiscal_year }}">ดูรายการเงินจริง #{{ r.txn.id }} · {{ r.txn.ref or '-' }}</a></p>
+        <p><strong style="color:#15803d">เชื่อมรายการ{{ 'จ่าย' if r.kind=='จ่าย' else 'รับ' }}แล้ว</strong> <a href="/finance/accounts/{{ r.txn.account_id }}?year={{ r.txn.fiscal_year }}">ดูรายการเงินจริง #{{ r.txn.id }} {{ r.txn.ref or '-' }}</a></p>
         <form method="post" action="/finance/receipts/{{ r.id }}/link" onsubmit="return confirm('ยกเลิกเฉพาะการเชื่อม เอกสารและรายการเงินจริงยังอยู่ ยืนยันหรือไม่?')"><button class="btn sm gray" name="mode" value="unlink">ยกเลิกการเชื่อม (เก็บรายการเงินจริง)</button></form>
       {% else %}
         <details open><summary style="cursor:pointer;padding:8px 0;"><strong style="color:#b45309">ยังไม่เชื่อมรายการรับ–จ่าย</strong></summary>
         <p>หากเคยบันทึก{{ 'จ่าย' if r.kind=='จ่าย' else 'รับ' }}เงินไว้แล้ว ให้ <strong>เชื่อมรายการ{{ 'จ่าย' if r.kind=='จ่าย' else 'รับ' }}ที่บันทึกไว้แล้ว</strong> กับเอกสารนี้ โดยไม่ลงเงินซ้ำ</p>
         {% if choices[r.id] %}
           <form method="post" action="/finance/receipts/{{ r.id }}/link" onsubmit="return confirm('ยืนยันว่าเป็นเงินรับหรือจ่ายครั้งเดียวกับเอกสารนี้?')">
-            <select name="txn_id" required><option value="">— เลือกรายการเดิม —</option>{% for t in choices[r.id] %}<option value="{{ t.id }}">#{{ t.id }} · {{ thai_date(t.date) if t.date else '-' }} · {{ t.ref or '-' }} · {{ t.note or t.category }} · {{ '{:,.2f}'.format(t.amount) }} บาท</option>{% endfor %}</select>
+            <select name="txn_id" required><option value="">— เลือกรายการเดิม —</option>{% for t in choices[r.id] %}<option value="{{ t.id }}">#{{ t.id }} {{ thai_date(t.date) if t.date else '-' }} {{ t.ref or '-' }} {{ t.note or t.category }} {{ '{:,.2f}'.format(t.amount) }} บาท</option>{% endfor %}</select>
             <p><button class="btn sm" type="submit">เชื่อมรายการ{{ 'จ่าย' if r.kind=='จ่าย' else 'รับ' }}ที่บันทึกไว้แล้ว</button></p>
           </form>
-        {% else %}<p class="muted">ยังไม่พบรายการที่ตรงกัน ต้องเป็นบัญชี ปี ประเภทรับ/จ่าย และยอดตรงกัน และยังไม่เชื่อมเอกสารอื่น · <a href="/finance/accounts?year={{ r.fiscal_year }}">ไปหน้ารับ–จ่าย</a></p>{% endif %}
+        {% else %}<p class="muted">ยังไม่พบรายการที่ตรงกัน ต้องเป็นบัญชี ปี ประเภทรับ/จ่าย และยอดตรงกัน และยังไม่เชื่อมเอกสารอื่น <a href="/finance/accounts?year={{ r.fiscal_year }}">ไปหน้ารับ–จ่าย</a></p>{% endif %}
         </details>
       {% endif %}
       </td></tr>

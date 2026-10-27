@@ -1822,7 +1822,7 @@ PROC_CASES = {
                "desc": "ซื้อของ/วัสดุ/ครุภัณฑ์ จ่ายไปก่อนได้ แล้วรายงานผลภายใน 5 วันทำการ เอกสารใบเดียวจบ"},
     "w119t2": {"label": "ว.119 ตาราง 2 (ไม่ถือเป็นการจัดซื้อจัดจ้าง)", "altkind": "w119t2",
                "short": "ค่าบริหารงาน/ฝึกอบรม",
-               "desc": "ค่าอาหาร/อาหารว่าง · ค่าตอบแทนวิทยากร · ค่าสาธารณูปโภค · ค่าธรรมเนียม · "
+               "desc": "ค่าอาหาร/อาหารว่าง ค่าตอบแทนวิทยากร ค่าสาธารณูปโภค ค่าธรรมเนียม "
                        "ค่าพาหนะ ฯลฯ ไม่ใช่การจัดซื้อจัดจ้างตาม พ.ร.บ.ฯ จึงไม่ต้องทำรายงาน"
                        "ขอความเห็นชอบและไม่มีเพดานวงเงิน ออกเป็นบันทึกขออนุมัติเบิกจ่ายใบเดียว"},
     "clause79": {"label": "ข้อ 79 วรรค 2 (จำเป็นเร่งด่วน)", "altkind": "clause79",
@@ -2060,7 +2060,7 @@ async def procurement_ai_items(file: UploadFile = File(...), db: Session = Depen
                "no_json": "AI ตอบไม่เป็นรูปแบบที่อ่านได้", "bad_json": "AI ตอบไม่เป็นรูปแบบที่อ่านได้"}
         base = msg.get(res["error"], res["error"])
         if res.get("detail"):
-            base += " · สาเหตุ: " + res["detail"]
+            base += " สาเหตุ: " + res["detail"]
         return JSONResponse({"items": [], "error": base})
     return JSONResponse({"items": res.get("items", []), "ok": True})
 
@@ -3099,7 +3099,7 @@ async def projects_start_save(request: Request, db: Session = Depends(get_db)):
             changed += 1
     if bad:
         db.rollback()
-        return RedirectResponse(f"/projects/start?year={year}&err=" + quote(" · ".join(bad)), status_code=303)
+        return RedirectResponse(f"/projects/start?year={year}&err=" + quote(" ".join(bad)), status_code=303)
     db.commit()
     return RedirectResponse(f"/projects?year={year}&started={changed}", status_code=303)
 
@@ -3180,7 +3180,7 @@ async def projects_next_year_save(request: Request, db: Session = Depends(get_db
         made += 1
     if bad:
         db.rollback()
-        return RedirectResponse(f"/projects/next-year?year={year}&err=" + quote(" · ".join(bad)), status_code=303)
+        return RedirectResponse(f"/projects/next-year?year={year}&err=" + quote(" ".join(bad)), status_code=303)
     db.commit()
     return RedirectResponse(f"/projects?year={year + 1}&copied={made}&from={year}", status_code=303)
 

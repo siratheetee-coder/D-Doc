@@ -5,7 +5,7 @@
   <div>
     <div class="hero-sub">ทะเบียนนักเรียนกลางของโรงเรียน (ใช้ซ้ำทุกปี)</div>
     <span class="hero-title">ข้อมูลนักเรียน</span>
-    <div class="hero-meta">{{ rows|length }} คน · ใช้ในงานภาวะโภชนาการและงานอื่น ๆ</div>
+    <div class="hero-meta">{{ rows|length }} คน ใช้ในงานภาวะโภชนาการและงานอื่น ๆ</div>
   </div>
   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <a class="btn sm" href="/students/growth"><svg class="icon"><use href="#ic-check"/></svg> น้ำหนัก/ส่วนสูง</a>
@@ -27,7 +27,7 @@
   <h2 style="margin-top:0;">ขึ้นปีการศึกษาใหม่ (เลื่อนชั้น)</h2>
   <p class="muted" style="margin:0 0 6px;">ขั้นตอนเมื่อขึ้นปีการศึกษาใหม่:</p>
   <ol class="muted" style="margin:0 0 4px; padding-left:22px; line-height:1.9;">
-    <li>เลื่อนชั้นทุกคนขึ้น 1 ระดับ (อ.1 → อ.2 → ... → ป.6 → ม.1 → ... → ม.3 · ม.3 → จบการศึกษา)</li>
+    <li>เลื่อนชั้นทุกคนขึ้น 1 ระดับ (อ.1 → อ.2 → ... → ป.6 → ม.1 → ... → ม.3 ม.3 → จบการศึกษา)</li>
     <li>เพิ่มนักเรียนใหม่ (ป.1 / อ.1) ด้านล่าง</li>
   </ol>
   <form method="post" action="/students/promote" style="margin:0;" onsubmit="return confirm('เลื่อนชั้นนักเรียนทุกคนขึ้น 1 ระดับ? (ม.3 จะกลายเป็น จบการศึกษา)');">
@@ -49,7 +49,7 @@
   <datalist id="lvlist"><option value="อ.1"><option value="อ.2"><option value="อ.3"><option value="ป.1"><option value="ป.2"><option value="ป.3"><option value="ป.4"><option value="ป.5"><option value="ป.6"><option value="ม.1"><option value="ม.2"><option value="ม.3"></datalist>
   <div style="margin-top:14px; border-top:1px solid var(--border); padding-top:10px;">
     <b style="font-size:14px;">เพิ่มทีละหลายคน (วางจาก Excel)</b>
-    <p class="muted" style="font-size:13px; margin:4px 0;">1 คน/บรรทัด: <b>ชื่อ-นามสกุล , เพศ(ช/ญ) , วันเกิด , ชั้น , ห้อง , เลขประจำตัว</b> (คั่นจุลภาคหรือ Tab · เว้นช่องหลังได้)</p>
+    <p class="muted" style="font-size:13px; margin:4px 0;">1 คน/บรรทัด: <b>ชื่อ-นามสกุล , เพศ(ช/ญ) , วันเกิด , ชั้น , ห้อง , เลขประจำตัว</b> (คั่นจุลภาคหรือ Tab เว้นช่องหลังได้)</p>
     <form method="post" action="/students/bulk">
       <textarea name="bulk" rows="4" placeholder="เด็กชายสมชาย ใจดี, ช, 15/05/2562, ป.1, 1, 10001&#10;เด็กหญิงสมหญิง รักเรียน, ญ, 20/07/2562, ป.1, 1, 10002"></textarea>
       <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มทั้งหมด</button>
@@ -74,13 +74,13 @@
       <input id="bsRoom" style="width:80px;"></label>
     <button class="btn sm" type="button" onclick="bulkSet(this)">ตั้งให้ที่เลือก (<span id="bsCount">0</span> คน)</button>
     <button class="btn sm" type="button" id="bulkDeleteButton" style="background:#dc2626;color:white" disabled onclick="bulkDelete()">ลบที่เลือก (<span id="deleteCount">0</span> คน)</button>
-    <span class="muted" style="flex-basis:100%; font-size:12.5px; margin:0;">คลิกได้ทั้งช่องแรกของแถว (พื้นที่กดใหญ่ขึ้น) · กด Shift ค้างแล้วคลิกเพื่อเลือกทีละช่วง (เช่น เลือกทั้งห้อง)</span>
+    <span class="muted" style="flex-basis:100%; font-size:12.5px; margin:0;">คลิกได้ทั้งช่องแรกของแถว (พื้นที่กดใหญ่ขึ้น) กด Shift ค้างแล้วคลิกเพื่อเลือกทีละช่วง (เช่น เลือกทั้งห้อง)</span>
   </div>
   <form id="bulkDeleteForm" method="post" action="/students/bulk-delete"><input type="hidden" name="ids" id="deleteIds"><input type="hidden" name="confirmed" value="yes"></form>
   <label>แสดงชั้น/ห้อง
     <select id="rosterFilter" onchange="filterRoster()"><option value="">ทุกชั้น/ห้อง</option>{% for g in groups %}<option value="{{ loop.index0 }}">{{ g.level or 'ไม่ระบุชั้น' }}{{ (' ห้อง ' ~ g.room) if g.room else '' }}</option>{% endfor %}</select>
   </label>
-  <p class="muted">เลือกทั้งหมดจะเลือกเฉพาะรายชื่อที่แสดง · เมื่อเปลี่ยนตัวกรอง ระบบจะล้างรายการที่เลือก</p>
+  <p class="muted">เลือกทั้งหมดจะเลือกเฉพาะรายชื่อที่แสดง เมื่อเปลี่ยนตัวกรอง ระบบจะล้างรายการที่เลือก</p>
   <style>
     /* ช่องติ๊กใหญ่ กดง่าย: ทั้งเซลล์เป็นพื้นที่กด + checkbox ใหญ่ขึ้น */
     .pickcol { padding:0 !important; width:46px; text-align:center; }

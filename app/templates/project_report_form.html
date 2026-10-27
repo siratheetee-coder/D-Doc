@@ -54,7 +54,7 @@
     <a class="btn gray sm" href="/projects/{{ p.id }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับหน้าโครงการ</a>
   </div>
   <div class="hero-meta" style="color:var(--muted); margin-top:4px;">
-    โครงการ {{ p.name }}{% if p.plan_year %} · {{ year_label }} {{ p.plan_year }}{% endif %}</div>
+    โครงการ {{ p.name }}{% if p.plan_year %} {{ year_label }} {{ p.plan_year }}{% endif %}</div>
   {% if saved and saved.startswith('ai') %}<div class="alert">✔ AI เติมข้อมูลจากเอกสารโครงการแล้ว {{ saved[2:] }} หัวข้อ (เติมเฉพาะช่องที่ว่าง) - ตรวจทานก่อนออกเอกสาร</div>
   {% elif saved %}<div class="alert">✔ บันทึกเรียบร้อยแล้ว</div>{% endif %}
   {% if err %}<div class="alert" style="background:#fde8e8; color:#991b1b;">{{ err }}</div>{% endif %}
@@ -65,9 +65,9 @@
     <span style="font-weight:700;">✨ ให้ AI กรอกจากเอกสารโครงการ</span>
     <input type="file" name="file" accept=".pdf,.docx,.png,.jpg,.jpeg" required style="flex:1 1 220px; min-width:0;">
     <button class="btn ai sm" type="submit"><span class="sp"><svg class="icon"><use href="#ic-ai"/></svg></span> อัปโหลดให้ AI กรอก</button>
-    <span class="rp-hint" style="flex-basis:100%; margin:0;">อัปโหลดไฟล์โครงการที่โรงเรียนเขียนไว้ (PDF/Word) · AI เติมหลักการ วัตถุประสงค์ เป้าหมาย ขั้นตอน ตัวชี้วัด ให้เฉพาะช่องที่ยังว่าง</span>
+    <span class="rp-hint" style="flex-basis:100%; margin:0;">อัปโหลดไฟล์โครงการที่โรงเรียนเขียนไว้ (PDF/Word) AI เติมหลักการ วัตถุประสงค์ เป้าหมาย ขั้นตอน ตัวชี้วัด ให้เฉพาะช่องที่ยังว่าง</span>
   </form>
-  <p class="rp-hint" style="margin-top:8px;">กรอกเท่าที่มี · <b>หัวข้อที่เว้นว่างจะไม่ขึ้นในเอกสาร</b>
+  <p class="rp-hint" style="margin-top:8px;">กรอกเท่าที่มี <b>หัวข้อที่เว้นว่างจะไม่ขึ้นในเอกสาร</b>
     และเลขข้อจะไล่ใหม่ให้เอง ไม่ต้องมานั่งลบทีหลัง</p>
 </div>
 
@@ -100,7 +100,7 @@
 
 <div class="card">
   <h2 style="margin-top:0;">1. ความเป็นมา</h2>
-  <p class="rp-hint" style="margin-top:0;">ที่มาและความสำคัญของกิจกรรม · กด Enter ขึ้นย่อหน้าใหม่ได้</p>
+  <p class="rp-hint" style="margin-top:0;">ที่มาและความสำคัญของกิจกรรม กด Enter ขึ้นย่อหน้าใหม่ได้</p>
   <textarea name="principles" rows="6">{{ rep.principles or '' }}</textarea>
 </div>
 
@@ -217,7 +217,7 @@
   <h2 style="margin-top:0;">8. สรุปผลการประเมิน</h2>
   <h3 style="margin:12px 0 0; font-size:15px;">ผลแบบประเมินความพึงพอใจ</h3>
   <p class="rp-hint" style="margin-top:2px;">กรอก<b>จำนวนคนที่ตอบ</b>แต่ละระดับ ระบบคิดร้อยละและระดับคุณภาพให้เอง
-    (ระดับ 4 = ดีเยี่ยม · 3 = ดี · 2 = พอใช้ · 1 = ปรับปรุง)</p>
+    (ระดับ 4 = ดีเยี่ยม 3 = ดี 2 = พอใช้ 1 = ปรับปรุง)</p>
   <div class="rw-head"><span style="flex:4;">รายการประเมิน</span>
     <span style="flex:1;">ระดับ 4</span><span style="flex:1;">ระดับ 3</span>
     <span style="flex:1;">ระดับ 2</span><span style="flex:1;">ระดับ 1</span></div>
@@ -237,11 +237,11 @@
   <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px;">
     <button type="button" class="btn sm gray" onclick="addRow('survey_items')">＋ เพิ่มรายการประเมิน</button>
     <span id="svOut" class="muted" style="font-size:13.5px;">
-      {% if pct is not none %}ผลรวมเฉลี่ย <b>ร้อยละ {{ '%.2f'|format(pct) }}</b> · ระดับ <b>{{ level }}</b>{% endif %}</span>
+      {% if pct is not none %}ผลรวมเฉลี่ย <b>ร้อยละ {{ '%.2f'|format(pct) }}</b> ระดับ <b>{{ level }}</b>{% endif %}</span>
   </div>
 
   <h3 style="margin:22px 0 0; font-size:15px;">สรุปผลตามวัตถุประสงค์</h3>
-  <p class="rp-hint" style="margin-top:2px;">ติ๊กว่าแต่ละวัตถุประสงค์บรรลุหรือไม่ ·
+  <p class="rp-hint" style="margin-top:2px;">ติ๊กว่าแต่ละวัตถุประสงค์บรรลุหรือไม่
     <button type="button" class="btn sm gray" style="padding:2px 10px;" onclick="pullObjectives()">ดึงวัตถุประสงค์จากข้อ 2 มาใส่</button>
     <span>(ใช้ข้อความที่กรอกไว้บนหน้านี้ ไม่ต้องบันทึกก่อน)</span></p>
   <div class="rowset" data-set="obj_results">
@@ -270,8 +270,8 @@
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-file"/></svg> ภาพกิจกรรม</h2>
   <p class="rp-hint" style="margin-top:0;">
-    ระบบ<b>ไม่แนบรูปให้</b> เพราะรูปที่ถ่ายมามีขนาดและสัดส่วนต่างกัน จัดหน้าอัตโนมัติแล้วไม่สวย ·
-    เอกสารที่ดาวน์โหลดจะมี<b>หน้า "ภาคผนวก · ภาพกิจกรรม" เว้นว่างไว้ให้</b>
+    ระบบ<b>ไม่แนบรูปให้</b> เพราะรูปที่ถ่ายมามีขนาดและสัดส่วนต่างกัน จัดหน้าอัตโนมัติแล้วไม่สวย
+    เอกสารที่ดาวน์โหลดจะมี<b>หน้า "ภาคผนวก ภาพกิจกรรม" เว้นว่างไว้ให้</b>
     ท่านวางรูปเองใน Word ได้ตามต้องการ</p>
 </div>
 
@@ -363,7 +363,7 @@
     if(!full){ out.innerHTML = ''; return; }
     var pct = got * 100 / full;
     var lv = pct > 80 ? 'ดีเยี่ยม' : pct > 60 ? 'ดี' : pct > 40 ? 'พอใช้' : 'ปรับปรุง';
-    out.innerHTML = 'ผลรวมเฉลี่ย <b>ร้อยละ ' + pct.toFixed(2) + '</b> · ระดับ <b>' + lv + '</b>';
+    out.innerHTML = 'ผลรวมเฉลี่ย <b>ร้อยละ ' + pct.toFixed(2) + '</b> ระดับ <b>' + lv + '</b>';
   }
   function bindSurvey(){
     document.querySelectorAll('[data-set="survey_items"] [data-sv]').forEach(function(el){

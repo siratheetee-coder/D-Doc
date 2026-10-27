@@ -43,7 +43,7 @@
       {% for r in rows %}
       <tr>
         <td>{{ thai_date(r.t.date) }}</td>
-        <td>{% if r.t.kind=="in" %}<span style="color:#16a34a;">รับเข้า</span>{% else %}<span style="color:#dc2626;">จ่ายออก</span>{% endif %}{% if r.t.note %} · {{ r.t.note }}{% endif %}</td>
+        <td>{% if r.t.kind=="in" %}<span style="color:#16a34a;">รับเข้า</span>{% else %}<span style="color:#dc2626;">จ่ายออก</span>{% endif %}{% if r.t.note %} {{ r.t.note }}{% endif %}</td>
         <td>{{ r.t.ref or "-" }}</td>
         <td class="right">{{ "%g"|format(r.t.qty) if r.t.kind=="in" else "" }}</td>
         <td class="right">{{ "%g"|format(r.t.qty) if r.t.kind=="out" else "" }}</td>

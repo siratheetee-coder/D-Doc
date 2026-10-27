@@ -3,9 +3,9 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">โครงการ/แผนงบ · ปิดปีแผน</div>
+    <div class="hero-sub">โครงการ/แผนงบ ปิดปีแผน</div>
     <span class="hero-title">ยกโครงการไป{{ year_label }} {{ next }}</span>
-    <div class="hero-meta">{{ year_label }} {{ year }} · {{ rows|length }} โครงการ · งบรวม {{ "{:,.2f}".format(total_budget) }} · ใช้/กันงบ {{ "{:,.2f}".format(total_spent) }} บาท</div>
+    <div class="hero-meta">{{ year_label }} {{ year }} {{ rows|length }} โครงการ งบรวม {{ "{:,.2f}".format(total_budget) }} ใช้/กันงบ {{ "{:,.2f}".format(total_spent) }} บาท</div>
   </div>
   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <a class="btn sm gray" href="/projects?year={{ year }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับโครงการ</a>
@@ -45,7 +45,7 @@
   <div class="ny-num">2</div>
   <div class="ny-body">
     <h3>เลือกโครงการที่ทำต่อใน{{ year_label }} {{ next }}</h3>
-    <p class="muted" style="margin:0 0 10px;">ระบบสร้างโครงการใหม่ในปีถัดไป ชื่อและฝ่ายเดิม งบตามที่กรอก ยอดใช้ไปเริ่มนับใหม่ที่ 0 · ข้อมูลปี {{ year }} ยังอยู่ครบ</p>
+    <p class="muted" style="margin:0 0 10px;">ระบบสร้างโครงการใหม่ในปีถัดไป ชื่อและฝ่ายเดิม งบตามที่กรอก ยอดใช้ไปเริ่มนับใหม่ที่ 0 ข้อมูลปี {{ year }} ยังอยู่ครบ</p>
     {% if not rows %}
     <p>{{ year_label }} {{ year }} ไม่มีโครงการ</p>
     {% else %}
@@ -61,7 +61,7 @@
           <td data-label="โครงการ"><a href="/projects/{{ r.p.id }}">{{ r.p.name }}</a>
               {% if r.exists %}<div class="ny-note">มีในปี {{ next }} แล้ว</div>{% endif %}</td>
           <td data-label="งบปี {{ year }}" class="right">{{ "{:,.2f}".format(r.budget) }}</td>
-          <td data-label="ใช้ไป" class="right">{{ "{:,.2f}".format(r.spent) }}{% set money = proj_money(r.p) %}<small style="display:block">จ่ายจริง {{ '{:,.2f}'.format(money.paid) }} · รอจ่าย {{ '{:,.2f}'.format(money.waiting) }} · ก่อนเริ่มระบบ {{ '{:,.2f}'.format(money.before) }}</small></td>
+          <td data-label="ใช้ไป" class="right">{{ "{:,.2f}".format(r.spent) }}{% set money = proj_money(r.p) %}<small style="display:block">จ่ายจริง {{ '{:,.2f}'.format(money.paid) }} รอจ่าย {{ '{:,.2f}'.format(money.waiting) }} ก่อนเริ่มระบบ {{ '{:,.2f}'.format(money.before) }}</small></td>
           <td data-label="เหลือ" class="right">{{ "{:,.2f}".format(r.left) }}</td>
           <td data-label="งบปี {{ next }}" class="right">{% if not r.exists %}
             <input name="budget_{{ r.p.id }}" inputmode="decimal" class="ny-in" value="{{ '%.2f'|format(r.budget) }}">{% else %}-{% endif %}</td>

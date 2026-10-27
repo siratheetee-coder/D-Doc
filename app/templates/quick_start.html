@@ -7,17 +7,17 @@
     <span class="hero-title">เริ่มต้นใช้งานใน 10 นาที</span>
     <div class="hero-meta">
       {% if qs.complete %}ตั้งค่าครบแล้ว พร้อมใช้งานทุกงาน
-      {% else %}ทำแล้ว {{ qs.done }}/{{ qs.total }} ขั้น · เหลืออีกประมาณ {{ qs.minutes_left }} นาที{% endif %}
+      {% else %}ทำแล้ว {{ qs.done }}/{{ qs.total }} ขั้น เหลืออีกประมาณ {{ qs.minutes_left }} นาที{% endif %}
     </div>
   </div>
 </div>
 
 <div class="qs-bar" aria-hidden="true"><i style="width:{{ (qs.done / qs.total * 100)|round(0,'floor') if qs.total else 100 }}%"></i></div>
 <p class="qs-intro">ทำตามลำดับจากบนลงล่าง ระบบติ๊กให้เองเมื่อข้อมูลครบ (ไม่ต้องกดบันทึกที่หน้านี้)
-  · กรอกครั้งเดียว ใช้ได้ทุกงาน · กดปุ่มแล้วทำเสร็จ กลับมาหน้านี้เพื่อทำขั้นถัดไป</p>
+  กรอกครั้งเดียว ใช้ได้ทุกงาน กดปุ่มแล้วทำเสร็จ กลับมาหน้านี้เพื่อทำขั้นถัดไป</p>
 
 {% if qs.complete %}
-<div class="qs-done-all"><b>เรียบร้อย ตั้งค่าครบแล้ว</b> · เริ่มใช้งานจริงได้เลย ขั้นที่เหลือของแต่ละงานดูได้ด้านล่าง</div>
+<div class="qs-done-all"><b>เรียบร้อย ตั้งค่าครบแล้ว</b> เริ่มใช้งานจริงได้เลย ขั้นที่เหลือของแต่ละงานดูได้ด้านล่าง</div>
 {% endif %}
 
 {% for sec in qs.sections %}

@@ -3,9 +3,9 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">ทะเบียนหนังสือ · บันทึกข้อความ · คำสั่งโรงเรียน</div>
+    <div class="hero-sub">ทะเบียนหนังสือ บันทึกข้อความ คำสั่งโรงเรียน</div>
     <span class="hero-title">งานธุรการ</span>
-    <div class="hero-meta">{{ school.name or "" }} · ปีงบประมาณ {{ fiscal_year }}</div>
+    <div class="hero-meta">{{ school.name or "" }} ปีงบประมาณ {{ fiscal_year }}</div>
   </div>
 </div>
 {# รายการเริ่มต้นงาน (app/services/module_setup.py) ติ๊กเองจากข้อมูลจริง ครบแล้วหาย #}
@@ -27,17 +27,17 @@
 <div class="nav-grid">
   <a class="nav-card" href="/admin/incoming">
     <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-download"/></svg></span><h3>ทะเบียนหนังสือรับ</h3></div>
-    <p class="nc-desc">ลงทะเบียนหนังสือรับ · อ่านเลขที่/วันที่/เรื่องจากไฟล์ให้อัตโนมัติ (PDF/Word)</p>
+    <p class="nc-desc">ลงทะเบียนหนังสือรับ อ่านเลขที่/วันที่/เรื่องจากไฟล์ให้อัตโนมัติ (PDF/Word)</p>
     <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/admin/outgoing">
     <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-upload"/></svg></span><h3>ทะเบียนหนังสือส่ง</h3></div>
-    <p class="nc-desc">ลงทะเบียนหนังสือส่งออก · เลขที่หนังสือส่งรันต่อเนื่องอัตโนมัติ</p>
+    <p class="nc-desc">ลงทะเบียนหนังสือส่งออก เลขที่หนังสือส่งรันต่อเนื่องอัตโนมัติ</p>
     <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/admin/memos">
     <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-file"/></svg></span><h3>บันทึกข้อความ</h3></div>
-    <p class="nc-desc">ออกบันทึกข้อความ มี AI ช่วยร่างเนื้อหา · เลขที่รันร่วมทุกงาน</p>
+    <p class="nc-desc">ออกบันทึกข้อความ มี AI ช่วยร่างเนื้อหา เลขที่รันร่วมทุกงาน</p>
     <span class="nc-go">ออกบันทึก <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/admin/orders">

@@ -80,13 +80,13 @@
   </style>
 </head>
 <body>
-  <div class="top"><b>Easy Ekkasan · คอนโซลผู้ดูแลระบบ</b>
+  <div class="top"><b>Easy Ekkasan คอนโซลผู้ดูแลระบบ</b>
     <a href="/admin-console/chat" style="color:#fff;font-weight:600">💬 แชทโรงเรียน <span id="consoleChatCount"></span></a>
     <script src="/static/support_chat_badge.js?v=2" defer></script>
     <span><a href="/admin-console/leads" style="color:#fff; font-weight:600;">📥 คำขอจากเว็บ
         <span class="lead-cnt">{{ lead_counts.all if lead_counts else 0 }}</span>{% if lead_counts and lead_counts.new %}<span class="lead-cnt new">ใหม่ {{ lead_counts.new }}</span>{% endif %}</a>
-      · {{ admin_name }} · <a href="/account/profile">โปรไฟล์ / ยืนยัน 2 ชั้น</a>
-      · <a href="/account/password">เปลี่ยนรหัสผ่าน</a> · <a href="/logout">ออกจากระบบ</a></span></div>
+      {{ admin_name }} <a href="/account/profile">โปรไฟล์ / ยืนยัน 2 ชั้น</a>
+      <a href="/account/password">เปลี่ยนรหัสผ่าน</a> <a href="/logout">ออกจากระบบ</a></span></div>
   <div class="wrap">
     {% if msg %}<div class="msg">{{ msg }}</div>{% endif %}
 
@@ -96,9 +96,9 @@
         <b>{% if disk.level == 'critical' %}⚠️ พื้นที่ดิสก์วิกฤต
            {%- elif disk.level == 'warn' %}⚠️ พื้นที่ดิสก์ใกล้เต็ม
            {%- else %}💾 พื้นที่ดิสก์{% endif %}</b>
-        <span>ใช้ไป {{ disk.percent }}% ({{ disk.used_gb }} / {{ disk.total_gb }} GB) · เหลือ <b>{{ disk.free_gb }} GB</b></span>
+        <span>ใช้ไป {{ disk.percent }}% ({{ disk.used_gb }} / {{ disk.total_gb }} GB) เหลือ <b>{{ disk.free_gb }} GB</b></span>
         {% if disk.level != 'ok' %}
-        <div class="disk-hint">ถ้าเต็ม ระบบจะ<b>บันทึกข้อมูลไม่ได้</b> และ<b>การสำรองข้อมูลจะล้มเหลว</b> · ควรอัปเกรดแพ็กเกจ VPS</div>
+        <div class="disk-hint">ถ้าเต็ม ระบบจะ<b>บันทึกข้อมูลไม่ได้</b> และ<b>การสำรองข้อมูลจะล้มเหลว</b> ควรอัปเกรดแพ็กเกจ VPS</div>
         {% endif %}
       </div>
       <div class="disk-bar"><i style="width:{{ disk.percent }}%"></i></div>
@@ -110,8 +110,8 @@
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
         <b style="font-size:16px;">
           {% if online.now %}🟠 กำลังมีคนใช้งาน <span style="font-size:20px;">{{ online.now|length }}</span> คน
-          {% else %}🟢 ตอนนี้ไม่มีใครใช้งาน · รีสตาร์ทได้เลย{% endif %}</b>
-        <span class="muted2">ใช้งานใน 5 นาทีล่าสุด · ใน 30 นาทีล่าสุด {{ online.n30 }} คน</span>
+          {% else %}🟢 ตอนนี้ไม่มีใครใช้งาน รีสตาร์ทได้เลย{% endif %}</b>
+        <span class="muted2">ใช้งานใน 5 นาทีล่าสุด ใน 30 นาทีล่าสุด {{ online.n30 }} คน</span>
         <a href="/admin-console" class="muted2" style="margin-left:auto;">↻ รีเฟรช</a>
       </div>
       {% if online.now %}
@@ -131,19 +131,19 @@
       </table>
       </div>
       <p class="muted2" style="margin:8px 0 0; font-size:12.5px; line-height:1.6;">
-        รีสตาร์ทใช้เวลาไม่กี่วินาที ผู้ใช้<b>ไม่หลุดจากระบบ</b> (ยังล็อกอินอยู่) ·
-        ที่อาจกระทบคือคนที่<b>กำลังกดบันทึก/อัปโหลดพอดีในวินาทีนั้น</b> · ถ้าไม่ด่วน รอให้ป้ายเป็นสีเขียวก่อน</p>
+        รีสตาร์ทใช้เวลาไม่กี่วินาที ผู้ใช้<b>ไม่หลุดจากระบบ</b> (ยังล็อกอินอยู่)
+        ที่อาจกระทบคือคนที่<b>กำลังกดบันทึก/อัปโหลดพอดีในวินาทีนั้น</b> ถ้าไม่ด่วน รอให้ป้ายเป็นสีเขียวก่อน</p>
       {% endif %}
     </div>
 
     <div class="card">
       <h1>ภาพรวมระบบ</h1>
-      <a href="/admin-console/usage">📊 การใช้งานรายวัน</a> ·
-      <a href="/admin-console/marketing">📈 ลูกค้ามาจากไหน</a> ·
-      <a href="/admin-console/finance-health">🩺 ข้อมูลการเงินทุกโรงเรียน</a> ·
-      <a href="/admin-console/ai">✨ คำถามถาม AI</a> ·
-      <a href="/admin-console/notice">📣 ประกาศแจ้งปิดปรับปรุง</a> ·
-      <a href="/admin-console/notifications">ตั้งค่าอีเมลแจ้งเตือน</a> ·
+      <a href="/admin-console/usage">📊 การใช้งานรายวัน</a>
+      <a href="/admin-console/marketing">📈 ลูกค้ามาจากไหน</a>
+      <a href="/admin-console/finance-health">🩺 ข้อมูลการเงินทุกโรงเรียน</a>
+      <a href="/admin-console/ai">✨ คำถามถาม AI</a>
+      <a href="/admin-console/notice">📣 ประกาศแจ้งปิดปรับปรุง</a>
+      <a href="/admin-console/notifications">ตั้งค่าอีเมลแจ้งเตือน</a>
       <a href="/admin-console/signature">ตั้งค่าลายเซ็นผู้ขายสำหรับอีเมลและเอกสาร</a>
       <div class="stats">
         <div class="stat slate"><div class="n">{{ summ.total }}</div><div class="l">โรงเรียนทั้งหมด</div></div>
@@ -186,7 +186,7 @@
       <div class="t-card trow" data-find="{{ r.t.name }} {{ r.t.slug }} {% for u in r.users %}{{ u.username }} {% endfor %}">
         <div class="t-head">
           <span class="t-name">{{ r.t.name }}</span>
-          <span class="muted2">id {{ r.t.id }} · {{ r.t.slug }}</span>
+          <span class="muted2">id {{ r.t.id }} {{ r.t.slug }}</span>
           <span class="pill {{ r.plan }}">{{ 'ทดลองใช้' if r.plan=='trial' else 'สมาชิก' }}</span>
           {% if not r.t.active %}<span class="pill off">ระงับ</span>
           {% elif r.expired %}<span class="pill exp">หมดอายุ</span>
@@ -204,22 +204,22 @@
           <div>
             <div class="t-lbl">โควตา / อายุการใช้งาน</div>
             {% if r.plan == 'trial' %}
-              <div>ทดลองใช้ฟรี 30 วัน{% if r.t.expiry_date %} · หมด <b>{{ be_date(r.t.expiry_date) }}</b>{% endif %}</div>
-              <div class="muted2">{% if r.days_left is none %} · {% elif r.days_left < 0 %}<b style="color:#b91c1c;">หมดอายุแล้ว</b> ({{ -r.days_left }} วันก่อน){% else %}เหลือ <b style="color:{{ '#b91c1c' if r.days_left<=3 else '#d97706' if r.days_left<=7 else '#0e9152' }};">{{ r.days_left }}</b> วัน{% endif %}</div>
+              <div>ทดลองใช้ฟรี 30 วัน{% if r.t.expiry_date %} หมด <b>{{ be_date(r.t.expiry_date) }}</b>{% endif %}</div>
+              <div class="muted2">{% if r.days_left is none %} {% elif r.days_left < 0 %}<b style="color:#b91c1c;">หมดอายุแล้ว</b> ({{ -r.days_left }} วันก่อน){% else %}เหลือ <b style="color:{{ '#b91c1c' if r.days_left<=3 else '#d97706' if r.days_left<=7 else '#0e9152' }};">{{ r.days_left }}</b> วัน{% endif %}</div>
             {% else %}
               {% if r.t.expiry_date %}
                 <div>หมดอายุ <b>{{ be_date(r.t.expiry_date) }}</b></div>
                 <div class="muted2">{% if r.days_left >= 0 %}เหลือ {{ r.days_left }} วัน{% else %}เกินมา {{ -r.days_left }} วัน{% endif %}</div>
-              {% else %}<div class="muted2">สมาชิก · ไม่จำกัดเวลา</div>{% endif %}
+              {% else %}<div class="muted2">สมาชิก ไม่จำกัดเวลา</div>{% endif %}
             {% endif %}
             {% if r.idle %}
             <div class="muted2" style="margin-top:6px; padding:5px 9px; border-radius:7px;
                  background:{{ '#fee2e2' if r.idle.stage >= 3 else '#fff7ed' }};
                  color:{{ '#b91c1c' if r.idle.stage >= 3 else '#b45309' }};">
-              ไม่ใช้งาน <b>{{ r.idle.days }}</b> วัน ·
+              ไม่ใช้งาน <b>{{ r.idle.days }}</b> วัน
               {% if r.idle.left <= 0 %}<b>ถึงกำหนดลบแล้ว</b>
               {% else %}จะลบอัตโนมัติในอีก <b>{{ r.idle.left }}</b> วัน{% endif %}
-              {% if r.idle.stage %} · เตือนแล้ว {{ r.idle.stage }}/3 ครั้ง{% endif %}
+              {% if r.idle.stage %} เตือนแล้ว {{ r.idle.stage }}/3 ครั้ง{% endif %}
             </div>
             {% endif %}
             {% if r.n_2fa %}

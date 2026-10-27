@@ -17,7 +17,7 @@
   <div>
     <div class="hero-sub" style="color:#e0f2fe;">งานพัสดุ</div>
     <span class="hero-title">จัดซื้อหนังสือเรียน</span>
-    <div class="hero-meta" style="color:#e0f2fe;">ปีการศึกษา {{ year }} · หนังสือ {{ n_items }} รายการ · รวม {{ "{:,.2f}".format(total) }} บาท</div>
+    <div class="hero-meta" style="color:#e0f2fe;">ปีการศึกษา {{ year }} หนังสือ {{ n_items }} รายการ รวม {{ "{:,.2f}".format(total) }} บาท</div>
   </div>
 </div>
 {% if saved %}<div class="alert">✔ บันทึกแล้ว</div>{% endif %}
@@ -125,7 +125,7 @@
           <button type="button" class="btn sm gray" style="white-space:nowrap;" onclick="openVendorModal()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มผู้ขาย</button>
         </div>
         <datalist id="vendors_dl">{% for v in vendors %}<option value="{{ v.name }}">{% endfor %}</datalist>
-        <span class="muted" style="font-size:13px;">ที่อยู่ · เลขผู้เสียภาษี · เลขบัญชีธนาคาร ที่กรอกตอนเพิ่มผู้ขาย จะไปขึ้นในใบสั่งซื้อและใบตรวจรับให้เอง</span></div>
+        <span class="muted" style="font-size:13px;">ที่อยู่ เลขผู้เสียภาษี เลขบัญชีธนาคาร ที่กรอกตอนเพิ่มผู้ขาย จะไปขึ้นในใบสั่งซื้อและใบตรวจรับให้เอง</span></div>
     </div>
   </div>
 
@@ -159,8 +159,8 @@
   {{ people('ex', boards.get('exec') or [], 5, 'คณะกรรมการอำนวยการ', '(ผอ. + หัวหน้าฝ่าย)') }}
   {{ people('sel', boards.get('select') or [], 12, 'คณะกรรมการคัดเลือกหนังสือ (รายชั้น)', '(ครูผู้สอนแต่ละชั้น)', True) }}
   {{ people('mt', boards.get('meeting') or [], 6, 'คณะกรรมการดำเนินการจัดประชุม', '') }}
-  {{ people('buy', boards.get('buy') or [], 3, 'คณะกรรมการจัดซื้อโดยวิธีเฉพาะเจาะจง', '(ขั้นจัดซื้อจริง · ระเบียบฯ ข้อ 78)') }}
-  {{ people('insp', boards.get('inspect') or [], 3, 'คณะกรรมการตรวจรับพัสดุ', '(ขั้นจัดซื้อจริง · ระเบียบฯ ข้อ 175)') }}
+  {{ people('buy', boards.get('buy') or [], 3, 'คณะกรรมการจัดซื้อโดยวิธีเฉพาะเจาะจง', '(ขั้นจัดซื้อจริง ระเบียบฯ ข้อ 78)') }}
+  {{ people('insp', boards.get('inspect') or [], 3, 'คณะกรรมการตรวจรับพัสดุ', '(ขั้นจัดซื้อจริง ระเบียบฯ ข้อ 175)') }}
   <input type="hidden" name="parties_editor" value="combined">
   {{ people('party', party_rows, 1, 'ภาคี 4 ฝ่าย', '(เลือกฝ่ายของผู้แทนแต่ละคนในตารางเดียว)', with_party=True, free_role=True) }}
 
@@ -168,7 +168,7 @@
   <datalist id="positions">{% for ps in positions %}<option value="{{ ps }}">{% endfor %}</datalist>
 
 <div class="card">
-  <h2>บันทึกข้อมูลและออกเอกสาร <span class="muted" style="font-size:14px;">(ขั้นก่อนจัดซื้อ · ออกทีละฉบับได้)</span></h2>
+  <h2>บันทึกข้อมูลและออกเอกสาร <span class="muted" style="font-size:14px;">(ขั้นก่อนจัดซื้อ ออกทีละฉบับได้)</span></h2>
   <p class="muted" style="margin-top:0;">ระบบจะตรวจข้อมูลและบันทึกข้อมูลล่าสุดก่อนออกเอกสารทุกครั้ง</p>
   <div id="purchase-errors" role="alert" hidden></div>
   <p id="purchase-status" role="status" aria-live="polite"></p>
@@ -193,12 +193,12 @@
   <p class="muted" style="margin-top:0;">
     เมื่อคัดเลือกหนังสือและประชุมเห็นชอบเรียบร้อยแล้ว กดปุ่มนี้เพื่อส่งรายการที่คัดเลือกไว้เข้า<b>งานพัสดุ</b>
     ระบบจะสร้างเรื่องจัดซื้อพร้อมรายการหนังสือ วงเงิน และ<b>คณะกรรมการจัดซื้อ/ตรวจรับตามที่กรอกไว้ด้านบน</b>ให้อัตโนมัติ
-    แล้วออกเอกสารชุดจัดซื้อได้ทันที · รายงานขอซื้อ · ใบเสนอราคา · ใบสั่งซื้อ · ใบตรวจรับ · ประกาศผู้ชนะ · รายงานขอเบิกจ่าย
+    แล้วออกเอกสารชุดจัดซื้อได้ทันที รายงานขอซื้อ ใบเสนอราคา ใบสั่งซื้อ ใบตรวจรับ ประกาศผู้ชนะ รายงานขอเบิกจ่าย
   </p>
   {% if tp.procurement_id %}
   <p><span class="pill done">ส่งเข้างานพัสดุแล้ว</span>
      <a class="btn sm" href="/procurement/{{ tp.procurement_id }}">เปิดเรื่องจัดซื้อ</a></p>
-  <p class="muted" style="font-size:13px;">กดปุ่มด้านล่างอีกครั้งเมื่อแก้รายการหนังสือหรือรายชื่อกรรมการ เพื่ออัปเดตในเรื่องเดิม · เลขที่และวันที่ที่กรอกในหน้าเรื่องจัดซื้อจะไม่ถูกทับ แต่<b>รายชื่อกรรมการจะยึดตามหน้านี้</b></p>
+  <p class="muted" style="font-size:13px;">กดปุ่มด้านล่างอีกครั้งเมื่อแก้รายการหนังสือหรือรายชื่อกรรมการ เพื่ออัปเดตในเรื่องเดิม เลขที่และวันที่ที่กรอกในหน้าเรื่องจัดซื้อจะไม่ถูกทับ แต่<b>รายชื่อกรรมการจะยึดตามหน้านี้</b></p>
   {% endif %}
   <button class="btn green" type="submit" name="procure" value="1">
     <svg class="icon"><use href="#ic-outbox"/></svg>
@@ -401,7 +401,7 @@
       const kinds = new Set([...form.querySelectorAll('[data-prefix="party"] tbody tr')].filter(row => row.querySelector('[name$="_name"]').value.trim()).map(row => row.querySelector('select').value));
       const labels = {{ party_labels|tojson }};
       const missing = Object.keys(labels).filter(key=>!kinds.has(key)).map(key=>labels[key]);
-      if(missing.length) flag(form.querySelector('[data-prefix="party"]'),'กรุณาระบุ '+missing.join(' · '));
+      if(missing.length) flag(form.querySelector('[data-prefix="party"]'),'กรุณาระบุ '+missing.join(' '));
     }
     const required = kind === 'all' ? [...new Set(Object.entries(requirements).filter(([k]) => k !== 'tor').flatMap(([,v]) => v))] : requirements[kind] || [];
     for (const name of required) {
@@ -441,7 +441,7 @@
         const response = await fetch('/textbooks/purchase/to-register', {method:'POST',body:transferData,credentials:'same-origin'});
         const result = await response.json();
         if (!response.ok) throw new Error('บันทึกแล้ว แต่นำเข้าทะเบียนไม่สำเร็จ กรุณาลองใหม่');
-        status.textContent = `นำเข้าทะเบียนแล้ว ${result.added} รายการ · มีอยู่แล้ว ${result.skipped} รายการ (จำนวนรับเข้าเริ่มที่ 0)`;
+        status.textContent = `นำเข้าทะเบียนแล้ว ${result.added} รายการ มีอยู่แล้ว ${result.skipped} รายการ (จำนวนรับเข้าเริ่มที่ 0)`;
       }
       if (procure) {
         const body = new FormData(); body.set('year', data.get('year'));

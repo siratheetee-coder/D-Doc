@@ -16,7 +16,7 @@
 {% endmacro %}
 {# ช่องวันที่ของ e-GP มีตัวบังคับรูปแบบ (mask) อยู่แล้ว มันเติม / ให้เอง
    ถ้าวาง 30/09/2569 ที่มี / ไปด้วย ตัวบังคับจะนับ / ซ้ำแล้วตัดท้ายทิ้ง เหลือ 30/09/25
-   ปุ่มหลักจึงคัดลอกเป็น "ตัวเลขล้วน" (30092569) · ปุ่มรองไว้เผื่อช่องที่เป็นข้อความธรรมดา #}
+   ปุ่มหลักจึงคัดลอกเป็น "ตัวเลขล้วน" (30092569) ปุ่มรองไว้เผื่อช่องที่เป็นข้อความธรรมดา #}
 {% macro datecell(id, value) %}
 {% if value %}<span class="egp-text" id="{{ id }}">{{ value }}</span>
 <button type="button" class="btn xs" title="คัดลอกเป็น {{ value|replace('/','') }} แล้ว e-GP จะเติม / ให้เอง"
@@ -32,7 +32,7 @@
     ช่องที่เป็น <b>ตัวเลือก (dropdown/ปุ่มเลือก)</b> คัดลอกไม่ได้ ให้เลือกตามที่ระบบบอก (กล่องฟ้า)
   </p>
   <p class="muted" style="margin:0; font-size:13px;">
-    เรื่อง: <b>{{ p.subject }}</b> · {{ p.proc_type }} · ปีงบ {{ p.fiscal_year }} · วงเงิน {{ "{:,.2f}".format(p.total_amount or 0) }} บาท
+    เรื่อง: <b>{{ p.subject }}</b> {{ p.proc_type }} ปีงบ {{ p.fiscal_year }} วงเงิน {{ "{:,.2f}".format(p.total_amount or 0) }} บาท
   </p>
 </div>
 
@@ -88,25 +88,25 @@
   <h2><span class="step-badge">ขั้นตอน 1</span> รายงานขอซื้อขอจ้าง</h2>
 
   <h3 class="sub-h">บันทึกข้อความ</h3>
-  {{ cprow("B1 · ส่วนราชการ", "b1", egp.school_name) }}
-  {{ cprow("B2 · เรื่อง", "b2", egp.report_subject) }}
-  {{ cprow("B3 · เรียน", "b3", egp.attn) }}
+  {{ cprow("B1 ส่วนราชการ", "b1", egp.school_name) }}
+  {{ cprow("B2 เรื่อง", "b2", egp.report_subject) }}
+  {{ cprow("B3 เรียน", "b3", egp.attn) }}
 
   <h3 class="sub-h">ข้อมูลรายงานขอซื้อขอจ้าง</h3>
-  {{ cprow("B4 · เหตุผลความจำเป็น", "b4", p.purpose or p.subject) }}
-  {{ cprow("B5 · ขอบเขตของงาน/รายละเอียดคุณลักษณะเฉพาะ", "b5", p.subject) }}
-  {{ cprow("B6 · วงเงินที่จะ" ~ egp.buy_word, "b6", "%.2f"|format(p.total_amount or 0)) }}
-  {{ cprow("B7 · กำหนดระยะเวลาแล้วเสร็จของงาน", "b7", egp.duration_text) }}
-  <div class="egp-row"><div class="egp-lbl">B8-3 · หลักเกณฑ์การพิจารณา</div>
+  {{ cprow("B4 เหตุผลความจำเป็น", "b4", p.purpose or p.subject) }}
+  {{ cprow("B5 ขอบเขตของงาน/รายละเอียดคุณลักษณะเฉพาะ", "b5", p.subject) }}
+  {{ cprow("B6 วงเงินที่จะ" ~ egp.buy_word, "b6", "%.2f"|format(p.total_amount or 0)) }}
+  {{ cprow("B7 กำหนดระยะเวลาแล้วเสร็จของงาน", "b7", egp.duration_text) }}
+  <div class="egp-row"><div class="egp-lbl">B8-3 หลักเกณฑ์การพิจารณา</div>
     <div class="egp-val"><span class="egp-pick">เลือก: <b>เกณฑ์ราคา</b></span></div></div>
 
   <h3 class="sub-h">ผู้ลงนาม (ผู้ขออนุมัติ) <span class="muted" style="font-weight:400;">- เจ้าหน้าที่พัสดุผู้รายงาน</span></h3>
   {% if egp.signer_name %}
-  <div class="egp-row"><div class="egp-lbl">P1 · คำนำหน้า</div>
+  <div class="egp-row"><div class="egp-lbl">P1 คำนำหน้า</div>
     <div class="egp-val"><span class="egp-pick">เลือก: <b>{{ egp.signer_split.prefix or "(ระบุเอง)" }}</b></span></div></div>
-  {{ cprow("P2 · ชื่อ", "p2", egp.signer_split.first) }}
-  {{ cprow("P3 · นามสกุล", "p3", egp.signer_split.last) }}
-  {{ cprow("P4 · ตำแหน่ง", "p4", egp.signer_pos) }}
+  {{ cprow("P2 ชื่อ", "p2", egp.signer_split.first) }}
+  {{ cprow("P3 นามสกุล", "p3", egp.signer_split.last) }}
+  {{ cprow("P4 ตำแหน่ง", "p4", egp.signer_pos) }}
   {% else %}
   <p class="muted">ยังไม่ได้ตั้งชื่อเจ้าหน้าที่พัสดุในตั้งค่าโรงเรียน</p>
   {% endif %}
@@ -142,7 +142,7 @@
   {% if inspect and inspect.members %}
   <p class="muted" style="margin-top:0;">{{ "คณะกรรมการตรวจรับพัสดุ" if inspect.mode == "committee" else "ผู้ตรวจรับพัสดุ (โดยอนุโลม)" }}</p>
   <p class="muted" style="margin-top:0;">e-GP ค้นหารายชื่อด้วย <b>ชื่อ</b> กับ <b>นามสกุล</b> แยกช่อง
-    ถ้าวางชื่อเต็มจะหาไม่เจอ · คัดลอกทีละช่องตามตารางนี้ · คำนำหน้าเป็นตัวเลือกใน e-GP ให้เลือกเอง</p>
+    ถ้าวางชื่อเต็มจะหาไม่เจอ คัดลอกทีละช่องตามตารางนี้ คำนำหน้าเป็นตัวเลือกใน e-GP ให้เลือกเอง</p>
   <div class="table-wrap"><table>
     <thead><tr><th>ลำดับ</th><th>คำนำหน้า</th><th>ชื่อ</th><th>นามสกุล</th>
       <th>ตำแหน่งในกรรมการ</th><th>ชื่อเต็ม</th></tr></thead>
@@ -169,7 +169,7 @@
 <div class="card">
   <h2>เลขที่และวันที่เอกสาร</h2>
   <p class="muted" style="margin-top:0;">ไว้กรอกช่อง "เลขที่ / ลงวันที่" ในเอกสารต่าง ๆ ของ e-GP (วันที่เป็น พ.ศ. รูปแบบ วว/ดด/ปปปป)
-    · ขีด - คือยังไม่ได้กรอกในระบบ แก้ได้ที่หน้ารายละเอียดเรื่อง</p>
+    ขีด - คือยังไม่ได้กรอกในระบบ แก้ได้ที่หน้ารายละเอียดเรื่อง</p>
   <p class="muted" style="margin:0 0 10px; font-size:13px;">
     ปุ่ม <b>คัดลอก</b> ของช่องวันที่ จะคัดลอกเป็นตัวเลขล้วน (เช่น 30092569) เพราะช่องวันที่ของ e-GP เติม / ให้เอง
     ถ้าวางแบบมี / ไปด้วยมันจะตัดท้ายทิ้งเหลือ 30/09/25</p>

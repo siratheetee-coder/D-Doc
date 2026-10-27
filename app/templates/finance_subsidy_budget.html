@@ -3,7 +3,7 @@
 {% block content %}
 <link rel="stylesheet" href="/static/subsidy.css?v=1">
 <div class="subsidy-page"><section class="card">
-<h1>ตรวจยอดก่อนตั้งงบปี {{ p.fiscal_year }}</h1><p>บัญชี {{ account.name }} · ปีการศึกษา {{ snapshot.academic_year }} เทอม {{ snapshot.term }} · ฉบับ #{{ snapshot.id }}</p>
+<h1>ตรวจยอดก่อนตั้งงบปี {{ p.fiscal_year }}</h1><p>บัญชี {{ account.name }} ปีการศึกษา {{ snapshot.academic_year }} เทอม {{ snapshot.term }} ฉบับ #{{ snapshot.id }}</p>
 <div class="sub-notice"><strong>ตั้งงบจาก{{ p.budget_label }}</strong> รวมเงินเพิ่มเติมที่บันทึกไว้ ระบบปรับเฉพาะส่วนต่างจากครั้งก่อน และคงงบส่วนอื่นไว้ การยืนยันนี้ไม่สร้างรายการรับเงิน</div>
 <p class="sub-muted">หากยอดเดิมเคยรวมเงินเทอมนี้จากระบบเก่าหรือกรอกเองแล้ว ให้ย้อนกลับไปตรวจแยกยอดก่อน เพื่อไม่บวกซ้ำ</p>
 <div class="sub-scroll"><table><thead><tr><th>รายการ</th><th>งบเดิม</th><th>เทอมนี้เคยเชื่อมไว้</th><th>เทอมนี้ฉบับใหม่</th><th>ปรับเพิ่ม/ลด</th><th>งบหลังปรับ</th></tr></thead><tbody>{% for r in p.rows %}<tr><td>{{ r.name }}<small>→ {{ r.destination }}</small></td>{% for k in ['old','previous','contribution','delta','new'] %}<td>{{ '{:,.2f}'.format(r[k]) }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>

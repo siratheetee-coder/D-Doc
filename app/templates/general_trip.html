@@ -115,7 +115,7 @@
 <div class="tp-hero">
   <div class="m"><a href="/general">งานบริหารทั่วไป</a> › <a href="/general/trips">ทัศนศึกษา</a></div>
   <div class="t">{{ t.title or "ทัศนศึกษา" }}</div>
-  <div class="m">{{ types[t.trip_type].label }} · ผู้อนุญาต: {{ types[t.trip_type].approver }} · สถานะ: <b>{{ status[t.status] }}</b></div>
+  <div class="m">{{ types[t.trip_type].label }} ผู้อนุญาต: {{ types[t.trip_type].approver }} สถานะ: <b>{{ status[t.status] }}</b></div>
   <div class="tp-kpis">
     <div class="tp-kpi"><div class="l">นักเรียน</div><div class="v">{{ c.students }}</div></div>
     <div class="tp-kpi"><div class="l">ผู้ควบคุม + ผู้ช่วย</div><div class="v">{{ c.staff }}</div></div>
@@ -128,14 +128,14 @@
 {% set completed = steps | selectattr('1', 'equalto', 'done') | list | length %}
 <nav class="tp-workflow" aria-label="ขั้นตอนทัศนศึกษา">
   <div class="tp-workflow-head">
-    <div><div class="tp-workflow-title">ดำเนินการทัศนศึกษา · 6 ขั้นตอน</div><div class="tp-workflow-hint">เลือกขั้นตอนเพื่อไปยังส่วนที่ต้องการ</div></div>
+    <div><div class="tp-workflow-title">ดำเนินการทัศนศึกษา 6 ขั้นตอน</div><div class="tp-workflow-hint">เลือกขั้นตอนเพื่อไปยังส่วนที่ต้องการ</div></div>
     <div class="tp-progress"><span>เสร็จแล้ว {{ completed }} / {{ steps|length }} ขั้นตอน</span><div class="tp-progress-track" aria-hidden="true"><span style="width:{{ completed * 100 / (steps|length or 1) }}%"></span></div></div>
   </div>
   <div class="tp-steps">
     {% for name, st, sub, href in steps %}
     <a class="tp-step {{ st }}" href="{{ href }}" {% if st == 'doing' %}aria-current="step"{% endif %}>
       <span class="tp-step-top"><span class="n">{{ loop.index }}</span><span class="tp-step-state">{{ '✓ เสร็จแล้ว' if st == 'done' else ('ขั้นตอนปัจจุบัน' if st == 'doing' else 'ยังไม่เสร็จ') }}</span></span>
-      <b>{{ name }}</b><span class="s">{{ sub or ' · ' }}</span>
+      <b>{{ name }}</b><span class="s">{{ sub or ' ' }}</span>
     </a>
     {% endfor %}
   </div>
@@ -187,14 +187,14 @@
 
 <div class="tp-card" id="sec-people" style="--g1:#8b5cf6; --g2:#6366f1;">
   <h2><span class="ic">2</span> คนที่ไป</h2>
-  <p class="tp-note">ผู้ควบคุม 1 คน + ผู้ช่วย 1 คน ต่อนักเรียนไม่เกิน 30 คน (ข้อ 7(3)) · ครูควบคุมอย่างน้อย 2 คน (ว 1057 ข้อ 12) · ใช้เฉพาะชื่อและชั้นจากทะเบียน</p>
+  <p class="tp-note">ผู้ควบคุม 1 คน + ผู้ช่วย 1 คน ต่อนักเรียนไม่เกิน 30 คน (ข้อ 7(3)) ครูควบคุมอย่างน้อย 2 คน (ว 1057 ข้อ 12) ใช้เฉพาะชื่อและชั้นจากทะเบียน</p>
   <datalist id="personList">{% for p in persons %}<option value="{{ p.name }}">{{ p.position }}</option>{% endfor %}</datalist>
   <div class="tp-grid">
     <div><label>ผู้ควบคุม (พิมพ์ชื่อหรือเลือก)</label>
       <input name="controller_name" list="personList" value="{{ t.ctrl_name }}" placeholder="พิมพ์ชื่อ..." autocomplete="off" data-person></div>
     <div><label>ตำแหน่งผู้ควบคุม</label><input name="controller_pos" value="{{ t.ctrl_pos }}" placeholder="เช่น ครู"></div>
   </div>
-  <label style="margin-top:12px;">ผู้ช่วยผู้ควบคุม <span class="muted" style="font-weight:400;">({{ t.staff|length }} คน · ต้องมีอย่างน้อย {{ need_assist }} คน สำหรับนักเรียน {{ c.students }} คน)</span></label>
+  <label style="margin-top:12px;">ผู้ช่วยผู้ควบคุม <span class="muted" style="font-weight:400;">({{ t.staff|length }} คน ต้องมีอย่างน้อย {{ need_assist }} คน สำหรับนักเรียน {{ c.students }} คน)</span></label>
   <div id="staffRows">
     {% for s in t.staff %}
     <div class="staff-row"><input name="staff_name" list="personList" value="{{ s.name }}" placeholder="พิมพ์ชื่อ..." autocomplete="off" data-person>
@@ -203,7 +203,7 @@
     {% endfor %}
   </div>
   <button type="button" class="btn sm gbtn v" onclick="addStaff()" style="margin-top:6px;">+ เพิ่มผู้ช่วยผู้ควบคุม</button>
-  <p class="tp-note" style="margin-top:6px;">พิมพ์ชื่อบุคคลนอกทะเบียนได้ (เช่น บุคคลที่หัวหน้าสถานศึกษามอบหมาย) · ชื่อที่ตรงกับทะเบียนบุคลากร ระบบเติมตำแหน่งให้</p>
+  <p class="tp-note" style="margin-top:6px;">พิมพ์ชื่อบุคคลนอกทะเบียนได้ (เช่น บุคคลที่หัวหน้าสถานศึกษามอบหมาย) ชื่อที่ตรงกับทะเบียนบุคลากร ระบบเติมตำแหน่งให้</p>
   <label style="margin-top:12px;">นักเรียน ({{ c.students }} คน)</label>
   {% for room, lst in groups.items() %}
   {% set n_in = lst|selectattr('id','in',picked)|list|length %}
@@ -220,7 +220,7 @@
 
 <div class="tp-card" id="sec-cost" style="--g1:#10b981; --g2:#0891b2;">
   <h2><span class="ic">3</span> ค่าใช้จ่าย</h2>
-  <p class="tp-note">เลือกชนิดรายการจากรายการ ระบบตั้งวิธีคิดและวิธีจ่ายให้ และเตือนเมื่ออัตราเกินเพดานตาม ว 2983 ·
+  <p class="tp-note">เลือกชนิดรายการจากรายการ ระบบตั้งวิธีคิดและวิธีจ่ายให้ และเตือนเมื่ออัตราเกินเพดานตาม ว 2983
     รายการ "จัดซื้อจัดจ้าง" ให้เลือกผู้ขาย แล้วระบบจะรวมเป็น 1 เรื่องต่อผู้ขาย</p>
   <div id="costs">
     {% for x in t.costs %}{% set k = kinds[x.kind] if x.kind in kinds else kinds['other'] %}
@@ -243,7 +243,7 @@
         <div><button type="button" class="btn sm soft" onclick="this.closest('.cost-row').remove()">ลบ</button></div>
       </div>
       <div style="display:flex; gap:10px; justify-content:space-between; align-items:flex-end; flex-wrap:wrap;">
-        <div class="ref">{{ k.hint ~ ' · ' if k.hint }}{{ k.ref }}</div>
+        <div class="ref">{{ k.hint ~ ' ' if k.hint }}{{ k.ref }}</div>
         <div class="amt">{{ "{:,.2f}".format(amounts[x.id]) }} บาท</div>
       </div>
       <div class="live-warn">{% for w in cost_warn[x.id] %}<div class="bad">⚠ {{ w }}</div>{% endfor %}</div>
@@ -254,7 +254,7 @@
     <button type="button" class="btn sm gbtn g" onclick="addCost()">+ เพิ่มรายการ</button>
     <span style="margin-left:auto; font-size:17px;">รวม <b id="costTotal">{{ "{:,.2f}".format(total) }}</b> บาท</span>
   </div>
-  <p class="tp-note">ยอดเงินคำนวณทันทีตามจำนวนนักเรียน/ครูที่เลือกอยู่ · กด "บันทึก" เพื่อเก็บ</p>
+  <p class="tp-note">ยอดเงินคำนวณทันทีตามจำนวนนักเรียน/ครูที่เลือกอยู่ กด "บันทึก" เพื่อเก็บ</p>
 </div>
 
 <button class="btn gbtn save-fab" type="submit" form="tripForm" id="saveFab">💾 บันทึก</button>
@@ -263,7 +263,7 @@
 <div class="tp-card trip-fields" id="sec-docs" style="--g1:#6366f1; --g2:#7c3aed;">
   <h2><span class="ic">4</span> ขออนุญาต</h2>
   <h3 class="tp-sub" id="sec-sched">🕘 กำหนดการ</h3>
-  <p class="tp-note">ใช้ออกเอกสาร "กำหนดการ" · เว้นช่องวันว่างได้ (ใส่เฉพาะแถวที่ขึ้นวันใหม่ เมื่อไปหลายวัน)</p>
+  <p class="tp-note">ใช้ออกเอกสาร "กำหนดการ" เว้นช่องวันว่างได้ (ใส่เฉพาะแถวที่ขึ้นวันใหม่ เมื่อไปหลายวัน)</p>
   <div id="schedRows">
     {% for r in schedule %}
     <div class="sch-row"><input name="sch_day" value="{{ r.day }}" placeholder="วัน (ถ้าหลายวัน)">
@@ -290,11 +290,11 @@
   </div>
 
   <h3 class="tp-sub">📄 เอกสารขออนุญาต</h3>
-  <p class="tp-note">กด "บันทึก" ก่อนดาวน์โหลดทุกครั้ง · ยื่นขออนุญาตก่อนเดินทางไม่น้อยกว่า 15 วัน (ระเบียบฯ ข้อ 9)</p>
+  <p class="tp-note">กด "บันทึก" ก่อนดาวน์โหลดทุกครั้ง ยื่นขออนุญาตก่อนเดินทางไม่น้อยกว่า 15 วัน (ระเบียบฯ ข้อ 9)</p>
   <div class="docs-grid">
     <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/request.docx"><span class="di">1</span><span>บันทึกข้อความขออนุญาต<small>เสนอ ผอ.</small></span></a>
     {% if t.trip_type != 'day' %}<a class="doc-tile" href="/general/trips/{{ t.id }}/doc/request_form.docx"><span class="di">1ข</span><span>แบบขออนุญาตท้ายระเบียบ<small>ส่ง{{ types[t.trip_type].approver }}</small></span></a>{% endif %}
-    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/parents.docx"><span class="di">2</span><span>หนังสือขออนุญาตผู้ปกครอง<small>{{ c.students or 1 }} หน้า · หน้าละคน</small></span></a>
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/parents.docx"><span class="di">2</span><span>หนังสือขออนุญาตผู้ปกครอง<small>{{ c.students or 1 }} หน้า หน้าละคน</small></span></a>
     <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/schedule.docx"><span class="di">3</span><span>กำหนดการ<small>{{ schedule|length or 'ตัวอย่าง' }}{{ ' แถว' if schedule }}</small></span></a>
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; align-items:center;">
@@ -315,7 +315,7 @@
   {% for g in groups_buy %}
   <div class="buy-grp">
     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-      <b>{{ g.proc_type }} · {{ g.vendor.name }}</b>
+      <b>{{ g.proc_type }} {{ g.vendor.name }}</b>
       <span class="muted">{{ g.labels|join(', ') }}</span>
       <span style="margin-left:auto; font-weight:800;">{{ "{:,.2f}".format(g.total) }} บาท</span>
     </div>
@@ -358,7 +358,7 @@
     </div>
     {% if loan %}
       <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <span class="pill ok">สร้างสัญญายืมแล้ว</span><span class="muted">{{ loan.borrower }} · {{ "{:,.2f}".format(loan.amount) }} บาท</span>
+        <span class="pill ok">สร้างสัญญายืมแล้ว</span><span class="muted">{{ loan.borrower }} {{ "{:,.2f}".format(loan.amount) }} บาท</span>
         <a class="btn sm gbtn" href="/finance/loans/{{ loan.id }}/contract.docx">สัญญายืม 8500</a>
         <a class="btn sm soft" href="/finance/loans?year={{ loan.fiscal_year }}">บันทึกส่งใช้ที่งานการเงิน →</a>
       </div>
@@ -375,7 +375,7 @@
   <h3 class="tp-sub">📄 เอกสารเบิกจ่าย</h3>
   <div class="docs-grid">
     {% if allow_total %}<a class="doc-tile" href="/general/trips/{{ t.id }}/doc/allowance.docx"><span class="di">฿</span><span>ใบสำคัญรับเงินนักเรียน (เอกสารแนบ 2)<small>ค่าอาหารเหมาจ่าย ตาม ว 2983</small></span></a>{% endif %}
-    {% if travel_total %}<a class="doc-tile" href="/general/trips/{{ t.id }}/doc/travel.docx"><span class="di">8708</span><span>ใบเบิกค่าเดินทางไปราชการ (แบบ 8708)<small>ครูผู้ควบคุม · {{ "{:,.2f}".format(travel_total) }} บาท</small></span></a>{% endif %}
+    {% if travel_total %}<a class="doc-tile" href="/general/trips/{{ t.id }}/doc/travel.docx"><span class="di">8708</span><span>ใบเบิกค่าเดินทางไปราชการ (แบบ 8708)<small>ครูผู้ควบคุม {{ "{:,.2f}".format(travel_total) }} บาท</small></span></a>{% endif %}
   </div>
   {% endif %}
 </div>
@@ -385,11 +385,11 @@
   <h2><span class="ic">6</span> วันเดินทางและหลังกลับ</h2>
   <h3 class="tp-sub">🧾 ใบลงเวลา (ใช้วันเดินทาง)</h3>
   <div class="docs-grid">
-    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/signin_students.docx"><span class="di">ส</span><span>ใบลงเวลานักเรียน<small>ลงชื่อ เวลามา/กลับ · {{ c.students }} คน</small></span></a>
-    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/signin_staff.docx"><span class="di">ค</span><span>ใบลงเวลาครู<small>ผู้ควบคุม + ผู้ช่วย · {{ c.staff }} คน</small></span></a>
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/signin_students.docx"><span class="di">ส</span><span>ใบลงเวลานักเรียน<small>ลงชื่อ เวลามา/กลับ {{ c.students }} คน</small></span></a>
+    <a class="doc-tile" href="/general/trips/{{ t.id }}/doc/signin_staff.docx"><span class="di">ค</span><span>ใบลงเวลาครู<small>ผู้ควบคุม + ผู้ช่วย {{ c.staff }} คน</small></span></a>
   </div>
   <h3 class="tp-sub">📝 รายงานผล (ข้อ 13)</h3>
-  <p class="tp-note">ติ๊กผลและวันที่รายงาน ระบบเขียนบันทึกรายงานผลให้เอง · เลือก "ไม่เรียบร้อย" จึงต้องเขียนรายละเอียด</p>
+  <p class="tp-note">ติ๊กผลและวันที่รายงาน ระบบเขียนบันทึกรายงานผลให้เอง เลือก "ไม่เรียบร้อย" จึงต้องเขียนรายละเอียด</p>
   <div class="tp-grid">
     <div><label>การพาไปครั้งนี้เป็นไปด้วยความ</label>
       <div style="display:flex; gap:18px; padding:8px 0;">
@@ -459,7 +459,7 @@ function kindChanged(sel){
   row.querySelector('[name=cost_item]').style.display = sel.value === 'other' ? '' : 'none';
   row.querySelector('[name=cost_basis]').value = k.basis;
   const pay = row.querySelector('[name=cost_pay]'); pay.value = k.pay; payChanged(pay);
-  const ref = row.querySelector('.ref'); if (ref) ref.textContent = [k.hint, k.ref].filter(Boolean).join(' · ');
+  const ref = row.querySelector('.ref'); if (ref) ref.textContent = [k.hint, k.ref].filter(Boolean).join(' ');
 }
 function payChanged(sel){
   const v = sel.closest('.cost-row').querySelector('[name=cost_vendor]');

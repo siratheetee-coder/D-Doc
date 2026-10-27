@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}จัดสอนแทน · {{ person.name }}{% endblock %}
+{% block title %}จัดสอนแทน {{ person.name }}{% endblock %}
 {% block content %}
 <div class="hero" style="background:linear-gradient(135deg,#7c3aed,#2563eb); color:#fff;">
   <div>
     <div class="hero-sub" style="color:#e9d5ff;">จัดคาบสอนแทน</div>
     <span class="hero-title">{{ person.name }}</span>
-    <div class="hero-meta" style="color:#e0e7ff;">{{ start }} - {{ end or start }} · เลือกครูที่ว่างมาสอนแทนแต่ละคาบ</div>
+    <div class="hero-meta" style="color:#e0e7ff;">{{ start }} - {{ end or start }} เลือกครูที่ว่างมาสอนแทนแต่ละคาบ</div>
   </div>
 </div>
 {% if request.query_params.get('msg') %}<div class="alert">✔ {{ request.query_params.get('msg') }}</div>{% endif %}
@@ -19,7 +19,7 @@
   <input type="hidden" name="end" value="{{ end }}">
   {% for day in plan %}
   <div class="card" style="border-left:4px solid #7c3aed;">
-    <h2 style="margin:0 0 8px;"><svg class="icon"><use href="#ic-calendar"/></svg> {{ day.day_name }} · {{ thai_date(day.date) }}</h2>
+    <h2 style="margin:0 0 8px;"><svg class="icon"><use href="#ic-calendar"/></svg> {{ day.day_name }} {{ thai_date(day.date) }}</h2>
     <div class="table-wrap">
     <table class="stack-sm">
       <thead><tr><th>คาบ</th><th>เวลา</th><th>ห้อง</th><th>วิชา</th><th>ครูสอนแทน</th></tr></thead>
@@ -32,7 +32,7 @@
         <td data-label="วิชา">{{ (c.subject.code ~ ' ' ~ c.subject.name) if c.subject else (c.subject.name if c.subject else '-') }}</td>
         <td data-label="ครูสอนแทน" class="stack-full">
           <select name="sub_{{ day.date.isoformat() }}_{{ c.period_id }}_{{ c.class_id }}" class="{{ 'has-sub' if c.cur }}">
-            <option value=""> · ยังไม่จัด · </option>
+            <option value=""> ยังไม่จัด </option>
             {% for t in c.avail %}<option value="{{ t.id }}" {{ 'selected' if t.id==c.cur }}>{{ t.name }}</option>{% endfor %}
             {% if c.cur and c.cur not in c.avail|map(attribute='id')|list %}
               {# ครูที่จัดไว้แต่ตอนนี้ไม่ว่าง - ยังแสดงให้เห็น #}
@@ -56,7 +56,7 @@
 </form>
 {% else %}
 <div class="card">
-  <p class="muted" style="margin:0;">ครูคนนี้ไม่มีคาบสอนในช่วงวันที่เลือก (หรือยังไม่ได้ตั้งตารางเรียน) · <a href="/academic/timetable">ไปตั้งตารางเรียน</a></p>
+  <p class="muted" style="margin:0;">ครูคนนี้ไม่มีคาบสอนในช่วงวันที่เลือก (หรือยังไม่ได้ตั้งตารางเรียน) <a href="/academic/timetable">ไปตั้งตารางเรียน</a></p>
   <a class="btn gray" href="/academic/substitute" style="margin-top:10px;">← กลับ</a>
 </div>
 {% endif %}

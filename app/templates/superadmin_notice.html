@@ -4,10 +4,10 @@
 {% block content %}
 <div class="hero" style="background:linear-gradient(120deg,#b45309,#d97706 55%,#f59e0b); box-shadow:0 10px 26px rgba(217,119,6,.28);">
   <div>
-    <div class="hero-sub">แจ้งผู้ใช้ทุกโรงเรียน · ขึ้นการ์ดบนเว็บ + ส่งอีเมลถึงไอดีหลัก</div>
+    <div class="hero-sub">แจ้งผู้ใช้ทุกโรงเรียน ขึ้นการ์ดบนเว็บ + ส่งอีเมลถึงไอดีหลัก</div>
     <span class="hero-title">ประกาศถึงผู้ใช้</span>
     <div class="hero-meta">ไอดีหลักที่จะได้รับอีเมล {{ targets|length }} โรงเรียน{% if skipped %}
-      · ส่งไม่ได้ {{ skipped|length }} (ไอดีไม่ใช่อีเมล){% endif %}</div>
+      ส่งไม่ได้ {{ skipped|length }} (ไอดีไม่ใช่อีเมล){% endif %}</div>
   </div>
   <a class="btn gray" href="/admin-console"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับคอนโซล</a>
 </div>
@@ -16,7 +16,7 @@
 {% if err %}<div class="alert danger"><svg class="icon"><use href="#ic-alert"/></svg><span>{{ err }}</span></div>{% endif %}
 {% if not smtp_ok %}
 <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
-  <span>ยังไม่ได้ตั้งค่า SMTP · ประกาศขึ้นการ์ดบนเว็บได้ แต่ส่งอีเมลไม่ได้</span></div>
+  <span>ยังไม่ได้ตั้งค่า SMTP ประกาศขึ้นการ์ดบนเว็บได้ แต่ส่งอีเมลไม่ได้</span></div>
 {% endif %}
 
 <div class="card">

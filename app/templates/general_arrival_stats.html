@@ -3,9 +3,9 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">งานบริหารทั่วไป · บันทึกการมาเรียน</div>
+    <div class="hero-sub">งานบริหารทั่วไป บันทึกการมาเรียน</div>
     <span class="hero-title">สถิติการมาเรียน</span>
-    <div class="hero-meta">{{ school.name or "" }} · {{ df_be }} ถึง {{ dt_be }}{% if room %} · ห้อง {{ room }}{% endif %}</div>
+    <div class="hero-meta">{{ school.name or "" }} {{ df_be }} ถึง {{ dt_be }}{% if room %} ห้อง {{ room }}{% endif %}</div>
   </div>
 </div>
 
@@ -39,7 +39,7 @@
 
 <!-- กราฟรายวัน -->
 <div class="card">
-  <h2 style="margin-top:0;">มาเรียนรายวัน <span class="muted" style="font-size:13px; font-weight:400;">(เขียว = มาทัน · แดง = สาย)</span></h2>
+  <h2 style="margin-top:0;">มาเรียนรายวัน <span class="muted" style="font-size:13px; font-weight:400;">(เขียว = มาทัน แดง = สาย)</span></h2>
   {% if day_rows and day_max %}
   {% set chartH = 180 %}
   <div style="overflow-x:auto; padding-bottom:4px;">

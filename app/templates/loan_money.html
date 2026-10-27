@@ -3,25 +3,25 @@
 {% block content %}
 <div class="card">
   <h1>จ่ายเงินยืม / รับคืนเงินสด</h1>
-  <p>สัญญา {{ loan.contract_no or '-' }} · {{ loan.borrower }} · {{ '{:,.2f}'.format(loan.amount or 0) }} บาท</p>
+  <p>สัญญา {{ loan.contract_no or '-' }} {{ loan.borrower }} {{ '{:,.2f}'.format(loan.amount or 0) }} บาท</p>
   <a class="btn gray sm" href="/finance/loans?year={{ loan.fiscal_year }}">กลับทะเบียนเงินยืม</a>
   {% if request.query_params.get('message') %}<div class="alert">{{ request.query_params.get('message') }}</div>{% endif %}
   <div class="alert info">สัญญาและประวัติส่งใช้เดิมยังไม่ลงทะเบียนคุมเงินให้อัตโนมัติ หากเคยบันทึกรับ–จ่ายไว้แล้ว ให้เชื่อมรายการเดิม เพื่อไม่ตัดหรือเพิ่มเงินซ้ำ</div>
 </div>
 {% for e in entries %}
 <div class="card">
-  <h2>{{ ('ส่งใช้ใบสำคัญ' if e.ret.kind == 'ใบสำคัญ' else 'รับคืนเงินสด') if e.ret else 'จ่ายเงินยืม' }} · {{ '{:,.2f}'.format(e.amount or 0) }} บาท</h2>
+  <h2>{{ ('ส่งใช้ใบสำคัญ' if e.ret.kind == 'ใบสำคัญ' else 'รับคืนเงินสด') if e.ret else 'จ่ายเงินยืม' }} {{ '{:,.2f}'.format(e.amount or 0) }} บาท</h2>
   {% if e.ret and e.ret.kind == 'ใบสำคัญ' %}
     <p>บันทึกลดลูกหนี้เงินยืมแล้ว รายการนี้ไม่ใช่เงินสดรับคืน และไม่สร้างรายการจ่ายเพิ่ม</p>
   {% elif e.txn %}
-    <div class="alert info">เชื่อมทะเบียนคุมเงินแล้ว · {{ e.txn.account.name }} · {{ be_date(e.txn.date) }} · {{ e.txn.ref or '-' }}</div>
+    <div class="alert info">เชื่อมทะเบียนคุมเงินแล้ว {{ e.txn.account.name }} {{ be_date(e.txn.date) }} {{ e.txn.ref or '-' }}</div>
     <a class="btn sm" href="/finance/accounts/{{ e.txn.account_id }}?year={{ e.txn.fiscal_year }}">ดูรายการเงินจริง</a>
     <form method="post" action="/finance/loans/{{ loan.id }}/money/{{ e.rid }}" style="display:inline" onsubmit="return confirm('ยกเลิกเฉพาะการเชื่อม รายการเงินจริงยังอยู่ ยืนยันหรือไม่?')">
       <button class="btn sm gray" name="mode" value="unlink">ยกเลิกการเชื่อม (เก็บรายการเงินจริง)</button>
     </form>
   {% elif e.error %}<div class="alert warn">{{ e.error }}</div>
   {% else %}
-    <p>วันที่ {{ be_date(e.date) }} · ปีงบประมาณ {{ e.fy }} · ยังไม่เชื่อมทะเบียนคุมเงิน</p>
+    <p>วันที่ {{ be_date(e.date) }} ปีงบประมาณ {{ e.fy }} ยังไม่เชื่อมทะเบียนคุมเงิน</p>
     <form method="post" action="/finance/loans/{{ loan.id }}/money/{{ e.rid }}" onsubmit="return confirm('ตรวจบัญชี หมวด และยอดแล้ว ยืนยันบันทึกรายการนี้?')">
       <div class="row">
         <div><label>บัญชีที่{{ 'รับคืน' if e.ret else 'จ่าย' }}เงินจริง</label><select name="account_id" required><option value="">— เลือกบัญชี —</option>{% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if loan.account_id==a.id }}>{{ a.name }}</option>{% endfor %}</select></div>
@@ -31,7 +31,7 @@
       <hr>
       <p><strong>หากเคยบันทึก{{ 'รับคืนเงิน' if e.ret else 'จ่ายเงิน' }}ไว้แล้ว ไม่ต้องลงรายการใหม่</strong> ให้เลือกรายการเดิมด้านล่างแล้วกดเชื่อม ยอดเงินจะไม่เปลี่ยน</p>
       <label>รายการเดิมที่ยอดและปีงบประมาณตรงกัน (ต้องเลือกบัญชีและหมวดด้านบนให้ตรงด้วย)</label>
-      <select name="txn_id"><option value="">— เลือกรายการเดิม —</option>{% for t in e.candidates %}<option value="{{ t.id }}">#{{ t.id }} · {{ be_date(t.date) }} · {{ t.account.name }} / {{ t.item.name if t.item else 'ไม่ระบุหมวด' }} · {{ t.ref or '-' }} · {{ t.note or t.category }} · {{ '{:,.2f}'.format(t.amount) }} บาท</option>{% endfor %}</select>
+      <select name="txn_id"><option value="">— เลือกรายการเดิม —</option>{% for t in e.candidates %}<option value="{{ t.id }}">#{{ t.id }} {{ be_date(t.date) }} {{ t.account.name }} / {{ t.item.name if t.item else 'ไม่ระบุหมวด' }} {{ t.ref or '-' }} {{ t.note or t.category }} {{ '{:,.2f}'.format(t.amount) }} บาท</option>{% endfor %}</select>
       <p><button class="btn" name="mode" value="link">เชื่อมรายการ{{ 'รับคืน' if e.ret else 'จ่าย' }}ที่บันทึกไว้แล้ว</button></p>
     </form>
   {% endif %}

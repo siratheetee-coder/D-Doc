@@ -22,7 +22,7 @@
           {% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if a.id == account_pre }}>{{ a.name }}</option>{% endfor %}
         </select>
         <div class="muted" style="font-size:12.5px; margin-top:3px;">การเงินลงรับเงินในบัญชีนี้ แล้วรายการรับจะขึ้นที่หน้าอาหารกลางวันเอง
-          {% if not accounts %}· ยังไม่มีบัญชี <a href="/finance/accounts">สร้างบัญชีที่ทะเบียนคุมเงิน</a>{% endif %}</div></div>
+          {% if not accounts %} ยังไม่มีบัญชี <a href="/finance/accounts">สร้างบัญชีที่ทะเบียนคุมเงิน</a>{% endif %}</div></div>
       <div><label>เจ้าหน้าที่โครงการ</label>
         <input name="lunch_officer" list="persons_dl" value="{{ p.lunch_officer if p else '' }}" placeholder="เลือกบุคลากร หรือพิมพ์ชื่อ (เว้นว่าง = ใช้ จนท.พัสดุ)">
         <datalist id="persons_dl">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist>
@@ -55,7 +55,7 @@
         <div style="font-size:19px;">งบประมาณ: <b id="sBudget" style="color:var(--brand-dark);">0.00</b> บาท</div>
       </div>
       <p class="muted" style="margin:8px 0 0; font-size:13px;">โหมดแม่ครัว/ซื้อวัตถุดิบ: กรอกค่าจ้างแม่ครัว + ค่าเชื้อเพลิง เป็นรอบๆ ในหน้าจัดการรอบ</p>
-      <p class="muted" style="margin:8px 0 0;">อัตราตามขนาด: 1-40 คน = 36 · 41-100 = 27 · 101-120 = 24 · 121 คนขึ้นไป = 22 บาท</p>
+      <p class="muted" style="margin:8px 0 0;">อัตราตามขนาด: 1-40 คน = 36 41-100 = 27 101-120 = 24 121 คนขึ้นไป = 22 บาท</p>
     </div>
 
     <label style="margin-top:14px;">หมายเหตุ</label><textarea name="note" rows="2">{{ p.note if p else '' }}</textarea>

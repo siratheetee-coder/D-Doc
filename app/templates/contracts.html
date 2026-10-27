@@ -5,7 +5,7 @@
   <div>
     <div class="hero-sub">ทะเบียนคุมสัญญา/ใบสั่งซื้อสั่งจ้าง + แจ้งเตือนวันครบกำหนด</div>
     <span class="hero-title">ทะเบียนคุมสัญญา</span>
-    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} · {{ items|length }} สัญญา{% if alerts %} · <span style="color:#fca5a5;">ใกล้/เกินกำหนด {{ alerts|length }}</span>{% endif %}</div>
+    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} {{ items|length }} สัญญา{% if alerts %} <span style="color:#fca5a5;">ใกล้/เกินกำหนด {{ alerts|length }}</span>{% endif %}</div>
   </div>
   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <a class="btn sm green" href="/procurement/contracts/export.xlsx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> ส่งออก Excel</a>

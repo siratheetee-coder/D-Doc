@@ -13,12 +13,12 @@
     {% if p.operate_mode in ['person','ingredient'] %}
     {% if p.operate_mode == 'person' %}<tr><th>ค่าจ้างแม่ครัว (ทั้งรอบ)</th><td><b>{{ "{:,.2f}".format(wage) }}</b> บาท</td></tr>{% endif %}
     <tr><th>ค่าเชื้อเพลิง (รอบนี้)</th><td>{{ "{:,.2f}".format(fuel_cost) }} บาท</td></tr>
-    <tr><th>งบสำหรับวัตถุดิบ</th><td>{{ "{:,.2f}".format(ing_budget) }} บาท <span class="muted">· (งบรายหัว {{ r.days }} วัน − ค่าจ้าง − ค่าเชื้อเพลิง)</span></td></tr>
+    <tr><th>งบสำหรับวัตถุดิบ</th><td>{{ "{:,.2f}".format(ing_budget) }} บาท <span class="muted">(งบรายหัว {{ r.days }} วัน − ค่าจ้าง − ค่าเชื้อเพลิง)</span></td></tr>
     <tr><th>ค่าวัตถุดิบ (กรอกแล้ว)</th><td><b style="color:var(--brand-dark);">{{ "{:,.2f}".format(ing_total) }}</b> บาท</td></tr>
-    <tr style="font-weight:700; background:#f1f5f9;"><th>งบคงเหลือสำหรับวัตถุดิบ</th><td><b style="font-size:17px; color:{{ '#dc2626' if ing_remaining < 0 else 'var(--brand-dark)' }};">{{ "{:,.2f}".format(ing_remaining) }}</b> บาท{% if ing_remaining < 0 %} <span style="color:#dc2626;">· เกินงบ!</span>{% endif %}</td></tr>
+    <tr style="font-weight:700; background:#f1f5f9;"><th>งบคงเหลือสำหรับวัตถุดิบ</th><td><b style="font-size:17px; color:{{ '#dc2626' if ing_remaining < 0 else 'var(--brand-dark)' }};">{{ "{:,.2f}".format(ing_remaining) }}</b> บาท{% if ing_remaining < 0 %} <span style="color:#dc2626;">เกินงบ!</span>{% endif %}</td></tr>
     {% else %}
     <tr><th>วงเงิน{{ RW }}</th><td><b>{{ "{:,.2f}".format(r.amount or 0) }}</b> บาท</td></tr>
-    <tr><th>แบ่งงวดจ่ายเงินแล้ว</th><td><b {{ 'style="color:#dc2626;"' if committed > (r.amount or 0) else '' }}>{{ "{:,.2f}".format(committed) }}</b> บาท · จ่ายแล้ว <b style="color:var(--brand-dark);">{{ "{:,.2f}".format(paid) }}</b> บาท · เหลือแบ่งได้ <b {{ 'style="color:#dc2626;"' if ((r.amount or 0) - committed) < 0 else '' }}>{{ "{:,.2f}".format((r.amount or 0) - committed) }}</b> บาท</td></tr>
+    <tr><th>แบ่งงวดจ่ายเงินแล้ว</th><td><b {{ 'style="color:#dc2626;"' if committed > (r.amount or 0) else '' }}>{{ "{:,.2f}".format(committed) }}</b> บาท จ่ายแล้ว <b style="color:var(--brand-dark);">{{ "{:,.2f}".format(paid) }}</b> บาท เหลือแบ่งได้ <b {{ 'style="color:#dc2626;"' if ((r.amount or 0) - committed) < 0 else '' }}>{{ "{:,.2f}".format((r.amount or 0) - committed) }}</b> บาท</td></tr>
     {% endif %}
   </table></div>
   {% if p.operate_mode not in ['person','ingredient'] %}
@@ -29,7 +29,7 @@
   {% endif %}
   <p class="muted" style="margin-bottom:0;">{{ RW }}นี้แบ่งจ่ายเป็นงวดจ่ายเงินได้ (เช่น 5 งวด งวดละ 20 วัน) แต่ละงวด: ส่งมอบ → ตรวจรับ → เมื่อ "จ่ายแล้ว" ระบบลงบัญชีให้อัตโนมัติ</p>
   {% else %}
-  <p class="muted" style="margin-bottom:0;">{{ RW }}นี้ทำเรื่องและจ่ายเงินครั้งเดียว ไม่มีงวด · งบคิดจากค่าวัตถุดิบที่กรอกรายวัน (+ ค่าจ้าง/ค่าเชื้อเพลิง) · ใส่เมนูและวัตถุดิบด้านล่าง</p>
+  <p class="muted" style="margin-bottom:0;">{{ RW }}นี้ทำเรื่องและจ่ายเงินครั้งเดียว ไม่มีงวด งบคิดจากค่าวัตถุดิบที่กรอกรายวัน (+ ค่าจ้าง/ค่าเชื้อเพลิง) ใส่เมนูและวัตถุดิบด้านล่าง</p>
   {% endif %}
 </div>
 
@@ -51,7 +51,7 @@
         {% for o in other_rounds %}<option value="{{ o.id }}">รอบที่ {{ o.seq }} ({{ o.count }} คน)</option>{% endfor %}
       </select>
       <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-download"/></svg> ดึงมาใช้</button>
-      <span class="muted" style="font-size:12.5px;">คัดลอกครบทุกชุด (TOR/ควบคุมงาน/ตรวจรับ) · ชื่อซ้ำจะไม่เพิ่มซ้ำ</span>
+      <span class="muted" style="font-size:12.5px;">คัดลอกครบทุกชุด (TOR/ควบคุมงาน/ตรวจรับ) ชื่อซ้ำจะไม่เพิ่มซ้ำ</span>
     </form>
   </div>
   {% endif %}
@@ -187,7 +187,7 @@
   {% set st = NEXT.get(nxt.status, NEXT['ร่าง']) %}
   <div class="iq-next">
     <div class="iq-next-h">ถึงคิว: <b>งวดที่ {{ nxt.seq }}</b>
-      <span class="muted">({{ be_date(nxt.start_date) if nxt.start_date else '-' }} ถึง {{ be_date(nxt.end_date) if nxt.end_date else '-' }} · {{ "{:,.2f}".format(nxt.amount or 0) }} บาท)</span></div>
+      <span class="muted">({{ be_date(nxt.start_date) if nxt.start_date else '-' }} ถึง {{ be_date(nxt.end_date) if nxt.end_date else '-' }} {{ "{:,.2f}".format(nxt.amount or 0) }} บาท)</span></div>
     <div>ขั้นต่อไป: <b>{{ st[0] }}</b></div>
     <div class="iq-act">
       <a class="btn sm gray" href="/lunch/installment/{{ nxt.id }}/{{ st[2] }}"><svg class="icon"><use href="#ic-download"/></svg> {{ st[3] }}</a>
@@ -215,7 +215,7 @@
     .iq-row-next td{ background:#eff6ff; }
   </style>
   {# 6 คอลัมน์ (เดิม 10 คอลัมน์ ล้นจอจนผู้ใช้ไม่รู้ว่าต้องเลื่อนขวา เจ้าของแจ้ง)
-     วัน/วงเงินอยู่ใต้ช่วงวันที่ · ลงบัญชีแล้วอยู่ใต้ความคืบหน้า · วันส่งมอบ/ตรวจรับซ้อนกัน · ปุ่มสั้นลง
+     วัน/วงเงินอยู่ใต้ช่วงวันที่ ลงบัญชีแล้วอยู่ใต้ความคืบหน้า วันส่งมอบ/ตรวจรับซ้อนกัน ปุ่มสั้นลง
      (ไม่ใช้เมนูลอย เพราะอยู่ในกล่องเลื่อนแนวนอน เมนูจะถูกตัด) #}
   <div class="table-wrap">
   <table class="iq-table">
@@ -226,7 +226,7 @@
       <tr data-iid="{{ i.id }}" {% if nxt and i.id == nxt.id %}class="iq-row-next"{% endif %}>
         <td class="iq-no">{{ i.seq }}</td>
         <td><div class="iq-range">{{ be_date(i.start_date) if i.start_date else '-' }} – {{ be_date(i.end_date) if i.end_date else '-' }}</div>
-            <div class="iq-sub">{{ i.days }} วัน · <b>{{ "{:,.2f}".format(i.amount or 0) }}</b> บาท</div></td>
+            <div class="iq-sub">{{ i.days }} วัน <b>{{ "{:,.2f}".format(i.amount or 0) }}</b> บาท</div></td>
         <td><div class="iq-steps" title="สถานะ: {{ i.status }}">{% for s2 in ['ส่งมอบ', 'ตรวจรับ', 'จ่ายแล้ว'] %}<span class="{{ 'on' if loop.index <= lvl }}">{{ s2 }}</span>{% endfor %}</div>
             {% if i.status=='จ่ายแล้ว' %}<div class="iq-sub iq-booked">✓ ลงบัญชีแล้ว</div>{% endif %}</td>
         <td class="iq-dates">
@@ -257,7 +257,7 @@
     .iq-acts{ white-space:nowrap; }
     .iq-acts .btn{ padding-left:10px; padding-right:10px; }
   </style>
-  <p class="muted" style="font-size:13px; margin:8px 0 0;">แก้สถานะ/วันส่งมอบ/วันตรวจรับ ในตารางแล้วกด "บันทึก" ได้เลย (งวดที่แบ่งอัตโนมัติ ระบบตั้งวันส่งมอบ/ตรวจรับเป็นวันสุดท้ายของงวดให้ · เปลี่ยนได้)</p>
+  <p class="muted" style="font-size:13px; margin:8px 0 0;">แก้สถานะ/วันส่งมอบ/วันตรวจรับ ในตารางแล้วกด "บันทึก" ได้เลย (งวดที่แบ่งอัตโนมัติ ระบบตั้งวันส่งมอบ/ตรวจรับเป็นวันสุดท้ายของงวดให้ เปลี่ยนได้)</p>
   <script>
     function saveInst(btn){
       var tr = btn.closest('tr'), iid = tr.getAttribute('data-iid');
@@ -284,12 +284,12 @@
 <!-- ============ คัดลอกเมนู/วัตถุดิบจากรอบอื่น ============ -->
 <div class="card" style="background:linear-gradient(135deg,#eff6ff,#eef2ff); border:1px solid #bfdbfe;">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอกเมนู/วัตถุดิบจากรอบอื่น</h2>
-  <p class="muted" style="margin:2px 0 10px;">ดึงเมนู (และวัตถุดิบ) จากรอบก่อนมาใส่รอบนี้ · จับคู่ "วันทำการที่ 1, 2, 3..." ให้อัตโนมัติ · ข้ามวันที่มีข้อมูลอยู่แล้ว</p>
+  <p class="muted" style="margin:2px 0 10px;">ดึงเมนู (และวัตถุดิบ) จากรอบก่อนมาใส่รอบนี้ จับคู่ "วันทำการที่ 1, 2, 3..." ให้อัตโนมัติ ข้ามวันที่มีข้อมูลอยู่แล้ว</p>
   <form method="post" action="/lunch/round/{{ r.id }}/copy-plan" class="row" style="align-items:flex-end;"
         onsubmit="return confirm('คัดลอกมาที่รอบนี้?');">
     <div style="flex:1.6; min-width:220px;"><label>คัดลอกจากรอบ</label>
       <select name="src_round" required style="width:100%;">
-        <option value=""> · เลือกรอบต้นทาง · </option>
+        <option value=""> เลือกรอบต้นทาง </option>
         {% for o in rounds_with_plan %}<option value="{{ o.id }}">{{ o.label }}</option>{% endfor %}
       </select></div>
     <div style="flex:0 0 auto;"><label style="display:block;">คัดลอกอะไร</label>
@@ -307,13 +307,13 @@
     <h2 style="margin:0;">เมนูอาหารใน{{ RW }}นี้</h2>
     <a class="btn sm gray" href="/lunch/{{ p.id }}/menu?back=/lunch/round/{{ r.id }}/plan"><svg class="icon"><use href="#ic-clipboard"/></svg> จัดการเมนูทั้งหมด / เมนูแนะนำ 5 หมู่</a>
   </div>
-  <p class="muted" style="margin:4px 0 10px;">เมนูจะถูกดึงไปใส่ในเอกสารงวด (ควบคุม/ส่งมอบ/ตรวจรับ) ตามวันที่ · เลือกวันจากช่วงสัญญาได้เลย (เฉพาะวันทำการ)</p>
+  <p class="muted" style="margin:4px 0 10px;">เมนูจะถูกดึงไปใส่ในเอกสารงวด (ควบคุม/ส่งมอบ/ตรวจรับ) ตามวันที่ เลือกวันจากช่วงสัญญาได้เลย (เฉพาะวันทำการ)</p>
   {% if menu_days %}
   <form method="post" action="/lunch/{{ p.id }}/menu/add" class="row" style="align-items:flex-end;">
     <input type="hidden" name="back" value="/lunch/round/{{ r.id }}/plan">
     <div style="flex:1.3; min-width:210px;"><label>วันที่ <span class="muted">(ใน{{ RW }}นี้)</span></label>
       <select name="date" style="width:100%;">
-        {% for d in menu_days %}<option value="{{ d.be }}">{{ d.be }}{{ ' · มีเมนูแล้ว' if d.has }}</option>{% endfor %}
+        {% for d in menu_days %}<option value="{{ d.be }}">{{ d.be }}{{ ' มีเมนูแล้ว' if d.has }}</option>{% endfor %}
       </select></div>
     <div style="flex:2; min-width:200px;"><label>อาหารคาว (จานหลัก)</label><input name="main" list="mains_dl" style="width:100%;" placeholder="เช่น ข้าวสวย แกงเขียวหวานไก่" required></div>
     <div style="flex:2; min-width:200px;"><label>ของหวาน / ผลไม้</label><input name="dessert" list="desserts_dl" style="width:100%;" placeholder="เช่น กล้วยน้ำว้า"></div>
@@ -378,7 +378,7 @@
 </style>
 <div class="card" id="docnos">
   <h2><svg class="icon"><use href="#ic-clipboard"/></svg> เลขที่หนังสือของแต่ละเอกสาร</h2>
-  <p class="muted" style="margin-top:0;">เอกสารแต่ละฉบับมีเลข/วันที่ของตัวเอง (ต่างกันตามชนิดเอกสาร) · กรอกที่นี่ก่อนออกเอกสาร แล้วระบบจะพิมพ์ลงเอกสารและบันทึกเข้าทะเบียนเลขหนังสือกลางให้อัตโนมัติ</p>
+  <p class="muted" style="margin-top:0;">เอกสารแต่ละฉบับมีเลข/วันที่ของตัวเอง (ต่างกันตามชนิดเอกสาร) กรอกที่นี่ก่อนออกเอกสาร แล้วระบบจะพิมพ์ลงเอกสารและบันทึกเข้าทะเบียนเลขหนังสือกลางให้อัตโนมัติ</p>
   {% for d in doc_no_rows %}
   <div class="dn-doc{% if d.fields|selectattr('value')|list %} saved{% endif %}" data-kind="{{ d.kind }}">
     <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
@@ -440,7 +440,7 @@
 <!-- ============ ใบสำคัญรับเงิน (ใช้ได้ทุกวิธีดำเนินการ) ============ -->
 <div class="card">
   <h2><svg class="icon"><use href="#ic-file"/></svg> ใบสำคัญรับเงิน</h2>
-  <p class="muted" style="margin-top:0;">ฟอร์มใบสำคัญรับเงิน (ผู้รับจ้าง/ผู้รับเงิน ลงชื่อรับเงิน) ดึงชื่อผู้รับจ้าง วงเงิน และรายการมาให้ · กรอกที่อยู่/สตางค์เพิ่มในไฟล์ได้</p>
+  <p class="muted" style="margin-top:0;">ฟอร์มใบสำคัญรับเงิน (ผู้รับจ้าง/ผู้รับเงิน ลงชื่อรับเงิน) ดึงชื่อผู้รับจ้าง วงเงิน และรายการมาให้ กรอกที่อยู่/สตางค์เพิ่มในไฟล์ได้</p>
   <a class="btn gray" href="/lunch/round/{{ r.id }}/receipt-voucher"><svg class="icon"><use href="#ic-download"/></svg> ออกใบสำคัญรับเงิน</a>
 </div>
 
@@ -467,7 +467,7 @@
   <p class="muted" style="margin-top:0;">กรอกเลขที่/วันที่สัญญายืม จำนวนวัน และวงเงินให้ครบก่อน เอกสารจะดึงข้อมูลไปกรอกให้ (ตามคู่มืออาหารกลางวัน สพฐ.)</p>
   <div class="tipbox" style="margin:0 0 12px;">
     <a class="btn sm" href="/lunch/{{ p.id }}/ingredients?back=/lunch/round/{{ r.id }}/plan"><svg class="icon"><use href="#ic-clipboard"/></svg> กรอกวัตถุดิบรายวัน</a>
-    <span class="muted" style="font-size:13px; margin-left:8px;">กรอกวัตถุดิบ/ราคาต่อวัน แล้วใบรับรายงานวัตถุดิบ · ใบรับรองจ่ายเงิน · สรุปตรวจรับ จะดึงไปเติมให้อัตโนมัติ</span>
+    <span class="muted" style="font-size:13px; margin-left:8px;">กรอกวัตถุดิบ/ราคาต่อวัน แล้วใบรับรายงานวัตถุดิบ ใบรับรองจ่ายเงิน สรุปตรวจรับ จะดึงไปเติมให้อัตโนมัติ</span>
   </div>
   <a class="btn" href="/lunch/round/{{ r.id }}/ingredient-doc/bundle" style="font-size:16px; padding:11px 20px;">
     <svg class="icon"><use href="#ic-download"/></svg> ออกเอกสารทั้งชุด (ไฟล์เดียว)
@@ -511,7 +511,7 @@
 </style>
 <div class="card">
   <h2 style="margin-top:0;">ออกเอกสารจ้างแม่ครัว</h2>
-  <p class="muted" style="margin-top:0;">ทำ 2 ช่วงตามลำดับ · กรอกผู้รับจ้าง เลขที่/วันที่ตกลงจ้าง งวดจ่ายเงิน และกรรมการให้ครบก่อน (ตามคู่มืออาหารกลางวัน สพฐ.)</p>
+  <p class="muted" style="margin-top:0;">ทำ 2 ช่วงตามลำดับ กรอกผู้รับจ้าง เลขที่/วันที่ตกลงจ้าง งวดจ่ายเงิน และกรรมการให้ครบก่อน (ตามคู่มืออาหารกลางวัน สพฐ.)</p>
 
   <div class="ph-tabs">
     <button type="button" class="ph-tab active" data-ph="1" onclick="showPhase(1)">
@@ -530,7 +530,7 @@
 
   <!-- ช่วงที่ 1: ซื้อวัตถุดิบ -->
   <div class="ph-panel active" data-ph="1">
-    <p class="muted" style="margin:16px 0 6px;"><b>ช่วงที่ 1 · ซื้อวัตถุดิบ</b> · ออกทีละใบ:</p>
+    <p class="muted" style="margin:16px 0 6px;"><b>ช่วงที่ 1 ซื้อวัตถุดิบ</b> ออกทีละใบ:</p>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/borrow"><svg class="icon"><use href="#ic-file"/></svg> ขออนุมัติยืมเงิน</a>
       <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/loan"><svg class="icon"><use href="#ic-file"/></svg> สัญญาการยืมเงิน (แบบ 8500)</a>
@@ -549,7 +549,7 @@
 
   <!-- ช่วงที่ 2: จ้างแม่ครัว -->
   <div class="ph-panel" data-ph="2">
-    <p class="muted" style="margin:16px 0 6px;"><b>ช่วงที่ 2 · จ้างแม่ครัว</b> (9 ขั้นตามลำดับ) · ออกทีละใบ:</p>
+    <p class="muted" style="margin:16px 0 6px;"><b>ช่วงที่ 2 จ้างแม่ครัว</b> (9 ขั้นตามลำดับ) ออกทีละใบ:</p>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/hire-report"><svg class="icon"><use href="#ic-file"/></svg> 1. รายงานขอจ้าง + แต่งตั้งกรรมการ</a>
       <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/tor"><svg class="icon"><use href="#ic-file"/></svg> 2. ขอบเขตของงาน (TOR)</a>
@@ -632,7 +632,7 @@
     var msg='จะสร้าง '+r.length+' งวด:\n'+r.map(function(x,i){return 'งวด '+(i+1)+': '+_bBE(x[0])+' ถึง '+_bBE(x[1]);}).join('\n');
     return confirm(msg+'\n\nยืนยันสร้างงวดทั้งหมด?'); }
   function autoPreview(){ var el=$('autoPreview'); if(!el)return; var r=autoRanges();
-    el.innerHTML = (r&&r.length) ? r.map(function(x,i){return 'งวด '+(i+1)+': <b>'+_bBE(x[0])+'</b> ถึง <b>'+_bBE(x[1])+'</b>';}).join(' &nbsp;·&nbsp; ') : ''; }
+    el.innerHTML = (r&&r.length) ? r.map(function(x,i){return 'งวด '+(i+1)+': <b>'+_bBE(x[0])+'</b> ถึง <b>'+_bBE(x[1])+'</b>';}).join(' &emsp; ') : ''; }
   ['ausd','anin','ade'].forEach(function(id){ var e=$(id); if(e) e.addEventListener('input', autoPreview); });
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){

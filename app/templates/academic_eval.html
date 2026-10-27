@@ -45,8 +45,8 @@
       {% endif %}
     </div>
   </div>
-  <p class="muted" style="font-size:13px; margin:6px 0 8px;">หน้านี้กรอกแค่ <b>กิจกรรมพัฒนาผู้เรียน</b> (ผ/มผ) ·
-    คุณลักษณะฯ และ อ่านคิดเขียน มาจาก<b>ประเมินรายวิชา</b> (ปุ่มด้านบน) ระบบคำนวณให้ ไม่ต้องติ๊กซ้ำ ·
+  <p class="muted" style="font-size:13px; margin:6px 0 8px;">หน้านี้กรอกแค่ <b>กิจกรรมพัฒนาผู้เรียน</b> (ผ/มผ)
+    คุณลักษณะฯ และ อ่านคิดเขียน มาจาก<b>ประเมินรายวิชา</b> (ปุ่มด้านบน) ระบบคำนวณให้ ไม่ต้องติ๊กซ้ำ
     ความเห็นครูและผู้ปกครองเว้นช่องไว้ให้เขียนมือในสมุดรายงาน</p>
   {% if not activities %}
   <div class="alert warn" style="margin:0 0 10px;"><svg class="icon"><use href="#ic-alert"/></svg>
@@ -71,7 +71,7 @@
           <td>{{ s.seq or '' }}</td>
           <td style="white-space:nowrap;">{{ s.name }}</td>
           {% set ef = eff.get(s.id) %}
-          {# คุณ/อ่าน = เฉลี่ยจากประเมินรายวิชา · โชว์ผลต่อเมื่อประเมินครบทุกวิชา #}
+          {# คุณ/อ่าน = เฉลี่ยจากประเมินรายวิชา โชว์ผลต่อเมื่อประเมินครบทุกวิชา #}
           {% set rdone = read_done.get(s.id, 0) %}
           {% set cdone = char_done.get(s.id, 0) %}
           <td class="center">
@@ -95,7 +95,7 @@
 
     {% if onet_exit %}
     <h3 class="sub-h" style="color:var(--brand-dark); border-bottom:1px solid #eee; padding-bottom:4px; margin-top:18px;">
-      ผลการทดสอบระดับชาติ (O-NET) <span class="muted" style="font-size:13px;">ชั้น {{ c.level }} · กรอกคะแนนที่ได้ (คะแนนเต็มปกติ 100)</span></h3>
+      ผลการทดสอบระดับชาติ (O-NET) <span class="muted" style="font-size:13px;">ชั้น {{ c.level }} กรอกคะแนนที่ได้ (คะแนนเต็มปกติ 100)</span></h3>
     <div class="table-wrap dense">
     <table>
       <thead><tr>

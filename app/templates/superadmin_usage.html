@@ -71,7 +71,7 @@
   <div class="card">
     <h1>ใครใช้ระบบบ้าง</h1>
     <p class="muted" style="margin:0;">
-      สรุปยอดรวมรายวันของแต่ละบัญชี · <b>ไม่ได้เก็บว่าเปิดหน้าไหนหรือกรอกข้อมูลอะไร</b>
+      สรุปยอดรวมรายวันของแต่ละบัญชี <b>ไม่ได้เก็บว่าเปิดหน้าไหนหรือกรอกข้อมูลอะไร</b>
       เก็บย้อนหลัง {{ retention }} วัน แล้วลบอัตโนมัติ
     </p>
     <div class="tabs">
@@ -80,7 +80,7 @@
       {% endfor %}
       <form method="get" action="/admin-console/usage" style="margin:0 0 0 6px;">
         <select name="day" onchange="this.form.submit()" title="ดูเจาะจงวันเดียว">
-          <option value=""> · เจาะวันเดียว · </option>
+          <option value=""> เจาะวันเดียว </option>
           {% for d in days_list %}<option value="{{ d }}" {{ 'selected' if d == day }}>{{ d }}</option>{% endfor %}
         </select>
       </form>
@@ -103,7 +103,7 @@
       {% for d in daily %}
       <div class="bar {{ 'zero' if not d.hits }}{{ ' last' if loop.last and d.hits }}"
            style="height:{{ (d.hits / peak * 100)|round(1) if peak else 0 }}%;"
-           title="{{ d.day }} · {{ d.schools }} โรงเรียน · {{ d.users }} บัญชี · เรียกใช้ {{ d.hits }} ครั้ง · บันทึก {{ d.writes }} · เอกสาร {{ d.docs }}"></div>
+           title="{{ d.day }} {{ d.schools }} โรงเรียน {{ d.users }} บัญชี เรียกใช้ {{ d.hits }} ครั้ง บันทึก {{ d.writes }} เอกสาร {{ d.docs }}"></div>
       {% endfor %}
     </div>
     <div class="xaxis"><span>{{ daily[0].day }}</span><span>{{ daily[-1].day }}</span></div>
@@ -165,7 +165,7 @@
 
   {% if idle %}
   <div class="card">
-    <h2>ไม่ได้ใช้เลยในช่วงนี้ <span class="muted" style="font-weight:400;">({{ idle|length }} โรงเรียน · เรียงจากที่เงียบนานสุด)</span></h2>
+    <h2>ไม่ได้ใช้เลยในช่วงนี้ <span class="muted" style="font-weight:400;">({{ idle|length }} โรงเรียน เรียงจากที่เงียบนานสุด)</span></h2>
     <table>
       <thead><tr><th>โรงเรียน</th><th>ใช้ล่าสุด</th></tr></thead>
       <tbody>

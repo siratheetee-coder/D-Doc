@@ -23,7 +23,7 @@
   </form>
   <p class="muted" style="font-size:13px; margin:10px 0 0;">
     ทำตามลำดับ: <b>1)</b> กรอกวันเปิด-ปิดภาคเรียน → <b>2)</b> ตรวจวันหยุด (กรอกวันพระเอง) →
-    <b>3)</b> กด <b>"กรอกปฏิทินการศึกษา"</b> ระบบจะกรอกให้ทั้งปี ·
+    <b>3)</b> กด <b>"กรอกปฏิทินการศึกษา"</b> ระบบจะกรอกให้ทั้งปี
     ตั้งเสร็จแล้วครูจะเช็กเวลาเรียนรายวันได้ที่หน้า <a href="/academic/attendance">เวลาเรียน</a></p>
 </div>
 
@@ -106,7 +106,7 @@
       </div>
     </div>
     <p class="muted" style="font-size:13px; margin:6px 0 0;">
-      "กรอกปฏิทินการศึกษา" = วันจันทร์-ศุกร์ <b>ลบวันหยุดที่ตั้งไว้</b> และ <b>ลบวันนอกภาคเรียน</b> ให้ทั้งปี ·
+      "กรอกปฏิทินการศึกษา" = วันจันทร์-ศุกร์ <b>ลบวันหยุดที่ตั้งไว้</b> และ <b>ลบวันนอกภาคเรียน</b> ให้ทั้งปี
       กรอกแล้วยังคลิกแก้รายวันได้ แล้วกด "บันทึกปฏิทิน"</p>
     <div class="acal-grid">
       {% for m in months %}
@@ -121,7 +121,7 @@
           {% for d in m.days %}
           <button type="button" class="acal-day{{ ' on' if d.open }}{{ ' we' if d.wd in ('ส','อา') }}{{ ' hol' if d.hol }}{{ ' off' if d.off }}"
                   data-day="{{ d.d }}"
-                  title="{{ d.wd }} {{ d.d }}{% if d.hol %} · {{ d.hol }}{% elif d.off %} · นอกภาคเรียน{% endif %}">{{ d.d }}</button>
+                  title="{{ d.wd }} {{ d.d }}{% if d.hol %} {{ d.hol }}{% elif d.off %} นอกภาคเรียน{% endif %}">{{ d.d }}</button>
           {% endfor %}
         </div>
         <input type="hidden" name="m_{{ m.num }}" class="acal-val">

@@ -14,7 +14,7 @@
     <tr><th>ประเภท</th><td>{{ a.category }}</td></tr>
     <tr><th>วันที่ได้มา</th><td>{{ thai_date(a.acquired_date) if a.acquired_date else "ยังไม่ระบุ" }}</td></tr>
     <tr><th>ราคาทุน</th><td>{{ "{:,.2f}".format(a.cost or 0) }} บาท</td></tr>
-    <tr><th>อายุการใช้งาน</th><td>{{ a.useful_life }} ปี · มูลค่าซาก {{ "{:,.2f}".format(a.salvage_value or 0) }} บาท</td></tr>
+    <tr><th>อายุการใช้งาน</th><td>{{ a.useful_life }} ปี มูลค่าซาก {{ "{:,.2f}".format(a.salvage_value or 0) }} บาท</td></tr>
     <tr><th>ค่าเสื่อมราคาต่อปี</th><td><b>{{ "{:,.2f}".format(annual) }} บาท</b> (วิธีเส้นตรง)</td></tr>
   </table></div>
 </div>

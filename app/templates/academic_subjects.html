@@ -9,7 +9,7 @@
   <div>
     <div class="hero-sub">งานวิชาการ</div>
     <span class="hero-title">รายวิชา</span>
-    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+    <div class="hero-meta">{{ school.name or "" }} ปีการศึกษา {{ year }}</div>
   </div>
 </div>
 
@@ -33,7 +33,7 @@
     <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="level" value="{{ level }}">
     <span class="muted" style="font-size:13px;">คัดลอกรายวิชาจากชั้น</span>
     <select name="src_level" required style="width:auto;">
-      <option value=""> · เลือกชั้นต้นทาง · </option>
+      <option value=""> เลือกชั้นต้นทาง </option>
       {% for lv in src_levels %}<option value="{{ lv }}">{{ lv }}</option>{% endfor %}
     </select>
     <button class="btn sm soft" type="submit"><svg class="icon"><use href="#ic-clipboard"/></svg> คัดลอกมาที่ {{ level }}</button>
@@ -60,7 +60,7 @@
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-star"/></svg> สร้างรายวิชาพื้นฐานสำเร็จรูป</h2>
   <p class="muted" style="margin:4px 0 10px;">สร้างรายวิชาพื้นฐาน 8 กลุ่มสาระของ <b>{{ level }}</b> พร้อมรหัสวิชาตามหลักสูตรแกนกลาง
     {% if is_secondary(level) %}(มัธยม: สร้างให้ทั้ง 2 ภาคเรียน){% else %}(ประถม: ตัดสินรายปี){% endif %}
-    · <b>เวลาเรียน/หน่วยกิตเป็นค่าเริ่มต้น แก้ได้ทุกช่อง</b> · วิชาที่มีรหัสซ้ำจะถูกข้าม</p>
+    <b>เวลาเรียน/หน่วยกิตเป็นค่าเริ่มต้น แก้ได้ทุกช่อง</b> วิชาที่มีรหัสซ้ำจะถูกข้าม</p>
   <form method="post" action="/academic/subjects/preset">
     <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="level" value="{{ level }}">
     <button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> สร้างรายวิชาพื้นฐานของ {{ level }}</button>
@@ -101,8 +101,8 @@
     {% if rows and not is_teacher %}<button class="btn sm" type="button" onclick="saveAllRows(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึกทั้งหมด</button>{% endif %}
   </div>
   {% if not is_teacher %}
-  <p class="muted" style="font-size:13px; margin:4px 0 8px;">สัดส่วนคะแนน = คะแนนเก็บ : คะแนนปลายภาค (ค่าเริ่มต้น 70 : 30) ·
-    ช่อง <b>ครูผู้สอน</b> (ใต้ชื่อวิชา) พิมพ์หาชื่อครูได้ ระบบผูกให้ทุกห้องของชั้นนั้นอัตโนมัติ (แก้รายห้องได้ที่หน้าห้องเรียน) ·
+  <p class="muted" style="font-size:13px; margin:4px 0 8px;">สัดส่วนคะแนน = คะแนนเก็บ : คะแนนปลายภาค (ค่าเริ่มต้น 70 : 30)
+    ช่อง <b>ครูผู้สอน</b> (ใต้ชื่อวิชา) พิมพ์หาชื่อครูได้ ระบบผูกให้ทุกห้องของชั้นนั้นอัตโนมัติ (แก้รายห้องได้ที่หน้าห้องเรียน)
     แก้หลายแถวแล้วกด "บันทึกทั้งหมด" ครั้งเดียวได้</p>
   <datalist id="teachers-dl-sub">
     {% for t in teachers %}<option value="{{ t.name }}"></option>{% endfor %}
@@ -128,7 +128,7 @@
   </table>
   </div>
   {% elif rows %}
-  {# ซ่อนคอลัมน์ที่ไม่ให้ข้อมูล: ประถมไม่ใช้หน่วยกิต/ภาคเรียน · คอลัมน์ชั้นซ้ำทุกแถวเมื่อกรองชั้นแล้ว
+  {# ซ่อนคอลัมน์ที่ไม่ให้ข้อมูล: ประถมไม่ใช้หน่วยกิต/ภาคเรียน คอลัมน์ชั้นซ้ำทุกแถวเมื่อกรองชั้นแล้ว
      เลือก "ทุกชั้น" = แถวปนกัน ต้องโชว์ครบ #}
   {% set sec = level and is_secondary(level) %}
   {% set show_level = not level %}
@@ -203,7 +203,7 @@
       <button class="btn soft" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> สร้างกิจกรรมมาตรฐาน</button>
     </form>
   </div>
-  <p class="muted" style="font-size:13px; margin:6px 0 8px;">แต่ละโรงเรียนจัดกิจกรรมต่างกันได้ (แนะแนว/ลูกเสือ-เนตรนารี/ชุมนุม/เพื่อสังคม เป็นค่าเริ่มต้น แก้/ลบ/เพิ่มได้) ·
+  <p class="muted" style="font-size:13px; margin:6px 0 8px;">แต่ละโรงเรียนจัดกิจกรรมต่างกันได้ (แนะแนว/ลูกเสือ-เนตรนารี/ชุมนุม/เพื่อสังคม เป็นค่าเริ่มต้น แก้/ลบ/เพิ่มได้)
     กิจกรรมเหล่านี้จะไปเป็นคอลัมน์ในหน้าประเมิน ปพ.6 และพิมพ์ลงสมุดรายงาน</p>
   <form method="post" action="/academic/activities/save">
     <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="level" value="{{ level }}">

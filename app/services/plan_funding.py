@@ -297,7 +297,7 @@ def guard_project(db, project, *, year=None, budget=None, deleting=False):
     if budget is not None and round(budget,2)<round(assigned+before,2):
         extra=' และใช้ไปก่อนเริ่มใช้ระบบ {:,.2f}'.format(before) if before else ''
         raise HTTPException(409,'งบต้องไม่ต่ำกว่า {:,.2f} บาท เพราะจัดสรรเงินให้โครงการนี้ไว้ {:,.2f}{} '
-                                '· ลดการจัดสรรในหัวข้อ "โครงการนี้ใช้งบจากรายการใด" ก่อน แล้วค่อยลดงบ'.format(
+                                'ลดการจัดสรรในหัวข้อ "โครงการนี้ใช้งบจากรายการใด" ก่อน แล้วค่อยลดงบ'.format(
                                     assigned+before,assigned,extra))
 
 

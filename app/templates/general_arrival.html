@@ -5,7 +5,7 @@
   <div>
     <div class="hero-sub">งานบริหารทั่วไป</div>
     <span class="hero-title">บันทึกการมาเรียน</span>
-    <div class="hero-meta">{{ school.name or "" }} · {{ day_be }}</div>
+    <div class="hero-meta">{{ school.name or "" }} {{ day_be }}</div>
   </div>
 </div>
 {% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
@@ -48,7 +48,7 @@
         <div><label>มาทันแถวถึง</label><input type="text" inputmode="numeric" maxlength="5" name="ontime_end" value="{{ setting.ontime_end }}" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" oninput="fmtTime(this)" placeholder="08:00" style="width:130px;"></div>
         <div><button class="btn sm" type="submit">บันทึกเวลา</button></div>
       </form>
-      <p class="muted" style="font-size:12px; margin:6px 0 0;">มาถึง <b>ไม่เกิน {{ setting.ontime_end }}</b> = มาทันแถว · หลังจากนั้น = สาย</p>
+      <p class="muted" style="font-size:12px; margin:6px 0 0;">มาถึง <b>ไม่เกิน {{ setting.ontime_end }}</b> = มาทันแถว หลังจากนั้น = สาย</p>
     </div>
   </div>
 
@@ -145,10 +145,10 @@
     if(!matches.length){ ddEl.innerHTML = '<div class="none">ไม่พบชื่อนักเรียน</div>'; ddEl.hidden = false; return; }
     ddEl.innerHTML = matches.map(function(s, i){
       var done = DONE.has(s.id) ? ' done' : '';
-      var tag = DONE.has(s.id) ? ' · ลงเวลาแล้ว' : '';
+      var tag = DONE.has(s.id) ? ' ลงเวลาแล้ว' : '';
       return '<div class="it'+done+'" data-i="'+i+'" onclick="pick('+i+')">'+
              '<span>'+esc(s.name)+'</span>'+
-             '<span class="sub">'+esc(s.cls)+(s.no?(' · '+esc(s.no)):'')+tag+'</span></div>';
+             '<span class="sub">'+esc(s.cls)+(s.no?(' '+esc(s.no)):'')+tag+'</span></div>';
     }).join('');
     ddEl.hidden = false;
   }
@@ -174,7 +174,7 @@
     qEl.value = s.name;
     document.getElementById('selName').textContent = s.name;
     document.getElementById('selSub').textContent =
-      s.cls + (s.no ? (' · ' + s.no) : '') + (DONE.has(s.id) ? ' · ลงเวลาแล้ว (บันทึกซ้ำ = แก้เวลา)' : '');
+      s.cls + (s.no ? (' ' + s.no) : '') + (DONE.has(s.id) ? ' ลงเวลาแล้ว (บันทึกซ้ำ = แก้เวลา)' : '');
     document.getElementById('sel').hidden = false;
     ddEl.hidden = true;
     document.getElementById('manual').focus();

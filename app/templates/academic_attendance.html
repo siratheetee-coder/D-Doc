@@ -3,9 +3,9 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">งานวิชาการ · ใช้ประกอบ ปพ.5</div>
+    <div class="hero-sub">งานวิชาการ ใช้ประกอบ ปพ.5</div>
     <span class="hero-title">เวลาเรียน</span>
-    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+    <div class="hero-meta">{{ school.name or "" }} ปีการศึกษา {{ year }}</div>
   </div>
 </div>
 
@@ -60,9 +60,9 @@
 <div class="card">
   <h2 style="margin:0 0 4px;">ห้อง {{ class_label(c) }} <span class="muted" style="font-size:15px;">({{ students|length }} คน)</span></h2>
   <p class="muted" style="font-size:13px; margin:4px 0 8px;">
-    <b>กรอกแค่ ป่วย / ลา / ขาด</b> - ระบบหักออกจากวันเปิดเรียนแล้วคิด "มา(รวม)" กับร้อยละให้เอง ·
-    ถ้าอยากเช็กเป็นรายวันให้กด <b>แสดงรายเดือน</b> แล้วคลิกชื่อเดือน ·
-    เกณฑ์ผ่าน: มาเรียนไม่น้อยกว่าร้อยละ 80 · ช่อง <b>เปิด(รวม)</b> เดินตามปฏิทินให้เอง ถ้าคนไหนต่างจากเพื่อน (ย้ายเข้ากลางปี) พิมพ์ทับได้ ลบตัวเลขออกเพื่อกลับไปใช้ของห้อง</p>
+    <b>กรอกแค่ ป่วย / ลา / ขาด</b> - ระบบหักออกจากวันเปิดเรียนแล้วคิด "มา(รวม)" กับร้อยละให้เอง
+    ถ้าอยากเช็กเป็นรายวันให้กด <b>แสดงรายเดือน</b> แล้วคลิกชื่อเดือน
+    เกณฑ์ผ่าน: มาเรียนไม่น้อยกว่าร้อยละ 80 ช่อง <b>เปิด(รวม)</b> เดินตามปฏิทินให้เอง ถ้าคนไหนต่างจากเพื่อน (ย้ายเข้ากลางปี) พิมพ์ทับได้ ลบตัวเลขออกเพื่อกลับไปใช้ของห้อง</p>
   {% if not has_cal %}
   <div class="alert warn" style="margin:0 0 10px;"><svg class="icon"><use href="#ic-alert"/></svg>
     ยังไม่ได้ตั้ง<b>ปฏิทินการศึกษา</b>ของปี {{ year }} -
@@ -140,7 +140,7 @@
           <td class="center"><input name="dopen_{{ s.id }}" data-dopen
                      value="{{ e.days_open if e and e.days_open is not none else '' }}"
                      inputmode="numeric" style="width:56px; text-align:center;"
-                     title="ปกติเดินตามวันเปิดเรียนของห้อง · พิมพ์ทับได้ถ้าคนนี้ต่างจากเพื่อน (เช่น ย้ายเข้ากลางปี) · ลบตัวเลขออกเพื่อกลับไปใช้ของห้อง">
+                     title="ปกติเดินตามวันเปิดเรียนของห้อง พิมพ์ทับได้ถ้าคนนี้ต่างจากเพื่อน (เช่น ย้ายเข้ากลางปี) ลบตัวเลขออกเพื่อกลับไปใช้ของห้อง">
             <input type="hidden" name="dmanual_{{ s.id }}" data-dmanual
                    value="{{ '1' if e and e.days_open_manual else '' }}"></td>
           <td class="gapcol"><input name="sick_{{ s.id }}" data-gap value="{{ e.days_sick if e and e.days_sick is not none else '' }}" inputmode="numeric" style="width:52px; text-align:center;"></td>
@@ -161,7 +161,7 @@
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px;">
       <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกเวลาเรียน</button>
       <button class="btn green" type="submit" formaction="/academic/attendance/fill-year" formnovalidate
-              onclick="return confirm('ทำเครื่องหมายว่านักเรียนทุกคนมาเรียนครบทุกวันเปิดเรียนทั้งปี?\n(เดือนที่ตั้งปฏิทินไว้จะเช็กชื่อรายวันให้ครบ · ข้อมูลเช็กชื่อรายวันเดิมจะถูกแทนที่)');">
+              onclick="return confirm('ทำเครื่องหมายว่านักเรียนทุกคนมาเรียนครบทุกวันเปิดเรียนทั้งปี?\n(เดือนที่ตั้งปฏิทินไว้จะเช็กชื่อรายวันให้ครบ ข้อมูลเช็กชื่อรายวันเดิมจะถูกแทนที่)');">
         ✔ ทุกคนมาเรียนทุกวัน</button>
     </div>
   </form>
@@ -261,7 +261,7 @@
         var v = intOf(i); if (v !== null){ miss += v; hasGap = true; }
       });
 
-      // มา(รวม): มีรายเดือน -> ใช้ผลรวม · ไม่มี -> วันเปิดเรียน ลบ ป่วย/ลา/ขาด
+      // มา(รวม): มีรายเดือน -> ใช้ผลรวม ไม่มี -> วันเปิดเรียน ลบ ป่วย/ลา/ขาด
       var pres = null;
       if (hasMonthly) pres = msum;
       else if (open !== null) pres = Math.max(0, open - miss);

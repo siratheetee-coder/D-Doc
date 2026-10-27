@@ -42,7 +42,7 @@
 {% elif not account %}
   <div class="card" style="text-align:center;">
     <h1>ดำเนินการสั่งซื้อตามใบเสนอราคา</h1>
-    <p>รายการ #{{ lead.id }} · {{ lead.school_name }} · {{ lead.packages }}</p>
+    <p>รายการ #{{ lead.id }} {{ lead.school_name }} {{ lead.packages }}</p>
     {% if change_password %}
     <p>กรุณาเปลี่ยนรหัสผ่านครั้งแรก แล้วระบบจะกลับมาที่ใบเสนอราคานี้</p>
     <a class="btn btn-primary" href="/account/password">ตั้งรหัสผ่านและดำเนินการต่อ</a>
@@ -64,7 +64,7 @@
 {% elif not bound %}
   <div class="card">
     <h1>ยืนยันโรงเรียนที่จะได้รับสิทธิ์</h1>
-    <p>รายการ #{{ lead.id }} · ใบเสนอราคา: {{ lead.school_name }} · {{ lead.packages }}</p>
+    <p>รายการ #{{ lead.id }} ใบเสนอราคา: {{ lead.school_name }} {{ lead.packages }}</p>
     <p>ยอดตามใบเสนอราคา {{ "{:,.2f}".format(amount) }} บาท</p>
     <p>เปิดสิทธิ์ให้: <b>{{ account.school_name }}</b><br>บัญชี {{ account.username }}</p>
     <p>อีเมลผู้ขอใบเสนอราคาอาจต่างจากบัญชีใช้งาน โปรดตรวจสอบโรงเรียนก่อนยืนยัน</p>
@@ -75,7 +75,7 @@
   </div>
 {% elif approved %}
   <div class="card"><h1>ตรวจสอบและเปิดสิทธิ์แล้ว</h1>
-    <p>รายการ #{{ lead.id }} · {{ lead.packages }}</p><a class="btn btn-primary" href="/">เข้าใช้งานระบบ</a>
+    <p>รายการ #{{ lead.id }} {{ lead.packages }}</p><a class="btn btn-primary" href="/">เข้าใช้งานระบบ</a>
   </div>
 {% elif paid %}
   <div class="card" style="text-align:center;">
@@ -93,9 +93,9 @@
 {% else %}
   <div class="page-head">
     <h1>ชำระเงิน</h1>
-    <p>รายการ #{{ lead.id }} · เปิดสิทธิ์ให้ {{ account.school_name }} ({{ account.username }})</p>
+    <p>รายการ #{{ lead.id }} เปิดสิทธิ์ให้ {{ account.school_name }} ({{ account.username }})</p>
     <p>โอนเงิน → แนบสลิป → รอทีมงานตรวจสอบและเปิดสิทธิ์</p>
-    <p>โรงเรียน {{ lead.school_name or '-' }} · {{ lead.packages or 'ครบทุกงาน' }} ({{ 'ซื้อเพิ่ม หมดอายุพร้อมงานเดิม' if '[ซื้อเพิ่มกลางรอบ prorate]' in (lead.note or '') else 'สิทธิ์ใช้งาน 1 ปี' }})</p>
+    <p>โรงเรียน {{ lead.school_name or '-' }} {{ lead.packages or 'ครบทุกงาน' }} ({{ 'ซื้อเพิ่ม หมดอายุพร้อมงานเดิม' if '[ซื้อเพิ่มกลางรอบ prorate]' in (lead.note or '') else 'สิทธิ์ใช้งาน 1 ปี' }})</p>
   </div>
   {% if request.query_params.get('err') == 'noslip' %}<div class="card" style="border-color:#fecaca; background:#fef2f2; color:#b91c1c;">กรุณาแนบไฟล์สลิปก่อนกดส่ง</div>{% endif %}
   <div class="card">

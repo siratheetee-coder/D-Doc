@@ -50,7 +50,7 @@ def lunch_steps(db, year, school=None) -> dict:
              href=edit, cta="ตั้งค่าโครงการ"),
         dict(title="เลือกรูปแบบและผู้รับผิดชอบ", done=bool(prog) and not who,
              detail=("กรอกครบแล้ว" if prog and not who
-                     else ("ยังไม่ได้กรอก: " + ", ".join(who) + " · ใช้ในเอกสารจัดจ้าง/จัดซื้อทุกฉบับ") if who
+                     else ("ยังไม่ได้กรอก: " + ", ".join(who) + " ใช้ในเอกสารจัดจ้าง/จัดซื้อทุกฉบับ") if who
                      else "ตั้งโครงการก่อน"),
              href=edit, cta="ตั้งค่าโครงการ"),
     ]
@@ -80,7 +80,7 @@ def admin_steps(db, school) -> dict:
     n_out = (db.query(OutgoingLetter.id).first() is not None) or (db.query(OfficeMemo.id).first() is not None)
     return _pack([
         dict(title="กรอกข้อมูลโรงเรียนและผู้ลงนาม", done=not who,
-             detail=("กรอกครบแล้ว" if not who else "ยังไม่ได้กรอก: " + ", ".join(who) + " · ใช้ในหนังสือทุกฉบับ"),
+             detail=("กรอกครบแล้ว" if not who else "ยังไม่ได้กรอก: " + ", ".join(who) + " ใช้ในหนังสือทุกฉบับ"),
              href="/settings", cta="ไปตั้งค่าโรงเรียน"),
         dict(title="ตั้งอักษรนำเลขที่หนังสือ", done=has_code,
              detail=(f"ใช้ \"{prefix}\"" if has_code
@@ -168,7 +168,7 @@ def lunch_round_steps(rnd, *, committees, com_labels, doc_rows, menu_days, ing_t
                        href=edit, cta=f"แก้ไข{word}")
     com_step = dict(title="แต่งตั้งกรรมการ", done=not no_com,
                     detail=("ครบทุกชุดแล้ว" if not no_com else "ยังไม่มีกรรมการ: " + ", ".join(no_com)
-                            + " · ดึงจากรอบอื่นที่ตั้งไว้แล้วได้"),
+                            + " ดึงจากรอบอื่นที่ตั้งไว้แล้วได้"),
                     href=page + "#committee", cta="ไปที่กรรมการ")
     doc_step = dict(title="กรอกเลขที่หนังสือ", done=doc_total > 0 and not doc_left,
                     detail=(f"ครบ {doc_total} ฉบับ" if not doc_left

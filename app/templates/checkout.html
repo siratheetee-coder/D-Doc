@@ -223,12 +223,12 @@
   {% endif %}{# not addon: promo + save ladder #}
   <div class="co-list" id="coList">
     {% for it in [
-        ('procurement','p_proc','พัสดุ','งานพัสดุ','จัดซื้อจัดจ้าง · ทรัพย์สิน/ครุภัณฑ์ · ใบเบิกพัสดุ สัญญา · ตัวช่วยกรอก e-GP'),
-        ('finance','p_fin','การเงิน','งานการเงิน','สมุดเงินสด · บัญชีแยกประเภท · บัญชีเงินคงเหลือประจำวัน · บันทึกเบิกจ่าย'),
-        ('admin','p_admin','ธุรการ','งานธุรการ','หนังสือรับ-ส่ง · บันทึกข้อความ/คำสั่ง · เกียรติบัตร · AI ช่วยเขียนเอกสาร'),
-        ('lunch','p_lunch','อาหาร','งานอาหารกลางวัน','คำนวณงบ · เอกสารจ้าง · ภาวะโภชนาการ'),
-        ('hr','p_hr','บุคคล','งานบุคคล','ทะเบียนบุคลากร · วันลา · ไปราชการ · ก.พ.7 · หนังสือรับรอง'),
-        ('academic','p_acad','วิชาการ','งานวิชาการ','ห้องเรียน/ครูประจำชั้น · รายวิชา 8 กลุ่มสาระ · ผลการเรียน · ปพ.5 · สมุดรายงาน ปพ.6') ] %}
+        ('procurement','p_proc','พัสดุ','งานพัสดุ','จัดซื้อจัดจ้าง ทรัพย์สิน/ครุภัณฑ์ ใบเบิกพัสดุ สัญญา ตัวช่วยกรอก e-GP'),
+        ('finance','p_fin','การเงิน','งานการเงิน','สมุดเงินสด บัญชีแยกประเภท บัญชีเงินคงเหลือประจำวัน บันทึกเบิกจ่าย'),
+        ('admin','p_admin','ธุรการ','งานธุรการ','หนังสือรับ-ส่ง บันทึกข้อความ/คำสั่ง เกียรติบัตร AI ช่วยเขียนเอกสาร'),
+        ('lunch','p_lunch','อาหาร','งานอาหารกลางวัน','คำนวณงบ เอกสารจ้าง ภาวะโภชนาการ'),
+        ('hr','p_hr','บุคคล','งานบุคคล','ทะเบียนบุคลากร วันลา ไปราชการ ก.พ.7 หนังสือรับรอง'),
+        ('academic','p_acad','วิชาการ','งานวิชาการ','ห้องเรียน/ครูประจำชั้น รายวิชา 8 กลุ่มสาระ ผลการเรียน ปพ.5 สมุดรายงาน ปพ.6') ] %}
     {% set k = it[0] %}{% set owned = addon and k in owned_mods %}
     <label class="co-item{{ ' owned' if owned }}" data-key="{{ k }}" data-price="{{ px[it[1]] }}"
            data-addon-price="{{ addon_price[k] }}" data-name="{{ it[3] }}">
@@ -289,8 +289,8 @@
   {# งานที่เลือก (name="mod") ส่งมาจาก checkbox ด้านบนผ่าน form="orderForm"
      ราคาคำนวณใหม่ที่เซิร์ฟเวอร์เสมอ - ไม่มี hidden amount ให้แก้ค่าอีกต่อไป #}
   <div style="background:#eef4ff; border:1px solid #cddffb; border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:14px;">
-    {% if addon %}ชำระเงินเพื่อ<b>เพิ่มงาน (หมดอายุพร้อมงานเดิม {{ expiry_str }})</b> สำหรับ: <b>{{ acct_email }}</b>{% if acct_school %} · {{ acct_school }}{% endif %}
-    {% else %}ชำระเงินเพื่อ<b>{{ mode }}แพ็กเกจ 1 ปี</b> สำหรับ: <b>{{ acct_email }}</b>{% if acct_school %} · {{ acct_school }}{% endif %}{% endif %}
+    {% if addon %}ชำระเงินเพื่อ<b>เพิ่มงาน (หมดอายุพร้อมงานเดิม {{ expiry_str }})</b> สำหรับ: <b>{{ acct_email }}</b>{% if acct_school %} {{ acct_school }}{% endif %}
+    {% else %}ชำระเงินเพื่อ<b>{{ mode }}แพ็กเกจ 1 ปี</b> สำหรับ: <b>{{ acct_email }}</b>{% if acct_school %} {{ acct_school }}{% endif %}{% endif %}
   </div>
   <div class="grid2">
     <div>
@@ -358,7 +358,7 @@
     var TIERS = {{ tier_discount | default({2:100, 3:200, 4:300, 5:400}) | tojson }};
     var NMODS = {{ module_keys | length }};
     var ADDON = {{ addon | tojson }};
-    // โหมดซื้อเพิ่ม: ใช้ราคา prorate ต่องาน · งานที่มีอยู่แล้ว (disabled) ไม่นับ · ไม่มีส่วนลดขั้นบันได
+    // โหมดซื้อเพิ่ม: ใช้ราคา prorate ต่องาน งานที่มีอยู่แล้ว (disabled) ไม่นับ ไม่มีส่วนลดขั้นบันได
     function priceOf(it){ return ADDON ? (+it.dataset.addonPrice) : (+it.dataset.price); }
     function calc(){
       var chosen = items.filter(function(it){ var i=it.querySelector('input'); return i.checked && !i.disabled; });

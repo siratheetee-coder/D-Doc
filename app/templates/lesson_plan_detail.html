@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}แผนการสอน · {{ p.title }}{% endblock %}
+{% block title %}แผนการสอน {{ p.title }}{% endblock %}
 {% block content %}
-{% set st = {'pending':('รอวิชาการตรวจ','#fef9c3','#854d0e'), 'revise':('ให้แก้ไข','#fee2e2','#b91c1c'), 'director':('ผ่านวิชาการ · รอ ผอ. ลงนาม','#dbeafe','#1e40af'), 'approved':('อนุมัติแล้ว','#dcfce7','#166534'), 'reviewed':('ตรวจแล้ว (เดิม)','#dcfce7','#166534')}.get(p.status, ('รอวิชาการตรวจ','#fef9c3','#854d0e')) %}
+{% set st = {'pending':('รอวิชาการตรวจ','#fef9c3','#854d0e'), 'revise':('ให้แก้ไข','#fee2e2','#b91c1c'), 'director':('ผ่านวิชาการ รอ ผอ. ลงนาม','#dbeafe','#1e40af'), 'approved':('อนุมัติแล้ว','#dcfce7','#166534'), 'reviewed':('ตรวจแล้ว (เดิม)','#dcfce7','#166534')}.get(p.status, ('รอวิชาการตรวจ','#fef9c3','#854d0e')) %}
 {% set is_pdf = (p.file_name or '').lower().endswith('.pdf') %}
 {% set is_img = (p.file_name or '').lower().endswith(('.png','.jpg','.jpeg','.webp')) %}
 <div class="hero">
   <div>
     <div class="hero-sub">แผนการสอน</div>
     <span class="hero-title">{{ p.title }}</span>
-    <div class="hero-meta">{{ teacher.name if teacher else '-' }} · ภาคเรียนที่ {{ p.term or '-' }} ปีการศึกษา {{ p.year }} · <span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }};">{{ st[0] }}</span></div>
+    <div class="hero-meta">{{ teacher.name if teacher else '-' }} ภาคเรียนที่ {{ p.term or '-' }} ปีการศึกษา {{ p.year }} <span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }};">{{ st[0] }}</span></div>
   </div>
 </div>
 {% if msg and p.status != 'approved' %}<div class="alert">✔ {{ msg }}</div>{% endif %}
@@ -80,7 +80,7 @@
     <div style="border-left:3px solid #93c5fd; padding:4px 0 4px 12px; margin-bottom:14px;">
       <b>1. หัวหน้าฝ่ายวิชาการ</b><br>
       {% if p.status in ('director','approved') or p.reviewed_at %}
-        <span class="muted">{{ academic.name if academic else (school.academic_head_name or '-') }} · {{ thai_date(p.reviewed_at) if p.reviewed_at else '-' }}</span><br>
+        <span class="muted">{{ academic.name if academic else (school.academic_head_name or '-') }} {{ thai_date(p.reviewed_at) if p.reviewed_at else '-' }}</span><br>
         {% if p.status == 'revise' %}<span class="pill" style="background:#fee2e2; color:#b91c1c;">ให้แก้ไข</span>
         {% else %}<span class="pill" style="background:#dcfce7; color:#166534;">ผ่าน</span>{% endif %}
         {% if p.comment %}<div style="margin-top:4px;">ความเห็น: {{ p.comment }}</div>{% endif %}
@@ -89,7 +89,7 @@
     <div style="border-left:3px solid #c4b5fd; padding:4px 0 4px 12px;">
       <b>2. ผู้อำนวยการ</b><br>
       {% if p.status == 'approved' %}
-        <span class="muted">{{ director.name if director else (school.director_name or '-') }} · {{ thai_date(p.director_at) if p.director_at else '-' }}</span><br>
+        <span class="muted">{{ director.name if director else (school.director_name or '-') }} {{ thai_date(p.director_at) if p.director_at else '-' }}</span><br>
         <span class="pill" style="background:#dcfce7; color:#166534;">อนุมัติ/ลงนามแล้ว</span>
         {% if p.director_comment %}<div style="margin-top:4px;">ความเห็น: {{ p.director_comment }}</div>{% endif %}
       {% elif p.status == 'director' %}<span class="muted">รอ ผอ. ลงนาม</span>{% else %}<span class="muted">-</span>{% endif %}
@@ -101,7 +101,7 @@
       <div class="nt-head"><span class="ring"><svg class="icon"><use href="#ic-alert"/></svg></span>
         <b>ก่อนส่งให้ผู้อำนวยการ</b></div>
       <div class="nt-body">
-        <p><b>ลายเซ็นของคุณจะแปะบนบันทึกเสนอ ผอ. ให้อัตโนมัติ</b><br>ขอให้อัปโหลดลายเซ็นไว้ที่ ตั้งค่า → บุคลากร ก่อนกด "ผ่าน → ผอ." · ถ้าอยากเซ็นในไฟล์แผนเองก็ยังทำได้ที่ช่องด้านซ้าย</p>
+        <p><b>ลายเซ็นของคุณจะแปะบนบันทึกเสนอ ผอ. ให้อัตโนมัติ</b><br>ขอให้อัปโหลดลายเซ็นไว้ที่ ตั้งค่า → บุคลากร ก่อนกด "ผ่าน → ผอ." ถ้าอยากเซ็นในไฟล์แผนเองก็ยังทำได้ที่ช่องด้านซ้าย</p>
         <div class="nt-foot">
           <label class="nt-chk"><input type="checkbox" id="hintReviewerNo"> ไม่ต้องแจ้งฉันอีก</label>
           <button type="button" class="btn sm"
@@ -126,7 +126,7 @@
       <div class="nt-head"><span class="ring"><svg class="icon"><use href="#ic-alert"/></svg></span>
         <b>ก่อนอนุมัติแผน</b></div>
       <div class="nt-body">
-        <p><b>ลายเซ็นของคุณจะแปะบนบันทึกอนุมัติให้อัตโนมัติ</b><br>ขอให้อัปโหลดลายเซ็นไว้ที่ ตั้งค่า → บุคลากร ก่อนกด "อนุมัติ + ลงนาม" · ถ้าอยากเซ็นในไฟล์แผนเองก็ยังทำได้ที่ช่องด้านซ้าย</p>
+        <p><b>ลายเซ็นของคุณจะแปะบนบันทึกอนุมัติให้อัตโนมัติ</b><br>ขอให้อัปโหลดลายเซ็นไว้ที่ ตั้งค่า → บุคลากร ก่อนกด "อนุมัติ + ลงนาม" ถ้าอยากเซ็นในไฟล์แผนเองก็ยังทำได้ที่ช่องด้านซ้าย</p>
         <div class="nt-foot">
           <label class="nt-chk"><input type="checkbox" id="hintDirectorNo"> ไม่ต้องแจ้งฉันอีก</label>
           <button type="button" class="btn sm"

@@ -5,7 +5,7 @@
 <div class="card fs-card" id="setup-{{ setup_key }}">
   <div class="fs-head">
     <div><h2 class="fs-title">{{ setup_title }}</h2>
-      <div class="fs-sub">ทำแล้ว {{ setup.done }} จาก {{ setup.total }} ขั้น · ระบบติ๊กให้เองเมื่อข้อมูลครบ</div>
+      <div class="fs-sub">ทำแล้ว {{ setup.done }} จาก {{ setup.total }} ขั้น ระบบติ๊กให้เองเมื่อข้อมูลครบ</div>
       {% if setup_video %}<a class="fs-video" href="{{ setup_video }}"><span class="fs-play">▶</span> ดูวิดีโอสอนใช้งาน</a>{% endif %}</div>
     <button type="button" class="fs-hide" id="setup-{{ setup_key }}-hide">ซ่อนไว้ก่อน</button>
   </div>
@@ -88,7 +88,7 @@
       var button=r.querySelector('.fs-skip');if(button)button.textContent=skip?'กลับมาทำขั้นตอนนี้':'ข้ามขั้นตอนนี้ →';
       if(!done)r.querySelector('.fs-mark').textContent=skip?'↷':active?'➜':String(rows.indexOf(r)+1);
     });
-    card.querySelector('.fs-skip-status').textContent=count?'ข้ามไว้ '+count+' ขั้น · ยังไม่นับว่าทำเสร็จ กลับมาทำได้ทุกเมื่อ (จำเฉพาะผู้ใช้และชุดขั้นตอนนี้ในเบราว์เซอร์นี้)':'';
+    card.querySelector('.fs-skip-status').textContent=count?'ข้ามไว้ '+count+' ขั้น ยังไม่นับว่าทำเสร็จ กลับมาทำได้ทุกเมื่อ (จำเฉพาะผู้ใช้และชุดขั้นตอนนี้ในเบราว์เซอร์นี้)':'';
   }
   rows.forEach(function(r){var b=r.querySelector('.fs-skip');if(b)b.addEventListener('click',function(){
     var title=r.dataset.step, idx=skipped.indexOf(title);if(idx>=0)skipped.splice(idx,1);else skipped.push(title);

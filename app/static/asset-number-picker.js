@@ -52,7 +52,7 @@
       if (!response.ok) throw new Error(data.detail || 'ตรวจเลขไม่สำเร็จ');
       preview.textContent = data.code; preview.parentElement.classList.remove('is-error');
       const suffix = data.code.slice(data.prefix.length + 1).split('/');
-      parts.textContent = `รหัสจำแนก ${data.prefix} · เลขประจำชิ้น ${suffix[0]}` + (suffix[1] ? ` · ปี ${suffix[1]}` : '');
+      parts.textContent = `รหัสจำแนก ${data.prefix} เลขประจำชิ้น ${suffix[0]}` + (suffix[1] ? ` ปี ${suffix[1]}` : '');
     } catch (error) {
       if (error.name === 'AbortError' || version !== previewVersion) return;
       preview.textContent = error.message || 'ตรวจเลขไม่สำเร็จ ลองใหม่อีกครั้ง';
@@ -77,7 +77,7 @@
     field('number_choice').value = row.kind; field('number_prefix').value = row.code;
     field('number_catalog_id').value = row.kind === 'catalog' ? row.id : '';
     byId('an-selected-name').textContent = row.name;
-    byId('an-selected-code').textContent = `${row.code} · ${row.kind === 'existing' ? 'ชุดรหัสของโรงเรียน' : 'รหัสประเภทและชนิดตามคู่มือ'}`;
+    byId('an-selected-code').textContent = `${row.code} ${row.kind === 'existing' ? 'ชุดรหัสของโรงเรียน' : 'รหัสประเภทและชนิดตามคู่มือ'}`;
     byId('an-selected').hidden = false; byId('an-search-box').hidden = true; results.hidden = true;
     const source = byId('an-source'); source.hidden = !row.page;
     if (row.page) source.href = status.dataset.source + '#page=' + row.page;
@@ -100,7 +100,7 @@
         const left = document.createElement('span'), name = document.createElement('span'), meta = document.createElement('small');
         name.textContent = row.name;
         meta.textContent = row.ambiguous ? 'รหัสซ้ำกับอีกชนิดในต้นฉบับ กรุณาตรวจคู่มือก่อนใช้'
-          : row.kind === 'existing' ? 'ใช้รูปแบบเดิมของโรงเรียน' : `จากคู่มือ · หน้า PDF ${row.page}`;
+          : row.kind === 'existing' ? 'ใช้รูปแบบเดิมของโรงเรียน' : `จากคู่มือ หน้า PDF ${row.page}`;
         left.append(name, meta);
         const code = document.createElement('span'); code.className='an-result-code'; code.textContent=row.code;
         button.append(left,code); button.disabled=!!row.ambiguous;
@@ -111,7 +111,7 @@
         }
       }
       results.hidden = !data.items.length;
-      status.textContent = data.total ? `พบ ${data.total} รายการ` + (data.total>data.items.length ? ` · แสดง ${data.items.length} รายการแรก เพิ่มคำค้นเพื่อเจาะจงชนิด` : '')
+      status.textContent = data.total ? `พบ ${data.total} รายการ` + (data.total>data.items.length ? ` แสดง ${data.items.length} รายการแรก เพิ่มคำค้นเพื่อเจาะจงชนิด` : '')
         : 'ไม่พบรายการ ลองค้นด้วยชนิด เช่น ตู้ โต๊ะ เครื่องพิมพ์ หรือใช้รหัสที่โรงเรียนกำหนด';
     } catch (error) {
       if (error.name==='AbortError' || version!==searchVersion) return;

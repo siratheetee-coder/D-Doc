@@ -34,8 +34,8 @@
     const slots=choices();let fresh=0,dup=0,minutes=0;
     selected.forEach(k=>slots.forEach(s=>{if(existing.has(k+'|'+s.name))dup++;else{fresh++;minutes+=s.minutes||0;}}));
     const h=Math.floor(minutes/60),m=minutes%60,time=(h?`${h} ชม.`:'')+(m?` ${m} นาที`:'')||'0 นาที';
-    document.getElementById('batchSummary').textContent=!selected.size?'ยังไม่ได้เลือกวัน':!slots.length?`เลือก ${selected.size} วัน · ยังไม่ได้เลือกคาบ`:
-      `เลือก ${selected.size} วัน × ${slots.length} คาบ · เพิ่มใหม่ ${fresh} คาบ (${time.trim()})`+(dup?` · ข้าม ${dup} คาบที่มีอยู่แล้ว`:'');
+    document.getElementById('batchSummary').textContent=!selected.size?'ยังไม่ได้เลือกวัน':!slots.length?`เลือก ${selected.size} วัน ยังไม่ได้เลือกคาบ`:
+      `เลือก ${selected.size} วัน × ${slots.length} คาบ เพิ่มใหม่ ${fresh} คาบ (${time.trim()})`+(dup?` ข้าม ${dup} คาบที่มีอยู่แล้ว`:'');
   }
   function chips(){
     const box=document.getElementById('selectedChips');box.replaceChildren();
@@ -52,9 +52,9 @@
     if(!keys.length){const e=document.createElement('p');e.className='ls-empty';e.textContent='เดือนนี้ยังไม่มีคาบที่บันทึก';list.append(e);return;}
     keys.forEach(k=>{
       const row=document.createElement('div');row.className='ls-day';const d=info(k);
-      const lab=document.createElement('span');lab.className='ls-day-label'+(d.s==='hol'?' is-hol':'');lab.textContent=label(k)+(d.n?` · ${d.n}`:'');row.append(lab);
+      const lab=document.createElement('span');lab.className='ls-day-label'+(d.s==='hol'?' is-hol':'');lab.textContent=label(k)+(d.n?` ${d.n}`:'');row.append(lab);
       byDate[k].forEach(e=>{const p=document.createElement('span');p.className='ls-period';p.append(e.slot+' ');
-        const meta=document.createElement('em');meta.textContent=`${e.minutes} นาที · เช็กแล้ว ${e.checked}/${cfg.students}`;p.append(meta);
+        const meta=document.createElement('em');meta.textContent=`${e.minutes} นาที เช็กแล้ว ${e.checked}/${cfg.students}`;p.append(meta);
         const del=document.createElement('button');del.type='button';del.className='ls-del';del.textContent='×';del.title='ลบคาบนี้';del.setAttribute('aria-label',`ลบ ${label(k)} ${e.slot}`);
         del.onclick=()=>remove(e,k);p.append(del);row.append(p);});
       list.append(row);});
@@ -112,7 +112,7 @@
     if(!pick.length){say(`ไม่มีวัน ${btn.textContent} ที่เป็นวันเปิดเรียน${all?'ในภาคเรียนนี้':'ในเดือนนี้'}`);return;}
     const allOn=pick.every(k=>selected.has(k));
     pick.forEach(k=>allOn?selected.delete(k):selected.add(k));
-    draw();say(`${allOn?'เอาออก':'เลือก'}ทุกวัน ${btn.textContent} ${pick.length} วัน${skipped?` · ข้ามวันหยุด/วันปิดเรียน ${skipped} วัน`:''}`);
+    draw();say(`${allOn?'เอาออก':'เลือก'}ทุกวัน ${btn.textContent} ${pick.length} วัน${skipped?` ข้ามวันหยุด/วันปิดเรียน ${skipped} วัน`:''}`);
   });
   document.getElementById('slotChoices').addEventListener('input',summary);
   function addSlot(name,minutes=50,checked=true){
@@ -139,7 +139,7 @@
     let count=0;const filled={};
     cells.forEach(c=>{c.dataset.state=c.value;const changed=c.value!==c.dataset.original;c.classList.toggle('changed',changed);if(changed)count++;if(c.value)filled[c.dataset.lesson]=(filled[c.dataset.lesson]||0)+1;});
     document.querySelectorAll('.lg-prog').forEach(p=>{const n=filled[p.dataset.lesson]||0;p.textContent=`${n}/${cfg.students}`;p.classList.toggle('full',n===cfg.students&&n>0);});
-    window.lessonGridDirty=count>0;const status=document.getElementById('gridStatus');if(status)status.textContent=count?`แก้ไข ${count} ช่อง · ยังไม่บันทึก`:'ยังไม่มีการแก้ไข';
+    window.lessonGridDirty=count>0;const status=document.getElementById('gridStatus');if(status)status.textContent=count?`แก้ไข ${count} ช่อง ยังไม่บันทึก`:'ยังไม่มีการแก้ไข';
   }
   // Restore the user's edits after validation errors without changing server baselines.
   try{JSON.parse(cfg.entered.changes||'[]').forEach(item=>{const cell=cells.find(c=>c.dataset.lesson===String(item.lesson_id)&&c.dataset.student===String(item.student_id));if(cell)cell.value=item.mark;});}catch{}

@@ -3,7 +3,7 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">โครงการ/แผนงบ · {{ year_label }} {{ year }} ({{ thai_date(start) }} ถึง {{ thai_date(end) }})</div>
+    <div class="hero-sub">โครงการ/แผนงบ {{ year_label }} {{ year }} ({{ thai_date(start) }} ถึง {{ thai_date(end) }})</div>
     <span class="hero-title">ย้ายเรื่องไปโครงการปีที่ถูกต้อง</span>
     <div class="hero-meta">{{ rows|length }} เรื่อง รวม {{ "{:,.2f}".format(total) }} บาท</div>
   </div>
@@ -45,8 +45,8 @@
         <td style="white-space:nowrap;">{{ r.no or '-' }}</td>
         <td>{{ r.title }}{% if r.kind != 'proc' %} <span class="muted">({{ kind_label[r.kind] }})</span>{% endif %}</td>
         <td class="right">{{ "{:,.2f}".format(r.amount) }}</td>
-        <td class="muted">{{ r.project.name }} · {{ year }}</td>
-        <td><b>{{ r.project.name }} · {{ r.target_year }}</b>
+        <td class="muted">{{ r.project.name }} {{ year }}</td>
+        <td><b>{{ r.project.name }} {{ r.target_year }}</b>
           {% if not r.target %}<span class="ra-new">สร้างใหม่</span>{% endif %}</td>
       </tr>
       {% endfor %}

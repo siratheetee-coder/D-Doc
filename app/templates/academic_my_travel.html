@@ -3,7 +3,7 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">งานบุคคล · ขอไปราชการ/อบรม</div>
+    <div class="hero-sub">งานบุคคล ขอไปราชการ/อบรม</div>
     <span class="hero-title">ขอไปราชการของฉัน</span>
     <div class="hero-meta">{{ school.name or "" }}</div>
   </div>
@@ -22,7 +22,7 @@
 {% if my_pid %}
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-send"/></svg> ยื่นคำขอไปราชการ/อบรม</h2>
-  <p class="muted" style="font-size:13px; margin:4px 0 12px;">เมื่อส่ง ระบบจะแจ้งหัวหน้าฝ่ายบุคคลทางอีเมล · อนุมัติแล้วจะลงทะเบียนไปราชการให้อัตโนมัติ</p>
+  <p class="muted" style="font-size:13px; margin:4px 0 12px;">เมื่อส่ง ระบบจะแจ้งหัวหน้าฝ่ายบุคคลทางอีเมล อนุมัติแล้วจะลงทะเบียนไปราชการให้อัตโนมัติ</p>
   <form method="post" action="/me/travel/submit" enctype="multipart/form-data">
     <div class="row" style="align-items:flex-end;">
       <div><label>ไปเพื่อ *</label>
@@ -44,7 +44,7 @@
       <div><label>ตามหนังสือที่</label><input name="doc_ref" placeholder="เช่น ศธ 04xxx/123"></div>
       <div><label>ลงวันที่ (ของหนังสือ)</label><input name="doc_date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
     </div>
-    <label style="margin-top:10px; display:block;">แนบเอกสารประกอบ (หนังสือเชิญ/คำสั่ง · PDF/รูป)</label>
+    <label style="margin-top:10px; display:block;">แนบเอกสารประกอบ (หนังสือเชิญ/คำสั่ง PDF/รูป)</label>
     <input type="file" name="doc_attachment" accept=".pdf,image/*" style="font-size:14px;">
 
     <label style="margin-top:12px; display:block;"><b>ค่าใช้จ่าย</b></label>
@@ -70,14 +70,14 @@
 
     <label style="margin-top:12px; display:block;">มอบหมายครูสอนแทน</label>
     <select name="substitute_person_id">
-      <option value=""> · เลือกครูสอนแทน · </option>
+      <option value=""> เลือกครูสอนแทน </option>
       {% for t in teachers %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
     </select>
     <p class="muted" style="font-size:12.5px; margin:6px 0 0;">หรือให้ฝ่ายวิชาการจัดคาบสอนแทนภายหลัง (เมนู "จัดคาบสอนแทน")</p>
 
-    <label style="margin-top:12px; display:block;">แนบใบไปราชการที่กรอกแล้ว (ถ้ามี · PDF/รูป)</label>
+    <label style="margin-top:12px; display:block;">แนบใบไปราชการที่กรอกแล้ว (ถ้ามี PDF/รูป)</label>
     <input type="file" name="travel_form" accept=".pdf,image/*" style="font-size:14px;">
-    <p class="muted" style="font-size:12.5px; margin:6px 0 0;">ถ้าครูมีใบไปราชการอยู่แล้ว แนบส่งให้ ผอ. ได้เลย · ไฟล์ที่แนบทั้งหมดจะถูกส่งไปในอีเมลด้วย</p>
+    <p class="muted" style="font-size:12.5px; margin:6px 0 0;">ถ้าครูมีใบไปราชการอยู่แล้ว แนบส่งให้ ผอ. ได้เลย ไฟล์ที่แนบทั้งหมดจะถูกส่งไปในอีเมลด้วย</p>
     <br><button class="btn green" type="submit" style="margin-top:12px;"><svg class="icon"><use href="#ic-send"/></svg> ส่งคำขอไปราชการ</button>
   </form>
   <script>

@@ -53,8 +53,8 @@
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-upload"/></svg> รูปโปรไฟล์</h2>
   <p class="muted" style="font-size:13.5px; margin:4px 0 12px;">
-    รูปจะแสดงเป็นวงกลมที่มุมขวาบน · ระบบครอบกลางภาพเป็นสี่เหลี่ยมจัตุรัสและย่อให้อัตโนมัติ
-    ไฟล์ใหญ่จากมือถืออัปได้เลย{% if not has_avatar %} · ถ้าไม่ใส่รูป จะใช้อักษรแรกของชื่อแทน{% endif %}</p>
+    รูปจะแสดงเป็นวงกลมที่มุมขวาบน ระบบครอบกลางภาพเป็นสี่เหลี่ยมจัตุรัสและย่อให้อัตโนมัติ
+    ไฟล์ใหญ่จากมือถืออัปได้เลย{% if not has_avatar %} ถ้าไม่ใส่รูป จะใช้อักษรแรกของชื่อแทน{% endif %}</p>
   <div class="pic-box">
     <form method="post" action="/account/avatar" enctype="multipart/form-data"
           style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; flex:1 1 320px; margin:0;">
@@ -103,15 +103,15 @@
   </div>
   <p class="muted" style="font-size:13.5px; margin:8px 0 0; line-height:1.7;">
     เมื่อเปิดใช้ การเข้าสู่ระบบจะต้องใส่<b>รหัส 6 หลักจากแอปในมือถือ</b>เพิ่มจากรหัสผ่าน
-    ต่อให้รหัสผ่านหลุด คนอื่นก็เข้าบัญชีนี้ไม่ได้ ·
+    ต่อให้รหัสผ่านหลุด คนอื่นก็เข้าบัญชีนี้ไม่ได้
     ใช้ได้กับ Google Authenticator, Microsoft Authenticator หรือ Authy</p>
 
   {% if tfa_codes %}
   {# เพิ่งเปิดใช้สำเร็จ - โชว์รหัสสำรองครั้งเดียว #}
   <div class="pf-note" style="background:#f0fdf4; border-color:#bbf7d0; color:#166534; margin-top:14px;">
-    <b>เปิดใช้งานเรียบร้อยแล้ว · นี่คือรหัสสำรอง {{ tfa_codes|length }} รหัส</b><br>
-    ใช้ตอน<b>มือถือหาย</b>หรือเปิดแอปไม่ได้ · <b>1 รหัสใช้ได้ครั้งเดียว</b><br>
-    <b style="color:#b91c1c;">หน้านี้แสดงรหัสครั้งเดียว รีเฟรชแล้วจะไม่โชว์อีก · คัดลอกเก็บไว้เดี๋ยวนี้</b>
+    <b>เปิดใช้งานเรียบร้อยแล้ว นี่คือรหัสสำรอง {{ tfa_codes|length }} รหัส</b><br>
+    ใช้ตอน<b>มือถือหาย</b>หรือเปิดแอปไม่ได้ <b>1 รหัสใช้ได้ครั้งเดียว</b><br>
+    <b style="color:#b91c1c;">หน้านี้แสดงรหัสครั้งเดียว รีเฟรชแล้วจะไม่โชว์อีก คัดลอกเก็บไว้เดี๋ยวนี้</b>
     <div class="tfa-codes">
       {% for c in tfa_codes %}<code>{{ c }}</code>{% endfor %}
     </div>
@@ -146,7 +146,7 @@
   {% elif tfa.enabled %}
   <div class="pf-note" style="margin-top:14px;">
     เหลือรหัสสำรองอีก <b>{{ tfa.recovery_left }}</b> รหัส
-    {% if tfa.recovery_left == 0 %}<br><b style="color:#b91c1c;">ใช้รหัสสำรองหมดแล้ว · ถ้ามือถือหายจะเข้าระบบไม่ได้ ควรปิดแล้วเปิดใหม่เพื่อรับรหัสสำรองชุดใหม่</b>
+    {% if tfa.recovery_left == 0 %}<br><b style="color:#b91c1c;">ใช้รหัสสำรองหมดแล้ว ถ้ามือถือหายจะเข้าระบบไม่ได้ ควรปิดแล้วเปิดใหม่เพื่อรับรหัสสำรองชุดใหม่</b>
     {% elif tfa.recovery_left <= 2 %}<br><b style="color:#b45309;">รหัสสำรองใกล้หมด</b>{% endif %}
   </div>
   <form method="post" action="/account/2fa/disable"
@@ -177,7 +177,7 @@
   </div>
   {% if is_teacher %}
   <p class="muted" style="font-size:13px; margin:12px 0 0;">
-    ลืมรหัสผ่าน? บัญชีครูกดลิงก์ "ลืมรหัสผ่าน" เองไม่ได้ (ไม่ได้ผูกอีเมล) · ให้แจ้งไอดีหลักของโรงเรียนรีเซ็ตรหัสให้</p>
+    ลืมรหัสผ่าน? บัญชีครูกดลิงก์ "ลืมรหัสผ่าน" เองไม่ได้ (ไม่ได้ผูกอีเมล) ให้แจ้งไอดีหลักของโรงเรียนรีเซ็ตรหัสให้</p>
   {% endif %}
 </div>
 <script>

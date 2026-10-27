@@ -789,7 +789,7 @@ def notice_save(request: Request, kind: str = Form("maint"),
         which = "วันที่เริ่ม" if not start else "วันที่สิ้นสุด"
         return RedirectResponse("/admin-console/notice?err=" + quote(
             f"อ่าน{which}ไม่ออก" + (f' (ท่านกรอกว่า "{bad}")' if bad else " (ยังไม่ได้กรอก)")
-            + " · พิมพ์เป็นตัวเลขติดกัน เช่น 02102569 ระบบจะใส่ / ให้เอง"),
+            + " พิมพ์เป็นตัวเลขติดกัน เช่น 02102569 ระบบจะใส่ / ให้เอง"),
             status_code=303)
     if end <= start:
         return RedirectResponse("/admin-console/notice?err=" + quote("เวลาสิ้นสุดต้องหลังเวลาเริ่ม"),
@@ -807,7 +807,7 @@ def notice_save(request: Request, kind: str = Form("maint"),
         db.commit()
         if send_mail:
             if not smtp_configured():
-                mail_txt = " · ส่งอีเมลไม่ได้ ยังไม่ได้ตั้งค่า SMTP"
+                mail_txt = " ส่งอีเมลไม่ได้ ยังไม่ได้ตั้งค่า SMTP"
             else:
                 # ส่งเบื้องหลัง ไม่ให้หน้าเว็บค้างรอจนโดนตัด 504
                 from app.services.notice_mail import send_in_background

@@ -7,7 +7,7 @@
 <div class="task-grid">
 {% for card in task_cards %}<article class="task-box {{ card.tone }}">
 <a class="task-top" href="{{ card.href }}"><b>{{ card.label }}</b><strong>{{ card.count }}</strong></a>
-{% if card.count %}<ul class="task-list">{% for item in card['items'] %}<li><a href="{{ item.href }}">{{ item.title }}<small>{{ item.detail }}{% if item.due %} · ครบกำหนด {{ thai_date(item.due) }}{% endif %}</small></a></li>{% endfor %}</ul><a href="{{ card.href }}">เปิดรายการทั้งหมด {{ card.count }} รายการ →</a>
+{% if card.count %}<ul class="task-list">{% for item in card['items'] %}<li><a href="{{ item.href }}">{{ item.title }}<small>{{ item.detail }}{% if item.due %} ครบกำหนด {{ thai_date(item.due) }}{% endif %}</small></a></li>{% endfor %}</ul><a href="{{ card.href }}">เปิดรายการทั้งหมด {{ card.count }} รายการ →</a>
 {% else %}<p class="muted" style="margin-bottom:0">ไม่มีรายการค้างในกลุ่มนี้</p>{% endif %}
 </article>{% endfor %}
 </div></section>

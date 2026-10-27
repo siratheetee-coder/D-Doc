@@ -1239,7 +1239,7 @@ def set_avatar(uid, data: bytes) -> dict:
     try:
         img = ImageOps.exif_transpose(Image.open(_io.BytesIO(data))).convert("RGB")
     except Exception:
-        return {"error": "ไฟล์นี้ไม่ใช่รูปภาพ (รองรับ JPG · PNG · HEIC จากมือถือ)"}
+        return {"error": "ไฟล์นี้ไม่ใช่รูปภาพ (รองรับ JPG PNG HEIC จากมือถือ)"}
     # ครอบกลางภาพให้เป็นจัตุรัสก่อน วงกลมจะได้ไม่บีบเบี้ยว
     side = min(img.width, img.height)
     left, top = (img.width - side) // 2, (img.height - side) // 2

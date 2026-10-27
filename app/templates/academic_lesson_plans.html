@@ -3,9 +3,9 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">งานวิชาการ · ส่งแผนการสอน</div>
+    <div class="hero-sub">งานวิชาการ ส่งแผนการสอน</div>
     <span class="hero-title">แผนการสอน</span>
-    <div class="hero-meta">{{ school.name or "" }}{% if is_reviewer %} · โหมดหัวหน้าฝ่ายวิชาการ (ตรวจแผน){% endif %}</div>
+    <div class="hero-meta">{{ school.name or "" }}{% if is_reviewer %} โหมดหัวหน้าฝ่ายวิชาการ (ตรวจแผน){% endif %}</div>
   </div>
 </div>
 
@@ -17,7 +17,7 @@
   <div class="nt-head"><span class="ring"><svg class="icon"><use href="#ic-alert"/></svg></span>
     <b>ก่อนส่งแผนการสอน</b></div>
   <div class="nt-body">
-    <p><b>ระบบออกบันทึกข้อความเสนอ ผอ. ให้อัตโนมัติ</b><br>ลายเซ็นครู หัวหน้าวิชาการ และ ผอ. จะแปะบนบันทึกนำหน้าแผนให้เอง ไม่ต้องเซ็นในไฟล์แผน · ขอให้อัปโหลดลายเซ็นของคุณไว้ที่ ตั้งค่า → บุคลากร ก่อนส่ง</p>
+    <p><b>ระบบออกบันทึกข้อความเสนอ ผอ. ให้อัตโนมัติ</b><br>ลายเซ็นครู หัวหน้าวิชาการ และ ผอ. จะแปะบนบันทึกนำหน้าแผนให้เอง ไม่ต้องเซ็นในไฟล์แผน ขอให้อัปโหลดลายเซ็นของคุณไว้ที่ ตั้งค่า → บุคลากร ก่อนส่ง</p>
     <div class="nt-foot">
       <label class="nt-chk"><input type="checkbox" id="hintTeacherNo"> ไม่ต้องแจ้งฉันอีก</label>
       <button type="button" class="btn sm"
@@ -27,7 +27,7 @@
 </div>
 <div class="card">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-file"/></svg> ส่งแผนการสอน</h2>
-  <p class="muted" style="font-size:13px; margin:4px 0 12px;">แนบไฟล์แผน Word ตามรูปแบบของโรงเรียน ไฟล์ละหนึ่งหน่วยการเรียนรู้ · ระบบออก<b>บันทึกข้อความขออนุมัติใช้แผน</b>นำหน้าให้ และต่อ<b>หน้าบันทึกหลังการจัดการเรียนรู้</b>ท้ายแผนแต่ละหน่วย พร้อมแปะลายเซ็นให้อัตโนมัติ · หัวหน้าฝ่ายวิชาการตรวจก่อน แล้วเสนอ ผอ. ลงนาม</p>
+  <p class="muted" style="font-size:13px; margin:4px 0 12px;">แนบไฟล์แผน Word ตามรูปแบบของโรงเรียน ไฟล์ละหนึ่งหน่วยการเรียนรู้ ระบบออก<b>บันทึกข้อความขออนุมัติใช้แผน</b>นำหน้าให้ และต่อ<b>หน้าบันทึกหลังการจัดการเรียนรู้</b>ท้ายแผนแต่ละหน่วย พร้อมแปะลายเซ็นให้อัตโนมัติ หัวหน้าฝ่ายวิชาการตรวจก่อน แล้วเสนอ ผอ. ลงนาม</p>
   <form method="post" action="/academic/lesson-plans/submit" enctype="multipart/form-data">
     <div class="row" style="align-items:flex-end;">
       <div style="flex:1.4;"><label>ชื่อแผน / วิชา / ชั้น *</label><input name="title" required placeholder="เช่น แผนการสอนภาษาไทย ป.1 หน่วยที่ 3"></div>
@@ -36,11 +36,11 @@
     </div>
     <label style="margin-top:10px; display:block;">ไฟล์แผน Word (.docx) เลือกได้หลายไฟล์ ไฟล์ละหนึ่งหน่วย *</label>
     <input name="file" id="planFiles" type="file" multiple accept=".docx" required style="padding:8px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; width:100%;">
-    <p class="muted" style="font-size:12.5px; margin:4px 0 0;">อัปโหลดเฉพาะตัวแผน ไม่ต้องทำหน้าบันทึกหลังการจัดการเรียนรู้และช่องลายเซ็นมาเอง · รับเฉพาะไฟล์ Word เพราะระบบต้องต่อหน้าบันทึกเข้าไปในไฟล์ให้ (ไฟล์ .doc รุ่นเก่า เปิดใน Word แล้วบันทึกเป็น .docx ก่อน) · ไฟล์ละไม่เกิน 10 MB</p>
+    <p class="muted" style="font-size:12.5px; margin:4px 0 0;">อัปโหลดเฉพาะตัวแผน ไม่ต้องทำหน้าบันทึกหลังการจัดการเรียนรู้และช่องลายเซ็นมาเอง รับเฉพาะไฟล์ Word เพราะระบบต้องต่อหน้าบันทึกเข้าไปในไฟล์ให้ (ไฟล์ .doc รุ่นเก่า เปิดใน Word แล้วบันทึกเป็น .docx ก่อน) ไฟล์ละไม่เกิน 10 MB</p>
 
     <div id="unitRows" style="margin-top:12px;" hidden>
       <label style="display:block;">ชื่อหน่วยการเรียนรู้ของแต่ละไฟล์</label>
-      <p class="muted" style="font-size:12.5px; margin:4px 0 8px;">รายการนี้จะขึ้นเป็นตารางในบันทึกเสนอ ผอ. · เว้นว่างได้ ระบบจะใช้ชื่อไฟล์ไปก่อนแล้วแก้ทีหลังได้ · ผอ. ลงนามครั้งเดียวครอบคลุมทุกหน่วย</p>
+      <p class="muted" style="font-size:12.5px; margin:4px 0 8px;">รายการนี้จะขึ้นเป็นตารางในบันทึกเสนอ ผอ. เว้นว่างได้ ระบบจะใช้ชื่อไฟล์ไปก่อนแล้วแก้ทีหลังได้ ผอ. ลงนามครั้งเดียวครอบคลุมทุกหน่วย</p>
       <div id="unitList" class="table-wrap"></div>
     </div>
     <label style="margin-top:10px; display:block;">หมายเหตุถึงหัวหน้าฝ่าย (ไม่บังคับ)</label>
@@ -80,7 +80,7 @@
       {% set ns.term = (p.term or 0) %}
       <tr class="term-sep"><td colspan="{{ 8 if is_reviewer else 7 }}">{{ 'ภาคเรียนที่ ' ~ p.term if p.term in (1,2) else 'ไม่ระบุภาคเรียน' }}</td></tr>
       {% endif %}
-      {% set st = {'pending':('รอวิชาการตรวจ','#fef9c3','#854d0e'), 'revise':('ให้แก้ไข','#fee2e2','#b91c1c'), 'director':('ผ่านวิชาการ · รอ ผอ.','#dbeafe','#1e40af'), 'approved':('อนุมัติแล้ว','#dcfce7','#166534'), 'reviewed':('ตรวจแล้ว (เดิม)','#dcfce7','#166534')}.get(p.status, ('รอวิชาการตรวจ','#fef9c3','#854d0e')) %}
+      {% set st = {'pending':('รอวิชาการตรวจ','#fef9c3','#854d0e'), 'revise':('ให้แก้ไข','#fee2e2','#b91c1c'), 'director':('ผ่านวิชาการ รอ ผอ.','#dbeafe','#1e40af'), 'approved':('อนุมัติแล้ว','#dcfce7','#166534'), 'reviewed':('ตรวจแล้ว (เดิม)','#dcfce7','#166534')}.get(p.status, ('รอวิชาการตรวจ','#fef9c3','#854d0e')) %}
       <tr>
         {% if is_reviewer %}<td data-label="ครู" style="white-space:nowrap;">{{ p.teacher.name if p.teacher else '-' }}</td>{% endif %}
         <td data-label="เรื่อง">{{ p.title }}{% if p.note %}<div class="muted" style="font-size:12px;">{{ p.note }}</div>{% endif %}</td>

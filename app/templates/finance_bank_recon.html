@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}งบกระทบยอดเงินฝากธนาคาร{% endblock %}
 {% block content %}
-{% if unlinked_checks %}<div class="alert">มีเช็ค/โอน {{ unlinked_checks }} รายการในปีนี้ที่ยังไม่เชื่อมรายการจ่ายจริง ระบบยังคำนวณยอดคงค้างจากทะเบียนเดิม กรุณาตรวจว่าลงจ่ายในสมุดบัญชีแล้วก่อนใช้รายงาน · <a href="/finance/checks?year={{ fiscal_year }}">ตรวจและเชื่อมรายการจ่าย</a></div>{% endif %}
+{% if unlinked_checks %}<div class="alert">มีเช็ค/โอน {{ unlinked_checks }} รายการในปีนี้ที่ยังไม่เชื่อมรายการจ่ายจริง ระบบยังคำนวณยอดคงค้างจากทะเบียนเดิม กรุณาตรวจว่าลงจ่ายในสมุดบัญชีแล้วก่อนใช้รายงาน <a href="/finance/checks?year={{ fiscal_year }}">ตรวจและเชื่อมรายการจ่าย</a></div>{% endif %}
 <div class="hero">
   <div>
     <div class="hero-sub">เทียบยอดสมุดบัญชีของโรงเรียนกับใบแจ้งยอดธนาคาร</div>
@@ -78,7 +78,7 @@
       <p class="recon-help">ใช้เมื่อมีรายการที่ทำให้ยอดต่างกัน และไม่อยู่ในช่องข้างต้น หากไม่มีให้คงยอดไว้ที่ 0 ไม่ต้องกรอกส่วนนี้</p>
       <div class="row">
         <div><label for="recon-other">จำนวนเงินปรับ (บาท)</label><input id="recon-other" name="other" type="number" step="0.01" value="0">
-          <p class="recon-help">จำนวนที่ต้องเพิ่มหรือลด · เพิ่มยอดใส่ 500 · ลดยอดใส่ -500</p></div>
+          <p class="recon-help">จำนวนที่ต้องเพิ่มหรือลด เพิ่มยอดใส่ 500 ลดยอดใส่ -500</p></div>
         <div><label for="recon-other-side">นำไปปรับยอดส่วนใด</label><select id="recon-other-side" name="other_side">
           <option value="bank">ยอดตามใบแจ้งยอดธนาคาร</option><option value="book">ยอดตามบัญชีของโรงเรียน</option></select>
           <p class="recon-help">เลือกยอดที่ต้องเพิ่มหรือลดด้วยจำนวนเงินนี้</p></div>

@@ -5,7 +5,7 @@
   <div>
     <div class="hero-sub" style="color:#e9d5ff;">งานวิชาการ</div>
     <span class="hero-title">จัดคาบสอนแทน</span>
-    <div class="hero-meta" style="color:#e0e7ff;">ครูลา/ไปราชการ → เลือกครูที่ว่างมาสอนแทนรายคาบ · ปีการศึกษา {{ year }}</div>
+    <div class="hero-meta" style="color:#e0e7ff;">ครูลา/ไปราชการ → เลือกครูที่ว่างมาสอนแทนรายคาบ ปีการศึกษา {{ year }}</div>
   </div>
 </div>
 {% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
@@ -19,7 +19,7 @@
   <div class="sub-grid">
     {% for l in leaves %}
     <a class="sub-card lv" href="/academic/substitute/plan?person_id={{ l.person_id }}&start={{ be_date(l.start_date) }}&end={{ be_date(l.end_date) }}&source=leave&source_id={{ l.id }}">
-      <div class="sc-tag">ลา · {{ l.leave_type }}</div>
+      <div class="sc-tag">ลา {{ l.leave_type }}</div>
       <div class="sc-name">{{ l.person.name if l.person else '-' }}</div>
       <div class="sc-date">{{ thai_date(l.start_date) }} - {{ thai_date(l.end_date) }} ({{ l.days }} วัน)</div>
       <div class="sc-go">จัดสอนแทน →</div>
@@ -58,7 +58,7 @@
     <div class="row" style="align-items:flex-end;">
       <div style="flex:1.4;"><label>ครูที่ไม่อยู่</label>
         <select name="person_id" required>
-          <option value=""> · เลือกครู · </option>
+          <option value=""> เลือกครู </option>
           {% for p in teachers %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
         </select></div>
       <div><label>ตั้งแต่วันที่ *</label><input name="start" required placeholder="วว/ดด/ปปปป (พ.ศ.)" data-date="1"></div>

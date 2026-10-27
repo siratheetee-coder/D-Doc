@@ -1,9 +1,9 @@
-/* ช่องพิมพ์ค้นหา + เลือกจากรายการ (แนะนำชื่อที่คล้าย แม้พิมพ์ไม่ตรงทั้งหมด) · โหลดทุกหน้าจาก base.html
+/* ช่องพิมพ์ค้นหา + เลือกจากรายการ (แนะนำชื่อที่คล้าย แม้พิมพ์ไม่ตรงทั้งหมด) โหลดทุกหน้าจาก base.html
  * - select[data-combo]: ซ่อน select เดิมไว้ (ค่าที่ส่งฟอร์มยังมาจาก select) แล้ววางช่องพิมพ์ค้นหาแทน
  *   เลือกแล้วส่ง change ให้สคริปต์อื่นที่ฟัง select นี้ (quick-project.js, project_source.js) เหมือนเลือกเอง
  * - input[data-suggest=กลุ่ม]: พิมพ์ชื่อใหม่เองได้ มีรายชื่อแนะนำจาก window.SUGGEST_NAMES[กลุ่ม]
  * - input[list] (datalist เดิมทั้งระบบ): ตอนคลิกช่องครั้งแรก เปลี่ยนมาใช้กล่องแนะนำนี้แทนของเบราว์เซอร์
- *   (ของเบราว์เซอร์หาได้แค่ตัวอักษรที่ตรงกันเป๊ะ) · ใส่ data-native-list ไว้ถ้าอยากใช้แบบเดิม
+ *   (ของเบราว์เซอร์หาได้แค่ตัวอักษรที่ตรงกันเป๊ะ) ใส่ data-native-list ไว้ถ้าอยากใช้แบบเดิม
  * กล่องรายการเป็น position:fixed ลอยเหนือหน้า จึงไม่โดนตาราง/กล่องที่เลื่อนได้ตัดขอบ
  */
 (function () {
@@ -32,7 +32,7 @@
     for (var i = 0; i < t.length && j < q.length; i++) if (t[i] === q[j]) j++;
     return j === q.length;
   }
-  // คะแนนความคล้าย 0 = ไม่แสดง · ตรงต่อกันมาก่อน > มีทุกคำ > ตัวอักษรเรียงตาม > คล้าย (พิมพ์ผิดบางตัว)
+  // คะแนนความคล้าย 0 = ไม่แสดง ตรงต่อกันมาก่อน > มีทุกคำ > ตัวอักษรเรียงตาม > คล้าย (พิมพ์ผิดบางตัว)
   function score(q, text) {
     var qn = norm(q), tn = norm(text);
     if (!qn) return 1;
@@ -76,7 +76,7 @@
   });
   function mount() { if (!box.parentNode) document.body.appendChild(box); }
 
-  // items() คืน [{v, label, sub, search, fixed, none}] · fixed = แสดงเสมอ (เช่น "+ เพิ่มโครงการใหม่")
+  // items() คืน [{v, label, sub, search, fixed, none}] fixed = แสดงเสมอ (เช่น "+ เพิ่มโครงการใหม่")
   function attach(input, items, onPick, opts) {
     opts = opts || {};
     var shown = [], act = -1, me = {};
@@ -149,7 +149,7 @@
     new MutationObserver(sync).observe(sel, { attributes: true, attributeFilter: ['disabled'] });
     function items() {
       return Array.prototype.map.call(sel.options, function (o) {
-        var t = o.textContent.trim(), cut = t.indexOf(' · ');
+        var t = o.textContent.trim(), cut = t.indexOf(' ');
         return { v: o.value, label: cut > 0 ? t.slice(0, cut) : t, sub: cut > 0 ? t.slice(cut + 3) : '',
                  search: t, none: o.value === '', fixed: o.value === '__new' };   // ค้นหาปีแผนได้ด้วย (เช่น 2568)
       });

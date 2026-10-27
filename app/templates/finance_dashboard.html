@@ -3,9 +3,9 @@
 {% block content %}
 <div class="hero" style="background:linear-gradient(120deg,#15803d,#16a34a 55%,#4ade80); box-shadow:0 10px 26px rgba(22,163,74,.28);">
   <div>
-    <div class="hero-sub">ทะเบียนคุมเงิน · ขอเบิกจ่าย · ใบเสร็จ · รายงาน</div>
+    <div class="hero-sub">ทะเบียนคุมเงิน ขอเบิกจ่าย ใบเสร็จ รายงาน</div>
     <span class="hero-title">งานการเงิน</span>
-    <div class="hero-meta">{{ school.name or "" }} · ปีงบประมาณ {{ fiscal_year }}</div>
+    <div class="hero-meta">{{ school.name or "" }} ปีงบประมาณ {{ fiscal_year }}</div>
   </div>
   <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
     <form method="get" action="/finance">
@@ -22,7 +22,7 @@
   <ul style="margin:6px 0 0; padding-left:18px;">{% for line in _ce[1:] %}<li>{{ line }}</li>{% endfor %}<li>ข้อมูลยังไม่ถูกเปลี่ยน</li></ul></div></div>{% endif %}
 {% if request.query_params.get("carried") %}<div class="alert">✔ คัดลอกยอดคงเหลือสิ้นปีงบ {{ request.query_params.get("carried") }} ไปตั้งเป็นยอดยกมาของปีงบ {{ fiscal_year }} แล้ว (ข้อมูลปีเก่ายังอยู่ครบ เลือกดูได้จากช่องเลือกปี)</div>{% endif %}
 
-{# ตรวจสุขภาพข้อมูลการเงิน (app/services/finance_health.py) · มีปัญหา = แถบเด่น · เรียบร้อย = แถบเขียวเล็ก ๆ #}
+{# ตรวจสุขภาพข้อมูลการเงิน (app/services/finance_health.py) มีปัญหา = แถบเด่น เรียบร้อย = แถบเขียวเล็ก ๆ #}
 {% if health %}
 <a class="fhb {{ 'fhb-bad' if health.fix else ('fhb-warn' if health.check else 'fhb-ok') }}" href="/finance/health?year={{ fiscal_year }}">
   <span class="fhb-ic"><svg class="icon"><use href="#{{ 'ic-alert' if health.fix or health.check else 'ic-check' }}"/></svg></span>
@@ -55,7 +55,7 @@
 {% set setup_key = 'fin' %}{% set setup_title = 'เริ่มต้นงานการเงินและโครงการ' %}
 {% include '_setup_checklist.html' %}
 
-{% set task_scope = 'เงินยืมคงค้างรวมทุกปี · ใกล้ครบกำหนดนับจากวันนี้ถึงอีก 7 วัน · บันทึกเบิกจ่ายตามปีงบที่เลือก · แสดงตัวอย่างกลุ่มละไม่เกิน 5 รายการ' %}
+{% set task_scope = 'เงินยืมคงค้างรวมทุกปี ใกล้ครบกำหนดนับจากวันนี้ถึงอีก 7 วัน บันทึกเบิกจ่ายตามปีงบที่เลือก แสดงตัวอย่างกลุ่มละไม่เกิน 5 รายการ' %}
 {% include '_dashboard_tasks.html' %}
 <div class="card">
   <div class="stat">
@@ -98,7 +98,7 @@
   </a>
   <a class="nav-card" href="/finance/report">
     <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-coins"/></svg></span><h3>รายงานการเงิน</h3></div>
-    <p class="nc-desc">สรุปรับ-จ่ายตามประเภทเงิน · ดาวน์โหลด Excel/Word</p>
+    <p class="nc-desc">สรุปรับ-จ่ายตามประเภทเงิน ดาวน์โหลด Excel/Word</p>
     <span class="nc-go">ดูรายงาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/finance/health?year={{ fiscal_year }}">
@@ -203,7 +203,7 @@
 
 <div class="card">
   <h2><svg class="icon"><use href="#ic-coins"/></svg> ยกยอดไปปีงบถัดไป</h2>
-  <p class="muted" style="margin-top:0;">เมื่อขึ้นปีงบใหม่ กดปุ่มนี้เพื่อ <b>คัดลอกยอดคงเหลือสิ้นปีงบ {{ fiscal_year }}</b> ของทุกบัญชี ไปตั้งเป็น <b>ยอดยกมาของปีงบ {{ fiscal_year + 1 }}</b> โดย <b>ไม่ลบข้อมูลปีเก่า</b> (เลือกดูย้อนหลังได้จากช่องเลือกปี) · กดซ้ำได้ ระบบจะอัปเดตยอดให้ตรงเสมอ</p>
+  <p class="muted" style="margin-top:0;">เมื่อขึ้นปีงบใหม่ กดปุ่มนี้เพื่อ <b>คัดลอกยอดคงเหลือสิ้นปีงบ {{ fiscal_year }}</b> ของทุกบัญชี ไปตั้งเป็น <b>ยอดยกมาของปีงบ {{ fiscal_year + 1 }}</b> โดย <b>ไม่ลบข้อมูลปีเก่า</b> (เลือกดูย้อนหลังได้จากช่องเลือกปี) กดซ้ำได้ ระบบจะอัปเดตยอดให้ตรงเสมอ</p>
   <form method="post" action="/finance/carry-forward"
         onsubmit="return confirm('คัดลอกยอดคงเหลือสิ้นปีงบ {{ fiscal_year }} ไปเป็นยอดยกมาปีงบ {{ fiscal_year + 1 }}?');">
     <input type="hidden" name="year" value="{{ fiscal_year }}">

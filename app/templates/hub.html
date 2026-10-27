@@ -107,7 +107,7 @@
       </form>
       {% endif %}
       <form method="post" action="/academic-year/advance" style="margin:0;"
-            onsubmit="return confirm('ขึ้นปีการศึกษา {{ acad_year }} → {{ acad_year + 1 }} ?\n\nงานวิชาการทุกส่วนจะตั้งค่าเริ่มต้นเป็นปีใหม่ · ข้อมูลปีเก่ายังอยู่ครบ เลือกดูย้อนหลังได้');">
+            onsubmit="return confirm('ขึ้นปีการศึกษา {{ acad_year }} → {{ acad_year + 1 }} ?\n\nงานวิชาการทุกส่วนจะตั้งค่าเริ่มต้นเป็นปีใหม่ ข้อมูลปีเก่ายังอยู่ครบ เลือกดูย้อนหลังได้');">
         <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-arrow-right"/></svg> ขึ้นปีการศึกษาใหม่</button>
       </form>
     </div>
@@ -121,13 +121,13 @@
     <div class="ob-top">
       <div>
         <h2 class="ob-h">เริ่มต้นใช้งานใน 10 นาที</h2>
-        <div class="muted">ทำแล้ว {{ qs.done }}/{{ qs.total }} ขั้น · เหลืออีกประมาณ <b>{{ qs.minutes_left }} นาที</b></div>
+        <div class="muted">ทำแล้ว {{ qs.done }}/{{ qs.total }} ขั้น เหลืออีกประมาณ <b>{{ qs.minutes_left }} นาที</b></div>
       </div>
       <a class="btn" href="/start">{{ 'เริ่มเลย' if qs.done == 0 else 'ทำต่อ' }} <svg class="icon"><use href="#ic-arrow-right"/></svg></a>
     </div>
     <div class="ob-bar"><i style="width:{{ (qs.done / qs.total * 100)|round(0,'floor') if qs.total else 0 }}%"></i></div>
     {% if qs.next %}<div class="ob-next">ขั้นถัดไป: <b>{{ qs.next.title }}</b> <span class="muted">(ประมาณ {{ qs.next.minutes }} นาที)</span>
-      · <a href="{{ qs.next.href }}">{{ qs.next.cta }}</a></div>{% endif %}
+      <a href="{{ qs.next.href }}">{{ qs.next.cta }}</a></div>{% endif %}
     <div style="margin-top:12px;"><button type="button" class="btn gray sm" onclick="dismissOnboard()">ซ่อนไปก่อน</button>
       <a class="muted" style="font-size:13px; margin-left:10px;" href="/guide">ดูวิธีใช้งานทั้งหมด</a></div>
   </div>
@@ -142,7 +142,7 @@
   {% if new_mod_labels %}
   <div class="alert info">
     <svg class="icon"><use href="#ic-info"/></svg>
-    <span>โรงเรียนของคุณเปิดใช้งานเพิ่ม: <b>{{ new_mod_labels|join(' · ') }}</b> · ไปเปิดสิทธิ์ให้เจ้าหน้าที่ที่เมนู "จัดการผู้ใช้"</span>
+    <span>โรงเรียนของคุณเปิดใช้งานเพิ่ม: <b>{{ new_mod_labels|join(' ') }}</b> ไปเปิดสิทธิ์ให้เจ้าหน้าที่ที่เมนู "จัดการผู้ใช้"</span>
     <a class="btn sm" href="/users"><svg class="icon"><use href="#ic-users"/></svg> เปิดสิทธิ์ให้ทีม</a>
     <button class="btn sm gray" type="button" onclick="modulesSeen(this)">รับทราบ</button>
   </div>
@@ -155,7 +155,7 @@
     <!-- งานธุรการ -->
     {% set _tid = request.session.get('tid') %}
     {% set _mine = my_modules(_tid) %}
-    {# สิทธิ์บัญชี: ไอดีหลักเห็นทุกงาน · ไอดีย่อยเห็นเฉพาะงานที่ได้รับสิทธิ์ (owned = โรงเรียนซื้อ, allowed = บัญชีมีสิทธิ์) #}
+    {# สิทธิ์บัญชี: ไอดีหลักเห็นทุกงาน ไอดีย่อยเห็นเฉพาะงานที่ได้รับสิทธิ์ (owned = โรงเรียนซื้อ, allowed = บัญชีมีสิทธิ์) #}
     {% set _owner = request.session.get('owner') %}
     {% set _acc = (request.session.get('mods') or '').split(',') %}
     {%- set live = modules_live['admin'] %}{% set owned = 'admin' in _mine %}{% set usable = can_use(_tid, 'admin') %}{% set allowed = _owner or 'admin' in _acc %}
@@ -164,9 +164,9 @@
       {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
       <span class="hub-ic"><svg class="icon"><use href="#ic-file"/></svg></span>
       <h2>งานธุรการ</h2>
-      <div class="desc">ทะเบียนหนังสือรับ-ส่ง · ออกบันทึกข้อความ · คำสั่งโรงเรียน</div>
+      <div class="desc">ทะเบียนหนังสือรับ-ส่ง ออกบันทึกข้อความ คำสั่งโรงเรียน</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
-      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
       {% elif not allowed %}<span class="hub-soon">ไม่มีสิทธิ์งานนี้</span>
       {% else %}
       <div class="hub-stat"><b>{{ admin_total }}</b><span>เอกสารปีนี้</span></div>
@@ -179,12 +179,12 @@
       {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
       <span class="hub-ic"><svg class="icon"><use href="#ic-package"/></svg></span>
       <h2>งานพัสดุ</h2>
-      <div class="desc">จัดซื้อจัดจ้าง · ออกเอกสารครบชุด · ทะเบียนครุภัณฑ์ · บัญชีวัสดุ</div>
+      <div class="desc">จัดซื้อจัดจ้าง ออกเอกสารครบชุด ทะเบียนครุภัณฑ์ บัญชีวัสดุ</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
-      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
       {% elif not allowed %}<span class="hub-soon">ไม่มีสิทธิ์งานนี้</span>
       {% else %}
-      <div class="hub-stat"><b>{{ stats.proc }}</b><span>เรื่องปีนี้ · {{ "{:,.0f}".format(stats.proc_amount) }} บาท</span></div>
+      <div class="hub-stat"><b>{{ stats.proc }}</b><span>เรื่องปีนี้ {{ "{:,.0f}".format(stats.proc_amount) }} บาท</span></div>
       <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
     </a>
 
@@ -194,9 +194,9 @@
       {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
       <span class="hub-ic"><svg class="icon"><use href="#ic-coins"/></svg></span>
       <h2>งานการเงิน</h2>
-      <div class="desc">ทะเบียนคุมเงินแยกบัญชี · บันทึกขอเบิกจ่าย · รายงานการเงิน · ใบเสร็จ/ใบสำคัญ</div>
+      <div class="desc">ทะเบียนคุมเงินแยกบัญชี บันทึกขอเบิกจ่าย รายงานการเงิน ใบเสร็จ/ใบสำคัญ</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
-      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
       {% elif not allowed %}<span class="hub-soon">ไม่มีสิทธิ์งานนี้</span>
       {% else %}<span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
     </a>
@@ -207,9 +207,9 @@
       {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
       <span class="hub-ic"><svg class="icon"><use href="#ic-food"/></svg></span>
       <h2>งานอาหารกลางวัน</h2>
-      <div class="desc">คำนวณงบตามจำนวนนักเรียน · บัญชีรับ-จ่ายเงินอุดหนุน · เชื่อมเรื่องจ้างเหมา</div>
+      <div class="desc">คำนวณงบตามจำนวนนักเรียน บัญชีรับ-จ่ายเงินอุดหนุน เชื่อมเรื่องจ้างเหมา</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
-      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
       {% elif not allowed %}<span class="hub-soon">ไม่มีสิทธิ์งานนี้</span>
       {% else %}<span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
     </a>
@@ -220,9 +220,9 @@
       {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
       <span class="hub-ic"><svg class="icon"><use href="#ic-users"/></svg></span>
       <h2>งานบุคคล</h2>
-      <div class="desc">ทะเบียนบุคลากร · ทะเบียนวันลา (คงเหลืออัตโนมัติ) · ใบลา · หนังสือรับรอง</div>
+      <div class="desc">ทะเบียนบุคลากร ทะเบียนวันลา (คงเหลืออัตโนมัติ) ใบลา หนังสือรับรอง</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
-      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
       {% elif not allowed %}<span class="hub-soon">ไม่มีสิทธิ์งานนี้</span>
       {% else %}<span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
     </a>
@@ -233,9 +233,9 @@
       {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
       <span class="hub-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span>
       <h2>งานวิชาการ</h2>
-      <div class="desc">ห้องเรียน/ครูประจำชั้น · รายวิชา 8 กลุ่มสาระ · กรอกคะแนน ปพ.5 · ประเมิน ปพ.6 · สมุดรายงาน</div>
+      <div class="desc">ห้องเรียน/ครูประจำชั้น รายวิชา 8 กลุ่มสาระ กรอกคะแนน ปพ.5 ประเมิน ปพ.6 สมุดรายงาน</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
-      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ · ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+      {% elif not usable %}<span class="hub-buy">ยังไม่ได้ซื้อ ซื้อเพิ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
       {% elif not allowed %}<span class="hub-soon">ไม่มีสิทธิ์งานนี้</span>
       {% else %}<span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>{% endif %}
     </a>
@@ -244,7 +244,7 @@
     <a class="hub-card" style="--c:#0891b2; --c2:#22d3ee;" href="/general">
       <span class="hub-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
       <h2>งานบริหารทั่วไป</h2>
-      <div class="desc">บันทึกการมาเรียน (คลิกชื่อ ลงเวลา สาย/มาทัน) · พิมพ์ตารางรายวัน</div>
+      <div class="desc">บันทึกการมาเรียน (คลิกชื่อ ลงเวลา สาย/มาทัน) พิมพ์ตารางรายวัน</div>
       <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
     </a>
   </div>

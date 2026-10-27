@@ -3,9 +3,9 @@
 {% block content %}
 <div class="hero" style="background:linear-gradient(120deg,#6d28d9,#7c3aed 55%,#a78bfa); box-shadow:0 10px 26px rgba(124,58,237,.28);">
   <div>
-    <div class="hero-sub">งบที่ตั้งไว้ · จ่ายและกันงบ · คงเหลือ · {{ year_label }} {{ fiscal_year }}</div>
+    <div class="hero-sub">งบที่ตั้งไว้ จ่ายและกันงบ คงเหลือ {{ year_label }} {{ fiscal_year }}</div>
     <span class="hero-title">ทะเบียนคุมโครงการ</span>
-    <div class="hero-meta">{{ rows|length }} โครงการ · คงเหลือรวม {{ "{:,.2f}".format(total_left) }} บาท</div>
+    <div class="hero-meta">{{ rows|length }} โครงการ คงเหลือรวม {{ "{:,.2f}".format(total_left) }} บาท</div>
   </div>
   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     {% if rows %}
@@ -85,7 +85,7 @@
                 <tr>
                   <td class="tw">{{ w.date.strftime('%d/%m/') ~ (w.date.year + 543) if w.date else '-' }}</td>
                   <td class="tw">{{ w.no or '-' }}</td>
-                  <td>{{ w.subject }}{% if w.vendor %} <span class="tw">· {{ w.vendor }}</span>{% endif %}</td>
+                  <td>{{ w.subject }}{% if w.vendor %} <span class="tw">{{ w.vendor }}</span>{% endif %}</td>
                   <td class="tw">{{ w.method }}</td>
                   <td class="right">{{ "{:,.2f}".format(w.amount) }}</td>
                 </tr>
@@ -100,12 +100,12 @@
     </tbody>
   </table></div>
   {% else %}
-  <p class="muted">ยังไม่มีโครงการใน{{ year_label }} {{ fiscal_year }} · เพิ่มได้ที่หน้า <a href="/projects">โครงการ/แผนงบ</a></p>
+  <p class="muted">ยังไม่มีโครงการใน{{ year_label }} {{ fiscal_year }} เพิ่มได้ที่หน้า <a href="/projects">โครงการ/แผนงบ</a></p>
   {% endif %}
 </div>
 
 <script>
-  /* กดดูรายการใช้เงินของโครงการนั้น · จำไว้ว่ากางอันไหนค้างไว้ */
+  /* กดดูรายการใช้เงินของโครงการนั้น จำไว้ว่ากางอันไหนค้างไว้ */
   (function () {
     var KEY = 'ddoc_fin_pj_open';
     var open = {};

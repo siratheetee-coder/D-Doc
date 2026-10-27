@@ -3,9 +3,9 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">แสดงเงินคงเหลือ ณ วันที่ที่ระบุ · แยกคอลัมน์ เงินสด / เงินฝากธนาคาร / เงินฝากส่วนราชการผู้เบิก · แบ่งชั้นตามประเภทเงิน พร้อมช่องลงนามคณะกรรมการเก็บรักษาเงิน</div>
+    <div class="hero-sub">แสดงเงินคงเหลือ ณ วันที่ที่ระบุ แยกคอลัมน์ เงินสด / เงินฝากธนาคาร / เงินฝากส่วนราชการผู้เบิก แบ่งชั้นตามประเภทเงิน พร้อมช่องลงนามคณะกรรมการเก็บรักษาเงิน</div>
     <span class="hero-title">รายงานเงินคงเหลือประจำวัน</span>
-    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} · ณ {{ thai_date(as_of) }}</div>
+    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} ณ {{ thai_date(as_of) }}</div>
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <a class="btn" href="/finance/cash-report.docx?date={{ as_of_be }}"><svg class="icon"><use href="#ic-download"/></svg> รายงานเงินคงเหลือ (Word)</a>
@@ -18,7 +18,7 @@
     <div><label>ณ วันที่</label><input name="date" value="{{ as_of_be }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:150px;"></div>
     <button class="btn" type="submit"><svg class="icon"><use href="#ic-search"/></svg> เปิดรายงาน</button>
   </form>
-  <p class="muted" style="font-size:13px; margin:12px 0 0;">หมวด/บัญชีดึงจากที่สร้างในงานการเงิน · ปีงบประมาณคิดจากวันที่ที่เลือกให้อัตโนมัติ</p>
+  <p class="muted" style="font-size:13px; margin:12px 0 0;">หมวด/บัญชีดึงจากที่สร้างในงานการเงิน ปีงบประมาณคิดจากวันที่ที่เลือกให้อัตโนมัติ</p>
 </div>
 
 <div class="card">

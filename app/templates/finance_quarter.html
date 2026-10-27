@@ -5,7 +5,7 @@
   <div>
     <div class="hero-sub">รายงานผลการใช้จ่ายงบประมาณ (ส่งเขตพื้นที่ฯ)</div>
     <span class="hero-title">รายงานรายไตรมาส</span>
-    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} · {{ quarters[quarter][0] }} ({{ quarters[quarter][1] }})</div>
+    <div class="hero-meta">ปีงบประมาณ {{ fiscal_year }} {{ quarters[quarter][0] }} ({{ quarters[quarter][1] }})</div>
   </div>
   <form method="get" action="/finance/quarter">
     <select name="year" onchange="this.form.submit()">
@@ -19,7 +19,7 @@
 
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-    <h2 style="margin:0;">{{ quarters[quarter][0] }} · {{ quarters[quarter][1] }}</h2>
+    <h2 style="margin:0;">{{ quarters[quarter][0] }} {{ quarters[quarter][1] }}</h2>
     <a class="btn sm green" href="/finance/quarter.docx?year={{ fiscal_year }}&q={{ quarter }}"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์รายงาน (Word)</a>
   </div>
   {% if rows %}

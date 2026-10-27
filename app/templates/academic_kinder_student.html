@@ -20,14 +20,14 @@
 
 <div class="hero" style="background:linear-gradient(120deg,#0891b2,#4f46e5 60%,#7c3aed);">
   <div>
-    <div class="hero-sub">สมุดพกอนุบาล · {{ class_label(c) }}</div>
+    <div class="hero-sub">สมุดพกอนุบาล {{ class_label(c) }}</div>
     <span class="hero-title">{{ s.name }}</span>
-    <div class="hero-meta">เลขที่ {{ s.seq or '-' }}{% if s.student_no %} · เลขประจำตัว {{ s.student_no }}{% endif %}</div>
+    <div class="hero-meta">เลขที่ {{ s.seq or '-' }}{% if s.student_no %} เลขประจำตัว {{ s.student_no }}{% endif %}</div>
   </div>
   <div style="display:flex; gap:8px; align-items:center;">
     <a class="btn sm gray" href="/academic/kinder?cid={{ c.id }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับห้อง</a>
     <a class="btn sm" href="/academic/kinder/student/{{ s.id }}/book.docx"
-       onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน · หมู่เลือด · โรคประจำตัว · ที่อยู่ · ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์สมุดพก</a>
+       onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของนักเรียนในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัวของนักเรียน', detail:'ช่องที่เว้นว่าง: เลขประจำตัวประชาชน หมู่เลือด โรคประจำตัว ที่อยู่ ข้อมูลผู้ปกครอง', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์สมุดพก</a>
   </div>
 </div>
 
@@ -36,13 +36,13 @@
 <form method="post" action="/academic/kinder/student/{{ s.id }}" id="ksForm">
 <div class="card">
   <h2 style="margin-top:0;">ความเห็นครูประจำชั้น</h2>
-  <p class="muted" style="margin-top:0;">เขียนบรรยายพัฒนาการรายด้าน แยกตามภาคเรียน · หัวข้อย่อยในวงเล็บคือประเด็นที่แบบฟอร์มให้พูดถึง</p>
+  <p class="muted" style="margin-top:0;">เขียนบรรยายพัฒนาการรายด้าน แยกตามภาคเรียน หัวข้อย่อยในวงเล็บคือประเด็นที่แบบฟอร์มให้พูดถึง</p>
   <div class="ks-terms">
     {% for t in [1, 2] %}
     <div class="ks-term">
       <b>ภาคเรียนที่ {{ t }}</b>
       {% for key, full, short in domains %}
-      <label>{{ full }} <span class="ks-auto">({{ topics[key] | join(' · ') }})</span></label>
+      <label>{{ full }} <span class="ks-auto">({{ topics[key] | join(' ') }})</span></label>
       <textarea name="cm_{{ t }}_{{ key }}" {{ '' if can_edit else 'readonly' }}>{{ comments.get(t|string, {}).get(key, '') }}</textarea>
       {% endfor %}
       <label>พฤติกรรมที่ควรส่งเสริมและพัฒนา</label>
@@ -54,7 +54,7 @@
 
 <div class="card">
   <h2 style="margin-top:0;">สรุปการพัฒนาเด็ก</h2>
-  <p class="muted" style="margin-top:0;">ระบบคิดให้จากผลประเมินรายข้อทั้ง 2 ภาคเรียน · ถ้าเห็นต่างเลือกทับได้</p>
+  <p class="muted" style="margin-top:0;">ระบบคิดให้จากผลประเมินรายข้อทั้ง 2 ภาคเรียน ถ้าเห็นต่างเลือกทับได้</p>
   <div class="table-wrap"><table class="ks-sum">
     <thead><tr><th>พัฒนาการ</th><th style="width:230px;">ระดับคุณภาพ</th><th>ระบบคิดให้</th></tr></thead>
     <tbody>
@@ -63,7 +63,7 @@
       <tr>
         <td>{{ full }}</td>
         <td><select name="sm_{{ key }}" {{ '' if can_edit else 'disabled' }}>
-          <option value="0"> · ใช้ที่ระบบคิดให้ · </option>
+          <option value="0"> ใช้ที่ระบบคิดให้ </option>
           {% for v, name, meaning in quality %}
           <option value="{{ v }}" {{ 'selected' if summary.get(key) == v }}>{{ name }}</option>
           {% endfor %}
@@ -75,7 +75,7 @@
     </tbody>
   </table></div>
   <p class="muted" style="margin:10px 0 0; font-size:13px;">
-    {% for v, name, meaning in quality %}{{ name }} = {{ v }} หมายถึง {{ meaning }}{{ " · " if not loop.last }}{% endfor %}</p>
+    {% for v, name, meaning in quality %}{{ name }} = {{ v }} หมายถึง {{ meaning }}{{ " " if not loop.last }}{% endfor %}</p>
 </div>
 
 <div class="card">

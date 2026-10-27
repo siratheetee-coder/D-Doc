@@ -3,14 +3,14 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">ผลการเรียน · ปพ.5 · สมุดรายงาน ปพ.6</div>
+    <div class="hero-sub">ผลการเรียน ปพ.5 สมุดรายงาน ปพ.6</div>
     <span class="hero-title">งานวิชาการ</span>
-    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+    <div class="hero-meta">{{ school.name or "" }} ปีการศึกษา {{ year }}</div>
   </div>
 </div>
 
 {# รายการเริ่มต้นงานวิชาการ (app/services/academic_setup.py) แทนกล่อง "เริ่มใช้งานงานวิชาการ" เดิม
-   ที่เป็นข้อความตายตัว · ครูไม่เห็น (setup = None) #}
+   ที่เป็นข้อความตายตัว ครูไม่เห็น (setup = None) #}
 {% if setup %}{% set setup_key = 'acad' %}{% set setup_video = '/guide#video-academic' %}{% set setup_title = 'เริ่มต้นงานวิชาการ ปีการศึกษา ' ~ year %}
 {% include '_setup_checklist.html' %}{% endif %}
 
@@ -42,7 +42,7 @@
       <a class="seg-btn {{ 'on' if term==2 }}" href="/academic?term=2">ภาคเรียนที่ 2</a>
     </div>
   </div>
-  <p class="muted" style="font-size:13px; margin:4px 0 10px;">สรุปงานของ<b>{{ term_label(term) }}</b> · <span class="ok">✓ = ทำแล้ว</span> · <span class="no">● = ยัง</span> · คลิกเพื่อไปทำ</p>
+  <p class="muted" style="font-size:13px; margin:4px 0 10px;">สรุปงานของ<b>{{ term_label(term) }}</b> <span class="ok">✓ = ทำแล้ว</span> <span class="no">● = ยัง</span> คลิกเพื่อไปทำ</p>
   {% if todo['items'] %}
   <div class="table-wrap">
   <table class="todo-table">
@@ -62,7 +62,7 @@
   </table>
   </div>
   {% else %}
-  <p class="muted" style="margin:0;">ยังไม่มีวิชาที่สอน · ให้เจ้าหน้าที่กำหนดครูผู้สอนในหน้าห้องเรียนก่อน</p>
+  <p class="muted" style="margin:0;">ยังไม่มีวิชาที่สอน ให้เจ้าหน้าที่กำหนดครูผู้สอนในหน้าห้องเรียนก่อน</p>
   {% endif %}
   {% if todo['homerooms'] %}
   <p style="font-size:13.5px; margin:12px 0 0;"><b>ห้องที่ประจำชั้น (ปพ.6):</b>
@@ -104,7 +104,7 @@
       </span>
     </div>
   </div>
-  <p class="muted" style="font-size:13px; margin:4px 0 10px;">ตัวเลข = วิชาที่ทำแล้ว / ทั้งหมด (ของ<b>{{ term_label(term) }}</b>) · คลิกช่องเพื่อไปหน้านั้น</p>
+  <p class="muted" style="font-size:13px; margin:4px 0 10px;">ตัวเลข = วิชาที่ทำแล้ว / ทั้งหมด (ของ<b>{{ term_label(term) }}</b>) คลิกช่องเพื่อไปหน้านั้น</p>
   <div class="table-wrap dash-wrap">
   <table class="dash-table">
     <thead><tr>

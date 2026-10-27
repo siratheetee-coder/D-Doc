@@ -17,7 +17,7 @@
     <a class="btn gray sm" href="/projects?year={{ p.plan_year or '' }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับโครงการ</a>
   </div>
   {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกเรียบร้อยแล้ว</div>{% endif %}
-  <div class="hero-meta" style="color:var(--muted); margin-top:4px;">{{ year_label }} {{ p.plan_year or "(ยังไม่ระบุปี)" }}{% if p.responsible %} · {{ p.responsible }}{% endif %}</div>
+  <div class="hero-meta" style="color:var(--muted); margin-top:4px;">{{ year_label }} {{ p.plan_year or "(ยังไม่ระบุปี)" }}{% if p.responsible %} {{ p.responsible }}{% endif %}</div>
   {# ใส่งบตรง ๆ ได้เฉพาะโครงการที่ยังไม่เคยปรับงบ: งบ 0 = ขึ้นเหนือกล่องตัวเลขเลย
      มีงบแล้ว = ซ่อนไว้ใต้กล่อง กด "แก้งบ" ถึงจะขึ้น #}
   {% if not p.revisions and b <= 0 %}{{ set_budget_form() }}{% endif %}
@@ -30,7 +30,7 @@
     <div class="box"><div><div class="lab">งบเหลือทำเรื่องใหม่</div><div class="num" style="color:{{ '#dc2626' if r < 0 else '#16a34a' }};">{{ "{:,.2f}".format(r) }}</div></div></div>
   </div>
 
-  <p class="muted">งบเหลือทำเรื่องใหม่ = งบโครงการ − ใช้ไปก่อนเริ่มระบบ {{ '{:,.2f}'.format(money.before) }} − จ่ายจริงในระบบ − ทำเรื่องแล้วรอจ่าย เป็นยอดงบประมาณ ไม่ใช่เงินสดหรือยอดธนาคารคงเหลือ · <a href="/projects/start?year={{ p.plan_year or '' }}">ตรวจยอดตั้งต้น</a></p>
+  <p class="muted">งบเหลือทำเรื่องใหม่ = งบโครงการ − ใช้ไปก่อนเริ่มระบบ {{ '{:,.2f}'.format(money.before) }} − จ่ายจริงในระบบ − ทำเรื่องแล้วรอจ่าย เป็นยอดงบประมาณ ไม่ใช่เงินสดหรือยอดธนาคารคงเหลือ <a href="/projects/start?year={{ p.plan_year or '' }}">ตรวจยอดตั้งต้น</a></p>
   {% if not p.revisions and b > 0 %}{{ set_budget_form() }}{% endif %}
   {% if err %}<div class="alert warn" style="margin-top:12px;"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
 
@@ -46,10 +46,10 @@
   <div class="pj-fund">
     <div class="pj-fund-line">
       <span>งบโครงการ <b>{{ "{:,.2f}".format(b) }}</b></span>
-      {% if before > 0 %}<span>· ใช้ไปก่อนเริ่มใช้ระบบ <b>{{ "{:,.2f}".format(before) }}</b> (ไม่ต้องจัดสรร)</span>{% endif %}
-      <span>· จัดสรรเงินแล้ว <b>{{ "{:,.2f}".format(funding_assigned or 0) }}</b></span>
-      {% if gap > 0 %}<span class="pj-gap">· ยังไม่ได้จัดสรร <b>{{ "{:,.2f}".format(gap) }}</b></span>
-      {% else %}<span class="pj-full">· จัดสรรครบแล้ว</span>{% endif %}
+      {% if before > 0 %}<span>ใช้ไปก่อนเริ่มใช้ระบบ <b>{{ "{:,.2f}".format(before) }}</b> (ไม่ต้องจัดสรร)</span>{% endif %}
+      <span>จัดสรรเงินแล้ว <b>{{ "{:,.2f}".format(funding_assigned or 0) }}</b></span>
+      {% if gap > 0 %}<span class="pj-gap">ยังไม่ได้จัดสรร <b>{{ "{:,.2f}".format(gap) }}</b></span>
+      {% else %}<span class="pj-full">จัดสรรครบแล้ว</span>{% endif %}
     </div>
     {% if b > 0 %}<div class="pj-bar"><span style="width:{{ ([(funding_assigned or 0) + before, b]|min / b * 100)|round(1) }}%"></span></div>{% endif %}
     {% set given = funding_rows|selectattr('value')|list %}
@@ -57,7 +57,7 @@
     <div class="pj-src">เงินมาจาก
       {% for r2 in given %}
         {% if r2.item %}<a href="/finance/accounts/{{ r2.item.account_id }}?year={{ r2.item.fiscal_year }}">{{ r2.item.account.name }} / {{ r2.item.name }}</a>
-        {% else %}<span>{{ r2.source.name }}</span>{% endif %} {{ "{:,.2f}".format(r2.value) }}{% if not loop.last %} ·{% endif %}
+        {% else %}<span>{{ r2.source.name }}</span>{% endif %} {{ "{:,.2f}".format(r2.value) }}{% if not loop.last %} {% endif %}
       {% endfor %}
     </div>
     {% elif gap > 0 %}
@@ -134,10 +134,10 @@
       if (assigned > 0 && v < floor - 0.004) {
         msg.innerHTML = 'งบต้องไม่ต่ำกว่า <b>' + fmt(floor) + '</b> บาท เพราะจัดสรรเงินให้โครงการนี้ไว้ ' + fmt(assigned) +
           (before ? ' และใช้ไปก่อนเริ่มใช้ระบบ ' + fmt(before) : '') +
-          ' · <a href="#project-funding">ลดการจัดสรรก่อน</a> แล้วค่อยลดงบ';
+          ' <a href="#project-funding">ลดการจัดสรรก่อน</a> แล้วค่อยลดงบ';
         msg.className = 'pj-bmsg is-bad'; msg.hidden = false; btn.disabled = true;
       } else if (hasPlan && v > current + 0.004) {
-        msg.textContent = 'งบเพิ่ม ' + fmt(v - current) + ' บาท · บันทึกแล้วระบบจะพาไปจัดสรรเงินส่วนที่เพิ่ม';
+        msg.textContent = 'งบเพิ่ม ' + fmt(v - current) + ' บาท บันทึกแล้วระบบจะพาไปจัดสรรเงินส่วนที่เพิ่ม';
         msg.className = 'pj-bmsg is-up'; msg.hidden = false;
       }
     }
@@ -211,7 +211,7 @@
   </div>
   <p class="muted" style="margin:6px 0 0; font-size:13.5px;">
     กรอกหัวข้อตามแบบรายงานมาตรฐาน (หลักการ/วัตถุประสงค์/ผลการดำเนินงาน/ปัญหา/ข้อเสนอแนะ) แนบภาพกิจกรรมได้
-    แล้วดาวน์โหลดเป็น Word พร้อมพิมพ์ · 1 โครงการทำได้หลายฉบับ (แยกรายกิจกรรม)</p>
+    แล้วดาวน์โหลดเป็น Word พร้อมพิมพ์ 1 โครงการทำได้หลายฉบับ (แยกรายกิจกรรม)</p>
   {% if reports %}
   <div class="table-wrap"><table style="margin-top:12px;">
     <thead><tr><th>ชื่อกิจกรรม</th><th>ระยะเวลา</th><th>ผู้รับผิดชอบ</th>

@@ -3,7 +3,7 @@
 {% block content %}
 <div class="hero" style="background:linear-gradient(120deg,#15803d,#16a34a 55%,#4ade80); box-shadow:0 10px 26px rgba(22,163,74,.28);">
   <div>
-    <div class="hero-sub">บัญชี/ประเภทเงิน (รับ-จ่าย-คงเหลือ) · ปีงบ {{ fiscal_year }}</div>
+    <div class="hero-sub">บัญชี/ประเภทเงิน (รับ-จ่าย-คงเหลือ) ปีงบ {{ fiscal_year }}</div>
     <span class="hero-title">ทะเบียนคุมเงิน</span>
     <div class="hero-meta">{{ accounts|length }} บัญชี</div>
   </div>
@@ -127,11 +127,11 @@
                 {% for code, label in eb_slot_choices() %}<option value="{{ code }}" {{ 'selected' if _own and _slot == code }}>e-Budget: {{ label }}</option>{% endfor %}
               </select>
             </form>
-            {% if a.note %}<span class="muted">· {{ a.note }}</span>{% endif %}</td>
+            {% if a.note %}<span class="muted">{{ a.note }}</span>{% endif %}</td>
           <td>
             <form method="post" action="/finance/accounts/{{ a.id }}/deposit-type" style="margin:0;">
               <input type="hidden" name="year" value="{{ fiscal_year }}">
-              <select name="deposit_type" onchange="this.form.submit()" style="padding:5px 8px; font-size:14px; min-width:150px;">
+              <select name="deposit_type" onchange="this.form.submit()" style="padding:5px 8px; font-size:14px; min-width:130px;">
                 <option value="bank" {{ 'selected' if a.deposit_type=='bank' }}>เงินฝากธนาคาร</option>
                 <option value="cash" {{ 'selected' if a.deposit_type=='cash' }}>เงินสด</option>
                 <option value="agency" {{ 'selected' if a.deposit_type=='agency' }}>เงินฝากส่วนราชการผู้เบิก</option>
@@ -141,15 +141,15 @@
           <td class="right">{{ "{:,.2f}".format(budget_by_acct.get(a.id, 0)) }}</td>
           <td class="right">{{ "{:,.2f}".format(acct_opening(a, fiscal_year)) }}</td>
           <td class="right"><b style="color:{{ g.color.ink }};">{{ "{:,.2f}".format(acct_balance_year(a, fiscal_year)) }}</b></td>
-          <td class="right" style="white-space:nowrap;">
+          <td class="right"><div class="acct-acts">
             <a class="btn sm" href="/finance/accounts/{{ a.id }}?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-clipboard"/></svg> รับ-จ่าย</a>
             {# บัญชีที่แบ่งเป็นรายการย่อย ไม่มีทะเบียนคุมของตัวเอง - คุมแยกทีละประเภทย่อย #}
             {% if not item_rows.get(a.id) %}
             <a class="btn sm gray" href="/finance/accounts/{{ a.id }}/money-register.docx?year={{ fiscal_year }}"
                title="ทะเบียนคุมเงินของบัญชีนี้"><svg class="icon"><use href="#ic-download"/></svg> ทะเบียนคุม</a>
             {% endif %}
-            <form method="post" action="/finance/accounts/{{ a.id }}/delete" style="display:inline" onsubmit="return confirm('ลบบัญชีนี้และรายการทั้งหมด?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
-          </td>
+            <form method="post" action="/finance/accounts/{{ a.id }}/delete" style="display:inline" onsubmit="return confirm('ลบบัญชีนี้และรายการทั้งหมด?')"><button class="btn red sm" aria-label="ลบบัญชี {{ a.name }}"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
+          </div></td>
         </tr>
         {# รายการย่อยของบัญชีนี้ - ย่อหน้าเข้าไปเป็นส่วนย่อยของบัญชีแม่ #}
         {% for r in item_rows.get(a.id, []) %}
@@ -162,11 +162,11 @@
               class="pct">{{ r.pct }}%</span>
             {% endif %}
           </td>
-          <td class="tw">รับแล้ว {{ "{:,.2f}".format(r.got) }} · ใช้ไป {{ "{:,.2f}".format(r.used) }}</td>
+          <td class="tw">รับแล้ว {{ "{:,.2f}".format(r.got) }} ใช้ไป {{ "{:,.2f}".format(r.used) }}</td>
           <td class="right">{{ "{:,.2f}".format(r.budget) }}</td>
           <td class="right tw">{{ "{:,.2f}".format(r.opening) }}</td>
           <td class="right"><b style="color:{{ '#b91c1c' if r.left < 0 else g.color.ink }};">{{ "{:,.2f}".format(r.left) }}</b></td>
-          <td class="right" style="white-space:nowrap;">
+          <td class="right">
             <a class="btn sm gray" href="/finance/accounts/{{ a.id }}/money-register.docx?year={{ fiscal_year }}&item={{ r.o.id }}"
                title="ทะเบียนคุมเงินของ {{ r.o.name }}"><svg class="icon"><use href="#ic-download"/></svg> ทะเบียนคุม</a>
           </td>
@@ -191,4 +191,9 @@
   {% endif %}
 </div>
 <script src="/static/eb-slot-guess.js?v=2"></script>
+<style>
+  /* ปุ่มท้ายแถว: ล้นแล้วขึ้นบรรทัดใหม่ แทนที่จะโดนตัดขอบตาราง */
+  .acct-acts { display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end; min-width:120px; }
+  .acct-acts form { margin:0; }
+</style>
 {% endblock %}

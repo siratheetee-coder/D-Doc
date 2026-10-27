@@ -10,14 +10,14 @@
   <a class="ns-btn {{ '' if received else 'dim' }}" href="/procurement/{{ p.id }}/to-register">
     <svg class="icon"><use href="#ic-package"/></svg>
     <span><b>นำวัสดุ/ครุภัณฑ์เข้าทะเบียน</b><br>
-      <span class="ns-sub">บันทึกของที่ซื้อเข้าบัญชีวัสดุ/ทะเบียนครุภัณฑ์{{ " · ทำหลังรับของแล้ว" if not received }}</span></span>
+      <span class="ns-sub">บันทึกของที่ซื้อเข้าบัญชีวัสดุ/ทะเบียนครุภัณฑ์{{ " ทำหลังรับของแล้ว" if not received }}</span></span>
   </a>
   {% endif %}
   {% if modules_live.finance %}
   <a class="ns-btn {{ '' if received else 'dim' }}" href="/finance/disburse?proc={{ p.id }}">
     <svg class="icon"><use href="#ic-coins"/></svg>
     <span><b>ออกบันทึกขอเบิกจ่าย</b><br>
-      <span class="ns-sub">ดึงยอด/ผู้รับเงินไปทำเรื่องเบิกอัตโนมัติ{{ " · ทำหลังตรวจรับแล้ว" if not received }}</span></span>
+      <span class="ns-sub">ดึงยอด/ผู้รับเงินไปทำเรื่องเบิกอัตโนมัติ{{ " ทำหลังตรวจรับแล้ว" if not received }}</span></span>
   </a>
   {% endif %}
   <a class="ns-btn" href="/procurement/{{ p.id }}/egp">
@@ -41,14 +41,14 @@
 <div class="card">
   {% if trip_src %}
   <div class="alert" style="background:linear-gradient(135deg,#ecfeff,#eef2ff); color:#1e3a8a; margin-bottom:12px; border:1px solid #c7d2fe;">
-    เรื่องนี้สร้างจาก <b>ทัศนศึกษา: {{ trip_src.title }}</b> · รายการ ผู้ขาย และโครงการ ดึงมาให้แล้ว เหลือเติมเลขเอกสาร/ราคาตามใบเสนอราคา
+    เรื่องนี้สร้างจาก <b>ทัศนศึกษา: {{ trip_src.title }}</b> รายการ ผู้ขาย และโครงการ ดึงมาให้แล้ว เหลือเติมเลขเอกสาร/ราคาตามใบเสนอราคา
     <a class="btn sm" href="/general/trips/{{ trip_src.id }}#sec-buy" style="margin-left:8px;">← กลับไปหน้าทัศนศึกษา</a>
   </div>
   {% endif %}
   {% if book_tp %}
   <div class="alert" style="background:#eff6ff; color:#1e3a8a; margin-bottom:12px;">
-    เรื่องนี้สร้างจาก <a href="/textbooks/purchase?year={{ book_tp.year }}">จัดซื้อหนังสือเรียน ปีการศึกษา {{ book_tp.year }}</a> ·
-    รายการหนังสือกับวงเงินอัปเดตได้จากหน้านั้น (กดปุ่ม "อัปเดตรายการในเรื่องจัดซื้อ") ·
+    เรื่องนี้สร้างจาก <a href="/textbooks/purchase?year={{ book_tp.year }}">จัดซื้อหนังสือเรียน ปีการศึกษา {{ book_tp.year }}</a>
+    รายการหนังสือกับวงเงินอัปเดตได้จากหน้านั้น (กดปุ่ม "อัปเดตรายการในเรื่องจัดซื้อ")
     เอกสาร <b>รายละเอียดคุณลักษณะ (TOR)</b> จะออกเป็นฉบับหนังสือเรียน 8 หัวข้อ พร้อมรายการหนังสือแนบท้าย
   </div>
   {% endif %}
@@ -100,7 +100,7 @@
   {% set na = reg.split("a")[0] %}{% set nm = reg.split("a")[1].rstrip("m") %}
   <div class="alert" style="margin-top:10px;"><svg class="icon"><use href="#ic-check"/></svg>
     นำเข้าทะเบียนเรียบร้อย: ครุภัณฑ์ {{ na }} ระเบียน, วัสดุ {{ nm }} รายการ
-    <a href="/assets" style="margin-left:8px;">ดูครุภัณฑ์</a> · <a href="/materials">ดูวัสดุ</a>
+    <a href="/assets" style="margin-left:8px;">ดูครุภัณฑ์</a> <a href="/materials">ดูวัสดุ</a>
   </div>
   {% endif %}
   <div class="table-wrap"><table>
@@ -352,11 +352,11 @@
   {% if w119t2 %}
   {% if not w119t2.item %}
   <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
-    ยังไม่ได้เลือก <b>รายการค่าใช้จ่าย (ตารางที่ 2)</b> และ <b>วิธีจ่ายเงิน</b> ·
+    ยังไม่ได้เลือก <b>รายการค่าใช้จ่าย (ตารางที่ 2)</b> และ <b>วิธีจ่ายเงิน</b>
     <a href="/procurement/{{ p.id }}/edit">ไปเลือกก่อน</a> ระบบจะได้บอกว่าต้องใช้เอกสารใดบ้าง
   </div>
   {% else %}
-  <p style="margin:0 0 10px;"><b>{{ w119t2.item }}</b> ·
+  <p style="margin:0 0 10px;"><b>{{ w119t2.item }}</b>
     {{ 'ยืมเงินไปจ่าย' if w119t2.borrow else 'จ่ายตรงให้ผู้ขาย/ผู้รับจ้าง' }}</p>
   {% endif %}
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -386,7 +386,7 @@
 
 <div class="card">
   <h2><svg class="icon"><use href="#ic-file"/></svg> ใบสำคัญรับเงิน</h2>
-  <p class="muted" style="margin-top:0;">ฟอร์มใบสำคัญรับเงิน (ผู้ขาย/ผู้รับจ้าง ลงชื่อรับเงิน) ดึงชื่อผู้ขาย รายการ และวงเงินมาให้ · กรอกที่อยู่/สตางค์เพิ่มในไฟล์ได้</p>
+  <p class="muted" style="margin-top:0;">ฟอร์มใบสำคัญรับเงิน (ผู้ขาย/ผู้รับจ้าง ลงชื่อรับเงิน) ดึงชื่อผู้ขาย รายการ และวงเงินมาให้ กรอกที่อยู่/สตางค์เพิ่มในไฟล์ได้</p>
   <a class="btn gray" href="/procurement/{{ p.id }}/receipt-voucher"><svg class="icon"><use href="#ic-download"/></svg> ออกใบสำคัญรับเงิน</a>
 </div>
 

@@ -13,7 +13,7 @@
 {% if rows is none %}
 <div class="card">
   <h2>1) เตรียมไฟล์</h2>
-  <p class="muted" style="margin-top:0;">หัวตาราง (แถวแรก) ใช้คอลัมน์: <b>ชื่อโครงการ</b> · <b>งบประมาณ</b> · <b>ฝ่าย/ผู้รับผิดชอบ</b> - โหลดไฟล์ตัวอย่างไปกรอกแล้วอัปโหลดกลับมาได้เลย</p>
+  <p class="muted" style="margin-top:0;">หัวตาราง (แถวแรก) ใช้คอลัมน์: <b>ชื่อโครงการ</b> <b>งบประมาณ</b> <b>ฝ่าย/ผู้รับผิดชอบ</b> - โหลดไฟล์ตัวอย่างไปกรอกแล้วอัปโหลดกลับมาได้เลย</p>
   <a class="btn sm gray" href="/projects/import/template.xlsx"><svg class="icon"><use href="#ic-download"/></svg> โหลดไฟล์ตัวอย่าง</a>
 </div>
 <div class="card">
@@ -32,7 +32,7 @@
 <div class="card">
   <h2>พรีวิว เข้า {{ year_label }} {{ fiscal_year }}</h2>
   {% if rows %}
-  <p class="muted" style="margin-top:0;">สร้างใหม่ {{ n_new }} โครงการ{% if n_update %} · อัปเดตงบของที่ชื่อซ้ำในปีนี้ {{ n_update }} โครงการ (ไม่สร้างซ้ำ){% endif %}</p>
+  <p class="muted" style="margin-top:0;">สร้างใหม่ {{ n_new }} โครงการ{% if n_update %} อัปเดตงบของที่ชื่อซ้ำในปีนี้ {{ n_update }} โครงการ (ไม่สร้างซ้ำ){% endif %}</p>
   <div class="table-wrap"><table>
     <thead><tr><th>#</th><th>ชื่อโครงการ</th><th>ฝ่าย/ผู้รับผิดชอบ</th><th class="right">งบประมาณ</th><th>สถานะ</th></tr></thead>
     <tbody>

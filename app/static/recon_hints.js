@@ -45,7 +45,7 @@
 
     checks.forEach(function (c) {
       if (near(c.amount, size)) {
-        out.push({kind: 'check', text: 'ผลต่างเท่ากับรายการจ่าย ' + baht(c.amount) + ' บาท พอดี · '
+        out.push({kind: 'check', text: 'ผลต่างเท่ากับรายการจ่าย ' + baht(c.amount) + ' บาท พอดี '
           + label(c) + (c.cleared ? ' (ติ๊กว่าเงินออกแล้ว ลองตรวจวันที่เงินออก)'
                                   : ' (ยังไม่ติ๊กว่าเงินออก ลองตรวจว่านับเป็นรายการคงค้างแล้วหรือยัง)')});
       } else if (near(c.amount * 2, size)) {
@@ -57,7 +57,7 @@
     txns.forEach(function (t) {
       if (near(t.amount, size)) {
         out.push({kind: 'txn', text: 'ผลต่างเท่ากับรายการ' + (t.kind === 'in' ? 'รับ' : 'จ่าย')
-          + 'เงิน ' + baht(t.amount) + ' บาท พอดี · ' + label(t)
+          + 'เงิน ' + baht(t.amount) + ' บาท พอดี ' + label(t)
           + ' ลองตรวจว่าลงทะเบียนคุมตรงกับที่ธนาคารตัดจริงไหม'});
       }
     });

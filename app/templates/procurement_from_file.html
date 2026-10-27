@@ -6,7 +6,7 @@
   .read-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px; }
   .read-row .warn-inline { display:flex; align-items:center; gap:6px; font-size:13px; color:#92400e;
     background:#fff7ed; border-radius:999px; padding:6px 14px; line-height:1.35; min-width:0; }
-  /* จอกว้างพอ: คำเตือนอยู่บรรทัดเดียวกับปุ่ม ไม่ตัดคำ · จอแคบค่อยตกลงมาและห่อบรรทัดได้ */
+  /* จอกว้างพอ: คำเตือนอยู่บรรทัดเดียวกับปุ่ม ไม่ตัดคำ จอแคบค่อยตกลงมาและห่อบรรทัดได้ */
   @media (min-width:900px){ .read-row .warn-inline { white-space:nowrap; } }
   .read-row .warn-inline .icon { width:15px; height:15px; flex:none; }
   .ai-note { font-size:13px; color:var(--muted); margin:8px 0 0; }
@@ -39,7 +39,7 @@
     {% if has_ai_key %}
     <p class="ai-note">อ่านด้วย AI ใช้ได้ทั้ง PDF/Word และรูปถ่าย/สแกน ดึงข้อมูลครบกว่าและเร็วกว่า</p>
     {% else %}
-    <p class="ai-note">อ่านด้วย AI เป็นฟีเจอร์สำหรับสมาชิก · <a href="/checkout">ต่ออายุ/เป็นสมาชิก</a> เพื่อเปิดใช้งาน</p>
+    <p class="ai-note">อ่านด้วย AI เป็นฟีเจอร์สำหรับสมาชิก <a href="/checkout">ต่ออายุ/เป็นสมาชิก</a> เพื่อเปิดใช้งาน</p>
     {% endif %}
   </form>
 </div>

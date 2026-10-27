@@ -3,9 +3,9 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">โครงการ/แผนงบ · สำหรับโรงเรียนที่เริ่มใช้ระบบกลางปี</div>
+    <div class="hero-sub">โครงการ/แผนงบ สำหรับโรงเรียนที่เริ่มใช้ระบบกลางปี</div>
     <span class="hero-title">ตั้งยอดตั้งต้นโครงการ</span>
-    <div class="hero-meta">{{ year_label }} {{ year }} · {{ rows|length }} โครงการ</div>
+    <div class="hero-meta">{{ year_label }} {{ year }} {{ rows|length }} โครงการ</div>
   </div>
   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <a class="btn sm gray" href="/projects?year={{ year }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับโครงการ</a>
@@ -26,7 +26,7 @@
     <b>ตัวอย่าง</b> โครงการกีฬาสี งบ 30,000 บาท ตอนนี้เหลือ 22,000 บาท
     → ระบบบันทึกว่า <b>ใช้ไปก่อนเริ่มใช้ระบบ 8,000 บาท</b> หน้าโครงการจะขึ้น ใช้ไปแล้ว 8,000 คงเหลือ 22,000 ตรงกับความจริง
   </div>
-  <p class="muted" style="font-size:13px; margin:10px 0 0;">โครงการไหนยังไม่ได้ใช้เงินเลย ไม่ต้องกรอก · เงินที่อยู่ในบัญชีตอนนี้ ตั้งแยกที่ <a href="/finance/accounts">ทะเบียนคุมเงิน</a> (ยอดยกมา)</p>
+  <p class="muted" style="font-size:13px; margin:10px 0 0;">โครงการไหนยังไม่ได้ใช้เงินเลย ไม่ต้องกรอก เงินที่อยู่ในบัญชีตอนนี้ ตั้งแยกที่ <a href="/finance/accounts">ทะเบียนคุมเงิน</a> (ยอดยกมา)</p>
 </div>
 
 {% if not rows %}
@@ -60,7 +60,7 @@
     </tbody>
   </table></div>
   <button class="btn green" type="submit" style="margin-top:14px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกยอดตั้งต้น</button>
-  <p class="muted" style="font-size:12.5px; margin:8px 0 0;">กรอกผิดแก้ได้เสมอ กลับมาหน้านี้แล้วกรอกใหม่ · ถ้าจะล้างยอดตั้งต้นทิ้ง ให้กรอกยอดเหลือเท่ากับงบที่ยังไม่ได้ใช้ในระบบ</p>
+  <p class="muted" style="font-size:12.5px; margin:8px 0 0;">กรอกผิดแก้ได้เสมอ กลับมาหน้านี้แล้วกรอกใหม่ ถ้าจะล้างยอดตั้งต้นทิ้ง ให้กรอกยอดเหลือเท่ากับงบที่ยังไม่ได้ใช้ในระบบ</p>
 </form>
 {% endif %}
 

@@ -25,7 +25,7 @@
         {% if menu_days and not edit %}
         {% set seld = request.query_params.get('d') or today_be %}
         <select name="date" style="min-width:200px;">
-          {% for d in menu_days %}<option value="{{ d.be }}" {{ 'selected' if d.be == seld }}>{{ d.be }}{{ ' · มีเมนูแล้ว' if d.has }}</option>{% endfor %}
+          {% for d in menu_days %}<option value="{{ d.be }}" {{ 'selected' if d.be == seld }}>{{ d.be }}{{ ' มีเมนูแล้ว' if d.has }}</option>{% endfor %}
         </select>
         {% else %}
         <input name="date" value="{{ be_date(edit.date) if edit and edit.date else today_be }}" placeholder="วว/ดด/ปปปป" data-date="1">
@@ -56,7 +56,7 @@
   <ol style="margin:0 0 12px; padding-left:22px; font-size:14px; line-height:2; color:var(--text);">
     <li>พิมพ์เมนูไว้ก่อน <b>1 สัปดาห์ (จันทร์-ศุกร์ = 5 เมนู)</b> ที่ช่อง "เพิ่มเมนูรายวัน" ด้านบน</li>
     <li>ตรวจ <b>ช่วงวันที่</b> ด้านล่าง (ระบบดึงวันเริ่ม-สิ้นสุดจากรอบจัด{{ "ซื้อ" if p.operate_mode == "ingredient" else "จ้าง" }}ให้แล้ว แก้ได้)</li>
-    <li>กดปุ่ม <b>"สร้างเมนู"</b> ระบบจะวนเมนู 5 อย่างนี้ซ้ำทุกสัปดาห์ ใส่ให้ครบทุกวันเปิดเรียน (ข้ามเสาร์-อาทิตย์ + วันหยุด) · วันเดียวกันของทุกสัปดาห์ได้เมนูเดิม · วันที่มีเมนูอยู่แล้วไม่ถูกทับ</li>
+    <li>กดปุ่ม <b>"สร้างเมนู"</b> ระบบจะวนเมนู 5 อย่างนี้ซ้ำทุกสัปดาห์ ใส่ให้ครบทุกวันเปิดเรียน (ข้ามเสาร์-อาทิตย์ + วันหยุด) วันเดียวกันของทุกสัปดาห์ได้เมนูเดิม วันที่มีเมนูอยู่แล้วไม่ถูกทับ</li>
   </ol>
   {% if menu_count < 1 %}
   <p class="muted" style="margin-bottom:0;"><b>ยังไม่มีเมนู</b> - พิมพ์เมนูที่ช่อง "เพิ่มเมนูรายวัน" ด้านบนก่อน (อย่างน้อย 1 รายการ) แล้วปุ่มนี้จะใช้ได้</p>

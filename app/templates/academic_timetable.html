@@ -5,7 +5,7 @@
   <div>
     <div class="hero-sub">งานวิชาการ</div>
     <span class="hero-title">ตารางเรียน</span>
-    <div class="hero-meta">{{ school.name or "" }} · ปีการศึกษา {{ year }}</div>
+    <div class="hero-meta">{{ school.name or "" }} ปีการศึกษา {{ year }}</div>
   </div>
 </div>
 
@@ -13,7 +13,7 @@
 {% if request.query_params.get('err') %}<div class="alert warn">{{ request.query_params.get('err') }}</div>{% endif %}
 {% if request.query_params.get('psaved') %}<div class="alert">✔ บันทึกโครงคาบแล้ว</div>{% endif %}
 {% if request.query_params.get('auto') is not none %}
-<div class="alert">✔ จัดตารางอัตโนมัติแล้ว {{ request.query_params.get('auto') }} คาบ{% if request.query_params.get('un')|int > 0 %} · จัดไม่ได้ {{ request.query_params.get('un') }} คาบ (ช่องว่างไม่พอ หรือครูชนทุกช่อง · ลองลดจำนวนคาบ/เพิ่มคาบเรียน หรือกรอกเองส่วนที่เหลือ){% endif %}</div>
+<div class="alert">✔ จัดตารางอัตโนมัติแล้ว {{ request.query_params.get('auto') }} คาบ{% if request.query_params.get('un')|int > 0 %} จัดไม่ได้ {{ request.query_params.get('un') }} คาบ (ช่องว่างไม่พอ หรือครูชนทุกช่อง ลองลดจำนวนคาบ/เพิ่มคาบเรียน หรือกรอกเองส่วนที่เหลือ){% endif %}</div>
 {% endif %}
 
 <div class="card">
@@ -25,7 +25,7 @@
     </div>
     <div style="flex:1;"><label>เลือกห้องเรียน</label>
       <select name="cid" onchange="submitReplace(this.form)">
-        <option value=""> · เลือกห้อง · </option>
+        <option value=""> เลือกห้อง </option>
         {% for cc in classes %}<option value="{{ cc.id }}" {{ 'selected' if c and cc.id==c.id }}>{{ class_label(cc) }}</option>{% endfor %}
       </select>
     </div>
@@ -34,7 +34,7 @@
 </div>
 
 <div class="card">
-{% if separated %}<h2>แยกตารางประถม–มัธยม</h2><div class="row"><a class="btn {{ 'soft' if section!='primary' }}" href="/academic/timetable?year={{ year }}&section=primary">ประถม</a><a class="btn {{ 'soft' if section!='secondary' }}" href="/academic/timetable?year={{ year }}&section=secondary">มัธยม</a></div><p class="muted">กำหนดคาบและเวลาพักแยกตามระดับ · ห้องอนุบาลใช้เวลาเดียวกับฝั่งประถม · ครูที่สอนข้ามระดับตรวจเวลาซ้อนร่วมกัน</p>
+{% if separated %}<h2>แยกตารางประถม–มัธยม</h2><div class="row"><a class="btn {{ 'soft' if section!='primary' }}" href="/academic/timetable?year={{ year }}&section=primary">ประถม</a><a class="btn {{ 'soft' if section!='secondary' }}" href="/academic/timetable?year={{ year }}&section=secondary">มัธยม</a></div><p class="muted">กำหนดคาบและเวลาพักแยกตามระดับ ห้องอนุบาลใช้เวลาเดียวกับฝั่งประถม ครูที่สอนข้ามระดับตรวจเวลาซ้อนร่วมกัน</p>
 {% else %}<h2>แยกตารางประถม–มัธยม</h2><p>สำหรับโรงเรียนที่เวลาเรียนหรือเวลาพักของประถมและมัธยมไม่ตรงกัน</p>{% if can_edit %}<form method="post" action="/academic/timetable/separate"><input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="section" value="{{ section }}"><button class="btn" type="submit">แยกตารางประถม–มัธยม</button><p class="muted">ระบบจะคัดลอกเวลาเดิมให้มัธยมและเก็บวิชาที่จัดไว้ จากนั้นแก้เวลาของแต่ละระดับได้</p></form>{% endif %}{% endif %}
 </div>
 {% if can_edit %}
@@ -49,7 +49,7 @@
     </form>
     {% endif %}
   </div>
-  <p class="muted" style="font-size:13px; margin:6px 0 8px;">ติ๊ก "พัก" สำหรับคาบพักเที่ยง/พักเบรก (จะไม่ให้ใส่วิชา) · ลำดับ = การเรียงคาบในวัน</p>
+  <p class="muted" style="font-size:13px; margin:6px 0 8px;">ติ๊ก "พัก" สำหรับคาบพักเที่ยง/พักเบรก (จะไม่ให้ใส่วิชา) ลำดับ = การเรียงคาบในวัน</p>
   <style>.period-table th:nth-child(4),.period-table th:nth-child(5),.period-table td:nth-child(4),.period-table td:nth-child(5){text-align:center;width:100px}.period-pick{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;margin:0;cursor:pointer}.period-pick input[type=checkbox]{width:24px!important;height:24px;margin:0;accent-color:#4f46e5;cursor:pointer}#period-editor{scroll-margin-top:95px}.period-feedback{padding:14px 16px;border-radius:10px;margin:12px 0;background:#fff7e6;color:#92400e;border-left:4px solid #f59e0b}.period-feedback.success{background:#ecfdf5;color:#166534;border-color:#22c55e}</style>{% if period_error %}<div class="period-feedback" id="periodError" role="alert"><strong>ยังไม่ได้บันทึกโครงคาบ</strong><br>{{ period_error }}<br>ข้อมูลที่แก้ยังอยู่ในแบบฟอร์ม กรุณาตรวจและกดบันทึกอีกครั้ง</div>{% elif request.query_params.get("psaved") %}<div class="period-feedback success" role="status">บันทึกโครงคาบแล้ว ตารางเรียนใช้ค่าล่าสุดแล้ว</div>{% endif %}<form method="post" action="/academic/timetable/periods/save" id="periodForm"><input type="hidden" name="period_cid" value="{{ c.id if c else '' }}">
     <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="section" value="{{ section }}">
     <button type="submit" aria-hidden="true" tabindex="-1" style="position:absolute; width:0; height:0; padding:0; border:0; overflow:hidden;"></button>
@@ -84,7 +84,7 @@
 {# ---------- ตารางของห้องที่เลือก ---------- #}
 {% if c %}
 {% if not periods %}
-<div class="card"><p class="muted" style="margin:0;">ยังไม่ได้ตั้งโครงคาบเรียน · ตั้งด้านบนก่อน แล้วค่อยกรอกตาราง</p></div>
+<div class="card"><p class="muted" style="margin:0;">ยังไม่ได้ตั้งโครงคาบเรียน ตั้งด้านบนก่อน แล้วค่อยกรอกตาราง</p></div>
 {% else %}
 {% if can_edit and subjects %}
 <details class="ac-card" {{ 'open' if request.query_params.get('auto') is not none }}>
@@ -103,7 +103,7 @@
         {% for s in subjects %}
         {% set dft = (s.hours // 40) if s.hours else 0 %}
         <div class="ac-item">
-          <span class="ac-code">{{ s.code or ' · ' }}</span>
+          <span class="ac-code">{{ s.code or ' ' }}</span>
           <span class="ac-name">{{ s.name }}</span>
           <span class="ac-stepper">
             <button type="button" class="ac-pm" data-step="-1" tabindex="-1">−</button>
@@ -131,7 +131,7 @@
     <h2 style="margin:0;">ตารางเรียน ห้อง {{ class_label(c) }}</h2>
     <a class="btn soft" href="/academic/timetable/class.docx?cid={{ c.id }}"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ตารางห้องนี้</a>
   </div>
-  {% if can_edit %}<p class="muted" style="font-size:13px; margin:6px 0 8px;">เลือกวิชา/กิจกรรมในแต่ละช่อง · ครูผู้สอนระบบดึงจากที่ตั้งไว้ในห้องเรียนให้อัตโนมัติ · ถ้าครูซ้อนกับห้องอื่นในคาบเดียวกัน ช่องจะขึ้นแดงทันที</p>{% endif %}
+  {% if can_edit %}<p class="muted" style="font-size:13px; margin:6px 0 8px;">เลือกวิชา/กิจกรรมในแต่ละช่อง ครูผู้สอนระบบดึงจากที่ตั้งไว้ในห้องเรียนให้อัตโนมัติ ถ้าครูซ้อนกับห้องอื่นในคาบเดียวกัน ช่องจะขึ้นแดงทันที</p>{% endif %}
   {% if can_edit %}<div id="tt-clash" class="alert warn" style="display:none; margin-bottom:10px;"></div>{% endif %}
   <form method="post" action="/academic/timetable/save">
     <input type="hidden" name="cid" value="{{ c.id }}">
@@ -155,7 +155,7 @@
             {% elif can_edit %}
             <td style="padding:3px;">
               <select name="cell_{{ dnum }}_{{ p.id }}" onchange="ttCheck()" style="width:100%; min-width:125px; font-size:13px; padding:5px;">
-                <option value=""> · </option>
+                <option value=""> </option>
                 {% for val, label in options %}<option value="{{ val }}" {{ 'selected' if cell and cell.sel==val }}>{{ label }}</option>{% endfor %}
               </select>
               <div class="cell-teacher muted" style="font-size:11px; margin-top:2px; text-align:center;">{{ cell.teacher if cell else '' }}</div>
@@ -163,7 +163,7 @@
             </td>
             {% else %}
             <td class="center tt-ro" data-sel="{{ cell.sel if cell else '' }}" style="font-size:12.5px;">
-              {% if cell %}<b>{{ cell.label }}</b>{% if cell.teacher %}<div class="muted" style="font-size:11px;">{{ cell.teacher }}</div>{% endif %}{% else %}<span class="muted"> · </span>{% endif %}
+              {% if cell %}<b>{{ cell.label }}</b>{% if cell.teacher %}<div class="muted" style="font-size:11px;">{{ cell.teacher }}</div>{% endif %}{% else %}<span class="muted"> </span>{% endif %}
             </td>
             {% endif %}
           {% endfor %}
@@ -179,7 +179,7 @@
 {% elif classes %}
 <div class="card"><p class="muted" style="margin:0;">เลือกห้องด้านบนเพื่อกรอก/ดูตารางเรียน</p></div>
 {% else %}
-<div class="card"><p class="muted" style="margin:0;">ยังไม่มีห้องเรียนปีนี้ · <a href="/academic/classes">ไปสร้างห้องเรียน</a> ก่อน</p></div>
+<div class="card"><p class="muted" style="margin:0;">ยังไม่มีห้องเรียนปีนี้ <a href="/academic/classes">ไปสร้างห้องเรียน</a> ก่อน</p></div>
 {% endif %}
 
 <style>
@@ -304,7 +304,7 @@
     });
     var b = document.getElementById('tt-clash');
     if (b){
-      if (clashes){ b.style.display='block'; b.innerHTML = '⚠ พบครูสอนซ้อนกับห้องอื่น ' + clashes + ' ช่อง (ช่องสีแดง) · แก้คาบให้ไม่ชนก่อนบันทึก'; }
+      if (clashes){ b.style.display='block'; b.innerHTML = '⚠ พบครูสอนซ้อนกับห้องอื่น ' + clashes + ' ช่อง (ช่องสีแดง) แก้คาบให้ไม่ชนก่อนบันทึก'; }
       else b.style.display='none';
     }
   }

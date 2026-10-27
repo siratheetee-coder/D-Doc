@@ -3,7 +3,7 @@
 {% block content %}
 <div class="card">
   <h1>นำเข้าสู่ทะเบียนครุภัณฑ์ / บัญชีวัสดุ</h1>
-  <p class="muted">เรื่อง: <b>{{ p.proc_type }}{{ p.subject }}</b> · ผู้ขาย {{ p.vendor.name if p.vendor else "-" }}</p>
+  <p class="muted">เรื่อง: <b>{{ p.proc_type }}{{ p.subject }}</b> ผู้ขาย {{ p.vendor.name if p.vendor else "-" }}</p>
   <div class="alert" style="background:#eff6ff;">
     <svg class="icon"><use href="#ic-info"/></svg>
     <div style="flex:1;">เลือกประเภทของแต่ละรายการ ระบบจะเลือกให้จากราคา/หน่วย (≥ {{ "{:,}".format(asset_threshold) }} บาท = ครุภัณฑ์)
@@ -16,7 +16,7 @@
 </div>
 
 {% if request.query_params.get('imported_materials') is not none %}
-<div class="alert" role="status">นำเข้าแล้ว: วัสดุ {{ request.query_params.get('imported_materials') }} รายการ · ครุภัณฑ์ {{ request.query_params.get('imported_assets') }} ชิ้น · ข้ามรายการซ้ำ {{ request.query_params.get('skipped') }} รายการ</div>
+<div class="alert" role="status">นำเข้าแล้ว: วัสดุ {{ request.query_params.get('imported_materials') }} รายการ ครุภัณฑ์ {{ request.query_params.get('imported_assets') }} ชิ้น ข้ามรายการซ้ำ {{ request.query_params.get('skipped') }} รายการ</div>
 {% endif %}
 {% if has_imported %}<div class="alert" role="status">เรื่องนี้มีรายการที่นำเข้าแล้ว ระบบจะข้ามรายการเดิมเพื่อไม่ให้ยอดรับเข้าซ้ำ</div>{% endif %}
 {% if has_suspected %}<div class="alert" style="background:#fff3cd;" role="alert">พบประวัตินำเข้าเดิมที่ชื่อและเรื่องอ้างอิงตรงกัน แต่ยังไม่มีรหัสเชื่อมรายการ โปรดตรวจบัญชีก่อนนำเข้า ระบบตั้งรายการเหล่านี้เป็น “ไม่นำเข้า” ไว้ก่อน</div>{% endif %}
@@ -29,7 +29,7 @@
         {% for r in rows %}
         {% set i = loop.index0 %}
         <tr>
-          <td><b>{{ r.it.name }}</b>{% if r.imported %}<div style="color:#15803d;">✓ นำเข้าแล้ว</div>{% elif r.suspected %}<div style="color:#92400e;">⚠ พบประวัติเดิม · โปรดตรวจสอบ</div>{% endif %}</td>
+          <td><b>{{ r.it.name }}</b>{% if r.imported %}<div style="color:#15803d;">✓ นำเข้าแล้ว</div>{% elif r.suspected %}<div style="color:#92400e;">⚠ พบประวัติเดิม โปรดตรวจสอบ</div>{% endif %}</td>
           <td class="right">{{ "%g"|format(r.it.quantity) }} {{ r.it.unit }}</td>
           <td class="right">{{ "{:,.2f}".format(r.it.unit_price) }}</td>
           <td>

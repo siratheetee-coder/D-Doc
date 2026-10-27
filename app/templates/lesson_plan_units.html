@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}หน่วยการเรียนรู้ · {{ p.title }}{% endblock %}
+{% block title %}หน่วยการเรียนรู้ {{ p.title }}{% endblock %}
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">แผนการสอน · บันทึกหลังการจัดการเรียนรู้</div>
+    <div class="hero-sub">แผนการสอน บันทึกหลังการจัดการเรียนรู้</div>
     <span class="hero-title">{{ p.title }}</span>
-    <div class="hero-meta">{{ teacher.name if teacher else '-' }} · ภาคเรียนที่ {{ p.term or '-' }} ปีการศึกษา {{ p.year }} · {{ units|length }} หน่วย</div>
+    <div class="hero-meta">{{ teacher.name if teacher else '-' }} ภาคเรียนที่ {{ p.term or '-' }} ปีการศึกษา {{ p.year }} {{ units|length }} หน่วย</div>
   </div>
 </div>
 
@@ -18,7 +18,7 @@
 {% if not can_record %}
 <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
   {% if not mine %}หน้านี้เป็นของครูผู้สอนไว้บันทึกผลหลังสอน ท่านดูได้อย่างเดียว
-  {% else %}ยังบันทึกผลหลังสอนไม่ได้ เพราะ ผอ. ยังไม่อนุมัติแผน ({{ stage }}) · ดาวน์โหลดแบบฟอร์มเปล่าไปใช้ก่อนได้{% endif %}
+  {% else %}ยังบันทึกผลหลังสอนไม่ได้ เพราะ ผอ. ยังไม่อนุมัติแผน ({{ stage }}) ดาวน์โหลดแบบฟอร์มเปล่าไปใช้ก่อนได้{% endif %}
 </div>
 {% endif %}
 {% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
@@ -28,7 +28,7 @@
   <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
     <div>
       <h2 style="margin:0;">บันทึกหลังการจัดการเรียนรู้</h2>
-      <p class="muted" style="font-size:13px; margin:6px 0 0;">กรอก<b>หลังสอนจบแต่ละหน่วย</b> ไม่ต้องกรอกตอนส่งแผน · ระบบพิมพ์ลงในหน้าบันทึกให้ · ช่องที่เว้นไว้จะพิมพ์เป็นเส้นบรรทัดให้เขียนมือได้</p>
+      <p class="muted" style="font-size:13px; margin:6px 0 0;">กรอก<b>หลังสอนจบแต่ละหน่วย</b> ไม่ต้องกรอกตอนส่งแผน ระบบพิมพ์ลงในหน้าบันทึกให้ ช่องที่เว้นไว้จะพิมพ์เป็นเส้นบรรทัดให้เขียนมือได้</p>
     </div>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <a class="btn" href="/academic/lesson-plans/{{ p.id }}/after"><svg class="icon"><use href="#ic-download"/></svg> บันทึกหลังสอนทุกหน่วย</a>
@@ -38,7 +38,7 @@
 </div>
 
 {% if not units %}
-<div class="card"><p class="muted">ชุดแผนนี้ยังไม่มีหน่วยการเรียนรู้ (ส่งแผนก่อนระบบอัปเดต) · ส่งแผนใหม่โดยแนบไฟล์ทีละหน่วยเพื่อใช้ความสามารถนี้</p></div>
+<div class="card"><p class="muted">ชุดแผนนี้ยังไม่มีหน่วยการเรียนรู้ (ส่งแผนก่อนระบบอัปเดต) ส่งแผนใหม่โดยแนบไฟล์ทีละหน่วยเพื่อใช้ความสามารถนี้</p></div>
 {% endif %}
 
 {% for u in units %}

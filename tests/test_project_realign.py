@@ -69,7 +69,7 @@ def test_preview_move_and_idempotent(env):
     html = env.get(f"/projects/realign?year={AY}").text
     body = html.split('<form method="post" action="/projects/realign"')[0].split("<tbody>")[-1].split("</tbody>")[0]
     assert body.count("<tr>") == 5, "5 เรื่อง (เรื่องในช่วงปีไม่อยู่ในรายการ)"
-    assert "โครงการอาหารกลางวัน · 2568" in html and "โครงการอ่านออกเขียนได้ · 2570" in html
+    assert "โครงการอาหารกลางวัน 2568" in html and "โครงการอ่านออกเขียนได้ 2570" in html
     assert "สร้างใหม่" in html and "ครั้งนี้จะสร้าง 3 โครงการ" in html
     assert "18 พฤษภาคม 2569" not in html and "20 กรกฎาคม 2569" not in html
     tok = re.search(r'name="token" value="([0-9a-f]+)"', html).group(1)

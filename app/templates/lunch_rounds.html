@@ -11,7 +11,7 @@
      งวดมีเฉพาะจ้างเหมา (แม่ครัว/ซื้อวัตถุดิบ 1 รอบ = ทำเรื่องและจ่าย 1 ครั้ง) จึงบอกตามโหมด #}
   <div class="lw-explain">
     {% if p.operate_mode == 'hire' %}
-    <b>1 รอบจัดจ้าง</b> = ทำเรื่องจ้างเหมา 1 ครั้ง (ใบสั่งจ้าง 1 ใบ) · ข้างในแบ่งจ่ายได้หลาย <b>งวดจ่ายเงิน</b>
+    <b>1 รอบจัดจ้าง</b> = ทำเรื่องจ้างเหมา 1 ครั้ง (ใบสั่งจ้าง 1 ใบ) ข้างในแบ่งจ่ายได้หลาย <b>งวดจ่ายเงิน</b>
     <div class="lw-eg">ตัวอย่าง: ภาคเรียนที่ 1 จ้าง 1 รอบ 100 วัน 220,000 บาท แบ่งจ่าย 5 งวด งวดละ 20 วัน 44,000 บาท</div>
     {% elif p.operate_mode == 'person' %}
     <b>1 รอบจัดจ้าง</b> = ทำเรื่องจ้างแม่ครัวและจ่ายเงิน 1 ครั้ง ไม่มีงวด
@@ -58,7 +58,7 @@
       <div><label>วงเงินรอบนี้ (บาท)</label><input name="amount" id="amt" type="number" step="0.01" value="{{ '%g'|format(edit.amount) if edit and edit.amount else '' }}">
         {% if p.operate_mode in ['person','ingredient'] %}
         <div class="muted" style="font-size:12px; margin-top:3px; max-width:210px; line-height:1.5;">
-          ใช้อ้างอิงเฉยๆ · <b>บัญชีคิดจากยอดจ่ายจริง</b> (ค่าจ้าง + เชื้อเพลิง + วัตถุดิบที่กรอก)</div>
+          ใช้อ้างอิงเฉยๆ <b>บัญชีคิดจากยอดจ่ายจริง</b> (ค่าจ้าง + เชื้อเพลิง + วัตถุดิบที่กรอก)</div>
         {% endif %}</div>
       {% if p.operate_mode == 'hire' and not edit %}
       {# สร้างรอบพร้อมแบ่งงวดจ่ายเงินในขั้นเดียว (เดิมต้องไปแบ่งอีกหน้า) #}
@@ -78,7 +78,7 @@
     </div>
     <div class="tipbox" style="margin:2px 0 10px;">
       <b style="font-size:14px;"><svg class="icon"><use href="#ic-clipboard"/></svg> เลขที่หนังสือเอกสารแต่ละฉบับ</b>
-      <p class="muted" style="margin:4px 0 0; font-size:13px;">บันทึกข้อความมีหลายฉบับ · กรอกเลขที่/วันที่ของแต่ละฉบับได้ที่หน้า <b>เปิด{{ RW }}</b> ก่อนออกเอกสาร (เชื่อมทะเบียนเลขหนังสือกลางให้อัตโนมัติ)</p>
+      <p class="muted" style="margin:4px 0 0; font-size:13px;">บันทึกข้อความมีหลายฉบับ กรอกเลขที่/วันที่ของแต่ละฉบับได้ที่หน้า <b>เปิด{{ RW }}</b> ก่อนออกเอกสาร (เชื่อมทะเบียนเลขหนังสือกลางให้อัตโนมัติ)</p>
     </div>
     <div id="nvBox" style="display:none; border:1px dashed var(--border); border-radius:8px; padding:12px; margin:4px 0 10px; background:#fff7ed;">
       <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -128,7 +128,7 @@
         </select></td>
         <td>{% if r.status=='จ่ายแล้ว' %}<span class="muted" title="ลงบัญชีจ่ายอัตโนมัติแล้ว">✔ ลงแล้ว</span>{% else %}<span class="muted">-</span>{% endif %}</td>
         <td style="white-space:nowrap;">
-          <a class="btn sm" href="/lunch/round/{{ r.id }}/plan">{{ "เปิดรอบ · งวดจ่ายเงิน" if p.operate_mode == "hire" else "เปิด" ~ RW }}</a>
+          <a class="btn sm" href="/lunch/round/{{ r.id }}/plan">{{ "เปิดรอบ งวดจ่ายเงิน" if p.operate_mode == "hire" else "เปิด" ~ RW }}</a>
           <a class="btn sm gray" href="/lunch/round/{{ r.id }}/edit">แก้ไข</a>
           <form method="post" action="/lunch/round/{{ r.id }}/duplicate" onsubmit="return confirm('คัดลอกรอบนี้เป็นรอบใหม่? (ก็อปกรรมการ+ผู้รับจ้าง+วงเงิน เลื่อนวันไปงวดถัดไป)');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-file-plus"/></svg> คัดลอก</button></form>
           {% if r.procurement_id %}<a class="btn sm gray" href="/procurement/{{ r.procurement_id }}?keep=1" title="ดู/พิมพ์เอกสารจัดจ้างในงานพัสดุ">เอกสารจัดจ้าง</a>{% endif %}

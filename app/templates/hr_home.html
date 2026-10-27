@@ -3,15 +3,15 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">บริหารงานบุคคล · ทะเบียนบุคลากร · วันลา · หนังสือรับรอง</div>
+    <div class="hero-sub">บริหารงานบุคคล ทะเบียนบุคลากร วันลา หนังสือรับรอง</div>
     <span class="hero-title">งานบุคคล</span>
-    <div class="hero-meta">{{ school.name or "" }} · ปี พ.ศ. {{ year }}</div>
+    <div class="hero-meta">{{ school.name or "" }} ปี พ.ศ. {{ year }}</div>
   </div>
 </div>
 {# รายการเริ่มต้นงาน (app/services/module_setup.py) ติ๊กเองจากข้อมูลจริง ครบแล้วหาย #}
 {% if setup %}{% set setup_key = 'hr' %}{% set setup_title = 'เริ่มต้นงานบุคคล' %}{% include '_setup_checklist.html' %}{% endif %}
 
-{% set task_scope = 'คำขอที่ยังไม่เสร็จรวมทุกปี · เปิดรายการเพื่อตรวจสอบหรือดำเนินการตามสิทธิ์ของคุณ' %}
+{% set task_scope = 'คำขอที่ยังไม่เสร็จรวมทุกปี เปิดรายการเพื่อตรวจสอบหรือดำเนินการตามสิทธิ์ของคุณ' %}
 {% include '_dashboard_tasks.html' %}
 <div class="card">
   <div class="stat">
@@ -30,7 +30,7 @@
       <span class="nc-ic"><svg class="icon"><use href="#ic-users"/></svg></span>
       <h3>ทะเบียนบุคลากร</h3>
     </div>
-    <p class="nc-desc">ข้อมูลครู/บุคลากร ตำแหน่ง วิทยฐานะ วันบรรจุ · ออกหนังสือรับรอง (การเป็นบุคลากร/เงินเดือน)</p>
+    <p class="nc-desc">ข้อมูลครู/บุคลากร ตำแหน่ง วิทยฐานะ วันบรรจุ ออกหนังสือรับรอง (การเป็นบุคลากร/เงินเดือน)</p>
     <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/hr/leave">
@@ -38,7 +38,7 @@
       <span class="nc-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
       <h3>ทะเบียนวันลา</h3>
     </div>
-    <p class="nc-desc">บันทึกการลา (ป่วย/กิจ/พักผ่อน ฯลฯ) · คำนวณวันลาคงเหลืออัตโนมัติ · ออกใบลา</p>
+    <p class="nc-desc">บันทึกการลา (ป่วย/กิจ/พักผ่อน ฯลฯ) คำนวณวันลาคงเหลืออัตโนมัติ ออกใบลา</p>
     <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/hr/travel">
@@ -46,7 +46,7 @@
       <span class="nc-ic"><svg class="icon"><use href="#ic-send"/></svg></span>
       <h3>ทะเบียนไปราชการ</h3>
     </div>
-    <p class="nc-desc">บันทึกการไปราชการ/อบรม · สรุปวันไปราชการรายคน · ออกคำสั่งไปราชการ</p>
+    <p class="nc-desc">บันทึกการไปราชการ/อบรม สรุปวันไปราชการรายคน ออกคำสั่งไปราชการ</p>
     <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
 </div>

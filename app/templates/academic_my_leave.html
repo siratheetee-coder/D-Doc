@@ -3,7 +3,7 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">งานบุคคล · ส่งใบลา</div>
+    <div class="hero-sub">งานบุคคล ส่งใบลา</div>
     <span class="hero-title">ใบลาของฉัน</span>
     <div class="hero-meta">{{ school.name or "" }}</div>
   </div>
@@ -14,7 +14,7 @@
 
 <div class="card" style="background:linear-gradient(135deg,#f5f3ff,#eef2ff); border:1px solid #ddd6fe;">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-    <div><b>แบบฟอร์มใบลา (เปล่า)</b><div class="muted" style="font-size:13px;">พิมพ์แล้วเขียนมือ · จุดไข่ปลาครบตามต้นฉบับ</div></div>
+    <div><b>แบบฟอร์มใบลา (เปล่า)</b><div class="muted" style="font-size:13px;">พิมพ์แล้วเขียนมือ จุดไข่ปลาครบตามต้นฉบับ</div></div>
     <a class="btn" href="/me/leave/blank.docx" style="background:linear-gradient(135deg,#7c3aed,#4f46e5); border:none;"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดใบลา</a>
   </div>
 </div>
@@ -46,7 +46,7 @@
     <textarea name="reason" rows="2" style="width:100%;" placeholder="เช่น มีธุระจำเป็นที่ต่างจังหวัด"></textarea>
     <label style="margin-top:10px; display:block;">ที่อยู่/เบอร์ติดต่อระหว่างลา</label>
     <input name="contact" style="width:100%;" placeholder="เบอร์โทร หรือที่อยู่ที่ติดต่อได้">
-    <label style="margin-top:10px; display:block;">แนบไฟล์ใบลาที่เซ็นแล้ว (ไม่บังคับ · PDF/รูป)</label>
+    <label style="margin-top:10px; display:block;">แนบไฟล์ใบลาที่เซ็นแล้ว (ไม่บังคับ PDF/รูป)</label>
     <input type="file" name="attachment" accept=".pdf,image/*" style="font-size:14px;">
     <p class="muted" style="font-size:12.5px; margin:6px 0 0;">พิมพ์ใบลาจากปุ่ม "พิมพ์ใบลา" ในตารางด้านล่าง เซ็นแล้วสแกนกลับมาแนบได้</p>
     <br><button class="btn green" type="submit" style="margin-top:6px;"><svg class="icon"><use href="#ic-send"/></svg> ส่งใบลา</button>

@@ -108,7 +108,7 @@
           } else {
             src.innerHTML = '<p>กรอกส่วนที่จัดสรรให้โครงการนี้ (เว้นว่างได้ จัดสรรทีหลังที่หน้าโครงการ)</p>' +
               d.sources.map(function (s) {
-                return '<div class="qp-src"><div><b>' + esc(s.name) + '</b><small>' + esc(s.kind) + ' · เหลือให้จัดสรร ' + money(s.available) + '</small></div>' +
+                return '<div class="qp-src"><div><b>' + esc(s.name) + '</b><small>' + esc(s.kind) + ' เหลือให้จัดสรร ' + money(s.available) + '</small></div>' +
                   '<input type="number" min="0" step="0.01" max="' + s.available + '" data-fund="' + s.id + '" placeholder="0.00" aria-label="จัดสรรจาก ' + esc(s.name) + '"></div>';
               }).join('') + '<div class="qp-sum"></div>';
             src.querySelectorAll('input[data-fund]').forEach(function (i) { i.addEventListener('input', sum); });

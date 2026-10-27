@@ -3,9 +3,9 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">งานวิชาการ · เวลาเรียน</div>
+    <div class="hero-sub">งานวิชาการ เวลาเรียน</div>
     <span class="hero-title">เช็กชื่อ {{ month_name }}</span>
-    <div class="hero-meta">ห้อง {{ class_label(c) }} · ปีการศึกษา {{ year }}</div>
+    <div class="hero-meta">ห้อง {{ class_label(c) }} ปีการศึกษา {{ year }}</div>
   </div>
 </div>
 
@@ -21,7 +21,7 @@
 {% else %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-    <h2 style="margin:0;">{{ month_name }} <span class="muted" style="font-size:15px;">เปิดเรียน {{ open_days|length }} วัน · {{ students|length }} คน</span></h2>
+    <h2 style="margin:0;">{{ month_name }} <span class="muted" style="font-size:15px;">เปิดเรียน {{ open_days|length }} วัน {{ students|length }} คน</span></h2>
     <div class="attn-actions" style="display:flex; gap:8px; flex-wrap:wrap;">
       <button class="btn green" type="button" onclick="allPresent()"><svg class="icon"><use href="#ic-check"/></svg> ทุกคนมาทุกวัน</button>
       <button class="btn red" type="button" onclick="clearAll()">ล้างข้อมูล</button>
@@ -30,8 +30,8 @@
     </div>
   </div>
   <p class="muted" style="font-size:13px; margin:6px 0 8px;">
-    คลิกที่ช่องเพื่อเปลี่ยนสถานะ: <b>ว่าง → มา → ป่วย → ลา → ขาด</b> ·
-    คอลัมน์คือเฉพาะวันเปิดเรียนตาม<a href="/academic/calendar?year={{ year }}">ปฏิทินการศึกษา</a> ·
+    คลิกที่ช่องเพื่อเปลี่ยนสถานะ: <b>ว่าง → มา → ป่วย → ลา → ขาด</b>
+    คอลัมน์คือเฉพาะวันเปิดเรียนตาม<a href="/academic/calendar?year={{ year }}">ปฏิทินการศึกษา</a>
     ยอด ป่วย/ลา/ขาด ทั้งปีระบบรวมให้เอง</p>
   {% if students %}
   <form method="post" action="/academic/attendance/day-save">

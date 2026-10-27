@@ -123,7 +123,7 @@ def test_routes_marks_export_permissions_and_legacy(env,monkeypatch):
         db.add(period);db.flush()
         db.add(AcadTimetable(class_id=cid,subject_id=sid,period_id=period.id,day=1));db.commit()
     preview=env.post('/academic/lessons/preview',data={**args,'start':'2026-05-18','end':'2026-05-18'})
-    assert preview.status_code==200 and 'มีอยู่แล้ว · ข้าม' in preview.text
+    assert preview.status_code==200 and 'มีอยู่แล้ว ข้าม' in preview.text
     token=re.search(r'name="token" value="([^"]+)"',preview.text).group(1)
     for _ in range(2):
         imported=env.post('/academic/lessons/import',data={**args,'token':token})

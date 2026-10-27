@@ -67,7 +67,7 @@
   {% endfor %}
 
   <p class="carry">เงินสดคงเหลือยกไป {{ "{:,.2f}".format(carry.cash) }} บาท
-    <small>{% for f in funds %}{{ f }} {{ "{:,.2f}".format(carry[f]) }}{{ " · " if not loop.last }}{% endfor %}</small></p>
+    <small>{% for f in funds %}{{ f }} {{ "{:,.2f}".format(carry[f]) }}{{ " " if not loop.last }}{% endfor %}</small></p>
 
   <div class="sign">
     <div>ลงชื่อ ........................................ ผู้จัดทำ<br>( {{ school.finance_officer_name or school.officer_name or '........................................' }} )<br>เจ้าหน้าที่การเงินและบัญชี</div>

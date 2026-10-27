@@ -23,7 +23,7 @@ def setup_steps(db, fy, school) -> dict:
     steps = [
         dict(title="กรอกข้อมูลโรงเรียนและผู้ลงนาม", done=not missing,
              detail=("ชื่อโรงเรียน ผู้อำนวยการ และเจ้าหน้าที่พัสดุครบแล้ว" if not missing
-                     else "ยังไม่ได้กรอก: " + ", ".join(missing) + " · ไม่กรอกแล้วเอกสารที่ออกจะมีช่องว่าง"),
+                     else "ยังไม่ได้กรอก: " + ", ".join(missing) + " ไม่กรอกแล้วเอกสารที่ออกจะมีช่องว่าง"),
              href="/settings", cta="ไปตั้งค่าโรงเรียน"),
         dict(title="เพิ่มรายชื่อบุคลากร", done=n_person >= MIN_PERSONS,
              detail=(f"มี {n_person} คน" if n_person >= MIN_PERSONS

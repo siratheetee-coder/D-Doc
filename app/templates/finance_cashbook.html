@@ -6,7 +6,7 @@
   <div>
     <div class="hero-sub">สมุดเงินสด แยกรายรับ (เดบิต) / รายจ่าย (เครดิต)</div>
     <span class="hero-title">สมุดเงินสด</span>
-    <div class="hero-meta">{{ period_label }}{% if month %} (ปีงบ {{ fiscal_year }}){% endif %} · {{ scope }} · เงินสดคงเหลือยกไป {{ "{:,.2f}".format(carry.cash) }} บาท</div>
+    <div class="hero-meta">{{ period_label }}{% if month %} (ปีงบ {{ fiscal_year }}){% endif %} {{ scope }} เงินสดคงเหลือยกไป {{ "{:,.2f}".format(carry.cash) }} บาท</div>
   </div>
   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <a class="btn sm" href="/finance/cashbook.docx?year={{ fiscal_year }}{{ _q }}"><svg class="icon"><use href="#ic-download"/></svg> Word</a>

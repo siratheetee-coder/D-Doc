@@ -36,8 +36,8 @@
 
 <div class="dh-head">
   <h1>{{ school.name or "หน้าหลักผู้อำนวยการ" }}</h1>
-  <p class="muted" style="margin:0;">ภาพรวมงานของโรงเรียน · ปีการศึกษา {{ acad_year }}</p>
-  <span class="dh-role"><svg class="icon" style="width:15px;height:15px;"><use href="#ic-check"/></svg> โหมดผู้อำนวยการ · เข้าดูได้ทุกงาน แก้ไขไม่ได้ (ยกเว้นอนุมัติ/นิเทศ)</span>
+  <p class="muted" style="margin:0;">ภาพรวมงานของโรงเรียน ปีการศึกษา {{ acad_year }}</p>
+  <span class="dh-role"><svg class="icon" style="width:15px;height:15px;"><use href="#ic-check"/></svg> โหมดผู้อำนวยการ เข้าดูได้ทุกงาน แก้ไขไม่ได้ (ยกเว้นอนุมัติ/นิเทศ)</span>
 </div>
 
 <div class="dh-primary">
@@ -46,14 +46,14 @@
     <span class="di-ic"><svg class="icon"><use href="#ic-check"/></svg></span>
     <div>
       <h2>กล่องรออนุมัติ</h2>
-      <div class="di-desc">แผนการสอน · ใบลา · ขอไปราชการ ที่รอ ผอ. อนุมัติขั้นสุดท้าย</div>
+      <div class="di-desc">แผนการสอน ใบลา ขอไปราชการ ที่รอ ผอ. อนุมัติขั้นสุดท้าย</div>
     </div>
   </a>
   <a class="dh-big" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);" href="/academic/supervision">
     <span class="di-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span>
     <div>
       <h2>นิเทศห้องเรียน</h2>
-      <div class="di-desc">เยี่ยมชั้นเรียน · นิเทศการสอน · บันทึกและพิมพ์แบบนิเทศ</div>
+      <div class="di-desc">เยี่ยมชั้นเรียน นิเทศการสอน บันทึกและพิมพ์แบบนิเทศ</div>
     </div>
   </a>
 </div>
@@ -62,12 +62,12 @@
 <div class="dh-grid">
   {% set _tid = request.session.get('tid') %}
   {% for k, ico, c, c2, desc in [
-      ('academic','#ic-clipboard','#4f46e5','#818cf8','ห้องเรียน · คะแนน ปพ.5 · แผนการสอน · จัดคาบสอนแทน · นิเทศภายใน'),
-      ('hr','#ic-users','#0d9488','#2dd4bf','ทะเบียนบุคลากร · วันลา · ไปราชการ'),
-      ('admin','#ic-file','#7c3aed','#a78bfa','หนังสือรับ-ส่ง · บันทึกข้อความ · คำสั่งโรงเรียน'),
-      ('procurement','#ic-package','#4880FF','#6f9bff','จัดซื้อจัดจ้าง · ครุภัณฑ์ · บัญชีวัสดุ'),
-      ('finance','#ic-coins','#16a34a','#4ade80','ทะเบียนคุมเงิน · ขอเบิกจ่าย · รายงานการเงิน'),
-      ('lunch','#ic-food','#ea580c','#fb923c','งบอาหารกลางวัน · บัญชีรับ-จ่าย · ภาวะโภชนาการ') ] %}
+      ('academic','#ic-clipboard','#4f46e5','#818cf8','ห้องเรียน คะแนน ปพ.5 แผนการสอน จัดคาบสอนแทน นิเทศภายใน'),
+      ('hr','#ic-users','#0d9488','#2dd4bf','ทะเบียนบุคลากร วันลา ไปราชการ'),
+      ('admin','#ic-file','#7c3aed','#a78bfa','หนังสือรับ-ส่ง บันทึกข้อความ คำสั่งโรงเรียน'),
+      ('procurement','#ic-package','#4880FF','#6f9bff','จัดซื้อจัดจ้าง ครุภัณฑ์ บัญชีวัสดุ'),
+      ('finance','#ic-coins','#16a34a','#4ade80','ทะเบียนคุมเงิน ขอเบิกจ่าย รายงานการเงิน'),
+      ('lunch','#ic-food','#ea580c','#fb923c','งบอาหารกลางวัน บัญชีรับ-จ่าย ภาวะโภชนาการ') ] %}
     {% if modules_live[k] and can_use(_tid, k) %}
     <a class="dh-card" style="--c:{{ c }}; --c2:{{ c2 }};" href="/{{ k }}">
       <span class="dc-ic"><svg class="icon"><use href="{{ ico }}"/></svg></span>

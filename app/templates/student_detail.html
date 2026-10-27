@@ -5,7 +5,7 @@
   <div>
     <div class="hero-sub"><a href="/students" style="color:inherit;">ทะเบียนนักเรียน</a> / ข้อมูลรายคน</div>
     <span class="hero-title">{{ s.name }}</span>
-    <div class="hero-meta">{{ s.level or "ยังไม่ระบุชั้น" }}{% if s.room %}/{{ s.room }}{% endif %}{% if s.student_no %} · เลขประจำตัว {{ s.student_no }}{% endif %}</div>
+    <div class="hero-meta">{{ s.level or "ยังไม่ระบุชั้น" }}{% if s.room %}/{{ s.room }}{% endif %}{% if s.student_no %} เลขประจำตัว {{ s.student_no }}{% endif %}</div>
   </div>
   <a class="btn sm gray" href="/students"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
 </div>
@@ -36,8 +36,8 @@
     <div class="alert" style="background:#f5f8ff; border:1px solid #d7e3fb; color:#33507a;
          font-size:13.5px; line-height:1.7; margin:4px 0 14px;">
       <b>ระบบไม่เก็บข้อมูลอ่อนไหวของนักเรียนแล้ว</b><br>
-      เลขประจำตัวประชาชน · ที่อยู่ · เบอร์โทร · ชื่อ-อาชีพบิดามารดา/ผู้ปกครอง ·
-      เชื้อชาติ · ศาสนา · หมู่เลือด · โรคประจำตัว · รูปถ่ายนักเรียน
+      เลขประจำตัวประชาชน ที่อยู่ เบอร์โทร ชื่อ-อาชีพบิดามารดา/ผู้ปกครอง
+      เชื้อชาติ ศาสนา หมู่เลือด โรคประจำตัว รูปถ่ายนักเรียน
       <b>ถูกนำออกจากระบบทั้งหมด</b> เพื่อลดความเสี่ยงตาม พ.ร.บ.คุ้มครองข้อมูลส่วนบุคคล (PDPA)<br>
       สมุดรายงาน ปพ.6 ที่ดาวน์โหลดไปจะ<b>เว้นช่องว่างและกรอบติดรูปไว้ให้</b> ครูเขียนและติดรูปเองในเล่ม
     </div>

@@ -8,9 +8,9 @@
   </div>
 </div>
 
-{% if err == 'nomat' %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> ห้องนี้ยังเบิกไม่ได้ เพราะหนังสือของชั้นนี้ยังไม่ได้ลงบัญชีวัสดุ · กลับไปที่ทะเบียนหนังสือแล้วกดปุ่ม <b>ลงบัญชีวัสดุ</b> ก่อน</div>{% endif %}
+{% if err == 'nomat' %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> ห้องนี้ยังเบิกไม่ได้ เพราะหนังสือของชั้นนี้ยังไม่ได้ลงบัญชีวัสดุ กลับไปที่ทะเบียนหนังสือแล้วกดปุ่ม <b>ลงบัญชีวัสดุ</b> ก่อน</div>{% endif %}
 {% if err == 'room' %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> กรุณาเลือกห้องเรียน</div>{% endif %}
-{% if need_material %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> ยังมีหนังสือ {{ need_material }} รายการที่ยังไม่ได้ลงบัญชีวัสดุ · <a href="/textbooks?year={{ year }}">ไปกดปุ่ม "ลงบัญชีวัสดุ"</a> ก่อนออกใบเบิก</div>{% endif %}
+{% if need_material %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> ยังมีหนังสือ {{ need_material }} รายการที่ยังไม่ได้ลงบัญชีวัสดุ <a href="/textbooks?year={{ year }}">ไปกดปุ่ม "ลงบัญชีวัสดุ"</a> ก่อนออกใบเบิก</div>{% endif %}
 
 <div class="card">
   <h2>ออกใบเบิกรายห้อง</h2>
@@ -27,7 +27,7 @@
           <option value="">- เลือกห้อง -</option>
           {% for r in rooms %}
           <option value="{{ r.level }}|{{ r.room }}" data-adv="{{ r.advisor }}">
-            ชั้น {{ r.label }} · นักเรียน {{ r.n }} คน · หนังสือ {{ r.books }} รายการ</option>
+            ชั้น {{ r.label }} นักเรียน {{ r.n }} คน หนังสือ {{ r.books }} รายการ</option>
           {% endfor %}
         </select></div>
       <div><label>เลขที่ใบเบิก</label><input name="req_no" placeholder="เช่น 1/{{ year }}"></div>
@@ -68,7 +68,7 @@
 
 <div class="card">
   <h2>พิมพ์แบบรับเปล่า (ไม่ผ่านใบเบิก)</h2>
-  <p class="muted" style="margin-top:0;">ปกติไม่ต้องใช้ · แบบรับจะแนบมากับใบเบิกอยู่แล้ว
+  <p class="muted" style="margin-top:0;">ปกติไม่ต้องใช้ แบบรับจะแนบมากับใบเบิกอยู่แล้ว
     ใช้เฉพาะกรณีอยากได้แบบรับของทุกห้องไว้ล่วงหน้า โดยยังไม่ออกใบเบิก</p>
   <a class="btn sm gray" href="/textbooks/receipt.docx?year={{ year }}"><svg class="icon"><use href="#ic-download"/></svg> แบบรับหนังสือเรียน ทุกห้อง (Word)</a>
 </div>
@@ -84,7 +84,7 @@
         <td><b>{{ b.berk_no or '-' }}</b></td>
         <td>{{ thai_date(b.date) if b.date else '-' }}</td>
         <td>{{ b.recipient or '-' }}</td>
-        <td class="right">{{ b.items|length }} รายการ · {{ b.items|sum(attribute='qty') }} เล่ม</td>
+        <td class="right">{{ b.items|length }} รายการ {{ b.items|sum(attribute='qty') }} เล่ม</td>
         <td style="white-space:nowrap;">
           <a class="btn sm" href="/textbooks/berk/{{ b.id }}/print" target="_blank"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์</a>
           <form method="post" action="/textbooks/berk/{{ b.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบใบเบิกนี้? (คืนยอดคงเหลือ)');"><button class="btn sm gray" type="submit">ลบ</button></form>

@@ -6,7 +6,7 @@
   .st-chip{ display:inline-block; margin-left:7px; padding:1px 10px; border-radius:999px;
     font-size:12px; font-weight:600; vertical-align:2px; white-space:nowrap; }
   .st-ok{ background:#e9f9f1; color:#047857; }          /* ใช้งาน */
-  .st-bad{ background:#fff7ed; color:#b45309; }         /* ชำรุด · เสื่อมสภาพ */
+  .st-bad{ background:#fff7ed; color:#b45309; }         /* ชำรุด เสื่อมสภาพ */
   .st-lost{ background:#fde8e8; color:#b91c1c; }        /* สูญไป */
   .st-idle{ background:#eef1f7; color:#516074; }        /* ไม่ใช้ */
   .st-gone{ background:#ede9fe; color:#5b21b6; }        /* จำหน่ายแล้ว */
@@ -26,7 +26,7 @@
   <div>
     <div class="hero-sub">ทะเบียนคุมทรัพย์สิน + ค่าเสื่อมราคา (เส้นตรง)</div>
     <span class="hero-title">ครุภัณฑ์</span>
-    <div class="hero-meta">ราคาทุนรวม {{ "{:,.2f}".format(total_cost) }} บาท · มูลค่าสุทธิปัจจุบัน {{ "{:,.2f}".format(total_nbv) }} บาท</div>
+    <div class="hero-meta">ราคาทุนรวม {{ "{:,.2f}".format(total_cost) }} บาท มูลค่าสุทธิปัจจุบัน {{ "{:,.2f}".format(total_nbv) }} บาท</div>
   </div>
   {% if assets %}<div style="display:flex; gap:8px; flex-wrap:wrap;">
     <a class="btn" href="/assets/form.xlsx"><svg class="icon"><use href="#ic-download"/></svg> แบบฟอร์มทะเบียนคุมทรัพย์สิน</a>
@@ -85,15 +85,15 @@
       <b>แก้ราคาทุนทั้งกลุ่ม</b>
       <span class="muted">({{ cost_groups|length }} กลุ่มที่เป็นของชุดเดียวกัน)</span></summary>
     <p class="muted" style="font-size:13px; margin:8px 0 12px;">
-      ครุภัณฑ์ที่ <b>ชื่อ + ประเภท + วันที่ได้มา + เรื่องจัดซื้อ</b> ตรงกัน ระบบถือว่าเป็นของชุดเดียวกัน ·
-      ใช้ตอนแยกรายชิ้นมาแล้วแต่ราคาทุนยังเป็น "ราคารวม" ติดมาทุกแถว · เลือกว่าตัวเลขที่จะกรอกเป็นราคารวมทั้งกลุ่มหรือราคาต่อชิ้น แล้วระบบจัดให้ทุกแถว</p>
+      ครุภัณฑ์ที่ <b>ชื่อ + ประเภท + วันที่ได้มา + เรื่องจัดซื้อ</b> ตรงกัน ระบบถือว่าเป็นของชุดเดียวกัน
+      ใช้ตอนแยกรายชิ้นมาแล้วแต่ราคาทุนยังเป็น "ราคารวม" ติดมาทุกแถว เลือกว่าตัวเลขที่จะกรอกเป็นราคารวมทั้งกลุ่มหรือราคาต่อชิ้น แล้วระบบจัดให้ทุกแถว</p>
     <div class="table-wrap"><table>
       <thead><tr><th>ครุภัณฑ์</th><th class="right">ระเบียน</th><th class="right">ราคาทุน/ชิ้น</th>
         <th class="right">รวมตอนนี้</th><th style="min-width:330px;">แก้เป็น</th></tr></thead>
       <tbody>
       {% for g in cost_groups %}
       <tr>
-        <td><b>{{ g.name }}</b><br><span class="muted" style="font-size:12.5px;">{{ g.category }}{% if g.acquired_date %} · ได้มา {{ thai_date(g.acquired_date) }}{% endif %}</span></td>
+        <td><b>{{ g.name }}</b><br><span class="muted" style="font-size:12.5px;">{{ g.category }}{% if g.acquired_date %} ได้มา {{ thai_date(g.acquired_date) }}{% endif %}</span></td>
         <td class="right">{{ g.n }}</td>
         <td class="right">{{ "{:,.2f}".format(g.each) if g.same_cost else "ไม่เท่ากัน" }}</td>
         <td class="right"><b>{{ "{:,.2f}".format(g.total) }}</b></td>
@@ -118,7 +118,7 @@
 </div>
 {% endif %}
 {% if request.query_params.get("split") %}
-<div class="alert">✔ แยกเป็นรายชิ้นแล้ว {{ request.query_params.get("split") }} ระเบียน · ตรวจเลขครุภัณฑ์ของชิ้นที่เพิ่มอีกครั้ง</div>
+<div class="alert">✔ แยกเป็นรายชิ้นแล้ว {{ request.query_params.get("split") }} ระเบียน ตรวจเลขครุภัณฑ์ของชิ้นที่เพิ่มอีกครั้ง</div>
 {% endif %}
 <div class="card">
   <h2>รายการครุภัณฑ์ ({{ assets|length }})</h2>
@@ -138,7 +138,7 @@
           {% set st = a.status or "ใช้งาน" %}
           <span class="st-chip st-{{ {'ใช้งาน':'ok','ชำรุด':'bad','เสื่อมสภาพ':'bad','สูญไป':'lost','ไม่ใช้':'idle','จำหน่ายแล้ว':'gone'}.get(st,'idle') }}">{{ st }}</span>
           {% if (a.quantity or 1) > 1 %}<span class="qty-warn" title="ครุภัณฑ์ควรลงทะเบียน 1 ชิ้น = 1 เลขครุภัณฑ์">{{ a.quantity|int }} {{ a.unit or 'หน่วย' }}</span>{% endif %}
-          <br><span class="muted" style="font-size:13px;">{{ a.category }}{% if a.location %} · {{ a.location }}{% endif %}</span></td>
+          <br><span class="muted" style="font-size:13px;">{{ a.category }}{% if a.location %} {{ a.location }}{% endif %}</span></td>
         <td class="nowrap">{{ thai_date(a.acquired_date) if a.acquired_date else "-" }}</td>
         <td class="right">{{ "{:,.2f}".format(a.cost or 0) }}</td>
         <td class="right">{{ "{:,.2f}".format(annual_dep(a.cost, a.salvage_value, a.useful_life)) }}</td>
@@ -252,7 +252,7 @@
       title: 'แก้ราคาทุนทั้งกลุ่ม',
       msg: 'จะตั้งราคาทุนของ "' + (f.dataset.name || '') + '" ทั้ง ' + n +
            ' ระเบียน เป็นชิ้นละ ' + money(each) + ' บาท (ราคาทุนรวม ' + money(each * n) + ' บาท)',
-      detail: 'ค่าเสื่อมราคาจะคิดใหม่จากราคาทุนที่ตั้งนี้ · ถ้าหารไม่ลงตัว เศษสตางค์จะยกให้ระเบียนแรก ผลรวมจึงเท่ากับที่กรอกพอดี',
+      detail: 'ค่าเสื่อมราคาจะคิดใหม่จากราคาทุนที่ตั้งนี้ ถ้าหารไม่ลงตัว เศษสตางค์จะยกให้ระเบียนแรก ผลรวมจึงเท่ากับที่กรอกพอดี',
       ok: 'แก้ทั้งกลุ่ม'});
   }
 
@@ -276,13 +276,13 @@
             ' บาท (ราคาทุนรวมในทะเบียนเท่าเดิม)'
           : 'ราคาทุนชิ้นละ ' + money(each) + ' บาท → ทะเบียนจะมีราคาทุนรวม ' +
             money(each * n) + ' บาท') +
-        ' · แถวเดิมเก็บเลข ' + (code || '(ยังไม่มีเลข)') +
+        ' แถวเดิมเก็บเลข ' + (code || '(ยังไม่มีเลข)') +
         ' ไว้ ชิ้นที่เพิ่มรันเลขต่อในชุดเดียวกัน',
       ok: 'แยกเลย'});
   }
 
-  /* ครุภัณฑ์ควรลง 1 ชิ้น = 1 เลขครุภัณฑ์ · จำนวนมากกว่า 1 ถูกต้องก็ต่อเมื่อหน่วยเป็น "ชุด"
-     (เช่น ชุดรับแขก 1 ชุด) · ไม่ใช่ = เตือนก่อน แต่ยังให้บันทึกได้ */
+  /* ครุภัณฑ์ควรลง 1 ชิ้น = 1 เลขครุภัณฑ์ จำนวนมากกว่า 1 ถูกต้องก็ต่อเมื่อหน่วยเป็น "ชุด"
+     (เช่น ชุดรับแขก 1 ชุด) ไม่ใช่ = เตือนก่อน แต่ยังให้บันทึกได้ */
   function qtyOk(form){
     if(form._qtyPass){ form._qtyPass=false; return true; }
     var q = parseFloat((form.querySelector('[name=quantity]')||{}).value || '1') || 1;
@@ -291,8 +291,8 @@
     try{ if(localStorage.getItem('ddoc_asset_qty')==='1') return true; }catch(e){}
     ntShow({
       title:'ครุภัณฑ์ควรลงทีละชิ้น',
-      msg:'กำลังบันทึกเป็น ' + q + ' ' + (u || 'หน่วย') + ' ในระเบียนเดียว · ทะเบียนคุมทรัพย์สินกำหนดให้ครุภัณฑ์ 1 ชิ้นมี 1 เลขครุภัณฑ์ ถ้ารวมไว้แถวเดียว จะแจ้งชำรุดหรือจำหน่ายเฉพาะบางชิ้นไม่ได้',
-      detail:'บันทึกแบบนี้ไปก่อนก็ได้ แล้วกดปุ่ม "แยกเป็นรายชิ้น" ที่แถวนั้นทีหลัง ระบบจะแตกให้พร้อมรันเลขครุภัณฑ์ · ถ้าเป็นของที่นับเป็นชุดจริง ให้ใส่หน่วยว่า "ชุด" แล้วจะไม่เตือนอีก',
+      msg:'กำลังบันทึกเป็น ' + q + ' ' + (u || 'หน่วย') + ' ในระเบียนเดียว ทะเบียนคุมทรัพย์สินกำหนดให้ครุภัณฑ์ 1 ชิ้นมี 1 เลขครุภัณฑ์ ถ้ารวมไว้แถวเดียว จะแจ้งชำรุดหรือจำหน่ายเฉพาะบางชิ้นไม่ได้',
+      detail:'บันทึกแบบนี้ไปก่อนก็ได้ แล้วกดปุ่ม "แยกเป็นรายชิ้น" ที่แถวนั้นทีหลัง ระบบจะแตกให้พร้อมรันเลขครุภัณฑ์ ถ้าเป็นของที่นับเป็นชุดจริง ให้ใส่หน่วยว่า "ชุด" แล้วจะไม่เตือนอีก',
       ok:'บันทึกแบบนี้'
     }, function(dontRemind){
       if(dontRemind){ try{ localStorage.setItem('ddoc_asset_qty','1'); }catch(e){} }
@@ -310,7 +310,7 @@
       try {const response=await fetch(form.action,{method:'POST',body:data});
         if(!response.ok){const body=await response.json();throw new Error(typeof body.detail==='string'?body.detail:'บันทึกไม่สำเร็จ');}
         window.location.assign(response.url);
-      } catch(e){error.textContent=e.message+' · ข้อมูลที่กรอกยังอยู่ในฟอร์ม';error.scrollIntoView({block:'center',behavior:'smooth'});}
+      } catch(e){error.textContent=e.message+' ข้อมูลที่กรอกยังอยู่ในฟอร์ม';error.scrollIntoView({block:'center',behavior:'smooth'});}
       finally{buttons.forEach(b=>b.disabled=false);}
     });
   });

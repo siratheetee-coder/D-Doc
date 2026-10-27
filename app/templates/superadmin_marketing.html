@@ -59,8 +59,8 @@
 <div class="wrap">
   <div class="card">
     <h1>ลูกค้ามาจากช่องทางไหน และหลุดที่ขั้นไหน</h1>
-    <p class="muted" style="margin:0;">นับโรงเรียนที่สมัครในช่วงที่เลือก (ไม่รวมระบบตัวอย่าง) ·
-      <b>ใช้งานจริง</b> = ออกเอกสารอย่างน้อย 1 ฉบับ · <b>จ่ายเงิน</b> = เป็นสมาชิกแล้ว</p>
+    <p class="muted" style="margin:0;">นับโรงเรียนที่สมัครในช่วงที่เลือก (ไม่รวมระบบตัวอย่าง)
+      <b>ใช้งานจริง</b> = ออกเอกสารอย่างน้อย 1 ฉบับ <b>จ่ายเงิน</b> = เป็นสมาชิกแล้ว</p>
     <div class="tabs">
       {% for n, label in ranges %}
       <a class="tab {{ 'on' if days == n }}" href="/admin-console/marketing?days={{ n }}">{{ label }}</a>
@@ -68,7 +68,7 @@
     </div>
     <div class="stats">
       <div class="stat s1"><div class="n">{{ s.visits }}</div><div class="l">ครั้งที่ลองระบบตัวอย่าง (ตอนนี้เปิดอยู่ {{ sandbox_now }} ชุด)</div></div>
-      <div class="stat s2"><div class="n">{{ s.total.signup }}</div><div class="l">สมัครใช้งาน{% if s.after_sandbox %} · ลองระบบตัวอย่างก่อน {{ s.after_sandbox }}{% endif %}</div></div>
+      <div class="stat s2"><div class="n">{{ s.total.signup }}</div><div class="l">สมัครใช้งาน{% if s.after_sandbox %} ลองระบบตัวอย่างก่อน {{ s.after_sandbox }}{% endif %}</div></div>
       <div class="stat s3"><div class="n">{{ s.total.used }}</div><div class="l">ใช้งานจริง</div></div>
       <div class="stat s4"><div class="n">{{ s.total.paid }}</div><div class="l">จ่ายเงินแล้ว{% if s.total.rate is not none %} ({{ s.total.rate }}%){% endif %}</div></div>
     </div>
@@ -77,19 +77,19 @@
   <div class="card">
     <h2>กันสแปมสมัคร</h2>
     <p style="margin:0; font-size:15px;">กันบอทได้ <b>{{ "{:,}".format(spam.bots) }}</b> ครั้ง ใน {{ spam.days }} วันที่ผ่านมา
-      · สมัครแล้วยังไม่ยืนยันอีเมล <b>{{ "{:,}".format(spam.pending) }}</b> รายการ</p>
-    <p class="muted" style="margin:6px 0 0;">บอทที่ถูกกัน: ไม่บันทึกอะไร ไม่ส่งอีเมล ไม่แจ้งเตือนท่าน ·
+      สมัครแล้วยังไม่ยืนยันอีเมล <b>{{ "{:,}".format(spam.pending) }}</b> รายการ</p>
+    <p class="muted" style="margin:6px 0 0;">บอทที่ถูกกัน: ไม่บันทึกอะไร ไม่ส่งอีเมล ไม่แจ้งเตือนท่าน
       การสมัครที่ยังไม่ยืนยันอีเมล ระบบไม่ลบเอง (ส่วนใหญ่เป็นครูจริง) แต่ไม่นับในตัวเลขหน้า landing</p>
   </div>
 
   <div class="card">
-    <h2>ตัวเลขบนหน้า landing <span class="muted" style="font-weight:400;">(อัปเดตวันละครั้ง · โรงเรียน = ทุกโรงเรียนที่เคยสมัคร รวมที่ลบ/ระงับไปแล้ว · ไม่รวมระบบตัวอย่างและโรงเรียนสาธิต)</span></h2>
+    <h2>ตัวเลขบนหน้า landing <span class="muted" style="font-weight:400;">(อัปเดตวันละครั้ง โรงเรียน = ทุกโรงเรียนที่เคยสมัคร รวมที่ลบ/ระงับไปแล้ว ไม่รวมระบบตัวอย่างและโรงเรียนสาธิต)</span></h2>
     <p style="margin:0; font-size:15px;">ใช้งานไปแล้ว <b>{{ "{:,}".format(live.hits) }}</b> ครั้ง จากทั้งหมด <b>{{ "{:,}".format(live.schools) }}</b> โรงเรียน
-      · ออกเอกสารแล้ว <b>{{ "{:,}".format(live.docs) }}</b> ฉบับ</p>
+      ออกเอกสารแล้ว <b>{{ "{:,}".format(live.docs) }}</b> ฉบับ</p>
     <p class="muted" style="margin:6px 0 0;">
       {% if live.show %}<span class="pill">แสดงบนหน้า landing อยู่</span>
       {% else %}<span class="pill" style="background:#fff4e5; color:#b45309;">ยังไม่แสดง</span>
-        จะขึ้นเมื่อมีโรงเรียนครบ {{ live_min }} โรงเรียน (ตัวเลขน้อยเกินไปทำให้ดูไม่น่าเชื่อถือ) · ปรับเกณฑ์ได้ที่ landing_stats_min_schools{% endif %}</p>
+        จะขึ้นเมื่อมีโรงเรียนครบ {{ live_min }} โรงเรียน (ตัวเลขน้อยเกินไปทำให้ดูไม่น่าเชื่อถือ) ปรับเกณฑ์ได้ที่ landing_stats_min_schools{% endif %}</p>
   </div>
 
   <div class="card">

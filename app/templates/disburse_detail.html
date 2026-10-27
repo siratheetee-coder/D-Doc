@@ -19,7 +19,7 @@
   {% if request.query_params.get('payment_message') %}<div class="alert">{{ request.query_params.get('payment_message') }}</div>{% endif %}
   {% if request.query_params.get('linked') %}<div class="alert">เชื่อมรายการจ่ายเดิมแล้ว ยอดเงินคงเหลือไม่เปลี่ยน และไม่ได้สร้างรายการจ่ายเพิ่ม</div>{% endif %}
   {% if request.query_params.get('unlinked') %}<div class="alert">ยกเลิกการเชื่อมแล้ว รายการจ่ายเดิมยังอยู่ในทะเบียนคุมเงิน</div>{% endif %}
-  {% if proc %}<div class="alert" style="background:#e8f0ff; color:#3568e0; border-color:#c7d7fb;">เชื่อมกับเรื่องพัสดุ: <a href="/procurement/{{ proc.id }}">{{ proc.memo_no or proc.order_no or '-' }} · {{ proc.proc_type }}{{ proc.subject }}</a></div>{% endif %}
+  {% if proc %}<div class="alert" style="background:#e8f0ff; color:#3568e0; border-color:#c7d7fb;">เชื่อมกับเรื่องพัสดุ: <a href="/procurement/{{ proc.id }}">{{ proc.memo_no or proc.order_no or '-' }} {{ proc.proc_type }}{{ proc.subject }}</a></div>{% endif %}
 </div>
 
 <div class="card">
@@ -30,7 +30,7 @@
       <div><label>วันที่</label><input name="date" value="{{ be_date(m.date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       <div><label>สถานะ</label>
         {% if posted %}
-        <input value="จ่ายแล้ว · ลงทะเบียนคุมเงินแล้ว" readonly>
+        <input value="จ่ายแล้ว ลงทะเบียนคุมเงินแล้ว" readonly>
         {% else %}
         <select name="status">
           {% for s in ["ร่าง","อนุมัติ"] %}<option value="{{ s }}" {{ 'selected' if m.status==s or (m.status=='จ่ายแล้ว' and s=='อนุมัติ') }}>{{ s }}</option>{% endfor %}
@@ -54,7 +54,7 @@
       <div style="flex:2;"><label>โครงการ</label>
         <select name="project_id" id="projSel" data-combo data-fy="{{ m.fiscal_year }}" data-edit="1">
           <option value="">- ไม่ผูกโครงการ -</option>
-          {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if m.project_id==pj.id }}>{{ pj.name }} · ปีแผน {{ pj.plan_year or "ไม่ระบุปี" }}{{ " (ปิดใช้งาน)" if not pj.active else "" }}</option>{% endfor %}
+          {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if m.project_id==pj.id }}>{{ pj.name }} ปีแผน {{ pj.plan_year or "ไม่ระบุปี" }}{{ " (ปิดใช้งาน)" if not pj.active else "" }}</option>{% endfor %}
         </select>
       </div>
     </div>
@@ -99,7 +99,7 @@
   </div>
   {% if proc %}<p class="muted">จำนวนเงินขอเบิกด้านบนคือยอดที่เบิกครั้งนี้ หากแบ่งจ่ายหลายงวด ให้ทำบันทึกแยกแต่ละงวดโดยเลือกเรื่องเดียวกัน</p>{% endif %}
   {% for t in payment_info.rows %}
-  <p><a href="/finance/accounts/{{ t.account_id }}?year={{ t.fiscal_year }}">ดูรายการจ่าย · {{ be_date(t.date) }} · {{ t.ref or 'ไม่ระบุเลขอ้างอิง' }} · {{ t.account.name }}</a>
+  <p><a href="/finance/accounts/{{ t.account_id }}?year={{ t.fiscal_year }}">ดูรายการจ่าย {{ be_date(t.date) }} {{ t.ref or 'ไม่ระบุเลขอ้างอิง' }} {{ t.account.name }}</a>
     — {{ '{:,.2f}'.format(t.amount) }} บาท {% if t.id in payment_info.lunch_ids %}(จากอาหารกลางวัน){% endif %}</p>
   {% else %}<p class="muted">ยังไม่พบรายการจ่ายที่เชื่อมกับเรื่องนี้ หากเคยลงจ่ายเอง ให้ตรวจและเชื่อมรายการเดิมด้านล่างก่อนลงจ่ายใหม่</p>{% endfor %}
 </div>
@@ -163,7 +163,7 @@
     <form method="post" action="/finance/disburse/{{ m.id }}/link-payment" onsubmit="return confirm('ยืนยันว่ารายการที่เลือกเป็นเงินจ่ายครั้งเดียวกับบันทึกนี้? ระบบจะไม่ตัดยอดเพิ่ม')">
       <label>เลือกรายการที่เคยจ่ายแล้ว</label>
       <select name="txn_id" required><option value="">— เลือกรายการจ่ายเดิม —</option>
-      {% for t in payment_candidates %}<option value="{{ t.id }}">{{ be_date(t.date) }} · {{ t.ref or 'ไม่ระบุเลขอ้างอิง' }} · {{ t.note or t.category }} · {{ '{:,.2f}'.format(t.amount) }} บาท · รายการ #{{ t.id }}</option>{% endfor %}
+      {% for t in payment_candidates %}<option value="{{ t.id }}">{{ be_date(t.date) }} {{ t.ref or 'ไม่ระบุเลขอ้างอิง' }} {{ t.note or t.category }} {{ '{:,.2f}'.format(t.amount) }} บาท รายการ #{{ t.id }}</option>{% endfor %}
       </select>
       <p><button class="btn" type="submit">เชื่อมรายการจ่ายที่บันทึกไว้แล้ว</button></p>
     </form>
