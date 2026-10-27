@@ -90,7 +90,11 @@ def inbox(request: Request):
         for t in db.query(Tenant).all():
             last = messages.get(latest.get(t.id))
             rows.append(dict(id=t.id, name=t.name, unread=counts.get(t.id, 0),
-                             preview=last.body[:100] if last else '', last=last.id if last else 0))
+                             preview=last.body[:100] if last else '', last=last.id if last else 0,
+                             # ใครพิมพ์ล่าสุด + รอเราตอบไหม (ข้อความล่าสุดมาจากโรงเรียน)
+                             sender=last.sender_name if last else '', waiting=bool(last and not last.staff),
+                             at=(last.created_at.isoformat() + 'Z') if last else '',
+                             sandbox=(t.plan == 'sandbox')))
         return sorted(rows, key=lambda r: (bool(r['unread']), r['last']), reverse=True)
 
 

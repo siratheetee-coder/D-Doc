@@ -25,7 +25,8 @@ def test_chat_roundtrip_isolation_unread_and_retry(env):
     assert stranger.get(f'/support/chat/messages?tenant_id={school}').json()['messages']==[]
     assert stranger.post('/support/chat/read',data={'last_id':mid}).status_code==400
     inbox=staff.get('/admin-console/chat/inbox').json()
-    assert next(r for r in inbox if r['id']==school)['unread']==1
+    row=next(r for r in inbox if r['id']==school)
+    assert row['unread']==1 and row['waiting'] and row['sender'] and row['at'].endswith('Z')
     msgs=staff.get(f'/admin-console/chat/messages?tenant_id={school}').json()['messages']
     assert msgs[0]['body']==payload['body']
     assert staff.post('/admin-console/chat/read',data={'tenant_id':school,'last_id':mid}).status_code==200
@@ -37,7 +38,8 @@ def test_chat_roundtrip_isolation_unread_and_retry(env):
     assert env.get('/support/chat/messages?summary=true').json()['unread']==0
     assert env.post('/support/chat/send',data={'body':'x'*4001,'nonce':'long'}).status_code==400
     assert env.post('/support/chat/send',data={'body':'x','nonce':'cross'},headers={'Origin':'https://evil.test'}).status_code==403
-    assert staff.get('/admin-console/chat').status_code==200
+    assert not next(r for r in staff.get('/admin-console/chat/inbox').json() if r['id']==school)['waiting']
+    assert 'รอตอบ' in staff.get('/admin-console/chat').text
     assert env.get('/support').status_code==200
     with acc_session() as db:
         assert db.query(SupportMessage).count()==2

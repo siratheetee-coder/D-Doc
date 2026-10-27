@@ -1,5 +1,190 @@
-<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>แชทโรงเรียน</title><style>
-body{font-family:Prompt,Sarabun,"Leelawadee UI","Segoe UI",system-ui,sans-serif;background:#f5f6fa;margin:0;color:#202224}main{max-width:1100px;margin:24px auto;padding:16px}#chatInbox{display:grid;gap:8px;max-width:480px}#chatInbox button{text-align:left;padding:16px;border:1px solid #ddd;border-radius:12px;background:white;cursor:pointer}#chatInbox small{display:block;color:#64748b}input{padding:12px;width:90%;max-width:450px;margin:16px 0}a{color:#4338ca}</style></head><body><main><a href="/admin-console">← กลับ Console</a><h1>แชทโรงเรียน</h1><p>เลือกโรงเรียนเพื่ออ่านหรือตอบข้อความ หรือเริ่มบทสนทนาใหม่</p><input id="chatSearch" aria-label="ค้นหาโรงเรียน" placeholder="ค้นหาโรงเรียน"><div id="chatInbox"></div><p id="inboxStatus" role="status"></p></main>
-{% set chat_staff = true %}{% include 'support_chat_panel.html' %}
+<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>แชทโรงเรียน</title>
+<link rel="icon" type="image/png" href="/static/favicon-ekkasan.png">
+<style>
+@font-face{font-family:Prompt;font-weight:400;src:url(/static/fonts/Prompt-Regular.ttf)}@font-face{font-family:Prompt;font-weight:600;src:url(/static/fonts/Prompt-SemiBold.ttf)}@font-face{font-family:Prompt;font-weight:700;src:url(/static/fonts/Prompt-Bold.ttf)}
+*{box-sizing:border-box}
+body{margin:0;font-family:Prompt,Sarabun,"Leelawadee UI","Segoe UI",sans-serif;background:#f1f5f9;color:#0f172a;height:100vh;display:flex;flex-direction:column}
+.top{background:#1b2433;color:#fff;padding:12px 22px;display:flex;justify-content:space-between;align-items:center}
+.top b{font-size:18px}.top a{color:#cbd5e1;text-decoration:none;font-size:14.5px}
+.app{flex:1;display:flex;min-height:0}
+/* ---- รายชื่อโรงเรียน ---- */
+.side{width:360px;flex:none;background:#fff;display:flex;flex-direction:column;border-right:1px solid #e2e8f0}
+.tabs{display:flex;gap:6px;padding:12px 12px 6px}
+.tabs button{flex:1;border:0;border-radius:999px;padding:8px 6px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;background:#f1f5f9;color:#475569}
+.tabs button.on{background:linear-gradient(120deg,#4338ca,#6366f1);color:#fff}
+.tabs i[hidden]{display:none}
+.tabs i{font-style:normal;display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:999px;background:#dc2626;color:#fff;font-size:11.5px}
+.search{margin:6px 12px 8px;padding:9px 14px;border:0;border-radius:12px;background:#f1f5f9;font:inherit;font-size:14px}
+.list{flex:1;overflow-y:auto;padding:0 8px 12px}
+.row{display:flex;gap:10px;width:100%;text-align:left;border:0;background:none;padding:10px;border-radius:14px;cursor:pointer;font:inherit;color:inherit}
+.row:hover{background:#f8fafc}.row.on{background:#eef2ff}
+.av{width:40px;height:40px;border-radius:12px;flex:none;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;background:linear-gradient(135deg,#6366f1,#a855f7)}
+.row .m{flex:1;min-width:0}
+.row .n{display:flex;justify-content:space-between;gap:8px;font-weight:600;font-size:14.5px}
+.row .n span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .t{font-size:12px;color:#94a3b8;font-weight:400;white-space:nowrap}
+.row .p{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:#64748b;margin-top:2px}
+.row .p span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row.unread .n span:first-child,.row.unread .p span:first-child{color:#0f172a;font-weight:700}
+.badge{flex:none;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#dc2626;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.wait{flex:none;font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;border-radius:999px;padding:1px 8px}
+.tag{font-size:11px;font-weight:700;color:#0369a1;background:#e0f2fe;border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:1px}
+.empty{padding:30px 12px;text-align:center;color:#94a3b8;font-size:14px}
+/* ---- บทสนทนา ---- */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.head{background:#fff;padding:14px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:12px}
+.head b{font-size:16.5px}.head small{display:block;color:#64748b;font-size:12.5px}
+.msgs{flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:8px}
+.b{max-width:68%;padding:9px 13px;border-radius:16px;font-size:14.5px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+.b small{display:block;font-size:11.5px;margin-bottom:3px;opacity:.8}
+.b.them{align-self:flex-start;background:#fff;border-bottom-left-radius:6px}
+.b.us{align-self:flex-end;background:linear-gradient(120deg,#4338ca,#6366f1);color:#fff;border-bottom-right-radius:6px}
+.older{align-self:center;border:0;border-radius:999px;padding:6px 14px;background:#e2e8f0;font:inherit;font-size:13px;cursor:pointer}
+.compose{background:#fff;padding:12px 16px;display:flex;gap:10px;border-top:1px solid #e2e8f0}
+.compose textarea{flex:1;resize:none;border:0;border-radius:14px;background:#f1f5f9;padding:10px 14px;font:inherit;font-size:14.5px;max-height:140px}
+.compose button{border:0;border-radius:14px;padding:0 20px;font:inherit;font-weight:700;color:#fff;cursor:pointer;background:linear-gradient(120deg,#4338ca,#6366f1)}
+.compose button:disabled{opacity:.5}
+.status:empty{display:none}
+.status{font-size:12.5px;color:#b45309;padding:0 20px 6px;background:#fff}
+.pick{flex:1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:15px}
+.back{display:none;border:0;background:#f1f5f9;border-radius:10px;padding:6px 10px;font:inherit;cursor:pointer}
+@media (max-width:760px){.side{width:100%}.app.chatting .side{display:none}.app:not(.chatting) .main{display:none}.back{display:inline-block}.b{max-width:85%}}
+</style></head><body>
+<div class="top"><b>💬 แชทโรงเรียน</b><a href="/admin-console">กลับคอนโซล</a></div>
+<div class="app" id="app">
+  <aside class="side">
+    <div class="tabs" role="tablist">
+      <button type="button" data-tab="wait" class="on">รอตอบ<i id="cWait" hidden></i></button>
+      <button type="button" data-tab="chat">มีแชท</button>
+      <button type="button" data-tab="all">ทุกโรงเรียน</button>
+    </div>
+    <input class="search" id="q" placeholder="ค้นหาโรงเรียน" aria-label="ค้นหาโรงเรียน">
+    <div class="list" id="list"></div>
+  </aside>
+  <section class="main" id="main">
+    <div class="pick" id="pick">เลือกโรงเรียนด้านซ้ายเพื่ออ่านหรือตอบข้อความ</div>
+  </section>
+</div>
+<script>
+(() => {
+  const listEl = document.getElementById('list'), main = document.getElementById('main'), app = document.getElementById('app');
+  let rows = [], tab = 'wait', cur = null, last = 0, first = 0, busy = false, sending = false, nonce = '', draft = '';
+  const api = async (path, data) => {
+    const r = await fetch('/admin-console/chat' + path, { method: data ? 'POST' : 'GET',
+      headers: data ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}, body: data ? new URLSearchParams(data) : undefined });
+    if (!r.ok || r.redirected) throw Error('เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง');
+    return r.json();
+  };
+  const ago = iso => {
+    if (!iso) return '';
+    const d = new Date(iso), s = (Date.now() - d) / 1000;
+    if (s < 60) return 'เมื่อกี้'; if (s < 3600) return Math.floor(s / 60) + ' นาที';
+    if (s < 86400) return Math.floor(s / 3600) + ' ชม.';
+    return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+  };
+  const initials = n => (n || '?').replace(/^โรงเรียน/, '').trim().slice(0, 2);
+
+  function renderList() {
+    const q = document.getElementById('q').value.trim().toLowerCase();
+    const waitN = rows.filter(r => r.waiting).length;
+    const c = document.getElementById('cWait'); c.hidden = !waitN; c.textContent = waitN;
+    let rs = rows.filter(r => !r.sandbox || r.last);
+    // โรงเรียนที่เปิดคุยอยู่ค้างไว้ในรายการ แม้ตอบแล้วจะไม่อยู่ในกลุ่มรอตอบ
+    if (tab === 'wait') rs = rs.filter(r => r.waiting || (cur && cur.id === r.id));
+    else if (tab === 'chat') rs = rs.filter(r => r.last);
+    if (q) rs = rs.filter(r => r.name.toLowerCase().includes(q));
+    rs.sort((a, b) => (b.unread > 0) - (a.unread > 0) || b.last - a.last || a.name.localeCompare(b.name, 'th'));
+    listEl.replaceChildren();
+    if (!rs.length) { listEl.innerHTML = '<div class="empty">' + (tab === 'wait' ? 'ไม่มีข้อความรอตอบ' : 'ไม่พบโรงเรียน') + '</div>'; return; }
+    rs.forEach(r => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'row' + (r.unread ? ' unread' : '') + (cur && cur.id === r.id ? ' on' : '');
+      const who = r.last ? (r.waiting ? r.sender + ': ' : 'เรา: ') + r.preview : 'ยังไม่มีข้อความ กดเพื่อเริ่มคุย';
+      b.innerHTML = '<span class="av"></span><span class="m"><span class="n"><span></span><span class="t"></span></span>'
+        + '<span class="p"><span></span></span></span>';
+      b.querySelector('.av').textContent = initials(r.name);
+      b.querySelector('.n span').textContent = r.name;
+      if (r.sandbox) { const g = document.createElement('span'); g.className = 'tag'; g.textContent = 'ระบบตัวอย่าง'; b.querySelector('.n span').append(g); }
+      b.querySelector('.t').textContent = ago(r.at);
+      b.querySelector('.p span').textContent = who;
+      const p = b.querySelector('.p');
+      if (r.unread) { const x = document.createElement('span'); x.className = 'badge'; x.textContent = r.unread; p.append(x); }
+      else if (r.waiting) { const x = document.createElement('span'); x.className = 'wait'; x.textContent = 'รอตอบ'; p.append(x); }
+      b.onclick = () => openChat(r);
+      listEl.append(b);
+    });
+  }
+  async function loadInbox() {
+    try { rows = await (await fetch('/admin-console/chat/inbox')).json(); renderList(); } catch {}
+  }
+
+  function bubble(m, prepend) {
+    const box = main.querySelector('.msgs');
+    if (document.getElementById('m' + m.id)) return;
+    const d = document.createElement('div');
+    d.id = 'm' + m.id; d.className = 'b ' + (m.staff ? 'us' : 'them');
+    const s = document.createElement('small');
+    s.textContent = (m.staff ? 'เจ้าหน้าที่ ' + m.sender : m.sender) + '  ' + new Date(m.time).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const t = document.createElement('div'); t.textContent = m.body;
+    d.append(s, t);
+    if (prepend) box.insertBefore(d, box.querySelector('.older')?.nextSibling || box.firstChild); else box.append(d);
+  }
+  async function load(older) {
+    if (busy || !cur) return; busy = true;
+    const id = cur.id, box = main.querySelector('.msgs');
+    try {
+      const near = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+      const h = box.scrollHeight;
+      const data = await api('/messages?tenant_id=' + id + (older ? '&before=' + first : last ? '&after=' + last : ''));
+      if (!cur || cur.id !== id) return;
+      if (older) data.messages.slice().reverse().forEach(m => bubble(m, true)); else data.messages.forEach(m => bubble(m));
+      if (data.messages.length) {
+        first = first ? Math.min(first, data.messages[0].id) : data.messages[0].id;
+        last = Math.max(last, data.messages.at(-1).id);
+        if (!older && near) box.scrollTop = box.scrollHeight;
+        if (older) box.scrollTop += box.scrollHeight - h;
+      }
+      if (older || !box.dataset.init) { main.querySelector('.older').hidden = !data.more; box.dataset.init = 1; if (!older) box.scrollTop = box.scrollHeight; }
+      if (!box.querySelector('.b')) box.insertAdjacentHTML('beforeend', '<div class="empty">ยังไม่มีข้อความ พิมพ์ทักโรงเรียนได้เลย</div>');
+      else box.querySelector('.empty')?.remove();
+      if (last && !document.hidden) { await api('/read', { tenant_id: id, last_id: last }); const r = rows.find(x => x.id === id); if (r && r.unread) { r.unread = 0; renderList(); } }
+    } catch (e) { main.querySelector('.status').textContent = e.message; }
+    finally { busy = false; }
+  }
+  function openChat(r) {
+    cur = r; last = 0; first = 0; nonce = ''; draft = '';
+    app.classList.add('chatting');
+    main.innerHTML = '<div class="head"><button type="button" class="back">←</button><span class="av"></span><div><b></b><small></small></div></div>'
+      + '<div class="msgs"><button type="button" class="older" hidden>โหลดข้อความก่อนหน้า</button></div><p class="status"></p>'
+      + '<form class="compose"><textarea rows="2" maxlength="4000" placeholder="พิมพ์ข้อความถึงโรงเรียน (Enter ส่ง, Shift+Enter ขึ้นบรรทัด)"></textarea><button type="submit">ส่ง</button></form>';
+    main.querySelector('.av').textContent = initials(r.name);
+    main.querySelector('.head b').textContent = r.name;
+    main.querySelector('.head small').textContent = r.sandbox ? 'ผู้ทดลองใช้ระบบตัวอย่าง ข้อมูลจะถูกลบภายใน 24 ชม.' : 'บทสนทนานี้โรงเรียนเห็นทุกคนในโรงเรียน';
+    main.querySelector('.back').onclick = () => { app.classList.remove('chatting'); cur = null; renderList(); };
+    main.querySelector('.older').onclick = () => load(true);
+    const form = main.querySelector('form'), ta = form.querySelector('textarea'), btn = form.querySelector('button');
+    ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); } });
+    form.addEventListener('submit', async e => {
+      e.preventDefault(); const text = ta.value.trim(); if (!text || sending) return;
+      sending = true; btn.disabled = true;
+      if (text !== draft || !nonce) { draft = text; nonce = crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random(); }
+      try { await api('/send', { tenant_id: r.id, body: text, nonce }); ta.value = ''; nonce = ''; main.querySelector('.status').textContent = '';
+        await load(); main.querySelector('.msgs').scrollTop = 1e9; loadInbox(); }
+      catch (err) { main.querySelector('.status').textContent = err.message + ' ข้อความยังอยู่ กดส่งใหม่ได้'; }
+      finally { sending = false; btn.disabled = false; ta.focus(); }
+    });
+    renderList(); load(); ta.focus();
+  }
+
+  document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+    tab = b.dataset.tab; document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b)); renderList();
+  });
+  document.getElementById('q').oninput = renderList;
+  // เช็กข้อความใหม่: รายชื่อทุก 10 วินาที บทสนทนาที่เปิดอยู่ทุก 4 วินาที
+  loadInbox(); setInterval(loadInbox, 10000);
+  setInterval(() => { if (cur && !document.hidden) load(); }, 4000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { loadInbox(); if (cur) load(); } });
+})();
+</script>
 <script src="/static/support_chat_badge.js?v=2" defer></script>
 </body></html>

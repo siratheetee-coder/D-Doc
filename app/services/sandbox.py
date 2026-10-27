@@ -56,6 +56,8 @@ def is_sandbox(tenant_id) -> bool:
 def blocked(path: str, method: str) -> bool:
     if method not in ("POST", "PUT", "PATCH", "DELETE"):
         return False
+    if path.startswith("/support/chat/"):   # ผู้ทดลองใช้ทักแชทถามเจ้าหน้าที่ได้
+        return False
     return any(path == p or path.startswith(p + "/") for p in _BLOCK_WRITE)
 
 

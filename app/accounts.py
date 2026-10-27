@@ -611,6 +611,9 @@ def purge_tenant(tenant_id) -> dict:
             return {"error": "ไม่พบโรงเรียน"}
         name = t.name
         n = db.query(Account).filter_by(tenant_id=tenant_id).delete()
+        # แชทกับเจ้าหน้าที่ของโรงเรียนนี้ (ระบบตัวอย่างคุยได้ ลบพร้อมกันเมื่อหมดเวลา)
+        db.query(SupportMessage).filter_by(tenant_id=tenant_id).delete()
+        db.query(SupportRead).filter_by(tenant_id=tenant_id).delete()
         db.delete(t)
         db.commit()
     finally:

@@ -227,3 +227,24 @@ def test_marketing_summary_and_console(anon):
     html = c.get("/admin-console/marketing?days=0").text
     assert "รู้จักเราจากไหน" in html and "fb-1" in html and "งานอบรม" in html
     assert "sandbox-x" not in c.get("/admin-console").text
+
+
+def test_sandbox_can_chat_with_staff_and_purge_clears_it(anon):
+    """ผู้ทดลองใช้ทักแชทถามเจ้าหน้าที่ได้ และแชทถูกลบพร้อมระบบตัวอย่าง"""
+    from app.accounts import acc_session, purge_tenant, SupportMessage
+    from app.services.sandbox import blocked
+    c = anon()
+    tid = _start(c)
+    assert not blocked("/support/chat/send", "POST") and blocked("/support", "POST")
+    assert c.post("/support/chat/send", data={"body": "สนใจสมัครครับ", "nonce": "sbx"}).status_code == 200
+    db = acc_session()
+    try:
+        assert db.query(SupportMessage).filter_by(tenant_id=tid).count() == 1
+    finally:
+        db.close()
+    purge_tenant(tid)
+    db = acc_session()
+    try:
+        assert db.query(SupportMessage).filter_by(tenant_id=tid).count() == 0
+    finally:
+        db.close()
