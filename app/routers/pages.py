@@ -2089,13 +2089,14 @@ def procurement_wizard(request: Request):
 
 @router.get("/procurement/new", response_class=HTMLResponse)
 def procurement_new_form(request: Request, db: Session = Depends(get_db),
-                         case: str | None = None):
+                         case: str | None = None, project: int | None = None):
     school = get_school(db)
     fy = current_fiscal_year()
+    pj = db.get(Project, project) if project else None   # มาจากปุ่มหน้าโครงการ: เลือกโครงการไว้ให้
     # ยังไม่เลือกรูปแบบ -> แสดงหน้าเลือกรูปแบบก่อน
     if case not in PROC_CASES:
         return templates.TemplateResponse("procurement_choose.html", {
-            "request": request, "cases": PROC_CASES,
+            "request": request, "cases": PROC_CASES, "project_q": pj.id if pj else None,
         })
     return templates.TemplateResponse("procurement_form.html", {
         "request": request, "p": None, "action": "/procurement/new",
@@ -2110,6 +2111,7 @@ def procurement_new_form(request: Request, db: Session = Depends(get_db),
         "case_select_options": CASE_SELECT_OPTIONS,
         "case_limits": _case_limits(),
         **_form_lists(db),
+        "prefill_project": pj.name if pj else "",
     })
 
 

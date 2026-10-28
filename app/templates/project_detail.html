@@ -148,12 +148,22 @@
 <style>
   .pj-bmsg{ margin-top:8px; padding:8px 12px; border-radius:10px; font-size:13.5px; flex-basis:100%; }
   .pj-bmsg[hidden]{ display:none !important; }
+  .pj-use{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:6px 0 14px; padding:12px 14px; border-radius:14px;
+    background:linear-gradient(135deg,#eff6ff,#f0fdf4); }
+  .pj-use > span{ font-weight:700; margin-right:4px; }
+  .pj-use small{ flex-basis:100%; color:var(--muted); font-size:13px; }
   .pj-bmsg.is-bad{ background:#fef2f2; color:#b91c1c; }
   .pj-bmsg.is-up{ background:#eff6ff; color:#1e3a8a; }
   form:has(.pj-bmsg.is-bad) button[type=submit][disabled]{ opacity:.45; cursor:not-allowed; }
 </style>
 <div class="card">
   <h2>เรื่องจัดซื้อและขอเบิกที่ผูกกับโครงการ (ยอดตามเอกสาร)</h2>
+  <div class="pj-use">
+    <span>ใช้เงินโครงการนี้</span>
+    <a class="btn sm" href="/procurement/new?project={{ p.id }}"><svg class="icon"><use href="#ic-file-plus"/></svg> จัดซื้อ/จัดจ้าง</a>
+    <a class="btn sm soft" href="/finance/disburse?project={{ p.id }}"><svg class="icon"><use href="#ic-coins"/></svg> เบิกค่าใช้จ่ายอื่น</a>
+    <small>ค่าเดินทาง ค่าตอบแทนวิทยากร ค่าอาหาร หรือเงินส่วนที่ไม่ได้ซื้อของ กด "เบิกค่าใช้จ่ายอื่น" แล้วระบบหักจากโครงการนี้ให้</small>
+  </div>
   {% if procs %}
   <h3 style="font-size:15px; margin:6px 0;">เรื่องจัดซื้อ/จัดจ้าง</h3>
   <div class="table-wrap"><table><thead><tr><th>เลขที่</th><th>เรื่อง</th><th class="right">วงเงิน</th><th>สถานะ</th></tr></thead>
@@ -172,7 +182,7 @@
           <td>{{ d.subject }}</td><td class="right">{{ "{:,.2f}".format(d.amount or 0) }}</td></tr>
     {% endfor %}</tbody></table></div>
   {% endif %}
-  {% if not procs and not disb %}<p class="muted">ยังไม่มีเรื่องจัดซื้อ/เบิกจ่ายผูกกับโครงการนี้ - เลือกโครงการนี้ตอนสร้างเรื่องจัดซื้อ/ขอเบิกจ่าย</p>{% endif %}
+  {% if not procs and not disb %}<p class="muted">ยังไม่มีเรื่องจัดซื้อหรือขอเบิกจ่ายของโครงการนี้</p>{% endif %}
 </div>
 
 <div class="card">

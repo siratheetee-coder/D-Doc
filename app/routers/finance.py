@@ -830,7 +830,8 @@ def _name_suggest(db) -> dict:
 
 
 @router.get("/finance/disburse", response_class=HTMLResponse)
-def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | None = None, year: int | None = None):
+def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | None = None, year: int | None = None,
+                  project: int | None = None):
     source = db.get(Procurement, proc) if proc else None
     fy = year or (source.fiscal_year if source else None) or current_fiscal_year()
     if not 2500 <= fy <= 2800:
@@ -862,6 +863,10 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
                 "date": p.inspect_date or p.request_date,
                 "item_id": None,
             }
+    elif project and db.get(Project, project):
+        # มาจากปุ่ม "เบิกค่าใช้จ่ายอื่น" หน้าโครงการ: ค่าเดินทาง ค่าตอบแทน ฯลฯ ที่ไม่ผ่านจัดซื้อ
+        prefill = {"subject": "", "payee": "", "amount": 0, "budget_source": "", "procurement_id": None,
+                   "project_id": project, "proc_kind": "ค่าใช้จ่ายอื่น", "memo_no": "", "date": None, "item_id": None}
     return templates.TemplateResponse("disburse_form.html", {
         "request": request, "rows": rows, "fiscal_year": fy,
         "years": _finance_years(db, fy),

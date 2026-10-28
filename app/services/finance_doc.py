@@ -127,6 +127,37 @@ def render_disburse(memo, school) -> str:
     _p_runs(doc, [("เรียน  ", True), (_director_office(school), False)])
     _hr(doc)
 
+    if kind == "ค่าใช้จ่ายอื่น":
+        # ค่าเดินทาง ค่าตอบแทน ค่าอาหาร ฯลฯ ไม่ใช่การจัดซื้อจัดจ้าง: ไม่อ้างผู้ขาย/ใบกำกับภาษี/ระเบียบพัสดุ
+        _p(doc,
+           f"ตามที่{school.name or 'โรงเรียน'} ได้ดำเนินการโครงการ/กิจกรรม"
+           f"{(' ' + project_name) if project_name else '..............................'} "
+           f"โดยมีค่าใช้จ่ายเป็น{memo.subject or '..............................'} "
+           f"จ่ายให้ {payee} จำนวนเงิน {_fmt(amount)} บาท ({bahttext(amount)}) "
+           f"(รายละเอียดตามหลักฐานการจ่ายที่แนบ) และในการนี้โรงเรียนขอใช้เงินนอกงบประมาณ ประเภท{src} นั้น",
+           align="justify", indent=1.25, after=2)
+        _p(doc, "เห็นควรเบิกจ่ายให้แก่ผู้มีสิทธิ์รับเงิน ตามหลักฐานที่แนบ โดยมีรายละเอียดดังนี้",
+           align="justify", indent=1.25, after=2)
+        _money_breakdown(doc, [
+            ("จำนวนเงินขอเบิก", _fmt(amount), "บาท"),
+            ("หัก ภาษี ณ ที่จ่าย", _fmt(wht), "บาท"),
+            ("คงเหลือจ่ายจริง", _fmt(net), f"บาท  ({bahttext(net)})"),
+        ])
+    else:
+        _disburse_purchase_body(doc, school, memo, kind, project_name, payee, src,
+                                amount, vat, goods, wht, fine, net)
+    _p(doc, "", after=2)
+    _p(doc, "จึงเรียนมาเพื่อโปรดอนุมัติ", align="justify", indent=1.25, after=10)
+    _disburse_tail(doc, school, memo, net)
+    out_dir = get_data_dir() / "documents"
+    out_dir.mkdir(exist_ok=True)
+    fname = _safe(f"ขออนุมัติเบิกจ่าย_{memo.memo_no or memo.id}_{memo.subject}") + ".docx"
+    out_path = out_dir / fname
+    doc.save(str(out_path))
+    return str(out_path)
+
+
+def _disburse_purchase_body(doc, school, memo, kind, project_name, payee, src, amount, vat, goods, wht, fine, net):
     # ย่อหน้านำ
     _p(doc,
        f"ตามที่{school.name or 'โรงเรียน'} ได้ดำเนินการ{kind}{memo.subject or ''} "
@@ -149,9 +180,9 @@ def render_disburse(memo, school) -> str:
         ("ค่าปรับ", _fmt(fine), "บาท"),
         ("คงเหลือจ่ายจริง", _fmt(net), f"บาท  ({bahttext(net)})"),
     ])
-    _p(doc, "", after=2)
-    _p(doc, "จึงเรียนมาเพื่อโปรดอนุมัติ", align="justify", indent=1.25, after=10)
 
+
+def _disburse_tail(doc, school, memo, net):
     # ลงนามเจ้าหน้าที่การเงิน
     fin = (school.finance_officer_name or school.officer_name or "").strip()
     _sign_table(doc, [[
@@ -169,10 +200,3 @@ def render_disburse(memo, school) -> str:
         (_director_office(school), "center"),
     ]])
     _p(doc, "วันที่.........................................", align="center", after=2)
-
-    out_dir = get_data_dir() / "documents"
-    out_dir.mkdir(exist_ok=True)
-    fname = _safe(f"ขออนุมัติเบิกจ่าย_{memo.memo_no or memo.id}_{memo.subject}") + ".docx"
-    out_path = out_dir / fname
-    doc.save(str(out_path))
-    return str(out_path)
