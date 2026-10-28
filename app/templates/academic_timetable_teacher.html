@@ -59,7 +59,8 @@
           {% if p.is_break %}
           <td class="center muted" style="background:#f8fafc; font-size:12px;">พัก</td>
           {% else %}
-          <td class="center {{ 'clash' if (dnum,p.id) in clash_slots }}" style="font-size:12.5px;">
+          <td class="center tt-t {{ 'clash' if (dnum,p.id) in clash_slots }}" style="font-size:12.5px;"
+              data-k="{% for e in lst %}{{ e.class }}|{{ e.subject }};{% endfor %}" data-sec="{{ p.school_section }}">
             {% for e in lst %}<div><b>{{ e.subject }}</b><div class="muted" style="font-size:11px;">{{ e.class }}</div></div>{% endfor %}
             {% if not lst %}<span class="muted"> </span>{% endif %}
           </td>
@@ -80,5 +81,21 @@
   table.tt th, table.tt td { border:1px solid #e5e7eb; padding:6px 8px; text-align:center; vertical-align:middle; }
   table.tt th { background:#f5f3ff; font-size:13px; }
   table.tt td.clash { background:#fee2e2; }
+  .tt-pair { display:inline-block; margin-top:3px; padding:0 8px; border-radius:999px; font-size:10.5px; font-weight:700;
+    color:#5b21b6; background:#ede9fe; }
 </style>
+<script>
+  // คาบคู่: ห้องและวิชาเดียวกันในคาบติดกัน (ระดับเดียวกัน ไม่คร่อมคาบพัก) รวมเป็นช่องเดียว ช่องที่ครูสอนซ้อนไม่รวม
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('td.tt-t').forEach(function (td) {
+      if (!td.isConnected || !td.dataset.k || td.classList.contains('clash')) return;
+      var nx = td.nextElementSibling;
+      while (nx && nx.classList.contains('tt-t') && !nx.classList.contains('clash')
+             && nx.dataset.k === td.dataset.k && nx.dataset.sec === td.dataset.sec) {
+        td.colSpan += 1; var gone = nx; nx = nx.nextElementSibling; gone.remove();
+      }
+      if (td.colSpan > 1) td.insertAdjacentHTML('beforeend', '<div class="tt-pair">' + (td.colSpan === 2 ? 'คาบคู่' : td.colSpan + ' คาบติดกัน') + '</div>');
+    });
+  });
+</script>
 {% endblock %}
