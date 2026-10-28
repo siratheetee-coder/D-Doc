@@ -78,6 +78,17 @@ def test_locked_cells_survive_clear_and_existing_count_toward_target(db):
     assert _auto_schedule(db, k, {tha.id: 3}, False)[0] == 0
 
 
+def test_clear_keeps_activity_and_homeroom_cells(db):
+    from app.routers.academic import _auto_schedule
+    k, ps, sci, tha, t = seed(db)
+    db.add(AcadTimetable(class_id=k.id, day=5, period_id=ps[3].id, note="ชุมนุม"))
+    db.add(AcadTimetable(class_id=k.id, day=1, period_id=ps[0].id, subject_id=tha.id))
+    db.commit()
+    _auto_schedule(db, k, {sci.id: 2}, True)
+    rows = db.query(AcadTimetable).filter_by(class_id=k.id).all()
+    assert any(r.note == "ชุมนุม" and r.day == 5 for r in rows)      # กิจกรรมยังอยู่
+    assert not any(r.subject_id == tha.id for r in rows)             # วิชาเดิมถูกล้าง
+
 import pytest
 
 

@@ -3390,7 +3390,8 @@ def _auto_schedule(db, klass, counts, clear, doubles=None, opts=None):
                 db.query(AcadTimetable).filter_by(class_id=klass.id).all()}
     if clear:
         for k, r in list(existing.items()):
-            if not ((o["keep_locked"] and r.locked) or r.blocked):
+            # เก็บช่องล็อก เว้นว่าง และกิจกรรม/โฮมรูม (ไม่มีวิชา) ไว้ ล้างเฉพาะวิชา
+            if not ((o["keep_locked"] and r.locked) or r.blocked or not r.subject_id):
                 db.delete(r)
                 del existing[k]
     free = [s for s in all_slots if s not in existing]

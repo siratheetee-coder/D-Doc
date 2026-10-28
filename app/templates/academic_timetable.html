@@ -165,7 +165,7 @@
       <label><input type="checkbox" name="opt_keep_locked" value="1" checked><span>รักษาคาบที่ล็อกไว้<em>คาบที่กดรูปกุญแจไว้จะไม่ถูกเปลี่ยน</em></span></label>
     </div>
     <label class="ts-danger"><input type="checkbox" name="clear" id="optClear">
-      <span><b>จัดใหม่ทั้งตาราง (ล้างตารางเดิม)</b><em>ตารางปัจจุบันจะถูกแทนที่ ถ้าไม่เลือก ระบบเติมเฉพาะช่องว่าง</em></span></label>
+      <span><b>จัดใหม่ทั้งตาราง (ล้างตารางเดิม)</b><em>ล้างวิชาเดิมแล้วจัดใหม่ ช่องกิจกรรม โฮมรูม และเว้นว่างยังอยู่ ถ้าไม่เลือก ระบบเติมเฉพาะช่องว่าง</em></span></label>
     <div class="ts-cap" id="tsCap" hidden></div>
     <button class="btn ts-big" type="submit" formaction="/academic/timetable/auto" id="btnAuto"><svg class="icon"><use href="#ic-sparkle"/></svg> จัดตารางให้อัตโนมัติ</button>
     <p class="muted ts-note">กดแล้วย้อนกลับได้ ถ้าไม่ชอบผลที่ได้</p>
@@ -604,7 +604,7 @@
     ttCheck();
     var msg = [];
     if (document.getElementById('optClear').checked)
-      msg.push('จัดใหม่ทั้งตาราง: ตารางปัจจุบันจะถูกแทนที่' + (ttForm.querySelector('[name=opt_keep_locked]').checked ? ' (ยกเว้นคาบที่ล็อกไว้)' : ''));
+      msg.push('จัดใหม่ทั้งตาราง: วิชาเดิมจะถูกล้าง (กิจกรรม โฮมรูม และช่องเว้นว่างยังอยู่' + (ttForm.querySelector('[name=opt_keep_locked]').checked ? ' รวมทั้งคาบที่ล็อกไว้' : '') + ')');
     if (ttState.more > ttState.free)
       msg.push('ต้องจัดเพิ่ม ' + ttState.more + ' คาบ แต่มีช่องว่าง ' + ttState.free + ' คาบ จะจัดไม่ครบ');
     if (msg.length && !confirm(msg.join('\n') + '\n\nจัดต่อไหม (หลังจัดกดย้อนกลับได้)')) e.preventDefault();
