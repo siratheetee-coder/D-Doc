@@ -3414,6 +3414,18 @@ def project_activity_update(pid: int, aid: int, db: Session = Depends(get_db), n
     return RedirectResponse(f"/projects/{pid}#activities", status_code=303)
 
 
+@router.post("/projects/{pid}/assign")
+def project_activity_assign(pid: int, db: Session = Depends(get_db), kind: str = Form(""),
+                            doc_id: str = Form(""), activity_id: str = Form("")):
+    """ย้ายเรื่องจัดซื้อ/บันทึกขอเบิกของโครงการนี้เข้ากิจกรรม (จากกล่อง รอเลือกกิจกรรม หน้าโครงการ)"""
+    model = Procurement if kind == "proc" else DisburseMemo if kind == "memo" else None
+    doc = db.get(model, _to_int(doc_id, 0)) if model else None
+    if doc and doc.project_id == pid:
+        doc.activity_id = valid_activity(db, activity_id, pid)
+        db.commit()
+    return RedirectResponse(f"/projects/{pid}#activities", status_code=303)
+
+
 @router.post("/projects/{pid}/activities/{aid}/delete")
 def project_activity_delete(pid: int, aid: int, db: Session = Depends(get_db)):
     """ลบกิจกรรม: เอกสารที่เคยผูกยังอยู่ในโครงการ แค่ย้ายไปกลุ่ม "ยังไม่ระบุกิจกรรม\""""

@@ -87,9 +87,15 @@ def test_activity_groups_procurement_and_other_expense(env):
         assert s.query(DisburseMemo).filter_by(subject='ค่าอาหาร').one().activity_id is None
     page = env.get(f'/projects/{pid}').text
     blk = page.split('แข่งกีฬาภายใน</b>')[1].split('ประกวดกองเชียร์')[0]
-    assert 'อุปกรณ์กีฬา' in blk and 'ค่าตอบแทนกรรมการตัดสิน' in blk and 'เหลือ 1,800.00' in blk
+    assert 'อุปกรณ์กีฬา' in blk and 'ค่าตอบแทนกรรมการตัดสิน' in blk and 'เหลือ 1,800' in blk
     assert f'href="/finance/disburse?project={pid}&activity={a1}"' in page
     # ลบกิจกรรม: เอกสารยังอยู่ ย้ายไปกลุ่มยังไม่ระบุกิจกรรม
     env.post(f'/projects/{pid}/activities/{a1}/delete')
     page = env.get(f'/projects/{pid}').text
-    assert 'ยังไม่ระบุกิจกรรม' in page and 'อุปกรณ์กีฬา' in page and 'ค่าตอบแทนกรรมการตัดสิน' in page
+    assert 'รอเลือกกิจกรรม' in page and 'อุปกรณ์กีฬา' in page and 'ค่าตอบแทนกรรมการตัดสิน' in page
+    # ย้ายกลับเข้ากิจกรรมจากหน้าโครงการ
+    with tn.session_for(tid) as s:
+        proc_id = s.query(Procurement).filter_by(subject='อุปกรณ์กีฬา').one().id
+    env.post(f'/projects/{pid}/assign', data={'kind': 'proc', 'doc_id': str(proc_id), 'activity_id': str(a2)})
+    with tn.session_for(tid) as s:
+        assert s.get(Procurement, proc_id).activity_id == a2

@@ -157,75 +157,119 @@
   form:has(.pj-bmsg.is-bad) button[type=submit][disabled]{ opacity:.45; cursor:not-allowed; }
 </style>
 <div class="card" id="activities">
-  <h2>กิจกรรมและการใช้เงินของโครงการ (ยอดตามเอกสาร)</h2>
-  <div class="pj-use">
-    <span>ใช้เงินโครงการนี้</span>
-    <a class="btn sm" href="/procurement/new?project={{ p.id }}"><svg class="icon"><use href="#ic-file-plus"/></svg> จัดซื้อ/จัดจ้าง</a>
-    <a class="btn sm soft" href="/finance/disburse?project={{ p.id }}"><svg class="icon"><use href="#ic-coins"/></svg> เบิกค่าใช้จ่ายอื่น</a>
-    <small>ค่าเดินทาง ค่าตอบแทนวิทยากร ค่าอาหาร หรือเงินส่วนที่ไม่ได้ซื้อของ กด "เบิกค่าใช้จ่ายอื่น" แล้วระบบหักจากโครงการนี้ให้ ถ้าโครงการมีหลายกิจกรรม เพิ่มกิจกรรมด้านล่างก่อน แล้วกดปุ่มในกิจกรรมนั้นแทน เอกสารจะอยู่รวมกลุ่มกัน</small>
+  {% set acts = groups|selectattr('a')|list %}
+  {% set loose = groups|rejectattr('a')|first %}
+  {% set act_total = acts|map(attribute='a.budget')|map('float')|sum %}
+  <div class="pa-top">
+    <h2 style="margin:0;">กิจกรรมในโครงการ</h2>
+    <button type="button" class="btn sm" onclick="var f=document.getElementById('paAdd'); f.hidden=!f.hidden; if(!f.hidden) f.querySelector('input').focus();">
+      <svg class="icon"><use href="#ic-plus"/></svg> เพิ่มกิจกรรม</button>
   </div>
-  {% set act_total = groups|selectattr('a')|map(attribute='a.budget')|map('float')|sum %}
-  {% for g in groups %}
-  <div class="pj-act{{ ' is-loose' if not g.a }}">
-    <div class="pj-act-head">
-      {% if g.a %}
-      <div class="pj-act-name"><b>{{ g.a.name }}</b>
-        <small>{% if g.a.budget %}งบกิจกรรม {{ "{:,.2f}".format(g.a.budget) }} ใช้ไป {{ "{:,.2f}".format(g.used) }}
-          <span style="color:{{ '#dc2626' if g.left < 0 else '#16a34a' }};">เหลือ {{ "{:,.2f}".format(g.left) }}</span>
-          {% else %}ใช้ไป {{ "{:,.2f}".format(g.used) }} บาท{% endif %}</small></div>
-      <div class="pj-act-btns">
-        <a class="btn sm" href="/procurement/new?project={{ p.id }}&activity={{ g.a.id }}"><svg class="icon"><use href="#ic-file-plus"/></svg> จัดซื้อ/จัดจ้าง</a>
-        <a class="btn sm soft" href="/finance/disburse?project={{ p.id }}&activity={{ g.a.id }}"><svg class="icon"><use href="#ic-coins"/></svg> เบิกค่าใช้จ่ายอื่น</a>
-        <button type="button" class="btn sm gray" onclick="this.closest('.pj-act').querySelector('.pj-act-edit').hidden=false; this.hidden=true;">แก้ไข</button>
-      </div>
-      {% else %}
-      <div class="pj-act-name"><b>ยังไม่ระบุกิจกรรม</b><small>เปิดเอกสารแล้วเลือกกิจกรรมได้ ใช้ไป {{ "{:,.2f}".format(g.used) }} บาท</small></div>
-      {% endif %}
+  <form class="pa-add" id="paAdd" method="post" action="/projects/{{ p.id }}/activities" {% if acts %}hidden{% endif %}>
+    <input name="name" required placeholder="ชื่อกิจกรรม เช่น อบรมเชิงปฏิบัติการ" aria-label="ชื่อกิจกรรม">
+    <input name="budget" inputmode="decimal" placeholder="งบ (ไม่ใส่ก็ได้)" aria-label="งบกิจกรรม" class="pa-num">
+    <button class="btn sm" type="submit">บันทึก</button>
+    <small>กิจกรรมเดียวกันมีได้ทั้งเรื่องจัดซื้อและการเบิกค่าอื่น เช่น ค่าเดินทาง ค่าตอบแทน</small>
+  </form>
+  {% if act_total > b %}<p class="pa-warn">งบกิจกรรมรวม {{ "{:,.2f}".format(act_total) }} เกินงบโครงการ {{ "{:,.2f}".format(b) }}</p>{% endif %}
+
+  {% if not acts %}
+  <div class="pa-empty">
+    <span>ยังไม่มีกิจกรรม ใช้เงินโครงการได้เลย</span>
+    <a class="pa-link" href="/procurement/new?project={{ p.id }}">+ จัดซื้อ/จัดจ้าง</a>
+    <a class="pa-link" href="/finance/disburse?project={{ p.id }}">+ เบิกค่าอื่น</a>
+  </div>
+  {% endif %}
+
+  {% for g in acts %}{% set a = g.a %}{% set pct = (g.used / a.budget * 100) if a.budget else 0 %}
+  <section class="pa">
+    <div class="pa-head">
+      <b class="pa-name">{{ a.name }}</b>
+      {% if a.budget %}
+      <span class="pa-left {{ 'is-bad' if g.left < 0 }}">{{ 'เกินงบ' if g.left < 0 else 'เหลือ' }} {{ "{:,.0f}".format(g.left|abs) }}</span>
+      {% else %}<span class="pa-used">ใช้ไป {{ "{:,.0f}".format(g.used) }} บาท</span>{% endif %}
     </div>
-    {% if g.a %}
-    <form class="pj-act-edit" method="post" action="/projects/{{ p.id }}/activities/{{ g.a.id }}/update" hidden>
-      <input name="name" value="{{ g.a.name }}" required aria-label="ชื่อกิจกรรม">
-      <input name="budget" inputmode="decimal" value="{{ '%.2f'|format(g.a.budget) if g.a.budget else '' }}" placeholder="งบกิจกรรม (ไม่ใส่ก็ได้)" aria-label="งบกิจกรรม">
-      <button class="btn sm" type="submit">บันทึก</button>
-      <button class="btn sm red" type="submit" formaction="/projects/{{ p.id }}/activities/{{ g.a.id }}/delete"
-        onclick="return confirm('ลบกิจกรรมนี้? เอกสารที่ผูกไว้ยังอยู่ในโครงการ ย้ายไปกลุ่ม ยังไม่ระบุกิจกรรม');">ลบกิจกรรม</button>
-    </form>
+    {% if a.budget %}
+    <div class="pa-bar"><i style="width:{{ [pct, 100]|min }}%;" class="{{ 'is-bad' if g.left < 0 }}"></i></div>
+    <div class="pa-sub">ใช้ไป {{ "{:,.0f}".format(g.used) }} จากงบ {{ "{:,.0f}".format(a.budget) }} บาท</div>
     {% endif %}
     {% if g.docs %}
-    <div class="table-wrap"><table class="stack-sm"><thead><tr><th>ประเภท</th><th>เลขที่</th><th>เรื่อง</th><th class="right">จำนวนเงิน</th><th>สถานะ</th></tr></thead>
-      <tbody>{% for d in g.docs %}
-        <tr><td data-label="ประเภท"><span class="pj-kind{{ ' is-other' if d.kind != 'จัดซื้อ/จัดจ้าง' }}">{{ d.kind }}</span></td>
-          <td data-label="เลขที่"><a href="{{ d.url }}">{{ d.no }}</a></td><td data-label="เรื่อง">{{ d.subject }}</td>
-          <td class="right" data-label="จำนวนเงิน">{{ "{:,.2f}".format(d.amount) }}</td><td data-label="สถานะ">{{ d.status }}</td></tr>
-      {% endfor %}</tbody></table></div>
-    {% elif g.a %}<p class="muted" style="margin:6px 0 0;">ยังไม่มีเอกสารในกิจกรรมนี้</p>{% endif %}
-  </div>
+    <ul class="pa-docs">{% for d in g.docs %}
+      <li><span class="pa-tag {{ 'is-proc' if d.type == 'proc' else 'is-memo' }}">{{ 'จัดซื้อ' if d.type == 'proc' else 'เบิก' }}</span>
+        <a href="{{ d.url }}">{{ d.subject }}</a>
+        <b>{{ "{:,.0f}".format(d.amount) }}</b></li>
+    {% endfor %}</ul>
+    {% else %}<p class="pa-none">ยังไม่มีรายการ</p>{% endif %}
+    <div class="pa-foot">
+      <a class="pa-link" href="/procurement/new?project={{ p.id }}&activity={{ a.id }}">+ จัดซื้อ/จัดจ้าง</a>
+      <a class="pa-link" href="/finance/disburse?project={{ p.id }}&activity={{ a.id }}">+ เบิกค่าอื่น</a>
+      <button type="button" class="pa-edit-btn" onclick="var f=this.closest('.pa').querySelector('.pa-edit'); f.hidden=!f.hidden;">แก้ไข</button>
+    </div>
+    <form class="pa-edit" method="post" action="/projects/{{ p.id }}/activities/{{ a.id }}/update" hidden>
+      <input name="name" value="{{ a.name }}" required aria-label="ชื่อกิจกรรม">
+      <input name="budget" inputmode="decimal" value="{{ '%.2f'|format(a.budget) if a.budget else '' }}" placeholder="งบ (ไม่ใส่ก็ได้)" aria-label="งบกิจกรรม" class="pa-num">
+      <button class="btn sm" type="submit">บันทึก</button>
+      <button class="btn sm red" type="submit" formaction="/projects/{{ p.id }}/activities/{{ a.id }}/delete"
+        onclick="return confirm('ลบกิจกรรมนี้? รายการในกิจกรรมไม่หาย ย้ายไปรอเลือกกิจกรรม');">ลบ</button>
+    </form>
+  </section>
   {% endfor %}
-  {% if not groups %}<p class="muted">ยังไม่มีกิจกรรม และยังไม่มีเรื่องจัดซื้อหรือขอเบิกจ่ายของโครงการนี้</p>{% endif %}
-  <form class="pj-act-add" method="post" action="/projects/{{ p.id }}/activities">
-    <b>เพิ่มกิจกรรม</b>
-    <input name="name" required placeholder="เช่น อบรมเชิงปฏิบัติการ" aria-label="ชื่อกิจกรรม">
-    <input name="budget" inputmode="decimal" placeholder="งบกิจกรรม (ไม่ใส่ก็ได้)" aria-label="งบกิจกรรม">
-    <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button>
-    {% if act_total > 0 %}<small>งบกิจกรรมรวม {{ "{:,.2f}".format(act_total) }} จากงบโครงการ {{ "{:,.2f}".format(b) }}{% if act_total > b %} <b style="color:#dc2626;">เกินงบโครงการ</b>{% endif %}</small>{% endif %}
-  </form>
+
+  {% if loose %}
+  <section class="pa is-loose">
+    <div class="pa-head"><b class="pa-name">{{ 'รอเลือกกิจกรรม' if acts else 'รายการของโครงการ' }}</b>
+      <span class="pa-used">{{ loose.docs|length }} รายการ {{ "{:,.0f}".format(loose.used) }} บาท</span></div>
+    <ul class="pa-docs">{% for d in loose.docs %}
+      <li><span class="pa-tag {{ 'is-proc' if d.type == 'proc' else 'is-memo' }}">{{ 'จัดซื้อ' if d.type == 'proc' else 'เบิก' }}</span>
+        <a href="{{ d.url }}">{{ d.subject }}</a>
+        <b>{{ "{:,.0f}".format(d.amount) }}</b>
+        {% if acts %}
+        <form method="post" action="/projects/{{ p.id }}/assign" class="pa-move">
+          <input type="hidden" name="kind" value="{{ d.type }}"><input type="hidden" name="doc_id" value="{{ d.id }}">
+          <select name="activity_id" onchange="this.form.submit()" aria-label="ย้ายเข้ากิจกรรม">
+            <option value="">ย้ายเข้ากิจกรรม...</option>
+            {% for g2 in acts %}<option value="{{ g2.a.id }}">{{ g2.a.name }}</option>{% endfor %}
+          </select>
+        </form>{% endif %}</li>
+    {% endfor %}</ul>
+  </section>
+  {% endif %}
 </div>
 <style>
-  .pj-act{ margin:0 0 14px; padding:14px; border-radius:16px; background:#f8fafc; }
-  .pj-act.is-loose{ background:#fffbeb; }
-  .pj-act-head{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; }
-  .pj-act-name{ display:flex; flex-direction:column; gap:2px; }
-  .pj-act-name b{ font-size:16px; }
-  .pj-act-name small{ color:var(--muted); font-size:13.5px; }
-  .pj-act-btns{ display:flex; flex-wrap:wrap; gap:6px; }
-  .pj-act .table-wrap{ margin-top:10px; }
-  .pj-act-edit, .pj-act-add{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px; }
-  .pj-act-edit[hidden]{ display:none; }
-  .pj-act-edit input, .pj-act-add input{ flex:1; min-width:160px; }
-  .pj-act-add{ padding:12px 14px; border-radius:14px; background:linear-gradient(135deg,#eff6ff,#f0fdf4); }
-  .pj-act-add small{ flex-basis:100%; color:var(--muted); }
-  .pj-kind{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:12.5px; background:#dbeafe; color:#1e40af; white-space:nowrap; }
-  .pj-kind.is-other{ background:#dcfce7; color:#166534; }
+  .pa-top{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; }
+  .pa-add, .pa-edit{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 12px; }
+  .pa-add[hidden], .pa-edit[hidden]{ display:none; }
+  .pa-add input, .pa-edit input{ flex:2; min-width:180px; }
+  .pa-add .pa-num, .pa-edit .pa-num{ flex:1; min-width:120px; }
+  .pa-add small{ flex-basis:100%; color:var(--muted); font-size:13px; }
+  .pa-warn{ margin:0 0 12px; padding:8px 12px; border-radius:10px; background:#fef2f2; color:#b91c1c; font-size:14px; }
+  .pa-empty{ display:flex; flex-wrap:wrap; align-items:center; gap:14px; padding:14px; border-radius:14px; background:#f8fafc; color:var(--muted); }
+  .pa{ padding:16px; border-radius:16px; background:#f8fafc; margin-bottom:12px; }
+  .pa.is-loose{ background:#fffbeb; }
+  .pa-head{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .pa-name{ font-size:16.5px; }
+  .pa-left{ font-weight:700; color:#16a34a; white-space:nowrap; }
+  .pa-left.is-bad{ color:#dc2626; }
+  .pa-used{ color:var(--muted); font-size:14px; white-space:nowrap; }
+  .pa-bar{ height:8px; border-radius:99px; background:#e2e8f0; margin:10px 0 4px; overflow:hidden; }
+  .pa-bar i{ display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,#60a5fa,#2563eb); }
+  .pa-bar i.is-bad{ background:linear-gradient(90deg,#f87171,#dc2626); }
+  .pa-sub{ font-size:13px; color:var(--muted); }
+  .pa-docs{ list-style:none; margin:12px 0 0; padding:0; }
+  .pa-docs li{ display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding:9px 0; border-top:1px solid #e9eef5; }
+  .pa-docs li a{ flex:1; min-width:160px; color:inherit; }
+  .pa-docs li a:hover{ color:#2563eb; }
+  .pa-docs li b{ white-space:nowrap; }
+  .pa-tag{ font-size:12px; font-weight:700; padding:3px 9px; border-radius:99px; white-space:nowrap; }
+  .pa-tag.is-proc{ background:#dbeafe; color:#1e40af; }
+  .pa-tag.is-memo{ background:#dcfce7; color:#166534; }
+  .pa-none{ margin:10px 0 0; color:var(--muted); font-size:14px; }
+  .pa-foot{ display:flex; flex-wrap:wrap; align-items:center; gap:16px; margin-top:12px; }
+  .pa-link{ font-weight:700; font-size:14px; color:#2563eb; text-decoration:none; }
+  .pa-link:hover{ text-decoration:underline; }
+  .pa-edit-btn{ margin-left:auto; border:0; background:none; color:var(--muted); font:inherit; font-size:14px; cursor:pointer; }
+  .pa-edit{ margin:12px 0 0; }
+  .pa-move select{ font-size:13px; padding:4px 8px; min-height:0; width:auto; }
 </style>
 
 <div class="card">
