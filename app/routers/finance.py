@@ -22,6 +22,7 @@ from app.models import (
     AccountItem, Project, MoneyLoan, LoanReturn, CheckPayment, BankRecon,
 )
 from app.services.budget import current_plan_year, plan_year_label
+from app.services.project_activity import activity_maps, valid_activity
 from app.thai_utils import SCHOOL_LEVELS
 from app.services.ebudget_cat import EXPENSE as EB_EXPENSE, INCOME as EB_INCOME
 from app.services import ebudget_staff as eb_staff
@@ -831,7 +832,7 @@ def _name_suggest(db) -> dict:
 
 @router.get("/finance/disburse", response_class=HTMLResponse)
 def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | None = None, year: int | None = None,
-                  project: int | None = None, travel: int | None = None):
+                  project: int | None = None, travel: int | None = None, activity: int | None = None):
     source = db.get(Procurement, proc) if proc else None
     fy = year or (source.fiscal_year if source else None) or current_fiscal_year()
     if not 2500 <= fy <= 2800:
@@ -877,7 +878,8 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
     elif project and db.get(Project, project):
         # มาจากปุ่ม "เบิกค่าใช้จ่ายอื่น" หน้าโครงการ: ค่าเดินทาง ค่าตอบแทน ฯลฯ ที่ไม่ผ่านจัดซื้อ
         prefill = {"subject": "", "payee": "", "amount": 0, "budget_source": "", "procurement_id": None,
-                   "project_id": project, "proc_kind": "ค่าใช้จ่ายอื่น", "memo_no": "", "date": None, "item_id": None}
+                   "project_id": project, "proc_kind": "ค่าใช้จ่ายอื่น", "memo_no": "", "date": None, "item_id": None,
+                   "activity_id": valid_activity(db, activity, project)}
     return templates.TemplateResponse("disburse_form.html", {
         "request": request, "rows": rows, "fiscal_year": fy,
         "years": _finance_years(db, fy),
@@ -887,6 +889,7 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
         "procs": db.query(Procurement).filter(Procurement.fiscal_year == fy, Procurement.paid_before_system.isnot(True))
                  .order_by(Procurement.id.desc()).all(),
         "projects": _plan_projects(db, fy),
+        "pj_acts": activity_maps(db),
         "prefill": prefill,
         "names": _name_suggest(db),
     })
@@ -900,7 +903,7 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
                     vat: str = Form("0"), wht: str = Form("0"), fine: str = Form("0"),
                     proc_kind: str = Form("จัดซื้อ"), project_id: str = Form(""),
                     item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form(""),
-                    travel_request_id: str = Form("")):
+                    travel_request_id: str = Form(""), activity_id: str = Form("")):
     fy = _to_int(fiscal_year, current_fiscal_year())
     no = memo_no.strip() or suggest_doc_no(db, "memo", fy)
     m = DisburseMemo(
@@ -915,6 +918,7 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
         receiver_name=receiver_name.strip()[:200], register_note=register_note.strip()[:300],
         travel_request_id=_to_int(travel_request_id, 0) or None,
     )
+    m.activity_id = valid_activity(db, activity_id, m.project_id)
     db.add(m); db.flush()
     commit_doc_no(db, "memo", fy, no, source="finance", ref_id=m.id, date=m.date,
                   subject=((m.subject or "").strip() if (m.subject or "").strip().startswith("ขออนุมัติเบิกจ่าย")
@@ -936,6 +940,7 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
         "accounts": db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
         "items_map": _items_map(db, m.fiscal_year),
         "projects": _plan_projects(db, m.fiscal_year),
+        "pj_acts": activity_maps(db),
         "proc": db.get(Procurement, m.procurement_id) if m.procurement_id else None,
         "names": _name_suggest(db),
         # ปีงบตามวันที่ในบันทึก ถ้าไม่ตรงกับปีงบของบันทึก รายการจ่ายจะลงผิดปีงบ (เตือนเฉย ๆ ไม่บังคับ)
@@ -951,7 +956,8 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
                     account_id: str = Form(""), status: str = Form(""), note: str = Form(""),
                     vat: str = Form("0"), wht: str = Form("0"), fine: str = Form("0"),
                     proc_kind: str = Form("จัดซื้อ"), project_id: str = Form(""),
-                    item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form("")):
+                    item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form(""),
+                    activity_id: str = Form("")):
     payments.lock(db)
     m = db.get(DisburseMemo, mid)
     if m:
@@ -963,6 +969,7 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
         m.account_id = _to_int(account_id, 0) or None
         m.item_id = _to_int(item_id, 0) or None
         m.project_id = _to_int(project_id, 0) or None
+        m.activity_id = valid_activity(db, activity_id, m.project_id)
         m.note = note
         m.receiver_name = receiver_name.strip()[:200]
         m.register_note = register_note.strip()[:300]

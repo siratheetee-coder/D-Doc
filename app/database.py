@@ -130,6 +130,8 @@ MIGRATIONS = [
     ("disburse_memo",   "wht",          "FLOAT DEFAULT 0"),
     ("disburse_memo",   "fine",         "FLOAT DEFAULT 0"),
     ("disburse_memo",   "travel_request_id", "INTEGER"),
+    ("disburse_memo",   "activity_id",  "INTEGER"),
+    ("procurement",     "activity_id",  "INTEGER"),
     ("disburse_memo",   "proc_kind",    "VARCHAR DEFAULT 'จัดซื้อ'"),
     ("school", "finance_officer_name",  "VARCHAR DEFAULT ''"),
     ("school", "finance_head_name",     "VARCHAR DEFAULT ''"),

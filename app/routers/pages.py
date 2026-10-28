@@ -28,8 +28,9 @@ from app.models import (
     Asset, MaterialItem, MaterialTxn, Requisition, RequisitionItem, IssuedDocNo,
     DocNumberCounter, OfficeMemo, SchoolOrder, IncomingLetter, OutgoingLetter,
     DisburseMemo, ItemCatalog, Student, ProcurementPlan, Contract,
-    AssetDisposal, AssetDisposalItem,
+    AssetDisposal, AssetDisposalItem, ProjectActivity,
 )
+from app.services.project_activity import activity_maps, valid_activity
 from app.services.asset_utils import (
     CATEGORIES, CATEGORY_LIFE, annual_depreciation, accumulated_depreciation,
     net_book_value, depreciation_schedule, material_balance, ASSET_STATUSES,
@@ -1735,6 +1736,7 @@ def _form_lists(db: Session) -> dict:
         "persons": persons,
         "departments": db.query(Department).order_by(Department.name).all(),
         "projects": db.query(Project).order_by(Project.name).all(),
+        "pj_acts": activity_maps(db),
         "catalog": db.query(ItemCatalog).order_by(ItemCatalog.name).all(),
         # แผนที่ ชื่อ -> ตำแหน่ง สำหรับเติมตำแหน่งอัตโนมัติเมื่อเลือกชื่อ
         "persons_pos": {p.name: p.position for p in persons},
@@ -1939,6 +1941,7 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
         proj = q.filter(Project.plan_year == current_plan_year(get_school(db))).first() or q.first()
         if proj:
             proc.project_id = proj.id
+    proc.activity_id = valid_activity(db, form.get("activity_id"), proc.project_id)
     proc.department = (form.get("department") or "").strip()
     proc.purpose = (form.get("purpose") or "").strip()
     _populate_tor_fields(proc, form)
@@ -2089,7 +2092,7 @@ def procurement_wizard(request: Request):
 
 @router.get("/procurement/new", response_class=HTMLResponse)
 def procurement_new_form(request: Request, db: Session = Depends(get_db),
-                         case: str | None = None, project: int | None = None):
+                         case: str | None = None, project: int | None = None, activity: int | None = None):
     school = get_school(db)
     fy = current_fiscal_year()
     pj = db.get(Project, project) if project else None   # มาจากปุ่มหน้าโครงการ: เลือกโครงการไว้ให้
@@ -2097,6 +2100,7 @@ def procurement_new_form(request: Request, db: Session = Depends(get_db),
     if case not in PROC_CASES:
         return templates.TemplateResponse("procurement_choose.html", {
             "request": request, "cases": PROC_CASES, "project_q": pj.id if pj else None,
+            "activity_q": valid_activity(db, activity, pj.id if pj else None),
         })
     return templates.TemplateResponse("procurement_form.html", {
         "request": request, "p": None, "action": "/procurement/new",
@@ -2112,6 +2116,7 @@ def procurement_new_form(request: Request, db: Session = Depends(get_db),
         "case_limits": _case_limits(),
         **_form_lists(db),
         "prefill_project": pj.name if pj else "",
+        "prefill_activity": valid_activity(db, activity, pj.id if pj else None) or "",
     })
 
 
@@ -3203,13 +3208,15 @@ def project_detail(pid: int, request: Request, db: Session = Depends(get_db), er
     disb = (db.query(DisburseMemo).filter(DisburseMemo.project_id == pid)
             .order_by(DisburseMemo.id.desc()).all())
     next_seq = max([r.seq or 0 for r in p.revisions], default=0) + 1
+    from app.services.project_activity import activity_groups
+    groups = activity_groups(db, p, procs, disb)
     reports = (db.query(ProjectReport).filter_by(project_id=pid)
                .order_by(ProjectReport.date_start.is_(None), ProjectReport.date_start,
                          ProjectReport.id).all())
     return templates.TemplateResponse("project_detail.html", {
         "request": request, "school": get_school(db), "p": p, "reports": reports,
         **project_context(db,p),
-        "procs": procs, "disb": disb, "next_seq": next_seq, "err": err,
+        "procs": procs, "disb": disb, "next_seq": next_seq, "err": err, "groups": groups,
         "can_finance": _can_finance(request),
         **(_funding_suggest(p, project_context(db, p)) if grew else {}),
         "year_label": plan_year_label(get_school(db),p.plan_year),
@@ -3376,8 +3383,44 @@ def project_delete(pid: int, db: Session = Depends(get_db)):
     if p:
         from app.services.plan_funding import guard_project
         guard_project(db,p,deleting=True)
+        for a in db.query(ProjectActivity).filter_by(project_id=p.id).all():
+            _unlink_activity(db, a.id); db.delete(a)
         db.delete(p); db.commit()
     return RedirectResponse("/projects", status_code=303)
+
+
+# ---------------- กิจกรรมในโครงการ ----------------
+def _unlink_activity(db, aid):
+    db.query(Procurement).filter_by(activity_id=aid).update({"activity_id": None})
+    db.query(DisburseMemo).filter_by(activity_id=aid).update({"activity_id": None})
+
+
+@router.post("/projects/{pid}/activities")
+def project_activity_add(pid: int, db: Session = Depends(get_db), name: str = Form(""), budget: str = Form("")):
+    p = db.get(Project, pid)
+    if p and name.strip():
+        seq = max([a.seq or 0 for a in db.query(ProjectActivity).filter_by(project_id=pid)], default=0) + 1
+        db.add(ProjectActivity(project_id=pid, name=name.strip()[:200], budget=max(_to_float(budget, 0.0), 0), seq=seq))
+        db.commit()
+    return RedirectResponse(f"/projects/{pid}#activities", status_code=303)
+
+
+@router.post("/projects/{pid}/activities/{aid}/update")
+def project_activity_update(pid: int, aid: int, db: Session = Depends(get_db), name: str = Form(""), budget: str = Form("")):
+    a = db.get(ProjectActivity, aid)
+    if a and a.project_id == pid and name.strip():
+        a.name = name.strip()[:200]; a.budget = max(_to_float(budget, 0.0), 0)
+        db.commit()
+    return RedirectResponse(f"/projects/{pid}#activities", status_code=303)
+
+
+@router.post("/projects/{pid}/activities/{aid}/delete")
+def project_activity_delete(pid: int, aid: int, db: Session = Depends(get_db)):
+    """ลบกิจกรรม: เอกสารที่เคยผูกยังอยู่ในโครงการ แค่ย้ายไปกลุ่ม "ยังไม่ระบุกิจกรรม\""""
+    a = db.get(ProjectActivity, aid)
+    if a and a.project_id == pid:
+        _unlink_activity(db, aid); db.delete(a); db.commit()
+    return RedirectResponse(f"/projects/{pid}#activities", status_code=303)
 
 
 @router.get("/assets/export.xlsx")

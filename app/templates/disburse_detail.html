@@ -58,6 +58,9 @@
           {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if m.project_id==pj.id }}>{{ pj.name }} ปีแผน {{ pj.plan_year or "ไม่ระบุปี" }}{{ " (ปิดใช้งาน)" if not pj.active else "" }}</option>{% endfor %}
         </select>
       </div>
+      <div data-activity-wrap style="flex:1.4;"><label>กิจกรรม</label>
+        <select name="activity_id" data-activity-for="#projSel" data-selected="{{ m.activity_id or '' }}"><option value="">- ไม่ระบุกิจกรรม -</option></select>
+      </div>
     </div>
     <div id="srcLine" class="src-line" hidden></div>
     <div class="row" id="srcPick">
@@ -215,5 +218,7 @@
   #srcPick[hidden], #srcLine[hidden]{ display:none !important; }
 </style>
 <script src="/static/project_source.js?v=1"></script>
+<script>window.PJ_ACTS = {{ pj_acts|tojson }};</script>
+<script src="/static/project_activity.js?v=1"></script>
 <script>window.SUGGEST_NAMES = {{ names|tojson }};</script>
 {% endblock %}

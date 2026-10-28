@@ -28,7 +28,7 @@
 
 <div class="choose-grid">
   {% for key, c in cases.items() %}
-  <a href="/procurement/new?case={{ key }}{% if project_q %}&project={{ project_q }}{% endif %}" class="choose-card">
+  <a href="/procurement/new?case={{ key }}{% if project_q %}&project={{ project_q }}{% endif %}{% if activity_q %}&activity={{ activity_q }}{% endif %}" class="choose-card">
     <span class="cc-badge"><svg class="icon"><use href="#ic-file"/></svg></span>
     <span class="cc-title">{{ c.label }}</span>
     <span class="cc-desc">{{ c.desc }}</span>

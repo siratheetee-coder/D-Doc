@@ -67,6 +67,9 @@
         <input name="project_name" list="projects" value="{{ p.project_name if is_edit else prefill_project|default('') }}" placeholder="เลือกหรือพิมพ์">
         <datalist id="projects">{% for pj in projects %}<option value="{{ pj.name }}">{% endfor %}</datalist>
       </div>
+      <div data-activity-wrap style="flex:1.4;"><label>กิจกรรม</label>
+        <select name="activity_id" data-activity-for="[name=project_name]" data-selected="{{ p.activity_id if is_edit and p.activity_id else prefill_activity|default('') }}"><option value="">- ไม่ระบุกิจกรรม -</option></select>
+      </div>
       <div><label>ฝ่าย/งานที่ขอ</label>
         <input name="department" list="departments" value="{{ p.department if is_edit else prefill_dept|default('') }}" placeholder="เลือกหรือพิมพ์">
         <datalist id="departments">{% for d in departments %}<option value="{{ d.name }}">{% endfor %}</datalist>
@@ -643,4 +646,6 @@
     apply();
   })();
 </script>
+<script>window.PJ_ACTS = {{ pj_acts|tojson }};</script>
+<script src="/static/project_activity.js?v=1"></script>
 {% endblock %}

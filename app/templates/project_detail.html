@@ -156,34 +156,77 @@
   .pj-bmsg.is-up{ background:#eff6ff; color:#1e3a8a; }
   form:has(.pj-bmsg.is-bad) button[type=submit][disabled]{ opacity:.45; cursor:not-allowed; }
 </style>
-<div class="card">
-  <h2>เรื่องจัดซื้อและขอเบิกที่ผูกกับโครงการ (ยอดตามเอกสาร)</h2>
+<div class="card" id="activities">
+  <h2>กิจกรรมและการใช้เงินของโครงการ (ยอดตามเอกสาร)</h2>
   <div class="pj-use">
     <span>ใช้เงินโครงการนี้</span>
     <a class="btn sm" href="/procurement/new?project={{ p.id }}"><svg class="icon"><use href="#ic-file-plus"/></svg> จัดซื้อ/จัดจ้าง</a>
     <a class="btn sm soft" href="/finance/disburse?project={{ p.id }}"><svg class="icon"><use href="#ic-coins"/></svg> เบิกค่าใช้จ่ายอื่น</a>
-    <small>ค่าเดินทาง ค่าตอบแทนวิทยากร ค่าอาหาร หรือเงินส่วนที่ไม่ได้ซื้อของ กด "เบิกค่าใช้จ่ายอื่น" แล้วระบบหักจากโครงการนี้ให้</small>
+    <small>ค่าเดินทาง ค่าตอบแทนวิทยากร ค่าอาหาร หรือเงินส่วนที่ไม่ได้ซื้อของ กด "เบิกค่าใช้จ่ายอื่น" แล้วระบบหักจากโครงการนี้ให้ ถ้าโครงการมีหลายกิจกรรม เพิ่มกิจกรรมด้านล่างก่อน แล้วกดปุ่มในกิจกรรมนั้นแทน เอกสารจะอยู่รวมกลุ่มกัน</small>
   </div>
-  {% if procs %}
-  <h3 style="font-size:15px; margin:6px 0;">เรื่องจัดซื้อ/จัดจ้าง</h3>
-  <div class="table-wrap"><table><thead><tr><th>เลขที่</th><th>เรื่อง</th><th class="right">วงเงิน</th><th>สถานะ</th></tr></thead>
-    <tbody>{% for pr in procs %}
-      <tr><td><a href="/procurement/{{ pr.id }}">{{ pr.order_no or pr.memo_no or "-" }}</a></td>
-          <td>{{ pr.proc_type }}{{ pr.subject }}</td>
-          <td class="right">{{ "{:,.2f}".format(pr.total_amount or 0) }}</td>
-          <td>{{ pr.status }}{% if pr.paid_before_system %}<small style="display:block; color:#115e59;">จ่ายแล้ว (ก่อนเริ่มใช้ระบบ)</small>{% endif %}</td></tr>
-    {% endfor %}</tbody></table></div>
-  {% endif %}
-  {% if disb %}
-  <h3 style="font-size:15px; margin:14px 0 6px;">บันทึกขอเบิกจ่าย (ที่ไม่ผ่านเรื่องจัดซื้อ)</h3>
-  <div class="table-wrap"><table><thead><tr><th>เลขที่</th><th>เรื่อง</th><th class="right">จำนวนเงิน</th></tr></thead>
-    <tbody>{% for d in disb %}
-      <tr><td><a href="/finance/disburse/{{ d.id }}">{{ d.memo_no or "-" }}</a></td>
-          <td>{{ d.subject }}</td><td class="right">{{ "{:,.2f}".format(d.amount or 0) }}</td></tr>
-    {% endfor %}</tbody></table></div>
-  {% endif %}
-  {% if not procs and not disb %}<p class="muted">ยังไม่มีเรื่องจัดซื้อหรือขอเบิกจ่ายของโครงการนี้</p>{% endif %}
+  {% set act_total = groups|selectattr('a')|map(attribute='a.budget')|map('float')|sum %}
+  {% for g in groups %}
+  <div class="pj-act{{ ' is-loose' if not g.a }}">
+    <div class="pj-act-head">
+      {% if g.a %}
+      <div class="pj-act-name"><b>{{ g.a.name }}</b>
+        <small>{% if g.a.budget %}งบกิจกรรม {{ "{:,.2f}".format(g.a.budget) }} ใช้ไป {{ "{:,.2f}".format(g.used) }}
+          <span style="color:{{ '#dc2626' if g.left < 0 else '#16a34a' }};">เหลือ {{ "{:,.2f}".format(g.left) }}</span>
+          {% else %}ใช้ไป {{ "{:,.2f}".format(g.used) }} บาท{% endif %}</small></div>
+      <div class="pj-act-btns">
+        <a class="btn sm" href="/procurement/new?project={{ p.id }}&activity={{ g.a.id }}"><svg class="icon"><use href="#ic-file-plus"/></svg> จัดซื้อ/จัดจ้าง</a>
+        <a class="btn sm soft" href="/finance/disburse?project={{ p.id }}&activity={{ g.a.id }}"><svg class="icon"><use href="#ic-coins"/></svg> เบิกค่าใช้จ่ายอื่น</a>
+        <button type="button" class="btn sm gray" onclick="this.closest('.pj-act').querySelector('.pj-act-edit').hidden=false; this.hidden=true;">แก้ไข</button>
+      </div>
+      {% else %}
+      <div class="pj-act-name"><b>ยังไม่ระบุกิจกรรม</b><small>เปิดเอกสารแล้วเลือกกิจกรรมได้ ใช้ไป {{ "{:,.2f}".format(g.used) }} บาท</small></div>
+      {% endif %}
+    </div>
+    {% if g.a %}
+    <form class="pj-act-edit" method="post" action="/projects/{{ p.id }}/activities/{{ g.a.id }}/update" hidden>
+      <input name="name" value="{{ g.a.name }}" required aria-label="ชื่อกิจกรรม">
+      <input name="budget" inputmode="decimal" value="{{ '%.2f'|format(g.a.budget) if g.a.budget else '' }}" placeholder="งบกิจกรรม (ไม่ใส่ก็ได้)" aria-label="งบกิจกรรม">
+      <button class="btn sm" type="submit">บันทึก</button>
+      <button class="btn sm red" type="submit" formaction="/projects/{{ p.id }}/activities/{{ g.a.id }}/delete"
+        onclick="return confirm('ลบกิจกรรมนี้? เอกสารที่ผูกไว้ยังอยู่ในโครงการ ย้ายไปกลุ่ม ยังไม่ระบุกิจกรรม');">ลบกิจกรรม</button>
+    </form>
+    {% endif %}
+    {% if g.docs %}
+    <div class="table-wrap"><table class="stack-sm"><thead><tr><th>ประเภท</th><th>เลขที่</th><th>เรื่อง</th><th class="right">จำนวนเงิน</th><th>สถานะ</th></tr></thead>
+      <tbody>{% for d in g.docs %}
+        <tr><td data-label="ประเภท"><span class="pj-kind{{ ' is-other' if d.kind != 'จัดซื้อ/จัดจ้าง' }}">{{ d.kind }}</span></td>
+          <td data-label="เลขที่"><a href="{{ d.url }}">{{ d.no }}</a></td><td data-label="เรื่อง">{{ d.subject }}</td>
+          <td class="right" data-label="จำนวนเงิน">{{ "{:,.2f}".format(d.amount) }}</td><td data-label="สถานะ">{{ d.status }}</td></tr>
+      {% endfor %}</tbody></table></div>
+    {% elif g.a %}<p class="muted" style="margin:6px 0 0;">ยังไม่มีเอกสารในกิจกรรมนี้</p>{% endif %}
+  </div>
+  {% endfor %}
+  {% if not groups %}<p class="muted">ยังไม่มีกิจกรรม และยังไม่มีเรื่องจัดซื้อหรือขอเบิกจ่ายของโครงการนี้</p>{% endif %}
+  <form class="pj-act-add" method="post" action="/projects/{{ p.id }}/activities">
+    <b>เพิ่มกิจกรรม</b>
+    <input name="name" required placeholder="เช่น อบรมเชิงปฏิบัติการ" aria-label="ชื่อกิจกรรม">
+    <input name="budget" inputmode="decimal" placeholder="งบกิจกรรม (ไม่ใส่ก็ได้)" aria-label="งบกิจกรรม">
+    <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button>
+    {% if act_total > 0 %}<small>งบกิจกรรมรวม {{ "{:,.2f}".format(act_total) }} จากงบโครงการ {{ "{:,.2f}".format(b) }}{% if act_total > b %} <b style="color:#dc2626;">เกินงบโครงการ</b>{% endif %}</small>{% endif %}
+  </form>
 </div>
+<style>
+  .pj-act{ margin:0 0 14px; padding:14px; border-radius:16px; background:#f8fafc; }
+  .pj-act.is-loose{ background:#fffbeb; }
+  .pj-act-head{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; }
+  .pj-act-name{ display:flex; flex-direction:column; gap:2px; }
+  .pj-act-name b{ font-size:16px; }
+  .pj-act-name small{ color:var(--muted); font-size:13.5px; }
+  .pj-act-btns{ display:flex; flex-wrap:wrap; gap:6px; }
+  .pj-act .table-wrap{ margin-top:10px; }
+  .pj-act-edit, .pj-act-add{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px; }
+  .pj-act-edit[hidden]{ display:none; }
+  .pj-act-edit input, .pj-act-add input{ flex:1; min-width:160px; }
+  .pj-act-add{ padding:12px 14px; border-radius:14px; background:linear-gradient(135deg,#eff6ff,#f0fdf4); }
+  .pj-act-add small{ flex-basis:100%; color:var(--muted); }
+  .pj-kind{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:12.5px; background:#dbeafe; color:#1e40af; white-space:nowrap; }
+  .pj-kind.is-other{ background:#dcfce7; color:#166534; }
+</style>
 
 <div class="card">
   <h2><svg class="icon"><use href="#ic-edit"/></svg> แก้ไข/ลบโครงการ</h2>

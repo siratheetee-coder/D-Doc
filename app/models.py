@@ -126,6 +126,17 @@ class Project(Base):
                              cascade="all, delete-orphan", order_by="ProjectBudgetRevision.seq")
 
 
+class ProjectActivity(Base):
+    """กิจกรรมในโครงการ: เรื่องจัดซื้อและขอเบิกค่าอื่นของกิจกรรมเดียวกันผูกที่นี่ (งบกิจกรรมใส่หรือไม่ใส่ก็ได้)"""
+    __tablename__ = "project_activity"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("project.id"), nullable=False)
+    name = Column(String, nullable=False)
+    budget = Column(Float, default=0.0)
+    seq = Column(Integer, default=0)
+
+
 class PlanBudget(Base):
     __tablename__ = "plan_budget"
     id = Column(Integer, primary_key=True)
@@ -266,6 +277,7 @@ class Procurement(Base):
     subject = Column(String, nullable=False)       # ชื่อเรื่อง/รายการที่จัดซื้อ
     project_name = Column(String, default="")      # ชื่อโครงการ (ข้อความ - คงไว้เพื่อความเข้ากันได้)
     project_id = Column(Integer, ForeignKey("project.id"), nullable=True)  # ผูกกับโครงการในแผน
+    activity_id = Column(Integer, nullable=True)   # กิจกรรมในโครงการ (ProjectActivity)
     department = Column(String, default="")        # ฝ่าย/งานที่ขอ
     purpose = Column(Text, default="")             # เหตุผลความจำเป็น
 
@@ -964,6 +976,7 @@ class DisburseMemo(Base):
     procurement_id = Column(Integer, ForeignKey("procurement.id"), nullable=True)
     project_id = Column(Integer, ForeignKey("project.id"), nullable=True)  # ผูกกับโครงการในแผน
     travel_request_id = Column(Integer, nullable=True)  # เบิกค่าเดินทางจากใบขอไปราชการใบนี้
+    activity_id = Column(Integer, nullable=True)        # กิจกรรมในโครงการ (ProjectActivity)
     note = Column(Text, default="")                  # รายละเอียดเพิ่มเติม
     receiver_name = Column(String, default="")       # ชื่อผู้รับเงิน (คนที่มารับเงิน/เช็คจริง) ลงทะเบียนคุมหลักฐานขอเบิก
     register_note = Column(String, default="")       # หมายเหตุในทะเบียนคุมหลักฐานขอเบิก (แยกจากรายละเอียดเพิ่มเติม)
