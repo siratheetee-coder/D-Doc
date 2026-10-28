@@ -41,7 +41,7 @@ def _d(dt):
     return thai_date_short(dt) if dt else "-"
 
 
-def activity_groups(db, project, procs, memos) -> list:
+def activity_groups(db, project, procs, memos, loans=()) -> list:
     """[{a, docs, used, left}] ตามลำดับกิจกรรม + กลุ่มสุดท้าย a=None (ยังไม่ระบุกิจกรรม) ถ้ามีเอกสาร"""
     acts = activities(db, project.id)
     ids = {a.id for a in acts}
@@ -58,6 +58,14 @@ def activity_groups(db, project, procs, memos) -> list:
                "url": f"/finance/disburse/{m.id}", "status": m.status or "", "type": "memo", "id": m.id,
                "date": _d(m.date or m.created_at)}
         (docs[m.activity_id] if m.activity_id in ids else loose).append(row)
+    from app.services.budget import loan_parts
+    for ln in loans:                 # เงินยืม: ยอดที่นับ = ใบสำคัญที่ส่งใช้ + ยอดที่ยังไม่ส่งใช้
+        parts = loan_parts(ln)
+        row = {"kind": "เงินยืม", "no": ln.contract_no or "-", "subject": ln.purpose or f"เงินยืม {ln.borrower or ''}",
+               "amount": parts["used"], "url": f"/finance/loans?year={ln.fiscal_year}#loan-{ln.id}",
+               "status": "รอส่งใช้" if parts["open"] > 0 else "ส่งใช้แล้ว", "type": "loan", "id": ln.id,
+               "date": _d(ln.date), "loan_amount": float(ln.amount or 0), "cash_back": parts["cash"]}
+        (docs[ln.activity_id] if ln.activity_id in ids else loose).append(row)
     out = []
     for a in acts:
         used = round(sum(d["amount"] for d in docs[a.id]), 2)

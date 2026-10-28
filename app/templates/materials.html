@@ -7,6 +7,7 @@
     <span class="hero-title">วัสดุ</span>
     <div class="hero-meta">{{ items|length }} รายการ</div>
   </div>
+  {% if items %}<a class="btn sm" href="/materials-cards.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์บัญชีวัสดุทั้งหมด (Word)</a>{% endif %}
 </div>
 {% if request.query_params.get('added') %}<div class="alert">✔ เพิ่มวัสดุแล้ว {{ request.query_params.get('added') }} รายการ</div>{% endif %}
 
@@ -41,8 +42,14 @@
       <div style="flex:2;"><label>ชื่อวัสดุ *</label><input name="name" required placeholder="เช่น กระดาษ A4"></div>
       <div><label>หน่วยนับ</label><input name="unit" value="หน่วย" placeholder="เช่น รีม, กล่อง"></div>
       <div><label>จำนวน (ยอดยกมา)</label><input name="opening" type="number" step="0.01" min="0" value="0"></div>
-      <div><label>แจ้งว่าใกล้หมดที่จำนวน</label><input name="min_stock" type="number" step="0.01" min="0" value="0"></div>
-      <div><label>หมวด</label><input name="category" list="matcats" placeholder="เว้นว่าง = วัสดุทั่วไป"></div>
+      <div><label>หมวด (ประเภท)</label><input name="category" list="matcats" placeholder="เว้นว่าง = วัสดุทั่วไป"></div>
+    </div>
+    <div class="row">
+      <div style="flex:2;"><label>ขนาดหรือลักษณะ</label><input name="spec" placeholder="เช่น A4 80 แกรม"></div>
+      <div><label>รหัส</label><input name="code" placeholder="เช่น 01/03/3"></div>
+      <div style="flex:1.5;"><label>ที่เก็บ</label><input name="location" placeholder="เช่น ห้องพัสดุ"></div>
+      <div><label>จำนวนอย่างสูง</label><input name="max_stock" type="number" step="0.01" min="0" value="0"></div>
+      <div><label>จำนวนอย่างต่ำ (เตือนใกล้หมด)</label><input name="min_stock" type="number" step="0.01" min="0" value="0"></div>
     </div>
     <datalist id="matcats">{% for cname in categories %}<option value="{{ cname }}">{% endfor %}</datalist>
     <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่ม</button>
@@ -59,7 +66,8 @@
     <span class="muted">ไปกรอกจำนวนในหน้าเบิกวัสดุ</span>
   </form>
   {% for cname, rows in groups %}
-  <h3 style="margin:14px 0 6px; color:#1d4ed8;">{{ cname }} <span class="muted" style="font-weight:400; font-size:14px;">({{ rows|length }} รายการ)</span></h3>
+  <h3 style="margin:14px 0 6px; color:#1d4ed8; display:flex; flex-wrap:wrap; align-items:center; gap:10px;">{{ cname }} <span class="muted" style="font-weight:400; font-size:14px;">({{ rows|length }} รายการ)</span>
+    <a class="btn sm gray" style="margin-left:auto;" href="/materials-cards.docx?category={{ cname|urlencode }}"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์หมวดนี้</a></h3>
   <div class="table-wrap"><table>
     <thead><tr><th>เลือก</th><th>ชื่อวัสดุ</th><th>หน่วย</th><th class="right">คงเหลือ</th><th>สถานะ</th><th></th></tr></thead>
     <tbody>
@@ -76,7 +84,7 @@
           {% else %}<span class="muted">ปกติ</span>{% endif %}
         </td>
         <td class="right" style="white-space:nowrap;">
-          <a class="btn sm" href="/materials/{{ it.id }}"><svg class="icon"><use href="#ic-clipboard"/></svg> บัญชีรับ-จ่าย</a>
+          <a class="btn sm" href="/materials/{{ it.id }}"><svg class="icon"><use href="#ic-clipboard"/></svg> บัญชีวัสดุ</a>
           <form method="post" action="/materials/{{ it.id }}/delete" style="display:inline" onsubmit="return confirm('ลบวัสดุนี้และประวัติทั้งหมด?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
         </td>
       </tr>

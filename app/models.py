@@ -1007,6 +1007,8 @@ class MoneyLoan(Base):
     amount = Column(Float, default=0.0)              # รวมเงินที่ยืม
     within_days = Column(Integer, default=15)        # ส่งใช้ภายใน ... วัน นับแต่วันที่ได้รับเงิน
     account_id = Column(Integer, ForeignKey("finance_account.id"), nullable=True)
+    project_id = Column(Integer, nullable=True)      # โครงการที่ใช้เงินยืมนี้ (หักงบตามใบสำคัญที่ส่งใช้)
+    activity_id = Column(Integer, nullable=True)     # กิจกรรมในโครงการ
     note = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)
 
@@ -1333,7 +1335,11 @@ class MaterialItem(Base):
     unit = Column(String, default="หน่วย")         # หน่วยนับ
     category = Column(String, default="")          # หมวด (เช่น หนังสือเรียน) - ว่าง = วัสดุทั่วไป
     book_id = Column(Integer, ForeignKey("textbook.id"), nullable=True)  # ผูกกับทะเบียนหนังสือเรียน (กันลงบัญชีซ้ำ)
-    min_stock = Column(Float, default=0.0)         # จุดเตือนสั่งซื้อ (0 = ไม่เตือน)
+    min_stock = Column(Float, default=0.0)         # จำนวนอย่างต่ำ / จุดเตือนสั่งซื้อ (0 = ไม่เตือน)
+    max_stock = Column(Float, default=0.0)         # จำนวนอย่างสูง (0 = ไม่กำหนด)
+    spec = Column(String, default="")              # ขนาดหรือลักษณะ
+    code = Column(String, default="")              # รหัส (เช่น 01/03/3)
+    location = Column(String, default="")          # ที่เก็บ
     note = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)
 
@@ -1361,7 +1367,8 @@ class MaterialTxn(Base):
     kind = Column(String, default="in")            # in = รับเข้า, out = จ่ายออก
     qty = Column(Float, default=0.0)
     unit_price = Column(Float, default=0.0)        # ใช้กับรับเข้า
-    ref = Column(String, default="")               # อ้างอิงเอกสาร/เรื่องจัดซื้อ
+    ref = Column(String, default="")               # อ้างอิงเอกสาร/เรื่องจัดซื้อ (เลขที่เอกสาร)
+    party = Column(String, default="")             # รับจาก (ร้าน/ผู้บริจาค) / จ่ายให้ (ผู้รับของ)
     note = Column(String, default="")
     requisition_id = Column(Integer, ForeignKey("requisition.id"), nullable=True)
 

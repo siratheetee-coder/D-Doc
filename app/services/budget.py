@@ -4,6 +4,8 @@ budget.py - คำนวณงบโครงการ / ใช้จริง /
 
 - งบปัจจุบัน = ยอดของการปรับงบครั้งล่าสุด (ProjectBudgetRevision) ถ้าไม่มี = Project.budget
 - ใช้จริง = Σ เรื่องจัดซื้อที่ผูกโครงการ + Σ ขอเบิกจ่ายที่ผูกโครงการ (เฉพาะที่ไม่ได้อ้างเรื่องจัดซื้อ กันนับซ้ำ)
+- เงินยืมที่ผูกโครงการ: ใบสำคัญที่ส่งใช้ = ใช้จริง, ยอดที่ยังไม่ส่งใช้ = กันงบไว้ (รอจ่าย),
+  เงินสดที่ส่งคืน = ไม่นับ (กลับเป็นงบเหลือ) · รายการจ่ายเงินยืมในทะเบียนคุมเงินไม่นับซ้ำ
 """
 from app.thai_utils import current_fiscal_year, current_academic_year
 
@@ -81,8 +83,27 @@ def project_txn_spent(project, db=None) -> float:
     rows = (db.query(FinanceTxn)
             .filter(FinanceTxn.project_id == project.id,
                     FinanceTxn.kind == "out",
-                    FinanceTxn.disburse_id.is_(None)).all())
+                    FinanceTxn.disburse_id.is_(None),
+                    FinanceTxn.loan_id.is_(None)).all())
     return round(sum(t.amount or 0 for t in rows), 2)
+
+
+def loan_parts(loan) -> dict:
+    """แยกยอดเงินยืม 1 สัญญา: receipts = ใบสำคัญที่ส่งใช้, cash = เงินสดที่คืน, open = ยังไม่ส่งใช้"""
+    rets = getattr(loan, "returns", None) or []
+    receipts = round(sum(float(r.amount or 0) for r in rets if (r.kind or "") == "ใบสำคัญ"), 2)
+    cash = round(sum(float(r.amount or 0) for r in rets if (r.kind or "") != "ใบสำคัญ"), 2)
+    open_ = round(max(float(loan.amount or 0) - receipts - cash, 0), 2)
+    return {"receipts": receipts, "cash": cash, "open": open_, "used": round(receipts + open_, 2)}
+
+
+def project_loans(project, db=None) -> list:
+    from sqlalchemy.orm import object_session
+    from app.models import MoneyLoan
+    db = db or object_session(project)
+    if db is None:
+        return []
+    return db.query(MoneyLoan).filter(MoneyLoan.project_id == project.id).order_by(MoneyLoan.date, MoneyLoan.id).all()
 
 
 def project_remaining(project) -> float:
@@ -113,6 +134,8 @@ def project_money_summary(project):
         lunch = {l.finance_txn_id: l.procurement_id for l in db.query(LunchLedger)
                  if l.finance_txn_id and l.procurement_id}
         for t in db.query(FinanceTxn).filter_by(kind='out'):
+            if t.loan_id:                 # จ่ายเงินยืม: นับจากสัญญายืมด้านล่างแทน
+                continue
             m = memos.get(t.disburse_id)
             proc_id = (m.procurement_id if m else None) or lunch.get(t.id)
             if t.project_id:
@@ -133,6 +156,10 @@ def project_money_summary(project):
     pre_keys = {('proc', p.id) for p in (procs if db is not None else []) if getattr(p, 'paid_before_system', False)}
     paid_pre = sum(max(value - paid_by.get(key, 0), 0) for key, value in sources.items() if key in pre_keys)
     waiting = sum(max(value - paid_by.get(key, 0), 0) for key, value in sources.items() if key not in pre_keys)
+    for ln in (project_loans(project, db) if db is not None else []):
+        parts = loan_parts(ln)
+        paid += parts["receipts"]
+        waiting += parts["open"]
     used = round(before + paid + waiting + paid_pre, 2)
     return dict(paid=round(paid,2), waiting=round(waiting,2), before=round(before + paid_pre, 2),
                 paid_pre=round(paid_pre, 2), spent_before=round(before, 2),

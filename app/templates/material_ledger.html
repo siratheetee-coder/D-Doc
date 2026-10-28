@@ -4,14 +4,46 @@
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h1 style="margin:0;">{{ item.name }} <span class="muted" style="font-size:16px;">({{ item.unit }})</span></h1>
-    <div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn sm" href="/materials/{{ item.id }}/card.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์บัญชีวัสดุ (Word)</a>
       <a class="btn gray sm" href="/materials"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับบัญชีวัสดุ</a>
     </div>
   </div>
+  {% if request.query_params.get('over') %}<p class="ml-warn">รับเข้าแล้วคงเหลือ {{ request.query_params.get('over') }} {{ item.unit }} เกินจำนวนอย่างสูง ({{ "%g"|format(item.max_stock) }}) ตรวจว่าจำนวนถูกต้อง</p>{% endif %}
   <div class="stat" style="margin-top:10px;">
-    <div class="box"><div><div class="lab">คงเหลือปัจจุบัน</div><div class="num">{{ "%g"|format(balance) }} {{ item.unit }}</div></div>
+    <div class="box"><div><div class="lab">คงเหลือปัจจุบัน</div><div class="num">{{ "%g"|format(balance) }} {{ item.unit }}</div>
+      {% if item.min_stock and balance <= item.min_stock %}<div class="ml-low">ถึงจำนวนอย่างต่ำ ({{ "%g"|format(item.min_stock) }}) ควรจัดซื้อเพิ่ม</div>
+      {% elif item.max_stock and balance > item.max_stock %}<div class="ml-low">เกินจำนวนอย่างสูง ({{ "%g"|format(item.max_stock) }})</div>{% endif %}</div>
       <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-package"/></svg></span></div>
   </div>
+
+  <dl class="ml-head">
+    <div><dt>ประเภท</dt><dd>{{ item.category or 'วัสดุทั่วไป' }}</dd></div>
+    <div><dt>ขนาดหรือลักษณะ</dt><dd>{{ item.spec or '-' }}</dd></div>
+    <div><dt>รหัส</dt><dd>{{ item.code or '-' }}</dd></div>
+    <div><dt>ที่เก็บ</dt><dd>{{ item.location or '-' }}</dd></div>
+    <div><dt>จำนวนอย่างสูง</dt><dd>{{ "%g"|format(item.max_stock) if item.max_stock else '-' }}</dd></div>
+    <div><dt>จำนวนอย่างต่ำ</dt><dd>{{ "%g"|format(item.min_stock) if item.min_stock else '-' }}</dd></div>
+  </dl>
+  <button type="button" class="btn sm gray" onclick="var f=document.getElementById('mlEdit'); f.hidden=!f.hidden;"><svg class="icon"><use href="#ic-edit"/></svg> แก้ไขข้อมูลวัสดุ</button>
+  <form id="mlEdit" method="post" action="/materials/{{ item.id }}/update" hidden style="margin-top:12px;">
+    <div class="row">
+      <div style="flex:2;"><label>ชื่อหรือชนิดวัสดุ *</label><input name="name" value="{{ item.name }}" required></div>
+      <div><label>หน่วยที่นับ</label><input name="unit" value="{{ item.unit }}"></div>
+      <div><label>ประเภท</label><input name="category" value="{{ item.category or '' }}" placeholder="เช่น วัสดุสำนักงาน"></div>
+    </div>
+    <div class="row">
+      <div style="flex:2;"><label>ขนาดหรือลักษณะ</label><input name="spec" value="{{ item.spec or '' }}" placeholder="เช่น A4 80 แกรม"></div>
+      <div><label>รหัส</label><input name="code" value="{{ item.code or '' }}" placeholder="เช่น 01/03/3"></div>
+      <div style="flex:1.5;"><label>ที่เก็บ</label><input name="location" value="{{ item.location or '' }}" placeholder="เช่น ห้องพัสดุ"></div>
+    </div>
+    <div class="row">
+      <div><label>จำนวนอย่างสูง</label><input name="max_stock" type="number" step="0.01" min="0" value="{{ '%g'|format(item.max_stock or 0) }}"></div>
+      <div><label>จำนวนอย่างต่ำ</label><input name="min_stock" type="number" step="0.01" min="0" value="{{ '%g'|format(item.min_stock or 0) }}"></div>
+      <div style="flex:2;"></div>
+    </div>
+    <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
+  </form>
 </div>
 
 <div class="card">
@@ -19,36 +51,42 @@
   <form method="post" action="/materials/{{ item.id }}/txn">
     <div class="row">
       <div><label>ประเภท</label>
-        <select name="kind"><option value="in">รับเข้า (+)</option><option value="out">จ่ายออก (-)</option></select>
+        <select name="kind" id="mlKind"><option value="in">รับเข้า (+)</option><option value="out">จ่ายออก (-)</option></select>
       </div>
-      <div><label>จำนวน</label><input name="qty" type="number" step="0.01" min="0" value="0" required></div>
-      <div><label>ราคา/หน่วย (รับเข้า)</label><input name="unit_price" type="number" step="0.01" min="0" value="0"></div>
       <div><label>วันที่</label><input name="date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div style="flex:2;"><label id="mlPartyLab">รับจาก (ร้าน/ผู้บริจาค)</label><input name="party" id="mlParty" list="mlPeople" placeholder="เช่น ร้านเชียงรายไอทีดี"></div>
+      <div><label>เลขที่เอกสาร</label><input name="ref" placeholder="เช่น รร53/2562"></div>
     </div>
     <div class="row">
-      <div style="flex:2;"><label>อ้างอิง</label><input name="ref" placeholder="เช่น เลขที่เรื่องจัดซื้อ / ใบเบิก"></div>
+      <div><label>จำนวน</label><input name="qty" type="number" step="0.01" min="0" value="0" required></div>
+      <div><label>ราคาต่อหน่วย</label><input name="unit_price" type="number" step="0.01" min="0" value="{{ '%g'|format(last_price) if last_price else '0' }}"></div>
       <div style="flex:2;"><label>หมายเหตุ</label><input name="note"></div>
     </div>
+    <datalist id="mlPeople">{% for n in people %}<option value="{{ n }}">{% endfor %}</datalist>
+    <p class="muted" style="font-size:13px; margin:8px 0 0;">รับจากการจัดซื้อให้ใส่ชื่อร้านที่ส่งของ จ่ายให้ใส่ชื่อผู้รับของให้ชัดเจน</p>
     <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
   </form>
 </div>
 
 <div class="card">
-  <h2>ประวัติรับ-จ่าย-คงเหลือ</h2>
+  <h2>บัญชีรับ-จ่าย-คงเหลือ</h2>
   {% if rows %}
-  <div class="table-wrap"><table>
-    <thead><tr><th>วันที่</th><th>รายการ</th><th>อ้างอิง</th>
-        <th class="right">รับ</th><th class="right">จ่าย</th><th class="right">คงเหลือ</th><th></th></tr></thead>
+  <div class="table-wrap"><table class="ml-tbl stack-sm">
+    <thead><tr><th>วัน เดือน ปี</th><th>รับจาก / จ่ายให้</th><th>เลขที่เอกสาร</th><th class="right">ราคาต่อหน่วย</th>
+        <th class="right">รับ</th><th class="right">จ่าย</th><th class="right">คงเหลือ</th><th>หมายเหตุ</th><th></th></tr></thead>
     <tbody>
       {% for r in rows %}
       <tr>
-        <td>{{ thai_date(r.t.date) }}</td>
-        <td>{% if r.t.kind=="in" %}<span style="color:#16a34a;">รับเข้า</span>{% else %}<span style="color:#dc2626;">จ่ายออก</span>{% endif %}{% if r.t.note %} {{ r.t.note }}{% endif %}</td>
-        <td>{{ r.t.ref or "-" }}</td>
-        <td class="right">{{ "%g"|format(r.t.qty) if r.t.kind=="in" else "" }}</td>
-        <td class="right">{{ "%g"|format(r.t.qty) if r.t.kind=="out" else "" }}</td>
-        <td class="right"><b>{{ "%g"|format(r.balance) }}</b></td>
-        <td class="right"><form method="post" action="/materials/txn/{{ r.t.id }}/delete" style="display:inline" onsubmit="return confirm('ลบรายการนี้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form></td>
+        <td data-label="วันที่" class="nowrap">{{ thai_date_short(r.t.date) if r.t.date else '-' }}</td>
+        <td data-label="รับจาก / จ่ายให้">{% if r.opening %}ยอดยกมา{% else %}
+          <span class="ml-kind {{ 'is-in' if r.t.kind == 'in' else 'is-out' }}">{{ 'รับจาก' if r.t.kind == 'in' else 'จ่ายให้' }}</span> {{ r.t.party or '-' }}{% endif %}</td>
+        <td data-label="เลขที่เอกสาร">{{ r.t.ref or '-' }}</td>
+        <td data-label="ราคาต่อหน่วย" class="right">{{ "{:,.2f}".format(r.price) if r.price else '-' }}</td>
+        <td data-label="รับ" class="right">{{ "%g"|format(r.t.qty) if r.t.kind == "in" else "" }}</td>
+        <td data-label="จ่าย" class="right">{{ "%g"|format(r.t.qty) if r.t.kind == "out" else "" }}</td>
+        <td data-label="คงเหลือ" class="right"><b>{{ "%g"|format(r.balance) }}</b></td>
+        <td data-label="หมายเหตุ">{{ '' if r.opening else (r.t.note or '') }}</td>
+        <td class="right"><form method="post" action="/materials/txn/{{ r.t.id }}/delete" style="display:inline" onsubmit="return confirm('ลบรายการนี้?')"><button class="btn red sm" aria-label="ลบ"><svg class="icon"><use href="#ic-trash"/></svg></button></form></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -57,7 +95,26 @@
   <p class="muted">ยังไม่มีการเคลื่อนไหว</p>
   {% endif %}
 </div>
-
+<style>
+  .ml-head{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px 16px; margin:14px 0 12px; }
+  .ml-head dt{ font-size:13px; color:var(--muted); }
+  .ml-head dd{ margin:2px 0 0; font-weight:600; }
+  .ml-low{ margin-top:4px; font-size:13px; color:#b91c1c; font-weight:600; }
+  .ml-warn{ margin:10px 0 0; padding:8px 12px; border-radius:10px; background:#fff7ed; color:#9a3412; }
+  .ml-kind{ display:inline-block; font-size:12px; font-weight:700; padding:2px 8px; border-radius:99px; }
+  .ml-kind.is-in{ background:#dcfce7; color:#15803d; }
+  .ml-kind.is-out{ background:#fee2e2; color:#b91c1c; }
+</style>
+<script>
+  (function(){
+    var k = document.getElementById('mlKind'), lab = document.getElementById('mlPartyLab'), inp = document.getElementById('mlParty');
+    k.addEventListener('change', function(){
+      var out = k.value === 'out';
+      lab.textContent = out ? 'จ่ายให้ (ผู้รับของ)' : 'รับจาก (ร้าน/ผู้บริจาค)';
+      inp.placeholder = out ? 'เช่น ครูสมศรี ใจดี' : 'เช่น ร้านเชียงรายไอทีดี';
+    });
+  })();
+</script>
 <script>
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){

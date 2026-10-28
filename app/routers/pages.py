@@ -3224,7 +3224,8 @@ def project_detail(pid: int, request: Request, db: Session = Depends(get_db), er
             .order_by(DisburseMemo.id.desc()).all())
     next_seq = max([r.seq or 0 for r in p.revisions], default=0) + 1
     from app.services.project_activity import activity_groups
-    groups = activity_groups(db, p, procs, disb)
+    from app.services.budget import project_loans
+    groups = activity_groups(db, p, procs, disb, project_loans(p, db))
     reports = (db.query(ProjectReport).filter_by(project_id=pid)
                .order_by(ProjectReport.date_start.is_(None), ProjectReport.date_start,
                          ProjectReport.id).all())
@@ -3433,7 +3434,8 @@ def project_activity_update(pid: int, aid: int, db: Session = Depends(get_db), n
 def project_activity_assign(pid: int, db: Session = Depends(get_db), kind: str = Form(""),
                             doc_id: str = Form(""), activity_id: str = Form("")):
     """ย้ายเรื่องจัดซื้อ/บันทึกขอเบิกของโครงการนี้เข้ากิจกรรม (จากกล่อง รอเลือกกิจกรรม หน้าโครงการ)"""
-    model = Procurement if kind == "proc" else DisburseMemo if kind == "memo" else None
+    from app.models import MoneyLoan
+    model = {"proc": Procurement, "memo": DisburseMemo, "loan": MoneyLoan}.get(kind)
     doc = db.get(model, _to_int(doc_id, 0)) if model else None
     if doc and doc.project_id == pid:
         doc.activity_id = valid_activity(db, activity_id, pid)
@@ -4161,10 +4163,13 @@ def materials_page(request: Request, db: Session = Depends(get_db)):
 @router.post("/materials")
 def material_add(db: Session = Depends(get_db), name: str = Form(...),
                  unit: str = Form("หน่วย"), min_stock: str = Form("0"),
-                 opening: str = Form("0"), category: str = Form("")):
+                 opening: str = Form("0"), category: str = Form(""), spec: str = Form(""),
+                 code: str = Form(""), location: str = Form(""), max_stock: str = Form("0")):
     if name.strip():
         it = MaterialItem(name=name.strip(), unit=unit.strip() or "หน่วย",
-                          category=category.strip(), min_stock=_to_float(min_stock, 0.0))
+                          category=category.strip(), min_stock=_to_float(min_stock, 0.0),
+                          spec=spec.strip(), code=code.strip(), location=location.strip(),
+                          max_stock=max(_to_float(max_stock, 0.0), 0))
         db.add(it); db.flush()
         op = _to_float(opening, 0.0)
         if op > 0:                       # มียอดเริ่มต้น -> ลงรับเป็น "ยอดยกมา"
@@ -4211,35 +4216,72 @@ def material_ledger(item_id: int, request: Request, db: Session = Depends(get_db
     it = db.get(MaterialItem, item_id)
     if not it:
         return RedirectResponse("/materials", status_code=303)
-    # คำนวณยอดคงเหลือสะสมแต่ละแถว (เรียงตามวันที่/ไอดี)
-    rows = []
-    bal = 0.0
-    for t in sorted(it.txns, key=lambda x: (x.date or datetime.min, x.id)):
-        if t.kind == "in":
-            bal += (t.qty or 0)
-        else:
-            bal -= (t.qty or 0)
-        rows.append({"t": t, "balance": bal})
+    from app.services.material_card import ledger_rows
+    rows, bal, last_price = ledger_rows(it)
+    # ชื่อที่เคยใช้ในช่องรับจาก/จ่ายให้ + ผู้ขาย + บุคลากร ไว้เลือก
+    people = sorted({n for (n,) in db.query(MaterialTxn.party).distinct() if n}
+                    | {v.name for v in db.query(Vendor).all() if v.name}
+                    | {p.name for p in db.query(Person).all() if p.name})
     return templates.TemplateResponse("material_ledger.html", {
         "request": request, "item": it, "rows": rows, "balance": bal,
+        "last_price": last_price, "people": people,
     })
+
+
+@router.post("/materials/{item_id}/update")
+def material_update(item_id: int, db: Session = Depends(get_db), name: str = Form(""), unit: str = Form(""),
+                    category: str = Form(""), spec: str = Form(""), code: str = Form(""), location: str = Form(""),
+                    max_stock: str = Form("0"), min_stock: str = Form("0")):
+    """แก้หัวบัญชีวัสดุ (ช่องตามแบบบัญชีวัสดุ)"""
+    it = db.get(MaterialItem, item_id)
+    if it and name.strip():
+        it.name, it.unit = name.strip(), unit.strip() or "หน่วย"
+        it.category, it.spec, it.code, it.location = category.strip(), spec.strip(), code.strip(), location.strip()
+        it.max_stock, it.min_stock = max(_to_float(max_stock, 0.0), 0), max(_to_float(min_stock, 0.0), 0)
+        db.commit()
+    return RedirectResponse(f"/materials/{item_id}", status_code=303)
+
+
+@router.get("/materials/{item_id}/card.docx")
+def material_card_docx(item_id: int, db: Session = Depends(get_db)):
+    from app.services.material_card import render_material_cards
+    it = db.get(MaterialItem, item_id)
+    if not it:
+        return RedirectResponse("/materials", status_code=303)
+    return serve_generated(render_material_cards(get_school(db), [it]), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.get("/materials-cards.docx")
+def material_cards_docx(db: Session = Depends(get_db), category: str = ""):
+    """พิมพ์บัญชีวัสดุรวมเล่ม (ทุกรายการ หรือเฉพาะหมวด) รายการละแผ่น"""
+    from app.services.material_card import render_material_cards
+    items = db.query(MaterialItem).order_by(MaterialItem.category, MaterialItem.name).all()
+    if category:
+        items = [i for i in items if ((i.category or "").strip() or "วัสดุทั่วไป") == category]
+    if not items:
+        return RedirectResponse("/materials", status_code=303)
+    return serve_generated(render_material_cards(get_school(db), items), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 @router.post("/materials/{item_id}/txn")
 def material_txn_add(item_id: int, db: Session = Depends(get_db),
                      kind: str = Form("in"), qty: str = Form("0"),
                      unit_price: str = Form("0"), date: str = Form(""),
-                     ref: str = Form(""), note: str = Form("")):
+                     ref: str = Form(""), note: str = Form(""), party: str = Form("")):
     it = db.get(MaterialItem, item_id)
+    over = ""
     if it:
         db.add(MaterialTxn(
             material_id=it.id, kind=("out" if kind == "out" else "in"),
             qty=_to_float(qty, 0.0), unit_price=_to_float(unit_price, 0.0),
             date=parse_be_date(date) or datetime.now(),
-            ref=ref.strip(), note=note.strip(),
+            ref=ref.strip(), note=note.strip(), party=party.strip()[:200],
         ))
         db.commit()
-    return RedirectResponse(f"/materials/{item_id}", status_code=303)
+        bal = material_balance(it)
+        if kind != "out" and it.max_stock and bal > it.max_stock:
+            over = f"?over={bal:g}"
+    return RedirectResponse(f"/materials/{item_id}{over}", status_code=303)
 
 
 @router.post("/materials/txn/{txn_id}/delete")
@@ -4333,11 +4375,13 @@ def requisition_issue(req_id: int, db: Session = Depends(get_db)):
     if req and req.status != "จ่ายแล้ว":
         for it in req.items:
             if it.material_id:
+                from app.services.material_card import last_in_price
                 db.add(MaterialTxn(
                     material_id=it.material_id, kind="out", qty=it.qty or 0,
                     date=req.date or datetime.now(),
                     ref=f"ใบเบิก {req.req_no or req.id}", requisition_id=req.id,
-                    note=f"เบิกโดย {req.requester}",
+                    party=req.requester or "",
+                    unit_price=last_in_price(db.get(MaterialItem, it.material_id)),
                 ))
         req.status = "จ่ายแล้ว"
         db.commit()
@@ -4459,8 +4503,9 @@ async def to_register_save(proc_id: int, request: Request, db: Session = Depends
             db.add(MaterialTxn(
                 material_id=m.id, kind="in", qty=it.quantity or 0,
                 unit_price=it.unit_price or 0,
-                date=proc.order_date or proc.request_date or datetime.now(),
-                ref=f"เรื่องจัดซื้อ {proc.memo_no or proc.id}",
+                date=proc.inspect_date or proc.order_date or proc.request_date or datetime.now(),
+                ref=proc.inspect_memo_no or proc.order_no or proc.memo_no or f"เรื่องจัดซื้อ {proc.id}",
+                party=(proc.vendor.name if proc.vendor else ""),
             ))
             n_material += 1
     db.commit()

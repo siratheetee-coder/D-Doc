@@ -160,8 +160,8 @@
   {% set acts = groups|selectattr('a')|list %}
   {% set loose = groups|rejectattr('a')|first %}
   {% set act_total = acts|map(attribute='a.budget')|map('float')|sum %}
-  {% macro kind_tag(d) %}<span class="pa-tag {{ 'is-proc' if d.type == 'proc' else 'is-memo' }}">{{ 'จัดซื้อ/จัดจ้าง' if d.type == 'proc' else 'เบิกค่าอื่น' }}</span>{% endmacro %}
-  {% macro status_pill(st) %}<span class="pa-st {{ 'is-done' if st in ('จ่ายแล้ว', 'เสร็จสิ้น', 'ตรวจรับแล้ว') else 'is-draft' if st == 'ร่าง' else 'is-wait' }}"><i></i>{{ st or '-' }}</span>{% endmacro %}
+  {% macro kind_tag(d) %}<span class="pa-tag is-{{ d.type }}">{{ {'proc': 'จัดซื้อ/จัดจ้าง', 'memo': 'เบิกค่าอื่น', 'loan': 'เงินยืม'}[d.type] }}</span>{% endmacro %}
+  {% macro status_pill(st) %}<span class="pa-st {{ 'is-done' if st in ('จ่ายแล้ว', 'เสร็จสิ้น', 'ตรวจรับแล้ว', 'ส่งใช้แล้ว') else 'is-draft' if st == 'ร่าง' else 'is-wait' }}"><i></i>{{ st or '-' }}</span>{% endmacro %}
   {% macro move_select(d, cur) %}
     <form method="post" action="/projects/{{ p.id }}/assign" class="pa-move">
       <input type="hidden" name="kind" value="{{ d.type }}"><input type="hidden" name="doc_id" value="{{ d.id }}">
@@ -192,6 +192,7 @@
     <span>ยังไม่มีกิจกรรม ใช้เงินโครงการได้เลย</span>
     <a class="btn sm" href="/procurement/new?project={{ p.id }}"><svg class="icon"><use href="#ic-plus"/></svg> จัดซื้อ/จัดจ้าง</a>
     <a class="btn sm pa-ghost" href="/finance/disburse?project={{ p.id }}"><svg class="icon"><use href="#ic-plus"/></svg> เบิกค่าอื่น</a>
+    <a class="btn sm pa-ghost is-loan" href="/finance/loans?project={{ p.id }}#new"><svg class="icon"><use href="#ic-plus"/></svg> ยืมเงิน</a>
   </div>
   {% endif %}
 
@@ -236,6 +237,7 @@
       <span class="pa-acts">
         <a class="btn sm" href="/procurement/new?project={{ p.id }}&activity={{ a.id }}"><svg class="icon"><use href="#ic-plus"/></svg> จัดซื้อ/จัดจ้าง</a>
         <a class="btn sm pa-ghost" href="/finance/disburse?project={{ p.id }}&activity={{ a.id }}"><svg class="icon"><use href="#ic-plus"/></svg> เบิกค่าอื่น</a>
+        <a class="btn sm pa-ghost is-loan" href="/finance/loans?project={{ p.id }}&activity={{ a.id }}#new"><svg class="icon"><use href="#ic-plus"/></svg> ยืมเงิน</a>
       </span>
     </div>
     {% if g.docs %}
@@ -245,7 +247,7 @@
         <tr draggable="true" data-kind="{{ d.type }}" data-id="{{ d.id }}">
           <td class="pa-gripcol"><span class="pa-grip" aria-hidden="true">⋮⋮</span></td>
           <td data-label="วันที่" class="pa-date">{{ d.date }}</td>
-          <td data-label="รายการ"><a href="{{ d.url }}">{{ d.subject }}</a></td>
+          <td data-label="รายการ"><a href="{{ d.url }}">{{ d.subject }}</a>{% if d.type == 'loan' %}<small class="pa-loan">ยืม {{ "{:,.2f}".format(d.loan_amount) }}{% if d.cash_back %} คืนเงินสด {{ "{:,.2f}".format(d.cash_back) }}{% endif %}</small>{% endif %}</td>
           <td data-label="ประเภท">{{ kind_tag(d) }}</td>
           <td data-label="จำนวนเงิน" class="right"><b>{{ "{:,.2f}".format(d.amount) }}</b></td>
           <td data-label="สถานะ">{{ status_pill(d.status) }}{% if d.paid_pre %}<small class="pa-pre">จ่ายแล้ว (ก่อนเริ่มใช้ระบบ)</small>{% endif %}</td>
@@ -274,7 +276,7 @@
         <tr draggable="true" data-kind="{{ d.type }}" data-id="{{ d.id }}">
           <td class="pa-gripcol"><span class="pa-grip" aria-hidden="true">⋮⋮</span></td>
           <td data-label="วันที่" class="pa-date">{{ d.date }}</td>
-          <td data-label="รายการ"><a href="{{ d.url }}">{{ d.subject }}</a></td>
+          <td data-label="รายการ"><a href="{{ d.url }}">{{ d.subject }}</a>{% if d.type == 'loan' %}<small class="pa-loan">ยืม {{ "{:,.2f}".format(d.loan_amount) }}{% if d.cash_back %} คืนเงินสด {{ "{:,.2f}".format(d.cash_back) }}{% endif %}</small>{% endif %}</td>
           <td data-label="ประเภท">{{ kind_tag(d) }}</td>
           <td data-label="จำนวนเงิน" class="right"><b>{{ "{:,.2f}".format(d.amount) }}</b></td>
           <td data-label="จัดเข้ากิจกรรม">{{ move_select(d, None) }}</td>
@@ -292,7 +294,7 @@
       <thead><tr><th>วันที่</th><th>รายการ</th><th>ประเภท</th><th class="right">จำนวนเงิน (บาท)</th><th>สถานะ</th></tr></thead>
       <tbody>{% for d in loose.docs %}
         <tr><td data-label="วันที่" class="pa-date">{{ d.date }}</td>
-          <td data-label="รายการ"><a href="{{ d.url }}">{{ d.subject }}</a></td>
+          <td data-label="รายการ"><a href="{{ d.url }}">{{ d.subject }}</a>{% if d.type == 'loan' %}<small class="pa-loan">ยืม {{ "{:,.2f}".format(d.loan_amount) }}{% if d.cash_back %} คืนเงินสด {{ "{:,.2f}".format(d.cash_back) }}{% endif %}</small>{% endif %}</td>
           <td data-label="ประเภท">{{ kind_tag(d) }}</td>
           <td data-label="จำนวนเงิน" class="right"><b>{{ "{:,.2f}".format(d.amount) }}</b></td>
           <td data-label="สถานะ">{{ status_pill(d.status) }}{% if d.paid_pre %}<small class="pa-pre">จ่ายแล้ว (ก่อนเริ่มใช้ระบบ)</small>{% endif %}</td></tr>
@@ -363,6 +365,9 @@
   .pa-tag{ display:inline-block; font-size:12.5px; font-weight:700; padding:3px 10px; border-radius:99px; white-space:nowrap; }
   .pa-tag.is-proc{ background:#dbeafe; color:#1d4ed8; }
   .pa-tag.is-memo{ background:#dcfce7; color:#15803d; }
+  .pa-tag.is-loan{ background:#ede9fe; color:#6d28d9; }
+  .btn.pa-ghost.is-loan{ color:#6d28d9; box-shadow:inset 0 0 0 1.5px #c4b5fd; }
+  .pa-loan{ display:block; margin-top:2px; font-size:12px; color:var(--muted); font-weight:400; }
   .pa-st{ display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; padding:3px 10px; border-radius:99px; white-space:nowrap; }
   .pa-st i{ width:7px; height:7px; border-radius:50%; background:currentColor; }
   .pa-st.is-done{ background:#dcfce7; color:#15803d; } .pa-st.is-wait{ background:#fef3c7; color:#b45309; } .pa-st.is-draft{ background:#f1f5f9; color:#64748b; }

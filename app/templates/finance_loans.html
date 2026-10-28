@@ -15,7 +15,7 @@
   </form>
 </div>
 
-<div class="card">
+<div class="card" id="new">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> ทำสัญญายืมเงินใหม่</h2>
   <p class="muted">บันทึกสัญญายังไม่ตัดเงิน เมื่อจ่ายเงินจริงแล้วให้กด “จ่ายเงินยืม / รับคืนเงินสด” หรือเชื่อมรายการที่ลงจ่ายไว้แล้ว</p>
   <form method="post" action="/finance/loans">
@@ -42,6 +42,16 @@
     </div>
     <label>เพื่อเป็นค่าใช้จ่ายในการ</label>
     <input name="purpose" placeholder="เช่น ไปราชการอบรมครูผู้สอน ระหว่างวันที่ ...">
+    <div class="row" style="margin-top:10px;">
+      <div style="flex:2;"><label>ใช้ในโครงการ</label>
+        <select name="project_id" id="loanProj" data-combo>
+          <option value="">- ไม่ผูกโครงการ -</option>
+          {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if pre_project == pj.id }}>{{ pj.name }} ปีแผน {{ pj.plan_year or "ไม่ระบุปี" }}</option>{% endfor %}
+        </select></div>
+      <div data-activity-wrap style="flex:1.4;"><label>กิจกรรม</label>
+        <select name="activity_id" data-activity-for="#loanProj" data-selected="{{ pre_activity }}"><option value="">- ไม่ระบุกิจกรรม -</option></select></div>
+    </div>
+    <p class="muted" style="font-size:13px; margin:6px 0 0;">งบโครงการกันไว้เต็มยอดที่ยืม พอส่งใช้แล้วนับเฉพาะใบสำคัญ เงินสดที่คืนกลับเป็นงบเหลือของโครงการ</p>
     <br><br><button class="btn green" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกสัญญายืมเงิน</button>
   </form>
   <datalist id="persons">{% for p in persons %}<option value="{{ p.name }}">{{ p.position }}</option>{% endfor %}</datalist>
@@ -62,7 +72,8 @@
         <td data-label="เลขที่"><b>{{ r.o.contract_no or '-' }}</b></td>
         <td data-label="วันที่ยืม">{{ thai_date(r.o.date) if r.o.date else '-' }}</td>
         <td data-label="ผู้ยืม">{{ r.o.borrower }}</td>
-        <td data-label="วัตถุประสงค์">{{ r.o.purpose }}</td>
+        <td data-label="วัตถุประสงค์">{{ r.o.purpose }}
+          {% if r.project %}<small class="loan-pj"><a href="/projects/{{ r.project.id }}#activities">{{ r.project.name }}</a>{% if r.activity %} กิจกรรม {{ r.activity.name }}{% endif %}</small>{% endif %}</td>
         <td data-label="ยืม" class="right">{{ "{:,.2f}".format(r.o.amount or 0) }}</td>
         <td data-label="ครบกำหนด">{{ thai_date(r.o.due_date) if r.o.due_date else '-' }}</td>
         <td data-label="ส่งใช้แล้ว" class="right">{{ "{:,.2f}".format(r.paid) }}</td>
@@ -91,6 +102,16 @@
             </tbody>
           </table></div>
           {% endif %}
+          <form method="post" action="/finance/loans/{{ r.o.id }}/project" class="row loan-pjform" style="align-items:flex-end; margin-top:8px;">
+            <div style="flex:2;"><label>ใช้ในโครงการ</label>
+              <select name="project_id" id="loanProj{{ r.o.id }}">
+                <option value="">- ไม่ผูกโครงการ -</option>
+                {% for pj in projects %}<option value="{{ pj.id }}" {{ 'selected' if r.o.project_id == pj.id }}>{{ pj.name }} ปีแผน {{ pj.plan_year or "ไม่ระบุปี" }}</option>{% endfor %}
+              </select></div>
+            <div data-activity-wrap style="flex:1.4;"><label>กิจกรรม</label>
+              <select name="activity_id" data-activity-for="#loanProj{{ r.o.id }}" data-selected="{{ r.o.activity_id or '' }}"><option value="">- ไม่ระบุกิจกรรม -</option></select></div>
+            <div><button class="btn sm" type="submit">บันทึกโครงการ</button></div>
+          </form>
           <form method="post" action="/finance/loans/{{ r.o.id }}/return" class="row" style="align-items:flex-end; margin-top:8px;">
             <div><label>วันที่ส่งใช้</label><input name="date" value="{{ today_be }}" data-date="1"></div>
             <div><label>ส่งใช้เป็น</label><select name="kind"><option>เงินสด</option><option>ใบสำคัญ</option></select></div>
@@ -115,6 +136,8 @@
   tr[id^="ret"][hidden] { display:none !important; }
   .loan-actions .btn { margin:2px; }
   .loan-settled { display:inline-flex; white-space:nowrap; align-items:center; }
+  .loan-pj { display:block; margin-top:3px; font-size:12.5px; }
+  .loan-pj a { color:#7c3aed; text-decoration:none; font-weight:600; }
   @media(max-width:480px) { .loan-dates { grid-template-columns:1fr; } }
 </style>
 <script>
@@ -152,4 +175,6 @@
     update();
   })();
 </script>
+<script>window.PJ_ACTS = {{ pj_acts|tojson }};</script>
+<script src="/static/project_activity.js?v=1"></script>
 {% endblock %}

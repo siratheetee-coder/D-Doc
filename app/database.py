@@ -132,6 +132,13 @@ MIGRATIONS = [
     ("disburse_memo",   "travel_request_id", "INTEGER"),
     ("disburse_memo",   "activity_id",  "INTEGER"),
     ("procurement",     "activity_id",  "INTEGER"),
+    ("material_item",   "max_stock",    "FLOAT DEFAULT 0"),
+    ("material_item",   "spec",         "VARCHAR DEFAULT ''"),
+    ("material_item",   "code",         "VARCHAR DEFAULT ''"),
+    ("material_item",   "location",     "VARCHAR DEFAULT ''"),
+    ("material_txn",    "party",        "VARCHAR DEFAULT ''"),
+    ("money_loan",      "project_id",   "INTEGER"),
+    ("money_loan",      "activity_id",  "INTEGER"),
     ("disburse_memo",   "proc_kind",    "VARCHAR DEFAULT 'จัดซื้อ'"),
     ("school", "finance_officer_name",  "VARCHAR DEFAULT ''"),
     ("school", "finance_head_name",     "VARCHAR DEFAULT ''"),
@@ -408,6 +415,7 @@ def init_school_db(engine) -> None:
         ("เก็บกวาดทะเบียนเลขหนังสือ", _prune_stale_procurement_docnos),
         ("ปรับรูปแบบงานอาหารกลางวัน", _fix_lunch_proc_case),
         ("เพิ่มครั้งที่ชั่งน้ำหนัก", _migrate_measure_times),
+        ("เติมรับจาก/จ่ายให้ในบัญชีวัสดุ", _backfill_material_party),
     )
     for label, fn in steps:
         try:
@@ -454,6 +462,30 @@ def _migrate_measure_times(engine) -> None:
             conn.exec_driver_sql("ALTER TABLE student_measure_new RENAME TO student_measure")
     except Exception:
         pass
+
+
+def _backfill_material_party(engine) -> None:
+    """บัญชีวัสดุเดิมไม่มีช่อง รับจาก/จ่ายให้ (idempotent: เติมเฉพาะแถวที่ยังว่าง)
+    - จ่ายจากใบเบิก: ชื่อผู้เบิกจากใบเบิก (เดิมอยู่ในหมายเหตุ "เบิกโดย ...") แล้วล้างหมายเหตุนั้น
+    - รับจากเรื่องจัดซื้อ (อ้างอิง "เรื่องจัดซื้อ <เลขบันทึก/ไอดี>"): ชื่อร้านของเรื่องนั้น"""
+    with engine.begin() as conn:
+        conn.exec_driver_sql(
+            "UPDATE material_txn SET party = (SELECT requester FROM requisition r WHERE r.id = material_txn.requisition_id) "
+            "WHERE (party IS NULL OR party = '') AND requisition_id IS NOT NULL")
+        conn.exec_driver_sql(
+            "UPDATE material_txn SET note = '' WHERE requisition_id IS NOT NULL AND note LIKE 'เบิกโดย %' "
+            "AND party IS NOT NULL AND party <> ''")
+        rows = conn.exec_driver_sql(
+            "SELECT id, ref FROM material_txn WHERE (party IS NULL OR party = '') AND kind = 'in' "
+            "AND ref LIKE 'เรื่องจัดซื้อ %'").fetchall()
+        for tid, ref in rows:
+            key = (ref or "")[len("เรื่องจัดซื้อ "):].strip()
+            hit = conn.exec_driver_sql(
+                "SELECT v.name FROM procurement p JOIN vendor v ON v.id = p.vendor_id "
+                "WHERE p.memo_no = ? OR CAST(p.id AS TEXT) = ? ORDER BY p.memo_no = ? DESC LIMIT 1",
+                (key, key, key)).fetchone()
+            if hit and hit[0]:
+                conn.exec_driver_sql("UPDATE material_txn SET party = ? WHERE id = ?", (hit[0], tid))
 
 
 def _fix_lunch_proc_case(engine) -> None:

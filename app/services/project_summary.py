@@ -60,13 +60,25 @@ def build_rows(db, projects) -> list:
         # จ่ายตรงจากทะเบียนคุมเงิน (ไม่ได้ผ่านบันทึกขอเบิกจ่าย) เช่น ค่าน้ำ ค่าไฟ ค่าวัสดุย่อย
         for t in (db.query(FinanceTxn)
                   .filter(FinanceTxn.project_id == p.id, FinanceTxn.kind == "out",
-                          FinanceTxn.disburse_id.is_(None))
+                          FinanceTxn.disburse_id.is_(None), FinanceTxn.loan_id.is_(None))
                   .order_by(FinanceTxn.date).all()):
             works.append({
                 "date": t.date, "no": t.ref or "",
                 "subject": t.note or t.category or "จ่ายจากทะเบียนคุมเงิน",
                 "method": "ทะเบียนคุมเงิน", "amount": float(t.amount or 0),
                 "vendor": (t.account.name if t.account else ""), "status": "จ่ายแล้ว",
+            })
+        # เงินยืม: นับตามใบสำคัญที่ส่งใช้ + ยอดที่ยังไม่ส่งใช้ (เงินสดที่คืนไม่นับ)
+        from app.services.budget import loan_parts, project_loans
+        for ln in project_loans(p, db):
+            parts = loan_parts(ln)
+            if parts["used"] <= 0:
+                continue
+            works.append({
+                "date": ln.date, "no": ln.contract_no or "",
+                "subject": f"เงินยืม {ln.purpose or ''}".strip(),
+                "method": "เงินยืม", "amount": parts["used"],
+                "vendor": ln.borrower or "", "status": "รอส่งใช้" if parts["open"] > 0 else "ส่งใช้แล้ว",
             })
         works.sort(key=lambda w: (w["date"] or datetime.min))
         # ยอดตั้งต้นของโรงเรียนที่เริ่มใช้ระบบกลางปี ต้องขึ้นเป็นบรรทัดแรกของรายการด้วย

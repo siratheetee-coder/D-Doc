@@ -767,6 +767,7 @@ def trip_loan(tid: int, db: Session = Depends(get_db), borrower_id: int = Form(0
                    borrower=who.name, position=who.position or "ครู",
                    submit_to=head_title(school),
                    fund_from=(t.project.name if t.project else ""),
+                   project_id=t.project_id,
                    purpose=f"พานักเรียนไปนอกสถานศึกษา {t.title or ''} ณ {t.place or ''}".strip(),
                    items=json.dumps(items, ensure_ascii=False),
                    amount=round(sum(i["amount"] for i in items), 2), within_days=15,

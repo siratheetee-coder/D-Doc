@@ -1770,14 +1770,23 @@ def loans_page(request: Request, db: Session = Depends(get_db), year: int | None
         today = thai_today()
         loans = [loan for loan in loans if loan_state(loan, today)[0] == attention]
     rows = []
+    projects = {p.id: p for p in _plan_projects(db, fy)}
+    from app.models import ProjectActivity
+    acts = {a.id: a for a in db.query(ProjectActivity)}
     for ln in loans:
         paid = sum(float(r.amount or 0) for r in (ln.returns or []))
-        rows.append({"o": ln, "paid": paid, "left": float(ln.amount or 0) - paid})
+        rows.append({"o": ln, "paid": paid, "left": float(ln.amount or 0) - paid,
+                     "project": projects.get(ln.project_id), "activity": acts.get(ln.activity_id)})
+    pre_pj = _to_int(request.query_params.get("project"), 0)
+    pre_pj = pre_pj if pre_pj in projects else 0
     return templates.TemplateResponse("finance_loans.html", {
         "request": request, "school": get_school(db), "fiscal_year": fy,
         "years": _finance_years(db, fy), "rows": rows,
         "accounts": _fin_accounts(db), "today_be": be_date_input(datetime.now()),
         "persons": _fin_persons(db),
+        "projects": list(projects.values()), "pj_acts": activity_maps(db),
+        "pre_project": pre_pj,
+        "pre_activity": valid_activity(db, request.query_params.get("activity"), pre_pj) or "",
     })
 
 
@@ -1804,8 +1813,23 @@ async def loan_add(request: Request, db: Session = Depends(get_db)):
         within_days=within_days,
         account_id=_to_int(form.get("account_id"), 0) or None,
         note=(form.get("note") or "").strip())
+    from app.services.project_activity import valid_activity as _valid_activity
+    ln.project_id = _to_int(form.get("project_id"), 0) or None
+    ln.activity_id = _valid_activity(db, form.get("activity_id"), ln.project_id)
     db.add(ln); db.commit()
     return RedirectResponse(f"/finance/loans?year={fy}", status_code=303)
+
+
+@router.post("/finance/loans/{lid}/project")
+async def loan_set_project(lid: int, request: Request, db: Session = Depends(get_db)):
+    """ผูก/เปลี่ยนโครงการและกิจกรรมของสัญญายืมเงิน (งบโครงการนับตามใบสำคัญที่ส่งใช้)"""
+    form = await request.form()
+    ln = db.get(MoneyLoan, lid)
+    if ln:
+        ln.project_id = _to_int(form.get("project_id"), 0) or None
+        ln.activity_id = valid_activity(db, form.get("activity_id"), ln.project_id)
+        db.commit()
+    return RedirectResponse(f"/finance/loans?year={ln.fiscal_year if ln else ''}#loan-{lid}", status_code=303)
 
 
 @router.post("/finance/loans/{lid}/return")
