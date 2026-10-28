@@ -106,3 +106,23 @@ def test_bundled_articles_parse():
     for a in arts:
         assert a["title"] and a["description"] and a["category"], a["slug"]
         assert len(a["description"]) <= 170, a["slug"]
+
+
+def test_knowledge_cover_image_and_featured(env, monkeypatch, tmp_path):
+    from app.services import articles
+    monkeypatch.setattr(articles, "DIR", tmp_path)
+    (tmp_path / "with-pic.html").write_text(
+        "<!--\ntitle: มีรูปปก\ndescription: d\ndate: 2026-10-20\ncategory: งานการเงิน\ndraft: false\n"
+        "image: pic.jpg\nimage_alt: ภาพทะเบียน\nfeatured: true\n-->\n<p>x</p>", encoding="utf-8")
+    (tmp_path / "no-pic.html").write_text(
+        "<!--\ntitle: ไม่มีรูป\ndescription: d\ndate: 2026-10-25\ncategory: งานพัสดุ\ndraft: false\ncover: ว.119\n-->\n<p>x</p>",
+        encoding="utf-8")
+    c = _anon()
+    lst = c.get("/knowledge").text
+    # เรื่องแนะนำ = featured ไม่ใช่เรื่องใหม่สุด, ไม่มีรูปใช้ปกตัวอักษร
+    feat = lst.split('class="kl-feat')[1].split("</a>")[0]
+    assert "มีรูปปก" in feat and 'src="/static/knowledge/pic.jpg" alt="ภาพทะเบียน"' in feat
+    assert "<b>ว.119</b>" in lst
+    page = c.get("/knowledge/with-pic").text
+    assert '<meta property="og:image" content="https://www.easy-ekkasan.com/static/knowledge/pic.jpg">' in page
+    assert 'class="kb-cover"' in page

@@ -1,4 +1,5 @@
 {% extends "public_app.html" %}
+{% from "_kb_cover.html" import kb_cover, kb_cover_style %}
 {% block title %}คลังความรู้งานเอกสารโรงเรียน พัสดุ การเงิน ธุรการ วิชาการ | Easy Ekkasan{% endblock %}
 {% block head_meta %}
 <meta name="description" content="รวมคำตอบเรื่องงานเอกสารโรงเรียนที่ครูถามบ่อย จัดซื้อจัดจ้าง ว.119 ว.804 ทะเบียนคุมเงิน เงินอุดหนุน ปพ.5 อธิบายตามระเบียบ อ่านง่าย">
@@ -9,11 +10,23 @@
 {% endblock %}
 {% block content %}
 {% set cats = [] %}{% for a in items %}{% if a.category and a.category not in cats %}{% set _ = cats.append(a.category) %}{% endif %}{% endfor %}
+{# เรื่องแนะนำ: บทความที่ตั้ง featured: true ล่าสุด ถ้าไม่มีใช้เรื่องใหม่สุด #}
+{% set feat = (items|selectattr('featured')|first) or (items|first) %}
+{% set rest = items|rejectattr('slug', 'equalto', feat.slug)|list if feat else [] %}
+{{ kb_cover_style() }}
 
 <header class="kl-head">
-  <span class="kl-pill">คลังความรู้</span>
-  <h1>งานเอกสารโรงเรียน<br><em>อธิบายให้เข้าใจง่าย</em></h1>
-  <p>คำตอบเรื่องที่ครูถามบ่อย จัดซื้อจัดจ้าง การเงิน ธุรการ และวิชาการ เขียนตามระเบียบ อ่านจบในไม่กี่นาที</p>
+  <div>
+    <span class="kl-pill"><svg class="icon"><use href="#ic-book"/></svg>คลังความรู้</span>
+    <h1>เรื่องงานโรงเรียน<br><em>ค่อย ๆ เข้าใจไปด้วยกัน</em></h1>
+    <p>คู่มือ บทความ และคำตอบจากเรื่องที่ครูเจอในทุกวัน เขียนตามระเบียบ อ่านจบในไม่กี่นาที</p>
+  </div>
+  {% if items %}
+  <label class="kl-search">
+    <svg class="icon"><use href="#ic-search"/></svg>
+    <input type="search" id="klQ" placeholder="ค้นหาเรื่องที่อยากรู้..." autocomplete="off">
+  </label>
+  {% endif %}
   <i class="kl-blob a"></i><i class="kl-blob b"></i>
 </header>
 
@@ -27,101 +40,167 @@
   {% for c in cats %}<button type="button" data-cat="{{ c }}">{{ c }}</button>{% endfor %}
 </div>
 {% endif %}
-<div class="kl-grid">
-  {% for a in items %}{% set st = cat_style(a.category) %}
-  <a class="kl-card" href="/knowledge/{{ a.slug }}" data-cat="{{ a.category }}" style="--c1:{{ st.c1 }}; --c2:{{ st.c2 }};">
-    <span class="kl-top">
-      <span class="kl-ic"><svg class="icon"><use href="#{{ st.icon }}"/></svg></span>
-      <span class="kl-cat">{{ a.category or 'ทั่วไป' }}</span>
-      {% if a.draft %}<b class="kl-draft">ร่าง</b>{% endif %}
-    </span>
-    <h2>{{ a.title }}</h2>
-    <p>{{ a.description }}</p>
-    <span class="kl-meta"><span>{{ thai_date(a.updated) }}</span><span>อ่าน {{ a.minutes }} นาที</span><span class="kl-go">อ่านต่อ →</span></span>
-  </a>
-  {% endfor %}
+
+{% set fs = cat_style(feat.category) %}
+<a class="kl-feat kl-item" href="/knowledge/{{ feat.slug }}" data-cat="{{ feat.category }}" data-q="{{ feat.title }} {{ feat.description }} {{ feat.category }}"
+   style="--c1:{{ fs.c1 }}; --c2:{{ fs.c2 }};">
+  {{ kb_cover(feat, fs, "lg") }}
+  <span class="kl-fcopy">
+    <span class="kl-kick">{{ feat.category or 'ทั่วไป' }} <b>เรื่องแนะนำ</b>{% if feat.draft %}<b class="kl-draft">ร่าง</b>{% endif %}</span>
+    <h2>{{ feat.title }}</h2>
+    <p>{{ feat.description }}</p>
+    <span class="kl-meta">ทีม Easy Ekkasan<i></i>{{ thai_date(feat.updated) }}<i></i>อ่าน {{ feat.minutes }} นาที</span>
+    <span class="kl-read">อ่านเรื่องนี้ <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
+  </span>
+</a>
+
+<div class="kl-main">
+  <section class="kl-list">
+    <div class="kl-listhead"><h2>ค่อย ๆ รู้ไปทีละเรื่อง</h2><span id="klCount">{{ items|length }} บทความ</span></div>
+    {% for a in rest %}{% set st = cat_style(a.category) %}
+    <a class="kl-row kl-item" href="/knowledge/{{ a.slug }}" data-cat="{{ a.category }}" data-q="{{ a.title }} {{ a.description }} {{ a.category }}"
+       style="--c1:{{ st.c1 }}; --c2:{{ st.c2 }};">
+      {{ kb_cover(a, st) }}
+      <span class="kl-rcopy">
+        <span class="kl-kick">{{ a.category or 'ทั่วไป' }}{% if a.draft %}<b class="kl-draft">ร่าง</b>{% endif %}</span>
+        <h3>{{ a.title }}</h3>
+        <p>{{ a.description }}</p>
+        <span class="kl-meta">ทีม Easy Ekkasan<i></i>อ่าน {{ a.minutes }} นาที</span>
+      </span>
+    </a>
+    {% endfor %}
+    <div class="kl-none" id="klNone" hidden>ไม่พบเรื่องที่ค้นหา ลองใช้คำอื่น</div>
+  </section>
+
+  <aside class="kl-side">
+    <div class="kl-box kl-start">
+      <b>เพิ่งเริ่มใช้ระบบ?</b>
+      <a href="/guide">วิธีใช้ระบบทีละขั้น<svg class="icon"><use href="#ic-arrow-right"/></svg></a>
+      <a href="/#try">ลองระบบตัวอย่าง ไม่ต้องสมัคร<svg class="icon"><use href="#ic-arrow-right"/></svg></a>
+      <a href="/register">ทดลองใช้ฟรี 30 วัน<svg class="icon"><use href="#ic-arrow-right"/></svg></a>
+    </div>
+    <div class="kl-box kl-ask">
+      <b>มีเรื่องที่อยากให้เราเล่า?</b>
+      <span>คำถามจากครู คือจุดเริ่มต้นของบทความถัดไป</span>
+      <a class="btn" href="https://www.facebook.com/profile.php?id=61590718498881&locale=th_TH" target="_blank" rel="noopener">เสนอหัวข้อบทความ</a>
+    </div>
+  </aside>
 </div>
 {% else %}
 <div class="kl-empty">กำลังเตรียมบทความ เร็ว ๆ นี้</div>
 {% endif %}
 
-<section class="kl-cta">
-  <div>
-    <h2>อยากให้ระบบทำเอกสารพวกนี้ให้อัตโนมัติ?</h2>
-    <p>ลองระบบตัวอย่างได้ทันที ไม่ต้องสมัคร หรือทดลองใช้ฟรี 30 วัน</p>
-  </div>
-  <div class="kl-btns">
-    <a class="btn kl-w" href="/#try">ลองระบบตัวอย่าง</a>
-    <a class="btn kl-o" href="/register">ทดลองใช้ฟรี 30 วัน</a>
-  </div>
-</section>
-
 <style>
-  .kl-head h1, .kl-card h2, .kl-cta h2 { display:block; background:none; border:0; border-radius:0; padding:0; box-shadow:none; }
-  .kl-head { position:relative; overflow:hidden; padding:40px 40px 44px; border-radius:28px; color:#fff;
+  .kl-head h1, .kl-feat h2, .kl-listhead h2 { display:block; background:none; border:0; border-radius:0; padding:0; box-shadow:none; }
+
+  /* ---------- หัวหน้า ---------- */
+  .kl-head { position:relative; overflow:hidden; display:flex; justify-content:space-between; align-items:flex-end; gap:24px; flex-wrap:wrap;
+    padding:38px 40px 40px; border-radius:28px; color:#fff;
     background:linear-gradient(135deg,#1d4ed8 0%,#4f46e5 55%,#7c3aed 100%); box-shadow:0 20px 44px rgba(79,70,229,.26); }
+  .kl-head > div { position:relative; z-index:1; }
   .kl-blob { position:absolute; border-radius:50%; background:rgba(255,255,255,.12); pointer-events:none; }
-  .kl-blob.a { width:340px; height:340px; right:-90px; top:-120px; }
-  .kl-blob.b { width:200px; height:200px; right:180px; bottom:-120px; background:rgba(255,255,255,.08); }
-  .kl-pill { position:relative; display:inline-block; padding:5px 14px; border-radius:999px; background:rgba(255,255,255,.2); font-size:14px; font-weight:700; }
-  .kl-head h1 { position:relative; margin:14px 0 0; font-size:40px; line-height:1.3; font-weight:800; color:#fff; }
+  .kl-blob.a { width:340px; height:340px; right:-90px; top:-140px; }
+  .kl-blob.b { width:200px; height:200px; right:260px; bottom:-130px; background:rgba(255,255,255,.08); }
+  .kl-pill { display:inline-flex; align-items:center; gap:7px; padding:5px 14px 5px 10px; border-radius:999px; background:rgba(255,255,255,.2); font-size:14px; font-weight:700; }
+  .kl-pill .icon { width:18px; height:18px; }
+  .kl-head h1 { margin:14px 0 0; font-size:40px; line-height:1.3; font-weight:800; color:#fff; }
   .kl-head h1 em { font-style:normal; color:#fde047; }
-  .kl-head p { position:relative; margin:14px 0 0; max-width:640px; font-size:17.5px; line-height:1.7; opacity:.93; }
+  .kl-head p { margin:12px 0 0; max-width:560px; font-size:17px; line-height:1.7; opacity:.93; }
+  .kl-search { position:relative; z-index:1; display:flex; align-items:center; gap:8px; width:330px; max-width:100%;
+    padding:4px 6px 4px 16px; border-radius:16px; background:#fff; box-shadow:0 10px 26px rgba(15,23,42,.18); color:#64748b; }
+  .kl-search input { flex:1; min-width:0; border:0; outline:0; background:none; padding:10px 6px; font:inherit; font-size:16px; color:#0f172a; box-shadow:none; }
 
   .kl-msg { margin:16px 0 0; padding:12px 18px; border-radius:14px; font-size:14.5px; color:#92400e; background:linear-gradient(135deg,#fffbeb,#fef3c7); }
   .kl-msg.warn { color:#9f1239; background:linear-gradient(135deg,#fff1f2,#ffe4e6); }
 
-  .kl-filter { display:flex; gap:8px; flex-wrap:wrap; margin:24px 0 4px; }
+  .kl-filter { display:flex; gap:8px; flex-wrap:wrap; margin:22px 0 0; }
   .kl-filter button { border:0; cursor:pointer; padding:9px 18px; border-radius:999px; font:inherit; font-size:15px; font-weight:600;
     color:#334155; background:var(--surface); box-shadow:0 2px 10px rgba(15,23,42,.06); }
   .kl-filter button:hover { color:#1d4ed8; }
   .kl-filter button.on { color:#fff; background:linear-gradient(135deg,#2563eb,#7c3aed); box-shadow:0 8px 18px rgba(79,70,229,.28); }
 
-  .kl-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:18px; margin-top:18px; }
-  .kl-card { position:relative; overflow:hidden; display:flex; flex-direction:column; gap:10px; padding:24px 24px 20px; border-radius:24px;
-    background:var(--surface); box-shadow:0 6px 24px rgba(15,23,42,.07); text-decoration:none; color:var(--text);
+  .kl-kick { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:14px; font-weight:700; color:var(--c1); }
+  .kl-kick b { padding:2px 10px; border-radius:999px; font-size:12.5px; color:#fff; background:linear-gradient(135deg,var(--c1),var(--c2)); }
+  .kl-kick b.kl-draft { color:#92400e; background:#fef3c7; }
+  .kl-meta { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13.5px; color:#94a3b8; }
+  .kl-meta i { width:4px; height:4px; border-radius:50%; background:#cbd5e1; }
+
+  /* ---------- เรื่องแนะนำ ---------- */
+  .kl-feat { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:34px; align-items:center; margin-top:22px; padding:20px;
+    border-radius:28px; background:var(--surface); box-shadow:0 10px 34px rgba(15,23,42,.08); text-decoration:none; color:var(--text);
     transition:box-shadow .18s, transform .18s; }
-  .kl-card::before { content:""; position:absolute; left:0; right:0; top:0; height:6px; background:linear-gradient(90deg,var(--c1),var(--c2)); }
-  .kl-card:hover { transform:translateY(-3px); box-shadow:0 16px 36px rgba(72,128,255,.2); }
-  .kl-top { display:flex; align-items:center; gap:10px; }
-  .kl-ic { width:42px; height:42px; border-radius:13px; display:grid; place-items:center; color:#fff; background:linear-gradient(135deg,var(--c1),var(--c2)); }
-  .kl-cat { font-size:14px; font-weight:700; color:var(--c1); }
-  .kl-draft { margin-left:auto; padding:2px 10px; border-radius:999px; font-size:12.5px; color:#92400e; background:#fef3c7; }
-  .kl-card h2 { margin:4px 0 0; font-size:20px; line-height:1.45; font-weight:800; color:#0f172a; }
-  .kl-card p { margin:0; font-size:15px; line-height:1.7; color:#64748b; }
-  .kl-meta { display:flex; gap:14px; align-items:center; margin-top:auto; padding-top:10px; font-size:13.5px; color:#94a3b8; }
-  .kl-go { margin-left:auto; font-weight:700; color:var(--c1); }
-  .kl-empty { margin-top:20px; padding:30px; border-radius:20px; text-align:center; color:var(--muted); background:var(--surface); }
+  .kl-feat:hover { transform:translateY(-3px); box-shadow:0 20px 44px rgba(72,128,255,.2); }
+  .kl-fcopy { display:flex; flex-direction:column; gap:12px; padding-right:16px; }
+  .kl-feat h2 { margin:0; font-size:31px; line-height:1.4; font-weight:800; color:#0f172a; }
+  .kl-feat p { margin:0; font-size:16.5px; line-height:1.75; color:#64748b; }
+  .kl-read { display:inline-flex; align-self:flex-start; align-items:center; gap:8px; margin-top:6px; padding:11px 22px; border-radius:14px;
+    font-weight:700; color:#fff; background:linear-gradient(135deg,var(--c1),var(--c2)); box-shadow:0 10px 22px rgba(37,99,235,.25); }
 
-  .kl-cta { display:flex; justify-content:space-between; align-items:center; gap:20px; flex-wrap:wrap; margin-top:30px; padding:28px 34px;
-    border-radius:26px; background:linear-gradient(135deg,#eff6ff,#f5f3ff); }
-  .kl-cta h2 { margin:0 0 4px; font-size:22px; font-weight:800; color:#0f172a; }
-  .kl-cta p { margin:0; color:#64748b; font-size:15.5px; }
-  .kl-btns { display:flex; gap:10px; flex-wrap:wrap; }
-  .kl-w { background:linear-gradient(135deg,#2563eb,#7c3aed); color:#fff; }
-  .kl-o { background:linear-gradient(135deg,#f97316,#ef4444); color:#fff; }
+  /* ---------- รายการ + แถบข้าง ---------- */
+  .kl-main { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:28px; margin-top:30px; align-items:start; }
+  .kl-listhead { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+  .kl-listhead h2 { margin:0; font-size:23px; font-weight:800; color:#0f172a; }
+  .kl-listhead span { font-size:14px; color:var(--muted); }
+  .kl-row { display:grid; grid-template-columns:180px minmax(0,1fr); gap:22px; align-items:center; margin-top:14px; padding:14px;
+    border-radius:22px; background:var(--surface); box-shadow:0 4px 18px rgba(15,23,42,.06); text-decoration:none; color:var(--text);
+    transition:box-shadow .16s, transform .16s; }
+  .kl-row:hover { transform:translateY(-2px); box-shadow:0 14px 30px rgba(72,128,255,.18); }
+  .kl-rcopy { display:flex; flex-direction:column; gap:7px; padding-right:8px; }
+  .kl-row h3 { margin:0; font-size:19px; line-height:1.45; font-weight:800; color:#0f172a; }
+  .kl-row p { margin:0; font-size:15px; line-height:1.65; color:#64748b; }
+  .kl-none, .kl-empty { margin-top:16px; padding:28px; border-radius:20px; text-align:center; color:var(--muted); background:var(--surface); }
 
-  @media (max-width:640px) {
-    .kl-head { padding:26px 22px 30px; border-radius:22px; }
+  .kl-side { position:sticky; top:84px; display:flex; flex-direction:column; gap:16px; margin-top:44px; }
+  .kl-box { display:flex; flex-direction:column; gap:6px; padding:20px 22px; border-radius:22px; }
+  .kl-box b { font-size:17px; margin-bottom:4px; }
+  .kl-start { background:var(--surface); box-shadow:0 6px 22px rgba(15,23,42,.07); }
+  .kl-start a { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:11px 14px; border-radius:12px;
+    font-size:15px; color:var(--text); text-decoration:none; background:#f6f8fc; }
+  .kl-start a:hover { color:#1d4ed8; background:linear-gradient(135deg,#eff6ff,#f5f3ff); }
+  .kl-start a .icon { width:16px; height:16px; color:#94a3b8; }
+  .kl-ask { color:#fff; background:linear-gradient(150deg,#f97316,#ef4444 60%,#db2777); box-shadow:0 14px 30px rgba(239,68,68,.26); }
+  .kl-ask span { font-size:15px; line-height:1.6; opacity:.93; }
+  .kl-ask .btn { margin-top:8px; justify-content:center; background:#fff; color:#dc2626; }
+
+  @media (max-width:1020px) {
+    .kl-main { grid-template-columns:1fr; }
+    .kl-side { position:static; margin-top:0; }
+  }
+  @media (max-width:760px) {
+    .kl-head { padding:26px 22px 26px; border-radius:22px; }
     .kl-head h1 { font-size:28px; }
     .kl-head p { font-size:16px; }
-    .kl-grid { grid-template-columns:1fr; }
-    .kl-card { padding:20px 18px 16px; }
-    .kl-card h2 { font-size:18.5px; }
-    .kl-cta { padding:22px 20px; }
-    .kl-btns, .kl-btns .btn { width:100%; justify-content:center; }
+    .kl-search { width:100%; }
+    .kl-filter { flex-wrap:nowrap; overflow-x:auto; padding-bottom:4px; }
+    .kl-filter button { flex:none; }
+    .kl-feat { grid-template-columns:1fr; gap:18px; padding:14px; border-radius:22px; }
+    .kl-fcopy { padding:0 6px 8px; }
+    .kl-feat h2 { font-size:23px; }
+    .kl-row { grid-template-columns:110px minmax(0,1fr); gap:14px; padding:12px; }
+    .kl-row h3 { font-size:16.5px; }
+    .kl-row p { display:none; }
   }
 </style>
 <script>
 (function () {
-  var box = document.getElementById('klFilter');
-  if (!box) return;
-  box.addEventListener('click', function (e) {
+  var q = document.getElementById('klQ'), box = document.getElementById('klFilter');
+  var items = [].slice.call(document.querySelectorAll('.kl-item'));
+  var cat = '';
+  function apply() {
+    var words = (q && q.value || '').trim().toLowerCase().split(/\s+/).filter(Boolean), n = 0;
+    items.forEach(function (el) {
+      var t = el.dataset.q.toLowerCase();
+      var ok = (!cat || el.dataset.cat === cat) && words.every(function (w) { return t.indexOf(w) >= 0; });
+      el.style.display = ok ? '' : 'none'; if (ok) n++;
+    });
+    document.getElementById('klCount').textContent = n + ' บทความ';
+    document.getElementById('klNone').hidden = n > 0;
+  }
+  if (q) q.addEventListener('input', apply);
+  if (box) box.addEventListener('click', function (e) {
     var b = e.target.closest('button'); if (!b) return;
     box.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); });
-    document.querySelectorAll('.kl-card').forEach(function (c) {
-      c.style.display = !b.dataset.cat || c.dataset.cat === b.dataset.cat ? '' : 'none';
-    });
+    cat = b.dataset.cat; apply();
   });
 })();
 </script>

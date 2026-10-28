@@ -1,0 +1,42 @@
+{# ปกบทความ: มีรูป (image) ใช้รูป ไม่มีรูปทำปกไล่สีตามหมวด + กระดาษโน้ตตัวใหญ่ (cover) #}
+{% macro kb_cover(a, st, size="sm") %}
+<span class="kc kc-{{ size }}" style="--c1:{{ st.c1 }}; --c2:{{ st.c2 }};">
+  {% if a.image %}
+  <img src="{{ a.image }}" alt="{{ a.image_alt }}" loading="lazy">
+  {% else %}
+  <i class="kc-sheet"></i>
+  <span class="kc-note">
+    <small><svg class="icon"><use href="#{{ st.icon }}"/></svg>{{ a.category or 'ทั่วไป' }}</small>
+    <b>{{ a.cover or a.category or 'ความรู้' }}</b>
+  </span>
+  {% endif %}
+</span>
+{% endmacro %}
+{# เรียกครั้งเดียวต่อหน้า (import แล้วส่วนนอก macro ไม่ถูกแสดง) #}
+{% macro kb_cover_style() %}
+<style>
+  .kc { position:relative; display:block; overflow:hidden; border-radius:18px; aspect-ratio:4/3;
+    background:linear-gradient(135deg,color-mix(in srgb,var(--c1) 16%,#fff),color-mix(in srgb,var(--c2) 22%,#fff)); }
+  .kc img { width:100%; height:100%; object-fit:cover; display:block; }
+  .kc-sheet { position:absolute; left:16%; top:14%; width:72%; height:78%; border-radius:12px; background:rgba(255,255,255,.55);
+    transform:rotate(5deg); }
+  .kc-note { position:absolute; left:12%; top:20%; width:74%; display:flex; flex-direction:column; gap:4px; padding:12% 9%;
+    border-radius:12px; background:#fff; box-shadow:0 10px 24px rgba(15,23,42,.12); transform:rotate(-3deg); }
+  .kc-note small { display:flex; align-items:center; gap:5px; font-size:12px; font-weight:700; color:var(--c1); }
+  .kc-note small .icon { width:14px; height:14px; }
+  .kc-note b { font-size:26px; line-height:1.2; font-weight:800;
+    background:linear-gradient(135deg,var(--c1),var(--c2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .kc-lg { aspect-ratio:auto; min-height:320px; border-radius:24px; }
+  .kc-lg .kc-note { left:14%; top:22%; width:62%; padding:28px 26px; gap:8px; border-radius:16px; }
+  .kc-lg .kc-note small { font-size:14px; }
+  .kc-lg .kc-note small .icon { width:18px; height:18px; }
+  .kc-lg .kc-note b { font-size:52px; }
+  @media (max-width:640px) {
+    .kc-lg { min-height:220px; }
+    .kc-lg .kc-note b { font-size:38px; }
+    .kc-sm .kc-note { left:10%; top:24%; width:80%; padding:12% 8%; }
+    .kc-sm .kc-note small { display:none; }
+    .kc-sm .kc-note b { font-size:17px; }
+  }
+</style>
+{% endmacro %}

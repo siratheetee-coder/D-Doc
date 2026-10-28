@@ -12,11 +12,16 @@ articles.py - คลังความรู้ (บทความสาธา�
     updated: 2026-11-02          (ไม่ใส่ก็ได้)
     category: งานพัสดุ
     draft: true                  (true = ร่าง ยังไม่ขึ้นเว็บ / false = เผยแพร่)
+    image: w119-cover.jpg        (ไม่ใส่ก็ได้) รูปปก วางไฟล์ไว้ที่ app/static/knowledge/
+    image_alt: คำอธิบายรูป        (ไม่ใส่ก็ได้)
+    cover: ว.119                 (ไม่ใส่ก็ได้) คำตัวใหญ่บนปกเมื่อไม่มีรูป
+    featured: true               (ไม่ใส่ก็ได้) ขึ้นเป็นเรื่องแนะนำบนสุดของหน้ารวม
     -->
     <p>เนื้อหา...</p>
 
 ร่าง (draft: true) ไม่ขึ้นในหน้ารวม ไม่อยู่ใน sitemap และเปิดได้เฉพาะผู้ดูแลระบบ (superadmin)
 เนื้อหาเป็น HTML ที่เราเขียนเองใน repo จึงแสดงแบบไม่ escape
+รูปในเนื้อหาใช้ <figure><img src="/static/knowledge/xxx.jpg" alt="..."><figcaption>...</figcaption></figure>
 """
 import re
 from datetime import date
@@ -56,11 +61,16 @@ def _parse(path: Path) -> dict | None:
         toc.append({"id": f"s{len(toc) + 1}", "text": re.sub(r"<[^>]+>", "", mm.group(1)).strip()})
         return f'<h2 id="{toc[-1]["id"]}">{mm.group(1)}</h2>'
     body = re.sub(r"<h2>(.*?)</h2>", _anchor, body, flags=re.S)
-    words = len(re.sub(r"<[^>]+>", " ", body).split())
+    img = meta.get("image", "")
+    if img and not img.startswith(("/", "http://", "https://")):
+        img = "/static/knowledge/" + img
+    chars = len(re.sub(r"\s+", "", re.sub(r"<[^>]+>", "", body)))   # ภาษาไทยไม่เว้นวรรคระหว่างคำ นับตัวอักษรแทน
     return {"slug": path.stem, "title": meta["title"], "description": meta.get("description", ""),
             "category": meta.get("category", ""), "date": d, "updated": upd,
             "draft": meta.get("draft", "true").lower() != "false",
-            "body": body, "toc": toc, "minutes": max(1, round(words / 120))}
+            "image": img, "image_alt": meta.get("image_alt", "") or meta["title"],
+            "cover": meta.get("cover", ""), "featured": meta.get("featured", "").lower() == "true",
+            "body": body, "toc": toc, "minutes": max(1, round(chars / 450))}
 
 
 # ไอคอน + สีประจำหมวด (ใช้ในหน้ารวมและหัวบทความ)

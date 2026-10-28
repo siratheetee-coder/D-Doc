@@ -1,5 +1,7 @@
 {% extends "public_app.html" %}
+{% from "_kb_cover.html" import kb_cover, kb_cover_style %}
 {% set st = cat_style(a.category) %}
+{% set og_img = (a.image if a.image.startswith("http") else site_url ~ a.image) if a.image else site_url ~ "/static/landing/og-share.jpg?v=1" %}
 {% block title %}{{ a.title }} | Easy Ekkasan{% endblock %}
 {% block head_meta %}
 <meta name="description" content="{{ a.description }}">
@@ -9,9 +11,9 @@
 <meta property="og:title" content="{{ a.title }}">
 <meta property="og:description" content="{{ a.description }}">
 <meta property="og:url" content="{{ site_url }}/knowledge/{{ a.slug }}">
-<meta property="og:image" content="{{ site_url }}/static/landing/og-share.jpg?v=1">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
+<meta property="og:image" content="{{ og_img }}">
+{% if not a.image %}<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">{% endif %}
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">
 {{ {
@@ -20,7 +22,7 @@
     {"@type": "Article", "headline": a.title, "description": a.description, "inLanguage": "th",
      "datePublished": a.date.isoformat(), "dateModified": a.updated.isoformat(),
      "mainEntityOfPage": site_url ~ "/knowledge/" ~ a.slug,
-     "image": site_url ~ "/static/landing/og-share.jpg",
+     "image": og_img,
      "author": {"@type": "Organization", "name": "Easy Ekkasan", "url": site_url ~ "/"},
      "publisher": {"@type": "Organization", "name": "Easy Ekkasan",
                    "logo": {"@type": "ImageObject", "url": site_url ~ "/static/logo-ekkasan.png"}}},
@@ -51,6 +53,7 @@
 
 <div class="kb-layout">
   <article class="kb-paper">
+    {% if a.image %}<figure class="kb-cover"><img src="{{ a.image }}" alt="{{ a.image_alt }}"></figure>{% endif %}
     {% if a.toc|length > 1 %}
     <details class="kb-toc-m" open>
       <summary>ในบทความนี้</summary>
@@ -88,12 +91,13 @@
 </section>
 
 {% if related %}
+{{ kb_cover_style() }}
 <section class="kb-related">
   <h2 class="kb-plain">อ่านต่อ</h2>
   <div class="kb-rgrid">
     {% for r in related %}{% set rs = cat_style(r.category) %}
     <a class="kb-rcard" href="/knowledge/{{ r.slug }}" style="--c1:{{ rs.c1 }}; --c2:{{ rs.c2 }};">
-      <span class="kb-ric"><svg class="icon"><use href="#{{ rs.icon }}"/></svg></span>
+      {{ kb_cover(r, rs) }}
       <span><small>{{ r.category }}</small><b>{{ r.title }}</b></span>
     </a>
     {% endfor %}
@@ -157,6 +161,11 @@
     color:#78350f; background:linear-gradient(135deg,#fffbeb,#fef3c7); }
   .kb-body .note::before { content:"!"; position:absolute; left:18px; top:16px; width:28px; height:28px; border-radius:50%;
     display:grid; place-items:center; font-weight:800; color:#fff; background:linear-gradient(135deg,#f59e0b,#ea580c); }
+  .kb-cover { margin:-14px -22px 30px; border-radius:20px; overflow:hidden; box-shadow:0 10px 28px rgba(15,23,42,.12); }
+  .kb-cover img { display:block; width:100%; max-height:440px; object-fit:cover; }
+  .kb-body figure { margin:6px 0 26px; }
+  .kb-body img { display:block; max-width:100%; height:auto; border-radius:18px; box-shadow:0 8px 24px rgba(15,23,42,.1); }
+  .kb-body figcaption { margin-top:10px; font-size:14.5px; line-height:1.6; color:#64748b; text-align:center; }
   .kb-body .ref { margin-top:30px; padding:16px 20px; border-radius:16px; background:#f1f5f9; font-size:15px; line-height:1.7; color:#475569; }
 
   .kb-side { position:sticky; top:84px; display:flex; flex-direction:column; gap:16px; margin-top:34px; }
@@ -186,12 +195,11 @@
   .kb-btn-o { background:linear-gradient(135deg,#f97316,#ef4444); color:#fff; }
   .kb-related { margin-top:34px; }
   .kb-related h2 { margin:0 0 14px; font-size:22px; }
-  .kb-rgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; }
-  .kb-rcard { display:flex; gap:14px; align-items:center; padding:18px; border-radius:20px; background:var(--surface);
+  .kb-rgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; }
+  .kb-rcard { display:flex; flex-direction:column; gap:12px; padding:12px 12px 18px; border-radius:20px; background:var(--surface);
     box-shadow:0 4px 18px rgba(15,23,42,.06); text-decoration:none; color:var(--text); transition:box-shadow .15s, transform .15s; }
   .kb-rcard:hover { box-shadow:0 12px 28px rgba(72,128,255,.18); transform:translateY(-2px); }
-  .kb-ric { flex:none; width:48px; height:48px; border-radius:14px; display:grid; place-items:center; color:#fff;
-    background:linear-gradient(135deg,var(--c1),var(--c2)); }
+  .kb-rcard > span:last-child { padding:0 6px; }
   .kb-rcard small { display:block; font-size:12.5px; font-weight:700; color:var(--muted); }
   .kb-rcard b { font-size:16px; line-height:1.45; }
 
@@ -209,6 +217,7 @@
     .kb-head h1 { font-size:26px; }
     .kb-lead { font-size:16px; }
     .kb-paper { padding:24px 18px 28px; border-radius:20px; }
+    .kb-cover { margin:-10px -8px 22px; border-radius:16px; }
     .kb-body { font-size:17px; line-height:1.9; }
     .kb-body > p:first-child { font-size:17.5px; }
     .kb-body h2 { font-size:21.5px; margin-top:32px; }
