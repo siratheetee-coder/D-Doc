@@ -2474,20 +2474,38 @@ def _tt_grid_doc(doc, periods, day_cells):
             lines.append((p.time_label, 12, False))
         _tt_cell_lines(hdr[1 + j], lines, fill=("F1F5F9" if p.is_break else "EDE9FE"))
     t.rows[0].height = Cm(1.2); t.rows[0].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
+    merges = []                            # (แถว, คาบแรก, คาบสุดท้าย, บรรทัดข้อความ) รวมหลังตั้งความกว้าง
     for i, (dnum, dname) in enumerate(_TT_DAYS):
         cs = t.rows[1 + i].cells
         _tt_cell_lines(cs[0], [(dname, 14, True)], fill="FAF8FF")
+        row = []                           # (lines, fill) ต่อคาบ, None = คาบพัก
         for j, p in enumerate(periods):
             if p.is_break:
                 _tt_cell_lines(cs[1 + j], [("พัก", 13, False)], fill="F8FAFC")
+                row.append(None)
             else:
                 res = day_cells(dnum, p)
                 lines, fill = res if (isinstance(res, tuple) and len(res) == 2) else (res, None)
                 _tt_cell_lines(cs[1 + j], lines, fill=fill)
+                row.append((lines, fill))
+        # คาบคู่: วิชาเดียวกันในคาบติดกัน (ไม่คร่อมคาบพัก) รวมเป็นช่องเดียว
+        j = 0
+        while j < len(row):
+            k = j
+            while row[j] and row[j][0] and k + 1 < len(row) and row[k + 1] and row[k + 1][0] == row[j][0]:
+                k += 1
+            if k > j:
+                merges.append((1 + i, 1 + j, 1 + k, row[j][0]))
+            j = k + 1
         t.rows[1 + i].height = Cm(1.5); t.rows[1 + i].height_rule = WD_ROW_HEIGHT_RULE.AT_LEAST
     fixed = 2.2
     pw = (26.7 - fixed) / len(periods) if periods else 2.9
     _widths(t, [Cm(2.2)] + [Cm(pw)] * len(periods))
+    for ri, a, b, lines in merges:
+        cs = t.rows[ri].cells
+        merged = cs[a].merge(cs[b])
+        merged.width = Cm(pw * (b - a + 1))
+        _tt_cell_lines(merged, list(lines) + [("(คาบคู่)" if b == a + 1 else f"({b - a + 1} คาบติดกัน)", 11, False)])
     _tight_cells(t)
     for row in t.rows:                     # จัดกึ่งกลางแนวตั้งให้ดูเป็นระเบียบ
         for c in row.cells:

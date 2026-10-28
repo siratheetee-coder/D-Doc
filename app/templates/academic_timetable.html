@@ -14,7 +14,7 @@
 {% if request.query_params.get('err') %}<div class="alert warn">{{ request.query_params.get('err') }}</div>{% endif %}
 {% if request.query_params.get('psaved') %}<div class="alert">✔ บันทึกโครงคาบแล้ว</div>{% endif %}
 {% if request.query_params.get('auto') is not none %}
-<div class="alert">✔ จัดตารางอัตโนมัติแล้ว {{ request.query_params.get('auto') }} คาบ{% if request.query_params.get('un')|int > 0 %} จัดไม่ได้ {{ request.query_params.get('un') }} คาบ (ช่องว่างไม่พอ หรือครูชนทุกช่อง ลองลดจำนวนคาบ/เพิ่มคาบเรียน หรือกรอกเองส่วนที่เหลือ){% endif %}</div>
+<div class="alert">✔ จัดตารางอัตโนมัติแล้ว {{ request.query_params.get('auto') }} คาบ{% if request.query_params.get('un')|int > 0 %} จัดไม่ได้ {{ request.query_params.get('un') }} คาบ (ช่องว่างไม่พอ หรือครูชนทุกช่อง ลองลดจำนวนคาบ/เพิ่มคาบเรียน หรือกรอกเองส่วนที่เหลือ){% endif %}{% if request.query_params.get('split')|int > 0 %} มีคาบคู่ {{ request.query_params.get('split') }} ชุดที่หาช่องติดกันไม่ได้ ระบบจึงแยกเป็นคาบเดี่ยว{% endif %}</div>
 {% endif %}
 
 <div class="card">
@@ -93,7 +93,7 @@
     <span class="ac-badge"><svg class="icon"><use href="#ic-calendar"/></svg></span>
     <span class="ac-titles">
       <b>จัดตารางอัตโนมัติ</b>
-      <small>ใส่จำนวนคาบ/สัปดาห์ ระบบจะจัดวิชาต่าง ๆ ลงช่องว่างให้</small>
+      <small>ใส่จำนวนคาบ/สัปดาห์ ระบบจะจัดวิชาต่าง ๆ ลงช่องว่างให้ วิชาที่เรียนคาบคู่ ใส่จำนวนชุดในช่อง "คาบคู่"</small>
     </span>
     <svg class="icon ac-chev"><use href="#ic-arrow-right"/></svg>
   </summary>
@@ -111,6 +111,9 @@
             <input class="ac-n" name="n_{{ s.id }}" type="number" min="0" max="20" value="{{ dft if dft > 0 else 1 }}" inputmode="numeric">
             <button type="button" class="ac-pm" data-step="1" tabindex="-1">+</button>
           </span>
+          <label class="ac-dbl" title="จำนวนชุดคาบคู่ต่อสัปดาห์ (1 ชุด = 2 คาบติดกัน)">คาบคู่
+            <input class="ac-d" name="d_{{ s.id }}" type="number" min="0" max="10" value="0" inputmode="numeric">
+          </label>
         </div>
         {% endfor %}
       </div>
@@ -206,7 +209,7 @@
   .ac-card[open] .ac-body { animation:acReveal .28s cubic-bezier(.2,.7,.25,1) both; }
   @keyframes acReveal { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:none; } }
   @media (prefers-reduced-motion: reduce) { .ac-card[open] .ac-body { animation:none; } }
-  .ac-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:10px; }
+  .ac-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(330px, 1fr)); gap:10px; }
   .ac-item { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:11px;
     background:#faf9ff; border:1px solid #eceafe; }
   .ac-code { flex:0 0 auto; font-size:11px; font-weight:700; color:#6d28d9; background:#ede9fe;
@@ -221,6 +224,15 @@
   .ac-n { width:40px; height:32px; border:none; text-align:center; font-weight:700; font-size:15px;
     color:#3730a3; -moz-appearance:textfield; }
   .ac-n::-webkit-outer-spin-button, .ac-n::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  .ac-dbl { flex:0 0 auto; display:inline-flex; align-items:center; gap:5px; margin:0; font-size:12px; color:#6b7280; white-space:nowrap; }
+  .ac-d { width:38px; height:32px; padding:0; border:1.5px solid #ddd6fe; border-radius:9px; text-align:center;
+    font-weight:700; font-size:14px; color:#3730a3; -moz-appearance:textfield; }
+  .ac-d::-webkit-outer-spin-button, .ac-d::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  .ac-item.bad .ac-d { border-color:#f87171; background:#fef2f2; }
+  table.tt td.pair-l { border-right-color:transparent; }
+  table.tt td.pair-r { border-left-color:transparent; }
+  .tt-pair { display:inline-block; margin-top:3px; padding:0 8px; border-radius:999px; font-size:10.5px; font-weight:700;
+    color:#5b21b6; background:rgba(255,255,255,.75); }
   .ac-foot { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-top:16px; }
   .ac-clear { display:inline-flex; align-items:center; gap:11px; margin:0; cursor:pointer;
     padding:9px 14px; border:1px solid #eceafe; border-radius:11px; background:#faf9ff;
@@ -248,7 +260,12 @@
     function clamp(n){ return Math.max(0, Math.min(20, n)); }
     function recalc(){
       var t = 0;
-      form.querySelectorAll('.ac-n').forEach(function(i){ t += (parseInt(i.value,10) || 0); });
+      form.querySelectorAll('.ac-item').forEach(function(it){
+        var n = parseInt(it.querySelector('.ac-n').value,10) || 0, d = parseInt(it.querySelector('.ac-d').value,10) || 0;
+        t += n;
+        it.classList.toggle('bad', d * 2 > n);      // คาบคู่ 1 ชุดใช้ 2 คาบ ต้องไม่เกินจำนวนคาบ
+        it.querySelector('.ac-d').title = d * 2 > n ? 'คาบคู่ ' + d + ' ชุด ใช้ ' + (d * 2) + ' คาบ เกินจำนวนคาบ ระบบจะลดให้เหลือ ' + Math.floor(n / 2) + ' ชุด' : '';
+      });
       totalEl.textContent = t;
     }
     form.querySelectorAll('.ac-pm').forEach(function(b){
@@ -277,6 +294,15 @@
     document.querySelectorAll("td.tt-ro").forEach(function(td){
       td.style.background = ttColor(td.dataset.sel || "");
     });
+    // วิชาเดียวกันในคาบติดกัน (คาบคู่) รวมเป็นช่องเดียว
+    document.querySelectorAll("td.tt-ro").forEach(function(td){
+      if (!td.isConnected || !td.dataset.sel) return;
+      var nx = td.nextElementSibling;
+      while (nx && nx.classList.contains('tt-ro') && nx.dataset.sel === td.dataset.sel){
+        td.colSpan += 1; var gone = nx; nx = nx.nextElementSibling; gone.remove();
+      }
+      if (td.colSpan > 1 && !td.querySelector('.tt-pair')) td.insertAdjacentHTML('beforeend', '<div class="tt-pair">คาบคู่</div>');
+    });
   }
   document.addEventListener('DOMContentLoaded', ttPaintReadonly);
 </script>
@@ -303,11 +329,19 @@
       if (clash){ td.classList.add('clash'); td.style.background=''; cdiv.textContent = 'ซ้อน: ' + clash; cdiv.style.display = 'block'; clashes++; }
       else { td.classList.remove('clash'); td.style.background = ttColor(val); if(cdiv){ cdiv.textContent=''; cdiv.style.display='none'; } }
     });
+    ttMarkPairs();
     var b = document.getElementById('tt-clash');
     if (b){
       if (clashes){ b.style.display='block'; b.innerHTML = '⚠ พบครูสอนซ้อนกับห้องอื่น ' + clashes + ' ช่อง (ช่องสีแดง) แก้คาบให้ไม่ชนก่อนบันทึก'; }
       else b.style.display='none';
     }
+  }
+  function ttMarkPairs(){
+    document.querySelectorAll('table.tt td').forEach(function(td){ td.classList.remove('pair-l','pair-r'); });
+    document.querySelectorAll('select[name^="cell_"]').forEach(function(sel){
+      var td = sel.closest('td'), nx = td.nextElementSibling, ns = nx && nx.querySelector('select[name^="cell_"]');
+      if (sel.value && ns && ns.value === sel.value){ td.classList.add('pair-l'); nx.classList.add('pair-r'); }
+    });
   }
   document.addEventListener('DOMContentLoaded', ttCheck);
 </script>

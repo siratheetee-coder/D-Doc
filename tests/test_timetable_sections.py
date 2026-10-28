@@ -42,7 +42,7 @@ def test_auto_schedule_avoids_cross_level_overlaps(db):
     ts.enable(db,2569);db.commit()
     second=ts.periods(db,2569,level='ม.1')[0];second.time_label='09:00-10:00';db.commit()
     assert teacher.id in _busy_at(db,2569,1,second.id,_teach_map(db))
-    placed,unplaced=_auto_schedule(db,secondary,{subject.id:5},True)
+    placed,unplaced,_=_auto_schedule(db,secondary,{subject.id:5},True)
     assert placed==4 and unplaced==1
     assert not db.query(AcadTimetable).filter_by(class_id=secondary.id,day=1).first()
 

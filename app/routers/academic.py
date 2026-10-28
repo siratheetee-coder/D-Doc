@@ -3293,12 +3293,19 @@ async def timetable_save(request: Request, db: Session = Depends(get_db), cid: s
     return RedirectResponse(f"/academic/timetable?cid={c.id}&saved=1", status_code=303)
 
 
-def _auto_schedule(db, klass, counts, clear):
+def _auto_schedule(db, klass, counts, clear, doubles=None):
     """จัดตารางอัตโนมัติ (greedy): เติมวิชาตามจำนวนคาบ/สัปดาห์ ลงช่องว่าง
     - ไม่ทับช่องที่กรอกมือไว้ (ถ้าไม่ติ๊กล้าง) · หลบครูซ้อนกับห้องอื่น + ในห้องเดียวกัน
-    - กระจายไม่ให้วิชาเดียวซ้ำวันเดียวกันถ้าเลี่ยงได้ · คืน (จัดได้, จัดไม่ได้)"""
+    - doubles {sid: จำนวนชุด} = คาบคู่ จัดก่อน: 2 คาบติดกันวันเดียวกัน ไม่คร่อมคาบพัก ครูว่างทั้งคู่
+      ชุดที่หาที่ลงไม่ได้ แตกเป็นคาบเดี่ยว 2 คาบแทน (นับใน split)
+    - กระจายไม่ให้วิชาเดียวซ้ำวันเดียวกันถ้าเลี่ยงได้ · คืน (จัดได้, จัดไม่ได้, คาบคู่ที่ต้องแยก)"""
     from collections import Counter
-    periods = [p for p in _tt_periods(db, klass.year, level=klass.level) if not p.is_break]
+    doubles = doubles or {}
+    full = _tt_periods(db, klass.year, level=klass.level)        # รวมคาบพัก ใช้ดูว่าคาบติดกันจริงไหม
+    periods = [p for p in full if not p.is_break]
+    order = {p.id: i for i, p in enumerate(full)}
+    pairs = [(full[i].id, full[i + 1].id) for i in range(len(full) - 1)
+             if not full[i].is_break and not full[i + 1].is_break]
     from app.services.timetable_sections import overlaps
     all_periods={p.id:p for p in _tt_periods(db,klass.year)}
     all_slots = [(d, p.id) for d, _ in TT_DAYS for p in periods]
@@ -3327,31 +3334,60 @@ def _auto_schedule(db, klass, counts, clear):
         tid = my_teacher.get(r.subject_id)
         if tid:
             busy.add((tid, d, pid))
-    # ความต้องการ + เรียงวิชาที่ครูงานแน่นก่อน (จัดยากก่อน)
-    demands = []
-    for sid, cnt in counts.items():
-        demands += [sid] * max(0, cnt)
-    tload = Counter(t for (t, _, _) in busy)
-    demands.sort(key=lambda sid: -tload.get(my_teacher.get(sid), 0))
-    placed = unplaced = 0
-    subj_day = set()
-    for sid in demands:
-        tid = my_teacher.get(sid)
-        cands = [s for s in free if tid is None or not any(t==tid and day==s[0] and overlaps(all_periods.get(pid),all_periods.get(s[1])) for t,day,pid in busy)]
-        if not cands:
-            unplaced += 1
-            continue
-        # เลี่ยงวันที่มีวิชานี้แล้ว -> เรียงคาบต้น ๆ ก่อน
-        cands.sort(key=lambda s: ((sid, s[0]) in subj_day, s[1], s[0]))
-        d, pid = cands[0]
+
+    def teacher_free(tid, d, pid):
+        return tid is None or not any(t == tid and day == d and overlaps(all_periods.get(p), all_periods.get(pid))
+                                      for t, day, p in busy)
+
+    def put(sid, tid, d, pid):
         db.add(AcadTimetable(class_id=klass.id, day=d, period_id=pid, subject_id=sid))
         free.remove((d, pid))
         if tid:
             busy.add((tid, d, pid))
         subj_day.add((sid, d))
+
+    tload = Counter(t for (t, _, _) in busy)
+    placed = unplaced = split = 0
+    subj_day = set()
+    singles = dict(counts)
+    # คาบคู่ก่อน (ต้องการช่องติดกัน หายากกว่า)
+    dbl = []
+    for sid, k in doubles.items():
+        k = max(0, min(k, counts.get(sid, 0) // 2))
+        dbl += [sid] * k
+        singles[sid] = counts.get(sid, 0) - 2 * k
+    dbl.sort(key=lambda sid: -tload.get(my_teacher.get(sid), 0))
+    for sid in dbl:
+        tid = my_teacher.get(sid)
+        fs = set(free)
+        cands = [(d, a, b) for d, _ in TT_DAYS for a, b in pairs
+                 if (d, a) in fs and (d, b) in fs and teacher_free(tid, d, a) and teacher_free(tid, d, b)]
+        if not cands:
+            singles[sid] = singles.get(sid, 0) + 2
+            split += 1
+            continue
+        cands.sort(key=lambda c: ((sid, c[0]) in subj_day, order[c[1]], c[0]))
+        d, a, b = cands[0]
+        put(sid, tid, d, a)
+        put(sid, tid, d, b)
+        placed += 2
+    # คาบเดี่ยว: เรียงวิชาที่ครูงานแน่นก่อน (จัดยากก่อน)
+    demands = []
+    for sid, cnt in singles.items():
+        demands += [sid] * max(0, cnt)
+    demands.sort(key=lambda sid: -tload.get(my_teacher.get(sid), 0))
+    for sid in demands:
+        tid = my_teacher.get(sid)
+        cands = [s for s in free if teacher_free(tid, s[0], s[1])]
+        if not cands:
+            unplaced += 1
+            continue
+        # เลี่ยงวันที่มีวิชานี้แล้ว -> เรียงคาบต้น ๆ ก่อน
+        cands.sort(key=lambda s: ((sid, s[0]) in subj_day, s[1], s[0]))
+        put(sid, tid, *cands[0])
         placed += 1
     db.commit()
-    return placed, unplaced
+    return placed, unplaced, split
 
 
 @router.post("/academic/timetable/auto")
@@ -3362,14 +3398,17 @@ async def timetable_auto(request: Request, db: Session = Depends(get_db), cid: s
     c = db.get(AcadClass, _to_int(cid, 0))
     if not c:
         return RedirectResponse("/academic/timetable", status_code=303)
-    counts = {}
+    counts, doubles = {}, {}
     for s in db.query(AcadSubject).filter_by(year=c.year, level=c.level).all():
         n = _to_int(form.get(f"n_{s.id}", ""), 0)
         if n > 0:
             counts[s.id] = n
-    placed, unplaced = _auto_schedule(db, c, counts, bool(form.get("clear")))
+            k = _to_int(form.get(f"d_{s.id}", ""), 0)
+            if k > 0:
+                doubles[s.id] = min(k, n // 2)
+    placed, unplaced, split = _auto_schedule(db, c, counts, bool(form.get("clear")), doubles)
     return RedirectResponse(
-        f"/academic/timetable?cid={c.id}&auto={placed}&un={unplaced}", status_code=303)
+        f"/academic/timetable?cid={c.id}&auto={placed}&un={unplaced}&split={split}", status_code=303)
 
 
 @router.get("/academic/timetable/teacher", response_class=HTMLResponse)
