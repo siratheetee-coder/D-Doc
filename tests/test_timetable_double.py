@@ -122,3 +122,23 @@ def test_timetable_routes_plan_lock_undo(tt_env):
     with tn.session_for(tid) as s:
         rows = s.query(AcadTimetable).filter_by(class_id=cid).all()
         assert len(rows) == 1 and rows[0].locked                 # กลับเป็นก่อนจัด
+
+
+def test_blocked_cell_and_teacher_from_plan_panel(tt_env):
+    env, tn, tid, i = tt_env
+    cid, p1, p2 = i["cid"], i["p1"], i["p2"]
+    with tn.session_for(tid) as s:
+        new_t = Person(name="ครูคนใหม่"); s.add(new_t); s.commit(); new_tid = new_t.id
+    form = {"cid": cid, f"cell_1_{p1}": "x", f"n_{i['tha']}": "5", f"d_{i['tha']}": "0",
+            f"n_{i['sci']}": "0", f"d_{i['sci']}": "0", f"t_{i['tha']}": str(new_tid), f"t_{i['sci']}": "",
+            "clear": "on", "opt_keep_locked": "1", "opt_spread": "1", "opt_same_day": "1", "opt_use_doubles": "1"}
+    r = env.post("/academic/timetable/auto", data=form, follow_redirects=False)
+    assert r.status_code == 303
+    with tn.session_for(tid) as s:
+        b = s.query(AcadTimetable).filter_by(class_id=cid, day=1, period_id=p1).one()
+        assert b.blocked and b.subject_id is None                  # เว้นว่างไว้ ไม่ถูกล้าง ไม่ถูกลงวิชา
+        assert s.query(AcadTimetable).filter_by(class_id=cid, subject_id=i["tha"]).count() == 5
+        teach = {t.subject_id: t.teacher_id for t in s.query(AcadTeaching).filter_by(class_id=cid)}
+        assert teach.get(i["tha"]) == new_tid and i["sci"] not in teach   # ตั้งครูใหม่ / เอาครูวิทย์ออก
+    page = env.get(f"/academic/timetable?cid={cid}").text
+    assert 'value="x" data-cp-label="เว้นว่าง (ไม่ลงวิชา)"' in page and "selected>เว้นว่าง" in page.replace("  ", " ")

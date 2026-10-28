@@ -2185,6 +2185,7 @@ class AcadTimetable(Base):
     subject_id = Column(Integer, ForeignKey("acad_subject.id"), nullable=True)
     note = Column(String, default="")             # ใช้เมื่อไม่ใช่รายวิชา (เช่น ลูกเสือ/โฮมรูม)
     locked = Column(Boolean, default=False)       # ล็อกคาบ: จัดอัตโนมัติจะไม่ย้าย/ล้างช่องนี้
+    blocked = Column(Boolean, default=False)      # เว้นว่าง: ช่องนี้ไม่ลงวิชา จัดอัตโนมัติข้าม และไม่ถูกล้าง
 
     klass = relationship("AcadClass")
     subject = relationship("AcadSubject")

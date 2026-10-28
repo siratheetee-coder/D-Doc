@@ -3109,7 +3109,9 @@ def _tt_cells(db, klass):
     """ตารางของห้องนี้ -> cells[day][period_id] = {sel, label, teacher}"""
     cells = {}
     for r in db.query(AcadTimetable).filter_by(class_id=klass.id).all():
-        if r.subject_id:
+        if r.blocked:
+            sel, label, teacher = "x", "", ""
+        elif r.subject_id:
             sel = f"s{r.subject_id}"
             label = (r.subject.name if r.subject else "")
             teacher = _tt_teacher_name(db, klass.id, r.subject_id)
@@ -3168,14 +3170,39 @@ def _tt_apply_form(db, c, form):
             if not row:
                 row = AcadTimetable(class_id=c.id, day=d, period_id=p.id)
                 db.add(row)
-            if val.startswith("s"):
+            row.blocked = val == "x"
+            if val == "x":                 # เว้นว่าง: ไม่ลงวิชา
+                row.subject_id = None
+                row.note = ""
+            elif val.startswith("s"):
                 row.subject_id = _to_int(val[1:], 0) or None
                 row.note = ""
             elif val.startswith("n:"):
                 row.subject_id = None
                 row.note = val[2:]
             row.locked = form.get(f"lock_{d}_{p.id}") == "1"
-    subjects, _ = _tt_subject_groups(db, c)
+    subjects, group = _tt_subject_groups(db, c)
+    # ครูผู้สอนจากแผงตั้งค่า (t_<sid>) ตั้งให้วิชาเดียวกันทุกภาคที่ครูเดิมเป็นคนเดียวกัน (หรือยังไม่มีครู)
+    teach = {t.subject_id: t for t in db.query(AcadTeaching).filter_by(class_id=c.id).all()}
+    for s in subjects:
+        key = f"t_{s.id}"
+        if key not in form:
+            continue
+        new_tid = _to_int(form.get(key, ""), 0) or None
+        old_tid = teach[s.id].teacher_id if s.id in teach else None
+        if new_tid == old_tid:
+            continue
+        for sid in [x for x, g in group.items() if g == s.id]:
+            row = teach.get(sid)
+            if sid != s.id and row and row.teacher_id not in (None, old_tid):
+                continue                    # ภาคอื่นที่ตั้งครูคนละคนไว้ ไม่แตะ
+            if new_tid is None:
+                if row:
+                    db.delete(row)
+            elif row:
+                row.teacher_id = new_tid
+            else:
+                db.add(AcadTeaching(class_id=c.id, subject_id=sid, teacher_id=new_tid))
     plans = {p.subject_id: p for p in db.query(AcadTimetablePlan).filter_by(class_id=c.id).all()}
     for s in subjects:
         if f"n_{s.id}" not in form:
@@ -3247,6 +3274,7 @@ def timetable_page(request: Request, db: Session = Depends(get_db),
         "subj_group": {str(k): str(v) for k, v in subj_group.items()},
         "subj_color": {str(s.id): i for i, s in enumerate(subjects)},
         "plan": plan, "has_undo": has_undo,
+        "teachers": (db.query(Person).filter_by(active=True).order_by(Person.name).all() if c and not sc.is_teacher else []),
         "separated":split,"section":section,
         "period_error":getattr(request.state,'period_error',''),
         "period_entered":getattr(request.state,'period_entered',{}),
@@ -3362,7 +3390,7 @@ def _auto_schedule(db, klass, counts, clear, doubles=None, opts=None):
                 db.query(AcadTimetable).filter_by(class_id=klass.id).all()}
     if clear:
         for k, r in list(existing.items()):
-            if not (o["keep_locked"] and r.locked):
+            if not ((o["keep_locked"] and r.locked) or r.blocked):
                 db.delete(r)
                 del existing[k]
     free = [s for s in all_slots if s not in existing]
@@ -3465,7 +3493,7 @@ async def timetable_auto(request: Request, db: Session = Depends(get_db), cid: s
     _tt_apply_form(db, c, form)             # เก็บที่กรอก/ล็อกไว้ก่อน ไม่ให้หายตอนกดจัด
     # เก็บตารางก่อนจัดไว้กดย้อนกลับ
     snap = [{"day": r.day, "period_id": r.period_id, "subject_id": r.subject_id, "note": r.note or "",
-             "locked": bool(r.locked)} for r in db.query(AcadTimetable).filter_by(class_id=c.id).all()]
+             "locked": bool(r.locked), "blocked": bool(r.blocked)} for r in db.query(AcadTimetable).filter_by(class_id=c.id).all()]
     u = db.get(AcadTimetableUndo, c.id) or AcadTimetableUndo(class_id=c.id)
     u.data, u.created_at = json.dumps(snap, ensure_ascii=False), datetime.utcnow()
     db.add(u)
@@ -3497,7 +3525,7 @@ def timetable_undo(request: Request, db: Session = Depends(get_db), cid: str = F
     db.query(AcadTimetable).filter_by(class_id=c.id).delete()
     for x in json.loads(u.data or "[]"):
         db.add(AcadTimetable(class_id=c.id, day=x["day"], period_id=x["period_id"], subject_id=x.get("subject_id"),
-                             note=x.get("note", ""), locked=bool(x.get("locked"))))
+                             note=x.get("note", ""), locked=bool(x.get("locked")), blocked=bool(x.get("blocked"))))
     db.delete(u)
     db.commit()
     return RedirectResponse(f"/academic/timetable?cid={c.id}&undone=1", status_code=303)

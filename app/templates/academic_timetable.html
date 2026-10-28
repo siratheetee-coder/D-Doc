@@ -133,7 +133,10 @@
       {% for s in subjects %}{% set pn, pd = plan.get(s.id, (0, 0)) %}{% set st = subj_teacher.get(s.id|string) %}
       <tr class="ts-row" data-sid="{{ s.id }}" data-name="{{ s.name }}">
         <td><span class="ts-subj"><i class="ts-dot"></i><span><b>{{ s.name }}</b>{% if s.code %}<small>{{ s.code }}</small>{% endif %}</span></span></td>
-        <td class="ts-teacher">{% if st %}{{ st.name }}{% else %}<a class="muted" href="/academic/classes">ยังไม่ตั้งครู</a>{% endif %}</td>
+        <td class="ts-teacher"><select class="ts-tsel" name="t_{{ s.id }}" data-combo data-combo-placeholder="ยังไม่ตั้งครู" aria-label="ครูผู้สอน {{ s.name }}">
+            <option value=""></option>
+            {% for t in teachers %}<option value="{{ t.id }}" {{ 'selected' if st and st.tid == t.id|string }}>{{ t.name }}</option>{% endfor %}
+          </select></td>
         <td class="center"><span class="ac-stepper">
             <button type="button" class="ac-pm" data-step="-1" tabindex="-1">−</button>
             <input class="ac-n" name="n_{{ s.id }}" type="number" min="0" max="20" value="{{ pn }}" inputmode="numeric" aria-label="จำนวนคาบ {{ s.name }}">
@@ -185,7 +188,7 @@
       {% if can_edit %}<button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกตาราง</button>{% endif %}
     </div>
   </div>
-  {% if can_edit %}<p class="muted" style="font-size:13px; margin:8px 0;">พิมพ์ชื่อวิชาเพื่อค้นหาได้ ช่องที่ครูไม่ว่างหรือวิชาครบคาบแล้วจะบอกเหตุผลในรายการ กดรูปกุญแจเพื่อล็อกคาบไม่ให้จัดอัตโนมัติเปลี่ยน</p>{% endif %}
+  {% if can_edit %}<p class="muted" style="font-size:13px; margin:8px 0;">พิมพ์ชื่อวิชาเพื่อค้นหาได้ ช่องที่ครูไม่ว่างหรือวิชาครบคาบแล้วจะบอกเหตุผลในรายการ กดรูปกุญแจเพื่อล็อกคาบไม่ให้จัดอัตโนมัติเปลี่ยน ช่องที่ไม่ต้องการให้ลงวิชา (เช่น ชุมนุม ประชุม) เลือก "เว้นว่าง (ไม่ลงวิชา)"</p>{% endif %}
   <div class="tt-scroll">
   <table class="tt">
     <thead><tr>
@@ -203,10 +206,11 @@
           {% if p.is_break %}
           <td class="tt-brk"><span>พัก</span></td>
           {% elif can_edit %}
-          <td class="tt-cell{{ ' locked' if cell and cell.locked }}" data-day="{{ dnum }}" data-dname="{{ dname }}" data-pname="{{ p.name }}">
+          <td class="tt-cell{{ ' locked' if cell and cell.locked }}{{ ' blocked' if cell and cell.sel=='x' }}" data-day="{{ dnum }}" data-dname="{{ dname }}" data-pname="{{ p.name }}">
             <div class="tt-in">
               <select name="cell_{{ dnum }}_{{ p.id }}" data-combo data-combo-placeholder="+ เลือกวิชา" onchange="ttCheck()">
                 <option value=""></option>
+                <option value="x" data-cp-label="เว้นว่าง (ไม่ลงวิชา)" data-cp-sub="จัดอัตโนมัติจะข้ามช่องนี้" {{ 'selected' if cell and cell.sel=='x' }}>เว้นว่าง (ไม่ลงวิชา)</option>
                 {% for val, label in options %}<option value="{{ val }}" data-cp-label="{{ label }}" {{ 'selected' if cell and cell.sel==val }}>{{ label }}</option>{% endfor %}
               </select>
               <button type="button" class="tt-lock" title="ล็อกคาบนี้ (จัดอัตโนมัติจะไม่เปลี่ยน)" aria-pressed="{{ 'true' if cell and cell.locked else 'false' }}">
@@ -217,7 +221,7 @@
             <div class="cell-clash"></div>
           </td>
           {% else %}
-          <td class="tt-ro" data-sel="{{ cell.sel if cell else '' }}">
+          <td class="tt-ro" data-sel="{{ cell.sel if cell and cell.sel != 'x' else '' }}">
             {% if cell %}<b>{{ cell.label }}</b>{% if cell.teacher %}<div class="muted" style="font-size:11px;">{{ cell.teacher }}</div>{% endif %}{% endif %}
           </td>
           {% endif %}
@@ -277,7 +281,11 @@
   .ts-subj b { font-size:14px; color:#0f172a; }
   .ts-subj small { display:block; font-size:11.5px; color:#475569; }
   .ts-dot { display:none; }
-  .ts-teacher { color:#334155; font-size:13px; }
+  .ts-teacher { color:#334155; font-size:13px; min-width:150px; }
+  .ts-teacher .cp-input { padding:6px 9px; font-size:13px; border-radius:10px; }
+  .ts-row.noteach .ts-teacher .cp-input { box-shadow:0 0 0 2px #fbbf24; background:#fffbeb; }
+  td.tt-cell.blocked { background:repeating-linear-gradient(135deg,#f8fafc 0 7px,#eef2f6 7px 14px) !important; box-shadow:none; }
+  td.tt-cell.blocked .cp-input { color:#64748b; font-style:italic; }
   .ts-help { display:inline-grid; place-items:center; width:17px; height:17px; border-radius:50%; font-size:11px; font-weight:800;
     color:#fff; background:#94a3b8; cursor:help; }
   .ac-stepper { display:inline-flex; align-items:center; border-radius:10px; overflow:hidden; background:#fff; box-shadow:0 0 0 1.5px #ddd6fe; }
@@ -426,7 +434,7 @@
     ttCells().forEach(function(td){ td.classList.remove('pair-l', 'pair-r'); });
     ttCells().forEach(function(td){
       var sel = td.querySelector('select'), nx = td.nextElementSibling, ns = nx && nx.classList.contains('tt-cell') && nx.querySelector('select');
-      if (sel.value && ns && ns.value === sel.value){ td.classList.add('pair-l'); nx.classList.add('pair-r'); }
+      if (sel.value && sel.value !== 'x' && ns && ns.value === sel.value){ td.classList.add('pair-l'); nx.classList.add('pair-r'); }
     });
   }
 
@@ -446,7 +454,8 @@
       td.querySelector('.cell-teacher').textContent = tname;
       td.querySelector('.cell-clash').textContent = clash ? 'ครูชน: ' + clash : '';
       td.classList.toggle('clash', !!clash);
-      ttPaint(td, val);
+      td.classList.toggle('blocked', val === 'x');
+      ttPaint(td, val === 'x' ? '' : val);
       if (clash) problems.push({ td: td, text: td.dataset.dname + ' ' + td.dataset.pname + ': ' + (sel.selectedOptions[0] || {}).textContent + ' ครูสอนชนกับ ' + clash });
       // เหตุผลในรายการเลือกวิชา (ไม่ปิดตัวเลือก แค่บอกให้รู้ก่อนเลือก)
       [].forEach.call(sel.options, function(o){
@@ -493,7 +502,7 @@
     ttCells().forEach(function(td){
       var v = td.querySelector('select').value, lk = ttLockInput(td).value === '1';
       total++;
-      if (v && (!clear || (keep && lk))){ kept++; }
+      if (v && (!clear || (keep && lk) || v === 'x')){ kept++; }
       if (v && lk){ var c = ttCanon(v); if (c) lockedCnt[c] = (lockedCnt[c] || 0) + 1; }
     });
     var free = total - kept, more = 0, noTeacher = [];
@@ -513,6 +522,22 @@
     box.hidden = false;
     box.classList.toggle('warn', more > free || noTeacher.length > 0);
   }
+
+  // เปลี่ยนครูในแผงตั้งค่า -> ใช้ตรวจครูชนทันที (วิชาเดียวกันทุกภาค)
+  var TT_TEACH_NAMES = {};
+  document.querySelectorAll('.ts-tsel option').forEach(function(o){ if (o.value) TT_TEACH_NAMES[o.value] = o.textContent.trim(); });
+  function ttTeacherSync(){
+    document.querySelectorAll('.ts-row').forEach(function(tr){
+      var v = tr.querySelector('.ts-tsel').value, sid = tr.dataset.sid;
+      Object.keys(TT_GROUP).forEach(function(id){
+        if ((TT_GROUP[id] || id) !== sid) return;
+        if (v) TT_SUBJ_TEACHER[id] = { tid: v, name: TT_TEACH_NAMES[v] || '' }; else delete TT_SUBJ_TEACHER[id];
+      });
+      tr.classList.toggle('noteach', !v);
+    });
+  }
+  document.querySelectorAll('.ts-tsel').forEach(function(sel){ sel.addEventListener('change', function(){ ttTeacherSync(); ttCheck(); }); });
+  ttTeacherSync();
 
   // ปุ่มบนแถบสรุป
   document.getElementById('btnCheck').addEventListener('click', function(){
