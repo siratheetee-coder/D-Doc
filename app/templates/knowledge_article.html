@@ -162,6 +162,7 @@
     background:linear-gradient(135deg,var(--c1),var(--c2)); }
   .kb-body ol { list-style:none; counter-reset:kb; padding:0; margin:0 0 20px;
     display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:8px 18px; }
+  .kb-body ol.full { grid-template-columns:1fr; }
   .kb-body ol li { counter-increment:kb; position:relative; padding:9px 12px 9px 48px; border-radius:14px; background:#f6f8fc; line-height:1.6; }
   .kb-body ol li::before { content:counter(kb); position:absolute; left:10px; top:9px; width:28px; height:28px; border-radius:9px;
     display:grid; place-items:center; font-size:14px; font-weight:800; color:#fff; background:linear-gradient(135deg,var(--c1),var(--c2)); }

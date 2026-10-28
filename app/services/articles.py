@@ -18,7 +18,7 @@ articles.py - คลังความรู้ (บทความสาธา�
     featured: true               (ไม่ใส่ก็ได้) ขึ้นเป็นเรื่องแนะนำบนสุดของหน้ารวม
     type: อธิบายระเบียบ          (ไม่ใส่ก็ได้) ป้ายชนิดบทความ: อธิบายระเบียบ / คู่มือใช้งาน / อัปเดตระบบ
     reviewed: 2026-10-28         (ไม่ใส่ก็ได้) วันที่ตรวจทานเนื้อหากับเอกสารต้นทางล่าสุด
-    source: ชื่อเอกสาร | https://ลิงก์เอกสารต้นทาง   (ใส่ได้หลายบรรทัด ไม่มีลิงก์ก็ใส่แค่ชื่อ)
+    source: ชื่อเอกสาร | https://ลิงก์เอกสารต้นทาง   (ใส่ได้หลายบรรทัด ไม่มีลิงก์ก็ใส่แค่ชื่อ) ไฟล์ของเราเองวางที่ app/static/knowledge/refs/
     -->
     <p>เนื้อหา...</p>
 
@@ -49,7 +49,7 @@ def _parse(path: Path) -> dict | None:
             if k == "source" and v:
                 name, _, url = v.partition("|")
                 url = url.strip()
-                sources.append({"name": name.strip(), "url": url if url.startswith(("http://", "https://")) else ""})
+                sources.append({"name": name.strip(), "url": url if url.startswith(("http://", "https://", "/static/")) else ""})
             else:
                 meta[k] = v
     try:
