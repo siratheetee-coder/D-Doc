@@ -55,7 +55,7 @@
 
 <div class="kl-main">
   <section class="kl-list">
-    <div class="kl-listhead"><h2>ค่อย ๆ รู้ไปทีละเรื่อง</h2><span id="klCount">{{ items|length }} บทความ</span></div>
+    <div class="kl-listhead"><h2>บทความทั้งหมด</h2><span id="klCount">{{ items|length }} บทความ</span></div>
     {% for a in rest %}{% set st = cat_style(a.category) %}
     <a class="kl-row kl-item" href="/knowledge/{{ a.slug }}" data-cat="{{ a.category }}" data-q="{{ a.title }} {{ a.description }} {{ a.category }}"
        style="--c1:{{ st.c1 }}; --c2:{{ st.c2 }};">
