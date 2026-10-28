@@ -22,6 +22,11 @@ from sqlalchemy.orm import Session
 
 from app.models import DocNumberCounter, IssuedDocNo
 
+# หนังสือราชการ (ระเบียบงานสารบรรณ) เรียงเลขตามปีปฏิทิน เริ่ม 1 ทุกวันที่ 1 มกราคม
+# ส่วนใบสั่งซื้อ/สั่งจ้าง และเอกสารอื่นที่ไม่อยู่ในชุดนี้ เรียงตามปีงบประมาณเหมือนเดิม
+# ช่อง fiscal_year ของ DocNumberCounter/IssuedDocNo จึงเก็บ "ปีของชุดเลข" (ปีปฏิทินสำหรับชนิดในชุดนี้)
+CALENDAR_TYPES = {"memo", "command", "outgoing", "incoming"}
+
 # ชนิด counter ที่ระบบรองรับ (ไว้ตรวจสอบและแสดงผล)
 COUNTER_TYPES = {
     "memo": "บันทึกข้อความ",
@@ -31,6 +36,23 @@ COUNTER_TYPES = {
     "purchase_order": "ใบสั่งซื้อ",
     "hire_order": "ใบสั่งจ้าง",
 }
+
+
+def doc_year(doc_type: str, fiscal_year: int, doc_no: str = "", date=None) -> int:
+    """ปีของชุดเลขที่เอกสารนี้อยู่
+    ชนิดปีปฏิทิน: ดูจากท้ายเลขที่กรอก (68/2569) ก่อน แล้วจึงวันที่บนเอกสาร
+    ไม่มีทั้งคู่: ถ้าส่งปีงบปัจจุบันมา (กำลังออกเลขใหม่) ใช้ปีปฏิทินวันนี้ ปีงบอื่นคงไว้ตามเดิม"""
+    if doc_type not in CALENDAR_TYPES:
+        return fiscal_year
+    m = re.search(r"/\s*(25\d\d)\s*$", doc_no or "")     # ท้ายเลขเป็นปี พ.ศ. 4 หลักเท่านั้น (ศธ 0400/45 ไม่ใช่ปี)
+    if m:
+        return int(m.group(1))
+    if date is not None and getattr(date, "year", None):
+        return date.year + 543
+    from app.thai_utils import current_fiscal_year
+    if fiscal_year == current_fiscal_year():
+        return datetime.now().year + 543
+    return fiscal_year
 
 
 def _get_or_create(db: Session, doc_type: str, fiscal_year: int) -> DocNumberCounter:
@@ -48,6 +70,7 @@ def _get_or_create(db: Session, doc_type: str, fiscal_year: int) -> DocNumberCou
 
 def suggest_next(db: Session, doc_type: str, fiscal_year: int) -> int:
     """เสนอเลขถัดไป (ไม่บันทึก/ไม่เพิ่มเลข) ใช้แสดงเป็นค่าเริ่มต้นในฟอร์ม"""
+    fiscal_year = doc_year(doc_type, fiscal_year)
     counter = (
         db.query(DocNumberCounter)
         .filter_by(doc_type=doc_type, fiscal_year=fiscal_year)
@@ -61,6 +84,10 @@ def commit_number(db: Session, doc_type: str, fiscal_year: int, used_number: int
     บันทึกว่าใช้เลข used_number ไปแล้ว และ bump ฐานเป็นเลขนี้ถ้าสูงกว่าเดิม
     (เรียกตอนผู้ใช้กดบันทึกเอกสาร)
     """
+    _commit_number(db, doc_type, doc_year(doc_type, fiscal_year), used_number)
+
+
+def _commit_number(db: Session, doc_type: str, fiscal_year: int, used_number: int) -> None:
     if not used_number:
         return
     counter = _get_or_create(db, doc_type, fiscal_year)
@@ -84,8 +111,8 @@ def parse_seq(doc_no: str) -> int:
 
 
 def suggest_doc_no(db: Session, doc_type: str, fiscal_year: int) -> str:
-    """เสนอเลขที่เอกสารแบบเต็ม เช่น '68/2569'"""
-    return format_doc_no(suggest_next(db, doc_type, fiscal_year), fiscal_year)
+    """เสนอเลขที่เอกสารแบบเต็ม เช่น '68/2569' (หนังสือราชการใช้ปีปฏิทิน)"""
+    return format_doc_no(suggest_next(db, doc_type, fiscal_year), doc_year(doc_type, fiscal_year))
 
 
 def log_issued(db: Session, doc_type: str, fiscal_year: int, seq: int,
@@ -95,6 +122,7 @@ def log_issued(db: Session, doc_type: str, fiscal_year: int, seq: int,
     date = วันที่บนเอกสาร (ที่ผู้ใช้กรอก) · ถ้าไม่ส่งมาจึงใช้วันที่ปัจจุบัน"""
     if not seq:
         return
+    fiscal_year = doc_year(doc_type, fiscal_year, full_no, date)
     row = (db.query(IssuedDocNo)
            .filter_by(doc_type=doc_type, fiscal_year=fiscal_year, seq=seq).first())
     if row is None:
@@ -129,7 +157,8 @@ def commit_doc_no(db: Session, doc_type: str, fiscal_year: int, doc_no: str,
     """แยกเลขลำดับจากข้อความเลขที่ แล้ว bump counter + บันทึกลงทะเบียนเลขกลาง
     date = วันที่บนเอกสาร (ที่ผู้ใช้กรอก) เพื่อให้ทะเบียนตรงกับเอกสารจริง"""
     seq = parse_seq(doc_no)
-    commit_number(db, doc_type, fiscal_year, seq)
+    fiscal_year = doc_year(doc_type, fiscal_year, doc_no, date)
+    _commit_number(db, doc_type, fiscal_year, seq)
     if seq:
         log_issued(db, doc_type, fiscal_year, seq, full_no=(doc_no or "").strip(),
                    source=source, ref_id=ref_id, subject=subject, date=date)
@@ -145,6 +174,7 @@ def check_doc_no(db: Session, doc_type: str, fiscal_year: int, doc_no: str,
     seq = parse_seq(doc_no)
     if not seq:
         return None
+    fiscal_year = doc_year(doc_type, fiscal_year, doc_no)
     dup = (db.query(IssuedDocNo)
            .filter_by(doc_type=doc_type, fiscal_year=fiscal_year, seq=seq).first())
     if dup and not (exclude_ref is not None and dup.ref_id == exclude_ref and dup.source == exclude_source):

@@ -7,20 +7,23 @@
     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
       <a class="btn sm gray" href="/docnos/register.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> ออกไฟล์ทะเบียน (แนวนอน)</a>
       <form method="get" action="/docnos" style="display:inline-flex; gap:8px; align-items:center; margin:0;">
-        <label style="margin:0;">ปีงบประมาณ</label>
+        <label style="margin:0;">ปีของเลข</label>
         <select name="year" onchange="submitReplace(this.form)" style="width:auto;">
           {% for y in years %}<option value="{{ y }}" {{ "selected" if y==fiscal_year }}>{{ y }}</option>{% endfor %}
         </select>
       </form>
     </div>
   </div>
+  <p class="dn-rule">บันทึกข้อความ คำสั่ง หนังสือรับ และหนังสือส่ง เรียงเลขตาม<b>ปีปฏิทิน</b> เริ่มเลข 1 ทุกวันที่ 1 มกราคม
+    ส่วนใบสั่งซื้อและใบสั่งจ้าง เรียงตาม<b>ปีงบประมาณ</b> เริ่มเลข 1 ทุกวันที่ 1 ตุลาคม</p>
+  <style>.dn-rule{ margin:10px 0; padding:10px 14px; border-radius:12px; background:#eff6ff; color:#1e3a8a; font-size:14px; }</style>
   <p class="muted">เลขที่ใช้จริงของทุกงาน (ธุรการ/พัสดุ/การเงิน) รวมศูนย์ที่นี่ - บันทึกข้อความและคำสั่งรันต่อเนื่องร่วมกัน แก้เรื่อง/วันที่ได้ ลบเลขที่มาจากงานธุรการจะลบเอกสารต้นทางให้ด้วย (เลขจากพัสดุ/การเงิน ลบเฉพาะรายการทะเบียน)</p>
   {% if request.query_params.get('saved') %}<div class="alert" style="margin-bottom:0;">✔ บันทึกแล้ว</div>{% endif %}
 </div>
 
 {% if summary %}
 <div class="card">
-  <h2><svg class="icon"><use href="#ic-clipboard"/></svg> ตอนนี้ถึงเลขไหนแล้ว (ปีงบ {{ fiscal_year }})</h2>
+  <h2><svg class="icon"><use href="#ic-clipboard"/></svg> ตอนนี้ถึงเลขไหนแล้ว</h2>
   <p class="muted" style="margin-top:0;">เลขล่าสุดที่ออกไปแล้ว และเลขถัดไปที่ระบบจะใช้ ของแต่ละประเภทเอกสาร</p>
   <div class="table-wrap">
   <table>
@@ -29,8 +32,8 @@
       {% for s in summary %}
       <tr>
         <td>{{ s.label }}</td>
-        <td class="center"><b>{{ s.last }}/{{ fiscal_year }}</b></td>
-        <td class="center"><span class="pill" style="background:#e8f0ff; color:#2b58c9;">{{ s.next }}/{{ fiscal_year }}</span></td>
+        <td class="center"><b>{{ s.last }}</b></td>
+        <td class="center"><span class="pill" style="background:#e8f0ff; color:#2b58c9;">{{ s.next }}</span></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -68,7 +71,7 @@
 </details>
 {% endfor %}
 {% else %}
-<div class="card"><p class="muted">ยังไม่มีเลขที่ถูกใช้ในปีงบประมาณนี้</p></div>
+<div class="card"><p class="muted">ยังไม่มีเลขที่ถูกใช้ในปีนี้</p></div>
 {% endif %}
 <script>
   // บันทึกแบบ AJAX ไม่รีเฟรชหน้า (แถวอื่นที่แก้ค้างไม่เด้งกลับ)

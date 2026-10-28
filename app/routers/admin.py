@@ -22,7 +22,7 @@ from app.models import (
 )
 from app.services import file_upload
 from app.services.doc_number import (
-    suggest_next, commit_number, suggest_doc_no, commit_doc_no, check_doc_no, format_doc_no,
+    suggest_next, commit_number, suggest_doc_no, commit_doc_no, check_doc_no, format_doc_no, doc_year,
     parse_seq, remove_issued,
 )
 from app.services.office_doc import render_memo, render_order, render_official_letter
@@ -92,7 +92,7 @@ def _render_letter_confirm(request, db, kind: str, pending_file: str, fields: di
     elif kind == "outgoing":
         school = get_school(db)
         seq = suggest_next(db, "outgoing", fy)
-        ctx["sug_no"] = f"{school.doc_prefix or 'ศธ'} {seq}/{fy}"
+        ctx["sug_no"] = f"{school.doc_prefix or 'ศธ'} {seq}/{doc_year('outgoing', fy)}"
     elif kind == "memo":
         ctx["school"] = get_school(db)
         ctx["sug_memo"] = suggest_doc_no(db, "memo", fy)
@@ -566,7 +566,7 @@ def outgoing_page(request: Request, db: Session = Depends(get_db), year: int | N
         [r[0] for r in db.query(OutgoingLetter.fiscal_year).distinct()], fy)
     school = get_school(db)
     seq = suggest_next(db, "outgoing", fy)
-    sug_no = f"{school.doc_prefix or 'ศธ'} {seq}/{fy}"
+    sug_no = f"{school.doc_prefix or 'ศธ'} {seq}/{doc_year('outgoing', fy)}"
     return templates.TemplateResponse("outgoing.html", {
         "request": request, "rows": rows, "fiscal_year": fy, "years": years, "sug_no": sug_no,
     })

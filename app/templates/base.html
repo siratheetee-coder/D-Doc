@@ -932,8 +932,7 @@
     window.showDocNos = function(year){
       var q = year ? ('?year=' + year) : '';
       var ov = document.createElement('div'); ov.className = 'dn-ov';
-      ov.innerHTML = '<div class="dn-box"><div class="dn-hd"><b>เลขล่าสุดแต่ละประเภท' +
-        (year ? (' (ปีงบ ' + year + ')') : '') + '</b><button class="dn-x" aria-label="ปิด">✕</button></div>' +
+      ov.innerHTML = '<div class="dn-box"><div class="dn-hd"><b>เลขล่าสุดแต่ละประเภท' + '</b><button class="dn-x" aria-label="ปิด">✕</button></div>' +
         '<div class="dn-body"><p class="muted">กำลังโหลด...</p></div></div>';
       document.body.appendChild(ov);
       function close(){ ov.remove(); document.removeEventListener('keydown', esc); }
@@ -945,7 +944,7 @@
         .then(function(r){ return r.json(); })
         .then(function(d){
           var b = ov.querySelector('.dn-body');
-          if(!d.items || !d.items.length){ b.innerHTML = '<p class="muted">ยังไม่มีเลขที่ออกในปีงบนี้</p>'; return; }
+          if(!d.items || !d.items.length){ b.innerHTML = '<p class="muted">ยังไม่มีเลขที่ออกในปีนี้</p>'; return; }
           function esc2(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
           var rows = d.items.map(function(it){
             return '<tr><td>' + esc2(it.label) + '</td><td><b>' + esc2(it.last) + '</b>' +

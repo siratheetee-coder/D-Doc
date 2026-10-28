@@ -49,7 +49,7 @@ def activity_groups(db, project, procs, memos) -> list:
     loose = []
     for p in procs:
         row = {"kind": "จัดซื้อ/จัดจ้าง", "no": p.order_no or p.memo_no or "-", "subject": f"{p.proc_type or ''}{p.subject or ''}",
-               "amount": float(p.total_amount or 0), "url": f"/procurement/{p.id}", "status": p.status or "", "type": "proc", "id": p.id,
+               "amount": float(p.total_amount or 0), "url": f"/procurement/{p.id}", "status": p.status or "", "type": "proc", "id": p.id, "paid_pre": bool(getattr(p, "paid_before_system", False)),
                "date": _d(p.order_date or p.request_date)}
         (docs[p.activity_id] if p.activity_id in ids else loose).append(row)
     for m in memos:

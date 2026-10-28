@@ -295,10 +295,19 @@ def search_suggest(request: Request, db: Session = Depends(get_db), q: str = "")
 @router.get("/docnos", response_class=HTMLResponse)
 def docnos_page(request: Request, db: Session = Depends(get_db),
                 year: int | None = None):
-    fy = year or current_fiscal_year()
-    rows = (db.query(IssuedDocNo)
-            .filter(IssuedDocNo.fiscal_year == fy)
-            .order_by(IssuedDocNo.doc_type, IssuedDocNo.seq).all())
+    # ไม่เลือกปี = ชุดเลขที่กำลังใช้อยู่ของแต่ละประเภท (หนังสือราชการปีปฏิทิน ใบสั่งซื้อ/จ้างปีงบ)
+    # เลือกปี = ทุกประเภทที่ท้ายเลขเป็นปีนั้น
+    from app.services.doc_number import doc_year
+    cur_fy = current_fiscal_year()
+    fy = year or doc_year("memo", cur_fy)
+    if year:
+        rows = (db.query(IssuedDocNo).filter(IssuedDocNo.fiscal_year == fy)
+                .order_by(IssuedDocNo.doc_type, IssuedDocNo.seq).all())
+        buckets = None
+    else:
+        buckets = {t: doc_year(t, cur_fy) for t in {r[0] for r in db.query(IssuedDocNo.doc_type).distinct()} | set(COUNTER_TYPES)}
+        rows = [r for r in db.query(IssuedDocNo).order_by(IssuedDocNo.doc_type, IssuedDocNo.seq)
+                if buckets.get(r.doc_type, cur_fy) == r.fiscal_year]
     years = fiscal_year_options(
         [r[0] for r in db.query(IssuedDocNo.fiscal_year).distinct()], fy)
     # จัดกลุ่มตามชนิดเอกสาร
@@ -306,11 +315,12 @@ def docnos_page(request: Request, db: Session = Depends(get_db),
     for r in rows:
         groups.setdefault(r.doc_type, []).append(r)
     # สรุป "เลขล่าสุด/เลขถัดไป" ต่อประเภทเอกสาร (ทุกงานที่รันเลข) - ไว้ดูว่าตอนนี้ถึงเลขไหนแล้ว
-    counters = (db.query(DocNumberCounter)
-                .filter(DocNumberCounter.fiscal_year == fy, DocNumberCounter.last_number > 0)
-                .order_by(DocNumberCounter.doc_type).all())
+    counters = [c for c in db.query(DocNumberCounter).filter(DocNumberCounter.last_number > 0)
+                .order_by(DocNumberCounter.doc_type)
+                if c.fiscal_year == ((buckets or {}).get(c.doc_type, cur_fy) if buckets else fy)]
     summary = [{"label": COUNTER_TYPES.get(c.doc_type, c.doc_type),
-                "last": c.last_number, "next": c.last_number + 1} for c in counters]
+                "last": f"{c.last_number}/{c.fiscal_year}", "next": f"{c.last_number + 1}/{c.fiscal_year}"}
+               for c in counters]
     return templates.TemplateResponse("docnos.html", {
         "request": request, "groups": groups, "type_labels": COUNTER_TYPES,
         "fiscal_year": fy, "years": years, "summary": summary,
@@ -320,9 +330,11 @@ def docnos_page(request: Request, db: Session = Depends(get_db),
 @router.get("/docnos/peek")
 def docnos_peek(request: Request, db: Session = Depends(get_db), year: int | None = None):
     """คืนเลขล่าสุด/ถัดไป + เรื่องล่าสุด ต่อประเภทเอกสาร (JSON) - ใช้กับป็อปอัป 'ดูเลขล่าสุด' ไม่ต้องเปลี่ยนหน้า"""
+    from app.services.doc_number import doc_year
     fy = year or current_fiscal_year()
-    counters = (db.query(DocNumberCounter)
-                .filter(DocNumberCounter.fiscal_year == fy, DocNumberCounter.last_number > 0).all())
+    # ปีที่ส่งมาเป็นปีงบของหน้าที่เปิดอยู่ หนังสือราชการแปลงเป็นปีปฏิทินของชุดเลข
+    counters = [c for c in db.query(DocNumberCounter).filter(DocNumberCounter.last_number > 0)
+                if c.fiscal_year == doc_year(c.doc_type, fy)]
     # เรียงตามลำดับใน COUNTER_TYPES (บันทึกข้อความ/คำสั่ง/หนังสือส่ง/หนังสือรับ/ใบสั่งซื้อ/ใบสั่งจ้าง)
     # เพื่อให้ใบสั่งซื้อกับใบสั่งจ้างอยู่ติดกัน
     _order = list(COUNTER_TYPES.keys())
@@ -330,11 +342,11 @@ def docnos_peek(request: Request, db: Session = Depends(get_db), year: int | Non
     items = []
     for c in counters:
         last_row = (db.query(IssuedDocNo)
-                    .filter(IssuedDocNo.doc_type == c.doc_type, IssuedDocNo.fiscal_year == fy)
+                    .filter(IssuedDocNo.doc_type == c.doc_type, IssuedDocNo.fiscal_year == c.fiscal_year)
                     .order_by(IssuedDocNo.seq.desc()).first())
         items.append({
             "label": COUNTER_TYPES.get(c.doc_type, c.doc_type),
-            "last": f"{c.last_number}/{fy}", "next": f"{c.last_number + 1}/{fy}",
+            "last": f"{c.last_number}/{c.fiscal_year}", "next": f"{c.last_number + 1}/{c.fiscal_year}",
             "subject": (last_row.subject if last_row else "") or "",
             "date": thai_date(last_row.date) if (last_row and last_row.date) else "",
         })

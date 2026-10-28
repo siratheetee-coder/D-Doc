@@ -248,7 +248,7 @@
           <td data-label="รายการ"><a href="{{ d.url }}">{{ d.subject }}</a></td>
           <td data-label="ประเภท">{{ kind_tag(d) }}</td>
           <td data-label="จำนวนเงิน" class="right"><b>{{ "{:,.2f}".format(d.amount) }}</b></td>
-          <td data-label="สถานะ">{{ status_pill(d.status) }}</td>
+          <td data-label="สถานะ">{{ status_pill(d.status) }}{% if d.paid_pre %}<small class="pa-pre">จ่ายแล้ว (ก่อนเริ่มใช้ระบบ)</small>{% endif %}</td>
           <td data-label="ย้าย">{{ move_select(d, a.id) }}</td>
         </tr>
       {% endfor %}</tbody></table></div>
@@ -295,7 +295,7 @@
           <td data-label="รายการ"><a href="{{ d.url }}">{{ d.subject }}</a></td>
           <td data-label="ประเภท">{{ kind_tag(d) }}</td>
           <td data-label="จำนวนเงิน" class="right"><b>{{ "{:,.2f}".format(d.amount) }}</b></td>
-          <td data-label="สถานะ">{{ status_pill(d.status) }}</td></tr>
+          <td data-label="สถานะ">{{ status_pill(d.status) }}{% if d.paid_pre %}<small class="pa-pre">จ่ายแล้ว (ก่อนเริ่มใช้ระบบ)</small>{% endif %}</td></tr>
       {% endfor %}</tbody></table></div>
   </section>
   {% endif %}
@@ -367,6 +367,7 @@
   .pa-st i{ width:7px; height:7px; border-radius:50%; background:currentColor; }
   .pa-st.is-done{ background:#dcfce7; color:#15803d; } .pa-st.is-wait{ background:#fef3c7; color:#b45309; } .pa-st.is-draft{ background:#f1f5f9; color:#64748b; }
   .pa-move select{ font-size:13px; padding:5px 10px; min-height:0; width:auto; max-width:170px; border:0; background:#f1f5f9; border-radius:10px; color:#475569; cursor:pointer; }
+  .pa-pre{ display:block; margin-top:3px; font-size:12px; color:#115e59; }
   .pa-none{ display:flex; align-items:center; justify-content:center; gap:14px; padding:22px; border-radius:16px; background:#f8fafc; }
   .pa-none > .icon{ width:34px; height:34px; color:#60a5fa; }
   .pa-none small{ display:block; color:var(--muted); }
