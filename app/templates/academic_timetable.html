@@ -13,9 +13,6 @@
 {% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกตารางเรียนแล้ว</div>{% endif %}
 {% if request.query_params.get('err') %}<div class="alert warn">{{ request.query_params.get('err') }}</div>{% endif %}
 {% if request.query_params.get('psaved') %}<div class="alert">✔ บันทึกโครงคาบแล้ว</div>{% endif %}
-{% if request.query_params.get('auto') is not none %}
-<div class="alert">✔ จัดตารางอัตโนมัติแล้ว {{ request.query_params.get('auto') }} คาบ{% if request.query_params.get('un')|int > 0 %} จัดไม่ได้ {{ request.query_params.get('un') }} คาบ (ช่องว่างไม่พอ หรือครูชนทุกช่อง ลองลดจำนวนคาบ/เพิ่มคาบเรียน หรือกรอกเองส่วนที่เหลือ){% endif %}{% if request.query_params.get('split')|int > 0 %} มีคาบคู่ {{ request.query_params.get('split') }} ชุดที่หาช่องติดกันไม่ได้ ระบบจึงแยกเป็นคาบเดี่ยว{% endif %}</div>
-{% endif %}
 
 <div class="card">
   <form method="get" action="/academic/timetable" class="row" style="align-items:flex-end; margin:0; gap:12px;">
@@ -87,98 +84,151 @@
 {% if not periods %}
 <div class="card"><p class="muted" style="margin:0;">ยังไม่ได้ตั้งโครงคาบเรียน ตั้งด้านบนก่อน แล้วค่อยกรอกตาราง</p></div>
 {% else %}
-{% if can_edit and subjects %}
-<details class="ac-card" {{ 'open' if request.query_params.get('auto') is not none }}>
-  <summary class="ac-summary">
-    <span class="ac-badge"><svg class="icon"><use href="#ic-calendar"/></svg></span>
-    <span class="ac-titles">
-      <b>จัดตารางอัตโนมัติ</b>
-      <small>ใส่จำนวนคาบ/สัปดาห์ ระบบจะจัดวิชาต่าง ๆ ลงช่องว่างให้ วิชาที่เรียนคาบคู่ ใส่จำนวนชุดในช่อง "คาบคู่"</small>
-    </span>
-    <svg class="icon ac-chev"><use href="#ic-arrow-right"/></svg>
-  </summary>
-  <div class="ac-body">
-    <form method="post" action="/academic/timetable/auto" id="acForm">
-      <input type="hidden" name="cid" value="{{ c.id }}">
-      <div class="ac-grid">
-        {% for s in subjects %}
-        {% set dft = (s.hours // 40) if s.hours else 0 %}
-        <div class="ac-item">
-          <span class="ac-code">{{ s.code or ' ' }}</span>
-          <span class="ac-name">{{ s.name }}</span>
-          <span class="ac-stepper">
-            <button type="button" class="ac-pm" data-step="-1" tabindex="-1">−</button>
-            <input class="ac-n" name="n_{{ s.id }}" type="number" min="0" max="20" value="{{ dft if dft > 0 else 1 }}" inputmode="numeric">
-            <button type="button" class="ac-pm" data-step="1" tabindex="-1">+</button>
-          </span>
-          <label class="ac-dbl" title="จำนวนชุดคาบคู่ต่อสัปดาห์ (1 ชุด = 2 คาบติดกัน)">คาบคู่
-            <input class="ac-d" name="d_{{ s.id }}" type="number" min="0" max="10" value="0" inputmode="numeric">
-          </label>
-        </div>
-        {% endfor %}
-      </div>
-      <div class="ac-foot">
-        <label class="ac-clear">
-          <input type="checkbox" name="clear">
-          <span class="ac-clear-txt"><b>ล้างตารางเดิมก่อนจัด</b><em>ไม่ติ๊ก = เติมเฉพาะช่องว่าง</em></span>
-        </label>
-        <span class="ac-total muted">รวม <b id="acTotal">0</b> คาบ/สัปดาห์</span>
-      </div>
-      <button class="btn" type="submit" style="margin-top:14px;"><svg class="icon"><use href="#ic-check"/></svg> จัดตารางให้อัตโนมัติ</button>
-    </form>
-  </div>
-</details>
-{% endif %}
+{% if can_edit %}
+<form method="post" action="/academic/timetable/save" id="ttForm">
+<input type="hidden" name="cid" value="{{ c.id }}">
 
-<div class="card">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-    <h2 style="margin:0;">ตารางเรียน ห้อง {{ class_label(c) }}</h2>
-    <a class="btn soft" href="/academic/timetable/class.docx?cid={{ c.id }}"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ตารางห้องนี้</a>
+{% if request.query_params.get('auto') is not none %}
+<div class="ts-toast">
+  <svg class="icon"><use href="#ic-check"/></svg>
+  <span><b>จัดตารางสำเร็จ {{ request.query_params.get('auto') }} คาบ</b>
+    {% if request.query_params.get('un')|int > 0 %}<br>จัดไม่ได้ {{ request.query_params.get('un') }} คาบ เพราะช่องว่างไม่พอหรือครูไม่ว่างทุกช่อง ลองลดจำนวนคาบ หรือกรอกเองส่วนที่เหลือ{% endif %}
+    {% if request.query_params.get('split')|int > 0 %}<br>คาบคู่ {{ request.query_params.get('split') }} ชุดหาช่องติดกันไม่ได้ ระบบจึงแยกเป็นคาบเดี่ยว{% endif %}</span>
+  {% if has_undo %}<button class="btn soft sm" type="submit" formaction="/academic/timetable/undo" formnovalidate><svg class="icon"><use href="#ic-undo"/></svg> ย้อนกลับ</button>{% endif %}
+</div>
+{% endif %}
+{% if request.query_params.get('undone') %}<div class="alert">✔ ย้อนตารางกลับเป็นก่อนจัดอัตโนมัติแล้ว</div>{% endif %}
+
+{# ---------- แถบสรุปสถานะตาราง ---------- #}
+<div class="ts-bar">
+  <div class="ts-stats">
+    <div class="ts-stat"><span class="ts-ic st-blue"><svg class="icon"><use href="#ic-clipboard"/></svg></span>
+      <div><small>จำนวนคาบที่ต้องการ</small><b id="stNeed">0</b> คาบ/สัปดาห์</div></div>
+    <div class="ts-stat"><span class="ts-ic st-green"><svg class="icon"><use href="#ic-check"/></svg></span>
+      <div><small>จัดแล้ว</small><b id="stDone">0</b> คาบ</div></div>
+    <div class="ts-stat"><span class="ts-ic st-amber"><svg class="icon"><use href="#ic-clock"/></svg></span>
+      <div><small>เหลือ</small><b id="stLeft">0</b> คาบ</div></div>
+    <div class="ts-stat"><span class="ts-ic st-red"><svg class="icon"><use href="#ic-alert"/></svg></span>
+      <div><small>ยังมีปัญหา</small><b id="stProb">0</b> จุด</div></div>
   </div>
-  {% if can_edit %}<p class="muted" style="font-size:13px; margin:6px 0 8px;">เลือกวิชา/กิจกรรมในแต่ละช่อง ครูผู้สอนระบบดึงจากที่ตั้งไว้ในห้องเรียนให้อัตโนมัติ ถ้าครูซ้อนกับห้องอื่นในคาบเดียวกัน ช่องจะขึ้นแดงทันที</p>{% endif %}
-  {% if can_edit %}<div id="tt-clash" class="alert warn" style="display:none; margin-bottom:10px;"></div>{% endif %}
-  <form method="post" action="/academic/timetable/save">
-    <input type="hidden" name="cid" value="{{ c.id }}">
+  <div class="ts-acts">
+    <button type="button" class="btn soft" id="btnCheck"><svg class="icon"><use href="#ic-eye"/></svg> ตรวจสอบปัญหา</button>
+    <button type="button" class="btn" id="btnGoAuto"><svg class="icon"><use href="#ic-sparkle"/></svg> จัดตารางอัตโนมัติ</button>
+  </div>
+</div>
+<div class="ts-problems" id="tsProblems" hidden></div>
+
+{% if subjects %}
+<div class="ts-cols">
+  {# ---------- จำนวนคาบต่อสัปดาห์ + ความคืบหน้า ---------- #}
+  <section class="card ts-plan">
+    <h2 class="ts-h"><span class="ts-hic"><svg class="icon"><use href="#ic-book"/></svg></span>
+      <span>ตั้งค่าจำนวนคาบต่อสัปดาห์<small>ระบุจำนวนคาบ/สัปดาห์ และคาบคู่ (ถ้ามี) ระบบนับว่าจัดไปแล้วกี่คาบให้</small></span></h2>
     <div class="table-wrap">
-    <table class="tt">
-      <thead><tr>
-        <th style="min-width:70px;">วัน \ คาบ</th>
-        {% for p in periods %}
-        <th style="{{ 'background:#f1f5f9;' if p.is_break }} min-width:{{ '70px' if p.is_break else '135px' }};">
-          {{ p.name }}{% if p.time_label %}<div class="muted" style="font-size:11px; font-weight:400;">{{ p.time_label }}</div>{% endif %}</th>
-        {% endfor %}
-      </tr></thead>
+    <table class="ts-ptable">
+      <thead><tr><th>วิชา</th><th>ครูผู้สอน</th><th class="center">คาบ/สัปดาห์</th>
+        <th class="center">คาบคู่ <span class="ts-help" tabindex="0" title="คาบคู่ = เรียนวิชาเดียวกันติดกัน 2 คาบ&#10;1 ชุด = 2 คาบติดกัน&#10;2 ชุด = 4 คาบ (2 ครั้ง)&#10;คาบที่เหลือจัดเป็นคาบเดี่ยว">?</span></th>
+        <th>จัดแล้ว</th></tr></thead>
       <tbody>
-      {% for dnum, dname in days %}
-        <tr>
-          <td style="font-weight:600; white-space:nowrap; background:#faf8ff;">{{ dname }}</td>
-          {% for p in periods %}
-            {% set cell = cells.get(dnum, {}).get(p.id) %}
-            {% if p.is_break %}
-            <td class="center muted" style="background:#f8fafc; font-size:12px;">พัก</td>
-            {% elif can_edit %}
-            <td style="padding:3px;">
-              <select name="cell_{{ dnum }}_{{ p.id }}" onchange="ttCheck()" style="width:100%; min-width:125px; font-size:13px; padding:5px;">
-                <option value=""> </option>
-                {% for val, label in options %}<option value="{{ val }}" {{ 'selected' if cell and cell.sel==val }}>{{ label }}</option>{% endfor %}
-              </select>
-              <div class="cell-teacher muted" style="font-size:11px; margin-top:2px; text-align:center;">{{ cell.teacher if cell else '' }}</div>
-              <div class="cell-clash" style="font-size:10.5px; color:#b91c1c; text-align:center; display:none;"></div>
-            </td>
-            {% else %}
-            <td class="center tt-ro" data-sel="{{ cell.sel if cell else '' }}" style="font-size:12.5px;">
-              {% if cell %}<b>{{ cell.label }}</b>{% if cell.teacher %}<div class="muted" style="font-size:11px;">{{ cell.teacher }}</div>{% endif %}{% else %}<span class="muted"> </span>{% endif %}
-            </td>
-            {% endif %}
-          {% endfor %}
-        </tr>
+      {% for s in subjects %}{% set pn, pd = plan.get(s.id, (0, 0)) %}{% set st = subj_teacher.get(s.id|string) %}
+      <tr class="ts-row" data-sid="{{ s.id }}" data-name="{{ s.name }}">
+        <td><span class="ts-subj"><i class="ts-dot"></i><span><b>{{ s.name }}</b>{% if s.code %}<small>{{ s.code }}</small>{% endif %}</span></span></td>
+        <td class="ts-teacher">{% if st %}{{ st.name }}{% else %}<a class="muted" href="/academic/classes">ยังไม่ตั้งครู</a>{% endif %}</td>
+        <td class="center"><span class="ac-stepper">
+            <button type="button" class="ac-pm" data-step="-1" tabindex="-1">−</button>
+            <input class="ac-n" name="n_{{ s.id }}" type="number" min="0" max="20" value="{{ pn }}" inputmode="numeric" aria-label="จำนวนคาบ {{ s.name }}">
+            <button type="button" class="ac-pm" data-step="1" tabindex="-1">+</button>
+          </span></td>
+        <td class="center"><select class="ac-d" name="d_{{ s.id }}" aria-label="คาบคู่ {{ s.name }}">
+            <option value="0" {{ 'selected' if pd == 0 }}>ไม่มี</option>
+            {% for k in range(1, 6) %}<option value="{{ k }}" {{ 'selected' if pd == k }}>{{ k }} ชุด ({{ k * 2 }} คาบ)</option>{% endfor %}
+          </select></td>
+        <td><span class="ts-prog"><span class="ts-track"><i></i></span><b class="ts-cnt">0/0</b><em class="ts-chip">ยังไม่ครบ</em></span></td>
+      </tr>
       {% endfor %}
       </tbody>
     </table>
     </div>
-    {% if can_edit %}<button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกตารางเรียน</button>{% endif %}
-  </form>
+  </section>
+
+  {# ---------- ตัวเลือกการจัดตารางอัตโนมัติ ---------- #}
+  <section class="card ts-opts" id="tsOpts">
+    <h2 class="ts-h"><span class="ts-hic"><svg class="icon"><use href="#ic-settings"/></svg></span>
+      <span>ตัวเลือกการจัดตารางอัตโนมัติ<small>เลือกเงื่อนไขก่อนกดจัด</small></span></h2>
+    <div class="ts-checks">
+      <label><input type="checkbox" name="opt_spread" value="1" checked><span>กระจายวิชาให้ทั่วสัปดาห์<em>วันที่ยังมีคาบน้อยได้ก่อน</em></span></label>
+      <label><input type="checkbox" name="opt_same_day" value="1" checked><span>หลีกเลี่ยงวิชาเดียวกันในวันเดียวกัน<em>ยกเว้นคาบคู่</em></span></label>
+      <label><input type="checkbox" name="opt_use_doubles" value="1" checked><span>จัดคาบคู่ตามที่กำหนด<em>2 คาบติดกัน ไม่คร่อมเวลาพัก</em></span></label>
+      <label><input type="checkbox" name="opt_keep_locked" value="1" checked><span>รักษาคาบที่ล็อกไว้<em>คาบที่กดรูปกุญแจไว้จะไม่ถูกเปลี่ยน</em></span></label>
+    </div>
+    <label class="ts-danger"><input type="checkbox" name="clear" id="optClear">
+      <span><b>จัดใหม่ทั้งตาราง (ล้างตารางเดิม)</b><em>ตารางปัจจุบันจะถูกแทนที่ ถ้าไม่เลือก ระบบเติมเฉพาะช่องว่าง</em></span></label>
+    <div class="ts-cap" id="tsCap" hidden></div>
+    <button class="btn ts-big" type="submit" formaction="/academic/timetable/auto" id="btnAuto"><svg class="icon"><use href="#ic-sparkle"/></svg> จัดตารางให้อัตโนมัติ</button>
+    <p class="muted ts-note">กดแล้วย้อนกลับได้ ถ้าไม่ชอบผลที่ได้</p>
+  </section>
 </div>
+{% endif %}
+{% endif %}
+
+<div class="card">
+  <div class="ts-gridhead">
+    <h2 class="ts-h" style="margin:0;"><span class="ts-hic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
+      <span>ตารางเรียน ห้อง {{ class_label(c) }}<small>ปีการศึกษา {{ year }}</small></span></h2>
+    <div class="ts-gacts">
+      {% if can_edit %}
+      <button type="button" class="btn soft sm" id="btnLockAll"><svg class="icon"><use href="#ic-lock"/></svg> ล็อกทุกคาบที่จัดแล้ว</button>
+      <button type="button" class="btn soft sm" id="btnUnlockAll"><svg class="icon"><use href="#ic-unlock"/></svg> ปลดล็อกทั้งหมด</button>
+      {% if has_undo %}<button class="btn soft sm" type="submit" formaction="/academic/timetable/undo" formnovalidate><svg class="icon"><use href="#ic-undo"/></svg> ย้อนกลับ</button>{% endif %}
+      {% endif %}
+      <a class="btn soft sm" href="/academic/timetable/class.docx?cid={{ c.id }}"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์</a>
+      {% if can_edit %}<button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกตาราง</button>{% endif %}
+    </div>
+  </div>
+  {% if can_edit %}<p class="muted" style="font-size:13px; margin:8px 0;">พิมพ์ชื่อวิชาเพื่อค้นหาได้ ช่องที่ครูไม่ว่างหรือวิชาครบคาบแล้วจะบอกเหตุผลในรายการ กดรูปกุญแจเพื่อล็อกคาบไม่ให้จัดอัตโนมัติเปลี่ยน</p>{% endif %}
+  <div class="tt-scroll">
+  <table class="tt">
+    <thead><tr>
+      <th class="tt-day">วัน \ คาบ</th>
+      {% for p in periods %}
+      <th class="{{ 'tt-brk' if p.is_break }}">{{ p.name }}{% if p.time_label %}<div class="tt-time">{{ p.time_label }}</div>{% endif %}</th>
+      {% endfor %}
+    </tr></thead>
+    <tbody>
+    {% for dnum, dname in days %}
+      <tr>
+        <th class="tt-day">{{ dname }}</th>
+        {% for p in periods %}
+          {% set cell = cells.get(dnum, {}).get(p.id) %}
+          {% if p.is_break %}
+          <td class="tt-brk"><span>พัก</span></td>
+          {% elif can_edit %}
+          <td class="tt-cell{{ ' locked' if cell and cell.locked }}" data-day="{{ dnum }}" data-dname="{{ dname }}" data-pname="{{ p.name }}">
+            <div class="tt-in">
+              <select name="cell_{{ dnum }}_{{ p.id }}" data-combo data-combo-placeholder="+ เลือกวิชา" onchange="ttCheck()">
+                <option value=""></option>
+                {% for val, label in options %}<option value="{{ val }}" data-cp-label="{{ label }}" {{ 'selected' if cell and cell.sel==val }}>{{ label }}</option>{% endfor %}
+              </select>
+              <button type="button" class="tt-lock" title="ล็อกคาบนี้ (จัดอัตโนมัติจะไม่เปลี่ยน)" aria-pressed="{{ 'true' if cell and cell.locked else 'false' }}">
+                <svg class="icon"><use href="#{{ 'ic-lock' if cell and cell.locked else 'ic-unlock' }}"/></svg></button>
+              <input type="hidden" name="lock_{{ dnum }}_{{ p.id }}" value="{{ '1' if cell and cell.locked else '' }}">
+            </div>
+            <div class="cell-teacher"></div>
+            <div class="cell-clash"></div>
+          </td>
+          {% else %}
+          <td class="tt-ro" data-sel="{{ cell.sel if cell else '' }}">
+            {% if cell %}<b>{{ cell.label }}</b>{% if cell.teacher %}<div class="muted" style="font-size:11px;">{{ cell.teacher }}</div>{% endif %}{% endif %}
+          </td>
+          {% endif %}
+        {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% if can_edit %}</form>{% endif %}
 {% endif %}
 {% elif classes %}
 <div class="card"><p class="muted" style="margin:0;">เลือกห้องด้านบนเพื่อกรอก/ดูตารางเรียน</p></div>
@@ -187,162 +237,353 @@
 {% endif %}
 
 <style>
-  table.tt th, table.tt td { border:1px solid #e5e7eb; padding:6px 8px; text-align:center; vertical-align:middle; }
-  table.tt th { background:#f5f3ff; font-size:13px; }
-  table.tt td.clash { background:#fee2e2; }
-  /* ===== การ์ดจัดตารางอัตโนมัติ (ดีไซน์ใหม่) ===== */
-  .ac-card { border:1px solid #e5e0fb; border-radius:16px; background:#fff; margin-bottom:22px;
-    box-shadow:0 4px 16px rgba(79,70,229,.06); overflow:hidden; }
-  .ac-card[open] { box-shadow:0 8px 26px rgba(79,70,229,.1); }
-  .ac-summary { list-style:none; cursor:pointer; display:flex; align-items:center; gap:14px;
-    padding:16px 18px; background:linear-gradient(135deg,#f5f3ff,#eef2ff); }
-  .ac-summary::-webkit-details-marker { display:none; }
-  .ac-badge { flex:0 0 auto; width:42px; height:42px; border-radius:12px; display:grid; place-items:center;
-    background:linear-gradient(135deg,var(--brand),var(--brand-dark)); color:#fff; box-shadow:0 3px 8px rgba(79,70,229,.35); }
-  .ac-badge .icon { width:22px; height:22px; }
-  .ac-titles { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px; }
-  .ac-titles b { font-size:16.5px; color:#3730a3; }
-  .ac-titles small { font-size:12.5px; color:#6b7280; }
-  .ac-chev { width:18px; height:18px; color:#818cf8; transform:rotate(90deg); transition:transform .2s ease; }
-  .ac-card[open] .ac-chev { transform:rotate(-90deg); }
-  .ac-body { padding:16px 18px 18px; }
-  .ac-card[open] .ac-body { animation:acReveal .28s cubic-bezier(.2,.7,.25,1) both; }
-  @keyframes acReveal { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:none; } }
-  @media (prefers-reduced-motion: reduce) { .ac-card[open] .ac-body { animation:none; } }
-  .ac-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(330px, 1fr)); gap:10px; }
-  .ac-item { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:11px;
-    background:#faf9ff; border:1px solid #eceafe; }
-  .ac-code { flex:0 0 auto; font-size:11px; font-weight:700; color:#6d28d9; background:#ede9fe;
-    padding:3px 7px; border-radius:6px; white-space:nowrap; }
-  .ac-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-    font-size:13.5px; color:#334155; }
-  .ac-stepper { flex:0 0 auto; display:inline-flex; align-items:center; border:1.5px solid #ddd6fe;
-    border-radius:9px; overflow:hidden; background:#fff; }
-  .ac-pm { border:none; background:#f5f3ff; color:#6d28d9; width:26px; height:32px; font-size:17px;
-    font-weight:700; cursor:pointer; line-height:1; }
+  /* ---------- แถบสรุป ---------- */
+  .ts-toast { display:flex; align-items:center; gap:12px; padding:14px 18px; margin-bottom:14px; border-radius:16px;
+    color:#065f46; background:linear-gradient(135deg,#ecfdf5,#d1fae5); font-size:14.5px; line-height:1.6; }
+  .ts-toast > .icon { flex:none; width:22px; height:22px; }
+  .ts-toast span { flex:1; }
+  .ts-bar { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; padding:16px 18px; margin-bottom:16px;
+    border-radius:20px; background:var(--surface); box-shadow:0 4px 18px rgba(15,23,42,.06); }
+  .ts-stats { display:flex; gap:10px 26px; flex-wrap:wrap; }
+  .ts-stat { display:flex; align-items:center; gap:10px; font-size:13px; color:#64748b; }
+  .ts-stat small { display:block; font-size:13px; color:#475569; }
+  .ts-stat b { font-size:24px; font-weight:800; color:#0f172a; margin-right:4px; }
+  .ts-ic { width:42px; height:42px; border-radius:13px; display:grid; place-items:center; color:#fff; }
+  .ts-ic .icon { width:21px; height:21px; }
+  .st-blue { background:linear-gradient(135deg,#60a5fa,#2563eb); }
+  .st-green { background:linear-gradient(135deg,#34d399,#059669); }
+  .st-amber { background:linear-gradient(135deg,#fbbf24,#f97316); }
+  .st-red { background:linear-gradient(135deg,#fb7185,#dc2626); }
+  .ts-acts { display:flex; gap:8px; flex-wrap:wrap; }
+  .ts-problems { margin:-4px 0 16px; padding:14px 18px; border-radius:16px; background:linear-gradient(135deg,#fff7ed,#ffedd5); font-size:14px; line-height:1.7; color:#7c2d12; }
+  .ts-problems.ok { color:#065f46; background:linear-gradient(135deg,#ecfdf5,#d1fae5); }
+  .ts-problems ul { margin:6px 0 0; padding-left:20px; }
+  .ts-problems a { color:inherit; font-weight:700; }
+
+  /* ---------- ตั้งค่า + ตัวเลือก ---------- */
+  .ts-cols { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:16px; align-items:start; }
+  .ts-h { display:flex !important; align-items:center; gap:12px; margin:0 0 12px; background:none !important; padding:0 !important; box-shadow:none !important; border:0 !important; font-size:17px; color:#0f172a; }
+  .ts-h small { display:block; font-size:12.5px; font-weight:400; color:#64748b; }
+  .ts-hic { flex:none; width:38px; height:38px; border-radius:12px; display:grid; place-items:center; color:#fff; background:linear-gradient(135deg,#6366f1,#2563eb); }
+  .ts-hic .icon { width:19px; height:19px; }
+  .ts-ptable { width:100%; border-collapse:separate; border-spacing:0 6px; }
+  .ts-ptable th { font-size:12.5px; font-weight:600; color:#64748b; text-align:left; padding:0 8px; background:none; border:0; }
+  .ts-ptable th.center, .ts-ptable td.center { text-align:center; }
+  .ts-ptable td { padding:7px 8px; background:#f8fafc; border:0; vertical-align:middle; font-size:13.5px; }
+  .ts-ptable td:first-child { border-radius:12px 0 0 12px; }
+  .ts-ptable td:last-child { border-radius:0 12px 12px 0; }
+  .ts-ptable td:first-child { min-width:190px; }
+  .ts-subj { display:flex; align-items:center; gap:9px; padding:5px 10px; border-radius:10px; background:var(--cbg); border-left:4px solid var(--cbd); }
+  .ts-subj b { font-size:14px; color:#0f172a; }
+  .ts-subj small { display:block; font-size:11.5px; color:#475569; }
+  .ts-dot { display:none; }
+  .ts-teacher { color:#334155; font-size:13px; }
+  .ts-help { display:inline-grid; place-items:center; width:17px; height:17px; border-radius:50%; font-size:11px; font-weight:800;
+    color:#fff; background:#94a3b8; cursor:help; }
+  .ac-stepper { display:inline-flex; align-items:center; border-radius:10px; overflow:hidden; background:#fff; box-shadow:0 0 0 1.5px #ddd6fe; }
+  .ac-pm { border:none; background:#f5f3ff; color:#6d28d9; width:28px; height:32px; font-size:17px; font-weight:700; cursor:pointer; line-height:1; }
   .ac-pm:hover { background:#ede9fe; }
-  .ac-n { width:40px; height:32px; border:none; text-align:center; font-weight:700; font-size:15px;
-    color:#3730a3; -moz-appearance:textfield; }
+  .ac-n { width:40px; height:32px; border:none; padding:0; text-align:center; font-weight:700; font-size:15px; color:#3730a3; box-shadow:none; -moz-appearance:textfield; }
   .ac-n::-webkit-outer-spin-button, .ac-n::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
-  .ac-dbl { flex:0 0 auto; display:inline-flex; align-items:center; gap:5px; margin:0; font-size:12px; color:#6b7280; white-space:nowrap; }
-  .ac-d { width:38px; height:32px; padding:0; border:1.5px solid #ddd6fe; border-radius:9px; text-align:center;
-    font-weight:700; font-size:14px; color:#3730a3; -moz-appearance:textfield; }
-  .ac-d::-webkit-outer-spin-button, .ac-d::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
-  .ac-item.bad .ac-d { border-color:#f87171; background:#fef2f2; }
-  table.tt td.pair-l { border-right-color:transparent; }
-  table.tt td.pair-r { border-left-color:transparent; }
-  .tt-pair { display:inline-block; margin-top:3px; padding:0 8px; border-radius:999px; font-size:10.5px; font-weight:700;
-    color:#5b21b6; background:rgba(255,255,255,.75); }
-  .ac-foot { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-top:16px; }
-  .ac-clear { display:inline-flex; align-items:center; gap:11px; margin:0; cursor:pointer;
-    padding:9px 14px; border:1px solid #eceafe; border-radius:11px; background:#faf9ff;
-    transition:border-color .15s, background .15s; }
-  .ac-clear:hover { border-color:#ddd6fe; background:#f5f3ff; }
-  .ac-clear input { flex:0 0 auto; width:19px; height:19px; margin:0; accent-color:var(--brand); cursor:pointer; }
-  .ac-clear-txt { display:flex; flex-direction:column; line-height:1.2; }
-  .ac-clear-txt b { font-size:13.5px; color:#334155; }
-  .ac-clear-txt em { font-size:12px; color:#9aa3b2; font-style:normal; }
-  .ac-total { font-size:14px; white-space:nowrap; } .ac-total b { color:var(--brand-dark); font-size:16px; }
-  @media (max-width:560px){
-    .ac-grid { grid-template-columns:1fr; }
-    .ac-foot { flex-direction:column; align-items:stretch; }
-    .ac-clear { justify-content:flex-start; }
-    .ac-total { text-align:right; }
+  .ac-d { width:auto; min-width:104px; padding:6px 8px; font-size:13px; border-radius:10px; }
+  .ts-row.bad .ac-d { box-shadow:0 0 0 2px #f87171; background:#fef2f2; }
+  .ts-prog { display:grid; grid-template-columns:70px auto; align-items:center; gap:4px 8px; white-space:nowrap; }
+  .ts-prog .ts-chip { grid-column:1 / -1; justify-self:start; }
+  .ts-track { width:70px; height:7px; border-radius:99px; background:#e2e8f0; overflow:hidden; }
+  .ts-track i { display:block; height:100%; width:0; border-radius:99px; background:linear-gradient(90deg,#60a5fa,#2563eb); transition:width .25s; }
+  .ts-cnt { font-size:13px; color:#334155; min-width:34px; }
+  .ts-chip { padding:2px 9px; border-radius:99px; font-size:12px; font-style:normal; font-weight:700; color:#92400e; background:#fef3c7; }
+  .ts-row.done .ts-track i { background:linear-gradient(90deg,#34d399,#059669); }
+  .ts-row.done .ts-chip { color:#065f46; background:#d1fae5; }
+  .ts-row.over .ts-track i { background:linear-gradient(90deg,#fb7185,#dc2626); }
+  .ts-row.over .ts-chip { color:#9f1239; background:#ffe4e6; }
+  .ts-row.zero .ts-chip { color:#64748b; background:#f1f5f9; }
+
+  .ts-opts { position:sticky; top:84px; }
+  .ts-opts.flash { animation:tsFlash 1.2s ease; }
+  @keyframes tsFlash { 0%,100% { box-shadow:0 4px 18px rgba(15,23,42,.06); } 30% { box-shadow:0 0 0 4px rgba(99,102,241,.35); } }
+  .ts-checks { display:flex; flex-direction:column; gap:4px; padding:10px 12px; border-radius:14px; background:#f8fafc; }
+  .ts-checks label, .ts-danger { display:flex; align-items:flex-start; gap:10px; margin:0; padding:6px 2px; cursor:pointer; font-size:14px; color:#0f172a; }
+  .ts-checks input, .ts-danger input { flex:none; width:19px; height:19px; margin:2px 0 0; accent-color:#4f46e5; }
+  .ts-checks em, .ts-danger em { display:block; font-style:normal; font-size:12px; color:#64748b; }
+  .ts-danger { margin-top:10px; padding:10px 12px; border-radius:14px; background:linear-gradient(135deg,#fff1f2,#ffe4e6); }
+  .ts-danger b { color:#9f1239; }
+  .ts-danger input { accent-color:#e11d48; }
+  .ts-cap { margin-top:10px; padding:10px 12px; border-radius:12px; font-size:13px; line-height:1.6; color:#1e3a8a; background:#eff6ff; }
+  .ts-cap.warn { color:#92400e; background:#fffbeb; }
+  .ts-cap ul { margin:4px 0 0; padding-left:18px; }
+  .ts-big { width:100%; justify-content:center; margin-top:12px; padding:13px; font-size:15.5px; }
+  .ts-note { margin:6px 0 0; font-size:12px; text-align:center; }
+
+  /* ---------- ตาราง ---------- */
+  .ts-gridhead { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  .ts-gacts { display:flex; gap:6px; flex-wrap:wrap; }
+  .tt-scroll { overflow:auto; max-height:76vh; border-radius:14px; box-shadow:inset 0 0 0 1px #e5e7eb; }
+  table.tt { border-collapse:separate; border-spacing:0; width:100%; }
+  table.tt th, table.tt td { border-right:1px solid #eef0f4; border-bottom:1px solid #eef0f4; padding:6px; text-align:center; vertical-align:middle; }
+  table.tt thead th { position:sticky; top:0; z-index:3; background:#f5f3ff; font-size:13px; min-width:150px; }
+  table.tt .tt-time { font-size:11px; font-weight:400; color:#64748b; }
+  table.tt .tt-day { position:sticky; left:0; z-index:2; min-width:78px; background:#faf8ff; font-size:14px; }
+  table.tt thead .tt-day { z-index:4; }
+  table.tt th.tt-brk { min-width:62px; background:#e2e8f0; color:#475569; }
+  table.tt td.tt-brk { min-width:62px; color:#64748b; font-size:12px; font-weight:600;
+    background:repeating-linear-gradient(135deg,#f1f5f9 0 8px,#e2e8f0 8px 16px); }
+  table.tt td.tt-brk span { padding:2px 8px; border-radius:99px; background:rgba(255,255,255,.8); }
+  td.tt-cell { background:var(--cbg,#fff); box-shadow:inset 4px 0 0 var(--cbd,transparent); min-width:150px; }
+  td.tt-cell.pair-l { border-right-color:transparent; }
+  td.tt-cell.pair-r { box-shadow:none; }
+  .tt-in { display:flex; align-items:center; gap:3px; }
+  .tt-in .cp-input { flex:1; min-width:0; padding:6px 8px; font-size:13px; border-radius:9px; border:1px solid rgba(15,23,42,.08);
+    background:rgba(255,255,255,.75); box-shadow:none; }
+  .tt-in .cp-input::placeholder { color:#94a3b8; }
+  .tt-lock { flex:none; width:26px; height:26px; padding:0; border:0; border-radius:8px; display:grid; place-items:center; cursor:pointer;
+    color:#cbd5e1; background:transparent; }
+  .tt-lock:hover { color:#64748b; background:rgba(255,255,255,.7); }
+  .tt-lock .icon { width:15px; height:15px; }
+  td.tt-cell.locked .tt-lock { color:#fff; background:#475569; }
+  td.tt-cell.locked { outline:2px dashed rgba(71,85,105,.35); outline-offset:-3px; }
+  .cell-teacher { font-size:11px; color:#475569; margin-top:2px; min-height:14px; }
+  .cell-clash { display:none; margin-top:2px; font-size:11px; font-weight:700; color:#b91c1c; }
+  td.tt-cell.clash { --cbg:#fee2e2 !important; --cbd:#dc2626 !important; }
+  td.tt-cell.clash .cell-clash { display:block; }
+  td.tt-cell.hit { animation:tsFlash 1.2s ease 2; }
+  .tt-pair { display:inline-block; margin-top:3px; padding:0 8px; border-radius:999px; font-size:10.5px; font-weight:700; color:#5b21b6; background:rgba(255,255,255,.75); }
+  td.tt-ro { min-width:120px; font-size:12.5px; background:var(--cbg,#fff); box-shadow:inset 4px 0 0 var(--cbd,transparent); }
+
+  @media (max-width:1100px) { .ts-cols { grid-template-columns:minmax(0,1fr); } .ts-opts { position:static; } }
+  @media (max-width:760px) {
+    /* มือถือ: แถววิชาเป็นการ์ด */
+    .ts-ptable thead { display:none; }
+    .ts-ptable, .ts-ptable tbody { display:block; }
+    .ts-ptable tr.ts-row { display:grid; grid-template-columns:auto 1fr; align-items:center; gap:8px 10px; padding:10px;
+      margin-bottom:8px; border-radius:14px; background:#f8fafc; }
+    .ts-ptable td { display:block; padding:0; background:none; border-radius:0 !important; min-width:0 !important; text-align:left !important; }
+    .ts-ptable td:nth-child(1), .ts-ptable td:nth-child(2), .ts-ptable td:nth-child(5) { grid-column:1 / -1; }
+    .ts-ptable td:nth-child(4)::before { content:"คาบคู่"; margin-right:6px; font-size:12px; color:#64748b; }
+    .ts-prog { grid-template-columns:1fr auto auto; }
+    .ts-prog .ts-chip { grid-column:auto; }
+    .ts-track { width:100%; }
+  }
+  @media (max-width:640px) {
+    .ts-bar { padding:14px; }
+    .ts-stat b { font-size:20px; }
+    .ts-acts, .ts-acts .btn { width:100%; justify-content:center; }
   }
 </style>
-{% if can_edit and subjects %}
-<script>
-  // จัดตารางอัตโนมัติ: ปุ่ม +/- และรวมคาบสด ๆ
-  (function(){
-    var form = document.getElementById('acForm');
-    if (!form) return;
-    var totalEl = document.getElementById('acTotal');
-    function clamp(n){ return Math.max(0, Math.min(20, n)); }
-    function recalc(){
-      var t = 0;
-      form.querySelectorAll('.ac-item').forEach(function(it){
-        var n = parseInt(it.querySelector('.ac-n').value,10) || 0, d = parseInt(it.querySelector('.ac-d').value,10) || 0;
-        t += n;
-        it.classList.toggle('bad', d * 2 > n);      // คาบคู่ 1 ชุดใช้ 2 คาบ ต้องไม่เกินจำนวนคาบ
-        it.querySelector('.ac-d').title = d * 2 > n ? 'คาบคู่ ' + d + ' ชุด ใช้ ' + (d * 2) + ' คาบ เกินจำนวนคาบ ระบบจะลดให้เหลือ ' + Math.floor(n / 2) + ' ชุด' : '';
-      });
-      totalEl.textContent = t;
-    }
-    form.querySelectorAll('.ac-pm').forEach(function(b){
-      b.addEventListener('click', function(){
-        var inp = b.parentNode.querySelector('.ac-n');
-        inp.value = clamp((parseInt(inp.value,10) || 0) + parseInt(b.dataset.step,10));
-        recalc();
-      });
-    });
-    form.addEventListener('input', recalc);
-    recalc();
-  })();
-</script>
-{% endif %}
 {% if c %}
 <script>
-  // แยกสีตามวิชา - ต้องตรงกับ _TT_PALETTE ใน acad_doc.py
-  var TT_PALETTE = ["#E0F2FE","#DCFCE7","#FEF3C7","#FCE7F3","#EDE9FE","#FFE4E6",
-                    "#D1FAE5","#FEF9C3","#E0E7FF","#FFEDD5","#CCFBF1","#F3E8FF"];
-  function ttColor(key){
-    if(!key) return "";
-    var h=0; for(var i=0;i<key.length;i++) h+=key.charCodeAt(i);
-    return TT_PALETTE[h % TT_PALETTE.length];
+  // สีประจำวิชา: ตามลำดับวิชาของชั้น (ไม่ซ้ำกันจนกว่าจะเกิน 12 วิชา) ใช้ทั้งแผงตั้งค่าและตาราง
+  var TT_PAL = [["#dbeafe","#3b82f6"],["#ede9fe","#8b5cf6"],["#d1fae5","#10b981"],["#fef3c7","#f59e0b"],
+                ["#ffe4e6","#f43f5e"],["#cffafe","#06b6d4"],["#ffedd5","#f97316"],["#ecfccb","#84cc16"],
+                ["#fae8ff","#d946ef"],["#ccfbf1","#14b8a6"],["#e0e7ff","#6366f1"],["#fce7f3","#ec4899"]];
+  var TT_NOTE = ["#f1f5f9","#94a3b8"];
+  var TT_GROUP = {{ subj_group|tojson }};      // วิชาต่างภาค -> วิชาตัวแทน
+  var TT_COLOR = {{ subj_color|tojson }};
+  function ttCanon(v){ if (v && v.charAt(0) === 's'){ var id = v.slice(1); return TT_GROUP[id] || id; } return null; }
+  function ttColor(v){
+    var c = ttCanon(v);
+    if (c != null && TT_COLOR[c] != null) return TT_PAL[TT_COLOR[c] % TT_PAL.length];
+    return v ? TT_NOTE : null;
   }
-  function ttPaintReadonly(){
-    document.querySelectorAll("td.tt-ro").forEach(function(td){
-      td.style.background = ttColor(td.dataset.sel || "");
-    });
-    // วิชาเดียวกันในคาบติดกัน (คาบคู่) รวมเป็นช่องเดียว
-    document.querySelectorAll("td.tt-ro").forEach(function(td){
+  function ttPaint(el, v){
+    var col = ttColor(v);
+    el.style.setProperty('--cbg', col ? col[0] : '#fff');
+    el.style.setProperty('--cbd', col ? col[1] : 'transparent');
+  }
+  document.querySelectorAll('.ts-row').forEach(function(tr){ ttPaint(tr, 's' + tr.dataset.sid); });
+  // ครูดูแบบอ่านอย่างเดียว: ระบายสี + รวมคาบคู่เป็นช่องเดียว
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('td.tt-ro').forEach(function(td){ ttPaint(td, td.dataset.sel || ''); });
+    document.querySelectorAll('td.tt-ro').forEach(function(td){
       if (!td.isConnected || !td.dataset.sel) return;
       var nx = td.nextElementSibling;
       while (nx && nx.classList.contains('tt-ro') && nx.dataset.sel === td.dataset.sel){
         td.colSpan += 1; var gone = nx; nx = nx.nextElementSibling; gone.remove();
       }
-      if (td.colSpan > 1 && !td.querySelector('.tt-pair')) td.insertAdjacentHTML('beforeend', '<div class="tt-pair">คาบคู่</div>');
+      if (td.colSpan > 1) td.insertAdjacentHTML('beforeend', '<div class="tt-pair">คาบคู่</div>');
     });
-  }
-  document.addEventListener('DOMContentLoaded', ttPaintReadonly);
+  });
 </script>
 {% endif %}
 {% if can_edit and c %}
 <script>
   var TT_BUSY = {{ busy|tojson }};             // {teacherId: {"day_pid": "ห้อง (วิชา)"}}
   var TT_SUBJ_TEACHER = {{ subj_teacher|tojson }};  // {subjectId: {tid, name}}
-  function ttCheck(){
-    var clashes = 0;
-    document.querySelectorAll('select[name^="cell_"]').forEach(function(sel){
-      var m = sel.name.match(/cell_(\d+)_(\d+)/);
-      var td = sel.closest('td');
-      var tdiv = td.querySelector('.cell-teacher');
-      var cdiv = td.querySelector('.cell-clash');
-      var val = sel.value, tname = '', clash = null;
-      if (val.indexOf('s') === 0){
-        var st = TT_SUBJ_TEACHER[val.slice(1)];
-        if (st){ tname = st.name || '';
-          if (st.tid && TT_BUSY[st.tid]) clash = TT_BUSY[st.tid][m[1] + '_' + m[2]] || null;
-        }
-      }
-      if (tdiv) tdiv.textContent = tname;
-      if (clash){ td.classList.add('clash'); td.style.background=''; cdiv.textContent = 'ซ้อน: ' + clash; cdiv.style.display = 'block'; clashes++; }
-      else { td.classList.remove('clash'); td.style.background = ttColor(val); if(cdiv){ cdiv.textContent=''; cdiv.style.display='none'; } }
+  var ttForm = document.getElementById('ttForm');
+  var ttState = { problems: [], more: 0, free: 0 };
+
+  function ttCells(){ return [].slice.call(document.querySelectorAll('td.tt-cell')); }
+  function ttLockInput(td){ return td.querySelector('input[name^="lock_"]'); }
+  function ttPlan(){
+    var P = {};
+    document.querySelectorAll('.ts-row').forEach(function(tr){
+      P[tr.dataset.sid] = { n: parseInt(tr.querySelector('.ac-n').value, 10) || 0,
+                            d: parseInt(tr.querySelector('.ac-d').value, 10) || 0, tr: tr, name: tr.dataset.name };
     });
-    ttMarkPairs();
-    var b = document.getElementById('tt-clash');
-    if (b){
-      if (clashes){ b.style.display='block'; b.innerHTML = '⚠ พบครูสอนซ้อนกับห้องอื่น ' + clashes + ' ช่อง (ช่องสีแดง) แก้คาบให้ไม่ชนก่อนบันทึก'; }
-      else b.style.display='none';
-    }
+    return P;
   }
   function ttMarkPairs(){
-    document.querySelectorAll('table.tt td').forEach(function(td){ td.classList.remove('pair-l','pair-r'); });
-    document.querySelectorAll('select[name^="cell_"]').forEach(function(sel){
-      var td = sel.closest('td'), nx = td.nextElementSibling, ns = nx && nx.querySelector('select[name^="cell_"]');
+    ttCells().forEach(function(td){ td.classList.remove('pair-l', 'pair-r'); });
+    ttCells().forEach(function(td){
+      var sel = td.querySelector('select'), nx = td.nextElementSibling, ns = nx && nx.classList.contains('tt-cell') && nx.querySelector('select');
       if (sel.value && ns && ns.value === sel.value){ td.classList.add('pair-l'); nx.classList.add('pair-r'); }
     });
   }
+
+  function ttCheck(){
+    var P = ttPlan(), cnt = {}, problems = [];
+    ttCells().forEach(function(td){
+      var c = ttCanon(td.querySelector('select').value);
+      if (c) cnt[c] = (cnt[c] || 0) + 1;
+    });
+    ttCells().forEach(function(td){
+      var sel = td.querySelector('select'), m = sel.name.match(/cell_(\d+)_(\d+)/), key = m[1] + '_' + m[2], val = sel.value;
+      var tname = '', clash = null;
+      if (val.charAt(0) === 's'){
+        var st = TT_SUBJ_TEACHER[val.slice(1)];
+        if (st){ tname = st.name || ''; if (st.tid && TT_BUSY[st.tid]) clash = TT_BUSY[st.tid][key] || null; }
+      }
+      td.querySelector('.cell-teacher').textContent = tname;
+      td.querySelector('.cell-clash').textContent = clash ? 'ครูชน: ' + clash : '';
+      td.classList.toggle('clash', !!clash);
+      ttPaint(td, val);
+      if (clash) problems.push({ td: td, text: td.dataset.dname + ' ' + td.dataset.pname + ': ' + (sel.selectedOptions[0] || {}).textContent + ' ครูสอนชนกับ ' + clash });
+      // เหตุผลในรายการเลือกวิชา (ไม่ปิดตัวเลือก แค่บอกให้รู้ก่อนเลือก)
+      [].forEach.call(sel.options, function(o){
+        if (!o.value || o.value.charAt(0) !== 's') return;
+        var sid = o.value.slice(1), c = TT_GROUP[sid] || sid, t = TT_SUBJ_TEACHER[sid], why = '';
+        if (t && t.tid && TT_BUSY[t.tid] && TT_BUSY[t.tid][key]) why = 'ครูไม่ว่าง สอน ' + TT_BUSY[t.tid][key];
+        else if (P[c] && P[c].n > 0 && (cnt[c] || 0) >= P[c].n && o.value !== val) why = 'ครบ ' + P[c].n + ' คาบแล้ว';
+        o.dataset.cpSub = why || (t ? t.name : '');
+        if (why) o.dataset.cpWarn = '1'; else delete o.dataset.cpWarn;
+      });
+    });
+    ttMarkPairs();
+    // ความคืบหน้ารายวิชา
+    var need = 0, done = 0;
+    Object.keys(P).forEach(function(sid){
+      var p = P[sid], have = cnt[sid] || 0, tr = p.tr;
+      need += p.n; done += Math.min(have, p.n);
+      tr.querySelector('.ts-track i').style.width = (p.n ? Math.min(100, have / p.n * 100) : 0) + '%';
+      tr.querySelector('.ts-cnt').textContent = have + '/' + p.n;
+      var chip = tr.querySelector('.ts-chip');
+      tr.classList.remove('done', 'over', 'zero');
+      if (!p.n && !have){ tr.classList.add('zero'); chip.textContent = 'ไม่จัด'; }
+      else if (have > p.n){ tr.classList.add('over'); chip.textContent = 'เกิน ' + (have - p.n); problems.push({ text: p.name + ' จัดไว้ ' + have + ' คาบ เกินที่ตั้งไว้ ' + p.n + ' คาบ' }); }
+      else if (have === p.n){ tr.classList.add('done'); chip.textContent = '✓ ครบแล้ว'; }
+      else chip.textContent = 'ยังไม่ครบ';
+      var bad = p.d * 2 > p.n;
+      tr.classList.toggle('bad', bad);
+      if (bad) problems.push({ text: p.name + ' ตั้งคาบคู่ ' + p.d + ' ชุด (' + (p.d * 2) + ' คาบ) เกินจำนวนคาบ ' + p.n + ' คาบ' });
+    });
+    document.getElementById('stNeed').textContent = need;
+    document.getElementById('stDone').textContent = done;
+    document.getElementById('stLeft').textContent = Math.max(0, need - done);
+    document.getElementById('stProb').textContent = problems.length;
+    ttState.problems = problems;
+    ttCapacity(P, cnt);
+  }
+
+  // ตรวจก่อนกดจัด: ช่องว่างพอไหม วิชาไหนยังไม่มีครู
+  function ttCapacity(P, cnt){
+    var box = document.getElementById('tsCap');
+    if (!box) return;
+    var clear = document.getElementById('optClear').checked, keep = ttForm.querySelector('[name=opt_keep_locked]').checked;
+    var total = 0, kept = 0, lockedCnt = {};
+    ttCells().forEach(function(td){
+      var v = td.querySelector('select').value, lk = ttLockInput(td).value === '1';
+      total++;
+      if (v && (!clear || (keep && lk))){ kept++; }
+      if (v && lk){ var c = ttCanon(v); if (c) lockedCnt[c] = (lockedCnt[c] || 0) + 1; }
+    });
+    var free = total - kept, more = 0, noTeacher = [];
+    Object.keys(P).forEach(function(sid){
+      var base = clear ? (keep ? (lockedCnt[sid] || 0) : 0) : (cnt[sid] || 0);
+      var add = Math.max(0, P[sid].n - base);
+      more += add;
+      if (add && !TT_SUBJ_TEACHER[sid]) noTeacher.push(P[sid].name);
+    });
+    ttState.more = more; ttState.free = free;
+    var html = '';
+    if (!more) html = 'ทุกวิชาจัดครบตามที่ตั้งไว้แล้ว ไม่มีคาบให้จัดเพิ่ม';
+    else if (more > free) html = '<b>ต้องจัดเพิ่ม ' + more + ' คาบ แต่มีช่องว่าง ' + free + ' คาบ</b><br>จะจัดไม่ครบ ' + (more - free) + ' คาบ ลองลดจำนวนคาบ เพิ่มคาบเรียน หรือเลือกจัดใหม่ทั้งตาราง';
+    else html = 'จะจัดเพิ่ม ' + more + ' คาบ ลงช่องว่าง ' + free + ' คาบ';
+    if (noTeacher.length) html += '<ul><li>ยังไม่ได้ตั้งครูผู้สอน: ' + noTeacher.join(', ') + ' (จัดได้ แต่ตรวจครูชนไม่ได้)</li></ul>';
+    box.innerHTML = html;
+    box.hidden = false;
+    box.classList.toggle('warn', more > free || noTeacher.length > 0);
+  }
+
+  // ปุ่มบนแถบสรุป
+  document.getElementById('btnCheck').addEventListener('click', function(){
+    var box = document.getElementById('tsProblems'), list = ttState.problems.slice();
+    if (ttState.more > ttState.free) list.push({ text: 'ช่องว่างไม่พอ ต้องจัดเพิ่ม ' + ttState.more + ' คาบ มีช่องว่าง ' + ttState.free + ' คาบ' });
+    document.querySelectorAll('.ts-row').forEach(function(tr){
+      if (!tr.classList.contains('done') && !tr.classList.contains('zero') && !tr.classList.contains('over'))
+        list.push({ text: tr.dataset.name + ' จัดแล้ว ' + tr.querySelector('.ts-cnt').textContent + ' คาบ ยังไม่ครบ' });
+    });
+    box.hidden = false;
+    box.classList.toggle('ok', !list.length);
+    if (!list.length){ box.innerHTML = '<b>ไม่พบปัญหา</b> ทุกวิชาจัดครบ ไม่มีครูสอนชน กดบันทึกตารางได้เลย'; return; }
+    box.innerHTML = '<b>พบ ' + list.length + ' เรื่องที่ควรดู</b><ul>' + list.map(function(p, i){
+      return '<li>' + (p.td ? '<a href="#" data-i="' + i + '">' : '') + p.text.replace(/</g, '&lt;') + (p.td ? '</a>' : '') + '</li>';
+    }).join('') + '</ul>';
+    box.querySelectorAll('a[data-i]').forEach(function(a){
+      a.addEventListener('click', function(e){
+        e.preventDefault();
+        var td = list[a.dataset.i].td;
+        td.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+        td.classList.remove('hit'); void td.offsetWidth; td.classList.add('hit');
+      });
+    });
+  });
+  document.getElementById('btnGoAuto').addEventListener('click', function(){
+    var o = document.getElementById('tsOpts');
+    if (!o) return;
+    o.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    o.classList.remove('flash'); void o.offsetWidth; o.classList.add('flash');
+  });
+
+  // ล็อกคาบ
+  function ttSetLock(td, on){
+    ttLockInput(td).value = on ? '1' : '';
+    td.classList.toggle('locked', on);
+    var b = td.querySelector('.tt-lock');
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.querySelector('use').setAttribute('href', on ? '#ic-lock' : '#ic-unlock');
+  }
+  ttCells().forEach(function(td){
+    td.querySelector('.tt-lock').addEventListener('click', function(){ ttSetLock(td, ttLockInput(td).value !== '1'); ttCheck(); });
+  });
+  document.getElementById('btnLockAll').addEventListener('click', function(){
+    ttCells().forEach(function(td){ if (td.querySelector('select').value) ttSetLock(td, true); }); ttCheck();
+  });
+  document.getElementById('btnUnlockAll').addEventListener('click', function(){
+    ttCells().forEach(function(td){ ttSetLock(td, false); }); ttCheck();
+  });
+
+  // จำนวนคาบ +/- และตัวเลือก -> คำนวณใหม่ทันที
+  ttForm.querySelectorAll('.ac-pm').forEach(function(b){
+    b.addEventListener('click', function(){
+      var inp = b.parentNode.querySelector('.ac-n');
+      inp.value = Math.max(0, Math.min(20, (parseInt(inp.value, 10) || 0) + parseInt(b.dataset.step, 10)));
+      ttCheck();
+    });
+  });
+  ttForm.addEventListener('input', function(e){ if (!e.target.closest('td.tt-cell')) ttCheck(); });
+  ttForm.addEventListener('change', function(e){ if (!e.target.closest('td.tt-cell')) ttCheck(); });
+
+  // ยืนยันก่อนจัด
+  ttForm.addEventListener('submit', function(e){
+    if (!e.submitter || e.submitter.id !== 'btnAuto') return;
+    ttCheck();
+    var msg = [];
+    if (document.getElementById('optClear').checked)
+      msg.push('จัดใหม่ทั้งตาราง: ตารางปัจจุบันจะถูกแทนที่' + (ttForm.querySelector('[name=opt_keep_locked]').checked ? ' (ยกเว้นคาบที่ล็อกไว้)' : ''));
+    if (ttState.more > ttState.free)
+      msg.push('ต้องจัดเพิ่ม ' + ttState.more + ' คาบ แต่มีช่องว่าง ' + ttState.free + ' คาบ จะจัดไม่ครบ');
+    if (msg.length && !confirm(msg.join('\n') + '\n\nจัดต่อไหม (หลังจัดกดย้อนกลับได้)')) e.preventDefault();
+  });
   document.addEventListener('DOMContentLoaded', ttCheck);
 </script>
 {% endif %}

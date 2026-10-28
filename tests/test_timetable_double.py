@@ -62,3 +62,63 @@ def test_double_capped_and_docx_merges(db, tmp_path, monkeypatch):
     out = acad_doc.render_timetable_class(School(), k, db)
     xml = Document(out).tables[0]._tbl.xml
     assert 'w:gridSpan w:val="2"' in xml and "(คาบคู่)" in xml
+
+
+def test_locked_cells_survive_clear_and_existing_count_toward_target(db):
+    from app.routers.academic import _auto_schedule
+    k, ps, sci, tha, t = seed(db)
+    db.add(AcadTimetable(class_id=k.id, day=1, period_id=ps[0].id, subject_id=tha.id, locked=True))
+    db.add(AcadTimetable(class_id=k.id, day=2, period_id=ps[0].id, subject_id=tha.id))
+    db.commit()
+    placed, unplaced, split = _auto_schedule(db, k, {tha.id: 3}, True, {}, {"keep_locked": True})
+    rows = db.query(AcadTimetable).filter_by(class_id=k.id, subject_id=tha.id).all()
+    assert len(rows) == 3 and placed == 2                       # ล็อก 1 คาบอยู่แล้ว จัดเพิ่ม 2 ให้ครบ 3
+    assert any(r.day == 1 and r.period_id == ps[0].id and r.locked for r in rows)
+    # ไม่ล้าง: คาบที่มีอยู่นับรวม ครบแล้วไม่จัดเพิ่ม
+    assert _auto_schedule(db, k, {tha.id: 3}, False)[0] == 0
+
+
+import pytest
+
+
+@pytest.fixture
+def tt_env(env):
+    import app.tenancy as tn
+    tid = next(iter(tn._engines))
+    with tn.session_for(tid) as s:
+        k, ps, sci, tha, t = seed(s)
+        ids = dict(cid=k.id, p1=ps[0].id, p2=ps[1].id, p3=ps[3].id, sci=sci.id, tha=tha.id)
+    return env, tn, tid, ids
+
+
+from tests.test_subsidy import env  # noqa: E402,F401
+
+
+def test_timetable_routes_plan_lock_undo(tt_env):
+    from app.models import AcadTimetablePlan
+    env, tn, tid, i = tt_env
+    cid, p1 = i["cid"], i["p1"]
+    form = {"cid": cid, f"cell_1_{p1}": f"s{i['tha']}", f"lock_1_{p1}": "1", f"n_{i['tha']}": "3", f"d_{i['tha']}": "0",
+            f"n_{i['sci']}": "4", f"d_{i['sci']}": "1"}
+    r = env.post("/academic/timetable/save", data=form, follow_redirects=False)
+    assert r.status_code == 303
+    with tn.session_for(tid) as s:
+        row = s.query(AcadTimetable).filter_by(class_id=cid, day=1, period_id=p1).one()
+        assert row.locked and row.subject_id == i["tha"]
+        plan = {x.subject_id: (x.periods, x.doubles) for x in s.query(AcadTimetablePlan).filter_by(class_id=cid)}
+        assert plan == {i["tha"]: (3, 0), i["sci"]: (4, 1)}
+    page = env.get(f"/academic/timetable?cid={cid}").text
+    assert 'value="3"' in page and "ตั้งค่าจำนวนคาบต่อสัปดาห์" in page and "จัดใหม่ทั้งตาราง" in page
+    # จัดใหม่ทั้งตาราง + รักษาคาบล็อก
+    form.update({"clear": "on", "opt_keep_locked": "1", "opt_use_doubles": "1", "opt_same_day": "1", "opt_spread": "1"})
+    r = env.post("/academic/timetable/auto", data=form, follow_redirects=False)
+    assert r.status_code == 303 and "auto=6" in r.headers["location"]
+    with tn.session_for(tid) as s:
+        assert s.query(AcadTimetable).filter_by(class_id=cid).count() == 7
+        assert s.query(AcadTimetable).filter_by(class_id=cid, day=1, period_id=p1).one().locked
+    assert "ย้อนกลับ" in env.get(r.headers["location"]).text
+    r = env.post("/academic/timetable/undo", data={"cid": cid}, follow_redirects=False)
+    assert r.status_code == 303
+    with tn.session_for(tid) as s:
+        rows = s.query(AcadTimetable).filter_by(class_id=cid).all()
+        assert len(rows) == 1 and rows[0].locked                 # กลับเป็นก่อนจัด

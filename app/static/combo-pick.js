@@ -97,7 +97,7 @@
       act = -1;
       if (!shown.length) { if (owner === me) hide(); return; }
       box.innerHTML = shown.map(function (it, i) {
-        return '<div class="cp-item' + (it.fixed ? ' cp-fixed' : '') + '" data-i="' + i + '">' + esc(it.label) +
+        return '<div class="cp-item' + (it.fixed ? ' cp-fixed' : '') + (it.warn ? ' cp-warn' : '') + '" data-i="' + i + '">' + esc(it.label) +
           (it.sub ? ' <span class="cp-sub">' + esc(it.sub) + '</span>' : '') + '</div>';
       }).join('') + (list.length > 40 ? '<div class="cp-more">พิมพ์เพิ่มเพื่อหาชื่ออื่น (มีอีก ' + (list.length - 40) + ' รายการ)</div>' : '');
       owner = me; box.hidden = false; box.scrollTop = 0; place();
@@ -141,7 +141,7 @@
     if (sel.title) input.title = sel.title;
     sel.parentNode.insertBefore(input, sel);
     sel.hidden = true; sel.style.display = 'none';
-    function label(o) { return o && o.value ? o.textContent.trim() : ''; }
+    function label(o) { return o && o.value ? (o.dataset.cpLabel || o.textContent.trim()) : ''; }
     function sync() { input.value = label(sel.options[sel.selectedIndex]); input.disabled = sel.disabled; }
     sync();
     sel.addEventListener('change', sync);
@@ -150,6 +150,10 @@
     function items() {
       return Array.prototype.map.call(sel.options, function (o) {
         var t = o.textContent.trim(), cut = t.indexOf(' ');
+        if (o.dataset.cpLabel) {          // ตัวเลือกกำหนดชื่อ/บรรทัดรองเองได้ (เช่น ตารางเรียน: เหตุผลที่เลือกไม่ได้)
+          return { v: o.value, label: o.dataset.cpLabel, sub: o.dataset.cpSub || '', search: t + ' ' + (o.dataset.cpSub || ''),
+                   none: o.value === '', fixed: false, warn: !!o.dataset.cpWarn };
+        }
         return { v: o.value, label: cut > 0 ? t.slice(0, cut) : t, sub: cut > 0 ? t.slice(cut + 3) : '',
                  search: t, none: o.value === '', fixed: o.value === '__new' };   // ค้นหาปีแผนได้ด้วย (เช่น 2568)
       });
@@ -225,6 +229,7 @@
     '.cp-item{padding:8px 10px;border-radius:8px;cursor:pointer;font-size:14px;line-height:1.4;text-align:left;}' +
     '.cp-item:hover,.cp-act{background:linear-gradient(120deg,#eef4ff,#e0e9ff);}' +
     '.cp-sub{color:#64748b;font-size:12.5px;white-space:nowrap;}' +
+    '.cp-warn .cp-sub{color:#b45309;font-weight:600;}' +
     '.cp-fixed{color:#3568e0;font-weight:600;}' +
     '.cp-more{padding:6px 10px;color:#94a3b8;font-size:12.5px;}';
   document.head.appendChild(css);

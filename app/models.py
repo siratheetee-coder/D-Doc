@@ -2184,9 +2184,30 @@ class AcadTimetable(Base):
     period_id = Column(Integer, ForeignKey("acad_period.id"), nullable=False)
     subject_id = Column(Integer, ForeignKey("acad_subject.id"), nullable=True)
     note = Column(String, default="")             # ใช้เมื่อไม่ใช่รายวิชา (เช่น ลูกเสือ/โฮมรูม)
+    locked = Column(Boolean, default=False)       # ล็อกคาบ: จัดอัตโนมัติจะไม่ย้าย/ล้างช่องนี้
 
     klass = relationship("AcadClass")
     subject = relationship("AcadSubject")
+
+
+class AcadTimetablePlan(Base):
+    """จำนวนคาบ/สัปดาห์ และคาบคู่ ที่ตั้งไว้ต่อ (ห้อง, วิชา) ใช้คำนวณความคืบหน้าและจัดอัตโนมัติ"""
+    __tablename__ = "acad_timetable_plan"
+
+    id = Column(Integer, primary_key=True)
+    class_id = Column(Integer, ForeignKey("acad_class.id"), nullable=False, index=True)
+    subject_id = Column(Integer, ForeignKey("acad_subject.id"), nullable=False)
+    periods = Column(Integer, default=0)
+    doubles = Column(Integer, default=0)          # จำนวนชุดคาบคู่ (1 ชุด = 2 คาบติดกัน)
+
+
+class AcadTimetableUndo(Base):
+    """ตารางของห้องก่อนกดจัดอัตโนมัติครั้งล่าสุด (JSON) ไว้กดย้อนกลับ เก็บห้องละ 1 ชุด"""
+    __tablename__ = "acad_timetable_undo"
+
+    class_id = Column(Integer, ForeignKey("acad_class.id"), primary_key=True)
+    data = Column(Text, default="[]")
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class SubstituteAssignment(Base):

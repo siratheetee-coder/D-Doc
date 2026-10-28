@@ -20,7 +20,7 @@ from app.models import (Student, Person, AcadClass, AcadStudent, AcadSubject,
                         AcadCharEval, AcadReadEval, AcadAttendance, AcadClassMonth,
                         AcadCalendar, AcadHoliday, AcadYearSetting,
                         AcadActivity, AcadActivityResult, AcadOnet,
-                        AcadPeriod, AcadTimetable)
+                        AcadPeriod, AcadTimetable, AcadTimetablePlan, AcadTimetableUndo)
 from app.thai_utils import (SCHOOL_LEVELS, GRADUATED, current_academic_year, current_term,
                             is_secondary, level_rank)
 from app.templating import templates
@@ -3117,8 +3117,77 @@ def _tt_cells(db, klass):
             sel = f"n:{r.note}" if r.note else ""
             label = r.note or ""
             teacher = ""
-        cells.setdefault(r.day, {})[r.period_id] = {"sel": sel, "label": label, "teacher": teacher}
+        cells.setdefault(r.day, {})[r.period_id] = {"sel": sel, "label": label, "teacher": teacher,
+                                                    "locked": bool(r.locked)}
     return cells
+
+
+def _tt_subject_groups(db, klass):
+    """วิชาของชั้นแสดงวิชาละครั้ง (มัธยมมีวิชาเดียวกัน 2 ภาค -> ตัดซ้ำด้วยรหัส/ชื่อ)
+    คืน (subjects, group) group = {subject_id: id ของวิชาตัวแทน} ใช้นับคาบที่จัดแล้วรวมทั้ง 2 ภาค"""
+    seen, subjects, group = {}, [], {}
+    for s in (db.query(AcadSubject).filter_by(year=klass.year, level=klass.level)
+              .order_by(AcadSubject.seq, AcadSubject.code).all()):
+        key = (s.code or "").strip() or s.name
+        if key not in seen:
+            seen[key] = s.id
+            subjects.append(s)
+        group[s.id] = seen[key]
+    return subjects, group
+
+
+def _tt_plan(db, klass, subjects):
+    """จำนวนคาบ/คาบคู่ที่ตั้งไว้ {sid: (คาบ, ชุดคาบคู่)} ยังไม่เคยตั้ง ใช้ชั่วโมง/ปี ÷ 40"""
+    saved = {p.subject_id: (p.periods or 0, p.doubles or 0)
+             for p in db.query(AcadTimetablePlan).filter_by(class_id=klass.id).all()}
+    out = {}
+    for s in subjects:
+        dft = (s.hours // 40) if s.hours else 0
+        out[s.id] = saved.get(s.id, (dft if dft > 0 else 1, 0))
+    return out
+
+
+def _tt_apply_form(db, c, form):
+    """บันทึกช่องตาราง + ล็อกคาบ + จำนวนคาบที่ตั้งไว้ จากฟอร์มหน้าตารางเรียน (ใช้ทั้งปุ่มบันทึกและจัดอัตโนมัติ)"""
+    periods = _tt_periods(db, c.year, level=c.level)
+    cur = {(r.day, r.period_id): r for r in
+           db.query(AcadTimetable).filter_by(class_id=c.id).all()}
+    for d, _ in TT_DAYS:
+        for p in periods:
+            if p.is_break:
+                continue
+            key = f"cell_{d}_{p.id}"
+            if key not in form:            # ฟอร์มที่ไม่มีช่องนี้ (เช่น เรียก API ตรง) ไม่แตะของเดิม
+                continue
+            val = (form.get(key, "") or "").strip()
+            row = cur.get((d, p.id))
+            if not val:
+                if row:
+                    db.delete(row)
+                continue
+            if not row:
+                row = AcadTimetable(class_id=c.id, day=d, period_id=p.id)
+                db.add(row)
+            if val.startswith("s"):
+                row.subject_id = _to_int(val[1:], 0) or None
+                row.note = ""
+            elif val.startswith("n:"):
+                row.subject_id = None
+                row.note = val[2:]
+            row.locked = form.get(f"lock_{d}_{p.id}") == "1"
+    subjects, _ = _tt_subject_groups(db, c)
+    plans = {p.subject_id: p for p in db.query(AcadTimetablePlan).filter_by(class_id=c.id).all()}
+    for s in subjects:
+        if f"n_{s.id}" not in form:
+            continue
+        n = max(0, min(20, _to_int(form.get(f"n_{s.id}", ""), 0)))
+        k = max(0, min(n // 2, _to_int(form.get(f"d_{s.id}", ""), 0)))
+        pl = plans.get(s.id)
+        if not pl:
+            pl = AcadTimetablePlan(class_id=c.id, subject_id=s.id)
+            db.add(pl)
+        pl.periods, pl.doubles = n, k
+    db.flush()
 
 
 @router.get("/academic/timetable", response_class=HTMLResponse)
@@ -3141,15 +3210,9 @@ def timetable_page(request: Request, db: Session = Depends(get_db),
     classes=[x for x in _sorted_classes(db.query(AcadClass).filter_by(year=y).all()) if ts.section_for(db,y,x.level)==section and (not sc.is_teacher or x.id in sc.class_ids)]
     options = _tt_options(db, c) if c else []
     cells = _tt_cells(db, c) if c else {}
-    subjects_all = (db.query(AcadSubject).filter_by(year=c.year, level=c.level)
-                    .order_by(AcadSubject.seq, AcadSubject.code).all()) if c else []
-    # จัดตารางอัตโนมัติ: แสดงวิชาละครั้ง (มัธยมมีวิชาเดียวกัน 2 ภาค -> ตัดซ้ำด้วยรหัส/ชื่อ)
-    _seen, subjects = set(), []
-    for s in subjects_all:
-        key = (s.code or "").strip() or s.name
-        if key in _seen:
-            continue
-        _seen.add(key); subjects.append(s)
+    subjects, subj_group = _tt_subject_groups(db, c) if c else ([], {})
+    plan = _tt_plan(db, c, subjects) if c else {}
+    has_undo = bool(c and db.get(AcadTimetableUndo, c.id))
     # ข้อมูลกันคาบซ้อน (เตือนสด ๆ ตอนกรอก): ครูของแต่ละวิชาในห้องนี้ + คาบที่ครูถูกจองในห้องอื่น
     subj_teacher, busy = {}, {}
     if c:
@@ -3181,6 +3244,9 @@ def timetable_page(request: Request, db: Session = Depends(get_db),
         "options": options, "cells": cells, "class_label": _class_label,
         "can_edit": (not sc.is_teacher), "is_teacher": sc.is_teacher,
         "subj_teacher": subj_teacher, "busy": busy, "subjects": subjects,
+        "subj_group": {str(k): str(v) for k, v in subj_group.items()},
+        "subj_color": {str(s.id): i for i, s in enumerate(subjects)},
+        "plan": plan, "has_undo": has_undo,
         "separated":split,"section":section,
         "period_error":getattr(request.state,'period_error',''),
         "period_entered":getattr(request.state,'period_entered',{}),
@@ -3267,40 +3333,23 @@ async def timetable_save(request: Request, db: Session = Depends(get_db), cid: s
     c = db.get(AcadClass, _to_int(cid, 0))
     if not c:
         return RedirectResponse("/academic/timetable", status_code=303)
-    periods = _tt_periods(db, c.year, level=c.level)
-    cur = {(r.day, r.period_id): r for r in
-           db.query(AcadTimetable).filter_by(class_id=c.id).all()}
-    for d, _ in TT_DAYS:
-        for p in periods:
-            if p.is_break:
-                continue
-            val = (form.get(f"cell_{d}_{p.id}", "") or "").strip()
-            row = cur.get((d, p.id))
-            if not val:
-                if row:
-                    db.delete(row)
-                continue
-            if not row:
-                row = AcadTimetable(class_id=c.id, day=d, period_id=p.id)
-                db.add(row)
-            if val.startswith("s"):
-                row.subject_id = _to_int(val[1:], 0) or None
-                row.note = ""
-            elif val.startswith("n:"):
-                row.subject_id = None
-                row.note = val[2:]
+    _tt_apply_form(db, c, form)
     db.commit()
     return RedirectResponse(f"/academic/timetable?cid={c.id}&saved=1", status_code=303)
 
 
-def _auto_schedule(db, klass, counts, clear, doubles=None):
+def _auto_schedule(db, klass, counts, clear, doubles=None, opts=None):
     """จัดตารางอัตโนมัติ (greedy): เติมวิชาตามจำนวนคาบ/สัปดาห์ ลงช่องว่าง
     - ไม่ทับช่องที่กรอกมือไว้ (ถ้าไม่ติ๊กล้าง) · หลบครูซ้อนกับห้องอื่น + ในห้องเดียวกัน
     - doubles {sid: จำนวนชุด} = คาบคู่ จัดก่อน: 2 คาบติดกันวันเดียวกัน ไม่คร่อมคาบพัก ครูว่างทั้งคู่
       ชุดที่หาที่ลงไม่ได้ แตกเป็นคาบเดี่ยว 2 คาบแทน (นับใน split)
+    - opts: spread (กระจายให้วันที่ยังมีคาบน้อยก่อน), same_day (เลี่ยงวิชาเดียวกันวันเดียวกัน),
+      use_doubles (ใช้คาบคู่), keep_locked (ล้างตารางแต่เก็บช่องที่ล็อกไว้) ไม่ส่ง = เปิดทุกข้อ
+    - counts = คาบที่ต้องการทั้งหมดต่อวิชา ระบบหักคาบที่มีอยู่แล้วในตาราง (ที่ไม่ถูกล้าง) ให้เอง
     - กระจายไม่ให้วิชาเดียวซ้ำวันเดียวกันถ้าเลี่ยงได้ · คืน (จัดได้, จัดไม่ได้, คาบคู่ที่ต้องแยก)"""
     from collections import Counter
-    doubles = doubles or {}
+    o = {"spread": True, "same_day": True, "use_doubles": True, "keep_locked": True, **(opts or {})}
+    doubles = (doubles or {}) if o["use_doubles"] else {}
     full = _tt_periods(db, klass.year, level=klass.level)        # รวมคาบพัก ใช้ดูว่าคาบติดกันจริงไหม
     periods = [p for p in full if not p.is_break]
     order = {p.id: i for i, p in enumerate(full)}
@@ -3312,10 +3361,17 @@ def _auto_schedule(db, klass, counts, clear, doubles=None):
     existing = {(r.day, r.period_id): r for r in
                 db.query(AcadTimetable).filter_by(class_id=klass.id).all()}
     if clear:
-        for r in list(existing.values()):
-            db.delete(r)
-        existing = {}
+        for k, r in list(existing.items()):
+            if not (o["keep_locked"] and r.locked):
+                db.delete(r)
+                del existing[k]
     free = [s for s in all_slots if s not in existing]
+    # คาบที่มีอยู่แล้วในตาราง นับรวมกับที่ต้องการ (นับรวมวิชาเดียวกันต่างภาค)
+    _, group = _tt_subject_groups(db, klass)
+    have = Counter(group.get(r.subject_id, r.subject_id) for r in existing.values() if r.subject_id)
+    counts = {sid: max(0, n - have.get(sid, 0)) for sid, n in counts.items()}
+    day_load = Counter(d for (d, _) in existing)
+    subj_day = set()
     # ครูของวิชาในห้องนี้
     my_teacher = {t.subject_id: t.teacher_id for t in
                   db.query(AcadTeaching).filter_by(class_id=klass.id).all() if t.teacher_id}
@@ -3345,10 +3401,17 @@ def _auto_schedule(db, klass, counts, clear, doubles=None):
         if tid:
             busy.add((tid, d, pid))
         subj_day.add((sid, d))
+        day_load[d] += 1
+
+    def day_key(sid, d):
+        return (o["same_day"] and (sid, d) in subj_day, day_load[d] if o["spread"] else 0)
+
+    for (d, _), r in existing.items():
+        if r.subject_id:
+            subj_day.add((group.get(r.subject_id, r.subject_id), d))
 
     tload = Counter(t for (t, _, _) in busy)
     placed = unplaced = split = 0
-    subj_day = set()
     singles = dict(counts)
     # คาบคู่ก่อน (ต้องการช่องติดกัน หายากกว่า)
     dbl = []
@@ -3366,7 +3429,7 @@ def _auto_schedule(db, klass, counts, clear, doubles=None):
             singles[sid] = singles.get(sid, 0) + 2
             split += 1
             continue
-        cands.sort(key=lambda c: ((sid, c[0]) in subj_day, order[c[1]], c[0]))
+        cands.sort(key=lambda c: (*day_key(sid, c[0]), order[c[1]], c[0]))
         d, a, b = cands[0]
         put(sid, tid, d, a)
         put(sid, tid, d, b)
@@ -3383,7 +3446,7 @@ def _auto_schedule(db, klass, counts, clear, doubles=None):
             unplaced += 1
             continue
         # เลี่ยงวันที่มีวิชานี้แล้ว -> เรียงคาบต้น ๆ ก่อน
-        cands.sort(key=lambda s: ((sid, s[0]) in subj_day, s[1], s[0]))
+        cands.sort(key=lambda s: (*day_key(sid, s[0]), order[s[1]], s[0]))
         put(sid, tid, *cands[0])
         placed += 1
     db.commit()
@@ -3398,17 +3461,46 @@ async def timetable_auto(request: Request, db: Session = Depends(get_db), cid: s
     c = db.get(AcadClass, _to_int(cid, 0))
     if not c:
         return RedirectResponse("/academic/timetable", status_code=303)
+    import json
+    _tt_apply_form(db, c, form)             # เก็บที่กรอก/ล็อกไว้ก่อน ไม่ให้หายตอนกดจัด
+    # เก็บตารางก่อนจัดไว้กดย้อนกลับ
+    snap = [{"day": r.day, "period_id": r.period_id, "subject_id": r.subject_id, "note": r.note or "",
+             "locked": bool(r.locked)} for r in db.query(AcadTimetable).filter_by(class_id=c.id).all()]
+    u = db.get(AcadTimetableUndo, c.id) or AcadTimetableUndo(class_id=c.id)
+    u.data, u.created_at = json.dumps(snap, ensure_ascii=False), datetime.utcnow()
+    db.add(u)
     counts, doubles = {}, {}
-    for s in db.query(AcadSubject).filter_by(year=c.year, level=c.level).all():
+    subjects, _ = _tt_subject_groups(db, c)
+    for s in subjects:
         n = _to_int(form.get(f"n_{s.id}", ""), 0)
         if n > 0:
             counts[s.id] = n
             k = _to_int(form.get(f"d_{s.id}", ""), 0)
             if k > 0:
                 doubles[s.id] = min(k, n // 2)
-    placed, unplaced, split = _auto_schedule(db, c, counts, bool(form.get("clear")), doubles)
+    opts = {k: bool(form.get(f"opt_{k}")) for k in ("spread", "same_day", "use_doubles", "keep_locked")}
+    placed, unplaced, split = _auto_schedule(db, c, counts, bool(form.get("clear")), doubles, opts)
     return RedirectResponse(
         f"/academic/timetable?cid={c.id}&auto={placed}&un={unplaced}&split={split}", status_code=303)
+
+
+@router.post("/academic/timetable/undo")
+def timetable_undo(request: Request, db: Session = Depends(get_db), cid: str = Form("")):
+    """ย้อนตารางกลับเป็นก่อนกดจัดอัตโนมัติครั้งล่าสุด (ใช้ได้ครั้งเดียว)"""
+    import json
+    if _scope(request, db).is_teacher:
+        return _deny()
+    c = db.get(AcadClass, _to_int(cid, 0))
+    u = db.get(AcadTimetableUndo, c.id) if c else None
+    if not u:
+        return RedirectResponse(f"/academic/timetable?cid={c.id if c else ''}", status_code=303)
+    db.query(AcadTimetable).filter_by(class_id=c.id).delete()
+    for x in json.loads(u.data or "[]"):
+        db.add(AcadTimetable(class_id=c.id, day=x["day"], period_id=x["period_id"], subject_id=x.get("subject_id"),
+                             note=x.get("note", ""), locked=bool(x.get("locked"))))
+    db.delete(u)
+    db.commit()
+    return RedirectResponse(f"/academic/timetable?cid={c.id}&undone=1", status_code=303)
 
 
 @router.get("/academic/timetable/teacher", response_class=HTMLResponse)
