@@ -831,7 +831,7 @@ def _name_suggest(db) -> dict:
 
 @router.get("/finance/disburse", response_class=HTMLResponse)
 def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | None = None, year: int | None = None,
-                  project: int | None = None):
+                  project: int | None = None, travel: int | None = None):
     source = db.get(Procurement, proc) if proc else None
     fy = year or (source.fiscal_year if source else None) or current_fiscal_year()
     if not 2500 <= fy <= 2800:
@@ -863,6 +863,17 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
                 "date": p.inspect_date or p.request_date,
                 "item_id": None,
             }
+    elif travel:
+        # ปุ่ม "ทำเรื่องเบิกค่าเดินทาง" ในใบขอไปราชการที่อนุมัติแล้ว: เติมชื่อครู เรื่อง ยอดเงินให้ เหลือเลือกโครงการ
+        from app.models import TravelRequest
+        tr = db.get(TravelRequest, travel)
+        if tr:
+            place = f" ณ {tr.place}" if tr.place else ""
+            prefill = {"subject": f"ค่าใช้จ่ายในการเดินทางไปราชการ {tr.subject or ''}{place}".strip(),
+                       "payee": tr.person.name if tr.person else "", "amount": float(tr.budget or 0),
+                       "budget_source": "", "procurement_id": None, "project_id": None,
+                       "proc_kind": "ค่าใช้จ่ายอื่น", "memo_no": "", "date": None, "item_id": None,
+                       "travel_request_id": tr.id}
     elif project and db.get(Project, project):
         # มาจากปุ่ม "เบิกค่าใช้จ่ายอื่น" หน้าโครงการ: ค่าเดินทาง ค่าตอบแทน ฯลฯ ที่ไม่ผ่านจัดซื้อ
         prefill = {"subject": "", "payee": "", "amount": 0, "budget_source": "", "procurement_id": None,
@@ -888,7 +899,8 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
                     account_id: str = Form(""), procurement_id: str = Form(""), note: str = Form(""),
                     vat: str = Form("0"), wht: str = Form("0"), fine: str = Form("0"),
                     proc_kind: str = Form("จัดซื้อ"), project_id: str = Form(""),
-                    item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form("")):
+                    item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form(""),
+                    travel_request_id: str = Form("")):
     fy = _to_int(fiscal_year, current_fiscal_year())
     no = memo_no.strip() or suggest_doc_no(db, "memo", fy)
     m = DisburseMemo(
@@ -901,6 +913,7 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
         procurement_id=_to_int(procurement_id, 0) or None, note=note,
         project_id=_to_int(project_id, 0) or None,
         receiver_name=receiver_name.strip()[:200], register_note=register_note.strip()[:300],
+        travel_request_id=_to_int(travel_request_id, 0) or None,
     )
     db.add(m); db.flush()
     commit_doc_no(db, "memo", fy, no, source="finance", ref_id=m.id, date=m.date,

@@ -34,6 +34,20 @@
     {% if r.doc_attachment_name %}
     <a class="btn sm" href="/me/travel/{{ r.id }}/doc" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> 📎 เอกสารประกอบ</a>
     {% endif %}
+    {% if r.status == 'approved' and r.reimburse != 'no' %}
+    <div class="tr-claim">
+      {% if claim %}
+      <span><b>ทำเรื่องเบิกค่าเดินทางแล้ว</b> บันทึกเลขที่ {{ claim.memo_no or '-' }} จำนวน {{ '{:,.2f}'.format(claim.amount or 0) }} บาท
+        {% if claim_project %}หักจากโครงการ {{ claim_project.name }}{% else %}ยังไม่ได้เลือกโครงการ{% endif %}</span>
+      <a class="btn sm soft" href="/finance/disburse/{{ claim.id }}">เปิดบันทึกขอเบิก</a>
+      {% else %}
+      <span><b>เบิกค่าเดินทาง</b> ระบบเติมชื่อ เรื่อง และยอดเงินให้ เลือกโครงการที่จะหักเงิน แล้วกดบันทึก</span>
+      <a class="btn sm" href="/finance/disburse?travel={{ r.id }}"><svg class="icon"><use href="#ic-coins"/></svg> ทำเรื่องเบิกค่าเดินทาง</a>
+      {% endif %}
+    </div>
+    <style>.tr-claim{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:12px 0; padding:12px 14px; border-radius:14px;
+      background:linear-gradient(135deg,#eff6ff,#f0fdf4); font-size:14px; } .tr-claim span{ flex:1; min-width:200px; }</style>
+    {% endif %}
     {% if r.record_id %}
     <a class="btn sm soft" href="/hr/travel/{{ r.record_id }}/request.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์บันทึก{% if r.status == 'approved' %} (ลงนามแล้ว){% endif %}</a>
     {% endif %}

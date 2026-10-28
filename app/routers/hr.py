@@ -690,8 +690,11 @@ def travel_request_detail(tid: int, request: Request, db: Session = Depends(get_
         return RedirectResponse("/hr/travel-requests", status_code=303)
     personnel = db.get(Person, r.personnel_by) if r.personnel_by else None
     director = db.get(Person, r.director_by) if r.director_by else None
+    from app.models import DisburseMemo, Project
+    claim = db.query(DisburseMemo).filter_by(travel_request_id=r.id).order_by(DisburseMemo.id.desc()).first()
+    claim_project = db.get(Project, claim.project_id) if claim and claim.project_id else None
     return templates.TemplateResponse("travel_request_detail.html", {
-        "request": request, "school": get_school(db), "r": r,
+        "request": request, "school": get_school(db), "r": r, "claim": claim, "claim_project": claim_project,
         "person": r.person, "personnel": personnel, "director": director,
         "is_director": bool(request.session.get("director")),
         "be_date": be_date_input, "msg": msg, "err": err,

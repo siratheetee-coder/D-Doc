@@ -60,6 +60,7 @@
       <div><label>มูลค่าสินค้า / คงเหลือจ่ายจริง</label><input value="คำนวณให้อัตโนมัติในเอกสาร" disabled style="background:#f3f5f9;"></div>
     </div>
     <input type="hidden" name="procurement_id" value="{{ prefill.procurement_id if prefill else '' }}">
+    <input type="hidden" name="travel_request_id" value="{{ prefill.travel_request_id if prefill and prefill.travel_request_id else '' }}">
     <div class="row">
       <div><label>ชื่อผู้รับเงิน</label><input name="receiver_name" autocomplete="off" data-suggest="receiver" value="" placeholder="คนที่มารับเงิน/เช็คจริง">
         <div class="hint">ลงในทะเบียนคุมหลักฐานขอเบิก เว้นว่างไว้เขียนมือได้</div></div>

@@ -963,6 +963,7 @@ class DisburseMemo(Base):
     item_id = Column(Integer, ForeignKey("account_item.id"), nullable=True)  # หมวด/รายการย่อยที่หักงบ
     procurement_id = Column(Integer, ForeignKey("procurement.id"), nullable=True)
     project_id = Column(Integer, ForeignKey("project.id"), nullable=True)  # ผูกกับโครงการในแผน
+    travel_request_id = Column(Integer, nullable=True)  # เบิกค่าเดินทางจากใบขอไปราชการใบนี้
     note = Column(Text, default="")                  # รายละเอียดเพิ่มเติม
     receiver_name = Column(String, default="")       # ชื่อผู้รับเงิน (คนที่มารับเงิน/เช็คจริง) ลงทะเบียนคุมหลักฐานขอเบิก
     register_note = Column(String, default="")       # หมายเหตุในทะเบียนคุมหลักฐานขอเบิก (แยกจากรายละเอียดเพิ่มเติม)
