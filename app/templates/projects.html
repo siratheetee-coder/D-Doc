@@ -20,6 +20,66 @@
     </form>
   </div>
 </div>
+<div class="pj-find" id="pjFindBox">
+  <svg class="icon"><use href="#ic-search"/></svg>
+  <input id="pjFind" type="search" autocomplete="off" placeholder="ค้นหาโครงการ พิมพ์ชื่อโครงการหรือฝ่าย" aria-label="ค้นหาโครงการ">
+  <div class="pj-find-list" id="pjFindList" hidden></div>
+</div>
+<style>
+  .pj-find{ position:relative; display:flex; align-items:center; gap:10px; margin:0 0 16px; padding:6px 16px; border-radius:16px;
+    background:#fff; box-shadow:0 6px 20px rgba(15,23,42,.06); }
+  .pj-find > .icon{ width:20px; height:20px; color:#64748b; flex:none; }
+  .pj-find input{ flex:1; border:0; background:none; box-shadow:none; font-size:16px; padding:10px 0; }
+  .pj-find input:focus{ outline:none; box-shadow:none; }
+  .pj-find-list{ position:absolute; left:0; right:0; top:calc(100% + 6px); z-index:30; padding:6px; border-radius:16px; background:#fff;
+    box-shadow:0 16px 40px rgba(15,23,42,.16); max-height:60vh; overflow:auto; }
+  .pj-find-list a{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; color:inherit; text-decoration:none; }
+  .pj-find-list a:hover, .pj-find-list a.is-on{ background:#eff6ff; }
+  .pj-find-list small{ color:var(--muted); white-space:nowrap; }
+  .pj-find-list mark{ background:#fde68a; border-radius:4px; padding:0 1px; }
+  .pj-find-none{ padding:12px; color:var(--muted); }
+</style>
+<script>
+(function () {
+  var all = {{ find_list|tojson }}, cur = {{ fiscal_year|tojson }};
+  var inp = document.getElementById('pjFind'), list = document.getElementById('pjFindList'), on = 0;
+  function norm(t) { return (t || '').toString().toLowerCase().replace(/\s+/g, ''); }
+  function esc(t) { return t.replace(/[&<>"]/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function hi(name, q) {
+    var i = name.toLowerCase().indexOf(q);
+    return i < 0 ? esc(name) : esc(name.slice(0, i)) + '<mark>' + esc(name.slice(i, i + q.length)) + '</mark>' + esc(name.slice(i + q.length));
+  }
+  function filterTable(q) {
+    document.querySelectorAll('#project-list tbody tr').forEach(function (tr) {
+      tr.hidden = !!q && norm(tr.dataset.q).indexOf(q) < 0;
+    });
+  }
+  function render() {
+    var raw = inp.value.trim(), q = norm(raw);
+    filterTable(q);
+    if (!q) { list.hidden = true; return; }
+    var hit = all.filter(function (p) { return norm(p.name + p.resp).indexOf(q) >= 0; })
+      .sort(function (a, b) { return (b.year == cur) - (a.year == cur); }).slice(0, 10);
+    on = 0;
+    list.innerHTML = hit.length ? hit.map(function (p, i) {
+      return '<a href="/projects/' + p.id + '"' + (i ? '' : ' class="is-on"') + '><span>' + hi(p.name, raw.toLowerCase()) + '</span><small>' +
+        (p.year ? 'ปี ' + p.year : 'ไม่ระบุปี') + (p.resp ? ' ' + esc(p.resp) : '') + '</small></a>';
+    }).join('') : '<div class="pj-find-none">ไม่พบโครงการที่ตรงกับ "' + esc(raw) + '"</div>';
+    list.hidden = false;
+  }
+  inp.addEventListener('input', render);
+  inp.addEventListener('focus', function () { if (inp.value.trim()) render(); });
+  inp.addEventListener('keydown', function (e) {
+    var items = list.querySelectorAll('a'); if (!items.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault(); items[on].classList.remove('is-on');
+      on = (on + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length; items[on].classList.add('is-on');
+    } else if (e.key === 'Enter') { e.preventDefault(); location.href = items[on].href; }
+    else if (e.key === 'Escape') { list.hidden = true; }
+  });
+  document.addEventListener('click', function (e) { if (!e.target.closest('#pjFindBox')) list.hidden = true; });
+})();
+</script>
 {% if request.query_params.get('started') is not none %}<div class="alert">✔ บันทึกยอดตั้งต้นแล้ว {{ request.query_params.get('started') }} โครงการ ยอดใช้ไปและคงเหลือของแต่ละโครงการอัปเดตแล้ว</div>{% endif %}
 {% if request.query_params.get('copied') is not none %}<div class="alert">✔ สร้างโครงการ{{ year_label }} {{ fiscal_year }} จากปี {{ request.query_params.get('from', '') }} แล้ว {{ request.query_params.get('copied') }} โครงการ ขั้นต่อไป นำเงินเหลือเข้าแผนแล้วจัดสรรให้โครงการ</div>{% endif %}
 {# รายการเริ่มต้น: มีสิทธิ์งานการเงิน = 5 ขั้นชุดเดียวกับหน้าการเงิน (ซ่อนแล้วซ่อนทั้งสองหน้า)
@@ -91,7 +151,7 @@
     <tbody>
       {% for p in rows %}
       {% set money = proj_money(p) %}{% set b = proj_budget(p) %}{% set s = proj_spent(p) %}{% set r = b - s %}
-      <tr>
+      <tr data-q="{{ p.name }} {{ p.responsible or '' }}">
         <td><a href="/projects/{{ p.id }}"><b>{{ p.name }}</b></a>{% if not p.active %} <span class="pill">ปิด</span>{% endif %}
             {% if p.revisions %}<br><span class="muted" style="font-size:12px;">ปรับงบ {{ p.revisions|length }} ครั้ง</span>{% endif %}</td>
         <td>

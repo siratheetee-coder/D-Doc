@@ -2789,6 +2789,9 @@ def projects_page(request: Request, db: Session = Depends(get_db), year: int | N
         legacy = db.query(Project).filter(Project.plan_year.is_(None)).order_by(Project.name).all()
     return templates.TemplateResponse("projects.html", {
         "request": request, "school": school, "rows": rows, "legacy": legacy,
+        # ช่องค้นหาโครงการ: ค้นได้ทุกปี (ปีที่เปิดอยู่ขึ้นก่อน)
+        "find_list": [{"id": x.id, "name": x.name, "year": x.plan_year or "", "resp": x.responsible or ""}
+                      for x in db.query(Project).order_by(Project.plan_year.desc(), Project.name)],
         "fiscal_year": cur, "year_label": plan_year_label(school,cur),
         "plan_funding": pf.summary(db,pf.plan(db,cur)),
         "years": _plan_years(db, cur),
