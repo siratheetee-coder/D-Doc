@@ -20,7 +20,7 @@ def knowledge_list(request: Request):
     drafts = _can_see_drafts(request)
     return templates.TemplateResponse("knowledge_list.html", {
         "request": request, "items": articles.all_articles(include_drafts=drafts),
-        "show_drafts": drafts, "site_url": site_url(), "cat_style": articles.style_of,
+        "show_drafts": drafts, "site_url": site_url(), "cat_style": articles.style_of, "tabs": articles.CATEGORY_TABS,
     })
 
 
@@ -32,7 +32,7 @@ def knowledge_article(slug: str, request: Request):
     if not art:      # 404 จริง (ไม่ redirect) ให้ Google รู้ว่าไม่มีหน้านี้
         return templates.TemplateResponse("knowledge_list.html", {
             "request": request, "items": articles.all_articles(include_drafts=drafts),
-            "show_drafts": drafts, "site_url": site_url(), "cat_style": articles.style_of, "not_found": True,
+            "show_drafts": drafts, "site_url": site_url(), "cat_style": articles.style_of, "tabs": articles.CATEGORY_TABS, "not_found": True,
         }, status_code=404)
     return templates.TemplateResponse("knowledge_article.html", {
         "request": request, "a": art, "related": articles.related(art), "site_url": site_url(), "cat_style": articles.style_of,

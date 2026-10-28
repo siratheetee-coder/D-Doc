@@ -9,7 +9,6 @@
 <meta property="og:image" content="{{ site_url }}/static/landing/og-share.jpg?v=1">
 {% endblock %}
 {% block content %}
-{% set cats = [] %}{% for a in items %}{% if a.category and a.category not in cats %}{% set _ = cats.append(a.category) %}{% endif %}{% endfor %}
 {# เรื่องแนะนำ: บทความที่ตั้ง featured: true ล่าสุด ถ้าไม่มีใช้เรื่องใหม่สุด #}
 {% set feat = (items|selectattr('featured')|first) or (items|first) %}
 {% set rest = items|rejectattr('slug', 'equalto', feat.slug)|list if feat else [] %}
@@ -34,19 +33,19 @@
 {% if show_drafts %}<div class="kl-msg">คุณเห็นบทความร่างด้วยเพราะเป็นผู้ดูแลระบบ คนทั่วไปเห็นเฉพาะที่เผยแพร่แล้ว</div>{% endif %}
 
 {% if items %}
-{% if cats|length > 1 %}
 <div class="kl-filter" id="klFilter">
   <button type="button" class="on" data-cat="">ทั้งหมด</button>
-  {% for c in cats %}<button type="button" data-cat="{{ c }}">{{ c }}</button>{% endfor %}
+  {% for label, c in tabs %}{% set n = items|selectattr('category', 'equalto', c)|list|length %}
+  <button type="button" data-cat="{{ c }}"{% if not n %} class="soon" title="กำลังเตรียมบทความ"{% endif %}>{{ label }}</button>
+  {% endfor %}
 </div>
-{% endif %}
 
 {% set fs = cat_style(feat.category) %}
 <a class="kl-feat kl-item" href="/knowledge/{{ feat.slug }}" data-cat="{{ feat.category }}" data-q="{{ feat.title }} {{ feat.description }} {{ feat.category }}"
    style="--c1:{{ fs.c1 }}; --c2:{{ fs.c2 }};">
   {{ kb_cover(feat, fs, "lg") }}
   <span class="kl-fcopy">
-    <span class="kl-kick">{{ feat.category or 'ทั่วไป' }} <b>เรื่องแนะนำ</b>{% if feat.draft %}<b class="kl-draft">ร่าง</b>{% endif %}</span>
+    <span class="kl-kick">{{ feat.category or 'ทั่วไป' }} <b>เรื่องแนะนำ</b>{% if feat.type %}<b class="kl-type">{{ feat.type }}</b>{% endif %}{% if feat.draft %}<b class="kl-draft">ร่าง</b>{% endif %}</span>
     <h2>{{ feat.title }}</h2>
     <p>{{ feat.description }}</p>
     <span class="kl-meta">ทีม Easy Ekkasan<i></i>{{ thai_date(feat.updated) }}<i></i>อ่าน {{ feat.minutes }} นาที</span>
@@ -62,10 +61,10 @@
        style="--c1:{{ st.c1 }}; --c2:{{ st.c2 }};">
       {{ kb_cover(a, st) }}
       <span class="kl-rcopy">
-        <span class="kl-kick">{{ a.category or 'ทั่วไป' }}{% if a.draft %}<b class="kl-draft">ร่าง</b>{% endif %}</span>
+        <span class="kl-kick">{{ a.category or 'ทั่วไป' }}{% if a.type %}<b class="kl-type">{{ a.type }}</b>{% endif %}{% if a.draft %}<b class="kl-draft">ร่าง</b>{% endif %}</span>
         <h3>{{ a.title }}</h3>
         <p>{{ a.description }}</p>
-        <span class="kl-meta">ทีม Easy Ekkasan<i></i>อ่าน {{ a.minutes }} นาที</span>
+        <span class="kl-meta">ทีม Easy Ekkasan<i></i>{{ thai_date(a.updated) }}<i></i>อ่าน {{ a.minutes }} นาที</span>
       </span>
     </a>
     {% endfor %}
@@ -117,24 +116,26 @@
   .kl-filter button { border:0; cursor:pointer; padding:9px 18px; border-radius:999px; font:inherit; font-size:15px; font-weight:600;
     color:#334155; background:var(--surface); box-shadow:0 2px 10px rgba(15,23,42,.06); }
   .kl-filter button:hover { color:#1d4ed8; }
+  .kl-filter button.soon { color:#94a3b8; }
   .kl-filter button.on { color:#fff; background:linear-gradient(135deg,#2563eb,#7c3aed); box-shadow:0 8px 18px rgba(79,70,229,.28); }
 
   .kl-kick { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:14px; font-weight:700; color:var(--c1); }
   .kl-kick b { padding:2px 10px; border-radius:999px; font-size:12.5px; color:#fff; background:linear-gradient(135deg,var(--c1),var(--c2)); }
+  .kl-kick b.kl-type { color:#334155; background:#eef2f7; }
   .kl-kick b.kl-draft { color:#92400e; background:#fef3c7; }
-  .kl-meta { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13.5px; color:#94a3b8; }
-  .kl-meta i { width:4px; height:4px; border-radius:50%; background:#cbd5e1; }
+  .kl-meta { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:14px; color:#64748b; }
+  .kl-meta i { width:4px; height:4px; border-radius:50%; background:#94a3b8; }
 
   /* ---------- เรื่องแนะนำ ---------- */
   .kl-feat { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:34px; align-items:center; margin-top:22px; padding:20px;
-    border-radius:28px; background:var(--surface); box-shadow:0 10px 34px rgba(15,23,42,.08); text-decoration:none; color:var(--text);
+    border-radius:28px; background:var(--surface); box-shadow:0 4px 18px rgba(15,23,42,.05); text-decoration:none; color:var(--text);
     transition:box-shadow .18s, transform .18s; }
-  .kl-feat:hover { transform:translateY(-3px); box-shadow:0 20px 44px rgba(72,128,255,.2); }
+  .kl-feat:hover { transform:translateY(-2px); box-shadow:0 10px 26px rgba(72,128,255,.13); }
   .kl-fcopy { display:flex; flex-direction:column; gap:12px; padding-right:16px; }
   .kl-feat h2 { margin:0; font-size:31px; line-height:1.4; font-weight:800; color:#0f172a; }
-  .kl-feat p { margin:0; font-size:16.5px; line-height:1.75; color:#64748b; }
+  .kl-feat p { margin:0; font-size:17px; line-height:1.85; color:#334155; }
   .kl-read { display:inline-flex; align-self:flex-start; align-items:center; gap:8px; margin-top:6px; padding:11px 22px; border-radius:14px;
-    font-weight:700; color:#fff; background:linear-gradient(135deg,var(--c1),var(--c2)); box-shadow:0 10px 22px rgba(37,99,235,.25); }
+    font-weight:700; color:#fff; background:linear-gradient(135deg,var(--c1),var(--c2)); box-shadow:0 6px 14px rgba(37,99,235,.18); }
 
   /* ---------- รายการ + แถบข้าง ---------- */
   .kl-main { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:28px; margin-top:30px; align-items:start; }
@@ -142,25 +143,25 @@
   .kl-listhead h2 { margin:0; font-size:23px; font-weight:800; color:#0f172a; }
   .kl-listhead span { font-size:14px; color:var(--muted); }
   .kl-row { display:grid; grid-template-columns:180px minmax(0,1fr); gap:22px; align-items:center; margin-top:14px; padding:14px;
-    border-radius:22px; background:var(--surface); box-shadow:0 4px 18px rgba(15,23,42,.06); text-decoration:none; color:var(--text);
+    border-radius:22px; background:var(--surface); box-shadow:0 2px 10px rgba(15,23,42,.04); text-decoration:none; color:var(--text);
     transition:box-shadow .16s, transform .16s; }
-  .kl-row:hover { transform:translateY(-2px); box-shadow:0 14px 30px rgba(72,128,255,.18); }
+  .kl-row:hover { transform:translateY(-1px); box-shadow:0 8px 20px rgba(72,128,255,.12); }
   .kl-rcopy { display:flex; flex-direction:column; gap:7px; padding-right:8px; }
   .kl-row h3 { margin:0; font-size:19px; line-height:1.45; font-weight:800; color:#0f172a; }
-  .kl-row p { margin:0; font-size:15px; line-height:1.65; color:#64748b; }
+  .kl-row p { margin:0; font-size:16px; line-height:1.8; color:#334155; }
   .kl-none, .kl-empty { margin-top:16px; padding:28px; border-radius:20px; text-align:center; color:var(--muted); background:var(--surface); }
 
   .kl-side { position:sticky; top:84px; display:flex; flex-direction:column; gap:16px; margin-top:44px; }
   .kl-box { display:flex; flex-direction:column; gap:6px; padding:20px 22px; border-radius:22px; }
   .kl-box b { font-size:17px; margin-bottom:4px; }
-  .kl-start { background:var(--surface); box-shadow:0 6px 22px rgba(15,23,42,.07); }
+  .kl-start { background:var(--surface); box-shadow:0 2px 10px rgba(15,23,42,.04); }
   .kl-start a { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:11px 14px; border-radius:12px;
     font-size:15px; color:var(--text); text-decoration:none; background:#f6f8fc; }
   .kl-start a:hover { color:#1d4ed8; background:linear-gradient(135deg,#eff6ff,#f5f3ff); }
   .kl-start a .icon { width:16px; height:16px; color:#94a3b8; }
-  .kl-ask { color:#fff; background:linear-gradient(150deg,#f97316,#ef4444 60%,#db2777); box-shadow:0 14px 30px rgba(239,68,68,.26); }
-  .kl-ask span { font-size:15px; line-height:1.6; opacity:.93; }
-  .kl-ask .btn { margin-top:8px; justify-content:center; background:#fff; color:#dc2626; }
+  .kl-ask { color:#0f172a; background:linear-gradient(150deg,#eff6ff,#f5f3ff); }
+  .kl-ask span { font-size:15px; line-height:1.7; color:#475569; }
+  .kl-ask .btn { margin-top:8px; justify-content:center; background:#fff; color:#4f46e5; box-shadow:0 2px 8px rgba(79,70,229,.1); }
 
   @media (max-width:1020px) {
     .kl-main { grid-template-columns:1fr; }
@@ -178,7 +179,8 @@
     .kl-feat h2 { font-size:23px; }
     .kl-row { grid-template-columns:110px minmax(0,1fr); gap:14px; padding:12px; }
     .kl-row h3 { font-size:16.5px; }
-    .kl-row p { display:none; }
+    .kl-row { align-items:start; }
+    .kl-row p { font-size:15px; line-height:1.7; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   }
 </style>
 <script>
@@ -194,7 +196,9 @@
       el.style.display = ok ? '' : 'none'; if (ok) n++;
     });
     document.getElementById('klCount').textContent = n + ' บทความ';
-    document.getElementById('klNone').hidden = n > 0;
+    var none = document.getElementById('klNone');
+    none.hidden = n > 0;
+    none.textContent = words.length ? 'ไม่พบเรื่องที่ค้นหา ลองใช้คำอื่น' : 'หมวดนี้กำลังเตรียมบทความ เร็ว ๆ นี้';
   }
   if (q) q.addEventListener('input', apply);
   if (box) box.addEventListener('click', function (e) {

@@ -16,6 +16,9 @@ articles.py - คลังความรู้ (บทความสาธา�
     image_alt: คำอธิบายรูป        (ไม่ใส่ก็ได้)
     cover: ว.119                 (ไม่ใส่ก็ได้) คำตัวใหญ่บนปกเมื่อไม่มีรูป
     featured: true               (ไม่ใส่ก็ได้) ขึ้นเป็นเรื่องแนะนำบนสุดของหน้ารวม
+    type: อธิบายระเบียบ          (ไม่ใส่ก็ได้) ป้ายชนิดบทความ: อธิบายระเบียบ / คู่มือใช้งาน / อัปเดตระบบ
+    reviewed: 2026-10-28         (ไม่ใส่ก็ได้) วันที่ตรวจทานเนื้อหากับเอกสารต้นทางล่าสุด
+    source: ชื่อเอกสาร | https://ลิงก์เอกสารต้นทาง   (ใส่ได้หลายบรรทัด ไม่มีลิงก์ก็ใส่แค่ชื่อ)
     -->
     <p>เนื้อหา...</p>
 
@@ -38,11 +41,17 @@ def _parse(path: Path) -> dict | None:
     m = _HEAD.match(raw)
     if not m:
         return None
-    meta = {}
+    meta, sources = {}, []
     for line in m.group(1).splitlines():
         if ":" in line:
             k, v = line.split(":", 1)
-            meta[k.strip().lower()] = v.strip()
+            k, v = k.strip().lower(), v.strip()
+            if k == "source" and v:
+                name, _, url = v.partition("|")
+                url = url.strip()
+                sources.append({"name": name.strip(), "url": url if url.startswith(("http://", "https://")) else ""})
+            else:
+                meta[k] = v
     try:
         d = date.fromisoformat(meta.get("date", ""))
     except ValueError:
@@ -51,6 +60,10 @@ def _parse(path: Path) -> dict | None:
         upd = date.fromisoformat(meta["updated"]) if meta.get("updated") else d
     except ValueError:
         upd = d
+    try:
+        reviewed = date.fromisoformat(meta["reviewed"]) if meta.get("reviewed") else None
+    except ValueError:
+        reviewed = None
     if not meta.get("title"):
         return None
     body = raw[m.end():].strip()
@@ -69,6 +82,7 @@ def _parse(path: Path) -> dict | None:
             "category": meta.get("category", ""), "date": d, "updated": upd,
             "draft": meta.get("draft", "true").lower() != "false",
             "image": img, "image_alt": meta.get("image_alt", "") or meta["title"],
+            "type": meta.get("type", ""), "reviewed": reviewed, "sources": sources,
             "cover": meta.get("cover", ""), "featured": meta.get("featured", "").lower() == "true",
             "body": body, "toc": toc, "minutes": max(1, round(chars / 450))}
 
@@ -81,7 +95,11 @@ CATEGORY_STYLE = {
     "งานวิชาการ": ("ic-book", "#ea580c", "#db2777"),
     "งานบุคคล": ("ic-users", "#0891b2", "#2563eb"),
     "งานอาหารกลางวัน": ("ic-food", "#d97706", "#dc2626"),
+    "อัปเดตระบบ": ("ic-star", "#4f46e5", "#db2777"),
 }
+# แถบหมวดในหน้ารวม (แสดงครบทุกหมวดแม้ยังไม่มีบทความ ให้รู้ว่าคลังนี้ครอบคลุมอะไร): (ชื่อสั้นบนปุ่ม, category)
+CATEGORY_TABS = [("พัสดุ", "งานพัสดุ"), ("การเงิน", "งานการเงิน"), ("ธุรการ", "งานธุรการ"), ("วิชาการ", "งานวิชาการ"),
+                 ("บุคคล", "งานบุคคล"), ("อาหารกลางวัน", "งานอาหารกลางวัน"), ("อัปเดตระบบ", "อัปเดตระบบ")]
 DEFAULT_STYLE = ("ic-file", "#2563eb", "#7c3aed")
 
 

@@ -126,3 +126,21 @@ def test_knowledge_cover_image_and_featured(env, monkeypatch, tmp_path):
     page = c.get("/knowledge/with-pic").text
     assert '<meta property="og:image" content="https://www.easy-ekkasan.com/static/knowledge/pic.jpg">' in page
     assert 'class="kb-cover"' in page
+
+
+def test_knowledge_tabs_type_and_sources(env, monkeypatch, tmp_path):
+    from app.services import articles
+    monkeypatch.setattr(articles, "DIR", tmp_path)
+    (tmp_path / "rule-one.html").write_text(
+        "<!--\ntitle: อธิบายระเบียบ\ndescription: d\ndate: 2026-10-20\ncategory: งานพัสดุ\ndraft: false\n"
+        "type: อธิบายระเบียบ\nreviewed: 2026-10-28\nsource: หนังสือ ว 1 | https://example.go.th/w1.pdf\nsource: ระเบียบ ข้อ 79\n"
+        "-->\n<p>x</p>", encoding="utf-8")
+    c = _anon()
+    lst = c.get("/knowledge").text
+    # แถบหมวดครบทุกหมวดแม้มีบทความหมวดเดียว หมวดว่างเป็นสีจาง
+    assert 'data-cat="งานการเงิน" class="soon"' in lst and 'data-cat="อัปเดตระบบ" class="soon"' in lst
+    assert '<b class="kl-type">อธิบายระเบียบ</b>' in lst
+    page = c.get("/knowledge/rule-one").text
+    assert 'href="https://example.go.th/w1.pdf"' in page and "<li>ระเบียบ ข้อ 79</li>" in page
+    assert "ตรวจทานกับเอกสารต้นทางล่าสุด" in page
+    assert 'class="kb-draftbar"' not in page      # แถบเหลืองเห็นเฉพาะร่าง (ผู้ดูแล)

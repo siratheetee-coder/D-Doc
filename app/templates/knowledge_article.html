@@ -39,15 +39,19 @@
 
 {% if a.draft %}
 <div class="kb-draftbar"><svg class="icon"><use href="#ic-alert"/></svg>
-  <span><b>บทความร่าง</b> ยังไม่เผยแพร่ เห็นเฉพาะผู้ดูแลระบบ ตรวจเนื้อหาแล้วแก้เป็น <code>draft: false</code> ในไฟล์ <code>app/content/articles/{{ a.slug }}.html</code></span></div>
+  <span><b>บทความร่าง</b> ยังไม่เผยแพร่ เห็นเฉพาะผู้ดูแลระบบ ตรวจเนื้อหาแล้วแก้เป็น <code>draft: false</code> ในไฟล์ <code>app/content/articles/{{ a.slug }}.html</code>
+  {% if a.type == 'อธิบายระเบียบ' and (not a.reviewed or not a.sources|selectattr('url')|list) %}
+  <br>ก่อนเผยแพร่ ควรใส่{% if not a.sources|selectattr('url')|list %} ลิงก์เอกสารต้นทาง (<code>source: ชื่อ | ลิงก์</code>){% endif %}{% if not a.reviewed %} วันที่ตรวจทาน (<code>reviewed: ปปปป-ดด-วว</code>){% endif %}
+  {% endif %}</span></div>
 {% endif %}
 
 <header class="kb-head" style="--c1:{{ st.c1 }}; --c2:{{ st.c2 }};">
   <nav class="kb-crumb"><a href="/">หน้าแรก</a><span>›</span><a href="/knowledge">คลังความรู้</a>{% if a.category %}<span>›</span>{{ a.category }}{% endif %}</nav>
   <span class="kb-pill"><svg class="icon"><use href="#{{ st.icon }}"/></svg>{{ a.category or 'ทั่วไป' }}</span>
+  {% if a.type %}<span class="kb-pill kb-type">{{ a.type }}</span>{% endif %}
   <h1>{{ a.title }}</h1>
   <p class="kb-lead">{{ a.description }}</p>
-  <div class="kb-info"><span>อัปเดต {{ thai_date(a.updated) }}</span><span>อ่าน {{ a.minutes }} นาที</span></div>
+  <div class="kb-info"><span>อัปเดต {{ thai_date(a.updated) }}</span>{% if a.reviewed %}<span>ตรวจทานล่าสุด {{ thai_date(a.reviewed) }}</span>{% endif %}<span>อ่าน {{ a.minutes }} นาที</span></div>
   <i class="kb-blob"></i>
 </header>
 
@@ -61,6 +65,15 @@
     </details>
     {% endif %}
     <div class="kb-body" style="--c1:{{ st.c1 }}; --c2:{{ st.c2 }};">{{ a.body|safe }}</div>
+    {% if a.sources or a.reviewed %}
+    <section class="kb-src">
+      <b>แหล่งอ้างอิง</b>
+      {% if a.sources %}<ul>{% for src in a.sources %}
+        <li>{% if src.url %}<a href="{{ src.url }}" target="_blank" rel="noopener">{{ src.name }} <svg class="icon"><use href="#ic-arrow-right"/></svg></a>{% else %}{{ src.name }}{% endif %}</li>
+      {% endfor %}</ul>{% endif %}
+      {% if a.reviewed %}<span class="kb-rev"><svg class="icon"><use href="#ic-check"/></svg>ตรวจทานกับเอกสารต้นทางล่าสุด {{ thai_date(a.reviewed) }}</span>{% endif %}
+    </section>
+    {% endif %}
   </article>
 
   <aside class="kb-side">
@@ -126,6 +139,7 @@
   .kb-pill { position:relative; display:inline-flex; align-items:center; gap:7px; margin-top:18px; padding:5px 14px 5px 10px;
     border-radius:999px; background:rgba(255,255,255,.2); font-size:14px; font-weight:700; }
   .kb-pill .icon { width:18px; height:18px; }
+  .kb-pill.kb-type { margin-left:6px; padding:5px 14px; background:rgba(255,255,255,.95); color:var(--c1); }
   .kb-head h1 { position:relative; margin:12px 0 0; max-width:820px; font-size:36px; line-height:1.35; font-weight:800; color:#fff; }
   .kb-lead { position:relative; margin:12px 0 0; max-width:760px; font-size:17.5px; line-height:1.7; opacity:.95; }
   .kb-info { position:relative; display:flex; gap:18px; margin-top:16px; font-size:14px; opacity:.88; }
@@ -133,7 +147,7 @@
   /* ---------- เนื้อหา + แถบข้าง ---------- */
   .kb-layout { position:relative; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:28px; margin-top:-26px; align-items:start; }
   .kb-paper { position:relative; background:var(--surface); border-radius:24px; padding:40px 48px 44px;
-    box-shadow:0 10px 34px rgba(15,23,42,.08); }
+    box-shadow:0 4px 18px rgba(15,23,42,.05); }
   .kb-body { max-width:70ch; font-size:18px; line-height:1.95; color:#1f2937; }
   .kb-body > p:first-child { font-size:19px; color:#111827; }
   .kb-body p { margin:0 0 18px; }
@@ -161,6 +175,15 @@
     color:#78350f; background:linear-gradient(135deg,#fffbeb,#fef3c7); }
   .kb-body .note::before { content:"!"; position:absolute; left:18px; top:16px; width:28px; height:28px; border-radius:50%;
     display:grid; place-items:center; font-weight:800; color:#fff; background:linear-gradient(135deg,#f59e0b,#ea580c); }
+  .kb-src { max-width:70ch; margin-top:30px; padding:18px 22px; border-radius:18px; background:#f6f8fc; font-size:15.5px; line-height:1.75; color:#334155; }
+  .kb-src b { display:block; margin-bottom:6px; font-size:16px; color:#0f172a; }
+  .kb-src ul { margin:0; padding-left:20px; }
+  .kb-src a { color:#1d4ed8; text-decoration:none; font-weight:600; }
+  .kb-src a:hover { text-decoration:underline; }
+  .kb-src a .icon { width:14px; height:14px; vertical-align:-2px; }
+  .kb-rev { display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:4px 12px; border-radius:999px;
+    font-size:14px; font-weight:600; color:#047857; background:#ecfdf5; }
+  .kb-rev .icon { width:15px; height:15px; }
   .kb-cover { margin:-14px -22px 30px; border-radius:20px; overflow:hidden; box-shadow:0 10px 28px rgba(15,23,42,.12); }
   .kb-cover img { display:block; width:100%; max-height:440px; object-fit:cover; }
   .kb-body figure { margin:6px 0 26px; }
@@ -169,7 +192,7 @@
   .kb-body .ref { margin-top:30px; padding:16px 20px; border-radius:16px; background:#f1f5f9; font-size:15px; line-height:1.7; color:#475569; }
 
   .kb-side { position:sticky; top:84px; display:flex; flex-direction:column; gap:16px; margin-top:34px; }
-  .kb-toc { padding:20px 22px; border-radius:20px; background:var(--surface); box-shadow:0 6px 22px rgba(15,23,42,.07); }
+  .kb-toc { padding:20px 22px; border-radius:20px; background:var(--surface); box-shadow:0 2px 10px rgba(15,23,42,.04); }
   .kb-toc b { font-size:15px; }
   .kb-toc ol { list-style:none; margin:10px 0 0; padding:0; }
   .kb-toc a { display:block; padding:7px 12px; margin:2px 0; border-radius:10px; font-size:14.5px; line-height:1.5;
@@ -197,8 +220,8 @@
   .kb-related h2 { margin:0 0 14px; font-size:22px; }
   .kb-rgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; }
   .kb-rcard { display:flex; flex-direction:column; gap:12px; padding:12px 12px 18px; border-radius:20px; background:var(--surface);
-    box-shadow:0 4px 18px rgba(15,23,42,.06); text-decoration:none; color:var(--text); transition:box-shadow .15s, transform .15s; }
-  .kb-rcard:hover { box-shadow:0 12px 28px rgba(72,128,255,.18); transform:translateY(-2px); }
+    box-shadow:0 2px 10px rgba(15,23,42,.04); text-decoration:none; color:var(--text); transition:box-shadow .15s, transform .15s; }
+  .kb-rcard:hover { box-shadow:0 8px 20px rgba(72,128,255,.12); transform:translateY(-2px); }
   .kb-rcard > span:last-child { padding:0 6px; }
   .kb-rcard small { display:block; font-size:12.5px; font-weight:700; color:var(--muted); }
   .kb-rcard b { font-size:16px; line-height:1.45; }
