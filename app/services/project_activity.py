@@ -36,6 +36,11 @@ def activity_maps(db) -> dict:
     return {"by_id": by_id, "by_name": by_name}
 
 
+def _d(dt):
+    from app.thai_utils import thai_date_short
+    return thai_date_short(dt) if dt else "-"
+
+
 def activity_groups(db, project, procs, memos) -> list:
     """[{a, docs, used, left}] ตามลำดับกิจกรรม + กลุ่มสุดท้าย a=None (ยังไม่ระบุกิจกรรม) ถ้ามีเอกสาร"""
     acts = activities(db, project.id)
@@ -44,17 +49,22 @@ def activity_groups(db, project, procs, memos) -> list:
     loose = []
     for p in procs:
         row = {"kind": "จัดซื้อ/จัดจ้าง", "no": p.order_no or p.memo_no or "-", "subject": f"{p.proc_type or ''}{p.subject or ''}",
-               "amount": float(p.total_amount or 0), "url": f"/procurement/{p.id}", "status": p.status or "", "type": "proc", "id": p.id}
+               "amount": float(p.total_amount or 0), "url": f"/procurement/{p.id}", "status": p.status or "", "type": "proc", "id": p.id,
+               "date": _d(p.order_date or p.request_date)}
         (docs[p.activity_id] if p.activity_id in ids else loose).append(row)
     for m in memos:
         row = {"kind": "ขอเบิกค่าใช้จ่ายอื่น" if m.proc_kind == "ค่าใช้จ่ายอื่น" else "ขอเบิกจ่าย",
                "no": m.memo_no or "-", "subject": m.subject or "", "amount": float(m.amount or 0),
-               "url": f"/finance/disburse/{m.id}", "status": m.status or "", "type": "memo", "id": m.id}
+               "url": f"/finance/disburse/{m.id}", "status": m.status or "", "type": "memo", "id": m.id,
+               "date": _d(m.date or m.created_at)}
         (docs[m.activity_id] if m.activity_id in ids else loose).append(row)
     out = []
     for a in acts:
         used = round(sum(d["amount"] for d in docs[a.id]), 2)
-        out.append({"a": a, "docs": docs[a.id], "used": used, "left": round(float(a.budget or 0) - used, 2)})
+        bud = float(a.budget or 0)
+        pct = round(used / bud * 100) if bud else 0
+        level = "over" if bud and used > bud else "near" if pct >= 80 else "ok"
+        out.append({"a": a, "docs": docs[a.id], "used": used, "left": round(bud - used, 2), "pct": pct, "level": level})
     if loose:
         out.append({"a": None, "docs": loose, "used": round(sum(d["amount"] for d in loose), 2), "left": 0})
     return out

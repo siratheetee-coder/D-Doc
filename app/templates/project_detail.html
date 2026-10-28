@@ -160,6 +160,19 @@
   {% set acts = groups|selectattr('a')|list %}
   {% set loose = groups|rejectattr('a')|first %}
   {% set act_total = acts|map(attribute='a.budget')|map('float')|sum %}
+  {% macro kind_tag(d) %}<span class="pa-tag {{ 'is-proc' if d.type == 'proc' else 'is-memo' }}">{{ 'จัดซื้อ/จัดจ้าง' if d.type == 'proc' else 'เบิกค่าอื่น' }}</span>{% endmacro %}
+  {% macro status_pill(st) %}<span class="pa-st {{ 'is-done' if st in ('จ่ายแล้ว', 'เสร็จสิ้น', 'ตรวจรับแล้ว') else 'is-draft' if st == 'ร่าง' else 'is-wait' }}"><i></i>{{ st or '-' }}</span>{% endmacro %}
+  {% macro move_select(d, cur) %}
+    <form method="post" action="/projects/{{ p.id }}/assign" class="pa-move">
+      <input type="hidden" name="kind" value="{{ d.type }}"><input type="hidden" name="doc_id" value="{{ d.id }}">
+      <select name="activity_id" onchange="this.form.submit()" aria-label="ย้ายรายการ">
+        <option value="" selected disabled>{{ 'ย้าย' if cur else 'เลือกกิจกรรม...' }}</option>
+        {% for g2 in acts if g2.a.id != cur %}<option value="{{ g2.a.id }}">{{ 'ไป ' if cur }}{{ g2.a.name }}</option>{% endfor %}
+        {% if cur %}<option value="">เอาออกจากกิจกรรม</option>{% endif %}
+      </select>
+    </form>
+  {% endmacro %}
+
   <div class="pa-top">
     <h2 style="margin:0;">กิจกรรมในโครงการ</h2>
     <button type="button" class="btn sm" onclick="var f=document.getElementById('paAdd'); f.hidden=!f.hidden; if(!f.hidden) f.querySelector('input').focus();">
@@ -172,68 +185,118 @@
     <small>กิจกรรมเดียวกันมีได้ทั้งเรื่องจัดซื้อและการเบิกค่าอื่น เช่น ค่าเดินทาง ค่าตอบแทน</small>
   </form>
   {% if act_total > b %}<p class="pa-warn">งบกิจกรรมรวม {{ "{:,.2f}".format(act_total) }} เกินงบโครงการ {{ "{:,.2f}".format(b) }}</p>{% endif %}
+  {% if acts %}<p class="pa-hint">ลากรายการไปวางในกิจกรรมอื่นได้ หรือใช้ช่อง "ย้าย" ท้ายรายการ</p>{% endif %}
 
   {% if not acts %}
   <div class="pa-empty">
     <span>ยังไม่มีกิจกรรม ใช้เงินโครงการได้เลย</span>
-    <a class="pa-link" href="/procurement/new?project={{ p.id }}">+ จัดซื้อ/จัดจ้าง</a>
-    <a class="pa-link" href="/finance/disburse?project={{ p.id }}">+ เบิกค่าอื่น</a>
+    <a class="btn sm" href="/procurement/new?project={{ p.id }}"><svg class="icon"><use href="#ic-plus"/></svg> จัดซื้อ/จัดจ้าง</a>
+    <a class="btn sm pa-ghost" href="/finance/disburse?project={{ p.id }}"><svg class="icon"><use href="#ic-plus"/></svg> เบิกค่าอื่น</a>
   </div>
   {% endif %}
 
-  {% macro doc_row(d, cur) %}
-      <li draggable="true" data-kind="{{ d.type }}" data-id="{{ d.id }}">
-        <span class="pa-grip" aria-hidden="true">⋮⋮</span>
-        <span class="pa-tag {{ 'is-proc' if d.type == 'proc' else 'is-memo' }}">{{ 'จัดซื้อ' if d.type == 'proc' else 'เบิก' }}</span>
-        <a href="{{ d.url }}">{{ d.subject }}</a>
-        <b>{{ "{:,.0f}".format(d.amount) }}</b>
-        {% if acts %}<form method="post" action="/projects/{{ p.id }}/assign" class="pa-move">
-          <input type="hidden" name="kind" value="{{ d.type }}"><input type="hidden" name="doc_id" value="{{ d.id }}">
-          <select name="activity_id" onchange="this.form.submit()" aria-label="ย้ายรายการ">
-            <option value="" selected disabled>{{ 'ย้าย' if cur else 'ใส่ในกิจกรรม' }}</option>
-            {% for g2 in acts if g2.a.id != cur %}<option value="{{ g2.a.id }}">ไป {{ g2.a.name }}</option>{% endfor %}
-            {% if cur %}<option value="">เอาออกจากกิจกรรม</option>{% endif %}
-          </select>
-        </form>{% endif %}
-      </li>
-  {% endmacro %}
-  {% if acts %}<p class="pa-hint">ลากรายการไปวางในกิจกรรมอื่น หรือลากลงกล่องด้านล่างเพื่อเอาออกจากกิจกรรม</p>{% endif %}
-
-  {% for g in acts %}{% set a = g.a %}{% set pct = (g.used / a.budget * 100) if a.budget else 0 %}
+  {% for g in acts %}{% set a = g.a %}
   <section class="pa" data-act="{{ a.id }}">
     <div class="pa-head">
       <b class="pa-name">{{ a.name }}</b>
-      {% if a.budget %}
-      <span class="pa-left {{ 'is-bad' if g.left < 0 }}">{{ 'เกินงบ' if g.left < 0 else 'เหลือ' }} {{ "{:,.0f}".format(g.left|abs) }}</span>
-      {% else %}<span class="pa-used">ใช้ไป {{ "{:,.0f}".format(g.used) }} บาท</span>{% endif %}
-    </div>
-    {% if a.budget %}
-    <div class="pa-bar"><i style="width:{{ [pct, 100]|min }}%;" class="{{ 'is-bad' if g.left < 0 }}"></i></div>
-    <div class="pa-sub">ใช้ไป {{ "{:,.0f}".format(g.used) }} จากงบ {{ "{:,.0f}".format(a.budget) }} บาท</div>
-    {% endif %}
-    <ul class="pa-docs">{% for d in g.docs %}{{ doc_row(d, a.id) }}{% endfor %}</ul>
-    {% if not g.docs %}<p class="pa-none">ยังไม่มีรายการ</p>{% endif %}
-    <div class="pa-foot">
-      <a class="pa-link" href="/procurement/new?project={{ p.id }}&activity={{ a.id }}">+ จัดซื้อ/จัดจ้าง</a>
-      <a class="pa-link" href="/finance/disburse?project={{ p.id }}&activity={{ a.id }}">+ เบิกค่าอื่น</a>
-      <button type="button" class="pa-edit-btn" onclick="var f=this.closest('.pa').querySelector('.pa-edit'); f.hidden=!f.hidden;">แก้ไข</button>
+      <details class="pa-menu">
+        <summary aria-label="เมนูกิจกรรม">⋯</summary>
+        <div class="pa-menu-list">
+          <button type="button" onclick="var s=this.closest('.pa'); s.querySelector('.pa-edit').hidden=false; this.closest('details').open=false; s.querySelector('.pa-edit input').focus();">
+            <svg class="icon"><use href="#ic-edit"/></svg> แก้ไขกิจกรรม</button>
+          <form method="post" action="/projects/{{ p.id }}/activities/{{ a.id }}/delete"
+            onsubmit="return confirm('ลบกิจกรรมนี้? รายการในกิจกรรมไม่หาย ย้ายไปรายการที่ยังไม่ได้ผูกกับกิจกรรม');">
+            <button type="submit" class="is-danger"><svg class="icon"><use href="#ic-trash"/></svg> ลบกิจกรรม</button></form>
+        </div>
+      </details>
     </div>
     <form class="pa-edit" method="post" action="/projects/{{ p.id }}/activities/{{ a.id }}/update" hidden>
       <input name="name" value="{{ a.name }}" required aria-label="ชื่อกิจกรรม">
       <input name="budget" inputmode="decimal" value="{{ '%.2f'|format(a.budget) if a.budget else '' }}" placeholder="งบ (ไม่ใส่ก็ได้)" aria-label="งบกิจกรรม" class="pa-num">
       <button class="btn sm" type="submit">บันทึก</button>
-      <button class="btn sm red" type="submit" formaction="/projects/{{ p.id }}/activities/{{ a.id }}/delete"
-        onclick="return confirm('ลบกิจกรรมนี้? รายการในกิจกรรมไม่หาย ย้ายไปรอเลือกกิจกรรม');">ลบ</button>
+      <button class="btn sm gray" type="button" onclick="this.form.hidden=true;">ยกเลิก</button>
     </form>
+
+    <div class="pa-stats lv-{{ g.level }}">
+      <div class="pa-stat"><span class="pa-ic ic-amber"><svg class="icon"><use href="#ic-coins"/></svg></span>
+        <div><small>งบกิจกรรม</small><b>{{ "{:,.0f}".format(a.budget) if a.budget else 'ยังไม่ตั้ง' }}{% if a.budget %} <em>บาท</em>{% endif %}</b></div></div>
+      <div class="pa-stat"><span class="pa-ic ic-green"><svg class="icon"><use href="#ic-check"/></svg></span>
+        <div><small>ใช้แล้ว</small><b>{{ "{:,.0f}".format(g.used) }} <em>บาท</em>{% if a.budget %} <i class="pa-pct">{{ g.pct }}%</i>{% endif %}</b></div></div>
+      <div class="pa-stat"><span class="pa-ic ic-blue"><svg class="icon"><use href="#ic-clock"/></svg></span>
+        <div><small>{{ 'เกินงบ' if g.level == 'over' else 'เหลือ' }}</small>
+          <b class="pa-leftnum">{{ "{:,.0f}".format(g.left|abs) if a.budget else '-' }}{% if a.budget %} <em>บาท</em>{% endif %}</b></div></div>
+      {% if a.budget %}
+      <div class="pa-prog"><div class="pa-bar"><i style="width:{{ [g.pct, 100]|min }}%;"></i></div>
+        <span>{{ 'เกินงบ' if g.level == 'over' else 'ใกล้เต็ม' if g.level == 'near' else 'ปกติ' }}</span></div>
+      {% endif %}
+    </div>
+
+    <div class="pa-listhead">
+      <b>รายการในกิจกรรม</b>
+      <span class="pa-acts">
+        <a class="btn sm" href="/procurement/new?project={{ p.id }}&activity={{ a.id }}"><svg class="icon"><use href="#ic-plus"/></svg> จัดซื้อ/จัดจ้าง</a>
+        <a class="btn sm pa-ghost" href="/finance/disburse?project={{ p.id }}&activity={{ a.id }}"><svg class="icon"><use href="#ic-plus"/></svg> เบิกค่าอื่น</a>
+      </span>
+    </div>
+    {% if g.docs %}
+    <div class="table-wrap"><table class="pa-table stack-sm">
+      <thead><tr><th class="pa-gripcol"></th><th>วันที่</th><th>รายการ</th><th>ประเภท</th><th class="right">จำนวนเงิน (บาท)</th><th>สถานะ</th><th></th></tr></thead>
+      <tbody>{% for d in g.docs %}
+        <tr draggable="true" data-kind="{{ d.type }}" data-id="{{ d.id }}">
+          <td class="pa-gripcol"><span class="pa-grip" aria-hidden="true">⋮⋮</span></td>
+          <td data-label="วันที่" class="pa-date">{{ d.date }}</td>
+          <td data-label="รายการ"><a href="{{ d.url }}">{{ d.subject }}</a></td>
+          <td data-label="ประเภท">{{ kind_tag(d) }}</td>
+          <td data-label="จำนวนเงิน" class="right"><b>{{ "{:,.2f}".format(d.amount) }}</b></td>
+          <td data-label="สถานะ">{{ status_pill(d.status) }}</td>
+          <td data-label="ย้าย">{{ move_select(d, a.id) }}</td>
+        </tr>
+      {% endfor %}</tbody></table></div>
+    {% else %}
+    <div class="pa-none">
+      <svg class="icon"><use href="#ic-file-plus"/></svg>
+      <div><b>ยังไม่มีรายการในกิจกรรมนี้</b><small>กดปุ่มด้านบนเพื่อเพิ่ม หรือลากรายการมาวางที่นี่</small></div>
+    </div>
+    {% endif %}
   </section>
   {% endfor %}
 
-  {% if loose or acts %}
-  <section class="pa is-loose" data-act="">
-    <div class="pa-head"><b class="pa-name">{{ 'ยังไม่อยู่ในกิจกรรม' if acts else 'รายการของโครงการ' }}</b>
-      {% if loose %}<span class="pa-used">{{ loose.docs|length }} รายการ {{ "{:,.0f}".format(loose.used) }} บาท</span>{% endif %}</div>
-    <ul class="pa-docs">{% if loose %}{% for d in loose.docs %}{{ doc_row(d, None) }}{% endfor %}{% endif %}</ul>
-    {% if not loose %}<p class="pa-none">ไม่มีรายการ ลากรายการมาวางที่นี่เพื่อเอาออกจากกิจกรรม</p>{% endif %}
+  {% if acts %}
+  <section class="pa pa-queue" data-act="">
+    <div class="pa-head">
+      <b class="pa-name"><span class="pa-qic"><svg class="icon"><use href="#ic-clipboard"/></svg></span> รายการที่ยังไม่ได้ผูกกับกิจกรรม</b>
+      {% if loose %}<span class="pa-qbadge">{{ loose.docs|length }} รายการ <b>{{ "{:,.0f}".format(loose.used) }}</b> บาท</span>{% endif %}
+    </div>
+    {% if loose %}
+    <div class="table-wrap"><table class="pa-table stack-sm">
+      <thead><tr><th class="pa-gripcol"></th><th>วันที่</th><th>รายการ</th><th>ประเภท</th><th class="right">จำนวนเงิน (บาท)</th><th>จัดเข้ากิจกรรม</th></tr></thead>
+      <tbody>{% for d in loose.docs %}
+        <tr draggable="true" data-kind="{{ d.type }}" data-id="{{ d.id }}">
+          <td class="pa-gripcol"><span class="pa-grip" aria-hidden="true">⋮⋮</span></td>
+          <td data-label="วันที่" class="pa-date">{{ d.date }}</td>
+          <td data-label="รายการ"><a href="{{ d.url }}">{{ d.subject }}</a></td>
+          <td data-label="ประเภท">{{ kind_tag(d) }}</td>
+          <td data-label="จำนวนเงิน" class="right"><b>{{ "{:,.2f}".format(d.amount) }}</b></td>
+          <td data-label="จัดเข้ากิจกรรม">{{ move_select(d, None) }}</td>
+        </tr>
+      {% endfor %}</tbody></table></div>
+    {% else %}
+    <p class="pa-qempty">ทุกรายการอยู่ในกิจกรรมแล้ว ลากรายการมาวางที่นี่ถ้าต้องการเอาออกจากกิจกรรม</p>
+    {% endif %}
+  </section>
+  {% elif loose %}
+  <section class="pa">
+    <div class="pa-head"><b class="pa-name">รายการของโครงการ</b>
+      <span class="pa-qbadge">{{ loose.docs|length }} รายการ <b>{{ "{:,.0f}".format(loose.used) }}</b> บาท</span></div>
+    <div class="table-wrap"><table class="pa-table stack-sm">
+      <thead><tr><th>วันที่</th><th>รายการ</th><th>ประเภท</th><th class="right">จำนวนเงิน (บาท)</th><th>สถานะ</th></tr></thead>
+      <tbody>{% for d in loose.docs %}
+        <tr><td data-label="วันที่" class="pa-date">{{ d.date }}</td>
+          <td data-label="รายการ"><a href="{{ d.url }}">{{ d.subject }}</a></td>
+          <td data-label="ประเภท">{{ kind_tag(d) }}</td>
+          <td data-label="จำนวนเงิน" class="right"><b>{{ "{:,.2f}".format(d.amount) }}</b></td>
+          <td data-label="สถานะ">{{ status_pill(d.status) }}</td></tr>
+      {% endfor %}</tbody></table></div>
   </section>
   {% endif %}
 </div>
@@ -245,49 +308,97 @@
   .pa-add .pa-num, .pa-edit .pa-num{ flex:1; min-width:120px; }
   .pa-add small{ flex-basis:100%; color:var(--muted); font-size:13px; }
   .pa-warn{ margin:0 0 12px; padding:8px 12px; border-radius:10px; background:#fef2f2; color:#b91c1c; font-size:14px; }
-  .pa-empty{ display:flex; flex-wrap:wrap; align-items:center; gap:14px; padding:14px; border-radius:14px; background:#f8fafc; color:var(--muted); }
-  .pa{ padding:16px; border-radius:16px; background:#f8fafc; margin-bottom:12px; }
-  .pa.is-loose{ background:#fffbeb; }
-  .pa-head{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
-  .pa-name{ font-size:16.5px; }
-  .pa-left{ font-weight:700; color:#16a34a; white-space:nowrap; }
-  .pa-left.is-bad{ color:#dc2626; }
-  .pa-used{ color:var(--muted); font-size:14px; white-space:nowrap; }
-  .pa-bar{ height:8px; border-radius:99px; background:#e2e8f0; margin:10px 0 4px; overflow:hidden; }
-  .pa-bar i{ display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,#60a5fa,#2563eb); }
-  .pa-bar i.is-bad{ background:linear-gradient(90deg,#f87171,#dc2626); }
-  .pa-sub{ font-size:13px; color:var(--muted); }
-  .pa-docs{ list-style:none; margin:12px 0 0; padding:0; }
-  .pa-docs li{ display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding:9px 0; border-top:1px solid #e9eef5; }
-  .pa-docs li a{ flex:1; min-width:160px; color:inherit; text-decoration:none; }
-  .pa-docs li a:hover{ color:#2563eb; }
-  .pa-docs li b{ white-space:nowrap; }
-  .pa-tag{ font-size:12px; font-weight:700; padding:3px 9px; border-radius:99px; white-space:nowrap; }
-  .pa-tag.is-proc{ background:#dbeafe; color:#1e40af; }
-  .pa-tag.is-memo{ background:#dcfce7; color:#166534; }
-  .pa-none{ margin:10px 0 0; color:var(--muted); font-size:14px; }
-  .pa-foot{ display:flex; flex-wrap:wrap; align-items:center; gap:16px; margin-top:12px; }
-  .pa-link{ font-weight:700; font-size:14px; color:#2563eb; text-decoration:none; }
-  .pa-link:hover{ text-decoration:underline; }
-  .pa-edit-btn{ margin-left:auto; border:0; background:none; color:var(--muted); font:inherit; font-size:14px; cursor:pointer; }
-  .pa-edit{ margin:12px 0 0; }
-  .pa-move select{ font-size:13px; padding:4px 8px; min-height:0; width:auto; max-width:150px; border:0; background:#eef2f7; border-radius:99px; color:#475569; cursor:pointer; }
   .pa-hint{ margin:-4px 0 12px; font-size:13px; color:var(--muted); }
+  .pa-empty{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:16px; border-radius:16px; background:#f8fafc; color:var(--muted); }
+  .pa-empty span{ margin-right:6px; }
+  .btn.pa-ghost{ background:#fff; color:#2563eb; box-shadow:inset 0 0 0 1.5px #93c5fd; }
+  .btn.pa-ghost:hover{ background:#eff6ff; }
+
+  .pa{ padding:18px; border-radius:20px; background:#fff; box-shadow:0 4px 18px rgba(15,23,42,.06); margin-bottom:16px; }
+  .pa-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .pa-name{ font-size:18px; display:flex; align-items:center; gap:10px; }
+  .pa-menu{ position:relative; }
+  .pa-menu summary{ list-style:none; cursor:pointer; width:38px; height:34px; display:grid; place-items:center; border-radius:10px;
+    background:#f1f5f9; font-size:20px; line-height:1; color:#475569; }
+  .pa-menu summary::-webkit-details-marker{ display:none; }
+  .pa-menu-list{ position:absolute; right:0; top:40px; z-index:20; min-width:170px; padding:6px; border-radius:14px; background:#fff;
+    box-shadow:0 14px 34px rgba(15,23,42,.16); }
+  .pa-menu-list button{ display:flex; align-items:center; gap:8px; width:100%; padding:9px 10px; border:0; border-radius:10px; background:none;
+    font:inherit; font-size:14px; color:inherit; cursor:pointer; text-align:left; }
+  .pa-menu-list button:hover{ background:#f1f5f9; }
+  .pa-menu-list button.is-danger{ color:#dc2626; }
+  .pa-menu-list form{ margin:0; }
+  .pa-edit{ margin:12px 0 0; }
+
+  .pa-stats{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.3fr); gap:0; margin-top:14px; border-radius:16px; background:#f8fafc; }
+  .pa-stat{ display:flex; align-items:center; gap:12px; padding:12px 16px; }
+  .pa-stat + .pa-stat{ box-shadow:inset 1px 0 0 #e2e8f0; }
+  .pa-stat small{ display:block; font-size:13px; color:var(--muted); }
+  .pa-stat b{ font-size:20px; white-space:nowrap; }
+  .pa-stat em{ font-style:normal; font-size:14px; font-weight:600; }
+  .pa-pct{ font-style:normal; font-size:12.5px; font-weight:600; color:#475569; background:#e2e8f0; border-radius:99px; padding:2px 8px; margin-left:4px; }
+  .pa-ic{ width:40px; height:40px; flex:none; display:grid; place-items:center; border-radius:12px; }
+  .pa-ic .icon{ width:20px; height:20px; }
+  .ic-amber{ background:#fef3c7; color:#b45309; } .ic-green{ background:#dcfce7; color:#15803d; } .ic-blue{ background:#dbeafe; color:#1d4ed8; }
+  .pa-leftnum{ color:#2563eb; }
+  .lv-over .pa-leftnum{ color:#dc2626; }
+  .pa-prog{ display:flex; align-items:center; gap:10px; padding:12px 16px; }
+  .pa-prog span{ font-size:13px; font-weight:700; color:#16a34a; white-space:nowrap; }
+  .pa-bar{ flex:1; height:10px; border-radius:99px; background:#e2e8f0; overflow:hidden; }
+  .pa-bar i{ display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,#4ade80,#16a34a); }
+  .lv-near .pa-bar i{ background:linear-gradient(90deg,#fbbf24,#d97706); } .lv-near .pa-prog span{ color:#d97706; }
+  .lv-over .pa-bar i{ background:linear-gradient(90deg,#f87171,#dc2626); } .lv-over .pa-prog span{ color:#dc2626; }
+
+  .pa-listhead{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin:16px 0 8px; }
+  .pa-listhead > b{ padding-left:10px; box-shadow:inset 3px 0 0 #2563eb; }
+  .pa-acts{ display:flex; flex-wrap:wrap; gap:8px; }
+  .pa-table td{ vertical-align:middle; }
+  .pa-table a{ color:inherit; text-decoration:none; font-weight:600; }
+  .pa-table a:hover{ color:#2563eb; }
+  .pa-date{ white-space:nowrap; color:#475569; }
+  .pa-gripcol{ width:22px; padding-right:0 !important; }
   .pa-grip{ color:#94a3b8; cursor:grab; font-size:18px; line-height:1; letter-spacing:-4px; user-select:none; }
-  .pa-docs li[draggable=true]{ cursor:grab; }
-  .pa-docs li.is-drag{ opacity:.4; }
-  .pa.is-over{ box-shadow:inset 0 0 0 2px #3b82f6; background:#eff6ff; }
-  .pa-docs:empty{ display:none; }
-  @media (hover:none){ .pa-grip{ display:none; } }
+  .pa-table tr[draggable=true]{ cursor:grab; }
+  .pa-table tr.is-drag{ opacity:.4; }
+  .pa-tag{ display:inline-block; font-size:12.5px; font-weight:700; padding:3px 10px; border-radius:99px; white-space:nowrap; }
+  .pa-tag.is-proc{ background:#dbeafe; color:#1d4ed8; }
+  .pa-tag.is-memo{ background:#dcfce7; color:#15803d; }
+  .pa-st{ display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; padding:3px 10px; border-radius:99px; white-space:nowrap; }
+  .pa-st i{ width:7px; height:7px; border-radius:50%; background:currentColor; }
+  .pa-st.is-done{ background:#dcfce7; color:#15803d; } .pa-st.is-wait{ background:#fef3c7; color:#b45309; } .pa-st.is-draft{ background:#f1f5f9; color:#64748b; }
+  .pa-move select{ font-size:13px; padding:5px 10px; min-height:0; width:auto; max-width:170px; border:0; background:#f1f5f9; border-radius:10px; color:#475569; cursor:pointer; }
+  .pa-none{ display:flex; align-items:center; justify-content:center; gap:14px; padding:22px; border-radius:16px; background:#f8fafc; }
+  .pa-none > .icon{ width:34px; height:34px; color:#60a5fa; }
+  .pa-none small{ display:block; color:var(--muted); }
+  .pa.is-over{ box-shadow:0 0 0 2px #3b82f6; background:#f5f9ff; }
+
+  .pa-queue{ background:#fffbeb; box-shadow:none; }
+  .pa-qic{ width:34px; height:34px; display:grid; place-items:center; border-radius:10px; background:#fde68a; color:#92400e; }
+  .pa-qic .icon{ width:18px; height:18px; }
+  .pa-qbadge{ padding:5px 12px; border-radius:99px; background:#fff; color:#1e3a8a; font-size:14px; white-space:nowrap; }
+  .pa-qbadge b{ font-size:16px; color:#2563eb; }
+  .pa-queue .table-wrap{ margin-top:12px; }
+  .pa-qempty{ margin:10px 0 0; color:var(--muted); font-size:14px; }
+  @media (max-width:900px){
+    .pa-stats{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+    .pa-prog{ grid-column:1 / -1; padding-top:0; }
+  }
+  @media (max-width:640px){
+    .pa-stats{ grid-template-columns:minmax(0,1fr); }
+    .pa-stat + .pa-stat{ box-shadow:inset 0 1px 0 #e2e8f0; }
+    .pa-gripcol{ display:none !important; }
+    .pa{ padding:14px; }
+  }
+  @media (hover:none){ .pa-gripcol{ display:none; } }
 </style>
 <script>
 (function () {
   var drag = null, box = document.getElementById('activities');
   if (!box) return;
   box.addEventListener('dragstart', function (e) {
-    var li = e.target.closest && e.target.closest('li[draggable]'); if (!li) return;
-    drag = li; li.classList.add('is-drag');
-    e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', li.dataset.id);
+    var row = e.target.closest && e.target.closest('tr[draggable]'); if (!row) return;
+    drag = row; row.classList.add('is-drag');
+    e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', row.dataset.id);
   });
   box.addEventListener('dragend', function () {
     if (drag) drag.classList.remove('is-drag'); drag = null;
@@ -301,7 +412,7 @@
       if (!drag || drag.closest('.pa') === sec) return;
       var fd = new FormData();
       fd.append('kind', drag.dataset.kind); fd.append('doc_id', drag.dataset.id); fd.append('activity_id', sec.dataset.act);
-      sec.querySelector('.pa-docs').appendChild(drag);
+      drag.style.opacity = '.4';
       fetch('/projects/{{ p.id }}/assign', {method: 'POST', body: fd, credentials: 'same-origin'})
         .then(function () { location.reload(); });
     });
