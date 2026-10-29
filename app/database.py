@@ -139,6 +139,7 @@ MIGRATIONS = [
     ("material_txn",    "party",        "VARCHAR DEFAULT ''"),
     ("money_loan",      "project_id",   "INTEGER"),
     ("money_loan",      "activity_id",  "INTEGER"),
+    ("finance_txn",     "remark",       "VARCHAR DEFAULT ''"),
     ("disburse_memo",   "proc_kind",    "VARCHAR DEFAULT 'จัดซื้อ'"),
     ("school", "finance_officer_name",  "VARCHAR DEFAULT ''"),
     ("school", "finance_head_name",     "VARCHAR DEFAULT ''"),

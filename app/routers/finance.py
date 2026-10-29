@@ -456,7 +456,14 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
                    if rc.txn_id}
     from app.services.project_money import item_allocations, account_plan_links
     txn_project = _txn_projects(db, txns)
+    # รายการที่เคยลงในบัญชีนี้ (ใหม่สุดก่อน) ไว้เลือกในช่อง "รายการ"
+    recent_notes = []
+    for (n,) in (db.query(FinanceTxn.note).filter(FinanceTxn.account_id == a.id, FinanceTxn.note != "")
+                 .order_by(FinanceTxn.id.desc()).limit(300)):
+        if n and n not in recent_notes:
+            recent_notes.append(n)
     return templates.TemplateResponse("finance_ledger.html", {
+        "recent_notes": recent_notes[:60],
         "request": request, "account": a, "rows": rows, "balance": round(bal, 2),
         "txn_project": txn_project,
         "lunch_mirror": _lunch_mirror(db),
@@ -594,6 +601,7 @@ def account_item_delete(iid: int, db: Session = Depends(get_db)):
 def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("in"),
                     amount: str = Form("0"), date: str = Form(""), category: str = Form(""),
                     ref: str = Form(""), note: str = Form(""), fiscal_year: str = Form(""),
+                    remark: str = Form(""),
                     item_id: str = Form(""), receipt_no: str = Form(""), party: str = Form(""),
                     due_date: str = Form(""), refund_date: str = Form(""),
                     project_id: str = Form(""), eb_code: str = Form(""), no_count: str = Form(""),
@@ -613,6 +621,11 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
                    else f"กรุณากรอกวันที่ (ถ้าไม่กรอก ระบบใช้วันนี้ ซึ่งอยู่ในปีงบ {real_fy} ไม่ใช่ปีงบ {fy})")
             return RedirectResponse(f"/finance/accounts/{aid}?year={fy}&txn_err=" + quote(why) + "#txn-entry",
                                     status_code=303)
+        note = note.strip()
+        if not note:      # ไม่กรอกรายการ: ประกอบจากประเภท หมวด และผู้รับ/ผู้จ่าย ไม่ให้ช่องรายการในทะเบียนว่าง
+            it = db.get(AccountItem, _to_int(item_id, 0)) if _to_int(item_id, 0) else None
+            note = " ".join(x for x in [("รับเงิน" if kind != "out" else "จ่ายเงิน"),
+                                        (it.name if it else ""), party.strip()] if x)
         if ref_mode in docno.PREFIXES:
             # ออกเลขตอนบันทึกจริง (ไม่ใช้เลขที่โชว์ในฟอร์ม) กันเลขซ้ำถ้ามีคนบันทึกก่อนหน้า
             ref = docno.next_ref(db, ref_mode, fy, "4" if ref_yfmt == "4" else "2")
@@ -622,7 +635,7 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
             eb_code="" if no_count else (eb_code or "").strip(),
             no_count=bool(no_count),
             kind=k, amount=amt, date=dt,
-            category=category.strip(), ref=ref.strip(), note=note.strip(),
+            category=category.strip(), ref=ref.strip(), note=note, remark=remark.strip()[:300],
             due_date=parse_be_date(due_date) if due_date else None,
             refund_date=parse_be_date(refund_date) if refund_date else None,
         )

@@ -269,6 +269,11 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
   {% if subsidy_year %}<p>บันทึกรับเงินที่ได้รับโอนจริง แล้วกลับไปเลือกรายการเพื่อเชื่อมกับเงินอุดหนุนของเทอมนี้</p>
   <p><a class="btn gray" href="/finance/subsidy?year={{ subsidy_year }}&term={{ subsidy_term }}#sec-receipts">กลับไปเชื่อมเงินอุดหนุน ปีการศึกษา {{ subsidy_year }} เทอม {{ subsidy_term }}</a></p>{% endif %}
   <form method="post" action="/finance/accounts/{{ account.id }}/txn" id="txnForm">
+    <div class="txn-desc"><label for="txnNote">รายการ *</label>
+      <input name="note" id="txnNote" list="txnNotes" required autocomplete="off"
+             placeholder="เช่น รับเงินอุดหนุนรายหัว ภาคเรียนที่ 2/2569 หรือ จ่ายค่าวัสดุสำนักงาน ร้านศึกษาภัณฑ์">
+      <small>ข้อความนี้ลงในช่อง "รายการ" ของทะเบียนคุมเงิน พิมพ์บางคำแล้วเลือกรายการที่เคยลงได้</small></div>
+    <datalist id="txnNotes">{% for n in recent_notes %}<option value="{{ n }}">{% endfor %}</datalist>
     {% if subsidy_year %}<input type="hidden" name="subsidy_year" value="{{ subsidy_year }}"><input type="hidden" name="subsidy_term" value="{{ subsidy_term }}">{% endif %}
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
     <div class="row">
@@ -330,7 +335,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
         </div>
         <div class="hint" id="refHint"></div>
       </div>
-      <div style="flex:2;"><label>หมายเหตุ</label><input name="note"></div>
+      <div style="flex:2;"><label>หมายเหตุ</label><input name="remark" placeholder="ไม่บังคับ ลงในช่องหมายเหตุของทะเบียน"></div>
     </div>
     {% if special_key == "guarantee" %}
     <div class="row">
@@ -344,6 +349,9 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
         <span class="nc-sub">ยอดคงเหลือยังขยับตามปกติ แต่ไม่ถูกนับในรายรับ-รายจ่ายของ e-Budget โอนระหว่างบัญชีต้องลงทั้งฝั่งจ่ายและฝั่งรับ
           ไม่ใช้กับเงินยืม (บันทึกที่หน้าเงินยืม)</span></span></label>
     <style>
+      .txn-desc { margin:0 0 12px; }
+      .txn-desc input { font-size:16px; }
+      .txn-desc small { display:block; margin-top:4px; font-size:12.5px; color:var(--muted); }
       .nc-box { display:flex; gap:10px; align-items:flex-start; margin:4px 0 12px; padding:10px 12px; border-radius:12px;
         background:linear-gradient(120deg,#f8fafc,#eef2ff); font-size:14px; cursor:pointer; }
       .nc-box input { width:18px; height:18px; margin-top:2px; flex:none; }
@@ -366,7 +374,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       {% for r in rows %}
       <tr id="t{{ r.t.id }}" class="txn-row">
         <td>{{ thai_date(r.t.date) }}</td>
-        <td>{% if r.t.kind=="in" %}<span style="color:#16a34a;">รับ</span>{% else %}<span style="color:#dc2626;">จ่าย</span>{% endif %}{% if r.t.note %} {{ r.t.note }}{% endif %}{% if receipt_map.get(r.t.id) %} <span class="pill" style="background:#dcfce7; color:#15803d;">ใบเสร็จ {{ receipt_map.get(r.t.id) }}</span>{% endif %}{% set pj = txn_project.get(r.t.id) %}{% if pj %} <a class="pill" href="/projects/{{ pj.id }}" title="ไปหน้าโครงการ" style="background:#eef2ff; color:#3730a3; text-decoration:none;">โครงการ{{ pj.name }}</a>{% endif %}</td>
+        <td>{% if r.t.kind=="in" %}<span style="color:#16a34a;">รับ</span>{% else %}<span style="color:#dc2626;">จ่าย</span>{% endif %}{% if r.t.note %} {{ r.t.note }}{% endif %}{% if r.t.remark %} <small class="muted">({{ r.t.remark }})</small>{% endif %}{% if receipt_map.get(r.t.id) %} <span class="pill" style="background:#dcfce7; color:#15803d;">ใบเสร็จ {{ receipt_map.get(r.t.id) }}</span>{% endif %}{% set pj = txn_project.get(r.t.id) %}{% if pj %} <a class="pill" href="/projects/{{ pj.id }}" title="ไปหน้าโครงการ" style="background:#eef2ff; color:#3730a3; text-decoration:none;">โครงการ{{ pj.name }}</a>{% endif %}</td>
         <td>{{ r.t.item.name if r.t.item else (r.t.category or "-") }}</td>
         <td>{{ r.t.ref or "-" }}</td>
         <td class="right">{{ "{:,.2f}".format(r.t.amount) if r.t.kind=="in" else "" }}</td>

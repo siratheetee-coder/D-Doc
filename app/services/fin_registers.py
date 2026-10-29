@@ -367,6 +367,7 @@ def render_money_register(school, account, txns, opening, fiscal_year, *,
         vals[0] = thai_date_short(x.date) if x.date else ""
         vals[1] = (x.ref or "").strip()
         vals[2] = (x.note or x.category or "").strip()
+        vals[10] = (getattr(x, "remark", "") or "").strip()
         if (x.kind or "in") == "in":
             running += amount
             total_in += amount
