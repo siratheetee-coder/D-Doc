@@ -253,7 +253,7 @@ def _menu_table3(doc, menus, third_header, sign_col=False):
 
 
 def _meal_sheet(doc, inst, sname, meals):
-    """บัญชีจำนวนนักเรียนที่รับประทานอาหารกลางวันรายวัน (แนบใบส่งมอบงาน) จากที่บันทึกมื้อจริง"""
+    """บัญชีจำนวนนักเรียนที่รับประทานอาหารกลางวันรายวัน (แนบใบส่งมอบงาน) จากที่บันทึกยอดนักเรียนรายวัน"""
     classes, s = meals["classes"], meals["summary"]
     doc.add_page_break()
     _p(doc, "บัญชีจำนวนนักเรียนที่รับประทานอาหารกลางวัน", align="center", bold=True, size=18, after=0)
@@ -279,7 +279,7 @@ def _meal_sheet(doc, inst, sname, meals):
         for c in r.cells[2:]:
             for para in c.paragraphs:
                 para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    _p(doc, f"รวมนักเรียนที่รับประทานทั้งงวด {s['meals']:,} มื้อ อัตรามื้อละ {s['rate']:,.2f} บาท "
+    _p(doc, f"รวมยอดนักเรียนที่รับประทานทั้งงวด {s['meals']:,} คน อัตราคนละ {s['rate']:,.2f} บาทต่อวัน "
             f"เป็นเงิน {_money(s['value'])} บาท ({bahttext(s['value'])})", indent=1.25, before=6, after=14)
     _sign_table(doc, [
         [("(ลงชื่อ)...........................................ผู้บันทึก", "center"),
@@ -338,7 +338,7 @@ def render_installment_doc(inst, school, menus, meals=None) -> str:
         [("(ลงชื่อ)...........................................ผู้ส่งมอบงาน", "center"),
          (f"( {vname} )", "center")],
     ])
-    if meals and meals["summary"]["recorded"]:      # มีบันทึกมื้อจริง: แนบบัญชีจำนวนนักเรียนรายวัน
+    if meals and meals["summary"]["recorded"]:      # มีบันทึกยอดนักเรียนรายวัน: แนบบัญชีจำนวนนักเรียนรายวัน
         _meal_sheet(doc, inst, sname, meals)
 
     # ===== ส่วนที่ 3: ใบตรวจรับงานจ้าง =====

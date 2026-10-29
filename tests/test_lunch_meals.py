@@ -68,4 +68,4 @@ def test_meals_set_installment_amount_and_docs(env):
     cells = [c.text for t in doc.tables for row in t.rows for c in row.cells]
     assert any("0.94 บาท" in c for c in cells)
     # หน้ารอบแสดงสถานะมื้อจริงในแถวงวด
-    assert "มื้อจริง" in env.get(f"/lunch/round/{rid}/plan").text
+    assert "ยอดนักเรียนรายวัน" in env.get(f"/lunch/round/{rid}/plan").text

@@ -229,7 +229,7 @@
         <td><div class="iq-range">{{ be_date(i.start_date) if i.start_date else '-' }} – {{ be_date(i.end_date) if i.end_date else '-' }}</div>
             <div class="iq-sub">{{ i.days }} วัน <b>{{ "{:,.2f}".format(i.amount or 0) }}</b> บาท</div>
             {% set ms = meal_sum.get(i.id) %}
-            {% if ms %}<div class="iq-sub {{ 'iq-booked' if ms.complete else 'iq-meal-todo' }}">{% if ms.complete %}มื้อจริง {{ "{:,}".format(ms.meals) }} มื้อ{% else %}บันทึกมื้อ {{ ms.recorded }}/{{ ms.days|length }} วัน{% endif %}</div>{% endif %}</td>
+            {% if ms %}<div class="iq-sub {{ 'iq-booked' if ms.complete else 'iq-meal-todo' }}">{% if ms.complete %}ยอดนักเรียน {{ "{:,}".format(ms.meals) }} คน{% else %}บันทึกยอด {{ ms.recorded }}/{{ ms.days|length }} วัน{% endif %}</div>{% endif %}</td>
         <td><div class="iq-steps" title="สถานะ: {{ i.status }}">{% for s2 in ['ส่งมอบ', 'ตรวจรับ', 'จ่ายแล้ว'] %}<span class="{{ 'on' if loop.index <= lvl }}">{{ s2 }}</span>{% endfor %}</div>
             {% if i.status=='จ่ายแล้ว' %}<div class="iq-sub iq-booked">✓ ลงบัญชีแล้ว</div>{% endif %}</td>
         <td class="iq-dates">
@@ -239,7 +239,7 @@
         <td><select name="status" class="iq-status">{% for s in ['ร่าง','ส่งมอบแล้ว','ตรวจรับแล้ว','จ่ายแล้ว'] %}<option {{ 'selected' if i.status==s }}>{{ s }}</option>{% endfor %}</select></td>
         <td class="iq-acts">
           <button class="btn sm" type="button" onclick="saveInst(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
-          {% if meal_sum %}<a class="btn sm soft" href="/lunch/installment/{{ i.id }}/meals" title="จำนวนนักเรียนที่รับประทานจริง รายวัน"><svg class="icon"><use href="#ic-clipboard"/></svg> มื้อจริง</a>{% endif %}
+          {% if meal_sum %}<a class="btn sm soft" href="/lunch/installment/{{ i.id }}/meals" title="จำนวนนักเรียนที่รับประทานจริง รายวัน"><svg class="icon"><use href="#ic-clipboard"/></svg> ยอดนักเรียนรายวัน</a>{% endif %}
           <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/doc" title="เอกสารงวด (ควบคุม ส่งมอบ ตรวจรับ)"><svg class="icon"><use href="#ic-download"/></svg> เอกสาร</a>
           <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/disburse-doc" title="ขอเบิกจ่าย"><svg class="icon"><use href="#ic-coins"/></svg> เบิกจ่าย</a>
           <form method="post" action="/lunch/installment/{{ i.id }}/delete" onsubmit="return confirm('ลบงวดนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit" title="ลบงวดนี้" aria-label="ลบงวดนี้">✕</button></form>

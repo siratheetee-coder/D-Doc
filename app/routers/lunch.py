@@ -1588,7 +1588,7 @@ def installment_meals(iid: int, request: Request, db: Session = Depends(get_db))
 
 @router.post("/lunch/installment/{iid}/meals")
 async def installment_meals_save(iid: int, request: Request, db: Session = Depends(get_db)):
-    """บันทึกจำนวนมื้อทั้งงวด (ช่อง m_<วัน ISO>_<class_id>) + วันที่ไม่ส่งมอบ แล้วตั้งยอดงวดตามมื้อจริง"""
+    """บันทึกยอดนักเรียนรายวันทั้งงวด (ช่อง m_<วัน ISO>_<class_id>) + วันที่ไม่ส่งมอบ แล้วตั้งค่าจ้างงวดตามยอดนักเรียน"""
     from datetime import date as _date
     from app.services import lunch_meals as lm
     inst = db.get(LunchInstallment, iid)
