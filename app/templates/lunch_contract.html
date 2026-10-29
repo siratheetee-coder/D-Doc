@@ -204,7 +204,7 @@
       <span class="muted">({{ be_date(nxt.start_date) if nxt.start_date else '-' }} ถึง {{ be_date(nxt.end_date) if nxt.end_date else '-' }} {{ "{:,.2f}".format(nxt.amount or 0) }} บาท)</span></div>
     <div>ขั้นต่อไป: <b>{{ st[0] }}</b></div>
     <div class="iq-act">
-      <a class="btn sm gray" href="/lunch/installment/{{ nxt.id }}/{{ st[2] }}"><svg class="icon"><use href="#ic-download"/></svg> {{ st[3] }}</a>
+      <a class="btn sm gray" href="/lunch/installment/{{ nxt.id }}/{{ st[2] }}" data-chk="{{ 'd' if st[2] == 'disburse-doc' else 'i' }}{{ nxt.id }}"><svg class="icon"><use href="#ic-download"/></svg> {{ st[3] }}</a>
       <form method="post" action="/lunch/installment/{{ nxt.id }}/update" style="margin:0;">
         <input type="hidden" name="status" value="{{ st[1] }}">
         <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-check"/></svg> บันทึกว่า{{ st[1] }}</button>
@@ -229,7 +229,7 @@
       <div class="rp-net"><small>จ่ายสุทธิ</small><b>{{ "{:,.2f}".format(round_pay.net) }}</b></div>
     </div>
     <div class="iq-act">
-      <a class="btn sm {{ '' if round_pay.ready else 'gray' }}" href="/lunch/round/{{ r.id }}/disburse-doc"><svg class="icon"><use href="#ic-download"/></svg> เอกสารขอเบิกจ่ายทั้งรอบ</a>
+      <a class="btn sm {{ '' if round_pay.ready else 'gray' }}" href="/lunch/round/{{ r.id }}/disburse-doc" data-chk="r"><svg class="icon"><use href="#ic-download"/></svg> เอกสารขอเบิกจ่ายทั้งรอบ</a>
       {% if not round_pay.paid %}
       <form method="post" action="/lunch/round/{{ r.id }}/status" style="margin:0;" {% if not round_pay.ready %}data-warn="1"{% endif %}
             onsubmit="return !this.dataset.warn || confirm('ยังตรวจรับไม่ครบทุกงวด บันทึกว่าจ่ายทั้งรอบแล้วหรือไม่?');">
@@ -245,6 +245,26 @@
     </div>
     <div class="muted" style="font-size:12.5px; margin-top:6px;">ค่าจ้างแต่ละงวดคิดจากยอดนักเรียนรายวัน กด "บันทึกว่าจ่ายทั้งรอบแล้ว" ระบบลงบัญชีจ่ายให้รายการเดียว</div>
   </div>
+  {% endif %}
+  {% if doc_check %}
+  {# ตรวจความถูกต้องก่อนออกเอกสาร (app/services/lunch_checks.py) #}
+  {% set n_err = check_list|selectattr('level', 'equalto', 'err')|list|length %}
+  {% set n_warn = check_list|length - n_err %}
+  <details class="ck-box {{ 'ck-err' if n_err else ('ck-warn' if n_warn else 'ck-ok') }}" id="doc-check" {{ 'open' if n_err }}>
+    <summary><b>ตรวจก่อนออกเอกสาร</b>
+      {% if n_err %}<span class="ck-tag ck-t-err">ต้องแก้ {{ n_err }} จุด</span>{% endif %}
+      {% if n_warn %}<span class="ck-tag ck-t-warn">ควรเช็ค {{ n_warn }} จุด</span>{% endif %}
+      {% if not check_list %}<span class="ck-tag ck-t-ok">✓ ข้อมูลครบ พร้อมออกเอกสาร</span>{% endif %}
+    </summary>
+    {% if check_list %}
+    <ul class="ck-list">
+      {% for x in check_list %}
+      <li class="ck-{{ x.level }}"><span class="ck-ic">{{ '!' if x.level == 'err' else '?' }}</span><span>{{ x.msg }}</span>{% if x.href %}<a href="{{ x.href }}">แก้ไข ›</a>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    <div class="muted" style="font-size:12.5px;">ออกเอกสารได้ตามปกติ ระบบจะเตือนอีกครั้งตอนกดออกเอกสารที่มีจุดต้องแก้หรือควรเช็ค</div>
+    {% endif %}
+  </details>
   {% endif %}
   <style>
     .iq-sum{ font-size:14.5px; margin-bottom:8px; }
@@ -300,8 +320,8 @@
         <td class="iq-acts">
           <button class="btn sm" type="button" onclick="saveInst(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
           {% if meal_sum %}<a class="btn sm soft" href="/lunch/installment/{{ i.id }}/meals" title="จำนวนนักเรียนที่รับประทานจริง รายวัน"><svg class="icon"><use href="#ic-clipboard"/></svg> ยอดนักเรียนรายวัน</a>{% endif %}
-          <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/doc" title="เอกสารงวด (ควบคุม ส่งมอบ ตรวจรับ)"><svg class="icon"><use href="#ic-download"/></svg> เอกสาร</a>
-          {% if not RP %}<a class="btn sm gray" href="/lunch/installment/{{ i.id }}/disburse-doc" title="ขอเบิกจ่าย"><svg class="icon"><use href="#ic-coins"/></svg> เบิกจ่าย</a>{% endif %}
+          <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/doc" data-chk="i{{ i.id }}" title="เอกสารงวด (ควบคุม ส่งมอบ ตรวจรับ)"><svg class="icon"><use href="#ic-download"/></svg> เอกสาร</a>
+          {% if not RP %}<a class="btn sm gray" href="/lunch/installment/{{ i.id }}/disburse-doc" data-chk="d{{ i.id }}" title="ขอเบิกจ่าย"><svg class="icon"><use href="#ic-coins"/></svg> เบิกจ่าย</a>{% endif %}
           <form method="post" action="/lunch/installment/{{ i.id }}/delete" onsubmit="return confirm('ลบงวดนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit" title="ลบงวดนี้" aria-label="ลบงวดนี้">✕</button></form>
         </td>
       </tr>
@@ -344,6 +364,214 @@
   {% endif %}
 </div>
 {% endif %}{# ซ่อนส่วนแบ่งงวดในโหมดซื้อวัตถุดิบ (คิดงบจากวัตถุดิบ ไม่แบ่งงวด) #}
+
+{% if round_chart %}
+<!-- ============ กราฟยอดนักเรียนรายวันทั้งรอบ (จ้างเหมาปรุงสำเร็จ) ============ -->
+<div class="card" id="round-chart">
+  <h2 style="margin-top:0;">ยอดนักเรียนรายวันทั้งรอบ</h2>
+  <div class="rc-stats">
+    <div><small>เฉลี่ยต่อวัน</small><b>{{ "{:,}".format(round_chart.avg) }} คน</b>
+      {% if round_chart.eligible %}<span>{{ (round_chart.avg / round_chart.eligible * 100)|round(0)|int }}% ของผู้มีสิทธิ์</span>{% endif %}</div>
+    <div><small>ต่ำสุด / สูงสุด</small><b>{{ "{:,}".format(round_chart.min) }} / {{ "{:,}".format(round_chart.max) }} คน</b></div>
+    <div><small>นักเรียนที่มีสิทธิ์</small><b>{{ "{:,}".format(round_chart.eligible) }} คน</b></div>
+    <div><small>บันทึกยอดแล้ว</small><b>{{ round_chart.recorded }} / {{ round_chart.ndays }} วัน</b></div>
+  </div>
+  {% if round_chart.recorded %}
+  <div class="rc-legend">
+    <span><i class="rc-sw"></i>ยอดนักเรียนต่อวัน</span>
+    <span><i class="rc-sw rc-sw-ref"></i>นักเรียนที่มีสิทธิ์</span>
+    <span><i class="rc-sw rc-sw-miss"></i>ยังไม่บันทึก</span>
+    <span class="rc-lg-over" hidden><i class="rc-sw rc-sw-over"></i>เกินจำนวนผู้มีสิทธิ์</span>
+  </div>
+  <div class="rc-wrap"><div id="rc-chart"></div><div class="rc-tip" id="rc-tip" hidden></div></div>
+  {% else %}
+  <p class="muted">ยังไม่ได้บันทึกยอดนักเรียนรายวัน กดงวดด้านล่างเพื่อเริ่มบันทึก กราฟจะขึ้นเมื่อมีข้อมูล</p>
+  {% endif %}
+  <div class="rc-groups">
+    {% for g in round_chart.groups %}
+    <a href="/lunch/installment/{{ g.id }}/meals" class="{{ 'rc-g-done' if g.recorded == g.ndays and g.ndays else '' }}">งวดที่ {{ g.seq }} <b>{{ "{:,}".format(g.total) }} คน</b> <span>{{ g.recorded }}/{{ g.ndays }} วัน</span></a>
+    {% endfor %}
+  </div>
+</div>
+<style>
+  #round-chart{ --rc-bar:#2a78d6; --rc-over:#e34948; --rc-miss:#e2e8f0; --rc-ref:#52514e; --rc-band:#f6f8fb; --rc-grid:#eef1f5; --rc-ink:#334155; --rc-muted:#64748b; }
+  .rc-stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; margin-bottom:10px; }
+  .rc-stats > div{ padding:8px 12px; border-radius:12px; background:linear-gradient(135deg,#f8fafc,#eef2ff); }
+  .rc-stats small{ display:block; color:var(--rc-muted); font-size:12.5px; }
+  .rc-stats b{ font-size:17px; color:var(--rc-ink); }
+  .rc-stats span{ display:block; font-size:12.5px; color:var(--rc-muted); }
+  .rc-legend{ display:flex; flex-wrap:wrap; gap:14px; font-size:12.5px; color:var(--rc-muted); margin-bottom:4px; }
+  .rc-legend span{ display:flex; align-items:center; gap:6px; }
+  .rc-legend span[hidden]{ display:none; }
+  .rc-sw{ display:inline-block; width:12px; height:12px; border-radius:3px; background:var(--rc-bar); }
+  .rc-sw-ref{ height:0; border-radius:0; background:none; border-top:2px dashed var(--rc-ref); }
+  .rc-sw-miss{ background:var(--rc-miss); height:5px; }
+  .rc-sw-over{ background:var(--rc-over); }
+  .rc-wrap{ position:relative; }
+  #rc-chart svg{ display:block; width:100%; height:auto; overflow:visible; }
+  #rc-chart .rc-day{ cursor:pointer; }
+  #rc-chart.rc-hovering .rc-mark{ opacity:.35; }
+  #rc-chart.rc-hovering .rc-day.on .rc-mark{ opacity:1; }
+  .rc-tip{ position:absolute; pointer-events:none; background:#0f172a; color:#fff; border-radius:10px; padding:7px 10px; font-size:12.5px; line-height:1.45; max-width:230px; box-shadow:0 6px 18px rgba(15,23,42,.18); z-index:5; }
+  .rc-tip b{ font-size:14px; }
+  .rc-groups{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .rc-groups a{ text-decoration:none; padding:5px 12px; border-radius:99px; background:#fff7ed; color:#9a3412; font-size:13px; }
+  .rc-groups a.rc-g-done{ background:#f0fdf4; color:#166534; }
+  .rc-groups a span{ opacity:.75; margin-left:2px; }
+</style>
+<script>
+(function(){
+  var D = {{ round_chart|tojson }};
+  var box = document.getElementById('rc-chart'), tip = document.getElementById('rc-tip');
+  if(!box || !D.recorded) return;
+  var days = [];
+  D.groups.forEach(function(g, gi){ g.days.forEach(function(d){ days.push({d:d, g:g, gi:gi}); }); });
+  var NS = 'http://www.w3.org/2000/svg';
+  function el(tag, at, parent){ var e = document.createElementNS(NS, tag); for(var k in at) e.setAttribute(k, at[k]); if(parent) parent.appendChild(e); return e; }
+  function fmt(n){ return Number(n).toLocaleString('en-US'); }
+  function nice(v){ if(v <= 0) return 10; var p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p;
+    return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; }
+  function draw(){
+    box.innerHTML = '';
+    var W = Math.max(box.clientWidth, 300), H = 240, mL = 44, mR = 8, mT = 26, mB = 22;
+    var pw = W - mL - mR, ph = H - mT - mB, N = days.length, bw = pw / N;
+    var top = Math.max(D.eligible, D.max) * 1.08, step = nice(top / 5), yMax = Math.ceil(top / step) * step;
+    var y = function(v){ return mT + ph - v / yMax * ph; };
+    var svg = el('svg', {viewBox:'0 0 '+W+' '+H, width:W, height:H, role:'img',
+      'aria-label':'ยอดนักเรียนรายวันทั้งรอบ เฉลี่ย '+fmt(D.avg)+' คนต่อวัน'}, box);
+    // แถบพื้นหลังแยกงวด + ป้ายงวด
+    var x0 = 0;
+    D.groups.forEach(function(g, gi){
+      var gx = mL + x0 * bw, gw = g.days.length * bw;
+      if(gi % 2 === 0) el('rect', {x:gx, y:mT, width:gw, height:ph, fill:'var(--rc-band)'}, svg);
+      var t = el('text', {x:gx + 4, y:mT - 9, 'font-size':12, fill:'var(--rc-ink)', 'font-weight':600}, svg);
+      t.textContent = gw > 46 ? 'งวด ' + g.seq : g.seq;
+      if(g.days.length){
+        var lb = el('text', {x:gx + 2, y:H - 6, 'font-size':11, fill:'var(--rc-muted)'}, svg);
+        lb.textContent = gw > 60 ? g.days[0].be.slice(0, 5) : '';
+      }
+      x0 += g.days.length;
+    });
+    // เส้นกริด + ค่าแกน y
+    for(var v = 0; v <= yMax + 0.5; v += step){
+      el('line', {x1:mL, x2:W - mR, y1:y(v), y2:y(v), stroke:v ? 'var(--rc-grid)' : '#cbd5e1', 'stroke-width':1}, svg);
+      var tl = el('text', {x:mL - 6, y:y(v) + 4, 'font-size':11, fill:'var(--rc-muted)', 'text-anchor':'end'}, svg);
+      tl.textContent = fmt(v);
+    }
+    // แท่งรายวัน (ขอบบนมน 4px ฐานตรง เว้นช่อง 2px)
+    var over = false;
+    days.forEach(function(o, k){
+      var gx = mL + k * bw, w = Math.max(bw - 2, 1.5), bx = gx + (bw - w) / 2;
+      var g = el('g', {'class':'rc-day'}, svg);
+      g._o = o;
+      if(o.d.n === null){
+        el('rect', {'class':'rc-mark', x:bx, y:y(0) - 5, width:w, height:5, rx:1.5, fill:'var(--rc-miss)'}, g);
+      } else if(o.d.n > 0){
+        var hy = y(o.d.n), h = y(0) - hy, r = Math.min(4, w / 2, h);
+        var isOver = D.eligible && o.d.n > D.eligible; if(isOver) over = true;
+        el('path', {'class':'rc-mark', fill:isOver ? 'var(--rc-over)' : 'var(--rc-bar)',
+          d:'M'+bx+','+y(0)+'V'+(hy + r)+'Q'+bx+','+hy+' '+(bx + r)+','+hy+'H'+(bx + w - r)+'Q'+(bx + w)+','+hy+' '+(bx + w)+','+(hy + r)+'V'+y(0)+'Z'}, g);
+      }
+      el('rect', {x:gx, y:mT, width:bw, height:ph, fill:'transparent'}, g);   // พื้นที่ชี้ใหญ่กว่าแท่ง
+    });
+    // เส้นจำนวนนักเรียนที่มีสิทธิ์
+    if(D.eligible){
+      el('line', {x1:mL, x2:W - mR, y1:y(D.eligible), y2:y(D.eligible), stroke:'var(--rc-ref)', 'stroke-width':1.5, 'stroke-dasharray':'5 4'}, svg);
+      var rt = el('text', {x:W - mR, y:y(D.eligible) - 5, 'font-size':11.5, fill:'var(--rc-ref)', 'text-anchor':'end'}, svg);
+      rt.textContent = 'มีสิทธิ์ ' + fmt(D.eligible) + ' คน';
+    }
+    var lo = document.querySelector('.rc-lg-over'); if(lo) lo.hidden = !over;
+    // ชี้ดูรายละเอียด / กดไปหน้าบันทึกยอดของงวดนั้น
+    var cur = null;
+    svg.querySelectorAll('.rc-day').forEach(function(g){
+      g.addEventListener('mouseenter', function(ev){ show(g); });
+      g.addEventListener('click', function(ev){
+        if(cur !== g){ show(g); place(ev); return; }   // จอสัมผัส: แตะแรกดูรายละเอียด แตะซ้ำไปหน้าบันทึกยอด
+        location.href = '/lunch/installment/' + g._o.g.id + '/meals';
+      });
+    });
+    svg.addEventListener('mousemove', function(ev){ if(cur) place(ev); });
+    svg.addEventListener('mouseleave', function(){ if(cur) cur.classList.remove('on'); cur = null; box.classList.remove('rc-hovering'); tip.hidden = true; });
+    function show(g){
+      if(cur) cur.classList.remove('on'); cur = g; g.classList.add('on'); box.classList.add('rc-hovering');
+      var o = g._o, n = o.d.n;
+      tip.innerHTML = '<div>' + o.d.be + ' (งวด ' + o.g.seq + ')</div>'
+        + (n === null ? '<b>ยังไม่บันทึก</b>' : '<b>' + fmt(n) + ' คน</b>'
+           + (D.eligible ? ' <span style="opacity:.75">' + Math.round(n / D.eligible * 100) + '% ของผู้มีสิทธิ์</span>' : '')
+           + (D.eligible && n > D.eligible ? '<div style="color:#fecaca">! เกินจำนวนผู้มีสิทธิ์</div>' : ''))
+        + (o.d.menu ? '<div style="opacity:.8">' + o.d.menu.replace(/</g, '&lt;') + '</div>' : '');
+      tip.hidden = false;
+    }
+    function place(ev){
+      var b = box.getBoundingClientRect(), x = ev.clientX - b.left, yy = ev.clientY - b.top;
+      var tw = tip.offsetWidth, left = x + 14; if(left + tw > b.width) left = x - tw - 14;
+      tip.style.left = Math.max(0, left) + 'px'; tip.style.top = Math.max(0, yy - 20) + 'px';
+    }
+  }
+  draw();
+  var rt; window.addEventListener('resize', function(){ clearTimeout(rt); rt = setTimeout(draw, 150); });
+})();
+</script>
+{% endif %}
+
+{% if doc_check %}
+<!-- ============ เตือนก่อนออกเอกสาร (ปุ่มที่มี data-chk) ============ -->
+<div class="ck-modal" id="ck-modal" hidden>
+  <div class="ck-dialog" role="dialog" aria-modal="true" aria-labelledby="ck-title">
+    <h3 id="ck-title" style="margin:0 0 4px;">ตรวจก่อนออกเอกสาร</h3>
+    <p class="muted" style="margin:0 0 8px; font-size:13.5px;">เอกสารฉบับนี้มีจุดที่ควรแก้ก่อน ถ้าออกตอนนี้ข้อมูลในเอกสารอาจไม่ครบหรือไม่ตรง</p>
+    <ul class="ck-list" id="ck-items"></ul>
+    <div class="iq-act" style="justify-content:flex-end;">
+      <button type="button" class="btn sm gray" id="ck-cancel" data-no-floating-save>กลับไปแก้</button>
+      <a class="btn sm" id="ck-go" href="#">ออกเอกสารต่อ</a>
+    </div>
+  </div>
+</div>
+<style>
+  .ck-box{ margin:0 0 12px; padding:10px 14px; border-radius:14px; background:#f8fafc; }
+  .ck-box.ck-ok{ background:linear-gradient(120deg,#f0fdf4,#ecfdf5); }
+  .ck-box.ck-warn{ background:linear-gradient(120deg,#fffbeb,#fff7ed); }
+  .ck-box.ck-err{ background:linear-gradient(120deg,#fef2f2,#fff7ed); }
+  .ck-box summary{ cursor:pointer; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .ck-tag{ padding:2px 10px; border-radius:99px; font-size:12.5px; font-weight:600; }
+  .ck-t-err{ background:#fee2e2; color:#b91c1c; } .ck-t-warn{ background:#fef3c7; color:#92400e; } .ck-t-ok{ background:#bbf7d0; color:#166534; }
+  .ck-list{ list-style:none; margin:8px 0; padding:0; display:grid; gap:5px; }
+  .ck-list li{ display:flex; gap:8px; align-items:baseline; font-size:14px; padding:6px 10px; border-radius:10px; background:#fff; }
+  .ck-list li a{ margin-left:auto; white-space:nowrap; font-size:13px; font-weight:600; }
+  .ck-ic{ flex:0 0 18px; height:18px; border-radius:50%; font-size:12px; font-weight:700; text-align:center; line-height:18px; color:#fff; }
+  .ck-err .ck-ic{ background:#dc2626; } .ck-warn .ck-ic{ background:#d97706; }
+  .ck-modal{ position:fixed; inset:0; background:rgba(15,23,42,.45); display:flex; align-items:center; justify-content:center; z-index:9000; padding:16px; }
+  .ck-modal[hidden]{ display:none; }
+  .ck-dialog{ background:#fff; border-radius:16px; padding:16px 18px; width:100%; max-width:520px; max-height:85vh; overflow:auto; box-shadow:0 20px 50px rgba(15,23,42,.25); }
+</style>
+<script>
+(function(){
+  var CHK = {{ doc_check|tojson }};
+  var modal = document.getElementById('ck-modal'), items = document.getElementById('ck-items'), go = document.getElementById('ck-go');
+  document.body.appendChild(modal);                  // ย้ายออกจากกล่องเนื้อหา ไม่ให้แถบบนทับ
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+  document.querySelectorAll('[data-chk]').forEach(function(a){
+    a.addEventListener('click', function(ev){
+      var list = CHK[a.getAttribute('data-chk')] || [];
+      if(!list.length) return;                       // ข้อมูลครบ ออกเอกสารได้เลย
+      ev.preventDefault();
+      list = list.slice().sort(function(p, q){ return (p.level !== 'err') - (q.level !== 'err'); });
+      items.innerHTML = list.map(function(x){
+        return '<li class="ck-' + x.level + '"><span class="ck-ic">' + (x.level === 'err' ? '!' : '?') + '</span><span>' + esc(x.msg) + '</span>'
+          + (x.href ? '<a href="' + esc(x.href) + '">แก้ไข ›</a>' : '') + '</li>';
+      }).join('');
+      go.href = a.href; modal.hidden = false; go.focus();
+    });
+  });
+  function close(){ modal.hidden = true; }
+  document.getElementById('ck-cancel').addEventListener('click', close);
+  go.addEventListener('click', function(){ setTimeout(close, 50); });
+  items.addEventListener('click', function(ev){ if(ev.target.closest('a')) close(); });
+  modal.addEventListener('click', function(ev){ if(ev.target === modal) close(); });
+  document.addEventListener('keydown', function(ev){ if(ev.key === 'Escape' && !modal.hidden) close(); });
+})();
+</script>
+{% endif %}
 
 {% if request.query_params.get('msg') %}<div class="alert" style="margin-bottom:14px;">✔ {{ request.query_params.get('msg') }}</div>{% endif %}
 
@@ -520,14 +748,14 @@
   <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:6px 0; border-bottom:1px solid var(--border);">
     <b style="min-width:150px;">งวดที่ {{ i.seq }}</b>
     <span class="muted" style="font-size:13px; min-width:170px;">{{ be_date(i.start_date) if i.start_date else '-' }} - {{ be_date(i.end_date) if i.end_date else '-' }}</span>
-    <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/doc"><svg class="icon"><use href="#ic-download"/></svg> เอกสารงวด</a>
-    {% if not pay_by_round %}<a class="btn sm gray" href="/lunch/installment/{{ i.id }}/disburse-doc"><svg class="icon"><use href="#ic-coins"/></svg> ขอเบิกจ่าย</a>{% endif %}
+    <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/doc" data-chk="i{{ i.id }}"><svg class="icon"><use href="#ic-download"/></svg> เอกสารงวด</a>
+    {% if not pay_by_round %}<a class="btn sm gray" href="/lunch/installment/{{ i.id }}/disburse-doc" data-chk="d{{ i.id }}"><svg class="icon"><use href="#ic-coins"/></svg> ขอเบิกจ่าย</a>{% endif %}
   </div>
   {% endfor %}
   {% if pay_by_round %}
   <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 0 0;">
     <b style="min-width:150px;">ทั้งรอบ (จ่ายครั้งเดียว)</b>
-    <a class="btn sm" href="/lunch/round/{{ r.id }}/disburse-doc"><svg class="icon"><use href="#ic-coins"/></svg> ขอเบิกจ่ายทั้งรอบ</a>
+    <a class="btn sm" href="/lunch/round/{{ r.id }}/disburse-doc" data-chk="r"><svg class="icon"><use href="#ic-coins"/></svg> ขอเบิกจ่ายทั้งรอบ</a>
   </div>
   {% endif %}
 </div>

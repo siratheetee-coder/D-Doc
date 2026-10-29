@@ -1402,6 +1402,16 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
     ing_budget = allocated - wage - fuel_cost
     ing_remaining = ing_budget - ing_total
 
+    # จ้างเหมาปรุงสำเร็จ: สรุปยอดนักเรียนรายงวด (ใช้ซ้ำกับกราฟรายรอบและตรวจก่อนออกเอกสาร)
+    hire = rnd.program.operate_mode == "hire"
+    meal_sum = {i.id: _meal_summary(db, i) for i in rnd.installments} if hire else {}
+    doc_check, chart = {}, None
+    if hire and rnd.installments:
+        from app.services import lunch_checks as lc
+        doc_check = lc.doc_checks(db, rnd, get_school(db), meal_sum)
+        doc_check["r"] = lc.overview(doc_check)     # ทั้งรอบ: เรื่องเดียวกันหลายงวดรวมเป็นบรรทัดเดียว
+        chart = lc.round_chart(db, rnd, meal_sum)
+
     return templates.TemplateResponse("lunch_contract.html", {
         "request": request, "school": get_school(db), "r": rnd, "p": rnd.program,
         "installments": rnd.installments, "paid": paid,
@@ -1420,8 +1430,8 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         "menu_days": menu_days, "round_menus": round_menus,
         "past_mains": past_mains, "past_desserts": past_desserts,
         "doc_no_rows": doc_no_rows,
-        "meal_sum": ({i.id: _meal_summary(db, i) for i in rnd.installments}
-                     if rnd.program.operate_mode == "hire" else {}),
+        "meal_sum": meal_sum, "doc_check": doc_check, "round_chart": chart,
+        "check_list": doc_check.get("r", []),
         "pay_by_round": _pays_by_round(rnd),
         "round_pay": _round_pay(db, rnd) if _pays_by_round(rnd) else None,
         "setup": _round_setup(rnd, committees, com_kinds, doc_no_rows, menu_days, ing_total, ing_remaining),

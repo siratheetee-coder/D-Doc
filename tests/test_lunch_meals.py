@@ -122,3 +122,43 @@ def test_pay_once_for_whole_round(env):
     with _db() as s:
         leds = s.query(LunchLedger).filter((LunchLedger.round_id == rid) | (LunchLedger.installment_id.in_([a, b]))).all()
         assert len(leds) == 1 and leds[0].round_id == rid and leds[0].amount == 1900
+
+
+def test_round_chart_and_doc_checks(env):
+    """กราฟยอดนักเรียนรายวันทั้งรอบ + ตรวจความถูกต้องก่อนออกเอกสาร"""
+    import json, re
+    from app.models import LunchProgram, LunchClass, LunchHireRound, LunchInstallment, Vendor
+    with _db() as s:
+        v = Vendor(name="ร้านตรวจก่อนออก"); s.add(v); s.flush()
+        p = LunchProgram(year=2569, rate_per_head=20, operate_mode="hire"); s.add(p); s.flush()
+        c = LunchClass(program_id=p.id, seq=1, level="ป.1", num_students=10); s.add(c); s.flush()
+        r = LunchHireRound(program_id=p.id, seq=1, vendor_id=v.id, start_date=datetime(2026, 6, 8),
+                           end_date=datetime(2026, 6, 19), days=10, amount=2000)
+        s.add(r); s.flush()
+        i1 = LunchInstallment(round_id=r.id, seq=1, start_date=datetime(2026, 6, 8), end_date=datetime(2026, 6, 12),
+                              days=5, amount=1000, deliver_date=datetime(2026, 6, 12), inspect_date=datetime(2026, 6, 11))
+        i2 = LunchInstallment(round_id=r.id, seq=2, start_date=datetime(2026, 6, 12), end_date=datetime(2026, 6, 19),
+                              days=5, amount=0)
+        s.add_all([i1, i2]); s.commit()
+        rid, a, b, cid = r.id, i1.id, i2.id, c.id
+
+    # ป.1 มีสิทธิ์ 10 คน แต่บันทึกวันแรก 12 คน
+    env.post(f"/lunch/installment/{a}/meals", data={f"m_2026-06-08_{cid}": "12", f"m_2026-06-09_{cid}": "9"})
+    page = env.get(f"/lunch/round/{rid}/plan").text
+    assert "ยอดนักเรียนรายวันทั้งรอบ" in page and 'id="rc-chart"' in page
+    assert "ตรวจก่อนออกเอกสาร" in page and 'data-chk="i%d"' % a in page
+
+    chk = json.loads(re.search(r"var CHK = (\{.*?\});\n", page).group(1))
+    msgs = lambda k: " | ".join(x["msg"] for x in chk[k])
+    assert "วันตรวจรับอยู่ก่อนวันส่งมอบ" in msgs(f"i{a}")
+    assert "เกินจำนวนนักเรียนที่มีสิทธิ์" in msgs(f"i{a}")
+    assert "บันทึกยอดนักเรียนรายวันแล้ว 2 จาก 5 วัน" in msgs(f"i{a}")
+    assert "ซ้อนกับงวดที่ 1" in msgs(f"i{b}") and "ค่าจ้างงวดเป็น 0 บาท" in msgs(f"i{b}")
+    assert "ยังไม่ได้ตรวจรับ" in msgs(f"d{a}") and "เลขประจำตัวผู้เสียภาษี" in msgs(f"d{a}")
+    assert "งวดที่ 2: ค่าจ้างงวดเป็น 0 บาท" in msgs("r")
+
+    from app.services.lunch_checks import round_chart
+    with _db() as s:
+        d = round_chart(s, s.get(LunchHireRound, rid))
+        assert d["eligible"] == 10 and d["recorded"] == 2 and d["max"] == 12
+        assert d["groups"][0]["days"][0]["n"] == 12 and d["groups"][0]["days"][2]["n"] is None
