@@ -456,6 +456,10 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
                    if rc.txn_id}
     from app.services.project_money import item_allocations, account_plan_links
     txn_project = _txn_projects(db, txns)
+    from app.services.money_place import account_by_place, used_places, txn_place
+    place_bal = account_by_place(a, fy)
+    places_used = used_places(a, fy)
+    txn_places = {t.id: txn_place(t) for t in txns}
     # รายการที่เคยลงในบัญชีนี้ (ใหม่สุดก่อน) ไว้เลือกในช่อง "รายการ"
     recent_notes = []
     for (n,) in (db.query(FinanceTxn.note).filter(FinanceTxn.account_id == a.id, FinanceTxn.note != "")
@@ -464,6 +468,8 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
             recent_notes.append(n)
     return templates.TemplateResponse("finance_ledger.html", {
         "recent_notes": recent_notes[:60],
+        "place_bal": place_bal, "places_used": places_used, "txn_places": txn_places,
+        "deposit_types": DEPOSIT_TYPES,
         "request": request, "account": a, "rows": rows, "balance": round(bal, 2),
         "txn_project": txn_project,
         "lunch_mirror": _lunch_mirror(db),
@@ -601,7 +607,7 @@ def account_item_delete(iid: int, db: Session = Depends(get_db)):
 def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("in"),
                     amount: str = Form("0"), date: str = Form(""), category: str = Form(""),
                     ref: str = Form(""), note: str = Form(""), fiscal_year: str = Form(""),
-                    remark: str = Form(""),
+                    remark: str = Form(""), place: str = Form(""),
                     item_id: str = Form(""), receipt_no: str = Form(""), party: str = Form(""),
                     due_date: str = Form(""), refund_date: str = Form(""),
                     project_id: str = Form(""), eb_code: str = Form(""), no_count: str = Form(""),
@@ -636,6 +642,7 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
             no_count=bool(no_count),
             kind=k, amount=amt, date=dt,
             category=category.strip(), ref=ref.strip(), note=note, remark=remark.strip()[:300],
+            place=place if place in DEPOSIT_TYPES else "",
             due_date=parse_be_date(due_date) if due_date else None,
             refund_date=parse_be_date(refund_date) if refund_date else None,
         )
@@ -649,7 +656,48 @@ def account_txn_add(aid: int, db: Session = Depends(get_db), kind: str = Form("i
             ))
         db.commit()
     back = f"&subsidy_year={subsidy_year}&subsidy_term={subsidy_term}" if 2500 <= subsidy_year <= 2800 and subsidy_term in (1, 2) else ""
+    if a and k == "out":
+        back += _place_short_warn(db, a, fy, t)
     return RedirectResponse(f"/finance/accounts/{aid}?year={fy}{back}" + ("#txn-entry" if back else ""), status_code=303)
+
+
+def _place_short_warn(db, account, fy, txn) -> str:
+    """จ่ายแล้วที่เก็บนั้นติดลบ (เช่น จ่ายเงินสดเกินเงินสดที่มี) -> พารามิเตอร์เตือนให้ถอนเงินก่อน"""
+    from app.services.money_place import account_by_place, txn_place
+    db.refresh(account)
+    p = txn_place(txn)
+    bal = account_by_place(account, fy)[p]
+    return f"&short={p}&short_amt={-bal:.2f}" if bal < -0.005 else ""
+
+
+@router.post("/finance/accounts/{aid}/move")
+def account_move_money(aid: int, db: Session = Depends(get_db), fiscal_year: str = Form(""),
+                       src: str = Form(""), dst: str = Form(""), amount: str = Form("0"),
+                       date: str = Form(""), item_id: str = Form(""), ref: str = Form(""), note: str = Form("")):
+    """ถอน/ฝากเงินระหว่างที่เก็บในบัญชีเดียวกัน เช่น ถอนจากธนาคารมาเป็นเงินสด
+    = รายการจ่ายจากที่หนึ่ง + รับเข้าอีกที่ ไม่นับเป็นรายรับ-รายจ่าย (ยอดรวมบัญชีเท่าเดิม)"""
+    a = db.get(FinanceAccount, aid)
+    fy = _to_int(fiscal_year, current_fiscal_year())
+    amt = round(_to_float(amount, 0.0), 2)
+    if not a or src not in DEPOSIT_TYPES or dst not in DEPOSIT_TYPES or src == dst or amt <= 0:
+        return RedirectResponse(f"/finance/accounts/{aid}?year={fy}&txn_err=" + quote("เลือกที่ต้นทางและปลายทางให้ต่างกัน และใส่จำนวนเงิน") + "#move", status_code=303)
+    dt = parse_be_date(date) or datetime.now()
+    if dt.year + 543 + (1 if dt.month >= 10 else 0) != fy:
+        return RedirectResponse(f"/finance/accounts/{aid}?year={fy}&txn_err=" + quote(f"วันที่ไม่อยู่ในปีงบ {fy}") + "#move", status_code=303)
+    names = {"cash": "เงินสด", "bank": "ธนาคาร", "agency": "ส่วนราชการผู้เบิก"}
+    if src == "bank" and dst == "cash":
+        what = "ถอนเงินจากธนาคารมาเป็นเงินสด"
+    elif src == "cash" and dst == "bank":
+        what = "นำเงินสดฝากธนาคาร"
+    else:
+        what = f"ย้ายเงินจาก{names[src]}ไป{names[dst]}"
+    desc = (note.strip() or what)[:200]
+    iid = _to_int(item_id, 0) or None
+    for kind, place in (("out", src), ("in", dst)):
+        db.add(FinanceTxn(account_id=a.id, fiscal_year=fy, item_id=iid, kind=kind, amount=amt, date=dt,
+                          ref=ref.strip(), note=desc, place=place, no_count=True))
+    db.commit()
+    return RedirectResponse(f"/finance/accounts/{aid}?year={fy}&moved_place=1#move", status_code=303)
 
 
 _FUND_KIND_TH = {"opening": "เงินเหลือก่อนเริ่มแผน", "subsidy": "เงินอุดหนุนรอบใหม่", "other": "เงินอื่น ๆ"}
@@ -1235,6 +1283,16 @@ def _build_cash_rows(accounts, fy, as_of):
         a = _blank_amt(); a[col] = val; a["total"] = val
         return a
 
+    # เงินของหมวด/บัญชีอาจอยู่หลายที่ (ถอนจากธนาคารมาเป็นเงินสด ฯลฯ) แยกตามที่เก็บของแต่ละรายการ
+    from app.services.money_place import account_by_place, item_by_place
+
+    def amt_places(d):
+        a = _blank_amt()
+        for k, v in d.items():
+            a[k] = v
+        a["total"] = round(sum(d.values()), 2)
+        return a
+
     for fund in FUND_TYPES:
         f_accts = [a for a in accounts if (a.fund_type or _FUND_DEFAULT) == fund]
         f_sub = _blank_amt()
@@ -1258,23 +1316,23 @@ def _build_cash_rows(accounts, fy, as_of):
                     kids = kids_by.get(p.id, [])
                     if kids:
                         # หมวดแม่มีลูก: ไม่นับงบตัวเอง (นับเฉพาะเงินที่ลงหมวดแม่ตรงๆ) + รวมลูก
-                        p_own = item_remaining_asof(p, as_of)
-                        p_roll = amt_of(p_col, p_own)
+                        p_roll = amt_places(item_by_place(p, as_of))
                         krows = []
                         for k in kids:
-                            k_amt = amt_of(col_of(k.deposit_type or acc_col), item_remaining_asof(k, as_of))
+                            k_amt = amt_places(item_by_place(k, as_of))
                             krows.append({"name": k.name, "level": 2 + off, "kind": "leaf", **k_amt})
                             _add_amt(p_roll, k_amt)
                         a_body.append({"name": p.name, "level": 1 + off, "kind": "sub", **p_roll})
                         a_body.extend(krows)
                         _add_amt(a_sub, p_roll)
                     else:
-                        p_amt = amt_of(p_col, item_remaining_asof(p, as_of))
+                        p_amt = amt_places(item_by_place(p, as_of))
                         a_body.append({"name": p.name, "level": 1 + off, "kind": "leaf", **p_amt})
                         _add_amt(a_sub, p_amt)
-                residual=round(account_balance_asof(a,fy,as_of)-a_sub['total'],2)
-                if residual:
-                    amt=amt_of(acc_col,residual)
+                whole = account_by_place(a, fy, as_of)
+                rest = {k: round(whole[k] - a_sub[k], 2) for k in whole}
+                if any(abs(v) > 0.005 for v in rest.values()):
+                    amt = amt_places(rest)
                     a_body.append({"name":"ยอดที่ยังไม่แยกหมวด / รายการไม่ระบุหมวด","level":1+off,"kind":"leaf",**amt})
                     _add_amt(a_sub,amt)
                 if not redundant:
@@ -1282,7 +1340,7 @@ def _build_cash_rows(accounts, fy, as_of):
                 body.extend(a_body)
                 _add_amt(f_sub, a_sub)
             else:
-                b_amt = amt_of(acc_col, account_balance_asof(a, fy, as_of))
+                b_amt = amt_places(account_by_place(a, fy, as_of))
                 if not redundant:
                     body.append({"name": a.name, "level": 1, "kind": "leaf", **b_amt})
                 _add_amt(f_sub, b_amt)

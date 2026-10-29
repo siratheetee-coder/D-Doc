@@ -40,6 +40,16 @@
     <div class="box"><div><div class="lab">งบตามหมวด (รวมทุกหมวด/รายการย่อย)</div><div class="num">{{ "{:,.2f}".format(item_budget_total) }}</div></div>
       <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
   </div>
+  {# เงินของบัญชีนี้อยู่ที่ไหนบ้าง (แสดงเมื่อใช้มากกว่า 1 ที่ หรือมีที่ใดติดลบ) #}
+  {% if places_used|length > 1 or place_bal.values()|select('lt', -0.005)|list %}
+  <div class="mp-strip">
+    <span class="mp-title">เงินอยู่ที่</span>
+    {% for k in places_used %}{% set v = place_bal[k] %}
+    <span class="mp-chip mp-{{ k }}{{ ' is-neg' if v < -0.005 }}"><small>{{ deposit_types[k] }}</small><b>{{ "{:,.2f}".format(v) }}</b></span>
+    {% endfor %}
+    <a class="mp-move" href="#move">ถอน / ฝากเงิน</a>
+  </div>
+  {% endif %}
 </div>
 
 <div class="card">
@@ -266,6 +276,8 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
   <h2 id="txn-entry" style="scroll-margin-top:90px;"><svg class="icon"><use href="#ic-plus"/></svg> บันทึกรับ / จ่าย</h2>
   {% if request.query_params.get('txn_err') %}<div class="alert warn" role="alert">ยังไม่ได้บันทึก: {{ request.query_params.get('txn_err') }}</div>{% endif %}
   {% if request.query_params.get('moved') %}<div class="alert">✔ ย้ายรายการไปปีงบ {{ request.query_params.get('moved') }} ตามวันที่แล้ว</div>{% endif %}
+  {% if request.query_params.get('short') in deposit_types %}<p class="mp-warn" role="alert">บันทึกแล้ว แต่{{ deposit_types[request.query_params.get('short')] }}ของบัญชีนี้ติดลบ {{ "{:,.2f}".format(request.query_params.get('short_amt')|float) }} บาท
+    ถ้าจ่ายจริงจากที่นี้ ให้บันทึกถอน/ฝากเงินเข้ามาก่อนที่ <a href="#move">ถอน / ฝากเงิน</a> หรือแก้ช่อง "รับเข้า / จ่ายจาก" ให้ถูก</p>{% endif %}
   {% if subsidy_year %}<p>บันทึกรับเงินที่ได้รับโอนจริง แล้วกลับไปเลือกรายการเพื่อเชื่อมกับเงินอุดหนุนของเทอมนี้</p>
   <p><a class="btn gray" href="/finance/subsidy?year={{ subsidy_year }}&term={{ subsidy_term }}#sec-receipts">กลับไปเชื่อมเงินอุดหนุน ปีการศึกษา {{ subsidy_year }} เทอม {{ subsidy_term }}</a></p>{% endif %}
   <form method="post" action="/finance/accounts/{{ account.id }}/txn" id="txnForm">
@@ -281,6 +293,11 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
         <select name="kind"><option value="in" {{ 'selected' if selected_kind!='out' }}>รับเงิน (+)</option><option value="out" {{ 'selected' if selected_kind=='out' }}>จ่ายเงิน (-)</option></select>
       </div>
       <div><label>จำนวนเงิน (บาท)</label><input name="amount" type="number" step="0.01" min="0" value="0" required></div>
+      <div><label id="placeLab">รับเข้าที่</label>
+        <select name="place" id="placeSel">
+          <option value="">ตามที่ตั้งไว้ ({{ deposit_types[account.deposit_type] if account.deposit_type in deposit_types else 'เงินฝากธนาคาร' }})</option>
+          {% for k, v in deposit_types.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+        </select></div>
       <div><label>วันที่</label><input name="date" id="txnDate" placeholder="วว/ดด/ปปปป" data-date="1">
         <div id="txnDateWarn" class="txn-date-warn" hidden></div></div>
       <div><label>หมวดงบ</label>
@@ -362,6 +379,59 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
   </form>
 </div>
 
+<div class="card" id="move" style="scroll-margin-top:90px;">
+  <h2><svg class="icon"><use href="#ic-coins"/></svg> ถอน / ฝากเงิน (ย้ายเงินในบัญชีนี้)</h2>
+  {% if request.query_params.get('moved_place') %}<p class="mp-ok">✔ บันทึกการย้ายเงินแล้ว ยอดแต่ละที่อัปเดตแล้ว</p>{% endif %}
+  <p class="muted" style="margin-top:0;">เช่น ถอนเงินจากธนาคารมาเก็บเป็นเงินสดไว้จ่าย หรือนำเงินสดที่เหลือฝากคืนธนาคาร ยอดรวมของบัญชีเท่าเดิม ไม่นับเป็นรายรับ-รายจ่าย</p>
+  <form method="post" action="/finance/accounts/{{ account.id }}/move">
+    <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+    <div class="row">
+      <div><label>จาก</label><select name="src" id="mvSrc">{% for k, v in deposit_types.items() %}<option value="{{ k }}" {{ 'selected' if k == 'bank' }}>{{ v }}</option>{% endfor %}</select></div>
+      <div><label>ไปที่</label><select name="dst" id="mvDst">{% for k, v in deposit_types.items() %}<option value="{{ k }}" {{ 'selected' if k == 'cash' }}>{{ v }}</option>{% endfor %}</select></div>
+      <div><label>จำนวนเงิน (บาท)</label><input name="amount" type="number" step="0.01" min="0.01" required></div>
+      <div><label>วันที่</label><input name="date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+    </div>
+    <div class="row">
+      <div><label>หมวด</label>
+        <select name="item_id"><option value="">- ไม่ระบุหมวด -</option>
+          {% for r in item_rows %}<option value="{{ r.it.id }}">{{ '　└ ' if r.level==1 }}{{ r.it.name }}</option>{% endfor %}</select></div>
+      <div><label>เลขที่เอกสาร</label><input name="ref" placeholder="เช่น เลขที่ใบถอนเงิน"></div>
+      <div style="flex:2;"><label>รายการ</label><input name="note" id="mvNote" placeholder="ถอนเงินจากธนาคารมาเป็นเงินสด"></div>
+    </div>
+    <br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกการย้ายเงิน</button>
+  </form>
+</div>
+<style>
+  .mp-strip{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:12px; padding:10px 14px; border-radius:14px; background:#f8fafc; }
+  .mp-title{ font-weight:700; margin-right:4px; }
+  .mp-chip{ display:flex; flex-direction:column; padding:6px 14px; border-radius:12px; background:#fff; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+  .mp-chip small{ font-size:12px; color:var(--muted); }
+  .mp-chip b{ font-size:16px; }
+  .mp-chip.mp-cash b{ color:#b45309; } .mp-chip.mp-bank b{ color:#1d4ed8; } .mp-chip.mp-agency b{ color:#6d28d9; }
+  .mp-chip.is-neg{ background:#fef2f2; } .mp-chip.is-neg b{ color:#dc2626; }
+  .mp-move{ margin-left:auto; font-weight:700; font-size:14px; color:#2563eb; text-decoration:none; }
+  .mp-warn{ margin:8px 0; padding:10px 12px; border-radius:12px; background:#fff7ed; color:#9a3412; font-size:14px; }
+  .mp-ok{ margin:0 0 8px; padding:8px 12px; border-radius:10px; background:#f0fdf4; color:#166534; }
+  .mp-tag{ display:inline-block; margin-left:4px; padding:1px 7px; border-radius:99px; font-size:11.5px; background:#fef3c7; color:#92400e; }
+</style>
+<script>
+  (function(){
+    var f = document.getElementById('txnForm'), lab = document.getElementById('placeLab');
+    if (f && lab) {
+      var k = f.querySelector('[name=kind]');
+      var sync = function(){ lab.textContent = k.value === 'out' ? 'จ่ายจาก' : 'รับเข้าที่'; };
+      k.addEventListener('change', sync); sync();
+    }
+    var s = document.getElementById('mvSrc'), d = document.getElementById('mvDst'), n = document.getElementById('mvNote');
+    var name = {cash:'เงินสด', bank:'ธนาคาร', agency:'ส่วนราชการผู้เบิก'};
+    function ph(){
+      n.placeholder = (s.value === 'bank' && d.value === 'cash') ? 'ถอนเงินจากธนาคารมาเป็นเงินสด'
+        : (s.value === 'cash' && d.value === 'bank') ? 'นำเงินสดฝากธนาคาร'
+        : 'ย้ายเงินจาก' + name[s.value] + 'ไป' + name[d.value];
+    }
+    if (s && d && n) { s.addEventListener('change', ph); d.addEventListener('change', ph); ph(); }
+  })();
+</script>
 <style>.txn-row{scroll-margin-top:90px;} .txn-row:target td{background:linear-gradient(120deg,#fef9c3,#fef3c7);}</style>
 <div class="card" id="txn-history">
   <h2>ประวัติรับ-จ่าย-คงเหลือ</h2>
@@ -374,7 +444,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       {% for r in rows %}
       <tr id="t{{ r.t.id }}" class="txn-row">
         <td>{{ thai_date(r.t.date) }}</td>
-        <td>{% if r.t.kind=="in" %}<span style="color:#16a34a;">รับ</span>{% else %}<span style="color:#dc2626;">จ่าย</span>{% endif %}{% if r.t.note %} {{ r.t.note }}{% endif %}{% if r.t.remark %} <small class="muted">({{ r.t.remark }})</small>{% endif %}{% if receipt_map.get(r.t.id) %} <span class="pill" style="background:#dcfce7; color:#15803d;">ใบเสร็จ {{ receipt_map.get(r.t.id) }}</span>{% endif %}{% set pj = txn_project.get(r.t.id) %}{% if pj %} <a class="pill" href="/projects/{{ pj.id }}" title="ไปหน้าโครงการ" style="background:#eef2ff; color:#3730a3; text-decoration:none;">โครงการ{{ pj.name }}</a>{% endif %}</td>
+        <td>{% if r.t.kind=="in" %}<span style="color:#16a34a;">รับ</span>{% else %}<span style="color:#dc2626;">จ่าย</span>{% endif %}{% if r.t.note %} {{ r.t.note }}{% endif %}{% if r.t.remark %} <small class="muted">({{ r.t.remark }})</small>{% endif %}{% if places_used|length > 1 %}<span class="mp-tag">{{ deposit_types[txn_places[r.t.id]] }}</span>{% endif %}{% if receipt_map.get(r.t.id) %} <span class="pill" style="background:#dcfce7; color:#15803d;">ใบเสร็จ {{ receipt_map.get(r.t.id) }}</span>{% endif %}{% set pj = txn_project.get(r.t.id) %}{% if pj %} <a class="pill" href="/projects/{{ pj.id }}" title="ไปหน้าโครงการ" style="background:#eef2ff; color:#3730a3; text-decoration:none;">โครงการ{{ pj.name }}</a>{% endif %}</td>
         <td>{{ r.t.item.name if r.t.item else (r.t.category or "-") }}</td>
         <td>{{ r.t.ref or "-" }}</td>
         <td class="right">{{ "{:,.2f}".format(r.t.amount) if r.t.kind=="in" else "" }}</td>

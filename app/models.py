@@ -934,6 +934,7 @@ class FinanceTxn(Base):
     ref = Column(String, default="")                 # อ้างอิงเอกสาร (เลขที่เรื่อง/ใบเสร็จ)
     note = Column(String, default="")                # รายการ (ช่อง "รายการ" ในทะเบียนคุมเงิน)
     remark = Column(String, default="")              # หมายเหตุ (ช่อง "หมายเหตุ" ท้ายทะเบียนคุมเงิน)
+    place = Column(String, default="")               # เงินรับเข้า/จ่ายจากที่ไหน cash/bank/agency (ว่าง = ตามหมวด/บัญชี)
     disburse_id = Column(Integer, ForeignKey("disburse_memo.id"), nullable=True)
     project_id = Column(Integer, ForeignKey("project.id"), nullable=True)   # โครงการในแผนที่ใช้เงินก้อนนี้
     loan_id = Column(Integer, ForeignKey("money_loan.id"), nullable=True)

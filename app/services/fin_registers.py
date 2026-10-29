@@ -345,7 +345,20 @@ def render_money_register(school, account, txns, opening, fiscal_year, *,
                + (f"  (บัญชี{account.name})" if item is not None else ""))
 
     t = _head2(doc, _MR_GROUPS, _MR_W)
-    bal_col = _BAL_COL.get(((item.deposit_type if item is not None else account.deposit_type) or "bank"), 8)
+    # คงเหลือแยก 3 ช่องตามที่เก็บเงินจริงของแต่ละรายการ (เงินสด / ธนาคาร / ส่วนราชการผู้เบิก)
+    from app.services.money_place import account_place, item_place, opening_by_place, txn_place
+    home = item_place(item) if item is not None else account_place(account)
+    if item is not None:
+        place_bal = {home: float(opening or 0)}
+    else:
+        place_bal = opening_by_place(account, fiscal_year)
+        place_bal[home] += float(opening or 0) - sum(place_bal.values())
+    used = {k for k, v in place_bal.items() if abs(v) > 0.005} | {home}
+    used |= {txn_place(x) for x in txns}
+
+    def put_bal(vals):
+        for k in used:
+            vals[_BAL_COL[k]] = _money(place_bal.get(k, 0)) or "0.00"
 
     def blank_row():
         return [""] * len(_MR_W)
@@ -356,7 +369,7 @@ def render_money_register(school, account, txns, opening, fiscal_year, *,
     first[0] = thai_date_short(datetime(fiscal_year - 544, 10, 1))
     first[2] = f"ยอดยกมาจากปีงบประมาณ {fiscal_year - 1}"
     first[3] = _money(running)
-    first[bal_col] = _money(running)
+    put_bal(first)
     _row(t, first, _MR_W, _MR_ALIGN)
 
     total_in = total_out = total_debtor = total_exp = 0.0
@@ -368,6 +381,8 @@ def render_money_register(school, account, txns, opening, fiscal_year, *,
         vals[1] = (x.ref or "").strip()
         vals[2] = (x.note or x.category or "").strip()
         vals[10] = (getattr(x, "remark", "") or "").strip()
+        p = txn_place(x)
+        place_bal[p] = place_bal.get(p, 0) + (amount if (x.kind or "in") == "in" else -amount)
         if (x.kind or "in") == "in":
             running += amount
             total_in += amount
@@ -382,7 +397,7 @@ def render_money_register(school, account, txns, opening, fiscal_year, *,
                 vals[5] = _money(amount)
                 total_exp += amount
             vals[6] = _money(amount)
-        vals[bal_col] = _money(running)
+        put_bal(vals)
         _row(t, vals, _MR_W, _MR_ALIGN)
 
     _blank_rows(t, max(0, 8 - len(rows)), _MR_W, len(_MR_W))
@@ -392,7 +407,7 @@ def render_money_register(school, account, txns, opening, fiscal_year, *,
     sums[4] = _money(total_debtor)
     sums[5] = _money(total_exp)
     sums[6] = _money(total_out)
-    sums[bal_col] = _money(running)
+    put_bal(sums)
     _row(t, sums, _MR_W, _MR_ALIGN, bold=True)
     _sign_finance(doc, school)
     if not own:
