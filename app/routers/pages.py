@@ -2440,13 +2440,17 @@ def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get
 def _proc_track(db, proc) -> list:
     """ขั้นตอนต่อไปของเรื่องนี้ (กล่องบนหน้าเรื่อง) พร้อมสถานะว่าทำแล้วหรือยัง"""
     from app.models import ProcurementRegisterImport
+    if (proc.proc_case or "normal") != "normal":
+        # ว.804 / ว.119 / ข้อ 79 เอกสารและขั้นตอนคนละแบบ (ไม่มีการ์ดลงเลขที่) ยังไม่แสดงกล่องนี้
+        return []
     received = proc.status in ("ตรวจรับแล้ว", "เบิกจ่ายแล้ว") or bool(proc.inspect_date)
     paid = (proc.status == "เบิกจ่ายแล้ว" or bool(proc.paid_before_system)
             or db.query(DisburseMemo).filter_by(procurement_id=proc.id).first() is not None)
+    # ลำดับตามงานจริง: ลงเลขที่/วันที่ก่อน (เลขต้องไปอยู่ในเอกสาร) แล้วจึงออกเอกสาร
     rows = [
-        {"label": "ออกเอกสาร", "sub": "รายงานขอซื้อ/จ้าง ทั้งชุด", "done": bool(proc.documents), "href": "#issue"},
-        {"label": "ลงเลขใบสั่ง" + proc.proc_type, "sub": "เลขที่และวันที่ลงนาม", "done": bool((proc.order_no or "").strip()), "href": "#docnos"},
-        {"label": "ตรวจรับ", "sub": "ลงวันที่ตรวจรับ", "done": received, "href": "#docnos"},
+        {"label": "ลงเลขที่และวันที่", "sub": "เลขใบสั่ง" + proc.proc_type + " และวันที่ลงนาม", "done": bool((proc.order_no or "").strip()), "href": "#dn-order"},
+        {"label": "ออกเอกสาร", "sub": "ทั้งชุด ออกซ้ำได้เมื่อแก้เลข", "done": bool(proc.documents), "href": "#issue"},
+        {"label": "ส่งมอบ/ตรวจรับ", "sub": "วันที่ส่งมอบ และวันที่ตรวจรับ", "done": received, "href": "#dn-inspect"},
         {"label": "เบิกจ่าย", "sub": "ออกบันทึกขอเบิกจ่าย", "done": paid, "href": f"/finance/disburse?proc={proc.id}", "finance": True},
     ]
     if proc.items and proc.proc_type == "ซื้อ":

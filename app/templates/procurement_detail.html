@@ -99,7 +99,24 @@
     .pt-steps li.done small{ color:#16a34a; }
     .pt-steps li.current a{ box-shadow:0 0 0 2px #6366f1 inset; }
     .pt-steps li.current .pt-dot{ background:linear-gradient(135deg,#2563eb,#7c3aed); color:#fff; }
+    #dn-order, #dn-inspect, #issue{ scroll-margin-top:90px; }
+    .docgrp.pt-flash{ animation:ptFlash 1.8s ease; border-radius:14px; }
+    @keyframes ptFlash{ 0%,40%{ box-shadow:0 0 0 4px rgba(99,102,241,.45); background:#eef2ff; } 100%{ box-shadow:none; } }
   </style>
+  <script>
+    // กดขั้นตอนแล้วไปตรงส่วนนั้น ไฮไลต์ และวางเคอร์เซอร์ช่องแรกที่ยังว่าง
+    (function(){
+      function go(){
+        var el = location.hash && document.querySelector(location.hash);
+        if (!el || !el.classList.contains('docgrp')) return;
+        el.classList.remove('pt-flash'); void el.offsetWidth; el.classList.add('pt-flash');
+        var empty = [].slice.call(el.querySelectorAll('input:not([type=hidden])')).find(function(i){ return !i.value; });
+        if (empty) setTimeout(function(){ empty.focus({preventScroll:true}); }, 350);
+      }
+      window.addEventListener('hashchange', go);
+      document.addEventListener('DOMContentLoaded', go);
+    })();
+  </script>
   {% endif %}
   {% if request.query_params.get("saved") %}<div class="alert" style="margin-top:10px;">✔ บันทึกการแก้ไขเรียบร้อย</div>{% endif %}
   {% if request.query_params.get("msg") %}<div class="alert" style="margin-top:10px;">✔ {{ request.query_params.get("msg") }}</div>{% endif %}
@@ -262,7 +279,7 @@
       </div>
     </div>
 
-    <div class="docgrp">
+    <div class="docgrp" id="dn-order">
       <div class="docgrp-h">ใบสั่ง{{ p.proc_type }}</div>
       <div class="row">
         <div><label>เลขที่ใบสั่ง</label><input name="order_no" value="{{ p.order_no }}"></div>
@@ -279,7 +296,7 @@
       </div>
     </div>
 
-    <div class="docgrp">
+    <div class="docgrp" id="dn-inspect">
       <div class="docgrp-h">ส่งมอบ / ตรวจรับ / เบิกจ่าย</div>
       <div class="row">
         <div>

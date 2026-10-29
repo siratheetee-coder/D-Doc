@@ -35,6 +35,15 @@ def test_form_has_steps_and_budget_lookup(env):
     assert env.get(f"/procurement/project-budget?name=โครงการทดสอบงบคงเหลือ&exclude={prid}").json()["left"] == 10000
 
     detail = env.get(f"/procurement/{prid}?keep=1").text
-    assert "ขั้นตอนต่อไป" in detail and 'class="pt-steps"' in detail and 'id="issue"' in detail and 'id="docnos"' in detail
+    assert "ขั้นตอนต่อไป" in detail and 'class="pt-steps"' in detail and 'id="dn-order"' in detail and 'id="dn-inspect"' in detail
+    assert detail.index("ลงเลขที่และวันที่") < detail.index(">ออกเอกสาร<")
     edit = env.get(f"/procurement/{prid}/edit").text
     assert 'id="pfSaveNow"' in edit and 'id="pfSteps"' in edit
+
+
+def test_track_hidden_for_special_cases(env):
+    from app.models import Procurement
+    with _db() as s:
+        pr = Procurement(subject="ค่าอาหารว่าง", proc_case="w119t2", fiscal_year=2569, total_amount=500, proc_type="ซื้อ")
+        s.add(pr); s.commit(); pid = pr.id
+    assert "ขั้นตอนต่อไป" not in env.get(f"/procurement/{pid}?keep=1").text
