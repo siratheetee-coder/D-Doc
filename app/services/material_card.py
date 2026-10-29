@@ -132,6 +132,7 @@ def render_material_cards(school, items) -> str:
     name = items[0].name if len(items) == 1 else f"รวม {len(items)} รายการ"
     for ch in '<>:"/\\|?*':
         name = name.replace(ch, "_")
-    out_path = out_dir / f"บัญชีวัสดุ_{name}.docx"
+    from app.services.filenames import fit_name
+    out_path = out_dir / fit_name(f"บัญชีวัสดุ_{name}.docx")
     doc.save(str(out_path))
     return str(out_path)

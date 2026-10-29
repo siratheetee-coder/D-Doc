@@ -59,6 +59,11 @@ def _split_satang(v):
 
 
 def _safe(name: str) -> str:
+    from app.services.filenames import fit_name
+    return fit_name(_safe_chars(name))
+
+
+def _safe_chars(name: str) -> str:
     for ch in '\\/:*?"<>|\n\r\t':
         name = name.replace(ch, " ")
     return " ".join(name.split()).strip() or "ใบสำคัญรับเงิน"

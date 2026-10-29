@@ -296,6 +296,11 @@ def build_context(proc, school) -> dict:
 
 
 def _safe_filename(text: str) -> str:
+    from app.services.filenames import fit_name
+    return fit_name(_safe_filename_chars(text))
+
+
+def _safe_filename_chars(text: str) -> str:
     for ch in '<>:"/\\|?*':
         text = text.replace(ch, "_")
     return text.strip()

@@ -27,6 +27,11 @@ _DOT = "." * 60
 
 
 def _safe(text: str) -> str:
+    from app.services.filenames import fit_name
+    return fit_name(_safe_chars(text))
+
+
+def _safe_chars(text: str) -> str:
     bad = '<>:"/|?*' + chr(92) + chr(10) + chr(13) + chr(9)
     for ch in bad:
         text = text.replace(ch, "_")

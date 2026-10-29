@@ -25,6 +25,11 @@ WH_COLOR = {"ผอม": "C0392B", "ค่อนข้างผอม": "E67E22"
 
 
 def _safe(text: str) -> str:
+    from app.services.filenames import fit_name
+    return fit_name(_safe_chars(text))
+
+
+def _safe_chars(text: str) -> str:
     for ch in '<>:"/\\|?*':
         text = text.replace(ch, "_")
     return text.strip()

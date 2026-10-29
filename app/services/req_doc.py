@@ -17,6 +17,11 @@ from app.services.build_templates import _font, _p, _set_cell, THAI_FONT
 
 
 def _safe(text: str) -> str:
+    from app.services.filenames import fit_name
+    return fit_name(_safe_chars(text))
+
+
+def _safe_chars(text: str) -> str:
     for ch in '<>:"/\\|?*':
         text = text.replace(ch, "_")
     return text.strip()
