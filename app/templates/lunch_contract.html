@@ -172,6 +172,7 @@
   </div>
 </div>
 
+<style>.iq-table tr:target td{ background:linear-gradient(120deg,#fef9c3,#fef3c7); }</style>
 <div class="card" id="installments">
   <h2>งวดจ่ายเงินทั้งหมด</h2>
   {% if installments %}
@@ -223,7 +224,7 @@
     <tbody>
     {% for i in installments %}
       {% set lvl = {'ส่งมอบแล้ว': 1, 'ตรวจรับแล้ว': 2, 'จ่ายแล้ว': 3}.get(i.status, 0) %}
-      <tr data-iid="{{ i.id }}" {% if nxt and i.id == nxt.id %}class="iq-row-next"{% endif %}>
+      <tr data-iid="{{ i.id }}" id="inst-{{ i.id }}" style="scroll-margin-top:90px;" {% if nxt and i.id == nxt.id %}class="iq-row-next"{% endif %}>
         <td class="iq-no">{{ i.seq }}</td>
         <td><div class="iq-range">{{ be_date(i.start_date) if i.start_date else '-' }} – {{ be_date(i.end_date) if i.end_date else '-' }}</div>
             <div class="iq-sub">{{ i.days }} วัน <b>{{ "{:,.2f}".format(i.amount or 0) }}</b> บาท</div></td>

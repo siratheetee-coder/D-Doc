@@ -12,6 +12,7 @@ def _pack(steps):
     for n, s in enumerate(steps, 1):
         s["n"] = n
         s.setdefault("extra", [])
+        s.setdefault("chips", [])
     nxt = next((s for s in steps if not s["done"]), None)
     done = sum(1 for s in steps if s["done"])
     return dict(steps=steps, done=done, total=len(steps), complete=nxt is None, next=nxt)
@@ -128,6 +129,20 @@ def hr_steps(db, school) -> dict:
 
 
 # ---------------- อาหารกลางวัน: ขั้นตอนในหนึ่งรอบ ----------------
+# สถานะงวด -> (คำบนป้าย, ระดับ) ป้ายบอกว่างวดนั้นรออะไรอยู่
+_INST_STATE = {"ร่าง": ("รอส่งมอบ", "todo"), "ส่งมอบแล้ว": ("รอตรวจรับ", "wait"),
+               "ตรวจรับแล้ว": ("รอจ่ายเงิน", "wait"), "จ่ายแล้ว": ("จ่ายแล้ว", "done")}
+
+
+def installment_chips(insts, page) -> list:
+    """ป้ายสถานะรายงวด [{label, state, href}] เช่น "งวด 2 รอตรวจรับ" กดแล้วไปแถวงวดนั้น"""
+    out = []
+    for i in insts:
+        text, state = _INST_STATE.get(i.status or "ร่าง", _INST_STATE["ร่าง"])
+        out.append({"label": f"งวด {i.seq} {text}", "state": state, "href": f"{page}#inst-{i.id}"})
+    return out
+
+
 def lunch_round_steps(rnd, *, committees, com_labels, doc_rows, menu_days, ing_total, ing_remaining) -> dict:
     """ขั้นตอนของรอบจัดจ้าง/จัดซื้อหนึ่งรอบ แยกตามรูปแบบ (เจ้าของขอ)
       hire       จ้างเหมาปรุงสำเร็จ: ช่วงเวลา/วงเงิน > ผู้รับจ้าง > กรรมการ > เลขที่หนังสือ > เมนู
@@ -201,7 +216,8 @@ def lunch_round_steps(rnd, *, committees, com_labels, doc_rows, menu_days, ing_t
                       href=page + "#installments", cta="แบ่งงวด"),
                  dict(title="ส่งมอบ ตรวจรับ และจ่ายครบทุกงวด", done=bool(insts) and n_paid == len(insts),
                       detail=(f"จ่ายแล้ว {n_paid} จาก {len(insts)} งวด" if insts else "แบ่งงวดก่อน"),
-                      href=page + "#installments", cta="ไปที่งวดจ่ายเงิน")]
+                      href=page + "#installments", cta="ไปที่งวดจ่ายเงิน",
+                      chips=installment_chips(insts, page))]
     elif mode == "person":
         steps = [period_step((rnd.cook_wage or 0) > 0, f"ค่าจ้าง {rnd.cook_wage or 0:,.2f} บาท"), vendor_step,
                  com_step, doc_step, menu_step, ing_step, order_step,

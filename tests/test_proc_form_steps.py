@@ -80,3 +80,14 @@ def test_case_flows(env):
     _, box = labels(made["w804"])
     seg = box[box.index("ออกรายงานขอซื้อ"):]
     assert "ทำแล้ว" in seg[:seg.index("</li>")]
+
+
+def test_lunch_installment_chips():
+    from types import SimpleNamespace as N
+    from app.services.module_setup import installment_chips
+    insts = [N(id=1, seq=1, status="จ่ายแล้ว"), N(id=2, seq=2, status="ส่งมอบแล้ว"),
+             N(id=3, seq=3, status="ตรวจรับแล้ว"), N(id=4, seq=4, status="ร่าง")]
+    chips = installment_chips(insts, "/lunch/round/9/plan")
+    assert [c["label"] for c in chips] == ["งวด 1 จ่ายแล้ว", "งวด 2 รอตรวจรับ", "งวด 3 รอจ่ายเงิน", "งวด 4 รอส่งมอบ"]
+    assert [c["state"] for c in chips] == ["done", "wait", "wait", "todo"]
+    assert chips[1]["href"] == "/lunch/round/9/plan#inst-2"
