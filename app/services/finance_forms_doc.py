@@ -73,6 +73,12 @@ def _school_line(school) -> str:
 
 
 # ------------------------------------------------- สัญญาการยืมเงิน (แบบ 8500)
+def _fin_officer(school) -> str:
+    """ชื่อเจ้าหน้าที่การเงินจากตั้งค่าโรงเรียน (ว่าง = เจ้าหน้าที่พัสดุ เหมือนเอกสารการเงินอื่น)"""
+    return ((getattr(school, "finance_officer_name", "") or getattr(school, "officer_name", "") or "").strip()
+            or ".......................................")
+
+
 def render_loan_contract(school, loan) -> str:
     """Use the same boxed 8500 form as the lunch module."""
     from app.services.lunch_ingredient_doc import render_loan_contract as render
@@ -143,7 +149,7 @@ def render_loan_register(school, fiscal_year, loans) -> str:
     _p(doc, "", after=10)
     _sign_table(doc, [[
         ("ลงชื่อ.......................................เจ้าหน้าที่การเงิน", "center"),
-        ("(.......................................)", "center"),
+        (f"( {_fin_officer(school)} )", "center"),
     ], [
         ("ลงชื่อ.......................................", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
@@ -180,7 +186,7 @@ def render_check_register(school, fiscal_year, checks) -> str:
     _p(doc, "", after=10)
     _sign_table(doc, [[
         ("ลงชื่อ.......................................เจ้าหน้าที่การเงิน", "center"),
-        ("(.......................................)", "center"),
+        (f"( {_fin_officer(school)} )", "center"),
     ], [
         ("ลงชื่อ.......................................", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
@@ -266,7 +272,7 @@ def render_bank_recon(school, rec, account_name="", checks=None, doc=None):
     _p(doc, "", after=12)
     _sign_table(doc, [[
         ("ลงชื่อ.......................................ผู้จัดทำ", "center"),
-        ("(.......................................)", "center"),
+        (f"( {_fin_officer(school)} )", "center"),
     ], [
         ("ลงชื่อ.......................................", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
@@ -407,7 +413,7 @@ def render_quarter_report(school, fiscal_year, quarter, rows, totals) -> str:
        bold=True, before=6, after=12)
     _sign_table(doc, [[
         ("ลงชื่อ.......................................เจ้าหน้าที่การเงิน", "center"),
-        ("(.......................................)", "center"),
+        (f"( {_fin_officer(school)} )", "center"),
     ], [
         ("ลงชื่อ.......................................", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),

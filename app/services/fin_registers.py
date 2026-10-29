@@ -81,12 +81,21 @@ def _sign_finance(doc, school):
     _p(doc, "", after=10)
     _sign_table(doc, [[
         ("ลงชื่อ.......................................เจ้าหน้าที่การเงิน", "center"),
-        ("(.......................................)", "center"),
+        (f"( {(getattr(school, 'finance_officer_name', '') or getattr(school, 'officer_name', '') or '').strip() or '.......................................'} )", "center"),
     ], [
         ("ลงชื่อ.......................................", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
         (head_title_short(school), "center"),
     ]])
+
+
+def _merge_label(row, first, last, text, *, size=13, bold=True):
+    """รวมช่อง first..last ของแถวเป็นช่องเดียว ใส่ข้อความกึ่งกลาง (แถว "รวม" แบบฟอร์มราชการ)"""
+    cell = row.cells[first].merge(row.cells[last])
+    for extra in cell.paragraphs[1:]:              # ช่องที่รวมเข้ามาทิ้งย่อหน้าว่างไว้ ทำให้แถวสูง
+        extra._element.getparent().remove(extra._element)
+    _set_cell(cell, text, align="center", size=size, bold=bold)
+    return cell
 
 
 def _school_only(school) -> str:
@@ -402,13 +411,12 @@ def render_money_register(school, account, txns, opening, fiscal_year, *,
 
     _blank_rows(t, max(0, 8 - len(rows)), _MR_W, len(_MR_W))
     sums = blank_row()
-    sums[2] = "รวม"
     sums[3] = _money(float(opening or 0) + total_in)
     sums[4] = _money(total_debtor)
     sums[5] = _money(total_exp)
     sums[6] = _money(total_out)
     put_bal(sums)
-    _row(t, sums, _MR_W, _MR_ALIGN, bold=True)
+    _merge_label(_row(t, sums, _MR_W, _MR_ALIGN, bold=True), 0, 2, "รวม")   # วันที่+ที่เอกสาร+รายการ = ช่องเดียว
     _sign_finance(doc, school)
     if not own:
         return doc

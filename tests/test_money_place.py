@@ -50,6 +50,20 @@ def test_move_money_between_places(env):
         rows = [[c.text for c in r.cells] for r in doc.tables[0].rows]
         last_txn = next(r for r in rows if "จ่ายเกิน" in r)
         assert last_txn[7] == "-200.00" and last_txn[8] == "15,000.00"
+        # แถว "รวม": 3 ช่องแรกรวมเป็นช่องเดียว คำว่ารวมอยู่กึ่งกลาง (ตามแบบฟอร์ม)
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        tot = doc.tables[0].rows[-1]
+        first = tot.cells[0]
+        assert first.text == "รวม" and tot.cells[1]._tc is first._tc and tot.cells[2]._tc is first._tc
+        assert len(first.paragraphs) == 1 and first.paragraphs[0].alignment == WD_ALIGN_PARAGRAPH.CENTER
+        assert tot.cells[3].text                    # ช่องรับยังอยู่ช่องเดิม
+        # ลงชื่อเจ้าหน้าที่การเงินจากตั้งค่าโรงเรียน
+        sch = s.query(School).first()
+        sch.finance_officer_name = "นางการเงิน ทดสอบ"
+        doc = fin_registers.render_money_register(sch, a, txns, 20000, fy, doc=Document())
+        signs = [c.text for t in doc.tables[1:] for r in t.rows for c in r.cells]
+        assert any("( นางการเงิน ทดสอบ )" in x for x in signs)
+        s.rollback()
 
     page = env.get(f"/finance/accounts/{aid}?year={fy}").text
     assert 'class="pl-strip"' in page and 'name="place"' in page and 'id="move"' in page
