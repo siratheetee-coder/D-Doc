@@ -109,7 +109,7 @@
           <a class="btn sm gray" href="/finance/accounts/{{ r.t.account_id }}?year={{ r.t.fiscal_year }}" title="แก้หรือลบที่ทะเบียนคุมเงิน">แก้ที่การเงิน</a>
           {% else %}
           <a class="btn sm gray" href="/lunch/ledger/{{ r.l.id }}/receipt.docx" title="ใบสำคัญรับเงิน (ผู้รับเงินลงชื่อ)"><svg class="icon"><use href="#ic-download"/></svg> ใบสำคัญรับเงิน</a>
-          {% if r.kind=='in' %}<a class="btn sm gray" href="/lunch/ledger/{{ r.l.id }}/official-receipt.docx" title="ใบเสร็จรับเงินที่โรงเรียนออกให้ {{ p.funding_org or 'อปท.' }} (ต้นฉบับ + สำเนา)"><svg class="icon"><use href="#ic-download"/></svg> ใบเสร็จรับเงิน</a>{% endif %}
+          {% if r.kind=='in' and not r.l.loan_return_id %}<a class="btn sm gray" href="/lunch/ledger/{{ r.l.id }}/official-receipt.docx" title="ใบเสร็จรับเงินที่โรงเรียนออกให้ {{ p.funding_org or 'อปท.' }} (ต้นฉบับ + สำเนา)"><svg class="icon"><use href="#ic-download"/></svg> ใบเสร็จรับเงิน</a>{% endif %}
           <form method="post" action="/lunch/ledger/{{ r.l.id }}/delete" onsubmit="return confirm('ลบรายการนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
           {% endif %}
         </td>

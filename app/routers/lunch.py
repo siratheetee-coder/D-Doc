@@ -559,6 +559,12 @@ def round_spend(rnd) -> float:
 def _round_ledger_detail(rnd) -> str:
     """ข้อความในบัญชี - ต้องบอกให้ตรงว่าเป็นค่าอะไร (เดิมเขียน "จ้างเหมา" ทุกโหมด)"""
     mode = getattr(rnd.program, "operate_mode", "hire")
+    if mode in ("person", "ingredient") and getattr(rnd, "loan_id", None):
+        # วัตถุดิบ/เชื้อเพลิงจ่ายจากเงินยืมแล้ว รายการปิดรอบเหลือค่าจ้าง + ส่วนที่เงินยืมไม่พอ
+        from app.services.lunch_loan import close_info
+        base = close_info(rnd)[1] or "ปิดรอบ"
+        detail = f"{base} รอบที่ {rnd.seq} (วัตถุดิบจ่ายจากเงินยืมแล้ว)"
+        return detail
     if mode == "person":
         parts = []
         if float(getattr(rnd, "cook_wage", 0) or 0):
@@ -598,6 +604,10 @@ def _sync_round_ledger(db: Session, rnd: LunchHireRound) -> None:
     ถ้ายังไม่จ่าย/ลบรอบ/ยอดเป็น 0 -> ลบรายการบัญชีที่ผูกไว้"""
     existing = db.query(LunchLedger).filter_by(round_id=rnd.id).first()
     amount = round_spend(rnd)
+    if getattr(rnd, "loan_id", None):
+        # ค่าวัตถุดิบที่จ่ายจากเงินยืมลงบัญชีไปแล้วตอนจ่ายเงินยืม/รับคืน ไม่นับซ้ำ
+        from app.services.lunch_loan import close_info
+        amount = close_info(rnd)[0]
     if rnd.status == "จ่ายแล้ว" and amount > 0:
         detail = _round_ledger_detail(rnd)
         d = rnd.end_date or rnd.start_date or datetime.now()
@@ -730,9 +740,10 @@ LUNCH_DOC_META = {
 # เอกสารที่ต้องกรอกเลข + ลำดับที่แสดง แยกตามวิธีดำเนินการ (ตามชุดเอกสารจริงของแต่ละแบบ)
 #  จ้างเหมา/จ้างแม่ครัว: คำสั่งแต่งตั้งกรรมการ 3 ฉบับ กรอกเลขแยกกัน (cmd-*)
 _MODE_DOCS = {
-    "ingredient": ["report", "borrow", "loan", "repay", "inspect-notify", "inspect-assign"],
+    # สัญญายืม (loan) กรอกที่การ์ดยืมเงินของรอบ (lunch_loan.py) ไม่อยู่ในรายการเลขที่หนังสือ
+    "ingredient": ["report", "borrow", "repay", "inspect-notify", "inspect-assign"],
     # ช่วงที่ 1 ซื้อวัตถุดิบ (ยืมเงิน/ส่งใช้) -> ช่วงที่ 2 จ้างแม่ครัว (รายงานขอจ้าง->ตกลงจ้าง + คำสั่งกรรมการ)
-    "person":     ["borrow", "loan", "repay",
+    "person":     ["borrow", "repay",
                    "hire-report", "result", "order",
                    "cmd-inspect", "cmd-cook_control", "cmd-food_inspect"],
     "hire":       ["tor-request", "cmd-tor", "cmd-control", "cmd-inspect",
@@ -901,6 +912,62 @@ async def round_set_docno(rid: int, request: Request, db: Session = Depends(get_
     return JSONResponse({"ok": True, "dates_be": dates_be})
 
 
+def _back_buy(rid, msg="", err=""):
+    from urllib.parse import quote
+    q = ("?msg=" + quote(msg)) if msg else (("?err=" + quote(err)) if err else "")
+    return RedirectResponse(f"/lunch/round/{rid}/plan{q}#buy", status_code=303)
+
+
+@router.post("/lunch/round/{rid}/loan")
+async def round_loan_save(rid: int, request: Request, db: Session = Depends(get_db)):
+    """ยืมเงินซื้อวัตถุดิบ: กรอกที่หน้ารอบ ระบบสร้างสัญญาในทะเบียนคุมเงินยืมของการเงินให้"""
+    from app.services import lunch_loan as ll
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return RedirectResponse("/lunch", status_code=303)
+    form = await request.form()
+    if form.get("action") == "remove":
+        loan = ll.loan_of(rnd)
+        if loan and loan.returns:
+            return _back_buy(rid, err="บันทึกส่งใช้ไปแล้ว ยกเลิกการส่งใช้ก่อนยกเลิกสัญญายืม")
+        ll.remove(db, rnd)
+        _sync_round_ledger(db, rnd)
+        db.commit()
+        return _back_buy(rid, msg="ยกเลิกสัญญายืมเงินแล้ว")
+    loan, err = ll.save(db, rnd, get_school(db), contract_no=form.get("contract_no") or "",
+                        date=parse_be_date(form.get("date") or ""),
+                        receive_date=parse_be_date(form.get("receive_date") or ""),
+                        amount=_to_float(form.get("amount"), 0.0), borrower=form.get("borrower") or "")
+    if err:
+        db.rollback()
+        return _back_buy(rid, err=err)
+    _sync_round_ledger(db, rnd)
+    db.commit()
+    return _back_buy(rid, msg="บันทึกการยืมเงินแล้ว" + (" ลงจ่ายเงินยืมในบัญชีแล้ว" if loan.receive_date else ""))
+
+
+@router.post("/lunch/round/{rid}/loan/repay")
+async def round_loan_repay(rid: int, request: Request, db: Session = Depends(get_db)):
+    """ส่งใช้เงินยืม: ใบสำคัญ = ค่าวัตถุดิบ + ค่าเชื้อเพลิง เงินสดเหลือคืนลงรับในบัญชี"""
+    from app.services import lunch_loan as ll
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return RedirectResponse("/lunch", status_code=303)
+    form = await request.form()
+    if form.get("action") == "undo":
+        ll.undo_repay(db, rnd)
+        msg, err = "ยกเลิกการส่งใช้แล้ว", ""
+    else:
+        err = ll.repay(db, rnd, parse_be_date(form.get("date") or ""))
+        msg = "" if err else "บันทึกส่งใช้เงินยืมแล้ว"
+    if err:
+        db.rollback()
+        return _back_buy(rid, err=err)
+    _sync_round_ledger(db, rnd)
+    db.commit()
+    return _back_buy(rid, msg=msg)
+
+
 @router.post("/lunch/round/{rid}/status")
 async def round_set_status(rid: int, request: Request, db: Session = Depends(get_db),
                            status: str = Form("")):
@@ -941,6 +1008,8 @@ def round_delete(rid: int, db: Session = Depends(get_db)):
             if proc and "จ้างเหมาประกอบอาหารกลางวัน" in (proc.subject or ""):
                 db.delete(proc)
         from app.services.doc_number import remove_issued
+        from app.services.lunch_loan import remove as _loan_remove
+        _loan_remove(db, rnd)                           # สัญญายืม + รายการจ่าย/รับคืนเงินยืม
         remove_issued(db, "lunch", rnd.id, "memo")      # ล้างเลขรวมแบบเดิม (ก่อนแยกรายฉบับ)
         remove_issued(db, "lunch", rnd.id, "command")
         for _k, meta in LUNCH_DOC_META.items():         # ล้างเลขรายฉบับ (ref = rnd.id*100+idx)
@@ -1434,8 +1503,24 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         "check_list": doc_check.get("r", []),
         "pay_by_round": _pays_by_round(rnd),
         "round_pay": _round_pay(db, rnd) if _pays_by_round(rnd) else None,
+        "loan": _loan_state(rnd) if rnd.program.operate_mode in ("person", "ingredient") else None,
+        **_close_ctx(rnd),
         "setup": _round_setup(rnd, committees, com_kinds, doc_no_rows, menu_days, ing_total, ing_remaining),
     })
+
+
+def _loan_state(rnd):
+    from app.services.lunch_loan import state
+    return state(rnd)
+
+
+def _close_ctx(rnd) -> dict:
+    """ยอดที่จะลงบัญชีตอนปิดรอบ (แม่ครัว/ซื้อวัตถุดิบ) ให้หน้ารอบบอกก่อนกด"""
+    if rnd.program.operate_mode not in ("person", "ingredient"):
+        return {"close_amount": 0.0, "close_parts": ""}
+    from app.services.lunch_loan import close_info
+    amount, parts = close_info(rnd)
+    return {"close_amount": amount, "close_parts": parts}
 
 
 def _pays_by_round(rnd):

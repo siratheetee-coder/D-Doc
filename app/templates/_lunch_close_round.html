@@ -1,0 +1,24 @@
+{# ปิดรอบ (แม่ครัว/ซื้อวัตถุดิบ): ตั้งสถานะ "จ่ายแล้ว" ระบบลงบัญชีเฉพาะส่วนที่เงินยืมไม่ได้จ่าย (lunch_loan.py) #}
+{% set PAID = r.status == 'จ่ายแล้ว' %}
+<div class="bf-repay {{ 'is-done' if PAID }}">
+  {% if PAID %}
+  <div class="bf-loan-status" style="margin:0;">
+    <span class="bf-chip ok">ปิดรอบแล้ว{% if close_amount > 0 %} ลงจ่ายในบัญชี {{ "{:,.2f}".format(close_amount) }} บาท{% endif %}</span>
+    <form method="post" action="/lunch/round/{{ r.id }}/status" style="display:inline; margin:0;" onsubmit="return confirm('ยกเลิกการปิดรอบ? รายการจ่ายตอนปิดรอบในบัญชีจะถูกลบ');">
+      <input type="hidden" name="status" value="จ้างแล้ว"><input type="hidden" name="back" value="/lunch/round/{{ r.id }}/plan#close">
+      <button class="btn sm gray" type="submit" data-no-floating-save>ยกเลิกการปิดรอบ</button>
+    </form>
+  </div>
+  {% else %}
+  <div style="font-size:14px;">
+    {% if close_amount > 0 %}ปิดรอบแล้วระบบลงจ่ายในบัญชี <b>{{ "{:,.2f}".format(close_amount) }}</b> บาท
+      <span class="muted">({{ close_parts }})</span>
+    {% else %}ค่าใช้จ่ายทั้งหมดของรอบนี้จ่ายจากเงินยืมแล้ว ปิดรอบโดยไม่ต้องลงบัญชีเพิ่ม{% endif %}
+  </div>
+  <form method="post" action="/lunch/round/{{ r.id }}/status" style="margin:8px 0 0;"
+        {% if loan and loan.loan and not loan.repaid %}onsubmit="return confirm('ยังไม่ได้บันทึกส่งใช้เงินยืม ปิดรอบเลยหรือไม่?');"{% endif %}>
+    <input type="hidden" name="status" value="จ่ายแล้ว"><input type="hidden" name="back" value="/lunch/round/{{ r.id }}/plan#close">
+    <button class="btn" type="submit" data-no-floating-save><svg class="icon"><use href="#ic-check"/></svg> {{ 'จ่ายค่าจ้างแล้ว ปิดรอบ' if p.operate_mode == 'person' else 'ปิดรอบ' }}</button>
+  </form>
+  {% endif %}
+</div>

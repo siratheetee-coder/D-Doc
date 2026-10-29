@@ -5,6 +5,8 @@ module_setup.py - รายการเริ่มต้นของงาน�
 แบบเดียวกับการเงิน/พัสดุ/วิชาการ (กล่อง _setup_checklist.html): ติ๊กจากข้อมูลจริง
 ขั้นถัดไปขั้นเดียวพร้อมปุ่ม บอกตรง ๆ ว่ายังขาดอะไร ครบแล้วกล่องหายเอง
 """
+import json
+
 from app.models import Person
 
 
@@ -232,19 +234,42 @@ def lunch_round_steps(rnd, *, committees, com_labels, doc_rows, menu_days, ing_t
                               detail=("จ่ายแล้ว ระบบลงบัญชีให้แล้ว" if paid
                                       else "ออกเอกสารขอเบิกจ่ายทั้งรอบ แล้วกด \"บันทึกว่าจ่ายทั้งรอบแล้ว\""),
                               href=page + "#installments", cta="ไปที่จ่ายเงินทั้งรอบ"))
-    elif mode == "person":
-        steps = [period_step((rnd.cook_wage or 0) > 0, f"ค่าจ้าง {rnd.cook_wage or 0:,.2f} บาท"), vendor_step,
-                 com_step, doc_step, menu_step, ing_step, order_step,
-                 dict(title="เบิกจ่ายและปิดรอบ", done=paid,
-                      detail=("จ่ายแล้ว ระบบลงบัญชีให้แล้ว" if paid
-                              else "ออกเอกสารขอเบิกจ่ายค่าจ้างและส่งใช้เงินยืม แล้วตั้งสถานะรอบเป็น \"จ่ายแล้ว\""),
-                      href=f"/lunch/{pid}/rounds", cta="ตั้งสถานะรอบ")]
     else:
-        steps = [period_step(), com_step, doc_step, menu_step, ing_step,
-                 dict(title="ส่งใช้เงินยืมและปิดรอบ", done=paid,
-                      detail=("จ่ายแล้ว ระบบลงบัญชีให้แล้ว" if paid
-                              else "ออกเอกสารส่งใช้เงินยืม แล้วตั้งสถานะรอบเป็น \"จ่ายแล้ว\""),
-                      href=f"/lunch/{pid}/rounds", cta="ตั้งสถานะรอบ")]
+        # แม่ครัว/ซื้อวัตถุดิบ: ลำดับเดียวกับเส้นทางงานในหน้ารอบ (_lunch_buy_flow.html)
+        from app.services.lunch_loan import state as loan_state
+        ls = loan_state(rnd)
+        old = paid and not ls["loan"]          # ปิดรอบไปก่อนมีการ์ดยืมเงิน
+        loan_step = dict(title="ยืมเงินซื้อวัตถุดิบ", done=old or ls["received"],
+                         detail=("ปิดรอบไปก่อนมีการ์ดยืมเงิน" if old
+                                 else (f"ยืม {ls['amount']:,.2f} บาท " + ("ได้รับเงินแล้ว" if ls["received"]
+                                                                        else "ใส่วันที่ได้รับเงินเมื่อได้รับแล้ว"))
+                                 if ls["loan"] else
+                                 f"ยอดยืม {ls['amount']:,.2f} บาท กรอกที่หน้ารอบ ระบบสร้างสัญญาในทะเบียนคุมเงินยืมให้"),
+                         href=page + "#loan", cta="ไปที่ยืมเงิน")
+        repay_step = dict(title="ส่งใช้เงินยืม", done=old or (ls["repaid"] and not ls["stale"]),
+                          detail=("ปิดรอบไปก่อนมีการ์ดยืมเงิน" if old
+                                  else f"ใบสำคัญ {ls['vouchers']:,.2f} เงินสดคืน {ls['cash']:,.2f} บาท" if ls["repaid"]
+                                  else "ซื้อและกรอกวัตถุดิบครบแล้ว บันทึกส่งใช้ ระบบคิดเงินสดคืนให้"),
+                          href=page + "#repay", cta="ไปที่ส่งใช้")
+        doc_step["href"] = page + "#buy"
+        close_step = dict(title="จ่ายค่าจ้างและปิดรอบ" if mode == "person" else "ปิดรอบ", done=paid,
+                          detail=("ปิดรอบแล้ว ระบบลงบัญชีให้แล้ว" if paid
+                                  else "กดปิดรอบท้ายหน้า ระบบลงบัญชีเฉพาะส่วนที่เงินยืมไม่ได้จ่าย"),
+                          href=page + "#close", cta="ไปปิดรอบ")
+        if mode == "person":
+            try:
+                order_no = (json.loads(rnd.doc_nos or "{}").get("order") or {}).get("no", "")
+            except Exception:
+                order_no = ""
+            order_no = (order_no or "").strip() or (rnd.order_no or "").strip()
+            order_step = dict(title="จ้างแม่ครัว (เอกสาร 1-9)", done=bool(order_no),
+                              detail=(f"บันทึกตกลงจ้างเลขที่ {order_no}" if order_no
+                                      else "ทำเอกสารจ้างตามลำดับ ใส่เลขที่บันทึกตกลงจ้างในแถวที่ 6"),
+                              href=page + "#hire", cta="ไปที่จ้างแม่ครัว")
+            steps = [period_step((rnd.cook_wage or 0) > 0, f"ค่าจ้าง {rnd.cook_wage or 0:,.2f} บาท"), vendor_step,
+                     com_step, menu_step, loan_step, ing_step, repay_step, order_step, doc_step, close_step]
+        else:
+            steps = [period_step(), com_step, menu_step, loan_step, ing_step, repay_step, doc_step, close_step]
     if not doc_total:                      # รูปแบบที่ไม่มีเลขที่หนังสือให้กรอก ไม่ต้องมีขั้นนี้
         steps = [st for st in steps if st is not doc_step]
     return _pack(steps)

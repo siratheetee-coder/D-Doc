@@ -1,0 +1,258 @@
+{# เส้นทางงานของรอบ แม่ครัว/ซื้อวัตถุดิบ เรียงตามงานจริง (คู่มือ สพฐ. 2569)
+   ช่วงที่ 1 ซื้อวัตถุดิบ: ขอซื้อ > ยืมเงิน > ซื้อและกรอกวัตถุดิบ > ตรวจรับ > ส่งใช้เงินยืม
+   ช่วงที่ 2 จ้างแม่ครัว (person): เอกสาร 1-9 > จ่ายค่าจ้างและปิดรอบ
+   เลขที่/วันที่ของเอกสารแต่ละฉบับกรอกในแถวของเอกสารนั้นเลย (เดิมแยกอยู่การ์ดเลขที่หนังสือ) #}
+{% set DN = {} %}{% for d in doc_no_rows %}{% set _ = DN.update({d.kind: d}) %}{% endfor %}
+{% set PERSON = p.operate_mode == 'person' %}
+{% set ID = '/lunch/round/' ~ r.id ~ '/ingredient-doc/' %}
+{% set PD = '/lunch/round/' ~ r.id ~ '/person-doc/' %}
+{% macro drow(n, label, url, kind=None, sub='') %}
+  {% set d = DN.get(kind) if kind else None %}
+  <div class="bf-row{% if d %} dn-doc{% if d.fields|selectattr('value')|list %} saved{% endif %}{% endif %}"{% if d %} data-kind="{{ d.kind }}"{% endif %}>
+    <span class="bf-n">{{ n }}</span>
+    <div class="bf-main">
+      <div><b>{{ label }}</b>{% if d %} <span class="dn-tag">✓ ลงเลขแล้ว</span>{% endif %}{% if sub %} <span class="bf-sub">{{ sub }}</span>{% endif %}</div>
+      {% if d %}
+      <div class="bf-fields">
+        {% for f in d.fields %}
+        {% if f.type == 'date' %}<input class="dn-f" data-key="{{ f.key }}" value="{{ f.value }}" placeholder="{{ f.label }} วว/ดด/ปปปป" data-date="1" aria-label="{{ f.label }}">
+        {% else %}<input class="dn-f" data-key="{{ f.key }}" value="{{ f.value }}" placeholder="{{ f.label }}{% if d.suggest %} เช่น {{ d.suggest }}{% endif %}" aria-label="{{ f.label }}">{% endif %}
+        {% endfor %}
+        <button type="button" class="btn sm soft dn-save" onclick="saveDocNo(this)" data-no-floating-save>บันทึก</button>
+      </div>
+      {% endif %}
+    </div>
+    <a class="btn sm gray bf-dl" href="{{ url }}"><svg class="icon"><use href="#ic-download"/></svg> ออกเอกสาร</a>
+  </div>
+{% endmacro %}
+{% macro step(n, title, done=False, anchor='') %}
+  <div class="bf-step{{ ' is-done' if done }}"{% if anchor %} id="{{ anchor }}"{% endif %}>
+    <span class="bf-dot">{{ '✓' if done else n }}</span><h3>{{ title }}</h3>
+  </div>
+{% endmacro %}
+{% set L = loan %}
+{% set ln = L.loan if L else None %}
+
+{# ข้อความสำเร็จ (msg) แสดงที่หน้ารอบอยู่แล้ว ตรงนี้แสดงเฉพาะข้อผิดพลาด #}
+{% if request.query_params.get('err') %}<div class="alert warn" style="margin-bottom:14px;">{{ request.query_params.get('err') }}</div>{% endif %}
+
+<div class="card bf" id="buy">
+  <div class="bf-head">
+    <div>
+      {% if PERSON %}<div class="bf-phase">ช่วงที่ 1</div>{% endif %}
+      <h2 style="margin:0;">ซื้อวัตถุดิบ</h2>
+      <div class="muted" style="font-size:13.5px;">ยืมเงินไปซื้อ แล้วส่งใช้ด้วยใบสำคัญและเงินสดที่เหลือ{% if PERSON %} (ค่าจ้างแม่ครัวไม่ต้องยืม จ่ายในช่วงที่ 2){% endif %}</div>
+    </div>
+    <a class="btn sm gray" href="{{ ID }}bundle"><svg class="icon"><use href="#ic-download"/></svg> {{ 'ออกเอกสารทั้งชุด (2 ช่วง)' if PERSON else 'ออกเอกสารทั้งชุด' }}</a>
+  </div>
+
+  {# ---------- 1 ขอซื้อ ---------- #}
+  {% if not PERSON %}
+  {{ step(1, 'ขอซื้อและแต่งตั้งกรรมการ', DN.get('report') and DN['report'].fields|selectattr('value')|list) }}
+  <div class="bf-rows">
+    {{ drow('1.1', 'รายการอาหาร (Thai School Lunch)', ID ~ 'menu-list') }}
+    {{ drow('1.2', 'รายงานขอซื้อ + แต่งตั้งกรรมการ', ID ~ 'report', 'report') }}
+  </div>
+  {% endif %}
+
+  {# ---------- 2 ยืมเงิน ---------- #}
+  {% set n0 = 1 if PERSON else 2 %}
+  {{ step(n0, 'ยืมเงินซื้อวัตถุดิบ', L.received, 'loan') }}
+  <div class="bf-loan">
+    {% if r.status == 'จ่ายแล้ว' and not ln %}
+    <p class="muted" style="margin:0;">รอบนี้ปิดไปก่อนมีการ์ดยืมเงิน ระบบลงบัญชีไว้แบบเดิมแล้ว เอกสารด้านล่างยังออกได้ตามปกติ</p>
+    {% else %}
+    <form method="post" action="/lunch/round/{{ r.id }}/loan" class="bf-loan-form">
+      <div><label>เลขที่สัญญายืม</label><input name="contract_no" value="{{ ln.contract_no if ln else '' }}" placeholder="เช่น 1/{{ p.year }}"></div>
+      <div><label>วันที่ยืม</label><input name="date" value="{{ be_date(ln.date) if ln and ln.date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>ผู้ยืม</label><input name="borrower" value="{{ (ln.borrower if ln else '') or p.lunch_officer or '' }}" placeholder="ชื่อ-นามสกุล" list="persons_dl"></div>
+      <div><label>ยอดยืม (บาท)</label><input name="amount" value="{{ '%.2f'|format(L.amount) }}" inputmode="decimal" {{ 'readonly' if L.repaid }}>
+        <small class="muted">{{ p.total_students }} คน x {{ r.days }} วัน x {{ "{:,.2f}".format(p.rate_per_head or 0) }} บาท{% if PERSON and r.cook_wage %} หักค่าจ้างแม่ครัว {{ "{:,.2f}".format(r.cook_wage) }}{% endif %}</small></div>
+      <div><label>วันที่ได้รับเงิน</label><input name="receive_date" value="{{ be_date(ln.receive_date) if ln and ln.receive_date else '' }}" placeholder="ใส่เมื่อได้รับเงินแล้ว" data-date="1">
+        <small class="muted">ใส่แล้วระบบลงจ่ายเงินยืมในบัญชีให้</small></div>
+      <div class="bf-loan-act"><button class="btn" type="submit" data-no-floating-save>{{ 'บันทึกการแก้ไข' if ln else 'บันทึกการยืมเงิน' }}</button></div>
+    </form>
+    {% if ln %}
+    <div class="bf-loan-status">
+      {% if L.received %}<span class="bf-chip ok">ได้รับเงินแล้ว ลงจ่ายเงินยืมในบัญชีแล้ว</span>{% else %}<span class="bf-chip">ยังไม่ได้รับเงิน</span>{% endif %}
+      {% if ln.due_date and not L.repaid %}<span class="bf-chip {{ 'bad' if L.overdue }}">{{ 'เลยกำหนดส่งใช้' if L.overdue else 'ครบกำหนดส่งใช้' }} {{ be_date(ln.due_date) }}</span>{% endif %}
+      <a href="/finance/loans?year={{ ln.fiscal_year }}#loan-{{ ln.id }}">ดูในทะเบียนคุมเงินยืม ›</a>
+      {% if not L.repaid %}
+      <form method="post" action="/lunch/round/{{ r.id }}/loan" style="display:inline; margin:0;" onsubmit="return confirm('ยกเลิกสัญญายืมเงินนี้? รายการจ่ายเงินยืมในบัญชีจะถูกลบด้วย');">
+        <input type="hidden" name="action" value="remove"><button class="btn sm gray" type="submit" data-no-floating-save>ยกเลิกสัญญายืม</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+  <div class="bf-rows">
+    {{ drow(n0 ~ '.1', 'แบบประมาณการค่าใช้จ่าย', ID ~ 'estimate') }}
+    {{ drow(n0 ~ '.2', 'บันทึกขออนุมัติยืมเงิน', ID ~ 'borrow', 'borrow') }}
+    {{ drow(n0 ~ '.3', 'สัญญาการยืมเงิน (แบบ 8500)', ID ~ 'loan', sub='เลขที่และวันที่มาจากการ์ดยืมเงินด้านบน') }}
+  </div>
+
+  {# ---------- 3 ซื้อและกรอกวัตถุดิบ ---------- #}
+  {% set n1 = n0 + 1 %}
+  {{ step(n1, 'ซื้อวัตถุดิบและกรอกรายวัน', ing_total > 0 and ing_remaining >= 0, 'ingredients') }}
+  <div class="bf-ing">
+    <div class="bf-ing-nums">
+      <div><small>ค่าวัตถุดิบที่กรอก</small><b>{{ "{:,.2f}".format(ing_total) }}</b></div>
+      <div><small>ค่าเชื้อเพลิง</small><b>{{ "{:,.2f}".format(fuel_cost) }}</b></div>
+      <div><small>{{ 'เหลือจากยอดยืม' if ln else 'งบคงเหลือสำหรับวัตถุดิบ' }}</small>
+        {% set left = (L.amount - L.spent) if ln else ing_remaining %}
+        <b style="color:{{ '#dc2626' if left < 0 else '#047857' }};">{{ "{:,.2f}".format(left) }}</b></div>
+    </div>
+    <a class="btn" href="/lunch/{{ p.id }}/ingredients?back=/lunch/round/{{ r.id }}/plan" style="background:linear-gradient(135deg,#ea580c,#f59e0b); border:none;"><svg class="icon"><use href="#ic-clipboard"/></svg> กรอกวัตถุดิบรายวัน</a>
+  </div>
+  <div class="bf-rows">
+    {{ drow(n1 ~ '.1', 'ใบจัดซื้อวัสดุ 4 ส่วน + แนบท้าย', ID ~ 'purchase') }}
+    {{ drow(n1 ~ '.2', 'ใบส่งมอบวัตถุดิบ (รายวัน)', ID ~ 'ingredient-deliver') }}
+    {{ drow(n1 ~ '.3', 'ใบรับรายงานวัตถุดิบ', ID ~ 'material') }}
+    {{ drow(n1 ~ '.4', 'ใบรับรองการจ่ายเงินค่าวัตถุดิบ', ID ~ 'receipt') }}
+    {% if PERSON %}{{ drow(n1 ~ '.5', 'ใบสำคัญรับเงินซื้อวัตถุดิบ (บสค1)', ID ~ 'ingredient-receipt') }}{% endif %}
+  </div>
+
+  {# ---------- 4 ตรวจรับ ---------- #}
+  {% set n2 = n1 + 1 %}
+  {{ step(n2, 'ตรวจรับวัตถุดิบ') }}
+  <div class="bf-rows">
+    {% if not PERSON %}
+    {{ drow(n2 ~ '.1', 'แจ้งประธานกรรมการตรวจรับ', ID ~ 'inspect-notify', 'inspect-notify') }}
+    {{ drow(n2 ~ '.2', 'มอบหมายการตรวจรับวัตถุดิบ', ID ~ 'inspect-assign', 'inspect-assign') }}
+    {% endif %}
+    {{ drow(n2 ~ '.' ~ (1 if PERSON else 3), 'ใบแสดงรายละเอียดการตรวจรับ', ID ~ 'inspect-detail') }}
+    {% if not PERSON %}
+    {{ drow(n2 ~ '.4', 'ใบตรวจรับพัสดุ (ข้อ 175)', ID ~ 'inspect-note') }}
+    {{ drow(n2 ~ '.5', 'สรุปรายการจัดซื้อ (ตรวจรับ)', ID ~ 'summary') }}
+    {{ drow(n2 ~ '.6', 'รายงานการประกอบอาหาร', ID ~ 'control') }}
+    {{ drow(n2 ~ '.7', 'รูปภาพอาหารกลางวัน', ID ~ 'photos') }}
+    {% endif %}
+  </div>
+
+  {# ---------- 5 ส่งใช้เงินยืม ---------- #}
+  {% set n3 = n2 + 1 %}
+  {{ step(n3, 'ส่งใช้เงินยืม', L.repaid and not L.stale, 'repay') }}
+  {% if ln %}
+  <div class="bf-repay {{ 'is-done' if L.repaid and not L.stale }}">
+    <div class="bf-ing-nums">
+      <div><small>ยืม</small><b>{{ "{:,.2f}".format(L.amount) }}</b></div>
+      <div><small>ใช้จริง (วัตถุดิบ + เชื้อเพลิง)</small><b>{{ "{:,.2f}".format(L.spent) }}</b></div>
+      {% if L.over > 0 %}
+      <div class="bf-warn"><small>ใช้เกินยอดยืม</small><b>{{ "{:,.2f}".format(L.over) }}</b><span>ส่วนที่เกินจะลงจ่ายตอนปิดรอบ</span></div>
+      {% else %}
+      <div><small>เงินสดเหลือคืน</small><b>{{ "{:,.2f}".format(L.cash if L.repaid else (L.amount - L.spent)) }}</b></div>
+      {% endif %}
+    </div>
+    {% if L.repaid %}
+    <div class="bf-loan-status">
+      <span class="bf-chip ok">ส่งใช้แล้ว ใบสำคัญ {{ "{:,.2f}".format(L.vouchers) }} เงินสดคืน {{ "{:,.2f}".format(L.cash) }} บาท</span>
+      <form method="post" action="/lunch/round/{{ r.id }}/loan/repay" style="display:inline; margin:0;" onsubmit="return confirm('ยกเลิกการส่งใช้?');">
+        <input type="hidden" name="action" value="undo"><button class="btn sm gray" type="submit" data-no-floating-save>ยกเลิกการส่งใช้</button>
+      </form>
+    </div>
+    {% if L.stale %}<div class="alert warn" style="margin:8px 0 0;">ค่าวัตถุดิบเปลี่ยนหลังบันทึกส่งใช้ กดยกเลิกการส่งใช้แล้วบันทึกใหม่ ยอดจะได้ตรงกัน</div>{% endif %}
+    {% elif L.received %}
+    <form method="post" action="/lunch/round/{{ r.id }}/loan/repay" class="bf-loan-form" style="margin-top:8px;">
+      <div><label>วันที่ส่งใช้</label><input name="date" value="{{ be_date(r.end_date) if r.end_date else today_be }}" data-date="1"></div>
+      <div class="bf-loan-act"><button class="btn" type="submit" data-no-floating-save>บันทึกส่งใช้เงินยืม</button></div>
+    </form>
+    <div class="muted" style="font-size:12.5px;">ระบบลงใบสำคัญและเงินสดคืนในทะเบียนคุมเงินยืม และลงรับเงินสดคืนเข้าบัญชีอาหารกลางวันให้</div>
+    {% else %}
+    <p class="muted" style="margin:6px 0 0;">ใส่วันที่ได้รับเงินในการ์ดยืมเงินก่อน จึงบันทึกส่งใช้ได้</p>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="muted bf-note">กรอกการ์ดยืมเงินด้านบนก่อน ระบบจะคิดยอดใช้จริงและเงินสดคืนให้</p>
+  {% endif %}
+  <div class="bf-rows">
+    {{ drow(n3 ~ '.1', 'บันทึกขออนุมัติส่งใช้เงินยืม', ID ~ 'repay', 'repay') }}
+    {% if not PERSON %}{{ drow(n3 ~ '.2', 'ใบสรุปเบิกเงินชดเชยเงินยืม', ID ~ 'reimburse') }}{% endif %}
+    {{ drow(n3 ~ ('.2' if PERSON else '.3'), 'ใบสรุปเบิกเงินทดรองจ่าย', ID ~ 'reimburse-advance') }}
+  </div>
+
+  {% if not PERSON %}
+  {# ---------- ปิดรอบ (ซื้อวัตถุดิบเอง) ---------- #}
+  {{ step(n3 + 1, 'ปิดรอบ', r.status == 'จ่ายแล้ว', 'close') }}
+  {% include '_lunch_close_round.html' %}
+  {% endif %}
+</div>
+
+{% if PERSON %}
+<div class="card bf" id="hire">
+  <div class="bf-head">
+    <div>
+      <div class="bf-phase">ช่วงที่ 2</div>
+      <h2 style="margin:0;">จ้างแม่ครัว</h2>
+      <div class="muted" style="font-size:13.5px;">ทำเอกสารตามลำดับ 1-9 ค่าจ้าง {{ "{:,.2f}".format(r.cook_wage or 0) }} บาท{% if r.vendor %} ผู้รับจ้าง {{ r.vendor.name }}{% endif %}</div>
+    </div>
+    <a class="btn sm gray" href="{{ PD }}bundle"><svg class="icon"><use href="#ic-download"/></svg> ออกเอกสารทั้งชุด (2 ช่วง)</a>
+  </div>
+  <div class="bf-rows">
+    {{ drow(1, 'รายงานขอจ้าง + แต่งตั้งกรรมการ', PD ~ 'hire-report', 'hire-report') }}
+    {{ drow(2, 'ขอบเขตของงาน (TOR)', PD ~ 'tor') }}
+    {{ drow(3, 'ใบเสนอราคา', PD ~ 'quotation') }}
+    {{ drow(4, 'รายงานผลการพิจารณา', PD ~ 'result', 'result') }}
+    {{ drow(5, 'ประกาศผู้ชนะ', PD ~ 'winner') }}
+    {{ drow(6, 'บันทึกตกลงจ้าง', PD ~ 'order', 'order', sub='ใบสั่งจ้างและเอกสารเบิกจ่ายใช้เลขนี้') }}
+    {{ drow(7, 'ใบสั่งจ้าง', PD ~ 'hire-order') }}
+    {{ drow(8, 'ควบคุม ส่งมอบ ตรวจรับงานจ้าง', PD ~ 'deliver') }}
+    {{ drow(9, 'ขอเบิกจ่ายค่าจ้าง + ใบสำคัญรับเงิน (บคส2)', PD ~ 'disburse') }}
+  </div>
+  <div class="bf-sub-h">คำสั่งแต่งตั้งกรรมการ (ฉบับละเลข)</div>
+  <div class="bf-rows">
+    {% set cn = namespace(i=0) %}
+    {% for d in doc_no_rows if d.kind.startswith('cmd-') %}{% set cn.i = cn.i + 1 %}
+    {{ drow('ค' ~ cn.i, d.label, '/lunch/round/' ~ r.id ~ '/committee-doc', d.kind) }}
+    {% endfor %}
+  </div>
+  <div class="bf-sub-h">เอกสารประกอบการจ่าย</div>
+  <div class="bf-rows">
+    {{ drow('ก', 'หนังสือรับรองการหักภาษี ณ ที่จ่าย', ID ~ 'wht-cook') }}
+    {{ drow('ข', 'ใบสำคัญรับเงิน (แบบทั่วไป)', '/lunch/round/' ~ r.id ~ '/receipt-voucher') }}
+  </div>
+  {{ step(10, 'จ่ายค่าจ้างแม่ครัวและปิดรอบ', r.status == 'จ่ายแล้ว', 'close') }}
+  {% include '_lunch_close_round.html' %}
+</div>
+{% endif %}
+
+<style>
+  .bf h3{ margin:0; font-size:16px; }
+  .bf-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
+  .bf-phase{ font-size:12px; font-weight:700; color:#7c3aed; }
+  .bf-step{ display:flex; align-items:center; gap:10px; margin:18px 0 8px; scroll-margin-top:90px; }
+  .bf-dot{ flex:0 0 28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13.5px;
+           background:linear-gradient(135deg,#e0e7ff,#ede9fe); color:#4338ca; }
+  .bf-step.is-done .bf-dot{ background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff; }
+  .bf-rows{ display:grid; gap:6px; margin-left:38px; }
+  .bf-row{ display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:12px; background:#f8fafc; flex-wrap:wrap; transition:background-color .4s ease; }
+  .bf-row.dn-doc{ border:none; margin:0; }
+  .bf-row.dn-doc.saved{ background:linear-gradient(120deg,#f0fdf4,#f8fafc); }
+  .bf-row.dn-flash{ background:#bbf7d0; }
+  .bf-n{ flex:0 0 auto; min-width:30px; font-size:12.5px; font-weight:700; color:#64748b; }
+  .bf-main{ flex:1 1 260px; min-width:0; }
+  .bf-sub{ font-size:12.5px; color:#64748b; }
+  .bf-fields{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; align-items:center; }
+  .bf-fields input{ width:auto; flex:1 1 140px; max-width:220px; padding:6px 9px; font-size:14px; }
+  .bf-dl{ flex:0 0 auto; margin-left:auto; }
+  .bf-sub-h{ margin:14px 0 6px 38px; font-weight:700; font-size:14px; color:#475569; }
+  .bf-note{ margin:0 0 8px 38px; }
+  .bf-loan, .bf-ing, .bf-repay{ margin:0 0 8px 38px; padding:12px 14px; border-radius:14px; background:linear-gradient(120deg,#eff6ff,#f5f3ff); }
+  .bf-ing{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; background:linear-gradient(120deg,#fff7ed,#fffbeb); }
+  .bf-repay.is-done{ background:linear-gradient(120deg,#f0fdf4,#ecfdf5); }
+  .bf-loan-form{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; align-items:end; margin:0; }
+  .bf-loan-form label{ font-size:13px; }
+  .bf-loan-form small{ display:block; font-size:12px; margin-top:2px; }
+  .bf-loan-act{ display:flex; align-items:flex-end; }
+  .bf-loan-status{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; font-size:13.5px; }
+  .bf-chip{ padding:3px 10px; border-radius:99px; background:#e2e8f0; color:#475569; font-size:12.5px; font-weight:600; }
+  .bf-chip.ok{ background:#bbf7d0; color:#166534; } .bf-chip.bad{ background:#fee2e2; color:#b91c1c; }
+  .bf-ing-nums{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; flex:1 1 420px; }
+  .bf-ing-nums > div{ padding:8px 12px; border-radius:12px; background:#fff; }
+  .bf-ing-nums small{ display:block; color:#64748b; font-size:12.5px; } .bf-ing-nums b{ font-size:17px; }
+  .bf-ing-nums .bf-warn b{ color:#b91c1c; } .bf-ing-nums .bf-warn span{ display:block; font-size:12px; color:#b91c1c; }
+  @media (max-width:640px){
+    .bf-rows, .bf-sub-h, .bf-note, .bf-loan, .bf-ing, .bf-repay{ margin-left:0; }
+    .bf-dl{ margin-left:0; }
+  }
+</style>

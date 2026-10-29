@@ -1485,6 +1485,8 @@ class LunchLedger(Base):
     round_id = Column(Integer, ForeignKey("lunch_hire_round.id"), nullable=True)   # มาจากรอบจ้างเหมา (ถ้าใช่)
     installment_id = Column(Integer, ForeignKey("lunch_installment.id"), nullable=True)  # มาจากงวด (ถ้าใช่)
     finance_txn_id = Column(Integer, ForeignKey("finance_txn.id"), nullable=True)  # รายการคู่ในบัญชีการเงินหลัก
+    loan_id = Column(Integer, ForeignKey("money_loan.id"), nullable=True)          # จ่ายเงินยืมซื้อวัตถุดิบ (ถ้าใช่)
+    loan_return_id = Column(Integer, ForeignKey("loan_return.id"), nullable=True)  # รับคืนเงินสดจากการส่งใช้ (ถ้าใช่)
     created_at = Column(DateTime, default=datetime.now)
 
     program = relationship("LunchProgram", back_populates="ledger")
@@ -1517,10 +1519,12 @@ class LunchHireRound(Base):
     status = Column(String, default="ร่าง")          # ร่าง / จ้างแล้ว / จ่ายแล้ว
     note = Column(String, default="")
     pay_mode = Column(String, default="installment")  # installment=จ่ายทุกงวด / round=ส่งมอบตรวจรับรายงวด จ่ายครั้งเดียวทั้งรอบ
+    loan_id = Column(Integer, ForeignKey("money_loan.id"), nullable=True)  # สัญญายืมเงินซื้อวัตถุดิบ (แม่ครัว/ซื้อวัตถุดิบ) ในทะเบียนคุมเงินยืม
     created_at = Column(DateTime, default=datetime.now)
 
     program = relationship("LunchProgram", back_populates="rounds")
     vendor = relationship("Vendor")
+    loan = relationship("MoneyLoan")
     installments = relationship("LunchInstallment", back_populates="round",
                                cascade="all, delete-orphan", order_by="LunchInstallment.seq")
     committees = relationship("LunchCommittee", back_populates="round",

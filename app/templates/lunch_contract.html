@@ -14,6 +14,8 @@
     {% if p.operate_mode == 'person' %}<tr><th>ค่าจ้างแม่ครัว (ทั้งรอบ)</th><td><b>{{ "{:,.2f}".format(wage) }}</b> บาท</td></tr>{% endif %}
     <tr><th>ค่าเชื้อเพลิง (รอบนี้)</th><td>{{ "{:,.2f}".format(fuel_cost) }} บาท</td></tr>
     <tr><th>งบสำหรับวัตถุดิบ</th><td>{{ "{:,.2f}".format(ing_budget) }} บาท <span class="muted">(งบรายหัว {{ r.days }} วัน − ค่าจ้าง − ค่าเชื้อเพลิง)</span></td></tr>
+    {% if loan and loan.loan %}<tr><th>ยืมเงินซื้อวัตถุดิบ</th><td><b>{{ "{:,.2f}".format(loan.amount) }}</b> บาท
+      <span class="muted">{{ 'ส่งใช้แล้ว' if loan.repaid else ('ได้รับเงินแล้ว' if loan.received else 'ยังไม่ได้รับเงิน') }}</span> <a href="#loan">ไปที่ยืมเงิน ›</a></td></tr>{% endif %}
     <tr><th>ค่าวัตถุดิบ (กรอกแล้ว)</th><td><b style="color:var(--brand-dark);">{{ "{:,.2f}".format(ing_total) }}</b> บาท</td></tr>
     <tr style="font-weight:700; background:#f1f5f9;"><th>งบคงเหลือสำหรับวัตถุดิบ</th><td><b style="font-size:17px; color:{{ '#dc2626' if ing_remaining < 0 else 'var(--brand-dark)' }};">{{ "{:,.2f}".format(ing_remaining) }}</b> บาท{% if ing_remaining < 0 %} <span style="color:#dc2626;">เกินงบ!</span>{% endif %}</td></tr>
     {% else %}
@@ -649,15 +651,7 @@
 </div>
 
 {% if p.operate_mode in ['person','ingredient'] %}
-<!-- ============ กรอกวัตถุดิบรายวัน (ต่อจากเมนู - สำหรับชุดซื้อวัตถุดิบ) ============ -->
-<div class="card" style="background:linear-gradient(135deg,#fff7ed,#ffedd5); border:1px solid #fed7aa;">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-    <div><b>🥬 วัตถุดิบรายวัน (ชุดซื้อวัตถุดิบ)</b>
-      <div class="muted" style="font-size:13px;">กรอกวัตถุดิบ/เครื่องปรุงที่ซื้อแต่ละวัน แล้วเอกสาร "ใบรับรายงานวัตถุดิบ / ใบจัดซื้อวัสดุ / ใบรับรองการจ่ายเงิน" จะดึงไปเติมให้อัตโนมัติ</div>
-    </div>
-    <a class="btn" href="/lunch/{{ p.id }}/ingredients?back=/lunch/round/{{ r.id }}/plan" style="background:linear-gradient(135deg,#ea580c,#f59e0b); border:none; white-space:nowrap;"><svg class="icon"><use href="#ic-clipboard"/></svg> กรอกวัตถุดิบรายวัน</a>
-  </div>
-</div>
+{% include '_lunch_buy_flow.html' %}
 {% endif %}
 
 <!-- ============ เลขที่/วันที่เอกสารรายฉบับ (กรอกก่อนออกเอกสาร → เชื่อมทะเบียนกลาง) ============ -->
@@ -671,6 +665,7 @@
   .dn-tag{font-size:12px; color:#16a34a; font-weight:600; display:none; margin-left:6px;}
   .dn-doc.saved .dn-tag{display:inline;}
 </style>
+{% if p.operate_mode not in ['person','ingredient'] %}
 <div class="card" id="docnos">
   <h2><svg class="icon"><use href="#ic-clipboard"/></svg> เลขที่หนังสือของแต่ละเอกสาร</h2>
   <p class="muted" style="margin-top:0;">เอกสารแต่ละฉบับมีเลข/วันที่ของตัวเอง (ต่างกันตามชนิดเอกสาร) กรอกที่นี่ก่อนออกเอกสาร แล้วระบบจะพิมพ์ลงเอกสารและบันทึกเข้าทะเบียนเลขหนังสือกลางให้อัตโนมัติ</p>
@@ -695,6 +690,7 @@
   </div>
   {% endfor %}
 </div>
+{% endif %}
 <script>
 (function(){
   function markUnsaved(box){
@@ -732,12 +728,14 @@
 </script>
 {% endif %}
 
-<!-- ============ ใบสำคัญรับเงิน (ใช้ได้ทุกวิธีดำเนินการ) ============ -->
+<!-- ============ ใบสำคัญรับเงิน (จ้างเหมา; แม่ครัว/ซื้อวัตถุดิบ อยู่ใน _lunch_buy_flow) ============ -->
+{% if p.operate_mode not in ['person','ingredient'] %}
 <div class="card">
   <h2><svg class="icon"><use href="#ic-file"/></svg> ใบสำคัญรับเงิน</h2>
   <p class="muted" style="margin-top:0;">ฟอร์มใบสำคัญรับเงิน (ผู้รับจ้าง/ผู้รับเงิน ลงชื่อรับเงิน) ดึงชื่อผู้รับจ้าง วงเงิน และรายการมาให้ กรอกที่อยู่/สตางค์เพิ่มในไฟล์ได้</p>
   <a class="btn gray" href="/lunch/round/{{ r.id }}/receipt-voucher"><svg class="icon"><use href="#ic-download"/></svg> ออกใบสำคัญรับเงิน</a>
 </div>
+{% endif %}
 
 <!-- ============ เอกสารรายงวด (ออกได้จากตรงนี้ ไม่ต้องเลื่อนขึ้นไปตารางงวด) ============ -->
 {% if installments %}
@@ -762,119 +760,7 @@
 {% endif %}
 
 <!-- ============ ออกเอกสาร (หลังกรอกกรรมการ เพื่อให้ข้อมูลครบก่อน gen) ============ -->
-{% if p.operate_mode == 'ingredient' %}
-<div class="card">
-  <h2>ออกเอกสารซื้อวัตถุดิบ (ยืมเงิน → ส่งใช้)</h2>
-  <p class="muted" style="margin-top:0;">กรอกเลขที่/วันที่สัญญายืม จำนวนวัน และวงเงินให้ครบก่อน เอกสารจะดึงข้อมูลไปกรอกให้ (ตามคู่มืออาหารกลางวัน สพฐ.)</p>
-  <div class="tipbox" style="margin:0 0 12px;">
-    <a class="btn sm" href="/lunch/{{ p.id }}/ingredients?back=/lunch/round/{{ r.id }}/plan"><svg class="icon"><use href="#ic-clipboard"/></svg> กรอกวัตถุดิบรายวัน</a>
-    <span class="muted" style="font-size:13px; margin-left:8px;">กรอกวัตถุดิบ/ราคาต่อวัน แล้วใบรับรายงานวัตถุดิบ ใบรับรองจ่ายเงิน สรุปตรวจรับ จะดึงไปเติมให้อัตโนมัติ</span>
-  </div>
-  <a class="btn" href="/lunch/round/{{ r.id }}/ingredient-doc/bundle" style="font-size:16px; padding:11px 20px;">
-    <svg class="icon"><use href="#ic-download"/></svg> ออกเอกสารทั้งชุด (ไฟล์เดียว)
-  </a>
-  <p class="muted" style="margin:14px 0 6px;">หรือออกทีละใบ:</p>
-  <div style="display:flex; gap:8px; flex-wrap:wrap;">
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/menu-list"><svg class="icon"><use href="#ic-file"/></svg> รายการอาหาร (Thai School Lunch)</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/report"><svg class="icon"><use href="#ic-file"/></svg> รายงานขอซื้อ + แต่งตั้งกรรมการ</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/borrow"><svg class="icon"><use href="#ic-file"/></svg> ขออนุมัติยืมเงิน</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/loan"><svg class="icon"><use href="#ic-file"/></svg> สัญญาการยืมเงิน (แบบ 8500)</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/estimate"><svg class="icon"><use href="#ic-file"/></svg> แบบประมาณการ</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/repay"><svg class="icon"><use href="#ic-file"/></svg> อนุมัติเบิกจ่ายส่งใช้เงินยืม</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/reimburse"><svg class="icon"><use href="#ic-file"/></svg> ใบสรุปเบิกเงินชดเชยเงินยืม</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/material"><svg class="icon"><use href="#ic-file"/></svg> ใบรับรายงานวัตถุดิบ</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/receipt"><svg class="icon"><use href="#ic-file"/></svg> ใบรับรองการจ่ายเงินค่าวัตถุดิบ</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/summary"><svg class="icon"><use href="#ic-file"/></svg> สรุปรายการจัดซื้อ (ตรวจรับ)</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/photos"><svg class="icon"><use href="#ic-file"/></svg> รูปภาพอาหารกลางวัน</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/control"><svg class="icon"><use href="#ic-file"/></svg> รายงานการประกอบอาหาร</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/inspect-notify"><svg class="icon"><use href="#ic-file"/></svg> แจ้งประธานกรรมการตรวจรับ</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/inspect-assign"><svg class="icon"><use href="#ic-file"/></svg> มอบหมายการตรวจรับวัตถุดิบ</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/inspect-detail"><svg class="icon"><use href="#ic-file"/></svg> ใบแสดงรายละเอียดการตรวจรับ</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/inspect-note"><svg class="icon"><use href="#ic-file"/></svg> ใบตรวจรับพัสดุ (ข้อ 175)</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/ingredient-deliver"><svg class="icon"><use href="#ic-file"/></svg> ใบส่งมอบวัตถุดิบ (รายวัน)</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/reimburse-advance"><svg class="icon"><use href="#ic-file"/></svg> ใบสรุปเบิกเงินทดรองจ่าย</a>
-    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/purchase"><svg class="icon"><use href="#ic-file"/></svg> ใบจัดซื้อวัสดุ 4 ส่วน + แนบท้าย</a>
-  </div>
-</div>
-{% elif p.operate_mode == 'person' %}
-<style>
-  .ph-tabs{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;}
-  .ph-tab{flex:1; min-width:200px; text-align:left; cursor:pointer; border:1.5px solid var(--border);
-    border-radius:12px; padding:12px 16px; background:var(--surface); transition:.15s; font-family:inherit;}
-  .ph-tab:hover{border-color:#c7b8f5;}
-  .ph-tab.active{border-color:#7c3aed; background:linear-gradient(135deg,#f5f3ff,#eef2ff); box-shadow:0 4px 14px -6px rgba(124,58,237,.5);}
-  .ph-tab .ph-step{font-size:12px; font-weight:700; color:#7c3aed;}
-  .ph-tab .ph-name{font-size:16px; font-weight:800; color:#1b2433; margin-top:2px;}
-  .ph-tab .ph-sub{font-size:12.5px; color:var(--muted); margin-top:1px;}
-  .ph-panel{display:none;}
-  .ph-panel.active{display:block; animation:fadeIn .2s ease;}
-  @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-</style>
-<div class="card">
-  <h2 style="margin-top:0;">ออกเอกสารจ้างแม่ครัว</h2>
-  <p class="muted" style="margin-top:0;">ทำ 2 ช่วงตามลำดับ กรอกผู้รับจ้าง เลขที่/วันที่ตกลงจ้าง งวดจ่ายเงิน และกรรมการให้ครบก่อน (ตามคู่มืออาหารกลางวัน สพฐ.)</p>
-
-  <div class="ph-tabs">
-    <button type="button" class="ph-tab active" data-ph="1" onclick="showPhase(1)">
-      <div class="ph-step">ช่วงที่ 1</div><div class="ph-name">🛒 ซื้อวัตถุดิบ</div>
-      <div class="ph-sub">ยืมเงิน → จัดหา → ตรวจรับ → ส่งใช้เงินยืม (โรงเรียนจัดหาวัตถุดิบเอง)</div>
-    </button>
-    <button type="button" class="ph-tab" data-ph="2" onclick="showPhase(2)">
-      <div class="ph-step">ช่วงที่ 2</div><div class="ph-name">👩‍🍳 จ้างแม่ครัว</div>
-      <div class="ph-sub">รายงานขอจ้าง → TOR → ใบเสนอราคา → ตกลงจ้าง → ส่งมอบ/ตรวจรับ</div>
-    </button>
-  </div>
-
-  <a class="btn" href="/lunch/round/{{ r.id }}/person-doc/bundle" style="font-size:15px; padding:10px 18px;">
-    <svg class="icon"><use href="#ic-download"/></svg> ออกเอกสารทั้งชุด (2 ช่วง ไฟล์เดียว)
-  </a>
-
-  <!-- ช่วงที่ 1: ซื้อวัตถุดิบ -->
-  <div class="ph-panel active" data-ph="1">
-    <p class="muted" style="margin:16px 0 6px;"><b>ช่วงที่ 1 ซื้อวัตถุดิบ</b> ออกทีละใบ:</p>
-    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/borrow"><svg class="icon"><use href="#ic-file"/></svg> ขออนุมัติยืมเงิน</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/loan"><svg class="icon"><use href="#ic-file"/></svg> สัญญาการยืมเงิน (แบบ 8500)</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/estimate"><svg class="icon"><use href="#ic-file"/></svg> แบบประมาณการ</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/purchase"><svg class="icon"><use href="#ic-file"/></svg> ใบจัดซื้อวัสดุ 4 ส่วน + แนบท้าย</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/ingredient-deliver"><svg class="icon"><use href="#ic-file"/></svg> ใบส่งมอบวัตถุดิบ (รายวัน)</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/material"><svg class="icon"><use href="#ic-file"/></svg> ใบรับรายงานวัตถุดิบ</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/inspect-detail"><svg class="icon"><use href="#ic-file"/></svg> ใบแสดงรายละเอียดการตรวจรับ</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/receipt"><svg class="icon"><use href="#ic-file"/></svg> ใบรับรองการจ่ายเงิน</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/ingredient-receipt"><svg class="icon"><use href="#ic-file"/></svg> ใบสำคัญรับเงินซื้อวัตถุดิบ (บสค1)</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/reimburse-advance"><svg class="icon"><use href="#ic-file"/></svg> ใบสรุปเบิกเงินทดรองจ่าย</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/repay"><svg class="icon"><use href="#ic-file"/></svg> ขออนุมัติส่งใช้เงินยืม</a>
-    </div>
-    <p class="muted" style="margin:12px 0 0; font-size:13px;">💡 กรอกรายการวัตถุดิบรายวัน + ค่าเชื้อเพลิงให้ครบก่อน แล้วค่อยไปช่วงที่ 2</p>
-  </div>
-
-  <!-- ช่วงที่ 2: จ้างแม่ครัว -->
-  <div class="ph-panel" data-ph="2">
-    <p class="muted" style="margin:16px 0 6px;"><b>ช่วงที่ 2 จ้างแม่ครัว</b> (9 ขั้นตามลำดับ) ออกทีละใบ:</p>
-    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/hire-report"><svg class="icon"><use href="#ic-file"/></svg> 1. รายงานขอจ้าง + แต่งตั้งกรรมการ</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/tor"><svg class="icon"><use href="#ic-file"/></svg> 2. ขอบเขตของงาน (TOR)</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/quotation"><svg class="icon"><use href="#ic-file"/></svg> 3. ใบเสนอราคา</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/result"><svg class="icon"><use href="#ic-file"/></svg> 4. รายงานผลการพิจารณา</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/winner"><svg class="icon"><use href="#ic-file"/></svg> 5. ประกาศผู้ชนะ</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/order"><svg class="icon"><use href="#ic-file"/></svg> 6. บันทึกตกลงจ้าง</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/hire-order"><svg class="icon"><use href="#ic-file"/></svg> 7. ใบสั่งจ้าง</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/deliver"><svg class="icon"><use href="#ic-file"/></svg> 8. ควบคุม/ส่งมอบ/ตรวจรับงานจ้าง</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/person-doc/disburse"><svg class="icon"><use href="#ic-file"/></svg> 9. ขอเบิกจ่ายค่าจ้าง + ใบสำคัญรับเงิน (บคส2)</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/committee-doc"><svg class="icon"><use href="#ic-file"/></svg> คำสั่งแต่งตั้งกรรมการ</a>
-      <a class="btn sm gray" href="/lunch/round/{{ r.id }}/ingredient-doc/wht-cook"><svg class="icon"><use href="#ic-file"/></svg> หนังสือรับรองหักภาษี ณ ที่จ่าย</a>
-    </div>
-    <p class="muted" style="margin:12px 0 0; font-size:13px;">💡 ขั้น 7-9 (ใบสั่งจ้าง/ส่งมอบ/ตรวจรับ) + ขอเบิกจ่าย ออกได้จากปุ่มในแต่ละงวดด้านบน</p>
-  </div>
-</div>
-<script>
-  function showPhase(n){
-    document.querySelectorAll('.ph-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.ph==String(n)); });
-    document.querySelectorAll('.ph-panel').forEach(function(pn){ pn.classList.toggle('active', pn.dataset.ph==String(n)); });
-    try{ localStorage.setItem('lunchPhase_{{ r.id }}', n); }catch(e){}
-  }
-  (function(){ try{ var s=localStorage.getItem('lunchPhase_{{ r.id }}'); if(s) showPhase(s); }catch(e){} })();
-</script>
+{% if p.operate_mode in ['ingredient','person'] %}{# เอกสารอยู่ในเส้นทางงาน _lunch_buy_flow.html #}
 {% else %}
 <div class="card">
   <h2>ออกเอกสาร (ทั้ง{{ RW }})</h2>
