@@ -89,3 +89,46 @@ def test_backfill_party_from_requisition_and_procurement():
         rows = {t.kind: t for t in s.query(m.MaterialTxn)}
         assert rows["in"].party == "ร้านศึกษาภัณฑ์"
         assert rows["out"].party == "ครูเอ" and rows["out"].note == ""
+
+
+def test_sheets_split_with_carry_and_full_blank_rows(env):
+    """วัสดุ 1 รายการ = 1 ชุดแผ่น แผ่นละ ROWS_PER_SHEET แถว แผ่นต่อไปมีแถวยกมา + เติมบรรทัดว่างจนเต็มแผ่น"""
+    from datetime import datetime, timedelta
+    from types import SimpleNamespace as N
+    from docx import Document
+    from app.services import material_card as mc
+    R = mc.ROWS_PER_SHEET
+    assert [len(c) for c in mc.sheets(list(range(1)))] == [1]
+    assert [len(c) for c in mc.sheets(list(range(R)))] == [R]
+    assert [len(c) for c in mc.sheets(list(range(R + 1)))] == [R, 1]
+    assert [len(c) for c in mc.sheets(list(range(R + 2 * (R - 1))))] == [R, R - 1, R - 1]
+
+    txns = [N(id=i, kind="in" if i % 2 == 0 else "out", qty=2 if i % 2 == 0 else 1, date=datetime(2026, 5, 1) + timedelta(days=i),
+              unit_price=10, party="ร้าน", ref="", note="") for i in range(R + 3)]
+    item = N(name="ปากกา", category="", code="", spec="", unit="ด้าม", location="", max_stock=0, min_stock=0, txns=txns)
+    path = mc.render_material_cards(N(name="ทดสอบ", affiliation=""), [item])
+    doc = Document(path)
+    assert len(doc.tables) == 2
+    body = [len(t.rows) - 2 for t in doc.tables]          # ไม่นับหัวตาราง 2 แถว
+    assert body == [R, R]                                 # เต็มแผ่นทั้งสองแผ่น (แผ่นสองเติมบรรทัดว่าง)
+    second = [c.text for c in doc.tables[1].rows[2].cells]
+    assert second[1] == "ยกมาจากแผ่นที่ 1"
+    assert any("แผ่นที่  2" in p.text for p in doc.paragraphs)
+
+
+def test_delete_many_materials(env):
+    from app.models import MaterialItem, MaterialTxn
+    import app.tenancy as tn
+    with tn.session_for(next(iter(tn._engines))) as s:
+        a, b, c = (MaterialItem(name=n, unit="ชิ้น") for n in ("ลบหลายก", "ลบหลายข", "เก็บไว้"))
+        s.add_all([a, b, c]); s.flush()
+        s.add(MaterialTxn(material_id=a.id, kind="in", qty=3, note="ยอดยกมา"))
+        s.commit(); ids = (a.id, b.id, c.id)
+    r = env.post("/materials/delete-many", data={"material_id": [str(ids[0]), str(ids[1])]}, follow_redirects=False)
+    assert "deleted=2" in r.headers["location"]
+    with tn.session_for(next(iter(tn._engines))) as s:
+        assert s.get(MaterialItem, ids[0]) is None and s.get(MaterialItem, ids[1]) is None
+        assert s.get(MaterialItem, ids[2]) is not None
+        assert s.query(MaterialTxn).filter_by(material_id=ids[0]).count() == 0
+    page = env.get("/materials").text
+    assert 'id="delete-selected"' in page and 'class="group-pick"' in page

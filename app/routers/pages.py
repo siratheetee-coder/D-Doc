@@ -4244,6 +4244,18 @@ async def materials_bulk_add(request: Request, db: Session = Depends(get_db)):
     return RedirectResponse(f"/materials?added={n}", status_code=303)
 
 
+@router.post("/materials/delete-many")
+async def materials_delete_many(request: Request, db: Session = Depends(get_db)):
+    """ลบวัสดุหลายรายการพร้อมกัน (ติ๊กเลือกในหน้าบัญชีวัสดุ) ลบประวัติรับ-จ่ายของรายการนั้นด้วย เหมือนลบทีละรายการ"""
+    form = await request.form()
+    ids = {_to_int(v, 0) for v in form.getlist("material_id")} - {0}
+    n = 0
+    for it in db.query(MaterialItem).filter(MaterialItem.id.in_(ids)).all() if ids else []:
+        db.delete(it); n += 1
+    db.commit()
+    return RedirectResponse(f"/materials?deleted={n}", status_code=303)
+
+
 @router.post("/materials/{item_id}/delete")
 def material_delete(item_id: int, db: Session = Depends(get_db)):
     it = db.get(MaterialItem, item_id)

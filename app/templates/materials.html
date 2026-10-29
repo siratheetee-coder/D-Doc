@@ -10,6 +10,7 @@
   {% if items %}<a class="btn sm" href="/materials-cards.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์บัญชีวัสดุทั้งหมด (Word)</a>{% endif %}
 </div>
 {% if request.query_params.get('added') %}<div class="alert">✔ เพิ่มวัสดุแล้ว {{ request.query_params.get('added') }} รายการ</div>{% endif %}
+{% if request.query_params.get('deleted') %}<div class="alert">✔ ลบวัสดุแล้ว {{ request.query_params.get('deleted') }} รายการ</div>{% endif %}
 
 <div class="card hl">
   <h2><svg class="icon"><use href="#ic-ai"/></svg> เพิ่มหลายรายการจากรูป (สแกน)</h2>
@@ -59,22 +60,30 @@
 <div class="card">
   <h2>รายการวัสดุในคลัง</h2>
   {% if items %}
-  <form id="material-selection" action="/requisitions/new" method="get" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px;background:#eff6ff;border-radius:12px;">
-    <label style="display:flex;gap:8px;align-items:center;"><input type="checkbox" id="select-materials" style="width:20px;height:20px;"> เลือกทั้งหมดที่มีคงเหลือ</label>
+  <form id="material-selection" action="/requisitions/new" method="get" class="mat-bar">
+    <label style="display:flex;gap:8px;align-items:center;"><input type="checkbox" id="select-materials" style="width:20px;height:20px;"> เลือกทั้งหมด</label>
     <span id="selection-count" aria-live="polite">เลือก 0 รายการ</span>
+    <span style="flex:1;"></span>
     <button class="btn" id="issue-selected" disabled>เบิกรายการที่เลือก →</button>
-    <span class="muted">ไปกรอกจำนวนในหน้าเบิกวัสดุ</span>
+    <button type="button" class="btn red" id="delete-selected" disabled><svg class="icon"><use href="#ic-trash"/></svg> ลบที่เลือก</button>
   </form>
+  <form id="material-delete" method="post" action="/materials/delete-many" hidden></form>
+  <style>
+    .mat-bar{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:12px; border-radius:12px; background:linear-gradient(120deg,#eff6ff,#f5f3ff); }
+    .mat-bar .btn[disabled]{ opacity:.45; }
+    tr.is-picked td{ background:#eff6ff; }
+  </style>
   {% for cname, rows in groups %}
   <h3 style="margin:14px 0 6px; color:#1d4ed8; display:flex; flex-wrap:wrap; align-items:center; gap:10px;">{{ cname }} <span class="muted" style="font-weight:400; font-size:14px;">({{ rows|length }} รายการ)</span>
     <a class="btn sm gray" style="margin-left:auto;" href="/materials-cards.docx?category={{ cname|urlencode }}"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์หมวดนี้</a></h3>
   <div class="table-wrap"><table>
-    <thead><tr><th>เลือก</th><th>ชื่อวัสดุ</th><th>หน่วย</th><th class="right">คงเหลือ</th><th>สถานะ</th><th></th></tr></thead>
+    <thead><tr><th><input type="checkbox" class="group-pick" aria-label="เลือกทั้งหมวด {{ cname }}" title="เลือกทั้งหมวด" style="width:20px;height:20px;"></th><th>ชื่อวัสดุ</th><th>หน่วย</th><th class="right">คงเหลือ</th><th>สถานะ</th><th></th></tr></thead>
     <tbody>
       {% for it in rows %}
       {% set bal = mat_balance(it) %}
       <tr>
-        <td><input type="checkbox" class="material-choice" form="material-selection" name="material_id" value="{{ it.id }}" aria-label="เลือก {{ it.name }}" style="width:20px;height:20px;" {{ 'disabled' if bal <= 0 else '' }}></td>
+        <td><input type="checkbox" class="material-choice" form="material-selection" name="material_id" value="{{ it.id }}" aria-label="เลือก {{ it.name }}" style="width:20px;height:20px;"
+                   data-bal="{{ bal }}" data-name="{{ it.name }}" data-hist="{{ it.txns|length }}"></td>
         <td><a href="/materials/{{ it.id }}"><b>{{ it.name }}</b></a></td>
         <td>{{ it.unit }}</td>
         <td class="right"><b>{{ "%g"|format(bal) }}</b></td>
@@ -99,19 +108,55 @@
 </div>
 
 <script>
-  var choices = Array.from(document.querySelectorAll('.material-choice:not(:disabled)'));
+  // เลือกได้ทุกรายการ: เบิก = ส่งเฉพาะที่มีคงเหลือ, ลบ = ลบทุกที่เลือก (พร้อมประวัติ)
+  var choices = Array.from(document.querySelectorAll('.material-choice'));
   var selectAll = document.getElementById('select-materials');
+  var issueBtn = document.getElementById('issue-selected'), delBtn = document.getElementById('delete-selected');
+  function picked(){ return choices.filter(function(c){ return c.checked; }); }
+  function syncBox(box, list){
+    var n = list.filter(function(c){ return c.checked; }).length;
+    box.checked = list.length > 0 && n === list.length;
+    box.indeterminate = n > 0 && n < list.length;
+  }
   function updateSelection(){
-    var count = choices.filter(function(c){return c.checked;}).length;
-    document.getElementById('selection-count').textContent = 'เลือก ' + count + ' รายการ';
-    document.getElementById('issue-selected').disabled = !count;
-    selectAll.checked = choices.length > 0 && count === choices.length;
-    selectAll.indeterminate = count > 0 && count < choices.length;
+    var sel = picked(), stock = sel.filter(function(c){ return parseFloat(c.dataset.bal) > 0; }).length;
+    document.getElementById('selection-count').textContent = 'เลือก ' + sel.length + ' รายการ' +
+      (sel.length && stock < sel.length ? ' (เบิกได้ ' + stock + ' รายการที่มีคงเหลือ)' : '');
+    issueBtn.disabled = !stock;
+    delBtn.disabled = !sel.length;
+    choices.forEach(function(c){ c.closest('tr').classList.toggle('is-picked', c.checked); });
+    syncBox(selectAll, choices);
+    document.querySelectorAll('.group-pick').forEach(function(g){
+      syncBox(g, Array.from(g.closest('table').querySelectorAll('.material-choice')));
+    });
   }
   if(selectAll){
-    selectAll.addEventListener('change', function(){choices.forEach(function(c){c.checked=selectAll.checked;});updateSelection();});
-    choices.forEach(function(c){c.addEventListener('change',updateSelection);});
-    window.addEventListener('pageshow',updateSelection);
+    selectAll.addEventListener('change', function(){ choices.forEach(function(c){ c.checked = selectAll.checked; }); updateSelection(); });
+    document.querySelectorAll('.group-pick').forEach(function(g){
+      g.addEventListener('change', function(){
+        g.closest('table').querySelectorAll('.material-choice').forEach(function(c){ c.checked = g.checked; });
+        updateSelection();
+      });
+    });
+    choices.forEach(function(c){ c.addEventListener('change', updateSelection); });
+    // เบิก: ไม่ส่งรายการที่ไม่มีคงเหลือ
+    document.getElementById('material-selection').addEventListener('submit', function(){
+      choices.forEach(function(c){ if (c.checked && !(parseFloat(c.dataset.bal) > 0)) c.disabled = true; });
+    });
+    window.addEventListener('pageshow', function(){ choices.forEach(function(c){ c.disabled = false; }); updateSelection(); });
+    delBtn.addEventListener('click', function(){
+      var sel = picked();
+      if (!sel.length) return;
+      var hist = sel.filter(function(c){ return +c.dataset.hist > 0; }).length;
+      var names = sel.slice(0, 5).map(function(c){ return '- ' + c.dataset.name; }).join('\n') + (sel.length > 5 ? '\n... และอีก ' + (sel.length - 5) + ' รายการ' : '');
+      var msg = 'ลบวัสดุ ' + sel.length + ' รายการ?\n\n' + names +
+        (hist ? '\n\nมี ' + hist + ' รายการที่มีประวัติรับ-จ่าย ประวัติจะถูกลบไปด้วย และกู้คืนไม่ได้' : '\n\nลบแล้วกู้คืนไม่ได้');
+      if (!confirm(msg)) return;
+      var f = document.getElementById('material-delete');
+      f.innerHTML = '';
+      sel.forEach(function(c){ var i = document.createElement('input'); i.type = 'hidden'; i.name = 'material_id'; i.value = c.value; f.appendChild(i); });
+      f.submit();
+    });
     updateSelection();
   }
 
