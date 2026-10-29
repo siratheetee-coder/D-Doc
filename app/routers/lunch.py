@@ -1408,8 +1408,15 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         "menu_days": menu_days, "round_menus": round_menus,
         "past_mains": past_mains, "past_desserts": past_desserts,
         "doc_no_rows": doc_no_rows,
+        "meal_sum": ({i.id: _meal_summary(db, i) for i in rnd.installments}
+                     if rnd.program.operate_mode == "hire" else {}),
         "setup": _round_setup(rnd, committees, com_kinds, doc_no_rows, menu_days, ing_total, ing_remaining),
     })
+
+
+def _meal_summary(db, inst):
+    from app.services.lunch_meals import summary
+    return summary(db, inst)
 
 
 def _round_setup(rnd, committees, com_kinds, doc_rows, menu_days, ing_total, ing_remaining):
@@ -1535,7 +1542,11 @@ def installment_doc(iid: int, db: Session = Depends(get_db)):
         from app.services.lunch_person_doc import render_p_installment
         path = render_p_installment(inst, get_school(db), menus)
     else:
-        path = render_installment_doc(inst, get_school(db), menus)
+        meals = None
+        if prog.operate_mode == "hire":
+            from app.services.lunch_meals import summary as _ms
+            meals = {"classes": list(prog.classes), "summary": _ms(db, inst)}
+        path = render_installment_doc(inst, get_school(db), menus, meals)
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
@@ -1552,8 +1563,64 @@ def installment_disburse_doc(iid: int, db: Session = Depends(get_db)):
         from app.services.lunch_person_doc import render_p_disburse
         path = render_p_disburse(inst, get_school(db))
     else:
-        path = render_disburse_lunch_doc(inst, get_school(db))
+        from app.services.lunch_meals import summary as _ms
+        path = render_disburse_lunch_doc(inst, get_school(db), penalty=_ms(db, inst)["penalty"])
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.get("/lunch/installment/{iid}/meals", response_class=HTMLResponse)
+def installment_meals(iid: int, request: Request, db: Session = Depends(get_db)):
+    """บันทึกจำนวนนักเรียนที่รับประทานจริง รายวัน x รายชั้น ของงวดหนึ่ง (จ้างเหมาปรุงสำเร็จ)"""
+    from app.services import lunch_meals as lm
+    inst = db.get(LunchInstallment, iid)
+    if not inst:
+        return RedirectResponse("/lunch", status_code=303)
+    rnd, prog = inst.round, inst.round.program
+    s = lm.summary(db, inst)
+    menus = {m.date.date(): " ".join(x for x in ((m.main or "").strip(), (m.dessert or "").strip()) if x)
+             for m in prog.menus if m.date}
+    return templates.TemplateResponse("lunch_meals.html", {
+        "request": request, "i": inst, "r": rnd, "p": prog, "s": s, "menus": menus,
+        "classes": list(prog.classes), "installments": list(rnd.installments),
+        "penalty_rate": lm.PENALTY_RATE, "wht_rate": lm.WHT_RATE,
+    })
+
+
+@router.post("/lunch/installment/{iid}/meals")
+async def installment_meals_save(iid: int, request: Request, db: Session = Depends(get_db)):
+    """บันทึกจำนวนมื้อทั้งงวด (ช่อง m_<วัน ISO>_<class_id>) + วันที่ไม่ส่งมอบ แล้วตั้งยอดงวดตามมื้อจริง"""
+    from datetime import date as _date
+    from app.services import lunch_meals as lm
+    inst = db.get(LunchInstallment, iid)
+    if not inst:
+        return RedirectResponse("/lunch", status_code=303)
+    prog = inst.round.program
+    form = await request.form()
+    valid_days = set(lm.workdays(inst))
+    class_ids = {c.id for c in prog.classes}
+    per_day = {}
+    for key, raw in form.items():
+        if not key.startswith("m_"):
+            continue
+        try:
+            _, iso, cid = key.split("_", 2)
+            day, cid = _date.fromisoformat(iso), int(cid)
+        except ValueError:
+            continue
+        if day in valid_days and cid in class_ids and str(raw).strip() != "":
+            per_day.setdefault(day, {})[cid] = _to_int(raw, 0)
+    for day, per_class in per_day.items():
+        lm.save_day(db, prog, day, per_class)
+    if "penalty_days" in form and (inst.status or "") != "จ่ายแล้ว":
+        inst.penalty_days = max(0, _to_int(form.get("penalty_days"), 0))
+    db.flush()
+    if form.get("use_value") == "1" and (inst.status or "") != "จ่ายแล้ว":
+        inst.amount = lm.summary(db, inst)["value"]
+        changed = True
+    else:
+        changed = lm.apply_amount(db, inst)
+    db.commit()
+    return RedirectResponse(f"/lunch/installment/{iid}/meals?saved=1{'&amt=1' if changed else ''}", status_code=303)
 
 
 @router.get("/lunch/round/{rid}/receipt-voucher")

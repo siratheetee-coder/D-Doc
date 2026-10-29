@@ -252,7 +252,43 @@ def _menu_table3(doc, menus, third_header, sign_col=False):
     return t
 
 
-def render_installment_doc(inst, school, menus) -> str:
+def _meal_sheet(doc, inst, sname, meals):
+    """บัญชีจำนวนนักเรียนที่รับประทานอาหารกลางวันรายวัน (แนบใบส่งมอบงาน) จากที่บันทึกมื้อจริง"""
+    classes, s = meals["classes"], meals["summary"]
+    doc.add_page_break()
+    _p(doc, "บัญชีจำนวนนักเรียนที่รับประทานอาหารกลางวัน", align="center", bold=True, size=18, after=0)
+    _p(doc, f"{sname} งวดที่ {inst.seq} ระหว่างวันที่ {_dnum(inst.start_date)} ถึงวันที่ {_dnum(inst.end_date)}",
+       align="center", after=6)
+    n = len(classes)
+    first, last = Cm(1.0), Cm(2.0)
+    date_w = Cm(3.0)
+    rest = max(Cm(1.1), int((Cm(16.0) - first - date_w - last) / max(n, 1)))
+    headers = ["ที่", "วันที่"] + [c.level for c in classes] + ["รวม"]
+    widths = [first, date_w] + [rest] * n + [last]
+    rows, col_tot = [], [0] * n
+    for k, d in enumerate(s["days"], 1):
+        got = s["counts"].get(d, {})
+        vals = [got.get(c.id) for c in classes]
+        for j, v in enumerate(vals):
+            col_tot[j] += v or 0
+        rows.append([str(k), _dnum(d)] + [("" if v is None else f"{v:,}") for v in vals]
+                    + ([f"{sum(v or 0 for v in vals):,}"] if got else [""]))
+    rows.append(["", "รวม"] + [f"{v:,}" for v in col_tot] + [f"{s['meals']:,}"])
+    t = _simple_table(doc, headers, rows, widths)
+    for r in t.rows[1:]:
+        for c in r.cells[2:]:
+            for para in c.paragraphs:
+                para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    _p(doc, f"รวมนักเรียนที่รับประทานทั้งงวด {s['meals']:,} มื้อ อัตรามื้อละ {s['rate']:,.2f} บาท "
+            f"เป็นเงิน {_money(s['value'])} บาท ({bahttext(s['value'])})", indent=1.25, before=6, after=14)
+    _sign_table(doc, [
+        [("(ลงชื่อ)...........................................ผู้บันทึก", "center"),
+         ("( ........................................... )", "center"),
+         ("ครูผู้รับผิดชอบโครงการอาหารกลางวัน", "center")],
+    ])
+
+
+def render_installment_doc(inst, school, menus, meals=None) -> str:
     doc = Document(); set_a4(doc)
     _font(doc)
     rnd = inst.round
@@ -302,6 +338,8 @@ def render_installment_doc(inst, school, menus) -> str:
         [("(ลงชื่อ)...........................................ผู้ส่งมอบงาน", "center"),
          (f"( {vname} )", "center")],
     ])
+    if meals and meals["summary"]["recorded"]:      # มีบันทึกมื้อจริง: แนบบัญชีจำนวนนักเรียนรายวัน
+        _meal_sheet(doc, inst, sname, meals)
 
     # ===== ส่วนที่ 3: ใบตรวจรับงานจ้าง =====
     doc.add_page_break()
@@ -408,7 +446,7 @@ def _daygroup_table(doc, headers, widths, groups, total=None,
     return t
 
 
-def render_disburse_lunch_doc(inst, school, wht_rate=0.01) -> str:
+def render_disburse_lunch_doc(inst, school, wht_rate=0.01, penalty=0.0) -> str:
     """เอกสารขอเบิกจ่ายรายงวด: บันทึกขออนุมัติ + ใบสำคัญรับเงิน + หนังสือรับรองหักภาษี ณ ที่จ่าย"""
     doc = Document(); set_a4(doc)
     _font(doc)
@@ -425,7 +463,8 @@ def render_disburse_lunch_doc(inst, school, wht_rate=0.01) -> str:
     fund = (prog.funding_org or "").strip() or "องค์กรปกครองส่วนท้องถิ่น"
     amt = round(float(inst.amount or 0), 2)
     wht = round(amt * float(wht_rate or 0), 2)
-    net = round(amt - wht, 2)
+    fine = round(float(penalty or 0), 2)
+    net = round(amt - wht - fine, 2)
     A, W, N = _money(amt), _money(wht), _money(net)
     period = (f"งวดที่ {inst.seq} ระหว่างวันที่ {_dnum(inst.start_date)} ถึงวันที่ "
               f"{_dnum(inst.end_date)} รวม {inst.days or ''} วัน")
@@ -444,7 +483,7 @@ def render_disburse_lunch_doc(inst, school, wht_rate=0.01) -> str:
     mt = doc.add_table(rows=0, cols=2); mt.style = "Table Grid"; mt.autofit = False
     _money_rows = [("จำนวนเงินขอเบิก", A), ("ภาษีมูลค่าเพิ่ม (ถ้ามี)", "-"),
                    ("มูลค่าสินค้า", "-"), ("หักภาษี ณ ที่จ่าย", W),
-                   ("ค่าปรับ (ถ้ามี)", "-"), ("คงเหลือจ่ายจริง", N)]
+                   ("ค่าปรับ (ถ้ามี)", _money(fine) if fine else "-"), ("คงเหลือจ่ายจริง", N)]
     for k, (label, v) in enumerate(_money_rows):
         cells = mt.add_row().cells
         bold = (k == len(_money_rows) - 1)

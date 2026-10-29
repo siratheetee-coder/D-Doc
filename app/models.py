@@ -1559,9 +1559,23 @@ class LunchInstallment(Base):
     inspect_date = Column(DateTime, nullable=True)   # วันที่ตรวจรับ
     status = Column(String, default="ร่าง")          # ร่าง / ส่งมอบแล้ว / ตรวจรับแล้ว / จ่ายแล้ว
     note = Column(String, default="")
+    penalty_days = Column(Integer, default=0)        # วันที่ผู้รับจ้างไม่ส่งมอบตามข้อตกลง (คิดค่าปรับร้อยละ 0.2 ต่อวัน)
     created_at = Column(DateTime, default=datetime.now)
 
     round = relationship("LunchHireRound", back_populates="installments")
+
+
+class LunchMealCount(Base):
+    """จำนวนนักเรียนที่รับประทานอาหารกลางวันจริง รายวัน รายชั้น (จ้างเหมาปรุงสำเร็จ)
+    คู่มือ สพฐ. 2569: โรงเรียนจ่ายเงินตามที่ได้ประกอบอาหารจริงในแต่ละงวด"""
+    __tablename__ = "lunch_meal_count"
+    __table_args__ = (UniqueConstraint("program_id", "date", "class_id", name="uq_lunch_meal"),)
+
+    id = Column(Integer, primary_key=True)
+    program_id = Column(Integer, ForeignKey("lunch_program.id"), nullable=False, index=True)
+    date = Column(DateTime, nullable=False)
+    class_id = Column(Integer, ForeignKey("lunch_class.id"), nullable=False)
+    count = Column(Integer, default=0)
 
 
 class LunchMenu(Base):

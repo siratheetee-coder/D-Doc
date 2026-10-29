@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}มื้อจริง งวดที่ {{ i.seq }}{% endblock %}
+{% block content %}
+{# จำนวนนักเรียนที่รับประทานจริง รายวัน x รายชั้น ของงวด (จ้างเหมาปรุงสำเร็จ) app/services/lunch_meals.py #}
+<div class="card">
+  <div class="ml-head">
+    <div>
+      <h1 style="margin:0;">มื้อจริง งวดที่ {{ i.seq }}</h1>
+      <div class="muted">รอบจัดจ้างที่ {{ r.seq }} ปีการศึกษา {{ p.year }}
+        {% if i.start_date %}ช่วง {{ be_date(i.start_date) }} ถึง {{ be_date(i.end_date) }}{% endif %}
+        {% if r.vendor %}ผู้รับจ้าง {{ r.vendor.name }}{% endif %}</div>
+    </div>
+    <a class="btn sm gray" href="/lunch/round/{{ r.id }}/plan#inst-{{ i.id }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับหน้ารอบจัดจ้าง</a>
+  </div>
+  {% if installments|length > 1 %}
+  <div class="ml-tabs">
+    {% for x in installments %}<a class="ml-tab{{ ' is-on' if x.id == i.id }}" href="/lunch/installment/{{ x.id }}/meals">งวด {{ x.seq }}</a>{% endfor %}
+  </div>
+  {% endif %}
+  {% if request.query_params.get('saved') %}
+  <div class="alert">✔ บันทึกจำนวนมื้อแล้ว{% if request.query_params.get('amt') %} และตั้งยอดงวดตามมื้อจริงให้แล้ว{% endif %}</div>
+  {% endif %}
+
+  <div class="ml-stats">
+    <div class="ml-stat"><small>วันทำการในงวด</small><b>{{ s.days|length }}</b><span>วัน</span></div>
+    <div class="ml-stat {{ 'is-ok' if s.complete else 'is-warn' }}"><small>บันทึกแล้ว</small><b>{{ s.recorded }}</b><span>จาก {{ s.days|length }} วัน</span></div>
+    <div class="ml-stat"><small>มื้อจริงรวม</small><b id="mlMeals">{{ "{:,}".format(s.meals) }}</b><span>มื้อ</span></div>
+    <div class="ml-stat"><small>มื้อจริง x {{ "%.2f"|format(s.rate) }} บาท</small><b id="mlValue">{{ "{:,.2f}".format(s.value) }}</b><span>บาท</span></div>
+  </div>
+</div>
+
+{% if not classes %}
+<div class="card"><p class="muted">ยังไม่มีชั้นเรียนในโครงการนี้ เพิ่มจำนวนนักเรียนรายชั้นที่หน้าโครงการก่อน</p></div>
+{% elif not s.days %}
+<div class="card"><p class="muted">งวดนี้ยังไม่มีช่วงวันที่ ตั้งวันเริ่มและวันสิ้นสุดของงวดที่หน้ารอบจัดจ้างก่อน</p></div>
+{% else %}
+<form method="post" action="/lunch/installment/{{ i.id }}/meals" id="mlForm">
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-clipboard"/></svg> จำนวนนักเรียนที่รับประทาน</h2>
+  <p class="muted" style="margin-top:0;">ระบบเติมจำนวนตามสิทธิ์ให้ทุกช่อง แก้เฉพาะวันที่มีนักเรียนขาด แล้วกดบันทึกครั้งเดียวทั้งงวด
+    วันไหนไม่ได้จัดอาหาร ใส่ 0</p>
+  <div class="table-wrap"><table class="ml-grid">
+    <thead><tr><th>วันที่</th>
+      {% for c in classes %}<th class="center">{{ c.level }}<small>สิทธิ์ {{ c.num_students }}</small></th>{% endfor %}
+      <th class="right">รวม</th><th></th></tr></thead>
+    <tbody>
+    {% for d in s.days %}
+      {% set got = s.counts.get(d) %}
+      <tr class="{{ '' if got else 'is-new' }}" data-row>
+        <td class="ml-day"><b>{{ be_date(d) }}</b>
+          {% if menus.get(d) %}<small>{{ menus.get(d) }}</small>{% endif %}
+          {% if not got %}<span class="ml-new">ยังไม่บันทึก</span>{% endif %}</td>
+        {% for c in classes %}
+        {% set v = got.get(c.id) if got and c.id in got else c.num_students %}
+        <td class="center"><input type="number" min="0" step="1" inputmode="numeric" class="ml-in" name="m_{{ d.isoformat() }}_{{ c.id }}"
+               value="{{ v }}" data-max="{{ c.num_students }}" aria-label="{{ c.level }} {{ be_date(d) }}"></td>
+        {% endfor %}
+        <td class="right"><b data-sum>0</b></td>
+        <td><button type="button" class="ml-full" title="ใส่จำนวนตามสิทธิ์ทุกชั้นของวันนี้">ครบ</button></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr><td><b>รวมทั้งงวด</b></td>
+      {% for c in classes %}<td class="center"><b data-col="{{ loop.index0 }}">0</b></td>{% endfor %}
+      <td class="right"><b id="mlTotal">0</b></td><td></td></tr></tfoot>
+  </table></div>
+</div>
+
+<div class="card">
+  <h2><svg class="icon"><use href="#ic-coins"/></svg> ยอดเงินงวดนี้</h2>
+  <div class="ml-money">
+    <div><span>ค่าจ้างงวดนี้ (ยอดที่ตั้งไว้)</span><b>{{ "{:,.2f}".format(s.amount) }}</b></div>
+    <div><span>ค่าปรับ (ร้อยละ {{ "%g"|format(penalty_rate * 100) }} ต่อวัน ของมูลค่าอาหารวันนั้น)</span><b>{{ "{:,.2f}".format(s.penalty) }}</b></div>
+    <div><span>หักภาษี ณ ที่จ่าย ร้อยละ {{ "%g"|format(wht_rate * 100) }}</span><b>{{ "{:,.2f}".format(s.wht) }}</b></div>
+    <div class="ml-net"><span>จ่ายสุทธิ</span><b>{{ "{:,.2f}".format(s.net) }}</b><small>{{ bahttext(s.net) }}</small></div>
+  </div>
+  {% if s.complete and not s.matches %}
+  <p class="ml-diff">ยอดที่ตั้งไว้ {{ "{:,.2f}".format(s.amount) }} บาท ไม่ตรงกับมื้อจริง {{ "{:,.2f}".format(s.value) }} บาท
+    {% if i.status != 'จ่ายแล้ว' %}<button class="btn sm" type="submit" name="use_value" value="1">ใช้ยอดตามมื้อจริง</button>{% else %}(งวดนี้จ่ายแล้ว ไม่เปลี่ยนยอด){% endif %}</p>
+  {% endif %}
+  <div class="row" style="align-items:flex-end;">
+    <div style="max-width:300px;"><label>วันที่ผู้รับจ้างไม่ส่งมอบตามข้อตกลง (วัน)</label>
+      <input type="number" min="0" name="penalty_days" value="{{ i.penalty_days or 0 }}" {{ 'disabled' if i.status == 'จ่ายแล้ว' }}></div>
+    <div><p class="muted" style="margin:0;">ใส่เมื่อมีวันที่ไม่ส่งอาหารหรือส่งไม่ตรงข้อตกลง ระบบคิดค่าปรับให้</p></div>
+  </div>
+  <p class="muted" style="font-size:13px;">อ้างอิง: คู่มือการดำเนินงานโครงการอาหารกลางวัน พ.ศ. 2569 (สพฐ.) โรงเรียนชำระเงินตามที่ได้ประกอบอาหารจริงในแต่ละงวด
+    และค่าปรับรายวันร้อยละ 0.2 ตามหนังสือ กค (กวจ) 0405.2/ว 116</p>
+  <br><button class="btn green" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกจำนวนมื้อทั้งงวด</button>
+  <a class="btn gray" href="/lunch/installment/{{ i.id }}/doc"><svg class="icon"><use href="#ic-download"/></svg> เอกสารงวด</a>
+</div>
+</form>
+{% endif %}
+
+<style>
+  .ml-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; }
+  .ml-tabs{ display:flex; flex-wrap:wrap; gap:6px; margin:14px 0 4px; }
+  .ml-tab{ padding:5px 14px; border-radius:99px; background:#f1f5f9; color:#334155; text-decoration:none; font-weight:600; font-size:14px; }
+  .ml-tab.is-on{ background:linear-gradient(135deg,#f97316,#ea580c); color:#fff; }
+  .ml-stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-top:14px; }
+  .ml-stat{ padding:12px 16px; border-radius:16px; background:linear-gradient(135deg,#fff7ed,#ffedd5); }
+  .ml-stat small{ display:block; color:#9a3412; font-size:13px; }
+  .ml-stat b{ font-size:24px; color:#0f172a; margin-right:4px; }
+  .ml-stat span{ color:#64748b; font-size:13px; }
+  .ml-stat.is-ok{ background:linear-gradient(135deg,#f0fdf4,#dcfce7); } .ml-stat.is-ok small{ color:#166534; }
+  .ml-stat.is-warn{ background:linear-gradient(135deg,#fefce8,#fef3c7); }
+  .ml-grid th small{ display:block; font-weight:400; font-size:12px; color:#64748b; }
+  .ml-grid td{ vertical-align:middle; }
+  .ml-day{ white-space:nowrap; } .ml-day small{ display:block; color:#64748b; font-size:12px; white-space:normal; max-width:220px; }
+  .ml-new{ display:inline-block; margin-top:2px; padding:1px 8px; border-radius:99px; font-size:11.5px; background:#fef3c7; color:#92400e; }
+  .ml-in{ width:68px; text-align:center; padding:6px 4px; }
+  .ml-in.is-low{ background:#fff7ed; color:#c2410c; font-weight:700; }
+  .ml-in.is-over{ background:#fef2f2; color:#dc2626; font-weight:700; }
+  tr.is-new td{ background:#fffbeb; }
+  .ml-full{ font:inherit; font-size:13px; padding:5px 10px; border:0; border-radius:10px; background:#eef2ff; color:#4338ca; cursor:pointer; }
+  .ml-full:hover{ background:#e0e7ff; }
+  .ml-money{ display:grid; gap:6px; max-width:560px; }
+  .ml-money > div{ display:flex; justify-content:space-between; gap:12px; padding:8px 14px; border-radius:12px; background:#f8fafc; }
+  .ml-money b{ white-space:nowrap; }
+  .ml-net{ flex-wrap:wrap; background:linear-gradient(120deg,#ecfdf5,#d1fae5) !important; }
+  .ml-net b{ font-size:20px; color:#047857; } .ml-net small{ flex-basis:100%; text-align:right; color:#047857; }
+  .ml-diff{ margin:12px 0; padding:10px 14px; border-radius:12px; background:#fff7ed; color:#9a3412; }
+</style>
+<script>
+(function(){
+  var form = document.getElementById('mlForm');
+  if (!form) return;
+  var RATE = {{ s.rate }};
+  var rows = [].slice.call(form.querySelectorAll('tr[data-row]'));
+  var fmt = function(n, d){ return n.toLocaleString('th-TH', {minimumFractionDigits:d, maximumFractionDigits:d}); };
+  function calc(){
+    var cols = [], total = 0;
+    rows.forEach(function(tr){
+      var sum = 0;
+      tr.querySelectorAll('.ml-in').forEach(function(inp, k){
+        var v = parseInt(inp.value || '0', 10) || 0, max = +inp.dataset.max;
+        sum += v; cols[k] = (cols[k] || 0) + v;
+        inp.classList.toggle('is-over', v > max);
+        inp.classList.toggle('is-low', v < max && v <= max);
+      });
+      tr.querySelector('[data-sum]').textContent = fmt(sum, 0);
+      total += sum;
+    });
+    form.querySelectorAll('[data-col]').forEach(function(b){ b.textContent = fmt(cols[+b.dataset.col] || 0, 0); });
+    document.getElementById('mlTotal').textContent = fmt(total, 0);
+    document.getElementById('mlMeals').textContent = fmt(total, 0);
+    document.getElementById('mlValue').textContent = fmt(total * RATE, 2);
+  }
+  form.addEventListener('input', function(e){ if (e.target.classList.contains('ml-in')) calc(); });
+  rows.forEach(function(tr){
+    tr.querySelector('.ml-full').addEventListener('click', function(){
+      tr.querySelectorAll('.ml-in').forEach(function(inp){ inp.value = inp.dataset.max; });
+      calc();
+    });
+  });
+  calc();
+})();
+</script>
+{% endblock %}
