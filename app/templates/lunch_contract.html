@@ -229,7 +229,7 @@
         <td><div class="iq-range">{{ be_date(i.start_date) if i.start_date else '-' }} – {{ be_date(i.end_date) if i.end_date else '-' }}</div>
             <div class="iq-sub">{{ i.days }} วัน <b>{{ "{:,.2f}".format(i.amount or 0) }}</b> บาท</div>
             {% set ms = meal_sum.get(i.id) %}
-            {% if ms %}<div class="iq-sub {{ 'iq-booked' if ms.complete else 'iq-meal-todo' }}">{% if ms.complete %}ยอดนักเรียน {{ "{:,}".format(ms.meals) }} คน{% else %}บันทึกยอด {{ ms.recorded }}/{{ ms.days|length }} วัน{% endif %}</div>{% endif %}</td>
+            {% if ms and (ms.recorded or i.status != 'จ่ายแล้ว') %}<a class="iq-sub iq-meal-link {{ 'iq-booked' if ms.complete else 'iq-meal-todo' }}" href="/lunch/installment/{{ i.id }}/meals" title="บันทึกยอดนักเรียนรายวันของงวดนี้">{% if ms.complete %}ยอดนักเรียน {{ "{:,}".format(ms.meals) }} คน{% else %}บันทึกยอด {{ ms.recorded }}/{{ ms.days|length }} วัน{% endif %} ›</a>{% endif %}</td>
         <td><div class="iq-steps" title="สถานะ: {{ i.status }}">{% for s2 in ['ส่งมอบ', 'ตรวจรับ', 'จ่ายแล้ว'] %}<span class="{{ 'on' if loop.index <= lvl }}">{{ s2 }}</span>{% endfor %}</div>
             {% if i.status=='จ่ายแล้ว' %}<div class="iq-sub iq-booked">✓ ลงบัญชีแล้ว</div>{% endif %}</td>
         <td class="iq-dates">
@@ -256,6 +256,8 @@
     .iq-sub{ font-size:12.5px; color:#64748b; margin-top:2px; white-space:nowrap; }
     .iq-booked{ color:#15803d; }
     .iq-meal-todo{ color:#b45309; }
+    .iq-meal-link{ display:inline-block; text-decoration:none; font-weight:600; }
+    .iq-meal-link:hover{ text-decoration:underline; }
     .iq-dates label{ display:flex; align-items:center; gap:6px; margin:0 0 4px; font-size:12px; color:#64748b; white-space:nowrap; }
     .iq-dates input{ width:118px; padding:6px 8px; font-size:14px; }
     .iq-status{ width:auto; min-width:104px; }

@@ -19,7 +19,7 @@ from docx.oxml.ns import qn
 from app.services.doc_page import set_a4
 
 from app.database import get_data_dir
-from app.thai_utils import thai_date, bahttext
+from app.thai_utils import thai_date, thai_date_short, bahttext
 from app.services.build_templates import (
     _font, _p, _set_cell, _repeat_header_row, _no_split_row, _sign_table,
     _krut_and_title, _krut_center, _p_runs, _hr, _no_borders,
@@ -271,7 +271,7 @@ def _meal_sheet(doc, inst, sname, meals):
         vals = [got.get(c.id) for c in classes]
         for j, v in enumerate(vals):
             col_tot[j] += v or 0
-        rows.append([str(k), _dnum(d)] + [("" if v is None else f"{v:,}") for v in vals]
+        rows.append([str(k), thai_date_short(d)] + [("" if v is None else f"{v:,}") for v in vals]
                     + ([f"{sum(v or 0 for v in vals):,}"] if got else [""]))
     rows.append(["", "รวม"] + [f"{v:,}" for v in col_tot] + [f"{s['meals']:,}"])
     t = _simple_table(doc, headers, rows, widths)
