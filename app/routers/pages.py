@@ -2437,25 +2437,89 @@ def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get
     })
 
 
+def _alt_label(proc, kind: str) -> str:
+    """ชื่อเอกสารรูปแบบพิเศษที่เก็บในประวัติการออกเอกสาร"""
+    from app.services.w119_doc import checklist
+    if kind == (PROC_CASES.get(proc.proc_case or "normal") or {}).get("altkind") and kind != "w119t2":
+        return "เอกสาร " + PROC_CASES[proc.proc_case]["label"]
+    return dict(checklist(proc)["docs"]).get(kind) or {
+        "w119_borrow": "บันทึกขออนุมัติยืมเงิน + สัญญาการยืมเงิน (แบบ 8500)",
+        "w119_repay": "บันทึกขอส่งใช้เงินยืม", "w119_attend": "ใบลงเวลาผู้เข้าร่วม",
+        "w119_speaker": "ใบสำคัญรับเงินสำหรับวิทยากร", "w119t2": "บันทึกขออนุมัติเบิกจ่ายเงิน",
+    }.get(kind, kind)
+
+
+def _case_track(db, proc, reg, paid) -> list:
+    """ขั้นตอนของรูปแบบพิเศษ (ว.804 / ว.119 ตาราง 1-2 / ข้อ 79) ตามเอกสารและลำดับงานจริงของแต่ละแบบ
+    ข้อมูลเฉพาะแบบกรอกในหน้าแก้ไขเรื่อง ขั้น "ข้อมูลเอกสาร" (#step-2) เลขที่รายงานอยู่ขั้นแรก (#step-0)"""
+    from app.services.w119_doc import extra, checklist
+    case, ex = proc.proc_case, extra(proc)
+    edit = f"/procurement/{proc.id}/edit"
+    has = lambda *keys: all((ex.get(k) or "").strip() for k in keys)
+    issued = lambda *labels: any(d.doc_kind in labels for d in proc.documents)
+    main_doc = "เอกสาร " + PROC_CASES[case]["label"]
+    bought = bool(proc.items) and bool(proc.total_amount) and proc.vendor_id is not None
+    memo = bool((proc.memo_no or "").strip())
+    tail = []
+    if proc.items and proc.proc_type == "ซื้อ" and case != "w119t2":
+        tail.append({"label": "เข้าทะเบียน", "sub": "วัสดุ/ครุภัณฑ์", "done": reg, "href": f"/procurement/{proc.id}/to-register"})
+    pay = {"label": "เบิกจ่าย", "sub": "ออกบันทึกขอเบิกจ่าย", "done": paid, "href": f"/finance/disburse?proc={proc.id}", "finance": True}
+    if case == "w804":
+        return [
+            {"label": "ลงเลขที่และผู้ตรวจรับ", "sub": "เลขรายงานขอซื้อ และผู้ตรวจรับ", "done": memo and has("inspector"), "href": edit + "#step-2"},
+            {"label": "ออกรายงานขอซื้อ", "sub": "ก่อนไปซื้อของ", "done": issued(main_doc), "href": "#issue"},
+            {"label": "ซื้อและรับของ", "sub": "ลงใบเสร็จ และวันที่รับมอบ", "done": has("receipt_no", "deliver_date"), "href": edit + "#step-2"},
+            {"label": "รายงานสรุปผล", "sub": "ลงเลขที่แล้วออกเอกสารอีกครั้ง", "done": has("report2_no"), "href": edit + "#step-2"},
+        ] + tail + [pay]
+    if case == "w119t1":
+        return [
+            {"label": "ซื้อไปก่อน", "sub": "ลงรายการ ราคา และผู้ขาย", "done": bought, "href": edit + "#step-1"},
+            {"label": "ลงเลขรายงาน", "sub": "รายงานภายใน 5 วันทำการ", "done": memo, "href": edit + "#step-0"},
+            {"label": "ออกเอกสาร", "sub": "รายงานขอความเห็นชอบ + เบิกจ่าย", "done": issued(main_doc), "href": "#issue"},
+        ] + tail + [pay]
+    if case == "clause79":
+        return [
+            {"label": "ซื้อ/จ้างไปก่อน", "sub": "ลงรายการ ราคา และผู้ขาย", "done": bought, "href": edit + "#step-1"},
+            {"label": "ลงใบเสร็จ", "sub": "ใบเสร็จ/ใบส่งของ", "done": has("receipt_no"), "href": edit + "#step-2"},
+            {"label": "ลงเลขรายงาน", "sub": "เลขที่และวันที่รายงาน", "done": memo, "href": edit + "#step-0"},
+            {"label": "ออกรายงาน", "sub": "หัวหน้าเจ้าหน้าที่ให้ความเห็นชอบ", "done": issued(main_doc), "href": "#issue"},
+        ] + tail + [pay]
+    # w119t2: ไม่ใช่การจัดซื้อจัดจ้าง ไม่มีรายงานขอความเห็นชอบ ไม่เข้าทะเบียน
+    borrow = checklist(proc)["borrow"]
+    rows = [{"label": "เลือกรายการ", "sub": "รายการค่าใช้จ่าย และวิธีจ่ายเงิน", "done": has("t2_item", "pay_mode"), "href": edit + "#step-2"}]
+    if borrow:
+        rows.append({"label": "ยืมเงิน", "sub": "บันทึกขอยืม + สัญญายืมเงิน", "done": has("contract_no") or issued(_alt_label(proc, "w119_borrow")), "href": "#issue"})
+    rows += [
+        {"label": "ลงใบเสร็จ", "sub": "ใบเสร็จ/ใบส่งของ", "done": has("receipt_no"), "href": edit + "#step-2"},
+        {"label": "ออกบันทึกเบิกจ่าย", "sub": "บันทึกขออนุมัติเบิกจ่ายเงิน", "done": issued(_alt_label(proc, "w119t2")), "href": "#issue"},
+    ]
+    if borrow:
+        rows.append({"label": "ส่งใช้เงินยืม", "sub": "บันทึกขอส่งใช้เงินยืม", "done": issued(_alt_label(proc, "w119_repay")), "href": "#issue"})
+    return rows + [pay]
+
+
 def _proc_track(db, proc) -> list:
     """ขั้นตอนต่อไปของเรื่องนี้ (กล่องบนหน้าเรื่อง) พร้อมสถานะว่าทำแล้วหรือยัง"""
     from app.models import ProcurementRegisterImport
-    if (proc.proc_case or "normal") != "normal":
-        # ว.804 / ว.119 / ข้อ 79 เอกสารและขั้นตอนคนละแบบ (ไม่มีการ์ดลงเลขที่) ยังไม่แสดงกล่องนี้
-        return []
     received = proc.status in ("ตรวจรับแล้ว", "เบิกจ่ายแล้ว") or bool(proc.inspect_date)
     paid = (proc.status == "เบิกจ่ายแล้ว" or bool(proc.paid_before_system)
             or db.query(DisburseMemo).filter_by(procurement_id=proc.id).first() is not None)
+    reg = db.query(ProcurementRegisterImport).filter_by(procurement_id=proc.id).first() is not None
+    if (proc.proc_case or "normal") != "normal":
+        rows = _case_track(db, proc, reg, paid)
+        cur = next((i for i, r in enumerate(rows) if not r["done"]), None)
+        for i, r in enumerate(rows):
+            r["current"] = i == cur
+        return rows
     # ลำดับตามงานจริง: ลงเลขที่/วันที่ก่อน (เลขต้องไปอยู่ในเอกสาร) แล้วจึงออกเอกสาร
     rows = [
         {"label": "ลงเลขที่และวันที่", "sub": "เลขใบสั่ง" + proc.proc_type + " และวันที่ลงนาม", "done": bool((proc.order_no or "").strip()), "href": "#dn-order"},
         {"label": "ออกเอกสาร", "sub": "ทั้งชุด ออกซ้ำได้เมื่อแก้เลข", "done": bool(proc.documents), "href": "#issue"},
         {"label": "ส่งมอบ/ตรวจรับ", "sub": "วันที่ส่งมอบ และวันที่ตรวจรับ", "done": received, "href": "#dn-inspect"},
-        {"label": "เบิกจ่าย", "sub": "ออกบันทึกขอเบิกจ่าย", "done": paid, "href": f"/finance/disburse?proc={proc.id}", "finance": True},
     ]
     if proc.items and proc.proc_type == "ซื้อ":
-        reg = db.query(ProcurementRegisterImport).filter_by(procurement_id=proc.id).first() is not None
         rows.append({"label": "เข้าทะเบียน", "sub": "วัสดุ/ครุภัณฑ์", "done": reg, "href": f"/procurement/{proc.id}/to-register"})
+    rows.append({"label": "เบิกจ่าย", "sub": "ออกบันทึกขอเบิกจ่าย", "done": paid, "href": f"/finance/disburse?proc={proc.id}", "finance": True})
     cur = next((i for i, r in enumerate(rows) if not r["done"]), None)
     for i, r in enumerate(rows):
         r["current"] = i == cur
@@ -2652,6 +2716,8 @@ def procurement_altdoc(proc_id: int, kind: str, db: Session = Depends(get_db)):
     if not proc or renderer is None:
         return RedirectResponse(f"/procurement/{proc_id}", status_code=303)
     file_path = renderer(proc, get_school(db))
+    db.add(Document(procurement_id=proc.id, doc_kind=_alt_label(proc, kind), file_path=file_path))
+    db.commit()
     return serve_generated(file_path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 

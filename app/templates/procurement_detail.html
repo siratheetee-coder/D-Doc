@@ -75,10 +75,10 @@
     </div>
   </div>
   {% if track %}
-  {% set track = track|selectattr('finance', 'undefined')|list + (track|selectattr('finance', 'defined')|list if modules_live.finance else []) %}
+  {% if not modules_live.finance %}{% set track = track|rejectattr('finance', 'defined')|list %}{% endif %}
   <div class="pt-box">
     <b class="pt-title">ขั้นตอนต่อไป</b>
-    <ol class="pt-steps">
+    <ol class="pt-steps" style="--n:{{ track|length }};">
       {% for t in track %}
       <li class="{{ 'done' if t.done else ('current' if t.current else '') }}">
         <a href="{{ t.href }}"><span class="pt-dot">{% if t.done %}✔{% else %}{{ loop.index }}{% endif %}</span>
@@ -91,7 +91,9 @@
     .pt-box{ margin-top:14px; padding:12px 14px; border-radius:16px; background:linear-gradient(120deg,#eff6ff,#f0fdf4); }
     .pt-title{ display:block; margin-bottom:8px; }
     .pt-steps{ list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; }
-    .pt-steps a{ display:flex; gap:10px; align-items:center; padding:8px 12px; border-radius:12px; background:#fff; color:inherit; text-decoration:none; height:100%; }
+    @media (min-width:900px){ .pt-steps{ grid-template-columns:repeat(var(--n),minmax(0,1fr)); }
+      .pt-box .pt-steps a{ flex-direction:column; align-items:flex-start; gap:6px; } }
+    .pt-steps a{ display:flex; gap:8px; align-items:center; padding:8px 10px; border-radius:12px; background:#fff; color:inherit; text-decoration:none; height:100%; }
     .pt-steps a:hover{ box-shadow:0 4px 14px rgba(37,99,235,.15); }
     .pt-steps small{ display:block; font-size:12.5px; color:var(--muted); }
     .pt-dot{ flex:none; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; background:#e2e8f0; color:#475569; }
