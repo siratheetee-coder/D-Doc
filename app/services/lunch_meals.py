@@ -91,3 +91,31 @@ def apply_amount(db, inst) -> bool:
         return False
     inst.amount = s["value"]
     return True
+
+
+# ---------------- จ่ายครั้งเดียวทั้งรอบ (ส่งมอบ/ตรวจรับรายงวด) ----------------
+DONE_INSPECT = ("ตรวจรับแล้ว", "จ่ายแล้ว")
+
+
+def pays_by_round(rnd) -> bool:
+    """รอบจ้างเหมาที่ตั้งให้จ่ายเงินครั้งเดียวทั้งรอบ (งวดใช้ส่งมอบ/ตรวจรับเท่านั้น)"""
+    return (getattr(rnd.program, "operate_mode", "hire") == "hire"
+            and (getattr(rnd, "pay_mode", "") or "installment") == "round")
+
+
+def round_pay(db, rnd) -> dict:
+    """ยอดจ่ายทั้งรอบ = รวมค่าจ้างทุกงวด (แต่ละงวดคิดจากยอดนักเรียนรายวัน) หักค่าปรับรวม และภาษีร้อยละ 1"""
+    insts = list(rnd.installments)
+    rows = [(i, summary(db, i)) for i in insts]
+    amount = round(sum(float(i.amount or 0) for i in insts), 2)
+    penalty = round(sum(s["penalty"] for _, s in rows), 2)
+    wht = round(amount * WHT_RATE, 2)
+    return {
+        "rows": rows, "amount": amount, "penalty": penalty, "wht": wht,
+        "net": round(amount - wht - penalty, 2),
+        "meals": sum(s["meals"] for _, s in rows),
+        "inspected": sum(1 for i in insts if (i.status or "") in DONE_INSPECT),
+        "total": len(insts),
+        "ready": bool(insts) and all((i.status or "") in DONE_INSPECT for i in insts),
+        "paid": (rnd.status or "") == "จ่ายแล้ว",
+    }

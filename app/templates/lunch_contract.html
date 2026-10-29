@@ -174,15 +174,28 @@
 
 <style>.iq-table tr:target td{ background:linear-gradient(120deg,#fef9c3,#fef3c7); }</style>
 <div class="card" id="installments">
-  <h2>งวดจ่ายเงินทั้งหมด</h2>
+  {% set RP = pay_by_round %}
+  <div class="iq-headrow">
+    <h2>{{ 'งวดส่งมอบและตรวจรับ' if RP else 'งวดจ่ายเงินทั้งหมด' }}</h2>
+    {% if p.operate_mode == 'hire' %}
+    <form method="post" action="/lunch/round/{{ r.id }}/pay-mode" class="iq-paymode">
+      <span>การจ่ายเงิน</span>
+      <label class="{{ '' if RP else 'on' }}"><input type="radio" name="pay_mode" value="installment" {{ '' if RP else 'checked' }} onchange="this.form.submit()"> จ่ายทุกงวด</label>
+      <label class="{{ 'on' if RP else '' }}"><input type="radio" name="pay_mode" value="round" {{ 'checked' if RP }} onchange="this.form.submit()"> จ่ายครั้งเดียวทั้งรอบ</label>
+    </form>
+    {% endif %}
+  </div>
+  {% if request.query_params.get('err') %}<div class="alert warn">{{ request.query_params.get('err') }}</div>{% endif %}
+  {% if RP %}<p class="muted" style="margin:-4px 0 10px;">แต่ละงวดส่งมอบและตรวจรับตามปกติ เมื่อตรวจรับครบทุกงวดแล้ว ทำเรื่องขอเบิกและจ่ายเงินครั้งเดียวทั้งรอบ</p>{% endif %}
   {% if installments %}
   {# งวดไหนถึงคิว ขั้นไหน: งวดแรกที่ยังไม่จ่าย แสดงขั้นถัดไปพร้อมเอกสารและปุ่มบันทึกสถานะ #}
   {% set NEXT = {'ร่าง': ('ส่งมอบงาน', 'ส่งมอบแล้ว', 'doc', 'เอกสารงวด (ควบคุม ส่งมอบ ตรวจรับ)'),
                  'ส่งมอบแล้ว': ('ตรวจรับงาน', 'ตรวจรับแล้ว', 'doc', 'เอกสารงวด (ควบคุม ส่งมอบ ตรวจรับ)'),
                  'ตรวจรับแล้ว': ('ขอเบิกและจ่ายเงิน', 'จ่ายแล้ว', 'disburse-doc', 'เอกสารขอเบิกจ่าย')} %}
-  {% set n_paid = installments|selectattr('status', 'equalto', 'จ่ายแล้ว')|list|length %}
-  {% set nxt = (installments|rejectattr('status', 'equalto', 'จ่ายแล้ว')|list or [None])[0] %}
-  <div class="iq-sum">จ่ายแล้ว <b>{{ n_paid }}</b> จาก {{ installments|length }} งวด
+  {% set DONE = ['ตรวจรับแล้ว', 'จ่ายแล้ว'] if RP else ['จ่ายแล้ว'] %}
+  {% set n_paid = installments|selectattr('status', 'in', DONE)|list|length %}
+  {% set nxt = (installments|rejectattr('status', 'in', DONE)|list or [None])[0] %}
+  <div class="iq-sum">{{ 'ตรวจรับแล้ว' if RP else 'จ่ายแล้ว' }} <b>{{ n_paid }}</b> จาก {{ installments|length }} งวด
     <div class="iq-bar"><span style="width:{{ (n_paid / installments|length * 100)|round(0) }}%"></span></div></div>
   {% if nxt %}
   {% set st = NEXT.get(nxt.status, NEXT['ร่าง']) %}
@@ -199,11 +212,58 @@
     </div>
     {% if st[1] == 'จ่ายแล้ว' %}<div class="muted" style="font-size:12.5px; margin-top:4px;">กด "จ่ายแล้ว" ระบบลงบัญชีจ่ายให้อัตโนมัติ</div>{% endif %}
   </div>
-  {% else %}
+  {% elif not RP %}
   <div class="iq-done">✔ จ่ายครบทุกงวดแล้ว</div>
+  {% endif %}
+  {% if RP and round_pay %}
+  {# จ่ายครั้งเดียวทั้งรอบ: สรุปยอดรวมทุกงวด + เอกสารขอเบิกทั้งรอบ + บันทึกว่าจ่ายแล้ว #}
+  <div class="rp-box {{ 'is-paid' if round_pay.paid else ('is-ready' if round_pay.ready else '') }}">
+    <div class="rp-head"><b>จ่ายเงินทั้งรอบ</b>
+      {% if round_pay.paid %}<span class="rp-tag rp-ok">จ่ายแล้ว ลงบัญชีแล้ว</span>
+      {% elif round_pay.ready %}<span class="rp-tag rp-go">ตรวจรับครบแล้ว ขอเบิกได้</span>
+      {% else %}<span class="rp-tag">ตรวจรับแล้ว {{ round_pay.inspected }} จาก {{ round_pay.total }} งวด</span>{% endif %}</div>
+    <div class="rp-grid">
+      <div><small>ค่าจ้างรวมทุกงวด</small><b>{{ "{:,.2f}".format(round_pay.amount) }}</b></div>
+      <div><small>ค่าปรับรวม</small><b>{{ "{:,.2f}".format(round_pay.penalty) }}</b></div>
+      <div><small>หักภาษี ณ ที่จ่าย ร้อยละ 1</small><b>{{ "{:,.2f}".format(round_pay.wht) }}</b></div>
+      <div class="rp-net"><small>จ่ายสุทธิ</small><b>{{ "{:,.2f}".format(round_pay.net) }}</b></div>
+    </div>
+    <div class="iq-act">
+      <a class="btn sm {{ '' if round_pay.ready else 'gray' }}" href="/lunch/round/{{ r.id }}/disburse-doc"><svg class="icon"><use href="#ic-download"/></svg> เอกสารขอเบิกจ่ายทั้งรอบ</a>
+      {% if not round_pay.paid %}
+      <form method="post" action="/lunch/round/{{ r.id }}/status" style="margin:0;" {% if not round_pay.ready %}data-warn="1"{% endif %}
+            onsubmit="return !this.dataset.warn || confirm('ยังตรวจรับไม่ครบทุกงวด บันทึกว่าจ่ายทั้งรอบแล้วหรือไม่?');">
+        <input type="hidden" name="status" value="จ่ายแล้ว"><input type="hidden" name="back" value="/lunch/round/{{ r.id }}/plan#installments">
+        <button class="btn sm" type="submit" data-no-floating-save><svg class="icon"><use href="#ic-check"/></svg> บันทึกว่าจ่ายทั้งรอบแล้ว</button>
+      </form>
+      {% else %}
+      <form method="post" action="/lunch/round/{{ r.id }}/status" style="margin:0;" onsubmit="return confirm('ยกเลิกการจ่าย รายการในบัญชีจะถูกลบ?');">
+        <input type="hidden" name="status" value="จ้างแล้ว"><input type="hidden" name="back" value="/lunch/round/{{ r.id }}/plan#installments">
+        <button class="btn sm gray" type="submit" data-no-floating-save>ยกเลิกการจ่าย</button>
+      </form>
+      {% endif %}
+    </div>
+    <div class="muted" style="font-size:12.5px; margin-top:6px;">ค่าจ้างแต่ละงวดคิดจากยอดนักเรียนรายวัน กด "บันทึกว่าจ่ายทั้งรอบแล้ว" ระบบลงบัญชีจ่ายให้รายการเดียว</div>
+  </div>
   {% endif %}
   <style>
     .iq-sum{ font-size:14.5px; margin-bottom:8px; }
+    .iq-headrow{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+    .iq-paymode{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:0 0 8px; font-size:14px; }
+    .iq-paymode > span{ color:#64748b; margin-right:2px; }
+    .iq-paymode label{ display:flex; align-items:center; gap:6px; margin:0; padding:6px 12px; border-radius:99px; background:#f1f5f9; cursor:pointer; font-weight:600; }
+    .iq-paymode label.on{ background:linear-gradient(135deg,#fff7ed,#ffedd5); color:#9a3412; }
+    .iq-paymode input{ width:auto; margin:0; }
+    .rp-box{ margin:0 0 12px; padding:12px 14px; border-radius:14px; background:#f8fafc; }
+    .rp-box.is-ready{ background:linear-gradient(120deg,#eff6ff,#f0fdf4); }
+    .rp-box.is-paid{ background:linear-gradient(120deg,#f0fdf4,#dcfce7); }
+    .rp-head{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+    .rp-tag{ padding:2px 10px; border-radius:99px; font-size:12.5px; background:#e2e8f0; color:#475569; }
+    .rp-tag.rp-go{ background:#dbeafe; color:#1d4ed8; } .rp-tag.rp-ok{ background:#bbf7d0; color:#166534; }
+    .rp-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:8px; }
+    .rp-grid > div{ padding:8px 12px; border-radius:12px; background:#fff; }
+    .rp-grid small{ display:block; color:#64748b; font-size:12.5px; } .rp-grid b{ font-size:17px; }
+    .rp-grid .rp-net b{ color:#047857; font-size:19px; }
     .iq-bar{ height:8px; border-radius:6px; background:#e2e8f0; overflow:hidden; margin-top:5px; max-width:360px; }
     .iq-bar span{ display:block; height:100%; background:linear-gradient(90deg,#16a34a,#22c55e); }
     .iq-next{ background:linear-gradient(120deg,#eff6ff,#f0fdf4); border-radius:12px; padding:10px 14px; margin-bottom:12px; font-size:14.5px; }
@@ -230,18 +290,18 @@
             <div class="iq-sub">{{ i.days }} วัน <b>{{ "{:,.2f}".format(i.amount or 0) }}</b> บาท</div>
             {% set ms = meal_sum.get(i.id) %}
             {% if ms and (ms.recorded or i.status != 'จ่ายแล้ว') %}<a class="iq-sub iq-meal-link {{ 'iq-booked' if ms.complete else 'iq-meal-todo' }}" href="/lunch/installment/{{ i.id }}/meals" title="บันทึกยอดนักเรียนรายวันของงวดนี้">{% if ms.complete %}ยอดนักเรียน {{ "{:,}".format(ms.meals) }} คน{% else %}บันทึกยอด {{ ms.recorded }}/{{ ms.days|length }} วัน{% endif %} ›</a>{% endif %}</td>
-        <td><div class="iq-steps" title="สถานะ: {{ i.status }}">{% for s2 in ['ส่งมอบ', 'ตรวจรับ', 'จ่ายแล้ว'] %}<span class="{{ 'on' if loop.index <= lvl }}">{{ s2 }}</span>{% endfor %}</div>
+        <td><div class="iq-steps" title="สถานะ: {{ i.status }}">{% for s2 in (['ส่งมอบ', 'ตรวจรับ'] if RP else ['ส่งมอบ', 'ตรวจรับ', 'จ่ายแล้ว']) %}<span class="{{ 'on' if loop.index <= lvl }}">{{ s2 }}</span>{% endfor %}</div>
             {% if i.status=='จ่ายแล้ว' %}<div class="iq-sub iq-booked">✓ ลงบัญชีแล้ว</div>{% endif %}</td>
         <td class="iq-dates">
           <label>ส่งมอบ<input name="deliver_date" value="{{ be_date(i.deliver_date) if i.deliver_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></label>
           <label>ตรวจรับ<input name="inspect_date" value="{{ be_date(i.inspect_date) if i.inspect_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></label>
         </td>
-        <td><select name="status" class="iq-status">{% for s in ['ร่าง','ส่งมอบแล้ว','ตรวจรับแล้ว','จ่ายแล้ว'] %}<option {{ 'selected' if i.status==s }}>{{ s }}</option>{% endfor %}</select></td>
+        <td><select name="status" class="iq-status">{% for s in (['ร่าง','ส่งมอบแล้ว','ตรวจรับแล้ว'] if RP else ['ร่าง','ส่งมอบแล้ว','ตรวจรับแล้ว','จ่ายแล้ว']) %}<option {{ 'selected' if i.status==s }}>{{ s }}</option>{% endfor %}</select></td>
         <td class="iq-acts">
           <button class="btn sm" type="button" onclick="saveInst(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
           {% if meal_sum %}<a class="btn sm soft" href="/lunch/installment/{{ i.id }}/meals" title="จำนวนนักเรียนที่รับประทานจริง รายวัน"><svg class="icon"><use href="#ic-clipboard"/></svg> ยอดนักเรียนรายวัน</a>{% endif %}
           <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/doc" title="เอกสารงวด (ควบคุม ส่งมอบ ตรวจรับ)"><svg class="icon"><use href="#ic-download"/></svg> เอกสาร</a>
-          <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/disburse-doc" title="ขอเบิกจ่าย"><svg class="icon"><use href="#ic-coins"/></svg> เบิกจ่าย</a>
+          {% if not RP %}<a class="btn sm gray" href="/lunch/installment/{{ i.id }}/disburse-doc" title="ขอเบิกจ่าย"><svg class="icon"><use href="#ic-coins"/></svg> เบิกจ่าย</a>{% endif %}
           <form method="post" action="/lunch/installment/{{ i.id }}/delete" onsubmit="return confirm('ลบงวดนี้?');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit" title="ลบงวดนี้" aria-label="ลบงวดนี้">✕</button></form>
         </td>
       </tr>
@@ -461,9 +521,15 @@
     <b style="min-width:150px;">งวดที่ {{ i.seq }}</b>
     <span class="muted" style="font-size:13px; min-width:170px;">{{ be_date(i.start_date) if i.start_date else '-' }} - {{ be_date(i.end_date) if i.end_date else '-' }}</span>
     <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/doc"><svg class="icon"><use href="#ic-download"/></svg> เอกสารงวด</a>
-    <a class="btn sm gray" href="/lunch/installment/{{ i.id }}/disburse-doc"><svg class="icon"><use href="#ic-coins"/></svg> ขอเบิกจ่าย</a>
+    {% if not pay_by_round %}<a class="btn sm gray" href="/lunch/installment/{{ i.id }}/disburse-doc"><svg class="icon"><use href="#ic-coins"/></svg> ขอเบิกจ่าย</a>{% endif %}
   </div>
   {% endfor %}
+  {% if pay_by_round %}
+  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 0 0;">
+    <b style="min-width:150px;">ทั้งรอบ (จ่ายครั้งเดียว)</b>
+    <a class="btn sm" href="/lunch/round/{{ r.id }}/disburse-doc"><svg class="icon"><use href="#ic-coins"/></svg> ขอเบิกจ่ายทั้งรอบ</a>
+  </div>
+  {% endif %}
 </div>
 {% endif %}
 

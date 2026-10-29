@@ -134,11 +134,14 @@ _INST_STATE = {"ร่าง": ("รอส่งมอบ", "todo"), "ส่ง�
                "ตรวจรับแล้ว": ("รอจ่ายเงิน", "wait"), "จ่ายแล้ว": ("จ่ายแล้ว", "done")}
 
 
-def installment_chips(insts, page) -> list:
-    """ป้ายสถานะรายงวด [{label, state, href}] เช่น "งวด 2 รอตรวจรับ" กดแล้วไปแถวงวดนั้น"""
+def installment_chips(insts, page, by_round=False) -> list:
+    """ป้ายสถานะรายงวด [{label, state, href}] เช่น "งวด 2 รอตรวจรับ" กดแล้วไปแถวงวดนั้น
+    by_round = จ่ายครั้งเดียวทั้งรอบ: งวดจบที่ตรวจรับ"""
     out = []
     for i in insts:
         text, state = _INST_STATE.get(i.status or "ร่าง", _INST_STATE["ร่าง"])
+        if by_round and (i.status or "") in ("ตรวจรับแล้ว", "จ่ายแล้ว"):
+            text, state = "ตรวจรับแล้ว", "done"
         out.append({"label": f"งวด {i.seq} {text}", "state": state, "href": f"{page}#inst-{i.id}"})
     return out
 
@@ -218,6 +221,17 @@ def lunch_round_steps(rnd, *, committees, com_labels, doc_rows, menu_days, ing_t
                       detail=(f"จ่ายแล้ว {n_paid} จาก {len(insts)} งวด" if insts else "แบ่งงวดก่อน"),
                       href=page + "#installments", cta="ไปที่งวดจ่ายเงิน",
                       chips=installment_chips(insts, page))]
+        from app.services.lunch_meals import pays_by_round, DONE_INSPECT
+        if pays_by_round(rnd):        # ส่งมอบ/ตรวจรับรายงวด แต่จ่ายเงินครั้งเดียวทั้งรอบ
+            n_insp = sum(1 for i in insts if (i.status or "") in DONE_INSPECT)
+            steps[-1] = dict(title="ส่งมอบและตรวจรับครบทุกงวด", done=bool(insts) and n_insp == len(insts),
+                             detail=(f"ตรวจรับแล้ว {n_insp} จาก {len(insts)} งวด" if insts else "แบ่งงวดก่อน"),
+                             href=page + "#installments", cta="ไปที่งวด",
+                             chips=installment_chips(insts, page, by_round=True))
+            steps.append(dict(title="ขอเบิกและจ่ายเงินทั้งรอบ", done=paid,
+                              detail=("จ่ายแล้ว ระบบลงบัญชีให้แล้ว" if paid
+                                      else "ออกเอกสารขอเบิกจ่ายทั้งรอบ แล้วกด \"บันทึกว่าจ่ายทั้งรอบแล้ว\""),
+                              href=page + "#installments", cta="ไปที่จ่ายเงินทั้งรอบ"))
     elif mode == "person":
         steps = [period_step((rnd.cook_wage or 0) > 0, f"ค่าจ้าง {rnd.cook_wage or 0:,.2f} บาท"), vendor_step,
                  com_step, doc_step, menu_step, ing_step, order_step,

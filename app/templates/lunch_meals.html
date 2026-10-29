@@ -71,9 +71,15 @@
   <div class="ml-money">
     <div><span>ค่าจ้างงวดนี้ (ยอดที่ตั้งไว้)</span><b>{{ "{:,.2f}".format(s.amount) }}</b></div>
     <div><span>ค่าปรับ (ร้อยละ {{ "%g"|format(penalty_rate * 100) }} ต่อวัน ของมูลค่าอาหารวันนั้น)</span><b>{{ "{:,.2f}".format(s.penalty) }}</b></div>
+    {% if by_round %}
+  </div>
+  <p class="ml-round">รอบนี้จ่ายเงินครั้งเดียวทั้งรอบ ภาษีและยอดจ่ายสุทธิคิดรวมทุกงวดที่
+    <a href="/lunch/round/{{ r.id }}/plan#installments">หน้ารอบจัดจ้าง (จ่ายเงินทั้งรอบ)</a></p>
+    {% else %}
     <div><span>หักภาษี ณ ที่จ่าย ร้อยละ {{ "%g"|format(wht_rate * 100) }}</span><b>{{ "{:,.2f}".format(s.wht) }}</b></div>
     <div class="ml-net"><span>จ่ายสุทธิ</span><b>{{ "{:,.2f}".format(s.net) }}</b><small>{{ bahttext(s.net) }}</small></div>
   </div>
+    {% endif %}
   {% if s.complete and not s.matches %}
   <p class="ml-diff">ยอดที่ตั้งไว้ {{ "{:,.2f}".format(s.amount) }} บาท ไม่ตรงกับค่าจ้างตามยอดนักเรียน {{ "{:,.2f}".format(s.value) }} บาท
     {% if i.status != 'จ่ายแล้ว' %}<button class="btn sm" type="submit" name="use_value" value="1">ใช้ค่าจ้างตามยอดนักเรียน</button>{% else %}(งวดนี้จ่ายแล้ว ไม่เปลี่ยนยอด){% endif %}</p>
@@ -118,6 +124,7 @@
   .ml-money b{ white-space:nowrap; }
   .ml-net{ flex-wrap:wrap; background:linear-gradient(120deg,#ecfdf5,#d1fae5) !important; }
   .ml-net b{ font-size:20px; color:#047857; } .ml-net small{ flex-basis:100%; text-align:right; color:#047857; }
+  .ml-round{ margin:10px 0 0; padding:10px 14px; border-radius:12px; background:linear-gradient(120deg,#eff6ff,#f5f3ff); color:#1e3a8a; }
   .ml-diff{ margin:12px 0; padding:10px 14px; border-radius:12px; background:#fff7ed; color:#9a3412; }
 </style>
 <script>

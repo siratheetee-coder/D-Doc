@@ -172,6 +172,7 @@ MIGRATIONS = [
     ("asset", "dispose_doc_ref", "VARCHAR DEFAULT ''"),
     ("lunch_ledger", "round_id", "INTEGER"),
     ("lunch_installment", "penalty_days", "INTEGER DEFAULT 0"),
+    ("lunch_hire_round", "pay_mode", "VARCHAR DEFAULT 'installment'"),
     ("lunch_ledger", "installment_id", "INTEGER"),
     ("lunch_program", "fuel_cost", "FLOAT DEFAULT 0"),
     ("lunch_program", "cook_wage", "FLOAT DEFAULT 0"),

@@ -69,3 +69,56 @@ def test_meals_set_installment_amount_and_docs(env):
     assert any("0.94 บาท" in c for c in cells)
     # หน้ารอบแสดงสถานะมื้อจริงในแถวงวด
     assert "ยอดนักเรียนรายวัน" in env.get(f"/lunch/round/{rid}/plan").text
+
+
+def test_pay_once_for_whole_round(env):
+    """รอบ 50 วันแบ่ง 5 งวด ส่งมอบ/ตรวจรับรายงวด แต่จ่ายเงินครั้งเดียวทั้งรอบ"""
+    import io
+    from docx import Document
+    from app.models import (LunchProgram, LunchClass, LunchHireRound, LunchInstallment, LunchLedger, Vendor)
+    with _db() as s:
+        v = Vendor(name="ร้านอิ่มทั้งรอบ"); s.add(v); s.flush()
+        p = LunchProgram(year=2569, rate_per_head=20, operate_mode="hire"); s.add(p); s.flush()
+        c = LunchClass(program_id=p.id, seq=1, level="ป.1", num_students=10); s.add(c); s.flush()
+        r = LunchHireRound(program_id=p.id, seq=1, vendor_id=v.id, start_date=datetime(2026, 6, 8),
+                           end_date=datetime(2026, 6, 19), days=10, amount=2000, status="จ้างแล้ว")
+        s.add(r); s.flush()
+        i1 = LunchInstallment(round_id=r.id, seq=1, start_date=datetime(2026, 6, 8), end_date=datetime(2026, 6, 12),
+                              days=5, amount=1000, status="จ่ายแล้ว")
+        i2 = LunchInstallment(round_id=r.id, seq=2, start_date=datetime(2026, 6, 15), end_date=datetime(2026, 6, 19),
+                              days=5, amount=1000)
+        s.add_all([i1, i2]); s.commit()
+        rid, a, b, cid = r.id, i1.id, i2.id, c.id
+
+    # มีงวดที่จ่ายแล้ว เปลี่ยนเป็นจ่ายทั้งรอบไม่ได้
+    r_ = env.post(f"/lunch/round/{rid}/pay-mode", data={"pay_mode": "round"}, follow_redirects=False)
+    assert "err=" in r_.headers["location"]
+    env.post(f"/lunch/installment/{a}/update", data={"status": "ตรวจรับแล้ว"})
+    env.post(f"/lunch/round/{rid}/pay-mode", data={"pay_mode": "round"})
+    with _db() as s:
+        assert s.get(LunchHireRound, rid).pay_mode == "round"
+        assert s.query(LunchLedger).filter_by(installment_id=a).count() == 0
+
+    # งวดเลือก "จ่ายแล้ว" ไม่ได้ จบที่ตรวจรับ
+    env.post(f"/lunch/installment/{b}/update", data={"status": "จ่ายแล้ว"})
+    with _db() as s:
+        assert s.get(LunchInstallment, b).status == "ตรวจรับแล้ว"
+
+    # ยอดนักเรียน: งวด 2 ขาด 5 คนรวม -> 45 x 20 = 900
+    days2 = ["2026-06-15", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-19"]
+    env.post(f"/lunch/installment/{b}/meals", data={f"m_{d}_{cid}": ("5" if d == days2[0] else "10") for d in days2})
+    page = env.get(f"/lunch/round/{rid}/plan").text
+    assert "จ่ายเงินทั้งรอบ" in page and "1,900.00" in page and "ตรวจรับครบแล้ว" in page
+
+    # เอกสารขอเบิกทั้งรอบ
+    doc = Document(io.BytesIO(env.get(f"/lunch/round/{rid}/disburse-doc").content))
+    text = "\n".join(p.text for p in doc.paragraphs)
+    assert "รอบที่ 1 (งวดที่ 1-2)" in text and "1,900" in text
+
+    # จ่ายทั้งรอบ -> ลงบัญชีรายการเดียว 1,900
+    r_ = env.post(f"/lunch/round/{rid}/status", data={"status": "จ่ายแล้ว", "back": f"/lunch/round/{rid}/plan#installments"},
+                  follow_redirects=False)
+    assert r_.headers["location"].startswith(f"/lunch/round/{rid}/plan")
+    with _db() as s:
+        leds = s.query(LunchLedger).filter((LunchLedger.round_id == rid) | (LunchLedger.installment_id.in_([a, b]))).all()
+        assert len(leds) == 1 and leds[0].round_id == rid and leds[0].amount == 1900

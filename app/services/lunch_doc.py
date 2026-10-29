@@ -446,7 +446,7 @@ def _daygroup_table(doc, headers, widths, groups, total=None,
     return t
 
 
-def render_disburse_lunch_doc(inst, school, wht_rate=0.01, penalty=0.0) -> str:
+def render_disburse_lunch_doc(inst, school, wht_rate=0.01, penalty=0.0, period_label="") -> str:
     """เอกสารขอเบิกจ่ายรายงวด: บันทึกขออนุมัติ + ใบสำคัญรับเงิน + หนังสือรับรองหักภาษี ณ ที่จ่าย"""
     doc = Document(); set_a4(doc)
     _font(doc)
@@ -466,7 +466,7 @@ def render_disburse_lunch_doc(inst, school, wht_rate=0.01, penalty=0.0) -> str:
     fine = round(float(penalty or 0), 2)
     net = round(amt - wht - fine, 2)
     A, W, N = _money(amt), _money(wht), _money(net)
-    period = (f"งวดที่ {inst.seq} ระหว่างวันที่ {_dnum(inst.start_date)} ถึงวันที่ "
+    period = (f"{period_label or 'งวดที่ ' + str(inst.seq)} ระหว่างวันที่ {_dnum(inst.start_date)} ถึงวันที่ "
               f"{_dnum(inst.end_date)} รวม {inst.days or ''} วัน")
 
     # ===== 1. บันทึกข้อความ ขออนุมัติเบิกจ่าย =====
@@ -534,7 +534,7 @@ def render_disburse_lunch_doc(inst, school, wht_rate=0.01, penalty=0.0) -> str:
         pay_type="ค่าจ้างประกอบอาหาร",
         ref_no=(getattr(rnd, "order_no", None) or ""))
 
-    return _save(doc, f"ขอเบิกจ่าย_งวดที่{inst.seq}_ปี{prog.year}")
+    return _save(doc, f"ขอเบิกจ่าย_{'รอบที่' + str(rnd.seq) if period_label else 'งวดที่' + str(inst.seq)}_ปี{prog.year}")
 
 
 def _student_tiers(prog):

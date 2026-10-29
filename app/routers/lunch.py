@@ -550,6 +550,9 @@ def round_spend(rnd) -> float:
         wage = float(getattr(rnd, "cook_wage", 0) or 0) if mode == "person" else 0.0
         fuel = float(getattr(rnd, "fuel_cost", 0) or 0)
         return round(round_ingredient_total(rnd) + fuel + wage, 2)
+    from app.services.lunch_meals import pays_by_round
+    if pays_by_round(rnd) and rnd.installments:     # จ่ายครั้งเดียวทั้งรอบ: รวมค่าจ้างทุกงวด (คิดจากยอดนักเรียน)
+        return round(sum(float(i.amount or 0) for i in rnd.installments), 2)
     return round(float(rnd.amount or 0), 2)
 
 
@@ -913,6 +916,10 @@ async def round_set_status(rid: int, request: Request, db: Session = Depends(get
         ok = True
     if request.headers.get("X-Requested-With") == "fetch":
         return JSONResponse({"ok": ok})
+    form = await request.form()
+    back = (form.get("back") or "").strip()
+    if rnd and back.startswith(f"/lunch/round/{rnd.id}/"):
+        return RedirectResponse(back, status_code=303)
     return RedirectResponse(f"/lunch/{rnd.program_id}/rounds" if rnd else "/lunch", status_code=303)
 
 
@@ -1281,6 +1288,11 @@ def nutrition_report_docx(db: Session = Depends(get_db), year: str = ""):
 def _sync_installment_ledger(db: Session, inst: LunchInstallment) -> None:
     """ผูกบัญชีอัตโนมัติรายงวด: งวด 'จ่ายแล้ว' -> รายการจ่ายในบัญชี ; ไม่งั้นลบ"""
     existing = db.query(LunchLedger).filter_by(installment_id=inst.id).first()
+    from app.services.lunch_meals import pays_by_round
+    if pays_by_round(inst.round):                    # จ่ายครั้งเดียวทั้งรอบ ลงบัญชีที่รอบ ไม่ใช่รายงวด
+        if existing:
+            _delete_ledger(db, existing)
+        return
     if inst.status == "จ่ายแล้ว" and (inst.amount or 0) > 0:
         detail = f"ค่าจ้างเหมาอาหารกลางวัน งวดที่ {inst.seq}"
         if inst.start_date and inst.end_date:
@@ -1410,8 +1422,20 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         "doc_no_rows": doc_no_rows,
         "meal_sum": ({i.id: _meal_summary(db, i) for i in rnd.installments}
                      if rnd.program.operate_mode == "hire" else {}),
+        "pay_by_round": _pays_by_round(rnd),
+        "round_pay": _round_pay(db, rnd) if _pays_by_round(rnd) else None,
         "setup": _round_setup(rnd, committees, com_kinds, doc_no_rows, menu_days, ing_total, ing_remaining),
     })
+
+
+def _pays_by_round(rnd):
+    from app.services.lunch_meals import pays_by_round
+    return pays_by_round(rnd)
+
+
+def _round_pay(db, rnd):
+    from app.services.lunch_meals import round_pay
+    return round_pay(db, rnd)
 
 
 def _meal_summary(db, inst):
@@ -1505,7 +1529,12 @@ async def installment_update(iid: int, request: Request, db: Session = Depends(g
         inst.inspect_date = parse_be_date(val("inspect_date"))
     if has("status"):
         inst.status = val("status")
+        from app.services.lunch_meals import pays_by_round
+        if inst.status == "จ่ายแล้ว" and pays_by_round(inst.round):
+            inst.status = "ตรวจรับแล้ว"              # จ่ายทั้งรอบ: งวดจบที่ตรวจรับ
     _sync_installment_ledger(db, inst)
+    if inst.round.status == "จ่ายแล้ว":
+        _sync_round_ledger(db, inst.round)       # ยอดงวดเปลี่ยนหลังจ่ายรอบแล้ว ให้บัญชีตรงกัน
     db.commit()
     if request.headers.get("x-requested-with") == "fetch":
         return JSONResponse({"ok": True})
@@ -1568,6 +1597,51 @@ def installment_disburse_doc(iid: int, db: Session = Depends(get_db)):
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
+@router.post("/lunch/round/{rid}/pay-mode")
+def round_pay_mode(rid: int, db: Session = Depends(get_db), pay_mode: str = Form("installment")):
+    """เลือกวิธีจ่ายเงินของรอบจ้างเหมา: จ่ายทุกงวด / จ่ายครั้งเดียวทั้งรอบ (งวดใช้ส่งมอบ-ตรวจรับ)"""
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return RedirectResponse("/lunch", status_code=303)
+    mode = "round" if pay_mode == "round" else "installment"
+    back = f"/lunch/round/{rid}/plan#installments"
+    if mode == "round" and any((i.status or "") == "จ่ายแล้ว" for i in rnd.installments):
+        from urllib.parse import quote
+        return RedirectResponse(f"/lunch/round/{rid}/plan?err=" + quote(
+            "มีงวดที่บันทึกว่าจ่ายแล้ว เปลี่ยนเป็นจ่ายทั้งรอบไม่ได้ ให้เปลี่ยนสถานะงวดนั้นเป็นตรวจรับแล้วก่อน") + "#installments",
+            status_code=303)
+    rnd.pay_mode = mode
+    if mode == "installment" and rnd.status == "จ่ายแล้ว":
+        rnd.status = "จ้างแล้ว"                   # กลับไปจ่ายรายงวด: ยกเลิกการจ่ายทั้งรอบ
+    db.flush()
+    for i in rnd.installments:
+        _sync_installment_ledger(db, i)
+    _sync_round_ledger(db, rnd)
+    db.commit()
+    return RedirectResponse(back, status_code=303)
+
+
+@router.get("/lunch/round/{rid}/disburse-doc")
+def round_disburse_doc(rid: int, db: Session = Depends(get_db)):
+    """เอกสารขอเบิกจ่ายทั้งรอบ (บันทึก + ใบสำคัญรับเงิน + หนังสือรับรองหักภาษี) รวมทุกงวด"""
+    from types import SimpleNamespace
+    from app.services.lunch_doc import render_disburse_lunch_doc
+    from app.services.lunch_meals import round_pay
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd or not rnd.installments:
+        return RedirectResponse(f"/lunch/round/{rid}/plan" if rnd else "/lunch", status_code=303)
+    insts = sorted(rnd.installments, key=lambda i: i.seq)
+    rp = round_pay(db, rnd)
+    whole = SimpleNamespace(
+        round=rnd, seq=f"1-{insts[-1].seq}" if len(insts) > 1 else str(insts[0].seq),
+        start_date=insts[0].start_date or rnd.start_date, end_date=insts[-1].end_date or rnd.end_date,
+        days=sum(i.days or 0 for i in insts), amount=rp["amount"],
+        inspect_date=max((i.inspect_date for i in insts if i.inspect_date), default=None))
+    path = render_disburse_lunch_doc(whole, get_school(db), penalty=rp["penalty"],
+                                     period_label=f"รอบที่ {rnd.seq} (งวดที่ {whole.seq})")
+    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
 @router.get("/lunch/installment/{iid}/meals", response_class=HTMLResponse)
 def installment_meals(iid: int, request: Request, db: Session = Depends(get_db)):
     """บันทึกจำนวนนักเรียนที่รับประทานจริง รายวัน x รายชั้น ของงวดหนึ่ง (จ้างเหมาปรุงสำเร็จ)"""
@@ -1582,7 +1656,7 @@ def installment_meals(iid: int, request: Request, db: Session = Depends(get_db))
     return templates.TemplateResponse("lunch_meals.html", {
         "request": request, "i": inst, "r": rnd, "p": prog, "s": s, "menus": menus,
         "classes": list(prog.classes), "installments": list(rnd.installments),
-        "penalty_rate": lm.PENALTY_RATE, "wht_rate": lm.WHT_RATE,
+        "penalty_rate": lm.PENALTY_RATE, "wht_rate": lm.WHT_RATE, "by_round": lm.pays_by_round(rnd),
     })
 
 

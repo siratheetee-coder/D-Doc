@@ -1516,6 +1516,7 @@ class LunchHireRound(Base):
     doc_nos = Column(Text, default="")               # JSON เลขที่/วันที่ราย "ฉบับเอกสาร" {kind:{no,date}} -> ทะเบียนกลาง
     status = Column(String, default="ร่าง")          # ร่าง / จ้างแล้ว / จ่ายแล้ว
     note = Column(String, default="")
+    pay_mode = Column(String, default="installment")  # installment=จ่ายทุกงวด / round=ส่งมอบตรวจรับรายงวด จ่ายครั้งเดียวทั้งรอบ
     created_at = Column(DateTime, default=datetime.now)
 
     program = relationship("LunchProgram", back_populates="rounds")
@@ -2228,7 +2229,7 @@ class AcadTimetable(Base):
     klass = relationship("AcadClass")
     subject = relationship("AcadSubject")
 
-
+
 class AcadTimetablePlan(Base):
     """จำนวนคาบ/สัปดาห์ และคาบคู่ ที่ตั้งไว้ต่อ (ห้อง, วิชา) ใช้คำนวณความคืบหน้าและจัดอัตโนมัติ"""
     __tablename__ = "acad_timetable_plan"
