@@ -450,6 +450,8 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
                           "remain": round((p.opening_balance or 0)+sum(r["opening"] for r in krows) + tin - tout, 2), "has_kids": bool(krows)})
         item_rows.extend(krows)
     from app.services.finance_openings import token as opening_token
+    from app.services.money_place import opening_by_place as _obp, account_place as _ap
+    open_split, home_place = _obp(a, fy), _ap(a)
     # แผนที่ รายการเงิน -> เลขใบเสร็จที่ออกผูกกัน (ไว้แสดงในประวัติ)
     receipt_map = {rc.txn_id: (rc.receipt_no or "(ไม่มีเลข)")
                    for rc in db.query(Receipt).filter(Receipt.txn_id.isnot(None)).all()
@@ -483,6 +485,7 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
         "opening": opening, "fiscal_year": fy, "years": _finance_years(db, fy),
         "items": items, "item_rows": item_rows, "receipt_map": receipt_map,
         "opening_token": opening_token(db,a,fy),
+        "open_split": open_split, "home_place": home_place,
         "opening_sum": round(sum(i.opening_balance or 0 for i in items),2),
         "opening_gap": round(opening-sum(i.opening_balance or 0 for i in items),2),
         "parents": parents, "fund_types": FUND_TYPES, "presets": PRESET_SETS,
@@ -1333,7 +1336,9 @@ def _build_cash_rows(accounts, fy, as_of):
                 rest = {k: round(whole[k] - a_sub[k], 2) for k in whole}
                 if any(abs(v) > 0.005 for v in rest.values()):
                     amt = amt_places(rest)
-                    a_body.append({"name":"ยอดที่ยังไม่แยกหมวด / รายการไม่ระบุหมวด","level":1+off,"kind":"leaf",**amt})
+                    rest_name = ("เงินที่แยกที่เก็บไว้ (ไม่ระบุหมวด)" if abs(amt["total"]) < 0.005
+                                 else "ยอดที่ยังไม่แยกหมวด / รายการไม่ระบุหมวด")
+                    a_body.append({"name":rest_name,"level":1+off,"kind":"leaf",**amt})
                     _add_amt(a_sub,amt)
                 if not redundant:
                     body.append({"name": a.name, "level": 1, "kind": "sub", **a_sub})

@@ -67,6 +67,17 @@
       {% else %}<input type="number" step="0.01" name="opening_{{ r.it.id }}" data-parent="{{ r.it.parent_id or '' }}" value="{{ r.it.opening_balance or 0 }}" required>{% endif %}
     </td></tr>{% endfor %}
     </tbody></table></div><p>รวมยอดยกมาทุกหมวด: <strong id="opening-total">{{ '{:,.2f}'.format(opening_sum) }}</strong> บาท</p><p id="opening-error" role="alert" style="color:#b91c1c;"></p>{% endif %}
+    <div class="op-split">
+      <b>ยอดยกมานี้เก็บไว้ที่ไหน</b> <span class="muted">ถ้าเก็บไว้ที่เดียว ไม่ต้องกรอก</span>
+      <div class="op-row">
+        {% for k, v in deposit_types.items() %}
+        <label class="op-cell op-{{ k }}">{{ v }}
+          {% if k == home_place %}<output id="opHome">{{ "{:,.2f}".format(open_split[k]) }}</output><small>ส่วนที่เหลือ</small>
+          {% else %}<input type="number" step="0.01" min="0" name="open_place_{{ k }}" class="op-in" value="{{ '%.2f'|format(open_split[k]) if open_split[k] else '' }}" placeholder="0.00">{% endif %}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
     <button class="btn" type="submit">บันทึกยอดยกมา</button>
   </form>
 </div>
@@ -402,6 +413,12 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
   </form>
 </div>
 <style>
+  .op-split{ margin:14px 0; padding:12px 14px; border-radius:14px; background:linear-gradient(120deg,#f8fafc,#eff6ff); }
+  .op-row{ display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+  .op-cell{ display:flex; flex-direction:column; gap:4px; flex:1; min-width:160px; padding:8px 12px; border-radius:12px; background:#fff; font-weight:600; }
+  .op-cell output{ font-size:18px; font-weight:700; color:#1d4ed8; }
+  .op-cell small{ color:var(--muted); font-weight:400; }
+  .op-cell.is-neg output{ color:#dc2626; }
   .mp-strip{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:12px; padding:10px 14px; border-radius:14px; background:#f8fafc; }
   .mp-title{ font-weight:700; margin-right:4px; }
   .mp-chip{ display:flex; flex-direction:column; padding:6px 14px; border-radius:12px; background:#fff; box-shadow:0 2px 8px rgba(15,23,42,.06); }
@@ -421,6 +438,17 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       var k = f.querySelector('[name=kind]');
       var sync = function(){ lab.textContent = k.value === 'out' ? 'จ่ายจาก' : 'รับเข้าที่'; };
       k.addEventListener('change', sync); sync();
+    }
+    var of = document.getElementById('opening-form'), home = document.getElementById('opHome');
+    if (of && home) {
+      var tot = of.elements.account_opening, ins = of.querySelectorAll('.op-in');
+      var upd = function(){
+        var v = Number(tot.value || 0);
+        ins.forEach(function(i){ v -= Number(i.value || 0); });
+        home.textContent = v.toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
+        home.parentNode.classList.toggle('is-neg', v < -0.005);
+      };
+      tot.addEventListener('input', upd); ins.forEach(function(i){ i.addEventListener('input', upd); }); upd();
     }
     var s = document.getElementById('mvSrc'), d = document.getElementById('mvDst'), n = document.getElementById('mvNote');
     var name = {cash:'เงินสด', bank:'ธนาคาร', agency:'ส่วนราชการผู้เบิก'};

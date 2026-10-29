@@ -61,3 +61,36 @@ def test_move_money_between_places(env):
         mine = next(r for r in rows if r["name"] == "ค่าวัสดุ")
         assert (mine["cash"], mine["bank"]) == (1800.0, -5000.0)
         assert round(tot["cash"], 2) == -200 and round(tot["bank"], 2) == 15000
+
+
+def test_opening_split_without_date(env):
+    """ผู้เริ่มใช้ระบบ: ยอดยกมาแยกที่เก็บได้เลย ไม่ต้องลงรายการถอน/ฝาก"""
+    from app.models import FinanceAccount, FinanceTxn
+    from app.services.money_place import account_by_place
+    from app.services.finance_openings import token
+    from app.thai_utils import current_fiscal_year
+    fy = current_fiscal_year()
+    with _db() as s:
+        a = FinanceAccount(name="เงินรายได้ทดสอบแยกที่", deposit_type="bank", opening_balance=0); s.add(a); s.commit()
+        aid = a.id
+        tok = token(s, a, fy)
+    r = env.post(f"/finance/accounts/{aid}/openings", data={"fiscal_year": str(fy), "opening_token": tok,
+                 "account_opening": "10000", "open_place_cash": "2500", "open_place_agency": "1000"},
+                 follow_redirects=False)
+    assert r.status_code == 303
+    with _db() as s:
+        a = s.get(FinanceAccount, aid)
+        assert account_by_place(a, fy) == {"cash": 2500.0, "bank": 6500.0, "agency": 1000.0}
+        assert s.query(FinanceTxn).filter_by(account_id=aid).count() == 0
+        tok = token(s, a, fy)
+    page = env.get(f"/finance/accounts/{aid}?year={fy}").text
+    assert 'name="open_place_cash"' in page and 'value="2500.00"' in page and "mp-strip" in page
+    # แยกเกินยอดรวม -> ไม่ยอม
+    r = env.post(f"/finance/accounts/{aid}/openings", data={"fiscal_year": str(fy), "opening_token": tok,
+                 "account_opening": "1000", "open_place_cash": "2500", "open_place_agency": "0"})
+    assert r.status_code == 409
+    # กลับไปเก็บที่เดียว -> ล้างการแยก
+    r = env.post(f"/finance/accounts/{aid}/openings", data={"fiscal_year": str(fy), "opening_token": tok,
+                 "account_opening": "10000", "open_place_cash": "", "open_place_agency": ""}, follow_redirects=False)
+    with _db() as s:
+        assert account_by_place(s.get(FinanceAccount, aid), fy)["bank"] == 10000

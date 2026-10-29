@@ -35,6 +35,18 @@ def save(db, account, fy, form):
     if row is None:
         row=AccountOpening(account_id=account.id,fiscal_year=fy);db.add(row)
     row.amount=total
+    # ยอดยกมานี้เก็บไว้ที่ไหน: กรอกเฉพาะที่อื่น ส่วนที่เหลืออยู่ที่ที่เก็บของบัญชี
+    from app.services.money_place import PLACES, account_place, blank, split_json
+    if any(('open_place_'+k) in form for k in PLACES):
+        home=account_place(account)
+        parts=blank()
+        for k in PLACES:
+            if k!=home:
+                parts[k]=amount(form.get('open_place_'+k) or 0)
+        parts[home]=round(total-sum(parts.values()),2)
+        if parts[home]<-0.005 and total>=0:
+            raise ValueError('เงินที่แยกไว้ที่อื่นรวมกันเกินยอดยกมาของบัญชี')
+        row.places=split_json(account,parts)
 
 
 def carry(db, fy):
@@ -70,6 +82,8 @@ def carry(db, fy):
         row=db.query(AccountOpening).filter_by(account_id=a.id,fiscal_year=fy+1).first()
         if row is None:row=AccountOpening(account_id=a.id,fiscal_year=fy+1);db.add(row)
         row.amount=account_balance_year(a,fy)
+        from app.services.money_place import account_by_place, split_json
+        row.places=split_json(a,account_by_place(a,fy))   # เงินสด/ธนาคาร สิ้นปี ยกไปเป็นยอดยกมาแยกที่เก็บ
 
 
 def carry_status(db, fy) -> list:

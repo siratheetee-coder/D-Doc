@@ -141,6 +141,7 @@ MIGRATIONS = [
     ("money_loan",      "activity_id",  "INTEGER"),
     ("finance_txn",     "remark",       "VARCHAR DEFAULT ''"),
     ("finance_txn",     "place",        "VARCHAR DEFAULT ''"),
+    ("account_opening", "places",       "VARCHAR DEFAULT ''"),
     ("disburse_memo",   "proc_kind",    "VARCHAR DEFAULT 'จัดซื้อ'"),
     ("school", "finance_officer_name",  "VARCHAR DEFAULT ''"),
     ("school", "finance_head_name",     "VARCHAR DEFAULT ''"),

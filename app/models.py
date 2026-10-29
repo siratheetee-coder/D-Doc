@@ -785,6 +785,7 @@ class AccountOpening(Base):
     account_id = Column(Integer, ForeignKey("finance_account.id"), nullable=False)
     fiscal_year = Column(Integer, nullable=False)
     amount = Column(Float, default=0.0)
+    places = Column(String, default="")   # ยอดยกมาแยกที่เก็บ JSON {"cash":..,"bank":..,"agency":..} ว่าง = อยู่ที่ที่เก็บของบัญชีทั้งหมด
 
     account = relationship("FinanceAccount", back_populates="openings")
 

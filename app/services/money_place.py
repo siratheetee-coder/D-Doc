@@ -43,9 +43,40 @@ def _sign(t):
     return (t.amount or 0) if t.kind == "in" else -(t.amount or 0)
 
 
+def opening_split(account, fy):
+    """ยอดยกมาแยกที่เก็บที่กรอกไว้ (ไม่ต้องลงวันที่ ไม่เป็นรายการรับ-จ่าย) หรือ None ถ้าไม่ได้แยก"""
+    import json
+    for o in getattr(account, "openings", None) or []:
+        if o.fiscal_year == fy and (o.places or "").strip():
+            try:
+                d = json.loads(o.places)
+            except ValueError:
+                return None
+            out = blank()
+            for k, v in d.items():
+                if k in out:
+                    out[k] = float(v or 0)
+            # ยอดยกมารวมถูกแก้ทีหลัง: ส่วนต่างอยู่ที่ที่เก็บของบัญชี
+            out[account_place(account)] += float(o.amount or 0) - sum(out.values())
+            return out
+    return None
+
+
+def split_json(account, parts: dict) -> str:
+    """เก็บเฉพาะเมื่อมีเงินอยู่นอกที่เก็บของบัญชี (ไม่งั้นว่าง = แบบเดิม)"""
+    import json
+    home = account_place(account)
+    if all(abs(v) < 0.005 for k, v in parts.items() if k != home):
+        return ""
+    return json.dumps({k: round(v, 2) for k, v in parts.items() if abs(v) >= 0.005})
+
+
 def opening_by_place(account, fy) -> dict:
     """ยอดยกมาของบัญชีในปีงบ fy แยกที่เก็บ"""
     from app.services.asset_utils import opening_for
+    split = opening_split(account, fy)
+    if split is not None:
+        return split
     out = blank()
     total = float(opening_for(account, fy) or 0)
     for it in getattr(account, "items", None) or []:
