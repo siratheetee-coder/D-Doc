@@ -74,6 +74,33 @@
       {% endif %}
     </div>
   </div>
+  {% if track %}
+  {% set track = track|selectattr('finance', 'undefined')|list + (track|selectattr('finance', 'defined')|list if modules_live.finance else []) %}
+  <div class="pt-box">
+    <b class="pt-title">ขั้นตอนต่อไป</b>
+    <ol class="pt-steps">
+      {% for t in track %}
+      <li class="{{ 'done' if t.done else ('current' if t.current else '') }}">
+        <a href="{{ t.href }}"><span class="pt-dot">{% if t.done %}✔{% else %}{{ loop.index }}{% endif %}</span>
+          <span><b>{{ t.label }}</b><small>{{ 'ทำแล้ว' if t.done else t.sub }}</small></span></a>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+  <style>
+    .pt-box{ margin-top:14px; padding:12px 14px; border-radius:16px; background:linear-gradient(120deg,#eff6ff,#f0fdf4); }
+    .pt-title{ display:block; margin-bottom:8px; }
+    .pt-steps{ list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; }
+    .pt-steps a{ display:flex; gap:10px; align-items:center; padding:8px 12px; border-radius:12px; background:#fff; color:inherit; text-decoration:none; height:100%; }
+    .pt-steps a:hover{ box-shadow:0 4px 14px rgba(37,99,235,.15); }
+    .pt-steps small{ display:block; font-size:12.5px; color:var(--muted); }
+    .pt-dot{ flex:none; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; background:#e2e8f0; color:#475569; }
+    .pt-steps li.done .pt-dot{ background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff; }
+    .pt-steps li.done small{ color:#16a34a; }
+    .pt-steps li.current a{ box-shadow:0 0 0 2px #6366f1 inset; }
+    .pt-steps li.current .pt-dot{ background:linear-gradient(135deg,#2563eb,#7c3aed); color:#fff; }
+  </style>
+  {% endif %}
   {% if request.query_params.get("saved") %}<div class="alert" style="margin-top:10px;">✔ บันทึกการแก้ไขเรียบร้อย</div>{% endif %}
   {% if request.query_params.get("msg") %}<div class="alert" style="margin-top:10px;">✔ {{ request.query_params.get("msg") }}</div>{% endif %}
   {% if request.query_params.get("err") %}<div class="alert warn" style="margin-top:10px;">{{ request.query_params.get("err") }}</div>{% endif %}
@@ -138,7 +165,7 @@
 {# รูปแบบพิเศษ (ว.804/ว.119/ข้อ 79) ไม่แสดงการ์ด "เลขที่เอกสาร & วันที่" - แก้เลขที่/ช่องต่างๆ ที่ปุ่ม "แก้ไขเรื่อง" #}
 {% set is_special = (p.proc_case or 'normal') != 'normal' %}
 {% if not is_special %}
-<div class="card">
+<div class="card" id="docnos" style="scroll-margin-top:90px;">
   <h2>เลขที่เอกสาร & วันที่ <span class="muted" style="font-size:15px;">(แก้ไขภายหลังได้)</span></h2>
   {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกเลขที่/วันที่เรียบร้อย</div>{% endif %}
   {% set has_spec = (p.committees | selectattr('kind', 'equalto', 'spec') | list | length) > 0 %}
@@ -320,7 +347,7 @@
 </style>
 
 {% if not case_info.altkind %}
-<div class="card">
+<div class="card" id="issue" style="scroll-margin-top:90px;">
   <h2>ออกเอกสาร</h2>
 
   <!-- ปุ่มหลัก -->
@@ -346,7 +373,7 @@
   {{ next_steps(p, modules_live) }}
 </div>
 {% else %}
-<div class="card hl">
+<div class="card hl" id="issue" style="scroll-margin-top:90px;">
   <h2><svg class="icon"><use href="#ic-file"/></svg> ออกเอกสาร - {{ case_info.label }}</h2>
   <p class="muted" style="margin-top:0;">{{ case_info.desc }}</p>
   {% if w119t2 %}

@@ -2102,6 +2102,24 @@ def procurement_wizard(request: Request):
     })
 
 
+@router.get("/procurement/project-budget")
+def procurement_project_budget(name: str = "", exclude: int = 0, db: Session = Depends(get_db)):
+    """งบโครงการคงเหลือ ให้ฟอร์มสร้างเรื่องจัดซื้อโชว์ระหว่างกรอก (หาโครงการแบบเดียวกับตอนบันทึก)"""
+    from app.services.budget import project_budget, project_remaining
+    name = (name or "").strip()
+    proj = None
+    if name:
+        q = db.query(Project).filter(Project.name == name)
+        proj = q.filter(Project.plan_year == current_plan_year(get_school(db))).first() or q.first()
+    if not proj:
+        return JSONResponse({"found": False})
+    left = project_remaining(proj)
+    own = db.get(Procurement, exclude) if exclude else None
+    if own and own.project_id == proj.id:      # แก้ไขเรื่องเดิม: ไม่นับยอดของเรื่องนี้ซ้ำ
+        left += float(own.total_amount or 0)
+    return JSONResponse({"found": True, "name": proj.name, "budget": project_budget(proj), "left": round(left, 2)})
+
+
 @router.get("/procurement/new", response_class=HTMLResponse)
 def procurement_new_form(request: Request, db: Session = Depends(get_db),
                          case: str | None = None, project: int | None = None, activity: int | None = None):
@@ -2295,6 +2313,7 @@ def procurement_edit_form(proc_id: int, request: Request, db: Session = Depends(
         "case_extra_fields": CASE_EXTRA_FIELDS.get(proc.proc_case or "normal", []),
         "case_extra": extra_vals, "case_select_options": CASE_SELECT_OPTIONS,
         "case_limits": _case_limits(),
+        "case_info": PROC_CASES.get(proc.proc_case or "normal", PROC_CASES["normal"]),
         **_form_lists(db),
     })
 
@@ -2414,7 +2433,29 @@ def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get
         "paid_in_system": proc.id in _paid_in_system(db),
         # โครงการที่ผูกด้วย project_id (เรื่องใหม่ไม่ได้เก็บชื่อโครงการเป็นข้อความ เดิมช่องนี้จึงขึ้นเป็นขีด)
         "proj": db.get(Project, proc.project_id) if proc.project_id else None,
+        "track": _proc_track(db, proc),
     })
+
+
+def _proc_track(db, proc) -> list:
+    """ขั้นตอนต่อไปของเรื่องนี้ (กล่องบนหน้าเรื่อง) พร้อมสถานะว่าทำแล้วหรือยัง"""
+    from app.models import ProcurementRegisterImport
+    received = proc.status in ("ตรวจรับแล้ว", "เบิกจ่ายแล้ว") or bool(proc.inspect_date)
+    paid = (proc.status == "เบิกจ่ายแล้ว" or bool(proc.paid_before_system)
+            or db.query(DisburseMemo).filter_by(procurement_id=proc.id).first() is not None)
+    rows = [
+        {"label": "ออกเอกสาร", "sub": "รายงานขอซื้อ/จ้าง ทั้งชุด", "done": bool(proc.documents), "href": "#issue"},
+        {"label": "ลงเลขใบสั่ง" + proc.proc_type, "sub": "เลขที่และวันที่ลงนาม", "done": bool((proc.order_no or "").strip()), "href": "#docnos"},
+        {"label": "ตรวจรับ", "sub": "ลงวันที่ตรวจรับ", "done": received, "href": "#docnos"},
+        {"label": "เบิกจ่าย", "sub": "ออกบันทึกขอเบิกจ่าย", "done": paid, "href": f"/finance/disburse?proc={proc.id}", "finance": True},
+    ]
+    if proc.items and proc.proc_type == "ซื้อ":
+        reg = db.query(ProcurementRegisterImport).filter_by(procurement_id=proc.id).first() is not None
+        rows.append({"label": "เข้าทะเบียน", "sub": "วัสดุ/ครุภัณฑ์", "done": reg, "href": f"/procurement/{proc.id}/to-register"})
+    cur = next((i for i, r in enumerate(rows) if not r["done"]), None)
+    for i, r in enumerate(rows):
+        r["current"] = i == cur
+    return rows
 
 
 def _paid_before_box(db):

@@ -20,10 +20,21 @@
       {% if ai_note|default('') %}<br><b>{{ ai_note }}</b>{% endif %}</span>
   </div>
   {% endif %}
+
+    {% set pf_special = (proc_case if proc_case is defined else (p.proc_case if p and p.proc_case else 'normal')) != 'normal' %}
+    {% set pf_people = 'ข้อมูลเอกสาร' if pf_special else 'ผู้ตรวจรับ/กรรมการ' %}
+    <ol class="pf-steps" id="pfSteps">
+      <li class="done">{% if not is_edit %}<a href="/procurement/new{{ ('?project=' ~ project_q) if project_q|default('') }}" title="เปลี่ยนรูปแบบ">{% endif %}<span class="pf-dot"><svg class="icon"><use href="#ic-check"/></svg></span><span class="pf-lab">รูปแบบ<small>{{ case_info.label if case_info is defined and case_info else 'ปกติ' }}</small></span>{% if not is_edit %}</a>{% endif %}</li>
+      <li data-go="0"><span class="pf-dot">2</span><span class="pf-lab">ข้อมูลเรื่อง</span></li>
+      <li data-go="1"><span class="pf-dot">3</span><span class="pf-lab">รายการและงบ</span></li>
+      <li data-go="2"><span class="pf-dot">4</span><span class="pf-lab">{{ pf_people }}</span></li>
+      <li data-go="3"><span class="pf-dot">5</span><span class="pf-lab">ตรวจสอบ</span></li>
+    </ol>
   <form method="post" action="{{ action }}" id="procForm">
     {% if pending_file|default('') %}<input type="hidden" name="pending_file" value="{{ pending_file }}">{% endif %}
     <input type="hidden" name="proc_case" value="{{ proc_case if proc_case is defined else (p.proc_case if p and p.proc_case else 'normal') }}">
     {% set is_special = (proc_case if proc_case is defined else (p.proc_case if p and p.proc_case else 'normal')) != 'normal' %}
+    <section class="pf-step" data-step="0">
     <div class="row">
       {% if not is_edit or is_special %}
       {% set _case = (proc_case if proc_case is defined else (p.proc_case if p and p.proc_case else 'normal')) %}
@@ -82,6 +93,11 @@
     <div class="row">
       <div><label>แหล่งงบประมาณ</label>
         <input name="budget_source" value="{{ p.budget_source if is_edit else (prefill_budget|default('') or 'อุดหนุน') }}"></div>
+    </div>
+    </section>
+
+    <section class="pf-step" data-step="1" hidden>
+    <div class="row">
       {% if not is_special %}
       <div><label>ที่มาราคากลาง</label>
         <input name="price_ref_source" value="{{ p.price_ref_source if is_edit else 'การสืบราคาจากท้องตลาด' }}"></div>
@@ -172,6 +188,14 @@
     <span id="ocrMsg" class="muted" style="margin-left:8px; font-size:13px;"></span>
     <p style="margin-top:8px;">วงเงินรวมโดยประมาณ: <b id="totalShow">0.00</b> บาท</p>
 
+    <div class="pf-money" id="pfMoney">
+      <div class="pf-mcell"><small>วงเงินเรื่องนี้</small><b id="pfTotal">0.00</b></div>
+      <div class="pf-mcell" id="pfProjCell" hidden><small id="pfProjLab">งบโครงการคงเหลือ</small><b id="pfProjLeft">-</b><small id="pfProjAfter"></small></div>
+      <div class="pf-mrule" id="pfRule"></div>
+    </div>
+    </section>
+
+    <section class="pf-step" data-step="2" hidden>
     {% if is_special and case_extra_fields %}
     <h2 style="margin-top:20px;">ข้อมูลเพิ่มเติมสำหรับเอกสาร{{ (' ' ~ case_info.label) if case_info is defined else '' }}</h2>
     <p class="muted" style="margin:-6px 0 10px;">เว้นว่างได้ โดยช่องที่ไม่กรอกระบบจะใส่จุดไข่ปลาให้เติมมือในเอกสาร</p>
@@ -198,8 +222,11 @@
     </div>
     {% endif %}
 
+    {% if is_special and not case_extra_fields %}
+    <p class="muted">รูปแบบนี้ไม่ต้องกรอกรายชื่อผู้ตรวจรับหรือกรรมการเพิ่ม กด "ถัดไป" เพื่อตรวจสอบได้เลย</p>
+    {% endif %}
     {% if not is_special %}
-    <h2 style="margin-top:20px;">ผู้ตรวจรับพัสดุ</h2>
+    <h2 class="pf-need" data-need="จำเป็น" style="margin-top:20px;">ผู้ตรวจรับพัสดุ</h2>
     <div class="row">
       <div style="max-width:340px;">
         <label>รูปแบบ</label>
@@ -243,7 +270,7 @@
     <datalist id="positions">{% for ps in positions %}<option value="{{ ps }}">{% endfor %}</datalist>
     <br><button type="button" class="btn soft sm" onclick="addMember()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มกรรมการ</button>
 
-    <h2 style="margin-top:24px;">ผู้จัดทำร่างขอบเขตของงาน/รายละเอียดคุณลักษณะเฉพาะ</h2>
+    <h2 class="pf-need" data-need="จำเป็น" style="margin-top:24px;">ผู้จัดทำร่างขอบเขตของงาน/รายละเอียดคุณลักษณะเฉพาะ</h2>
     <p class="muted" style="margin:-8px 0 10px;">ระเบียบกระทรวงการคลังฯ พ.ศ. 2560 <b>ข้อ 21</b>
       กำหนดให้ต้องจัดทำก่อนรายงานขอซื้อขอจ้าง<b>ทุกครั้ง</b> โดยเลือกได้ว่าจะมอบหมายบุคคลใดบุคคลหนึ่ง
       หรือแต่งตั้งเป็นคณะกรรมการ</p>
@@ -287,6 +314,8 @@
     </table></div>
     <br><button type="button" class="btn soft sm" id="addSpecBtn" onclick="addSpecMember()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มกรรมการคุณลักษณะ</button>
 
+    <details class="pf-opt">
+      <summary>ไม่บังคับ: ข้อมูลสำหรับ TOR <span class="muted">(เว้นไว้ ระบบใส่ค่าที่ใช้กันทั่วไปให้)</span></summary>
     <h2 style="margin-top:24px;">ข้อมูลสำหรับ TOR / รายละเอียดคุณลักษณะเฉพาะ</h2>
     <p class="muted" style="margin:-8px 0 12px;">ใช้ในเอกสารขอบเขตของงาน (TOR) ข้อ 2 ข้อ 5 และข้อ 9
       เว้นไว้ก็ได้ ระบบใส่ค่าที่ใช้กันทั่วไปให้</p>
@@ -305,6 +334,9 @@
         <input name="fix_days" type="number" min="1"
                value="{{ p.fix_days or 7 if is_edit else 7 }}"></div>
     </div>
+    </details>
+    <details class="pf-opt"{{ " open" if prefill_purchase_members|default([]) }}>
+      <summary>ไม่บังคับ: คณะกรรมการซื้อ/จ้าง <span class="muted">(ไม่กรอก = เจ้าหน้าที่พัสดุดำเนินการเอง)</span></summary>
 
     <h2 style="margin-top:24px;">คณะกรรมการซื้อ/จ้าง</h2>
     <p class="muted" style="margin:-8px 0 12px;">ไม่บังคับ ถ้าไม่กรอก ถือว่าเจ้าหน้าที่พัสดุดำเนินการเอง (ปกติของวิธีเฉพาะเจาะจง)
@@ -325,11 +357,24 @@
       </tbody>
     </table></div>
     <br><button type="button" class="btn soft sm" onclick="addPurchaseMember()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มกรรมการซื้อ/จ้าง</button>
+    </details>
     {% endif %}
+    </section>
 
-    <br><br>
-    <button class="btn green" type="submit"><svg class="icon"><use href="#ic-save"/></svg> {{ "บันทึกการแก้ไข" if is_edit else "บันทึกและออกเลขที่" }}</button>
-    <a class="btn gray" href="{{ ('/procurement/' ~ p.id) if is_edit else '/' }}">ยกเลิก</a>
+    <section class="pf-step" data-step="3" hidden>
+      <h2 style="margin-top:4px;">ตรวจสอบก่อนบันทึก</h2>
+      <div id="pfWarn"></div>
+      <div id="pfReview" class="pf-review"></div>
+    </section>
+
+    <div class="pf-nav">
+      <button type="button" class="btn gray" id="pfBack"><svg class="icon"><use href="#ic-arrow-left"/></svg> ย้อนกลับ</button>
+      <a class="btn gray" id="pfCancel" href="{{ ('/procurement/' ~ p.id) if is_edit else '/' }}">ยกเลิก</a>
+      <span style="flex:1;"></span>
+      {% if is_edit %}<button class="btn soft" type="submit" id="pfSaveNow"><svg class="icon"><use href="#ic-save"/></svg> บันทึกการแก้ไข</button>{% endif %}
+      <button type="button" class="btn" id="pfNext">ถัดไป <svg class="icon"><use href="#ic-arrow-right"/></svg></button>
+      <button class="btn green" type="submit" id="pfSubmit" hidden><svg class="icon"><use href="#ic-save"/></svg> {{ "บันทึกการแก้ไข" if is_edit else "บันทึกและออกเลขที่" }}</button>
+    </div>
   </form>
 </div>
 
@@ -645,6 +690,197 @@
     sel.addEventListener('change', apply);
     apply();
   })();
+</script>
+<style>
+  .pf-steps{ list-style:none; display:flex; gap:0; margin:14px 0 18px; padding:14px 10px; border-radius:16px;
+    background:linear-gradient(120deg,#eff6ff,#f5f3ff); counter-reset:none; overflow-x:auto; }
+  .pf-steps li{ flex:1; min-width:96px; display:flex; flex-direction:column; align-items:center; gap:6px; position:relative;
+    cursor:default; color:#64748b; font-size:14px; text-align:center; }
+  .pf-steps li a{ display:contents; color:inherit; text-decoration:none; }
+  .pf-steps li + li::before{ content:""; position:absolute; top:16px; right:50%; width:100%; height:3px; background:#dbe3ef; z-index:0; }
+  .pf-steps li.done + li::before, .pf-steps li.current::before{ background:linear-gradient(90deg,#3b82f6,#6366f1); }
+  .pf-dot{ position:relative; z-index:1; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:#fff; color:#64748b; font-weight:700; box-shadow:0 2px 8px rgba(15,23,42,.08); }
+  .pf-dot .icon{ width:18px; height:18px; }
+  .pf-lab{ display:flex; flex-direction:column; line-height:1.3; }
+  .pf-lab small{ font-size:12px; color:#94a3b8; }
+  .pf-steps li.done .pf-dot{ background:linear-gradient(135deg,#3b82f6,#6366f1); color:#fff; }
+  .pf-steps li.current .pf-dot{ background:linear-gradient(135deg,#2563eb,#7c3aed); color:#fff; box-shadow:0 0 0 5px rgba(99,102,241,.18); }
+  .pf-steps li.current{ color:#1e3a8a; font-weight:700; }
+  .pf-steps li.go{ cursor:pointer; }
+  .pf-steps li.go:hover .pf-lab{ color:#2563eb; }
+  .pf-nav [hidden], .pf-step[hidden]{ display:none !important; }
+  .pf-nav{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:22px; padding-top:16px; }
+  .pf-money{ display:flex; flex-wrap:wrap; gap:12px; align-items:stretch; margin-top:16px; padding:14px; border-radius:16px;
+    background:linear-gradient(120deg,#f0fdf4,#ecfeff); }
+  .pf-mcell{ display:flex; flex-direction:column; padding:8px 14px; border-radius:12px; background:#fff; min-width:170px; }
+  .pf-mcell small{ color:var(--muted); font-size:12.5px; }
+  .pf-mcell b{ font-size:20px; color:#0f172a; }
+  .pf-mcell.is-over{ background:#fef2f2; } .pf-mcell.is-over b{ color:#dc2626; }
+  .pf-mrule{ flex:1; min-width:220px; align-self:center; font-size:14px; line-height:1.6; color:#334155; }
+  .pf-need::after{ content:attr(data-need); margin-left:8px; padding:2px 9px; border-radius:99px; font-size:12px; font-weight:600;
+    vertical-align:middle; background:linear-gradient(120deg,#fee2e2,#fde68a); color:#9a3412; }
+  .pf-opt{ margin-top:18px; padding:4px 14px 12px; border-radius:14px; background:#f8fafc; }
+  .pf-opt > summary{ cursor:pointer; padding:10px 0 6px; font-weight:700; }
+  .pf-opt[open] > summary{ margin-bottom:6px; }
+  .pf-review{ display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; }
+  .pf-rcard{ padding:12px 16px; border-radius:14px; background:linear-gradient(120deg,#f8fafc,#eef2ff); }
+  .pf-rcard h3{ display:flex; justify-content:space-between; align-items:center; margin:0 0 8px; font-size:16px; }
+  .pf-rcard h3 button{ font-size:13px; padding:3px 12px; }
+  .pf-rcard dl{ display:grid; grid-template-columns:auto 1fr; gap:4px 12px; margin:0; font-size:14.5px; }
+  .pf-rcard dt{ color:var(--muted); } .pf-rcard dd{ margin:0; word-break:break-word; }
+  .pf-rcard .empty{ color:#b45309; }
+  .pf-warn{ margin:0 0 12px; padding:10px 14px; border-radius:12px; background:#fff7ed; color:#9a3412; }
+  .pf-warn ul{ margin:4px 0 0; padding-left:20px; }
+  .pf-ok{ margin:0 0 12px; padding:10px 14px; border-radius:12px; background:#f0fdf4; color:#166534; }
+  @media (max-width:640px){ .pf-steps li{ min-width:64px; font-size:12px; } .pf-lab small{ display:none; } }
+</style>
+<script>
+(function(){
+  var form = document.getElementById('procForm');
+  var panels = [].slice.call(form.querySelectorAll('.pf-step'));
+  var steps = [].slice.call(document.querySelectorAll('#pfSteps li[data-go]'));
+  var back = document.getElementById('pfBack'), next = document.getElementById('pfNext'), sub = document.getElementById('pfSubmit');
+  var IS_EDIT = {{ 'true' if is_edit else 'false' }}, THR = {{ threshold }};
+  var cur = 0, reached = IS_EDIT ? panels.length - 1 : 0;
+  var fmt = function(n){ return (n||0).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}); };
+  var val = function(n){ var e = form.querySelector('[name="'+n+'"]'); return e ? (e.value||'').trim() : ''; };
+  var esc = function(t){ var d = document.createElement('div'); d.textContent = t; return d.innerHTML; };
+
+  function show(i, noScroll){
+    cur = Math.max(0, Math.min(i, panels.length - 1));
+    reached = Math.max(reached, cur);
+    panels.forEach(function(p, k){ p.hidden = k !== cur; });
+    steps.forEach(function(li, k){
+      li.classList.toggle('current', k === cur);
+      li.classList.toggle('done', k < cur || (IS_EDIT && k !== cur));
+      li.classList.toggle('go', k <= reached && k !== cur);
+    });
+    back.hidden = cur === 0;
+    next.hidden = cur === panels.length - 1;
+    sub.hidden = cur !== panels.length - 1;
+    if (cur === panels.length - 1) buildReview();
+    if (cur === 1) money();
+    if (!noScroll) document.getElementById('pfSteps').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+  function valid(i){
+    var bad = [].slice.call(panels[i].querySelectorAll('input,select,textarea')).find(function(e){ return !e.disabled && !e.checkValidity(); });
+    if (bad){ bad.reportValidity(); bad.focus(); return false; }
+    return true;
+  }
+  next.addEventListener('click', function(){ if (valid(cur)) show(cur + 1); });
+  back.addEventListener('click', function(){ show(cur - 1); });
+  steps.forEach(function(li, k){ li.addEventListener('click', function(){
+    if (k <= reached && (k < cur || valid(cur))) show(k);
+  }); });
+  // ช่องที่ต้องกรอกอยู่คนละขั้น: พาไปขั้นนั้นก่อนเบราว์เซอร์เตือน
+  form.addEventListener('invalid', function(e){
+    var sec = e.target.closest('.pf-step');
+    if (sec && sec.hidden) show(panels.indexOf(sec), true);
+  }, true);
+  // กด Enter ในช่องกรอกระหว่างขั้น = ไปขั้นถัดไป (ไม่บันทึกทั้งที่ยังกรอกไม่ครบ)
+  form.addEventListener('keydown', function(e){
+    if (e.key !== 'Enter' || e.target.tagName === 'TEXTAREA' || e.target.type === 'submit') return;
+    if (cur < panels.length - 1){ e.preventDefault(); next.click(); }
+  });
+
+  // ===== วงเงิน + งบโครงการคงเหลือ =====
+  var proj = {name:null, data:null}, timer;
+  function itemsTotal(){
+    var t = 0;
+    form.querySelectorAll('#items tbody tr').forEach(function(tr){
+      var q = tr.querySelector('[name="item_qty"]'), p = tr.querySelector('[name="item_price"]');
+      t += (parseFloat(q && q.value)||0) * (parseFloat(p && p.value)||0);
+    });
+    return Math.round(t * 100) / 100;
+  }
+  function loadProject(){
+    var n = val('project_name');
+    if (n === proj.name) return money();
+    proj.name = n; proj.data = null;
+    if (!n) return money();
+    fetch('/procurement/project-budget?name=' + encodeURIComponent(n){% if is_edit %} + '&exclude={{ p.id }}'{% endif %})
+      .then(function(r){ return r.json(); }).then(function(d){ if (proj.name === n){ proj.data = d; money(); } })
+      .catch(function(){});
+  }
+  function money(){
+    var t = itemsTotal();
+    document.getElementById('pfTotal').textContent = fmt(t);
+    var cell = document.getElementById('pfProjCell'), d = proj.data;
+    if (d && d.found){
+      cell.hidden = false;
+      document.getElementById('pfProjLab').textContent = 'งบโครงการคงเหลือ (' + d.name + ')';
+      document.getElementById('pfProjLeft').textContent = fmt(d.left);
+      var after = d.left - t;
+      document.getElementById('pfProjAfter').textContent = after < 0 ? 'เกินงบ ' + fmt(-after) + ' บาท' : 'หลังเรื่องนี้เหลือ ' + fmt(after) + ' บาท';
+      cell.classList.toggle('is-over', after < -0.005);
+    } else cell.hidden = true;
+    var r = [], special = {{ 'true' if is_special else 'false' }};
+    if (!special){
+      r.push(t > THR ? 'วงเงินเกิน ' + fmt(THR) + ' บาท ต้องมี<b>คณะกรรมการตรวจรับ</b>'
+                     : 'วงเงินไม่เกิน ' + fmt(THR) + ' บาท ใช้<b>ผู้ตรวจรับคนเดียว</b>ได้');
+      if (t > 500000) r.push('<b style="color:#dc2626;">เกิน 500,000 บาท</b> เกินเพดานวิธีเฉพาะเจาะจง');
+    }
+    document.getElementById('pfRule').innerHTML = r.join('<br>');
+  }
+  var pn = form.querySelector('[name="project_name"]');
+  if (pn){ pn.addEventListener('input', function(){ clearTimeout(timer); timer = setTimeout(loadProject, 400); });
+           pn.addEventListener('change', loadProject); }
+  form.addEventListener('input', function(e){ if (e.target.closest && e.target.closest('#items')) money(); });
+  loadProject();
+
+  // ===== หน้าตรวจสอบ =====
+  function names(sel){
+    return [].slice.call(form.querySelectorAll(sel)).filter(function(e){ return !e.closest('tr[hidden]'); })
+      .map(function(e){ return (e.value||'').trim(); }).filter(Boolean);
+  }
+  function card(title, step, rows){
+    return '<div class="pf-rcard"><h3>' + title + '<button type="button" class="btn soft sm" data-edit="' + step + '">แก้ไข</button></h3><dl>' +
+      rows.map(function(r){ return '<dt>' + r[0] + '</dt><dd' + (r[1] ? '' : ' class="empty"') + '>' + (r[1] ? esc(r[1]) : 'ยังไม่ได้กรอก') + '</dd>'; }).join('') +
+      '</dl></div>';
+  }
+  function buildReview(){
+    var t = itemsTotal(), special = {{ 'true' if is_special else 'false' }};
+    var type = val('proc_type') || 'ซื้อ';
+    var items = [].slice.call(form.querySelectorAll('#items tbody tr')).map(function(tr){
+      var n = tr.querySelector('[name="item_name"]'); return n ? (n.value||'').trim() : '';
+    }).filter(Boolean);
+    var act = form.querySelector('[name="activity_id"]');
+    var actName = act && act.value ? act.options[act.selectedIndex].text : '';
+    var html = card('ข้อมูลเรื่อง', 0, [
+      ['ชื่อเรื่อง', type + ' ' + val('subject')], ['เลขที่ / วันที่', [val('memo_no'), val('request_date')].filter(Boolean).join(' ลงวันที่ ')],
+      ['โครงการ', val('project_name') + (actName ? ' (กิจกรรม ' + actName + ')' : '')], ['ฝ่าย/งาน', val('department')],
+      ['เหตุผล', val('purpose')], ['แหล่งงบ', val('budget_source')]]);
+    html += card('รายการและงบ', 1, [
+      [type === 'ซื้อ' ? 'ผู้ขาย' : 'ผู้รับจ้าง', val('vendor_name')],
+      ['รายการ', items.length ? items.length + ' รายการ: ' + items.slice(0, 3).join(', ') + (items.length > 3 ? ' ...' : '') : ''],
+      ['วงเงินรวม', t ? fmt(t) + ' บาท' : '']]);
+    var warn = [];
+    if (!special){
+      var ins = names('[name="member_name"]'), spec = names('[name="spec_member_name"]'), pur = names('[name="purchase_member_name"]');
+      html += card('ผู้ตรวจรับ/กรรมการ', 2, [
+        ['ผู้ตรวจรับ', ins.join(', ')], ['ผู้จัดทำร่าง TOR', spec.join(', ')],
+        ['กรรมการซื้อ/จ้าง', pur.length ? pur.join(', ') : 'เจ้าหน้าที่พัสดุดำเนินการเอง']]);
+      if (!ins.length) warn.push('ยังไม่ได้ใส่ชื่อผู้ตรวจรับพัสดุ');
+      if (t > THR && ins.length < 3) warn.push('วงเงินเกิน ' + fmt(THR) + ' บาท คณะกรรมการตรวจรับควรมีอย่างน้อย 3 คน (ตอนนี้ ' + ins.length + ' คน)');
+      if (!spec.length) warn.push('ยังไม่ได้ใส่ผู้จัดทำร่างขอบเขตของงาน/คุณลักษณะเฉพาะ (ระเบียบฯ ข้อ 21)');
+    }
+    if (!val('vendor_name')) warn.push('ยังไม่ได้ระบุ' + (type === 'ซื้อ' ? 'ผู้ขาย' : 'ผู้รับจ้าง') + ' (ใส่ทีหลังได้ แต่เอกสารจะเว้นว่าง)');
+    if (!items.length || !t) warn.push('ยังไม่มีรายการหรือราคา วงเงินเป็น 0');
+    if (proj.data && proj.data.found && t - proj.data.left > 0.005) warn.push('วงเงินเกินงบโครงการคงเหลือ ' + fmt(t - proj.data.left) + ' บาท');
+    if (val('project_name') && proj.data && !proj.data.found) warn.push('ไม่พบโครงการชื่อ "' + val('project_name') + '" ในแผน เรื่องนี้จะไม่ถูกนับงบโครงการ');
+    document.getElementById('pfWarn').innerHTML = warn.length
+      ? '<div class="pf-warn"><b>ควรตรวจสอบ</b><ul>' + warn.map(function(w){ return '<li>' + esc(w) + '</li>'; }).join('') + '</ul>บันทึกได้เลย หรือกด "แก้ไข" ที่การ์ดเพื่อกลับไปแก้</div>'
+      : '<div class="pf-ok">✔ ข้อมูลครบ พร้อมบันทึก</div>';
+    var box = document.getElementById('pfReview');
+    box.innerHTML = html;
+    box.querySelectorAll('[data-edit]').forEach(function(b){ b.addEventListener('click', function(){ show(+b.dataset.edit); }); });
+  }
+
+  // เปิดตรงขั้นที่ระบุ (#step-2) ไม่งั้นเริ่มขั้นแรก
+  var m = /step-(\d)/.exec(location.hash);
+  show(m ? +m[1] : 0, true);
+})();
 </script>
 <script>window.PJ_ACTS = {{ pj_acts|tojson }};</script>
 <script src="/static/project_activity.js?v=1"></script>
