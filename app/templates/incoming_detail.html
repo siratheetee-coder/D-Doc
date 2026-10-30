@@ -75,16 +75,37 @@
 {# ---------- ขั้นที่ 3: ติดตามการรับทราบ ---------- #}
 {% if r.route_status == 'sent' %}
 <div class="card" id="recipients">
-  <h2 style="margin-top:0;">ผู้รับ รับทราบแล้ว {{ acked }} จาก {{ r.recipients|length }} คน</h2>
+  {% set waiting = r.recipients|rejectattr('ack_at')|list %}
+  {% set ES = {'sent': ('ส่งอีเมลแล้ว', '#dbeafe', '#1d4ed8'), 'sending': ('กำลังส่งอีเมล', '#e0e7ff', '#3730a3'),
+               'failed': ('ส่งอีเมลไม่สำเร็จ', '#fee2e2', '#b91c1c'), 'none': ('ไม่มีอีเมล', '#f1f5f9', '#64748b')} %}
+  {% set n_noemail = r.recipients|selectattr('email_status', 'equalto', 'none')|list|length %}
+  {% set n_fail = r.recipients|selectattr('email_status', 'equalto', 'failed')|list|length %}
+  <div class="rc-head">
+    <h2 style="margin:0;">ผู้รับ รับทราบแล้ว {{ acked }} จาก {{ r.recipients|length }} คน</h2>
+    {% if waiting and not director_view %}
+    <form method="post" action="/admin/incoming/{{ r.id }}/remind" style="margin:0;"
+          onsubmit="return confirm('ส่งอีเมลเตือนคนที่ยังไม่รับทราบ {{ waiting|length }} คน?');">
+      <button class="btn sm" data-no-floating-save><svg class="icon"><use href="#ic-send"/></svg> ส่งอีเมลเตือนคนที่ยังไม่รับทราบ ({{ waiting|length }})</button>
+    </form>
+    {% endif %}
+  </div>
+  {% if (n_noemail or n_fail) and not director_view %}
+  <div class="rc-warn">
+    {% if n_noemail %}{{ n_noemail }} คนไม่มีอีเมล ได้รับแจ้งในระบบอย่างเดียว{% endif %}{% if n_noemail and n_fail %} และ {% endif %}{% if n_fail %}{{ n_fail }} คนส่งอีเมลไม่สำเร็จ{% endif %}
+    <a href="/admin/staff-accounts">ใส่หรือแก้อีเมลที่หน้าบัญชีครูและอีเมล ›</a> แล้วกดส่งอีเมลเตือนอีกครั้ง
+  </div>
+  {% endif %}
   <div class="table-wrap">
   <table class="stack-sm">
-    <thead><tr><th>ผู้รับ</th><th>สถานะ</th><th>เมื่อ</th><th></th></tr></thead>
+    <thead><tr><th>ผู้รับ</th><th>สถานะ</th><th>อีเมล</th><th>เมื่อ</th><th></th></tr></thead>
     <tbody>
       {% for x in r.recipients %}
+      {% set es = ES.get(x.email_status or '') %}
       <tr>
         <td data-label="ผู้รับ">{{ x.name }}</td>
         <td data-label="สถานะ">{% if x.ack_at %}<span class="pill" style="background:#dcfce7; color:#166534;">รับทราบแล้ว</span>{% if x.ack_by %} <span class="muted" style="font-size:13px;">({{ x.ack_by }} บันทึกแทน)</span>{% endif %}
           {% else %}<span class="pill" style="background:#fef3c7; color:#92400e;">ยังไม่รับทราบ</span>{% endif %}</td>
+        <td data-label="อีเมล">{% if es %}<span class="pill" style="background:{{ es[1] }}; color:{{ es[2] }};" title="{{ x.email_to or '' }}">{{ es[0] }}</span>{% else %}<span class="muted">-</span>{% endif %}</td>
         <td data-label="เมื่อ">{{ (thai_date(x.ack_at) ~ ' ' ~ x.ack_at.strftime('%H:%M') ~ ' น.') if x.ack_at else '-' }}</td>
         <td class="right">
           {% if not director_view and (not x.ack_at or x.ack_by) %}
@@ -110,5 +131,10 @@
 {% endif %}
 
 <p><a href="/admin/incoming?year={{ r.fiscal_year }}">กลับทะเบียนหนังสือรับ</a></p>
+<style>
+  .rc-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .rc-warn{ margin:0 0 12px; padding:10px 14px; border-radius:12px; background:linear-gradient(135deg,#fffbeb,#fff7ed); color:#92400e; font-size:14px; }
+  .rc-warn a{ font-weight:700; }
+</style>
 {{ parts_css() }}
 {% endblock %}

@@ -229,13 +229,42 @@ def _add_recipients(db, r, ids, notify=True) -> list:
     return added
 
 
-def _notify(db, r, rows):
+def _notify(db, r, rows) -> tuple:
+    """แจ้งกระดิ่งรายคน + ส่งอีเมล คืน (ส่งอีเมลกี่คน, ไม่มีอีเมลกี่คน)"""
     from app.services.nav import create_notice
     for rc in rows:
         create_notice(db, rc.person_id, f"หนังสือเวียน: {r.subject or 'หนังสือรับ'}",
                       reason=(r.director_order or r.from_org or "")[:120],
                       link=f"/me/letters/{rc.id}", level="warn")
-    _email_letter(db, r, rows)
+    return _email_letter(db, r, rows)
+
+
+def _sent_msg(head: str, n: int, mail: tuple) -> str:
+    """ข้อความหลังเวียน บอกครบว่าใครได้อีเมล ใครไม่มีอีเมล"""
+    n_mail, n_none = mail
+    msg = f"{head} {n} คน"
+    if n_mail:
+        msg += f" ส่งอีเมล {n_mail} คน"
+    if n_none:
+        msg += f" ไม่มีอีเมล {n_none} คน (แจ้งในระบบอย่างเดียว ใส่อีเมลได้ที่หน้าบัญชีครูและอีเมล)"
+    return msg
+
+
+def _save_emails(db, form) -> int:
+    """อีเมลที่ธุรการพิมพ์ใส่ตอนเลือกผู้รับ (ช่อง email_<person_id>) บันทึกเข้าข้อมูลบุคลากร"""
+    n = 0
+    for key in form.keys():
+        if not key.startswith("email_"):
+            continue
+        pid = _to_int(key[6:], 0)
+        v = _clean_email(form.get(key))
+        p = db.get(Person, pid) if pid else None
+        if p and v and v != (p.email or "").strip():
+            p.email = v
+            n += 1
+    if n:
+        db.flush()
+    return n
 
 
 _MAIL_ATTACH_MAX = 10 * 1024 * 1024     # ไฟล์ใหญ่กว่านี้ไม่แนบ ให้กดลิงก์เปิดในระบบแทน
@@ -284,29 +313,52 @@ def _email_letter(db, r, rows):
                 attach = (f"หนังสือ{(' ' + r.recv_no) if r.recv_no else ''}{ext}", f.read_bytes())
         except OSError:
             attach = None
+    n_none = 0
     for rc in rows:
         p = db.get(Person, rc.person_id)
         to = ((p.email if p else "") or "").strip()
         if to:
-            jobs.append((to, f"[หนังสือเวียน] {r.subject or 'หนังสือรับ'}",
+            rc.email_status, rc.email_to = "sending", to
+            jobs.append((rc.id, to, f"[หนังสือเวียน] {r.subject or 'หนังสือรับ'}",
                          _letter_mail_html(school, r, rc.id, bool(attach))))
+        else:
+            rc.email_status, rc.email_to = "none", ""
+            n_none += 1
+    db.flush()
     if not jobs:
-        return 0
+        return 0, n_none
     import contextvars
     import threading
+    from sqlalchemy import event
     from app.services.mailer import send_email
+    from app.tenancy import current_school_id, session_for
 
     def run():
-        for to, subject, html in jobs:
+        sid = current_school_id.get()
+        for rcid, to, subject, html in jobs:
             try:
-                send_email(to, subject, html, attachments=[attach] if attach else None)
+                ok = send_email(to, subject, html, attachments=[attach] if attach else None)
             except Exception as e:      # noqa: BLE001
                 print("[letter-mail] ส่งไม่สำเร็จ:", e)
+                ok = False
+            try:                        # บันทึกผลรายคน ให้ธุรการเห็นว่าใครได้อีเมล ใครส่งไม่สำเร็จ
+                with session_for(sid) as s2:
+                    rc2 = s2.get(LetterRecipient, rcid)
+                    if rc2:
+                        rc2.email_status = "sent" if ok else "failed"
+                        rc2.email_at = datetime.now()
+                        s2.commit()
+            except Exception as e:      # noqa: BLE001
+                print("[letter-mail] บันทึกผลไม่สำเร็จ:", e)
 
-    # copy_context: ให้เธรดรู้ว่าเป็นโรงเรียนไหน (ระบบตัวอย่างจะไม่ส่งอีเมลจริง)
-    ctx = contextvars.copy_context()
-    threading.Thread(target=ctx.run, args=(run,), daemon=True).start()
-    return len(jobs)
+    def start(_session):
+        # copy_context: ให้เธรดรู้ว่าเป็นโรงเรียนไหน (ระบบตัวอย่างจะไม่ส่งอีเมลจริง)
+        ctx = contextvars.copy_context()
+        threading.Thread(target=ctx.run, args=(run,), daemon=True).start()
+
+    # เริ่มส่งหลังบันทึกผู้รับลงฐานข้อมูลแล้ว (เธรดจะได้เจอแถวผู้รับและเขียนผลกลับได้)
+    event.listen(db, "after_commit", start, once=True)
+    return len(jobs), n_none
 
 
 def _signer(db, request):
@@ -347,6 +399,8 @@ async def incoming_route(rid: int, request: Request, db: Session = Depends(get_d
     note = (form.get("note") or "").strip()[:2000]
     ids = _pick_ids(form)
     back = f"/admin/incoming/{rid}"
+    if action != "recall":
+        _save_emails(db, form)
     if action == "recall" and r.route_status == "director":
         r.route_status = ""
         db.commit()
@@ -366,9 +420,10 @@ async def incoming_route(rid: int, request: Request, db: Session = Depends(get_d
             r.route_status, r.sent_at = "sent", datetime.now()
             if note and not r.action_note:
                 r.action_note = note[:200]
-        n = len(_add_recipients(db, r, ids))
+        added = _add_recipients(db, r, ids, notify=False)
+        mail = _notify(db, r, added)
         db.commit()
-        return RedirectResponse(back + f"?msg=เวียนถึง {n} คนแล้ว", status_code=303)
+        return RedirectResponse(back + "?msg=" + _sent_msg("เวียนถึง", len(added), mail), status_code=303)
     return RedirectResponse(back, status_code=303)
 
 
@@ -383,6 +438,7 @@ async def incoming_endorse(rid: int, request: Request, db: Session = Depends(get
     form = await request.form()
     order = (form.get("order") or "").strip()[:2000] or "ทราบ"
     ids = _pick_ids(form)
+    _save_emails(db, form)
     r.director_order = order
     r.director_name, r.director_sig = _signer(db, request)
     r.director_at = r.sent_at = datetime.now()
@@ -391,11 +447,25 @@ async def incoming_endorse(rid: int, request: Request, db: Session = Depends(get
         r.action_note = order[:200]
     r.recipients = [x for x in r.recipients if x.person_id in ids]
     _add_recipients(db, r, ids, notify=False)
-    _notify(db, r, r.recipients)
+    mail = _notify(db, r, r.recipients)
     n = len(r.recipients)
     db.commit()
     dest = "/approvals" if request.session.get("director") and not request.session.get("owner") else f"/admin/incoming/{rid}"
-    return RedirectResponse(dest + f"?msg=สั่งการแล้ว เวียนถึง {n} คน", status_code=303)
+    return RedirectResponse(dest + "?msg=" + _sent_msg("สั่งการแล้ว เวียนถึง", n, mail), status_code=303)
+
+
+@router.post("/admin/incoming/{rid}/remind")
+def incoming_remind(rid: int, db: Session = Depends(get_db)):
+    """ส่งอีเมลเตือนอีกครั้ง เฉพาะคนที่ยังไม่รับทราบ (ใช้อีเมลล่าสุดในข้อมูลบุคลากร)"""
+    r = db.get(IncomingLetter, rid)
+    if not r or r.route_status != "sent":
+        return RedirectResponse(f"/admin/incoming/{rid}", status_code=303)
+    waiting = [x for x in r.recipients if not x.ack_at]
+    mail = _email_letter(db, r, waiting) if waiting else (0, 0)
+    db.commit()
+    msg = ("ทุกคนรับทราบแล้ว" if not waiting
+           else _sent_msg("เตือนคนที่ยังไม่รับทราบ", len(waiting), mail))
+    return RedirectResponse(f"/admin/incoming/{rid}?msg={msg}#recipients", status_code=303)
 
 
 @router.post("/admin/incoming/{rid}/ack/{rcid}")

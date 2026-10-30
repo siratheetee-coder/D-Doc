@@ -631,6 +631,9 @@ class LetterRecipient(Base):
     name = Column(String, default="")               # ชื่อ ณ ตอนเวียน (เผื่อแก้ทะเบียนบุคลากรภายหลัง)
     ack_at = Column(DateTime, nullable=True)        # รับทราบเมื่อ
     ack_by = Column(String, default="")             # '' = รับทราบเอง, อื่นๆ = ชื่อธุรการที่บันทึกแทน
+    email_status = Column(String, default="")       # '' ยังไม่ส่ง / sending / sent / failed / none (ไม่มีอีเมล)
+    email_at = Column(DateTime, nullable=True)      # ส่งอีเมลล่าสุดเมื่อ
+    email_to = Column(String, default="")           # ส่งไปที่อีเมลไหน
     created_at = Column(DateTime, default=datetime.now)
     letter = relationship("IncomingLetter", back_populates="recipients")
 

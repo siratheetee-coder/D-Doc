@@ -49,13 +49,24 @@
   </div>
   <div class="pp-list">
     {% for p in staff if p.id not in exclude %}
-    <label class="pp-item" data-name="{{ p.name }} {{ p.position }}">
+    <label class="pp-item" data-name="{{ p.name }} {{ p.position }}" data-pid="{{ p.id }}"{% if not p.has_email %} data-noemail="1"{% endif %}>
       <input type="checkbox" name="pid" value="{{ p.id }}" {{ 'checked' if p.id in picked }}>
-      <span><b>{{ p.name }}</b><small>{{ p.position }}{% if not p.has_account %}&emsp;<i>ไม่มีบัญชี</i>{% elif p.has_email %}&emsp;<em>มีอีเมล</em>{% endif %}</small></span>
+      <span><b>{{ p.name }}</b><small>{{ p.position }}{% if not p.has_account %}&emsp;<i>ไม่มีบัญชี</i>{% endif %}{% if p.has_email %}&emsp;<em>มีอีเมล</em>{% else %}&emsp;<i>ไม่มีอีเมล</i>{% endif %}</small></span>
     </label>
     {% else %}
     <p class="muted" style="margin:0;">ยังไม่มีรายชื่อบุคลากร <a href="/masters">เพิ่มที่ข้อมูลพื้นฐาน</a></p>
     {% endfor %}
+  </div>
+  {# คนที่เลือกแต่ยังไม่มีอีเมล: ใส่อีเมลตรงนี้ได้เลย (ส่งไปพร้อมฟอร์ม ช่อง email_<id> บันทึกเข้าข้อมูลบุคลากร) #}
+  <div class="pp-mail" data-pp-mail hidden>
+    <div class="pp-mail-h">ผู้รับที่เลือก <b data-pp-mail-n></b> คนยังไม่มีอีเมล จะได้รับแจ้งในระบบอย่างเดียว ใส่อีเมลตรงนี้ได้เลย</div>
+    <div class="pp-mail-list">
+      {% for p in staff if p.id not in exclude and not p.has_email %}
+      <label class="pp-mrow" data-pid="{{ p.id }}" hidden><span>{{ p.name }}</span>
+        <input type="email" name="email_{{ p.id }}" placeholder="อีเมลของ {{ p.name }}" autocomplete="off"></label>
+      {% endfor %}
+    </div>
+    <a href="/admin/staff-accounts" class="pp-mail-more">ใส่อีเมลทีละหลายคนที่หน้าบัญชีครูและอีเมล ›</a>
   </div>
   {% set n_none = staff|rejectattr('has_account')|list|length %}
   {% if n_none %}<p class="muted pp-hint">ยังไม่มีบัญชี {{ n_none }} คน ธุรการต้องบันทึกรับทราบแทน <a href="/admin/staff-accounts">สร้างบัญชีครู</a></p>{% endif %}
@@ -83,6 +94,13 @@
   .pp-item i { color:#b45309; font-style:normal; }
   .pp-item em { color:#2563eb; font-style:normal; }
   .pp-hint { margin:8px 0 0; font-size:13.5px; }
+  .pp-mail { margin-top:10px; padding:12px 14px; border-radius:12px; background:linear-gradient(135deg,#fffbeb,#fff7ed); }
+  .pp-mail-h { font-size:14px; color:#92400e; margin-bottom:8px; }
+  .pp-mail-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:8px; }
+  .pp-mrow { display:flex; flex-direction:column; gap:3px; margin:0; font-size:13.5px; font-weight:600; }
+  .pp-mrow[hidden] { display:none; }
+  .pp-mrow input { font-size:14.5px; padding:7px 10px; }
+  .pp-mail-more { display:inline-block; margin-top:8px; font-size:13px; font-weight:600; }
   .chips { display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 10px; }
   .chips button { border:0; border-radius:999px; padding:5px 12px; font:inherit; font-size:13.5px; background:#eef1f7; color:#334155; cursor:pointer; }
   .chips button:hover { background:#e0e7ff; }
@@ -92,7 +110,20 @@
 document.addEventListener('DOMContentLoaded', function () {
   document.querySelectorAll('[data-pp]').forEach(function (box) {
     var items = [].slice.call(box.querySelectorAll('.pp-item')), n = box.querySelector('[data-pp-n]');
-    function count() { n.textContent = 'เลือกแล้ว ' + box.querySelectorAll('input:checked').length + ' คน'; }
+    var mail = box.querySelector('[data-pp-mail]');
+    function count() {
+      n.textContent = 'เลือกแล้ว ' + box.querySelectorAll('.pp-item input:checked').length + ' คน';
+      if (!mail) return;
+      var miss = 0;
+      items.forEach(function (i) {
+        var row = mail.querySelector('.pp-mrow[data-pid="' + i.dataset.pid + '"]');
+        var on = i.dataset.noemail && i.querySelector('input').checked;
+        if (row) row.hidden = !on;
+        if (on) miss++;
+      });
+      mail.hidden = !miss;
+      mail.querySelector('[data-pp-mail-n]').textContent = miss;
+    }
     function shown() { return items.filter(function (i) { return i.style.display !== 'none'; }); }
     box.querySelector('[data-pp-q]').addEventListener('input', function () {
       var q = this.value.trim();
@@ -100,7 +131,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     box.querySelector('[data-pp-all]').onclick = function () { shown().forEach(function (i) { i.querySelector('input').checked = true; }); count(); };
     box.querySelector('[data-pp-none]').onclick = function () { items.forEach(function (i) { i.querySelector('input').checked = false; }); count(); };
-    box.addEventListener('change', count); count();
+    box.querySelectorAll('.pp-item input').forEach(function (c) { c.addEventListener('change', count); }); count();
   });
   document.querySelectorAll('.chips button').forEach(function (b) {
     b.onclick = function () { var t = document.getElementById(b.parentNode.dataset.for); t.value = b.textContent; t.focus(); };

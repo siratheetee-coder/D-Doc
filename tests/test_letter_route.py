@@ -182,3 +182,72 @@ def test_staff_accounts_and_letter_email(env, monkeypatch):
     assert len(sent) == 1        # คนที่ 2 ไม่มีอีเมล ไม่ส่ง
     to, subject, html = sent[0]
     assert to == "kru.test@example.com" and "หนังสือส่งเข้าอีเมล" in subject and ("/me/letters/" in html or "%2Fme%2Fletters%2F" in html)
+
+
+def test_email_status_inline_email_and_remind(env, monkeypatch):
+    """เวียนแล้วรู้ว่าใครได้อีเมล: ใส่อีเมลตอนเลือกผู้รับได้, ข้อความสรุป, ป้ายรายคน, ส่งเตือนซ้ำเฉพาะคนยังไม่รับทราบ"""
+    import time
+    from urllib.parse import unquote
+    from app.accounts import acc_session, Account
+    from app.tenancy import session_for
+    from app.models import IncomingLetter, LetterRecipient, Person
+    sent = []
+    monkeypatch.setattr("app.services.mailer.send_email",
+                        lambda to, s, h, attachments=None: sent.append(to) or to != "bounce@example.com")
+    with acc_session() as adb:
+        tid = adb.query(Account).filter_by(username="demo").one().tenant_id
+    db = session_for(tid)
+    try:
+        ps = db.query(Person).filter(Person.active == True).order_by(Person.id).limit(3).all()  # noqa: E712
+        for p in ps:
+            p.email = ""
+        ps[1].email = "bounce@example.com"
+        db.commit()
+        a, b, c = (p.id for p in ps)
+    finally:
+        db.close()
+    env.post("/admin/incoming", data={"fiscal_year": 2570, "subject": "ทดสอบสถานะอีเมล"})
+    db = session_for(tid)
+    try:
+        rid = db.query(IncomingLetter).filter_by(subject="ทดสอบสถานะอีเมล").one().id
+    finally:
+        db.close()
+    page = env.get(f"/admin/incoming/{rid}").text
+    assert f'name="email_{a}"' in page and "ไม่มีอีเมล" in page
+
+    # ใส่อีเมลครู a ตรงหน้าเลือกผู้รับ (c ไม่มีอีเมล, b อีเมลตีกลับ)
+    r = env.post(f"/admin/incoming/{rid}/route", follow_redirects=False,
+                 data={"action": "send", "note": "แจ้งทราบ", "pid": [a, b, c], f"email_{a}": "kru.a@example.com"})
+    msg = unquote(r.headers["location"])
+    assert "เวียนถึง 3 คน" in msg and "ส่งอีเมล 2 คน" in msg and "ไม่มีอีเมล 1 คน" in msg
+    for _ in range(60):
+        db = session_for(tid)
+        try:
+            st = {x.person_id: x.email_status for x in db.query(LetterRecipient).filter_by(letter_id=rid)}
+        finally:
+            db.close()
+        if "sending" not in st.values():
+            break
+        time.sleep(0.05)
+    assert st == {a: "sent", b: "failed", c: "none"}
+    db = session_for(tid)
+    try:
+        assert db.get(Person, a).email == "kru.a@example.com"
+        rc_a = db.query(LetterRecipient).filter_by(letter_id=rid, person_id=a).one()
+        rc_a.ack_at = __import__("datetime").datetime.now()        # a รับทราบแล้ว
+        db.commit()
+    finally:
+        db.close()
+    page = env.get(f"/admin/incoming/{rid}").text
+    assert "ส่งอีเมลไม่สำเร็จ" in page and "ส่งอีเมลเตือนคนที่ยังไม่รับทราบ (2)" in page
+
+    # ส่งเตือนซ้ำ: ไปเฉพาะ b (c ไม่มีอีเมล, a รับทราบแล้ว)
+    sent.clear()
+    r = env.post(f"/admin/incoming/{rid}/remind", follow_redirects=False)
+    assert "ไม่มีอีเมล 1 คน" in unquote(r.headers["location"])
+    for _ in range(60):
+        if sent:
+            break
+        time.sleep(0.05)
+    time.sleep(0.2)
+    assert sent == ["bounce@example.com"]
