@@ -1,167 +1,167 @@
 {% extends "base.html" %}
 {% block title %}ตั้งค่าโรงเรียน{% endblock %}
 {% block content %}
+{% macro tip(text) %}<span class="tip" tabindex="0" role="img" aria-label="{{ text }}" data-tip="{{ text }}">i</span>{% endmacro %}
 <datalist id="persons">{% for ps in persons %}<option value="{{ ps.name }}">{{ ps.position }}</option>{% endfor %}</datalist>
-<div class="card">
-  <h1>ตั้งค่าข้อมูลโรงเรียน</h1>
-  <p class="muted">ข้อมูลนี้ถูกนำไปเติมหัวกระดาษและช่องลงนามของเอกสารทุกฉบับอัตโนมัติ</p>
-  {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกข้อมูลเรียบร้อยแล้ว</div>{% endif %}
-  <form method="post" action="/settings">
-    <label>ชื่อโรงเรียน</label>
-    <input name="name" value="{{ school.name }}" placeholder="เช่น โรงเรียน...">
-    <label>ที่อยู่ (สำหรับบรรทัด “ส่วนราชการ”)</label>
-    <input name="address" value="{{ school.address }}" placeholder="ตำบล... อำเภอ... จังหวัด...">
-    <div class="row">
+{% include '_settings_tabs.html' %}
+
+<form method="post" action="/settings" id="schoolForm" class="card sf">
+  <div class="sf-bar">
+    <span class="st-ic sm"><svg class="icon"><use href="#ic-building"/></svg></span>
+    <div style="flex:1; min-width:0;"><h2 style="margin:0;">ข้อมูลโรงเรียน</h2>
+      <div class="muted" style="font-size:13px;">นำไปเติมหัวกระดาษและช่องลงนามของเอกสารทุกฉบับอัตโนมัติ</div></div>
+    <span class="sf-dirty" id="sfDirty" hidden>มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก</span>
+    {% if request.query_params.get("saved") %}<span class="sf-saved" id="sfSaved">✔ บันทึกแล้ว</span>{% endif %}
+    <button class="btn" type="submit" data-no-floating-save><svg class="icon"><use href="#ic-save"/></svg> บันทึกข้อมูล</button>
+  </div>
+
+  {# ---------- 1 ข้อมูลพื้นฐาน ---------- #}
+  <div class="sf-sec"><span class="sf-n">1</span> ข้อมูลพื้นฐาน</div>
+  <div class="sf-basic">
+    <div class="sf-logo" id="logo">
+      <div class="sf-drop" id="logoDrop" tabindex="0" role="button" aria-label="อัปโหลดโลโก้ ลากไฟล์มาวางหรือกดเลือกไฟล์">
+        {% if school.logo %}<img src="/settings/logo?v={{ range(100000)|random }}" alt="โลโก้โรงเรียน">
+        {% else %}<span class="muted">ลากไฟล์โลโก้มาวาง<br>หรือกดเพื่อเลือกไฟล์</span>{% endif %}
+      </div>
+      <input type="file" id="logoFile" accept="image/png,image/jpeg" hidden>
+      <div>
+        <b>โลโก้ / ตราโรงเรียน</b> {{ tip('ใช้บนหัวเอกสาร ปพ.5 และ ปพ.6 (สมุดพก)') }}
+        <div class="muted" style="font-size:12.5px;">ไฟล์ .png พื้นโปร่งใส หรือ .jpg<br>แนะนำ 512 x 512 พิกเซล (สี่เหลี่ยมจัตุรัส)</div>
+        {% if request.query_params.get("logo_err") %}<div class="sf-err">ไฟล์ไม่ใช่รูปภาพที่รองรับ (ใช้ .png / .jpg)</div>{% endif %}
+        <div class="sf-logo-act">
+          <button type="button" class="btn sm soft" id="logoPick" data-no-floating-save><svg class="icon"><use href="#ic-upload"/></svg> {{ 'เปลี่ยนโลโก้' if school.logo else 'อัปโหลดโลโก้' }}</button>
+          {% if school.logo %}<button type="button" class="btn sm ghost danger" id="logoDel" data-no-floating-save><svg class="icon"><use href="#ic-trash"/></svg> ลบโลโก้</button>{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="sf-grid">
+      <div class="span2"><label>ชื่อโรงเรียน</label><input name="name" value="{{ school.name }}" placeholder="เช่น โรงเรียน..."></div>
+      <div class="span2"><label>ที่อยู่ (สำหรับบรรทัด "ส่วนราชการ")</label><input name="address" value="{{ school.address }}" placeholder="ตำบล... อำเภอ... จังหวัด..."></div>
       <div><label>อำเภอ</label><input name="district" value="{{ school.district }}"></div>
       <div><label>จังหวัด</label><input name="province" value="{{ school.province }}"></div>
-    </div>
-    <div class="row">
-      <div style="flex:2;"><label>ต้นสังกัด</label>
-        <input name="area_office" value="{{ school.area_office or '' }}" placeholder="เช่น สำนักงานเขตพื้นที่การศึกษาประถมศึกษาขอนแก่น เขต 1">
-        <div class="hint">หน่วยงานที่ต้องส่งรายงานให้ ใช้ในหนังสือรับรองบุคลากร (สังกัด...)
-          หนังสือแจ้งผลตรวจสอบพัสดุ และหนังสือแจ้งจำหน่ายพัสดุ</div>
-      </div>
-      <div><label title="เลขประจำตัวผู้เสียภาษีอากร">เลขผู้เสียภาษี</label>
-        <input name="tax_id" value="{{ school.tax_id or '' }}" inputmode="numeric" maxlength="17" placeholder="13 หลัก">
-        <div class="hint">ใช้ในหนังสือรับรองการหักภาษี ณ ที่จ่าย (แบบ 4235)</div>
-      </div>
-    </div>
-    <div class="row">
-      <div><label>ชื่อผู้อำนวยการ</label><input name="director_name" list="persons" value="{{ school.director_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
-      <div><label>ตำแหน่งผู้บริหาร</label><input name="director_position" value="{{ school.director_position }}"></div>
-    </div>
-    <div class="row">
-      <div><label>เจ้าหน้าที่ (พัสดุ)</label><input name="officer_name" list="persons" value="{{ school.officer_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
-      <div><label>หัวหน้าเจ้าหน้าที่ (พัสดุ)</label><input name="head_officer_name" list="persons" value="{{ school.head_officer_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
-    </div>
-    <div class="row">
-      <div><label>เจ้าหน้าที่การเงิน</label><input name="finance_officer_name" list="persons" value="{{ school.finance_officer_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
-      <div><label>หัวหน้าเจ้าหน้าที่การเงิน</label><input name="finance_head_name" list="persons" value="{{ school.finance_head_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
-      <div><label>เจ้าหน้าที่ธุรการ</label><input name="admin_officer_name" list="persons" value="{{ school.admin_officer_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
-      <div><label>หัวหน้าฝ่ายวิชาการ</label><input name="academic_head_name" list="persons" value="{{ school.academic_head_name }}" placeholder="ผู้ลงนามบนปก ปพ.5"></div>
-      <div><label>อีเมลหัวหน้าฝ่ายวิชาการ</label><input name="academic_head_email" type="email" value="{{ school.academic_head_email or '' }}" placeholder="รับแจ้งเมื่อครูส่งแผนการสอน"></div>
-      <div><label>อีเมลหัวหน้าฝ่ายบุคคล</label><input name="hr_head_email" type="email" value="{{ school.hr_head_email or '' }}" placeholder="รับแจ้งเมื่อครูส่งใบลา"></div>
-      <div><label>อีเมลผู้อำนวยการ</label><input name="director_email" type="email" value="{{ school.director_email or '' }}" placeholder="รับแจ้งเมื่อมีเรื่องรอลงนาม"></div>
-    </div>
-    <div class="row">
-      <div><label>ปีของโครงการ/แผนปฏิบัติการ</label>
-        <select name="project_year_mode">
-          <option value="budget" {{ 'selected' if (school.project_year_mode or 'budget')=='budget' }}>ปีงบประมาณ (ต.ค.-ก.ย.)</option>
-          <option value="academic" {{ 'selected' if school.project_year_mode=='academic' }}>ปีการศึกษา (พ.ค.-เม.ย.)</option>
-        </select>
-        <span class="muted" style="font-size:13px;">ใช้จัดกลุ่มโครงการในเมนู "โครงการ/แผนงบ"</span>
-      </div>
-    </div>
-    <div class="row">
-      <div><label>อักษรนำเลขหนังสือ</label><input name="doc_prefix" value="{{ school.doc_prefix }}"></div>
-      <div><label>คำสั่งมอบอำนาจ ที่</label>
-        <input name="delegation_cmd_no" value="{{ school.delegation_cmd_no or '' }}" placeholder="เช่น 1340/2566">
-        <div class="hint">คำสั่งมอบอำนาจจัดซื้อจัดจ้างของต้นสังกัด เช่น สพฐ. ที่ 1340/2560 อ้างในคำสั่งแต่งตั้งคณะกรรมการ</div></div>
-      <div><label>ลงวันที่ (คำสั่งมอบอำนาจ)</label>
-        <input name="delegation_cmd_date" data-date="1" placeholder="วว/ดด/ปปปป"
-               value="{{ be_date(school.delegation_cmd_date) if school.delegation_cmd_date else '' }}"></div>
-      <div>
-        <label>เกณฑ์วงเงินแบ่งชุดเอกสาร (บาท)</label>
-        <input name="doc_set_threshold" type="number" step="any" value="{{ school.doc_set_threshold }}">
-        <span class="muted">วงเงิน ≤ เกณฑ์นี้ ใช้ผู้ตรวจรับคนเดียว (โดยอนุโลม)</span>
-      </div>
-    </div>
-    <br>
-    <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button>
-  </form>
-
-  <hr style="border:none; border-top:1px solid #eee; margin:20px 0;">
-  <div id="logo">
-    <h2 style="margin:0 0 4px;">โลโก้ / ตราโรงเรียน</h2>
-    <p class="muted" style="font-size:13.5px; margin:0 0 10px;">ใช้แสดงบนหัวเอกสาร <b>ปพ.5</b> และ <b>ปพ.6 (สมุดพก)</b> แนะนำไฟล์ .png พื้นโปร่งใส (ตราครุฑ/ตราโรงเรียน)</p>
-    {% if request.query_params.get("logo_err") %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> ไฟล์ไม่ใช่รูปภาพที่รองรับ (ใช้ .png / .jpg)</div>{% endif %}
-    <div style="display:flex; gap:18px; align-items:center; flex-wrap:wrap;">
-      <div style="width:110px; height:110px; border:1px dashed #cbd5e1; border-radius:12px; display:flex; align-items:center; justify-content:center; background:#fafafe; overflow:hidden;">
-        {% if school.logo %}<img src="/settings/logo?v={{ range(100000)|random }}" alt="โลโก้" style="max-width:100%; max-height:100%;">
-        {% else %}<span class="muted" style="font-size:13px;">ยังไม่มีโลโก้</span>{% endif %}
-      </div>
-      <div>
-        <form method="post" action="/settings/logo" enctype="multipart/form-data" style="margin:0 0 6px;">
-          <input type="file" name="file" accept="image/png,image/jpeg" required style="max-width:260px;">
-          <button class="btn soft" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดโลโก้</button>
-        </form>
-        {% if school.logo %}
-        <form method="post" action="/settings/logo/delete" style="margin:0;"
-              onsubmit="return confirm('ลบโลโก้โรงเรียน?');">
-          <button class="btn sm ghost danger" type="submit">ลบโลโก้</button>
-        </form>
-        {% endif %}
-      </div>
+      <div><label>ต้นสังกัด {{ tip('ใช้ในหนังสือรับรองบุคลากร หนังสือแจ้งผลตรวจสอบพัสดุ และหนังสือแจ้งจำหน่ายพัสดุ') }}</label>
+        <input name="area_office" value="{{ school.area_office or '' }}" placeholder="เช่น สพป.ขอนแก่น เขต 1"></div>
+      <div><label>เลขผู้เสียภาษี {{ tip('ใช้ในหนังสือรับรองการหักภาษี ณ ที่จ่าย (แบบ 4235)') }}</label>
+        <input name="tax_id" value="{{ school.tax_id or '' }}" inputmode="numeric" maxlength="17" placeholder="13 หลัก"></div>
     </div>
   </div>
-</div>
 
-<div class="card hl">
-  <h2><svg class="icon"><use href="#ic-download"/></svg> นำเข้าข้อมูลตั้งต้นจาก Excel (กรอกทีเดียวหลายร้อยรายการ)</h2>
-  {% if import_err %}
-  <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> นำเข้าไม่สำเร็จ: {{ import_err }}</div>
-  {% endif %}
-  {% if import_lines %}
-  <div class="alert"><svg class="icon"><use href="#ic-check"/></svg>
-    <div style="flex:1;"><b>นำเข้าเรียบร้อย</b>
-      <ul style="margin:6px 0 0; padding-left:20px;">
-        {% for ln in import_lines %}<li>{{ ln }}</li>{% endfor %}
-      </ul>
-    </div>
+  {# ---------- 2 ผู้บริหารและเจ้าหน้าที่ ---------- #}
+  <div class="sf-sec"><span class="sf-n">2</span> ผู้บริหารและเจ้าหน้าที่</div>
+  <div class="sf-grid c2">
+    <div><label>ชื่อผู้อำนวยการ</label><input name="director_name" list="persons" value="{{ school.director_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
+    <div><label>ตำแหน่งผู้บริหาร</label><input name="director_position" value="{{ school.director_position }}"></div>
+    <div><label>เจ้าหน้าที่พัสดุ</label><input name="officer_name" list="persons" value="{{ school.officer_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
+    <div><label>หัวหน้าเจ้าหน้าที่พัสดุ</label><input name="head_officer_name" list="persons" value="{{ school.head_officer_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
+    <div><label>เจ้าหน้าที่การเงิน</label><input name="finance_officer_name" list="persons" value="{{ school.finance_officer_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
+    <div><label>หัวหน้าเจ้าหน้าที่การเงิน</label><input name="finance_head_name" list="persons" value="{{ school.finance_head_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
+    <div><label>เจ้าหน้าที่ธุรการ</label><input name="admin_officer_name" list="persons" value="{{ school.admin_officer_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
+    <div><label>หัวหน้าฝ่ายวิชาการ {{ tip('ผู้ลงนามบนปก ปพ.5') }}</label><input name="academic_head_name" list="persons" value="{{ school.academic_head_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
   </div>
-  {% endif %}
-  <ol class="muted" style="margin:6px 0 14px; padding-left:22px; line-height:1.9;">
-    <li>กด <b>ดาวน์โหลดเทมเพลต</b> จะได้ไฟล์ Excel ที่มีชีต: โรงเรียน / บุคลากร / ฝ่าย-งาน / โครงการ / ผู้ขาย</li>
-    <li>เปิดใน Excel กรอกข้อมูลตั้งแต่ <b>แถวที่ 3</b> ลงไป (แถวที่ 2 คือหัวตาราง ห้ามลบ)</li>
-    <li>กลับมา <b>เลือกไฟล์</b> แล้วกด <b>อัปโหลด</b> - ระบบเพิ่มให้อัตโนมัติ (ชื่อที่มีอยู่แล้วจะข้ามให้ ไม่ซ้ำ)</li>
-  </ol>
-  <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
-    <a class="btn green sm" href="/masters/template.xlsx"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเทมเพลต</a>
-    <form method="post" action="/masters/import" enctype="multipart/form-data"
-          style="display:flex; gap:8px; align-items:center; margin:0; flex-wrap:wrap;">
-      <input type="file" name="file" accept=".xlsx" required
-             style="padding:6px; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
-      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลด</button>
-    </form>
+  <div class="sf-sub">อีเมลรับแจ้งเตือน</div>
+  <div class="sf-grid c3">
+    <div><label>ผู้อำนวยการ {{ tip('รับแจ้งเมื่อมีเรื่องรอลงนาม') }}</label><input name="director_email" type="email" value="{{ school.director_email or '' }}" placeholder="name@example.com"></div>
+    <div><label>หัวหน้าฝ่ายวิชาการ {{ tip('รับแจ้งเมื่อครูส่งแผนการสอน') }}</label><input name="academic_head_email" type="email" value="{{ school.academic_head_email or '' }}" placeholder="name@example.com"></div>
+    <div><label>หัวหน้าฝ่ายบุคคล {{ tip('รับแจ้งเมื่อครูส่งใบลา') }}</label><input name="hr_head_email" type="email" value="{{ school.hr_head_email or '' }}" placeholder="name@example.com"></div>
   </div>
-</div>
 
-<div class="card">
-  <h2><svg class="icon"><use href="#ic-users"/></svg> ข้อมูลบุคลากร / ฝ่าย</h2>
-  <p class="muted">รายชื่อบุคลากรและฝ่าย/งาน ใช้ร่วมกันทั้งงานธุรการ พัสดุ และการเงิน - เลือกใช้ตอนสร้างเอกสาร/เลือกผู้ลงนาม</p>
-  <a class="btn" href="/masters"><svg class="icon"><use href="#ic-users"/></svg> จัดการบุคลากร / ฝ่าย</a>
-</div>
-
-<div class="card">
-  <h2><svg class="icon"><use href="#ic-coins"/></svg> ข้อมูลโครงการ / แผนงบ</h2>
-  <p class="muted">โครงการแยกตามปี ติดตามงบที่ตั้ง vs ใช้จริง vs คงเหลือ และผูกกับเรื่องจัดซื้อ/เบิกจ่าย</p>
-  <a class="btn" href="/projects"><svg class="icon"><use href="#ic-coins"/></svg> จัดการโครงการ / แผนงบ</a>
-</div>
-
-<div class="card">
-  <h2><svg class="icon"><use href="#ic-store"/></svg> ข้อมูลผู้ขาย / ผู้รับจ้าง</h2>
-  <p class="muted">รายชื่อร้าน/บริษัท/ผู้รับจ้าง ใช้เลือกตอนสร้างเรื่องจัดซื้อ/จัดจ้างและบันทึกเบิกจ่าย</p>
-  <a class="btn" href="/vendors"><svg class="icon"><use href="#ic-store"/></svg> จัดการผู้ขาย / ผู้รับจ้าง</a>
-</div>
-
-<div class="card">
-  <h2><svg class="icon"><use href="#ic-save"/></svg> สำรอง / กู้คืนข้อมูล</h2>
-  <p class="muted">ไฟล์สำรอง 1 ไฟล์ (.zip) มีทั้ง<b>ข้อมูลทุกงาน</b>และ<b>บัญชีผู้ใช้ของโรงเรียน</b> (ชื่อผู้ใช้ รหัสผ่าน สิทธิ์ บัญชีครู)
-    แนะนำให้ดาวน์โหลดเก็บไว้สม่ำเสมอ (เช่น ลงไดรฟ์/แฟลชไดรฟ์) เผื่อเครื่องเสียหรือต้องย้ายเครื่อง</p>
-  {% if request.query_params.get("restored") %}<div class="alert">✔ กู้คืนข้อมูลจากไฟล์สำรองเรียบร้อยแล้ว{% if request.query_params.get("users") %} กู้คืนบัญชีผู้ใช้ {{ request.query_params.get("users") }} บัญชี (ใช้รหัสผ่านเดิมตอนที่สำรองไว้){% endif %}</div>{% endif %}
-  {% if request.query_params.get("restore_err") == "type" %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> ไฟล์ที่อัปโหลดไม่ใช่ไฟล์สำรองที่ถูกต้อง (.zip หรือ .db)</div>{% endif %}
-  {% if request.query_params.get("restore_err") == "fail" %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> กู้คืนไม่สำเร็จ กรุณาลองใหม่</div>{% endif %}
-  <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; margin-top:10px;">
-    <a class="btn green" href="/backup"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดไฟล์สำรอง</a>
-    <form method="post" action="/restore" enctype="multipart/form-data"
-          style="display:flex; gap:8px; align-items:center; margin:0; flex-wrap:wrap;"
-          onsubmit="return confirm('กู้คืนข้อมูลจากไฟล์นี้? ข้อมูลปัจจุบันทั้งหมดจะถูกแทนที่ (ระบบจะสำรองไฟล์ปัจจุบันไว้ให้ก่อนอัตโนมัติ)');">
-      <input type="file" name="file" accept=".zip,.db" required
-             style="padding:6px; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
-      <button class="btn gray" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> กู้คืนจากไฟล์สำรอง</button>
-    </form>
+  {# ---------- 3 หนังสือราชการและเกณฑ์ ---------- #}
+  <div class="sf-sec"><span class="sf-n">3</span> หนังสือราชการและเกณฑ์</div>
+  <div class="sf-grid c3">
+    <div><label>อักษรนำเลขหนังสือ</label><input name="doc_prefix" value="{{ school.doc_prefix }}" placeholder="เช่น ศธ"></div>
+    <div><label>คำสั่งมอบอำนาจ ที่ {{ tip('คำสั่งมอบอำนาจจัดซื้อจัดจ้างของต้นสังกัด เช่น สพฐ. ที่ 1340/2560 อ้างในคำสั่งแต่งตั้งคณะกรรมการ') }}</label>
+      <input name="delegation_cmd_no" value="{{ school.delegation_cmd_no or '' }}" placeholder="เช่น 1340/2566"></div>
+    <div><label>ลงวันที่ (คำสั่งมอบอำนาจ)</label>
+      <input name="delegation_cmd_date" data-date="1" placeholder="วว/ดด/ปปปป"
+             value="{{ be_date(school.delegation_cmd_date) if school.delegation_cmd_date else '' }}"></div>
+    <div><label>ปีของโครงการ/แผนปฏิบัติการ {{ tip('ใช้จัดกลุ่มโครงการในเมนู โครงการ/แผนงาน') }}</label>
+      <select name="project_year_mode">
+        <option value="budget" {{ 'selected' if (school.project_year_mode or 'budget')=='budget' }}>ปีงบประมาณ (ต.ค.-ก.ย.)</option>
+        <option value="academic" {{ 'selected' if school.project_year_mode=='academic' }}>ปีการศึกษา (พ.ค.-เม.ย.)</option>
+      </select></div>
+    <div><label>เกณฑ์วงเงินแบ่งชุดเอกสาร (บาท) {{ tip('วงเงินไม่เกินเกณฑ์นี้ ใช้ผู้ตรวจรับคนเดียว (โดยอนุโลม)') }}</label>
+      <input name="doc_set_threshold" type="number" step="any" value="{{ school.doc_set_threshold }}"></div>
   </div>
-  <p class="muted" style="font-size:13px; margin-bottom:0;">เมื่อกู้คืนหรือนำเข้า ระบบจะเก็บสำเนาไฟล์ปัจจุบันไว้ในโฟลเดอร์ data/backups ให้อัตโนมัติ
-    กู้คืนบัญชีผู้ใช้เฉพาะของโรงเรียนนี้เท่านั้น และจะไม่ลบบัญชีที่มีอยู่ตอนนี้</p>
-</div>
+</form>
+
+<style>
+  .sf{ padding-top:0; }
+  .sf-bar{ position:sticky; top:64px; z-index:20; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+           margin:0 -20px 4px; padding:14px 20px; background:rgba(255,255,255,.96); backdrop-filter:blur(6px);
+           border-radius:16px 16px 0 0; }
+  .st-ic.sm{ width:38px; height:38px; border-radius:12px; }
+  .st-ic.sm .icon{ width:20px; height:20px; }
+  .sf-dirty{ padding:4px 12px; border-radius:99px; background:#fef3c7; color:#92400e; font-size:13px; font-weight:700; }
+  .sf-saved{ padding:4px 12px; border-radius:99px; background:#dcfce7; color:#166534; font-size:13px; font-weight:700; }
+  .sf-sec{ display:flex; align-items:center; gap:10px; margin:18px 0 12px; padding:10px 14px; border-radius:12px;
+           background:linear-gradient(90deg,#eff6ff,#f8fafc); font-weight:800; font-size:16px; }
+  .sf-n{ width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+         background:linear-gradient(135deg,#2563eb,#4f46e5); color:#fff; font-size:14px; }
+  .sf-sub{ margin:16px 0 8px; font-weight:700; color:#475569; font-size:14px; }
+  .sf-basic{ display:grid; grid-template-columns:minmax(300px,360px) 1fr; gap:22px; align-items:start; }
+  .sf-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px 16px; }
+  .sf-grid.c3{ grid-template-columns:repeat(3,1fr); }
+  .sf-grid .span2{ grid-column:span 2; }
+  .sf-grid label{ display:flex; align-items:center; gap:6px; }
+  .sf-grid input, .sf-grid select{ width:100%; }
+  .sf-logo{ display:flex; gap:14px; align-items:flex-start; }
+  .sf-drop{ flex:0 0 150px; height:150px; border-radius:16px; display:flex; align-items:center; justify-content:center; text-align:center;
+            background:linear-gradient(160deg,#f8fafc,#eef2ff); cursor:pointer; overflow:hidden; font-size:12.5px; padding:14px; line-height:1.5;
+            outline:2px dashed #c7d2fe; outline-offset:-8px; transition:background .15s ease; }
+  .sf-drop img{ max-width:88%; max-height:88%; }
+  .sf-drop.over{ background:linear-gradient(160deg,#dbeafe,#e0e7ff); outline-color:#2563eb; }
+  .sf-logo-act{ display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .sf-err{ margin-top:6px; color:#b91c1c; font-size:13px; font-weight:600; }
+  .tip{ position:relative; display:inline-flex; align-items:center; justify-content:center; width:17px; height:17px; border-radius:50%;
+        background:#e0e7ff; color:#4338ca; font-size:11px; font-weight:800; font-style:normal; cursor:help; flex:0 0 auto; }
+  .tip::after{ content:attr(data-tip); position:absolute; left:50%; bottom:calc(100% + 8px); transform:translateX(-50%);
+               width:max-content; max-width:260px; padding:8px 10px; border-radius:10px; background:#0f172a; color:#fff;
+               font-size:12.5px; font-weight:500; line-height:1.45; white-space:normal; opacity:0; pointer-events:none;
+               transition:opacity .15s ease; z-index:30; }
+  .tip:hover::after, .tip:focus::after{ opacity:1; }
+  @media (max-width:900px){
+    .sf-basic{ grid-template-columns:1fr; }
+    .sf-grid.c3{ grid-template-columns:repeat(2,1fr); }
+  }
+  @media (max-width:560px){
+    .sf-bar{ top:56px; margin:0 -14px 4px; padding:12px 14px; }
+    .sf-grid, .sf-grid.c3{ grid-template-columns:1fr; } .sf-grid .span2{ grid-column:auto; }
+    .sf-logo{ flex-direction:column; } .sf-drop{ flex-basis:auto; width:150px; }
+    .tip::after{ left:auto; right:-8px; transform:none; }
+  }
+</style>
+<script>
+(function(){
+  // ---- มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก + เตือนก่อนออกจากหน้า ----
+  var f = document.getElementById('schoolForm'), dirty = document.getElementById('sfDirty'),
+      saved = document.getElementById('sfSaved'), changed = false;
+  function mark(){ if(changed) return; changed = true; dirty.hidden = false; if(saved) saved.hidden = true; }
+  f.addEventListener('input', mark); f.addEventListener('change', mark);
+  f.addEventListener('submit', function(){ changed = false; });
+  window.addEventListener('beforeunload', function(e){ if(changed){ e.preventDefault(); e.returnValue = ''; } });
+
+  // ---- โลโก้: กดเลือก หรือลากไฟล์มาวาง แล้วอัปโหลดทันที ----
+  var drop = document.getElementById('logoDrop'), file = document.getElementById('logoFile');
+  function send(url, fd){
+    if(changed && !confirm('มีข้อมูลที่ยังไม่ได้บันทึก ถ้าเปลี่ยนโลโก้ตอนนี้ ข้อมูลที่แก้จะหาย ทำต่อหรือไม่?')) return;
+    changed = false;
+    fetch(url, {method:'POST', body:fd}).then(function(r){ location.href = r.url || '/settings'; })
+      .catch(function(){ alert('อัปโหลดไม่สำเร็จ ลองใหม่'); });
+  }
+  function upload(fl){
+    if(!fl) return;
+    if(!/^image\/(png|jpeg)$/.test(fl.type)){ alert('ใช้ไฟล์ .png หรือ .jpg'); return; }
+    var fd = new FormData(); fd.append('file', fl); send('/settings/logo', fd);
+  }
+  document.getElementById('logoPick').addEventListener('click', function(){ file.click(); });
+  drop.addEventListener('click', function(){ file.click(); });
+  drop.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); file.click(); } });
+  file.addEventListener('change', function(){ upload(file.files[0]); });
+  ['dragenter','dragover'].forEach(function(t){ drop.addEventListener(t, function(e){ e.preventDefault(); drop.classList.add('over'); }); });
+  ['dragleave','drop'].forEach(function(t){ drop.addEventListener(t, function(e){ e.preventDefault(); drop.classList.remove('over'); }); });
+  drop.addEventListener('drop', function(e){ upload(e.dataTransfer.files[0]); });
+  var del = document.getElementById('logoDel');
+  if(del) del.addEventListener('click', function(){ if(confirm('ลบโลโก้โรงเรียน?')) send('/settings/logo/delete', new FormData()); });
+})();
+</script>
 {% endblock %}

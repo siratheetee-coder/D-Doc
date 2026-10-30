@@ -591,34 +591,24 @@ def support_review(request: Request, stars: str = Form("5"), comment: str = Form
 
 
 # ---------------- สำรอง / กู้คืนข้อมูล ----------------
-# ไฟล์สำรองของโรงเรียน = .zip (ข้อมูลทุกงาน + บัญชีผู้ใช้) · ของเดิมเป็น .db เดี่ยว ๆ ยังกู้คืนได้
-BACKUP_FORMAT = "easy-ekkasan-school-backup"
-BACKUP_VERSION = 1
-_SQLITE_MAGIC = b"SQLite format 3" + bytes([0])
+# ไฟล์สำรองของโรงเรียน = .zip (ข้อมูลทุกงาน + บัญชีผู้ใช้) เซ็นด้วยคีย์เซิร์ฟเวอร์ (services/backup_file.py)
+# กู้คืน 2 ขั้น: อัปโหลด -> หน้าตรวจ (ไฟล์ของใคร วันไหน มีอะไร) -> กดยืนยัน
+# บัญชีทดลองใช้กู้คืนได้เฉพาะไฟล์ของบัญชีตัวเอง (กันสมัครใหม่แล้วกู้ไฟล์เดิมเพื่อใช้ฟรีต่อ)
 
 
 def _backup_zip_bytes(request: Request) -> tuple:
     """สร้างไฟล์สำรอง .zip ในหน่วยความจำ -> (bytes, จำนวนบัญชีที่ใส่ไป)"""
-    import io as _io
-    import json
-    import zipfile
     from app.accounts import export_accounts
     from app.database import current_db_path, _checkpoint
+    from app.services import backup_file
     _checkpoint()                       # เขียนข้อมูลที่ยังค้างใน WAL ลงไฟล์ก่อน
+    from app.accounts import tenant_state
     tid = request.session.get("tid")
     users = export_accounts(tid)
-    meta = {
-        "format": BACKUP_FORMAT, "version": BACKUP_VERSION,
-        "created_at": datetime.now().isoformat(timespec="seconds"),
-        "school_name": request.session.get("name", ""),
-        "tenant_id": tid, "accounts": len(users),
-    }
-    buf = _io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("meta.json", json.dumps(meta, ensure_ascii=False, indent=2))
-        z.write(str(current_db_path()), "school.db")
-        z.writestr("users.json", json.dumps(users, ensure_ascii=False))
-    return buf.getvalue(), len(users)
+    # ชื่อโรงเรียนจากบัญชีโรงเรียน (session "name" เป็นชื่อผู้ใช้ที่ล็อกอิน ไม่ใช่ชื่อโรงเรียน)
+    school_name = (tenant_state(tid) or {}).get("name") or ""
+    data = backup_file.build(tid, school_name, current_db_path(), users)
+    return data, len(users)
 
 
 @router.get("/backup")
@@ -635,59 +625,73 @@ def backup_download(request: Request):
         headers={"Content-Disposition": "attachment; filename*=utf-8''" + quote(fname)})
 
 
-def _read_backup_file(data: bytes) -> tuple:
-    """แยกไฟล์สำรองที่อัปโหลด -> (db_bytes, users หรือ None)
-    รองรับทั้ง .zip แบบใหม่ และ .db เดี่ยว ๆ แบบเดิม · คืน (None, None) ถ้าไม่ใช่ไฟล์สำรอง"""
-    import io as _io
-    import json
-    import zipfile
-    if data[:16] == _SQLITE_MAGIC:
-        return data, None                      # ไฟล์เก่า: ข้อมูลอย่างเดียว ไม่มีบัญชีผู้ใช้
-    if data[:2] != b"PK":
-        return None, None
-    try:
-        with zipfile.ZipFile(_io.BytesIO(data)) as z:
-            names = set(z.namelist())
-            if "school.db" not in names:
-                return None, None
-            db_bytes = z.read("school.db")
-            if db_bytes[:16] != _SQLITE_MAGIC:
-                return None, None
-            users = None
-            if "users.json" in names:
-                try:
-                    v = json.loads(z.read("users.json").decode("utf-8"))
-                    users = v if isinstance(v, list) else None
-                except Exception:
-                    users = None
-            return db_bytes, users
-    except Exception:
-        return None, None
+def _tenant_plan(request: Request) -> str:
+    from app.accounts import tenant_state
+    st = tenant_state(request.session.get("tid")) or {}
+    return st.get("plan") or "member"
+
+
+@router.get("/settings/backup", response_class=HTMLResponse)
+def settings_backup(request: Request):
+    """สำรอง (โซนปลอดภัย) / กู้คืน (โซนเตือน)"""
+    return templates.TemplateResponse("settings_backup.html", {
+        "request": request, "plan": _tenant_plan(request), "check": None})
 
 
 @router.post("/restore")
 async def restore_upload(request: Request, file: UploadFile = File(...)):
-    """กู้คืนจากไฟล์สำรอง (.zip แบบใหม่ = ข้อมูล + บัญชีผู้ใช้ · .db แบบเดิม = ข้อมูลอย่างเดียว)"""
+    """กู้คืนขั้นที่ 1: อัปโหลดแล้วแสดงรายละเอียดไฟล์ (ยังไม่เขียนทับอะไร)"""
+    from app.accounts import audit
+    from app.services import backup_file
+    tid = request.session.get("tid")
+    data = await file.read()
+    info = backup_file.read(data)
+    plan = _tenant_plan(request)
+    allowed, why = backup_file.decide(info, tid, plan)
+    token = backup_file.stash(tid, "restore", data) if allowed else ""
+    if info.get("ok") and not allowed:
+        audit("data.restore_blocked", request=request,
+              detail=f"บล็อกกู้คืนไฟล์ {file.filename}: {why} (ต้นทาง {info.get('origin') or 'ไม่ระบุ'})")
+    meta = info.get("meta") or {}
+    return templates.TemplateResponse("settings_backup.html", {
+        "request": request, "plan": plan,
+        "check": {"ok": info.get("ok"), "allowed": allowed, "why": why, "token": token,
+                  "filename": file.filename, "size_kb": len(data) // 1024,
+                  "school": meta.get("school_name") or "", "created": meta.get("created_at") or "",
+                  "accounts": len(info.get("users") or []), "counts": info.get("counts") or [],
+                  "signed": info.get("signed"), "same": str(info.get("origin")) == str(tid)}})
+
+
+@router.post("/restore/confirm")
+async def restore_confirm(request: Request, token: str = Form("")):
+    """กู้คืนขั้นที่ 2: กดยืนยันแล้วจึงเขียนทับ (ตรวจกติกาซ้ำอีกรอบ)"""
     from app.accounts import audit, import_accounts
     from app.database import restore_db
-    data = await file.read()
-    db_bytes, users = _read_backup_file(data)
-    if db_bytes is None:
-        return RedirectResponse("/settings?restore_err=type", status_code=303)
+    from app.services import backup_file
+    tid = request.session.get("tid")
+    data = backup_file.load(tid, "restore", token)
+    if data is None:
+        return RedirectResponse("/settings/backup?restore_err=expired", status_code=303)
+    info = backup_file.read(data)
+    allowed, _why = backup_file.decide(info, tid, _tenant_plan(request))
+    if not allowed:
+        backup_file.drop(tid, "restore", token)
+        return RedirectResponse("/settings/backup?restore_err=blocked", status_code=303)
     try:
-        restore_db(db_bytes)
+        restore_db(info["db_bytes"])
     except Exception:
         audit("data.restore", request=request, detail="กู้คืนไม่สำเร็จ (ไฟล์เสีย)")
-        return RedirectResponse("/settings?restore_err=fail", status_code=303)
-    detail = f"เขียนทับข้อมูลทั้งโรงเรียนจากไฟล์ {file.filename} ({len(data)//1024} KB)"
+        return RedirectResponse("/settings/backup?restore_err=fail", status_code=303)
+    backup_file.drop(tid, "restore", token)
+    detail = f"เขียนทับข้อมูลทั้งโรงเรียนจากไฟล์สำรอง ({len(data)//1024} KB)"
     q = "restored=1"
+    users = info.get("users")
     if users:
-        res = import_accounts(request.session.get("tid"), users,
-                              keep_username=request.session.get("username", ""))
-        detail += (f" · บัญชีผู้ใช้: เพิ่ม {res['added']} แก้ไข {res['updated']} ข้าม {res['skipped']}")
+        res = import_accounts(tid, users, keep_username=request.session.get("username", ""))
+        detail += f" บัญชีผู้ใช้: เพิ่ม {res['added']} แก้ไข {res['updated']} ข้าม {res['skipped']}"
         q += f"&users={res['added'] + res['updated']}"
     audit("data.restore", request=request, detail=detail)
-    return RedirectResponse(f"/settings?{q}", status_code=303)
+    return RedirectResponse(f"/settings/backup?{q}", status_code=303)
 
 
 # ---------------- มาสเตอร์ลิสต์ (บุคลากร/ฝ่าย/โครงการ) ----------------
@@ -734,25 +738,63 @@ def masters_template():
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
-@router.post("/masters/import")
-async def masters_import(db: Session = Depends(get_db), file: UploadFile = File(...)):
-    """อัปโหลดไฟล์ Excel ที่กรอกแล้ว นำเข้าข้อมูลทุกชีต"""
-    if not file.filename or not file.filename.lower().endswith(".xlsx"):
-        return RedirectResponse("/settings?import_err=type", status_code=303)
-    content = await file.read()
-    try:
-        summary = import_workbook(content, db)
-    except Exception:
-        return RedirectResponse("/settings?import_err=read", status_code=303)
+def _import_query(summary: dict) -> str:
     # เข้ารหัสสรุปผลเป็น query string สั้น ๆ เช่น บุคลากร:12+2,โครงการ:5+0
     parts = []
     for sheet, r in summary.items():
         if "updated" in r:
             parts.append(f"{sheet}:u{r['updated']}")
         else:
-            parts.append(f"{sheet}:{r.get('added',0)}+{r.get('skipped',0)}")
-    q = ",".join(parts) if parts else "none"
-    return RedirectResponse(f"/settings?imported={q}", status_code=303)
+            parts.append(f"{sheet}:{r.get('added', 0)}+{r.get('skipped', 0)}")
+    return ",".join(parts) if parts else "none"
+
+
+@router.get("/settings/import", response_class=HTMLResponse)
+def settings_import(request: Request, imported: str | None = None, import_err: str | None = None):
+    """นำเข้าข้อมูลตั้งต้นจาก Excel 3 ขั้น: ดาวน์โหลดเทมเพลต > อัปโหลด > ตรวจก่อนนำเข้า"""
+    err_msg = {"type": "ไฟล์ต้องเป็น .xlsx เท่านั้น",
+               "read": "อ่านไฟล์ไม่สำเร็จ ตรวจสอบว่าใช้เทมเพลตที่ถูกต้อง",
+               "expired": "ไฟล์ที่อัปโหลดหมดเวลารอยืนยันแล้ว อัปโหลดใหม่อีกครั้ง"}.get(import_err)
+    return templates.TemplateResponse("settings_import.html", {
+        "request": request, "import_lines": _decode_import_summary(imported), "import_err": err_msg,
+        "preview": None})
+
+
+@router.post("/masters/import")
+async def masters_import(request: Request, db: Session = Depends(get_db), file: UploadFile = File(...)):
+    """อัปโหลดไฟล์ Excel: ขั้นตรวจก่อนนำเข้า (ลองนำเข้าแล้วย้อนกลับ ยังไม่บันทึกอะไร)"""
+    from app.services import backup_file
+    if not file.filename or not file.filename.lower().endswith(".xlsx"):
+        return RedirectResponse("/settings/import?import_err=type", status_code=303)
+    content = await file.read()
+    try:
+        summary = import_workbook(content, db, dry_run=True)
+    except Exception:
+        db.rollback()
+        return RedirectResponse("/settings/import?import_err=read", status_code=303)
+    token = backup_file.stash(request.session.get("tid"), "import", content)
+    return templates.TemplateResponse("settings_import.html", {
+        "request": request, "import_lines": [], "import_err": None,
+        "preview": {"token": token, "filename": file.filename,
+                    "lines": _decode_import_summary(_import_query(summary)),
+                    "empty": not any((r.get("added") or r.get("updated")) for r in summary.values())}})
+
+
+@router.post("/masters/import/confirm")
+async def masters_import_confirm(request: Request, db: Session = Depends(get_db), token: str = Form("")):
+    """กดยืนยันแล้วจึงนำเข้าจริง"""
+    from app.services import backup_file
+    tid = request.session.get("tid")
+    content = backup_file.load(tid, "import", token)
+    if content is None:
+        return RedirectResponse("/settings/import?import_err=expired", status_code=303)
+    try:
+        summary = import_workbook(content, db)
+    except Exception:
+        db.rollback()
+        return RedirectResponse("/settings/import?import_err=read", status_code=303)
+    backup_file.drop(tid, "import", token)
+    return RedirectResponse(f"/settings/import?imported={_import_query(summary)}", status_code=303)
 
 
 @router.post("/masters/person")

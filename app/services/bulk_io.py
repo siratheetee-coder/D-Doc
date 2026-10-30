@@ -161,8 +161,9 @@ def _cell_float(v) -> float:
         return 0.0
 
 
-def import_workbook(file_bytes: bytes, db) -> dict:
+def import_workbook(file_bytes: bytes, db, dry_run: bool = False) -> dict:
     """อ่านไฟล์ Excel ที่อัปโหลด แล้วนำเข้าข้อมูล คืนสรุปผลแต่ละชีต
+    dry_run=True = ลองนำเข้าเพื่อดูผล แล้วย้อนกลับ (หน้าตรวจก่อนนำเข้า)
     คืน dict เช่น {'บุคลากร': {'added': 12, 'skipped': 2}, 'โรงเรียน': {'updated': 6}, ...}
     """
     wb = load_workbook(BytesIO(file_bytes), data_only=True)
@@ -320,5 +321,8 @@ def import_workbook(file_bytes: bytes, db) -> dict:
         if added or skipped:
             summary["นักเรียน"] = {"added": added, "skipped": skipped}
 
-    db.commit()
+    if dry_run:
+        db.rollback()
+    else:
+        db.commit()
     return summary

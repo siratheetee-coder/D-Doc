@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}สำรอง / กู้คืนข้อมูล{% endblock %}
+{% block content %}
+{% include '_settings_tabs.html' %}
+{% set q = request.query_params %}
+{% if q.get("restored") %}<div class="alert">✔ กู้คืนข้อมูลจากไฟล์สำรองเรียบร้อยแล้ว{% if q.get("users") %} กู้คืนบัญชีผู้ใช้ {{ q.get("users") }} บัญชี (ใช้รหัสผ่านเดิมตอนที่สำรองไว้){% endif %}</div>{% endif %}
+{% set ERR = {'fail': 'กู้คืนไม่สำเร็จ ไฟล์อาจเสีย กรุณาลองใหม่', 'expired': 'ไฟล์ที่อัปโหลดหมดเวลารอยืนยันแล้ว อัปโหลดใหม่อีกครั้ง',
+              'blocked': 'กู้คืนไฟล์นี้ไม่ได้ ตามกติกาของบัญชีนี้'} %}
+{% if q.get("restore_err") in ERR %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ ERR[q.get("restore_err")] }}</div>{% endif %}
+
+<div class="bk-grid">
+  {# ---------- โซนปลอดภัย: ดาวน์โหลดไฟล์สำรอง ---------- #}
+  <div class="card bk-safe">
+    <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-download"/></svg> สำรองข้อมูล</h2>
+    <p>ไฟล์สำรอง 1 ไฟล์ (.zip) มี<b>ข้อมูลทุกงาน</b>และ<b>บัญชีผู้ใช้ของโรงเรียน</b> แนะนำให้ดาวน์โหลดเก็บไว้สม่ำเสมอ เช่น ลงไดรฟ์หรือแฟลชไดรฟ์</p>
+    <a class="btn green" href="/backup"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดไฟล์สำรอง</a>
+    <p class="muted" style="font-size:12.5px; margin:10px 0 0;">การดาวน์โหลดไม่เปลี่ยนแปลงข้อมูลใด ๆ ในระบบ</p>
+  </div>
+
+  {# ---------- โซนเตือน: กู้คืน (เขียนทับข้อมูลทั้งโรงเรียน) ---------- #}
+  <div class="card bk-danger" id="restore">
+    <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-alert"/></svg> กู้คืนข้อมูล</h2>
+    <p><b>ข้อมูลปัจจุบันของโรงเรียนทั้งหมดจะถูกแทนที่</b>ด้วยข้อมูลในไฟล์สำรอง ระบบเก็บสำเนาข้อมูลปัจจุบันไว้ให้ก่อนอัตโนมัติ</p>
+    {% if plan != 'member' %}<p class="bk-note">บัญชีทดลองใช้กู้คืนได้เฉพาะไฟล์สำรองที่ดาวน์โหลดจากบัญชีนี้</p>{% endif %}
+
+    {% if check %}
+    <div class="bk-check {{ 'ok' if check.allowed else 'no' }}">
+      <b>ขั้นที่ 2 ตรวจไฟล์ก่อนกู้คืน</b>
+      <table class="bk-info">
+        <tr><th>ไฟล์</th><td>{{ check.filename }} ({{ "{:,}".format(check.size_kb) }} KB)</td></tr>
+        {% if check.school %}<tr><th>สำรองจากโรงเรียน</th><td>{{ check.school }}{% if check.signed and check.same %} <span class="bk-chip ok">บัญชีนี้</span>{% elif check.signed %} <span class="bk-chip warn">บัญชีอื่น</span>{% endif %}</td></tr>{% endif %}
+        {% if check.created %}<tr><th>สำรองเมื่อ</th><td>{{ check.created[8:10] }}/{{ check.created[5:7] }}/{{ check.created[:4]|int + 543 }} เวลา {{ check.created[11:16] }} น.</td></tr>{% endif %}
+        {% if not check.signed and check.ok %}<tr><th>ลายเซ็นไฟล์</th><td><span class="bk-chip warn">ไฟล์รุ่นเก่า ไม่มีลายเซ็น</span></td></tr>{% endif %}
+        {% for label, n in check.counts %}<tr><th>{{ label }}</th><td>{{ "{:,}".format(n) if n is number else n }}</td></tr>{% endfor %}
+        {% if check.accounts %}<tr><th>บัญชีผู้ใช้</th><td>{{ check.accounts }} บัญชี</td></tr>{% endif %}
+      </table>
+      {% if check.allowed %}
+      <form method="post" action="/restore/confirm" style="margin:12px 0 0;"
+            onsubmit="return confirm('ยืนยันกู้คืน? ข้อมูลปัจจุบันทั้งหมดจะถูกแทนที่ด้วยข้อมูลในไฟล์นี้');">
+        <input type="hidden" name="token" value="{{ check.token }}">
+        <button class="btn red" type="submit" data-no-floating-save><svg class="icon"><use href="#ic-alert"/></svg> ยืนยันกู้คืนข้อมูล</button>
+        <a class="btn gray" href="/settings/backup">ยกเลิก</a>
+      </form>
+      {% else %}
+      <div class="bk-why">{{ check.why }}</div>
+      <a class="btn gray" href="/settings/backup" style="margin-top:10px;">เลือกไฟล์ใหม่</a>
+      {% endif %}
+    </div>
+    {% else %}
+    <form method="post" action="/restore" enctype="multipart/form-data" style="margin:0;">
+      <b>ขั้นที่ 1 อัปโหลดไฟล์สำรอง</b>
+      <label class="bk-drop" id="bkDrop">
+        <input type="file" name="file" accept=".zip,.db" required id="bkFile">
+        <span id="bkName">ลากไฟล์ .zip มาวาง หรือกดเพื่อเลือกไฟล์</span>
+      </label>
+      <button class="btn bk-btn" type="submit" data-no-floating-save><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดและตรวจไฟล์</button>
+      <div class="muted" style="font-size:12.5px; margin-top:6px;">ขั้นนี้ยังไม่เปลี่ยนข้อมูล ระบบจะแสดงรายละเอียดไฟล์ให้ตรวจก่อน</div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+  .bk-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+  .bk-safe{ background:linear-gradient(160deg,#f0fdf4,#ecfeff); }
+  .bk-danger{ background:linear-gradient(160deg,#fff7ed,#fef2f2); }
+  .bk-danger h2{ color:#b91c1c; }
+  .bk-note{ padding:8px 12px; border-radius:10px; background:#fff; color:#9a3412; font-size:13.5px; font-weight:600; }
+  .bk-drop{ display:flex; align-items:center; justify-content:center; text-align:center; min-height:90px; margin:10px 0;
+            border-radius:14px; background:#fff; color:#64748b; cursor:pointer; outline:2px dashed #fdba74; outline-offset:-6px; padding:10px; }
+  .bk-drop.over{ background:#ffedd5; outline-color:#ea580c; }
+  .bk-drop input{ position:absolute; width:1px; height:1px; opacity:0; }
+  .bk-btn{ background:linear-gradient(135deg,#ea580c,#dc2626); border:none; }
+  .bk-check{ padding:14px; border-radius:14px; background:#fff; }
+  .bk-info{ width:100%; margin-top:8px; font-size:14px; }
+  .bk-info th{ text-align:left; color:#64748b; font-weight:600; width:42%; padding:4px 8px 4px 0; vertical-align:top; }
+  .bk-info td{ padding:4px 0; }
+  .bk-chip{ padding:2px 9px; border-radius:99px; font-size:12px; font-weight:700; }
+  .bk-chip.ok{ background:#dcfce7; color:#166534; } .bk-chip.warn{ background:#fee2e2; color:#b91c1c; }
+  .bk-why{ margin-top:12px; padding:10px 12px; border-radius:10px; background:#fee2e2; color:#991b1b; font-weight:600; font-size:14px; }
+  @media (max-width:800px){ .bk-grid{ grid-template-columns:1fr; } }
+</style>
+<script>
+(function(){
+  var d = document.getElementById('bkDrop'), f = document.getElementById('bkFile'), n = document.getElementById('bkName');
+  if(!d) return;
+  f.addEventListener('change', function(){ if(f.files[0]) n.textContent = f.files[0].name; });
+  ['dragenter','dragover'].forEach(function(t){ d.addEventListener(t, function(e){ e.preventDefault(); d.classList.add('over'); }); });
+  ['dragleave','drop'].forEach(function(t){ d.addEventListener(t, function(e){ e.preventDefault(); d.classList.remove('over'); }); });
+  d.addEventListener('drop', function(e){ if(e.dataTransfer.files.length){ f.files = e.dataTransfer.files; n.textContent = f.files[0].name; } });
+})();
+</script>
+{% endblock %}

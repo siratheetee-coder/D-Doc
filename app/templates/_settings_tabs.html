@@ -1,0 +1,43 @@
+{# แถบเมนูการ์ดของหน้าตั้งค่า (ข้อมูลโรงเรียน / นำเข้า / สำรองเป็นหน้าย่อยของตั้งค่า อีก 3 ช่องไปหน้าจัดการเดิม) #}
+{% set _p = request.url.path %}
+{% set ST_TABS = [
+  ('/settings', 'ic-building', 'ข้อมูลโรงเรียน', 'ข้อมูลพื้นฐาน / โลโก้', _p == '/settings'),
+  ('/settings/import', 'ic-upload', 'นำเข้าข้อมูล', 'Excel / ข้อมูลเริ่มต้น', _p.startswith('/settings/import') or _p.startswith('/masters/import')),
+  ('/masters', 'ic-users', 'บุคลากรและฝ่าย', 'จัดการบุคลากร / ฝ่าย', False),
+  ('/projects', 'ic-clipboard', 'โครงการ / แผนงาน', 'จัดการโครงการ / แผนงาน', False),
+  ('/vendors', 'ic-store', 'ผู้ขาย / ผู้รับจ้าง', 'จัดการรายชื่อผู้ขาย', False),
+  ('/settings/backup', 'ic-save', 'สำรอง / กู้คืนข้อมูล', 'จัดการไฟล์สำรอง', _p.startswith('/settings/backup') or _p.startswith('/restore')),
+] %}
+<div class="st-head">
+  <span class="st-ic"><svg class="icon"><use href="#ic-settings"/></svg></span>
+  <div><h1 style="margin:0;">ตั้งค่าระบบ</h1>
+    <div class="muted" style="font-size:14px;">ข้อมูลพื้นฐานของโรงเรียน ใช้ออกเอกสารและระบบงานต่าง ๆ</div></div>
+</div>
+<nav class="st-tabs" aria-label="เมนูตั้งค่า">
+  {% for href, ic, title, sub, on in ST_TABS %}
+  <a href="{{ href }}" class="st-tab{{ ' on' if on }}"{% if on %} aria-current="page"{% endif %}>
+    <svg class="icon"><use href="#{{ ic }}"/></svg>
+    <span><b>{{ title }}</b><small>{{ sub }}</small></span>
+  </a>
+  {% endfor %}
+</nav>
+<style>
+  .st-head{ display:flex; align-items:center; gap:14px; margin:0 0 14px; }
+  .st-head h1, .sf-bar h2{ display:block; background:none; border:none; padding:0; border-radius:0; }
+  .st-head h1{ font-size:26px; }
+  .st-ic{ width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center;
+          background:linear-gradient(135deg,#2563eb,#4f46e5); color:#fff; flex:0 0 auto; }
+  .st-ic .icon{ width:24px; height:24px; }
+  .st-tabs{ display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin:0 0 16px; }
+  .st-tab{ display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:14px; text-decoration:none;
+           color:#1e293b; background:linear-gradient(160deg,#fff,#f1f5f9); box-shadow:0 1px 3px rgba(15,23,42,.08);
+           transition:transform .15s ease, box-shadow .15s ease; min-width:0; }
+  .st-tab:hover{ transform:translateY(-2px); box-shadow:0 8px 18px -10px rgba(37,99,235,.5); }
+  .st-tab .icon{ width:24px; height:24px; color:#2563eb; flex:0 0 auto; }
+  .st-tab b{ display:block; font-size:14px; line-height:1.3; }
+  .st-tab small{ display:block; font-size:12px; color:#64748b; line-height:1.3; }
+  .st-tab.on{ background:linear-gradient(135deg,#2563eb,#4f46e5); color:#fff; }
+  .st-tab.on .icon, .st-tab.on small{ color:#e0e7ff; }
+  @media (max-width:1560px){ .st-tabs{ grid-template-columns:repeat(3,1fr); } }
+  @media (max-width:560px){ .st-tabs{ grid-template-columns:repeat(2,1fr); } .st-tab{ padding:10px; } .st-tab small{ display:none; } }
+</style>

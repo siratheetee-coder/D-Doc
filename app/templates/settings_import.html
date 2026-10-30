@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}นำเข้าข้อมูล{% endblock %}
+{% block content %}
+{% include '_settings_tabs.html' %}
+{% set STEP = 3 if preview else 1 %}
+<div class="card">
+  <h2 style="margin-top:0;">นำเข้าข้อมูลตั้งต้นจาก Excel</h2>
+  <p class="muted" style="margin-top:0;">กรอกบุคลากร ฝ่าย/งาน โครงการ ผู้ขาย และนักเรียน ทีละหลายร้อยรายการ ระบบให้ตรวจผลก่อนนำเข้าจริง</p>
+
+  <ol class="iw-steps">
+    <li class="{{ 'done' if STEP > 1 else 'on' }}"><span>1</span> ดาวน์โหลดเทมเพลต</li>
+    <li class="{{ 'done' if STEP > 2 else ('on' if STEP == 1 else '') }}"><span>2</span> กรอกแล้วอัปโหลด</li>
+    <li class="{{ 'on' if STEP == 3 else '' }}"><span>3</span> ตรวจก่อนนำเข้า</li>
+  </ol>
+
+  {% if import_err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ import_err }}</div>{% endif %}
+  {% if import_lines %}
+  <div class="alert"><svg class="icon"><use href="#ic-check"/></svg>
+    <div style="flex:1;"><b>นำเข้าเรียบร้อย</b>
+      <ul style="margin:6px 0 0; padding-left:20px;">{% for ln in import_lines %}<li>{{ ln }}</li>{% endfor %}</ul></div>
+  </div>
+  {% endif %}
+
+  {% if preview %}
+  <div class="iw-box iw-check">
+    <b>ตรวจไฟล์ {{ preview.filename }}</b>
+    {% if preview.lines %}
+    <ul class="iw-list">{% for ln in preview.lines %}<li>{{ ln }}</li>{% endfor %}</ul>
+    {% else %}<p class="muted" style="margin:6px 0 0;">ไม่พบข้อมูลในไฟล์ (กรอกตั้งแต่แถวที่ 3 ลงไป)</p>{% endif %}
+    <p class="muted" style="font-size:13px; margin:8px 0 0;">ยังไม่ได้บันทึกอะไร ชื่อที่มีอยู่แล้วในระบบจะข้ามให้ ไม่เพิ่มซ้ำ</p>
+    <div class="iw-act">
+      {% if not preview.empty %}
+      <form method="post" action="/masters/import/confirm" style="margin:0;">
+        <input type="hidden" name="token" value="{{ preview.token }}">
+        <button class="btn" type="submit" data-no-floating-save><svg class="icon"><use href="#ic-check"/></svg> ยืนยันนำเข้า</button>
+      </form>
+      {% endif %}
+      <a class="btn gray" href="/settings/import">เลือกไฟล์ใหม่</a>
+    </div>
+  </div>
+  {% else %}
+  <div class="iw-grid">
+    <div class="iw-box">
+      <b>1. ดาวน์โหลดเทมเพลต</b>
+      <p class="muted">ไฟล์ Excel มีชีต โรงเรียน / บุคลากร / ฝ่าย-งาน / โครงการ / ผู้ขาย กรอกตั้งแต่<b>แถวที่ 3</b> (แถวที่ 2 คือหัวตาราง ห้ามลบ)</p>
+      <a class="btn green" href="/masters/template.xlsx"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดเทมเพลต</a>
+    </div>
+    <form class="iw-box" method="post" action="/masters/import" enctype="multipart/form-data">
+      <b>2. อัปโหลดไฟล์ที่กรอกแล้ว</b>
+      <label class="iw-drop" id="xlDrop">
+        <input type="file" name="file" accept=".xlsx" required id="xlFile">
+        <span id="xlName">ลากไฟล์ .xlsx มาวาง หรือกดเพื่อเลือกไฟล์</span>
+      </label>
+      <button class="btn" type="submit" data-no-floating-save><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดและตรวจ</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+  .iw-steps{ display:flex; gap:8px; list-style:none; padding:0; margin:0 0 16px; flex-wrap:wrap; }
+  .iw-steps li{ display:flex; align-items:center; gap:8px; padding:6px 14px 6px 6px; border-radius:99px; background:#f1f5f9; color:#64748b; font-weight:600; font-size:14px; }
+  .iw-steps li span{ width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#cbd5e1; color:#fff; font-size:13px; }
+  .iw-steps li.on{ background:#e0e7ff; color:#3730a3; } .iw-steps li.on span{ background:linear-gradient(135deg,#2563eb,#4f46e5); }
+  .iw-steps li.done{ background:#dcfce7; color:#166534; } .iw-steps li.done span{ background:#16a34a; }
+  .iw-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .iw-box{ padding:16px; border-radius:16px; background:linear-gradient(160deg,#f8fafc,#eef2ff); margin:0; }
+  .iw-box p{ font-size:13.5px; }
+  .iw-check{ background:linear-gradient(160deg,#eff6ff,#f0fdf4); }
+  .iw-list{ margin:8px 0 0; padding-left:20px; line-height:1.9; }
+  .iw-act{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .iw-drop{ display:flex; align-items:center; justify-content:center; text-align:center; min-height:90px; margin:10px 0;
+            border-radius:14px; background:#fff; color:#64748b; cursor:pointer; outline:2px dashed #c7d2fe; outline-offset:-6px; padding:10px; }
+  .iw-drop.over{ background:#dbeafe; outline-color:#2563eb; }
+  .iw-drop input{ position:absolute; width:1px; height:1px; opacity:0; }
+  @media (max-width:760px){ .iw-grid{ grid-template-columns:1fr; } }
+</style>
+<script>
+(function(){
+  var d = document.getElementById('xlDrop'), f = document.getElementById('xlFile'), n = document.getElementById('xlName');
+  if(!d) return;
+  f.addEventListener('change', function(){ if(f.files[0]) n.textContent = f.files[0].name; });
+  ['dragenter','dragover'].forEach(function(t){ d.addEventListener(t, function(e){ e.preventDefault(); d.classList.add('over'); }); });
+  ['dragleave','drop'].forEach(function(t){ d.addEventListener(t, function(e){ e.preventDefault(); d.classList.remove('over'); }); });
+  d.addEventListener('drop', function(e){ if(e.dataTransfer.files.length){ f.files = e.dataTransfer.files; n.textContent = f.files[0].name; } });
+})();
+</script>
+{% endblock %}
