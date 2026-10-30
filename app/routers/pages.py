@@ -3654,8 +3654,14 @@ def asset_audit_page(request: Request, db: Session = Depends(get_db)):
     # -> เสนอวันที่ 1 ตุลาคมของปีงบนั้น (ถ้าวันนี้เลยไปแล้วใช้วันนี้)
     oct1 = datetime(fy - 543, 10, 1)
     result_default = datetime.now() if datetime.now() > oct1 else oct1
+    import json as _json
+    try:
+        saved = _json.loads(school.audit_members or "{}") or {}
+    except Exception:
+        saved = {}
     return templates.TemplateResponse("asset_audit.html", {
         "request": request, "school": school,
+        "saved_members": saved.get("members") or [], "saved_single": bool(saved.get("single")),
         "year": fy, "live_count": live, "broken_count": broken, "mat_count": mat_count,
         "today_input": be_date_input(datetime.now()),
         "result_input": be_date_input(result_default),
@@ -3666,10 +3672,7 @@ def asset_audit_page(request: Request, db: Session = Depends(get_db)):
     })
 
 
-@router.post("/assets/audit")
-async def asset_audit_generate(request: Request, db: Session = Depends(get_db)):
-    from app.services.asset_audit_doc import render_audit_bundle
-    form = await request.form()
+def _audit_members_from(form) -> list:
     members = []
     for i in range(1, 6):
         nm = (form.get(f"m{i}_name") or "").strip()
@@ -3677,6 +3680,23 @@ async def asset_audit_generate(request: Request, db: Session = Depends(get_db)):
             members.append({"name": nm,
                             "position": (form.get(f"m{i}_pos") or "ครู").strip(),
                             "role": (form.get(f"m{i}_role") or "กรรมการ").strip()})
+    return members
+
+
+def _remember_audit_members(db, members, single) -> None:
+    """จำกรรมการตรวจสอบพัสดุชุดล่าสุดไว้ (หน้านี้ไม่มีปุ่มบันทึก ออกเอกสาร = บันทึก) ปีหน้าเปิดมาไม่ต้องกรอกใหม่"""
+    import json as _json
+    school = get_school(db)
+    school.audit_members = _json.dumps({"members": members, "single": bool(single)}, ensure_ascii=False)
+    db.commit()
+
+
+@router.post("/assets/audit")
+async def asset_audit_generate(request: Request, db: Session = Depends(get_db)):
+    from app.services.asset_audit_doc import render_audit_bundle
+    form = await request.form()
+    members = _audit_members_from(form)
+    _remember_audit_members(db, members, form.get("single") == "1")
     year = _to_int(form.get("year"), current_fiscal_year())
     assets = db.query(Asset).filter(Asset.status != "จำหน่ายแล้ว").order_by(Asset.asset_code, Asset.id).all()
     # จำนวนครุภัณฑ์ชำรุด: ถ้าไม่กรอกมา ให้นับจากทะเบียน (สถานะ "ชำรุด")
@@ -3908,13 +3928,8 @@ def asset_delete(asset_id: int, db: Session = Depends(get_db)):
 async def _audit_ctx(request, db):
     """ประกอบ ctx จากฟอร์มหน้าตรวจสอบพัสดุ (ใช้ร่วมกันทุกเส้นทางเอกสาร)"""
     form = await request.form()
-    members = []
-    for i in range(1, 6):
-        nm = (form.get(f"m{i}_name") or "").strip()
-        if nm:
-            members.append({"name": nm,
-                            "position": (form.get(f"m{i}_pos") or "ครู").strip(),
-                            "role": (form.get(f"m{i}_role") or "กรรมการ").strip()})
+    members = _audit_members_from(form)
+    _remember_audit_members(db, members, form.get("single") == "1")
     year = _to_int(form.get("year"), current_fiscal_year())
     assets = (db.query(Asset).filter(Asset.status != "จำหน่ายแล้ว")
               .order_by(Asset.asset_code, Asset.id).all())

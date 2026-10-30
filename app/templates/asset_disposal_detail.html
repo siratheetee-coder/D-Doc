@@ -1,31 +1,16 @@
 {% extends "base.html" %}
+{% from "_committee_rows.html" import cm_rows, cm_assets %}
 {% block title %}สำนวนจำหน่ายพัสดุ ปีงบ {{ dp.year }}{% endblock %}
 {% macro bedate(v) %}{{ be_date(v) if v else '' }}{% endmacro %}
 {% macro committee(key, title, hint) %}
 <div class="card">
   <h2 style="margin-top:0;">{{ title }}</h2>
   {% if hint %}<p class="muted" style="margin-top:0;">{{ hint }}</p>{% endif %}
-  {% set mem = members.get(key) or [] %}
-  <div class="table-wrap"><table>
-    <thead><tr><th style="width:45%;">ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>บทบาท</th></tr></thead>
-    <tbody>
-      {% for i in range(1, 6) %}
-      {% set m = mem[i-1] if mem|length >= i else None %}
-      <tr>
-        <td><input name="{{ key }}{{ i }}_name" list="persons" autocomplete="off"
-                   value="{{ m.name if m else '' }}"
-                   placeholder="{{ 'ประธาน' if i == 1 else 'กรรมการ' }}{{ ' (ไม่บังคับ)' if i > 3 else '' }}"></td>
-        <td><input name="{{ key }}{{ i }}_pos" list="positions"
-                   value="{{ m.position if m else ('' if i > 3 else 'ครู') }}"></td>
-        <td><input name="{{ key }}{{ i }}_role"
-                   value="{{ m.role if m else ('ประธานกรรมการ' if i == 1 else 'กรรมการ') }}"></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table></div>
+  {{ cm_rows(key, members.get(key) or [], ['ประธานกรรมการ', 'กรรมการ', 'กรรมการ', 'กรรมการ', 'กรรมการ']) }}
 </div>
 {% endmacro %}
 {% block content %}
+{{ cm_assets() }}
 <style>
   .dp-tabs { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 14px; }
   .dp-tabs button { border:none; cursor:pointer; padding:8px 16px; border-radius:999px;
@@ -54,7 +39,7 @@
   </div>
   <div style="display:flex; gap:8px; align-items:center;">
     <a class="btn sm gray" href="/assets/disposal"><svg class="icon"><use href="#ic-arrow-left"/></svg> สำนวนทั้งหมด</a>
-    <a class="btn sm" href="/assets/disposal/{{ dp.id }}/bundle/all.docx"
+    <a class="btn sm" data-save-first href="/assets/disposal/{{ dp.id }}/bundle/all.docx"
        onclick="return ddocConfirm(event, this, {key:'ddoc_doc_privacy', title:'ตรวจเอกสารก่อนใช้งาน', msg:'โปรดตรวจเอกสารและกรอกข้อมูลส่วนตัวของผู้ให้ถ้อยคำและผู้ซื้อในไฟล์ เนื่องจากระบบจะไม่บันทึกข้อมูลส่วนตัว', detail:'ช่องที่เว้นว่าง: ชื่อ-ที่อยู่-อาชีพของผู้ให้ถ้อยคำในบันทึกถ้อยคำ ที่อยู่และเลขประจำตัวผู้เสียภาษีของผู้ซื้อ', ok:'รับทราบ ดาวน์โหลดเลย'})"><svg class="icon"><use href="#ic-download"/></svg> ออกทั้งสำนวน</a>
   </div>
 </div>
@@ -165,7 +150,7 @@
   {{ committee('fact', 'คณะกรรมการสอบหาข้อเท็จจริง', 'ระเบียบฯ ข้อ 214 ปกติตั้ง 3 คน และไม่ควรเป็นเจ้าหน้าที่พัสดุ') }}
   <div class="card">
     <h2 style="margin-top:0;">เอกสารขั้นนี้</h2>
-    <div class="dp-docs">
+    <div class="dp-docs" data-save-first>
       <a class="btn sm" href="/assets/disposal/{{ dp.id }}/bundle/fact.docx"><svg class="icon"><use href="#ic-download"/></svg> ออกทั้งชุด (4 ฉบับ)</a>
       {% for k in ['fact_memo','fact_order','fact_report','statement'] %}
       <a class="btn sm gray" href="/assets/disposal/{{ dp.id }}/doc/{{ k }}.docx">{{ docs[k][0] }}</a>
@@ -192,7 +177,7 @@
   {{ committee('destroy', 'คณะกรรมการทำลาย', 'ตั้งไว้ด้วยได้ แม้ยังไม่มีรายการที่ต้องทำลาย') }}
   <div class="card">
     <h2 style="margin-top:0;">เอกสารขั้นนี้</h2>
-    <div class="dp-docs">
+    <div class="dp-docs" data-save-first>
       <a class="btn sm" href="/assets/disposal/{{ dp.id }}/bundle/approve.docx"><svg class="icon"><use href="#ic-download"/></svg> ออกทั้งชุด (2 ฉบับ)</a>
       {% for k in ['request','order'] %}
       <a class="btn sm gray" href="/assets/disposal/{{ dp.id }}/doc/{{ k }}.docx">{{ docs[k][0] }}</a>
@@ -248,7 +233,7 @@
       <div><label>ลงวันที่</label><input name="sale_memo_date" data-date="1" placeholder="วว/ดด/ปปปป" value="{{ bedate(dp.sale_memo_date) }}"></div>
       <div><label>วันที่ขายจริง</label><input name="sale_date" data-date="1" placeholder="วว/ดด/ปปปป" value="{{ bedate(dp.sale_date) }}"></div>
     </div>
-    <div class="dp-docs" style="margin-top:10px;">
+    <div class="dp-docs" data-save-first style="margin-top:10px;">
       <a class="btn sm" href="/assets/disposal/{{ dp.id }}/bundle/sell.docx"><svg class="icon"><use href="#ic-download"/></svg> ออกทั้งชุด (4 ฉบับ)</a>
       {% for k in ['invite','quote','price','sale'] %}
       <a class="btn sm gray" href="/assets/disposal/{{ dp.id }}/doc/{{ k }}.docx">{{ docs[k][0] }}</a>
@@ -276,7 +261,7 @@
     <label class="nt-chk" style="margin-top:8px;"><input type="checkbox" name="auction_fee" value="1" {{ 'checked' if dp.auction_fee }}>
       มีรายการที่ต้องเสียค่าธรรมเนียมโอนกรรมสิทธิ์ (เพิ่มเงื่อนไขข้อ 5 ในประกาศ)</label>
     {{ committee('auction', 'คณะกรรมการขายพัสดุโดยวิธีทอดตลาด', 'เว้นว่าง = ใช้รายชื่อคณะกรรมการดำเนินการขาย') }}
-    <div class="dp-docs" style="margin-top:10px;">
+    <div class="dp-docs" data-save-first style="margin-top:10px;">
       <a class="btn sm" href="/assets/disposal/{{ dp.id }}/bundle/auction.docx"><svg class="icon"><use href="#ic-download"/></svg> ออกทั้งชุด (5 ฉบับ)</a>
       {% for k in ['auction_order','notice','auction_list','auction_ledger','auction_report'] %}
       <a class="btn sm gray" href="/assets/disposal/{{ dp.id }}/doc/{{ k }}.docx">{{ docs[k][0] }}</a>
@@ -300,7 +285,7 @@
         <input name="destroy_way" list="dways" value="{{ dp.destroy_way or '' }}" placeholder="บด / เผา / ทุบ / ฝังกลบ">
         <datalist id="dways"><option value="บด"><option value="เผา"><option value="ทุบ"><option value="ฝังกลบ"></datalist></div>
     </div>
-    <div class="dp-docs" style="margin-top:10px;">
+    <div class="dp-docs" data-save-first style="margin-top:10px;">
       <a class="btn sm gray" href="/assets/disposal/{{ dp.id }}/doc/destroy.docx">{{ docs['destroy'][0] }}</a>
     </div>
   </div>
@@ -325,7 +310,7 @@
     <textarea name="wo_reason" placeholder="เว้นว่าง = ใช้ข้อความมาตรฐาน">{{ dp.wo_reason or '' }}</textarea>
     <label class="nt-chk" style="margin-top:8px;"><input type="checkbox" name="wo_no_liable" value="1" {{ 'checked' if dp.wo_no_liable }}>
       ไม่ปรากฏตัวผู้รับผิดทางแพ่ง</label>
-    <div class="dp-docs" style="margin-top:10px;">
+    <div class="dp-docs" data-save-first style="margin-top:10px;">
       <a class="btn sm gray" href="/assets/disposal/{{ dp.id }}/doc/writeoff.docx">{{ docs['writeoff'][0] }}</a>
     </div>
   </div>
@@ -375,7 +360,7 @@
       <div><label>ส่งถึง</label><input name="remit_to" value="{{ dp.remit_to or '' }}" placeholder="เว้นว่าง = ผู้อำนวยการเขตพื้นที่ฯ"></div>
       <div><label>โทรศัพท์ผู้ประสาน</label><input name="contact_phone" value="{{ dp.contact_phone or '' }}"></div>
     </div>
-    <div class="dp-docs" style="margin-top:10px;">
+    <div class="dp-docs" data-save-first style="margin-top:10px;">
       <a class="btn sm" href="/assets/disposal/{{ dp.id }}/bundle/close.docx"><svg class="icon"><use href="#ic-download"/></svg> ออกทั้งชุดปิดเรื่อง</a>
       {% for k in ['area','sao','mof','remit'] %}
       <a class="btn sm gray" href="/assets/disposal/{{ dp.id }}/doc/{{ k }}.docx">{{ docs[k][0] }}</a>
@@ -392,6 +377,45 @@
         box-shadow:0 10px 24px rgba(79,70,229,.35);">
   <svg class="icon"><use href="#ic-save"/></svg> บันทึกสำนวน</button>
 </form>
+<span class="dp-dirty" id="dpDirty" hidden>มีข้อมูลที่ยังไม่ได้บันทึก</span>
+<script>
+(function(){
+  // ปุ่มออกเอกสารอ่านข้อมูลที่บันทึกแล้วเท่านั้น: แก้แล้วยังไม่กดบันทึก ระบบบันทึกให้ก่อนออกเอกสาร
+  // (เจ้าของกรอกกรรมการแล้วกดออกเอกสารเลย เอกสารออกมาไม่มีชื่อ เพราะยังไม่ได้บันทึก)
+  var f = document.getElementById('dpForm'), flag = document.getElementById('dpDirty'), dirty = false;
+  if (!f) return;
+  function mark(){ dirty = true; flag.hidden = false; }
+  f.addEventListener('input', mark); f.addEventListener('change', mark);
+  f.addEventListener('submit', function(){ dirty = false; });
+  window.addEventListener('beforeunload', function(e){ if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+  document.querySelectorAll('[data-save-first] a, a[data-save-first]').forEach(function(a){
+    a.addEventListener('click', function(ev){
+      if (!dirty) return;
+      if (a.hasAttribute('onclick')) {          // ปุ่มที่มีกล่องยืนยันของตัวเอง: บันทึกเงียบ ๆ ระหว่างผู้ใช้อ่านกล่อง
+        fetch(f.action, {method:'POST', body:new FormData(f)}).then(function(r){ if (r.ok) { dirty = false; flag.hidden = true; } });
+        return;
+      }
+      ev.preventDefault();
+      var label = a.innerHTML; a.textContent = 'กำลังบันทึก...'; a.style.pointerEvents = 'none';
+      fetch(f.action, {method:'POST', body:new FormData(f)}).then(function(r){
+        if (!r.ok) throw 0;
+        dirty = false; flag.hidden = true;
+        if (window.showToast) showToast('บันทึกข้อมูลที่แก้ให้แล้ว กำลังออกเอกสาร');
+        a.innerHTML = label; a.style.pointerEvents = '';
+        location.href = a.href;
+      }).catch(function(){
+        a.innerHTML = label; a.style.pointerEvents = '';
+        alert('บันทึกไม่สำเร็จ กดปุ่ม "บันทึกสำนวน" ก่อนออกเอกสาร');
+      });
+    });
+  });
+})();
+</script>
+<style>
+  .dp-dirty{ position:fixed; right:88px; bottom:84px; z-index:60; padding:6px 14px; border-radius:99px;
+             background:#fef3c7; color:#92400e; font-size:13px; font-weight:700; box-shadow:0 6px 16px rgba(146,64,14,.18); }
+  .dp-dirty[hidden]{ display:none; }
+</style>
 
 <div class="card">
   <h2 style="margin-top:0;">ปิดสำนวน</h2>

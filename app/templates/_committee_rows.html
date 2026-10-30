@@ -1,0 +1,63 @@
+{# ตารางรายชื่อกรรมการ: เริ่มที่ 3 แถว กด "เพิ่มกรรมการ" ได้ถึง 5 คน และลบแถวได้ (เดิมโชว์ 5 แถวตายตัว ลบไม่ได้)
+   ใช้ร่วม: ตรวจสอบพัสดุประจำปี (prefix m) และสำนวนจำหน่าย (prefix = ชุดกรรมการ เช่น fact)
+   ช่องชื่อว่าง = ไม่นับเป็นกรรมการ (ฝั่งเซิร์ฟเวอร์ข้ามให้) ลบแถว = ล้างชื่อแล้วซ่อน #}
+{% macro cm_rows(prefix, members, roles, max_rows=5, min_rows=3) %}
+{% set n_show = [members|length, min_rows]|max %}
+<div class="cm" data-cm>
+  <div class="table-wrap"><table>
+    <thead><tr><th style="width:45%;">ชื่อ-นามสกุล</th><th>ตำแหน่ง</th><th>บทบาท</th><th style="width:44px;"></th></tr></thead>
+    <tbody>
+      {% for i in range(1, max_rows + 1) %}
+      {% set m = members[i-1] if members|length >= i else None %}
+      <tr data-row="{{ i }}" class="cm-row{{ ' cm-off' if i > n_show }}">
+        <td><input name="{{ prefix }}{{ i }}_name" list="persons" autocomplete="off" value="{{ m.name if m else '' }}"
+                   placeholder="{{ 'ประธาน' if i == 1 else 'กรรมการ' }}" aria-label="ชื่อกรรมการคนที่ {{ i }}"></td>
+        <td><input name="{{ prefix }}{{ i }}_pos" list="positions" value="{{ m.position if m else 'ครู' }}" aria-label="ตำแหน่งคนที่ {{ i }}"></td>
+        <td><input name="{{ prefix }}{{ i }}_role" value="{{ m.role if m else roles[i-1] }}" aria-label="บทบาทคนที่ {{ i }}"></td>
+        <td><button type="button" class="cm-del" title="ลบแถวนี้" aria-label="ลบกรรมการคนที่ {{ i }}" data-no-floating-save>✕</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <div class="cm-foot">
+    <button type="button" class="btn sm gray cm-add" data-no-floating-save>+ เพิ่มกรรมการ</button>
+    <span class="muted">สูงสุด {{ max_rows }} คน ชื่อที่เว้นว่างจะเว้นจุดไข่ปลาให้เซ็น</span>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro cm_assets() %}
+<style>
+  .cm-row.cm-off { display:none; }
+  .cm-del { border:none; background:#f1f5f9; color:#64748b; width:32px; height:32px; border-radius:10px; cursor:pointer; font-size:14px; }
+  .cm-del:hover { background:#fee2e2; color:#b91c1c; }
+  .cm-foot { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:8px; font-size:13px; }
+  .cm-add[hidden] { display:none; }
+</style>
+<script>
+(function(){
+  function setup(box){
+    var rows = [].slice.call(box.querySelectorAll('.cm-row')), add = box.querySelector('.cm-add');
+    function sync(){ add.hidden = !rows.some(function(r){ return r.classList.contains('cm-off'); }); }
+    add.addEventListener('click', function(){
+      var r = rows.filter(function(x){ return x.classList.contains('cm-off'); })[0];
+      if (r) { r.classList.remove('cm-off'); var i = r.querySelector('input'); if (i) i.focus(); }
+      sync();
+    });
+    rows.forEach(function(r){
+      r.querySelector('.cm-del').addEventListener('click', function(){
+        var name = r.querySelector('input[name$="_name"]');
+        name.value = '';
+        name.dispatchEvent(new Event('input', {bubbles:true}));     // ให้หน้ารู้ว่ามีการแก้ (เตือนยังไม่บันทึก)
+        var shown = rows.filter(function(x){ return !x.classList.contains('cm-off'); });
+        if (shown.length > 1) r.classList.add('cm-off');            // เหลือแถวเดียวไม่ซ่อน แค่ล้างชื่อ
+        sync();
+      });
+    });
+    sync();
+  }
+  function init(){ document.querySelectorAll('[data-cm]').forEach(setup); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+{% endmacro %}

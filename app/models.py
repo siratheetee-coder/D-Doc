@@ -41,6 +41,7 @@ class School(Base):
     head_officer_name = Column(String, default="") # หัวหน้าเจ้าหน้าที่ (พัสดุ)
 
     finance_officer_name = Column(String, default="")  # เจ้าหน้าที่การเงิน
+    audit_members = Column(Text, default="")       # กรรมการตรวจสอบพัสดุประจำปีชุดล่าสุด JSON {members, single} (จำไว้ให้ปีหน้า)
     finance_head_name = Column(String, default="")     # หัวหน้าเจ้าหน้าที่การเงิน
     admin_officer_name = Column(String, default="")    # เจ้าหน้าที่ธุรการ
     academic_head_name = Column(String, default="")    # หัวหน้าฝ่ายวิชาการ (ผู้ลงนามคนที่ 2 บนปก ปพ.5)

@@ -179,6 +179,7 @@ MIGRATIONS = [
     ("letter_recipient", "email_status", "VARCHAR DEFAULT ''"),
     ("letter_recipient", "email_at", "DATETIME"),
     ("letter_recipient", "email_to", "VARCHAR DEFAULT ''"),
+    ("school", "audit_members", "TEXT DEFAULT ''"),
     ("lunch_ledger", "installment_id", "INTEGER"),
     ("lunch_program", "fuel_cost", "FLOAT DEFAULT 0"),
     ("lunch_program", "cook_wage", "FLOAT DEFAULT 0"),
