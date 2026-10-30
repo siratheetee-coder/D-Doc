@@ -424,7 +424,9 @@
     });
   });
   try {
-    var want = localStorage.getItem('ddoc_dp_tab');
+    // ลิงก์จากหน้าภาพรวมตรวจสอบพัสดุ เช่น #tab-close เปิดแท็บนั้นเลย
+    var hm = (location.hash || '').match(/^#tab-(\w+)$/);
+    var want = hm ? hm[1] : localStorage.getItem('ddoc_dp_tab');
     if (want) { var t = document.querySelector('.dp-tabs button[data-tab="' + want + '"]'); if (t) t.click(); }
   } catch(e){}
 

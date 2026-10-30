@@ -4049,6 +4049,35 @@ def _dp_deadline(dp):
     return out
 
 
+@router.get("/assets/inspection", response_class=HTMLResponse)
+def inspection_home(request: Request, db: Session = Depends(get_db)):
+    """ภาพรวมตรวจสอบพัสดุทั้งปี: ตรวจสอบ > ชำรุด > จำหน่าย > ลงจ่าย/แจ้ง สตง. พร้อมสถานะ"""
+    from app.services.asset_inspection import overview
+    fy = _to_int(request.query_params.get("year"), current_fiscal_year())
+    return templates.TemplateResponse("asset_inspection.html", {
+        "request": request, "o": overview(db, fy), "fy": fy,
+        "years": list(range(current_fiscal_year() + 1, current_fiscal_year() - 5, -1)),
+    })
+
+
+@router.get("/assets/inspection/damaged", response_class=HTMLResponse)
+def inspection_damaged(request: Request, db: Session = Depends(get_db)):
+    """พัสดุชำรุด/เสื่อมสภาพ/สูญไป/ไม่ใช้: รอเปิดสำนวน (เลือกแล้วเปิดสำนวนจำหน่ายได้เลย) และที่อยู่ในสำนวนแล้ว"""
+    from app.services.asset_inspection import overview
+    o = overview(db, current_fiscal_year())
+    return templates.TemplateResponse("asset_inspection_damaged.html", {
+        "request": request, "o": o, "year": current_fiscal_year(),
+    })
+
+
+@router.get("/assets/inspection/report", response_class=HTMLResponse)
+def inspection_report(request: Request, db: Session = Depends(get_db)):
+    """ลงจ่ายและรายงาน (ข้อ 218): สำนวนที่ลงจ่ายแล้ว ขาดหนังสือแจ้งอะไร ครบกำหนดเมื่อไร"""
+    from app.services.asset_inspection import overview
+    o = overview(db, current_fiscal_year())
+    return templates.TemplateResponse("asset_inspection_report.html", {"request": request, "o": o})
+
+
 @router.get("/assets/disposal", response_class=HTMLResponse)
 def disposal_list(request: Request, db: Session = Depends(get_db)):
     rows = db.query(AssetDisposal).order_by(AssetDisposal.year.desc(),

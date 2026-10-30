@@ -123,11 +123,18 @@
         <a href="/procurement/contracts" class="{{ 'active' if path.startswith('/procurement/contracts') }}"><svg class="icon"><use href="#ic-building"/></svg> ทะเบียนคุมสัญญา</a>
         <a href="/textbooks/purchase" class="{{ 'active' if path.startswith('/textbooks/purchase') }}"><svg class="icon"><use href="#ic-coins"/></svg> จัดซื้อหนังสือเรียน</a>
         <div class="nav-sec">พัสดุ/ทรัพย์สิน</div>
-        <a href="/assets" class="{{ 'active' if path.startswith('/assets') }}"><svg class="icon"><use href="#ic-package"/></svg> ทะเบียนครุภัณฑ์</a>
+        {% set insp = path.startswith('/assets/inspection') or path.startswith('/assets/audit') or path.startswith('/assets/dispos') %}
+        <a href="/assets" class="{{ 'active' if path.startswith('/assets') and not insp }}"><svg class="icon"><use href="#ic-package"/></svg> ทะเบียนครุภัณฑ์</a>
         <a href="/materials" class="{{ 'active' if path.startswith('/materials') }}"><svg class="icon"><use href="#ic-folder"/></svg> บัญชีวัสดุ</a>
         <a href="/requisitions" class="{{ 'active' if path.startswith('/requisitions') }}"><svg class="icon"><use href="#ic-outbox"/></svg> ใบเบิกวัสดุ</a>
         <a href="/catalog" class="{{ 'active' if path.startswith('/catalog') }}"><svg class="icon"><use href="#ic-search"/></svg> คลังรายการพัสดุ</a>
         <a href="/textbooks" class="{{ 'active' if path.startswith('/textbooks') }}"><svg class="icon"><use href="#ic-book"/></svg> บัญชีหนังสือเรียน</a>
+        <div class="nav-sec">ตรวจสอบพัสดุ</div>
+        <a href="/assets/inspection" class="{{ 'active' if path == '/assets/inspection' }}"><svg class="icon"><use href="#ic-home"/></svg> ภาพรวมทั้งปี</a>
+        <a href="/assets/audit" class="{{ 'active' if path.startswith('/assets/audit') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ตรวจสอบพัสดุประจำปี</a>
+        <a href="/assets/inspection/damaged" class="{{ 'active' if path.startswith('/assets/inspection/damaged') }}"><svg class="icon"><use href="#ic-alert"/></svg> พัสดุชำรุด/เสื่อมสภาพ</a>
+        <a href="/assets/disposal" class="{{ 'active' if path.startswith('/assets/dispos') }}"><svg class="icon"><use href="#ic-trash"/></svg> จำหน่ายพัสดุ</a>
+        <a href="/assets/inspection/report" class="{{ 'active' if path.startswith('/assets/inspection/report') }}"><svg class="icon"><use href="#ic-check"/></svg> ลงจ่ายและแจ้ง สตง.</a>
 
         {% elif module == 'admin' %}
         <div class="nav-sec">งานธุรการ</div>

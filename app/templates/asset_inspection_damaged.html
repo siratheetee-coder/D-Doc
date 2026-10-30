@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}พัสดุชำรุด/เสื่อมสภาพ{% endblock %}
+{% block content %}
+<div class="hero" style="background:linear-gradient(120deg,#b45309,#ea580c 55%,#dc2626);">
+  <div>
+    <div class="hero-sub">ตรวจสอบพัสดุ ขั้นที่ 2</div>
+    <span class="hero-title">พัสดุชำรุด/เสื่อมสภาพ</span>
+    <div class="hero-meta">รายการที่ตั้งสถานะชำรุด เสื่อมสภาพ สูญไป หรือไม่ใช้ ในทะเบียนครุภัณฑ์</div>
+  </div>
+  <a class="btn sm gray" href="/assets/inspection"><svg class="icon"><use href="#ic-arrow-left"/></svg> ภาพรวมตรวจสอบพัสดุ</a>
+</div>
+
+<form method="post" action="/assets/disposal">
+<div class="card">
+  <h2 style="margin-top:0;">รอเปิดสำนวนจำหน่าย ({{ o.waiting|length }})</h2>
+  {% if o.waiting %}
+  <p class="muted" style="margin-top:0;">เลือกรายการแล้วกดเปิดสำนวน ระบบเลือกวิธีจำหน่ายให้เบื้องต้น (สูญไป → จำหน่ายเป็นสูญ ที่เหลือ → ขาย) แก้ได้ในหน้าสำนวน</p>
+  <div class="row">
+    <div><label>ปีงบประมาณ</label><input name="year" type="number" value="{{ year }}"></div>
+    <div><label>สตง. จังหวัด/ภูมิภาคที่</label><input name="sao_region" placeholder="เช่น นครราชสีมา"></div>
+  </div>
+  <div class="table-wrap"><table class="stack-sm">
+    <thead><tr><th style="width:38px;"><input type="checkbox" id="checkall" title="เลือกทั้งหมด" aria-label="เลือกทั้งหมด"></th>
+      <th>เลขครุภัณฑ์</th><th>ชื่อครุภัณฑ์</th><th>สถานะ</th><th class="right">ราคาทุน</th><th>สถานที่</th></tr></thead>
+    <tbody>
+      {% for a in o.waiting %}
+      <tr>
+        <td><input type="checkbox" class="pick" name="asset_ids" value="{{ a.id }}" aria-label="เลือก {{ a.name }}"></td>
+        <td data-label="เลขครุภัณฑ์">{{ a.asset_code or "-" }}</td>
+        <td data-label="ชื่อ">{{ a.name }}</td>
+        <td data-label="สถานะ"><span class="dm-st">{{ a.status }}</span></td>
+        <td data-label="ราคาทุน" class="right">{{ "{:,.2f}".format(a.cost or 0) }}</td>
+        <td data-label="สถานที่">{{ a.location or "-" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <br><button class="btn" type="submit" data-no-floating-save><svg class="icon"><use href="#ic-file-plus"/></svg> เปิดสำนวนจำหน่าย</button>
+  {% else %}
+  <p class="muted" style="margin:0;">ไม่มีรายการรอเปิดสำนวน ถ้าตรวจพบครุภัณฑ์ชำรุด ให้ตั้งสถานะใน <a href="/assets">ทะเบียนครุภัณฑ์</a> ก่อน รายการจะมาขึ้นที่นี่</p>
+  {% endif %}
+</div>
+</form>
+
+{% if o.in_case %}
+<div class="card">
+  <h2 style="margin-top:0;">อยู่ในสำนวนแล้ว ({{ o.in_case|length }})</h2>
+  <div class="table-wrap"><table class="stack-sm">
+    <thead><tr><th>เลขครุภัณฑ์</th><th>ชื่อครุภัณฑ์</th><th>สถานะ</th><th></th></tr></thead>
+    <tbody>
+      {% for a, did in o.in_case %}
+      <tr>
+        <td data-label="เลขครุภัณฑ์">{{ a.asset_code or "-" }}</td>
+        <td data-label="ชื่อ">{{ a.name }}</td>
+        <td data-label="สถานะ"><span class="dm-st">{{ a.status }}</span></td>
+        <td><a class="btn sm gray" href="/assets/disposal/{{ did }}">เปิดสำนวน</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
+
+<style>
+  .dm-st{ padding:2px 10px; border-radius:99px; font-size:12.5px; font-weight:600; background:#ffedd5; color:#9a3412; white-space:nowrap; }
+</style>
+<script>
+  var ca = document.getElementById('checkall');
+  if (ca) ca.addEventListener('change', function(){
+    document.querySelectorAll('.pick').forEach(function(c){ c.checked = ca.checked; });
+  });
+</script>
+{% endblock %}

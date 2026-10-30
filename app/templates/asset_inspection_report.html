@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}ลงจ่ายและแจ้ง สตง.{% endblock %}
+{% block content %}
+<div class="hero" style="background:linear-gradient(120deg,#047857,#0891b2 55%,#2563eb);">
+  <div>
+    <div class="hero-sub">ตรวจสอบพัสดุ ขั้นที่ 4 (ระเบียบฯ ข้อ 218)</div>
+    <span class="hero-title">ลงจ่ายและแจ้ง สตง.</span>
+    <div class="hero-meta">ลงจ่ายแล้วต้องแจ้ง สพท. และ สตง. ภายใน 30 วันนับแต่วันลงจ่าย</div>
+  </div>
+  <a class="btn sm gray" href="/assets/inspection"><svg class="icon"><use href="#ic-arrow-left"/></svg> ภาพรวมตรวจสอบพัสดุ</a>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;">สำนวนที่ลงจ่ายแล้ว ({{ o.closed|length }})</h2>
+  {% if o.closed %}
+  <div class="rp-list">
+    {% for d, s in o.closed %}
+    <a class="rp-item {{ 'done' if s.done else ('bad' if s.overdue else '') }}" href="/assets/disposal/{{ d.id }}#tab-close">
+      <div class="rp-main">
+        <b>สำนวนปี {{ d.year }}</b> <span class="muted">{{ d.items|length }} รายการ ลงจ่าย {{ thai_date(d.written_off_date) }}</span>
+        <div class="rp-chips">
+          {% for n in s.need %}<span class="rp-chip {{ 'miss' if n in s.missing else 'ok' }}">{{ '✓ ' if n not in s.missing }}{{ n }}</span>{% endfor %}
+        </div>
+      </div>
+      <span class="rp-state">{% if s.done %}รายงานครบแล้ว{% elif s.overdue %}เลยกำหนด {{ thai_date(s.due) }}{% else %}ภายใน {{ thai_date(s.due) }}{% endif %}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted" style="margin:0;">ยังไม่มีสำนวนที่ลงจ่าย เมื่อขาย ทำลาย หรือจำหน่ายเป็นสูญเสร็จแล้ว กดลงจ่ายในหน้าสำนวน รายการจะมาขึ้นที่นี่</p>
+  {% endif %}
+</div>
+
+{% if o.open_cases %}
+<div class="card">
+  <h2 style="margin-top:0;">ยังไม่ได้ลงจ่าย ({{ o.open_cases|length }})</h2>
+  <div class="rp-list">
+    {% for d in o.open_cases %}
+    <a class="rp-item" href="/assets/disposal/{{ d.id }}">
+      <div class="rp-main"><b>สำนวนปี {{ d.year }}</b> <span class="muted">{{ d.items|length }} รายการ</span></div>
+      <span class="rp-state">ขั้น{{ {'fact':'สอบหาข้อเท็จจริง','approve':'ขออนุมัติจำหน่าย','sell':'ดำเนินการขาย','closed':'ปิดเรื่องแล้ว'}.get(d.stage or 'fact', d.stage) }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<style>
+  .rp-list{ display:grid; gap:8px; }
+  .rp-item{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 14px;
+            border-radius:14px; background:#f8fafc; text-decoration:none; color:inherit; }
+  .rp-item:hover{ background:#eef2ff; }
+  .rp-item.done{ background:linear-gradient(120deg,#f0fdf4,#ecfdf5); }
+  .rp-item.bad{ background:linear-gradient(120deg,#fef2f2,#fff7ed); }
+  .rp-main{ flex:1 1 300px; }
+  .rp-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .rp-chip{ padding:2px 10px; border-radius:99px; font-size:12.5px; font-weight:600; }
+  .rp-chip.ok{ background:#bbf7d0; color:#166534; } .rp-chip.miss{ background:#fee2e2; color:#b91c1c; }
+  .rp-state{ font-weight:700; font-size:14px; color:#1d4ed8; white-space:nowrap; }
+  .rp-item.done .rp-state{ color:#15803d; } .rp-item.bad .rp-state{ color:#b91c1c; }
+</style>
+{% endblock %}

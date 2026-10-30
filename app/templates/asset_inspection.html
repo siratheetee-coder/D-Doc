@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}ตรวจสอบพัสดุ{% endblock %}
+{% block content %}
+<div class="hero" style="background:linear-gradient(120deg,#0f766e,#2563eb 55%,#7c3aed);">
+  <div>
+    <div class="hero-sub">ระเบียบกระทรวงการคลังฯ พ.ศ. 2560 ข้อ 213-218</div>
+    <span class="hero-title">ตรวจสอบพัสดุ</span>
+    <div class="hero-meta">ตรวจสอบประจำปี → พัสดุชำรุด → จำหน่าย → ลงจ่ายและแจ้ง สตง.</div>
+  </div>
+  <form method="get" style="margin:0;">
+    <select name="year" onchange="this.form.submit()" aria-label="ปีงบประมาณ" style="width:auto;">
+      {% for y in years %}<option value="{{ y }}" {{ 'selected' if y == fy }}>ปีงบ {{ y }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="card">
+  <div class="ins-top">
+    <h2 style="margin:0;">ขั้นตอนทั้งปี</h2>
+    <span class="ins-count">ทำแล้ว <b>{{ o.n_done }}</b> จาก {{ o.stages|length }} ขั้น</span>
+  </div>
+  <div class="ins-steps">
+    {% for s in o.stages %}
+    {% set bad = s.key == 'report' and o.overdue %}
+    <a class="ins-step {{ 'is-done' if s.done else ('is-bad' if bad else 'is-todo') }}" href="{{ s.href }}">
+      <div class="ins-head"><span class="ins-dot">{{ '✓' if s.done else loop.index }}</span>
+        <span class="ins-rule">{{ s.rule }}</span></div>
+      <b class="ins-title">{{ s.title }}</b>
+      <span class="ins-status">{{ s.status }}</span>
+      <span class="ins-detail">{{ s.detail }}</span>
+      <span class="ins-cta">{{ s.cta }} ›</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+{% if o.overdue or o.report_todo or o.waiting or o.open_cases %}
+<div class="card">
+  <h2 style="margin-top:0;">ต้องทำต่อ</h2>
+  <div class="ins-todo">
+    {% for d, s in o.report_todo %}
+    <a class="ins-item {{ 'bad' if s.overdue }}" href="/assets/disposal/{{ d.id }}#tab-close">
+      <span class="ins-tag">{{ 'เลยกำหนด' if s.overdue else 'รอรายงาน' }}</span>
+      <span>สำนวนปี {{ d.year }} ({{ d.items|length }} รายการ) ลงจ่าย {{ thai_date(d.written_off_date) }} ยังขาด {{ s.missing|join(', ') }}</span>
+      <span class="ins-when">ภายใน {{ thai_date(s.due) }}</span>
+    </a>
+    {% endfor %}
+    {% if o.waiting %}
+    <a class="ins-item" href="/assets/inspection/damaged">
+      <span class="ins-tag">รอเปิดสำนวน</span>
+      <span>พัสดุชำรุด/เสื่อมสภาพ {{ o.waiting|length }} รายการ ยังไม่ได้เปิดสำนวนจำหน่าย</span>
+    </a>
+    {% endif %}
+    {% for d in o.open_cases %}
+    <a class="ins-item" href="/assets/disposal/{{ d.id }}">
+      <span class="ins-tag">กำลังจำหน่าย</span>
+      <span>สำนวนปี {{ d.year }} ({{ d.items|length }} รายการ) ขั้น{{ {'fact':'สอบหาข้อเท็จจริง','approve':'ขออนุมัติจำหน่าย','sell':'ดำเนินการขาย','closed':'ปิดเรื่องแล้ว'}.get(d.stage or 'fact', d.stage) }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<style>
+  .ins-top{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .ins-count{ color:#475569; font-size:14px; }
+  .ins-steps{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; counter-reset:s; }
+  .ins-step{ display:flex; flex-direction:column; gap:5px; padding:14px; border-radius:16px; text-decoration:none; color:inherit;
+             background:linear-gradient(160deg,#f8fafc,#eef2ff); transition:transform .15s ease, box-shadow .15s ease; }
+  .ins-step:hover{ transform:translateY(-2px); box-shadow:0 8px 20px -10px rgba(37,99,235,.45); }
+  .ins-step.is-done{ background:linear-gradient(160deg,#f0fdf4,#dcfce7); }
+  .ins-step.is-bad{ background:linear-gradient(160deg,#fef2f2,#fee2e2); }
+  .ins-head{ display:flex; justify-content:space-between; align-items:center; }
+  .ins-dot{ width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;
+            background:linear-gradient(135deg,#6366f1,#2563eb); color:#fff; }
+  .is-done .ins-dot{ background:linear-gradient(135deg,#22c55e,#16a34a); }
+  .is-bad .ins-dot{ background:linear-gradient(135deg,#ef4444,#dc2626); }
+  .ins-rule{ font-size:12px; color:#64748b; background:#fff; padding:2px 8px; border-radius:99px; }
+  .ins-title{ font-size:16px; margin-top:4px; }
+  .ins-status{ font-weight:700; font-size:14px; color:#1d4ed8; }
+  .is-done .ins-status{ color:#15803d; } .is-bad .ins-status{ color:#b91c1c; }
+  .ins-detail{ font-size:13px; color:#64748b; flex:1; }
+  .ins-cta{ font-size:13px; font-weight:700; color:#2563eb; }
+  .ins-todo{ display:grid; gap:6px; }
+  .ins-item{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:9px 12px; border-radius:12px;
+             background:#f8fafc; text-decoration:none; color:inherit; font-size:14px; }
+  .ins-item:hover{ background:#eef2ff; }
+  .ins-item.bad{ background:linear-gradient(120deg,#fef2f2,#fff7ed); }
+  .ins-tag{ padding:2px 10px; border-radius:99px; font-size:12.5px; font-weight:700; background:#e0e7ff; color:#3730a3; white-space:nowrap; }
+  .ins-item.bad .ins-tag{ background:#fee2e2; color:#b91c1c; }
+  .ins-when{ margin-left:auto; font-size:13px; color:#64748b; white-space:nowrap; }
+  @media (max-width:900px){ .ins-steps{ grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:560px){ .ins-steps{ grid-template-columns:1fr; } .ins-when{ margin-left:0; } }
+</style>
+{% endblock %}
