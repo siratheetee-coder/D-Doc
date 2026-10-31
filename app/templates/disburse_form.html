@@ -56,6 +56,7 @@
       </div>
       <div><label>ชื่อเงินที่พิมพ์ในเอกสาร</label><input name="budget_source" value="{{ prefill.budget_source if prefill else '' }}" placeholder="เช่น เงินอุดหนุน"></div>
     </div>
+    {% include "_disburse_splits.html" %}
     <div class="row">
       <div><label>ภาษีมูลค่าเพิ่ม (VAT)</label><input name="vat" type="number" step="0.01" min="0" value="0"></div>
       <div><label>หัก ภาษี ณ ที่จ่าย</label><input name="wht" type="number" step="0.01" min="0" value="0"></div>

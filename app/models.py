@@ -992,6 +992,19 @@ class DisburseMemo(Base):
     created_at = Column(DateTime, default=datetime.now)
 
     account = relationship("FinanceAccount")
+    splits = relationship("DisburseSplit", cascade="all, delete-orphan", order_by="DisburseSplit.seq")
+
+
+class DisburseSplit(Base):
+    """แยกจ่ายบันทึกขอเบิก 1 ฉบับจากหลายบัญชี/หมวด (services/disburse_split.py) ไม่แยก = ไม่มีแถว"""
+    __tablename__ = "disburse_split"
+
+    id = Column(Integer, primary_key=True)
+    memo_id = Column(Integer, ForeignKey("disburse_memo.id"), nullable=False, index=True)
+    seq = Column(Integer, default=1)
+    account_id = Column(Integer, ForeignKey("finance_account.id"), nullable=False)
+    item_id = Column(Integer, ForeignKey("account_item.id"), nullable=True)
+    amount = Column(Float, default=0.0)
 
 
 class MoneyLoan(Base):

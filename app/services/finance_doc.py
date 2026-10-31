@@ -119,7 +119,12 @@ def render_disburse(memo, school) -> str:
     fine = float(memo.fine or 0)
     goods = round(amount - vat, 2)
     net = round(amount - wht - fine, 2)
-    src = (memo.budget_source or (memo.account.name if memo.account else "") or "เงินอุดหนุน")
+    from sqlalchemy.orm import object_session
+    from app.services import disburse_split as splits
+    db = object_session(memo)
+    split_rows = splits.rows_of(db, memo) if db is not None and splits.is_split(memo) else []
+    src = (memo.budget_source or " และ ".join(r["account_name"] for r in split_rows)
+           or (memo.account.name if memo.account else "") or "เงินอุดหนุน")
     kind = memo.proc_kind or "จัดซื้อ"
     payee = memo.payee or "..............................."
     project_name = _disburse_project_name(memo)
@@ -151,6 +156,8 @@ def render_disburse(memo, school) -> str:
     else:
         _disburse_purchase_body(doc, school, memo, kind, project_name, payee, src,
                                 amount, vat, goods, wht, fine, net)
+    if split_rows:
+        _split_sources(doc, split_rows, wht, fine)
     _p(doc, "", after=2)
     _p(doc, "จึงเรียนมาเพื่อโปรดอนุมัติ", align="justify", indent=1.25, after=10)
     _disburse_tail(doc, school, memo, net)
@@ -160,6 +167,20 @@ def render_disburse(memo, school) -> str:
     out_path = out_dir / fname
     doc.save(str(out_path))
     return str(out_path)
+
+
+def _split_sources(doc, rows, wht, fine):
+    """แหล่งเงินเมื่อแยกจ่ายหลายบัญชี บอกแต่ละบัญชีจ่ายเท่าไร หักภาษีเท่าไร (แบ่งตามสัดส่วนยอดเงิน)"""
+    _p(doc, "โดยเบิกจ่ายจากแหล่งเงิน ดังนี้", indent=1.25, before=4, after=2)
+    for i, r in enumerate(rows, 1):
+        text = f"{i}. {r['name']} จำนวน {_fmt(r['amount'])} บาท"
+        if wht:
+            text += f" หักภาษี ณ ที่จ่าย {_fmt(r['wht'])} บาท"
+        if fine:
+            text += f" ค่าปรับ {_fmt(r['fine'])} บาท"
+        if wht or fine:
+            text += f" คงเหลือจ่ายจริง {_fmt(r['net'])} บาท"
+        _p(doc, text, indent=1.25, after=0)
 
 
 def _disburse_purchase_body(doc, school, memo, kind, project_name, payee, src, amount, vat, goods, wht, fine, net):

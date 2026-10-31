@@ -1,0 +1,41 @@
+{# แยกจ่ายจากหลายบัญชี ใช้ทั้งหน้าสร้างและหน้าแก้บันทึกขอเบิก ต้องอยู่ในฟอร์ม ถัดจาก #srcPick #}
+<div id="splitWrap">
+  <button type="button" id="splitOpen" class="split-open">+ แยกจ่ายจากอีกบัญชี</button>
+  <div id="splitBox" class="split-box" hidden>
+    <div class="split-title">แยกจ่ายจากหลายบัญชี</div>
+    <div id="splitRows"></div>
+    <div class="split-foot">
+      <button type="button" id="splitAdd" class="split-link">+ เพิ่มบัญชี</button>
+      <button type="button" id="splitClose" class="split-link">กลับไปใช้บัญชีเดียว</button>
+      <span id="splitSum" class="split-sum" role="status"></span>
+    </div>
+    <div class="hint">ระบบลงทะเบียนคุมเงินแยกตามบัญชี ส่วนภาษีหัก ณ ที่จ่ายแบ่งตามสัดส่วนเงินของแต่ละบัญชี</div>
+  </div>
+</div>
+<style>
+  .split-open, .split-link { background:none; border:0; padding:6px 0; color:#2563eb; font:inherit; font-weight:600; cursor:pointer; }
+  .split-open:hover, .split-link:hover { text-decoration:underline; }
+  .split-box { margin:10px 0 14px; padding:14px 16px; border-radius:14px; background:linear-gradient(135deg,#eff6ff,#f5f3ff); }
+  .split-box[hidden], .split-open[hidden] { display:none !important; }
+  .split-title { font-weight:700; margin-bottom:8px; }
+  .split-row { display:grid; grid-template-columns:2fr 2fr 1.2fr 34px; gap:10px; align-items:start; margin-bottom:8px; }
+  .split-row label { margin-top:0; }
+  .split-del { width:34px; height:40px; margin-top:32px; border:0; border-radius:10px; background:rgba(220,38,38,.1); color:#dc2626; font-size:18px; cursor:pointer; }
+  .split-cut { grid-column:1 / -1; margin-top:-4px; font-size:14.5px; color:#475569; }
+  .split-cut:empty { display:none; }
+  .split-foot { display:flex; flex-wrap:wrap; gap:6px 18px; align-items:center; }
+  .split-sum { margin-left:auto; font-weight:700; }
+  .split-sum.ok { color:#15803d; }
+  .split-sum.bad { color:#dc2626; }
+  @media (max-width:640px) {
+    .split-row { grid-template-columns:1fr 34px; }
+    .split-row > div { grid-column:1; }
+    .split-del { grid-column:2; grid-row:1; margin-top:32px; }
+    .split-sum { margin-left:0; width:100%; }
+  }
+</style>
+<script>
+window.SPLIT = {accounts: {{ accounts|map(attribute="id")|list|tojson }}, names: {{ accounts|map(attribute="name")|list|tojson }},
+                items: {{ items_map|tojson }}, rows: {{ (split_rows|default([]))|tojson }}};
+</script>
+<script defer src="/static/disburse_split.js?v=1"></script>

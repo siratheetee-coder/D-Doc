@@ -176,10 +176,13 @@ def render_disburse_register(school, fiscal_year, memos) -> str:
     aligns = ["center", "center", "left", "left", "right", "left", "center", "center", "left"]
     t = _grid(doc, headers, widths)
     total = 0.0
+    from sqlalchemy.orm import object_session
+    from app.services.disburse_split import source_text
     for m in memos:
         total += float(m.amount or 0)
+        db = object_session(m)
         _row(t, [thai_date_short(m.date) if m.date else "", m.memo_no or "", m.payee or "",
-                 (m.budget_source or m.subject or "")[:100], _money(m.amount),
+                 ((source_text(db, m) if db is not None else m.budget_source) or m.subject or "")[:100], _money(m.amount),
                  (getattr(m, "receiver_name", "") or "").strip(), "", "",
                  (getattr(m, "register_note", "") or "").strip()],
              widths, aligns)

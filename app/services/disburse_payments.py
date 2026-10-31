@@ -35,15 +35,17 @@ def validate_amount(value):
 
 
 def validate_new(db, memo, excluding=None):
+    """excluding = id รายการเงินของบันทึกนี้เอง (ตัวเดียวหรือหลายตัวเมื่อแยกหลายบัญชี) ไม่นับเป็นยอดจ่ายแล้ว"""
     validate_amount(memo.amount)
     if not db.get(FinanceAccount, memo.account_id):
         raise ValueError('กรุณาเลือกบัญชีที่จ่ายเงิน')
+    skip = excluding if isinstance(excluding, (set, list, tuple)) else {excluding}
     if memo.item_id:
         item = db.get(AccountItem, memo.item_id)
         if not item or (item.account_id, item.fiscal_year) != (memo.account_id, memo.fiscal_year):
             raise ValueError('หมวดไม่ตรงกับบัญชีหรือปีงบประมาณ กรุณาเลือกใหม่')
     info = summary(db, memo)
-    paid = sum(x.amount or 0 for x in info['rows'] if x.id != excluding)
+    paid = sum(x.amount or 0 for x in info['rows'] if x.id not in skip)
     if round(paid + memo.amount - info['total'], 2) > 0:
         raise ValueError('ยอดที่เบิกครั้งนี้เกินยอดคงเหลือของเรื่อง กรุณาตรวจรายการจ่ายเดิม')
     if info['managed']:
@@ -52,6 +54,8 @@ def validate_new(db, memo, excluding=None):
 
 def compatible(db, memo, txn):
     if not txn or txn.disburse_id or txn.loan_id or txn.loan_return_id or txn.kind != 'out':
+        return False
+    if len(memo.splits or []) >= 2:      # แยกหลายบัญชี: รายการเดิมรายการเดียวยอดไม่ตรงอยู่แล้ว
         return False
     if (txn.account_id, txn.item_id, txn.fiscal_year) != (memo.account_id, memo.item_id, memo.fiscal_year):
         return False

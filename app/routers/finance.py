@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import update
 from urllib.parse import quote
 from app.services import disburse_payments as payments
+from app.services import disburse_split as splits
 
 from app.database import get_db
 from app.models import (
@@ -801,6 +802,12 @@ def account_txn_delete(tid: int, db: Session = Depends(get_db),
         return RedirectResponse(f"/finance/checks?year={fy}&message={quote('รายการนี้เชื่อมทะเบียนเช็ค/โอนอยู่ กรุณายกเลิกการเชื่อมก่อนลบรายการเงินจริง')}", status_code=303)
     if t and t.loan_id:
         return RedirectResponse(f"/finance/loans/{t.loan_id}/money?message={quote('รายการนี้เชื่อมเงินยืมอยู่ กรุณายกเลิกการเชื่อมก่อนลบรายการเงินจริง')}", status_code=303)
+    if t and t.disburse_id and db.query(FinanceTxn).filter(FinanceTxn.disburse_id == t.disburse_id,
+                                                           FinanceTxn.id != t.id).first():
+        # บันทึกที่แยกหลายบัญชี ลบส่วนเดียวแล้วยอดจะไม่ครบ ให้ไปจัดการที่บันทึกขอเบิก
+        return RedirectResponse(f"/finance/disburse/{t.disburse_id}?payment_message="
+                                + quote("รายการนี้เป็นส่วนหนึ่งของบันทึกที่แยกจ่ายหลายบัญชี แก้หรือลบที่บันทึกขอเบิกนี้"),
+                                status_code=303)
     if t and t.id in mirror_map(db):
         t = None          # รายการที่หน้าอาหารกลางวันคัดลอกมา แก้/ลบที่หน้าอาหารกลางวันเท่านั้น (ไม่งั้นสองฝั่งไม่ตรงกัน)
     if t:
@@ -967,7 +974,8 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
                     vat: str = Form("0"), wht: str = Form("0"), fine: str = Form("0"),
                     proc_kind: str = Form("จัดซื้อ"), project_id: str = Form(""),
                     item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form(""),
-                    travel_request_id: str = Form(""), activity_id: str = Form("")):
+                    travel_request_id: str = Form(""), activity_id: str = Form(""),
+                    split_account: list[str] = Form([]), split_item: list[str] = Form([]), split_amount: list[str] = Form([])):
     fy = _to_int(fiscal_year, current_fiscal_year())
     no = memo_no.strip() or suggest_doc_no(db, "memo", fy)
     m = DisburseMemo(
@@ -987,8 +995,16 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
     commit_doc_no(db, "memo", fy, no, source="finance", ref_id=m.id, date=m.date,
                   subject=((m.subject or "").strip() if (m.subject or "").strip().startswith("ขออนุมัติเบิกจ่าย")
                            else f"ขออนุมัติเบิกจ่าย {(m.subject or '').strip()}".strip()))
+    # แยกจ่ายหลายบัญชี ยอดไม่ครบก็ยังเก็บบันทึกไว้ แล้วให้แก้ต่อในหน้ารายละเอียด ข้อมูลที่กรอกจะได้ไม่หาย
+    split_msg = ""
+    try:
+        with db.begin_nested():
+            splits.apply(db, m, splits.parse(split_account, split_item, split_amount))
+    except ValueError as exc:
+        split_msg = str(exc)
     db.commit(); db.refresh(m)
-    return RedirectResponse(f"/finance/disburse/{m.id}", status_code=303)
+    return RedirectResponse(f"/finance/disburse/{m.id}" + (f"?payment_message={quote(split_msg)}" if split_msg else ""),
+                            status_code=303)
 
 
 @router.get("/finance/disburse/{mid}", response_class=HTMLResponse)
@@ -1001,6 +1017,7 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
         "posted": db.query(FinanceTxn).filter_by(disburse_id=m.id).first() is not None,
         "payment_info": payments.summary(db, m),
         "payment_candidates": payments.candidates(db, m),
+        "split_rows": splits.rows_of(db, m) if splits.is_split(m) else [],
         "accounts": db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
         "items_map": _items_map(db, m.fiscal_year),
         "projects": _plan_projects(db, m.fiscal_year),
@@ -1021,7 +1038,8 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
                     vat: str = Form("0"), wht: str = Form("0"), fine: str = Form("0"),
                     proc_kind: str = Form("จัดซื้อ"), project_id: str = Form(""),
                     item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form(""),
-                    activity_id: str = Form("")):
+                    activity_id: str = Form(""),
+                    split_account: list[str] = Form([]), split_item: list[str] = Form([]), split_amount: list[str] = Form([])):
     payments.lock(db)
     m = db.get(DisburseMemo, mid)
     if m:
@@ -1039,8 +1057,19 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
         m.register_note = register_note.strip()[:300]
         # ถ้าบันทึกนี้ลงจ่ายเข้าทะเบียนคุมเงินไปแล้ว ให้ปรับรายการในทะเบียนให้ตรงกัน
         # (แก้หมวด/บัญชี/จำนวน/วันที่ ย้อนหลังได้ ยอดคงเหลือรายหมวดจะอัปเดตตาม)
-        txn = db.query(FinanceTxn).filter_by(disburse_id=m.id).first()
-        if txn:
+        txns = db.query(FinanceTxn).filter_by(disburse_id=m.id).all()
+        txn = txns[0] if txns else None
+        rows = splits.parse(split_account, split_item, split_amount)
+        multi = len(rows) >= 2 or len(txns) >= 2       # เกี่ยวกับหลายบัญชี ใช้ทางแยก ไม่แตะทางเดิมบัญชีเดียว
+        try:
+            splits.apply(db, m, rows)
+            if multi and txns:
+                payments.validate_new(db, m, excluding={t.id for t in txns})
+                splits.sync(db, m, txns)
+        except ValueError as exc:
+            db.rollback()
+            return RedirectResponse(f"/finance/disburse/{mid}?payment_message={quote(str(exc))}", status_code=303)
+        if txn and not multi:
             try:
                 receipt = db.query(Receipt).filter_by(txn_id=txn.id).first()
                 if receipt and not txn.linked_existing and (m.account_id != txn.account_id or round(m.amount,2) != round(txn.amount,2)):
@@ -1064,7 +1093,7 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
             db.rollback()
             return RedirectResponse(f"/finance/disburse/{mid}?payment_error=account", status_code=303)
         m.status = "จ่ายแล้ว" if txn else (status.strip() if status.strip() in ("ร่าง", "อนุมัติ") else "อนุมัติ")
-        if txn and not txn.linked_existing:
+        if txn and not multi and not txn.linked_existing:
             if m.account_id:
                 txn.account_id = m.account_id
             txn.item_id = m.item_id
@@ -1096,12 +1125,7 @@ def disburse_post(mid: int, db: Session = Depends(get_db)):
         except ValueError as exc:
             db.rollback()
             return RedirectResponse(f"/finance/disburse/{mid}?payment_message={quote(str(exc))}", status_code=303)
-        db.add(FinanceTxn(
-            account_id=m.account_id, fiscal_year=m.fiscal_year, kind="out",
-            item_id=m.item_id, amount=m.amount or 0, date=m.date or datetime.now(),
-            category="เบิกจ่าย", ref=m.memo_no or "", note=f"จ่าย {m.payee}".strip(),
-            disburse_id=m.id,
-        ))
+        splits.post(db, m)
     m.status = "จ่ายแล้ว"
     db.commit()
     return RedirectResponse(f"/finance/disburse/{mid}?posted=1", status_code=303)
