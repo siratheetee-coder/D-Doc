@@ -23,7 +23,7 @@
   {% if items %}
   <label class="kl-search">
     <svg class="icon"><use href="#ic-search"/></svg>
-    <input type="search" id="klQ" placeholder="ค้นหาเรื่องที่อยากรู้..." autocomplete="off">
+    <input type="search" id="klQ" placeholder="ค้นหาเรื่องที่อยากรู้..." autocomplete="off" aria-label="ค้นหาบทความ">
   </label>
   {% endif %}
   <i class="kl-blob a"></i><i class="kl-blob b"></i>
@@ -53,9 +53,9 @@
   </span>
 </a>
 
-<div class="kl-main">
-  <section class="kl-list">
-    <div class="kl-listhead"><h2>บทความทั้งหมด</h2><span id="klCount">{{ items|length }} บทความ</span></div>
+<div class="kl-main{% if not rest %} kl-no-list{% endif %}" id="klMain">
+  <section class="kl-list" id="klList"{% if not rest %} hidden{% endif %}>
+    <div class="kl-listhead"><h2 id="klListTitle">บทความอื่น ๆ</h2><span id="klCount" aria-live="polite">{{ rest|length }} บทความ</span></div>
     {% for a in rest %}{% set st = cat_style(a.category) %}
     <a class="kl-row kl-item" href="/knowledge/{{ a.slug }}" data-cat="{{ a.category }}" data-q="{{ a.title }} {{ a.description }} {{ a.category }}"
        style="--c1:{{ st.c1 }}; --c2:{{ st.c2 }};">
@@ -139,6 +139,9 @@
 
   /* ---------- รายการ + แถบข้าง ---------- */
   .kl-main { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:28px; margin-top:30px; align-items:start; }
+  .kl-list[hidden] { display:none; }
+  .kl-main.kl-no-list { grid-template-columns:1fr; }
+  .kl-no-list .kl-side { position:static; margin-top:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); }
   .kl-listhead { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
   .kl-listhead h2 { margin:0; font-size:23px; font-weight:800; color:#0f172a; }
   .kl-listhead span { font-size:14px; color:var(--muted); }
@@ -195,7 +198,12 @@
       var ok = (!cat || el.dataset.cat === cat) && words.every(function (w) { return t.indexOf(w) >= 0; });
       el.style.display = ok ? '' : 'none'; if (ok) n++;
     });
-    document.getElementById('klCount').textContent = n + ' บทความ';
+    var rows = items.filter(function(el) { return el.classList.contains('kl-row') && el.style.display !== 'none'; }).length;
+    var showList = rows > 0 || n === 0;
+    document.getElementById('klList').hidden = !showList;
+    document.getElementById('klMain').classList.toggle('kl-no-list', !showList);
+    document.getElementById('klListTitle').textContent = (words.length || cat) ? 'ผลการค้นหา' : 'บทความอื่น ๆ';
+    document.getElementById('klCount').textContent = rows + ' บทความ';
     var none = document.getElementById('klNone');
     none.hidden = n > 0;
     none.textContent = words.length ? 'ไม่พบเรื่องที่ค้นหา ลองใช้คำอื่น' : 'หมวดนี้กำลังเตรียมบทความ เร็ว ๆ นี้';

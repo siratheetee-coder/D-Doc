@@ -1,6 +1,6 @@
 {# ปกบทความ: มีรูป (image) ใช้รูป ไม่มีรูปทำปกไล่สีตามหมวด + กระดาษโน้ตตัวใหญ่ (cover) #}
 {% macro kb_cover(a, st, size="sm") %}
-<span class="kc kc-{{ size }}" style="--c1:{{ st.c1 }}; --c2:{{ st.c2 }};">
+<span class="kc kc-{{ size }}{% if a.image %} kc-image{% endif %}" style="--c1:{{ st.c1 }}; --c2:{{ st.c2 }};">
   {% if a.image %}
   <img src="{{ a.image }}" alt="{{ a.image_alt }}" loading="lazy">
   {% else %}
@@ -38,5 +38,7 @@
     .kc-sm .kc-note small { display:none; }
     .kc-sm .kc-note b { font-size:17px; }
   }
+.kc.kc-image { aspect-ratio:16/9; min-height:0; }
+  .kc.kc-image img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 </style>
 {% endmacro %}

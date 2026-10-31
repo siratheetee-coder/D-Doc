@@ -33,6 +33,15 @@
       <button type="button" id="tTable" title="ใส่ตาราง">ตาราง</button>
       <button type="button" id="tNote" title="กล่องเตือน">กล่องเตือน</button>
       <i></i>
+      <label class="ae-format-label">ขนาด <select id="aeFontSize" aria-label="ขนาดตัวอักษร"><option value="">เลือกขนาด</option><option value="2">13 px</option><option value="3">16 px</option><option value="4">18 px</option><option value="5">24 px</option><option value="6">32 px</option><option value="7">48 px</option></select></label>
+      <label class="ae-format-label">สี <input type="color" id="aeTextColor" value="#1f2937" aria-label="สีตัวอักษร"></label>
+      <button type="button" id="aeClearFormat" title="กลับเป็นย่อหน้าปกติและล้างรูปแบบตัวอักษร">ล้างรูปแบบ</button>
+      <i></i>
+      <button type="button" data-table-action="add-row">+ แถว</button>
+      <button type="button" data-table-action="add-column">+ คอลัมน์</button>
+      <button type="button" data-table-action="delete-row">ลบแถว</button>
+      <button type="button" data-table-action="delete-column">ลบคอลัมน์</button>
+      <button type="button" data-table-action="delete-table">ลบตาราง</button>
       <button type="button" data-cmd="undo" title="เลิกทำ">เลิกทำ</button>
       <button type="button" data-cmd="redo" title="ทำซ้ำ">ทำซ้ำ</button>
     </div>
@@ -114,6 +123,9 @@
   .ae-tools button{ border:none; background:none; padding:6px 10px; border-radius:8px; font:inherit; font-size:14px; cursor:pointer; color:#334155; }
   .ae-tools button:hover{ background:#e0e7ff; }
   .ae-tools i{ width:1px; height:20px; background:#cbd5e1; margin:0 3px; }
+  .ae-format-label{ display:inline-flex; align-items:center; gap:5px; margin:0; font-size:13px; }
+  .ae-tools select{ width:112px; padding:5px; font:inherit; }
+  .ae-tools input[type=color]{ width:36px; height:32px; padding:2px; }
   .ae-body{ min-height:460px; padding:18px 4px; font-size:17.5px; line-height:1.8; outline:none; overflow-wrap:anywhere; }
   .ae-body:empty::before{ content:attr(data-placeholder); color:#94a3b8; }
   .ae-body h2{ display:block; background:none; border:none; padding:0; border-radius:0; font-size:25px; margin:26px 0 10px; }
@@ -175,7 +187,8 @@
   $('aeTools').addEventListener('mousedown', function(e){ if (e.target.closest('button')) e.preventDefault(); });
   $('aeTools').addEventListener('click', function(e){
     var b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.block) { restore(); document.execCommand('formatBlock', false, '<' + b.dataset.block + '>'); mark(); }
+    if (b.dataset.block === 'p') normalText();
+    else if (b.dataset.block) { restore(); document.execCommand('formatBlock', false, b.dataset.block); remember(); mark(); }
     if (b.dataset.cmd) { restore(); document.execCommand(b.dataset.cmd, false, null); mark(); }
   });
   $('tLink').addEventListener('click', function(){
@@ -190,6 +203,7 @@
   $('tTable').addEventListener('click', function(){
     var cols = parseInt(prompt('กี่คอลัมน์?', '3'), 10), rows = parseInt(prompt('กี่แถว (รวมหัวตาราง)?', '3'), 10);
     if (!(cols > 0 && rows > 0)) return;
+    if (cols > 12 || rows > 100) { alert('สร้างตารางได้ครั้งละไม่เกิน 12 คอลัมน์ และ 100 แถว'); return; }
     var h = '<table><thead><tr>' + '<th><br></th>'.repeat(cols) + '</tr></thead><tbody>'
       + ('<tr>' + '<td><br></td>'.repeat(cols) + '</tr>').repeat(Math.max(rows - 1, 0)) + '</tbody></table><p><br></p>';
     restore(); document.execCommand('insertHTML', false, h); mark();
@@ -203,6 +217,71 @@
     else { document.execCommand('insertHTML', false, '<p class="note">ข้อความเตือน</p><p><br></p>'); mark(); }
   });
   function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // Keep toolbar actions anchored in the editor, including native colour pickers.
+  function cellAtCursor() {
+    var n = range && range.startContainer;
+    n = n && (n.nodeType === 1 ? n : n.parentElement);
+    var cell = n && n.closest('td,th');
+    return cell && ed.contains(cell) ? cell : null;
+  }
+  function normalText() {
+    restore();
+    document.execCommand('formatBlock', false, 'p');
+    var s = getSelection(), saved = s.getRangeAt(0).cloneRange();
+    if (s.isCollapsed) {
+      var n = s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement;
+      var block = n.closest('p,li,td,th');
+      if (block && ed.contains(block)) {
+        var all = document.createRange(); all.selectNodeContents(block);
+        s.removeAllRanges(); s.addRange(all);
+        document.execCommand('removeFormat', false, null);
+        s.collapseToEnd();
+      }
+    } else document.execCommand('removeFormat', false, null);
+    remember(); mark();
+  }
+  $('aeFontSize').addEventListener('change', function() {
+    if (!this.value) return;
+    restore(); document.execCommand('styleWithCSS', false, false);
+    document.execCommand('fontSize', false, this.value); remember(); mark();
+  });
+  $('aeTextColor').addEventListener('input', function() {
+    restore(); document.execCommand('foreColor', false, this.value); remember(); mark();
+  });
+  $('aeClearFormat').addEventListener('click', normalText);
+  document.querySelectorAll('[data-table-action]').forEach(function(button) {
+    button.addEventListener('click', function() {
+      var cell = cellAtCursor();
+      if (!cell) { toast('คลิกในช่องตารางที่ต้องการแก้ไขก่อน'); return; }
+      var original = cell.closest('table'), table = original.cloneNode(true);
+      var rowIndex = cell.parentElement.rowIndex, colIndex = cell.cellIndex;
+      var action = button.dataset.tableAction;
+      if (action !== 'delete-table' && table.querySelector('[rowspan]:not([rowspan="1"]),[colspan]:not([colspan="1"])')) {
+        alert('ตารางนี้มีช่องที่รวมไว้ กรุณาแยกช่องในเอกสารต้นทางก่อนปรับแถวหรือคอลัมน์'); return;
+      }
+      if (action.startsWith('delete') && !confirm('ลบ' + ({'delete-row':'แถวนี้','delete-column':'คอลัมน์นี้','delete-table':'ตารางนี้'}[action]) + ' รวมข้อความภายใน?')) return;
+      var row = table.rows[rowIndex];
+      if (action === 'add-row') {
+        var added = document.createElement('tr');
+        added.innerHTML = '<td><br></td>'.repeat(row.cells.length);
+        if (row.parentElement.tagName === 'THEAD') {
+          var body = table.tBodies[0] || table.createTBody(); body.prepend(added);
+        } else row.after(added);
+      }
+      if (action === 'delete-row') row.remove();
+      if (action === 'add-column') Array.from(table.rows).forEach(function(r) {
+        var c = document.createElement(r.cells[colIndex].tagName); c.innerHTML = '<br>';
+        r.cells[colIndex].after(c);
+      });
+      if (action === 'delete-column') Array.from(table.rows).forEach(function(r) { if (r.cells[colIndex]) r.cells[colIndex].remove(); });
+      restore();
+      var selection = getSelection(), replace = document.createRange(); replace.selectNode(original);
+      selection.removeAllRanges(); selection.addRange(replace);
+      document.execCommand('insertHTML', false, action === 'delete-table' || !table.rows.length || !table.querySelector('td,th') ? '<p><br></p>' : table.outerHTML);
+      remember(); mark();
+    });
+  });
 
   // ---- อัปโหลด ----
   function upload(file, kind){

@@ -146,7 +146,7 @@
 
   /* ---------- เนื้อหา + แถบข้าง ---------- */
   .kb-layout { position:relative; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:28px; margin-top:-26px; align-items:start; }
-  .kb-paper { position:relative; background:var(--surface); border-radius:24px; padding:40px 48px 44px;
+  .kb-paper { min-width:0; position:relative; background:var(--surface); border-radius:24px; padding:40px 48px 44px;
     box-shadow:0 4px 18px rgba(15,23,42,.05); }
   .kb-body { max-width:70ch; font-size:18px; line-height:1.95; color:#1f2937; }
   .kb-body > p:first-child { font-size:19px; color:#111827; }
@@ -168,6 +168,11 @@
     display:grid; place-items:center; font-size:14px; font-weight:800; color:#fff; background:linear-gradient(135deg,var(--c1),var(--c2)); }
   .kb-body table { width:100%; border-collapse:separate; border-spacing:0; margin:6px 0 24px; font-size:16px; line-height:1.65;
     border-radius:18px; overflow:hidden; box-shadow:0 4px 18px rgba(15,23,42,.07); }
+  .kb-table-scroll { max-width:100%; overflow-x:auto; margin:6px 0 24px; border-radius:18px; }
+  .kb-table-scroll table { margin:0; }
+  .kb-table-hint { display:none; }
+  .kb-body td p { margin:0 0 8px; }
+  .kb-body td p:last-child { margin-bottom:0; }
   .kb-body th { padding:14px 16px; text-align:left; color:#fff; font-weight:700; background:linear-gradient(135deg,var(--c1),var(--c2)); }
   .kb-body td { padding:13px 16px; vertical-align:top; background:#fff; }
   .kb-body tr:nth-child(odd) td { background:#f8fafd; }
@@ -229,7 +234,7 @@
 
   @media (max-width:1020px) {
     .kb-layout { grid-template-columns:1fr; }
-    .kb-side { position:static; margin-top:0; }
+    .kb-side { display:none; }
     .kb-toc { display:none; }
     .kb-toc-m { display:block; margin:0 0 22px; padding:14px 18px; border-radius:16px; background:#f6f8fc; }
     .kb-toc-m summary { cursor:pointer; font-weight:700; }
@@ -246,7 +251,9 @@
     .kb-body > p:first-child { font-size:17.5px; }
     .kb-body h2 { font-size:21.5px; margin-top:32px; }
     .kb-body ol { grid-template-columns:1fr; }
-    .kb-body table { display:block; overflow-x:auto; font-size:15px; }
+    .kb-body table { font-size:15px; min-width:540px; }
+    .kb-table-hint { display:block; margin:0 0 6px; font-size:13px; color:#64748b; }
+    .kb-info { flex-wrap:wrap; gap:6px 16px; }
     .kb-body td:first-child { white-space:normal; min-width:92px; }
     .kb-cta { padding:24px 20px; }
     .kb-cta h2 { font-size:21px; }
@@ -255,6 +262,14 @@
 </style>
 <script>
 (function () {
+  document.querySelectorAll('.kb-body table').forEach(function(table) {
+    var wrap = document.createElement('div');
+    wrap.className = 'kb-table-scroll'; wrap.tabIndex = 0;
+    wrap.setAttribute('role', 'region'); wrap.setAttribute('aria-label', 'ตารางข้อมูล เลื่อนซ้ายขวาเพื่ออ่าน');
+    var hint = document.createElement('span'); hint.className = 'kb-table-hint';
+    hint.textContent = 'เลื่อนตารางซ้าย–ขวาเพื่ออ่านข้อมูลครบ';
+    table.before(hint, wrap); wrap.appendChild(table);
+  });
   var bar = document.getElementById('kbProgress');
   var links = [].slice.call(document.querySelectorAll('#kbToc a'));
   var heads = links.map(function (l) { return document.getElementById(l.dataset.id); });

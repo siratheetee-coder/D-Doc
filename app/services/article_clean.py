@@ -36,6 +36,29 @@ def safe_url(url: str) -> str:
     return ""
 
 
+
+def safe_text_style(attrs):
+    """Only text size and solid colours; never retain arbitrary pasted CSS."""
+    styles = {}
+    for part in attrs.get("style", "").split(";"):
+        key, sep, value = part.partition(":")
+        if sep:
+            styles[key.strip().lower()] = value.strip().lower()
+    colour = styles.get("color", attrs.get("color", "")).strip().lower()
+    size = styles.get("font-size", "")
+    sizes = {"1":"10px", "2":"13px", "3":"16px", "4":"18px", "5":"24px", "6":"32px", "7":"48px"}
+    size = size or sizes.get(attrs.get("size", ""), "")
+    out = []
+    if re.fullmatch(r"#[0-9a-f]{3}(?:[0-9a-f]{3})?", colour):
+        out.append("color:" + colour)
+    else:
+        rgb = re.fullmatch(r"rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)", colour)
+        if rgb and all(int(v) <= 255 for v in rgb.groups()):
+            out.append("color:rgb(" + ",".join(rgb.groups()) + ")")
+    if size in sizes.values():
+        out.append("font-size:" + size)
+    return ";".join(out)
+
 class _Cleaner(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -84,6 +107,11 @@ class _Cleaner(HTMLParser):
             if closers:
                 self._open_auto()
                 self.out.extend(f"<{t}>" for t in closers)
+            style = safe_text_style(a)
+            if style:
+                self._open_auto()
+                self.out.append('<span style="' + style + '">')
+                closers.append('span')
             self.stack.append((tag, closers[::-1]))
             return
         if tag == "div":
