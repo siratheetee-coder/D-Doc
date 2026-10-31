@@ -444,6 +444,8 @@ app.include_router(auth.router)
 app.include_router(account.router)
 app.include_router(users.router)
 app.include_router(superadmin.router)
+from app.routers import articles_admin
+app.include_router(articles_admin.router)
 from app.routers import support_chat
 app.include_router(support_chat.router)
 from app.routers import ai_help

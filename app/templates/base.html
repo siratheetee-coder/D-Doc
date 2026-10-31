@@ -716,8 +716,8 @@
       document.addEventListener('invalid', function(e){
         e.target.setCustomValidity(thaiMsg(e.target));
       }, true);
-      document.addEventListener('input', function(e){ e.target.setCustomValidity(''); }, true);
-      document.addEventListener('change', function(e){ e.target.setCustomValidity(''); }, true);
+      document.addEventListener('input', function(e){ if (e.target.setCustomValidity) e.target.setCustomValidity(''); }, true);
+      document.addEventListener('change', function(e){ if (e.target.setCustomValidity) e.target.setCustomValidity(''); }, true);
     })();
 
     function openSidebar(){ document.getElementById('sidebar').classList.add('open'); document.getElementById('sbOverlay').classList.add('show'); }

@@ -1,0 +1,380 @@
+{% extends "base.html" %}
+{% block title %}{{ a.title if a else 'เขียนบทความใหม่' }}{% endblock %}
+{% block content %}
+<div class="ae-bar">
+  <a class="btn sm gray" href="/admin-console/articles"><svg class="icon"><use href="#ic-arrow-left"/></svg> รายการบทความ</a>
+  <span class="ae-st {{ 'live' if a and not a.draft else 'draft' }}" id="aeStatus">{{ 'เผยแพร่แล้ว' if a and not a.draft else 'ร่าง' }}</span>
+  <span class="ae-dirty" id="aeDirty" hidden>ยังไม่ได้บันทึก</span>
+  <span class="ae-fill"></span>
+  <button type="button" class="btn sm gray" id="aePreview" data-no-floating-save><svg class="icon"><use href="#ic-eye"/></svg> ดูตัวอย่าง</button>
+  <button type="button" class="btn sm gray" id="aeUnpublish" data-no-floating-save {{ 'hidden' if not a or a.draft }}>ถอนกลับเป็นร่าง</button>
+  <button type="button" class="btn sm" id="aeSave" data-no-floating-save><svg class="icon"><use href="#ic-save"/></svg> <span>{{ 'บันทึก' if a and not a.draft else 'บันทึกร่าง' }}</span></button>
+  <button type="button" class="btn sm green" id="aePublish" data-no-floating-save {{ 'hidden' if a and not a.draft }}><svg class="icon"><use href="#ic-send"/></svg> เผยแพร่</button>
+</div>
+<div class="alert warn" id="aeErr" hidden></div>
+
+<div class="ae-grid">
+  <div class="card ae-write">
+    <input id="aeTitle" class="ae-title" value="{{ a.title if a else '' }}" placeholder="ชื่อเรื่อง" aria-label="ชื่อเรื่อง" maxlength="200">
+    <div class="ae-tools" id="aeTools" role="toolbar" aria-label="เครื่องมือจัดรูปแบบ">
+      <button type="button" data-block="p" title="ย่อหน้าปกติ">ปกติ</button>
+      <button type="button" data-block="h2" title="หัวข้อใหญ่ (ขึ้นในสารบัญ)">หัวข้อ</button>
+      <button type="button" data-block="h3" title="หัวข้อย่อย">หัวข้อย่อย</button>
+      <i></i>
+      <button type="button" data-cmd="bold" title="ตัวหนา"><b>B</b></button>
+      <button type="button" data-cmd="italic" title="ตัวเอียง"><em>I</em></button>
+      <button type="button" data-cmd="underline" title="ขีดเส้นใต้"><u>U</u></button>
+      <i></i>
+      <button type="button" data-cmd="insertUnorderedList" title="รายการจุด">• รายการ</button>
+      <button type="button" data-cmd="insertOrderedList" title="รายการตัวเลข">1. รายการ</button>
+      <i></i>
+      <button type="button" id="tLink" title="ใส่ลิงก์">ลิงก์</button>
+      <button type="button" id="tImage" title="ใส่รูปภาพ">รูปภาพ</button>
+      <button type="button" id="tTable" title="ใส่ตาราง">ตาราง</button>
+      <button type="button" id="tNote" title="กล่องเตือน">กล่องเตือน</button>
+      <i></i>
+      <button type="button" data-cmd="undo" title="เลิกทำ">เลิกทำ</button>
+      <button type="button" data-cmd="redo" title="ทำซ้ำ">ทำซ้ำ</button>
+    </div>
+    <div id="aeBody" class="ae-body" contenteditable="true" role="textbox" aria-multiline="true" aria-label="เนื้อหาบทความ"
+         data-placeholder="เริ่มเขียนที่นี่ วางข้อความจาก Word หรือ Google Docs ได้ ลากรูปมาวางตรงตำแหน่งที่ต้องการได้">{% if a %}{{ a.raw_body|safe }}{% endif %}</div>
+    <input type="file" id="aeImgFile" accept="image/png,image/jpeg,image/webp" multiple hidden>
+    <input type="file" id="aePdfFile" accept="application/pdf" hidden>
+    <input type="file" id="aeCoverFile" accept="image/png,image/jpeg,image/webp" hidden>
+  </div>
+
+  <div class="ae-side">
+    <div class="card">
+      <h2>ข้อมูลบทความ</h2>
+      <label>คำอธิบายสั้น <span class="muted" id="aeDescN"></span></label>
+      <textarea id="aeDesc" rows="4" maxlength="300" placeholder="ข้อความใต้ชื่อเรื่องในผลค้นหา Google">{{ a.description if a else '' }}</textarea>
+      <div class="ae-two">
+        <div><label>หมวด</label>
+          <select id="aeCat"><option value="">เลือกหมวด</option>
+            {% for short, cat in tabs %}<option value="{{ cat }}" {{ 'selected' if a and a.category == cat }}>{{ cat }}</option>{% endfor %}
+          </select></div>
+        <div><label>ประเภท</label>
+          <select id="aeType"><option value="">ไม่ระบุ</option>
+            {% for t in types %}<option value="{{ t }}" {{ 'selected' if a and a.type == t }}>{{ t }}</option>{% endfor %}
+          </select></div>
+      </div>
+      <label>วันที่ตรวจทานกับเอกสารต้นทาง</label>
+      <input id="aeReviewed" data-date="1" placeholder="วว/ดด/ปปปป" value="{{ reviewed }}">
+      <label class="ae-chk"><input type="checkbox" id="aeFeatured" {{ 'checked' if a and a.featured }}> เรื่องแนะนำบนสุดของหน้าคลังความรู้</label>
+      <label>ลิงก์ของบทความ</label>
+      <div class="ae-slug"><span>/knowledge/</span><input id="aeSlug" value="{{ slug }}" {{ 'readonly' if a }} aria-label="ลิงก์บทความ"></div>
+      <div class="muted ae-hint">{% if a %}ลิงก์เปลี่ยนไม่ได้ เพื่อไม่ให้ลิงก์เดิมเสีย{% else %}ใช้ภาษาอังกฤษ เช่น w119-table-1 ช่วยให้ค้นเจอง่าย เปลี่ยนไม่ได้หลังบันทึก{% endif %}</div>
+    </div>
+
+    <div class="card">
+      <h2>รูปปก</h2>
+      <div class="ae-cover" id="aeCover" data-image="{{ a.image_name if a else '' }}">
+        {% if a and a.image %}<img src="{{ a.image }}" alt="">{% else %}<span class="muted">ยังไม่มีรูปปก</span>{% endif %}
+      </div>
+      <div class="ae-row">
+        <button type="button" class="btn sm soft" id="aeCoverPick" data-no-floating-save>เลือกรูปปก</button>
+        <button type="button" class="btn sm gray" id="aeCoverDel" data-no-floating-save>เอาออก</button>
+      </div>
+      <label>คำบนปกเมื่อไม่มีรูป</label>
+      <input id="aeCoverText" value="{{ a.cover if a else '' }}" placeholder="เช่น ว.119" maxlength="40">
+    </div>
+
+    <div class="card">
+      <h2>แหล่งอ้างอิง</h2>
+      <div class="muted ae-hint" style="margin-bottom:8px;">บทความอธิบายระเบียบควรมีลิงก์หรือไฟล์ต้นฉบับ</div>
+      <div id="aeSources">
+        {% for s in (a.sources if a else []) %}
+        <div class="ae-src"><input class="s-name" value="{{ s.name }}" placeholder="ชื่อเอกสาร" aria-label="ชื่อเอกสาร">
+          <input class="s-url" value="{{ s.url }}" placeholder="ลิงก์" aria-label="ลิงก์เอกสาร">
+          <div class="ae-row"><button type="button" class="btn sm gray s-pdf" data-no-floating-save>แนบ PDF</button>
+            <button type="button" class="btn sm gray s-del" aria-label="ลบแหล่งอ้างอิง" data-no-floating-save>✕</button></div></div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn sm gray" id="aeSrcAdd" data-no-floating-save>+ เพิ่มแหล่งอ้างอิง</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .ae-bar{ position:sticky; top:64px; z-index:30; display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 14px; margin-bottom:14px;
+           border-radius:14px; background:rgba(255,255,255,.96); box-shadow:0 4px 16px rgba(15,23,42,.08); }
+  .ae-fill{ flex:1; }
+  #aeErr[hidden]{ display:none; }
+  .ae-st{ padding:3px 12px; border-radius:99px; font-size:13px; font-weight:700; }
+  .ae-st.draft{ background:#fef3c7; color:#92400e; } .ae-st.live{ background:#dcfce7; color:#166534; }
+  .ae-dirty{ font-size:13px; font-weight:700; color:#b45309; }
+  .ae-dirty[hidden]{ display:none; }
+  .ae-bar .btn[hidden]{ display:none; }
+  .ae-grid{ display:grid; grid-template-columns:minmax(0,1fr) 330px; gap:16px; align-items:start; }
+  .ae-side .card h2{ font-size:16px; padding:8px 12px; margin-bottom:10px; }
+  .ae-write{ padding-top:14px; }
+  .ae-title{ width:100%; border:none; font-size:30px; font-weight:800; padding:6px 2px 10px; background:none; }
+  .ae-title:focus{ outline:none; box-shadow:none; }
+  .ae-tools{ position:sticky; top:124px; z-index:20; display:flex; flex-wrap:wrap; gap:3px; align-items:center; padding:6px; border-radius:12px; background:#f1f5f9; }
+  .ae-tools button{ border:none; background:none; padding:6px 10px; border-radius:8px; font:inherit; font-size:14px; cursor:pointer; color:#334155; }
+  .ae-tools button:hover{ background:#e0e7ff; }
+  .ae-tools i{ width:1px; height:20px; background:#cbd5e1; margin:0 3px; }
+  .ae-body{ min-height:460px; padding:18px 4px; font-size:17.5px; line-height:1.8; outline:none; overflow-wrap:anywhere; }
+  .ae-body:empty::before{ content:attr(data-placeholder); color:#94a3b8; }
+  .ae-body h2{ display:block; background:none; border:none; padding:0; border-radius:0; font-size:25px; margin:26px 0 10px; }
+  .ae-body h3{ font-size:20px; margin:22px 0 8px; }
+  .ae-body p{ margin:0 0 14px; }
+  .ae-body .note{ padding:14px 18px; border-radius:14px; background:linear-gradient(120deg,#fffbeb,#fff7ed); }
+  .ae-body ul, .ae-body ol{ margin:0 0 14px; padding-left:28px; }
+  .ae-body table{ width:100%; border-collapse:collapse; margin:6px 0 18px; }
+  .ae-body td, .ae-body th{ border:1px solid #cbd5e1; padding:7px 10px; min-width:50px; }
+  .ae-body th{ background:#f1f5f9; }
+  .ae-body figure{ margin:8px 0 20px; }
+  .ae-body img{ max-width:100%; border-radius:12px; display:block; margin:0 auto; cursor:pointer; }
+  .ae-body img.sel{ outline:3px solid #6366f1; }
+  .ae-body figcaption{ margin-top:8px; font-size:14.5px; color:#64748b; text-align:center; min-height:22px; }
+  .ae-body figcaption:empty::before{ content:"พิมพ์คำบรรยายรูป (ไม่ใส่ก็ได้)"; color:#cbd5e1; }
+  .ae-body.over{ background:#eef2ff; border-radius:12px; }
+  .ae-up{ padding:14px; border-radius:12px; background:#eef2ff; color:#4338ca; font-size:14px; text-align:center; }
+  .ae-two{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .ae-chk{ display:flex; gap:8px; align-items:center; font-weight:500; font-size:14.5px; }
+  .ae-chk input{ width:auto; }
+  .ae-slug{ display:flex; align-items:center; gap:4px; font-size:13.5px; color:#64748b; }
+  .ae-slug input{ font-size:14px; padding:7px 9px; }
+  .ae-slug input[readonly]{ background:#f1f5f9; }
+  .ae-hint{ font-size:12.5px; margin-top:4px; }
+  .ae-cover{ height:150px; border-radius:12px; display:flex; align-items:center; justify-content:center; overflow:hidden; background:linear-gradient(160deg,#f8fafc,#eef2ff); margin-bottom:8px; }
+  .ae-cover img{ width:100%; height:100%; object-fit:cover; }
+  .ae-row{ display:flex; gap:6px; align-items:center; }
+  .ae-src{ padding:8px; border-radius:10px; background:#f8fafc; margin-bottom:8px; display:grid; gap:6px; }
+  .ae-src input{ font-size:14px; padding:7px 9px; }
+  @media (max-width:1100px){ .ae-grid{ grid-template-columns:1fr; } }
+  @media (max-width:640px){ .ae-bar{ top:56px; } .ae-tools{ position:static; } .ae-title{ font-size:24px; } }
+</style>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var ed = $('aeBody'), slugBox = $('aeSlug'), status = {saved: {{ 'true' if a else 'false' }}, draft: {{ 'false' if a and not a.draft else 'true' }}};
+  var orig = {{ (a.slug if a else '')|tojson }}, dirty = false, range = null;
+  try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch(e) {}
+
+  function toast(m){ if (window.showToast) showToast(m); }
+  function mark(){ dirty = true; $('aeDirty').hidden = false; }
+  document.querySelector('.ae-grid').addEventListener('input', mark);
+  document.querySelector('.ae-grid').addEventListener('change', mark);
+  window.addEventListener('beforeunload', function(e){ if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+  // ---- จำตำแหน่งเคอร์เซอร์ (กดปุ่มหรือเปิดหน้าต่างเลือกไฟล์แล้วโฟกัสหลุด) ----
+  function remember(){
+    var s = window.getSelection();
+    if (s.rangeCount && ed.contains(s.anchorNode)) range = s.getRangeAt(0).cloneRange();
+  }
+  document.addEventListener('selectionchange', remember);
+  function restore(){
+    ed.focus();
+    var s = window.getSelection();
+    if (range) { s.removeAllRanges(); s.addRange(range); }
+  }
+
+  // ---- แถบเครื่องมือ (mousedown ไม่ให้เสียตัวเลือกข้อความ) ----
+  $('aeTools').addEventListener('mousedown', function(e){ if (e.target.closest('button')) e.preventDefault(); });
+  $('aeTools').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.block) { restore(); document.execCommand('formatBlock', false, '<' + b.dataset.block + '>'); mark(); }
+    if (b.dataset.cmd) { restore(); document.execCommand(b.dataset.cmd, false, null); mark(); }
+  });
+  $('tLink').addEventListener('click', function(){
+    var u = prompt('วางลิงก์ เช่น https://... หรือ /knowledge/ชื่อบทความ');
+    if (!u) return;
+    restore();
+    var s = window.getSelection();
+    if (s.isCollapsed) document.execCommand('insertHTML', false, '<a href="' + esc(u) + '">' + esc(u) + '</a>');
+    else document.execCommand('createLink', false, u);
+    mark();
+  });
+  $('tTable').addEventListener('click', function(){
+    var cols = parseInt(prompt('กี่คอลัมน์?', '3'), 10), rows = parseInt(prompt('กี่แถว (รวมหัวตาราง)?', '3'), 10);
+    if (!(cols > 0 && rows > 0)) return;
+    var h = '<table><thead><tr>' + '<th><br></th>'.repeat(cols) + '</tr></thead><tbody>'
+      + ('<tr>' + '<td><br></td>'.repeat(cols) + '</tr>').repeat(Math.max(rows - 1, 0)) + '</tbody></table><p><br></p>';
+    restore(); document.execCommand('insertHTML', false, h); mark();
+  });
+  $('tNote').addEventListener('click', function(){
+    restore();
+    var n = window.getSelection().anchorNode;
+    n = n && (n.nodeType === 1 ? n : n.parentNode);
+    var p = n && n.closest('p');
+    if (p && ed.contains(p)) { p.classList.toggle('note'); mark(); }
+    else { document.execCommand('insertHTML', false, '<p class="note">ข้อความเตือน</p><p><br></p>'); mark(); }
+  });
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ---- อัปโหลด ----
+  function upload(file, kind){
+    var fd = new FormData(); fd.append('file', file); fd.append('kind', kind);
+    return fetch('/admin-console/articles/upload', {method:'POST', body:fd}).then(function(r){
+      if (!r.ok) throw 0; return r.json();
+    }).then(function(j){ if (!j.ok) throw j.err; return j.url; });
+  }
+  function fail(e){ alert(typeof e === 'string' ? e : 'อัปโหลดไม่สำเร็จ ลองใหม่'); }
+  function addImages(files, r){
+    [].slice.call(files).filter(function(f){ return /^image\//.test(f.type); }).forEach(function(f){
+      var box = document.createElement('div');
+      box.className = 'ae-up'; box.textContent = 'กำลังอัปโหลดรูป ' + (f.name || '');
+      box.contentEditable = 'false';
+      // วางต่อจากบล็อกบนสุดที่เคอร์เซอร์อยู่ (ไม่ให้รูปไปอยู่ในรายการหรือตาราง)
+      var top = r ? r.endContainer : null;
+      while (top && top.parentNode !== ed) top = top.parentNode;
+      if (top && top !== ed) top.after ? top.after(box) : ed.insertBefore(box, top.nextSibling); else ed.appendChild(box);
+      upload(f, 'image').then(function(url){
+        var fig = document.createElement('figure');
+        fig.innerHTML = '<img src="' + esc(url) + '" alt=""><figcaption></figcaption>';
+        box.replaceWith(fig); mark();
+      }).catch(function(e){ box.remove(); fail(e); });
+    });
+  }
+  $('tImage').addEventListener('click', function(){ $('aeImgFile').click(); });
+  $('aeImgFile').addEventListener('change', function(){ addImages(this.files, range); this.value = ''; });
+
+  // ---- วางข้อความ/รูป และลากมาวาง ----
+  ed.addEventListener('paste', function(e){
+    var cd = e.clipboardData, files = [].slice.call(cd.files || []);
+    var html = cd.getData('text/html'), text = cd.getData('text/plain');
+    if (files.length && !text) { e.preventDefault(); remember(); addImages(files, range); return; }
+    e.preventDefault();
+    if (!html) { document.execCommand('insertText', false, text); return; }
+    remember();
+    var fd = new FormData(); fd.append('html', html);
+    fetch('/admin-console/articles/clean', {method:'POST', body:fd}).then(function(r){ return r.json(); }).then(function(j){
+      restore(); document.execCommand('insertHTML', false, j.html); mark();
+      if (j.dropped) alert('มีรูป ' + j.dropped + ' รูปที่วางมาพร้อมข้อความไม่ได้ ใส่รูปด้วยปุ่ม "รูปภาพ" หรือลากไฟล์มาวางแทน');
+    }).catch(function(){ restore(); document.execCommand('insertText', false, text); });
+  });
+  ['dragenter','dragover'].forEach(function(t){ ed.addEventListener(t, function(e){
+    if (e.dataTransfer && [].indexOf.call(e.dataTransfer.types, 'Files') >= 0) { e.preventDefault(); ed.classList.add('over'); } }); });
+  ['dragleave','drop'].forEach(function(t){ ed.addEventListener(t, function(){ ed.classList.remove('over'); }); });
+  ed.addEventListener('drop', function(e){
+    if (!e.dataTransfer.files.length) return;
+    e.preventDefault();
+    var r = document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : range;
+    addImages(e.dataTransfer.files, r);
+  });
+
+  // ---- กดเลือกรูป แล้วกด Delete เพื่อลบ ----
+  var picked = null;
+  ed.addEventListener('click', function(e){
+    if (picked) picked.classList.remove('sel');
+    picked = e.target.tagName === 'IMG' ? e.target : null;
+    if (picked) picked.classList.add('sel');
+  });
+  ed.addEventListener('keydown', function(e){
+    if (picked && (e.key === 'Delete' || e.key === 'Backspace')) {
+      e.preventDefault(); (picked.closest('figure') || picked).remove(); picked = null; mark();
+    }
+  });
+
+  // ---- รูปปก ----
+  $('aeCoverPick').addEventListener('click', function(){ $('aeCoverFile').click(); });
+  $('aeCoverFile').addEventListener('change', function(){
+    var f = this.files[0]; this.value = ''; if (!f) return;
+    upload(f, 'image').then(function(url){
+      var c = $('aeCover'); c.dataset.image = url; c.innerHTML = '<img src="' + esc(url) + '" alt="">'; mark();
+    }).catch(fail);
+  });
+  $('aeCoverDel').addEventListener('click', function(){
+    var c = $('aeCover'); c.dataset.image = ''; c.innerHTML = '<span class="muted">ยังไม่มีรูปปก</span>'; mark();
+  });
+
+  // ---- แหล่งอ้างอิง ----
+  var pdfTarget = null;
+  $('aeSrcAdd').addEventListener('click', function(){
+    var d = document.createElement('div'); d.className = 'ae-src';
+    d.innerHTML = '<input class="s-name" placeholder="ชื่อเอกสาร" aria-label="ชื่อเอกสาร"><input class="s-url" placeholder="ลิงก์" aria-label="ลิงก์เอกสาร">'
+      + '<div class="ae-row"><button type="button" class="btn sm gray s-pdf" data-no-floating-save>แนบ PDF</button>'
+      + '<button type="button" class="btn sm gray s-del" aria-label="ลบแหล่งอ้างอิง" data-no-floating-save>✕</button></div>';
+    $('aeSources').appendChild(d); d.querySelector('input').focus();
+  });
+  $('aeSources').addEventListener('click', function(e){
+    var box = e.target.closest('.ae-src'); if (!box) return;
+    if (e.target.closest('.s-del')) { box.remove(); mark(); }
+    if (e.target.closest('.s-pdf')) { pdfTarget = box; $('aePdfFile').click(); }
+  });
+  $('aePdfFile').addEventListener('change', function(){
+    var f = this.files[0]; this.value = ''; if (!f || !pdfTarget) return;
+    var box = pdfTarget;
+    upload(f, 'pdf').then(function(url){
+      box.querySelector('.s-url').value = url;
+      var n = box.querySelector('.s-name'); if (!n.value) n.value = f.name.replace(/\.pdf$/i, '');
+      mark();
+    }).catch(fail);
+  });
+
+  // ---- คำอธิบายสั้น นับตัวอักษร ----
+  function descN(){ var n = $('aeDesc').value.length; $('aeDescN').textContent = '(' + n + ' ตัวอักษร แนะนำไม่เกิน 155)'; $('aeDescN').style.color = n > 155 ? '#b91c1c' : ''; }
+  $('aeDesc').addEventListener('input', descN); descN();
+
+  // ---- บันทึก ----
+  function bodyHtml(){
+    var c = ed.cloneNode(true);
+    c.querySelectorAll('.ae-up').forEach(function(x){ x.remove(); });
+    c.querySelectorAll('img').forEach(function(i){ i.classList.remove('sel'); });
+    c.querySelectorAll('figure').forEach(function(f){
+      var cap = f.querySelector('figcaption'), img = f.querySelector('img'), t = cap ? cap.textContent.trim() : '';
+      if (img && !img.getAttribute('alt')) img.setAttribute('alt', t || $('aeTitle').value);
+      if (cap && !t) cap.remove();
+    });
+    return c.innerHTML;
+  }
+  function sourceRows(){
+    return [].slice.call(document.querySelectorAll('.ae-src')).map(function(b){
+      return {name: b.querySelector('.s-name').value.trim(), url: b.querySelector('.s-url').value.trim()};
+    });
+  }
+  function save(action){
+    if (ed.querySelector('.ae-up')) { alert('รอรูปอัปโหลดเสร็จก่อน'); return Promise.reject(); }
+    var fd = new FormData();
+    fd.append('orig_slug', orig); fd.append('slug', slugBox.value.trim()); fd.append('action', action);
+    fd.append('title', $('aeTitle').value); fd.append('body', bodyHtml());
+    fd.append('description', $('aeDesc').value); fd.append('category', $('aeCat').value);
+    fd.append('type', $('aeType').value); fd.append('reviewed', $('aeReviewed').value);
+    fd.append('featured', $('aeFeatured').checked ? '1' : ''); fd.append('cover', $('aeCoverText').value);
+    fd.append('image', $('aeCover').dataset.image || '');
+    sourceRows().forEach(function(s){ fd.append('source_name', s.name); fd.append('source_url', s.url); });
+    var err = $('aeErr'); err.hidden = true;
+    return fetch('/admin-console/articles/save', {method:'POST', body:fd}).then(function(r){
+      if (!r.ok) throw 0; return r.json();
+    }).then(function(j){
+      if (!j.ok) { err.textContent = j.err; err.hidden = false; window.scrollTo(0, 0); throw 0; }
+      dirty = false; $('aeDirty').hidden = true;
+      status.saved = true; status.draft = j.draft;
+      if (!orig) { orig = j.slug; slugBox.readOnly = true; history.replaceState(null, '', j.edit); }
+      var st = $('aeStatus'); st.textContent = j.draft ? 'ร่าง' : 'เผยแพร่แล้ว'; st.className = 'ae-st ' + (j.draft ? 'draft' : 'live');
+      $('aePublish').hidden = !j.draft; $('aeUnpublish').hidden = j.draft;
+      document.querySelector('#aeSave span').textContent = j.draft ? 'บันทึกร่าง' : 'บันทึก';
+      if (j.dropped) alert('มีรูป ' + j.dropped + ' รูปที่ไม่ได้อัปโหลดเข้าระบบถูกตัดออก');
+      return j;
+    });
+  }
+  function failSave(e){ if (e === 0 && $('aeErr').hidden) alert('บันทึกไม่สำเร็จ ลองใหม่'); }
+  $('aeSave').addEventListener('click', function(){ save('keep').then(function(){ toast('บันทึกแล้ว'); }).catch(failSave); });
+  document.addEventListener('keydown', function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); $('aeSave').click(); }
+  });
+  $('aePublish').addEventListener('click', function(){
+    var miss = [];
+    if (!$('aeDesc').value.trim()) miss.push('คำอธิบายสั้น');
+    if (!$('aeCat').value) miss.push('หมวด');
+    if ($('aeType').value === 'อธิบายระเบียบ') {
+      if (!$('aeReviewed').value.trim()) miss.push('วันที่ตรวจทาน');
+      if (!sourceRows().some(function(s){ return s.name && s.url; })) miss.push('แหล่งอ้างอิงที่มีลิงก์หรือไฟล์ต้นฉบับ');
+    }
+    var msg = miss.length ? 'ยังไม่ได้ใส่: ' + miss.join(', ') + '\nเผยแพร่เลยหรือไม่?' : 'เผยแพร่บทความนี้ให้ทุกคนเห็น?';
+    if (!confirm(msg)) return;
+    save('publish').then(function(){ toast('เผยแพร่แล้ว'); }).catch(failSave);
+  });
+  $('aeUnpublish').addEventListener('click', function(){
+    if (!confirm('ถอนกลับเป็นร่าง? คนทั่วไปจะเปิดบทความนี้ไม่ได้')) return;
+    save('draft').then(function(){ toast('ถอนกลับเป็นร่างแล้ว'); }).catch(failSave);
+  });
+  $('aePreview').addEventListener('click', function(){
+    var w = window.open('', '_blank');              // เปิดก่อน fetch ไม่งั้นเบราว์เซอร์บล็อกหน้าต่าง
+    save('keep').then(function(j){ w.location = j.url; }).catch(function(e){ w.close(); failSave(e); });
+  });
+})();
+</script>
+{% endblock %}

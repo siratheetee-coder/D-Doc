@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}เขียนบทความคลังความรู้{% endblock %}
+{% block content %}
+<div class="hero" style="background:linear-gradient(120deg,#4f46e5,#7c3aed 55%,#db2777); box-shadow:0 10px 26px rgba(79,70,229,.28);">
+  <div>
+    <div class="hero-sub">คลังความรู้ เขียนและเผยแพร่ได้เอง ไม่ต้องแก้โค้ด</div>
+    <span class="hero-title">เขียนบทความ</span>
+    <div class="hero-meta">ทั้งหมด {{ items|length }} เรื่อง ร่าง {{ n_draft }} เรื่อง</div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a class="btn gray" href="/admin-console"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับคอนโซล</a>
+    <a class="btn" href="/admin-console/articles/new"><svg class="icon"><use href="#ic-plus"/></svg> เขียนบทความใหม่</a>
+  </div>
+</div>
+{% if msg %}<div class="alert"><svg class="icon"><use href="#ic-check"/></svg><span>{{ msg }}</span></div>{% endif %}
+
+<div class="card">
+  {% if items %}
+  <div class="ar-list">
+    {% for a in items %}
+    <div class="ar-item">
+      <div class="ar-main">
+        <a class="ar-title" href="/admin-console/articles/{{ a.slug }}/edit">{{ a.title }}</a>
+        <div class="muted ar-sub">{{ a.category or 'ยังไม่เลือกหมวด' }}{% if a.type %}, {{ a.type }}{% endif %}
+          แก้ล่าสุด {{ thai_date(a.updated) }}</div>
+      </div>
+      <span class="ar-st {{ 'draft' if a.draft else 'live' }}">{{ 'ร่าง' if a.draft else 'เผยแพร่แล้ว' }}</span>
+      <div class="ar-act">
+        <a class="btn sm gray" href="/knowledge/{{ a.slug }}" target="_blank" rel="noopener">ดูหน้าเว็บ</a>
+        <a class="btn sm" href="/admin-console/articles/{{ a.slug }}/edit"><svg class="icon"><use href="#ic-edit"/></svg> แก้ไข</a>
+        <form method="post" action="/admin-console/articles/{{ a.slug }}/delete" style="margin:0;"
+              onsubmit="return confirm('ลบบทความนี้? กู้คืนเองจากหน้านี้ไม่ได้');">
+          <button class="btn sm gray" aria-label="ลบบทความ" title="ลบบทความ" data-no-floating-save><svg class="icon"><use href="#ic-trash"/></svg></button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted" style="margin:0;">ยังไม่มีบทความ กด "เขียนบทความใหม่" เพื่อเริ่ม</p>
+  {% endif %}
+</div>
+<style>
+  .ar-list{ display:grid; gap:8px; }
+  .ar-item{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 14px; border-radius:14px; background:#f8fafc; }
+  .ar-main{ flex:1 1 300px; min-width:0; }
+  .ar-title{ font-weight:700; font-size:16px; text-decoration:none; color:#1e293b; }
+  .ar-title:hover{ color:#4f46e5; }
+  .ar-sub{ font-size:13px; }
+  .ar-st{ padding:3px 12px; border-radius:99px; font-size:13px; font-weight:700; white-space:nowrap; }
+  .ar-st.draft{ background:#fef3c7; color:#92400e; } .ar-st.live{ background:#dcfce7; color:#166534; }
+  .ar-act{ display:flex; gap:6px; align-items:center; }
+</style>
+{% endblock %}

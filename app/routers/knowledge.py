@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """คลังความรู้ /knowledge - บทความสาธารณะ (ไม่ต้องล็อกอิน) สำหรับ SEO
-เนื้อหาอยู่ใน app/content/articles/*.html ดูรูปแบบไฟล์ที่ app/services/articles.py"""
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+เนื้อหาเขียนจาก /admin-console/articles ดูรูปแบบไฟล์ที่ app/services/articles.py"""
+import re
+
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse
 
 from app.services import articles
 from app.templating import templates
@@ -22,6 +24,19 @@ def knowledge_list(request: Request):
         "request": request, "items": articles.all_articles(include_drafts=drafts),
         "show_drafts": drafts, "site_url": site_url(), "cat_style": articles.style_of, "tabs": articles.CATEGORY_TABS,
     })
+
+
+_MEDIA = re.compile(r"^[a-f0-9]{16}\.(jpg|png|pdf)$")
+
+
+@router.get("/knowledge/media/{name}")
+def knowledge_media(name: str):
+    """รูปและ PDF ที่อัปโหลดจากคอนโซล ชื่อไฟล์สุ่มโดยระบบ จึงเก็บแคชยาวได้"""
+    path = articles.media_dir() / name
+    if not _MEDIA.match(name or "") or not path.is_file():
+        raise HTTPException(status_code=404)
+    return FileResponse(path, headers={"Cache-Control": "public, max-age=31536000, immutable",
+                                       "X-Content-Type-Options": "nosniff"})
 
 
 @router.get("/knowledge/{slug}", response_class=HTMLResponse)

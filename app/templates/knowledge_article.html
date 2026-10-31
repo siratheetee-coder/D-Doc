@@ -39,9 +39,9 @@
 
 {% if a.draft %}
 <div class="kb-draftbar"><svg class="icon"><use href="#ic-alert"/></svg>
-  <span><b>บทความร่าง</b> ยังไม่เผยแพร่ เห็นเฉพาะผู้ดูแลระบบ ตรวจเนื้อหาแล้วแก้เป็น <code>draft: false</code> ในไฟล์ <code>app/content/articles/{{ a.slug }}.html</code>
+  <span><b>บทความร่าง</b> ยังไม่เผยแพร่ เห็นเฉพาะผู้ดูแลระบบ <a href="/admin-console/articles/{{ a.slug }}/edit">แก้ไขและเผยแพร่ในคอนโซล</a>
   {% if a.type == 'อธิบายระเบียบ' and (not a.reviewed or not a.sources|selectattr('url')|list) %}
-  <br>ก่อนเผยแพร่ ควรใส่{% if not a.sources|selectattr('url')|list %} ลิงก์เอกสารต้นทาง (<code>source: ชื่อ | ลิงก์</code>){% endif %}{% if not a.reviewed %} วันที่ตรวจทาน (<code>reviewed: ปปปป-ดด-วว</code>){% endif %}
+  <br>ก่อนเผยแพร่ ควรใส่{% if not a.sources|selectattr('url')|list %} ลิงก์เอกสารต้นทาง{% endif %}{% if not a.reviewed %} วันที่ตรวจทาน{% endif %}
   {% endif %}</span></div>
 {% endif %}
 
