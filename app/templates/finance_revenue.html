@@ -1,3 +1,4 @@
+{% from "_case_staff.html" import case_staff %}
 {% extends "base.html" %}
 {% block title %}นำส่งเงินรายได้แผ่นดิน{% endblock %}
 {% block content %}
@@ -50,6 +51,7 @@
 <div class="card" id="remit-form">
   <h2>ทำเรื่องนำส่ง</h2>
   <form method="post" action="/finance/revenue">
+{{ case_staff(request, None, True) }}
     <div class="row">
       <div><label>บัญชี</label><select name="account_id" id="rvAcc">{% for s in summary %}<option value="{{ s.account.id }}">{{ s.account.name }}</option>{% endfor %}</select></div>
       <div><label>ประเภทเงิน</label><select name="rtype" id="rvType">{% for k,n,c,_ in types %}<option value="{{ k }}" data-code="{{ c }}">{{ n }}</option>{% endfor %}</select></div>
@@ -93,7 +95,7 @@
       <td data-label="ประเภท">{{ names[r.rtype] }}<div class="muted">{{ r.account.name }}{% if r.ref2 %} รหัส {{ r.ref2 }}{% endif %}</div></td>
       <td data-label="จำนวนเงิน" class="right">{{ '{:,.2f}'.format(r.amount) }}</td>
       <td data-label="หนังสือนำส่ง">{{ r.letter_no or '-' }}</td>
-      <td data-label="เอกสาร" class="rv-docs">
+      <td data-label="เอกสาร" class="rv-docs"><a class="btn sm soft" href="/finance/staff/revenue/{{ r.id }}">ผู้รับผิดชอบ</a>
         <a class="btn sm" href="/finance/revenue/{{ r.id }}/all.docx">ชุดเอกสาร</a>
         <a href="/finance/revenue/{{ r.id }}/memo.docx">บันทึกขออนุมัติ</a>
         <a href="/finance/revenue/{{ r.id }}/letter.docx">หนังสือนำส่ง</a></td>

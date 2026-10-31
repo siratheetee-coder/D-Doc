@@ -1,3 +1,4 @@
+{% from "_case_staff.html" import case_staff %}
 {% extends "base.html" %}
 {% set is_edit = p is not none %}
 {% block title %}{{ "แก้ไขเรื่อง" if is_edit else "สร้างเรื่องจัดซื้อใหม่" }}{% endblock %}
@@ -359,6 +360,7 @@
     <br><button type="button" class="btn soft sm" onclick="addPurchaseMember()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มกรรมการซื้อ/จ้าง</button>
     </details>
     {% endif %}
+    {{ case_staff(request, p, False) }}
     </section>
 
     <section class="pf-step" data-step="3" hidden>

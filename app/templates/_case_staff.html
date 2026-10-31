@@ -1,0 +1,16 @@
+{% macro case_staff(request, record=None, finance=False) %}
+{% set staff = case_staff_context(request, record, finance) %}
+<fieldset class="case-staff" style="border:0;border-radius:16px;padding:16px;margin:16px 0;background:linear-gradient(135deg,#eff6ff,#f5f3ff);min-width:0;">
+  <legend style="font-weight:700;padding:0;float:left;width:100%;margin-bottom:6px;">ผู้รับผิดชอบเรื่องนี้</legend>
+  <p class="muted" style="margin:0 0 12px;font-size:13px;">ใช้รายชื่อในเอกสารของเรื่องนี้เท่านั้น ไม่เปลี่ยนเรื่องอื่น หากเคยออกเอกสารแล้ว ให้ดาวน์โหลดฉบับใหม่หลังเปลี่ยนรายชื่อ</p>
+  <input type="hidden" name="staff_selection" value="{{ staff.selected|tojson|forceescape }}">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px;">
+    {% for key,label in staff.roles %}<label>{{ label }}
+      <select data-staff-role="{{ key }}" aria-label="{{ label }}ของเรื่องนี้" onchange="var f=this.closest('.case-staff'),h=f.querySelector('[name=staff_selection]'),v=JSON.parse(h.value);f.querySelectorAll('[data-staff-role]').forEach(function(s){v[s.dataset.staffRole]=s.value});h.value=JSON.stringify(v)">
+        <option value="">ยังไม่ระบุ</option>
+        {% for name in staff.choices[key] %}<option value="{{ name }}" {{ 'selected' if name==staff.selected[key] }}>{{ name }}</option>{% endfor %}
+      </select></label>{% endfor %}
+  </div>
+  <a href="/settings" target="_blank" rel="noopener" style="display:inline-block;margin-top:10px;font-size:13px;">เพิ่มรายชื่อเจ้าหน้าที่ในข้อมูลโรงเรียน</a>
+</fieldset>
+{% endmacro %}

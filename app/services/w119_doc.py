@@ -153,6 +153,8 @@ def checklist(proc) -> dict:
 # ---------------------------------------------------------------- ใบลงเวลาผู้เข้าร่วม
 def render_attendance(proc, school) -> str:
     """ใบลงเวลาผู้เข้าร่วม - แนบเป็นหลักฐานเมื่อเบิกค่าอาหาร/อาหารว่าง/ฝึกอบรม"""
+    from app.services.staff import school_for
+    school = school_for(proc, school)
     doc = _new()
     ex = extra(proc)
     rows = max(10, int(float(ex.get("participants") or 0) or 0))
@@ -192,6 +194,8 @@ def render_attendance(proc, school) -> str:
 # ------------------------------------------------- ใบสำคัญรับเงินสำหรับวิทยากร
 def render_speaker_receipt(proc, school) -> str:
     """เอกสารหมายเลข 1 แนบท้ายระเบียบกระทรวงการคลังว่าด้วยค่าใช้จ่ายในการฝึกอบรมฯ 2549"""
+    from app.services.staff import school_for
+    school = school_for(proc, school)
     doc = _new()
     ex = extra(proc)
     hours = float(ex.get("speaker_hours") or 0)
@@ -240,6 +244,8 @@ def render_speaker_receipt(proc, school) -> str:
 def render_trainee_receipt(proc, school) -> str:
     """เอกสารหมายเลข 2 แนบท้ายระเบียบฯ ฝึกอบรม - จ่ายค่าอาหาร/ที่พัก/พาหนะ
     ให้ผู้เข้าอบรมที่เป็นบุคคลภายนอก โดยเซ็นรับเงินรายคนในใบเดียว"""
+    from app.services.staff import school_for
+    school = school_for(proc, school)
     doc = _new(); set_a4(doc, landscape=True); _font(doc)
     ex = extra(proc)
     rows = max(10, int(float(ex.get("participants") or 0) or 0))
@@ -306,6 +312,8 @@ class _LoanView:
 
 def render_borrow_set(proc, school) -> str:
     """บันทึกขออนุมัติยืมเงิน + สัญญาการยืมเงิน (แบบ 8500) ในไฟล์เดียว"""
+    from app.services.staff import school_for
+    school = school_for(proc, school)
     from app.services.lunch_ingredient_doc import render_loan_contract, render_repay_memo  # noqa
     loan = _LoanView(proc, school)
     doc = _new()
@@ -351,6 +359,8 @@ def _borrow_memo(doc, proc, school, loan) -> None:
 
 def render_repay_set(proc, school) -> str:
     """บันทึกขอส่งใช้เงินยืม (ใช้ฟอร์มเดิมของระบบ)"""
+    from app.services.staff import school_for
+    school = school_for(proc, school)
     from app.services.lunch_ingredient_doc import render_repay_memo
     loan = _LoanView(proc, school)
     doc = _new()

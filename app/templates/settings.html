@@ -48,6 +48,7 @@
 
   {# ---------- 2 ผู้บริหารและเจ้าหน้าที่ ---------- #}
   <div class="sf-sec"><span class="sf-n">2</span> ผู้บริหารและเจ้าหน้าที่</div>
+  <p class="muted" style="margin:0 0 16px;">เพิ่มเจ้าหน้าที่ได้หลายคน รายชื่อที่เลือกในหน้านี้จะเป็นค่าเริ่มต้นเมื่อสร้างเรื่องใหม่ และเปลี่ยนคนรับผิดชอบแยกแต่ละเรื่องได้ในฟอร์มจัดซื้อหรือการเงิน</p>
   <div class="sf-grid c2">
     <div><label>ชื่อผู้อำนวยการ</label><input name="director_name" list="persons" value="{{ school.director_name }}" placeholder="เลือกจากบุคลากร หรือพิมพ์"></div>
     <div><label>ตำแหน่งผู้บริหาร</label><input name="director_position" value="{{ school.director_position }}"></div>
@@ -164,4 +165,60 @@
   if(del) del.addEventListener('click', function(){ if(confirm('ลบโลโก้โรงเรียน?')) send('/settings/logo/delete', new FormData()); });
 })();
 </script>
+<script>
+(function(){
+  const roles={{ officer_roles|tojson }},choices={{ officer_choices|tojson }};
+  Object.entries(roles).forEach(function([key,label]){
+    const old=document.querySelector('input[name="'+key+'"]');if(!old)return;
+    const select=document.createElement('select');select.name=key;select.setAttribute('aria-label',label+'เริ่มต้น');
+    select.add(new Option('ยังไม่ระบุ',''));
+    (choices[key]||[]).forEach(name=>select.add(new Option(name,name)));
+    select.value=old.value;old.replaceWith(select);
+    const button=document.createElement('button');button.type='button';button.className='btn soft sm';button.textContent='+ เพิ่มเจ้าหน้าที่';button.style.marginTop='8px';button.dataset.noFloatingSave='';
+    select.after(button);
+    const remove=document.createElement('button');remove.type='button';remove.className='btn soft sm';remove.textContent='ลบรายชื่อ';remove.style.marginLeft='8px';remove.style.marginTop=button.style.marginTop;
+    button.after(remove);
+    remove.addEventListener('click',function(){
+      const saved=old.value,names=Array.from(select.options).map(o=>o.value).filter(v=>v&&v!==saved);
+      const dialog=document.createElement('dialog');dialog.style.cssText='border:0;border-radius:20px;padding:24px;width:min(440px,90vw);box-shadow:0 20px 70px #0004';
+      dialog.innerHTML='<h3 style="margin-top:0"></h3><p class="muted">เรื่องเก่าที่ใช้ชื่อนี้ไม่เปลี่ยน คนเริ่มต้นลบไม่ได้</p><div data-list></div><p role="alert" style="color:#b91c1c"></p><button class="btn gray" type="button" data-close>ปิด</button>';
+      dialog.querySelector('h3').textContent='ลบรายชื่อ'+label;
+      const list=dialog.querySelector('[data-list]');
+      if(!names.length)list.textContent='ไม่มีรายชื่อที่ลบได้';
+      names.forEach(function(name){
+        const row=document.createElement('div');row.style.cssText='display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px';
+        const text=document.createElement('span');text.textContent=name;
+        const del=document.createElement('button');del.type='button';del.className='btn soft sm';del.textContent='ลบ';
+        del.onclick=async function(){
+          const data=new FormData();data.set('role',key);data.set('name',name);
+          const response=await fetch('/settings/officers/delete',{method:'POST',body:data});
+          if(!response.ok){dialog.querySelector('[role=alert]').textContent='ลบไม่สำเร็จ';return;}
+          Array.from(select.options).filter(o=>o.value===name).forEach(o=>o.remove());
+          if(!select.value)select.value=saved;
+          row.remove();
+        };
+        row.append(text,del);list.appendChild(row);
+      });
+      document.body.appendChild(dialog);dialog.showModal();
+      dialog.querySelector('[data-close]').onclick=()=>dialog.close();dialog.addEventListener('close',()=>dialog.remove());
+    });
+    button.addEventListener('click',function(){
+      const dialog=document.createElement('dialog');dialog.style.cssText='border:0;border-radius:20px;padding:24px;width:min(440px,90vw);box-shadow:0 20px 70px #0004';
+      dialog.innerHTML='<form><h3 style="margin-top:0"></h3><label>ชื่อ–นามสกุล (พร้อมคำนำหน้า)<input name="name" required maxlength="200" list="persons"></label><p class="muted">เพิ่มแล้วจะเลือกคนใหม่นี้ให้ กดบันทึกข้อมูลโรงเรียนเพื่อใช้เป็นคนเริ่มต้น</p><p role="alert" style="color:#b91c1c"></p><div style="display:flex;gap:10px;margin-top:16px"><button class="btn">เพิ่มและเลือกคนนี้</button><button class="btn gray" type="button" data-close>ยกเลิก</button></div></form>';
+      dialog.querySelector('h3').textContent='เพิ่ม'+label;
+      document.body.appendChild(dialog);dialog.showModal();dialog.querySelector('input').focus();
+      dialog.querySelector('[data-close]').onclick=()=>dialog.close();dialog.addEventListener('close',()=>dialog.remove());
+      dialog.querySelector('form').onsubmit=async function(e){
+        e.preventDefault();const submit=this.querySelector('button');submit.disabled=true;
+        const data=new FormData(this);data.set('role',key);
+        try{const response=await fetch('/settings/officers',{method:'POST',body:data});if(!response.ok)throw new Error('เพิ่มรายชื่อไม่สำเร็จ กรุณาลองใหม่');const result=await response.json();
+          if(!Array.from(select.options).some(o=>o.value===result.name))select.add(new Option(result.name,result.name));
+          select.value=result.name;select.dispatchEvent(new Event('change',{bubbles:true}));dialog.close();
+        }catch(error){dialog.querySelector('[role=alert]').textContent=error.message;submit.disabled=false;}
+      };
+    });
+  });
+})();
+</script>
+
 {% endblock %}

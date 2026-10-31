@@ -178,6 +178,8 @@ RENDERERS = {"memo": ("บันทึกขออนุมัตินำส่
 
 
 def render(school, r, which) -> str:
+    from app.services.staff import school_for
+    school = school_for(r, school)
     doc = _new()
     keys = list(RENDERERS) if which == "all" else [which]
     for k in keys:

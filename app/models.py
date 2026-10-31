@@ -271,6 +271,7 @@ class Vendor(Base):
 class Procurement(Base):
     """เรื่องจัดซื้อ/จัดจ้าง 1 เรื่อง = แม่ของทุกอย่าง"""
     __tablename__ = "procurement"
+    staff_snapshot = Column(Text, default="")  # Names chosen for this case, independent of school defaults
 
     id = Column(Integer, primary_key=True)
     fiscal_year = Column(Integer, nullable=False)  # ปีงบประมาณ พ.ศ. เช่น 2569
@@ -964,6 +965,7 @@ class DisburseMemo(Base):
     """บันทึกข้อความขออนุมัติเบิกจ่ายเงิน (ใช้เลขชุด 'memo' ร่วมทั้งโรงเรียน)
     เชื่อมกับเรื่องจัดซื้อ/จัดจ้างได้ (procurement_id)"""
     __tablename__ = "disburse_memo"
+    staff_snapshot = Column(Text, default="")  # Names chosen for this case, independent of school defaults
 
     id = Column(Integer, primary_key=True)
     fiscal_year = Column(Integer, nullable=False)
@@ -1011,6 +1013,7 @@ class MoneyLoan(Base):
     """สัญญาการยืมเงิน (แบบ 8500) + ทะเบียนคุมลูกหนี้เงินยืม
     โครงสร้างช่องตามแบบ 8500 ของกรมบัญชีกลาง (ยื่นต่อ/เลขที่/วันครบกำหนด/ผู้ยืม/สังกัด/วัตถุประสงค์)"""
     __tablename__ = "money_loan"
+    staff_snapshot = Column(Text, default="")  # Names chosen for this case, independent of school defaults
 
     id = Column(Integer, primary_key=True)
     fiscal_year = Column(Integer, nullable=False)
@@ -1082,6 +1085,7 @@ class RevenueRemit(Base):
     บันทึกแล้วระบบลงรายการ "นำส่ง" (จ่ายออก) ในบัญชีเงินรายได้แผ่นดินให้ (txn_id)
     เก็บข้อมูลไว้ออกเอกสาร: บันทึกขออนุมัติ หนังสือนำส่ง ใบแจ้งการชำระเงิน"""
     __tablename__ = "revenue_remit"
+    staff_snapshot = Column(Text, default="")  # Names chosen for this case, independent of school defaults
 
     id = Column(Integer, primary_key=True)
     fiscal_year = Column(Integer, nullable=False)
@@ -1120,6 +1124,7 @@ class FinanceHealthAck(Base):
 class BankRecon(Base):
     """งบกระทบยอดเงินฝากธนาคาร (เทียบยอดสมุดบัญชีกับ statement ธนาคาร)"""
     __tablename__ = "bank_recon"
+    staff_snapshot = Column(Text, default="")  # Names chosen for this case, independent of school defaults
 
     id = Column(Integer, primary_key=True)
     fiscal_year = Column(Integer, nullable=False)
@@ -2631,3 +2636,11 @@ class KinderNote(Base):
     improve = Column(Text, default="{}")
     summary = Column(Text, default="{}")
     works = Column(Text, default="[]")
+
+
+class StaffOfficer(Base):
+    __tablename__ = "staff_officer"
+    id = Column(Integer, primary_key=True)
+    role = Column(String, nullable=False)
+    name = Column(String, nullable=False)
+    __table_args__ = (UniqueConstraint('role', 'name', name='uq_staff_officer_role_name'),)

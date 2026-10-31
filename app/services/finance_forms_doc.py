@@ -81,12 +81,16 @@ def _fin_officer(school) -> str:
 
 def render_loan_contract(school, loan) -> str:
     """Use the same boxed 8500 form as the lunch module."""
+    from app.services.staff import school_for
+    school = school_for(loan, school)
     from app.services.lunch_ingredient_doc import render_loan_contract as render
     return render(None, school, finance_loan=loan)
 
 
 def render_loan_returns(school, loan) -> str:
     """Lunch repayment memo plus actual return history; amounts include partial settlements."""
+    from app.services.staff import school_for
+    school = school_for(loan, school)
     from app.services.lunch_ingredient_doc import render_repay_memo
     doc = _new()
     render_repay_memo(None, school, doc, finance_loan=loan)
@@ -200,6 +204,8 @@ def render_bank_recon(school, rec, account_name="", checks=None, doc=None):
 
     doc = เขียนต่อในเอกสารที่ส่งมา (ใช้ตอนรวมเป็นชุดส่งเขต) แล้วคืน doc แทน path
     """
+    from app.services.staff import school_for
+    school = school_for(rec, school)
     append = doc is not None
     if append:
         if any(p.text.strip() for p in doc.paragraphs) or doc.tables:
@@ -312,6 +318,8 @@ def _is_juristic(name: str) -> bool:
 def render_wht_certificate(school, memo, *, payee_tax_id="", payee_address="",
                            pay_type="ค่าจ้างทำของ", rate=1.0, ref_no=None) -> str:
     """หนังสือรับรองการหักภาษี ณ ที่จ่าย แบบ 4235 เป็นไฟล์เดี่ยว (บันทึกขอเบิกจ่าย / เรื่องจัดซื้อจ้าง)"""
+    from app.services.staff import school_for
+    school = school_for(memo, school)
     doc = _new()
     ref = write_wht_4235(doc, school, memo, payee_tax_id=payee_tax_id, payee_address=payee_address,
                          pay_type=pay_type, rate=rate, ref_no=ref_no)

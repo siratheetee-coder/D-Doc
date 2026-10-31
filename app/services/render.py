@@ -85,6 +85,8 @@ def _find_committee(proc, kind):
 
 def build_context(proc, school) -> dict:
     """รวบรวมข้อมูลทั้งหมดที่แม่แบบต้องใช้"""
+    from app.services.staff import school_for
+    school = school_for(proc, school)
     items = [{
         "name": it.name,
         "qty": f"{(it.quantity or 0):g}",
@@ -333,6 +335,8 @@ def render_proc_wht(proc, school) -> str:
     """หนังสือรับรองการหักภาษี ณ ที่จ่าย แบบ 4235 ของเรื่องจัดซื้อ/จ้าง
     ภาษี = อัตราหัก ณ ที่จ่ายของเรื่อง x มูลค่าก่อน VAT (สูตรเดียวกับใบเบิกจ่ายในชุด)
     ค่าปรับ = วันที่ส่งมอบเกินกำหนด (แสดงบรรทัดค่าปรับ ไม่รวมในยอดภาษี)"""
+    from app.services.staff import school_for
+    school = school_for(proc, school)
     from types import SimpleNamespace
     from app.services.finance_forms_doc import write_wht_4235, _new, _save
     total = float(proc.total_amount or 0)
@@ -357,6 +361,8 @@ def render_proc_wht(proc, school) -> str:
 
 def render_document(kind: str, proc, school) -> str:
     """สร้างไฟล์เอกสารชนิด kind จากแม่แบบ คืนค่าที่อยู่ไฟล์"""
+    from app.services.staff import school_for
+    school = school_for(proc, school)
     if kind == WHT_KIND:
         return render_proc_wht(proc, school)
     # TOR ของเรื่องที่มาจากหนังสือเรียน ใช้ฉบับเฉพาะ (8 หัวข้อ + รายการหนังสือแนบท้าย)
@@ -416,6 +422,8 @@ def render_bundle(kinds, proc, school) -> str:
     สร้างเอกสารทุกชนิดที่เลือก แล้วรวมเป็นไฟล์ .docx เดียว
     (แต่ละเอกสารขึ้นหน้าใหม่) คืนค่าที่อยู่ไฟล์รวม
     """
+    from app.services.staff import school_for
+    school = school_for(proc, school)
     paths = [render_document(k, proc, school) for k in kinds]
     master = _Docx(paths[0])
     composer = Composer(master)

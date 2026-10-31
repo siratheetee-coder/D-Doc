@@ -234,6 +234,8 @@ _W804_REF = ("หนังสือคณะกรรมการวินิจ
 
 
 def render_w804(proc, school) -> str:
+    from app.services.staff import school_for
+    school = school_for(proc, school)
     doc = _font_doc()
     items = _items(proc)
     total = _total(proc)
@@ -450,6 +452,8 @@ def _w119_box(doc, *, school, responsible, director_line, total_txt, baht_txt, a
 
 def render_w119_t1(proc, school) -> str:
     """ว.119 ตารางที่ 1 - ซื้อพัสดุไม่เกิน 10,000 บาท (มีตารางรายการ + ลงนาม 3 ฝ่าย)"""
+    from app.services.staff import school_for
+    school = school_for(proc, school)
     doc = _font_doc()
     items = _items(proc)
     total = _total(proc)
@@ -525,6 +529,8 @@ def render_w119_t2(proc, school) -> str:
         และไม่มีเพดาน 10,000 บาท** ให้เบิกจ่ายตามระเบียบการเงิน/ระเบียบค่าใช้จ่ายเฉพาะเรื่อง
     เอกสารที่ออกตรงนี้จึงเป็น "บันทึกขออนุมัติเบิกจ่าย" ไม่ใช่รายงานขอความเห็นชอบ
     """
+    from app.services.staff import school_for
+    school = school_for(proc, school)
     doc = _font_doc()
     total = _total(proc)
     n = len(_items(proc)) or 1
@@ -567,6 +573,8 @@ def render_w119_t2(proc, school) -> str:
 # ============================================================
 def render_clause79(proc, school) -> str:
     """ข้อ 79 วรรคสอง - รายงานขอความเห็นชอบ (จำเป็นเร่งด่วน) อนุมัติโดยหัวหน้าเจ้าหน้าที่"""
+    from app.services.staff import school_for
+    school = school_for(proc, school)
     doc = _font_doc()
     total = _total(proc)
     n = len(_items(proc)) or 1

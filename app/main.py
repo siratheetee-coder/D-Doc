@@ -455,6 +455,7 @@ app.include_router(plan_budget.router)
 app.include_router(pages.router)
 app.include_router(project_report.router)
 app.include_router(admin.router)
+from app.services import staff  # Register case-signature snapshot lifecycle
 app.include_router(finance.router)
 app.include_router(lunch.router)
 app.include_router(hr.router)

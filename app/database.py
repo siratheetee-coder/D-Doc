@@ -35,6 +35,12 @@ Base = declarative_base()
 
 # รายการเพิ่มคอลัมน์ใหม่บน DB เก่า (ปลอดภัย: ข้ามถ้ามีอยู่แล้ว)
 MIGRATIONS = [
+    ("procurement", "staff_snapshot", "TEXT DEFAULT ''"),
+    ("disburse_memo", "staff_snapshot", "TEXT DEFAULT ''"),
+    ("money_loan", "staff_snapshot", "TEXT DEFAULT ''"),
+    ("bank_recon", "staff_snapshot", "TEXT DEFAULT ''"),
+    ("revenue_remit", "staff_snapshot", "TEXT DEFAULT ''"),
+
     ("acad_eval", "days_open_manual", "BOOLEAN DEFAULT 0"),
     ("acad_class_month", "days_open_manual", "BOOLEAN DEFAULT 0"),
     ("procurement_item", "spec", "TEXT DEFAULT ''"),

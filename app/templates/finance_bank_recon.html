@@ -1,3 +1,4 @@
+{% from "_case_staff.html" import case_staff %}
 {% extends "base.html" %}
 {% block title %}งบกระทบยอดเงินฝากธนาคาร{% endblock %}
 {% block content %}
@@ -42,6 +43,7 @@
   {% endif %}
 
   <form method="post" action="/finance/bank-recon" id="recon-form">
+{{ case_staff(request, None, True) }}
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
     <input type="hidden" name="account_id" value="{{ account_id }}">
     <div style="max-width:320px;"><label>วันที่ตรวจยอด</label><p class="recon-help">ใช้ยอดคงเหลือและรายการค้าง ณ วันเดียวกันทั้งสองส่วน</p>
@@ -139,7 +141,7 @@
         <td data-label="ผลต่าง">
           {% if sides.matched %}<span class="pill done">ตรงกัน</span>
           {% else %}<b style="color:#b91c1c;">{{ "{:,.2f}".format(sides.diff) }}</b>{% endif %}</td>
-        <td class="right" style="white-space:nowrap;">
+        <td class="right" style="white-space:nowrap;"><a class="btn sm soft" href="/finance/staff/bank-recon/{{ r.id }}">ผู้รับผิดชอบ</a>
           <a class="btn sm" href="/finance/bank-recon/{{ r.id }}.docx"><svg class="icon"><use href="#ic-download"/></svg> Word</a>
           <form method="post" action="/finance/bank-recon/{{ r.id }}/delete" style="display:inline" onsubmit="return confirm('ลบงบกระทบยอดนี้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
         </td>

@@ -51,6 +51,8 @@ from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
 from app.thai_utils import fiscal_year_options
 
+from app.services import staff
+
 router = APIRouter()
 from app.routers.subsidy import router as subsidy_router
 router.include_router(subsidy_router)
@@ -974,7 +976,7 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
                     vat: str = Form("0"), wht: str = Form("0"), fine: str = Form("0"),
                     proc_kind: str = Form("จัดซื้อ"), project_id: str = Form(""),
                     item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form(""),
-                    travel_request_id: str = Form(""), activity_id: str = Form(""),
+                    travel_request_id: str = Form(""), activity_id: str = Form(""), staff_selection: str | None = Form(None),
                     split_account: list[str] = Form([]), split_item: list[str] = Form([]), split_amount: list[str] = Form([])):
     fy = _to_int(fiscal_year, current_fiscal_year())
     no = memo_no.strip() or suggest_doc_no(db, "memo", fy)
@@ -991,6 +993,7 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
         travel_request_id=_to_int(travel_request_id, 0) or None,
     )
     m.activity_id = valid_activity(db, activity_id, m.project_id)
+    staff.apply(db, m, staff_selection)
     db.add(m); db.flush()
     commit_doc_no(db, "memo", fy, no, source="finance", ref_id=m.id, date=m.date,
                   subject=((m.subject or "").strip() if (m.subject or "").strip().startswith("ขออนุมัติเบิกจ่าย")
@@ -1038,11 +1041,12 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
                     vat: str = Form("0"), wht: str = Form("0"), fine: str = Form("0"),
                     proc_kind: str = Form("จัดซื้อ"), project_id: str = Form(""),
                     item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form(""),
-                    activity_id: str = Form(""),
+                    activity_id: str = Form(""), staff_selection: str | None = Form(None),
                     split_account: list[str] = Form([]), split_item: list[str] = Form([]), split_amount: list[str] = Form([])):
     payments.lock(db)
     m = db.get(DisburseMemo, mid)
     if m:
+        staff.apply(db, m, staff_selection)
         m.memo_no = memo_no.strip(); m.seq = parse_seq(memo_no)
         m.date = parse_be_date(date); m.subject = subject.strip(); m.payee = payee.strip()
         m.amount = _to_float(amount, 0.0); m.budget_source = budget_source.strip()
@@ -1802,7 +1806,7 @@ def revenue_page(request: Request, db: Session = Depends(get_db), year: int | No
 def revenue_create(db: Session = Depends(get_db), account_id: int = Form(0), rtype: str = Form(""),
                    amount: str = Form(""), date: str = Form(""), memo_no: str = Form(""), letter_no: str = Form(""),
                    send_to: str = Form(""), company_code: str = Form(""), ref1: str = Form(""), ref2: str = Form(""),
-                   method: str = Form("เงินสด"), payer: str = Form(""), phone: str = Form(""), note: str = Form("")):
+                   method: str = Form("เงินสด"), payer: str = Form(""), phone: str = Form(""), note: str = Form(""), staff_selection: str | None = Form(None)):
     from urllib.parse import quote
     from app.services import revenue_remit as rr
     d = parse_be_date(date)
@@ -1811,6 +1815,7 @@ def revenue_create(db: Session = Depends(get_db), account_id: int = Form(0), rty
                       memo_no=memo_no, letter_no=letter_no, send_to=send_to, company_code=company_code,
                       ref1=ref1, ref2=ref2, method=method if method in rr.METHODS else "เงินสด",
                       payer=payer, phone=phone, note=note)
+        staff.apply(db, r, staff_selection)
         db.commit()
     except ValueError as e:
         db.rollback()
@@ -1916,6 +1921,7 @@ async def loan_add(request: Request, db: Session = Depends(get_db)):
     from app.services.project_activity import valid_activity as _valid_activity
     ln.project_id = _to_int(form.get("project_id"), 0) or None
     ln.activity_id = _valid_activity(db, form.get("activity_id"), ln.project_id)
+    staff.apply(db, ln, form.get("staff_selection"))
     db.add(ln); db.commit()
     return RedirectResponse(f"/finance/loans?year={fy}", status_code=303)
 
@@ -2251,6 +2257,7 @@ async def bank_recon_add(request: Request, db: Session = Depends(get_db)):
         other_note=(form.get("other_note") or "").strip(),
         book_balance=_to_float(form.get("book_balance"), 0.0),
         note=(form.get("note") or "").strip())
+    staff.apply(db, rec, form.get("staff_selection"))
     db.add(rec); db.commit()
     return RedirectResponse(f"/finance/bank-recon?year={fy}&account_id={aid or 0}",
                             status_code=303)
@@ -2776,3 +2783,23 @@ async def save_account_openings(aid: int, request: Request, db: Session=Depends(
         db.rollback()
         raise HTTPException(409,str(exc))
     return RedirectResponse(f'/finance/accounts/{aid}?year={fy}',status_code=303)
+
+
+def _staff_case(db, kind, rid):
+    from app.models import MoneyLoan, BankRecon, RevenueRemit
+    from fastapi import HTTPException
+    cls = {'loans': MoneyLoan, 'bank-recon': BankRecon, 'revenue': RevenueRemit}.get(kind)
+    record = db.get(cls, rid) if cls else None
+    if record is None: raise HTTPException(404, 'ไม่พบเรื่องนี้ในโรงเรียน')
+    return record
+
+@router.get('/finance/staff/{kind}/{rid}', response_class=HTMLResponse)
+def case_staff_page(kind: str, rid: int, request: Request, db: Session = Depends(get_db)):
+    record = _staff_case(db, kind, rid)
+    return templates.TemplateResponse('case_staff_edit.html', {'request': request, 'record': record, 'kind': kind})
+
+@router.post('/finance/staff/{kind}/{rid}')
+def case_staff_save(kind: str, rid: int, db: Session = Depends(get_db), staff_selection: str = Form(...)):
+    record = _staff_case(db, kind, rid)
+    staff.apply(db, record, staff_selection); db.commit()
+    return RedirectResponse(f'/finance/{kind}?year={record.fiscal_year}', status_code=303)

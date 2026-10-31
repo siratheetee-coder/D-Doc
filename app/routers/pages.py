@@ -53,6 +53,8 @@ from app.templating import templates
 from app.services.org_names import head_title, org_display
 from app.thai_utils import fiscal_year_options
 
+from app.services import staff
+
 router = APIRouter()
 
 
@@ -458,6 +460,7 @@ def settings_form(request: Request, db: Session = Depends(get_db),
     return templates.TemplateResponse("settings.html", {
         "request": request, "school": get_school(db),
         "persons": db.query(Person).order_by(Person.name).all(),
+        "officer_roles": staff.ROLES, "officer_choices": staff.roster(db, get_school(db)),
         "import_lines": _decode_import_summary(imported),
         "import_err": err_msg,
     })
@@ -1985,6 +1988,7 @@ def _populate_tor_fields(proc, form):
 def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: float = 0) -> None:
     """อ่านค่าจากฟอร์ม เติมลง proc + สร้างรายการพัสดุ + คณะกรรมการ (ตรวจรับ + คุณลักษณะ)
     (ใช้ทั้งตอนสร้างและแก้ไข ไม่ยุ่งกับเลขที่/วันที่เอกสาร)"""
+    staff.apply(db, proc, form.get("staff_selection"))
     proc.fiscal_year = _to_int(form.get("fiscal_year"), current_fiscal_year())
     proc.subject = (form.get("subject") or "").strip()
     proc.project_name = (form.get("project_name") or "").strip()
@@ -2732,7 +2736,7 @@ def procurement_receipt_voucher(proc_id: int, db: Session = Depends(get_db)):
     proc = db.get(Procurement, proc_id)
     if not proc:
         return RedirectResponse("/procurement", status_code=303)
-    school = get_school(db)
+    school = staff.school_for(proc, get_school(db))
     v = proc.vendor
     payee = (v.name if v else "") or ""
     payee_addr = (getattr(v, "address", "") or "").strip() if v else ""
@@ -2757,7 +2761,7 @@ def procurement_altdoc(proc_id: int, kind: str, db: Session = Depends(get_db)):
     renderer = RENDERERS.get(kind) or W119_RENDERERS.get(kind)
     if not proc or renderer is None:
         return RedirectResponse(f"/procurement/{proc_id}", status_code=303)
-    file_path = renderer(proc, get_school(db))
+    file_path = renderer(proc, staff.school_for(proc, get_school(db)))
     db.add(Document(procurement_id=proc.id, doc_kind=_alt_label(proc, kind), file_path=file_path))
     db.commit()
     return serve_generated(file_path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
@@ -2808,7 +2812,7 @@ def procurement_egp(proc_id: int, request: Request, db: Session = Depends(get_db
     proc = db.get(Procurement, proc_id)
     if not proc:
         return RedirectResponse("/procurement", status_code=303)
-    school = get_school(db)
+    school = staff.school_for(proc, get_school(db))
     src = (proc.budget_source or "").strip()
     in_pb = any(k in src for k in _EGP_INPB)   # เงินในงบ พรบ.รายจ่าย ?
     buy_word = "ซื้อ" if (proc.proc_type or "ซื้อ") == "ซื้อ" else "จ้าง"
@@ -4720,3 +4724,34 @@ async def to_register_save(proc_id: int, request: Request, db: Session = Depends
     db.commit()
     return RedirectResponse(
         f"/procurement/{proc_id}/to-register?imported_assets={n_asset}&imported_materials={n_material}&skipped={skipped}", status_code=303)
+
+
+@router.post("/settings/officers")
+def officer_add(db: Session = Depends(get_db), role: str = Form(""), name: str = Form("")):
+    from app.models import StaffOfficer
+    from fastapi import HTTPException
+    from sqlalchemy.exc import IntegrityError
+    name = " ".join(name.split())
+    if role not in staff.ROLES or not name or len(name) > 200:
+        raise HTTPException(400, "กรุณาระบุชื่อเจ้าหน้าที่ให้ถูกต้อง")
+    if not db.query(StaffOfficer).filter_by(role=role, name=name).first():
+        db.add(StaffOfficer(role=role, name=name))
+        try: db.commit()
+        except IntegrityError:
+            db.rollback()
+            if not db.query(StaffOfficer).filter_by(role=role, name=name).first(): raise
+    return JSONResponse({"name": name, "role": role})
+
+
+@router.post("/settings/officers/delete")
+def officer_delete(db: Session = Depends(get_db), role: str = Form(""), name: str = Form("")):
+    """เอาชื่อออกจากตัวเลือก เรื่องเก่าที่ใช้ชื่อนี้ยังเหมือนเดิม เพราะเก็บชื่อไว้กับเรื่องแล้ว"""
+    from app.models import StaffOfficer
+    from fastapi import HTTPException
+    if role not in staff.ROLES:
+        raise HTTPException(400, "ตำแหน่งไม่ถูกต้อง")
+    if (getattr(get_school(db), role, "") or "").strip() == name.strip():
+        raise HTTPException(400, "คนนี้เป็นคนเริ่มต้นอยู่ เลือกคนอื่นแล้วบันทึกก่อนจึงลบได้")
+    db.query(StaffOfficer).filter_by(role=role, name=name.strip()).delete()
+    db.commit()
+    return JSONResponse({"name": name.strip(), "role": role})

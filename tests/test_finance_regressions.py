@@ -31,7 +31,7 @@ def route_functions():
     names = {'account_add', 'loan_add', 'account_set_fund_type', '_cashbook_fund_data', '_valid_slot'}
     funcs = [n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name in names]
     for n in funcs: n.decorator_list = []
-    ns = dict(Session=Session, Depends=Depends, Form=Form, Request=Request, get_db=lambda: None,
+    ns = dict(staff=NS(apply=lambda *a, **k: None), Session=Session, Depends=Depends, Form=Form, Request=Request, get_db=lambda: None,
               FinanceAccount=FinanceAccount, FinanceTxn=FinanceTxn, MoneyLoan=MoneyLoan, RedirectResponse=RedirectResponse,
               datetime=datetime, opening_for=opening_for, thai_date=lambda d:str(d),
               FUND_TYPES=FUND_TYPES, _FUND_DEFAULT=FUND_DEFAULT, DEPOSIT_TYPES={'cash': '', 'bank': '', 'agency': ''},

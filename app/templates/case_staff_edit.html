@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% from "_case_staff.html" import case_staff %}
+{% block title %}ผู้รับผิดชอบเรื่องนี้{% endblock %}
+{% block content %}<div class="card"><h1>ผู้รับผิดชอบเรื่องนี้</h1><p>รายการเลขที่ {{ record.contract_no or record.letter_no or record.id }} · ปีงบประมาณ {{ record.fiscal_year }}</p>
+<form method="post">{{ case_staff(request, record, True) }}<button class="btn">บันทึกผู้รับผิดชอบ</button> <a class="btn gray" href="/finance/{{ kind }}?year={{ record.fiscal_year }}">กลับรายการ</a></form></div>{% endblock %}

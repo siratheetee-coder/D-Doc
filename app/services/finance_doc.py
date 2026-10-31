@@ -109,6 +109,8 @@ def _disburse_project_name(memo):
 
 def render_disburse(memo, school) -> str:
     """สร้างไฟล์ .docx บันทึกข้อความขออนุมัติเบิกจ่ายเงินนอกงบประมาณ คืนค่าที่อยู่ไฟล์"""
+    from app.services.staff import school_for
+    school = school_for(memo, school)
     doc = Document(); set_a4(doc)
     _font(doc)
     _krut_and_title(doc)   # ครุฑ + "บันทึกข้อความ"
