@@ -65,13 +65,29 @@ def _results_of(db, aid):
 
 
 def _lines(cell, n, *, size=13):
-    """เติมบรรทัดจุดไข่ปลาในช่องตาราง (ให้ครู/ผู้ปกครองเขียนมือ)"""
+    """เว้นพื้นที่เหนือเส้นและระหว่างบรรทัดให้เขียนมือได้จริง"""
+    from docx.oxml import OxmlElement
     from docx.oxml.ns import qn
+    # Cell padding keeps the first writing line away from the table border.
+    tcpr = cell._tc.get_or_add_tcPr()
+    margins = tcpr.find(qn("w:tcMar"))
+    if margins is None:
+        margins = OxmlElement("w:tcMar")
+        tcpr.append(margins)
+    for side in ("top", "bottom", "left", "right"):
+        edge = margins.find(qn("w:" + side))
+        if edge is None:
+            edge = OxmlElement("w:" + side)
+            margins.append(edge)
+        edge.set(qn("w:w"), {"top": "80", "bottom": "40"}.get(side, "120"))
+        edge.set(qn("w:type"), "dxa")
     cell.text = ""
     first = cell.paragraphs[0]
     for i in range(n):
         p = first if i == 0 else cell.add_paragraph()
-        p.paragraph_format.space_after = Pt(4)
+        p.paragraph_format.space_before = Pt(0)
+        p.paragraph_format.space_after = Pt(0)
+        p.paragraph_format.line_spacing = Pt(20)
         r = p.add_run(_DOTS)
         r.font.size = Pt(size)
         r.font.name = THAI_FONT
