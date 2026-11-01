@@ -65,7 +65,13 @@
     if (below < h + 12 && r.top > below) { box.style.top = ''; box.style.bottom = (vh - r.top + 4) + 'px'; }
     else { box.style.bottom = ''; box.style.top = (r.bottom + 4) + 'px'; }
   }
-  function hide() { box.hidden = true; owner = null; }
+  function hide() {
+    if (box.hidePopover && box.matches(':popover-open')) box.hidePopover();
+    box.hidden = true; owner = null;
+  }
+  document.addEventListener('close', function (e) {
+    if (owner && owner.input.closest('dialog') === e.target) hide();
+  }, true);
   window.addEventListener('resize', place);
   window.addEventListener('scroll', place, true);
   // mousedown: เลือกก่อนช่องพิมพ์หลุดโฟกัส
@@ -74,7 +80,16 @@
     var el = e.target.closest('.cp-item');
     if (el && owner) owner.pick(+el.dataset.i);
   });
-  function mount() { if (!box.parentNode) document.body.appendChild(box); }
+  function mount(input) {
+    // A modal dialog is in the browser's top layer: a body child cannot cover it.
+    var dialog = input.closest('dialog[open]'), parent = dialog || document.body;
+    if (box.parentNode !== parent) {
+      hide();
+      parent.appendChild(box);
+    }
+    if (dialog && box.showPopover) box.setAttribute('popover', 'manual');
+    else box.removeAttribute('popover');
+  }
 
   // items() คืน [{v, label, sub, search, fixed, none}] fixed = แสดงเสมอ (เช่น "+ เพิ่มโครงการใหม่")
   function attach(input, items, onPick, opts) {
@@ -82,7 +97,7 @@
     var shown = [], act = -1, me = {};
     me.input = input;
     function render() {
-      mount();
+      mount(input);
       var q = input.value, all = items(), list = [];
       all.forEach(function (it, i) {
         if (it.fixed || (it.none && !opts.showAll)) return;
@@ -100,7 +115,9 @@
         return '<div class="cp-item' + (it.fixed ? ' cp-fixed' : '') + (it.warn ? ' cp-warn' : '') + '" data-i="' + i + '">' + esc(it.label) +
           (it.sub ? ' <span class="cp-sub">' + esc(it.sub) + '</span>' : '') + '</div>';
       }).join('') + (list.length > 40 ? '<div class="cp-more">พิมพ์เพิ่มเพื่อหาชื่ออื่น (มีอีก ' + (list.length - 40) + ' รายการ)</div>' : '');
-      owner = me; box.hidden = false; box.scrollTop = 0; place();
+      owner = me; box.hidden = false; box.scrollTop = 0;
+      if (box.hasAttribute('popover') && !box.matches(':popover-open')) box.showPopover();
+      place();
     }
     function hl() {
       box.querySelectorAll('.cp-item').forEach(function (el, i) { el.classList.toggle('cp-act', i === act); });
@@ -119,7 +136,7 @@
       if (e.key === 'ArrowDown') { act = (act + 1) % n; hl(); e.preventDefault(); }
       else if (e.key === 'ArrowUp') { act = (act - 1 + n) % n; hl(); e.preventDefault(); }
       else if (e.key === 'Enter' && (act >= 0 || opts.combo)) { e.preventDefault(); me.pick(act >= 0 ? act : 0); }
-      else if (e.key === 'Escape' || e.key === 'Tab') { hide(); }
+      else if (e.key === 'Escape' || e.key === 'Tab') { if (e.key === 'Escape') e.preventDefault(); hide(); }
     });
     input.addEventListener('blur', function () { if (owner === me) hide(); if (opts.onBlur) opts.onBlur(); });
     return me;
@@ -223,7 +240,7 @@
   var css = document.createElement('style');
   css.textContent =
     '.cp-input{width:100%;}' +
-    '.cp-box{position:fixed;z-index:2000;max-height:300px;overflow-y:auto;' +
+    '.cp-box{position:fixed;inset:auto;margin:0;border:0;z-index:2000;max-height:300px;overflow-y:auto;' +
     'background:#fff;border-radius:12px;box-shadow:0 10px 30px rgba(15,23,42,.18);padding:4px;}' +
     '.cp-box[hidden]{display:none;}' +
     '.cp-item{padding:8px 10px;border-radius:8px;cursor:pointer;font-size:14px;line-height:1.4;text-align:left;}' +
