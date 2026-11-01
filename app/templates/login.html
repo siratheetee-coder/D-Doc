@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Easy Ekkasan | เข้าสู่ระบบ</title>
   <link rel="icon" type="image/png" href="/static/favicon-ekkasan.png">
   <link rel="preload" as="image" href="/static/images/login-bg.webp">
@@ -92,13 +92,38 @@
 
     /* จอกลาง: ซ่อนฝั่งแบรนด์ เหลือการ์ดด้านซ้าย รูปครูด้านขวา */
     @media (max-width:1100px) { .hero { display:none; } }
-    /* มือถือ: รูปครูอยู่ด้านบน การ์ดเต็มความกว้าง */
+    /* Mobile: put the complete sign-in form first, without a reserved photo banner. */
     @media (max-width:720px) {
-      body { background-position:82% top; background-size:auto 46vh; background-color:#e6f0fd; }
-      body::before { background:linear-gradient(180deg, rgba(230,240,253,0) 0%, rgba(230,240,253,.2) 30vh, #e6f0fd 44vh); }
-      .wrap { padding:30vh 16px 24px; align-items:flex-start; }
-      .side { flex:1 1 auto; }
-      .card { padding:26px 20px 22px; }
+      body { min-height:100svh; background-position:82% top; background-size:auto 46svh; background-color:#e6f0fd; }
+      body::before { background:linear-gradient(180deg, rgba(230,240,253,.25), #e6f0fd 55svh); }
+      .wrap { min-height:100svh; padding:16px; padding-top:max(16px,env(safe-area-inset-top)); padding-bottom:max(16px,env(safe-area-inset-bottom)); align-items:center; justify-content:center; }
+      .side { flex:0 1 440px; width:100%; }
+      .landing-link { margin-bottom:10px; padding:9px 12px; font-size:13px; }
+      .card { padding:22px 20px 20px; border-radius:22px; }
+      .brand { display:grid; grid-template-columns:44px minmax(0,1fr); column-gap:10px; row-gap:0; align-items:center; text-align:left; margin-bottom:16px; }
+      .brand img { grid-row:1/3; width:44px; height:48px; }
+      .brand .name { font-size:22px; line-height:1.4; }
+      .brand .sub { font-size:11.5px; line-height:1.6; }
+      label { margin-top:12px; font-size:14px; }
+      .field input { min-height:46px; font-size:16px; scroll-margin-block:20px; }
+      .btn { margin-top:16px; min-height:48px; padding:11px; font-size:16px; }
+      .sep { margin:14px 0 4px; }
+      .btn-outline { font-size:14px; padding:10px; }
+      .pdpa { font-size:11px; line-height:1.6; margin-top:10px; padding:6px 10px; text-align:center; }
+    }
+    @media (max-width:720px) and (max-height:700px) {
+      .wrap { padding:10px 12px; padding-top:max(10px,env(safe-area-inset-top)); padding-bottom:max(10px,env(safe-area-inset-bottom)); }
+      .card { padding:16px 18px; }
+      .landing-link { margin-bottom:8px; padding:8px 10px; font-size:12px; }
+      .brand { margin-bottom:10px; }
+      .brand img { width:40px; height:44px; }
+      label { margin:9px 0 5px; }
+      input { padding-top:10px; padding-bottom:10px; }
+      .row-opt { margin-top:9px; }
+      .btn { margin-top:13px; }
+      .sep { margin-top:11px; }
+      .btn-outline { margin-top:8px; padding:9px; }
+      .pdpa { margin-top:8px; }
     }
     @media (prefers-reduced-motion: reduce) { .card, .hero, .feat span { animation:none; } }
   </style>
@@ -127,7 +152,7 @@
         <label for="lgUser">ชื่อผู้ใช้ หรือ อีเมล</label>
         <div class="field">
           <svg class="ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zm0 2c-4.4 0-8 2.2-8 5v2h16v-2c0-2.8-3.6-5-8-5z"/></svg>
-          <input id="lgUser" name="username" autocomplete="username" required autofocus placeholder="อีเมล หรือ ไอดีครู เช่น teacher1.104">
+          <input id="lgUser" name="username" autocomplete="username" required placeholder="อีเมล หรือ ไอดีครู เช่น teacher1.104">
         </div>
         <label for="lgPass">รหัสผ่าน</label>
         <div class="field">
@@ -174,6 +199,7 @@
   <script>
     (function () {
       var b = document.getElementById('lgEye'), p = document.getElementById('lgPass');
+      if (!window.matchMedia('(max-width:720px)').matches) document.getElementById('lgUser').focus({preventScroll:true});
       b.addEventListener('click', function () {
         var show = p.type === 'password';
         p.type = show ? 'text' : 'password';
