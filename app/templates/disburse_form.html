@@ -67,7 +67,7 @@
     {% include "_disburse_splits.html" %}
     <div class="row">
       <div><label>ภาษีมูลค่าเพิ่ม (VAT)</label><input name="vat" type="number" step="0.01" min="0" value="0"></div>
-      <div><label>หัก ภาษี ณ ที่จ่าย</label><input name="wht" type="number" step="0.01" min="0" value="0"></div>
+      <div class="wht-inline">{% set wht_value = 0 %}{% include "_finance_wht_field.html" %}</div>
       <div><label>ค่าปรับ</label><input name="fine" type="number" step="0.01" min="0" value="0"></div>
       <div><label>มูลค่าสินค้า / คงเหลือจ่ายจริง</label><input value="คำนวณให้อัตโนมัติในเอกสาร" disabled style="background:#f3f5f9;"></div>
     </div>

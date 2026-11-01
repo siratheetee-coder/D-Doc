@@ -51,10 +51,12 @@ from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
 from app.thai_utils import fiscal_year_options
 
-from app.models import TravelRequest
+from app.models import TravelRequest, WithholdingCertificate
 from app.services import staff
 
 router = APIRouter()
+from app.routers.withholding import router as withholding_router
+router.include_router(withholding_router)
 from app.routers.subsidy import router as subsidy_router
 router.include_router(subsidy_router)
 
@@ -393,6 +395,12 @@ def account_set_deposit_type(aid: int, db: Session = Depends(get_db),
 def account_delete(aid: int, db: Session = Depends(get_db)):
     a = db.get(FinanceAccount, aid)
     if a:
+        certificate = db.query(WithholdingCertificate).join(FinanceTxn, WithholdingCertificate.txn_id==FinanceTxn.id).filter(FinanceTxn.account_id==aid).first()
+        if certificate:
+            return RedirectResponse(f'/finance/withholding/payment/{certificate.txn_id}?source_locked=1', status_code=303)
+        memo_certificate = db.query(WithholdingCertificate).join(FinanceTxn, WithholdingCertificate.memo_id==FinanceTxn.disburse_id).filter(FinanceTxn.account_id==aid).first()
+        if memo_certificate:
+            return RedirectResponse(f'/finance/withholding/memo/{memo_certificate.memo_id}?source_locked=1', status_code=303)
         check = db.query(CheckPayment).join(FinanceTxn, CheckPayment.txn_id==FinanceTxn.id).filter(FinanceTxn.account_id==aid).first()
         if check:
             return RedirectResponse(f"/finance/checks?year={check.fiscal_year}&message={quote('บัญชีนี้มีรายการจ่ายเชื่อมทะเบียนเช็ค/โอนอยู่ กรุณาตรวจและยกเลิกการเชื่อมก่อนลบ')}", status_code=303)
@@ -801,6 +809,11 @@ def account_txn_delete(tid: int, db: Session = Depends(get_db),
     aid = t.account_id if t else None
     fy = t.fiscal_year if t else None
     from app.services.lunch_finance import mirror_map
+    certificate = (db.query(WithholdingCertificate).filter_by(txn_id=t.id).first()
+                   or (db.query(WithholdingCertificate).filter_by(memo_id=t.disburse_id).first() if t.disburse_id else None)) if t else None
+    if certificate:
+        certificate_path = f'memo/{certificate.memo_id}' if certificate.memo_id else f'payment/{t.id}'
+        return RedirectResponse(f'/finance/withholding/{certificate_path}?source_locked=1', status_code=303)
     if t and db.query(CheckPayment).filter_by(txn_id=t.id).first():
         return RedirectResponse(f"/finance/checks?year={fy}&message={quote('รายการนี้เชื่อมทะเบียนเช็ค/โอนอยู่ กรุณายกเลิกการเชื่อมก่อนลบรายการเงินจริง')}", status_code=303)
     if t and t.loan_id:
@@ -985,7 +998,7 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
                     vat: str = Form("0"), wht: str = Form("0"), fine: str = Form("0"),
                     proc_kind: str = Form("จัดซื้อ"), project_id: str = Form(""),
                     item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form(""),
-                    travel_request_id: str = Form(""), activity_id: str = Form(""), staff_selection: str | None = Form(None),
+                    travel_request_id: str = Form(""), activity_id: str = Form(""), staff_selection: str | None = Form(None), after_save: str = Form(""),
                     split_account: list[str] = Form([]), split_item: list[str] = Form([]), split_amount: list[str] = Form([])):
     travel_id = _to_int(travel_request_id, 0)
     if travel_request_id.strip():
@@ -1025,6 +1038,8 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
     except ValueError as exc:
         split_msg = str(exc)
     db.commit(); db.refresh(m)
+    if after_save == 'withholding' and m.wht > 0 and not split_msg:
+        return RedirectResponse(f'/finance/withholding/memo/{m.id}', status_code=303)
     return RedirectResponse(f"/finance/disburse/{m.id}" + (f"?payment_message={quote(split_msg)}" if split_msg else ""),
                             status_code=303)
 
@@ -1061,7 +1076,7 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
                     vat: str = Form("0"), wht: str = Form("0"), fine: str = Form("0"),
                     proc_kind: str = Form("จัดซื้อ"), project_id: str = Form(""),
                     item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form(""),
-                    activity_id: str = Form(""), staff_selection: str | None = Form(None),
+                    activity_id: str = Form(""), staff_selection: str | None = Form(None), after_save: str = Form(""),
                     split_account: list[str] = Form([]), split_item: list[str] = Form([]), split_amount: list[str] = Form([])):
     payments.lock(db)
     m = db.get(DisburseMemo, mid)
@@ -1129,6 +1144,8 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
                   subject=((m.subject or "").strip() if (m.subject or "").strip().startswith("ขออนุมัติเบิกจ่าย")
                            else f"ขออนุมัติเบิกจ่าย {(m.subject or '').strip()}".strip()))
         db.commit()
+    if m and after_save == 'withholding' and (m.wht or 0) > 0:
+        return RedirectResponse(f'/finance/withholding/memo/{mid}', status_code=303)
     return RedirectResponse(f"/finance/disburse/{mid}?saved=1", status_code=303)
 
 
@@ -1163,6 +1180,8 @@ def disburse_link_payment(mid: int, db: Session = Depends(get_db), txn_id: int =
         return RedirectResponse("/finance/disburse", status_code=303)
     t = db.get(FinanceTxn, txn_id)
     try:
+        if t and db.query(WithholdingCertificate).filter_by(txn_id=t.id).first():
+            raise ValueError('รายการจ่ายนี้มีหนังสือรับรองหักภาษีอยู่แล้ว กรุณาตรวจที่เมนูภาษีหัก ณ ที่จ่ายก่อนเชื่อม')
         info = payments.summary(db, m)
         if info['own'] or not payments.compatible(db, m, t):
             raise ValueError('รายการนี้ไม่ตรงกับบัญชี หมวด ปี หรือยอดเบิก หรือมีการเชื่อมไปแล้ว กรุณาตรวจใหม่')
@@ -1199,6 +1218,8 @@ def disburse_delete(mid: int, db: Session = Depends(get_db)):
     payments.lock(db)
     m = db.get(DisburseMemo, mid)
     if m:
+        if db.query(WithholdingCertificate).filter_by(memo_id=m.id).first():
+            return RedirectResponse(f'/finance/withholding/memo/{m.id}?source_locked=1',status_code=303)
         owned_ids = db.query(FinanceTxn.id).filter(FinanceTxn.disburse_id==mid, FinanceTxn.linked_existing.isnot(True))
         if db.query(CheckPayment).filter(CheckPayment.txn_id.in_(owned_ids)).first():
             return RedirectResponse(f"/finance/disburse/{mid}?payment_message={quote('ยังลบไม่ได้ รายการจ่ายเชื่อมทะเบียนเช็ค/โอนอยู่ กรุณายกเลิกการเชื่อมก่อน')}", status_code=303)
@@ -2385,6 +2406,12 @@ def wht_certificate_doc(mid: int, db: Session = Depends(get_db),
     memo = db.get(DisburseMemo, mid)
     if not memo:
         return RedirectResponse("/finance/disburse", status_code=303)
+    if (memo.wht or 0) <= 0:
+        raise HTTPException(400, 'กรอกและบันทึกยอดภาษีหัก ณ ที่จ่ายก่อนออกหนังสือรับรอง')
+    saved_certificate = db.query(WithholdingCertificate).filter_by(memo_id=mid).first()
+    if saved_certificate and not tax_id and not address and pay_type == 'ค่าจ้างทำของ':
+        from app.services.withholding import render
+        return serve_generated(render(db,'memo',mid,get_school(db)), _DOCX)
     # ผู้ถูกหักภาษี: ดึงเลขผู้เสียภาษี/ที่อยู่จากทะเบียนผู้ขาย (ส่งค่าใน URL มาเองได้ทับ)
     v = _payee_vendor(db, memo)
     from app.models import Procurement

@@ -1,0 +1,19 @@
+<label>หัก ภาษี ณ ที่จ่าย</label>
+<div style="display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;">
+  <input name="wht" type="number" min="0" step="0.01" value="{{ '%.2f'|format(wht_value) }}" style="flex:1;min-width:90px;width:90px;">
+  <button class="btn soft sm" type="submit" name="after_save" value="withholding" data-wht-action data-no-floating-save {{ 'hidden disabled' if wht_value <= 0 }} style="white-space:normal;max-width:140px;line-height:1.5;font-size:12px;">
+    <svg class="icon"><use href="#ic-file"/></svg> ออกหนังสือรับรอง
+  </button>
+</div>
+<small data-wht-hint aria-live="polite" class="muted" style="display:block;margin-top:6px;font-size:12px;"></small>
+<script>
+(function(){
+  var root=document.currentScript.closest('.wht-inline'),input=root.querySelector('[name=wht]'),button=root.querySelector('[data-wht-action]'),hint=root.querySelector('[data-wht-hint]');
+  function update(){var positive=Number.isFinite(Number(input.value))&&Number(input.value)>0;button.hidden=!positive;button.disabled=!positive;
+    button.style.display=positive?'inline-flex':'none';hint.textContent=positive?'บันทึกยอดล่าสุด แล้วตรวจข้อมูลผู้ถูกหักภาษีก่อนดาวน์โหลด':'กรอกยอดภาษีเพื่อแสดงปุ่มออกหนังสือรับรอง';
+    var form=root.closest('form'),row=root.closest('.row'),net=row&&row.querySelector('input[disabled]'),amount=form&&form.querySelector('[name=amount]'),fine=row&&row.querySelector('[name=fine]');
+    if(net&&amount&&fine){var value=Number(amount.value)-Number(input.value)-Number(fine.value);if(Number.isFinite(value))net.value=value.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+' บาท';}
+  }
+  root.closest('form').addEventListener('input',update);document.addEventListener('DOMContentLoaded',update);update();
+})();
+</script>

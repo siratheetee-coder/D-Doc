@@ -2644,3 +2644,19 @@ class StaffOfficer(Base):
     role = Column(String, nullable=False)
     name = Column(String, nullable=False)
     __table_args__ = (UniqueConstraint('role', 'name', name='uq_staff_officer_role_name'),)
+
+
+class WithholdingCertificate(Base):
+    """Certificate details linked to a memo or an existing payment; never a cash movement."""
+    __tablename__ = "withholding_certificate"
+    id = Column(Integer, primary_key=True)
+    memo_id = Column(Integer, ForeignKey("disburse_memo.id"), nullable=True, unique=True)
+    txn_id = Column(Integer, ForeignKey("finance_txn.id"), nullable=True, unique=True)
+    payee = Column(String, default="")
+    tax_id = Column(String, default="")
+    address = Column(Text, default="")
+    income_type = Column(String, default="")
+    ref_no = Column(String, default="")
+    base_amount = Column(Float, default=0)
+    tax_amount = Column(Float, default=0)
+    staff_snapshot = Column(Text, default="")
