@@ -20,6 +20,10 @@
   {% if request.query_params.get('payment_message') %}<div class="alert">{{ request.query_params.get('payment_message') }}</div>{% endif %}
   {% if request.query_params.get('linked') %}<div class="alert">เชื่อมรายการจ่ายเดิมแล้ว ยอดเงินคงเหลือไม่เปลี่ยน และไม่ได้สร้างรายการจ่ายเพิ่ม</div>{% endif %}
   {% if request.query_params.get('unlinked') %}<div class="alert">ยกเลิกการเชื่อมแล้ว รายการจ่ายเดิมยังอยู่ในทะเบียนคุมเงิน</div>{% endif %}
+  {% if travel_source %}<div class="alert" style="background:#eff6ff;">
+    <b>ค่าใช้จ่ายจากคำขอไปราชการ</b> · {{ travel_source.subject }}
+    <a href="/hr/travel-requests/{{ travel_source.id }}">เปิดคำขอต้นทาง</a>
+  </div>{% endif %}
   {% if proc %}<div class="alert" style="background:#e8f0ff; color:#3568e0; border-color:#c7d7fb;">เชื่อมกับเรื่องพัสดุ: <a href="/procurement/{{ proc.id }}">{{ proc.memo_no or proc.order_no or '-' }} {{ proc.proc_type }}{{ proc.subject }}</a></div>{% endif %}
 </div>
 

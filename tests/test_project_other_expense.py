@@ -56,7 +56,7 @@ def test_travel_request_claim_button(env):
                                         'amount': '1200', 'proc_kind': 'ค่าใช้จ่ายอื่น', 'project_id': str(pid),
                                         'travel_request_id': str(rid)})
     page = env.get(f'/hr/travel-requests/{rid}').text
-    assert 'ทำเรื่องเบิกค่าเดินทางแล้ว' in page and 'หักจากโครงการ พัฒนาครู' in page
+    assert 'ทำเรื่องเบิกค่าเดินทางแล้ว' in page and 'โครงการ พัฒนาครู' in page
     from app.services.budget import project_spent
     with tn.session_for(tid) as s:
         assert project_spent(s.get(Project, pid)) == 1200

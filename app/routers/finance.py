@@ -51,6 +51,7 @@ from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
 from app.thai_utils import fiscal_year_options
 
+from app.models import TravelRequest
 from app.services import staff
 
 router = APIRouter()
@@ -906,8 +907,16 @@ def _name_suggest(db) -> dict:
 @router.get("/finance/disburse", response_class=HTMLResponse)
 def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | None = None, year: int | None = None,
                   project: int | None = None, travel: int | None = None, activity: int | None = None):
+    from app.services import travel_claim
+    if travel and (proc or project):
+        raise HTTPException(400, 'เลือกคำขอไปราชการหรือเรื่องต้นทางอย่างใดอย่างหนึ่ง')
+    travel_source = travel_claim.source(db, travel) if travel else None
+    if travel_source:
+        existing = travel_claim.existing(db, travel_source.id)
+        if existing:
+            return RedirectResponse(f'/finance/disburse/{existing.id}', status_code=303)
     source = db.get(Procurement, proc) if proc else None
-    fy = year or (source.fiscal_year if source else None) or current_fiscal_year()
+    fy = year or (source.fiscal_year if source else None) or (current_fiscal_year(travel_source.start_date) if travel_source and travel_source.start_date else None) or current_fiscal_year()
     if not 2500 <= fy <= 2800:
         raise HTTPException(400, 'ปีงบประมาณไม่ถูกต้อง')
     query = db.query(DisburseMemo)
@@ -940,7 +949,7 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
     elif travel:
         # ปุ่ม "ทำเรื่องเบิกค่าเดินทาง" ในใบขอไปราชการที่อนุมัติแล้ว: เติมชื่อครู เรื่อง ยอดเงินให้ เหลือเลือกโครงการ
         from app.models import TravelRequest
-        tr = db.get(TravelRequest, travel)
+        tr = travel_source
         if tr:
             place = f" ณ {tr.place}" if tr.place else ""
             prefill = {"subject": f"ค่าใช้จ่ายในการเดินทางไปราชการ {tr.subject or ''}{place}".strip(),
@@ -963,7 +972,7 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
                  .order_by(Procurement.id.desc()).all(),
         "projects": _plan_projects(db, fy),
         "pj_acts": activity_maps(db),
-        "prefill": prefill,
+        "prefill": prefill, "travel_source": travel_source,
         "names": _name_suggest(db),
     })
 
@@ -978,6 +987,16 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
                     item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form(""),
                     travel_request_id: str = Form(""), activity_id: str = Form(""), staff_selection: str | None = Form(None),
                     split_account: list[str] = Form([]), split_item: list[str] = Form([]), split_amount: list[str] = Form([])):
+    travel_id = _to_int(travel_request_id, 0)
+    if travel_request_id.strip():
+        if not travel_id or _to_int(procurement_id, 0):
+            raise HTTPException(400, 'คำขอไปราชการที่เชื่อมไม่ถูกต้อง')
+        from app.services import travel_claim
+        payments.lock(db)  # Serialize duplicate submissions, including multiple browser tabs.
+        travel_claim.source(db, travel_id)
+        existing = travel_claim.existing(db, travel_id)
+        if existing:
+            return RedirectResponse(f'/finance/disburse/{existing.id}', status_code=303)
     fy = _to_int(fiscal_year, current_fiscal_year())
     no = memo_no.strip() or suggest_doc_no(db, "memo", fy)
     m = DisburseMemo(
@@ -1026,6 +1045,7 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
         "projects": _plan_projects(db, m.fiscal_year),
         "pj_acts": activity_maps(db),
         "proc": db.get(Procurement, m.procurement_id) if m.procurement_id else None,
+        "travel_source": db.get(TravelRequest, m.travel_request_id) if m.travel_request_id else None,
         "names": _name_suggest(db),
         # ปีงบตามวันที่ในบันทึก ถ้าไม่ตรงกับปีงบของบันทึก รายการจ่ายจะลงผิดปีงบ (เตือนเฉย ๆ ไม่บังคับ)
         "date_fy": (m.date.year + 543 + (1 if m.date.month >= 10 else 0)) if m.date else None,

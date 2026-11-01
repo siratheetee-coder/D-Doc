@@ -34,14 +34,14 @@
     {% if r.doc_attachment_name %}
     <a class="btn sm" href="/me/travel/{{ r.id }}/doc" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> 📎 เอกสารประกอบ</a>
     {% endif %}
-    {% if r.status == 'approved' and r.reimburse != 'no' %}
+    {% if claim or can_claim %}
     <div class="tr-claim">
       {% if claim %}
       <span><b>ทำเรื่องเบิกค่าเดินทางแล้ว</b> บันทึกเลขที่ {{ claim.memo_no or '-' }} จำนวน {{ '{:,.2f}'.format(claim.amount or 0) }} บาท
-        {% if claim_project %}หักจากโครงการ {{ claim_project.name }}{% else %}ยังไม่ได้เลือกโครงการ{% endif %}</span>
+        {% if claim_project %}โครงการ {{ claim_project.name }}{% else %}ยังไม่ได้เลือกโครงการ{% endif %}<br><small>{{ "มีรายการจ่ายในทะเบียนคุมเงินแล้ว" if claim_posted else "ยังไม่มีรายการจ่ายในทะเบียนคุมเงิน" }}</small></span>
       <a class="btn sm soft" href="/finance/disburse/{{ claim.id }}">เปิดบันทึกขอเบิก</a>
       {% else %}
-      <span><b>เบิกค่าเดินทาง</b> ระบบเติมชื่อ เรื่อง และยอดเงินให้ เลือกโครงการที่จะหักเงิน แล้วกดบันทึก</span>
+      <span><b>เบิกค่าเดินทาง</b> ระบบเติมชื่อ เรื่อง และงบประมาณที่ขอไว้ให้ ตรวจยอดตามหลักฐาน แล้วเลือกโครงการและบัญชีที่จะจ่าย การบันทึกขอเบิกยังไม่ตัดเงิน</span>
       <a class="btn sm" href="/finance/disburse?travel={{ r.id }}"><svg class="icon"><use href="#ic-coins"/></svg> ทำเรื่องเบิกค่าเดินทาง</a>
       {% endif %}
     </div>

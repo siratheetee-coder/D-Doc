@@ -7,6 +7,12 @@
 <div class="card">
   <h1><svg class="icon"><use href="#ic-file"/></svg> ออกบันทึกขออนุมัติเบิกจ่ายเงิน</h1>
   <p class="muted" style="margin-top:0;">กรอกข้อมูลเอง หรือ เลือกดึงข้อมูลจากเรื่องจัดซื้อ/จัดจ้างเพื่อให้ระบบกรอกให้ จากนั้นบันทึกเพื่อออกเอกสาร</p>
+  {% if travel_source %}<div class="alert" style="background:#eff6ff;">
+    <b>เบิกค่าใช้จ่ายจากคำขอไปราชการที่อนุมัติแล้ว</b><br>
+    {{ travel_source.subject }} · งบประมาณที่ขอไว้ {{ '{:,.2f}'.format(travel_source.budget or 0) }} บาท<br>
+    ตรวจยอดตามหลักฐาน เลือกโครงการและบัญชีที่จะจ่ายก่อนบันทึก การบันทึกขอเบิกยังไม่ตัดเงินในทะเบียนคุม
+    <a href="/hr/travel-requests/{{ travel_source.id }}">เปิดคำขอต้นทาง</a>
+  </div>{% endif %}
   <form method="post" action="/finance/disburse">
 {{ case_staff(request, prefill, False) }}
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">

@@ -381,7 +381,7 @@ def hr_travel_request_docx(tid: int, db: Session = Depends(get_db)):
         return _serve_blob(q.attachment, q.attachment_name)
     # ผอ. อนุมัติแล้ว -> ติ๊ก 'อนุญาต' + ใส่ชื่อ ผอ. บนบันทึก
     approver = _approver_for(db, q) if q else None
-    return serve_generated(render_travel_official(get_school(db), r.person, r, db=db, approver=approver,
+    return serve_generated(render_travel_official(get_school(db), r.person, q or r, db=db, approver=approver,
                                                   approve_date=(q.decided_at if q else None)), _DOCX)
 
 
@@ -693,8 +693,11 @@ def travel_request_detail(tid: int, request: Request, db: Session = Depends(get_
     from app.models import DisburseMemo, Project
     claim = db.query(DisburseMemo).filter_by(travel_request_id=r.id).order_by(DisburseMemo.id.desc()).first()
     claim_project = db.get(Project, claim.project_id) if claim and claim.project_id else None
+    from app.models import FinanceTxn
+    from app.services.travel_claim import eligible
+    claim_posted = bool(claim and db.query(FinanceTxn.id).filter_by(disburse_id=claim.id).first())
     return templates.TemplateResponse("travel_request_detail.html", {
-        "request": request, "school": get_school(db), "r": r, "claim": claim, "claim_project": claim_project,
+        "request": request, "school": get_school(db), "r": r, "claim": claim, "claim_project": claim_project, "can_claim": eligible(r), "claim_posted": claim_posted,
         "person": r.person, "personnel": personnel, "director": director,
         "is_director": bool(request.session.get("director")),
         "be_date": be_date_input, "msg": msg, "err": err,

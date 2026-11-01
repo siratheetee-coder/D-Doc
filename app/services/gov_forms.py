@@ -730,10 +730,23 @@ def render_travel_official(school, person, record, db=None, approver=None, appro
         sp = db.get(_Pn, sub_id)
         substitute = sp.name if sp else ""
 
+    from app.services.org_names import head_title
+    for paragraph in P:
+        if paragraph.text.lstrip().startswith("เรียน"):
+            for run in paragraph.runs:
+                run.text = ""
+            paragraph.runs[0].text = "เรียน  " + head_title(school)
+            break
+    # Keep the complete approval block on the same page when expense details are filled.
+    for index in (23, 26, 28):
+        if not P[index].text.strip():
+            P[index].paragraph_format.line_spacing = Pt(8)
+            P[index].paragraph_format.space_before = Pt(0)
+            P[index].paragraph_format.space_after = Pt(0)
     sr(1, 2, "  " + sch + ("   " + area if area else ""))       # ส่วนราชการ
     if wd:
         sr(2, 10, "  " + _full_date(wd))                        # วันที่
-    sr(3, 2, "  ขออนุญาตไปราชการ" + subject)                    # เรื่อง
+    sr(3, 2, "  ขออนุญาตไปราชการ " + subject)                    # เรื่อง
     sr(8, 4, " " + name)                                        # ข้าพเจ้า
     sr(8, 8, "  " + position + "  วิทยฐานะ  ")                  # ตำแหน่ง + label วิทยฐานะ
     sr(8, 9, " " + rank + " ")                                  # วิทยฐานะ (ค่า)
