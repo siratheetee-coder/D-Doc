@@ -7,7 +7,7 @@
   {% if err %}
   <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
     {{ {'notpdf':'ไฟล์/ลิงก์นี้ไม่ใช่ PDF หรือต้องล็อกอิน AMSS ก่อน - ลองอัปโหลดไฟล์ PDF ที่ดาวน์โหลดมาแทน',
-        'url':'ลิงก์ไม่ถูกต้อง','fetch':'ดึงไฟล์จากลิงก์ไม่สำเร็จ (เครื่องต้องต่อเน็ตและเข้าถึงลิงก์ได้)'}.get(err, 'นำเข้าไม่สำเร็จ') }}
+        'url':'ลิงก์ไม่ถูกต้อง','fetch':'ดึงไฟล์จากลิงก์ไม่สำเร็จ (เครื่องต้องต่อเน็ตและเข้าถึงลิงก์ได้)'}.get(err, err) }}
   </div>
   {% endif %}
   <p class="muted" style="margin-top:0;">ระบบจะอ่าน เลขที่/วันที่/เรื่อง/ผู้รับ ให้อัตโนมัติ กรุณาตรวจก่อนบันทึก <b>อ่านด้วย AI</b> อ่านได้ทั้ง PDF/Word และรูปถ่าย/สแกน (แม่นกว่า สำหรับสมาชิก)</p>
@@ -25,14 +25,17 @@
   </div>
 </div>
 
-<p><a class="btn" href="/admin/incoming-tracking?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ติดตามการรับทราบและผลการดำเนินงาน</a></p>
+<p><a class="btn" href="/admin/incoming-tracking?year={{ calendar_year }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ติดตามการรับทราบและผลการดำเนินงาน</a></p>
+{% if pending_years %}<div class="alert warn">มีหนังสือเดิม {{ pending_years }} ฉบับที่ไม่มีวันที่รับ จึงยังระบุปีทะเบียนไม่ได้ <a href="/admin/incoming?year=-1">ตรวจปีทะเบียนเดิม</a> ระบบคงเลขรับเดิมและเผื่อเลขเหล่านี้ไว้ในการแนะนำเลขถัดไป</div>{% endif %}
+{% if calendar_year > 0 %}
 <div class="card">
   <h1>เพิ่มทะเบียนหนังสือรับเอง</h1>
+  <p class="muted">ปีทะเบียน {{ calendar_year }} ใช้วันที่ 1 มกราคม–31 ธันวาคม เลขรับเรียงต่อเนื่องตลอดปี ไม่เริ่มใหม่เมื่อขึ้นปีงบประมาณ</p>
   <form method="post" action="/admin/incoming">
-    <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+    <input type="hidden" name="calendar_year" value="{{ calendar_year }}">
     <div class="row">
       <div style="max-width:90px;"><label>เลขรับ</label><input name="recv_no" value="{{ sug_recv }}"></div>
-      <div><label>วันที่รับ</label><input name="recv_date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>วันที่รับ</label><input name="recv_date" value="{{ recv_date_default }}" required placeholder="วว/ดด/ปปปป" data-date="1"></div>
       <div><label>ที่หนังสือ</label><input name="letter_no" placeholder="เช่น ศธ 04xxx/123"></div>
       <div><label>ลงวันที่</label><input name="letter_date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
     </div>
@@ -45,15 +48,17 @@
     <br><br><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มลงทะเบียน</button>
   </form>
 </div>
+{% endif %}
 
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-    <h2>รายการหนังสือรับ ปีงบ {{ fiscal_year }} ({{ rows|length }})</h2>
+    <h2>รายการหนังสือรับ {{ ('ปี พ.ศ. ' ~ calendar_year) if calendar_year > 0 else 'รอตรวจปีทะเบียน' }} ({{ rows|length }})</h2>
     <div style="display:flex; gap:8px; align-items:center;">
-      <a class="btn sm green" href="/admin/letters/export.xlsx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> ส่งออก Excel</a>
+      {% if calendar_year > 0 %}<a class="btn sm green" href="/admin/incoming/export.xlsx?year={{ calendar_year }}"><svg class="icon"><use href="#ic-download"/></svg> ส่งออก Excel</a>{% endif %}
       <form method="get" action="/admin/incoming" style="margin:0;">
         <select name="year" onchange="submitReplace(this.form)" style="width:auto;">
-          {% for y in years %}<option value="{{ y }}" {{ "selected" if y==fiscal_year }}>{{ y }}</option>{% endfor %}
+          <option value="-1" {{ 'selected' if calendar_year == -1 }}>รอตรวจปีทะเบียน</option>
+          {% for y in years %}<option value="{{ y }}" {{ "selected" if y==calendar_year }}>{{ y }}</option>{% endfor %}
         </select>
       </form>
     </div>
@@ -65,7 +70,7 @@
     <tbody>
       {% for r in rows %}
       <tr>
-        <td>{{ r.recv_no }}</td>
+        <td>{{ r.recv_no }}{% if r.recv_no in duplicate_numbers and calendar_year > 0 %}<br><span class="muted" style="color:#b45309">เลขรับซ้ำในทะเบียนเดิม</span>{% endif %}</td>
         <td>{{ thai_date(r.recv_date) if r.recv_date else "-" }}</td>
         <td>{{ r.letter_no or "-" }}</td>
         <td>{{ r.from_org or "-" }}</td>
@@ -87,7 +92,7 @@
     </tbody>
   </table>
   </div>
-  {% else %}<p class="muted">ยังไม่มีหนังสือรับในปีงบนี้ กรุณาเพิ่มที่ด้านบน หรือ <a href="/admin/import">นำเข้าจาก Excel</a></p>{% endif %}
+  {% else %}<p class="muted">ยังไม่มีหนังสือรับในปีทะเบียนนี้ กรุณาเพิ่มที่ด้านบน หรือ <a href="/admin/import">นำเข้าจาก Excel</a></p>{% endif %}
 </div>
 
 <script>

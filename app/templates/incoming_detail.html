@@ -16,6 +16,12 @@
 {% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
 {% if err %}<div class="alert warn">{{ err }}</div>{% endif %}
 
+{% if not r.calendar_year %}
+<div class="card" style="border:1px solid #fcd34d;background:#fffbeb">
+  <h2>ตรวจปีทะเบียนของหนังสือเดิม</h2><p>รายการนี้ไม่มีวันที่รับ ระบบจึงไม่เดาปีทะเบียนหรือเปลี่ยนเลขรับ เลขรับเดิมคือ <b>{{ r.recv_no }}</b></p>
+  {% if not director_view %}<form method="post" action="/admin/incoming/{{ r.id }}/calendar-year" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><div><label>ปีทะเบียนตามสมุดรับเดิม (พ.ศ.)</label><input type="number" name="calendar_year" min="2443" max="2743" placeholder="เช่น 2569" required></div><button class="btn" data-no-floating-save>ยืนยันปีทะเบียน โดยคงเลขรับเดิม</button></form>{% else %}<p class="muted">ให้ธุรการตรวจสมุดทะเบียนเดิมและยืนยันปีทะเบียน</p>{% endif %}
+</div>
+{% endif %}
 <div class="row" style="align-items:flex-start;">
   {% if r.file_path %}
   <div class="card" style="flex:1.2; min-width:300px;">
@@ -141,8 +147,8 @@
 {% endif %}
 
 {% if r.route_status == 'sent' %}{% include "incoming_tasks.html" %}{% endif %}
-<p><a class="btn sm gray" href="/admin/incoming-tracking?year={{ r.fiscal_year }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ติดตามหนังสือที่เวียนแล้วทั้งหมด</a></p>
-<p><a href="/admin/incoming?year={{ r.fiscal_year }}">กลับทะเบียนหนังสือรับ</a></p>
+<p><a class="btn sm gray" href="/admin/incoming-tracking?year={{ r.calendar_year or -1 }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ติดตามหนังสือที่เวียนแล้วทั้งหมด</a></p>
+<p><a href="/admin/incoming?year={{ r.calendar_year or -1 }}">กลับทะเบียนหนังสือรับ</a></p>
 <style>
   [data-recipient-status][hidden]{display:none!important;}
   .rc-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }

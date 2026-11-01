@@ -4,6 +4,7 @@ admin_io.py - นำเข้าทะเบียนหนังสือรั
 ไฟล์เดียว 2 ชีต: หนังสือรับ / หนังสือส่ง  (แถว 1 = คำอธิบาย, แถว 2 = หัวตาราง, แถว 3+ = ข้อมูล)
 """
 from io import BytesIO
+from datetime import datetime, date
 from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
@@ -61,14 +62,14 @@ def build_admin_template() -> str:
     return str(path)
 
 
-def export_admin_register(incoming, outgoing, fiscal_year: int) -> str:
+def export_admin_register(incoming, outgoing, fiscal_year: int, incoming_only: bool = False) -> str:
     """ส่งออกทะเบียนหนังสือรับ + หนังสือส่ง เป็นไฟล์ Excel (2 ชีต)"""
     from app.thai_utils import thai_date
     wb = Workbook(); wb.remove(wb.active)
 
     def _sheet(title, headers, widths, rows):
         ws = wb.create_sheet(title)
-        ws.append([f"{title} ประจำปีงบประมาณ {fiscal_year}"])
+        ws.append([f"{title} ประจำปี พ.ศ. {fiscal_year}" if title == "หนังสือรับ" else f"{title} ประจำปีงบประมาณ {fiscal_year}"])
         ws.append([]); ws.append(headers)
         n = len(headers)
         ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=n)
@@ -92,14 +93,15 @@ def export_admin_register(incoming, outgoing, fiscal_year: int) -> str:
            [[r.recv_no or "", thai_date(r.recv_date) if r.recv_date else "", r.letter_no or "",
              thai_date(r.letter_date) if r.letter_date else "", r.from_org or "", r.to_person or "",
              r.subject or "", r.action_note or ""] for r in incoming])
-    _sheet("หนังสือส่ง",
-           ["เลขที่ส่ง", "ลงวันที่", "ถึง", "เรื่อง"],
-           [22, 16, 28, 40],
-           [[r.send_no or "", thai_date(r.date) if r.date else "", r.to_org or "", r.subject or ""]
-            for r in outgoing])
+    if not incoming_only:
+        _sheet("หนังสือส่ง",
+               ["เลขที่ส่ง", "ลงวันที่", "ถึง", "เรื่อง"],
+               [22, 16, 28, 40],
+               [[r.send_no or "", thai_date(r.date) if r.date else "", r.to_org or "", r.subject or ""]
+                for r in outgoing])
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
-    path = out_dir / f"ทะเบียนหนังสือ_ปีงบ{fiscal_year}.xlsx"
+    path = out_dir / (f"ทะเบียนหนังสือรับ_พศ{fiscal_year}.xlsx" if incoming_only else f"ทะเบียนหนังสือ_{fiscal_year}.xlsx")
     wb.save(str(path))
     return str(path)
 
@@ -133,10 +135,16 @@ def import_admin_workbook(file_bytes: bytes, db) -> dict:
             subject = _s(row[6]) if len(row) > 6 else ""
             if not (subject or (len(row) > 0 and _s(row[0]))):
                 continue
-            d = parse_be_date(_s(row[1])) if len(row) > 1 else None
+            raw_date = row[1] if len(row) > 1 else None
+            if isinstance(raw_date, (date, datetime)):
+                yr = raw_date.year - 543 if raw_date.year > 2400 else raw_date.year
+                d = datetime(yr, raw_date.month, raw_date.day)
+            else:
+                d = parse_be_date(_s(raw_date))
             db.add(IncomingLetter(
-                # ทะเบียนหนังสือแยกตามปีงบ ใช้ปีงบตามวันที่รับ (เดิมใช้ปีงบปัจจุบันทุกแถว)
-                fiscal_year=current_fiscal_year(d) if d else fy, recv_no=_i(row[0]),
+                # ปีทะเบียนรับมาจากวันที่รับ; ไม่มีวันที่ต้องให้ผู้ใช้ตรวจปีเดิม
+                fiscal_year=current_fiscal_year(d) if d else fy,
+                calendar_year=d.year + 543 if d else None, recv_no=_i(row[0]),
                 recv_date=d,
                 letter_no=_s(row[2]) if len(row) > 2 else "",
                 letter_date=parse_be_date(_s(row[3])) if len(row) > 3 else None,

@@ -14,13 +14,13 @@ from sqlalchemy.orm import Session, selectinload
 from app.database import get_db
 from app.models import IncomingLetter, LetterRecipient, LetterTask, LetterTaskReport
 from app.templating import templates
-from app.thai_utils import current_fiscal_year, fiscal_year_options
+from app.services import incoming_register as receipt_register
 from app.services.letter_tracking import LABELS, overdue
 
 router = APIRouter()
 
 def back(url, message, error=False):
-    return RedirectResponse(url + '?' + urlencode({'err' if error else 'msg': message}), status_code=303)
+    return RedirectResponse(url + ('&' if '?' in url else '?') + urlencode({'err' if error else 'msg': message}), status_code=303)
 
 def manager(request):
     return bool(request.session.get('owner') or request.session.get('director'))
@@ -37,11 +37,13 @@ def report_dir():
 @router.get('/admin/incoming-tracking')
 def tracking(request: Request, db: Session = Depends(get_db), year: int | None = None,
              status: str = '', q: str = ''):
-    fy = current_fiscal_year() if year is None else year
+    cy = receipt_register.current_year() if year is None else year
     query = (db.query(IncomingLetter).options(selectinload(IncomingLetter.recipients)
              .selectinload(LetterRecipient.task)).filter_by(route_status='sent'))
-    if fy:
-        query = query.filter(IncomingLetter.fiscal_year == fy)
+    if cy == -1:
+        query = query.filter(IncomingLetter.calendar_year.is_(None))
+    elif cy:
+        query = query.filter(IncomingLetter.calendar_year == cy)
     rows = query.order_by(IncomingLetter.sent_at.desc(), IncomingLetter.id.desc()).all()
     cards = []
     for r in rows:
@@ -57,9 +59,9 @@ def tracking(request: Request, db: Session = Depends(get_db), year: int | None =
     if status == 'review': cards = [c for c in cards if c['review']]
     if status == 'overdue': cards = [c for c in cards if c['overdue']]
     if q.strip(): cards = [c for c in cards if q.strip().casefold() in (c['r'].subject or '').casefold()]
-    years = fiscal_year_options([x[0] for x in db.query(IncomingLetter.fiscal_year).distinct()], fy or current_fiscal_year())
+    years = receipt_register.year_options(db, cy)
     return templates.TemplateResponse('incoming_tracking.html', dict(request=request, cards=cards,
-        counts=counts, fiscal_year=fy, years=years, status=status, q=q))
+        counts=counts, calendar_year=cy, years=years, status=status, q=q))
 
 @router.post('/me/letters/{rcid}/report')
 async def submit_report(rcid: int, request: Request, db: Session = Depends(get_db),

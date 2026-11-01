@@ -80,7 +80,8 @@ def test_route_letter_director_teacher_ack(env):
         assert a2.ack_at and a2.ack_by
     finally:
         db.close()
-    assert "รับทราบ 2/2" in env.get("/admin/incoming?year=2570").text
+    from datetime import datetime
+    assert "รับทราบ 2/2" in env.get(f"/admin/incoming?year={datetime.now().year + 543}").text
     assert "รับทราบแล้ว 2 จาก 2" in env.get(f"/admin/incoming/{rid}").text
 
     # เวียนเพิ่มภายหลัง + ลบหนังสือแล้วผู้รับหายตาม

@@ -601,6 +601,7 @@ class IncomingLetter(Base):
 
     id = Column(Integer, primary_key=True)
     fiscal_year = Column(Integer, nullable=False)
+    calendar_year = Column(Integer, nullable=True, index=True)  # ปีทะเบียนรับ (ปีปฏิทิน); None = รอตรวจปีเดิม
     recv_no = Column(Integer, default=0)           # เลขทะเบียนรับ (รันอัตโนมัติ)
     recv_date = Column(DateTime, nullable=True)     # วันที่รับ
     letter_no = Column(String, default="")          # ที่หนังสือ (ของผู้ส่ง)

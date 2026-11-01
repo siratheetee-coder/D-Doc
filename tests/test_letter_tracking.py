@@ -32,7 +32,7 @@ def letter(env, **data):
     from app.models import IncomingLetter
     from app.tenancy import session_for
     subject='ทดสอบติดตามหนังสือ'
-    response=env.post('/admin/incoming',data={'fiscal_year':2570,'subject':subject,**data},follow_redirects=False)
+    response=env.post('/admin/incoming',data={'fiscal_year':2570,'recv_date':f"15/06/{data.get('fiscal_year',2570)}",'subject':subject,**data},follow_redirects=False)
     assert response.status_code==303
     with session_for(school()) as db: return db.query(IncomingLetter).filter_by(subject=subject).order_by(IncomingLetter.id.desc()).first().id
 
@@ -216,8 +216,8 @@ def test_tracking_all_years_and_historical_year_filter(env):
     from app.tenancy import session_for
     from app.models import IncomingLetter
     with session_for(school()) as db:
-        db.add_all([IncomingLetter(fiscal_year=2569,recv_no=9,route_status='sent',subject='งานค้างปีก่อน'),
-                    IncomingLetter(fiscal_year=2570,recv_no=1,route_status='sent',subject='งานปีปัจจุบัน')])
+        db.add_all([IncomingLetter(fiscal_year=2569,calendar_year=2569,recv_no=9,route_status='sent',subject='งานค้างปีก่อน'),
+                    IncomingLetter(fiscal_year=2570,calendar_year=2570,recv_no=1,route_status='sent',subject='งานปีปัจจุบัน')])
         db.commit()
     page=env.get('/admin/incoming-tracking?year=0').text
     assert 'งานค้างปีก่อน' in page and 'งานปีปัจจุบัน' in page

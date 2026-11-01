@@ -20,11 +20,12 @@
   <div class="card" style="flex:1; min-width:320px;">
     {% if kind == "incoming" %}
     <form method="post" action="/admin/incoming">
-      <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+      <input type="hidden" name="calendar_year" value="{{ calendar_year }}">
+      <p class="muted">ปีทะเบียน {{ calendar_year }} (ปีปฏิทิน 1 มกราคม–31 ธันวาคม)</p>
       <input type="hidden" name="pending_file" value="{{ pending_file }}">
       <div class="row">
         <div style="max-width:90px;"><label>เลขรับ</label><input name="recv_no" value="{{ sug_recv }}"></div>
-        <div><label>วันที่รับ</label><input name="recv_date" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+        <div><label>วันที่รับ</label><input name="recv_date" value="{{ recv_date_default }}" required placeholder="วว/ดด/ปปปป" data-date="1"></div>
       </div>
       <div class="row">
         <div><label>ที่หนังสือ</label><input name="letter_no" value="{{ fields.letter_no }}"></div>

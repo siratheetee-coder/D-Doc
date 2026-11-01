@@ -196,7 +196,7 @@ def hub(request: Request, db: Session = Depends(get_db), msg: str = ""):
                          .filter(Procurement.fiscal_year == fy).scalar() or 0,
         "memo": db.query(OfficeMemo).filter(OfficeMemo.fiscal_year == fy).count(),
         "order": db.query(SchoolOrder).filter(SchoolOrder.fiscal_year == fy).count(),
-        "incoming": db.query(IncomingLetter).filter(IncomingLetter.fiscal_year == fy).count(),
+        "incoming": db.query(IncomingLetter).filter(IncomingLetter.calendar_year == datetime.now().year + 543).count(),
         "outgoing": db.query(OutgoingLetter).filter(OutgoingLetter.fiscal_year == fy).count(),
         "asset": db.query(Asset).count(),
         "material": db.query(MaterialItem).count(),

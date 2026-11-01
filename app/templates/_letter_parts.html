@@ -16,7 +16,7 @@
 
 {% macro letter_info(r) %}
 <dl class="lt-info">
-  <dt>เลขรับ</dt><dd>{{ r.recv_no or '-' }}{% if r.recv_date %}&emsp;รับเมื่อ {{ thai_date(r.recv_date) }}{% endif %}</dd>
+  <dt>เลขรับ</dt><dd>{{ r.recv_no or '-' }} · ปีทะเบียน {{ r.calendar_year or 'รอตรวจปี' }}{% if r.recv_date %}&emsp;รับเมื่อ {{ thai_date(r.recv_date) }}{% endif %}</dd>
   <dt>ที่หนังสือ</dt><dd>{{ r.letter_no or '-' }}{% if r.letter_date %}&emsp;ลงวันที่ {{ thai_date(r.letter_date) }}{% endif %}</dd>
   <dt>จาก</dt><dd>{{ r.from_org or '-' }}</dd>
   <dt>เรื่อง</dt><dd><b>{{ r.subject or '-' }}</b></dd>

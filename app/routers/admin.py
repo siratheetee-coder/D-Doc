@@ -20,7 +20,7 @@ from app.models import (
     School, IncomingLetter, OutgoingLetter, OfficeMemo, SchoolOrder, Person, Department,
     OfficialLetter, CertificateBatch, Student, IssuedDocNo, LetterRecipient,
 )
-from app.services import file_upload
+from app.services import file_upload, incoming_register as receipt_register
 from app.services.letter_tracking import task_context, read_assignment, configure_tasks
 from app.routers.letter_tracking import back as _letter_back
 from app.services.doc_number import (
@@ -90,7 +90,9 @@ def _render_letter_confirm(request, db, kind: str, pending_file: str, fields: di
         "is_img": pending_file.lower().endswith((".png", ".jpg", ".jpeg", ".webp")),
     }
     if kind == "incoming":
-        ctx["sug_recv"] = suggest_next(db, "incoming", fy)
+        ctx["calendar_year"] = receipt_register.current_year()
+        ctx["recv_date_default"] = be_date_input(datetime.now())
+        ctx["sug_recv"] = receipt_register.next_number(db, ctx["calendar_year"])
     elif kind == "outgoing":
         school = get_school(db)
         seq = suggest_next(db, "outgoing", fy)
@@ -110,7 +112,8 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     fy = current_fiscal_year()
     return templates.TemplateResponse("admin_dashboard.html", {
         "request": request, "school": get_school(db), "fiscal_year": fy,
-        "n_in": db.query(IncomingLetter).filter_by(fiscal_year=fy).count(),
+        "calendar_year": receipt_register.current_year(),
+        "n_in": db.query(IncomingLetter).filter_by(calendar_year=receipt_register.current_year()).count(),
         "n_out": db.query(OutgoingLetter).filter_by(fiscal_year=fy).count(),
         "n_memo": db.query(OfficeMemo).filter_by(fiscal_year=fy).count(),
         "n_order": db.query(SchoolOrder).filter_by(fiscal_year=fy).count(),
@@ -128,34 +131,81 @@ def _admin_setup(db, school):
 # ---------------- ทะเบียนหนังสือรับ ----------------
 @router.get("/admin/incoming", response_class=HTMLResponse)
 def incoming_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
-    fy = year or current_fiscal_year()
-    rows = (db.query(IncomingLetter).filter_by(fiscal_year=fy)
-            .order_by(IncomingLetter.recv_no).all())
-    years = fiscal_year_options(
-        [r[0] for r in db.query(IncomingLetter.fiscal_year).distinct()], fy)
+    cy = year if year is not None else receipt_register.current_year()
+    if cy != -1 and not 2443 <= cy <= 2743:
+        cy = receipt_register.current_year()
+    query = db.query(IncomingLetter)
+    query = query.filter(IncomingLetter.calendar_year.is_(None)) if cy == -1 else query.filter_by(calendar_year=cy)
+    rows = query.order_by(IncomingLetter.recv_no, IncomingLetter.id).all()
+    pending = db.query(IncomingLetter).filter(IncomingLetter.calendar_year.is_(None)).count()
+    from collections import Counter
+    numbers = Counter(r.recv_no for r in rows)
     return templates.TemplateResponse("incoming.html", {
-        "request": request, "rows": rows, "fiscal_year": fy, "years": years,
-        "sug_recv": suggest_next(db, "incoming", fy),
+        "request": request, "rows": rows, "calendar_year": cy,
+        "years": receipt_register.year_options(db, cy), "pending_years": pending,
+        "duplicate_numbers": {n for n, count in numbers.items() if count > 1},
+        "recv_date_default": be_date_input(datetime.now()) if cy == receipt_register.current_year() else "",
+        "sug_recv": receipt_register.next_number(db, cy) if cy > 0 else "",
     })
 
 
 @router.post("/admin/incoming")
-def incoming_add(db: Session = Depends(get_db), fiscal_year: int = Form(...),
+def incoming_add(db: Session = Depends(get_db), fiscal_year: int = Form(0), calendar_year: int = Form(0),
                  recv_no: str = Form(""), recv_date: str = Form(""), letter_no: str = Form(""),
                  letter_date: str = Form(""), from_org: str = Form(""), to_person: str = Form(""),
                  subject: str = Form(""), action_note: str = Form(""), pending_file: str = Form("")):
-    fy = _to_int(fiscal_year, current_fiscal_year())
-    rno = _to_int(recv_no, 0) or suggest_next(db, "incoming", fy)
+    received = parse_be_date(recv_date)
+    cy = calendar_year or (received.year + 543 if received else receipt_register.current_year())
+    if recv_date.strip() and not received:
+        return _letter_back(f"/admin/incoming?year={cy}", "วันที่รับไม่ถูกต้อง กรุณาตรวจสอบ", True)
+    if not received:
+        if cy != receipt_register.current_year():
+            return _letter_back(f"/admin/incoming?year={cy}", "กรุณาระบุวันที่รับสำหรับทะเบียนย้อนหลัง", True)
+        received = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    if cy != received.year + 543 or not 2443 <= cy <= 2743:
+        return _letter_back(f"/admin/incoming?year={received.year + 543}", "ปีทะเบียนต้องตรงกับปีปฏิทินของวันที่รับ กรุณาตรวจข้อมูลแล้วบันทึกอีกครั้ง", True)
+    fy = received.year + 543 + (1 if received.month >= 10 else 0)
+    rno = _to_int(recv_no, 0) or receipt_register.next_number(db, cy)
+    if rno < 1 or receipt_register.duplicate(db, cy, rno):
+        return _letter_back(f"/admin/incoming?year={cy}", "เลขรับนี้มีในปีทะเบียนแล้ว กรุณาตรวจเลขรับก่อนบันทึก", True)
     fp = pending_file.strip() if _SAFE_FILE_NAME.match(pending_file.strip()) else ""
     db.add(IncomingLetter(
-        fiscal_year=fy, recv_no=rno, recv_date=parse_be_date(recv_date),
+        fiscal_year=fy, calendar_year=cy, recv_no=rno, recv_date=received,
         letter_no=letter_no.strip(), letter_date=parse_be_date(letter_date),
         from_org=from_org.strip(), to_person=to_person.strip(),
         subject=subject.strip(), action_note=action_note.strip(), file_path=fp,
     ))
-    commit_number(db, "incoming", fy, rno)
+    receipt_register.reserve(db, cy, rno)
     db.commit()
-    return RedirectResponse(f"/admin/incoming?year={fy}", status_code=303)
+    return RedirectResponse(f"/admin/incoming?year={cy}", status_code=303)
+
+
+@router.post("/admin/incoming/{rid}/calendar-year")
+def confirm_incoming_year(rid: int, calendar_year: int = Form(...), db: Session = Depends(get_db)):
+    r = db.get(IncomingLetter, rid)
+    if not r:
+        return _letter_back("/admin/incoming?year=-1", "ไม่พบหนังสือ", True)
+    if r.calendar_year is not None:
+        return _letter_back(f"/admin/incoming/{rid}", "หนังสือนี้มีปีทะเบียนแล้ว", True)
+    if not 2443 <= calendar_year <= 2743:
+        return _letter_back(f"/admin/incoming/{rid}", "กรุณาระบุปีทะเบียนเป็น พ.ศ. 4 หลัก", True)
+    if r.recv_date and r.recv_date.year + 543 != calendar_year:
+        return _letter_back(f"/admin/incoming/{rid}", "ปีทะเบียนต้องตรงกับปีของวันที่รับ", True)
+    if receipt_register.duplicate(db, calendar_year, r.recv_no, r.id):
+        return _letter_back(f"/admin/incoming/{rid}", "เลขรับนี้ซ้ำกับหนังสือในปีที่เลือก กรุณาตรวจทะเบียนต้นฉบับก่อน ระบบไม่ได้เปลี่ยนเลขรับ", True)
+    r.calendar_year = calendar_year
+    receipt_register.reserve(db, calendar_year, r.recv_no or 0)
+    db.commit()
+    return _letter_back(f"/admin/incoming/{rid}", "ยืนยันปีทะเบียนแล้ว โดยคงเลขรับและประวัติรับทราบเดิม")
+
+
+@router.get("/admin/incoming/export.xlsx")
+def incoming_export(db: Session = Depends(get_db), year: int | None = None):
+    cy = year if year is not None else receipt_register.current_year()
+    if cy < 2443 or cy > 2743:
+        return _letter_back("/admin/incoming?year=-1", "กรุณาตรวจปีทะเบียนก่อนส่งออก", True)
+    rows = db.query(IncomingLetter).filter_by(calendar_year=cy).order_by(IncomingLetter.recv_no).all()
+    return serve_generated(export_admin_register(rows, [], cy, incoming_only=True), _XLSX)
 
 
 @router.post("/admin/incoming/upload")
@@ -181,7 +231,7 @@ async def incoming_fetch(request: Request, db: Session = Depends(get_db), url: s
 @router.post("/admin/incoming/{rid}/delete")
 def incoming_delete(rid: int, db: Session = Depends(get_db)):
     r = db.get(IncomingLetter, rid)
-    fy = r.fiscal_year if r else current_fiscal_year()
+    fy = (r.calendar_year or -1) if r else receipt_register.current_year()
     if r:
         db.delete(r); db.commit()
     return RedirectResponse(f"/admin/incoming?year={fy}", status_code=303)
@@ -384,6 +434,7 @@ def incoming_detail(rid: int, request: Request, db: Session = Depends(get_db), m
         return RedirectResponse("/admin/incoming", status_code=303)
     acked = sum(1 for x in r.recipients if x.ack_at)
     return templates.TemplateResponse("incoming_detail.html", {
+        "calendar_year": r.calendar_year, "calendar_current_year": receipt_register.current_year(),
         "request": request, "r": r, "msg": msg, "status_label": _ROUTE_LABEL.get(r.route_status or "", ""),
         "staff": _staff_options(db, request.session.get("tid")), "acked": acked,
         "picked": {x.person_id for x in r.recipients}, "can_endorse": _can_endorse(request),
@@ -973,7 +1024,7 @@ def admin_import_page(request: Request, db: Session = Depends(get_db),
 @router.get("/admin/letters/export.xlsx")
 def admin_letters_export(db: Session = Depends(get_db), year: int | None = None):
     fy = year or current_fiscal_year()
-    incoming = (db.query(IncomingLetter).filter_by(fiscal_year=fy)
+    incoming = (db.query(IncomingLetter).filter_by(calendar_year=fy)
                 .order_by(IncomingLetter.recv_no).all())
     outgoing = (db.query(OutgoingLetter).filter_by(fiscal_year=fy)
                 .order_by(OutgoingLetter.send_seq).all())

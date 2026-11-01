@@ -117,6 +117,7 @@ MIGRATIONS = [
     ("procurement", "delivery_date",    "DATETIME"),
     ("project",     "budget",           "FLOAT DEFAULT 0"),
     ("project",     "budget_note",      "VARCHAR DEFAULT ''"),
+    ("incoming_letter", "calendar_year", "INTEGER"),
     ("incoming_letter", "file_path",    "VARCHAR DEFAULT ''"),
     ("incoming_letter", "route_status",   "VARCHAR DEFAULT ''"),
     ("incoming_letter", "route_note",     "TEXT DEFAULT ''"),
@@ -424,6 +425,7 @@ def init_school_db(engine) -> None:
     Base.metadata.create_all(bind=engine)      # ไม่มีตาราง = ใช้งานไม่ได้จริง ต้องให้ดังถ้าพัง
     steps = (
         ("เพิ่มคอลัมน์ใหม่", run_migrations),
+        ("ปีปฏิทินทะเบียนรับ", _incoming_calendar_year),
         ("ดัชนีรหัสหนังสือ", _textbook_key_index),
         ("ซ่อมประเภทเงิน", _repair_finance_fund_types),
         ("ล้างข้อมูลอ่อนไหวของนักเรียน", _purge_student_sensitive),
@@ -726,3 +728,13 @@ def _repair_finance_fund_types(engine):
             conn.execute(text("UPDATE finance_account SET fund_type=:name WHERE trim(name)=:name "
                               "AND (fund_type IS NULL OR fund_type='' OR fund_type='เงินนอกงบประมาณ')"), {"name": name})
         conn.execute(text("INSERT INTO app_data_migration(name) VALUES (:key)"), {"key": key})
+
+
+def _incoming_calendar_year(engine):
+    """Only a recorded receipt date can classify an old letter; never renumber."""
+    with engine.begin() as conn:
+        conn.exec_driver_sql("""UPDATE incoming_letter
+            SET calendar_year = CAST(strftime('%Y', recv_date) AS INTEGER) + 543
+            WHERE calendar_year IS NULL AND recv_date IS NOT NULL
+            AND CAST(strftime('%Y', recv_date) AS INTEGER) BETWEEN 1900 AND 2200""")
+        conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_incoming_letter_calendar_year ON incoming_letter(calendar_year)")
