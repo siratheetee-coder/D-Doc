@@ -9,6 +9,7 @@
     <div class="hero-meta">{% if pending %}ยังไม่รับทราบ {{ pending }} ฉบับ{% else %}รับทราบครบทุกฉบับแล้ว{% endif %}</div>
   </div>
 </div>
+{% if request.query_params.get('err') %}<div class="alert warn">{{ request.query_params.get('err') }}</div>{% endif %}
 {% if email_msg == 'ok' %}<div class="alert">✔ บันทึกอีเมลแล้ว หนังสือเวียนฉบับต่อไปจะส่งเข้าอีเมลนี้ด้วย</div>
 {% elif email_msg == 'off' %}<div class="alert">✔ ลบอีเมลแล้ว จะไม่ส่งหนังสือเวียนเข้าอีเมล</div>
 {% elif email_msg == 'bad' %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> อีเมลไม่ถูกรูปแบบ ลองพิมพ์ใหม่</div>{% endif %}
@@ -36,6 +37,7 @@
       <b>{{ r.subject or 'หนังสือรับ' }}</b>
       <small>{{ r.from_org or '-' }}&emsp;{{ thai_date(r.sent_at) if r.sent_at else '' }}</small>
       {% if r.director_order %}<span class="ml-o">{{ r.director_order }}</span>{% endif %}
+      {% if x.task %}<span class="ml-o" style="color:#4338ca;font-weight:600">งานที่มอบหมาย: {{ {'pending':'ยังไม่รายงานผล','submitted':'รอตรวจผล','returned':'ให้แก้ไขรายงาน','done':'เสร็จสิ้น'}[x.task.status] }}{% if x.task.due_at %} · กำหนดส่ง {{ thai_date(x.task.due_at) }}{% endif %}</span>{% endif %}
     </span>
     {% if x.ack_at %}<span class="pill" style="background:#dcfce7; color:#166534;">รับทราบแล้ว</span>
     {% else %}<span class="pill" style="background:#fef3c7; color:#92400e;">ยังไม่รับทราบ</span>{% endif %}

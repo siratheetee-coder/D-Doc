@@ -139,7 +139,8 @@
         {% elif module == 'admin' %}
         <div class="nav-sec">งานธุรการ</div>
         <a href="/admin" class="{{ 'active' if path == '/admin' }}"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลักธุรการ</a>
-        <a href="/admin/incoming" class="{{ 'active' if path.startswith('/admin/incoming') }}"><svg class="icon"><use href="#ic-download"/></svg> ทะเบียนหนังสือรับ</a>
+        <a href="/admin/incoming" class="{{ 'active' if path.startswith('/admin/incoming') and not path.startswith('/admin/incoming-tracking') }}"><svg class="icon"><use href="#ic-download"/></svg> ทะเบียนหนังสือรับ</a>
+        <a href="/admin/incoming-tracking" class="{{ 'active' if path.startswith('/admin/incoming-tracking') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ติดตามหนังสือและงาน</a>
         <a href="/admin/outgoing" class="{{ 'active' if path.startswith('/admin/outgoing') }}"><svg class="icon"><use href="#ic-upload"/></svg> ทะเบียนหนังสือส่ง</a>
         <a href="/admin/memos" class="{{ 'active' if path.startswith('/admin/memos') }}"><svg class="icon"><use href="#ic-file"/></svg> บันทึกข้อความ</a>
         <a href="/admin/orders" class="{{ 'active' if path.startswith('/admin/orders') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> คำสั่งโรงเรียน</a>
@@ -242,7 +243,7 @@
         {% endif %}
 
         <div class="nav-sec">ระบบ</div>
-        {% if request.session.get('director') %}<a href="/approvals" class="{{ 'active' if path.startswith('/approvals') }}" style="font-weight:700;"><svg class="icon"><use href="#ic-check"/></svg> กล่องรออนุมัติ ผอ.</a>{% endif %}
+        {% if request.session.get('director') %}<a href="/approvals" class="{{ 'active' if path.startswith('/approvals') }}" style="font-weight:700;"><svg class="icon"><use href="#ic-check"/></svg> กล่องรออนุมัติ ผอ.</a>{% if module != 'admin' %}<a href="/admin/incoming-tracking"><svg class="icon"><use href="#ic-clipboard"/></svg> ติดตามหนังสือและงาน</a>{% endif %}{% endif %}
         <a href="/docnos" class="{{ 'active' if path.startswith('/docnos') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ทะเบียนเลขหนังสือ</a>
         <a href="/projects" class="{{ 'active' if path.startswith('/projects') }}"><svg class="icon"><use href="#ic-coins"/></svg> โครงการ/แผนงบ</a>
         <a href="/vendors" class="{{ 'active' if path.startswith('/vendors') }}"><svg class="icon"><use href="#ic-store"/></svg> ผู้ขาย/ผู้รับจ้าง</a>
@@ -450,7 +451,7 @@
         <div style="display:flex; align-items:center; gap:9px; margin-bottom:16px; padding:9px 15px; border-radius:11px;
              background:#eef2ff; border:1px solid #ddd6fe; color:#4338ca; font-size:13.5px; font-weight:600;">
           <svg class="icon" style="width:17px;height:17px;flex:none;"><use href="#ic-info"/></svg>
-          <span>โหมดผู้อำนวยการ เข้าดูได้อย่างเดียว (แก้ไข/สร้าง/ลบไม่ได้) หน้าที่แก้ไขได้คือ กล่องรออนุมัติ และ งานนิเทศ</span>
+          <span>โหมดผู้อำนวยการ เข้าดูได้อย่างเดียว (แก้ไข/สร้าง/ลบไม่ได้) ดำเนินการได้ใน กล่องรออนุมัติ ติดตามผลหนังสือ และ งานนิเทศ</span>
         </div>
         {% endif %}
         {% if request.session.get('sandbox') %}

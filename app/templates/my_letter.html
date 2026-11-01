@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_letter_parts.html" import letter_file, letter_info, order_box, parts_css %}
+{% import "_letter_tasks.html" as work %}
 {% block title %}{{ r.subject or 'หนังสือเวียน' }}{% endblock %}
 {% block content %}
 <div class="hero">
@@ -10,6 +11,8 @@
   </div>
 </div>
 
+{% if msg %}<div class="alert">{{ msg }}</div>{% endif %}
+{% if err %}<div class="alert warn">{{ err }}</div>{% endif %}
 <div class="card ack-card">
   {% if rc.ack_at %}
   <div><b style="color:#166534;">✔ รับทราบแล้ว</b><br><span class="muted">{{ thai_date(rc.ack_at) }} เวลา {{ rc.ack_at.strftime('%H:%M') }} น.{% if rc.ack_by %} ({{ rc.ack_by }} บันทึกแทน){% endif %}</span></div>
@@ -30,10 +33,12 @@
   </div>
   {% endif %}
 </div>
+{% include "my_letter_task.html" %}
 <p><a href="/me/letters">หนังสือถึงฉันทั้งหมด</a></p>
 <style>
   .ack-card { display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap;
     background:linear-gradient(135deg,#ecfdf5,#eff6ff); }
 </style>
 {{ parts_css() }}
+{{ work.styles() }}
 {% endblock %}

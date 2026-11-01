@@ -77,6 +77,9 @@ _DIRECTOR_WRITE_ALLOW = [
     re.compile(r"^/hr/leave-requests/\d+/approve$"),        # อนุมัติใบลา
     re.compile(r"^/hr/travel-requests/\d+/approve$"),       # อนุมัติไปราชการ
     re.compile(r"^/admin/incoming/\d+/endorse$"),            # สั่งการหนังสือรับ + เวียน
+    re.compile(r"^/admin/incoming/\d+/remind$"),             # เตือนผู้ที่ยังไม่รับทราบ
+    re.compile(r"^/admin/incoming/\d+/tasks/\d+/review$"),   # ตรวจผลการดำเนินงาน
+    re.compile(r"^/me/letters/\d+/report$"),                 # รายงานงานที่มอบหมายถึงตัวเอง
     re.compile(r"^/me/letters/\d+/ack$"),                    # รับทราบหนังสือเวียนถึงตัวเอง
     re.compile(r"^/me/email$"),                               # ใส่อีเมลรับหนังสือเวียนของตัวเอง
     re.compile(r"^/(?:hr|academic)/classroom-visit/(save|\d+/delete)$"), # นิเทศ: เยี่ยมชั้นเรียน
@@ -455,6 +458,8 @@ app.include_router(plan_budget.router)
 app.include_router(pages.router)
 app.include_router(project_report.router)
 app.include_router(admin.router)
+from app.routers import letter_tracking
+app.include_router(letter_tracking.router)
 from app.services import staff  # Register case-signature snapshot lifecycle
 app.include_router(finance.router)
 app.include_router(lunch.router)

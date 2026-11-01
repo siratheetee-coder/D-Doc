@@ -638,6 +638,38 @@ class LetterRecipient(Base):
     email_to = Column(String, default="")           # ส่งไปที่อีเมลไหน
     created_at = Column(DateTime, default=datetime.now)
     letter = relationship("IncomingLetter", back_populates="recipients")
+    task = relationship("LetterTask", back_populates="recipient", uselist=False,
+                        cascade="all, delete-orphan", single_parent=True)
+
+
+class LetterTask(Base):
+    """An optional assignment for one recipient; old letters need no backfill."""
+    __tablename__ = "letter_task"
+    id = Column(Integer, primary_key=True)
+    recipient_id = Column(Integer, ForeignKey("letter_recipient.id"), nullable=False, unique=True)
+    instruction = Column(Text, default="")
+    due_at = Column(DateTime, nullable=True)
+    status = Column(String, default="pending", nullable=False)
+    version = Column(Integer, default=0, nullable=False)
+    recipient = relationship("LetterRecipient", back_populates="task")
+    reports = relationship("LetterTaskReport", back_populates="task", cascade="all, delete-orphan",
+                           order_by="LetterTaskReport.id")
+
+
+class LetterTaskReport(Base):
+    """Keep every submission and review, including returned versions."""
+    __tablename__ = "letter_task_report"
+    id = Column(Integer, primary_key=True)
+    task_id = Column(Integer, ForeignKey("letter_task.id"), nullable=False, index=True)
+    body = Column(Text, default="")
+    file_path = Column(String, default="")
+    file_name = Column(String, default="")
+    submitted_at = Column(DateTime, default=datetime.now)
+    status = Column(String, default="submitted")
+    review_note = Column(Text, default="")
+    reviewed_at = Column(DateTime, nullable=True)
+    reviewed_by = Column(String, default="")
+    task = relationship("LetterTask", back_populates="reports")
 
 
 class OutgoingLetter(Base):

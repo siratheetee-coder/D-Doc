@@ -21,6 +21,8 @@ from app.models import (
     OfficialLetter, CertificateBatch, Student, IssuedDocNo, LetterRecipient,
 )
 from app.services import file_upload
+from app.services.letter_tracking import task_context, read_assignment, configure_tasks
+from app.routers.letter_tracking import back as _letter_back
 from app.services.doc_number import (
     suggest_next, commit_number, suggest_doc_no, commit_doc_no, check_doc_no, format_doc_no, doc_year,
     parse_seq, remove_issued,
@@ -153,7 +155,7 @@ def incoming_add(db: Session = Depends(get_db), fiscal_year: int = Form(...),
     ))
     commit_number(db, "incoming", fy, rno)
     db.commit()
-    return RedirectResponse("/admin/incoming", status_code=303)
+    return RedirectResponse(f"/admin/incoming?year={fy}", status_code=303)
 
 
 @router.post("/admin/incoming/upload")
@@ -179,9 +181,10 @@ async def incoming_fetch(request: Request, db: Session = Depends(get_db), url: s
 @router.post("/admin/incoming/{rid}/delete")
 def incoming_delete(rid: int, db: Session = Depends(get_db)):
     r = db.get(IncomingLetter, rid)
+    fy = r.fiscal_year if r else current_fiscal_year()
     if r:
         db.delete(r); db.commit()
-    return RedirectResponse("/admin/incoming", status_code=303)
+    return RedirectResponse(f"/admin/incoming?year={fy}", status_code=303)
 
 
 # ---------------- เวียนหนังสือรับ: ธุรการเสนอ -> ผอ. สั่งการ -> ครูรับทราบ ----------------
@@ -310,7 +313,7 @@ def _email_letter(db, r, rows):
         try:
             if f.exists() and f.stat().st_size <= _MAIL_ATTACH_MAX:
                 ext = Path(r.file_path).suffix
-                attach = (f"หนังสือ{(' ' + r.recv_no) if r.recv_no else ''}{ext}", f.read_bytes())
+                attach = (f"หนังสือ{(' ' + str(r.recv_no)) if r.recv_no else ''}{ext}", f.read_bytes())
         except OSError:
             attach = None
     n_none = 0
@@ -375,7 +378,7 @@ def _signer(db, request):
 
 
 @router.get("/admin/incoming/{rid}", response_class=HTMLResponse)
-def incoming_detail(rid: int, request: Request, db: Session = Depends(get_db), msg: str = ""):
+def incoming_detail(rid: int, request: Request, db: Session = Depends(get_db), msg: str = "", err: str = ""):
     r = db.get(IncomingLetter, rid)
     if not r:
         return RedirectResponse("/admin/incoming", status_code=303)
@@ -385,6 +388,7 @@ def incoming_detail(rid: int, request: Request, db: Session = Depends(get_db), m
         "staff": _staff_options(db, request.session.get("tid")), "acked": acked,
         "picked": {x.person_id for x in r.recipients}, "can_endorse": _can_endorse(request),
         "director_name": get_school(db).director_name or "",
+        "err": err, "can_review": _can_endorse(request), **task_context(r),
     })
 
 
@@ -405,25 +409,43 @@ async def incoming_route(rid: int, request: Request, db: Session = Depends(get_d
         r.route_status = ""
         db.commit()
         return RedirectResponse(back + "?msg=ดึงกลับจาก ผอ. แล้ว", status_code=303)
+    assignment = None
+    if action in ("director", "send", "add"):
+        valid = {p.id for p in db.query(Person).filter(Person.id.in_(ids), Person.active == True).all()}
+        ids = [pid for pid in ids if pid in valid]
+        if action in ("send", "add") and not ids:
+            return _letter_back(back, "เลือกผู้รับอย่างน้อย 1 คน", True)
+        if action == "add" and r.route_status != "sent":
+            return _letter_back(back, "กรุณาสั่งการหรือส่งเวียนหนังสือก่อนเพิ่มผู้รับ", True)
+        if action in ("director", "send") and r.route_status != "sent":
+            try:
+                assignment = read_assignment(form, ids)
+            except ValueError as e:
+                return _letter_back(back, str(e), True)
     if action == "director" and r.route_status != "sent":
         r.route_status, r.route_note = "director", note
         # ผู้รับที่ธุรการเลือก = ข้อเสนอ ผอ. แก้ได้ตอนสั่งการ (ยังไม่แจ้งครูจนกว่า ผอ. จะสั่ง)
         r.recipients = [x for x in r.recipients if x.person_id in ids]
         _add_recipients(db, r, ids, notify=False)
+        configure_tasks(r, assignment)
         db.commit()
         return RedirectResponse(back + "?msg=เสนอ ผอ. แล้ว รอ ผอ. สั่งการ", status_code=303)
     if action in ("send", "add"):
-        if not ids:
-            return RedirectResponse(back + "?msg=เลือกผู้รับอย่างน้อย 1 คน", status_code=303)
+        first_send = action == "send" and r.route_status != "sent"
         if action == "send" and r.route_status != "sent":
             r.director_order = note or r.director_order
             r.route_status, r.sent_at = "sent", datetime.now()
             if note and not r.action_note:
                 r.action_note = note[:200]
+        if first_send:
+            r.recipients = [x for x in r.recipients if x.person_id in ids]
         added = _add_recipients(db, r, ids, notify=False)
-        mail = _notify(db, r, added)
+        if first_send:
+            configure_tasks(r, assignment)
+        notified = r.recipients if first_send else added
+        mail = _notify(db, r, notified)
         db.commit()
-        return RedirectResponse(back + "?msg=" + _sent_msg("เวียนถึง", len(added), mail), status_code=303)
+        return RedirectResponse(back + "?msg=" + _sent_msg("เวียนถึง", len(notified), mail), status_code=303)
     return RedirectResponse(back, status_code=303)
 
 
@@ -438,6 +460,14 @@ async def incoming_endorse(rid: int, request: Request, db: Session = Depends(get
     form = await request.form()
     order = (form.get("order") or "").strip()[:2000] or "ทราบ"
     ids = _pick_ids(form)
+    valid = {p.id for p in db.query(Person).filter(Person.id.in_(ids), Person.active == True).all()}
+    ids = [pid for pid in ids if pid in valid]
+    if not ids:
+        return _letter_back(f"/admin/incoming/{rid}", "เลือกผู้รับอย่างน้อย 1 คนก่อนสั่งการและเวียนหนังสือ", True)
+    try:
+        assignment = read_assignment(form, ids)
+    except ValueError as e:
+        return _letter_back(f"/admin/incoming/{rid}", str(e), True)
     _save_emails(db, form)
     r.director_order = order
     r.director_name, r.director_sig = _signer(db, request)
@@ -447,6 +477,7 @@ async def incoming_endorse(rid: int, request: Request, db: Session = Depends(get
         r.action_note = order[:200]
     r.recipients = [x for x in r.recipients if x.person_id in ids]
     _add_recipients(db, r, ids, notify=False)
+    configure_tasks(r, assignment)
     mail = _notify(db, r, r.recipients)
     n = len(r.recipients)
     db.commit()
@@ -602,11 +633,11 @@ def my_letters(request: Request, db: Session = Depends(get_db), email: str = "")
 
 
 @router.get("/me/letters/{rcid}", response_class=HTMLResponse)
-def my_letter(rcid: int, request: Request, db: Session = Depends(get_db)):
+def my_letter(rcid: int, request: Request, db: Session = Depends(get_db), msg: str = "", err: str = ""):
     rc = _my_rc(db, request, rcid)
     if not rc:
         return RedirectResponse("/me/letters", status_code=303)
-    return templates.TemplateResponse("my_letter.html", {"request": request, "rc": rc, "r": rc.letter})
+    return templates.TemplateResponse("my_letter.html", {"request": request, "rc": rc, "r": rc.letter, "msg": msg, "err": err, **task_context(rc.letter)})
 
 
 @router.post("/me/letters/{rcid}/ack")

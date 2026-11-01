@@ -1,0 +1,10 @@
+{% if rc.task %}{% set task = rc.task %}
+<div class="card" id="my-work"><div class="lw-task-head"><h2><svg class="icon"><use href="#ic-clipboard"/></svg> งานที่มอบหมายถึงคุณ</h2><div><span class="lw-badge {{ task.status }}">{{ task_labels[task.status] }}</span>{% if task_overdue(task) %} <span class="lw-badge late">เกินกำหนด</span>{% endif %}</div></div>
+<p class="lw-text">{{ task.instruction }}</p><p class="muted">กำหนดส่ง: {{ thai_date(task.due_at) if task.due_at else 'ไม่ระบุ' }}</p>
+{{ work.history(task, '/me/letters/' ~ rc.id) }}
+{% if task.status in ['pending','returned'] %}
+<form method="post" action="/me/letters/{{ rc.id }}/report" enctype="multipart/form-data">
+<input type="hidden" name="version" value="{{ task.version }}"><label>รายงานผลการดำเนินงาน</label><textarea name="body" rows="4" required maxlength="8000" placeholder="สรุปสิ่งที่ดำเนินการและผลที่ได้"></textarea>
+<label>ไฟล์ประกอบ (ไม่บังคับ)</label><input type="file" name="attachment" accept=".pdf,.docx,.jpg,.jpeg,.png"><p class="muted">PDF, Word, JPG หรือ PNG ขนาดไม่เกิน 10 MB</p><button class="btn" data-no-floating-save><svg class="icon"><use href="#ic-send"/></svg> ส่งรายงานผล</button>
+</form>{% elif task.status == 'submitted' %}<div class="alert">ส่งรายงานแล้ว รอ ผอ. ตรวจผลการดำเนินงาน</div>{% endif %}
+</div>{% endif %}

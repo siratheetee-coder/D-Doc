@@ -1,0 +1,17 @@
+{% if tasks %}
+<div class="card" id="work-results">
+<h2><svg class="icon"><use href="#ic-clipboard"/></svg> ติดตามผลการดำเนินงาน</h2>
+<p class="muted">แสดงเฉพาะผู้ที่ได้รับมอบหมายงาน การรับทราบหนังสือไม่ถือว่างานเสร็จสิ้น</p>
+{% for task in tasks %}
+<article class="lw-task"><div class="lw-task-head"><b>{{ task.recipient.name }}</b><div><span class="lw-badge {{ task.status }}">{{ task_labels[task.status] }}</span>{% if task_overdue(task) %} <span class="lw-badge late">เกินกำหนด</span>{% endif %}</div></div>
+<p class="lw-text">{{ task.instruction }}</p><p class="muted">กำหนดส่ง: {{ thai_date(task.due_at) if task.due_at else 'ไม่ระบุ' }}</p>
+{{ work.history(task, '/admin/incoming/' ~ r.id) }}
+{% if task.status == 'submitted' and can_review %}{% set latest = task.reports[-1] %}
+<form class="lw-review" method="post" action="/admin/incoming/{{ r.id }}/tasks/{{ task.id }}/review">
+<input type="hidden" name="version" value="{{ task.version }}"><input type="hidden" name="report_id" value="{{ latest.id }}">
+<label>ความเห็นผู้ตรวจ / สิ่งที่ต้องแก้ไข</label><textarea name="review_note" rows="2" maxlength="4000" placeholder="หากส่งกลับแก้ไข กรุณาระบุสิ่งที่ต้องปรับ"></textarea>
+<div class="lw-actions"><button class="btn green" name="decision" value="done" data-no-floating-save><svg class="icon"><use href="#ic-check"/></svg> ตรวจแล้ว เสร็จสิ้น</button><button class="btn gray" name="decision" value="returned" data-no-floating-save>ส่งกลับให้แก้ไข</button></div>
+</form>{% endif %}
+</article>{% endfor %}
+</div>
+{% endif %}

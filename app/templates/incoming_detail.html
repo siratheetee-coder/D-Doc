@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_letter_parts.html" import letter_file, letter_info, order_box, people_pick, parts_css %}
+{% import "_letter_tasks.html" as work %}
 {% block title %}หนังสือรับ {{ r.recv_no }}{% endblock %}
 {% block content %}
 {% set director_view = request.session.get('director') and not request.session.get('owner') %}
@@ -13,6 +14,7 @@
   </div>
 </div>
 {% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+{% if err %}<div class="alert warn">{{ err }}</div>{% endif %}
 
 <div class="row" style="align-items:flex-start;">
   {% if r.file_path %}
@@ -41,6 +43,7 @@
       <textarea id="note" name="note" rows="3"></textarea>
       <label style="margin-top:12px;">ผู้รับ (ผอ. แก้ได้ตอนสั่งการ)</label>
       {{ people_pick(staff, picked) }}
+      {{ work.setup(staff, task_pids, task_instruction, task_due) }}
       <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;">
         <button class="btn" name="action" value="director"><svg class="icon"><use href="#ic-send"/></svg> เสนอ ผอ. สั่งการ</button>
         <button class="btn gray" name="action" value="send" onclick="return confirm('เวียนถึงผู้รับเลยโดยไม่ผ่าน ผอ.?')">เวียนเลย ไม่ผ่าน ผอ.</button>
@@ -58,6 +61,7 @@
         <textarea id="order" name="order" rows="3" placeholder="เช่น ทราบ มอบครูสมชายดำเนินการ"></textarea>
         <label style="margin-top:12px;">ผู้รับ</label>
         {{ people_pick(staff, picked) }}
+      {{ work.setup(staff, task_pids, task_instruction, task_due) }}
         <button class="btn" style="margin-top:14px;"><svg class="icon"><use href="#ic-check"/></svg> สั่งการและเวียนถึงผู้รับ</button>
         <p class="muted" style="margin:8px 0 0; font-size:13.5px;">ระบบแปะลายเซ็น{{ (' ' ~ director_name) if director_name }} และแจ้งเตือนผู้รับทุกคนทันที</p>
       </form>
@@ -82,7 +86,7 @@
   {% set n_fail = r.recipients|selectattr('email_status', 'equalto', 'failed')|list|length %}
   <div class="rc-head">
     <h2 style="margin:0;">ผู้รับ รับทราบแล้ว {{ acked }} จาก {{ r.recipients|length }} คน</h2>
-    {% if waiting and not director_view %}
+    {% if waiting %}
     <form method="post" action="/admin/incoming/{{ r.id }}/remind" style="margin:0;"
           onsubmit="return confirm('ส่งอีเมลเตือนคนที่ยังไม่รับทราบ {{ waiting|length }} คน?');">
       <button class="btn sm" data-no-floating-save><svg class="icon"><use href="#ic-send"/></svg> ส่งอีเมลเตือนคนที่ยังไม่รับทราบ ({{ waiting|length }})</button>
@@ -95,13 +99,19 @@
     <a href="/admin/staff-accounts">ใส่หรือแก้อีเมลที่หน้าบัญชีครูและอีเมล ›</a> แล้วกดส่งอีเมลเตือนอีกครั้ง
   </div>
   {% endif %}
+  <div class="lw-actions" style="margin-bottom:14px" aria-label="กรองสถานะผู้รับ">
+    <button type="button" class="btn sm" data-recipient-filter="all">ผู้รับทั้งหมด {{ r.recipients|length }} คน</button>
+    <button type="button" class="btn sm gray" data-recipient-filter="waiting">ยังไม่รับทราบ {{ waiting|length }} คน</button>
+    <button type="button" class="btn sm gray" data-recipient-filter="acked">รับทราบแล้ว {{ acked }} คน</button>
+  </div>
+  <p class="muted" id="recipient-filter-empty" hidden>ไม่มีผู้รับในสถานะนี้</p>
   <div class="table-wrap">
   <table class="stack-sm">
     <thead><tr><th>ผู้รับ</th><th>สถานะ</th><th>อีเมล</th><th>เมื่อ</th><th></th></tr></thead>
     <tbody>
       {% for x in r.recipients %}
       {% set es = ES.get(x.email_status or '') %}
-      <tr>
+      <tr data-recipient-status="{{ 'acked' if x.ack_at else 'waiting' }}">
         <td data-label="ผู้รับ">{{ x.name }}</td>
         <td data-label="สถานะ">{% if x.ack_at %}<span class="pill" style="background:#dcfce7; color:#166534;">รับทราบแล้ว</span>{% if x.ack_by %} <span class="muted" style="font-size:13px;">({{ x.ack_by }} บันทึกแทน)</span>{% endif %}
           {% else %}<span class="pill" style="background:#fef3c7; color:#92400e;">ยังไม่รับทราบ</span>{% endif %}</td>
@@ -130,11 +140,22 @@
 </div>
 {% endif %}
 
+{% if r.route_status == 'sent' %}{% include "incoming_tasks.html" %}{% endif %}
+<p><a class="btn sm gray" href="/admin/incoming-tracking?year={{ r.fiscal_year }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ติดตามหนังสือที่เวียนแล้วทั้งหมด</a></p>
 <p><a href="/admin/incoming?year={{ r.fiscal_year }}">กลับทะเบียนหนังสือรับ</a></p>
 <style>
+  [data-recipient-status][hidden]{display:none!important;}
   .rc-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
   .rc-warn{ margin:0 0 12px; padding:10px 14px; border-radius:12px; background:linear-gradient(135deg,#fffbeb,#fff7ed); color:#92400e; font-size:14px; }
   .rc-warn a{ font-weight:700; }
 </style>
 {{ parts_css() }}
+{{ work.styles() }}
+<script>
+document.querySelectorAll('[data-recipient-filter]').forEach(function(button){button.onclick=function(){
+  var count=0;document.querySelectorAll('[data-recipient-status]').forEach(function(row){row.hidden=button.dataset.recipientFilter!=='all'&&row.dataset.recipientStatus!==button.dataset.recipientFilter;if(!row.hidden)count++;});
+  document.getElementById('recipient-filter-empty').hidden=count!==0;
+  document.querySelectorAll('[data-recipient-filter]').forEach(function(b){b.classList.toggle('gray',b!==button);b.setAttribute('aria-pressed',b===button?'true':'false');});
+};});
+</script>
 {% endblock %}

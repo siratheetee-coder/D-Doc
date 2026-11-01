@@ -96,6 +96,12 @@ def _director_alerts(db):
     if n:
         out.append(_alert("warn", f"หนังสือรอ ผอ. สั่งการ {n} ฉบับ", "สั่งการแล้วระบบเวียนถึงครูให้",
                           "/approvals#letters", "อนุมัติ"))
+    from app.models import LetterTask, LetterRecipient
+    n = (db.query(LetterTask).join(LetterRecipient).join(IncomingLetter)
+         .filter(IncomingLetter.route_status == "sent", LetterTask.status == "submitted").count())
+    if n:
+        out.append(_alert("warn", f"รายงานผลหนังสือรอตรวจ {n} งาน", "ตรวจผลหรือส่งกลับให้แก้ไข",
+                          "/admin/incoming-tracking?year=0&status=review", "ธุรการ"))
     return out
 
 
