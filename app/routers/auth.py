@@ -70,8 +70,8 @@ def landing_page(request: Request, ref: str = "", utm_source: str = ""):
     from app.services.public_stats import landing_stats
     from app.services import articles as _articles
     published = _articles.all_articles()
-    # all_articles already sorts newest first; stable sort puts pinned articles first.
-    preview = sorted(published, key=lambda article: not article["featured"])[:3]
+    # Use the public library order and the same thumbnail metadata.
+    preview = published[:3]
     resp = templates.TemplateResponse("landing.html", {"request": request, "sandbox_msg": msg,
                                                        "live": landing_stats(), "site_url": site_url(),
                                                        "kb_count": len(published), "kb_preview": preview,
