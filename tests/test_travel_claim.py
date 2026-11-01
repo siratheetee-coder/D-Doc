@@ -56,5 +56,6 @@ def test_registry_document_preserves_requested_expenses(db,tmp_path,monkeypatch)
     monkeypatch.setattr(gov_forms,'get_data_dir',lambda:tmp_path)
     monkeypatch.setattr(hr,'serve_generated',lambda path,mime:path)
     path=hr.hr_travel_request_docx(rec.id,db)
-    text='\n'.join(p.text for p in Document(path).paragraphs)
+    doc=Document(path)
+    text='\n'.join(p.text for p in doc.paragraphs)+'\n'+'\n'.join(c.text for t in doc.tables for r in t.rows for c in r.cells)
     assert '2,500' in text and 'หนังสือเชิญ 123' in text and '☑ อบรม' in text

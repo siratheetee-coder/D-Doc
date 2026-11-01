@@ -301,7 +301,7 @@ def _float_at_run(inline, dx_emu=0, dy_emu=0):
     drawing.append(anchor)
 
 
-def _stamp_sig(run, db, name, height_cm=1.0):
+def _stamp_sig(run, db, name, height_cm=1.0, dy_cm=None):
     """แปะรูปลายเซ็นของ name (ถ้ามีในทะเบียน) ลอยทับหลัง run · คืน True ถ้าแปะได้"""
     if db is None or not (name or "").strip():
         return False
@@ -317,7 +317,7 @@ def _stamp_sig(run, db, name, height_cm=1.0):
     try:
         shape = Run(new_r, run._parent).add_picture(path, height=Cm(height_cm))
         # ลอยทับเส้นไข่ปลา ยกขึ้นเล็กน้อยให้เส้นลอดใต้ลายเซ็นเหมือนเซ็นจริง
-        _float_at_run(shape._inline, dx_emu=Cm(0.6).emu, dy_emu=-Cm(height_cm * 0.30).emu)
+        _float_at_run(shape._inline, dx_emu=Cm(0.6).emu, dy_emu=Cm(dy_cm if dy_cm is not None else -height_cm * 0.30).emu)
         return True
     except Exception:
         try:
@@ -581,7 +581,7 @@ def render_leave_official(school, person, record, db=None, approver=None,
         if i is not None:
             if cname:
                 _insstrip(P[27], i, " " + cname + " ")
-            _stamp_sig(P[27].runs[i], db, cname)
+            _stamp_sig(P[27].runs[i], db, cname, height_cm=0.8, dy_cm=-0.75)
         i = _find_run(P[28], "ง")            # ตำแหน่ง (แยก run เป็น 'ตำแหน่'+'ง')
         if i is not None and cpos:
             _insstrip(P[28], i, " " + cpos)
@@ -689,6 +689,31 @@ def render_leave_official(school, person, record, db=None, approver=None,
             break
 
     out = get_data_dir() / "documents"; out.mkdir(exist_ok=True)
+    # Keep field widths and dotted guides independent of the length of entered data.
+    from app.services.fixed_form import row as field_row, left_align_body
+    field_row(doc, P[2], [("เขียนที่", sch, 1.7, 6.3)], right=True)
+    field_row(doc, P[3], [("วันที่", _full_date(wd), 1.7, 6.3)], right=True)
+    field_row(doc, P[4], [("เรื่อง", "ขอลา" + typ_label, 1.4, 14.6)])
+    field_row(doc, P[5], [("เรียน", addressee, 1.4, 14.6)])
+    intro = field_row(doc, P[7], [("ข้าพเจ้า", name, 1.6, 6.0), ("ตำแหน่ง", position, 1.8, 6.6)])
+    from docx.text.paragraph import Paragraph
+    spacer = OxmlElement("w:p"); intro._tbl.addnext(spacer)
+    marker = Paragraph(spacer, doc)
+    group = field_row(doc, marker, [("กลุ่มงาน", wg, 1.6, 6.0), ("โรงเรียน", sch.removeprefix("โรงเรียน"), 1.8, 6.6)])
+    spacer = OxmlElement("w:p"); group._tbl.addnext(spacer)
+    field_row(doc, Paragraph(spacer, doc), [("สังกัด", area, 1.6, 14.4)])
+    for key, pi in _LEAVE_PARA.items():
+        label = ("☑ " if key == typ_norm else "☐ ") + _LEAVE_LABEL[key]
+        field_row(doc, P[pi], [("ขอลา" if pi == 9 else "", label, 1.4, 3.0),
+                              ("เนื่องจาก" if key != "maternity" else "", reason if key == typ_norm and key != "maternity" else "", 1.8, 9.8)])
+    field_row(doc, P[12], [("ตั้งแต่", _full_date(record.start_date), 1.2, 5.6),
+                           ("ถึง", _full_date(record.end_date), 0.7, 5.6), ("รวม", days + " วัน", 0.9, 2.0)])
+    previous = (f"{_LEAVE_LABEL.get(_LEAVE_NORM.get(last.leave_type, 'personal'), '')} {_full_date(last.start_date)} ถึง {_full_date(last.end_date)} รวม {(last.days or 0):g} วัน" if last else "")
+    field_row(doc, P[13], [("การลาครั้งก่อน", previous, 2.8, 13.2)])
+    field_row(doc, P[14], [("ติดต่อระหว่างลา", contact, 2.8, 13.2)])
+    if P[15]._p.getparent() is not None: P[15]._p.getparent().remove(P[15]._p)
+    left_align_body(doc)
+
     path = out / (_safe(f"ใบลา_{name}_{getattr(record,'id','')}") + ".docx")
     doc.save(str(path))
     return str(path)
@@ -864,6 +889,28 @@ def render_travel_official(school, person, record, db=None, approver=None, appro
                 pass
 
     out = get_data_dir() / "documents"; out.mkdir(exist_ok=True)
+    from app.services.fixed_form import row as field_row, left_align_body
+    field_row(doc, P[1], [("ส่วนราชการ", sch + ("  " + area if area else ""), 2.0, 14.0)])
+    field_row(doc, P[2], [("ที่", getattr(record, 'memo_no', '') or '', 0.6, 6.4), ("วันที่", _full_date(wd), 1.2, 7.8)])
+    field_row(doc, P[3], [("เรื่อง", "ขออนุญาตไปราชการ " + subject, 1.4, 14.6)])
+    field_row(doc, P[6], [("เรียน", head_title(school), 1.4, 14.6)])
+    intro = field_row(doc, P[8], [("ข้าพเจ้า", name, 1.6, 6.0), ("ตำแหน่ง", position, 1.8, 6.6)])
+    from docx.text.paragraph import Paragraph
+    spacer = OxmlElement("w:p"); intro._tbl.addnext(spacer)
+    purpose = ("☑ " + (getattr(record, 'purpose_other', '') if ptype == 'อื่นๆ' else ptype)) if ptype else ""
+    field_row(doc, Paragraph(spacer, doc), [("วิทยฐานะ", rank, 1.8, 6.0), ("ไปเพื่อ", purpose, 1.6, 6.6)])
+    details = field_row(doc, P[9], [("วันที่ไป", sd, 1.6, 5.0), ("ถึง", ed, 0.8, 5.0), ("รวม", days + " วัน", 1.0, 2.6)])
+    spacer = OxmlElement("w:p"); details._tbl.addnext(spacer)
+    place_table = field_row(doc, Paragraph(spacer, doc), [("สถานที่", place, 1.6, 14.4)])
+    spacer = OxmlElement("w:p"); place_table._tbl.addnext(spacer)
+    field_row(doc, Paragraph(spacer, doc), [("ตามหนังสือที่", doc_ref, 2.4, 6.2), ("ลงวันที่", doc_date, 1.6, 5.8)])
+    if reimburse == 'yes':
+        for run in P[12].runs:
+            if run.text.startswith("  งบประมาณ "): run.text = ""
+        field_row(doc, P[12], [("งบประมาณ", (f"{bud:,.2f} บาท" + (f" ({bw})" if bud and bw else "")) if bud else "", 2.0, 14.0)], after=True)
+    field_row(doc, P[17], [("ผู้ที่มอบหมายให้สอนแทน", substitute, 4.3, 11.7)])
+    left_align_body(doc)
+
     path = out / (_safe(f"ขออนุญาตไปราชการ_{name}_{getattr(record,'id','')}") + ".docx")
     doc.save(str(path))
     return str(path)
