@@ -569,6 +569,31 @@
     .nav-cta .btn{ padding:7px 10px; font-size:12.5px; }
     .nav-cta .btn-ghost{ border:0; padding:7px 4px; }
   }
+  /* บทความบน landing ใช้ข้อมูลเผยแพร่ชุดเดียวกับคลังความรู้ */
+  .landing-knowledge{padding:84px 0 72px;background:#f7f9fd;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .lk-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;margin-bottom:30px}
+  .lk-eyebrow{display:inline-flex;align-items:center;gap:7px;color:var(--blue);font-size:13px;font-weight:600;margin-bottom:12px}
+  .lk-eyebrow .ico{width:17px;height:17px}.lk-heading h2{font-size:32px;line-height:1.45;letter-spacing:-.5px;font-weight:700}.lk-heading h2>span{color:var(--blue)}
+  .lk-heading p{font-size:14px;line-height:1.9;color:var(--muted);margin-top:12px;max-width:620px}
+  .lk-all{flex:none;background:white;font-size:14px;gap:9px}.lk-all .ico{width:17px;height:17px}
+  .lk-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+  .lk-card{min-width:0;background:#fff;border:1px solid #e0e7f0;border-radius:18px;overflow:hidden;box-shadow:0 5px 18px #142e5b05;transition:transform .2s,box-shadow .2s}
+  .lk-card:hover{transform:translateY(-5px);box-shadow:0 14px 30px #142e5b12}.lk-card-link{display:flex;flex-direction:column;height:100%;color:var(--ink);text-decoration:none}
+  .lk-card-link:focus-visible{outline:3px solid var(--blue);outline-offset:-3px;border-radius:18px}.lk-cover{aspect-ratio:16/9;position:relative;overflow:hidden;background:#edf1f9}
+  .lk-cover-image{display:block;width:100%;height:100%;object-fit:cover;transition:transform .35s}.lk-card:hover .lk-cover-image{transform:scale(1.025)}
+  .lk-tone-0{--cover-bg:#e7eaff;--cover-ink:#4338ca;--cover-soft:#c5cdff}.lk-tone-1{--cover-bg:#fff0dc;--cover-ink:#b64c0b;--cover-soft:#ffd5a0}.lk-tone-2{--cover-bg:#dbf3ef;--cover-ink:#087f72;--cover-soft:#a6ded5}
+  .lk-cover-fallback{position:absolute;inset:0;background:var(--cover-bg);color:var(--cover-ink);display:flex;align-items:center;justify-content:center;overflow:hidden}.lk-cover-fallback:before{content:'';position:absolute;width:220px;height:220px;border:40px solid var(--cover-soft);border-radius:50%;right:-80px;bottom:-130px;opacity:.7}
+  .lk-cover-caption{position:absolute;top:14px;left:18px;font-size:10px;font-weight:600;letter-spacing:.2px}.lk-paper{position:relative;width:66%;min-height:62%;padding:17px 20px;background:#ffffffed;box-shadow:8px 9px 0 #ffffff60,0 8px 15px #1b225417;transform:rotate(-5deg);border-radius:7px}
+  .lk-paper>span{font-size:10px;font-weight:600;display:block}.lk-paper strong{display:block;font-size:34px;line-height:1.5;font-weight:700;overflow-wrap:anywhere}.lk-paper i{display:block;width:68%;height:3px;background:var(--cover-soft);border-radius:4px;margin-top:6px}.lk-paper i:last-child{width:45%}
+  .lk-cover-corner{position:absolute;bottom:12px;right:15px;font-size:8px;font-weight:600;letter-spacing:1px;opacity:.65}
+  .lk-content{display:flex;flex-direction:column;padding:21px;flex:1}.lk-tags{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:11px;color:var(--blue);font-weight:600}.lk-featured{color:#9a5a06;background:#fff4d5;border-radius:5px;padding:2px 7px}
+  .lk-content h3{font-size:17px;line-height:1.65;font-weight:600;overflow-wrap:anywhere}.lk-content>p{color:var(--muted);font-size:12px;line-height:1.9;margin-top:10px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere}
+  .lk-card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-top:23px;font-size:11px;color:#7b879b}.lk-read{display:inline-flex;align-items:center;gap:5px;color:var(--blue);font-size:12px;font-weight:600}.lk-read .ico{width:15px;height:15px;flex:none}
+  .lk-note{font-size:12px;color:var(--muted);text-align:center;margin-top:26px}.hero-knowledge{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--blue);margin-top:0;margin-bottom:24px;text-underline-offset:4px}.hero-knowledge .ico{width:16px;height:16px}
+  @media(max-width:960px){.lk-grid{gap:14px}.lk-content{padding:17px}.lk-content h3{font-size:16px}.lk-heading h2{font-size:29px}.lk-paper{padding:14px}.lk-paper strong{font-size:27px}}
+  @media(max-width:720px){.landing-knowledge{padding:54px 0}.lk-heading{align-items:flex-start;flex-direction:column;gap:18px}.lk-heading h2{font-size:27px}.lk-grid{grid-template-columns:1fr;gap:22px}.lk-card{max-width:540px;width:100%;margin:0 auto}.lk-content{padding:21px}.lk-content h3{font-size:18px}.lk-content>p{font-size:13px}.lk-paper{padding:18px 24px}.lk-paper strong{font-size:40px}.lk-note{text-align:left;line-height:1.9}.lk-cover-caption{font-size:11px}.lk-card-footer{font-size:12px}}
+  @media(prefers-reduced-motion:reduce){.lk-card,.lk-cover-image{transition:none}.lk-card:hover,.lk-card:hover .lk-cover-image{transform:none}}
+
 </style>
 </head>
 <body>
@@ -640,6 +665,7 @@
         <div class="stat"><b>6<em>+</em></b><span>งานหลักในระบบเดียว</span></div>
         <div class="stat"><b>1 <em>คลิก</em></b><span>ออกเอกสารครบชุด</span></div>
       </div>
+      {% if kb_preview %}<a class="hero-knowledge" href="#knowledge"><svg class="ico" aria-hidden="true"><use href="#ic-doc"/></svg> มีบทความสำหรับครูให้อ่านฟรี <span aria-hidden="true">→</span></a>{% endif %}
       {% if live %}
       {# ตัวเลขจริงจากระบบ อัปเดตวันละครั้ง (app/services/public_stats.py) #}
       <div class="live">
@@ -824,6 +850,44 @@
     </div>
   </div>
 </section>
+
+{% if kb_preview %}
+<section class="landing-knowledge" id="knowledge" aria-labelledby="landing-knowledge-title">
+  <div class="wrap">
+    <div class="lk-heading">
+      <div>
+        <span class="lk-eyebrow"><svg class="ico" aria-hidden="true"><use href="#ic-doc"/></svg> คลังความรู้สำหรับครู</span>
+        <h2 id="landing-knowledge-title">เรื่องงานโรงเรียน<br><span>อ่านให้เข้าใจ ก่อนลงมือทำ</span></h2>
+        <p>สรุปเรื่องระเบียบ เอกสาร และวิธีใช้งานระบบ อ่านฟรี ไม่ต้องเข้าสู่ระบบ</p>
+      </div>
+      <a class="btn btn-ghost lk-all" href="/knowledge">ดูบทความทั้งหมด <svg class="ico" aria-hidden="true"><use href="#ic-arrow-right"/></svg></a>
+    </div>
+    <div class="lk-grid">
+      {% for article in kb_preview %}
+      <article class="lk-card lk-tone-{{ loop.index0 % 3 }}">
+        <a class="lk-card-link" href="/knowledge/{{ article.slug }}">
+          <div class="lk-cover">
+            {% if article.image %}
+            <img class="lk-cover-image" src="{{ article.image }}" alt="{{ article.image_alt }}" width="640" height="360" loading="lazy" decoding="async">
+            {% else %}
+            <div class="lk-cover-fallback" aria-hidden="true"><span class="lk-cover-caption">เรื่องที่ครูควรรู้</span><div class="lk-paper"><span>{{ article.category or 'งานโรงเรียน' }}</span><strong>{{ article.cover or 'คู่มือครู' }}</strong><i></i><i></i></div><span class="lk-cover-corner">EASY EKKASAN</span></div>
+            {% endif %}
+          </div>
+          <div class="lk-content">
+            <div class="lk-tags"><span>{{ article.category or 'งานโรงเรียน' }}</span>{% if article.featured %}<span class="lk-featured">เรื่องแนะนำ</span>{% endif %}</div>
+            <h3>{{ article.title }}</h3>
+            {% if article.description %}<p>{{ article.description }}</p>{% endif %}
+            <div class="lk-card-footer"><span>อ่าน {{ article.minutes }} นาที</span><span class="lk-read">อ่านบทความ <svg class="ico" aria-hidden="true"><use href="#ic-arrow-right"/></svg></span></div>
+          </div>
+        </a>
+      </article>
+      {% endfor %}
+    </div>
+    <p class="lk-note">เลือกอ่านเรื่องที่กำลังทำอยู่ แล้วกลับมาใช้เป็นตัวช่วยระหว่างเตรียมเอกสารได้</p>
+  </div>
+</section>
+{% endif %}
+
 
 <!-- ================= ราคา ================= -->
 {% set px = prices | default(price_list()) %}

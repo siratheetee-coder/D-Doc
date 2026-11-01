@@ -69,9 +69,12 @@ def landing_page(request: Request, ref: str = "", utm_source: str = ""):
     msg = request.session.pop("sandbox_msg", None) if "sandbox_msg" in request.session else None
     from app.services.public_stats import landing_stats
     from app.services import articles as _articles
+    published = _articles.all_articles()
+    # all_articles already sorts newest first; stable sort puts pinned articles first.
+    preview = sorted(published, key=lambda article: not article["featured"])[:3]
     resp = templates.TemplateResponse("landing.html", {"request": request, "sandbox_msg": msg,
                                                        "live": landing_stats(), "site_url": site_url(),
-                                                       "kb_count": len(_articles.all_articles()),
+                                                       "kb_count": len(published), "kb_preview": preview,
                                                        **pricing_context()})
     return _remember_ref(resp, ref or utm_source)
 
