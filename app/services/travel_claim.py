@@ -19,3 +19,14 @@ def source(db, request_id):
 
 def existing(db, request_id):
     return db.query(DisburseMemo).filter_by(travel_request_id=request_id).order_by(DisburseMemo.id.desc()).first()
+
+
+def pending(db):
+    """Approved expense requests without a finance memo, across all fiscal years."""
+    from sqlalchemy import or_, and_, func
+    from sqlalchemy.orm import selectinload
+    flag=func.trim(func.coalesce(TravelRequest.reimburse, ''))
+    claimed=db.query(DisburseMemo.id).filter(DisburseMemo.travel_request_id==TravelRequest.id).exists()
+    return (db.query(TravelRequest).options(selectinload(TravelRequest.person))
+            .filter(TravelRequest.status=='approved',
+                    or_(flag=='yes',and_(flag=='',TravelRequest.budget>0)), ~claimed))

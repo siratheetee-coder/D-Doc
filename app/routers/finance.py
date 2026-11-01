@@ -2823,3 +2823,15 @@ def case_staff_save(kind: str, rid: int, db: Session = Depends(get_db), staff_se
     record = _staff_case(db, kind, rid)
     staff.apply(db, record, staff_selection); db.commit()
     return RedirectResponse(f'/finance/{kind}?year={record.fiscal_year}', status_code=303)
+
+
+@router.get('/finance/travel-claims', response_class=HTMLResponse)
+def travel_claim_queue(request: Request, page: int = 1, db: Session = Depends(get_db)):
+    from app.services.travel_claim import pending
+    query=pending(db)
+    count=query.count(); pages=max(1,(count+29)//30)
+    page=max(1,min(page,pages))
+    rows=query.order_by(TravelRequest.submitted_at,TravelRequest.id).offset((page-1)*30).limit(30).all()
+    return templates.TemplateResponse('finance_travel_claims.html',{
+        'request':request,'rows':rows,'count':count,'page':page,'pages':pages,
+        'be_date':be_date_input,'fy_of':current_fiscal_year})

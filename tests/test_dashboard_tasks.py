@@ -19,7 +19,7 @@ class DashboardTests(unittest.TestCase):
                 db.add(loan)
             db.add_all([DisburseMemo(fiscal_year=2569,status='ร่าง'),DisburseMemo(fiscal_year=2569,status='จ่ายแล้ว'),DisburseMemo(fiscal_year=2568,status='อนุมัติ')]);db.commit()
             cards=finance_tasks(db,2569,today)
-            self.assertEqual([x['count'] for x in cards],[1,2,1,1])
+            self.assertEqual([x['count'] for x in cards],[1,2,1,1,0])
             self.assertIn('60.00', cards[0]['items'][0]['detail'])
             self.assertIn('year=2568',cards[0]['items'][0]['href'])
         engine.dispose()

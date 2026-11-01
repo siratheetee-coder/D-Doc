@@ -27,10 +27,19 @@ def finance_tasks(db, year, today=None):
     cards = []
     for key, label in [('overdue','เงินยืมเกินกำหนด'),('soon','ครบกำหนดวันนี้-7 วันข้างหน้า'),('undated','เงินยืมยังไม่ระบุวันครบกำหนด')]:
         items = sorted(groups[key], key=lambda x: x['due'] or datetime.max)
-        cards.append(dict(label=label, count=len(items), items=items[:5], href=f'/finance/loans?attention={key}', tone='urgent' if key=='overdue' else 'normal'))
+        cards.append(dict(icon={'overdue':'alert','soon':'clock','undated':'calendar'}[key], label=label, count=len(items), items=items[:5], href=f'/finance/loans?attention={key}', tone='urgent' if key=='overdue' else 'normal'))
     memos = db.query(DisburseMemo).filter(DisburseMemo.fiscal_year==year, DisburseMemo.status.in_(['ร่าง','อนุมัติ'])).order_by(DisburseMemo.id).all()
-    cards.append(dict(label=f'บันทึกเบิกจ่ายยังไม่จ่าย · ปี {year}', count=len(memos), tone='normal', href=f'/finance/disburse?attention=1&year={year}',
+    cards.append(dict(icon='coins',label=f'บันทึกเบิกจ่ายยังไม่จ่าย · ปี {year}', count=len(memos), tone='normal', href=f'/finance/disburse?attention=1&year={year}',
         items=[dict(title=m.subject or m.memo_no or 'บันทึกเบิกจ่าย', detail=m.status, href=f'/finance/disburse/{m.id}') for m in memos[:5]]))
+    from app.services.travel_claim import pending
+    query=pending(db)
+    requests=query.order_by(TravelRequest.submitted_at,TravelRequest.id).limit(5).all()
+    cards.append(dict(key='travel-claim',icon='send',feature=True,
+        label='คำขอไปราชการรอทำเรื่องเบิก',count=query.count(),tone='travel',
+        href='/finance/travel-claims',empty='ยังไม่มีคำขอไปราชการรอทำเรื่องเบิก',
+        items=[dict(title=r.person.name if r.person else 'ไม่ระบุผู้ขอ',
+                    detail=f'{r.subject or "ไปราชการ"} · งบประมาณ {float(r.budget or 0):,.2f} บาท',
+                    action='ทำเรื่องเบิก',href=f'/finance/disburse?travel={r.id}') for r in requests]))
     return cards
 
 
