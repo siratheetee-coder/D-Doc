@@ -18,8 +18,8 @@ def test_project_priority_and_procurement_fallback(db, monkeypatch, tmp_path):
     school=db.query(School).first()
     path=render_disburse(memo,school)
     text='\n'.join(p.text for p in Document(path).paragraphs)
-    assert 'เพื่อใช้ในโครงการ/กิจกรรม '+selected.name in text
-    assert 'เพื่อใช้ในโครงการ/กิจกรรม ข้อความอื่น' not in text
+    assert 'เพื่อใช้'+selected.name in text
+    assert 'ข้อความอื่น' not in text
     memo.project_id=None
     assert _disburse_project_name(memo)==linked.name
     proc.project_id=None

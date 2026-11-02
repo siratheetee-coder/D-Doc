@@ -44,6 +44,10 @@ def _director_office(school) -> str:
     return head_title(school)
 
 
+_MONTHS = ["", "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+           "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"]
+
+
 def _fmt(v) -> str:
     return "{:,.2f}".format(float(v or 0))
 
@@ -71,7 +75,15 @@ def _set_cell(cell, text, *, bold=False, align="left", size=16):
     r._element.rPr.rFonts.set(qn("w:cs"), "TH Sarabun New")
 
 
-def _money_breakdown(doc, lines):
+def _amt(v) -> str:
+    """ตัวเลขในตารางบันทึกขอเบิก ตามแบบที่โรงเรียนใช้: ศูนย์เป็น - จำนวนเต็มไม่มีทศนิยม"""
+    v = round(float(v or 0), 2)
+    if not v:
+        return "-"
+    return "{:,.0f}".format(v) if v == int(v) else "{:,.2f}".format(v)
+
+
+def _money_breakdown(doc, lines, bold_last=True):
     """ตารางไร้เส้น 3 คอลัมน์: ป้ายกำกับ | จำนวนเงิน(ชิดขวา) | บาท/คำอ่าน"""
     table = doc.add_table(rows=len(lines), cols=3)
     _no_borders(table)
@@ -79,7 +91,7 @@ def _money_breakdown(doc, lines):
     widths = [Cm(6.5), Cm(3.5), Cm(6.5)]
     for i, (label, amount, tail) in enumerate(lines):
         cells = table.rows[i].cells
-        bold = (i == len(lines) - 1)
+        bold = bold_last and (i == len(lines) - 1)
         _set_cell(cells[0], label, bold=bold, align="left")
         _set_cell(cells[1], amount, bold=bold, align="right")
         _set_cell(cells[2], tail, bold=bold, align="left")
@@ -131,11 +143,12 @@ def render_disburse(memo, school) -> str:
     payee = memo.payee or "..............................."
     project_name = _disburse_project_name(memo)
 
-    _p_runs(doc, [("ส่วนราชการ  ", True), (_school_office(school), False)])
-    _p_runs(doc, [("ที่  ", True), (memo.memo_no or "", False),
+    office = " ".join(x for x in [(school.name or "").strip(), (getattr(school, "area_office", "") or "").strip()] if x)
+    _p_runs(doc, [("ส่วนราชการ  ", True), (office or _school_office(school), False)])
+    _p_runs(doc, [("ที่  ", True), (memo.memo_no or "....................................", False),
                   ("\t", False), ("วันที่ ", True), (thai_date(memo.date), False)], tab_cm=8)
     _p_runs(doc, [("เรื่อง  ", True),
-                  (f"ขออนุมัติเบิกจ่ายเงินนอกงบประมาณ ประเภท{src}", False)])
+                  (f"ขออนุมัติเบิกจ่ายเงิน ประเภท{src}", False)])
     _p_runs(doc, [("เรียน  ", True), (_director_office(school), False)])
     _hr(doc)
 
@@ -146,22 +159,22 @@ def render_disburse(memo, school) -> str:
            f"{(' ' + project_name) if project_name else '..............................'} "
            f"โดยมีค่าใช้จ่ายเป็น{memo.subject or '..............................'} "
            f"จ่ายให้ {payee} จำนวนเงิน {_fmt(amount)} บาท ({bahttext(amount)}) "
-           f"(รายละเอียดตามหลักฐานการจ่ายที่แนบ) และในการนี้โรงเรียนขอใช้เงินนอกงบประมาณ ประเภท{src} นั้น",
+           f"(รายละเอียดตามหลักฐานการจ่ายที่แนบ) และในการนี้โรงเรียนขอใช้เงินประเภท{src} นั้น",
            align="justify", indent=1.25, after=2)
-        _p(doc, "เห็นควรเบิกจ่ายให้แก่ผู้มีสิทธิ์รับเงิน ตามหลักฐานที่แนบ โดยมีรายละเอียดดังนี้",
+        _p(doc, "เห็นสมควรเบิกจ่ายให้แก่ผู้มีสิทธิ์รับเงิน ตามหลักฐานที่แนบ โดยมีรายละเอียดดังนี้",
            align="justify", indent=1.25, after=2)
         _money_breakdown(doc, [
-            ("จำนวนเงินขอเบิก", _fmt(amount), "บาท"),
-            ("หัก ภาษี ณ ที่จ่าย", _fmt(wht), "บาท"),
-            ("คงเหลือจ่ายจริง", _fmt(net), f"บาท  ({bahttext(net)})"),
-        ])
+            ("จำนวนเงินขอเบิก", _amt(amount), "บาท"),
+            ("หัก ภาษี ณ ที่จ่าย", _amt(wht), "บาท"),
+            ("คงเหลือจ่ายจริง", _amt(net), "บาท"),
+        ], bold_last=False)
     else:
         _disburse_purchase_body(doc, school, memo, kind, project_name, payee, src,
                                 amount, vat, goods, wht, fine, net)
     if split_rows:
         _split_sources(doc, split_rows, wht, fine)
     _p(doc, "", after=2)
-    _p(doc, "จึงเรียนมาเพื่อโปรดอนุมัติ", align="justify", indent=1.25, after=10)
+    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ", indent=1.25, after=10)
     _disburse_tail(doc, school, memo, net)
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)
@@ -186,45 +199,72 @@ def _split_sources(doc, rows, wht, fine):
 
 
 def _disburse_purchase_body(doc, school, memo, kind, project_name, payee, src, amount, vat, goods, wht, fine, net):
-    # ย่อหน้านำ
+    # ย่อหน้านำตามแบบโรงเรียน: ด้วยฝ่าย... จัดซื้อ/จัดจ้าง ... เพื่อใช้โครงการ... กิจกรรม... ราคา...
+    hire = kind == "จัดจ้าง"
+    dept, activity = _disburse_dept_activity(memo)
+    runs = [("ด้วย", False), (dept or "ฝ่าย..............................", bool(dept)),
+            (f"  {kind}{(memo.subject or '').strip()}  เพื่อใช้", False),
+            (project_name or "โครงการ..............................", bool(project_name))]
+    if activity:
+        runs += [(" กิจกรรม", False), (activity, True)]
+    runs.append((f"  ราคา {_amt(amount)} บาท ({bahttext(amount)})", False))
+    _p_runs(doc, runs, indent=1.25, align="justify", after=2)
     _p(doc,
-       f"ตามที่{school.name or 'โรงเรียน'} ได้ดำเนินการ{kind}{memo.subject or ''} "
-       f"เพื่อใช้ในโครงการ/กิจกรรม{(' ' + project_name) if project_name else '..............................'} "
-       f"(รายละเอียดตามที่แนบ) ตามใบส่งสินค้า/ใบกำกับภาษี เลขที่.................. ลงวันที่.................. "
-       f"จาก {payee} จำนวนเงิน {_fmt(amount)} บาท ({bahttext(amount)}) "
-       f"และในการนี้โรงเรียนขอใช้เงินนอกงบประมาณ ประเภท{src} นั้น",
+       f"บัดนี้ {'ผู้รับจ้าง' if hire else 'ผู้ขาย'}  ได้ส่งมอบ{'งาน' if hire else 'พัสดุ'}ถูกต้องครบถ้วนแล้ว  "
+       "ตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560",
        align="justify", indent=1.25, after=2)
-    _p(doc,
-       "บัดนี้ ผู้ขายได้ส่งมอบงานถูกต้องครบถ้วนแล้ว ตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้าง"
-       "และการบริหารพัสดุภาครัฐ พ.ศ. 2560", align="justify", indent=1.25, after=2)
-    _p(doc, "เห็นควรเบิกจ่ายให้แก่ผู้ขาย ตามใบส่งของ โดยมีรายละเอียดดังนี้",
+    _p(doc, (f"เห็นสมควรเบิกจ่ายให้แก่{'ผู้รับจ้าง' if hire else 'ผู้ขาย'}  "
+             f"ตาม{'ใบสั่งจ้างหรือสัญญาจ้าง' if hire else 'ใบสั่งซื้อหรือสัญญาซื้อขาย'}  โดยมีรายละเอียดดังนี้"),
        align="justify", indent=1.25, after=2)
 
     _money_breakdown(doc, [
-        ("จำนวนเงินขอเบิก", _fmt(amount), "บาท"),
-        ("ภาษีมูลค่าเพิ่ม", _fmt(vat), "บาท"),
-        ("มูลค่าสินค้า", _fmt(goods), "บาท"),
-        ("หัก ภาษี ณ ที่จ่าย", _fmt(wht), "บาท"),
-        ("ค่าปรับ", _fmt(fine), "บาท"),
-        ("คงเหลือจ่ายจริง", _fmt(net), f"บาท  ({bahttext(net)})"),
-    ])
+        ("จำนวนเงินขอเบิก", _amt(amount), "บาท"),
+        ("รวมราคา", _amt(goods), "บาท"),
+        ("ค่าภาษีมูลค่าเพิ่ม", _amt(vat), "บาท"),
+        ("จำนวนเงินรวมทั้งสิ้น", _amt(amount), "บาท"),
+        ("หัก ภาษี ณ ที่จ่าย", _amt(wht), "บาท"),
+        ("ค่าปรับ", _amt(fine), "บาท"),
+        ("คงเหลือจ่ายจริง", _amt(net), "บาท"),
+    ], bold_last=False)
+
+
+def _disburse_dept_activity(memo):
+    """ฝ่ายที่ขอ (จากเรื่องจัดซื้อ หรือผู้รับผิดชอบโครงการ) และชื่อกิจกรรม"""
+    from sqlalchemy.orm import object_session
+    from app.models import Procurement, Project, ProjectActivity
+    db = object_session(memo)
+    if db is None:
+        return "", ""
+    proc = db.get(Procurement, memo.procurement_id) if memo.procurement_id else None
+    project = db.get(Project, memo.project_id) if memo.project_id else None
+    if project is None and proc is not None and proc.project_id:
+        project = db.get(Project, proc.project_id)
+    dept = ((proc.department if proc else "") or (project.responsible if project else "") or "").strip()
+    act_id = memo.activity_id or (proc.activity_id if proc else None)
+    act = db.get(ProjectActivity, act_id) if act_id else None
+    return dept, ((act.name if act else "") or "").strip()
 
 
 def _disburse_tail(doc, school, memo, net):
     # ลงนามเจ้าหน้าที่การเงิน
     fin = (school.finance_officer_name or school.officer_name or "").strip()
-    _sign_table(doc, [[
-        ("ลงชื่อ.........................................เจ้าหน้าที่การเงิน", "center"),
-        (f"( {fin} )", "center"),
+    d = memo.date
+    when = f"{d.day}/{_MONTHS[d.month]}/{d.year + 543}" if d else "......../................/........"
+    _sign_table(doc, [[("", "center")], [
+        ("ลงชื่อ ......................................", "center"),
+        (f"({fin})" if fin else "(......................................)", "center"),
+        ("เจ้าหน้าที่การเงิน", "center"),
+        (when, "center"),
     ]])
 
-    # บล็อกอนุมัติของผู้อำนวยการ
-    _p(doc, "", after=6)
-    _p(doc, "1.  ทราบ", indent=1.25, after=1)
-    _p(doc, f"2.  อนุมัติให้จ่ายเงิน {_fmt(net)} บาท ({bahttext(net)})", indent=1.25, after=10)
-    _sign_table(doc, [[
-        ("ลงชื่อ.........................................", "center"),
-        (f"( {(school.director_name or '').strip()} )", "center"),
+    # ความเห็นของผู้อำนวยการ
+    _p(doc, "", after=4)
+    _p(doc, f"ความเห็นของ{_director_office(school)}", indent=0.5, after=2)
+    _p(doc, "☐  อนุมัติ          ☐  ไม่อนุมัติ", indent=1.0, after=10)
+    director = (school.director_name or "").strip()
+    _sign_table(doc, [[("", "center")], [
+        ("ลงชื่อ ......................................", "center"),
+        (f"({director})" if director else "(......................................)", "center"),
         (_director_office(school), "center"),
+        (when, "center"),
     ]])
-    _p(doc, "วันที่.........................................", align="center", after=2)
