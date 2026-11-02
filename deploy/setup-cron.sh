@@ -49,13 +49,15 @@ if [ "${1:-}" = "--remove" ]; then
   exit 0
 fi
 
+# งานที่เปิดฐานข้อมูลต้องรันด้วยผู้ใช้ ddoc เสมอ: ถ้า root เปิดฐานโหมด WAL ตอนที่แอปไม่ได้เปิดค้างไว้
+# จะได้ไฟล์ -wal/-shm ของ root แอปเปิดฐานไม่ได้ ขึ้น disk I/O error ตลอดช่วงนั้น (เจอจริง ต.ค.-พ.ย. 2569)
 NEW="$(cat <<EOF
 $CURRENT
 0 2 * * * $BACKUP_SH >> /var/log/ddoc-backup.log 2>&1 $MARK
 */15 * * * * $HEALTH_SH >> /var/log/ddoc-health.log 2>&1 $MARK
-30 3 * * * cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.retention >> /var/log/ddoc-retention.log 2>&1 $MARK
-0 9 * * * cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.trial_notice >> /var/log/ddoc-trial-notice.log 2>&1 $MARK
-0 8 * * * cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.member_notice >> /var/log/ddoc-member-notice.log 2>&1 $MARK
+30 3 * * * runuser -u ddoc -- bash -c "cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.retention" >> /var/log/ddoc-retention.log 2>&1 $MARK
+0 9 * * * runuser -u ddoc -- bash -c "cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.trial_notice" >> /var/log/ddoc-trial-notice.log 2>&1 $MARK
+0 8 * * * runuser -u ddoc -- bash -c "cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.member_notice" >> /var/log/ddoc-member-notice.log 2>&1 $MARK
 0 4 1 * * $APP_DIR/deploy/restore-drill.sh >> /var/log/ddoc-restore-drill.log 2>&1 $MARK
 0 5 * * * runuser -u ddoc -- bash -c "cd $APP_DIR && nice -n 19 $APP_DIR/.venv/bin/python -m app.services.finance_health" >> /var/log/ddoc-finance-health.log 2>&1 $MARK
 EOF
