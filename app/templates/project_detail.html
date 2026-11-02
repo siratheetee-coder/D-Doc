@@ -34,34 +34,14 @@
   {% if not p.revisions and b > 0 %}{{ set_budget_form() }}{% endif %}
   {% if err %}<div class="alert warn" style="margin-top:12px;"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
 
-  {# เงินของโครงการมาจากไหน: งบโครงการ (ต้องใช้เท่าไร) กับ ระบุรายการเงินแล้ว (บันทึกที่มาไว้เท่าไร)
-     เป็นคนละตัวเลขโดยตั้งใจ (docs/plan-funding.md) โครงการยังระบุรายการเงินไม่ครบได้ จึงบอกยอดที่ยังไม่ระบุให้เห็นชัด
-     โรงเรียนที่ไม่ได้ใช้การจัดสรรงบ ไม่ต้องเห็นส่วนนี้ #}
-  {# เงินที่ใช้ไปก่อนเริ่มใช้ระบบ จ่ายจากเงินที่ไม่ได้อยู่ในแผนแล้ว (แผนนำเข้าแค่เงินที่ยังเหลือตอนเริ่มใช้ระบบ)
-     จึงไม่ต้องจัดสรร ไม่งั้นโครงการที่ใช้ไปแล้ว 8,000 จะขึ้นว่า "ยังไม่ได้จัดสรร 8,000" ไปตลอด #}
-  {% set before = p.spent_before or 0 %}
-  {% set gap = b - before - (funding_assigned or 0) %}
-  {% if funding_assigned or funding_rows %}
+  {% set given = funding_rows|selectattr('linked')|list %}
+  {% if given or can_finance %}
   <div class="pj-fund">
-    <div class="pj-fund-line">
-      <span>งบโครงการ <b>{{ "{:,.2f}".format(b) }}</b></span>
-      {% if before > 0 %}<span>ใช้ไปก่อนเริ่มใช้ระบบ <b>{{ "{:,.2f}".format(before) }}</b> (ไม่ต้องระบุรายการเงินซ้ำ)</span>{% endif %}
-      <span>ระบุรายการเงินแล้ว <b>{{ "{:,.2f}".format(funding_assigned or 0) }}</b></span>
-      {% if gap > 0 %}<span class="pj-gap">ยังไม่ระบุรายการเงิน <b>{{ "{:,.2f}".format(gap) }}</b></span>
-      {% else %}<span class="pj-full">ระบุรายการเงินครบแล้ว</span>{% endif %}
-    </div>
-    {% if b > 0 %}<div class="pj-bar"><span style="width:{{ ([(funding_assigned or 0) + before, b]|min / b * 100)|round(1) }}%"></span></div>{% endif %}
-    {% set given = funding_rows|selectattr('value')|list %}
-    {% if given %}
-    <div class="pj-src">เงินมาจาก
-      {% for r2 in given %}
-        {% if r2.item %}<a href="/finance/accounts/{{ r2.item.account_id }}?year={{ r2.item.fiscal_year }}">{{ r2.item.account.name }} / {{ r2.item.name }}</a>
-        {% else %}<span>{{ r2.source.name }}</span>{% endif %} {{ "{:,.2f}".format(r2.value) }}{% if not loop.last %} {% endif %}
-      {% endfor %}
-    </div>
-    {% elif gap > 0 %}
-    <div class="pj-src">ยังไม่ได้ระบุรายการเงินของโครงการนี้ เลือกได้ที่หัวข้อด้านล่าง</div>
-    {% endif %}
+    <b>บัญชีเงินที่เชื่อมกับโครงการ</b>
+    <div class="pj-src">{% for r2 in given %}
+      {% if r2.item %}<a href="/finance/accounts/{{ r2.item.account_id }}?year={{ r2.item.fiscal_year }}">{{ r2.item.account.name }} / {{ r2.item.name }}</a>{% else %}{{ r2.source.name }}{% endif %}{% if not loop.last %} · {% endif %}
+    {% else %}<a href="#project-funding">เลือกบัญชีเงินที่โครงการใช้ได้ด้านล่าง</a>{% endfor %}</div>
+    <small class="muted">การเชื่อมบัญชีไม่กันเงินจากกองกลาง ยอดคงเหลือลดเมื่อบันทึกจ่ายจริง</small>
   </div>
   {% endif %}
   <style>
@@ -83,7 +63,7 @@
   </style>
 </div>
 
-{# จัดสรรเงินเป็นของงานการเงิน (หน้างบแผน/ปุ่มจัดสรรอยู่ใต้ /plan-budget) ไม่มีสิทธิ์ก็ไม่ต้องโชว์ #}
+{# เชื่อมบัญชีเงินเป็นของงานการเงิน (หน้า /plan-budget) ไม่มีสิทธิ์ก็ไม่ต้องโชว์ #}
 {% if can_finance %}{% include 'project_funding.html' %}{% endif %}
 
 <div class="card">
@@ -115,35 +95,8 @@
   {% endif %}
 </div>
 
-{# วางหลังฟอร์มแก้งบและฟอร์มปรับงบ (สคริปต์หาฟอร์มตอนรัน ถ้าวางก่อนจะหาไม่เจอ)
-   ปรับงบ/แก้งบ เทียบกับเงินที่จัดสรรไว้ทันทีที่พิมพ์ (เดิมกดแล้วเด้งไปหน้าข้อผิดพลาด)
-   ต่ำสุด = จัดสรรแล้ว + ใช้ไปก่อนเริ่มใช้ระบบ ตรงกับ guard_project ฝั่งเซิร์ฟเวอร์ #}
-{% set fa = funding_assigned or 0 %}
-<script>
-(function () {
-  var assigned = {{ fa }}, before = {{ (p.spent_before or 0) if fa else 0 }}, current = {{ b }}, hasPlan = {{ 'true' if funding_rows else 'false' }};
-  var floor = Math.round((assigned + before) * 100) / 100;
-  var fmt = function (n) { return n.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
-  document.querySelectorAll('.pj-budget-in').forEach(function (inp) {
-    var form = inp.form, msg = form.querySelector('.pj-bmsg'), btn = form.querySelector('button[type=submit]');
-    function check() {
-      var v = Number(String(inp.value).replace(/,/g, '').trim());
-      msg.hidden = true; msg.className = 'pj-bmsg'; btn.disabled = false;
-      if (!inp.value || isNaN(v)) return;
-      if (assigned > 0 && v < floor - 0.004) {
-        msg.innerHTML = 'งบต้องไม่ต่ำกว่า <b>' + fmt(floor) + '</b> บาท เพราะจัดสรรเงินให้โครงการนี้ไว้ ' + fmt(assigned) +
-          (before ? ' และใช้ไปก่อนเริ่มใช้ระบบ ' + fmt(before) : '') +
-          ' <a href="#project-funding">ลดการจัดสรรก่อน</a> แล้วค่อยลดงบ';
-        msg.className = 'pj-bmsg is-bad'; msg.hidden = false; btn.disabled = true;
-      } else if (hasPlan && v > current + 0.004) {
-        msg.textContent = 'งบเพิ่ม ' + fmt(v - current) + ' บาท บันทึกแล้วระบบจะพาไปจัดสรรเงินส่วนที่เพิ่ม';
-        msg.className = 'pj-bmsg is-up'; msg.hidden = false;
-      }
-    }
-    inp.addEventListener('input', check); check();
-  });
-})();
-</script>
+
+
 <style>
   .pj-bmsg{ margin-top:8px; padding:8px 12px; border-radius:10px; font-size:13.5px; flex-basis:100%; }
   .pj-bmsg[hidden]{ display:none !important; }

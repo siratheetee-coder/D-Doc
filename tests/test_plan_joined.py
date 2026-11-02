@@ -70,11 +70,10 @@ def test_allocation_leaves_out_what_was_spent_before_the_system(db):
     import_all(db, p, 'opening')
     pj = Project(name='กีฬาสี', plan_year=2569, budget=30000, spent_before=8000); db.add(pj); db.commit()
     fid = str(pf.sources(db, p)[0].id)
-    with pytest.raises(ValueError, match='22,000.00'):
-        pf.allocate(db, p, pj, {fid: '30000'}, pf.allocation_token(db, p, pj))
-    db.rollback()
-    pf.allocate(db, p, pj, {fid: '22000'}, pf.allocation_token(db, p, pj)); db.commit()
-    assert pf.project_allocated(db, pj.id) == 22000
+    pf.allocate(db, p, pj, {fid: '30000'}, pf.allocation_token(db, p, pj)); db.commit()
+    assert pf.project_allocated(db, pj.id) == 0
+    assert pf.project_link_count(db, pj.id) == 1
+    assert pf.summary(db, p)['remaining'] == 50000
 
 
 def test_review_page_explains_where_it_looked(env):
@@ -104,8 +103,8 @@ def test_project_page_does_not_call_pre_system_spending_unallocated(env):
         pid, fid = pj.id, str(pf.sources(s, p)[0].id)
         pf.allocate(s, p, pj, {fid: '22000'}, pf.allocation_token(s, p, pj)); s.commit()
     html = env.get(f'/projects/{pid}').text
-    assert 'ใช้ไปก่อนเริ่มใช้ระบบ <b>8,000.00</b> (ไม่ต้องระบุรายการเงินซ้ำ)' in html
-    assert 'ระบุรายการเงินครบแล้ว' in html and 'ยังไม่ระบุรายการเงิน <b>' not in html
+    assert 'บัญชีเงินที่เชื่อมกับโครงการ' in html
+    assert 'ไม่กันเงินจากกองกลาง' in html and 'ยังไม่ระบุรายการเงิน <b>' not in html
 
 
 def test_plan_page_shows_steps_and_status(env):
@@ -127,8 +126,8 @@ def test_plan_page_shows_steps_and_status(env):
     keys = re.findall(r'name="selected" value="([^"]+)"', review)
     env.post('/plan-budget/2569/apply', data={'kind': 'opening', 'snapshot_id': '0', 'token': tok, 'selected': keys})
     html = env.get('/plan-budget/2569').text
-    assert 'นำเข้าแล้ว 50,000.00' in html and 'ขั้นที่ 3 แบ่งเงินให้แต่ละโครงการ' in html
-    assert 'กีฬาสี' in html and 'ยังไม่ได้แบ่ง' in html and '#project-funding' in html
+    assert 'นำเข้าแล้ว 50,000.00' in html and 'ขั้นที่ 3 เชื่อมบัญชีเงินกับโครงการ' in html
+    assert 'กีฬาสี' in html and 'ยังไม่ได้เชื่อม' in html and '#project-funding' in html
     with tn.session_for(sid) as s:
         s.query(AccountItem).filter_by(fiscal_year=2570).first().opening_balance = 42000; s.commit()
     html = env.get('/plan-budget/2569').text

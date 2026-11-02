@@ -51,8 +51,7 @@ def setup_steps(db, fy, school=None, *, selected_plan_year=None) -> dict:
         funds = db.query(PlanFunding).filter(PlanFunding.plan_id.in_([p.id for p in plans])).all()
     allocs = []
     if funds:
-        allocs = db.query(ProjectFunding).filter(ProjectFunding.funding_id.in_([f.id for f in funds]),
-                                                 ProjectFunding.amount > 0).all()
+        allocs = db.query(ProjectFunding).filter(ProjectFunding.funding_id.in_([f.id for f in funds])).all()
     n_projects = db.query(Project).filter(Project.plan_year == plan_year).count()
     in_plan = round(sum(f.amount or 0 for f in funds), 2)
 
@@ -76,10 +75,10 @@ def setup_steps(db, fy, school=None, *, selected_plan_year=None) -> dict:
              detail=(f"นำเข้าแผน {plan_year} แล้ว {in_plan:,.2f} บาท" if funds
                      else "เลือกว่าเงินหมวดไหนจะใช้ทำโครงการในแผนปีนี้ ระบบดึงยอดจากทะเบียนคุมเงินให้เอง"),
              href=f"/plan-budget/{plan_year}", cta="นำเงินเข้าแผน"),
-        dict(title="เพิ่มโครงการและจัดสรรเงิน", done=bool(allocs),
-             detail=(f"จัดสรรให้ {len({a.project_id for a in allocs})} โครงการแล้ว" if allocs
-                     else ("เปิดแต่ละโครงการแล้วเลือกว่าใช้เงินจากหมวดไหน กี่บาท" if n_projects
-                           else f"ยังไม่มีโครงการในแผน {plan_year} เพิ่มโครงการพร้อมงบ แล้วจัดสรรเงินให้")),
+        dict(title="เพิ่มโครงการและเชื่อมบัญชีเงิน", done=bool(allocs),
+             detail=(f"เชื่อมบัญชีให้ {len({a.project_id for a in allocs})} โครงการแล้ว" if allocs
+                     else ("เปิดแต่ละโครงการแล้วติ๊กบัญชีเงินที่ใช้ได้ โดยไม่กันเงินจากกองกลาง" if n_projects
+                           else f"ยังไม่มีโครงการในแผน {plan_year} เพิ่มโครงการพร้อมงบ แล้วเชื่อมบัญชีเงิน")),
              href=f"/projects?year={plan_year}", cta="ไปที่โครงการ",
              extra=[("เพิ่งเริ่มใช้ระบบกลางปี? ตั้งยอดตั้งต้นโครงการ", f"/projects/start?year={plan_year}")]),
     ]

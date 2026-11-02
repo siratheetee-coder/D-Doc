@@ -38,8 +38,8 @@ def test_ledger_always_leads_to_projects(env):
     with tn.session_for(sid) as s:
         p = pf.plan(s, 2569); import_all(s, p, 'opening')
     html = env.get(url).text                                   # 3. นำเข้าแล้ว ยังไม่จัดสรร
-    assert 'นำเข้าแผนแล้ว 50,000.00 ยังไม่ได้ระบุโครงการ' in html
-    assert 'href="/projects?year=2569">ไปจัดสรรให้โครงการ' in html
+    assert 'นำเข้าแผนแล้ว 50,000.00 ยังไม่ได้เชื่อมกับโครงการ' in html
+    assert 'href="/projects?year=2569">เชื่อมบัญชีกับโครงการ' in html
 
     with tn.session_for(sid) as s:
         p = pf.plan(s, 2569)
@@ -47,5 +47,5 @@ def test_ledger_always_leads_to_projects(env):
         pf.allocate(s, p, pj, {str(pf.sources(s, p)[0].id): '30000'}, pf.allocation_token(s, p, pj)); s.commit()
         pid = pj.id
     html = env.get(url).text                                   # 4. จัดสรรแล้ว: ชื่อโครงการเห็นได้ทันที
-    assert 'จัดสรรให้ 1 โครงการ 30,000.00 จาก 50,000.00' in html
+    assert 'เชื่อมกับ 1 โครงการ · ไม่กันเงินจากกองกลาง' in html
     assert '<details class="al-detail" open>' in html and f'href="/projects/{pid}">กีฬาสี' in html

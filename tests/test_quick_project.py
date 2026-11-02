@@ -86,7 +86,7 @@ def test_form_data_without_and_with_plan(env):
     assert d["departments"] == ["ฝ่ายงบประมาณ", "ฝ่ายวิชาการ"] and d["plan_link"] == f"/plan-budget/{cur}"
     ids = _plan(cur, [("เงินบริจาค", 10000), ("เงินหมด", 0)])
     d = env.get(f"/finance/projects/quick-form?year={cur}").json()
-    assert d["has_plan"] and [s["id"] for s in d["sources"]] == [ids[0]], "ไม่แสดงรายการที่ไม่เหลือให้จัดสรร"
+    assert d["has_plan"] and [s["id"] for s in d["sources"]] == ids, "บัญชียอดศูนย์ยังเชื่อมกับโครงการได้"
     assert d["sources"][0] == {"id": ids[0], "name": "เงินบริจาค", "kind": "เงินอื่น ๆ", "available": 10000.0}
     assert env.get("/finance/projects/quick-form?year=99999").json()["plan_year"] == cur
 
@@ -100,24 +100,20 @@ def test_create_with_details_and_allocation(env):
     assert r.status_code == 200 and d["created"] is True and d["label"] == f"ทัศนศึกษา ป.6 · ปีแผน {cur}"
     assert d["link"] == f"/projects/{d['id']}"
     assert _projects()[-1] == ("ทัศนศึกษา ป.6", cur, 8000.0, "ฝ่ายวิชาการ", True)
-    assert _alloc(d["id"]) == {fid: 6000.0, fid2: 2000.0}
+    assert _alloc(d["id"]) == {fid: 0.0, fid2: 0.0}
     left = {s["id"]: s["available"] for s in env.get(f"/finance/projects/quick-form?year={cur}").json()["sources"]}
-    assert left == {fid: 4000.0, fid2: 1000.0}, "เงินที่เหลือให้จัดสรรลดลงตามที่จัดสรร"
+    assert left == {fid: 10000.0, fid2: 3000.0}, "การเชื่อมบัญชีต้องไม่กันเงินกองกลาง"
     # ชื่อซ้ำปีเดียวกัน = ใช้โครงการเดิม ไม่สร้างซ้ำ ไม่จัดสรรเพิ่ม
     n = len(_projects())
     again = env.post("/finance/projects/quick", data={"name": "ทัศนศึกษา ป.6", "plan_year": str(cur), f"fund_{fid}": "100"}).json()
     assert again["id"] == d["id"] and again["created"] is False and "อยู่แล้ว" in again["message"]
-    assert len(_projects()) == n and _alloc(d["id"]) == {fid: 6000.0, fid2: 2000.0}
+    assert len(_projects()) == n and _alloc(d["id"]) == {fid: 0.0, fid2: 0.0}
 
 
 def test_allocation_errors_roll_back_project(env):
     cur = _cur()
     (fid,) = _plan(cur, [("เงินบริจาค", 5000)])
     n = len(_projects())
-    r = env.post("/finance/projects/quick", data={"name": "เกินงบโครงการ", "budget": "1000", "plan_year": str(cur), f"fund_{fid}": "2000"})
-    assert r.status_code == 400 and "เกินงบโครงการ" in r.json()["detail"]
-    r = env.post("/finance/projects/quick", data={"name": "เกินเงินแผน", "budget": "9000", "plan_year": str(cur), f"fund_{fid}": "6000"})
-    assert r.status_code == 400 and "เกินวงเงิน" in r.json()["detail"]
     r = env.post("/finance/projects/quick", data={"name": "ไม่มีแผน", "budget": "9000", "plan_year": str(cur + 1), "fund_1": "10"})
     assert r.status_code == 400 and "ยังไม่ได้กำหนดงบที่ใช้จัดทำแผน" in r.json()["detail"]
     r = env.post("/finance/projects/quick", data={"name": "ผิดแผน", "budget": "9000", "plan_year": str(cur), "fund_99999": "10"})

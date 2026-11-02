@@ -12,6 +12,7 @@ import pathlib
 from datetime import datetime
 
 import pytest
+from tests.test_subsidy import env
 
 from app.models import AccountItem, DisburseMemo, FinanceAccount, Project
 
@@ -27,24 +28,12 @@ MARK = "ทดสอบการ์ดเงินโครงการ_"
 
 
 @pytest.fixture
-def client():
-    from fastapi.testclient import TestClient
-    import app.routers.auth as auth_mod
-    import app.main as main_mod
-    from app.main import app
-    auth_mod.authenticate = lambda u, p: {"uid": 1, "username": "t", "role": "owner", "tenant_id": 1,
-                                          "display_name": "t", "must_change": False, "is_owner": True}
-    main_mod.can_use_module = lambda tid, mod: True
-    main_mod.get_account_access = lambda uid: {"is_owner": True, "modules": "", "active": True,
-                                               "welcomed": True}
-    c = TestClient(app)
-    assert c.post("/login", data={"username": "t", "password": "x"},
-                  follow_redirects=False).status_code in (302, 303)
-    return c
+def client(env):
+    return env
 
 
 @pytest.fixture
-def world():
+def world(env):
     """โครงการกีฬาสี งบ 30,000 · หมวดค่ากิจกรรม · แผนปี YEAR (ยังไม่จัดสรร)"""
     from app.tenancy import session_for
     s = session_for(1)
@@ -81,8 +70,8 @@ def _allocate(w, amount):
 def test_partly_funded_project_says_how_much_is_still_missing(client, world):
     _allocate(world, 20000)
     html = client.get(f"/projects/{world['pj']}").text
-    assert "ระบุรายการเงินแล้ว <b>20,000.00</b>" in html
-    assert "ยังไม่ระบุรายการเงิน <b>10,000.00</b>" in html
+    assert "บัญชีเงินที่เชื่อมกับโครงการ" in html
+    assert "ยังไม่ระบุรายการเงิน <b>" not in html and "ไม่กันเงินจากกองกลาง" in html
     assert f'href="/finance/accounts/{world["acc"]}?year=2570"' in html, "ต้องกดไปหมวดในทะเบียนคุมเงินได้"
     assert MARK + "ค่ากิจกรรม" in html
 
@@ -90,13 +79,13 @@ def test_partly_funded_project_says_how_much_is_still_missing(client, world):
 def test_fully_funded_project_says_so(client, world):
     _allocate(world, 30000)
     html = client.get(f"/projects/{world['pj']}").text
-    assert "ระบุรายการเงินครบแล้ว" in html and "ยังไม่ระบุรายการเงิน <b>" not in html
+    assert "บัญชีเงินที่เชื่อมกับโครงการ" in html and "ยังไม่ระบุรายการเงิน <b>" not in html
 
 
 def test_plan_in_use_but_nothing_allocated_points_to_where_to_do_it(client, world):
     html = client.get(f"/projects/{world['pj']}").text
-    assert "ระบุรายการเงินแล้ว <b>0.00</b>" in html and "ยังไม่ระบุรายการเงิน <b>30,000.00</b>" in html
-    assert "ยังไม่ได้ระบุรายการเงินของโครงการนี้" in html
+    assert "ยังไม่ระบุรายการเงิน <b>" not in html
+    assert "เลือกบัญชีเงินที่โครงการใช้ได้ด้านล่าง" in html
 
 
 def test_the_confusing_word_is_gone():

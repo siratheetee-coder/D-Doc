@@ -6,7 +6,7 @@ project_money.py - โครงการนี้ใช้เงินจาก�
 ผู้ใช้เลือกโครงการแล้วต้องไปเลือกบัญชีกับหมวดเองอีก ทั้งที่ระบบรู้อยู่แล้ว
 
 ระบบรู้ได้จากสองทาง เรียงตามความน่าเชื่อถือ
-  1. จัดสรรไว้ในแผน   โครงการได้รับเงินจากหมวดไหน (ProjectFunding -> PlanFunding.account_item_id)
+  1. เชื่อมบัญชีในแผน   โครงการใช้เงินจากหมวดไหน (ProjectFunding -> PlanFunding.account_item_id)
   2. เคยใช้ครั้งก่อน   บันทึกขอเบิกจ่าย/รายการจ่ายของโครงการนี้ที่เคยระบุหมวดไว้
 ทางที่ 2 ทำให้โรงเรียนไม่ต้องตั้งค่าอะไรล่วงหน้า เลือกหมวดครั้งแรกครั้งเดียว ครั้งต่อไประบบจำให้
 
@@ -22,7 +22,7 @@ try:        # ระบบจัดสรรงบให้โครงการ
 except ImportError:                                  # ไม่มีก็ใช้แค่ "เคยใช้ครั้งก่อน" ไปก่อน
     PlanFunding = ProjectFunding = None
 
-ALLOCATED = "จัดสรรไว้ในแผน"
+ALLOCATED = "เชื่อมบัญชีกับโครงการไว้"
 USED_BEFORE = "เคยใช้ครั้งก่อน"
 
 
@@ -67,12 +67,12 @@ def project_sources(db, project_id, fy) -> list:
         seen.add(key)
         out.append(_entry(account, item, why))
 
-    # 1) จัดสรรไว้ในแผน
+    # 1) บัญชีที่เชื่อมกับโครงการ
     rows = [] if PlanFunding is None else (db.query(PlanFunding)
             .join(ProjectFunding, ProjectFunding.funding_id == PlanFunding.id)
-            .filter(ProjectFunding.project_id == project_id, ProjectFunding.amount > 0,
+            .filter(ProjectFunding.project_id == project_id,
                     PlanFunding.account_item_id.isnot(None))
-            .order_by(ProjectFunding.amount.desc()).all())
+            .order_by(PlanFunding.id).all())
     for f in rows:
         it = _same_item_in_year(db, db.get(AccountItem, f.account_item_id), fy)
         if it is not None:
@@ -103,32 +103,19 @@ def project_sources(db, project_id, fy) -> list:
 
 
 def item_allocations(db, item_rows, txn_project) -> dict:
-    """หมวดในทะเบียนคุมเงินจัดสรรให้โครงการไหนบ้าง (ระยะ 2 ฝั่งการเงิน)
-
-    item_rows   แถวหมวดของหน้าทะเบียนคุมเงิน {it, level, remain, ...} หมวดแม่มาก่อนลูกเสมอ
-    txn_project {txn_id: Project} ของรายการจ่ายในปีงบนี้ (ได้จาก _txn_projects)
-
-    คืน {item_id: {...}} เฉพาะหมวดที่มีการจัดสรร หมวดแม่รวมยอดของลูก
-      paid      จ่ายแล้วทั้งหมดของหมวด (ทั้งที่ผูกโครงการและไม่ผูก)
-      waiting   รอใช้ในโครงการ = ส่วนที่จัดสรรให้โครงการไว้แต่โครงการยังไม่ได้จ่ายจากหมวดนี้
-      free      ยังไม่จัดสรรให้โครงการ = เงินคงเหลือจริง - รอใช้ในโครงการ (ติดลบ = จัดสรรเกิน)
-      projects  [{project, allocated, used}] เรียงยอดจัดสรรมากไปน้อย
-
-    นับ "โครงการใช้ไปจากหมวดนี้" ไม่เกินยอดที่จัดสรรให้ เพราะส่วนที่จ่ายเกินจัดสรรเป็นเงินของหมวด
-    ที่โครงการเอาไปใช้เพิ่ม ไม่ได้ทำให้ยอดรอใช้ของโครงการอื่นลดลง
-    """
+    """Linked projects and actual payments, with no reserved or unallocated pool."""
     if PlanFunding is None or not item_rows:
         return {}
     ids = [r["it"].id for r in item_rows]
     rows = (db.query(PlanFunding.account_item_id, ProjectFunding.project_id, ProjectFunding.amount)
             .join(ProjectFunding, ProjectFunding.funding_id == PlanFunding.id)
-            .filter(PlanFunding.account_item_id.in_(ids), ProjectFunding.amount > 0).all())
+            .filter(PlanFunding.account_item_id.in_(ids)).all())
     if not rows:
         return {}
     alloc = {}                                     # {item_id: {project_id: amount}}
     for item_id, pid, amt in rows:
         alloc.setdefault(item_id, {})
-        alloc[item_id][pid] = round(alloc[item_id].get(pid, 0) + (amt or 0), 2)
+        alloc[item_id][pid] = 0  # Links do not reserve any of the account balance.
 
     from app.models import Project
     pids = {pid for per in alloc.values() for pid in per}
@@ -146,7 +133,7 @@ def item_allocations(db, item_rows, txn_project) -> dict:
             if pj is not None and pj.id in per:
                 spent_by[pj.id] = spent_by.get(pj.id, 0) + (t.amount or 0)
         plist = [{"project": projects[pid], "allocated": amt,
-                  "used": round(min(spent_by.get(pid, 0), amt), 2)}
+                  "used": round(spent_by.get(pid, 0), 2)}
                  for pid, amt in per.items() if pid in projects]
         own[it.id] = plist
 
@@ -172,7 +159,7 @@ def item_allocations(db, item_rows, txn_project) -> dict:
             m["allocated"] = round(m["allocated"] + p["allocated"], 2)
             m["used"] = round(m["used"] + p["used"], 2)
         plist = sorted(merged.values(), key=lambda x: -x["allocated"])
-        waiting = round(sum(p["allocated"] - p["used"] for p in plist), 2)
+        waiting = 0  # Actual payments alone change the cash balance.
         remain = round(r["remain"], 2)
         out[it.id] = {"paid": round(r["tout"], 2), "remain": remain, "waiting": waiting,
                       "free": round(remain - waiting, 2), "projects": plist,
@@ -181,7 +168,7 @@ def item_allocations(db, item_rows, txn_project) -> dict:
 
 
 def account_plan_links(db, account, fy) -> dict:
-    """หน้าทะเบียนคุมเงินพาไปโครงการ: บัญชีนี้อยู่ในแผนไหน จัดสรรให้กี่โครงการแล้ว
+    """หน้าทะเบียนคุมเงินพาไปโครงการ: บัญชีนี้อยู่ในแผนไหน เชื่อมกี่โครงการแล้ว
 
     เดิมลิงก์ไปโครงการขึ้นเฉพาะหมวดที่จัดสรรแล้ว และซ่อนอยู่ในส่วนที่ต้องกดเปิด
     บัญชีที่ยังไม่ได้นำเข้าแผนจึงไม่มีทางไปหน้าโครงการเลย (เจ้าของถามหาปุ่มนี้)
@@ -201,11 +188,10 @@ def account_plan_links(db, account, fy) -> dict:
             funds = (db.query(PlanFunding).filter(PlanFunding.plan_id == p.id,
                                                   PlanFunding.account_item_id.in_(item_ids)).all()
                      if item_ids else [])
-            alloc = (db.query(ProjectFunding).filter(ProjectFunding.funding_id.in_([f.id for f in funds]),
-                                                     ProjectFunding.amount > 0).all() if funds else [])
+            alloc = (db.query(ProjectFunding).filter(ProjectFunding.funding_id.in_([f.id for f in funds])).all() if funds else [])
             plans.append(dict(year=p.year, label="ปีการศึกษา" if p.mode == "academic" else "ปีงบประมาณ",
                               in_plan=round(sum(f.amount or 0 for f in funds), 2),
-                              allocated=round(sum(a.amount or 0 for a in alloc), 2),
+                              allocated=0,
                               n_projects=len({a.project_id for a in alloc})))
     school = db.query(School).first()
     return dict(plans=plans, suggest_year=current_plan_year(school))

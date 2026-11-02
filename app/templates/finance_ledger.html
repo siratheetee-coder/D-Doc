@@ -156,9 +156,9 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       <span class="pl-item"><b>แผน{{ pl.label }} {{ pl.year }}</b>
       {% if not pl.in_plan %} เงินบัญชีนี้ยังไม่ได้นำเข้าแผน
         <a class="btn sm" href="/plan-budget/{{ pl.year }}">นำเงินเข้าแผน</a>
-      {% elif not pl.n_projects %} นำเข้าแผนแล้ว {{ "{:,.2f}".format(pl.in_plan) }} ยังไม่ได้ระบุโครงการ
-        <a class="btn sm" href="/projects?year={{ pl.year }}">ไปจัดสรรให้โครงการ</a>
-      {% else %} จัดสรรให้ {{ pl.n_projects }} โครงการ {{ "{:,.2f}".format(pl.allocated) }} จาก {{ "{:,.2f}".format(pl.in_plan) }}
+      {% elif not pl.n_projects %} นำเข้าแผนแล้ว {{ "{:,.2f}".format(pl.in_plan) }} ยังไม่ได้เชื่อมกับโครงการ
+        <a class="btn sm" href="/projects?year={{ pl.year }}">เชื่อมบัญชีกับโครงการ</a>
+      {% else %} เชื่อมกับ {{ pl.n_projects }} โครงการ · ไม่กันเงินจากกองกลาง
         <a class="btn sm" href="/projects?year={{ pl.year }}">ดูโครงการ</a>
       {% endif %}</span>
     {% else %}
@@ -175,9 +175,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
   {% if item_rows %}
   {% if item_alloc %}
   <div class="al-legend">
-    <span><i class="al-paid"></i>จ่ายแล้ว</span>
-    <span><i class="al-wait"></i>รอใช้ในโครงการ</span>
-    <span><i class="al-free"></i>ยังไม่จัดสรรให้โครงการ</span>
+    <span>โครงการที่เชื่อมกับบัญชีนี้ · เงินคงเหลือลดเมื่อจ่ายจริงเท่านั้น</span>
     <span class="muted">กดชื่อโครงการใต้หมวดเพื่อไปหน้าโครงการ</span>
   </div>
   <style>
@@ -249,21 +247,11 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       {# แถวเต็มความกว้างใต้หมวด: ช่องชื่อหมวดแคบเพราะตารางมี 8 คอลัมน์ ใส่ไว้ในช่องนั้นจะตัดคำทีละคำ #}
       <tr class="al-row" {% if r.level==0 and r.has_kids %}style="background:#f8fafc;"{% endif %}>
         <td colspan="8" style="padding-left:{{ 8 + r.level*26 }}px; border-top:0; padding-top:0;">
-          {% set base = al.paid + al.waiting + (al.free if al.free > 0 else 0) %}
-          <div class="al-bar" title="จ่ายแล้ว / รอใช้ในโครงการ / ยังไม่จัดสรรให้โครงการ">
-            {% if base > 0 %}
-            <span class="al-paid" style="width:{{ (al.paid / base * 100)|round(1) }}%"></span>
-            <span class="al-wait" style="width:{{ (al.waiting / base * 100)|round(1) }}%"></span>
-            {% endif %}
-          </div>
           <details class="al-detail" open>
-            <summary>รอใช้ในโครงการ {{ "{:,.2f}".format(al.waiting) }}
-              {% if al.free >= 0 %}ยังไม่จัดสรรให้โครงการ {{ "{:,.2f}".format(al.free) }}
-              {% else %}<span class="al-over">จัดสรรเกินเงินที่เหลือจริง {{ "{:,.2f}".format(-al.free) }}</span>{% endif %}</summary>
-            {% if al.free < 0 %}<p class="al-note">จัดสรรให้โครงการไว้มากกว่าเงินที่มีอยู่ในหมวดตอนนี้ มักเกิดจากเงินอุดหนุนงวดถัดไปยังไม่เข้า ถ้าเงินเข้าแล้วยังติดลบ ให้ลดการจัดสรรในหน้าโครงการ</p>{% endif %}
+            <summary>โครงการที่เชื่อมกับหมวดนี้ {{ al.projects|length }} โครงการ</summary>
             {% for pj in al.projects %}
             <div class="al-pj"><a href="/projects/{{ pj.project.id }}">{{ pj.project.name }}</a>
-              <span>จัดสรร {{ "{:,.2f}".format(pj.allocated) }} จ่ายแล้ว {{ "{:,.2f}".format(pj.used) }} รอใช้ {{ "{:,.2f}".format(pj.allocated - pj.used) }}</span></div>
+              <span>จ่ายจริงจากหมวดนี้ {{ "{:,.2f}".format(pj.used) }} บาท</span></div>
             {% endfor %}
           </details>
         </td>

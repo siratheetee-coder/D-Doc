@@ -61,14 +61,17 @@ def sources(db, p):
 
 
 def allocated(db, source_id, excluding=None):
-    q = db.query(ProjectFunding).populate_existing().filter_by(funding_id=source_id)
-    if excluding is not None:
-        q = q.filter(ProjectFunding.project_id != excluding)
-    return round(sum(x.amount for x in q), 2)
+    """Compatibility API: project links never reserve money from a source."""
+    return 0.0
 
 
 def project_allocated(db, pid):
-    return round(sum(x.amount for x in db.query(ProjectFunding).filter_by(project_id=pid)), 2)
+    """Project budgets and account balances are independent of source links."""
+    return 0.0
+
+
+def project_link_count(db, pid):
+    return db.query(ProjectFunding).filter_by(project_id=pid).count()
 
 
 def eligible(p, snap):
@@ -240,7 +243,7 @@ def changed(db, p, row):
 
 
 def summary(db, p):
-    rows = [dict(source=s, allocated=allocated(db,s.id), changed=changed(db,p,s)) for s in sources(db,p)]
+    rows = [dict(source=s, allocated=0, linked=db.query(ProjectFunding).filter_by(funding_id=s.id).count(), changed=changed(db,p,s)) for s in sources(db,p)]
     total = round(sum(r['source'].amount for r in rows),2)
     used = round(sum(r['allocated'] for r in rows),2)
     return dict(rows=rows, total=total, allocated=used, remaining=round(total-used,2))
@@ -253,31 +256,26 @@ def allocation_token(db, p, project):
 
 
 def allocate(db, p, project, values, expected):
+    """Connect sources only. Legacy positive fund_* values also mean selected.
+
+    Existing amounts are retained for historical data compatibility, but never
+    used to reserve cash. A new relationship stores zero, not a monetary budget.
+    """
     sub.lock(db)
-    db.refresh(p);db.refresh(project);db.expire(project,['revisions'])
-    if project.plan_year != p.year or allocation_token(db,p,project) != expected:
-        raise ValueError('งบหรือการจัดสรรเปลี่ยนแล้ว กรุณาเปิดหน้าใหม่')
-    rows = sources(db,p)
-    if set(values) - {str(s.id) for s in rows}:
+    db.refresh(p); db.refresh(project); db.expire(project, ['revisions'])
+    if project.plan_year != p.year or allocation_token(db, p, project) != expected:
+        raise ValueError('ข้อมูลโครงการหรือบัญชีเปลี่ยนแล้ว กรุณาเปิดหน้าใหม่')
+    valid = {str(s.id) for s in sources(db, p)}
+    if set(values) - valid:
         raise ValueError('รายการเงินไม่อยู่ในแผนนี้')
-    desired = {s.id:amount(values.get(str(s.id),0)) for s in rows}
-    if round(sum(desired.values()),2) > round(project_budget(project),2):
-        raise ValueError('ยอดจัดสรรรวมเกินงบโครงการ กรุณาปรับงบโครงการก่อน')
-    # ส่วนที่ใช้ไปก่อนเริ่มใช้ระบบจ่ายไปแล้วด้วยเงินนอกแผน ถ้าจัดสรรเต็มงบอีก เงินในหมวดจะถูกกันไว้เกินจริง
-    before = float(project.spent_before or 0)
-    if before and round(sum(desired.values()),2) > round(project_budget(project)-before,2):
-        raise ValueError('จัดสรรได้ไม่เกิน {:,.2f} บาท (งบโครงการ {:,.2f} หักใช้ไปก่อนเริ่มใช้ระบบ {:,.2f})'.format(
-            project_budget(project)-before, project_budget(project), before))
-    for s in rows:
-        old=db.query(ProjectFunding).filter_by(project_id=project.id,funding_id=s.id).first()
-        if desired[s.id]>(old.amount if old else 0) and changed(db,p,s):
-            raise ValueError('ยอดต้นทางเปลี่ยนแล้ว กรุณาตรวจและอัปเดตงบแผนก่อนจัดสรรเพิ่ม: '+s.name)
-        if round(desired[s.id]+allocated(db,s.id,project.id),2) > s.amount:
-            raise ValueError('จัดสรรเกินวงเงินที่ยังเหลือ: '+s.name)
-    for old in db.query(ProjectFunding).filter_by(project_id=project.id).all(): db.delete(old)
+    selected = {int(sid) for sid, value in values.items() if amount(value) > 0}
+    existing = {a.funding_id: a for a in db.query(ProjectFunding).filter_by(project_id=project.id)}
+    for sid, row in existing.items():
+        if sid not in selected:
+            db.delete(row)
+    for sid in selected - existing.keys():
+        db.add(ProjectFunding(project_id=project.id, funding_id=sid, amount=0))
     db.flush()
-    for sid, value in desired.items():
-        if value: db.add(ProjectFunding(project_id=project.id,funding_id=sid,amount=value))
 
 
 def actual_paid(db, project):
@@ -286,19 +284,11 @@ def actual_paid(db, project):
 
 
 def guard_project(db, project, *, year=None, budget=None, deleting=False):
-    """All legacy project-edit paths must respect explicit funding allocations."""
+    """Changing a budget does not reserve cash; preserve source/year integrity."""
     from fastapi import HTTPException
     sub.lock(db)
-    assigned=project_allocated(db,project.id)
-    if assigned and (deleting or (year is not None and year!=project.plan_year)):
-        raise HTTPException(409,'ยกเลิกการจัดสรรงบของโครงการก่อนลบหรือย้ายปี')
-    # ใช้ไปก่อนเริ่มใช้ระบบ จ่ายด้วยเงินนอกแผน จึงต้องบวกเข้าไปด้วย (ตรงกับเพดานใน allocate)
-    before=float(project.spent_before or 0) if assigned else 0
-    if budget is not None and round(budget,2)<round(assigned+before,2):
-        extra=' และใช้ไปก่อนเริ่มใช้ระบบ {:,.2f}'.format(before) if before else ''
-        raise HTTPException(409,'งบต้องไม่ต่ำกว่า {:,.2f} บาท เพราะจัดสรรเงินให้โครงการนี้ไว้ {:,.2f}{} '
-                                'ลดการจัดสรรในหัวข้อ "โครงการนี้ใช้งบจากรายการใด" ก่อน แล้วค่อยลดงบ'.format(
-                                    assigned+before,assigned,extra))
+    if project_link_count(db, project.id) and (deleting or (year is not None and year != project.plan_year)):
+        raise HTTPException(409, 'ยกเลิกการเชื่อมบัญชีเงินของโครงการก่อนลบหรือย้ายปี')
 
 
 def guard_items(db, ids):

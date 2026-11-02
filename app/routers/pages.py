@@ -3391,43 +3391,14 @@ def project_detail(pid: int, request: Request, db: Session = Depends(get_db), er
         **project_context(db,p),
         "procs": procs, "disb": disb, "next_seq": next_seq, "err": err, "groups": groups,
         "can_finance": _can_finance(request),
-        **(_funding_suggest(p, project_context(db, p)) if grew else {}),
         "year_label": plan_year_label(get_school(db),p.plan_year),
         "departments": db.query(Department).order_by(Department.name).all(),
         "years": _plan_years(db, p.plan_year or current_plan_year(get_school(db))),
     })
 
 
-def _funding_suggest(p, ctx) -> dict:
-    """หลังปรับงบเพิ่ม: เติมยอดจัดสรรใหม่ไว้ให้ในช่องจัดสรร (ผู้ใช้แค่ตรวจแล้วกดบันทึก)
-
-    ส่วนที่ยังไม่ได้จัดสรร = งบ - ใช้ไปก่อนเริ่มใช้ระบบ - จัดสรรแล้ว เติมลงหมวดที่โครงการใช้อยู่ก่อน
-    แล้วค่อยหมวดอื่นตามลำดับ ไม่เกินเงินที่หมวดนั้นยังเหลือให้จัดสรร
-    คืน {funding_suggest: {source_id: ยอดใหม่}, funding_need, funding_short}
-    """
-    from app.services.budget import project_budget
-    rows = ctx.get("funding_rows") or []
-    need = round(project_budget(p) - float(p.spent_before or 0) - float(ctx.get("funding_assigned") or 0), 2)
-    if need <= 0 or not rows:
-        return {}
-    suggest, left = {}, need
-    for r in sorted(rows, key=lambda r: 0 if r["value"] else 1):
-        room = round(r["available"] - r["value"], 2)
-        if left <= 0 or room <= 0:
-            continue
-        add = min(room, left)
-        suggest[r["source"].id] = round(r["value"] + add, 2)
-        left = round(left - add, 2)
-    return dict(funding_suggest=suggest, funding_need=need, funding_short=max(left, 0))
-
-
 def _budget_saved_redirect(db, p, old_budget: float, new_budget: float):
-    """บันทึกงบแล้วกลับหน้าโครงการ · งบเพิ่มและโรงเรียนใช้การจัดสรรเงิน: พาไปที่ช่องจัดสรร
-    พร้อมเติมยอดใหม่ไว้ให้ (ปรับงบเปลี่ยนแค่ตัวเลขแผน เงินในหมวดผูกกับโครงการผ่านการจัดสรรเท่านั้น)"""
-    from app.services import plan_funding as pf
-    plan = pf.plan(db, p.plan_year) if p.plan_year else None
-    if new_budget > old_budget and pf.sources(db, plan):
-        return RedirectResponse(f"/projects/{p.id}?saved=1&grew=1#project-funding", status_code=303)
+    """A budget edit leaves account links and real balances unchanged."""
     return RedirectResponse(f"/projects/{p.id}?saved=1", status_code=303)
 
 
