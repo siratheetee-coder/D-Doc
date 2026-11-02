@@ -137,7 +137,7 @@ sudo /opt/ddoc/deploy/healthcheck.sh --always   # บังคับส่งอ
 
 `setup-cron.sh` ตั้งให้รันทุกวันตี 3:30 อยู่แล้ว · **ก่อนใช้จริงให้ลองดูก่อนว่าจะเกิดอะไรขึ้น:**
 ```bash
-cd /opt/ddoc && ./.venv/bin/python -m app.services.retention --dry-run
+cd /opt/ddoc && sudo -u ddoc ./.venv/bin/python -m app.services.retention --dry-run
 ```
 โหมดนี้ไม่แตะข้อมูลและไม่ส่งอีเมล แค่บอกว่าจะเตือนใคร/จะลบอะไร
 
