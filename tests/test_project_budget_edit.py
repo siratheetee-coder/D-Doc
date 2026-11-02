@@ -69,7 +69,7 @@ def test_raising_the_budget_leads_to_allocation_with_the_new_amount_filled_in(en
                  follow_redirects=False)
     assert r.headers['location'].endswith('?saved=1&grew=1#project-funding')
     html = env.get(r.headers['location'].split('#')[0]).text
-    assert 'ยังไม่ได้จัดสรรอีก <b>2,000.00</b>' in html
+    assert 'ยังต้องระบุรายการเงินอีก <b>2,000.00</b>' in html
     assert '<div class="pf-grew">' in html, "ห้ามใช้ class alert ระบบจะแปลงเป็น toast แล้วหายไป"
     assert re.search(rf'name="fund_{world["fid"]}"[^>]*value="32000.0"', html), "เติมยอดใหม่ไว้ให้ในหมวดเดิม"
 
@@ -77,7 +77,7 @@ def test_raising_the_budget_leads_to_allocation_with_the_new_amount_filled_in(en
 def test_short_of_money_in_the_plan_says_so(env, world):
     r = env.post(f"/projects/{world['sport']}/revise", data={'amount': '90000'}, follow_redirects=False)
     html = env.get(r.headers['location'].split('#')[0]).text
-    assert 'ยังจัดสรรไม่ได้อีก 40,000.00 บาท' in html and re.search(
+    assert 'ยังระบุรายการเงินไม่ได้อีก 40,000.00 บาท' in html and re.search(
         rf'name="fund_{world["fid"]}"[^>]*value="50000.0"', html)
 
 

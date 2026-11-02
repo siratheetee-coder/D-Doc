@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """หน้าโครงการ: งบโครงการ กับ เงินที่จัดสรรแล้ว เป็นคนละตัวเลขโดยตั้งใจ (docs/plan-funding.md)
 
-เจ้าของเลือกคงสองตัวเลขไว้ แต่ให้อ่านง่าย: "งบ 30,000 · จัดสรรเงินแล้ว 20,000 · ยังไม่ได้จัดสรร 10,000"
+เจ้าของเลือกคงสองตัวเลขไว้ แต่ให้อ่านง่าย: "งบ 30,000 · ระบุรายการเงินแล้ว 20,000 · ยังไม่ได้จัดสรร 10,000"
 (เดิมใช้ "ยังขาด" เจ้าของบอกว่างง ฟังเหมือนโรงเรียนขาดเงิน)
 และบอกว่าเงินมาจากหมวดไหน กดไปทะเบียนคุมเงินได้
 ยอด "ใช้ไปแล้ว" กับ "จ่ายจริงตามทะเบียนคุมเงิน" เดิมอยู่คนละที่ของหน้า อ่านแล้วงงว่าตัวไหนจริง
@@ -81,8 +81,8 @@ def _allocate(w, amount):
 def test_partly_funded_project_says_how_much_is_still_missing(client, world):
     _allocate(world, 20000)
     html = client.get(f"/projects/{world['pj']}").text
-    assert "จัดสรรเงินแล้ว <b>20,000.00</b>" in html
-    assert "ยังไม่ได้จัดสรร <b>10,000.00</b>" in html
+    assert "ระบุรายการเงินแล้ว <b>20,000.00</b>" in html
+    assert "ยังไม่ระบุรายการเงิน <b>10,000.00</b>" in html
     assert f'href="/finance/accounts/{world["acc"]}?year=2570"' in html, "ต้องกดไปหมวดในทะเบียนคุมเงินได้"
     assert MARK + "ค่ากิจกรรม" in html
 
@@ -90,24 +90,24 @@ def test_partly_funded_project_says_how_much_is_still_missing(client, world):
 def test_fully_funded_project_says_so(client, world):
     _allocate(world, 30000)
     html = client.get(f"/projects/{world['pj']}").text
-    assert "จัดสรรครบแล้ว" in html and "ยังไม่ได้จัดสรร <b>" not in html
+    assert "ระบุรายการเงินครบแล้ว" in html and "ยังไม่ระบุรายการเงิน <b>" not in html
 
 
 def test_plan_in_use_but_nothing_allocated_points_to_where_to_do_it(client, world):
     html = client.get(f"/projects/{world['pj']}").text
-    assert "จัดสรรเงินแล้ว <b>0.00</b>" in html and "ยังไม่ได้จัดสรร <b>30,000.00</b>" in html
-    assert "ยังไม่ได้จัดสรรเงินให้โครงการนี้" in html
+    assert "ระบุรายการเงินแล้ว <b>0.00</b>" in html and "ยังไม่ระบุรายการเงิน <b>30,000.00</b>" in html
+    assert "ยังไม่ได้ระบุรายการเงินของโครงการนี้" in html
 
 
 def test_the_confusing_word_is_gone():
     html = (ROOT / "app/templates/project_detail.html").read_text(encoding="utf-8")
-    assert "ยังขาด <b>" not in html, 'เจ้าของบอกว่า "ยังขาด" งง ให้ใช้ "ยังไม่ได้จัดสรร"'
+    assert "ยังขาด <b>" not in html, 'ยอดที่ยังไม่ระบุรายการเงินไม่ใช่เงินที่โรงเรียนขาด'
 
 
 def test_school_not_using_allocation_sees_the_old_simple_page(client, world):
     html = client.get(f"/projects/{world['bare']}").text
-    assert "จัดสรรเงินแล้ว" not in html and "ยังไม่ได้จัดสรร <b>" not in html
-    assert "งบโครงการ" in html and "ใช้ไปแล้ว" in html and "คงเหลือ" in html
+    assert "ระบุรายการเงินแล้ว" not in html and "ยังไม่ระบุรายการเงิน <b>" not in html
+    assert "งบโครงการ" in html and "จ่ายจริงในระบบ" in html and "งบเหลือทำเรื่องใหม่" in html
 
 
 def test_spent_and_paid_are_shown_together_with_what_is_still_waiting(client, world):
@@ -118,6 +118,6 @@ def test_spent_and_paid_are_shown_together_with_what_is_still_waiting(client, wo
                        account_id=world["acc"], item_id=world["item"], status="อนุมัติ"))
     s.commit()
     html = client.get(f"/projects/{world['pj']}").text
-    assert "จ่ายจริงตามทะเบียนคุมเงิน 0.00" in html
-    assert "ทำเรื่องแล้วรอจ่าย 8,000.00" in html
+    assert '<div class="lab">จ่ายจริงในระบบ</div><div class="num">0.00</div>' in html
+    assert '<div class="lab">ทำเรื่องแล้วรอจ่าย</div><div class="num">8,000.00</div>' in html
     assert html.count("จ่ายจริงตามทะเบียนคุมเงิน") == 1, "ตัวเลขนี้ต้องอยู่ที่เดียว ไม่ซ้ำสองที่"

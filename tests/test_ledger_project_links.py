@@ -38,7 +38,7 @@ def test_ledger_always_leads_to_projects(env):
     with tn.session_for(sid) as s:
         p = pf.plan(s, 2569); import_all(s, p, 'opening')
     html = env.get(url).text                                   # 3. นำเข้าแล้ว ยังไม่จัดสรร
-    assert 'นำเข้าแผนแล้ว 50,000.00 ยังไม่ได้จัดสรรให้โครงการ' in html
+    assert 'นำเข้าแผนแล้ว 50,000.00 ยังไม่ได้ระบุโครงการ' in html
     assert 'href="/projects?year=2569">ไปจัดสรรให้โครงการ' in html
 
     with tn.session_for(sid) as s:

@@ -104,8 +104,8 @@ def test_project_page_does_not_call_pre_system_spending_unallocated(env):
         pid, fid = pj.id, str(pf.sources(s, p)[0].id)
         pf.allocate(s, p, pj, {fid: '22000'}, pf.allocation_token(s, p, pj)); s.commit()
     html = env.get(f'/projects/{pid}').text
-    assert 'ใช้ไปก่อนเริ่มใช้ระบบ <b>8,000.00</b> (ไม่ต้องจัดสรร)' in html
-    assert 'จัดสรรครบแล้ว' in html and 'ยังไม่ได้จัดสรร <b>' not in html
+    assert 'ใช้ไปก่อนเริ่มใช้ระบบ <b>8,000.00</b> (ไม่ต้องระบุรายการเงินซ้ำ)' in html
+    assert 'ระบุรายการเงินครบแล้ว' in html and 'ยังไม่ระบุรายการเงิน <b>' not in html
 
 
 def test_plan_page_shows_steps_and_status(env):
