@@ -30,7 +30,8 @@
     <div class="box"><div><div class="lab">งบเหลือทำเรื่องใหม่</div><div class="num" style="color:{{ '#dc2626' if r < 0 else '#16a34a' }};">{{ "{:,.2f}".format(r) }}</div></div></div>
   </div>
 
-  <p class="muted">งบเหลือทำเรื่องใหม่ = งบโครงการ − ใช้ไปก่อนเริ่มระบบ {{ '{:,.2f}'.format(money.before) }} − จ่ายจริงในระบบ − ทำเรื่องแล้วรอจ่าย เป็นยอดงบประมาณ ไม่ใช่เงินสดหรือยอดธนาคารคงเหลือ <a href="/projects/start?year={{ p.plan_year or '' }}">ตรวจยอดตั้งต้น</a></p>
+  <p class="muted">งบเหลือทำเรื่องใหม่ = งบโครงการ − ใช้ไปก่อนเริ่มระบบ {{ '{:,.2f}'.format(money.before) }} − จ่ายจริงในระบบ − ทำเรื่องแล้วรอจ่าย เป็นยอดงบประมาณ ไม่ใช่เงินสดหรือยอดธนาคารคงเหลือ</p>
+  <p style="margin:6px 0 0;"><a class="btn sm gray" href="/projects/start?year={{ p.plan_year or '' }}"><svg class="icon"><use href="#ic-edit"/></svg> ตั้งยอดตั้งต้น</a></p>
   {% if not p.revisions and b > 0 %}{{ set_budget_form() }}{% endif %}
   {% if err %}<div class="alert warn" style="margin-top:12px;"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
 
