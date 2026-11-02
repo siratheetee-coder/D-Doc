@@ -155,8 +155,8 @@
     </ul></div></div>
   {% endif %}
   <form method="post" action="/finance/disburse/{{ m.id }}/post"
-        onsubmit="return confirm({{ ('วันที่ในบันทึกอยู่ในปีงบ ' ~ date_fy ~ ' แต่รายการจะลงทะเบียนปีงบ ' ~ m.fiscal_year ~ '
-ยืนยันลงรายการจ่ายเงินเข้าทะเบียนคุมเงิน?') if wrong_fy else 'ลงรายการจ่ายเงินเข้าทะเบียนคุมเงิน?' }}|tojson|forceescape);">
+        onsubmit="return confirm({{ (('วันที่ในบันทึกอยู่ในปีงบ ' ~ date_fy ~ ' แต่รายการจะลงทะเบียนปีงบ ' ~ m.fiscal_year ~ '
+ยืนยันลงรายการจ่ายเงินเข้าทะเบียนคุมเงิน?') if wrong_fy else 'ลงรายการจ่ายเงินเข้าทะเบียนคุมเงิน?')|tojson|forceescape }});">
     <button class="btn green" type="submit"><svg class="icon"><use href="#ic-check"/></svg> ลงจ่ายเข้าทะเบียนคุมเงิน</button>
   </form>
   {% else %}
