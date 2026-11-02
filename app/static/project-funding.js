@@ -17,7 +17,7 @@ document.querySelectorAll('[data-project-funding]').forEach(function (form) {
     if (invalid) statusNode.textContent = 'ตรวจจำนวนเงินในแต่ละรายการ ต้องไม่เกินวงเงินที่เลือกใช้ได้';
     else if (over) statusNode.textContent = 'ยอดที่กรอกเกินเงินของโครงการ ' + money(total - target) + ' บาท กรุณาปรับก่อนบันทึก';
     else if (total === target) statusNode.textContent = 'ระบุรายการเงินครบแล้ว';
-    else statusNode.textContent = 'ยังไม่ระบุรายการเงินอีก ' + money(target - total) + ' บาท — บันทึกเท่าที่ทราบก่อนได้';
+    else statusNode.textContent = 'ยังไม่ระบุรายการเงินอีก ' + money(target - total) + ' บาท บันทึกเท่าที่ทราบก่อนได้';
     save.disabled = invalid || over;
     form.querySelectorAll('[data-funding-fill]').forEach(function (button) {
       var field = button.parentElement.querySelector('[data-funding-amount]');
