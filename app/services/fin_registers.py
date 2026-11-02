@@ -330,7 +330,12 @@ _DEBTOR_WORDS = ("ลูกหนี้", "ยืม", "เงินยืม")
 
 
 def _is_debtor(txn) -> bool:
-    text = " ".join(str(getattr(txn, f, "") or "") for f in ("category", "note", "ref"))
+    if getattr(txn, "loan_id", None) and not getattr(txn, "loan_return_id", None):
+        return True
+    # A payment subject may contain ยืม (e.g. buying lending-library books).
+    # Linked disbursement descriptions must not move normal expenses into debtor columns.
+    fields = ("category", "ref") if getattr(txn, "disburse_id", None) else ("category", "note", "ref")
+    text = " ".join(str(getattr(txn, f, "") or "") for f in fields)
     return any(w in text for w in _DEBTOR_WORDS)
 
 
@@ -386,12 +391,14 @@ def render_money_register(school, account, txns, opening, fiscal_year, *,
 
     total_in = total_out = total_debtor = total_exp = 0.0
     rows = sorted(txns, key=lambda x: (x.date or datetime.min, x.id or 0))
+    from app.services.finance_txn_text import display_notes
+    descriptions = display_notes(rows)
     for x in rows:
         amount = float(x.amount or 0)
         vals = blank_row()
         vals[0] = thai_date_short(x.date) if x.date else ""
         vals[1] = (x.ref or "").strip()
-        vals[2] = (x.note or x.category or "").strip()
+        vals[2] = descriptions.get(x.id, (x.note or x.category or "").strip())
         vals[10] = (getattr(x, "remark", "") or "").strip()
         p = txn_place(x)
         place_bal[p] = place_bal.get(p, 0) + (amount if (x.kind or "in") == "in" else -amount)

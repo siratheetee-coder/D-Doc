@@ -107,10 +107,8 @@ def source_text(db, memo) -> str:
 
 
 def txn_note(memo, n=None, total=None) -> str:
-    note = f"จ่าย {memo.payee}".strip()
-    if n:
-        note += f" (ส่วนที่ {n} จาก {total} ของยอด {float(memo.amount or 0):,.2f} บาท)"
-    return note
+    from app.services.finance_txn_text import payment_note
+    return payment_note(memo, n, total)
 
 
 def post(db, memo) -> None:

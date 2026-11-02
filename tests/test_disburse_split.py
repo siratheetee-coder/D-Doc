@@ -68,7 +68,7 @@ def test_single_account_stays_as_before(db, accs):
     splits.apply(db, m, [])
     splits.post(db, m); db.flush()
     t = db.query(FinanceTxn).filter_by(disburse_id=m.id).one()
-    assert (t.account_id, t.item_id, t.amount, t.note) == (a.id, ia.id, 30000.0, "จ่าย ร้านเอ")
+    assert (t.account_id, t.item_id, t.amount, t.note) == (a.id, ia.id, 30000.0, "จ่าย ซื้อวัสดุ")
     assert not splits.is_split(m)
 
 

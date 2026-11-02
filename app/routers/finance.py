@@ -16,6 +16,7 @@ from sqlalchemy import update
 from urllib.parse import quote
 from app.services import disburse_payments as payments
 from app.services import disburse_split as splits
+from app.services.finance_txn_text import display_notes as txn_display_notes
 
 from app.database import get_db
 from app.models import (
@@ -485,6 +486,7 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
         "place_bal": place_bal, "places_used": places_used, "txn_places": txn_places,
         "deposit_types": DEPOSIT_TYPES,
         "request": request, "account": a, "rows": rows, "balance": round(bal, 2),
+        "txn_display_notes": txn_display_notes(txns, db),
         "txn_project": txn_project,
         "lunch_mirror": _lunch_mirror(db),
         "item_alloc": item_allocations(db, item_rows, txn_project),
@@ -1139,6 +1141,7 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
             txn.amount = m.amount or 0
             txn.date = m.date or txn.date
             txn.ref = m.memo_no or txn.ref
+            txn.note = splits.txn_note(m)
         remove_issued(db, "finance", m.id, "memo")   # ล้างเลขเก่า (กันค้างเมื่อเปลี่ยนเลข)
         commit_doc_no(db, "memo", m.fiscal_year, m.memo_no, source="finance", ref_id=m.id, date=m.date,
                   subject=((m.subject or "").strip() if (m.subject or "").strip().startswith("ขออนุมัติเบิกจ่าย")
