@@ -83,12 +83,17 @@ def _amt(v) -> str:
     return "{:,.0f}".format(v) if v == int(v) else "{:,.2f}".format(v)
 
 
-def _money_breakdown(doc, lines, bold_last=True):
+def _money_breakdown(doc, lines, bold_last=True, indent_cm=0):
     """ตารางไร้เส้น 3 คอลัมน์: ป้ายกำกับ | จำนวนเงิน(ชิดขวา) | บาท/คำอ่าน"""
     table = doc.add_table(rows=len(lines), cols=3)
     _no_borders(table)
     table.autofit = False
     widths = [Cm(6.5), Cm(3.5), Cm(6.5)]
+    if indent_cm:      # ย่อเข้ามาแบบบันทึกขอเบิกของโรงเรียน
+        widths = [Cm(6.5), Cm(3.0), Cm(2.0)]
+        ind = OxmlElement("w:tblInd")
+        ind.set(qn("w:w"), str(int(indent_cm * 567))); ind.set(qn("w:type"), "dxa")
+        table._tbl.tblPr.append(ind)
     for i, (label, amount, tail) in enumerate(lines):
         cells = table.rows[i].cells
         bold = bold_last and (i == len(lines) - 1)
@@ -167,14 +172,13 @@ def render_disburse(memo, school) -> str:
             ("จำนวนเงินขอเบิก", _amt(amount), "บาท"),
             ("หัก ภาษี ณ ที่จ่าย", _amt(wht), "บาท"),
             ("คงเหลือจ่ายจริง", _amt(net), "บาท"),
-        ], bold_last=False)
+        ], bold_last=False, indent_cm=2.5)
     else:
         _disburse_purchase_body(doc, school, memo, kind, project_name, payee, src,
                                 amount, vat, goods, wht, fine, net)
     if split_rows:
         _split_sources(doc, split_rows, wht, fine)
-    _p(doc, "", after=2)
-    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ", indent=1.25, after=10)
+    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ", indent=2.5, before=4, after=6)
     _disburse_tail(doc, school, memo, net)
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)
@@ -225,7 +229,7 @@ def _disburse_purchase_body(doc, school, memo, kind, project_name, payee, src, a
         ("หัก ภาษี ณ ที่จ่าย", _amt(wht), "บาท"),
         ("ค่าปรับ", _amt(fine), "บาท"),
         ("คงเหลือจ่ายจริง", _amt(net), "บาท"),
-    ], bold_last=False)
+    ], bold_last=False, indent_cm=2.5)
 
 
 def _disburse_dept_activity(memo):
@@ -255,16 +259,15 @@ def _disburse_tail(doc, school, memo, net):
         (f"({fin})" if fin else "(......................................)", "center"),
         ("เจ้าหน้าที่การเงิน", "center"),
         (when, "center"),
-    ]])
+    ]], gap=False)
 
     # ความเห็นของผู้อำนวยการ
-    _p(doc, "", after=4)
-    _p(doc, f"ความเห็นของ{_director_office(school)}", indent=0.5, after=2)
-    _p(doc, "☐  อนุมัติ          ☐  ไม่อนุมัติ", indent=1.0, after=10)
+    _p(doc, f"ความเห็นของ{_director_office(school)}", indent=0.5, before=6, after=2)
+    _p(doc, "☐  อนุมัติ          ☐  ไม่อนุมัติ", indent=1.0, after=4)
     director = (school.director_name or "").strip()
     _sign_table(doc, [[("", "center")], [
         ("ลงชื่อ ......................................", "center"),
         (f"({director})" if director else "(......................................)", "center"),
         (_director_office(school), "center"),
         (when, "center"),
-    ]])
+    ]], gap=False)
