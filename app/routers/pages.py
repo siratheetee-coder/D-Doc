@@ -3176,14 +3176,20 @@ def projects_import_confirm(db: Session = Depends(get_db),
 def _start_rows(db, year):
     """แถวของหน้าตั้งยอดตั้งต้น: งบ / ใช้ในระบบ / ใช้ก่อนใช้ระบบ / เหลือตอนนี้ ของแต่ละโครงการ"""
     from app.services.budget import project_spent_in_system
+    from app.models import ProjectFunding
+    p_funds = {}
+    for a in db.query(ProjectFunding):
+        p_funds.setdefault(a.project_id, []).append(a)
     out = []
     for p in (db.query(Project).filter(Project.plan_year == year, Project.active == True)  # noqa: E712
               .order_by(Project.name).all()):
         b = round(project_budget(p), 2)
         used = round(project_spent_in_system(p), 2)
         before = round(float(p.spent_before or 0), 2)
+        funds = [a for a in p_funds.get(p.id, []) if (a.amount or 0) > 0]
         out.append({"p": p, "budget": b, "used": used, "before": before,
-                    "remain": round(b - used - before, 2), "room": round(b - used, 2)})
+                    "remain": round(b - used - before, 2), "room": round(b - used, 2),
+                    "multi": len(funds) > 1, "fund": funds[0].funding_id if len(funds) == 1 else None})
     return out
 
 
@@ -3240,10 +3246,30 @@ def projects_start_page(request: Request, db: Session = Depends(get_db), year: i
     """
     school = get_school(db)
     cur = year or current_plan_year(school)
+    rows = _start_rows(db, cur)
     return templates.TemplateResponse("projects_start.html", {
         "request": request, "school": school, "year": cur, "year_label": plan_year_label(school, cur),
-        "years": _plan_years(db, cur), "rows": _start_rows(db, cur), "err": err,
+        "years": _plan_years(db, cur), "rows": rows, "err": err,
+        "sources": _start_sources(db, cur, rows),
     })
+
+
+def _start_sources(db, year, rows):
+    """เงินในแผนของปีนี้ สำหรับเลือกในหน้าตั้งยอดตั้งต้น
+    fixed = ยอดที่จัดสรรไว้แล้วและหน้านี้ไม่ได้แก้ (โครงการที่ใช้หลายรายการ หรือโครงการนอกหน้านี้)"""
+    from app.models import ProjectFunding
+    from app.services import plan_funding as pf
+    plan = pf.plan(db, year)
+    srcs = pf.sources(db, plan) if plan else []
+    if not srcs:
+        return []
+    editable = {r["p"].id for r in rows if not r["multi"]}
+    out = []
+    for s in srcs:
+        fixed = sum(a.amount or 0 for a in db.query(ProjectFunding).filter_by(funding_id=s.id)
+                    if a.project_id not in editable)
+        out.append({"id": s.id, "name": s.name, "amount": float(s.amount or 0), "fixed": round(fixed, 2)})
+    return out
 
 
 @router.post("/projects/start")
@@ -3281,11 +3307,56 @@ async def projects_start_save(request: Request, db: Session = Depends(get_db)):
             r["p"].spent_before = before
             r["p"].spent_before_at = datetime.now() if before > 0 else None
             changed += 1
+    if not bad:
+        try:
+            changed += _start_save_funds(db, year, rows, form)
+        except ValueError as e:
+            bad.append(str(e))
     if bad:
         db.rollback()
         return RedirectResponse(f"/projects/start?year={year}&err=" + quote(" ".join(bad)), status_code=303)
     db.commit()
     return RedirectResponse(f"/projects?year={year}&started={changed}", status_code=303)
+
+
+def _start_save_funds(db, year, rows, form) -> int:
+    """ช่อง "ใช้เงินจาก": จัดสรรเงินรายการที่เลือกให้โครงการ = งบ - ใช้ไปก่อนเริ่มใช้ระบบ
+    เลือก "ยังไม่ระบุ" = เอาการจัดสรรออก โครงการที่ใช้หลายรายการไม่มีช่องนี้ จึงไม่ถูกแตะ"""
+    from app.models import ProjectFunding
+    from app.services import plan_funding as pf
+    from app.services.budget import project_budget
+    plan = pf.plan(db, year)
+    srcs = {s.id: s for s in (pf.sources(db, plan) if plan else [])}
+    if not srcs:
+        return 0
+    pf.sub.lock(db)
+    n = 0
+    for pid, r in rows.items():
+        key = f"fund_{pid}"
+        if key not in form or r["multi"]:
+            continue
+        sid = _to_int(form.get(key), 0)
+        if sid and sid not in srcs:
+            raise ValueError("รายการเงินไม่อยู่ในแผนนี้")
+        p = r["p"]
+        want = round(max(0.0, project_budget(p) - float(p.spent_before or 0)), 2) if sid else 0
+        olds = db.query(ProjectFunding).filter_by(project_id=pid).all()
+        old = {a.funding_id: a.amount for a in olds}
+        if old == ({sid: want} if sid and want else {}):
+            continue
+        if sid and want > old.get(sid, 0) and pf.changed(db, plan, srcs[sid]):
+            raise ValueError("ยอดต้นทางเปลี่ยนแล้ว ตรวจและอัปเดตงบแผนก่อน: " + srcs[sid].name)
+        for a in olds:
+            db.delete(a)
+        db.flush()
+        if sid and want:
+            db.add(ProjectFunding(project_id=pid, funding_id=sid, amount=want))
+        n += 1
+    db.flush()
+    for s in srcs.values():
+        if pf.allocated(db, s.id) > round(float(s.amount or 0), 2) + 0.004:
+            raise ValueError(f"จัดสรร{s.name}เกินเงินที่มี ({pf.allocated(db, s.id):,.2f} จาก {s.amount:,.2f} บาท)")
+    return n
 
 
 def _plan_mode(db, year):

@@ -36,16 +36,29 @@
      <a class="btn gray" href="/projects/import">นำเข้าจาก Excel</a></p>
 </div>
 {% else %}
+<div class="st-bar" id="stBar">
+  <div class="st-find"><svg class="icon"><use href="#ic-search"/></svg>
+    <input id="stFind" type="search" autocomplete="off" placeholder="ค้นหาชื่อโครงการ" aria-label="ค้นหาชื่อโครงการ"></div>
+  {% for s in sources %}
+  <div class="st-pool" data-src="{{ s.id }}" data-total="{{ '%.2f'|format(s.amount) }}" data-fixed="{{ '%.2f'|format(s.fixed) }}">
+    <b>{{ s.name }}</b>
+    <span>ทั้งหมด {{ '{:,.2f}'.format(s.amount) }}</span>
+    <span>จัดสรรให้โครงการแล้ว <em data-used>0.00</em></span>
+    <span>ยังไม่จัดสรร <em data-free>0.00</em></span>
+  </div>
+  {% endfor %}
+</div>
 <form class="card" method="post" action="/projects/start" id="startForm">
   <input type="hidden" name="year" value="{{ year }}">
   <div class="table-wrap"><table class="stack-sm">
     <thead><tr>
       <th>โครงการ</th><th class="right">งบโครงการ</th><th class="right">ใช้ในระบบแล้ว</th>
       <th class="right" style="min-width:150px;">ตอนนี้เหลือ (บาท)</th><th class="right">ใช้ไปก่อนเริ่มใช้ระบบ</th>
+      {% if sources %}<th>ใช้เงินจาก</th>{% endif %}
     </tr></thead>
     <tbody>
     {% for r in rows %}
-      <tr data-room="{{ r.room }}">
+      <tr data-room="{{ r.room }}" data-budget="{{ r.budget }}" data-before="{{ r.before }}" data-q="{{ r.p.name }} {{ r.p.responsible or '' }}">
         <td data-label="โครงการ"><a href="/projects/{{ r.p.id }}">{{ r.p.name }}</a></td>
         <td data-label="งบโครงการ" class="right">{{ "{:,.2f}".format(r.budget) }}</td>
         <td data-label="ใช้ในระบบแล้ว" class="right">{{ "{:,.2f}".format(r.used) if r.used else "-" }}</td>
@@ -55,6 +68,14 @@
           <div class="st-err" hidden></div>
         </td>
         <td data-label="ใช้ไปก่อนเริ่มใช้ระบบ" class="right"><b class="st-out">{{ "{:,.2f}".format(r.before) if r.before else "-" }}</b></td>
+        {% if sources %}<td data-label="ใช้เงินจาก">
+          {% if r.multi %}<a href="/projects/{{ r.p.id }}#project-funding">หลายรายการ แก้ในหน้าโครงการ</a>
+          {% else %}<div class="st-srcbox"><select name="fund_{{ r.p.id }}" class="st-src">
+            <option value="">ยังไม่ระบุ</option>
+            {% for s in sources %}<option value="{{ s.id }}" {{ 'selected' if s.id == r.fund }}>{{ s.name }}</option>{% endfor %}
+          </select>
+          <div class="st-alloc" hidden>จัดสรร <b></b> บาท</div></div>{% endif %}
+        </td>{% endif %}
       </tr>
     {% endfor %}
     </tbody>
@@ -69,6 +90,27 @@
   .st-in{ width:140px; text-align:right; }
   .st-in.bad{ border-color:#dc2626; background:#fef2f2; }
   .st-err{ color:#b91c1c; font-size:12px; margin-top:3px; }
+  .st-bar{ position:sticky; top:76px; z-index:25; display:flex; flex-wrap:wrap; gap:10px; margin:0 0 16px; }
+  .st-find{ flex:1 1 260px; display:flex; align-items:center; gap:10px; padding:4px 16px; border-radius:16px; background:#fff;
+    box-shadow:0 6px 20px rgba(15,23,42,.08); }
+  .st-find .icon{ width:20px; height:20px; color:#64748b; }
+  .st-find input{ flex:1; border:0; background:none; box-shadow:none; font-size:16px; padding:10px 0; }
+  .st-find input:focus{ outline:none; box-shadow:none; }
+  .st-pool{ flex:1 1 260px; padding:8px 14px; border-radius:16px; background:linear-gradient(135deg,#eff6ff,#f5f3ff);
+    box-shadow:0 6px 20px rgba(15,23,42,.08); font-size:13.5px; display:flex; flex-wrap:wrap; gap:2px 12px; }
+  .st-pool b{ width:100%; font-size:14px; }
+  .st-pool em{ font-style:normal; font-weight:700; }
+  .st-pool em.neg{ color:#dc2626; }
+  .st-src{ min-width:180px; }
+  .st-alloc{ font-size:12.5px; color:#475569; margin-top:3px; }
+  .st-srcbox{ min-width:0; flex:1; }
+  @media (max-width:700px){
+    .st-bar{ top:62px; gap:6px; }
+    .st-src{ min-width:0; width:100%; }
+    .st-pool{ padding:6px 12px; font-size:12.5px; }
+    .st-pool span:nth-of-type(1), .st-pool span:nth-of-type(2){ display:none; }
+    .st-pool b{ font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  }
 </style>
 <script>
 (function () {
@@ -97,6 +139,49 @@
     var ok = true;
     form.querySelectorAll('.st-in').forEach(function (inp) { ok = check(inp) && ok; });
     if (!ok) { e.preventDefault(); var b = form.querySelector('.st-in.bad'); if (b) b.focus(); }
+  });
+})();
+</script>
+<script>
+// เลือกเงินที่ใช้ + สรุปเงินแต่ละรายการ + ค้นหาโครงการ
+(function(){
+  var fmt = function (n) { return n.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
+  var form = document.getElementById('startForm');
+  if (!form) return;
+  // ยอดจัดสรรของโครงการ = งบ - ใช้ไปก่อนเริ่มใช้ระบบ (เงินส่วนที่ใช้ก่อนไม่ได้อยู่ในเงินที่เหลือแล้ว)
+  function beforeOf(tr) {
+    var inp = tr.querySelector('.st-in'), txt = inp.value.replace(/,/g, '').trim();
+    if (!txt || isNaN(Number(txt))) return parseFloat(tr.dataset.before) || 0;
+    return Math.max(0, Math.round(((parseFloat(tr.dataset.room) || 0) - Number(txt)) * 100) / 100);
+  }
+  function pools() {
+    var used = {};
+    form.querySelectorAll('tbody tr').forEach(function (tr) {
+      var sel = tr.querySelector('.st-src'), box = tr.querySelector('.st-alloc');
+      if (!sel) return;
+      var amt = Math.max(0, Math.round(((parseFloat(tr.dataset.budget) || 0) - beforeOf(tr)) * 100) / 100);
+      box.hidden = !sel.value;
+      box.querySelector('b').textContent = fmt(amt);
+      if (sel.value) used[sel.value] = (used[sel.value] || 0) + amt;
+    });
+    document.querySelectorAll('.st-pool').forEach(function (p) {
+      var u = Math.round(((parseFloat(p.dataset.fixed) || 0) + (used[p.dataset.src] || 0)) * 100) / 100;
+      var free = Math.round(((parseFloat(p.dataset.total) || 0) - u) * 100) / 100;
+      p.querySelector('[data-used]').textContent = fmt(u);
+      var fe = p.querySelector('[data-free]');
+      fe.textContent = free < 0 ? 'เกิน ' + fmt(-free) : fmt(free);
+      fe.classList.toggle('neg', free < 0);
+    });
+  }
+  form.addEventListener('input', pools);
+  form.addEventListener('change', pools);
+  pools();
+  var find = document.getElementById('stFind');
+  if (find) find.addEventListener('input', function () {
+    var q = find.value.toLowerCase().replace(/\s+/g, '');
+    form.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.hidden = !!q && (tr.dataset.q || '').toLowerCase().replace(/\s+/g, '').indexOf(q) < 0;
+    });
   });
 })();
 </script>

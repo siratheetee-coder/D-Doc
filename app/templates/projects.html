@@ -9,7 +9,7 @@
   </div>
   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <a class="btn sm gray" href="/projects/import"><svg class="icon"><use href="#ic-download"/></svg> นำเข้าจาก Excel</a>
-    <a class="btn sm gray" href="/projects/start?year={{ fiscal_year }}" title="สำหรับโรงเรียนที่เริ่มใช้ระบบกลางปี"><svg class="icon"><use href="#ic-edit"/></svg> ตั้งยอดตั้งต้น</a>
+    <a class="btn sm pj-start-btn" href="/projects/start?year={{ fiscal_year }}" title="สำหรับโรงเรียนที่เริ่มใช้ระบบกลางปี"><svg class="icon"><use href="#ic-edit"/></svg> ตั้งยอดตั้งต้น</a>
     <a class="btn sm gray" href="/projects/next-year?year={{ fiscal_year }}" title="ปิดปีแผน: ยกโครงการที่ทำต่อไปปีถัดไป"><svg class="icon"><use href="#ic-arrow-right"/></svg> ยกโครงการไปปีหน้า</a>
     <a class="btn sm" href="/projects/summary.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-file"/></svg> รายงานสรุปโครงการ (Word)</a>
     <a class="btn sm green" href="/projects/summary.xlsx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> Excel</a>
@@ -26,7 +26,9 @@
   <div class="pj-find-list" id="pjFindList" hidden></div>
 </div>
 <style>
-  .pj-find{ position:relative; display:flex; align-items:center; gap:10px; margin:0 0 16px; padding:6px 16px; border-radius:16px;
+  .hero .btn.pj-start-btn, .hero .btn.pj-start-btn:hover{ background:#fff; color:#1d4ed8; box-shadow:0 6px 18px rgba(15,23,42,.18); }
+  .hero .btn.pj-start-btn .icon{ color:#1d4ed8; stroke:#1d4ed8; }
+  .pj-find{ position:sticky; top:76px; z-index:25; display:flex; align-items:center; gap:10px; margin:0 0 16px; padding:6px 16px; border-radius:16px;
     background:#fff; box-shadow:0 6px 20px rgba(15,23,42,.06); }
   .pj-find > .icon{ width:20px; height:20px; color:#64748b; flex:none; }
   .pj-find input{ flex:1; border:0; background:none; box-shadow:none; font-size:16px; padding:10px 0; }
