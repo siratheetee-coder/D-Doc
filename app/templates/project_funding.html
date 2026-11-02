@@ -1,30 +1,10 @@
-<section class="card" id="project-funding">
-  <h2><svg class="icon" aria-hidden="true"><use href="#ic-clipboard"/></svg> โครงการนี้ใช้เงินจากบัญชีใด</h2>
-  <p class="muted">ติ๊กบัญชีที่โครงการใช้เงินได้ เลือกได้มากกว่า 1 บัญชี</p>
-  <div class="pf-help" role="note"><b>เลือกบัญชีได้เลย ไม่ต้องกรอกยอดจัดสรร</b>
-    <p>เป็นการบอกว่าโครงการนี้ใช้เงินจากบัญชีใด เงินกองกลางยังเท่าเดิม เมื่อบันทึกจ่ายจึงระบุจำนวนเงินที่ใช้จากแต่ละบัญชี</p>
-  </div>
-  {% if funding_rows %}
-  <form action="/plan-budget/project/{{ p.id }}/allocate" method="post" data-project-funding>
-    <input type="hidden" name="token" value="{{ funding_token }}">
-    <div class="pf-accounts">{% for r in funding_rows %}
-      <label class="pf-account">
-        <input type="checkbox" name="fund_{{ r.source.id }}" value="1" {% if r.linked %}checked{% endif %}>
-        <span class="pf-name"><b>{{ r.source.name }}</b><small>{% if r.item %}ปีงบประมาณ {{ r.item.fiscal_year }}{% else %}รายการเงินอื่นในแผน{% endif %}</small></span>
-        <span class="pf-balance"><small>{{ 'คงเหลือในทะเบียนคุม' if r.item else 'ยอดในแผน' }}</small><b>{{ '{:,.2f}'.format(r.available) }} <small>บาท</small></b></span>
-      </label>
-    {% endfor %}</div>
-    <div class="pf-footer"><span data-funding-status role="status" aria-live="polite">เลือกไว้ {{ funding_linked }} รายการ</span>
-      <button class="btn" type="submit" data-funding-save data-save-label="บัญชีเงินของโครงการ"><svg class="icon" aria-hidden="true"><use href="#ic-save"/></svg> บันทึกบัญชีที่เลือก</button>
-    </div>
-  </form>
-  {% else %}<p>ยังไม่มีรายการเงินให้เลือก <a href="/plan-budget/{{ p.plan_year }}">เลือกรายการเงินเข้าแผน</a> แล้วกลับมาเชื่อมกับโครงการได้ โดยไม่ต้องบันทึกรับเงินซ้ำ</p>{% endif %}
-  <p class="pf-note">งบโครงการ {{ '{:,.2f}'.format(b) }} บาท เป็นวงเงินของโครงการ การเลือกบัญชีไม่ลดเงินกองกลางและไม่สร้างรายการจ่าย</p>
-  {% for r in funding_rows %}{% if r.item and r.linked %}<a class="btn gray sm pf-pay" href="/finance/accounts/{{ r.item.account_id }}?year={{ r.item.fiscal_year }}&item={{ r.item.id }}&project={{ p.id }}&kind=out#txn-entry">บันทึกจ่ายจาก {{ r.item.name }}</a>{% endif %}{% endfor %}
-  <p class="pf-note">หากลงรายการจ่ายไว้แล้ว ไม่ต้องบันทึกจ่ายซ้ำ</p>
-  {% if p.plan_year %}<a class="pf-plan" href="/plan-budget/{{ p.plan_year }}">จัดการรายการเงินในแผน {{ p.plan_year }} →</a>{% endif %}
+<section class="card" id="project-funding"><h2>โครงการนี้ใช้งบจากรายการใด</h2>
+{% if p.plan_year %}<p><a class="btn gray" href="/plan-budget/{{ p.plan_year }}">งบประมาณที่ใช้จัดทำแผน {{ p.plan_year }}</a></p>{% else %}<p>กำหนดปีของโครงการก่อนเลือกงบ</p>{% endif %}
+{% if funding_suggest is defined and funding_suggest %}<div class="pf-grew">งบเพิ่มแล้ว ยังไม่ได้จัดสรรอีก <b>{{ '{:,.2f}'.format(funding_need) }}</b> บาท ระบบเติมยอดใหม่ไว้ให้ในช่องด้านล่างแล้ว ตรวจแล้วกด <b>บันทึกการจัดสรรงบ</b>{% if funding_short %}<br>ยังจัดสรรไม่ได้อีก {{ '{:,.2f}'.format(funding_short) }} บาท เพราะเงินในแผนที่ยังไม่ได้จัดสรรเหลือไม่พอ นำเงินเข้าแผนเพิ่มก่อน{% endif %}</div>
+{% elif funding_need is defined and funding_need %}<div class="pf-grew pf-grew-warn">งบเพิ่มแล้ว ยังไม่ได้จัดสรรอีก {{ '{:,.2f}'.format(funding_need) }} บาท แต่เงินในแผนที่ยังไม่ได้จัดสรรหมดแล้ว นำเงินเข้าแผนเพิ่มก่อน</div>{% endif %}
+{% if funding_rows %}<p>กรอกส่วนที่จัดสรรให้โครงการนี้ ยอดรวมต้องไม่เกินงบโครงการและเงินที่ยังเหลือให้จัดสรร</p><form action="/plan-budget/project/{{ p.id }}/allocate" method="post"><input type="hidden" name="token" value="{{ funding_token }}"><div class="table-wrap"><table style="min-width:700px;"><thead><tr><th>รายการเงิน</th><th>จัดสรรให้โครงการนี้ได้ไม่เกิน</th><th>จำนวนที่ใช้ (บาท)</th></tr></thead><tbody>{% for r in funding_rows %}<tr><td>{{ r.source.name }}<br><small>{{ {'opening':'เงินเหลือก่อนเริ่มแผน','subsidy':'เงินอุดหนุนรอบใหม่','other':'เงินอื่น ๆ'}[r.source.kind] }}</small></td><td>{{ '{:,.2f}'.format(r.available) }}</td><td><input type="number" style="min-width:130px;" name="fund_{{ r.source.id }}" min="0" max="{{ r.available }}" step="0.01" required value="{{ funding_suggest.get(r.source.id, r.value) if funding_suggest is defined and funding_suggest else r.value }}"{% if funding_suggest is defined and r.source.id in funding_suggest %} class="pf-filled"{% endif %}></td></tr>{% endfor %}</tbody></table></div><p>ระบุที่มาของงบแล้ว {{ '{:,.2f}'.format(funding_assigned) }} จากงบโครงการ {{ '{:,.2f}'.format(b) }} บาท</p><button class="btn">บันทึกการจัดสรรงบ</button></form>{% else %}<p class="muted">ยังไม่มีงบที่นำเข้าแผน เลือกเงินอุดหนุนหรือเงินเหลือจากทะเบียนคุมก่อน โดยไม่ต้องกรอกงบโครงการเดิมซ้ำ</p>{% endif %}
+<hr>
+{% for r in funding_rows %}{% if r.item and r.value %}<p><a class="btn gray sm" href="/finance/accounts/{{ r.item.account_id }}?year={{ r.item.fiscal_year }}&item={{ r.item.id }}&project={{ p.id }}&kind=out#txn-entry">บันทึกจ่าย {{ r.item.name }} ปีงบ {{ r.item.fiscal_year }}</a></p>{% endif %}{% endfor %}
+<p class="muted">ใช้ปุ่มบันทึกจ่ายเฉพาะรายการที่ยังไม่เคยลงทะเบียนคุม หากลงผ่านบันทึกเบิกจ่ายแล้วไม่ต้องบันทึกซ้ำ และตรวจปีงบให้ตรงกับวันที่จ่ายจริง</p>
+<style>.pf-grew{background:linear-gradient(120deg,#eff6ff,#f0fdf4);color:#1e3a8a;border-radius:12px;padding:10px 14px;margin:0 0 12px;font-size:14.5px;}.pf-grew-warn{background:#fff7ed;color:#9a3412;}.pf-filled{background:#fefce8;box-shadow:0 0 0 2px #facc15 inset;}</style>
 </section>
-<style>
-.pf-help{padding:15px 18px;border:1px solid #fed7aa;border-radius:12px;background:#fff7ed;color:#9a3412;margin:16px 0}.pf-help p{margin:6px 0 0;line-height:1.8;font-size:14px}.pf-accounts{display:grid;gap:10px}.pf-account{display:flex;align-items:center;gap:14px;padding:17px;border:1px solid #e2e8f0;border-radius:12px;cursor:pointer;margin:0}.pf-account:hover{background:#f8fafc}.pf-account:has(input:checked){border-color:#818cf8;background:#f5f3ff}.pf-account input[type=checkbox]{width:23px;height:23px;min-width:23px;margin:0;accent-color:#4f46e5;cursor:pointer}.pf-name{flex:1;min-width:0}.pf-name b{font-size:15px;overflow-wrap:anywhere}.pf-name small,.pf-balance>small{display:block;color:var(--muted);font-size:12px;font-weight:400;margin-top:4px}.pf-balance{text-align:right;flex:none}.pf-balance>b{display:block;font-size:19px;color:#334155}.pf-balance b small{font-size:12px;font-weight:400}.pf-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0}.pf-footer>span{font-size:14px;color:var(--muted)}.pf-note{font-size:13px;line-height:1.8;color:var(--muted);margin:12px 0}.pf-pay{margin:4px 6px 4px 0}.pf-plan{font-size:13px}@media(max-width:640px){.pf-account{flex-wrap:wrap;padding:14px;gap:10px}.pf-name{flex-basis:calc(100% - 36px)}.pf-balance{margin-left:33px;text-align:left}.pf-balance>b{font-size:18px}.pf-footer{align-items:stretch;flex-direction:column}.pf-help{padding:13px}.pf-help p{font-size:13px}}
-</style>
-<script src="/static/project-funding.js" defer></script>

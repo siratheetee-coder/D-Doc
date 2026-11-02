@@ -45,7 +45,7 @@ def page_context(db, year, requested_mode=None):
         from app.services.budget import project_budget, project_money_summary
         for pj in db.query(Project).filter(Project.plan_year==year).order_by(Project.name):
             m=project_money_summary(pj)
-            projects.append(dict(p=pj, budget=project_budget(pj), left=m['remaining'], allocated=pf.project_link_count(db,pj.id)))
+            projects.append(dict(p=pj, budget=project_budget(pj), left=m['remaining'], allocated=pf.project_allocated(db,pj.id)))
     return dict(plan=p,year=year,mode=mode,start=start,end=end, funding=funding,snapshots=list(latest.values()),nonce=str(uuid4()),
                 info=pf.opening_info(db,p) if p else None,
                 opening_total=round(sum(r['source'].amount for r in opening),2), opening_done=bool(opening),
@@ -113,7 +113,7 @@ def remove(year:int,fid:int,request:Request,db:Session=Depends(get_db)):
     try:
         sub.lock(db);p=required(db,year);s=db.get(PlanFunding,fid)
         if not s or s.plan_id!=p.id: raise ValueError('ไม่พบรายการเงินในแผนนี้')
-        if db.query(ProjectFunding).filter_by(funding_id=fid).first(): raise ValueError('ยกเลิกการเชื่อมกับโครงการก่อนนำรายการเงินออกจากแผน')
+        if pf.allocated(db,fid): raise ValueError('ต้องยกเลิกการจัดสรรให้โครงการก่อนนำเงินออกจากแผน')
         db.delete(s);db.commit()
     except ValueError as e:
         db.rollback();return error_page(request,str(e),f'/plan-budget/{year}')
@@ -133,14 +133,9 @@ async def allocate(pid:int,request:Request,db:Session=Depends(get_db)):
     return RedirectResponse(f'/projects/{pid}?saved=1#project-funding',303)
 
 
-def project_context(db, project):
-    from app.services.asset_utils import item_remaining_asof
-    p = pf.plan(db, project.plan_year) if project.plan_year else None
-    linked = {a.funding_id for a in db.query(ProjectFunding).filter_by(project_id=project.id)}
-    rows = []
-    for source in pf.sources(db, p):
-        item = db.get(AccountItem, source.account_item_id) if source.account_item_id else None
-        rows.append(dict(source=source, item=item, linked=source.id in linked,
-                         value=0, available=item_remaining_asof(item) if item else source.amount))
-    return dict(funding_plan=p, funding_rows=rows, funding_token=pf.allocation_token(db,p,project),
-                funding_assigned=0, funding_linked=len(linked), actual_paid=pf.actual_paid(db,project))
+def project_context(db,project):
+    p=pf.plan(db,project.plan_year) if project.plan_year else None
+    allocations={a.funding_id:a.amount for a in db.query(ProjectFunding).filter_by(project_id=project.id)}
+    return dict(funding_plan=p, funding_rows=[dict(source=s,item=db.get(AccountItem,s.account_item_id) if s.account_item_id else None,value=allocations.get(s.id,0),available=round(s.amount-pf.allocated(db,s.id,project.id),2)) for s in pf.sources(db,p)],
+                funding_token=pf.allocation_token(db,p,project), funding_assigned=sum(allocations.values()),
+                actual_paid=pf.actual_paid(db,project))

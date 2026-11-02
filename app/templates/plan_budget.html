@@ -9,7 +9,7 @@
   <div>
     <div class="hero-sub">โครงการ/แผนงบ</div>
     <span class="hero-title">เงินสำหรับทำโครงการ {{ ylabel }} {{ year }}</span>
-    <div class="hero-meta">เลือกรายการเงินจากทะเบียนคุม แล้วเชื่อมกับโครงการที่ใช้เงินบัญชีนั้น โดยไม่กันเงินจากกองกลาง</div>
+    <div class="hero-meta">นำเงินที่โรงเรียนมีเข้ามาไว้ที่นี่ แล้วแบ่งให้แต่ละโครงการ จะได้รู้ว่าโครงการไหนใช้เงินก้อนไหน</div>
   </div>
   <a class="btn gray" href="/projects?year={{ year }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> หน้าโครงการ</a>
 </div>
@@ -18,8 +18,8 @@
 {% if plan %}
 <div class="pbg-sum">
   <div class="pbg-tile t1"><span>เงินในแผน</span><b>{{ '{:,.2f}'.format(funding.total) }}</b></div>
-  <div class="pbg-tile t2"><span>โครงการที่เชื่อมบัญชีแล้ว</span><b>{{ projects|length - not_alloc|length }} โครงการ</b></div>
-  <div class="pbg-tile t3"><span>รายการเงินในแผน</span><b>{{ funding.rows|length }} รายการ</b></div>
+  <div class="pbg-tile t2"><span>แบ่งให้โครงการแล้ว</span><b>{{ '{:,.2f}'.format(funding.allocated) }}</b></div>
+  <div class="pbg-tile t3"><span>ยังไม่ได้แบ่ง</span><b>{{ '{:,.2f}'.format(funding.remaining) }}</b></div>
 </div>
 {% endif %}
 
@@ -39,7 +39,7 @@
         <div><label>วันเริ่มแผน</label><input data-date="1" name="start" value="{{ start.strftime('%d/%m/') }}{{ start.year+543 }}" placeholder="วว/ดด/ปปปป" required></div>
         <div><label>วันสิ้นสุดแผน</label><input data-date="1" name="end" value="{{ end.strftime('%d/%m/') }}{{ end.year+543 }}" placeholder="วว/ดด/ปปปป" required></div>
       </div>
-      {% if plan and funding.rows %}<p class="muted">ถ้าจะเปลี่ยนช่วงเวลา ต้องยกเลิกการเชื่อมกับโครงการ และนำเงินออกจากแผนก่อน</p>{% endif %}
+      {% if plan and funding.rows %}<p class="muted">ถ้าจะเปลี่ยนช่วงเวลา ต้องยกเลิกการแบ่งเงินให้โครงการ และนำเงินออกจากแผนก่อน</p>{% endif %}
       <button class="btn" type="submit">บันทึกช่วงเวลา</button></form>
     {% if plan %}</details>{% endif %}
   </div>
@@ -99,27 +99,27 @@
 <section class="pbg-step {{ 'done' if funding.rows and funding.remaining <= 0.005 }} {{ 'off' if not funding.rows }}">
   <div class="pbg-num">{% if funding.rows and funding.remaining <= 0.005 %}<svg class="icon"><use href="#ic-check"/></svg>{% else %}3{% endif %}</div>
   <div class="pbg-body">
-    <h2>ขั้นที่ 3 เชื่อมบัญชีเงินกับโครงการ</h2>
+    <h2>ขั้นที่ 3 แบ่งเงินให้แต่ละโครงการ</h2>
     {% if not funding.rows %}<p class="pbg-line muted">ทำขั้นที่ 2 ก่อน</p>{% else %}
     <ul class="pbg-how">
-      <li>กด "เชื่อมบัญชี" แล้วติ๊กบัญชีที่โครงการใช้เงินได้ เลือกได้หลายบัญชี</li>
-      <li>ไม่ต้องกรอกยอดจัดสรร งบโครงการและเงินกองกลางยังเท่าเดิม</li>
-      <li>เมื่อบันทึกจ่าย เลือกบัญชีและจำนวนเงินที่จ่ายจริงจากแต่ละบัญชี</li>
+      <li>กด "แบ่งเงิน" ท้ายโครงการ แล้วกรอกที่ส่วน "โครงการนี้ใช้งบจากรายการใด"</li>
+      <li>ใส่ไม่เกินยอดงบเหลือของโครงการ (เรื่องที่ทำไปแล้วจ่ายจากเงินก่อนหน้านี้)</li>
+      <li>เงินในแผนน้อยกว่าที่ต้องใช้ได้ แบ่งเท่าที่มีก่อน พอได้เงินเพิ่มค่อยนำเข้าแล้วแบ่งเพิ่ม</li>
     </ul>
     {% if projects %}
     <div class="table-wrap"><table class="stack-sm pbg-pj">
-      <thead><tr><th>โครงการ</th><th class="right">งบโครงการ</th><th class="right">งบเหลือ</th><th class="right">บัญชีที่เชื่อม</th><th></th></tr></thead>
+      <thead><tr><th>โครงการ</th><th class="right">งบโครงการ</th><th class="right">งบเหลือ</th><th class="right">แบ่งเงินให้แล้ว</th><th></th></tr></thead>
       <tbody>{% for r in projects %}
         <tr class="{{ 'need' if not r.allocated and r.left > 0 }}">
           <td data-label="โครงการ"><a href="/projects/{{ r.p.id }}">{{ r.p.name }}</a></td>
           <td data-label="งบโครงการ" class="right">{{ '{:,.2f}'.format(r.budget) }}</td>
           <td data-label="งบเหลือ" class="right" style="color:{{ '#dc2626' if r.left < 0 else 'inherit' }};">{{ '{:,.2f}'.format(r.left) }}</td>
-          <td data-label="บัญชีที่เชื่อม" class="right">{% if r.allocated %}{{ r.allocated }} รายการ{% else %}<span class="st-no">ยังไม่ได้เชื่อม</span>{% endif %}</td>
-          <td><a class="btn sm {{ 'gray' if r.allocated }}" style="white-space:nowrap;" href="/projects/{{ r.p.id }}#project-funding">เชื่อมบัญชี</a></td>
+          <td data-label="แบ่งเงินให้แล้ว" class="right">{% if r.allocated %}{{ '{:,.2f}'.format(r.allocated) }}{% else %}<span class="st-no">ยังไม่ได้แบ่ง</span>{% endif %}</td>
+          <td><a class="btn sm {{ 'gray' if r.allocated }}" style="white-space:nowrap;" href="/projects/{{ r.p.id }}#project-funding">แบ่งเงิน</a></td>
         </tr>{% endfor %}
       </tbody>
     </table></div>
-    {% if not_alloc %}<p class="muted" style="margin:8px 0 0;">ยังไม่ได้เชื่อมเงินให้ {{ not_alloc|length }} โครงการ</p>{% endif %}
+    {% if not_alloc %}<p class="muted" style="margin:8px 0 0;">ยังไม่ได้แบ่งเงินให้ {{ not_alloc|length }} โครงการ</p>{% endif %}
     {% else %}<p class="muted">ยังไม่มีโครงการของ{{ ylabel }} {{ year }}</p>{% endif %}
     {% endif %}
   </div>
@@ -129,13 +129,14 @@
 <details class="card pbg-list">
   <summary><b>รายการเงินในแผนทั้งหมด</b> <span class="muted">{{ funding.rows|length }} รายการ</span></summary>
   <div class="table-wrap" style="margin-top:10px;"><table class="stack-sm">
-    <thead><tr><th>รายการ</th><th class="right">เงินในแผน</th><th class="right">โครงการที่เชื่อม</th><th></th></tr></thead>
+    <thead><tr><th>รายการ</th><th class="right">เงินในแผน</th><th class="right">แบ่งแล้ว</th><th class="right">ยังไม่ได้แบ่ง</th><th></th></tr></thead>
     <tbody>{% for r in funding.rows %}
       <tr>
         <td data-label="รายการ">{{ r.source.name }}<small style="display:block;" class="muted">{{ {'opening':'ก. เงินที่เหลืออยู่ในบัญชี','subsidy':'ข. เงินอุดหนุน','other':'ค. เงินอื่น ๆ'}[r.source.kind] }}{% if r.changed %} (ยอดต้นทางเปลี่ยนแล้ว กดอัปเดตที่ขั้นที่ 2){% endif %}</small></td>
         <td data-label="เงินในแผน" class="right">{{ '{:,.2f}'.format(r.source.amount) }}</td>
-        <td data-label="โครงการที่เชื่อม" class="right">{{ r.linked }} โครงการ</td>
-        <td><form action="/plan-budget/{{ year }}/remove/{{ r.source.id }}" method="post" style="margin:0;" onsubmit="return confirm('นำเงินรายการนี้ออกจากแผน? ข้อมูลในทะเบียนคุมเงินไม่เปลี่ยน')"><button class="btn gray sm" {{ 'disabled title="ยกเลิกการเชื่อมกับโครงการก่อน"' if r.linked }}>นำออก</button></form></td>
+        <td data-label="แบ่งแล้ว" class="right">{{ '{:,.2f}'.format(r.allocated) }}</td>
+        <td data-label="ยังไม่ได้แบ่ง" class="right">{{ '{:,.2f}'.format(r.source.amount - r.allocated) }}</td>
+        <td><form action="/plan-budget/{{ year }}/remove/{{ r.source.id }}" method="post" style="margin:0;" onsubmit="return confirm('นำเงินรายการนี้ออกจากแผน? ข้อมูลในทะเบียนคุมเงินไม่เปลี่ยน')"><button class="btn gray sm" {{ 'disabled title="ยกเลิกการแบ่งเงินให้โครงการก่อน"' if r.allocated }}>นำออก</button></form></td>
       </tr>{% endfor %}
     </tbody>
   </table></div>

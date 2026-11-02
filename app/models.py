@@ -162,7 +162,6 @@ class PlanFunding(Base):
 
 
 class ProjectFunding(Base):
-    """Project/source relationship; amount is legacy metadata, never a cash reservation."""
     __tablename__ = "project_funding"
     __table_args__ = (UniqueConstraint("project_id", "funding_id", name="uq_project_funding"),)
     id = Column(Integer, primary_key=True)

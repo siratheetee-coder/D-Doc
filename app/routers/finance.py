@@ -722,7 +722,7 @@ _FUND_KIND_TH = {"opening": "เงินเหลือก่อนเริ่
 
 @router.get("/finance/projects/quick-form")
 def project_quick_form(db: Session = Depends(get_db), year: str = ""):
-    """ข้อมูลสำหรับ pop-up เพิ่มโครงการ: ฝ่าย · ปีแผน · รายการเงินในแผนงบปีนั้นที่เชื่อมได้"""
+    """ข้อมูลสำหรับ pop-up เพิ่มโครงการ: ฝ่าย · ปีแผน · รายการเงินในแผนงบปีนั้นที่ยังจัดสรรได้"""
     from app.models import Department
     from app.services import plan_funding as pf
     school = get_school(db)
@@ -738,15 +738,15 @@ def project_quick_form(db: Session = Depends(get_db), year: str = ""):
         "years": _plan_year_list(db, cur),
         "departments": [d.name for d in db.query(Department).order_by(Department.name)],
         "has_plan": plan is not None, "plan_link": f"/plan-budget/{py}",
-        "sources": sources,
+        "sources": [s for s in sources if s["available"] > 0],
     })
 
 
 @router.post("/finance/projects/quick")
 async def project_quick_add(request: Request, db: Session = Depends(get_db)):
     """เพิ่มโครงการจาก pop-up ในฟอร์มบันทึกรายการ/ขอเบิกจ่าย (ไม่ต้องออกจากหน้า)
-    กรอกได้ครบเหมือนหน้าโครงการ + เชื่อมรายการเงินในแผน (fund_<id>) โดยไม่กันเงิน
-    เลือกรายการผิดแผน = ไม่สร้างโครงการเลย · ชื่อซ้ำในปีแผนเดียวกัน = แจ้งและใช้โครงการเดิม"""
+    กรอกได้ครบเหมือนหน้าโครงการ + จัดสรรงบจากแผนงบ (fund_<id>) ในคราวเดียว
+    จัดสรรไม่ผ่าน (เกินงบ/เกินเงินที่เหลือ) = ไม่สร้างโครงการเลย · ชื่อซ้ำในปีแผนเดียวกัน = แจ้งและใช้โครงการเดิม"""
     from app.services import plan_funding as pf
     f = await request.form()
     name = " ".join(str(f.get("name") or "").split())

@@ -105,12 +105,12 @@ def test_allocation_caps_stale_form_and_move_delete_guards(db):
     token=pf.allocation_token(db,p,project)
     pf.allocate(db,p,project,{str(source.id):80},token);db.commit()
     with pytest.raises(ValueError,match='เปลี่ยน'):pf.allocate(db,p,project,{str(source.id):80},token)
-    pf.allocate(db,p,other,{str(source.id):30},pf.allocation_token(db,p,other))
-    pf.allocate(db,p,project,{str(source.id):95},pf.allocation_token(db,p,project))
+    with pytest.raises(ValueError,match='เกินวงเงิน'):pf.allocate(db,p,other,{str(source.id):30},pf.allocation_token(db,p,other))
+    with pytest.raises(ValueError,match='เกินงบโครงการ'):pf.allocate(db,p,project,{str(source.id):95},pf.allocation_token(db,p,project))
     with pytest.raises(HTTPException):pf.guard_project(db,project,year=2569)
-    pf.guard_project(db,project,budget=79)
+    with pytest.raises(HTTPException):pf.guard_project(db,project,budget=79)
     with pytest.raises(HTTPException):pf.guard_project(db,project,deleting=True)
-    assert pf.summary(db,p)['remaining']==100
+    assert pf.summary(db,p)['remaining']==20
 
 
 def test_lower_snapshot_cannot_erase_allocated_money(db):
@@ -121,9 +121,8 @@ def test_lower_snapshot_cannot_erase_allocated_money(db):
     latest=confirmed(db,**{'r_ป.1_teach':'500'})
     assert pf.changed(db,p,source)
     data=pf.preview(db,p,'subsidy',latest.id)
-    pf.apply(db,p,'subsidy',latest.id,sub.fingerprint(data),[source.source_key])
-    assert source.amount==60000
-    assert pf.project_link_count(db,project.id)==1
+    with pytest.raises(ValueError,match='ต่ำกว่า'):pf.apply(db,p,'subsidy',latest.id,sub.fingerprint(data),[source.source_key])
+    assert source.amount==120000
 
 
 def test_overlapping_plans_cannot_reuse_money(db):

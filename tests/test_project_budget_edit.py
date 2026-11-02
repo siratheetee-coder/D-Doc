@@ -64,19 +64,81 @@ def test_edit_button_goes_away_once_revised(env, world):
     assert 'err=' in r.headers['location'] and _proj(world, world['camp'])[0] == 25000
 
 
-@pytest.mark.parametrize('value', [25000, 32000, 90000])
-def test_budget_revisions_do_not_reserve_or_require_source_amounts(env, world, value):
+def test_raising_the_budget_leads_to_allocation_with_the_new_amount_filled_in(env, world):
+    r = env.post(f"/projects/{world['sport']}/revise", data={'amount': '32000', 'reason': 'เพิ่มกิจกรรม'},
+                 follow_redirects=False)
+    assert r.headers['location'].endswith('?saved=1&grew=1#project-funding')
+    html = env.get(r.headers['location'].split('#')[0]).text
+    assert 'ยังไม่ได้จัดสรรอีก <b>2,000.00</b>' in html
+    assert '<div class="pf-grew">' in html, "ห้ามใช้ class alert ระบบจะแปลงเป็น toast แล้วหายไป"
+    assert re.search(rf'name="fund_{world["fid"]}"[^>]*value="32000.0"', html), "เติมยอดใหม่ไว้ให้ในหมวดเดิม"
+
+
+def test_short_of_money_in_the_plan_says_so(env, world):
+    r = env.post(f"/projects/{world['sport']}/revise", data={'amount': '90000'}, follow_redirects=False)
+    html = env.get(r.headers['location'].split('#')[0]).text
+    assert 'ยังจัดสรรไม่ได้อีก 40,000.00 บาท' in html and re.search(
+        rf'name="fund_{world["fid"]}"[^>]*value="50000.0"', html)
+
+
+def test_lowering_below_allocation_stays_on_the_page_and_explains(env, world):
+    r = env.post(f"/projects/{world['sport']}/revise", data={'amount': '25000'}, follow_redirects=False)
+    assert r.status_code == 303 and 'err=' in r.headers['location'], "ต้องไม่เด้งไปหน้าข้อผิดพลาด 409"
+    msg = unquote(r.headers['location'])
+    assert '30,000.00' in msg and 'ลดการจัดสรร' in msg
+    assert _proj(world, world['sport'])[1] == [], "ไม่ผ่านต้องไม่บันทึกการปรับงบ"
+    r = env.post(f"/projects/{world['sport']}/set-budget", data={'amount': '20000'}, follow_redirects=False)
+    assert 'err=' in r.headers['location'] and _proj(world, world['sport'])[0] == 30000
+
+
+def test_floor_counts_spending_before_the_system(env, world):
     import app.tenancy as tn
-    from app.models import ProjectFunding
-    with tn.session_for(world['sid']) as db:
-        before=pf.summary(db,pf.plan(db,2570))['remaining']
-        ids=[a.funding_id for a in db.query(ProjectFunding).filter_by(project_id=world['sport'])]
-    r=env.post(f"/projects/{world['sport']}/revise",data={'amount':str(value),'reason':'ปรับแผน'},follow_redirects=False)
-    assert r.status_code==303 and 'err=' not in r.headers['location'] and 'grew=' not in r.headers['location']
-    assert _proj(world,world['sport'])[1][-1][1]==value
-    with tn.session_for(world['sid']) as db:
-        assert pf.summary(db,pf.plan(db,2570))['remaining']==before==50000
-        assert [a.funding_id for a in db.query(ProjectFunding).filter_by(project_id=world['sport'])]==ids
-    html=env.get(r.headers['location']).text
-    assert 'var assigned' not in html and 'data-funding-amount' not in html
-    assert 'type="checkbox" name="fund_' in html
+    with tn.session_for(world['sid']) as s:
+        p = pf.plan(s, 2570); camp = s.get(Project, world['camp'])
+        camp.budget, camp.spent_before = 30000, 8000; s.commit()
+        pf.allocate(s, p, camp, {str(world['fid']): '20000'}, pf.allocation_token(s, p, camp)); s.commit()
+    r = env.post(f"/projects/{world['camp']}/revise", data={'amount': '27000'}, follow_redirects=False)
+    assert 'err=' in r.headers['location'] and '28,000.00' in unquote(r.headers['location'])
+    r = env.post(f"/projects/{world['camp']}/revise", data={'amount': '28000'}, follow_redirects=False)
+    assert 'err=' not in r.headers['location']
+
+
+def test_page_warns_before_submitting(env, world):
+    html = env.get(f"/projects/{world['sport']}").text
+    assert 'var assigned = 30000' in html and html.count('class="pj-budget-in"') >= 1
+
+
+NODE = __import__('shutil').which('node')
+
+
+@pytest.mark.skipif(not NODE, reason='ต้องมี node')
+def test_live_warning_script(env, world):
+    import json, subprocess
+    html = env.get(f"/projects/{world['sport']}").text
+    script = re.search(r'<script>\s*(\(function \(\) \{\s*var assigned.*?\}\)\(\);)\s*</script>', html, re.S).group(1)
+    runner = r"""
+const vals = JSON.parse(process.argv[1]), out = [];
+function mk(v){ const msg={hidden:true,className:'',innerHTML:'',textContent:''}, btn={disabled:false};
+  const inp={value:v, addEventListener(e,f){this.f=f;}, form:{querySelector:q=>q==='.pj-bmsg'?msg:btn}}; return {inp,msg,btn}; }
+const items = vals.map(mk);
+global.document = {querySelectorAll: () => items.map(x => x.inp)};
+SCRIPT
+items.forEach(x => out.push({bad: x.msg.className.includes('is-bad'), up: x.msg.className.includes('is-up'),
+                              disabled: x.btn.disabled, text: x.msg.innerHTML || x.msg.textContent}));
+console.log(JSON.stringify(out));
+""".replace('SCRIPT', script)
+    r = subprocess.run([NODE, '-e', runner, json.dumps(['25000', '30000', '32000'])], capture_output=True,
+                       text=True, encoding='utf-8')
+    assert r.returncode == 0, r.stderr
+    low, same, up = json.loads(r.stdout)
+    assert low['bad'] and low['disabled'] and '30,000.00' in low['text']
+    assert not same['bad'] and not same['up'] and not same['disabled']
+    assert up['up'] and 'งบเพิ่ม 2,000.00' in up['text'] and not up['disabled']
+
+
+def test_script_comes_after_both_budget_forms(env, world):
+    """สคริปต์หาฟอร์มตอนรัน วางก่อนฟอร์มปรับงบแล้วคำเตือนไม่ขึ้นบนหน้าจริง (เทสต์ node จับไม่ได้)"""
+    html = env.get(f"/projects/{world['camp']}").text
+    pos = html.index('var assigned')
+    assert html.index('action="/projects/%d/revise"' % world['camp']) < pos
+    assert html.index('id="setBudget"') < pos

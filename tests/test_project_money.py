@@ -12,7 +12,6 @@ import subprocess
 from datetime import datetime
 
 import pytest
-from tests.test_subsidy import env
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -297,7 +296,7 @@ def _login():
     return c
 
 
-def test_http_memo_teaches_the_project_category_and_the_ledger_links_back(env):
+def test_http_memo_teaches_the_project_category_and_the_ledger_links_back():
     """เลือกหมวดครั้งแรกในบันทึกเบิกจ่าย → ครั้งต่อไประบบเสนอให้เอง → ลงจ่ายแล้วทะเบียนคุมเงินโชว์โครงการ"""
     from app.tenancy import session_for
     mark = "ทดสอบเชื่อมโครงการ_"
@@ -308,7 +307,7 @@ def test_http_memo_teaches_the_project_category_and_the_ledger_links_back(env):
     pj = Project(name=mark + "กีฬาสี", budget=30000, plan_year=2569)
     s.add_all([it, pj]); s.commit()
     acc_id, it_id, pj_id = acc.id, it.id, pj.id
-    c = env
+    c = _login()
     try:
         r = c.get(f"/finance/project-sources/{pj_id}?fy={FY}")
         assert r.status_code == 200 and r.json() == {"sources": []}, "โครงการใหม่ยังไม่รู้หมวด"

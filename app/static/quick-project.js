@@ -75,8 +75,17 @@
     $('.qp-cancel').addEventListener('click', close);
 
     function sum() {
-      var el = src.querySelector('.qp-sum');
-      if (el) el.textContent = 'เลือกแล้ว ' + src.querySelectorAll('input[data-fund]:checked').length + ' รายการ · ไม่กันเงินจากกองกลาง';
+      var tot = 0, over = false;
+      src.querySelectorAll('input[data-fund]').forEach(function (i) {
+        var v = num(i.value); tot += v;
+        if (v > parseFloat(i.max) + 0.001) over = true;
+      });
+      var b = num(budget.value), el = src.querySelector('.qp-sum');
+      if (!el) return;
+      var tooMuch = tot > b + 0.001;
+      el.className = 'qp-sum' + (tooMuch || over ? ' over' : '');
+      el.textContent = 'ระบุที่มาของงบแล้ว ' + money(tot) + ' จากงบโครงการ ' + money(b) + ' บาท' +
+        (tooMuch ? ' (เกินงบโครงการ)' : over ? ' (เกินเงินที่เหลือให้จัดสรร)' : '');
     }
     budget.addEventListener('input', sum);
 
@@ -93,20 +102,20 @@
           planLink.href = d.plan_link;
           planLink.textContent = 'เปิดหน้างบที่ใช้จัดทำแผน ' + d.plan_year;
           if (!d.has_plan) {
-            src.innerHTML = '<p>ยังไม่ได้กำหนดงบที่ใช้จัดทำแผน ปี ' + d.plan_year + ' บันทึกโครงการได้เลย แล้วค่อยเชื่อมบัญชีภายหลังที่หน้าโครงการ</p>';
+            src.innerHTML = '<p>ยังไม่ได้กำหนดงบที่ใช้จัดทำแผน ปี ' + d.plan_year + ' บันทึกโครงการได้เลย แล้วค่อยจัดสรรงบทีหลังที่หน้าโครงการ</p>';
           } else if (!d.sources.length) {
-            src.innerHTML = '<p>แผนงบปี ' + d.plan_year + ' ยังไม่มีรายการเงิน บันทึกโครงการได้เลย หรือนำเงินเข้าแผนเพิ่มที่หน้างบที่ใช้จัดทำแผน</p>';
+            src.innerHTML = '<p>แผนงบปี ' + d.plan_year + ' ไม่มีเงินที่ยังเหลือให้จัดสรร บันทึกโครงการได้เลย หรือนำเงินเข้าแผนเพิ่มที่หน้างบที่ใช้จัดทำแผน</p>';
           } else {
-            src.innerHTML = '<p>เลือกบัญชีเงินที่โครงการใช้ได้ เลือกได้หลายบัญชี โดยไม่กันเงินจากกองกลาง</p>' +
+            src.innerHTML = '<p>กรอกส่วนที่จัดสรรให้โครงการนี้ (เว้นว่างได้ จัดสรรทีหลังที่หน้าโครงการ)</p>' +
               d.sources.map(function (s) {
-                return '<div class="qp-src"><div><b>' + esc(s.name) + '</b><small>' + esc(s.kind) + ' ยอดในแผน ' + money(s.available) + '</small></div>' +
-                  '<input type="checkbox" value="1" style="width:22px;height:22px;flex:none" data-fund="' + s.id + '" aria-label="เชื่อม ' + esc(s.name) + '"></div>';
+                return '<div class="qp-src"><div><b>' + esc(s.name) + '</b><small>' + esc(s.kind) + ' เหลือให้จัดสรร ' + money(s.available) + '</small></div>' +
+                  '<input type="number" min="0" step="0.01" max="' + s.available + '" data-fund="' + s.id + '" placeholder="0.00" aria-label="จัดสรรจาก ' + esc(s.name) + '"></div>';
               }).join('') + '<div class="qp-sum"></div>';
             src.querySelectorAll('input[data-fund]').forEach(function (i) { i.addEventListener('input', sum); });
             sum();
           }
         })
-        .catch(function () { src.innerHTML = '<p>โหลดรายการงบไม่สำเร็จ แต่บันทึกโครงการได้ แล้วเชื่อมบัญชีภายหลังที่หน้าโครงการ</p>'; });
+        .catch(function () { src.innerHTML = '<p>โหลดรายการงบไม่สำเร็จ แต่บันทึกโครงการได้ แล้วจัดสรรงบทีหลังที่หน้าโครงการ</p>'; });
     }
     year.addEventListener('change', function () { load(year.value); });
     load('');
@@ -120,7 +129,7 @@
       var fd = new FormData();
       fd.append('name', n); fd.append('budget', budget.value || '0');
       fd.append('plan_year', year.value || ''); fd.append('responsible', resp.value || '');
-      src.querySelectorAll('input[data-fund]').forEach(function (i) { if (i.checked) fd.append('fund_' + i.dataset.fund, i.value); });
+      src.querySelectorAll('input[data-fund]').forEach(function (i) { if (num(i.value)) fd.append('fund_' + i.dataset.fund, i.value); });
       fetch('/finance/projects/quick', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'fetch' } })
         .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
         .then(function (res) {
