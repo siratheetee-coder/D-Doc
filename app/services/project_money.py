@@ -82,39 +82,3 @@ def project_sources(db, project_id, fy) -> list:
         else:
             add(acc, None, USED_BEFORE)
     return out
-
-
-def project_cash(db, projects, fy) -> dict:
-    """กล่องสรุปหน้าโครงการหลัก: โครงการยังต้องใช้เงินเท่าไร เทียบกับเงินในหมวดที่โครงการใช้จ่าย
-
-    ไม่จัดสรรเงินให้โครงการล่วงหน้า (แบบที่ครูการเงินทำจริง ดูงบโครงการกับเงินในบัญชีแยกกัน)
-    นับเฉพาะโครงการที่รู้แล้วว่าใช้เงินหมวดไหน (เคยทำบันทึกขอเบิก/จ่ายเงินที่ระบุหมวด) ทั้งสองฝั่งจึงมาจากชุดเดียวกัน
-    เดิมนับงบทุกโครงการแต่นับเงินแค่หมวดที่เคยจ่าย บ้านหินลาดเลยขึ้นว่าขาดเงินเกินจริง
-    เพราะโครงการอาหารกลางวันยังไม่เคยจ่ายในระบบ เงินอาหารกลางวันจึงไม่ถูกนับ แต่งบถูกนับ
-
-    คืน {need, n, rows: [{item, remain}], cash, gap, skipped}
-      gap > 0 = เงินในหมวดยังไม่พอ  skipped = โครงการที่ยังต้องใช้เงินแต่ยังไม่รู้หมวด (ไม่นับ)
-    """
-    from app.services.asset_utils import item_remaining_asof
-    from app.services.budget import project_budget, project_spent
-    need, n, skipped, items = 0.0, 0, 0, {}
-    for p in projects:
-        left = round(project_budget(p) - project_spent(p), 2)
-        if left <= 0:
-            continue
-        srcs = [x for x in project_sources(db, p.id, fy) if x["item_id"]]
-        if not srcs:
-            skipped += 1
-            continue
-        need += left
-        n += 1
-        for x in srcs:
-            items.setdefault(x["item_id"], None)
-    rows = []
-    for iid in items:
-        it = db.get(AccountItem, iid)
-        rows.append({"item": it, "remain": item_remaining_asof(it)})
-    rows.sort(key=lambda x: -x["remain"])
-    need = round(need, 2)
-    cash = round(sum(x["remain"] for x in rows), 2)
-    return {"need": need, "n": n, "rows": rows, "cash": cash, "gap": round(need - cash, 2), "skipped": skipped}

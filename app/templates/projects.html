@@ -114,36 +114,6 @@
 {% endif %}
 {% if request.query_params.get('added') or request.query_params.get('updated') %}<div class="alert">✔ นำเข้าโครงการแล้ว: สร้างใหม่ {{ request.query_params.get('added', 0) }} รายการ{% if request.query_params.get('updated') and request.query_params.get('updated')!='0' %} อัปเดตงบ {{ request.query_params.get('updated') }} รายการ{% endif %}</div>{% endif %}
 
-{% if cash and (cash.need > 0 or cash.skipped) %}{# งบโครงการกับเงินในบัญชีดูแยกกัน ไม่จัดสรรล่วงหน้า (ครูการเงินทำแบบนี้จริง) #}
-<div class="card pc-box">
-  {% if cash.n %}<div class="pc-tiles">
-    <div class="pc-tile t1"><span>โครงการยังต้องใช้เงิน</span><b>{{ '{:,.2f}'.format(cash.need) }}</b><small>{{ cash.n }} โครงการ</small></div>
-    <div class="pc-tile t2"><span>เงินในหมวดที่โครงการใช้จ่าย</span><b>{{ '{:,.2f}'.format(cash.cash) }}</b><small>ตอนนี้ ปีงบ {{ cash_fy }}</small></div>
-    {% if cash.gap > 0 %}<div class="pc-tile t3"><span>ยังรอเงินอีก</span><b>{{ '{:,.2f}'.format(cash.gap) }}</b><small>รอเงินอุดหนุนงวดถัดไปหรือเงินอื่น</small></div>
-    {% else %}<div class="pc-tile t4"><span>เงินพอ เหลือ</span><b>{{ '{:,.2f}'.format(-cash.gap) }}</b><small>หลังทำโครงการที่นับครบ</small></div>{% endif %}
-  </div>
-  {% if cash.rows %}<details class="pc-items"><summary>นับจากหมวดไหนบ้าง ({{ cash.rows|length }} หมวด)</summary>
-    {% for x in cash.rows %}<div class="pc-item"><a href="/finance/accounts/{{ x.item.account_id }}?year={{ x.item.fiscal_year }}">{{ x.item.account.name }} / {{ x.item.name }}</a><b>{{ '{:,.2f}'.format(x.remain) }}</b></div>{% endfor %}
-  </details>{% endif %}{% endif %}
-  {% if cash.skipped %}<p class="pc-skip">ยังไม่นับ {{ cash.skipped }} โครงการ เพราะยังไม่เคยทำบันทึกขอเบิก ระบบจึงยังไม่รู้ว่าใช้เงินหมวดไหน ทำบันทึกขอเบิกครั้งแรกแล้วจะนับให้เอง</p>{% endif %}
-</div>
-<style>
-  .pc-tiles{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
-  .pc-tile{ padding:12px 14px; border-radius:14px; }
-  .pc-tile span{ display:block; font-size:13.5px; color:#475569; }
-  .pc-tile b{ display:block; font-size:21px; margin:2px 0; }
-  .pc-tile small{ font-size:12.5px; color:#64748b; }
-  .pc-tile.t1{ background:linear-gradient(135deg,#eff6ff,#e0e7ff); }
-  .pc-tile.t2{ background:linear-gradient(135deg,#ecfdf5,#d1fae5); }
-  .pc-tile.t3{ background:linear-gradient(135deg,#fff7ed,#ffedd5); } .pc-tile.t3 b{ color:#c2410c; }
-  .pc-tile.t4{ background:linear-gradient(135deg,#f0fdf4,#dcfce7); } .pc-tile.t4 b{ color:#15803d; }
-  .pc-items{ margin-top:12px; font-size:14px; }
-  .pc-items summary{ cursor:pointer; color:#1e3a8a; }
-  .pc-item{ display:flex; justify-content:space-between; gap:10px; padding:5px 0; }
-  .pc-skip{ margin:10px 0 0; font-size:13px; color:#475569; }
-  @media (max-width:640px){ .pc-tiles{ grid-template-columns:1fr; } }
-</style>
-{% endif %}
 <div data-addbox class="card" id="add-project">
   <h2><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มโครงการ ({{ year_label }} {{ fiscal_year }})</h2>
   <p class="muted" style="margin-top:0;">สามารถเพิ่มหรือแก้ไขโครงการได้ระหว่างปีงบประมาณ (เช่น เมื่อมีแผนปฏิบัติการประจำปีการศึกษาใหม่)</p>

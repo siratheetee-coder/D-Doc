@@ -2945,7 +2945,6 @@ def _plan_years(db, cur):
 @router.get("/projects", response_class=HTMLResponse)
 def projects_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
     from app.services.finance_setup import setup_steps as finance_setup_steps, project_steps as project_setup_steps
-    from app.services.project_money import project_cash
     can_fin = _can_finance(request)
     school = get_school(db)
     cur = year or current_plan_year(school)
@@ -2960,8 +2959,6 @@ def projects_page(request: Request, db: Session = Depends(get_db), year: int | N
         "find_list": [{"id": x.id, "name": x.name, "year": x.plan_year or "", "resp": x.responsible or ""}
                       for x in db.query(Project).order_by(Project.plan_year.desc(), Project.name)],
         "fiscal_year": cur, "year_label": plan_year_label(school,cur),
-        "cash": project_cash(db, [p for p in rows if p.active], current_fiscal_year()) if can_fin else None,
-        "cash_fy": current_fiscal_year(),
         "years": _plan_years(db, cur),
         "departments": db.query(Department).order_by(Department.name).all(),
         "total_budget": sum(project_budget(p) for p in rows),
