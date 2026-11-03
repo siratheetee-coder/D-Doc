@@ -100,7 +100,12 @@ def test_page_sends_calendar_and_flags_periods_on_holidays(env):
     assert cfg['events'][0]['checked'] == 0 and 'id' in cfg['events'][0]
     assert 'class="lg-flag"' in html and 'วันเฉลิมพระชนมพรรษา' in html
     assert 'อ. 28 ก.ค.' in html, 'หัวตารางบอกวันในสัปดาห์และเดือนแบบสั้น'
-    assert 'id="removeLesson"' in html and 'id="savedList"' in html
+    # มีคาบแล้ว เปิดมาเป็นหน้าเช็คชื่อ เครื่องมือลบคาบอยู่ในหน้าตั้งค่าคาบสอน
+    assert 'id="attendanceGrid"' in html and 'id="batchLessons"' not in html and '&setup=1' in html
+    setup = env.get(f'/academic/lessons?cid={cid}&sid={sid}&term=1&month=2026-07&setup=1').text
+    assert 'id="removeLesson"' in setup and 'id="savedList"' in setup and 'id="attendanceGrid"' not in setup
+    cfg = json.loads(setup.split('id="lessonConfig" type="application/json">')[1].split('</script>')[0])
+    assert cfg['pattern'] == {'2': ['คาบ 1']}, 'แก้ตั้งค่า เติมคาบเดิมให้ (อ. คาบ 1)'
 
 
 NODE = shutil.which('node')

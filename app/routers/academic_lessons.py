@@ -81,12 +81,28 @@ def page(request, db, c, subject, term, *, preview=None, token="", error="", ent
         if d.get("s") in ("hol", "closed", "off"):
             flags[r.id] = d.get("n") or {"closed": "ไม่ใช่วันเปิดเรียน", "off": "นอกภาคเรียน"}.get(d["s"], "")
     cc = state["checked_counts"]
+    # 2 หน้าจอ: ตั้งค่าคาบสอน (ครั้งแรก/กดปุ่มตั้งค่า/ยังทำค้าง) กับ เช็คชื่อ (ปกติทุกวัน)
+    entered = entered or {}
+    setup = bool(request.query_params.get("setup") or not state["lessons"] or preview is not None
+                 or entered.get("dates") or entered.get("start") or entered.get("setup"))
+    # คาบเดิมของเทอมนี้ แยกตามวันในสัปดาห์ ไว้เติมให้ตอนกดแก้ตั้งค่า (ไม่ต้องเก็บแยก ดูจากคาบที่บันทึกแล้ว)
+    # key แบบ JS getDay ("1"=จ. ... "5"=ศ.) เสาร์อาทิตย์รวมเป็น "60"
+    pattern, slot_minutes = {}, {}
+    for r in state["lessons"]:
+        wd = (r.date.weekday() + 1) % 7
+        key = "60" if wd in (6, 0) else str(wd)
+        pattern.setdefault(key, set()).add(r.slot)
+        slot_minutes[r.slot] = r.minutes
+    for p in slot_choices:
+        p["minutes"] = slot_minutes.pop(p["name"], p["minutes"])
+    slot_choices += [dict(name=n, minutes=m) for n, m in slot_minutes.items()]
     return templates.TemplateResponse("academic_lessons.html", dict(
         request=request, school=get_school(db), c=c, subj=subject, term=term,
         format_date=lambda value: be_date_input(parse_be_date(value)),
         class_label=_class_label, hours=svc.hours, states=svc.MARKS, legacy=legacy,
         lesson_flags=flags, preview=preview, token=token, error=error,
-        entered=entered or {}, months=months,month=month,grid=grid,day_groups=day_groups,
+        entered=entered, months=months,month=month,grid=grid,day_groups=day_groups, setup=setup,
+        pattern={k: sorted(v) for k, v in pattern.items()},
         slot_choices=slot_choices, day_info=info, term_spans=bool(svc.term_spans(db, c.year)),
         calendar_events=[dict(id=r.id, date=r.date.isoformat(), slot=r.slot, minutes=r.minutes,
                               checked=cc.get(r.id, 0)) for r in state['lessons']], **state))
@@ -222,7 +238,8 @@ async def lesson_action(action: str, request: Request, db: Session = Depends(get
         else:
             raise HTTPException(404)
         db.commit()
-        return back(cid, sid, term, saved=1, **({"lesson": lesson.id} if action == "marks" else {}), **({'month':form['month']} if form.get('month') else {}))
+        return back(cid, sid, term, saved=1, **({"lesson": lesson.id} if action == "marks" else {}), **({'month':form['month']} if form.get('month') else {}),
+                    **({'setup': 1} if form.get('setup') else {}))
     except (ValueError, IntegrityError) as exc:
         db.rollback()
         error = str(exc) if isinstance(exc, ValueError) else "มีการบันทึกคาบนี้แล้ว กรุณาตรวจรายการล่าสุดเพื่อไม่ให้ซ้ำ"

@@ -14,8 +14,21 @@
 .lesson-card summary{display:flex;align-items:center;gap:12px;min-height:44px;font-size:17px;color:#312e81;flex-wrap:wrap}
 .lesson-card summary .muted{font-size:13px;font-weight:400;color:#64748b}
 .ls-step{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:14px;font-weight:700;flex:none}
-.lesson-setup-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;margin-top:14px}
-.ls-pane{min-width:0;padding:16px;background:#f8fafc;border-radius:16px}
+.ls-title{margin:0;border:0;background:none;padding:0;font-size:19px;color:#312e81}
+.ls-block{margin-top:14px;padding:16px;background:#f8fafc;border-radius:16px}
+.ls-block h3{display:flex;align-items:center;gap:10px;margin:0 0 10px;font-size:16px;color:#1e293b}
+.ls-days,.ls-slots{display:flex;flex-wrap:wrap;gap:8px}
+.ls-dayopt,.ls-slot{border:0;border-radius:999px;background:#fff;color:#334155;font:inherit;font-size:14.5px;padding:9px 16px;cursor:pointer;box-shadow:0 1px 3px rgba(15,23,42,.08)}
+.ls-dayopt.on,.ls-slot.on{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;box-shadow:0 4px 12px rgba(79,70,229,.3)}
+.ls-slot{font-size:13.5px;padding:7px 13px}
+.ls-dayrow{display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:center;padding:8px 0}.ls-dayrow+.ls-dayrow{border-top:1px dashed #e2e8f0}
+.ls-dayrow b{font-size:15px;color:#312e81}.ls-need{grid-column:2;color:#b45309;font-size:12.5px}
+.ls-more{margin-top:10px}.ls-more>summary{cursor:pointer;color:#4338ca;font-size:14px;font-weight:600}
+.ls-mins{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.ls-min{display:flex;align-items:center;gap:6px;background:#fff;border-radius:12px;padding:6px 10px;font-size:13.5px;margin:0}
+.ls-min input{width:62px;padding:4px;font:inherit}
+.ls-scope{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px}.ls-scope label{display:flex;align-items:center;gap:6px;margin:0;font-size:15px;white-space:nowrap}.ls-scope input[type=radio]{width:18px;height:18px;margin:0;flex:none}.ls-scope select{width:auto}
+#lessonSetup{max-width:860px}
+#batchSubmit:disabled{opacity:.5;cursor:not-allowed}
 .ls-pane h3,.ls-saved h3{margin:0 0 8px;font-size:15px;color:#1e293b}
 .ls-calhead{display:flex;align-items:center;gap:8px;margin-bottom:8px}.ls-calhead strong{flex:1;text-align:center;font-size:16px;color:#312e81}
 .ls-nav{width:36px;height:36px;border:0;border-radius:10px;background:#e0e7ff;color:#4338ca;font-size:20px;cursor:pointer}.ls-nav:disabled{opacity:.35;cursor:default}
@@ -43,14 +56,6 @@
 .ls-chip b{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#c7d2fe;font-size:12px}
 .ls-chip.is-hol{background:#fee2e2;color:#b91c1c}
 .ls-link{border:0;background:none;color:#6366f1;font:inherit;font-size:13px;cursor:pointer;padding:4px 0;text-decoration:underline}
-.slot-matrix{width:100%;border-collapse:separate;border-spacing:0 4px;font-size:14px}
-.slot-matrix th,.slot-matrix td{padding:4px 3px;text-align:center;border:0;background:none}
-.slot-matrix thead th{font-size:13px;color:#475569;font-weight:600}
-.slot-matrix tbody th{text-align:left;font-weight:600;white-space:nowrap;padding-left:8px}
-.slot-matrix tbody tr{background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.06)}
-.slot-matrix tbody tr:has(input[type=checkbox]:checked){background:#eef2ff}
-.slot-matrix input[type=checkbox]{width:22px;height:22px;accent-color:#4f46e5;cursor:pointer}
-.slot-matrix input[type=number]{font:inherit;width:58px;padding:4px}
 .ls-addslot{display:flex;gap:8px;margin-bottom:10px}.ls-addslot input{flex:1;min-width:0}
 #batchSummary{padding:10px 12px;background:linear-gradient(120deg,#eef2ff,#f5f3ff);border-radius:12px;color:#3730a3;font-weight:600;font-size:14px}
 #batchSubmit{width:100%}
@@ -90,16 +95,17 @@
 .grid-save{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;margin-top:12px;background:linear-gradient(120deg,#eef2ff,#f5f3ff);border-radius:14px}
 .grid-save .btn{white-space:normal}#gridStatus{color:#3730a3;font-weight:600;font-size:14px}
 .lg-empty{padding:18px;background:#f8fafc;border-radius:14px;color:#475569;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
-@media(max-width:860px){.lesson-setup-grid{grid-template-columns:1fr}}
 @media(max-width:650px){.lesson-stats{grid-template-columns:1fr}.lesson-stat{padding:12px}.lesson-stat strong{font-size:20px}.lesson-inputs .short{flex:1 1 120px}
   .lesson-calendar button{min-height:44px;font-size:14px}.lesson-calendar button small{display:none}
-  .lesson-matrix .student-pin{min-width:150px;max-width:170px}.grid-save{flex-wrap:wrap}.ls-pane{padding:12px}}
+  .lesson-matrix .student-pin{min-width:150px;max-width:170px}.grid-save{flex-wrap:wrap}.ls-block{padding:12px}.ls-dayrow{grid-template-columns:1fr}.ls-need{grid-column:1}}
 </style>
 <div class="hero"><div><div class="hero-sub">งานวิชาการ เวลาเรียนรายคาบ</div><div class="hero-title">{{ subj.code }} {{ subj.name }}</div><div class="hero-meta">ห้อง {{ class_label(c) }} ปีการศึกษา {{ c.year }} ภาคเรียนที่ {{ term }}</div></div></div>
 <div class="lesson-actions" style="margin:16px 0">
   <a class="btn soft" href="/academic/attendance?mode=subject&year={{ c.year }}&cid={{ c.id }}">← เลือกรายวิชา</a>
   {% if subj.term not in [1,2] %}{% for t in [1,2] %}<a class="btn {{ '' if t==term else 'soft' }}" href="/academic/lessons?cid={{ c.id }}&sid={{ subj.id }}&term={{ t }}">ภาคเรียนที่ {{ t }}</a>{% endfor %}{% endif %}
-  <a class="btn soft" href="/academic/lessons/report.docx?cid={{ c.id }}&sid={{ subj.id }}&term={{ term }}">พิมพ์เวลาเรียนรายคาบ (Word)</a>
+  {% if setup %}{% if lessons %}<a class="btn" href="/academic/lessons?cid={{ c.id }}&sid={{ subj.id }}&term={{ term }}">ไปหน้าเช็คชื่อ</a>{% endif %}
+  {% else %}<a class="btn soft" href="/academic/lessons?cid={{ c.id }}&sid={{ subj.id }}&term={{ term }}&setup=1&month={{ month }}">ตั้งค่าคาบสอน</a>
+  <a class="btn soft" href="#lessonSummary" onclick="document.getElementById('lessonSummary').open=true">สรุปและพิมพ์</a>{% endif %}
 </div>
 {% if error %}<div class="alert warn" role="alert">{{ error }}</div>{% endif %}
 {% if request.query_params.get('saved') %}<div class="alert" role="status">บันทึกแล้ว</div>{% endif %}
@@ -111,6 +117,7 @@
 </div>
 {% if target is not none and totals[term] != target %}<div class="alert warn">จัดวันสอน{{ 'ขาดอีก' if totals[term] < target else 'เกินเป้าหมาย' }} {{ hours((totals[term]-target)|abs) }} ชั่วโมง ยังเพิ่มวันสอนและเช็คชื่อได้ตามปกติ</div>{% endif %}
 {% if subj.term not in [1,2] and term==2 %}<p class="lesson-note">เทอม 1 จัดวันสอน {{ hours(totals[1]) }} ชั่วโมง ทั้งปีจัดแล้ว {{ hours(totals[1]+totals[2]) }} ชั่วโมง{% if subj.hours %} เหลือจากชั่วโมงทั้งปี {{ hours([0,subj.hours*60-totals[1]-totals[2]]|max) }} ชั่วโมง{% endif %}</p>{% endif %}
+{% if setup %}
 {% if subj.term not in [1,2] %}
 <details id="lessonTargets" class="card lesson-card" {% if entered.get('term1') is not none %}open{% endif %}>
 <summary>เป้าหมายชั่วโมงรายเทอม (ไม่บังคับ)</summary>
@@ -121,8 +128,7 @@
 {% if subj.hours %}<button type="button" class="btn soft" id="splitTargets" data-hours="{{ subj.hours }}">แบ่งเท่ากัน 2 เทอม</button>{% endif %}<button class="btn" type="submit">บันทึกเป้าหมาย</button></div>
 <p class="lesson-note">เว้นว่างได้ ระบบจะแสดงชั่วโมงทั้งปีเป็นข้อมูลอ้างอิง โดยไม่เตือนว่าชั่วโมงรายเทอมขาด</p><p id="targetNote" class="lesson-note" aria-live="polite"></p></form></details>
 {% endif %}
-{% include 'academic_lessons_setup.html' %}
-<details id="lessonImport" class="card lesson-card" {% if preview is not none or entered.get('start') %}open{% endif %}><summary>ดึงวันสอนจากตารางเรียน</summary>
+<details id="lessonImport" class="card lesson-card" {% if preview is not none or entered.get('start') %}open{% endif %}><summary>มีตารางเรียนแล้ว? ดึงวันสอนจากตารางเรียนทีเดียวจบ</summary>
 <p class="muted">เลือกช่วงวันที่เพื่อดูตัวอย่างก่อนนำเข้า ใช้เฉพาะวันเปิดเรียนในปฏิทินการศึกษา ตารางเรียนที่แก้ภายหลังจะไม่เปลี่ยนคาบที่นำเข้าแล้ว</p>
 <form method="post" action="/academic/lessons/preview">{{ keys() }}<div class="lesson-inputs">
 <div><label for="lessonStart">ตั้งแต่วันที่</label><input required type="text" class="lesson-date-input" inputmode="numeric" maxlength="10" placeholder="วว/ดด/ปปปป (พ.ศ.)" id="lessonStart" name="start" value="{{ entered.get('start','') }}"></div>
@@ -132,9 +138,15 @@
 {% if preview is not none %}<h3>ตัวอย่าง {{ preview|length }} คาบ ภาคเรียนที่ {{ term }}</h3>
 <div class="table-wrap" style="max-height:300px;overflow:auto"><table><thead><tr><th>วันที่</th><th>คาบ</th><th>นาที</th><th>การนำเข้า</th></tr></thead><tbody>{% for r in preview %}<tr><td>{{ format_date(r.date) }}</td><td>{{ r.slot }}</td><td>{{ r.minutes }}</td><td>{{ 'มีอยู่แล้ว ข้าม' if r.duplicate else 'เพิ่มใหม่' }}</td></tr>{% endfor %}</tbody></table></div>
 {% if preview %}<form method="post" action="/academic/lessons/import">{{ keys() }}<input type="hidden" name="token" value="{{ token }}"><button class="btn" style="margin-top:12px" type="submit">ยืนยันนำเข้าคาบตามตัวอย่าง</button></form>{% else %}<p>ไม่มีคาบตรงกับวันเปิดเรียนในช่วงที่เลือก</p>{% endif %}{% endif %}</details>
+{% include 'academic_lessons_setup.html' %}
+{% else %}
 {% include 'academic_lessons_grid.html' %}
-{% if lessons and students %}<div class="card"><h2>สรุปเวลาเรียนรายบุคคล ชั่วโมง</h2><div class="table-wrap"><table><thead><tr><th>ชื่อ–นามสกุล</th><th>มา</th><th>ป่วย</th><th>ลา</th><th>ขาด</th><th>ยังไม่เช็ค</th></tr></thead><tbody>{% for s in students %}<tr><td>{{ s.name }}</td>{% for key in ['/','ป','ล','ข',''] %}<td>{{ hours(summary[s.id][key]) }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div></div>{% endif %}
-{% if legacy %}<div class="card"><h2>ข้อมูลรายวันเดิม</h2><p>มีข้อมูลเช็คชื่อรายวันก่อนใช้รายคาบ เก็บไว้ดูย้อนหลังแยกกัน ไม่บวกรวมกับชั่วโมงรายคาบ</p><a class="btn soft" href="/academic/attendance?mode=subject&cid={{ c.id }}&sid={{ subj.id }}&year={{ c.year }}&legacy=1">ดูข้อมูลรายวันเดิม</a></div>{% endif %}
+<details class="card lesson-card" id="lessonSummary"><summary>สรุปและพิมพ์</summary>
+<p><a class="btn" href="/academic/lessons/report.docx?cid={{ c.id }}&sid={{ subj.id }}&term={{ term }}">พิมพ์เวลาเรียนรายคาบ (Word)</a></p>
+{% if lessons and students %}<div><h3>สรุปเวลาเรียนรายบุคคล ชั่วโมง</h3><div class="table-wrap"><table><thead><tr><th>ชื่อ–นามสกุล</th><th>มา</th><th>ป่วย</th><th>ลา</th><th>ขาด</th><th>ยังไม่เช็ค</th></tr></thead><tbody>{% for s in students %}<tr><td>{{ s.name }}</td>{% for key in ['/','ป','ล','ข',''] %}<td>{{ hours(summary[s.id][key]) }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div></div>{% endif %}
+{% if legacy %}<div><h3>ข้อมูลรายวันเดิม</h3><p>มีข้อมูลเช็คชื่อรายวันก่อนใช้รายคาบ เก็บไว้ดูย้อนหลังแยกกัน ไม่บวกรวมกับชั่วโมงรายคาบ</p><a class="btn soft" href="/academic/attendance?mode=subject&cid={{ c.id }}&sid={{ subj.id }}&year={{ c.year }}&legacy=1">ดูข้อมูลรายวันเดิม</a></div>{% endif %}
+</details>
+{% endif %}
 <script>
 document.querySelectorAll('.lesson-date-input').forEach(input=>input.addEventListener('input',e=>{if(e.inputType?.startsWith('delete'))return;const n=input.value.replace(/\D/g,'').slice(0,8);input.value=n.slice(0,2)+(n.length>2?'/'+n.slice(2,4):'')+(n.length>4?'/'+n.slice(4):'');}));
 document.querySelectorAll('.mark-all').forEach(b=>b.addEventListener('click',()=>{b.form.querySelectorAll('select').forEach(s=>{s.value='/';s.dispatchEvent(new Event('change',{bubbles:true}));});}));
@@ -145,6 +157,6 @@ function targetNote(){if(!note)return;const a=document.getElementById('target1')
 if(split)split.addEventListener('click',()=>{document.getElementById('target1').value=Number(split.dataset.hours)/2;document.getElementById('target2').value=Number(split.dataset.hours)/2;targetNote();});
 ['target1','target2'].forEach(id=>document.getElementById(id)?.addEventListener('input',targetNote));targetNote();
 </script>
-<script id="lessonConfig" type="application/json">{{ {'months':months,'month':month,'events':calendar_events,'entered':entered,'days':day_info,'term':term,'students':students|length}|tojson }}</script>
-<script src="/static/academic_lessons_grid.js?v=4"></script>
+<script id="lessonConfig" type="application/json">{{ {'months':months,'month':month,'events':calendar_events,'entered':entered,'days':day_info,'term':term,'students':students|length,'pattern':pattern}|tojson }}</script>
+<script src="/static/academic_lessons_grid.js?v=5"></script>
 {% endblock %}

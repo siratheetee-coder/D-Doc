@@ -1,56 +1,61 @@
-<details class="card lesson-card" id="lessonSetup" open>
-<summary><span class="ls-step">1</span> ตั้งวันและคาบสอน <span class="muted">ติ๊กคาบของแต่ละวัน → เลือกวัน → บันทึก</span></summary>
+<div class="card lesson-card" id="lessonSetup">
+<h2 class="ls-title">ตั้งค่าคาบสอน ภาคเรียนที่ {{ term }}</h2>
+<p class="ls-hint">ทำครั้งเดียวต่อเทอม ตั้งเสร็จแล้วระบบพาไปหน้าเช็คชื่อ กลับมาแก้ได้ที่ปุ่ม "ตั้งค่าคาบสอน"</p>
 <form id="batchLessons" method="post" action="/academic/lessons/batch-add">{{ keys() }}
 <input type="hidden" name="dates" id="batchDates"><input type="hidden" name="slots" id="batchSlots">
-<div class="lesson-setup-grid">
-<section class="ls-pane">
-  <div class="ls-calhead">
-    <button type="button" class="ls-nav" id="lessonCalPrev" aria-label="เดือนก่อน">‹</button>
-    <strong id="lessonCalTitle"></strong>
-    <button type="button" class="ls-nav" id="lessonCalNext" aria-label="เดือนถัดไป">›</button>
-    <button type="button" class="btn soft sm" id="lessonCalToday">วันนี้</button>
+
+<section class="ls-block">
+  <h3><span class="ls-step">1</span> สอนวันไหนบ้าง</h3>
+  <div class="ls-days" id="dayPick">
+    {% for v,l in [('1','จันทร์'),('2','อังคาร'),('3','พุธ'),('4','พฤหัสบดี'),('5','ศุกร์'),('60','เสาร์/อาทิตย์')] %}<button type="button" class="ls-dayopt" data-wd="{{ v }}" aria-pressed="false">{{ l }}</button>{% endfor %}
   </div>
-  {# สีของวันมาจากหน้าตั้งค่าปฏิทินปีการศึกษา (วันเปิดเรียน วันหยุด วันเปิด-ปิดภาคเรียน) #}
-  <div class="ls-legend">
-    <span><i class="lg-open"></i>เปิดเรียน</span><span><i class="lg-hol"></i>วันหยุด</span>
-    <span><i class="lg-closed"></i>ไม่ใช่วันเปิดเรียน</span><span><i class="lg-off"></i>นอกภาคเรียนที่ {{ term }}</span>
-    <span><i class="lg-has"></i>มีคาบแล้ว</span><span><i class="lg-sel"></i>เลือกไว้</span>
+</section>
+
+<section class="ls-block">
+  <h3><span class="ls-step">2</span> คาบไหนในแต่ละวัน</h3>
+  <p class="ls-hint">กดเลือกคาบของแต่ละวัน วันเดียวเลือกได้หลายคาบ</p>
+  <div id="dayRows"><p class="ls-empty">เลือกวันในข้อ 1 ก่อน</p></div>
+  <details class="ls-more"><summary>ตั้งนาทีต่อคาบ หรือเพิ่มคาบอื่น</summary>
+    <div id="slotMinutes" class="ls-mins">{% for p in slot_choices %}<label class="ls-min" data-slot="{{ p.name }}"><span>{{ p.name }}</span><input type="number" min="1" max="720" value="{{ p.minutes }}" aria-label="นาที {{ p.name }}"><small>นาที</small></label>{% endfor %}</div>
+    <div class="ls-addslot"><input id="customSlot" placeholder="คาบอื่น เช่น สอนเสริม" maxlength="80"><button type="button" class="btn soft sm" id="addSlot">เพิ่มคาบ</button></div>
+  </details>
+</section>
+
+<section class="ls-block">
+  <h3><span class="ls-step">3</span> ช่วงเวลา</h3>
+  <div class="ls-scope">
+    <label><input type="radio" name="_scope" value="term" {{ 'checked' if term_spans }} {{ 'disabled' if not term_spans }}> ทั้งภาคเรียนที่ {{ term }}</label>
+    <label><input type="radio" name="_scope" value="month" {{ 'checked' if not term_spans }}> เฉพาะเดือน</label>
+    <select id="scopeMonth" aria-label="เดือน">{% for m in months %}<option value="{{ m }}" {{ 'selected' if m==month }}>{{ m }}</option>{% endfor %}</select>
   </div>
-  <div id="lessonCalendar" class="lesson-calendar" role="grid" aria-label="ปฏิทินเลือกวันสอน"></div>
-  <p id="calHint" class="ls-hint" aria-live="polite">กดวันที่เพื่อเลือก กดซ้ำเพื่อยกเลิก</p>
-  {% if not term_spans %}<p class="ls-warn">ยังไม่ได้ตั้งวันเปิด-ปิดภาคเรียน ระบบจึงแยกวันของภาคเรียนที่ 1 กับ 2 ให้ไม่ได้
+  {% if not term_spans %}<p class="ls-warn">ยังไม่ได้ตั้งวันเปิด-ปิดภาคเรียน จึงเลือกทั้งภาคเรียนไม่ได้
     <a href="/academic/calendar?year={{ c.year }}">ตั้งค่าปฏิทินปีการศึกษา</a></p>{% endif %}
-  <div class="ls-quick">
-    <span class="ls-quick-label">เลือกเร็ว ทุกวัน</span>
-    {% for wd,label in [(1,'จ.'),(2,'อ.'),(3,'พ.'),(4,'พฤ.'),(5,'ศ.')] %}<button type="button" class="ls-wd" data-wd="{{ wd }}">{{ label }}</button>{% endfor %}
-    <select id="quickScope" aria-label="ช่วงที่เลือกเร็ว"><option value="month">ในเดือนนี้</option><option value="term">ทั้งภาคเรียนที่ {{ term }}</option></select>
-  </div>
-  <p class="ls-hint">เลือกเร็วเลือกเฉพาะวันเปิดเรียน ข้ามวันหยุดให้เอง</p>
+  <p class="ls-hint">ระบบเลือกเฉพาะวันเปิดเรียน ข้ามวันหยุดให้เอง</p>
+  <details class="ls-more" id="calBox"><summary>ปรับวันพิเศษ (สอนชดเชย หรืองดสอนบางวัน)</summary>
+    <div class="ls-calhead">
+      <button type="button" class="ls-nav" id="lessonCalPrev" aria-label="เดือนก่อน">‹</button>
+      <strong id="lessonCalTitle"></strong>
+      <button type="button" class="ls-nav" id="lessonCalNext" aria-label="เดือนถัดไป">›</button>
+    </div>
+    {# สีของวันมาจากหน้าตั้งค่าปฏิทินปีการศึกษา #}
+    <div class="ls-legend">
+      <span><i class="lg-open"></i>เปิดเรียน</span><span><i class="lg-hol"></i>วันหยุด</span>
+      <span><i class="lg-closed"></i>ไม่ใช่วันเปิดเรียน</span><span><i class="lg-off"></i>นอกภาคเรียนที่ {{ term }}</span>
+      <span><i class="lg-has"></i>มีคาบแล้ว</span><span><i class="lg-sel"></i>จะเพิ่มคาบ</span>
+    </div>
+    <div id="lessonCalendar" class="lesson-calendar" role="grid" aria-label="ปฏิทินวันสอน"></div>
+    <p id="calHint" class="ls-hint" aria-live="polite">กดวันที่เพื่อเพิ่มหรือเอาออก</p>
+  </details>
 </section>
-<section class="ls-pane">
-  <h3>วันที่เลือกไว้</h3>
-  <div id="selectedChips" class="ls-chips"><span class="ls-empty">ยังไม่ได้เลือกวัน</span></div>
-  <button type="button" class="ls-link" id="clearDates">ล้างวันที่เลือกทั้งหมด</button>
-  <h3 style="margin-top:16px;">สอนคาบไหน วันไหน</h3>
-  <p class="ls-hint">ติ๊กช่องคาบที่สอนในแต่ละวัน เช่น จ. คาบ 1 พ. คาบ 3 ศ. คาบ 2 วันเดียวติ๊กได้หลายคาบ ระบบเพิ่มเฉพาะคาบของวันนั้นให้แต่ละวันที่เลือก</p>
-  {% set wds = [('1','จ.'),('2','อ.'),('3','พ.'),('4','พฤ.'),('5','ศ.'),('60','ส./อา.')] %}
-  <div class="table-wrap"><table class="slot-matrix" id="slotChoices">
-    <thead><tr><th>คาบ</th>{% for v,l in wds %}<th>{{ l }}</th>{% endfor %}<th>นาที</th></tr></thead>
-    <tbody>{% for p in slot_choices %}<tr class="slot-row" data-slot="{{ p.name }}"><th scope="row">{{ p.name }}</th>{% for v,l in wds %}<td><input type="checkbox" data-wd="{{ v }}" aria-label="{{ p.name }} วัน{{ l }}"></td>{% endfor %}<td><input type="number" min="1" max="720" value="{{ p.minutes }}" aria-label="นาที {{ p.name }}"></td></tr>{% endfor %}</tbody>
-  </table></div>
-  <button type="button" class="btn soft sm" id="pickByWeek" style="margin:8px 0 10px;">เลือกทุกวันที่ติ๊กคาบไว้ <span id="pickByWeekScope">ในเดือนนี้</span></button>
-  <div class="ls-addslot"><input id="customSlot" placeholder="คาบอื่น เช่น สอนเสริม" maxlength="80"><button type="button" class="btn soft sm" id="addSlot">เพิ่มคาบ</button></div>
-  <p id="batchSummary" role="status"></p>
-  <button type="submit" class="btn" id="batchSubmit">บันทึกวันและคาบสอน</button>
-  <p class="ls-hint">คาบที่มีวันและชื่อคาบซ้ำจะข้ามให้ ไม่เปลี่ยนเวลาเรียนเดิม เลือกวันหยุดเป็นวันสอนชดเชยได้ ระบบจะถามก่อน</p>
-</section>
-</div>
+
+<p id="batchSummary" role="status"></p>
+<button type="submit" class="btn" id="batchSubmit">บันทึกคาบสอน แล้วไปเช็คชื่อ</button>
+<p class="ls-hint">คาบที่มีอยู่แล้วระบบข้ามให้ ไม่เปลี่ยนผลเช็คชื่อเดิม</p>
 </form>
-<div class="ls-saved">
-  <h3>คาบที่บันทึกแล้ว <span id="savedTitle"></span></h3>
+<details class="ls-saved ls-more"><summary>คาบที่บันทึกแล้ว <span id="savedTitle"></span> (ดูหรือลบ)</summary>
   <div id="savedList"></div>
-  <p class="ls-hint">ลบคาบที่บันทึกผิดได้ที่นี่ ถ้าคาบนั้นเช็กชื่อแล้ว ระบบจะถามยืนยันก่อน เพราะผลเช็กชื่อของคาบนั้นจะถูกลบไปด้วย</p>
-</div>
+  <p class="ls-hint">ดูเดือนอื่นได้จากปุ่มเลื่อนเดือนในปฏิทิน ถ้าคาบนั้นเช็คชื่อแล้ว ระบบจะถามยืนยันก่อนลบ เพราะผลเช็คชื่อของคาบนั้นจะหายไปด้วย</p>
 </details>
-{# ฟอร์มลบคาบแยกออกมา (ปุ่มลบอยู่ในปฏิทินซึ่งอยู่ในฟอร์มเพิ่มคาบ ซ้อนฟอร์มไม่ได้) #}
-<form id="removeLesson" method="post" action="/academic/lessons/remove" hidden>{{ keys() }}<input type="hidden" name="lesson_id"><input type="hidden" name="force" value=""><input type="hidden" name="month" value="{{ month }}"></form>
+</div>
+{# ฟอร์มลบคาบแยกออกมา (ปุ่มลบอยู่ในส่วนที่อยู่ในฟอร์มเพิ่มคาบ ซ้อนฟอร์มไม่ได้) #}
+<form id="removeLesson" method="post" action="/academic/lessons/remove" hidden>{{ keys() }}<input type="hidden" name="lesson_id"><input type="hidden" name="force" value=""><input type="hidden" name="month" value="{{ month }}"><input type="hidden" name="setup" value="1"></form>
