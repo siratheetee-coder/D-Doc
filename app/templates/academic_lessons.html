@@ -110,7 +110,7 @@
 </style>
 <div class="hero"><div><div class="hero-sub">งานวิชาการ เวลาเรียนรายคาบ</div><div class="hero-title">{{ subj.code }} {{ subj.name }}</div><div class="hero-meta">ห้อง {{ class_label(c) }} ปีการศึกษา {{ c.year }} ภาคเรียนที่ {{ term }}</div></div></div>
 <div class="lesson-actions" style="margin:16px 0">
-  <a class="btn soft" href="/academic/attendance?mode=subject&year={{ c.year }}&cid={{ c.id }}">← เลือกรายวิชา</a>
+  <a class="btn soft" href="/academic/attendance?mode=subject&year={{ c.year }}&cid={{ c.id }}&term={{ term }}">← เลือกรายวิชา</a>
   {% if subj.term not in [1,2] %}{% for t in [1,2] %}<a class="btn {{ '' if t==term else 'soft' }}" href="/academic/lessons?cid={{ c.id }}&sid={{ subj.id }}&term={{ t }}">ภาคเรียนที่ {{ t }}</a>{% endfor %}{% endif %}
   {% if setup %}{% if lessons %}<a class="btn" href="/academic/lessons?cid={{ c.id }}&sid={{ subj.id }}&term={{ term }}">ไปหน้าเช็คชื่อ</a>{% endif %}
   {% else %}<a class="btn ls-setbtn" href="/academic/lessons?cid={{ c.id }}&sid={{ subj.id }}&term={{ term }}&setup=1&month={{ month }}"><svg class="icon"><use href="#ic-settings"/></svg> ตั้งค่าคาบสอน</a>

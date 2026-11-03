@@ -41,6 +41,10 @@
         {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id==c.id }}>{{ class_label(k) }}</option>{% endfor %}
       </select></div>
     {% if c and by_subj %}
+    <div><label>ภาคเรียน</label>
+      <select name="term" onchange="if(this.form.sid)this.form.sid.value=''; submitReplace(this.form)">
+        {% for t in [1,2] %}<option value="{{ t }}" {{ 'selected' if t==term }}>ภาคเรียนที่ {{ t }}</option>{% endfor %}
+      </select></div>
     <div><label>รายวิชา</label>
       <select name="sid" onchange="submitReplace(this.form)">
         <option value="">- เลือกวิชา -</option>

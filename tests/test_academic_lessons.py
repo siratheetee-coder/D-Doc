@@ -265,3 +265,18 @@ def test_saving_new_settings_removes_unticked_periods_and_clear_all(env):
     assert r.status_code==200 and 'ลบ 1 คาบ' in r.text and 'id="batchLessons"' in r.text, "ลบหมดแล้วอยู่หน้าตั้งค่า"
     with tn.session_for(tid) as db:
         assert svc.lessons_for(db,cid,sid,1)==[]
+
+
+def test_subject_picker_filters_by_term(env):
+    """เลือกภาคเรียนแล้ว วิชารายเทอมขึ้นเฉพาะเทอมนั้น วิชาทั้งปีขึ้นทั้งสองเทอม"""
+    import app.tenancy as tn
+    tid=next(iter(tn._engines))
+    with tn.session_for(tid) as db:
+        c,full,_=seed(db)
+        db.add_all([AcadSubject(year=2569,level="ป.1",name="คณิตเทอมหนึ่ง",code="ค1",hours=40,term=1),
+                    AcadSubject(year=2569,level="ป.1",name="คณิตเทอมสอง",code="ค2",hours=40,term=2)]);db.commit()
+        cid=c.id
+    t1=env.get(f'/academic/attendance?mode=subject&year=2569&cid={cid}&term=1').text
+    t2=env.get(f'/academic/attendance?mode=subject&year=2569&cid={cid}&term=2').text
+    assert 'คณิตเทอมหนึ่ง' in t1 and 'คณิตเทอมสอง' not in t1 and 'ภาษาไทยทดสอบ' in t1
+    assert 'คณิตเทอมสอง' in t2 and 'คณิตเทอมหนึ่ง' not in t2 and 'ภาษาไทยทดสอบ' in t2

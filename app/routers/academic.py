@@ -2751,7 +2751,7 @@ async def calendar_save(request: Request, db: Session = Depends(get_db), year: s
 def attendance_page(request: Request, db: Session = Depends(get_db),
                     cid: int | None = None, year: int | None = None,
                     month: int | None = None, sid: int | None = None,
-                    mode: str | None = None, legacy: int = 0):
+                    mode: str | None = None, legacy: int = 0, term: int = 0):
     y = year or _acad_year(db)
     school = get_school(db)
     sc = _scope(request, db)
@@ -2794,6 +2794,10 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
                 .order_by(AcadSubject.seq, AcadSubject.code).all()) if (c and by_subj) else []
     if sc.is_teacher and c and by_subj:
         subjects = [x for x in subjects if (c.id, x.id) in sc.teach_pairs]
+    # เลือกภาคเรียน: วิชารายเทอมขึ้นเฉพาะเทอมนั้น วิชาทั้งปีขึ้นทั้งสองเทอม (เจ้าของแจ้งว่าวิชาสองเทอมปนกัน)
+    term = term if term in (1, 2) else current_term()
+    if by_subj:
+        subjects = [x for x in subjects if x.term not in (1, 2) or x.term == term]
     subj = db.get(AcadSubject, sid) if (by_subj and sid) else None
     if subj and sc.is_teacher and not sc.can_teach(c.id if c else 0, subj.id):
         subj = None
@@ -2802,8 +2806,9 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
         access(request, db, c.id, subj.id)
         if legacy:
             return legacy_page(request, db, c, subj)
-        term = subj.term if subj.term in (1, 2) else current_term()
-        if month:
+        if subj.term in (1, 2):
+            term = subj.term
+        elif month:
             term = 1 if month in TERM_MONTHS[1] else 2
         return RedirectResponse(f"/academic/lessons?cid={c.id}&sid={subj.id}&term={term}", 303)
     home_pick = not by_subj
@@ -2849,7 +2854,7 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
         "months": TH_MONTHS, "opens": opens, "att": att, "marked": marked,
         "cal_days": {m: len(d) for m, d in cal.items()}, "has_cal": bool(cal),
         "manual_months": manual_months if c else set(),
-        "by_subj": by_subj, "subjects": subjects, "subj": subj,
+        "by_subj": by_subj, "subjects": subjects, "subj": subj, "term": term,
         "picked": picked, "home_pick": home_pick, "mode": mode,
         "mterm": {m: (1 if m in TERM_MONTHS[1] else 2) for m, _ in TH_MONTHS},
         "cur_term": current_term(),
