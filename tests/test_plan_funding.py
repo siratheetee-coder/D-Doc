@@ -73,12 +73,11 @@ def test_early_receipt_not_counted_as_new_money(db):
     assert row['amount']==100000 and row['payload']['received_before']==20000
 
 
-def test_thai_dates_and_locked_period(db):
+def test_thai_dates_and_period(db):
     p=pf.save_period(db,2568,'academic','01/05/2568','30/04/2569')
     assert p.start_date==datetime(2025,5,1)
-    db.add(PlanFunding(plan_id=p.id,source_key='other:lock',kind='other',name='test',amount=100));db.commit()
-    with pytest.raises(ValueError,match='นำงบเข้าแผนแล้ว'):
-        pf.save_period(db,2568,'academic','02/05/2568','30/04/2569')
+    db.commit()
+    assert pf.save_period(db,2568,'academic','16/05/2568','15/05/2569').start_date==datetime(2025,5,16), "เปลี่ยนช่วงแผนได้เสมอ"
     with pytest.raises(ValueError):pf.save_period(db,2569,'budget','01/01/2569','30/09/2569')
 
 
@@ -95,22 +94,6 @@ def test_opening_uses_cutoff_and_parent_self_only(db):
     assert pf.summary(db,p)['total']==140
     db.add(FinanceTxn(account_id=a.id,item_id=child.id,fiscal_year=2568,date=datetime(2025,4,29),kind='out',amount=5));db.commit()
     assert pf.changed(db,p,next(s for s in pf.sources(db,p) if s.account_item_id==child.id))
-
-
-def test_allocation_caps_stale_form_and_move_delete_guards(db):
-    p=make_plan(db)
-    source=PlanFunding(plan_id=p.id,source_key='other:test',kind='other',name='donation',amount=100)
-    project=Project(name='A',plan_year=p.year,budget=90);other=Project(name='B',plan_year=p.year,budget=100)
-    db.add_all([source,project,other]);db.commit()
-    token=pf.allocation_token(db,p,project)
-    pf.allocate(db,p,project,{str(source.id):80},token);db.commit()
-    with pytest.raises(ValueError,match='เปลี่ยน'):pf.allocate(db,p,project,{str(source.id):80},token)
-    with pytest.raises(ValueError,match='เกินวงเงิน'):pf.allocate(db,p,other,{str(source.id):30},pf.allocation_token(db,p,other))
-    with pytest.raises(ValueError,match='เกินงบโครงการ'):pf.allocate(db,p,project,{str(source.id):95},pf.allocation_token(db,p,project))
-    with pytest.raises(HTTPException):pf.guard_project(db,project,year=2569)
-    with pytest.raises(HTTPException):pf.guard_project(db,project,budget=79)
-    with pytest.raises(HTTPException):pf.guard_project(db,project,deleting=True)
-    assert pf.summary(db,p)['remaining']==20
 
 
 def test_lower_snapshot_cannot_erase_allocated_money(db):
@@ -139,33 +122,3 @@ def test_cash_counted_once_not_procurement_commitments(db):
     db.add(FinanceTxn(account_id=a.id,project_id=project.id,disburse_id=memo.id,fiscal_year=2568,kind='out',amount=70))
     db.add(FinanceTxn(account_id=a.id,project_id=project.id,fiscal_year=2568,kind='in',amount=200));db.commit()
     assert pf.actual_paid(db,project)==70
-
-
-def test_http_period_review_allocation_and_prefilled_ledger(env):
-    import app.tenancy as tn
-    sid=next(iter(tn._engines))
-    with tn.session_for(sid) as db:
-        s=confirmed(db);a=map_snapshot(db,s);snapshot_id=s.id
-        project=Project(name='โครงการทดสอบแผน',plan_year=2568,budget=10000);db.add(project);db.commit();pid=project.id
-    assert env.get('/plan-budget/2568?mode=academic').status_code==200
-    result=env.post('/plan-budget/2568/period',data=dict(mode='academic',start='2025-05-01',end='2026-04-30'))
-    assert result.status_code==200
-    review=env.get(f'/plan-budget/2568/review?kind=subsidy&snapshot_id={snapshot_id}')
-    assert review.status_code==200,review.text[:300]
-    with tn.session_for(sid) as db:
-        p=pf.plan(db,2568);data=pf.preview(db,p,'subsidy',snapshot_id)
-    result=env.post('/plan-budget/2568/apply',data=dict(kind='subsidy',snapshot_id=str(snapshot_id),token=sub.fingerprint(data),selected=[r['source_key'] for r in data['rows']]))
-    assert result.status_code==200,result.text[:300]
-    assert env.get('/projects?year=2568').status_code==200
-    with tn.session_for(sid) as db:
-        p=pf.plan(db,2568);project=db.get(Project,pid);source=pf.sources(db,p)[0];fid=source.id
-        tok=pf.allocation_token(db,p,project);item=db.get(AccountItem,source.account_item_id);aid,iid=item.account_id,item.id
-    result=env.post(f'/plan-budget/project/{pid}/allocate',data={'token':tok,f'fund_{fid}':'10000'})
-    assert result.status_code==200,result.text[:300]
-    assert 'จ่ายจริงตามทะเบียนคุมเงิน' in result.text
-    ledger=env.get(f'/finance/accounts/{aid}?year=2568&item={iid}&project={pid}&kind=out')
-    assert ledger.status_code==200
-    assert 'value="out" selected' in ledger.text and f'value="{pid}" selected' in ledger.text
-    assert env.post(f'/projects/{pid}/set-year',data={'plan_year':'2569'}).status_code==409
-    assert env.post(f'/plan-budget/2568/remove/{fid}').status_code==409
-

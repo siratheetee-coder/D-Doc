@@ -29,5 +29,4 @@ def test_selected_plan_does_not_use_other_year(db):
     db.add(PlanBudget(year=2570,mode='budget',start_date=datetime(2026,10,1),end_date=datetime(2027,9,30)))
     db.commit()
     st=finance_setup.setup_steps(db,2569,selected_plan_year=2569)
-    assert st['steps'][3]['href']=='/plan-budget/2569'
-    assert st['steps'][4]['href']=='/projects?year=2569'
+    assert st['steps'][3]['href']=='/projects?year=2569'

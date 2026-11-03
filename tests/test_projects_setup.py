@@ -40,7 +40,6 @@ def test_project_only_steps_walk_in_order(db):
 def test_user_with_finance_sees_the_same_list_as_the_finance_page(env):
     html = env.get(f'/projects?year={PY}').text
     assert 'id="setup-fin"' in html and 'เริ่มต้นงานการเงินและโครงการ' in html
-    assert 'เลือกงบที่จะใช้ในแผน' in html
 
 
 def test_user_without_finance_gets_the_short_list_and_no_locked_links(env, monkeypatch):
@@ -50,7 +49,6 @@ def test_user_without_finance_gets_the_short_list_and_no_locked_links(env, monke
     assert 'id="setup-proj"' in html and 'เริ่มต้นวางแผนโครงการ' in html
     assert _next_step(html) == (1, 'เพิ่มโครงการ') and 'href="#add-project"' in html
     assert 'href="/plan-budget/' not in html and 'href="/finance' not in html.split('id="setup-proj"')[1].split('</ol>')[0]
-    assert 'เลือกงบที่จะใช้ในแผน' not in html, "หน้างบที่ใช้จัดทำแผนเป็นของงานการเงิน ไม่มีสิทธิ์ก็ไม่ต้องโชว์"
 
 
 def test_budget_help_is_on_both_pages(env):
@@ -65,12 +63,13 @@ def test_budget_help_is_on_both_pages(env):
     assert '<details class="bh" id="budget-help" open>' in one, "ยังไม่เคยปรับงบ กางคำอธิบายไว้ให้"
 
 
-def test_project_page_hides_allocation_without_finance(env, monkeypatch):
+def test_project_page_has_no_allocation(env, monkeypatch):
+    """เลิกจัดสรรเงินให้โครงการล่วงหน้าแล้ว หน้าโครงการไม่มีส่วนจัดสรร ไม่ว่ามีสิทธิ์การเงินหรือไม่"""
     import app.tenancy as tn
     import app.routers.pages as pages
     with tn.session_for(next(iter(tn._engines))) as s:
         p = Project(name='ทดสอบไม่มีการเงิน', plan_year=PY, budget=1000); s.add(p); s.commit(); pid = p.id
-    assert 'id="project-funding"' in env.get(f'/projects/{pid}').text
+    assert 'id="project-funding"' not in env.get(f'/projects/{pid}').text
     monkeypatch.setattr(pages, '_can_finance', lambda request: False)
     html = env.get(f'/projects/{pid}').text
     assert 'id="project-funding"' not in html and 'href="/plan-budget/' not in html

@@ -70,7 +70,7 @@ def test_page_opens_and_lists_the_year(client, world):
     r = client.get(f"/projects/next-year?year={YEAR}")
     assert r.status_code == 200, r.status_code        # ต้องไม่ถูกอ่านเป็นเลขโครงการ
     assert MARK + "กีฬาสี" in r.text and "มีในปี" in r.text
-    for step in ("เงินในบัญชี", "เลือกโครงการที่ทำต่อ", "นำเงินเหลือเข้าแผน"):
+    for step in ("เงินในบัญชี", "เลือกโครงการที่ทำต่อ", "ช่วงเวลาของแผน"):
         assert step in r.text, step
 
 

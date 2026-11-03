@@ -47,8 +47,6 @@ def save_period(db, year, mode, start, end):
     if start > end or (end-start).days > 366 or (mode == 'budget' and (start != ds or end != de)) or (mode == 'academic' and (start.year != year-543 or end.year != year-542)):
         raise ValueError('ช่วงวันที่ไม่ตรงกับปีของแผน (ปีงบใช้ 1 ต.ค.–30 ก.ย.; ปีการศึกษาคร่อมปีถัดไปและไม่เกิน 1 ปี)')
     p = plan(db, year)
-    if p and db.query(PlanFunding).filter_by(plan_id=p.id).count() and (p.mode, p.start_date, p.end_date) != (mode, start, end):
-        raise ValueError('นำงบเข้าแผนแล้ว กรุณายกเลิกการจัดสรรและนำงบออกก่อนเปลี่ยนช่วงแผน')
     if not p:
         p = PlanBudget(year=year); db.add(p)
     p.mode, p.start_date, p.end_date = mode, start, end
@@ -285,24 +283,13 @@ def actual_paid(db, project):
     return project_money_summary(project)['paid']
 
 
-def guard_project(db, project, *, year=None, budget=None, deleting=False):
-    """All legacy project-edit paths must respect explicit funding allocations."""
-    from fastapi import HTTPException
-    sub.lock(db)
-    assigned=project_allocated(db,project.id)
-    if assigned and (deleting or (year is not None and year!=project.plan_year)):
-        raise HTTPException(409,'ยกเลิกการจัดสรรงบของโครงการก่อนลบหรือย้ายปี')
-    # ใช้ไปก่อนเริ่มใช้ระบบ จ่ายด้วยเงินนอกแผน จึงต้องบวกเข้าไปด้วย (ตรงกับเพดานใน allocate)
-    before=float(project.spent_before or 0) if assigned else 0
-    if budget is not None and round(budget,2)<round(assigned+before,2):
-        extra=' และใช้ไปก่อนเริ่มใช้ระบบ {:,.2f}'.format(before) if before else ''
-        raise HTTPException(409,'งบต้องไม่ต่ำกว่า {:,.2f} บาท เพราะจัดสรรเงินให้โครงการนี้ไว้ {:,.2f}{} '
-                                'ลดการจัดสรรในหัวข้อ "โครงการนี้ใช้งบจากรายการใด" ก่อน แล้วค่อยลดงบ'.format(
-                                    assigned+before,assigned,extra))
+def drop_project(db, project):
+    """ลบโครงการ: เอาการจัดสรรเก่าของโครงการออกด้วย (เลิกใช้การจัดสรรแล้ว แต่ข้อมูลเดิมยังเก็บไว้)"""
+    db.query(ProjectFunding).filter_by(project_id=project.id).delete()
 
 
-def guard_items(db, ids):
-    from fastapi import HTTPException
-    sub.lock(db)
-    if db.query(PlanFunding).filter(PlanFunding.account_item_id.in_(ids)).first():
-        raise HTTPException(409,'หมวดนี้เชื่อมกับงบแผนอยู่ กรุณานำเงินออกจากแผนก่อนลบหมวดหรือบัญชี')
+def drop_items(db, ids):
+    """ลบหมวดในทะเบียนคุมเงิน: ปลดเงินในแผนเก่าที่ชี้หมวดนั้น ไม่ให้ชี้หมวดที่ไม่มีแล้ว"""
+    if ids:
+        db.query(PlanFunding).filter(PlanFunding.account_item_id.in_(ids)).update(
+            {PlanFunding.account_item_id: None}, synchronize_session=False)

@@ -230,22 +230,6 @@ def project_over_budget(db, fy, today):
                       rows, rows[0]["href"])
 
 
-def plan_out_of_date(db, fy, today):
-    from app.services import plan_funding as pf
-    year, label = _plan(db)
-    p = pf.plan(db, year)
-    if not p:
-        return None
-    rows = [_row(r["source"].name, f"/plan-budget/{year}", amount=r["source"].amount,
-                 sub="ยอดในทะเบียนคุมเงินเปลี่ยนไปหลังนำเข้าแผน")
-            for r in pf.summary(db, p)["rows"] if r["changed"]]
-    if rows:
-        return _issue(f"เงินในแผน{label} {year} ไม่ตรงกับทะเบียนคุมเงินแล้ว",
-                      ["ยอดในทะเบียนคุมเงินเปลี่ยนหลังนำเข้าแผน เช่น แก้ยอดยกมา",
-                       "กดนำเข้าใหม่ในหน้างบที่ใช้จัดทำแผน ยอดที่จัดสรรจะได้ตรงกับเงินจริง"],
-                      rows, f"/plan-budget/{year}", "ไปอัปเดตเงินในแผน")
-
-
 def memo_unpaid_long(db, fy, today):
     from app.models import DisburseMemo
     cut = today - timedelta(days=30)
@@ -594,22 +578,6 @@ def low_spend_year_end(db, fy, today):
                       rows, rows[0]["href"])
 
 
-def plan_unallocated(db, fy, today):
-    from app.services import plan_funding as pf
-    year, label = _plan(db)
-    p = pf.plan(db, year)
-    if not p:
-        return None
-    s = pf.summary(db, p)
-    if s["remaining"] > 0.005:
-        rows = [_row(f"เงินในแผน{label} {year}", f"/projects?year={year}",
-                     sub=f"นำเข้าแผน {s['total']:,.2f} บาท จัดสรรแล้ว {s['allocated']:,.2f} บาท", amount=s["remaining"])]
-        return _issue("เงินในแผนยังไม่ได้จัดสรรให้โครงการ",
-                      ["จัดสรรที่หน้าโครงการแต่ละโครงการ ส่วน \"โครงการนี้ใช้งบจากรายการใด\"",
-                       "ใส่เท่ากับยอดงบเหลือทำเรื่องใหม่"],
-                      rows, f"/projects?year={year}", "ไปจัดสรร")
-
-
 def bank_recon_missing(db, fy, today):
     from app.models import BankRecon, FinanceAccount, FinanceTxn
     from app.thai_utils import current_fiscal_year
@@ -653,7 +621,6 @@ CHECKS = [
     ("fix", "เรื่องที่หักงบโครงการ ลงวันที่อยู่ในช่วงปีของแผน", project_wrong_year),
     ("fix", "บันทึกขอเบิกไม่เกินยอดเรื่องพัสดุ", memo_over_procurement),
     ("check", "โครงการใช้เงินไม่เกินงบ", project_over_budget),
-    ("check", "เงินในแผนตรงกับทะเบียนคุมเงิน", plan_out_of_date),
     ("check", "บันทึกขอเบิกที่อนุมัติแล้ว ลงจ่ายครบ", memo_unpaid_long),
     ("check", "เงินยืมส่งใช้ตามกำหนด", loans_overdue),
     ("check", "เงินรายได้แผ่นดินนำส่งตามกำหนด", revenue_not_remitted),
@@ -666,7 +633,6 @@ CHECKS = [
     ("check", "รอบจ้างเหมาอาหารกลางวัน วงเงินไม่เกินอัตรารายหัว", lunch_round_over_rate),
     ("check", "ใบเสร็จรับเงินเลขที่ไม่ซ้ำ", receipt_duplicate_no),
     ("check", "ใบเสร็จรับเงินเลขที่เรียงต่อกันไม่ข้าม", receipt_number_gap),
-    ("notice", "จัดสรรเงินในแผนให้โครงการครบ", plan_unallocated),
     ("notice", "ทำงบกระทบยอดเงินฝากธนาคารเดือนที่แล้ว", bank_recon_missing),
     ("notice", "รายการเงินระบุหมวดครบ", txn_without_item),
     ("notice", "ใกล้สิ้นปีงบ ทุกหมวดใช้เงินตามแผน", low_spend_year_end),

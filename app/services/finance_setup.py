@@ -3,7 +3,7 @@
 finance_setup.py - รายการเริ่มต้นงานการเงินและโครงการ (หน้าหลักการเงิน)
 
 งานเงินกับโครงการต้องทำตามลำดับ ข้ามขั้นแล้วหน้าถัดไปขึ้น 0 หรือว่างเปล่า
-(เจ้าของเจอเอง: ดึงเงินเข้าแผนได้ 0 เพราะยอดยกมายังเป็น 0 ทุกหมวด)
+(เจ้าของเจอเอง: ทะเบียนคุมเงินขึ้น 0 ทุกหมวด เพราะยังไม่ได้กรอกยอดยกมา)
 คู่มือแก้ไม่ได้เพราะคนไม่อ่านก่อนลงมือ จึงให้ระบบบอกเองว่าอยู่ขั้นไหน ขั้นต่อไปคืออะไร
 
 กติกา
@@ -14,11 +14,6 @@ finance_setup.py - รายการเริ่มต้นงานการ�
 from datetime import datetime
 
 from app.models import AccountOpening, AccountItem, FinanceAccount, FinanceTxn, PlanBudget, Project
-
-try:
-    from app.models import PlanFunding, ProjectFunding
-except ImportError:                                   # pragma: no cover
-    PlanFunding = ProjectFunding = None
 
 
 def _plans_for(db, fy):
@@ -46,15 +41,7 @@ def setup_steps(db, fy, school=None, *, selected_plan_year=None) -> dict:
     plans = (_plans_for(db, fy) if selected_plan_year is None else
              db.query(PlanBudget).filter_by(year=selected_plan_year).all())
     plan_year = selected_plan_year if selected_plan_year is not None else (plans[0].year if plans else current_plan_year(school))
-    funds = []
-    if PlanFunding is not None and plans:
-        funds = db.query(PlanFunding).filter(PlanFunding.plan_id.in_([p.id for p in plans])).all()
-    allocs = []
-    if funds:
-        allocs = db.query(ProjectFunding).filter(ProjectFunding.funding_id.in_([f.id for f in funds]),
-                                                 ProjectFunding.amount > 0).all()
     n_projects = db.query(Project).filter(Project.plan_year == plan_year).count()
-    in_plan = round(sum(f.amount or 0 for f in funds), 2)
 
     acc_href = f"/finance/accounts/{first_acc}?year={fy}" if first_acc else "/finance/accounts"
     steps = [
@@ -72,14 +59,9 @@ def setup_steps(db, fy, school=None, *, selected_plan_year=None) -> dict:
                      else f"ตอนนี้ยอดยกมาทุกหมวดของปีงบ {fy} ยังเป็น 0 กรอกเงินที่เหลือของแต่ละหมวด "
                           "เช่น ค่ากิจกรรม 50,000 ค่าจัดการเรียนการสอน 80,000"),
              href=acc_href, cta="กรอกยอดยกมา"),
-        dict(title="นำเงินเข้าแผน", done=bool(funds),
-             detail=(f"นำเข้าแผน {plan_year} แล้ว {in_plan:,.2f} บาท" if funds
-                     else "เลือกว่าเงินหมวดไหนจะใช้ทำโครงการในแผนปีนี้ ระบบดึงยอดจากทะเบียนคุมเงินให้เอง"),
-             href=f"/plan-budget/{plan_year}", cta="นำเงินเข้าแผน"),
-        dict(title="เพิ่มโครงการและจัดสรรเงิน", done=bool(allocs),
-             detail=(f"จัดสรรให้ {len({a.project_id for a in allocs})} โครงการแล้ว" if allocs
-                     else ("เปิดแต่ละโครงการแล้วเลือกว่าใช้เงินจากหมวดไหน กี่บาท" if n_projects
-                           else f"ยังไม่มีโครงการในแผน {plan_year} เพิ่มโครงการพร้อมงบ แล้วจัดสรรเงินให้")),
+        dict(title="เพิ่มโครงการพร้อมงบ", done=bool(n_projects),
+             detail=(f"แผน {plan_year} มี {n_projects} โครงการ" if n_projects
+                     else f"ยังไม่มีโครงการในแผน {plan_year} เพิ่มโครงการพร้อมงบ หรือนำเข้าจาก Excel"),
              href=f"/projects?year={plan_year}", cta="ไปที่โครงการ",
              extra=[("เพิ่งเริ่มใช้ระบบกลางปี? ตั้งยอดตั้งต้นโครงการ", f"/projects/start?year={plan_year}")]),
     ]

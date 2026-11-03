@@ -9,9 +9,7 @@ import pathlib
 import re
 
 from tests.test_subsidy import db, env  # noqa: F401  (fixtures)
-from tests.test_plan_funding import import_all
 from app.models import FinanceAccount, AccountItem, Project
-from app.services import plan_funding as pf
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FY = 2570
@@ -28,7 +26,7 @@ def test_checklist_walks_through_the_steps_in_order(env):
     page = lambda: env.get(f'/finance?year={FY}').text          # noqa: E731
 
     html = page()
-    assert 'เริ่มต้นงานการเงินและโครงการ' in html and 'ทำแล้ว 0 จาก 5 ขั้น' in html
+    assert 'เริ่มต้นงานการเงินและโครงการ' in html and 'ทำแล้ว 0 จาก 4 ขั้น' in html
     assert _next_step(html) == (1, 'สร้างบัญชีเงิน')
     assert html.count('class="fs-step is-next"') == 1, "ขั้นถัดไปต้องมีขั้นเดียว"
 
@@ -48,18 +46,11 @@ def test_checklist_walks_through_the_steps_in_order(env):
         s.get(AccountItem, iid).opening_balance = 50000; s.commit()
     env.post('/plan-budget/2570/period', data=dict(mode='budget', start='01/10/2569', end='30/09/2570'))
     html = page()
-    assert _next_step(html) == (4, 'นำเงินเข้าแผน') and 'href="/plan-budget/2570"' in html
-
-    with tn.session_for(sid) as s:
-        import_all(s, pf.plan(s, 2570), 'opening')
-    html = page()
-    assert _next_step(html) == (5, 'เพิ่มโครงการและจัดสรรเงิน')
+    assert _next_step(html) == (4, 'เพิ่มโครงการพร้อมงบ')
     assert 'ยังไม่มีโครงการในแผน 2570' in html and '/projects/start?year=2570' in html
 
     with tn.session_for(sid) as s:
-        p = pf.plan(s, 2570)
-        pj = Project(name='กีฬาสี', plan_year=2570, budget=30000); s.add(pj); s.commit()
-        pf.allocate(s, p, pj, {str(pf.sources(s, p)[0].id): '30000'}, pf.allocation_token(s, p, pj)); s.commit()
+        s.add(Project(name='กีฬาสี', plan_year=2570, budget=30000)); s.commit()
     html = page()
     assert 'id="setup-fin"' not in html, "ครบทุกขั้นแล้วกล่องต้องหายเอง"
 
@@ -76,5 +67,4 @@ def test_academic_plan_is_found_from_the_fiscal_year(db):
     from app.services.finance_setup import setup_steps
     make_plan(db, 2569, 'academic'); db.commit()
     st = setup_steps(db, 2570)
-    assert st['steps'][3]['href'] == '/plan-budget/2569'
-    assert st['steps'][4]['href'] == '/projects?year=2569'
+    assert st['steps'][3]['href'] == '/projects?year=2569'

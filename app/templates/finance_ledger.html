@@ -149,53 +149,16 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       <button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-download"/></svg> คัดลอกหมวดจากปีงบ {{ fiscal_year - 1 }}</button>
     </form>
   </div>
-  {# ทางไปโครงการจากหน้าทะเบียนคุมเงิน (เดิมมีเฉพาะหมวดที่จัดสรรแล้ว และซ่อนในส่วนที่ต้องกดเปิด) #}
+  {# ทางไปโครงการจากหน้าทะเบียนคุมเงิน #}
   <div class="pl-strip">
     <svg class="icon"><use href="#ic-clipboard"/></svg>
-    {% for pl in plan_links.plans %}
-      <span class="pl-item"><b>แผน{{ pl.label }} {{ pl.year }}</b>
-      {% if not pl.in_plan %} เงินบัญชีนี้ยังไม่ได้นำเข้าแผน
-        <a class="btn sm" href="/plan-budget/{{ pl.year }}">นำเงินเข้าแผน</a>
-      {% elif not pl.n_projects %} นำเข้าแผนแล้ว {{ "{:,.2f}".format(pl.in_plan) }} ยังไม่ได้จัดสรรให้โครงการ
-        <a class="btn sm" href="/projects?year={{ pl.year }}">ไปจัดสรรให้โครงการ</a>
-      {% else %} จัดสรรให้ {{ pl.n_projects }} โครงการ {{ "{:,.2f}".format(pl.allocated) }} จาก {{ "{:,.2f}".format(pl.in_plan) }}
-        <a class="btn sm" href="/projects?year={{ pl.year }}">ดูโครงการ</a>
-      {% endif %}</span>
-    {% else %}
-      <span class="pl-item">ยังไม่ได้ตั้งแผนให้โครงการใช้เงินบัญชีนี้
-        <a class="btn sm" href="/plan-budget/{{ plan_links.suggest_year }}">นำเงินเข้าแผน</a></span>
-    {% endfor %}
     <a class="btn sm gray" href="/projects">โครงการทั้งหมด</a>
   </div>
   <style>
     .pl-strip{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-top:12px; padding:10px 14px;
                border-radius:12px; background:linear-gradient(120deg,#eef2ff,#f0f9ff); font-size:14px; color:#1e3a8a; }
-    .pl-item{ display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px; }
   </style>
   {% if item_rows %}
-  {% if item_alloc %}
-  <div class="al-legend">
-    <span><i class="al-paid"></i>จ่ายแล้ว</span>
-    <span><i class="al-wait"></i>รอใช้ในโครงการ</span>
-    <span><i class="al-free"></i>ยังไม่จัดสรรให้โครงการ</span>
-    <span class="muted">กดชื่อโครงการใต้หมวดเพื่อไปหน้าโครงการ</span>
-  </div>
-  <style>
-    .al-bar{ display:flex; height:8px; border-radius:6px; overflow:hidden; background:#e2e8f0; margin:2px 0 4px; max-width:360px; }
-    .al-bar span{ display:block; height:100%; }
-    .al-paid{ background:#16a34a; }
-    .al-wait{ background:#818cf8; }
-    .al-free{ background:#e2e8f0; border:1px solid #cbd5e1; }
-    .al-detail{ font-size:12.5px; color:#475569; margin-top:2px; }
-    .al-detail summary{ cursor:pointer; }
-    .al-over{ color:#b91c1c; font-weight:600; }
-    .al-note{ color:#9a3412; background:#fff7ed; border-radius:8px; padding:6px 9px; margin:6px 0; }
-    .al-pj{ display:flex; gap:10px; flex-wrap:wrap; padding:3px 0; }
-    .al-pj a{ font-weight:600; }
-    .al-legend{ display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:#475569; margin-top:12px; }
-    .al-legend i{ display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
-  </style>
-  {% endif %}
   {# 9 คอลัมน์: ให้เลื่อนซ้าย-ขวาแทนการบีบจนชื่อหมวดตัดคำทีละคำ #}
   <div class="table-wrap"><table style="margin-top:14px; min-width:1080px;">
     <thead><tr><th style="min-width:180px;">หมวด/รายการ</th><th>เก็บที่</th><th>ช่อง e-Budget</th><th class="right">งบที่ตั้งไว้</th><th class="right">ยอดยกมา</th><th class="right">รับจริง</th><th class="right">จ่ายแล้ว</th><th class="right">คงเหลือ</th><th></th></tr></thead>
@@ -245,30 +208,6 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
              title="ทะเบียนคุมเงินของหมวดนี้"><svg class="icon"><use href="#ic-download"/></svg> ทะเบียนคุม</a>
           <form method="post" action="/finance/items/{{ r.it.id }}/delete" style="display:inline" onsubmit="return confirm('ลบหมวดนี้? (รายการเงินที่เคยผูกจะไม่ถูกลบ แต่จะไม่ผูกกับหมวดแล้ว)')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form></td>
       </tr>
-      {% set al = item_alloc.get(r.it.id) %}{% if al %}
-      {# แถวเต็มความกว้างใต้หมวด: ช่องชื่อหมวดแคบเพราะตารางมี 8 คอลัมน์ ใส่ไว้ในช่องนั้นจะตัดคำทีละคำ #}
-      <tr class="al-row" {% if r.level==0 and r.has_kids %}style="background:#f8fafc;"{% endif %}>
-        <td colspan="8" style="padding-left:{{ 8 + r.level*26 }}px; border-top:0; padding-top:0;">
-          {% set base = al.paid + al.waiting + (al.free if al.free > 0 else 0) %}
-          <div class="al-bar" title="จ่ายแล้ว / รอใช้ในโครงการ / ยังไม่จัดสรรให้โครงการ">
-            {% if base > 0 %}
-            <span class="al-paid" style="width:{{ (al.paid / base * 100)|round(1) }}%"></span>
-            <span class="al-wait" style="width:{{ (al.waiting / base * 100)|round(1) }}%"></span>
-            {% endif %}
-          </div>
-          <details class="al-detail" open>
-            <summary>รอใช้ในโครงการ {{ "{:,.2f}".format(al.waiting) }}
-              {% if al.free >= 0 %}ยังไม่จัดสรรให้โครงการ {{ "{:,.2f}".format(al.free) }}
-              {% else %}<span class="al-over">จัดสรรเกินเงินที่เหลือจริง {{ "{:,.2f}".format(-al.free) }}</span>{% endif %}</summary>
-            {% if al.free < 0 %}<p class="al-note">จัดสรรให้โครงการไว้มากกว่าเงินที่มีอยู่ในหมวดตอนนี้ มักเกิดจากเงินอุดหนุนงวดถัดไปยังไม่เข้า ถ้าเงินเข้าแล้วยังติดลบ ให้ลดการจัดสรรในหน้าโครงการ</p>{% endif %}
-            {% for pj in al.projects %}
-            <div class="al-pj"><a href="/projects/{{ pj.project.id }}">{{ pj.project.name }}</a>
-              <span>จัดสรร {{ "{:,.2f}".format(pj.allocated) }} จ่ายแล้ว {{ "{:,.2f}".format(pj.used) }} รอใช้ {{ "{:,.2f}".format(pj.allocated - pj.used) }}</span></div>
-            {% endfor %}
-          </details>
-        </td>
-      </tr>
-      {% endif %}
       {% endfor %}
     </tbody>
     <tfoot>

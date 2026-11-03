@@ -408,8 +408,8 @@ def account_delete(aid: int, db: Session = Depends(get_db)):
         loan_txn = db.query(FinanceTxn).filter(FinanceTxn.account_id == aid, FinanceTxn.loan_id.isnot(None)).first()
         if loan_txn:
             return RedirectResponse(f"/finance/loans/{loan_txn.loan_id}/money?message={quote('บัญชีนี้มีรายการเชื่อมเงินยืมอยู่ กรุณาตรวจรายการก่อนลบบัญชี')}", status_code=303)
-        from app.services.plan_funding import guard_items
-        guard_items(db,[i.id for i in a.items])
+        from app.services.plan_funding import drop_items
+        drop_items(db,[i.id for i in a.items])
         db.delete(a); db.commit()
     return RedirectResponse("/finance/accounts", status_code=303)
 
@@ -469,7 +469,6 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
     receipt_map = {rc.txn_id: (rc.receipt_no or "(ไม่มีเลข)")
                    for rc in db.query(Receipt).filter(Receipt.txn_id.isnot(None)).all()
                    if rc.txn_id}
-    from app.services.project_money import item_allocations, account_plan_links
     txn_project = _txn_projects(db, txns)
     from app.services.money_place import account_by_place, used_places, txn_place
     place_bal = account_by_place(a, fy)
@@ -489,8 +488,6 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
         "txn_display_notes": txn_display_notes(txns, db),
         "txn_project": txn_project,
         "lunch_mirror": _lunch_mirror(db),
-        "item_alloc": item_allocations(db, item_rows, txn_project),
-        "plan_links": account_plan_links(db, a, fy),
         "selected_item": item if any(i.id == item for i in items) else 0,
         "selected_project": project if any(p.id==project for p in _plan_projects(db,fy)) else 0,
         "selected_kind": 'out' if kind=='out' else 'in',
@@ -611,8 +608,8 @@ def account_item_delete(iid: int, db: Session = Depends(get_db)):
     aid = it.account_id if it else None
     fy = it.fiscal_year if it else current_fiscal_year()
     if it:
-        from app.services.plan_funding import guard_items
-        guard_items(db,[it.id]+[i.id for i in db.query(AccountItem).filter_by(parent_id=it.id)])
+        from app.services.plan_funding import drop_items
+        drop_items(db,[it.id]+[i.id for i in db.query(AccountItem).filter_by(parent_id=it.id)])
         # ปลดการผูกหมวดออกจากรายการที่อ้างถึง (ไม่ลบรายการเงิน)
         for t in db.query(FinanceTxn).filter_by(item_id=it.id).all():
             t.item_id = None
@@ -717,37 +714,26 @@ def account_move_money(aid: int, db: Session = Depends(get_db), fiscal_year: str
     return RedirectResponse(f"/finance/accounts/{aid}?year={fy}&moved_place=1#move", status_code=303)
 
 
-_FUND_KIND_TH = {"opening": "เงินเหลือก่อนเริ่มแผน", "subsidy": "เงินอุดหนุนรอบใหม่", "other": "เงินอื่น ๆ"}
-
-
 @router.get("/finance/projects/quick-form")
 def project_quick_form(db: Session = Depends(get_db), year: str = ""):
-    """ข้อมูลสำหรับ pop-up เพิ่มโครงการ: ฝ่าย · ปีแผน · รายการเงินในแผนงบปีนั้นที่ยังจัดสรรได้"""
+    """ข้อมูลสำหรับ pop-up เพิ่มโครงการ: ฝ่าย และปีแผน"""
     from app.models import Department
-    from app.services import plan_funding as pf
     school = get_school(db)
     cur = current_plan_year(school)
     py = _to_int(year, 0)
     if not 2500 <= py <= 2800:
         py = cur
-    plan = pf.plan(db, py)
-    sources = [{"id": s.id, "name": s.name, "kind": _FUND_KIND_TH.get(s.kind, s.kind),
-                "available": round(s.amount - pf.allocated(db, s.id), 2)} for s in pf.sources(db, plan)]
     return JSONResponse({
         "plan_year": py, "current": cur, "year_label": plan_year_label(school),
         "years": _plan_year_list(db, cur),
         "departments": [d.name for d in db.query(Department).order_by(Department.name)],
-        "has_plan": plan is not None, "plan_link": f"/plan-budget/{py}",
-        "sources": [s for s in sources if s["available"] > 0],
     })
 
 
 @router.post("/finance/projects/quick")
 async def project_quick_add(request: Request, db: Session = Depends(get_db)):
     """เพิ่มโครงการจาก pop-up ในฟอร์มบันทึกรายการ/ขอเบิกจ่าย (ไม่ต้องออกจากหน้า)
-    กรอกได้ครบเหมือนหน้าโครงการ + จัดสรรงบจากแผนงบ (fund_<id>) ในคราวเดียว
-    จัดสรรไม่ผ่าน (เกินงบ/เกินเงินที่เหลือ) = ไม่สร้างโครงการเลย · ชื่อซ้ำในปีแผนเดียวกัน = แจ้งและใช้โครงการเดิม"""
-    from app.services import plan_funding as pf
+    ชื่อซ้ำในปีแผนเดียวกัน = แจ้งและใช้โครงการเดิม"""
     f = await request.form()
     name = " ".join(str(f.get("name") or "").split())
     if not name:
@@ -759,7 +745,6 @@ async def project_quick_add(request: Request, db: Session = Depends(get_db)):
         py = current_plan_year(get_school(db))
     responsible = " ".join(str(f.get("responsible") or "").split())[:200]
     budget = max(0.0, _to_float(f.get("budget"), 0.0))
-    funds = {k[5:]: v for k, v in f.items() if k.startswith("fund_") and _to_float(v, 0.0) > 0}
     pj = db.query(Project).filter(Project.plan_year == py, Project.name == name).first()
     if pj is not None:
         return JSONResponse({"id": pj.id, "label": f"{pj.name} · ปีแผน {pj.plan_year}", "created": False,
@@ -767,16 +752,6 @@ async def project_quick_add(request: Request, db: Session = Depends(get_db)):
                              "message": f"มีโครงการชื่อนี้ในปี {py} อยู่แล้ว ระบบเลือกโครงการเดิมให้"})
     pj = Project(name=name, budget=budget, responsible=responsible, plan_year=py, active=True)
     db.add(pj)
-    db.flush()
-    if funds:
-        plan = pf.plan(db, py)
-        try:
-            if plan is None:
-                raise ValueError(f"ยังไม่ได้กำหนดงบที่ใช้จัดทำแผน ปี {py}")
-            pf.allocate(db, plan, pj, funds, pf.allocation_token(db, plan, pj))
-        except ValueError as e:
-            db.rollback()
-            raise HTTPException(400, str(e))
     db.commit()
     return JSONResponse({"id": pj.id, "label": f"{pj.name} · ปีแผน {pj.plan_year}", "created": True,
                          "link": f"/projects/{pj.id}"})

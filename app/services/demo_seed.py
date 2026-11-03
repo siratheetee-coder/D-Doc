@@ -714,20 +714,9 @@ def seed_school(db, *, today: date) -> dict:
     for y in sorted({y for (y,) in db.query(m.FinanceTxn.fiscal_year).distinct() if y and y < cur_fy}):
         carry(db, y)
 
-    # ---------------- แผนงบ (หน้างบที่ใช้จัดทำแผน) + จัดสรรให้โครงการ ----------------
-    # ทำหลังยกยอด (ยกยอดไม่ยอมให้หมวดปีใหม่มียอดยกมาที่ไม่มีคู่ปีก่อน) · ยอดยกมาของหมวดรวมกัน = ยอดยกมาของบัญชี
-    # นำเงินเข้าแผนและจัดสรรผ่านตรรกะเดียวกับที่ผู้ใช้กด (preview/apply/allocate) ตัวเลขจึงตรงกับของจริง
+    # ยอดยกมาแยกหมวด (ทำหลังยกยอด เพราะยกยอดไม่ยอมให้หมวดปีใหม่มียอดยกมาที่ไม่มีคู่ปีก่อน)
+    # ยอดยกมาของหมวดรวมกัน = ยอดยกมาของบัญชี
     item_teach.opening_balance, item_book.opening_balance = 115000, 70000
-    db.flush()
-    from app.services import plan_funding as pf
-    from app.services import subsidy as subsvc
-    ds, de = pf.defaults(fy, "budget")
-    plan = pf.save_period(db, fy, "budget", ds.isoformat(), de.isoformat())
-    data = pf.preview(db, plan, "opening")
-    pf.apply(db, plan, "opening", 0, subsvc.fingerprint(data), [r["source_key"] for r in data["rows"]])
-    src = {s.account_item_id: s for s in pf.sources(db, plan)}
-    for pj, amt in zip(projects, (60000, 25000, 20000)):     # โครงการที่ 3 จัดสรรไว้บางส่วน ให้เห็นยอดที่ยังเหลือ
-        pf.allocate(db, plan, pj, {str(src[item_teach.id].id): amt}, pf.allocation_token(db, plan, pj))
 
     db.commit()
     return {"teacher_pid": teacher.id, "director_pid": director.id, "fiscal_year": fy, "academic_year": ay}

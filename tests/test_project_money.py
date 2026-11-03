@@ -18,12 +18,7 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base
 from app.models import AccountItem, DisburseMemo, FinanceAccount, FinanceTxn, Procurement, Project
 
-try:        # ระบบจัดสรรงบให้โครงการ ยังไม่มีในทุกเครื่อง ไม่มีก็ข้ามเทสต์ส่วน "จัดสรรไว้ในแผน"
-    from app.models import PlanBudget, PlanFunding, ProjectFunding
-except ImportError:
-    PlanBudget = PlanFunding = ProjectFunding = None
-needs_plan = pytest.mark.skipif(PlanFunding is None, reason="ยังไม่มีระบบจัดสรรงบให้โครงการ")
-from app.services.project_money import ALLOCATED, USED_BEFORE, project_sources
+from app.services.project_money import USED_BEFORE, project_sources
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FY = 2570
@@ -57,34 +52,12 @@ def _project(db, name="กีฬาสี"):
     return p
 
 
-def _allocate(db, project, item, amount=30000):
-    plan = PlanBudget(year=2569, mode="academic", start_date=datetime(2026, 5, 1),
-                      end_date=datetime(2027, 4, 30))
-    db.add(plan); db.flush()
-    f = PlanFunding(plan_id=plan.id, source_key=f"test:{item.id}", kind="opening",
-                    name=item.name, amount=amount, account_item_id=item.id)
-    db.add(f); db.flush()
-    db.add(ProjectFunding(project_id=project.id, funding_id=f.id, amount=amount)); db.flush()
-
-
 # ---------------- หาหมวดของโครงการ ----------------
 def test_unknown_project_has_no_source(db):
     _money(db)
     p = _project(db)
     assert project_sources(db, p.id, FY) == []
     assert project_sources(db, None, FY) == []
-
-
-@needs_plan
-def test_allocated_in_the_plan_is_used_first(db):
-    sub, inc, act69, act70, teach70 = _money(db)
-    p = _project(db)
-    _allocate(db, p, act70)
-    out = project_sources(db, p.id, FY)
-    assert len(out) == 1
-    assert out[0]["item_id"] == act70.id and out[0]["account_id"] == sub.id
-    assert out[0]["why"] == ALLOCATED
-    assert out[0]["label"] == "เงินอุดหนุน / ค่ากิจกรรมพัฒนาคุณภาพผู้เรียน"
 
 
 def test_remembers_the_category_used_last_time(db):
@@ -136,30 +109,17 @@ def test_category_that_no_longer_exists_this_year_is_left_for_the_user(db):
     assert project_sources(db, p.id, FY) == [], "ไม่มีหมวดปีนี้ ต้องไม่เดา ให้ผู้ใช้เลือกเอง"
 
 
-@needs_plan
-def test_same_category_is_listed_once_and_keeps_the_stronger_reason(db):
+def test_several_categories_are_all_offered_latest_first(db):
     sub, inc, act69, act70, teach70 = _money(db)
     p = _project(db)
-    _allocate(db, p, act70)
     db.add(DisburseMemo(fiscal_year=FY, subject="ซื้อป้าย", amount=8000,
                         account_id=sub.id, item_id=act70.id, project_id=p.id))
-    db.flush()
-    out = project_sources(db, p.id, FY)
-    assert len(out) == 1 and out[0]["why"] == ALLOCATED
-
-
-@needs_plan
-def test_several_categories_are_all_offered_allocated_first(db):
-    sub, inc, act69, act70, teach70 = _money(db)
-    p = _project(db)
-    _allocate(db, p, act70)
     db.add(FinanceTxn(account_id=inc.id, fiscal_year=FY, kind="out", amount=500,
                       project_id=p.id, date=datetime(2026, 11, 1)))
     db.flush()
     out = project_sources(db, p.id, FY)
-    assert [s["why"] for s in out] == [ALLOCATED, USED_BEFORE]
-    assert out[1]["account_id"] == inc.id and out[1]["item_id"] is None
-    assert out[1]["label"] == "เงินรายได้สถานศึกษา"
+    assert [s["item_id"] for s in out] == [act70.id, None]
+    assert out[1]["account_id"] == inc.id and out[1]["label"] == "เงินรายได้สถานศึกษา"
 
 
 def test_other_projects_do_not_leak_in(db):
@@ -223,7 +183,7 @@ setTimeout(() => console.log(JSON.stringify({
 
 _ONE = [{"account_id": 3, "account_name": "เงินอุดหนุน", "item_id": 11,
          "item_name": "ค่ากิจกรรมพัฒนาคุณภาพผู้เรียน",
-         "label": "เงินอุดหนุน / ค่ากิจกรรมพัฒนาคุณภาพผู้เรียน", "why": ALLOCATED}]
+         "label": "เงินอุดหนุน / ค่ากิจกรรมพัฒนาคุณภาพผู้เรียน", "why": USED_BEFORE}]
 
 
 @pytest.mark.skipif(not NODE, reason="ต้องมี node เพื่อรันสคริปต์ฝั่งหน้าจอ")

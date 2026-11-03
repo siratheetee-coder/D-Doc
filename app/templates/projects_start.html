@@ -19,10 +19,6 @@
 
 {% if saved != '' and not err %}<div class="alert"><svg class="icon"><use href="#ic-check"/></svg> บันทึกแล้ว{% if saved and saved != '0' %} ปรับ {{ saved }} โครงการ{% else %} ไม่มีอะไรเปลี่ยน{% endif %}</div>{% endif %}
 {% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
-{% set stale = sources|default([])|selectattr('changed')|list %}
-{% if stale %}<div class="alert warn st-stale"><svg class="icon"><use href="#ic-alert"/></svg>
-  <div>ยอด{{ stale|map(attribute='short')|join(', ') }}ในทะเบียนคุมเงินเปลี่ยนไปจากตอนนำเข้าแผน อัปเดตก่อนจึงเลือกเงินก้อนนี้ได้
-  <a class="btn sm" href="/plan-budget/{{ year }}">ไปอัปเดตยอด</a></div></div>{% endif %}
 
 <div class="card">
   <h2 style="margin-top:0;">ใช้หน้านี้เมื่อไร</h2>
@@ -44,16 +40,6 @@
 <div class="st-bar" id="stBar">
   <div class="st-find"><svg class="icon"><use href="#ic-search"/></svg>
     <input id="stFind" type="search" autocomplete="off" placeholder="ค้นหาชื่อโครงการ" aria-label="ค้นหาชื่อโครงการ"></div>
-  {% if sources %}<div class="st-pools">
-  {% for s in sources %}
-  <div class="st-pool" data-src="{{ s.id }}" data-total="{{ '%.2f'|format(s.amount) }}" data-fixed="{{ '%.2f'|format(s.fixed) }}" title="{{ s.name }}">
-    <b>{{ s.short }}</b>
-    <span>ทั้งหมด {{ '{:,.2f}'.format(s.amount) }}</span>
-    <span>จัดสรรให้โครงการแล้ว <em data-used>0.00</em></span>
-    <span>ยังไม่จัดสรร <em data-free>0.00</em></span>
-  </div>
-  {% endfor %}
-  </div>{% endif %}
 </div>
 <form class="card" method="post" action="/projects/start" id="startForm">
   <input type="hidden" name="year" value="{{ year }}">
@@ -61,11 +47,10 @@
     <thead><tr>
       <th>โครงการ</th><th class="right">งบโครงการ</th><th class="right">ใช้ในระบบแล้ว</th>
       <th class="right" style="min-width:150px;">ตอนนี้เหลือ (บาท)</th><th class="right">ใช้ไปก่อนเริ่มใช้ระบบ</th>
-      {% if sources %}<th>ใช้เงินจาก</th>{% endif %}
     </tr></thead>
     <tbody>
     {% for r in rows %}
-      <tr data-room="{{ r.room }}" data-budget="{{ r.budget }}" data-before="{{ r.before }}" data-out="{{ r.outside }}" data-q="{{ r.p.name }} {{ r.p.responsible or '' }}">
+      <tr data-room="{{ r.room }}" data-q="{{ r.p.name }} {{ r.p.responsible or '' }}">
         <td data-label="โครงการ"><a href="/projects/{{ r.p.id }}">{{ r.p.name }}</a></td>
         <td data-label="งบโครงการ" class="right">{{ "{:,.2f}".format(r.budget) }}</td>
         <td data-label="ใช้ในระบบแล้ว" class="right">{{ "{:,.2f}".format(r.used) if r.used else "-" }}</td>
@@ -75,15 +60,6 @@
           <div class="st-err" hidden></div>
         </td>
         <td data-label="ใช้ไปก่อนเริ่มใช้ระบบ" class="right"><b class="st-out">{{ "{:,.2f}".format(r.before) if r.before else "-" }}</b></td>
-        {% if sources %}<td data-label="ใช้เงินจาก">
-          {% if r.budget <= 0 %}-
-          {% elif r.multi %}<a href="/projects/{{ r.p.id }}#project-funding">หลายรายการ แก้ในหน้าโครงการ</a>
-          {% else %}<div class="st-srcbox"><select name="fund_{{ r.p.id }}" class="st-src">
-            <option value="">ยังไม่ระบุ</option>
-            {% for s in sources %}<option value="{{ s.id }}" {{ 'selected' if s.id == r.fund }}>{{ s.short }}</option>{% endfor %}
-          </select>
-          <div class="st-alloc" hidden>จัดสรร <b></b> บาท</div></div>{% endif %}
-        </td>{% endif %}
       </tr>
     {% endfor %}
     </tbody>
@@ -104,21 +80,8 @@
   .st-find .icon{ width:18px; height:18px; color:#64748b; }
   .st-find input{ flex:1; border:0; background:none; box-shadow:none; font-size:15.5px; padding:9px 0; }
   .st-find input:focus{ outline:none; box-shadow:none; }
-  .st-pools{ display:flex; gap:8px; margin-top:8px; overflow-x:auto; scrollbar-width:thin; }
-  .st-pool{ flex:0 0 auto; padding:6px 12px; border-radius:12px; background:linear-gradient(135deg,#eff6ff,#f5f3ff);
-    font-size:13px; line-height:1.5; white-space:nowrap; }
-  .st-pool b{ display:block; font-size:13.5px; }
-  .st-pool span{ margin-right:8px; color:#475569; }
-  .st-pool em{ font-style:normal; font-weight:700; color:#0f172a; }
-  .st-pool em.neg{ color:#dc2626; }
-  .st-stale > div{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; }
-  .st-src{ min-width:180px; }
-  .st-alloc{ font-size:12.5px; color:#475569; margin-top:3px; }
-  .st-srcbox{ min-width:0; flex:1; }
   @media (max-width:700px){
     .st-bar{ top:62px; padding:8px; }
-    .st-src{ min-width:0; width:100%; }
-    .st-pool span:nth-of-type(1), .st-pool span:nth-of-type(2){ display:none; }
   }
 </style>
 <script>
@@ -152,41 +115,11 @@
 })();
 </script>
 <script>
-// เลือกเงินที่ใช้ + สรุปเงินแต่ละรายการ + ค้นหาโครงการ
+// ค้นหาโครงการ
 (function(){
-  var fmt = function (n) { return n.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
-  var form = document.getElementById('startForm');
-  if (!form) return;
-  // ยอดจัดสรรของโครงการ = งบ - ใช้ไปก่อนเริ่มใช้ระบบ - จ่ายในระบบด้วยเงินนอกแผน (ไม่ได้อยู่ในเงินที่เหลือแล้ว)
-  function beforeOf(tr) {
-    var inp = tr.querySelector('.st-in'), txt = inp.value.replace(/,/g, '').trim();
-    if (!txt || isNaN(Number(txt))) return parseFloat(tr.dataset.before) || 0;
-    return Math.max(0, Math.round(((parseFloat(tr.dataset.room) || 0) - Number(txt)) * 100) / 100);
-  }
-  function pools() {
-    var used = {};
-    form.querySelectorAll('tbody tr').forEach(function (tr) {
-      var sel = tr.querySelector('.st-src'), box = tr.querySelector('.st-alloc');
-      if (!sel) return;
-      var amt = Math.max(0, Math.round(((parseFloat(tr.dataset.budget) || 0) - beforeOf(tr) - (parseFloat(tr.dataset.out) || 0)) * 100) / 100);
-      box.hidden = !sel.value;
-      box.querySelector('b').textContent = fmt(amt);
-      if (sel.value) used[sel.value] = (used[sel.value] || 0) + amt;
-    });
-    document.querySelectorAll('.st-pool').forEach(function (p) {
-      var u = Math.round(((parseFloat(p.dataset.fixed) || 0) + (used[p.dataset.src] || 0)) * 100) / 100;
-      var free = Math.round(((parseFloat(p.dataset.total) || 0) - u) * 100) / 100;
-      p.querySelector('[data-used]').textContent = fmt(u);
-      var fe = p.querySelector('[data-free]');
-      fe.textContent = free < 0 ? 'เกิน ' + fmt(-free) : fmt(free);
-      fe.classList.toggle('neg', free < 0);
-    });
-  }
-  form.addEventListener('input', pools);
-  form.addEventListener('change', pools);
-  pools();
-  var find = document.getElementById('stFind');
-  if (find) find.addEventListener('input', function () {
+  var form = document.getElementById('startForm'), find = document.getElementById('stFind');
+  if (!form || !find) return;
+  find.addEventListener('input', function () {
     var q = find.value.toLowerCase().replace(/\s+/g, '');
     form.querySelectorAll('tbody tr').forEach(function (tr) {
       tr.hidden = !!q && (tr.dataset.q || '').toLowerCase().replace(/\s+/g, '').indexOf(q) < 0;

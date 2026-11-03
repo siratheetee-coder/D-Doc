@@ -16,9 +16,6 @@
       <p class="bh-where">หัวข้อ "ปรับงบประมาณ" ในหน้าโครงการ</p>
     </div>
   </div>
-  {% if can_finance %}{# การจัดสรรเงินเป็นของงานการเงิน ไม่มีสิทธิ์ไม่ต้องอ่านเรื่องนี้ #}
-  <p class="bh-note">ถ้าจัดสรรเงินจากหมวดให้โครงการไว้แล้ว: ปรับงบเพิ่ม ระบบพาไปจัดสรรส่วนที่เพิ่มให้
-    ปรับงบลด ต้องลดการจัดสรรก่อน เพราะงบต้องไม่ต่ำกว่าเงินที่จัดสรรไว้</p>{% endif %}
 </details>
 <style>
   .bh{ margin-top:12px; border-radius:12px; background:linear-gradient(120deg,#f8fafc,#eff6ff); padding:10px 14px; }
@@ -28,7 +25,6 @@
   .bh-box p{ margin:4px 0 0; }
   .bh-eg{ color:#475569; font-size:13px; }
   .bh-where{ color:#2563eb; font-size:12.5px; }
-  .bh-note{ font-size:13px; color:#475569; margin:10px 0 0; }
 </style>
 <script>
 (function () {   // กดลิงก์ #budget-help (จากรายการเริ่มต้น) แล้วกางให้เลย

@@ -5,10 +5,9 @@ project_money.py - โครงการนี้ใช้เงินจาก�
 เดิมฟอร์มเบิกจ่ายถามแยก 4 ช่อง (แหล่งเงิน / บัญชี / หมวด / โครงการ) ที่ไม่รู้จักกัน
 ผู้ใช้เลือกโครงการแล้วต้องไปเลือกบัญชีกับหมวดเองอีก ทั้งที่ระบบรู้อยู่แล้ว
 
-ระบบรู้ได้จากสองทาง เรียงตามความน่าเชื่อถือ
-  1. จัดสรรไว้ในแผน   โครงการได้รับเงินจากหมวดไหน (ProjectFunding -> PlanFunding.account_item_id)
-  2. เคยใช้ครั้งก่อน   บันทึกขอเบิกจ่าย/รายการจ่ายของโครงการนี้ที่เคยระบุหมวดไว้
-ทางที่ 2 ทำให้โรงเรียนไม่ต้องตั้งค่าอะไรล่วงหน้า เลือกหมวดครั้งแรกครั้งเดียว ครั้งต่อไประบบจำให้
+ระบบรู้จากบันทึกขอเบิกจ่าย/รายการจ่ายของโครงการนี้ที่เคยระบุหมวดไว้ โรงเรียนไม่ต้องตั้งค่าอะไรล่วงหน้า
+เลือกหมวดครั้งแรกครั้งเดียว ครั้งต่อไประบบจำให้
+(เดิมมีการจัดสรรเงินให้โครงการล่วงหน้าด้วย เลิกใช้แล้วเพราะตัวเลขไม่ตรงกับเงินจริง ครูงง)
 
 หมวด (AccountItem) แยกรายปีงบ หมวดที่จำไว้จากปีงบก่อนจึงต้องหา "หมวดชื่อเดียวกันในปีงบนี้"
 ไม่งั้นจะหักเงินลงหมวดของปีที่ปิดไปแล้ว (แผนปีการศึกษาคร่อมสองปีงบ เจอกรณีนี้ทุกปี)
@@ -17,12 +16,6 @@ from sqlalchemy import or_
 
 from app.models import AccountItem, DisburseMemo, FinanceAccount, FinanceTxn, Procurement
 
-try:        # ระบบจัดสรรงบให้โครงการ (หน้างบประมาณที่ใช้จัดทำแผน) ยังไม่มีในทุกเครื่อง
-    from app.models import PlanFunding, ProjectFunding
-except ImportError:                                  # ไม่มีก็ใช้แค่ "เคยใช้ครั้งก่อน" ไปก่อน
-    PlanFunding = ProjectFunding = None
-
-ALLOCATED = "จัดสรรไว้ในแผน"
 USED_BEFORE = "เคยใช้ครั้งก่อน"
 
 
@@ -67,18 +60,7 @@ def project_sources(db, project_id, fy) -> list:
         seen.add(key)
         out.append(_entry(account, item, why))
 
-    # 1) จัดสรรไว้ในแผน
-    rows = [] if PlanFunding is None else (db.query(PlanFunding)
-            .join(ProjectFunding, ProjectFunding.funding_id == PlanFunding.id)
-            .filter(ProjectFunding.project_id == project_id, ProjectFunding.amount > 0,
-                    PlanFunding.account_item_id.isnot(None))
-            .order_by(ProjectFunding.amount.desc()).all())
-    for f in rows:
-        it = _same_item_in_year(db, db.get(AccountItem, f.account_item_id), fy)
-        if it is not None:
-            add(it.account, it, ALLOCATED)
-
-    # 2) เคยใช้ครั้งก่อน (ล่าสุดก่อน) · นับทั้งบันทึกที่ผูกโครงการตรง และที่ผูกผ่านเรื่องจัดซื้อ
+    # เคยใช้ครั้งก่อน (ล่าสุดก่อน) · นับทั้งบันทึกที่ผูกโครงการตรง และที่ผูกผ่านเรื่องจัดซื้อ
     proc_ids = [p.id for p in db.query(Procurement.id).filter(Procurement.project_id == project_id)]
     memo_q = db.query(DisburseMemo).filter(DisburseMemo.account_id.isnot(None))
     cond = DisburseMemo.project_id == project_id
@@ -102,110 +84,33 @@ def project_sources(db, project_id, fy) -> list:
     return out
 
 
-def item_allocations(db, item_rows, txn_project) -> dict:
-    """หมวดในทะเบียนคุมเงินจัดสรรให้โครงการไหนบ้าง (ระยะ 2 ฝั่งการเงิน)
+def project_cash(db, projects, fy) -> dict:
+    """กล่องสรุปหน้าโครงการหลัก: โครงการยังต้องใช้เงินเท่าไร เทียบกับเงินในหมวดที่โครงการใช้จ่าย
 
-    item_rows   แถวหมวดของหน้าทะเบียนคุมเงิน {it, level, remain, ...} หมวดแม่มาก่อนลูกเสมอ
-    txn_project {txn_id: Project} ของรายการจ่ายในปีงบนี้ (ได้จาก _txn_projects)
+    ไม่จัดสรรเงินให้โครงการล่วงหน้า (แบบที่ครูการเงินทำจริง ดูงบโครงการกับเงินในบัญชีแยกกัน)
+    "หมวดที่โครงการใช้จ่าย" = หมวดที่เคยมีรายการจ่ายผูกโครงการ (ทุกปี) แปลงเป็นหมวดชื่อเดียวกันในปีงบ fy
+    ระบบเดาไม่ได้ว่าบัญชีไหนใช้ทำโครงการได้ (อาหารกลางวัน เงินยืม ฯลฯ) จึงนับจากที่เคยจ่ายจริงเท่านั้น
+    และแสดงรายชื่อหมวดให้ครูเห็นว่านับอะไรบ้าง
 
-    คืน {item_id: {...}} เฉพาะหมวดที่มีการจัดสรร หมวดแม่รวมยอดของลูก
-      paid      จ่ายแล้วทั้งหมดของหมวด (ทั้งที่ผูกโครงการและไม่ผูก)
-      waiting   รอใช้ในโครงการ = ส่วนที่จัดสรรให้โครงการไว้แต่โครงการยังไม่ได้จ่ายจากหมวดนี้
-      free      ยังไม่จัดสรรให้โครงการ = เงินคงเหลือจริง - รอใช้ในโครงการ (ติดลบ = จัดสรรเกิน)
-      projects  [{project, allocated, used}] เรียงยอดจัดสรรมากไปน้อย
-
-    นับ "โครงการใช้ไปจากหมวดนี้" ไม่เกินยอดที่จัดสรรให้ เพราะส่วนที่จ่ายเกินจัดสรรเป็นเงินของหมวด
-    ที่โครงการเอาไปใช้เพิ่ม ไม่ได้ทำให้ยอดรอใช้ของโครงการอื่นลดลง
+    คืน {need, n, rows: [{item, remain}], cash, gap}  gap > 0 = เงินในหมวดยังไม่พอ
     """
-    if PlanFunding is None or not item_rows:
-        return {}
-    ids = [r["it"].id for r in item_rows]
-    rows = (db.query(PlanFunding.account_item_id, ProjectFunding.project_id, ProjectFunding.amount)
-            .join(ProjectFunding, ProjectFunding.funding_id == PlanFunding.id)
-            .filter(PlanFunding.account_item_id.in_(ids), ProjectFunding.amount > 0).all())
-    if not rows:
-        return {}
-    alloc = {}                                     # {item_id: {project_id: amount}}
-    for item_id, pid, amt in rows:
-        alloc.setdefault(item_id, {})
-        alloc[item_id][pid] = round(alloc[item_id].get(pid, 0) + (amt or 0), 2)
-
-    from app.models import Project
-    pids = {pid for per in alloc.values() for pid in per}
-    projects = {p.id: p for p in db.query(Project).filter(Project.id.in_(pids))}
-
-    own = {}
-    for r in item_rows:
-        it = r["it"]
-        per = alloc.get(it.id, {})
-        spent_by = {}                              # {project_id: จ่ายจากหมวดนี้}
-        for t in it.account.txns:
-            if t.item_id != it.id or t.kind != "out" or t.fiscal_year != it.fiscal_year:
-                continue
-            pj = txn_project.get(t.id)
-            if pj is not None and pj.id in per:
-                spent_by[pj.id] = spent_by.get(pj.id, 0) + (t.amount or 0)
-        plist = [{"project": projects[pid], "allocated": amt,
-                  "used": round(min(spent_by.get(pid, 0), amt), 2)}
-                 for pid, amt in per.items() if pid in projects]
-        own[it.id] = plist
-
-    out, parent_of = {}, {}
-    current = None
-    for r in item_rows:
-        if r["level"] == 0:
-            current = r["it"].id
-        else:
-            parent_of[r["it"].id] = current
-    for r in item_rows:
-        it = r["it"]
-        plist = list(own.get(it.id, []))
-        if r["level"] == 0:
-            for kid, par in parent_of.items():
-                if par == it.id:
-                    plist += own.get(kid, [])
-        if not plist:
+    from app.routers.finance import _txn_projects
+    from app.services.asset_utils import item_remaining_asof
+    from app.services.budget import project_budget, project_spent
+    left = [round(project_budget(p) - project_spent(p), 2) for p in projects]
+    need = round(sum(x for x in left if x > 0), 2)
+    txns = db.query(FinanceTxn).filter(FinanceTxn.kind == "out", FinanceTxn.item_id.isnot(None)).all()
+    by_id = {t.id: t for t in txns}
+    seen, items = set(), []
+    for tid in _txn_projects(db, txns):
+        t = by_id[tid]
+        if t.item_id in seen:
             continue
-        merged = {}
-        for p in plist:
-            m = merged.setdefault(p["project"].id, {"project": p["project"], "allocated": 0, "used": 0})
-            m["allocated"] = round(m["allocated"] + p["allocated"], 2)
-            m["used"] = round(m["used"] + p["used"], 2)
-        plist = sorted(merged.values(), key=lambda x: -x["allocated"])
-        waiting = round(sum(p["allocated"] - p["used"] for p in plist), 2)
-        remain = round(r["remain"], 2)
-        out[it.id] = {"paid": round(r["tout"], 2), "remain": remain, "waiting": waiting,
-                      "free": round(remain - waiting, 2), "projects": plist,
-                      "allocated": round(sum(p["allocated"] for p in plist), 2)}
-    return out
-
-
-def account_plan_links(db, account, fy) -> dict:
-    """หน้าทะเบียนคุมเงินพาไปโครงการ: บัญชีนี้อยู่ในแผนไหน จัดสรรให้กี่โครงการแล้ว
-
-    เดิมลิงก์ไปโครงการขึ้นเฉพาะหมวดที่จัดสรรแล้ว และซ่อนอยู่ในส่วนที่ต้องกดเปิด
-    บัญชีที่ยังไม่ได้นำเข้าแผนจึงไม่มีทางไปหน้าโครงการเลย (เจ้าของถามหาปุ่มนี้)
-    แผนปีการศึกษาคร่อมสองปีงบ จึงหาแผนจากช่วงวันที่ที่ซ้อนกับปีงบนี้ ไม่ใช่เลขปีตรงกัน
-
-    คืน {plans: [{year, label, in_plan, allocated, n_projects}], suggest_year}
-    """
-    from datetime import datetime
-    from app.models import PlanBudget, School
-    from app.services.budget import current_plan_year
-    fy_start, fy_end = datetime(fy - 544, 10, 1), datetime(fy - 543, 9, 30)
-    plans = []
-    if PlanFunding is not None:
-        item_ids = [i.id for i in db.query(AccountItem.id).filter(AccountItem.account_id == account.id)]
-        for p in (db.query(PlanBudget).filter(PlanBudget.start_date <= fy_end, PlanBudget.end_date >= fy_start)
-                  .order_by(PlanBudget.start_date)):
-            funds = (db.query(PlanFunding).filter(PlanFunding.plan_id == p.id,
-                                                  PlanFunding.account_item_id.in_(item_ids)).all()
-                     if item_ids else [])
-            alloc = (db.query(ProjectFunding).filter(ProjectFunding.funding_id.in_([f.id for f in funds]),
-                                                     ProjectFunding.amount > 0).all() if funds else [])
-            plans.append(dict(year=p.year, label="ปีการศึกษา" if p.mode == "academic" else "ปีงบประมาณ",
-                              in_plan=round(sum(f.amount or 0 for f in funds), 2),
-                              allocated=round(sum(a.amount or 0 for a in alloc), 2),
-                              n_projects=len({a.project_id for a in alloc})))
-    school = db.query(School).first()
-    return dict(plans=plans, suggest_year=current_plan_year(school))
+        seen.add(t.item_id)
+        it = _same_item_in_year(db, db.get(AccountItem, t.item_id), fy)
+        if it is not None and it.id not in {x["item"].id for x in items}:
+            items.append({"item": it, "remain": item_remaining_asof(it)})
+    items.sort(key=lambda x: -x["remain"])
+    cash = round(sum(x["remain"] for x in items), 2)
+    return {"need": need, "n": sum(1 for x in left if x > 0), "rows": items, "cash": cash,
+            "gap": round(need - cash, 2)}
