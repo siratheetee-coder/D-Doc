@@ -35,7 +35,7 @@
   {% if not term_spans %}<p class="ls-warn">ยังไม่ได้ตั้งวันเปิด-ปิดภาคเรียน จึงเลือกทั้งภาคเรียนไม่ได้
     <a href="/academic/calendar?year={{ c.year }}">ตั้งค่าปฏิทินปีการศึกษา</a></p>{% endif %}
   <p class="ls-hint">ระบบเลือกเฉพาะวันเปิดเรียน ข้ามวันหยุดให้เอง</p>
-  <details class="ls-more" id="calBox"><summary>ปรับวันพิเศษ (สอนชดเชย หรืองดสอนบางวัน)</summary>
+  <details class="ls-more ls-calbtn" id="calBox"><summary><svg class="icon"><use href="#ic-calendar"/></svg> ปรับวันพิเศษ (สอนชดเชย หรืองดสอนบางวัน)</summary>
     <div class="ls-calhead">
       <button type="button" class="ls-nav" id="lessonCalPrev" aria-label="เดือนก่อน">‹</button>
       <strong id="lessonCalTitle"></strong>

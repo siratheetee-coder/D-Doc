@@ -33,6 +33,11 @@
 .ls-current{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-top:10px;padding:12px 14px;border-radius:14px;background:linear-gradient(120deg,#ecfdf5,#d1fae5);color:#064e3b;font-size:14px}
 .ls-current span{background:#fff;border-radius:999px;padding:3px 10px}.ls-current small{flex-basis:100%;color:#065f46}
 #removeAll{margin-top:12px}
+.ls-setbtn{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;box-shadow:0 6px 16px rgba(234,88,12,.3)}
+.ls-setbtn .icon{width:18px;height:18px}
+.ls-calbtn>summary{display:inline-flex;align-items:center;gap:8px;list-style:none;padding:9px 16px;border-radius:999px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);color:#4338ca;font-size:14px;font-weight:600;cursor:pointer}
+.ls-calbtn>summary::-webkit-details-marker{display:none}.ls-calbtn>summary .icon{width:17px;height:17px}
+.ls-calbtn[open]>summary{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff}
 .ls-pane h3,.ls-saved h3{margin:0 0 8px;font-size:15px;color:#1e293b}
 .ls-calhead{display:flex;align-items:center;gap:8px;margin-bottom:8px}.ls-calhead strong{flex:1;text-align:center;font-size:16px;color:#312e81}
 .ls-nav{width:36px;height:36px;border:0;border-radius:10px;background:#e0e7ff;color:#4338ca;font-size:20px;cursor:pointer}.ls-nav:disabled{opacity:.35;cursor:default}
@@ -108,7 +113,7 @@
   <a class="btn soft" href="/academic/attendance?mode=subject&year={{ c.year }}&cid={{ c.id }}">← เลือกรายวิชา</a>
   {% if subj.term not in [1,2] %}{% for t in [1,2] %}<a class="btn {{ '' if t==term else 'soft' }}" href="/academic/lessons?cid={{ c.id }}&sid={{ subj.id }}&term={{ t }}">ภาคเรียนที่ {{ t }}</a>{% endfor %}{% endif %}
   {% if setup %}{% if lessons %}<a class="btn" href="/academic/lessons?cid={{ c.id }}&sid={{ subj.id }}&term={{ term }}">ไปหน้าเช็คชื่อ</a>{% endif %}
-  {% else %}<a class="btn soft" href="/academic/lessons?cid={{ c.id }}&sid={{ subj.id }}&term={{ term }}&setup=1&month={{ month }}">ตั้งค่าคาบสอน</a>
+  {% else %}<a class="btn ls-setbtn" href="/academic/lessons?cid={{ c.id }}&sid={{ subj.id }}&term={{ term }}&setup=1&month={{ month }}"><svg class="icon"><use href="#ic-settings"/></svg> ตั้งค่าคาบสอน</a>
   <a class="btn soft" href="#lessonSummary" onclick="document.getElementById('lessonSummary').open=true">สรุปและพิมพ์</a>{% endif %}
 </div>
 {% if error %}<div class="alert warn" role="alert">{{ error }}</div>{% endif %}
