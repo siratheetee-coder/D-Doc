@@ -26,6 +26,24 @@ def access(request, db, cid, sid):
     return c, subject
 
 
+def _remove_lessons(db, cid, sid, term, ids, force):
+    """ลบคาบตาม id (ต้องเป็นของห้อง/วิชา/ภาคเรียนนี้) คาบที่เช็คชื่อแล้วต้องยืนยัน (force) ผลเช็คชื่อหายไปด้วย"""
+    if not isinstance(ids, list) or len(ids) > 2000 or any(not isinstance(x, int) for x in ids):
+        raise ValueError('รายการคาบที่จะลบไม่ถูกต้อง')
+    if not ids:
+        return 0
+    rows = db.query(AcadLesson).filter(AcadLesson.id.in_(ids)).all()
+    if len(rows) != len(set(ids)) or any((r.class_id, r.subject_id, r.term) != (cid, sid, term) for r in rows):
+        raise HTTPException(404, 'ไม่พบคาบบางคาบ กรุณาโหลดหน้าล่าสุด')
+    marked = db.query(AcadLessonMark).filter(AcadLessonMark.lesson_id.in_(ids))
+    if marked.first() and not force:
+        raise ValueError('มีคาบที่เช็คชื่อแล้วอยู่ในรายการที่จะลบ กดยืนยันอีกครั้ง ผลเช็คชื่อของคาบเหล่านั้นจะถูกลบไปด้วย')
+    marked.delete(synchronize_session=False)
+    for r in rows:
+        db.delete(r)
+    return len(rows)
+
+
 def back(cid, sid, term, **extra):
     return RedirectResponse("/academic/lessons?" + urlencode(dict(cid=cid, sid=sid, term=term, **extra)), 303)
 
@@ -135,8 +153,12 @@ async def lesson_action(action: str, request: Request, db: Session = Depends(get
         elif action == "batch-add":
             import json
             dates=json.loads(form.get('dates','[]'));slots=json.loads(form.get('slots','[]'))
-            if not isinstance(dates,list) or not isinstance(slots,list) or not dates or not slots or len(dates)*len(slots)>1000:
+            # บันทึกตั้งค่าใหม่ = เพิ่มคาบที่ขาด + ลบคาบเดิมที่ไม่ตรงกับที่ตั้ง (หน้าเว็บส่ง id มาและถามยืนยันแล้ว)
+            remove_ids=json.loads(form.get('remove_ids','[]') or '[]')
+            if not isinstance(dates,list) or not isinstance(slots,list) or len(dates)*max(len(slots),1)>1000:
                 raise ValueError('เลือกวันและคาบที่จะเพิ่ม ไม่เกิน 1,000 คาบต่อครั้ง')
+            if not (dates and slots) and not remove_ids:
+                raise ValueError('เลือกวันและคาบที่จะเพิ่ม')
             days=sorted({svc.check_in_term(db,c,term,svc.check_date(c,d)) for d in dates})
             # คาบผูกกับวันในสัปดาห์ (wd 0=อาทิตย์ ... 6=เสาร์ แบบ JS) เช่น จันทร์คาบ 1 พุธคาบ 3
             # เดิมทุกวันที่เลือกได้ทุกคาบที่ติ๊ก จันทร์ พุธ ศุกร์ เลยได้คาบ 1 2 3 ทุกวัน (เจ้าของแจ้ง)
@@ -152,11 +174,21 @@ async def lesson_action(action: str, request: Request, db: Session = Depends(get
                 choices.append((name,svc.check_minutes(str(slot.get('minutes',''))),None if wd is None else set(wd)))
             pairs=[(day,name,minutes) for day in days for name,minutes,wd in choices
                    if wd is None or (day.weekday()+1)%7 in wd]
-            if not pairs:raise ValueError('วันที่เลือกไม่มีคาบของวันนั้น ติ๊กคาบให้ตรงกับวันในสัปดาห์ก่อน')
+            if not pairs and not remove_ids:raise ValueError('วันที่เลือกไม่มีคาบของวันนั้น ติ๊กคาบให้ตรงกับวันในสัปดาห์ก่อน')
+            removed=_remove_lessons(db,cid,sid,term,remove_ids,form.get('force')=='1')
+            db.flush()
             added=0
             for day,name,minutes in pairs:added+=svc.add_lesson(db,c,subject,term,day,name,minutes)
             db.commit()
-            return back(cid,sid,term,imported=added,month=days[0].strftime('%Y-%m'))
+            extra={'month':days[0].strftime('%Y-%m')} if days else {}
+            if not svc.lessons_for(db,cid,sid,term):extra['setup']=1          # ลบหมดแล้ว อยู่หน้าตั้งค่าต่อ
+            return back(cid,sid,term,imported=added,removed=removed,**extra)
+        elif action == "remove-all":
+            import json
+            ids=[r.id for r in svc.lessons_for(db,cid,sid,term)]
+            n=_remove_lessons(db,cid,sid,term,ids,form.get('force')=='1')
+            db.commit()
+            return back(cid,sid,term,removed=n,setup=1)
         elif action == "grid-marks":
             import json
             changes=json.loads(form.get('changes','[]'))

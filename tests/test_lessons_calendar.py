@@ -60,7 +60,7 @@ def test_adding_a_day_from_the_other_term_is_refused(env):
     assert 'อยู่นอกภาคเรียน' in r.text
     # วันหยุด/เสาร์ เพิ่มเป็นวันสอนชดเชยได้ (หน้าเว็บถามยืนยันก่อน)
     r = env.post('/academic/lessons/batch-add', data={**base, 'dates': json.dumps(['2026-07-25'])})
-    assert 'เพิ่มแล้ว 1 คาบ' in r.text
+    assert 'เพิ่ม 1 คาบ' in r.text
     with tn.session_for(tid) as s:
         assert [x.term for x in svc.lessons_for(s, cid, sid)] == [1]
 

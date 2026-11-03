@@ -1,8 +1,12 @@
 <div class="card lesson-card" id="lessonSetup">
 <h2 class="ls-title">ตั้งค่าคาบสอน ภาคเรียนที่ {{ term }}</h2>
-<p class="ls-hint">ทำครั้งเดียวต่อเทอม ตั้งเสร็จแล้วระบบพาไปหน้าเช็คชื่อ กลับมาแก้ได้ที่ปุ่ม "ตั้งค่าคาบสอน"</p>
+{% set dayname = {'1':'จันทร์','2':'อังคาร','3':'พุธ','4':'พฤหัสบดี','5':'ศุกร์','60':'เสาร์/อาทิตย์'} %}
+{% if lessons %}<div class="ls-current"><b>ตั้งค่าไว้แล้ว {{ lessons|length }} คาบ ({{ hours(totals[term]) }} ชั่วโมง)</b>
+  {% for k in ['1','2','3','4','5','60'] if k in pattern %}<span>{{ dayname[k] }} {{ pattern[k]|join(', ') }}</span>{% endfor %}
+  <small>แก้วันหรือคาบด้านล่าง แล้วกดบันทึก ระบบเพิ่มคาบที่ขาดและลบคาบที่ไม่ตรงให้ เฉพาะในช่วงเวลาที่เลือกในข้อ 3</small></div>
+{% else %}<p class="ls-hint">ทำครั้งเดียวต่อเทอม ตั้งเสร็จแล้วระบบพาไปหน้าเช็คชื่อ กลับมาแก้ได้ที่ปุ่ม "ตั้งค่าคาบสอน"</p>{% endif %}
 <form id="batchLessons" method="post" action="/academic/lessons/batch-add">{{ keys() }}
-<input type="hidden" name="dates" id="batchDates"><input type="hidden" name="slots" id="batchSlots">
+<input type="hidden" name="dates" id="batchDates"><input type="hidden" name="slots" id="batchSlots"><input type="hidden" name="remove_ids" id="batchRemove"><input type="hidden" name="force" id="batchForce">
 
 <section class="ls-block">
   <h3><span class="ls-step">1</span> สอนวันไหนบ้าง</h3>
@@ -49,12 +53,13 @@
 </section>
 
 <p id="batchSummary" role="status"></p>
-<button type="submit" class="btn" id="batchSubmit">บันทึกคาบสอน แล้วไปเช็คชื่อ</button>
-<p class="ls-hint">คาบที่มีอยู่แล้วระบบข้ามให้ ไม่เปลี่ยนผลเช็คชื่อเดิม</p>
+<button type="submit" class="btn" id="batchSubmit">บันทึกคาบสอน</button>
 </form>
 <details class="ls-saved ls-more"><summary>คาบที่บันทึกแล้ว <span id="savedTitle"></span> (ดูหรือลบ)</summary>
   <div id="savedList"></div>
   <p class="ls-hint">ดูเดือนอื่นได้จากปุ่มเลื่อนเดือนในปฏิทิน ถ้าคาบนั้นเช็คชื่อแล้ว ระบบจะถามยืนยันก่อนลบ เพราะผลเช็คชื่อของคาบนั้นจะหายไปด้วย</p>
+  {% if lessons %}<form id="removeAll" method="post" action="/academic/lessons/remove-all">{{ keys() }}<input type="hidden" name="force" value="">
+    <button type="submit" class="btn red sm">ลบคาบทั้งหมดของภาคเรียนนี้ ({{ lessons|length }} คาบ) แล้วตั้งใหม่</button></form>{% endif %}
 </details>
 </div>
 {# ฟอร์มลบคาบแยกออกมา (ปุ่มลบอยู่ในส่วนที่อยู่ในฟอร์มเพิ่มคาบ ซ้อนฟอร์มไม่ได้) #}

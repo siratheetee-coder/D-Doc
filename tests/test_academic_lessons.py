@@ -127,7 +127,7 @@ def test_routes_marks_export_permissions_and_legacy(env,monkeypatch):
     token=re.search(r'name="token" value="([^"]+)"',preview.text).group(1)
     for _ in range(2):
         imported=env.post('/academic/lessons/import',data={**args,'token':token})
-        assert 'เพิ่มแล้ว 0 คาบ' in imported.text
+        assert 'ไม่มีคาบที่ต้องเปลี่ยน' in imported.text
     bad=env.post('/academic/lessons/import',data={**args,'token':'broken'})
     assert 'ตัวอย่างหมดอายุ' in bad.text
     r=env.post('/academic/lessons/marks',data={**args,'lesson_id':lid,f'mark_{student_id}':'/'})
@@ -189,7 +189,7 @@ def test_batch_calendar_and_grid_atomic_marks(env):
            'slots':json.dumps([dict(name='คาบ 2',minutes=40),dict(name='คาบ 1',minutes=50)])}
     for expected in (4,0):
         r=env.post('/academic/lessons/batch-add',data=batch)
-        assert r.status_code==200 and f'เพิ่มแล้ว {expected} คาบ' in r.text
+        assert r.status_code==200 and (f'เพิ่ม {expected} คาบ' if expected else 'ไม่มีคาบที่ต้องเปลี่ยน') in r.text
     assert r.text.count('id="lessonConfig"')==1
     assert r.text.count('class="grid-copy"')==2
     assert 'colspan="2"' in r.text
@@ -229,9 +229,39 @@ def test_batch_pairs_each_day_with_its_own_periods(env):
            dict(name='คาบ 5',minutes=50,wd=[2]),dict(name='คาบ 6',minutes=50,wd=[2])]
     r=env.post('/academic/lessons/batch-add',data=dict(cid=cid,sid=sid,term=1,month='2026-05',
                dates=json.dumps(['2026-05-18','2026-05-19','2026-05-20','2026-05-22']),slots=json.dumps(slots)))
-    assert r.status_code==200 and 'เพิ่มแล้ว 5 คาบ' in r.text
+    assert r.status_code==200 and 'เพิ่ม 5 คาบ' in r.text
     with tn.session_for(tid) as db:
         got=sorted((row.date.isoformat()[:10],row.slot) for row in svc.lessons_for(db,cid,sid,1))
     assert got==[('2026-05-18','คาบ 1'),('2026-05-19','คาบ 5'),('2026-05-19','คาบ 6'),('2026-05-20','คาบ 3'),('2026-05-22','คาบ 2')]
     r=env.post('/academic/lessons/batch-add',data=dict(cid=cid,sid=sid,term=1,dates=json.dumps(['2026-05-21']),slots=json.dumps(slots)))
     assert 'ไม่มีคาบของวันนั้น' in r.text, "พฤหัสไม่ได้ติ๊กคาบ ต้องบอก ไม่เพิ่มเงียบ ๆ"
+
+
+def test_saving_new_settings_removes_unticked_periods_and_clear_all(env):
+    """แก้ตั้งค่าแล้วบันทึก = เพิ่มคาบที่ขาด + ลบคาบเดิมที่ไม่ตรง (เจ้าของลงผิดไว้ 7 ชม. ลบไม่ได้)"""
+    import json
+    import app.tenancy as tn
+    tid=next(iter(tn._engines))
+    with tn.session_for(tid) as db:
+        c,subject,student=seed(db)
+        cid,sid,stid=c.id,subject.id,student.id
+    base=dict(cid=cid,sid=sid,term=1)
+    env.post('/academic/lessons/batch-add',data=dict(base,dates=json.dumps(['2026-05-18','2026-05-19']),
+             slots=json.dumps([dict(name='คาบ 1',minutes=50,wd=[1,2])])))
+    with tn.session_for(tid) as db:
+        rows={r.date.isoformat()[:10]:r.id for r in svc.lessons_for(db,cid,sid,1)}
+        db.add(AcadLessonMark(lesson_id=rows['2026-05-19'],acad_student_id=stid,mark='/'));db.commit()
+    # อังคารไม่สอนแล้ว: ลบคาบวันอังคาร (เช็คชื่อแล้ว ต้องยืนยัน)
+    data=dict(base,dates=json.dumps(['2026-05-18']),slots=json.dumps([dict(name='คาบ 1',minutes=50,wd=[1])]),
+              remove_ids=json.dumps([rows['2026-05-19']]))
+    r=env.post('/academic/lessons/batch-add',data=data)
+    assert 'กดยืนยันอีกครั้ง' in r.text
+    r=env.post('/academic/lessons/batch-add',data=dict(data,force='1'))
+    assert r.status_code==200 and 'ลบ 1 คาบ' in r.text
+    with tn.session_for(tid) as db:
+        assert [r.date.isoformat()[:10] for r in svc.lessons_for(db,cid,sid,1)]==['2026-05-18']
+        assert db.query(AcadLessonMark).count()==0
+    r=env.post('/academic/lessons/remove-all',data=base)
+    assert r.status_code==200 and 'ลบ 1 คาบ' in r.text and 'id="batchLessons"' in r.text, "ลบหมดแล้วอยู่หน้าตั้งค่า"
+    with tn.session_for(tid) as db:
+        assert svc.lessons_for(db,cid,sid,1)==[]

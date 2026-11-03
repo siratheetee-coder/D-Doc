@@ -141,19 +141,45 @@
   scopeSel.addEventListener('change',()=>{form.querySelector('input[name=_scope][value=month]').checked=true;monthIndex=Math.max(0,cfg.months.indexOf(scopeSel.value));update();});
   document.getElementById('slotMinutes').addEventListener('input',update);
 
+  // คาบเดิมในช่วงเวลาที่เลือกที่ไม่ตรงกับตั้งค่าใหม่ = จะถูกลบตอนบันทึก (คาบนอกช่วงไม่แตะ)
+  function plan(){
+    const slots=choices(),sel=selected(),want=new Set(),all=scope()==='term',m=scopeSel.value;
+    let fresh=0,minutes=0;
+    sel.forEach(k=>slotsFor(k,slots).forEach(s=>{want.add(k+'|'+s.name);if(!existing.has(k+'|'+s.name)){fresh++;minutes+=s.minutes||0;}}));
+    const inRange=k=>all?info(k).t===term:k.startsWith(m);
+    const drop=(cfg.events||[]).filter(e=>inRange(e.date)&&!want.has(e.date+'|'+e.slot));
+    return {slots,sel,want,fresh,minutes,drop,keep:(cfg.events||[]).filter(e=>want.has(e.date+'|'+e.slot)).length};
+  }
+  const hm=min=>{const h=Math.floor(min/60),m=min%60;return ((h?`${h} ชั่วโมง`:'')+(m?` ${m} นาที`:'')).trim()||'0 นาที';};
   function update(){
-    const slots=choices(),sel=selected();let fresh=0,dup=0,minutes=0,none=0;
-    sel.forEach(k=>{const own=slotsFor(k,slots);if(!own.length)none++;own.forEach(s=>{if(existing.has(k+'|'+s.name))dup++;else{fresh++;minutes+=s.minutes||0;}});});
-    const h=Math.floor(minutes/60),m=minutes%60,time=(h?`${h} ชั่วโมง`:'')+(m?` ${m} นาที`:'')||'0 นาที';
-    document.getElementById('batchSummary').textContent=!Object.keys(pattern).length?'เลือกวันที่สอนในข้อ 1':!slots.length?'เลือกคาบของแต่ละวันในข้อ 2':!sel.size?'ช่วงเวลาที่เลือกไม่มีวันเปิดเรียนที่ตรงกับวันสอน':
-      `จะเพิ่ม ${fresh} คาบ (${time.trim()}) ใน ${sel.size} วัน`+(dup?` ข้าม ${dup} คาบที่มีอยู่แล้ว`:'')+(none?` มี ${none} วันที่ยังไม่ได้เลือกคาบ จะไม่เพิ่ม`:'');
-    document.getElementById('batchSubmit').disabled=!fresh;
+    const p=plan(),checked=p.drop.filter(e=>e.checked).length,box=document.getElementById('batchSummary');
+    let text;
+    if(!Object.keys(pattern).length&&!p.drop.length)text='เลือกวันที่สอนในข้อ 1';
+    else if(!p.fresh&&!p.drop.length)text=p.keep?`คาบในช่วงนี้ตรงกับที่ตั้งไว้ครบแล้ว ${p.keep} คาบ ไม่มีอะไรต้องเปลี่ยน`:(!p.slots.length?'เลือกคาบของแต่ละวันในข้อ 2':'ช่วงเวลาที่เลือกไม่มีวันเปิดเรียนที่ตรงกับวันสอน');
+    else{
+      const parts=[];
+      if(p.fresh)parts.push(`เพิ่ม ${p.fresh} คาบ (${hm(p.minutes)})`);
+      if(p.drop.length)parts.push(`ลบ ${p.drop.length} คาบเดิมที่ไม่ตรงกับที่ตั้งใหม่`+(checked?` (เช็คชื่อแล้ว ${checked} คาบ ผลเช็คชื่อจะหายด้วย)`:''));
+      text='เมื่อกดบันทึก ระบบจะ'+parts.join(' และ ');
+      if(p.keep)text+=` คาบที่ตรงอยู่แล้ว ${p.keep} คาบ ไม่เปลี่ยน`;
+    }
+    box.textContent=text;box.classList.toggle('is-warn',!!checked);
+    document.getElementById('batchSubmit').disabled=!(p.fresh||p.drop.length);
     draw();
   }
   form.addEventListener('submit',event=>{
-    const slots=choices(),sel=[...selected()].filter(k=>slotsFor(k,slots).length);
-    if(!sel.length||slots.some(s=>!Number.isInteger(s.minutes)||s.minutes<1||s.minutes>720)){event.preventDefault();alert('เลือกวันและคาบสอน พร้อมระบุนาทีต่อคาบให้ถูกต้อง');return;}
-    document.getElementById('batchDates').value=JSON.stringify(sel.sort());document.getElementById('batchSlots').value=JSON.stringify(slots);
+    const p=plan(),sel=[...p.sel].filter(k=>slotsFor(k,p.slots).length),checked=p.drop.filter(e=>e.checked);
+    if(p.slots.some(s=>!Number.isInteger(s.minutes)||s.minutes<1||s.minutes>720)){event.preventDefault();alert('นาทีต่อคาบต้องเป็นตัวเลข 1 ถึง 720');return;}
+    if(!sel.length&&!p.drop.length){event.preventDefault();return;}
+    if(checked.length&&!confirm(`จะลบ ${p.drop.length} คาบเดิม ในนั้นเช็คชื่อแล้ว ${checked.length} คาบ\nผลเช็คชื่อของคาบเหล่านั้นจะหายไปด้วย ยืนยันไหม?`)){event.preventDefault();return;}
+    document.getElementById('batchDates').value=JSON.stringify(sel.sort());document.getElementById('batchSlots').value=JSON.stringify(p.slots);
+    document.getElementById('batchRemove').value=JSON.stringify(p.drop.map(e=>e.id));document.getElementById('batchForce').value=checked.length?'1':'';
+  });
+  const clearAll=document.getElementById('removeAll');
+  if(clearAll)clearAll.addEventListener('submit',event=>{
+    const ev=cfg.events||[],checked=ev.filter(e=>e.checked).length;
+    if(!confirm(`ลบคาบทั้งหมดของภาคเรียนนี้ ${ev.length} คาบ`+(checked?`\nในนั้นเช็คชื่อแล้ว ${checked} คาบ ผลเช็คชื่อจะหายไปด้วย`:'')+'\nยืนยันไหม?')){event.preventDefault();return;}
+    clearAll.elements.force.value=checked?'1':'';
   });
   renderDays();update();
 })();

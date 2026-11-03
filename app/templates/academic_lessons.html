@@ -29,6 +29,10 @@
 .ls-scope{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px}.ls-scope label{display:flex;align-items:center;gap:6px;margin:0;font-size:15px;white-space:nowrap}.ls-scope input[type=radio]{width:18px;height:18px;margin:0;flex:none}.ls-scope select{width:auto}
 #lessonSetup{max-width:860px}
 #batchSubmit:disabled{opacity:.5;cursor:not-allowed}
+#batchSummary.is-warn{background:linear-gradient(120deg,#fff7ed,#ffedd5);color:#9a3412}
+.ls-current{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-top:10px;padding:12px 14px;border-radius:14px;background:linear-gradient(120deg,#ecfdf5,#d1fae5);color:#064e3b;font-size:14px}
+.ls-current span{background:#fff;border-radius:999px;padding:3px 10px}.ls-current small{flex-basis:100%;color:#065f46}
+#removeAll{margin-top:12px}
 .ls-pane h3,.ls-saved h3{margin:0 0 8px;font-size:15px;color:#1e293b}
 .ls-calhead{display:flex;align-items:center;gap:8px;margin-bottom:8px}.ls-calhead strong{flex:1;text-align:center;font-size:16px;color:#312e81}
 .ls-nav{width:36px;height:36px;border:0;border-radius:10px;background:#e0e7ff;color:#4338ca;font-size:20px;cursor:pointer}.ls-nav:disabled{opacity:.35;cursor:default}
@@ -109,7 +113,7 @@
 </div>
 {% if error %}<div class="alert warn" role="alert">{{ error }}</div>{% endif %}
 {% if request.query_params.get('saved') %}<div class="alert" role="status">บันทึกแล้ว</div>{% endif %}
-{% if request.query_params.get('imported') is not none %}<div class="alert" role="status">เพิ่มแล้ว {{ request.query_params.get('imported') }} คาบ ข้ามคาบที่มีอยู่แล้ว</div>{% endif %}
+{% set q_add = request.query_params.get('imported') %}{% set q_del = request.query_params.get('removed') %}{% if q_add is not none or q_del is not none %}<div class="alert" role="status">บันทึกคาบสอนแล้ว{% if q_add and q_add != '0' %} เพิ่ม {{ q_add }} คาบ{% endif %}{% if q_del and q_del != '0' %} ลบ {{ q_del }} คาบ{% endif %}{% if (not q_add or q_add == '0') and (not q_del or q_del == '0') %} ไม่มีคาบที่ต้องเปลี่ยน{% endif %}</div>{% endif %}
 <div class="lesson-stats">
   <div class="lesson-stat">ชั่วโมงรายวิชา{{ 'ต่อเทอม' if subj.term in [1,2] else 'ทั้งปี' }}<strong>{{ subj.hours or 0 }} ชั่วโมง</strong>{% if not subj.hours %}<span class="lesson-note">ยังไม่ได้กำหนดในหน้ารายวิชา</span>{% endif %}</div>
   <div class="lesson-stat">จัดวันสอนเทอมนี้แล้ว<strong>{{ hours(totals[term]) }} ชั่วโมง</strong>{{ lessons|length }} คาบ{% if target is not none %} เป้าหมาย {{ hours(target) }} ชม.{% else %} ยังไม่กำหนดเป้าหมายรายเทอม{% endif %}</div>
@@ -158,5 +162,5 @@ if(split)split.addEventListener('click',()=>{document.getElementById('target1').
 ['target1','target2'].forEach(id=>document.getElementById(id)?.addEventListener('input',targetNote));targetNote();
 </script>
 <script id="lessonConfig" type="application/json">{{ {'months':months,'month':month,'events':calendar_events,'entered':entered,'days':day_info,'term':term,'students':students|length,'pattern':pattern}|tojson }}</script>
-<script src="/static/academic_lessons_grid.js?v=5"></script>
+<script src="/static/academic_lessons_grid.js?v=6"></script>
 {% endblock %}
