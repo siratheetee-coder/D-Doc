@@ -58,7 +58,7 @@
     </tr></thead>
     <tbody>
     {% for r in rows %}
-      <tr data-room="{{ r.room }}" data-budget="{{ r.budget }}" data-before="{{ r.before }}" data-q="{{ r.p.name }} {{ r.p.responsible or '' }}">
+      <tr data-room="{{ r.room }}" data-budget="{{ r.budget }}" data-before="{{ r.before }}" data-out="{{ r.outside }}" data-q="{{ r.p.name }} {{ r.p.responsible or '' }}">
         <td data-label="โครงการ"><a href="/projects/{{ r.p.id }}">{{ r.p.name }}</a></td>
         <td data-label="งบโครงการ" class="right">{{ "{:,.2f}".format(r.budget) }}</td>
         <td data-label="ใช้ในระบบแล้ว" class="right">{{ "{:,.2f}".format(r.used) if r.used else "-" }}</td>
@@ -148,7 +148,7 @@
   var fmt = function (n) { return n.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
   var form = document.getElementById('startForm');
   if (!form) return;
-  // ยอดจัดสรรของโครงการ = งบ - ใช้ไปก่อนเริ่มใช้ระบบ (เงินส่วนที่ใช้ก่อนไม่ได้อยู่ในเงินที่เหลือแล้ว)
+  // ยอดจัดสรรของโครงการ = งบ - ใช้ไปก่อนเริ่มใช้ระบบ - จ่ายในระบบด้วยเงินนอกแผน (ไม่ได้อยู่ในเงินที่เหลือแล้ว)
   function beforeOf(tr) {
     var inp = tr.querySelector('.st-in'), txt = inp.value.replace(/,/g, '').trim();
     if (!txt || isNaN(Number(txt))) return parseFloat(tr.dataset.before) || 0;
@@ -159,7 +159,7 @@
     form.querySelectorAll('tbody tr').forEach(function (tr) {
       var sel = tr.querySelector('.st-src'), box = tr.querySelector('.st-alloc');
       if (!sel) return;
-      var amt = Math.max(0, Math.round(((parseFloat(tr.dataset.budget) || 0) - beforeOf(tr)) * 100) / 100);
+      var amt = Math.max(0, Math.round(((parseFloat(tr.dataset.budget) || 0) - beforeOf(tr) - (parseFloat(tr.dataset.out) || 0)) * 100) / 100);
       box.hidden = !sel.value;
       box.querySelector('b').textContent = fmt(amt);
       if (sel.value) used[sel.value] = (used[sel.value] || 0) + amt;

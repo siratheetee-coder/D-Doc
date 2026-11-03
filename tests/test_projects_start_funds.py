@@ -72,3 +72,23 @@ def test_project_with_several_sources_is_left_alone(db):
     assert db.query(ProjectFunding).filter_by(project_id=pj.id).count() == 2
     src = {s["id"]: s for s in _start_sources(db, 2569, list(rows.values()))}
     assert src[s1.id]["fixed"] == 10000 and src[s2.id]["fixed"] == 5000
+
+
+def test_paid_before_plan_money_is_not_allocated_again(db):
+    """แผนใช้ยอดยกมาต้นปีงบ 2570 เงินที่จ่ายในระบบปีงบ 2569 ไม่อยู่ในเงินก้อนนั้นแล้ว"""
+    from app.models import AccountItem, FinanceAccount, FinanceTxn
+    acc = FinanceAccount(name="เงินอุดหนุน"); db.add(acc); db.flush()
+    old = AccountItem(account_id=acc.id, fiscal_year=2569, name="ค่าจัดการเรียนการสอน")
+    new = AccountItem(account_id=acc.id, fiscal_year=2570, name="ค่าจัดการเรียนการสอน")
+    db.add_all([old, new]); db.flush()
+    src = db.query(PlanFunding).one(); src.account_item_id = new.id
+    pj = db.query(Project).filter_by(name="กีฬาสี").one()
+    db.add_all([FinanceTxn(account_id=acc.id, item_id=old.id, fiscal_year=2569, kind="out", amount=5000,
+                           date=datetime(2026, 9, 1), project_id=pj.id),
+                FinanceTxn(account_id=acc.id, item_id=new.id, fiscal_year=2570, kind="out", amount=3000,
+                           date=datetime(2026, 10, 5), project_id=pj.id)])
+    db.flush()
+    rows = _rows(db)
+    assert rows[pj.id]["outside"] == 5000
+    _start_save_funds(db, 2569, rows, {f"fund_{pj.id}": str(src.id)})
+    assert db.query(ProjectFunding).filter_by(project_id=pj.id).one().amount == 10000   # 15,000 - 5,000

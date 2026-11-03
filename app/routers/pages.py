@@ -3175,11 +3175,12 @@ def projects_import_confirm(db: Session = Depends(get_db),
 
 def _start_rows(db, year):
     """แถวของหน้าตั้งยอดตั้งต้น: งบ / ใช้ในระบบ / ใช้ก่อนใช้ระบบ / เหลือตอนนี้ ของแต่ละโครงการ"""
-    from app.services.budget import project_spent_in_system
+    from app.services.budget import project_spent_in_system, project_money_summary
     from app.models import ProjectFunding
     p_funds = {}
     for a in db.query(ProjectFunding):
         p_funds.setdefault(a.project_id, []).append(a)
+    in_plan = _paid_from_plan(db, year)
     out = []
     for p in (db.query(Project).filter(Project.plan_year == year, Project.active == True)  # noqa: E712
               .order_by(Project.name).all()):
@@ -3187,7 +3188,10 @@ def _start_rows(db, year):
         used = round(project_spent_in_system(p), 2)
         before = round(float(p.spent_before or 0), 2)
         funds = [a for a in p_funds.get(p.id, []) if (a.amount or 0) > 0]
-        out.append({"p": p, "budget": b, "used": used, "before": before,
+        # จ่ายในระบบด้วยเงินที่ไม่ได้อยู่ในแผน (เช่น จ่ายก่อนวันยอดยกมาของแผน) ไม่ต้องจัดสรรซ้ำ
+        info = project_money_summary(p)
+        outside = round(max(0.0, info["paid"] + info["paid_pre"] - in_plan.get(p.id, 0.0)), 2)
+        out.append({"p": p, "budget": b, "used": used, "before": before, "outside": outside,
                     "remain": round(b - used - before, 2), "room": round(b - used, 2),
                     "multi": len(funds) > 1, "fund": funds[0].funding_id if len(funds) == 1 else None})
     return out
@@ -3252,6 +3256,29 @@ def projects_start_page(request: Request, db: Session = Depends(get_db), year: i
         "years": _plan_years(db, cur), "rows": rows, "err": err,
         "sources": _start_sources(db, cur, rows),
     })
+
+
+def _paid_from_plan(db, year) -> dict:
+    """{project_id: เงินที่จ่ายจากหมวดที่อยู่ในแผนปีนี้ ภายในปีงบของหมวดนั้น} ส่วนนี้ต้องอยู่ในยอดจัดสรร"""
+    from app.models import AccountItem, FinanceTxn
+    from app.services import plan_funding as pf
+    from app.routers.finance import _txn_projects
+    plan = pf.plan(db, year)
+    keys = set()
+    for s in (pf.sources(db, plan) if plan else []):
+        it = db.get(AccountItem, s.account_item_id) if s.account_item_id else None
+        if it:
+            keys.add((it.id, it.fiscal_year))
+    if not keys:
+        return {}
+    txns = [t for t in db.query(FinanceTxn).filter(FinanceTxn.kind == "out",
+                                                   FinanceTxn.item_id.in_({k[0] for k in keys}))
+            if (t.item_id, t.fiscal_year) in keys and not t.loan_id]
+    out = {}
+    for tid, pj in _txn_projects(db, txns).items():
+        t = next(x for x in txns if x.id == tid)
+        out[pj.id] = out.get(pj.id, 0.0) + float(t.amount or 0)
+    return out
 
 
 def _start_sources(db, year, rows):
@@ -3339,7 +3366,7 @@ def _start_save_funds(db, year, rows, form) -> int:
         if sid and sid not in srcs:
             raise ValueError("รายการเงินไม่อยู่ในแผนนี้")
         p = r["p"]
-        want = round(max(0.0, project_budget(p) - float(p.spent_before or 0)), 2) if sid else 0
+        want = round(max(0.0, project_budget(p) - float(p.spent_before or 0) - r["outside"]), 2) if sid else 0
         olds = db.query(ProjectFunding).filter_by(project_id=pid).all()
         old = {a.funding_id: a.amount for a in olds}
         if old == ({sid: want} if sid and want else {}):
