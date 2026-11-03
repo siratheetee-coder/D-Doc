@@ -3295,8 +3295,28 @@ def _start_sources(db, year, rows):
     for s in srcs:
         fixed = sum(a.amount or 0 for a in db.query(ProjectFunding).filter_by(funding_id=s.id)
                     if a.project_id not in editable)
-        out.append({"id": s.id, "name": s.name, "amount": float(s.amount or 0), "fixed": round(fixed, 2)})
+        amount = float(s.amount or 0)
+        used_here = any(r["fund"] == s.id for r in rows)
+        if amount <= 0 and not fixed and not used_here:
+            continue          # เงินก้อนที่ไม่มีเงินและไม่มีใครใช้ ไม่ต้องให้เลือก
+        out.append({"id": s.id, "name": s.name, "short": _short_source(s), "amount": amount,
+                    "fixed": round(fixed, 2), "changed": pf.changed(db, plan, s)})
     return out
+
+
+def _short_source(s) -> str:
+    """ชื่อสั้นของเงินในแผน เช่น "ค่าจัดการเรียนการสอน (ยกมา)" แทนชื่อเต็มที่ยาวจนตัด"""
+    import json
+    head = (s.name or "").split(" · ")[0].split(" / ")[-1].strip() or s.name
+    if s.kind == "opening":
+        return head + " (ยกมา)"
+    if s.kind == "subsidy":
+        try:
+            pl = json.loads(s.payload or "{}")
+            return f"{head} (เทอม {pl['term']}/{pl['academic_year']})"
+        except (ValueError, KeyError):
+            return head
+    return head
 
 
 @router.post("/projects/start")
@@ -3372,7 +3392,8 @@ def _start_save_funds(db, year, rows, form) -> int:
         if old == ({sid: want} if sid and want else {}):
             continue
         if sid and want > old.get(sid, 0) and pf.changed(db, plan, srcs[sid]):
-            raise ValueError("ยอดต้นทางเปลี่ยนแล้ว ตรวจและอัปเดตงบแผนก่อน: " + srcs[sid].name)
+            raise ValueError(f"ยอด{_short_source(srcs[sid])}ในทะเบียนคุมเงินเปลี่ยนไปจากตอนนำเข้าแผน "
+                             f"ไปที่หน้าเงินสำหรับทำโครงการ แล้วกด \"อัปเดตเป็นยอดใหม่\" ก่อน")
         for a in olds:
             db.delete(a)
         db.flush()

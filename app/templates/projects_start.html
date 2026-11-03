@@ -18,6 +18,10 @@
 </div>
 
 {% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
+{% set stale = sources|default([])|selectattr('changed')|list %}
+{% if stale %}<div class="alert warn st-stale"><svg class="icon"><use href="#ic-alert"/></svg>
+  <div>ยอด{{ stale|map(attribute='short')|join(', ') }}ในทะเบียนคุมเงินเปลี่ยนไปจากตอนนำเข้าแผน อัปเดตก่อนจึงเลือกเงินก้อนนี้ได้
+  <a class="btn sm" href="/plan-budget/{{ year }}">ไปอัปเดตยอด</a></div></div>{% endif %}
 
 <div class="card">
   <h2 style="margin-top:0;">ใช้หน้านี้เมื่อไร</h2>
@@ -39,14 +43,16 @@
 <div class="st-bar" id="stBar">
   <div class="st-find"><svg class="icon"><use href="#ic-search"/></svg>
     <input id="stFind" type="search" autocomplete="off" placeholder="ค้นหาชื่อโครงการ" aria-label="ค้นหาชื่อโครงการ"></div>
+  {% if sources %}<div class="st-pools">
   {% for s in sources %}
-  <div class="st-pool" data-src="{{ s.id }}" data-total="{{ '%.2f'|format(s.amount) }}" data-fixed="{{ '%.2f'|format(s.fixed) }}">
-    <b>{{ s.name }}</b>
+  <div class="st-pool" data-src="{{ s.id }}" data-total="{{ '%.2f'|format(s.amount) }}" data-fixed="{{ '%.2f'|format(s.fixed) }}" title="{{ s.name }}">
+    <b>{{ s.short }}</b>
     <span>ทั้งหมด {{ '{:,.2f}'.format(s.amount) }}</span>
     <span>จัดสรรให้โครงการแล้ว <em data-used>0.00</em></span>
     <span>ยังไม่จัดสรร <em data-free>0.00</em></span>
   </div>
   {% endfor %}
+  </div>{% endif %}
 </div>
 <form class="card" method="post" action="/projects/start" id="startForm">
   <input type="hidden" name="year" value="{{ year }}">
@@ -69,10 +75,11 @@
         </td>
         <td data-label="ใช้ไปก่อนเริ่มใช้ระบบ" class="right"><b class="st-out">{{ "{:,.2f}".format(r.before) if r.before else "-" }}</b></td>
         {% if sources %}<td data-label="ใช้เงินจาก">
-          {% if r.multi %}<a href="/projects/{{ r.p.id }}#project-funding">หลายรายการ แก้ในหน้าโครงการ</a>
+          {% if r.budget <= 0 %}-
+          {% elif r.multi %}<a href="/projects/{{ r.p.id }}#project-funding">หลายรายการ แก้ในหน้าโครงการ</a>
           {% else %}<div class="st-srcbox"><select name="fund_{{ r.p.id }}" class="st-src">
             <option value="">ยังไม่ระบุ</option>
-            {% for s in sources %}<option value="{{ s.id }}" {{ 'selected' if s.id == r.fund }}>{{ s.name }}</option>{% endfor %}
+            {% for s in sources %}<option value="{{ s.id }}" {{ 'selected' if s.id == r.fund }}>{{ s.short }}</option>{% endfor %}
           </select>
           <div class="st-alloc" hidden>จัดสรร <b></b> บาท</div></div>{% endif %}
         </td>{% endif %}
@@ -90,26 +97,27 @@
   .st-in{ width:140px; text-align:right; }
   .st-in.bad{ border-color:#dc2626; background:#fef2f2; }
   .st-err{ color:#b91c1c; font-size:12px; margin-top:3px; }
-  .st-bar{ position:sticky; top:76px; z-index:25; display:flex; flex-wrap:wrap; gap:10px; margin:0 0 16px; }
-  .st-find{ flex:1 1 260px; display:flex; align-items:center; gap:10px; padding:4px 16px; border-radius:16px; background:#fff;
-    box-shadow:0 6px 20px rgba(15,23,42,.08); }
-  .st-find .icon{ width:20px; height:20px; color:#64748b; }
-  .st-find input{ flex:1; border:0; background:none; box-shadow:none; font-size:16px; padding:10px 0; }
+  .st-bar{ position:sticky; top:76px; z-index:25; margin:0 0 16px; padding:10px; border-radius:18px;
+    background:rgba(255,255,255,.92); backdrop-filter:blur(8px); box-shadow:0 8px 24px rgba(15,23,42,.10); }
+  .st-find{ display:flex; align-items:center; gap:10px; padding:2px 12px; border-radius:12px; background:#f1f5f9; }
+  .st-find .icon{ width:18px; height:18px; color:#64748b; }
+  .st-find input{ flex:1; border:0; background:none; box-shadow:none; font-size:15.5px; padding:9px 0; }
   .st-find input:focus{ outline:none; box-shadow:none; }
-  .st-pool{ flex:1 1 260px; padding:8px 14px; border-radius:16px; background:linear-gradient(135deg,#eff6ff,#f5f3ff);
-    box-shadow:0 6px 20px rgba(15,23,42,.08); font-size:13.5px; display:flex; flex-wrap:wrap; gap:2px 12px; }
-  .st-pool b{ width:100%; font-size:14px; }
-  .st-pool em{ font-style:normal; font-weight:700; }
+  .st-pools{ display:flex; gap:8px; margin-top:8px; overflow-x:auto; scrollbar-width:thin; }
+  .st-pool{ flex:0 0 auto; padding:6px 12px; border-radius:12px; background:linear-gradient(135deg,#eff6ff,#f5f3ff);
+    font-size:13px; line-height:1.5; white-space:nowrap; }
+  .st-pool b{ display:block; font-size:13.5px; }
+  .st-pool span{ margin-right:8px; color:#475569; }
+  .st-pool em{ font-style:normal; font-weight:700; color:#0f172a; }
   .st-pool em.neg{ color:#dc2626; }
+  .st-stale > div{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; }
   .st-src{ min-width:180px; }
   .st-alloc{ font-size:12.5px; color:#475569; margin-top:3px; }
   .st-srcbox{ min-width:0; flex:1; }
   @media (max-width:700px){
-    .st-bar{ top:62px; gap:6px; }
+    .st-bar{ top:62px; padding:8px; }
     .st-src{ min-width:0; width:100%; }
-    .st-pool{ padding:6px 12px; font-size:12.5px; }
     .st-pool span:nth-of-type(1), .st-pool span:nth-of-type(2){ display:none; }
-    .st-pool b{ font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   }
 </style>
 <script>

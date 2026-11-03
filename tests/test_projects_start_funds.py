@@ -92,3 +92,14 @@ def test_paid_before_plan_money_is_not_allocated_again(db):
     assert rows[pj.id]["outside"] == 5000
     _start_save_funds(db, 2569, rows, {f"fund_{pj.id}": str(src.id)})
     assert db.query(ProjectFunding).filter_by(project_id=pj.id).one().amount == 10000   # 15,000 - 5,000
+
+
+def test_short_names_and_empty_sources_hidden(db):
+    from app.routers.pages import _short_source
+    plan = db.query(PlanBudget).one()
+    s = PlanFunding(plan_id=plan.id, source_key="opening:z", kind="opening", amount=0,
+                    name="เงินอุดหนุน / ค่าหนังสือเรียน · ยอดยกมาต้นปีงบ 2570")
+    db.add(s); db.flush()
+    assert _short_source(s) == "ค่าหนังสือเรียน (ยกมา)"
+    names = [x["name"] for x in _start_sources(db, 2569, _start_rows(db, 2569))]
+    assert s.name not in names and "ค่าจัดการเรียนการสอน" in names
