@@ -122,15 +122,23 @@ async def lesson_action(action: str, request: Request, db: Session = Depends(get
             if not isinstance(dates,list) or not isinstance(slots,list) or not dates or not slots or len(dates)*len(slots)>1000:
                 raise ValueError('เลือกวันและคาบที่จะเพิ่ม ไม่เกิน 1,000 คาบต่อครั้ง')
             days=sorted({svc.check_in_term(db,c,term,svc.check_date(c,d)) for d in dates})
+            # คาบผูกกับวันในสัปดาห์ (wd 0=อาทิตย์ ... 6=เสาร์ แบบ JS) เช่น จันทร์คาบ 1 พุธคาบ 3
+            # เดิมทุกวันที่เลือกได้ทุกคาบที่ติ๊ก จันทร์ พุธ ศุกร์ เลยได้คาบ 1 2 3 ทุกวัน (เจ้าของแจ้ง)
+            # คาบที่ไม่ส่ง wd มา (ฟอร์มเก่าที่ยังเปิดค้าง) ใช้กับทุกวันแบบเดิม
             choices=[]
             for slot in slots:
                 if not isinstance(slot,dict):raise ValueError('คาบไม่ถูกต้อง')
                 name=str(slot.get('name','')).strip()
                 if not name or len(name)>80:raise ValueError('กรอกชื่อคาบไม่เกิน 80 ตัวอักษร')
-                choices.append((name,svc.check_minutes(str(slot.get('minutes','')))))
+                wd=slot.get('wd')
+                if wd is not None and (not isinstance(wd,list) or any(not isinstance(x,int) or not 0<=x<=6 for x in wd)):
+                    raise ValueError('วันของคาบไม่ถูกต้อง')
+                choices.append((name,svc.check_minutes(str(slot.get('minutes',''))),None if wd is None else set(wd)))
+            pairs=[(day,name,minutes) for day in days for name,minutes,wd in choices
+                   if wd is None or (day.weekday()+1)%7 in wd]
+            if not pairs:raise ValueError('วันที่เลือกไม่มีคาบของวันนั้น ติ๊กคาบให้ตรงกับวันในสัปดาห์ก่อน')
             added=0
-            for day in days:
-                for name,minutes in choices:added+=svc.add_lesson(db,c,subject,term,day,name,minutes)
+            for day,name,minutes in pairs:added+=svc.add_lesson(db,c,subject,term,day,name,minutes)
             db.commit()
             return back(cid,sid,term,imported=added,month=days[0].strftime('%Y-%m'))
         elif action == "grid-marks":

@@ -29,13 +29,16 @@
   const hint=document.getElementById('calHint');
   function say(text){if(hint)hint.textContent=text;}
 
-  function choices(){return [...document.querySelectorAll('#slotChoices .slot-choice')].filter(el=>el.querySelector('[type=checkbox]').checked).map(el=>({name:el.querySelector('[type=checkbox]').dataset.slot,minutes:Number(el.querySelector('[type=number]').value)}));}
+  // คาบผูกกับวันในสัปดาห์: แถว = คาบ คอลัมน์ = วัน (60 = ส./อา. ใช้กับวันสอนชดเชย) wd แบบ getDay 0=อา.
+  function choices(){return [...document.querySelectorAll('#slotChoices .slot-row')].map(tr=>({name:tr.dataset.slot,minutes:Number(tr.querySelector('[type=number]').value),
+    wd:[...tr.querySelectorAll('[data-wd]:checked')].flatMap(c=>c.dataset.wd==='60'?[6,0]:[Number(c.dataset.wd)])})).filter(s=>s.wd.length);}
+  const slotsFor=(k,slots)=>slots.filter(s=>s.wd.includes(parseKey(k).getDay()));
   function summary(){
-    const slots=choices();let fresh=0,dup=0,minutes=0;
-    selected.forEach(k=>slots.forEach(s=>{if(existing.has(k+'|'+s.name))dup++;else{fresh++;minutes+=s.minutes||0;}}));
+    const slots=choices();let fresh=0,dup=0,minutes=0,none=0;
+    selected.forEach(k=>{const own=slotsFor(k,slots);if(!own.length)none++;own.forEach(s=>{if(existing.has(k+'|'+s.name))dup++;else{fresh++;minutes+=s.minutes||0;}});});
     const h=Math.floor(minutes/60),m=minutes%60,time=(h?`${h} ชม.`:'')+(m?` ${m} นาที`:'')||'0 นาที';
-    document.getElementById('batchSummary').textContent=!selected.size?'ยังไม่ได้เลือกวัน':!slots.length?`เลือก ${selected.size} วัน ยังไม่ได้เลือกคาบ`:
-      `เลือก ${selected.size} วัน × ${slots.length} คาบ เพิ่มใหม่ ${fresh} คาบ (${time.trim()})`+(dup?` ข้าม ${dup} คาบที่มีอยู่แล้ว`:'');
+    document.getElementById('batchSummary').textContent=!slots.length?'ยังไม่ได้ติ๊กคาบของวันไหนเลย':!selected.size?'ยังไม่ได้เลือกวัน':
+      `เลือก ${selected.size} วัน เพิ่มใหม่ ${fresh} คาบ (${time.trim()})`+(dup?` ข้าม ${dup} คาบที่มีอยู่แล้ว`:'')+(none?` มี ${none} วันที่ยังไม่ได้ติ๊กคาบของวันนั้น จะไม่เพิ่ม`:'');
   }
   function chips(){
     const box=document.getElementById('selectedChips');box.replaceChildren();
@@ -104,10 +107,19 @@
   document.getElementById('lessonCalToday').onclick=()=>{const now=dateKey(new Date()),index=cfg.months.indexOf(now.slice(0,7));if(index<0){say('วันนี้ไม่อยู่ในปีการศึกษานี้');return;}monthIndex=index;draw();say('กดวันที่เพื่อเลือก');};
   document.getElementById('clearDates').onclick=()=>{selected.clear();draw();};
   const scope=document.getElementById('quickScope');
+  function poolOf(wd,all){const month=cfg.months[monthIndex];return Object.keys(days).filter(k=>(all?true:k.startsWith(month))&&parseKey(k).getDay()===wd&&!blocked(k)&&(!all||info(k).t===term));}
+  if(scope)scope.addEventListener('change',()=>{document.getElementById('pickByWeekScope').textContent=scope.value==='term'?'ทั้งภาคเรียน':'ในเดือนนี้';});
+  // ติ๊กคาบเสร็จแล้วกดปุ่มเดียว เลือกทุกวันเปิดเรียนที่ตรงกับวันที่ติ๊กไว้ (ไม่รวม ส./อา. วันชดเชยต้องกดในปฏิทินเอง)
+  document.getElementById('pickByWeek').onclick=()=>{
+    const all=scope&&scope.value==='term',wds=[...new Set(choices().flatMap(s=>s.wd))].filter(w=>w>=1&&w<=5);
+    if(!wds.length){say('ติ๊กคาบของวันจันทร์ถึงศุกร์ก่อน');return;}
+    let n=0;wds.forEach(w=>poolOf(w,all).filter(k=>info(k).s==='open').forEach(k=>{if(!selected.has(k)){selected.add(k);n++;}}));
+    draw();say(n?`เลือกเพิ่ม ${n} วัน${all?'ในภาคเรียนนี้':'ในเดือนนี้'} ข้ามวันหยุดให้แล้ว`:'ไม่มีวันเปิดเรียนที่ตรงกับวันที่ติ๊กไว้');
+  };
   if(scope&&!hasTerms){scope.querySelector('option[value=term]').disabled=true;scope.title='ตั้งวันเปิด-ปิดภาคเรียนในปฏิทินปีการศึกษาก่อน';}
   document.querySelectorAll('.ls-wd').forEach(btn=>btn.onclick=()=>{
-    const wd=Number(btn.dataset.wd),month=cfg.months[monthIndex],all=scope&&scope.value==='term';
-    const pool=Object.keys(days).filter(k=>(all?true:k.startsWith(month))&&parseKey(k).getDay()===wd&&!blocked(k)&&(!all||info(k).t===term));
+    const wd=Number(btn.dataset.wd),all=scope&&scope.value==='term';
+    const pool=poolOf(wd,all);
     const pick=pool.filter(k=>info(k).s==='open'),skipped=pool.length-pick.length;
     if(!pick.length){say(`ไม่มีวัน ${btn.textContent} ที่เป็นวันเปิดเรียน${all?'ในภาคเรียนนี้':'ในเดือนนี้'}`);return;}
     const allOn=pick.every(k=>selected.has(k));
@@ -115,16 +127,21 @@
     draw();say(`${allOn?'เอาออก':'เลือก'}ทุกวัน ${btn.textContent} ${pick.length} วัน${skipped?` ข้ามวันหยุด/วันปิดเรียน ${skipped} วัน`:''}`);
   });
   document.getElementById('slotChoices').addEventListener('input',summary);
-  function addSlot(name,minutes=50,checked=true){
-    const label=document.createElement('label');label.className='slot-choice';
-    const check=document.createElement('input');check.type='checkbox';check.checked=checked;check.dataset.slot=name;
-    const text=document.createElement('span');text.textContent=name;
-    const number=document.createElement('input');number.type='number';number.min=1;number.max=720;number.value=minutes;number.setAttribute('aria-label','นาที '+name);
-    const unit=document.createElement('small');unit.textContent='นาที';label.append(check,text,number,unit);document.getElementById('slotChoices').append(label);
+  function addSlot(name,minutes=50){
+    const tr=document.createElement('tr');tr.className='slot-row';tr.dataset.slot=name;
+    const th=document.createElement('th');th.scope='row';th.textContent=name;tr.append(th);
+    [['1','จ.'],['2','อ.'],['3','พ.'],['4','พฤ.'],['5','ศ.'],['60','ส./อา.']].forEach(([v,l])=>{const td=document.createElement('td'),c=document.createElement('input');
+      c.type='checkbox';c.dataset.wd=v;c.setAttribute('aria-label',name+' วัน'+l);td.append(c);tr.append(td);});
+    const td=document.createElement('td'),number=document.createElement('input');number.type='number';number.min=1;number.max=720;number.value=minutes;number.setAttribute('aria-label','นาที '+name);
+    td.append(number);tr.append(td);document.querySelector('#slotChoices tbody').append(tr);return tr;
   }
-  try{JSON.parse(cfg.entered.slots||JSON.stringify(ui.slots||[])).forEach(slot=>{const box=[...document.querySelectorAll('[data-slot]')].find(el=>el.dataset.slot===slot.name);if(box){box.checked=true;box.parentElement.querySelector('[type=number]').value=slot.minutes;}else addSlot(slot.name,slot.minutes);});}catch{}
-  document.getElementById('addSlot').onclick=()=>{const input=document.getElementById('customSlot'),name=input.value.trim();if(!name)return;if([...document.querySelectorAll('[data-slot]')].some(el=>el.dataset.slot===name)){alert('มีชื่อคาบนี้แล้ว');return;}addSlot(name);input.value='';summary();};
-  document.getElementById('batchLessons').addEventListener('submit',event=>{const slots=choices();if(!selected.size||!slots.length||slots.some(s=>!Number.isInteger(s.minutes)||s.minutes<1||s.minutes>720)){event.preventDefault();alert('เลือกวันและคาบ พร้อมระบุนาทีต่อคาบให้ถูกต้อง');return;}if(window.lessonGridDirty&&!confirm('มีผลเช็กชื่อที่ยังไม่บันทึก ต้องการออกจากตารางเพื่อเพิ่มวันสอนหรือไม่?')){event.preventDefault();return;}window.lessonGridDirty=false;document.getElementById('batchDates').value=JSON.stringify([...selected].sort());document.getElementById('batchSlots').value=JSON.stringify(slots);});
+  // คืนค่าที่ติ๊กไว้หลังบันทึก/ผิดพลาด (รูปแบบเก่าไม่มี wd ข้ามไป ให้ติ๊กใหม่)
+  try{JSON.parse(cfg.entered.slots||JSON.stringify(ui.slots||[])).forEach(slot=>{if(!Array.isArray(slot.wd))return;
+    const tr=[...document.querySelectorAll('#slotChoices .slot-row')].find(el=>el.dataset.slot===slot.name)||addSlot(slot.name,slot.minutes);
+    tr.querySelector('[type=number]').value=slot.minutes;
+    tr.querySelectorAll('[data-wd]').forEach(c=>{c.checked=c.dataset.wd==='60'?slot.wd.includes(6)||slot.wd.includes(0):slot.wd.includes(Number(c.dataset.wd));});});}catch{}
+  document.getElementById('addSlot').onclick=()=>{const input=document.getElementById('customSlot'),name=input.value.trim();if(!name)return;if([...document.querySelectorAll('#slotChoices .slot-row')].some(el=>el.dataset.slot===name)){alert('มีชื่อคาบนี้แล้ว');return;}addSlot(name);input.value='';summary();};
+  document.getElementById('batchLessons').addEventListener('submit',event=>{const slots=choices();if(!selected.size||!slots.length||slots.some(s=>!Number.isInteger(s.minutes)||s.minutes<1||s.minutes>720)){event.preventDefault();alert('ติ๊กคาบของแต่ละวันและเลือกวัน พร้อมระบุนาทีต่อคาบให้ถูกต้อง');return;}if(![...selected].some(k=>slotsFor(k,slots).length)){event.preventDefault();alert('วันที่เลือกไม่มีคาบของวันนั้น ติ๊กคาบให้ตรงกับวันในสัปดาห์ก่อน');return;}if(window.lessonGridDirty&&!confirm('มีผลเช็กชื่อที่ยังไม่บันทึก ต้องการออกจากตารางเพื่อเพิ่มวันสอนหรือไม่?')){event.preventDefault();return;}window.lessonGridDirty=false;document.getElementById('batchDates').value=JSON.stringify([...selected].sort());document.getElementById('batchSlots').value=JSON.stringify(slots);});
   document.querySelectorAll('form').forEach(form=>form.addEventListener('submit',event=>{
     if(event.defaultPrevented)return;
     ui.slots=choices();ui.scroll=window.scrollY;ui.restore=true;

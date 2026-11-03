@@ -1,5 +1,5 @@
 <details class="card lesson-card" id="lessonSetup" open>
-<summary><span class="ls-step">1</span> ตั้งวันและคาบสอน <span class="muted">เลือกวันในปฏิทิน → เลือกคาบ → บันทึก</span></summary>
+<summary><span class="ls-step">1</span> ตั้งวันและคาบสอน <span class="muted">ติ๊กคาบของแต่ละวัน → เลือกวัน → บันทึก</span></summary>
 <form id="batchLessons" method="post" action="/academic/lessons/batch-add">{{ keys() }}
 <input type="hidden" name="dates" id="batchDates"><input type="hidden" name="slots" id="batchSlots">
 <div class="lesson-setup-grid">
@@ -31,9 +31,14 @@
   <h3>วันที่เลือกไว้</h3>
   <div id="selectedChips" class="ls-chips"><span class="ls-empty">ยังไม่ได้เลือกวัน</span></div>
   <button type="button" class="ls-link" id="clearDates">ล้างวันที่เลือกทั้งหมด</button>
-  <h3 style="margin-top:16px;">คาบที่สอนในวันที่เลือก</h3>
-  <p class="ls-hint">เลือกได้หลายคาบ แต่ละคาบมีช่องเช็กชื่อแยกกัน</p>
-  <div id="slotChoices" class="slot-choices">{% for p in slot_choices %}<label class="slot-choice"><input type="checkbox" data-slot="{{ p.name }}"><span>{{ p.name }}</span><input type="number" min="1" max="720" value="{{ p.minutes }}" aria-label="นาที {{ p.name }}"><small>นาที</small></label>{% endfor %}</div>
+  <h3 style="margin-top:16px;">สอนคาบไหน วันไหน</h3>
+  <p class="ls-hint">ติ๊กช่องคาบที่สอนในแต่ละวัน เช่น จ. คาบ 1 พ. คาบ 3 ศ. คาบ 2 วันเดียวติ๊กได้หลายคาบ ระบบเพิ่มเฉพาะคาบของวันนั้นให้แต่ละวันที่เลือก</p>
+  {% set wds = [('1','จ.'),('2','อ.'),('3','พ.'),('4','พฤ.'),('5','ศ.'),('60','ส./อา.')] %}
+  <div class="table-wrap"><table class="slot-matrix" id="slotChoices">
+    <thead><tr><th>คาบ</th>{% for v,l in wds %}<th>{{ l }}</th>{% endfor %}<th>นาที</th></tr></thead>
+    <tbody>{% for p in slot_choices %}<tr class="slot-row" data-slot="{{ p.name }}"><th scope="row">{{ p.name }}</th>{% for v,l in wds %}<td><input type="checkbox" data-wd="{{ v }}" aria-label="{{ p.name }} วัน{{ l }}"></td>{% endfor %}<td><input type="number" min="1" max="720" value="{{ p.minutes }}" aria-label="นาที {{ p.name }}"></td></tr>{% endfor %}</tbody>
+  </table></div>
+  <button type="button" class="btn soft sm" id="pickByWeek" style="margin:8px 0 10px;">เลือกทุกวันที่ติ๊กคาบไว้ <span id="pickByWeekScope">ในเดือนนี้</span></button>
   <div class="ls-addslot"><input id="customSlot" placeholder="คาบอื่น เช่น สอนเสริม" maxlength="80"><button type="button" class="btn soft sm" id="addSlot">เพิ่มคาบ</button></div>
   <p id="batchSummary" role="status"></p>
   <button type="submit" class="btn" id="batchSubmit">บันทึกวันและคาบสอน</button>

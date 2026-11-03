@@ -214,3 +214,24 @@ def test_batch_calendar_and_grid_atomic_marks(env):
     assert save([change(lids[0],'','/')]).status_code==200
     june=env.get(f'/academic/lessons?cid={cid}&sid={sid}&term=1&month=2026-06')
     assert 'เดือนนี้ยังไม่มีวันสอน' in june.text and 'class="grid-mark"' not in june.text
+
+
+def test_batch_pairs_each_day_with_its_own_periods(env):
+    """จันทร์คาบ 1 พุธคาบ 3 ศุกร์คาบ 2 (อังคารสอน 2 คาบติด) ต้องไม่ได้ทุกคาบทุกวัน (เจ้าของแจ้ง)"""
+    import json
+    import app.tenancy as tn
+    tid=next(iter(tn._engines))
+    with tn.session_for(tid) as db:
+        c,subject,_=seed(db)
+        cid,sid=c.id,subject.id
+    # 18 จ. 19 อ. 20 พ. 22 ศ. พ.ค. 2569 (wd แบบ JS: 1=จ. ... 5=ศ.)
+    slots=[dict(name='คาบ 1',minutes=50,wd=[1]),dict(name='คาบ 3',minutes=50,wd=[3]),dict(name='คาบ 2',minutes=50,wd=[5]),
+           dict(name='คาบ 5',minutes=50,wd=[2]),dict(name='คาบ 6',minutes=50,wd=[2])]
+    r=env.post('/academic/lessons/batch-add',data=dict(cid=cid,sid=sid,term=1,month='2026-05',
+               dates=json.dumps(['2026-05-18','2026-05-19','2026-05-20','2026-05-22']),slots=json.dumps(slots)))
+    assert r.status_code==200 and 'เพิ่มแล้ว 5 คาบ' in r.text
+    with tn.session_for(tid) as db:
+        got=sorted((row.date.isoformat()[:10],row.slot) for row in svc.lessons_for(db,cid,sid,1))
+    assert got==[('2026-05-18','คาบ 1'),('2026-05-19','คาบ 5'),('2026-05-19','คาบ 6'),('2026-05-20','คาบ 3'),('2026-05-22','คาบ 2')]
+    r=env.post('/academic/lessons/batch-add',data=dict(cid=cid,sid=sid,term=1,dates=json.dumps(['2026-05-21']),slots=json.dumps(slots)))
+    assert 'ไม่มีคาบของวันนั้น' in r.text, "พฤหัสไม่ได้ติ๊กคาบ ต้องบอก ไม่เพิ่มเงียบ ๆ"

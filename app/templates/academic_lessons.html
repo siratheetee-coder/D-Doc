@@ -43,10 +43,14 @@
 .ls-chip b{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#c7d2fe;font-size:12px}
 .ls-chip.is-hol{background:#fee2e2;color:#b91c1c}
 .ls-link{border:0;background:none;color:#6366f1;font:inherit;font-size:13px;cursor:pointer;padding:4px 0;text-decoration:underline}
-.slot-choices{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
-.slot-choice{display:flex;align-items:center;gap:8px;margin:0;padding:8px 10px;background:#fff;border-radius:12px;min-height:50px;font-size:14px;box-shadow:0 1px 3px rgba(15,23,42,.06);cursor:pointer}
-.slot-choice:has(input:checked){background:#eef2ff;box-shadow:inset 0 0 0 2px #818cf8}
-.slot-choice input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#4f46e5}.slot-choice span{flex:1}.slot-choice input[type=number]{font:inherit;width:62px;padding:5px}
+.slot-matrix{width:100%;border-collapse:separate;border-spacing:0 4px;font-size:14px}
+.slot-matrix th,.slot-matrix td{padding:4px 3px;text-align:center;border:0;background:none}
+.slot-matrix thead th{font-size:13px;color:#475569;font-weight:600}
+.slot-matrix tbody th{text-align:left;font-weight:600;white-space:nowrap;padding-left:8px}
+.slot-matrix tbody tr{background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+.slot-matrix tbody tr:has(input[type=checkbox]:checked){background:#eef2ff}
+.slot-matrix input[type=checkbox]{width:22px;height:22px;accent-color:#4f46e5;cursor:pointer}
+.slot-matrix input[type=number]{font:inherit;width:58px;padding:4px}
 .ls-addslot{display:flex;gap:8px;margin-bottom:10px}.ls-addslot input{flex:1;min-width:0}
 #batchSummary{padding:10px 12px;background:linear-gradient(120deg,#eef2ff,#f5f3ff);border-radius:12px;color:#3730a3;font-weight:600;font-size:14px}
 #batchSubmit{width:100%}
@@ -88,7 +92,7 @@
 .lg-empty{padding:18px;background:#f8fafc;border-radius:14px;color:#475569;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
 @media(max-width:860px){.lesson-setup-grid{grid-template-columns:1fr}}
 @media(max-width:650px){.lesson-stats{grid-template-columns:1fr}.lesson-stat{padding:12px}.lesson-stat strong{font-size:20px}.lesson-inputs .short{flex:1 1 120px}
-  .slot-choices{grid-template-columns:1fr}.lesson-calendar button{min-height:44px;font-size:14px}.lesson-calendar button small{display:none}
+  .lesson-calendar button{min-height:44px;font-size:14px}.lesson-calendar button small{display:none}
   .lesson-matrix .student-pin{min-width:150px;max-width:170px}.grid-save{flex-wrap:wrap}.ls-pane{padding:12px}}
 </style>
 <div class="hero"><div><div class="hero-sub">งานวิชาการ เวลาเรียนรายคาบ</div><div class="hero-title">{{ subj.code }} {{ subj.name }}</div><div class="hero-meta">ห้อง {{ class_label(c) }} ปีการศึกษา {{ c.year }} ภาคเรียนที่ {{ term }}</div></div></div>
@@ -142,5 +146,5 @@ if(split)split.addEventListener('click',()=>{document.getElementById('target1').
 ['target1','target2'].forEach(id=>document.getElementById(id)?.addEventListener('input',targetNote));targetNote();
 </script>
 <script id="lessonConfig" type="application/json">{{ {'months':months,'month':month,'events':calendar_events,'entered':entered,'days':day_info,'term':term,'students':students|length}|tojson }}</script>
-<script src="/static/academic_lessons_grid.js?v=3"></script>
+<script src="/static/academic_lessons_grid.js?v=4"></script>
 {% endblock %}
