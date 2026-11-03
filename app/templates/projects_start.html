@@ -17,6 +17,7 @@
   </div>
 </div>
 
+{% if saved != '' and not err %}<div class="alert"><svg class="icon"><use href="#ic-check"/></svg> บันทึกแล้ว{% if saved and saved != '0' %} ปรับ {{ saved }} โครงการ{% else %} ไม่มีอะไรเปลี่ยน{% endif %}</div>{% endif %}
 {% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
 {% set stale = sources|default([])|selectattr('changed')|list %}
 {% if stale %}<div class="alert warn st-stale"><svg class="icon"><use href="#ic-alert"/></svg>

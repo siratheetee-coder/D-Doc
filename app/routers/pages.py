@@ -3242,7 +3242,7 @@ def projects_realign_save(db: Session = Depends(get_db), year: str = Form(""), t
 
 @router.get("/projects/start", response_class=HTMLResponse)
 def projects_start_page(request: Request, db: Session = Depends(get_db), year: int | None = None,
-                        err: str = ""):
+                        err: str = "", saved: str = ""):
     """ตั้งยอดตั้งต้นสำหรับโรงเรียนที่เริ่มใช้ระบบกลางปี
 
     ถามโครงการละข้อเดียวว่า "ตอนนี้เหลืองบกี่บาท" แล้วระบบคำนวณเองว่าใช้ไปก่อนเริ่มใช้ระบบเท่าไร
@@ -3253,7 +3253,7 @@ def projects_start_page(request: Request, db: Session = Depends(get_db), year: i
     rows = _start_rows(db, cur)
     return templates.TemplateResponse("projects_start.html", {
         "request": request, "school": school, "year": cur, "year_label": plan_year_label(school, cur),
-        "years": _plan_years(db, cur), "rows": rows, "err": err,
+        "years": _plan_years(db, cur), "rows": rows, "err": err, "saved": saved,
         "sources": _start_sources(db, cur, rows),
     })
 
@@ -3363,7 +3363,7 @@ async def projects_start_save(request: Request, db: Session = Depends(get_db)):
         db.rollback()
         return RedirectResponse(f"/projects/start?year={year}&err=" + quote(" ".join(bad)), status_code=303)
     db.commit()
-    return RedirectResponse(f"/projects?year={year}&started={changed}", status_code=303)
+    return RedirectResponse(f"/projects/start?year={year}&saved={changed}", status_code=303)
 
 
 def _start_save_funds(db, year, rows, form) -> int:
@@ -3677,7 +3677,9 @@ def project_delete(pid: int, db: Session = Depends(get_db)):
         guard_project(db,p,deleting=True)
         for a in db.query(ProjectActivity).filter_by(project_id=p.id).all():
             _unlink_activity(db, a.id); db.delete(a)
+        py = p.plan_year
         db.delete(p); db.commit()
+        return RedirectResponse(f"/projects?year={py}" if py else "/projects", status_code=303)
     return RedirectResponse("/projects", status_code=303)
 
 
