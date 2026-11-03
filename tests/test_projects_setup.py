@@ -75,3 +75,17 @@ def test_project_page_has_no_allocation(env, monkeypatch):
     assert 'id="project-funding"' not in html and 'href="/plan-budget/' not in html
     assert 'id="budget-help"' in html, "คำอธิบายใส่งบ/ปรับงบ ยังต้องอยู่"
     assert 'class="bh-note"' not in html, "เรื่องจัดสรรเงินไม่เกี่ยวกับผู้ไม่มีสิทธิ์การเงิน"
+
+
+def test_schools_that_used_allocation_get_a_one_time_notice(env):
+    import app.tenancy as tn
+    from datetime import datetime
+    from app.models import PlanBudget, PlanFunding, ProjectFunding
+    assert 'id="allocGone"' not in env.get(f'/projects?year={PY}').text, "ไม่เคยจัดสรร ไม่ต้องเห็น"
+    with tn.session_for(next(iter(tn._engines))) as s:
+        p = Project(name='เคยจัดสรร', plan_year=PY, budget=1000); s.add(p)
+        plan = PlanBudget(year=PY, mode='budget', start_date=datetime(2025, 10, 1), end_date=datetime(2026, 9, 30)); s.add(plan); s.flush()
+        f = PlanFunding(plan_id=plan.id, source_key='t', kind='other', name='x', amount=1000); s.add(f); s.flush()
+        s.add(ProjectFunding(project_id=p.id, funding_id=f.id, amount=500)); s.commit()
+    html = env.get(f'/projects?year={PY}').text
+    assert 'id="allocGone"' in html and 'ท่านไม่ต้องแก้อะไร' in html

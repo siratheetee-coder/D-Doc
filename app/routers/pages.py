@@ -2945,6 +2945,7 @@ def _plan_years(db, cur):
 @router.get("/projects", response_class=HTMLResponse)
 def projects_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
     from app.services.finance_setup import setup_steps as finance_setup_steps, project_steps as project_setup_steps
+    from app.models import ProjectFunding
     can_fin = _can_finance(request)
     school = get_school(db)
     cur = year or current_plan_year(school)
@@ -2966,6 +2967,8 @@ def projects_page(request: Request, db: Session = Depends(get_db), year: int | N
         # โรงเรียนที่เพิ่งมาใช้: มีโครงการแล้วแต่ยังไม่มีรายจ่ายและยังไม่เคยตั้งยอด
         "suggest_start": bool(rows) and not any(project_spent(p) for p in rows),
         "suggest_next": _suggest_next_year(db, cur, rows),
+        # โรงเรียนที่เคยจัดสรรเงินให้โครงการ (เลิกใช้แล้ว) เห็นการ์ดแจ้งครั้งเดียว
+        "had_alloc": db.query(ProjectFunding.id).first() is not None,
         "realign_n": len(_realign_rows(db, cur)),
         "can_finance": can_fin,
         "setup": (finance_setup_steps(db, cur + (1 if plan_year_label(school, cur) == "ปีการศึกษา" else 0), school, selected_plan_year=cur) if can_fin

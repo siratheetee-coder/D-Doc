@@ -105,6 +105,34 @@
 </div>
 <style>.ra-note { background:linear-gradient(120deg,#fff7ed,#fef3c7); color:#7c2d12; }</style>
 {% endif %}
+{% if had_alloc %}{# แจ้งครั้งเดียวสำหรับโรงเรียนที่เคยจัดสรรเงินให้โครงการ (เลิกใช้แล้ว 2026-11) #}
+<div class="card pj-notice" id="allocGone" hidden>
+  <button type="button" class="pj-notice-x" aria-label="ปิดข้อความนี้">&times;</button>
+  <b>เพื่อให้ใช้งานง่ายยิ่งขึ้น ไม่ต้องจัดสรรเงินให้โครงการแล้ว</b>
+  <p>ระบบนำระบบเงินเข้าแผนและจัดสรรทีละโครงการออกแล้ว งบโครงการต่าง ๆ ให้ดูที่หน้านี้ เงินดูที่<a href="/finance/accounts">ทะเบียนคุมเงิน</a></p>
+  <p><b>ท่านไม่ต้องแก้อะไร</b> ยอดเงินและงบทุกโครงการเท่าเดิม</p>
+  <p>โดยครั้งแรกที่ทำบันทึกขอเบิกให้โครงการที่ยังไม่เคยจ่าย ให้เลือกหมวดเงินเอง 1 ครั้ง ครั้งต่อไประบบจำให้</p>
+</div>
+<style>
+  .pj-notice{ position:relative; background:linear-gradient(120deg,#eef2ff,#f0fdf4); color:#1e293b; padding-right:48px; }
+  .pj-notice p{ margin:6px 0 0; }
+  .pj-notice-x{ position:absolute; top:10px; right:12px; width:32px; height:32px; border:0; border-radius:10px;
+    background:rgba(255,255,255,.7); font-size:20px; line-height:1; cursor:pointer; color:#475569; }
+</style>
+<script>
+(function () {
+  var box = document.getElementById('allocGone'), KEY = 'allocGoneSeen';
+  var seen = false;
+  try { seen = localStorage.getItem(KEY) === '1'; } catch (e) {}
+  if (seen) return;
+  box.hidden = false;
+  box.querySelector('.pj-notice-x').addEventListener('click', function () {
+    box.hidden = true;
+    try { localStorage.setItem(KEY, '1'); } catch (e) {}
+  });
+})();
+</script>
+{% endif %}
 {% if suggest_start %}
 <div class="card" style="background:#eff6ff;">
   <b>เพิ่งเริ่มใช้ระบบกลางปีใช่ไหม</b>
