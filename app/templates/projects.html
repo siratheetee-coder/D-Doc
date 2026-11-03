@@ -119,7 +119,7 @@
   <div class="pc-tiles">
     <div class="pc-tile t1"><span>โครงการยังต้องใช้เงิน</span><b>{{ '{:,.2f}'.format(cash.need) }}</b><small>{{ cash.n }} โครงการ</small></div>
     <div class="pc-tile t2"><span>เงินในหมวดที่โครงการใช้จ่าย</span><b>{{ '{:,.2f}'.format(cash.cash) }}</b><small>ตอนนี้ ปีงบ {{ cash_fy }}</small></div>
-    {% if cash.gap > 0 %}<div class="pc-tile t3"><span>ยังขาด</span><b>{{ '{:,.2f}'.format(cash.gap) }}</b><small>รอเงินอุดหนุนงวดถัดไปหรือเงินอื่น</small></div>
+    {% if cash.gap > 0 %}<div class="pc-tile t3"><span>ยังรอเงินอีก</span><b>{{ '{:,.2f}'.format(cash.gap) }}</b><small>รอเงินอุดหนุนงวดถัดไปหรือเงินอื่น</small></div>
     {% else %}<div class="pc-tile t4"><span>เงินพอ เหลือ</span><b>{{ '{:,.2f}'.format(-cash.gap) }}</b><small>หลังทำทุกโครงการครบ</small></div>{% endif %}
   </div>
   {% if cash.rows %}<details class="pc-items"><summary>นับจากหมวดไหนบ้าง ({{ cash.rows|length }} หมวด)</summary>
