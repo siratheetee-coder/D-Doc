@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """เลขที่เอกสาร บจ. / บค. รันให้อัตโนมัติ (เช่น บจ.5/70 หรือ บจ.5/2570)
 
+บจ. = ใบเสร็จรับเงิน บค. = ใบสำคัญรับเงิน ใช้ลำดับเลขเดียวกัน (เจ้าของยืนยัน) เช่น บจ.1/70 บค.2/70 บจ.3/70
 นับต่อจากเลขสูงสุดที่มีอยู่แล้วในปีงบเดียวกัน ทั้งในทะเบียนคุมเงิน (FinanceTxn.ref)
 และทะเบียนใบเสร็จ/ใบสำคัญ (Receipt.receipt_no) · เลขที่พิมพ์เองไว้ก่อนก็นับด้วย จึงไม่ชนกัน
 รูปท้ายปี /70 กับ /2570 ใช้ลำดับเดียวกัน
@@ -16,16 +17,18 @@ def _pattern(prefix: str, fiscal_year: int):
 
 
 def next_number(db, prefix: str, fiscal_year: int) -> int:
+    """เลขถัดไปของปีงบ นับรวมทั้ง บจ. และ บค. (prefix ใช้ตรวจว่าเป็นชนิดที่รันเลขได้)"""
     from app.models import FinanceTxn, Receipt
-    rx = _pattern(prefix, fiscal_year)
+    rxs = [_pattern(p, fiscal_year) for p in PREFIXES]
     top = 0
     # ไม่กรองตามปีงบของรายการ: ท้ายเลข (/70) บอกปีอยู่แล้ว และกันเลขชนกับรายการที่ลงปีงบผิด
     refs = [r for (r,) in db.query(FinanceTxn.ref).filter(FinanceTxn.ref.like("%/%"))]
     refs += [r for (r,) in db.query(Receipt.receipt_no).filter(Receipt.receipt_no.like("%/%"))]
     for ref in refs:
-        m = rx.match(ref or "")
-        if m:
-            top = max(top, int(m.group(1)))
+        for rx in rxs:
+            m = rx.match(ref or "")
+            if m:
+                top = max(top, int(m.group(1)))
     return top + 1
 
 

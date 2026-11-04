@@ -46,7 +46,7 @@ def test_auto_number_on_save(env):
     html = env.get(f"/finance/accounts/{aid}?year={FY}").text
     assert 'name="ref_mode"' in html and '<option value="บจ.">' in html and "/70</option>" in html and "/2570</option>" in html
     assert env.get(f"/finance/docno/next?prefix=บจ.&year={FY}").json() == {"ref": "บจ.8/70"}
-    assert env.get(f"/finance/docno/next?prefix=บค.&year={FY}&yfmt=4").json() == {"ref": "บค.6/2570"}
+    assert env.get(f"/finance/docno/next?prefix=บค.&year={FY}&yfmt=4").json() == {"ref": "บค.8/2570"}, "บจ. กับ บค. ใช้ลำดับเลขเดียวกัน"
     assert env.get(f"/finance/docno/next?prefix=บร.&year={FY}").status_code == 400
 
     def add(note, mode, ref="", yfmt="2", kind="out"):
@@ -59,8 +59,8 @@ def test_auto_number_on_save(env):
     add("ทดสอบ-4", "บค.")
     add("ทดสอบ-5", "", ref="  ที่ ศธ 123  ")      # พิมพ์เองเหมือนเดิม
     add("ทดสอบ-6", "บร.", ref="เลขเดิม")          # ชนิดที่ไม่รองรับ = ใช้ค่าที่พิมพ์
-    assert _refs("ทดสอบ-") == ["บจ.8/70", "บจ.9/70", "บจ.10/2570", "บค.6/70", "ที่ ศธ 123", "เลขเดิม"]
-    assert env.get(f"/finance/docno/next?prefix=บจ.&year={FY}").json()["ref"] == "บจ.11/70"
+    assert _refs("ทดสอบ-") == ["บจ.8/70", "บจ.9/70", "บจ.10/2570", "บค.11/70", "ที่ ศธ 123", "เลขเดิม"]
+    assert env.get(f"/finance/docno/next?prefix=บจ.&year={FY}").json()["ref"] == "บจ.12/70"
     assert env.get(f"/finance/docno/next?prefix=บจ.&year={FY + 1}").json()["ref"] == "บจ.1/71", "ปีงบใหม่เริ่ม 1"
     cb = env.get(f"/finance/cashbook?year={FY}").text
-    assert "บจ.8/70" in cb and "บค.6/70" in cb, "เลขขึ้นในสมุดเงินสดช่องเลขที่เอกสาร"
+    assert "บจ.8/70" in cb and "บค.11/70" in cb, "เลขขึ้นในสมุดเงินสดช่องเลขที่เอกสาร"
