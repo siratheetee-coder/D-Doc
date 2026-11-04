@@ -80,7 +80,96 @@ KINDS = {
         get=_loan, fp=_fp_loan, title=lambda ln: f"{ln.borrower or ''} {ln.purpose or ''}".strip(),
         amount=lambda ln: ln.amount, link=lambda rid: "/finance/loans", group="การเงิน"),
 }
+# ---- ระยะ 2: ธุรการ + โครงการ ----
+def _get(model):
+    def get(db, rid):
+        import app.models as M
+        return db.get(getattr(M, model), rid)
+    return get
+
+
+def _fp_fields(*names):
+    def fp(o):
+        return "|".join(str(getattr(o, n, "") or "") for n in names)
+    return fp
+
+
+KINDS.update({
+    "memo": dict(
+        label="บันทึกข้อความ", step="บันทึกข้อความเสนอ ผอ.", docs=["บันทึกข้อความ"],
+        get=_get("OfficeMemo"), fp=_fp_fields("subject", "to_person", "body", "signer_name"),
+        title=lambda o: o.subject or f"บันทึกข้อความ {o.memo_no or o.id}", amount=lambda o: 0,
+        link=lambda rid: f"/admin/memos/{rid}", group="ธุรการ"),
+    "order": dict(
+        label="คำสั่งโรงเรียน", step="ผอ. ลงนามคำสั่ง", docs=["คำสั่ง"],
+        get=_get("SchoolOrder"), fp=_fp_fields("subject", "body"),
+        title=lambda o: o.subject or f"คำสั่ง {o.order_no or o.id}", amount=lambda o: 0,
+        link=lambda rid: f"/admin/orders/{rid}", group="ธุรการ"),
+    "letter": dict(
+        label="หนังสือราชการ (ส่งออก)", step="ผอ. ลงนามหนังสือ", docs=["หนังสือราชการ"],
+        get=_get("OfficialLetter"), fp=_fp_fields("subject", "to", "body", "signer_name"),
+        title=lambda o: o.subject or f"หนังสือ {o.doc_no or o.id}", amount=lambda o: 0,
+        link=lambda rid: f"/admin/letters/{rid}", group="ธุรการ"),
+    "project": dict(
+        label="อนุมัติโครงการ", step="ขออนุมัติโครงการ", docs=[],
+        get=_get("Project"), fp=lambda p: f"{p.name or ''}|{float(p.budget or 0):.2f}|{p.responsible or ''}",
+        title=lambda p: p.name or "", amount=lambda p: p.budget,
+        link=lambda rid: f"/projects/{rid}", group="โครงการ"),
+    "project_report": dict(
+        label="รายงานผลโครงการ", step="เสนอรายงานผลการดำเนินงาน", docs=["รายงานผลโครงการ"],
+        get=_get("ProjectReport"),
+        fp=_fp_fields("title", "responsible", "date_start", "date_end", "memo_body", "summary_note", "suggestions"),
+        title=lambda r: r.title or (r.project.name if r.project else "") or "รายงานผลโครงการ", amount=lambda r: 0,
+        link=lambda rid: f"/project-reports/{rid}", group="โครงการ"),
+})
+# เส้นทางส่ง (อยู่ใต้ path ของงาน สิทธิ์งานเดิมคุม) -> ชนิดที่ส่งได้
+SEND_PATHS = {"/finance/approval": ("disburse", "loan"),
+              "/admin/approval": ("memo", "order", "letter"),
+              "/projects/approval": ("project", "project_report")}
+
+
+def lookup_current(kind: str, ref_id: int) -> dict:
+    """ใช้ตอนสร้างเอกสารที่ประกอบเองในโค้ด (บันทึก/คำสั่ง/หนังสือ)
+    on = โรงเรียนเปิดใช้ · a = Approval ที่อนุมัติแล้วและเรื่องไม่ถูกแก้ · sig = path รูปลายเซ็น (แปะได้)"""
+    out = {"on": False, "a": None, "sig": None}
+    try:
+        from app.tenancy import current_school_id, session_for
+        from app.services.signature import signature_full_path
+        sid = current_school_id.get()
+        if not sid:
+            return out
+        db = session_for(sid)
+        try:
+            out["on"] = enabled(db)
+            if out["on"]:
+                a = approved_for(db, kind, ref_id)
+                if a:
+                    db.expunge(a)
+                    out["a"] = a
+                    if a.with_sign and a.sig_file:
+                        p = signature_full_path(a.sig_file)
+                        out["sig"] = str(p) if p else None
+        finally:
+            db.close()
+    except Exception:
+        pass
+    return out
+
+
+KINDS["proc_alt"] = dict(
+    label="อนุมัติจัดซื้อแบบพิเศษ", step="เอกสารของเรื่องนี้ทั้งชุด (ว.804 / ว.119)",
+    docs=["w804", "w119t1", "w119t2", "w119_borrow"],      # กรองตามรูปแบบของเรื่องใน alt_docs()
+    get=_proc, fp=_fp_proc, title=_PROC_TITLE, amount=lambda p: p.total_amount,
+    link=lambda rid: f"/procurement/{rid}", group="พัสดุ")
 PROC_STAGES = ["proc_request", "proc_order", "proc_pay"]
+# รูปแบบพิเศษที่ ผอ. ลงนาม (ข้อ 79 วรรคสอง หัวหน้าเจ้าหน้าที่อนุมัติ ไม่ผ่าน ผอ.)
+ALT_CASES = ("w804", "w119t1", "w119t2")
+
+
+def alt_docs(proc) -> list:
+    """เอกสารรูปแบบพิเศษของเรื่องนี้ที่มีช่องลงนาม ผอ."""
+    case = proc.proc_case or ""
+    return [case] + (["w119_borrow"] if case == "w119t2" else []) if case in ALT_CASES else []
 # ชนิดเอกสารพัสดุ -> ขั้นอนุมัติ
 DOC_STAGE = {d: k for k in PROC_STAGES for d in KINDS[k]["docs"]}
 
@@ -128,7 +217,15 @@ def state(db, kind: str, ref_id: int, obj=None) -> dict:
 
 
 def proc_states(db, proc) -> list:
-    return [state(db, k, proc.id, proc) for k in PROC_STAGES]
+    """กล่องส่ง ผอ. ของเรื่องจัดซื้อ แบบปกติ 3 ขั้น แบบพิเศษ 1 ครั้งทั้งชุด ข้อ 79 ไม่มี"""
+    case = proc.proc_case or "normal"
+    if case == "normal":
+        return [state(db, k, proc.id, proc) for k in PROC_STAGES]
+    if case in ALT_CASES:
+        st = state(db, "proc_alt", proc.id, proc)
+        st["docs"] = alt_docs(proc)
+        return [st]
+    return []
 
 
 def pending(db) -> list:
@@ -235,7 +332,7 @@ def _copy_signature(db, person_id, name) -> str:
 
 
 # ---------------------------------------------------------------- แปะลงเอกสาร
-def stamp_current(kind: str, ref_id: int, path: str, director_name: str, tick: str = "อนุมัติ") -> bool:
+def stamp_current(kind: str, ref_id: int, path: str, director_name: str, tick=("อนุมัติ",)) -> bool:
     """เปิดฐานข้อมูลโรงเรียนที่ล็อกอินเอง (ฟังก์ชันสร้างเอกสารไม่มี db) แล้วแปะถ้าอนุมัติแล้ว"""
     try:
         from app.tenancy import current_school_id, session_for
@@ -277,7 +374,7 @@ def _all_paragraphs(doc):
     yield from walk(body)
 
 
-def stamp_file(path: str, director_name: str, sig_file: str, tick: str = "อนุมัติ") -> bool:
+def stamp_file(path: str, director_name: str, sig_file: str, tick=("อนุมัติ",)) -> bool:
     """แปะลายเซ็น ผอ. บนบรรทัด 'ลงชื่อ....' ที่อยู่เหนือ ( ชื่อ ผอ. ) ทุกจุดในไฟล์
     + ติ๊กช่องคำสั่ง tick ('อนุมัติ' / 'ทราบ') ทั้งแบบ ☐ อนุมัติ และ (   ) อนุมัติ"""
     from docx import Document
@@ -306,8 +403,9 @@ def stamp_file(path: str, director_name: str, sig_file: str, tick: str = "อน
             done += 1
     if tick:
         import re
-        box = re.compile(r"☐(\s*" + tick + ")")
-        paren = re.compile(r"\(\s{1,5}\)(\s*" + tick + ")")
+        words = "|".join(re.escape(w) for w in ((tick,) if isinstance(tick, str) else tick))
+        box = re.compile(r"☐(\s*(?:" + words + "))")
+        paren = re.compile(r"\(\s{1,5}\)(\s*(?:" + words + "))")
         for p in paras:
             for r in p.runs:
                 t = r.text or ""
@@ -330,7 +428,7 @@ def _float_on_dots(paragraph, sig_path: str, height_cm: float = 1.1) -> bool:
     from app.services.gov_forms import _float_at_run
     runs = paragraph.runs
     for r in runs:
-        m = re.search(r"\.{4,}", r.text or "")
+        m = re.search(r"[.…]{3,}", r.text or "")      # ว.804 ใช้ … แทนจุด
         if not m:
             continue
         before, after = r.text[:m.start()], r.text[m.start():]
@@ -345,9 +443,17 @@ def _float_on_dots(paragraph, sig_path: str, height_cm: float = 1.1) -> bool:
             # ลอยทับจุดไข่ปลา ยกขึ้นนิดเดียว ไม่ให้ทับบรรทัดคำสั่ง (   ) อนุมัติ ข้างบน
             # ตำแหน่งนับจากขอบบนของย่อหน้า ต้องบวกระยะเว้นก่อนย่อหน้า (แม่แบบพัสดุเว้นไว้ราว 1 ซม.)
             gap = paragraph.paragraph_format.space_before or 0
-            _float_at_run(shape._inline, dx_emu=Cm(0.4).emu, dy_emu=int(gap) + Cm(-0.25).emu)
+            _float_at_run(shape._inline, dx_emu=Cm(0.4).emu, dy_emu=int(gap) + Cm(-0.45).emu)
             return True
         except Exception:
             pic.getparent().remove(pic)
             return False
     return False
+
+
+def box(db, kind: str, ref_id: int, back: str):
+    """ข้อมูลกล่องส่ง ผอ. ของหน้าเรื่อง (_approval_card.html) None = โรงเรียนยังไม่เปิดใช้"""
+    if not enabled(db):
+        return None
+    action = next(p for p, ks in SEND_PATHS.items() if kind in ks)
+    return dict(st=state(db, kind, ref_id), action=action, back=back, extra={"ref_id": ref_id})

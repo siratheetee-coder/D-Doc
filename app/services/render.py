@@ -368,7 +368,7 @@ def render_document(kind: str, proc, school) -> str:
     from app.services.approval import DOC_STAGE, stamp_current
     if kind in DOC_STAGE:
         stamp_current(DOC_STAGE[kind], proc.id, path, school.director_name or "",
-                      tick="ทราบ" if kind == "ใบตรวจรับพัสดุ" else "อนุมัติ")
+                      tick=("ทราบ",) if kind == "ใบตรวจรับพัสดุ" else ("อนุมัติ",))
     return path
 
 

@@ -36,6 +36,7 @@
     <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกการแก้ไข</button>
   </form>
 </div>
+{% include "_approval_card.html" %}
 
 <div class="card">
   <form method="post" action="/admin/letters/{{ lt.id }}/delete" onsubmit="return confirm('ลบหนังสือนี้?')">

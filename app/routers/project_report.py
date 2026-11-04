@@ -120,8 +120,10 @@ def report_form(rid: int, request: Request, db: Session = Depends(get_db),
     school = get_school(db)
     survey = load_list(rep.survey_items)
     pct = survey_percent(survey)
+    from app.services.approval import box
     return templates.TemplateResponse("project_report_form.html", {
         "request": request, "school": school, "rep": rep, "p": rep.project,
+        "ap_box": box(db, "project_report", rep.id, f"/project-reports/{rep.id}#approval"),
         "year_label": plan_year_label(school), "saved": saved, "err": err,
         "persons": db.query(Person).filter_by(active=True).order_by(Person.name).all(),
         "load_list": load_list,
@@ -252,6 +254,9 @@ def report_docx(rid: int, db: Session = Depends(get_db)):
         return RedirectResponse("/projects", status_code=303)
     from app.routers.pages import get_school, serve_generated
     from app.services.project_report_doc import render_project_report
-    path = render_project_report(rep, get_school(db))
+    school = get_school(db)
+    path = render_project_report(rep, school)
+    from app.services.approval import stamp_current   # ผอ. อนุมัติแบบแปะลายเซ็นแล้ว
+    stamp_current("project_report", rep.id, path, school.director_name or "", tick=())
     return serve_generated(
         path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")

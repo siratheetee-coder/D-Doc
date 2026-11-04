@@ -871,8 +871,10 @@ def memo_detail(mid: int, request: Request, db: Session = Depends(get_db)):
     m = db.get(OfficeMemo, mid)
     if not m:
         return RedirectResponse("/admin/memos", status_code=303)
+    from app.services.approval import box
     return templates.TemplateResponse("memo_detail.html", {
         "request": request, "m": m, "school": get_school(db),
+        "ap_box": box(db, "memo", m.id, f"/admin/memos/{m.id}#approval"),
         "persons": db.query(Person).order_by(Person.name).all(),
         "departments": db.query(Department).order_by(Department.name).all(),
     })
@@ -967,8 +969,10 @@ def order_detail(oid: int, request: Request, db: Session = Depends(get_db)):
     o = db.get(SchoolOrder, oid)
     if not o:
         return RedirectResponse("/admin/orders", status_code=303)
+    from app.services.approval import box
     return templates.TemplateResponse("order_detail.html", {
         "request": request, "o": o, "school": get_school(db),
+        "ap_box": box(db, "order", o.id, f"/admin/orders/{o.id}#approval"),
     })
 
 
@@ -1177,8 +1181,9 @@ def letter_detail(lid: int, request: Request, db: Session = Depends(get_db)):
     lt = db.get(OfficialLetter, lid)
     if not lt:
         return RedirectResponse("/admin/letters", status_code=303)
-    return templates.TemplateResponse("official_letter_detail.html",
-                                      _letter_ctx(db, {"request": request, "lt": lt}))
+    from app.services.approval import box
+    return templates.TemplateResponse("official_letter_detail.html", _letter_ctx(db, {
+        "request": request, "lt": lt, "ap_box": box(db, "letter", lt.id, f"/admin/letters/{lt.id}#approval")}))
 
 
 @router.post("/admin/letters/{lid}/update")

@@ -167,3 +167,80 @@ def test_off_by_default_shows_nothing(env):
                follow_redirects=False)
     assert "err=" in r.headers["location"]
     assert _latest(tid, "proc_request", ids["proc"]) is None
+
+
+def _approve(c, tid, path, kind, ref, action="sign", **extra):
+    data = {"kind": kind, "action": "send", **extra}
+    r = c.post(path, data=data, follow_redirects=False)
+    assert r.status_code == 303 and "err=" not in r.headers["location"], r.headers.get("location")
+    aid = _latest(tid, kind, ref)[0]
+    c.post(f"/approvals/doc/{aid}/decide", data={"action": action})
+    assert _latest(tid, kind, ref)[1] == "approved"
+    return aid
+
+
+def test_special_case_w804_signed_with_ellipsis_dots(env):
+    """ว.804 ใช้ … แทนจุด และอนุมัติครั้งเดียวทั้งชุด ติ๊ก เห็นชอบ/อนุมัติ"""
+    c, tid, ids = env
+    from app.models import Procurement
+    from app.tenancy import session_for
+    db = session_for(tid)
+    db.get(Procurement, ids["proc"]).proc_case = "w804"
+    db.commit(); db.close()
+    pid = ids["proc"]
+    _xml, has_img = _docx(c.get(f"/procurement/{pid}/altdoc/w804"))
+    assert not has_img
+    _approve(c, tid, f"/procurement/{pid}/approval", "proc_alt", pid)
+    xml, has_img = _docx(c.get(f"/procurement/{pid}/altdoc/w804"))
+    assert has_img and "☑" in xml
+    # ข้อ 79 วรรคสอง หัวหน้าเจ้าหน้าที่อนุมัติ ไม่มีกล่องส่ง ผอ.
+    db = session_for(tid)
+    db.get(Procurement, pid).proc_case = "clause79"
+    db.commit(); db.close()
+    assert "ส่ง ผอ. อนุมัติ" not in c.get(f"/procurement/{pid}").text
+
+
+def test_admin_docs_sign_only_after_approval(env):
+    c, tid, ids = env
+    from app.models import OfficeMemo, OfficialLetter, SchoolOrder
+    from app.tenancy import session_for
+    db = session_for(tid)
+    o = SchoolOrder(fiscal_year=2569, subject="แต่งตั้งครูเวร", body="ให้ครูอยู่เวร", date=datetime(2026, 1, 5))
+    lt = OfficialLetter(fiscal_year=2569, subject="ขอเชิญประชุม", to="ผอ.สพป.", body="เนื้อความ",
+                        signer_name=DIRECTOR, date=datetime(2026, 1, 5))
+    m = OfficeMemo(fiscal_year=2569, subject="ขออนุญาตจัดกิจกรรม", body="รายละเอียด",
+                   signer_name="นางครู ทดสอบ", date=datetime(2026, 1, 5))
+    db.add_all([o, lt, m]); db.commit()
+    oid, lid, mid = o.id, lt.id, m.id
+    db.close()
+    # ก่อนอนุมัติ: คำสั่ง/หนังสือ ที่ ผอ. ลงนาม ไม่ขึ้นลายเซ็น (เดิมแปะให้เลย)
+    assert not _docx(c.get(f"/admin/orders/{oid}/generate"))[1]
+    assert not _docx(c.get(f"/admin/letters/{lid}/generate"))[1]
+    _approve(c, tid, "/admin/approval", "order", oid, ref_id=oid)
+    _approve(c, tid, "/admin/approval", "letter", lid, ref_id=lid)
+    assert _docx(c.get(f"/admin/orders/{oid}/generate"))[1]
+    assert _docx(c.get(f"/admin/letters/{lid}/generate"))[1]
+    # บันทึกที่ครูลงนาม: อนุมัติแล้วต่อท้ายความเห็น ผอ. + ลายเซ็น
+    xml, has_img = _docx(c.get(f"/admin/memos/{mid}/generate"))
+    assert "ความเห็นของ" not in xml and not has_img
+    _approve(c, tid, "/admin/approval", "memo", mid, ref_id=mid)
+    xml, has_img = _docx(c.get(f"/admin/memos/{mid}/generate"))
+    assert "ความเห็นของ" in xml and "☑" in xml and has_img
+
+
+def test_project_and_report(env):
+    c, tid, ids = env
+    from app.models import Project, ProjectReport
+    from app.tenancy import session_for
+    db = session_for(tid)
+    p = Project(name="ส่งเสริมการอ่าน", budget=10000, plan_year=2569)
+    db.add(p); db.flush()
+    r = ProjectReport(project_id=p.id, title="ส่งเสริมการอ่าน", responsible="นางครู ทดสอบ")
+    db.add(r); db.commit()
+    pid, rid = p.id, r.id
+    db.close()
+    _approve(c, tid, "/projects/approval", "project", pid, action="approve", ref_id=pid)
+    assert "ผอ. อนุมัติแล้ว" in c.get(f"/projects/{pid}").text
+    assert not _docx(c.get(f"/project-reports/{rid}/doc.docx"))[1]
+    _approve(c, tid, "/projects/approval", "project_report", rid, ref_id=rid)
+    assert _docx(c.get(f"/project-reports/{rid}/doc.docx"))[1]

@@ -64,20 +64,26 @@ def _send_or_cancel(request, db, kind, ref_id, action, note, back):
 @router.post("/procurement/{pid}/approval")
 def proc_approval(pid: int, request: Request, db: Session = Depends(get_db), kind: str = Form(""),
                   action: str = Form("send"), note: str = Form(""), back: str = Form("")):
-    if kind not in ap.PROC_STAGES:
+    if kind not in ap.PROC_STAGES and kind != "proc_alt":
         return RedirectResponse(f"/procurement/{pid}", 303)
     return _send_or_cancel(request, db, kind, pid, action, note,
                            _back(back, f"/procurement/{pid}") + "#approval")
 
 
-@router.post("/finance/approval")
-def finance_approval(request: Request, db: Session = Depends(get_db), kind: str = Form(""),
-                     ref_id: int = Form(0), action: str = Form("send"), note: str = Form(""),
-                     back: str = Form("")):
-    if kind not in ("disburse", "loan"):
-        return RedirectResponse("/finance", 303)
-    return _send_or_cancel(request, db, kind, ref_id, action, note,
-                           _back(back, ap.KINDS[kind]["link"](ref_id)))
+def _generic_send(path):
+    def handler(request: Request, db: Session = Depends(get_db), kind: str = Form(""),
+                ref_id: int = Form(0), action: str = Form("send"), note: str = Form(""),
+                back: str = Form("")):
+        if kind not in ap.SEND_PATHS[path]:
+            return RedirectResponse("/", 303)
+        return _send_or_cancel(request, db, kind, ref_id, action, note,
+                               _back(back, ap.KINDS[kind]["link"](ref_id)))
+    return handler
+
+
+# การเงิน (เบิกจ่าย/ยืมเงิน) ธุรการ (บันทึก/คำสั่ง/หนังสือ) โครงการ (อนุมัติโครงการ/รายงานผล)
+for _path in ap.SEND_PATHS:
+    router.add_api_route(_path, _generic_send(_path), methods=["POST"])
 
 
 # ---------------------------------------------------------------- ฝั่ง ผอ.
@@ -89,6 +95,12 @@ def _is_director(request) -> bool:
 def _docs_of(db, a) -> list:
     """เอกสารของขั้นนี้ที่เรื่องนี้ออกได้จริง"""
     spec = ap.KINDS[a.kind]
+    if a.kind == "proc_alt":
+        obj = spec["get"](db, a.ref_id)
+        if obj is None:
+            return []
+        from app.routers.pages import _alt_label
+        return [(d, _alt_label(obj, d)) for d in ap.alt_docs(obj)]
     if a.kind in ap.PROC_STAGES:
         from app.services.render import doc_label, kinds_for
         obj = spec["get"](db, a.ref_id)
@@ -137,15 +149,35 @@ def approval_file(aid: int, request: Request, db: Session = Depends(get_db), doc
         return RedirectResponse(f"/approvals/doc/{aid}", 303)
     obj = ap.KINDS[a.kind]["get"](db, a.ref_id)
     school = db.query(School).first()
-    if a.kind in ap.PROC_STAGES:
+    if a.kind == "proc_alt":
+        from app.services import staff
+        from app.services.proc_alt_doc import RENDERERS
+        from app.services.w119_doc import RENDERERS as W119
+        school = staff.school_for(obj, school)
+        path = (RENDERERS.get(doc) or W119[doc])(obj, school)
+        ap.stamp_current("proc_alt", obj.id, path, school.director_name or "", tick=("เห็นชอบ", "อนุมัติ"))
+    elif a.kind in ap.PROC_STAGES:
         from app.services.render import render_document
         path = render_document(doc, obj, school)
     elif a.kind == "disburse":
         from app.services.finance_doc import render_disburse
         path = render_disburse(obj, school)
-    else:
+    elif a.kind == "loan":
         from app.services.finance_forms_doc import render_loan_contract
         path = render_loan_contract(school, obj)
+    elif a.kind == "memo":
+        from app.services.office_doc import render_memo
+        path = render_memo(obj, school)
+    elif a.kind == "order":
+        from app.services.office_doc import render_order
+        path = render_order(obj, school)
+    elif a.kind == "letter":
+        from app.services.office_doc import render_official_letter
+        path = render_official_letter(obj, school)
+    else:                                   # project_report
+        from app.services.project_report_doc import render_project_report
+        path = render_project_report(obj, school)
+        ap.stamp_current("project_report", obj.id, path, school.director_name or "", tick=())
     return serve_generated(path, _DOCX, count=False)
 
 

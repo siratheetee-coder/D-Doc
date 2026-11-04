@@ -96,6 +96,48 @@ def _float_signature(paragraph, signer_name, height_cm=1.45, dy_cm=-0.55):
         return False
 
 
+def _same(a, b) -> bool:
+    return " ".join((a or "").split()) == " ".join((b or "").split()) and bool((a or "").strip())
+
+
+def _sign_by(paragraph, signer, school, ap):
+    """ลายเซ็นบนบรรทัดลงชื่อ: โรงเรียนที่เปิดส่ง ผอ. อนุมัติ ลายเซ็น ผอ. ขึ้นเฉพาะเมื่ออนุมัติแบบแปะลายเซ็นแล้ว
+    (services/approval.py) ผู้ลงนามอื่น หรือโรงเรียนที่ไม่ได้เปิด ใช้แบบเดิม (แปะรูปจากทะเบียนบุคลากร)"""
+    if ap["on"] and _same(signer, school.director_name):
+        if ap["sig"]:
+            try:
+                shape = paragraph.add_run().add_picture(ap["sig"], height=Cm(1.45))
+                _inline_to_anchor(shape._inline, -0.55 * 360000)
+            except Exception:
+                pass
+        return
+    _float_signature(paragraph, signer)
+
+
+def _director_endorse(doc, school, ap):
+    """บันทึกที่คนอื่นลงนามเสนอ ผอ.: อนุมัติในระบบแล้ว ต่อท้ายความเห็น ผอ. (☑ อนุมัติ + ลงนาม)"""
+    a = ap["a"]
+    _p(doc, f"ความเห็นของ{_director_office(school)}", after=2)
+    _p(doc, "☑  อนุมัติ" + (f"   {a.comment}" if (a.comment or "").strip() else ""), after=8)
+    tbl = _sign_table(doc, [[
+        ("ลงชื่อ.........................................", "center"),
+        (f"( {school.director_name or ''} )", "center"),
+        (_director_office(school), "center"),
+        (thai_date(a.decided_at) if a.decided_at else "", "center"),
+    ]])
+    if ap["sig"]:
+        try:
+            shape = tbl.rows[0].cells[0].paragraphs[0].add_run().add_picture(ap["sig"], height=Cm(1.45))
+            _inline_to_anchor(shape._inline, -0.55 * 360000)
+        except Exception:
+            pass
+
+
+def _ap(kind, rid):
+    from app.services.approval import lookup_current
+    return lookup_current(kind, rid)
+
+
 def _save_doc(doc, fname: str) -> str:
     """บันทึก .docx ลง data/documents; ถ้าเขียนไม่ได้ (path/permission บนเซิร์ฟเวอร์)
     ใช้โฟลเดอร์ชั่วคราวของระบบแทน แล้วคืน path (เสิร์ฟจากหน่วยความจำภายหลัง)"""
@@ -154,7 +196,10 @@ def render_memo(memo, school) -> str:
         (f"( {signer} )", "center"),
         (position, "center"),
     ]])
-    _float_signature(tbl.rows[0].cells[0].paragraphs[0], signer)
+    ap = _ap("memo", memo.id)
+    _sign_by(tbl.rows[0].cells[0].paragraphs[0], signer, school, ap)
+    if ap["a"] and not _same(signer, school.director_name):
+        _director_endorse(doc, school, ap)
 
     fname = _safe(f"บันทึกข้อความ_{memo.memo_no or memo.id}_{memo.subject}") + ".docx"
     return _save_doc(doc, fname)
@@ -175,7 +220,7 @@ def render_order(order, school) -> str:
     _p(doc, "", after=6)
     _p(doc, "สั่ง ณ วันที่ " + thai_date_official(order.date), align="center", after=12)
     sign_p = _p(doc, "(ลงชื่อ).........................................", align="center")
-    _float_signature(sign_p, school.director_name)
+    _sign_by(sign_p, school.director_name, school, _ap("order", order.id))
     _p(doc, f"( {school.director_name or ''} )", align="center")
     _p(doc, _director_office(school), align="center")
 
@@ -223,7 +268,7 @@ def render_official_letter(letter, school) -> str:
         (f"( {signer} )", "center"),
         (position, "center"),
     ]])
-    _float_signature(tbl.rows[0].cells[0].paragraphs[0], signer)
+    _sign_by(tbl.rows[0].cells[0].paragraphs[0], signer, school, _ap("letter", letter.id))
 
     # ส่วนราชการเจ้าของเรื่อง + เบอร์โทร -> ตรึงไว้ท้ายหน้า (footer)
     foot = doc.sections[0].footer

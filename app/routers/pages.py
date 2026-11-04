@@ -2433,9 +2433,13 @@ def _w119t2_checklist(proc):
 def _ap_proc_states(db, proc):
     """กล่องส่ง ผอ. อนุมัติ 3 ขั้น (เปิดใช้ที่ตั้งค่าโรงเรียน) None = ไม่แสดง"""
     from app.services import approval
-    if (proc.proc_case or "normal") != "normal" or not approval.enabled(db):
+    if not approval.enabled(db):
         return None
-    return approval.proc_states(db, proc)
+    states = approval.proc_states(db, proc)
+    for st in states:
+        if st["kind"] == "proc_alt":
+            st["docs"] = [_alt_label(proc, d) for d in st["docs"]]
+    return states or None
 
 
 @router.get("/procurement/{proc_id}", response_class=HTMLResponse)
@@ -2773,7 +2777,11 @@ def procurement_altdoc(proc_id: int, kind: str, db: Session = Depends(get_db)):
     renderer = RENDERERS.get(kind) or W119_RENDERERS.get(kind)
     if not proc or renderer is None:
         return RedirectResponse(f"/procurement/{proc_id}", status_code=303)
-    file_path = renderer(proc, staff.school_for(proc, get_school(db)))
+    school = staff.school_for(proc, get_school(db))
+    file_path = renderer(proc, school)
+    from app.services.approval import alt_docs, stamp_current
+    if kind in alt_docs(proc):          # ผอ. อนุมัติเรื่องแบบพิเศษแล้ว แปะลายเซ็น + ติ๊ก เห็นชอบ/อนุมัติ
+        stamp_current("proc_alt", proc.id, file_path, school.director_name or "", tick=("เห็นชอบ", "อนุมัติ"))
     db.add(Document(procurement_id=proc.id, doc_kind=_alt_label(proc, kind), file_path=file_path))
     db.commit()
     return serve_generated(file_path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
@@ -3398,8 +3406,10 @@ def project_detail(pid: int, request: Request, db: Session = Depends(get_db), er
                .order_by(ProjectReport.date_start.is_(None), ProjectReport.date_start,
                          ProjectReport.id).all())
     from app.services.finance_setup import project_detail_steps
+    from app.services.approval import box as ap_box
     return templates.TemplateResponse("project_detail.html", {
         "request": request, "school": get_school(db), "p": p, "reports": reports,
+        "ap_box": ap_box(db, "project", p.id, f"/projects/{p.id}#approval"),
         "setup": project_detail_steps(p, procs, disb, reports),
         "procs": procs, "disb": disb, "next_seq": next_seq, "err": err, "groups": groups,
         "can_finance": _can_finance(request),

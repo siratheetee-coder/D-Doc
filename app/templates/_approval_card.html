@@ -1,0 +1,9 @@
+{# กล่องส่ง ผอ. อนุมัติแบบการ์ด วางบนหน้าเรื่อง ต้องมีตัวแปร ap_box (approval.box) #}
+{% if ap_box %}{% from "_approval_box.html" import approval_box, approval_style %}
+<div class="card" id="approval" style="scroll-margin-top:90px;">
+  {% if request.query_params.get('msg') %}<div class="alert">✔ {{ request.query_params.get('msg') }}</div>{% endif %}
+  {% if request.query_params.get('err') %}<div class="alert warn">{{ request.query_params.get('err') }}</div>{% endif %}
+  {{ approval_box(ap_box.st, ap_box.action, ap_box.back, ap_box.extra) }}
+  {{ approval_style() }}
+</div>
+{% endif %}
