@@ -2619,13 +2619,18 @@ def _plan_year_list(db, cur):
 
 @router.get("/finance/projects", response_class=HTMLResponse)
 def finance_projects_page(request: Request, db: Session = Depends(get_db),
-                          year: int | None = None):
-    """ทะเบียนคุมโครงการ: งบที่ตั้งไว้ · ใช้ไปเท่าไร · เหลือเท่าไร · ใช้ไปกับอะไรบ้าง"""
+                          year: int | None = None, view: str = ""):
+    """ทะเบียนคุมโครงการ: งบที่ตั้งไว้ · ใช้ไปเท่าไร · เหลือเท่าไร · ใช้ไปกับอะไรบ้าง
+    view=month ตารางรายเดือน ทุกโครงการในตารางเดียว"""
     school = get_school(db)
     cur = year or current_plan_year(school)
     rows = _project_register_rows(db, cur)
+    monthly = None
+    if view == "month":
+        from app.services.project_monthly import build
+        monthly = build(db, cur, [r["p"] for r in rows])
     return templates.TemplateResponse("finance_projects.html", {
-        "request": request, "rows": rows, "fiscal_year": cur,
+        "request": request, "rows": rows, "fiscal_year": cur, "view": "month" if monthly else "", "monthly": monthly,
         "year_label": plan_year_label(school,cur), "years": _plan_year_list(db, cur),
         "total_budget": sum(r["budget"] for r in rows),
         "total_spent": sum(r["spent"] for r in rows),
@@ -2647,6 +2652,19 @@ def finance_projects_register_docx(db: Session = Depends(get_db),
             raise HTTPException(status_code=404, detail="ไม่พบโครงการนี้ในปีที่เลือก")
     path = render_project_register(school, cur, plan_year_label(school,cur), rows)
     return serve_generated(path, _DOCX)
+
+
+@router.get("/finance/projects/monthly.xlsx")
+def finance_projects_monthly_xlsx(db: Session = Depends(get_db), year: int | None = None):
+    """ทะเบียนคุมโครงการรายเดือนเป็น Excel"""
+    from app.routers.pages import _xlsx_download
+    from app.services.project_monthly import build, xlsx
+    school = get_school(db)
+    cur = year or current_plan_year(school)
+    rows = _project_register_rows(db, cur)
+    label = plan_year_label(school, cur)
+    wb = xlsx(school.name or "", label, cur, build(db, cur, [r["p"] for r in rows]))
+    return _xlsx_download(wb, f"ทะเบียนคุมโครงการรายเดือน {label} {cur}.xlsx")
 
 
 # ---------------- ช่วยกรอก e-Budget (ระบบบัญชีการศึกษาขั้นพื้นฐาน สนผ. สพฐ.) ----------------

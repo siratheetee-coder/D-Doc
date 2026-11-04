@@ -31,6 +31,59 @@
   .over { color:#b91c1c; font-weight:700; }
 </style>
 
+{# สลับมุมมอง: รายโครงการ (เดิม) / รายเดือน (ทุกโครงการในตารางเดียว แบบที่ครูการเงินใช้รายงาน) #}
+<div class="pv-tabs" role="tablist">
+  <a role="tab" class="pv-tab{{ ' on' if not view }}" href="/finance/projects?year={{ fiscal_year }}" aria-selected="{{ 'false' if view else 'true' }}">รายโครงการ</a>
+  <a role="tab" class="pv-tab{{ ' on' if view == 'month' }}" href="/finance/projects?year={{ fiscal_year }}&view=month" aria-selected="{{ 'true' if view == 'month' else 'false' }}">รายเดือน</a>
+</div>
+<style>
+  .pv-tabs{ display:inline-flex; gap:4px; padding:4px; margin:0 0 14px; border-radius:14px; background:#ede9fe; }
+  .pv-tab{ padding:8px 18px; border-radius:11px; font-weight:600; color:#5b21b6; text-decoration:none; }
+  .pv-tab.on{ background:linear-gradient(135deg,#7c3aed,#6d28d9); color:#fff; }
+  .pm-wrap{ overflow:auto; max-height:72vh; border-radius:14px; }
+  .pm{ border-collapse:separate; border-spacing:0; width:max-content; min-width:100%; font-size:13.5px; }
+  .pm th,.pm td{ padding:7px 10px; border:0; white-space:nowrap; text-align:right; }
+  .pm thead th{ position:sticky; top:0; background:#ede9fe; color:#4c1d95; z-index:2; text-align:center; }
+  .pm .nm{ position:sticky; left:0; background:#fff; text-align:left; white-space:normal; min-width:240px; max-width:320px; z-index:1; }
+  .pm thead .nm{ z-index:3; background:#ede9fe; }
+  .pm tr.grp td{ background:#f5f3ff; font-weight:700; color:#4c1d95; text-align:left; }
+  .pm tr.sub td,.pm tr.sub .nm{ background:#faf5ff; font-weight:700; }
+  .pm tr.all td,.pm tr.all .nm{ background:#ede9fe; font-weight:700; }
+  .pm td.h{ background:#fefce8; } .pm td.z{ color:#cbd5e1; }
+  .pm td.neg{ color:#b91c1c; font-weight:700; }
+</style>
+{% macro mrow(name, d, cls='') %}<tr class="{{ cls }}"><td class="nm">{{ name }}</td>
+  <td>{{ "{:,.2f}".format(d.budget) }}</td><td>{{ "{:,.2f}".format(d.before) if d.before else '-' }}</td>
+  {% for v in d.months %}<td class="{{ 'z' if not v }}">{{ "{:,.2f}".format(v) if v else '-' }}</td>{% endfor %}
+  {% if monthly.has_other %}<td>{{ "{:,.2f}".format(d.other) if d.other else '-' }}</td>{% endif %}
+  <td class="h">{{ "{:,.2f}".format(d.h1) }}</td><td class="h">{{ "{:,.2f}".format(d.h2) }}</td>
+  <td>{{ "{:,.2f}".format(d.waiting) if d.waiting else '-' }}</td><td>{{ "{:,.2f}".format(d.used) }}</td>
+  <td class="{{ 'neg' if d.left < 0 }}">{{ "{:,.2f}".format(d.left) }}</td></tr>{% endmacro %}
+{% if monthly %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <p class="muted" style="margin:0;">จ่ายจริงแยกตามเดือน ตามช่วงเวลาของแผน {{ thai_date(monthly.start) }} ถึง {{ thai_date(monthly.end) }}
+      รวมแล้วเท่ากับ ใช้/กันงบ ของแต่ละโครงการ</p>
+    <a class="btn sm" href="/finance/projects/monthly.xlsx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> ส่งออก Excel</a>
+  </div>
+  {% if rows %}
+  <div class="pm-wrap" style="margin-top:12px;"><table class="pm">
+    <thead><tr><th class="nm">ฝ่าย / โครงการ</th><th>งบตามแผน</th><th>ก่อนเริ่มระบบ</th>
+      {% for y, m, lb in monthly.months %}<th>{{ lb }}</th>{% endfor %}
+      {% if monthly.has_other %}<th title="จ่ายนอกช่วงเวลาของแผน">นอกช่วงแผน</th>{% endif %}
+      <th>{{ monthly.half }} เดือนแรก</th><th>{{ monthly.months|length - monthly.half }} เดือนหลัง</th><th>รอจ่าย</th><th>ใช้/กันงบ</th><th>คงเหลือ</th></tr></thead>
+    <tbody>
+    {% for g in monthly.groups %}
+      <tr class="grp"><td class="nm" colspan="1">{{ g.name }}</td><td colspan="{{ monthly.months|length + (8 if monthly.has_other else 7) }}"></td></tr>
+      {% for r in g.rows %}{{ mrow(r.p.name, r) }}{% endfor %}
+      {{ mrow('รวม ' ~ g.name, g.total, 'sub') }}
+    {% endfor %}
+    {{ mrow('รวมทั้งสิ้น', monthly.total, 'all') }}
+    </tbody>
+  </table></div>
+  {% else %}<p class="muted">ยังไม่มีโครงการใน{{ year_label }} {{ fiscal_year }}</p>{% endif %}
+</div>
+{% else %}
 <div class="card">
   <div class="stat">
     <div class="box"><div><div class="lab">งบตามแผนรวม</div><div class="num">{{ "{:,.2f}".format(total_budget) }}</div></div>
@@ -104,6 +157,7 @@
   {% endif %}
 </div>
 
+{% endif %}
 <script>
   /* กดดูรายการใช้เงินของโครงการนั้น จำไว้ว่ากางอันไหนค้างไว้ */
   (function () {

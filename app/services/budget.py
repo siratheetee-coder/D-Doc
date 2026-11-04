@@ -123,6 +123,7 @@ def project_money_summary(project):
     before = float(getattr(project, 'spent_before', 0) or 0)
     sources, paid_by = {}, {}
     paid = 0.0
+    by_month = {}                     # {(ปี ค.ศ., เดือน): จ่ายจริง} ใช้ทำทะเบียนคุมโครงการรายเดือน
     if db is not None:
         procs = project_procurements(project)
         proc_ids = {p.id for p in procs}
@@ -148,6 +149,9 @@ def project_money_summary(project):
                 continue
             value = float(t.amount or 0)
             paid += value
+            if t.date:
+                k = (t.date.year, t.date.month)
+                by_month[k] = by_month.get(k, 0.0) + value
             key = ('proc', proc_id) if proc_id in proc_ids else ('memo', m.id) if m else None
             if key in sources:
                 paid_by[key] = paid_by.get(key, 0) + value
@@ -160,7 +164,14 @@ def project_money_summary(project):
         parts = loan_parts(ln)
         paid += parts["receipts"]
         waiting += parts["open"]
+        for r in (getattr(ln, "returns", None) or []):
+            if (r.kind or "") == "ใบสำคัญ":
+                d = getattr(r, "date", None) or ln.date
+                if d:
+                    k = (d.year, d.month)
+                    by_month[k] = by_month.get(k, 0.0) + float(r.amount or 0)
     used = round(before + paid + waiting + paid_pre, 2)
     return dict(paid=round(paid,2), waiting=round(waiting,2), before=round(before + paid_pre, 2),
                 paid_pre=round(paid_pre, 2), spent_before=round(before, 2),
-                used=used, remaining=round(project_budget(project)-used,2))
+                used=used, remaining=round(project_budget(project)-used,2),
+                by_month={k: round(v, 2) for k, v in by_month.items()})
