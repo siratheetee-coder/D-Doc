@@ -96,6 +96,7 @@ MIGRATIONS = [
     ("procurement", "purchase_cmd_no", "VARCHAR DEFAULT ''"),
     ("procurement", "purchase_cmd_date", "DATETIME"),
     ("school", "director_email", "VARCHAR DEFAULT ''"),
+    ("school", "approval_on", "BOOLEAN DEFAULT 0"),
     ("project_report", "memo_body", "TEXT DEFAULT ''"),
     ("project_report", "preface", "TEXT DEFAULT ''"),
     ("project_report", "summary_note", "TEXT DEFAULT ''"),

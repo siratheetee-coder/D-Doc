@@ -125,9 +125,17 @@ def _disburse_project_name(memo):
 
 
 def render_disburse(memo, school) -> str:
-    """สร้างไฟล์ .docx บันทึกข้อความขออนุมัติเบิกจ่ายเงินนอกงบประมาณ คืนค่าที่อยู่ไฟล์"""
+    """สร้างไฟล์ .docx บันทึกข้อความขออนุมัติเบิกจ่ายเงินนอกงบประมาณ คืนค่าที่อยู่ไฟล์
+    ผอ. อนุมัติในระบบแล้ว ติ๊ก ☑ อนุมัติ + แปะลายเซ็น (services/approval.py)"""
     from app.services.staff import school_for
     school = school_for(memo, school)
+    path = _render_disburse(memo, school)
+    from app.services.approval import stamp_current
+    stamp_current("disburse", memo.id, path, school.director_name or "")
+    return path
+
+
+def _render_disburse(memo, school) -> str:
     doc = Document(); set_a4(doc)
     _font(doc)
     _krut_and_title(doc)   # ครุฑ + "บันทึกข้อความ"

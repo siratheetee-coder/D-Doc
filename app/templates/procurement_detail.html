@@ -365,6 +365,20 @@
   .ns-btn.dim .ns-sub { color: #94a3b8; }
 </style>
 
+{% if ap_states %}
+{% from "_approval_box.html" import approval_box, approval_style %}
+<div class="card" id="approval" style="scroll-margin-top:90px;">
+  <h2><svg class="icon"><use href="#ic-send"/></svg> ส่ง ผอ. อนุมัติ</h2>
+  {% if request.query_params.get('msg') %}<div class="alert">✔ {{ request.query_params.get('msg') }}</div>{% endif %}
+  {% if request.query_params.get('err') %}<div class="alert warn">{{ request.query_params.get('err') }}</div>{% endif %}
+  <p class="muted" style="margin-top:0;">ส่งทีละขั้นเมื่อเอกสารขั้นนั้นพร้อม ผอ. อนุมัติแล้วเอกสารของขั้นนั้นขึ้นลายเซ็น ผอ. ให้ แก้ยอดเงิน ผู้ขาย หรือรายการหลังอนุมัติ ต้องส่งใหม่</p>
+  <div style="display:grid; gap:8px;">
+    {% for st in ap_states %}{{ approval_box(st, '/procurement/' ~ p.id ~ '/approval', '/procurement/' ~ p.id) }}{% endfor %}
+  </div>
+  {{ approval_style() }}
+</div>
+{% endif %}
+
 {% if not case_info.altkind %}
 <div class="card" id="issue" style="scroll-margin-top:90px;">
   <h2>ออกเอกสาร</h2>

@@ -1025,6 +1025,12 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
                             status_code=303)
 
 
+def _ap_state(db, kind, ref_id, obj=None):
+    """กล่องส่ง ผอ. อนุมัติ (services/approval.py) None = โรงเรียนยังไม่เปิดใช้"""
+    from app.services import approval
+    return approval.state(db, kind, ref_id, obj) if approval.enabled(db) else None
+
+
 @router.get("/finance/disburse/{mid}", response_class=HTMLResponse)
 def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
     m = db.get(DisburseMemo, mid)
@@ -1047,6 +1053,7 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
         "date_fy": (m.date.year + 543 + (1 if m.date.month >= 10 else 0)) if m.date else None,
         "posted_txn": db.query(FinanceTxn).filter_by(disburse_id=m.id).first(),
         "eb_expense": EB_EXPENSE,
+        "ap_state": _ap_state(db, "disburse", m.id, m),
     })
 
 
@@ -1912,7 +1919,8 @@ def loans_page(request: Request, db: Session = Depends(get_db), year: int | None
     for ln in loans:
         paid = sum(float(r.amount or 0) for r in (ln.returns or []))
         rows.append({"o": ln, "paid": paid, "left": float(ln.amount or 0) - paid,
-                     "project": projects.get(ln.project_id), "activity": acts.get(ln.activity_id)})
+                     "project": projects.get(ln.project_id), "activity": acts.get(ln.activity_id),
+                     "ap": _ap_state(db, "loan", ln.id, ln)})
     pre_pj = _to_int(request.query_params.get("project"), 0)
     pre_pj = pre_pj if pre_pj in projects else 0
     return templates.TemplateResponse("finance_loans.html", {

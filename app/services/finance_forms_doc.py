@@ -84,7 +84,10 @@ def render_loan_contract(school, loan) -> str:
     from app.services.staff import school_for
     school = school_for(loan, school)
     from app.services.lunch_ingredient_doc import render_loan_contract as render
-    return render(None, school, finance_loan=loan)
+    path = render(None, school, finance_loan=loan)
+    from app.services.approval import stamp_current
+    stamp_current("loan", loan.id, path, school.director_name or "")
+    return path
 
 
 def render_loan_returns(school, loan) -> str:

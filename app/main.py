@@ -77,6 +77,7 @@ _DIRECTOR_WRITE_ALLOW = [
     re.compile(r"^/hr/leave-requests/\d+/approve$"),        # อนุมัติใบลา
     re.compile(r"^/hr/travel-requests/\d+/approve$"),       # อนุมัติไปราชการ
     re.compile(r"^/admin/incoming/\d+/endorse$"),            # สั่งการหนังสือรับ + เวียน
+    re.compile(r"^/approvals/doc/\d+/decide$"),              # อนุมัติเรื่องพัสดุ/การเงิน (services/approval.py)
     re.compile(r"^/admin/incoming/\d+/remind$"),             # เตือนผู้ที่ยังไม่รับทราบ
     re.compile(r"^/admin/incoming/\d+/tasks/\d+/review$"),   # ตรวจผลการดำเนินงาน
     re.compile(r"^/me/letters/\d+/report$"),                 # รายงานงานที่มอบหมายถึงตัวเอง
@@ -455,6 +456,8 @@ from app.routers import ai_help
 app.include_router(ai_help.router)
 from app.routers import plan_budget
 app.include_router(plan_budget.router)
+from app.routers import approval_flow
+app.include_router(approval_flow.router)
 app.include_router(pages.router)
 app.include_router(project_report.router)
 app.include_router(admin.router)

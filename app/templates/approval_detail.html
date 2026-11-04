@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{{ spec.label }}{% endblock %}
+{% block content %}
+<div class="hero" style="background:linear-gradient(135deg,#7c3aed,#2563eb); color:#fff;">
+  <div>
+    <div class="hero-sub" style="color:#e9d5ff;">{{ spec.group }} / {{ spec.step }}</div>
+    <span class="hero-title">{{ spec.label }}</span>
+    <div class="hero-meta" style="color:#e0e7ff;">{{ a.title }}</div>
+  </div>
+</div>
+<p><a class="btn gray" href="/approvals"><svg class="icon"><use href="#ic-arrow-left"/></svg> กล่องรออนุมัติ</a>
+   {% if obj %}<a class="btn gray" href="{{ link }}">เปิดหน้าเรื่องนี้</a>{% endif %}</p>
+{% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
+{% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
+
+{% if not obj %}
+<div class="card"><p class="muted" style="margin:0;">เรื่องนี้ถูกลบไปแล้ว</p></div>
+{% else %}
+<div class="card ap-sum">
+  <div class="ap-grid">
+    <div><span class="muted">เรื่อง</span><b>{{ a.title or '-' }}</b></div>
+    <div><span class="muted">จำนวนเงิน</span><b>{{ "{:,.2f}".format(a.amount or 0) }} บาท</b></div>
+    <div><span class="muted">ส่งโดย</span><b>{{ a.sent_by or '-' }}</b> <small class="muted">{{ thai_date(a.sent_at) if a.sent_at }}</small></div>
+    <div><span class="muted">สถานะ</span><b>{% if a.status == 'pending' %}รอ ผอ. พิจารณา{% elif a.status == 'approved' %}อนุมัติแล้ว{% if a.with_sign %} แปะลายเซ็น{% else %} ไม่แปะลายเซ็น{% endif %}{% elif a.status == 'returned' %}ส่งกลับให้แก้{% else %}ยกเลิกแล้ว{% endif %}</b></div>
+  </div>
+  {% if a.sent_note %}<p class="ap-note"><b>ผู้ส่งแจ้งว่า</b> {{ a.sent_note }}</p>{% endif %}
+  {% if changed %}<div class="alert warn" style="margin-top:10px;">ผู้ส่งแก้เรื่องนี้หลังกดส่ง เปิดเอกสารดูฉบับล่าสุดก่อนอนุมัติ</div>{% endif %}
+  {% if st and st.code == 'stale' and a.id == st.a.id %}<div class="alert warn" style="margin-top:10px;">เรื่องนี้ถูกแก้หลังอนุมัติ ลายเซ็นหลุดแล้ว รอผู้ส่งส่งใหม่</div>{% endif %}
+</div>
+
+<div class="card">
+  <h2>เอกสารที่ ผอ. ลงนาม</h2>
+  {% if docs %}
+  <div class="ap-docs">
+    {% for d, label in docs %}
+    <a class="btn sm gray" href="/approvals/doc/{{ a.id }}/file?doc={{ d|urlencode }}"><svg class="icon"><use href="#ic-download"/></svg> {{ label }}</a>
+    {% endfor %}
+  </div>
+  <p class="muted" style="margin:10px 0 0;">เปิดไฟล์ Word ฉบับล่าสุด อนุมัติแล้วเปิดใหม่จะเห็นลายเซ็น</p>
+  {% else %}<p class="muted" style="margin:0;">เรื่องนี้ยังไม่มีเอกสารของขั้นนี้</p>{% endif %}
+</div>
+
+{% if a.status == 'pending' and is_director %}
+<div class="card" id="decide">
+  <h2>ผลการพิจารณา</h2>
+  <form method="post" action="/approvals/doc/{{ a.id }}/decide" class="ap-form">
+    <textarea name="comment" rows="2" maxlength="500" placeholder="ความเห็น (ต้องเขียนถ้าส่งกลับแก้)"></textarea>
+    <div class="ap-btns">
+      <button class="btn" type="submit" name="action" value="sign" {% if not sig_ok %}disabled title="ยังไม่มีรูปลายเซ็นของ ผอ."{% endif %}>อนุมัติและแปะลายเซ็น</button>
+      <button class="btn gray" type="submit" name="action" value="approve">อนุมัติ ไม่แปะลายเซ็น</button>
+      <button class="btn red" type="submit" name="action" value="return" onclick="var c=this.form.comment; if(!c.value.trim()){alert('เขียนเหตุผลที่ส่งกลับก่อน'); c.focus(); return false;}">ส่งกลับแก้</button>
+    </div>
+    {% if not sig_ok %}<p class="muted" style="margin:8px 0 0;">ยังไม่มีรูปลายเซ็นของ ผอ. ในทะเบียนบุคลากร อนุมัติแบบไม่แปะลายเซ็นได้ แล้วเซ็นมือบนเอกสาร</p>
+    {% else %}<p class="muted" style="margin:8px 0 0;">ไม่แปะลายเซ็น = อนุมัติในระบบ แต่ ผอ. เซ็นมือบนเอกสารที่พิมพ์เอง</p>{% endif %}
+  </form>
+</div>
+{% endif %}
+
+{% if history|length > 1 or a.status != 'pending' %}
+<div class="card">
+  <h2>ประวัติ</h2>
+  <ul class="ap-hist">
+    {% for h in history %}
+    <li><b>{{ thai_date(h.sent_at) if h.sent_at }}</b> {{ h.sent_by or '-' }} ส่ง ผอ.
+      {% if h.status == 'approved' %}<br><span class="ok">{{ h.decided_name }} อนุมัติ{% if h.with_sign %} แปะลายเซ็น{% else %} ไม่แปะลายเซ็น{% endif %} {{ thai_date(h.decided_at) if h.decided_at }}</span>
+      {% elif h.status == 'returned' %}<br><span class="bad">{{ h.decided_name }} ส่งกลับแก้ {{ thai_date(h.decided_at) if h.decided_at }}</span>
+      {% elif h.status == 'cancelled' %}<br><span class="muted">ผู้ส่งยกเลิก</span>
+      {% else %}<br><span class="muted">รอ ผอ. พิจารณา</span>{% endif %}
+      {% if h.comment %}<br><span class="muted">ความเห็น: {{ h.comment }}</span>{% endif %}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endif %}
+<style>
+  .ap-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+  .ap-grid > div{ display:flex; flex-direction:column; gap:2px; padding:10px 12px; border-radius:12px; background:linear-gradient(120deg,#f8fafc,#eef2ff); }
+  .ap-note{ margin:12px 0 0; padding:10px 12px; border-radius:12px; background:#fefce8; }
+  .ap-docs{ display:flex; flex-wrap:wrap; gap:8px; }
+  .ap-form textarea{ width:100%; margin-bottom:10px; }
+  .ap-btns{ display:flex; flex-wrap:wrap; gap:8px; }
+  .ap-btns .btn[disabled]{ opacity:.5; cursor:not-allowed; }
+  .ap-hist{ margin:0; padding-left:18px; display:grid; gap:10px; }
+  .ap-hist .ok{ color:#047857; } .ap-hist .bad{ color:#b91c1c; }
+</style>
+{% endblock %}

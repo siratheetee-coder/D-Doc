@@ -96,6 +96,11 @@ def _director_alerts(db):
     if n:
         out.append(_alert("warn", f"หนังสือรอ ผอ. สั่งการ {n} ฉบับ", "สั่งการแล้วระบบเวียนถึงครูให้",
                           "/approvals#letters", "อนุมัติ"))
+    from app.services.approval import pending_count
+    n = pending_count(db)
+    if n:
+        out.append(_alert("warn", f"เรื่องพัสดุและการเงินรอ ผอ. อนุมัติ {n} เรื่อง", "เปิดดูเอกสารแล้วอนุมัติหรือส่งกลับแก้",
+                          "/approvals#docs", "อนุมัติ"))
     from app.models import LetterTask, LetterRecipient
     n = (db.query(LetterTask).join(LetterRecipient).join(IncomingLetter)
          .filter(IncomingLetter.route_status == "sent", LetterTask.status == "submitted").count())

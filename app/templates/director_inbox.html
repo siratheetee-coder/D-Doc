@@ -12,6 +12,31 @@
 {% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
 {% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
 
+{# ---------------- พัสดุและการเงิน (services/approval.py) ---------------- #}
+{% if ap_docs or school.approval_on %}
+<div class="card" id="docs">
+  <h2><svg class="icon"><use href="#ic-clipboard"/></svg> พัสดุและการเงิน รออนุมัติ ({{ ap_docs|length }})</h2>
+  {% if ap_docs %}
+  <div class="table-wrap">
+  <table class="stack-sm">
+    <thead><tr><th>งาน</th><th>เรื่อง</th><th class="right">จำนวนเงิน</th><th>ส่งโดย</th><th></th></tr></thead>
+    <tbody>
+      {% for a in ap_docs %}{% set k = ap_kinds[a.kind] %}
+      <tr>
+        <td data-label="งาน">{{ k.group }} <small class="muted">{{ k.label }}</small></td>
+        <td data-label="เรื่อง">{{ a.title or '-' }}</td>
+        <td data-label="จำนวนเงิน" class="right">{{ "{:,.2f}".format(a.amount or 0) }}</td>
+        <td data-label="ส่งโดย">{{ a.sent_by or '-' }} <small class="muted">{{ thai_date(a.sent_at) if a.sent_at }}</small></td>
+        <td class="right"><a class="btn sm" href="/approvals/doc/{{ a.id }}">ดูและอนุมัติ</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted" style="margin:0;">ไม่มีเรื่องพัสดุหรือการเงินรออนุมัติ</p>{% endif %}
+</div>
+{% endif %}
+
 {# ---------------- แผนการสอน (ผ่านวิชาการแล้ว) ---------------- #}
 <div class="card">
   <h2><svg class="icon"><use href="#ic-clipboard"/></svg> แผนการสอน รอลงนาม ({{ plans|length }})</h2>

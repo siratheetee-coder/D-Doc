@@ -360,9 +360,19 @@ def render_proc_wht(proc, school) -> str:
 
 
 def render_document(kind: str, proc, school) -> str:
-    """สร้างไฟล์เอกสารชนิด kind จากแม่แบบ คืนค่าที่อยู่ไฟล์"""
+    """สร้างไฟล์เอกสารชนิด kind จากแม่แบบ คืนค่าที่อยู่ไฟล์
+    ขั้นที่ ผอ. อนุมัติในระบบแล้ว (services/approval.py) แปะลายเซ็น ผอ. ให้"""
     from app.services.staff import school_for
     school = school_for(proc, school)
+    path = _render_document(kind, proc, school)
+    from app.services.approval import DOC_STAGE, stamp_current
+    if kind in DOC_STAGE:
+        stamp_current(DOC_STAGE[kind], proc.id, path, school.director_name or "",
+                      tick="ทราบ" if kind == "ใบตรวจรับพัสดุ" else "อนุมัติ")
+    return path
+
+
+def _render_document(kind: str, proc, school) -> str:
     if kind == WHT_KIND:
         return render_proc_wht(proc, school)
     # TOR ของเรื่องที่มาจากหนังสือเรียน ใช้ฉบับเฉพาะ (8 หัวข้อ + รายการหนังสือแนบท้าย)

@@ -2,6 +2,9 @@
 {% extends "base.html" %}
 {% block title %}เงินยืม{% endblock %}
 {% block content %}
+{% if rows and rows[0].ap %}{% from "_approval_box.html" import approval_style %}{{ approval_style() }}
+{% if request.query_params.get('msg') %}<div class="alert">✔ {{ request.query_params.get('msg') }}</div>{% endif %}
+{% if request.query_params.get('err') %}<div class="alert warn">{{ request.query_params.get('err') }}</div>{% endif %}{% endif %}
 {% if request.query_params.get('attention') in ['overdue','soon','undated'] %}<div class="alert">แสดงเงินยืมคงค้างทุกปี: {{ {'overdue':'เกินกำหนด','soon':'ครบกำหนดวันนี้-7 วันข้างหน้า','undated':'ยังไม่ระบุวันครบกำหนด'}[request.query_params.get('attention')] }} <a href="/finance/loans">ล้างตัวกรอง</a></div>{% endif %}
 <div class="hero">
   <div>
@@ -86,6 +89,7 @@
           <a class="btn sm green" href="/finance/loans/{{ r.o.id }}/money">จ่ายเงินยืม / รับคืนเงินสด</a>
           <a class="btn sm" href="/finance/loans/{{ r.o.id }}/contract.docx"><svg class="icon"><use href="#ic-download"/></svg> สัญญา 8500</a>
           {% if r.o.returns %}<a class="btn sm green" href="/finance/loans/{{ r.o.id }}/returns.docx">เอกสารส่งใช้ (Word)</a>{% endif %}
+          {% if r.ap %}{% from "_approval_box.html" import approval_box %}{{ approval_box(r.ap, '/finance/approval', '/finance/loans?year=' ~ fiscal_year ~ '#loan-' ~ r.o.id, {'ref_id': r.o.id}, True) }}{% endif %}
           <button class="btn sm gray" type="button" onclick="document.getElementById('ret{{ r.o.id }}').hidden = !document.getElementById('ret{{ r.o.id }}').hidden">ส่งใช้</button>
           <form method="post" action="/finance/loans/{{ r.o.id }}/delete" style="display:inline" onsubmit="return confirm('ลบสัญญายืมนี้และประวัติการส่งใช้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
         </td>

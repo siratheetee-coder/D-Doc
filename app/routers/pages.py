@@ -149,8 +149,10 @@ def director_pending_counts(db: Session) -> dict:
     leaves = db.query(LeaveRequest).filter(LeaveRequest.status == "personnel").count()
     travels = db.query(TravelRequest).filter(TravelRequest.status == "personnel").count()
     letters = db.query(IncomingLetter).filter(IncomingLetter.route_status == "director").count()
-    return {"plans": plans, "leaves": leaves, "travels": travels, "letters": letters,
-            "total": plans + leaves + travels + letters}
+    from app.services.approval import pending_count
+    docs = pending_count(db)
+    return {"plans": plans, "leaves": leaves, "travels": travels, "letters": letters, "docs": docs,
+            "total": plans + leaves + travels + letters + docs}
 
 
 @router.get("/approvals", response_class=HTMLResponse)
@@ -167,8 +169,9 @@ def director_inbox(request: Request, db: Session = Depends(get_db), msg: str = "
                .order_by(TravelRequest.personnel_at.desc()).all())
     letters = (db.query(IncomingLetter).filter(IncomingLetter.route_status == "director")
                .order_by(IncomingLetter.id).all())
+    from app.services.approval import KINDS as ap_kinds, pending as ap_pending
     return templates.TemplateResponse("director_inbox.html", {
-        "request": request, "school": get_school(db),
+        "request": request, "school": get_school(db), "ap_docs": ap_pending(db), "ap_kinds": ap_kinds,
         "plans": plans, "leaves": leaves, "travels": travels, "letters": letters,
         "counts": director_pending_counts(db), "msg": msg, "err": err,
     })
@@ -482,6 +485,7 @@ def settings_save(
     delegation_cmd_no: str = Form(""), delegation_cmd_date: str = Form(""),
     project_year_mode: str = Form("budget"),
     attendance_by_subject: str = Form(""),
+    approval_on: str = Form(""),
 ):
     s = get_school(db)
     s.name, s.address, s.district, s.province = name, address, district, province
@@ -498,6 +502,7 @@ def settings_save(
     s.director_email = director_email.strip()
     s.project_year_mode = "academic" if project_year_mode == "academic" else "budget"
     s.attendance_by_subject = bool(attendance_by_subject)
+    s.approval_on = bool(approval_on)
     s.doc_prefix, s.doc_set_threshold = doc_prefix, _to_float(doc_set_threshold, 5000.0)
     s.delegation_cmd_no = (delegation_cmd_no or "").strip()
     s.delegation_cmd_date = parse_be_date(delegation_cmd_date) if delegation_cmd_date.strip() else None
@@ -2425,6 +2430,14 @@ def _w119t2_checklist(proc):
     return checklist(proc)
 
 
+def _ap_proc_states(db, proc):
+    """กล่องส่ง ผอ. อนุมัติ 3 ขั้น (เปิดใช้ที่ตั้งค่าโรงเรียน) None = ไม่แสดง"""
+    from app.services import approval
+    if (proc.proc_case or "normal") != "normal" or not approval.enabled(db):
+        return None
+    return approval.proc_states(db, proc)
+
+
 @router.get("/procurement/{proc_id}", response_class=HTMLResponse)
 def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get_db)):
     proc = db.get(Procurement, proc_id)
@@ -2478,6 +2491,7 @@ def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get
         # โครงการที่ผูกด้วย project_id (เรื่องใหม่ไม่ได้เก็บชื่อโครงการเป็นข้อความ เดิมช่องนี้จึงขึ้นเป็นขีด)
         "proj": db.get(Project, proc.project_id) if proc.project_id else None,
         "track": _proc_track(db, proc),
+        "ap_states": _ap_proc_states(db, proc),
     })
 
 

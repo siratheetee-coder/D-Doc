@@ -48,6 +48,7 @@ class School(Base):
     academic_head_email = Column(String, default="")   # อีเมลหัวหน้าฝ่ายวิชาการ (รับแจ้งส่งแผนการสอน)
     hr_head_email = Column(String, default="")          # อีเมลหัวหน้าฝ่ายบุคคล (รับแจ้งใบลา)
     director_email = Column(String, default="")         # อีเมล ผอ./รองผอ. (รับแจ้งเรื่องที่รอลงนาม)
+    approval_on = Column(Boolean, default=False)        # ส่งเรื่องพัสดุ/การเงินให้ ผอ. อนุมัติในระบบ (services/approval.py)
 
     # ปีของโครงการ/แผน: "budget" = ปีงบประมาณ (ต.ค.) / "academic" = ปีการศึกษา (พ.ค.)
     project_year_mode = Column(String, default="budget")
@@ -2400,6 +2401,29 @@ class LessonUnit(Base):
     result_at = Column(DateTime, nullable=True)   # บันทึกผลครั้งล่าสุด (ไว้ตรวจย้อน)
 
     plan = relationship("LessonPlan", back_populates="units_rows")
+
+
+class Approval(Base):
+    """ส่งเรื่องให้ ผอ. อนุมัติ (services/approval.py) แถวใหม่ทุกการส่ง แถวล่าสุดของเรื่อง = สถานะปัจจุบัน"""
+    __tablename__ = "approval"
+
+    id = Column(Integer, primary_key=True)
+    kind = Column(String, nullable=False, index=True)   # proc_request / proc_order / proc_pay / disburse / loan
+    ref_id = Column(Integer, nullable=False, index=True)
+    status = Column(String, default="pending")          # pending / approved / returned / cancelled
+    with_sign = Column(Boolean, default=False)          # อนุมัติและแปะลายเซ็น (False = อนุมัติ ผอ. เซ็นมือเอง)
+    title = Column(String, default="")
+    amount = Column(Float, default=0.0)
+    fingerprint = Column(String, default="")            # ลายนิ้วมือของเรื่องตอนส่ง/อนุมัติ แก้ทีหลัง = ลายเซ็นหลุด
+    sent_by = Column(String, default="")
+    sent_pid = Column(Integer, nullable=True)           # person_id ผู้ส่ง (แจ้งผลกลับทางกระดิ่ง)
+    sent_at = Column(DateTime, default=datetime.now)
+    sent_note = Column(String, default="")
+    decided_by = Column(Integer, nullable=True)         # person_id ของ ผอ. ที่กด
+    decided_name = Column(String, default="")
+    decided_at = Column(DateTime, nullable=True)
+    comment = Column(String, default="")
+    sig_file = Column(String, default="")               # สำเนาลายเซ็น ณ ตอนอนุมัติ (data/signatures)
 
 
 class Notification(Base):
