@@ -2676,8 +2676,7 @@ def ebudget_page(request: Request, db: Session = Depends(get_db),
     ไม่ได้ส่งข้อมูลไปที่ e-Budget · ครูยังต้องเปิดเว็บแล้ววางเอง (เหมือนหน้าช่วยกรอก e-GP)
     """
     from app.services.ebudget import ORDER, SOURCES, build, period, slot_choices, checklist, section3_rows
-    fy = year or current_fiscal_year()
-    rnd = 2 if round == 2 else (1 if round == 1 else _default_round(fy))
+    fy, rnd = _eb_period(year, round)
     data = build(db, fy, rnd)
     choices = slot_choices()
     names = dict(choices)
@@ -2753,8 +2752,7 @@ async def ebudget_adjust_save(request: Request, db: Session = Depends(get_db)):
 def ebudget_print(request: Request, db: Session = Depends(get_db), year: int | None = None, round: int = 0):
     """รายงาน e-Budget ครบ 5 ส่วน สำหรับพิมพ์เก็บเป็นหลักฐาน / ให้ ผอ. ตรวจก่อนกรอกในเว็บ"""
     from app.services.ebudget import ORDER, SOURCES, build, section3_rows
-    fy = year or current_fiscal_year()
-    rnd = 2 if round == 2 else (1 if round == 1 else _default_round(fy))
+    fy, rnd = _eb_period(year, round)
     data = build(db, fy, rnd)
     return templates.TemplateResponse("finance_ebudget_print.html", {
         "request": request, "d": data, "order": ORDER, "sources": SOURCES,
@@ -2783,11 +2781,21 @@ def ebudget_slot_save(db: Session = Depends(get_db), kind: str = Form(""), id: s
     return RedirectResponse(f"/finance/ebudget?year={fy}&round={rnd}&slot_saved=1#eb-slots", status_code=303)
 
 
-def _default_round(fy: int) -> int:
-    """เดารอบรายงานจากวันที่วันนี้ · 1 ต.ค. เป็นต้นไป = ยื่นรอบที่ 2 ของปีงบที่เพิ่งจบ"""
+def _eb_period(year: int | None, rnd: int) -> tuple:
+    """ปีงบ + รอบ e-Budget ที่จะเปิดให้ เมื่อไม่ได้เลือกมา
+    ต.ค. ยังยื่นรอบที่ 2 ของปีงบที่เพิ่งจบ พ.ย. ถึง ก.ย. เป็นปีงบปัจจุบัน
+    ปีงบปัจจุบันเปิดรอบที่ 1 (รอบที่ 2 ยื่นหลังปีงบจบ) ปีงบที่ผ่านไปแล้วเปิดรอบที่ 2"""
     from app.thai_utils import thai_now
-    now = thai_now()
-    return 1 if 4 <= now.month <= 9 else 2
+    now, cur = thai_now(), current_fiscal_year()
+    if rnd in (1, 2):
+        return (year or cur), rnd
+    if not year:
+        if now.month == 10:
+            return cur - 1, 2
+        year = cur
+    if year < cur:
+        return year, 2
+    return year, 1
 
 
 @router.get("/finance/ebudget/fill", response_class=HTMLResponse)
@@ -2800,8 +2808,7 @@ def ebudget_fill_page(request: Request, db: Session = Depends(get_db),
     from app.models import AccountItem, FinanceAccount, FinanceTxn, Project
     from app.services.ebudget import period, slot_of
     from app.services.ebudget_cat import EXPENSE, INCOME, LEGACY_INCOME, guess
-    fy = year or current_fiscal_year()
-    rnd = 2 if round == 2 else (1 if round == 1 else _default_round(fy))
+    fy, rnd = _eb_period(year, round)
     start, end, label = period(fy, rnd)
     accts = {a.id: a for a in db.query(FinanceAccount).all()}
     items = {i.id: i for i in db.query(AccountItem).filter_by(fiscal_year=fy).all()}

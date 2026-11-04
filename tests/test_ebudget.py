@@ -405,3 +405,14 @@ def test_amounts_before_using_the_system_are_added_and_must_balance(env):
     assert c.get(f"/finance/ebudget/print?year={FY}&round=1").text.count(" *") >= 3
     bad = post(section="4", code="4.4", source="", amount="1")
     assert "adj_err" in bad.headers["location"], "ส่วนที่ 4 ต้องเลือกแหล่งเงิน"
+
+
+def test_expense_rows_match_ebudget_and_return_guess():
+    """ส่วนที่ 4 มีครบตามเว็บ e-Budget (2.1 มี 14 ข้อ, ข้อ 6 ส่งคืนเงิน 14 ข้อ) และเดาข้อส่งคืนตามเงินที่คืน"""
+    from app.services.ebudget_cat import EXPENSE_CODES, guess_expense
+    assert [c for c in EXPENSE_CODES if c.startswith("2.1.")] == [f"2.1.{n}" for n in range(1, 15)]
+    assert [c for c in EXPENSE_CODES if c.startswith("6.")] == [f"6.{n}" for n in range(1, 15)]
+    assert guess_expense("ส่งคืนเงินอาหารกลางวันเหลือจ่าย") == "6.10"
+    assert guess_expense("ส่งคืนเงินรายหัว") == "6.3"
+    assert guess_expense("ส่งคืนเงิน") == "6.14"
+    assert guess_expense("เงินสมทบประกันสังคม") == "2.1.13"
