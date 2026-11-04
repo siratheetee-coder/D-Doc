@@ -1022,6 +1022,7 @@ class DisburseMemo(Base):
     note = Column(Text, default="")                  # รายละเอียดเพิ่มเติม
     receiver_name = Column(String, default="")       # ชื่อผู้รับเงิน (คนที่มารับเงิน/เช็คจริง) ลงทะเบียนคุมหลักฐานขอเบิก
     register_note = Column(String, default="")       # หมายเหตุในทะเบียนคุมหลักฐานขอเบิก (แยกจากรายละเอียดเพิ่มเติม)
+    eb_code = Column(String, default="")             # หมวด e-Budget ส่วนที่ 4 ลงจ่ายแล้วส่งต่อให้รายการเงิน
     status = Column(String, default="ร่าง")          # ร่าง / อนุมัติ / จ่ายแล้ว
     file_path = Column(String, default="")
     created_at = Column(DateTime, default=datetime.now)

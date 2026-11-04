@@ -119,7 +119,7 @@ def post(db, memo) -> None:
         db.add(FinanceTxn(account_id=r["account_id"], fiscal_year=memo.fiscal_year, kind="out", item_id=r["item_id"],
                           amount=r["amount"], date=memo.date or datetime.now(), category="เบิกจ่าย",
                           ref=memo.memo_no or "", note=txn_note(memo, i if many else None, len(rows)),
-                          disburse_id=memo.id))
+                          disburse_id=memo.id, eb_code=memo.eb_code or ""))
 
 
 def _tied(db, txn) -> bool:
@@ -149,6 +149,7 @@ def sync(db, memo, txns) -> None:
         t.date = memo.date or t.date
         t.ref = memo.memo_no or t.ref
         t.note = txn_note(memo, i if many else None, len(rows))
+        t.eb_code = memo.eb_code or t.eb_code
     for t in txns[len(rows):]:
         release_for_deleted_txn(db, t)
         db.delete(t)
@@ -156,4 +157,4 @@ def sync(db, memo, txns) -> None:
         db.add(FinanceTxn(account_id=r["account_id"], fiscal_year=memo.fiscal_year, kind="out", item_id=r["item_id"],
                           amount=r["amount"], date=memo.date or datetime.now(), category="เบิกจ่าย",
                           ref=memo.memo_no or "", note=txn_note(memo, i if many else None, len(rows)),
-                          disburse_id=memo.id))
+                          disburse_id=memo.id, eb_code=memo.eb_code or ""))

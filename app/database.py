@@ -320,6 +320,7 @@ MIGRATIONS = [
     ("finance_txn", "no_count", "BOOLEAN DEFAULT 0"),
     ("disburse_memo", "receiver_name", "VARCHAR DEFAULT ''"),
     ("disburse_memo", "register_note", "VARCHAR DEFAULT ''"),
+    ("disburse_memo", "eb_code", "VARCHAR DEFAULT ''"),
     ("procurement", "paid_before_system", "BOOLEAN DEFAULT 0"),
     ("procurement", "paid_before_marked_at", "DATETIME"),
     ("acad_timetable", "locked", "BOOLEAN DEFAULT 0"),

@@ -76,6 +76,10 @@
     <div class="row">
       <div><label>ชื่อผู้รับเงิน</label><input name="receiver_name" autocomplete="off" data-suggest="receiver" value="" placeholder="คนที่มารับเงิน/เช็คจริง">
         <div class="hint">ลงในทะเบียนคุมหลักฐานขอเบิก เว้นว่างไว้เขียนมือได้</div></div>
+      <div style="flex:2;"><label title="ไว้ใช้ตอนรายงาน e-Budget ส่วนที่ 4">หมวด e-Budget</label>
+        <select name="eb_code"><option value="">- ระบบเดาให้ตอนบันทึก -</option>
+          {% for grp, rows in eb_expense %}<optgroup label="{{ grp }}">{% for code, label in rows %}<option value="{{ code }}">{{ code }} {{ label }}</option>{% endfor %}</optgroup>{% endfor %}
+        </select></div>
       <div style="flex:2;"><label>หมายเหตุในทะเบียน</label><input name="register_note" value="" maxlength="300">
         <div class="hint">แสดงในช่องหมายเหตุของทะเบียนคุมหลักฐานขอเบิก (แยกจากรายละเอียดเพิ่มเติม)</div></div>
     </div>

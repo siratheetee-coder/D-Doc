@@ -277,3 +277,15 @@ def guess(txn, item_name: str = "", project: str = "", account_name: str = "", s
     if (getattr(txn, "kind", "in") or "in") == "out":
         return guess_expense(getattr(txn, "note", ""), item_name, project)
     return guess_income(account_name, item_name, getattr(txn, "note", ""), slot)
+
+
+def memo_guess(db, memo) -> str:
+    """หมวด e-Budget ของบันทึกขอเบิกจ่าย เดาจาก เรื่อง > หมวดเงิน > โครงการ (เดาไม่ได้ = '' ให้ครูเลือก)"""
+    from app.models import AccountItem, Procurement, Project
+    item = db.get(AccountItem, memo.item_id) if memo.item_id else None
+    pid = memo.project_id
+    if not pid and memo.procurement_id:
+        pr = db.get(Procurement, memo.procurement_id)
+        pid = pr.project_id if pr else None
+    pj = db.get(Project, pid) if pid else None
+    return guess_expense(memo.subject or "", item.name if item else "", pj.name if pj else "")

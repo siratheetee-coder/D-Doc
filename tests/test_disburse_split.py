@@ -175,3 +175,17 @@ def test_memo_document_lists_each_account(db, accs, kind, tmp_path, monkeypatch)
     text = chr(10).join(p.text for p in Document(path).paragraphs)
     assert "เงินอุดหนุน (ค่ารายหัว) จำนวน 20,000.00 บาท หักภาษี ณ ที่จ่าย 200.00 บาท" in text
     assert "เงินรายได้สถานศึกษา (รายได้ทั่วไป) จำนวน 10,000.00 บาท หักภาษี ณ ที่จ่าย 100.00 บาท" in text
+
+
+def test_ebudget_code_goes_from_memo_to_every_txn(db, accs):
+    """หมวด e-Budget เลือก (หรือเดา) ที่บันทึกขอเบิก ลงจ่ายแล้วตามไปทุกรายการเงิน ไม่ต้องไล่เติมย้อนหลัง"""
+    from app.services.ebudget_cat import memo_guess
+    pj = Project(name="พัฒนาครู", budget=1000, plan_year=2569); db.add(pj); db.flush()
+    m = memo(db, project_id=pj.id)
+    assert memo_guess(db, m) == "4.4", "เดาจากเรื่องก่อน (ซื้อวัสดุ)"
+    m.subject = "ค่าใช้จ่ายตามโครงการ"
+    assert memo_guess(db, m) == "1.1", "เดาจากข้อความไม่ได้แต่ผูกโครงการ = โครงการตามแผนปฏิบัติการ"
+    m.eb_code = "2.2"
+    splits.apply(db, m, two(accs))
+    splits.post(db, m); db.flush()
+    assert {t.eb_code for t in db.query(FinanceTxn).filter_by(disburse_id=m.id)} == {"2.2"}

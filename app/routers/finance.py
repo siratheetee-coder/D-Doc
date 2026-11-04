@@ -963,7 +963,7 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
         "projects": _plan_projects(db, fy),
         "pj_acts": activity_maps(db),
         "prefill": prefill, "travel_source": travel_source,
-        "names": _name_suggest(db),
+        "names": _name_suggest(db), "eb_expense": EB_EXPENSE,
     })
 
 
@@ -976,7 +976,8 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
                     proc_kind: str = Form("จัดซื้อ"), project_id: str = Form(""),
                     item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form(""),
                     travel_request_id: str = Form(""), activity_id: str = Form(""), staff_selection: str | None = Form(None), after_save: str = Form(""),
-                    split_account: list[str] = Form([]), split_item: list[str] = Form([]), split_amount: list[str] = Form([])):
+                    split_account: list[str] = Form([]), split_item: list[str] = Form([]), split_amount: list[str] = Form([]),
+                    eb_code: str = Form("")):
     travel_id = _to_int(travel_request_id, 0)
     if travel_request_id.strip():
         if not travel_id or _to_int(procurement_id, 0):
@@ -1002,6 +1003,9 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
         travel_request_id=_to_int(travel_request_id, 0) or None,
     )
     m.activity_id = valid_activity(db, activity_id, m.project_id)
+    # หมวด e-Budget: ครูเลือกเอง หรือระบบเดาให้ (เดิมลงจ่ายแล้วไม่มีหมวด ต้องไปไล่เติมย้อนหลังทุกงวด)
+    from app.services.ebudget_cat import memo_guess
+    m.eb_code = eb_code.strip()[:20] or memo_guess(db, m)
     staff.apply(db, m, staff_selection)
     db.add(m); db.flush()
     commit_doc_no(db, "memo", fy, no, source="finance", ref_id=m.id, date=m.date,
@@ -1042,6 +1046,7 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
         # ปีงบตามวันที่ในบันทึก ถ้าไม่ตรงกับปีงบของบันทึก รายการจ่ายจะลงผิดปีงบ (เตือนเฉย ๆ ไม่บังคับ)
         "date_fy": (m.date.year + 543 + (1 if m.date.month >= 10 else 0)) if m.date else None,
         "posted_txn": db.query(FinanceTxn).filter_by(disburse_id=m.id).first(),
+        "eb_expense": EB_EXPENSE,
     })
 
 
@@ -1054,7 +1059,8 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
                     proc_kind: str = Form("จัดซื้อ"), project_id: str = Form(""),
                     item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form(""),
                     activity_id: str = Form(""), staff_selection: str | None = Form(None), after_save: str = Form(""),
-                    split_account: list[str] = Form([]), split_item: list[str] = Form([]), split_amount: list[str] = Form([])):
+                    split_account: list[str] = Form([]), split_item: list[str] = Form([]), split_amount: list[str] = Form([]),
+                    eb_code: str = Form("")):
     payments.lock(db)
     m = db.get(DisburseMemo, mid)
     if m:
@@ -1071,6 +1077,7 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
         m.note = note
         m.receiver_name = receiver_name.strip()[:200]
         m.register_note = register_note.strip()[:300]
+        m.eb_code = eb_code.strip()[:20]
         # ถ้าบันทึกนี้ลงจ่ายเข้าทะเบียนคุมเงินไปแล้ว ให้ปรับรายการในทะเบียนให้ตรงกัน
         # (แก้หมวด/บัญชี/จำนวน/วันที่ ย้อนหลังได้ ยอดคงเหลือรายหมวดจะอัปเดตตาม)
         txns = db.query(FinanceTxn).filter_by(disburse_id=m.id).all()
@@ -1117,6 +1124,8 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
             txn.date = m.date or txn.date
             txn.ref = m.memo_no or txn.ref
             txn.note = splits.txn_note(m)
+        if txn and not multi and m.eb_code:
+            txn.eb_code = m.eb_code                  # หมวด e-Budget ตามบันทึก (รวมรายการที่เชื่อมยอดเดิม)
         remove_issued(db, "finance", m.id, "memo")   # ล้างเลขเก่า (กันค้างเมื่อเปลี่ยนเลข)
         commit_doc_no(db, "memo", m.fiscal_year, m.memo_no, source="finance", ref_id=m.id, date=m.date,
                   subject=((m.subject or "").strip() if (m.subject or "").strip().startswith("ขออนุมัติเบิกจ่าย")
@@ -1144,6 +1153,9 @@ def disburse_post(mid: int, db: Session = Depends(get_db)):
         except ValueError as exc:
             db.rollback()
             return RedirectResponse(f"/finance/disburse/{mid}?payment_message={quote(str(exc))}", status_code=303)
+        if not (m.eb_code or "").strip():
+            from app.services.ebudget_cat import memo_guess
+            m.eb_code = memo_guess(db, m)
         splits.post(db, m)
     m.status = "จ่ายแล้ว"
     db.commit()
