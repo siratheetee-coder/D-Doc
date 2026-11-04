@@ -381,3 +381,27 @@ def test_missing_codes_are_flagged_on_the_report(env):
     assert d["missing"], "ยังไม่ระบุหมวด ต้องขึ้นเตือน"
     html = c.get(f"/finance/ebudget?year={FY}&round=2").text
     assert "ยังต้องระบุหมวด" in html and "/finance/ebudget/fill" in html
+
+
+def test_amounts_before_using_the_system_are_added_and_must_balance(env):
+    """เริ่มใช้ระบบกลางรอบ: ส่วนที่ 2 ใช้ยอดจริงที่กรอก ส่วนที่ 3/4 บวกเพิ่ม ส่วนที่ 5 ไม่แตะ
+    กรอกครบ ยอดตรวจลงตัว กรอกไม่ครบ ยอดตรวจบอกส่วนต่าง"""
+    c, tid = env
+    base = _build(tid, 1)
+    sys_open = base["opening"]["3.5"]                 # เงินรายได้สถานศึกษา ยกมาในระบบ 5,000
+    post = lambda **kw: c.post("/finance/ebudget/adjust", data={"year": FY, "round": 1, **kw}, follow_redirects=False)
+    # ยกมาจริง 1 ต.ค. 4,000 + รับก่อนใช้ระบบ 1,500 - จ่ายก่อนใช้ระบบ 500 = 5,000 ที่ระบบมี
+    assert post(section="2", code="3.5", amount="4000").status_code == 303
+    d = _build(tid, 1)
+    assert d["opening"]["3.5"] == 4000 and d["check"] == round(base["check"] - (sys_open - 4000), 2), "ยังไม่ครบ ยอดตรวจบอกส่วนต่าง"
+    post(section="3", code="i5.3", amount="1500")
+    post(section="4", code="4.4", source="income", amount="500")
+    d = _build(tid, 1)
+    assert d["check"] == base["check"] == 0, "กรอกครบ ยกมา + รับ - จ่าย = คงเหลือ ลงตัว"
+    assert d["closing"] == base["closing"], "ส่วนที่ 5 ใช้ยอดจริงเสมอ"
+    assert d["matrix"]["4.4"]["income"] == 500 and "4.4|income" in d["adj"]["4"]
+    page = c.get(f"/finance/ebudget?year={FY}&round=1").text
+    assert 'id="eb-adjust"' in page and "ยอดตรวจลงตัวแล้ว" in page and 'class="adj-mark"' in page
+    assert c.get(f"/finance/ebudget/print?year={FY}&round=1").text.count(" *") >= 3
+    bad = post(section="4", code="4.4", source="", amount="1")
+    assert "adj_err" in bad.headers["location"], "ส่วนที่ 4 ต้องเลือกแหล่งเงิน"

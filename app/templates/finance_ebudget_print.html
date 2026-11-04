@@ -63,7 +63,7 @@
     <tbody>
       {% for code, label, bold in order %}
       <tr class="{{ 'b' if bold }}"><td class="{{ '' if bold else 'l1' }}">{{ label if label.startswith(code ~ ' ') else code ~ ' ' ~ label }}</td>
-        <td class="n">{{ "{:,.2f}".format(d.opening[code]) }}</td></tr>
+        <td class="n">{{ "{:,.2f}".format(d.opening[code]) }}{{ ' *' if code in d.adj['2'] }}</td></tr>
       {% endfor %}
       <tr class="t"><td>รวม</td><td class="n">{{ "{:,.2f}".format(d.totals.opening) }}</td></tr>
     </tbody>
@@ -75,7 +75,7 @@
     <tbody>
       {% for r in sec3 %}
       <tr class="{{ 'b' if r.level == 0 }}"><td class="l{{ r.level }}">{{ r.label }}</td>
-        <td class="n">{{ "{:,.2f}".format(r.amount) }}</td></tr>
+        <td class="n">{{ "{:,.2f}".format(r.amount) }}{{ ' *' if r.code in d.adj['3'] }}</td></tr>
       {% if r.unsorted %}<tr><td class="l1">ยังไม่ระบุข้อย่อย</td><td class="n">{{ "{:,.2f}".format(r.unsorted) }}</td></tr>{% endif %}
       {% endfor %}
       <tr class="t"><td>รวมรายรับในงวด</td><td class="n">{{ "{:,.2f}".format(d.totals.income) }}</td></tr>
@@ -89,7 +89,7 @@
     <tbody>
       {% for code, cols in d.matrix|dictsort %}
       <tr><td>{{ eb_label(code) }}</td>
-        {% for key, label in sources %}<td class="n">{{ "{:,.2f}".format(cols[key]) if cols[key] else '-' }}</td>{% endfor %}
+        {% for key, label in sources %}<td class="n">{{ "{:,.2f}".format(cols[key]) if cols[key] else '-' }}{{ ' *' if (code ~ '|' ~ key) in d.adj['4'] }}</td>{% endfor %}
         <td class="n">{{ "{:,.2f}".format(cols.values()|sum) }}</td></tr>
       {% endfor %}
       <tr class="t"><td>รวม</td>
@@ -111,6 +111,7 @@
     </tbody>
   </table>
 
+  {% if d.adj['2'] or d.adj['3'] or d.adj['4'] %}<p style="font-size:13px;">* รวมยอดที่กรอกเองสำหรับช่วงก่อนเริ่มใช้ระบบ (ไม่มีรายการในทะเบียนคุมเงิน)</p>{% endif %}
   <div class="sign">
     <div>ลงชื่อ ........................................<br>({{ school.finance_officer_name or '........................................' }})<br>เจ้าหน้าที่การเงิน</div>
     <div>ลงชื่อ ........................................<br>({{ school.director_name or '........................................' }})<br>{{ school.director_position or 'ผู้อำนวยการโรงเรียน' }}</div>

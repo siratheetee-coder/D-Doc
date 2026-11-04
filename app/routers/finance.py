@@ -2695,7 +2695,20 @@ def ebudget_page(request: Request, db: Session = Depends(get_db),
         "setup": checklist(data, fy, rnd), "sec3": section3_rows(data), "slot_names": names,
         "slot_saved": request.query_params.get("slot_saved"),
         "staff": eb_staff.rows(db, fy, rnd), "staff_saved": request.query_params.get("staff_saved"),
+        "adj_rows": ebudget_adjust_rows(db, fy, rnd), "joined": _eb_joined(db, fy),
+        "eb_income": EB_INCOME, "eb_expense": EB_EXPENSE,
     })
+
+
+def ebudget_adjust_rows(db, fy, rnd):
+    from app.services import ebudget_adjust
+    return ebudget_adjust.rows(db, fy, rnd)
+
+
+def _eb_joined(db, fy) -> bool:
+    """เริ่มลงเงินในระบบปีงบนี้ (ปีก่อนไม่มีข้อมูล) = รอบแรกอาจคร่อมวันเริ่มใช้ระบบ กางกล่องกรอกยอดให้"""
+    from app.services.finance_health import _joined
+    return _joined(db, fy)
 
 
 @router.post("/finance/ebudget/staff")
@@ -2709,6 +2722,31 @@ async def ebudget_staff_save(request: Request, db: Session = Depends(get_db)):
     else:
         eb_staff.save(db, fy, rnd, {c: _to_int(form.get("n_" + c), 0) for c in eb_staff.CODES})
     return RedirectResponse(f"/finance/ebudget?year={fy}&round={rnd}&staff_saved=1#eb-staff", status_code=303)
+
+
+@router.post("/finance/ebudget/adjust")
+async def ebudget_adjust_save(request: Request, db: Session = Depends(get_db)):
+    """ยอดที่ไม่มีในระบบ (เริ่มใช้ระบบกลางรอบ) ส่วนที่ 2 / 3 / 4 · delete=<id> ลบ"""
+    from urllib.parse import quote
+    from app.services import ebudget_adjust
+    form = await request.form()
+    fy = _to_int(form.get("year"), current_fiscal_year())
+    rnd = 2 if form.get("round") == "2" else 1
+    back = f"/finance/ebudget?year={fy}&round={rnd}"
+    try:
+        if form.get("delete"):
+            ebudget_adjust.remove(db, fy, rnd, _to_int(form.get("delete"), 0))
+        else:
+            raw = str(form.get("amount") or "").replace(",", "").strip()
+            if not raw:
+                raise ValueError("กรอกจำนวนเงิน")
+            ebudget_adjust.save(db, fy, rnd, str(form.get("section") or ""), str(form.get("code") or ""),
+                                str(form.get("source") or ""), _to_float(raw, 0.0), str(form.get("note") or ""))
+        db.commit()
+    except ValueError as e:
+        db.rollback()
+        return RedirectResponse(back + "&adj_err=" + quote(str(e)) + "#eb-adjust", status_code=303)
+    return RedirectResponse(back + "&adj_saved=1#eb-adjust", status_code=303)
 
 
 @router.get("/finance/ebudget/print", response_class=HTMLResponse)

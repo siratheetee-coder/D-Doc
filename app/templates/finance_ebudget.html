@@ -194,6 +194,53 @@
   </style>
 </div>
 
+{# ---- ยอดที่ไม่มีในระบบ (เริ่มใช้ระบบกลางรอบ) ---- #}
+{% set adj = d.adj %}
+<details class="card eb-adj" id="eb-adjust" {% if adj_rows or (joined and round == 1) or request.query_params.get('adj_saved') or request.query_params.get('adj_err') %}open{% endif %}>
+  <summary><b>เริ่มใช้ระบบกลางรอบ? กรอกยอดที่ไม่มีในระบบ</b> <span class="muted">{% if adj_rows %}กรอกไว้ {{ adj_rows|length }} รายการ{% else %}ไม่บังคับ{% endif %}</span></summary>
+  <p class="muted">ถ้าเริ่มใช้ระบบหลัง {{ thai_date(d.start) }} รายการก่อนหน้านั้นไม่อยู่ในระบบ คัดตัวเลขจากรายงานเดิมหรือสมุดเงินสดมากรอกที่นี่ ทำครั้งเดียว ระบบบวกให้ และรายการใหม่ในระบบยังนับต่อตามปกติ</p>
+  <ul class="eb-adj-how">
+    <li><b>ส่วนที่ 2</b> ยอดคงเหลือจริง ณ {{ thai_date(d.start) }} รายข้อ ใช้แทนยอดของระบบ</li>
+    <li><b>ส่วนที่ 3</b> รายรับก่อนเริ่มใช้ระบบ รายข้อ บวกเพิ่ม</li>
+    <li><b>ส่วนที่ 4</b> รายจ่ายก่อนเริ่มใช้ระบบ รายข้อและแหล่งเงิน บวกเพิ่ม</li>
+    <li><b>ส่วนที่ 5</b> ไม่ต้องกรอก ใช้ยอดจริงในทะเบียน</li>
+  </ul>
+  {% if request.query_params.get('adj_err') %}<div class="alert warn">{{ request.query_params.get('adj_err') }}</div>{% endif %}
+  {% if adj_rows %}<div class="{{ 'eb-ok' if d.check == 0 else 'eb-todo' }}">{% if d.check == 0 %}ยอดตรวจลงตัวแล้ว ยกมา + รับ - จ่าย = คงเหลือ{% else %}ยอดตรวจยังต่างกัน {{ "{:,.2f}".format(d.check) }} บาท ยังกรอกไม่ครบ หรือกรอกผิดข้อ{% endif %}</div>{% endif %}
+  <div class="eb-adj-forms">
+    {% macro adjform(sec, title) %}<form method="post" action="/finance/ebudget/adjust" class="eb-adj-f">
+      <input type="hidden" name="year" value="{{ fiscal_year }}"><input type="hidden" name="round" value="{{ round }}"><input type="hidden" name="section" value="{{ sec }}">
+      <b>{{ title }}</b>{{ caller() }}
+      <input name="amount" inputmode="decimal" placeholder="จำนวนเงิน" required>
+      <input name="note" placeholder="หมายเหตุ (ถ้ามี)" maxlength="200">
+      <button class="btn sm" type="submit">เพิ่ม</button></form>{% endmacro %}
+    {% call adjform('2', 'ส่วนที่ 2 ยอดยกมาจริง') %}<select name="code" required><option value="">- เลือกข้อ -</option>{% for code, label in slot_choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select>{% endcall %}
+    {% call adjform('3', 'ส่วนที่ 3 รายรับก่อนเริ่มใช้ระบบ') %}<select name="code" required><option value="">- เลือกข้อ -</option>{% for grp, opts in eb_income %}<optgroup label="{{ grp }}">{% for code, label in opts %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</optgroup>{% endfor %}</select>{% endcall %}
+    {% call adjform('4', 'ส่วนที่ 4 รายจ่ายก่อนเริ่มใช้ระบบ') %}<select name="code" required><option value="">- เลือกข้อ -</option>{% for grp, rows in eb_expense %}<optgroup label="{{ grp }}">{% for code, label in rows %}<option value="{{ code }}">{{ code }} {{ label }}</option>{% endfor %}</optgroup>{% endfor %}</select>
+      <select name="source" required><option value="">- แหล่งเงิน -</option>{% for key, label in sources %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select>{% endcall %}
+  </div>
+  {% if adj_rows %}
+  <div class="table-wrap"><table class="eb">
+    <thead><tr><th>ส่วน</th><th>ข้อ</th><th class="right">จำนวนเงิน</th><th>หมายเหตุ</th><th></th></tr></thead>
+    <tbody>{% for a in adj_rows %}<tr><td>{{ a.section }}</td>
+      <td>{% if a.section == '2' %}{{ slot_names.get(a.code, a.code) }} <small class="muted">ระบบ {{ "{:,.2f}".format(adj['2'][a.code][0]) }}</small>{% elif a.section == '4' %}{{ eb_label(a.code) }} <small class="muted">{{ dict(sources).get(a.source, a.source) }}</small>{% else %}{{ a.code }}{% endif %}</td>
+      <td class="right">{{ "{:,.2f}".format(a.amount) }}</td><td>{{ a.note }}</td>
+      <td><form method="post" action="/finance/ebudget/adjust" style="margin:0" onsubmit="return confirm('ลบยอดนี้?')"><input type="hidden" name="year" value="{{ fiscal_year }}"><input type="hidden" name="round" value="{{ round }}"><input type="hidden" name="delete" value="{{ a.id }}"><button class="btn red xs" type="submit">ลบ</button></form></td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+  <style>
+    .eb-adj summary{ cursor:pointer; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .eb-adj-how{ margin:6px 0 12px; padding-left:20px; font-size:14px; color:#334155; }
+    .eb-adj-forms{ display:grid; gap:10px; margin-bottom:12px; }
+    .eb-adj-f{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px 12px; border-radius:12px; background:linear-gradient(120deg,#f8fafc,#eef2ff); margin:0; }
+    .eb-adj-f b{ flex-basis:100%; font-size:14px; color:#312e81; }
+    .eb-adj-f select{ flex:2 1 220px; width:auto; min-width:0; max-width:100%; } .eb-adj-f input{ flex:1 1 120px; width:auto; min-width:0; }
+    .eb-adj-f{ min-width:0; } .eb-adj{ min-width:0; overflow-wrap:anywhere; }
+    .eb-ok{ padding:10px 14px; border-radius:12px; background:linear-gradient(120deg,#ecfdf5,#d1fae5); color:#065f46; margin-bottom:10px; }
+    .adj-mark{ color:#b45309; font-weight:700; margin-left:4px; cursor:help; }
+  </style>
+</details>
+
 <div class="card">
   <h2>ส่วนที่ 2 เงินคงเหลือยกมา <span class="muted" style="font-size:15px;">ณ {{ thai_date(d.start) }}</span></h2>
   <p class="muted" style="margin-top:0;">เรียงตรงตามหน้าจอ e-Budget ทุกบรรทัด ไล่กรอกจากบนลงล่างได้เลย</p>
@@ -203,7 +250,7 @@
       {% for code, label, bold in order %}
       <tr class="{{ 'head' if bold else 'sub' }}">
         <td>{{ lbl(code, label) }}</td>
-        <td class="right {{ 'zero' if not d.opening[code] }}">{{ cp('o' ~ code, d.opening[code]) }}</td>
+        <td class="right {{ 'zero' if not d.opening[code] }}">{{ cp('o' ~ code, d.opening[code]) }}{% if code in adj['2'] %}<span class="adj-mark" title="กรอกเอง (ยอดระบบ {{ '{:,.2f}'.format(adj['2'][code][0]) }})">*</span>{% endif %}</td>
       </tr>
       {% endfor %}
       <tr class="tot"><td>รวมเงินนอกงบประมาณคงเหลือ</td>
@@ -229,7 +276,7 @@
       {% for r in sec3 %}
       <tr class="lv{{ r.level }} {{ 'nz' if r.amount or r.level == 0 else 'z' }}">
         <td>{{ r.label }}</td>
-        <td class="right {{ 'zero' if not r.amount }}">{{ cp('s' ~ r.code, r.amount) }}</td></tr>
+        <td class="right {{ 'zero' if not r.amount }}">{{ cp('s' ~ r.code, r.amount) }}{% if r.code in adj['3'] %}<span class="adj-mark" title="รวมยอดกรอกเอง {{ '{:,.2f}'.format(adj['3'][r.code]) }}">*</span>{% endif %}</td></tr>
       {% if r.unsorted %}
       <tr class="lv1 nz unsorted"><td>ยังไม่ระบุข้อย่อย
           <a href="/finance/ebudget/fill?year={{ fiscal_year }}&round={{ round }}">เลือกข้อย่อย</a></td>
@@ -283,7 +330,7 @@
       <tr>
         <td>{{ eb_label(code) }}</td>
         {% for key, label in sources %}
-        <td class="right {{ 'zero' if not cols[key] }}">{{ cp('m' ~ code ~ key, cols[key]) }}</td>
+        <td class="right {{ 'zero' if not cols[key] }}">{{ cp('m' ~ code ~ key, cols[key]) }}{% if (code ~ '|' ~ key) in adj['4'] %}<span class="adj-mark" title="รวมยอดกรอกเอง {{ '{:,.2f}'.format(adj['4'][code ~ '|' ~ key]) }}">*</span>{% endif %}</td>
         {% endfor %}
         <td class="right"><b>{{ "{:,.2f}".format(cols.values()|sum) }}</b></td>
       </tr>

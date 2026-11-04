@@ -314,12 +314,16 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
                              "amount": amt, "source": src, "code": code, "eb": eb,
                              "account": acct.name if acct else "", "id": t.id})
 
+    # ยอดที่ไม่มีในระบบ (เริ่มใช้ระบบกลางรอบ) ครูกรอกเพิ่มเอง
+    from app.services import ebudget_adjust
+    adj = ebudget_adjust.apply(ebudget_adjust.rows(db, fiscal_year, rnd), opening, income_src, matrix, expense)
+
     # หัวข้อรวม (3.1 / 3.2) ในแบบ e-Budget = ผลรวมของข้อย่อย ไม่ใช่ช่องกรอกแยก
     for bucket in (opening, income, closing):
         _rollup(bucket)
 
     rows.sort(key=lambda r: r["date"])
-    tot_in = leaf_sum(income)
+    tot_in = round(leaf_sum(income) + adj["in"], 2)
     tot_out = round(sum(expense.values()), 2)      # expense ไม่มีหัวข้อรวม
     tot_open = leaf_sum(opening)
     tot_close = leaf_sum(closing)
@@ -338,6 +342,7 @@ def build(db, fiscal_year: int, rnd: int) -> dict:
         "n_in_period": sum(1 for t in txns if t.date and start_day <= t.date.date() <= end_day),
         "undated": [t.id for t in txns if not t.date],
         "no_count_net": round(nc_net, 2),
+        "adj": adj,
     }
 
 

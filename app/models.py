@@ -797,6 +797,23 @@ class FinanceAccount(Base):
                          cascade="all, delete-orphan")
 
 
+class EbudgetAdjust(Base):
+    """e-Budget ยอดที่ไม่มีในระบบ (ก่อนเริ่มใช้ระบบกลางรอบ) ส่วนที่ 2 แทนยอดยกมา ส่วนที่ 3/4 บวกเพิ่ม (ebudget_adjust.py)"""
+    __tablename__ = "ebudget_adjust"
+    __table_args__ = (
+        UniqueConstraint("fiscal_year", "round", "section", "code", "source", name="uq_ebadjust"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    fiscal_year = Column(Integer, nullable=False)
+    round = Column(Integer, nullable=False)
+    section = Column(String, nullable=False)        # "2" / "3" / "4"
+    code = Column(String, nullable=False)           # ช่องส่วนที่ 2 / ข้อรายรับ i... / ข้อรายจ่าย
+    source = Column(String, default="")             # แหล่งเงิน (ส่วนที่ 4 เท่านั้น)
+    amount = Column(Float, default=0.0)
+    note = Column(String, default="")
+
+
 class EbudgetStaff(Base):
     """e-Budget ส่วนที่ 1 จำนวนบุคลากรที่ครูแก้เอง (ไม่มีแถว = ใช้ตัวเลขที่นับจากทะเบียนบุคลากร)"""
     __tablename__ = "ebudget_staff"
