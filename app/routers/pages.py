@@ -3383,8 +3383,10 @@ def project_detail(pid: int, request: Request, db: Session = Depends(get_db), er
     reports = (db.query(ProjectReport).filter_by(project_id=pid)
                .order_by(ProjectReport.date_start.is_(None), ProjectReport.date_start,
                          ProjectReport.id).all())
+    from app.services.finance_setup import project_detail_steps
     return templates.TemplateResponse("project_detail.html", {
         "request": request, "school": get_school(db), "p": p, "reports": reports,
+        "setup": project_detail_steps(p, procs, disb, reports),
         "procs": procs, "disb": disb, "next_seq": next_seq, "err": err, "groups": groups,
         "can_finance": _can_finance(request),
         "year_label": plan_year_label(get_school(db),p.plan_year),

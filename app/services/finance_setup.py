@@ -112,3 +112,35 @@ def project_steps(db, plan_year, year_label="ปีงบประมาณ") ->
     nxt = next((s for s in steps if not s["done"]), None)
     done = sum(1 for s in steps if s["done"])
     return dict(steps=steps, done=done, total=len(steps), complete=nxt is None, next=nxt)
+
+
+def project_detail_steps(project, procs, memos, reports) -> dict:
+    """ขั้นตอนของโครงการเดียว (หน้าโครงการ) แบบเดียวกับกล่องเริ่มต้นของงานอื่น: ติ๊กเองจากข้อมูลจริง
+
+    เดิมหน้าโครงการมีแค่คำอธิบาย "ใส่งบ กับ ปรับงบ" ไม่บอกว่าต้องทำอะไรต่อ (เจ้าของขอให้เหมือนงานอื่น)
+    """
+    from app.services.budget import project_budget, project_money_summary
+    pid, money = project.id, project_money_summary(project)
+    year = project.plan_year or ""
+    steps = [
+        dict(title="ใส่งบโครงการ", done=project_budget(project) > 0,
+             detail="ใส่งบตามแผนปฏิบัติการ ใช้คำนวณงบเหลือทำเรื่องใหม่", href="#setBudget", cta="ใส่งบ"),
+        dict(title="ใช้เงินไปก่อนเริ่มใช้ระบบ (ข้ามได้)", done=float(project.spent_before or 0) > 0,
+             detail="ถ้าโรงเรียนใช้เงินโครงการนี้ไปบ้างแล้วก่อนมาใช้ระบบ กรอกว่าตอนนี้เหลือเท่าไร ถ้าไม่มีกดข้าม",
+             href=f"/projects/start?year={year}", cta="ตั้งยอดตั้งต้น"),
+        dict(title="ทำเรื่องใช้เงิน", done=bool(procs or memos),
+             detail="ซื้อของหรือจ้าง ทำเรื่องจัดซื้อ/จัดจ้าง ค่าใช้จ่ายอื่นทำบันทึกขอเบิกจ่ายได้เลย",
+             href=f"/procurement/new?project={pid}", cta="ทำเรื่องจัดซื้อ/จัดจ้าง",
+             extra=[("บันทึกขอเบิกค่าอื่น", f"/finance/disburse?project={pid}")]),
+        dict(title="ลงจ่ายเงิน", done=money["paid"] > 0,
+             detail="ผอ. อนุมัติบันทึกขอเบิกแล้ว กดลงจ่าย ระบบตัดเงินในทะเบียนคุมเงินและนับเป็นจ่ายจริงของโครงการ",
+             href="#activities", cta="ดูเรื่องที่รอจ่าย"),
+        dict(title="รายงานผลโครงการ (ข้ามได้)", done=bool(reports),
+             detail="ทำโครงการเสร็จแล้ว เขียนรายงานผลแล้วพิมพ์ Word", href="#project-report", cta="ไปเขียนรายงานผล"),
+    ]
+    for n, st in enumerate(steps, 1):
+        st["n"] = n
+        st.setdefault("extra", [])
+    nxt = next((st for st in steps if not st["done"]), None)
+    done = sum(1 for st in steps if st["done"])
+    return dict(steps=steps, done=done, total=len(steps), complete=nxt is None, next=nxt)

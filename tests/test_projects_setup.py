@@ -60,7 +60,7 @@ def test_budget_help_is_on_both_pages(env):
     for html in (lst, one):
         assert 'id="budget-help"' in html and 'ใส่งบ กับ ปรับงบ ต่างกันยังไง' in html
         assert 'บันทึกเป็นปรับงบครั้งที่ 1' in html
-    assert '<details class="bh" id="budget-help" open>' in one, "ยังไม่เคยปรับงบ กางคำอธิบายไว้ให้"
+    assert '<details class="bh" id="budget-help" >' in one, "มีกล่องขั้นตอนแล้ว คำอธิบายพับไว้"
 
 
 def test_project_page_has_no_allocation(env, monkeypatch):
@@ -89,3 +89,18 @@ def test_schools_that_used_allocation_get_a_one_time_notice(env):
         s.add(ProjectFunding(project_id=p.id, funding_id=f.id, amount=500)); s.commit()
     html = env.get(f'/projects?year={PY}').text
     assert 'id="allocGone"' in html and 'ท่านไม่ต้องแก้อะไร' in html
+
+
+def test_project_page_has_step_checklist(env):
+    """หน้าโครงการมีกล่องขั้นตอนแบบงานอื่น (ไปทำ / ข้าม) ติ๊กเองจากข้อมูลจริง"""
+    import app.tenancy as tn
+    with tn.session_for(next(iter(tn._engines))) as s:
+        p = Project(name='ทดสอบขั้นตอน', plan_year=PY, budget=0); s.add(p); s.commit(); pid = p.id
+    html = env.get(f'/projects/{pid}').text
+    assert f'id="setup-pj{pid}"' in html and 'ขั้นตอนของโครงการนี้' in html and 'ทำแล้ว 0 จาก 5 ขั้น' in html
+    assert _next_step(html) == (1, 'ใส่งบโครงการ') and 'ข้ามขั้นตอนนี้' in html
+    with tn.session_for(next(iter(tn._engines))) as s:
+        s.get(Project, pid).budget = 5000; s.commit()
+    html = env.get(f'/projects/{pid}').text
+    assert _next_step(html) == (2, 'ใช้เงินไปก่อนเริ่มใช้ระบบ (ข้ามได้)') and 'ทำแล้ว 1 จาก 5 ขั้น' in html
+    assert f'/procurement/new?project={pid}' in html and 'id="project-report"' in html
