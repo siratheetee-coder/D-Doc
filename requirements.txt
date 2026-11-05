@@ -15,6 +15,7 @@ boto3==1.35.99            # อัปสำรองข้อมูลขึ้�
 setuptools<81             # ให้ pkg_resources ใช้ได้ (docxcompose ต้องใช้)
 pytesseract==0.3.13       # OCR อ่านตัวอักษรจากรูป (ต้องมี tesseract-ocr + tesseract-ocr-tha)
 Pillow==11.1.0            # เปิด/ปรับรูปภาพก่อนส่งเข้า OCR
+pymupdf==1.28.2           # ดูตัวอย่างเอกสาร: แปลง PDF เป็นภาพทีละหน้า (คู่กับ LibreOffice บนเซิร์ฟเวอร์)
 qrcode
 
 dnspython>=2.6,<3

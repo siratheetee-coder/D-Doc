@@ -261,3 +261,47 @@ def test_signed_files_have_no_internal_marker(env):
                  c.post(f"/procurement/{ids['proc']}/generate", data={"doc_kind": "รายงานขอซื้อ"})):
         xml, has_img = _docx(resp)
         assert has_img and "easy-ekkasan" not in xml
+
+
+def test_preview_lists_docs_and_serves_pages(env, monkeypatch):
+    """ดูตัวอย่างเอกสาร: รายชื่อเอกสาร -> ภาพทีละหน้า (แทนตัวแปลงจริงด้วย PDF 2 หน้า ไม่ต้องมี LibreOffice)"""
+    pymupdf = pytest.importorskip("pymupdf")
+    from app.services import doc_preview as dp
+    calls = []
+
+    def fake_pdf(docx, out_dir):
+        calls.append(docx)
+        doc = pymupdf.open()
+        for _ in range(2):
+            doc.new_page(width=595, height=842)
+        out = out_dir / (docx.stem + ".pdf")
+        doc.save(str(out))
+        return out
+    monkeypatch.setattr(dp, "_to_pdf", fake_pdf)
+    monkeypatch.setattr(dp, "_AVAIL", True)
+    c, tid, ids = env
+    pid = ids["proc"]
+
+    # ผู้ส่งดูก่อนกดส่ง (path ของงานพัสดุ)
+    docs = c.get(f"/procurement/{pid}/approval/preview?kind=proc_request").json()["docs"]
+    assert "รายงานขอซื้อ" in [d["key"] for d in docs]
+    r = c.get(f"/procurement/{pid}/approval/preview?kind=proc_request&doc=รายงานขอซื้อ").json()
+    assert r["ok"] and r["total"] == 2 and len(r["pages"]) == 2
+    img = c.get(r["pages"][1])
+    assert img.status_code == 200 and img.content[:4] == b"\x89PNG"
+    # เอกสารไม่ถูกแก้ = ใช้ภาพเดิม ไม่แปลงซ้ำ
+    c.get(f"/procurement/{pid}/approval/preview?kind=proc_request&doc=รายงานขอซื้อ")
+    assert len(calls) == 1
+    # เอกสารที่ไม่อยู่ในขั้นนี้ / คีย์มั่ว
+    assert not c.get(f"/procurement/{pid}/approval/preview?kind=proc_request&doc=ใบสั่งซื้อ/สั่งจ้าง").json()["ok"]
+    assert c.get("/approvals/preview/" + "0" * 40 + "/1.png").status_code == 404
+    assert c.get("/approvals/preview/../1.png").status_code == 404
+
+    # ฝั่ง ผอ.
+    c.post(f"/procurement/{pid}/approval", data={"kind": "proc_request", "action": "send"})
+    aid = _latest(tid, "proc_request", pid)[0]
+    page = c.get(f"/approvals/doc/{aid}").text
+    assert f'data-dp-inline="/approvals/doc/{aid}/preview"' in page
+    j = c.get(f"/approvals/doc/{aid}/preview").json()
+    assert all(d["file"].startswith(f"/approvals/doc/{aid}/file?doc=") for d in j["docs"])
+    assert c.get(f"/approvals/doc/{aid}/preview?doc=รายงานขอซื้อ").json()["ok"]

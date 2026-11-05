@@ -20,6 +20,7 @@
   <form method="post" action="{{ action }}" class="apb-f">
     <input type="hidden" name="kind" value="{{ st.kind }}"><input type="hidden" name="back" value="{{ back }}">
     {% for k, v in extra.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+    {% if doc_preview_on() and st.docs %}<button class="btn xs gray" type="button" data-dp-open="{{ action }}/preview?kind={{ st.kind }}&ref_id={{ st.ref_id }}" data-dp-title="{{ st.label }} {{ st.step }}"><svg class="icon"><use href="#ic-eye"/></svg> ดูตัวอย่าง</button>{% endif %}
     {% if st.code == 'pending' %}
       <a class="btn xs gray" href="/approvals/doc/{{ a.id }}">ดูเรื่องที่ส่ง</a>
       <button class="btn xs gray" type="submit" name="action" value="cancel" onclick="return confirm('ยกเลิกการส่ง ผอ.?')">ยกเลิกการส่ง</button>

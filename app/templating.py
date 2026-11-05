@@ -132,3 +132,4 @@ templates.env.filters["thaidate"] = _thaidate
 
 from app.services.staff import context as case_staff_context
 templates.env.globals["case_staff_context"] = case_staff_context
+templates.env.globals["doc_preview_on"] = lambda: __import__("app.services.doc_preview", fromlist=["x"]).available()

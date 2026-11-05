@@ -30,13 +30,16 @@
 
 <div class="card">
   <h2>เอกสารที่ ผอ. ลงนาม</h2>
-  {% if docs %}
+  {% if docs and doc_preview_on() %}
+  <div class="ap-prev" data-dp-inline="/approvals/doc/{{ a.id }}/preview"></div>
+  <p class="muted" style="margin:10px 0 0;">ฉบับล่าสุดตามข้อมูลในระบบ อนุมัติแล้วเปิดใหม่จะเห็นลายเซ็น</p>
+  {% elif docs %}
   <div class="ap-docs">
     {% for d, label in docs %}
     <a class="btn sm gray" href="/approvals/doc/{{ a.id }}/file?doc={{ d|urlencode }}"><svg class="icon"><use href="#ic-download"/></svg> {{ label }}</a>
     {% endfor %}
   </div>
-  <p class="muted" style="margin:10px 0 0;">เปิดไฟล์ Word ฉบับล่าสุด อนุมัติแล้วเปิดใหม่จะเห็นลายเซ็น</p>
+  <p class="muted" style="margin:10px 0 0;">ดาวน์โหลดไฟล์ Word ฉบับล่าสุด อนุมัติแล้วเปิดใหม่จะเห็นลายเซ็น</p>
   {% else %}<p class="muted" style="margin:0;">เรื่องนี้ยังไม่มีเอกสารของขั้นนี้</p>{% endif %}
 </div>
 
@@ -77,6 +80,7 @@
   .ap-grid > div{ display:flex; flex-direction:column; gap:2px; padding:10px 12px; border-radius:12px; background:linear-gradient(120deg,#f8fafc,#eef2ff); }
   .ap-note{ margin:12px 0 0; padding:10px 12px; border-radius:12px; background:#fefce8; }
   .ap-docs{ display:flex; flex-wrap:wrap; gap:8px; }
+  .ap-prev{ margin-top:4px; }
   .ap-form textarea{ width:100%; margin-bottom:10px; }
   .ap-btns{ display:flex; flex-wrap:wrap; gap:8px; }
   .ap-btns .btn[disabled]{ opacity:.5; cursor:not-allowed; }

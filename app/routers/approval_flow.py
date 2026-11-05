@@ -9,7 +9,7 @@
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -93,23 +93,24 @@ def _is_director(request) -> bool:
     return isd(request)
 
 
-def _docs_of(db, a) -> list:
-    """เอกสารของขั้นนี้ที่เรื่องนี้ออกได้จริง"""
-    spec = ap.KINDS[a.kind]
-    if a.kind == "proc_alt":
-        obj = spec["get"](db, a.ref_id)
-        if obj is None:
-            return []
+def _docs_for(db, kind, ref_id) -> list:
+    """เอกสารของขั้นนี้ที่เรื่องนี้ออกได้จริง [(คีย์, ชื่อ)]"""
+    spec = ap.KINDS[kind]
+    obj = spec["get"](db, ref_id)
+    if obj is None:
+        return []
+    if kind == "proc_alt":
         from app.routers.pages import _alt_label
         return [(d, _alt_label(obj, d)) for d in ap.alt_docs(obj)]
-    if a.kind in ap.PROC_STAGES:
+    if kind in ap.PROC_STAGES:
         from app.services.render import doc_label, kinds_for
-        obj = spec["get"](db, a.ref_id)
-        if obj is None:
-            return []
         have = set(kinds_for(obj))
         return [(d, doc_label(d, obj.proc_type)) for d in spec["docs"] if d in have]
     return [(d, d) for d in spec["docs"]]
+
+
+def _docs_of(db, a) -> list:
+    return _docs_for(db, a.kind, a.ref_id)
 
 
 def _director_sig_ok(db, request) -> bool:
@@ -141,45 +142,112 @@ def approval_detail(aid: int, request: Request, db: Session = Depends(get_db), m
     })
 
 
-@router.get("/approvals/doc/{aid}/file")
-def approval_file(aid: int, request: Request, db: Session = Depends(get_db), doc: str = ""):
-    from app.routers.pages import serve_generated
+def _render(db, kind, ref_id, doc) -> str:
+    """สร้างไฟล์ Word ของเอกสารนี้ (แปะลายเซ็นถ้าอนุมัติแล้ว) คืน path"""
     from app.models import School
-    a = db.get(Approval, aid)
-    if not a or a.kind not in ap.KINDS or doc not in dict(_docs_of(db, a)):
-        return RedirectResponse(f"/approvals/doc/{aid}", 303)
-    obj = ap.KINDS[a.kind]["get"](db, a.ref_id)
+    obj = ap.KINDS[kind]["get"](db, ref_id)
     school = db.query(School).first()
-    if a.kind == "proc_alt":
+    if kind == "proc_alt":
         from app.services import staff
         from app.services.proc_alt_doc import RENDERERS
         from app.services.w119_doc import RENDERERS as W119
         school = staff.school_for(obj, school)
         path = (RENDERERS.get(doc) or W119[doc])(obj, school)
         ap.stamp_current("proc_alt", obj.id, path, school.director_name or "", tick=("เห็นชอบ", "อนุมัติ"))
-    elif a.kind in ap.PROC_STAGES:
+    elif kind in ap.PROC_STAGES:
         from app.services.render import render_document
         path = render_document(doc, obj, school)
-    elif a.kind == "disburse":
+    elif kind == "disburse":
         from app.services.finance_doc import render_disburse
         path = render_disburse(obj, school)
-    elif a.kind == "loan":
+    elif kind == "loan":
         from app.services.finance_forms_doc import render_loan_contract
         path = render_loan_contract(school, obj)
-    elif a.kind == "memo":
+    elif kind == "memo":
         from app.services.office_doc import render_memo
         path = render_memo(obj, school)
-    elif a.kind == "order":
+    elif kind == "order":
         from app.services.office_doc import render_order
         path = render_order(obj, school)
-    elif a.kind == "letter":
+    elif kind == "letter":
         from app.services.office_doc import render_official_letter
         path = render_official_letter(obj, school)
     else:                                   # project_report
         from app.services.project_report_doc import render_project_report
         path = render_project_report(obj, school)
         ap.stamp_current("project_report", obj.id, path, school.director_name or "", tick=())
-    return serve_generated(path, _DOCX, count=False)
+    return path
+
+
+@router.get("/approvals/doc/{aid}/file")
+def approval_file(aid: int, request: Request, db: Session = Depends(get_db), doc: str = ""):
+    from app.routers.pages import serve_generated
+    a = db.get(Approval, aid)
+    if not a or a.kind not in ap.KINDS or doc not in dict(_docs_of(db, a)):
+        return RedirectResponse(f"/approvals/doc/{aid}", 303)
+    return serve_generated(_render(db, a.kind, a.ref_id, doc), _DOCX, count=False)
+
+
+# ---------------------------------------------------------------- ดูตัวอย่างเอกสาร (services/doc_preview.py)
+def _preview_json(db, kind, ref_id, doc, file_url=None):
+    """doc ว่าง = รายชื่อเอกสาร  มี doc = สร้างภาพแต่ละหน้า"""
+    from app.services import doc_preview as dp
+    from app.tenancy import current_school_id
+    docs = _docs_for(db, kind, ref_id) if kind in ap.KINDS else []
+    if not doc:
+        return JSONResponse({"docs": [{"key": d, "label": lb, "file": file_url(d) if file_url else None}
+                                      for d, lb in docs]})
+    if doc not in dict(docs):
+        return JSONResponse({"ok": False, "msg": "ไม่พบเอกสารนี้"})
+    if not dp.available():
+        return JSONResponse({"ok": False, "msg": "เซิร์ฟเวอร์ยังไม่พร้อมแสดงตัวอย่าง ดาวน์โหลดไปเปิดแทน"})
+    try:
+        m = dp.build(_render(db, kind, ref_id, doc), current_school_id.get())
+    except (dp.PreviewBusy, dp.PreviewFailed) as e:
+        return JSONResponse({"ok": False, "msg": str(e)})
+    except Exception:
+        return JSONResponse({"ok": False, "msg": "สร้างตัวอย่างไม่สำเร็จ ดาวน์โหลดไปเปิดแทน"})
+    return JSONResponse({"ok": True, "total": m["total"], "cut": m["cut"],
+                         "pages": [f"/approvals/preview/{m['key']}/{i}.png" for i in range(1, m["pages"] + 1)]})
+
+
+@router.get("/approvals/doc/{aid}/preview")
+def approval_preview(aid: int, db: Session = Depends(get_db), doc: str = ""):
+    a = db.get(Approval, aid)
+    if not a or a.kind not in ap.KINDS:
+        return JSONResponse({"ok": False, "msg": "ไม่พบเรื่องนี้", "docs": []})
+    return _preview_json(db, a.kind, a.ref_id, doc,
+                         file_url=lambda d: f"/approvals/doc/{aid}/file?doc={quote(d)}")
+
+
+@router.get("/approvals/preview/{key}/{n}.png")
+def approval_preview_page(key: str, n: int):
+    from app.services import doc_preview as dp
+    from app.tenancy import current_school_id
+    p = dp.page_file(current_school_id.get(), key, n)
+    if not p:
+        return Response(status_code=404)
+    return Response(p.read_bytes(), media_type="image/png", headers={"Cache-Control": "private, max-age=86400"})
+
+
+# ผู้ส่งดูตัวอย่างก่อนกดส่ง ผอ. (อยู่ใต้ path ของงาน สิทธิ์งานเดิมคุมให้)
+@router.get("/procurement/{pid}/approval/preview")
+def proc_preview(pid: int, db: Session = Depends(get_db), kind: str = "", doc: str = ""):
+    if kind not in ap.PROC_STAGES and kind != "proc_alt":
+        return JSONResponse({"ok": False, "msg": "ไม่พบเอกสารนี้", "docs": []})
+    return _preview_json(db, kind, pid, doc)
+
+
+def _generic_preview(path):
+    def handler(db: Session = Depends(get_db), kind: str = "", ref_id: int = 0, doc: str = ""):
+        if kind not in ap.SEND_PATHS[path]:
+            return JSONResponse({"ok": False, "msg": "ไม่พบเอกสารนี้", "docs": []})
+        return _preview_json(db, kind, ref_id, doc)
+    return handler
+
+
+for _path in ap.SEND_PATHS:
+    router.add_api_route(_path + "/preview", _generic_preview(_path), methods=["GET"])
 
 
 @router.post("/approvals/doc/{aid}/decide")
