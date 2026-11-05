@@ -1350,6 +1350,7 @@ def space_signatures(path, gap=SIGN_GAP) -> int:
     หลายแม่แบบเขียนช่องลงนามเป็นย่อหน้าธรรมดา จึงตามมาใส่ช่องว่างให้ทีเดียว
     ตอนสร้างแม่แบบ แทนการไล่แก้ทีละใบ
     """
+    # คำอ่านจำนวนเงินในวงเล็บไม่นับเป็นช่องลงนาม (แก้ 2026-11-05 ช่องคำอ่านราคาเคยเว้นว่างเกิน)
     from app.services.page_fit import add_sign_space
     doc = Document(str(path))
     n = add_sign_space(doc, gap)

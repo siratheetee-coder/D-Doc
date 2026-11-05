@@ -54,6 +54,11 @@ HOPELESS = 1.35             # สูงเกินพื้นที่มา�
 SIGN_STARTS = ("ลงชื่อ", "(ลงชื่อ", "ลงนาม")
 
 
+def _is_money_words(text: str) -> bool:
+    """บรรทัดคำอ่านจำนวนเงิน เช่น "(สองหมื่นบาทถ้วน)" หรือ "({{ total_baht }})" ไม่ใช่ชื่อผู้ลงนาม"""
+    return "บาท" in text or "baht" in text or "สตางค์" in text
+
+
 def add_sign_space(doc, gap: float = 30.0) -> int:
     """เว้นที่ให้เซ็นเหนือทุกช่องลงนาม (รวมที่อยู่ในตาราง) คืนจำนวนบรรทัดที่ใส่ให้
 
@@ -76,7 +81,8 @@ def add_sign_space(doc, gap: float = 30.0) -> int:
             hit = text.startswith(SIGN_STARTS) or (
                 par.alignment == WD_ALIGN_PARAGRAPH.CENTER and len(text) < 60
                 and text.startswith("(") and text.endswith(")")
-                and not prev.startswith(SIGN_STARTS))
+                and not prev.startswith(SIGN_STARTS)
+                and not _is_money_words(text))
             if hit:
                 pf = par.paragraph_format
                 if pf.space_before is None or pf.space_before.pt < gap:
