@@ -105,3 +105,22 @@ def test_activity_groups_procurement_and_other_expense(env):
         assert s.get(Procurement, proc_id).activity_id is None
     lst = env.get('/projects?year=2569').text
     assert 'id="pjFind"' in lst and f'"id": {pid}' in lst
+
+
+def test_disburse_memo_from_procurement_not_listed_twice(env):
+    """ทำเรื่องจัดซื้อแล้วเบิกจ่ายจากเรื่องนั้น: หน้าโครงการขึ้นแถวเดียว (จัดซื้อ) ไม่ขึ้น "เบิกค่าอื่น" ซ้ำ"""
+    import app.tenancy as tn
+    tid = next(iter(tn._engines))
+    with tn.session_for(tid) as s:
+        pj = Project(name='โครงการพัฒนาบุคลากร', plan_year=2569, budget=20000); s.add(pj); s.flush()
+        pr = Procurement(subject='วัสดุอบรมครู', fiscal_year=2569, project_id=pj.id, total_amount=4500)
+        s.add(pr); s.flush()
+        s.add(DisburseMemo(subject='ขอเบิกเงินค่าวัสดุอบรมครู', fiscal_year=2569, project_id=pj.id,
+                           procurement_id=pr.id, amount=4500, proc_kind='จัดซื้อ'))
+        s.add(DisburseMemo(subject='ค่าตอบแทนวิทยากร', fiscal_year=2569, project_id=pj.id,
+                           amount=1000, proc_kind='ค่าใช้จ่ายอื่น'))
+        s.commit(); pid = pj.id
+    page = env.get(f'/projects/{pid}').text
+    assert 'ขอเบิกเงินค่าวัสดุอบรมครู' not in page          # แถวซ้ำจากเรื่องจัดซื้อ
+    assert 'วัสดุอบรมครู' in page and 'ค่าตอบแทนวิทยากร' in page
+    assert '5,500.00' in page and '10,000.00' not in page    # ยอดใช้รวม 4,500 + 1,000 ไม่นับซ้ำ

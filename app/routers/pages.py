@@ -3401,7 +3401,10 @@ def project_detail(pid: int, request: Request, db: Session = Depends(get_db), er
         return RedirectResponse("/projects", status_code=303)
     from app.services.budget import project_procurements
     procs = project_procurements(p)
-    disb = (db.query(DisburseMemo).filter(DisburseMemo.project_id == pid)
+    # บันทึกขอเบิกที่ทำจากเรื่องจัดซื้อ แสดงอยู่ในแถวเรื่องจัดซื้อแล้ว ไม่ขึ้นซ้ำเป็น "เบิกค่าอื่น"
+    # (ตรงกับยอดในงบโครงการ project_money_summary และรายงานโครงการ)
+    disb = (db.query(DisburseMemo).filter(DisburseMemo.project_id == pid,
+                                          DisburseMemo.procurement_id.is_(None))
             .order_by(DisburseMemo.id.desc()).all())
     next_seq = max([r.seq or 0 for r in p.revisions], default=0) + 1
     from app.services.project_activity import activity_groups
