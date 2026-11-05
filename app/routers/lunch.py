@@ -22,6 +22,7 @@ from app.thai_utils import parse_be_date, be_date_input, current_fiscal_year, SC
 from app.templating import templates
 from app.routers.pages import get_school, _to_int, _to_float, serve_generated
 
+_DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 router = APIRouter()
 
 PERIOD_TYPES = {"day": "รายวัน", "week": "รายสัปดาห์", "month": "รายเดือน"}
@@ -1385,6 +1386,22 @@ def _sync_installment_ledger(db: Session, inst: LunchInstallment) -> None:
         _delete_ledger(db, existing)
 
 
+def _ap_lunch_boxes(db, rnd):
+    """กล่องส่ง ผอ. อนุมัติของรอบ (services/lunch_approval.py) None = โรงเรียนยังไม่เปิดใช้"""
+    from app.services import approval as ap
+    if not ap.enabled(db):
+        return None
+    boxes = [ap.state(db, "lunch_round", rnd.id, rnd)]
+    pay = ap.state(db, "lunch_pay", rnd.id, rnd)
+    if pay["docs"]:
+        boxes.append(pay)
+    for i in sorted(rnd.installments, key=lambda x: x.seq):
+        st = ap.state(db, "lunch_inst", i.id, i)
+        st["step"] = f"งวดที่ {i.seq}"
+        boxes.append(st)
+    return [b for b in boxes if b["docs"]]
+
+
 @router.get("/lunch/round/{rid}/plan", response_class=HTMLResponse)
 def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
     rnd = db.get(LunchHireRound, rid)
@@ -1482,6 +1499,7 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         chart = lc.round_chart(db, rnd, meal_sum)
 
     return templates.TemplateResponse("lunch_contract.html", {
+        "ap_lunch": _ap_lunch_boxes(db, rnd),
         "request": request, "school": get_school(db), "r": rnd, "p": rnd.program,
         "installments": rnd.installments, "paid": paid,
         "ing_total": ing_total, "fuel_cost": fuel_cost, "wage": wage, "round_budget": round_budget,
@@ -1651,45 +1669,21 @@ def installment_delete(iid: int, db: Session = Depends(get_db)):
 @router.get("/lunch/installment/{iid}/doc")
 def installment_doc(iid: int, db: Session = Depends(get_db)):
     """ออกเอกสาร 'งวด X' (ควบคุม+ส่งมอบ+ตรวจรับ) พร้อมเมนูรายวันในช่วงงวด"""
-    from pathlib import Path
-    from fastapi.responses import FileResponse
-    from app.services.lunch_doc import render_installment_doc
+    from app.services.lunch_approval import render_stamped
     inst = db.get(LunchInstallment, iid)
     if not inst:
         return RedirectResponse("/lunch", status_code=303)
-    prog = inst.round.program
-    menus = [m for m in prog.menus
-             if m.date and inst.start_date and inst.end_date
-             and inst.start_date <= m.date <= inst.end_date]
-    menus.sort(key=lambda m: m.date)
-    if prog.operate_mode == "person":
-        from app.services.lunch_person_doc import render_p_installment
-        path = render_p_installment(inst, get_school(db), menus)
-    else:
-        meals = None
-        if prog.operate_mode == "hire":
-            from app.services.lunch_meals import summary as _ms
-            meals = {"classes": list(prog.classes), "summary": _ms(db, inst)}
-        path = render_installment_doc(inst, get_school(db), menus, meals)
-    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    return serve_generated(render_stamped(db, "inst", inst, get_school(db)), _DOCX_MIME)
 
 
 @router.get("/lunch/installment/{iid}/disburse-doc")
 def installment_disburse_doc(iid: int, db: Session = Depends(get_db)):
     """ออกเอกสารขอเบิกจ่ายรายงวด (บันทึก+ใบสำคัญรับเงิน+หนังสือรับรองหักภาษี)"""
-    from pathlib import Path
-    from fastapi.responses import FileResponse
-    from app.services.lunch_doc import render_disburse_lunch_doc
+    from app.services.lunch_approval import render_stamped
     inst = db.get(LunchInstallment, iid)
     if not inst:
         return RedirectResponse("/lunch", status_code=303)
-    if inst.round.program.operate_mode == "person":
-        from app.services.lunch_person_doc import render_p_disburse
-        path = render_p_disburse(inst, get_school(db))
-    else:
-        from app.services.lunch_meals import summary as _ms
-        path = render_disburse_lunch_doc(inst, get_school(db), penalty=_ms(db, inst)["penalty"])
-    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    return serve_generated(render_stamped(db, "inst-disburse", inst, get_school(db)), _DOCX_MIME)
 
 
 @router.post("/lunch/round/{rid}/pay-mode")
@@ -1719,22 +1713,11 @@ def round_pay_mode(rid: int, db: Session = Depends(get_db), pay_mode: str = Form
 @router.get("/lunch/round/{rid}/disburse-doc")
 def round_disburse_doc(rid: int, db: Session = Depends(get_db)):
     """เอกสารขอเบิกจ่ายทั้งรอบ (บันทึก + ใบสำคัญรับเงิน + หนังสือรับรองหักภาษี) รวมทุกงวด"""
-    from types import SimpleNamespace
-    from app.services.lunch_doc import render_disburse_lunch_doc
-    from app.services.lunch_meals import round_pay
+    from app.services.lunch_approval import render_stamped
     rnd = db.get(LunchHireRound, rid)
     if not rnd or not rnd.installments:
         return RedirectResponse(f"/lunch/round/{rid}/plan" if rnd else "/lunch", status_code=303)
-    insts = sorted(rnd.installments, key=lambda i: i.seq)
-    rp = round_pay(db, rnd)
-    whole = SimpleNamespace(
-        round=rnd, seq=f"1-{insts[-1].seq}" if len(insts) > 1 else str(insts[0].seq),
-        start_date=insts[0].start_date or rnd.start_date, end_date=insts[-1].end_date or rnd.end_date,
-        days=sum(i.days or 0 for i in insts), amount=rp["amount"],
-        inspect_date=max((i.inspect_date for i in insts if i.inspect_date), default=None))
-    path = render_disburse_lunch_doc(whole, get_school(db), penalty=rp["penalty"],
-                                     period_label=f"รอบที่ {rnd.seq} (งวดที่ {whole.seq})")
-    return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    return serve_generated(render_stamped(db, "round-disburse", rnd, get_school(db)), _DOCX_MIME)
 
 
 @router.get("/lunch/installment/{iid}/meals", response_class=HTMLResponse)
@@ -1829,7 +1812,8 @@ def contract_order_doc(rid: int, db: Session = Depends(get_db)):
     rnd = db.get(LunchHireRound, rid)
     if not rnd:
         return RedirectResponse("/lunch", status_code=303)
-    path = render_order_doc(rnd, get_school(db))
+    from app.services.lunch_approval import render_stamped
+    path = render_stamped(db, "order", rnd, get_school(db))
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
@@ -1993,7 +1977,8 @@ def committee_order_doc(rid: int, db: Session = Depends(get_db)):
     rnd = db.get(LunchHireRound, rid)
     if not rnd:
         return RedirectResponse("/lunch", status_code=303)
-    path = render_committee_order_doc(rnd, get_school(db))
+    from app.services.lunch_approval import render_stamped
+    path = render_stamped(db, "committee", rnd, get_school(db))
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
@@ -2006,7 +1991,8 @@ def contract_hire_report_doc(rid: int, db: Session = Depends(get_db)):
     rnd = db.get(LunchHireRound, rid)
     if not rnd:
         return RedirectResponse("/lunch", status_code=303)
-    path = render_hire_report_doc(rnd, get_school(db))
+    from app.services.lunch_approval import render_stamped
+    path = render_stamped(db, "hire-report", rnd, get_school(db))
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
@@ -2018,6 +2004,10 @@ def _round_docfile(rid, db, render_name):
     if not rnd:
         return RedirectResponse("/lunch", status_code=303)
     path = getattr(ld, render_name)(rnd, get_school(db))
+    _key = {"render_winner_doc": "winner", "render_result_doc": "result"}.get(render_name)
+    if _key:
+        from app.services.lunch_approval import KIND_OF, stamp
+        stamp(KIND_OF[_key], rnd.id, path, get_school(db))
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
@@ -2061,6 +2051,10 @@ def _round_ingredient_doc(rid, db, render_name):
     if not rnd:
         return RedirectResponse("/lunch", status_code=303)
     path = getattr(ig, render_name)(rnd, get_school(db))
+    _key = next((f"i:{k}" for k, v in _INGREDIENT_DOCS.items() if v == render_name), "")
+    from app.services.lunch_approval import KIND_OF, stamp
+    if _key in KIND_OF:
+        stamp(KIND_OF[_key], rnd.id, path, get_school(db))
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
@@ -2107,18 +2101,13 @@ def contract_person_doc(rid: int, kind: str, db: Session = Depends(get_db)):
     _mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     # เอกสารค่าจ้างระดับรอบ (แม่ครัวไม่แบ่งงวด: ส่งมอบ/ตรวจรับ/เบิกจ่าย = ทั้งรอบ 1 ครั้ง)
     if kind in ("deliver", "disburse"):
-        prog = rnd.program
-        menus = sorted([m for m in prog.menus
-                        if m.date and rnd.start_date and rnd.end_date
-                        and rnd.start_date <= m.date <= rnd.end_date], key=lambda m: m.date)
-        period = pd._round_period(rnd)
-        if kind == "deliver":
-            path = pd.render_p_installment(period, get_school(db), menus)
-        else:
-            path = pd.render_p_disburse(period, get_school(db))
-        return serve_generated(path, _mime)
+        from app.services.lunch_approval import render_stamped
+        return serve_generated(render_stamped(db, "p:" + kind, rnd, get_school(db)), _mime)
     render_name = _PERSON_DOCS.get(kind)
     if not render_name:
         return RedirectResponse(f"/lunch/round/{rid}/plan", status_code=303)
     path = getattr(pd, render_name)(rnd, get_school(db))
+    from app.services.lunch_approval import KIND_OF, stamp
+    if "p:" + kind in KIND_OF:
+        stamp(KIND_OF["p:" + kind], rnd.id, path, get_school(db))
     return serve_generated(path, _mime)

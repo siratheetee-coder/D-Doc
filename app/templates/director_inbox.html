@@ -15,16 +15,19 @@
 {# ---------------- พัสดุและการเงิน (services/approval.py) ---------------- #}
 {% if ap_docs or school.approval_on %}
 <div class="card" id="docs">
-  <h2><svg class="icon"><use href="#ic-clipboard"/></svg> พัสดุและการเงิน รออนุมัติ ({{ ap_docs|length }})</h2>
+  <h2><svg class="icon"><use href="#ic-clipboard"/></svg> พัสดุ การเงิน ธุรการ โครงการ อาหารกลางวัน รออนุมัติ ({{ ap_docs|length }})</h2>
   {% if ap_docs %}
+  <form method="post" action="/approvals/docs/decide-many" id="apMany">
   <div class="table-wrap">
   <table class="stack-sm">
-    <thead><tr><th>งาน</th><th>เรื่อง</th><th class="right">จำนวนเงิน</th><th>ส่งโดย</th><th></th></tr></thead>
+    <thead><tr><th style="width:34px;"><input type="checkbox" id="apAll" title="เลือกทั้งหมด" aria-label="เลือกทั้งหมด"></th>
+      <th>งาน</th><th>เรื่อง</th><th class="right">จำนวนเงิน</th><th>ส่งโดย</th><th></th></tr></thead>
     <tbody>
       {% for a in ap_docs %}{% set k = ap_kinds[a.kind] %}
       <tr>
+        <td data-label="เลือก"><input type="checkbox" name="aid" value="{{ a.id }}" class="ap-pick" aria-label="เลือก {{ a.title }}"></td>
         <td data-label="งาน">{{ k.group }} <small class="muted">{{ k.label }}</small></td>
-        <td data-label="เรื่อง">{{ a.title or '-' }}</td>
+        <td data-label="เรื่อง">{{ a.title or '-' }}{% if a.sent_note %}<br><small class="muted">ผู้ส่งแจ้งว่า {{ a.sent_note }}</small>{% endif %}</td>
         <td data-label="จำนวนเงิน" class="right">{{ "{:,.2f}".format(a.amount) if a.amount else "-" }}</td>
         <td data-label="ส่งโดย">{{ a.sent_by or '-' }} <small class="muted">{{ thai_date(a.sent_at) if a.sent_at }}</small></td>
         <td class="right"><a class="btn sm" href="/approvals/doc/{{ a.id }}">ดูและอนุมัติ</a></td>
@@ -33,7 +36,33 @@
     </tbody>
   </table>
   </div>
-  {% else %}<p class="muted" style="margin:0;">ไม่มีเรื่องพัสดุหรือการเงินรออนุมัติ</p>{% endif %}
+  <div class="ap-many">
+    <span class="muted" id="apCount">เลือกแล้ว 0 เรื่อง</span>
+    <button class="btn" type="submit" name="action" value="sign" disabled
+            onclick="return confirm('อนุมัติและแปะลายเซ็นเรื่องที่เลือกทั้งหมด?')">อนุมัติและแปะลายเซ็นที่เลือก</button>
+    <button class="btn gray" type="submit" name="action" value="approve" disabled
+            onclick="return confirm('อนุมัติเรื่องที่เลือกทั้งหมด โดยไม่แปะลายเซ็น?')">อนุมัติที่เลือก ไม่แปะลายเซ็น</button>
+  </div>
+  <p class="muted" style="margin:8px 0 0;">ส่งกลับแก้ต้องเขียนเหตุผล ให้กด "ดูและอนุมัติ" ทีละเรื่อง</p>
+  </form>
+  <style>
+    .ap-many{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px; }
+    .ap-many .btn[disabled]{ opacity:.5; cursor:not-allowed; }
+  </style>
+  <script>
+  (function(){
+    var f=document.getElementById('apMany'); if(!f) return;
+    var all=document.getElementById('apAll'), picks=f.querySelectorAll('.ap-pick'),
+        cnt=document.getElementById('apCount'), btns=f.querySelectorAll('.ap-many .btn');
+    function upd(){ var n=f.querySelectorAll('.ap-pick:checked').length;
+      cnt.textContent='เลือกแล้ว '+n+' เรื่อง'; btns.forEach(function(b){ b.disabled=!n; });
+      all.checked = n && n===picks.length; }
+    all.addEventListener('change', function(){ picks.forEach(function(c){ c.checked=all.checked; }); upd(); });
+    picks.forEach(function(c){ c.addEventListener('change', upd); });
+    upd();
+  })();
+  </script>
+  {% else %}<p class="muted" style="margin:0;">ไม่มีเรื่องรออนุมัติ</p>{% endif %}
 </div>
 {% endif %}
 

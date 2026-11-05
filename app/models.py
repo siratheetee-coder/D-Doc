@@ -2424,6 +2424,7 @@ class Approval(Base):
     decided_at = Column(DateTime, nullable=True)
     comment = Column(String, default="")
     sig_file = Column(String, default="")               # สำเนาลายเซ็น ณ ตอนอนุมัติ (data/signatures)
+    acting = Column(Boolean, default=False)             # ผู้อนุมัติไม่ใช่ ผอ. ตามที่ตั้งไว้ = รักษาราชการแทน (ชื่อในเอกสารเปลี่ยนตาม)
 
 
 class Notification(Base):

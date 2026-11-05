@@ -98,13 +98,15 @@
       <td data-label="เอกสาร" class="rv-docs"><a class="btn sm soft" href="/finance/staff/revenue/{{ r.id }}">ผู้รับผิดชอบ</a>
         <a class="btn sm" href="/finance/revenue/{{ r.id }}/all.docx">ชุดเอกสาร</a>
         <a href="/finance/revenue/{{ r.id }}/memo.docx">บันทึกขออนุมัติ</a>
-        <a href="/finance/revenue/{{ r.id }}/letter.docx">หนังสือนำส่ง</a></td>
+        <a href="/finance/revenue/{{ r.id }}/letter.docx">หนังสือนำส่ง</a>
+        {% if ap_rev and ap_rev[r.id] %}{% from "_approval_box.html" import approval_box %}{{ approval_box(ap_rev[r.id], '/finance/approval', '/finance/revenue?year=' ~ fiscal_year ~ '#remit-' ~ r.id, {'ref_id': r.id}, True) }}{% endif %}</td>
       <td><form method="post" action="/finance/revenue/{{ r.id }}/delete" onsubmit="return confirm('ลบการนำส่งนี้ และรายการนำส่งในทะเบียนคุมเงิน?');">
         <button class="btn sm red" type="submit">ลบ</button></form></td>
     </tr>{% else %}<tr><td colspan="6" class="muted" style="text-align:center;">ยังไม่มีการนำส่งในปีงบนี้</td></tr>{% endfor %}</tbody>
   </table></div>
 </div>
 
+{% if ap_rev %}{% from "_approval_box.html" import approval_style %}{{ approval_style() }}{% endif %}
 <style>
   .rv-rule { margin:0 0 12px; padding-left:20px; line-height:1.8; color:#475569; }
   .rv-acc { border-radius:16px; padding:14px 16px; margin:10px 0; background:linear-gradient(135deg,#fffaf0,#fff4e0); }

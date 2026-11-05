@@ -305,3 +305,132 @@ def test_preview_lists_docs_and_serves_pages(env, monkeypatch):
     j = c.get(f"/approvals/doc/{aid}/preview").json()
     assert all(d["file"].startswith(f"/approvals/doc/{aid}/file?doc=") for d in j["docs"])
     assert c.get(f"/approvals/doc/{aid}/preview?doc=รายงานขอซื้อ").json()["ok"]
+
+
+# ---------------------------------------------------------------- ระยะ 3
+def _lunch_round(tid):
+    from app.models import LunchClass, LunchCommittee, LunchHireRound, LunchInstallment, LunchProgram, Vendor
+    from app.tenancy import session_for
+    db = session_for(tid)
+    v = db.query(Vendor).first()
+    if v is None:
+        v = Vendor(name="ร้านอาหารทดสอบ")
+        db.add(v)
+        db.flush()
+    prog = LunchProgram(year=2569, days=200, rate_per_head=36, operate_mode="hire")
+    prog.classes.append(LunchClass(seq=0, level="ป.1", num_students=20))
+    db.add(prog)
+    db.flush()
+    rnd = LunchHireRound(program_id=prog.id, seq=1, start_date=datetime(2026, 5, 18), end_date=datetime(2026, 6, 30),
+                         days=20, vendor_id=v.id, amount=14400, status="จ้างแล้ว")
+    db.add(rnd)
+    db.flush()
+    for i, role in enumerate(("ประธานกรรมการ", "กรรมการ", "กรรมการและเลขานุการ"), 1):
+        db.add(LunchCommittee(round_id=rnd.id, kind="inspect", seq=i, name=f"ครูทดสอบ {i}", role=role))
+    ids = []
+    for n in (1, 2):
+        it = LunchInstallment(round_id=rnd.id, seq=n, start_date=datetime(2026, 6, 1 + (n - 1) * 14),
+                              end_date=datetime(2026, 6, 12 + (n - 1) * 14), days=10, amount=7200)
+        db.add(it)
+        db.flush()
+        ids.append(it.id)
+    db.commit()
+    rid = rnd.id
+    db.close()
+    return rid, ids
+
+
+def test_lunch_round_sign_and_bulk_installments(env):
+    c, tid, _ids = env
+    rid, insts = _lunch_round(tid)
+    page = c.get(f"/lunch/round/{rid}/plan").text
+    assert 'action="/lunch/approval"' in page and "งวดที่ 2" in page
+
+    docs = c.get(f"/lunch/approval/preview?kind=lunch_round&ref_id={rid}").json()["docs"]
+    assert [d["key"] for d in docs][:2] == ["hire-report", "committee"]
+
+    c.post("/lunch/approval", data={"kind": "lunch_round", "ref_id": rid, "action": "send"})
+    aid = _latest(tid, "lunch_round", rid)[0]
+    c.post(f"/approvals/doc/{aid}/decide", data={"action": "sign"})
+    _xml, has_img = _docx(c.get(f"/lunch/round/{rid}/hire-report-doc"))
+    assert has_img                                   # รอบอนุมัติแล้ว รายงานขอจ้างมีลายเซ็น
+    _xml, has_img = _docx(c.get(f"/lunch/installment/{insts[0]}/doc"))
+    assert not has_img                               # งวดยังไม่ส่ง
+
+    # อนุมัติหลายงวดพร้อมกัน
+    for i in insts:
+        c.post("/lunch/approval", data={"kind": "lunch_inst", "ref_id": i, "action": "send"})
+    aids = [_latest(tid, "lunch_inst", i)[0] for i in insts]
+    r = c.post("/approvals/docs/decide-many", data={"action": "approve", "aid": aids}, follow_redirects=False)
+    assert r.status_code == 303 and "msg=" in r.headers["location"]
+    assert all(_latest(tid, "lunch_inst", i)[1] == "approved" for i in insts)
+    xml, has_img = _docx(c.get(f"/lunch/installment/{insts[1]}/disburse-doc"))
+    assert not has_img                               # อนุมัติแบบไม่แปะลายเซ็น
+    assert c.get(f"/lunch/installment/{insts[0]}/approval-go", follow_redirects=False).headers["location"] \
+        == f"/lunch/round/{rid}/plan#approval"
+
+
+def test_revenue_remit_signed(env):
+    c, tid, _ids = env
+    from app.models import FinanceAccount, RevenueRemit
+    from app.tenancy import session_for
+    db = session_for(tid)
+    acc = FinanceAccount(name="เงินรายได้แผ่นดิน", opening_balance=0, deposit_type="bank")
+    db.add(acc)
+    db.flush()
+    r = RevenueRemit(fiscal_year=2569, date=datetime(2026, 1, 15), account_id=acc.id, rtype="interest",
+                     amount=125.5, send_to="สพป.ทดสอบ เขต 1", memo_no="ศธ 1/2569", letter_no="ศธ 2/2569")
+    db.add(r)
+    db.commit()
+    rid = r.id
+    db.close()
+    assert 'action="/finance/approval"' in c.get("/finance/revenue?year=2569").text
+    c.post("/finance/approval", data={"kind": "revenue", "ref_id": rid, "action": "send"})
+    aid = _latest(tid, "revenue", rid)[0]
+    c.post(f"/approvals/doc/{aid}/decide", data={"action": "sign"})
+    xml, has_img = _docx(c.get(f"/finance/revenue/{rid}/memo.docx"))
+    assert has_img and "( ✓ )" in xml
+    _xml, has_img = _docx(c.get(f"/finance/revenue/{rid}/letter.docx"))
+    assert has_img                                   # หนังสือนำส่ง: ลายเซ็นในบรรทัดว่างเหนือชื่อ
+    assert c.get(f"/approvals/doc/{aid}/preview").json()["docs"][1]["key"] == "letter"
+
+
+def test_acting_director_name_on_document(env):
+    """ผู้อนุมัติไม่ใช่ ผอ. ตามตั้งค่า = รักษาราชการแทน ชื่อในเอกสารเป็นผู้อนุมัติ"""
+    c, tid, ids = env
+    from app.models import School
+    from app.tenancy import session_for
+    db = session_for(tid)
+    db.query(School).first().director_name = "นายผู้อำนวยการ ตัวจริง"
+    db.commit(); db.close()
+    pid = ids["proc"]
+    c.post(f"/procurement/{pid}/approval", data={"kind": "proc_request", "action": "send"})
+    aid = _latest(tid, "proc_request", pid)[0]
+    assert "รักษาราชการแทน" in c.get(f"/approvals/doc/{aid}").text
+    c.post(f"/approvals/doc/{aid}/decide", data={"action": "sign"})
+    xml, has_img = _docx(c.post(f"/procurement/{pid}/generate", data={"doc_kind": "รายงานขอซื้อ"}))
+    assert has_img
+    assert f"( {DIRECTOR} )" in xml and "นายผู้อำนวยการ ตัวจริง" not in xml
+    assert "รักษาราชการแทน" in xml
+
+
+def test_acting_director_on_admin_letter_and_memo(env):
+    c, tid, _ids = env
+    from app.models import OfficeMemo, OfficialLetter, School
+    from app.tenancy import session_for
+    real = "นายผู้อำนวยการ ตัวจริง"
+    db = session_for(tid)
+    db.query(School).first().director_name = real
+    lt = OfficialLetter(fiscal_year=2569, subject="ขอเชิญประชุม", to="ผอ.สพป.", body="เนื้อความ",
+                        signer_name=real, date=datetime(2026, 1, 5))
+    m = OfficeMemo(fiscal_year=2569, subject="ขออนุญาตจัดกิจกรรม", body="รายละเอียด",
+                   signer_name="นางครู ทดสอบ", date=datetime(2026, 1, 5))
+    db.add_all([lt, m]); db.commit()
+    lid, mid = lt.id, m.id
+    db.close()
+    _approve(c, tid, "/admin/approval", "letter", lid, ref_id=lid)
+    _approve(c, tid, "/admin/approval", "memo", mid, ref_id=mid)
+    for url in (f"/admin/letters/{lid}/generate", f"/admin/memos/{mid}/generate"):
+        xml, has_img = _docx(c.get(url))
+        assert has_img and f"( {DIRECTOR} )" in xml and "รักษาราชการแทน" in xml, url
+        assert f"( {real} )" not in xml, url

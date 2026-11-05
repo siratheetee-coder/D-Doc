@@ -1830,11 +1830,16 @@ def revenue_page(request: Request, db: Session = Depends(get_db), year: int | No
     fy = year or current_fiscal_year()
     school = get_school(db)
     now = datetime.now()
+    remits = (db.query(RevenueRemit).filter_by(fiscal_year=fy)
+              .order_by(RevenueRemit.date.desc(), RevenueRemit.id.desc()).all())
+    from app.services import approval as ap
+    ap_rev = {r.id: ap.state(db, "revenue", r.id, r) for r in remits} if ap.enabled(db) else None
     return templates.TemplateResponse("finance_revenue.html", {
+        "ap_rev": ap_rev,
         "request": request, "school": school, "fiscal_year": fy, "years": _finance_years(db, fy),
         "summary": rr.summary(db), "types": rr.TYPES, "methods": rr.METHODS, "names": rr.NAMES,
         "defaults": rr.defaults(db, school), "limit": rr.CASH_LIMIT,
-        "remits": db.query(RevenueRemit).filter_by(fiscal_year=fy).order_by(RevenueRemit.date.desc(), RevenueRemit.id.desc()).all(),
+        "remits": remits,
         "today_be": be_date_input(now), "this_month": f"{now.year + 543}-{now.month:02d}",
         "msg": request.query_params.get("msg", ""), "err": request.query_params.get("err", ""),
     })
@@ -1880,7 +1885,27 @@ def revenue_doc(rid: int, which: str, db: Session = Depends(get_db)):
     r = db.get(RevenueRemit, rid)
     if not r or which not in list(rr.RENDERERS) + ["all"]:
         return RedirectResponse("/finance/revenue", status_code=303)
-    return serve_generated(rr.render(get_school(db), r, which), _DOCX)
+    return serve_generated(revenue_stamped(db, r, which), _DOCX)
+
+
+def revenue_stamped(db, r, which):
+    """สร้างเอกสารนำส่งรายได้แผ่นดิน + แปะลายเซ็น ผอ. ถ้าอนุมัติแล้ว (services/approval.py)"""
+    from app.services import revenue_remit as rr
+    from app.services.approval import stamp_current
+    path = rr.render(get_school(db), r, which)
+    sc = staff.school_for(r, get_school(db))
+    stamp_current("revenue", r.id, path, (sc.director_name or "") if sc else "", tick=("อนุมัติ",))
+    return path
+
+
+@router.get("/finance/revenue/{rid}/open")
+def revenue_open(rid: int, db: Session = Depends(get_db)):
+    """ลิงก์จากกล่องรออนุมัติ: เปิดหน้าปีงบของรายการนี้แล้วเลื่อนไปที่แถว"""
+    from app.models import RevenueRemit
+    r = db.get(RevenueRemit, rid)
+    if not r:
+        return RedirectResponse("/finance/revenue", status_code=303)
+    return RedirectResponse(f"/finance/revenue?year={r.fiscal_year}#remit-{rid}", status_code=303)
 
 
 @router.get("/finance/revenue/report.docx")

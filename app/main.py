@@ -77,7 +77,8 @@ _DIRECTOR_WRITE_ALLOW = [
     re.compile(r"^/hr/leave-requests/\d+/approve$"),        # อนุมัติใบลา
     re.compile(r"^/hr/travel-requests/\d+/approve$"),       # อนุมัติไปราชการ
     re.compile(r"^/admin/incoming/\d+/endorse$"),            # สั่งการหนังสือรับ + เวียน
-    re.compile(r"^/approvals/doc/\d+/decide$"),              # อนุมัติเรื่องพัสดุ/การเงิน (services/approval.py)
+    re.compile(r"^/approvals/doc/\d+/decide$"),
+    re.compile(r"^/approvals/docs/decide-many$"),             # อนุมัติหลายเรื่องพร้อมกัน              # อนุมัติเรื่องพัสดุ/การเงิน (services/approval.py)
     re.compile(r"^/admin/incoming/\d+/remind$"),             # เตือนผู้ที่ยังไม่รับทราบ
     re.compile(r"^/admin/incoming/\d+/tasks/\d+/review$"),   # ตรวจผลการดำเนินงาน
     re.compile(r"^/me/letters/\d+/report$"),                 # รายงานงานที่มอบหมายถึงตัวเอง

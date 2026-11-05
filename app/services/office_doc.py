@@ -107,19 +107,37 @@ def _sign_by(paragraph, signer, school, ap):
         if ap["sig"]:
             from app.services.approval import _float_on_dots   # วางบนจุดไข่ปลา แบบเดียวกับเอกสารพัสดุ
             _float_on_dots(paragraph, ap["sig"])
+        _acting_cell(paragraph, school, ap)
         return
     _float_signature(paragraph, signer)
 
 
+def _acting_cell(paragraph, school, ap):
+    """รักษาราชการแทน: ชื่อ/ตำแหน่งใต้ลายเซ็นในช่องเดียวกันเปลี่ยนเป็นผู้อนุมัติ"""
+    from app.services.approval import _rewrite_acting, acting_name_for
+    acting = acting_name_for(ap.get("a"))
+    if not acting:
+        return
+    try:
+        paras = paragraph._parent.paragraphs
+    except AttributeError:
+        return
+    director = " ".join((school.director_name or "").split())
+    for i, p in enumerate(paras):
+        if _rewrite_acting(paras, i, p, director, acting):
+            break
+
+
 def _director_endorse(doc, school, ap):
     """บันทึกที่คนอื่นลงนามเสนอ ผอ.: อนุมัติในระบบแล้ว ต่อท้ายความเห็น ผอ. (☑ อนุมัติ + ลงนาม)"""
+    from app.services.approval import acting_name_for
     a = ap["a"]
     _p(doc, f"ความเห็นของ{_director_office(school)}", after=2)
     _p(doc, "☑  อนุมัติ" + (f"   {a.comment}" if (a.comment or "").strip() else ""), after=8)
     tbl = _sign_table(doc, [[
         ("ลงชื่อ.........................................", "center"),
-        (f"( {school.director_name or ''} )", "center"),
-        (_director_office(school), "center"),
+        (f"( {acting_name_for(a) or school.director_name or ''} )", "center"),
+        (("รักษาราชการแทน" if acting_name_for(a) else "") + _director_office(school), "center"),
         (thai_date(a.decided_at) if a.decided_at else "", "center"),
     ]])
     if ap["sig"]:

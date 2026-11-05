@@ -46,6 +46,7 @@
 {% if a.status == 'pending' and is_director %}
 <div class="card" id="decide">
   <h2>ผลการพิจารณา</h2>
+  {% if acting %}<div class="alert warn" style="margin-bottom:10px;">คุณไม่ใช่ ผอ. ตามชื่อที่ตั้งไว้ในระบบ ({{ school_director or '-' }}) อนุมัติแล้วเอกสารจะขึ้นชื่อคุณ และบรรทัดตำแหน่งขึ้นต้นว่า "รักษาราชการแทน"</div>{% endif %}
   <form method="post" action="/approvals/doc/{{ a.id }}/decide" class="ap-form">
     <textarea name="comment" rows="2" maxlength="500" placeholder="ความเห็น (ต้องเขียนถ้าส่งกลับแก้)"></textarea>
     <div class="ap-btns">
@@ -65,7 +66,7 @@
   <ul class="ap-hist">
     {% for h in history %}
     <li><b>{{ thai_date(h.sent_at) if h.sent_at }}</b> {{ h.sent_by or '-' }} ส่ง ผอ.
-      {% if h.status == 'approved' %}<br><span class="ok">{{ h.decided_name }} อนุมัติ{% if h.with_sign %} แปะลายเซ็น{% else %} ไม่แปะลายเซ็น{% endif %} {{ thai_date(h.decided_at) if h.decided_at }}</span>
+      {% if h.status == 'approved' %}<br><span class="ok">{{ h.decided_name }}{% if h.acting %} (รักษาราชการแทน){% endif %} อนุมัติ{% if h.with_sign %} แปะลายเซ็น{% else %} ไม่แปะลายเซ็น{% endif %} {{ thai_date(h.decided_at) if h.decided_at }}</span>
       {% elif h.status == 'returned' %}<br><span class="bad">{{ h.decided_name }} ส่งกลับแก้ {{ thai_date(h.decided_at) if h.decided_at }}</span>
       {% elif h.status == 'cancelled' %}<br><span class="muted">ผู้ส่งยกเลิก</span>
       {% else %}<br><span class="muted">รอ ผอ. พิจารณา</span>{% endif %}

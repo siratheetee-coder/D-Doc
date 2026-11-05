@@ -122,10 +122,53 @@ KINDS.update({
         title=lambda r: r.title or (r.project.name if r.project else "") or "รายงานผลโครงการ", amount=lambda r: 0,
         link=lambda rid: f"/project-reports/{rid}", group="โครงการ"),
 })
+# ---- ระยะ 3: นำส่งรายได้แผ่นดิน + อาหารกลางวัน ----
+# docs_fn(obj) -> [(คีย์, ชื่อเอกสาร)] สำหรับชนิดที่เอกสารขึ้นกับเรื่อง (ใช้แทน docs)
+def _lunch(name):
+    def f(*a, **k):
+        import app.services.lunch_approval as la
+        return getattr(la, name)(*a, **k)
+    return f
+
+
+def _rev_title(r):
+    from app.services.revenue_remit import NAMES
+    return "นำส่งเงินรายได้แผ่นดิน " + NAMES.get(r.rtype, "")
+
+
+KINDS.update({
+    "revenue": dict(
+        label="นำส่งเงินรายได้แผ่นดิน", step="ขออนุมัตินำส่งเงินรายได้แผ่นดิน",
+        docs=["บันทึกขออนุมัตินำส่งเงินรายได้แผ่นดิน", "หนังสือนำส่งเงินรายได้แผ่นดิน"],
+        docs_fn=lambda r: [("memo", "บันทึกขออนุมัตินำส่งเงินรายได้แผ่นดิน"),
+                           ("letter", "หนังสือนำส่งเงินรายได้แผ่นดิน")],
+        get=_get("RevenueRemit"),
+        fp=lambda r: (f"{r.rtype}|{float(r.amount or 0):.2f}|{r.date:%Y-%m-%d}|{r.send_to or ''}|"
+                      f"{r.method or ''}|{r.ref2 or ''}"),
+        title=_rev_title, amount=lambda r: r.amount,
+        link=lambda rid: f"/finance/revenue/{rid}/open", group="การเงิน"),
+    "lunch_round": dict(
+        label="อนุมัติจ้าง/ซื้ออาหารกลางวัน", step="เปิดเรื่องของรอบ",
+        docs=[], docs_fn=_lunch("round_docs"), get=_get("LunchHireRound"), fp=_lunch("fp_round"),
+        title=_lunch("title_round"), amount=lambda r: r.amount,
+        link=lambda rid: f"/lunch/round/{rid}/plan#approval", group="อาหารกลางวัน"),
+    "lunch_pay": dict(
+        label="อนุมัติเบิกจ่ายอาหารกลางวัน", step="ตรวจรับและเบิกจ่ายของรอบ",
+        docs=[], docs_fn=_lunch("pay_docs"), get=_get("LunchHireRound"), fp=_lunch("fp_pay"),
+        title=_lunch("title_round"), amount=lambda r: r.amount,
+        link=lambda rid: f"/lunch/round/{rid}/plan#approval", group="อาหารกลางวัน"),
+    "lunch_inst": dict(
+        label="ตรวจรับและเบิกจ่ายงวด", step="งวดงานอาหารกลางวัน",
+        docs=[], docs_fn=_lunch("inst_docs"), get=_get("LunchInstallment"), fp=_lunch("fp_inst"),
+        title=_lunch("title_inst"), amount=lambda i: i.amount,
+        link=lambda rid: f"/lunch/installment/{rid}/approval-go", group="อาหารกลางวัน"),
+})
+
 # เส้นทางส่ง (อยู่ใต้ path ของงาน สิทธิ์งานเดิมคุม) -> ชนิดที่ส่งได้
-SEND_PATHS = {"/finance/approval": ("disburse", "loan"),
+SEND_PATHS = {"/finance/approval": ("disburse", "loan", "revenue"),
               "/admin/approval": ("memo", "order", "letter"),
-              "/projects/approval": ("project", "project_report")}
+              "/projects/approval": ("project", "project_report"),
+              "/lunch/approval": ("lunch_round", "lunch_pay", "lunch_inst")}
 
 
 def lookup_current(kind: str, ref_id: int) -> dict:
@@ -203,6 +246,9 @@ def state(db, kind: str, ref_id: int, obj=None) -> dict:
     a = latest(db, kind, ref_id)
     spec = KINDS[kind]
     out = dict(kind=kind, ref_id=ref_id, label=spec["label"], step=spec["step"], docs=spec["docs"], a=a, code="none")
+    if spec.get("docs_fn"):
+        obj = obj if obj is not None else spec["get"](db, ref_id)
+        out["docs"] = [lb for _k, lb in spec["docs_fn"](obj)] if obj is not None else []
     if not a or a.status == "cancelled":
         return out
     if a.status == "approved":
@@ -301,12 +347,29 @@ def decide(db, aid: int, action: str, person_id, name: str, comment: str = ""):
         a.status = "returned"
         return a
     a.status, a.with_sign = "approved", action == "sign"
+    a.acting = is_acting(db, person_id, name)
     if a.with_sign:
         a.sig_file = _copy_signature(db, person_id, name)
         if not a.sig_file:
             raise ValueError("ยังไม่มีรูปลายเซ็นของ ผอ. ในทะเบียนบุคลากร เลือก อนุมัติแต่ไม่แปะลายเซ็น "
                              "หรือให้ไอดีหลักใส่รูปลายเซ็นก่อน")
     return a
+
+
+def is_acting(db, person_id, name) -> bool:
+    """ผู้กดอนุมัติไม่ใช่ ผอ. ตามชื่อในตั้งค่าโรงเรียน = รักษาราชการแทน (รอง ผอ./ผู้ได้รับมอบ)"""
+    from app.models import Person, School
+    s = db.query(School).first()
+    director = _norm(s.director_name if s else "")
+    if not director or _norm(name) == director:
+        return False
+    p = db.get(Person, person_id) if person_id else None
+    return not (p and _norm(p.name) == director)
+
+
+def acting_name_for(a) -> str:
+    """ชื่อที่ต้องขึ้นแทนชื่อ ผอ. ในเอกสาร ('' = ไม่ใช่รักษาราชการแทน)"""
+    return _norm(a.decided_name) if a is not None and getattr(a, "acting", False) else ""
 
 
 def _copy_signature(db, person_id, name) -> str:
@@ -346,7 +409,8 @@ def stamp_current(kind: str, ref_id: int, path: str, director_name: str, tick=("
             a = approved_for(db, kind, ref_id)
             if not a:
                 return False
-            return stamp_file(path, director_name, a.sig_file if a.with_sign else "", tick=tick)
+            return stamp_file(path, director_name, a.sig_file if a.with_sign else "", tick=tick,
+                              acting_name=acting_name_for(a))
         finally:
             db.close()
     except Exception:
@@ -374,14 +438,14 @@ def _all_paragraphs(doc):
     yield from walk(body)
 
 
-def stamp_file(path: str, director_name: str, sig_file: str, tick=("อนุมัติ",)) -> bool:
+def stamp_file(path: str, director_name: str, sig_file: str, tick=("อนุมัติ",), acting_name: str = "") -> bool:
     """แปะลายเซ็น ผอ. บนบรรทัด 'ลงชื่อ....' ที่อยู่เหนือ ( ชื่อ ผอ. ) ทุกจุดในไฟล์
     + ติ๊กช่องคำสั่ง tick ('อนุมัติ' / 'ทราบ') ทั้งแบบ ☐ อนุมัติ และ (   ) อนุมัติ"""
     from docx import Document
     from app.services.signature import signature_full_path
     name = _norm(director_name)
     sig = signature_full_path(sig_file) if sig_file else None
-    if not name or not (sig or tick):
+    if not name or not (sig or tick or acting_name):
         return False
     doc = Document(path)
     paras = list(_all_paragraphs(doc))
@@ -396,11 +460,15 @@ def stamp_file(path: str, director_name: str, sig_file: str, tick=("อนุม
                 if i - back >= 0 and "ลงชื่อ" in paras[i - back].text:
                     target = paras[i - back]
                     break
+        if target is None and t in (f"( {name} )", f"({name})") and i >= 1 and not _norm(paras[i - 1].text):
+            target = paras[i - 1]          # หนังสือราชการ: บรรทัดว่างเหนือชื่อ ไม่มีคำว่า ลงชื่อ
         if target is None or id(target._p) in seen:
             continue
         seen.add(id(target._p))
-        if sig and _float_on_dots(target, str(sig)):
+        if sig and (_float_on_dots(target, str(sig)) or (not _norm(target.text) and _inline_sig(target, str(sig)))):
             done += 1
+        if acting_name:
+            done += _rewrite_acting(paras, i, p, name, acting_name)
     if tick:
         import re
         words = "|".join(re.escape(w) for w in ((tick,) if isinstance(tick, str) else tick))
@@ -417,6 +485,44 @@ def stamp_file(path: str, director_name: str, sig_file: str, tick=("อนุม
         refit_signatures(doc)          # ล้างเครื่องหมายภายในก่อนบันทึก (ค่าไม่เปลี่ยน)
         doc.save(path)
     return bool(done)
+
+
+def _inline_sig(paragraph, sig_path: str, height_cm: float = 1.1) -> bool:
+    """บรรทัดว่างเหนือชื่อ (หนังสือราชการ) วางรูปลายเซ็นในบรรทัดเลย"""
+    from docx.shared import Cm
+    try:
+        paragraph.add_run().add_picture(sig_path, height=Cm(height_cm))
+        return True
+    except Exception:
+        return False
+
+
+def _set_text(paragraph, text: str):
+    """แทนข้อความทั้งย่อหน้า คงรูปแบบตัวอักษรของ run แรก"""
+    runs = paragraph.runs
+    if not runs:
+        paragraph.add_run(text)
+        return
+    runs[0].text = text
+    for r in runs[1:]:
+        r.text = ""
+
+
+def _rewrite_acting(paras, i, p, director: str, acting: str) -> int:
+    """รักษาราชการแทน: ( ชื่อ ผอ. ) -> ( ชื่อผู้อนุมัติ ) และบรรทัดตำแหน่งถัดไปขึ้นต้น 'รักษาราชการแทน'"""
+    t = p.text or ""
+    new = t.replace(f"( {director} )", f"( {acting} )").replace(f"({director})", f"({acting})")
+    if new == t and _norm(t) in (f"( {director} )", f"({director})"):
+        new = f"( {acting} )"
+    if new == t:
+        return 0
+    _set_text(p, new)
+    if i + 1 < len(paras):
+        nxt = paras[i + 1]
+        nt = _norm(nxt.text)
+        if nt and "รักษาราชการแทน" not in nt and any(w in nt for w in ("ผู้อำนวยการ", "ครูใหญ่", "อาจารย์ใหญ่")):
+            _set_text(nxt, "รักษาราชการแทน" + nt)
+    return 1
 
 
 def _float_on_dots(paragraph, sig_path: str, height_cm: float = 1.1) -> bool:
