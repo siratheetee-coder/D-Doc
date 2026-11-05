@@ -465,6 +465,7 @@ app.include_router(admin.router)
 from app.routers import letter_tracking
 app.include_router(letter_tracking.router)
 from app.services import staff  # Register case-signature snapshot lifecycle
+from app.services import proc_paid  # noqa: F401,E402  สถานะเรื่องจัดซื้อตามการจ่ายบันทึกขอเบิก
 app.include_router(finance.router)
 app.include_router(lunch.router)
 app.include_router(hr.router)

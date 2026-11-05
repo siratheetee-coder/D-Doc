@@ -124,3 +124,43 @@ def test_disburse_memo_from_procurement_not_listed_twice(env):
     assert 'ขอเบิกเงินค่าวัสดุอบรมครู' not in page          # แถวซ้ำจากเรื่องจัดซื้อ
     assert 'วัสดุอบรมครู' in page and 'ค่าตอบแทนวิทยากร' in page
     assert '5,500.00' in page and '10,000.00' not in page    # ยอดใช้รวม 4,500 + 1,000 ไม่นับซ้ำ
+
+
+def test_procurement_status_follows_paid_memo(env):
+    """ลงจ่ายบันทึกขอเบิกของเรื่องจัดซื้อครบ -> เรื่องเป็น "เบิกจ่ายแล้ว" ยกเลิกจ่าย -> ถอยกลับ"""
+    import app.tenancy as tn
+    tid = next(iter(tn._engines))
+    with tn.session_for(tid) as s:
+        pr = Procurement(subject='จ้างถ่ายเอกสาร', fiscal_year=2569, total_amount=1400, status='ร่าง')
+        s.add(pr); s.flush()
+        m = DisburseMemo(subject='ขอเบิกค่าถ่ายเอกสาร', fiscal_year=2569, procurement_id=pr.id,
+                         amount=1400, status='อนุมัติ')
+        s.add(m); s.commit(); prid, mid = pr.id, m.id
+        assert s.get(Procurement, prid).status == 'ร่าง'          # ยังไม่จ่าย ไม่เปลี่ยน
+        s.get(DisburseMemo, mid).status = 'จ่ายแล้ว'; s.commit()
+        assert s.get(Procurement, prid).status == 'เบิกจ่ายแล้ว'
+        s.get(DisburseMemo, mid).status = 'อนุมัติ'; s.commit()   # ยกเลิกการเชื่อมรายการจ่าย
+        assert s.get(Procurement, prid).status == 'อนุมัติ'
+
+
+def test_procurement_status_partial_payment_and_backfill(env):
+    import app.tenancy as tn
+    from app.services.proc_paid import backfill
+    tid = next(iter(tn._engines))
+    with tn.session_for(tid) as s:
+        pr = Procurement(subject='ซื้อวัสดุ', fiscal_year=2569, total_amount=4000, status='ร่าง')
+        old = Procurement(subject='เรื่องเก่าจ่ายแล้ว', fiscal_year=2569, total_amount=1800, status='ร่าง')
+        s.add_all([pr, old]); s.flush()
+        s.add(DisburseMemo(subject='งวด 1', fiscal_year=2569, procurement_id=pr.id, amount=2000, status='จ่ายแล้ว'))
+        s.add(DisburseMemo(subject='งวด 2', fiscal_year=2569, procurement_id=pr.id, amount=2000, status='อนุมัติ'))
+        s.commit(); prid, oid = pr.id, old.id
+        assert s.get(Procurement, prid).status == 'ร่าง'          # จ่ายแค่บางงวด ยังไม่ครบ
+        # ข้อมูลเดิมก่อนมีตัวฟัง: เขียนตรงลงฐานข้อมูล แล้วให้ backfill แก้
+        s.execute(__import__('sqlalchemy').text(
+            "INSERT INTO disburse_memo (fiscal_year, subject, procurement_id, amount, status) "
+            "VALUES (2569, 'เก่า', :p, 1800, 'จ่ายแล้ว')"), {"p": oid})
+        s.commit()
+    backfill(tn._engines[tid][0])
+    with tn.session_for(tid) as s:
+        assert s.get(Procurement, oid).status == 'เบิกจ่ายแล้ว'
+        assert s.get(Procurement, prid).status == 'ร่าง'

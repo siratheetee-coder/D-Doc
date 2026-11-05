@@ -439,6 +439,7 @@ def init_school_db(engine) -> None:
         ("ปรับรูปแบบงานอาหารกลางวัน", _fix_lunch_proc_case),
         ("เพิ่มครั้งที่ชั่งน้ำหนัก", _migrate_measure_times),
         ("เติมรับจาก/จ่ายให้ในบัญชีวัสดุ", _backfill_material_party),
+        ("สถานะเรื่องจัดซื้อที่เบิกจ่ายครบแล้ว", _backfill_proc_paid),
     )
     for label, fn in steps:
         try:
@@ -448,6 +449,11 @@ def init_school_db(engine) -> None:
                 print(f"[school-db] ข้ามขั้นตอน '{label}' ของโรงเรียนนี้: {e!r}")
             except UnicodeEncodeError:      # คอนโซลไม่รองรับภาษาไทย ห้ามล้มเพราะ log
                 print(f"[school-db] skipped a repair step: {e!r}")
+
+
+def _backfill_proc_paid(engine) -> None:
+    from app.services.proc_paid import backfill
+    backfill(engine)
 
 
 def _migrate_measure_times(engine) -> None:
