@@ -19,7 +19,7 @@
 <div class="card ap-sum">
   <div class="ap-grid">
     <div><span class="muted">เรื่อง</span><b>{{ a.title or '-' }}</b></div>
-    <div><span class="muted">จำนวนเงิน</span><b>{{ "{:,.2f}".format(a.amount or 0) }} บาท</b></div>
+    <div><span class="muted">จำนวนเงิน</span><b>{{ ("{:,.2f}".format(a.amount) ~ " บาท") if a.amount else "-" }}</b></div>
     <div><span class="muted">ส่งโดย</span><b>{{ a.sent_by or '-' }}</b> <small class="muted">{{ thai_date(a.sent_at) if a.sent_at }}</small></div>
     <div><span class="muted">สถานะ</span><b>{% if a.status == 'pending' %}รอ ผอ. พิจารณา{% elif a.status == 'approved' %}อนุมัติแล้ว{% if a.with_sign %} แปะลายเซ็น{% else %} ไม่แปะลายเซ็น{% endif %}{% elif a.status == 'returned' %}ส่งกลับให้แก้{% else %}ยกเลิกแล้ว{% endif %}</b></div>
   </div>

@@ -36,7 +36,8 @@ def _notify_directors(db, a):
     try:
         from app.routers.hr import _notify_directors as notify
         spec = ap.KINDS[a.kind]
-        notify(db, f"รออนุมัติ: {spec['label']}", f"{a.title} {a.amount:,.2f} บาท จาก {a.sent_by}",
+        money = f" {a.amount:,.2f} บาท" if a.amount else ""
+        notify(db, f"รออนุมัติ: {spec['label']}", f"{a.title}{money} จาก {a.sent_by}",
                link=f"/approvals/doc/{a.id}")
     except Exception:
         pass
@@ -189,6 +190,12 @@ def approval_decide(aid: int, request: Request, db: Session = Depends(get_db),
     try:
         a = ap.decide(db, aid, action, request.session.get("person_id"),
                       request.session.get("name") or "", comment)
+        # แจ้งเตือน "รออนุมัติ" ของเรื่องนี้ (ถึง ผอ./รองผอ. ทุกคน) หมดหน้าที่แล้ว ไม่ให้ค้างในกระดิ่ง
+        from datetime import datetime as _dt
+        from app.models import Notification
+        (db.query(Notification).filter(Notification.link == f"/approvals/doc/{aid}",
+                                       Notification.read_at.is_(None))
+         .update({Notification.read_at: _dt.now()}, synchronize_session=False))
         if a.sent_pid:
             from app.services.nav import create_notice
             spec = ap.KINDS[a.kind]

@@ -414,6 +414,7 @@ def stamp_file(path: str, director_name: str, sig_file: str, tick=("อนุม
                     r.text = new
                     done += 1
     if done:
+        refit_signatures(doc)          # ล้างเครื่องหมายภายในก่อนบันทึก (ค่าไม่เปลี่ยน)
         doc.save(path)
     return bool(done)
 
@@ -444,11 +445,38 @@ def _float_on_dots(paragraph, sig_path: str, height_cm: float = 1.1) -> bool:
             # ตำแหน่งนับจากขอบบนของย่อหน้า ต้องบวกระยะเว้นก่อนย่อหน้า (แม่แบบพัสดุเว้นไว้ราว 1 ซม.)
             gap = paragraph.paragraph_format.space_before or 0
             _float_at_run(shape._inline, dx_emu=Cm(0.4).emu, dy_emu=int(gap) + Cm(-0.45).emu)
+            _mark(paragraph)
             return True
         except Exception:
             pic.getparent().remove(pic)
             return False
     return False
+
+
+def _mark(paragraph):
+    """จำย่อหน้าที่วางลายเซ็นไว้ (ในหน่วยความจำของเอกสาร ไม่เขียนลงไฟล์)
+    เผื่อตัวจัดหน้าเติมระยะเว้นทีหลัง (refit_signatures)"""
+    try:
+        part = paragraph.part
+        if not hasattr(part, "_ee_sigs"):
+            part._ee_sigs = []
+        part._ee_sigs.append(paragraph._p)
+    except Exception:
+        pass
+
+
+def refit_signatures(doc):
+    """ตัวจัดหน้า (page_fit) เพิ่ม/ลดระยะเว้นเหนือบรรทัดลงชื่อหลังวางลายเซ็นแล้ว
+    คำนวณตำแหน่งแนวตั้งใหม่ตามระยะเว้นล่าสุด ไม่งั้นลายเซ็นลอยสูงเกินบรรทัด แล้วล้างเครื่องหมาย"""
+    from docx.oxml.ns import qn
+    from docx.shared import Cm
+    from docx.text.paragraph import Paragraph
+    for p_el in getattr(doc.part, "_ee_sigs", []):
+        gap = Paragraph(p_el, None).paragraph_format.space_before or 0
+        for pv in p_el.iter(qn("wp:positionV")):
+            off = pv.find(qn("wp:posOffset"))
+            if off is not None:
+                off.text = str(int(gap) + Cm(-0.45).emu)
 
 
 def box(db, kind: str, ref_id: int, back: str):

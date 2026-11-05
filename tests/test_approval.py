@@ -244,3 +244,20 @@ def test_project_and_report(env):
     assert not _docx(c.get(f"/project-reports/{rid}/doc.docx"))[1]
     _approve(c, tid, "/projects/approval", "project_report", rid, ref_id=rid)
     assert _docx(c.get(f"/project-reports/{rid}/doc.docx"))[1]
+
+
+def test_signed_files_have_no_internal_marker(env):
+    """เครื่องหมายภายในของตัววางลายเซ็นต้องไม่หลุดไปในไฟล์ (Word อาจเปิดไม่ได้)"""
+    c, tid, ids = env
+    from app.models import OfficeMemo
+    from app.tenancy import session_for
+    db = session_for(tid)
+    m = OfficeMemo(fiscal_year=2569, subject="ทดสอบ", body="x", signer_name="นางครู ทดสอบ",
+                   date=datetime(2026, 1, 5))
+    db.add(m); db.commit(); mid = m.id; db.close()
+    _approve(c, tid, "/admin/approval", "memo", mid, ref_id=mid)
+    _approve(c, tid, f"/procurement/{ids['proc']}/approval", "proc_request", ids["proc"])
+    for resp in (c.get(f"/admin/memos/{mid}/generate"),
+                 c.post(f"/procurement/{ids['proc']}/generate", data={"doc_kind": "รายงานขอซื้อ"})):
+        xml, has_img = _docx(resp)
+        assert has_img and "easy-ekkasan" not in xml

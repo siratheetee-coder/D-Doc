@@ -25,7 +25,7 @@
       <tr>
         <td data-label="งาน">{{ k.group }} <small class="muted">{{ k.label }}</small></td>
         <td data-label="เรื่อง">{{ a.title or '-' }}</td>
-        <td data-label="จำนวนเงิน" class="right">{{ "{:,.2f}".format(a.amount or 0) }}</td>
+        <td data-label="จำนวนเงิน" class="right">{{ "{:,.2f}".format(a.amount) if a.amount else "-" }}</td>
         <td data-label="ส่งโดย">{{ a.sent_by or '-' }} <small class="muted">{{ thai_date(a.sent_at) if a.sent_at }}</small></td>
         <td class="right"><a class="btn sm" href="/approvals/doc/{{ a.id }}">ดูและอนุมัติ</a></td>
       </tr>

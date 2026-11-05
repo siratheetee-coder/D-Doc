@@ -105,11 +105,8 @@ def _sign_by(paragraph, signer, school, ap):
     (services/approval.py) ผู้ลงนามอื่น หรือโรงเรียนที่ไม่ได้เปิด ใช้แบบเดิม (แปะรูปจากทะเบียนบุคลากร)"""
     if ap["on"] and _same(signer, school.director_name):
         if ap["sig"]:
-            try:
-                shape = paragraph.add_run().add_picture(ap["sig"], height=Cm(1.45))
-                _inline_to_anchor(shape._inline, -0.55 * 360000)
-            except Exception:
-                pass
+            from app.services.approval import _float_on_dots   # วางบนจุดไข่ปลา แบบเดียวกับเอกสารพัสดุ
+            _float_on_dots(paragraph, ap["sig"])
         return
     _float_signature(paragraph, signer)
 
@@ -126,11 +123,8 @@ def _director_endorse(doc, school, ap):
         (thai_date(a.decided_at) if a.decided_at else "", "center"),
     ]])
     if ap["sig"]:
-        try:
-            shape = tbl.rows[0].cells[0].paragraphs[0].add_run().add_picture(ap["sig"], height=Cm(1.45))
-            _inline_to_anchor(shape._inline, -0.55 * 360000)
-        except Exception:
-            pass
+        from app.services.approval import _float_on_dots
+        _float_on_dots(tbl.rows[0].cells[0].paragraphs[0], ap["sig"])
 
 
 def _ap(kind, rid):
@@ -286,5 +280,10 @@ def _finish_before_save(doc):
     try:
         from app.services.page_fit import finish_doc
         finish_doc(doc)
+    except Exception:
+        pass
+    try:
+        from app.services.approval import refit_signatures   # ระยะเว้นเปลี่ยนหลังวางลายเซ็น ผอ.
+        refit_signatures(doc)
     except Exception:
         pass
