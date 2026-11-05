@@ -325,8 +325,12 @@ def cancel(db, kind: str, ref_id: int):
     return cur
 
 
-def decide(db, aid: int, action: str, person_id, name: str, comment: str = ""):
-    """action: sign = อนุมัติและแปะลายเซ็น / approve = อนุมัติไม่แปะ / return = ส่งกลับแก้"""
+ROLE_REQUIRED = "ชื่อของคุณไม่ตรงกับชื่อ ผอ. ในตั้งค่าโรงเรียน เลือกก่อนว่าอนุมัติในฐานะ ผอ. หรือรักษาราชการแทน"
+
+
+def decide(db, aid: int, action: str, person_id, name: str, comment: str = "", as_role=None):
+    """action: sign = อนุมัติและแปะลายเซ็น / approve = อนุมัติไม่แปะ / return = ส่งกลับแก้
+    as_role: None = ดูจากชื่อเอง / "" = ชื่อไม่ตรงต้องให้ผู้กดเลือก / "director" = ผอ. ตัวจริง / "acting" = รักษาราชการแทน"""
     from app.models import Approval
     a = db.get(Approval, aid)
     if not a or a.status != "pending":
@@ -336,6 +340,9 @@ def decide(db, aid: int, action: str, person_id, name: str, comment: str = ""):
     comment = (comment or "").strip()[:500]
     if action == "return" and not comment:
         raise ValueError("ส่งกลับแก้ ต้องเขียนเหตุผลให้ผู้ส่ง")
+    mismatch = action != "return" and is_acting(db, person_id, name)
+    if mismatch and as_role is not None and as_role not in ("director", "acting"):
+        raise ValueError(ROLE_REQUIRED)
     obj = KINDS[a.kind]["get"](db, a.ref_id) if a.kind in KINDS else None
     if obj is None:
         raise ValueError("ไม่พบเรื่องนี้แล้ว อาจถูกลบไป")
@@ -347,7 +354,7 @@ def decide(db, aid: int, action: str, person_id, name: str, comment: str = ""):
         a.status = "returned"
         return a
     a.status, a.with_sign = "approved", action == "sign"
-    a.acting = is_acting(db, person_id, name)
+    a.acting = mismatch and as_role != "director"
     if a.with_sign:
         a.sig_file = _copy_signature(db, person_id, name)
         if not a.sig_file:

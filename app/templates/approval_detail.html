@@ -46,8 +46,15 @@
 {% if a.status == 'pending' and is_director %}
 <div class="card" id="decide">
   <h2>ผลการพิจารณา</h2>
-  {% if acting %}<div class="alert warn" style="margin-bottom:10px;">คุณไม่ใช่ ผอ. ตามชื่อที่ตั้งไว้ในระบบ ({{ school_director or '-' }}) อนุมัติแล้วเอกสารจะขึ้นชื่อคุณ และบรรทัดตำแหน่งขึ้นต้นว่า "รักษาราชการแทน"</div>{% endif %}
   <form method="post" action="/approvals/doc/{{ a.id }}/decide" class="ap-form">
+  {% if acting %}
+  <div class="ap-role" data-ap-role>
+    <p style="margin:0 0 6px;"><b>ชื่อของคุณ ({{ my_name or '-' }}) ไม่ตรงกับชื่อ ผอ. ในตั้งค่าโรงเรียน ({{ school_director or '-' }})</b> เลือกก่อนอนุมัติ</p>
+    <label><input type="radio" name="as_role" value="director"> <span>ฉันคือ ผอ. (ชื่อสะกดต่างกัน) เอกสารขึ้นชื่อ {{ school_director or '-' }}</span></label>
+    <label><input type="radio" name="as_role" value="acting"> <span>อนุมัติในฐานะรักษาราชการแทน เอกสารขึ้นชื่อ {{ my_name or '-' }} และบรรทัดตำแหน่งขึ้นต้นว่า "รักษาราชการแทน"</span></label>
+    <p class="muted" style="margin:6px 0 0;">ถ้าคุณคือ ผอ. ให้ไอดีหลักแก้ชื่อในหน้าตั้งค่าโรงเรียนให้ตรงกับทะเบียนบุคลากร จะไม่ต้องเลือกอีก</p>
+  </div>
+  {% endif %}
     <textarea name="comment" rows="2" maxlength="500" placeholder="ความเห็น (ต้องเขียนถ้าส่งกลับแก้)"></textarea>
     <div class="ap-btns">
       <button class="btn" type="submit" name="action" value="sign" {% if not sig_ok %}disabled title="ยังไม่มีรูปลายเซ็นของ ผอ."{% endif %}>อนุมัติและแปะลายเซ็น</button>
@@ -57,6 +64,16 @@
     {% if not sig_ok %}<p class="muted" style="margin:8px 0 0;">ยังไม่มีรูปลายเซ็นของ ผอ. ในทะเบียนบุคลากร อนุมัติแบบไม่แปะลายเซ็นได้ แล้วเซ็นมือบนเอกสาร</p>
     {% else %}<p class="muted" style="margin:8px 0 0;">ไม่แปะลายเซ็น = อนุมัติในระบบ แต่ ผอ. เซ็นมือบนเอกสารที่พิมพ์เอง</p>{% endif %}
   </form>
+  {% if acting %}<script>
+  (function(){
+    var f=document.querySelector('#decide .ap-form'); if(!f) return;
+    var b=[].slice.call(f.querySelectorAll('button[value=sign],button[value=approve]')).filter(function(x){ return !x.disabled; });
+    function upd(){ var ok=!!f.querySelector('input[name=as_role]:checked');
+      b.forEach(function(x){ x.disabled=!ok; x.title=ok?'':'เลือกก่อนว่าอนุมัติในฐานะ ผอ. หรือรักษาราชการแทน'; }); }
+    f.querySelectorAll('input[name=as_role]').forEach(function(r){ r.addEventListener('change', upd); });
+    upd();
+  })();
+  </script>{% endif %}
 </div>
 {% endif %}
 
@@ -85,6 +102,10 @@
   .ap-form textarea{ width:100%; margin-bottom:10px; }
   .ap-btns{ display:flex; flex-wrap:wrap; gap:8px; }
   .ap-btns .btn[disabled]{ opacity:.5; cursor:not-allowed; }
+  .ap-role{ margin:0 0 12px; padding:10px 12px; border-radius:12px; background:linear-gradient(120deg,#fef9c3,#fde68a); }
+  .ap-role label{ display:flex; gap:8px; align-items:flex-start; margin:6px 0; cursor:pointer; }
+  .ap-role input{ width:auto; min-width:0; margin:4px 0 0; flex:none; }
+  .ap-role label span{ flex:1; min-width:0; }
   .ap-hist{ margin:0; padding-left:18px; display:grid; gap:10px; }
   .ap-hist .ok{ color:#047857; } .ap-hist .bad{ color:#b91c1c; }
 </style>

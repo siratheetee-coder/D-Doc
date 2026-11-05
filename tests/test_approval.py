@@ -169,12 +169,12 @@ def test_off_by_default_shows_nothing(env):
     assert _latest(tid, "proc_request", ids["proc"]) is None
 
 
-def _approve(c, tid, path, kind, ref, action="sign", **extra):
+def _approve(c, tid, path, kind, ref, action="sign", role="", **extra):
     data = {"kind": kind, "action": "send", **extra}
     r = c.post(path, data=data, follow_redirects=False)
     assert r.status_code == 303 and "err=" not in r.headers["location"], r.headers.get("location")
     aid = _latest(tid, kind, ref)[0]
-    c.post(f"/approvals/doc/{aid}/decide", data={"action": action})
+    c.post(f"/approvals/doc/{aid}/decide", data={"action": action, **({"as_role": role} if role else {})})
     assert _latest(tid, kind, ref)[1] == "approved"
     return aid
 
@@ -406,8 +406,12 @@ def test_acting_director_name_on_document(env):
     pid = ids["proc"]
     c.post(f"/procurement/{pid}/approval", data={"kind": "proc_request", "action": "send"})
     aid = _latest(tid, "proc_request", pid)[0]
-    assert "รักษาราชการแทน" in c.get(f"/approvals/doc/{aid}").text
-    c.post(f"/approvals/doc/{aid}/decide", data={"action": "sign"})
+    page = c.get(f"/approvals/doc/{aid}").text
+    assert 'name="as_role"' in page and "รักษาราชการแทน" in page
+    # ยังไม่เลือกบทบาท = อนุมัติไม่ได้
+    r = c.post(f"/approvals/doc/{aid}/decide", data={"action": "sign"}, follow_redirects=False)
+    assert "err=" in r.headers["location"] and _latest(tid, "proc_request", pid)[1] == "pending"
+    c.post(f"/approvals/doc/{aid}/decide", data={"action": "sign", "as_role": "acting"})
     xml, has_img = _docx(c.post(f"/procurement/{pid}/generate", data={"doc_kind": "รายงานขอซื้อ"}))
     assert has_img
     assert f"( {DIRECTOR} )" in xml and "นายผู้อำนวยการ ตัวจริง" not in xml
@@ -428,9 +432,45 @@ def test_acting_director_on_admin_letter_and_memo(env):
     db.add_all([lt, m]); db.commit()
     lid, mid = lt.id, m.id
     db.close()
-    _approve(c, tid, "/admin/approval", "letter", lid, ref_id=lid)
-    _approve(c, tid, "/admin/approval", "memo", mid, ref_id=mid)
+    _approve(c, tid, "/admin/approval", "letter", lid, role="acting", ref_id=lid)
+    _approve(c, tid, "/admin/approval", "memo", mid, role="acting", ref_id=mid)
     for url in (f"/admin/letters/{lid}/generate", f"/admin/memos/{mid}/generate"):
         xml, has_img = _docx(c.get(url))
         assert has_img and f"( {DIRECTOR} )" in xml and "รักษาราชการแทน" in xml, url
         assert f"( {real} )" not in xml, url
+
+
+def test_director_with_different_spelling_chooses_director(env):
+    """ชื่อไม่ตรงตั้งค่า แต่ผู้กดเลือก "ฉันคือ ผอ." = เอกสารขึ้นชื่อ ผอ. ตามตั้งค่า ไม่มีรักษาราชการแทน"""
+    c, tid, ids = env
+    from app.models import School
+    from app.tenancy import session_for
+    real = "นายผู้อำนวยการ ตัวจริง"
+    db = session_for(tid)
+    db.query(School).first().director_name = real
+    db.commit(); db.close()
+    pid = ids["proc"]
+    aid = _approve(c, tid, f"/procurement/{pid}/approval", "proc_request", pid, role="director")
+    xml, _has_img = _docx(c.post(f"/procurement/{pid}/generate", data={"doc_kind": "รายงานขอซื้อ"}))
+    assert "รักษาราชการแทน" not in xml
+    from app.models import Approval
+    db = session_for(tid)
+    assert db.get(Approval, aid).acting is False
+    db.close()
+
+
+def test_bulk_approve_needs_role_when_name_differs(env):
+    c, tid, ids = env
+    from app.models import School
+    from app.tenancy import session_for
+    db = session_for(tid)
+    db.query(School).first().director_name = "นายผู้อำนวยการ ตัวจริง"
+    db.commit(); db.close()
+    pid = ids["proc"]
+    c.post(f"/procurement/{pid}/approval", data={"kind": "proc_request", "action": "send"})
+    aid = _latest(tid, "proc_request", pid)[0]
+    assert 'name="as_role"' in c.get("/approvals").text
+    r = c.post("/approvals/docs/decide-many", data={"aid": [aid], "action": "approve"}, follow_redirects=False)
+    assert "err=" in r.headers["location"] and _latest(tid, "proc_request", pid)[1] == "pending"
+    c.post("/approvals/docs/decide-many", data={"aid": [aid], "action": "approve", "as_role": "acting"})
+    assert _latest(tid, "proc_request", pid)[1] == "approved"

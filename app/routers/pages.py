@@ -169,8 +169,13 @@ def director_inbox(request: Request, db: Session = Depends(get_db), msg: str = "
                .order_by(TravelRequest.personnel_at.desc()).all())
     letters = (db.query(IncomingLetter).filter(IncomingLetter.route_status == "director")
                .order_by(IncomingLetter.id).all())
-    from app.services.approval import KINDS as ap_kinds, pending as ap_pending
+    from app.services.approval import KINDS as ap_kinds, is_acting, pending as ap_pending
+    from app.routers.approval_flow import _decider_name
+    my_name = _decider_name(request, db)
+    acting = is_acting(db, request.session.get("person_id"), my_name)
     return templates.TemplateResponse("director_inbox.html", {
+        "acting": acting, "my_name": my_name if acting else "",
+        "school_director": (get_school(db).director_name or "") if acting else "",
         "request": request, "school": get_school(db), "ap_docs": ap_pending(db), "ap_kinds": ap_kinds,
         "plans": plans, "leaves": leaves, "travels": travels, "letters": letters,
         "counts": director_pending_counts(db), "msg": msg, "err": err,

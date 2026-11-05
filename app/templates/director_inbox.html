@@ -36,6 +36,14 @@
     </tbody>
   </table>
   </div>
+  {% if acting %}
+  <div class="ap-role" data-ap-role>
+    <p style="margin:0 0 6px;"><b>ชื่อของคุณ ({{ my_name or '-' }}) ไม่ตรงกับชื่อ ผอ. ในตั้งค่าโรงเรียน ({{ school_director or '-' }})</b> เลือกก่อนอนุมัติ</p>
+    <label><input type="radio" name="as_role" value="director"> <span>ฉันคือ ผอ. (ชื่อสะกดต่างกัน) เอกสารขึ้นชื่อ {{ school_director or '-' }}</span></label>
+    <label><input type="radio" name="as_role" value="acting"> <span>อนุมัติในฐานะรักษาราชการแทน เอกสารขึ้นชื่อ {{ my_name or '-' }} และบรรทัดตำแหน่งขึ้นต้นว่า "รักษาราชการแทน"</span></label>
+    <p class="muted" style="margin:6px 0 0;">ถ้าคุณคือ ผอ. ให้ไอดีหลักแก้ชื่อในหน้าตั้งค่าโรงเรียนให้ตรงกับทะเบียนบุคลากร จะไม่ต้องเลือกอีก</p>
+  </div>
+  {% endif %}
   <div class="ap-many">
     <span class="muted" id="apCount">เลือกแล้ว 0 เรื่อง</span>
     <button class="btn" type="submit" name="action" value="sign" disabled
@@ -47,6 +55,10 @@
   </form>
   <style>
     .ap-many{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px; }
+  .ap-role{ margin:0 0 12px; padding:10px 12px; border-radius:12px; background:linear-gradient(120deg,#fef9c3,#fde68a); }
+  .ap-role label{ display:flex; gap:8px; align-items:flex-start; margin:6px 0; cursor:pointer; }
+  .ap-role input{ width:auto; min-width:0; margin:4px 0 0; flex:none; }
+  .ap-role label span{ flex:1; min-width:0; }
     .ap-many .btn[disabled]{ opacity:.5; cursor:not-allowed; }
   </style>
   <script>
@@ -55,10 +67,12 @@
     var all=document.getElementById('apAll'), picks=f.querySelectorAll('.ap-pick'),
         cnt=document.getElementById('apCount'), btns=f.querySelectorAll('.ap-many .btn');
     function upd(){ var n=f.querySelectorAll('.ap-pick:checked').length;
-      cnt.textContent='เลือกแล้ว '+n+' เรื่อง'; btns.forEach(function(b){ b.disabled=!n; });
+      var roleOk=!f.querySelector('[data-ap-role]') || f.querySelector('input[name=as_role]:checked');
+      cnt.textContent='เลือกแล้ว '+n+' เรื่อง'; btns.forEach(function(b){ b.disabled=!n || !roleOk; });
       all.checked = n && n===picks.length; }
     all.addEventListener('change', function(){ picks.forEach(function(c){ c.checked=all.checked; }); upd(); });
     picks.forEach(function(c){ c.addEventListener('change', upd); });
+    f.querySelectorAll('input[name=as_role]').forEach(function(r){ r.addEventListener('change', upd); });
     upd();
   })();
   </script>

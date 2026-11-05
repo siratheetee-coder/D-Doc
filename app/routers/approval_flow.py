@@ -146,6 +146,7 @@ def approval_detail(aid: int, request: Request, db: Session = Depends(get_db), m
         db, request.session.get("person_id"), _decider_name(request, db))
     return templates.TemplateResponse("approval_detail.html", {
         "acting": acting, "school_director": _director_name(db) if acting else "",
+        "my_name": _decider_name(request, db) if acting else "",
         "request": request, "a": a, "spec": spec, "obj": obj, "st": st, "changed": changed,
         "docs": _docs_of(db, a), "history": ap.history(db, a.kind, a.ref_id),
         "is_director": _is_director(request), "sig_ok": _director_sig_ok(db, request),
@@ -274,8 +275,9 @@ def _decider_name(request, db) -> str:
     return ((p.name if p else "") or request.session.get("name") or "").strip()
 
 
-def _decide_one(request, db, aid, action, comment=""):
-    a = ap.decide(db, aid, action, request.session.get("person_id"), _decider_name(request, db), comment)
+def _decide_one(request, db, aid, action, comment="", as_role=""):
+    a = ap.decide(db, aid, action, request.session.get("person_id"), _decider_name(request, db), comment,
+                  as_role=as_role or "")
     # แจ้งเตือน "รออนุมัติ" ของเรื่องนี้ (ถึง ผอ./รองผอ. ทุกคน) หมดหน้าที่แล้ว ไม่ให้ค้างในกระดิ่ง
     from datetime import datetime as _dt
     from app.models import Notification
@@ -309,11 +311,14 @@ async def approval_decide_many(request: Request, db: Session = Depends(get_db)):
             pass
     if not ids:
         return RedirectResponse("/approvals?err=" + quote("ยังไม่ได้เลือกเรื่อง") + "#docs", 303)
+    if (form.get("as_role", "") not in ("director", "acting")
+            and ap.is_acting(db, request.session.get("person_id"), _decider_name(request, db))):
+        return RedirectResponse("/approvals?err=" + quote(ap.ROLE_REQUIRED) + "#docs", 303)
     ok, bad = 0, []
     for aid in dict.fromkeys(ids):
         try:
             with db.begin_nested():
-                _decide_one(request, db, aid, action)
+                _decide_one(request, db, aid, action, as_role=form.get("as_role", ""))
             ok += 1
         except ValueError as e:
             a = db.get(Approval, aid)
@@ -336,11 +341,11 @@ def lunch_inst_go(iid: int, db: Session = Depends(get_db)):
 
 @router.post("/approvals/doc/{aid}/decide")
 def approval_decide(aid: int, request: Request, db: Session = Depends(get_db),
-                    action: str = Form(""), comment: str = Form("")):
+                    action: str = Form(""), comment: str = Form(""), as_role: str = Form("")):
     if not _is_director(request):
         return RedirectResponse(f"/approvals/doc/{aid}?err=" + quote("เฉพาะ ผอ./รองผอ. เท่านั้น"), 303)
     try:
-        _decide_one(request, db, aid, action, comment)
+        _decide_one(request, db, aid, action, comment, as_role)
         db.commit()
     except ValueError as e:
         db.rollback()
