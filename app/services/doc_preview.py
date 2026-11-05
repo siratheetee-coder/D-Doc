@@ -112,6 +112,52 @@ def _to_pdf(docx: Path, out_dir: Path) -> Path:
     return pdf
 
 
+_W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+
+
+def _fix_tables(docx: Path):
+    """ความกว้างคอลัมน์: Word ใช้ tcW ของเซลล์ LibreOffice ใช้ gridCol ของตาราง
+    แม่แบบหลายไฟล์ gridCol เท่ากันหมด (เช่น ตารางรายชื่อกรรมการ) LibreOffice เลยบีบช่องชื่อจนตัดบรรทัด
+    แก้เฉพาะสำเนาที่ใช้ทำตัวอย่าง ให้ gridCol = tcW ของแถวแรก (ไฟล์ Word ที่ดาวน์โหลดไม่เปลี่ยน)"""
+    from lxml import etree
+    with zipfile.ZipFile(docx) as z:
+        items = [(i, z.read(i.filename)) for i in z.infolist()]
+    changed = False
+    out = []
+    for info, data in items:
+        if info.filename == "word/document.xml":
+            root = etree.fromstring(data)
+            for tbl in root.iter(_W + "tbl"):
+                grid = tbl.find(_W + "tblGrid")
+                tr = tbl.find(_W + "tr")
+                if grid is None or tr is None:
+                    continue
+                cols = grid.findall(_W + "gridCol")
+                widths = []
+                for tc in tr.findall(_W + "tc"):
+                    pr = tc.find(_W + "tcPr")
+                    w = pr.find(_W + "tcW") if pr is not None else None
+                    span = pr.find(_W + "gridSpan") if pr is not None else None
+                    n = int(span.get(_W + "val", "1")) if span is not None else 1
+                    if w is None or w.get(_W + "type") != "dxa":
+                        widths = None
+                        break
+                    each = int(int(w.get(_W + "w", "0")) / n)
+                    widths += [each] * n
+                if not widths or len(widths) != len(cols) or not all(widths):
+                    continue
+                for c, w in zip(cols, widths):
+                    if c.get(_W + "w") != str(w):
+                        c.set(_W + "w", str(w))
+                        changed = True
+            data = etree.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True)
+        out.append((info, data))
+    if changed:
+        with zipfile.ZipFile(docx, "w", zipfile.ZIP_DEFLATED) as z:
+            for info, data in out:
+                z.writestr(info, data)
+
+
 # ---------------------------------------------------------------- แคช
 def _root(tid) -> Path:
     from app.database import get_data_dir
@@ -120,9 +166,12 @@ def _root(tid) -> Path:
     return p
 
 
+_FIX_VER = b"grid1"      # เปลี่ยนเมื่อแก้ _fix_tables ภาพเก่าในแคชจะไม่ถูกใช้
+
+
 def content_key(docx_path) -> str:
     """แฮชเนื้อเอกสาร ไม่นับ docProps (เวลาสร้างไฟล์เปลี่ยนทุกครั้ง)"""
-    h = hashlib.sha1()
+    h = hashlib.sha1(_FIX_VER)
     with zipfile.ZipFile(docx_path) as z:
         for n in sorted(z.namelist()):
             if n.startswith("docProps/"):
@@ -173,6 +222,10 @@ def build(docx_path, tid) -> dict:
         try:
             src = tmp / "doc.docx"
             shutil.copyfile(docx_path, src)
+            try:
+                _fix_tables(src)
+            except Exception:
+                pass
             pdf = _to_pdf(src, tmp)
             work = root / (key + ".part")
             shutil.rmtree(work, ignore_errors=True)
