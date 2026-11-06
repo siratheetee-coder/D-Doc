@@ -4,8 +4,22 @@
     {
       "name": "procurement",
       "runtimeExecutable": ".venv/Scripts/python.exe",
-      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--port", "8000"],
+      "runtimeArgs": [
+        "-m",
+        "uvicorn",
+        "app.main:app",
+        "--port",
+        "8000"
+      ],
       "port": 8000
+    },
+    {
+      "name": "approval-demo",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": [
+        "C:\\Users\\Lenovo_\\AppData\\Local\\Temp\\claude\\1578627dc3b86b73\\79f775f9-f73f-4bf3-91b5-143f5a6f1f87\\scratchpad\\approval_demo.py"
+      ],
+      "port": 8010
     }
   ]
 }
