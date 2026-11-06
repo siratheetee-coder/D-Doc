@@ -141,6 +141,9 @@
     input.addEventListener('blur', function () { if (owner === me) hide(); if (opts.onBlur) opts.onBlur(); });
     return me;
   }
+  // Reuse the existing dropdown for dynamic free-text material rows.
+  window.comboPick = { attach: attach, setPicked: setPicked };
+
   function setPicked(input, v) {
     input.value = v;
     var ev = new Event('input', { bubbles: true }); ev.cpPicked = true;   // ให้สคริปต์อื่นรู้ว่าค่าเปลี่ยน แต่ไม่เปิดกล่องซ้ำ

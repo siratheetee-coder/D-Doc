@@ -59,9 +59,17 @@
 
 <div class="card">
   <h2>รายการวัสดุในคลัง</h2>
+  {% if items %}<div class="mat-search">
+    <label for="material-search">ค้นหาวัสดุ</label>
+    <div class="mat-search-field"><svg class="icon" aria-hidden="true"><use href="#ic-search"/></svg>
+      <input type="search" id="material-search" placeholder="พิมพ์ชื่อวัสดุหรือรหัส เช่น กระดาษ A4" autocomplete="off" aria-controls="material-groups">
+      <button type="button" id="clear-material-search" class="btn gray sm" hidden>ล้างคำค้น</button>
+    </div>
+    <small id="material-search-count" class="muted" role="status" aria-live="polite">แสดง {{ items|length }} รายการ</small>
+  </div>{% endif %}
   {% if items %}
   <form id="material-selection" action="/requisitions/new" method="get" class="mat-bar">
-    <label style="display:flex;gap:8px;align-items:center;"><input type="checkbox" id="select-materials" style="width:20px;height:20px;"> เลือกทั้งหมด</label>
+    <label style="display:flex;gap:8px;align-items:center;"><input type="checkbox" id="select-materials" style="width:20px;height:20px;"> เลือกทั้งหมดที่แสดง</label>
     <span id="selection-count" aria-live="polite">เลือก 0 รายการ</span>
     <span style="flex:1;"></span>
     <button class="btn" id="issue-selected" disabled>เบิกรายการที่เลือก →</button>
@@ -73,15 +81,17 @@
     .mat-bar .btn[disabled]{ opacity:.45; }
     tr.is-picked td{ background:#eff6ff; }
   </style>
+  <div id="material-groups">
   {% for cname, rows in groups %}
-  <h3 style="margin:14px 0 6px; color:#1d4ed8; display:flex; flex-wrap:wrap; align-items:center; gap:10px;">{{ cname }} <span class="muted" style="font-weight:400; font-size:14px;">({{ rows|length }} รายการ)</span>
+  <section data-material-group>
+  <h3 style="margin:14px 0 6px; color:#1d4ed8; display:flex; flex-wrap:wrap; align-items:center; gap:10px;">{{ cname }} <span class="muted" style="font-weight:400; font-size:14px;" data-group-count>({{ rows|length }} รายการ)</span>
     <a class="btn sm gray" style="margin-left:auto;" href="/materials-cards.docx?category={{ cname|urlencode }}"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์หมวดนี้</a></h3>
   <div class="table-wrap"><table>
     <thead><tr><th><input type="checkbox" class="group-pick" aria-label="เลือกทั้งหมวด {{ cname }}" title="เลือกทั้งหมวด" style="width:20px;height:20px;"></th><th>ชื่อวัสดุ</th><th>หน่วย</th><th class="right">คงเหลือ</th><th>สถานะ</th><th></th></tr></thead>
     <tbody>
       {% for it in rows %}
       {% set bal = mat_balance(it) %}
-      <tr>
+      <tr data-material-search="{{ it.name }} {{ it.code or '' }}">
         <td><input type="checkbox" class="material-choice" form="material-selection" name="material_id" value="{{ it.id }}" aria-label="เลือก {{ it.name }}" style="width:20px;height:20px;"
                    data-bal="{{ bal }}" data-name="{{ it.name }}" data-hist="{{ it.txns|length }}"></td>
         <td><a href="/materials/{{ it.id }}"><b>{{ it.name }}</b></a></td>
@@ -100,7 +110,10 @@
       {% endfor %}
     </tbody>
   </table></div>
+  </section>
   {% endfor %}
+  </div>
+  <div id="material-search-empty" class="mat-search-empty" hidden>ไม่พบวัสดุที่ตรงกับคำค้น ลองเปลี่ยนชื่อหรือรหัส</div>
   <p class="muted" style="font-size:13px; margin-top:10px;">แยกหมวดเพื่อให้ดูง่ายเท่านั้น รายงานและบัญชีวัสดุคงเหลือยังรวมทุกหมวดเหมือนเดิม</p>
   {% else %}
   <p class="muted">ยังไม่มีวัสดุ - เพิ่มด้านบน หรือนำเข้าจากเรื่องจัดซื้อ (ปุ่ม "นำเข้าทะเบียน" ในหน้ารายละเอียดเรื่อง)</p>
@@ -112,6 +125,7 @@
   var choices = Array.from(document.querySelectorAll('.material-choice'));
   var selectAll = document.getElementById('select-materials');
   var issueBtn = document.getElementById('issue-selected'), delBtn = document.getElementById('delete-selected');
+  function visibleChoices(list){return list.filter(function(c){return !c.closest('tr').hidden;});}
   function picked(){ return choices.filter(function(c){ return c.checked; }); }
   function syncBox(box, list){
     var n = list.filter(function(c){ return c.checked; }).length;
@@ -120,21 +134,23 @@
   }
   function updateSelection(){
     var sel = picked(), stock = sel.filter(function(c){ return parseFloat(c.dataset.bal) > 0; }).length;
+    var hiddenSelected = sel.filter(function(c){return c.closest('tr').hidden;}).length;
     document.getElementById('selection-count').textContent = 'เลือก ' + sel.length + ' รายการ' +
+      (hiddenSelected ? ' (อยู่นอกผลค้นหา ' + hiddenSelected + ' รายการ)' : '') +
       (sel.length && stock < sel.length ? ' (เบิกได้ ' + stock + ' รายการที่มีคงเหลือ)' : '');
     issueBtn.disabled = !stock;
     delBtn.disabled = !sel.length;
     choices.forEach(function(c){ c.closest('tr').classList.toggle('is-picked', c.checked); });
-    syncBox(selectAll, choices);
+    syncBox(selectAll, visibleChoices(choices));
     document.querySelectorAll('.group-pick').forEach(function(g){
-      syncBox(g, Array.from(g.closest('table').querySelectorAll('.material-choice')));
+      syncBox(g, visibleChoices(Array.from(g.closest('table').querySelectorAll('.material-choice'))));
     });
   }
   if(selectAll){
-    selectAll.addEventListener('change', function(){ choices.forEach(function(c){ c.checked = selectAll.checked; }); updateSelection(); });
+    selectAll.addEventListener('change', function(){ visibleChoices(choices).forEach(function(c){ c.checked = selectAll.checked; }); updateSelection(); });
     document.querySelectorAll('.group-pick').forEach(function(g){
       g.addEventListener('change', function(){
-        g.closest('table').querySelectorAll('.material-choice').forEach(function(c){ c.checked = g.checked; });
+        visibleChoices(Array.from(g.closest('table').querySelectorAll('.material-choice'))).forEach(function(c){ c.checked = g.checked; });
         updateSelection();
       });
     });
@@ -158,6 +174,35 @@
       f.submit();
     });
     updateSelection();
+  }
+
+  var materialSearch = document.getElementById('material-search');
+  if(materialSearch){
+    var materialRows=Array.from(document.querySelectorAll('[data-material-search]'));
+    var clearSearch=document.getElementById('clear-material-search');
+    function searchMaterials(){
+      var q=materialSearch.value.trim().toLocaleLowerCase().normalize('NFC');
+      var words=q.split(/\s+/).filter(Boolean), count=0;
+      materialRows.forEach(function(row){
+        var text=row.dataset.materialSearch.toLocaleLowerCase().normalize('NFC');
+        row.hidden=!words.every(function(word){return text.indexOf(word)>=0;});
+        if(!row.hidden)count++;
+      });
+      document.querySelectorAll('[data-material-group]').forEach(function(group){
+        var groupRows=group.querySelectorAll('[data-material-search]');
+        var shown=group.querySelectorAll('[data-material-search]:not([hidden])').length;
+        group.hidden=!shown;
+        group.querySelector('[data-group-count]').textContent=q?'(พบ '+shown+' จาก '+groupRows.length+' รายการ)':'('+groupRows.length+' รายการ)';
+      });
+      document.getElementById('material-search-count').textContent='แสดง '+count+' จาก '+materialRows.length+' รายการ';
+      document.getElementById('material-search-empty').hidden=count>0;
+      clearSearch.hidden=!q;
+      updateSelection();
+    }
+    materialSearch.addEventListener('input',searchMaterials);
+    clearSearch.addEventListener('click',function(){materialSearch.value='';searchMaterials();materialSearch.focus();});
+    window.addEventListener('pageshow',searchMaterials);
+    searchMaterials();
   }
 
   function _me(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
@@ -187,4 +232,8 @@
     }).catch(function(){ input.value=''; msg.textContent = 'อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง'; });
   }
 </script>
+<style>
+.mat-search{margin:16px 0}.mat-search>label{font-size:14px;font-weight:600}.mat-search-field{display:flex;align-items:center;gap:10px;border:1px solid #dbe3f0;border-radius:12px;padding:4px 10px;background:#f8fafc}.mat-search-field:focus-within{border-color:#6390ff;box-shadow:0 0 0 3px #e9efff}.mat-search-field>.icon{color:#64748b;flex:none}.mat-search-field input{flex:1;min-width:0;border:0;background:transparent;box-shadow:none!important}.mat-search-field button{flex:none}.mat-search>small{display:block;margin-top:7px}.mat-search-empty{margin:16px 0;padding:24px;border:1px dashed #cbd5e1;border-radius:12px;text-align:center;color:#64748b}.mat-search [hidden],[data-material-group][hidden],[data-material-search][hidden],#material-search-empty[hidden]{display:none!important}
+@media(max-width:480px){.mat-search-field{flex-wrap:wrap}.mat-search-field input{width:calc(100% - 35px)}.mat-search-field button{margin:0 0 5px 28px}}
+</style>
 {% endblock %}

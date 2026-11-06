@@ -31,6 +31,7 @@
         <span id="reqScanMsg" class="muted" style="font-size:13px;"></span>
       </div>
     </div>
+    <p class="muted req-material-help">พิมพ์ชื่อวัสดุแล้วเลือกจากรายการแนะนำ ระบบจะเติมหน่วยและยอดคงเหลือให้ หรือพิมพ์ชื่อใหม่ได้เลย</p>
     <div class="table-wrap"><table id="itemtbl">
       <thead><tr><th style="width:45%;">วัสดุ</th><th>จำนวน</th><th>หน่วย</th><th>คงเหลือ</th><th></th></tr></thead>
       <tbody id="itembody"></tbody>
@@ -45,39 +46,50 @@
 <script>
   // ข้อมูลวัสดุในระบบ: id, ชื่อ, หน่วย, คงเหลือ
   var MATS = [
-    {% for it in items %}{id:{{ it.id }}, name:{{ it.name|tojson }}, unit:{{ it.unit|tojson }}, bal:{{ mat_balance(it) }}},
+    {% for it in items %}{id:{{ it.id }}, name:{{ it.name|tojson }}, unit:{{ it.unit|tojson }}, code:{{ it.code|tojson }}, bal:{{ mat_balance(it) }}},
     {% endfor %}
   ];
-  function escapeMaterial(value){var el=document.createElement('span');el.textContent=value || '';return el.innerHTML;}
-  function matOptions() {
-    return '<option value="">- เลือกวัสดุ หรือพิมพ์ชื่อใหม่ -</option>' +
-      MATS.map(function(m){return '<option value="'+m.id+'">'+escapeMaterial(m.name)+' (คงเหลือ '+m.bal+' '+escapeMaterial(m.unit)+')</option>';}).join('');
+  function applyMaterial(tr, m, unit){
+    tr.querySelector('[name=item_mid]').value = m.id;
+    tr.querySelector('[name=item_name]').value = m.name;
+    tr.querySelector('[name=item_unit]').value = unit || m.unit || 'หน่วย';
+    tr.querySelector('.bal').textContent = m.bal + ' ' + (m.unit || 'หน่วย');
+    tr.dataset.materialUnit = tr.querySelector('[name=item_unit]').value;
+  }
+  function matchMaterial(tr, unit){
+    var input = tr.querySelector('[name=item_name]');
+    var key = input.value.trim().toLowerCase();
+    var matches = MATS.filter(function(m){return (m.name || '').trim().toLowerCase() === key;});
+    if(unit && matches.length > 1) matches = matches.filter(function(m){return m.unit === unit;});
+    tr.querySelector('[name=item_mid]').value = '';
+    tr.querySelector('.bal').textContent = '-';
+    if(matches.length === 1){applyMaterial(tr, matches[0], unit);return;}
+    var unitInput = tr.querySelector('[name=item_unit]');
+    if(tr.dataset.materialUnit && unitInput.value === tr.dataset.materialUnit) unitInput.value = 'หน่วย';
+    delete tr.dataset.materialUnit;
   }
   function addRow(name, qty, unit){
     var tr = document.createElement('tr');
     tr.innerHTML =
-      '<td><select onchange="pick(this)" style="margin-bottom:4px;">'+matOptions()+'</select>'+
-        '<input name="item_name" placeholder="ชื่อวัสดุ" required>'+
-        '<input type="hidden" name="item_mid" value=""></td>'+     /* มีทุกแถวเสมอ เพื่อให้ index ตรงกัน */
-      '<td><input name="item_qty" type="number" step="0.01" min="0" value="1" style="width:90px;"></td>'+
-      '<td><input name="item_unit" value="หน่วย" style="width:90px;"></td>'+
-      '<td class="bal muted">-</td>'+
-      '<td><button class="btn red sm" type="button" onclick="this.closest(\'tr\').remove()"><svg class="icon"><use href="#ic-trash"/></svg></button></td>';
+      '<td><input name="item_name" placeholder="พิมพ์ชื่อวัสดุเพื่อค้นหา หรือใส่ชื่อใหม่" aria-label="ชื่อวัสดุ" autocomplete="off" required>'+
+        '<input type="hidden" name="item_mid" value=""></td>'+
+      '<td><input name="item_qty" aria-label="จำนวนที่ขอเบิก" type="number" step="0.01" min="0" value="1" style="width:90px;"></td>'+
+      '<td><input name="item_unit" aria-label="หน่วยนับ" value="หน่วย" style="width:90px;"></td>'+
+      '<td class="bal muted" aria-live="polite">-</td>'+
+      '<td><button class="btn red sm" aria-label="ลบรายการวัสดุ" type="button" onclick="this.closest(\'tr\').remove()"><svg class="icon"><use href="#ic-trash"/></svg></button></td>';
     document.getElementById('itembody').appendChild(tr);
-    if(name){
-      tr.querySelector('input[name=item_name]').value = name;
-      if(qty)  tr.querySelector('input[name=item_qty]').value = qty;
-      if(unit) tr.querySelector('input[name=item_unit]').value = unit;
-      // จับคู่วัสดุที่มีอยู่ในคลังโดยอัตโนมัติ (ชื่อตรงกัน) -> ผูก id + คงเหลือ
-      var key = String(name).trim().toLowerCase();
-      var m = MATS.find(function(x){ return (x.name||'').trim().toLowerCase() === key; });
-      if(m){
-        tr.querySelector('select').value = m.id;
-        tr.querySelector('input[name=item_mid]').value = m.id;
-        tr.querySelector('input[name=item_unit]').value = unit || m.unit;
-        tr.querySelector('.bal').textContent = m.bal + ' ' + m.unit;
-      }
-    }
+    var input = tr.querySelector('[name=item_name]');
+    input.addEventListener('input', function(e){if(!e.cpPicked) matchMaterial(tr);});
+    window.comboPick.attach(input, function(){
+      return MATS.map(function(m){return {v:m.id, label:m.name,
+        sub:'รหัส ' + (m.code || m.id) + ' · คงเหลือ ' + m.bal + ' ' + (m.unit || 'หน่วย'), search:m.name + ' ' + (m.code || '')};});
+    }, function(it){
+      var m = MATS.find(function(x){return x.id === it.v;});
+      if(m){applyMaterial(tr,m);window.comboPick.setPicked(input,m.name);}
+    });
+    if(name){input.value=name;matchMaterial(tr,unit);}
+    if(qty !== undefined && qty !== null) tr.querySelector('[name=item_qty]').value=qty;
+    if(unit) tr.querySelector('[name=item_unit]').value=unit;
     return tr;
   }
   function reqScan(input, url, busy){
@@ -94,19 +106,6 @@
       msg.textContent = 'เพิ่ม ' + items.length + ' รายการแล้ว - โปรดตรวจ/แก้ก่อนบันทึก';
     }).catch(function(){ input.value=''; msg.textContent = 'อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง'; });
   }
-  function pick(sel){
-    var m = MATS.find(function(x){return x.id==sel.value;});
-    var tr = sel.closest('tr');
-    if(m){
-      tr.querySelector('input[name=item_name]').value = m.name;
-      tr.querySelector('input[name=item_unit]').value = m.unit;
-      tr.querySelector('.bal').textContent = m.bal + ' ' + m.unit;
-      tr.querySelector('input[name=item_mid]').value = m.id;
-    } else {
-      tr.querySelector('.bal').textContent='-';
-      tr.querySelector('input[name=item_mid]').value = '';
-    }
-  }
   document.querySelectorAll('input[data-date]').forEach(function(el){
     el.addEventListener('input', function(){
       var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
@@ -116,7 +115,10 @@
     });
   });
   var selectedIds = {{ selected_ids|default([])|tojson }};
-  selectedIds.forEach(function(id){var row=addRow();var select=row.querySelector('select');select.value=id;pick(select);});
-  if(!selectedIds.length) addRow();
+  document.addEventListener('DOMContentLoaded', function(){
+    selectedIds.forEach(function(id){var m=MATS.find(function(x){return x.id === id;});if(m)applyMaterial(addRow(),m);});
+    if(!document.getElementById('itembody').children.length)addRow();
+  });
 </script>
+<style>.req-material-help{font-size:13px;line-height:1.7;margin:14px 0 10px}#itemtbl td{vertical-align:middle}#itemtbl input[name=item_name]{min-width:230px;width:100%}</style>
 {% endblock %}
