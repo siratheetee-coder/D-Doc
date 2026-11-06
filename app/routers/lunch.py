@@ -1614,6 +1614,30 @@ def installments_auto(rid: int, db: Session = Depends(get_db),
     return RedirectResponse(f"/lunch/round/{rid}/plan", status_code=303)
 
 
+def _range_error(db, inst, old_range) -> str:
+    """ตรวจช่วงวันที่งวดที่แก้ใหม่ คืนข้อความผิด ('' = ใช้ได้)"""
+    if (inst.status or "") == "จ่ายแล้ว":
+        return "งวดนี้จ่ายแล้ว แก้ช่วงวันที่ไม่ได้ ถ้าต้องแก้ ให้เปลี่ยนสถานะกลับก่อน"
+    s, e = inst.start_date, inst.end_date
+    if not s or not e:
+        return "กรอกวันเริ่มและวันสิ้นสุดของงวดให้ครบ"
+    if e < s:
+        return "วันสิ้นสุดต้องไม่ก่อนวันเริ่ม"
+    for o in inst.round.installments:
+        if o.id != inst.id and o.start_date and o.end_date and not (e < o.start_date or s > o.end_date):
+            return f"ช่วงวันที่ซ้อนกับงวดที่ {o.seq} ({be_date_input(o.start_date)} ถึง {be_date_input(o.end_date)})"
+    return ""
+
+
+def _recalc_installment(db, inst) -> None:
+    """ช่วงวันที่เปลี่ยน: นับวันทำการใหม่ ค่าจ้างงวด = ยอดนักเรียนจริงถ้าบันทึกครบ ไม่งั้น วัน x นักเรียน x ราคาต่อหัว"""
+    from app.services.lunch_meals import apply_amount, workdays
+    inst.days = len(workdays(inst))
+    prog = inst.round.program
+    inst.amount = round(inst.days * int(prog.total_students or 0) * float(prog.rate_per_head or 0), 2)
+    apply_amount(db, inst)
+
+
 @router.post("/lunch/installment/{iid}/update")
 async def installment_update(iid: int, request: Request, db: Session = Depends(get_db)):
     """อัปเดตงวด - เติมเฉพาะช่องที่ส่งมา (รองรับทั้งฟอร์มเต็มและแก้เฉพาะสถานะ/วันในตาราง)"""
@@ -1628,10 +1652,21 @@ async def installment_update(iid: int, request: Request, db: Session = Depends(g
     def val(k):
         return (form.get(k) or "").strip()
 
+    old_range = (inst.start_date, inst.end_date)
     if has("start_date"):
         inst.start_date = parse_be_date(val("start_date"))
     if has("end_date"):
         inst.end_date = parse_be_date(val("end_date"))
+    if (inst.start_date, inst.end_date) != old_range:
+        err = _range_error(db, inst, old_range)
+        if err:
+            db.rollback()
+            if request.headers.get("x-requested-with") == "fetch":
+                return JSONResponse({"ok": False, "error": err}, status_code=400)
+            from urllib.parse import quote
+            return RedirectResponse(f"/lunch/round/{inst.round_id}/plan?err={quote(err)}#installments", status_code=303)
+        if not has("days") and not has("amount"):
+            _recalc_installment(db, inst)
     if has("days"):
         inst.days = _to_int(val("days"), 0)
     if has("amount"):

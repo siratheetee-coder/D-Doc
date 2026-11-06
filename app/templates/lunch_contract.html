@@ -322,7 +322,14 @@
       {% set lvl = {'ส่งมอบแล้ว': 1, 'ตรวจรับแล้ว': 2, 'จ่ายแล้ว': 3}.get(i.status, 0) %}
       <tr data-iid="{{ i.id }}" id="inst-{{ i.id }}" style="scroll-margin-top:90px;" {% if nxt and i.id == nxt.id %}class="iq-row-next"{% endif %}>
         <td class="iq-no">{{ i.seq }}</td>
-        <td><div class="iq-range">{{ be_date(i.start_date) if i.start_date else '-' }} – {{ be_date(i.end_date) if i.end_date else '-' }}</div>
+        <td><div class="iq-range">{{ be_date(i.start_date) if i.start_date else '-' }} – {{ be_date(i.end_date) if i.end_date else '-' }}
+              {% if i.status != 'จ่ายแล้ว' %}<button type="button" class="iq-edit" onclick="editRange(this)" title="แก้ช่วงวันที่ของงวดนี้">แก้</button>{% endif %}</div>
+            {% if i.status != 'จ่ายแล้ว' %}<div class="iq-range-edit" hidden>
+              <input name="start_date" value="{{ be_date(i.start_date) if i.start_date else '' }}" data-old="{{ be_date(i.start_date) if i.start_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" aria-label="วันเริ่มงวด" disabled>
+              <span>ถึง</span>
+              <input name="end_date" value="{{ be_date(i.end_date) if i.end_date else '' }}" data-old="{{ be_date(i.end_date) if i.end_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" aria-label="วันสิ้นสุดงวด" disabled>
+              <small>กดบันทึกแล้ว ระบบนับวันทำการและคิดเงินงวดใหม่ให้</small>
+            </div>{% endif %}
             <div class="iq-sub">{{ i.days }} วัน <b>{{ "{:,.2f}".format(i.amount or 0) }}</b> บาท</div>
             {% set ms = meal_sum.get(i.id) %}
             {% if ms and (ms.recorded or i.status != 'จ่ายแล้ว') %}<a class="iq-sub iq-meal-link {{ 'iq-booked' if ms.complete else 'iq-meal-todo' }}" href="/lunch/installment/{{ i.id }}/meals" title="บันทึกยอดนักเรียนรายวันของงวดนี้">{% if ms.complete %}ยอดนักเรียน {{ "{:,}".format(ms.meals) }} คน{% else %}บันทึกยอด {{ ms.recorded }}/{{ ms.days|length }} วัน{% endif %} ›</a>{% endif %}</td>
@@ -349,6 +356,11 @@
     .iq-table td{ vertical-align:middle; }
     .iq-no{ font-weight:700; color:#475569; }
     .iq-range{ white-space:nowrap; }
+    .iq-edit{ border:0; background:#eef2ff; color:#4338ca; border-radius:999px; padding:1px 9px; font-size:12px; cursor:pointer; margin-left:4px; }
+    .iq-range-edit{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; margin:6px 0 2px; }
+    .iq-range-edit[hidden]{ display:none; }
+    .iq-range-edit input{ width:118px; padding:6px 8px; font-size:14px; }
+    .iq-range-edit small{ flex-basis:100%; color:#64748b; font-size:12px; }
     .iq-sub{ font-size:12.5px; color:#64748b; margin-top:2px; white-space:nowrap; }
     .iq-booked{ color:#15803d; }
     .iq-meal-todo{ color:#b45309; }
@@ -362,14 +374,36 @@
   </style>
   <p class="muted" style="font-size:13px; margin:8px 0 0;">แก้สถานะ/วันส่งมอบ/วันตรวจรับ ในตารางแล้วกด "บันทึก" ได้เลย (งวดที่แบ่งอัตโนมัติ ระบบตั้งวันส่งมอบ/ตรวจรับเป็นวันสุดท้ายของงวดให้ เปลี่ยนได้)</p>
   <script>
+    function editRange(b){
+      var box = b.closest('td').querySelector('.iq-range-edit'); if(!box) return;
+      var open = box.hidden; box.hidden = !open;
+      box.querySelectorAll('input').forEach(function(el){ el.disabled = !open; if(!open) el.value = el.getAttribute('data-old'); });
+      b.textContent = open ? 'ยกเลิก' : 'แก้';
+      if(open) box.querySelector('input').focus();
+    }
     function saveInst(btn){
       var tr = btn.closest('tr'), iid = tr.getAttribute('data-iid');
-      var d = new URLSearchParams();
-      tr.querySelectorAll('input[name],select[name]').forEach(function(el){ d.append(el.name, el.value); });
+      var d = new URLSearchParams(), moved = false;
+      tr.querySelectorAll('input[name],select[name]').forEach(function(el){
+        if(el.disabled) return;
+        if(el.hasAttribute('data-old') && el.value.trim() !== el.getAttribute('data-old')) moved = true;
+        d.append(el.name, el.value);
+      });
+      // ย้ายวันสิ้นสุดงวด: วันส่งมอบ/ตรวจรับที่ตั้งเท่าวันสิ้นสุดเดิม เลื่อนตามให้
+      var endIn = tr.querySelector('.iq-range-edit input[name=end_date]');
+      if(moved && endIn && !endIn.disabled){
+        ['deliver_date','inspect_date'].forEach(function(n){
+          var el = tr.querySelector('.iq-dates input[name='+n+']');
+          if(el && el.value.trim() === endIn.getAttribute('data-old')){ el.value = endIn.value.trim(); d.set(n, el.value); }
+        });
+      }
       btn.disabled = true;
       fetch('/lunch/installment/'+iid+'/update', {
         method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'fetch'}, body:d
-      }).then(function(r){ btn.disabled=false; if(!r.ok) throw 0;
+      }).then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){ return {r:r, j:j}; }); })
+      .then(function(x){ btn.disabled=false;
+        if(!x.r.ok){ alert(x.j.error || 'บันทึกไม่สำเร็จ ลองใหม่'); return; }
+        if(moved){ location.hash = 'inst-'+iid; location.reload(); return; }   // วันและเงินงวดเปลี่ยน โหลดใหม่ให้เห็นยอดล่าสุด
         tr.style.background='#dcfce7'; setTimeout(function(){ tr.style.background=''; }, 800);
         if(window.showToast) showToast('บันทึกแล้ว');
       }).catch(function(){ btn.disabled=false; alert('บันทึกไม่สำเร็จ ลองใหม่'); });

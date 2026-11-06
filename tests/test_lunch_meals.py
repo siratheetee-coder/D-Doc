@@ -162,3 +162,44 @@ def test_round_chart_and_doc_checks(env):
         d = round_chart(s, s.get(LunchHireRound, rid))
         assert d["eligible"] == 10 and d["recorded"] == 2 and d["max"] == 12
         assert d["groups"][0]["days"][0]["n"] == 12 and d["groups"][0]["days"][2]["n"] is None
+
+
+def test_edit_installment_range_recalculates_and_guards(env):
+    """แก้ช่วงวันที่งวดในตาราง: นับวันทำการ+คิดเงินใหม่ กันวันซ้อนงวดอื่น กันงวดที่จ่ายแล้ว"""
+    from app.models import LunchProgram, LunchClass, LunchHireRound, LunchInstallment, Vendor
+    with _db() as s:
+        v = Vendor(name="ร้านทดสอบแก้งวด"); s.add(v); s.flush()
+        p = LunchProgram(year=2569, rate_per_head=22, operate_mode="hire"); s.add(p); s.flush()
+        s.add(LunchClass(program_id=p.id, seq=1, level="ป.1", num_students=10)); s.flush()
+        r = LunchHireRound(program_id=p.id, seq=1, vendor_id=v.id, start_date=datetime(2026, 6, 1),
+                           end_date=datetime(2026, 6, 30), days=20, amount=4400)
+        s.add(r); s.flush()
+        a = LunchInstallment(round_id=r.id, seq=1, start_date=datetime(2026, 6, 1), end_date=datetime(2026, 6, 12),
+                             days=10, amount=2200, deliver_date=datetime(2026, 6, 12))
+        b = LunchInstallment(round_id=r.id, seq=2, start_date=datetime(2026, 6, 15), end_date=datetime(2026, 6, 26),
+                             days=10, amount=2200)
+        s.add_all([a, b]); s.commit(); ia, ib, rid = a.id, b.id, r.id
+    H = {"X-Requested-With": "fetch"}
+    assert 'onclick="editRange(this)"' in env.get(f"/lunch/round/{rid}/plan").text
+
+    # ย่องวด 1 เหลือ 8-12 มิ.ย. 2569 = 5 วันทำการ เงิน 5 x 10 คน x 22 (1 และ 3 มิ.ย. เป็นวันหยุด ระบบไม่นับ)
+    r1 = env.post(f"/lunch/installment/{ia}/update", data={"start_date": "08/06/2569", "end_date": "12/06/2569"}, headers=H)
+    assert r1.status_code == 200 and r1.json()["ok"]
+    with _db() as s:
+        i = s.get(LunchInstallment, ia)
+        assert (i.end_date, i.days, i.amount) == (datetime(2026, 6, 12), 5, 1100)
+
+    # ซ้อนงวด 2
+    r2 = env.post(f"/lunch/installment/{ia}/update", data={"start_date": "08/06/2569", "end_date": "16/06/2569"}, headers=H)
+    assert r2.status_code == 400 and "งวดที่ 2" in r2.json()["error"]
+    # วันสิ้นสุดก่อนวันเริ่ม
+    r3 = env.post(f"/lunch/installment/{ia}/update", data={"start_date": "10/06/2569", "end_date": "05/06/2569"}, headers=H)
+    assert r3.status_code == 400
+    with _db() as s:
+        assert s.get(LunchInstallment, ia).start_date == datetime(2026, 6, 8)
+
+    # งวดจ่ายแล้วแก้ช่วงวันไม่ได้
+    with _db() as s:
+        s.get(LunchInstallment, ib).status = "จ่ายแล้ว"; s.commit()
+    r4 = env.post(f"/lunch/installment/{ib}/update", data={"start_date": "15/06/2569", "end_date": "19/06/2569"}, headers=H)
+    assert r4.status_code == 400 and "จ่ายแล้ว" in r4.json()["error"]
