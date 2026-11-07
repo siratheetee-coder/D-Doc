@@ -44,14 +44,14 @@ def _procurement_alerts(db, today):
         out.append(_alert("info", f"รอตรวจรับ {waiting} เรื่อง", "อนุมัติแล้ว รอส่งมอบและตรวจรับ", "/procurement", "พัสดุ"))
     if drafts:
         out.append(_alert("info", f"ร่างค้าง {drafts} เรื่อง", "ยังไม่ได้อนุมัติ", "/procurement", "พัสดุ"))
-    for c in db.query(Contract).filter(Contract.status != "สิ้นสุด", Contract.end_date.isnot(None)).all():
-        dl = (c.end_date.date() - today).days
-        if dl > _CONTRACT_ALERT_DAYS:
-            continue
-        title = " ".join(x for x in [c.contract_no, c.party or c.subject] if x) or "สัญญา"
-        out.append(_alert("urgent" if dl < 0 else "warn", title,
-                          f"สัญญาเลยกำหนด {abs(dl)} วัน" if dl < 0 else f"สัญญาใกล้ครบกำหนด (อีก {dl} วัน)",
-                          f"/procurement/contracts?year={c.fiscal_year}", "พัสดุ"))
+    from app.services.contract_registry import alert as contract_alert
+    for c in db.query(Contract).filter(Contract.end_date.isnot(None)).all():
+        dl,level=contract_alert(c,today)
+        if not level:continue
+        title=" ".join(x for x in [c.contract_no,c.party or c.subject] if x) or "สัญญา"
+        out.append(_alert("urgent" if level=="overdue" else "warn",title,
+            f"เลยกำหนดส่งมอบ {abs(dl)} วัน" if dl<0 else f"ใกล้ครบกำหนดส่งมอบ (อีก {dl} วัน)",
+            f"/procurement/contracts?year={c.fiscal_year}","พัสดุ"))
     return out
 
 

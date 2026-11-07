@@ -1533,126 +1533,96 @@ def proc_plan_announce(db: Session = Depends(get_db), year: int | None = None, d
 
 
 # ---------------- ทะเบียนคุมสัญญา + แจ้งเตือนครบกำหนด ----------------
-CONTRACT_TYPES = ["สัญญาจ้าง", "สัญญาซื้อ", "ใบสั่งจ้าง", "ใบสั่งซื้อ", "ข้อตกลง"]
-CONTRACT_STATUS = ["ระหว่างดำเนินการ", "ส่งมอบแล้ว", "ตรวจรับแล้ว", "สิ้นสุด"]
-_ALERT_DAYS = 15   # เตือนล่วงหน้ากี่วันก่อนครบกำหนด
+from app.services.contract_registry import TYPES as CONTRACT_TYPES, STATUSES as CONTRACT_STATUS
 
-
-def _contract_alert(c, today):
-    """คืน (days_left, level) : level = overdue/soon/None (เฉพาะสัญญาที่ยังไม่สิ้นสุด)"""
-    if c.status == "สิ้นสุด" or not c.end_date:
-        return None, None
-    dl = (c.end_date.date() - today).days
-    if dl < 0:
-        return dl, "overdue"
-    if dl <= _ALERT_DAYS:
-        return dl, "soon"
-    return dl, None
+def _contract_alert(c,today):
+    from app.services.contract_registry import alert
+    return alert(c,today)
 
 
 @router.get("/procurement/contracts", response_class=HTMLResponse)
 def contracts_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
-    fy = year or current_fiscal_year()
-    today = datetime.now().date()
-    rows = (db.query(Contract).filter_by(fiscal_year=fy)
-            .order_by(Contract.end_date.is_(None), Contract.end_date).all())
-    items = []
-    for c in rows:
-        dl, lvl = _contract_alert(c, today)
-        items.append({"c": c, "days_left": dl, "level": lvl})
-    alerts = [it for it in items if it["level"]]
-    years = sorted({r[0] for r in db.query(Contract.fiscal_year).distinct()} |
-                   set(range(fy - 2, fy + 2)), reverse=True)
-    return templates.TemplateResponse("contracts.html", {
-        "request": request, "school": get_school(db), "items": items, "alerts": alerts,
-        "fiscal_year": fy, "years": years, "types": CONTRACT_TYPES, "statuses": CONTRACT_STATUS,
-        "vendors": db.query(Vendor).order_by(Vendor.name).all(),
-        "today_input": be_date_input(datetime.now()),
-    })
+    from app.services import contract_registry as cr
+    fy=year or current_fiscal_year()
+    rows=db.query(Contract).filter_by(fiscal_year=fy).order_by(Contract.end_date.is_(None),Contract.end_date).all()
+    items=[dict(c=c,**{k:v for k,v in cr.serialize(c).items() if k not in ('id','fiscal_year')},href=cr.source_link(c)) for c in rows]
+    def priority(it):
+        rank=0 if it['level']=='overdue' else 1 if it['level']=='soon' else 2 if it['missing_due'] else 3 if it['status']=='ระหว่างดำเนินการ' else 4
+        return rank,it['c'].end_date or datetime.max,it['c'].id
+    items.sort(key=priority)
+    kind=request.query_params.get('import','')
+    reviews={k:cr.preview(db,fy,k) for k in ('procurement','lunch')}
+    return templates.TemplateResponse('contracts.html',dict(request=request,school=get_school(db),items=items,
+        fiscal_year=fy,years=sorted({r[0] for r in db.query(Contract.fiscal_year).distinct()}|set(range(fy-2,fy+2)),reverse=True),
+        types=cr.TYPES,statuses=cr.STATUSES,vendors=db.query(Vendor).order_by(Vendor.name).all(),
+        preview=reviews.get(kind),import_counts={k:v['selectable'] for k,v in reviews.items()},
+        added=_to_int(request.query_params.get('added'),0),updated=_to_int(request.query_params.get('updated'),0)))
 
 
 @router.post("/procurement/contracts/add")
-def contract_add(db: Session = Depends(get_db), fiscal_year: str = Form(""), contract_no: str = Form(""),
-                 ctype: str = Form("ใบสั่งจ้าง"), party: str = Form(""), subject: str = Form(""),
-                 amount: str = Form("0"), sign_date: str = Form(""), end_date: str = Form(""),
-                 status: str = Form("ระหว่างดำเนินการ")):
-    fy = _to_int(fiscal_year, current_fiscal_year())
-    if (subject or party or contract_no).strip():
-        db.add(Contract(fiscal_year=fy, contract_no=contract_no.strip(), ctype=ctype.strip() or "ใบสั่งจ้าง",
-                        party=party.strip(), subject=subject.strip(), amount=_to_float(amount, 0.0),
-                        sign_date=parse_be_date(sign_date), end_date=parse_be_date(end_date),
-                        status=status.strip() or "ระหว่างดำเนินการ"))
-        db.commit()
-    return RedirectResponse(f"/procurement/contracts?year={fy}", status_code=303)
+async def contract_add(request: Request,db: Session = Depends(get_db)):
+    from app.services import contract_registry as cr
+    form=await request.form()
+    try:
+        fy=int(form.get('fiscal_year') or current_fiscal_year())
+        if not 2500<=fy<=2800:raise ValueError('ปีงบประมาณไม่ถูกต้อง')
+        data=cr.validate(form)
+        from app.services.subsidy import lock
+        lock(db)
+        if data['contract_no'] and data['party'] and db.query(Contract).filter_by(fiscal_year=fy,
+                contract_no=data['contract_no'],party=data['party']).first():
+            raise cr.InvalidContract({'contract_no':'มีเลขที่และคู่สัญญานี้ในปีงบนี้แล้ว กรุณาตรวจรายการเดิม'})
+        c=Contract(fiscal_year=fy,**data);db.add(c);db.commit()
+    except cr.InvalidContract as e:
+        db.rollback();return JSONResponse(dict(ok=False,detail=str(e),errors=e.errors),status_code=422)
+    except ValueError as e:
+        db.rollback();return JSONResponse(dict(ok=False,detail=str(e)),status_code=422)
+    return RedirectResponse(f'/procurement/contracts?year={fy}&added=1',303)
 
 
 @router.post("/procurement/contracts/{cid}/update")
-def contract_update(cid: int, request: Request, db: Session = Depends(get_db), contract_no: str = Form(""),
-                    ctype: str = Form(""), party: str = Form(""), subject: str = Form(""),
-                    amount: str = Form("0"), sign_date: str = Form(""), end_date: str = Form(""),
-                    status: str = Form("")):
-    c = db.get(Contract, cid)
-    fy = c.fiscal_year if c else current_fiscal_year()
-    if c:
-        c.contract_no = contract_no.strip(); c.ctype = ctype.strip() or c.ctype
-        c.party = party.strip(); c.subject = subject.strip(); c.amount = _to_float(amount, 0.0)
-        c.sign_date = parse_be_date(sign_date); c.end_date = parse_be_date(end_date)
-        c.status = status.strip() or c.status
+async def contract_update(cid:int,request:Request,db:Session=Depends(get_db)):
+    from app.services import contract_registry as cr
+    c=db.get(Contract,cid)
+    if not c:return JSONResponse(dict(ok=False,detail='ไม่พบสัญญานี้ อาจถูกลบไปแล้ว กรุณาเปิดหน้าใหม่'),status_code=404)
+    form=await request.form()
+    try:
+        data=cr.validate(form,c)
+        for k,v in data.items():setattr(c,k,v)
         db.commit()
-    # บันทึกแบบ AJAX (ราย/ทั้งหมด) -> ตอบ JSON ไม่รีเฟรชหน้า (กันแถวอื่นที่แก้ค้างเด้งกลับ)
-    if request.headers.get("X-Requested-With") == "fetch":
-        return JSONResponse({"ok": bool(c)})
-    return RedirectResponse(f"/procurement/contracts?year={fy}&saved=1", status_code=303)
+    except cr.InvalidContract as e:
+        db.rollback();return JSONResponse(dict(ok=False,detail=str(e),errors=e.errors),status_code=422)
+    if request.headers.get('X-Requested-With')=='fetch':return JSONResponse(dict(ok=True,contract=cr.serialize(c)))
+    return RedirectResponse(f'/procurement/contracts?year={c.fiscal_year}&saved=1',303)
 
 
 @router.post("/procurement/contracts/{cid}/delete")
-def contract_delete(cid: int, db: Session = Depends(get_db)):
-    c = db.get(Contract, cid)
-    fy = c.fiscal_year if c else current_fiscal_year()
-    if c:
-        db.delete(c); db.commit()
-    return RedirectResponse(f"/procurement/contracts?year={fy}", status_code=303)
+def contract_delete(cid:int,db:Session=Depends(get_db)):
+    c=db.get(Contract,cid);fy=c.fiscal_year if c else current_fiscal_year()
+    if c:db.delete(c);db.commit()
+    return RedirectResponse(f'/procurement/contracts?year={fy}',303)
+
+
+async def _contracts_import(request,db,kind):
+    from app.services import contract_registry as cr
+    form=await request.form()
+    fy=_to_int(form.get('fiscal_year'),current_fiscal_year())
+    if not form.get('token'):return RedirectResponse(f'/procurement/contracts?year={fy}&import={kind}#contract-import',303)
+    try:
+        added,updated=cr.apply(db,fy,kind,form.getlist('selected'),form.get('token'));db.commit()
+    except ValueError as e:
+        db.rollback();return JSONResponse(dict(ok=False,detail=str(e)),status_code=409)
+    return RedirectResponse(f'/procurement/contracts?year={fy}&added={added}&updated={updated}',303)
 
 
 @router.post("/procurement/contracts/pull-procurement")
-def contracts_pull_procurement(db: Session = Depends(get_db), fiscal_year: str = Form("")):
-    """ดึงเรื่องจัดซื้อจัดจ้างที่มีเลขใบสั่ง มาเป็นสัญญาในทะเบียน (ข้ามที่ดึงแล้ว)"""
-    fy = _to_int(fiscal_year, current_fiscal_year())
-    have = {(c.source, c.ref_id) for c in db.query(Contract).filter_by(fiscal_year=fy).all()}
-    procs = (db.query(Procurement).filter(Procurement.fiscal_year == fy,
-             Procurement.order_no != "").all())
-    for p in procs:
-        if ("procurement", p.id) in have or not (p.order_no or "").strip():
-            continue
-        ctype = "ใบสั่งจ้าง" if p.proc_type == "จ้าง" else "ใบสั่งซื้อ"
-        db.add(Contract(fiscal_year=fy, contract_no=(p.order_no or "").strip(), ctype=ctype,
-                        party=(p.vendor.name if p.vendor else ""), subject=p.subject,
-                        amount=p.total_amount or 0.0, sign_date=p.order_date,
-                        end_date=p.delivery_due_date or p.delivery_date,
-                        status="ตรวจรับแล้ว" if p.status in ("ตรวจรับแล้ว", "เบิกจ่ายแล้ว") else "ระหว่างดำเนินการ",
-                        source="procurement", ref_id=p.id))
-    db.commit()
-    return RedirectResponse(f"/procurement/contracts?year={fy}", status_code=303)
+async def contracts_pull_procurement(request:Request,db:Session=Depends(get_db)):
+    return await _contracts_import(request,db,'procurement')
 
 
 @router.post("/procurement/contracts/pull-lunch")
-def contracts_pull_lunch(db: Session = Depends(get_db), fiscal_year: str = Form("")):
-    """ดึงรอบจ้างเหมาอาหารกลางวันที่มีเลขใบสั่งจ้าง มาเป็นสัญญาในทะเบียน"""
-    from app.models import LunchHireRound
-    fy = _to_int(fiscal_year, current_fiscal_year())
-    have = {(c.source, c.ref_id) for c in db.query(Contract).filter_by(fiscal_year=fy).all()}
-    for r in db.query(LunchHireRound).filter(LunchHireRound.order_no != "").all():
-        if ("lunch", r.id) in have or not (r.order_no or "").strip():
-            continue
-        db.add(Contract(fiscal_year=fy, contract_no=(r.order_no or "").strip(), ctype="ใบสั่งจ้าง",
-                        party=(r.vendor.name if r.vendor else ""),
-                        subject=f"จ้างเหมาประกอบอาหารกลางวัน รอบที่ {r.seq}",
-                        amount=r.amount or 0.0, sign_date=r.order_date,
-                        start_date=r.start_date, end_date=r.end_date,
-                        status="จ่ายแล้ว" if r.status == "จ่ายแล้ว" else "ระหว่างดำเนินการ",
-                        source="lunch", ref_id=r.id))
-    db.commit()
-    return RedirectResponse(f"/procurement/contracts?year={fy}", status_code=303)
+async def contracts_pull_lunch(request:Request,db:Session=Depends(get_db)):
+    return await _contracts_import(request,db,'lunch')
 
 
 @router.get("/procurement/contracts/export.xlsx")
