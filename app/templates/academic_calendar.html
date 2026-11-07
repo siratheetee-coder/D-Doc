@@ -1,13 +1,16 @@
 {% extends "base.html" %}
 {% block title %}ปฏิทินการศึกษา{% endblock %}
 {% block content %}
+{% include "_settings_tabs.html" %}
 <div class="hero">
   <div>
-    <div class="hero-sub">งานวิชาการ</div>
+    <div class="hero-sub">ตั้งค่าโรงเรียน · ใช้ร่วมกันในงานวิชาการและอาหารกลางวัน</div>
     <span class="hero-title">ปฏิทินการศึกษา</span>
     <div class="hero-meta">{{ school.name or "" }} ปีการศึกษา {{ year }}</div>
   </div>
 </div>
+{% if return_to %}<p><a class="btn gray" href="{{ return_to }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับไป{{ "หน้างวดอาหารกลางวัน" if "/plan" in return_to else "เพิ่ม / แก้ไขรอบอาหารกลางวัน" }}</a></p>{% endif %}
+<div class="alert warn" role="note">ปฏิทินนี้ใช้ร่วมกันทั้งโรงเรียน การแก้วันเรียนมีผลกับวิชาการและการคำนวณรอบอาหารกลางวันใหม่ งวดเดิมต้องตรวจผลกระทบก่อนปรับวันที่</div>
 
 {% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกแล้ว</div>{% endif %}
 {% if request.query_params.get('filled') %}<div class="alert">✔ กรอกปฏิทินทั้งปีให้แล้ว (ตัดวันหยุดและวันนอกภาคเรียนออก) ตรวจแล้วกด "บันทึกปฏิทิน" ด้านล่าง</div>{% endif %}
@@ -15,8 +18,8 @@
 {% if sd %}<div class="alert">{% if sd == '0' %}วันหยุดครบอยู่แล้ว ไม่ได้เพิ่มซ้ำ{% else %}✔ ใส่วันหยุดให้ {{ sd }} รายการ <b>วันพระยังต้องกรอกวันที่เอง</b>{% endif %}</div>{% endif %}
 
 <div class="card">
-  <form method="get" action="/academic/calendar" class="row" style="align-items:flex-end; margin:0;">
-    <div><label>ปีการศึกษา</label>
+  <form method="get" action="{{ calendar_base }}" class="row" style="align-items:flex-end; margin:0;">
+    <input type="hidden" name="return_to" value="{{ return_to }}"><div><label>ปีการศึกษา</label>
       <select name="year" onchange="submitReplace(this.form)">
         {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
       </select></div>
@@ -24,14 +27,14 @@
   <p class="muted" style="font-size:13px; margin:10px 0 0;">
     ทำตามลำดับ: <b>1)</b> กรอกวันเปิด-ปิดภาคเรียน → <b>2)</b> ตรวจวันหยุด (กรอกวันพระเอง) →
     <b>3)</b> กด <b>"กรอกปฏิทินการศึกษา"</b> ระบบจะกรอกให้ทั้งปี
-    ตั้งเสร็จแล้วครูจะเช็กเวลาเรียนรายวันได้ที่หน้า <a href="/academic/attendance">เวลาเรียน</a></p>
+    วันเรียนที่บันทึกไว้ใช้ร่วมกันทั้งวิชาการและอาหารกลางวัน รวมถึงวันเรียนชดเชยที่เลือกเพิ่มเอง</p>
 </div>
 
 <div class="card">
   <h2 style="margin:0 0 6px;"><svg class="icon"><use href="#ic-calendar"/></svg> ภาคเรียน</h2>
   <p class="muted" style="font-size:13px; margin:0 0 10px;">ใส่วันเปิด-ปิดของแต่ละภาค (วว/ดด/ปปปป พ.ศ.) ระบบจะตัดวันปิดภาคเรียนออกให้อัตโนมัติ</p>
-  <form method="post" action="/academic/calendar/terms" class="row" style="align-items:flex-end;">
-    <input type="hidden" name="year" value="{{ year }}">
+  <form data-school-calendar-form method="post" action="{{ calendar_base }}/terms" class="row" style="align-items:flex-end;">
+    <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="return_to" value="{{ return_to }}">
     <div><label>ภาคเรียนที่ 1 เปิด</label><input name="t1_start" placeholder="16/05/{{ year }}" value="{{ be_date(setting.t1_start) if setting and setting.t1_start else '' }}"></div>
     <div><label>ปิด</label><input name="t1_end" placeholder="10/10/{{ year }}" value="{{ be_date(setting.t1_end) if setting and setting.t1_end else '' }}"></div>
     <div><label>ภาคเรียนที่ 2 เปิด</label><input name="t2_start" placeholder="01/11/{{ year }}" value="{{ be_date(setting.t2_start) if setting and setting.t2_start else '' }}"></div>
@@ -43,16 +46,16 @@
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
     <h2 style="margin:0;">วันหยุด <span class="muted" style="font-size:15px;">ปีการศึกษา {{ year }}</span></h2>
-    <form method="post" action="/academic/calendar/seed-holidays" style="margin:0;">
-      <input type="hidden" name="year" value="{{ year }}">
+    <form data-school-calendar-form method="post" action="{{ calendar_base }}/seed-holidays" style="margin:0;">
+      <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="return_to" value="{{ return_to }}">
       <button class="btn soft" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> ใส่วันหยุดราชการ</button>
     </form>
   </div>
   <div class="alert warn" style="margin:10px 0;"><svg class="icon"><use href="#ic-alert"/></svg>
     <b>วันพระต้องกรอกวันที่เอง</b> เนื่องจากเลื่อนทุกปีตามปฏิทินจันทรคติ โปรดกรอกวันพระเอง
   </div>
-  <form method="post" action="/academic/calendar/holidays">
-    <input type="hidden" name="year" value="{{ year }}">
+  <form data-school-calendar-form method="post" action="{{ calendar_base }}/holidays">
+    <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="return_to" value="{{ return_to }}">
     {# ปุ่มนี้ต้องเป็น submit ตัวแรกของฟอร์ม: กด Enter ในช่องกรอกจะได้ "บันทึก" ไม่ใช่ "ลบ"
        (ถ้าไม่มี เบราว์เซอร์จะเลือกปุ่มลบแถวแรกเป็นปุ่มปริยาย = ลบทิ้งโดยไม่ตั้งใจ) #}
     <button type="submit" aria-hidden="true" tabindex="-1"
@@ -92,14 +95,14 @@
   </form>
 </div>
 
-<form method="post" action="/academic/calendar/save">
-  <input type="hidden" name="year" value="{{ year }}">
+<form data-school-calendar-form method="post" action="{{ calendar_base }}/save">
+  <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="return_to" value="{{ return_to }}">
   <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
       <h2 style="margin:0;">วันเปิดเรียน <span class="muted" style="font-size:15px;">รวมทั้งปี <b id="grand">0</b> วัน</span></h2>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         {# formaction เปลี่ยนปลายทางเฉพาะปุ่มนี้ ไม่ต้องซ้อนฟอร์ม #}
-        <button class="btn" type="submit" formaction="/academic/calendar/autofill"
+        <button class="btn" type="submit" formaction="{{ calendar_base }}/autofill"
                 onclick="return confirm('กรอกปฏิทินทั้งปีจากภาคเรียนและวันหยุดที่ตั้งไว้?\n(วันที่เคยแก้เองในปฏิทินจะถูกเขียนทับ)');">
           <svg class="icon"><use href="#ic-star"/></svg> กรอกปฏิทินการศึกษา</button>
         <button class="btn soft gray" type="button" onclick="clearAll()">ล้างทั้งหมด</button>
@@ -182,5 +185,8 @@
     document.querySelectorAll('.acal-day.on').forEach(function(b){ b.classList.remove('on'); });
     document.querySelectorAll('.acal-month').forEach(syncMonth);
   }
+</script>
+<script>
+(() => { const writable={{ can_edit_calendar|tojson }}; if(!writable){document.querySelectorAll('form[method=post] input,form[method=post] button,form[method=post] select').forEach(e=>e.disabled=true);document.querySelectorAll('.acal-day').forEach(e=>e.disabled=true);} })();
 </script>
 {% endblock %}

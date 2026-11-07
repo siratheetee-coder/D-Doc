@@ -2626,20 +2626,24 @@ async def assess_save(request: Request, db: Session = Depends(get_db),
 
 
 # ---------------- ปฏิทินการศึกษา ----------------
+@router.get("/settings/calendar", response_class=HTMLResponse)
 @router.get("/academic/calendar", response_class=HTMLResponse)
 def calendar_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
+    from app.services import school_calendar as sc
+    if not sc.may_read(request,db):raise HTTPException(403,"ไม่มีสิทธิ์เข้าถึงปฏิทินโรงเรียน")
     y = year or _acad_year(db)
+    if not 2500<=y<=2800:raise HTTPException(400,"ปีการศึกษาไม่ถูกต้อง")
     saved = {r.month: parse_days_csv(r.days_csv)
              for r in db.query(AcadCalendar).filter_by(year=y).all()}
     hol = holiday_map(y, db)
     setting = db.query(AcadYearSetting).filter_by(year=y).first()
     months = []
-    for mnum, mshort in TH_MONTHS:
+    for mnum, mshort in sc.MONTHS:
         wd = month_weekdays(y, mnum)
         # เดือนที่ยังไม่เคยตั้ง -> ใช้ที่ระบบแนะนำ (จ.-ศ. ลบวันหยุด ลบวันนอกเทอม)
         open_days = saved[mnum] if mnum in saved else auto_open_days(y, mnum, db)
         months.append({
-            "num": mnum, "short": mshort, "name": TH_MONTH_FULL[mnum],
+            "num": mnum, "short": mshort, "name": TH_MONTH_FULL.get(mnum,"เมษายน"),
             "days": [{"d": d, "wd": wd[d], "open": d in open_days,
                       "hol": hol.get((mnum, d), ""),
                       "off": not in_term(y, mnum, d, setting)} for d in sorted(wd)],
@@ -2653,18 +2657,21 @@ def calendar_page(request: Request, db: Session = Depends(get_db), year: int | N
     return templates.TemplateResponse("academic_calendar.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "months": months, "any_set": bool(saved), "holidays": holidays,
-        "setting": setting, "be_date": be_date_input, "month_list": TH_MONTHS,
-        "lunar_names": LUNAR_HOLIDAY_NAMES,
+        "setting": setting, "be_date": be_date_input, "month_list": sc.MONTHS,
+        "lunar_names": LUNAR_HOLIDAY_NAMES, "calendar_base":"/settings/calendar",
+        "return_to":sc.safe_return(request.query_params.get("return_to")),"can_edit_calendar":sc.may_edit(request,db),
     })
 
 
+@router.post("/settings/calendar/terms")
 @router.post("/academic/calendar/terms")
 def calendar_terms(request: Request, db: Session = Depends(get_db), year: str = Form(""),
                    t1_start: str = Form(""), t1_end: str = Form(""),
-                   t2_start: str = Form(""), t2_end: str = Form("")):
-    if _scope(request, db).is_teacher:
-        return _deny()
+                   t2_start: str = Form(""), t2_end: str = Form(""), return_to: str = Form("")):
+    from app.services import school_calendar as sc
+    if not sc.may_edit(request,db):raise HTTPException(403,"ไม่มีสิทธิ์แก้ไขปฏิทินโรงเรียน")
     y = _to_int(year, 0) or _acad_year(db)
+    if not 2500<=y<=2800:raise HTTPException(400,"ปีการศึกษาไม่ถูกต้อง")
     row = db.query(AcadYearSetting).filter_by(year=y).first()
     if not row:
         row = AcadYearSetting(year=y)
@@ -2673,18 +2680,22 @@ def calendar_terms(request: Request, db: Session = Depends(get_db), year: str = 
     row.t1_end = parse_be_date(t1_end)
     row.t2_start = parse_be_date(t2_start)
     row.t2_end = parse_be_date(t2_end)
+    sc.apply_exclusions(db,y,terms=True)
     db.commit()
-    return RedirectResponse(f"/academic/calendar?year={y}&saved=1", status_code=303)
+    return sc.redirect(request,y,"saved=1",return_to)
 
 
+@router.post("/settings/calendar/holidays")
 @router.post("/academic/calendar/holidays")
 async def calendar_holidays(request: Request, db: Session = Depends(get_db),
-                            year: str = Form("")):
+                            year: str = Form(""), return_to: str = Form("")):
     """บันทึกตารางวันหยุดทั้งชุด (แก้/ลบแถวเดิม + เพิ่มแถวใหม่จากช่องท้ายตาราง)"""
-    if _scope(request, db).is_teacher:
-        return _deny()
+    from app.services import school_calendar as sc
+    if not sc.may_edit(request,db):raise HTTPException(403,"ไม่มีสิทธิ์แก้ไขปฏิทินโรงเรียน")
     form = await request.form()
     y = _to_int(year, 0) or _acad_year(db)
+    if not 2500<=y<=2800:raise HTTPException(400,"ปีการศึกษาไม่ถูกต้อง")
+    previous_holidays=set(holiday_map(y,db))
     for r in db.query(AcadHoliday).filter_by(year=y).all():
         if form.get(f"del_{r.id}"):
             db.delete(r)
@@ -2697,45 +2708,55 @@ async def calendar_holidays(request: Request, db: Session = Depends(get_db),
     nmd = _to_int(form.get("new_day", ""), None)
     if nm and nmm and nmd:
         db.add(AcadHoliday(year=y, month=nmm, day=nmd, name=nm, kind="other"))
+    db.flush();sc.apply_exclusions(db,y,previous_holidays)
     db.commit()
-    return RedirectResponse(f"/academic/calendar?year={y}&saved=1", status_code=303)
+    return sc.redirect(request,y,"saved=1",return_to)
 
 
+@router.post("/settings/calendar/seed-holidays")
 @router.post("/academic/calendar/seed-holidays")
-def calendar_seed_holidays(request: Request, db: Session = Depends(get_db), year: str = Form("")):
-    if _scope(request, db).is_teacher:
-        return _deny()
+def calendar_seed_holidays(request: Request, db: Session = Depends(get_db), year: str = Form(""), return_to: str = Form("")):
+    from app.services import school_calendar as sc
+    if not sc.may_edit(request,db):raise HTTPException(403,"ไม่มีสิทธิ์แก้ไขปฏิทินโรงเรียน")
     y = _to_int(year, 0) or _acad_year(db)
+    if not 2500<=y<=2800:raise HTTPException(400,"ปีการศึกษาไม่ถูกต้อง")
+    previous_holidays=set(holiday_map(y,db))
     n = seed_fixed_holidays(y, db)
-    return RedirectResponse(f"/academic/calendar?year={y}&seeded={n}", status_code=303)
+    sc.apply_exclusions(db,y,previous_holidays);db.commit()
+    return sc.redirect(request,y,f"seeded={n}",return_to)
 
 
+@router.post("/settings/calendar/autofill")
 @router.post("/academic/calendar/autofill")
-def calendar_autofill(request: Request, db: Session = Depends(get_db), year: str = Form("")):
+def calendar_autofill(request: Request, db: Session = Depends(get_db), year: str = Form(""), return_to: str = Form("")):
     """เติมวันเรียนทั้งปีจาก จ.-ศ. ลบวันหยุด ลบวันนอกภาคเรียน
     คำนวณฝั่งเซิร์ฟเวอร์เพราะต้องใช้ข้อมูลวันหยุด/ภาคเรียนจากฐานข้อมูล"""
-    if _scope(request, db).is_teacher:
-        return _deny()
+    from app.services import school_calendar as sc
+    if not sc.may_edit(request,db):raise HTTPException(403,"ไม่มีสิทธิ์แก้ไขปฏิทินโรงเรียน")
     y = _to_int(year, 0) or _acad_year(db)
+    if not 2500<=y<=2800:raise HTTPException(400,"ปีการศึกษาไม่ถูกต้อง")
     cur = {r.month: r for r in db.query(AcadCalendar).filter_by(year=y).all()}
-    for mnum, _short in TH_MONTHS:
+    for mnum, _short in sc.MONTHS:
         row = cur.get(mnum)
         if not row:
             row = AcadCalendar(year=y, month=mnum)
             db.add(row)
         row.days_csv = ",".join(str(d) for d in auto_open_days(y, mnum, db))
     db.commit()
-    return RedirectResponse(f"/academic/calendar?year={y}&filled=1", status_code=303)
+    return sc.redirect(request,y,"filled=1",return_to)
 
 
+@router.post("/settings/calendar/save")
 @router.post("/academic/calendar/save")
-async def calendar_save(request: Request, db: Session = Depends(get_db), year: str = Form("")):
-    if _scope(request, db).is_teacher:
-        return _deny()
+async def calendar_save(request: Request, db: Session = Depends(get_db), year: str = Form(""), return_to: str = Form("")):
+    from app.services import school_calendar as sc
+    if not sc.may_edit(request,db):raise HTTPException(403,"ไม่มีสิทธิ์แก้ไขปฏิทินโรงเรียน")
     form = await request.form()
     y = _to_int(year, 0) or _acad_year(db)
+    if not 2500<=y<=2800:raise HTTPException(400,"ปีการศึกษาไม่ถูกต้อง")
     cur = {r.month: r for r in db.query(AcadCalendar).filter_by(year=y).all()}
-    for mnum, _short in TH_MONTHS:
+    for mnum, _short in sc.MONTHS:
+        if f"m_{mnum}" not in form:continue
         row = cur.get(mnum)
         if not row:
             row = AcadCalendar(year=y, month=mnum)
@@ -2743,7 +2764,7 @@ async def calendar_save(request: Request, db: Session = Depends(get_db), year: s
         days = parse_days_csv(form.get(f"m_{mnum}", ""))
         row.days_csv = ",".join(str(d) for d in days)
     db.commit()
-    return RedirectResponse(f"/academic/calendar?year={y}&saved=1", status_code=303)
+    return sc.redirect(request,y,"saved=1",return_to)
 
 
 # ---------------- เวลาเรียน (สรุปรายเดือน + เช็กชื่อรายวัน) ----------------

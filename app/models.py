@@ -1572,6 +1572,7 @@ class LunchHireRound(Base):
     __tablename__ = "lunch_hire_round"
 
     id = Column(Integer, primary_key=True)
+    calendar_dates = Column(Text, nullable=True)  # Frozen service dates; NULL preserves pre-upgrade counting.
     program_id = Column(Integer, ForeignKey("lunch_program.id"), nullable=False)
     seq = Column(Integer, default=1)                 # รอบที่
     period_type = Column(String, default="month")    # day=รายวัน / week=รายสัปดาห์ / month=รายเดือน
@@ -1628,6 +1629,7 @@ class LunchInstallment(Base):
     __tablename__ = "lunch_installment"
 
     id = Column(Integer, primary_key=True)
+    calendar_dates = Column(Text, nullable=True)  # Frozen service dates; NULL preserves pre-upgrade counting.
     round_id = Column(Integer, ForeignKey("lunch_hire_round.id"), nullable=False)
     seq = Column(Integer, default=1)                 # งวดที่
     start_date = Column(DateTime, nullable=True)

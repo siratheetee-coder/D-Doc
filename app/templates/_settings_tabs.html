@@ -2,6 +2,7 @@
 {% set _p = request.url.path %}
 {% set ST_TABS = [
   ('/settings', 'ic-building', 'ข้อมูลโรงเรียน', 'ข้อมูลพื้นฐาน / โลโก้', _p == '/settings'),
+  ('/settings/calendar', 'ic-calendar', 'ปฏิทินการศึกษา', 'วันเรียน / วันหยุด / วันชดเชย', _p.startswith('/settings/calendar') or _p.startswith('/academic/calendar')),
   ('/settings/import', 'ic-upload', 'นำเข้าข้อมูล', 'Excel / ข้อมูลเริ่มต้น', _p.startswith('/settings/import') or _p.startswith('/masters/import')),
   ('/masters', 'ic-users', 'บุคลากรและฝ่าย', 'จัดการบุคลากร / ฝ่าย', False),
   ('/projects', 'ic-clipboard', 'โครงการ / แผนงาน', 'จัดการโครงการ / แผนงาน', False),

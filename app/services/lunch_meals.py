@@ -16,18 +16,9 @@ WHT_RATE = 0.01           # หักภาษี ณ ที่จ่าย ร�
 
 
 def workdays(inst):
-    """วันทำการในงวด (หักวันหยุดราชการ/เสาร์-อาทิตย์) เป็น date เรียงตามวัน"""
-    from app.services.thai_holidays import is_workday, holiday_map
-    if not inst.start_date or not inst.end_date:
-        return []
-    base = (inst.round.program.year or 2568) - 543
-    hs = set(holiday_map([base - 1, base, base + 1]).keys())
-    out, d, e = [], inst.start_date.date(), inst.end_date.date()
-    while d <= e:
-        if is_workday(d, hs):
-            out.append(d)
-        d += timedelta(days=1)
-    return out
+    """Frozen service dates keep old counts and documents stable after calendar edits."""
+    from app.services.lunch_calendar import stored_days
+    return stored_days(inst,inst.round.program)
 
 
 def counts(db, prog, days) -> dict:

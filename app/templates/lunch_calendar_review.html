@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}ตรวจผลกระทบปฏิทินวันเรียน{% endblock %}
+{% block content %}
+<div class="hero"><div><div class="hero-sub">อาหารกลางวัน · ปีการศึกษา {{ p.year }}</div><span class="hero-title">ตรวจวันที่งวดตามปฏิทินวันเรียน</span><div class="hero-meta">รอบที่ {{ r.seq }} · เปลี่ยน {{ review.changed }} งวด</div></div><a class="btn gray" href="/lunch/round/{{ r.id }}/plan#installments">กลับหน้างวด</a></div>
+{% if request.query_params.get('err') %}<div class="alert danger">{{ request.query_params.get('err') }}</div>{% endif %}
+<div class="card">
+  <p>ระบบนับวันเรียนให้ครบตามจำนวนวันที่กำหนดไว้ของแต่ละงวด และเลื่อนงวดถัดไปต่อเนื่องกัน</p>
+  <div class="alert warn">งวดที่ส่งมอบ ตรวจรับ หรือจ่ายแล้วจะคงเดิม ยอดเงินและยอดนักเรียนที่บันทึกไว้จะไม่ถูกลบ หากเปลี่ยนวันที่ของงวดที่เคยอนุมัติแล้ว ต้องตรวจและส่งอนุมัติใหม่</div>
+  <a class="btn gray sm" href="{{ calendar_link }}"><svg class="icon"><use href="#ic-calendar"/></svg> ตั้งค่าปฏิทินวันเรียน</a>
+  <a class="btn gray sm" href="/lunch/round/{{ r.id }}/edit"><svg class="icon"><use href="#ic-edit"/></svg> ตรวจช่วงวันที่รอบจัดจ้าง</a>
+  {% if review.errors %}<div class="alert danger" role="alert"><b>ยังยืนยันการปรับไม่ได้</b><ul>{% for error in review.errors %}<li>{{ error }}</li>{% endfor %}</ul></div>{% endif %}
+  <div class="table-wrap"><table><thead><tr><th>งวด</th><th>เดิม</th><th>ตามปฏิทินล่าสุด</th><th>วัน / วงเงิน</th><th>ผลกระทบ</th></tr></thead><tbody>
+  {% for row in review.rows %}<tr><td>{{ row.inst.seq }}</td><td>{{ be_date(row.inst.start_date) if row.inst.start_date else '-' }} – {{ be_date(row.inst.end_date) if row.inst.end_date else '-' }}</td><td>{{ be_date(row.start) if row.start else '-' }} – {{ be_date(row.end) if row.end else '-' }}</td><td>{{ row.inst.days }} วัน<br>{{ '{:,.2f}'.format(row.inst.amount or 0) }} บาท</td><td>
+  {% if row.reason %}<span class="muted">{{ row.reason }}</span>{% elif row.changed %}<b style="color:#2563eb">ปรับวันเรียน</b>{% else %}<span class="muted">ตรงกับปฏิทินแล้ว</span>{% endif %}
+  {% if row.removed %}<small style="display:block;color:#b45309">ข้าม: {% for d in row.removed %}{{ be_date(d) }}{% if not loop.last %}, {% endif %}{% endfor %}</small>{% endif %}
+  {% if row.added %}<small style="display:block;color:#15803d">เพิ่ม: {% for d in row.added %}{{ be_date(d) }}{% if not loop.last %}, {% endif %}{% endfor %}</small>{% endif %}</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% if review.changed and not review.errors %}<form method="post" action="/lunch/round/{{ r.id }}/calendar-review" style="margin-top:16px"><input type="hidden" name="token" value="{{ review.token }}"><button class="btn" type="submit"><svg class="icon"><use href="#ic-check"/></svg> ยืนยันปรับวันที่ {{ review.changed }} งวด</button></form>{% elif not review.rows %}<p class="muted">ยังไม่มีงวดในรอบนี้ งวดที่จะสร้างใหม่จะใช้ปฏิทินวันเรียนล่าสุด</p>{% endif %}
+</div>
+{% endblock %}

@@ -35,6 +35,8 @@ Base = declarative_base()
 
 # รายการเพิ่มคอลัมน์ใหม่บน DB เก่า (ปลอดภัย: ข้ามถ้ามีอยู่แล้ว)
 MIGRATIONS = [
+    ("lunch_installment", "calendar_dates", "TEXT"),
+    ("lunch_hire_round", "calendar_dates", "TEXT"),
     ("procurement", "staff_snapshot", "TEXT DEFAULT ''"),
     ("disburse_memo", "staff_snapshot", "TEXT DEFAULT ''"),
     ("money_loan", "staff_snapshot", "TEXT DEFAULT ''"),

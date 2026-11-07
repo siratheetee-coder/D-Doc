@@ -65,18 +65,20 @@ def _d(x):
 
 def fp_round(r) -> str:
     com = ";".join(f"{c.kind}:{c.name}:{c.role}" for c in sorted(r.committees or [], key=lambda c: (c.kind, c.seq)))
-    return "|".join([str(r.vendor_id or ""), f"{float(r.amount or 0):.2f}", _d(r.start_date), _d(r.end_date),
+    base = "|".join([str(r.vendor_id or ""), f"{float(r.amount or 0):.2f}", _d(r.start_date), _d(r.end_date),
                      str(r.days or 0), f"{float(r.fuel_cost or 0):.2f}", f"{float(r.cook_wage or 0):.2f}", com])
+    return base + ('|calendar:'+r.calendar_dates if getattr(r,'calendar_dates',None) is not None else '')
 
 
 def fp_pay(r) -> str:
     insts = ";".join(f"{i.seq}:{float(i.amount or 0):.2f}:{i.penalty_days or 0}" for i in r.installments or [])
-    return fp_round(r) + "|" + (r.pay_mode or "") + "|" + insts
+    return fp_round(r) + "|" + (r.pay_mode or "") + "|" + insts + ("|calendar:"+";".join(i.calendar_dates or '' for i in (r.installments or [])) if any(getattr(i,'calendar_dates',None) is not None for i in (r.installments or [])) else '')
 
 
 def fp_inst(i) -> str:
-    return "|".join([str(i.seq), f"{float(i.amount or 0):.2f}", str(i.days or 0), _d(i.start_date), _d(i.end_date),
+    base = "|".join([str(i.seq), f"{float(i.amount or 0):.2f}", str(i.days or 0), _d(i.start_date), _d(i.end_date),
                      _d(i.deliver_date), _d(i.inspect_date), str(i.penalty_days or 0)])
+    return base + ('|calendar:'+i.calendar_dates if getattr(i,'calendar_dates',None) is not None else '')
 
 
 def title_round(r) -> str:

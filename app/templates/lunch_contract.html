@@ -191,6 +191,8 @@
 <style>.iq-table tr:target td{ background:linear-gradient(120deg,#fef9c3,#fef3c7); }</style>
 <div class="card" id="installments">
   {% set RP = pay_by_round %}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"><a class="btn gray sm" href="{{ calendar_link }}"><svg class="icon"><use href="#ic-calendar"/></svg> ตั้งค่าปฏิทินวันเรียน</a><a class="btn soft sm" href="/lunch/round/{{ r.id }}/calendar-review"><svg class="icon"><use href="#ic-check"/></svg> ตรวจผลกระทบและปรับวันที่งวด</a></div>
+  {% if request.query_params.get('calendar_updated') %}<div class="alert">ปรับวันที่ตามปฏิทินแล้ว {{ request.query_params.get('calendar_updated') }} งวด</div>{% endif %}
   <div class="iq-headrow">
     <h2>{{ 'งวดส่งมอบและตรวจรับ' if RP else 'งวดจ่ายเงินทั้งหมด' }}</h2>
     {% if p.operate_mode == 'hire' %}
@@ -323,7 +325,7 @@
       <tr data-iid="{{ i.id }}" id="inst-{{ i.id }}" style="scroll-margin-top:90px;" {% if nxt and i.id == nxt.id %}class="iq-row-next"{% endif %}>
         <td class="iq-no">{{ i.seq }}</td>
         <td><div class="iq-range">{{ be_date(i.start_date) if i.start_date else '-' }} – {{ be_date(i.end_date) if i.end_date else '-' }}
-              {% if i.status != 'จ่ายแล้ว' %}<button type="button" class="iq-edit" onclick="editRange(this)" title="แก้ช่วงวันที่ของงวดนี้">แก้</button>{% endif %}</div>
+              {% if i.status != 'จ่ายแล้ว' %}<button type="button" class="iq-edit" onclick="editRange(this)" title="แก้ช่วงวันที่ของงวดนี้"><svg class="icon" aria-hidden="true"><use href="#ic-edit"/></svg> แก้ไขวันที่</button>{% endif %}</div>
             {% if i.status != 'จ่ายแล้ว' %}<div class="iq-range-edit" hidden>
               <input name="start_date" value="{{ be_date(i.start_date) if i.start_date else '' }}" data-old="{{ be_date(i.start_date) if i.start_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" aria-label="วันเริ่มงวด" disabled>
               <span>ถึง</span>
@@ -356,7 +358,7 @@
     .iq-table td{ vertical-align:middle; }
     .iq-no{ font-weight:700; color:#475569; }
     .iq-range{ white-space:nowrap; }
-    .iq-edit{ border:0; background:#eef2ff; color:#4338ca; border-radius:999px; padding:1px 9px; font-size:12px; cursor:pointer; margin-left:4px; }
+    .iq-edit{display:inline-flex;align-items:center;gap:6px;border:1px solid #c7d2fe;background:#eef2ff;color:#4338ca;border-radius:9px;padding:7px 10px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;margin-left:7px;white-space:nowrap}.iq-edit .icon{width:15px;height:15px}.iq-edit:hover{background:#e0e7ff;border-color:#818cf8}.iq-edit:focus-visible{outline:3px solid #a5b4fc;outline-offset:2px}
     .iq-range-edit{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; margin:6px 0 2px; }
     .iq-range-edit[hidden]{ display:none; }
     .iq-range-edit input{ width:118px; padding:6px 8px; font-size:14px; }
@@ -832,6 +834,7 @@
 
 <script>
   var HOLIDAYS = {{ holidays | tojson }};
+  var SCHOOL_DAYS = {{ school_days | tojson }};
   var STUDENTS = {{ p.total_students }}, RATE = {{ p.rate_per_head or 0 }}, iamtManual = false;
   // เติมตำแหน่งอัตโนมัติเมื่อเลือกชื่อครูจากรายชื่อบุคลากร
   var PERSONS_POS = {{ persons_pos | tojson }};
@@ -841,14 +844,14 @@
     if(pos && pi){ pi.value = pos; }
   }
   function _iso(dt){ return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2); }
-  function _work(dt){ return dt.getDay()>=1 && dt.getDay()<=5 && !HOLIDAYS[_iso(dt)]; }
+  function _work(dt){ return SCHOOL_DAYS[_iso(dt)] === true; }
   function _pBE(s){ var m=(s||'').split('/'); if(m.length!==3) return null; var d=+m[0],mo=+m[1]-1,y=+m[2]-543; if(!d||!m[2])return null; var dt=new Date(y,mo,d); return isNaN(dt)?null:dt; }
   function _bBE(dt){ return ('0'+dt.getDate()).slice(-2)+'/'+('0'+(dt.getMonth()+1)).slice(-2)+'/'+(dt.getFullYear()+543); }
   function _wd(a,b){ if(!a||!b||b<a)return 0; var n=0,c=new Date(a); while(c<=b){ if(_work(c))n++; c.setDate(c.getDate()+1);} return n; }
-  function _addW(s,n){ if(!s||n<=0)return null; var c=new Date(s),cnt=0,last=null; while(cnt<n){ if(_work(c)){cnt++;last=new Date(c);} if(cnt>=n)break; c.setDate(c.getDate()+1);} return last; }
+  function _addW(s,n){ if(!s||n<=0)return null; var c=new Date(s),cnt=0,last=null,guard=0; while(cnt<n && guard++<400){ if(_work(c)){cnt++;last=new Date(c);} if(cnt>=n)break; c.setDate(c.getDate()+1);} return cnt===n?last:null; }
   var $=function(id){return document.getElementById(id);};
   function iCalcAmt(){ var d=parseInt($('idays').value||0)||0; if(d>0 && !iamtManual){ $('iamt').value=(d*STUDENTS*RATE).toFixed(2); } }
-  function _holLabel(dt){ if(!dt)return ''; if(dt.getDay()===0)return 'วันอาทิตย์'; if(dt.getDay()===6)return 'วันเสาร์'; return HOLIDAYS[_iso(dt)]||''; }
+  function _holLabel(dt){ if(!dt||_work(dt))return ''; if(dt.getDay()===0)return 'วันอาทิตย์'; if(dt.getDay()===6)return 'วันเสาร์'; return HOLIDAYS[_iso(dt)]||'วันปิดเรียนตามปฏิทิน'; }
   function iWarn(){ var w=$('isdWarn'); if(!w)return; var s=_pBE($('isd').value); var lab=s?_holLabel(s):'';
     if(lab){ w.textContent='⚠ วันที่เริ่มตรงกับ'+lab+' ซึ่งเป็นวันหยุด (ปกติไม่นับเป็นวันปฏิบัติงาน)'; w.style.display='block'; }
     else { w.style.display='none'; } }
@@ -857,13 +860,13 @@
   function iEnd(){ var s=_pBE($('isd').value), e=_pBE($('ied').value); if(s&&e)$('idays').value=_wd(s,e); iCalcAmt(); iWarn(); }
   function iDays(){ var s=_pBE($('isd').value), d=parseInt($('idays').value||0)||0; if(s&&d>0){ var e=_addW(s,d); if(e)$('ied').value=_bBE(e); } iCalcAmt(); iWarn(); }
   // แบ่งงวดอัตโนมัติ: พรีวิวช่วงวันแต่ละงวด (ไล่วันทำการต่อเนื่อง ไม่นับวันหยุด) + ยืนยันก่อนสร้าง
-  function _nextWork(dt){ var c=new Date(dt); while(!_work(c)){ c.setDate(c.getDate()+1);} return c; }
+  function _nextWork(dt){ var c=new Date(dt),guard=0; while(!_work(c)&&guard++<400){ c.setDate(c.getDate()+1);} return _work(c)?c:null; }
   function autoRanges(){ var s=_pBE($('ausd').value), n=parseInt($('anin').value||0)||0, de=parseInt($('ade').value||0)||0;
     if(!s||n<=0||de<=0) return null; var out=[], cur=_nextWork(s);
     for(var i=0;i<n;i++){ var e=_addW(cur,de); if(!e)break; out.push([new Date(cur), new Date(e)]); var nx=new Date(e); nx.setDate(nx.getDate()+1); cur=_nextWork(nx); }
     return out; }
   function autoFill(form){ var r=autoRanges();
-    if(!r||!r.length){ alert('กรอกวันเริ่ม จำนวนงวด และจำนวนวันต่องวดให้ครบก่อน'); return false; }
+    if(!r||r.length!==(parseInt($('anin').value)||0)){ alert('วันเรียนไม่พอหรือข้อมูลยังไม่ครบ กรุณาตรวจปฏิทิน วันเริ่ม จำนวนงวด และจำนวนวันต่องวด'); return false; }
     var msg='จะสร้าง '+r.length+' งวด:\n'+r.map(function(x,i){return 'งวด '+(i+1)+': '+_bBE(x[0])+' ถึง '+_bBE(x[1]);}).join('\n');
     return confirm(msg+'\n\nยืนยันสร้างงวดทั้งหมด?'); }
   function autoPreview(){ var el=$('autoPreview'); if(!el)return; var r=autoRanges();

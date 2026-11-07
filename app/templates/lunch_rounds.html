@@ -40,12 +40,15 @@
 </div>
 
 <div class="card">
+  <div class="lunch-calendar-bar"><div><b>นับวันจัดอาหารตามปฏิทินของโรงเรียน</b><small>ใช้วันเรียน วันหยุดพิเศษ และวันชดเชยชุดเดียวกับงานวิชาการ</small></div><a class="btn soft sm" href="{{ calendar_link }}" data-calendar-link><svg class="icon"><use href="#ic-calendar"/></svg> ตั้งค่าปฏิทินวันเรียน</a></div>
+  <p data-calendar-restored hidden class="alert warn">คืนค่าที่กรอกไว้แล้ว ตรวจวันสิ้นสุดตามปฏิทินล่าสุดก่อนบันทึก โดยเปลี่ยนจำนวนวันหรือกดคำนวณใหม่</p>
+  {% if request.query_params.get('err') %}<p role="alert" class="alert danger">{{ request.query_params.get('err') }}</p>{% endif %}
   <h2>{{ 'แก้ไข' ~ RW ~ 'ที่ ' ~ edit.seq if edit else 'เพิ่ม' ~ RW }}</h2>
-  <form method="post" action="{{ ('/lunch/round/' ~ edit.id ~ '/update') if edit else ('/lunch/' ~ p.id ~ '/rounds/add') }}">
+  <form data-lunch-round-form data-draft-key="{{ request.session.get('tid') }}:{{ request.session.get('uid') }}:{{ request.url.path }}" method="post" action="{{ ('/lunch/round/' ~ edit.id ~ '/update') if edit else ('/lunch/' ~ p.id ~ '/rounds/add') }}">
     {% if edit %}<input type="hidden" name="procurement_id" value="{{ edit.procurement_id or '' }}">{% endif %}
     <div class="row">
       <div><label>วันที่เริ่ม</label><input name="start_date" id="sd" value="{{ be_date(edit.start_date) if edit else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" oninput="onStart()"></div>
-      <div><label>จำนวนวันทำการ <span class="muted">(ไม่นับวันหยุด)</span></label><input name="days" id="days" type="number" min="0" value="{{ edit.days if edit else 0 }}" oninput="fromDays()"></div>
+      <div><label>จำนวนวันจัดอาหาร <span class="muted">(ตามปฏิทิน)</span></label><input name="days" id="days" type="number" min="0" value="{{ edit.days if edit else 0 }}" oninput="fromDays()"></div>
       <div><label>วันที่สิ้นสุด <span class="muted">(คำนวณให้)</span></label><input name="end_date" id="ed" value="{{ be_date(edit.end_date) if edit else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" oninput="onEnd()"></div>
     </div>
     <div id="sdWarn" style="display:none; margin:6px 0 0; padding:7px 12px; border-radius:8px; background:#fff4e5; border:1px solid #fcd9a5; color:#b45309; font-size:13.5px;"></div>
@@ -146,9 +149,10 @@
 
 <script>
   var STUDENTS = {{ p.total_students }}, RATE = {{ p.rate_per_head or 0 }};
-  var HOLIDAYS = {{ holidays | tojson }};   // { 'YYYY-MM-DD(ค.ศ.)': ชื่อวันหยุด }
+  var HOLIDAYS = {{ holidays | tojson }};
+  var SCHOOL_DAYS = {{ school_days | tojson }};   // { 'YYYY-MM-DD(ค.ศ.)': ชื่อวันหยุด }
   function _iso(dt){ return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2); }
-  function _work(dt){ return dt.getDay()>=1 && dt.getDay()<=5 && !HOLIDAYS[_iso(dt)]; }  // วันทำการ (จ-ศ ไม่ใช่วันหยุด)
+  function _work(dt){ return SCHOOL_DAYS[_iso(dt)] === true; }  // วันทำการ (จ-ศ ไม่ใช่วันหยุด)
   function _parseBE(s){
     var m=(s||'').split('/'); if(m.length!==3) return null;
     var d=+m[0], mo=+m[1]-1, y=+m[2]-543; if(!d||!m[2]) return null;
@@ -158,12 +162,12 @@
   function workdays(a,b){ if(!a||!b||b<a) return 0; var n=0,c=new Date(a); while(c<=b){ if(_work(c))n++; c.setDate(c.getDate()+1);} return n; }
   function addWork(start, n){  // หาวันสิ้นสุด = วันทำการที่ n นับจาก start (รวม start ถ้าเป็นวันทำการ)
     if(!start || n<=0) return null;
-    var c=new Date(start), cnt=0, last=null;
-    while(cnt<n){ if(_work(c)){ cnt++; last=new Date(c);} if(cnt>=n) break; c.setDate(c.getDate()+1); }
-    return last;
+    var c=new Date(start), cnt=0, last=null, guard=0;
+    while(cnt<n && guard++<400){ if(_work(c)){ cnt++; last=new Date(c);} if(cnt>=n) break; c.setDate(c.getDate()+1); }
+    return cnt===n?last:null;
   }
   var $=function(id){return document.getElementById(id);};
-  function _holLabel(dt){ if(!dt)return ''; if(dt.getDay()===0)return 'วันอาทิตย์'; if(dt.getDay()===6)return 'วันเสาร์'; return HOLIDAYS[_iso(dt)]||''; }
+  function _holLabel(dt){ if(!dt||_work(dt))return ''; if(dt.getDay()===0)return 'วันอาทิตย์'; if(dt.getDay()===6)return 'วันเสาร์'; return HOLIDAYS[_iso(dt)]||'วันปิดเรียนตามปฏิทิน'; }
   function sdWarn(){ var w=$('sdWarn'); if(!w)return; var s=_parseBE($('sd').value); var lab=s?_holLabel(s):'';
     if(lab){ w.textContent='⚠ วันที่เริ่มตรงกับ'+lab+' ซึ่งเป็นวันหยุด (ปกติไม่นับเป็นวันปฏิบัติงาน)'; w.style.display='block'; }
     else { w.style.display='none'; } }
@@ -269,4 +273,6 @@ function splitHint(){
 document.addEventListener('input', function(e){ if(e.target && (e.target.id==='days'||e.target.id==='amt')) splitHint(); });
 </script>
 {% endif %}
+<style>.lunch-calendar-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#f0f9ff;border:1px solid #dbeafe;border-radius:12px;padding:14px 16px;margin-bottom:16px}.lunch-calendar-bar small{display:block;color:#64748b;font-size:12px;margin-top:5px}[data-calendar-restored][hidden]{display:none!important}</style>
+<script src="/static/lunch-calendar-link.js?v=1" defer></script>
 {% endblock %}

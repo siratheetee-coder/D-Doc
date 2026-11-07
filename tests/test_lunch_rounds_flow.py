@@ -38,7 +38,7 @@ def test_creating_a_round_can_split_it_right_away(env, prog):
                  follow_redirects=False)
     rid, inst = _round(sid, pid)
     assert r.headers['location'] == f'/lunch/round/{rid}/plan#installments', "แบ่งแล้วพาไปดูงวดเลย"
-    assert [x[1] for x in inst] == [34, 33, 33]
+    assert [x[1] for x in inst] == [33, 33, 33]  # 99 school days within the supplied dates
     assert round(sum(x[2] for x in inst), 2) == 220000, "รวมทุกงวดต้องเท่าวงเงินรอบพอดี"
     for a, b in zip(inst, inst[1:]):  # noqa: B007
         assert b[3] > a[4], "งวดถัดไปเริ่มหลังงวดก่อนจบ ไม่ทับกัน"

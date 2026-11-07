@@ -164,8 +164,12 @@ def auto_open_days(be_year: int, month: int, db) -> list:
     from app.models import AcadYearSetting
     hol = holiday_map(be_year, db)
     setting = db.query(AcadYearSetting).filter_by(year=be_year).first()
+    from app.services.thai_holidays import holiday_map as official_holidays
+    official=official_holidays([academic_ce_year(be_year,month)])
+    from datetime import date
     return [d for d in default_open_days(be_year, month)
-            if (month, d) not in hol and in_term(be_year, month, d, setting)]
+            if (month, d) not in hol and date(academic_ce_year(be_year,month),month,d).isoformat() not in official
+            and in_term(be_year, month, d, setting)]
 
 
 def default_open_days(be_year: int, month: int) -> list:

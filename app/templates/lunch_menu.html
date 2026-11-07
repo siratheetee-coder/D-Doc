@@ -71,7 +71,7 @@
     <div style="flex:0 0 auto;"><label>ถึงวันที่</label>
       <input name="end_date" value="{{ term_end_be }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:150px;"></div>
     <div style="flex:0 0 auto;"><label style="display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-weight:400;">
-      <input type="checkbox" name="skip_holiday" value="1" checked style="width:18px; height:18px; flex:none;"> ข้ามวันหยุดนักขัตฤกษ์</label></div>
+      <input type="hidden" name="skip_holiday" value="1"> ใช้วันเรียนตามปฏิทินโรงเรียน</label></div>
     <div style="flex:0 0 auto;"><button class="btn" type="submit"><svg class="icon"><use href="#ic-calendar"/></svg> สร้างเมนู</button></div>
   </form>
   {% if not term_start_be or not term_end_be %}<p class="muted" style="font-size:13px; margin:8px 0 0;">ยังไม่พบช่วงเวลาจากรอบจัด{{ "ซื้อ" if p.operate_mode == "ingredient" else "จ้าง" }} - กรอกวันตั้งแต่/ถึง เอง</p>{% endif %}

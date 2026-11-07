@@ -8,6 +8,7 @@ lunch.py - งานอาหารกลางวัน
 import re
 from datetime import datetime, timedelta
 
+from app.services import school_calendar as sc, lunch_calendar as lcal
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
@@ -633,7 +634,15 @@ def _lunch_holidays(prog) -> dict:
     """วันหยุดราชการ (ISO ค.ศ.) ครอบคลุมปีการศึกษาของโครงการ (พ.ค.-มี.ค.) เผื่อ +/-1"""
     from app.services.thai_holidays import holiday_map
     base = (prog.year or 2568) - 543
-    return holiday_map([base - 1, base, base + 1])
+    result=holiday_map([base - 1, base, base + 1])
+    from sqlalchemy.orm import object_session
+    from app.services.academic import holiday_map as school_holidays,academic_ce_year
+    db=object_session(prog)
+    if db:
+        for (month,day),name in school_holidays(prog.year,db).items():
+            try:result[datetime(academic_ce_year(prog.year,month),month,day).date().isoformat()]=name
+            except ValueError:pass
+    return result
 
 
 def _rounds_page(request, db, prog, edit=None):
@@ -645,6 +654,7 @@ def _rounds_page(request, db, prog, edit=None):
         "rounds": prog.rounds, "vendors": vendors, "periods": PERIOD_TYPES,
         "edit": edit, "paid": paid, "committed": committed,
         "default_period": "month", "holidays": _lunch_holidays(prog),
+        "school_days":sc.state(db,prog.year),"calendar_link":sc.settings_link(prog.year,request.url.path),
     })
 
 
@@ -683,6 +693,7 @@ def _maybe_new_vendor(db, form):
 
 
 def _populate_round(rnd, form, db):
+    old_range=(rnd.start_date,rnd.end_date);old_status=rnd.status;new_record=rnd.id is None
     # รายวัน/สัปดาห์/เดือน เลิกให้เลือกแล้ว: ไม่ได้ใช้คำนวณหรือออกเอกสาร ช่วงวันที่บอกอยู่แล้ว
     # (เจ้าของถามว่าจำเป็นไหม) คอลัมน์ยังอยู่ เก็บค่าเดิมไว้ไม่ทับ
     rnd.period_type = form.get("period_type") or rnd.period_type or "month"
@@ -701,6 +712,13 @@ def _populate_round(rnd, form, db):
     rnd.order_date = parse_be_date(form.get("order_date") or "")
     rnd.status = form.get("status") or "ร่าง"
     rnd.note = (form.get("note") or "").strip()
+    if new_record or old_range!=(rnd.start_date,rnd.end_date):
+        if not new_record and old_status=='จ่ายแล้ว':raise ValueError('รอบนี้จ่ายแล้ว กรุณาตรวจรายการเดิมก่อนแก้ช่วงวันที่')
+        prog=db.get(LunchProgram,rnd.program_id)
+        dates=lcal.freeze(rnd,prog,db)
+        if rnd.start_date and rnd.end_date:
+            if not dates:raise ValueError('ช่วงวันที่นี้ไม่มีวันเรียน กรุณาตรวจปฏิทินโรงเรียน')
+            rnd.days=len(dates)
     # เลขที่บันทึกข้อความ/คำสั่งย้ายไปกรอกรายฉบับที่หน้าจัดการงวด (ก่อนออกเอกสาร)
 
 
@@ -806,14 +824,18 @@ async def round_add(pid: int, request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     seq = max([r.seq for r in prog.rounds], default=0) + 1
     rnd = LunchHireRound(program_id=pid, seq=seq)
-    _populate_round(rnd, form, db)
+    try:_populate_round(rnd, form, db)
+    except ValueError as e:
+        db.rollback();return _calendar_error(f"/lunch/{prog.id}/rounds" if 'prog' in locals() else f"/lunch/round/{rid}/edit",e)
     db.add(rnd)
     db.flush()
     _sync_round_procurement(db, rnd)   # ผูกเรื่องจัดจ้าง (ถ้ามีเลขใบสั่งจ้าง)
     _sync_round_ledger(db, rnd)
     _register_round_docnos(db, rnd)    # ผูกเลขบันทึก/คำสั่งเข้าทะเบียนกลาง
     n_inst = _to_int(form.get("n_inst"), 0)
-    split = prog.operate_mode == "hire" and _split_round(db, rnd, n_inst)
+    try:split = prog.operate_mode == "hire" and _split_round(db, rnd, n_inst)
+    except ValueError as e:
+        db.rollback();return _calendar_error(f"/lunch/{pid}/rounds",e)
     db.commit()
     if split:                          # แบ่งงวดแล้ว พาไปดูงวดที่สร้างให้เลย
         return RedirectResponse(f"/lunch/round/{rnd.id}/plan#installments", status_code=303)
@@ -826,34 +848,19 @@ def _split_parts(days: int, n: int) -> list:
     return [base + (1 if i < extra else 0) for i in range(n)]
 
 
-def _split_round(db: Session, rnd: LunchHireRound, n: int) -> bool:
-    """สร้างงวดจ่ายเงิน n งวดจากรอบที่เพิ่งสร้าง ไล่วันทำการต่อเนื่องจากวันเริ่มรอบ (ไม่นับวันหยุด)
-
-    วงเงินแบ่งตามสัดส่วนวัน งวดสุดท้ายรับเศษสตางค์ ผลรวมจึงเท่าวงเงินรอบพอดี
-    (ถ้ายังไม่ใส่วงเงินรอบ ใช้ จำนวนวัน x นักเรียน x อัตราต่อหัว แบบแบ่งงวดอัตโนมัติเดิม)
-    """
-    from app.services.thai_holidays import add_working_days, next_workday
-    if n <= 0 or not rnd.start_date or (rnd.days or 0) < n or rnd.installments:
-        return False
-    hol = set(_lunch_holidays(rnd.program).keys())
-    parts = _split_parts(rnd.days, n)
-    total = float(rnd.amount or 0)
-    prog = rnd.program
-    per_day = float(prog.rate_per_head or 0) * int(prog.total_students or 0)
-    cur, given = next_workday(rnd.start_date, hol), 0.0
-    for k, d in enumerate(parts):
-        end = add_working_days(cur, d, hol)
-        if total:
-            amt = round(total - given, 2) if k == n - 1 else round(total * d / rnd.days, 2)
-        else:
-            amt = round(d * per_day, 2)
-        given = round(given + amt, 2)
-        s_dt, e_dt = datetime(cur.year, cur.month, cur.day), datetime(end.year, end.month, end.day)
-        db.add(LunchInstallment(round_id=rnd.id, seq=k + 1, start_date=s_dt, end_date=e_dt, days=d,
-                                amount=amt, status="ร่าง", deliver_date=e_dt, inspect_date=e_dt))
-        cur = next_workday(end + timedelta(days=1), hol)
-    db.flush()
-    return True
+def _split_round(db: Session,rnd: LunchHireRound,n:int)->bool:
+    if n<=0 or not rnd.start_date or (rnd.days or 0)<n or rnd.installments:return False
+    parts=_split_parts(rnd.days,n);prog=rnd.program
+    ranges=sc.ranges(db,prog.year,rnd.start_date,parts)
+    if rnd.end_date and ranges[-1][-1]>rnd.end_date.date():raise ValueError('จำนวนวันเกินวันสิ้นสุดรอบ กรุณาตรวจช่วงรอบก่อนแบ่งงวด')
+    import json
+    total=float(rnd.amount or 0);per_day=float(prog.rate_per_head or 0)*int(prog.total_students or 0);given=0
+    for k,dates in enumerate(ranges):
+        d=len(dates);amount=round(total-given,2) if total and k==n-1 else round(total*d/rnd.days,2) if total else round(d*per_day,2)
+        given=round(given+amount,2);start=datetime.combine(dates[0],datetime.min.time());end=datetime.combine(dates[-1],datetime.min.time())
+        db.add(LunchInstallment(round_id=rnd.id,seq=k+1,start_date=start,end_date=end,days=d,amount=amount,
+            status='ร่าง',deliver_date=end,inspect_date=end,calendar_dates=json.dumps([x.isoformat() for x in dates])))
+    db.flush();return True
 
 
 @router.post("/lunch/round/{rid}/update")
@@ -862,7 +869,9 @@ async def round_update(rid: int, request: Request, db: Session = Depends(get_db)
     if not rnd:
         return RedirectResponse("/lunch", status_code=303)
     form = await request.form()
-    _populate_round(rnd, form, db)
+    try:_populate_round(rnd, form, db)
+    except ValueError as e:
+        db.rollback();return _calendar_error(f"/lunch/{prog.id}/rounds" if 'prog' in locals() else f"/lunch/round/{rid}/edit",e)
     _sync_round_procurement(db, rnd)   # ผูก/อัปเดตเรื่องจัดจ้าง (ถ้ามีเลขใบสั่งจ้าง)
     _sync_round_ledger(db, rnd)
     _register_round_docnos(db, rnd)    # อัปเดตเลขบันทึก/คำสั่งในทะเบียนกลาง
@@ -1034,13 +1043,14 @@ def round_duplicate(rid: int, db: Session = Depends(get_db)):
     seq = max([r.seq for r in prog.rounds], default=0) + 1
     ns = ne = None
     if src.start_date and src.end_date:
-        dur = (src.end_date - src.start_date).days
-        ns = src.end_date + timedelta(days=1)
-        ne = ns + timedelta(days=dur)
+        try:dates=sc.ranges(db,prog.year,src.end_date+timedelta(days=1),[int(src.days or len(lcal.round_days(src)))])[0]
+        except ValueError as e:return _calendar_error(f"/lunch/{prog.id}/rounds",e)
+        ns=datetime.combine(dates[0],datetime.min.time());ne=datetime.combine(dates[-1],datetime.min.time())
     new = LunchHireRound(program_id=prog.id, seq=seq, period_type=src.period_type,
                          start_date=ns, end_date=ne, days=src.days,
                          vendor_id=src.vendor_id, amount=src.amount, order_no="")
     db.add(new); db.flush()
+    lcal.freeze(new,prog,db)
     for m in sorted(src.committees, key=lambda x: (x.kind, x.seq)):
         db.add(LunchCommittee(round_id=new.id, kind=m.kind, seq=m.seq,
                               name=m.name, position=m.position, role=m.role))
@@ -1089,7 +1099,8 @@ def menu_page(pid: int, request: Request, db: Session = Depends(get_db),
         base = term_start.date()
     else:
         base = datetime.now().date()
-    nd = next_workday(base, None)
+    available=[d for d in sc.open_dates(db,prog.year) if d>=base]
+    nd=available[0] if available else base
     default_menu_date = datetime(nd.year, nd.month, nd.day)
     # วันที่เลือกได้ = วันทำการภายในรอบล่าสุด (กันเลือกวันเลยวันสิ้นสุดรอบ)
     from app.services.thai_holidays import is_workday
@@ -1097,9 +1108,10 @@ def menu_page(pid: int, request: Request, db: Session = Depends(get_db),
     if term_start and term_end:
         have_dates = {m.date.date().isoformat() for m in prog.menus if m.date}
         holset = set(_lunch_holidays(prog).keys())
+        served_days=set(lcal.round_days(latest_round))
         dd, ee = term_start.date(), term_end.date()
         while dd <= ee:
-            if is_workday(dd, holset):
+            if dd in served_days:
                 menu_days.append({"be": be_date_input(datetime(dd.year, dd.month, dd.day)),
                                   "has": dd.isoformat() in have_dates})
             dd += timedelta(days=1)
@@ -1181,7 +1193,7 @@ def menu_fill_term(pid: int, db: Session = Depends(get_db),
     while d <= end:
         weekend = d.weekday() >= 5
         holiday = bool(hol) and d.isoformat() in hol
-        if not weekend and not holiday:
+        if sc.state(db,prog.year).get(d.isoformat(),False):
             if d not in existing:
                 main, dessert, groups = cycle[ordinal % len(cycle)]
                 db.add(LunchMenu(program_id=pid, date=datetime(d.year, d.month, d.day),
@@ -1438,9 +1450,10 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
     have = {m.date.date().isoformat(): m for m in prog.menus if m.date}
     menu_days = []
     if rnd.start_date and rnd.end_date:
+        served_days=set(lcal.round_days(rnd))
         d, end = rnd.start_date.date(), rnd.end_date.date()
         while d <= end:
-            if is_workday(d, holset):
+            if d in served_days:
                 menu_days.append({"be": be_date_input(datetime(d.year, d.month, d.day)),
                                   "has": d.isoformat() in have})
             d += timedelta(days=1)
@@ -1513,6 +1526,7 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         "persons": persons, "persons_pos": {p.name: p.position for p in persons},
         "sel_kind": sel_kind,
         "holidays": _lunch_holidays(rnd.program),
+        "school_days":sc.state(db,rnd.program.year),"calendar_link":sc.settings_link(rnd.program.year,f"/lunch/round/{rnd.id}/plan#installments"),
         "today_be": be_date_input(datetime.now()),
         "menu_days": menu_days, "round_menus": round_menus,
         "past_mains": past_mains, "past_desserts": past_desserts,
@@ -1579,6 +1593,13 @@ def installment_add(rid: int, db: Session = Depends(get_db),
         inspect_date=parse_be_date(inspect_date), status=status)
     db.add(inst)
     db.flush()
+    err=_range_error(db,inst,(None,None))
+    if err:
+        db.rollback();return _calendar_error(f"/lunch/round/{rid}/plan",err)
+    dates=lcal.freeze(inst,rnd.program,db)
+    if not dates:
+        db.rollback();return _calendar_error(f"/lunch/round/{rid}/plan",'ช่วงวันที่นี้ไม่มีวันเรียน')
+    inst.days=len(dates)
     _sync_installment_ledger(db, inst)
     db.commit()
     return RedirectResponse(f"/lunch/round/{rid}/plan", status_code=303)
@@ -1596,8 +1617,12 @@ def installments_auto(rid: int, db: Session = Depends(get_db),
     n = _to_int(n_inst, 0)
     de = _to_int(days_each, 0)
     if start and n > 0 and de > 0:
-        hol = set(_lunch_holidays(rnd.program).keys())
-        ranges = generate_installment_ranges(start, n, de, hol)
+        try:
+            parts=sc.ranges(db,rnd.program.year,start,[de]*n)
+            if rnd.end_date and parts[-1][-1]>rnd.end_date.date():raise ValueError('ช่วงงวดเกินวันสิ้นสุดรอบ กรุณาตรวจช่วงรอบก่อน')
+            if rnd.installments and any(i.end_date and parts[0][0]<=i.end_date.date() for i in rnd.installments):raise ValueError('ช่วงงวดที่จะสร้างซ้อนกับงวดเดิม')
+        except ValueError as e:return _calendar_error(f"/lunch/round/{rid}/plan",e)
+        ranges=[(d[0],d[-1]) for d in parts]
         seq0 = max([i.seq for i in rnd.installments], default=0)
         prog = rnd.program
         rate = float(prog.rate_per_head or 0)
@@ -1610,14 +1635,21 @@ def installments_auto(rid: int, db: Session = Depends(get_db),
                 days=de, amount=round(de * students * rate, 2), status="ร่าง",
                 deliver_date=end_dt, inspect_date=end_dt)   # ปกติส่งมอบ/ตรวจรับวันสุดท้ายของงวด (แก้ได้)
             db.add(inst)
+            import json
+            inst.calendar_dates=json.dumps([d.isoformat() for d in parts[k]])
         db.commit()
     return RedirectResponse(f"/lunch/round/{rid}/plan", status_code=303)
 
 
 def _range_error(db, inst, old_range) -> str:
     """ตรวจช่วงวันที่งวดที่แก้ใหม่ คืนข้อความผิด ('' = ใช้ได้)"""
-    if (inst.status or "") == "จ่ายแล้ว":
-        return "งวดนี้จ่ายแล้ว แก้ช่วงวันที่ไม่ได้ ถ้าต้องแก้ ให้เปลี่ยนสถานะกลับก่อน"
+    from app.models import LunchMealCount
+    if any(old_range) and (inst.status not in ('ร่าง','') or inst.round.status=='จ่ายแล้ว' or db.query(LunchLedger).filter_by(installment_id=inst.id).first()):
+        return "งวดนี้ส่งมอบ ตรวจรับ หรือจ่ายแล้ว จึงไม่เปลี่ยนช่วงวันที่ย้อนหลัง"
+    if old_range[0] and old_range[1]:
+        proposed=set(sc.days(db,inst.round.program.year,inst.start_date,inst.end_date))
+        for row in db.query(LunchMealCount).filter(LunchMealCount.program_id==inst.round.program_id,LunchMealCount.date>=old_range[0],LunchMealCount.date<=old_range[1]):
+            if row.date.date() not in proposed:return 'วันที่จะตัดออกมียอดนักเรียนบันทึกไว้แล้ว กรุณาตรวจข้อมูลก่อนแก้ช่วงงวด'
     s, e = inst.start_date, inst.end_date
     if not s or not e:
         return "กรอกวันเริ่มและวันสิ้นสุดของงวดให้ครบ"
@@ -1632,6 +1664,7 @@ def _range_error(db, inst, old_range) -> str:
 def _recalc_installment(db, inst) -> None:
     """ช่วงวันที่เปลี่ยน: นับวันทำการใหม่ ค่าจ้างงวด = ยอดนักเรียนจริงถ้าบันทึกครบ ไม่งั้น วัน x นักเรียน x ราคาต่อหัว"""
     from app.services.lunch_meals import apply_amount, workdays
+    lcal.freeze(inst,inst.round.program,db)
     inst.days = len(workdays(inst))
     prog = inst.round.program
     inst.amount = round(inst.days * int(prog.total_students or 0) * float(prog.rate_per_head or 0), 2)
@@ -1899,6 +1932,7 @@ def committee_pull(rid: int, db: Session = Depends(get_db), src_round: str = For
     seq_by_kind = {}
     for c in rnd.committees:
         seq_by_kind[c.kind] = max(seq_by_kind.get(c.kind, 0), c.seq)
+    lcal.freeze(new,prog,db)
     for m in sorted(src.committees, key=lambda x: (x.kind, x.seq)):
         key = (m.kind, (m.name or "").strip())
         if not key[1] or key in existing:
@@ -1932,18 +1966,7 @@ def committee_inspect_days(mid: int, db: Session = Depends(get_db),
 
 
 def _round_workdays(rnd):
-    """รายวันทำการในรอบ (หักวันหยุด) เรียงจากต้นรอบ"""
-    from app.services.thai_holidays import is_workday
-    from datetime import timedelta
-    if not rnd.start_date or not rnd.end_date:
-        return []
-    hs = set(_lunch_holidays(rnd.program).keys())
-    out, d, e = [], rnd.start_date.date(), rnd.end_date.date()
-    while d <= e:
-        if is_workday(d, hs):
-            out.append(d)
-        d += timedelta(days=1)
-    return out
+    return lcal.round_days(rnd)
 
 
 @router.post("/lunch/round/{rid}/copy-plan")
@@ -2146,3 +2169,28 @@ def contract_person_doc(rid: int, kind: str, db: Session = Depends(get_db)):
     if "p:" + kind in KIND_OF:
         stamp(KIND_OF["p:" + kind], rnd.id, path, get_school(db))
     return serve_generated(path, _mime)
+
+
+def _calendar_error(back,error):
+    from urllib.parse import quote
+    return RedirectResponse(back+'?err='+quote(str(error))+'#installments',303)
+
+
+@router.get('/lunch/round/{rid}/calendar-review',response_class=HTMLResponse)
+def calendar_review(rid:int,request:Request,db:Session=Depends(get_db)):
+    rnd=db.get(LunchHireRound,rid)
+    if not rnd:return RedirectResponse('/lunch',303)
+    return templates.TemplateResponse('lunch_calendar_review.html',dict(request=request,r=rnd,p=rnd.program,
+        review=lcal.preview(db,rnd),calendar_link=sc.settings_link(rnd.program.year,f'/lunch/round/{rid}/plan#installments')))
+
+
+@router.post('/lunch/round/{rid}/calendar-review')
+async def calendar_review_apply(rid:int,request:Request,db:Session=Depends(get_db)):
+    rnd=db.get(LunchHireRound,rid)
+    if not rnd:return RedirectResponse('/lunch',303)
+    form=await request.form()
+    try:
+        n=lcal.apply(db,rnd,form.get('token',''));db.commit()
+    except ValueError as e:
+        db.rollback();return _calendar_error(f'/lunch/round/{rid}/calendar-review',e)
+    return RedirectResponse(f'/lunch/round/{rid}/plan?calendar_updated={n}#installments',303)
