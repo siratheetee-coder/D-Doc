@@ -8,7 +8,7 @@
 """
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
@@ -53,6 +53,7 @@ def _send_or_cancel(request, db, kind, ref_id, action, note, back):
             return RedirectResponse(_with(back, "msg", "ยกเลิกการส่ง ผอ. แล้ว"), 303)
         a = ap.send(db, kind, ref_id, request.session.get("name") or "", note,
                     by_pid=request.session.get("person_id"))
+        a.sent_uid = request.session.get("uid")
         db.flush()
         _notify_directors(db, a)
         db.commit()
@@ -284,18 +285,20 @@ def _decide_one(request, db, aid, action, comment="", as_role=""):
     (db.query(Notification).filter(Notification.link == f"/approvals/doc/{aid}",
                                    Notification.read_at.is_(None))
      .update({Notification.read_at: _dt.now()}, synchronize_session=False))
-    if a.sent_pid:
+    from app.services.approval_feedback import recipient
+    recipient(db, a, request.session.get('tid'))
+    if a.sent_pid and not a.sent_uid:
         from app.services.nav import create_notice
         spec = ap.KINDS[a.kind]
-        word = {"returned": "ส่งกลับให้แก้", "approved": "อนุมัติแล้ว"}.get(a.status, a.status)
-        create_notice(db, a.sent_pid, f"ผอ. {word}: {spec['label']}",
-                      reason=(a.comment or a.title)[:200], link=spec["link"](a.ref_id),
-                      level="warn" if a.status == "returned" else "info")
+        word = 'ส่งกลับให้แก้' if a.status == 'returned' else 'อนุมัติแล้ว'
+        create_notice(db, a.sent_pid, f'ผอ. {word}: {spec["label"]}',
+                      reason=(a.comment or a.title)[:200], link=spec['link'](a.ref_id),
+                      level='warn' if a.status == 'returned' else 'info')
     return a
 
 
 @router.post("/approvals/docs/decide-many")
-async def approval_decide_many(request: Request, db: Session = Depends(get_db)):
+async def approval_decide_many(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """อนุมัติหลายเรื่องพร้อมกัน (แปะลายเซ็น / ไม่แปะ) ส่งกลับต้องทำทีละเรื่องเพราะต้องเขียนเหตุผล"""
     if not _is_director(request):
         return RedirectResponse("/approvals?err=" + quote("เฉพาะ ผอ./รองผอ. เท่านั้น") + "#docs", 303)
@@ -314,16 +317,22 @@ async def approval_decide_many(request: Request, db: Session = Depends(get_db)):
     if (form.get("as_role", "") not in ("director", "acting")
             and ap.is_acting(db, request.session.get("person_id"), _decider_name(request, db))):
         return RedirectResponse("/approvals?err=" + quote(ap.ROLE_REQUIRED) + "#docs", 303)
-    ok, bad = 0, []
+    ok, bad, emails = 0, [], []
     for aid in dict.fromkeys(ids):
         try:
             with db.begin_nested():
-                _decide_one(request, db, aid, action, as_role=form.get("as_role", ""))
+                result = _decide_one(request, db, aid, action, as_role=form.get("as_role", ""))
+                from app.services.approval_feedback import mail_payload
+                payload = mail_payload(db, result, request.session.get("tid"))
+            emails.append(payload)
             ok += 1
         except ValueError as e:
             a = db.get(Approval, aid)
             bad.append(f"{(a.title if a else aid)}: {e}")
     db.commit()
+    from app.services.approval_feedback import deliver
+    for payload in emails:
+        background_tasks.add_task(deliver, payload)
     word = "อนุมัติและแปะลายเซ็น" if action == "sign" else "อนุมัติ (ไม่แปะลายเซ็น)"
     q = "msg=" + quote(f"{word}แล้ว {ok} เรื่อง")
     if bad:
@@ -340,16 +349,31 @@ def lunch_inst_go(iid: int, db: Session = Depends(get_db)):
 
 
 @router.post("/approvals/doc/{aid}/decide")
-def approval_decide(aid: int, request: Request, db: Session = Depends(get_db),
+def approval_decide(aid: int, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db),
                     action: str = Form(""), comment: str = Form(""), as_role: str = Form("")):
     if not _is_director(request):
         return RedirectResponse(f"/approvals/doc/{aid}?err=" + quote("เฉพาะ ผอ./รองผอ. เท่านั้น"), 303)
     try:
-        _decide_one(request, db, aid, action, comment, as_role)
+        result = _decide_one(request, db, aid, action, comment, as_role)
+        from app.services.approval_feedback import mail_payload, deliver
+        payload = mail_payload(db, result, request.session.get("tid"))
         db.commit()
+        background_tasks.add_task(deliver, payload)
     except ValueError as e:
         db.rollback()
         return RedirectResponse(f"/approvals/doc/{aid}?err=" + quote(str(e)), 303)
     done = {"sign": "อนุมัติและแปะลายเซ็นแล้ว", "approve": "อนุมัติแล้ว (ไม่แปะลายเซ็น)",
             "return": "ส่งกลับให้แก้แล้ว"}[action]
     return RedirectResponse("/approvals?msg=" + quote(done) + "#docs", 303)
+
+
+@router.get('/approvals/result/{aid}')
+def approval_result_open(aid: int, request: Request, db: Session = Depends(get_db)):
+    from datetime import datetime
+    a = db.get(Approval, aid)
+    if not a or not a.sent_uid or a.sent_uid != request.session.get('uid'):
+        return RedirectResponse('/', 303)
+    if a.status in ('approved', 'returned') and not a.result_read_at:
+        a.result_read_at = datetime.now()
+        db.commit()
+    return RedirectResponse(f'/approvals/doc/{a.id}', 303)

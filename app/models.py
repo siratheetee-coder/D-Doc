@@ -2418,6 +2418,8 @@ class Approval(Base):
     amount = Column(Float, default=0.0)
     fingerprint = Column(String, default="")            # ลายนิ้วมือของเรื่องตอนส่ง/อนุมัติ แก้ทีหลัง = ลายเซ็นหลุด
     sent_by = Column(String, default="")
+    sent_uid = Column(Integer, nullable=True)  # submitting account (including owners without Person)
+    result_read_at = Column(DateTime, nullable=True)
     sent_pid = Column(Integer, nullable=True)           # person_id ผู้ส่ง (แจ้งผลกลับทางกระดิ่ง)
     sent_at = Column(DateTime, default=datetime.now)
     sent_note = Column(String, default="")

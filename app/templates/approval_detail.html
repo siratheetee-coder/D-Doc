@@ -16,6 +16,9 @@
 {% if not obj %}
 <div class="card"><p class="muted" style="margin:0;">เรื่องนี้ถูกลบไปแล้ว</p></div>
 {% else %}
+{% if a.kind.startswith('proc_') or a.kind.startswith('lunch_') or a.kind in ('disburse','loan','revenue') %}
+  <div class="alert warn">การแปะลายเซ็นในขั้นนี้เป็นลายเซ็นของ ผอ. เท่านั้น ลายเซ็นเจ้าหน้าที่และกรรมการยังต้องลงนามในส่วนของแต่ละคน</div>
+{% endif %}
 <div class="card ap-sum">
   <div class="ap-grid">
     <div><span class="muted">เรื่อง</span><b>{{ a.title or '-' }}</b></div>

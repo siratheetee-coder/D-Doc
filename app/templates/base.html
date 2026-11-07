@@ -273,7 +273,7 @@
         {% include 'support_chat_panel.html' %}
         {# แจ้งเตือนส่วนตัว (ครู) + งานพัสดุ (เจ้าหน้าที่/เจ้าของ ไม่ใช่ครู) #}
         {% set _is_teacher = request.session.get('person_id') and not request.session.get('owner') %}
-        {% set bell_alerts = my_notices(request.session.get('person_id')) + ([] if _is_teacher else nav_alerts(request.session)) %}
+        {% set bell_alerts = my_notices(request.session.get('person_id'), request.session.get('uid')) + ([] if _is_teacher else nav_alerts(request.session)) %}
         <div class="bell-wrap">
           <button class="bell" onclick="toggleBell(event)" aria-label="การแจ้งเตือน">
             <svg class="icon"><use href="#ic-bell"/></svg>

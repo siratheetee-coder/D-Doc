@@ -100,6 +100,8 @@ MIGRATIONS = [
     ("school", "director_email", "VARCHAR DEFAULT ''"),
     ("school", "approval_on", "BOOLEAN DEFAULT 0"),
     ("approval", "acting", "BOOLEAN DEFAULT 0"),
+    ("approval", "sent_uid", "INTEGER"),
+    ("approval", "result_read_at", "DATETIME"),
     ("project_report", "memo_body", "TEXT DEFAULT ''"),
     ("project_report", "preface", "TEXT DEFAULT ''"),
     ("project_report", "summary_note", "TEXT DEFAULT ''"),

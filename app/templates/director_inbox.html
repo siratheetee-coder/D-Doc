@@ -18,6 +18,7 @@
   <h2><svg class="icon"><use href="#ic-clipboard"/></svg> พัสดุ การเงิน ธุรการ โครงการ อาหารกลางวัน รออนุมัติ ({{ ap_docs|length }})</h2>
   {% if ap_docs %}
   <form method="post" action="/approvals/docs/decide-many" id="apMany">
+  <label class="ap-select-mobile"><input type="checkbox" id="apAllMobile"> เลือกทั้งหมด</label>
   <div class="table-wrap">
   <table class="stack-sm">
     <thead><tr><th style="width:34px;"><input type="checkbox" id="apAll" title="เลือกทั้งหมด" aria-label="เลือกทั้งหมด"></th>
@@ -30,7 +31,7 @@
         <td data-label="เรื่อง">{{ a.title or '-' }}{% if a.sent_note %}<br><small class="muted">ผู้ส่งแจ้งว่า {{ a.sent_note }}</small>{% endif %}</td>
         <td data-label="จำนวนเงิน" class="right">{{ "{:,.2f}".format(a.amount) if a.amount else "-" }}</td>
         <td data-label="ส่งโดย">{{ a.sent_by or '-' }} <small class="muted">{{ thai_date(a.sent_at) if a.sent_at }}</small></td>
-        <td class="right"><a class="btn sm" href="/approvals/doc/{{ a.id }}">ดูและอนุมัติ</a></td>
+        <td class="right"><a class="btn sm ap-review-btn" href="/approvals/doc/{{ a.id }}"><svg class="icon" aria-hidden="true"><use href="#ic-eye"/></svg><span>ดูและอนุมัติ</span></a></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -69,8 +70,8 @@
     function upd(){ var n=f.querySelectorAll('.ap-pick:checked').length;
       var roleOk=!f.querySelector('[data-ap-role]') || f.querySelector('input[name=as_role]:checked');
       cnt.textContent='เลือกแล้ว '+n+' เรื่อง'; btns.forEach(function(b){ b.disabled=!n || !roleOk; });
-      all.checked = n && n===picks.length; }
-    all.addEventListener('change', function(){ picks.forEach(function(c){ c.checked=all.checked; }); upd(); });
+      [all,document.getElementById('apAllMobile')].forEach(function(c){c.checked=!!n && n===picks.length;c.indeterminate=n>0 && n<picks.length;}); }
+    [all,document.getElementById('apAllMobile')].forEach(function(a){a.addEventListener('change',function(){picks.forEach(function(c){c.checked=a.checked;});upd();});});
     picks.forEach(function(c){ c.addEventListener('change', upd); });
     f.querySelectorAll('input[name=as_role]').forEach(function(r){ r.addEventListener('change', upd); });
     upd();
@@ -118,7 +119,7 @@
         <td data-label="ช่วง">{{ thai_date(l.start_date) if l.start_date else '-' }} - {{ thai_date(l.end_date) if l.end_date else '-' }}</td>
         <td data-label="วัน">{{ l.days }}</td>
         <td data-label="ตรวจเมื่อ">{{ thai_date(l.personnel_at) if l.personnel_at else '-' }}</td>
-        <td class="right"><a class="btn sm" href="/hr/leave-requests/{{ l.id }}">ดูและอนุมัติ</a></td>
+        <td class="right"><a class="btn sm ap-review-btn" href="/hr/leave-requests/{{ l.id }}"><svg class="icon" aria-hidden="true"><use href="#ic-eye"/></svg><span>ดูและอนุมัติ</span></a></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -142,7 +143,7 @@
         <td data-label="สถานที่">{{ t.place or '-' }}</td>
         <td data-label="ช่วง">{{ thai_date(t.start_date) if t.start_date else '-' }} - {{ thai_date(t.end_date) if t.end_date else '-' }}</td>
         <td data-label="ตรวจเมื่อ">{{ thai_date(t.personnel_at) if t.personnel_at else '-' }}</td>
-        <td class="right"><a class="btn sm" href="/hr/travel-requests/{{ t.id }}">ดูและอนุมัติ</a></td>
+        <td class="right"><a class="btn sm ap-review-btn" href="/hr/travel-requests/{{ t.id }}"><svg class="icon" aria-hidden="true"><use href="#ic-eye"/></svg><span>ดูและอนุมัติ</span></a></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -173,4 +174,12 @@
   </div>
   {% else %}<p class="muted" style="margin:0;">ไม่มีหนังสือรอสั่งการ</p>{% endif %}
 </div>
+<style>
+.ap-select-mobile{display:none}
+@media(max-width:700px){.ap-select-mobile{display:flex;align-items:center;gap:9px;margin:0 0 12px}}
+.ap-review-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap;min-width:142px;min-height:42px;padding:10px 14px!important;line-height:1.35;flex-shrink:0}
+.ap-review-btn .icon{width:18px;height:18px;flex:none}
+#apMany td:last-child,#apMany th:last-child{width:1%;white-space:nowrap}
+#apMany input[type=checkbox]{width:20px;height:20px;vertical-align:middle;accent-color:var(--brand)}
+</style>
 {% endblock %}

@@ -166,9 +166,9 @@ def create_notice(db, person_id, title, reason="", link="", level="info"):
     db.add(Notification(person_id=person_id, title=title, reason=reason, link=link, level=level))
 
 
-def my_notices(person_id):
+def my_notices(person_id, account_id=None):
     """แจ้งเตือนที่ยังไม่อ่านของบุคคลนี้ (สำหรับกระดิ่ง) - รูปแบบเดียวกับ nav_alerts"""
-    if not person_id:
+    if not person_id and not account_id:
         return []
     from app.tenancy import current_school_id, session_for
     from app.models import Notification
@@ -180,7 +180,8 @@ def my_notices(person_id):
         rows = (db.query(Notification)
                 .filter(Notification.person_id == person_id, Notification.read_at.is_(None))
                 .order_by(Notification.created_at.desc()).limit(30).all())
-        return [{"id": n.id, "title": n.title, "reason": n.reason, "tag": "ถึงคุณ",
+        from app.services.approval_feedback import notices
+        return notices(db, account_id) + [{"id": n.id, "title": n.title, "reason": n.reason, "tag": "ถึงคุณ",
                  "level": n.level or "info", "href": f"/notices/{n.id}"} for n in rows]
     finally:
         db.close()
