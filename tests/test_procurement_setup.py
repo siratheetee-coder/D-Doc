@@ -75,4 +75,4 @@ def test_checklist_has_tutorial_video_button(env):
     html = env.get(f'/procurement?year={FY}').text
     assert 'id="setup-proc"' in html and 'class="fs-video" href="/guide#guide-videos"' in html
     assert 'id="guide-videos"' in env.get('/guide').text
-    assert 'class="fs-video"' not in env.get(f'/finance?year={FY}').text
+    assert 'class="fs-video" href="/guide#video-finance"' in env.get(f'/finance?year={FY}').text
