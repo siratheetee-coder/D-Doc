@@ -191,7 +191,7 @@
 <style>.iq-table tr:target td{ background:linear-gradient(120deg,#fef9c3,#fef3c7); }</style>
 <div class="card" id="installments">
   {% set RP = pay_by_round %}
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"><a class="btn gray sm" href="{{ calendar_link }}"><svg class="icon"><use href="#ic-calendar"/></svg> ตั้งค่าปฏิทินวันเรียน</a><a class="btn soft sm" href="/lunch/round/{{ r.id }}/calendar-review"><svg class="icon"><use href="#ic-check"/></svg> ตรวจผลกระทบและปรับวันที่งวด</a></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"><a class="btn gray sm" href="{{ calendar_link }}"><svg class="icon"><use href="#ic-calendar"/></svg> ตั้งค่าปฏิทินวันเรียน</a><a class="btn soft sm" href="/lunch/round/{{ r.id }}/calendar-review"><svg class="icon"><use href="#ic-check"/></svg> แก้วันในงวดหลังปรับปฏิทิน</a></div>
   {% if request.query_params.get('calendar_updated') %}<div class="alert">ปรับวันที่ตามปฏิทินแล้ว {{ request.query_params.get('calendar_updated') }} งวด</div>{% endif %}
   <div class="iq-headrow">
     <h2>{{ 'งวดส่งมอบและตรวจรับ' if RP else 'งวดจ่ายเงินทั้งหมด' }}</h2>

@@ -164,3 +164,31 @@ def test_same_bounds_calendar_change_invalidates_approval(db):
     first=fp_inst(a)
     a.calendar_dates=json.dumps(['2026-12-11','2026-12-12','2026-12-15'])
     assert fp_inst(a)!=first
+
+
+def test_review_only_requires_round_end_edit_when_calendar_exceeds_it(env):
+    import app.tenancy as tn
+    sid=next(iter(tn._engines))
+    with tn.session_for(sid) as db:
+        p,cls,r,a,b=setup(db);close15(db);rid=r.id
+        assert lc.preview(db,r)['required_end'] is None
+    page=env.get(f'/lunch/round/{rid}/calendar-review')
+    assert page.status_code==200 and 'data-required-end' not in page.text
+    assert 'cr-old-head' in page.text and 'cr-new-head' in page.text
+    assert 'ยืนยันแก้วันในงวด 2 งวด' in page.text
+    out=Path(os.environ['SHARED_CALENDAR_CAPTURE']) if os.environ.get('SHARED_CALENDAR_CAPTURE') else None
+    if out:(out/'review-normal.html').write_text(page.text,encoding='utf-8')
+    with tn.session_for(sid) as db:
+        r=db.get(LunchHireRound,rid);r.end_date=datetime(2026,12,18);db.commit()
+        plan=lc.preview(db,r);assert plan['required_end']==date(2026,12,21)
+        assert plan['errors']
+        with pytest.raises(ValueError):lc.apply(db,r,plan['token'])
+    page=env.get(f'/lunch/round/{rid}/calendar-review')
+    assert page.status_code==200 and 'data-required-end' in page.text
+    assert f'/lunch/round/{rid}/edit#ed' in page.text and '21/12/2569' in page.text
+    assert 'ยืนยันแก้วันในงวด 2 งวด' not in page.text
+    if out:(out/'review-end-required.html').write_text(page.text,encoding='utf-8')
+    with tn.session_for(sid) as db:
+        r=db.get(LunchHireRound,rid);r.end_date=datetime(2026,12,21);db.commit()
+        plan=lc.preview(db,r);assert plan['required_end'] is None and not plan['errors']
+        assert lc.apply(db,r,plan['token'])==2
