@@ -16,7 +16,7 @@
   {% endif %}
   <div class="cr-tools"><a class="btn gray sm" href="{{ calendar_link }}"><svg class="icon"><use href="#ic-calendar"/></svg> ตั้งค่าปฏิทินวันเรียน</a>
   {% if not review.required_end %}<a class="btn gray sm" href="/lunch/round/{{ r.id }}/edit"><svg class="icon"><use href="#ic-edit"/></svg> ดูช่วงวันที่รอบจัดจ้าง</a>{% endif %}</div>
-  {% if review.errors %}<div class="alert danger" role="alert"><b>ยังยืนยันแก้วันในงวดไม่ได้</b><ul>{% for error in review.errors %}<li>{{ error }}</li>{% endfor %}</ul></div>{% endif %}
+  {% if review.display_errors %}<div class="alert danger" role="alert"><b>ยังยืนยันแก้วันในงวดไม่ได้</b><ul>{% for error in review.display_errors %}<li>{{ error }}</li>{% endfor %}</ul></div>{% endif %}
   <p class="cr-key"><span class="cr-tag cr-tag-old">เดิม</span> วันที่ที่บันทึกไว้ <span class="cr-tag cr-tag-new">ตามปฏิทิน</span> วันที่ที่จะใช้หลังยืนยัน <span class="muted">วันที่เปลี่ยนจะแสดงตัวหนา</span></p>
   <div class="table-wrap"><table class="cr-table"><thead><tr><th>งวด</th><th class="cr-old-head"><span class="cr-tag cr-tag-old">เดิม</span></th><th class="cr-new-head"><span class="cr-tag cr-tag-new">ตามปฏิทิน</span></th><th>วัน / วงเงิน</th><th>สิ่งที่เปลี่ยน</th></tr></thead><tbody>
   {% for row in review.rows %}<tr class="{{ 'cr-changed' if row.changed else '' }}"><td>{{ row.inst.seq }}</td>

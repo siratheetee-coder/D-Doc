@@ -185,6 +185,8 @@ def test_review_only_requires_round_end_edit_when_calendar_exceeds_it(env):
         with pytest.raises(ValueError):lc.apply(db,r,plan['token'])
     page=env.get(f'/lunch/round/{rid}/calendar-review')
     assert page.status_code==200 and 'data-required-end' in page.text
+    assert 'ยังยืนยันแก้วันในงวดไม่ได้' not in page.text
+    assert 'จะสิ้นสุดหลังวันที่สิ้นสุดรอบ' not in page.text
     assert f'/lunch/round/{rid}/edit#ed' in page.text and '21/12/2569' in page.text
     assert 'ยืนยันแก้วันในงวด 2 งวด' not in page.text
     if out:(out/'review-end-required.html').write_text(page.text,encoding='utf-8')
@@ -192,3 +194,24 @@ def test_review_only_requires_round_end_edit_when_calendar_exceeds_it(env):
         r=db.get(LunchHireRound,rid);r.end_date=datetime(2026,12,21);db.commit()
         plan=lc.preview(db,r);assert plan['required_end'] is None and not plan['errors']
         assert lc.apply(db,r,plan['token'])==2
+
+
+def test_end_date_warning_does_not_hide_other_calendar_errors(env):
+    import app.tenancy as tn
+    sid=next(iter(tn._engines))
+    with tn.session_for(sid) as db:
+        p,cls,r,a,b=setup(db);close15(db);rid=r.id
+        r.end_date=datetime(2026,12,18)
+        db.add(LunchMealCount(program_id=p.id,date=datetime(2026,12,15),class_id=cls.id,count=106));db.commit()
+        review=lc.preview(db,r)
+        assert review['required_end']==date(2026,12,21)
+        assert len(review['errors'])==2 and len(review['display_errors'])==1
+        assert 'ยอดนักเรียน' in review['display_errors'][0]
+        with pytest.raises(ValueError):lc.apply(db,r,review['token'])
+    page=env.get(f'/lunch/round/{rid}/calendar-review')
+    assert page.status_code==200 and 'data-required-end' in page.text
+    assert 'ยังยืนยันแก้วันในงวดไม่ได้' in page.text and 'วันที่บันทึกยอดนักเรียนแล้วซึ่งจะถูกตัดออก' in page.text
+    assert 'จะสิ้นสุดหลังวันที่สิ้นสุดรอบ' not in page.text
+    assert 'class="cr-confirm"' not in page.text
+    if os.environ.get('SHARED_CALENDAR_CAPTURE'):
+        (Path(os.environ['SHARED_CALENDAR_CAPTURE'])/'review-mixed-errors.html').write_text(page.text,encoding='utf-8')

@@ -46,7 +46,7 @@ def preview(db,rnd):
     meal_rows=db.query(LunchMealCount).filter_by(program_id=rnd.program_id).all()
     recorded={r.date.date() for r in meal_rows if r.date}
     led_ids={x.installment_id for x in db.query(LunchLedger).filter(LunchLedger.installment_id.in_([i.id for i in items]))} if items else set()
-    rows=[];errors=[];required_end=None;cursor=rnd.start_date.date() if rnd.start_date else None
+    rows=[];errors=[];end_errors=[];required_end=None;cursor=rnd.start_date.date() if rnd.start_date else None
     for i in items:
         before=stored_days(i,rnd.program);target=int(i.days or len(before));reason='';after=before
         protected=rnd.status=='จ่ายแล้ว' or i.status not in ('ร่าง','') or i.id in led_ids
@@ -64,7 +64,8 @@ def preview(db,rnd):
                 errors.append(f'งวด {i.seq} มีวันที่บันทึกยอดนักเรียนแล้วซึ่งจะถูกตัดออก กรุณาตรวจข้อมูลก่อน');reason='มีข้อมูลยอดนักเรียนที่ต้องตรวจ'
             if len(after)==target and after and rnd.end_date and after[-1]>rnd.end_date.date():
                 required_end=max(required_end,after[-1]) if required_end else after[-1]
-                errors.append(f'งวด {i.seq} จะสิ้นสุดหลังวันที่สิ้นสุดรอบ กรุณาตรวจและแก้ช่วงรอบก่อนยืนยัน')
+                message=f'งวด {i.seq} จะสิ้นสุดหลังวันที่สิ้นสุดรอบ กรุณาตรวจและแก้ช่วงรอบก่อนยืนยัน'
+                errors.append(message);end_errors.append(message)
             if after:cursor=after[-1]+timedelta(days=1)
         rows.append(dict(inst=i,before=before,after=after,protected=protected,reason=reason,
             changed=not protected and before!=after,start=after[0] if after else None,end=after[-1] if after else None,
@@ -73,7 +74,7 @@ def preview(db,rnd):
         [(i.id,i.start_date,i.end_date,i.days,i.amount,i.status,i.deliver_date,i.inspect_date,i.calendar_dates) for i in items],
         [(r.id,r.date,r.class_id,r.count) for r in meal_rows],sorted(x for x in led_ids if x is not None)]
     token=hashlib.sha256(json.dumps(payload,sort_keys=True,default=str).encode()).hexdigest()
-    return dict(rows=rows,errors=list(dict.fromkeys(errors)),token=token,required_end=required_end,changed=sum(r['changed'] for r in rows))
+    return dict(rows=rows,errors=list(dict.fromkeys(errors)),display_errors=list(dict.fromkeys(e for e in errors if e not in end_errors)),token=token,required_end=required_end,changed=sum(r['changed'] for r in rows))
 
 def apply(db,rnd,expected):
     from app.services.subsidy import lock
