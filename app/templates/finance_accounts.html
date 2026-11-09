@@ -106,7 +106,7 @@
       <thead><tr><th>บัญชี</th><th>เก็บเงินไว้ที่</th><th class="right">งบตามหมวด</th><th class="right">ยอดยกมา</th><th class="right">คงเหลือ</th><th></th></tr></thead>
       <tbody>
         {% for a in g.accounts %}
-        <tr>
+        <tr id="acc-{{ a.id }}">
           <td><a href="/finance/accounts/{{ a.id }}?year={{ fiscal_year }}" style="color:{{ g.color.ink }};"><b>{{ a.name }}</b></a>
             <form method="post" action="/finance/accounts/{{ a.id }}/fund-type" style="margin:5px 0 0;">
               <input type="hidden" name="year" value="{{ fiscal_year }}">
@@ -118,7 +118,7 @@
               </select>
             </form>
             {% set _slot, _own = eb_slot_of(a, a.fund_type) %}
-            <form method="post" action="/finance/accounts/{{ a.id }}/eb-slot" style="margin:5px 0 0;">
+            <form method="post" action="/finance/accounts/{{ a.id }}/eb-slot" style="margin:5px 0 0;" data-stay>
               <input type="hidden" name="year" value="{{ fiscal_year }}">
               <select name="eb_slot" aria-label="ช่อง e-Budget ของ {{ a.name }}" onchange="this.form.submit()"
                       title="เงินในบัญชีนี้ลงช่องไหนของ e-Budget" style="padding:4px 8px; font-size:13px; width:auto; max-width:220px;
@@ -129,7 +129,7 @@
             </form>
             {% if a.note %}<span class="muted">{{ a.note }}</span>{% endif %}</td>
           <td>
-            <form method="post" action="/finance/accounts/{{ a.id }}/deposit-type" style="margin:0;">
+            <form method="post" action="/finance/accounts/{{ a.id }}/deposit-type" style="margin:0;" data-stay>
               <input type="hidden" name="year" value="{{ fiscal_year }}">
               <select name="deposit_type" onchange="this.form.submit()" style="padding:5px 8px; font-size:14px; min-width:130px;">
                 <option value="bank" {{ 'selected' if a.deposit_type=='bank' }}>เงินฝากธนาคาร</option>

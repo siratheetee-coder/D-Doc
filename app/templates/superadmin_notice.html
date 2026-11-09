@@ -72,7 +72,7 @@
     <thead><tr><th>หัวข้อ</th><th>ช่วงเวลา</th><th>รายการ</th><th>อีเมล</th><th>สถานะ</th><th></th></tr></thead>
     <tbody>
       {% for n in rows %}
-      <tr>
+      <tr id="notice-{{ n.id }}">
         <td><b>{{ n.title }}</b><br>
           <span class="muted" style="font-size:12.5px;">{{ kind_of(n.kind).label }}</span></td>
         <td style="white-space:nowrap;">{{ thai_date(n.start_at) }}<br>
@@ -99,7 +99,7 @@
               <svg class="icon"><use href="#ic-send"/></svg>
               {{ 'กำลังส่ง' if busy[n.id] else 'ส่งอีเมล' }}</button>
           </form>
-          <form method="post" action="/admin-console/notice/{{ n.id }}/toggle" style="display:inline;">
+          <form method="post" action="/admin-console/notice/{{ n.id }}/toggle" style="display:inline;" data-stay>
             <button class="btn sm gray">{{ 'ปิดการ์ด' if n.active else 'เปิดการ์ด' }}</button>
           </form>
           <form method="post" action="/admin-console/notice/{{ n.id }}/delete" style="display:inline;"

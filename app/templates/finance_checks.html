@@ -52,7 +52,7 @@
       <th class="right">จำนวนเงิน</th><th>สถานะ</th><th></th></tr></thead>
     <tbody>
       {% for c in rows %}
-      <tr>
+      <tr id="chk-{{ c.id }}">
         <td data-label="วันที่">{{ thai_date(c.date) if c.date else '-' }}</td>
         <td data-label="วิธีจ่าย">{{ c.pay_method or 'โอน' }}</td>
         <td data-label="เลขที่/อ้างอิง"><b>{{ c.check_no or '-' }}</b></td>
@@ -65,7 +65,7 @@
             <small style="display:block; color:#475569;">{{ thai_date(c.cleared_date) if c.cleared_date else 'ไม่ได้ระบุวันที่' }}</small>
           {% else %}<span class="pill" style="background:#fef3c7; color:#92400e;">ยังไม่ตัดบัญชี</span>{% endif %}</td>
         <td class="right" style="white-space:nowrap;">
-          <form method="post" action="/finance/checks/{{ c.id }}/toggle" style="display:inline">
+          <form method="post" action="/finance/checks/{{ c.id }}/toggle" style="display:inline" data-stay>
             {% if not c.cleared %}<input name="cleared_date" value="{{ today_be }}" data-date="1"
                    title="วันที่เงินออกจากบัญชีจริง ใช้ย้อนทำงบกระทบยอดของเดือนก่อนได้ถูกต้อง"
                    style="width:112px; display:inline-block; margin-right:4px;">{% endif %}

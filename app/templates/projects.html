@@ -175,7 +175,7 @@
     <tbody>
       {% for p in rows %}
       {% set money = proj_money(p) %}{% set b = proj_budget(p) %}{% set s = proj_spent(p) %}{% set r = b - s %}
-      <tr data-q="{{ p.name }} {{ p.responsible or '' }}">
+      <tr id="proj-{{ p.id }}" data-q="{{ p.name }} {{ p.responsible or '' }}">
         <td><a href="/projects/{{ p.id }}"><b>{{ p.name }}</b></a>{% if not p.active %} <span class="pill">ปิด</span>{% endif %}
             {% if p.revisions %}<br><span class="muted" style="font-size:12px;">ปรับงบ {{ p.revisions|length }} ครั้ง</span>{% endif %}</td>
         <td>
@@ -189,7 +189,7 @@
         <td class="right" style="color:#dc2626;">{{ "{:,.2f}".format(s) }}<small style="display:block">จ่ายจริง {{ '{:,.2f}'.format(money.paid) }}<br>รอจ่าย {{ '{:,.2f}'.format(money.waiting) }}<br>ก่อนเริ่มระบบ {{ '{:,.2f}'.format(money.before) }}</small></td>
         <td class="right"><b style="color:{{ '#dc2626' if r < 0 else '#16a34a' }};">{{ "{:,.2f}".format(r) }}</b></td>
         <td class="right" style="white-space:nowrap;">
-          <form method="post" action="/projects/{{ p.id }}/set-year" style="display:inline;">
+          <form method="post" action="/projects/{{ p.id }}/set-year" style="display:inline;" data-stay>
             <input type="hidden" name="back" value="/projects?year={{ fiscal_year }}">
             <select name="plan_year" onchange="this.form.submit()" title="ย้ายไปปีอื่น" style="width:auto; padding:4px 6px; font-size:13px;">
               {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==p.plan_year }}>ปี {{ y }}</option>{% endfor %}

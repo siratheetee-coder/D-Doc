@@ -27,7 +27,7 @@
     <thead><tr><th>ชื่อผู้ใช้</th><th>ประเภท</th><th>สิทธิ์งาน</th><th>สถานะ</th><th></th></tr></thead>
     <tbody>
     {% for u in users %}
-      <tr>
+      <tr id="user-{{ u.id }}">
         <td style="white-space:nowrap;"><b>{{ u.username }}</b>{% if u.display_name %}<br><span class="muted" style="font-size:13px;">{{ u.display_name }}</span>{% endif %}</td>
         <td>
           {% if u.is_owner %}<span class="pill" style="background:#e8f0ff; color:#2b58c9;">ไอดีหลัก</span>
@@ -54,7 +54,7 @@
         <td>{% if u.active %}<span class="pill" style="background:#e9f7ef; color:#0e7a44;">ใช้งาน</span>{% else %}<span class="pill" style="background:#fde8e8; color:#b91c1c;">ปิดอยู่</span>{% endif %}
           {% if u.totp %}<br><span class="pill" style="background:#eef2ff; color:#4338ca; margin-top:3px; display:inline-block;">🔒 2 ชั้น</span>{% endif %}</td>
         <td style="white-space:nowrap;">
-          <form method="post" action="/users/{{ u.id }}/director" style="display:inline; margin:0;" title="ให้บัญชีนี้อนุมัติแผนการสอน/ลา/ไปราชการ ขั้นสุดท้าย (ต้องผูกลายเซ็นในทะเบียนบุคลากร)"><button class="btn sm {{ 'gray' if u.is_director else '' }}" type="submit">{{ 'ยกเลิก ผอ.' if u.is_director else 'ตั้งเป็น ผอ.' }}</button></form>
+          <form method="post" action="/users/{{ u.id }}/director" style="display:inline; margin:0;" title="ให้บัญชีนี้อนุมัติแผนการสอน/ลา/ไปราชการ ขั้นสุดท้าย (ต้องผูกลายเซ็นในทะเบียนบุคลากร)" data-stay><button class="btn sm {{ 'gray' if u.is_director else '' }}" type="submit">{{ 'ยกเลิก ผอ.' if u.is_director else 'ตั้งเป็น ผอ.' }}</button></form>
           {% if u.totp %}
           <form method="post" action="/users/{{ u.id }}/2fa-reset" style="display:inline; margin:0;"
                 title="ใช้เมื่อผู้ใช้ทำมือถือหายและรหัสสำรองหมด - ปลดแล้วเขาต้องตั้งค่าใหม่เอง"
@@ -65,7 +65,7 @@
           {% endif %}
           {% if not u.is_owner %}
           <button class="btn sm gray" type="button" onclick="resetPw({{ u.id }}, '{{ u.username }}')">รีเซ็ตรหัส</button>
-          <form method="post" action="/users/{{ u.id }}/toggle" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">{{ 'ปิด' if u.active else 'เปิด' }}</button></form>
+          <form method="post" action="/users/{{ u.id }}/toggle" style="display:inline; margin:0;" data-stay><button class="btn sm gray" type="submit">{{ 'ปิด' if u.active else 'เปิด' }}</button></form>
           <form method="post" action="/users/{{ u.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบผู้ใช้ {{ u.username }} ?');"><button class="btn sm gray" type="submit" style="color:#dc2626;">ลบ</button></form>
           <form method="post" action="/users/{{ u.id }}/reset" id="rf{{ u.id }}" style="display:none;"><input type="hidden" name="new_password"></form>
           {% endif %}

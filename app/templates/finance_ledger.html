@@ -178,10 +178,10 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
     <tbody>
       {% for r in item_rows %}
       {% set _dep = {'bank':'ธนาคาร','cash':'เงินสด','agency':'ส่วนราชการผู้เบิก'} %}
-      <tr {% if r.level==0 and r.has_kids %}style="background:#f8fafc;"{% endif %}>
+      <tr id="item-{{ r.it.id }}" {% if r.level==0 and r.has_kids %}style="background:#f8fafc;"{% endif %}>
         <td style="padding-left:{{ 8 + r.level*26 }}px;">{% if r.level==1 %}<span class="muted">└ </span>{% endif %}{% if r.level==0 %}<b>{{ r.it.name }}</b>{% else %}{{ r.it.name }}{% endif %}{% if r.it.note %} <span class="muted">{{ r.it.note }}</span>{% endif %}</td>
         <td>
-          <form method="post" action="/finance/items/{{ r.it.id }}/update" style="margin:0;">
+          <form method="post" action="/finance/items/{{ r.it.id }}/update" style="margin:0;" data-stay>
             <input type="hidden" name="year" value="{{ fiscal_year }}">
             <select name="deposit_type" onchange="this.form.submit()" style="padding:4px 6px; font-size:13px; min-width:105px;">
               <option value="bank" {{ 'selected' if r.it.deposit_type=='bank' }}>ธนาคาร</option>
@@ -192,7 +192,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
         </td>
         <td>
           {% set _slot, _own = eb_slot_of(r.it, account.fund_type) %}
-          <form method="post" action="/finance/items/{{ r.it.id }}/update" style="margin:0;">
+          <form method="post" action="/finance/items/{{ r.it.id }}/update" style="margin:0;" data-stay>
             <input type="hidden" name="year" value="{{ fiscal_year }}">
             <select name="eb_slot" onchange="this.form.submit()" aria-label="ช่อง e-Budget ของ {{ r.it.name }}"
                     style="padding:4px 6px; font-size:13px; min-width:170px; max-width:220px;">

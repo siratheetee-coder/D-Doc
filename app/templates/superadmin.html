@@ -198,7 +198,7 @@
               <span class="tr"></span>
             </label>
             <span class="muted2">{{ 'เปิดใช้งาน' if r.t.active else 'ระงับอยู่' }}</span>
-            <form id="tg{{ r.t.id }}" method="post" action="/admin-console/tenant/{{ r.t.id }}/toggle"></form>
+            <form id="tg{{ r.t.id }}" method="post" action="/admin-console/tenant/{{ r.t.id }}/toggle" data-stay></form>
           </span>
         </div>
         <div class="t-grid">
