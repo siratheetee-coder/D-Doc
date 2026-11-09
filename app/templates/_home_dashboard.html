@@ -1,20 +1,29 @@
 <style>
 .home-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:18px 0}.home-stat{background:white;border:1px solid #e2e8f0;border-radius:14px;padding:17px;color:var(--text);text-decoration:none}.home-stat b{display:block;font-size:30px;color:var(--accent,#2563eb);margin:5px 0}.home-stat small{color:#64748b}.home-columns{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(270px,1fr);gap:18px;margin:20px 0}.home-panel{background:#fff;border:1px solid #e2e8f0;border-radius:15px;padding:20px}.home-panel h2{background:none;border:0;padding:0;margin:0 0 14px;font-size:20px}.home-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid #edf0f5;color:var(--text);text-decoration:none}.home-row:last-child{border:0}.home-row small{display:block;color:#64748b;margin-top:4px}.home-badge{background:#eff6ff;color:#1d4ed8;padding:5px 9px;border-radius:8px;white-space:nowrap;font-size:13px}.home-update{padding:12px 0;border-bottom:1px solid #edf0f5}.home-update p{font-size:14px;color:#64748b;margin:5px 0}.home-update small{color:#64748b}.home-summary.letters{grid-template-columns:repeat(3,minmax(0,1fr))}.home-shortcuts{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0}.home-detail-list{margin-top:16px}.home-empty{color:#64748b;padding:14px 0}
 @media(max-width:850px){.home-columns{grid-template-columns:1fr}.home-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:480px){.home-summary.letters{grid-template-columns:1fr}.home-row{align-items:flex-start}.home-panel{padding:16px}.home-row span:first-child{min-width:0;overflow-wrap:anywhere}.home-stat{padding:13px}}
+
+/* Status colours complement labels and icons; compact letter totals remain readable. */
+.home-columns{align-items:start}.home-stat{--accent:#2563eb;--soft:#eff6ff;--edge:#bfdbfe;background:var(--soft);border-color:var(--edge);border-left:4px solid var(--accent);transition:border-color .15s,box-shadow .15s}.home-stat:hover{box-shadow:0 4px 14px #0f172a12;border-color:var(--accent)}.home-stat:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.tone-pending{--soft:#fffbeb;--edge:#fde68a}.tone-approved{--soft:#f0fdf4;--edge:#bbf7d0}.tone-returned{--soft:#fff7ed;--edge:#fed7aa}.tone-stale,.tone-purple{--accent:#7c3aed;--soft:#f5f3ff;--edge:#ddd6fe}.tone-red{--accent:#dc2626;--soft:#fff1f2;--edge:#fecdd3}.tone-blue{--accent:#2563eb;--soft:#eff6ff;--edge:#bfdbfe}
+.stat-heading{display:flex;align-items:center;gap:10px;line-height:1.4}.stat-icon{display:inline-flex;align-items:center;justify-content:center;flex:none;width:38px;height:38px;border-radius:11px;background:white;border:1px solid var(--edge);color:var(--accent)}.stat-icon .icon{width:21px;height:21px}.approval-stat{padding:13px 15px}.approval-stat b{font-size:28px;margin:7px 0 2px}.approval-stat small{font-size:12px}
+.home-summary.letters{margin:12px 0 18px;gap:12px}.letter-stat{display:flex;align-items:center;gap:12px;padding:14px 16px;min-height:80px}.letter-stat-label{flex:1;min-width:0;font-weight:600;font-size:14px;line-height:1.4}.letter-stat-value{display:flex;align-items:baseline;gap:5px;white-space:nowrap}.letter-stat-value b{font-size:27px;margin:0;line-height:1.1}.letter-stat-value small{font-size:12px}.stat-arrow{width:15px;height:15px;color:var(--accent);opacity:.65;flex:none}
+.home-tasks{border-top:3px solid #0d9488}.home-tasks h2>.icon{color:#0d9488}.home-updates{border-top:3px solid #2563eb}.home-updates h2>.icon{color:#2563eb}
+@media(max-width:1100px) and (min-width:851px){.letter-stat{flex-wrap:wrap;gap:8px}.letter-stat-label{flex-basis:calc(100% - 50px)}.letter-stat-value{margin-left:46px}.stat-arrow{margin-left:auto}}
+@media(max-width:480px){.letter-stat{min-height:72px;padding:12px;gap:10px}.letter-stat-label{font-size:14px}.approval-stat{padding:12px}.stat-heading{gap:8px;font-size:13px;align-items:flex-start}.stat-heading .stat-icon{width:30px;height:30px;border-radius:9px}.stat-heading .icon{width:18px;height:18px}.approval-stat small{line-height:1.45;display:block}.home-summary.letters{gap:9px}}
 </style>
 {% macro approval_summary() %}
 {% if school.approval_on %}
 <h2>{{ 'เอกสารที่ฉันส่ง ผอ. อนุมัติ' if not request.session.get('owner') else 'ติดตามการอนุมัติ' }}</h2>
 <div class="home-summary">
 {% for code,label,color,caption in [('pending','รอ ผอ. อนุมัติ','#b45309','สถานะล่าสุด'),('approved','อนุมัติแล้วล่าสุด','#15803d','ใน 7 วันที่ผ่านมา'),('returned','ส่งกลับให้แก้','#c2410c','ยังไม่ได้ส่งใหม่'),('stale','ต้องส่งอนุมัติใหม่','#6d28d9','แก้ข้อมูลหลังอนุมัติ')] %}
-<a class="home-stat" style="--accent:{{ color }}" href="/home/approvals?status={{ code }}"><span>{{ label }}</span><b>{{ home.approval[code]|length }}</b><small>รายการอนุมัติ · {{ caption }}</small></a>
+<a class="home-stat approval-stat tone-{{ code }}" style="--accent:{{ color }}" href="/home/approvals?status={{ code }}"><span class="stat-heading"><span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#{{ {'pending':'ic-clock','approved':'ic-check','returned':'ic-edit','stale':'ic-send'}[code] }}"/></svg></span><span>{{ label }}</span></span><b>{{ home.approval[code]|length }}</b><small>รายการอนุมัติ · {{ caption }}</small></a>
 {% endfor %}</div>
 {% endif %}
 {% endmacro %}
 {% if not home.teacher %}{{ approval_summary() }}{% endif %}
-{% if home.letter_counts %}<h2>{{ 'หนังสือและงานที่ส่งถึงฉัน' if home.teacher else 'ติดตามหนังสือรับ' }}</h2><div class="home-summary letters">{% for label,n in home.letter_counts %}<a class="home-stat" href="{{ '/me/letters' if home.teacher else ('/home/letters?group=' ~ ['waiting','unacked','overdue'][loop.index0]) }}"><span>{{ label }}</span><b>{{ n }}</b><small>เรื่อง</small></a>{% endfor %}</div>{% endif %}
+{% if home.letter_counts %}<h2>{{ 'หนังสือและงานที่ส่งถึงฉัน' if home.teacher else 'ติดตามหนังสือรับ' }}</h2><div class="home-summary letters">{% for label,n in home.letter_counts %}{% set tone = ['blue','purple','red'][loop.index0] %}<a class="home-stat letter-stat tone-{{ tone }}" href="{{ '/me/letters' if home.teacher else ('/home/letters?group=' ~ ['waiting','unacked','overdue'][loop.index0]) }}"><span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#{{ ['ic-file','ic-clipboard','ic-alert'][loop.index0] }}"/></svg></span><span class="letter-stat-label">{{ label }}</span><span class="letter-stat-value"><b>{{ n }}</b><small>เรื่อง</small></span><svg class="icon stat-arrow" aria-hidden="true"><use href="#ic-arrow-right"/></svg></a>{% endfor %}</div>{% endif %}
 <div class="home-columns">
-<section class="home-panel"><h2>{{ 'สิ่งที่ฉันต้องทำ' if home.teacher else 'งานที่ต้องจัดการ' }}</h2>
+<section class="home-panel home-tasks"><h2><svg class="icon" aria-hidden="true"><use href="#ic-clipboard"/></svg> {{ 'สิ่งที่ฉันต้องทำ' if home.teacher else 'งานที่ต้องจัดการ' }}</h2>
 {% if home.teacher %}
 {% for item in home.letters %}<a class="home-row" href="{{ item.href }}"><span><b>{{ item.title or 'หนังสือรับ' }}</b><small>{{ item.note or '' }}</small></span><span class="home-badge">{{ item.tag }} →</span></a>{% else %}<p class="home-empty">ไม่มีหนังสือรอรับทราบหรืองานรอรายงานผล</p>{% endfor %}
 <a class="btn gray sm" href="/me/letters" style="margin-top:14px">ดูหนังสือถึงฉันทั้งหมด →</a>
@@ -25,7 +34,7 @@
 <small class="muted">อนุมัติแล้ว ยังไม่ถือว่าบันทึกจ่ายแล้ว</small>
 {% endif %}
 </section>
-<aside class="home-panel"><h2><svg class="icon"><use href="#ic-info"/></svg> อัปเดตระบบล่าสุด</h2>{% for item in home.updates[:2] %}<div class="home-update"><small>{{ item.date }}</small><br><b>{{ item.title }}</b><p>{{ item.text }}</p></div>{% endfor %}<a class="btn gray sm" href="/system-updates" style="margin-top:14px">ดูอัปเดตทั้งหมด →</a></aside>
+<aside class="home-panel home-updates"><h2><svg class="icon"><use href="#ic-info"/></svg> อัปเดตระบบล่าสุด</h2>{% for item in home.updates[:2] %}<div class="home-update"><small>{{ item.date }}</small><br><b>{{ item.title }}</b><p>{{ item.text }}</p></div>{% endfor %}<a class="btn gray sm" href="/system-updates" style="margin-top:14px">ดูอัปเดตทั้งหมด →</a></aside>
 </div>
 
 {% if home.teacher %}{{ approval_summary() }}{% endif %}
