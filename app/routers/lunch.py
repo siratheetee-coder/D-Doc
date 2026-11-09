@@ -1115,8 +1115,10 @@ def menu_page(pid: int, request: Request, db: Session = Depends(get_db),
                 menu_days.append({"be": be_date_input(datetime(dd.year, dd.month, dd.day)),
                                   "has": dd.isoformat() in have_dates})
             dd += timedelta(days=1)
+    from app.services.lunch_menu_daily import daily_context
+    daily=daily_context(request,db,prog,edit_row,default_menu_date)
     return templates.TemplateResponse("lunch_menu.html", {
-        "request": request, "school": get_school(db), "p": prog, "menu_days": menu_days,
+        "request": request, "school": get_school(db), "p": prog, "menu_days": menu_days, "daily":daily,
         "menu_rows": menu_rows, "edit": edit_row, "past_menus": past, "desserts": desserts,
         "food_groups": FOOD_GROUPS,
         "edit_groups": [g for g in (edit_row.groups or "").split(",")] if edit_row else [],

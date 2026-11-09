@@ -468,6 +468,8 @@ from app.services import staff  # Register case-signature snapshot lifecycle
 from app.services import proc_paid  # noqa: F401,E402  สถานะเรื่องจัดซื้อตามการจ่ายบันทึกขอเบิก
 app.include_router(finance.router)
 app.include_router(lunch.router)
+from app.routers import lunch_menu_library
+app.include_router(lunch_menu_library.router)
 app.include_router(hr.router)
 from app.routers import academic_supervision
 app.include_router(academic_supervision.router)

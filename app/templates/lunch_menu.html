@@ -1,83 +1,21 @@
-{% extends "base.html" %}
-{% block title %}เมนูอาหารกลางวัน {{ p.year }}{% endblock %}
-{% block content %}
-<div class="card">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-    <h1 style="margin:0;">เมนู/สำรับอาหารกลางวัน (ปีการศึกษา {{ p.year }})</h1>
-    <div style="display:flex; gap:8px;">
-      <a class="btn sm" href="/lunch/{{ p.id }}/menu/print" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ตารางเมนู</a>
-      <a class="btn sm gray" href="{{ back if back else '/lunch/' ~ p.id }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> {{ 'กลับหน้าสร้างเรื่อง' if back else 'กลับหน้าโครงการ' }}</a>
-    </div>
-  </div>
-</div>
-
-{% if filled %}
-  {% if filled == '0' %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg><span>ยังไม่ได้สร้างเมนู - ตรวจว่ามีเมนูตั้งต้นอย่างน้อย 1 รายการ และวันเริ่ม/สิ้นสุดถูกต้อง</span></div>
-  {% else %}<div class="alert">สร้างเมนูหมุนเวียนทั้งรอบแล้ว {{ filled }} วัน</div>{% endif %}
-{% endif %}
-
-<div class="card">
-  <h2>{{ 'แก้ไขเมนู' if edit else 'เพิ่มเมนูรายวัน' }}</h2>
-  <form method="post" action="{{ ('/lunch/menu/' ~ edit.id ~ '/update') if edit else ('/lunch/' ~ p.id ~ '/menu/add') }}">
-    {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
-    <div class="row">
-      <div><label>วันที่ {% if menu_days %}<span class="muted">(ในรอบ)</span>{% endif %}</label>
-        {% if menu_days and not edit %}
-        {% set seld = request.query_params.get('d') or today_be %}
-        <select name="date" style="min-width:200px;">
-          {% for d in menu_days %}<option value="{{ d.be }}" {{ 'selected' if d.be == seld }}>{{ d.be }}{{ ' มีเมนูแล้ว' if d.has }}</option>{% endfor %}
-        </select>
-        {% else %}
-        <input name="date" value="{{ be_date(edit.date) if edit and edit.date else today_be }}" placeholder="วว/ดด/ปปปป" data-date="1">
-        {% endif %}</div>
-      <div style="flex:2;"><label>อาหารคาว (จานหลัก)</label><input name="main" id="m_main" list="mains_dl" oninput="fillDessert(this)" value="{{ edit.main if edit else '' }}" placeholder="พิมพ์/เลือกเมนูที่เคยใช้"></div>
-      <div style="flex:2;"><label>ของหวาน / ผลไม้</label><input name="dessert" id="m_dessert" list="desserts_dl" value="{{ edit.dessert if edit else '' }}" placeholder="เช่น กล้วยน้ำว้า"></div>
-    </div>
-    <datalist id="mains_dl">{% for pm in past_menus %}<option value="{{ pm.main }}">{% endfor %}</datalist>
-    <datalist id="desserts_dl">{% for d in desserts %}<option value="{{ d }}">{% endfor %}</datalist>
-    <p class="muted" style="font-size:13px; margin:2px 0;">เลือกจานหลักที่เคยใช้ ระบบจะเติมของหวานที่เคยคู่กันให้อัตโนมัติ (แก้ได้)</p>
-    <label>อาหารครบ 5 หมู่ <span class="muted" style="font-weight:400;">(ติ๊กครบให้แล้ว - เอาออกเฉพาะหมู่ที่เมนูวันนั้นขาด)</span></label>
-    <div style="display:flex; gap:10px 22px; flex-wrap:wrap; margin:6px 0 12px;">
-      {% for gid, gname in food_groups.items() %}
-      <label style="display:inline-flex; align-items:center; gap:7px; font-weight:400; font-size:14.5px; white-space:nowrap; flex:0 0 auto;">
-        <input type="checkbox" name="groups" value="{{ gid }}" style="width:18px; height:18px; flex:none;" {{ 'checked' if (gid in edit_groups) or not edit }}> {{ gid }}. {{ gname }}
-      </label>
-      {% endfor %}
-    </div>
-    <label>หมายเหตุ</label><input name="note" value="{{ edit.note if edit else '' }}">
-    <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> {{ 'บันทึกการแก้ไข' if edit else 'เพิ่มเมนู' }}</button>
-    {% if edit %}<a class="btn gray" href="/lunch/{{ p.id }}/menu{{ ('?back=' ~ back) if back else '' }}">ยกเลิก</a>{% endif %}
-  </form>
-</div>
-
-<div class="card hl">
-  <h2><svg class="icon"><use href="#ic-calendar"/></svg> สร้างเมนูยาวหลายวันทีเดียว (วนเมนูซ้ำให้อัตโนมัติ)</h2>
-  <p class="muted" style="margin:0 0 6px;">ไม่ต้องพิมพ์เมนูทีละวันทั้งเทอม แค่ทำ 3 ขั้น:</p>
-  <ol style="margin:0 0 12px; padding-left:22px; font-size:14px; line-height:2; color:var(--text);">
-    <li>พิมพ์เมนูไว้ก่อน <b>1 สัปดาห์ (จันทร์-ศุกร์ = 5 เมนู)</b> ที่ช่อง "เพิ่มเมนูรายวัน" ด้านบน</li>
-    <li>ตรวจ <b>ช่วงวันที่</b> ด้านล่าง (ระบบดึงวันเริ่ม-สิ้นสุดจากรอบจัด{{ "ซื้อ" if p.operate_mode == "ingredient" else "จ้าง" }}ให้แล้ว แก้ได้)</li>
-    <li>กดปุ่ม <b>"สร้างเมนู"</b> ระบบจะวนเมนู 5 อย่างนี้ซ้ำทุกสัปดาห์ ใส่ให้ครบทุกวันเปิดเรียน (ข้ามเสาร์-อาทิตย์ + วันหยุด) วันเดียวกันของทุกสัปดาห์ได้เมนูเดิม วันที่มีเมนูอยู่แล้วไม่ถูกทับ</li>
-  </ol>
-  {% if menu_count < 1 %}
-  <p class="muted" style="margin-bottom:0;"><b>ยังไม่มีเมนู</b> - พิมพ์เมนูที่ช่อง "เพิ่มเมนูรายวัน" ด้านบนก่อน (อย่างน้อย 1 รายการ) แล้วปุ่มนี้จะใช้ได้</p>
-  {% else %}
-  <form method="post" action="/lunch/{{ p.id }}/menu/fill-term" class="row" style="align-items:flex-end;"
-        onsubmit="return confirm('สร้างเมนูวนซ้ำตามช่วงวันที่นี้? (วันที่มีเมนูแล้วจะไม่ถูกแก้)');">
-    {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
-    <div style="flex:0 0 auto;"><label>วนกี่เมนู <span class="muted">(ปกติ 5 = จ-ศ)</span></label>
-      <input name="cycle_size" type="number" min="1" max="{{ menu_count }}" value="{{ 5 if menu_count >= 5 else menu_count }}" style="width:150px;"></div>
-    <div style="flex:0 0 auto;"><label>ตั้งแต่วันที่</label>
-      <input name="start_date" value="{{ term_start_be }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:150px;"></div>
-    <div style="flex:0 0 auto;"><label>ถึงวันที่</label>
-      <input name="end_date" value="{{ term_end_be }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:150px;"></div>
-    <div style="flex:0 0 auto;"><label style="display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-weight:400;">
-      <input type="hidden" name="skip_holiday" value="1"> ใช้วันเรียนตามปฏิทินโรงเรียน</label></div>
-    <div style="flex:0 0 auto;"><button class="btn" type="submit"><svg class="icon"><use href="#ic-calendar"/></svg> สร้างเมนู</button></div>
-  </form>
-  {% if not term_start_be or not term_end_be %}<p class="muted" style="font-size:13px; margin:8px 0 0;">ยังไม่พบช่วงเวลาจากรอบจัด{{ "ซื้อ" if p.operate_mode == "ingredient" else "จ้าง" }} - กรอกวันตั้งแต่/ถึง เอง</p>{% endif %}
-  {% endif %}
-</div>
-
+{% extends 'base.html' %}{% block title %}จัดเมนูอาหารกลางวัน{% endblock %}{% block content %}
+{% include '_lunch_menu_style.html' %}
+<div class="lm-header"><div><h1>จัดเมนูอาหารกลางวัน</h1><span class="muted">{{ school.name }} · ปีการศึกษา {{ p.year }}</span></div><div class="lm-actions"><a class="btn gray sm" href="/lunch/{{ p.id }}/menu/print" target="_blank">พิมพ์ตารางเมนู</a><a class="btn gray sm" href="{{ back or '/lunch/' ~ p.id }}">← {{ 'กลับหน้าสร้างเรื่อง' if back else 'กลับหน้าโครงการ' }}</a></div></div>
+<nav class="lm-tabs" aria-label="จัดเมนู"><a class="active" href="/lunch/{{ p.id }}/menu">เมนูรายวัน</a><a href="/lunch/{{ p.id }}/menu/sets">ชุดเมนูอาหาร</a></nav>
+{% if request.query_params.get('msg') %}<div class="alert">{{ request.query_params.get('msg') }}</div>{% endif %}
+{% if filled %}<div class="alert">สร้างเมนู {{ filled }} วัน</div>{% endif %}
+<section class="lm-box"><div class="lm-top"><div><h2>เมนูประจำสัปดาห์</h2><small class="muted">{{ be_date(daily.start) }} – {{ be_date(daily.end) }}</small></div><div class="lm-actions"><a class="btn gray sm" href="{{ daily.previous }}" aria-label="สัปดาห์ก่อน">‹</a><a class="btn gray sm" href="{{ daily.next }}" aria-label="สัปดาห์ถัดไป">›</a><form method="get" action="/lunch/{{ p.id }}/menu" style="display:flex;gap:7px;margin:0"><input name="week" placeholder="เลือกวันที่ วว/ดด/ปปปป" data-date style="width:185px" aria-label="วันที่ในสัปดาห์ที่ต้องการ" required>{% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}<button class="btn gray sm" type="submit">ไปสัปดาห์นี้</button></form></div></div>
+<div class="lm-week">{% for d in daily.days %}{% if d.open or d.menu %}<a href="{{ d.href }}" class="lm-day {{ 'active' if d.active else '' }}"><b>{{ d.name }} {{ d.be[:5] }}</b>{% if d.menu %}<small class="lm-saved">● มีเมนูแล้ว</small><span>{{ d.menu.main }}</span><small>{{ d.menu.dessert }}</small>{% else %}<small class="lm-blank">ยังไม่มีเมนู</small><span>+ เพิ่มเมนู</span>{% endif %}</a>{% else %}<div class="lm-day closed"><b>{{ d.name }} {{ d.be[:5] }}</b><small>วันหยุดตามปฏิทินโรงเรียน</small></div>{% endif %}{% endfor %}</div>
+<small class="muted">วันเรียนและวันชดเชยใช้ตามปฏิทินโรงเรียน · <a href="/settings/calendar?year={{ p.year }}&return_to=/lunch/{{ p.id }}/rounds">ตั้งค่าปฏิทินวันเรียน →</a></small></section>
+{% set m=daily.menu %}
+<form method="post" action="{{ '/lunch/menu/' ~ m.id ~ '/update' if m and not m.date else '/lunch/' ~ p.id ~ '/menu/day' }}" class="lm-daily-layout" style="margin-top:18px" id="dayMenuForm">
+<section class="lm-box"><h2>{% if m and not m.date %}แก้เมนูเดิมที่ยังไม่ระบุวัน{% else %}{{ 'แก้ไขเมนู' if m else 'จัดเมนู' }}วันที่ {{ be_date(daily.selected) }}{% endif %}</h2>{% if not daily.open %}<div class="alert warn">วันนี้ปิดเรียนตามปฏิทิน{% if m %} แต่มีเมนูเดิมบันทึกอยู่{% endif %}</div>{% endif %}
+{% if m and not m.date %}<label>วันที่ (เว้นว่างเพื่อเก็บเป็นรายการเดิม)</label><input name="date" value="" placeholder="วว/ดด/ปปปป (ไม่บังคับ)" data-date><p class="lm-hint">การบันทึกโดยเว้นวันที่ว่างจะไม่เปลี่ยนเมนูนี้เป็นเมนูรายวัน</p>{% else %}<input type="hidden" name="date" value="{{ be_date(daily.selected) }}">{% endif %}{% if m %}<input type="hidden" name="mid" value="{{ m.id }}">{% endif %}{% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
+<label>อาหารคาว / จานหลัก</label><input name="main" id="m_main" list="mains_dl" value="{{ m.main if m else '' }}" required maxlength="500" placeholder="พิมพ์ค้นหาหรือเพิ่มชื่อเมนูใหม่"><p class="lm-hint">เลือกจากเมนูที่เคยใช้ หรือพิมพ์เมนูใหม่ได้</p>
+<label>ของหวาน / ผลไม้</label><input name="dessert" id="m_dessert" list="desserts_dl" value="{{ m.dessert if m else '' }}" maxlength="500" placeholder="เช่น กล้วย"><label style="margin-top:14px">หมายเหตุ (ถ้ามี)</label><input name="note" value="{{ m.note if m else '' }}" maxlength="500"><div class="lm-actions"><button class="btn" type="submit" {{ 'disabled' if not daily.open and not m else '' }}><svg class="icon"><use href="#ic-save"/></svg> บันทึกเมนูวันนี้</button><a class="btn gray" href="/lunch/{{ p.id }}/menu/sets">นำชุดเมนูไปใช้</a></div></section>
+<aside class="lm-box"><h2>ตรวจหมู่อาหาร</h2><p class="lm-hint">ผู้จัดเมนูตรวจและยืนยันจากส่วนประกอบจริง</p><div class="lm-groups">{% for gid,label in food_groups.items() %}<label style="font-size:14px;padding:5px 0"><input name="groups" type="checkbox" value="{{ gid }}" {{ 'checked' if m and gid in (m.groups or '').split(',') else '' }}> {{ label }}</label>{% endfor %}</div><div class="alert warn" style="margin-top:15px">การเลือกเมนูไม่ได้หมายถึงระบบตรวจโภชนาการแล้ว</div></aside></form>
+<datalist id="mains_dl">{% for pm in past_menus %}<option value="{{ pm.main }}">{% endfor %}</datalist><datalist id="desserts_dl">{% for d in desserts %}<option value="{{ d }}">{% endfor %}</datalist>
+<details class="lm-legacy"><summary>ดูเมนูรายวันทั้งหมด / รายการเก่าที่ไม่ระบุวันที่ ({{ menu_rows|length }} รายการ)</summary>
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
     <h2 style="margin:0;">เมนูทั้งหมด {% if menu_rows %}<span class="muted" style="font-size:15px;">({{ menu_rows|length }} วัน)</span>{% endif %}</h2>
@@ -115,22 +53,10 @@
   <p class="muted">ยังไม่มีเมนู เพิ่มด้านบน หรือกดเมนูแนะนำ</p>
   {% endif %}
 </div>
+</details>
 <script>
-  // จานหลัก -> ของหวานที่เคยคู่กัน (เติมให้เมื่อของหวานยังว่าง)
-  var MENU_PAIR = { {% for pm in past_menus %}{{ pm.main|tojson }}: {{ pm.dessert|tojson }}{{ "," if not loop.last }}{% endfor %} };
-  function fillDessert(inp){
-    var d = MENU_PAIR[(inp.value||'').trim()];
-    var de = document.getElementById('m_dessert');
-    if(d && de && !de.value.trim()){ de.value = d; }
-  }
-  document.querySelectorAll('input[data-date]').forEach(function(el){
-    el.addEventListener('input', function(){
-      var v=this.value.replace(/\D/g,'').slice(0,8), o=v;
-      if(v.length>2)o=v.slice(0,2)+'/'+v.slice(2);
-      if(v.length>4)o=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
-      if(this.value!==o)this.value=o;
-    });
-  });
+const menuPairs={ {% for pm in past_menus %}{{ pm.main|tojson }}:{{ pm.dessert|tojson }}{{ ',' if not loop.last }}{% endfor %} };
+document.getElementById('m_main').addEventListener('input',function(){const v=document.getElementById('m_dessert');if(!v.value&&menuPairs[this.value])v.value=menuPairs[this.value];});
+document.querySelectorAll('input[data-date]').forEach(el=>el.addEventListener('input',()=>{let v=el.value.replace(/\D/g,'').slice(0,8);el.value=v.length>4?v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4):v.length>2?v.slice(0,2)+'/'+v.slice(2):v;}));
 </script>
-
 {% endblock %}

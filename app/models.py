@@ -2740,3 +2740,23 @@ class WithholdingCertificate(Base):
     base_amount = Column(Float, default=0)
     tax_amount = Column(Float, default=0)
     staff_snapshot = Column(Text, default="")
+
+
+class LunchMenuSet(Base):
+    """School-local reusable recipe cycle; independent of dated program menus."""
+    __tablename__='lunch_menu_set'
+    id=Column(Integer,primary_key=True)
+    name=Column(String(120),nullable=False)
+    created_at=Column(DateTime,default=datetime.now)
+    items=relationship('LunchMenuSetItem',back_populates='menu_set',cascade='all, delete-orphan',order_by='LunchMenuSetItem.seq')
+
+class LunchMenuSetItem(Base):
+    __tablename__='lunch_menu_set_item'
+    id=Column(Integer,primary_key=True)
+    set_id=Column(Integer,ForeignKey('lunch_menu_set.id'),nullable=False,index=True)
+    seq=Column(Integer,nullable=False)
+    main=Column(String(500),nullable=False)
+    dessert=Column(String(500),default='')
+    note=Column(String(500),default='')
+    groups=Column(String,default='')
+    menu_set=relationship('LunchMenuSet',back_populates='items')
