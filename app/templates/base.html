@@ -38,6 +38,16 @@
         </span>
       </a>
       <nav>
+        {% set personal_home = request.session.get('person_id') and not request.session.get('owner') and not request.session.get('director') and (path == '/' or path.startswith('/home/') or path == '/system-updates') %}
+        {% if personal_home %}
+        <a href="/" class="{{ 'active' if path == '/' }}"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลักของฉัน</a>
+        <a href="/me/letters"><svg class="icon"><use href="#ic-file"/></svg> หนังสือถึงฉัน</a>
+        {% if can_use(request.session.get('tid'),'academic') and 'academic' in (request.session.get('mods') or '').split(',') %}<a href="/academic"><svg class="icon"><use href="#ic-clipboard"/></svg> งานวิชาการของฉัน</a>{% endif %}
+        <a href="/me/leave"><svg class="icon"><use href="#ic-calendar"/></svg> ส่งใบลา</a>
+        <a href="/me/travel"><svg class="icon"><use href="#ic-send"/></svg> ขอไปราชการ</a>
+        <a href="/system-updates"><svg class="icon"><use href="#ic-info"/></svg> อัปเดตระบบ</a>
+        {% else %}
+        {% if request.session.get('person_id') and not request.session.get('owner') and not request.session.get('director') %}<a href="/"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลักของฉัน</a>{% endif %}
         {% set section_home = '/admin' if module=='admin' else '/finance' if module=='finance' else '/lunch' if module=='lunch' else '/hr' if module=='hr' else '/academic' if module=='academic' else '/general' if module=='general' else '/procurement' if module=='procurement' else '/' %}
         {% set section_prefixes = ['/admin'] if module=='admin' else ['/finance'] if module=='finance' else ['/lunch'] if module=='lunch' else ['/hr'] if module=='hr' else ['/academic'] if module=='academic' else ['/general'] if module=='general' else ['/procurement','/assets','/materials','/requisitions','/register','/catalog','/textbooks'] if module=='procurement' else ['/'] %}
         {% set is_section_home = (path == section_home) %}
@@ -256,6 +266,7 @@
         <a href="/academic/teacher-accounts" class="subnav {{ 'active' if path.startswith('/academic/teacher-accounts') }}"><svg class="icon"><use href="#ic-users"/></svg> บัญชีครู</a>{% endif %}
         <a href="/guide" class="{{ 'active' if path.startswith('/guide') }}"><svg class="icon"><use href="#ic-info"/></svg> วิธีใช้งาน</a>
         <a href="/support" class="{{ 'active' if path.startswith('/support') }}"><svg class="icon"><use href="#ic-send"/></svg> ติดต่อเจ้าหน้าที่</a>
+        {% endif %}
       </nav>
     </aside>
 

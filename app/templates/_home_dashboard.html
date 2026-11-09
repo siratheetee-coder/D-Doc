@@ -1,0 +1,31 @@
+<style>
+.home-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:18px 0}.home-stat{background:white;border:1px solid #e2e8f0;border-radius:14px;padding:17px;color:var(--text);text-decoration:none}.home-stat b{display:block;font-size:30px;color:var(--accent,#2563eb);margin:5px 0}.home-stat small{color:#64748b}.home-columns{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(270px,1fr);gap:18px;margin:20px 0}.home-panel{background:#fff;border:1px solid #e2e8f0;border-radius:15px;padding:20px}.home-panel h2{background:none;border:0;padding:0;margin:0 0 14px;font-size:20px}.home-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid #edf0f5;color:var(--text);text-decoration:none}.home-row:last-child{border:0}.home-row small{display:block;color:#64748b;margin-top:4px}.home-badge{background:#eff6ff;color:#1d4ed8;padding:5px 9px;border-radius:8px;white-space:nowrap;font-size:13px}.home-update{padding:12px 0;border-bottom:1px solid #edf0f5}.home-update p{font-size:14px;color:#64748b;margin:5px 0}.home-update small{color:#64748b}.home-summary.letters{grid-template-columns:repeat(3,minmax(0,1fr))}.home-shortcuts{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0}.home-detail-list{margin-top:16px}.home-empty{color:#64748b;padding:14px 0}
+@media(max-width:850px){.home-columns{grid-template-columns:1fr}.home-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:480px){.home-summary.letters{grid-template-columns:1fr}.home-row{align-items:flex-start}.home-panel{padding:16px}.home-row span:first-child{min-width:0;overflow-wrap:anywhere}.home-stat{padding:13px}}
+</style>
+{% macro approval_summary() %}
+{% if school.approval_on %}
+<h2>{{ 'เอกสารที่ฉันส่ง ผอ. อนุมัติ' if not request.session.get('owner') else 'ติดตามการอนุมัติ' }}</h2>
+<div class="home-summary">
+{% for code,label,color,caption in [('pending','รอ ผอ. อนุมัติ','#b45309','สถานะล่าสุด'),('approved','อนุมัติแล้วล่าสุด','#15803d','ใน 7 วันที่ผ่านมา'),('returned','ส่งกลับให้แก้','#c2410c','ยังไม่ได้ส่งใหม่'),('stale','ต้องส่งอนุมัติใหม่','#6d28d9','แก้ข้อมูลหลังอนุมัติ')] %}
+<a class="home-stat" style="--accent:{{ color }}" href="/home/approvals?status={{ code }}"><span>{{ label }}</span><b>{{ home.approval[code]|length }}</b><small>รายการอนุมัติ · {{ caption }}</small></a>
+{% endfor %}</div>
+{% endif %}
+{% endmacro %}
+{% if not home.teacher %}{{ approval_summary() }}{% endif %}
+{% if home.letter_counts %}<h2>{{ 'หนังสือและงานที่ส่งถึงฉัน' if home.teacher else 'ติดตามหนังสือรับ' }}</h2><div class="home-summary letters">{% for label,n in home.letter_counts %}<a class="home-stat" href="{{ '/me/letters' if home.teacher else ('/home/letters?group=' ~ ['waiting','unacked','overdue'][loop.index0]) }}"><span>{{ label }}</span><b>{{ n }}</b><small>เรื่อง</small></a>{% endfor %}</div>{% endif %}
+<div class="home-columns">
+<section class="home-panel"><h2>{{ 'สิ่งที่ฉันต้องทำ' if home.teacher else 'งานที่ต้องจัดการ' }}</h2>
+{% if home.teacher %}
+{% for item in home.letters %}<a class="home-row" href="{{ item.href }}"><span><b>{{ item.title or 'หนังสือรับ' }}</b><small>{{ item.note or '' }}</small></span><span class="home-badge">{{ item.tag }} →</span></a>{% else %}<p class="home-empty">ไม่มีหนังสือรอรับทราบหรืองานรอรายงานผล</p>{% endfor %}
+<a class="btn gray sm" href="/me/letters" style="margin-top:14px">ดูหนังสือถึงฉันทั้งหมด →</a>
+{% else %}
+{% for item in home.actions %}<a class="home-row" href="{{ item.href }}"><span>{{ item.title }}</span><span class="home-badge">{{ item.count }} เรื่อง →</span></a>{% endfor %}
+{% for item in home.alerts[:5] %}<a class="home-row" href="{{ item.href }}"><span><b>{{ item.title }}</b><small>{{ item.reason }}</small></span><span class="home-badge">ไปจัดการ →</span></a>{% endfor %}
+{% if not home.actions and not home.alerts %}<p class="home-empty">ไม่มีงานค้างที่ตรวจพบในงานที่คุณมีสิทธิ์</p>{% endif %}
+<small class="muted">อนุมัติแล้ว ยังไม่ถือว่าบันทึกจ่ายแล้ว</small>
+{% endif %}
+</section>
+<aside class="home-panel"><h2><svg class="icon"><use href="#ic-info"/></svg> อัปเดตระบบล่าสุด</h2>{% for item in home.updates[:2] %}<div class="home-update"><small>{{ item.date }}</small><br><b>{{ item.title }}</b><p>{{ item.text }}</p></div>{% endfor %}<a class="btn gray sm" href="/system-updates" style="margin-top:14px">ดูอัปเดตทั้งหมด →</a></aside>
+</div>
+
+{% if home.teacher %}{{ approval_summary() }}{% endif %}

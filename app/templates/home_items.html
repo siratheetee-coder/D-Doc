@@ -1,0 +1,5 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}<h1>{{ title }}</h1><a class="btn gray sm" href="/">← กลับหน้าหลัก</a>
+{% if updates %}{% for item in updates %}<section class="card"><small class="muted">{{ item.date }}</small><h2>{{ item.title }}</h2><p>{{ item.text }}</p></section>{% endfor %}{% else %}<div class="card">{% for item in items %}<p style="padding:12px 0;border-bottom:1px solid #e2e8f0"><a href="{{ item.href }}">{{ item.title or 'ไม่มีหัวเรื่อง' }} →</a>{% if item.note %}<br><small class="muted">{{ item.note }}</small>{% endif %}</p>{% else %}<p class="muted">ไม่มีรายการในกลุ่มนี้</p>{% endfor %}</div>{% endif %}
+{% endblock %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}เลือกงาน{% endblock %}
+{% block title %}ภาพรวมโรงเรียน{% endblock %}
 {% block content %}
 <style>
   .hub-wrap { width: 100%; }
@@ -99,11 +99,13 @@
 <div class="hub-wrap">
   <div class="hub-head">
     <h1>{{ school.name or "ระบบจัดการเอกสารโรงเรียน" }}</h1>
-    <p class="muted" style="margin:0;">เลือกงานที่ต้องการเข้าใช้ เลขบันทึกข้อความและคำสั่งรันต่อเนื่องร่วมกันทุกงาน ปีงบประมาณ {{ fiscal_year }}</p>
+    <p class="muted" style="margin:0;">ติดตามงานค้าง หนังสือรับ และผลอนุมัติของโรงเรียน · ปีงบประมาณ {{ fiscal_year }}</p>
   </div>
 
   {% if msg %}<div class="alert" style="margin-bottom:16px;">✔ {{ msg }}</div>{% endif %}
 
+  {% include '_home_dashboard.html' %}
+  <details style="margin:16px 0"><summary style="cursor:pointer">ปีการศึกษาและการตั้งค่าเริ่มต้น</summary>
   <div class="ay-bar">
     <div class="ay-info">
       <span class="ay-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
@@ -155,6 +157,7 @@
   </script>
   {% endif %}
 
+  </details>
   {% if new_mod_labels %}
   <div class="alert info">
     <svg class="icon"><use href="#ic-info"/></svg>
@@ -167,6 +170,7 @@
   </script>
   {% endif %}
 
+  <h2>เข้าใช้งานแต่ละฝ่าย</h2>
   <div class="hub-grid">
     <!-- งานธุรการ -->
     {% set _tid = request.session.get('tid') %}
@@ -322,4 +326,5 @@
   }
 </script>
 {% endif %}
+<style>.hub-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.hub-card{min-height:0;padding:18px;gap:9px}.hub-card h2{font-size:19px}.hub-card .desc{display:none}.hub-card .hub-ic{width:40px;height:40px}.hub-card::after{width:90px;height:90px}.hub-card:hover{transform:translateY(-2px)}</style>
 {% endblock %}

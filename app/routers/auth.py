@@ -216,14 +216,13 @@ def _finish_login(request: Request, user: dict, remember, next: str, ip: str):
     nxt = _safe_next(next)
     if nxt:
         return RedirectResponse(nxt, status_code=303)
-    # บัญชีครู = เข้าตรงงานวิชาการเลย (ไม่ต้องผ่านหน้าเลือกงาน) · superadmin = คอนโซล
+    # บัญชีครูเข้าหน้าหลักส่วนตัว · superadmin เข้าคอนโซล
     if user["role"] == "superadmin":
         dest = "/admin-console"
     elif user.get("is_director") and not user.get("is_owner"):
         dest = "/"                     # ผอ./รองผอ. = หน้าหลักแบบ ผอ. (งาน+นิเทศ+รออนุมัติ)
     elif user.get("person_id"):
-        from app.accounts import tenant_modules
-        dest = "/academic" if "academic" in tenant_modules(user.get("tenant_id")) else "/me/letters"
+        dest = "/"  # personal home, with shortcuts to academic and assigned letters
     else:
         dest = "/"
     return RedirectResponse(dest, status_code=303)

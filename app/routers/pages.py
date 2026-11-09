@@ -194,9 +194,10 @@ def hub(request: Request, db: Session = Depends(get_db), msg: str = ""):
             "fiscal_year": current_fiscal_year(),
             "acad_year": school.academic_year or current_academic_year(),
         })
-    # บัญชีครู = เข้าตรงงานวิชาการเลย ไม่ผ่านหน้าเลือกงาน
+    # บัญชีครู: หน้าหลักเฉพาะหนังสือและงานที่ส่งถึงตนเอง
     if request.session.get("person_id") and not request.session.get("owner"):
-        return RedirectResponse("/academic", status_code=303)
+        from app.services.home_dashboard import build
+        return templates.TemplateResponse('teacher_home.html',dict(request=request,school=get_school(db),home=build(db,request.session)))
     fy = current_fiscal_year()
     stats = {
         "proc": db.query(Procurement).filter(Procurement.fiscal_year == fy).count(),
@@ -223,9 +224,11 @@ def hub(request: Request, db: Session = Depends(get_db), msg: str = ""):
     new_mod_labels = [MODULE_LABELS.get(k, k) for k in new_mods]
 
     acad_year = school.academic_year or current_academic_year()
+    from app.services.home_dashboard import build
+    home = build(db,request.session)
     return templates.TemplateResponse("hub.html", {
         "request": request, "school": school, "fiscal_year": fy,
-        "stats": stats, "admin_total": admin_total,
+        "stats": stats, "admin_total": admin_total, "home":home,
         "qs": qs,
         "new_mod_labels": new_mod_labels,
         "acad_year": acad_year, "acad_year_auto": not school.academic_year,
@@ -4705,3 +4708,27 @@ def officer_delete(db: Session = Depends(get_db), role: str = Form(""), name: st
     db.query(StaffOfficer).filter_by(role=role, name=name.strip()).delete()
     db.commit()
     return JSONResponse({"name": name.strip(), "role": role})
+
+
+@router.get('/home/approvals',response_class=HTMLResponse)
+def home_approvals(request:Request,db:Session=Depends(get_db),status:str='pending'):
+    from app.services.home_dashboard import build
+    home=build(db,request.session)
+    names={'pending':'รอ ผอ. อนุมัติ','approved':'อนุมัติแล้วใน 7 วันที่ผ่านมา','returned':'ส่งกลับให้แก้','stale':'ต้องส่งอนุมัติใหม่'}
+    return templates.TemplateResponse('home_items.html',dict(request=request,title=names.get(status,'รายการอนุมัติ'),items=home['approval'].get(status,[]),updates=[]))
+
+@router.get('/home/letters',response_class=HTMLResponse)
+def home_letters(request:Request,db:Session=Depends(get_db),group:str=''):
+    from app.services.home_dashboard import build
+    home=build(db,request.session)
+    if home['teacher']:return RedirectResponse('/me/letters',303)
+    if 'admin' not in home['allowed']:raise HTTPException(403,'ไม่มีสิทธิ์ติดตามหนังสือรับ')
+    groups=home.get('letter_groups',{})
+    rows=groups.get(group,[]) if group else {r.id:r for values in groups.values() for r in values}.values()
+    items=[dict(title=r.subject,href=f'/admin/incoming/{r.id}',note=f'รับทราบแล้ว {sum(bool(c.ack_at) for c in r.recipients)}/{len(r.recipients)} คน') for r in rows]
+    return templates.TemplateResponse('home_items.html',dict(request=request,title='ติดตามหนังสือรับ',items=items,updates=[]))
+
+@router.get('/system-updates',response_class=HTMLResponse)
+def system_updates(request:Request):
+    from app.services.home_dashboard import UPDATES
+    return templates.TemplateResponse('home_items.html',dict(request=request,title='อัปเดตระบบ',items=[],updates=UPDATES))
