@@ -97,15 +97,13 @@
 </style>
 
 <div class="hub-wrap">
-  <div class="hub-head">
-    <h1>ภาพรวมโรงเรียน</h1>
-    <p class="muted" style="margin:0;">{{ school.name }} · ปีงบประมาณ {{ fiscal_year }}</p>
-  </div>
+  <div class="hub-head home-heading"><div><h1>ภาพรวมโรงเรียน</h1><p class="muted" style="margin:0;">{{ school.name }}</p></div>{% include '_home_year_badges.html' %}</div>
 
   {% if msg %}<div class="alert" style="margin-bottom:16px;">✔ {{ msg }}</div>{% endif %}
 
   {% include '_home_dashboard.html' %}
-  <details style="margin:16px 0"><summary style="cursor:pointer">ปีการศึกษาและการตั้งค่าเริ่มต้น</summary>
+  {% if request.session.get('owner') %}
+  <dialog id="homeYearDialog" class="home-year-dialog" aria-labelledby="homeYearTitle"><div class="home-dialog-head"><h2 id="homeYearTitle">จัดการปีการศึกษา</h2><button class="btn gray sm" type="button" onclick="document.getElementById('homeYearDialog').close()" aria-label="ปิด">✕</button></div>
   <div class="ay-bar">
     <div class="ay-info">
       <span class="ay-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
@@ -134,30 +132,8 @@
     {% endif %}
   </div>
 
-  {% if not qs.complete %}
-  <div class="card onboard" id="onboardCard">
-    <div class="ob-top">
-      <div>
-        <h2 class="ob-h">เริ่มต้นใช้งานใน 10 นาที</h2>
-        <div class="muted">ทำแล้ว {{ qs.done }}/{{ qs.total }} ขั้น เหลืออีกประมาณ <b>{{ qs.minutes_left }} นาที</b></div>
-      </div>
-      <a class="btn" href="/start">{{ 'เริ่มเลย' if qs.done == 0 else 'ทำต่อ' }} <svg class="icon"><use href="#ic-arrow-right"/></svg></a>
-    </div>
-    <div class="ob-bar"><i style="width:{{ (qs.done / qs.total * 100)|round(0,'floor') if qs.total else 0 }}%"></i></div>
-    {% if qs.next %}<div class="ob-next">ขั้นถัดไป: <b>{{ qs.next.title }}</b> <span class="muted">(ประมาณ {{ qs.next.minutes }} นาที)</span>
-      <a href="{{ qs.next.href }}">{{ qs.next.cta }}</a></div>{% endif %}
-    <div style="margin-top:12px;"><button type="button" class="btn gray sm" onclick="dismissOnboard()">ซ่อนไปก่อน</button>
-      <a class="muted" style="font-size:13px; margin-left:10px;" href="/guide">ดูวิธีใช้งานทั้งหมด</a></div>
-  </div>
-  <script>
-    (function(){ try { if(localStorage.getItem('ddoc_onboard_hidden')==='1'){
-      var c=document.getElementById('onboardCard'); if(c) c.style.display='none'; } } catch(e){} })();
-    function dismissOnboard(){ try { localStorage.setItem('ddoc_onboard_hidden','1'); } catch(e){}
-      var c=document.getElementById('onboardCard'); if(c) c.style.display='none'; }
-  </script>
+  <p class="muted" style="margin:0;font-size:13px">ปีงบประมาณแสดงตามวันที่ปัจจุบัน ส่วนปีการศึกษาใช้ค่าที่โรงเรียนกำหนด</p></dialog>
   {% endif %}
-
-  </details>
   {% if new_mod_labels %}
   <div class="alert info">
     <svg class="icon"><use href="#ic-info"/></svg>

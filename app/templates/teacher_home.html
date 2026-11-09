@@ -2,7 +2,7 @@
 {% block title %}หน้าหลักของฉัน{% endblock %}
 {% block content %}
 <style>.teacher-intro{padding:4px 0 12px}.teacher-intro .hero-sub{color:#64748b;font-size:14px}.teacher-intro .hero-title{display:block;color:#111827;font-size:28px;font-weight:800;margin:5px 0}.teacher-intro .hero-meta{color:#64748b;font-size:14px}.home-shortcuts{margin:10px 0 20px}</style>
-<div class="teacher-intro"><div><div class="hero-sub">{{ school.name }}</div><span class="hero-title">สวัสดี {{ home.name }}</span><div class="hero-meta">หนังสือ งานที่ได้รับมอบหมาย และผลการอนุมัติของคุณ</div></div></div>
+<div class="teacher-intro home-heading"><div><div class="hero-sub">{{ school.name }}</div><span class="hero-title">สวัสดี {{ home.name }}</span><div class="hero-meta">หนังสือ งานที่ได้รับมอบหมาย และผลการอนุมัติของคุณ</div></div>{% include '_home_year_badges.html' %}</div>
 <div class="home-shortcuts"><a class="btn" href="/me/letters"><svg class="icon"><use href="#ic-file"/></svg> หนังสือถึงฉัน</a>{% if 'academic' in home.allowed %}<a class="btn gray" href="/academic">เข้าสู่งานวิชาการ →</a>{% endif %}{% if 'hr' in home.allowed %}<a class="btn gray" href="/me/leave">ใบลา / ไปราชการ</a>{% endif %}</div>
 {% include '_home_dashboard.html' %}
 {% if home.personal_notices %}<section class="home-panel"><h2>การแจ้งเตือนถึงฉัน</h2>{% for item in home.personal_notices %}<a class="home-row" href="{{ item.href }}"><span><b>{{ item.title }}</b><small>{{ item.reason }}</small></span><span>เปิดดู →</span></a>{% endfor %}</section>{% endif %}

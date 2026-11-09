@@ -29,11 +29,14 @@ def approvals(db,sess,allowed):
     return result
 
 def build(db,sess):
+    from app.models import School
+    from app.thai_utils import current_fiscal_year,current_academic_year
     from app.services.search import allowed_modules
     from app.services.letter_tracking import overdue
     allowed=allowed_modules(sess,sess.get('tid'))
     teacher=bool(sess.get('person_id')) and not sess.get('owner')
-    result=dict(teacher=teacher,allowed=allowed,updates=UPDATES,actions=[],letters=[],letter_counts=[],approval=approvals(db,sess,allowed))
+    school=db.query(School).first()
+    result=dict(fiscal_year=current_fiscal_year(),academic_year=(school.academic_year if school else None) or current_academic_year(),teacher=teacher,allowed=allowed,updates=UPDATES,actions=[],letters=[],letter_counts=[],approval=approvals(db,sess,allowed))
     if teacher:
         from app.models import Person
         from app.services.nav import my_notices
