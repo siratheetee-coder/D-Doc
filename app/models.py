@@ -1669,7 +1669,7 @@ class LunchMenu(Base):
     main = Column(String, default="")       # อาหารคาว (จานหลัก)
     dessert = Column(String, default="")    # ของหวาน/ผลไม้
     note = Column(String, default="")
-    groups = Column(String, default="")     # หมู่อาหารที่ครบ (1-5 คั่นจุลภาค) ตามหลักโภชนาการ 5 หมู่
+    groups = Column(String, default="")     # Legacy field; retained for existing databases, not used by menu workflows.
     created_at = Column(DateTime, default=datetime.now)
 
     program = relationship("LunchProgram", back_populates="menus")

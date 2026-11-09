@@ -3,7 +3,7 @@
  const editor=document.getElementById('setEditor'),days=document.getElementById('setDays'),body=document.getElementById('setEditorRows');
  if(editor){
   const initial=JSON.parse(document.getElementById('setInitialRows').textContent||'[]');
-  function add(row={}){const tr=document.getElementById('setRowTemplate').content.firstElementChild.cloneNode(true),i=body.children.length;tr.querySelector('[data-day-number]').textContent='วันที่ '+(i+1);for(const n of ['main','dessert','note'])tr.querySelector('[name='+n+']').value=row[n]||'';tr.querySelectorAll('[data-group]').forEach(c=>{c.name='groups_'+i;c.checked=(row.groups||'').split(',').includes(c.value)});body.appendChild(tr);}
+  function add(row={}){const tr=document.getElementById('setRowTemplate').content.firstElementChild.cloneNode(true),i=body.children.length;tr.querySelector('[data-day-number]').textContent='วันที่ '+(i+1);for(const n of ['main','dessert','note'])tr.querySelector('[name='+n+']').value=row[n]||'';body.appendChild(tr);}
   function resize(){const n=Number(days.value);if(!Number.isInteger(n)||n<1||n>366)return;const old=body.children.length;if(n<old&&[...body.children].slice(n).some(r=>r.querySelector('[name=main]').value.trim())&&!confirm('ลดจำนวนวันจะนำเมนูท้ายชุดออกจากฟอร์มนี้ ต้องการลดหรือไม่?')){days.value=old;return;}while(body.children.length<n)add();while(body.children.length>n)body.lastElementChild.remove();}
   initial.forEach(add);resize();days.addEventListener('change',resize);
  }

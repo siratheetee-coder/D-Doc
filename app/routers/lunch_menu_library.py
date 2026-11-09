@@ -40,7 +40,7 @@ async def save(pid:int,request:Request,db:Session=Depends(get_db)):
         name,rows=service.fields(f);obj=service.save(db,obj or LunchMenuSet(),name,rows);db.commit()
     except ValueError as e:
         db.rollback();mains=f.getlist('main');desserts=f.getlist('dessert');notes=f.getlist('note')
-        rows=[dict(main=x,dessert=desserts[i] if i<len(desserts) else '',note=notes[i] if i<len(notes) else '',groups=','.join(f.getlist('groups_'+str(i)))) for i,x in enumerate(mains)]
+        rows=[dict(main=x,dessert=desserts[i] if i<len(desserts) else '',note=notes[i] if i<len(notes) else '') for i,x in enumerate(mains)]
         ctx.update(selected=obj,editing=bool(obj),creating=not obj,form_name=f.get('name',''),form_days=len(rows) or 10,form_rows=rows,error=str(e));return page(ctx,422)
     return RedirectResponse('/lunch/'+str(pid)+'/menu/sets?'+urlencode(dict(selected=obj.id,msg='บันทึกชุดเมนูแล้ว')),303)
 
@@ -48,7 +48,7 @@ async def save(pid:int,request:Request,db:Session=Depends(get_db)):
 def copy(pid:int,sid:int,request:Request,db:Session=Depends(get_db)):
     context(request,db,pid);source=db.get(LunchMenuSet,sid)
     if not source:raise HTTPException(404,'ไม่พบชุดเมนู')
-    rows=[dict(main=i.main,dessert=i.dessert,note=i.note,groups=i.groups) for i in source.items]
+    rows=[dict(main=i.main,dessert=i.dessert,note=i.note) for i in source.items]
     obj=service.save(db,LunchMenuSet(),source.name[:110]+' (สำเนา)',rows);db.commit()
     return RedirectResponse(f'/lunch/{pid}/menu/sets?edit={obj.id}',303)
 
@@ -81,7 +81,7 @@ async def save_day(pid:int,request:Request,db:Session=Depends(get_db)):
     if not rows and not cal.state(db,p.year).get(date.date().isoformat(),False):raise HTTPException(422,'วันนี้ไม่ใช่วันเรียนในปฏิทินโรงเรียน')
     obj=explicit or (rows[0] if rows else LunchMenu(program_id=pid,date=date))
     obj.date=date
-    obj.main=main;obj.dessert=f.get('dessert','').strip();obj.note=f.get('note','').strip();obj.groups=','.join(g for g in ['1','2','3','4','5'] if g in f.getlist('groups'));db.add(obj);db.commit()
+    obj.main=main;obj.dessert=f.get('dessert','').strip();obj.note=f.get('note','').strip();db.add(obj);db.commit()
     from app.routers.lunch import _stay_url
     url=_stay_url(f'/lunch/{pid}/menu',f.get('back',''));url+=('&' if '?' in url else '?')+urlencode(dict(d=be_date_input(date),msg='บันทึกเมนูแล้ว'))
     return RedirectResponse(url,303)

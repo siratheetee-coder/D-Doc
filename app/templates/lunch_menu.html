@@ -11,9 +11,9 @@
 <form method="post" action="{{ '/lunch/menu/' ~ m.id ~ '/update' if m and not m.date else '/lunch/' ~ p.id ~ '/menu/day' }}" class="lm-daily-layout" style="margin-top:18px" id="dayMenuForm">
 <section class="lm-box"><h2>{% if m and not m.date %}แก้เมนูเดิมที่ยังไม่ระบุวัน{% else %}{{ 'แก้ไขเมนู' if m else 'จัดเมนู' }}วันที่ {{ be_date(daily.selected) }}{% endif %}</h2>{% if not daily.open %}<div class="alert warn">วันนี้ปิดเรียนตามปฏิทิน{% if m %} แต่มีเมนูเดิมบันทึกอยู่{% endif %}</div>{% endif %}
 {% if m and not m.date %}<label>วันที่ (เว้นว่างเพื่อเก็บเป็นรายการเดิม)</label><input name="date" value="" placeholder="วว/ดด/ปปปป (ไม่บังคับ)" data-date><p class="lm-hint">การบันทึกโดยเว้นวันที่ว่างจะไม่เปลี่ยนเมนูนี้เป็นเมนูรายวัน</p>{% else %}<input type="hidden" name="date" value="{{ be_date(daily.selected) }}">{% endif %}{% if m %}<input type="hidden" name="mid" value="{{ m.id }}">{% endif %}{% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
-<label>อาหารคาว / จานหลัก</label><input name="main" id="m_main" list="mains_dl" value="{{ m.main if m else '' }}" required maxlength="500" placeholder="พิมพ์ค้นหาหรือเพิ่มชื่อเมนูใหม่"><p class="lm-hint">เลือกจากเมนูที่เคยใช้ หรือพิมพ์เมนูใหม่ได้</p>
-<label>ของหวาน / ผลไม้</label><input name="dessert" id="m_dessert" list="desserts_dl" value="{{ m.dessert if m else '' }}" maxlength="500" placeholder="เช่น กล้วย"><label style="margin-top:14px">หมายเหตุ (ถ้ามี)</label><input name="note" value="{{ m.note if m else '' }}" maxlength="500"><div class="lm-actions"><button class="btn" type="submit" {{ 'disabled' if not daily.open and not m else '' }}><svg class="icon"><use href="#ic-save"/></svg> บันทึกเมนูวันนี้</button><a class="btn gray" href="/lunch/{{ p.id }}/menu/sets">นำชุดเมนูไปใช้</a></div></section>
-<aside class="lm-box"><h2>ตรวจหมู่อาหาร</h2><p class="lm-hint">ผู้จัดเมนูตรวจและยืนยันจากส่วนประกอบจริง</p><div class="lm-groups">{% for gid,label in food_groups.items() %}<label style="font-size:14px;padding:5px 0"><input name="groups" type="checkbox" value="{{ gid }}" {{ 'checked' if m and gid in (m.groups or '').split(',') else '' }}> {{ label }}</label>{% endfor %}</div><div class="alert warn" style="margin-top:15px">การเลือกเมนูไม่ได้หมายถึงระบบตรวจโภชนาการแล้ว</div></aside></form>
+<div class="lm-fields"><div><label>อาหารคาว / จานหลัก</label><input name="main" id="m_main" list="mains_dl" value="{{ m.main if m else '' }}" required maxlength="500" placeholder="พิมพ์ค้นหาหรือเพิ่มชื่อเมนูใหม่"><p class="lm-hint">เลือกจากเมนูที่เคยใช้ หรือพิมพ์เมนูใหม่ได้</p>
+</div><div><label>ของหวาน / ผลไม้</label><input name="dessert" id="m_dessert" list="desserts_dl" value="{{ m.dessert if m else '' }}" maxlength="500" placeholder="เช่น กล้วย"></div></div><label style="margin-top:14px">หมายเหตุ (ถ้ามี)</label><input name="note" value="{{ m.note if m else '' }}" maxlength="500"><div class="lm-actions"><button class="btn" type="submit" {{ 'disabled' if not daily.open and not m else '' }}><svg class="icon"><use href="#ic-save"/></svg> บันทึกเมนูวันนี้</button><a class="btn gray" href="/lunch/{{ p.id }}/menu/sets">นำชุดเมนูไปใช้</a></div></section>
+</form>
 <datalist id="mains_dl">{% for pm in past_menus %}<option value="{{ pm.main }}">{% endfor %}</datalist><datalist id="desserts_dl">{% for d in desserts %}<option value="{{ d }}">{% endfor %}</datalist>
 <details class="lm-legacy"><summary>ดูเมนูรายวันทั้งหมด / รายการเก่าที่ไม่ระบุวันที่ ({{ menu_rows|length }} รายการ)</summary>
 <div class="card">
@@ -24,22 +24,14 @@
   {% if menu_rows %}
   <div class="table-wrap">
   <table>
-    <thead><tr><th style="width:120px;">วันที่</th><th>อาหารคาว</th><th>ของหวาน/ผลไม้</th><th>ครบ 5 หมู่</th><th>หมายเหตุ</th><th></th></tr></thead>
+    <thead><tr><th style="width:120px;">วันที่</th><th>อาหารคาว</th><th>ของหวาน/ผลไม้</th><th>หมายเหตุ</th><th></th></tr></thead>
     <tbody>
     {% for r in menu_rows %}
       <tr>
         <td>{{ be_date(r.m.date) if r.m.date else '-' }}</td>
         <td>{{ r.m.main }}</td>
         <td>{{ r.m.dessert }}</td>
-        <td style="white-space:nowrap;">
-          {% if not r.got %}<span class="muted">-</span>
-          {% elif not r.missing %}<span class="pill" style="background:#dcfce7;color:#15803d;font-size:12px;">✓ ครบ 5 หมู่</span>
-          {% else %}
-            <span class="pill" style="background:#fff4e5;color:#b45309;font-size:12px;">{{ r.got|length }}/5 หมู่</span>
-            <div class="muted" style="font-size:11px;">ขาด: {{ r.missing|join(', ') }}</div>
-          {% endif %}
-        </td>
-        <td class="muted">{{ r.m.note }}</td>
+<td class="muted">{{ r.m.note }}</td>
         <td style="white-space:nowrap;">
           <a class="btn sm gray" href="/lunch/{{ p.id }}/menu?edit={{ r.m.id }}{{ ('&back=' ~ back) if back else '' }}">แก้ไข</a>
           <form method="post" action="/lunch/menu/{{ r.m.id }}/delete" onsubmit="return confirm('ลบเมนูนี้?');" style="display:inline; margin:0;">{% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}<button class="btn sm gray" type="submit">ลบ</button></form>

@@ -23,7 +23,7 @@ def test_set_cycle_uses_school_days_and_preserves_existing_by_default(db):
  svc.apply(db,p,ids,'02/11/2569','12/11/2569','skip',plan['token'],False);db.commit()
  rows=db.query(LunchMenu).filter_by(program_id=p.id).order_by(LunchMenu.date).all()
  assert [r.main for r in rows]==['A1','เมนูเดิม','B1','A1','A2','B1','A1','A2','B1']
- assert rows[1].groups=='3' and rows[0].groups=='1,2'
+ assert rows[1].groups=='3' and rows[0].groups==''
  a.items[0].main='เปลี่ยนชุด';db.commit();assert rows[0].main=='A1'
 
 def test_replace_requires_review_and_source_or_calendar_changes_invalidate_preview(db):
@@ -57,7 +57,7 @@ def test_validation_keeps_exact_number_of_days():
  with pytest.raises(ValueError):svc.fields(FormData([('name','A'),('days','2'),('main','A1'),('dessert','')]))
  with pytest.raises(ValueError):svc.fields(FormData([('name','A'),('days','1'),('main',''),('dessert','')]))
  name,rows=svc.fields(FormData([('name','A'),('days','1'),('main','ข้าว'),('dessert',''),('groups_0','2')]))
- assert rows[0]['groups']=='2'
+ assert 'groups' not in rows[0]
 
 def test_http_library_create_edit_copy_preview_and_apply(env):
  import app.tenancy as tn
@@ -65,6 +65,7 @@ def test_http_library_create_edit_copy_preview_and_apply(env):
  with tn.session_for(tid) as s:p,a,b=sets(s);pid,aid,bid=p.id,a.id,b.id
  for url in [f'/lunch/{pid}/menu?d=02/11/2569',f'/lunch/{pid}/menu/sets',f'/lunch/{pid}/menu/sets?edit={aid}',f'/lunch/{pid}/menu/sets?new=1']:
   response=env.get(url);assert response.status_code==200,(url,response.text[:200])
+  assert 'หมู่อาหาร' not in response.text and '5 หมู่' not in response.text and 'data-group=' not in response.text
  response=env.post(f'/lunch/{pid}/menu/sets/{aid}/copy',follow_redirects=False);assert response.status_code==303
  with tn.session_for(tid) as s:
   copy=s.query(LunchMenuSet).order_by(LunchMenuSet.id.desc()).first();cid=copy.id;assert cid!=aid and [x.main for x in copy.items]==['A1','A2']
@@ -80,6 +81,7 @@ def test_http_library_create_edit_copy_preview_and_apply(env):
  if os.environ.get('MENU_CAPTURE'):
   out=Path(os.environ['MENU_CAPTURE']);(out/'preview.html').write_text(response.text,encoding='utf-8')
  response=env.post(f'/lunch/{pid}/menu/sets/use',data={**form,'token':token,'action':'apply'},follow_redirects=False);assert response.status_code==303
+ printed=env.get(f'/lunch/{pid}/menu/print');assert printed.status_code==200 and '5 หมู่' not in printed.text
  with tn.session_for(tid) as s:assert s.query(LunchMenu).filter_by(program_id=pid).count()==9
  if os.environ.get('MENU_CAPTURE'):
   out=Path(os.environ['MENU_CAPTURE'])

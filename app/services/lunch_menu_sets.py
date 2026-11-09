@@ -17,13 +17,12 @@ def fields(form):
         main=mains[i].strip();dessert=desserts[i].strip();note=notes[i].strip() if i<len(notes) else ''
         if not main:raise ValueError(f'กรอกอาหารคาวของวันที่ {i+1}')
         if max(len(main),len(dessert),len(note))>500:raise ValueError('ข้อความเมนูยาวเกิน 500 ตัวอักษร')
-        groups=','.join(g for g in ['1','2','3','4','5'] if g in form.getlist('groups_'+str(i)))
-        rows.append(dict(main=main,dessert=dessert,note=note,groups=groups))
+        rows.append(dict(main=main,dessert=dessert,note=note))
     return name,rows
 
 def save(db,obj,name,rows):
     obj.name=name;db.add(obj);db.flush()
-    obj.items[:]=[LunchMenuSetItem(seq=i+1,**row) for i,row in enumerate(rows)]
+    obj.items[:]=[LunchMenuSetItem(seq=i+1,**{k:row.get(k,'') for k in ('main','dessert','note')}) for i,row in enumerate(rows)]
     db.flush();return obj
 
 def preview(db,prog,ids,start,end,mode):
@@ -53,8 +52,8 @@ def preview(db,prog,ids,start,end,mode):
         action='skip' if prior and mode=='skip' else 'replace' if prior else 'create'
         rows.append(dict(date=d,set_name=obj.name,seq=item.seq,item=item,old=prior,action=action))
     payload=[prog.id,prog.year,ids,start,end,mode,state,
-        [(o.id,o.name,[(i.id,i.seq,i.main,i.dessert,i.note,i.groups) for i in o.items]) for o in sets],
-        [(m.id,m.date,m.main,m.dessert,m.note,m.groups) for m in old]]
+        [(o.id,o.name,[(i.id,i.seq,i.main,i.dessert,i.note) for i in o.items]) for o in sets],
+        [(m.id,m.date,m.main,m.dessert,m.note) for m in old]]
     token=hashlib.sha256(json.dumps(payload,default=str,ensure_ascii=False,sort_keys=True).encode()).hexdigest()
     return dict(rows=rows,token=token,total=len(rows),created=sum(r['action']=='create' for r in rows),replaced=sum(r['action']=='replace' for r in rows),skipped=sum(r['action']=='skip' for r in rows))
 
@@ -67,5 +66,5 @@ def apply(db,prog,ids,start,end,mode,token,confirmed):
     for row in plan['rows']:
         if row['action']=='skip':continue
         item=row['item'];obj=row['old'][0] if row['old'] else LunchMenu(program_id=prog.id,date=datetime.combine(row['date'],datetime.min.time()))
-        obj.main=item.main;obj.dessert=item.dessert;obj.note=item.note;obj.groups=item.groups;db.add(obj)
+        obj.main=item.main;obj.dessert=item.dessert;obj.note=item.note;db.add(obj)
     db.flush();return plan

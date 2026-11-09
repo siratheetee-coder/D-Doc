@@ -38,16 +38,7 @@ OPERATE_MODES = {
     "self": "โรงเรียนดำเนินการเอง (ไม่ออกเอกสารจัดซื้อจัดจ้าง)",
 }
 
-# อาหารหลัก 5 หมู่ (ตามหลักโภชนาการ)
-FOOD_GROUPS = {
-    "1": "โปรตีน (เนื้อ/ไข่/นม/ถั่ว)",
-    "2": "ข้าว-แป้ง (คาร์โบไฮเดรต)",
-    "3": "ผัก (เกลือแร่)",
-    "4": "ผลไม้ (วิตามิน)",
-    "5": "ไขมัน",
-}
-
-# เมนูแนะนำมาตรฐาน (ครบ 5 หมู่) - กดเพิ่มเข้าตารางได้เลย ไว้หมุนเวียนรายสัปดาห์
+# ตัวอย่างเมนูอาหารกลางวัน
 STD_MENUS = [
     {"main": "ข้าว + ผัดกะเพราไก่ ไข่ดาว", "dessert": "กล้วยน้ำว้า"},
     {"main": "ข้าว + แกงจืดเต้าหู้หมูสับ", "dessert": "ส้ม"},
@@ -1076,12 +1067,7 @@ def menu_page(pid: int, request: Request, db: Session = Depends(get_db),
             seen.add(key)
             past.append({"main": key, "dessert": (mm.dessert or "").strip()})
     desserts = sorted({(mm.dessert or "").strip() for mm in db.query(LunchMenu).all() if (mm.dessert or "").strip()})
-    # แต่ละเมนู: หมู่ที่ครบ + หมู่ที่ขาด (ตาม 5 หมู่)
-    menu_rows = []
-    for m in prog.menus:
-        got = [g for g in (m.groups or "").split(",") if g in FOOD_GROUPS]
-        missing = [FOOD_GROUPS[g] for g in FOOD_GROUPS if g not in got]
-        menu_rows.append({"m": m, "got": got, "missing": missing})
+    menu_rows = [{'m':m} for m in prog.menus]
     # prefill ช่วงวันจาก "รอบจ้างล่าสุด" (รอบที่เริ่มช้าสุด = รอบที่กำลังทำอยู่)
     # ไม่ใช้รอบแรกสุด เพราะจะย้อนไปสร้างเมนูรอบเก่าที่ผ่านไปแล้ว
     rounds_with_start = [r for r in prog.rounds if r.start_date]
@@ -1120,8 +1106,6 @@ def menu_page(pid: int, request: Request, db: Session = Depends(get_db),
     return templates.TemplateResponse("lunch_menu.html", {
         "request": request, "school": get_school(db), "p": prog, "menu_days": menu_days, "daily":daily,
         "menu_rows": menu_rows, "edit": edit_row, "past_menus": past, "desserts": desserts,
-        "food_groups": FOOD_GROUPS,
-        "edit_groups": [g for g in (edit_row.groups or "").split(",")] if edit_row else [],
         "today_be": be_date_input(default_menu_date),
         "term_start_be": be_date_input(term_start) if term_start else "",
         "term_end_be": be_date_input(term_end) if term_end else "",
@@ -1129,10 +1113,6 @@ def menu_page(pid: int, request: Request, db: Session = Depends(get_db),
         "filled": request.query_params.get("filled"),
         "back": _safe_back(back, ""),
     })
-
-
-def _clean_groups(groups) -> str:
-    return ",".join(g for g in FOOD_GROUPS if g in (groups or []))
 
 
 def _safe_back(back: str, default: str) -> str:
@@ -1152,11 +1132,11 @@ def _stay_url(base: str, back: str) -> str:
 @router.post("/lunch/{pid}/menu/add")
 def menu_add(pid: int, db: Session = Depends(get_db),
              date: str = Form(""), main: str = Form(""), dessert: str = Form(""),
-             note: str = Form(""), groups: list[str] = Form([]), back: str = Form("")):
+             note: str = Form(""), back: str = Form("")):
     if not db.get(LunchProgram, pid):
         return RedirectResponse("/lunch", status_code=303)
     db.add(LunchMenu(program_id=pid, date=parse_be_date(date), main=main.strip(),
-                     dessert=dessert.strip(), note=note.strip(), groups=_clean_groups(groups)))
+                     dessert=dessert.strip(), note=note.strip()))
     db.commit()
     from urllib.parse import quote
     url = _stay_url(f"/lunch/{pid}/menu", back)          # คงวันที่ที่เลือกไว้ (กันเด้งกลับวันแรก)
@@ -1183,7 +1163,7 @@ def menu_fill_term(pid: int, db: Session = Depends(get_db),
     dateless = sorted((m for m in prog.menus if not m.date), key=lambda m: m.id)
     dated = sorted((m for m in prog.menus if m.date), key=lambda m: (m.date, m.id))
     source = dateless or dated
-    cycle = [(m.main, m.dessert, m.groups) for m in source[:n]]
+    cycle = [(m.main, m.dessert) for m in source[:n]]
     s = parse_be_date(start_date)
     e = parse_be_date(end_date)
     if not cycle or not s or not e or e < s:
@@ -1197,9 +1177,9 @@ def menu_fill_term(pid: int, db: Session = Depends(get_db),
         holiday = bool(hol) and d.isoformat() in hol
         if sc.state(db,prog.year).get(d.isoformat(),False):
             if d not in existing:
-                main, dessert, groups = cycle[ordinal % len(cycle)]
+                main, dessert = cycle[ordinal % len(cycle)]
                 db.add(LunchMenu(program_id=pid, date=datetime(d.year, d.month, d.day),
-                                 main=main, dessert=dessert, groups=groups))
+                                 main=main, dessert=dessert))
                 existing.add(d)
                 created += 1
             ordinal += 1
@@ -1314,7 +1294,7 @@ def ingredient_delete(iid: int, db: Session = Depends(get_db), back: str = Form(
 @router.post("/lunch/menu/{mid}/update")
 def menu_update(mid: int, db: Session = Depends(get_db),
                 date: str = Form(""), main: str = Form(""), dessert: str = Form(""),
-                note: str = Form(""), groups: list[str] = Form([]), back: str = Form("")):
+                note: str = Form(""), back: str = Form("")):
     m = db.get(LunchMenu, mid)
     if not m:
         return RedirectResponse("/lunch", status_code=303)
@@ -1322,7 +1302,6 @@ def menu_update(mid: int, db: Session = Depends(get_db),
     m.main = main.strip()
     m.dessert = dessert.strip()
     m.note = note.strip()
-    m.groups = _clean_groups(groups)
     db.commit()
     return RedirectResponse(_stay_url(f"/lunch/{m.program_id}/menu", back), status_code=303)
 
@@ -2001,7 +1980,7 @@ def copy_plan(rid: int, db: Session = Depends(get_db), src_round: str = Form("")
         if want_menu and sd in src_menu and td not in have_menu:
             m = src_menu[sd]
             db.add(LunchMenu(program_id=prog.id, date=tdt, main=m.main, dessert=m.dessert,
-                             note=m.note, groups=m.groups))
+                             note=m.note))
             have_menu.add(td); n_menu += 1
         if want_ing and sd in src_ing and td not in have_ing:
             for k, ig in enumerate(sorted(src_ing[sd], key=lambda x: x.seq), 1):
