@@ -27,7 +27,11 @@ from app.thai_utils import thai_date
 
 _SIG_CM = 1.2
 # จำนวนเส้นบรรทัดว่างของแต่ละช่อง เมื่อครูยังไม่ได้พิมพ์ผลเข้ามา
-_BLANK_LINES = {"k": 2, "p": 2, "a": 2, "problem": 2, "suggestion": 2}
+_BLANK_LINES = {"k": 3, "p": 3, "a": 3, "problem": 3, "suggestion": 3}
+# บรรทัดไข่ปลา: เจ้าของขอให้ข้อความที่ครูพิมพ์อยู่บนเส้นไข่ปลา ไม่ลบไข่ปลาออก
+# ทำด้วยขีดเส้นใต้แบบจุด (w:u dotted) ทั้งตัวข้อความ แล้วต่อด้วย tab ที่ขีดเส้นใต้จนสุดบรรทัด
+_LINE_TAB_CM = 15.6     # จุดสิ้นสุดเส้นไข่ปลาในกรอบ (กรอบกว้าง 16.5 ซม.)
+_CHARS_PER_LINE = 88    # ประมาณตัวอักษรไทยต่อบรรทัด ไว้นับว่าข้อความกินไปกี่บรรทัด
 _RULE = " " * 2      # ช่องว่างต้นบรรทัดของเส้นว่าง (เส้นมาจากขอบล่างของย่อหน้า)
 
 
@@ -59,15 +63,43 @@ def _underline_rule(paragraph):
     pPr.append(bdr)
 
 
-def _filled_or_blank(cell, text, blank_lines, *, indent=0.5):
-    """พิมพ์ข้อความที่ครูกรอก ถ้ายังไม่กรอกให้วางเส้นบรรทัดว่างไว้เขียนมือ"""
-    text = (text or "").strip()
+def _dotted_run(paragraph, text):
+    r = paragraph.add_run(text)
+    _csize(r, 14)
+    r.font.name = THAI_FONT
+    rpr = r._element.get_or_add_rPr()
+    rpr.rFonts.set(qn("w:cs"), THAI_FONT)
+    u = rpr.makeelement(qn("w:u"), {qn("w:val"): "dotted"})
+    rpr.append(u)
+    return r
+
+
+def _dotted_line(cell, text="", *, indent=0.5):
+    """บรรทัดไข่ปลาหนึ่งบรรทัด ข้อความ (ถ้ามี) วางบนเส้น ที่เหลือเป็นไข่ปลาจนสุดบรรทัด"""
+    from docx.enum.text import WD_TAB_ALIGNMENT
+    pg = cell.add_paragraph()
+    pg.paragraph_format.left_indent = Cm(indent)
+    pg.paragraph_format.space_after = Pt(2)
+    pg.paragraph_format.space_before = Pt(0)
+    pg.paragraph_format.tab_stops.add_tab_stop(Cm(_LINE_TAB_CM), WD_TAB_ALIGNMENT.RIGHT)
     if text:
-        for line in text.splitlines():
-            _p(cell, line, indent=indent, after=4, align="justify")
-        return
-    for _ in range(blank_lines):
-        _underline_rule(_p(cell, _RULE, indent=indent, after=10))
+        _dotted_run(pg, " " + text + " ")
+    _dotted_run(pg, "\t")
+    return pg
+
+
+def _filled_or_blank(cell, text, blank_lines, *, indent=0.5):
+    """เขียนข้อความที่ครูกรอกบนเส้นไข่ปลา แล้วเติมบรรทัดไข่ปลาเปล่าให้ครบอย่างน้อย blank_lines บรรทัด"""
+    import math
+    used = 0
+    for line in (text or "").strip().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        _dotted_line(cell, line, indent=indent)
+        used += max(1, math.ceil(len(line) / _CHARS_PER_LINE))
+    for _ in range(max(0, blank_lines - used)):
+        _dotted_line(cell, indent=indent)
 
 
 def _box(doc, heading, rows, *, width_cm=16.5):
@@ -97,20 +129,30 @@ def _sign_cell(cell, label, name, date_txt, *, sign_dy=-0.45):
 
 
 def _unit_title(plan, unit) -> str:
-    bits = [f"หน่วยที่ {unit.seq}"]
-    if (unit.name or "").strip():
-        bits.append(unit.name.strip())
-    head = " ".join(bits)
-    if (plan.title or "").strip():
-        head += f"  ({plan.title.strip()})"
-    return head
+    """บอกให้ชัดว่าเป็นบันทึกของแผนไหน หน่วยไหน (พิมพ์รวมเล่มแล้วไม่ปนกัน)"""
+    from app.services.lesson_set import row_title
+    return row_title(plan, unit)
+
+
+def _sub_title(plan, unit) -> str:
+    bits = []
+    if (getattr(plan, "title", "") or "").strip():
+        bits.append(plan.title.strip())
+    if getattr(plan, "term", None):
+        bits.append(f"ภาคเรียนที่ {plan.term}")
+    if getattr(plan, "year", None):
+        bits.append(f"ปีการศึกษา {plan.year}")
+    if getattr(unit, "taught_at", None):
+        bits.append(f"สอนวันที่ {thai_date(unit.taught_at)}")
+    return " ".join(bits)
 
 
 def render_after_note(doc, plan, school, unit, *, teacher=None, director=None):
     """วางบันทึกหลังการจัดการเรียนรู้ของหน่วยหนึ่งลงในเอกสารที่ส่งเข้ามา"""
     teacher = teacher if teacher is not None else plan.teacher
     _p(doc, "บันทึกหลังการจัดการเรียนรู้", bold=True, size=16, align="center", after=2)
-    _p(doc, _unit_title(plan, unit), align="center", size=14, after=8)
+    _p(doc, _unit_title(plan, unit), align="center", size=14, after=0)
+    _p(doc, _sub_title(plan, unit), align="center", size=14, after=8)
 
     _box(doc, "ผลการจัดการเรียนรู้", [
         ("ด้านความรู้ (Knowledge: K)", unit.k_text, _BLANK_LINES["k"]),
@@ -181,4 +223,6 @@ def merge_with_plan(plan, school, unit, *, teacher=None, director=None) -> str |
     tail.save(buf)
     buf.seek(0)
     Composer(master).append(Document(buf))
-    return _save_doc(master, _safe(f"แผนพร้อมบันทึกหลังสอน_{plan.id}_หน่วยที่{unit.seq}") + ".docx")
+    from app.services.lesson_set import is_plan_mode
+    tag = f"แผนที่{unit.seq}" if is_plan_mode(plan) else f"หน่วยที่{unit.seq}"
+    return _save_doc(master, _safe(f"แผนพร้อมบันทึกหลังสอน_{plan.id}_{tag}") + ".docx")

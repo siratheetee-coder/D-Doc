@@ -92,9 +92,13 @@ def plan_units(plan) -> list[dict]:
     แผนที่ส่งก่อนระบบรองรับไฟล์รายหน่วย จะมีแต่ข้อความในช่องหน่วยการเรียนรู้
     จึงต้องอ่านได้ทั้งสองทาง
     """
+    from app.services import lesson_set
     rows = list(getattr(plan, "units_rows", None) or [])
     if rows:
-        return [{"no": r.seq or (i + 1), "name": (r.name or "").strip(), "hours": r.hours}
+        ranges = lesson_set.unit_ranges(plan) if not lesson_set.is_plan_mode(plan) else {}
+        return [{"no": r.seq or (i + 1), "name": (r.name or "").strip(), "hours": r.hours,
+                 "unit_no": getattr(r, "unit_no", None), "unit_name": (getattr(r, "unit_name", "") or "").strip(),
+                 "plans": lesson_set.range_text(ranges.get(getattr(r, "id", None))).replace("แผนที่ ", "")}
                 for i, r in enumerate(rows)]
     return parse_units(getattr(plan, "units", "") or "")
 
@@ -118,22 +122,28 @@ def _memo_head(doc, school, subject, date_txt):
     _p_runs(doc, [("เรียน  ", True), (head_title(school), False)], after=6)
 
 
-def _units_table(doc, units):
-    """ตารางรายการหน่วยการเรียนรู้ (ที่ / ชื่อหน่วย / เวลา) ปิดท้ายด้วยแถวรวมเวลา"""
+def _plans_table(doc, units):
+    """แบบทีละแผน: หน่วยที่ / แผนที่ / ชื่อแผน / เวลา มีแถวหัวหน่วยคั่นแต่ละหน่วย"""
     table = doc.add_table(rows=1, cols=3)
     table.style = "Table Grid"
-    widths = (Cm(1.6), Cm(11.4), Cm(2.6))
+    widths = (Cm(2.0), Cm(11.0), Cm(2.6))
     hdr = table.rows[0]
     _repeat_header_row(hdr)
-    for cell, text, w in zip(hdr.cells, ("ที่", "ชื่อหน่วยการเรียนรู้", "เวลา (ชั่วโมง)"), widths):
+    for cell, text, w in zip(hdr.cells, ("แผนที่", "ชื่อแผนการจัดการเรียนรู้", "เวลา (ชั่วโมง)"), widths):
         _set_cell(cell, text, bold=True, align="center")
         cell.width = w
+    last = object()
     for u in units:
+        if u.get("unit_no") != last:
+            last = u.get("unit_no")
+            row = table.add_row()
+            _no_split_row(row)
+            head = row.cells[0].merge(row.cells[2])
+            _set_cell(head, f"หน่วยที่ {last or '-'} {u.get('unit_name') or ''}".strip(), bold=True, align="left")
         row = table.add_row()
         _no_split_row(row)
         for cell, text, align, w in zip(
-                row.cells,
-                (str(u["no"]), _v(u["name"]), _hours_text(u.get("hours")) or "-"),
+                row.cells, (str(u["no"]), _v(u["name"]), _hours_text(u.get("hours")) or "-"),
                 ("center", "left", "center"), widths):
             _set_cell(cell, text, align=align)
             cell.width = w
@@ -144,6 +154,42 @@ def _units_table(doc, units):
         _set_cell(row.cells[0], "", align="center")
         _set_cell(row.cells[1], "รวมเวลาเรียน", bold=True, align="right")
         _set_cell(row.cells[2], _hours_text(th), bold=True, align="center")
+    return table
+
+
+def _units_table(doc, units):
+    """ตารางรายการหน่วยการเรียนรู้ (ที่ / ชื่อหน่วย / เวลา) ปิดท้ายด้วยแถวรวมเวลา"""
+    with_plans = any(u.get("plans") for u in units)
+    table = doc.add_table(rows=1, cols=4 if with_plans else 3)
+    table.style = "Table Grid"
+    widths = (Cm(1.6), Cm(9.0), Cm(2.4), Cm(2.6)) if with_plans else (Cm(1.6), Cm(11.4), Cm(2.6))
+    heads = (("หน่วยที่", "ชื่อหน่วยการเรียนรู้", "แผนที่", "เวลา (ชั่วโมง)") if with_plans
+             else ("ที่", "ชื่อหน่วยการเรียนรู้", "เวลา (ชั่วโมง)"))
+    hdr = table.rows[0]
+    _repeat_header_row(hdr)
+    for cell, text, w in zip(hdr.cells, heads, widths):
+        _set_cell(cell, text, bold=True, align="center")
+        cell.width = w
+    for u in units:
+        row = table.add_row()
+        _no_split_row(row)
+        vals = [str(u["no"]), _v(u["name"]), _hours_text(u.get("hours")) or "-"]
+        aligns = ["center", "left", "center"]
+        if with_plans:
+            vals.insert(2, u.get("plans") or "-")
+            aligns.insert(2, "center")
+        for cell, text, align, w in zip(row.cells, vals, aligns, widths):
+            _set_cell(cell, text, align=align)
+            cell.width = w
+    th = total_hours(units)
+    if th:
+        row = table.add_row()
+        _no_split_row(row)
+        _set_cell(row.cells[0], "", align="center")
+        _set_cell(row.cells[1], "รวมเวลาเรียน", bold=True, align="right")
+        if with_plans:
+            _set_cell(row.cells[2], "", align="center")
+        _set_cell(row.cells[-1], _hours_text(th), bold=True, align="center")
         for cell, w in zip(row.cells, widths):
             cell.width = w
     return table
@@ -220,16 +266,22 @@ def _intro(plan, teacher, units) -> str:
     """ตอนที่ 1 ของเนื้อความ: อ้างระเบียบแล้วแจ้งว่าจัดทำแผนเสร็จแล้ว"""
     term = f"ภาคเรียนที่ {plan.term} " if plan.term else ""
     year = f"ปีการศึกษา {plan.year} " if plan.year else ""
+    from app.services import lesson_set
     n = len(units)
     th = total_hours(units)
-    count = (f" จำนวน {n} หน่วยการเรียนรู้" if n else "")
+    if lesson_set.is_plan_mode(plan) and n:
+        nu = len({u.get("unit_no") for u in units})
+        count = f" จำนวน {nu} หน่วยการเรียนรู้ {n} แผน"
+    else:
+        count = (f" จำนวน {n} หน่วยการเรียนรู้" if n else "")
     count += (f" รวมเวลาเรียน {_hours_text(th)} ชั่วโมง" if th else "")
     return ("ตามที่หลักสูตรแกนกลางการศึกษาขั้นพื้นฐาน พุทธศักราช 2551 กำหนดให้ครูผู้สอนจัดทำ "
             "แผนการจัดการเรียนรู้ให้สอดคล้องกับมาตรฐานการเรียนรู้ ตัวชี้วัด และโครงสร้างรายวิชา นั้น "
             f"บัดนี้ ข้าพเจ้า {_v(getattr(teacher, 'name', ''))} ตำแหน่ง {_teacher_pos(teacher)} "
             f"ได้จัดทำแผนการจัดการเรียนรู้ {_v(plan.title)} {term}{year}เสร็จเรียบร้อยแล้ว{count} "
             "รายละเอียดปรากฏตามเอกสารแผนการจัดการเรียนรู้ที่แนบมาพร้อมบันทึกฉบับนี้"
-            + (" โดยมีรายการหน่วยการเรียนรู้ ดังนี้" if units else ""))
+            + ((" โดยมีรายการแผนการจัดการเรียนรู้ ดังนี้" if lesson_set.is_plan_mode(plan)
+                else " โดยมีรายการหน่วยการเรียนรู้ ดังนี้") if units else ""))
 
 
 def render_plan_memo(plan, school, *, academic=None, director=None) -> str:
@@ -249,7 +301,8 @@ def render_plan_memo(plan, school, *, academic=None, director=None) -> str:
     _p(doc, _intro(plan, teacher, units), align="justify", indent=2.5, after=4)
 
     if units:
-        _units_table(doc, units)
+        from app.services import lesson_set
+        (_plans_table if lesson_set.is_plan_mode(plan) else _units_table)(doc, units)
         _p(doc, "", after=0)
     if (plan.note or "").strip():
         _p(doc, f"หมายเหตุ {plan.note.strip()}", align="justify", indent=2.5, after=4)

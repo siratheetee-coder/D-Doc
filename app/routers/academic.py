@@ -666,6 +666,9 @@ def lesson_plans_page(request: Request, db: Session = Depends(get_db), msg: str 
     base = db.query(LessonPlan)
     if not is_reviewer:
         base = base.filter(LessonPlan.person_id == (pid or 0))
+    else:
+        # ร่างที่ครูยังไม่กดส่ง ผู้ตรวจไม่ต้องเห็น (ของผู้ตรวจที่สอนเองยังเห็น)
+        base = base.filter((LessonPlan.status != "draft") | (LessonPlan.person_id == (pid or 0)))
     # ปีที่มีแผน (ให้เลือกกรอง) + ปีปัจจุบัน
     years = sorted({y for (y,) in base.with_entities(LessonPlan.year).distinct() if y}
                    | {_acad_year(db)}, reverse=True)
@@ -796,7 +799,7 @@ async def lesson_plan_submit(request: Request, db: Session = Depends(get_db),
     p = LessonPlan(person_id=pid, year=_acad_year(db),
                    term=_to_int(term, current_term()), title=title.strip(),
                    note=(note or "").strip(), units=(units or "").strip(),
-                   file_blob=blobs[0][0], file_name=blobs[0][1], status="pending")
+                   file_blob=blobs[0][0], file_name=blobs[0][1], status="pending", mode="unit")
     db.add(p); db.flush()
     _build_units(db, p, blobs, unit_name, unit_hours, units)
     db.commit()
@@ -810,6 +813,212 @@ async def lesson_plan_submit(request: Request, db: Session = Depends(get_db),
                  f"<p>หมายเหตุ: {p.note or '-'}</p>"
                  + _review_button("/academic/lesson-plans", "เปิดหน้าเพื่อตรวจแผนการสอน"))
     return RedirectResponse("/academic/lesson-plans?msg=ส่งแผนการสอนแล้ว แจ้งหัวหน้าฝ่ายวิชาการทางอีเมลเรียบร้อย", status_code=303)
+
+
+# ---------------- ชุดแผน 2 แบบ: สร้างร่าง -> เพิ่มหน่วย/แผน -> ส่งตรวจ ----------------
+# เดิมครูต้องแนบทุกไฟล์และตั้งชื่อหน่วยให้เสร็จในฟอร์มเดียว ส่งแล้วเพิ่มอะไรไม่ได้ และ 1 ไฟล์ = 1 หน่วยเสมอ
+# ทั้งที่หลายโรงเรียนทำแผนแยกไฟล์ละแผน เจ้าของจึงขอให้เลือกได้ 2 แบบ และเพิ่มได้เรื่อย ๆ ก่อนกดส่ง
+
+def _set_url(plan_id, msg="", err=""):
+    from urllib.parse import quote
+    q = f"?msg={quote(msg)}" if msg else (f"?err={quote(err)}" if err else "")
+    return RedirectResponse(f"/academic/lesson-plans/{plan_id}/units{q}", status_code=303)
+
+
+async def _read_plan_upload(f):
+    """อ่านไฟล์แผน 1 ไฟล์ คืน (data, ชื่อไฟล์, ข้อความผิดพลาด)"""
+    from app.services.file_upload import detect_ext
+    if f is None or not (f.filename or "").strip():
+        return None, "", ""
+    data = await f.read()
+    if not data:
+        return None, "", ""
+    if detect_ext(data, f.filename or "") not in _PLAN_EXT:
+        return None, "", (f"ไฟล์ {f.filename} ไม่ใช่ไฟล์ Word (.docx) ระบบต้องต่อหน้าบันทึกหลังสอนเข้าไปในไฟล์ "
+                          "ถ้าเป็น .doc รุ่นเก่าหรือ PDF ให้เปิดใน Word แล้วบันทึกเป็น .docx ก่อน")
+    if len(data) > _PLAN_MAX:
+        return None, "", f"ไฟล์ {f.filename} ใหญ่เกิน {_PLAN_MAX // (1024 * 1024)} MB"
+    return data, (f.filename or "lesson.docx").strip()[:120], ""
+
+
+def _editable_set(request, db, plan_id):
+    """ชุดแผนของครูคนนี้ที่ยังแก้ได้ คืน (plan, None) หรือ (None, response)"""
+    from app.services import lesson_set
+    p, res = _plan_or_deny(request, db, plan_id, owner_only=True)
+    if p is None:
+        return None, res
+    if not lesson_set.can_edit(p):
+        return None, _set_url(plan_id, err="ชุดแผนนี้ส่งตรวจแล้ว แก้ไม่ได้จนกว่าจะถูกส่งกลับให้แก้")
+    return p, None
+
+
+def _base_name(fname):
+    import os
+    return os.path.splitext(fname or "")[0].strip()
+
+
+@router.post("/academic/lesson-plans/new")
+def lesson_set_new(request: Request, db: Session = Depends(get_db), title: str = Form(""),
+                   term: str = Form(""), mode: str = Form("plan")):
+    """ขั้นที่ 1 สร้างชุดแผน (ร่าง) แล้วพาไปหน้าเพิ่มหน่วย/แผน"""
+    from app.models import LessonPlan
+    pid = request.session.get("person_id")
+    if not pid:
+        return RedirectResponse("/academic/lesson-plans?err=บัญชีนี้ไม่ได้ผูกกับครู ส่งแผนไม่ได้", status_code=303)
+    if not (title or "").strip():
+        return RedirectResponse("/academic/lesson-plans?err=กรอกวิชาและชั้นก่อน", status_code=303)
+    p = LessonPlan(person_id=pid, year=_acad_year(db), term=_to_int(term, current_term()),
+                   title=title.strip(), status="draft", mode=("unit" if mode == "unit" else "plan"),
+                   submitted_at=None)
+    db.add(p); db.commit()
+    return _set_url(p.id, msg="สร้างชุดแผนแล้ว เพิ่มหน่วยและแนบไฟล์ได้เลย")
+
+
+@router.post("/academic/lesson-plans/{plan_id}/set/add")
+async def lesson_set_add(request: Request, plan_id: int, db: Session = Depends(get_db),
+                         unit_no: str = Form(""), unit_name: str = Form(""), name: str = Form(""),
+                         hours: str = Form(""), plan_count: str = Form(""),
+                         file: list[UploadFile] = File(None)):
+    """เพิ่มหน่วย (แบบทั้งหน่วย) หรือเพิ่มแผนเข้าหน่วย (แบบทีละแผน เลือกหลายไฟล์ได้)"""
+    from app.models import LessonUnit
+    from app.services import lesson_set
+    p, res = _editable_set(request, db, plan_id)
+    if p is None:
+        return res
+    blobs = []
+    for f in (file or []):
+        data, fname, e = await _read_plan_upload(f)
+        if e:
+            return _set_url(plan_id, err=e)
+        if data:
+            blobs.append((data, fname))
+    rs = lesson_set.rows(p)
+    if lesson_set.is_plan_mode(p):
+        no = _to_int(unit_no, 0)
+        if no <= 0:                       # หน่วยใหม่
+            if not (unit_name or "").strip():
+                return _set_url(plan_id, err="กรอกชื่อหน่วยก่อน")
+            no = max([r.unit_no or 0 for r in rs] + [0]) + 1
+            uname = unit_name.strip()
+        else:
+            uname = next(((r.unit_name or "") for r in rs if r.unit_no == no), "") or (unit_name or "").strip()
+        if not blobs:
+            return _set_url(plan_id, err="เลือกไฟล์แผนอย่างน้อย 1 ไฟล์")
+        # ต่อท้ายหน่วยนี้ (seq ชั่วคราวมากกว่าแผนเดิมทั้งหมด แล้ว renumber เรียงให้ใหม่)
+        last = max([r.seq or 0 for r in rs] + [0])
+        for i, (data, fname) in enumerate(blobs, 1):
+            db.add(LessonUnit(plan_id=p.id, unit_no=no, unit_name=uname, seq=last + i,
+                              name=_base_name(fname), file_blob=data, file_name=fname))
+        msg = f"เพิ่ม {len(blobs)} แผนในหน่วยที่ {no} แล้ว"
+    else:
+        if not (name or "").strip():
+            return _set_url(plan_id, err="กรอกชื่อหน่วยก่อน")
+        data, fname = (blobs[0] if blobs else (None, ""))
+        db.add(LessonUnit(plan_id=p.id, seq=len(rs) + 1, name=name.strip(),
+                          hours=_to_float(hours) or None, plan_count=_to_int(plan_count, 0) or None,
+                          file_blob=data, file_name=fname))
+        msg = f"เพิ่มหน่วยที่ {len(rs) + 1} แล้ว"
+    db.flush()
+    db.refresh(p)
+    lesson_set.renumber(p)
+    db.commit()
+    return _set_url(plan_id, msg=msg)
+
+
+@router.post("/academic/lesson-plans/{plan_id}/set/{row_id}/edit")
+async def lesson_set_edit(request: Request, plan_id: int, row_id: int, db: Session = Depends(get_db),
+                          name: str = Form(""), hours: str = Form(""), plan_count: str = Form(""),
+                          file: UploadFile = File(None)):
+    """แก้ชื่อ ชั่วโมง จำนวนแผน หรือเปลี่ยนไฟล์ ของแผน/หน่วยหนึ่งแถว"""
+    from app.models import LessonUnit
+    from app.services import lesson_set
+    p, res = _editable_set(request, db, plan_id)
+    if p is None:
+        return res
+    r = db.get(LessonUnit, row_id)
+    if not r or r.plan_id != p.id:
+        return _set_url(plan_id, err="ไม่พบรายการนี้")
+    data, fname, e = await _read_plan_upload(file)
+    if e:
+        return _set_url(plan_id, err=e)
+    if data:
+        r.file_blob, r.file_name = data, fname
+    if (name or "").strip():
+        r.name = name.strip()
+    r.hours = _to_float(hours) or None
+    if not lesson_set.is_plan_mode(p):
+        r.plan_count = _to_int(plan_count, 0) or None
+    db.commit()
+    return _set_url(plan_id, msg="บันทึกแล้ว")
+
+
+@router.post("/academic/lesson-plans/{plan_id}/set/unit/{unit_no}/rename")
+def lesson_set_rename_unit(request: Request, plan_id: int, unit_no: int, db: Session = Depends(get_db),
+                           unit_name: str = Form("")):
+    """แบบทีละแผน: เปลี่ยนชื่อหน่วย (ทุกแผนในหน่วยเปลี่ยนตาม)"""
+    from app.services import lesson_set
+    p, res = _editable_set(request, db, plan_id)
+    if p is None:
+        return res
+    if not (unit_name or "").strip():
+        return _set_url(plan_id, err="ชื่อหน่วยว่างไม่ได้")
+    for r in lesson_set.rows(p):
+        if r.unit_no == unit_no:
+            r.unit_name = unit_name.strip()
+    db.commit()
+    return _set_url(plan_id, msg=f"เปลี่ยนชื่อหน่วยที่ {unit_no} แล้ว")
+
+
+@router.post("/academic/lesson-plans/{plan_id}/set/{row_id}/delete")
+def lesson_set_delete(request: Request, plan_id: int, row_id: int, db: Session = Depends(get_db)):
+    from app.models import LessonUnit
+    from app.services import lesson_set
+    p, res = _editable_set(request, db, plan_id)
+    if p is None:
+        return res
+    r = db.get(LessonUnit, row_id)
+    if not r or r.plan_id != p.id:
+        return _set_url(plan_id, err="ไม่พบรายการนี้")
+    db.delete(r); db.flush(); db.refresh(p)
+    if lesson_set.is_plan_mode(p):
+        # หน่วยที่ว่างลงไม่ต้องเก็บ เลขหน่วยถัดไปเลื่อนขึ้นมาแทน
+        nos = sorted({x.unit_no or 0 for x in lesson_set.rows(p)})
+        remap = {old: i for i, old in enumerate(nos, 1)}
+        for x in lesson_set.rows(p):
+            x.unit_no = remap.get(x.unit_no or 0, x.unit_no)
+    lesson_set.renumber(p)
+    db.commit()
+    return _set_url(plan_id, msg="ลบแล้ว")
+
+
+@router.post("/academic/lesson-plans/{plan_id}/send")
+def lesson_set_send(request: Request, plan_id: int, db: Session = Depends(get_db), note: str = Form("")):
+    """ส่งให้หัวหน้าฝ่ายวิชาการตรวจ (ส่งครั้งแรก หรือส่งอีกครั้งหลังแก้)"""
+    from datetime import datetime as _dt
+    from app.services import lesson_set
+    p, res = _editable_set(request, db, plan_id)
+    if p is None:
+        return res
+    why = lesson_set.ready_to_send(p)
+    if why:
+        return _set_url(plan_id, err=why)
+    again = p.status == "revise"
+    p.status, p.submitted_at = "pending", _dt.now()
+    if (note or "").strip():
+        p.note = note.strip()
+    first = lesson_set.rows(p)[0]
+    p.file_blob, p.file_name = first.file_blob, first.file_name    # หน้ารายการเดิมเปิดไฟล์แรกได้
+    db.commit()
+    teacher = p.teacher
+    _done, n_all, word = lesson_set.progress(p)
+    _send_notice(get_school(db).academic_head_email,
+                 f"[แผนการสอน] {teacher.name if teacher else ''} {'ส่งแผนที่แก้แล้ว' if again else 'ส่งแผน'}: {p.title}",
+                 f"<p>ครู <b>{teacher.name if teacher else ''}</b> ส่งแผนการสอนเข้าระบบ</p>"
+                 f"<p>เรื่อง: {p.title}<br>ภาคเรียน: {p.term or '-'} ปีการศึกษา {p.year}</p>"
+                 f"<p>{lesson_set.mode_label(p)} จำนวน {n_all} {word}</p>"
+                 f"<p>หมายเหตุ: {p.note or '-'}</p>"
+                 + _review_button(f"/academic/lesson-plans/{p.id}/units", "เปิดหน้าเพื่อตรวจแผนการสอน"))
+    return _set_url(plan_id, msg="ส่งให้หัวหน้าฝ่ายวิชาการตรวจแล้ว")
 
 
 @router.get("/academic/lesson-plans/{plan_id}/file")
@@ -947,7 +1156,8 @@ def lesson_plan_memo(request: Request, plan_id: int, db: Session = Depends(get_d
 @router.get("/academic/lesson-plans/{plan_id}/units", response_class=HTMLResponse)
 def lesson_plan_units(request: Request, plan_id: int, db: Session = Depends(get_db),
                       msg: str = "", err: str = ""):
-    """หน้าบันทึกผลการจัดการเรียนรู้รายหน่วย (ครูกรอกหลังสอนจบแต่ละหน่วย)"""
+    """หน้าชุดแผน: เพิ่มหน่วย/แผนก่อนส่ง และบันทึกผลหลังสอนหลัง ผอ. อนุมัติ"""
+    from app.services import lesson_set
     p, res = _plan_or_deny(request, db, plan_id)
     if p is None:
         return res
@@ -956,6 +1166,10 @@ def lesson_plan_units(request: Request, plan_id: int, db: Session = Depends(get_
         "request": request, "school": get_school(db), "p": p, "teacher": p.teacher,
         "units": p.units_rows, "is_director": res, "mine": mine,
         "can_record": mine and p.status == "approved",
+        "can_edit": mine and lesson_set.can_edit(p), "ls": lesson_set,
+        "groups": lesson_set.groups(p), "ranges": lesson_set.unit_ranges(p),
+        "progress": lesson_set.progress(p), "send_block": lesson_set.ready_to_send(p),
+        "is_reviewer": not _scope(request, db).is_teacher,
         "msg": msg, "err": err,
     })
 
@@ -989,7 +1203,7 @@ def lesson_unit_save(request: Request, plan_id: int, unit_id: int, db: Session =
     u.suggestion = (suggestion or "").strip()
     u.result_at = _dt.now()
     db.commit()
-    return RedirectResponse(f"/academic/lesson-plans/{plan_id}/units?msg=บันทึกผลหน่วยที่ {u.seq} แล้ว",
+    return RedirectResponse(f"/academic/lesson-plans/{plan_id}/units?msg=บันทึกหลังสอน{'แผน' if (p.mode or '') == 'plan' else 'หน่วย'}ที่ {u.seq} แล้ว",
                             status_code=303)
 
 

@@ -47,13 +47,13 @@
     <p style="margin-top:12px;">
       {% if mine and p.status == 'approved' %}
       <a class="btn" href="/academic/lesson-plans/{{ p.id }}/units">
-        <svg class="icon"><use href="#ic-edit"/></svg> บันทึกผลหลังสอน ({{ p.units_rows|length }} หน่วย)</a>
+        <svg class="icon"><use href="#ic-edit"/></svg> บันทึกหลังสอน ({{ p.units_rows|length }} {{ 'แผน' if p.mode == 'plan' else 'หน่วย' }})</a>
       <a class="btn gray" href="/academic/lesson-plans/{{ p.id }}/after">
-        <svg class="icon"><use href="#ic-download"/></svg> บันทึกหลังสอนทุกหน่วย</a>
+        <svg class="icon"><use href="#ic-download"/></svg> บันทึกหลังสอนทั้งหมด</a>
       {% else %}
       <a class="btn gray" href="/academic/lesson-plans/{{ p.id }}/units">
-        <svg class="icon"><use href="#ic-file"/></svg> ดูหน่วยการเรียนรู้ ({{ p.units_rows|length }})</a>
-      {% if mine %}<span class="muted" style="font-size:12.5px;">บันทึกผลหลังสอนได้เมื่อ ผอ. อนุมัติแผนแล้ว</span>{% endif %}
+        <svg class="icon"><use href="#ic-file"/></svg> ดู{{ 'แผนทั้งหมด' if p.mode == 'plan' else 'หน่วยการเรียนรู้' }} ({{ p.units_rows|length }})</a>
+      {% if mine %}<span class="muted" style="font-size:12.5px;">บันทึกหลังสอนได้เมื่อ ผอ. อนุมัติแผนแล้ว</span>{% endif %}
       {% endif %}
     </p>
     {% endif %}

@@ -236,6 +236,10 @@ MIGRATIONS = [
     ("lesson_plan", "director_at", "DATETIME"),
     ("lesson_plan", "director_comment", "TEXT DEFAULT ''"),
     ("lesson_plan", "units", "TEXT DEFAULT ''"),      # รายการหน่วยการเรียนรู้ (บรรทัดละหน่วย)
+    ("lesson_plan", "mode", "VARCHAR DEFAULT ''"),         # plan/unit ว่าง = แผนเดิม (ทั้งหน่วย)
+    ("lesson_unit", "unit_no", "INTEGER"),
+    ("lesson_unit", "unit_name", "VARCHAR DEFAULT ''"),
+    ("lesson_unit", "plan_count", "INTEGER"),
     ("leave_request", "work_group", "VARCHAR DEFAULT ''"),
     ("leave_request", "personnel_by", "INTEGER"),
     ("leave_request", "personnel_at", "DATETIME"),

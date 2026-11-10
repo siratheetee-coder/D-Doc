@@ -81,8 +81,9 @@ def test_typed_results_are_printed_and_blank_ones_leave_ruled_lines():
     assert "ขาดสื่อของจริง" in t and "ยืมสื่อจากโรงเรียนใกล้เคียง" in t
     # หน่วยที่ยังไม่กรอก ต้องมีเส้นบรรทัดให้เขียนมือ
     doc = Document(path)
-    rules = doc.element.body.findall(".//" + qn("w:pBdr"))
-    assert len(rules) >= 5, f"หน่วยที่ยังว่างต้องมีเส้นบรรทัด ได้ {len(rules)}"
+    # เส้นไข่ปลา = ขีดเส้นใต้แบบจุด ข้อความที่ครูพิมพ์วางบนเส้น ไม่ลบไข่ปลาออก
+    dots = [u for u in doc.element.body.iter(qn("w:u")) if u.get(qn("w:val")) == "dotted"]
+    assert len(dots) >= 15, f"ทุกหัวข้อต้องมีไข่ปลาอย่างน้อย 3 บรรทัด ได้ {len(dots)}"
 
 
 def test_director_signature_appears_only_after_approval():
@@ -129,7 +130,7 @@ def test_routes_and_upload_limit_are_wired():
                  "_PLAN_MAX"):
         assert want in acad, want
     assert "file: list[UploadFile]" in acad, "ฟอร์มส่งแผนยังรับไฟล์เดียว"
-    html = (ROOT / "app/templates/academic_lesson_plans.html").read_text(encoding="utf-8")
+    html = (ROOT / "app/templates/lesson_plan_units.html").read_text(encoding="utf-8")
     assert "multiple" in html, "ช่องแนบไฟล์ยังเลือกหลายไฟล์ไม่ได้"
 
 
@@ -139,7 +140,8 @@ def test_memo_table_follows_the_unit_rows_when_they_exist():
     plan = _plan([_unit(1, name="ชื่อที่แก้ใหม่", hours=9.0)])
     plan.units = "หน่วยที่ 1 ชื่อเก่า (99 ชั่วโมง)"
     us = plan_units(plan)
-    assert us == [{"no": 1, "name": "ชื่อที่แก้ใหม่", "hours": 9.0}]
+    assert [{k: u[k] for k in ("no", "name", "hours")} for u in us] == [
+        {"no": 1, "name": "ชื่อที่แก้ใหม่", "hours": 9.0}]
 
 
 # ---------------- เดินผ่าน HTTP จริง ----------------
@@ -374,8 +376,8 @@ def test_results_can_only_be_recorded_after_the_director_approves():
         # ยังไม่อนุมัติ: หน้าบอกชัดว่ายังกรอกไม่ได้ และบันทึกไม่ผ่าน
         r = c.get(f"/academic/lesson-plans/{pid}/units")
         assert r.status_code == 200
-        assert "ผอ. ยังไม่อนุมัติ" in r.text or "ยังบันทึกผลหลังสอนไม่ได้" in r.text
-        assert "บันทึกผลหน่วยที่" not in r.text, "ยังไม่อนุมัติ ไม่ควรมีปุ่มบันทึกผล"
+        assert "บันทึกหลังสอนได้เมื่อ ผอ. อนุมัติแผนแล้ว" in r.text
+        assert "บันทึกหลังสอนหน่วยที่" not in r.text, "ยังไม่อนุมัติ ไม่ควรมีปุ่มบันทึกผล"
 
         r = c.post(f"/academic/lesson-plans/{pid}/units/{uid}/save",
                    data={"name": "หน่วยหนึ่ง", "k_text": "แอบกรอกก่อนอนุมัติ"},
@@ -389,7 +391,7 @@ def test_results_can_only_be_recorded_after_the_director_approves():
         db.get(LessonPlan, pid).director_at = datetime.now()
         db.commit()
         r = c.get(f"/academic/lesson-plans/{pid}/units")
-        assert "บันทึกผลหน่วยที่" in r.text
+        assert "บันทึกหลังสอนหน่วยที่" in r.text or "บันทึกหลังสอนแผนที่" in r.text
         r = c.post(f"/academic/lesson-plans/{pid}/units/{uid}/save",
                    data={"name": "หน่วยหนึ่ง", "k_text": "ผ่านเกณฑ์"}, follow_redirects=False)
         assert r.status_code in (302, 303) and "err=" not in r.headers.get("location", "")
@@ -424,7 +426,7 @@ def test_a_reviewer_sees_the_unit_page_read_only():
         r = _login_as(person_id=None, owner=True).get(f"/academic/lesson-plans/{pid}/units")
         assert r.status_code == 200
         assert "ท่านดูได้อย่างเดียว" in r.text
-        assert "บันทึกผลหน่วยที่" not in r.text, "ผู้ตรวจไม่ควรมีปุ่มบันทึกผลของครู"
+        assert "บันทึกหลังสอนแผนที่" not in r.text and "บันทึกหลังสอนหน่วยที่" not in r.text, "ผู้ตรวจไม่ควรมีปุ่มบันทึกผลของครู"
     finally:
         for lp in db.query(LessonPlan).filter(LessonPlan.title.like(mark + "%")).all():
             db.delete(lp)
@@ -509,7 +511,7 @@ def test_unit_names_come_from_one_box_per_file():
 
 
 def test_submit_form_shows_one_name_box_per_chosen_file():
-    html = (ROOT / "app/templates/academic_lesson_plans.html").read_text(encoding="utf-8")
+    html = (ROOT / "app/templates/lesson_plan_units.html").read_text(encoding="utf-8")
     assert 'name="unit_name"' in html, "ยังไม่มีช่องชื่อหน่วยรายไฟล์"
     assert 'accept=".docx"' in html, "ช่องแนบไฟล์ยังรับชนิดอื่นนอกจาก Word"
     assert 'name="units"' not in html, "ยังเหลือช่องพิมพ์รวมแบบเดิมอยู่"

@@ -2372,6 +2372,10 @@ class LessonPlan(Base):
     director_by = Column(Integer, nullable=True)     # person_id ผอ./รองผอ. ที่อนุมัติ
     director_at = Column(DateTime, nullable=True)
     director_comment = Column(Text, default="")      # ความเห็น ผอ.
+    # แบบการแนบ: plan = แนบทีละแผน (แถว LessonUnit = 1 แผน บันทึกหลังสอนทุกแผน)
+    #            unit = แนบทั้งหน่วย (แถว LessonUnit = 1 หน่วย บันทึกหลังสอนหน่วยละครั้ง)
+    # ว่าง = แผนที่ส่งก่อนมีสองแบบ ถือเป็นแบบทั้งหน่วย
+    mode = Column(String, default="plan")
 
     teacher = relationship("Person")
     units_rows = relationship("LessonUnit", back_populates="plan",
@@ -2400,6 +2404,11 @@ class LessonUnit(Base):
     problem = Column(Text, default="")            # ปัญหาและอุปสรรค
     suggestion = Column(Text, default="")         # ข้อเสนอแนะ / แนวทางแก้ไข
     taught_at = Column(DateTime, nullable=True)   # วันที่สอนจบหน่วย (ขึ้นใต้ลายเซ็นครู)
+    # แบบทีละแผน: แถวนี้คือ 1 แผน seq = แผนที่ (นับต่อกันทั้งชุด) ส่วนหน่วยที่สังกัดเก็บที่ unit_no/unit_name
+    unit_no = Column(Integer, nullable=True)
+    unit_name = Column(String, default="")
+    # แบบทั้งหน่วย: จำนวนแผนในไฟล์หน่วยนี้ (ไม่บังคับ) ใช้ไล่เลข "แผนที่ 1 ถึง 6"
+    plan_count = Column(Integer, nullable=True)
     result_at = Column(DateTime, nullable=True)   # บันทึกผลครั้งล่าสุด (ไว้ตรวจย้อน)
 
     plan = relationship("LessonPlan", back_populates="units_rows")
