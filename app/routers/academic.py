@@ -1161,6 +1161,8 @@ def lesson_plan_units(request: Request, plan_id: int, db: Session = Depends(get_
     p, res = _plan_or_deny(request, db, plan_id)
     if p is None:
         return res
+    if lesson_set.ensure_notes(db, p):
+        db.commit()
     mine = p.person_id == request.session.get("person_id")
     return templates.TemplateResponse("lesson_plan_units.html", {
         "request": request, "school": get_school(db), "p": p, "teacher": p.teacher,
@@ -1169,6 +1171,7 @@ def lesson_plan_units(request: Request, plan_id: int, db: Session = Depends(get_
         "can_edit": mine and lesson_set.can_edit(p), "ls": lesson_set,
         "groups": lesson_set.groups(p), "ranges": lesson_set.unit_ranges(p),
         "progress": lesson_set.progress(p), "send_block": lesson_set.ready_to_send(p),
+        "slots": lesson_set.slots(p), "slot_progress": lesson_set.slot_progress(p),
         "is_reviewer": not _scope(request, db).is_teacher,
         "msg": msg, "err": err,
     })
@@ -1207,6 +1210,33 @@ def lesson_unit_save(request: Request, plan_id: int, unit_id: int, db: Session =
                             status_code=303)
 
 
+@router.post("/academic/lesson-plans/{plan_id}/notes/{note_id}/save")
+def lesson_note_save(request: Request, plan_id: int, note_id: int, db: Session = Depends(get_db),
+                     name: str = Form(""), taught_at: str = Form(""),
+                     k_text: str = Form(""), p_text: str = Form(""), a_text: str = Form(""),
+                     problem: str = Form(""), suggestion: str = Form("")):
+    """แบบทั้งหน่วย: บันทึกหลังสอนของแผนหนึ่งในหน่วย (1 ช่องต่อ 1 แผน)"""
+    from datetime import datetime as _dt
+    from app.models import LessonNote
+    p, res = _plan_or_deny(request, db, plan_id, owner_only=True)
+    if p is None:
+        return res
+    if p.status != "approved":
+        return _set_url(plan_id, err="บันทึกหลังสอนได้เมื่อ ผอ. อนุมัติแผนแล้ว")
+    n = db.get(LessonNote, note_id)
+    if not n or not n.unit or n.unit.plan_id != p.id:
+        return _set_url(plan_id, err="ไม่พบช่องบันทึกนี้")
+    n.name = (name or "").strip()
+    n.taught_at = parse_be_date(taught_at) if (taught_at or "").strip() else None
+    n.k_text, n.p_text, n.a_text = (k_text or "").strip(), (p_text or "").strip(), (a_text or "").strip()
+    n.problem, n.suggestion = (problem or "").strip(), (suggestion or "").strip()
+    n.result_at = _dt.now()
+    db.commit()
+    from app.services.lesson_set import slots
+    label = next((x["label"] for x in slots(p) if x["kind"] == "note" and x["obj"].id == n.id), "แผนนี้")
+    return _set_url(plan_id, msg=f"บันทึกหลังสอน{label}แล้ว")
+
+
 @router.get("/academic/lesson-plans/{plan_id}/units/{unit_id}/file")
 def lesson_unit_file(request: Request, plan_id: int, unit_id: int, db: Session = Depends(get_db)):
     """เปิดไฟล์แผนของหน่วยนั้น"""
@@ -1231,6 +1261,9 @@ def lesson_unit_full(request: Request, plan_id: int, unit_id: int, db: Session =
     u = db.get(LessonUnit, unit_id)
     if not u or u.plan_id != p.id:
         return RedirectResponse(f"/academic/lesson-plans/{plan_id}/units", status_code=303)
+    from app.services import lesson_set
+    if lesson_set.ensure_notes(db, p):
+        db.commit()
     director = db.get(Person, p.director_by) if p.director_by else None
     path = merge_with_plan(p, get_school(db), u, director=director)
     if not path:
@@ -1242,15 +1275,19 @@ def lesson_unit_full(request: Request, plan_id: int, unit_id: int, db: Session =
 
 @router.get("/academic/lesson-plans/{plan_id}/after")
 def lesson_plan_after(request: Request, plan_id: int, db: Session = Depends(get_db),
-                      unit: int = 0):
+                      unit: int = 0, note: int = 0):
     """บันทึกหลังการจัดการเรียนรู้ ทุกหน่วยในไฟล์เดียว (หรือเฉพาะหน่วยที่ระบุ)"""
     from app.services.lesson_after_doc import render_after_notes
     p, res = _plan_or_deny(request, db, plan_id)
     if p is None:
         return res
-    rows = [u for u in p.units_rows if (not unit or u.id == unit)]
+    from app.services import lesson_set
+    if lesson_set.ensure_notes(db, p):
+        db.commit()
+    picked = [x for x in lesson_set.slots(p)
+              if (not unit or x["row"].id == unit) and (not note or (x["kind"] == "note" and x["obj"].id == note))]
     director = db.get(Person, p.director_by) if p.director_by else None
-    return serve_generated(render_after_notes(p, get_school(db), units=rows, director=director),
+    return serve_generated(render_after_notes(p, get_school(db), slots=picked, director=director),
                            _DOCX)
 
 

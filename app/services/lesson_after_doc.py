@@ -147,11 +147,15 @@ def _sub_title(plan, unit) -> str:
     return " ".join(bits)
 
 
-def render_after_note(doc, plan, school, unit, *, teacher=None, director=None):
-    """วางบันทึกหลังการจัดการเรียนรู้ของหน่วยหนึ่งลงในเอกสารที่ส่งเข้ามา"""
+def render_after_note(doc, plan, school, unit, *, teacher=None, director=None, title=None):
+    """วางบันทึกหลังการจัดการเรียนรู้ 1 ใบลงในเอกสาร
+
+    unit = แถวที่เก็บข้อความ (LessonUnit หรือ LessonNote ใช้ชื่อช่องเดียวกัน)
+    title = หัวบันทึก บอกแผนที่/หน่วยที่ (ไม่ส่ง = คำนวณจากแถว)
+    """
     teacher = teacher if teacher is not None else plan.teacher
     _p(doc, "บันทึกหลังการจัดการเรียนรู้", bold=True, size=16, align="center", after=2)
-    _p(doc, _unit_title(plan, unit), align="center", size=14, after=0)
+    _p(doc, title or _unit_title(plan, unit), align="center", size=14, after=0)
     _p(doc, _sub_title(plan, unit), align="center", size=14, after=8)
 
     _box(doc, "ผลการจัดการเรียนรู้", [
@@ -181,18 +185,26 @@ def render_after_note(doc, plan, school, unit, *, teacher=None, director=None):
     return doc
 
 
-def render_after_notes(plan, school, *, units=None, teacher=None, director=None) -> str:
-    """รวมบันทึกหลังการจัดการเรียนรู้ของทุกหน่วยเป็นไฟล์เดียว หน่วยละหนึ่งหน้า"""
+def render_after_notes(plan, school, *, units=None, slots=None, teacher=None, director=None) -> str:
+    """รวมบันทึกหลังการจัดการเรียนรู้เป็นไฟล์เดียว 1 หน้าต่อ 1 แผน
+
+    slots = ช่องบันทึกจาก lesson_set.slots (ไม่ส่ง = ทุกช่องของชุดแผน)
+    units = แบบเดิม ส่งแถวหน่วยมาตรง ๆ ใบละหน่วย
+    """
     from app.services.build_templates import _font
-    units = list(units if units is not None else (plan.units_rows or []))
+    from app.services import lesson_set
+    if slots is None:
+        slots = ([{"obj": u, "title": None} for u in units] if units is not None
+                 else lesson_set.slots(plan))
     doc = Document()
     set_a4(doc)
     _font(doc)
-    for i, u in enumerate(units):
+    for i, sl in enumerate(slots):
         if i:
             doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
-        render_after_note(doc, plan, school, u, teacher=teacher, director=director)
-    if not units:
+        render_after_note(doc, plan, school, sl["obj"], teacher=teacher, director=director,
+                          title=sl.get("title"))
+    if not slots:
         _p(doc, "ยังไม่มีหน่วยการเรียนรู้ในชุดแผนนี้", align="center")
     return _save_doc(doc, _safe(f"บันทึกหลังการจัดการเรียนรู้_{plan.id}") + ".docx")
 
@@ -218,7 +230,13 @@ def merge_with_plan(plan, school, unit, *, teacher=None, director=None) -> str |
     set_a4(tail)
     from app.services.build_templates import _font
     _font(tail)
-    render_after_note(tail, plan, school, unit, teacher=teacher, director=director)
+    from app.services import lesson_set
+    mine = [x for x in lesson_set.slots(plan) if x["row"] is unit] or [{"obj": unit, "title": None}]
+    for i, sl in enumerate(mine):
+        if i:
+            tail.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+        render_after_note(tail, plan, school, sl["obj"], teacher=teacher, director=director,
+                          title=sl.get("title"))
     buf = io.BytesIO()
     tail.save(buf)
     buf.seek(0)

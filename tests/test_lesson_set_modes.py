@@ -137,3 +137,51 @@ def test_reviewers_do_not_see_drafts():
         assert MARK + "ร่างลับ" not in html
     finally:
         _cleanup(db)
+
+
+def test_unit_mode_has_one_after_note_per_plan_and_locks_until_approved():
+    """เจ้าของ: บันทึกหลังสอนต้องมีเท่าจำนวนแผน และก่อนอนุมัติต้องล็อก ไม่ใช่ฟอร์มที่กดแล้วไม่บันทึก"""
+    from datetime import datetime
+    from docx import Document
+    from app.tenancy import session_for
+    from app.models import LessonPlan, Person, LessonNote
+    from app.services import lesson_set
+    db = session_for(1)
+    t = Person(name=MARK + "ครูรายแผน", position="ครู"); db.add(t); db.commit()
+    c = _login_client(person_id=t.id)
+    try:
+        c.post("/academic/lesson-plans/new", data={"title": MARK + "รายแผน", "term": "1", "mode": "unit"})
+        p = db.query(LessonPlan).filter(LessonPlan.title == MARK + "รายแผน").one(); pid = p.id
+        c.post(f"/academic/lesson-plans/{pid}/set/add", data={"name": "การอ่าน", "plan_count": "3"}, files=_files("u1"))
+        c.post(f"/academic/lesson-plans/{pid}/set/add", data={"name": "การเขียน", "plan_count": "2"}, files=_files("u2"))
+        c.post(f"/academic/lesson-plans/{pid}/send")
+        # ยังไม่อนุมัติ: ขึ้นล็อกครบ 5 ช่อง ไม่มีช่องพิมพ์
+        html = c.get(f"/academic/lesson-plans/{pid}/units").text
+        assert "บันทึกหลังสอนยังล็อกอยู่" in html and html.count("ล็อก รออนุมัติ") == 5
+        assert 'name="k_text"' not in html
+        db.expire_all(); p = db.get(LessonPlan, pid)
+        labels = [s["label"] for s in lesson_set.slots(p)]
+        assert labels == ["แผนที่ 1", "แผนที่ 2", "แผนที่ 3", "แผนที่ 4", "แผนที่ 5"], labels
+        note = db.query(LessonNote).join(LessonNote.unit).filter_by(plan_id=pid).filter(LessonNote.seq == 2).first()
+        assert note is not None
+        r = c.post(f"/academic/lesson-plans/{pid}/notes/{note.id}/save", data={"k_text": "ก่อนอนุมัติ"},
+                   follow_redirects=False)
+        assert "err=" in r.headers["location"]
+        # อนุมัติแล้ว: เขียนได้รายแผน
+        p.status, p.director_at = "approved", datetime.now(); db.commit()
+        html = c.get(f"/academic/lesson-plans/{pid}/units").text
+        assert html.count('name="k_text"') == 5 and "ล็อก รออนุมัติ" not in html
+        r = c.post(f"/academic/lesson-plans/{pid}/notes/{note.id}/save",
+                   data={"name": "อ่านเรื่องสั้น", "k_text": "ผ่านเกณฑ์ 28 คน"}, follow_redirects=False)
+        assert "err=" not in r.headers["location"]
+        db.expire_all()
+        assert db.get(LessonNote, note.id).k_text == "ผ่านเกณฑ์ 28 คน"
+        r = c.get(f"/academic/lesson-plans/{pid}/after")
+        import io
+        d = Document(io.BytesIO(r.content))
+        text = "\n".join(x.text for x in d.paragraphs)
+        assert text.count("บันทึกหลังการจัดการเรียนรู้") == 5, "ต้องได้ 1 หน้าต่อ 1 แผน"
+        assert "แผนที่ 2 เรื่อง อ่านเรื่องสั้น หน่วยที่ 1 การอ่าน" in text
+        assert "แผนที่ 5 หน่วยที่ 2 การเขียน" in text
+    finally:
+        _cleanup(db)

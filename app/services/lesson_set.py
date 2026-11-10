@@ -115,3 +115,71 @@ def ready_to_send(plan) -> str:
     if any(not r.file_blob for r in rs):
         return "ยังมีรายการที่ไม่ได้แนบไฟล์"
     return ""
+
+
+# ---------------- ช่องบันทึกหลังสอน (1 ช่องต่อ 1 แผนเสมอ) ----------------
+# เจ้าของ: บันทึกหลังสอนต้องมีเท่าจำนวนแผน แบบทั้งหน่วยจึงแตกเป็นรายแผนตาม plan_count
+# หน่วยที่ไม่ได้กรอกจำนวนแผน (แผนเก่า) ยังใช้ช่องเดียวของหน่วยเหมือนเดิม
+
+def ensure_notes(db, plan) -> bool:
+    """แบบทั้งหน่วย: สร้างแถวบันทึกรายแผนให้ครบตามจำนวนแผน คืน True ถ้ามีการเปลี่ยน
+
+    จำนวนแผนลดลง ลบเฉพาะแถวท้ายที่ยังว่าง แถวที่เขียนแล้วเก็บไว้ ไม่ทิ้งงานของครู
+    """
+    if is_plan_mode(plan):
+        return False
+    from app.models import LessonNote
+    changed = False
+    for r in rows(plan):
+        want = getattr(r, "plan_count", None) or 0
+        notes = list(r.notes or [])
+        have = {n.seq for n in notes}
+        for k in range(1, want + 1):
+            if k not in have:
+                db.add(LessonNote(unit_id=r.id, seq=k))
+                changed = True
+        for n in notes:
+            if n.seq > want and not recorded(n):
+                db.delete(n)
+                changed = True
+    if changed:
+        db.flush()
+        for r in rows(plan):
+            db.refresh(r)
+    return changed
+
+
+def slots(plan) -> list[dict]:
+    """ทุกช่องบันทึกหลังสอนของชุดแผน เรียงตามลำดับ
+
+    {obj: แถวที่เก็บข้อความ, row: แถวไฟล์, kind: row|note, label: ป้ายสั้น, title: หัวบันทึก,
+     unit_label: หน่วยที่สังกัด}
+    """
+    out = []
+    if is_plan_mode(plan):
+        for r in sorted(rows(plan), key=lambda r: r.seq or 0):
+            out.append({"obj": r, "row": r, "kind": "row", "label": f"แผนที่ {r.seq}",
+                        "name": (r.name or "").strip(), "title": row_title(plan, r),
+                        "unit_label": f"หน่วยที่ {r.unit_no or '-'} {(r.unit_name or '').strip()}".strip()})
+        return out
+    ranges = unit_ranges(plan)
+    for r in sorted(rows(plan), key=lambda r: r.seq or 0):
+        ulabel = f"หน่วยที่ {r.seq} {(r.name or '').strip()}".strip()
+        notes = sorted(getattr(r, "notes", None) or [], key=lambda n: n.seq)
+        notes = [n for n in notes if n.seq <= (getattr(r, "plan_count", None) or 0) or recorded(n)]
+        if not notes:
+            out.append({"obj": r, "row": r, "kind": "row", "label": f"หน่วยที่ {r.seq}",
+                        "name": (r.name or "").strip(), "title": row_title(plan, r), "unit_label": ulabel})
+            continue
+        start = (ranges.get(getattr(r, "id", None)) or (None,))[0]
+        for n in notes:
+            no = f"แผนที่ {start + n.seq - 1}" if start else f"แผนที่ {n.seq} ของหน่วย"
+            title = no + (f" เรื่อง {n.name.strip()}" if (n.name or "").strip() else "") + f" {ulabel}"
+            out.append({"obj": n, "row": r, "kind": "note", "label": no, "name": (n.name or "").strip(),
+                        "title": title, "unit_label": ulabel})
+    return out
+
+
+def slot_progress(plan) -> tuple[int, int]:
+    ss = slots(plan)
+    return sum(1 for s in ss if recorded(s["obj"])), len(ss)

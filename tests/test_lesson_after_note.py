@@ -376,7 +376,8 @@ def test_results_can_only_be_recorded_after_the_director_approves():
         # ยังไม่อนุมัติ: หน้าบอกชัดว่ายังกรอกไม่ได้ และบันทึกไม่ผ่าน
         r = c.get(f"/academic/lesson-plans/{pid}/units")
         assert r.status_code == 200
-        assert "บันทึกหลังสอนได้เมื่อ ผอ. อนุมัติแผนแล้ว" in r.text
+        assert "บันทึกหลังสอนยังล็อกอยู่" in r.text and "ล็อก รออนุมัติ" in r.text
+        assert "name=\"k_text\"" not in r.text, "ยังไม่อนุมัติ ไม่ควรมีช่องให้พิมพ์"
         assert "บันทึกหลังสอนหน่วยที่" not in r.text, "ยังไม่อนุมัติ ไม่ควรมีปุ่มบันทึกผล"
 
         r = c.post(f"/academic/lesson-plans/{pid}/units/{uid}/save",

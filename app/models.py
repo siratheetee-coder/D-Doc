@@ -2412,6 +2412,32 @@ class LessonUnit(Base):
     result_at = Column(DateTime, nullable=True)   # บันทึกผลครั้งล่าสุด (ไว้ตรวจย้อน)
 
     plan = relationship("LessonPlan", back_populates="units_rows")
+    notes = relationship("LessonNote", back_populates="unit", cascade="all, delete-orphan",
+                         order_by="LessonNote.seq")
+
+
+class LessonNote(Base):
+    """บันทึกหลังสอนรายแผน ของแบบแนบทั้งหน่วย (ไฟล์หน่วยเดียวมีหลายแผน)
+
+    เจ้าของขอให้บันทึกหลังสอนมีเท่าจำนวนแผน ไม่ใช่ใบเดียวต่อหน่วย
+    แถวนี้สร้างตามจำนวนแผนที่ครูกรอก (LessonUnit.plan_count) seq = แผนลำดับที่เท่าไรในหน่วย
+    ชื่อช่องผลการเรียนรู้เหมือน LessonUnit เพื่อใช้ฟอร์มและเอกสารชุดเดียวกัน
+    """
+    __tablename__ = "lesson_note"
+
+    id = Column(Integer, primary_key=True)
+    unit_id = Column(Integer, ForeignKey("lesson_unit.id"), nullable=False)
+    seq = Column(Integer, default=1)
+    name = Column(String, default="")             # ชื่อแผน (ไม่บังคับ)
+    k_text = Column(Text, default="")
+    p_text = Column(Text, default="")
+    a_text = Column(Text, default="")
+    problem = Column(Text, default="")
+    suggestion = Column(Text, default="")
+    taught_at = Column(DateTime, nullable=True)
+    result_at = Column(DateTime, nullable=True)
+
+    unit = relationship("LessonUnit", back_populates="notes")
 
 
 class Approval(Base):

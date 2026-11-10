@@ -91,11 +91,11 @@
     <form method="post" action="/academic/lesson-plans/{{ p.id }}/set/add" enctype="multipart/form-data" class="row" style="align-items:flex-end;">
       <div style="flex:1.4;"><label>ชื่อหน่วย *</label><input name="name" required placeholder="เช่น การอ่านจับใจความ"></div>
       <div style="width:90px;"><label>ชั่วโมง</label><input name="hours" inputmode="decimal" placeholder="12"></div>
-      <div style="width:110px;"><label>จำนวนแผน</label><input name="plan_count" inputmode="numeric" placeholder="6"></div>
+      <div style="width:110px;"><label>จำนวนแผน *</label><input name="plan_count" inputmode="numeric" placeholder="6" required></div>
       <div style="flex:1.2;"><label>ไฟล์หน่วย (.docx) *</label><input type="file" name="file" accept=".docx" required></div>
       <div><button class="btn green" type="submit">เพิ่มหน่วย</button></div>
     </form>
-    <p class="muted" style="font-size:12.5px; margin:6px 0 0;">ไฟล์ละ 1 หน่วย รวมทุกแผนในไฟล์เดียว กรอกจำนวนแผนแล้วระบบไล่เลขแผนต่อกันให้ เช่น หน่วยที่ 2 เริ่มแผนที่ 7 ไม่กรอกก็ได้</p>
+    <p class="muted" style="font-size:12.5px; margin:6px 0 0;">ไฟล์ละ 1 หน่วย รวมทุกแผนในไฟล์เดียว กรอกจำนวนแผนในไฟล์ ระบบเตรียมช่องบันทึกหลังสอนให้เท่าจำนวนแผน และไล่เลขแผนต่อกันให้ เช่น หน่วยที่ 2 เริ่มแผนที่ 7</p>
   </div>
 {% endif %}
 
@@ -113,76 +113,110 @@
 
 {% else %}
 {# ================= ส่งแล้ว: ดูรายการ / บันทึกหลังสอน ================= #}
-{% set pg = progress %}
+{% set locked = p.status != 'approved' %}
+{% set sp = slot_progress %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
     <div style="flex:1; min-width:220px;">
       <h2 style="margin:0;">บันทึกหลังการจัดการเรียนรู้</h2>
-      <div class="lp-bar"><div style="width:{{ (100 * pg[0] / pg[1])|round|int if pg[1] else 0 }}%"></div></div>
-      <div class="muted" style="font-size:13px;">บันทึกหลังสอนแล้ว {{ pg[0] }} จาก {{ pg[1] }} {{ pg[2] }}
-        {% if plan_mode %}(บันทึกทุกแผน){% else %}(บันทึกหน่วยละครั้ง){% endif %}</div>
+      {% if locked %}
+      <div class="muted" style="font-size:13px; margin-top:6px;">มีช่องบันทึก {{ sp[1] }} แผน (1 ช่องต่อ 1 แผน)</div>
+      {% else %}
+      <div class="lp-bar"><div style="width:{{ (100 * sp[0] / sp[1])|round|int if sp[1] else 0 }}%"></div></div>
+      <div class="muted" style="font-size:13px;">บันทึกหลังสอนแล้ว {{ sp[0] }} จาก {{ sp[1] }} แผน</div>
+      {% endif %}
     </div>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <a class="btn" href="/academic/lesson-plans/{{ p.id }}/after"><svg class="icon"><use href="#ic-download"/></svg> บันทึกหลังสอนทั้งหมด</a>
+      {% if not locked %}<a class="btn" href="/academic/lesson-plans/{{ p.id }}/after"><svg class="icon"><use href="#ic-download"/></svg> บันทึกหลังสอนทั้งหมด</a>{% endif %}
       <a class="btn gray" href="/academic/lesson-plans/{{ p.id }}/memo">บันทึกเสนอ ผอ.</a>
       <a class="btn gray" href="/academic/lesson-plans/{{ p.id }}">← หน้าแผน</a>
     </div>
   </div>
-  {% if not can_record %}
-  <p class="muted" style="font-size:13px; margin:8px 0 0;">
-    {% if not mine %}หน้านี้เป็นของครูผู้สอน ท่านดูได้อย่างเดียว
-    {% else %}บันทึกหลังสอนได้เมื่อ ผอ. อนุมัติแผนแล้ว ดาวน์โหลดแบบฟอร์มเปล่าไปใช้ก่อนได้{% endif %}</p>
+  {% if locked %}
+  <div class="lp-lockbar">
+    <span class="lp-lockic"><svg class="icon"><use href="#ic-lock"/></svg></span>
+    <div><b>บันทึกหลังสอนยังล็อกอยู่</b>
+      <div>เปิดให้เขียนเมื่อ ผอ. อนุมัติแผนแล้ว ตอนนี้: {{ stage }}</div></div>
+  </div>
+  {% elif not can_record %}
+  <p class="muted" style="font-size:13px; margin:8px 0 0;">หน้านี้เป็นของครูผู้สอน ท่านดูได้อย่างเดียว</p>
   {% endif %}
 </div>
 
-{% if not units %}
+{% if not slots %}
 <div class="card"><p class="muted">ชุดแผนนี้ไม่มีรายการ{{ word }} (ส่งก่อนระบบรองรับไฟล์แยก)</p></div>
 {% endif %}
 
-{% set ns = namespace(u=-1) %}
-{% for u in units %}
-  {% if plan_mode and u.unit_no != ns.u %}{% set ns.u = u.unit_no %}
-  <h3 class="lp-gh">หน่วยที่ {{ u.unit_no }} {{ u.unit_name }}</h3>
-  {% endif %}
-<details class="card lp-rec" {{ 'open' if can_record and not ls.recorded(u) and loop.first }}>
-  <summary>
-    <span class="lp-no">{{ ('แผนที่ ' ~ u.seq) if plan_mode else ('หน่วยที่ ' ~ u.seq) }}</span>
-    <span style="flex:1;">{{ u.name or '-' }}{% if not plan_mode and ranges.get(u.id) %} <span class="muted">({{ ls.range_text(ranges.get(u.id)) }})</span>{% endif %}</span>
-    {% if ls.recorded(u) %}<span class="pill lp-ok">บันทึกหลังสอนแล้ว</span>{% else %}<span class="pill lp-wait">ยังไม่บันทึก</span>{% endif %}
-    {% if can_record %}<span class="btn sm">บันทึกหลังสอน</span>{% endif %}
-  </summary>
-  <form method="post" action="/academic/lesson-plans/{{ p.id }}/units/{{ u.id }}/save" style="margin-top:10px;">
-    <input type="hidden" name="name" value="{{ u.name or '' }}">
-    <input type="hidden" name="hours" value="{{ u.hours or '' }}">
-    <div class="row" style="align-items:flex-end;">
-      <div style="width:170px;"><label>วันที่สอน{{ 'จบหน่วย' if not plan_mode }}</label>
-        <input name="taught_at" value="{{ be_date(u.taught_at) }}" placeholder="วว/ดด/ปปปป" {{ 'readonly' if not can_record }}></div>
-      <div style="flex:1; text-align:right;">
-        {% if u.file_blob %}<a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/units/{{ u.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> ไฟล์{{ word }}</a>{% endif %}
-        <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/after?unit={{ u.id }}">บันทึกหลังสอน (Word)</a>
-        {% if (u.file_name or '').lower().endswith('.docx') %}
-        <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/units/{{ u.id }}/full">{{ word }} + บันทึก (ไฟล์เดียว)</a>
-        {% endif %}
-      </div>
-    </div>
-    <label style="margin-top:10px; display:block;">ผลการจัดการเรียนรู้ ด้านความรู้ (Knowledge: K)</label>
-    <textarea name="k_text" rows="2" style="width:100%;" {{ 'readonly' if not can_record }}>{{ u.k_text or '' }}</textarea>
-    <label style="margin-top:8px; display:block;">ด้านกระบวนการ (Process: P)</label>
-    <textarea name="p_text" rows="2" style="width:100%;" {{ 'readonly' if not can_record }}>{{ u.p_text or '' }}</textarea>
-    <label style="margin-top:8px; display:block;">ด้านคุณลักษณะอันพึงประสงค์และเจตคติ (Attitude: A)</label>
-    <textarea name="a_text" rows="2" style="width:100%;" {{ 'readonly' if not can_record }}>{{ u.a_text or '' }}</textarea>
-    <div class="row" style="margin-top:8px;">
-      <div style="flex:1;"><label>ปัญหาและอุปสรรค</label>
-        <textarea name="problem" rows="2" style="width:100%;" {{ 'readonly' if not can_record }}>{{ u.problem or '' }}</textarea></div>
-      <div style="flex:1;"><label>ข้อเสนอแนะ / แนวทางแก้ไข</label>
-        <textarea name="suggestion" rows="2" style="width:100%;" {{ 'readonly' if not can_record }}>{{ u.suggestion or '' }}</textarea></div>
-    </div>
-    {% if can_record %}
-    <button class="btn green" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-check"/></svg> บันทึกหลังสอน{{ ('แผนที่ ' ~ u.seq) if plan_mode else ('หน่วยที่ ' ~ u.seq) }}</button>
+{% set ns = namespace(u='') %}
+{% for sl in slots %}
+  {% set o = sl.obj %}{% set r = sl.row %}
+  {% if sl.unit_label != ns.u %}{% set ns.u = sl.unit_label %}
+  <div class="lp-gh">
+    <h3>{{ sl.unit_label }}</h3>
+    {% if not plan_mode and r.file_blob %}
+    <span class="lp-ghact">
+      <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> ไฟล์หน่วย</a>
+      {% if not locked and (r.file_name or '').lower().endswith('.docx') %}<a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/full">หน่วย + บันทึกทุกแผน (ไฟล์เดียว)</a>{% endif %}
+    </span>
     {% endif %}
-    {% if u.result_at %}<span class="muted" style="font-size:12.5px; margin-left:8px;">บันทึกล่าสุด {{ be_date(u.result_at) }}</span>{% endif %}
-  </form>
-</details>
+  </div>
+  {% endif %}
+  {% if locked %}
+  <div class="card lp-rec lp-locked">
+    <div class="lp-sum">
+      <span class="lp-no">{{ sl.label }}</span>
+      <span style="flex:1;">{{ sl.name }}</span>
+      <span class="pill lp-lockpill"><svg class="icon"><use href="#ic-lock"/></svg> ล็อก รออนุมัติ</span>
+    </div>
+  </div>
+  {% else %}
+  <details class="card lp-rec" {{ 'open' if can_record and not ls.recorded(o) and loop.first }}>
+    <summary class="lp-sum">
+      <span class="lp-no">{{ sl.label }}</span>
+      <span style="flex:1;">{{ sl.name or '' }}</span>
+      {% if ls.recorded(o) %}<span class="pill lp-ok">บันทึกหลังสอนแล้ว</span>{% else %}<span class="pill lp-wait">ยังไม่บันทึก</span>{% endif %}
+      {% if can_record %}<span class="btn sm">บันทึกหลังสอน</span>{% endif %}
+    </summary>
+    <form method="post" style="margin-top:10px;"
+          action="/academic/lesson-plans/{{ p.id }}/{{ ('notes/' ~ o.id) if sl.kind == 'note' else ('units/' ~ o.id) }}/save">
+      {% if sl.kind == 'row' %}
+      <input type="hidden" name="name" value="{{ o.name or '' }}">
+      <input type="hidden" name="hours" value="{{ o.hours or '' }}">
+      {% endif %}
+      <div class="row" style="align-items:flex-end;">
+        {% if sl.kind == 'note' %}
+        <div style="flex:1; min-width:200px;"><label>ชื่อแผน (ไม่บังคับ)</label>
+          <input name="name" value="{{ o.name or '' }}" placeholder="เช่น การอ่านคำควบกล้ำ" {{ 'readonly' if not can_record }}></div>
+        {% endif %}
+        <div style="width:170px;"><label>วันที่สอน</label>
+          <input name="taught_at" value="{{ be_date(o.taught_at) }}" placeholder="วว/ดด/ปปปป" {{ 'readonly' if not can_record }}></div>
+        <div style="flex:1; text-align:right;">
+          {% if plan_mode and r.file_blob %}<a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> ไฟล์แผน</a>{% endif %}
+          <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/after?{{ ('note=' ~ o.id) if sl.kind == 'note' else ('unit=' ~ r.id) }}">บันทึกหลังสอน (Word)</a>
+          {% if plan_mode and (r.file_name or '').lower().endswith('.docx') %}
+          <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/full">แผน + บันทึก (ไฟล์เดียว)</a>
+          {% endif %}
+        </div>
+      </div>
+      <label style="margin-top:10px; display:block;">ผลการจัดการเรียนรู้ ด้านความรู้ (Knowledge: K)</label>
+      <textarea name="k_text" rows="2" style="width:100%;" {{ 'readonly' if not can_record }}>{{ o.k_text or '' }}</textarea>
+      <label style="margin-top:8px; display:block;">ด้านกระบวนการ (Process: P)</label>
+      <textarea name="p_text" rows="2" style="width:100%;" {{ 'readonly' if not can_record }}>{{ o.p_text or '' }}</textarea>
+      <label style="margin-top:8px; display:block;">ด้านคุณลักษณะอันพึงประสงค์และเจตคติ (Attitude: A)</label>
+      <textarea name="a_text" rows="2" style="width:100%;" {{ 'readonly' if not can_record }}>{{ o.a_text or '' }}</textarea>
+      <div class="row" style="margin-top:8px;">
+        <div style="flex:1;"><label>ปัญหาและอุปสรรค</label>
+          <textarea name="problem" rows="2" style="width:100%;" {{ 'readonly' if not can_record }}>{{ o.problem or '' }}</textarea></div>
+        <div style="flex:1;"><label>ข้อเสนอแนะ / แนวทางแก้ไข</label>
+          <textarea name="suggestion" rows="2" style="width:100%;" {{ 'readonly' if not can_record }}>{{ o.suggestion or '' }}</textarea></div>
+      </div>
+      {% if can_record %}
+      <button class="btn green" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-check"/></svg> บันทึกหลังสอน{{ sl.label }}</button>
+      {% endif %}
+      {% if o.result_at %}<span class="muted" style="font-size:12.5px; margin-left:8px;">บันทึกล่าสุด {{ be_date(o.result_at) }}</span>{% endif %}
+    </form>
+  </details>
+  {% endif %}
 {% endfor %}
 {% endif %}
 
@@ -218,7 +252,19 @@
   .lp-wait{background:#fef3c7;color:#92400e;padding:2px 9px;border-radius:6px;font-size:12.5px;white-space:nowrap}
   .lp-bar{height:8px;background:#eef2f7;border-radius:4px;margin:8px 0 4px;max-width:420px}
   .lp-bar div{height:8px;background:#22c55e;border-radius:4px}
-  .lp-gh{margin:18px 0 6px;font-size:16px}
+  .lp-gh{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:18px 0 6px}
+  .lp-gh h3{margin:0;font-size:16px}
+  .lp-ghact{display:flex;gap:8px;flex-wrap:wrap}
+  .lp-sum{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .lp-locked{background:#f8fafc;color:#64748b;cursor:not-allowed;padding:10px 16px !important;margin-bottom:8px !important}
+  .lp-locked .lp-no{color:#64748b}
+  .lp-lockpill{display:inline-flex;align-items:center;gap:5px;background:#e2e8f0;color:#475569;padding:3px 10px;border-radius:999px;font-size:12.5px;white-space:nowrap}
+  .lp-lockpill .icon{width:13px;height:13px}
+  .lp-lockbar{display:flex;gap:12px;align-items:center;margin-top:12px;padding:12px 14px;border-radius:12px;
+              background:linear-gradient(135deg,#fff7ed,#fef3c7);color:#78350f;font-size:13.5px}
+  .lp-lockbar b{font-size:14.5px}
+  .lp-lockic{flex:none;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+             background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff}
   .lp-rec summary{display:flex;gap:10px;align-items:center;cursor:pointer;list-style:none;flex-wrap:wrap}
   .lp-rec summary::-webkit-details-marker{display:none}
 </style>
