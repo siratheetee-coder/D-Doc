@@ -31,7 +31,9 @@ from app.thai_utils import thai_date
 
 DOT = "................................"
 _SIG_CM = 1.2          # ความสูงรูปลายเซ็นในบันทึกนี้
-_DOTS = "." * 34       # เส้นไข่ปลาในช่องความเห็น (กว้างครึ่งหน้า)
+_DOTS = "." * 86       # เส้นไข่ปลาในช่องความเห็น เต็มความกว้างช่อง (8.5 ซม.)
+_SIGN_DOTS = "." * 40  # บรรทัดลงชื่อ / ชื่อในวงเล็บ ยาวเท่ากัน
+_DATE_DOTS = "วันที่ ........ / .................... / ........"
 
 # "(12 ชั่วโมง)" / "12 ชม." / "เวลา 12 ชั่วโมง" -> ดึงจำนวนชั่วโมงออกมา
 _HOURS = re.compile(r"(\d+(?:\.\d+)?)\s*(?:ชั่วโมง|ชม\.?)")
@@ -167,19 +169,23 @@ def _cell_p(cell, text, *, bold=False, align="left", size=14, first=False, after
 
 
 def _opinion_text(cell, heading, lines):
-    _cell_p(cell, heading, bold=True, first=True)
+    _cell_p(cell, heading, bold=True, first=True, after=4)
     for text in lines:
-        _cell_p(cell, text, align="justify", indent=1.0)
+        if set(text) == {"."}:
+            # เส้นไข่ปลาเต็มช่อง ไม่ย่อหน้า ระยะบรรทัดเท่ากันแบบแบบฟอร์มราชการ
+            _cell_p(cell, text, after=6)
+        else:
+            _cell_p(cell, text, align="justify", indent=1.0, after=4)
 
 
 def _opinion_sign(cell, name, position, date_txt):
-    sig = _cell_p(cell, "ลงชื่อ ..............................................",
-                  align="center", after=0, first=True)
-    sig.paragraph_format.space_before = Pt(10)   # เว้นที่เซ็นจริงเหนือบรรทัดลงชื่อ
-    _cell_p(cell, f"( {_v(name)} )", align="center", after=0)
-    _cell_p(cell, _v(position), align="center", after=0)
-    _cell_p(cell, _v(date_txt, DOT), align="center", after=0)
-    if (name or "").strip():
+    sig = _cell_p(cell, f"ลงชื่อ {_SIGN_DOTS}", align="center", after=2, first=True)
+    sig.paragraph_format.space_before = Pt(18)   # เว้นที่เซ็นจริงเหนือบรรทัดลงชื่อ
+    nm = (name or "").strip()
+    _cell_p(cell, f"( {nm} )" if nm else f"({_SIGN_DOTS})", align="center", after=2)
+    _cell_p(cell, _v(position), align="center", after=2)
+    _cell_p(cell, (date_txt or "").strip() or _DATE_DOTS, align="center", after=0)
+    if nm:
         _float_signature(sig, name, height_cm=_SIG_CM, dy_cm=-0.45)
 
 
@@ -253,7 +259,7 @@ def render_plan_memo(plan, school, *, academic=None, director=None) -> str:
        align="justify", indent=2.5, after=6)
 
     tbl = _sign_table(doc, [[("", "center")], [
-        ("ลงชื่อ ......................................", "center"),
+        (f"ลงชื่อ {_SIGN_DOTS}", "center"),
         (f"( {_v(getattr(teacher, 'name', ''))} )", "center"),
         (_teacher_pos(teacher) + " ผู้เสนอ", "center"),
     ]], after=0, sign_gap=2)
@@ -278,7 +284,7 @@ def render_plan_memo(plan, school, *, academic=None, director=None) -> str:
     elif plan.status == "revise" and plan.director_at:
         dir_lines = ["ส่งคืนเพื่อปรับปรุงแก้ไขตามความเห็น แล้วนำเสนออีกครั้ง"]
     else:
-        dir_lines = ["อนุมัติ / ไม่อนุมัติ", _DOTS, _DOTS]
+        dir_lines = ["☐ อนุมัติ          ☐ ไม่อนุมัติ", _DOTS, _DOTS]
     if (plan.director_comment or "").strip():
         dir_lines.append(f"ความเห็นเพิ่มเติม {plan.director_comment.strip()}")
 
