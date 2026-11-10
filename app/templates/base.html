@@ -1018,5 +1018,30 @@
   <script src="/static/search-suggest.js?v=1" defer></script>
   <script src="/static/addbox.js?v=2" defer></script>
   <script src="/static/stay-form.js?v=1" defer></script>
+  {% set _deny = denied_prefixes(request.session) %}
+  {% if _deny %}
+  <script>
+  // ซ่อนลิงก์ไปงานที่บัญชีนี้ไม่มีสิทธิ์ (เจ้าของ: ครูกดแล้วเจอหน้า "ไม่มีสิทธิ์" ควรไม่เห็นตั้งแต่แรก)
+  // ปุ่ม/แถวเมนู = ซ่อนทั้งอัน ลิงก์กลางประโยค = เหลือเป็นตัวหนังสือธรรมดา ประโยคไม่ขาด
+  (function(){
+    var deny = {{ _deny|tojson }};
+    var allow = ['/hr/supervision', '/hr/supervision-form', '/hr/classroom-visit'];   // ของงานวิชาการ
+    function hit(path, list){ return list.some(function(p){ return path === p || path.indexOf(p + '/') === 0 || path.indexOf(p + '?') === 0; }); }
+    function run(){
+      document.querySelectorAll('a[href^="/"]').forEach(function(a){
+        var h = a.getAttribute('href');
+        if (!hit(h, deny) || hit(h, allow)) return;
+        var block = a.matches('.btn, .home-row, .th-row, .home-stat, .card, nav a, aside a') || !a.parentNode || !a.textContent.trim();
+        if (block) { a.remove(); return; }
+        var span = document.createElement('span'); span.className = 'link-denied';
+        span.textContent = a.textContent; span.title = 'บัญชีนี้ยังไม่ได้รับสิทธิ์งานนี้';
+        a.replaceWith(span);
+      });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
+  })();
+  </script>
+  {% endif %}
+
 </body>
 </html>

@@ -426,7 +426,7 @@ def test_a_reviewer_sees_the_unit_page_read_only():
     try:
         r = _login_as(person_id=None, owner=True).get(f"/academic/lesson-plans/{pid}/units")
         assert r.status_code == 200
-        assert "ท่านดูได้อย่างเดียว" in r.text
+        assert "ดูได้อย่างเดียว" in r.text and "name=\"k_text\"" not in r.text
         assert "บันทึกหลังสอนแผนที่" not in r.text and "บันทึกหลังสอนหน่วยที่" not in r.text, "ผู้ตรวจไม่ควรมีปุ่มบันทึกผลของครู"
     finally:
         for lp in db.query(LessonPlan).filter(LessonPlan.title.like(mark + "%")).all():

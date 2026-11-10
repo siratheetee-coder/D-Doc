@@ -135,3 +135,25 @@ templates.env.globals["case_staff_context"] = case_staff_context
 templates.env.globals["doc_preview_on"] = lambda: __import__("app.services.doc_preview", fromlist=["x"]).available()
 from app.services.up_url import up_url  # noqa: E402
 templates.env.globals["up_url"] = up_url
+
+
+def denied_prefixes(session) -> list:
+    """ต้นทาง URL ของงานที่บัญชีนี้เปิดไม่ได้ (ให้ base.html ซ่อน/ปิดลิงก์ไปงานนั้น)
+
+    เจ้าของ: ครูกดลิงก์ในหน้าคู่มือ/ข้อมูลพื้นฐานแล้วเจอหน้า "ไม่มีสิทธิ์" ควรซ่อนไปเลย
+    ไอดีหลักและ ผอ. เปิดได้ทุกงานที่โรงเรียนซื้อ จึงซ่อนเฉพาะงานที่โรงเรียนไม่ได้ใช้
+    """
+    from app.modules import MODULE_PREFIXES, parse_modules
+    if not session or not session.get("tid") or session.get("role") == "superadmin":
+        return []
+    tid = session.get("tid")
+    everything = session.get("owner") or session.get("director")
+    mine = set(parse_modules(session.get("mods") or ""))
+    out = []
+    for key, pres in MODULE_PREFIXES.items():
+        if not can_use(tid, key) or (not everything and key not in mine):
+            out += [x for x in pres if not x.endswith(".")]
+    return out
+
+
+templates.env.globals["denied_prefixes"] = denied_prefixes

@@ -63,3 +63,36 @@ def test_teacher_home_shows_plan_status_and_todos():
         for p in db.query(LessonPlan).filter(LessonPlan.person_id == t.id).all():
             db.delete(p)
         db.delete(t); db.commit()
+
+
+def test_links_to_denied_modules_are_hidden_for_teachers():
+    """ครูไม่ควรเห็นลิงก์ไปงานที่ไม่มีสิทธิ์ (เดิมกดแล้วเจอหน้า ไม่มีสิทธิ์)"""
+    from app.templating import denied_prefixes
+    teacher = {"tid": 1, "mods": "academic", "owner": False}
+    d = denied_prefixes(teacher)
+    assert "/finance" in d and "/hr" in d and "/academic" not in d
+    assert denied_prefixes({"tid": 1, "owner": True}) == [], "ไอดีหลักต้องเห็นทุกงาน (รวมหน้าแนะนำให้ซื้อ)"
+    assert denied_prefixes({"tid": 1, "director": True, "mods": ""}) == []
+
+
+def test_director_sees_after_notes_read_only():
+    """ผอ./ผู้ตรวจ เปิดหน้าชุดแผนที่อนุมัติแล้ว ต้องไม่มีช่องกรอก และบอกชัดว่าดูได้อย่างเดียว"""
+    from datetime import datetime
+    from app.tenancy import session_for
+    from app.models import Person, LessonPlan, LessonUnit
+    db = session_for(1)
+    t = Person(name="ทดสอบดูอย่างเดียว_ครู", position="ครู"); db.add(t); db.commit()
+    try:
+        p = LessonPlan(person_id=t.id, year=2569, term=1, title="ทดสอบดูอย่างเดียว", status="approved",
+                       mode="plan", director_at=datetime.now())
+        db.add(p); db.flush()
+        db.add(LessonUnit(plan_id=p.id, seq=1, unit_no=1, unit_name="ก", name="แผนหนึ่ง", k_text="ผ่านเกณฑ์"))
+        db.commit()
+        from tests.test_lesson_after_note import _login_client
+        html = _login_client(person_id=None).get(f"/academic/lesson-plans/{p.id}/units").text
+        assert "ดูได้อย่างเดียว" in html and "ผ่านเกณฑ์" in html
+        assert 'name="k_text"' not in html, "ผู้ที่ไม่ใช่เจ้าของแผนต้องไม่มีช่องกรอก"
+    finally:
+        for x in db.query(LessonPlan).filter(LessonPlan.person_id == t.id).all():
+            db.delete(x)
+        db.delete(t); db.commit()
