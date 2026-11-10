@@ -112,7 +112,7 @@ def test_unapproved_plan_leaves_the_decision_blank_for_hand_signing():
     t = _text(render_plan_memo(_plan(id=2, status="pending", reviewed_at=None, director_at=None),
                                _school()))
     assert "อนุมัติให้ใช้แผนการจัดการเรียนรู้ตามเสนอ" not in t
-    assert "อนุมัติ / ไม่อนุมัติ" in t
+    assert "☐ อนุมัติ" in t and "☐ ไม่อนุมัติ" in t
     assert "นายสมชาย ใจดี" not in t, "ยังไม่ได้อนุมัติ ห้ามพิมพ์ชื่อ ผอ. ลงในช่องลงนาม"
     assert "นางสาวมาลี เรียนเก่ง" not in t
 
