@@ -4717,6 +4717,18 @@ def home_approvals(request:Request,db:Session=Depends(get_db),status:str='pendin
     names={'pending':'รอ ผอ. อนุมัติ','approved':'อนุมัติแล้วใน 7 วันที่ผ่านมา','returned':'ส่งกลับให้แก้','stale':'ต้องส่งอนุมัติใหม่'}
     return templates.TemplateResponse('home_items.html',dict(request=request,title=names.get(status,'รายการอนุมัติ'),items=home['approval'].get(status,[]),updates=[]))
 
+# ชื่อโฟลเดอร์ของ URL ที่ไม่มีหน้าของตัวเอง: ปุ่มย้อนกลับ/ลิงก์หน้าหลักของส่วนเคยพามาที่นี่แล้วขึ้น 404
+@router.get("/account")
+def account_root():
+    return RedirectResponse("/account/profile", status_code=303)
+
+
+@router.get("/me")
+@router.get("/home")
+def personal_root():
+    return RedirectResponse("/", status_code=303)
+
+
 @router.get('/home/letters',response_class=HTMLResponse)
 def home_letters(request:Request,db:Session=Depends(get_db),group:str=''):
     from app.services.home_dashboard import build

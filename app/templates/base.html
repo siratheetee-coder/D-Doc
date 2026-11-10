@@ -99,6 +99,7 @@
           window.SECTION_HOME = "{{ section_home }}";
           window.SECTION_PREFIXES = {{ section_prefixes|tojson }};
           window.IS_SECTION_HOME = {{ 'true' if is_section_home else 'false' }};
+          window.UP_URL = {{ (up_url(path) or '')|tojson }};
           function inSection(pathname){
             return (window.SECTION_PREFIXES || []).some(function(pre){
               return pre === '/' ? true : (pathname === pre || pathname.indexOf(pre + '/') === 0);
@@ -118,9 +119,8 @@
               }
             } catch (e) {}
             // ไม่มีหน้าก่อนในงานเดียวกัน (เปิดตรง/ข้ามงาน) -> ขึ้นหนึ่งระดับตาม URL
-            var p = (location.pathname || "/").replace(/\/+$/, "");
-            var up = p.substring(0, p.lastIndexOf("/"));
-            location.href = up ? up : (window.SECTION_HOME || "/");
+            // หน้าระดับบนที่มีจริง (เซิร์ฟเวอร์หาให้ เดิมตัด URL ตรง ๆ แล้วเจอ /me /home ที่ไม่มีหน้า ขึ้น 404)
+            location.href = window.UP_URL || window.SECTION_HOME || "/";
             return false;
           }
         </script>
