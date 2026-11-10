@@ -60,7 +60,7 @@ def test_teacher_home_and_results_are_personal(env,monkeypatch):
   h=build(s,dict(tid=tid,owner=False,uid=1,person_id=p,mods='academic'))
   assert dict(h['letter_counts'])=={'หนังสือรอรับทราบ':1,'งานรอรายงานผล':1,'งานเลยกำหนด':1}
   s.get(LetterRecipient,rc).ack_at=datetime.now();s.get(LetterRecipient,rc).task.status='done';s.commit()
- page=env.get('/');assert 'ไม่มีหนังสือรอรับทราบหรืองานรอรายงานผล' in page.text
+ page=env.get('/');assert 'ไม่มีงานค้าง' in page.text
 
 def test_unassigned_staff_cannot_read_school_letters(env,monkeypatch):
  import app.main as main
