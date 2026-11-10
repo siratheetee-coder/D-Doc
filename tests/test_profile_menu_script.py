@@ -39,3 +39,27 @@ def test_teacher_personal_home_has_profile_menu_script():
         assert "หน้าหลักของฉัน" in c.get("/").text, "ต้องเป็นหน้าหลักของครูจริง"
     finally:
         db.delete(t); db.commit()
+
+
+def test_teacher_home_shows_plan_status_and_todos():
+    """เจ้าของ: หน้าหลักครูต้องเห็นสถานะแผนเลย ไม่ต้องกดเข้าหน้าแผนการสอนก่อน"""
+    from app.tenancy import session_for
+    from app.models import Person, LessonPlan
+    db = session_for(1)
+    t = Person(name="ทดสอบหน้าหลัก_ครู", position="ครู"); db.add(t); db.commit()
+    try:
+        from app.routers.academic import _acad_year
+        y = _acad_year(db)
+        db.add(LessonPlan(person_id=t.id, year=y, term=1, title="ทดสอบหน้าหลัก_ส่งกลับ", status="revise",
+                          mode="plan", comment="แก้ตัวชี้วัด"))
+        db.add(LessonPlan(person_id=t.id, year=y, term=1, title="ทดสอบหน้าหลัก_ร่าง", status="draft", mode="plan"))
+        db.commit()
+        html = _teacher_client(t.id).get("/").text
+        assert "แผนการสอนของฉัน" in html and "ใบลาและขอไปราชการ" in html
+        assert "ส่งกลับให้แก้" in html and "แก้ตัวชี้วัด" in html
+        assert html.index("แผนถูกส่งกลับให้แก้") < html.index("แผนยังไม่กดส่ง"), "เรื่องด่วนต้องขึ้นก่อน"
+        assert "แผนรอดำเนินการ" in html and "บันทึกหลังสอนค้าง" in html
+    finally:
+        for p in db.query(LessonPlan).filter(LessonPlan.person_id == t.id).all():
+            db.delete(p)
+        db.delete(t); db.commit()

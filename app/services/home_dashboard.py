@@ -53,6 +53,9 @@ def build(db,sess):
             if r.ack_at and r not in tasks:continue
             result['letters'].append(dict(title=r.letter.subject,href=f'/me/letters/{r.id}',tag='เลยกำหนดรายงาน' if r in late else 'รอรายงานผล' if r in tasks else 'รอรับทราบ',note=r.task.instruction if r.task else r.letter.from_org))
         result['letters']=result['letters'][:6]
+        from app.services import teacher_home
+        result['th']=teacher_home.build(db,sess['person_id'],year=result['academic_year'],letters=result['letters'],
+                                        letter_pending=len(pending))
     elif 'admin' in allowed:
         rows=db.query(IncomingLetter).options(selectinload(IncomingLetter.recipients).selectinload(LetterRecipient.task)).all()
         waiting=[r for r in rows if r.route_status=='director']
