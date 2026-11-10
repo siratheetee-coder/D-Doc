@@ -627,7 +627,9 @@ def seed_school(db, *, today: date) -> dict:
     db.add(prog)
     db.flush()
     recv = _d(ce, 5, 20)
-    db.add(m.FinanceTxn(account_id=acc_lunch.id, kind="in", amount=round(prog.budget / 2, 2), date=recv,
+    # รับเท่ากับค่าอาหารทุกวันทำการของภาคเรียนที่ 1 (ครึ่งงบปี = 100 วัน น้อยกว่าวันทำการจริง บัญชีจึงติดลบ)
+    term1_cost = prog.total_students * prog.rate_per_head * sum(1 for _ in _weekdays(t1s.date(), t1e.date()))
+    db.add(m.FinanceTxn(account_id=acc_lunch.id, kind="in", amount=round(max(prog.budget / 2, term1_cost), 2), date=recv,
                         fiscal_year=_fy_of(recv), lunch_year=ay, eb_code="i4.2",
                         note="รับเงินอุดหนุนอาหารกลางวัน ภาคเรียนที่ 1 จาก อบต.", ref="อบต 0002/88"))
     per_day = prog.total_students * prog.rate_per_head

@@ -39,11 +39,12 @@
       <button class="btn sm gray" type="submit" data-no-floating-save>เปลี่ยนชื่อหน่วย</button>
       <span class="muted">รวม {{ g.hours|round(1)|string|replace('.0','') }} ชม.</span>
     </form>
+    <div class="lp-cols"><span class="lp-no">ลำดับ</span><span style="flex:1;">ชื่อแผน</span><span style="width:92px;">เวลาเรียน</span><span style="width:150px;">ไฟล์แผน</span><span class="lp-sp"></span></div>
     {% for r in g.rows %}
     <form method="post" action="/academic/lesson-plans/{{ p.id }}/set/{{ r.id }}/edit" enctype="multipart/form-data" class="lp-row">
       <span class="lp-no">แผนที่ {{ r.seq }}</span>
       <input name="name" value="{{ r.name or '' }}" placeholder="ชื่อแผน" style="flex:1; min-width:160px;" aria-label="ชื่อแผนที่ {{ r.seq }}">
-      <input name="hours" value="{{ (r.hours|string|replace('.0','')) if r.hours else '' }}" placeholder="ชม." inputmode="decimal" style="width:56px;flex:none;" aria-label="ชั่วโมง">
+      <input name="hours" value="{{ (r.hours|string|replace('.0','')) if r.hours else '' }}" placeholder="-" inputmode="decimal" style="width:56px;flex:none;" aria-label="เวลาเรียน (ชั่วโมง)" title="เวลาเรียนของแผนนี้ (ชั่วโมง)"><span class="lp-hr">ชม.</span>
       {% if r.file_blob %}<a href="/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file" target="_blank" rel="noopener" class="lp-file" title="{{ r.file_name }}"><svg class="icon"><use href="#ic-file"/></svg> {{ r.file_name }}</a>{% endif %}
       <label class="btn sm gray lp-pick">เปลี่ยนไฟล์<input type="file" name="file" accept=".docx" hidden onchange="this.form.submit()"></label>
       <button class="btn sm" type="submit" data-no-floating-save>บันทึก</button>
@@ -70,11 +71,12 @@
   </div>
 {% else %}
   <div class="card">
+    {% if units %}<div class="lp-cols"><span class="lp-no">ลำดับ</span><span style="flex:1;">ชื่อหน่วย</span><span style="width:92px;">เวลาเรียน</span><span style="width:214px;">จำนวนแผนในไฟล์</span></div>{% endif %}
     {% for r in units %}
     <form method="post" action="/academic/lesson-plans/{{ p.id }}/set/{{ r.id }}/edit" enctype="multipart/form-data" class="lp-row lp-row2">
       <span class="lp-no">หน่วยที่ {{ r.seq }}</span>
       <input name="name" value="{{ r.name or '' }}" placeholder="ชื่อหน่วย" style="flex:1; min-width:160px;" aria-label="ชื่อหน่วยที่ {{ r.seq }}">
-      <input name="hours" value="{{ (r.hours|string|replace('.0','')) if r.hours else '' }}" placeholder="ชม." inputmode="decimal" style="width:56px;flex:none;" aria-label="ชั่วโมง">
+      <input name="hours" value="{{ (r.hours|string|replace('.0','')) if r.hours else '' }}" placeholder="-" inputmode="decimal" style="width:56px;flex:none;" aria-label="เวลาเรียน (ชั่วโมง)" title="เวลาเรียนของแผนนี้ (ชั่วโมง)"><span class="lp-hr">ชม.</span>
       <span class="lp-cnt">มี <input name="plan_count" value="{{ r.plan_count or '' }}" inputmode="numeric" style="width:54px;" aria-label="จำนวนแผน"> แผน</span>
       <span class="muted lp-range">{{ ls.range_text(ranges.get(r.id)) }}</span>
       <span class="lp-acts">{% if r.file_blob %}<a href="/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file" target="_blank" rel="noopener" class="lp-file" title="{{ r.file_name }}"><svg class="icon"><use href="#ic-file"/></svg> {{ r.file_name }}</a>
@@ -196,6 +198,11 @@
   .lp-row input[name=name]{flex:1 1 auto;min-width:0;width:auto}
   .lp-row .btn,.lp-row .lp-no{flex:none}
   .lp-row2{flex-wrap:wrap}
+  .lp-cols{display:flex;gap:8px;font-size:12px;color:#94a3b8;font-weight:600;padding:6px 0 2px}
+  .lp-cols .lp-no{min-width:64px}
+  .lp-sp{width:217px;flex:none}
+  @media (max-width:760px){.lp-cols{display:none}}
+  .lp-hr{font-size:12.5px;color:#64748b;margin-left:-4px;flex:none;width:28px}
   .lp-acts{flex-basis:100%;display:flex;gap:8px;align-items:center;justify-content:flex-end;padding-left:72px}
   .lp-acts .lp-file{margin-right:auto;width:auto;max-width:260px}
   @media (max-width:760px){.lp-row{flex-wrap:wrap}.lp-file{width:auto;max-width:100%}}

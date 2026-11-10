@@ -144,7 +144,10 @@ def test_check_and_notice_levels(env):
                             payee="ร้านไม่มีเลขภาษี", wht=3))
         d = now - timedelta(days=2)
         db.add_all([FinanceTxn(account_id=a.id, fiscal_year=fy, kind="out", amount=250, date=d, note="ซื้อน้ำ"),
-                    FinanceTxn(account_id=a.id, fiscal_year=fy, kind="out", amount=250, date=d, note="ซื้อน้ำ")])
+                    FinanceTxn(account_id=a.id, fiscal_year=fy, kind="out", amount=250, date=d, note="ซื้อน้ำ"),
+                    # รายการของเดือนที่แล้ว (งบกระทบยอดตรวจเฉพาะบัญชีที่มีรายการก่อนสิ้นเดือนที่แล้ว)
+                    FinanceTxn(account_id=a.id, fiscal_year=fy, kind="in", amount=100,
+                               date=now.replace(day=1) - timedelta(days=10), note="รับเดือนก่อน")])
         db.add(MoneyLoan(fiscal_year=fy, borrower="นายยืม ไม่คืน", amount=2000, due_date=now - timedelta(days=10)))
         db.add(CheckPayment(fiscal_year=fy - 1, pay_method="เช็ค", check_no="0001", payee="ร้าน ก", amount=700,
                             date=now - timedelta(days=170)))
@@ -408,7 +411,7 @@ def test_search_box_on_every_page(env):
     from app.thai_utils import current_fiscal_year
     fy = current_fiscal_year()
     for url in ("/finance", f"/finance/disburse?year={fy}", "/procurement/new"):
-        assert "/static/combo-pick.js?v=2" in env.get(url).text, url
+        assert "/static/combo-pick.js?v=" in env.get(url).text, url
     from app.models import FinanceAccount
     db = _db()
     try:

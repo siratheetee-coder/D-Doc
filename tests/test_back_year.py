@@ -52,24 +52,31 @@ def test_options_ignore_empty_years():
 def fresh_school():
     """โรงเรียนเปล่า ไม่มีข้อมูลสักรายการ เหมือนเพิ่งสมัครใช้"""
     tmp = pathlib.Path(tempfile.mkdtemp())
+    saved = []                      # คืนค่าเดิมทุกตัวหลังจบไฟล์ ไม่งั้นเทสต์ไฟล์อื่นได้ปีงบปลอมไปด้วย
+
+    def put(obj, name, val):
+        saved.append((obj, name, getattr(obj, name, None)))
+        setattr(obj, name, val)
     import app.accounts as ac
     import app.database as dbm
     import app.tenancy as tn
     for m in (dbm, tn, ac):
-        m.get_data_dir = lambda t=tmp: t
+        put(m, "get_data_dir", lambda t=tmp: t)
+    old_engines = dict(tn._engines)
     tn._engines.clear()
-    ac._engine = ac._Session = None
+    put(ac, "_engine", None)
+    put(ac, "_Session", None)
 
     import app.main as main_mod
     import app.routers.auth as auth_mod
-    auth_mod.authenticate = lambda u, p: {
+    put(auth_mod, "authenticate", lambda u, p: {
         "uid": 1, "username": "t", "role": "owner", "tenant_id": 1,
-        "display_name": "x", "must_change": False}
-    main_mod.can_use_module = lambda tid, mod: True
-    main_mod.get_account_access = lambda uid: {
-        "is_owner": True, "modules": "", "active": True, "welcomed": True}
-    main_mod.tenant_state = lambda tid: {"name": "ใหม่", "active": True,
-                                         "expired": False, "expiry_date": None}
+        "display_name": "x", "must_change": False})
+    put(main_mod, "can_use_module", lambda tid, mod: True)
+    put(main_mod, "get_account_access", lambda uid: {
+        "is_owner": True, "modules": "", "active": True, "welcomed": True})
+    put(main_mod, "tenant_state", lambda tid: {"name": "ใหม่", "active": True,
+                                         "expired": False, "expiry_date": None})
 
     from app.models import School
     from app.tenancy import session_for
@@ -80,7 +87,7 @@ def fresh_school():
     db.close()
 
     import app.thai_utils as tu
-    tu.current_fiscal_year = lambda *a, **k: CUR
+    put(tu, "current_fiscal_year", lambda *a, **k: CUR)
     for mod in ("app.routers.pages", "app.routers.finance", "app.routers.admin",
                 "app.routers.general", "app.routers.hr", "app.routers.project_report"):
         try:
@@ -88,13 +95,17 @@ def fresh_school():
         except Exception:
             continue
         if hasattr(m, "current_fiscal_year"):
-            m.current_fiscal_year = lambda *a, **k: CUR
+            put(m, "current_fiscal_year", lambda *a, **k: CUR)
 
     from fastapi.testclient import TestClient
     from app.main import app
     c = TestClient(app, raise_server_exceptions=False)
     c.post("/login", data={"username": "t", "password": "x"}, follow_redirects=False)
-    return c
+    yield c
+    for obj, name, val in reversed(saved):
+        setattr(obj, name, val)
+    tn._engines.clear()
+    tn._engines.update(old_engines)
 
 
 def _year_options(html):

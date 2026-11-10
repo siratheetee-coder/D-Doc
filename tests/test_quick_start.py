@@ -55,7 +55,8 @@ def test_page_hub_card_and_progress(env):
     first = re.search(r'id="next".*?<a class="btn sm ?" href="([^"]+)"', html, re.S)
     assert first, "มีขั้นถัดไปพร้อมปุ่ม"
     hub = env.get("/").text
-    assert 'href="/start"' in hub and "เริ่มต้นใช้งานใน 10 นาที" in hub
+    # หน้าหลักแบบใหม่เป็นการ์ด "ตั้งค่าระบบแล้ว n/m ขั้น" ปุ่มพาไปหน้าเริ่มต้นใช้งาน
+    assert 'href="/start"' in hub and "ตั้งค่าระบบแล้ว" in hub
     # ทำขั้นบุคลากรแล้ว ระบบติ๊กให้เอง
     from app.models import Person
     db = _db()

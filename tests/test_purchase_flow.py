@@ -123,9 +123,13 @@ class PurchaseFlowTests(unittest.TestCase):
             account.verified = False; account.verify_token = 'existing-token'
             password_hash = account.password_hash
             db.commit()
-        page = self.client.post('/register', data={'email':'owner1@example.test',
-            'password':'another-password1', 'school_name':'Different school', 'next':'checkout',
-            'packages':MODULE_LABELS[self.key], 'accept_policy':'1'})
+        # ตัวกรองอีเมลจริงบล็อกโดเมน .test เทสต์นี้ตรวจเรื่องสมัครซ้ำ จึงข้ามตัวกรองนั้น
+        from unittest import mock
+        with mock.patch('app.services.signup_guard.email_problem', return_value=None), \
+                mock.patch('app.services.signup_guard.throttle', return_value=0):
+            page = self.client.post('/register', data={'email':'owner1@example.test',
+                'password':'another-password1', 'school_name':'Different school', 'next':'checkout',
+                'packages':MODULE_LABELS[self.key], 'accept_policy':'1'})
         self.assertEqual(page.status_code, 200)
         self.assertTrue(page.context['pending'])
         with self.Session() as db:

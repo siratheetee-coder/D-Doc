@@ -148,9 +148,12 @@ def test_project_page_shows_it_and_does_not_call_it_waiting_to_be_paid(client, w
     _fresh(world, world["sport"]).spent_before = 8000; s.commit()
     try:
         html = client.get(f"/projects/{world['sport']}").text
-        assert "รวมใช้ไปก่อนเริ่มใช้ระบบ 8,000.00" in html
-        assert "จ่ายจริงตามทะเบียนคุมเงิน 1,000.00" in html, "บรรทัดนี้ต้องขึ้น ไม่งั้นเทสต์ไม่ได้ทดสอบอะไร"
-        assert "ทำเรื่องแล้วรอจ่าย" not in html
+        import re
+        text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html))
+        # หน้าโครงการเปลี่ยนเป็นกล่องตัวเลข: ยอดตั้งต้นขึ้นในสูตรใต้กล่อง จ่ายจริงขึ้นในกล่องของมันเอง
+        assert "ใช้ไปก่อนเริ่มใช้ระบบ 8,000.00" in text
+        assert "จ่ายจริงในระบบ 1,000.00" in text, "กล่องนี้ต้องขึ้น ไม่งั้นเทสต์ไม่ได้ทดสอบอะไร"
+        assert "ทำเรื่องแล้วรอจ่าย 0.00" in text, "ยอดตั้งต้นห้ามนับเป็นรอจ่าย"
     finally:
         s.query(FinanceTxn).filter_by(account_id=acc.id).delete()
         s.query(FinanceAccount).filter_by(id=acc.id).delete()
