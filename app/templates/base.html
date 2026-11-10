@@ -42,7 +42,8 @@
         {% if personal_home %}
         <a href="/" class="{{ 'active' if path == '/' }}"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลักของฉัน</a>
         <a href="/me/letters"><svg class="icon"><use href="#ic-file"/></svg> หนังสือถึงฉัน</a>
-        {% if can_use(request.session.get('tid'),'academic') and 'academic' in (request.session.get('mods') or '').split(',') %}<a href="/academic"><svg class="icon"><use href="#ic-clipboard"/></svg> งานวิชาการของฉัน</a>{% endif %}
+        {% if can_use(request.session.get('tid'),'academic') and 'academic' in (request.session.get('mods') or '').split(',') %}<a href="/academic"><svg class="icon"><use href="#ic-clipboard"/></svg> งานวิชาการของฉัน</a>
+        <a href="/academic/lesson-plans"><svg class="icon"><use href="#ic-file-plus"/></svg> ส่งแผนการสอน</a>{% endif %}
         <a href="/me/leave"><svg class="icon"><use href="#ic-calendar"/></svg> ส่งใบลา</a>
         <a href="/me/travel"><svg class="icon"><use href="#ic-send"/></svg> ขอไปราชการ</a>
         <a href="/system-updates"><svg class="icon"><use href="#ic-info"/></svg> อัปเดตระบบ</a>
