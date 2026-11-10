@@ -33,11 +33,32 @@ def setup_steps(db, fy, school=None, *, selected_plan_year=None) -> dict:
     items = db.query(AccountItem).filter_by(fiscal_year=fy).all()
     item_acc = sorted({i.account_id for i in items})
     first_acc = item_acc[0] if item_acc else (accounts[0].id if accounts else None)
-    has_money = (any((i.opening_balance or 0) > 0 for i in items)
-                 or db.query(FinanceTxn.id).filter(FinanceTxn.fiscal_year == fy,
-                                                   FinanceTxn.item_id.isnot(None)).first() is not None)
-    saved_openings = {r.account_id for r in db.query(AccountOpening).filter_by(fiscal_year=fy)}
-    has_money = has_money or bool(item_acc) and all(aid in saved_openings for aid in item_acc)
+    # ข้อ 3 เสร็จเมื่อทุกบัญชีที่มีหมวด แบ่งยอดยกมาเข้าหมวดครบเท่ายอดของบัญชี
+    # (ครูเจอกล่องเตือน "ยอดยกมาทุกหมวดยังเป็น 0" ทั้งที่กรอกยอดบัญชีแล้ว ไม่รู้ว่าติดตรงไหน)
+    from app.services.asset_utils import opening_for
+    acc_by_id = {a.id: a for a in accounts}
+    short = []   # (บัญชี, ยอดยกมา, แบ่งแล้ว)
+    for aid in item_acc:
+        a = acc_by_id.get(aid)
+        if not a:
+            continue
+        total = round(opening_for(a, fy), 2)
+        split = round(sum((i.opening_balance or 0) for i in items if i.account_id == aid), 2)
+        if abs(total - split) >= 0.01:
+            short.append((a, total, split))
+    split_done = not short and bool(accounts)
+    if short:
+        a0 = short[0][0]
+        split_href = f"/finance/accounts/{a0.id}?year={fy}"
+        split_detail = "\n".join(
+            f"บัญชี{a.name} ยกมา {t:,.2f} แบ่งเข้าหมวดแล้ว {sp:,.2f} ยังไม่แบ่ง {t - sp:,.2f}"
+            for a, t, sp in short[:3])
+        if len(short) > 3:
+            split_detail += f"\nและอีก {len(short) - 3} บัญชี"
+    elif items:
+        split_href, split_detail = f"/finance/accounts/{first_acc}?year={fy}", "แบ่งยอดยกมาเข้าหมวดครบทุกบัญชีแล้ว"
+    else:
+        split_href, split_detail = "/finance/accounts", ("ไม่ได้แยกหมวด ไม่ต้องทำข้อนี้" if accounts else "สร้างบัญชีก่อน")
     plans = (_plans_for(db, fy) if selected_plan_year is None else
              db.query(PlanBudget).filter_by(year=selected_plan_year).all())
     plan_year = selected_plan_year if selected_plan_year is not None else (plans[0].year if plans else current_plan_year(school))
@@ -49,16 +70,13 @@ def setup_steps(db, fy, school=None, *, selected_plan_year=None) -> dict:
              detail=(f"มี {len(accounts)} บัญชี" if accounts
                      else "เช่น เงินอุดหนุนทั่วไป เงินรายได้สถานศึกษา แยกตามบัญชีที่โรงเรียนมีจริง"),
              href="/finance/accounts", cta="สร้างบัญชี"),
-        dict(title="แยกหมวดในบัญชี", done=bool(items),
+        dict(title="แยกหมวดในบัญชี (ข้ามได้)", done=bool(items),
              detail=(f"มี {len(items)} หมวดในปีงบ {fy}" if items
-                     else "เช่น เงินอุดหนุนแยกเป็น ค่าจัดการเรียนการสอน ค่ากิจกรรมพัฒนาผู้เรียน "
-                          "มีปุ่มเพิ่มหมวดมาตรฐานให้ในหน้าบัญชี"),
+                     else "ถ้าตั้งบัญชีแยกประเภทเงินแล้ว ไม่ต้องแยกหมวดก็ได้ กดข้ามได้ "
+                          "ถ้าเงินหลายประเภทอยู่บัญชีเดียว ค่อยแยกหมวด มีปุ่มเพิ่มหมวดมาตรฐานให้ในหน้าบัญชี"),
              href=acc_href, cta="เพิ่มหมวด"),
-        dict(title="กรอกยอดยกมาแยกหมวด", done=has_money,
-             detail=("ระบบรู้แล้วว่าแต่ละหมวดมีเงินเท่าไร" if has_money
-                     else f"ตอนนี้ยอดยกมาทุกหมวดของปีงบ {fy} ยังเป็น 0 กรอกเงินที่เหลือของแต่ละหมวด "
-                          "เช่น ค่ากิจกรรม 50,000 ค่าจัดการเรียนการสอน 80,000"),
-             href=acc_href, cta="กรอกยอดยกมา"),
+        dict(title="แบ่งยอดยกมาเข้าหมวด", done=split_done,
+             detail=split_detail, href=split_href, cta="แบ่งยอดยกมา"),
         dict(title="เพิ่มโครงการพร้อมงบ", done=bool(n_projects),
              detail=(f"แผน {plan_year} มี {n_projects} โครงการ" if n_projects
                      else f"ยังไม่มีโครงการในแผน {plan_year} เพิ่มโครงการพร้อมงบ หรือนำเข้าจาก Excel"),

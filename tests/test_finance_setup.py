@@ -31,16 +31,16 @@ def test_checklist_walks_through_the_steps_in_order(env):
     assert html.count('class="fs-step is-next"') == 1, "ขั้นถัดไปต้องมีขั้นเดียว"
 
     with tn.session_for(sid) as s:
-        a = FinanceAccount(name='เงินอุดหนุน'); s.add(a); s.commit(); aid = a.id
+        a = FinanceAccount(name='เงินอุดหนุน', opening_balance=50000); s.add(a); s.commit(); aid = a.id
     html = page()
-    assert _next_step(html) == (2, 'แยกหมวดในบัญชี') and f'href="/finance/accounts/{aid}?year={FY}"' in html
+    assert _next_step(html) == (2, 'แยกหมวดในบัญชี (ข้ามได้)') and f'href="/finance/accounts/{aid}?year={FY}"' in html
 
     with tn.session_for(sid) as s:
         it = AccountItem(account_id=aid, fiscal_year=FY, name='กิจกรรม', opening_balance=0); s.add(it); s.commit()
         iid = it.id
     html = page()
-    assert _next_step(html) == (3, 'กรอกยอดยกมาแยกหมวด')
-    assert f'ยอดยกมาทุกหมวดของปีงบ {FY} ยังเป็น 0' in html, "ต้องบอกตรง ๆ ว่าทำไมยังไม่ผ่าน"
+    assert _next_step(html) == (3, 'แบ่งยอดยกมาเข้าหมวด')
+    assert 'บัญชีเงินอุดหนุน ยกมา 50,000.00 แบ่งเข้าหมวดแล้ว 0.00 ยังไม่แบ่ง 50,000.00' in html, "ต้องบอกตรง ๆ ว่าบัญชีไหนขาดเท่าไร"
 
     with tn.session_for(sid) as s:
         s.get(AccountItem, iid).opening_balance = 50000; s.commit()
