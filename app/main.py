@@ -37,7 +37,8 @@ from app.routers import (pages, admin, finance, lunch, auth, superadmin, account
 SESSION_TTL_DEFAULT = 60 * 60 * 12          # ไม่ติ๊ก "จดจำฉันไว้" = 12 ชั่วโมง (เท่าเดิม)
 SESSION_TTL_REMEMBER = 60 * 60 * 24 * 30    # ติ๊กแล้ว = 30 วัน
 
-app = FastAPI(title="Easy Ekkasan : ระบบจัดการเอกสารและพัสดุโรงเรียน")
+# ปิดหน้าเอกสาร API (/docs /redoc /openapi.json) ผู้ใช้โรงเรียนไม่ต้องเห็นโครงสร้างระบบ
+app = FastAPI(title="Easy Ekkasan : ระบบจัดการเอกสารและพัสดุโรงเรียน", docs_url=None, redoc_url=None, openapi_url=None)
 
 # เตรียมฐานข้อมูลกลาง + superadmin + ย้ายข้อมูลเดิม (ถ้ามี)
 bootstrap()
@@ -247,6 +248,16 @@ async def tenant_auth(request: Request, call_next):
         if mod not in parse_modules(acc["modules"]):
             return templates.TemplateResponse("module_denied.html", {
                 "request": request, "module_label": MODULE_LABELS.get(mod, ""),
+            }, status_code=403)
+
+    # หน้าส่วนกลาง (ผู้ขาย เลขหนังสือ โครงการ นักเรียน ตั้งค่า สำรองข้อมูล ฯลฯ) ไม่อยู่ในงานไหน
+    # ด่านงานข้างบนจึงไม่ครอบ เดิมไอดีครูเปิดได้หมด (เจ้าของเจอ) กันที่นี่จุดเดียวทั้ง GET และ POST
+    if not sess.get("role") == "superadmin":
+        from app.services.access import denied as _shared_denied
+        _why = _shared_denied(path, acc)
+        if _why:
+            return templates.TemplateResponse("module_denied.html", {
+                "request": request, "module_label": "", "reason": _why,
             }, status_code=403)
 
     # ผอ. = อ่านอย่างเดียว: ปฏิเสธการแก้ไข (POST/PUT/PATCH/DELETE) ยกเว้นงานอนุมัติ/นิเทศ
