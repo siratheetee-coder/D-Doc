@@ -167,5 +167,5 @@ if(split)split.addEventListener('click',()=>{document.getElementById('target1').
 ['target1','target2'].forEach(id=>document.getElementById(id)?.addEventListener('input',targetNote));targetNote();
 </script>
 <script id="lessonConfig" type="application/json">{{ {'months':months,'month':month,'events':calendar_events,'entered':entered,'days':day_info,'term':term,'students':students|length,'pattern':pattern}|tojson }}</script>
-<script src="/static/academic_lessons_grid.js?v=6"></script>
+<script src="/static/academic_lessons_grid.js?v=7"></script>
 {% endblock %}
