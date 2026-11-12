@@ -99,8 +99,15 @@
     .lpc{position:relative;display:flex;gap:16px;align-items:stretch;background:#fff;border-radius:16px;padding:14px 16px 14px 20px;
          box-shadow:0 1px 3px rgba(15,23,42,.06),0 6px 18px rgba(15,23,42,.05);overflow:hidden}
     .lpc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--lpc,#94a3b8)}
-    .lpc-ic{flex:none;width:72px;height:72px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:var(--lpb)}
-    .lpc-ic .icon{width:34px;height:34px;color:var(--lpi)}
+    .lpc-ic{flex:none;width:72px;height:72px;border-radius:17px;object-fit:cover;box-shadow:0 4px 12px rgba(15,23,42,.12)}
+    .lpc-steps{display:flex;margin-top:10px;max-width:520px}
+    .lpc-steps>div{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;color:#94a3b8;text-align:center}
+    .lpc-steps>div:not(:first-child)::before{content:"";position:absolute;top:11px;right:50%;width:100%;height:3px;background:#e2e8f0;z-index:0}
+    .lpc-steps i{font-style:normal;width:24px;height:24px;border-radius:50%;background:#e2e8f0;color:#64748b;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;position:relative;z-index:1}
+    .lpc-steps .done{color:#166534}.lpc-steps .done i{background:linear-gradient(135deg,#4ade80,#16a34a);color:#fff}
+    .lpc-steps .done::before,.lpc-steps .now::before{background:#86efac!important}
+    .lpc-steps .now{color:#b45309;font-weight:700}.lpc-steps .now i{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;box-shadow:0 0 0 4px #fef3c7}
+    .lpc-steps.rv .now{color:#b91c1c}.lpc-steps.rv .now i{background:linear-gradient(135deg,#f87171,#dc2626);box-shadow:0 0 0 4px #fee2e2}
     .lpc-main{flex:1;min-width:0}
     .lpc-t{font-size:17px;font-weight:800;color:#1e3a8a;text-decoration:none;display:block;line-height:1.3}
     .lpc-t:hover{text-decoration:underline}
@@ -111,7 +118,7 @@
     .lpc-pill{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13.5px;padding:6px 12px;border-radius:999px;width:fit-content}
     .lpc-pill .icon{width:15px;height:15px}
     .lpc-side{flex:none;width:220px;display:flex;flex-direction:column;justify-content:center;gap:2px;padding-left:16px;border-left:1px solid #eef2f7;font-size:13.5px}
-    @media (max-width:980px){.lpc{flex-wrap:wrap}.lpc-ic{width:54px;height:54px}.lpc-ic .icon{width:26px;height:26px}
+    @media (max-width:980px){.lpc{flex-wrap:wrap}.lpc-ic{width:54px;height:54px;border-radius:14px}
       .lpc-main{flex-basis:calc(100% - 70px)}.lpc-st,.lpc-side{width:auto;flex:1 1 200px;border-left:0;padding-left:0;border-top:1px solid #eef2f7;padding-top:10px}.lpc-st{flex-direction:row;align-items:center;justify-content:space-between}}
   </style>
     {% set ns = namespace(term=-1) %}
@@ -122,17 +129,9 @@
       {% endif %}
       {% set st = {'draft':('ร่าง ยังไม่ส่ง','#f1f5f9','#475569','edit','#94a3b8'), 'pending':('รอวิชาการตรวจ','#fef3c7','#92400e','clock','#f59e0b'), 'revise':('ให้แก้ไข','#fee2e2','#b91c1c','alert','#ef4444'), 'director':('รอ ผอ. ลงนาม','#dbeafe','#1e40af','clock','#3b82f6'), 'approved':('อนุมัติแล้ว','#dcfce7','#166534','check','#22c55e'), 'reviewed':('ตรวจแล้ว','#dcfce7','#166534','check','#22c55e')}.get(p.status, ('รอวิชาการตรวจ','#fef3c7','#92400e','clock','#f59e0b')) %}
       {% set t = p.title or '' %}
-      {% if 'ไทย' in t %}{% set sj = ('book','#ffe4e6','#e11d48') %}
-      {% elif 'คณิต' in t %}{% set sj = ('calc','#dcfce7','#16a34a') %}
-      {% elif 'วิทย' in t %}{% set sj = ('flask','#dbeafe','#2563eb') %}
-      {% elif 'อังกฤษ' in t or 'ภาษาต่าง' in t %}{% set sj = ('globe','#ede9fe','#7c3aed') %}
-      {% elif 'สังคม' in t or 'ประวัติ' in t %}{% set sj = ('users','#fef3c7','#d97706') %}
-      {% elif 'สุข' in t or 'พล' in t %}{% set sj = ('heart','#cffafe','#0891b2') %}
-      {% elif 'ศิลป' in t or 'ดนตรี' in t %}{% set sj = ('palette','#fce7f3','#db2777') %}
-      {% elif 'การงาน' in t or 'เทคโน' in t or 'คอม' in t %}{% set sj = ('tool','#ffedd5','#ea580c') %}
-      {% else %}{% set sj = ('book','#e0e7ff','#4f46e5') %}{% endif %}
+      {% set sj = 'thai' if 'ไทย' in t else 'math' if 'คณิต' in t else 'computer' if ('คำนวณ' in t or 'คอม' in t or 'เทคโน' in t) else 'science' if 'วิทย' in t else 'english' if 'อังกฤษ' in t else 'chinese' if 'จีน' in t else 'history' if 'ประวัติ' in t else 'social' if 'สังคม' in t else 'pe' if 'พล' in t else 'health' if 'สุข' in t else 'music' if 'ดนตรี' in t else 'dance' if 'นาฏ' in t else 'art' if 'ศิลป' in t else 'career' if 'การงาน' in t else 'guidance' if 'แนะแนว' in t else 'thai' %}
       <div class="lpc" style="--lpc:{{ st[4] }};">
-        <div class="lpc-ic" style="--lpb:{{ sj[1] }};--lpi:{{ sj[2] }};"><svg class="icon"><use href="#ic-{{ sj[0] }}"/></svg></div>
+        <img class="lpc-ic" src="/static/images/subjects/{{ sj }}.png" alt="" loading="lazy">
         <div class="lpc-main">
           <a class="lpc-t" href="/academic/lesson-plans/{{ p.id }}/units">{{ p.title }}</a>
           <div class="lpc-meta">
@@ -140,6 +139,10 @@
             <span>{{ 'แบบทีละแผน' if p.mode == 'plan' else 'แบบทั้งหน่วย' }}{% if p.units_rows %} {{ p.units_rows|length }} {{ 'แผน' if p.mode == 'plan' else 'หน่วย' }}{% endif %}</span>
             {% if p.note %}<span>{{ p.note }}</span>{% endif %}
           </div>
+          {% if not is_reviewer %}{% set k = {'draft':0,'revise':0,'pending':1,'director':2,'reviewed':2,'approved':3}.get(p.status,1) %}
+          <div class="lpc-steps{% if p.status == 'revise' %} rv{% endif %}">
+            {% for lb in ['ส่งแผน','วิชาการตรวจ','ผอ. ลงนาม','อนุมัติ'] %}<div class="{{ 'done' if loop.index0 < k or k == 3 else 'now' if loop.index0 == k else '' }}"><i>{{ '✓' if loop.index0 < k or k == 3 else loop.index }}</i><span>{{ 'แก้แล้วส่งใหม่' if p.status == 'revise' and loop.index0 == 0 else lb }}</span></div>{% endfor %}
+          </div>{% endif %}
           <div class="lpc-acts">
           <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}"><svg class="icon"><use href="#ic-eye"/></svg> ดู</a>
           {% if p.units_rows and (p.mode == 'plan' or p.units_rows|length > 1) %}<a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}#plan-files"><svg class="icon"><use href="#ic-file"/></svg> {{ 'ไฟล์แผน' if p.mode == 'plan' else 'ไฟล์หน่วย' }} ({{ p.units_rows|length }})</a>{% elif p.file_blob %}<a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์</a>{% elif p.link %}<a class="btn sm gray" href="{{ p.link }}" target="_blank" rel="noopener">เปิดลิงก์ ↗</a>{% endif %}
