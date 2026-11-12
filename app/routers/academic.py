@@ -1064,13 +1064,13 @@ def lesson_plan_review(request: Request, plan_id: int, db: Session = Depends(get
             res = "ผ่าน (ส่งต่อ ผอ.)"
         from app.services.nav import create_notice
         create_notice(db, p.person_id, f"ผลตรวจแผนการสอน: {res}",
-                      reason=f"{p.title}" + (f" · {p.comment}" if p.comment else ""),
+                      reason=f"{p.title}" + (f": {p.comment}" if p.comment else ""),
                       link="/academic/lesson-plans",
                       level=("info" if p.status != "revise" else "warn"))
         # แจ้ง ผอ./รองผอ. เมื่อผ่านวิชาการ (กระดิ่ง)
         if p.status == "director":
             _notify_directors(db, "แผนการสอนรอลงนาม",
-                              f"{(p.teacher.name if p.teacher else '')} · {p.title}",
+                              f"{(p.teacher.name if p.teacher else '')}: {p.title}",
                               "/approvals")
         db.commit()
         teacher = db.get(Person, p.person_id)
@@ -1132,7 +1132,7 @@ def lesson_plan_approve(request: Request, plan_id: int, db: Session = Depends(ge
         res = "อนุมัติแล้ว (ลงนาม)"
     from app.services.nav import create_notice
     create_notice(db, p.person_id, f"แผนการสอน: {res}",
-                  reason=f"{p.title}" + (f" · {p.director_comment}" if p.director_comment else ""),
+                  reason=f"{p.title}" + (f": {p.director_comment}" if p.director_comment else ""),
                   link="/academic/lesson-plans",
                   level=("info" if p.status == "approved" else "warn"))
     db.commit()
