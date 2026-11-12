@@ -41,7 +41,7 @@ if [ "$MODE" = "copy" ]; then
     mkdir -p "$d/merged"
     cp "$DATA/$rel" "$d/merged/db"
     cp "$wal" "$d/merged/db-wal"
-    sqlite3 "$d/merged/db" "PRAGMA wal_checkpoint(TRUNCATE);" >/dev/null
+    sqlite3 "$d/merged/db" "PRAGMA wal_checkpoint(TRUNCATE);" >/dev/null 2>&1 || true
     sqlite3 "$d/merged/db" "PRAGMA integrity_check;" > "$d/merged/integrity.txt" || true
     chk=$(head -1 "$d/merged/integrity.txt")
     [ "$chk" = "ok" ] || chk="เสีย $(wc -l < "$d/merged/integrity.txt") บรรทัด ดู $d/merged/integrity.txt"
