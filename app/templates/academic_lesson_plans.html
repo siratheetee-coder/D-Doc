@@ -115,7 +115,7 @@
         <td data-label="เรื่อง" style="min-width:170px;"><a href="/academic/lesson-plans/{{ p.id }}/units">{{ p.title }}</a>{% if p.note %}<div class="muted" style="font-size:12px;">{{ p.note }}</div>{% endif %}
           <div class="lp-acts2">
           <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}">ดู</a>
-          {% if p.mode == 'plan' and p.units_rows %}<a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}#plan-files"><svg class="icon"><use href="#ic-file"/></svg> ไฟล์แผน ({{ p.units_rows|length }})</a>{% elif p.file_blob %}<a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์</a>{% elif p.link %}<a class="btn sm gray" href="{{ p.link }}" target="_blank" rel="noopener">เปิดลิงก์ ↗</a>{% endif %}
+          {% if p.units_rows and (p.mode == 'plan' or p.units_rows|length > 1) %}<a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}#plan-files"><svg class="icon"><use href="#ic-file"/></svg> {{ 'ไฟล์แผน' if p.mode == 'plan' else 'ไฟล์หน่วย' }} ({{ p.units_rows|length }})</a>{% elif p.file_blob %}<a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์</a>{% elif p.link %}<a class="btn sm gray" href="{{ p.link }}" target="_blank" rel="noopener">เปิดลิงก์ ↗</a>{% endif %}
           <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/memo">บันทึกเสนอ</a>
           <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/units">{{ 'เพิ่มหน่วย/แผน' if p.status in ('draft','revise') and p.person_id == my_pid else 'ชุดแผน/บันทึกหลังสอน' }}</a>
           <form method="post" action="/academic/lesson-plans/{{ p.id }}/delete" style="margin:0; display:inline;"
@@ -125,7 +125,7 @@
         <td data-label="สถานะ"><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span>
           <div class="muted" style="font-size:12px; margin-top:4px; white-space:nowrap;">ส่ง {{ be_date(p.submitted_at) }}</div></td>
         <td data-label="{{ 'ตรวจ' if is_reviewer else 'ความเห็น' }}" class="stack-full">
-          {% if is_reviewer and p.status in ('pending','revise') %}
+          {% if is_reviewer and p.status == 'pending' %}
           <form method="post" action="/academic/lesson-plans/{{ p.id }}/review" class="lp-rv">
             <input name="comment" value="{{ p.comment or '' }}" placeholder="ความเห็น (ไม่บังคับ)">
             <button class="btn sm green" type="submit" name="status" value="reviewed"

@@ -18,8 +18,8 @@
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <a class="btn green" href="/academic/lesson-plans/{{ p.id }}/memo">
       <svg class="icon"><use href="#ic-download"/></svg> บันทึกอนุมัติฉบับสมบูรณ์</a>
-    {% if p.mode == 'plan' and p.units_rows %}<a class="btn" href="#plan-files">
-      <svg class="icon"><use href="#ic-file"/></svg> ไฟล์แผน ({{ p.units_rows|length }})</a>
+    {% if p.units_rows and (p.mode == 'plan' or p.units_rows|length > 1) %}<a class="btn" href="#plan-files">
+      <svg class="icon"><use href="#ic-file"/></svg> {{ 'ไฟล์แผน' if p.mode == 'plan' else 'ไฟล์หน่วย' }} ({{ p.units_rows|length }})</a>
     {% elif p.file_blob %}<a class="btn" href="/academic/lesson-plans/{{ p.id }}/file" target="_blank" rel="noopener">
       <svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์แผน</a>{% endif %}
   </div>
@@ -43,6 +43,20 @@
         {% endfor %}
       </div>
       {% endfor %}
+    {% endif %}
+    {% if p.mode != 'plan' and p.units_rows|length > 1 %}
+      <p class="muted" style="font-size:13px; margin:0 0 8px;">{{ p.units_rows|length }} หน่วย กดชื่อหน่วยเพื่อเปิดไฟล์</p>
+      {% set ns = namespace(n=0) %}
+      <div class="pf-unit">
+      {% for r in p.units_rows|sort(attribute='seq') %}
+        {% set a = ns.n + 1 %}{% set ns.n = ns.n + (r.plan_count or 0) %}
+        {% if r.file_blob %}<a class="pf-row" href="/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file" target="_blank" rel="noopener">
+          <svg class="icon"><use href="#ic-file"/></svg><b>หน่วยที่ {{ r.seq }}</b><span>{{ r.name or r.file_name }}{% if r.plan_count %} (แผนที่ {{ a }} ถึง {{ ns.n }}){% endif %}</span></a>
+        {% else %}<div class="pf-row muted"><b>หน่วยที่ {{ r.seq }}</b><span>{{ r.name or '-' }} (ไม่มีไฟล์)</span></div>{% endif %}
+      {% endfor %}
+      </div>
+    {% endif %}
+    {% if (p.mode == 'plan' and p.units_rows) or (p.mode != 'plan' and p.units_rows|length > 1) %}
       <style>
         .pf-unit{background:#f8fafc;border-radius:12px;padding:10px 12px;margin-bottom:8px}
         .pf-uh{font-weight:700;font-size:13.5px;color:#334155;margin-bottom:4px}
@@ -51,6 +65,8 @@
         .pf-row b{white-space:nowrap;flex:none}
         .pf-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       </style>
+    {% endif %}
+    {% if (p.mode == 'plan' and p.units_rows) or (p.mode != 'plan' and p.units_rows|length > 1) %}
     {% elif p.file_blob %}
       {% if is_pdf %}
       <iframe src="/academic/lesson-plans/{{ p.id }}/file" style="width:100%; height:560px; border:1px solid var(--border); border-radius:10px;"></iframe>
@@ -69,7 +85,7 @@
     <p style="margin-top:12px;">
       {% if mine and p.status == 'approved' %}
       <a class="btn" href="/academic/lesson-plans/{{ p.id }}/units">
-        <svg class="icon"><use href="#ic-edit"/></svg> บันทึกหลังสอน ({{ p.units_rows|length }} {{ 'แผน' if p.mode == 'plan' else 'หน่วย' }})</a>
+        <svg class="icon"><use href="#ic-edit"/></svg> {% set _np = p.units_rows|length if p.mode == 'plan' else (p.units_rows|map(attribute='plan_count')|select|sum) %}บันทึกหลังสอน ({{ _np or p.units_rows|length }} {{ 'แผน' if _np else 'หน่วย' }})</a>
       <a class="btn gray" href="/academic/lesson-plans/{{ p.id }}/after">
         <svg class="icon"><use href="#ic-download"/></svg> บันทึกหลังสอนทั้งหมด</a>
       {% else %}
@@ -84,7 +100,7 @@
         <svg class="icon"><use href="#ic-download"/></svg> บันทึกข้อความเสนอ ผอ.</a>
       <span class="muted" style="font-size:12.5px;">ระบบออกให้พร้อมตารางหน่วยและลายเซ็นผู้ที่ลงนามแล้ว</span>
     </p>
-    {% if (is_reviewer or is_director) and p.status != 'approved' and p.mode != 'plan' %}
+    {% if (is_reviewer or is_director) and p.status != 'approved' and p.mode != 'plan' and p.units_rows|length <= 1 %}
     <hr style="margin:14px 0; border:none; border-top:1px dashed var(--border);">
     <div style="font-size:13px; color:#475569;">หากคุณมีไฟล์แผนที่เซ็นด้วยตัวเอง</div>
     <p class="muted" style="font-size:12.5px; margin:2px 0 8px;">ไม่บังคับ ระบบแปะลายเซ็นบนบันทึกเสนอ ผอ. ให้อยู่แล้ว ถ้าเซ็นในไฟล์ (Word/PDF) เอง อัปโหลดทับไฟล์เดิมได้ที่นี่ ก่อนกด{{ 'อนุมัติ' if is_director and p.status=='director' else 'ผ่าน/ตรวจ' }}</p>
