@@ -59,29 +59,64 @@
 <div class="card">
   <h2 style="margin-top:0;">ใบลาที่ฉันส่ง {% if leaves %}<span class="muted" style="font-size:15px;">({{ leaves|length }})</span>{% endif %}</h2>
   {% if leaves %}
-  <div class="table-wrap">
-  <table class="stack-sm">
-    <thead><tr><th>ประเภท</th><th>ตั้งแต่</th><th>ถึง</th><th>วัน</th><th>เหตุผล</th><th>สถานะ</th><th>ความเห็น</th><th>เอกสาร</th></tr></thead>
-    <tbody>
-    {% for lv in leaves %}
-      {% set st = {'pending':('รออนุมัติ','#fef9c3','#854d0e'), 'approved':('อนุมัติ','#dcfce7','#166534'), 'rejected':('ไม่อนุมัติ','#fee2e2','#b91c1c')}[lv.status] %}
-      <tr>
-        <td data-label="ประเภท" style="white-space:nowrap;">{{ lv.leave_type }}</td>
-        <td data-label="ตั้งแต่" style="white-space:nowrap;">{{ be_date(lv.start_date) }}</td>
-        <td data-label="ถึง" style="white-space:nowrap;">{{ be_date(lv.end_date) }}</td>
-        <td data-label="วัน" class="center">{{ lv.days|int }}</td>
-        <td data-label="เหตุผล">{{ lv.reason or '-' }}</td>
-        <td data-label="สถานะ"><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span></td>
-        <td data-label="ความเห็น">{{ lv.comment or '-' }}</td>
-        <td data-label="เอกสาร" style="white-space:nowrap;">
-          <a class="btn sm soft" href="/me/leave/{{ lv.id }}/form.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ใบลา</a>
-          {% if lv.attachment_name %}<a class="btn sm gray" href="/me/leave/{{ lv.id }}/file" target="_blank" rel="noopener">📎 ไฟล์แนบ</a>{% endif %}
-          <form method="post" action="/me/leave/{{ lv.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบคำขอลานี้?');"><button class="btn sm gray" type="submit" style="color:#dc2626;"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
-        </td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
+  <style>
+    .lvc-list{display:grid;gap:12px}
+    .lvc{position:relative;display:flex;gap:16px;align-items:stretch;background:#fff;border-radius:16px;padding:14px 16px 14px 20px;box-shadow:0 1px 3px rgba(15,23,42,.06),0 6px 18px rgba(15,23,42,.05);overflow:hidden}
+    .lvc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--bar)}
+    .lvc-ic{flex:none;width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--g1),var(--g2));box-shadow:0 4px 12px rgba(15,23,42,.12)}
+    .lvc-ic .icon{width:30px;height:30px;color:#fff}
+    .lvc-main{flex:1;min-width:0}
+    .lvc-t{font-size:17px;font-weight:800;color:#1e3a8a}
+    .lvc-meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:#64748b;margin-top:3px}
+    .lvc-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+    .lvc-acts .btn{font-size:12.5px;padding:5px 11px;border-radius:10px}
+    .lvc-steps{display:flex;margin-top:10px;max-width:420px}
+    .lvc-steps>div{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;color:#94a3b8;text-align:center}
+    .lvc-steps>div:not(:first-child)::before{content:"";position:absolute;top:11px;right:50%;width:100%;height:3px;background:#e2e8f0}
+    .lvc-steps i{font-style:normal;width:24px;height:24px;border-radius:50%;background:#e2e8f0;color:#64748b;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;position:relative;z-index:1}
+    .lvc-steps .done{color:#166534}.lvc-steps .done i{background:linear-gradient(135deg,#4ade80,#16a34a);color:#fff}
+    .lvc-steps .done::before,.lvc-steps .now::before{background:#86efac!important}
+    .lvc-steps .now{color:#b45309;font-weight:700}.lvc-steps .now i{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;box-shadow:0 0 0 4px #fef3c7}
+    .lvc-steps .no{color:#b91c1c;font-weight:700}.lvc-steps .no i{background:linear-gradient(135deg,#f87171,#dc2626);color:#fff}
+    .lvc-st{flex:none;width:200px;display:flex;flex-direction:column;justify-content:center;gap:6px;padding-left:16px;border-left:1px solid #eef2f7;font-size:13.5px}
+    .lvc-pill{display:inline-flex;align-items:center;gap:6px;font-weight:700;padding:6px 12px;border-radius:999px;width:fit-content}
+    .lvc-pill .icon{width:15px;height:15px}
+    @media (max-width:860px){.lvc{flex-wrap:wrap}.lvc-ic{width:50px;height:50px}.lvc-ic .icon{width:24px;height:24px}.lvc-main{flex-basis:calc(100% - 66px)}
+      .lvc-st{width:auto;flex:1 1 100%;border-left:0;padding-left:0;border-top:1px solid #eef2f7;padding-top:10px}}
+  </style>
+  <div class="lvc-list">
+  {% for lv in leaves %}
+    {% set st = {'pending':('รออนุมัติ','#fef3c7','#92400e','clock','#f59e0b'), 'approved':('อนุมัติแล้ว','#dcfce7','#166534','check','#22c55e'), 'rejected':('ไม่อนุมัติ','#fee2e2','#b91c1c','x','#ef4444')}.get(lv.status, ('รออนุมัติ','#fef3c7','#92400e','clock','#f59e0b')) %}
+    {% set ty = lv.leave_type or '' %}
+    {% set ic = ('heart','#fb7185','#e11d48') if 'ป่วย' in ty else ('users','#f472b6','#db2777') if ('คลอด' in ty or 'บุตร' in ty) else ('star','#fbbf24','#d97706') if ('บวช' in ty or 'ศาสนา' in ty) else ('building','#38bdf8','#2563eb') if 'ราชการ' in ty else ('calendar','#a78bfa','#7c3aed') %}
+    {% set k = 3 if lv.status == 'approved' else 2 if lv.personnel_at else 1 %}
+    <div class="lvc" style="--bar:{{ st[4] }};">
+      <div class="lvc-ic" style="--g1:{{ ic[1] }};--g2:{{ ic[2] }};"><svg class="icon"><use href="#ic-{{ ic[0] }}"/></svg></div>
+      <div class="lvc-main">
+        <div class="lvc-t">{{ ty or 'ลา' }} {{ lv.days|int }} วัน</div>
+        <div class="lvc-meta">
+          <span><svg class="icon" style="width:14px;height:14px;vertical-align:-2px;"><use href="#ic-calendar"/></svg> {{ be_date(lv.start_date) }}{% if lv.end_date and lv.end_date != lv.start_date %} ถึง {{ be_date(lv.end_date) }}{% endif %}</span>
+          {% if lv.reason %}<span>{{ lv.reason }}</span>{% endif %}
+        </div>
+        <div class="lvc-steps">
+          {% for lb in ['ยื่นใบลา','งานบุคคลตรวจ','ผอ. อนุญาต'] %}
+          {% set cls = 'no' if lv.status == 'rejected' and loop.index0 == k else 'done' if loop.index0 < k else 'now' if loop.index0 == k else '' %}
+          <div class="{{ cls }}"><i>{{ '✕' if cls == 'no' else '✓' if cls == 'done' else loop.index }}</i><span>{{ 'ไม่อนุญาต' if cls == 'no' else lb }}</span></div>
+          {% endfor %}
+        </div>
+        <div class="lvc-acts">
+          <a class="btn sm gray" href="/me/leave/{{ lv.id }}/form.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ใบลา</a>
+          {% if lv.attachment_name %}<a class="btn sm gray" href="/me/leave/{{ lv.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-folder"/></svg> ไฟล์แนบ</a>{% endif %}
+          <form method="post" action="/me/leave/{{ lv.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบคำขอลานี้?');"><button class="btn sm gray" type="submit" style="color:#dc2626;"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button></form>
+        </div>
+      </div>
+      <div class="lvc-st">
+        <span class="lvc-pill" style="background:{{ st[1] }}; color:{{ st[2] }};"><svg class="icon"><use href="#ic-{{ st[3] }}"/></svg> {{ st[0] }}</span>
+        <span class="muted" style="font-size:12px;">ความเห็น</span>
+        <b style="font-weight:600;">{{ lv.comment or lv.personnel_comment or '-' }}</b>
+      </div>
+    </div>
+  {% endfor %}
   </div>
   {% else %}
   <p class="muted">ยังไม่เคยส่งใบลา</p>
