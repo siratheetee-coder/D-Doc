@@ -34,6 +34,8 @@
   function choices(){
     const out={};
     Object.entries(pattern).forEach(([k,set])=>set.forEach(n=>{const o=out[n]=out[n]||{name:n,minutes:minutesOf(n),wd:[]};o.wd.push(...(k==='60'?[6,0]:[Number(k)]));}));
+    // สอนชดเชยเสาร์/อาทิตย์ แต่ยังไม่ได้เลือกคาบของวันนั้น: ใช้คาบเดียวกับวันธรรมดาให้เอง
+    if(!(pattern['60']&&pattern['60'].size))Object.values(out).forEach(o=>{if(!o.wd.includes(6))o.wd.push(6,0);});
     return Object.values(out);
   }
   const slotsFor=(k,slots)=>slots.filter(s=>s.wd.includes(parseKey(k).getDay()));
@@ -65,8 +67,8 @@
         b.textContent=n;b.setAttribute('aria-pressed',pattern[k].has(n));b.setAttribute('aria-label',`${DAYNAME[k]} ${n}`);
         b.onclick=()=>{pattern[k].has(n)?pattern[k].delete(n):pattern[k].add(n);renderDays();update();};wrap.append(b);});
       row.append(wrap);
-      if(!pattern[k].size){const w=document.createElement('small');w.className='ls-need';w.textContent='ยังไม่ได้เลือกคาบ';row.append(w);}
-      if(k==='60'){const w=document.createElement('small');w.className='ls-need';w.textContent='เสาร์/อาทิตย์ไม่เพิ่มให้เอง กดเลือกวันที่สอนชดเชยในปฏิทิน "ปรับวันพิเศษ" ข้อ 3';row.append(w);const cb=document.getElementById('calBox');if(cb)cb.open=true;}
+      if(!pattern[k].size&&k!=='60'){const w=document.createElement('small');w.className='ls-need';w.textContent='ยังไม่ได้เลือกคาบ';row.append(w);}
+      if(k==='60'){const w=document.createElement('small');w.className='ls-hint';w.textContent=pattern[k].size?'กดเลือกวันเสาร์/อาทิตย์ที่สอนชดเชยในปฏิทินข้อ 3':'ไม่เลือกคาบก็ได้ ระบบใช้คาบเดียวกับวันธรรมดา แล้วกดวันชดเชยในปฏิทินข้อ 3';row.append(w);const cb=document.getElementById('calBox');if(cb)cb.open=true;}
       box.append(row);});
   }
   document.querySelectorAll('.ls-dayopt').forEach(b=>b.onclick=()=>{const k=b.dataset.wd;
@@ -106,7 +108,7 @@
           if(d.s==='hol'&&!confirm(`${label(key)} เป็นวันหยุด (${d.n||'วันหยุด'})\nต้องการเพิ่มเป็นวันสอนชดเชยไหม?`))return;
           if(d.s==='closed'&&!confirm(`${label(key)} ไม่ใช่วันเปิดเรียนตามปฏิทินปีการศึกษา\nต้องการเพิ่มเป็นวันสอนชดเชยไหม?`))return;
           removed.delete(key);added.add(key);
-          say(slotsFor(key,choices()).length?`เพิ่ม ${label(key)} แล้ว`:`เพิ่ม ${label(key)} แล้ว เลือกคาบของ${DAYNAME[keyOf(key)]}ในข้อ 2 ด้วย`);
+          say(slotsFor(key,choices()).length?`เพิ่ม ${label(key)} แล้ว`:`เพิ่ม ${label(key)} แล้ว เลือกคาบในข้อ 2 ก่อน`);
         }
         update();
       };
