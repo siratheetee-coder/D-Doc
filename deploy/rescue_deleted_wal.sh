@@ -41,8 +41,12 @@ if [ "$MODE" = "copy" ]; then
     mkdir -p "$d/merged"
     cp "$DATA/$rel" "$d/merged/db"
     cp "$wal" "$d/merged/db-wal"
-    chk=$(sqlite3 "$d/merged/db" "PRAGMA integrity_check; PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode;" | head -1)
-    note=""; [ "$n" -gt 1 ] && note="  (มี -wal ถูกลบ $n รุ่น ใช้รุ่นล่าสุด)"
+    sqlite3 "$d/merged/db" "PRAGMA wal_checkpoint(TRUNCATE);" >/dev/null
+    sqlite3 "$d/merged/db" "PRAGMA integrity_check;" > "$d/merged/integrity.txt" || true
+    chk=$(head -1 "$d/merged/integrity.txt")
+    [ "$chk" = "ok" ] || chk="เสีย $(wc -l < "$d/merged/integrity.txt") บรรทัด ดู $d/merged/integrity.txt"
+    note=""
+    if [ "$n" -gt 1 ]; then note="  (มี -wal ถูกลบ $n รุ่น ใช้รุ่นล่าสุด)"; fi
     echo "$rel: wal $(stat -c %s "$wal") ไบต์ ตรวจ=$chk$note"
   done
   echo
