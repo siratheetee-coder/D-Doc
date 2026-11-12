@@ -37,7 +37,7 @@
 {% if home.letter_counts and not home.teacher %}<h2 class="home-section-title">{{ 'หนังสือและงานที่ส่งถึงฉัน' if home.teacher else 'ติดตามหนังสือรับ' }}</h2><div class="home-summary letters">{% for label,n in home.letter_counts %}{% set tone = ['blue','purple','red'][loop.index0] %}<a class="home-stat letter-stat tone-{{ tone }}" href="{{ '/me/letters' if home.teacher else ('/home/letters?group=' ~ ['waiting','unacked','overdue'][loop.index0]) }}"><span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#{{ ['ic-file','ic-clipboard','ic-alert'][loop.index0] }}"/></svg></span><span class="letter-stat-label">{{ label }}</span><span class="letter-stat-value"><b>{{ n }}</b><small>เรื่อง</small></span><svg class="icon stat-arrow" aria-hidden="true"><use href="#ic-arrow-right"/></svg></a>{% endfor %}</div>{% endif %}
 {% if home.teacher and home.th %}<h2 class="home-section-title">งานของฉัน</h2><div class="home-summary letters th-stats">{% for s in home.th.stats %}<a class="home-stat letter-stat tone-{{ s.tone }}" href="{{ s.href }}"><span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#{{ s.icon }}"/></svg></span><span class="letter-stat-label">{{ s.label }}</span><span class="letter-stat-count"><b>{{ s.n }}</b> <small>{{ s.unit or 'เรื่อง' }}</small></span></a>{% endfor %}</div>{% endif %}
 <div class="home-columns">
-<section class="home-panel home-tasks"><h2><svg class="icon" aria-hidden="true"><use href="#ic-clipboard"/></svg> {{ 'สิ่งที่ฉันต้องทำ' if home.teacher else 'งานที่ต้องจัดการ' }}</h2>
+<div class="home-right-column"><section class="home-panel home-tasks"><h2><svg class="icon" aria-hidden="true"><use href="#ic-clipboard"/></svg> {{ 'สิ่งที่ฉันต้องทำ' if home.teacher else 'งานที่ต้องจัดการ' }}</h2>
 {% if home.teacher %}
 {% for item in (home.th.todos if home.th else []) %}<a class="home-row th-lv{{ item.level }}" href="{{ item.href }}"><span class="home-row-icon"><svg class="icon" aria-hidden="true"><use href="#{{ item.icon }}"/></svg></span><span class="home-row-body"><b>{{ item.title }}</b><small>{{ item.note }}</small></span><span class="home-badge">{{ item.tag }} →</span></a>{% else %}<p class="home-empty">ไม่มีงานค้าง</p>{% endfor %}
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><a class="btn gray sm" href="/me/letters">หนังสือถึงฉันทั้งหมด →</a><a class="btn gray sm" href="/academic/lesson-plans">แผนการสอนทั้งหมด →</a></div>
@@ -47,7 +47,7 @@
 {% if not home.actions and not home.alerts %}<p class="home-empty">ไม่มีงานค้างที่ตรวจพบในงานที่คุณมีสิทธิ์</p>{% endif %}
 <small class="muted">อนุมัติแล้ว ยังไม่ถือว่าบันทึกจ่ายแล้ว</small>
 {% endif %}
-</section>
+</section>{% if home.teacher and home.ta %}{% include '_teacher_acad_widgets.html' %}{% endif %}</div>
 <div class="home-right-column">
 {% if home.teacher and home.th %}
 <section class="home-panel th-card"><div class="th-head"><h2><svg class="icon" aria-hidden="true"><use href="#ic-clipboard"/></svg> แผนการสอนของฉัน</h2><a class="btn sm" href="/academic/lesson-plans"><svg class="icon" aria-hidden="true"><use href="#ic-file-plus"/></svg> ส่งแผนการสอน</a></div>

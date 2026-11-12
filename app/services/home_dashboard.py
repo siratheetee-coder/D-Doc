@@ -56,6 +56,8 @@ def build(db,sess):
         from app.services import teacher_home
         result['th']=teacher_home.build(db,sess['person_id'],year=result['academic_year'],letters=result['letters'],
                                         letter_pending=len(pending))
+        from app.services import teacher_home_acad
+        result['ta']=teacher_home_acad.build(db,sess['person_id'])
     elif 'admin' in allowed:
         rows=db.query(IncomingLetter).options(selectinload(IncomingLetter.recipients).selectinload(LetterRecipient.task)).all()
         waiting=[r for r in rows if r.route_status=='director']
