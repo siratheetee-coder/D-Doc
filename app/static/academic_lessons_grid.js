@@ -204,5 +204,43 @@
   document.querySelectorAll('.grid-all').forEach(b=>b.onclick=()=>{if(cells.some(c=>c.dataset.lesson===b.dataset.lesson&&c.value&&c.value!=='/')&&!confirm('เปลี่ยนสถานะทุกคนในคาบนี้เป็นมา?'))return;cells.filter(c=>c.dataset.lesson===b.dataset.lesson).forEach(c=>c.value='/');update();});
   document.querySelectorAll('.grid-copy').forEach(b=>b.onclick=()=>{const targets=cells.filter(c=>c.dataset.lesson===b.dataset.to);if(targets.some(c=>c.value)&&!confirm('แทนที่สถานะคาบนี้ด้วยคาบก่อนหน้า?'))return;targets.forEach(c=>{const source=cells.find(s=>s.dataset.lesson===b.dataset.from&&s.dataset.student===c.dataset.student);if(source)c.value=source.value;});update();});
   if(gridForm)gridForm.addEventListener('submit',()=>{document.getElementById('gridChanges').value=JSON.stringify(cells.filter(c=>c.value!==c.dataset.original).map(c=>({lesson_id:Number(c.dataset.lesson),student_id:Number(c.dataset.student),mark:c.value,old:c.dataset.original})));window.lessonGridDirty=false;});
+  // ---- มือถือ: เช็คชื่อทีละคาบ (ใช้ select เดิมเป็นที่เก็บค่า ฟอร์มบันทึกเหมือนเดิม) ----
+  const box=document.getElementById('lgDay'),lsEl=document.getElementById('lgLessons');
+  if(box&&lsEl&&cells.length&&window.matchMedia('(max-width:760px)').matches){
+    let lessons=[];try{lessons=JSON.parse(lsEl.textContent);}catch{}
+    const names=[...document.querySelectorAll('.lesson-matrix tbody tr')].map(tr=>{const th=tr.querySelector('.student-pin');const no=th.querySelector('.lg-no');return{no:no?no.textContent:'',name:th.textContent.replace(no?no.textContent:'','').trim()};});
+    const studs=[...new Set(cells.map(c=>c.dataset.student))];
+    const opts=[...cells[0].options].filter(o=>o.value).map(o=>({v:o.value,l:o.textContent.trim()}));
+    const today=new Date(),iso=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    let idx=lessons.findIndex(l=>l.d===iso);if(idx<0){idx=-1;lessons.forEach((l,i)=>{if(l.d<=iso)idx=i;});if(idx<0)idx=0;}
+    box.hidden=false;
+    const bar=document.createElement('div');bar.className='lgd-bar';
+    const prev=document.createElement('button');prev.type='button';prev.className='lgd-nav';prev.textContent='‹';prev.setAttribute('aria-label','คาบก่อน');
+    const next=document.createElement('button');next.type='button';next.className='lgd-nav';next.textContent='›';next.setAttribute('aria-label','คาบถัดไป');
+    const sel=document.createElement('select');sel.setAttribute('aria-label','เลือกคาบ');
+    lessons.forEach((l,i)=>{const o=document.createElement('option');o.value=i;o.textContent=l.t;sel.append(o);});
+    bar.append(prev,sel,next);
+    const sum=document.createElement('div');sum.className='lgd-sum';
+    const cnt=document.createElement('span');const all=document.createElement('button');all.type='button';all.className='grid-all';all.textContent='มาทั้งหมด';sum.append(cnt,all);
+    const list=document.createElement('div');box.append(bar,sum,list);
+    const cellOf=(lid,sid)=>cells.find(c=>c.dataset.lesson===lid&&c.dataset.student===sid);
+    function render(){
+      const lid=String(lessons[idx].id);sel.value=idx;prev.disabled=idx<=0;next.disabled=idx>=lessons.length-1;
+      list.replaceChildren();let n=0;
+      studs.forEach((sid,i)=>{const c=cellOf(lid,sid);if(!c)return;if(c.value)n++;
+        const row=document.createElement('div');row.className='lgd-row';
+        const nm=document.createElement('div');nm.className='lgd-name';const sm=document.createElement('small');sm.textContent=(names[i]||{}).no||i+1;nm.append(sm,(names[i]||{}).name||'');
+        const st=document.createElement('div');st.className='lgd-st';
+        opts.forEach(o=>{const b=document.createElement('button');b.type='button';b.dataset.v=o.v;b.textContent=o.l;b.classList.toggle('on',c.value===o.v);
+          b.onclick=()=>{c.value=c.value===o.v?'':o.v;c.dispatchEvent(new Event('change'));render();};st.append(b);});
+        row.append(nm,st);list.append(row);});
+      cnt.textContent=`เช็คแล้ว ${n}/${studs.length} คน`;
+    }
+    prev.onclick=()=>{if(idx>0){idx--;render();}};next.onclick=()=>{if(idx<lessons.length-1){idx++;render();}};
+    sel.onchange=()=>{idx=Number(sel.value);render();};
+    all.onclick=()=>{const lid=String(lessons[idx].id);const cs=studs.map(s=>cellOf(lid,s)).filter(Boolean);
+      if(cs.some(c=>c.value&&c.value!=='/')&&!confirm('เปลี่ยนสถานะทุกคนในคาบนี้เป็นมา?'))return;cs.forEach(c=>{c.value='/';c.dispatchEvent(new Event('change'));});render();};
+    if(lessons.length)render();else box.hidden=true;
+  }
   window.addEventListener('beforeunload',event=>{if(window.lessonGridDirty){event.preventDefault();event.returnValue='';}});update();
 })();
