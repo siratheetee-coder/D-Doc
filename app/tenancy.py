@@ -53,6 +53,17 @@ def school_db_path(school_id):
     return d / "school.db"
 
 
+_ino: dict = {}
+
+
+def _file_id(school_id):
+    try:
+        st = os.stat(get_data_dir() / "schools" / str(school_id) / "school.db")
+        return (st.st_dev, st.st_ino)
+    except OSError:
+        return None
+
+
 def _build(school_id):
     engine = create_engine(
         f"sqlite:///{school_db_path(school_id)}",
@@ -69,6 +80,7 @@ def _build(school_id):
     init_school_db(engine)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     _engines[school_id] = (engine, SessionLocal)
+    _ino[school_id] = _file_id(school_id)
     _evict_if_needed()
     return _engines[school_id]
 
@@ -78,6 +90,11 @@ def _get(school_id):
         raise RuntimeError("ยังไม่ได้เลือกโรงเรียน (ต้องล็อกอินก่อน)")
     pair = _engines.get(school_id)
     if pair is None:
+        return _build(school_id)
+    # ไฟล์ถูกลบ/แทนที่โดยโปรเซสอื่น (ลบระบบตัวอย่าง แล้วโรงเรียนใหม่ได้เลข id เดิม)
+    # engine เก่ายังถือไฟล์เดิมอยู่ ต้องสร้างใหม่ ไม่งั้นโรงเรียนใหม่เห็นข้อมูลโรงเรียนเก่า
+    if _file_id(school_id) != _ino.get(school_id):
+        dispose_engine(school_id)
         return _build(school_id)
     _engines.move_to_end(school_id)        # ใช้ล่าสุด -> ท้ายคิว (โดนคืนทีหลังสุด)
     return pair

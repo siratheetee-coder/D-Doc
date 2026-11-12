@@ -1106,8 +1106,26 @@ def provision_tenant(name: str, slug: str, admin_user: str, admin_pw: str,
         tid = t.id
     finally:
         db.close()
+    _wipe_stale_school(tid)
     ensure_school_db(tid)   # สร้างไฟล์ DB + ตารางของโรงเรียน
     return tid
+
+
+def _wipe_stale_school(tid):
+    """โรงเรียนใหม่ต้องเริ่มจากฐานข้อมูลว่างเสมอ
+    SQLite ใช้เลข id ซ้ำได้หลังลบโรงเรียนเลขท้ายสุด (เช่น ระบบตัวอย่างที่หมดเวลา)
+    ถ้าไฟล์หรือ engine ของโรงเรียนเก่าค้างอยู่ โรงเรียนใหม่จะเห็นข้อมูลของโรงเรียนเก่า"""
+    import shutil
+    from app.tenancy import dispose_engine
+    dispose_engine(tid)
+    try:
+        from app.services import sandbox
+        sandbox._cache.pop(tid, None)
+    except Exception:
+        pass
+    folder = get_data_dir() / "schools" / str(tid)
+    if folder.exists():
+        shutil.rmtree(folder)
 
 
 # ===================== จัดการผู้ใช้ในโรงเรียน (ไอดีหลักทำเอง) =====================
