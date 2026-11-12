@@ -17,7 +17,7 @@
   <div class="nt-head"><span class="ring"><svg class="icon"><use href="#ic-alert"/></svg></span>
     <b>ก่อนส่งแผนการสอน</b></div>
   <div class="nt-body">
-    <p><b>ระบบออกบันทึกข้อความเสนอ ผอ. ให้อัตโนมัติ</b><br>ลายเซ็นครู หัวหน้าวิชาการ และ ผอ. จะแปะบนบันทึกนำหน้าแผนให้เอง ไม่ต้องเซ็นในไฟล์แผน ขอให้อัปโหลดลายเซ็นของคุณไว้ที่ ตั้งค่า → บุคลากร ก่อนส่ง</p>
+    <p><b>ระบบออกบันทึกข้อความเสนอ ผอ. ให้อัตโนมัติ</b><br>ลายเซ็นครู หัวหน้าวิชาการ และ ผอ. จะแปะบนบันทึกนำหน้าแผนให้เอง ไม่ต้องเซ็นในไฟล์แผน ขอให้อัปโหลดลายเซ็นของคุณไว้ที่ โปรไฟล์ของฉัน (มุมขวาบน) ก่อนส่ง</p>
     <div class="nt-foot">
       <label class="nt-chk"><input type="checkbox" id="hintTeacherNo"> ไม่ต้องแจ้งฉันอีก</label>
       <button type="button" class="btn sm"
@@ -90,44 +90,49 @@
   </div>
   {% if plans %}
   <div class="table-wrap" style="margin-top:10px;">
+  <style>
+    .lp-rv{display:flex;flex-direction:column;gap:6px;margin:0;min-width:120px}
+    .lp-rv input{width:100%}
+    .lp-rv .btn{width:100%;justify-content:center}
+    .lp-acts2{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+    .lp-acts2 .btn{font-size:12px;padding:4px 10px}
+  </style>
   <table class="stack-sm">
     <thead><tr>
       {% if is_reviewer %}<th>ครู</th>{% endif %}
-      <th>เรื่อง</th><th>ภาค</th><th>ไฟล์</th><th>วันที่ส่ง</th><th>สถานะ</th><th>{{ 'ตรวจ' if is_reviewer else 'ความเห็น' }}</th><th></th>
+      <th>เรื่อง</th><th>สถานะ</th><th>{{ 'ตรวจ' if is_reviewer else 'ความเห็น' }}</th>
     </tr></thead>
     <tbody>
     {% set ns = namespace(term=-1) %}
     {% for p in plans %}
       {% if fterm==0 and (p.term or 0) != ns.term %}
       {% set ns.term = (p.term or 0) %}
-      <tr class="term-sep"><td colspan="{{ 8 if is_reviewer else 7 }}">{{ 'ภาคเรียนที่ ' ~ p.term if p.term in (1,2) else 'ไม่ระบุภาคเรียน' }}</td></tr>
+      <tr class="term-sep"><td colspan="{{ 4 if is_reviewer else 3 }}">{{ 'ภาคเรียนที่ ' ~ p.term if p.term in (1,2) else 'ไม่ระบุภาคเรียน' }}</td></tr>
       {% endif %}
       {% set st = {'draft':('ร่าง ยังไม่ส่ง','#f1f5f9','#475569'), 'pending':('รอวิชาการตรวจ','#fef9c3','#854d0e'), 'revise':('ให้แก้ไข','#fee2e2','#b91c1c'), 'director':('ผ่านวิชาการ รอ ผอ.','#dbeafe','#1e40af'), 'approved':('อนุมัติแล้ว','#dcfce7','#166534'), 'reviewed':('ตรวจแล้ว (เดิม)','#dcfce7','#166534')}.get(p.status, ('รอวิชาการตรวจ','#fef9c3','#854d0e')) %}
       <tr>
         {% if is_reviewer %}<td data-label="ครู" style="white-space:nowrap;">{{ p.teacher.name if p.teacher else '-' }}</td>{% endif %}
-        <td data-label="เรื่อง"><a href="/academic/lesson-plans/{{ p.id }}/units">{{ p.title }}</a>{% if p.note %}<div class="muted" style="font-size:12px;">{{ p.note }}</div>{% endif %}</td>
-        <td data-label="ภาค" class="center">{{ p.term or '-' }}</td>
-        <td data-label="ไฟล์">{% if p.file_blob %}<a href="/academic/lesson-plans/{{ p.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์</a>{% elif p.link %}<a href="{{ p.link }}" target="_blank" rel="noopener">เปิดลิงก์ ↗</a>{% else %}-{% endif %}</td>
-        <td data-label="วันที่ส่ง" style="white-space:nowrap; font-size:13px;">{{ be_date(p.submitted_at) }}</td>
-        <td data-label="สถานะ"><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span></td>
-        <td data-label="{{ 'ตรวจ' if is_reviewer else 'ความเห็น' }}" class="stack-full">
-          {% if is_reviewer and p.status in ('pending','revise') %}
-          <form method="post" action="/academic/lesson-plans/{{ p.id }}/review" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:0;">
-            <input name="comment" value="{{ p.comment or '' }}" placeholder="ความเห็น" style="width:150px;">
-            <button class="btn sm green" type="submit" name="status" value="reviewed"
-              onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_reviewer', title:'ตรวจก่อนส่ง', msg:'ระบบจะแปะลายเซ็นของท่านบนบันทึกเสนอ ผอ. ให้เอง โปรดตรวจว่าอัปโหลดลายเซ็นไว้ที่ ตั้งค่า → บุคลากร แล้ว', ok:'รับทราบและส่ง'})">ผ่าน → ผอ.</button>
-            <button class="btn sm" type="submit" name="status" value="revise" style="background:#f59e0b;">ให้แก้</button>
-          </form>
-          {% else %}{{ p.comment or '-' }}{% if p.director_comment %}<div class="muted" style="font-size:12px;">ผอ.: {{ p.director_comment }}</div>{% endif %}{% endif %}
-        </td>
-        <td data-label="จัดการ" class="stack-full" style="white-space:nowrap;">
+        <td data-label="เรื่อง" style="min-width:170px;"><a href="/academic/lesson-plans/{{ p.id }}/units">{{ p.title }}</a>{% if p.note %}<div class="muted" style="font-size:12px;">{{ p.note }}</div>{% endif %}
+          <div class="lp-acts2">
           <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}">ดู</a>
+          {% if p.file_blob %}<a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์</a>{% elif p.link %}<a class="btn sm gray" href="{{ p.link }}" target="_blank" rel="noopener">เปิดลิงก์ ↗</a>{% endif %}
           <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/memo">บันทึกเสนอ</a>
           <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/units">{{ 'เพิ่มหน่วย/แผน' if p.status in ('draft','revise') and p.person_id == my_pid else 'ชุดแผน/บันทึกหลังสอน' }}</a>
           <form method="post" action="/academic/lesson-plans/{{ p.id }}/delete" style="margin:0; display:inline;"
                 onsubmit="return confirm('ลบ/ยกเลิกแผน &quot;{{ p.title }}&quot; ?');">
             <button class="btn sm gray" type="submit" style="color:#dc2626;"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button>
+          </form>          </div></td>
+        <td data-label="สถานะ"><span class="pill" style="background:{{ st[1] }}; color:{{ st[2] }}; padding:2px 9px; border-radius:6px; white-space:nowrap;">{{ st[0] }}</span>
+          <div class="muted" style="font-size:12px; margin-top:4px; white-space:nowrap;">ส่ง {{ be_date(p.submitted_at) }}</div></td>
+        <td data-label="{{ 'ตรวจ' if is_reviewer else 'ความเห็น' }}" class="stack-full">
+          {% if is_reviewer and p.status in ('pending','revise') %}
+          <form method="post" action="/academic/lesson-plans/{{ p.id }}/review" class="lp-rv">
+            <input name="comment" value="{{ p.comment or '' }}" placeholder="ความเห็น (ไม่บังคับ)">
+            <button class="btn sm green" type="submit" name="status" value="reviewed"
+              onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_reviewer', title:'ตรวจก่อนส่ง', msg:'ระบบจะแปะลายเซ็นของท่านบนบันทึกเสนอ ผอ. ให้เอง โปรดตรวจว่าอัปโหลดลายเซ็นไว้ที่ โปรไฟล์ของฉัน (มุมขวาบน) แล้ว', ok:'รับทราบและส่ง'})">ผ่าน → ผอ.</button>
+            <button class="btn sm" type="submit" name="status" value="revise" style="background:#f59e0b;">ให้แก้</button>
           </form>
+          {% else %}{{ p.comment or '-' }}{% if p.director_comment %}<div class="muted" style="font-size:12px;">ผอ.: {{ p.director_comment }}</div>{% endif %}{% endif %}
         </td>
       </tr>
     {% endfor %}

@@ -43,7 +43,7 @@
     {% for r in g.rows %}
     <form method="post" action="/academic/lesson-plans/{{ p.id }}/set/{{ r.id }}/edit" enctype="multipart/form-data" class="lp-row">
       <span class="lp-no">แผนที่ {{ r.seq }}</span>
-      <input name="name" value="{{ r.name or '' }}" placeholder="ชื่อแผน" style="flex:1; min-width:160px;" aria-label="ชื่อแผนที่ {{ r.seq }}">
+      <input name="name" value="{{ r.name or '' }}" placeholder="ชื่อแผน" style="flex:1; min-width:120px;" aria-label="ชื่อแผนที่ {{ r.seq }}">
       <input name="hours" value="{{ (r.hours|string|replace('.0','')) if r.hours else '' }}" placeholder="-" inputmode="decimal" style="width:56px;flex:none;" aria-label="เวลาเรียน (ชั่วโมง)" title="เวลาเรียนของแผนนี้ (ชั่วโมง)"><span class="lp-hr">ชม.</span>
       {% if r.file_blob %}<a href="/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file" target="_blank" rel="noopener" class="lp-file" title="{{ r.file_name }}"><svg class="icon"><use href="#ic-file"/></svg> {{ r.file_name }}</a>{% endif %}
       <label class="btn sm gray lp-pick">เปลี่ยนไฟล์<input type="file" name="file" accept=".docx" hidden onchange="this.form.submit()"></label>
@@ -105,7 +105,7 @@
     <textarea name="note" rows="2" style="width:100%;" placeholder="เช่น ปรับตามที่แนะนำครั้งก่อนแล้ว">{{ p.note or '' }}</textarea>
     {% if send_block %}<p class="muted" style="margin:8px 0 0;"><svg class="icon"><use href="#ic-info"/></svg> {{ send_block }}</p>{% endif %}
     <button class="btn green" type="submit" style="margin-top:10px;" {{ 'disabled' if send_block }}
-      onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_teacher', title:'ตรวจก่อนส่ง', msg:'ระบบจะแปะลายเซ็นของท่านบนบันทึกเสนอ ผอ. ให้เอง โปรดตรวจว่าอัปโหลดลายเซ็นไว้ที่ ตั้งค่า → บุคลากร แล้ว', ok:'รับทราบและส่ง'})">
+      onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_teacher', title:'ตรวจก่อนส่ง', msg:'ระบบจะแปะลายเซ็นของท่านบนบันทึกเสนอ ผอ. ให้เอง โปรดตรวจว่าอัปโหลดลายเซ็นไว้ที่ โปรไฟล์ของฉัน (มุมขวาบน) แล้ว', ok:'รับทราบและส่ง'})">
       <svg class="icon"><use href="#ic-send"/></svg> {{ 'ส่งอีกครั้ง' if p.status == 'revise' else 'ส่งให้หัวหน้าวิชาการตรวจ' }}</button>
     <a class="btn gray" href="/academic/lesson-plans/{{ p.id }}/memo" style="margin-top:10px;">ดูบันทึกเสนอ ผอ.</a>
   </form>
@@ -259,11 +259,11 @@
   .lp-cols{display:flex;gap:8px;font-size:12px;color:#94a3b8;font-weight:600;padding:6px 0 2px}
   .lp-cols .lp-no{min-width:64px}
   .lp-sp{width:217px;flex:none}
-  @media (max-width:760px){.lp-cols{display:none}}
+  @media (max-width:1180px){.lp-cols{display:none}}
   .lp-hr{font-size:12.5px;color:#64748b;margin-left:-4px;flex:none;width:28px}
   .lp-acts{flex-basis:100%;display:flex;gap:8px;align-items:center;justify-content:flex-end;padding-left:72px}
   .lp-acts .lp-file{margin-right:auto;width:auto;max-width:260px}
-  @media (max-width:760px){.lp-row{flex-wrap:wrap}.lp-file{width:auto;max-width:100%}}
+  @media (max-width:1180px){.lp-row{flex-wrap:wrap}.lp-row input[name=name]{flex:1 1 calc(100% - 80px)}.lp-row .lp-file{flex:1 1 120px;width:auto;max-width:100%}}
   .lp-no{font-weight:700;white-space:nowrap;min-width:64px}
   .lp-file{font-size:12.5px;width:150px;flex:none;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .lp-pick{cursor:pointer;margin:0}

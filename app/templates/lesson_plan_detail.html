@@ -101,7 +101,7 @@
       <div class="nt-head"><span class="ring"><svg class="icon"><use href="#ic-alert"/></svg></span>
         <b>ก่อนส่งให้ผู้อำนวยการ</b></div>
       <div class="nt-body">
-        <p><b>ลายเซ็นของคุณจะแปะบนบันทึกเสนอ ผอ. ให้อัตโนมัติ</b><br>ขอให้อัปโหลดลายเซ็นไว้ที่ ตั้งค่า → บุคลากร ก่อนกด "ผ่าน → ผอ." ถ้าอยากเซ็นในไฟล์แผนเองก็ยังทำได้ที่ช่องด้านซ้าย</p>
+        <p><b>ลายเซ็นของคุณจะแปะบนบันทึกเสนอ ผอ. ให้อัตโนมัติ</b><br>ขอให้อัปโหลดลายเซ็นไว้ที่ โปรไฟล์ของฉัน (มุมขวาบน) ก่อนกด "ผ่าน → ผอ." ถ้าอยากเซ็นในไฟล์แผนเองก็ยังทำได้ที่ช่องด้านซ้าย</p>
         <div class="nt-foot">
           <label class="nt-chk"><input type="checkbox" id="hintReviewerNo"> ไม่ต้องแจ้งฉันอีก</label>
           <button type="button" class="btn sm"
@@ -114,7 +114,7 @@
       <textarea name="comment" rows="2" style="width:100%;" placeholder="เช่น ตรวจแล้ว เห็นควรเสนอ ผอ.">{{ p.comment or '' }}</textarea>
       <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
         <button class="btn green" type="submit" name="status" value="reviewed"
-          onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_reviewer', title:'ตรวจก่อนส่ง', msg:'ระบบจะแปะลายเซ็นของท่านบนบันทึกเสนอ ผอ. ให้เอง โปรดตรวจว่าอัปโหลดลายเซ็นไว้ที่ ตั้งค่า → บุคลากร แล้ว', ok:'รับทราบและส่ง'})"><svg class="icon"><use href="#ic-check"/></svg> ผ่าน → ผอ.</button>
+          onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_reviewer', title:'ตรวจก่อนส่ง', msg:'ระบบจะแปะลายเซ็นของท่านบนบันทึกเสนอ ผอ. ให้เอง โปรดตรวจว่าอัปโหลดลายเซ็นไว้ที่ โปรไฟล์ของฉัน (มุมขวาบน) แล้ว', ok:'รับทราบและส่ง'})"><svg class="icon"><use href="#ic-check"/></svg> ผ่าน → ผอ.</button>
         <button class="btn" type="submit" name="status" value="revise" style="background:#f59e0b;">ให้แก้</button>
       </div>
     </form>
@@ -126,7 +126,7 @@
       <div class="nt-head"><span class="ring"><svg class="icon"><use href="#ic-alert"/></svg></span>
         <b>ก่อนอนุมัติแผน</b></div>
       <div class="nt-body">
-        <p><b>ลายเซ็นของคุณจะแปะบนบันทึกอนุมัติให้อัตโนมัติ</b><br>ขอให้อัปโหลดลายเซ็นไว้ที่ ตั้งค่า → บุคลากร ก่อนกด "อนุมัติ + ลงนาม" ถ้าอยากเซ็นในไฟล์แผนเองก็ยังทำได้ที่ช่องด้านซ้าย</p>
+        <p><b>ลายเซ็นของคุณจะแปะบนบันทึกอนุมัติให้อัตโนมัติ</b><br>ขอให้อัปโหลดลายเซ็นไว้ที่ โปรไฟล์ของฉัน (มุมขวาบน) ก่อนกด "อนุมัติ + ลงนาม" ถ้าอยากเซ็นในไฟล์แผนเองก็ยังทำได้ที่ช่องด้านซ้าย</p>
         <div class="nt-foot">
           <label class="nt-chk"><input type="checkbox" id="hintDirectorNo"> ไม่ต้องแจ้งฉันอีก</label>
           <button type="button" class="btn sm"
@@ -139,7 +139,7 @@
       <textarea name="comment" rows="2" style="width:100%;" placeholder="เช่น อนุมัติ / เห็นชอบ"></textarea>
       <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
         <button class="btn green" type="submit" name="decision" value="approve"
-          onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_director', title:'ตรวจก่อนอนุมัติ', msg:'ระบบจะแปะลายเซ็นของท่านบนบันทึกอนุมัติให้เอง โปรดตรวจว่าอัปโหลดลายเซ็นไว้ที่ ตั้งค่า → บุคลากร แล้ว', ok:'รับทราบและอนุมัติ'})"><svg class="icon"><use href="#ic-check"/></svg> อนุมัติ + ลงนาม</button>
+          onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_director', title:'ตรวจก่อนอนุมัติ', msg:'ระบบจะแปะลายเซ็นของท่านบนบันทึกอนุมัติให้เอง โปรดตรวจว่าอัปโหลดลายเซ็นไว้ที่ โปรไฟล์ของฉัน (มุมขวาบน) แล้ว', ok:'รับทราบและอนุมัติ'})"><svg class="icon"><use href="#ic-check"/></svg> อนุมัติ + ลงนาม</button>
         <button class="btn" type="submit" name="decision" value="revise" style="background:#f59e0b;">ส่งกลับให้แก้</button>
       </div>
     </form>

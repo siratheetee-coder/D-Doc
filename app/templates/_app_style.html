@@ -597,7 +597,7 @@
     .ss-box a:hover, .ss-box a.on { background: linear-gradient(120deg,#e0e7ff,#f3e8ff); }
     .ss-box a.ss-all { margin-top: 4px; font-weight: 700; color: #4f46e5; font-size: 14px; }
     .ss-none { padding: 14px 10px; color: var(--muted); font-size: 14px; }
-    .brandchip { display: flex; align-items: center; gap: 10px; flex: none; position: relative; }
+    .brandchip { display: flex; align-items: center; gap: 10px; flex: none; position: relative; min-width: 0; }
     .chipbtn { display:flex; align-items:center; gap:10px; border:1px solid transparent; background:none;
       font-family:inherit; cursor:pointer; padding:4px 8px 4px 4px; border-radius:999px;
       transition:background .14s, border-color .14s; }
@@ -629,7 +629,8 @@
       background: linear-gradient(135deg, #4880FF, #6f9bff); overflow: hidden;
     }
     .brandchip .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .brandchip .who { color: var(--text); font-size: 15px; font-weight: 600; }
+    .brandchip .who { color: var(--text); font-size: 15px; font-weight: 600;
+      max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     /* ===== Hero banner (แดชบอร์ด) ===== */
     .hero {

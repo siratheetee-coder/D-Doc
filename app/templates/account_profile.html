@@ -166,6 +166,33 @@
 </div>
 {% endif %}
 
+{% if is_teacher %}
+<div class="card sig-card" id="sig">
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-edit"/></svg> ลายเซ็นของฉัน</h2>
+  <p class="muted" style="font-size:13.5px; margin:4px 0 12px;">ระบบแปะลายเซ็นนี้บนบันทึกเสนอแผนการสอน ใบลา และเอกสารที่คุณอนุมัติให้อัตโนมัติ ใช้รูปเซ็นปากกาบนกระดาษขาว ระบบลบพื้นขาวให้เอง</p>
+  {% if sig_msg == 'ok' %}<div class="alert">✔ บันทึกลายเซ็นแล้ว</div>
+  {% elif sig_msg == 'del' %}<div class="alert">✔ ลบลายเซ็นแล้ว</div>
+  {% elif sig_msg == 'big' %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> ไฟล์ใหญ่เกิน 8 MB</div>
+  {% elif sig_msg == 'bad' %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> อ่านรูปไม่ได้ ใช้ไฟล์ JPG หรือ PNG</div>{% endif %}
+  <div class="sig-row">
+    <div class="sig-box">{% if has_sig %}<img src="/account/signature" alt="ลายเซ็นของฉัน">{% else %}<span class="muted">ยังไม่มีลายเซ็น</span>{% endif %}</div>
+    <form method="post" action="/account/signature" enctype="multipart/form-data" class="sig-form">
+      <input type="file" name="file" accept="image/*" required onchange="this.form.submit()" id="sigfile" hidden>
+      <label for="sigfile" class="btn sm"><svg class="icon"><use href="#ic-upload"/></svg> {{ 'เปลี่ยนลายเซ็น' if has_sig else 'อัปโหลดลายเซ็น' }}</label>
+    </form>
+    {% if has_sig %}<form method="post" action="/account/signature/delete" style="margin:0;" onsubmit="return confirm('ลบลายเซ็น?')">
+      <button class="btn sm gray" data-no-floating-save>ลบ</button></form>{% endif %}
+  </div>
+</div>
+<style>
+  .sig-card { background:linear-gradient(135deg,#f0fdf4,#eff6ff); }
+  .sig-row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .sig-box { width:220px; height:90px; background:#fff; border-radius:12px; display:flex; align-items:center; justify-content:center; }
+  .sig-box img { max-width:200px; max-height:76px; }
+  .sig-form { margin:0; }
+</style>
+{% endif %}
+
 {% if my_email is not none %}
 <div class="card em-card" id="email">
   <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-send"/></svg> อีเมลรับหนังสือเวียน</h2>

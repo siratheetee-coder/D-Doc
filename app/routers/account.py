@@ -108,6 +108,8 @@ def _profile_ctx(request, **extra):
         "is_owner": request.session.get("owner", False),
         "is_teacher": bool(request.session.get("person_id")),
         "has_avatar": has_avatar(request.session.get("uid")),
+        "has_sig": bool(_my_person_sig(request)),
+        "sig_msg": request.query_params.get("sig", ""),
         # ยืนยัน 2 ชั้น: ใช้ได้ทุกบัญชี (ผู้ดูแลระบบ · ไอดีหลัก · ไอดีย่อย · บัญชีครู)
         "can_2fa": True,
         "tfa": totp_status(request.session.get("uid")),
@@ -116,6 +118,86 @@ def _profile_ctx(request, **extra):
     }
     ctx.update(extra)
     return ctx
+
+
+def _my_person_sig(request):
+    """ชื่อไฟล์ลายเซ็นของบุคลากรที่ผูกกับบัญชีนี้ ('' = ยังไม่มี / ไม่ได้ผูกบุคลากร)"""
+    pid, tid = request.session.get("person_id"), request.session.get("tid")
+    if not (pid and tid):
+        return ""
+    try:
+        from app.tenancy import session_for
+        from app.models import Person
+        db = session_for(tid)
+        try:
+            p = db.get(Person, pid)
+            return (p.signature or "") if p else ""
+        finally:
+            db.close()
+    except Exception:
+        return ""
+
+
+# ---------------- ลายเซ็นของตัวเอง ----------------
+# ครู/ผอ. อัปโหลดลายเซ็นของตัวเองได้ที่โปรไฟล์ แตะได้เฉพาะบุคลากรที่ผูกกับบัญชีที่ล็อกอิน
+# (ไม่ต้องเข้า ตั้งค่า -> บุคลากร ซึ่งแก้ของคนอื่นได้)
+@router.get("/account/signature")
+def my_signature(request: Request):
+    from fastapi.responses import FileResponse, Response
+    from app.services.signature import signature_full_path
+    fn = _my_person_sig(request)
+    path = signature_full_path(fn) if fn else None
+    if not path or not path.is_file():
+        return Response(status_code=404)
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+
+@router.post("/account/signature")
+async def my_signature_upload(request: Request, file: UploadFile = File(...)):
+    from app.services.signature import process_signature, delete_signature
+    pid, tid = request.session.get("person_id"), request.session.get("tid")
+    if not (pid and tid):
+        return RedirectResponse("/account/profile", status_code=303)
+    data = await file.read()
+    if len(data) > 8 * 1024 * 1024:
+        return RedirectResponse("/account/profile?sig=big#sig", status_code=303)
+    new_name = process_signature(data, remove_white=True)
+    if not new_name:
+        return RedirectResponse("/account/profile?sig=bad#sig", status_code=303)
+    from app.tenancy import session_for
+    from app.models import Person
+    db = session_for(tid)
+    try:
+        p = db.get(Person, pid)
+        if not p:
+            delete_signature(new_name)
+            return RedirectResponse("/account/profile", status_code=303)
+        if p.signature:
+            delete_signature(p.signature)
+        p.signature = new_name
+        db.commit()
+    finally:
+        db.close()
+    return RedirectResponse("/account/profile?sig=ok#sig", status_code=303)
+
+
+@router.post("/account/signature/delete")
+def my_signature_delete(request: Request):
+    from app.services.signature import delete_signature
+    pid, tid = request.session.get("person_id"), request.session.get("tid")
+    if pid and tid:
+        from app.tenancy import session_for
+        from app.models import Person
+        db = session_for(tid)
+        try:
+            p = db.get(Person, pid)
+            if p and p.signature:
+                delete_signature(p.signature)
+                p.signature = ""
+                db.commit()
+        finally:
+            db.close()
+    return RedirectResponse("/account/profile?sig=del#sig", status_code=303)
 
 
 @router.get("/account/profile", response_class=HTMLResponse)

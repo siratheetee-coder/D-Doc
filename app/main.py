@@ -84,7 +84,8 @@ _DIRECTOR_WRITE_ALLOW = [
     re.compile(r"^/admin/incoming/\d+/tasks/\d+/review$"),   # ตรวจผลการดำเนินงาน
     re.compile(r"^/me/letters/\d+/report$"),                 # รายงานงานที่มอบหมายถึงตัวเอง
     re.compile(r"^/me/letters/\d+/ack$"),                    # รับทราบหนังสือเวียนถึงตัวเอง
-    re.compile(r"^/me/email$"),                               # ใส่อีเมลรับหนังสือเวียนของตัวเอง
+    re.compile(r"^/me/email$"),
+    re.compile(r"^/account/signature(?:/delete)?$"),          # ลายเซ็นของตัวเอง (ไว้แปะตอนอนุมัติ)                               # ใส่อีเมลรับหนังสือเวียนของตัวเอง
     re.compile(r"^/(?:hr|academic)/classroom-visit/(save|\d+/delete)$"), # นิเทศ: เยี่ยมชั้นเรียน
     re.compile(r"^/(?:hr|academic)/supervision-form/(save|\d+/delete)$"),# นิเทศ: นิเทศการสอน
     re.compile(r"^/support(?:/chat/(?:send|read))?$"),        # ติดต่อเจ้าหน้าที่
