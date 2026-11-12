@@ -2,10 +2,10 @@
 {% block title %}เช็คชื่อเข้าแถว{% endblock %}
 {% block content %}
 <div class="hero" style="background:linear-gradient(135deg,#0891b2,#4f46e5);">
-  <div>
+  <div style="display:flex;align-items:center;gap:14px;"><img src="/static/images/home3d/assembly.png" alt="" style="width:64px;height:64px;border-radius:17px;box-shadow:0 6px 16px rgba(0,0,0,.2);"><div>
     <span class="hero-title">เช็คชื่อเข้าแถว</span>
     <div class="hero-meta">ครูประจำชั้นกดเช็คนักเรียนในห้องของตัวเอง</div>
-  </div>
+  </div></div>
 </div>
 
 {% if msg %}<div class="alert ok">{{ msg }}</div>{% endif %}

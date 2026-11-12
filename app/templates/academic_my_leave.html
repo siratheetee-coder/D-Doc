@@ -63,7 +63,7 @@
     .lvc-list{display:grid;gap:12px}
     .lvc{position:relative;display:flex;gap:16px;align-items:stretch;background:#fff;border-radius:16px;padding:14px 16px 14px 20px;box-shadow:0 1px 3px rgba(15,23,42,.06),0 6px 18px rgba(15,23,42,.05);overflow:hidden}
     .lvc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--bar)}
-    .lvc-ic{flex:none;width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--g1),var(--g2));box-shadow:0 4px 12px rgba(15,23,42,.12)}
+    .lvc-ic{flex:none;width:64px;height:64px;border-radius:17px;box-shadow:0 6px 14px rgba(15,23,42,.15)}
     .lvc-ic .icon{width:30px;height:30px;color:#fff}
     .lvc-main{flex:1;min-width:0}
     .lvc-t{font-size:17px;font-weight:800;color:#1e3a8a}
@@ -91,7 +91,7 @@
     {% set ic = ('heart','#fb7185','#e11d48') if 'ป่วย' in ty else ('users','#f472b6','#db2777') if ('คลอด' in ty or 'บุตร' in ty) else ('star','#fbbf24','#d97706') if ('บวช' in ty or 'ศาสนา' in ty) else ('building','#38bdf8','#2563eb') if 'ราชการ' in ty else ('calendar','#a78bfa','#7c3aed') %}
     {% set k = 3 if lv.status == 'approved' else 2 if lv.personnel_at else 1 %}
     <div class="lvc" style="--bar:{{ st[4] }};">
-      <div class="lvc-ic" style="--g1:{{ ic[1] }};--g2:{{ ic[2] }};"><svg class="icon"><use href="#ic-{{ ic[0] }}"/></svg></div>
+      {% set im = 'lv_sick' if 'ป่วย' in ty else 'lv_maternity' if ('คลอด' in ty or 'บุตร' in ty) else 'lv_ordain' if ('บวช' in ty or 'ศาสนา' in ty or 'อุปสมบท' in ty) else 'lv_official' if 'ราชการ' in ty else 'lv_personal' %}<img class="lvc-ic" src="/static/images/home3d/{{ im }}.png" alt="">
       <div class="lvc-main">
         <div class="lvc-t">{{ ty or 'ลา' }} {{ lv.days|int }} วัน</div>
         <div class="lvc-meta">
