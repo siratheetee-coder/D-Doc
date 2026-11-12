@@ -42,20 +42,31 @@
       <a class="seg-btn {{ 'on' if term==2 }}" href="/academic?term=2">ภาคเรียนที่ 2</a>
     </div>
   </div>
-  <p class="muted" style="font-size:13px; margin:4px 0 10px;">สรุปงานของ<b>{{ term_label(term) }}</b> <span class="ok">✓ = ทำแล้ว</span> <span class="no">● = ยัง</span> คลิกเพื่อไปทำ</p>
+  {% from '_subject_icon.html' import subject_key %}
+  <p class="muted" style="font-size:13px; margin:4px 0 12px;">สรุปงานของ<b>{{ term_label(term) }}</b> กดช่องที่ยังไม่เสร็จเพื่อไปทำ</p>
   {% if todo['items'] %}
+  {% set ns = namespace(full=0, none=0) %}
+  {% for it in todo['items'] %}{% set n = [it.grade,it.att,it.char,it.read]|select|list|length %}{% if n == 4 %}{% set ns.full = ns.full + 1 %}{% elif n == 0 %}{% set ns.none = ns.none + 1 %}{% endif %}{% endfor %}
+  <div class="td-stats">
+    <div style="--a:#6366f1;--b:#eef2ff;"><i><svg class="icon"><use href="#ic-book"/></svg></i><span>วิชาทั้งหมด<b>{{ todo['items']|length }} รายวิชา</b></span></div>
+    <div style="--a:#16a34a;--b:#ecfdf5;"><i><svg class="icon"><use href="#ic-check"/></svg></i><span>เสร็จครบ<b>{{ ns.full }} รายวิชา</b></span></div>
+    <div style="--a:#f59e0b;--b:#fffbeb;"><i><svg class="icon"><use href="#ic-clock"/></svg></i><span>กำลังทำ<b>{{ todo['items']|length - ns.full - ns.none }} รายวิชา</b></span></div>
+    <div style="--a:#94a3b8;--b:#f8fafc;"><i><svg class="icon"><use href="#ic-edit"/></svg></i><span>ยังไม่เริ่ม<b>{{ ns.none }} รายวิชา</b></span></div>
+  </div>
   <div class="table-wrap">
-  <table class="todo-table">
-    <thead><tr><th style="text-align:left;">วิชา (ห้อง)</th><th>คะแนน ปพ.5</th><th>เช็กชื่อ {{ todo['month_name'] }}</th><th>คุณลักษณะ</th><th>อ่านเขียน</th></tr></thead>
+  <table class="todo-table stack-sm">
+    <thead><tr><th style="text-align:left;">วิชา (ห้อง)</th><th>คะแนน ปพ.5</th><th>เช็กชื่อ {{ todo['month_name'] }}</th><th>คุณลักษณะ</th><th>อ่านเขียน</th><th>ภาพรวม</th></tr></thead>
     <tbody>
-    {% macro tcell(done, href) %}<td class="center {{ 'td-ok' if done else 'td-no' }}"><a href="{{ href }}">{{ '✓' if done else '●' }}</a></td>{% endmacro %}
+    {% macro tcell(done, href, label) %}<td data-label="{{ label }}"><a class="td-pill {{ 'ok' if done else 'no' }}" href="{{ href }}">{% if done %}<svg class="icon"><use href="#ic-check"/></svg> เสร็จแล้ว{% else %}<svg class="icon"><use href="#ic-clock"/></svg> ยังไม่เสร็จ{% endif %}</a></td>{% endmacro %}
     {% for it in todo['items'] %}
+      {% set n = [it.grade,it.att,it.char,it.read]|select|list|length %}
       <tr>
-        <td style="text-align:left; white-space:nowrap;"><b>{{ it.subject }}</b> <span class="muted" style="font-size:12px;">({{ it.class }})</span></td>
-        {{ tcell(it.grade, '/academic/grades?cid=' ~ it.cid ~ '&sid=' ~ it.sid ~ '&term=' ~ it.term) }}
-        {{ tcell(it.att, '/academic/attendance?mode=subject&cid=' ~ it.cid ~ '&sid=' ~ it.sid ~ '&month=' ~ todo['month']) }}
-        {{ tcell(it.char, '/academic/assess?cid=' ~ it.cid ~ '&sid=' ~ it.sid ~ '&kind=char') }}
-        {{ tcell(it.read, '/academic/assess?cid=' ~ it.cid ~ '&sid=' ~ it.sid ~ '&kind=read') }}
+        <td class="td-subj"><div><img src="/static/images/subjects/{{ subject_key(it.subject)|trim }}.png" alt="" loading="lazy"><span><b>{{ it.subject }}</b> <small>({{ it.class }})</small></span></div></td>
+        {{ tcell(it.grade, '/academic/grades?cid=' ~ it.cid ~ '&sid=' ~ it.sid ~ '&term=' ~ it.term, 'คะแนน ปพ.5') }}
+        {{ tcell(it.att, '/academic/attendance?mode=subject&cid=' ~ it.cid ~ '&sid=' ~ it.sid ~ '&month=' ~ todo['month'], 'เช็กชื่อ') }}
+        {{ tcell(it.char, '/academic/assess?cid=' ~ it.cid ~ '&sid=' ~ it.sid ~ '&kind=char', 'คุณลักษณะ') }}
+        {{ tcell(it.read, '/academic/assess?cid=' ~ it.cid ~ '&sid=' ~ it.sid ~ '&kind=read', 'อ่านเขียน') }}
+        <td data-label="ภาพรวม"><div class="td-prog"><small>{{ n }}/4</small><span><i style="width:{{ n*25 }}%;"></i></span><small>{{ n*25 }}%</small></div></td>
       </tr>
     {% endfor %}
     </tbody>
@@ -71,12 +82,25 @@
   {% endif %}
 </div>
 <style>
-  .todo-table{ width:100%; border-collapse:collapse; font-size:14.5px; }
-  .todo-table th,.todo-table td{ border:1px solid #eee; padding:9px 10px; text-align:center; }
-  .todo-table th{ background:#f5f3ff; font-size:13.5px; }
-  .todo-table a{ text-decoration:none; display:block; font-size:17px; font-weight:800; }
-  .td-ok{ background:#dcfce7; } .td-ok a{ color:#166534; }
-  .td-no{ background:#fef2f2; } .td-no a{ color:#dc2626; }
+  .td-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+  .td-stats>div{display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;background:var(--b)}
+  .td-stats i{flex:none;width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:#fff;color:var(--a);box-shadow:0 2px 8px rgba(15,23,42,.06)}
+  .td-stats i .icon{width:24px;height:24px}
+  .td-stats span{font-size:13px;color:#475569}.td-stats b{display:block;font-size:19px;color:#0f172a}
+  .todo-table{width:100%;border-collapse:separate;border-spacing:0;font-size:14.5px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+  .todo-table th{background:#f5f3ff;font-size:13.5px;padding:11px 10px;color:#312e81}
+  .todo-table td{padding:9px 10px;text-align:center;border-top:1px solid #f1f5f9}
+  .td-subj{text-align:left!important;white-space:nowrap}
+  .td-subj>div{display:flex;align-items:center;gap:10px}
+  .td-subj img{width:40px;height:40px;border-radius:11px;box-shadow:0 2px 6px rgba(15,23,42,.12)}
+  .td-subj small{color:#94a3b8}
+  .td-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:999px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}
+  .td-pill .icon{width:14px;height:14px}
+  .td-pill.ok{background:#dcfce7;color:#166534}.td-pill.no{background:#fff7ed;color:#c2410c}
+  .td-pill.no:hover{background:#ffedd5}
+  .td-prog{display:flex;align-items:center;gap:8px;min-width:150px}.td-prog small{font-weight:700;color:#475569}
+  .td-prog span{flex:1;height:8px;border-radius:99px;background:#e2e8f0;overflow:hidden}.td-prog i{display:block;height:100%;background:linear-gradient(90deg,#4ade80,#16a34a);border-radius:99px}
+  @media (max-width:900px){.td-stats{grid-template-columns:repeat(2,1fr)}}
   .seg{ display:inline-flex; border:1px solid #ddd6fe; border-radius:8px; overflow:hidden; }
   .seg-btn{ padding:5px 12px; font-size:13px; text-decoration:none; color:#6d28d9; background:#fff; }
   .seg-btn.on{ background:#6d28d9; color:#fff; font-weight:600; }

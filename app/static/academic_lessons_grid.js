@@ -204,6 +204,13 @@
   document.querySelectorAll('.grid-all').forEach(b=>b.onclick=()=>{if(cells.some(c=>c.dataset.lesson===b.dataset.lesson&&c.value&&c.value!=='/')&&!confirm('เปลี่ยนสถานะทุกคนในคาบนี้เป็นมา?'))return;cells.filter(c=>c.dataset.lesson===b.dataset.lesson).forEach(c=>c.value='/');update();});
   document.querySelectorAll('.grid-copy').forEach(b=>b.onclick=()=>{const targets=cells.filter(c=>c.dataset.lesson===b.dataset.to);if(targets.some(c=>c.value)&&!confirm('แทนที่สถานะคาบนี้ด้วยคาบก่อนหน้า?'))return;targets.forEach(c=>{const source=cells.find(s=>s.dataset.lesson===b.dataset.from&&s.dataset.student===c.dataset.student);if(source)c.value=source.value;});update();});
   if(gridForm)gridForm.addEventListener('submit',()=>{document.getElementById('gridChanges').value=JSON.stringify(cells.filter(c=>c.value!==c.dataset.original).map(c=>({lesson_id:Number(c.dataset.lesson),student_id:Number(c.dataset.student),mark:c.value,old:c.dataset.original})));window.lessonGridDirty=false;});
+  // ---- คอม: ปุ่มเลื่อนตารางซ้าย/ขวา ----
+  const mx=document.querySelector('.lesson-matrix');
+  if(mx){const wrap=document.createElement('div');wrap.className='lgm-wrap';mx.parentNode.insertBefore(wrap,mx);wrap.append(mx);
+    const mk=(c,t,lab,dx)=>{const b=document.createElement('button');b.type='button';b.className='lgm-nav '+c;b.textContent=t;b.setAttribute('aria-label',lab);b.onclick=()=>mx.scrollBy({left:dx*Math.max(300,mx.clientWidth-300),behavior:'smooth'});wrap.append(b);return b;};
+    const L=mk('l','‹','เลื่อนไปวันก่อนหน้า',-1),R=mk('r','›','เลื่อนดูวันถัดไป',1);
+    const sync=()=>{L.hidden=mx.scrollLeft<=4;R.hidden=mx.scrollLeft+mx.clientWidth>=mx.scrollWidth-4;};
+    mx.addEventListener('scroll',sync,{passive:true});window.addEventListener('resize',sync);sync();}
   // ---- มือถือ: เช็คชื่อทีละคาบ (ใช้ select เดิมเป็นที่เก็บค่า ฟอร์มบันทึกเหมือนเดิม) ----
   const box=document.getElementById('lgDay'),lsEl=document.getElementById('lgLessons');
   if(box&&lsEl&&cells.length&&window.matchMedia('(max-width:760px)').matches){
