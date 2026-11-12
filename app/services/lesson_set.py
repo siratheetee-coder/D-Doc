@@ -183,3 +183,32 @@ def slots(plan) -> list[dict]:
 def slot_progress(plan) -> tuple[int, int]:
     ss = slots(plan)
     return sum(1 for s in ss if recorded(s["obj"])), len(ss)
+
+
+# ---------------- ส่งกลับให้แก้: ติ๊กแผนที่ต้องแก้ ----------------
+def row_label(p, r) -> str:
+    """ชื่อสั้นของแถว เช่น "แผนที่ 2" (ทีละแผน) หรือ "หน่วยที่ 1" (ทั้งหน่วย)"""
+    return f"{'แผนที่' if is_plan_mode(p) else 'หน่วยที่'} {r.seq}"
+
+
+def mark_fix(p, ids) -> list:
+    """ตั้งแถวที่ผู้ตรวจติ๊กเป็น 'need' แถวอื่นล้างธง คืนรายการชื่อแถวที่ต้องแก้"""
+    want = {int(i) for i in (ids or []) if str(i).strip().isdigit()}
+    out = []
+    for r in sorted(p.units_rows or [], key=lambda x: x.seq or 0):
+        if r.id in want:
+            r.fix_flag = "need"
+            out.append(row_label(p, r))
+        else:
+            r.fix_flag = ""
+    return out
+
+
+def clear_fix(p):
+    for r in (p.units_rows or []):
+        r.fix_flag = ""
+
+
+def fix_rows(p, flag=None) -> list:
+    rows = [r for r in (p.units_rows or []) if (getattr(r, "fix_flag", "") or "") in (("need", "done") if flag is None else (flag,))]
+    return sorted(rows, key=lambda x: x.seq or 0)

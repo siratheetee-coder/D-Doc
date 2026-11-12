@@ -25,7 +25,8 @@
 {% if msg %}<div class="alert">✔ {{ msg }}</div>{% endif %}
 {% if err %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> {{ err }}</div>{% endif %}
 {% if p.status == 'revise' and (p.comment or p.director_comment) %}
-<div class="alert warn"><b>ความเห็นที่ให้แก้</b> {{ p.director_comment or p.comment }}</div>
+<div class="alert warn"><b>ความเห็นที่ให้แก้</b> {{ p.director_comment or p.comment or '-' }}
+  {% set _fx = ls.fix_rows(p) %}{% if _fx %}<div style="margin-top:6px;">ต้องแก้: {% for r in _fx %}<span class="fx-tag {{ 'fx-done' if r.fix_flag == 'done' }}">{{ ls.row_label(p, r) }}{{ ' แก้แล้ว' if r.fix_flag == 'done' }}</span>{% endfor %}</div>{% endif %}</div>
 {% endif %}
 
 {% if can_edit %}
@@ -42,7 +43,7 @@
     <div class="lp-cols"><span class="lp-no">ลำดับ</span><span style="flex:1;">ชื่อแผน</span><span style="width:92px;">เวลาเรียน</span><span style="width:150px;">ไฟล์แผน</span><span class="lp-sp"></span></div>
     {% for r in g.rows %}
     <form method="post" action="/academic/lesson-plans/{{ p.id }}/set/{{ r.id }}/edit" enctype="multipart/form-data" class="lp-row">
-      <span class="lp-no">แผนที่ {{ r.seq }}</span>
+      <span class="lp-no">แผนที่ {{ r.seq }}{% if p.status == 'revise' and r.fix_flag %}<span class="fx-tag {{ 'fx-done' if r.fix_flag == 'done' }}">{{ 'แก้แล้ว' if r.fix_flag == 'done' else 'ต้องแก้' }}</span>{% endif %}</span>
       <input name="name" value="{{ r.name or '' }}" placeholder="ชื่อแผน" style="flex:1; min-width:120px;" aria-label="ชื่อแผนที่ {{ r.seq }}">
       <input name="hours" value="{{ (r.hours|string|replace('.0','')) if r.hours else '' }}" placeholder="-" inputmode="decimal" style="width:56px;flex:none;" aria-label="เวลาเรียน (ชั่วโมง)" title="เวลาเรียนของแผนนี้ (ชั่วโมง)"><span class="lp-hr">ชม.</span>
       {% if r.file_blob %}<a href="/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file" target="_blank" rel="noopener" class="lp-file" title="{{ r.file_name }}"><svg class="icon"><use href="#ic-file"/></svg> {{ r.file_name }}</a>{% endif %}
@@ -74,7 +75,7 @@
     {% if units %}<div class="lp-cols"><span class="lp-no">ลำดับ</span><span style="flex:1;">ชื่อหน่วย</span><span style="width:92px;">เวลาเรียน</span><span style="width:214px;">จำนวนแผนในไฟล์</span></div>{% endif %}
     {% for r in units %}
     <form method="post" action="/academic/lesson-plans/{{ p.id }}/set/{{ r.id }}/edit" enctype="multipart/form-data" class="lp-row lp-row2">
-      <span class="lp-no">หน่วยที่ {{ r.seq }}</span>
+      <span class="lp-no">หน่วยที่ {{ r.seq }}{% if p.status == 'revise' and r.fix_flag %}<span class="fx-tag {{ 'fx-done' if r.fix_flag == 'done' }}">{{ 'แก้แล้ว' if r.fix_flag == 'done' else 'ต้องแก้' }}</span>{% endif %}</span>
       <input name="name" value="{{ r.name or '' }}" placeholder="ชื่อหน่วย" style="flex:1; min-width:160px;" aria-label="ชื่อหน่วยที่ {{ r.seq }}">
       <input name="hours" value="{{ (r.hours|string|replace('.0','')) if r.hours else '' }}" placeholder="-" inputmode="decimal" style="width:56px;flex:none;" aria-label="เวลาเรียน (ชั่วโมง)" title="เวลาเรียนของแผนนี้ (ชั่วโมง)"><span class="lp-hr">ชม.</span>
       <span class="lp-cnt">มี <input name="plan_count" value="{{ r.plan_count or '' }}" inputmode="numeric" style="width:54px;" aria-label="จำนวนแผน"> แผน</span>
@@ -252,6 +253,9 @@
   .lp-step.now{color:var(--brand-dark);font-weight:700}.lp-step.now span{background:var(--brand,#6366f1);color:#fff}
   .lp-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 6px}
   .lp-head input{flex:1;min-width:160px;font-weight:600}
+  .fx-tag{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:700;background:#fee2e2;color:#b91c1c;white-space:nowrap}
+  .fx-tag.fx-done{background:#dcfce7;color:#166534}
+  .lp-no .fx-tag{display:block;margin:2px 0 0;width:fit-content}
   .lp-row{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;padding:8px 0;border-top:1px solid #eef2f7;margin:0}
   .lp-row input[name=name]{flex:1 1 auto;min-width:0;width:auto}
   .lp-row .btn,.lp-row .lp-no{flex:none}

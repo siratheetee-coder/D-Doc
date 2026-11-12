@@ -240,6 +240,7 @@ MIGRATIONS = [
     ("lesson_unit", "unit_no", "INTEGER"),
     ("lesson_unit", "unit_name", "VARCHAR DEFAULT ''"),
     ("lesson_unit", "plan_count", "INTEGER"),
+    ("lesson_unit", "fix_flag", "VARCHAR DEFAULT ''"),
     ("leave_request", "work_group", "VARCHAR DEFAULT ''"),
     ("leave_request", "personnel_by", "INTEGER"),
     ("leave_request", "personnel_at", "DATETIME"),

@@ -185,3 +185,17 @@ def test_unit_mode_has_one_after_note_per_plan_and_locks_until_approved():
         assert "แผนที่ 5 หน่วยที่ 2 การเขียน" in text
     finally:
         _cleanup(db)
+
+
+def test_mark_fix_flags_only_ticked_rows():
+    from types import SimpleNamespace as NS
+    from app.services import lesson_set
+    rows = [NS(id=i, seq=i, fix_flag="done" if i == 3 else "") for i in (1, 2, 3)]
+    p = NS(mode="plan", units_rows=rows)
+    assert lesson_set.mark_fix(p, ["2"]) == ["แผนที่ 2"]
+    assert [r.fix_flag for r in rows] == ["", "need", ""]
+    assert [r.id for r in lesson_set.fix_rows(p)] == [2]
+    lesson_set.clear_fix(p)
+    assert all(r.fix_flag == "" for r in rows)
+    pu = NS(mode="unit", units_rows=rows)
+    assert lesson_set.mark_fix(pu, [1, 3]) == ["หน่วยที่ 1", "หน่วยที่ 3"]

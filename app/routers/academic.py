@@ -948,6 +948,8 @@ async def lesson_set_edit(request: Request, plan_id: int, row_id: int, db: Sessi
     r.hours = _to_float(hours) or None
     if not lesson_set.is_plan_mode(p):
         r.plan_count = _to_int(plan_count, 0) or None
+    if (getattr(r, "fix_flag", "") or "") == "need":
+        r.fix_flag = "done"          # แถวที่ผู้ตรวจติ๊กให้แก้ ครูแก้แล้ว
     db.commit()
     return _set_url(plan_id, msg="บันทึกแล้ว")
 
@@ -1038,7 +1040,7 @@ def lesson_plan_file(request: Request, plan_id: int, db: Session = Depends(get_d
 
 @router.post("/academic/lesson-plans/{plan_id}/review")
 def lesson_plan_review(request: Request, plan_id: int, db: Session = Depends(get_db),
-                       status: str = Form(""), comment: str = Form("")):
+                       status: str = Form(""), comment: str = Form(""), fix: list[str] = Form([])):
     """หัวหน้าฝ่ายวิชาการตรวจ: ผ่าน -> ส่งต่อ ผอ. (แปะลายเซ็นวิชาการ) / ให้แก้ -> ส่งกลับครู"""
     from app.models import LessonPlan
     if _scope(request, db).is_teacher:
@@ -1046,12 +1048,17 @@ def lesson_plan_review(request: Request, plan_id: int, db: Session = Depends(get
     from datetime import datetime as _dt
     p = db.get(LessonPlan, plan_id)
     if p:
+        from app.services import lesson_set
+        if status == "revise" and p.units_rows and not fix:
+            return RedirectResponse(f"/academic/lesson-plans/{plan_id}?err=ติ๊กแผนที่ต้องแก้อย่างน้อย 1 แผน#review", status_code=303)
         p.comment = (comment or "").strip()
         p.reviewed_at = _dt.now()
         if status == "revise":
             p.status = "revise"
-            res = "ให้แก้ไข"
+            names = lesson_set.mark_fix(p, fix)
+            res = "ให้แก้ไข" + (f" ({', '.join(names)})" if names else "")
         else:
+            lesson_set.clear_fix(p)
             p.status = "director"       # ผ่านวิชาการ -> รอ ผอ. อนุมัติ
             p.academic_by = request.session.get("person_id")   # ผู้ตรวจ (ไว้แปะลายเซ็น)
             res = "ผ่าน (ส่งต่อ ผอ.)"
@@ -1100,7 +1107,7 @@ def lesson_plan_detail(request: Request, plan_id: int, db: Session = Depends(get
 
 @router.post("/academic/lesson-plans/{plan_id}/approve")
 def lesson_plan_approve(request: Request, plan_id: int, db: Session = Depends(get_db),
-                        decision: str = Form(""), comment: str = Form("")):
+                        decision: str = Form(""), comment: str = Form(""), fix: list[str] = Form([])):
     """ผอ./รองผอ. ลงนามอนุมัติ (หรือส่งกลับให้แก้)"""
     from app.models import LessonPlan
     if not request.session.get("director"):
@@ -1109,12 +1116,17 @@ def lesson_plan_approve(request: Request, plan_id: int, db: Session = Depends(ge
     p = db.get(LessonPlan, plan_id)
     if not p or p.status != "director":
         return RedirectResponse("/approvals?err=รายการนี้ไม่รอ ผอ. อนุมัติแล้ว", status_code=303)
+    from app.services import lesson_set
+    if decision == "revise" and p.units_rows and not fix:
+        return RedirectResponse(f"/academic/lesson-plans/{plan_id}?err=ติ๊กแผนที่ต้องแก้อย่างน้อย 1 แผน#review", status_code=303)
     p.director_comment = (comment or "").strip()
     p.director_at = _dt.now()
     if decision == "revise":
         p.status = "revise"
-        res = "ส่งกลับให้แก้ไข"
+        names = lesson_set.mark_fix(p, fix)
+        res = "ส่งกลับให้แก้ไข" + (f" ({', '.join(names)})" if names else "")
     else:
+        lesson_set.clear_fix(p)
         p.status = "approved"
         p.director_by = request.session.get("person_id")   # ผอ. ที่ลงนาม (ไว้แปะลายเซ็น)
         res = "อนุมัติแล้ว (ลงนาม)"

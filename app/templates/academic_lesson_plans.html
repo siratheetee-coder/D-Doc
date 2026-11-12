@@ -130,7 +130,8 @@
             <input name="comment" value="{{ p.comment or '' }}" placeholder="ความเห็น (ไม่บังคับ)">
             <button class="btn sm green" type="submit" name="status" value="reviewed"
               onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_reviewer', title:'ตรวจก่อนส่ง', msg:'ระบบจะแปะลายเซ็นของท่านบนบันทึกเสนอ ผอ. ให้เอง โปรดตรวจว่าอัปโหลดลายเซ็นไว้ที่ โปรไฟล์ของฉัน (มุมขวาบน) แล้ว', ok:'รับทราบและส่ง'})">ผ่าน → ผอ.</button>
-            <button class="btn sm" type="submit" name="status" value="revise" style="background:#f59e0b;">ให้แก้</button>
+            {% if p.units_rows %}<a class="btn sm" href="/academic/lesson-plans/{{ p.id }}#review" style="background:#f59e0b;color:#fff;" title="เลือกแผนที่ต้องแก้">ให้แก้</a>
+            {% else %}<button class="btn sm" type="submit" name="status" value="revise" style="background:#f59e0b;">ให้แก้</button>{% endif %}
           </form>
           {% else %}{{ p.comment or '-' }}{% if p.director_comment %}<div class="muted" style="font-size:12px;">ผอ.: {{ p.director_comment }}</div>{% endif %}{% endif %}
         </td>

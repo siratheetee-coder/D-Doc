@@ -38,7 +38,7 @@
         <div class="pf-uh">หน่วยที่ {{ g.grouper }}{% if g.list[0].unit_name %} {{ g.list[0].unit_name }}{% endif %}</div>
         {% for r in g.list %}
         {% if r.file_blob %}<div class="pf-line"><a class="pf-row" href="/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file" target="_blank" rel="noopener">
-          <svg class="icon"><use href="#ic-file"/></svg><b>แผนที่ {{ r.seq }}</b><span>{{ r.name or r.file_name }}</span></a>{% if (r.file_name or '').lower().endswith('.docx') %}<button type="button" class="btn sm gray pf-pv" onclick="lpPreview('/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file', this.dataset.n)" data-n="{{ r.file_name }}"><svg class="icon"><use href="#ic-eye"/></svg> ดูตัวอย่าง</button>{% endif %}</div>
+          <svg class="icon"><use href="#ic-file"/></svg><b>แผนที่ {{ r.seq }}</b><span>{{ r.name or r.file_name }}</span>{% if r.fix_flag == 'done' %}<span class="fx-tag fx-done">แก้แล้ว</span>{% elif r.fix_flag == 'need' %}<span class="fx-tag">ต้องแก้</span>{% endif %}</a>{% if (r.file_name or '').lower().endswith('.docx') %}<button type="button" class="btn sm gray pf-pv" onclick="lpPreview('/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file', this.dataset.n)" data-n="{{ r.file_name }}"><svg class="icon"><use href="#ic-eye"/></svg> ดูตัวอย่าง</button>{% endif %}</div>
         {% else %}<div class="pf-row muted"><b>แผนที่ {{ r.seq }}</b><span>{{ r.name or '-' }} (ไม่มีไฟล์)</span></div>{% endif %}
         {% endfor %}
       </div>
@@ -51,7 +51,7 @@
       {% for r in p.units_rows|sort(attribute='seq') %}
         {% set a = ns.n + 1 %}{% set ns.n = ns.n + (r.plan_count or 0) %}
         {% if r.file_blob %}<div class="pf-line"><a class="pf-row" href="/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file" target="_blank" rel="noopener">
-          <svg class="icon"><use href="#ic-file"/></svg><b>หน่วยที่ {{ r.seq }}</b><span>{{ r.name or r.file_name }}{% if r.plan_count %} (แผนที่ {{ a }} ถึง {{ ns.n }}){% endif %}</span></a>{% if (r.file_name or '').lower().endswith('.docx') %}<button type="button" class="btn sm gray pf-pv" onclick="lpPreview('/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file', this.dataset.n)" data-n="{{ r.file_name }}"><svg class="icon"><use href="#ic-eye"/></svg> ดูตัวอย่าง</button>{% endif %}</div>
+          <svg class="icon"><use href="#ic-file"/></svg><b>หน่วยที่ {{ r.seq }}</b><span>{{ r.name or r.file_name }}{% if r.plan_count %} (แผนที่ {{ a }} ถึง {{ ns.n }}){% endif %}</span>{% if r.fix_flag == 'done' %}<span class="fx-tag fx-done">แก้แล้ว</span>{% elif r.fix_flag == 'need' %}<span class="fx-tag">ต้องแก้</span>{% endif %}</a>{% if (r.file_name or '').lower().endswith('.docx') %}<button type="button" class="btn sm gray pf-pv" onclick="lpPreview('/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file', this.dataset.n)" data-n="{{ r.file_name }}"><svg class="icon"><use href="#ic-eye"/></svg> ดูตัวอย่าง</button>{% endif %}</div>
         {% else %}<div class="pf-row muted"><b>หน่วยที่ {{ r.seq }}</b><span>{{ r.name or '-' }} (ไม่มีไฟล์)</span></div>{% endif %}
       {% endfor %}
       </div>
@@ -121,7 +121,7 @@
     <h2 style="margin-top:0;">สายการตรวจ / ลงนาม</h2>
     <div style="border-left:3px solid #93c5fd; padding:4px 0 4px 12px; margin-bottom:14px;">
       <b>1. หัวหน้าฝ่ายวิชาการ</b><br>
-      {% if p.status in ('director','approved') or p.reviewed_at %}
+      {% if p.status in ('director','approved','revise') %}
         <span class="muted">{{ academic.name if academic else (school.academic_head_name or '-') }} {{ thai_date(p.reviewed_at) if p.reviewed_at else '-' }}</span><br>
         {% if p.status == 'revise' %}<span class="pill" style="background:#fee2e2; color:#b91c1c;">ให้แก้ไข</span>
         {% else %}<span class="pill" style="background:#dcfce7; color:#166534;">ผ่าน</span>{% endif %}
@@ -151,13 +151,24 @@
         </div>
       </div>
     </div>
-    <form method="post" action="/academic/lesson-plans/{{ p.id }}/review">
+    <form method="post" action="/academic/lesson-plans/{{ p.id }}/review" id="review">
+      {% if p.units_rows %}
+      <div class="fx-box">
+        <b>ถ้าส่งกลับให้แก้ ติ๊ก{{ 'แผน' if p.mode == 'plan' else 'หน่วย' }}ที่ต้องแก้</b> <span class="muted">(เลือกได้หลายรายการ)</span>
+        <div class="fx-list">
+        {% for r in p.units_rows|sort(attribute='seq') %}
+          <label class="fx-item"><input type="checkbox" name="fix" value="{{ r.id }}" {{ 'checked' if r.fix_flag == 'need' }}>
+            <b>{{ 'แผนที่' if p.mode == 'plan' else 'หน่วยที่' }} {{ r.seq }}</b> <span>{{ r.name or r.file_name }}</span>{% if r.fix_flag == 'done' %}<span class="fx-tag fx-done">แก้แล้ว</span>{% elif r.fix_flag == 'need' %}<span class="fx-tag">ต้องแก้</span>{% endif %}</label>
+        {% endfor %}
+        </div>
+      </div>
+      {% endif %}
       <label>ความเห็นหัวหน้าฝ่ายวิชาการ (ไม่บังคับ)</label>
       <textarea name="comment" rows="2" style="width:100%;" placeholder="เช่น ตรวจแล้ว เห็นควรเสนอ ผอ.">{{ p.comment or '' }}</textarea>
       <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
         <button class="btn green" type="submit" name="status" value="reviewed"
           onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_reviewer', title:'ตรวจก่อนส่ง', msg:'ระบบจะแปะลายเซ็นของท่านบนบันทึกเสนอ ผอ. ให้เอง โปรดตรวจว่าอัปโหลดลายเซ็นไว้ที่ โปรไฟล์ของฉัน (มุมขวาบน) แล้ว', ok:'รับทราบและส่ง'})"><svg class="icon"><use href="#ic-check"/></svg> ผ่าน → ผอ.</button>
-        <button class="btn" type="submit" name="status" value="revise" style="background:#f59e0b;">ให้แก้</button>
+        <button class="btn" type="submit" name="status" value="revise" style="background:#f59e0b;" onclick="return fxNeed(this)">ให้แก้</button>
       </div>
     </form>
     {% endif %}
@@ -176,13 +187,24 @@
         </div>
       </div>
     </div>
-    <form method="post" action="/academic/lesson-plans/{{ p.id }}/approve">
+    <form method="post" action="/academic/lesson-plans/{{ p.id }}/approve" id="review">
+      {% if p.units_rows %}
+      <div class="fx-box">
+        <b>ถ้าส่งกลับให้แก้ ติ๊ก{{ 'แผน' if p.mode == 'plan' else 'หน่วย' }}ที่ต้องแก้</b> <span class="muted">(เลือกได้หลายรายการ)</span>
+        <div class="fx-list">
+        {% for r in p.units_rows|sort(attribute='seq') %}
+          <label class="fx-item"><input type="checkbox" name="fix" value="{{ r.id }}" {{ 'checked' if r.fix_flag == 'need' }}>
+            <b>{{ 'แผนที่' if p.mode == 'plan' else 'หน่วยที่' }} {{ r.seq }}</b> <span>{{ r.name or r.file_name }}</span>{% if r.fix_flag == 'done' %}<span class="fx-tag fx-done">แก้แล้ว</span>{% elif r.fix_flag == 'need' %}<span class="fx-tag">ต้องแก้</span>{% endif %}</label>
+        {% endfor %}
+        </div>
+      </div>
+      {% endif %}
       <label>ความเห็นผู้อำนวยการ (ไม่บังคับ)</label>
       <textarea name="comment" rows="2" style="width:100%;" placeholder="เช่น อนุมัติ / เห็นชอบ"></textarea>
       <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
         <button class="btn green" type="submit" name="decision" value="approve"
           onclick="return ddocConfirm(event, this, {key:'ddoc_plansend_director', title:'ตรวจก่อนอนุมัติ', msg:'ระบบจะแปะลายเซ็นของท่านบนบันทึกอนุมัติให้เอง โปรดตรวจว่าอัปโหลดลายเซ็นไว้ที่ โปรไฟล์ของฉัน (มุมขวาบน) แล้ว', ok:'รับทราบและอนุมัติ'})"><svg class="icon"><use href="#ic-check"/></svg> อนุมัติ + ลงนาม</button>
-        <button class="btn" type="submit" name="decision" value="revise" style="background:#f59e0b;">ส่งกลับให้แก้</button>
+        <button class="btn" type="submit" name="decision" value="revise" style="background:#f59e0b;" onclick="return fxNeed(this)">ส่งกลับให้แก้</button>
       </div>
     </form>
     {% endif %}
@@ -195,6 +217,29 @@
     var el=document.getElementById(id); if(el) el.hidden=false; }
   initHint('ddoc_planhint_reviewer','hintReviewer');
   initHint('ddoc_planhint_director','hintDirector');
+  // ส่งกลับให้แก้: ต้องติ๊กแผนที่ต้องแก้อย่างน้อย 1 รายการ
+  function fxNeed(btn){
+    var f=btn.form, box=f.querySelector('.fx-box'); if(!box) return true;
+    if(f.querySelector('input[name=fix]:checked')) return true;
+    box.classList.add('fx-err'); box.scrollIntoView({block:'center', behavior:'smooth'});
+    return false;
+  }
+  document.addEventListener('change',function(e){ if(e.target.name==='fix'){ var b=e.target.closest('.fx-box'); if(b) b.classList.remove('fx-err'); } });
 </script>
+<style>
+  .fx-tag{display:inline-block;flex:none;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:700;background:#fee2e2;color:#b91c1c;white-space:nowrap}
+  .fx-tag.fx-done{background:#dcfce7;color:#166534}
+  .fx-box{background:#fff7ed;border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:13.5px}
+  .fx-box.fx-err{box-shadow:0 0 0 2px #f97316}
+  .fx-box.fx-err::after{content:"ติ๊กอย่างน้อย 1 รายการก่อนส่งกลับ";display:block;color:#c2410c;font-weight:600;margin-top:6px}
+  .fx-list{display:flex;flex-direction:column;gap:2px;margin-top:6px;max-height:220px;overflow:auto}
+  .fx-item{display:flex;gap:8px;align-items:center;font-weight:400;padding:4px 6px;border-radius:8px;cursor:pointer;margin:0}
+  .fx-item input{width:auto!important;flex:none;margin:0;padding:0;min-width:0}
+  .fx-item{justify-content:flex-start;text-align:left}
+  .fx-item span{flex:1;min-width:0}
+  .fx-item:hover{background:#ffedd5}
+  .fx-item b{white-space:nowrap}
+  .fx-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#475569}
+</style>
 {% include "_docx_preview.html" %}
 {% endblock %}

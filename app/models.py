@@ -2410,6 +2410,8 @@ class LessonUnit(Base):
     # แบบทั้งหน่วย: จำนวนแผนในไฟล์หน่วยนี้ (ไม่บังคับ) ใช้ไล่เลข "แผนที่ 1 ถึง 6"
     plan_count = Column(Integer, nullable=True)
     result_at = Column(DateTime, nullable=True)   # บันทึกผลครั้งล่าสุด (ไว้ตรวจย้อน)
+    # ส่งกลับให้แก้: ผู้ตรวจติ๊กแผน/หน่วยที่ต้องแก้ '' = ไม่เกี่ยว 'need' = ต้องแก้ 'done' = ครูแก้แล้ว
+    fix_flag = Column(String, default="")
 
     plan = relationship("LessonPlan", back_populates="units_rows")
     notes = relationship("LessonNote", back_populates="unit", cascade="all, delete-orphan",
