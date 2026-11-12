@@ -85,6 +85,14 @@ def _hr_alerts(db):
     return out
 
 
+def _academic_alerts(db):
+    from app.models import LessonPlan
+    n = db.query(LessonPlan).filter(LessonPlan.status == "pending").count()
+    if n:
+        return [_alert("warn", f"แผนการสอนรอตรวจ {n} เรื่อง", "ตรวจแล้วส่งต่อ ผอ.", "/academic/lesson-plans", "วิชาการ")]
+    return []
+
+
 def _director_alerts(db):
     from app.models import LeaveRequest, TravelRequest, IncomingLetter
     out = []
@@ -134,6 +142,13 @@ def nav_alerts(session=None):
                     alerts += fn()
                 except Exception as e:  # noqa: BLE001  งานหนึ่งพัง กระดิ่งยังต้องขึ้น
                     print("[bell]", mod, repr(e))
+        # หัวหน้าวิชาการ = บัญชีที่เข้างานวิชาการได้ และไม่ใช่ครู (ครูมี person_id) ไม่ใช่ ผอ.
+        if ("academic" in allowed and not director and session is not None
+                and (session.get("owner") or not session.get("person_id"))):
+            try:
+                alerts += _academic_alerts(db)
+            except Exception as e:  # noqa: BLE001
+                print("[bell] academic", repr(e))
         if director:
             try:
                 alerts += _director_alerts(db)
