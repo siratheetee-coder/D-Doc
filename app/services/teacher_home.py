@@ -75,10 +75,10 @@ def build(db, pid, *, year=None, letters=None, letter_tasks=0, letter_late=0, le
         + db.query(TravelRequest).filter(TravelRequest.person_id == pid, TravelRequest.status.in_(("pending", "personnel"))).count()
 
     stats = [
-        dict(label="หนังสือรอรับทราบ", n=letter_pending, href="/me/letters", icon="ic-file", tone="blue"),
-        dict(label="แผนรอดำเนินการ", n=waiting_plans, href="/academic/lesson-plans", icon="ic-clipboard", tone="purple"),
-        dict(label="บันทึกหลังสอนค้าง", n=after_left, href="/academic/lesson-plans", icon="ic-edit", tone="amber",
+        dict(label="หนังสือรอรับทราบ", n=letter_pending, href="/me/letters", icon="ic-file", img="letters", tone="blue"),
+        dict(label="แผนรอดำเนินการ", n=waiting_plans, href="/academic/lesson-plans", icon="ic-clipboard", img="plans", tone="purple"),
+        dict(label="บันทึกหลังสอนค้าง", n=after_left, href="/academic/lesson-plans", icon="ic-edit", img="notes", tone="amber",
              unit="แผน"),
-        dict(label="ใบลา/ไปราชการรออนุมัติ", n=pending_req, href="/me/leave", icon="ic-calendar", tone="green"),
+        dict(label="ใบลา/ไปราชการรออนุมัติ", n=pending_req, href="/me/leave", icon="ic-calendar", img="leave_wait", tone="green"),
     ]
     return dict(stats=stats, todos=todos[:8], plans=rows[:5], requests=reqs[:3], has_plans=bool(plans))
