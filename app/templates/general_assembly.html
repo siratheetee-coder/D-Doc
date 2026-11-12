@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}เช็คชื่อเข้าแถว{% endblock %}
+{% block content %}
+<div class="hero" style="background:linear-gradient(135deg,#0891b2,#4f46e5);">
+  <div>
+    <span class="hero-title">เช็คชื่อเข้าแถว</span>
+    <div class="hero-meta">ครูประจำชั้นกดเช็คนักเรียนในห้องของตัวเอง</div>
+  </div>
+</div>
+
+{% if msg %}<div class="alert ok">{{ msg }}</div>{% endif %}
+
+{% if not c %}
+<div class="card"><p style="margin:0;">บัญชีนี้ยังไม่ได้เป็นครูประจำชั้นห้องไหน ให้เจ้าหน้าที่วิชาการกำหนดครูประจำชั้นในหน้าห้องเรียนก่อน</p>
+  <p class="muted" style="margin:8px 0 0;">เจ้าหน้าที่ลงชื่อแบบพิมพ์ชื่อได้ที่ <a href="/general/arrival">บันทึกการเข้าแถว</a></p></div>
+{% else %}
+<style>
+.as-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.as-top form{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0}
+.as-top input,.as-top select{border:0;border-radius:12px;padding:9px 12px;font:inherit;background:#f1f5f9}
+.as-sum{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px}
+.as-sum div{border-radius:14px;padding:10px;text-align:center;background:var(--b)}
+.as-sum b{display:block;font-size:22px;color:var(--c)}.as-sum span{font-size:12.5px;color:#475569}
+.as-list{background:#fff;border-radius:18px;box-shadow:0 4px 18px rgba(15,23,42,.07);overflow:hidden}
+.as-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;background:linear-gradient(135deg,#ecfeff,#eef2ff)}
+.as-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid #f1f5f9}
+.as-name{flex:1;min-width:0;font-size:15px}.as-name small{color:#94a3b8;margin-right:8px}
+.as-st{display:flex;gap:6px}
+.as-st button{min-width:56px;height:40px;padding:0 10px;border:0;border-radius:12px;background:#f1f5f9;color:#64748b;font:inherit;font-weight:700;cursor:pointer}
+.as-st button.on[data-v=ontime]{background:linear-gradient(135deg,#4ade80,#16a34a);color:#fff}
+.as-st button.on[data-v=late]{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff}
+.as-st button.on[data-v=absent]{background:linear-gradient(135deg,#f87171,#dc2626);color:#fff}
+.as-st button.on[data-v=skip]{background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#fff}
+.as-save{position:sticky;bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;padding:10px 14px;border-radius:16px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.12)}
+@media(max-width:600px){.as-sum{grid-template-columns:repeat(3,1fr)}.as-row{flex-wrap:wrap}.as-name{flex-basis:100%}.as-st{width:100%}.as-st button{flex:1;min-width:0}}
+</style>
+
+<div class="as-top">
+  <form method="get" action="/general/assembly">
+    {% if classes|length > 1 %}<select name="cid" onchange="this.form.submit()" aria-label="ห้อง">{% for id,l in classes %}<option value="{{ id }}" {{ 'selected' if id == c.id }}>{{ l }}</option>{% endfor %}</select>{% else %}<input type="hidden" name="cid" value="{{ c.id }}"><b>ห้อง {{ c_label }}</b>{% endif %}
+    <input type="text" name="date" value="{{ day_input }}" data-date="1" inputmode="numeric" maxlength="10" aria-label="วันที่" style="width:130px;">
+    <button class="btn soft sm" type="submit">ดู</button>
+  </form>
+  <span class="muted">{{ day_be }}</span>
+</div>
+
+<div class="as-sum">
+  <div style="--b:#ecfdf5;--c:#16a34a;"><b id="nOn">0</b><span>มา</span></div>
+  <div style="--b:#fffbeb;--c:#d97706;"><b id="nLate">0</b><span>สาย</span></div>
+  <div style="--b:#fef2f2;--c:#dc2626;"><b id="nAbs">0</b><span>ขาด</span></div>
+  <div style="--b:#f5f3ff;--c:#7c3aed;"><b id="nSkip">0</b><span>โดดแถว</span></div>
+  <div style="--b:#f8fafc;--c:#64748b;"><b id="nNone">0</b><span>ยังไม่เช็ค</span></div>
+</div>
+
+<form method="post" action="/general/assembly" id="asForm">
+  <input type="hidden" name="cid" value="{{ c.id }}"><input type="hidden" name="date" value="{{ day }}"><input type="hidden" name="marks" id="asMarks">
+  <div class="as-list">
+    <div class="as-head"><b>นักเรียน {{ rows|length }} คน</b><button type="button" class="btn sm" id="asAll">มาทั้งหมด</button></div>
+    {% for r in rows %}
+    <div class="as-row" data-sid="{{ r.sid }}" data-v="{{ r.status }}" data-o="{{ r.status }}">
+      <div class="as-name"><small>{{ r.no }}</small>{{ r.name }}</div>
+      <div class="as-st">{% for k,l in states.items() %}<button type="button" data-v="{{ k }}" class="{{ 'on' if r.status == k }}">{{ l }}</button>{% endfor %}</div>
+    </div>
+    {% else %}<p class="muted" style="padding:14px;margin:0;">ห้องนี้ยังไม่มีรายชื่อนักเรียน</p>{% endfor %}
+  </div>
+  {% if missing %}<p class="muted" style="font-size:13px;">มีนักเรียน {{ missing }} คนที่ยังไม่ได้ผูกกับทะเบียนนักเรียน จึงไม่ขึ้นในรายชื่อนี้</p>{% endif %}
+  <div class="as-save"><span id="asStatus" class="muted">ยังไม่มีการแก้ไข</span><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button></div>
+</form>
+<script>
+(function(){
+  var rows=[].slice.call(document.querySelectorAll('.as-row'));
+  function sync(){
+    var c={ontime:0,late:0,absent:0,skip:0,'':0},ch=0;
+    rows.forEach(function(r){c[r.dataset.v||'']++;if(r.dataset.v!==r.dataset.o)ch++;
+      r.querySelectorAll('button').forEach(function(b){b.classList.toggle('on',b.dataset.v===r.dataset.v);});});
+    nOn.textContent=c.ontime;nLate.textContent=c.late;nAbs.textContent=c.absent;nSkip.textContent=c.skip;nNone.textContent=c[''];
+    asStatus.textContent=ch?('แก้ไข '+ch+' คน ยังไม่บันทึก'):'ยังไม่มีการแก้ไข';window.asDirty=ch>0;
+  }
+  rows.forEach(function(r){r.querySelectorAll('button').forEach(function(b){b.onclick=function(){r.dataset.v=r.dataset.v===b.dataset.v?'':b.dataset.v;sync();};});});
+  asAll.onclick=function(){if(rows.some(function(r){return r.dataset.v&&r.dataset.v!=='ontime';})&&!confirm('เปลี่ยนทุกคนเป็น "มา"?'))return;rows.forEach(function(r){r.dataset.v='ontime';});sync();};
+  asForm.addEventListener('submit',function(){var m={};rows.forEach(function(r){if(r.dataset.v!==r.dataset.o)m[r.dataset.sid]=r.dataset.v;});asMarks.value=JSON.stringify(m);window.asDirty=false;});
+  window.addEventListener('beforeunload',function(e){if(window.asDirty){e.preventDefault();e.returnValue='';}});
+  sync();
+})();
+</script>
+{% endif %}
+{% endblock %}

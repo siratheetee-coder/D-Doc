@@ -83,7 +83,7 @@ Easy Ekkasan คือระบบงานเอกสารโรงเรี�
 - แผนการสอน `/academic/lesson-plans`, สอนแทน `/academic/substitute`
 
 ### บริหารทั่วไป (ฟรี)
-- `/general`, บันทึกการมาเรียน `/general/arrival`, ทัศนศึกษา `/general/trips`
+- `/general`, บันทึกการเข้าแถว `/general/arrival`, ทัศนศึกษา `/general/trips`
 
 ### โครงการและแผน
 - โครงการ `/projects`, ตั้งยอดตั้งต้นโครงการ `/projects/start`, นำเข้าแผน `/projects/import` (เฉพาะไฟล์ Excel .xlsx มีแม่แบบให้ดาวน์โหลด ยังนำเข้าจากไฟล์ Word ไม่ได้), ปรับโครงการ `/projects/realign`, ปิดปีแผนและขึ้นปีใหม่ `/projects/next-year`

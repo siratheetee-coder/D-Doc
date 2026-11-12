@@ -481,7 +481,7 @@ class ArrivalSetting(Base):
 
 
 class Arrival(Base):
-    """บันทึกการมาเรียนของนักเรียน 1 คน 1 วัน (คลิกชื่อ = ลงเวลาที่กดทันที)"""
+    """บันทึกการเข้าแถวของนักเรียน 1 คน 1 วัน (คลิกชื่อ = ลงเวลาที่กดทันที)"""
     __tablename__ = "arrival"
     __table_args__ = (UniqueConstraint("student_id", "date", name="uq_arrival_student_date"),)
 

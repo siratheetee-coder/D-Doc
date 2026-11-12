@@ -88,10 +88,11 @@ def build(db, pid):
     from app.thai_utils import current_term
     today = date.today()
     out = dict(today_label=f"วัน{TH_WD[today.weekday()]}ที่ {today.day} {TH_MS[today.month]}",
-               lessons=[], sum=None, events=[])
+               lessons=[], sum=None, events=[], homeroom=False)
     try:
         sc = _Scope(int(pid), db)
         year = _acad_year(db)
+        out["homeroom"] = bool(sc.homeroom_ids)
         out["lessons"] = today_lessons(db, sc, today)
         if sc.teach_pairs:
             out["sum"] = summary(db, sc, year, current_term())

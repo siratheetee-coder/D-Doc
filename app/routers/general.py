@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 general.py - งานบริหารทั่วไป
-ฟังก์ชันแรก: บันทึกการมาเรียน (คลิกชื่อนักเรียน -> ลงเวลามาทันที + สรุปสาย/มาทัน)
+ฟังก์ชันแรก: บันทึกการเข้าแถว (คลิกชื่อนักเรียน -> ลงเวลามาทันที + สรุปสาย/มาทัน)
 เข้าถึงได้ทุกบัญชีของโรงเรียน (ไม่อยู่ในระบบคิดเงินโมดูล -> path /general = mod None)
 """
 from datetime import datetime, date as _date
@@ -129,12 +129,14 @@ def arrival_page(request: Request, db: Session = Depends(get_db),
                      "cls": _class_label(s) if s else "-",
                      "time": r.time, "status": r.status})
     n_late = sum(1 for r in recs if r.status == "late")
+    n_absent = sum(1 for r in recs if r.status == "absent")
+    n_skip = sum(1 for r in recs if r.status == "skip")
     return templates.TemplateResponse("general_arrival.html", {
         "request": request, "school": get_school(db), "day": day, "day_be": _be(day),
         "day_input": _be_input(day),
         "setting": st, "students": _student_rows(db), "done_ids": list(done_ids),
         "rows": rows, "n_total": len(recs), "n_late": n_late,
-        "n_ontime": len(recs) - n_late, "msg": msg,
+        "n_ontime": len(recs) - n_late - n_absent - n_skip, "n_absent": n_absent, "n_skip": n_skip, "msg": msg,
     })
 
 
@@ -207,7 +209,8 @@ def arrival_print(request: Request, db: Session = Depends(get_db), date: str = "
     return templates.TemplateResponse("general_arrival_print.html", {
         "request": request, "school": get_school(db), "day_be": _be(day),
         "rows": rows, "n_total": len(recs), "n_late": n_late,
-        "n_ontime": len(recs) - n_late,
+        "n_ontime": sum(1 for r in recs if r.status == "ontime"),
+        "n_absent": sum(1 for r in recs if r.status == "absent"), "n_skip": sum(1 for r in recs if r.status == "skip"),
     })
 
 
@@ -221,8 +224,11 @@ def arrival_stats(request: Request, db: Session = Depends(get_db),
     dt = _valid_date(date_to) if date_to else today.isoformat()
     if df > dt:
         df, dt = dt, df
-    recs = (db.query(Arrival)
+    all_recs = (db.query(Arrival)
             .filter(Arrival.date >= df, Arrival.date <= dt).all())
+    n_absent = sum(1 for r in all_recs if r.status == "absent")
+    n_skip = sum(1 for r in all_recs if r.status == "skip")
+    recs = [r for r in all_recs if r.status in PRESENT]   # สถิติมาทัน/สาย นับเฉพาะคนที่มา
     studs = {s.id: s for s in db.query(Student).all()}
 
     def rlabel(sid):
@@ -282,7 +288,83 @@ def arrival_stats(request: Request, db: Session = Depends(get_db),
         "late_students": late_students, "late_max": late_max,
         "n_total": n_total, "n_late": n_late, "n_ontime": n_total - n_late,
         "pct_late": round(n_late / n_total * 100) if n_total else 0,
+        "n_absent": n_absent, "n_skip": n_skip,
     })
+
+
+# ---------------- ครูประจำชั้นเช็คชื่อเข้าแถว (ไม่ต้องพิมพ์ชื่อ/เวลา) ----------------
+ASSEMBLY_STATUS = {"ontime": "มา", "late": "สาย", "absent": "ขาด", "skip": "โดดแถว"}
+PRESENT = ("ontime", "late")
+
+
+def _my_homerooms(request, db):
+    from app.models import AcadClass
+    pid = request.session.get("person_id")
+    if not pid:
+        return []
+    pid = int(pid)
+    return (db.query(AcadClass).filter((AcadClass.homeroom_id == pid) | (AcadClass.co_homeroom_id == pid))
+            .order_by(AcadClass.id).all())
+
+
+@router.get("/general/assembly", response_class=HTMLResponse)
+def assembly_page(request: Request, db: Session = Depends(get_db), date: str = "", cid: int = 0, msg: str = ""):
+    from app.routers.academic import _class_label as acad_label
+    day = _valid_date(date)
+    classes = _my_homerooms(request, db)
+    c = next((x for x in classes if x.id == cid), classes[0] if classes else None)
+    rows, missing = [], 0
+    if c:
+        studs = sorted(c.students, key=lambda s: (s.seq or 9999, s.name or ""))
+        ids = [s.student_id for s in studs if s.student_id]
+        recs = {r.student_id: r for r in db.query(Arrival).filter(Arrival.date == day, Arrival.student_id.in_(ids)).all()} if ids else {}
+        for i, s in enumerate(studs, 1):
+            if not s.student_id:
+                missing += 1
+                continue
+            r = recs.get(s.student_id)
+            rows.append({"sid": s.student_id, "no": s.seq or i, "name": s.name, "status": r.status if r else ""})
+    return templates.TemplateResponse("general_assembly.html", {
+        "request": request, "school": get_school(db), "day": day, "day_be": _be(day), "day_input": _be_input(day),
+        "classes": [(x.id, acad_label(x)) for x in classes], "c": c, "c_label": acad_label(c) if c else "",
+        "rows": rows, "missing": missing, "states": ASSEMBLY_STATUS, "msg": msg,
+    })
+
+
+@router.post("/general/assembly")
+def assembly_save(request: Request, db: Session = Depends(get_db), date: str = Form(""), cid: int = Form(0),
+                  marks: str = Form("{}")):
+    import json
+    day = _valid_date(date)
+    c = next((x for x in _my_homerooms(request, db) if x.id == cid), None)
+    if not c:
+        return RedirectResponse("/general/assembly", status_code=303)
+    allowed = {s.student_id for s in c.students if s.student_id}
+    try:
+        data = json.loads(marks or "{}")
+    except ValueError:
+        data = {}
+    now = datetime.now().strftime("%H:%M")
+    n = 0
+    for k, v in (data.items() if isinstance(data, dict) else []):
+        try:
+            sid = int(k)
+        except (TypeError, ValueError):
+            continue
+        if sid not in allowed or (v and v not in ASSEMBLY_STATUS):
+            continue
+        rec = db.query(Arrival).filter(Arrival.student_id == sid, Arrival.date == day).first()
+        if not v:
+            if rec:
+                db.delete(rec); n += 1
+            continue
+        if rec:
+            rec.status = v
+        else:
+            db.add(Arrival(student_id=sid, date=day, time=now if day == _today_iso() else "", status=v))
+        n += 1
+    db.commit()
+    return RedirectResponse(f"/general/assembly?cid={c.id}&date={day}&msg=บันทึกแล้ว {n} คน", status_code=303)
 
 
 # ============================================================

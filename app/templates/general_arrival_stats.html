@@ -3,7 +3,7 @@
 {% block content %}
 <div class="hero">
   <div>
-    <div class="hero-sub">งานบริหารทั่วไป บันทึกการมาเรียน</div>
+    <div class="hero-sub">งานบริหารทั่วไป บันทึกการเข้าแถว</div>
     <span class="hero-title">สถิติการมาเรียน</span>
     <div class="hero-meta">{{ school.name or "" }} {{ df_be }} ถึง {{ dt_be }}{% if room %} ห้อง {{ room }}{% endif %}</div>
   </div>
@@ -35,6 +35,7 @@
     <div class="box"><div><div class="lab">ร้อยละมาสาย</div><div class="num">{{ pct_late }}%</div></div>
       <span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-clipboard"/></svg></span></div>
   </div>
+  {% if n_absent or n_skip %}<p class="muted" style="margin:6px 0 0;">ในช่วงนี้มีขาด {{ n_absent }} ครั้ง และโดดแถว {{ n_skip }} ครั้ง (ไม่นับรวมในสถิติมาทัน/มาสาย)</p>{% endif %}
 </div>
 
 <!-- กราฟรายวัน -->

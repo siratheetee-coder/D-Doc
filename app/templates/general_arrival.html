@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}บันทึกการมาเรียน{% endblock %}
+{% block title %}บันทึกการเข้าแถว{% endblock %}
 {% block content %}
 <div class="hero">
   <div>
     <div class="hero-sub">งานบริหารทั่วไป</div>
-    <span class="hero-title">บันทึกการมาเรียน</span>
+    <span class="hero-title">บันทึกการเข้าแถว</span>
     <div class="hero-meta">{{ school.name or "" }} {{ day_be }}</div>
   </div>
 </div>
@@ -36,7 +36,7 @@
                pattern="([01][0-9]|2[0-3]):[0-5][0-9]" oninput="fmtTime(this)"
                onkeydown="if(event.key==='Enter'){event.preventDefault();save();}"
                style="width:130px; padding:9px 12px; font-size:16px;"></div>
-      <div><button class="btn" type="button" id="saveBtn" onclick="save()"><svg class="icon"><use href="#ic-check"/></svg> 3. บันทึกการมาเรียน</button></div>
+      <div><button class="btn" type="button" id="saveBtn" onclick="save()"><svg class="icon"><use href="#ic-check"/></svg> 3. บันทึกการเข้าแถว</button></div>
     </div>
     <p class="muted" style="font-size:12px; margin:8px 0 0;">เว้นช่องเวลาว่างไว้ = ใช้เวลาปัจจุบันตอนกดบันทึก</p>
 
@@ -78,7 +78,7 @@
         <td>{{ r.no or '-' }}</td>
         <td>{{ r.cls }}</td>
         <td>{{ r.time }}</td>
-        <td>{% if r.status == 'late' %}<span class="badge late">สาย</span>{% else %}<span class="badge ontime">มาทัน</span>{% endif %}</td>
+        <td>{% if r.status == 'late' %}<span class="badge late">สาย</span>{% elif r.status == 'absent' %}<span class="badge late">ขาด</span>{% elif r.status == 'skip' %}<span class="badge late">โดดแถว</span>{% else %}<span class="badge ontime">มาทัน</span>{% endif %}</td>
         <td><form method="post" action="/general/arrival/{{ r.id }}/delete" style="margin:0;"><input type="hidden" name="date" value="{{ day }}"><button class="btn sm gray" type="submit">ลบ</button></form></td>
       </tr>
       {% endfor %}

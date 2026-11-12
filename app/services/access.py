@@ -49,6 +49,8 @@ def denied(path, acc) -> str:
     mine = set(parse_modules(acc.get("modules") or ""))
     # ไอดีครู: สิทธิ์งานวิชาการใช้กับหน้าของวิชาการเท่านั้น ไม่เปิดหน้าส่วนกลางให้
     shared_mine = mine - {"academic"} if acc.get("person_id") else mine
+    if _under(p, "/general/assembly"):
+        return ""   # ครูประจำชั้นเช็คเข้าแถว: route กันเองให้เห็นเฉพาะห้องที่ประจำชั้น
     for pre, need in SHARED.items():
         if _under(p, pre):
             has = mine if pre == "/settings/calendar" else shared_mine   # ครูดูปฏิทินได้ (บันทึกไม่ได้ กันที่ route)

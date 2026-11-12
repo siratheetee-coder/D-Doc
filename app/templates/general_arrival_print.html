@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
   <meta charset="utf-8">
-  <title>บันทึกการมาเรียน {{ day_be }}</title>
+  <title>บันทึกการเข้าแถว {{ day_be }}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
   <style>
@@ -22,9 +22,9 @@
   </style>
 </head>
 <body>
-  <h1>บันทึกการมาเรียน</h1>
+  <h1>บันทึกการเข้าแถว</h1>
   <p class="sub">{{ school.name }} &middot; {{ day_be }}</p>
-  <p class="sum">มาทั้งหมด {{ n_total }} คน &middot; มาทันแถว {{ n_ontime }} คน &middot; สาย {{ n_late }} คน</p>
+  <p class="sum">บันทึกทั้งหมด {{ n_total }} คน: มาทันแถว {{ n_ontime }} คน สาย {{ n_late }} คน{% if n_absent %} ขาด {{ n_absent }} คน{% endif %}{% if n_skip %} โดดแถว {{ n_skip }} คน{% endif %}</p>
   <table>
     <thead><tr>
       <th class="c" style="width:56px;">ลำดับ</th>
@@ -42,7 +42,7 @@
         <td class="c">{{ r.no or '-' }}</td>
         <td class="c">{{ r.cls }}</td>
         <td class="c">{{ r.time }}</td>
-        <td class="c {{ 'late' if r.status == 'late' }}">{{ 'สาย' if r.status == 'late' else 'มาทัน' }}</td>
+        <td class="c {{ 'late' if r.status != 'ontime' }}">{{ {'late':'สาย','absent':'ขาด','skip':'โดดแถว'}.get(r.status,'มาทัน') }}</td>
       </tr>
     {% else %}
       <tr><td colspan="6" style="text-align:center; color:#888;">ยังไม่มีการลงเวลาในวันนี้</td></tr>
