@@ -66,6 +66,7 @@
         b.onclick=()=>{pattern[k].has(n)?pattern[k].delete(n):pattern[k].add(n);renderDays();update();};wrap.append(b);});
       row.append(wrap);
       if(!pattern[k].size){const w=document.createElement('small');w.className='ls-need';w.textContent='ยังไม่ได้เลือกคาบ';row.append(w);}
+      if(k==='60'){const w=document.createElement('small');w.className='ls-need';w.textContent='เสาร์/อาทิตย์ไม่เพิ่มให้เอง กดเลือกวันที่สอนชดเชยในปฏิทิน "ปรับวันพิเศษ" ข้อ 3';row.append(w);const cb=document.getElementById('calBox');if(cb)cb.open=true;}
       box.append(row);});
   }
   document.querySelectorAll('.ls-dayopt').forEach(b=>b.onclick=()=>{const k=b.dataset.wd;
