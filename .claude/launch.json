@@ -20,6 +20,14 @@
         "C:\\Users\\Lenovo_\\AppData\\Local\\Temp\\claude\\1578627dc3b86b73\\79f775f9-f73f-4bf3-91b5-143f5a6f1f87\\scratchpad\\approval_demo.py"
       ],
       "port": 8010
+    },
+    {
+      "name": "lesson-demo",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": [
+        "C:\\Users\\Lenovo_\\AppData\\Local\\Temp\\claude\\1578627dc3b86b73\\79f775f9-f73f-4bf3-91b5-143f5a6f1f87\\scratchpad\\lesson_demo.py"
+      ],
+      "port": 8011
     }
   ]
 }
