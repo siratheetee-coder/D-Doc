@@ -1,0 +1,65 @@
+{# ดูตัวอย่างไฟล์ Word บนหน้าเว็บ: เบราว์เซอร์ของผู้ใช้แสดงเอง (docx-preview) ไฟล์ไม่ออกนอกระบบ
+   เรียก lpPreview(url, ชื่อไฟล์) ครั้งแรกขึ้นการ์ดเตือนว่าตัวอย่างอาจไม่ตรงกับไฟล์จริง #}
+<div id="dpv" class="dpv" hidden>
+  <div class="dpv-box" role="dialog" aria-modal="true" aria-label="ตัวอย่างไฟล์">
+    <div class="dpv-bar">
+      <b id="dpv-name" class="dpv-name"></b>
+      <a id="dpv-dl" class="btn sm" href="#" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลดไฟล์จริง</a>
+      <button type="button" class="btn sm gray" onclick="lpPreviewClose()" aria-label="ปิด"><svg class="icon"><use href="#ic-x"/></svg> ปิด</button>
+    </div>
+    <div class="dpv-note">ตัวอย่างบนเว็บอาจไม่ตรงกับไฟล์จริง เช่น ตาราง ฟอนต์ หรือตำแหน่งรูป ดูเนื้อหาจริงได้จากปุ่มดาวน์โหลด</div>
+    <div id="dpv-body" class="dpv-body"><p class="muted dpv-msg">กำลังเปิดตัวอย่าง...</p></div>
+  </div>
+</div>
+<style>
+  .dpv{position:fixed;inset:0;z-index:9000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+  .dpv[hidden]{display:none}
+  .dpv-box{background:#fff;border-radius:16px;width:min(980px,100%);height:min(92vh,100%);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+  .dpv-bar{display:flex;gap:8px;align-items:center;padding:12px 14px;background:linear-gradient(135deg,#eef2ff,#f5f3ff)}
+  .dpv-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+  .dpv-note{font-size:12.5px;color:#9a3412;background:#fff7ed;padding:6px 14px}
+  .dpv-body{flex:1;overflow:auto;background:#e2e8f0;padding:12px}
+  .dpv-msg{text-align:center;margin-top:40px}
+  .dpv-body .docx-wrapper{background:transparent!important;padding:0!important}
+  .dpv-body .docx-wrapper>section.docx{margin:0 auto 12px!important;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+  @media (max-width:760px){.dpv{padding:0}.dpv-box{border-radius:0;height:100%}.dpv-body .docx-wrapper>section.docx{transform-origin:top left}}
+</style>
+<script>
+(function(){
+  var KEY='ddoc_docx_preview_warn', libs=null;
+  function load(src){ return new Promise(function(ok,bad){ var s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=bad; document.head.appendChild(s); }); }
+  function ensureLibs(){
+    if(window.docx && window.JSZip) return Promise.resolve();
+    if(!libs) libs = load('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js')
+      .then(function(){ return load('https://cdn.jsdelivr.net/npm/docx-preview@0.3.5/dist/docx-preview.min.js'); });
+    return libs;
+  }
+  function fitMobile(body){
+    var pages=body.querySelectorAll('.docx-wrapper>section.docx');
+    var w=body.clientWidth-24;
+    pages.forEach(function(pg){ var pw=pg.offsetWidth; if(pw>w){ var k=w/pw; pg.style.transform='scale('+k+')'; pg.style.marginBottom=(-(pg.offsetHeight*(1-k))+12)+'px'; } });
+  }
+  function open(url,name){
+    var box=document.getElementById('dpv'), body=document.getElementById('dpv-body');
+    document.getElementById('dpv-name').textContent=name||'ไฟล์แผน';
+    document.getElementById('dpv-dl').href=url;
+    body.innerHTML='<p class="muted dpv-msg">กำลังเปิดตัวอย่าง...</p>';
+    box.hidden=false; document.body.style.overflow='hidden';
+    Promise.all([ensureLibs(), fetch(url,{credentials:'same-origin'}).then(function(r){ if(!r.ok) throw 0; return r.blob(); })])
+      .then(function(res){ body.innerHTML=''; return window.docx.renderAsync(res[1], body, null, {inWrapper:true, ignoreLastRenderedPageBreak:true}); })
+      .then(function(){ fitMobile(body); })
+      .catch(function(){ body.innerHTML='<p class="muted dpv-msg">เปิดตัวอย่างไม่ได้ กดดาวน์โหลดไฟล์จริงด้านบนแทน</p>'; });
+  }
+  window.lpPreviewClose=function(){ document.getElementById('dpv').hidden=true; document.body.style.overflow=''; document.getElementById('dpv-body').innerHTML=''; };
+  window.lpPreview=function(url,name){
+    var seen=false; try{ seen=localStorage.getItem(KEY)==='1'; }catch(e){}
+    if(seen || typeof ntShow!=='function'){ open(url,name); return; }
+    ntShow({title:'ตัวอย่างอาจไม่ตรงกับไฟล์จริง',
+            msg:'ตัวอย่างบนเว็บอาจแสดงตาราง ฟอนต์ หรือตำแหน่งรูปไม่ตรงกับไฟล์จริง ถ้าต้องการดูเนื้อหาจริง กด "ดาวน์โหลดไฟล์จริง" ด้านบนของหน้าต่างตัวอย่าง',
+            ok:'ดูตัวอย่าง'},
+      function(){ try{ localStorage.setItem(KEY,'1'); }catch(e){} open(url,name); });
+  };
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape' && !document.getElementById('dpv').hidden) window.lpPreviewClose(); });
+  document.getElementById('dpv').addEventListener('click',function(e){ if(e.target.id==='dpv') window.lpPreviewClose(); });
+})();
+</script>

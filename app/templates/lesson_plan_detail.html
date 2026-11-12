@@ -37,8 +37,8 @@
       <div class="pf-unit">
         <div class="pf-uh">หน่วยที่ {{ g.grouper }}{% if g.list[0].unit_name %} {{ g.list[0].unit_name }}{% endif %}</div>
         {% for r in g.list %}
-        {% if r.file_blob %}<a class="pf-row" href="/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file" target="_blank" rel="noopener">
-          <svg class="icon"><use href="#ic-file"/></svg><b>แผนที่ {{ r.seq }}</b><span>{{ r.name or r.file_name }}</span></a>
+        {% if r.file_blob %}<div class="pf-line"><a class="pf-row" href="/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file" target="_blank" rel="noopener">
+          <svg class="icon"><use href="#ic-file"/></svg><b>แผนที่ {{ r.seq }}</b><span>{{ r.name or r.file_name }}</span></a>{% if (r.file_name or '').lower().endswith('.docx') %}<button type="button" class="btn sm gray pf-pv" onclick="lpPreview('/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file', this.dataset.n)" data-n="{{ r.file_name }}"><svg class="icon"><use href="#ic-eye"/></svg> ดูตัวอย่าง</button>{% endif %}</div>
         {% else %}<div class="pf-row muted"><b>แผนที่ {{ r.seq }}</b><span>{{ r.name or '-' }} (ไม่มีไฟล์)</span></div>{% endif %}
         {% endfor %}
       </div>
@@ -50,8 +50,8 @@
       <div class="pf-unit">
       {% for r in p.units_rows|sort(attribute='seq') %}
         {% set a = ns.n + 1 %}{% set ns.n = ns.n + (r.plan_count or 0) %}
-        {% if r.file_blob %}<a class="pf-row" href="/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file" target="_blank" rel="noopener">
-          <svg class="icon"><use href="#ic-file"/></svg><b>หน่วยที่ {{ r.seq }}</b><span>{{ r.name or r.file_name }}{% if r.plan_count %} (แผนที่ {{ a }} ถึง {{ ns.n }}){% endif %}</span></a>
+        {% if r.file_blob %}<div class="pf-line"><a class="pf-row" href="/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file" target="_blank" rel="noopener">
+          <svg class="icon"><use href="#ic-file"/></svg><b>หน่วยที่ {{ r.seq }}</b><span>{{ r.name or r.file_name }}{% if r.plan_count %} (แผนที่ {{ a }} ถึง {{ ns.n }}){% endif %}</span></a>{% if (r.file_name or '').lower().endswith('.docx') %}<button type="button" class="btn sm gray pf-pv" onclick="lpPreview('/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file', this.dataset.n)" data-n="{{ r.file_name }}"><svg class="icon"><use href="#ic-eye"/></svg> ดูตัวอย่าง</button>{% endif %}</div>
         {% else %}<div class="pf-row muted"><b>หน่วยที่ {{ r.seq }}</b><span>{{ r.name or '-' }} (ไม่มีไฟล์)</span></div>{% endif %}
       {% endfor %}
       </div>
@@ -64,6 +64,9 @@
         a.pf-row:hover{background:#eef2ff}
         .pf-row b{white-space:nowrap;flex:none}
         .pf-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .pf-line{display:flex;align-items:center;gap:6px}
+        .pf-line .pf-row{flex:1;min-width:0}
+        .pf-pv{flex:none;font-size:12px;padding:4px 10px}
       </style>
     {% endif %}
     {% if (p.mode == 'plan' and p.units_rows) or (p.mode != 'plan' and p.units_rows|length > 1) %}
@@ -75,6 +78,7 @@
       {% else %}
       <p class="muted">ไฟล์ Word เปิดในเบราว์เซอร์ไม่ได้ - กดเปิด/ดาวน์โหลด</p>
       <a class="btn" href="/academic/lesson-plans/{{ p.id }}/file" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์แผน</a>
+      {% if (p.file_name or '').lower().endswith('.docx') %}<button type="button" class="btn gray" onclick="lpPreview('/academic/lesson-plans/{{ p.id }}/file', this.dataset.n)" data-n="{{ p.file_name }}"><svg class="icon"><use href="#ic-eye"/></svg> ดูตัวอย่าง</button>{% endif %}
       {% endif %}
     {% elif p.link %}<a class="btn" href="{{ p.link }}" target="_blank" rel="noopener">เปิดลิงก์แผน ↗</a>
     {% else %}<p class="muted">ไม่มีไฟล์แนบ</p>{% endif %}
@@ -192,4 +196,5 @@
   initHint('ddoc_planhint_reviewer','hintReviewer');
   initHint('ddoc_planhint_director','hintDirector');
 </script>
+{% include "_docx_preview.html" %}
 {% endblock %}
