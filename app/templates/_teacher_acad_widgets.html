@@ -33,6 +33,19 @@
 .ta-date b{display:block;font-size:19px;padding:2px 0 3px;color:#0f172a}
 .ta-ev .ta-body small{display:block}
 .ta-rel{font-size:11.5px;font-weight:700;color:#c2410c;background:#fff7ed;border-radius:999px;padding:3px 9px}
+.tc-nav{flex:none;width:36px;height:36px;border:0;border-radius:11px;background:#f1f5f9;color:#4338ca;font-size:19px;font-weight:700;cursor:pointer}
+.tc-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;text-align:center}
+.tc-grid b{font-size:12px;color:#94a3b8;padding:2px 0}
+.tc-grid span{aspect-ratio:1/.8;display:flex;align-items:center;justify-content:center;border-radius:11px;font-size:14px;font-weight:600;color:#334155;background:#f8fafc}
+.tc-grid span:empty{background:none}.tc-grid span.we{color:#94a3b8;background:#f1f5f9}
+.tc-grid span.k-holiday{background:linear-gradient(145deg,#fda4af,#e11d48);color:#fff;box-shadow:0 4px 10px rgba(225,29,72,.3)}
+.tc-grid span.k-open{background:linear-gradient(145deg,#86efac,#16a34a);color:#fff;box-shadow:0 4px 10px rgba(22,163,74,.3)}
+.tc-grid span.k-close{background:linear-gradient(145deg,#a5b4fc,#4f46e5);color:#fff;box-shadow:0 4px 10px rgba(79,70,229,.3)}
+.tc-grid span.td{outline:2px solid #f59e0b;outline-offset:1px;font-weight:800}
+.tc-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:#64748b;margin:10px 0 6px}.tc-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.tc-ev{display:flex;gap:10px;align-items:center;padding:6px 0;font-size:13.5px;border-top:1px solid #f1f5f9}
+.tc-ev b{flex:none;width:30px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px}
+.tc-ev.k-holiday b{background:#e11d48}.tc-ev.k-open b{background:#16a34a}.tc-ev.k-close b{background:#4f46e5}
 @media(max-width:480px){.ta-stats b{font-size:20px}.ta-lesson .ta-slot{min-width:48px}}
 </style>
 
@@ -66,11 +79,36 @@
 
 <section class="ta-card">
   <div class="ta-head"><span class="ta-3d" style="--a1:#fb923c;--a2:#e11d48;--sh:rgba(225,29,72,.3);"><svg class="icon"><use href="#ic-calendar"/></svg></span>
-    <div class="ta-title">ปฏิทินโรงเรียน<small>7 วันข้างหน้า</small></div>
-    <a class="btn gray sm" href="/academic/calendar">ปฏิทินทั้งปี →</a></div>
-  {% for e in ta.events %}
-  {% set col = {'holiday':('#fb7185','#e11d48'),'open':('#4ade80','#16a34a'),'close':('#818cf8','#4f46e5')}[e.kind] %}
-  <div class="ta-ev"><span class="ta-date" style="--a1:{{ col[0] }};--a2:{{ col[1] }};"><small>{{ e.mon }}</small><b>{{ e.day }}</b></span>
-    <span class="ta-body"><b>{{ e.name }}</b><small>วัน{{ e.wd }}</small></span>{% if e.rel %}<span class="ta-rel">{{ e.rel }}</span>{% endif %}</div>
-  {% else %}<p class="ta-empty">ไม่มีวันหยุดหรือกิจกรรมใน 7 วันนี้</p>{% endfor %}
+    <div class="ta-title">ปฏิทินโรงเรียน<small id="tcMonth"></small></div>
+    <button type="button" class="tc-nav" id="tcPrev" aria-label="เดือนก่อน">‹</button><button type="button" class="tc-nav" id="tcNext" aria-label="เดือนถัดไป">›</button></div>
+  <div class="tc-grid" id="tcGrid"></div>
+  <div class="tc-legend"><span><i style="background:#fb7185"></i>วันหยุด</span><span><i style="background:#22c55e"></i>เปิดภาคเรียน</span><span><i style="background:#6366f1"></i>ปิดภาคเรียน</span></div>
+  <div id="tcList"></div>
+  <a class="btn gray sm" href="/academic/calendar" style="margin-top:10px;">ปฏิทินทั้งปี →</a>
+  <script type="application/json" id="tcData">{{ ta.cal|tojson }}</script>
+  <script>
+  (function(){
+    var ev={};try{JSON.parse(document.getElementById('tcData').textContent).forEach(function(e){(ev[e.d]=ev[e.d]||[]).push(e);});}catch(e){}
+    var MN=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+    var t=new Date(),y=t.getFullYear(),m=t.getMonth();
+    var pad=function(n){return(n<10?'0':'')+n;},iso=function(Y,M,D){return Y+'-'+pad(M+1)+'-'+pad(D);},today=iso(y,m,t.getDate());
+    function draw(){
+      document.getElementById('tcMonth').textContent=MN[m]+' '+(y+543);
+      var g=document.getElementById('tcGrid');g.replaceChildren();
+      ['จ','อ','พ','พฤ','ศ','ส','อา'].forEach(function(h){var e=document.createElement('b');e.textContent=h;g.append(e);});
+      var first=(new Date(y,m,1).getDay()+6)%7,n=new Date(y,m+1,0).getDate(),list=[];
+      for(var i=0;i<first;i++)g.append(document.createElement('span'));
+      for(var d=1;d<=n;d++){var k=iso(y,m,d),c=document.createElement('span'),wd=(first+d-1)%7;c.textContent=d;
+        if(wd>=5)c.className='we';var es=ev[k];
+        if(es){c.classList.add('k-'+es[0].kind);c.title=es.map(function(e){return e.name;}).join(', ');es.forEach(function(e){list.push([d,e]);});}
+        if(k===today)c.classList.add('td');g.append(c);}
+      var L=document.getElementById('tcList');L.replaceChildren();
+      if(!list.length){var p=document.createElement('p');p.className='ta-empty';p.textContent='เดือนนี้ไม่มีวันหยุดหรือวันเปิดปิดภาคเรียน';L.append(p);}
+      list.forEach(function(x){var r=document.createElement('div');r.className='tc-ev k-'+x[1].kind;var b=document.createElement('b');b.textContent=x[0];var s=document.createElement('span');s.textContent=x[1].name;r.append(b,s);L.append(r);});
+    }
+    document.getElementById('tcPrev').onclick=function(){m--;if(m<0){m=11;y--;}draw();};
+    document.getElementById('tcNext').onclick=function(){m++;if(m>11){m=0;y++;}draw();};
+    draw();
+  })();
+  </script>
 </section>

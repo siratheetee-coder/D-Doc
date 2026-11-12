@@ -55,6 +55,28 @@ def summary(db, sc, year, term):
     return dict(total=total, full=full, none=none, doing=total - full - none, pct=pct)
 
 
+def year_events(db, year):
+    """วันหยุด + วันเปิด/ปิดภาคเรียน ทั้งปีการศึกษา (ใช้วาดปฏิทินรายเดือน)"""
+    from app.models import AcadHoliday, AcadYearSetting
+    ev = []
+    for h in db.query(AcadHoliday).filter(AcadHoliday.year.in_([year, year - 1, year + 1])).all():
+        if not h.month or not h.day:
+            continue
+        try:
+            d = date(h.year - 543 + (1 if h.month <= 4 else 0), h.month, h.day)
+        except ValueError:
+            continue
+        ev.append(dict(d=d.isoformat(), name=h.name or "วันหยุด", kind="holiday"))
+    for ys in db.query(AcadYearSetting).filter(AcadYearSetting.year.in_([year, year - 1])).all():
+        for col, label, kind in (("t1_start", "เปิดภาคเรียนที่ 1", "open"), ("t1_end", "ปิดภาคเรียนที่ 1", "close"),
+                                 ("t2_start", "เปิดภาคเรียนที่ 2", "open"), ("t2_end", "ปิดภาคเรียนที่ 2", "close")):
+            v = getattr(ys, col)
+            if v:
+                ev.append(dict(d=v.date().isoformat(), name=label, kind=kind))
+    ev.sort(key=lambda e: e["d"])
+    return ev
+
+
 def week_events(db, year, today, days=7):
     """วันหยุด + วันเปิด/ปิดภาคเรียน ใน N วันข้างหน้า"""
     from app.models import AcadHoliday, AcadYearSetting
@@ -88,7 +110,7 @@ def build(db, pid):
     from app.thai_utils import current_term
     today = date.today()
     out = dict(today_label=f"วัน{TH_WD[today.weekday()]}ที่ {today.day} {TH_MS[today.month]}",
-               lessons=[], sum=None, events=[], homeroom=False)
+               lessons=[], sum=None, events=[], cal=[], homeroom=False)
     try:
         sc = _Scope(int(pid), db)
         year = _acad_year(db)
@@ -97,6 +119,7 @@ def build(db, pid):
         if sc.teach_pairs:
             out["sum"] = summary(db, sc, year, current_term())
         out["events"] = week_events(db, year, today)
+        out["cal"] = year_events(db, year)
     except Exception:
         import logging
         logging.getLogger(__name__).exception("teacher_home_acad")
