@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% from "_dmy.html" import dmy_script %}
-{% block title %}สมุดพกอนุบาล - {{ s.name }}{{ dmy_script() }}
-{% endblock %}
+{% block title %}สมุดพกอนุบาล - {{ s.name }}{% endblock %}
 {% block content %}
 <style>
   .ks-sec { margin:18px 0 0; }
@@ -138,4 +137,5 @@
     if (b) { b.setAttribute('form', b.closest('form').id || 'ksForm'); document.body.appendChild(b); }
   })();
 </script>
+{{ dmy_script() }}
 {% endblock %}

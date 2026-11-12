@@ -35,10 +35,10 @@
   <p class="muted" style="font-size:13px; margin:0 0 10px;">ใส่วันเปิด-ปิดของแต่ละภาค (วว/ดด/ปปปป พ.ศ.) ระบบจะตัดวันปิดภาคเรียนออกให้อัตโนมัติ</p>
   <form data-school-calendar-form method="post" action="{{ calendar_base }}/terms" class="row" style="align-items:flex-end;">
     <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="return_to" value="{{ return_to }}">
-    <div><label>ภาคเรียนที่ 1 เปิด</label><input name="t1_start" placeholder="16/05/{{ year }}" value="{{ be_date(setting.t1_start) if setting and setting.t1_start else '' }}"></div>
-    <div><label>ปิด</label><input name="t1_end" placeholder="10/10/{{ year }}" value="{{ be_date(setting.t1_end) if setting and setting.t1_end else '' }}"></div>
-    <div><label>ภาคเรียนที่ 2 เปิด</label><input name="t2_start" placeholder="01/11/{{ year }}" value="{{ be_date(setting.t2_start) if setting and setting.t2_start else '' }}"></div>
-    <div><label>ปิด</label><input name="t2_end" placeholder="31/03/{{ year + 1 }}" value="{{ be_date(setting.t2_end) if setting and setting.t2_end else '' }}"></div>
+    <div><label>ภาคเรียนที่ 1 เปิด</label><input name="t1_start" data-date="1" inputmode="numeric" maxlength="10" placeholder="16/05/{{ year }}" value="{{ be_date(setting.t1_start) if setting and setting.t1_start else '' }}"></div>
+    <div><label>ปิด</label><input name="t1_end" data-date="1" inputmode="numeric" maxlength="10" placeholder="10/10/{{ year }}" value="{{ be_date(setting.t1_end) if setting and setting.t1_end else '' }}"></div>
+    <div><label>ภาคเรียนที่ 2 เปิด</label><input name="t2_start" data-date="1" inputmode="numeric" maxlength="10" placeholder="01/11/{{ year }}" value="{{ be_date(setting.t2_start) if setting and setting.t2_start else '' }}"></div>
+    <div><label>ปิด</label><input name="t2_end" data-date="1" inputmode="numeric" maxlength="10" placeholder="31/03/{{ year + 1 }}" value="{{ be_date(setting.t2_end) if setting and setting.t2_end else '' }}"></div>
     <div><button class="btn" type="submit">บันทึกภาคเรียน</button></div>
   </form>
 </div>
