@@ -115,7 +115,7 @@
         <td data-label="เรื่อง" style="min-width:170px;"><a href="/academic/lesson-plans/{{ p.id }}/units">{{ p.title }}</a>{% if p.note %}<div class="muted" style="font-size:12px;">{{ p.note }}</div>{% endif %}
           <div class="lp-acts2">
           <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}">ดู</a>
-          {% if p.file_blob %}<a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์</a>{% elif p.link %}<a class="btn sm gray" href="{{ p.link }}" target="_blank" rel="noopener">เปิดลิงก์ ↗</a>{% endif %}
+          {% if p.mode == 'plan' and p.units_rows %}<a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}#plan-files"><svg class="icon"><use href="#ic-file"/></svg> ไฟล์แผน ({{ p.units_rows|length }})</a>{% elif p.file_blob %}<a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์</a>{% elif p.link %}<a class="btn sm gray" href="{{ p.link }}" target="_blank" rel="noopener">เปิดลิงก์ ↗</a>{% endif %}
           <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/memo">บันทึกเสนอ</a>
           <a class="btn sm gray" href="/academic/lesson-plans/{{ p.id }}/units">{{ 'เพิ่มหน่วย/แผน' if p.status in ('draft','revise') and p.person_id == my_pid else 'ชุดแผน/บันทึกหลังสอน' }}</a>
           <form method="post" action="/academic/lesson-plans/{{ p.id }}/delete" style="margin:0; display:inline;"

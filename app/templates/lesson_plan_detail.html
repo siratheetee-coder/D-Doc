@@ -18,7 +18,9 @@
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <a class="btn green" href="/academic/lesson-plans/{{ p.id }}/memo">
       <svg class="icon"><use href="#ic-download"/></svg> บันทึกอนุมัติฉบับสมบูรณ์</a>
-    {% if p.file_blob %}<a class="btn" href="/academic/lesson-plans/{{ p.id }}/file" target="_blank" rel="noopener">
+    {% if p.mode == 'plan' and p.units_rows %}<a class="btn" href="#plan-files">
+      <svg class="icon"><use href="#ic-file"/></svg> ไฟล์แผน ({{ p.units_rows|length }})</a>
+    {% elif p.file_blob %}<a class="btn" href="/academic/lesson-plans/{{ p.id }}/file" target="_blank" rel="noopener">
       <svg class="icon"><use href="#ic-file"/></svg> เปิดไฟล์แผน</a>{% endif %}
   </div>
 </div>
@@ -28,8 +30,28 @@
 
 <div class="row" style="align-items:flex-start;">
   <div class="card" style="flex:1.3; min-width:320px;">
-    <h2 style="margin-top:0;">ไฟล์แผนการสอน</h2>
-    {% if p.file_blob %}
+    <h2 style="margin-top:0;" id="plan-files">ไฟล์แผนการสอน</h2>
+    {% if p.mode == 'plan' and p.units_rows %}
+      <p class="muted" style="font-size:13px; margin:0 0 8px;">{{ p.units_rows|length }} แผน กดชื่อแผนเพื่อเปิดไฟล์</p>
+      {% for g in p.units_rows|sort(attribute='seq')|groupby('unit_no') %}
+      <div class="pf-unit">
+        <div class="pf-uh">หน่วยที่ {{ g.grouper }}{% if g.list[0].unit_name %} {{ g.list[0].unit_name }}{% endif %}</div>
+        {% for r in g.list %}
+        {% if r.file_blob %}<a class="pf-row" href="/academic/lesson-plans/{{ p.id }}/units/{{ r.id }}/file" target="_blank" rel="noopener">
+          <svg class="icon"><use href="#ic-file"/></svg><b>แผนที่ {{ r.seq }}</b><span>{{ r.name or r.file_name }}</span></a>
+        {% else %}<div class="pf-row muted"><b>แผนที่ {{ r.seq }}</b><span>{{ r.name or '-' }} (ไม่มีไฟล์)</span></div>{% endif %}
+        {% endfor %}
+      </div>
+      {% endfor %}
+      <style>
+        .pf-unit{background:#f8fafc;border-radius:12px;padding:10px 12px;margin-bottom:8px}
+        .pf-uh{font-weight:700;font-size:13.5px;color:#334155;margin-bottom:4px}
+        .pf-row{display:flex;gap:8px;align-items:center;padding:6px 8px;border-radius:8px;text-decoration:none;font-size:13.5px}
+        a.pf-row:hover{background:#eef2ff}
+        .pf-row b{white-space:nowrap;flex:none}
+        .pf-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      </style>
+    {% elif p.file_blob %}
       {% if is_pdf %}
       <iframe src="/academic/lesson-plans/{{ p.id }}/file" style="width:100%; height:560px; border:1px solid var(--border); border-radius:10px;"></iframe>
       {% elif is_img %}
@@ -62,15 +84,15 @@
         <svg class="icon"><use href="#ic-download"/></svg> บันทึกข้อความเสนอ ผอ.</a>
       <span class="muted" style="font-size:12.5px;">ระบบออกให้พร้อมตารางหน่วยและลายเซ็นผู้ที่ลงนามแล้ว</span>
     </p>
-    {% if (is_reviewer or is_director) and p.status != 'approved' %}
+    {% if (is_reviewer or is_director) and p.status != 'approved' and p.mode != 'plan' %}
     <hr style="margin:14px 0; border:none; border-top:1px dashed var(--border);">
-    <b style="font-size:14px;">อัปโหลดไฟล์ที่เซ็นแล้ว</b>
-    <p class="muted" style="font-size:12.5px; margin:4px 0 8px;">ดาวน์โหลดไฟล์ไปเซ็นในโปรแกรมของคุณ (Word/PDF) แล้วอัปโหลดกลับมาทับไฟล์เดิม จากนั้นจึงกด{{ 'อนุมัติ' if is_director and p.status=='director' else 'ผ่าน/ตรวจ' }}</p>
+    <div style="font-size:13px; color:#475569;">หากคุณมีไฟล์แผนที่เซ็นด้วยตัวเอง</div>
+    <p class="muted" style="font-size:12.5px; margin:2px 0 8px;">ไม่บังคับ ระบบแปะลายเซ็นบนบันทึกเสนอ ผอ. ให้อยู่แล้ว ถ้าเซ็นในไฟล์ (Word/PDF) เอง อัปโหลดทับไฟล์เดิมได้ที่นี่ ก่อนกด{{ 'อนุมัติ' if is_director and p.status=='director' else 'ผ่าน/ตรวจ' }}</p>
     <form method="post" action="/academic/lesson-plans/{{ p.id }}/reupload" enctype="multipart/form-data"
           style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
       <input name="file" type="file" accept=".docx,.pdf" required
              style="padding:7px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; flex:1; min-width:180px;">
-      <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดไฟล์ที่เซ็นแล้ว</button>
+      <button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-upload"/></svg> อัปโหลดทับไฟล์เดิม</button>
     </form>
     {% endif %}
   </div>
